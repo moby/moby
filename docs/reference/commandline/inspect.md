@@ -28,7 +28,9 @@ Options:
       --type         Return JSON for specified type
 ```
 
-By default, this will render all results in a JSON array. If the container and
+## Description
+
+By default, `docker inspect` will render all results in a JSON array. If the container and
 image have the same name, this will return container JSON for unspecified type.
 If a format is specified, the given template will be executed for each result.
 
@@ -37,46 +39,53 @@ describes all the details of the format.
 
 ## Examples
 
-**Get an instance's IP address:**
+### Get an instance's IP address
 
 For the most part, you can pick out any field from the JSON in a fairly
 straightforward manner.
 
-    {% raw %}
-    $ docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $INSTANCE_ID
-    {% endraw %}
+```bash
+{% raw %}
+$ docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $INSTANCE_ID
+{% endraw %}
+```
 
-**Get an instance's MAC address:**
+### Get an instance's MAC address
 
-For the most part, you can pick out any field from the JSON in a fairly
-straightforward manner.
+```bash
+{% raw %}
+$ docker inspect --format='{{range .NetworkSettings.Networks}}{{.MacAddress}}{{end}}' $INSTANCE_ID
+{% endraw %}
+```
 
-    {% raw %}
-    $ docker inspect --format='{{range .NetworkSettings.Networks}}{{.MacAddress}}{{end}}' $INSTANCE_ID
-    {% endraw %}
+### Get an instance's log path
 
-**Get an instance's log path:**
+```bash
+{% raw %}
+$ docker inspect --format='{{.LogPath}}' $INSTANCE_ID
+{% endraw %}
+```
 
-    {% raw %}
-    $ docker inspect --format='{{.LogPath}}' $INSTANCE_ID
-    {% endraw %}
+### Get an instance's image name
 
-**Get a Task's image name:**
+```bash
+{% raw %}
+$ docker inspect --format='{{.Container.Spec.Image}}' $INSTANCE_ID
+{% endraw %}
+```
 
-    {% raw %}
-    $ docker inspect --format='{{.Container.Spec.Image}}' $INSTANCE_ID
-    {% endraw %}
+### List all port bindings
 
-**List all port bindings:**
-
-One can loop over arrays and maps in the results to produce simple text
+You can loop over arrays and maps in the results to produce simple text
 output:
 
-    {% raw %}
-    $ docker inspect --format='{{range $p, $conf := .NetworkSettings.Ports}} {{$p}} -> {{(index $conf 0).HostPort}} {{end}}' $INSTANCE_ID
-    {% endraw %}
+```bash
+{% raw %}
+$ docker inspect --format='{{range $p, $conf := .NetworkSettings.Ports}} {{$p}} -> {{(index $conf 0).HostPort}} {{end}}' $INSTANCE_ID
+{% endraw %}
+```
 
-**Find a specific port mapping:**
+### Find a specific port mapping
 
 The `.Field` syntax doesn't work when the field name begins with a
 number, but the template language's `index` function does. The
@@ -86,17 +95,21 @@ numeric public port, you use `index` to find the specific port map, and
 then `index` 0 contains the first object inside of that. Then we ask for
 the `HostPort` field to get the public address.
 
-    {% raw %}
-    $ docker inspect --format='{{(index (index .NetworkSettings.Ports "8787/tcp") 0).HostPort}}' $INSTANCE_ID
-    {% endraw %}
+```bash
+{% raw %}
+$ docker inspect --format='{{(index (index .NetworkSettings.Ports "8787/tcp") 0).HostPort}}' $INSTANCE_ID
+{% endraw %}
+```
 
-**Get a subsection in JSON format:**
+### Get a subsection in JSON format
 
 If you request a field which is itself a structure containing other
 fields, by default you get a Go-style dump of the inner values.
 Docker adds a template function, `json`, which can be applied to get
 results in JSON format.
 
-    {% raw %}
-    $ docker inspect --format='{{json .Config}}' $INSTANCE_ID
-    {% endraw %}
+```bash
+{% raw %}
+$ docker inspect --format='{{json .Config}}' $INSTANCE_ID
+{% endraw %}
+```

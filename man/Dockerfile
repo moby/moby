@@ -1,9 +1,8 @@
-FROM    alpine:3.4
+FROM    golang:1.7.5-alpine
 
-RUN     apk add -U git go bash curl gcc musl-dev make
+RUN     apk add -U git bash curl gcc musl-dev make
 
 RUN     mkdir -p /go/src /go/bin /go/pkg
-ENV     GOPATH=/go
 RUN     export GLIDE=v0.11.1; \
         export TARGET=/go/src/github.com/Masterminds; \
         mkdir -p ${TARGET} && \

@@ -15,8 +15,8 @@ import (
 var (
 	// errPollerClosed is returned when the poller is closed
 	errPollerClosed = errors.New("poller is closed")
-	// errNoSuchPoller is returned when trying to remove a watch that doesn't exist
-	errNoSuchWatch = errors.New("poller does not exist")
+	// errNoSuchWatch is returned when trying to remove a watch that doesn't exist
+	errNoSuchWatch = errors.New("watch does not exist")
 )
 
 // watchWaitTime is the time to wait between file poll loops

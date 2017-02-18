@@ -9,10 +9,10 @@ import (
 
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/context"
-	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/libtrust"
+	"github.com/opencontainers/go-digest"
 )
 
 type diffID digest.Digest
@@ -240,8 +240,13 @@ func (mb *configManifestBuilder) emptyTar(ctx context.Context) (digest.Digest, e
 
 // AppendReference adds a reference to the current ManifestBuilder
 func (mb *configManifestBuilder) AppendReference(d distribution.Describable) error {
-	// todo: verification here?
-	mb.descriptors = append(mb.descriptors, d.Descriptor())
+	descriptor := d.Descriptor()
+
+	if err := descriptor.Digest.Validate(); err != nil {
+		return err
+	}
+
+	mb.descriptors = append(mb.descriptors, descriptor)
 	return nil
 }
 

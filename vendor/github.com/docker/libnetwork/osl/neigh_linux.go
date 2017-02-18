@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
 
@@ -80,6 +81,7 @@ func (n *networkNamespace) DeleteNeighbor(dstIP net.IP, dstMac net.HardwareAddr,
 	for i, nh := range n.neighbors {
 		if nh.dstIP.Equal(dstIP) && bytes.Equal(nh.dstMac, dstMac) {
 			n.neighbors = append(n.neighbors[:i], n.neighbors[i+1:]...)
+			break
 		}
 	}
 	n.Unlock()
@@ -95,6 +97,7 @@ func (n *networkNamespace) AddNeighbor(dstIP net.IP, dstMac net.HardwareAddr, op
 
 	nh := n.findNeighbor(dstIP, dstMac)
 	if nh != nil {
+		logrus.Debugf("Neighbor entry already present for IP %v, mac %v", dstIP, dstMac)
 		// If it exists silently return
 		return nil
 	}

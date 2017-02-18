@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"io"
 
-	"golang.org/x/net/context"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli"
@@ -13,8 +11,8 @@ import (
 	apiclient "github.com/docker/docker/client"
 	options "github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/promise"
-	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 type execOptions struct {
@@ -30,7 +28,7 @@ type execOptions struct {
 func newExecOptions() *execOptions {
 	var values []string
 	return &execOptions{
-		env: options.NewListOptsRef(&values, runconfigopts.ValidateEnv),
+		env: options.NewListOptsRef(&values, options.ValidateEnv),
 	}
 }
 
@@ -88,7 +86,7 @@ func runExec(dockerCli *command.DockerCli, opts *execOptions, container string, 
 
 	execID := response.ID
 	if execID == "" {
-		fmt.Fprintf(dockerCli.Out(), "exec ID empty")
+		fmt.Fprintln(dockerCli.Out(), "exec ID empty")
 		return nil
 	}
 
@@ -143,7 +141,7 @@ func runExec(dockerCli *command.DockerCli, opts *execOptions, container string, 
 
 	if execConfig.Tty && dockerCli.In().IsTerminal() {
 		if err := MonitorTtySize(ctx, dockerCli, execID, true); err != nil {
-			fmt.Fprintf(dockerCli.Err(), "Error monitoring TTY size: %s\n", err)
+			fmt.Fprintln(dockerCli.Err(), "Error monitoring TTY size:", err)
 		}
 	}
 
@@ -170,7 +168,7 @@ func getExecExitCode(ctx context.Context, client apiclient.ContainerAPIClient, e
 	resp, err := client.ContainerExecInspect(ctx, execID)
 	if err != nil {
 		// If we can't connect, then the daemon probably died.
-		if err != apiclient.ErrConnectionFailed {
+		if !apiclient.IsErrConnectionFailed(err) {
 			return false, -1, err
 		}
 		return false, -1, nil

@@ -4,7 +4,8 @@ import (
 	"net/http"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/request"
 	"github.com/go-check/check"
 )
 
@@ -17,7 +18,7 @@ func (s *DockerSuite) TestAuthAPI(c *check.C) {
 	}
 
 	expected := "Get https://registry-1.docker.io/v2/: unauthorized: incorrect username or password"
-	status, body, err := sockRequest("POST", "/auth", config)
+	status, body, err := request.SockRequest("POST", "/auth", config, daemonHost())
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusUnauthorized)
 	msg := getErrorMessage(c, body)

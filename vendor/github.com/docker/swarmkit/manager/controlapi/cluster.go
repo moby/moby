@@ -8,7 +8,7 @@ import (
 	"github.com/docker/swarmkit/ca"
 	"github.com/docker/swarmkit/manager/encryption"
 	"github.com/docker/swarmkit/manager/state/store"
-	"github.com/docker/swarmkit/protobuf/ptypes"
+	gogotypes "github.com/gogo/protobuf/types"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -27,7 +27,7 @@ func validateClusterSpec(spec *api.ClusterSpec) error {
 
 	// Validate that expiry time being provided is valid, and over our minimum
 	if spec.CAConfig.NodeCertExpiry != nil {
-		expiry, err := ptypes.Duration(spec.CAConfig.NodeCertExpiry)
+		expiry, err := gogotypes.DurationFromProto(spec.CAConfig.NodeCertExpiry)
 		if err != nil {
 			return grpc.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
 		}
@@ -48,7 +48,7 @@ func validateClusterSpec(spec *api.ClusterSpec) error {
 
 	// Validate that heartbeatPeriod time being provided is valid
 	if spec.Dispatcher.HeartbeatPeriod != nil {
-		heartbeatPeriod, err := ptypes.Duration(spec.Dispatcher.HeartbeatPeriod)
+		heartbeatPeriod, err := gogotypes.DurationFromProto(spec.Dispatcher.HeartbeatPeriod)
 		if err != nil {
 			return grpc.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
 		}
@@ -101,7 +101,8 @@ func (s *Server) UpdateCluster(ctx context.Context, request *api.UpdateClusterRe
 	err := s.store.Update(func(tx store.Tx) error {
 		cluster = store.GetCluster(tx, request.ClusterID)
 		if cluster == nil {
-			return nil
+			return grpc.Errorf(codes.NotFound, "cluster %s not found", request.ClusterID)
+
 		}
 		cluster.Meta.Version = *request.ClusterVersion
 		cluster.Spec = *request.Spec.Copy()
@@ -144,9 +145,6 @@ func (s *Server) UpdateCluster(ctx context.Context, request *api.UpdateClusterRe
 	})
 	if err != nil {
 		return nil, err
-	}
-	if cluster == nil {
-		return nil, grpc.Errorf(codes.NotFound, "cluster %s not found", request.ClusterID)
 	}
 
 	redactedClusters := redactClusters([]*api.Cluster{cluster})
@@ -255,7 +253,7 @@ func expireBlacklistedCerts(cluster *api.Cluster) {
 			continue
 		}
 
-		expiry, err := ptypes.Timestamp(blacklistedCert.Expiry)
+		expiry, err := gogotypes.TimestampFromProto(blacklistedCert.Expiry)
 		if err == nil && nowMinusGrace.After(expiry) {
 			delete(cluster.BlacklistedCertificates, cn)
 		}

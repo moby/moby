@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-// PluginsListResponse contains the response for the remote API
+// PluginsListResponse contains the response for the Engine API
 type PluginsListResponse []*Plugin
 
 const (

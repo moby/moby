@@ -12,9 +12,9 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/cli/debug"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/utils"
-	"github.com/docker/docker/utils/templates"
+	"github.com/docker/docker/pkg/templates"
 	"github.com/docker/go-units"
 	"github.com/spf13/cobra"
 )
@@ -103,7 +103,7 @@ func prettyPrintInfo(dockerCli *command.DockerCli, info types.Info) error {
 			fmt.Fprintf(dockerCli.Out(), " Error: %v\n", info.Swarm.Error)
 		}
 		fmt.Fprintf(dockerCli.Out(), " Is Manager: %v\n", info.Swarm.ControlAvailable)
-		if info.Swarm.ControlAvailable {
+		if info.Swarm.ControlAvailable && info.Swarm.Error == "" && info.Swarm.LocalNodeState != swarm.LocalNodeStateError {
 			fmt.Fprintf(dockerCli.Out(), " ClusterID: %s\n", info.Swarm.Cluster.ID)
 			fmt.Fprintf(dockerCli.Out(), " Managers: %d\n", info.Swarm.Managers)
 			fmt.Fprintf(dockerCli.Out(), " Nodes: %d\n", info.Swarm.Nodes)
@@ -172,16 +172,21 @@ func prettyPrintInfo(dockerCli *command.DockerCli, info types.Info) error {
 			fmt.Fprintf(dockerCli.Out(), "\n")
 		}
 		if len(info.SecurityOptions) != 0 {
+			kvs, err := types.DecodeSecurityOptions(info.SecurityOptions)
+			if err != nil {
+				return err
+			}
 			fmt.Fprintf(dockerCli.Out(), "Security Options:\n")
-			for _, o := range info.SecurityOptions {
-				switch o.Key {
-				case "Name":
-					fmt.Fprintf(dockerCli.Out(), " %s\n", o.Value)
-				case "Profile":
-					if o.Value != "default" {
-						fmt.Fprintf(dockerCli.Err(), "  WARNING: You're not using the default seccomp profile\n")
+			for _, so := range kvs {
+				fmt.Fprintf(dockerCli.Out(), " %s\n", so.Name)
+				for _, o := range so.Options {
+					switch o.Key {
+					case "profile":
+						if o.Value != "default" {
+							fmt.Fprintf(dockerCli.Err(), "  WARNING: You're not using the default seccomp profile\n")
+						}
+						fmt.Fprintf(dockerCli.Out(), "  Profile: %s\n", o.Value)
 					}
-					fmt.Fprintf(dockerCli.Out(), "  %s: %s\n", o.Key, o.Value)
 				}
 			}
 		}
@@ -201,7 +206,7 @@ func prettyPrintInfo(dockerCli *command.DockerCli, info types.Info) error {
 	ioutils.FprintfIfNotEmpty(dockerCli.Out(), "Name: %s\n", info.Name)
 	ioutils.FprintfIfNotEmpty(dockerCli.Out(), "ID: %s\n", info.ID)
 	fmt.Fprintf(dockerCli.Out(), "Docker Root Dir: %s\n", info.DockerRootDir)
-	fmt.Fprintf(dockerCli.Out(), "Debug Mode (client): %v\n", utils.IsDebugEnabled())
+	fmt.Fprintf(dockerCli.Out(), "Debug Mode (client): %v\n", debug.IsEnabled())
 	fmt.Fprintf(dockerCli.Out(), "Debug Mode (server): %v\n", info.Debug)
 
 	if info.Debug {
@@ -272,7 +277,7 @@ func prettyPrintInfo(dockerCli *command.DockerCli, info types.Info) error {
 		for _, label := range info.Labels {
 			stringSlice := strings.SplitN(label, "=", 2)
 			if len(stringSlice) > 1 {
-				// If there is a conflict we will throw out an warning
+				// If there is a conflict we will throw out a warning
 				if v, ok := labelMap[stringSlice[0]]; ok && v != stringSlice[1] {
 					fmt.Fprintln(dockerCli.Err(), "WARNING: labels with duplicate keys and conflicting values have been deprecated")
 					break

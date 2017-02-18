@@ -2,11 +2,11 @@ package main
 
 import (
 	"fmt"
-	"os/exec"
 	"strings"
 	"time"
 
-	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/integration-cli/checker"
+	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
 )
 
@@ -96,7 +96,7 @@ func (s *DockerSuite) TestStartRecordError(c *check.C) {
 func (s *DockerSuite) TestStartPausedContainer(c *check.C) {
 	// Windows does not support pausing containers
 	testRequires(c, IsPausable)
-	defer unpauseAllContainers()
+	defer unpauseAllContainers(c)
 
 	runSleepingContainer(c, "-d", "--name", "testing")
 
@@ -182,8 +182,13 @@ func (s *DockerSuite) TestStartAttachWithRename(c *check.C) {
 		dockerCmd(c, "rename", "before", "after")
 		dockerCmd(c, "stop", "--time=2", "after")
 	}()
-	_, stderr, _, _ := runCommandWithStdoutStderr(exec.Command(dockerBinary, "start", "-a", "before"))
-	c.Assert(stderr, checker.Not(checker.Contains), "No such container")
+	// FIXME(vdemeester) the intent is not clear and potentially racey
+	result := icmd.RunCommand(dockerBinary, "start", "-a", "before")
+	result.Assert(c, icmd.Expected{
+		ExitCode: 137,
+		Error:    "exit status 137",
+	})
+	c.Assert(result.Stderr(), checker.Not(checker.Contains), "No such container")
 }
 
 func (s *DockerSuite) TestStartReturnCorrectExitCode(c *check.C) {

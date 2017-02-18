@@ -69,7 +69,10 @@ DEFAULT_BUNDLES=(
 )
 
 VERSION=$(< ./VERSION)
-if command -v git &> /dev/null && [ -d .git ] && git rev-parse &> /dev/null; then
+! BUILDTIME=$(date --rfc-3339 ns 2> /dev/null | sed -e 's/ /T/')
+if [ "$DOCKER_GITCOMMIT" ]; then
+	GITCOMMIT="$DOCKER_GITCOMMIT"
+elif command -v git &> /dev/null && [ -d .git ] && git rev-parse &> /dev/null; then
 	GITCOMMIT=$(git rev-parse --short HEAD)
 	if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
 		GITCOMMIT="$GITCOMMIT-unsupported"
@@ -82,13 +85,6 @@ if command -v git &> /dev/null && [ -d .git ] && git rev-parse &> /dev/null; the
 		git status --porcelain --untracked-files=no
 		echo "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 	fi
-	! BUILDTIME=$(date --rfc-3339 ns 2> /dev/null | sed -e 's/ /T/') &> /dev/null
-	if [ -z $BUILDTIME ]; then
-		# If using bash 3.1 which doesn't support --rfc-3389, eg Windows CI
-		BUILDTIME=$(date -u)
-	fi
-elif [ "$DOCKER_GITCOMMIT" ]; then
-	GITCOMMIT="$DOCKER_GITCOMMIT"
 else
 	echo >&2 'error: .git directory missing and DOCKER_GITCOMMIT not specified'
 	echo >&2 '  Please either build with the .git directory accessible, or specify the'
@@ -153,13 +149,13 @@ LDFLAGS_STATIC=''
 EXTLDFLAGS_STATIC='-static'
 # ORIG_BUILDFLAGS is necessary for the cross target which cannot always build
 # with options like -race.
-ORIG_BUILDFLAGS=( -tags "autogen netgo static_build sqlite_omit_load_extension $DOCKER_BUILDTAGS" -installsuffix netgo )
+ORIG_BUILDFLAGS=( -tags "autogen netgo static_build $DOCKER_BUILDTAGS" -installsuffix netgo )
 # see https://github.com/golang/go/issues/9369#issuecomment-69864440 for why -installsuffix is necessary here
 
 # When $DOCKER_INCREMENTAL_BINARY is set in the environment, enable incremental
 # builds by installing dependent packages to the GOPATH.
 REBUILD_FLAG="-a"
-if [ "$DOCKER_INCREMENTAL_BINARY" ]; then
+if [ "$DOCKER_INCREMENTAL_BINARY" == "1" ] || [ "$DOCKER_INCREMENTAL_BINARY" == "true" ]; then
 	REBUILD_FLAG="-i"
 fi
 ORIG_BUILDFLAGS+=( $REBUILD_FLAG )
@@ -188,14 +184,6 @@ if [ "$(uname -s)" = 'FreeBSD' ]; then
 	# "-extld clang" is a workaround for
 	# https://code.google.com/p/go/issues/detail?id=6845
 	LDFLAGS="$LDFLAGS -extld clang"
-fi
-
-# If sqlite3.h doesn't exist under /usr/include,
-# check /usr/local/include also just in case
-# (e.g. FreeBSD Ports installs it under the directory)
-if [ ! -e /usr/include/sqlite3.h ] && [ -e /usr/local/include/sqlite3.h ]; then
-	export CGO_CFLAGS='-I/usr/local/include'
-	export CGO_LDFLAGS='-L/usr/local/lib'
 fi
 
 HAVE_GO_TEST_COVER=
@@ -249,7 +237,7 @@ copy_binaries() {
 		if [ -x /usr/local/bin/docker-runc ]; then
 			echo "Copying nested executables into $dir"
 			for file in containerd containerd-shim containerd-ctr runc init proxy; do
-				cp `which "docker-$file"` "$dir/"
+				cp -f `which "docker-$file"` "$dir/"
 				if [ "$2" == "hash" ]; then
 					hash_files "$dir/docker-$file"
 				fi
@@ -263,7 +251,8 @@ install_binary() {
 	target="${DOCKER_MAKE_INSTALL_PREFIX:=/usr/local}/bin/"
 	if [ "$(go env GOOS)" == "linux" ]; then
 		echo "Installing $(basename $file) to ${target}"
-		cp -L "$file" "$target"
+		mkdir -p "$target"
+		cp -f -L "$file" "$target"
 	else
 		echo "Install is only supported on linux"
 		return 1

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"golang.org/x/net/context"
 )
 
@@ -31,7 +31,7 @@ func TestContainerDiff(t *testing.T) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
-			b, err := json.Marshal([]types.ContainerChange{
+			b, err := json.Marshal([]container.ContainerChangeResponseItem{
 				{
 					Kind: 0,
 					Path: "/path/1",

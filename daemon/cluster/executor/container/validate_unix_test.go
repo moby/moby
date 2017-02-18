@@ -3,5 +3,6 @@
 package container
 
 const (
-	testAbsPath = "/foo"
+	testAbsPath        = "/foo"
+	testAbsNonExistent = "/some-non-existing-host-path/"
 )

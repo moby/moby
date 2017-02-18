@@ -7,48 +7,12 @@ import (
 	"io"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/distribution/metadata"
-	"github.com/docker/docker/distribution/xfer"
-	"github.com/docker/docker/image"
-	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/progress"
-	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
-	"github.com/docker/libtrust"
 	"golang.org/x/net/context"
 )
-
-// ImagePushConfig stores push configuration.
-type ImagePushConfig struct {
-	// MetaHeaders store HTTP headers with metadata about the image
-	MetaHeaders map[string][]string
-	// AuthConfig holds authentication credentials for authenticating with
-	// the registry.
-	AuthConfig *types.AuthConfig
-	// ProgressOutput is the interface for showing the status of the push
-	// operation.
-	ProgressOutput progress.Output
-	// RegistryService is the registry service to use for TLS configuration
-	// and endpoint lookup.
-	RegistryService registry.Service
-	// ImageEventLogger notifies events for a given image
-	ImageEventLogger func(id, name, action string)
-	// MetadataStore is the storage backend for distribution-specific
-	// metadata.
-	MetadataStore metadata.Store
-	// LayerStore manages layers.
-	LayerStore layer.Store
-	// ImageStore manages images.
-	ImageStore image.Store
-	// ReferenceStore manages tags.
-	ReferenceStore reference.Store
-	// TrustKey is the private key for legacy signatures. This is typically
-	// an ephemeral key, since these signatures are no longer verified.
-	TrustKey libtrust.PrivateKey
-	// UploadManager dispatches uploads.
-	UploadManager *xfer.LayerUploadManager
-}
 
 // Pusher is an interface that abstracts pushing for different API versions.
 type Pusher interface {
@@ -100,16 +64,16 @@ func Push(ctx context.Context, ref reference.Named, imagePushConfig *ImagePushCo
 		return err
 	}
 
-	endpoints, err := imagePushConfig.RegistryService.LookupPushEndpoints(repoInfo.Hostname())
+	endpoints, err := imagePushConfig.RegistryService.LookupPushEndpoints(reference.Domain(repoInfo.Name))
 	if err != nil {
 		return err
 	}
 
-	progress.Messagef(imagePushConfig.ProgressOutput, "", "The push refers to a repository [%s]", repoInfo.FullName())
+	progress.Messagef(imagePushConfig.ProgressOutput, "", "The push refers to a repository [%s]", repoInfo.Name.Name())
 
-	associations := imagePushConfig.ReferenceStore.ReferencesByName(repoInfo)
+	associations := imagePushConfig.ReferenceStore.ReferencesByName(repoInfo.Name)
 	if len(associations) == 0 {
-		return fmt.Errorf("An image does not exist locally with the tag: %s", repoInfo.Name())
+		return fmt.Errorf("An image does not exist locally with the tag: %s", reference.FamiliarName(repoInfo.Name))
 	}
 
 	var (
@@ -127,6 +91,9 @@ func Push(ctx context.Context, ref reference.Named, imagePushConfig *ImagePushCo
 	)
 
 	for _, endpoint := range endpoints {
+		if imagePushConfig.RequireSchema2 && endpoint.Version == registry.APIVersion1 {
+			continue
+		}
 		if confirmedV2 && endpoint.Version == registry.APIVersion1 {
 			logrus.Debugf("Skipping v1 endpoint %s because v2 registry was detected", endpoint.URL)
 			continue
@@ -139,7 +106,7 @@ func Push(ctx context.Context, ref reference.Named, imagePushConfig *ImagePushCo
 			}
 		}
 
-		logrus.Debugf("Trying to push %s to %s %s", repoInfo.FullName(), endpoint.URL, endpoint.Version)
+		logrus.Debugf("Trying to push %s to %s %s", repoInfo.Name.Name(), endpoint.URL, endpoint.Version)
 
 		pusher, err := NewPusher(ref, endpoint, repoInfo, imagePushConfig)
 		if err != nil {
@@ -168,12 +135,12 @@ func Push(ctx context.Context, ref reference.Named, imagePushConfig *ImagePushCo
 			return err
 		}
 
-		imagePushConfig.ImageEventLogger(ref.String(), repoInfo.Name(), "push")
+		imagePushConfig.ImageEventLogger(reference.FamiliarString(ref), reference.FamiliarName(repoInfo.Name), "push")
 		return nil
 	}
 
 	if lastErr == nil {
-		lastErr = fmt.Errorf("no endpoints found for %s", repoInfo.FullName())
+		lastErr = fmt.Errorf("no endpoints found for %s", repoInfo.Name.Name())
 	}
 	return lastErr
 }

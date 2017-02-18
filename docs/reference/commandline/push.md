@@ -21,9 +21,11 @@ Usage:  docker push [OPTIONS] NAME[:TAG]
 Push an image or a repository to a registry
 
 Options:
-      --disable-content-trust   Skip image verification (default true)
+      --disable-content-trust   Skip image signing (default true)
       --help                    Print usage
 ```
+
+## Description
 
 Use `docker push` to share your images to the [Docker Hub](https://hub.docker.com)
 registry or to a self-hosted one.
@@ -36,9 +38,16 @@ running in a terminal, terminates the push operation.
 
 Registry credentials are managed by [docker login](login.md).
 
+### Concurrent uploads
+
+By default the Docker daemon will push five layers of an image at a time.
+If you are on a low bandwidth connection this may cause timeout issues and you may want to lower
+this via the `--max-concurrent-uploads` daemon option. See the
+[daemon documentation](dockerd.md) for more details.
+
 ## Examples
 
-### Pushing a new image to a registry
+### Push a new image to a registry
 
 First save the new image by finding the container ID (using [`docker ps`](ps.md))
 and then committing it to a new image name.  Note that only `a-z0-9-_.` are
@@ -55,6 +64,7 @@ registry:
 
 ```bash
 $ docker tag rhel-httpd registry-host:5000/myadmin/rhel-httpd
+
 $ docker push registry-host:5000/myadmin/rhel-httpd
 ```
 

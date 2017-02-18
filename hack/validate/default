@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Run default validation, exclude vendor because it's slow
 
@@ -14,3 +14,5 @@ export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 . $SCRIPTDIR/test-imports
 . $SCRIPTDIR/toml
 . $SCRIPTDIR/vet
+. $SCRIPTDIR/changelog-well-formed
+. $SCRIPTDIR/changelog-date-descending

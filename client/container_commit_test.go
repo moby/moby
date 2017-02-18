@@ -91,6 +91,6 @@ func TestContainerCommit(t *testing.T) {
 		t.Fatal(err)
 	}
 	if r.ID != "new_container_id" {
-		t.Fatalf("expected `container_id`, got %s", r.ID)
+		t.Fatalf("expected `new_container_id`, got %s", r.ID)
 	}
 }

@@ -12,6 +12,8 @@ import (
 	"github.com/cloudflare/cfssl/api"
 	"github.com/cloudflare/cfssl/signer"
 	"github.com/pkg/errors"
+	"golang.org/x/net/context"
+	"golang.org/x/net/context/ctxhttp"
 )
 
 // ErrNoExternalCAURLs is an error used it indicate that an ExternalCA is
@@ -65,7 +67,7 @@ func (eca *ExternalCA) UpdateURLs(urls ...string) {
 
 // Sign signs a new certificate by proxying the given certificate signing
 // request to an external CFSSL API server.
-func (eca *ExternalCA) Sign(req signer.SignRequest) (cert []byte, err error) {
+func (eca *ExternalCA) Sign(ctx context.Context, req signer.SignRequest) (cert []byte, err error) {
 	// Get the current HTTP client and list of URLs in a small critical
 	// section. We will use these to make certificate signing requests.
 	eca.mu.Lock()
@@ -85,7 +87,7 @@ func (eca *ExternalCA) Sign(req signer.SignRequest) (cert []byte, err error) {
 	// Try each configured proxy URL. Return after the first success. If
 	// all fail then the last error will be returned.
 	for _, url := range urls {
-		cert, err = makeExternalSignRequest(client, url, csrJSON)
+		cert, err = makeExternalSignRequest(ctx, client, url, csrJSON)
 		if err == nil {
 			return eca.rootCA.AppendFirstRootPEM(cert)
 		}
@@ -96,8 +98,8 @@ func (eca *ExternalCA) Sign(req signer.SignRequest) (cert []byte, err error) {
 	return nil, err
 }
 
-func makeExternalSignRequest(client *http.Client, url string, csrJSON []byte) (cert []byte, err error) {
-	resp, err := client.Post(url, "application/json", bytes.NewReader(csrJSON))
+func makeExternalSignRequest(ctx context.Context, client *http.Client, url string, csrJSON []byte) (cert []byte, err error) {
+	resp, err := ctxhttp.Post(ctx, client, url, "application/json", bytes.NewReader(csrJSON))
 	if err != nil {
 		return nil, recoverableErr{err: errors.Wrap(err, "unable to perform certificate signing request")}
 	}

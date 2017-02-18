@@ -916,6 +916,10 @@ func (d *driver) Type() string {
 	return networkType
 }
 
+func (d *driver) IsBuiltIn() bool {
+	return true
+}
+
 // DiscoverNew is a notification for a new discovery event, such as a new node joining a cluster
 func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) error {
 	return nil
@@ -993,7 +997,7 @@ func (c *networkConfiguration) Conflicts(o *networkConfiguration) error {
 		return fmt.Errorf("same configuration")
 	}
 
-	// Also empty, becasue only one network with empty name is allowed
+	// Also empty, because only one network with empty name is allowed
 	if c.BridgeName == o.BridgeName {
 		return fmt.Errorf("networks have same bridge name")
 	}

@@ -155,18 +155,18 @@ func (r *multiReadSeeker) Read(b []byte) (int, error) {
 		r.pos = &pos{0, 0}
 	}
 
-	bCap := int64(cap(b))
+	bLen := int64(len(b))
 	buf := bytes.NewBuffer(nil)
 	var rdr io.ReadSeeker
 
 	for _, rdr = range r.readers[r.pos.idx:] {
-		readBytes, err := io.CopyN(buf, rdr, bCap)
+		readBytes, err := io.CopyN(buf, rdr, bLen)
 		if err != nil && err != io.EOF {
 			return -1, err
 		}
-		bCap -= readBytes
+		bLen -= readBytes
 
-		if bCap == 0 {
+		if bLen == 0 {
 			break
 		}
 	}

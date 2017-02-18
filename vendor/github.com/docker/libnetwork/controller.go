@@ -79,6 +79,9 @@ type NetworkController interface {
 	// BuiltinDrivers returns list of builtin drivers
 	BuiltinDrivers() []string
 
+	// BuiltinIPAMDrivers returns list of builtin ipam drivers
+	BuiltinIPAMDrivers() []string
+
 	// Config method returns the bootup configuration for the controller
 	Config() config.Config
 
@@ -188,7 +191,7 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 		return nil, err
 	}
 
-	for _, i := range getInitializers() {
+	for _, i := range getInitializers(c.cfg.Daemon.Experimental) {
 		var dcfg map[string]interface{}
 
 		// External plugins don't need config passed through daemon. They can
@@ -237,12 +240,13 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 
 func (c *controller) SetClusterProvider(provider cluster.Provider) {
 	c.Lock()
-	defer c.Unlock()
 	c.cfg.Daemon.ClusterProvider = provider
+	disableProviderCh := c.cfg.Daemon.DisableProvider
+	c.Unlock()
 	if provider != nil {
 		go c.clusterAgentInit()
 	} else {
-		c.cfg.Daemon.DisableProvider <- struct{}{}
+		disableProviderCh <- struct{}{}
 	}
 }
 
@@ -269,7 +273,7 @@ func (c *controller) SetKeys(keys []*types.EncryptionKey) error {
 	}
 	for s, count := range subsysKeys {
 		if count != keyringSize {
-			return fmt.Errorf("incorrect number of keys for susbsystem %v", s)
+			return fmt.Errorf("incorrect number of keys for subsystem %v", s)
 		}
 	}
 
@@ -295,6 +299,12 @@ func (c *controller) SetKeys(keys []*types.EncryptionKey) error {
 	return c.handleKeyChange(keys)
 }
 
+func (c *controller) getAgent() *agent {
+	c.Lock()
+	defer c.Unlock()
+	return c.agent
+}
+
 func (c *controller) clusterAgentInit() {
 	clusterProvider := c.cfg.Daemon.ClusterProvider
 	for {
@@ -305,7 +315,7 @@ func (c *controller) clusterAgentInit() {
 				c.clusterConfigAvailable = true
 				keys := c.keys
 				c.Unlock()
-				// agent initialization needs encyrption keys and bind/remote IP which
+				// agent initialization needs encryption keys and bind/remote IP which
 				// comes from the daemon cluster events
 				if len(keys) > 0 {
 					c.agentSetup()
@@ -469,12 +479,23 @@ func (c *controller) ID() string {
 
 func (c *controller) BuiltinDrivers() []string {
 	drivers := []string{}
-	for _, i := range getInitializers() {
-		if i.ntype == "remote" {
-			continue
+	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
+		if driver.IsBuiltIn() {
+			drivers = append(drivers, name)
 		}
-		drivers = append(drivers, i.ntype)
-	}
+		return false
+	})
+	return drivers
+}
+
+func (c *controller) BuiltinIPAMDrivers() []string {
+	drivers := []string{}
+	c.drvRegistry.WalkIPAMs(func(name string, driver ipamapi.Ipam, cap *ipamapi.Capability) bool {
+		if driver.IsBuiltIn() {
+			drivers = append(drivers, name)
+		}
+		return false
+	})
 	return drivers
 }
 
@@ -546,6 +567,12 @@ func (c *controller) pushNodeDiscovery(d driverapi.Driver, cap driverapi.Capabil
 	if c.cfg != nil {
 		addr := strings.Split(c.cfg.Cluster.Address, ":")
 		self = net.ParseIP(addr[0])
+		// if external kvstore is not configured, try swarm-mode config
+		if self == nil {
+			if agent := c.getAgent(); agent != nil {
+				self = net.ParseIP(agent.advertiseAddr)
+			}
+		}
 	}
 
 	if d == nil || cap.DataScope != datastore.GlobalScope || nodes == nil {
@@ -561,7 +588,7 @@ func (c *controller) pushNodeDiscovery(d driverapi.Driver, cap driverapi.Capabil
 			err = d.DiscoverDelete(discoverapi.NodeDiscovery, nodeData)
 		}
 		if err != nil {
-			logrus.Debugf("discovery notification error : %v", err)
+			logrus.Debugf("discovery notification error: %v", err)
 		}
 	}
 }
@@ -626,8 +653,8 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 		}
 	}
 
-	if err := config.ValidateName(name); err != nil {
-		return nil, ErrInvalidName(err.Error())
+	if !config.IsValidName(name) {
+		return nil, ErrInvalidName(name)
 	}
 
 	if id == "" {
@@ -779,7 +806,7 @@ func (c *controller) reservePools() {
 		}
 		for _, ep := range epl {
 			if err := ep.assignAddress(ipam, true, ep.Iface().AddressIPv6() != nil); err != nil {
-				logrus.Warnf("Failed to reserve current adress for endpoint %q (%s) on network %q (%s)",
+				logrus.Warnf("Failed to reserve current address for endpoint %q (%s) on network %q (%s)",
 					ep.Name(), ep.ID(), n.Name(), n.ID())
 			}
 		}
@@ -911,6 +938,7 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (s
 			populatedEndpoints: map[string]struct{}{},
 			config:             containerConfig{},
 			controller:         c,
+			extDNS:             []extDNSEntry{},
 		}
 	}
 	sBox = sb
@@ -976,7 +1004,7 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (s
 
 	err = sb.storeUpdate()
 	if err != nil {
-		return nil, fmt.Errorf("updating the store state of sandbox failed: %v", err)
+		return nil, fmt.Errorf("failed to update the store state of sandbox: %v", err)
 	}
 
 	return sb, nil
@@ -1066,7 +1094,7 @@ func (c *controller) loadDriver(networkType string) error {
 	var err error
 
 	if pg := c.GetPluginGetter(); pg != nil {
-		_, err = pg.Get(networkType, driverapi.NetworkPluginEndpointType, plugingetter.LOOKUP)
+		_, err = pg.Get(networkType, driverapi.NetworkPluginEndpointType, plugingetter.Lookup)
 	} else {
 		_, err = plugins.Get(networkType, driverapi.NetworkPluginEndpointType)
 	}
@@ -1085,7 +1113,7 @@ func (c *controller) loadIPAMDriver(name string) error {
 	var err error
 
 	if pg := c.GetPluginGetter(); pg != nil {
-		_, err = pg.Get(name, ipamapi.PluginEndpointType, plugingetter.LOOKUP)
+		_, err = pg.Get(name, ipamapi.PluginEndpointType, plugingetter.Lookup)
 	} else {
 		_, err = plugins.Get(name, ipamapi.PluginEndpointType)
 	}

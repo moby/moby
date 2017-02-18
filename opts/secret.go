@@ -50,7 +50,7 @@ func (o *SecretOpt) Set(value string) error {
 
 		value := parts[1]
 		switch key {
-		case "source":
+		case "source", "src":
 			options.Source = value
 		case "target":
 			tDir, _ := filepath.Split(value)

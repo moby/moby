@@ -177,26 +177,24 @@ func wait(waitChan <-chan struct{}, timeout time.Duration) error {
 // immediately. If you want wait forever you must supply negative timeout.
 // Returns exit code, that was passed to SetStopped
 func (s *State) WaitStop(timeout time.Duration) (int, error) {
-	s.Lock()
-	if !s.Running {
-		exitCode := s.ExitCodeValue
-		s.Unlock()
-		return exitCode, nil
+	ctx := context.Background()
+	if timeout >= 0 {
+		var cancel func()
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+		defer cancel()
 	}
-	waitChan := s.waitChan
-	s.Unlock()
-	if err := wait(waitChan, timeout); err != nil {
+	if err := s.WaitWithContext(ctx); err != nil {
+		if status, ok := err.(*StateStatus); ok {
+			return status.ExitCode(), nil
+		}
 		return -1, err
 	}
-	s.Lock()
-	defer s.Unlock()
-	return s.ExitCode(), nil
+	return 0, nil
 }
 
 // WaitWithContext waits for the container to stop. Optional context can be
 // passed for canceling the request.
 func (s *State) WaitWithContext(ctx context.Context) error {
-	// todo(tonistiigi): make other wait functions use this
 	s.Lock()
 	if !s.Running {
 		state := newStateStatus(s.ExitCode(), s.Error())

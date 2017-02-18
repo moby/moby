@@ -27,6 +27,7 @@ docker-run - Run a command in a new container
 [**-d**|**--detach**]
 [**--detach-keys**[=*[]*]]
 [**--device**[=*[]*]]
+[**--device-cgroup-rule**[=*[]*]]
 [**--device-read-bps**[=*[]*]]
 [**--device-read-iops**[=*[]*]]
 [**--device-write-bps**[=*[]*]]
@@ -41,6 +42,8 @@ docker-run - Run a command in a new container
 [**--group-add**[=*[]*]]
 [**-h**|**--hostname**[=*HOSTNAME*]]
 [**--help**]
+[**--init**]
+[**--init-path**[=*[]*]]
 [**-i**|**--interactive**]
 [**--ip**[=*IPv4-ADDRESS*]]
 [**--ip6**[=*IPv6-ADDRESS*]]
@@ -58,7 +61,6 @@ docker-run - Run a command in a new container
 [**--memory-reservation**[=*MEMORY-RESERVATION*]]
 [**--memory-swap**[=*LIMIT*]]
 [**--memory-swappiness**[=*MEMORY-SWAPPINESS*]]
-[**--mount**[=*MOUNT*]]
 [**--name**[=*NAME*]]
 [**--network-alias**[=*[]*]]
 [**--network**[=*"bridge"*]]
@@ -245,6 +247,16 @@ See **config-json(5)** for documentation on using a configuration file.
 **--device**=[]
    Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)
 
+**--device-cgroup-rule**=[]
+   Add a rule to the cgroup allowed devices list.
+   
+   The rule is expected to be in the format specified in the Linux kernel documentation (Documentation/cgroup-v1/devices.txt):
+     - type: `a` (all), `c` (char) or `b` (block)
+     - major and minor: either a number or `*` for all
+     - permission: a composition of `r` (read), `w` (write) and `m` (mknod)
+
+   Example: `c 1:3 mr`: allow for character device with major `1` and minor `3` to be created (`m`) and read (`r`)
+
 **--device-read-bps**=[]
    Limit read rate from a device (e.g. --device-read-bps=/dev/sda:1mb)
 
@@ -310,7 +322,13 @@ redirection on the host system.
    Sets the container host name that is available inside the container.
 
 **--help**
-  Print usage statement
+   Print usage statement
+
+**--init**
+   Run an init inside the container that forwards signals and reaps processes
+
+**--init-path**=""
+   Path to the docker-init binary
 
 **-i**, **--interactive**=*true*|*false*
    Keep STDIN open even if not attached. The default is *false*.
@@ -318,14 +336,14 @@ redirection on the host system.
    When set to true, keep stdin open even if not attached. The default is false.
 
 **--ip**=""
-   Sets the container's interface IPv4 address (e.g. 172.23.0.9)
+   Sets the container's interface IPv4 address (e.g., 172.23.0.9)
 
-   It can only be used in conjunction with **--net** for user-defined networks
+   It can only be used in conjunction with **--network** for user-defined networks
 
 **--ip6**=""
-   Sets the container's interface IPv6 address (e.g. 2001:db8::1b99)
+   Sets the container's interface IPv6 address (e.g., 2001:db8::1b99)
 
-   It can only be used in conjunction with **--net** for user-defined networks
+   It can only be used in conjunction with **--network** for user-defined networks
 
 **--ipc**=""
    Default is to create a private IPC namespace (POSIX SysV IPC) for the container
@@ -402,7 +420,7 @@ the value of --memory.
 unit, `b` is used. Set LIMIT to `-1` to enable unlimited swap.
 
 **--mac-address**=""
-   Container MAC address (e.g. 92:d0:c6:0a:29:33)
+   Container MAC address (e.g., 92:d0:c6:0a:29:33)
 
    Remember that the MAC address in an Ethernet network must be unique.
 The IPv6 link-local address will be based on the device's MAC address
@@ -558,7 +576,7 @@ incompatible with any restart policy other than `none`.
   Network Namespace - current sysctls allowed:
       Sysctls beginning with net.*
 
-  If you use the `--net=host` option these sysctls will not be allowed.
+  If you use the `--network=host` option these sysctls will not be allowed.
 
 **--sig-proxy**=*true*|*false*
    Proxy received signals to the process (non-TTY mode only). SIGCHLD, SIGSTOP, and SIGKILL are not proxied. The default is *true*.
@@ -907,7 +925,7 @@ should fix the problem.
 ## Mapping Ports for External Usage
 
 The exposed port of an application can be mapped to a host port using the **-p**
-flag. For example, a httpd port 80 can be mapped to the host port 8080 using the
+flag. For example, an httpd port 80 can be mapped to the host port 8080 using the
 following:
 
     # docker run -p 8080:80 -d -i -t fedora/httpd
@@ -989,7 +1007,7 @@ You would have to write policy defining a `svirt_apache_t` type.
 If you want to set `/dev/sda` device weight to `200`, you can specify the device
 weight by `--blkio-weight-device` flag. Use the following command:
 
-   # docker run -it --blkio-weight-device "/dev/sda:200" ubuntu
+    # docker run -it --blkio-weight-device "/dev/sda:200" ubuntu
 
 ## Specify isolation technology for container (--isolation)
 

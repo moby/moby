@@ -1,15 +1,15 @@
 package container
 
 import (
+	"errors"
 	"fmt"
 	"strings"
-
-	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 type rmOptions struct {
@@ -52,22 +52,22 @@ func runRm(dockerCli *command.DockerCli, opts *rmOptions) error {
 	}
 
 	errChan := parallelOperation(ctx, opts.containers, func(ctx context.Context, container string) error {
-		if container == "" {
-			return fmt.Errorf("Container name cannot be empty")
-		}
 		container = strings.Trim(container, "/")
+		if container == "" {
+			return errors.New("Container name cannot be empty")
+		}
 		return dockerCli.Client().ContainerRemove(ctx, container, options)
 	})
 
 	for _, name := range opts.containers {
 		if err := <-errChan; err != nil {
 			errs = append(errs, err.Error())
-		} else {
-			fmt.Fprintf(dockerCli.Out(), "%s\n", name)
+			continue
 		}
+		fmt.Fprintln(dockerCli.Out(), name)
 	}
 	if len(errs) > 0 {
-		return fmt.Errorf("%s", strings.Join(errs, "\n"))
+		return errors.New(strings.Join(errs, "\n"))
 	}
 	return nil
 }

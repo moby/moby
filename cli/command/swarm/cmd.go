@@ -13,10 +13,7 @@ func NewSwarmCommand(dockerCli *command.DockerCli) *cobra.Command {
 		Use:   "swarm",
 		Short: "Manage Swarm",
 		Args:  cli.NoArgs,
-		Run: func(cmd *cobra.Command, args []string) {
-			cmd.SetOutput(dockerCli.Err())
-			cmd.HelpFunc()(cmd, args)
-		},
+		RunE:  dockerCli.ShowHelp,
 	}
 	cmd.AddCommand(
 		newInitCommand(dockerCli),

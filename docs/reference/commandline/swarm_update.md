@@ -24,22 +24,28 @@ Options:
       --autolock                        Change manager autolocking setting (true|false)
       --cert-expiry duration            Validity period for node certificates (ns|us|ms|s|m|h) (default 2160h0m0s)
       --dispatcher-heartbeat duration   Dispatcher heartbeat period (ns|us|ms|s|m|h) (default 5s)
-      --external-ca value               Specifications of one or more certificate signing endpoints
+      --external-ca external-ca         Specifications of one or more certificate signing endpoints
       --help                            Print usage
-      --max-snapshots int               Number of additional Raft snapshots to retain
-      --snapshot-interval int           Number of log entries between Raft snapshots
+      --max-snapshots uint              Number of additional Raft snapshots to retain
+      --snapshot-interval uint          Number of log entries between Raft snapshots (default 10000)
       --task-history-limit int          Task history retention limit (default 5)
 ```
 
+## Description
+
 Updates a swarm with new parameter values. This command must target a manager node.
 
+## Examples
 
 ```bash
 $ docker swarm update --cert-expiry 720h
 ```
 
-## Related information
+## Related commands
 
 * [swarm init](swarm_init.md)
 * [swarm join](swarm_join.md)
+* [swarm join-token](swarm_join_token.md)
 * [swarm leave](swarm_leave.md)
+* [swarm unlock](swarm_unlock.md)
+* [swarm unlock-key](swarm_unlock_key.md)

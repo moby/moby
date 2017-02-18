@@ -1,15 +1,15 @@
 package container
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
-	"golang.org/x/net/context"
-
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 type stopOptions struct {
@@ -56,12 +56,12 @@ func runStop(dockerCli *command.DockerCli, opts *stopOptions) error {
 	for _, container := range opts.containers {
 		if err := <-errChan; err != nil {
 			errs = append(errs, err.Error())
-		} else {
-			fmt.Fprintf(dockerCli.Out(), "%s\n", container)
+			continue
 		}
+		fmt.Fprintln(dockerCli.Out(), container)
 	}
 	if len(errs) > 0 {
-		return fmt.Errorf("%s", strings.Join(errs, "\n"))
+		return errors.New(strings.Join(errs, "\n"))
 	}
 	return nil
 }

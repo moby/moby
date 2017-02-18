@@ -1,12 +1,12 @@
 package daemon
 
 import (
-	"fmt"
 	"time"
 
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/reference"
+	"github.com/pkg/errors"
 )
 
 // LookupImage looks up an image by name and returns it as an ImageInspect
@@ -14,7 +14,7 @@ import (
 func (daemon *Daemon) LookupImage(name string) (*types.ImageInspect, error) {
 	img, err := daemon.GetImage(name)
 	if err != nil {
-		return nil, fmt.Errorf("No such image: %s", name)
+		return nil, errors.Wrapf(err, "no such image: %s", name)
 	}
 
 	refs := daemon.referenceStore.References(img.ID().Digest())
@@ -23,9 +23,9 @@ func (daemon *Daemon) LookupImage(name string) (*types.ImageInspect, error) {
 	for _, ref := range refs {
 		switch ref.(type) {
 		case reference.NamedTagged:
-			repoTags = append(repoTags, ref.String())
+			repoTags = append(repoTags, reference.FamiliarString(ref))
 		case reference.Canonical:
-			repoDigests = append(repoDigests, ref.String())
+			repoDigests = append(repoDigests, reference.FamiliarString(ref))
 		}
 	}
 

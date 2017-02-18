@@ -29,14 +29,20 @@ func getDaemonConfDir(root string) string {
 	return filepath.Join(root, `\config`)
 }
 
-// notifySystem sends a message to the host when the server is ready to be used
-func notifySystem() {
+// preNotifySystem sends a message to the host when the API is active, but before the daemon is
+func preNotifySystem() {
+	// start the service now to prevent timeouts waiting for daemon to start
+	// but still (eventually) complete all requests that are sent after this
 	if service != nil {
 		err := service.started()
 		if err != nil {
 			logrus.Fatal(err)
 		}
 	}
+}
+
+// notifySystem sends a message to the host when the server is ready to be used
+func notifySystem() {
 }
 
 // notifyShutdown is called after the daemon shuts down but before the process exits.

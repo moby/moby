@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 # subshell so that we can export PATH and TZ without breaking other things
@@ -82,7 +82,7 @@ set -e
 			RUN dpkg-buildpackage -uc -us -I.git
 		EOF
 		tempImage="docker-temp/build-deb:$version"
-		( set -x && docker build -t "$tempImage" -f "$DEST/$version/Dockerfile.build" . )
+		( set -x && docker build ${DOCKER_BUILD_ARGS} -t "$tempImage" -f "$DEST/$version/Dockerfile.build" . )
 		docker run --rm "$tempImage" bash -c 'cd .. && tar -c *_*' | tar -xvC "$DEST/$version"
 		docker rmi "$tempImage"
 	done

@@ -3,6 +3,9 @@
       pull_request: [ opened ]
   operations:
       - type:       label
+        filters: {
+            ~labels: [ "status/0-triage", "status/1-design-review", "status/2-code-review", "status/3-docs-review", "status/4-merge" ],
+        }
         settings: {
             patterns: {
                 status/0-triage:     [ ".*" ],
@@ -23,10 +26,11 @@
                 area/networking:     [ "docker network", "ipvs", "vxlan" ],
                 area/runtime:        [ "oci runtime error" ],
                 area/security/trust: [ "docker_content_trust" ],
-                area/swarm:          [ "docker node", "docker service", "docker swarm" ],
+                area/swarm:          [ "docker node", "docker swarm", "docker service create", "docker service inspect", "docker service logs", "docker service ls", "docker service ps", "docker service rm", "docker service scale", "docker service update" ],
                 platform/desktop:    [ "docker for mac", "docker for windows" ],
                 platform/freebsd:    [ "freebsd" ],
                 platform/windows:    [ "nanoserver", "windowsservercore", "windows server" ],
+                platform/arm:        [ "raspberry", "raspbian", "rpi", "beaglebone", "pine64" ],
             }
         }
       - type:       version-label
@@ -68,6 +72,11 @@
         }
       - type:       rebuild
         settings: {
+            configurations: [ powerpc ],
+            label:          "rebuild/powerpc",
+        }
+      - type:       rebuild
+        settings: {
             configurations: [ userns ],
             label:          "rebuild/userns",
         }
@@ -85,4 +94,34 @@
         settings: {
             configurations: [ windowsRS1 ],
             label:          "rebuild/windowsRS1",
+        }
+      - type:       rebuild
+        settings: {
+            configurations: [ z ],
+            label:          "rebuild/z",
+        }
+
+# Once a day, randomly assign pull requests older than 2 weeks.
+- schedule:         "@daily"
+  operations:
+      - type:       random-assign
+        filters: {
+            age:    "2w",
+            is:     "pr",
+        }
+        settings: {
+            users: [
+                "anusha-ragunathan",
+                "cpuguy83",
+                "crosbymichael",
+                "dnephin",
+                "justincormack",
+                "lk4d4",
+                "mlaventure",
+                "thajeztah",
+                "tiborvass",
+                "tonistiigi",
+                "vdemeester",
+                "vieux",
+            ]
         }

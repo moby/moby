@@ -684,7 +684,11 @@ func (ac *addrConn) resetTransport(closeTransport bool) error {
 		}
 		ctx, cancel := context.WithTimeout(ac.ctx, timeout)
 		connectTime := time.Now()
-		newTransport, err := transport.NewClientTransport(ctx, ac.addr.Addr, ac.dopts.copts)
+		sinfo := transport.TargetInfo{
+			Addr:     ac.addr.Addr,
+			Metadata: ac.addr.Metadata,
+		}
+		newTransport, err := transport.NewClientTransport(ctx, sinfo, ac.dopts.copts)
 		if err != nil {
 			cancel()
 
@@ -803,7 +807,7 @@ func (ac *addrConn) transportMonitor() {
 }
 
 // wait blocks until i) the new transport is up or ii) ctx is done or iii) ac is closed or
-// iv) transport is in TransientFailure and there's no balancer/failfast is true.
+// iv) transport is in TransientFailure and there is a balancer/failfast is true.
 func (ac *addrConn) wait(ctx context.Context, hasBalancer, failfast bool) (transport.ClientTransport, error) {
 	for {
 		ac.mu.Lock()

@@ -62,7 +62,7 @@ type Driver interface {
 	// programming to allow the external connectivity dictated by the passed options
 	ProgramExternalConnectivity(nid, eid string, options map[string]interface{}) error
 
-	// RevokeExternalConnectivity aks the driver to remove any external connectivity
+	// RevokeExternalConnectivity asks the driver to remove any external connectivity
 	// programming that was done so far
 	RevokeExternalConnectivity(nid, eid string) error
 
@@ -72,8 +72,11 @@ type Driver interface {
 	// only invoked for the global scope driver.
 	EventNotify(event EventType, nid string, tableName string, key string, value []byte)
 
-	// Type returns the the type of this driver, the network type this driver manages
+	// Type returns the type of this driver, the network type this driver manages
 	Type() string
+
+	// IsBuiltIn returns true if it is a built-in driver
+	IsBuiltIn() bool
 }
 
 // NetworkInfo provides a go interface for drivers to provide network

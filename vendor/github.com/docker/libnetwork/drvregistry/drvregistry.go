@@ -1,6 +1,7 @@
 package drvregistry
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -160,14 +161,14 @@ func (r *DrvRegistry) GetPluginGetter() plugingetter.PluginGetter {
 // RegisterDriver registers the network driver when it gets discovered.
 func (r *DrvRegistry) RegisterDriver(ntype string, driver driverapi.Driver, capability driverapi.Capability) error {
 	if strings.TrimSpace(ntype) == "" {
-		return fmt.Errorf("network type string cannot be empty")
+		return errors.New("network type string cannot be empty")
 	}
 
 	r.Lock()
-	_, ok := r.drivers[ntype]
+	dd, ok := r.drivers[ntype]
 	r.Unlock()
 
-	if ok {
+	if ok && dd.driver.IsBuiltIn() {
 		return driverapi.ErrActiveRegistration(ntype)
 	}
 
@@ -188,13 +189,13 @@ func (r *DrvRegistry) RegisterDriver(ntype string, driver driverapi.Driver, capa
 
 func (r *DrvRegistry) registerIpamDriver(name string, driver ipamapi.Ipam, caps *ipamapi.Capability) error {
 	if strings.TrimSpace(name) == "" {
-		return fmt.Errorf("ipam driver name string cannot be empty")
+		return errors.New("ipam driver name string cannot be empty")
 	}
 
 	r.Lock()
-	_, ok := r.ipamDrivers[name]
+	dd, ok := r.ipamDrivers[name]
 	r.Unlock()
-	if ok {
+	if ok && dd.driver.IsBuiltIn() {
 		return types.ForbiddenErrorf("ipam driver %q already registered", name)
 	}
 

@@ -3,10 +3,17 @@ package awslogs
 import "github.com/aws/aws-sdk-go/service/cloudwatchlogs"
 
 type mockcwlogsclient struct {
+	createLogGroupArgument  chan *cloudwatchlogs.CreateLogGroupInput
+	createLogGroupResult    chan *createLogGroupResult
 	createLogStreamArgument chan *cloudwatchlogs.CreateLogStreamInput
 	createLogStreamResult   chan *createLogStreamResult
 	putLogEventsArgument    chan *cloudwatchlogs.PutLogEventsInput
 	putLogEventsResult      chan *putLogEventsResult
+}
+
+type createLogGroupResult struct {
+	successResult *cloudwatchlogs.CreateLogGroupOutput
+	errorResult   error
 }
 
 type createLogStreamResult struct {
@@ -21,6 +28,8 @@ type putLogEventsResult struct {
 
 func newMockClient() *mockcwlogsclient {
 	return &mockcwlogsclient{
+		createLogGroupArgument:  make(chan *cloudwatchlogs.CreateLogGroupInput, 1),
+		createLogGroupResult:    make(chan *createLogGroupResult, 1),
 		createLogStreamArgument: make(chan *cloudwatchlogs.CreateLogStreamInput, 1),
 		createLogStreamResult:   make(chan *createLogStreamResult, 1),
 		putLogEventsArgument:    make(chan *cloudwatchlogs.PutLogEventsInput, 1),
@@ -35,6 +44,12 @@ func newMockClientBuffered(buflen int) *mockcwlogsclient {
 		putLogEventsArgument:    make(chan *cloudwatchlogs.PutLogEventsInput, buflen),
 		putLogEventsResult:      make(chan *putLogEventsResult, buflen),
 	}
+}
+
+func (m *mockcwlogsclient) CreateLogGroup(input *cloudwatchlogs.CreateLogGroupInput) (*cloudwatchlogs.CreateLogGroupOutput, error) {
+	m.createLogGroupArgument <- input
+	output := <-m.createLogGroupResult
+	return output.successResult, output.errorResult
 }
 
 func (m *mockcwlogsclient) CreateLogStream(input *cloudwatchlogs.CreateLogStreamInput) (*cloudwatchlogs.CreateLogStreamOutput, error) {

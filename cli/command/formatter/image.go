@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/reference"
 	units "github.com/docker/go-units"
 )
 
@@ -20,7 +20,7 @@ const (
 	digestHeader     = "DIGEST"
 )
 
-// ImageContext contains image specific information required by the formater, encapsulate a Context struct.
+// ImageContext contains image specific information required by the formatter, encapsulate a Context struct.
 type ImageContext struct {
 	Context
 	Digest bool
@@ -94,22 +94,24 @@ func imageFormat(ctx ImageContext, images []types.ImageSummary, format func(subC
 			repoTags := map[string][]string{}
 			repoDigests := map[string][]string{}
 
-			for _, refString := range append(image.RepoTags) {
-				ref, err := reference.ParseNamed(refString)
+			for _, refString := range image.RepoTags {
+				ref, err := reference.ParseNormalizedNamed(refString)
 				if err != nil {
 					continue
 				}
 				if nt, ok := ref.(reference.NamedTagged); ok {
-					repoTags[ref.Name()] = append(repoTags[ref.Name()], nt.Tag())
+					familiarRef := reference.FamiliarName(ref)
+					repoTags[familiarRef] = append(repoTags[familiarRef], nt.Tag())
 				}
 			}
-			for _, refString := range append(image.RepoDigests) {
-				ref, err := reference.ParseNamed(refString)
+			for _, refString := range image.RepoDigests {
+				ref, err := reference.ParseNormalizedNamed(refString)
 				if err != nil {
 					continue
 				}
 				if c, ok := ref.(reference.Canonical); ok {
-					repoDigests[ref.Name()] = append(repoDigests[ref.Name()], c.Digest().String())
+					familiarRef := reference.FamiliarName(ref)
+					repoDigests[familiarRef] = append(repoDigests[familiarRef], c.Digest().String())
 				}
 			}
 
@@ -190,6 +192,10 @@ type imageContext struct {
 	digest string
 }
 
+func (c *imageContext) MarshalJSON() ([]byte, error) {
+	return marshalJSON(c)
+}
+
 func (c *imageContext) ID() string {
 	c.AddHeader(imageIDHeader)
 	if c.trunc {
@@ -226,8 +232,7 @@ func (c *imageContext) CreatedAt() string {
 
 func (c *imageContext) Size() string {
 	c.AddHeader(sizeHeader)
-	//NOTE: For backward compatibility we need to return VirtualSize
-	return units.HumanSizeWithPrecision(float64(c.i.VirtualSize), 3)
+	return units.HumanSizeWithPrecision(float64(c.i.Size), 3)
 }
 
 func (c *imageContext) Containers() string {
@@ -253,8 +258,8 @@ func (c *imageContext) SharedSize() string {
 
 func (c *imageContext) UniqueSize() string {
 	c.AddHeader(uniqueSizeHeader)
-	if c.i.Size == -1 {
+	if c.i.VirtualSize == -1 || c.i.SharedSize == -1 {
 		return "N/A"
 	}
-	return units.HumanSize(float64(c.i.Size))
+	return units.HumanSize(float64(c.i.VirtualSize - c.i.SharedSize))
 }

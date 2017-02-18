@@ -45,6 +45,7 @@ var (
 	iptablesPath  string
 	supportsXlock = false
 	supportsCOpt  = false
+	xLockWaitMsg  = "Another app is currently holding the xtables lock; waiting"
 	// used to lock iptables commands if xtables lock is not supported
 	bestEffortLock sync.Mutex
 	// ErrIptablesNotFound is returned when the rule is not found.
@@ -130,7 +131,7 @@ func NewChain(name string, table Table, hairpinMode bool) (*ChainInfo, error) {
 // ProgramChain is used to add rules to a chain
 func ProgramChain(c *ChainInfo, bridgeName string, hairpinMode, enable bool) error {
 	if c.Name == "" {
-		return fmt.Errorf("Could not program chain, missing chain name.")
+		return errors.New("Could not program chain, missing chain name")
 	}
 
 	switch c.Table {
@@ -166,7 +167,7 @@ func ProgramChain(c *ChainInfo, bridgeName string, hairpinMode, enable bool) err
 		}
 	case Filter:
 		if bridgeName == "" {
-			return fmt.Errorf("Could not program chain %s/%s, missing bridge name.",
+			return fmt.Errorf("Could not program chain %s/%s, missing bridge name",
 				c.Table, c.Name)
 		}
 		link := []string{
@@ -402,7 +403,7 @@ func raw(args ...string) ([]byte, error) {
 	}
 
 	// ignore iptables' message about xtables lock
-	if strings.Contains(string(output), "waiting for it to exit") {
+	if strings.Contains(string(output), xLockWaitMsg) {
 		output = []byte("")
 	}
 

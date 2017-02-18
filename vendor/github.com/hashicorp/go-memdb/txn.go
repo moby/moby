@@ -380,6 +380,39 @@ func (txn *Txn) First(table, index string, args ...interface{}) (interface{}, er
 	return value, nil
 }
 
+// LongestPrefix is used to fetch the longest prefix match for the given
+// constraints on the index. Note that this will not work with the memdb
+// StringFieldIndex because it adds null terminators which prevent the
+// algorithm from correctly finding a match (it will get to right before the
+// null and fail to find a leaf node). This should only be used where the prefix
+// given is capable of matching indexed entries directly, which typically only
+// applies to a custom indexer. See the unit test for an example.
+func (txn *Txn) LongestPrefix(table, index string, args ...interface{}) (interface{}, error) {
+	// Enforce that this only works on prefix indexes.
+	if !strings.HasSuffix(index, "_prefix") {
+		return nil, fmt.Errorf("must use '%s_prefix' on index", index)
+	}
+
+	// Get the index value.
+	indexSchema, val, err := txn.getIndexValue(table, index, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	// This algorithm only makes sense against a unique index, otherwise the
+	// index keys will have the IDs appended to them.
+	if !indexSchema.Unique {
+		return nil, fmt.Errorf("index '%s' is not unique", index)
+	}
+
+	// Find the longest prefix match with the given index.
+	indexTxn := txn.readableIndex(table, indexSchema.Name)
+	if _, value, ok := indexTxn.Root().LongestPrefix(val); ok {
+		return value, nil
+	}
+	return nil, nil
+}
+
 // getIndexValue is used to get the IndexSchema and the value
 // used to scan the index given the parameters. This handles prefix based
 // scans when the index has the "_prefix" suffix. The index must support

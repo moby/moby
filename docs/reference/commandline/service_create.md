@@ -26,20 +26,20 @@ Options:
       --dns list                         Set custom DNS servers (default [])
       --dns-option list                  Set DNS options (default [])
       --dns-search list                  Set custom DNS search domains (default [])
-      --endpoint-mode string             Endpoint mode (vip or dnsrr)
+      --endpoint-mode string             Endpoint mode (vip or dnsrr) (default "vip")
   -e, --env list                         Set environment variables (default [])
       --env-file list                    Read in a file of environment variables (default [])
       --group list                       Set one or more supplementary user groups for the container (default [])
       --health-cmd string                Command to run to check health
-      --health-interval duration         Time between running the check (default none)
+      --health-interval duration         Time between running the check (ns|us|ms|s|m|h)
       --health-retries int               Consecutive failures needed to report unhealthy
-      --health-timeout duration          Maximum time to allow one check to run (default none)
+      --health-timeout duration          Maximum time to allow one check to run (ns|us|ms|s|m|h)
       --help                             Print usage
       --host list                        Set one or more custom host-to-IP mappings (host:ip) (default [])
       --hostname string                  Container hostname
   -l, --label list                       Service labels (default [])
       --limit-cpu decimal                Limit CPUs (default 0.000)
-      --limit-memory bytes               Limit Memory (default 0 B)
+      --limit-memory bytes               Limit Memory
       --log-driver string                Logging driver for service
       --log-opt list                     Logging driver options (default [])
       --mode string                      Service mode (replicated or global) (default "replicated")
@@ -47,16 +47,17 @@ Options:
       --name string                      Service name
       --network list                     Network attachments (default [])
       --no-healthcheck                   Disable any container-specified HEALTHCHECK
-  -p, --publish list                     Publish a port as a node port (default [])
-      --replicas uint                    Number of tasks (default none)
+  -p, --publish port                     Publish a port as a node port
+      --read-only                        Mount the container's root filesystem as read only
+      --replicas uint                    Number of tasks
       --reserve-cpu decimal              Reserve CPUs (default 0.000)
-      --reserve-memory bytes             Reserve Memory (default 0 B)
+      --reserve-memory bytes             Reserve Memory
       --restart-condition string         Restart when condition is met (none, on-failure, or any)
-      --restart-delay duration           Delay between restart attempts (default none)
-      --restart-max-attempts uint        Maximum number of restarts before giving up (default none)
-      --restart-window duration          Window used to evaluate the restart policy (default none)
-      --secret value                     Specify secrets to expose to the service (default [])
-      --stop-grace-period duration       Time to wait before force killing a container (default none)
+      --restart-delay duration           Delay between restart attempts (ns|us|ms|s|m|h)
+      --restart-max-attempts uint        Maximum number of restarts before giving up
+      --restart-window duration          Window used to evaluate the restart policy (ns|us|ms|s|m|h)
+      --secret secret                    Specify secrets to expose to the service
+      --stop-grace-period duration       Time to wait before force killing a container (ns|us|ms|s|m|h)
   -t, --tty                              Allocate a pseudo-TTY
       --update-delay duration            Delay between updates (ns|us|ms|s|m|h) (default 0s)
       --update-failure-action string     Action on update failure (pause|continue) (default "pause")
@@ -68,6 +69,8 @@ Options:
   -w, --workdir string                   Working directory inside the container
 ```
 
+## Description
+
 Creates a service as described by the specified parameters. You must run this
 command on a manager node.
 
@@ -77,12 +80,15 @@ command on a manager node.
 
 ```bash
 $ docker service create --name redis redis:3.0.6
+
 dmu1ept4cxcfe8k8lhtux3ro3
 
 $ docker service create --mode global --name redis2 redis:3.0.6
+
 a8q9dasaafudfs8q8w32udass
 
 $ docker service ls
+
 ID            NAME    MODE        REPLICAS  IMAGE
 dmu1ept4cxcf  redis   replicated  1/1       redis:3.0.6
 a8q9dasaafud  redis2  global      1/1       redis:3.0.6
@@ -95,6 +101,7 @@ service. The following command creates a `redis` service with `5` replica tasks:
 
 ```bash
 $ docker service create --name redis --replicas=5 redis:3.0.6
+
 4cdgfyky7ozwh3htjfw0d12qv
 ```
 
@@ -108,6 +115,7 @@ number of `RUNNING` tasks is `3`:
 
 ```bash
 $ docker service ls
+
 ID            NAME   MODE        REPLICAS  IMAGE
 4cdgfyky7ozw  redis  replicated  3/5       redis:3.0.7
 ```
@@ -117,11 +125,13 @@ equal to the desired number:
 
 ```bash
 $ docker service ls
+
 ID            NAME   MODE        REPLICAS  IMAGE
 4cdgfyky7ozw  redis  replicated  5/5       redis:3.0.7
 ```
 
 ### Create a service with secrets
+
 Use the `--secret` flag to give a container access to a
 [secret](secret_create.md).
 
@@ -129,6 +139,7 @@ Create a service specifying a secret:
 
 ```bash
 $ docker service create --name redis --secret secret.json redis:3.0.6
+
 4cdgfyky7ozwh3htjfw0d12qv
 ```
 
@@ -139,6 +150,7 @@ $ docker service create --name redis \
     --secret source=ssh-key,target=ssh \
     --secret source=app-key,target=app,uid=1000,gid=1001,mode=0400 \
     redis:3.0.6
+
 4cdgfyky7ozwh3htjfw0d12qv
 ```
 
@@ -172,12 +184,15 @@ This sets environmental variables for all tasks in a service. For example:
 $ docker service create --name redis_2 --replicas 5 --env MYVAR=foo redis:3.0.6
 ```
 
-### Create a docker service with specific hostname (--hostname)
+### Create a service with specific hostname (--hostname)
 
-This option sets the docker service containers hostname to a specific string. For example:
+This option sets the docker service containers hostname to a specific string.
+For example:
+
 ```bash
 $ docker service create --name redis --hostname myredis redis:3.0.6
 ```
+
 ### Set metadata on a service (-l, --label)
 
 A label is a `key=value` pair that applies metadata to a service. To label a
@@ -201,7 +216,7 @@ or write from files or directories on other containers or the host operating
 system. These types are _data volumes_ (often referred to simply as volumes) and
 _bind-mounts_.
 
-Additionally, Docker also supports tmpfs mounts.
+Additionally, Docker supports `tmpfs` mounts.
 
 A **bind-mount** makes a file or directory on the host available to the
 container it is mounted within. A bind-mount may be either read-only or
@@ -303,19 +318,19 @@ The `--mount` flag supports most options that are supported by the `-v`
 or `--volume` flag for `docker run`, with some important exceptions:
 
 - The `--mount` flag allows you to specify a volume driver and volume driver
-    options *per volume*, without creating the volumes in advance. In contrast,
-    `docker run` allows you to specify a single volume driver which is shared
-    by all volumes, using the `--volume-driver` flag.
+  options *per volume*, without creating the volumes in advance. In contrast,
+  `docker run` allows you to specify a single volume driver which is shared
+  by all volumes, using the `--volume-driver` flag.
 
 - The `--mount` flag allows you to specify custom metadata ("labels") for a volume,
-    before the volume is created.
+  before the volume is created.
 
 - When you use `--mount` with `type=bind`, the host-path must refer to an *existing*
-    path on the host. The path will not be created for you and the service will fail
-    with an error if the path does not exist.
+  path on the host. The path will not be created for you and the service will fail
+  with an error if the path does not exist.
 
 - The `--mount` flag does not allow you to relabel a volume with `Z` or `z` flags,
-    which are used for `selinux` labeling.
+  which are used for `selinux` labeling.
 
 #### Create a service using a named volume
 
@@ -474,9 +489,86 @@ accessible at the target port on every node regardless if there is a task for
 the service running on the node. For more information refer to
 [Use swarm mode routing mesh](https://docs.docker.com/engine/swarm/ingress/).
 
-## Related information
+### Publish a port for TCP only or UDP only
+
+By default, when you publish a port, it is a TCP port. You can
+specifically publish a UDP port instead of or in addition to a TCP port. When
+you publish both TCP and UDP ports, Docker 1.12.2 and earlier require you to
+add the suffix `/tcp` for TCP ports. Otherwise it is optional.
+
+#### TCP only
+
+The following two commands are equivalent.
+
+```bash
+$ docker service create --name dns-cache -p 53:53 dns-cache
+
+$ docker service create --name dns-cache -p 53:53/tcp dns-cache
+```
+
+#### TCP and UDP
+
+```bash
+$ docker service create --name dns-cache -p 53:53/tcp -p 53:53/udp dns-cache
+```
+
+#### UDP only
+
+```bash
+$ docker service create --name dns-cache -p 53:53/udp dns-cache
+```
+
+### Create services using templates
+
+You can use templates for some flags of `service create`, using the syntax
+provided by the Go's [text/template](http://golang.org/pkg/text/template/) package.
+
+The supported flags are the following :
+
+- `--hostname`
+- `--mount`
+- `--env`
+
+Valid placeholders for the Go template are listed below:
+
+Placeholder       | Description
+----------------- | --------------------------------------------
+`.Service.ID`     | Service ID
+`.Service.Name`   | Service name
+`.Service.Labels` | Service labels
+`.Node.ID`        | Node ID
+`.Task.ID`        | Task ID
+`.Task.Name`      | Task name
+`.Task.Slot`      | Task slot
+
+#### Template example
+
+In this example, we are going to set the template of the created containers based on the
+service's name and the node's ID where it sits.
+
+```bash
+{% raw %}
+$ docker service create --name hosttempl \
+                        --hostname={% raw %}"{{.Node.ID}}-{{.Service.Name}}"\
+                         busybox top
+
+va8ew30grofhjoychbr6iot8c
+
+$ docker service ps va8ew30grofhjoychbr6iot8c
+
+ID            NAME         IMAGE                                                                                   NODE          DESIRED STATE  CURRENT STATE               ERROR  PORTS
+wo41w8hg8qan  hosttempl.1  busybox:latest@sha256:29f5d56d12684887bdfa50dcd29fc31eea4aaf4ad3bec43daf19026a7ce69912  2e7a8a9c4da2  Running        Running about a minute ago
+
+$ docker inspect --format="{{.Config.Hostname}}" hosttempl.1.wo41w8hg8qanxwjwsg4kxpprj
+
+x3ti0erg11rjpg64m75kej2mz-hosttempl
+{% endraw %}
+```
+
+## Related commands
 
 * [service inspect](service_inspect.md)
+* [service logs](service_logs.md)
 * [service ls](service_ls.md)
 * [service rm](service_rm.md)
 * [service scale](service_scale.md)

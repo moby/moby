@@ -89,7 +89,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 
 	// stop collection of stats for the container regardless
 	// if stats are currently getting collected.
-	daemon.statsCollector.stopCollection(container)
+	daemon.statsCollector.StopCollection(container)
 
 	if err = daemon.containerStop(container, 3); err != nil {
 		return err
@@ -140,7 +140,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 
 // VolumeRm removes the volume with the given name.
 // If the volume is referenced by a container it is not removed
-// This is called directly from the remote API
+// This is called directly from the Engine API
 func (daemon *Daemon) VolumeRm(name string, force bool) error {
 	err := daemon.volumeRm(name)
 	if err == nil || force {

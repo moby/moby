@@ -11,10 +11,10 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/docker/api/types"
 	registrytypes "github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/reference"
 )
 
 const (
@@ -31,6 +31,7 @@ type Service interface {
 	Search(ctx context.Context, term string, limit int, authConfig *types.AuthConfig, userAgent string, headers map[string][]string) (*registrytypes.SearchResults, error)
 	ServiceConfig() *registrytypes.ServiceConfig
 	TLSConfig(hostname string) (*tls.Config, error)
+	LoadMirrors([]string) error
 	LoadInsecureRegistries([]string) error
 }
 
@@ -71,6 +72,14 @@ func (s *DefaultService) ServiceConfig() *registrytypes.ServiceConfig {
 	servConfig.Mirrors = append(servConfig.Mirrors, s.config.ServiceConfig.Mirrors...)
 
 	return &servConfig
+}
+
+// LoadMirrors loads registry mirrors for Service
+func (s *DefaultService) LoadMirrors(mirrors []string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.config.LoadMirrors(mirrors)
 }
 
 // LoadInsecureRegistries loads insecure registries for Service

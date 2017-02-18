@@ -67,22 +67,22 @@ func init() {
 // New creates a fluentd logger using the configuration passed in on
 // the context. The supported context configuration variable is
 // fluentd-address.
-func New(ctx logger.Context) (logger.Logger, error) {
-	loc, err := parseAddress(ctx.Config[addressKey])
+func New(info logger.Info) (logger.Logger, error) {
+	loc, err := parseAddress(info.Config[addressKey])
 	if err != nil {
 		return nil, err
 	}
 
-	tag, err := loggerutils.ParseLogTag(ctx, loggerutils.DefaultTemplate)
+	tag, err := loggerutils.ParseLogTag(info, loggerutils.DefaultTemplate)
 	if err != nil {
 		return nil, err
 	}
 
-	extra := ctx.ExtraAttributes(nil)
+	extra := info.ExtraAttributes(nil)
 
 	bufferLimit := defaultBufferLimit
-	if ctx.Config[bufferLimitKey] != "" {
-		bl64, err := units.RAMInBytes(ctx.Config[bufferLimitKey])
+	if info.Config[bufferLimitKey] != "" {
+		bl64, err := units.RAMInBytes(info.Config[bufferLimitKey])
 		if err != nil {
 			return nil, err
 		}
@@ -90,8 +90,8 @@ func New(ctx logger.Context) (logger.Logger, error) {
 	}
 
 	retryWait := defaultRetryWait
-	if ctx.Config[retryWaitKey] != "" {
-		rwd, err := time.ParseDuration(ctx.Config[retryWaitKey])
+	if info.Config[retryWaitKey] != "" {
+		rwd, err := time.ParseDuration(info.Config[retryWaitKey])
 		if err != nil {
 			return nil, err
 		}
@@ -99,8 +99,8 @@ func New(ctx logger.Context) (logger.Logger, error) {
 	}
 
 	maxRetries := defaultMaxRetries
-	if ctx.Config[maxRetriesKey] != "" {
-		mr64, err := strconv.ParseUint(ctx.Config[maxRetriesKey], 10, strconv.IntSize)
+	if info.Config[maxRetriesKey] != "" {
+		mr64, err := strconv.ParseUint(info.Config[maxRetriesKey], 10, strconv.IntSize)
 		if err != nil {
 			return nil, err
 		}
@@ -108,8 +108,8 @@ func New(ctx logger.Context) (logger.Logger, error) {
 	}
 
 	asyncConnect := false
-	if ctx.Config[asyncConnectKey] != "" {
-		if asyncConnect, err = strconv.ParseBool(ctx.Config[asyncConnectKey]); err != nil {
+	if info.Config[asyncConnectKey] != "" {
+		if asyncConnect, err = strconv.ParseBool(info.Config[asyncConnectKey]); err != nil {
 			return nil, err
 		}
 	}
@@ -125,7 +125,7 @@ func New(ctx logger.Context) (logger.Logger, error) {
 		AsyncConnect:     asyncConnect,
 	}
 
-	logrus.WithField("container", ctx.ContainerID).WithField("config", fluentConfig).
+	logrus.WithField("container", info.ContainerID).WithField("config", fluentConfig).
 		Debug("logging driver fluentd configured")
 
 	log, err := fluent.New(fluentConfig)
@@ -134,8 +134,8 @@ func New(ctx logger.Context) (logger.Logger, error) {
 	}
 	return &fluentd{
 		tag:           tag,
-		containerID:   ctx.ContainerID,
-		containerName: ctx.ContainerName,
+		containerID:   info.ContainerID,
+		containerName: info.ContainerName,
 		writer:        log,
 		extra:         extra,
 	}, nil
@@ -151,9 +151,12 @@ func (f *fluentd) Log(msg *logger.Message) error {
 	for k, v := range f.extra {
 		data[k] = v
 	}
+
+	ts := msg.Timestamp
+	logger.PutMessage(msg)
 	// fluent-logger-golang buffers logs from failures and disconnections,
 	// and these are transferred again automatically.
-	return f.writer.PostWithTime(f.tag, msg.Timestamp, data)
+	return f.writer.PostWithTime(f.tag, ts, data)
 }
 
 func (f *fluentd) Close() error {
@@ -182,11 +185,8 @@ func ValidateLogOpt(cfg map[string]string) error {
 		}
 	}
 
-	if _, err := parseAddress(cfg["fluentd-address"]); err != nil {
-		return err
-	}
-
-	return nil
+	_, err := parseAddress(cfg["fluentd-address"])
+	return err
 }
 
 func parseAddress(address string) (*location, error) {

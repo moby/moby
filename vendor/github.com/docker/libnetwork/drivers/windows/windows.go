@@ -309,7 +309,7 @@ func (d *driver) DeleteNetwork(nid string) error {
 
 	_, err = hcsshim.HNSNetworkRequest("DELETE", config.HnsID, "")
 	if err != nil {
-		return err
+		return types.ForbiddenErrorf(err.Error())
 	}
 
 	d.Lock()
@@ -696,6 +696,10 @@ func (d *driver) NetworkFree(id string) error {
 
 func (d *driver) Type() string {
 	return d.name
+}
+
+func (d *driver) IsBuiltIn() bool {
+	return true
 }
 
 // DiscoverNew is a notification for a new discovery event, such as a new node joining a cluster

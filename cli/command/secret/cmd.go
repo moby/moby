@@ -1,8 +1,6 @@
 package secret
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"github.com/docker/docker/cli"
@@ -15,9 +13,7 @@ func NewSecretCommand(dockerCli *command.DockerCli) *cobra.Command {
 		Use:   "secret",
 		Short: "Manage Docker secrets",
 		Args:  cli.NoArgs,
-		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Fprintf(dockerCli.Err(), "\n"+cmd.UsageString())
-		},
+		RunE:  dockerCli.ShowHelp,
 	}
 	cmd.AddCommand(
 		newSecretListCommand(dockerCli),

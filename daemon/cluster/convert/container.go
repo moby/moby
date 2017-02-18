@@ -9,7 +9,7 @@ import (
 	mounttypes "github.com/docker/docker/api/types/mount"
 	types "github.com/docker/docker/api/types/swarm"
 	swarmapi "github.com/docker/swarmkit/api"
-	"github.com/docker/swarmkit/protobuf/ptypes"
+	gogotypes "github.com/gogo/protobuf/types"
 )
 
 func containerSpecFromGRPC(c *swarmapi.ContainerSpec) types.ContainerSpec {
@@ -25,6 +25,7 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) types.ContainerSpec {
 		Groups:    c.Groups,
 		TTY:       c.TTY,
 		OpenStdin: c.OpenStdin,
+		ReadOnly:  c.ReadOnly,
 		Hosts:     c.Hosts,
 		Secrets:   secretReferencesFromGRPC(c.Secrets),
 	}
@@ -64,11 +65,18 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) types.ContainerSpec {
 				}
 			}
 		}
+
+		if m.TmpfsOptions != nil {
+			mount.TmpfsOptions = &mounttypes.TmpfsOptions{
+				SizeBytes: m.TmpfsOptions.SizeBytes,
+				Mode:      m.TmpfsOptions.Mode,
+			}
+		}
 		containerSpec.Mounts = append(containerSpec.Mounts, mount)
 	}
 
 	if c.StopGracePeriod != nil {
-		grace, _ := ptypes.Duration(c.StopGracePeriod)
+		grace, _ := gogotypes.DurationFromProto(c.StopGracePeriod)
 		containerSpec.StopGracePeriod = &grace
 	}
 
@@ -82,18 +90,22 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) types.ContainerSpec {
 func secretReferencesToGRPC(sr []*types.SecretReference) []*swarmapi.SecretReference {
 	refs := make([]*swarmapi.SecretReference, 0, len(sr))
 	for _, s := range sr {
-		refs = append(refs, &swarmapi.SecretReference{
+		ref := &swarmapi.SecretReference{
 			SecretID:   s.SecretID,
 			SecretName: s.SecretName,
-			Target: &swarmapi.SecretReference_File{
+		}
+		if s.File != nil {
+			ref.Target = &swarmapi.SecretReference_File{
 				File: &swarmapi.SecretReference_FileTarget{
-					Name: s.Target.Name,
-					UID:  s.Target.UID,
-					GID:  s.Target.GID,
-					Mode: s.Target.Mode,
+					Name: s.File.Name,
+					UID:  s.File.UID,
+					GID:  s.File.GID,
+					Mode: s.File.Mode,
 				},
-			},
-		})
+			}
+		}
+
+		refs = append(refs, ref)
 	}
 
 	return refs
@@ -108,14 +120,14 @@ func secretReferencesFromGRPC(sr []*swarmapi.SecretReference) []*types.SecretRef
 			continue
 		}
 		refs = append(refs, &types.SecretReference{
-			SecretID:   s.SecretID,
-			SecretName: s.SecretName,
-			Target: &types.SecretReferenceFileTarget{
+			File: &types.SecretReferenceFileTarget{
 				Name: target.Name,
 				UID:  target.UID,
 				GID:  target.GID,
 				Mode: target.Mode,
 			},
+			SecretID:   s.SecretID,
+			SecretName: s.SecretName,
 		})
 	}
 
@@ -135,6 +147,7 @@ func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 		Groups:    c.Groups,
 		TTY:       c.TTY,
 		OpenStdin: c.OpenStdin,
+		ReadOnly:  c.ReadOnly,
 		Hosts:     c.Hosts,
 		Secrets:   secretReferencesToGRPC(c.Secrets),
 	}
@@ -148,7 +161,7 @@ func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 	}
 
 	if c.StopGracePeriod != nil {
-		containerSpec.StopGracePeriod = ptypes.DurationProto(*c.StopGracePeriod)
+		containerSpec.StopGracePeriod = gogotypes.DurationProto(*c.StopGracePeriod)
 	}
 
 	// Mounts
@@ -170,9 +183,7 @@ func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 				mount.BindOptions = &swarmapi.Mount_BindOptions{Propagation: swarmapi.Mount_BindOptions_MountPropagation(mountPropagation)}
 			} else if string(m.BindOptions.Propagation) != "" {
 				return nil, fmt.Errorf("invalid MountPropagation: %q", m.BindOptions.Propagation)
-
 			}
-
 		}
 
 		if m.VolumeOptions != nil {
@@ -188,6 +199,13 @@ func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 			}
 		}
 
+		if m.TmpfsOptions != nil {
+			mount.TmpfsOptions = &swarmapi.Mount_TmpfsOptions{
+				SizeBytes: m.TmpfsOptions.SizeBytes,
+				Mode:      m.TmpfsOptions.Mode,
+			}
+		}
+
 		containerSpec.Mounts = append(containerSpec.Mounts, mount)
 	}
 
@@ -199,8 +217,8 @@ func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 }
 
 func healthConfigFromGRPC(h *swarmapi.HealthConfig) *container.HealthConfig {
-	interval, _ := ptypes.Duration(h.Interval)
-	timeout, _ := ptypes.Duration(h.Timeout)
+	interval, _ := gogotypes.DurationFromProto(h.Interval)
+	timeout, _ := gogotypes.DurationFromProto(h.Timeout)
 	return &container.HealthConfig{
 		Test:     h.Test,
 		Interval: interval,
@@ -212,8 +230,8 @@ func healthConfigFromGRPC(h *swarmapi.HealthConfig) *container.HealthConfig {
 func healthConfigToGRPC(h *container.HealthConfig) *swarmapi.HealthConfig {
 	return &swarmapi.HealthConfig{
 		Test:     h.Test,
-		Interval: ptypes.DurationProto(h.Interval),
-		Timeout:  ptypes.DurationProto(h.Timeout),
+		Interval: gogotypes.DurationProto(h.Interval),
+		Timeout:  gogotypes.DurationProto(h.Timeout),
 		Retries:  int32(h.Retries),
 	}
 }

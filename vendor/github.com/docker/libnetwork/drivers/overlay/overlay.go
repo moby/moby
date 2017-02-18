@@ -48,6 +48,7 @@ type driver struct {
 	vxlanIdm         *idm.Idm
 	once             sync.Once
 	joinOnce         sync.Once
+	localJoinOnce    sync.Once
 	keys             []*key
 	sync.Mutex
 }
@@ -99,7 +100,7 @@ func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 	// outside of the restore path can potentially fix the network join and succeed.
 	for nid, n := range d.networks {
 		if n.initErr != nil {
-			logrus.Infof("resetting init error and once variable for network %s after unsuccesful endpoint restore: %v", nid, n.initErr)
+			logrus.Infof("resetting init error and once variable for network %s after unsuccessful endpoint restore: %v", nid, n.initErr)
 			n.initErr = nil
 			n.once = &sync.Once{}
 		}
@@ -211,6 +212,10 @@ func (d *driver) Type() string {
 	return networkType
 }
 
+func (d *driver) IsBuiltIn() bool {
+	return true
+}
+
 func validateSelf(node string) error {
 	advIP := net.ParseIP(node)
 	if advIP == nil {
@@ -236,6 +241,12 @@ func (d *driver) nodeJoin(advertiseAddress, bindAddress string, self bool) {
 		d.advertiseAddress = advertiseAddress
 		d.bindAddress = bindAddress
 		d.Unlock()
+
+		// If containers are already running on this network update the
+		// advertiseaddress in the peerDB
+		d.localJoinOnce.Do(func() {
+			d.peerDBUpdateSelf()
+		})
 
 		// If there is no cluster store there is no need to start serf.
 		if d.store != nil {

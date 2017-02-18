@@ -90,7 +90,7 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 			execConfig.Running = false
 			execConfig.StreamConfig.Wait()
 			if err := execConfig.CloseStreams(); err != nil {
-				logrus.Errorf("%s: %s", c.ID, err)
+				logrus.Errorf("failed to cleanup exec %s streams: %s", c.ID, err)
 			}
 
 			// remove the exec command from the container's store only and not the

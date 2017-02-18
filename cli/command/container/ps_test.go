@@ -46,6 +46,57 @@ func TestBuildContainerListOptions(t *testing.T) {
 			expectedLimit:   1,
 			expectedFilters: make(map[string]string),
 		},
+		{
+			psOpts: &psOptions{
+				all:    true,
+				size:   false,
+				last:   5,
+				filter: filters,
+				// With .Size, size should be true
+				format: "{{.Size}}",
+			},
+			expectedAll:   true,
+			expectedSize:  true,
+			expectedLimit: 5,
+			expectedFilters: map[string]string{
+				"foo": "bar",
+				"baz": "foo",
+			},
+		},
+		{
+			psOpts: &psOptions{
+				all:    true,
+				size:   false,
+				last:   5,
+				filter: filters,
+				// With .Size, size should be true
+				format: "{{.Size}} {{.CreatedAt}} {{.Networks}}",
+			},
+			expectedAll:   true,
+			expectedSize:  true,
+			expectedLimit: 5,
+			expectedFilters: map[string]string{
+				"foo": "bar",
+				"baz": "foo",
+			},
+		},
+		{
+			psOpts: &psOptions{
+				all:    true,
+				size:   false,
+				last:   5,
+				filter: filters,
+				// Without .Size, size should be false
+				format: "{{.CreatedAt}} {{.Networks}}",
+			},
+			expectedAll:   true,
+			expectedSize:  false,
+			expectedLimit: 5,
+			expectedFilters: map[string]string{
+				"foo": "bar",
+				"baz": "foo",
+			},
+		},
 	}
 
 	for _, c := range contexts {

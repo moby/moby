@@ -193,11 +193,12 @@ func (_m *MockLogPublisherProvider) EXPECT() *_MockLogPublisherProviderRecorder 
 	return _m.recorder
 }
 
-func (_m *MockLogPublisherProvider) Publisher(ctx context.Context, subscriptionID string) (LogPublisher, error) {
+func (_m *MockLogPublisherProvider) Publisher(ctx context.Context, subscriptionID string) (LogPublisher, func(), error) {
 	ret := _m.ctrl.Call(_m, "Publisher", ctx, subscriptionID)
 	ret0, _ := ret[0].(LogPublisher)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret1, _ := ret[1].(func())
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 func (_mr *_MockLogPublisherProviderRecorder) Publisher(arg0, arg1 interface{}) *gomock.Call {

@@ -32,12 +32,22 @@ var (
 	getPortMapInfo    = container.GetSandboxPortMapInfo
 )
 
+func (daemon *Daemon) getDNSSearchSettings(container *container.Container) []string {
+	if len(container.HostConfig.DNSSearch) > 0 {
+		return container.HostConfig.DNSSearch
+	}
+
+	if len(daemon.configStore.DNSSearch) > 0 {
+		return daemon.configStore.DNSSearch
+	}
+
+	return nil
+}
 func (daemon *Daemon) buildSandboxOptions(container *container.Container) ([]libnetwork.SandboxOption, error) {
 	var (
 		sboxOptions []libnetwork.SandboxOption
 		err         error
 		dns         []string
-		dnsSearch   []string
 		dnsOptions  []string
 		bindings    = make(nat.PortMap)
 		pbList      []types.PortBinding
@@ -78,11 +88,7 @@ func (daemon *Daemon) buildSandboxOptions(container *container.Container) ([]lib
 		sboxOptions = append(sboxOptions, libnetwork.OptionDNS(d))
 	}
 
-	if len(container.HostConfig.DNSSearch) > 0 {
-		dnsSearch = container.HostConfig.DNSSearch
-	} else if len(daemon.configStore.DNSSearch) > 0 {
-		dnsSearch = daemon.configStore.DNSSearch
-	}
+	dnsSearch := daemon.getDNSSearchSettings(container)
 
 	for _, ds := range dnsSearch {
 		sboxOptions = append(sboxOptions, libnetwork.OptionDNSSearch(ds))
@@ -276,7 +282,7 @@ func (daemon *Daemon) updateEndpointNetworkSettings(container *container.Contain
 	}
 
 	if container.HostConfig.NetworkMode == runconfig.DefaultDaemonNetworkMode() {
-		container.NetworkSettings.Bridge = daemon.configStore.bridgeConfig.Iface
+		container.NetworkSettings.Bridge = daemon.configStore.BridgeConfig.Iface
 	}
 
 	return nil
@@ -382,7 +388,7 @@ func (daemon *Daemon) findAndAttachNetwork(container *container.Container, idOrN
 			}
 
 			// Retry network attach again if we failed to
-			// find the network after successfull
+			// find the network after successful
 			// attachment because the only reason that
 			// would happen is if some other container
 			// attached to the swarm scope network went down
@@ -410,7 +416,7 @@ func (daemon *Daemon) findAndAttachNetwork(container *container.Container, idOrN
 	return n, config, nil
 }
 
-// updateContainerNetworkSettings update the network settings
+// updateContainerNetworkSettings updates the network settings
 func (daemon *Daemon) updateContainerNetworkSettings(container *container.Container, endpointsConfig map[string]*networktypes.EndpointSettings) {
 	var n libnetwork.Network
 
@@ -808,7 +814,7 @@ func (daemon *Daemon) disconnectFromNetwork(container *container.Container, n li
 	}
 
 	if ep == nil {
-		return fmt.Errorf("container %s is not connected to the network", container.ID)
+		return fmt.Errorf("container %s is not connected to network %s", container.ID, n.Name())
 	}
 
 	if err := ep.Leave(sbox); err != nil {
@@ -851,9 +857,11 @@ func (daemon *Daemon) initializeNetworking(container *container.Container) error
 	}
 
 	if container.HostConfig.NetworkMode.IsHost() {
-		container.Config.Hostname, err = os.Hostname()
-		if err != nil {
-			return err
+		if container.Config.Hostname == "" {
+			container.Config.Hostname, err = os.Hostname()
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -1028,12 +1036,12 @@ func (daemon *Daemon) ActivateContainerServiceBinding(containerName string) erro
 	}
 	sb := daemon.getNetworkSandbox(container)
 	if sb == nil {
-		return fmt.Errorf("network sandbox not exists for container %s", containerName)
+		return fmt.Errorf("network sandbox does not exist for container %s", containerName)
 	}
 	return sb.EnableService()
 }
 
-// DeactivateContainerServiceBinding remove this container fromload balancer active rotation, and DNS response
+// DeactivateContainerServiceBinding removes this container from load balancer active rotation, and DNS response
 func (daemon *Daemon) DeactivateContainerServiceBinding(containerName string) error {
 	container, err := daemon.GetContainer(containerName)
 	if err != nil {
@@ -1041,7 +1049,7 @@ func (daemon *Daemon) DeactivateContainerServiceBinding(containerName string) er
 	}
 	sb := daemon.getNetworkSandbox(container)
 	if sb == nil {
-		return fmt.Errorf("network sandbox not exists for container %s", containerName)
+		return fmt.Errorf("network sandbox does not exist for container %s", containerName)
 	}
 	return sb.DisableService()
 }

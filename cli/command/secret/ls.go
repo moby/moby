@@ -21,9 +21,10 @@ func newSecretListCommand(dockerCli *command.DockerCli) *cobra.Command {
 	opts := listOptions{}
 
 	cmd := &cobra.Command{
-		Use:   "ls",
-		Short: "List secrets",
-		Args:  cli.NoArgs,
+		Use:     "ls [OPTIONS]",
+		Aliases: []string{"list"},
+		Short:   "List secrets",
+		Args:    cli.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runSecretList(dockerCli, opts)
 		},
@@ -50,15 +51,14 @@ func runSecretList(dockerCli *command.DockerCli, opts listOptions) error {
 			fmt.Fprintf(w, "%s\n", s.ID)
 		}
 	} else {
-		fmt.Fprintf(w, "ID\tNAME\tCREATED\tUPDATED\tSIZE")
+		fmt.Fprintf(w, "ID\tNAME\tCREATED\tUPDATED")
 		fmt.Fprintf(w, "\n")
 
 		for _, s := range secrets {
 			created := units.HumanDuration(time.Now().UTC().Sub(s.Meta.CreatedAt)) + " ago"
 			updated := units.HumanDuration(time.Now().UTC().Sub(s.Meta.UpdatedAt)) + " ago"
-			size := units.HumanSizeWithPrecision(float64(s.SecretSize), 3)
 
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", s.ID, s.Spec.Annotations.Name, created, updated, size)
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", s.ID, s.Spec.Annotations.Name, created, updated)
 		}
 	}
 

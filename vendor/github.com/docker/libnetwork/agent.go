@@ -3,10 +3,12 @@ package libnetwork
 //go:generate protoc -I.:Godeps/_workspace/src/github.com/gogo/protobuf  --gogo_out=import_path=github.com/docker/libnetwork,Mgogoproto/gogo.proto=github.com/gogo/protobuf/gogoproto:. agent.proto
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
 	"sort"
+	"sync"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/stringid"
@@ -39,6 +41,7 @@ type agent struct {
 	advertiseAddr     string
 	epTblCancel       func()
 	driverCancelFuncs map[string][]func()
+	sync.Mutex
 }
 
 func getBindAddr(ifaceName string) (string, error) {
@@ -86,9 +89,16 @@ func resolveAddr(addrOrInterface string) (string, error) {
 func (c *controller) handleKeyChange(keys []*types.EncryptionKey) error {
 	drvEnc := discoverapi.DriverEncryptionUpdate{}
 
-	a := c.agent
+	a := c.getAgent()
+	if a == nil {
+		logrus.Debug("Skipping key change as agent is nil")
+		return nil
+	}
+
 	// Find the deleted key. If the deleted key was the primary key,
 	// a new primary key should be set before removing if from keyring.
+	c.Lock()
+	added := []byte{}
 	deleted := []byte{}
 	j := len(c.keys)
 	for i := 0; i < j; {
@@ -127,7 +137,7 @@ func (c *controller) handleKeyChange(keys []*types.EncryptionKey) error {
 		if !same {
 			c.keys = append(c.keys, key)
 			if key.Subsystem == subsysGossip {
-				a.networkDB.SetKey(key.Key)
+				added = key.Key
 			}
 
 			if key.Subsystem == subsysIPSec {
@@ -135,6 +145,11 @@ func (c *controller) handleKeyChange(keys []*types.EncryptionKey) error {
 				drvEnc.Tag = key.LamportTime
 			}
 		}
+	}
+	c.Unlock()
+
+	if len(added) > 0 {
+		a.networkDB.SetKey(added)
 	}
 
 	key, tag, err := c.getPrimaryKeyTag(subsysGossip)
@@ -166,8 +181,10 @@ func (c *controller) handleKeyChange(keys []*types.EncryptionKey) error {
 }
 
 func (c *controller) agentSetup() error {
+	c.Lock()
 	clusterProvider := c.cfg.Daemon.ClusterProvider
-
+	agent := c.agent
+	c.Unlock()
 	bindAddr := clusterProvider.GetLocalAddress()
 	advAddr := clusterProvider.GetAdvertiseAddress()
 	remote := clusterProvider.GetRemoteAddress()
@@ -176,7 +193,7 @@ func (c *controller) agentSetup() error {
 	listenAddr, _, _ := net.SplitHostPort(listen)
 
 	logrus.Infof("Initializing Libnetwork Agent Listen-Addr=%s Local-addr=%s Adv-addr=%s Remote-addr =%s", listenAddr, bindAddr, advAddr, remoteAddr)
-	if advAddr != "" && c.agent == nil {
+	if advAddr != "" && agent == nil {
 		if err := c.agentInit(listenAddr, bindAddr, advAddr); err != nil {
 			logrus.Errorf("Error in agentInit : %v", err)
 		} else {
@@ -208,6 +225,9 @@ func (c *controller) agentSetup() error {
 // For a given subsystem getKeys sorts the keys by lamport time and returns
 // slice of keys and lamport time which can used as a unique tag for the keys
 func (c *controller) getKeys(subsys string) ([][]byte, []uint64) {
+	c.Lock()
+	defer c.Unlock()
+
 	sort.Sort(ByTime(c.keys))
 
 	keys := [][]byte{}
@@ -227,6 +247,8 @@ func (c *controller) getKeys(subsys string) ([][]byte, []uint64) {
 // getPrimaryKeyTag returns the primary key for a given subsystem from the
 // list of sorted key and the associated tag
 func (c *controller) getPrimaryKeyTag(subsys string) ([]byte, uint64, error) {
+	c.Lock()
+	defer c.Unlock()
 	sort.Sort(ByTime(c.keys))
 	keys := []*types.EncryptionKey{}
 	for _, key := range c.keys {
@@ -264,7 +286,9 @@ func (c *controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr st
 	}
 
 	ch, cancel := nDB.Watch("endpoint_table", "", "")
+	nodeCh, cancel := nDB.Watch(networkdb.NodeTable, "", "")
 
+	c.Lock()
 	c.agent = &agent{
 		networkDB:         nDB,
 		bindAddr:          bindAddr,
@@ -272,8 +296,10 @@ func (c *controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr st
 		epTblCancel:       cancel,
 		driverCancelFuncs: make(map[string][]func()),
 	}
+	c.Unlock()
 
 	go c.handleTableEvents(ch, c.handleEpTableEvent)
+	go c.handleTableEvents(nodeCh, c.handleNodeTableEvent)
 
 	drvEnc := discoverapi.DriverEncryptionConfig{}
 	keys, tags = c.getKeys(subsysIPSec)
@@ -294,21 +320,22 @@ func (c *controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr st
 }
 
 func (c *controller) agentJoin(remote string) error {
-	if c.agent == nil {
+	agent := c.getAgent()
+	if agent == nil {
 		return nil
 	}
-
-	return c.agent.networkDB.Join([]string{remote})
+	return agent.networkDB.Join([]string{remote})
 }
 
 func (c *controller) agentDriverNotify(d driverapi.Driver) {
-	if c.agent == nil {
+	agent := c.getAgent()
+	if agent == nil {
 		return
 	}
 
 	d.DiscoverNew(discoverapi.NodeDiscovery, discoverapi.NodeDiscoveryData{
-		Address:     c.agent.advertiseAddr,
-		BindAddress: c.agent.bindAddr,
+		Address:     agent.advertiseAddr,
+		BindAddress: agent.bindAddr,
 		Self:        true,
 	})
 
@@ -339,10 +366,18 @@ func (c *controller) agentClose() {
 		return
 	}
 
+	var cancelList []func()
+
+	agent.Lock()
 	for _, cancelFuncs := range agent.driverCancelFuncs {
 		for _, cancel := range cancelFuncs {
-			cancel()
+			cancelList = append(cancelList, cancel)
 		}
+	}
+	agent.Unlock()
+
+	for _, cancel := range cancelList {
+		cancel()
 	}
 
 	agent.epTblCancel()
@@ -354,13 +389,7 @@ func (n *network) isClusterEligible() bool {
 	if n.driverScope() != datastore.GlobalScope {
 		return false
 	}
-
-	c := n.getController()
-	if c.agent == nil {
-		return false
-	}
-
-	return true
+	return n.getController().getAgent() != nil
 }
 
 func (n *network) joinCluster() error {
@@ -368,8 +397,12 @@ func (n *network) joinCluster() error {
 		return nil
 	}
 
-	c := n.getController()
-	return c.agent.networkDB.JoinNetwork(n.ID())
+	agent := n.getController().getAgent()
+	if agent == nil {
+		return nil
+	}
+
+	return agent.networkDB.JoinNetwork(n.ID())
 }
 
 func (n *network) leaveCluster() error {
@@ -377,17 +410,66 @@ func (n *network) leaveCluster() error {
 		return nil
 	}
 
-	c := n.getController()
-	return c.agent.networkDB.LeaveNetwork(n.ID())
+	agent := n.getController().getAgent()
+	if agent == nil {
+		return nil
+	}
+
+	return agent.networkDB.LeaveNetwork(n.ID())
 }
 
-func (ep *endpoint) addToCluster() error {
+func (ep *endpoint) addDriverInfoToCluster() error {
+	n := ep.getNetwork()
+	if !n.isClusterEligible() {
+		return nil
+	}
+	if ep.joinInfo == nil {
+		return nil
+	}
+
+	agent := n.getController().getAgent()
+	if agent == nil {
+		return nil
+	}
+
+	for _, te := range ep.joinInfo.driverTableEntries {
+		if err := agent.networkDB.CreateEntry(te.tableName, n.ID(), te.key, te.value); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (ep *endpoint) deleteDriverInfoFromCluster() error {
+	n := ep.getNetwork()
+	if !n.isClusterEligible() {
+		return nil
+	}
+	if ep.joinInfo == nil {
+		return nil
+	}
+
+	agent := n.getController().getAgent()
+	if agent == nil {
+		return nil
+	}
+
+	for _, te := range ep.joinInfo.driverTableEntries {
+		if err := agent.networkDB.DeleteEntry(te.tableName, n.ID(), te.key); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (ep *endpoint) addServiceInfoToCluster() error {
 	n := ep.getNetwork()
 	if !n.isClusterEligible() {
 		return nil
 	}
 
 	c := n.getController()
+	agent := c.getAgent()
 	if !ep.isAnonymous() && ep.Iface().Address() != nil {
 		var ingressPorts []*PortConfig
 		if ep.svcID != "" {
@@ -416,27 +498,25 @@ func (ep *endpoint) addToCluster() error {
 			return err
 		}
 
-		if err := c.agent.networkDB.CreateEntry("endpoint_table", n.ID(), ep.ID(), buf); err != nil {
-			return err
-		}
-	}
-
-	for _, te := range ep.joinInfo.driverTableEntries {
-		if err := c.agent.networkDB.CreateEntry(te.tableName, n.ID(), te.key, te.value); err != nil {
-			return err
+		if agent != nil {
+			if err := agent.networkDB.CreateEntry("endpoint_table", n.ID(), ep.ID(), buf); err != nil {
+				return err
+			}
 		}
 	}
 
 	return nil
 }
 
-func (ep *endpoint) deleteFromCluster() error {
+func (ep *endpoint) deleteServiceInfoFromCluster() error {
 	n := ep.getNetwork()
 	if !n.isClusterEligible() {
 		return nil
 	}
 
 	c := n.getController()
+	agent := c.getAgent()
+
 	if !ep.isAnonymous() {
 		if ep.svcID != "" && ep.Iface().Address() != nil {
 			var ingressPorts []*PortConfig
@@ -448,22 +528,12 @@ func (ep *endpoint) deleteFromCluster() error {
 				return err
 			}
 		}
-
-		if err := c.agent.networkDB.DeleteEntry("endpoint_table", n.ID(), ep.ID()); err != nil {
-			return err
+		if agent != nil {
+			if err := agent.networkDB.DeleteEntry("endpoint_table", n.ID(), ep.ID()); err != nil {
+				return err
+			}
 		}
 	}
-
-	if ep.joinInfo == nil {
-		return nil
-	}
-
-	for _, te := range ep.joinInfo.driverTableEntries {
-		if err := c.agent.networkDB.DeleteEntry(te.tableName, n.ID(), te.key); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
@@ -473,16 +543,15 @@ func (n *network) addDriverWatches() {
 	}
 
 	c := n.getController()
+	agent := c.getAgent()
+	if agent == nil {
+		return
+	}
 	for _, tableName := range n.driverTables {
-		c.Lock()
-		if c.agent == nil {
-			c.Unlock()
-			return
-		}
-		ch, cancel := c.agent.networkDB.Watch(tableName, n.ID(), "")
-		c.agent.driverCancelFuncs[n.ID()] = append(c.agent.driverCancelFuncs[n.ID()], cancel)
-		c.Unlock()
-
+		ch, cancel := agent.networkDB.Watch(tableName, n.ID(), "")
+		agent.Lock()
+		agent.driverCancelFuncs[n.ID()] = append(agent.driverCancelFuncs[n.ID()], cancel)
+		agent.Unlock()
 		go c.handleTableEvents(ch, n.handleDriverTableEvent)
 		d, err := n.driver(false)
 		if err != nil {
@@ -490,7 +559,7 @@ func (n *network) addDriverWatches() {
 			return
 		}
 
-		c.agent.networkDB.WalkTable(tableName, func(nid, key string, value []byte) bool {
+		agent.networkDB.WalkTable(tableName, func(nid, key string, value []byte) bool {
 			if nid == n.ID() {
 				d.EventNotify(driverapi.Create, nid, tableName, key, value)
 			}
@@ -505,11 +574,15 @@ func (n *network) cancelDriverWatches() {
 		return
 	}
 
-	c := n.getController()
-	c.Lock()
-	cancelFuncs := c.agent.driverCancelFuncs[n.ID()]
-	delete(c.agent.driverCancelFuncs, n.ID())
-	c.Unlock()
+	agent := n.getController().getAgent()
+	if agent == nil {
+		return
+	}
+
+	agent.Lock()
+	cancelFuncs := agent.driverCancelFuncs[n.ID()]
+	delete(agent.driverCancelFuncs, n.ID())
+	agent.Unlock()
 
 	for _, cancel := range cancelFuncs {
 		cancel()
@@ -562,6 +635,31 @@ func (n *network) handleDriverTableEvent(ev events.Event) {
 	}
 
 	d.EventNotify(etype, n.ID(), tname, key, value)
+}
+
+func (c *controller) handleNodeTableEvent(ev events.Event) {
+	var (
+		value    []byte
+		isAdd    bool
+		nodeAddr networkdb.NodeAddr
+	)
+	switch event := ev.(type) {
+	case networkdb.CreateEvent:
+		value = event.Value
+		isAdd = true
+	case networkdb.DeleteEvent:
+		value = event.Value
+	case networkdb.UpdateEvent:
+		logrus.Errorf("Unexpected update node table event = %#v", event)
+	}
+
+	err := json.Unmarshal(value, &nodeAddr)
+	if err != nil {
+		logrus.Errorf("Error unmarshalling node table event %v", err)
+		return
+	}
+	c.processNodeDiscovery([]net.IP{nodeAddr.Addr}, isAdd)
+
 }
 
 func (c *controller) handleEpTableEvent(ev events.Event) {

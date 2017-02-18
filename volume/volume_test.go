@@ -22,7 +22,6 @@ func TestParseMountRaw(t *testing.T) {
 			`d:`,
 			`d:\path`,
 			`d:\path with space`,
-			// TODO Windows post TP5 - readonly support `d:\pathandmode:ro`,
 			`c:\:d:\`,
 			`c:\windows\:d:`,
 			`c:\windows:d:\s p a c e`,
@@ -33,9 +32,9 @@ func TestParseMountRaw(t *testing.T) {
 			`name:D:`,
 			`name:D::rW`,
 			`name:D::RW`,
-			// TODO Windows post TP5 - readonly support `name:D::RO`,
+			`name:D::RO`,
 			`c:/:d:/forward/slashes/are/good/too`,
-			// TODO Windows post TP5 - readonly support `c:/:d:/including with/spaces:ro`,
+			`c:/:d:/including with/spaces:ro`,
 			`c:\Windows`,             // With capital
 			`c:\Program Files (x86)`, // With capitals and brackets
 		}
@@ -59,6 +58,7 @@ func TestParseMountRaw(t *testing.T) {
 			`name?:d:`:                         `invalid volume specification`,
 			`name/:d:`:                         `invalid volume specification`,
 			`d:\pathandmode:rw`:                `invalid volume specification`,
+			`d:\pathandmode:ro`:                `invalid volume specification`,
 			`con:d:`:                           `cannot be a reserved word for Windows filenames`,
 			`PRN:d:`:                           `cannot be a reserved word for Windows filenames`,
 			`aUx:d:`:                           `cannot be a reserved word for Windows filenames`,
@@ -157,12 +157,12 @@ func TestParseMountRawSplit(t *testing.T) {
 		cases = []testParseMountRaw{
 			{`c:\:d:`, "local", `d:`, `c:\`, ``, "", true, false},
 			{`c:\:d:\`, "local", `d:\`, `c:\`, ``, "", true, false},
-			// TODO Windows post TP5 - Add readonly support {`c:\:d:\:ro`, "local", `d:\`, `c:\`, ``, "", false, false},
+			{`c:\:d:\:ro`, "local", `d:\`, `c:\`, ``, "", false, false},
 			{`c:\:d:\:rw`, "local", `d:\`, `c:\`, ``, "", true, false},
 			{`c:\:d:\:foo`, "local", `d:\`, `c:\`, ``, "", false, true},
 			{`name:d::rw`, "local", `d:`, ``, `name`, "local", true, false},
 			{`name:d:`, "local", `d:`, ``, `name`, "local", true, false},
-			// TODO Windows post TP5 - Add readonly support {`name:d::ro`, "local", `d:`, ``, `name`, "local", false, false},
+			{`name:d::ro`, "local", `d:`, ``, `name`, "local", false, false},
 			{`name:c:`, "", ``, ``, ``, "", true, true},
 			{`driver/name:c:`, "", ``, ``, ``, "", true, true},
 		}
@@ -254,7 +254,7 @@ func TestParseMountSpec(t *testing.T) {
 			t.Fatalf("Expected mount source to match. Expected: '%s', Actual: '%s'", c.expected.Source, mp.Source)
 		}
 		if c.expected.RW != mp.RW {
-			t.Fatalf("Expected mount writable to match. Expected: '%v', Actual: '%s'", c.expected.RW, mp.RW)
+			t.Fatalf("Expected mount writable to match. Expected: '%v', Actual: '%v'", c.expected.RW, mp.RW)
 		}
 		if c.expected.Propagation != mp.Propagation {
 			t.Fatalf("Expected mount propagation to match. Expected: '%v', Actual: '%s'", c.expected.Propagation, mp.Propagation)

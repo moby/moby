@@ -18,9 +18,9 @@ func HumanDuration(d time.Duration) string {
 		return fmt.Sprintf("%d seconds", seconds)
 	} else if minutes := int(d.Minutes()); minutes == 1 {
 		return "About a minute"
-	} else if minutes < 60 {
+	} else if minutes < 46 {
 		return fmt.Sprintf("%d minutes", minutes)
-	} else if hours := int(d.Hours()); hours == 1 {
+	} else if hours := int(d.Hours() + 0.5); hours == 1 {
 		return "About an hour"
 	} else if hours < 48 {
 		return fmt.Sprintf("%d hours", hours)

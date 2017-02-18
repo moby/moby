@@ -147,13 +147,20 @@ type Scope interface {
 // to a repository.
 type RepositoryScope struct {
 	Repository string
+	Class      string
 	Actions    []string
 }
 
 // String returns the string representation of the repository
 // using the scope grammar
 func (rs RepositoryScope) String() string {
-	return fmt.Sprintf("repository:%s:%s", rs.Repository, strings.Join(rs.Actions, ","))
+	repoType := "repository"
+	// Keep existing format for image class to maintain backwards compatibility
+	// with authorization servers which do not support the expanded grammar.
+	if rs.Class != "" && rs.Class != "image" {
+		repoType = fmt.Sprintf("%s(%s)", repoType, rs.Class)
+	}
+	return fmt.Sprintf("%s:%s:%s", repoType, rs.Repository, strings.Join(rs.Actions, ","))
 }
 
 // RegistryScope represents a token scope for access

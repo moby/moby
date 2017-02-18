@@ -35,18 +35,18 @@ func init() {
 // New creates a logentries logger using the configuration passed in on
 // the context. The supported context configuration variable is
 // logentries-token.
-func New(ctx logger.Context) (logger.Logger, error) {
-	logrus.WithField("container", ctx.ContainerID).
-		WithField("token", ctx.Config[token]).
+func New(info logger.Info) (logger.Logger, error) {
+	logrus.WithField("container", info.ContainerID).
+		WithField("token", info.Config[token]).
 		Debug("logging driver logentries configured")
 
-	log, err := le_go.Connect(ctx.Config[token])
+	log, err := le_go.Connect(info.Config[token])
 	if err != nil {
 		return nil, err
 	}
 	return &logentries{
-		containerID:   ctx.ContainerID,
-		containerName: ctx.ContainerName,
+		containerID:   info.ContainerID,
+		containerName: info.ContainerName,
 		writer:        log,
 	}, nil
 }
@@ -61,7 +61,9 @@ func (f *logentries) Log(msg *logger.Message) error {
 	for k, v := range f.extra {
 		data[k] = v
 	}
-	f.writer.Println(f.tag, msg.Timestamp, data)
+	ts := msg.Timestamp
+	logger.PutMessage(msg)
+	f.writer.Println(f.tag, ts, data)
 	return nil
 }
 

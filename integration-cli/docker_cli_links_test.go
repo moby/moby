@@ -6,7 +6,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/pkg/testutil"
 	"github.com/docker/docker/runconfig"
 	"github.com/go-check/check"
 )
@@ -101,7 +102,7 @@ func (s *DockerSuite) TestLinksInspectLinksStarted(c *check.C) {
 	err := json.Unmarshal([]byte(links), &result)
 	c.Assert(err, checker.IsNil)
 
-	output := convertSliceOfStringsToMap(result)
+	output := testutil.ConvertSliceOfStringsToMap(result)
 
 	c.Assert(output, checker.DeepEquals, expected)
 }
@@ -120,7 +121,7 @@ func (s *DockerSuite) TestLinksInspectLinksStopped(c *check.C) {
 	err := json.Unmarshal([]byte(links), &result)
 	c.Assert(err, checker.IsNil)
 
-	output := convertSliceOfStringsToMap(result)
+	output := testutil.ConvertSliceOfStringsToMap(result)
 
 	c.Assert(output, checker.DeepEquals, expected)
 }
@@ -145,11 +146,8 @@ func (s *DockerSuite) TestLinksHostsFilesInject(c *check.C) {
 
 	c.Assert(waitRun(idTwo), checker.IsNil)
 
-	contentOne, err := readContainerFileWithExec(idOne, "/etc/hosts")
-	c.Assert(err, checker.IsNil, check.Commentf("contentOne: %s", string(contentOne)))
-
-	contentTwo, err := readContainerFileWithExec(idTwo, "/etc/hosts")
-	c.Assert(err, checker.IsNil, check.Commentf("contentTwo: %s", string(contentTwo)))
+	readContainerFileWithExec(c, idOne, "/etc/hosts")
+	contentTwo := readContainerFileWithExec(c, idTwo, "/etc/hosts")
 	// Host is not present in updated hosts file
 	c.Assert(string(contentTwo), checker.Contains, "onetwo")
 }
@@ -162,8 +160,7 @@ func (s *DockerSuite) TestLinksUpdateOnRestart(c *check.C) {
 	id := strings.TrimSpace(string(out))
 
 	realIP := inspectField(c, "one", "NetworkSettings.Networks.bridge.IPAddress")
-	content, err := readContainerFileWithExec(id, "/etc/hosts")
-	c.Assert(err, checker.IsNil)
+	content := readContainerFileWithExec(c, id, "/etc/hosts")
 
 	getIP := func(hosts []byte, hostname string) string {
 		re := regexp.MustCompile(fmt.Sprintf(`(\S*)\t%s`, regexp.QuoteMeta(hostname)))
@@ -180,8 +177,7 @@ func (s *DockerSuite) TestLinksUpdateOnRestart(c *check.C) {
 	dockerCmd(c, "restart", "one")
 	realIP = inspectField(c, "one", "NetworkSettings.Networks.bridge.IPAddress")
 
-	content, err = readContainerFileWithExec(id, "/etc/hosts")
-	c.Assert(err, checker.IsNil, check.Commentf("content: %s", string(content)))
+	content = readContainerFileWithExec(c, id, "/etc/hosts")
 	ip = getIP(content, "one")
 	c.Assert(ip, checker.Equals, realIP)
 

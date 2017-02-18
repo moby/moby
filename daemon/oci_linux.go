@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -25,6 +26,10 @@ import (
 	"github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/opencontainers/runc/libcontainer/user"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
+)
+
+var (
+	deviceCgroupRuleRegex = regexp.MustCompile("^([acb]) ([0-9]+|\\*):([0-9]+|\\*) ([rwm]{1,3})$")
 )
 
 func setResources(s *specs.Spec, r containertypes.Resources) error {
@@ -88,7 +93,7 @@ func setDevices(s *specs.Spec, c *container.Container) error {
 			return err
 		}
 		for _, d := range hostDevices {
-			devs = append(devs, specDevice(d))
+			devs = append(devs, oci.Device(d))
 		}
 		rwm := "rwm"
 		devPermissions = []specs.DeviceCgroup{
@@ -99,12 +104,47 @@ func setDevices(s *specs.Spec, c *container.Container) error {
 		}
 	} else {
 		for _, deviceMapping := range c.HostConfig.Devices {
-			d, dPermissions, err := getDevicesFromPath(deviceMapping)
+			d, dPermissions, err := oci.DevicesFromPath(deviceMapping.PathOnHost, deviceMapping.PathInContainer, deviceMapping.CgroupPermissions)
 			if err != nil {
 				return err
 			}
 			devs = append(devs, d...)
 			devPermissions = append(devPermissions, dPermissions...)
+		}
+
+		for _, deviceCgroupRule := range c.HostConfig.DeviceCgroupRules {
+			ss := deviceCgroupRuleRegex.FindAllStringSubmatch(deviceCgroupRule, -1)
+			if len(ss[0]) != 5 {
+				return fmt.Errorf("invalid device cgroup rule format: '%s'", deviceCgroupRule)
+			}
+			matches := ss[0]
+
+			dPermissions := specs.DeviceCgroup{
+				Allow:  true,
+				Type:   &matches[1],
+				Access: &matches[4],
+			}
+			if matches[2] == "*" {
+				major := int64(-1)
+				dPermissions.Major = &major
+			} else {
+				major, err := strconv.ParseInt(matches[2], 10, 64)
+				if err != nil {
+					return fmt.Errorf("invalid major value in device cgroup rule format: '%s'", deviceCgroupRule)
+				}
+				dPermissions.Major = &major
+			}
+			if matches[3] == "*" {
+				minor := int64(-1)
+				dPermissions.Minor = &minor
+			} else {
+				minor, err := strconv.ParseInt(matches[3], 10, 64)
+				if err != nil {
+					return fmt.Errorf("invalid minor value in device cgroup rule format: '%s'", deviceCgroupRule)
+				}
+				dPermissions.Minor = &minor
+			}
+			devPermissions = append(devPermissions, dPermissions)
 		}
 	}
 
@@ -221,18 +261,6 @@ func setCapabilities(s *specs.Spec, c *container.Container) error {
 	return nil
 }
 
-func delNamespace(s *specs.Spec, nsType specs.NamespaceType) {
-	idx := -1
-	for i, n := range s.Linux.Namespaces {
-		if n.Type == nsType {
-			idx = i
-		}
-	}
-	if idx >= 0 {
-		s.Linux.Namespaces = append(s.Linux.Namespaces[:idx], s.Linux.Namespaces[idx+1:]...)
-	}
-}
-
 func setNamespaces(daemon *Daemon, s *specs.Spec, c *container.Container) error {
 	userNS := false
 	// user
@@ -283,7 +311,7 @@ func setNamespaces(daemon *Daemon, s *specs.Spec, c *container.Container) error 
 			setNamespace(s, nsUser)
 		}
 	} else if c.HostConfig.IpcMode.IsHost() {
-		delNamespace(s, specs.NamespaceType("ipc"))
+		oci.RemoveNamespace(s, specs.NamespaceType("ipc"))
 	} else {
 		ns := specs.Namespace{Type: "ipc"}
 		setNamespace(s, ns)
@@ -304,14 +332,14 @@ func setNamespaces(daemon *Daemon, s *specs.Spec, c *container.Container) error 
 			setNamespace(s, nsUser)
 		}
 	} else if c.HostConfig.PidMode.IsHost() {
-		delNamespace(s, specs.NamespaceType("pid"))
+		oci.RemoveNamespace(s, specs.NamespaceType("pid"))
 	} else {
 		ns := specs.Namespace{Type: "pid"}
 		setNamespace(s, ns)
 	}
 	// uts
 	if c.HostConfig.UTSMode.IsHost() {
-		delNamespace(s, specs.NamespaceType("uts"))
+		oci.RemoveNamespace(s, specs.NamespaceType("uts"))
 		s.Hostname = ""
 	}
 
@@ -593,7 +621,7 @@ func (daemon *Daemon) populateCommonSpec(s *specs.Spec, c *container.Container) 
 	if c.HostConfig.PidMode.IsPrivate() {
 		if (c.HostConfig.Init != nil && *c.HostConfig.Init) ||
 			(c.HostConfig.Init == nil && daemon.configStore.Init) {
-			s.Process.Args = append([]string{"/dev/init", c.Path}, c.Args...)
+			s.Process.Args = append([]string{"/dev/init", "--", c.Path}, c.Args...)
 			var path string
 			if daemon.configStore.InitPath == "" && c.HostConfig.InitPath == "" {
 				path, err = exec.LookPath(DefaultInitBinary)
@@ -745,12 +773,27 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	}
 
 	if apparmor.IsEnabled() {
-		appArmorProfile := "docker-default"
-		if len(c.AppArmorProfile) > 0 {
+		var appArmorProfile string
+		if c.AppArmorProfile != "" {
 			appArmorProfile = c.AppArmorProfile
 		} else if c.HostConfig.Privileged {
 			appArmorProfile = "unconfined"
+		} else {
+			appArmorProfile = "docker-default"
 		}
+
+		if appArmorProfile == "docker-default" {
+			// Unattended upgrades and other fun services can unload AppArmor
+			// profiles inadvertently. Since we cannot store our profile in
+			// /etc/apparmor.d, nor can we practically add other ways of
+			// telling the system to keep our profile loaded, in order to make
+			// sure that we keep the default profile enabled we dynamically
+			// reload it if necessary.
+			if err := ensureDefaultAppArmorProfile(); err != nil {
+				return nil, err
+			}
+		}
+
 		s.Process.ApparmorProfile = appArmorProfile
 	}
 	s.Process.SelinuxLabel = c.GetProcessLabel()

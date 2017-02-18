@@ -4,12 +4,11 @@ import (
 	"fmt"
 	"strings"
 
-	"golang.org/x/net/context"
-
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/go-connections/nat"
 	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 type portOptions struct {

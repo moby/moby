@@ -25,6 +25,8 @@ You start the Docker daemon with the command line. How you start the daemon
 affects your Docker containers. For that reason you should also make sure to
 read the [`dockerd`](dockerd.md) reference page.
 
+## Commands by object
+
 ### Docker management commands
 
 | Command | Description                                                        |
@@ -45,6 +47,7 @@ read the [`dockerd`](dockerd.md) reference page.
 | [images](images.md) | List images                                            |
 | [import](import.md) | Import the contents from a tarball to create a filesystem image |
 | [load](load.md) | Load an image from a tar archive or STDIN                  |
+| [image prune](image_prune.md) | Remove unused images                         |
 | [rmi](rmi.md) | Remove one or more images                                    |
 | [save](save.md) | Save images to a tar archive                               |
 | [tag](tag.md) | Tag an image into a repository                               |
@@ -54,6 +57,7 @@ read the [`dockerd`](dockerd.md) reference page.
 | Command | Description                                                        |
 |:--------|:-------------------------------------------------------------------|
 | [attach](attach.md) | Attach to a running container                          |
+| [container prune](container_prune.md) | Remove all stopped containers        |
 | [cp](cp.md) | Copy files/folders from a container to a HOSTDIR or to STDOUT  |
 | [create](create.md) | Create a new container                                 |
 | [diff](diff.md) | Inspect changes on a container's filesystem                |
@@ -96,8 +100,8 @@ read the [`dockerd`](dockerd.md) reference page.
 | [network disconnect](network_disconnect.md) | Disconnect a container from a network |
 | [network inspect](network_inspect.md) | Display information about a network  |
 | [network ls](network_ls.md) | Lists all the networks the Engine `daemon` knows about |
+| [network prune](network_prune.md) | Remove all unused networks               |
 | [network rm](network_rm.md) | Removes one or more networks                   |
-
 
 ### Shared data volume commands
 
@@ -106,30 +110,32 @@ read the [`dockerd`](dockerd.md) reference page.
 | [volume create](volume_create.md) | Creates a new volume where containers can consume and store data |
 | [volume inspect](volume_inspect.md) | Display information about a volume     |
 | [volume ls](volume_ls.md) | Lists all the volumes Docker knows about         |
+| [volume prune](volume_prune.md) | Remove all unused volumes                  |
 | [volume rm](volume_rm.md) | Remove one or more volumes                       |
-
 
 ### Swarm node commands
 
 | Command | Description                                                        |
 |:--------|:-------------------------------------------------------------------|
-| [node promote](node_promote.md) | Promote a node that is pending a promotion to manager |
 | [node demote](node_demote.md) | Demotes an existing manager so that it is no longer a manager |
 | [node inspect](node_inspect.md) | Inspect a node in the swarm                |
-| [node update](node_update.md) | Update attributes for a node                 |
-| [node ps](node_ps.md) | List tasks running on one or more nodes                         |
 | [node ls](node_ls.md) | List nodes in the swarm                              |
+| [node promote](node_promote.md) | Promote a node that is pending a promotion to manager |
+| [node ps](node_ps.md) | List tasks running on one or more nodes                         |
 | [node rm](node_rm.md) | Remove one or more nodes from the swarm                         |
+| [node update](node_update.md) | Update attributes for a node                 |
 
-### Swarm swarm commands
+### Swarm management commands
 
 | Command | Description                                                        |
 |:--------|:-------------------------------------------------------------------|
 | [swarm init](swarm_init.md) | Initialize a swarm                             |
 | [swarm join](swarm_join.md) | Join a swarm as a manager node or worker node  |
 | [swarm leave](swarm_leave.md) | Remove the current node from the swarm       |
-| [swarm update](swarm_update.md) | Update attributes of a swarm               |
 | [swarm join-token](swarm_join_token.md) | Display or rotate join tokens      |
+| [swarm unlock](swarm_unlock.md) | Unlock swarm                               |
+| [swarm unlock-key](swarm_unlock_key.md) | Manage the unlock key              |
+| [swarm update](swarm_update.md) | Update attributes of a swarm               |
 
 ### Swarm service commands
 
@@ -137,8 +143,42 @@ read the [`dockerd`](dockerd.md) reference page.
 |:--------|:-------------------------------------------------------------------|
 | [service create](service_create.md) | Create a new service                   |
 | [service inspect](service_inspect.md) | Inspect a service                    |
+| [service logs](service_logs.md)  | Fetch the logs of a service               |
 | [service ls](service_ls.md) | List services in the swarm                     |
+| [service ps](service_ps.md) | List the tasks of a service              |
 | [service rm](service_rm.md) | Remove a service from the swarm                |
 | [service scale](service_scale.md) | Set the number of replicas for the desired state of the service |
-| [service ps](service_ps.md) | List the tasks of a service              |
 | [service update](service_update.md)  | Update the attributes of a service    |
+
+### Swarm secret commands
+
+| Command | Description                                                        |
+|:--------|:-------------------------------------------------------------------|
+| [secret create](secret_create.md) | Create a secret from a file or STDIN as content |
+| [secret inspect](service_inspect.md) | Inspect the specified secret          |
+| [secret ls](secret_ls.md) | List secrets in the swarm                        |
+| [secret rm](secret_rm.md) | Remove the specified secrets from the swarm      |
+
+### Swarm stack commands
+
+| Command | Description                                                        |
+|:--------|:-------------------------------------------------------------------|
+| [stack deploy](stack_deploy.md) | Deploy a new stack or update an existing stack |
+| [stack ls](stack_ls.md) | List stacks in the swarm                           |
+| [stack ps](stack_ps.md) | List the tasks in the stack                        |
+| [stack rm](stack_rm.md) | Remove the stack from the swarm                    |
+| [stack services](stack_services.md) | List the services in the stack         |
+
+### Plugin commands
+
+| Command | Description                                                        |
+|:--------|:-------------------------------------------------------------------|
+| [plugin create](plugin_create.md) | Create a plugin from a rootfs and configuration |
+| [plugin disable](plugin_disable.md) | Disable a plugin                       |
+| [plugin enbale](plugin_enable.md)  | Enable a plugin                         |
+| [plugin inspect](plugin_inspect.md) | Display detailed information on a plugin |
+| [plugin install](plugin_install.md) | Install a plugin                       |
+| [plugin ls](plugin_ls.md) | List plugins                                     |
+| [plugin push](plugin_push.md) | Push a plugin to a registry                  |
+| [plugin rm](plugin_rm.md) | Remove a plugin                                  |
+| [plugin set](plugin_set.md)  | Change settings for a plugin                  |

@@ -10,16 +10,18 @@ import (
 	"runtime"
 
 	"github.com/docker/docker/api"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
+	cliconfig "github.com/docker/docker/cli/config"
+	"github.com/docker/docker/cli/config/configfile"
+	"github.com/docker/docker/cli/config/credentials"
 	cliflags "github.com/docker/docker/cli/flags"
-	"github.com/docker/docker/cliconfig"
-	"github.com/docker/docker/cliconfig/configfile"
-	"github.com/docker/docker/cliconfig/credentials"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/dockerversion"
 	dopts "github.com/docker/docker/opts"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )
 
@@ -30,7 +32,15 @@ type Streams interface {
 	Err() io.Writer
 }
 
-// DockerCli represents the docker command line client.
+// Cli represents the docker command line client.
+type Cli interface {
+	Client() client.APIClient
+	Out() *OutStream
+	Err() io.Writer
+	In() *InStream
+}
+
+// DockerCli is an instance the docker command line client.
 // Instances of the client can be returned from NewDockerCli.
 type DockerCli struct {
 	configFile      *configfile.ConfigFile
@@ -73,18 +83,65 @@ func (cli *DockerCli) In() *InStream {
 	return cli.in
 }
 
+// ShowHelp shows the command help.
+func (cli *DockerCli) ShowHelp(cmd *cobra.Command, args []string) error {
+	cmd.SetOutput(cli.err)
+	cmd.HelpFunc()(cmd, args)
+	return nil
+}
+
 // ConfigFile returns the ConfigFile
 func (cli *DockerCli) ConfigFile() *configfile.ConfigFile {
 	return cli.configFile
 }
 
+// GetAllCredentials returns all of the credentials stored in all of the
+// configured credential stores.
+func (cli *DockerCli) GetAllCredentials() (map[string]types.AuthConfig, error) {
+	auths := make(map[string]types.AuthConfig)
+	for registry := range cli.configFile.CredentialHelpers {
+		helper := cli.CredentialsStore(registry)
+		newAuths, err := helper.GetAll()
+		if err != nil {
+			return nil, err
+		}
+		addAll(auths, newAuths)
+	}
+	defaultStore := cli.CredentialsStore("")
+	newAuths, err := defaultStore.GetAll()
+	if err != nil {
+		return nil, err
+	}
+	addAll(auths, newAuths)
+	return auths, nil
+}
+
+func addAll(to, from map[string]types.AuthConfig) {
+	for reg, ac := range from {
+		to[reg] = ac
+	}
+}
+
 // CredentialsStore returns a new credentials store based
-// on the settings provided in the configuration file.
-func (cli *DockerCli) CredentialsStore() credentials.Store {
-	if cli.configFile.CredentialsStore != "" {
-		return credentials.NewNativeStore(cli.configFile)
+// on the settings provided in the configuration file. Empty string returns
+// the default credential store.
+func (cli *DockerCli) CredentialsStore(serverAddress string) credentials.Store {
+	if helper := getConfiguredCredentialStore(cli.configFile, serverAddress); helper != "" {
+		return credentials.NewNativeStore(cli.configFile, helper)
 	}
 	return credentials.NewFileStore(cli.configFile)
+}
+
+// getConfiguredCredentialStore returns the credential helper configured for the
+// given registry, the default credsStore, or the empty string if neither are
+// configured.
+func getConfiguredCredentialStore(c *configfile.ConfigFile, serverAddress string) string {
+	if c.CredentialHelpers != nil && serverAddress != "" {
+		if helper, exists := c.CredentialHelpers[serverAddress]; exists {
+			return helper
+		}
+	}
+	return c.CredentialsStore
 }
 
 // Initialize the dockerCli runs initialization that must happen after command
@@ -101,7 +158,7 @@ func (cli *DockerCli) Initialize(opts *cliflags.ClientOptions) error {
 	cli.defaultVersion = cli.client.ClientVersion()
 
 	if opts.Common.TrustKey == "" {
-		cli.keyFile = filepath.Join(cliconfig.ConfigDir(), cliflags.DefaultTrustKeyFile)
+		cli.keyFile = filepath.Join(cliconfig.Dir(), cliflags.DefaultTrustKeyFile)
 	} else {
 		cli.keyFile = opts.Common.TrustKey
 	}
@@ -130,7 +187,7 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer) *DockerCli {
 // LoadDefaultConfigFile attempts to load the default config file and returns
 // an initialized ConfigFile struct if none is found.
 func LoadDefaultConfigFile(err io.Writer) *configfile.ConfigFile {
-	configFile, e := cliconfig.Load(cliconfig.ConfigDir())
+	configFile, e := cliconfig.Load(cliconfig.Dir())
 	if e != nil {
 		fmt.Fprintf(err, "WARNING: Error loading config file:%v\n", e)
 	}

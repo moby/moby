@@ -7,7 +7,13 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
+)
+
+var (
+	validCheckpointNameChars   = api.RestrictedNameChars
+	validCheckpointNamePattern = api.RestrictedNamePattern
 )
 
 // CheckpointCreate checkpoints the process running in a container with CRIU
@@ -26,6 +32,10 @@ func (daemon *Daemon) CheckpointCreate(name string, config types.CheckpointCreat
 		checkpointDir = config.CheckpointDir
 	} else {
 		checkpointDir = container.CheckpointDir()
+	}
+
+	if !validCheckpointNamePattern.MatchString(config.CheckpointID) {
+		return fmt.Errorf("Invalid checkpoint ID (%s), only %s are allowed", config.CheckpointID, validCheckpointNameChars)
 	}
 
 	err = daemon.containerd.CreateCheckpoint(container.ID, config.CheckpointID, checkpointDir, config.Exit)

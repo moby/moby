@@ -15,8 +15,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution"
-	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/opencontainers/go-digest"
 )
 
 var (
@@ -165,7 +165,7 @@ func (fms *fileMetadataStore) GetParent(layer ChainID) (ChainID, error) {
 		return "", err
 	}
 
-	dgst, err := digest.ParseDigest(strings.TrimSpace(string(content)))
+	dgst, err := digest.Parse(strings.TrimSpace(string(content)))
 	if err != nil {
 		return "", err
 	}
@@ -179,7 +179,7 @@ func (fms *fileMetadataStore) GetDiffID(layer ChainID) (DiffID, error) {
 		return "", err
 	}
 
-	dgst, err := digest.ParseDigest(strings.TrimSpace(string(content)))
+	dgst, err := digest.Parse(strings.TrimSpace(string(content)))
 	if err != nil {
 		return "", err
 	}
@@ -296,7 +296,7 @@ func (fms *fileMetadataStore) GetMountParent(mount string) (ChainID, error) {
 		return "", err
 	}
 
-	dgst, err := digest.ParseDigest(strings.TrimSpace(string(content)))
+	dgst, err := digest.Parse(strings.TrimSpace(string(content)))
 	if err != nil {
 		return "", err
 	}

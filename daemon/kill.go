@@ -61,7 +61,7 @@ func (daemon *Daemon) killWithSignal(container *container.Container, sig int) er
 
 	// We could unpause the container for them rather than returning this error
 	if container.Paused {
-		return fmt.Errorf("Container %s is paused. Unpause the container before stopping", container.ID)
+		return fmt.Errorf("Container %s is paused. Unpause the container before stopping or killing", container.ID)
 	}
 
 	if !container.Running {
@@ -119,7 +119,7 @@ func (daemon *Daemon) Kill(container *container.Container) error {
 	if err := daemon.killPossiblyDeadProcess(container, int(syscall.SIGKILL)); err != nil {
 		// While normally we might "return err" here we're not going to
 		// because if we can't stop the container by this point then
-		// its probably because its already stopped. Meaning, between
+		// it's probably because it's already stopped. Meaning, between
 		// the time of the IsRunning() call above and now it stopped.
 		// Also, since the err return will be environment specific we can't
 		// look for any particular (common) error that would indicate

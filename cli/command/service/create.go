@@ -33,21 +33,24 @@ func newCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 
 	flags.VarP(&opts.labels, flagLabel, "l", "Service labels")
 	flags.Var(&opts.containerLabels, flagContainerLabel, "Container labels")
-	flags.StringVar(&opts.hostname, flagHostname, "", "Container hostname")
 	flags.VarP(&opts.env, flagEnv, "e", "Set environment variables")
 	flags.Var(&opts.envFile, flagEnvFile, "Read in a file of environment variables")
 	flags.Var(&opts.mounts, flagMount, "Attach a filesystem mount to the service")
 	flags.Var(&opts.constraints, flagConstraint, "Placement constraints")
 	flags.Var(&opts.networks, flagNetwork, "Network attachments")
 	flags.Var(&opts.secrets, flagSecret, "Specify secrets to expose to the service")
+	flags.SetAnnotation(flagSecret, "version", []string{"1.25"})
 	flags.VarP(&opts.endpoint.publishPorts, flagPublish, "p", "Publish a port as a node port")
-	flags.MarkHidden(flagPublish)
 	flags.Var(&opts.groups, flagGroup, "Set one or more supplementary user groups for the container")
+	flags.SetAnnotation(flagGroup, "version", []string{"1.25"})
 	flags.Var(&opts.dns, flagDNS, "Set custom DNS servers")
+	flags.SetAnnotation(flagDNS, "version", []string{"1.25"})
 	flags.Var(&opts.dnsOption, flagDNSOption, "Set DNS options")
+	flags.SetAnnotation(flagDNSOption, "version", []string{"1.25"})
 	flags.Var(&opts.dnsSearch, flagDNSSearch, "Set custom DNS search domains")
+	flags.SetAnnotation(flagDNSSearch, "version", []string{"1.25"})
 	flags.Var(&opts.hosts, flagHost, "Set one or more custom host-to-IP mappings (host:ip)")
-	flags.Var(&opts.endpoint.expandedPorts, flagPort, "Publish a port")
+	flags.SetAnnotation(flagHost, "version", []string{"1.25"})
 
 	flags.SetInterspersed(false)
 	return cmd
@@ -65,7 +68,7 @@ func runCreate(dockerCli *command.DockerCli, opts *serviceOptions) error {
 	specifiedSecrets := opts.secrets.Value()
 	if len(specifiedSecrets) > 0 {
 		// parse and validate secrets
-		secrets, err := parseSecrets(apiClient, specifiedSecrets)
+		secrets, err := ParseSecrets(apiClient, specifiedSecrets)
 		if err != nil {
 			return err
 		}
@@ -74,6 +77,10 @@ func runCreate(dockerCli *command.DockerCli, opts *serviceOptions) error {
 	}
 
 	ctx := context.Background()
+
+	if err := resolveServiceImageDigest(dockerCli, &service); err != nil {
+		return err
+	}
 
 	// only send auth if flag was set
 	if opts.registryAuth {
@@ -88,6 +95,10 @@ func runCreate(dockerCli *command.DockerCli, opts *serviceOptions) error {
 	response, err := apiClient.ServiceCreate(ctx, service, createOpts)
 	if err != nil {
 		return err
+	}
+
+	for _, warning := range response.Warnings {
+		fmt.Fprintln(dockerCli.Err(), warning)
 	}
 
 	fmt.Fprintf(dockerCli.Out(), "%s\n", response.ID)

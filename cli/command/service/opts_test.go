@@ -11,12 +11,12 @@ import (
 )
 
 func TestMemBytesString(t *testing.T) {
-	var mem memBytes = 1048576
-	assert.Equal(t, mem.String(), "1 MiB")
+	var mem opts.MemBytes = 1048576
+	assert.Equal(t, mem.String(), "1MiB")
 }
 
 func TestMemBytesSetAndValue(t *testing.T) {
-	var mem memBytes
+	var mem opts.MemBytes
 	assert.NilError(t, mem.Set("5kb"))
 	assert.Equal(t, mem.Value(), int64(5120))
 }
@@ -59,7 +59,7 @@ func TestUint64OptString(t *testing.T) {
 	assert.Equal(t, opt.String(), "2345678")
 
 	opt = Uint64Opt{}
-	assert.Equal(t, opt.String(), "none")
+	assert.Equal(t, opt.String(), "")
 }
 
 func TestUint64OptSetAndValue(t *testing.T) {

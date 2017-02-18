@@ -9,9 +9,9 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/cli/compose/convert"
 	"github.com/docker/docker/client"
 	"github.com/spf13/cobra"
 )
@@ -72,7 +72,7 @@ func printTable(out io.Writer, stacks []*stack) {
 
 type stack struct {
 	// Name is the name of the stack
-	Name     string
+	Name string
 	// Services is the number of the services
 	Services int
 }
@@ -81,23 +81,19 @@ func getStacks(
 	ctx context.Context,
 	apiclient client.APIClient,
 ) ([]*stack, error) {
-
-	filter := filters.NewArgs()
-	filter.Add("label", labelNamespace)
-
 	services, err := apiclient.ServiceList(
 		ctx,
-		types.ServiceListOptions{Filters: filter})
+		types.ServiceListOptions{Filters: getAllStacksFilter()})
 	if err != nil {
 		return nil, err
 	}
 	m := make(map[string]*stack, 0)
 	for _, service := range services {
 		labels := service.Spec.Labels
-		name, ok := labels[labelNamespace]
+		name, ok := labels[convert.LabelNamespace]
 		if !ok {
 			return nil, fmt.Errorf("cannot get label %s for service %s",
-				labelNamespace, service.ID)
+				convert.LabelNamespace, service.ID)
 		}
 		ztack, ok := m[name]
 		if !ok {

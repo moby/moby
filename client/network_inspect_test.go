@@ -31,7 +31,7 @@ func TestNetworkInspectContainerNotFound(t *testing.T) {
 
 	_, err := client.NetworkInspect(context.Background(), "unknown")
 	if err == nil || !IsErrNetworkNotFound(err) {
-		t.Fatalf("expected a containerNotFound error, got %v", err)
+		t.Fatalf("expected a networkNotFound error, got %v", err)
 	}
 }
 

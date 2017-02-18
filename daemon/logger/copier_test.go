@@ -208,7 +208,7 @@ func TestCopierSlow(t *testing.T) {
 type BenchmarkLoggerDummy struct {
 }
 
-func (l *BenchmarkLoggerDummy) Log(m *Message) error { return nil }
+func (l *BenchmarkLoggerDummy) Log(m *Message) error { PutMessage(m); return nil }
 
 func (l *BenchmarkLoggerDummy) Close() error { return nil }
 

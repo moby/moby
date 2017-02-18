@@ -515,6 +515,10 @@ func (ep *endpoint) sbJoin(sb *sandbox, options ...EndpointOption) error {
 		return err
 	}
 
+	if err = ep.addDriverInfoToCluster(); err != nil {
+		return err
+	}
+
 	if sb.needDefaultGW() && sb.getEndpointInGWNetwork() == nil {
 		return sb.setupDefaultGW()
 	}
@@ -709,8 +713,12 @@ func (ep *endpoint) sbLeave(sb *sandbox, force bool, options ...EndpointOption) 
 		return err
 	}
 
-	if e := ep.deleteFromCluster(); e != nil {
-		logrus.Errorf("Could not delete state for endpoint %s from cluster: %v", ep.Name(), e)
+	if e := ep.deleteServiceInfoFromCluster(); e != nil {
+		logrus.Errorf("Could not delete service state for endpoint %s from cluster: %v", ep.Name(), e)
+	}
+
+	if e := ep.deleteDriverInfoFromCluster(); e != nil {
+		logrus.Errorf("Could not delete endpoint state for endpoint %s from cluster: %v", ep.Name(), e)
 	}
 
 	sb.deleteHostsEntries(n.getSvcRecords(ep))
@@ -1139,21 +1147,4 @@ func (c *controller) cleanupLocalEndpoints() {
 			n.getEpCnt().setCnt(uint64(len(epl)))
 		}
 	}
-}
-
-func (ep *endpoint) setAliasIP(sb *sandbox, ip net.IP, add bool) error {
-	sb.Lock()
-	sbox := sb.osSbox
-	sb.Unlock()
-
-	for _, i := range sbox.Info().Interfaces() {
-		if ep.hasInterface(i.SrcName()) {
-			ipNet := &net.IPNet{IP: ip, Mask: []byte{255, 255, 255, 255}}
-			if err := i.SetAliasIP(ipNet, add); err != nil {
-				return err
-			}
-			break
-		}
-	}
-	return nil
 }

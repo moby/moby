@@ -8,7 +8,6 @@ import (
 	"net"
 	"strconv"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/coreos/go-systemd/activation"
 	"github.com/docker/go-connections/sockets"
 )
@@ -86,8 +85,7 @@ func listenFD(addr string, tlsConfig *tls.Config) ([]net.Listener, error) {
 			continue
 		}
 		if err := ls.Close(); err != nil {
-			// TODO: We shouldn't log inside a library. Remove this or error out.
-			logrus.Errorf("failed to close systemd activated file: fd %d: %v", fdOffset+3, err)
+			return nil, fmt.Errorf("failed to close systemd activated file: fd %d: %v", fdOffset+3, err)
 		}
 	}
 	return []net.Listener{listeners[fdOffset]}, nil

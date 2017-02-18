@@ -9,11 +9,11 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution"
-	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/opencontainers/go-digest"
 	"github.com/vbatts/tar-split/tar/asm"
 	"github.com/vbatts/tar-split/tar/storage"
 )
@@ -45,17 +45,18 @@ type StoreOptions struct {
 	UIDMaps                   []idtools.IDMap
 	GIDMaps                   []idtools.IDMap
 	PluginGetter              plugingetter.PluginGetter
+	ExperimentalEnabled       bool
 }
 
 // NewStoreFromOptions creates a new Store instance
 func NewStoreFromOptions(options StoreOptions) (Store, error) {
-	driver, err := graphdriver.New(
-		options.StorePath,
-		options.GraphDriver,
-		options.GraphDriverOptions,
-		options.UIDMaps,
-		options.GIDMaps,
-		options.PluginGetter)
+	driver, err := graphdriver.New(options.GraphDriver, options.PluginGetter, graphdriver.Options{
+		Root:                options.StorePath,
+		DriverOptions:       options.GraphDriverOptions,
+		UIDMaps:             options.UIDMaps,
+		GIDMaps:             options.GIDMaps,
+		ExperimentalEnabled: options.ExperimentalEnabled,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("error initializing graphdriver: %v", err)
 	}
@@ -203,7 +204,7 @@ func (ls *layerStore) loadMount(mount string) error {
 }
 
 func (ls *layerStore) applyTar(tx MetadataTransaction, ts io.Reader, parent string, layer *roLayer) error {
-	digester := digest.Canonical.New()
+	digester := digest.Canonical.Digester()
 	tr := io.TeeReader(ts, digester.Hash())
 
 	tsw, err := tx.TarSplitWriter(true)
@@ -444,7 +445,19 @@ func (ls *layerStore) Release(l Layer) ([]Metadata, error) {
 	return ls.releaseLayer(layer)
 }
 
-func (ls *layerStore) CreateRWLayer(name string, parent ChainID, mountLabel string, initFunc MountInit, storageOpt map[string]string) (RWLayer, error) {
+func (ls *layerStore) CreateRWLayer(name string, parent ChainID, opts *CreateRWLayerOpts) (RWLayer, error) {
+	var (
+		storageOpt map[string]string
+		initFunc   MountInit
+		mountLabel string
+	)
+
+	if opts != nil {
+		mountLabel = opts.MountLabel
+		storageOpt = opts.StorageOpt
+		initFunc = opts.InitFunc
+	}
+
 	ls.mountL.Lock()
 	defer ls.mountL.Unlock()
 	m, ok := ls.mounts[name]

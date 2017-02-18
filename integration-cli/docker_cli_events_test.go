@@ -14,8 +14,10 @@ import (
 
 	eventtypes "github.com/docker/docker/api/types/events"
 	eventstestutils "github.com/docker/docker/daemon/events/testutils"
-	"github.com/docker/docker/pkg/integration/checker"
-	icmd "github.com/docker/docker/pkg/integration/cmd"
+	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/request"
+	"github.com/docker/docker/pkg/testutil"
+	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
 )
 
@@ -78,10 +80,15 @@ func (s *DockerSuite) TestEventsUntag(c *check.C) {
 }
 
 func (s *DockerSuite) TestEventsLimit(c *check.C) {
-	// Limit to 8 goroutines creating containers in order to prevent timeouts
-	// creating so many containers simultaneously on Windows
-	sem := make(chan bool, 8)
+	// Windows: Limit to 4 goroutines creating containers in order to prevent
+	// timeouts creating so many containers simultaneously. This is a due to
+	// a bug in the Windows platform. It will be fixed in a Windows Update.
 	numContainers := 17
+	numConcurrentContainers := numContainers
+	if testEnv.DaemonPlatform() == "windows" {
+		numConcurrentContainers = 4
+	}
+	sem := make(chan bool, numConcurrentContainers)
 	errChan := make(chan error, numContainers)
 
 	args := []string{"run", "--rm", "busybox", "true"}
@@ -221,7 +228,7 @@ func (s *DockerSuite) TestEventsImageImport(c *check.C) {
 	cleanedContainerID := strings.TrimSpace(out)
 
 	since := daemonUnixTime(c)
-	out, _, err := runCommandPipelineWithOutput(
+	out, _, err := testutil.RunCommandPipelineWithOutput(
 		exec.Command(dockerBinary, "export", cleanedContainerID),
 		exec.Command(dockerBinary, "import", "-"),
 	)
@@ -276,14 +283,13 @@ func (s *DockerSuite) TestEventsImageLoad(c *check.C) {
 }
 
 func (s *DockerSuite) TestEventsPluginOps(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, IsAmd64, Network)
 
-	pluginName := "tiborvass/no-remove:latest"
 	since := daemonUnixTime(c)
 
-	dockerCmd(c, "plugin", "install", pluginName, "--grant-all-permissions")
-	dockerCmd(c, "plugin", "disable", pluginName)
-	dockerCmd(c, "plugin", "remove", pluginName)
+	dockerCmd(c, "plugin", "install", pNameWithTag, "--grant-all-permissions")
+	dockerCmd(c, "plugin", "disable", pNameWithTag)
+	dockerCmd(c, "plugin", "remove", pNameWithTag)
 
 	out, _ := dockerCmd(c, "events", "--since", since, "--until", daemonUnixTime(c))
 	events := strings.Split(out, "\n")
@@ -292,7 +298,7 @@ func (s *DockerSuite) TestEventsPluginOps(c *check.C) {
 	nEvents := len(events)
 	c.Assert(nEvents, checker.GreaterOrEqualThan, 4)
 
-	pluginEvents := eventActionsByIDAndType(c, events, pluginName, "plugin")
+	pluginEvents := eventActionsByIDAndType(c, events, pNameWithTag, "plugin")
 	c.Assert(pluginEvents, checker.HasLen, 4, check.Commentf("events: %v", events))
 
 	c.Assert(pluginEvents[0], checker.Equals, "pull", check.Commentf(out))
@@ -378,11 +384,9 @@ func (s *DockerSuite) TestEventsFilterImageLabels(c *check.C) {
 	label := "io.docker.testing=image"
 
 	// Build a test image.
-	_, err := buildImage(name, fmt.Sprintf(`
+	buildImageSuccessfully(c, name, withDockerfile(fmt.Sprintf(`
 		FROM busybox:latest
-		LABEL %s`, label), true)
-	c.Assert(err, checker.IsNil, check.Commentf("Couldn't create image"))
-
+		LABEL %s`, label)))
 	dockerCmd(c, "tag", name, "labelfiltertest:tag1")
 	dockerCmd(c, "tag", name, "labelfiltertest:tag2")
 	dockerCmd(c, "tag", "busybox:latest", "labelfiltertest:tag3")
@@ -461,10 +465,10 @@ func (s *DockerSuite) TestEventsCommit(c *check.C) {
 
 func (s *DockerSuite) TestEventsCopy(c *check.C) {
 	// Build a test image.
-	id, err := buildImage("cpimg", `
+	buildImageSuccessfully(c, "cpimg", withDockerfile(`
 		  FROM busybox
-		  RUN echo HI > /file`, true)
-	c.Assert(err, checker.IsNil, check.Commentf("Couldn't create image"))
+		  RUN echo HI > /file`))
+	id := getIDByName(c, "cpimg")
 
 	// Create an empty test file.
 	tempFile, err := ioutil.TempFile("", "test-events-copy-")
@@ -494,7 +498,7 @@ func (s *DockerSuite) TestEventsResize(c *check.C) {
 	c.Assert(waitRun(cID), checker.IsNil)
 
 	endpoint := "/containers/" + cID + "/resize?h=80&w=24"
-	status, _, err := sockRequest("POST", endpoint, nil)
+	status, _, err := request.SockRequest("POST", endpoint, nil, daemonHost())
 	c.Assert(status, checker.Equals, http.StatusOK)
 	c.Assert(err, checker.IsNil)
 
@@ -594,11 +598,9 @@ func (s *DockerSuite) TestEventsFilterType(c *check.C) {
 	label := "io.docker.testing=image"
 
 	// Build a test image.
-	_, err := buildImage(name, fmt.Sprintf(`
+	buildImageSuccessfully(c, name, withDockerfile(fmt.Sprintf(`
 		FROM busybox:latest
-		LABEL %s`, label), true)
-	c.Assert(err, checker.IsNil, check.Commentf("Couldn't create image"))
-
+		LABEL %s`, label)))
 	dockerCmd(c, "tag", name, "labelfiltertest:tag1")
 	dockerCmd(c, "tag", name, "labelfiltertest:tag2")
 	dockerCmd(c, "tag", "busybox:latest", "labelfiltertest:tag3")
@@ -687,7 +689,7 @@ func (s *DockerSuite) TestEventsContainerRestart(c *check.C) {
 
 	// wait until test2 is auto removed.
 	waitTime := 10 * time.Second
-	if daemonPlatform == "windows" {
+	if testEnv.DaemonPlatform() == "windows" {
 		// Windows takes longer...
 		waitTime = 90 * time.Second
 	}

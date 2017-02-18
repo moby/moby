@@ -166,7 +166,7 @@ $ ip route
 
 Example: Multi-Subnet Ipvlan L2 Mode starting two containers on the same subnet and pinging one another. In order for the `192.168.114.0/24` to reach `192.168.116.0/24` it requires an external router in L2 mode. L3 mode can route between subnets that share a common `-o parent=`. 
 
-Secondary addresses on network routers are common as an address space becomes exhausted to add another secondary to a L3 vlan interface or commonly referred to as a "switched virtual interface" (SVI).
+Secondary addresses on network routers are common as an address space becomes exhausted to add another secondary to an L3 vlan interface or commonly referred to as a "switched virtual interface" (SVI).
 
 ```
 docker network  create  -d ipvlan \
@@ -216,7 +216,7 @@ ip a show eth0
     inet 192.168.1.250/24 brd 192.168.1.255 scope global eth0
 ```
 
--A traditional gateway doesn't mean much to an L3 mode Ipvlan interface since there is no broadcast traffic allowed. Because of that, the container default gateway simply point the the containers `eth0` device. See below for CLI output of `ip route` or `ip -6 route` from inside an L3 container for details.
+-A traditional gateway doesn't mean much to an L3 mode Ipvlan interface since there is no broadcast traffic allowed. Because of that, the container default gateway simply points to the containers `eth0` device. See below for CLI output of `ip route` or `ip -6 route` from inside an L3 container for details.
 
 The mode ` -o ipvlan_mode=l3` must be explicitly specified since the default ipvlan mode is `l2`.
 

@@ -42,10 +42,7 @@ func (s *Health) OpenMonitorChannel() chan struct{} {
 func (s *Health) CloseMonitorChannel() {
 	if s.stop != nil {
 		logrus.Debug("CloseMonitorChannel: waiting for probe to stop")
-		// This channel does not buffer. Once the write succeeds, the monitor
-		// has read the stop request and will not make any further updates
-		// to c.State.Health.
-		s.stop <- struct{}{}
+		close(s.stop)
 		s.stop = nil
 		logrus.Debug("CloseMonitorChannel done")
 	}

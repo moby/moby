@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 
 	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/utils"
 )
 
 // Container holds fields specific to the Windows implementation. See
@@ -30,7 +29,7 @@ func (container *Container) CreateDaemonEnvironment(_ bool, linkedEnv []string) 
 	// because the env on the container can override certain default values
 	// we need to replace the 'env' keys where they match and append anything
 	// else.
-	return utils.ReplaceOrAppendEnvValues(linkedEnv, container.Config.Env)
+	return ReplaceOrAppendEnvValues(linkedEnv, container.Config.Env)
 }
 
 // UnmountIpcMounts unmounts Ipc related mounts.
@@ -103,13 +102,6 @@ func cleanResourcePath(path string) string {
 // BuildHostnameFile writes the container's hostname file.
 func (container *Container) BuildHostnameFile() error {
 	return nil
-}
-
-// canMountFS determines if the file system for the container
-// can be mounted locally. In the case of Windows, this is not possible
-// for Hyper-V containers during WORKDIR execution for example.
-func (container *Container) canMountFS() bool {
-	return !containertypes.Isolation.IsHyperV(container.HostConfig.Isolation)
 }
 
 // EnableServiceDiscoveryOnDefaultNetwork Enable service discovery on default network

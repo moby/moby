@@ -31,7 +31,7 @@ func TestServiceInspectServiceNotFound(t *testing.T) {
 
 	_, _, err := client.ServiceInspectWithRaw(context.Background(), "unknown")
 	if err == nil || !IsErrServiceNotFound(err) {
-		t.Fatalf("expected an serviceNotFoundError error, got %v", err)
+		t.Fatalf("expected a serviceNotFoundError error, got %v", err)
 	}
 }
 

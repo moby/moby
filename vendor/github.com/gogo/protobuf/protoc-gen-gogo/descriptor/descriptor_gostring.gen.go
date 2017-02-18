@@ -21,12 +21,14 @@ It has these top-level messages:
 	FileOptions
 	MessageOptions
 	FieldOptions
+	OneofOptions
 	EnumOptions
 	EnumValueOptions
 	ServiceOptions
 	MethodOptions
 	UninterpretedOption
 	SourceCodeInfo
+	GeneratedCodeInfo
 */
 package descriptor
 
@@ -231,10 +233,13 @@ func (this *OneofDescriptorProto) GoString() string {
 	if this == nil {
 		return "nil"
 	}
-	s := make([]string, 0, 5)
+	s := make([]string, 0, 6)
 	s = append(s, "&descriptor.OneofDescriptorProto{")
 	if this.Name != nil {
 		s = append(s, "Name: "+valueToGoStringDescriptor(this.Name, "string")+",\n")
+	}
+	if this.Options != nil {
+		s = append(s, "Options: "+fmt.Sprintf("%#v", this.Options)+",\n")
 	}
 	if this.XXX_unrecognized != nil {
 		s = append(s, "XXX_unrecognized:"+fmt.Sprintf("%#v", this.XXX_unrecognized)+",\n")
@@ -339,7 +344,7 @@ func (this *FileOptions) GoString() string {
 	if this == nil {
 		return "nil"
 	}
-	s := make([]string, 0, 20)
+	s := make([]string, 0, 19)
 	s = append(s, "&descriptor.FileOptions{")
 	if this.JavaPackage != nil {
 		s = append(s, "JavaPackage: "+valueToGoStringDescriptor(this.JavaPackage, "string")+",\n")
@@ -382,9 +387,6 @@ func (this *FileOptions) GoString() string {
 	}
 	if this.CsharpNamespace != nil {
 		s = append(s, "CsharpNamespace: "+valueToGoStringDescriptor(this.CsharpNamespace, "string")+",\n")
-	}
-	if this.JavananoUseDeprecatedPackage != nil {
-		s = append(s, "JavananoUseDeprecatedPackage: "+valueToGoStringDescriptor(this.JavananoUseDeprecatedPackage, "bool")+",\n")
 	}
 	if this.UninterpretedOption != nil {
 		s = append(s, "UninterpretedOption: "+fmt.Sprintf("%#v", this.UninterpretedOption)+",\n")
@@ -448,6 +450,22 @@ func (this *FieldOptions) GoString() string {
 	if this.Weak != nil {
 		s = append(s, "Weak: "+valueToGoStringDescriptor(this.Weak, "bool")+",\n")
 	}
+	if this.UninterpretedOption != nil {
+		s = append(s, "UninterpretedOption: "+fmt.Sprintf("%#v", this.UninterpretedOption)+",\n")
+	}
+	s = append(s, "XXX_InternalExtensions: "+extensionToGoStringDescriptor(this)+",\n")
+	if this.XXX_unrecognized != nil {
+		s = append(s, "XXX_unrecognized:"+fmt.Sprintf("%#v", this.XXX_unrecognized)+",\n")
+	}
+	s = append(s, "}")
+	return strings.Join(s, "")
+}
+func (this *OneofOptions) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := make([]string, 0, 5)
+	s = append(s, "&descriptor.OneofOptions{")
 	if this.UninterpretedOption != nil {
 		s = append(s, "UninterpretedOption: "+fmt.Sprintf("%#v", this.UninterpretedOption)+",\n")
 	}
@@ -623,6 +641,45 @@ func (this *SourceCodeInfo_Location) GoString() string {
 	}
 	if this.LeadingDetachedComments != nil {
 		s = append(s, "LeadingDetachedComments: "+fmt.Sprintf("%#v", this.LeadingDetachedComments)+",\n")
+	}
+	if this.XXX_unrecognized != nil {
+		s = append(s, "XXX_unrecognized:"+fmt.Sprintf("%#v", this.XXX_unrecognized)+",\n")
+	}
+	s = append(s, "}")
+	return strings.Join(s, "")
+}
+func (this *GeneratedCodeInfo) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := make([]string, 0, 5)
+	s = append(s, "&descriptor.GeneratedCodeInfo{")
+	if this.Annotation != nil {
+		s = append(s, "Annotation: "+fmt.Sprintf("%#v", this.Annotation)+",\n")
+	}
+	if this.XXX_unrecognized != nil {
+		s = append(s, "XXX_unrecognized:"+fmt.Sprintf("%#v", this.XXX_unrecognized)+",\n")
+	}
+	s = append(s, "}")
+	return strings.Join(s, "")
+}
+func (this *GeneratedCodeInfo_Annotation) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := make([]string, 0, 8)
+	s = append(s, "&descriptor.GeneratedCodeInfo_Annotation{")
+	if this.Path != nil {
+		s = append(s, "Path: "+fmt.Sprintf("%#v", this.Path)+",\n")
+	}
+	if this.SourceFile != nil {
+		s = append(s, "SourceFile: "+valueToGoStringDescriptor(this.SourceFile, "string")+",\n")
+	}
+	if this.Begin != nil {
+		s = append(s, "Begin: "+valueToGoStringDescriptor(this.Begin, "int32")+",\n")
+	}
+	if this.End != nil {
+		s = append(s, "End: "+valueToGoStringDescriptor(this.End, "int32")+",\n")
 	}
 	if this.XXX_unrecognized != nil {
 		s = append(s, "XXX_unrecognized:"+fmt.Sprintf("%#v", this.XXX_unrecognized)+",\n")

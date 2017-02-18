@@ -33,10 +33,10 @@ import (
 	"reflect"
 )
 
-func writeEnum(w *textWriter, v reflect.Value, props *Properties) error {
+func (tm *TextMarshaler) writeEnum(w *textWriter, v reflect.Value, props *Properties) error {
 	m, ok := enumStringMaps[props.Enum]
 	if !ok {
-		if err := writeAny(w, v, props); err != nil {
+		if err := tm.writeAny(w, v, props); err != nil {
 			return err
 		}
 	}
@@ -48,7 +48,7 @@ func writeEnum(w *textWriter, v reflect.Value, props *Properties) error {
 	}
 	s, ok := m[key]
 	if !ok {
-		if err := writeAny(w, v, props); err != nil {
+		if err := tm.writeAny(w, v, props); err != nil {
 			return err
 		}
 	}

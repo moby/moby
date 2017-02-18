@@ -4,7 +4,6 @@ package aaparser
 import (
 	"fmt"
 	"os/exec"
-	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -26,11 +25,8 @@ func GetVersion() (int, error) {
 // LoadProfile runs `apparmor_parser -r` on a specified apparmor profile to
 // replace the profile.
 func LoadProfile(profilePath string) error {
-	_, err := cmd("", "-r", filepath.Dir(profilePath))
-	if err != nil {
-		return err
-	}
-	return nil
+	_, err := cmd("", "-r", profilePath)
+	return err
 }
 
 // cmd runs `apparmor_parser` with the passed arguments.
@@ -40,7 +36,7 @@ func cmd(dir string, arg ...string) (string, error) {
 
 	output, err := c.CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("running `%s %s` failed with output: %s\nerror: %v", c.Path, strings.Join(c.Args, " "), string(output), err)
+		return "", fmt.Errorf("running `%s %s` failed with output: %s\nerror: %v", c.Path, strings.Join(c.Args, " "), output, err)
 	}
 
 	return string(output), nil

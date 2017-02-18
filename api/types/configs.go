@@ -53,9 +53,17 @@ type ExecConfig struct {
 	Cmd          []string // Execution commands and args
 }
 
-// PluginRmConfig holds arguments for the plugin remove
-// operation. This struct is used to tell the backend what operations
-// to perform.
+// PluginRmConfig holds arguments for plugin remove.
 type PluginRmConfig struct {
 	ForceRemove bool
+}
+
+// PluginEnableConfig holds arguments for plugin enable
+type PluginEnableConfig struct {
+	Timeout int
+}
+
+// PluginDisableConfig holds arguments for plugin disable.
+type PluginDisableConfig struct {
+	ForceDisable bool
 }

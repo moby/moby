@@ -3,20 +3,19 @@ package main
 import (
 	"strings"
 
-	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
 )
 
 func (s *DockerSuite) TestPause(c *check.C) {
 	testRequires(c, IsPausable)
-	defer unpauseAllContainers()
+	defer unpauseAllContainers(c)
 
 	name := "testeventpause"
 	runSleepingContainer(c, "-d", "--name", name)
 
 	dockerCmd(c, "pause", name)
-	pausedContainers, err := getSliceOfPausedContainers()
-	c.Assert(err, checker.IsNil)
+	pausedContainers := getPausedContainers(c)
 	c.Assert(len(pausedContainers), checker.Equals, 1)
 
 	dockerCmd(c, "unpause", name)
@@ -31,7 +30,7 @@ func (s *DockerSuite) TestPause(c *check.C) {
 
 func (s *DockerSuite) TestPauseMultipleContainers(c *check.C) {
 	testRequires(c, IsPausable)
-	defer unpauseAllContainers()
+	defer unpauseAllContainers(c)
 
 	containers := []string{
 		"testpausewithmorecontainers1",
@@ -41,8 +40,7 @@ func (s *DockerSuite) TestPauseMultipleContainers(c *check.C) {
 		runSleepingContainer(c, "-d", "--name", name)
 	}
 	dockerCmd(c, append([]string{"pause"}, containers...)...)
-	pausedContainers, err := getSliceOfPausedContainers()
-	c.Assert(err, checker.IsNil)
+	pausedContainers := getPausedContainers(c)
 	c.Assert(len(pausedContainers), checker.Equals, len(containers))
 
 	dockerCmd(c, append([]string{"unpause"}, containers...)...)

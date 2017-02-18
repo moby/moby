@@ -24,18 +24,25 @@ Options:
       --help   Print usage
 ```
 
+## Description
+
 Unlocks a locked manager using a user-supplied unlock key. This command must be
 used to reactivate a manager after its Docker daemon restarts if the autolock
 setting is turned on. The unlock key is printed at the time when autolock is
 enabled, and is also available from the `docker swarm unlock-key` command.
 
+## Examples
 
 ```bash
 $ docker swarm unlock
 Please enter unlock key:
 ```
 
-## Related information
+## Related commands
 
 * [swarm init](swarm_init.md)
+* [swarm join](swarm_join.md)
+* [swarm join-token](swarm_join_token.md)
+* [swarm leave](swarm_leave.md)
+* [swarm unlock-key](swarm_unlock_key.md)
 * [swarm update](swarm_update.md)

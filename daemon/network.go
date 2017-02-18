@@ -12,8 +12,11 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
+	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/libnetwork"
+	"github.com/docker/libnetwork/driverapi"
+	"github.com/docker/libnetwork/ipamapi"
 	networktypes "github.com/docker/libnetwork/types"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
@@ -93,15 +96,7 @@ func (daemon *Daemon) GetNetworksByID(partialID string) []libnetwork.Network {
 
 // getAllNetworks returns a list containing all networks
 func (daemon *Daemon) getAllNetworks() []libnetwork.Network {
-	c := daemon.netController
-	list := []libnetwork.Network{}
-	l := func(nw libnetwork.Network) bool {
-		list = append(list, nw)
-		return false
-	}
-	c.WalkNetworks(l)
-
-	return list
+	return daemon.netController.Networks()
 }
 
 func isIngressNetwork(name string) bool {
@@ -269,6 +264,7 @@ func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string
 		libnetwork.NetworkOptionEnableIPv6(create.EnableIPv6),
 		libnetwork.NetworkOptionDriverOpts(create.Options),
 		libnetwork.NetworkOptionLabels(create.Labels),
+		libnetwork.NetworkOptionAttachable(create.Attachable),
 	}
 
 	if create.IPAM != nil {
@@ -297,12 +293,39 @@ func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string
 		return nil, err
 	}
 
+	daemon.pluginRefCount(driver, driverapi.NetworkPluginEndpointType, plugingetter.Acquire)
+	if create.IPAM != nil {
+		daemon.pluginRefCount(create.IPAM.Driver, ipamapi.PluginEndpointType, plugingetter.Acquire)
+	}
 	daemon.LogNetworkEvent(n, "create")
 
 	return &types.NetworkCreateResponse{
 		ID:      n.ID(),
 		Warning: warning,
 	}, nil
+}
+
+func (daemon *Daemon) pluginRefCount(driver, capability string, mode int) {
+	var builtinDrivers []string
+
+	if capability == driverapi.NetworkPluginEndpointType {
+		builtinDrivers = daemon.netController.BuiltinDrivers()
+	} else if capability == ipamapi.PluginEndpointType {
+		builtinDrivers = daemon.netController.BuiltinIPAMDrivers()
+	}
+
+	for _, d := range builtinDrivers {
+		if d == driver {
+			return
+		}
+	}
+
+	if daemon.PluginStore != nil {
+		_, err := daemon.PluginStore.Get(driver, capability, mode)
+		if err != nil {
+			logrus.WithError(err).WithFields(logrus.Fields{"mode": mode, "driver": driver}).Error("Error handling plugin refcount operation")
+		}
+	}
 }
 
 func getIpamConfig(data []network.IPAMConfig) ([]*libnetwork.IpamConf, []*libnetwork.IpamConf, error) {
@@ -376,6 +399,13 @@ func (daemon *Daemon) GetNetworkDriverList() []string {
 	}
 
 	pluginList := daemon.netController.BuiltinDrivers()
+
+	managedPlugins := daemon.PluginStore.GetAllManagedPluginsByCap(driverapi.NetworkPluginEndpointType)
+
+	for _, plugin := range managedPlugins {
+		pluginList = append(pluginList, plugin.Name())
+	}
+
 	pluginMap := make(map[string]bool)
 	for _, plugin := range pluginList {
 		pluginMap[plugin] = true
@@ -419,6 +449,9 @@ func (daemon *Daemon) deleteNetwork(networkID string, dynamic bool) error {
 	if err := nw.Delete(); err != nil {
 		return err
 	}
+	daemon.pluginRefCount(nw.Type(), driverapi.NetworkPluginEndpointType, plugingetter.Release)
+	ipamType, _, _, _ := nw.Info().IpamConfig()
+	daemon.pluginRefCount(ipamType, ipamapi.PluginEndpointType, plugingetter.Release)
 	daemon.LogNetworkEvent(nw, "destroy")
 	return nil
 }
@@ -426,4 +459,32 @@ func (daemon *Daemon) deleteNetwork(networkID string, dynamic bool) error {
 // GetNetworks returns a list of all networks
 func (daemon *Daemon) GetNetworks() []libnetwork.Network {
 	return daemon.getAllNetworks()
+}
+
+// clearAttachableNetworks removes the attachable networks
+// after disconnecting any connected container
+func (daemon *Daemon) clearAttachableNetworks() {
+	for _, n := range daemon.GetNetworks() {
+		if !n.Info().Attachable() {
+			continue
+		}
+		for _, ep := range n.Endpoints() {
+			epInfo := ep.Info()
+			if epInfo == nil {
+				continue
+			}
+			sb := epInfo.Sandbox()
+			if sb == nil {
+				continue
+			}
+			containerID := sb.ContainerID()
+			if err := daemon.DisconnectContainerFromNetwork(containerID, n.ID(), true); err != nil {
+				logrus.Warnf("Failed to disconnect container %s from swarm network %s on cluster leave: %v",
+					containerID, n.Name(), err)
+			}
+		}
+		if err := daemon.DeleteManagedNetwork(n.ID()); err != nil {
+			logrus.Warnf("Failed to remove swarm network %s on cluster leave: %v", n.Name(), err)
+		}
+	}
 }

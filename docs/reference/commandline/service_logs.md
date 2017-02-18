@@ -30,12 +30,14 @@ Options:
   -t, --timestamps     Show timestamps
 ```
 
+## Description
+
 The `docker service logs` command batch-retrieves logs present at the time of execution.
 
-> **Note**: this command is only functional for services that are started with
+> **Note**: This command is only functional for services that are started with
 > the `json-file` or `journald` logging driver.
 
-For more information about selecting and configuring login-drivers, refer to
+For more information about selecting and configuring logging drivers, refer to
 [Configure logging drivers](https://docs.docker.com/engine/admin/logging/overview/).
 
 The `docker service logs --follow` command will continue streaming the new output from
@@ -65,3 +67,13 @@ that have elapsed since January 1, 1970 (midnight UTC/GMT), not counting leap
 seconds (aka Unix epoch or Unix time), and the optional .nanoseconds field is a
 fraction of a second no more than nine digits long. You can combine the
 `--since` option with either or both of the `--follow` or `--tail` options.
+
+## Related commands
+
+* [service create](service_create.md)
+* [service inspect](service_inspect.md)
+* [service ls](service_ls.md)
+* [service rm](service_rm.md)
+* [service scale](service_scale.md)
+* [service ps](service_ps.md)
+* [service update](service_update.md)

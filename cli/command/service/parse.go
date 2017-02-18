@@ -10,26 +10,26 @@ import (
 	"golang.org/x/net/context"
 )
 
-// parseSecrets retrieves the secrets from the requested names and converts
+// ParseSecrets retrieves the secrets from the requested names and converts
 // them to secret references to use with the spec
-func parseSecrets(client client.APIClient, requestedSecrets []*types.SecretRequestOption) ([]*swarmtypes.SecretReference, error) {
+func ParseSecrets(client client.SecretAPIClient, requestedSecrets []*types.SecretRequestOption) ([]*swarmtypes.SecretReference, error) {
 	secretRefs := make(map[string]*swarmtypes.SecretReference)
 	ctx := context.Background()
 
 	for _, secret := range requestedSecrets {
+		if _, exists := secretRefs[secret.Target]; exists {
+			return nil, fmt.Errorf("duplicate secret target for %s not allowed", secret.Source)
+		}
 		secretRef := &swarmtypes.SecretReference{
-			SecretName: secret.Source,
-			Target: &swarmtypes.SecretReferenceFileTarget{
+			File: &swarmtypes.SecretReferenceFileTarget{
 				Name: secret.Target,
 				UID:  secret.UID,
 				GID:  secret.GID,
 				Mode: secret.Mode,
 			},
+			SecretName: secret.Source,
 		}
 
-		if _, exists := secretRefs[secret.Target]; exists {
-			return nil, fmt.Errorf("duplicate secret target for %s not allowed", secret.Source)
-		}
 		secretRefs[secret.Target] = secretRef
 	}
 

@@ -9,7 +9,7 @@ import (
 	"github.com/docker/libnetwork/drivers/remote"
 )
 
-func getInitializers() []initializer {
+func getInitializers(experimental bool) []initializer {
 	in := []initializer{
 		{bridge.Init, "bridge"},
 		{host.Init, "host"},
@@ -19,6 +19,8 @@ func getInitializers() []initializer {
 		{overlay.Init, "overlay"},
 	}
 
-	in = append(in, additionalDrivers()...)
+	if experimental {
+		in = append(in, additionalDrivers()...)
+	}
 	return in
 }

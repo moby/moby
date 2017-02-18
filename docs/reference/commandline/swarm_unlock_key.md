@@ -26,6 +26,8 @@ Options:
       --rotate   Rotate unlock key
 ```
 
+## Description
+
 An unlock key is a secret key needed to unlock a manager after its Docker daemon
 restarts. These keys are only used when the autolock feature is enabled for the
 swarm.
@@ -33,9 +35,11 @@ swarm.
 You can view or rotate the unlock key using `swarm unlock-key`. To view the key,
 run the `docker swarm unlock-key` command without any arguments:
 
+## Examples
 
 ```bash
 $ docker swarm unlock-key
+
 To unlock a swarm manager after it restarts, run the `docker swarm unlock`
 command and provide the following key:
 
@@ -77,8 +81,11 @@ key. The old unlock key will no longer be accepted.
 
 Only print the unlock key, without instructions.
 
-## Related information
+## Related commands
 
-* [swarm unlock](swarm_unlock.md)
 * [swarm init](swarm_init.md)
+* [swarm join](swarm_join.md)
+* [swarm join-token](swarm_join_token.md)
+* [swarm leave](swarm_leave.md)
+* [swarm unlock](swarm_unlock.md)
 * [swarm update](swarm_update.md)

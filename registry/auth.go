@@ -249,7 +249,7 @@ type PingResponseError struct {
 }
 
 func (err PingResponseError) Error() string {
-	return err.Error()
+	return err.Err.Error()
 }
 
 // PingV2Registry attempts to ping a v2 registry and on success return a

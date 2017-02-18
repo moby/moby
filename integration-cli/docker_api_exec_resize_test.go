@@ -9,7 +9,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/request"
 	"github.com/go-check/check"
 )
 
@@ -19,7 +20,7 @@ func (s *DockerSuite) TestExecResizeAPIHeightWidthNoInt(c *check.C) {
 	cleanedContainerID := strings.TrimSpace(out)
 
 	endpoint := "/exec/" + cleanedContainerID + "/resize?h=foo&w=bar"
-	status, _, err := sockRequest("POST", endpoint, nil)
+	status, _, err := request.SockRequest("POST", endpoint, nil, daemonHost())
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusInternalServerError)
 }
@@ -35,7 +36,7 @@ func (s *DockerSuite) TestExecResizeImmediatelyAfterExecStart(c *check.C) {
 			"Cmd":         []string{"/bin/sh"},
 		}
 		uri := fmt.Sprintf("/containers/%s/exec", name)
-		status, body, err := sockRequest("POST", uri, data)
+		status, body, err := request.SockRequest("POST", uri, data, daemonHost())
 		if err != nil {
 			return err
 		}
@@ -55,13 +56,13 @@ func (s *DockerSuite) TestExecResizeImmediatelyAfterExecStart(c *check.C) {
 		}
 
 		payload := bytes.NewBufferString(`{"Tty":true}`)
-		conn, _, err := sockRequestHijack("POST", fmt.Sprintf("/exec/%s/start", execID), payload, "application/json")
+		conn, _, err := request.SockRequestHijack("POST", fmt.Sprintf("/exec/%s/start", execID), payload, "application/json", daemonHost())
 		if err != nil {
 			return fmt.Errorf("Failed to start the exec: %q", err.Error())
 		}
 		defer conn.Close()
 
-		_, rc, err := sockRequestRaw("POST", fmt.Sprintf("/exec/%s/resize?h=24&w=80", execID), nil, "text/plain")
+		_, rc, err := request.SockRequestRaw("POST", fmt.Sprintf("/exec/%s/resize?h=24&w=80", execID), nil, "text/plain", daemonHost())
 		// It's probably a panic of the daemon if io.ErrUnexpectedEOF is returned.
 		if err == io.ErrUnexpectedEOF {
 			return fmt.Errorf("The daemon might have crashed.")

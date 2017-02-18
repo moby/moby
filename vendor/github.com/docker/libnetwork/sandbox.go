@@ -45,7 +45,7 @@ type Sandbox interface {
 	// EnableService  makes a managed container's service available by adding the
 	// endpoint to the service load balancer and service discovery
 	EnableService() error
-	// DisableService removes a managed contianer's endpoints from the load balancer
+	// DisableService removes a managed container's endpoints from the load balancer
 	// and service discovery
 	DisableService() error
 }
@@ -69,7 +69,7 @@ type sandbox struct {
 	id                 string
 	containerID        string
 	config             containerConfig
-	extDNS             []string
+	extDNS             []extDNSEntry
 	osSbox             osl.Sandbox
 	controller         *controller
 	resolver           Resolver
@@ -411,6 +411,13 @@ func (sb *sandbox) updateGateway(ep *endpoint) error {
 	return nil
 }
 
+func (sb *sandbox) HandleQueryResp(name string, ip net.IP) {
+	for _, ep := range sb.getConnectedEndpoints() {
+		n := ep.getNetwork()
+		n.HandleQueryResp(name, ip)
+	}
+}
+
 func (sb *sandbox) ResolveIP(ip string) string {
 	var svc string
 	logrus.Debugf("IP To resolve %v", ip)
@@ -427,7 +434,13 @@ func (sb *sandbox) ResolveIP(ip string) string {
 }
 
 func (sb *sandbox) ExecFunc(f func()) error {
-	return sb.osSbox.InvokeFunc(f)
+	sb.Lock()
+	osSbox := sb.osSbox
+	sb.Unlock()
+	if osSbox != nil {
+		return osSbox.InvokeFunc(f)
+	}
+	return fmt.Errorf("osl sandbox unavailable in ExecFunc for %v", sb.ContainerID())
 }
 
 func (sb *sandbox) ResolveService(name string) ([]*net.SRV, []net.IP) {
@@ -664,7 +677,7 @@ func (sb *sandbox) SetKey(basePath string) error {
 func (sb *sandbox) EnableService() error {
 	for _, ep := range sb.getConnectedEndpoints() {
 		if ep.enableService(true) {
-			if err := ep.addToCluster(); err != nil {
+			if err := ep.addServiceInfoToCluster(); err != nil {
 				ep.enableService(false)
 				return fmt.Errorf("could not update state for endpoint %s into cluster: %v", ep.Name(), err)
 			}
@@ -676,7 +689,7 @@ func (sb *sandbox) EnableService() error {
 func (sb *sandbox) DisableService() error {
 	for _, ep := range sb.getConnectedEndpoints() {
 		if ep.enableService(false) {
-			if err := ep.deleteFromCluster(); err != nil {
+			if err := ep.deleteServiceInfoFromCluster(); err != nil {
 				ep.enableService(true)
 				return fmt.Errorf("could not delete state for endpoint %s from cluster: %v", ep.Name(), err)
 			}
@@ -755,6 +768,10 @@ func (sb *sandbox) restoreOslSandbox() error {
 		if len(i.llAddrs) != 0 {
 			ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().LinkLocalAddresses(i.llAddrs))
 		}
+		if len(ep.virtualIP) != 0 {
+			vipAlias := &net.IPNet{IP: ep.virtualIP, Mask: net.CIDRMask(32, 32)}
+			ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().IPAliases([]*net.IPNet{vipAlias}))
+		}
 		Ifaces[fmt.Sprintf("%s+%s", i.srcName, i.dstPrefix)] = ifaceOptions
 		if joinInfo != nil {
 			for _, r := range joinInfo.StaticRoutes {
@@ -807,6 +824,10 @@ func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
 		}
 		if len(i.llAddrs) != 0 {
 			ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().LinkLocalAddresses(i.llAddrs))
+		}
+		if len(ep.virtualIP) != 0 {
+			vipAlias := &net.IPNet{IP: ep.virtualIP, Mask: net.CIDRMask(32, 32)}
+			ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().IPAliases([]*net.IPNet{vipAlias}))
 		}
 		if i.mac != nil {
 			ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().MacAddress(i.mac))
@@ -1151,6 +1172,17 @@ func (eh epHeap) Less(i, j int) bool {
 
 	if epj.getNetwork().Internal() {
 		return true
+	}
+
+	if epi.joinInfo != nil && epj.joinInfo != nil {
+		if (epi.joinInfo.gw != nil && epi.joinInfo.gw6 != nil) &&
+			(epj.joinInfo.gw == nil || epj.joinInfo.gw6 == nil) {
+			return true
+		}
+		if (epj.joinInfo.gw != nil && epj.joinInfo.gw6 != nil) &&
+			(epi.joinInfo.gw == nil || epi.joinInfo.gw6 == nil) {
+			return false
+		}
 	}
 
 	if ci != nil {

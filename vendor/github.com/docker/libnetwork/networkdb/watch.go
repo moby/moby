@@ -1,6 +1,10 @@
 package networkdb
 
-import "github.com/docker/go-events"
+import (
+	"net"
+
+	"github.com/docker/go-events"
+)
 
 type opType uint8
 
@@ -15,6 +19,14 @@ type event struct {
 	NetworkID string
 	Key       string
 	Value     []byte
+}
+
+// NodeTable represents table event for node join and leave
+const NodeTable = "NodeTable"
+
+// NodeAddr represents the value carried for node event in NodeTable
+type NodeAddr struct {
+	Addr net.IP
 }
 
 // CreateEvent generates a table entry create event to the watchers

@@ -320,6 +320,11 @@ func populateVNITbl() {
 			}
 			defer nlh.Delete()
 
+			err = nlh.SetSocketTimeout(soTimeout)
+			if err != nil {
+				logrus.Warnf("Failed to set the timeout on the netlink handle sockets for vni table population: %v", err)
+			}
+
 			links, err := nlh.LinkList()
 			if err != nil {
 				logrus.Errorf("Failed to list interfaces during vni population for ns %s: %v", path, err)
@@ -397,7 +402,7 @@ func (n *network) getBridgeNamePrefix(s *subnet) string {
 	return "ov-" + fmt.Sprintf("%06x", n.vxlanID(s))
 }
 
-func isOverlap(nw *net.IPNet) bool {
+func checkOverlap(nw *net.IPNet) error {
 	var nameservers []string
 
 	if rc, err := resolvconf.Get(); err == nil {
@@ -405,14 +410,14 @@ func isOverlap(nw *net.IPNet) bool {
 	}
 
 	if err := netutils.CheckNameserverOverlaps(nameservers, nw); err != nil {
-		return true
+		return fmt.Errorf("overlay subnet %s failed check with nameserver: %v: %v", nw.String(), nameservers, err)
 	}
 
 	if err := netutils.CheckRouteOverlaps(nw); err != nil {
-		return true
+		return fmt.Errorf("overlay subnet %s failed check with host route table: %v", nw.String(), err)
 	}
 
-	return false
+	return nil
 }
 
 func (n *network) restoreSubnetSandbox(s *subnet, brName, vxlanName string) error {
@@ -451,8 +456,8 @@ func (n *network) setupSubnetSandbox(s *subnet, brName, vxlanName string) error 
 		// Try to delete the vxlan interface by vni if already present
 		deleteVxlanByVNI("", n.vxlanID(s))
 
-		if isOverlap(s.subnetIP) {
-			return fmt.Errorf("overlay subnet %s has conflicts in the host while running in host mode", s.subnetIP.String())
+		if err := checkOverlap(s.subnetIP); err != nil {
+			return err
 		}
 	}
 
@@ -607,13 +612,13 @@ func (n *network) initSandbox(restore bool) error {
 	var nlSock *nl.NetlinkSocket
 	sbox.InvokeFunc(func() {
 		nlSock, err = nl.Subscribe(syscall.NETLINK_ROUTE, syscall.RTNLGRP_NEIGH)
-		if err != nil {
-			err = fmt.Errorf("failed to subscribe to neighbor group netlink messages")
-		}
 	})
 
-	if nlSock != nil {
+	if err == nil {
 		go n.watchMiss(nlSock)
+	} else {
+		logrus.Errorf("failed to subscribe to neighbor group netlink messages for overlay network %s in sbox %s: %v",
+			n.id, sbox.Key(), err)
 	}
 
 	return nil
@@ -639,6 +644,9 @@ func (n *network) watchMiss(nlSock *nl.NetlinkSocket) {
 			}
 
 			if neigh.IP.To4() == nil {
+				if neigh.HardwareAddr != nil {
+					logrus.Debugf("Miss notification, l2 mac %v", neigh.HardwareAddr)
+				}
 				continue
 			}
 

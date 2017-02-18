@@ -7,8 +7,9 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/distribution/digest"
+	"github.com/docker/distribution/digestset"
 	"github.com/docker/docker/layer"
+	"github.com/opencontainers/go-digest"
 )
 
 // Store is an interface for creating and accessing images
@@ -40,7 +41,7 @@ type store struct {
 	ls        LayerGetReleaser
 	images    map[ID]*imageMeta
 	fs        StoreBackend
-	digestSet *digest.Set
+	digestSet *digestset.Set
 }
 
 // NewImageStore returns new store object for given layer store
@@ -49,7 +50,7 @@ func NewImageStore(fs StoreBackend, ls LayerGetReleaser) (Store, error) {
 		ls:        ls,
 		images:    make(map[ID]*imageMeta),
 		fs:        fs,
-		digestSet: digest.NewSet(),
+		digestSet: digestset.NewSet(),
 	}
 
 	// load all current images and retain layers
@@ -170,7 +171,7 @@ func (is *store) Search(term string) (ID, error) {
 
 	dgst, err := is.digestSet.Lookup(term)
 	if err != nil {
-		if err == digest.ErrDigestNotFound {
+		if err == digestset.ErrDigestNotFound {
 			err = fmt.Errorf("No such image: %s", term)
 		}
 		return "", err

@@ -4,7 +4,7 @@ import (
 	"github.com/boltdb/bolt"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
-	"github.com/docker/swarmkit/remotes"
+	"github.com/docker/swarmkit/connectionbroker"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc/credentials"
 )
@@ -14,9 +14,9 @@ type Config struct {
 	// Hostname the name of host for agent instance.
 	Hostname string
 
-	// Managers provides the manager backend used by the agent. It will be
-	// updated with managers weights as observed by the agent.
-	Managers remotes.Remotes
+	// ConnBroker provides a connection broker for retrieving gRPC
+	// connections to managers.
+	ConnBroker *connectionbroker.Broker
 
 	// Executor specifies the executor to use for the agent.
 	Executor exec.Executor

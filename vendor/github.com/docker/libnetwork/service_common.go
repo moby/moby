@@ -61,11 +61,6 @@ func (c *controller) cleanupServiceBindings(cleanupNID string) {
 }
 
 func (c *controller) addServiceBinding(name, sid, nid, eid string, vip net.IP, ingressPorts []*PortConfig, aliases []string, ip net.IP) error {
-	var (
-		s          *service
-		addService bool
-	)
-
 	n, err := c.NetworkByID(nid)
 	if err != nil {
 		return err
@@ -123,11 +118,6 @@ func (c *controller) addServiceBinding(name, sid, nid, eid string, vip net.IP, i
 		fwMarkCtrMu.Unlock()
 
 		s.loadBalancers[nid] = lb
-
-		// Since we just created this load balancer make sure
-		// we add a new service service in IPVS rules.
-		addService = true
-
 	}
 
 	lb.backEnds[eid] = ip
@@ -135,7 +125,7 @@ func (c *controller) addServiceBinding(name, sid, nid, eid string, vip net.IP, i
 	// Add loadbalancer service and backend in all sandboxes in
 	// the network only if vip is valid.
 	if len(vip) != 0 {
-		n.(*network).addLBBackend(ip, vip, lb.fwMark, ingressPorts, addService)
+		n.(*network).addLBBackend(ip, vip, lb.fwMark, ingressPorts)
 	}
 
 	return nil
@@ -156,11 +146,10 @@ func (c *controller) rmServiceBinding(name, sid, nid, eid string, vip net.IP, in
 
 	c.Lock()
 	s, ok := c.serviceBindings[skey]
+	c.Unlock()
 	if !ok {
-		c.Unlock()
 		return nil
 	}
-	c.Unlock()
 
 	s.Lock()
 	lb, ok := s.loadBalancers[nid]
@@ -188,7 +177,9 @@ func (c *controller) rmServiceBinding(name, sid, nid, eid string, vip net.IP, in
 	if len(s.loadBalancers) == 0 {
 		// All loadbalancers for the service removed. Time to
 		// remove the service itself.
+		c.Lock()
 		delete(c.serviceBindings, skey)
+		c.Unlock()
 	}
 
 	// Remove loadbalancer service(if needed) and backend in all

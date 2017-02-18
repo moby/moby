@@ -292,7 +292,7 @@ appropriate for your distro's init script to live there too!).
 In general, Docker should be run as root, similar to the following:
 
 ```bash
-docker daemon
+dockerd
 ```
 
 Generally, a `DOCKER_OPTS` variable of some kind is available for adding more

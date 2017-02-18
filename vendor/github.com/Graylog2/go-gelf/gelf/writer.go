@@ -117,8 +117,8 @@ func NewWriter(addr string) (*Writer, error) {
 }
 
 // writes the gzip compressed byte array to the connection as a series
-// of GELF chunked messages.  The header format is documented at
-// https://github.com/Graylog2/graylog2-docs/wiki/GELF as:
+// of GELF chunked messages.  The format is documented at
+// http://docs.graylog.org/en/2.1/pages/gelf.html as:
 //
 //     2-byte magic (0x1e 0x0f), 8 byte id, 1 byte sequence id, 1 byte
 //     total, chunk-data
@@ -126,7 +126,7 @@ func (w *Writer) writeChunked(zBytes []byte) (err error) {
 	b := make([]byte, 0, ChunkSize)
 	buf := bytes.NewBuffer(b)
 	nChunksI := numChunks(zBytes)
-	if nChunksI > 255 {
+	if nChunksI > 128 {
 		return fmt.Errorf("msg too large, would need %d chunks", nChunksI)
 	}
 	nChunks := uint8(nChunksI)

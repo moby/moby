@@ -5,5 +5,6 @@ import (
 	"github.com/docker/docker/pkg/sysinfo"
 )
 
-func (daemon *Daemon) FillPlatformInfo(v *types.InfoBase, sysInfo *sysinfo.SysInfo) {
+// FillPlatformInfo fills the platform related info.
+func (daemon *Daemon) FillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) {
 }

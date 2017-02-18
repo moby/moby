@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"fmt"
 	"os"
 	"runtime"
 	"sync/atomic"
@@ -9,6 +10,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/cli/debug"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/fileutils"
@@ -18,7 +20,6 @@ import (
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/registry"
-	"github.com/docker/docker/utils"
 	"github.com/docker/docker/volume/drivers"
 	"github.com/docker/go-connections/sockets"
 )
@@ -69,29 +70,26 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		}
 	})
 
-	securityOptions := []types.SecurityOpt{}
+	securityOptions := []string{}
 	if sysInfo.AppArmor {
-		securityOptions = append(securityOptions, types.SecurityOpt{Key: "Name", Value: "apparmor"})
+		securityOptions = append(securityOptions, "name=apparmor")
 	}
 	if sysInfo.Seccomp && supportsSeccomp {
 		profile := daemon.seccompProfilePath
 		if profile == "" {
 			profile = "default"
 		}
-		securityOptions = append(securityOptions,
-			types.SecurityOpt{Key: "Name", Value: "seccomp"},
-			types.SecurityOpt{Key: "Profile", Value: profile},
-		)
+		securityOptions = append(securityOptions, fmt.Sprintf("name=seccomp,profile=%s", profile))
 	}
 	if selinuxEnabled() {
-		securityOptions = append(securityOptions, types.SecurityOpt{Key: "Name", Value: "selinux"})
+		securityOptions = append(securityOptions, "name=selinux")
 	}
 	uid, gid := daemon.GetRemappedUIDGID()
 	if uid != 0 || gid != 0 {
-		securityOptions = append(securityOptions, types.SecurityOpt{Key: "Name", Value: "userns"})
+		securityOptions = append(securityOptions, "name=userns")
 	}
 
-	v := &types.InfoBase{
+	v := &types.Info{
 		ID:                 daemon.ID,
 		Containers:         int(cRunning + cPaused + cStopped),
 		ContainersRunning:  int(cRunning),
@@ -104,7 +102,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		IPv4Forwarding:     !sysInfo.IPv4ForwardingDisabled,
 		BridgeNfIptables:   !sysInfo.BridgeNFCallIPTablesDisabled,
 		BridgeNfIP6tables:  !sysInfo.BridgeNFCallIP6TablesDisabled,
-		Debug:              utils.IsDebugEnabled(),
+		Debug:              debug.IsEnabled(),
 		NFd:                fileutils.GetTotalUsedFds(),
 		NGoroutines:        runtime.NumGoroutine(),
 		SystemTime:         time.Now().Format(time.RFC3339Nano),
@@ -129,6 +127,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		HTTPSProxy:         sockets.GetProxyEnv("https_proxy"),
 		NoProxy:            sockets.GetProxyEnv("no_proxy"),
 		LiveRestoreEnabled: daemon.configStore.LiveRestoreEnabled,
+		SecurityOptions:    securityOptions,
 		Isolation:          daemon.defaultIsolation,
 	}
 
@@ -143,12 +142,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 	}
 	v.Name = hostname
 
-	i := &types.Info{
-		InfoBase:        v,
-		SecurityOptions: securityOptions,
-	}
-
-	return i, nil
+	return v, nil
 }
 
 // SystemVersion returns version information about the daemon.
@@ -180,7 +174,7 @@ func (daemon *Daemon) showPluginsInfo() types.PluginsInfo {
 
 	pluginsInfo.Volume = volumedrivers.GetDriverList()
 	pluginsInfo.Network = daemon.GetNetworkDriverList()
-	pluginsInfo.Authorization = daemon.configStore.AuthorizationPlugins
+	pluginsInfo.Authorization = daemon.configStore.GetAuthorizationPlugins()
 
 	return pluginsInfo
 }

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/vishvananda/netlink"
@@ -17,6 +18,8 @@ var (
 	initNs   netns.NsHandle
 	initNl   *netlink.Handle
 	initOnce sync.Once
+	// NetlinkSocketsTimeout represents the default timeout duration for the sockets
+	NetlinkSocketsTimeout = 3 * time.Second
 )
 
 // Init initializes a new network namespace
@@ -29,6 +32,10 @@ func Init() {
 	initNl, err = netlink.NewHandle(getSupportedNlFamilies()...)
 	if err != nil {
 		logrus.Errorf("could not create netlink handle on initial namespace: %v", err)
+	}
+	err = initNl.SetSocketTimeout(NetlinkSocketsTimeout)
+	if err != nil {
+		logrus.Warnf("Failed to set the timeout on the default netlink handle sockets: %v", err)
 	}
 }
 

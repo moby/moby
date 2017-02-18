@@ -1,6 +1,6 @@
 (from "ubuntu:14.04")
 (maintainer "Tianon Gravi <admwiggin@gmail.com> (@tianon)")
-(run "apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -yq \tapt-utils \taufs-tools \tautomake \tbtrfs-tools \tbuild-essential \tcurl \tdpkg-sig \tgit \tiptables \tlibapparmor-dev \tlibcap-dev \tlibsqlite3-dev \tmercurial \tpandoc \tparallel \treprepro \truby1.9.1 \truby1.9.1-dev \ts3cmd=1.1.0* \t--no-install-recommends")
+(run "apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -yq \tapt-utils \taufs-tools \tautomake \tbtrfs-tools \tbuild-essential \tcurl \tdpkg-sig \tgit \tiptables \tlibapparmor-dev \tlibcap-dev \tmercurial \tpandoc \tparallel \treprepro \truby1.9.1 \truby1.9.1-dev \ts3cmd=1.1.0* \t--no-install-recommends")
 (run "git clone --no-checkout https://git.fedorahosted.org/git/lvm2.git /usr/local/lvm2 && cd /usr/local/lvm2 && git checkout -q v2_02_103")
 (run "cd /usr/local/lvm2 && ./configure --enable-static_link && make device-mapper && make install_device-mapper")
 (run "curl -sSL https://golang.org/dl/go1.3.src.tar.gz | tar -v -C /usr/local -xz")

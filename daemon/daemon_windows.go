@@ -3,13 +3,17 @@ package daemon
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
+	"syscall"
+	"unsafe"
 
 	"github.com/Microsoft/hcsshim"
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers"
@@ -24,6 +28,7 @@ import (
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
 	blkiodev "github.com/opencontainers/runc/libcontainer/configs"
+	"golang.org/x/sys/windows"
 )
 
 const (
@@ -34,7 +39,14 @@ const (
 	windowsMinCPUPercent = 1
 	windowsMaxCPUPercent = 100
 	windowsMinCPUCount   = 1
+
+	errInvalidState = syscall.Errno(0x139F)
 )
+
+// Windows has no concept of an execution state directory. So use config.Root here.
+func getPluginExecRoot(root string) string {
+	return filepath.Join(root, "plugins")
+}
 
 func getBlkioWeightDevices(config *containertypes.HostConfig) ([]blkiodev.WeightDevice, error) {
 	return nil, nil
@@ -58,10 +70,6 @@ func getBlkioReadBpsDevices(config *containertypes.HostConfig) ([]blkiodev.Throt
 
 func getBlkioWriteBpsDevices(config *containertypes.HostConfig) ([]blkiodev.ThrottleDevice, error) {
 	return nil, nil
-}
-
-func setupInitLayer(initLayer string, rootUID, rootGID int) error {
-	return nil
 }
 
 func (daemon *Daemon) getLayerInit() func(string) error {
@@ -129,8 +137,10 @@ func verifyContainerResources(resources *containertypes.Resources, isHyperv bool
 	if resources.NanoCPUs > 0 && resources.CPUShares > 0 {
 		return warnings, fmt.Errorf("conflicting options: Nano CPUs and CPU Shares cannot both be set")
 	}
+	// The precision we could get is 0.01, because on Windows we have to convert to CPUPercent.
+	// We don't set the lower limit here and it is up to the underlying platform (e.g., Windows) to return an error.
 	if resources.NanoCPUs < 0 || resources.NanoCPUs > int64(sysinfo.NumCPU())*1e9 {
-		return warnings, fmt.Errorf("range of Nano CPUs is from 1 to %d", int64(sysinfo.NumCPU())*1e9)
+		return warnings, fmt.Errorf("range of CPUs is from 0.01 to %d.00, as there are only %d CPUs available", sysinfo.NumCPU(), sysinfo.NumCPU())
 	}
 
 	if len(resources.BlkioDeviceReadBps) > 0 {
@@ -201,19 +211,16 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 
 	w, err := verifyContainerResources(&hostConfig.Resources, hyperv)
 	warnings = append(warnings, w...)
-	if err != nil {
-		return warnings, err
-	}
-	return warnings, nil
+	return warnings, err
 }
 
-// platformReload update configuration with platform specific options
-func (daemon *Daemon) platformReload(config *Config) map[string]string {
-	return map[string]string{}
+// reloadPlatform updates configuration with platform specific options
+// and updates the passed attributes
+func (daemon *Daemon) reloadPlatform(config *config.Config, attributes map[string]string) {
 }
 
 // verifyDaemonSettings performs validation of daemon config struct
-func verifyDaemonSettings(config *Config) error {
+func verifyDaemonSettings(config *config.Config) error {
 	return nil
 }
 
@@ -228,20 +235,26 @@ func checkSystem() error {
 	if osv.Build < 14393 {
 		return fmt.Errorf("The docker daemon requires build 14393 or later of Windows Server 2016 or Windows 10")
 	}
-	return nil
+
+	vmcompute := windows.NewLazySystemDLL("vmcompute.dll")
+	if vmcompute.Load() != nil {
+		return fmt.Errorf("Failed to load vmcompute.dll. Ensure that the Containers role is installed.")
+	}
+
+	return waitOOBEComplete()
 }
 
 // configureKernelSecuritySupport configures and validate security support for the kernel
-func configureKernelSecuritySupport(config *Config, driverName string) error {
+func configureKernelSecuritySupport(config *config.Config, driverName string) error {
 	return nil
 }
 
 // configureMaxThreads sets the Go runtime max threads threshold
-func configureMaxThreads(config *Config) error {
+func configureMaxThreads(config *config.Config) error {
 	return nil
 }
 
-func (daemon *Daemon) initNetworkController(config *Config, activeSandboxes map[string]interface{}) (libnetwork.NetworkController, error) {
+func (daemon *Daemon) initNetworkController(config *config.Config, activeSandboxes map[string]interface{}) (libnetwork.NetworkController, error) {
 	netOptions, err := daemon.networkOptions(config, nil, nil)
 	if err != nil {
 		return nil, err
@@ -338,8 +351,10 @@ func (daemon *Daemon) initNetworkController(config *Config, activeSandboxes map[
 		name := v.Name
 
 		// If there is no nat network create one from the first NAT network
-		// encountered
-		if !defaultNetworkExists && runconfig.DefaultDaemonNetworkMode() == containertypes.NetworkMode(strings.ToLower(v.Type)) {
+		// encountered if it doesn't already exist
+		if !defaultNetworkExists &&
+			runconfig.DefaultDaemonNetworkMode() == containertypes.NetworkMode(strings.ToLower(v.Type)) &&
+			n == nil {
 			name = runconfig.DefaultDaemonNetworkMode().NetworkName()
 			defaultNetworkExists = true
 		}
@@ -367,7 +382,7 @@ func (daemon *Daemon) initNetworkController(config *Config, activeSandboxes map[
 	return controller, nil
 }
 
-func initBridgeDriver(controller libnetwork.NetworkController, config *Config) error {
+func initBridgeDriver(controller libnetwork.NetworkController, config *config.Config) error {
 	if _, err := controller.NetworkByName(runconfig.DefaultDaemonNetworkMode().NetworkName()); err == nil {
 		return nil
 	}
@@ -379,8 +394,8 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *Config) e
 	var ipamOption libnetwork.NetworkOption
 	var subnetPrefix string
 
-	if config.bridgeConfig.FixedCIDR != "" {
-		subnetPrefix = config.bridgeConfig.FixedCIDR
+	if config.BridgeConfig.FixedCIDR != "" {
+		subnetPrefix = config.BridgeConfig.FixedCIDR
 	} else {
 		// TP5 doesn't support properly detecting subnet
 		osv := system.GetOSVersion()
@@ -425,11 +440,11 @@ func (daemon *Daemon) cleanupMounts() error {
 	return nil
 }
 
-func setupRemappedRoot(config *Config) ([]idtools.IDMap, []idtools.IDMap, error) {
+func setupRemappedRoot(config *config.Config) ([]idtools.IDMap, []idtools.IDMap, error) {
 	return nil, nil, nil
 }
 
-func setupDaemonRoot(config *Config, rootDir string, rootUID, rootGID int) error {
+func setupDaemonRoot(config *config.Config, rootDir string, rootUID, rootGID int) error {
 	config.Root = rootDir
 	// Create the root directory if it doesn't exists
 	if err := system.MkdirAllWithACL(config.Root, 0); err != nil && !os.IsExist(err) {
@@ -470,7 +485,7 @@ func (daemon *Daemon) conditionalUnmountOnCleanup(container *container.Container
 	return nil
 }
 
-func driverOptions(config *Config) []nwconfig.Option {
+func driverOptions(config *config.Config) []nwconfig.Option {
 	return []nwconfig.Option{}
 }
 
@@ -584,7 +599,7 @@ func rootFSToAPIType(rootfs *image.RootFS) types.RootFS {
 	}
 }
 
-func setupDaemonProcess(config *Config) error {
+func setupDaemonProcess(config *config.Config) error {
 	return nil
 }
 
@@ -596,5 +611,37 @@ func (daemon *Daemon) verifyVolumesInfo(container *container.Container) error {
 }
 
 func (daemon *Daemon) setupSeccompProfile() error {
+	return nil
+}
+
+func waitOOBEComplete() error {
+	kernel32 := windows.NewLazySystemDLL("kernel32.dll")
+	registerWaitUntilOOBECompleted := kernel32.NewProc("RegisterWaitUntilOOBECompleted")
+	unregisterWaitUntilOOBECompleted := kernel32.NewProc("UnregisterWaitUntilOOBECompleted")
+
+	callbackChan := make(chan struct{})
+	callbackFunc := func(uintptr) uintptr {
+		close(callbackChan)
+		return 0
+	}
+	callbackFuncPtr := syscall.NewCallback(callbackFunc)
+
+	var callbackHandle syscall.Handle
+	ret, _, err := registerWaitUntilOOBECompleted.Call(callbackFuncPtr, 0, uintptr(unsafe.Pointer(&callbackHandle)))
+	if ret == 0 {
+		if err == errInvalidState {
+			return nil
+		}
+		return fmt.Errorf("failed to register OOBEComplete callback. Error: %v", err)
+	}
+
+	// Wait for the callback when OOBE is finished
+	<-callbackChan
+
+	ret, _, err = unregisterWaitUntilOOBECompleted.Call(uintptr(callbackHandle))
+	if ret == 0 {
+		return fmt.Errorf("failed to unregister OOBEComplete callback. Error: %v", err)
+	}
+
 	return nil
 }

@@ -7,6 +7,9 @@ import (
 	"reflect"
 	"runtime"
 	"strings"
+	"unicode"
+
+	"github.com/davecgh/go-spew/spew"
 )
 
 // TestingT is an interface which defines the methods of testing.T that are
@@ -21,6 +24,25 @@ func Equal(t TestingT, actual, expected interface{}) {
 	if expected != actual {
 		fatal(t, "Expected '%v' (%T) got '%v' (%T)", expected, expected, actual, actual)
 	}
+}
+
+// EqualNormalizedString compare the actual value to the expected value after applying the specified
+// transform function. It fails the test if these two transformed string are not equal.
+// For example `EqualNormalizedString(t, RemoveSpace, "foo\n", "foo")` wouldn't fail the test as
+// spaces (and thus '\n') are removed before comparing the string.
+func EqualNormalizedString(t TestingT, transformFun func(rune) rune, actual, expected string) {
+	if strings.Map(transformFun, actual) != strings.Map(transformFun, expected) {
+		fatal(t, "Expected '%v' got '%v'", expected, expected, actual, actual)
+	}
+}
+
+// RemoveSpace returns -1 if the specified runes is considered as a space (unicode)
+// and the rune itself otherwise.
+func RemoveSpace(r rune) rune {
+	if unicode.IsSpace(r) {
+		return -1
+	}
+	return r
 }
 
 //EqualStringSlice compares two slices and fails the test if they do not contain
@@ -49,7 +71,8 @@ func NilError(t TestingT, err error) {
 // they are not "deeply equal".
 func DeepEqual(t TestingT, actual, expected interface{}) {
 	if !reflect.DeepEqual(actual, expected) {
-		fatal(t, "Expected '%v' (%T) got '%v' (%T)", expected, expected, actual, actual)
+		fatal(t, "Expected (%T):\n%v\n\ngot (%T):\n%s\n",
+			expected, spew.Sdump(expected), actual, spew.Sdump(actual))
 	}
 }
 

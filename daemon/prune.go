@@ -1,27 +1,39 @@
 package daemon
 
 import (
+	"fmt"
 	"regexp"
+	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/distribution/digest"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
+	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/directory"
-	"github.com/docker/docker/reference"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
 	"github.com/docker/libnetwork"
+	"github.com/opencontainers/go-digest"
 )
 
 // ContainersPrune removes unused containers
-func (daemon *Daemon) ContainersPrune(config *types.ContainersPruneConfig) (*types.ContainersPruneReport, error) {
+func (daemon *Daemon) ContainersPrune(pruneFilters filters.Args) (*types.ContainersPruneReport, error) {
 	rep := &types.ContainersPruneReport{}
+
+	until, err := getUntilFromPruneFilters(pruneFilters)
+	if err != nil {
+		return nil, err
+	}
 
 	allContainers := daemon.List()
 	for _, c := range allContainers {
 		if !c.IsRunning() {
+			if !until.IsZero() && c.Created.After(until) {
+				continue
+			}
 			cSize, _ := daemon.getSize(c)
 			// TODO: sets RmLink to true?
 			err := daemon.ContainerRm(c.ID, &types.ContainerRmConfig{})
@@ -40,7 +52,7 @@ func (daemon *Daemon) ContainersPrune(config *types.ContainersPruneConfig) (*typ
 }
 
 // VolumesPrune removes unused local volumes
-func (daemon *Daemon) VolumesPrune(config *types.VolumesPruneConfig) (*types.VolumesPruneReport, error) {
+func (daemon *Daemon) VolumesPrune(pruneFilters filters.Args) (*types.VolumesPruneReport, error) {
 	rep := &types.VolumesPruneReport{}
 
 	pruneVols := func(v volume.Volume) error {
@@ -70,11 +82,25 @@ func (daemon *Daemon) VolumesPrune(config *types.VolumesPruneConfig) (*types.Vol
 }
 
 // ImagesPrune removes unused images
-func (daemon *Daemon) ImagesPrune(config *types.ImagesPruneConfig) (*types.ImagesPruneReport, error) {
+func (daemon *Daemon) ImagesPrune(pruneFilters filters.Args) (*types.ImagesPruneReport, error) {
 	rep := &types.ImagesPruneReport{}
 
+	danglingOnly := true
+	if pruneFilters.Include("dangling") {
+		if pruneFilters.ExactMatch("dangling", "false") || pruneFilters.ExactMatch("dangling", "0") {
+			danglingOnly = false
+		} else if !pruneFilters.ExactMatch("dangling", "true") && !pruneFilters.ExactMatch("dangling", "1") {
+			return nil, fmt.Errorf("Invalid filter 'dangling=%s'", pruneFilters.Get("dangling"))
+		}
+	}
+
+	until, err := getUntilFromPruneFilters(pruneFilters)
+	if err != nil {
+		return nil, err
+	}
+
 	var allImages map[image.ID]*image.Image
-	if config.DanglingOnly {
+	if danglingOnly {
 		allImages = daemon.imageStore.Heads()
 	} else {
 		allImages = daemon.imageStore.Map()
@@ -93,6 +119,9 @@ func (daemon *Daemon) ImagesPrune(config *types.ImagesPruneConfig) (*types.Image
 		if len(daemon.referenceStore.References(dgst)) == 0 && len(daemon.imageStore.Children(id)) != 0 {
 			continue
 		}
+		if !until.IsZero() && img.Created.After(until) {
+			continue
+		}
 		topImages[id] = img
 	}
 
@@ -103,27 +132,32 @@ func (daemon *Daemon) ImagesPrune(config *types.ImagesPruneConfig) (*types.Image
 			continue
 		}
 
-		deletedImages := []types.ImageDelete{}
+		deletedImages := []types.ImageDeleteResponseItem{}
 		refs := daemon.referenceStore.References(dgst)
 		if len(refs) > 0 {
-			if config.DanglingOnly {
-				// Not a dangling image
-				continue
+			shouldDelete := !danglingOnly
+			if !shouldDelete {
+				hasTag := false
+				for _, ref := range refs {
+					if _, ok := ref.(reference.NamedTagged); ok {
+						hasTag = true
+						break
+					}
+				}
+
+				// Only delete if it's untagged (i.e. repo:<none>)
+				shouldDelete = !hasTag
 			}
 
-			nrRefs := len(refs)
-			for _, ref := range refs {
-				// If nrRefs == 1, we have an image marked as myreponame:<none>
-				// i.e. the tag content was changed
-				if _, ok := ref.(reference.Canonical); ok && nrRefs > 1 {
-					continue
+			if shouldDelete {
+				for _, ref := range refs {
+					imgDel, err := daemon.ImageDelete(ref.String(), false, true)
+					if err != nil {
+						logrus.Warnf("could not delete reference %s: %v", ref.String(), err)
+						continue
+					}
+					deletedImages = append(deletedImages, imgDel...)
 				}
-				imgDel, err := daemon.ImageDelete(ref.String(), false, true)
-				if err != nil {
-					logrus.Warnf("could not delete reference %s: %v", ref.String(), err)
-					continue
-				}
-				deletedImages = append(deletedImages, imgDel...)
 			}
 		} else {
 			imgDel, err := daemon.ImageDelete(hex, false, true)
@@ -156,11 +190,19 @@ func (daemon *Daemon) ImagesPrune(config *types.ImagesPruneConfig) (*types.Image
 }
 
 // localNetworksPrune removes unused local networks
-func (daemon *Daemon) localNetworksPrune(config *types.NetworksPruneConfig) (*types.NetworksPruneReport, error) {
+func (daemon *Daemon) localNetworksPrune(pruneFilters filters.Args) (*types.NetworksPruneReport, error) {
 	rep := &types.NetworksPruneReport{}
-	var err error
+
+	until, err := getUntilFromPruneFilters(pruneFilters)
+	if err != nil {
+		return rep, err
+	}
+
 	// When the function returns true, the walk will stop.
 	l := func(nw libnetwork.Network) bool {
+		if !until.IsZero() && nw.Info().Created().After(until) {
+			return false
+		}
 		nwName := nw.Name()
 		predefined := runconfig.IsPreDefinedNetwork(nwName)
 		if !predefined && len(nw.Endpoints()) == 0 {
@@ -177,8 +219,14 @@ func (daemon *Daemon) localNetworksPrune(config *types.NetworksPruneConfig) (*ty
 }
 
 // clusterNetworksPrune removes unused cluster networks
-func (daemon *Daemon) clusterNetworksPrune(config *types.NetworksPruneConfig) (*types.NetworksPruneReport, error) {
+func (daemon *Daemon) clusterNetworksPrune(pruneFilters filters.Args) (*types.NetworksPruneReport, error) {
 	rep := &types.NetworksPruneReport{}
+
+	until, err := getUntilFromPruneFilters(pruneFilters)
+	if err != nil {
+		return nil, err
+	}
+
 	cluster := daemon.GetCluster()
 	networks, err := cluster.GetNetworks()
 	if err != nil {
@@ -187,6 +235,9 @@ func (daemon *Daemon) clusterNetworksPrune(config *types.NetworksPruneConfig) (*
 	networkIsInUse := regexp.MustCompile(`network ([[:alnum:]]+) is in use`)
 	for _, nw := range networks {
 		if nw.Name == "ingress" {
+			continue
+		}
+		if !until.IsZero() && nw.Created.After(until) {
 			continue
 		}
 		// https://github.com/docker/docker/issues/24186
@@ -207,19 +258,40 @@ func (daemon *Daemon) clusterNetworksPrune(config *types.NetworksPruneConfig) (*
 }
 
 // NetworksPrune removes unused networks
-func (daemon *Daemon) NetworksPrune(config *types.NetworksPruneConfig) (*types.NetworksPruneReport, error) {
+func (daemon *Daemon) NetworksPrune(pruneFilters filters.Args) (*types.NetworksPruneReport, error) {
 	rep := &types.NetworksPruneReport{}
-	clusterRep, err := daemon.clusterNetworksPrune(config)
+	clusterRep, err := daemon.clusterNetworksPrune(pruneFilters)
 	if err != nil {
 		logrus.Warnf("could not remove cluster networks: %v", err)
 	} else {
 		rep.NetworksDeleted = append(rep.NetworksDeleted, clusterRep.NetworksDeleted...)
 	}
-	localRep, err := daemon.localNetworksPrune(config)
+	localRep, err := daemon.localNetworksPrune(pruneFilters)
 	if err != nil {
 		logrus.Warnf("could not remove local networks: %v", err)
 	} else {
 		rep.NetworksDeleted = append(rep.NetworksDeleted, localRep.NetworksDeleted...)
 	}
 	return rep, err
+}
+
+func getUntilFromPruneFilters(pruneFilters filters.Args) (time.Time, error) {
+	until := time.Time{}
+	if !pruneFilters.Include("until") {
+		return until, nil
+	}
+	untilFilters := pruneFilters.Get("until")
+	if len(untilFilters) > 1 {
+		return until, fmt.Errorf("more than one until filter specified")
+	}
+	ts, err := timetypes.GetTimestamp(untilFilters[0], time.Now())
+	if err != nil {
+		return until, err
+	}
+	seconds, nanoseconds, err := timetypes.ParseTimestamps(ts, 0)
+	if err != nil {
+		return until, err
+	}
+	until = time.Unix(seconds, nanoseconds)
+	return until, nil
 }

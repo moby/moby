@@ -83,15 +83,21 @@ func DumpStacks(dir string) (string, error) {
 		bufferLen *= 2
 	}
 	buf = buf[:stackSize]
-	path := filepath.Join(dir, fmt.Sprintf(stacksLogNameTemplate, strings.Replace(time.Now().Format(time.RFC3339), ":", "", -1)))
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0666)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to open file to write the goroutine stacks")
+	var f *os.File
+	if dir != "" {
+		path := filepath.Join(dir, fmt.Sprintf(stacksLogNameTemplate, strings.Replace(time.Now().Format(time.RFC3339), ":", "", -1)))
+		var err error
+		f, err = os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0666)
+		if err != nil {
+			return "", errors.Wrap(err, "failed to open file to write the goroutine stacks")
+		}
+		defer f.Close()
+		defer f.Sync()
+	} else {
+		f = os.Stderr
 	}
-	defer f.Close()
 	if _, err := f.Write(buf); err != nil {
 		return "", errors.Wrap(err, "failed to write goroutine stacks")
 	}
-	f.Sync()
-	return path, nil
+	return f.Name(), nil
 }

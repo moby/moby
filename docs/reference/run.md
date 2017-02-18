@@ -63,15 +63,15 @@ Only the operator (the person executing `docker run`) can set the
 following options.
 
  - [Detached vs foreground](#detached-vs-foreground)
-     - [Detached (-d)](#detached-d)
+     - [Detached (-d)](#detached--d)
      - [Foreground](#foreground)
  - [Container identification](#container-identification)
-     - [Name (--name)](#name-name)
+     - [Name (--name)](#name---name)
      - [PID equivalent](#pid-equivalent)
- - [IPC settings (--ipc)](#ipc-settings-ipc)
+ - [IPC settings (--ipc)](#ipc-settings---ipc)
  - [Network settings](#network-settings)
- - [Restart policies (--restart)](#restart-policies-restart)
- - [Clean up (--rm)](#clean-up-rm)
+ - [Restart policies (--restart)](#restart-policies---restart)
+ - [Clean up (--rm)](#clean-up---rm)
  - [Runtime constraints on resources](#runtime-constraints-on-resources)
  - [Runtime privilege and Linux capabilities](#runtime-privilege-and-linux-capabilities)
 
@@ -123,8 +123,8 @@ and pass along signals. All of that is configurable:
     --sig-proxy=true: Proxy all received signals to the process (non-TTY mode only)
     -i              : Keep STDIN open even if not attached
 
-If you do not specify `-a` then Docker will [attach all standard
-streams]( https://github.com/docker/docker/blob/75a7f4d90cde0295bcfb7213004abce8d4779b75/commands.go#L1797).
+If you do not specify `-a` then Docker will [attach to both stdout and stderr
+]( https://github.com/docker/docker/blob/4118e0c9eebda2412a09ae66e90c34b85fae3275/runconfig/opts/parse.go#L267).
 You can specify to which of the three standard streams (`STDIN`, `STDOUT`,
 `STDERR`) you'd like to connect instead, as in:
 
@@ -345,13 +345,13 @@ Supported networks :
       <td class="no-wrap"><strong>container</strong>:&lt;name|id&gt;</td>
       <td>
         Use the network stack of another container, specified via
-        its *name* or *id*.
+        its <i>name</i> or <i>id</i>.
       </td>
     </tr>
     <tr>
       <td class="no-wrap"><strong>NETWORK</strong></td>
       <td>
-        Connects the container to a user created network (using `docker network create` command)
+        Connects the container to a user created network (using <code>docker network create</code> command)
       </td>
     </tr>
   </tbody>
@@ -624,15 +624,15 @@ but the volume for `/bar` will not. Volumes inherited via `--volumes-from` will 
 with the same logic -- if the original volume was specified with a name it will **not** be removed.
 
 ## Security configuration
-    --security-opt="label=user:USER"   : Set the label user for the container
-    --security-opt="label=role:ROLE"   : Set the label role for the container
-    --security-opt="label=type:TYPE"   : Set the label type for the container
-    --security-opt="label=level:LEVEL" : Set the label level for the container
-    --security-opt="label=disable"     : Turn off label confinement for the container
-    --security-opt="apparmor=PROFILE"  : Set the apparmor profile to be applied to the container
-    --security-opt="no-new-privileges" : Disable container processes from gaining new privileges
-    --security-opt="seccomp=unconfined": Turn off seccomp confinement for the container
-    --security-opt="seccomp=profile.json: White listed syscalls seccomp Json file to be used as a seccomp filter
+    --security-opt="label=user:USER"     : Set the label user for the container
+    --security-opt="label=role:ROLE"     : Set the label role for the container
+    --security-opt="label=type:TYPE"     : Set the label type for the container
+    --security-opt="label=level:LEVEL"   : Set the label level for the container
+    --security-opt="label=disable"       : Turn off label confinement for the container
+    --security-opt="apparmor=PROFILE"    : Set the apparmor profile to be applied to the container
+    --security-opt="no-new-privileges"   : Disable container processes from gaining new privileges
+    --security-opt="seccomp=unconfined"  : Turn off seccomp confinement for the container
+    --security-opt="seccomp=profile.json": White listed syscalls seccomp Json file to be used as a seccomp filter
 
 
 You can override the default labeling scheme for each container by specifying
@@ -667,7 +667,18 @@ It also causes any seccomp filters to be applied later, after privileges have be
 which may mean you can have a more restrictive set of filters.
 For more details, see the [kernel documentation](https://www.kernel.org/doc/Documentation/prctl/no_new_privs.txt).
 
-## Specifying custom cgroups
+## Specify an init process
+
+You can use the `--init` flag to indicate that an init process should be used as
+the PID 1 in the container. Specifying an init process ensures the usual
+responsibilities of an init system, such as reaping zombie processes, are
+performed inside the created container.
+
+The default init process used is the first `docker-init` executable found in the
+system path of the Docker daemon process. This `docker-init` binary, included in
+the default installation, is backed by [tini](https://github.com/krallin/tini).
+
+## Specify custom cgroups
 
 Using the `--cgroup-parent` flag, you can pass a specific cgroup to run a
 container in. This allows you to create and manage cgroups on their own. You can
@@ -737,7 +748,7 @@ We have four ways to set user memory usage:
       <td class="no-wrap"><strong>memory=L&lt;inf, memory-swap=2*L</strong></td>
       <td>
         (specify memory without memory-swap) The container is not allowed to
-        use more than L bytes of memory, swap *plus* memory usage is double
+        use more than L bytes of memory, swap <i>plus</i> memory usage is double
         of that.
       </td>
     </tr>
@@ -747,7 +758,7 @@ We have four ways to set user memory usage:
       </td>
       <td>
         (specify both memory and memory-swap) The container is not allowed to
-        use more than L bytes of memory, swap *plus* memory usage is limited
+        use more than L bytes of memory, swap <i>plus</i> memory usage is limited
         by S.
       </td>
     </tr>
@@ -836,7 +847,7 @@ The container has unlimited memory which can cause the host to run out memory
 and require killing system processes to free memory. The `--oom-score-adj`
 parameter can be changed to select the priority of which containers will
 be killed when the system is out of memory, with negative scores making them
-less likely to be killed an positive more likely.
+less likely to be killed, and positive scores more likely.
 
 ### Kernel memory constraints
 
@@ -1238,10 +1249,6 @@ since Docker 1.12. In Docker 1.10 and 1.11 this did not happen and it may be nec
 to use a custom seccomp profile or use `--security-opt seccomp=unconfined` when adding
 capabilities.
 
-It is only possible to grant capabilities to a container running as a user other than `root`
-on a system with a Linux kernel version of 4.3 or later, as this requires "ambient capabilities"
-to be granted. These will be added if the kernel allows it from Docker version 1.13.
-
 ## Logging drivers (--log-driver)
 
 The container can have a different logging driver than the Docker daemon. Use
@@ -1389,30 +1396,68 @@ it will provide a named alias for the container being linked to.
 
 ### ENV (environment variables)
 
-When a new container is created, Docker will set the following environment
-variables automatically:
+Docker automatically sets some environment variables when creating a Linux
+container. Docker does not set any environment variables when creating a Windows
+container.
+
+The following environment variables are set for Linux containers:
 
 | Variable | Value |
 | -------- | ----- |
 | `HOME` | Set based on the value of `USER` |
 | `HOSTNAME` | The hostname associated with the container |
-| `PATH` | Includes popular directories, such as `:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin` |
+| `PATH` | Includes popular directories, such as `/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin` |
 | `TERM` | `xterm` if the container is allocated a pseudo-TTY |
+
 
 Additionally, the operator can **set any environment variable** in the
 container by using one or more `-e` flags, even overriding those mentioned
 above, or already defined by the developer with a Dockerfile `ENV`:
 
-    $ docker run -e "deep=purple" --rm ubuntu /bin/bash -c export
-    declare -x HOME="/"
-    declare -x HOSTNAME="85bc26a0e200"
-    declare -x OLDPWD
-    declare -x PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-    declare -x PWD="/"
-    declare -x SHLVL="1"
-    declare -x deep="purple"
+```bash
+$ docker run -e "deep=purple" --rm alpine env
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+HOSTNAME=d2219b854598
+deep=purple
+HOME=/root
+```
 
-Similarly the operator can set the **hostname** with `-h`.
+```PowerShell
+PS C:\> docker run --rm -e "foo=bar" microsoft/nanoserver cmd /s /c set
+ALLUSERSPROFILE=C:\ProgramData
+APPDATA=C:\Users\ContainerAdministrator\AppData\Roaming
+CommonProgramFiles=C:\Program Files\Common Files
+CommonProgramFiles(x86)=C:\Program Files (x86)\Common Files
+CommonProgramW6432=C:\Program Files\Common Files
+COMPUTERNAME=C2FAEFCC8253
+ComSpec=C:\Windows\system32\cmd.exe
+foo=bar
+LOCALAPPDATA=C:\Users\ContainerAdministrator\AppData\Local
+NUMBER_OF_PROCESSORS=8
+OS=Windows_NT
+Path=C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\Users\ContainerAdministrator\AppData\Local\Microsoft\WindowsApps
+PATHEXT=.COM;.EXE;.BAT;.CMD
+PROCESSOR_ARCHITECTURE=AMD64
+PROCESSOR_IDENTIFIER=Intel64 Family 6 Model 62 Stepping 4, GenuineIntel
+PROCESSOR_LEVEL=6
+PROCESSOR_REVISION=3e04
+ProgramData=C:\ProgramData
+ProgramFiles=C:\Program Files
+ProgramFiles(x86)=C:\Program Files (x86)
+ProgramW6432=C:\Program Files
+PROMPT=$P$G
+PUBLIC=C:\Users\Public
+SystemDrive=C:
+SystemRoot=C:\Windows
+TEMP=C:\Users\ContainerAdministrator\AppData\Local\Temp
+TMP=C:\Users\ContainerAdministrator\AppData\Local\Temp
+USERDOMAIN=User Manager
+USERNAME=ContainerAdministrator
+USERPROFILE=C:\Users\ContainerAdministrator
+windir=C:\Windows
+```
+
+Similarly the operator can set the **HOSTNAME** (Linux) or **COMPUTERNAME** (Windows) with `-h`.
 
 ### HEALTHCHECK
 

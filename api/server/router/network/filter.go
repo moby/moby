@@ -8,18 +8,8 @@ import (
 	"github.com/docker/docker/runconfig"
 )
 
-var (
-	// AcceptedFilters is an acceptable filters for validation
-	AcceptedFilters = map[string]bool{
-		"driver": true,
-		"type":   true,
-		"name":   true,
-		"id":     true,
-		"label":  true,
-	}
-)
-
-func filterNetworkByType(nws []types.NetworkResource, netType string) (retNws []types.NetworkResource, err error) {
+func filterNetworkByType(nws []types.NetworkResource, netType string) ([]types.NetworkResource, error) {
+	retNws := []types.NetworkResource{}
 	switch netType {
 	case "builtin":
 		for _, nw := range nws {
@@ -45,10 +35,6 @@ func filterNetworks(nws []types.NetworkResource, filter filters.Args) ([]types.N
 	// if filter is empty, return original network list
 	if filter.Len() == 0 {
 		return nws, nil
-	}
-
-	if err := filter.Validate(AcceptedFilters); err != nil {
-		return nil, err
 	}
 
 	displayNet := []types.NetworkResource{}
@@ -77,7 +63,7 @@ func filterNetworks(nws []types.NetworkResource, filter filters.Args) ([]types.N
 	}
 
 	if filter.Include("type") {
-		var typeNet []types.NetworkResource
+		typeNet := []types.NetworkResource{}
 		errFilter := filter.WalkValues("type", func(fval string) error {
 			passList, err := filterNetworkByType(displayNet, fval)
 			if err != nil {

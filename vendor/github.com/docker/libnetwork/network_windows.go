@@ -54,7 +54,7 @@ func (n *network) startResolver() {
 						logrus.Errorf("Resolver Setup/Start failed for container %s, %q", n.Name(), err)
 						time.Sleep(1 * time.Second)
 					} else {
-						logrus.Debugf("Resolver bound successfuly for network %s", n.Name())
+						logrus.Debugf("Resolver bound successfully for network %s", n.Name())
 						n.resolver = append(n.resolver, resolver)
 						break
 					}

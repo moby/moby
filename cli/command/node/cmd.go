@@ -14,10 +14,7 @@ func NewNodeCommand(dockerCli *command.DockerCli) *cobra.Command {
 		Use:   "node",
 		Short: "Manage Swarm nodes",
 		Args:  cli.NoArgs,
-		Run: func(cmd *cobra.Command, args []string) {
-			cmd.SetOutput(dockerCli.Err())
-			cmd.HelpFunc()(cmd, args)
-		},
+		RunE:  dockerCli.ShowHelp,
 	}
 	cmd.AddCommand(
 		newDemoteCommand(dockerCli),

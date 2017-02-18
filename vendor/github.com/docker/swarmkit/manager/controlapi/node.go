@@ -7,7 +7,7 @@ import (
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/manager/state/raft/membership"
 	"github.com/docker/swarmkit/manager/state/store"
-	"github.com/docker/swarmkit/protobuf/ptypes"
+	gogotypes "github.com/gogo/protobuf/types"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -146,7 +146,7 @@ func (s *Server) ListNodes(ctx context.Context, request *api.ListNodesRequest) (
 					return true
 				}
 				for _, c := range request.Filters.Roles {
-					if c == e.Spec.Role {
+					if c == e.Role {
 						return true
 					}
 				}
@@ -205,19 +205,16 @@ func (s *Server) UpdateNode(ctx context.Context, request *api.UpdateNodeRequest)
 	var (
 		node   *api.Node
 		member *membership.Member
-		demote bool
 	)
 
 	err := s.store.Update(func(tx store.Tx) error {
 		node = store.GetNode(tx, request.NodeID)
 		if node == nil {
-			return nil
+			return grpc.Errorf(codes.NotFound, "node %s not found", request.NodeID)
 		}
 
 		// Demotion sanity checks.
-		if node.Spec.Role == api.NodeRoleManager && request.Spec.Role == api.NodeRoleWorker {
-			demote = true
-
+		if node.Spec.DesiredRole == api.NodeRoleManager && request.Spec.DesiredRole == api.NodeRoleWorker {
 			// Check for manager entries in Store.
 			managers, err := store.FindNodes(tx, store.ByRole(api.NodeRoleManager))
 			if err != nil {
@@ -245,19 +242,6 @@ func (s *Server) UpdateNode(ctx context.Context, request *api.UpdateNodeRequest)
 	if err != nil {
 		return nil, err
 	}
-	if node == nil {
-		return nil, grpc.Errorf(codes.NotFound, "node %s not found", request.NodeID)
-	}
-
-	if demote && s.raft != nil {
-		// TODO(abronan): the remove can potentially fail and leave the node with
-		// an incorrect role (worker rather than manager), we need to reconcile the
-		// memberlist with the desired state rather than attempting to remove the
-		// member once.
-		if err := s.raft.RemoveMember(ctx, member.RaftID); err != nil {
-			return nil, grpc.Errorf(codes.Internal, "cannot demote manager to worker: %v", err)
-		}
-	}
 
 	return &api.UpdateNodeResponse{
 		Node: node,
@@ -279,7 +263,7 @@ func (s *Server) RemoveNode(ctx context.Context, request *api.RemoveNodeRequest)
 		if node == nil {
 			return grpc.Errorf(codes.NotFound, "node %s not found", request.NodeID)
 		}
-		if node.Spec.Role == api.NodeRoleManager {
+		if node.Spec.DesiredRole == api.NodeRoleManager {
 			if s.raft == nil {
 				return grpc.Errorf(codes.FailedPrecondition, "node %s is a manager but cannot access node information from the raft memberlist", request.NodeID)
 			}
@@ -310,7 +294,7 @@ func (s *Server) RemoveNode(ctx context.Context, request *api.RemoveNodeRequest)
 			if certBlock != nil {
 				X509Cert, err := x509.ParseCertificate(certBlock.Bytes)
 				if err == nil && !X509Cert.NotAfter.IsZero() {
-					expiry, err := ptypes.TimestampProto(X509Cert.NotAfter)
+					expiry, err := gogotypes.TimestampProto(X509Cert.NotAfter)
 					if err == nil {
 						blacklistedCert.Expiry = expiry
 					}

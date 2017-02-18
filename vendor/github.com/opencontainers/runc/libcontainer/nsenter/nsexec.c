@@ -598,11 +598,11 @@ void nsexec(void)
 
 	/*
 	 * Stage 1: We're in the first child process. Our job is to join any
-	 *          provided user namespaces in the netlink payload. If we've been
-	 *          asked to CLONE_NEWUSER, we will unshare the user namespace and
-	 *          ask our parent (stage 0) to set up our user mappings for us.
-	 *          Then, we unshare the rest of the requested namespaces and
-	 *          create a new child (stage 2: JUMP_INIT).  We then send the
+	 *          provided namespaces in the netlink payload and unshare all
+	 *          of the requested namespaces. If we've been asked to
+	 *          CLONE_NEWUSER, we will ask our parent (stage 0) to set up
+	 *          our user mappings for us. Then, we create a new child
+	 *          (stage 2: JUMP_INIT) for PID namespace. We then send the
 	 *          child's PID to our parent (stage 0).
 	 */
 	case JUMP_CHILD: {
@@ -660,7 +660,15 @@ void nsexec(void)
 					bail("failed to sync with parent: SYNC_USERMAP_ACK: got %u", s);
 			}
 
-			/* TODO: What about non-namespace clone flags that we're dropping here? */
+			/*
+			 * TODO: What about non-namespace clone flags that we're dropping here?
+			 *
+			 * We fork again because of PID namespace, setns(2) or unshare(2) don't
+			 * change the PID namespace of the calling process, because doing so
+			 * would change the caller's idea of its own PID (as reported by getpid()),
+			 * which would break many applications and libraries, so we must fork
+			 * to actually enter the new PID namespace.
+			 */
 			child = clone_parent(&env, JUMP_INIT);
 			if (child < 0)
 				bail("unable to fork: init_func");

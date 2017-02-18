@@ -2,6 +2,7 @@ package ioutils
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -186,5 +187,25 @@ func TestMultiReadSeekerCurAfterSet(t *testing.T) {
 	}
 	if size != mid+18 {
 		t.Fatalf("reader size does not match, got %d, expected %d", size, mid+18)
+	}
+}
+
+func TestMultiReadSeekerSmallReads(t *testing.T) {
+	readers := []io.ReadSeeker{}
+	for i := 0; i < 10; i++ {
+		integer := make([]byte, 4, 4)
+		binary.BigEndian.PutUint32(integer, uint32(i))
+		readers = append(readers, bytes.NewReader(integer))
+	}
+
+	reader := MultiReadSeeker(readers...)
+	for i := 0; i < 10; i++ {
+		var integer uint32
+		if err := binary.Read(reader, binary.BigEndian, &integer); err != nil {
+			t.Fatalf("Read from NewMultiReadSeeker failed: %v", err)
+		}
+		if uint32(i) != integer {
+			t.Fatalf("Read wrong value from NewMultiReadSeeker: %d != %d", i, integer)
+		}
 	}
 }

@@ -4,7 +4,7 @@ package docker.swarmkit.v1;
 
 import "types.proto";
 import "gogoproto/gogo.proto";
-import "duration/duration.proto"; // TODO(stevvooe): use our own until we fix gogoproto/deepcopy
+import "google/protobuf/duration.proto";
 
 // Specs are container objects for user provided input. All creations and
 // updates are done through spec types. As a convention, user input from a spec
@@ -41,8 +41,8 @@ message NodeSpec {
 		DRAIN = 2 [(gogoproto.enumvalue_customname) = "NodeAvailabilityDrain"];
 	}
 
-	// Role defines the role the node should have.
-	NodeRole role = 2;
+	// DesiredRole defines the role the node should have.
+	NodeRole desired_role = 2;
 
 	// Membership controls the admission of the node into the cluster.
 	Membership membership = 3;
@@ -72,6 +72,11 @@ message ServiceSpec {
 	// UpdateConfig controls the rate and policy of updates.
 	UpdateConfig update = 6;
 
+	// ServiceSpec.Networks has been deprecated and is replaced by
+	// Networks field in Task (TaskSpec.Networks).
+	// This field (ServiceSpec.Networks) is kept for compatibility.
+	// In case TaskSpec.Networks does not exist, ServiceSpec.Networks
+	// is still honored if it exists.
 	repeated NetworkAttachmentConfig networks = 7 [deprecated=true];
 
 	// Service endpoint specifies the user provided configuration
@@ -115,7 +120,7 @@ message TaskSpec {
 
 	// ForceUpdate is a counter that triggers an update even if no relevant
 	// parameters have been changed. We do this to allow forced restarts
-	// using the same reconcilation-based mechanism that performs rolling
+	// using the same reconciliation-based mechanism that performs rolling
 	// updates.
 	uint64 force_update = 9;
 }
@@ -125,7 +130,7 @@ message TaskSpec {
 message NetworkAttachmentSpec {
 	// ContainerID spcifies a unique ID of the container for which
 	// this attachment is for.
-	string container_id = 1 [(gogoproto.customname) = "ContainerID"];
+	string container_id = 1;
 }
 
 
@@ -189,11 +194,18 @@ message ContainerSpec {
 	// OpenStdin declares that the standard input (stdin) should be open.
 	bool open_stdin = 18;
 
+	// ReadOnly declares that the container root filesystem is read-only.
+	// This only impacts the root filesystem, not additional mounts (including
+	// tmpfs). For additional mounts that are not part of the initial rootfs,
+	// they will be decided by the modes passed in the mount definition.
+	bool read_only = 19;
+
 	repeated Mount mounts = 8 [(gogoproto.nullable) = false];
 
 	// StopGracePeriod the grace period for stopping the container before
 	// forcefully killing the container.
-	Duration stop_grace_period = 9;
+	// Note: Can't use stdduration here because this needs to be nullable.
+	google.protobuf.Duration stop_grace_period = 9;
 
 	// PullOptions allows one to parameterize an image pull.
 	message PullOptions {

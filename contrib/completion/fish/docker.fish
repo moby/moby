@@ -43,7 +43,7 @@ function __fish_print_docker_repositories --description 'Print a list of docker 
 end
 
 # common options
-complete -c docker -f -n '__fish_docker_no_subcommand' -l api-cors-header -d "Set CORS headers in the remote API. Default is cors disabled"
+complete -c docker -f -n '__fish_docker_no_subcommand' -l api-cors-header -d "Set CORS headers in the Engine API. Default is cors disabled"
 complete -c docker -f -n '__fish_docker_no_subcommand' -s b -l bridge -d 'Attach containers to a pre-existing network bridge'
 complete -c docker -f -n '__fish_docker_no_subcommand' -l bip -d "Use this CIDR notation address for the network bridge's IP, not compatible with -b"
 complete -c docker -f -n '__fish_docker_no_subcommand' -s D -l debug -d 'Enable debug mode'
@@ -121,6 +121,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l cap-drop -d 
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l cidfile -d 'Write the container ID to the file'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l cpuset -d 'CPUs in which to allow execution (0-3, 0,1)'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l device -d 'Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)'
+complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l device-cgroup-rule -d 'Add a rule to the cgroup allowed devices list (e.g. --device-cgroup-rule="c 13:37 rwm")'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l dns -d 'Set custom DNS servers'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l dns-opt -d "Set custom DNS options (Use --dns-opt='' if you don't wish to set options)"
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l dns-search -d "Set custom DNS search domains (Use --dns-search=. if you don't wish to set the search domain)"
@@ -135,9 +136,8 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from create' -s i -l interac
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l ipc -d 'Default is to create a private IPC namespace (POSIX SysV IPC) for the container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l link -d 'Add link to another container in the form of <name|id>:alias'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -s m -l memory -d 'Memory limit (format: <number>[<unit>], where unit = b, k, m or g)'
-complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l mac-address -d 'Container MAC address (e.g. 92:d0:c6:0a:29:33)'
+complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l mac-address -d 'Container MAC address (e.g., 92:d0:c6:0a:29:33)'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l memory-swap -d "Total memory usage (memory + swap), set '-1' to disable swap (format: <number>[<unit>], where unit = b, k, m or g)"
-complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l mount -d 'Attach a filesystem mount to the container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l name -d 'Assign a name to the container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l net -d 'Set the Network mode for the container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -s P -l publish-all -d 'Publish all exposed ports to random ports on the host interfaces'
@@ -313,6 +313,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l cidfile -d 'Wri
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l cpuset -d 'CPUs in which to allow execution (0-3, 0,1)'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s d -l detach -d 'Detached mode: run the container in the background and print the new container ID'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l device -d 'Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)'
+complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l device-cgroup-rule -d 'Add a rule to the cgroup allowed devices list (e.g. --device-cgroup-rule="c 13:37 rwm")'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l dns -d 'Set custom DNS servers'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l dns-opt -d "Set custom DNS options (Use --dns-opt='' if you don't wish to set options)"
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l dns-search -d "Set custom DNS search domains (Use --dns-search=. if you don't wish to set the search domain)"
@@ -327,9 +328,8 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s i -l interactiv
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l ipc -d 'Default is to create a private IPC namespace (POSIX SysV IPC) for the container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l link -d 'Add link to another container in the form of <name|id>:alias'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s m -l memory -d 'Memory limit (format: <number>[<unit>], where unit = b, k, m or g)'
-complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l mac-address -d 'Container MAC address (e.g. 92:d0:c6:0a:29:33)'
+complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l mac-address -d 'Container MAC address (e.g., 92:d0:c6:0a:29:33)'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l memory-swap -d "Total memory usage (memory + swap), set '-1' to disable swap (format: <number>[<unit>], where unit = b, k, m or g)"
-complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l mount -d 'Attach a filesystem mount to the container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l name -d 'Assign a name to the container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l net -d 'Set the Network mode for the container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s P -l publish-all -d 'Publish all exposed ports to random ports on the host interfaces'

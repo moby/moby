@@ -85,7 +85,7 @@ their container to communicate, the next step is for a given Engine to gain abil
 to another node in the cluster. This will be introduced in a backward compatible way, such that a
 `docker run` invocation on a particular node remains fully deterministic.
 
-# 2 Frozen features
+# 2. Frozen features
 
 ## 2.1 Docker exec
 

@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -19,7 +20,7 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 	)
 
 	if oldName == "" || newName == "" {
-		return fmt.Errorf("Neither old nor new names may be empty")
+		return errors.New("Neither old nor new names may be empty")
 	}
 
 	if newName[0] != '/' {
@@ -35,7 +36,7 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 	oldIsAnonymousEndpoint := container.NetworkSettings.IsAnonymousEndpoint
 
 	if oldName == newName {
-		return fmt.Errorf("Renaming a container with the same name as its current name")
+		return errors.New("Renaming a container with the same name as its current name")
 	}
 
 	container.Lock()
@@ -105,7 +106,7 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 	}()
 
 	sid = container.NetworkSettings.SandboxID
-	if daemon.netController != nil {
+	if sid != "" && daemon.netController != nil {
 		sb, err = daemon.netController.SandboxByID(sid)
 		if err != nil {
 			return err

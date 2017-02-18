@@ -6,7 +6,7 @@ import (
 	"github.com/docker/swarmkit/api"
 )
 
-// TasksEqualStable returns true if the tasks are functionaly equal, ignoring status,
+// TasksEqualStable returns true if the tasks are functionally equal, ignoring status,
 // version and other superfluous fields.
 //
 // This used to decide whether or not to propagate a task update to a controller.

@@ -32,42 +32,44 @@ Options:
       --dns-rm list                      Remove a custom DNS server (default [])
       --dns-search-add list              Add or update a custom DNS search domain (default [])
       --dns-search-rm list               Remove a DNS search domain (default [])
-      --endpoint-mode string             Endpoint mode (vip or dnsrr)
+      --endpoint-mode string             Endpoint mode (vip or dnsrr) (default "vip")
       --env-add list                     Add or update an environment variable (default [])
       --env-rm list                      Remove an environment variable (default [])
       --force                            Force update even if no changes require it
       --group-add list                   Add an additional supplementary user group to the container (default [])
       --group-rm list                    Remove a previously added supplementary user group from the container (default [])
       --health-cmd string                Command to run to check health
-      --health-interval duration         Time between running the check (default none)
+      --health-interval duration         Time between running the check (ns|us|ms|s|m|h)
       --health-retries int               Consecutive failures needed to report unhealthy
-      --health-timeout duration          Maximum time to allow one check to run (default none)
+      --health-timeout duration          Maximum time to allow one check to run (ns|us|ms|s|m|h)
       --help                             Print usage
       --host-add list                    Add or update a custom host-to-IP mapping (host:ip) (default [])
       --host-rm list                     Remove a custom host-to-IP mapping (host:ip) (default [])
+      --hostname string                  Container hostname
       --image string                     Service image tag
       --label-add list                   Add or update a service label (default [])
       --label-rm list                    Remove a label by its key (default [])
       --limit-cpu decimal                Limit CPUs (default 0.000)
-      --limit-memory bytes               Limit Memory (default 0 B)
+      --limit-memory bytes               Limit Memory
       --log-driver string                Logging driver for service
       --log-opt list                     Logging driver options (default [])
       --mount-add mount                  Add or update a mount on a service
       --mount-rm list                    Remove a mount by its target path (default [])
       --no-healthcheck                   Disable any container-specified HEALTHCHECK
-      --publish-add list                 Add or update a published port (default [])
-      --publish-rm list                  Remove a published port by its target port (default [])
-      --replicas uint                    Number of tasks (default none)
+      --publish-add port                 Add or update a published port
+      --publish-rm port                  Remove a published port by its target port
+      --read-only                        Mount the container's root filesystem as read only
+      --replicas uint                    Number of tasks
       --reserve-cpu decimal              Reserve CPUs (default 0.000)
-      --reserve-memory bytes             Reserve Memory (default 0 B)
+      --reserve-memory bytes             Reserve Memory
       --restart-condition string         Restart when condition is met (none, on-failure, or any)
-      --restart-delay duration           Delay between restart attempts (default none)
-      --restart-max-attempts uint        Maximum number of restarts before giving up (default none)
-      --restart-window duration          Window used to evaluate the restart policy (default none)
+      --restart-delay duration           Delay between restart attempts (ns|us|ms|s|m|h)
+      --restart-max-attempts uint        Maximum number of restarts before giving up
+      --restart-window duration          Window used to evaluate the restart policy (ns|us|ms|s|m|h)
       --rollback                         Rollback to previous specification
-      --secret-add list                  Add a secret (default [])
+      --secret-add secret                Add or update a secret on a service
       --secret-rm list                   Remove a secret (default [])
-      --stop-grace-period duration       Time to wait before force killing a container (default none)
+      --stop-grace-period duration       Time to wait before force killing a container (ns|us|ms|s|m|h)
   -t, --tty                              Allocate a pseudo-TTY
       --update-delay duration            Delay between updates (ns|us|ms|s|m|h) (default 0s)
       --update-failure-action string     Action on update failure (pause|continue) (default "pause")
@@ -78,6 +80,8 @@ Options:
       --with-registry-auth               Send registry authentication details to swarm agents
   -w, --workdir string                   Working directory inside the container
 ```
+
+## Description
 
 Updates a service as described by the specified parameters. This command has to be run targeting a manager node.
 The parameters are the same as [`docker service create`](service_create.md). Please look at the description there
@@ -110,7 +114,7 @@ that only one task is replaced at a time (this is the default behavior). The
 `--update-delay 30s` setting introduces a 30 second delay between tasks, so
 that the rolling restart happens gradually.
 
-### Adding and removing mounts
+### Add or remove mounts
 
 Use the `--mount-add` or `--mount-rm` options add or remove a service's bind-mounts
 or volumes.
@@ -150,7 +154,7 @@ $ docker service update --mount-rm /somewhere myservice
 myservice
 ```
 
-### Adding and removing secrets
+### Add or remove secrets
 
 Use the `--secret-add` or `--secret-rm` options add or remove a service's
 secrets.
@@ -164,10 +168,17 @@ $ docker service update \
     myservice
 ```
 
-## Related information
+### Update services using templates
+
+Some flags of `service update` support the use of templating.
+See [`service create`](./service_create.md#templating) for the reference.
+
+## Related commands
 
 * [service create](service_create.md)
 * [service inspect](service_inspect.md)
-* [service ps](service_ps.md)
+* [service logs](service_logs.md)
 * [service ls](service_ls.md)
+* [service ps](service_ps.md)
 * [service rm](service_rm.md)
+* [service scale](service_scale.md)

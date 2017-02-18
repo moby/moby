@@ -188,7 +188,6 @@ fi
 
 flags=(
 	NAMESPACES {NET,PID,IPC,UTS}_NS
-	DEVPTS_MULTIPLE_INSTANCES
 	CGROUPS CGROUP_CPUACCT CGROUP_DEVICE CGROUP_FREEZER CGROUP_SCHED CPUSETS MEMCG
 	KEYS
 	VETH BRIDGE BRIDGE_NETFILTER
@@ -200,6 +199,10 @@ flags=(
 	POSIX_MQUEUE
 )
 check_flags "${flags[@]}"
+if [ "$kernelMajor" -lt 4 ] || [ "$kernelMajor" -eq 4 -a "$kernelMinor" -lt 8 ]; then
+        check_flags DEVPTS_MULTIPLE_INSTANCES
+fi
+
 echo
 
 echo 'Optional Features:'
@@ -214,9 +217,31 @@ echo 'Optional Features:'
 	check_flags CGROUP_PIDS
 }
 {
+	CODE=${EXITCODE}
 	check_flags MEMCG_SWAP MEMCG_SWAP_ENABLED
-	if  is_set MEMCG_SWAP && ! is_set MEMCG_SWAP_ENABLED; then
-		echo "    $(wrap_color '(note that cgroup swap accounting is not enabled in your kernel config, you can enable it by setting boot option "swapaccount=1")' bold black)"
+	if [ -e /sys/fs/cgroup/memory/memory.memsw.limit_in_bytes ]; then
+		echo "    $(wrap_color '(cgroup swap accounting is currently enabled)' bold black)"
+		EXITCODE=${CODE}
+	elif is_set MEMCG_SWAP && ! is_set MEMCG_SWAP_ENABLED; then
+		echo "    $(wrap_color '(cgroup swap accounting is currently not enabled, you can enable it by setting boot option "swapaccount=1")' bold black)"
+	fi
+}
+{
+	if is_set LEGACY_VSYSCALL_NATIVE; then
+		echo -n "- "; wrap_bad "CONFIG_LEGACY_VSYSCALL_NATIVE" 'enabled'
+		echo "    $(wrap_color '(dangerous, provides an ASLR-bypassing target with usable ROP gadgets.)' bold black)"
+	elif is_set LEGACY_VSYSCALL_EMULATE; then
+		echo -n "- "; wrap_good "CONFIG_LEGACY_VSYSCALL_EMULATE" 'enabled'
+	elif is_set LEGACY_VSYSCALL_NONE; then
+		echo -n "- "; wrap_bad "CONFIG_LEGACY_VSYSCALL_NONE" 'enabled'
+		echo "    $(wrap_color '(containers using eglibc <= 2.13 will not work. Switch to' bold black)"
+		echo "    $(wrap_color ' "CONFIG_VSYSCALL_[NATIVE|EMULATE]" or use "vsyscall=[native|emulate]"' bold black)"
+		echo "    $(wrap_color ' on kernel command line. Note that this will disable ASLR for the,' bold black)"
+		echo "    $(wrap_color ' VDSO which may assist in exploiting security vulnerabilities.)' bold black)"
+	# else Older kernels (prior to 3dc33bd30f3e, released in v4.40-rc1) do
+	#      not have these LEGACY_VSYSCALL options and are effectively
+	#      LEGACY_VSYSCALL_EMULATE. Even older kernels are presumably
+	#      effectively LEGACY_VSYSCALL_NATIVE.
 	fi
 }
 
@@ -272,6 +297,8 @@ echo '  - "'$(wrap_color 'ipvlan' blue)'":'
 check_flags IPVLAN | sed 's/^/    /'
 echo '  - "'$(wrap_color 'macvlan' blue)'":'
 check_flags MACVLAN DUMMY | sed 's/^/    /'
+echo '  - "'$(wrap_color 'ftp,tftp client in container' blue)'":'
+check_flags NF_NAT_FTP NF_CONNTRACK_FTP NF_NAT_TFTP NF_CONNTRACK_TFTP | sed 's/^/    /'
 
 # only fail if no storage drivers available
 CODE=${EXITCODE}

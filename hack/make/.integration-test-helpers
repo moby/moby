@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 : ${TEST_REPEAT:=0}
 
@@ -20,10 +20,11 @@ bundle_test_integration_cli() {
 go_test_dir() {
 	dir=$1
 	precompiled=$2
-	testbinary="$DEST/test.main"
+	testbinary="$ABS_DEST/test.main"
 	testcover=()
 	testcoverprofile=()
 	(
+		set -e
 		mkdir -p "$DEST/coverprofiles"
 		export DEST="$ABS_DEST" # in a subshell this is safe -- our integration-cli tests need DEST, and "cd" screws it up
 		if [ -z $precompiled ]; then

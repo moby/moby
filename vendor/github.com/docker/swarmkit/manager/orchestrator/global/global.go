@@ -240,6 +240,8 @@ func (g *Orchestrator) reconcileServices(ctx context.Context, serviceIDs []strin
 		}
 	})
 
+	updates := make(map[*api.Service][]orchestrator.Slot)
+
 	_, err := g.store.Batch(func(batch *store.Batch) error {
 		var updateTasks []orchestrator.Slot
 		for _, serviceID := range serviceIDs {
@@ -274,8 +276,9 @@ func (g *Orchestrator) reconcileServices(ctx context.Context, serviceIDs []strin
 					updateTasks = append(updateTasks, ntasks)
 				}
 			}
+
 			if len(updateTasks) > 0 {
-				g.updater.Update(ctx, g.cluster, service.Service, updateTasks)
+				updates[service.Service] = updateTasks
 			}
 
 			// Remove any tasks assigned to nodes not found in g.nodes.
@@ -287,9 +290,15 @@ func (g *Orchestrator) reconcileServices(ctx context.Context, serviceIDs []strin
 		}
 		return nil
 	})
+
 	if err != nil {
 		log.G(ctx).WithError(err).Errorf("global orchestrator: reconcileServices transaction failed")
 	}
+
+	for service, updateTasks := range updates {
+		g.updater.Update(ctx, g.cluster, service, updateTasks)
+	}
+
 }
 
 // updateNode updates g.nodes based on the current node value

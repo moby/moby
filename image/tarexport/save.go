@@ -10,13 +10,14 @@ import (
 	"time"
 
 	"github.com/docker/distribution"
-	"github.com/docker/distribution/digest"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/image/v1"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/system"
-	"github.com/docker/docker/reference"
+	"github.com/opencontainers/go-digest"
+	"github.com/pkg/errors"
 )
 
 type imageDescriptor struct {
@@ -50,16 +51,12 @@ func (l *tarexporter) parseNames(names []string) (map[image.ID]*imageDescriptor,
 		}
 
 		if ref != nil {
-			var tagged reference.NamedTagged
 			if _, ok := ref.(reference.Canonical); ok {
 				return
 			}
-			var ok bool
-			if tagged, ok = ref.(reference.NamedTagged); !ok {
-				var err error
-				if tagged, err = reference.WithTag(ref, reference.DefaultTag); err != nil {
-					return
-				}
+			tagged, ok := reference.TagNameOnly(ref).(reference.NamedTagged)
+			if !ok {
+				return
 			}
 
 			for _, t := range imgDescr[id].refs {
@@ -72,19 +69,26 @@ func (l *tarexporter) parseNames(names []string) (map[image.ID]*imageDescriptor,
 	}
 
 	for _, name := range names {
-		id, ref, err := reference.ParseIDOrReference(name)
+		ref, err := reference.ParseAnyReference(name)
 		if err != nil {
 			return nil, err
 		}
-		if id != "" {
-			_, err := l.is.Get(image.IDFromDigest(id))
-			if err != nil {
-				return nil, err
+		namedRef, ok := ref.(reference.Named)
+		if !ok {
+			// Check if digest ID reference
+			if digested, ok := ref.(reference.Digested); ok {
+				id := image.IDFromDigest(digested.Digest())
+				_, err := l.is.Get(id)
+				if err != nil {
+					return nil, err
+				}
+				addAssoc(id, nil)
+				continue
 			}
-			addAssoc(image.IDFromDigest(id), nil)
-			continue
+			return nil, errors.Errorf("invalid reference: %v", name)
 		}
-		if ref.Name() == string(digest.Canonical) {
+
+		if reference.FamiliarName(namedRef) == string(digest.Canonical) {
 			imgID, err := l.is.Search(name)
 			if err != nil {
 				return nil, err
@@ -92,8 +96,8 @@ func (l *tarexporter) parseNames(names []string) (map[image.ID]*imageDescriptor,
 			addAssoc(imgID, nil)
 			continue
 		}
-		if reference.IsNameOnly(ref) {
-			assocs := l.rs.ReferencesByName(ref)
+		if reference.IsNameOnly(namedRef) {
+			assocs := l.rs.ReferencesByName(namedRef)
 			for _, assoc := range assocs {
 				addAssoc(image.IDFromDigest(assoc.ID), assoc.Ref)
 			}
@@ -106,11 +110,11 @@ func (l *tarexporter) parseNames(names []string) (map[image.ID]*imageDescriptor,
 			}
 			continue
 		}
-		id, err = l.rs.Get(ref)
+		id, err := l.rs.Get(namedRef)
 		if err != nil {
 			return nil, err
 		}
-		addAssoc(image.IDFromDigest(id), ref)
+		addAssoc(image.IDFromDigest(id), namedRef)
 
 	}
 	return imgDescr, nil
@@ -143,11 +147,12 @@ func (s *saveSession) save(outStream io.Writer) error {
 		var layers []string
 
 		for _, ref := range imageDescr.refs {
-			if _, ok := reposLegacy[ref.Name()]; !ok {
-				reposLegacy[ref.Name()] = make(map[string]string)
+			familiarName := reference.FamiliarName(ref)
+			if _, ok := reposLegacy[familiarName]; !ok {
+				reposLegacy[familiarName] = make(map[string]string)
 			}
-			reposLegacy[ref.Name()][ref.Tag()] = imageDescr.layers[len(imageDescr.layers)-1]
-			repoTags = append(repoTags, ref.String())
+			reposLegacy[familiarName][ref.Tag()] = imageDescr.layers[len(imageDescr.layers)-1]
+			repoTags = append(repoTags, reference.FamiliarString(ref))
 		}
 
 		for _, l := range imageDescr.layers {
@@ -214,10 +219,8 @@ func (s *saveSession) save(outStream io.Writer) error {
 	}
 	defer fs.Close()
 
-	if _, err := io.Copy(outStream, fs); err != nil {
-		return err
-	}
-	return nil
+	_, err = io.Copy(outStream, fs)
+	return err
 }
 
 func (s *saveSession) saveImage(id image.ID) (map[layer.DiffID]distribution.Descriptor, error) {
@@ -234,7 +237,11 @@ func (s *saveSession) saveImage(id image.ID) (map[layer.DiffID]distribution.Desc
 	var layers []string
 	var foreignSrcs map[layer.DiffID]distribution.Descriptor
 	for i := range img.RootFS.DiffIDs {
-		v1Img := image.V1Image{}
+		v1Img := image.V1Image{
+			// This is for backward compatibility used for
+			// pre v1.9 docker.
+			Created: time.Unix(0, 0),
+		}
 		if i == len(img.RootFS.DiffIDs)-1 {
 			v1Img = img.V1Image
 		}
@@ -313,10 +320,14 @@ func (s *saveSession) saveLayer(id layer.ChainID, legacyImg image.V1Image, creat
 		if err != nil {
 			return distribution.Descriptor{}, err
 		}
-		os.Symlink(relPath, layerPath)
+		if err := os.Symlink(relPath, layerPath); err != nil {
+			return distribution.Descriptor{}, errors.Wrap(err, "error creating symlink while saving layer")
+		}
 	} else {
-
-		tarFile, err := os.Create(layerPath)
+		// Use system.CreateSequential rather than os.Create. This ensures sequential
+		// file access on Windows to avoid eating into MM standby list.
+		// On Linux, this equates to a regular os.Create.
+		tarFile, err := system.CreateSequential(layerPath)
 		if err != nil {
 			return distribution.Descriptor{}, err
 		}

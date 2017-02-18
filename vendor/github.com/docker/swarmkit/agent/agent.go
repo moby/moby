@@ -37,6 +37,9 @@ type Agent struct {
 	started   chan struct{}
 	startOnce sync.Once // start only once
 	ready     chan struct{}
+	leaving   chan struct{}
+	leaveOnce sync.Once
+	left      chan struct{} // closed after "run" processes "leaving" and will no longer accept new assignments
 	stopped   chan struct{} // requests shutdown
 	stopOnce  sync.Once     // only allow stop to be called once
 	closed    chan struct{} // only closed in run
@@ -53,6 +56,8 @@ func New(config *Config) (*Agent, error) {
 		config:   config,
 		sessionq: make(chan sessionOperation),
 		started:  make(chan struct{}),
+		leaving:  make(chan struct{}),
+		left:     make(chan struct{}),
 		stopped:  make(chan struct{}),
 		closed:   make(chan struct{}),
 		ready:    make(chan struct{}),
@@ -76,6 +81,47 @@ func (a *Agent) Start(ctx context.Context) error {
 	})
 
 	return err
+}
+
+// Leave instructs the agent to leave the cluster. This method will shutdown
+// assignment processing and remove all assignments from the node.
+// Leave blocks until worker has finished closing all task managers or agent
+// is closed.
+func (a *Agent) Leave(ctx context.Context) error {
+	select {
+	case <-a.started:
+	default:
+		return errAgentNotStarted
+	}
+
+	a.leaveOnce.Do(func() {
+		close(a.leaving)
+	})
+
+	// Do not call Wait until we have confirmed that the agent is no longer
+	// accepting assignments. Starting a worker might race with Wait.
+	select {
+	case <-a.left:
+	case <-a.closed:
+		return ErrClosed
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+
+	// agent could be closed while Leave is in progress
+	var err error
+	ch := make(chan struct{})
+	go func() {
+		err = a.worker.Wait(ctx)
+		close(ch)
+	}()
+
+	select {
+	case <-ch:
+		return err
+	case <-a.closed:
+		return ErrClosed
+	}
 }
 
 // Stop shuts down the agent, blocking until full shutdown. If the agent is not
@@ -151,6 +197,7 @@ func (a *Agent) run(ctx context.Context) {
 		registered    = session.registered
 		ready         = a.ready // first session ready
 		sessionq      chan sessionOperation
+		leaving       = a.leaving
 		subscriptions = map[string]context.CancelFunc{}
 	)
 
@@ -171,7 +218,23 @@ func (a *Agent) run(ctx context.Context) {
 		select {
 		case operation := <-sessionq:
 			operation.response <- operation.fn(session)
+		case <-leaving:
+			leaving = nil
+
+			// TODO(stevvooe): Signal to the manager that the node is leaving.
+
+			// when leaving we remove all assignments.
+			if err := a.worker.Assign(ctx, nil); err != nil {
+				log.G(ctx).WithError(err).Error("failed removing all assignments")
+			}
+
+			close(a.left)
 		case msg := <-session.assignments:
+			// if we have left, accept no more assignments
+			if leaving == nil {
+				continue
+			}
+
 			switch msg.Type {
 			case api.AssignmentsMessage_COMPLETE:
 				// Need to assign secrets before tasks, because tasks might depend on new secrets
@@ -287,12 +350,10 @@ func (a *Agent) handleSessionMessage(ctx context.Context, message *api.SessionMe
 	seen := map[api.Peer]struct{}{}
 	for _, manager := range message.Managers {
 		if manager.Peer.Addr == "" {
-			log.G(ctx).WithField("manager.addr", manager.Peer.Addr).
-				Warnf("skipping bad manager address")
 			continue
 		}
 
-		a.config.Managers.Observe(*manager.Peer, int(manager.Weight))
+		a.config.ConnBroker.Remotes().Observe(*manager.Peer, int(manager.Weight))
 		seen[*manager.Peer] = struct{}{}
 	}
 
@@ -309,9 +370,9 @@ func (a *Agent) handleSessionMessage(ctx context.Context, message *api.SessionMe
 	}
 
 	// prune managers not in list.
-	for peer := range a.config.Managers.Weights() {
+	for peer := range a.config.ConnBroker.Remotes().Weights() {
 		if _, ok := seen[peer]; !ok {
-			a.config.Managers.Remove(peer)
+			a.config.ConnBroker.Remotes().Remove(peer)
 		}
 	}
 
@@ -406,37 +467,41 @@ func (a *Agent) UpdateTaskStatus(ctx context.Context, taskID string, status *api
 }
 
 // Publisher returns a LogPublisher for the given subscription
-func (a *Agent) Publisher(ctx context.Context, subscriptionID string) (exec.LogPublisher, error) {
+// as well as a cancel function that should be called when the log stream
+// is completed.
+func (a *Agent) Publisher(ctx context.Context, subscriptionID string) (exec.LogPublisher, func(), error) {
 	// TODO(stevvooe): The level of coordination here is WAY too much for logs.
 	// These should only be best effort and really just buffer until a session is
 	// ready. Ideally, they would use a separate connection completely.
 
 	var (
-		err    error
-		client api.LogBroker_PublishLogsClient
+		err       error
+		publisher api.LogBroker_PublishLogsClient
 	)
 
 	err = a.withSession(ctx, func(session *session) error {
-		client, err = api.NewLogBrokerClient(session.conn).PublishLogs(ctx)
+		publisher, err = api.NewLogBrokerClient(session.conn.ClientConn).PublishLogs(ctx)
 		return err
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	return exec.LogPublisherFunc(func(ctx context.Context, message api.LogMessage) error {
-		select {
-		case <-ctx.Done():
-			client.CloseSend()
-			return ctx.Err()
-		default:
-		}
+			select {
+			case <-ctx.Done():
+				publisher.CloseSend()
+				return ctx.Err()
+			default:
+			}
 
-		return client.Send(&api.PublishLogsMessage{
-			SubscriptionID: subscriptionID,
-			Messages:       []api.LogMessage{message},
-		})
-	}), nil
+			return publisher.Send(&api.PublishLogsMessage{
+				SubscriptionID: subscriptionID,
+				Messages:       []api.LogMessage{message},
+			})
+		}), func() {
+			publisher.CloseSend()
+		}, nil
 }
 
 // nodeDescriptionWithHostname retrieves node description, and overrides hostname if available
@@ -450,7 +515,7 @@ func (a *Agent) nodeDescriptionWithHostname(ctx context.Context) (*api.NodeDescr
 	return desc, err
 }
 
-// nodesEqual returns true if the node states are functionaly equal, ignoring status,
+// nodesEqual returns true if the node states are functionally equal, ignoring status,
 // version and other superfluous fields.
 //
 // This used to decide whether or not to propagate a node update to executor.

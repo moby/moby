@@ -8,31 +8,47 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
 )
 
 func (s *DockerSwarmSuite) TestServiceCreateMountVolume(c *check.C) {
 	d := s.AddDaemon(c, true, true)
-	out, err := d.Cmd("service", "create", "--mount", "type=volume,source=foo,target=/foo", "busybox", "top")
+	out, err := d.Cmd("service", "create", "--mount", "type=volume,source=foo,target=/foo,volume-nocopy", "busybox", "top")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	id := strings.TrimSpace(out)
 
 	var tasks []swarm.Task
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
-		tasks = d.getServiceTasks(c, id)
+		tasks = d.GetServiceTasks(c, id)
 		return len(tasks) > 0, nil
 	}, checker.Equals, true)
 
 	task := tasks[0]
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
 		if task.NodeID == "" || task.Status.ContainerStatus.ContainerID == "" {
-			task = d.getTask(c, task.ID)
+			task = d.GetTask(c, task.ID)
 		}
 		return task.NodeID != "" && task.Status.ContainerStatus.ContainerID != "", nil
 	}, checker.Equals, true)
 
+	// check container mount config
+	out, err = s.nodeCmd(c, task.NodeID, "inspect", "--format", "{{json .HostConfig.Mounts}}", task.Status.ContainerStatus.ContainerID)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	var mountConfig []mount.Mount
+	c.Assert(json.Unmarshal([]byte(out), &mountConfig), checker.IsNil)
+	c.Assert(mountConfig, checker.HasLen, 1)
+
+	c.Assert(mountConfig[0].Source, checker.Equals, "foo")
+	c.Assert(mountConfig[0].Target, checker.Equals, "/foo")
+	c.Assert(mountConfig[0].Type, checker.Equals, mount.TypeVolume)
+	c.Assert(mountConfig[0].VolumeOptions, checker.NotNil)
+	c.Assert(mountConfig[0].VolumeOptions.NoCopy, checker.True)
+
+	// check container mounts actual
 	out, err = s.nodeCmd(c, task.NodeID, "inspect", "--format", "{{json .Mounts}}", task.Status.ContainerStatus.ContainerID)
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
@@ -40,6 +56,7 @@ func (s *DockerSwarmSuite) TestServiceCreateMountVolume(c *check.C) {
 	c.Assert(json.Unmarshal([]byte(out), &mounts), checker.IsNil)
 	c.Assert(mounts, checker.HasLen, 1)
 
+	c.Assert(mounts[0].Type, checker.Equals, mount.TypeVolume)
 	c.Assert(mounts[0].Name, checker.Equals, "foo")
 	c.Assert(mounts[0].Destination, checker.Equals, "/foo")
 	c.Assert(mounts[0].RW, checker.Equals, true)
@@ -50,7 +67,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretSimple(c *check.C) {
 
 	serviceName := "test-service-secret"
 	testName := "test_secret"
-	id := d.createSecret(c, swarm.SecretSpec{
+	id := d.CreateSecret(c, swarm.SecretSpec{
 		swarm.Annotations{
 			Name: testName,
 		},
@@ -69,10 +86,10 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretSimple(c *check.C) {
 	c.Assert(refs, checker.HasLen, 1)
 
 	c.Assert(refs[0].SecretName, checker.Equals, testName)
-	c.Assert(refs[0].Target, checker.Not(checker.IsNil))
-	c.Assert(refs[0].Target.Name, checker.Equals, testName)
-	c.Assert(refs[0].Target.UID, checker.Equals, "0")
-	c.Assert(refs[0].Target.GID, checker.Equals, "0")
+	c.Assert(refs[0].File, checker.Not(checker.IsNil))
+	c.Assert(refs[0].File.Name, checker.Equals, testName)
+	c.Assert(refs[0].File.UID, checker.Equals, "0")
+	c.Assert(refs[0].File.GID, checker.Equals, "0")
 }
 
 func (s *DockerSwarmSuite) TestServiceCreateWithSecretSourceTarget(c *check.C) {
@@ -80,7 +97,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretSourceTarget(c *check.C) {
 
 	serviceName := "test-service-secret"
 	testName := "test_secret"
-	id := d.createSecret(c, swarm.SecretSpec{
+	id := d.CreateSecret(c, swarm.SecretSpec{
 		swarm.Annotations{
 			Name: testName,
 		},
@@ -100,6 +117,59 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretSourceTarget(c *check.C) {
 	c.Assert(refs, checker.HasLen, 1)
 
 	c.Assert(refs[0].SecretName, checker.Equals, testName)
-	c.Assert(refs[0].Target, checker.Not(checker.IsNil))
-	c.Assert(refs[0].Target.Name, checker.Equals, testTarget)
+	c.Assert(refs[0].File, checker.Not(checker.IsNil))
+	c.Assert(refs[0].File.Name, checker.Equals, testTarget)
+}
+
+func (s *DockerSwarmSuite) TestServiceCreateMountTmpfs(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+	out, err := d.Cmd("service", "create", "--mount", "type=tmpfs,target=/foo,tmpfs-size=1MB", "busybox", "sh", "-c", "mount | grep foo; tail -f /dev/null")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	id := strings.TrimSpace(out)
+
+	var tasks []swarm.Task
+	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
+		tasks = d.GetServiceTasks(c, id)
+		return len(tasks) > 0, nil
+	}, checker.Equals, true)
+
+	task := tasks[0]
+	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
+		if task.NodeID == "" || task.Status.ContainerStatus.ContainerID == "" {
+			task = d.GetTask(c, task.ID)
+		}
+		return task.NodeID != "" && task.Status.ContainerStatus.ContainerID != "", nil
+	}, checker.Equals, true)
+
+	// check container mount config
+	out, err = s.nodeCmd(c, task.NodeID, "inspect", "--format", "{{json .HostConfig.Mounts}}", task.Status.ContainerStatus.ContainerID)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	var mountConfig []mount.Mount
+	c.Assert(json.Unmarshal([]byte(out), &mountConfig), checker.IsNil)
+	c.Assert(mountConfig, checker.HasLen, 1)
+
+	c.Assert(mountConfig[0].Source, checker.Equals, "")
+	c.Assert(mountConfig[0].Target, checker.Equals, "/foo")
+	c.Assert(mountConfig[0].Type, checker.Equals, mount.TypeTmpfs)
+	c.Assert(mountConfig[0].TmpfsOptions, checker.NotNil)
+	c.Assert(mountConfig[0].TmpfsOptions.SizeBytes, checker.Equals, int64(1048576))
+
+	// check container mounts actual
+	out, err = s.nodeCmd(c, task.NodeID, "inspect", "--format", "{{json .Mounts}}", task.Status.ContainerStatus.ContainerID)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	var mounts []types.MountPoint
+	c.Assert(json.Unmarshal([]byte(out), &mounts), checker.IsNil)
+	c.Assert(mounts, checker.HasLen, 1)
+
+	c.Assert(mounts[0].Type, checker.Equals, mount.TypeTmpfs)
+	c.Assert(mounts[0].Name, checker.Equals, "")
+	c.Assert(mounts[0].Destination, checker.Equals, "/foo")
+	c.Assert(mounts[0].RW, checker.Equals, true)
+
+	out, err = s.nodeCmd(c, task.NodeID, "logs", task.Status.ContainerStatus.ContainerID)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(strings.TrimSpace(out), checker.HasPrefix, "tmpfs on /foo type tmpfs")
+	c.Assert(strings.TrimSpace(out), checker.Contains, "size=1024k")
 }

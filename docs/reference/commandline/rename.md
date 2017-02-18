@@ -24,4 +24,12 @@ Options:
       --help   Print usage
 ```
 
-The `docker rename` command allows the container to be renamed to a different name.
+## Description
+
+The `docker rename` command renames a container.
+
+## Examples
+
+```bash
+$ docker rename my_container my_new_container
+```
