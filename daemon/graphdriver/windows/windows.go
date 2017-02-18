@@ -31,6 +31,7 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/longpath"
 	"github.com/docker/docker/pkg/reexec"
+	"github.com/docker/docker/pkg/system"
 	units "github.com/docker/go-units"
 	"golang.org/x/sys/windows"
 )
@@ -265,19 +266,35 @@ func (d *Driver) Remove(id string) error {
 	// it is a transient error. Retry until it succeeds.
 	var computeSystems []hcsshim.ContainerProperties
 	retryCount := 0
+	osv := system.GetOSVersion()
 	for {
-		// Get and terminate any template VMs that are currently using the layer
+		// Get and terminate any template VMs that are currently using the layer.
+		// Note: It is unfortunate that we end up in the graphdrivers Remove() call
+		// for both containers and images, but the logic for template VMs is only
+		// needed for images - specifically we are looking to see if a base layer
+		// is in use by a template VM as a result of having started a Hyper-V
+		// container at some point.
+		//
+		// We have a retry loop for ErrVmcomputeOperationInvalidState and
+		// ErrVmcomputeOperationAccessIsDenied as there is a race condition
+		// in RS1 and RS2 building during enumeration when a silo is going away
+		// for example under it, in HCS. AccessIsDenied added to fix 30278.
+		//
+		// TODO @jhowardmsft - For RS3, we can remove the retries. Also consider
+		// using platform APIs (if available) to get this more succinctly. Also
+		// consider enlighting the Remove() interface to have context of why
+		// the remove is being called - that could improve efficiency by not
+		// enumerating compute systems during a remove of a container as it's
+		// not required.
 		computeSystems, err = hcsshim.GetContainers(hcsshim.ComputeSystemQuery{})
 		if err != nil {
-			if err == hcsshim.ErrVmcomputeOperationInvalidState {
-				if retryCount >= 5 {
-					// If we are unable to get the list of containers
-					// go ahead and attempt to delete the layer anyway
-					// as it will most likely work.
+			if (osv.Build < 15139) &&
+				((err == hcsshim.ErrVmcomputeOperationInvalidState) || (err == hcsshim.ErrVmcomputeOperationAccessIsDenied)) {
+				if retryCount >= 500 {
 					break
 				}
 				retryCount++
-				time.Sleep(2 * time.Second)
+				time.Sleep(10 * time.Millisecond)
 				continue
 			}
 			return err
