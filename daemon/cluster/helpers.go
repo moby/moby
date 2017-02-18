@@ -15,7 +15,7 @@ func getSwarm(ctx context.Context, c swarmapi.ControlClient) (*swarmapi.Cluster,
 	}
 
 	if len(rl.Clusters) == 0 {
-		return nil, errors.NewRequestNotFoundError(errNoSwarm)
+		return nil, errors.NewRequestNotFoundError(ErrNoSwarm)
 	}
 
 	// TODO: assume one cluster only
