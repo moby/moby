@@ -31,7 +31,10 @@ func setupImage(c *check.C) (digest.Digest, error) {
 func setupImageWithTag(c *check.C, tag string) (digest.Digest, error) {
 	containerName := "busyboxbydigest"
 
-	dockerCmd(c, "run", "-e", "digest=1", "--name", containerName, "busybox")
+	// new file is committed because this layer is used for detecting malicious
+	// changes. if this was committed as empty layer it would be skipped on pull
+	// and malicious changes would never be detected.
+	dockerCmd(c, "run", "-e", "digest=1", "--name", containerName, "busybox", "touch", "anewfile")
 
 	// tag the image to upload it to the private registry
 	repoAndTag := repoName + ":" + tag

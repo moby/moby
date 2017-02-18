@@ -12,7 +12,7 @@
 //
 //	err := store.Update(func(tx state.Tx) {
 //		if err := tx.Nodes().Update(newNode); err != nil {
-//			reutrn err
+//			return err
 //		}
 //		return nil
 //	})

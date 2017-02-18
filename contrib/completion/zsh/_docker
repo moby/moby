@@ -221,17 +221,18 @@ __docker_get_log_options() {
 
     integer ret=1
     local log_driver=${opt_args[--log-driver]:-"all"}
-    local -a awslogs_options fluentd_options gelf_options journald_options json_file_options logentries_options syslog_options splunk_options
+    local -a common_options awslogs_options fluentd_options gelf_options journald_options json_file_options logentries_options syslog_options splunk_options
 
-    awslogs_options=("awslogs-region" "awslogs-group" "awslogs-stream" "awslogs-create-group")
-    fluentd_options=("env" "fluentd-address" "fluentd-async-connect" "fluentd-buffer-limit" "fluentd-retry-wait" "fluentd-max-retries" "labels" "tag")
-    gcplogs_options=("env" "gcp-log-cmd" "gcp-project" "labels")
-    gelf_options=("env" "gelf-address" "gelf-compression-level" "gelf-compression-type" "labels" "tag")
-    journald_options=("env" "labels" "tag")
-    json_file_options=("env" "labels" "max-file" "max-size")
-    logentries_options=("logentries-token")
-    syslog_options=("env" "labels" "syslog-address" "syslog-facility" "syslog-format" "syslog-tls-ca-cert" "syslog-tls-cert" "syslog-tls-key" "syslog-tls-skip-verify" "tag")
-    splunk_options=("env" "labels" "splunk-caname" "splunk-capath" "splunk-format" "splunk-gzip" "splunk-gzip-level" "splunk-index" "splunk-insecureskipverify" "splunk-source" "splunk-sourcetype" "splunk-token" "splunk-url" "splunk-verify-connection" "tag")
+    common_options=("max-buffer-size" "mode")
+    awslogs_options=($common_options "awslogs-region" "awslogs-group" "awslogs-stream" "awslogs-create-group")
+    fluentd_options=($common_options "env" "fluentd-address" "fluentd-async-connect" "fluentd-buffer-limit" "fluentd-retry-wait" "fluentd-max-retries" "labels" "tag")
+    gcplogs_options=($common_options "env" "gcp-log-cmd" "gcp-project" "labels")
+    gelf_options=($common_options "env" "gelf-address" "gelf-compression-level" "gelf-compression-type" "labels" "tag")
+    journald_options=($common_options "env" "labels" "tag")
+    json_file_options=($common_options "env" "labels" "max-file" "max-size")
+    logentries_options=($common_options "logentries-token")
+    syslog_options=($common_options "env" "labels" "syslog-address" "syslog-facility" "syslog-format" "syslog-tls-ca-cert" "syslog-tls-cert" "syslog-tls-key" "syslog-tls-skip-verify" "tag")
+    splunk_options=($common_options "env" "labels" "splunk-caname" "splunk-capath" "splunk-format" "splunk-gzip" "splunk-gzip-level" "splunk-index" "splunk-insecureskipverify" "splunk-source" "splunk-sourcetype" "splunk-token" "splunk-url" "splunk-verify-connection" "tag")
 
     [[ $log_driver = (awslogs|all) ]] && _describe -t awslogs-options "awslogs options" awslogs_options "$@" && ret=0
     [[ $log_driver = (fluentd|all) ]] && _describe -t fluentd-options "fluentd options" fluentd_options "$@" && ret=0
@@ -261,8 +262,12 @@ __docker_complete_log_options() {
     if compset -P '*='; then
         case "${${words[-1]%=*}#*=}" in
             (syslog-format)
-                syslog_format_opts=('rfc3164' 'rfc5424' 'rfc5424micro')
-                _describe -t syslog-format-opts "Syslog format Options" syslog_format_opts && ret=0
+                local opts=('rfc3164' 'rfc5424' 'rfc5424micro')
+                _describe -t syslog-format-opts "syslog format options" opts && ret=0
+                ;;
+            (mode)
+                local opts=('blocking' 'non-blocking')
+                _describe -t mode-opts "mode options" opts && ret=0
                 ;;
             *)
                 _message 'value' && ret=0

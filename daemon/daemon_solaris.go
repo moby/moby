@@ -66,6 +66,10 @@ func (daemon *Daemon) cleanupMountsByID(id string) error {
 	return nil
 }
 
+func (daemon *Daemon) parseSecurityOpt(container *container.Container, hostConfig *containertypes.HostConfig) error {
+	return parseSecurityOpt(container, hostConfig)
+}
+
 func parseSecurityOpt(container *container.Container, config *containertypes.HostConfig) error {
 	//Since config.SecurityOpt is specifically defined as a "List of string values to
 	//customize labels for MLs systems, such as SELinux"

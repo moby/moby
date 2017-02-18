@@ -289,8 +289,9 @@ func (a *Allocator) doNetworkInit(ctx context.Context) (err error) {
 			if a.taskAllocateVote(networkVoter, t.ID) {
 				// If the task is not attached to any network, network
 				// allocators job is done. Immediately cast a vote so
-				// that the task can be moved to ALLOCATED state as
+				// that the task can be moved to the PENDING state as
 				// soon as possible.
+				updateTaskStatus(t, api.TaskStatePending, allocatedStatusMessage)
 				allocatedTasks = append(allocatedTasks, t)
 			}
 			continue
@@ -467,7 +468,7 @@ func taskDead(t *api.Task) bool {
 }
 
 // taskReadyForNetworkVote checks if the task is ready for a network
-// vote to move it to ALLOCATED state.
+// vote to move it to PENDING state.
 func taskReadyForNetworkVote(t *api.Task, s *api.Service, nc *networkContext) bool {
 	// Task is ready for vote if the following is true:
 	//

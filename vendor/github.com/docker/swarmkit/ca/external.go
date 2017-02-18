@@ -89,9 +89,8 @@ func (eca *ExternalCA) Sign(ctx context.Context, req signer.SignRequest) (cert [
 	for _, url := range urls {
 		cert, err = makeExternalSignRequest(ctx, client, url, csrJSON)
 		if err == nil {
-			return eca.rootCA.AppendFirstRootPEM(cert)
+			return cert, err
 		}
-
 		logrus.Debugf("unable to proxy certificate signing request to %s: %s", url, err)
 	}
 

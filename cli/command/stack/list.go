@@ -3,10 +3,9 @@ package stack
 import (
 	"fmt"
 	"io"
+	"sort"
 	"strconv"
 	"text/tabwriter"
-
-	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli"
@@ -14,6 +13,7 @@ import (
 	"github.com/docker/docker/cli/compose/convert"
 	"github.com/docker/docker/client"
 	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 const (
@@ -53,11 +53,19 @@ func runList(dockerCli *command.DockerCli, opts listOptions) error {
 	return nil
 }
 
+type byName []*stack
+
+func (n byName) Len() int           { return len(n) }
+func (n byName) Swap(i, j int)      { n[i], n[j] = n[j], n[i] }
+func (n byName) Less(i, j int) bool { return n[i].Name < n[j].Name }
+
 func printTable(out io.Writer, stacks []*stack) {
 	writer := tabwriter.NewWriter(out, 0, 4, 2, ' ', 0)
 
 	// Ignore flushing errors
 	defer writer.Flush()
+
+	sort.Sort(byName(stacks))
 
 	fmt.Fprintf(writer, listItemFmt, "NAME", "SERVICES")
 	for _, stack := range stacks {

@@ -413,24 +413,23 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverLookupNotBlocked(c *
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverRetryNotImmediatelyExists(c *check.C) {
 	s.d.StartWithBusybox(c)
-
-	specPath := "/etc/docker/plugins/test-external-volume-driver-retry.spec"
-	os.RemoveAll(specPath)
-	defer os.RemoveAll(specPath)
+	driverName := "test-external-volume-driver-retry"
 
 	errchan := make(chan error)
+	started := make(chan struct{})
 	go func() {
-		if out, err := s.d.Cmd("run", "--rm", "--name", "test-data-retry", "-v", "external-volume-test:/tmp/external-volume-test", "--volume-driver", "test-external-volume-driver-retry", "busybox:latest"); err != nil {
+		close(started)
+		if out, err := s.d.Cmd("run", "--rm", "--name", "test-data-retry", "-v", "external-volume-test:/tmp/external-volume-test", "--volume-driver", driverName, "busybox:latest"); err != nil {
 			errchan <- fmt.Errorf("%v:\n%s", err, out)
 		}
 		close(errchan)
 	}()
-	go func() {
-		// wait for a retry to occur, then create spec to allow plugin to register
-		time.Sleep(2000 * time.Millisecond)
-		// no need to check for an error here since it will get picked up by the timeout later
-		ioutil.WriteFile(specPath, []byte(s.Server.URL), 0644)
-	}()
+
+	<-started
+	// wait for a retry to occur, then create spec to allow plugin to register
+	time.Sleep(2 * time.Second)
+	p := newVolumePlugin(c, driverName)
+	defer p.Close()
 
 	select {
 	case err := <-errchan:
@@ -442,11 +441,11 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverRetryNotImmediatelyE
 	_, err := s.d.Cmd("volume", "rm", "external-volume-test")
 	c.Assert(err, checker.IsNil)
 
-	c.Assert(s.ec.activations, checker.Equals, 1)
-	c.Assert(s.ec.creations, checker.Equals, 1)
-	c.Assert(s.ec.removals, checker.Equals, 1)
-	c.Assert(s.ec.mounts, checker.Equals, 1)
-	c.Assert(s.ec.unmounts, checker.Equals, 1)
+	c.Assert(p.ec.activations, checker.Equals, 1)
+	c.Assert(p.ec.creations, checker.Equals, 1)
+	c.Assert(p.ec.removals, checker.Equals, 1)
+	c.Assert(p.ec.mounts, checker.Equals, 1)
+	c.Assert(p.ec.unmounts, checker.Equals, 1)
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverBindExternalVolume(c *check.C) {

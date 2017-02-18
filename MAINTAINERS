@@ -51,7 +51,8 @@
 			"tonistiigi",
 			"unclejack",
 			"vdemeester",
-			"vieux"
+			"vieux",
+			"yongtang"
 		]
 
 	[Org."Docs maintainers"]
@@ -410,3 +411,9 @@
 	Name = "Vishnu Kannan"
 	Email = "vishnuk@google.com"
 	GitHub = "vishh"
+
+	[people.yongtang]
+	Name = "Yong Tang"
+	Email = "yong.tang.github@outlook.com"
+	GitHub = "yongtang"
+

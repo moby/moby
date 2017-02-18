@@ -653,7 +653,7 @@ Example use: `dockerd -s zfs --storage-opt zfs.fsname=zroot/docker`
 
 #### btrfs.min_space
 
-Specifies the mininum size to use when creating the subvolume which is used for
+Specifies the minimum size to use when creating the subvolume which is used for
 containers. If user uses disk quota for btrfs when creating or running a
 container with **--storage-opt size** option, docker should ensure the **size**
 cannot be smaller than **btrfs.min_space**.

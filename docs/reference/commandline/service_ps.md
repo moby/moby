@@ -23,6 +23,7 @@ List the tasks of one or more services
 
 Options:
   -f, --filter filter   Filter output based on conditions provided
+      --format string   Pretty-print tasks using a Go template
       --help            Print usage
       --no-resolve      Do not map IDs to Names
       --no-trunc        Do not truncate output
@@ -151,6 +152,38 @@ ID            NAME      IMAGE        NODE      DESIRED STATE  CURRENT STATE     
 
 The `desired-state` filter can take the values `running`, `shutdown`, and `accepted`.
 
+
+### Formatting
+
+The formatting options (`--format`) pretty-prints tasks output
+using a Go template.
+
+Valid placeholders for the Go template are listed below:
+
+Placeholder     | Description
+----------------|------------------------------------------------------------------------------------------
+`.ID`           | Task ID
+`.Name`         | Task name
+`.Image`        | Task image
+`.Node`         | Node ID
+`.DesiredState` | Desired state of the task (`running`, `shutdown`, and `accepted`)
+`.CurrentState` | Current state of the task
+`.Error`        | Error
+`.Ports`        | Task published ports
+
+When using the `--format` option, the `service ps` command will either
+output the data exactly as the template declares or, when using the
+`table` directive, includes column headers as well.
+
+The following example uses a template without headers and outputs the
+`ID` and `Driver` entries separated by a colon for all tasks:
+
+```bash
+$ docker service ps --format "{{.Name}}: {{.Image}}" top
+top.1: busybox
+top.2: busybox
+top.3: busybox
+```
 
 ## Related commands
 

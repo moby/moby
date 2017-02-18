@@ -220,6 +220,21 @@ message UpdateServiceRequest {
 	string service_id = 1;
 	Version service_version = 2;
 	ServiceSpec spec = 3;
+
+	enum Rollback {
+		// This is not a rollback. The spec field of the request will
+		// be honored.
+		NONE = 0;
+
+		// Roll back the service - get spec from the service's
+		// previous_spec.
+		PREVIOUS = 1;
+	}
+
+	// Rollback may be set to PREVIOUS to request a rollback (the service's
+	// spec will be set to the value of its previous_spec field). In this
+	// case, the spec field of this request is ignored.
+	Rollback rollback = 4;
 }
 
 message UpdateServiceResponse {

@@ -21,14 +21,11 @@ func TaskFromGRPC(t swarmapi.Task) types.Task {
 	}
 
 	task := types.Task{
-		ID: t.ID,
-		Annotations: types.Annotations{
-			Name:   t.Annotations.Name,
-			Labels: t.Annotations.Labels,
-		},
-		ServiceID: t.ServiceID,
-		Slot:      int(t.Slot),
-		NodeID:    t.NodeID,
+		ID:          t.ID,
+		Annotations: annotationsFromGRPC(t.Annotations),
+		ServiceID:   t.ServiceID,
+		Slot:        int(t.Slot),
+		NodeID:      t.NodeID,
 		Spec: types.TaskSpec{
 			ContainerSpec: containerSpecFromGRPC(containerConfig),
 			Resources:     resourcesFromGRPC(t.Spec.Resources),

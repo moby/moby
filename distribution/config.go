@@ -142,8 +142,11 @@ func (s *imageConfigStore) RootFSFromConfig(c []byte) (*image.RootFS, error) {
 		return nil, err
 	}
 
-	// fail immediately on windows
+	// fail immediately on Windows when downloading a non-Windows image
+	// and vice versa
 	if runtime.GOOS == "windows" && unmarshalledConfig.OS == "linux" {
+		return nil, fmt.Errorf("image operating system %q cannot be used on this platform", unmarshalledConfig.OS)
+	} else if runtime.GOOS != "windows" && unmarshalledConfig.OS == "windows" {
 		return nil, fmt.Errorf("image operating system %q cannot be used on this platform", unmarshalledConfig.OS)
 	}
 

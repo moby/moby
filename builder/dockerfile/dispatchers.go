@@ -724,7 +724,7 @@ func stopSignal(b *Builder, args []string, attributes map[string]bool, original 
 // ARG name[=value]
 //
 // Adds the variable foo to the trusted list of variables that can be passed
-// to builder using the --build-arg flag for expansion/subsitution or passing to 'run'.
+// to builder using the --build-arg flag for expansion/substitution or passing to 'run'.
 // Dockerfile author may optionally set a default value of this variable.
 func arg(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) != 1 {

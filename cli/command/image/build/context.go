@@ -91,7 +91,7 @@ func GetContextFromReader(r io.ReadCloser, dockerfileName string) (out io.ReadCl
 	// Input should be read as a Dockerfile.
 	tmpDir, err := ioutil.TempDir("", "docker-build-context-")
 	if err != nil {
-		return nil, "", fmt.Errorf("unbale to create temporary context directory: %v", err)
+		return nil, "", fmt.Errorf("unable to create temporary context directory: %v", err)
 	}
 
 	f, err := os.Create(filepath.Join(tmpDir, DefaultDockerfileName))

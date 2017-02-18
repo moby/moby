@@ -137,7 +137,7 @@ type StringOrNumberList []string
 // key=value strings
 type MappingWithEquals map[string]string
 
-// MappingWithColon is a mapping type that can be converted from alist of
+// MappingWithColon is a mapping type that can be converted from a list of
 // 'key: value' strings
 type MappingWithColon map[string]string
 
@@ -229,7 +229,7 @@ type ServiceSecretConfig struct {
 	Target string
 	UID    string
 	GID    string
-	Mode   uint32
+	Mode   *uint32
 }
 
 // UlimitsConfig the ulimit configuration

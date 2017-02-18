@@ -70,11 +70,7 @@ func serviceSpecFromGRPC(spec *swarmapi.ServiceSpec) *types.ServiceSpec {
 
 	containerConfig := spec.Task.Runtime.(*swarmapi.TaskSpec_Container).Container
 	convertedSpec := &types.ServiceSpec{
-		Annotations: types.Annotations{
-			Name:   spec.Annotations.Name,
-			Labels: spec.Annotations.Labels,
-		},
-
+		Annotations: annotationsFromGRPC(spec.Annotations),
 		TaskTemplate: types.TaskSpec{
 			ContainerSpec: containerSpecFromGRPC(containerConfig),
 			Resources:     resourcesFromGRPC(spec.Task.Resources),
@@ -234,6 +230,19 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 	}
 
 	return spec, nil
+}
+
+func annotationsFromGRPC(ann swarmapi.Annotations) types.Annotations {
+	a := types.Annotations{
+		Name:   ann.Name,
+		Labels: ann.Labels,
+	}
+
+	if a.Labels == nil {
+		a.Labels = make(map[string]string)
+	}
+
+	return a
 }
 
 func resourcesFromGRPC(res *swarmapi.ResourceRequirements) *types.ResourceRequirements {

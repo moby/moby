@@ -22,7 +22,7 @@ func TestImageTagError(t *testing.T) {
 	}
 }
 
-// Note: this is not testing all the InvalidReference as it's the reponsability
+// Note: this is not testing all the InvalidReference as it's the responsibility
 // of distribution/reference package.
 func TestImageTagInvalidReference(t *testing.T) {
 	client := &Client{

@@ -11,11 +11,8 @@ func SecretFromGRPC(s *swarmapi.Secret) swarmtypes.Secret {
 	secret := swarmtypes.Secret{
 		ID: s.ID,
 		Spec: swarmtypes.SecretSpec{
-			Annotations: swarmtypes.Annotations{
-				Name:   s.Spec.Annotations.Name,
-				Labels: s.Spec.Annotations.Labels,
-			},
-			Data: s.Spec.Data,
+			Annotations: annotationsFromGRPC(s.Spec.Annotations),
+			Data:        s.Spec.Data,
 		},
 	}
 

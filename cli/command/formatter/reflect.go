@@ -22,7 +22,7 @@ func marshalMap(x interface{}) (map[string]interface{}, error) {
 		return nil, fmt.Errorf("expected a pointer to a struct, got %v", val.Kind())
 	}
 	if val.IsNil() {
-		return nil, fmt.Errorf("expxected a pointer to a struct, got nil pointer")
+		return nil, fmt.Errorf("expected a pointer to a struct, got nil pointer")
 	}
 	valElem := val.Elem()
 	if valElem.Kind() != reflect.Struct {
