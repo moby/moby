@@ -643,26 +643,37 @@ func (s *DockerSuite) TestDuplicateMountpointsForVolumesFromAndMounts(c *check.C
 	c.Assert(strings.TrimSpace(out), checker.Not(checker.Contains), data2)
 }
 
-func (s *DockerSuite) TestVolumeCliCreateNonIdempotency(c *check.C) {
+func (s *DockerSuite) TestVolumeCliCreateIdempotency(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 
-	// Without options
+	// Without options, the output is checked to make sure it is "test"
 	name := "test"
-	dockerCmd(c, "volume", "create", "-d", "local", name)
-	out, _, err := dockerCmdWithError("volume", "create", "-d", "local", name)
-	c.Assert(err, check.Not(check.IsNil))
-	c.Assert(err.Error(), checker.Contains, fmt.Sprintf("A volume named %s has already been created", name))
-	c.Assert(out, checker.Contains, fmt.Sprintf("A volume named %s has already been created", name))
+	out, _ := dockerCmd(c, "volume", "create", "-d", "local", name)
+	c.Assert(strings.TrimSpace(out), checker.Equals, name)
+
+	// Repeat without options will return silently (Idempotency)
+	// The output is checked to make sure it is "test" (not empty)
+	out, _ = dockerCmd(c, "volume", "create", "-d", "local", name)
+	c.Assert(strings.TrimSpace(out), checker.Equals, name)
+
 	// Old remote API will remain idempotent
-	status, b, err := request.SockRequest("POST", "/v1.25/volumes/create", volumetypes.VolumesCreateBody{
+	status, b, err := request.SockRequest("POST", "/v1.28/volumes/create", volumetypes.VolumesCreateBody{
 		Driver: "local",
 		Name:   name,
 	}, daemonHost())
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusCreated, check.Commentf(string(b)))
+
+	// New remote API will return http.StatusNotModified
+	status, b, err = request.SockRequest("POST", "/volumes/create", volumetypes.VolumesCreateBody{
+		Driver: "local",
+		Name:   name,
+	}, daemonHost())
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusNotModified, check.Commentf(string(b)))
 }
 
-func (s *DockerSuite) TestVolumeCliCreateNonIdempotencyWithOptions(c *check.C) {
+func (s *DockerSuite) TestVolumeCliCreateIdempotencyWithOptions(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 
 	// With options
@@ -670,11 +681,10 @@ func (s *DockerSuite) TestVolumeCliCreateNonIdempotencyWithOptions(c *check.C) {
 
 	dockerCmd(c, "volume", "create", "-d", "local", name, "--opt", "type=tmpfs", "--opt", "o=size=1m,uid=1000")
 
-	// Repeat the volume creation with the same option will return an error
+	// Repeat the volume creation with the same option will not return an error
 	out, _, err := dockerCmdWithError("volume", "create", "-d", "local", name, "--opt", "type=tmpfs", "--opt", "o=size=1m,uid=1000")
-	c.Assert(err, check.Not(check.IsNil))
-	c.Assert(err.Error(), checker.Contains, fmt.Sprintf("A volume named %s has already been created", name))
-	c.Assert(out, checker.Contains, fmt.Sprintf("A volume named %s has already been created", name))
+	c.Assert(err, check.IsNil)
+
 	// Old remote API will remain idempotent
 	status, b, err := request.SockRequest("POST", "/v1.25/volumes/create", volumetypes.VolumesCreateBody{
 		Driver: "local",
@@ -687,9 +697,21 @@ func (s *DockerSuite) TestVolumeCliCreateNonIdempotencyWithOptions(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusCreated, check.Commentf(string(b)))
 
-	// Another test where the volume creation with differnet option will return an error as well.
+	// New remote API will return http.StatusNotModified
+	status, b, err = request.SockRequest("POST", "/volumes/create", volumetypes.VolumesCreateBody{
+		Driver: "local",
+		Name:   name,
+		DriverOpts: map[string]string{
+			"type": "tmpfs",
+			"o":    "size=1m,uid=1000",
+		},
+	}, daemonHost())
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusNotModified, check.Commentf(string(b)))
+
+	// Another test where the volume creation with differnet option will return an error
 	out, _, err = dockerCmdWithError("volume", "create", "-d", "local", name, "--opt", "type=tmpfs", "--opt", "o=size=2m,uid=1000")
 	c.Assert(err, check.Not(check.IsNil))
-	c.Assert(err.Error(), checker.Contains, fmt.Sprintf("A volume named %s has already been created", name))
-	c.Assert(out, checker.Contains, fmt.Sprintf("A volume named %s has already been created", name))
+	c.Assert(err.Error(), checker.Contains, fmt.Sprintf("create %s: a volume with different options has already been created", name))
+	c.Assert(out, checker.Contains, fmt.Sprintf("create %s: a volume with different options has already been created", name))
 }

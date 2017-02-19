@@ -1,9 +1,11 @@
 package store
 
 import (
+	"fmt"
 	"net"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sync"
 	"time"
 
@@ -291,8 +293,21 @@ func (s *VolumeStore) CreateWithRef(name, driverName, ref string, opts, labels m
 // In case a volume has already been created with the same name and driver, the already
 // created volumes will be returned together with the errAlreadyExists error.
 func (s *VolumeStore) Create(name, driverName string, opts, labels map[string]string) (volume.Volume, error) {
-	return s.CreateWithRef(name, driverName, "", opts, labels, func(volume.Volume) error {
-		return errAlreadyExists
+	return s.CreateWithRef(name, driverName, "", opts, labels, func(vol volume.Volume) error {
+		var options map[string]string
+		if v, ok := vol.(volume.DetailedVolume); ok {
+			options = v.Options()
+		}
+		if options == nil {
+			options = map[string]string{}
+		}
+		if opts == nil {
+			opts = map[string]string{}
+		}
+		if reflect.DeepEqual(options, opts) {
+			return errors.Wrapf(errAlreadyExists, "a volume with the same name has already been created")
+		}
+		return fmt.Errorf("a volume with different options has already been created")
 	})
 }
 

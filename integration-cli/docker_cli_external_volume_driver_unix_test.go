@@ -291,8 +291,7 @@ func (s *DockerExternalVolumeSuite) TestVolumeCLICreateOptionConflict(c *check.C
 
 	out, _ = dockerCmd(c, "volume", "inspect", "--format={{ .Driver }}", "test")
 	_, _, err = dockerCmdWithError("volume", "create", "test", "--driver", strings.TrimSpace(out))
-	c.Assert(err, check.NotNil)
-	c.Assert(err.Error(), checker.Contains, "A volume named test has already been created")
+	c.Assert(err, check.IsNil)
 
 	// make sure hidden --name option conflicts with positional arg name
 	out, _, err = dockerCmdWithError("volume", "create", "--name", "test2", "test2")

@@ -53,8 +53,9 @@ func (v *volumeRouter) postVolumesCreate(ctx context.Context, w http.ResponseWri
 	volume, err := v.backend.VolumeCreate(req.Name, req.Driver, req.DriverOpts, req.Labels)
 	if volumestore.IsAlreadyExists(err) {
 		version := httputils.VersionFromContext(ctx)
-		if versions.GreaterThanOrEqualTo(version, "1.29") {
-			return httputils.WriteJSON(w, http.StatusNotModified, volume)
+		if versions.GreaterThanOrEqualTo(version, "1.31") {
+			w.WriteHeader(http.StatusNotModified)
+			return nil
 		}
 		return httputils.WriteJSON(w, http.StatusCreated, volume)
 	}
