@@ -36,10 +36,10 @@ func (daemon *Daemon) ContainerInspectCurrent(name string, size bool) (*types.Co
 	}
 
 	container.Lock()
-	defer container.Unlock()
 
-	base, err := daemon.getInspectData(container, size)
+	base, err := daemon.getInspectData(container)
 	if err != nil {
+		container.Unlock()
 		return nil, err
 	}
 
@@ -73,6 +73,14 @@ func (daemon *Daemon) ContainerInspectCurrent(name string, size bool) (*types.Co
 	}
 	networkSettings.NetworkSettingsBase.Ports = ports
 
+	container.Unlock()
+
+	if size {
+		sizeRw, sizeRootFs := daemon.getSize(base.ID)
+		base.SizeRw = &sizeRw
+		base.SizeRootFs = &sizeRootFs
+	}
+
 	return &types.ContainerJSON{
 		ContainerJSONBase: base,
 		Mounts:            mountPoints,
@@ -91,7 +99,7 @@ func (daemon *Daemon) containerInspect120(name string) (*v1p20.ContainerJSON, er
 	container.Lock()
 	defer container.Unlock()
 
-	base, err := daemon.getInspectData(container, false)
+	base, err := daemon.getInspectData(container)
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +122,7 @@ func (daemon *Daemon) containerInspect120(name string) (*v1p20.ContainerJSON, er
 	}, nil
 }
 
-func (daemon *Daemon) getInspectData(container *container.Container, size bool) (*types.ContainerJSONBase, error) {
+func (daemon *Daemon) getInspectData(container *container.Container) (*types.ContainerJSONBase, error) {
 	// make a copy to play with
 	hostConfig := *container.HostConfig
 
@@ -166,16 +174,6 @@ func (daemon *Daemon) getInspectData(container *container.Container, size bool) 
 		ProcessLabel: container.ProcessLabel,
 		ExecIDs:      container.GetExecIDs(),
 		HostConfig:   &hostConfig,
-	}
-
-	var (
-		sizeRw     int64
-		sizeRootFs int64
-	)
-	if size {
-		sizeRw, sizeRootFs = daemon.getSize(container)
-		contJSONBase.SizeRw = &sizeRw
-		contJSONBase.SizeRootFs = &sizeRootFs
 	}
 
 	// Now set any platform-specific fields
