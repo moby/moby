@@ -154,6 +154,7 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 	if !n.secure {
 		for _, vni := range vnis {
 			programMangle(vni, false)
+			programInput(vni, false)
 		}
 	}
 
@@ -204,6 +205,7 @@ func (d *driver) DeleteNetwork(nid string) error {
 	if n.secure {
 		for _, vni := range vnis {
 			programMangle(vni, false)
+			programInput(vni, false)
 		}
 	}
 
