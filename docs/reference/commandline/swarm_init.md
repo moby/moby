@@ -21,7 +21,7 @@ Usage:  docker swarm init [OPTIONS]
 Initialize a swarm
 
 Options:
-      --advertise-addr string           Advertised address (format: <ip|interface>[:port])
+      --advertise-addr node-addr        Advertised address (format: <ip|interface>[:port])
       --autolock                        Enable manager autolocking (requiring an unlock key to start a stopped manager)
       --availability string             Availability of the node (active/pause/drain) (default "active")
       --cert-expiry duration            Validity period for node certificates (ns|us|ms|s|m|h) (default 2160h0m0s)
