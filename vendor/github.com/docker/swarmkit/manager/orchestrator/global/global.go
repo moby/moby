@@ -460,6 +460,17 @@ func (g *Orchestrator) restartTask(ctx context.Context, taskID string, serviceID
 		if service == nil {
 			return nil
 		}
+
+		node, nodeExists := g.nodes[t.NodeID]
+		serviceEntry, serviceExists := g.globalServices[t.ServiceID]
+		if !nodeExists || !serviceExists {
+			return nil
+		}
+		if !constraint.NodeMatches(serviceEntry.constraints, node) {
+			t.DesiredState = api.TaskStateShutdown
+			return store.UpdateTask(tx, t)
+		}
+
 		return g.restarts.Restart(ctx, tx, g.cluster, service, *t)
 	})
 	if err != nil {
