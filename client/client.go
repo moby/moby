@@ -58,7 +58,7 @@ import (
 )
 
 // DefaultVersion is the version of the current stable API
-const DefaultVersion string = "1.25"
+const DefaultVersion string = "1.26"
 
 // Client is the API client that performs all operations
 // against a docker server.
