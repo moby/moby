@@ -48,7 +48,7 @@ IMAGE ID, CREATED, and SIZE.
 
 The `docker image ls` command takes an optional `[REPOSITORY[:TAG]]` argument
 that restricts the list to images that match the argument. If you specify
-`REPOSITORY`but no `TAG`, the `docker image ls` command lists all images in the
+`REPOSITORY` but no `TAG`, the `docker image ls` command lists all images in the
 given repository.
 
     docker image ls java
