@@ -469,7 +469,7 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags.SetAnnotation(flagTTY, "version", []string{"1.25"})
 
 	flags.BoolVar(&opts.readOnly, flagReadOnly, false, "Mount the container's root filesystem as read only")
-	flags.SetAnnotation(flagReadOnly, "version", []string{"1.26"})
+	flags.SetAnnotation(flagReadOnly, "version", []string{"1.27"})
 }
 
 const (

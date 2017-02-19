@@ -520,9 +520,9 @@ func (s *containerRouter) wsContainersAttach(ctx context.Context, w http.Respons
 		}()
 
 		conn := <-wsChan
-		// In case version is higher than 1.26, a binary frame will be sent.
+		// In case version is higher than 1.27, a binary frame will be sent.
 		// See 28176 for details.
-		if versions.GreaterThanOrEqualTo(version, "1.26") {
+		if versions.GreaterThanOrEqualTo(version, "1.27") {
 			conn.PayloadType = websocket.BinaryFrame
 		}
 		return conn, conn, conn, nil
