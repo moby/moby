@@ -138,6 +138,11 @@ func setupEncryption(localIP, advIP, remoteIP net.IP, vni uint32, em *encrMap, k
 		logrus.Warn(err)
 	}
 
+	err = programInput(vni, true)
+	if err != nil {
+		logrus.Warn(err)
+	}
+
 	for i, k := range keys {
 		spis := &spi{buildSPI(advIP, remoteIP, k.tag), buildSPI(remoteIP, advIP, k.tag)}
 		dir := reverse
@@ -214,6 +219,35 @@ func programMangle(vni uint32, add bool) (err error) {
 
 	if err = iptables.RawCombinedOutput(append([]string{"-t", string(iptables.Mangle), a, chain}, rule...)...); err != nil {
 		logrus.Warnf("could not %s mangle rule: %v", action, err)
+	}
+
+	return
+}
+
+func programInput(vni uint32, add bool) (err error) {
+	var (
+		port       = strconv.FormatUint(uint64(vxlanPort), 10)
+		vniMatch   = fmt.Sprintf("0>>22&0x3C@12&0xFFFFFF00=%d", int(vni)<<8)
+		plainVxlan = []string{"-p", "udp", "--dport", port, "-m", "u32", "--u32", vniMatch, "-j"}
+		ipsecVxlan = append([]string{"-m", "policy", "--dir", "in", "--pol", "ipsec"}, plainVxlan...)
+		block      = append(plainVxlan, "DROP")
+		accept     = append(ipsecVxlan, "ACCEPT")
+		chain      = "INPUT"
+		action     = iptables.Append
+		msg        = "add"
+	)
+
+	if !add {
+		action = iptables.Delete
+		msg = "remove"
+	}
+
+	if err := iptables.ProgramRule(iptables.Filter, chain, action, accept); err != nil {
+		logrus.Errorf("could not %s input rule: %v. Please do it manually.", msg, err)
+	}
+
+	if err := iptables.ProgramRule(iptables.Filter, chain, action, block); err != nil {
+		logrus.Errorf("could not %s input rule: %v. Please do it manually.", msg, err)
 	}
 
 	return
