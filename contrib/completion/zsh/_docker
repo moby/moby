@@ -494,6 +494,57 @@ __docker_complete_prune_filters() {
     return ret
 }
 
+# BO checkpoint
+
+__docker_checkpoint_commands() {
+    local -a _docker_checkpoint_subcommands
+    _docker_checkpoint_subcommands=(
+        "create:Create a checkpoint from a running container"
+        "ls:List checkpoints for a container"
+        "rm:Remove a checkpoint"
+    )
+    _describe -t docker-checkpoint-commands "docker checkpoint command" _docker_checkpoint_subcommands
+}
+
+__docker_checkpoint_subcommand() {
+    local -a _command_args opts_help
+    local expl help="--help"
+    integer ret=1
+
+    opts_help=("(: -)--help[Print usage]")
+
+    case "$words[1]" in
+        (create)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help)--checkpoint-dir=[Use a custom checkpoint storage directory]:dir:_directories" \
+                "($help)--leave-running[Leave the container running after checkpoint]" \
+                "($help -)1:container:__docker_complete_running_containers" \
+                "($help -)2:checkpoint: " && ret=0
+            ;;
+        (ls|list)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help)--checkpoint-dir=[Use a custom checkpoint storage directory]:dir:_directories" \
+                "($help -)1:container:__docker_complete_containers" && ret=0
+            ;;
+        (rm|remove)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help)--checkpoint-dir=[Use a custom checkpoint storage directory]:dir:_directories" \
+                "($help -)1:container:__docker_complete_containers" \
+                "($help -)2:checkpoint: " && ret=0
+            ;;
+        (help)
+            _arguments $(__docker_arguments) ":subcommand:__docker_checkpoint_commands" && ret=0
+            ;;
+    esac
+
+    return ret
+}
+
+# EO checkpoint
+
 # BO container
 
 __docker_container_commands() {
@@ -945,6 +996,7 @@ __docker_image_subcommand() {
                 "($help -q --quiet)"{-q,--quiet}"[Suppress verbose build output]" \
                 "($help)--rm[Remove intermediate containers after a successful build]" \
                 "($help)*--shm-size=[Size of '/dev/shm' (format is '<number><unit>')]:shm size: " \
+                "($help)--squash[Squash newly built layers into a single new layer]" \
                 "($help -t --tag)*"{-t=,--tag=}"[Repository, name and tag for the image]: :__docker_complete_repositories_with_tags" \
                 "($help)*--ulimit=[ulimit options]:ulimit: " \
                 "($help)--userns=[Container user namespace]:user namespace:(host)" \
@@ -1509,6 +1561,7 @@ __docker_plugin_commands() {
         "push:Push a plugin"
         "rm:Remove a plugin"
         "set:Change settings for a plugin"
+        "upgrade:Upgrade an existing plugin"
     )
     _describe -t docker-plugin-commands "docker plugin command" _docker_plugin_subcommands
 }
@@ -1521,22 +1574,65 @@ __docker_plugin_subcommand() {
     opts_help=("(: -)--help[Print usage]")
 
     case "$words[1]" in
-        (disable|enable|inspect|ls|push|rm)
+        (disable)
             _arguments $(__docker_arguments) \
                 $opts_help \
+                "($help -f --force)"{-f,--force}"[Force the disable of an active plugin]" \
                 "($help -)1:plugin:__docker_complete_plugins" && ret=0
+            ;;
+        (enable)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help)--timeout=[HTTP client timeout (in seconds)]:timeout: " \
+                "($help -)1:plugin:__docker_complete_plugins" && ret=0
+            ;;
+        (inspect)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -f --format)"{-f=,--format=}"[Format the output using the given Go template]:template: " \
+                "($help -)*:plugin:__docker_complete_plugins" && ret=0
             ;;
         (install)
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help)--alias=[Local name for plugin]:alias: " \
+                "($help)--disable[Do not enable the plugin on install]" \
+                "($help)--disable-content-trust[Skip image verification (default true)]" \
+                "($help)--grant-all-permissions[Grant all permissions necessary to run the plugin]" \
+                "($help -)1:plugin:__docker_complete_plugins" \
+                "($help -)*:key=value: " && ret=0
+            ;;
+        (ls|list)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help)--no-trunc[Don't truncate output]" && ret=0
+            ;;
+        (push)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help)--disable-content-trust[Skip image verification (default true)]" \
                 "($help -)1:plugin:__docker_complete_plugins" && ret=0
+            ;;
+        (rm|remove)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -f --force)"{-f,--force}"[Force the removal of an active plugin]" \
+                "($help -)*:plugin:__docker_complete_plugins" && ret=0
             ;;
         (set)
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help -)1:plugin:__docker_complete_plugins" \
-                "($help-)*:key=value: " && ret=0
+                "($help -)*:key=value: " && ret=0
+            ;;
+        (upgrade)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help)--disable-content-trust[Skip image verification (default true)]" \
+                "($help)--grant-all-permissions[Grant all permissions necessary to run the plugin]" \
+                "($help)--skip-remote-check[Do not check if specified remote plugin matches existing plugin image]" \
+                "($help -)1:plugin:__docker_complete_plugins" \
+                "($help -):remote: " && ret=0
             ;;
         (help)
             _arguments $(__docker_arguments) ":subcommand:__docker_plugin_commands" && ret=0
@@ -1762,6 +1858,7 @@ __docker_service_commands() {
     _docker_service_subcommands=(
         "create:Create a new service"
         "inspect:Display detailed information on one or more services"
+        "logs:Fetch the logs of a service"
         "ls:List services"
         "rm:Remove one or more services"
         "scale:Scale one or multiple replicated services"
@@ -1838,6 +1935,17 @@ __docker_service_subcommand() {
                 "($help -f --format)"{-f=,--format=}"[Format the output using the given go template]:template: " \
                 "($help)--pretty[Print the information in a human friendly format]" \
                 "($help -)*:service:__docker_complete_services" && ret=0
+            ;;
+        (logs)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help)--details[Show extra details provided to logs]" \
+                "($help -f --follow)"{-f,--follow}"[Follow log output]" \
+                "($help)--no-resolve[Do not map IDs to Names]" \
+                "($help)--since=[Show logs since timestamp]:timestamp: " \
+                "($help)--tail=[Number of lines to show from the end of the logs]:lines:(1 10 20 50 all)" \
+                "($help -t --timestamps)"{-t,--timestamps}"[Show timestamps]" \
+                "($help -)1:service:__docker_complete_services" && ret=0
             ;;
         (ls|list)
             _arguments $(__docker_arguments) \
@@ -2065,6 +2173,8 @@ __docker_swarm_commands() {
         "join:Join a swarm as a node and/or manager"
         "join-token:Manage join tokens"
         "leave:Leave a swarm"
+        "unlock:Unlock swarm"
+        "unlock-key:Manage the unlock key"
         "update:Update the swarm"
     )
     _describe -t docker-swarm-commands "docker swarm command" _docker_swarm_subcommands
@@ -2081,7 +2191,11 @@ __docker_swarm_subcommand() {
         (init)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                "($help)--advertise-addr[Advertised address]:ip\:port: " \
+                "($help)--advertise-addr=[Advertised address]:ip\:port: " \
+                "($help)--autolock[Enable manager autolocking]" \
+                "($help)--availability=[Availability of the node]:availability:(active drain pause)" \
+                "($help)--cert-expiry=[Validity period for node certificates]:duration: " \
+                "($help)--dispatcher-heartbeat=[Dispatcher heartbeat period]:duration: " \
                 "($help)*--external-ca=[Specifications of one or more certificate signing endpoints]:endpoint: " \
                 "($help)--force-new-cluster[Force create a new cluster from current state]" \
                 "($help)--listen-addr=[Listen address]:ip\:port: " \
@@ -2110,12 +2224,23 @@ __docker_swarm_subcommand() {
                 $opts_help \
                 "($help -f --force)"{-f,--force}"[Force this node to leave the swarm, ignoring warnings]" && ret=0
             ;;
+        (unlock)
+            _arguments $(__docker_arguments) \
+                $opts_help && ret=0
+            ;;
+        (unlock-key)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -q --quiet)"{-q,--quiet}"[Only display token]" \
+                "($help)--rotate[Rotate unlock token]" && ret=0
+            ;;
         (update)
             _arguments $(__docker_arguments) \
                 $opts_help \
+                "($help)--autolock[Enable manager autolocking]" \
                 "($help)--cert-expiry=[Validity period for node certificates]:duration: " \
-                "($help)*--external-ca=[Specifications of one or more certificate signing endpoints]:endpoint: " \
                 "($help)--dispatcher-heartbeat=[Dispatcher heartbeat period]:duration: " \
+                "($help)*--external-ca=[Specifications of one or more certificate signing endpoints]:endpoint: " \
                 "($help)--max-snapshots[Number of additional Raft snapshots to retain]" \
                 "($help)--snapshot-interval[Number of log entries between Raft snapshots]" \
                 "($help)--task-history-limit=[Task history retention limit]:limit: " && ret=0
@@ -2353,6 +2478,23 @@ __docker_subcommand() {
             ;;
         (build|history|import|load|pull|push|save|tag)
             __docker_image_subcommand && ret=0
+            ;;
+        (checkpoint)
+            local curcontext="$curcontext" state
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -): :->command" \
+                "($help -)*:: :->option-or-argument" && ret=0
+
+            case $state in
+                (command)
+                    __docker_checkpoint_commands && ret=0
+                    ;;
+                (option-or-argument)
+                    curcontext=${curcontext%:*:*}:docker-${words[-1]}:
+                    __docker_checkpoint_subcommand && ret=0
+                    ;;
+            esac
             ;;
         (container)
             local curcontext="$curcontext" state
