@@ -74,9 +74,8 @@ func runRun(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *runOptions
 	cmdPath := "run"
 
 	var (
-		flAttach                              *opttypes.ListOpts
-		ErrConflictAttachDetach               = fmt.Errorf("Conflicting options: -a and -d")
-		ErrConflictRestartPolicyAndAutoRemove = fmt.Errorf("Conflicting options: --restart and --rm")
+		flAttach                *opttypes.ListOpts
+		ErrConflictAttachDetach = fmt.Errorf("Conflicting options: -a and -d")
 	)
 
 	config, hostConfig, networkingConfig, err := runconfigopts.Parse(flags, copts)
@@ -87,9 +86,6 @@ func runRun(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *runOptions
 		return cli.StatusError{StatusCode: 125}
 	}
 
-	if hostConfig.AutoRemove && !hostConfig.RestartPolicy.IsNone() {
-		return ErrConflictRestartPolicyAndAutoRemove
-	}
 	if hostConfig.OomKillDisable != nil && *hostConfig.OomKillDisable && hostConfig.Memory == 0 {
 		fmt.Fprintf(stderr, "WARNING: Disabling the OOM killer on containers without setting a '-m/--memory' limit may be dangerous.\n")
 	}

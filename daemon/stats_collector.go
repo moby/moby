@@ -120,7 +120,14 @@ func (s *statsCollector) run() {
 			if err != nil {
 				if _, ok := err.(errNotRunning); !ok {
 					logrus.Errorf("collecting stats for %s: %v", pair.container.ID, err)
+					continue
 				}
+
+				// publish empty stats containing only name and ID if not running
+				pair.publisher.Publish(types.StatsJSON{
+					Name: pair.container.Name,
+					ID:   pair.container.ID,
+				})
 				continue
 			}
 			// FIXME: move to containerd on Linux (not Windows)
