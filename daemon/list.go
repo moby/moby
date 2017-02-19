@@ -208,19 +208,32 @@ func (daemon *Daemon) reduceContainers(config *types.ContainerListOptions, reduc
 // reducePsContainer is the basic representation for a container as expected by the ps command.
 func (daemon *Daemon) reducePsContainer(container *container.Container, ctx *listContext, reducer containerReducer) (*types.Container, error) {
 	container.Lock()
-	defer container.Unlock()
 
 	// filter containers to return
 	action := includeContainerInList(container, ctx)
 	switch action {
 	case excludeContainer:
+		container.Unlock()
 		return nil, nil
 	case stopIteration:
+		container.Unlock()
 		return nil, errStopIteration
 	}
 
 	// transform internal container struct into api structs
-	return reducer(container, ctx)
+	newC, err := reducer(container, ctx)
+	container.Unlock()
+	if err != nil {
+		return nil, err
+	}
+
+	// release lock because size calculation is slow
+	if ctx.Size {
+		sizeRw, sizeRootFs := daemon.getSize(newC.ID)
+		newC.SizeRw = sizeRw
+		newC.SizeRootFs = sizeRootFs
+	}
+	return newC, nil
 }
 
 // foldFilter generates the container filter based on the user's filtering options.
@@ -642,11 +655,6 @@ func (daemon *Daemon) transformContainer(container *container.Container, ctx *li
 		}
 	}
 
-	if ctx.Size {
-		sizeRw, sizeRootFs := daemon.getSize(container)
-		newC.SizeRw = sizeRw
-		newC.SizeRootFs = sizeRootFs
-	}
 	newC.Labels = container.Config.Labels
 	newC.Mounts = addMountPoints(container)
 

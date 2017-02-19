@@ -30,7 +30,7 @@ func (daemon *Daemon) containerInspectPre120(name string) (*v1p19.ContainerJSON,
 	container.Lock()
 	defer container.Unlock()
 
-	base, err := daemon.getInspectData(container, false)
+	base, err := daemon.getInspectData(container)
 	if err != nil {
 		return nil, err
 	}

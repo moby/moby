@@ -16,7 +16,7 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
 	"github.com/docker/libnetwork"
-	"github.com/opencontainers/go-digest"
+	digest "github.com/opencontainers/go-digest"
 )
 
 // ContainersPrune removes unused containers
@@ -34,7 +34,7 @@ func (daemon *Daemon) ContainersPrune(pruneFilters filters.Args) (*types.Contain
 			if !until.IsZero() && c.Created.After(until) {
 				continue
 			}
-			cSize, _ := daemon.getSize(c)
+			cSize, _ := daemon.getSize(c.ID)
 			// TODO: sets RmLink to true?
 			err := daemon.ContainerRm(c.ID, &types.ContainerRmConfig{})
 			if err != nil {
