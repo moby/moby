@@ -15,19 +15,19 @@ func (n NetworkMode) IsNone() bool {
 }
 
 // IsContainer indicates whether container uses a container network stack.
-// Returns false as windows doesn't support this mode
+// Returns false as Windows doesn't support this mode
 func (n NetworkMode) IsContainer() bool {
 	return false
 }
 
 // IsBridge indicates whether container uses the bridge network stack
-// in windows it is given the name NAT
+// In Windows, it is given the name NAT
 func (n NetworkMode) IsBridge() bool {
 	return n == "nat"
 }
 
 // IsHost indicates whether container uses the host network stack.
-// returns false as this is not supported by windows
+// returns false as this is not supported by Windows.
 func (n NetworkMode) IsHost() bool {
 	return false
 }
@@ -38,27 +38,27 @@ func (n NetworkMode) IsPrivate() bool {
 }
 
 // ConnectedContainer is the id of the container which network this container is connected to.
-// Returns blank string on windows
+// Returns blank string on Windows.
 func (n NetworkMode) ConnectedContainer() string {
 	return ""
 }
 
-// IsUserDefined indicates user-created network
+// IsUserDefined indicates user-created network.
 func (n NetworkMode) IsUserDefined() bool {
 	return !n.IsDefault() && !n.IsNone() && !n.IsBridge()
 }
 
-// IsHyperV indicates the use of a Hyper-V partition for isolation
+// IsHyperV indicates the use of a Hyper-V partition for isolation.
 func (i Isolation) IsHyperV() bool {
 	return strings.ToLower(string(i)) == "hyperv"
 }
 
-// IsProcess indicates the use of process isolation
+// IsProcess indicates the use of process isolation.
 func (i Isolation) IsProcess() bool {
 	return strings.ToLower(string(i)) == "process"
 }
 
-// IsValid indicates if an isolation technology is valid
+// IsValid indicates if an isolation technology is valid.
 func (i Isolation) IsValid() bool {
 	return i.IsDefault() || i.IsHyperV() || i.IsProcess()
 }
@@ -78,7 +78,7 @@ func (n NetworkMode) NetworkName() string {
 	return ""
 }
 
-//UserDefined indicates user-created network
+//UserDefined indicates user-created network.
 func (n NetworkMode) UserDefined() string {
 	if n.IsUserDefined() {
 		return string(n)
