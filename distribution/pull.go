@@ -140,7 +140,7 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 					// append subsequent errors
 					lastErr = err
 				}
-				logrus.Errorf("Attempting next endpoint for pull after error: %v", err)
+				logrus.Infof("Attempting next endpoint for pull after error: %v", err)
 				continue
 			}
 			logrus.Errorf("Not continuing with pull after error: %v", err)
