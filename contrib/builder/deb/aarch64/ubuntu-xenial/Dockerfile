@@ -14,7 +14,7 @@ RUN mkdir /usr/src/go && curl -fsSL https://golang.org/dl/go${GO_VERSION}.src.ta
 	&& cd /usr/src/go/src \
 	&& GOOS=linux GOARCH=arm64 GOROOT_BOOTSTRAP="$(go env GOROOT)" ./make.bash
 
-ENV PATH $PATH:/usr/src/go/bin
+ENV PATH /usr/src/go/bin:$PATH
 
 ENV AUTO_GOPATH 1
 
