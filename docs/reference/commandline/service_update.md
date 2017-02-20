@@ -154,6 +154,51 @@ $ docker service update --mount-rm /somewhere myservice
 myservice
 ```
 
+### Rolling back to the previous version of a service 
+
+Use the `--rollback` option to roll back to the previous version of the service. 
+
+This will revert the service to the configuration that was in place before the most recent `docker service update` command.
+
+The following example updates the number of replicas for the service from 4 to 5, and then rolls back to the previous configuration.
+
+```bash
+$ docker service update --replicas=5 web
+
+web
+
+$ docker service ls
+
+ID            NAME  MODE        REPLICAS  IMAGE
+80bvrzp6vxf3  web   replicated  0/5       nginx:alpine
+
+```
+Roll back the `web` service... 
+
+```bash
+$ docker service update --rollback web
+
+web
+
+$ docker service ls
+
+ID            NAME  MODE        REPLICAS  IMAGE
+80bvrzp6vxf3  web   replicated  0/4       nginx:alpine
+
+```
+
+Other options can be combined with `--rollback` as well, for example, `--update-delay 0s` to execute the rollback without a delay between tasks:
+
+```bash
+$ docker service update \
+  --rollback \
+  --update-delay 0s
+  web
+
+web
+
+```
+
 ### Add or remove secrets
 
 Use the `--secret-add` or `--secret-rm` options add or remove a service's
