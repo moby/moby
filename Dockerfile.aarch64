@@ -15,7 +15,7 @@
 # the case. Therefore, you don't have to disable it anymore.
 #
 
-FROM aarch64/ubuntu:wily
+FROM aarch64/ubuntu:xenial
 
 # Packaged dependencies
 RUN apt-get update && apt-get install -y \
@@ -39,6 +39,7 @@ RUN apt-get update && apt-get install -y \
 	libcap-dev \
 	libltdl-dev \
 	libsystemd-dev \
+	libyaml-dev \
 	mercurial \
 	net-tools \
 	parallel \
@@ -101,8 +102,19 @@ RUN mkdir /usr/src/go && curl -fsSL https://golang.org/dl/go${GO_VERSION}.src.ta
 	&& cd /usr/src/go/src \
 	&& GOOS=linux GOARCH=arm64 GOROOT_BOOTSTRAP="$(go env GOROOT)" ./make.bash
 
-ENV PATH /usr/src/go/bin:$PATH
+ENV PATH /go/bin:/usr/src/go/bin:$PATH
 ENV GOPATH /go
+
+# Dependency for golint
+ENV GO_TOOLS_COMMIT 823804e1ae08dbb14eb807afc7db9993bc9e3cc3
+RUN git clone https://github.com/golang/tools.git /go/src/golang.org/x/tools \
+	&& (cd /go/src/golang.org/x/tools && git checkout -q $GO_TOOLS_COMMIT)
+
+# Grab Go's lint tool
+ENV GO_LINT_COMMIT 32a87160691b3c96046c0c678fe57c5bef761456
+RUN git clone https://github.com/golang/lint.git /go/src/github.com/golang/lint \
+	&& (cd /go/src/github.com/golang/lint && git checkout -q $GO_LINT_COMMIT) \
+	&& go install -v github.com/golang/lint/golint
 
 # Only install one version of the registry, because old version which support
 # schema1 manifests is not working on ARM64, we should skip integration-cli
@@ -134,6 +146,15 @@ RUN git clone https://github.com/docker/docker-py.git /docker-py \
 	&& cd /docker-py \
 	&& git checkout -q $DOCKER_PY_COMMIT \
 	&& pip install -r test-requirements.txt
+
+# Install yamllint for validating swagger.yaml
+RUN pip install yamllint==1.5.0
+
+# Install go-swagger for validating swagger.yaml
+ENV GO_SWAGGER_COMMIT c28258affb0b6251755d92489ef685af8d4ff3eb
+RUN git clone https://github.com/go-swagger/go-swagger.git /go/src/github.com/go-swagger/go-swagger \
+	&& (cd /go/src/github.com/go-swagger/go-swagger && git checkout -q $GO_SWAGGER_COMMIT) \
+	&& go install -v github.com/go-swagger/go-swagger/cmd/swagger
 
 # Set user.email so crosbymichael's in-container merge commits go smoothly
 RUN git config --global user.email 'docker-dummy@example.com'
