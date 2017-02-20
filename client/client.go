@@ -53,12 +53,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
 )
-
-// DefaultVersion is the version of the current stable API
-const DefaultVersion string = "1.26"
 
 // Client is the API client that performs all operations
 // against a docker server.
@@ -115,7 +113,7 @@ func NewEnvClient() (*Client, error) {
 	}
 	version := os.Getenv("DOCKER_API_VERSION")
 	if version == "" {
-		version = DefaultVersion
+		version = api.DefaultVersion
 	}
 
 	cli, err := NewClient(host, version, client, nil)
