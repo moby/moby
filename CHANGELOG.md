@@ -5,6 +5,26 @@ information on the list of deprecated flags and APIs please have a look at
 https://docs.docker.com/engine/deprecated/ where target removal dates can also
 be found.
 
+## 17.03.0-ce (2017-02-01)
+
+### Client
+
+* Fix panic in `docker stats --format`
+
+### Contrib
+
+* Update various `bash` and `zsh` completion scripts [#30823](https://github.com/docker/docker/pull/30823), [#30945](https://github.com/docker/docker/pull/30945) and more...
+
+### Networking
+
+* Discard incoming plain vxlan packets for encrypted overlay network [#31170](https://github.com/docker/docker/pull/31170)
+* Release the network attachment on allocation failure [#31073](https://github.com/docker/docker/pull/31073)
+
+### Runtime
+
+* Fix a deadlock in docker logs [#30223](https://github.com/docker/docker/pull/30223)
+* Fix cpu spin waiting for log write events [#31070](https://github.com/docker/docker/pull/31070)
+
 ## 1.13.1 (2017-02-08)
 
 **IMPORTANT**: On Linux distributions where `devicemapper` was the default storage driver,
