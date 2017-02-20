@@ -41,7 +41,7 @@ func newJoinCommand(dockerCli command.Cli) *cobra.Command {
 	flags.Var(&opts.listenAddr, flagListenAddr, "Listen address (format: <ip|interface>[:port])")
 	flags.StringVar(&opts.advertiseAddr, flagAdvertiseAddr, "", "Advertised address (format: <ip|interface>[:port])")
 	flags.StringVar(&opts.token, flagToken, "", "Token for entry into the swarm")
-	flags.StringVar(&opts.availability, flagAvailability, "active", "Availability of the node (active/pause/drain)")
+	flags.StringVar(&opts.availability, flagAvailability, "active", `Availability of the node ("active"|"pause"|"drain")`)
 	return cmd
 }
 

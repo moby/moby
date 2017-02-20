@@ -30,7 +30,7 @@ Options:
   -D, --debug              Enable debug mode
       --help               Print usage
   -H, --host value         Daemon socket(s) to connect to (default [])
-  -l, --log-level string   Set the logging level ("debug", "info", "warn", "error", "fatal") (default "info")
+  -l, --log-level string   Set the logging level ("debug"|"info"|"warn"|"error"|"fatal") (default "info")
       --tls                Use TLS; implied by --tlsverify
       --tlscacert string   Trust certs signed only by this CA (default "/root/.docker/ca.pem")
       --tlscert string     Path to TLS certificate file (default "/root/.docker/cert.pem")

@@ -26,7 +26,7 @@ Options:
       --dns list                         Set custom DNS servers (default [])
       --dns-option list                  Set DNS options (default [])
       --dns-search list                  Set custom DNS search domains (default [])
-      --endpoint-mode string             Endpoint mode (vip or dnsrr) (default "vip")
+      --endpoint-mode string             Endpoint mode ("vip"|"dnsrr") (default "vip")
   -e, --env list                         Set environment variables (default [])
       --env-file list                    Read in a file of environment variables (default [])
       --group list                       Set one or more supplementary user groups for the container (default [])
@@ -52,7 +52,7 @@ Options:
       --replicas uint                    Number of tasks
       --reserve-cpu decimal              Reserve CPUs (default 0.000)
       --reserve-memory bytes             Reserve Memory
-      --restart-condition string         Restart when condition is met (none, on-failure, or any)
+      --restart-condition string         Restart when condition is met ("none"|"on-failure"|"any")
       --restart-delay duration           Delay between restart attempts (ns|us|ms|s|m|h)
       --restart-max-attempts uint        Maximum number of restarts before giving up
       --restart-window duration          Window used to evaluate the restart policy (ns|us|ms|s|m|h)
@@ -60,7 +60,7 @@ Options:
       --stop-grace-period duration       Time to wait before force killing a container (ns|us|ms|s|m|h)
   -t, --tty                              Allocate a pseudo-TTY
       --update-delay duration            Delay between updates (ns|us|ms|s|m|h) (default 0s)
-      --update-failure-action string     Action on update failure (pause|continue) (default "pause")
+      --update-failure-action string     Action on update failure ("pause"|"continue") (default "pause")
       --update-max-failure-ratio float   Failure rate to tolerate during an update
       --update-monitor duration          Duration after each task update to monitor for failure (ns|us|ms|s|m|h) (default 0s)
       --update-parallelism uint          Maximum number of tasks updated simultaneously (0 to update all at once) (default 1)
