@@ -4203,6 +4203,10 @@ _docker_volume_inspect() {
 	esac
 }
 
+_docker_volume_list() {
+	_docker_volume_ls
+}
+
 _docker_volume_ls() {
 	local key=$(__docker_map_key_of_current_option '--filter|-f')
 	case "$key" in
@@ -4246,6 +4250,10 @@ _docker_volume_prune() {
 	esac
 }
 
+_docker_volume_remove() {
+	_docker_volume_rm
+}
+
 _docker_volume_rm() {
 	case "$cur" in
 		-*)
@@ -4265,7 +4273,11 @@ _docker_volume() {
 		prune
 		rm
 	"
-	__docker_subcommands "$subcommands" && return
+	local aliases="
+		list
+		remove
+	"
+	__docker_subcommands "$subcommands $aliases" && return
 
 	case "$cur" in
 		-*)
