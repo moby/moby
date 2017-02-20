@@ -5204,34 +5204,51 @@ paths:
     get:
       summary: "Get version"
       description: "Returns the version of Docker that is running and various information about the system that Docker is running on."
-      operationId: "SystemVersion"
+      operationId: "Version"
       produces: ["application/json"]
       responses:
         200:
           description: "no error"
           schema:
             type: "object"
+            required:
+              - Version
+              - ApiVersion
+              - GitCommit
+              - GoVersion
+              - Os
+              - Arch
             properties:
               Version:
                 type: "string"
+                x-nullable: false
               ApiVersion:
                 type: "string"
+                x-nullable: false
               MinAPIVersion:
                 type: "string"
+                x-nullable: false
               GitCommit:
                 type: "string"
+                x-nullable: false
               GoVersion:
                 type: "string"
+                x-nullable: false
               Os:
                 type: "string"
+                x-nullable: false
               Arch:
                 type: "string"
+                x-nullable: false
               KernelVersion:
                 type: "string"
+                x-nullable: false
               Experimental:
                 type: "boolean"
+                x-nullable: false
               BuildTime:
                 type: "string"
+                x-nullable: false
           examples:
             application/json:
               Version: "17.04.0"

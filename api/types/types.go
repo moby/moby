@@ -100,21 +100,6 @@ type Ping struct {
 	Experimental bool
 }
 
-// Version contains response of Engine API:
-// GET "/version"
-type Version struct {
-	Version       string
-	APIVersion    string `json:"ApiVersion"`
-	MinAPIVersion string `json:"MinAPIVersion,omitempty"`
-	GitCommit     string
-	GoVersion     string
-	Os            string
-	Arch          string
-	KernelVersion string `json:",omitempty"`
-	Experimental  bool   `json:",omitempty"`
-	BuildTime     string `json:",omitempty"`
-}
-
 // Commit holds the Git-commit (SHA1) that a binary was built from, as reported
 // in the version-string of external tools, such as containerd, or runC.
 type Commit struct {

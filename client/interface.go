@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/api/types/system"
 	volumetypes "github.com/docker/docker/api/types/volume"
 	"golang.org/x/net/context"
 )
@@ -29,7 +30,7 @@ type CommonAPIClient interface {
 	SystemAPIClient
 	VolumeAPIClient
 	ClientVersion() string
-	ServerVersion(ctx context.Context) (types.Version, error)
+	ServerVersion(ctx context.Context) (system.VersionOKBody, error)
 	UpdateClientVersion(v string)
 }
 

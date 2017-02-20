@@ -6,6 +6,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/system"
 	"golang.org/x/net/context"
 )
 
@@ -13,7 +14,7 @@ import (
 // system specific functionality.
 type Backend interface {
 	SystemInfo() (*types.Info, error)
-	SystemVersion() types.Version
+	SystemVersion() system.VersionOKBody
 	SystemDiskUsage() (*types.DiskUsage, error)
 	SubscribeToEvents(since, until time.Time, ef filters.Args) ([]events.Message, chan interface{})
 	UnsubscribeFromEvents(chan interface{})

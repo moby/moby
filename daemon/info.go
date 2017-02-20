@@ -10,6 +10,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
+	systemtypes "github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/cli/debug"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/dockerversion"
@@ -146,8 +147,8 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 }
 
 // SystemVersion returns version information about the daemon.
-func (daemon *Daemon) SystemVersion() types.Version {
-	v := types.Version{
+func (daemon *Daemon) SystemVersion() systemtypes.VersionOKBody {
+	v := systemtypes.VersionOKBody{
 		Version:       dockerversion.Version,
 		GitCommit:     dockerversion.GitCommit,
 		MinAPIVersion: api.MinVersion,
