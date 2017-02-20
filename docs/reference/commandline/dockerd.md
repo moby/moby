@@ -89,7 +89,7 @@ Options:
       --userland-proxy                        Use userland proxy for loopback traffic (default true)
       --userland-proxy-path string            Path to the userland proxy binary
       --userns-remap string                   User/Group setting for user namespaces
-  -v, --version                               Print version information and quit
+  -v, --version                               Show version information
 ```
 
 Options with [] may be specified multiple times.

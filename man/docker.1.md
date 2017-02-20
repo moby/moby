@@ -54,7 +54,7 @@ unix://[/path/to/socket] to use.
   Default is false.
 
 **-v**, **--version**=*true*|*false*
-  Print version information and quit. Default is false.
+  Show version information. Default is false.
 
 # COMMANDS
 

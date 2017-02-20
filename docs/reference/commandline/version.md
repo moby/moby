@@ -18,7 +18,7 @@ keywords: "version, architecture, api"
 ```markdown
 Usage:  docker version [OPTIONS]
 
-Show the Docker version information
+Show the summary information of client and server
 
 Options:
   -f, --format string   Format the output using the given Go template
