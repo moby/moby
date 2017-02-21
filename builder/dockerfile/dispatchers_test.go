@@ -460,7 +460,7 @@ func TestStopSignal(t *testing.T) {
 }
 
 func TestArg(t *testing.T) {
-	buildOptions := &types.ImageBuildOptions{BuildArgs: make(map[string]*string)}
+	buildOptions := &types.ImageBuildOptions{BuildArgs: make(map[string]string)}
 
 	b := &Builder{flags: &BFlags{}, runConfig: &container.Config{}, disableCommit: true, allowedBuildArgs: make(map[string]bool), options: buildOptions}
 
@@ -488,7 +488,7 @@ func TestArg(t *testing.T) {
 		t.Fatalf("%s argument should be a build arg", argName)
 	}
 
-	if *val != "bar" {
+	if val != "bar" {
 		t.Fatalf("%s argument should have default value 'bar', got %s", argName, val)
 	}
 }
