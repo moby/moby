@@ -5421,6 +5421,27 @@ func (s *DockerSuite) TestBuildWithFailure(c *check.C) {
 	c.Assert(result.Stdout(), checker.Not(checker.Contains), "Step 2/2 : RUN nobody")
 }
 
+func (s *DockerSuite) TestBuildCacheFromEqualDiffIDsLength(c *check.C) {
+	dockerfile := `
+		FROM busybox
+		RUN echo "test"
+		ENTRYPOINT ["sh"]`
+	ctx := fakeContext(c, dockerfile, map[string]string{
+		"Dockerfile": dockerfile,
+	})
+	defer ctx.Close()
+
+	buildImageSuccessfully(c, "build1", withExternalBuildContext(ctx))
+	id1 := getIDByName(c, "build1")
+
+	// rebuild with cache-from
+	result := buildImage("build2", withBuildFlags("--cache-from=build1"), withExternalBuildContext(ctx))
+	result.Assert(c, icmd.Success)
+	id2 := getIDByName(c, "build2")
+	c.Assert(id1, checker.Equals, id2)
+	c.Assert(strings.Count(result.Combined(), "Using cache"), checker.Equals, 2)
+}
+
 func (s *DockerSuite) TestBuildCacheFrom(c *check.C) {
 	testRequires(c, DaemonIsLinux) // All tests that do save are skipped in windows
 	dockerfile := `
