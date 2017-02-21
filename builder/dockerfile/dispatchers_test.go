@@ -104,7 +104,7 @@ func TestCommandsTooManyArguments(t *testing.T) {
 	}
 }
 
-func TestCommandseBlankNames(t *testing.T) {
+func TestCommandsBlankNames(t *testing.T) {
 	bflags := &BFlags{}
 	config := &container.Config{}
 

@@ -23,6 +23,7 @@ import (
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/go-units"
 	"golang.org/x/net/context"
+	"github.com/pkg/errors"
 )
 
 func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBuildOptions, error) {
@@ -72,7 +73,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	}
 
 	if runtime.GOOS != "windows" && options.SecurityOpt != nil {
-		return nil, fmt.Errorf("the daemon on this platform does not support --security-opt to build")
+		return nil, errors.New("the daemon on this platform does not support --security-opt to build")
 	}
 
 	var buildUlimits = []*units.Ulimit{}

@@ -3,16 +3,17 @@
 package dockerfile
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 )
 
 // normaliseWorkdir normalises a user requested working directory in a
-// platform sematically consistent way.
+// platform semantically consistent way.
 func normaliseWorkdir(current string, requested string) (string, error) {
 	if requested == "" {
-		return "", fmt.Errorf("cannot normalise nothing")
+		return "", errors.New("cannot normalise nothing")
 	}
 	current = filepath.FromSlash(current)
 	requested = filepath.FromSlash(requested)
