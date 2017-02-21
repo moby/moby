@@ -4,6 +4,7 @@ package parser
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"regexp"
@@ -102,7 +103,7 @@ func ParseLine(line string, d *Directive, ignoreCont bool) (string, *Node, error
 		tecMatch := tokenEscapeCommand.FindStringSubmatch(strings.ToLower(line))
 		if len(tecMatch) > 0 {
 			if d.EscapeSeen == true {
-				return "", nil, fmt.Errorf("only one escape parser directive can be used")
+				return "", nil, errors.New("only one escape parser directive can be used")
 			}
 			for i, n := range tokenEscapeCommand.SubexpNames() {
 				if n == "escapechar" {

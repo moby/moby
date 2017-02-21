@@ -13,7 +13,7 @@ import (
 var pattern = regexp.MustCompile(`^[a-zA-Z]:\.$`)
 
 // normaliseWorkdir normalises a user requested working directory in a
-// platform sematically consistent way.
+// platform semantically consistent way.
 func normaliseWorkdir(current string, requested string) (string, error) {
 	if requested == "" {
 		return "", fmt.Errorf("cannot normalise nothing")
