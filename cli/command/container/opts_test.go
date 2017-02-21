@@ -492,7 +492,7 @@ func TestParseHealth(t *testing.T) {
 		t.Fatalf("--health-cmd: got %#v", health.Test)
 	}
 	if health.Timeout != 0 {
-		t.Fatalf("--health-cmd: timeout = %f", health.Timeout)
+		t.Fatalf("--health-cmd: timeout = %s", health.Timeout)
 	}
 
 	checkError("--no-healthcheck conflicts with --health-* options",

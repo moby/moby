@@ -489,7 +489,7 @@ func TestArg(t *testing.T) {
 	}
 
 	if *val != "bar" {
-		t.Fatalf("%s argument should have default value 'bar', got %s", argName, val)
+		t.Fatalf("%s argument should have default value 'bar', got %s", argName, *val)
 	}
 }
 
