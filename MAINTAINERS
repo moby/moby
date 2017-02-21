@@ -60,7 +60,6 @@
 	# TODO Describe the docs maintainers role.
 
 		people = [
-			"jamtur01",
 			"misty",
 			"sven",
 			"thajeztah"
@@ -116,6 +115,15 @@
 			# in his own repository https://github.com/erikh. You may
 			# still stumble into him in our issue tracker, or on IRC.
 			"erikh",
+
+			# After a false start with his first PR being rejected, James Turnbull became a frequent
+			# contributor to the documentation, and became a docs maintainer on December 5, 2013. As
+			# a maintainer, James lifted the docs to a higher standard, and introduced the community
+			# guidelines ("three strikes"). James is currently changing the world as CTO of https://www.empatico.org,
+			# meanwhile authoring various books that are worth checking out. You can find him on Twitter,
+			# rambling as @kartar, and although no longer active as a maintainer, he's always "game" to
+			# help out reviewing docs PRs, so you may still see him around in the repository.
+			"jamtur01",
 
 			# Jessica Frazelle, also known as the "Keyser Söze of containers",
 			# runs *everything* in containers. She started contributing to
