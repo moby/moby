@@ -209,6 +209,36 @@ $ docker service create \
 For more information about labels, refer to [apply custom
 metadata](https://docs.docker.com/engine/userguide/labels-custom-metadata/).
 
+### Difference between --label and --container-label
+
+Service labels `--label` have nothing to do with container labels `--container-label`. For example,
+we create a monitor service labeled with frontend:
+
+```bash
+$ docker service create \
+  --name monitor \
+  --label frontend \
+  alpine ping docker.com
+```
+
+Then we can find the service with `--filter` flag:
+
+```bash
+$ docker service ls --filter label=frontend
+```
+
+However the running container in this service can not be found with `docker ps --filter label=frontend` because
+service labels are not propagated to containers. Instead we need to specify container labels when creating service.
+
+```bash
+$ docker service create \
+  --name monitor \
+  --container-label frontend \
+  alpine ping docker.com
+```
+
+Therefore the container can be found with `docker ps --filter label=frontend`.
+
 ### Add bind-mounts or volumes
 
 Docker supports two different kinds of mounts, which allow containers to read to
