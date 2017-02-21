@@ -18,7 +18,7 @@ title: Managed plugin system
 * [Installing and using a plugin](index.md#installing-and-using-a-plugin)
 * [Developing a plugin](index.md#developing-a-plugin)
 
-Docker Engine's plugins system allows you to install, start, stop, and remove
+Docker Engine's plugin system allows you to install, start, stop, and remove
 plugins using Docker Engine. This mechanism is currently only available for
 volume drivers, but more plugin driver types will be available in future releases.
 
@@ -34,7 +34,7 @@ Plugins are distributed as Docker images and can be hosted on Docker Hub or on
 a private registry.
 
 To install a plugin, use the `docker plugin install` command, which pulls the
-plugin from Docker hub or your private registry, prompts you to grant
+plugin from Docker Hub or your private registry, prompts you to grant
 permissions or capabilities if necessary, and enables the plugin.
 
 To check the status of installed plugins, use the `docker plugin ls` command.
@@ -60,6 +60,7 @@ enabled, and use it to create a volume.
     ```
 
     The plugin requests 2 privileges:
+    
     - It needs access to the `host` network.
     - It needs the `CAP_SYS_ADMIN` capability, which allows the plugin to run
     the `mount` command.
@@ -154,7 +155,7 @@ In the following example, node1 is the manager and node2 is the worker.
     $ docker service ls
     z1sj8bb8jnfn  my-service   replicated  1/1       busybox:latest 
     ```
-    docker service ls shows service 1 instance of service running.
+    `docker service ls` shows service 1 instance of service running.
 
 4. Observe the task getting scheduled in node 2:
 
