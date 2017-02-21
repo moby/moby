@@ -271,6 +271,7 @@ func (daemon *Daemon) restore() error {
 				}
 			}
 
+			c.Lock()
 			if c.RemovalInProgress {
 				// We probably crashed in the middle of a removal, reset
 				// the flag.
@@ -281,10 +282,11 @@ func (daemon *Daemon) restore() error {
 				// be removed. So we put the container in the "dead"
 				// state and leave further processing up to them.
 				logrus.Debugf("Resetting RemovalInProgress flag from %v", c.ID)
-				c.ResetRemovalInProgress()
-				c.SetDead()
+				c.RemovalInProgress = false
+				c.Dead = true
 				c.ToDisk()
 			}
+			c.Unlock()
 		}(c)
 	}
 	wg.Wait()
