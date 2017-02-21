@@ -160,9 +160,10 @@ type ImageBuildOptions struct {
 	ShmSize        int64
 	Dockerfile     string
 	Ulimits        []*units.Ulimit
-	// See the parsing of buildArgs in api/server/router/build/build_routes.go
-	// for an explanation of why BuildArgs needs to use *string instead of
-	// just a string
+	// BuildArgs needs to be a *string instead of just a string so that
+	// we can tell the difference between "" (empty string) and no value
+	// at all (nil). See the parsing of buildArgs in
+	// api/server/router/build/build_routes.go for even more info.
 	BuildArgs   map[string]*string
 	AuthConfigs map[string]AuthConfig
 	Context     io.Reader
