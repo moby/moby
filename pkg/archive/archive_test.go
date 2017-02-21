@@ -1160,3 +1160,59 @@ func TestTempArchiveCloseMultipleTimes(t *testing.T) {
 		}
 	}
 }
+
+func testReplaceFileTarWrapper(t *testing.T, name string) {
+	srcDir, err := ioutil.TempDir("", "docker-test-srcDir")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(srcDir)
+
+	destDir, err := ioutil.TempDir("", "docker-test-destDir")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(destDir)
+
+	_, err = prepareUntarSourceDirectory(20, srcDir, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	archive, err := TarWithOptions(srcDir, &TarOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer archive.Close()
+
+	archive2 := ReplaceFileTarWrapper(archive, map[string]TarModifierFunc{name: func(path string, header *tar.Header, content io.Reader) (*tar.Header, []byte, error) {
+		return &tar.Header{
+			Mode:     0600,
+			Typeflag: tar.TypeReg,
+		}, []byte("foobar"), nil
+	}})
+
+	if err := Untar(archive2, destDir, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	dt, err := ioutil.ReadFile(filepath.Join(destDir, name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if expected, actual := "foobar", string(dt); actual != expected {
+		t.Fatalf("file contents mismatch, expected: %q, got %q", expected, actual)
+	}
+}
+
+func TestReplaceFileTarWrapperNewFile(t *testing.T) {
+	testReplaceFileTarWrapper(t, "abc")
+}
+
+func TestReplaceFileTarWrapperReplaceFile(t *testing.T) {
+	testReplaceFileTarWrapper(t, "file-2")
+}
+
+func TestReplaceFileTarWrapperLastFile(t *testing.T) {
+	testReplaceFileTarWrapper(t, "file-999")
+}

@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"syscall"
 
@@ -223,6 +224,91 @@ func CompressStream(dest io.Writer, compression Compression) (io.WriteCloser, er
 	default:
 		return nil, fmt.Errorf("Unsupported compression format %s", (&compression).Extension())
 	}
+}
+
+// TarModifierFunc is a function that can be passed to ReplaceFileTarWrapper to
+// define a modification step for a single path
+type TarModifierFunc func(path string, header *tar.Header, content io.Reader) (*tar.Header, []byte, error)
+
+// ReplaceFileTarWrapper converts inputTarStream to a new tar stream
+// while replacing a single file called header.Name with new contents.
+// If the file with header.Name does not exist it is added to the tar stream.
+// TODO: make this into a generic tar conversion function with walkFn argument
+func ReplaceFileTarWrapper(inputTarStream io.ReadCloser, mods map[string]TarModifierFunc) io.ReadCloser {
+	pipeReader, pipeWriter := io.Pipe()
+
+	modKeys := make([]string, 0, len(mods))
+	for key := range mods {
+		modKeys = append(modKeys, key)
+	}
+	sort.Strings(modKeys)
+
+	go func() {
+		tarReader := tar.NewReader(inputTarStream)
+		tarWriter := tar.NewWriter(pipeWriter)
+
+		defer inputTarStream.Close()
+
+	loop0:
+		for {
+			hdr, err := tarReader.Next()
+			for len(modKeys) > 0 && (err == io.EOF || err == nil && hdr.Name >= modKeys[0]) {
+				var h *tar.Header
+				var rdr io.Reader
+				if hdr != nil && hdr.Name == modKeys[0] {
+					h = hdr
+					rdr = tarReader
+				}
+
+				h2, dt, err := mods[modKeys[0]](modKeys[0], h, rdr)
+				if err != nil {
+					pipeWriter.CloseWithError(err)
+					return
+				}
+				if h2 != nil {
+					h2.Name = modKeys[0]
+					h2.Size = int64(len(dt))
+					if err := tarWriter.WriteHeader(h2); err != nil {
+						pipeWriter.CloseWithError(err)
+						return
+					}
+					if len(dt) != 0 {
+						if _, err := tarWriter.Write(dt); err != nil {
+							pipeWriter.CloseWithError(err)
+							return
+						}
+					}
+				}
+				modKeys = modKeys[1:]
+				if h != nil {
+					continue loop0
+				}
+			}
+
+			if err == io.EOF {
+				tarWriter.Close()
+				pipeWriter.Close()
+				return
+			}
+
+			if err != nil {
+				pipeWriter.CloseWithError(err)
+				return
+			}
+
+			if err := tarWriter.WriteHeader(hdr); err != nil {
+				pipeWriter.CloseWithError(err)
+				return
+			}
+
+			if _, err := pools.Copy(tarWriter, tarReader); err != nil {
+				pipeWriter.CloseWithError(err)
+				return
+			}
+
+		}
+	}()
+	return pipeReader
 }
 
 // Extension returns the extension of a file that uses the specified compression algorithm.

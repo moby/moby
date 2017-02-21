@@ -6,10 +6,12 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"time"
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api"
@@ -25,6 +27,7 @@ import (
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/urlutil"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	units "github.com/docker/go-units"
@@ -141,6 +144,7 @@ func (out *lastProgressOutput) WriteProgress(prog progress.Progress) error {
 func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 	var (
 		buildCtx      io.ReadCloser
+		dockerfileCtx io.ReadCloser
 		err           error
 		contextDir    string
 		tempDir       string
@@ -155,6 +159,13 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 	if options.quiet {
 		progBuff = bytes.NewBuffer(nil)
 		buildBuff = bytes.NewBuffer(nil)
+	}
+
+	if options.dockerfileName == "-" {
+		if specifiedContext == "-" {
+			return errors.New("invalid argument: can't use stdin for both build context and dockerfile")
+		}
+		dockerfileCtx = dockerCli.In()
 	}
 
 	switch {
@@ -214,11 +225,11 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		// removed. The daemon will remove them for us, if needed, after it
 		// parses the Dockerfile. Ignore errors here, as they will have been
 		// caught by validateContextDirectory above.
-		var includes = []string{"."}
-		keepThem1, _ := fileutils.Matches(".dockerignore", excludes)
-		keepThem2, _ := fileutils.Matches(relDockerfile, excludes)
-		if keepThem1 || keepThem2 {
-			includes = append(includes, ".dockerignore", relDockerfile)
+		if keep, _ := fileutils.Matches(".dockerignore", excludes); keep {
+			excludes = append(excludes, "!.dockerignore")
+		}
+		if keep, _ := fileutils.Matches(relDockerfile, excludes); keep && dockerfileCtx == nil {
+			excludes = append(excludes, "!"+relDockerfile)
 		}
 
 		compression := archive.Uncompressed
@@ -228,11 +239,54 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		buildCtx, err = archive.TarWithOptions(contextDir, &archive.TarOptions{
 			Compression:     compression,
 			ExcludePatterns: excludes,
-			IncludeFiles:    includes,
 		})
 		if err != nil {
 			return err
 		}
+	}
+
+	// replace Dockerfile if added dynamically
+	if dockerfileCtx != nil {
+		file, err := ioutil.ReadAll(dockerfileCtx)
+		dockerfileCtx.Close()
+		if err != nil {
+			return err
+		}
+		now := time.Now()
+		hdrTmpl := &tar.Header{
+			Mode:       0600,
+			Uid:        0,
+			Gid:        0,
+			ModTime:    now,
+			Typeflag:   tar.TypeReg,
+			AccessTime: now,
+			ChangeTime: now,
+		}
+		randomName := ".dockerfile." + stringid.GenerateRandomID()[:20]
+
+		buildCtx = archive.ReplaceFileTarWrapper(buildCtx, map[string]archive.TarModifierFunc{
+			randomName: func(_ string, h *tar.Header, content io.Reader) (*tar.Header, []byte, error) {
+				return hdrTmpl, file, nil
+			},
+			".dockerignore": func(_ string, h *tar.Header, content io.Reader) (*tar.Header, []byte, error) {
+				if h == nil {
+					h = hdrTmpl
+				}
+				extraIgnore := randomName + "\n"
+				b := &bytes.Buffer{}
+				if content != nil {
+					_, err := b.ReadFrom(content)
+					if err != nil {
+						return nil, nil, err
+					}
+				} else {
+					extraIgnore += ".dockerignore\n"
+				}
+				b.Write([]byte("\n" + extraIgnore))
+				return h, b.Bytes(), nil
+			},
+		})
+		relDockerfile = randomName
 	}
 
 	ctx := context.Background()

@@ -2024,6 +2024,81 @@ func (s *DockerSuite) TestBuildNoContext(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestBuildDockerfileStdin(c *check.C) {
+	name := "stdindockerfile"
+	tmpDir, err := ioutil.TempDir("", "fake-context")
+	c.Assert(err, check.IsNil)
+	err = ioutil.WriteFile(filepath.Join(tmpDir, "foo"), []byte("bar"), 0600)
+	c.Assert(err, check.IsNil)
+
+	icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "build", "-t", name, "-f", "-", tmpDir},
+		Stdin: strings.NewReader(
+			`FROM busybox
+ADD foo /foo
+CMD ["cat", "/foo"]`),
+	}).Assert(c, icmd.Success)
+
+	res := inspectField(c, name, "Config.Cmd")
+	c.Assert(strings.TrimSpace(string(res)), checker.Equals, `[cat /foo]`)
+}
+
+func (s *DockerSuite) TestBuildDockerfileStdinConflict(c *check.C) {
+	name := "stdindockerfiletarcontext"
+	icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "build", "-t", name, "-f", "-", "-"},
+	}).Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Err:      "use stdin for both build context and dockerfile",
+	})
+}
+
+func (s *DockerSuite) TestBuildDockerfileStdinNoExtraFiles(c *check.C) {
+	s.testBuildDockerfileStdinNoExtraFiles(c, false, false)
+}
+
+func (s *DockerSuite) TestBuildDockerfileStdinDockerignore(c *check.C) {
+	s.testBuildDockerfileStdinNoExtraFiles(c, true, false)
+}
+
+func (s *DockerSuite) TestBuildDockerfileStdinDockerignoreIgnored(c *check.C) {
+	s.testBuildDockerfileStdinNoExtraFiles(c, true, true)
+}
+
+func (s *DockerSuite) testBuildDockerfileStdinNoExtraFiles(c *check.C, hasDockerignore, ignoreDockerignore bool) {
+	name := "stdindockerfilenoextra"
+	tmpDir, err := ioutil.TempDir("", "fake-context")
+	c.Assert(err, check.IsNil)
+	err = ioutil.WriteFile(filepath.Join(tmpDir, "foo"), []byte("bar"), 0600)
+	c.Assert(err, check.IsNil)
+	if hasDockerignore {
+		// test that this file is removed
+		err = ioutil.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(""), 0600)
+		c.Assert(err, check.IsNil)
+		ignores := "Dockerfile\n"
+		if ignoreDockerignore {
+			ignores += ".dockerignore\n"
+		}
+		err = ioutil.WriteFile(filepath.Join(tmpDir, ".dockerignore"), []byte(ignores), 0600)
+		c.Assert(err, check.IsNil)
+	}
+
+	icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "build", "-t", name, "-f", "-", tmpDir},
+		Stdin: strings.NewReader(
+			`FROM busybox
+COPY . /baz`),
+	}).Assert(c, icmd.Success)
+
+	out, _ := dockerCmd(c, "run", "--rm", name, "ls", "-A", "/baz")
+	if hasDockerignore && !ignoreDockerignore {
+		c.Assert(strings.TrimSpace(string(out)), checker.Equals, ".dockerignore\nfoo")
+	} else {
+		c.Assert(strings.TrimSpace(string(out)), checker.Equals, "foo")
+	}
+
+}
+
 func (s *DockerSuite) TestBuildWithVolumeOwnership(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	name := "testbuildimg"
