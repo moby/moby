@@ -28,7 +28,7 @@ func TestValidateAttach(t *testing.T) {
 		"STDERR",
 	}
 	if _, err := validateAttach("invalid"); err == nil {
-		t.Fatalf("Expected error with [valid streams are STDIN, STDOUT and STDERR], got nothing")
+		t.Fatal("Expected error with [valid streams are STDIN, STDOUT and STDERR], got nothing")
 	}
 
 	for _, attach := range valid {
@@ -96,28 +96,28 @@ func TestParseRunAttach(t *testing.T) {
 	}
 
 	if _, _, err := parsetest(t, "-a"); err == nil {
-		t.Fatalf("Error parsing attach flags, `-a` should be an error but is not")
+		t.Fatal("Error parsing attach flags, `-a` should be an error but is not")
 	}
 	if _, _, err := parsetest(t, "-a invalid"); err == nil {
-		t.Fatalf("Error parsing attach flags, `-a invalid` should be an error but is not")
+		t.Fatal("Error parsing attach flags, `-a invalid` should be an error but is not")
 	}
 	if _, _, err := parsetest(t, "-a invalid -a stdout"); err == nil {
-		t.Fatalf("Error parsing attach flags, `-a stdout -a invalid` should be an error but is not")
+		t.Fatal("Error parsing attach flags, `-a stdout -a invalid` should be an error but is not")
 	}
 	if _, _, err := parsetest(t, "-a stdout -a stderr -d"); err == nil {
-		t.Fatalf("Error parsing attach flags, `-a stdout -a stderr -d` should be an error but is not")
+		t.Fatal("Error parsing attach flags, `-a stdout -a stderr -d` should be an error but is not")
 	}
 	if _, _, err := parsetest(t, "-a stdin -d"); err == nil {
-		t.Fatalf("Error parsing attach flags, `-a stdin -d` should be an error but is not")
+		t.Fatal("Error parsing attach flags, `-a stdin -d` should be an error but is not")
 	}
 	if _, _, err := parsetest(t, "-a stdout -d"); err == nil {
-		t.Fatalf("Error parsing attach flags, `-a stdout -d` should be an error but is not")
+		t.Fatal("Error parsing attach flags, `-a stdout -d` should be an error but is not")
 	}
 	if _, _, err := parsetest(t, "-a stderr -d"); err == nil {
-		t.Fatalf("Error parsing attach flags, `-a stderr -d` should be an error but is not")
+		t.Fatal("Error parsing attach flags, `-a stderr -d` should be an error but is not")
 	}
 	if _, _, err := parsetest(t, "-d --rm"); err == nil {
-		t.Fatalf("Error parsing attach flags, `-d --rm` should be an error but is not")
+		t.Fatal("Error parsing attach flags, `-d --rm` should be an error but is not")
 	}
 }
 

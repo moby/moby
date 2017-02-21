@@ -53,7 +53,7 @@ func TestInspectEmptyResponse(t *testing.T) {
 	br := ioutil.NopCloser(bytes.NewReader([]byte("")))
 	contentType, bReader, err := inspectResponse(ct, br, 0)
 	if err == nil {
-		t.Fatalf("Should have generated an error for an empty response")
+		t.Fatal("Should have generated an error for an empty response")
 	}
 	if contentType != "application/octet-stream" {
 		t.Fatalf("Content type should be 'application/octet-stream' but is %q", contentType)
@@ -206,13 +206,13 @@ func TestMakeRemoteContext(t *testing.T) {
 	}
 
 	if remoteContext == nil {
-		t.Fatalf("Remote context should not be nil")
+		t.Fatal("Remote context should not be nil")
 	}
 
 	tarSumCtx, ok := remoteContext.(*tarSumContext)
 
 	if !ok {
-		t.Fatalf("Cast error, remote context should be casted to tarSumContext")
+		t.Fatal("Cast error, remote context should be casted to tarSumContext")
 	}
 
 	fileInfoSums := tarSumCtx.sums

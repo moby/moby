@@ -89,6 +89,6 @@ func validateTestAttributes(t *testing.T, l chan interface{}, expectedAttributes
 			}
 		}
 	case <-time.After(10 * time.Second):
-		t.Fatalf("LogEvent test timed out")
+		t.Fatal("LogEvent test timed out")
 	}
 }

@@ -229,7 +229,7 @@ func TestNetworkOptions(t *testing.T) {
 	}
 
 	if _, err := daemon.networkOptions(dconfigWrong, nil, nil); err == nil {
-		t.Fatalf("Expected networkOptions error, got nil")
+		t.Fatal("Expected networkOptions error, got nil")
 	}
 }
 
