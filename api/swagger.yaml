@@ -1544,6 +1544,21 @@ definitions:
           Settable: null
           Value: []
 
+  ObjectVersion:
+    description: |
+      The version number of the object such as node, service, etc. This is needed to avoid conflicting writes.
+      The client must send the version number along with the modified specification when updating these objects.
+      This approach ensures safe concurrency and determinism in that the change on the object
+      may not be applied if the version number has changed from the last read. In other words,
+      if two update requests specify the same base version, only one of the requests can succeed.
+      As a result, two separate update requests that happen at the same time will not
+      unintentially overwrite each other.
+    type: "object"
+    properties:
+      Index:
+        type: "integer"
+        format: "int64"
+
   NodeSpec:
     type: "object"
     properties:
@@ -1580,11 +1595,7 @@ definitions:
       ID:
         type: "string"
       Version:
-        type: "object"
-        properties:
-          Index:
-            type: "integer"
-            format: "int64"
+        $ref: "#/definitions/ObjectVersion"
       CreatedAt:
         type: "string"
         format: "dateTime"
@@ -1807,11 +1818,7 @@ definitions:
         description: "The ID of the swarm."
         type: "string"
       Version:
-        type: "object"
-        properties:
-          Index:
-            type: "integer"
-            format: "int64"
+        $ref: "#/definitions/ObjectVersion"
       CreatedAt:
         type: "string"
         format: "dateTime"
@@ -1994,11 +2001,7 @@ definitions:
         description: "The ID of the task."
         type: "string"
       Version:
-        type: "object"
-        properties:
-          Index:
-            type: "integer"
-            format: "int64"
+        $ref: "#/definitions/ObjectVersion"
       CreatedAt:
         type: "string"
         format: "dateTime"
@@ -2206,11 +2209,7 @@ definitions:
       ID:
         type: "string"
       Version:
-        type: "object"
-        properties:
-          Index:
-            type: "integer"
-            format: "int64"
+        $ref: "#/definitions/ObjectVersion"
       CreatedAt:
         type: "string"
         format: "dateTime"
@@ -2418,11 +2417,7 @@ definitions:
       ID:
         type: "string"
       Version:
-        type: "object"
-        properties:
-          Index:
-            type: "integer"
-            format: "int64"
+        $ref: "#/definitions/ObjectVersion"
       CreatedAt:
         type: "string"
         format: "dateTime"
