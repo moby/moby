@@ -16,6 +16,8 @@ import (
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 )
 
+const defaultNetwork = "default"
+
 // Services from compose-file types to engine API types
 // TODO: fix secrets API so that SecretAPIClient is not required here
 func Services(
@@ -156,18 +158,15 @@ func convertServiceNetworks(
 	name string,
 ) ([]swarm.NetworkAttachmentConfig, error) {
 	if len(networks) == 0 {
-		return []swarm.NetworkAttachmentConfig{
-			{
-				Target:  namespace.Scope("default"),
-				Aliases: []string{name},
-			},
-		}, nil
+		networks = map[string]*composetypes.ServiceNetworkConfig{
+			defaultNetwork: {},
+		}
 	}
 
 	nets := []swarm.NetworkAttachmentConfig{}
 	for networkName, network := range networks {
 		networkConfig, ok := networkConfigs[networkName]
-		if !ok {
+		if !ok && networkName != defaultNetwork {
 			return []swarm.NetworkAttachmentConfig{}, fmt.Errorf(
 				"service %q references network %q, which is not declared", name, networkName)
 		}
