@@ -18,20 +18,6 @@ func (daemon *Daemon) containerInspectPre120(name string) (*v1p19.ContainerJSON,
 	return &v1p19.ContainerJSON{}, nil
 }
 
-func addMountPoints(container *container.Container) []types.MountPoint {
-	mountPoints := make([]types.MountPoint, 0, len(container.MountPoints))
-	for _, m := range container.MountPoints {
-		mountPoints = append(mountPoints, types.MountPoint{
-			Name:        m.Name,
-			Source:      m.Path(),
-			Destination: m.Destination,
-			Driver:      m.Driver,
-			RW:          m.RW,
-		})
-	}
-	return mountPoints
-}
-
 func inspectExecProcessConfig(e *exec.Config) *backend.ExecProcessConfig {
 	return &backend.ExecProcessConfig{
 		Tty:        e.Tty,
