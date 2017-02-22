@@ -54,6 +54,19 @@ CONTAINER           CPU %               MEM USAGE/LIMIT       MEM %             
 fervent_panini      0.02%               11.08 MiB/1.045 GiB   1.06%               648 B/648 B
 ```
 
+Running `docker stats` with customized format on all (Running and Stopped) containers.
+
+```bash
+$ docker stats --all --format "table {{.ID}}\t{{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}"
+CONTAINER ID                                                       NAME                     CPU %               MEM USAGE / LIMIT
+c9dfa83f0317f87637d5b7e67aa4223337d947215c5a9947e697e4f7d3e0f834   ecstatic_noether         0.00%               56KiB / 15.57GiB
+8f92d01cf3b29b4f5fca4cd33d907e05def7af5a3684711b20a2369d211ec67f   stoic_goodall            0.07%               32.86MiB / 15.57GiB
+38dd23dba00f307d53d040c1d18a91361bbdcccbf592315927d56cf13d8b7343   drunk_visvesvaraya       0.00%               0B / 0B
+5a8b07ec4cc52823f3cbfdb964018623c1ba307bce2c057ccdbde5f4f6990833   big_heisenberg           0.00%               0B / 0B
+```
+
+`drunk_visvesvaraya` and `big_heisenberg` are stopped containers in the above example.
+
 Running `docker stats` on all running containers against a Windows daemon.
 
 ```powershell
