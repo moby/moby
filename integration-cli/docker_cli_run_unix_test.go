@@ -89,7 +89,7 @@ func (s *DockerSuite) TestRunDeviceDirectory(c *check.C) {
 	c.Assert(strings.Trim(out, "\r\n"), checker.Contains, "seq", check.Commentf("expected output /dev/othersnd/seq"))
 }
 
-// TestRunDetach checks attaching and detaching with the default escape sequence.
+// TestRunAttachDetach checks attaching and detaching with the default escape sequence.
 func (s *DockerSuite) TestRunAttachDetach(c *check.C) {
 	name := "attach-detach"
 
@@ -140,7 +140,7 @@ func (s *DockerSuite) TestRunAttachDetach(c *check.C) {
 	c.Assert(out, checker.Contains, "detach")
 }
 
-// TestRunDetach checks attaching and detaching with the escape sequence specified via flags.
+// TestRunAttachDetachFromFlag checks attaching and detaching with the escape sequence specified via flags.
 func (s *DockerSuite) TestRunAttachDetachFromFlag(c *check.C) {
 	name := "attach-detach"
 	keyCtrlA := []byte{1}
@@ -201,7 +201,7 @@ func (s *DockerSuite) TestRunAttachDetachFromFlag(c *check.C) {
 	c.Assert(running, checker.Equals, "true", check.Commentf("expected container to still be running"))
 }
 
-// TestRunDetach checks attaching and detaching with the escape sequence specified via flags.
+// TestRunAttachDetachFromInvalidFlag checks attaching and detaching with the escape sequence specified via flags.
 func (s *DockerSuite) TestRunAttachDetachFromInvalidFlag(c *check.C) {
 	name := "attach-detach"
 	dockerCmd(c, "run", "--name", name, "-itd", "busybox", "top")
@@ -233,7 +233,7 @@ func (s *DockerSuite) TestRunAttachDetachFromInvalidFlag(c *check.C) {
 	c.Assert(strings.TrimSpace(out), checker.Equals, errStr)
 }
 
-// TestRunDetach checks attaching and detaching with the escape sequence specified via config file.
+// TestRunAttachDetachFromConfig checks attaching and detaching with the escape sequence specified via config file.
 func (s *DockerSuite) TestRunAttachDetachFromConfig(c *check.C) {
 	keyCtrlA := []byte{1}
 	keyA := []byte{97}
@@ -316,7 +316,7 @@ func (s *DockerSuite) TestRunAttachDetachFromConfig(c *check.C) {
 	c.Assert(running, checker.Equals, "true", check.Commentf("expected container to still be running"))
 }
 
-// TestRunDetach checks attaching and detaching with the detach flags, making sure it overrides config file
+// TestRunAttachDetachKeysOverrideConfig checks attaching and detaching with the detach flags, making sure it overrides config file
 func (s *DockerSuite) TestRunAttachDetachKeysOverrideConfig(c *check.C) {
 	keyCtrlA := []byte{1}
 	keyA := []byte{97}
