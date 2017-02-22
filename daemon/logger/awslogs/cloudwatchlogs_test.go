@@ -26,7 +26,24 @@ const (
 	sequenceToken     = "sequenceToken"
 	nextSequenceToken = "nextSequenceToken"
 	logline           = "this is a log line\r"
+	multilineLogline  = "2017-01-01 01:01:44 This is a multiline log entry\r"
 )
+
+// Generates i multi-line events each with j lines
+func (l *logStream) logGenerator(lineCount int, multilineCount int) {
+	for i := 0; i < multilineCount; i++ {
+		l.Log(&logger.Message{
+			Line:      []byte(multilineLogline),
+			Timestamp: time.Time{},
+		})
+		for j := 0; j < lineCount; j++ {
+			l.Log(&logger.Message{
+				Line:      []byte(logline),
+				Timestamp: time.Time{},
+			})
+		}
+	}
+}
 
 func TestNewAWSLogsClientUserAgentHandler(t *testing.T) {
 	info := logger.Info{
@@ -536,6 +553,65 @@ func TestCollectBatchMultilinePattern(t *testing.T) {
 	}
 	if *argument.LogEvents[0].Message != "xxxx "+logline {
 		t.Errorf("Expected message to be %s but was %s", "xxxx "+logline, *argument.LogEvents[0].Message)
+	}
+}
+
+func BenchmarkCollectBatch(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		mockClient := newMockClient()
+		stream := &logStream{
+			client:        mockClient,
+			logGroupName:  groupName,
+			logStreamName: streamName,
+			sequenceToken: aws.String(sequenceToken),
+			messages:      make(chan *logger.Message),
+		}
+		mockClient.putLogEventsResult <- &putLogEventsResult{
+			successResult: &cloudwatchlogs.PutLogEventsOutput{
+				NextSequenceToken: aws.String(nextSequenceToken),
+			},
+		}
+		ticks := make(chan time.Time)
+		newTicker = func(_ time.Duration) *time.Ticker {
+			return &time.Ticker{
+				C: ticks,
+			}
+		}
+
+		go stream.collectBatch()	
+		stream.logGenerator(10, 100)
+		ticks <- time.Time{}
+		stream.Close()
+	}
+}
+
+func BenchmarkCollectBatchMultilinePattern(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		mockClient := newMockClient()
+		multilinePattern := regexp.MustCompile(`\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[1,2][0-9]|3[0,1]) (?:[0,1][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]`)
+		stream := &logStream{
+			client:           mockClient,
+			logGroupName:     groupName,
+			logStreamName:    streamName,
+			multilinePattern: multilinePattern,
+			sequenceToken:    aws.String(sequenceToken),
+			messages:         make(chan *logger.Message),
+		}
+		mockClient.putLogEventsResult <- &putLogEventsResult{
+			successResult: &cloudwatchlogs.PutLogEventsOutput{
+				NextSequenceToken: aws.String(nextSequenceToken),
+			},
+		}
+		ticks := make(chan time.Time)
+		newTicker = func(_ time.Duration) *time.Ticker {
+			return &time.Ticker{
+				C: ticks,
+			}
+		}
+		go stream.collectBatch()
+		stream.logGenerator(10, 100)
+		ticks <- time.Time{}
+		stream.Close()
 	}
 }
 
