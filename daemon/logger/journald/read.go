@@ -246,6 +246,8 @@ func (s *journald) followJournal(logWatcher *logger.LogWatcher, config logger.Re
 	s.readers.readers[logWatcher] = logWatcher
 	s.readers.mu.Unlock()
 
+	newCursor := make(chan *C.char)
+
 	go func() {
 		for {
 			// Keep copying journal data out until we're notified to stop
@@ -274,6 +276,7 @@ func (s *journald) followJournal(logWatcher *logger.LogWatcher, config logger.Re
 		s.readers.mu.Unlock()
 		C.sd_journal_close(j)
 		close(logWatcher.Msg)
+		newCursor <- cursor
 	}()
 
 	// Wait until we're told to stop.
@@ -282,6 +285,8 @@ func (s *journald) followJournal(logWatcher *logger.LogWatcher, config logger.Re
 		// Notify the other goroutine that its work is done.
 		C.close(pfd[1])
 	}
+
+	cursor = <-newCursor
 
 	return cursor
 }
