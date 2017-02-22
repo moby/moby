@@ -90,6 +90,9 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 		daemon.setStateCounter(c)
 
 		defer c.Unlock()
+		if err := daemon.containersReplica.Save(c.Snapshot()); err != nil {
+			return err
+		}
 		if err := c.ToDisk(); err != nil {
 			return err
 		}
@@ -119,6 +122,10 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 		c.HasBeenStartedBefore = true
 		daemon.setStateCounter(c)
 
+		if err := daemon.containersReplica.Save(c.Snapshot()); err != nil {
+			c.Reset(false)
+			return err
+		}
 		if err := c.ToDisk(); err != nil {
 			c.Reset(false)
 			return err
@@ -130,6 +137,9 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 		// Container is already locked in this case
 		c.Paused = true
 		daemon.setStateCounter(c)
+		if err := daemon.containersReplica.Save(c.Snapshot()); err != nil {
+			return err
+		}
 		if err := c.ToDisk(); err != nil {
 			return err
 		}
@@ -139,6 +149,9 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 		// Container is already locked in this case
 		c.Paused = false
 		daemon.setStateCounter(c)
+		if err := daemon.containersReplica.Save(c.Snapshot()); err != nil {
+			return err
+		}
 		if err := c.ToDisk(); err != nil {
 			return err
 		}

@@ -167,6 +167,13 @@ func handleProbeResult(d *Daemon, c *container.Container, result *types.Healthch
 		// Else we're starting or healthy. Stay in that state.
 	}
 
+	// replicate Health status changes
+	if err := d.containersReplica.Save(c.Snapshot()); err != nil {
+		// queries will be inconsistent until the next probe runs or other state mutations
+		// trigger a replication
+		logrus.Errorf("Error replicating health state for container %s: %v", c.ID, err)
+	}
+
 	if oldStatus != h.Status {
 		d.LogContainerEvent(c, "health_status: "+h.Status)
 	}

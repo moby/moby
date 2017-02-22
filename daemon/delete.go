@@ -103,14 +103,20 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 	}
 
 	// Mark container dead. We don't want anybody to be restarting it.
-	container.SetDead()
+	container.Lock()
+	container.Dead = true
+	if err = daemon.containersReplica.Save(container.Snapshot()); err != nil {
+		container.Unlock()
+		return err
+	}
 
 	// Save container state to disk. So that if error happens before
 	// container meta file got removed from disk, then a restart of
 	// docker should not make a dead container alive.
-	if err := container.ToDiskLocking(); err != nil && !os.IsNotExist(err) {
+	if err := container.ToDisk(); err != nil && !os.IsNotExist(err) {
 		logrus.Errorf("Error saving dying container to disk: %v", err)
 	}
+	container.Unlock()
 
 	// When container creation fails and `RWLayer` has not been created yet, we
 	// do not call `ReleaseRWLayer`
@@ -131,6 +137,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 	selinuxFreeLxcContexts(container.ProcessLabel)
 	daemon.idIndex.Delete(container.ID)
 	daemon.containers.Delete(container.ID)
+	daemon.containersReplica.Delete(container.ID)
 	if e := daemon.removeMountPoints(container, removeVolume); e != nil {
 		logrus.Error(e)
 	}

@@ -99,7 +99,7 @@ func (daemon *Daemon) load(id string) (*container.Container, error) {
 }
 
 // Register makes a container object usable by the daemon as <container.ID>
-func (daemon *Daemon) Register(c *container.Container) {
+func (daemon *Daemon) Register(c *container.Container) error {
 	// Attach to stdout and stderr
 	if c.Config.OpenStdin {
 		c.StreamConfig.NewInputPipes()
@@ -107,8 +107,14 @@ func (daemon *Daemon) Register(c *container.Container) {
 		c.StreamConfig.NewNopInputPipe()
 	}
 
+	// once in the memory store it is visible to other goroutines
+	// grab a Lock until it has been replicated to avoid races
+	c.Lock()
+	defer c.Unlock()
+
 	daemon.containers.Add(c.ID, c)
 	daemon.idIndex.Add(c.ID)
+	return daemon.containersReplica.Save(c.Snapshot())
 }
 
 func (daemon *Daemon) newContainer(name string, platform string, config *containertypes.Config, hostConfig *containertypes.HostConfig, imgID image.ID, managed bool) (*container.Container, error) {
@@ -212,6 +218,9 @@ func (daemon *Daemon) setHostConfig(container *container.Container, hostConfig *
 
 	runconfig.SetDefaultNetModeIfBlank(hostConfig)
 	container.HostConfig = hostConfig
+	if err := daemon.containersReplica.Save(container.Snapshot()); err != nil {
+		return err
+	}
 	return container.ToDisk()
 }
 

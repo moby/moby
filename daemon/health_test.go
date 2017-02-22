@@ -29,7 +29,13 @@ func TestNoneHealthcheck(t *testing.T) {
 		},
 		State: &container.State{},
 	}
-	daemon := &Daemon{}
+	store, err := container.NewMemDB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	daemon := &Daemon{
+		containersReplica: store,
+	}
 
 	daemon.initHealthMonitor(c)
 	if c.State.Health != nil {
@@ -62,8 +68,15 @@ func TestHealthStates(t *testing.T) {
 			Image: "image_name",
 		},
 	}
+
+	store, err := container.NewMemDB()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	daemon := &Daemon{
-		EventsService: e,
+		EventsService:     e,
+		containersReplica: store,
 	}
 
 	c.Config.Healthcheck = &containertypes.HealthConfig{

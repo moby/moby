@@ -262,11 +262,8 @@ func (container *Container) ConfigMounts() []Mount {
 	return mounts
 }
 
-// UpdateContainer updates configuration of a container.
+// UpdateContainer updates configuration of a container. Callers must hold a Lock on the Container.
 func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfig) error {
-	container.Lock()
-	defer container.Unlock()
-
 	// update resources of container
 	resources := hostConfig.Resources
 	cResources := &container.HostConfig.Resources

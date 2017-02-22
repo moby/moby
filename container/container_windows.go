@@ -126,11 +126,8 @@ func (container *Container) TmpfsMounts() ([]Mount, error) {
 	return mounts, nil
 }
 
-// UpdateContainer updates configuration of a container
+// UpdateContainer updates configuration of a container. Callers must hold a Lock on the Container.
 func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfig) error {
-	container.Lock()
-	defer container.Unlock()
-
 	resources := hostConfig.Resources
 	if resources.CPUShares != 0 ||
 		resources.Memory != 0 ||
