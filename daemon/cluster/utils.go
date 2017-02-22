@@ -38,12 +38,19 @@ func savePersistentState(root string, config nodeStartConfig) error {
 
 func clearPersistentState(root string) error {
 	// todo: backup this data instead of removing?
-	if err := os.RemoveAll(root); err != nil {
+	// rather than delete the entire swarm directory, delete the contents in order to preserve the inode
+	// (for example, allowing it to be bind-mounted)
+	files, err := ioutil.ReadDir(root)
+	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(root, 0700); err != nil {
-		return err
+
+	for _, f := range files {
+		if err := os.RemoveAll(filepath.Join(root, f.Name())); err != nil {
+			return err
+		}
 	}
+
 	return nil
 }
 
