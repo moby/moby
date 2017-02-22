@@ -142,7 +142,7 @@ func Relabel(path string, fileLabel string, shared bool) error {
 		fileLabel = c.Get()
 	}
 	if err := selinux.Chcon(path, fileLabel, true); err != nil {
-		return fmt.Errorf("SELinux relabeling of %s is not allowed: %q", path, err)
+		return err
 	}
 	return nil
 }
