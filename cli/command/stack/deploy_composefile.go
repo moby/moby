@@ -52,8 +52,15 @@ func deployCompose(ctx context.Context, dockerCli *command.DockerCli, opts deplo
 
 	namespace := convert.NewNamespace(opts.namespace)
 
-	serviceNetworks := getServicesDeclaredNetworks(config.Services)
+	if opts.prune {
+		services := map[string]struct{}{}
+		for _, service := range config.Services {
+			services[service.Name] = struct{}{}
+		}
+		pruneServices(ctx, dockerCli, namespace, services)
+	}
 
+	serviceNetworks := getServicesDeclaredNetworks(config.Services)
 	networks, externalNetworks := convert.Networks(namespace, config.Networks, serviceNetworks)
 	if err := validateExternalNetworks(ctx, dockerCli, externalNetworks); err != nil {
 		return err

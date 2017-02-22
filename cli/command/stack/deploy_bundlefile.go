@@ -21,6 +21,14 @@ func deployBundle(ctx context.Context, dockerCli *command.DockerCli, opts deploy
 
 	namespace := convert.NewNamespace(opts.namespace)
 
+	if opts.prune {
+		services := map[string]struct{}{}
+		for service := range bundle.Services {
+			services[service] = struct{}{}
+		}
+		pruneServices(ctx, dockerCli, namespace, services)
+	}
+
 	networks := make(map[string]types.NetworkCreate)
 	for _, service := range bundle.Services {
 		for _, networkName := range service.Networks {

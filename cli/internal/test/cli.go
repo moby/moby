@@ -35,7 +35,7 @@ func (c *FakeCli) SetIn(in io.ReadCloser) {
 	c.in = in
 }
 
-// SetErr sets the standard error stream th cli should write on
+// SetErr sets the stderr stream for the cli to the specified io.Writer
 func (c *FakeCli) SetErr(err io.Writer) {
 	c.err = err
 }

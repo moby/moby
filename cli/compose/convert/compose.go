@@ -2,6 +2,7 @@ package convert
 
 import (
 	"io/ioutil"
+	"strings"
 
 	"github.com/docker/docker/api/types"
 	networktypes "github.com/docker/docker/api/types/network"
@@ -22,6 +23,11 @@ type Namespace struct {
 // Scope prepends the namespace to a name
 func (n Namespace) Scope(name string) string {
 	return n.name + "_" + name
+}
+
+// Descope returns the name without the namespace prefix
+func (n Namespace) Descope(name string) string {
+	return strings.TrimPrefix(name, n.name+"_")
 }
 
 // Name returns the name of the namespace
