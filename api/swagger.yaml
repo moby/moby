@@ -1894,6 +1894,38 @@ definitions:
                 type: "array"
                 items:
                   type: "string"
+          Secrets:
+            description: "Secrets contains references to zero or more secrets that will be exposed to the service."
+            type: "array"
+            items:
+              type: "object"
+              properties:
+                File:
+                  description: "File represents a specific target that is backed by a file."
+                  type: "object"
+                  properties:
+                    Name:
+                      description: "Name represents the final filename in the filesystem."
+                      type: "string"
+                    UID:
+                      description: "UID represents the file UID."
+                      type: "string"
+                    GID:
+                      description: "GID represents the file GID."
+                      type: "string"
+                    Mode:
+                      description: "Mode represents the FileMode of the file."
+                      type: "integer"
+                      format: "uint32"
+                SecretID:
+                  description: "SecretID represents the ID of the specific secret that we're referencing."
+                  type: "string"
+                SecretName:
+                  description: |
+                    SecretName is the name of the secret that this references, but this is just provided for
+                    lookup/display purposes. The secret in the reference will be identified by its ID.
+                  type: "string"
+
       Resources:
         description: "Resource requirements which apply to each individual container created as part of the service."
         type: "object"
