@@ -578,7 +578,7 @@ func BenchmarkCollectBatch(b *testing.B) {
 			}
 		}
 
-		go stream.collectBatch()	
+		go stream.collectBatch()
 		stream.logGenerator(10, 100)
 		ticks <- time.Time{}
 		stream.Close()
