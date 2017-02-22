@@ -17,10 +17,10 @@ title: Managed plugin system
 
 * [Installing and using a plugin](index.md#installing-and-using-a-plugin)
 * [Developing a plugin](index.md#developing-a-plugin)
+* [Debugging plugins](index.md#debugging-plugins)
 
 Docker Engine's plugins system allows you to install, start, stop, and remove
-plugins using Docker Engine. This mechanism is currently only available for
-volume drivers, but more plugin driver types will be available in future releases.
+plugins using Docker Engine.
 
 For information about the legacy plugin system available in Docker Engine 1.12
 and earlier, see [Understand legacy Docker Engine plugins](legacy_plugins.md).
@@ -45,6 +45,8 @@ operation, such as creating a volume.
 
 In the following example, you install the `sshfs` plugin, verify that it is
 enabled, and use it to create a volume.
+
+> **Note**: This example is intended for instructional purposes only. Once the volume is created, your SSH password to the remote host will be exposed as plaintext when inspecting the volume. You should delete the volume as soon as you are done with the example.
 
 1.  Install the `sshfs` plugin.
 
@@ -75,13 +77,16 @@ enabled, and use it to create a volume.
 
 3.  Create a volume using the plugin.
     This example mounts the `/remote` directory on host `1.2.3.4` into a
-    volume named `sshvolume`. This volume can now be mounted into containers.
+    volume named `sshvolume`.   
+
+    This volume can now be mounted into containers.
 
     ```bash
     $ docker volume create \
       -d vieux/sshfs \
       --name sshvolume \
-      -o sshcmd=user@1.2.3.4:/remote
+      -o sshcmd=user@1.2.3.4:/remote \
+      -o password=$(cat file_containing_password_for_remote_host)
 
     sshvolume
     ```
@@ -97,11 +102,17 @@ enabled, and use it to create a volume.
 5.  Start a container that uses the volume `sshvolume`.
 
     ```bash
-    $ docker run -v sshvolume:/data busybox ls /data
+    $ docker run --rm -v sshvolume:/data busybox ls /data
 
     <content of /remote on machine 1.2.3.4>
     ```
 
+6.  Remove the volume `sshvolume`
+    ```bash
+    docker volume rm sshvolume
+
+    sshvolume
+    ```
 To disable a plugin, use the `docker plugin disable` command. To completely
 remove it, use the `docker plugin remove` command. For other available
 commands and options, see the
@@ -111,10 +122,10 @@ commands and options, see the
 
 In swarm mode, it is possible to create a service that allows for attaching
 to networks or mounting volumes. Swarm schedules services based on plugin availability
-on a node. In this example, a volume plugin is installed on a swarm worker and a volume 
+on a node. In this example, a volume plugin is installed on a swarm worker and a volume
 is created using the plugin. In the manager, a service is created with the relevant
 mount options. It can be observed that the service is scheduled to run on the worker
-node with the said volume plugin and volume. 
+node with the said volume plugin and volume.
 
 In the following example, node1 is the manager and node2 is the worker.
 
@@ -141,7 +152,7 @@ In the following example, node1 is the manager and node2 is the worker.
     Status: Downloaded newer image for tiborvass/sample-volume-plugin:latest
     Installed plugin tiborvass/sample-volume-plugin
     ```
-	
+
     ```bash
     $ docker volume create -d tiborvass/sample-volume-plugin --name pluginVol
     ```
@@ -152,15 +163,17 @@ In the following example, node1 is the manager and node2 is the worker.
     $ docker service create --name my-service --mount type=volume,volume-driver=tiborvass/sample-volume-plugin,source=pluginVol,destination=/tmp busybox top
 
     $ docker service ls
-    z1sj8bb8jnfn  my-service   replicated  1/1       busybox:latest 
+    z1sj8bb8jnfn  my-service   replicated  1/1       busybox:latest
     ```
     docker service ls shows service 1 instance of service running.
 
 4. Observe the task getting scheduled in node 2:
 
     ```bash
-    $ docker ps --format '{{.ID}}\t {{.Status}} {{.Names}} {{.Command}}' 
+    {% raw %}
+    $ docker ps --format '{{.ID}}\t {{.Status}} {{.Names}} {{.Command}}'
     83fc1e842599     Up 2 days my-service.1.9jn59qzn7nbc3m0zt1hij12xs "top"
+    {% endraw %}
     ```
 
 ## Developing a plugin
@@ -201,7 +214,9 @@ Consider the following `config.json` file.
 		   "types": ["docker.volumedriver/1.0"],
 		   "socket": "sshfs.sock"
 	},
-	"capabilities": ["CAP_SYS_ADMIN"]
+	"linux": {
+		"capabilities": ["CAP_SYS_ADMIN"]
+	}
 }
 ```
 
@@ -215,8 +230,89 @@ with Docker Engine. This plugin has no runtime parameters.
 A new plugin can be created by running
 `docker plugin create <plugin-name> ./path/to/plugin/data` where the plugin
 data contains a plugin configuration file `config.json` and a root filesystem
-in subdirectory `rootfs`. 
+in subdirectory `rootfs`.
 
 After that the plugin `<plugin-name>` will show up in `docker plugin ls`.
 Plugins can be pushed to remote registries with
 `docker plugin push <plugin-name>`.
+
+
+## Debugging plugins
+
+Stdout of a plugin is redirected to dockerd logs. Such entries have a
+`plugin=<ID>` suffix. Here are a few examples of commands for pluginID
+`f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62` and their
+corresponding log entries in the docker daemon logs.
+
+```bash
+$ docker plugin install tiborvass/sample-volume-plugins
+
+INFO[0036] Starting...       Found 0 volumes on startup  plugin=f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62
+```
+
+```bash
+$ docker volume create -d tiborvass/sample-volume-plugins samplevol
+
+INFO[0193] Create Called...  Ensuring directory /data/samplevol exists on host...  plugin=f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62
+INFO[0193] open /var/lib/docker/plugin-data/local-persist.json: no such file or directory  plugin=f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62
+INFO[0193]                   Created volume samplevol with mountpoint /data/samplevol  plugin=f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62
+INFO[0193] Path Called...    Returned path /data/samplevol  plugin=f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62
+```
+
+```bash
+$ docker run -v samplevol:/tmp busybox sh
+
+INFO[0421] Get Called...     Found samplevol                plugin=f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62
+INFO[0421] Mount Called...   Mounted samplevol              plugin=f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62
+INFO[0421] Path Called...    Returned path /data/samplevol  plugin=f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62
+INFO[0421] Unmount Called... Unmounted samplevol            plugin=f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62
+```
+
+#### Using docker-runc to obtain logfiles and shell into the plugin.
+
+`docker-runc`, the default docker container runtime can be used for debugging
+plugins. This is specifically useful to collect plugin logs if they are
+redirected to a file.
+
+```bash
+$ docker-runc list
+ID                                                                 PID         STATUS      BUNDLE                                                                                       CREATED
+f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62   2679        running     /run/docker/libcontainerd/f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62	2017-02-06T21:53:03.031537592Z
+r
+```
+
+```bash
+$ docker-runc exec f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62 cat /var/log/plugin.log
+```
+
+If the plugin has a built-in shell, then exec into the plugin can be done as
+follows:
+```bash
+$ docker-runc exec -t f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62 sh
+```
+
+#### Using curl to debug plugin socket issues.
+
+To verify if the plugin API socket that the docker daemon communicates with
+is responsive, use curl. In this example, we will make API calls from the
+docker host to volume and network plugins using curl 7.47.0 to ensure that
+the plugin is listening on the said socket. For a well functioning plugin,
+these basic requests should work. Note that plugin sockets are available on the host under `/var/run/docker/plugins/<pluginID>`
+
+
+```bash
+curl -H "Content-Type: application/json" -XPOST -d '{}' --unix-socket /var/run/docker/plugins/e8a37ba56fc879c991f7d7921901723c64df6b42b87e6a0b055771ecf8477a6d/plugin.sock http:/VolumeDriver.List
+
+{"Mountpoint":"","Err":"","Volumes":[{"Name":"myvol1","Mountpoint":"/data/myvol1"},{"Name":"myvol2","Mountpoint":"/data/myvol2"}],"Volume":null}
+```
+
+```bash
+curl -H "Content-Type: application/json" -XPOST -d '{}' --unix-socket /var/run/docker/plugins/45e00a7ce6185d6e365904c8bcf62eb724b1fe307e0d4e7ecc9f6c1eb7bcdb70/plugin.sock http:/NetworkDriver.GetCapabilities
+
+{"Scope":"local"}
+```
+When using curl 7.5 and above, the URL should be of the form
+`http://hostname/APICall`, where `hostname` is the valid hostname where the
+plugin is installed and `APICall` is the call to the plugin API.
+
+For example, `http://localhost/VolumeDriver.List`

@@ -24,14 +24,18 @@ Options:
       --help   Print usage
 ```
 
-Promotes a node to manager. This command targets a docker engine that is a manager in the swarm.
+## Description
 
+Promotes a node to manager. This command targets a docker engine that is a
+manager in the swarm.
+
+## Examples
 
 ```bash
 $ docker node promote <node name>
 ```
 
-## Related information
+## Related commands
 
 * [node demote](node_demote.md)
 * [node inspect](node_inspect.md)

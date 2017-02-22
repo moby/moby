@@ -23,7 +23,7 @@ see [Feature Deprecation Policy](https://docs.docker.com/engine/#feature-depreca
 
 ### Top-level network properties in NetworkSettings
 
-**Deprecated In Release: v1.13.0**
+**Deprecated In Release: [v1.13.0](https://github.com/docker/docker/releases/tag/v1.13.0)**
 
 **Target For Removal In Release: v1.16**
 
@@ -183,7 +183,11 @@ Log tags are now generated in a standard way across different logging drivers.
 Because of which, the driver specific log tag options `syslog-tag`, `gelf-tag` and
 `fluentd-tag` have been deprecated in favor of the generic `tag` option.
 
-    docker --log-driver=syslog --log-opt tag="{{.ImageName}}/{{.Name}}/{{.ID}}"
+```bash
+{% raw %}
+docker --log-driver=syslog --log-opt tag="{{.ImageName}}/{{.Name}}/{{.ID}}"
+{% endraw %}
+```
 
 ### LXC built-in exec driver
 **Deprecated In Release: [v1.8.0](https://github.com/docker/docker/releases/tag/v1.8.0)**
