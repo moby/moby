@@ -22,7 +22,7 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, c *backend.ContainerA
 	if c.DetachKeys != "" {
 		keys, err = term.ToBytes(c.DetachKeys)
 		if err != nil {
-			return fmt.Errorf("Invalid escape keys (%s) provided", c.DetachKeys)
+			return fmt.Errorf("Invalid detach keys (%s) provided", c.DetachKeys)
 		}
 	}
 

@@ -229,7 +229,7 @@ func (s *DockerSuite) TestRunAttachDetachFromInvalidFlag(c *check.C) {
 		c.Fatal(err)
 	}
 	// it should print a warning to indicate the detach key flag is invalid
-	errStr := "Invalid escape keys (ctrl-A,a) provided"
+	errStr := "Invalid detach keys (ctrl-A,a) provided"
 	c.Assert(strings.TrimSpace(out), checker.Equals, errStr)
 }
 
