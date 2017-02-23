@@ -215,7 +215,7 @@ func isValidParent(img, parent *image.Image) bool {
 	if len(parent.History) >= len(img.History) {
 		return false
 	}
-	if len(parent.RootFS.DiffIDs) >= len(img.RootFS.DiffIDs) {
+	if len(parent.RootFS.DiffIDs) > len(img.RootFS.DiffIDs) {
 		return false
 	}
 
