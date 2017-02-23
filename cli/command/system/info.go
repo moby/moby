@@ -6,8 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/net/context"
-
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli"
@@ -17,6 +15,7 @@ import (
 	"github.com/docker/docker/pkg/templates"
 	"github.com/docker/go-units"
 	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 type infoOptions struct {
@@ -66,11 +65,6 @@ func prettyPrintInfo(dockerCli *command.DockerCli, info types.Info) error {
 	if info.DriverStatus != nil {
 		for _, pair := range info.DriverStatus {
 			fmt.Fprintf(dockerCli.Out(), " %s: %s\n", pair[0], pair[1])
-
-			// print a warning if devicemapper is using a loopback file
-			if pair[0] == "Data loop file" {
-				fmt.Fprintln(dockerCli.Err(), " WARNING: Usage of loopback devices is strongly discouraged for production use. Use `--storage-opt dm.thinpooldev` to specify a custom block storage device.")
-			}
 		}
 
 	}
@@ -228,43 +222,6 @@ func prettyPrintInfo(dockerCli *command.DockerCli, info types.Info) error {
 		fmt.Fprintf(dockerCli.Out(), "Registry: %v\n", info.IndexServerAddress)
 	}
 
-	// Only output these warnings if the server does not support these features
-	if info.OSType != "windows" {
-		if !info.MemoryLimit {
-			fmt.Fprintln(dockerCli.Err(), "WARNING: No memory limit support")
-		}
-		if !info.SwapLimit {
-			fmt.Fprintln(dockerCli.Err(), "WARNING: No swap limit support")
-		}
-		if !info.KernelMemory {
-			fmt.Fprintln(dockerCli.Err(), "WARNING: No kernel memory limit support")
-		}
-		if !info.OomKillDisable {
-			fmt.Fprintln(dockerCli.Err(), "WARNING: No oom kill disable support")
-		}
-		if !info.CPUCfsQuota {
-			fmt.Fprintln(dockerCli.Err(), "WARNING: No cpu cfs quota support")
-		}
-		if !info.CPUCfsPeriod {
-			fmt.Fprintln(dockerCli.Err(), "WARNING: No cpu cfs period support")
-		}
-		if !info.CPUShares {
-			fmt.Fprintln(dockerCli.Err(), "WARNING: No cpu shares support")
-		}
-		if !info.CPUSet {
-			fmt.Fprintln(dockerCli.Err(), "WARNING: No cpuset support")
-		}
-		if !info.IPv4Forwarding {
-			fmt.Fprintln(dockerCli.Err(), "WARNING: IPv4 forwarding is disabled")
-		}
-		if !info.BridgeNfIptables {
-			fmt.Fprintln(dockerCli.Err(), "WARNING: bridge-nf-call-iptables is disabled")
-		}
-		if !info.BridgeNfIP6tables {
-			fmt.Fprintln(dockerCli.Err(), "WARNING: bridge-nf-call-ip6tables is disabled")
-		}
-	}
-
 	if info.Labels != nil {
 		fmt.Fprintln(dockerCli.Out(), "Labels:")
 		for _, attribute := range info.Labels {
@@ -317,9 +274,83 @@ func prettyPrintInfo(dockerCli *command.DockerCli, info types.Info) error {
 		}
 	}
 
-	fmt.Fprintf(dockerCli.Out(), "Live Restore Enabled: %v\n", info.LiveRestoreEnabled)
+	fmt.Fprintf(dockerCli.Out(), "Live Restore Enabled: %v\n\n", info.LiveRestoreEnabled)
+
+	// Only output these warnings if the server does not support these features
+	if info.OSType != "windows" {
+		printStorageDriverWarnings(dockerCli, info)
+
+		if !info.MemoryLimit {
+			fmt.Fprintln(dockerCli.Err(), "WARNING: No memory limit support")
+		}
+		if !info.SwapLimit {
+			fmt.Fprintln(dockerCli.Err(), "WARNING: No swap limit support")
+		}
+		if !info.KernelMemory {
+			fmt.Fprintln(dockerCli.Err(), "WARNING: No kernel memory limit support")
+		}
+		if !info.OomKillDisable {
+			fmt.Fprintln(dockerCli.Err(), "WARNING: No oom kill disable support")
+		}
+		if !info.CPUCfsQuota {
+			fmt.Fprintln(dockerCli.Err(), "WARNING: No cpu cfs quota support")
+		}
+		if !info.CPUCfsPeriod {
+			fmt.Fprintln(dockerCli.Err(), "WARNING: No cpu cfs period support")
+		}
+		if !info.CPUShares {
+			fmt.Fprintln(dockerCli.Err(), "WARNING: No cpu shares support")
+		}
+		if !info.CPUSet {
+			fmt.Fprintln(dockerCli.Err(), "WARNING: No cpuset support")
+		}
+		if !info.IPv4Forwarding {
+			fmt.Fprintln(dockerCli.Err(), "WARNING: IPv4 forwarding is disabled")
+		}
+		if !info.BridgeNfIptables {
+			fmt.Fprintln(dockerCli.Err(), "WARNING: bridge-nf-call-iptables is disabled")
+		}
+		if !info.BridgeNfIP6tables {
+			fmt.Fprintln(dockerCli.Err(), "WARNING: bridge-nf-call-ip6tables is disabled")
+		}
+	}
 
 	return nil
+}
+
+func printStorageDriverWarnings(dockerCli *command.DockerCli, info types.Info) {
+	if info.DriverStatus == nil {
+		return
+	}
+
+	for _, pair := range info.DriverStatus {
+		if pair[0] == "Data loop file" {
+			fmt.Fprintf(dockerCli.Err(), "WARNING: %s: usage of loopback devices is strongly discouraged for production use.\n         Use `--storage-opt dm.thinpooldev` to specify a custom block storage device.\n", info.Driver)
+		}
+		if pair[0] == "Supports d_type" && pair[1] == "false" {
+			backingFs := getBackingFs(info)
+
+			msg := fmt.Sprintf("WARNING: %s: the backing %s filesystem is formatted without d_type support, which leads to incorrect behavior.\n", info.Driver, backingFs)
+			if backingFs == "xfs" {
+				msg += "         Reformat the filesystem with ftype=1 to enable d_type support.\n"
+			}
+			msg += "         Running without d_type support will not be supported in future releases."
+			fmt.Fprintln(dockerCli.Err(), msg)
+		}
+	}
+}
+
+func getBackingFs(info types.Info) string {
+	if info.DriverStatus == nil {
+		return ""
+	}
+
+	for _, pair := range info.DriverStatus {
+		if pair[0] == "Backing Filesystem" {
+			return pair[1]
+		}
+	}
+	return ""
 }
 
 func formatInfo(dockerCli *command.DockerCli, info types.Info, format string) error {
