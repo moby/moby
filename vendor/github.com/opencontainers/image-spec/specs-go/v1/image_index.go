@@ -50,13 +50,14 @@ type ManifestDescriptor struct {
 	Platform Platform `json:"platform"`
 }
 
-// ManifestList  references manifests for various platforms.
-type ManifestList struct {
+// ImageIndex references manifests for various platforms.
+// This structure provides `application/vnd.oci.image.index.v1+json` mediatype when marshalled to JSON.
+type ImageIndex struct {
 	specs.Versioned
 
 	// Manifests references platform specific manifests.
 	Manifests []ManifestDescriptor `json:"manifests"`
 
-	// Annotations contains arbitrary metadata for the manifest list.
+	// Annotations contains arbitrary metadata for the image index.
 	Annotations map[string]string `json:"annotations,omitempty"`
 }

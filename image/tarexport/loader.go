@@ -8,8 +8,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/pkg/progress"
-	"github.com/docker/docker/reference"
 	digest "github.com/opencontainers/go-digest"
 	ociv1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -59,27 +59,22 @@ func (ol *ociLoader) Load() error {
 	// FIXME(runcom): validate and check version of "oci-layout" file
 
 	manifests := []manifestItem{}
-	refsPath := filepath.Join(ol.tmpDir, "refs")
-	if err := filepath.Walk(refsPath, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
+	indexJSON, err := os.Open(filepath.Join(ol.tmpDir, "index.json"))
+	if err != nil {
+		return err
+	}
+	defer indexJSON.Close()
+	index := ociv1.ImageIndex{}
+	if err := json.NewDecoder(indexJSON).Decode(&index); err != nil {
+		return err
+	}
+	for _, md := range index.Manifests {
+		if md.MediaType != ociv1.MediaTypeImageManifest {
+			continue
 		}
-		if info.IsDir() {
-			return nil
-		}
-		f, err := os.Open(path)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-		descriptor := ociv1.Descriptor{}
-		if err := json.NewDecoder(f).Decode(&descriptor); err != nil {
-			return err
-		}
-		// TODO(runcom): validate mediatype and size
-		d := digest.Digest(descriptor.Digest)
+		d := digest.Digest(md.Digest)
 		manifestPath := filepath.Join(ol.tmpDir, "blobs", d.Algorithm().String(), d.Hex())
-		f, err = os.Open(manifestPath)
+		f, err := os.Open(manifestPath)
 		if err != nil {
 			return err
 		}
@@ -94,26 +89,30 @@ func (ol *ociLoader) Load() error {
 			layers[i] = filepath.Join("blobs", layerDigest.Algorithm().String(), layerDigest.Hex())
 		}
 		tag := ""
+		refName, ok := md.Annotations["org.opencontainers.ref.name"]
+		if !ok {
+			return fmt.Errorf("no ref name annotation")
+		}
 		if ol.tr.name != "" {
-			named, err := reference.ParseNamed(ol.tr.name)
+			named, err := reference.ParseNormalizedNamed(ol.tr.name)
 			if err != nil {
 				return err
 			}
-			withTag, err := reference.WithTag(named, info.Name())
+			withTag, err := reference.WithTag(named, refName)
 			if err != nil {
 				return err
 			}
-			tag = withTag.String()
+			tag = reference.FamiliarString(withTag)
 		} else {
 			_, rs, err := ol.tr.getRefs()
 			if err != nil {
 				return err
 			}
-			r, ok := rs[info.Name()]
+			r, ok := rs[refName]
 			if !ok {
-				return fmt.Errorf("no naming provided for %q", info.Name())
+				return fmt.Errorf("no naming provided for %q", refName)
 			}
-			tag = r.String()
+			tag = reference.FamiliarString(r)
 		}
 		configDigest := digest.Digest(man.Config.Digest)
 		manifests = append(manifests, manifestItem{
@@ -123,9 +122,6 @@ func (ol *ociLoader) Load() error {
 			// TODO(runcom): foreign srcs?
 			// See https://github.com/docker/docker/pull/22866/files#r96125181
 		})
-		return nil
-	}); err != nil {
-		return err
 	}
 
 	return ol.tr.loadHelper(manifests, ol.outStream, ol.progressOutput, ol.tmpDir)

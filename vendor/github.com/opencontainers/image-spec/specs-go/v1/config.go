@@ -14,19 +14,12 @@
 
 package v1
 
+import "time"
+
 // ImageConfig defines the execution parameters which should be used as a base when running a container using an image.
 type ImageConfig struct {
 	// User defines the username or UID which the process in the container should run as.
 	User string `json:"User,omitempty"`
-
-	// Memory defines the memory limit.
-	Memory int64 `json:"Memory,omitempty"`
-
-	// MemorySwap defines the total memory usage limit (memory + swap).
-	MemorySwap int64 `json:"MemorySwap,omitempty"`
-
-	// CPUShares is the CPU shares (relative weight vs. other containers).
-	CPUShares int64 `json:"CpuShares,omitempty"`
 
 	// ExposedPorts a set of ports to expose from a container running this image.
 	ExposedPorts map[string]struct{} `json:"ExposedPorts,omitempty"`
@@ -45,6 +38,9 @@ type ImageConfig struct {
 
 	// WorkingDir sets the current working directory of the entrypoint process in the container.
 	WorkingDir string `json:"WorkingDir,omitempty"`
+
+	// Labels contains arbitrary metadata for the container.
+	Labels map[string]string `json:"labels,omitempty"`
 }
 
 // RootFS describes a layer content addresses
@@ -58,8 +54,8 @@ type RootFS struct {
 
 // History describes the history of a layer.
 type History struct {
-	// Created is the creation time.
-	Created string `json:"created,omitempty"`
+	// Created is the combined date and time at which the layer was created, formatted as defined by RFC 3339, section 5.6.
+	Created time.Time `json:"created,omitempty"`
 
 	// CreatedBy is the command which created the layer.
 	CreatedBy string `json:"created_by,omitempty"`
@@ -75,9 +71,10 @@ type History struct {
 }
 
 // Image is the JSON structure which describes some basic information about the image.
+// This provides the `application/vnd.oci.image.config.v1+json` mediatype when marshalled to JSON.
 type Image struct {
-	// Created defines an ISO-8601 formatted combined date and time at which the image was created.
-	Created string `json:"created,omitempty"`
+	// Created is the combined date and time at which the image was created, formatted as defined by RFC 3339, section 5.6.
+	Created time.Time `json:"created,omitempty"`
 
 	// Author defines the name and/or email address of the person or entity which created and is responsible for maintaining the image.
 	Author string `json:"author,omitempty"`

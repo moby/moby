@@ -42,7 +42,7 @@ func (l *tarexporter) Save(names []string, outStream io.Writer) error {
 		}
 
 		return (&saveSession{tarexporter: l, images: images}).save(outStream)
-	case "oci":
+	case "oci.v1":
 		if !l.experimental {
 			return fmt.Errorf("saving to OCI format is experimental, please run daemon with --experimental")
 		}

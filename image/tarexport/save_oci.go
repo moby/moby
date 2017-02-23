@@ -2,22 +2,23 @@ package tarexport
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/system"
-	"github.com/docker/docker/reference"
 	"github.com/opencontainers/go-digest"
 	imgspec "github.com/opencontainers/image-spec/specs-go"
 	ociv1 "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
 )
 
 type layerInfo struct {
@@ -29,36 +30,31 @@ type ociSaveSession struct {
 	*tarexporter
 	images       map[image.ID]*imageDescriptor
 	name         string
-	savedImages  map[image.ID][]byte // cache image.ID -> manifest bytes
+	savedImages  map[image.ID]ociv1.Manifest // cache image.ID -> manifest bytes
 	diffIDsCache map[layer.DiffID]*layerInfo
 	outDir       string
+	index        ociv1.ImageIndex
 }
 
 func (l *tarexporter) getRefs() (map[string]string, map[string]reference.NamedTagged, error) {
 	refs := make(map[string]string)
 	reversed := make(map[string]reference.NamedTagged)
 	for image, ref := range l.refs {
-		r, err := reference.ParseNamed(image)
+		r, err := reference.ParseNormalizedNamed(image)
 		if err != nil {
 			return nil, nil, err
 		}
 		if _, ok := r.(reference.Canonical); ok {
 			continue // a digest reference it's unique, no need for a --ref
 		}
-		var (
-			tagged reference.NamedTagged
-			ok     bool
-		)
-		if tagged, ok = r.(reference.NamedTagged); !ok {
-			var err error
-			if tagged, err = reference.WithTag(r, reference.DefaultTag); err != nil {
-				return nil, nil, err
-			}
+		tagged, ok := reference.TagNameOnly(r).(reference.NamedTagged)
+		if !ok {
+			return nil, nil, fmt.Errorf("error adding default tag to ref %q", ref)
 		}
 		if !ociRefRegexp.MatchString(ref) {
 			return nil, nil, fmt.Errorf(`invalid reference "%s=%s", reference must not include characters outside of the set of "A" to "Z", "a" to "z", "0" to "9", the hyphen "-", the dot ".", and the underscore "_"`, image, ref)
 		}
-		refs[tagged.String()] = ref
+		refs[reference.FamiliarString(tagged)] = ref
 		reversed[ref] = tagged
 	}
 	return refs, reversed, nil
@@ -80,19 +76,15 @@ func (l *tarexporter) parseOCINames(names []string) (map[image.ID]*imageDescript
 		}
 
 		if ref != nil {
-			var tagged reference.NamedTagged
 			if _, ok := ref.(reference.Canonical); ok {
 				return nil
 			}
-			var ok bool
-			if tagged, ok = ref.(reference.NamedTagged); !ok {
-				var err error
-				if tagged, err = reference.WithTag(ref, reference.DefaultTag); err != nil {
-					return nil
-				}
+			tagged, ok := reference.TagNameOnly(ref).(reference.NamedTagged)
+			if !ok {
+				return nil
 			}
 
-			r, ok := refs[tagged.String()]
+			r, ok := refs[reference.FamiliarString(tagged)]
 			if ok {
 				var err error
 				if tagged, err = reference.WithTag(tagged, r); err != nil {
@@ -101,7 +93,7 @@ func (l *tarexporter) parseOCINames(names []string) (map[image.ID]*imageDescript
 			}
 
 			for _, t := range imgDescr[id].refs {
-				if tagged.String() == t.String() {
+				if reference.FamiliarString(tagged) == reference.FamiliarString(t) {
 					return nil
 				}
 			}
@@ -121,21 +113,27 @@ func (l *tarexporter) parseOCINames(names []string) (map[image.ID]*imageDescript
 	// TODO(runcom): same as docker-save except the error return in addAssoc
 	// and the tags map above.
 	for _, name := range names {
-		id, ref, err := reference.ParseIDOrReference(name)
+		ref, err := reference.ParseAnyReference(name)
 		if err != nil {
 			return nil, err
 		}
-		if id != "" {
-			_, err := l.is.Get(image.ID(id))
-			if err != nil {
-				return nil, err
+		namedRef, ok := ref.(reference.Named)
+		if !ok {
+			// Check if digest ID reference
+			if digested, ok := ref.(reference.Digested); ok {
+				id := image.IDFromDigest(digested.Digest())
+				_, err := l.is.Get(id)
+				if err != nil {
+					return nil, err
+				}
+				if err := addAssoc(id, nil); err != nil {
+					return nil, err
+				}
+				continue
 			}
-			if err := addAssoc(image.ID(id), nil); err != nil {
-				return nil, err
-			}
-			continue
+			return nil, errors.Errorf("invalid reference: %v", name)
 		}
-		if ref.Name() == string(digest.Canonical) {
+		if reference.FamiliarName(namedRef) == string(digest.Canonical) {
 			imgID, err := l.is.Search(name)
 			if err != nil {
 				return nil, err
@@ -145,8 +143,8 @@ func (l *tarexporter) parseOCINames(names []string) (map[image.ID]*imageDescript
 			}
 			continue
 		}
-		if reference.IsNameOnly(ref) {
-			assocs := l.rs.ReferencesByName(ref)
+		if reference.IsNameOnly(namedRef) {
+			assocs := l.rs.ReferencesByName(namedRef)
 			for _, assoc := range assocs {
 				if err := addAssoc(image.IDFromDigest(assoc.ID), assoc.Ref); err != nil {
 					return nil, err
@@ -163,11 +161,11 @@ func (l *tarexporter) parseOCINames(names []string) (map[image.ID]*imageDescript
 			}
 			continue
 		}
-		id, err = l.rs.Get(ref)
+		id, err := l.rs.Get(namedRef)
 		if err != nil {
 			return nil, err
 		}
-		if err := addAssoc(image.IDFromDigest(id), ref); err != nil {
+		if err := addAssoc(image.IDFromDigest(id), namedRef); err != nil {
 			return nil, err
 		}
 	}
@@ -176,7 +174,12 @@ func (l *tarexporter) parseOCINames(names []string) (map[image.ID]*imageDescript
 
 func (s *ociSaveSession) save(outStream io.Writer) error {
 	s.diffIDsCache = make(map[layer.DiffID]*layerInfo)
-	s.savedImages = make(map[image.ID][]byte)
+	s.savedImages = make(map[image.ID]ociv1.Manifest)
+	s.index = ociv1.ImageIndex{
+		Versioned: imgspec.Versioned{
+			SchemaVersion: 2,
+		},
+	}
 	tempDir, err := ioutil.TempDir("", "oci-export-")
 	if err != nil {
 		return err
@@ -202,6 +205,14 @@ func (s *ociSaveSession) save(outStream io.Writer) error {
 				return err
 			}
 		}
+	}
+
+	indexJSON, err := json.Marshal(s.index)
+	if err != nil {
+		return err
+	}
+	if err := ioutil.WriteFile(filepath.Join(tempDir, "index.json"), indexJSON, 0644); err != nil {
+		return err
 	}
 
 	fs, err := archive.Tar(tempDir, archive.Uncompressed)
@@ -249,11 +260,10 @@ func (s *ociSaveSession) saveImage(id image.ID, ref string) error {
 	m := ociv1.Manifest{
 		Versioned: imgspec.Versioned{
 			SchemaVersion: 2,
-			MediaType:     ociv1.MediaTypeImageManifest,
 		},
 		Config: ociv1.Descriptor{
 			MediaType: ociv1.MediaTypeImageConfig,
-			Digest:    img.ImageID(),
+			Digest:    img.ID().Digest(),
 			Size:      int64(len(img.RawJSON())),
 		},
 	}
@@ -286,49 +296,50 @@ func (s *ociSaveSession) saveImage(id image.ID, ref string) error {
 
 		descriptor := ociv1.Descriptor{
 			MediaType: ociv1.MediaTypeImageLayer,
-			Digest:    digest.String(),
+			Digest:    digest,
 			Size:      size,
 		}
 		m.Layers = append(m.Layers, descriptor)
 	}
 
-	mJSON, err := json.Marshal(m)
-	if err != nil {
+	if err := s.saveManifest(ref, m); err != nil {
 		return err
 	}
 
-	if err := s.saveManifest(ref, mJSON); err != nil {
-		return err
-	}
-
-	s.savedImages[id] = mJSON
+	s.savedImages[id] = m
 
 	return nil
 }
 
-func (s *ociSaveSession) saveManifest(ref string, ociMan []byte) error {
-	d := digest.FromBytes(ociMan)
-	desc := ociv1.Descriptor{}
-	desc.Digest = d.String()
-	desc.MediaType = ociv1.MediaTypeImageManifest
-	desc.Size = int64(len(ociMan))
-	data, err := json.Marshal(desc)
+func (s *ociSaveSession) saveManifest(ref string, ociMan ociv1.Manifest) error {
+	b, err := json.Marshal(ociMan)
 	if err != nil {
 		return err
 	}
+	d := digest.FromBytes(b)
+	desc := ociv1.Descriptor{}
+	desc.Digest = d
+	desc.Size = int64(len(b))
+	desc.MediaType = ociv1.MediaTypeImageManifest
 
 	blobPath, err := blobPath(s.outDir, d)
 	if err != nil {
 		return err
 	}
-	if err := ioutil.WriteFile(blobPath, ociMan, 0644); err != nil {
+	if err := ioutil.WriteFile(blobPath, b, 0644); err != nil {
 		return err
 	}
-	descriptorPath := descriptorPath(s.outDir, ref)
-	if err := ensureParentDirectoryExists(descriptorPath); err != nil {
-		return err
-	}
-	return ioutil.WriteFile(descriptorPath, data, 0644)
+	annotations := make(map[string]string)
+	annotations["org.opencontainers.ref.name"] = ref
+	desc.Annotations = annotations
+	s.index.Manifests = append(s.index.Manifests, ociv1.ManifestDescriptor{
+		Descriptor: desc,
+		Platform: ociv1.Platform{
+			Architecture: runtime.GOARCH,
+			OS:           runtime.GOOS,
+		},
+	})
+	return nil
 }
 
 func (s *ociSaveSession) saveLayer(l layer.Layer) (*layerInfo, error) {
@@ -338,23 +349,6 @@ func (s *ociSaveSession) saveLayer(l layer.Layer) (*layerInfo, error) {
 	}
 	defer arch.Close()
 
-	// FIXME: anywhere I can get a gzipped layer (and digest) as found in remote registries?
-	pr, pw := io.Pipe()
-	defer pr.Close()
-	go func() {
-		err := errors.New("internal error: unexpected panic in compressing layer")
-		defer func() {
-			pw.CloseWithError(err)
-		}()
-		zipper, err := archive.CompressStream(pw, archive.Gzip)
-		if err != nil {
-			return
-		}
-		defer zipper.Close()
-
-		_, err = io.Copy(zipper, arch)
-	}()
-
 	blobFile, err := ioutil.TempFile(s.outDir, "oci-blob")
 	if err != nil {
 		return nil, err
@@ -362,7 +356,7 @@ func (s *ociSaveSession) saveLayer(l layer.Layer) (*layerInfo, error) {
 	defer os.RemoveAll(blobFile.Name())
 
 	digester := digest.Canonical.Digester()
-	tee := io.TeeReader(pr, digester.Hash())
+	tee := io.TeeReader(arch, digester.Hash())
 
 	size, err := io.Copy(blobFile, tee)
 	if err != nil {
@@ -409,8 +403,4 @@ func blobPath(tmp string, digest digest.Digest) (string, error) {
 		return "", fmt.Errorf("unexpected digest reference %s: %v", digest.String(), err)
 	}
 	return filepath.Join(tmp, "blobs", digest.Algorithm().String(), digest.Hex()), nil
-}
-
-func descriptorPath(tmp, ref string) string {
-	return filepath.Join(tmp, "refs", ref)
 }
