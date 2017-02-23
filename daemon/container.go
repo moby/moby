@@ -108,13 +108,13 @@ func (daemon *Daemon) Register(c *container.Container) error {
 	}
 
 	// once in the memory store it is visible to other goroutines
-	// grab a Lock until it has been replicated to avoid races
+	// grab a Lock until it has been checkpointed to avoid races
 	c.Lock()
 	defer c.Unlock()
 
 	daemon.containers.Add(c.ID, c)
 	daemon.idIndex.Add(c.ID)
-	return daemon.containersReplica.Save(c.Snapshot())
+	return c.CheckpointTo(daemon.containersReplica)
 }
 
 func (daemon *Daemon) newContainer(name string, platform string, config *containertypes.Config, hostConfig *containertypes.HostConfig, imgID image.ID, managed bool) (*container.Container, error) {
@@ -218,10 +218,7 @@ func (daemon *Daemon) setHostConfig(container *container.Container, hostConfig *
 
 	runconfig.SetDefaultNetModeIfBlank(hostConfig)
 	container.HostConfig = hostConfig
-	if err := daemon.containersReplica.Save(container.Snapshot()); err != nil {
-		return err
-	}
-	return container.ToDisk()
+	return container.CheckpointAndSaveToDisk(daemon.containersReplica)
 }
 
 // verifyContainerSettings performs validation of the hostconfig and config

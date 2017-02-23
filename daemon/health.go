@@ -168,9 +168,9 @@ func handleProbeResult(d *Daemon, c *container.Container, result *types.Healthch
 	}
 
 	// replicate Health status changes
-	if err := d.containersReplica.Save(c.Snapshot()); err != nil {
+	if err := c.CheckpointTo(d.containersReplica); err != nil {
 		// queries will be inconsistent until the next probe runs or other state mutations
-		// trigger a replication
+		// checkpoint the container
 		logrus.Errorf("Error replicating health state for container %s: %v", c.ID, err)
 	}
 

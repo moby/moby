@@ -3,27 +3,26 @@ package container
 import "testing"
 
 func TestViewSave(t *testing.T) {
-	db, err := NewMemDB()
+	db, err := NewViewDB()
 	if err != nil {
 		t.Fatal(err)
 	}
-	snapshot := NewBaseContainer("id", "root").Snapshot()
-	if err := db.Save(snapshot); err != nil {
+	c := NewBaseContainer("id", "root")
+	if err := c.CheckpointTo(db); err != nil {
 		t.Fatal(err)
-
 	}
 }
 
 func TestViewAll(t *testing.T) {
 	var (
-		db, _ = NewMemDB()
-		one   = NewBaseContainer("id1", "root1").Snapshot()
-		two   = NewBaseContainer("id2", "root2").Snapshot()
+		db, _ = NewViewDB()
+		one   = NewBaseContainer("id1", "root1")
+		two   = NewBaseContainer("id2", "root2")
 	)
 	one.Pid = 10
 	two.Pid = 20
-	db.Save(one)
-	db.Save(two)
+	one.CheckpointTo(db)
+	two.CheckpointTo(db)
 	all, err := db.Snapshot().All()
 	if err != nil {
 		t.Fatal(err)
@@ -44,10 +43,10 @@ func TestViewAll(t *testing.T) {
 }
 
 func TestViewGet(t *testing.T) {
-	db, _ := NewMemDB()
+	db, _ := NewViewDB()
 	one := NewBaseContainer("id", "root")
 	one.ImageID = "some-image-123"
-	db.Save(one.Snapshot())
+	one.CheckpointTo(db)
 	s, err := db.Snapshot().Get("id")
 	if err != nil {
 		t.Fatal(err)

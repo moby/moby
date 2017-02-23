@@ -117,11 +117,8 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 			if container.ExitCode() == 0 {
 				container.SetExitCode(128)
 			}
-			if err := daemon.containersReplica.Save(container.Snapshot()); err != nil {
-				logrus.Errorf("%s: failed replicating state on start failure: %v", container.ID, err)
-			}
-			if err := container.ToDisk(); err != nil {
-				logrus.Errorf("%s: failed writing to disk on start failure: %v", container.ID, err)
+			if err := container.CheckpointAndSaveToDisk(daemon.containersReplica); err != nil {
+				logrus.Errorf("%s: failed saving state on start failure: %v", container.ID, err)
 			}
 			container.Reset(false)
 

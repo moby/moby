@@ -82,10 +82,7 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 		daemon.nameIndex.Release(oldName + k)
 	}
 	daemon.releaseName(oldName)
-	if err = daemon.containersReplica.Save(container.Snapshot()); err != nil {
-		return err
-	}
-	if err = container.ToDisk(); err != nil {
+	if err = container.CheckpointAndSaveToDisk(daemon.containersReplica); err != nil {
 		return err
 	}
 
@@ -102,10 +99,7 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 		if err != nil {
 			container.Name = oldName
 			container.NetworkSettings.IsAnonymousEndpoint = oldIsAnonymousEndpoint
-			if e := daemon.containersReplica.Save(container.Snapshot()); err != nil {
-				logrus.Errorf("%s: Failed in replicating state on rename failure: %v", container.ID, e)
-			}
-			if e := container.ToDisk(); e != nil {
+			if e := container.CheckpointAndSaveToDisk(daemon.containersReplica); e != nil {
 				logrus.Errorf("%s: Failed in writing to Disk on rename failure: %v", container.ID, e)
 			}
 		}

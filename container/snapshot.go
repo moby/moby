@@ -41,7 +41,7 @@ type Snapshot struct {
 }
 
 // Snapshot provides a read only view of a Container. Callers must hold a Lock on the container object.
-func (container *Container) Snapshot() *Snapshot {
+func (container *Container) snapshot() *Snapshot {
 	snapshot := &Snapshot{
 		ID:           container.ID,
 		Name:         container.Name,

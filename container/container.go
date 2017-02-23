@@ -189,6 +189,21 @@ func (container *Container) ToDiskLocking() error {
 	return err
 }
 
+// CheckpointTo makes the Container's current state visible to queries.
+// Callers must hold a Container lock.
+func (container *Container) CheckpointTo(store ViewDB) error {
+	return store.Save(container.snapshot())
+}
+
+// CheckpointAndSaveToDisk is equivalent to calling CheckpointTo and ToDisk.
+// Callers must hold a Container lock.
+func (container *Container) CheckpointAndSaveToDisk(store ViewDB) error {
+	if err := container.CheckpointTo(store); err != nil {
+		return err
+	}
+	return container.ToDisk()
+}
+
 // readHostConfig reads the host configuration from disk for the container.
 func (container *Container) readHostConfig() error {
 	container.HostConfig = &containertypes.HostConfig{}

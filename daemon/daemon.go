@@ -83,7 +83,7 @@ type Daemon struct {
 	ID                    string
 	repository            string
 	containers            container.Store
-	containersReplica     *container.MemDB
+	containersReplica     container.ViewDB
 	execCommands          *exec.Store
 	downloadManager       *xfer.LayerDownloadManager
 	uploadManager         *xfer.LayerUploadManager
@@ -762,7 +762,7 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	d.ID = trustKey.PublicKey().KeyID()
 	d.repository = daemonRepo
 	d.containers = container.NewMemoryStore()
-	if d.containersReplica, err = container.NewMemDB(); err != nil {
+	if d.containersReplica, err = container.NewViewDB(); err != nil {
 		return nil, err
 	}
 	d.execCommands = exec.NewStore()

@@ -105,7 +105,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 	// Mark container dead. We don't want anybody to be restarting it.
 	container.Lock()
 	container.Dead = true
-	if err = daemon.containersReplica.Save(container.Snapshot()); err != nil {
+	if err = container.CheckpointTo(daemon.containersReplica); err != nil {
 		container.Unlock()
 		return err
 	}

@@ -8,6 +8,19 @@ const (
 	memdbIDIndex = "id"
 )
 
+// ViewDB provides an in-memory transactional (ACID) container Store
+type ViewDB interface {
+	Snapshot() View
+	Save(snapshot *Snapshot) error
+	Delete(id string) error
+}
+
+// View can be used by readers to avoid locking
+type View interface {
+	All() ([]Snapshot, error)
+	Get(id string) (*Snapshot, error)
+}
+
 var schema = &memdb.DBSchema{
 	Tables: map[string]*memdb.TableSchema{
 		memdbTable: {
@@ -23,46 +36,44 @@ var schema = &memdb.DBSchema{
 	},
 }
 
-// MemDB provides an in-memory transactional (ACID) container Store
-type MemDB struct {
+type memDB struct {
 	store *memdb.MemDB
 }
 
-// NewMemDB provides the default implementation, with the default schema
-func NewMemDB() (*MemDB, error) {
+// NewViewDB provides the default implementation, with the default schema
+func NewViewDB() (ViewDB, error) {
 	store, err := memdb.NewMemDB(schema)
 	if err != nil {
 		return nil, err
 	}
-	return &MemDB{store: store}, nil
+	return &memDB{store: store}, nil
 }
 
 // Snapshot provides a consistent read-only View of the database
-func (db *MemDB) Snapshot() *View {
-	return &View{db.store.Txn(false)}
+func (db *memDB) Snapshot() View {
+	return &memdbView{db.store.Txn(false)}
 }
 
 // Save atomically updates the in-memory store
-func (db *MemDB) Save(snapshot *Snapshot) error {
+func (db *memDB) Save(snapshot *Snapshot) error {
 	txn := db.store.Txn(true)
 	defer txn.Commit()
 	return txn.Insert(memdbTable, snapshot)
 }
 
 // Delete removes an item by ID
-func (db *MemDB) Delete(id string) error {
+func (db *memDB) Delete(id string) error {
 	txn := db.store.Txn(true)
 	defer txn.Commit()
 	return txn.Delete(memdbTable, &Snapshot{ID: id})
 }
 
-// View can be used by readers to avoid locking
-type View struct {
+type memdbView struct {
 	txn *memdb.Txn
 }
 
 // All returns a all items in this snapshot
-func (v *View) All() ([]Snapshot, error) {
+func (v *memdbView) All() ([]Snapshot, error) {
 	var all []Snapshot
 	iter, err := v.txn.Get(memdbTable, memdbIDIndex)
 	if err != nil {
@@ -80,7 +91,7 @@ func (v *View) All() ([]Snapshot, error) {
 }
 
 //Get returns an item by id
-func (v *View) Get(id string) (*Snapshot, error) {
+func (v *memdbView) Get(id string) (*Snapshot, error) {
 	s, err := v.txn.First(memdbTable, memdbIDIndex, id)
 	if err != nil {
 		return nil, err
