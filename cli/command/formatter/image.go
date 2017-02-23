@@ -181,9 +181,7 @@ func imageFormat(ctx ImageContext, images []types.ImageSummary, format func(subC
 	}
 
 	bys := []string{}
-	if ctx.Sortby == "" {
-		bys = append(bys, "CreatedAt:desc")
-	} else {
+	if ctx.Sortby != "" {
 		bys = append(bys, strings.Split(ctx.Sortby, ",")...)
 	}
 
@@ -201,7 +199,9 @@ func imageFormat(ctx ImageContext, images []types.ImageSummary, format func(subC
 		return err
 	}
 
-	sort.Sort(sorter)
+	if len(bys) != 0 {
+		sort.Sort(sorter)
+	}
 	for _, imageCtx := range sorter.data {
 		subContext := imageCtx.(imageContext)
 		if err := format(&subContext); err != nil {

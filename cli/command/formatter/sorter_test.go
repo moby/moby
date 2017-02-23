@@ -238,8 +238,8 @@ func TestGetSortableFields(t *testing.T) {
 		"t":              "Time",
 		"deepInnerValue": "DeepValue",
 	}
-	sortableFields := map[string]fieldIndex{}
-	if err := getSortableFields(reflect.TypeOf(cs), whitelist, nil, sortableFields); err != nil {
+	sortableFields, err := getSortableFields(reflect.TypeOf(cs), whitelist, nil)
+	if err != nil {
 		t.Fatalf("failed to get sortable fields: %v", err)
 	}
 

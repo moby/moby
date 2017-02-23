@@ -15,9 +15,9 @@ const (
 type fieldIndex []int
 
 type orderBy struct {
-	name     string     // order by name
-	ordering string     // asc or desc
-	index    fieldIndex // index of field in struct
+	name  string     // order by name
+	asc   bool       // asc or desc
+	index fieldIndex // index of field in struct
 }
 
 type genericStructSorter struct {
@@ -55,44 +55,38 @@ func validateType(data []interface{}) error {
 // newGenericStructSorter creates a sorter based on data and user specified configure
 // whitelist is a map with struct field name as key and new name as value
 func newGenericStructSorter(data []interface{}, bys []string, whitelist map[string]string) (genericStructSorter, error) {
-	gs := genericStructSorter{}
-	if len(data) == 0 {
-		return gs, nil
+	gs := genericStructSorter{
+		data: data,
 	}
-	if len(bys) == 0 {
-		return gs, fmt.Errorf("bys cannot be empty")
+	if len(data) == 0 || len(bys) == 0 {
+		return gs, nil
 	}
 	if err := validateType(data); err != nil {
 		return gs, err
 	}
 	// scan and get the sortable fields
-	sortableFields := make(map[string]fieldIndex)
-	if err := getSortableFields(reflect.TypeOf(data[0]), whitelist, nil, sortableFields); err != nil {
+	sortableFields, err := getSortableFields(reflect.TypeOf(data[0]), whitelist, nil)
+	if err != nil {
 		return gs, fmt.Errorf("failed to get sortable fields: %v", err)
 	}
 
 	gs.data = data
 	for _, by := range bys {
 		by = strings.TrimSpace(by)
-		parts := strings.Split(by, ":")
-		dir := ascendingKey // sort ascending by default
-		switch len(parts) {
-		case 2:
+		parts := strings.SplitN(by, ":", 2)
+		asc := true
+		if len(parts) == 2 {
 			switch parts[1] {
 			case descendingKey:
-				dir = descendingKey
+				asc = false
 			case ascendingKey, "":
-				// if default, keep as ascendingKey
+				asc = true
 			default:
 				// doesn't support key other than "asc","desc",""
 				supportedOrders := []string{ascendingKey, descendingKey}
-				return gs, fmt.Errorf("sort order %q not supported. It must be in \"%s\"",
+				return gs, fmt.Errorf("invalid sort order: %q. Valid options are \"%s\"",
 					parts[1], strings.Join(supportedOrders, ", "))
 			}
-		case 1:
-			// sort order not specified, keep default
-		default:
-			return gs, fmt.Errorf("malformed sort key: %q", by)
 		}
 		by = strings.ToLower(parts[0])
 		index, ok := sortableFields[by]
@@ -104,9 +98,9 @@ func newGenericStructSorter(data []interface{}, bys []string, whitelist map[stri
 			return gs, fmt.Errorf("unknown sort field: %q. Valid options are \"%s\"", parts[0], strings.Join(keys, ", "))
 		}
 		gs.bys = append(gs.bys, orderBy{
-			name:     by,
-			ordering: dir,
-			index:    index,
+			name:  by,
+			asc:   asc,
+			index: index,
 		})
 
 	}
@@ -183,7 +177,7 @@ func (s genericStructSorter) Less(i, j int) bool {
 		}
 
 		if res != 0 {
-			if orderBy.ordering == ascendingKey {
+			if orderBy.asc {
 				return res == -1
 			}
 			return res == 1
@@ -260,9 +254,10 @@ func lessForTime(i, j reflect.Value) int {
 	return 1
 }
 
-func getSortableFields(dataType reflect.Type, whitelist map[string]string, parent fieldIndex, fields map[string]fieldIndex) error {
+func getSortableFields(dataType reflect.Type, whitelist map[string]string, parent fieldIndex) (map[string]fieldIndex, error) {
+	fields := map[string]fieldIndex{}
 	if dataType.Kind() != reflect.Struct {
-		return fmt.Errorf("data must be of type struct: %v", dataType)
+		return fields, fmt.Errorf("data must be of type struct: %v", dataType)
 	}
 
 	subFields := map[string]fieldIndex{}
@@ -283,8 +278,15 @@ func getSortableFields(dataType reflect.Type, whitelist map[string]string, paren
 		case reflect.Struct:
 			// time.Time is special and sortable field, go to next step
 			if fieldType != reflect.TypeOf(time.Time{}) {
-				if err := getSortableFields(fieldType, whitelist, fieldIndex(append(parent, i)), subFields); err != nil {
-					return err
+				sub, err := getSortableFields(fieldType, whitelist, fieldIndex(append(parent, i)))
+				if err != nil {
+					return fields, err
+				}
+
+				for k, v := range sub {
+					if _, ok := subFields[k]; !ok {
+						subFields[k] = v
+					}
 				}
 				// we don't support sorting by ordinary struct type, continue to skip
 				continue
@@ -315,5 +317,5 @@ func getSortableFields(dataType reflect.Type, whitelist map[string]string, paren
 		}
 	}
 
-	return nil
+	return fields, nil
 }
