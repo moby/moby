@@ -10,7 +10,7 @@ fi
 changelogWellFormed=1
 
 # e.g. "## 1.12.3 (2016-10-26)"
-VER_LINE_REGEX='^## [0-9]+\.[0-9]+\.[0-9]+ \([0-9]+-[0-9]+-[0-9]+\)$'
+VER_LINE_REGEX='^## [0-9]+\.[0-9]+\.[0-9]+(-ce)? \([0-9]+-[0-9]+-[0-9]+\)$'
 while read -r line; do
   if ! [[ "$line" =~ $VER_LINE_REGEX ]]; then
     echo "Malformed changelog $changelogFile line \"$line\"" >&2
