@@ -468,6 +468,31 @@ definitions:
         type: "integer"
         format: "int64"
 
+  HealthConfig:
+    description: "A test to perform to check that the container is healthy."
+    type: "object"
+    properties:
+      Test:
+        description: |
+          The test to perform. Possible values are:
+
+          - `{}` inherit healthcheck from image or parent image
+          - `{"NONE"}` disable healthcheck
+          - `{"CMD", args...}` exec arguments directly
+          - `{"CMD-SHELL", command}` run command with system's default shell
+        type: "array"
+        items:
+          type: "string"
+      Interval:
+        description: "The time to wait between checks in nanoseconds. 0 means inherit."
+        type: "integer"
+      Timeout:
+        description: "The time to wait before considering the check to have hung. 0 means inherit."
+        type: "integer"
+      Retries:
+        description: "The number of consecutive failures needed to consider a container as unhealthy. 0 means inherit."
+        type: "integer"
+
   HostConfig:
     description: "Container configuration that depends on the host we are running on"
     allOf:
@@ -727,29 +752,7 @@ definitions:
         items:
           type: "string"
       Healthcheck:
-        description: "A test to perform to check that the container is healthy."
-        type: "object"
-        properties:
-          Test:
-            description: |
-              The test to perform. Possible values are:
-
-              - `{}` inherit healthcheck from image or parent image
-              - `{"NONE"}` disable healthcheck
-              - `{"CMD", args...}` exec arguments directly
-              - `{"CMD-SHELL", command}` run command with system's default shell
-            type: "array"
-            items:
-              type: "string"
-          Interval:
-            description: "The time to wait between checks in nanoseconds. 0 means inherit."
-            type: "integer"
-          Timeout:
-            description: "The time to wait before considering the check to have hung. 0 means inherit."
-            type: "integer"
-          Retries:
-            description: "The number of consecutive failures needed to consider a container as unhealthy. 0 means inherit."
-            type: "integer"
+        $ref: "#/definitions/HealthConfig"
       ArgsEscaped:
         description: "Command is already escaped (Windows only)"
         type: "boolean"
@@ -1544,6 +1547,21 @@ definitions:
           Settable: null
           Value: []
 
+  ObjectVersion:
+    description: |
+      The version number of the object such as node, service, etc. This is needed to avoid conflicting writes.
+      The client must send the version number along with the modified specification when updating these objects.
+      This approach ensures safe concurrency and determinism in that the change on the object
+      may not be applied if the version number has changed from the last read. In other words,
+      if two update requests specify the same base version, only one of the requests can succeed.
+      As a result, two separate update requests that happen at the same time will not
+      unintentially overwrite each other.
+    type: "object"
+    properties:
+      Index:
+        type: "integer"
+        format: "int64"
+
   NodeSpec:
     type: "object"
     properties:
@@ -1580,11 +1598,7 @@ definitions:
       ID:
         type: "string"
       Version:
-        type: "object"
-        properties:
-          Index:
-            type: "integer"
-            format: "int64"
+        $ref: "#/definitions/ObjectVersion"
       CreatedAt:
         type: "string"
         format: "dateTime"
@@ -1807,11 +1821,7 @@ definitions:
         description: "The ID of the swarm."
         type: "string"
       Version:
-        type: "object"
-        properties:
-          Index:
-            type: "integer"
-            format: "int64"
+        $ref: "#/definitions/ObjectVersion"
       CreatedAt:
         type: "string"
         format: "dateTime"
@@ -1830,6 +1840,11 @@ definitions:
           Image:
             description: "The image name to use for the container."
             type: "string"
+          Labels:
+            description: "User-defined key/value data."
+            type: "object"
+            additionalProperties:
+              type: "string"
           Command:
             description: "The command to be run in the image."
             type: "array"
@@ -1840,6 +1855,9 @@ definitions:
             type: "array"
             items:
               type: "string"
+          Hostname:
+            description: "The hostname to use for the container, as a valid RFC 1123 hostname."
+            type: "string"
           Env:
             description: "A list of environment variables in the form `VAR=value`."
             type: "array"
@@ -1851,13 +1869,19 @@ definitions:
           User:
             description: "The user inside the container."
             type: "string"
-          Labels:
-            description: "User-defined key/value data."
-            type: "object"
-            additionalProperties:
+          Groups:
+            type: "array"
+            description: "A list of additional groups that the container process will run as."
+            items:
               type: "string"
           TTY:
             description: "Whether a pseudo-TTY should be allocated."
+            type: "boolean"
+          OpenStdin:
+            description: "Open `stdin`"
+            type: "boolean"
+          ReadOnly:
+            description: "Mount the container's root filesystem as read only."
             type: "boolean"
           Mounts:
             description: "Specification for mounts to be added to containers created as part of the service."
@@ -1868,6 +1892,17 @@ definitions:
             description: "Amount of time to wait for the container to terminate before forcefully killing it."
             type: "integer"
             format: "int64"
+          HealthCheck:
+            $ref: "#/definitions/HealthConfig"
+          Hosts:
+            type: "array"
+            description: |
+              A list of hostnames/IP mappings to add to the container's `/etc/hosts` file.
+              The format of extra hosts on swarmkit is specified in:
+              http://man7.org/linux/man-pages/man5/hosts.5.html
+                IP_address canonical_hostname [aliases...]
+            items:
+              type: "string"
           DNSConfig:
             description: "Specification for DNS related configurations in resolver configuration file (`resolv.conf`)."
             type: "object"
@@ -1887,6 +1922,38 @@ definitions:
                 type: "array"
                 items:
                   type: "string"
+          Secrets:
+            description: "Secrets contains references to zero or more secrets that will be exposed to the service."
+            type: "array"
+            items:
+              type: "object"
+              properties:
+                File:
+                  description: "File represents a specific target that is backed by a file."
+                  type: "object"
+                  properties:
+                    Name:
+                      description: "Name represents the final filename in the filesystem."
+                      type: "string"
+                    UID:
+                      description: "UID represents the file UID."
+                      type: "string"
+                    GID:
+                      description: "GID represents the file GID."
+                      type: "string"
+                    Mode:
+                      description: "Mode represents the FileMode of the file."
+                      type: "integer"
+                      format: "uint32"
+                SecretID:
+                  description: "SecretID represents the ID of the specific secret that we're referencing."
+                  type: "string"
+                SecretName:
+                  description: |
+                    SecretName is the name of the secret that this references, but this is just provided for
+                    lookup/display purposes. The secret in the reference will be identified by its ID.
+                  type: "string"
+
       Resources:
         description: "Resource requirements which apply to each individual container created as part of the service."
         type: "object"
@@ -1994,11 +2061,7 @@ definitions:
         description: "The ID of the task."
         type: "string"
       Version:
-        type: "object"
-        properties:
-          Index:
-            type: "integer"
-            format: "int64"
+        $ref: "#/definitions/ObjectVersion"
       CreatedAt:
         type: "string"
         format: "dateTime"
@@ -2206,11 +2269,7 @@ definitions:
       ID:
         type: "string"
       Version:
-        type: "object"
-        properties:
-          Index:
-            type: "integer"
-            format: "int64"
+        $ref: "#/definitions/ObjectVersion"
       CreatedAt:
         type: "string"
         format: "dateTime"
@@ -2418,11 +2477,7 @@ definitions:
       ID:
         type: "string"
       Version:
-        type: "object"
-        properties:
-          Index:
-            type: "integer"
-            format: "int64"
+        $ref: "#/definitions/ObjectVersion"
       CreatedAt:
         type: "string"
         format: "dateTime"
