@@ -18,6 +18,7 @@ Adam Miller <admiller@redhat.com>
 Adam Mills <adam@armills.info>
 Adam Singer <financeCoding@gmail.com>
 Adam Walz <adam@adamwalz.net>
+Addam Hardy <addam.hardy@gmail.com>
 Aditi Rajagopal <arajagopal@us.ibm.com>
 Aditya <aditya@netroy.in>
 Adolfo Ochagavía <aochagavia92@gmail.com>
@@ -35,6 +36,8 @@ AJ Bowen <aj@gandi.net>
 Ajey Charantimath <ajey.charantimath@gmail.com>
 ajneu <ajneu@users.noreply.github.com>
 Akihiro Suda <suda.akihiro@lab.ntt.co.jp>
+Akira Koyasu <mail@akirakoyasu.net>
+Akshay Karle <akshay.a.karle@gmail.com>
 Al Tobey <al@ooyala.com>
 alambike <alambike@gmail.com>
 Alan Scherger <flyinprogrammer@gmail.com>
@@ -47,6 +50,7 @@ Alena Prokharchyk <alena@rancher.com>
 Alessandro Boch <aboch@docker.com>
 Alessio Biancalana <dottorblaster@gmail.com>
 Alex Chan <alex@alexwlchan.net>
+Alex Chen <alexchenunix@gmail.com>
 Alex Coventry <alx@empirical.com>
 Alex Crawford <alex.crawford@coreos.com>
 Alex Ellis <alexellis2@gmail.com>
@@ -67,6 +71,7 @@ Alexey Kotlyarov <alexey@infoxchange.net.au>
 Alexey Shamrin <shamrin@gmail.com>
 Alexis THOMAS <fr.alexisthomas@gmail.com>
 Ali Dehghani <ali.dehghani.g@gmail.com>
+Alicia Lauerman <alicia@eta.im>
 Allen Madsen <blatyo@gmail.com>
 Allen Sun <allen.sun@daocloud.io>
 almoehi <almoehi@users.noreply.github.com>
@@ -74,6 +79,7 @@ Alvaro Saurin <alvaro.saurin@gmail.com>
 Alvin Richards <alvin.richards@docker.com>
 amangoel <amangoel@gmail.com>
 Amen Belayneh <amenbelayneh@gmail.com>
+Amir Goldstein <amir73il@aquasec.com>
 Amit Bakshi <ambakshi@gmail.com>
 Amit Krishnan <amit.krishnan@oracle.com>
 Amit Shukla <amit.shukla@docker.com>
@@ -97,6 +103,7 @@ Andrew Duckworth <grillopress@gmail.com>
 Andrew France <andrew@avito.co.uk>
 Andrew Gerrand <adg@golang.org>
 Andrew Guenther <guenther.andrew.j@gmail.com>
+Andrew Hsu <andrewhsu@docker.com>
 Andrew Kuklewicz <kookster@gmail.com>
 Andrew Macgregor <andrew.macgregor@agworld.com.au>
 Andrew Macpherson <hopscotch23@gmail.com>
@@ -136,6 +143,7 @@ Antony Messerli <amesserl@rackspace.com>
 Anuj Bahuguna <anujbahuguna.dev@gmail.com>
 Anusha Ragunathan <anusha.ragunathan@docker.com>
 apocas <petermdias@gmail.com>
+Arash Deshmeh <adeshmeh@ca.ibm.com>
 ArikaChen <eaglesora@gmail.com>
 Arnaud Lefebvre <a.lefebvre@outlook.fr>
 Arnaud Porterie <arnaud.porterie@docker.com>
@@ -156,6 +164,7 @@ Barry Allard <barry.allard@gmail.com>
 Bartłomiej Piotrowski <b@bpiotrowski.pl>
 Bastiaan Bakker <bbakker@xebia.com>
 bdevloed <boris.de.vloed@gmail.com>
+Ben Bonnefoy <frenchben@docker.com>
 Ben Firshman <ben@firshman.co.uk>
 Ben Golub <ben.golub@dotcloud.com>
 Ben Hall <ben@benhall.me.uk>
@@ -169,6 +178,7 @@ Bernerd Schaefer <bj.schaefer@gmail.com>
 Bert Goethals <bert@bertg.be>
 Bharath Thiruveedula <bharath_ves@hotmail.com>
 Bhiraj Butala <abhiraj.butala@gmail.com>
+Bhumika Bayani <bhumikabayani@gmail.com>
 Bilal Amarni <bilal.amarni@gmail.com>
 Bill W <SydOps@users.noreply.github.com>
 bin liu <liubin0329@users.noreply.github.com>
@@ -205,6 +215,7 @@ Bruno Bigras <bigras.bruno@gmail.com>
 Bruno Binet <bruno.binet@gmail.com>
 Bruno Gazzera <bgazzera@paginar.com>
 Bruno Renié <brutasse@gmail.com>
+Bruno Tavares <btavare@thoughtworks.com>
 Bryan Bess <squarejaw@bsbess.com>
 Bryan Boreham <bjboreham@gmail.com>
 Bryan Matsuo <bryan.matsuo@gmail.com>
@@ -227,6 +238,7 @@ Carlos Sanchez <carlos@apache.org>
 Carol Fager-Higgins <carol.fager-higgins@docker.com>
 Cary <caryhartline@users.noreply.github.com>
 Casey Bisson <casey.bisson@joyent.com>
+Ce Gao <ce.gao@outlook.com>
 Cedric Davies <cedricda@microsoft.com>
 Cezar Sa Espinola <cezarsa@gmail.com>
 Chad Swenson <chadswen@gmail.com>
@@ -239,11 +251,14 @@ Charles Lindsay <chaz@chazomatic.us>
 Charles Merriam <charles.merriam@gmail.com>
 Charles Sarrazin <charles@sarraz.in>
 Charles Smith <charles.smith@docker.com>
+Charlie Drage <charlie@charliedrage.com>
 Charlie Lewis <charliel@lab41.org>
 Chase Bolt <chase.bolt@gmail.com>
 ChaYoung You <yousbe@gmail.com>
 Chen Chao <cc272309126@gmail.com>
+Chen Chuanliang <chen.chuanliang@zte.com.cn>
 Chen Hanxiao <chenhanxiao@cn.fujitsu.com>
+Chen Mingjie <chenmingjie0828@163.com>
 cheney90 <cheney-90@hotmail.com>
 Chewey <prosto-chewey@users.noreply.github.com>
 Chia-liang Kao <clkao@clkao.org>
@@ -253,6 +268,7 @@ Chris Alfonso <calfonso@redhat.com>
 Chris Armstrong <chris@opdemand.com>
 Chris Dituri <csdituri@gmail.com>
 Chris Fordham <chris@fordham-nagy.id.au>
+Chris Gavin <chris@chrisgavin.me>
 Chris Khoo <chris.khoo@gmail.com>
 Chris McKinnel <chrismckinnel@gmail.com>
 Chris Seto <chriskseto@gmail.com>
@@ -338,6 +354,7 @@ Danny Yates <danny@codeaholics.org>
 Darren Coxall <darren@darrencoxall.com>
 Darren Shepherd <darren.s.shepherd@gmail.com>
 Darren Stahl <darst@microsoft.com>
+Dattatraya Kumbhar <dattatraya.kumbhar@gslab.com>
 Davanum Srinivas <davanum@gmail.com>
 Dave Barboza <dbarboza@datto.com>
 Dave Henderson <dhenderson@gmail.com>
@@ -376,6 +393,7 @@ Deng Guangxing <dengguangxing@huawei.com>
 Deni Bertovic <deni@kset.org>
 Denis Gladkikh <denis@gladkikh.email>
 Denis Ollier <larchunix@users.noreply.github.com>
+Dennis Chen <barracks510@gmail.com>
 Dennis Docter <dennis@d23.nl>
 Derek <crq@kernel.org>
 Derek <crquan@gmail.com>
@@ -393,6 +411,7 @@ Dimitri John Ledkov <dimitri.j.ledkov@intel.com>
 Dimitris Rozakis <dimrozakis@gmail.com>
 Dimitry Andric <d.andric@activevideo.com>
 Dinesh Subhraveti <dineshs@altiscale.com>
+Ding Fei <dingfei@stars.org.cn>
 Diogo Monica <diogo@docker.com>
 DiuDiugirl <sophia.wang@pku.edu.cn>
 Djibril Koné <kone.djibril@gmail.com>
@@ -429,6 +448,7 @@ Eike Herzbach <eike@herzbach.net>
 Eivin Giske Skaaren <eivinsn@axis.com>
 Eivind Uggedal <eivind@uggedal.com>
 Elan Ruusamäe <glen@delfi.ee>
+Elena Morozova <lelenanam@gmail.com>
 Elias Probst <mail@eliasprobst.eu>
 Elijah Zupancic <elijah@zupancic.name>
 eluck <mail@eluck.me>
@@ -439,6 +459,7 @@ Emily Rose <emily@contactvibe.com>
 Emir Ozer <emirozer@yandex.com>
 Enguerran <engcolson@gmail.com>
 Eohyung Lee <liquidnuker@gmail.com>
+epeterso <epeterson@breakpoint-labs.com>
 Eric Barch <barch@tomesoftware.com>
 Eric Hanchrow <ehanchrow@ine.com>
 Eric Lee <thenorthsecedes@gmail.com>
@@ -455,6 +476,7 @@ Erik Dubbelboer <erik@dubbelboer.com>
 Erik Hollensbe <github@hollensbe.org>
 Erik Inge Bolsø <knan@redpill-linpro.com>
 Erik Kristensen <erik@erikkristensen.com>
+Erik St. Martin <alakriti@gmail.com>
 Erik Weathers <erikdw@gmail.com>
 Erno Hopearuoho <erno.hopearuoho@gmail.com>
 Erwin van der Koogh <info@erronis.nl>
@@ -464,15 +486,18 @@ eugenkrizo <eugen.krizo@gmail.com>
 evalle <shmarnev@gmail.com>
 Evan Allrich <evan@unguku.com>
 Evan Carmi <carmi@users.noreply.github.com>
+Evan Hazlett <ehazlett@users.noreply.github.com>
 Evan Hazlett <ejhazlett@gmail.com>
 Evan Krall <krall@yelp.com>
 Evan Phoenix <evan@fallingsnow.net>
 Evan Wies <evan@neomantra.net>
+Evelyn Xu <evelynhsu21@gmail.com>
 Everett Toews <everett.toews@rackspace.com>
 Evgeny Vereshchagin <evvers@ya.ru>
 Ewa Czechowska <ewa@ai-traders.com>
 Eystein Måløy Stenberg <eystein.maloy.stenberg@cfengine.com>
 ezbercih <cem.ezberci@gmail.com>
+Ezra Silvera <ezra@il.ibm.com>
 Fabiano Rosas <farosas@br.ibm.com>
 Fabio Falci <fabiofalci@gmail.com>
 Fabio Rapposelli <fabio@vmware.com>
@@ -485,10 +510,12 @@ Fangyuan Gao <21551127@zju.edu.cn>
 Fareed Dudhia <fareeddudhia@googlemail.com>
 Fathi Boudra <fathi.boudra@linaro.org>
 Federico Gimenez <fgimenez@coit.es>
+Felipe Oliveira <felipeweb.programador@gmail.com>
+Felix Abecassis <fabecassis@nvidia.com>
 Felix Geisendörfer <felix@debuggable.com>
 Felix Hupfeld <quofelix@users.noreply.github.com>
 Felix Rabe <felix@rabe.io>
-Felix Ruess <felix.ruess@roboception.de>
+Felix Ruess <felix.ruess@gmail.com>
 Felix Schindler <fschindler@weluse.de>
 Ferenc Szabo <pragmaticfrank@gmail.com>
 Fernando <fermayo@gmail.com>
@@ -525,9 +552,12 @@ Félix Baylac-Jacqué <baylac.felix@gmail.com>
 Félix Cantournet <felix.cantournet@cloudwatt.com>
 Gabe Rosenhouse <gabe@missionst.com>
 Gabor Nagy <mail@aigeruth.hu>
+Gabriel Linder <linder.gabriel@gmail.com>
 Gabriel Monroy <gabriel@opdemand.com>
-GabrielNicolasAvellaneda <avellaneda.gabriel@gmail.com>
+Gabriel Nicolas Avellaneda <avellaneda.gabriel@gmail.com>
+Gaetan de Villele <gdevillele@gmail.com>
 Galen Sampson <galen.sampson@gmail.com>
+Gang Qiao <qiaohai8866@gmail.com>
 Gareth Rushgrove <gareth@morethanseven.net>
 Garrett Barboza <garrett@garrettbarboza.com>
 Gaurav <gaurav.gosec@gmail.com>
@@ -540,6 +570,7 @@ Georgi Hristozov <georgi@forkbomb.nl>
 Gereon Frey <gereon.frey@dynport.de>
 German DZ <germ@ndz.com.ar>
 Gert van Valkenhoef <g.h.m.van.valkenhoef@rug.nl>
+Gerwim <gerwim@gmail.com>
 Gianluca Borello <g.borello@gmail.com>
 Gildas Cuisinier <gildas.cuisinier@gcuisinier.net>
 gissehel <public-devgit-dantus@gissehel.org>
@@ -576,7 +607,9 @@ Harald Albers <github@albersweb.de>
 Harley Laue <losinggeneration@gmail.com>
 Harold Cooper <hrldcpr@gmail.com>
 Harry Zhang <harryz@hyper.sh>
+Harshal Patil <harshalp@linux.vnet.ibm.com>
 He Simei <hesimei@zju.edu.cn>
+He Xin <he_xinworld@126.com>
 heartlock <21521209@zju.edu.cn>
 Hector Castro <hectcastro@gmail.com>
 Henning Sprang <henning.sprang@gmail.com>
@@ -600,6 +633,7 @@ Ian Babrou <ibobrik@gmail.com>
 Ian Bishop <ianbishop@pace7.com>
 Ian Bull <irbull@gmail.com>
 Ian Calvert <ianjcalvert@gmail.com>
+Ian Campbell <ian.campbell@docker.com>
 Ian Lee <IanLee1521@gmail.com>
 Ian Main <imain@redhat.com>
 Ian Truslove <ian.truslove@gmail.com>
@@ -624,8 +658,10 @@ J. Nunn <jbnunn@gmail.com>
 Jack Danger Canty <jackdanger@squareup.com>
 Jacob Atzen <jacob@jacobatzen.dk>
 Jacob Edelman <edelman.jd@gmail.com>
+Jacob Tomlinson <jacob@tom.linson.uk>
 Jake Champlin <jake.champlin.27@gmail.com>
 Jake Moshenko <jake@devtable.com>
+Jake Sanders <jsand@google.com>
 jakedt <jake@devtable.com>
 James Allen <jamesallen0108@gmail.com>
 James Carey <jecarey@us.ibm.com>
@@ -648,6 +684,7 @@ Jan-Gerd Tenberge <janten@gmail.com>
 Jan-Jaap Driessen <janjaapdriessen@gmail.com>
 Jana Radhakrishnan <mrjana@docker.com>
 Jannick Fahlbusch <git@jf-projects.de>
+Janonymous <janonymous.codevulture@gmail.com>
 Januar Wayong <januar@gmail.com>
 Jared Biel <jared.biel@bolderthinking.com>
 Jared Hocutt <jaredh@netapp.com>
@@ -672,7 +709,9 @@ Jay <teguhwpurwanto@gmail.com>
 Jay Kamat <github@jgkamat.33mail.com>
 Jean-Baptiste Barth <jeanbaptiste.barth@gmail.com>
 Jean-Baptiste Dalido <jeanbaptiste@appgratis.com>
+Jean-Christophe Berthon <huygens@berthon.eu>
 Jean-Paul Calderone <exarkun@twistedmatrix.com>
+Jean-Pierre Huynh <jean-pierre.huynh@ounet.fr>
 Jean-Tiare Le Bigot <jt@yadutaf.fr>
 Jeff Anderson <jeff@docker.com>
 Jeff Johnston <jeff.johnston.mn@gmail.com>
@@ -734,8 +773,10 @@ John Feminella <jxf@jxf.me>
 John Gardiner Myers <jgmyers@proofpoint.com>
 John Gossman <johngos@microsoft.com>
 John Howard (VM) <John.Howard@microsoft.com>
+John Mulhausen <john@docker.com>
 John OBrien III <jobrieniii@yahoo.com>
 John Starks <jostarks@microsoft.com>
+John Stephens <johnstep@docker.com>
 John Tims <john.k.tims@gmail.com>
 John Warwick <jwarwick@gmail.com>
 John Willis <john.willis@docker.com>
@@ -753,11 +794,12 @@ Jonathan Mueller <j.mueller@apoveda.ch>
 Jonathan Pares <jonathanpa@users.noreply.github.com>
 Jonathan Rudenberg <jonathan@titanous.com>
 Jonathan Stoppani <jonathan.stoppani@divio.com>
+Jonh Wendell <jonh.wendell@redhat.com>
 Joost Cassee <joost@cassee.net>
 Jordan <jjn2009@users.noreply.github.com>
 Jordan Arentsen <blissdev@gmail.com>
 Jordan Sissel <jls@semicomplete.com>
-Jose Diaz-Gonzalez <josegonzalez@users.noreply.github.com>
+Jose Diaz-Gonzalez <jose@seatgeek.com>
 Joseph Anthony Pasquale Holsten <joseph@josephholsten.com>
 Joseph Hager <ajhager@gmail.com>
 Joseph Kern <jkern@semafour.net>
@@ -767,6 +809,7 @@ Josh Chorlton <jchorlton@gmail.com>
 Josh Hawn <josh.hawn@docker.com>
 Josh Horwitz <horwitz@addthis.com>
 Josh Poimboeuf <jpoimboe@redhat.com>
+Josh Wilson <josh.wilson@fivestars.com>
 Josiah Kiehl <jkiehl@riotgames.com>
 José Tomás Albornoz <jojo@eljojo.net>
 JP <jpellerin@leapfrogonline.com>
@@ -805,8 +848,10 @@ Katie McLaughlin <katie@glasnt.com>
 Kato Kazuyoshi <kato.kazuyoshi@gmail.com>
 Katrina Owen <katrina.owen@gmail.com>
 Kawsar Saiyeed <kawsar.saiyeed@projiris.com>
+Kay Yan <kay.yan@daocloud.io>
 kayrus <kay.diam@gmail.com>
 Ke Xu <leonhartx.k@gmail.com>
+Kei Ohmura <ohmura.kei@gmail.com>
 Keith Hudgins <greenman@greenman.org>
 Keli Hu <dev@keli.hu>
 Ken Cochrane <kencochrane@gmail.com>
@@ -848,7 +893,7 @@ Kristian Haugene <kristian.haugene@capgemini.com>
 Kristina Zabunova <triara.xiii@gmail.com>
 krrg <krrgithub@gmail.com>
 Kun Zhang <zkazure@gmail.com>
-Kunal Kushwaha <kunal.kushwaha@gmail.com>
+Kunal Kushwaha <kushwaha_kunal_v7@lab.ntt.co.jp>
 Kyle Conroy <kyle.j.conroy@gmail.com>
 Kyle Linden <linden.kyle@gmail.com>
 kyu <leehk1227@gmail.com>
@@ -857,13 +902,14 @@ Lai Jiangshan <jiangshanlai@gmail.com>
 Lajos Papp <lajos.papp@sequenceiq.com>
 Lakshan Perera <lakshan@laktek.com>
 Lalatendu Mohanty <lmohanty@redhat.com>
-lalyos <lalyos@yahoo.com>
 Lance Chen <cyen0312@gmail.com>
 Lance Kinley <lkinley@loyaltymethods.com>
 Lars Butler <Lars.Butler@gmail.com>
 Lars Kellogg-Stedman <lars@redhat.com>
 Lars R. Damerow <lars@pixar.com>
+Lars-Magnus Skog <ralphtheninja@riseup.net>
 Laszlo Meszaros <lacienator@gmail.com>
+Laura Frank <ljfrank@gmail.com>
 Laurent Erignoux <lerignoux@gmail.com>
 Laurie Voss <github@seldo.com>
 Leandro Siqueira <leandro.siqueira@gmail.com>
@@ -873,6 +919,7 @@ leeplay <hyeongkyu.lee@navercorp.com>
 Lei Jitang <leijitang@huawei.com>
 Len Weincier <len@cloudafrica.net>
 Lennie <github@consolejunkie.net>
+Leo Gallucci <elgalu3@gmail.com>
 Leszek Kowalski <github@leszekkowalski.pl>
 Levi Blackstone <levi.blackstone@rackspace.com>
 Levi Gross <levi@levigross.com>
@@ -883,6 +930,7 @@ Liana Lo <liana.lixia@gmail.com>
 Liang Mingqiang <mqliang.zju@gmail.com>
 Liang-Chi Hsieh <viirya@gmail.com>
 liaoqingwei <liaoqingwei@huawei.com>
+Lily Guo <lily.guo@docker.com>
 limsy <seongyeol37@gmail.com>
 Lin Lu <doraalin@163.com>
 LingFaKe <lingfake@huawei.com>
@@ -892,13 +940,16 @@ Liron Levin <liron@twistlock.com>
 Liu Bo <bo.li.liu@oracle.com>
 Liu Hua <sdu.liu@huawei.com>
 lixiaobing10051267 <li.xiaobing1@zte.com.cn>
+Liz Zhang <lizzha@microsoft.com>
 LIZAO LI <lzlarryli@gmail.com>
+Lizzie Dixon <_@lizzie.io>
 Lloyd Dewolf <foolswisdom@gmail.com>
 Lokesh Mandvekar <lsm5@fedoraproject.org>
 longliqiang88 <394564827@qq.com>
 Lorenz Leutgeb <lorenz.leutgeb@gmail.com>
 Lorenzo Fontana <fontanalorenzo@me.com>
 Louis Opter <kalessin@kalessin.fr>
+Luca Favatella <lucafavatella@users.noreply.github.com>
 Luca Marturana <lucamarturana@gmail.com>
 Luca Orlandi <luca.orlandi@gmail.com>
 Luca-Bogdan Grigorescu <Luca-Bogdan Grigorescu>
@@ -933,6 +984,7 @@ Marc Kuo <kuomarc2@gmail.com>
 Marc Tamsky <mtamsky@gmail.com>
 Marcelo Salazar <chelosalazar@gmail.com>
 Marco Hennings <marco.hennings@freiheit.com>
+Marcus Cobden <mcobden@cisco.com>
 Marcus Farkas <toothlessgear@finitebox.com>
 Marcus Linke <marcus.linke@gmx.de>
 Marcus Ramberg <marcus@nordaaker.com>
@@ -958,6 +1010,7 @@ Martin Mosegaard Amdisen <martin.amdisen@praqma.com>
 Martin Redmond <redmond.martin@gmail.com>
 Mary Anthony <mary.anthony@docker.com>
 Masahito Zembutsu <zembutsu@users.noreply.github.com>
+Masayuki Morita <minamijoyo@gmail.com>
 Mason Malone <mason.malone@gmail.com>
 Mateusz Sulima <sulima.mateusz@gmail.com>
 Mathias Monnerville <mathias@monnerville.com>
@@ -972,6 +1025,7 @@ Matt Moore <mattmoor@google.com>
 Matt Richardson <matt@redgumtech.com.au>
 Matt Robenolt <matt@ydekproductions.com>
 Matthew Heon <mheon@redhat.com>
+Matthew Lapworth <matthewl@bit-shift.net>
 Matthew Mayer <matthewkmayer@gmail.com>
 Matthew Mueller <mattmuelle@gmail.com>
 Matthew Riley <mattdr@google.com>
@@ -1008,8 +1062,9 @@ Michael Friis <friism@gmail.com>
 Michael Gorsuch <gorsuch@github.com>
 Michael Grauer <michael.grauer@kitware.com>
 Michael Holzheu <holzheu@linux.vnet.ibm.com>
-Michael Hudson-Doyle <michael.hudson@linaro.org>
+Michael Hudson-Doyle <michael.hudson@canonical.com>
 Michael Huettermann <michael@huettermann.net>
+Michael Irwin <mikesir87@gmail.com>
 Michael Käufl <docker@c.michael-kaeufl.de>
 Michael Neale <michael.neale@gmail.com>
 Michael Prokop <github@michael-prokop.at>
@@ -1021,7 +1076,7 @@ Michael West <mwest@mdsol.com>
 Michal Fojtik <mfojtik@redhat.com>
 Michal Gebauer <mishak@mishak.net>
 Michal Jemala <michal.jemala@gmail.com>
-Michal Minar <miminar@redhat.com>
+Michal Minář <miminar@redhat.com>
 Michal Wieczorek <wieczorek-michal@wp.pl>
 Michaël Pailloncy <mpapo.dev@gmail.com>
 Michał Czeraszkiewicz <czerasz@gmail.com>
@@ -1044,6 +1099,7 @@ Mike Naberezny <mike@naberezny.com>
 Mike Snitzer <snitzer@redhat.com>
 mikelinjie <294893458@qq.com>
 Mikhail Sobolev <mss@mawhrin.net>
+Milind Chawre <milindchawre@gmail.com>
 Miloslav Trmač <mitr@redhat.com>
 mingqing <limingqing@cyou-inc.com>
 Mingzhen Feng <fmzhen@zju.edu.cn>
@@ -1063,6 +1119,7 @@ mqliang <mqliang.zju@gmail.com>
 Mrunal Patel <mrunalp@gmail.com>
 msabansal <sabansal@microsoft.com>
 mschurenko <matt.schurenko@gmail.com>
+Muayyad Alsadi <alsadi@gmail.com>
 muge <stevezhang2014@gmail.com>
 Mustafa Akın <mustafa91@gmail.com>
 Muthukumar R <muthur@gmail.com>
@@ -1107,9 +1164,11 @@ Nicolás Hock Isaza <nhocki@gmail.com>
 Nigel Poulton <nigelpoulton@hotmail.com>
 NikolaMandic <mn080202@gmail.com>
 nikolas <nnyby@columbia.edu>
+Nikolay Milovanov <nmil@itransformers.net>
 Nirmal Mehta <nirmalkmehta@gmail.com>
 Nishant Totla <nishanttotla@gmail.com>
 NIWA Hideyuki <niwa.niwa@nifty.ne.jp>
+Noah Treuhaft <noah.treuhaft@docker.com>
 noducks <onemannoducks@gmail.com>
 Nolan Darilek <nolan@thewordnerd.info>
 nponeccop <andy.melnikov@gmail.com>
@@ -1152,6 +1211,7 @@ Paul Bowsher <pbowsher@globalpersonals.co.uk>
 Paul Furtado <pfurtado@hubspot.com>
 Paul Hammond <paul@paulhammond.org>
 Paul Jimenez <pj@place.org>
+Paul Kehrer <paul.l.kehrer@gmail.com>
 Paul Lietar <paul@lietar.net>
 Paul Liljenberg <liljenberg.paul@gmail.com>
 Paul Morie <pmorie@gmail.com>
@@ -1205,10 +1265,10 @@ Prasanna Gautam <prasannagautam@gmail.com>
 Prayag Verma <prayag.verma@gmail.com>
 Przemek Hejman <przemyslaw.hejman@gmail.com>
 pysqz <randomq@126.com>
-qg <1373319223@qq.com>
 qhuang <h.huangqiang@huawei.com>
 Qiang Huang <h.huangqiang@huawei.com>
-qq690388648 <690388648@qq.com>
+Qinglan Peng <qinglanpeng@zju.edu.cn>
+qudongfang <qudongfang@gmail.com>
 Quentin Brossard <qbrossard@gmail.com>
 Quentin Perez <qperez@ocs.online.net>
 Quentin Tayssier <qtayssier@gmail.com>
@@ -1228,6 +1288,7 @@ Ramon van Alteren <ramon@vanalteren.nl>
 Ray Tsang <saturnism@users.noreply.github.com>
 ReadmeCritic <frankensteinbot@gmail.com>
 Recursive Madman <recursive.madman@gmx.de>
+Reficul <xuzhenglun@gmail.com>
 Regan McCooey <rmccooey27@aol.com>
 Remi Rampin <remirampin@gmail.com>
 Renato Riccieri Santos Zannon <renato.riccieri@gmail.com>
@@ -1269,6 +1330,7 @@ Roel Van Nyen <roel.vannyen@gmail.com>
 Roger Peppe <rogpeppe@gmail.com>
 Rohit Jnagal <jnagal@google.com>
 Rohit Kadam <rohit.d.kadam@gmail.com>
+Rojin George <rojingeorge@huawei.com>
 Roland Huß <roland@jolokia.org>
 Roland Kammerer <roland.kammerer@linbit.com>
 Roland Moriz <rmoriz@users.noreply.github.com>
@@ -1301,6 +1363,7 @@ Ryan Seto <ryanseto@yak.net>
 Ryan Thomas <rthomas@atlassian.com>
 Ryan Trauntvein <rtrauntvein@novacoast.com>
 Ryan Wallner <ryan.wallner@clusterhq.com>
+Ryan Zhang <ryan.zhang@docker.com>
 RyanDeng <sheldon.d1018@gmail.com>
 Rémy Greinhofer <remy.greinhofer@livelovely.com>
 s. rannou <mxs@sbrk.org>
@@ -1324,6 +1387,7 @@ Samuel Andaya <samuel@andaya.net>
 Samuel Dion-Girardeau <samuel.diongirardeau@gmail.com>
 Samuel Karp <skarp@amazon.com>
 Samuel PHAN <samuel-phan@users.noreply.github.com>
+Sandeep Bansal <msabansal@microsoft.com>
 Sankar சங்கர் <sankar.curiosity@gmail.com>
 Sanket Saurav <sanketsaurav@gmail.com>
 Santhosh Manohar <santhosh@docker.com>
@@ -1341,8 +1405,10 @@ Scott Walls <sawalls@umich.edu>
 sdreyesg <sdreyesg@gmail.com>
 Sean Christopherson <sean.j.christopherson@intel.com>
 Sean Cronin <seancron@gmail.com>
+Sean McIntyre <s.mcintyre@xverba.ca>
 Sean OMeara <sean@chef.io>
 Sean P. Kane <skane@newrelic.com>
+Sean Rodman <srodman7689@gmail.com>
 Sebastiaan van Steenis <mail@superseb.nl>
 Sebastiaan van Stijn <github@gone.nl>
 Senthil Kumar Selvaraj <senthil.thecoder@gmail.com>
@@ -1360,6 +1426,7 @@ shaunol <shaunol@gmail.com>
 Shawn Landden <shawn@churchofgit.com>
 Shawn Siefkas <shawn.siefkas@meredith.com>
 shawnhe <shawnhe@shawnhedeMacBook-Pro.local>
+Shayne Wang <shaynexwang@gmail.com>
 Shekhar Gulati <shekhargulati84@gmail.com>
 Sheng Yang <sheng@yasker.org>
 Shengbo Song <thomassong@tencent.com>
@@ -1375,6 +1442,7 @@ Shuwei Hao <haosw@cn.ibm.com>
 Sian Lerk Lau <kiawin@gmail.com>
 sidharthamani <sid@rancher.com>
 Silas Sewell <silas@sewell.org>
+Silvan Jegen <s.jegen@gmail.com>
 Simei He <hesimei@zju.edu.cn>
 Simon Eskildsen <sirup@sirupsen.com>
 Simon Leinen <simon.leinen@gmail.com>
@@ -1415,6 +1483,7 @@ Steven Richards <steven@axiomzen.co>
 Steven Taylor <steven.taylor@me.com>
 Subhajit Ghosh <isubuz.g@gmail.com>
 Sujith Haridasan <sujith.h@gmail.com>
+Sun Gengze <690388648@qq.com>
 Suryakumar Sudar <surya.trunks@gmail.com>
 Sven Dowideit <SvenDowideit@home.org.au>
 Swapnil Daingade <swapnil.daingade@gmail.com>
@@ -1486,11 +1555,13 @@ Todd Lunter <tlunter@gmail.com>
 Todd Whiteman <todd.whiteman@joyent.com>
 Toli Kuznets <toli@docker.com>
 Tom Barlow <tomwbarlow@gmail.com>
+Tom Booth <tombooth@gmail.com>
 Tom Denham <tom@tomdee.co.uk>
 Tom Fotherby <tom+github@peopleperhour.com>
 Tom Howe <tom.howe@enstratius.com>
 Tom Hulihan <hulihan.tom159@gmail.com>
 Tom Maaswinkel <tom.maaswinkel@12wiki.eu>
+Tom Wilkie <tom.wilkie@gmail.com>
 Tom X. Tobin <tomxtobin@tomxtobin.com>
 Tomas Tomecek <ttomecek@redhat.com>
 Tomasz Kopczynski <tomek@kopczynski.net.pl>
@@ -1498,25 +1569,26 @@ Tomasz Lipinski <tlipinski@users.noreply.github.com>
 Tomasz Nurkiewicz <nurkiewicz@gmail.com>
 Tommaso Visconti <tommaso.visconti@gmail.com>
 Tomáš Hrčka <thrcka@redhat.com>
-Tonis Tiigi <tonistiigi@gmail.com>
 Tonny Xu <tonny.xu@gmail.com>
 Tony Daws <tony@daws.ca>
 Tony Miller <mcfiredrill@gmail.com>
 toogley <toogley@mailbox.org>
 Torstein Husebø <torstein@huseboe.net>
+Tõnis Tiigi <tonistiigi@gmail.com>
 tpng <benny.tpng@gmail.com>
 tracylihui <793912329@qq.com>
+Trapier Marshall <trapier.marshall@docker.com>
 Travis Cline <travis.cline@gmail.com>
 Travis Thieman <travis.thieman@gmail.com>
 Trent Ogren <tedwardo2@gmail.com>
 Trevor <trevinwoodstock@gmail.com>
 Trevor Pounds <trevor.pounds@gmail.com>
+Trevor Sullivan <pcgeek86@gmail.com>
 trishnaguha <trishnaguha17@gmail.com>
 Tristan Carel <tristan@cogniteev.com>
 Troy Denton <trdenton@gmail.com>
 Tyler Brock <tyler.brock@gmail.com>
 Tzu-Jung Lee <roylee17@gmail.com>
-Tõnis Tiigi <tonistiigi@gmail.com>
 Ulysse Carion <ulyssecarion@gmail.com>
 unknown <sebastiaan@ws-key-sebas3.dpi1.dpi>
 vagrant <vagrant@ubuntu-14.04-amd64-vbox>
@@ -1561,7 +1633,10 @@ waitingkuo <waitingkuo0527@gmail.com>
 Walter Leibbrandt <github@wrl.co.za>
 Walter Stanish <walter@pratyeka.org>
 WANG Chao <wcwxyz@gmail.com>
+Wang Long <long.wanglong@huawei.com>
+Wang Ping <present.wp@icloud.com>
 Wang Xing <hzwangxing@corp.netease.com>
+Wang Yuexiao <wang.yuexiao@zte.com.cn>
 Ward Vandewege <ward@jhvc.com>
 WarheadsSE <max@warheads.net>
 Wayne Chang <wayne@neverfear.org>
@@ -1571,8 +1646,10 @@ Weiyang Zhu <cnresonant@gmail.com>
 Wen Cheng Ma <wenchma@cn.ibm.com>
 Wendel Fleming <wfleming@usc.edu>
 Wenkai Yin <yinw@vmware.com>
+Wentao Zhang <zhangwentao234@huawei.com>
 Wenxuan Zhao <viz@linux.com>
 Wenyu You <21551128@zju.edu.cn>
+Wenzhi Liang <wenzhi.liang@gmail.com>
 Wes Morgan <cap10morgan@gmail.com>
 Will Dietz <w@wdtz.org>
 Will Rouesnel <w.rouesnel@gmail.com>
@@ -1589,6 +1666,7 @@ Wolfgang Powisch <powo@powo.priv.at>
 wonderflow <wonderflow.sun@gmail.com>
 Wonjun Kim <wonjun.kim@navercorp.com>
 xamyzhao <x.amy.zhao@gmail.com>
+Xianglin Gao <xlgao@zju.edu.cn>
 Xianlu Bird <xianlubird@gmail.com>
 XiaoBing Jiang <s7v7nislands@gmail.com>
 Xiaoxu Chen <chenxiaoxu14@otcaix.iscas.ac.cn>
@@ -1608,17 +1686,17 @@ Yestin Sun <sunyi0804@gmail.com>
 Yi EungJun <eungjun.yi@navercorp.com>
 Yibai Zhang <xm1994@gmail.com>
 Yihang Ho <hoyihang5@gmail.com>
-Ying Li <cyli@twistedmatrix.com>
+Ying Li <ying.li@docker.com>
 Yohei Ueda <yohei@jp.ibm.com>
 Yong Tang <yong.tang.github@outlook.com>
 Yongzhi Pan <panyongzhi@gmail.com>
 yorkie <yorkiefixer@gmail.com>
 Youcef YEKHLEF <yyekhlef@gmail.com>
+Yu Peng <yu.peng36@zte.com.cn>
 Yuan Sun <sunyuan3@huawei.com>
 yuchangchun <yuchangchun1@huawei.com>
 yuchengxia <yuchengxia@huawei.com>
-yuexiao-wang <wang.yuexiao@zte.com.cn>
-YuPengZTE <yu.peng36@zte.com.cn>
+Yunxiang Huang <hyxqshk@vip.qq.com>
 Yurii Rashkovskii <yrashk@gmail.com>
 yuzou <zouyu7@huawei.com>
 Zac Dover <zdover@redhat.com>
@@ -1635,6 +1713,7 @@ Zhang Wentao <zhangwentao234@huawei.com>
 Zhenan Ye <21551168@zju.edu.cn>
 zhouhao <zhouhao@cn.fujitsu.com>
 Zhu Guihua <zhugh.fnst@cn.fujitsu.com>
+Zhu Kunjia <zhu.kunjia@zte.com.cn>
 Zhuoyun Wei <wzyboy@wzyboy.org>
 Zilin Du <zilin.du@gmail.com>
 zimbatm <zimbatm@zimbatm.com>
