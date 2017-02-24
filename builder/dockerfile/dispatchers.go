@@ -24,7 +24,6 @@ import (
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/pkg/signal"
-	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/go-connections/nat"
 )
 
@@ -365,34 +364,7 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	defer func(cmd strslice.StrSlice) { b.runConfig.Cmd = cmd }(cmd)
 	defer func(env []string) { b.runConfig.Env = env }(env)
 
-	// derive the net build-time environment for this run. We let config
-	// environment override the build time environment.
-	// This means that we take the b.buildArgs list of env vars and remove
-	// any of those variables that are defined as part of the container. In other
-	// words, anything in b.Config.Env. What's left is the list of build-time env
-	// vars that we need to add to each RUN command - note the list could be empty.
-	//
-	// We don't persist the build time environment with container's config
-	// environment, but just sort and prepend it to the command string at time
-	// of commit.
-	// This helps with tracing back the image's actual environment at the time
-	// of RUN, without leaking it to the final image. It also aids cache
-	// lookup for same image built with same build time environment.
-	cmdBuildEnv := []string{}
-	configEnv := runconfigopts.ConvertKVStringsToMap(b.runConfig.Env)
-	for key, val := range b.options.BuildArgs {
-		if !b.isBuildArgAllowed(key) {
-			// skip build-args that are not in allowed list, meaning they have
-			// not been defined by an "ARG" Dockerfile command yet.
-			// This is an error condition but only if there is no "ARG" in the entire
-			// Dockerfile, so we'll generate any necessary errors after we parsed
-			// the entire file (see 'leftoverArgs' processing in evaluator.go )
-			continue
-		}
-		if _, ok := configEnv[key]; !ok && val != nil {
-			cmdBuildEnv = append(cmdBuildEnv, fmt.Sprintf("%s=%s", key, *val))
-		}
-	}
+	cmdBuildEnv := b.buildArgsWithoutConfigEnv()
 
 	// derive the command to use for probeCache() and to commit in this container.
 	// Note that we only do this if there are any build-time env vars.  Also, we
