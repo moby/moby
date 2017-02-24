@@ -1118,6 +1118,8 @@ func (n *network) addSvcRecords(name string, epIP net.IP, epIPv6 net.IP, ipMapUp
 		return
 	}
 
+	logrus.Debugf("(%s).addSvcRecords(%s, %s, %s, %t)", n.ID()[0:7], name, epIP, epIPv6, ipMapUpdate)
+
 	c := n.getController()
 	c.Lock()
 	defer c.Unlock()
@@ -1150,6 +1152,8 @@ func (n *network) deleteSvcRecords(name string, epIP net.IP, epIPv6 net.IP, ipMa
 	if n.ingress {
 		return
 	}
+
+	logrus.Debugf("(%s).deleteSvcRecords(%s, %s, %s, %t)", n.ID()[0:7], name, epIP, epIPv6, ipMapUpdate)
 
 	c := n.getController()
 	c.Lock()
