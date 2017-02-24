@@ -42,7 +42,7 @@ func (b *Builder) commit(id string, autoCmd strslice.StrSlice, comment string) e
 	if b.disableCommit {
 		return nil
 	}
-	if b.image == "" && !b.noBaseImage {
+	if !b.hasFromImage() {
 		return errors.New("Please provide a source image with `from` prior to commit")
 	}
 	b.runConfig.Image = b.image
@@ -473,7 +473,7 @@ func (b *Builder) probeCache() (bool, error) {
 }
 
 func (b *Builder) create() (string, error) {
-	if b.image == "" && !b.noBaseImage {
+	if !b.hasFromImage() {
 		return "", errors.New("Please provide a source image with `from` prior to run")
 	}
 	b.runConfig.Image = b.image
@@ -666,16 +666,4 @@ func (b *Builder) parseDockerfile() error {
 	}
 
 	return nil
-}
-
-// determine if build arg is part of built-in args or user
-// defined args in Dockerfile at any point in time.
-func (b *Builder) isBuildArgAllowed(arg string) bool {
-	if _, ok := BuiltinAllowedBuildArgs[arg]; ok {
-		return true
-	}
-	if _, ok := b.allowedBuildArgs[arg]; ok {
-		return true
-	}
-	return false
 }

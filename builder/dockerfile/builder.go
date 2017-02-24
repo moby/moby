@@ -65,11 +65,12 @@ type Builder struct {
 	clientCtx context.Context
 	cancel    context.CancelFunc
 
-	dockerfile       *parser.Node
-	runConfig        *container.Config // runconfig for cmd, run, entrypoint etc.
-	flags            *BFlags
-	tmpContainers    map[string]struct{}
-	image            string // imageID
+	dockerfile    *parser.Node
+	runConfig     *container.Config // runconfig for cmd, run, entrypoint etc.
+	flags         *BFlags
+	tmpContainers map[string]struct{}
+	image         string // imageID
+	// A flag to track the use of `scratch` as the base image
 	noBaseImage      bool
 	maintainer       string
 	cmdSet           bool
@@ -328,6 +329,23 @@ func (b *Builder) warnOnUnusedBuildArgs() {
 	if len(leftoverArgs) > 0 {
 		fmt.Fprintf(b.Stderr, "[Warning] One or more build-args %v were not consumed\n", leftoverArgs)
 	}
+}
+
+// determine if build arg is part of built-in args or user
+// defined args in Dockerfile at any point in time.
+func (b *Builder) isBuildArgAllowed(arg string) bool {
+	if _, ok := BuiltinAllowedBuildArgs[arg]; ok {
+		return true
+	}
+	if _, ok := b.allowedBuildArgs[arg]; ok {
+		return true
+	}
+	return false
+}
+
+// hasFromImage returns true if the builder has processed a `FROM <image>` line
+func (b *Builder) hasFromImage() bool {
+	return b.image != "" || b.noBaseImage
 }
 
 // Cancel cancels an ongoing Dockerfile build.
