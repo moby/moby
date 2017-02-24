@@ -1344,7 +1344,7 @@ __docker_node_complete_ps_filters() {
     if compset -P '*='; then
         case "${${words[-1]%=*}#*=}" in
             (desired-state)
-                state_opts=('accepted' 'running')
+                state_opts=('accepted' 'running' 'shutdown')
                 _describe -t state-opts "desired state options" state_opts && ret=0
                 ;;
             *)
@@ -1784,7 +1784,7 @@ __docker_service_complete_ps_filters() {
     if compset -P '*='; then
         case "${${words[-1]%=*}#*=}" in
             (desired-state)
-                state_opts=('accepted' 'running')
+                state_opts=('accepted' 'running' 'shutdown')
                 _describe -t state-opts "desired state options" state_opts && ret=0
                 ;;
             *)
@@ -2040,7 +2040,7 @@ __docker_stack_complete_ps_filters() {
     if compset -P '*='; then
         case "${${words[-1]%=*}#*=}" in
             (desired-state)
-                state_opts=('accepted' 'running')
+                state_opts=('accepted' 'running' 'shutdown')
                 _describe -t state-opts "desired state options" state_opts && ret=0
                 ;;
             *)
