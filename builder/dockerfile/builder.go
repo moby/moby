@@ -72,7 +72,7 @@ type Builder struct {
 	tmpContainers    map[string]struct{}
 	image            string         // imageID
 	imageContexts    *imageContexts // helper for storing contexts from builds
-	noBaseImage      bool
+	noBaseImage      bool           // A flag to track the use of `scratch` as the base image
 	maintainer       string
 	cmdSet           bool
 	disableCommit    bool
@@ -326,6 +326,11 @@ func (b *Builder) warnOnUnusedBuildArgs() {
 	if len(leftoverArgs) > 0 {
 		fmt.Fprintf(b.Stderr, "[Warning] One or more build-args %v were not consumed\n", leftoverArgs)
 	}
+}
+
+// hasFromImage returns true if the builder has processed a `FROM <image>` line
+func (b *Builder) hasFromImage() bool {
+	return b.image != "" || b.noBaseImage
 }
 
 // Cancel cancels an ongoing Dockerfile build.

@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/builder"
+	"github.com/docker/docker/pkg/shellvar"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/go-connections/nat"
 	"github.com/pkg/errors"
@@ -218,7 +219,17 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 		return err
 	}
 
-	name := args[0]
+	getBuildArg := func(key string) (string, bool) {
+		value, ok := b.options.BuildArgs[key]
+		if value != nil {
+			return *value, ok
+		}
+		return "", ok
+	}
+	name, err := shellvar.Substitute(args[0], getBuildArg)
+	if err != nil {
+		return err
+	}
 
 	var image builder.Image
 
@@ -360,7 +371,7 @@ func workdir(b *Builder, args []string, attributes map[string]bool, original str
 // RUN [ "echo", "hi" ] # echo hi
 //
 func run(b *Builder, args []string, attributes map[string]bool, original string) error {
-	if b.image == "" && !b.noBaseImage {
+	if !b.hasFromImage() {
 		return errors.New("Please provide a source image with `from` prior to run")
 	}
 
@@ -790,6 +801,10 @@ func arg(b *Builder, args []string, attributes map[string]bool, original string)
 	}
 	b.allowedBuildArgs[name] = value
 
+	// Arg before FROM doesn't add a layer
+	if !b.hasFromImage() {
+		return nil
+	}
 	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("ARG %s", arg))
 }
 

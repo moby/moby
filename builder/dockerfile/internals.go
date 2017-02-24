@@ -44,7 +44,7 @@ func (b *Builder) commit(id string, autoCmd strslice.StrSlice, comment string) e
 	if b.disableCommit {
 		return nil
 	}
-	if b.image == "" && !b.noBaseImage {
+	if !b.hasFromImage() {
 		return errors.New("Please provide a source image with `from` prior to commit")
 	}
 	b.runConfig.Image = b.image
@@ -503,7 +503,7 @@ func (b *Builder) probeCache() (bool, error) {
 }
 
 func (b *Builder) create() (string, error) {
-	if b.image == "" && !b.noBaseImage {
+	if !b.hasFromImage() {
 		return "", errors.New("Please provide a source image with `from` prior to run")
 	}
 	b.runConfig.Image = b.image
