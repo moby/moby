@@ -394,6 +394,9 @@ func convertEnvironment(source map[string]string) []string {
 	var output []string
 
 	for name, value := range source {
+		if value == "" {
+			value = os.Getenv(name)
+		}
 		output = append(output, fmt.Sprintf("%s=%s", name, value))
 	}
 
