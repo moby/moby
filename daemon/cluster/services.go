@@ -277,12 +277,22 @@ func (c *Cluster) ServiceLogs(ctx context.Context, input string, config *backend
 		return err
 	}
 
+	// set the streams we'll use
+	stdStreams := []swarmapi.LogStream{}
+	if config.ContainerLogsOptions.ShowStdout {
+		stdStreams = append(stdStreams, swarmapi.LogStreamStdout)
+	}
+	if config.ContainerLogsOptions.ShowStderr {
+		stdStreams = append(stdStreams, swarmapi.LogStreamStderr)
+	}
+
 	stream, err := state.logsClient.SubscribeLogs(ctx, &swarmapi.SubscribeLogsRequest{
 		Selector: &swarmapi.LogSelector{
 			ServiceIDs: []string{service.ID},
 		},
 		Options: &swarmapi.LogSubscriptionOptions{
-			Follow: config.Follow,
+			Follow:  config.Follow,
+			Streams: stdStreams,
 		},
 	})
 	if err != nil {
