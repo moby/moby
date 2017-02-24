@@ -405,10 +405,6 @@ __docker_complete_nodes() {
 	COMPREPLY=( $(compgen -W "$(__docker_nodes "$@")" -- "$current") )
 }
 
-__docker_complete_nodes_plus_self() {
-	__docker_complete_nodes --add self "$@"
-}
-
 # __docker_services returns a list of all services. Additional options to
 # `docker service ls` may be specified in order to filter the list, e.g.
 # `__docker_services --filter name=xxx`
@@ -2914,7 +2910,7 @@ _docker_service_ps() {
 			return
 			;;
 		node)
-			__docker_complete_nodes_plus_self --cur "${cur##*=}"
+			__docker_complete_nodes --cur "${cur##*=}" --add self
 			return
 			;;
 	esac
@@ -3327,7 +3323,7 @@ _docker_node_inspect() {
 			COMPREPLY=( $( compgen -W "--format -f --help --pretty" -- "$cur" ) )
 			;;
 		*)
-			__docker_complete_nodes_plus_self
+			__docker_complete_nodes --add self
 	esac
 }
 
@@ -3421,7 +3417,7 @@ _docker_node_ps() {
 			COMPREPLY=( $( compgen -W "--filter -f --help --no-resolve --no-trunc" -- "$cur" ) )
 			;;
 		*)
-			__docker_complete_nodes_plus_self
+			__docker_complete_nodes --add self
 			;;
 	esac
 }
