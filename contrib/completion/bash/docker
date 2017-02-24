@@ -3342,15 +3342,23 @@ _docker_node_ls() {
 			__docker_complete_nodes --cur "${cur##*=}" --id
 			return
 			;;
+		membership)
+			COMPREPLY=( $( compgen -W "accepted pending" -- "${cur##*=}" ) )
+			return
+			;;
 		name)
 			__docker_complete_nodes --cur "${cur##*=}" --name
+			return
+			;;
+		role)
+			COMPREPLY=( $( compgen -W "manager worker" -- "${cur##*=}" ) )
 			return
 			;;
 	esac
 
 	case "$prev" in
 		--filter|-f)
-			COMPREPLY=( $( compgen -W "id label name" -S = -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "id label membership name role" -S = -- "$cur" ) )
 			__docker_nospace
 			return
 			;;
