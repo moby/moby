@@ -20,6 +20,7 @@ import (
 	dopts "github.com/docker/docker/opts"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/docker/notary/passphrase"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
@@ -153,9 +154,30 @@ func (cli *DockerCli) Initialize(opts *cliflags.ClientOptions) error {
 
 	var err error
 	cli.client, err = NewAPIClientFromFlags(opts.Common, cli.configFile)
+	if tlsconfig.IsErrEncryptedKey(err) {
+		var (
+			passwd string
+			giveup bool
+		)
+		passRetriever := passphrase.PromptRetrieverWithInOut(cli.In(), cli.Out(), nil)
+
+		for attempts := 0; tlsconfig.IsErrEncryptedKey(err); attempts++ {
+			// some code and comments borrowed from notary/trustmanager/keystore.go
+			passwd, giveup, err = passRetriever("private", "encrypted TLS private", false, attempts)
+			// Check if the passphrase retriever got an error or if it is telling us to give up
+			if giveup || err != nil {
+				return errors.Wrap(err, "private key is encrypted, but could not get passphrase")
+			}
+
+			opts.Common.TLSOptions.Passphrase = passwd
+			cli.client, err = NewAPIClientFromFlags(opts.Common, cli.configFile)
+		}
+	}
+
 	if err != nil {
 		return err
 	}
+
 	cli.defaultVersion = cli.client.ClientVersion()
 
 	if opts.Common.TrustKey == "" {
