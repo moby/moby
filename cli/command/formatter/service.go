@@ -40,7 +40,7 @@ UpdateStatus:
 {{- end }}
 Placement:
 {{- if .TaskPlacementConstraints -}}
- Contraints:	{{ .TaskPlacementConstraints }}
+ Constraints:	{{ .TaskPlacementConstraints }}
 {{- end }}
 {{- if .HasUpdateConfig }}
 UpdateConfig:
