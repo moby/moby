@@ -1477,7 +1477,7 @@ _docker_container_run_and_create() {
 		--init-path
 		--ip
 		--ip6
-		--ipam-opt
+		--ipam
 		--ipc
 		--kernel-memory
 		--label-file
@@ -1494,7 +1494,6 @@ _docker_container_run_and_create() {
 		--name
 		--network
 		--network-alias
-		--network-opt
 		--oom-score-adj
 		--pid
 		--pids-limit

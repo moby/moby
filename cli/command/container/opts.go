@@ -60,8 +60,8 @@ type containerOptions struct {
 	storageOpt         opts.ListOpts
 	labelsFile         opts.ListOpts
 	loggingOpts        opts.ListOpts
-	networkOpts        opts.ListOpts
-	ipamOpts           opts.ListOpts
+	networkOpts        opts.NetworkOpts
+	ipamOpts           opts.IPAMOpts
 	privileged         bool
 	pidMode            string
 	utsMode            string
@@ -94,7 +94,6 @@ type containerOptions struct {
 	ioMaxBandwidth     string
 	ioMaxIOps          uint64
 	swappiness         int64
-	netMode            string
 	macAddress         string
 	ipv4Address        string
 	ipv6Address        string
@@ -151,8 +150,8 @@ func addFlags(flags *pflag.FlagSet) *containerOptions {
 		linkLocalIPs:      opts.NewListOpts(nil),
 		links:             opts.NewListOpts(opts.ValidateLink),
 		loggingOpts:       opts.NewListOpts(nil),
-		networkOpts:       opts.NewListOpts(nil),
-		ipamOpts:          opts.NewListOpts(nil),
+		networkOpts:       opts.NewNetworkOpts(nil),
+		ipamOpts:          opts.NewIPAMOpts(nil),
 		publish:           opts.NewListOpts(nil),
 		securityOpt:       opts.NewListOpts(nil),
 		storageOpt:        opts.NewListOpts(nil),
@@ -212,18 +211,17 @@ func addFlags(flags *pflag.FlagSet) *containerOptions {
 	flags.StringVar(&copts.macAddress, "mac-address", "", "Container MAC address (e.g., 92:d0:c6:0a:29:33)")
 	flags.VarP(&copts.publish, "publish", "p", "Publish a container's port(s) to the host")
 	flags.BoolVarP(&copts.publishAll, "publish-all", "P", false, "Publish all exposed ports to random ports")
+	// Network driver specific options
 	// We allow for both "--net" and "--network", although the latter is the recommended way.
-	flags.StringVar(&copts.netMode, "net", "default", "Connect a container to a network")
-	flags.StringVar(&copts.netMode, "network", "default", "Connect a container to a network")
+	flags.Var(&copts.networkOpts, "net", "Connect a container to a network")
+	flags.Var(&copts.networkOpts, "network", "Connect a container to a network")
 	flags.MarkHidden("net")
 	// We allow for both "--net-alias" and "--network-alias", although the latter is the recommended way.
 	flags.Var(&copts.aliases, "net-alias", "Add network-scoped alias for the container")
 	flags.Var(&copts.aliases, "network-alias", "Add network-scoped alias for the container")
 	flags.MarkHidden("net-alias")
-	// Network driver specific options
-	flags.Var(&copts.networkOpts, "network-opt", "Set network driver option for a container endpoint")
 	// IPAM driver specific options
-	flags.Var(&copts.ipamOpts, "ipam-opt", "Set IPAM driver option for a container endpoint")
+	flags.Var(&copts.ipamOpts, "ipam", "Set IPAM driver option for a container endpoint")
 
 	// Logging and storage
 	flags.StringVar(&copts.loggingDriver, "log-driver", "", "Logging driver for the container")
@@ -617,7 +615,6 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*container.Config, *c
 		DNSOptions:     copts.dnsOptions.GetAllOrEmpty(),
 		ExtraHosts:     copts.extraHosts.GetAll(),
 		VolumesFrom:    copts.volumesFrom.GetAll(),
-		NetworkMode:    container.NetworkMode(copts.netMode),
 		IpcMode:        ipcMode,
 		PidMode:        pidMode,
 		UTSMode:        utsMode,
@@ -657,6 +654,12 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*container.Config, *c
 		EndpointsConfig: make(map[string]*networktypes.EndpointSettings),
 	}
 
+	groups := copts.networkOpts.GetGroupOrder()
+
+	// If multiple network are passed, take the last one
+	netMode := groups[len(groups)-1]
+	hostConfig.NetworkMode = container.NetworkMode(netMode)
+
 	if copts.ipv4Address != "" || copts.ipv6Address != "" || copts.linkLocalIPs.Len() > 0 {
 		epConfig := &networktypes.EndpointSettings{}
 		networkingConfig.EndpointsConfig[string(hostConfig.NetworkMode)] = epConfig
@@ -664,7 +667,7 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*container.Config, *c
 		epConfig.IPAMConfig = &networktypes.EndpointIPAMConfig{
 			IPv4Address: copts.ipv4Address,
 			IPv6Address: copts.ipv6Address,
-			Options:     runconfigopts.ConvertKVStringsToMap(copts.ipamOpts.GetAll()),
+			Options:     copts.ipamOpts.GetGroupValue(string(hostConfig.NetworkMode)),
 		}
 
 		if copts.linkLocalIPs.Len() > 0 {
@@ -693,12 +696,13 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*container.Config, *c
 		networkingConfig.EndpointsConfig[string(hostConfig.NetworkMode)] = epConfig
 	}
 
-	if copts.networkOpts.Len() > 0 {
+	options := copts.networkOpts.GetGroupValue(string(hostConfig.NetworkMode))
+	if options != nil {
 		epConfig := networkingConfig.EndpointsConfig[string(hostConfig.NetworkMode)]
 		if epConfig == nil {
 			epConfig = &networktypes.EndpointSettings{}
 		}
-		epConfig.NetworkOpts = runconfigopts.ConvertKVStringsToMap(copts.networkOpts.GetAll())
+		epConfig.NetworkOpts = options
 		networkingConfig.EndpointsConfig[string(hostConfig.NetworkMode)] = epConfig
 	}
 

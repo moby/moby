@@ -1,6 +1,7 @@
 package opts
 
 import (
+	"encoding/csv"
 	"fmt"
 	"math/big"
 	"net"
@@ -9,6 +10,8 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types/filters"
+
+	runconfigopts "github.com/docker/docker/runconfig/opts"
 	units "github.com/docker/go-units"
 )
 
@@ -184,6 +187,11 @@ func (opts *MapOpts) Type() string {
 	return "map"
 }
 
+// Value returns the map of string values
+func (opts *MapOpts) Value() map[string]string {
+	return opts.values
+}
+
 // NewMapOpts creates a new MapOpts with the specified map of values and a validator.
 func NewMapOpts(values map[string]string, validator ValidatorFctType) *MapOpts {
 	if values == nil {
@@ -193,6 +201,99 @@ func NewMapOpts(values map[string]string, validator ValidatorFctType) *MapOpts {
 		values:    values,
 		validator: validator,
 	}
+}
+
+// GroupMapOptions is a Value type for parsing options associated by group
+// i.e. "name=group,key1=val1,key2=val2"
+type GroupMapOptions struct {
+	GroupOrder []string
+	Groups     map[string]*MapOpts
+	validator  ValidatorFctType
+}
+
+// NewGroupMapOptions creates a new NetworOpts
+func NewGroupMapOptions(validator ValidatorFctType) GroupMapOptions {
+	return GroupMapOptions{
+		GroupOrder: []string{},
+		Groups:     make(map[string]*MapOpts),
+		validator:  validator,
+	}
+}
+
+// Set a new group value
+func (n *GroupMapOptions) Set(value string) error {
+	group := "default"
+	options := make(map[string]string)
+
+	if value != "" {
+		i := strings.Index(value, "=")
+		// if value contains key=value options...
+		if i > -1 {
+			csvReader := csv.NewReader(strings.NewReader(value))
+			fields, err := csvReader.Read()
+			if err != nil {
+				return err
+			}
+
+			hasName := strings.HasPrefix(fields[0], "name=")
+			if hasName {
+				parts := strings.SplitN(fields[0], "=", 2)
+				group = parts[1]
+				fields = fields[1:]
+			}
+
+			options = runconfigopts.ConvertKVStringsToMap(fields)
+
+		} else {
+			group = value
+		}
+	}
+
+	mapOpts := NewMapOpts(options, n.validator)
+	n.Groups[group] = mapOpts
+	n.GroupOrder = append(n.GroupOrder, group)
+	return nil
+}
+
+// GetGroupOrder returns an array with the groups
+func (n *GroupMapOptions) GetGroupOrder() []string {
+	if len(n.Groups) > 0 {
+		return n.GroupOrder
+	}
+	return []string{"default"}
+}
+
+// GetGroupValue returns the map of options for a group
+func (n *GroupMapOptions) GetGroupValue(group string) map[string]string {
+	mapOpts, ok := n.Groups[group]
+	if !ok {
+		return nil
+	}
+	return mapOpts.Value()
+}
+
+// String returns a string repr of all groups of options
+func (n *GroupMapOptions) String() string {
+	groups := []string{}
+	for _, group := range n.GroupOrder {
+		mapOpts, _ := n.Groups[group]
+		repr := fmt.Sprintf("%s %s", group, mapOpts.String())
+		groups = append(groups, repr)
+	}
+	return strings.Join(groups, ", ")
+}
+
+// Value returns the groups of options
+func (n *GroupMapOptions) Value() map[string]*MapOpts {
+	if len(n.Groups) > 0 {
+		return n.Groups
+	}
+	r := NewGroupMapOptions(n.validator)
+	options := make(map[string]string)
+	mapOpts := NewMapOpts(options, n.validator)
+	r.Groups["default"] = mapOpts
+	n.GroupOrder = append(n.GroupOrder, "default")
+	return r.Groups
 }
 
 // NamedMapOpts is a MapOpts struct with a configuration name.

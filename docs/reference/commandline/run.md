@@ -81,7 +81,7 @@ Options:
       --io-maxiops uint             Maximum IOps limit for the system drive (Windows only)
       --ip string                   IPv4 address (e.g., 172.30.100.104)
       --ip6 string                  IPv6 address (e.g., 2001:db8::33)
-      --ipam-opt value              IPAM driver options (default [])
+      --ipam value                  IPAM driver options (default [])
       --ipc string                  IPC namespace to use
       --isolation string            Container isolation technology
       --kernel-memory string        Kernel memory limit
@@ -98,8 +98,7 @@ Options:
       --memory-swappiness int       Tune container memory swappiness (0 to 100) (default -1)
       --name string                 Assign a name to the container
       --network-alias value         Add network-scoped alias for the container (default [])
-      --network-opt value           Network driver options (default [])
-      --network string              Connect a container to a network
+      --network string              Connect a container to a network, with optional network driver options
                                     'bridge': create a network stack on the default Docker bridge
                                     'none': no networking
                                     'container:<name|id>': reuse another container's network stack

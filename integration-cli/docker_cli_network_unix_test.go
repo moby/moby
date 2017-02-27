@@ -1778,6 +1778,26 @@ func (s *DockerNetworkSuite) TestDockerNetworkDisconnectFromBridge(c *check.C) {
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkDriverRunOptions(c *check.C) {
+	// create a container with default network (test backwards compatibility)
+	dockerCmd(c, "run", "-d", "--name", "test", "busybox", "top")
+	c.Assert(waitRun("test"), check.IsNil)
+	defer func() {
+		dockerCmd(c, "stop", "test")
+	}()
+
+	netOpts := inspectField(c, "test", "NetworkSettings.Networks.bridge.NetworkOpts")
+	c.Assert(strings.TrimSpace(netOpts), check.Equals, "map[]")
+
+	// create a container with host network (test backwards compatibility)
+	dockerCmd(c, "run", "-d", "--name", "test1", "--net", "host", "busybox", "top")
+	c.Assert(waitRun("test1"), check.IsNil)
+	defer func() {
+		dockerCmd(c, "stop", "test1")
+	}()
+
+	netOpts = inspectField(c, "test1", "NetworkSettings.Networks.host.NetworkOpts")
+	c.Assert(strings.TrimSpace(netOpts), check.Equals, "map[]")
+
 	// create a test network
 	dockerCmd(c, "network", "create", "-d", dummyNetworkDriver, "testnet")
 	assertNwIsAvailable(c, "testnet")
@@ -1785,18 +1805,57 @@ func (s *DockerNetworkSuite) TestDockerNetworkDriverRunOptions(c *check.C) {
 		dockerCmd(c, "network", "rm", "testnet")
 	}()
 
-	// create a container
-	dockerCmd(c, "run", "-d", "--name", "test", "--net", "testnet", "--network-opt", "a=b", "--network-opt", "1=2", "busybox", "top")
-	c.Assert(waitRun("test"), check.IsNil)
+	// create a container attached to testnet with no network options (test backwards compatibility)
+	dockerCmd(c, "run", "-d", "--name", "test2", "--net", "testnet", "busybox", "top")
+	c.Assert(waitRun("test2"), check.IsNil)
 	defer func() {
-		dockerCmd(c, "stop", "test")
+		dockerCmd(c, "stop", "test2")
+	}()
+
+	netOpts = inspectField(c, "test2", "NetworkSettings.Networks.testnet.NetworkOpts")
+	c.Assert(strings.TrimSpace(netOpts), check.Equals, "map[]")
+
+	// create a container attached to testnet with no network options
+	dockerCmd(c, "run", "-d", "--name", "test3", "--net", "name=testnet", "busybox", "top")
+	c.Assert(waitRun("test3"), check.IsNil)
+	defer func() {
+		dockerCmd(c, "stop", "test3")
+	}()
+
+	netOpts = inspectField(c, "test3", "NetworkSettings.Networks.testnet.NetworkOpts")
+	c.Assert(strings.TrimSpace(netOpts), check.Equals, "map[]")
+
+	// create a container attached to testnet with network options
+	dockerCmd(c, "run", "-d", "--name", "test4", "--net", "name=testnet,a=b,1=2", "busybox", "top")
+	c.Assert(waitRun("test4"), check.IsNil)
+	defer func() {
+		dockerCmd(c, "stop", "test4")
 	}()
 
 	// validate network options
-	netOpts := inspectField(c, "test", "NetworkSettings.Networks.testnet.NetworkOpts")
+	netOpts = inspectField(c, "test4", "NetworkSettings.Networks.testnet.NetworkOpts")
 	for _, expected := range []string{"a:b", "1:2"} {
 		c.Assert(netOpts, checker.Contains, expected, check.Commentf("Expected to find value %v in netOpts %v but didn't ", expected, netOpts))
 	}
+
+	// create a container attached to the default network with network options
+	dockerCmd(c, "run", "-d", "--name", "test5", "--net", "a=b,1=2", "busybox", "top")
+	c.Assert(waitRun("test5"), check.IsNil)
+	defer func() {
+		dockerCmd(c, "stop", "test5")
+	}()
+
+	// validate network options
+	netOpts = inspectField(c, "test5", "NetworkSettings.Networks.bridge.NetworkOpts")
+	for _, expected := range []string{"a:b", "1:2"} {
+		c.Assert(netOpts, checker.Contains, expected, check.Commentf("Expected to find value %v in netOpts %v but didn't ", expected, netOpts))
+	}
+
+	// create container attached to non-existent network
+	out, _, err := dockerCmdWithError("run", "-d", "--name", "test6", "--net", "name=no-net,a=b,1=2", "busybox", "top")
+
+	// validate the above fails
+	c.Assert(err, checker.NotNil, check.Commentf("%v", out))
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkDriverConnectOptions(c *check.C) {
@@ -1834,7 +1893,7 @@ func (s *DockerNetworkSuite) TestDockerIPAMDriverRunOptions(c *check.C) {
 	}()
 
 	// create a container setting link-local-ip so IPAMConfig object is created
-	dockerCmd(c, "run", "-d", "--name=test", "--net=testnet", "--ipam-opt", "a=b", "--ipam-opt", "1=2", "--link-local-ip=169.254.1.1", "busybox", "top")
+	dockerCmd(c, "run", "-d", "--name=test", "--net=testnet", "--ipam", "name=testnet,a=b,1=2", "--link-local-ip=169.254.1.1", "busybox", "top")
 	c.Assert(waitRun("test"), check.IsNil)
 	defer func() {
 		dockerCmd(c, "stop", "test")
@@ -1844,6 +1903,25 @@ func (s *DockerNetworkSuite) TestDockerIPAMDriverRunOptions(c *check.C) {
 	IPAMOpts := inspectField(c, "test", "NetworkSettings.Networks.testnet.IPAMConfig.Options")
 	for _, expected := range []string{"a:b", "1:2"} {
 		c.Assert(IPAMOpts, checker.Contains, expected, check.Commentf("Expected to find value %v in IPAMOpts %v but didn't ", expected, IPAMOpts))
+	}
+
+	// create a container with network options and IPAM options
+	dockerCmd(c, "run", "-d", "--name=test1", "--net", "name=testnet,a=b,1=2", "--ipam", "name=testnet,a=b,1=2", "--link-local-ip=169.254.1.1", "busybox", "top")
+	c.Assert(waitRun("test1"), check.IsNil)
+	defer func() {
+		dockerCmd(c, "stop", "test1")
+	}()
+
+	// validate IPAM options
+	IPAMOpts = inspectField(c, "test1", "NetworkSettings.Networks.testnet.IPAMConfig.Options")
+	for _, expected := range []string{"a:b", "1:2"} {
+		c.Assert(IPAMOpts, checker.Contains, expected, check.Commentf("Expected to find value %v in IPAMOpts %v but didn't ", expected, IPAMOpts))
+	}
+
+	// validate network options
+	netOpts := inspectField(c, "test1", "NetworkSettings.Networks.testnet.NetworkOpts")
+	for _, expected := range []string{"a:b", "1:2"} {
+		c.Assert(netOpts, checker.Contains, expected, check.Commentf("Expected to find value %v in netOpts %v but didn't ", expected, netOpts))
 	}
 }
 

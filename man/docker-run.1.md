@@ -48,7 +48,7 @@ docker-run - Run a command in a new container
 [**--ip**[=*IPv4-ADDRESS*]]
 [**--ip6**[=*IPv6-ADDRESS*]]
 [**--ipc**[=*IPC*]]
-[**--ipam-opt**[=*[]*]]
+[**--ipam**[=*""*]]
 [**--isolation**[=*default*]]
 [**--kernel-memory**[=*KERNEL-MEMORY*]]
 [**-l**|**--label**[=*[]*]]
@@ -65,7 +65,6 @@ docker-run - Run a command in a new container
 [**--name**[=*NAME*]]
 [**--network-alias**[=*[]*]]
 [**--network**[=*"bridge"*]]
-[**--network-opt**[=*[]*]]
 [**--oom-kill-disable**]
 [**--oom-score-adj**[=*0*]]
 [**-P**|**--publish-all**]
@@ -347,7 +346,7 @@ redirection on the host system.
 
    It can only be used in conjunction with **--network** for user-defined networks
 
-**--ipam-opt**=[]
+**--ipam**=""
       Add IPAM driver specific options.
 
 **--ipc**=""
@@ -446,7 +445,7 @@ other place you need to identify a container). This works for both background
 and foreground Docker containers.
 
 **--network**="*bridge*"
-   Set the Network mode for the container
+   Set the Network mode for the container, optionally passing driver options
                                'bridge': create a network stack on the default Docker bridge
                                'none': no networking
                                'container:<name|id>': reuse another container's network stack
@@ -455,9 +454,6 @@ and foreground Docker containers.
 
 **--network-alias**=[]
    Add network-scoped alias for the container
-
-**--network-opt**=[]
-   Add network driver specific options.
 
 **--oom-kill-disable**=*true*|*false*
    Whether to disable OOM Killer for the container or not.
