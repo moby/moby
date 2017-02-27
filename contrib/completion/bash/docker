@@ -2155,6 +2155,7 @@ _docker_image() {
 
 _docker_image_build() {
 	local options_with_args="
+		--add-host
 		--build-arg
 		--cache-from
 		--cgroup-parent
@@ -2191,6 +2192,14 @@ _docker_image_build() {
 	local all_options="$options_with_args $boolean_options"
 
 	case "$prev" in
+		--add-host)
+			case "$cur" in
+				*:)
+					__docker_complete_resolved_hostname
+					return
+					;;
+			esac
+			;;
 		--build-arg)
 			COMPREPLY=( $( compgen -e -- "$cur" ) )
 			__docker_nospace
