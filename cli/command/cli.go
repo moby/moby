@@ -38,6 +38,7 @@ type Cli interface {
 	Out() *OutStream
 	Err() io.Writer
 	In() *InStream
+	ConfigFile() *configfile.ConfigFile
 }
 
 // DockerCli is an instance the docker command line client.

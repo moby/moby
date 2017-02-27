@@ -1,10 +1,9 @@
 package volume
 
 import (
-	"github.com/spf13/cobra"
-
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/spf13/cobra"
 )
 
 // NewVolumeCommand returns a cobra command for `volume` subcommands
