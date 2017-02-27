@@ -67,6 +67,68 @@ Options:
   -u, --user string                      Username or UID (format: <name|uid>[:<group|gid>])
       --with-registry-auth               Send registry authentication details to swarm agents
   -w, --workdir string                   Working directory inside the container
+
+    --blkio-weight
+    --blkio-weight-device
+    --cap-add
+    --cap-drop
+    --cgroup-parent
+    --cidfile
+    --cpu-count (windows)
+    --cpu-percent (windows)
+    --cpu-period
+    --cpu-quota
+    --cpu-rt-period
+    --cpu-rt-runtime
+    --cpu-shares
+    --cpuset-cpus
+    --cpuset-mems
+    --credentialspec (windows)
+    --device
+    --device-read-bps
+    --device-read-iops
+    --device-write-bps
+    --device-write-iops
+    --disable-content-trust
+    --entrypoint
+    --expose
+    --init
+    --init-path
+    --interactive
+    --io-maxbandwidth
+    --io-maxiops
+    --ip
+    --ip6
+    --ipc
+    --isolation
+    --kernel-memory
+    --label-file
+    --link
+    --link-local-ip
+    --mac-address
+    --memory-swap
+    --memory-swappiness
+    --network-alias
+    --oom-kill-disable
+    --oom-score-adj
+    --pid
+    --pids-limit
+    --publish-all
+    --read-only
+    --rm
+    --runtime
+    --security-opt
+    --shm-size
+    --stop-signal
+    --storage-opt
+    --sysctl
+    --tmpfs
+    --ulimit
+    --userns
+    --uts
+    --volume
+    --volume-driver
+    --volumes-from
 ```
 
 ## Description
