@@ -247,7 +247,7 @@ func TestDaemonReloadNotAffectOthers(t *testing.T) {
 	}
 	debug := daemon.configStore.Debug
 	if !debug {
-		t.Fatalf("Expected debug 'enabled', got 'disabled'")
+		t.Fatal("Expected debug 'enabled', got 'disabled'")
 	}
 }
 

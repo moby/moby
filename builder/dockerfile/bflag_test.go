@@ -130,7 +130,7 @@ func TestBuilderFlags(t *testing.T) {
 	}
 
 	if !flBool1.IsTrue() {
-		t.Fatalf("Test-b2 Bool1 was supposed to be true")
+		t.Fatal("Test-b2 Bool1 was supposed to be true")
 	}
 
 	// ---

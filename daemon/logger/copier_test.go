@@ -200,7 +200,7 @@ func TestCopierSlow(t *testing.T) {
 	c.Close()
 	select {
 	case <-time.After(200 * time.Millisecond):
-		t.Fatalf("failed to exit in time after the copier is closed")
+		t.Fatal("failed to exit in time after the copier is closed")
 	case <-wait:
 	}
 }
