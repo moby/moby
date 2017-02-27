@@ -112,9 +112,6 @@ Build Syntax Suffix             | Commit Used           | Build Context Used
 
 If you pass an URL to a remote tarball, the URL itself is sent to the daemon:
 
-Instead of specifying a context, you can pass a single Dockerfile in the `URL`
-or pipe the file in via `STDIN`. To pipe a Dockerfile from `STDIN`:
-
 ```bash
 $ docker build http://server/context.tar.gz
 ```
