@@ -21,7 +21,7 @@ import (
 	gogotypes "github.com/gogo/protobuf/types"
 )
 
-const defaultMonitor = 30 * time.Second
+const defaultMonitor = 5 * time.Second
 
 // Supervisor supervises a set of updates. It's responsible for keeping track of updates,
 // shutting them down and replacing them.
@@ -157,7 +157,7 @@ func (u *Updater) Run(ctx context.Context, slots []orchestrator.Slot) {
 	}
 
 	var (
-		parallelism            int
+		parallelism            = 1
 		delay                  time.Duration
 		failureAction          = api.UpdateConfig_PAUSE
 		allowedFailureFraction = float32(0)
@@ -354,7 +354,7 @@ func (u *Updater) worker(ctx context.Context, queue <-chan orchestrator.Slot, de
 
 		if delay != 0 {
 			select {
-			case <-time.After(u.newService.Spec.Update.Delay):
+			case <-time.After(delay):
 			case <-u.stopChan:
 				return
 			}

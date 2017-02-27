@@ -117,7 +117,29 @@ func validateUpdate(uc *api.UpdateConfig) error {
 	return nil
 }
 
-func validateContainerSpec(container *api.ContainerSpec) error {
+func validateContainerSpec(taskSpec api.TaskSpec) error {
+	// Building a empty/dummy Task to validate the templating and
+	// the resulting container spec as well. This is a *best effort*
+	// validation.
+	container, err := template.ExpandContainerSpec(&api.Task{
+		Spec:      taskSpec,
+		ServiceID: "serviceid",
+		Slot:      1,
+		NodeID:    "nodeid",
+		Networks:  []*api.NetworkAttachment{},
+		Annotations: api.Annotations{
+			Name: "taskname",
+		},
+		ServiceAnnotations: api.Annotations{
+			Name: "servicename",
+		},
+		Endpoint:  &api.Endpoint{},
+		LogDriver: taskSpec.LogDriver,
+	})
+	if err != nil {
+		return grpc.Errorf(codes.InvalidArgument, err.Error())
+	}
+
 	if container == nil {
 		return grpc.Errorf(codes.InvalidArgument, "ContainerSpec: missing in service spec")
 	}
@@ -136,6 +158,18 @@ func validateContainerSpec(container *api.ContainerSpec) error {
 			return grpc.Errorf(codes.InvalidArgument, "ContainerSpec: duplicate mount point: %s", mount.Target)
 		}
 		mountMap[mount.Target] = true
+	}
+
+	return nil
+}
+
+func validatePluginSpec(plugin *api.PluginSpec) error {
+	if plugin.Image == "" {
+		return grpc.Errorf(codes.InvalidArgument, "PluginSpec: image reference must be provided")
+	}
+
+	if _, err := reference.ParseNormalizedNamed(plugin.Image); err != nil {
+		return grpc.Errorf(codes.InvalidArgument, "PluginSpec: %q is not a valid repository/tag", plugin.Image)
 	}
 
 	return nil
@@ -163,36 +197,18 @@ func validateTaskSpec(taskSpec api.TaskSpec) error {
 		return grpc.Errorf(codes.InvalidArgument, "TaskSpec: missing runtime")
 	}
 
-	_, ok := taskSpec.GetRuntime().(*api.TaskSpec_Container)
-	if !ok {
+	switch taskSpec.GetRuntime().(type) {
+	case *api.TaskSpec_Container:
+		if err := validateContainerSpec(taskSpec); err != nil {
+			return err
+		}
+	case *api.TaskSpec_Plugin:
+		if err := validatePluginSpec(taskSpec.GetPlugin()); err != nil {
+			return err
+		}
+	default:
 		return grpc.Errorf(codes.Unimplemented, "RuntimeSpec: unimplemented runtime in service spec")
 	}
-
-	// Building a empty/dummy Task to validate the templating and
-	// the resulting container spec as well. This is a *best effort*
-	// validation.
-	preparedSpec, err := template.ExpandContainerSpec(&api.Task{
-		Spec:      taskSpec,
-		ServiceID: "serviceid",
-		Slot:      1,
-		NodeID:    "nodeid",
-		Networks:  []*api.NetworkAttachment{},
-		Annotations: api.Annotations{
-			Name: "taskname",
-		},
-		ServiceAnnotations: api.Annotations{
-			Name: "servicename",
-		},
-		Endpoint:  &api.Endpoint{},
-		LogDriver: taskSpec.LogDriver,
-	})
-	if err != nil {
-		return grpc.Errorf(codes.InvalidArgument, err.Error())
-	}
-	if err := validateContainerSpec(preparedSpec); err != nil {
-		return err
-	}
-
 	return nil
 }
 

@@ -412,7 +412,7 @@ func (n *Node) JoinAndStart(ctx context.Context) (err error) {
 	defer conn.Close()
 	client := api.NewRaftMembershipClient(conn)
 
-	joinCtx, joinCancel := context.WithTimeout(ctx, 10*time.Second)
+	joinCtx, joinCancel := context.WithTimeout(ctx, n.reqTimeout())
 	defer joinCancel()
 	resp, err := client.Join(joinCtx, &api.JoinRequest{
 		Addr: n.opts.Addr,
@@ -1030,6 +1030,10 @@ func (n *Node) UpdateNode(id uint64, addr string) {
 // from a member who is willing to leave its raft
 // membership to an active member of the raft
 func (n *Node) Leave(ctx context.Context, req *api.LeaveRequest) (*api.LeaveResponse, error) {
+	if req.Node == nil {
+		return nil, grpc.Errorf(codes.InvalidArgument, "no node information provided")
+	}
+
 	nodeInfo, err := ca.RemoteNode(ctx)
 	if err != nil {
 		return nil, err
@@ -1100,18 +1104,58 @@ func (n *Node) removeMember(ctx context.Context, id uint64) error {
 
 	n.membershipLock.Lock()
 	defer n.membershipLock.Unlock()
-	if n.CanRemoveMember(id) {
-		cc := raftpb.ConfChange{
-			ID:      id,
-			Type:    raftpb.ConfChangeRemoveNode,
-			NodeID:  id,
-			Context: []byte(""),
-		}
-		err := n.configure(ctx, cc)
-		return err
+	if !n.CanRemoveMember(id) {
+		return ErrCannotRemoveMember
 	}
 
-	return ErrCannotRemoveMember
+	cc := raftpb.ConfChange{
+		ID:      id,
+		Type:    raftpb.ConfChangeRemoveNode,
+		NodeID:  id,
+		Context: []byte(""),
+	}
+	return n.configure(ctx, cc)
+}
+
+// TransferLeadership attempts to transfer leadership to a different node,
+// and wait for the transfer to happen.
+func (n *Node) TransferLeadership(ctx context.Context) error {
+	ctx, cancelTransfer := context.WithTimeout(ctx, n.reqTimeout())
+	defer cancelTransfer()
+
+	n.stopMu.RLock()
+	defer n.stopMu.RUnlock()
+
+	if !n.IsMember() {
+		return ErrNoRaftMember
+	}
+
+	if !n.isLeader() {
+		return ErrLostLeadership
+	}
+
+	transferee, err := n.transport.LongestActive()
+	if err != nil {
+		return errors.Wrap(err, "failed to get longest-active member")
+	}
+	start := time.Now()
+	n.raftNode.TransferLeadership(ctx, n.Config.ID, transferee)
+	ticker := time.NewTicker(n.opts.TickInterval / 10)
+	defer ticker.Stop()
+	var leader uint64
+	for {
+		leader = n.leader()
+		if leader != raft.None && leader != n.Config.ID {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+		}
+	}
+	log.G(ctx).Infof("raft: transfer leadership %x -> %x finished in %v", n.Config.ID, leader, time.Since(start))
+	return nil
 }
 
 // RemoveMember submits a configuration change to remove a member from the raft cluster
@@ -1726,23 +1770,12 @@ func (n *Node) applyRemoveNode(ctx context.Context, cc raftpb.ConfChange) (err e
 	}
 
 	if cc.NodeID == n.Config.ID {
-		// wait the commit ack to be sent before closing connection
+		// wait for the commit ack to be sent before closing connection
 		n.asyncTasks.Wait()
 
 		n.NodeRemoved()
-		// if there are only 2 nodes in the cluster, and leader is leaving
-		// before closing the connection, leader has to ensure that follower gets
-		// noticed about this raft conf change commit. Otherwise, follower would
-		// assume there are still 2 nodes in the cluster and won't get elected
-		// into the leader by acquiring the majority (2 nodes)
-
-		// while n.asyncTasks.Wait() could be helpful in this case
-		// it's the best-effort strategy, because this send could be fail due to some errors (such as time limit exceeds)
-		// TODO(Runshen Zhu): use leadership transfer to solve this case, after vendoring raft 3.0+
-	} else {
-		if err := n.transport.RemovePeer(cc.NodeID); err != nil {
-			return err
-		}
+	} else if err := n.transport.RemovePeer(cc.NodeID); err != nil {
+		return err
 	}
 
 	return n.cluster.RemoveMember(cc.NodeID)
@@ -1851,4 +1884,8 @@ func getIDs(snap *raftpb.Snapshot, ents []raftpb.Entry) []uint64 {
 		sids = append(sids, id)
 	}
 	return sids
+}
+
+func (n *Node) reqTimeout() time.Duration {
+	return 5*time.Second + 2*time.Duration(n.Config.ElectionTick)*n.opts.TickInterval
 }

@@ -134,7 +134,7 @@ func (n *Node) loadAndStart(ctx context.Context, forceNewCluster bool) error {
 		// force commit newly appended entries
 		err := n.raftLogger.SaveEntries(st, toAppEnts)
 		if err != nil {
-			log.G(ctx).WithError(err).Fatalf("failed to save WAL while forcing new cluster")
+			log.G(ctx).WithError(err).Fatal("failed to save WAL while forcing new cluster")
 		}
 		if len(toAppEnts) != 0 {
 			st.Commit = toAppEnts[len(toAppEnts)-1].Index

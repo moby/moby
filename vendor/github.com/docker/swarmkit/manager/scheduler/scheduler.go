@@ -517,8 +517,8 @@ func (s *Scheduler) scheduleTaskGroup(ctx context.Context, taskGroup map[string]
 			}
 		}
 
-		tasksByServiceA := a.DesiredRunningTasksCountByService[t.ServiceID]
-		tasksByServiceB := b.DesiredRunningTasksCountByService[t.ServiceID]
+		tasksByServiceA := a.ActiveTasksCountByService[t.ServiceID]
+		tasksByServiceB := b.ActiveTasksCountByService[t.ServiceID]
 
 		if tasksByServiceA < tasksByServiceB {
 			return true
@@ -528,7 +528,7 @@ func (s *Scheduler) scheduleTaskGroup(ctx context.Context, taskGroup map[string]
 		}
 
 		// Total number of tasks breaks ties.
-		return a.DesiredRunningTasksCount < b.DesiredRunningTasksCount
+		return a.ActiveTasksCount < b.ActiveTasksCount
 	}
 
 	var prefs []*api.PlacementPreference

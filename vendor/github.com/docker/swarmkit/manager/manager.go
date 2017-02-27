@@ -38,6 +38,7 @@ import (
 	"github.com/docker/swarmkit/remotes"
 	"github.com/docker/swarmkit/xnet"
 	gogotypes "github.com/gogo/protobuf/types"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -201,7 +202,10 @@ func New(config *Config) (*Manager, error) {
 	raftNode := raft.NewNode(newNodeOpts)
 
 	opts := []grpc.ServerOption{
-		grpc.Creds(config.SecurityConfig.ServerTLSCreds)}
+		grpc.Creds(config.SecurityConfig.ServerTLSCreds),
+		grpc.StreamInterceptor(grpc_prometheus.StreamServerInterceptor),
+		grpc.UnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
+	}
 
 	m := &Manager{
 		config:          *config,
@@ -458,6 +462,7 @@ func (m *Manager) Run(parent context.Context) error {
 	api.RegisterLogBrokerServer(m.server, proxyLogBrokerAPI)
 	api.RegisterResourceAllocatorServer(m.server, proxyResourceAPI)
 	api.RegisterDispatcherServer(m.server, proxyDispatcherAPI)
+	grpc_prometheus.Register(m.server)
 
 	api.RegisterControlServer(m.localserver, localProxyControlAPI)
 	api.RegisterLogsServer(m.localserver, localProxyLogsAPI)
@@ -467,6 +472,7 @@ func (m *Manager) Run(parent context.Context) error {
 	api.RegisterNodeCAServer(m.localserver, localProxyNodeCAAPI)
 	api.RegisterResourceAllocatorServer(m.localserver, localProxyResourceAPI)
 	api.RegisterLogBrokerServer(m.localserver, localProxyLogBrokerAPI)
+	grpc_prometheus.Register(m.localserver)
 
 	healthServer.SetServingStatus("Raft", api.HealthCheckResponse_NOT_SERVING)
 	localHealthServer.SetServingStatus("ControlAPI", api.HealthCheckResponse_NOT_SERVING)
@@ -648,6 +654,8 @@ func (m *Manager) updateKEK(ctx context.Context, cluster *api.Cluster) error {
 
 			conn, err := grpc.Dial(
 				m.config.ControlAPI,
+				grpc.WithUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
+				grpc.WithStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
 				grpc.WithTransportCredentials(insecureCreds),
 				grpc.WithDialer(
 					func(addr string, timeout time.Duration) (net.Conn, error) {

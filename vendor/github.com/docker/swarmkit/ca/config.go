@@ -54,7 +54,7 @@ const (
 // RenewTLSExponentialBackoff sets the exponential backoff when trying to renew TLS certificates that have expired
 var RenewTLSExponentialBackoff = events.ExponentialBackoffConfig{
 	Base:   time.Second * 5,
-	Factor: time.Minute,
+	Factor: time.Second * 5,
 	Max:    1 * time.Hour,
 }
 
@@ -454,7 +454,10 @@ func RenewTLSConfig(ctx context.Context, s *SecurityConfig, connBroker *connecti
 	updates := make(chan CertificateUpdate)
 
 	go func() {
-		var retry time.Duration
+		var (
+			retry      time.Duration
+			forceRetry bool
+		)
 		expBackoff := events.NewExponentialBackoff(RenewTLSExponentialBackoff)
 		defer close(updates)
 		for {
@@ -487,6 +490,10 @@ func RenewTLSConfig(ctx context.Context, s *SecurityConfig, connBroker *connecti
 					log.Warn("the current TLS certificate is expired, so an attempt to renew it will be made immediately")
 					// retry immediately(ish) with exponential backoff
 					retry = expBackoff.Proceed(nil)
+				} else if forceRetry {
+					// A forced renewal was requested, but did not succeed yet.
+					// retry immediately(ish) with exponential backoff
+					retry = expBackoff.Proceed(nil)
 				} else {
 					// Random retry time between 50% and 80% of the total time to expiration
 					retry = calculateRandomExpiry(validFrom, validUntil)
@@ -501,6 +508,7 @@ func RenewTLSConfig(ctx context.Context, s *SecurityConfig, connBroker *connecti
 			case <-time.After(retry):
 				log.Info("renewing certificate")
 			case <-renew:
+				forceRetry = true
 				log.Info("forced certificate renewal")
 			case <-ctx.Done():
 				log.Info("shutting down certificate renewal routine")
@@ -515,6 +523,7 @@ func RenewTLSConfig(ctx context.Context, s *SecurityConfig, connBroker *connecti
 			} else {
 				certUpdate.Role = s.ClientTLSCreds.Role()
 				expBackoff = events.NewExponentialBackoff(RenewTLSExponentialBackoff)
+				forceRetry = false
 			}
 
 			select {

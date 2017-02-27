@@ -715,7 +715,7 @@ func (s *Server) signNodeCert(ctx context.Context, node *api.Node) error {
 	return nil
 }
 
-// reconcileNodeCertificates is a helper method that calles evaluateAndSignNodeCert on all the
+// reconcileNodeCertificates is a helper method that calls evaluateAndSignNodeCert on all the
 // nodes.
 func (s *Server) reconcileNodeCertificates(ctx context.Context, nodes []*api.Node) error {
 	for _, node := range nodes {
