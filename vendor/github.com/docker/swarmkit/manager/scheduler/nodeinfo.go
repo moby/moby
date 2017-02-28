@@ -11,10 +11,10 @@ import (
 // NodeInfo contains a node and some additional metadata.
 type NodeInfo struct {
 	*api.Node
-	Tasks                             map[string]*api.Task
-	DesiredRunningTasksCount          int
-	DesiredRunningTasksCountByService map[string]int
-	AvailableResources                api.Resources
+	Tasks                     map[string]*api.Task
+	ActiveTasksCount          int
+	ActiveTasksCountByService map[string]int
+	AvailableResources        api.Resources
 
 	// recentFailures is a map from service ID to the timestamps of the
 	// most recent failures the node has experienced from replicas of that
@@ -28,9 +28,9 @@ func newNodeInfo(n *api.Node, tasks map[string]*api.Task, availableResources api
 	nodeInfo := NodeInfo{
 		Node:  n,
 		Tasks: make(map[string]*api.Task),
-		DesiredRunningTasksCountByService: make(map[string]int),
-		AvailableResources:                availableResources,
-		recentFailures:                    make(map[string][]time.Time),
+		ActiveTasksCountByService: make(map[string]int),
+		AvailableResources:        availableResources,
+		recentFailures:            make(map[string][]time.Time),
 	}
 
 	for _, t := range tasks {
@@ -48,9 +48,9 @@ func (nodeInfo *NodeInfo) removeTask(t *api.Task) bool {
 	}
 
 	delete(nodeInfo.Tasks, t.ID)
-	if oldTask.DesiredState == api.TaskStateRunning {
-		nodeInfo.DesiredRunningTasksCount--
-		nodeInfo.DesiredRunningTasksCountByService[t.ServiceID]--
+	if oldTask.DesiredState <= api.TaskStateRunning {
+		nodeInfo.ActiveTasksCount--
+		nodeInfo.ActiveTasksCountByService[t.ServiceID]--
 	}
 
 	reservations := taskReservations(t.Spec)
@@ -65,15 +65,15 @@ func (nodeInfo *NodeInfo) removeTask(t *api.Task) bool {
 func (nodeInfo *NodeInfo) addTask(t *api.Task) bool {
 	oldTask, ok := nodeInfo.Tasks[t.ID]
 	if ok {
-		if t.DesiredState == api.TaskStateRunning && oldTask.DesiredState != api.TaskStateRunning {
+		if t.DesiredState <= api.TaskStateRunning && oldTask.DesiredState > api.TaskStateRunning {
 			nodeInfo.Tasks[t.ID] = t
-			nodeInfo.DesiredRunningTasksCount++
-			nodeInfo.DesiredRunningTasksCountByService[t.ServiceID]++
+			nodeInfo.ActiveTasksCount++
+			nodeInfo.ActiveTasksCountByService[t.ServiceID]++
 			return true
-		} else if t.DesiredState != api.TaskStateRunning && oldTask.DesiredState == api.TaskStateRunning {
+		} else if t.DesiredState > api.TaskStateRunning && oldTask.DesiredState <= api.TaskStateRunning {
 			nodeInfo.Tasks[t.ID] = t
-			nodeInfo.DesiredRunningTasksCount--
-			nodeInfo.DesiredRunningTasksCountByService[t.ServiceID]--
+			nodeInfo.ActiveTasksCount--
+			nodeInfo.ActiveTasksCountByService[t.ServiceID]--
 			return true
 		}
 		return false
@@ -84,9 +84,9 @@ func (nodeInfo *NodeInfo) addTask(t *api.Task) bool {
 	nodeInfo.AvailableResources.MemoryBytes -= reservations.MemoryBytes
 	nodeInfo.AvailableResources.NanoCPUs -= reservations.NanoCPUs
 
-	if t.DesiredState == api.TaskStateRunning {
-		nodeInfo.DesiredRunningTasksCount++
-		nodeInfo.DesiredRunningTasksCountByService[t.ServiceID]++
+	if t.DesiredState <= api.TaskStateRunning {
+		nodeInfo.ActiveTasksCount++
+		nodeInfo.ActiveTasksCountByService[t.ServiceID]++
 	}
 
 	return true

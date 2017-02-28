@@ -72,6 +72,7 @@
 		TaskSpec
 		NetworkAttachmentSpec
 		ContainerSpec
+		PluginSpec
 		EndpointSpec
 		NetworkSpec
 		ClusterSpec

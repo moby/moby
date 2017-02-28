@@ -183,7 +183,15 @@ func (s *DockerSwarmSuite) TestAPISwarmPromoteDemote(c *check.C) {
 	status, out, err := d1.SockRequest("POST", url, node.Spec)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusInternalServerError, check.Commentf("output: %q", string(out)))
-	c.Assert(string(out), checker.Contains, "last manager of the swarm")
+	// The warning specific to demoting the last manager is best-effort and
+	// won't appear until the Role field of the demoted manager has been
+	// updated.
+	// Yes, I know this looks silly, but checker.Matches is broken, since
+	// it anchors the regexp contrary to the documentation, and this makes
+	// it impossible to match something that includes a line break.
+	if !strings.Contains(string(out), "last manager of the swarm") {
+		c.Assert(string(out), checker.Contains, "this would result in a loss of quorum")
+	}
 	info, err = d1.SwarmInfo()
 	c.Assert(err, checker.IsNil)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)

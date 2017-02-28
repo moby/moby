@@ -136,11 +136,21 @@ func (rm *roleManager) reconcileRole(node *api.Node) {
 			rmCtx, rmCancel := context.WithTimeout(rm.ctx, 5*time.Second)
 			defer rmCancel()
 
+			if member.RaftID == rm.raft.Config.ID {
+				// Don't use rmCtx, because we expect to lose
+				// leadership, which will cancel this context.
+				log.L.Info("demoted; transferring leadership")
+				err := rm.raft.TransferLeadership(context.Background())
+				if err == nil {
+					return
+				}
+				log.L.WithError(err).Info("failed to transfer leadership")
+			}
 			if err := rm.raft.RemoveMember(rmCtx, member.RaftID); err != nil {
 				// TODO(aaronl): Retry later
 				log.L.WithError(err).Debugf("can't demote node %s at this time", node.ID)
-				return
 			}
+			return
 		}
 
 		err := rm.store.Update(func(tx store.Tx) error {

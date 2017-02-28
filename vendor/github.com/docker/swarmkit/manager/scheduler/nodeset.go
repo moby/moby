@@ -35,8 +35,8 @@ func (ns *nodeSet) addOrUpdateNode(n NodeInfo) {
 	if n.Tasks == nil {
 		n.Tasks = make(map[string]*api.Task)
 	}
-	if n.DesiredRunningTasksCountByService == nil {
-		n.DesiredRunningTasksCountByService = make(map[string]int)
+	if n.ActiveTasksCountByService == nil {
+		n.ActiveTasksCountByService = make(map[string]int)
 	}
 	if n.recentFailures == nil {
 		n.recentFailures = make(map[string][]time.Time)
@@ -96,8 +96,8 @@ func (ns *nodeSet) tree(serviceID string, preferences []*api.PlacementPreference
 			// sure that the tree structure is not affected by
 			// which properties nodes have and don't have.
 
-			if node.DesiredRunningTasksCountByService != nil {
-				tree.tasks += node.DesiredRunningTasksCountByService[serviceID]
+			if node.ActiveTasksCountByService != nil {
+				tree.tasks += node.ActiveTasksCountByService[serviceID]
 			}
 
 			if tree.next == nil {

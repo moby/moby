@@ -2,14 +2,13 @@ package agent
 
 import (
 	"errors"
-	"fmt"
 )
 
 var (
 	// ErrClosed is returned when an operation fails because the resource is closed.
 	ErrClosed = errors.New("agent: closed")
 
-	errNodeNotRegistered = fmt.Errorf("node not registered")
+	errNodeNotRegistered = errors.New("node not registered")
 
 	errAgentStarted    = errors.New("agent: already started")
 	errAgentNotStarted = errors.New("agent: not started")

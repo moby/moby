@@ -101,6 +101,7 @@ message TaskSpec {
 	oneof runtime {
 		NetworkAttachmentSpec attachment = 8;
 		ContainerSpec container = 1;
+		PluginSpec plugin = 10;
 	}
 
 	// Resource requirements for the container.
@@ -131,7 +132,7 @@ message TaskSpec {
 // NetworkAttachmentSpec specifies runtime parameters required to attach
 // a container to a network.
 message NetworkAttachmentSpec {
-	// ContainerID spcifies a unique ID of the container for which
+	// ContainerID specifies a unique ID of the container for which
 	// this attachment is for.
 	string container_id = 1;
 }
@@ -266,12 +267,20 @@ message ContainerSpec {
 	HealthConfig healthcheck = 16;
 }
 
+// PluginSpec specifies runtime parameters for a plugin.
+message PluginSpec {
+	// image defines the image reference, as specified in the
+	// distribution/reference package. This may include a registry host, name,
+	// tag or digest.
+	string image = 1;
+}
+
 // EndpointSpec defines the properties that can be configured to
 // access and loadbalance the service.
 message EndpointSpec {
 	// ResolutionMode specifies the mode of resolution to use for
 	// internal loadbalancing between tasks which are all within
-	// the cluster. This is sometimes calles east-west data path.
+	// the cluster. This is sometimes calls east-west data path.
 	enum ResolutionMode {
 		option (gogoproto.goproto_enum_prefix) = false;
 
