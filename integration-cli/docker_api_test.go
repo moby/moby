@@ -24,7 +24,7 @@ func (s *DockerSuite) TestAPIOptionsRoute(c *check.C) {
 }
 
 func (s *DockerSuite) TestAPIGetEnabledCORS(c *check.C) {
-	res, body, err := request.SockRequestRaw("GET", "/version", nil, "", daemonHost())
+	res, body, err := request.Get(daemonHost(), "/version")
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusOK)
 	body.Close()

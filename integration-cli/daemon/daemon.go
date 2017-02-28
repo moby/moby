@@ -623,6 +623,7 @@ func (d *Daemon) SockRequest(method, endpoint string, data interface{}) (int, []
 
 // SockRequestRaw executes a socket request on a daemon and returns an http
 // response and a reader for the output data.
+// Deprecated: use request package instead
 func (d *Daemon) SockRequestRaw(method, endpoint string, data io.Reader, ct string) (*http.Response, io.ReadCloser, error) {
 	return request.SockRequestRaw(method, endpoint, data, ct, d.Sock())
 }
@@ -714,7 +715,7 @@ func (d *Daemon) ReloadConfig() error {
 	errCh := make(chan error)
 	started := make(chan struct{})
 	go func() {
-		_, body, err := request.SockRequestRaw("GET", "/events", nil, "", d.Sock())
+		_, body, err := request.Get(d.Sock(), "/events")
 		close(started)
 		if err != nil {
 			errCh <- err

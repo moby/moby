@@ -213,10 +213,10 @@ func (s *DockerSuite) TestGetContainerStatsRmRunning(c *check.C) {
 	out, _ := runSleepingContainer(c)
 	id := strings.TrimSpace(out)
 
-	buf := &testutil.ChannelBuffer{make(chan []byte, 1)}
+	buf := &testutil.ChannelBuffer{C: make(chan []byte, 1)}
 	defer buf.Close()
 
-	_, body, err := request.SockRequestRaw("GET", "/containers/"+id+"/stats?stream=1", nil, "application/json", daemonHost())
+	_, body, err := request.Get(daemonHost(), "/containers/"+id+"/stats?stream=1", request.JSON)
 	c.Assert(err, checker.IsNil)
 	defer body.Close()
 
@@ -250,13 +250,13 @@ func (s *DockerSuite) TestGetContainerStatsStream(c *check.C) {
 
 	type b struct {
 		status int
-		body   []byte
+		body   io.ReadCloser
 		err    error
 	}
 	bc := make(chan b, 1)
 	go func() {
-		status, body, err := request.SockRequest("GET", "/containers/"+name+"/stats", nil, daemonHost())
-		bc <- b{status, body, err}
+		status, body, err := request.Get(daemonHost(), "/containers/"+name+"/stats")
+		bc <- b{status.StatusCode, body, err}
 	}()
 
 	// allow some time to stream the stats from the container
@@ -272,7 +272,9 @@ func (s *DockerSuite) TestGetContainerStatsStream(c *check.C) {
 		c.Assert(sr.err, checker.IsNil)
 		c.Assert(sr.status, checker.Equals, http.StatusOK)
 
-		s := string(sr.body)
+		b, err := ioutil.ReadAll(sr.body)
+		c.Assert(err, checker.IsNil)
+		s := string(b)
 		// count occurrences of "read" of types.Stats
 		if l := strings.Count(s, "read"); l < 2 {
 			c.Fatalf("Expected more than one stat streamed, got %d", l)
@@ -327,7 +329,7 @@ func (s *DockerSuite) TestGetStoppedContainerStats(c *check.C) {
 	// We expect an immediate response, but if it's not immediate, the test would hang, so put it in a goroutine
 	// below we'll check this on a timeout.
 	go func() {
-		resp, body, err := request.SockRequestRaw("GET", "/containers/"+name+"/stats", nil, "", daemonHost())
+		resp, body, err := request.Get(daemonHost(), "/containers/"+name+"/stats")
 		body.Close()
 		chResp <- stats{resp.StatusCode, err}
 	}()
@@ -659,7 +661,7 @@ func (s *DockerSuite) TestContainerAPIVerifyHeader(c *check.C) {
 	create := func(ct string) (*http.Response, io.ReadCloser, error) {
 		jsonData := bytes.NewBuffer(nil)
 		c.Assert(json.NewEncoder(jsonData).Encode(config), checker.IsNil)
-		return request.SockRequestRaw("POST", "/containers/create", jsonData, ct, daemonHost())
+		return request.Post(daemonHost(), "/containers/create", request.RawContent(ioutil.NopCloser(jsonData)), request.ContentType(ct))
 	}
 
 	// Try with no content-type
@@ -695,7 +697,7 @@ func (s *DockerSuite) TestContainerAPIInvalidPortSyntax(c *check.C) {
 				  }
 				}`
 
-	res, body, err := request.SockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json", daemonHost())
+	res, body, err := request.Post(daemonHost(), "/containers/create", request.RawString(config), request.JSON)
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
 
@@ -715,7 +717,7 @@ func (s *DockerSuite) TestContainerAPIRestartPolicyInvalidPolicyName(c *check.C)
 		}
 	}`
 
-	res, body, err := request.SockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json", daemonHost())
+	res, body, err := request.Post(daemonHost(), "/containers/create", request.RawString(config), request.JSON)
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
 
@@ -735,7 +737,7 @@ func (s *DockerSuite) TestContainerAPIRestartPolicyRetryMismatch(c *check.C) {
 		}
 	}`
 
-	res, body, err := request.SockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json", daemonHost())
+	res, body, err := request.Post(daemonHost(), "/containers/create", request.RawString(config), request.JSON)
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
 
@@ -755,7 +757,7 @@ func (s *DockerSuite) TestContainerAPIRestartPolicyNegativeRetryCount(c *check.C
 		}
 	}`
 
-	res, body, err := request.SockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json", daemonHost())
+	res, body, err := request.Post(daemonHost(), "/containers/create", request.RawString(config), request.JSON)
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
 
@@ -775,7 +777,7 @@ func (s *DockerSuite) TestContainerAPIRestartPolicyDefaultRetryCount(c *check.C)
 		}
 	}`
 
-	res, _, err := request.SockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json", daemonHost())
+	res, _, err := request.Post(daemonHost(), "/containers/create", request.RawString(config), request.JSON)
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusCreated)
 }
@@ -806,7 +808,7 @@ func (s *DockerSuite) TestContainerAPIPostCreateNull(c *check.C) {
 		"NetworkDisabled":false,
 		"OnBuild":null}`
 
-	res, body, err := request.SockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json", daemonHost())
+	res, body, err := request.Post(daemonHost(), "/containers/create", request.RawString(config), request.JSON)
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusCreated)
 
@@ -837,7 +839,7 @@ func (s *DockerSuite) TestCreateWithTooLowMemoryLimit(c *check.C) {
 		"Memory":    524287
 	}`
 
-	res, body, err := request.SockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json", daemonHost())
+	res, body, err := request.Post(daemonHost(), "/containers/create", request.RawString(config), request.JSON)
 	c.Assert(err, checker.IsNil)
 	b, err2 := testutil.ReadBody(body)
 	c.Assert(err2, checker.IsNil)
