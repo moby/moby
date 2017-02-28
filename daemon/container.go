@@ -266,6 +266,12 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *containertypes.HostCon
 		return nil, fmt.Errorf("can't create 'AutoRemove' container with restart policy")
 	}
 
+	for _, extraHost := range hostConfig.ExtraHosts {
+		if _, err := opts.ValidateExtraHost(extraHost); err != nil {
+			return nil, err
+		}
+	}
+
 	for port := range hostConfig.PortBindings {
 		_, portStr := nat.SplitProtoPort(string(port))
 		if _, err := nat.ParsePort(portStr); err != nil {
