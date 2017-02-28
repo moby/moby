@@ -89,8 +89,7 @@ var errSwarmCertificatesExpired = errors.New("Swarm certificates have expired. T
 // NetworkSubnetsProvider exposes functions for retrieving the subnets
 // of networks managed by Docker, so they can be filtered.
 type NetworkSubnetsProvider interface {
-	V4Subnets() []net.IPNet
-	V6Subnets() []net.IPNet
+	Subnets() ([]net.IPNet, []net.IPNet)
 }
 
 // Config provides values for Cluster.
