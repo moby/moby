@@ -333,49 +333,13 @@ func (daemon *Daemon) foldFilter(config *types.ContainerListOptions) (*listConte
 	}
 
 	publishFilter := map[nat.Port]bool{}
-	err = psFilters.WalkValues("publish", func(value string) error {
-		if strings.Contains(value, ":") {
-			return fmt.Errorf("filter for 'publish' should not contain ':': %v", value)
-		}
-		//support two formats, original format <portnum>/[<proto>] or <startport-endport>/[<proto>]
-		proto, port := nat.SplitProtoPort(value)
-		start, end, err := nat.ParsePortRange(port)
-		if err != nil {
-			return fmt.Errorf("error while looking up for publish %v: %s", value, err)
-		}
-		for i := start; i <= end; i++ {
-			p, err := nat.NewPort(proto, strconv.FormatUint(i, 10))
-			if err != nil {
-				return fmt.Errorf("error while looking up for publish %v: %s", value, err)
-			}
-			publishFilter[p] = true
-		}
-		return nil
-	})
+	err = psFilters.WalkValues("publish", portOp("publish", publishFilter))
 	if err != nil {
 		return nil, err
 	}
 
 	exposeFilter := map[nat.Port]bool{}
-	err = psFilters.WalkValues("expose", func(value string) error {
-		if strings.Contains(value, ":") {
-			return fmt.Errorf("filter for 'expose' should not contain ':': %v", value)
-		}
-		//support two formats, original format <portnum>/[<proto>] or <startport-endport>/[<proto>]
-		proto, port := nat.SplitProtoPort(value)
-		start, end, err := nat.ParsePortRange(port)
-		if err != nil {
-			return fmt.Errorf("error while looking up for 'expose' %v: %s", value, err)
-		}
-		for i := start; i <= end; i++ {
-			p, err := nat.NewPort(proto, strconv.FormatUint(i, 10))
-			if err != nil {
-				return fmt.Errorf("error while looking up for 'expose' %v: %s", value, err)
-			}
-			exposeFilter[p] = true
-		}
-		return nil
-	})
+	err = psFilters.WalkValues("expose", portOp("expose", exposeFilter))
 	if err != nil {
 		return nil, err
 	}
@@ -394,6 +358,27 @@ func (daemon *Daemon) foldFilter(config *types.ContainerListOptions) (*listConte
 		ContainerListOptions: config,
 		names:                daemon.nameIndex.GetAll(),
 	}, nil
+}
+func portOp(key string, filter map[nat.Port]bool) func(value string) error {
+	return func(value string) error {
+		if strings.Contains(value, ":") {
+			return fmt.Errorf("filter for '%s' should not contain ':': %s", key, value)
+		}
+		//support two formats, original format <portnum>/[<proto>] or <startport-endport>/[<proto>]
+		proto, port := nat.SplitProtoPort(value)
+		start, end, err := nat.ParsePortRange(port)
+		if err != nil {
+			return fmt.Errorf("error while looking up for %s %s: %s", key, value, err)
+		}
+		for i := start; i <= end; i++ {
+			p, err := nat.NewPort(proto, strconv.FormatUint(i, 10))
+			if err != nil {
+				return fmt.Errorf("error while looking up for %s %s: %s", key, value, err)
+			}
+			filter[p] = true
+		}
+		return nil
+	}
 }
 
 // includeContainerInList decides whether a container should be included in the output or not based in the filter.

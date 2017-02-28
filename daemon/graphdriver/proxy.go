@@ -68,26 +68,14 @@ func (d *graphDriverProxy) String() string {
 }
 
 func (d *graphDriverProxy) CreateReadWrite(id, parent string, opts *CreateOpts) error {
-	args := &graphDriverRequest{
-		ID:     id,
-		Parent: parent,
-	}
-	if opts != nil {
-		args.MountLabel = opts.MountLabel
-		args.StorageOpt = opts.StorageOpt
-	}
-
-	var ret graphDriverResponse
-	if err := d.p.Client().Call("GraphDriver.CreateReadWrite", args, &ret); err != nil {
-		return err
-	}
-	if ret.Err != "" {
-		return errors.New(ret.Err)
-	}
-	return nil
+	return d.create("GraphDriver.CreateReadWrite", id, parent, opts)
 }
 
 func (d *graphDriverProxy) Create(id, parent string, opts *CreateOpts) error {
+	return d.create("GraphDriver.Create", id, parent, opts)
+}
+
+func (d *graphDriverProxy) create(method, id, parent string, opts *CreateOpts) error {
 	args := &graphDriverRequest{
 		ID:     id,
 		Parent: parent,
@@ -97,7 +85,7 @@ func (d *graphDriverProxy) Create(id, parent string, opts *CreateOpts) error {
 		args.StorageOpt = opts.StorageOpt
 	}
 	var ret graphDriverResponse
-	if err := d.p.Client().Call("GraphDriver.Create", args, &ret); err != nil {
+	if err := d.p.Client().Call(method, args, &ret); err != nil {
 		return err
 	}
 	if ret.Err != "" {

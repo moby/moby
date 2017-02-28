@@ -89,8 +89,7 @@ var errSwarmCertificatesExpired = errors.New("Swarm certificates have expired. T
 // NetworkSubnetsProvider exposes functions for retrieving the subnets
 // of networks managed by Docker, so they can be filtered.
 type NetworkSubnetsProvider interface {
-	V4Subnets() []net.IPNet
-	V6Subnets() []net.IPNet
+	Subnets() ([]net.IPNet, []net.IPNet)
 }
 
 // Config provides values for Cluster.
@@ -386,4 +385,19 @@ func detectLockedError(err error) error {
 		return errors.WithStack(errSwarmLocked)
 	}
 	return err
+}
+
+func (c *Cluster) lockedManagerAction(fn func(ctx context.Context, state nodeState) error) error {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	state := c.currentNodeState()
+	if !state.IsActiveManager() {
+		return c.errNoManager(state)
+	}
+
+	ctx, cancel := c.getRequestContext()
+	defer cancel()
+
+	return fn(ctx, state)
 }

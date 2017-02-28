@@ -89,13 +89,7 @@ func endpointSpecFromGRPC(es *swarmapi.EndpointSpec) *types.EndpointSpec {
 		endpointSpec.Mode = types.ResolutionMode(strings.ToLower(es.Mode.String()))
 
 		for _, portState := range es.Ports {
-			endpointSpec.Ports = append(endpointSpec.Ports, types.PortConfig{
-				Name:          portState.Name,
-				Protocol:      types.PortConfigProtocol(strings.ToLower(swarmapi.PortConfig_Protocol_name[int32(portState.Protocol)])),
-				PublishMode:   types.PortConfigPublishMode(strings.ToLower(swarmapi.PortConfig_PublishMode_name[int32(portState.PublishMode)])),
-				TargetPort:    portState.TargetPort,
-				PublishedPort: portState.PublishedPort,
-			})
+			endpointSpec.Ports = append(endpointSpec.Ports, swarmPortConfigToAPIPortConfig(portState))
 		}
 	}
 	return endpointSpec
@@ -109,13 +103,7 @@ func endpointFromGRPC(e *swarmapi.Endpoint) types.Endpoint {
 		}
 
 		for _, portState := range e.Ports {
-			endpoint.Ports = append(endpoint.Ports, types.PortConfig{
-				Name:          portState.Name,
-				Protocol:      types.PortConfigProtocol(strings.ToLower(swarmapi.PortConfig_Protocol_name[int32(portState.Protocol)])),
-				PublishMode:   types.PortConfigPublishMode(strings.ToLower(swarmapi.PortConfig_PublishMode_name[int32(portState.PublishMode)])),
-				TargetPort:    portState.TargetPort,
-				PublishedPort: portState.PublishedPort,
-			})
+			endpoint.Ports = append(endpoint.Ports, swarmPortConfigToAPIPortConfig(portState))
 		}
 
 		for _, v := range e.VirtualIPs {
@@ -127,6 +115,16 @@ func endpointFromGRPC(e *swarmapi.Endpoint) types.Endpoint {
 	}
 
 	return endpoint
+}
+
+func swarmPortConfigToAPIPortConfig(portConfig *swarmapi.PortConfig) types.PortConfig {
+	return types.PortConfig{
+		Name:          portConfig.Name,
+		Protocol:      types.PortConfigProtocol(strings.ToLower(swarmapi.PortConfig_Protocol_name[int32(portConfig.Protocol)])),
+		PublishMode:   types.PortConfigPublishMode(strings.ToLower(swarmapi.PortConfig_PublishMode_name[int32(portConfig.PublishMode)])),
+		TargetPort:    portConfig.TargetPort,
+		PublishedPort: portConfig.PublishedPort,
+	}
 }
 
 // BasicNetworkFromGRPC converts a grpc Network to a NetworkResource.

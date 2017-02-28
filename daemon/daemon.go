@@ -878,40 +878,28 @@ func (daemon *Daemon) Unmount(container *container.Container) error {
 	return nil
 }
 
-// V4Subnets returns the IPv4 subnets of networks that are managed by Docker.
-func (daemon *Daemon) V4Subnets() []net.IPNet {
-	var subnets []net.IPNet
+// Subnets return the IPv4 and IPv6 subnets of networks that are manager by Docker.
+func (daemon *Daemon) Subnets() ([]net.IPNet, []net.IPNet) {
+	var v4Subnets []net.IPNet
+	var v6Subnets []net.IPNet
 
 	managedNetworks := daemon.netController.Networks()
 
 	for _, managedNetwork := range managedNetworks {
-		v4Infos, _ := managedNetwork.Info().IpamInfo()
-		for _, v4Info := range v4Infos {
-			if v4Info.IPAMData.Pool != nil {
-				subnets = append(subnets, *v4Info.IPAMData.Pool)
+		v4infos, v6infos := managedNetwork.Info().IpamInfo()
+		for _, info := range v4infos {
+			if info.IPAMData.Pool != nil {
+				v4Subnets = append(v4Subnets, *info.IPAMData.Pool)
+			}
+		}
+		for _, info := range v6infos {
+			if info.IPAMData.Pool != nil {
+				v6Subnets = append(v6Subnets, *info.IPAMData.Pool)
 			}
 		}
 	}
 
-	return subnets
-}
-
-// V6Subnets returns the IPv6 subnets of networks that are managed by Docker.
-func (daemon *Daemon) V6Subnets() []net.IPNet {
-	var subnets []net.IPNet
-
-	managedNetworks := daemon.netController.Networks()
-
-	for _, managedNetwork := range managedNetworks {
-		_, v6Infos := managedNetwork.Info().IpamInfo()
-		for _, v6Info := range v6Infos {
-			if v6Info.IPAMData.Pool != nil {
-				subnets = append(subnets, *v6Info.IPAMData.Pool)
-			}
-		}
-	}
-
-	return subnets
+	return v4Subnets, v6Subnets
 }
 
 // GraphDriverName returns the name of the graph driver used by the layer.Store
