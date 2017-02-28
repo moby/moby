@@ -159,7 +159,7 @@ func (s *DockerSuite) TestAPIStatsNetworkStats(c *check.C) {
 	c.Assert(postTxPackets, checker.GreaterOrEqualThan, expTxPkts,
 		check.Commentf("Reported less TxPackets than expected. Expected >= %d. Found %d. %s", expTxPkts, postTxPackets, pingouts))
 	c.Assert(postRxPackets, checker.GreaterOrEqualThan, expRxPkts,
-		check.Commentf("Reported less Txbytes than expected. Expected >= %d. Found %d. %s", expRxPkts, postRxPackets, pingouts))
+		check.Commentf("Reported less RxPackets than expected. Expected >= %d. Found %d. %s", expRxPkts, postRxPackets, pingouts))
 }
 
 func (s *DockerSuite) TestAPIStatsNetworkStatsVersioning(c *check.C) {
