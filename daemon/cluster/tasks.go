@@ -6,6 +6,7 @@ import (
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/convert"
 	swarmapi "github.com/docker/swarmkit/api"
+	"golang.org/x/net/context"
 )
 
 // GetTasks returns a list of tasks matching the filter options.
@@ -71,19 +72,15 @@ func (c *Cluster) GetTasks(options apitypes.TaskListOptions) ([]types.Task, erro
 
 // GetTask returns a task by an ID.
 func (c *Cluster) GetTask(input string) (types.Task, error) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	state := c.currentNodeState()
-	if !state.IsActiveManager() {
-		return types.Task{}, c.errNoManager(state)
-	}
-
-	ctx, cancel := c.getRequestContext()
-	defer cancel()
-
-	task, err := getTask(ctx, state.controlClient, input)
-	if err != nil {
+	var task *swarmapi.Task
+	if err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+		t, err := getTask(ctx, state.controlClient, input)
+		if err != nil {
+			return err
+		}
+		task = t
+		return nil
+	}); err != nil {
 		return types.Task{}, err
 	}
 	return convert.TaskFromGRPC(*task), nil

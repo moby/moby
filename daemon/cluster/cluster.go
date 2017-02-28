@@ -386,3 +386,18 @@ func detectLockedError(err error) error {
 	}
 	return err
 }
+
+func (c *Cluster) lockedManagerAction(fn func(ctx context.Context, state nodeState) error) error {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	state := c.currentNodeState()
+	if !state.IsActiveManager() {
+		return c.errNoManager(state)
+	}
+
+	ctx, cancel := c.getRequestContext()
+	defer cancel()
+
+	return fn(ctx, state)
+}

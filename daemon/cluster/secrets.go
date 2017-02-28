@@ -5,23 +5,21 @@ import (
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/convert"
 	swarmapi "github.com/docker/swarmkit/api"
+	"golang.org/x/net/context"
 )
 
 // GetSecret returns a secret from a managed swarm cluster
 func (c *Cluster) GetSecret(input string) (types.Secret, error) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	var secret *swarmapi.Secret
 
-	state := c.currentNodeState()
-	if !state.IsActiveManager() {
-		return types.Secret{}, c.errNoManager(state)
-	}
-
-	ctx, cancel := c.getRequestContext()
-	defer cancel()
-
-	secret, err := getSecret(ctx, state.controlClient, input)
-	if err != nil {
+	if err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+		s, err := getSecret(ctx, state.controlClient, input)
+		if err != nil {
+			return err
+		}
+		secret = s
+		return nil
+	}); err != nil {
 		return types.Secret{}, err
 	}
 	return convert.SecretFromGRPC(secret), nil
@@ -61,77 +59,54 @@ func (c *Cluster) GetSecrets(options apitypes.SecretListOptions) ([]types.Secret
 
 // CreateSecret creates a new secret in a managed swarm cluster.
 func (c *Cluster) CreateSecret(s types.SecretSpec) (string, error) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	var resp *swarmapi.CreateSecretResponse
+	if err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+		secretSpec := convert.SecretSpecToGRPC(s)
 
-	state := c.currentNodeState()
-	if !state.IsActiveManager() {
-		return "", c.errNoManager(state)
-	}
-
-	ctx, cancel := c.getRequestContext()
-	defer cancel()
-
-	secretSpec := convert.SecretSpecToGRPC(s)
-
-	r, err := state.controlClient.CreateSecret(ctx,
-		&swarmapi.CreateSecretRequest{Spec: &secretSpec})
-	if err != nil {
+		r, err := state.controlClient.CreateSecret(ctx,
+			&swarmapi.CreateSecretRequest{Spec: &secretSpec})
+		if err != nil {
+			return err
+		}
+		resp = r
+		return nil
+	}); err != nil {
 		return "", err
 	}
-
-	return r.Secret.ID, nil
+	return resp.Secret.ID, nil
 }
 
 // RemoveSecret removes a secret from a managed swarm cluster.
 func (c *Cluster) RemoveSecret(input string) error {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	return c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+		secret, err := getSecret(ctx, state.controlClient, input)
+		if err != nil {
+			return err
+		}
 
-	state := c.currentNodeState()
-	if !state.IsActiveManager() {
-		return c.errNoManager(state)
-	}
+		req := &swarmapi.RemoveSecretRequest{
+			SecretID: secret.ID,
+		}
 
-	ctx, cancel := c.getRequestContext()
-	defer cancel()
-
-	secret, err := getSecret(ctx, state.controlClient, input)
-	if err != nil {
+		_, err = state.controlClient.RemoveSecret(ctx, req)
 		return err
-	}
-
-	req := &swarmapi.RemoveSecretRequest{
-		SecretID: secret.ID,
-	}
-
-	_, err = state.controlClient.RemoveSecret(ctx, req)
-	return err
+	})
 }
 
 // UpdateSecret updates a secret in a managed swarm cluster.
 // Note: this is not exposed to the CLI but is available from the API only
 func (c *Cluster) UpdateSecret(id string, version uint64, spec types.SecretSpec) error {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	return c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+		secretSpec := convert.SecretSpecToGRPC(spec)
 
-	state := c.currentNodeState()
-	if !state.IsActiveManager() {
-		return c.errNoManager(state)
-	}
-
-	ctx, cancel := c.getRequestContext()
-	defer cancel()
-
-	secretSpec := convert.SecretSpecToGRPC(spec)
-
-	_, err := state.controlClient.UpdateSecret(ctx,
-		&swarmapi.UpdateSecretRequest{
-			SecretID: id,
-			SecretVersion: &swarmapi.Version{
-				Index: version,
-			},
-			Spec: &secretSpec,
-		})
-	return err
+		_, err := state.controlClient.UpdateSecret(ctx,
+			&swarmapi.UpdateSecretRequest{
+				SecretID: id,
+				SecretVersion: &swarmapi.Version{
+					Index: version,
+				},
+				Spec: &secretSpec,
+			})
+		return err
+	})
 }

@@ -6,6 +6,7 @@ import (
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/convert"
 	swarmapi "github.com/docker/swarmkit/api"
+	"golang.org/x/net/context"
 )
 
 // GetNodes returns a list of all nodes known to a cluster.
@@ -43,78 +44,61 @@ func (c *Cluster) GetNodes(options apitypes.NodeListOptions) ([]types.Node, erro
 
 // GetNode returns a node based on an ID.
 func (c *Cluster) GetNode(input string) (types.Node, error) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	var node *swarmapi.Node
 
-	state := c.currentNodeState()
-	if !state.IsActiveManager() {
-		return types.Node{}, c.errNoManager(state)
-	}
-
-	ctx, cancel := c.getRequestContext()
-	defer cancel()
-
-	node, err := getNode(ctx, state.controlClient, input)
-	if err != nil {
+	if err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+		n, err := getNode(ctx, state.controlClient, input)
+		if err != nil {
+			return err
+		}
+		node = n
+		return nil
+	}); err != nil {
 		return types.Node{}, err
 	}
+
 	return convert.NodeFromGRPC(*node), nil
 }
 
 // UpdateNode updates existing nodes properties.
 func (c *Cluster) UpdateNode(input string, version uint64, spec types.NodeSpec) error {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	return c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+		nodeSpec, err := convert.NodeSpecToGRPC(spec)
+		if err != nil {
+			return apierrors.NewBadRequestError(err)
+		}
 
-	state := c.currentNodeState()
-	if !state.IsActiveManager() {
-		return c.errNoManager(state)
-	}
+		ctx, cancel := c.getRequestContext()
+		defer cancel()
 
-	nodeSpec, err := convert.NodeSpecToGRPC(spec)
-	if err != nil {
-		return apierrors.NewBadRequestError(err)
-	}
+		currentNode, err := getNode(ctx, state.controlClient, input)
+		if err != nil {
+			return err
+		}
 
-	ctx, cancel := c.getRequestContext()
-	defer cancel()
-
-	currentNode, err := getNode(ctx, state.controlClient, input)
-	if err != nil {
-		return err
-	}
-
-	_, err = state.controlClient.UpdateNode(
-		ctx,
-		&swarmapi.UpdateNodeRequest{
-			NodeID: currentNode.ID,
-			Spec:   &nodeSpec,
-			NodeVersion: &swarmapi.Version{
-				Index: version,
+		_, err = state.controlClient.UpdateNode(
+			ctx,
+			&swarmapi.UpdateNodeRequest{
+				NodeID: currentNode.ID,
+				Spec:   &nodeSpec,
+				NodeVersion: &swarmapi.Version{
+					Index: version,
+				},
 			},
-		},
-	)
-	return err
+		)
+		return err
+	})
 }
 
 // RemoveNode removes a node from a cluster
 func (c *Cluster) RemoveNode(input string, force bool) error {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	return c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+		node, err := getNode(ctx, state.controlClient, input)
+		if err != nil {
+			return err
+		}
 
-	state := c.currentNodeState()
-	if !state.IsActiveManager() {
-		return c.errNoManager(state)
-	}
-
-	ctx, cancel := c.getRequestContext()
-	defer cancel()
-
-	node, err := getNode(ctx, state.controlClient, input)
-	if err != nil {
+		_, err = state.controlClient.RemoveNode(ctx, &swarmapi.RemoveNodeRequest{NodeID: node.ID, Force: force})
 		return err
-	}
-
-	_, err = state.controlClient.RemoveNode(ctx, &swarmapi.RemoveNodeRequest{NodeID: node.ID, Force: force})
-	return err
+	})
 }

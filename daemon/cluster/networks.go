@@ -48,19 +48,16 @@ func (c *Cluster) getNetworks(filters *swarmapi.ListNetworksRequest_Filters) ([]
 
 // GetNetwork returns a cluster network by an ID.
 func (c *Cluster) GetNetwork(input string) (apitypes.NetworkResource, error) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	var network *swarmapi.Network
 
-	state := c.currentNodeState()
-	if !state.IsActiveManager() {
-		return apitypes.NetworkResource{}, c.errNoManager(state)
-	}
-
-	ctx, cancel := c.getRequestContext()
-	defer cancel()
-
-	network, err := getNetwork(ctx, state.controlClient, input)
-	if err != nil {
+	if err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+		n, err := getNetwork(ctx, state.controlClient, input)
+		if err != nil {
+			return err
+		}
+		network = n
+		return nil
+	}); err != nil {
 		return apitypes.NetworkResource{}, err
 	}
 	return convert.BasicNetworkFromGRPC(*network), nil
@@ -224,51 +221,38 @@ func (c *Cluster) DetachNetwork(target string, containerID string) error {
 
 // CreateNetwork creates a new cluster managed network.
 func (c *Cluster) CreateNetwork(s apitypes.NetworkCreateRequest) (string, error) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	state := c.currentNodeState()
-	if !state.IsActiveManager() {
-		return "", c.errNoManager(state)
-	}
-
 	if runconfig.IsPreDefinedNetwork(s.Name) {
 		err := fmt.Errorf("%s is a pre-defined network and cannot be created", s.Name)
 		return "", apierrors.NewRequestForbiddenError(err)
 	}
 
-	ctx, cancel := c.getRequestContext()
-	defer cancel()
-
-	networkSpec := convert.BasicNetworkCreateToGRPC(s)
-	r, err := state.controlClient.CreateNetwork(ctx, &swarmapi.CreateNetworkRequest{Spec: &networkSpec})
-	if err != nil {
+	var resp *swarmapi.CreateNetworkResponse
+	if err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+		networkSpec := convert.BasicNetworkCreateToGRPC(s)
+		r, err := state.controlClient.CreateNetwork(ctx, &swarmapi.CreateNetworkRequest{Spec: &networkSpec})
+		if err != nil {
+			return err
+		}
+		resp = r
+		return nil
+	}); err != nil {
 		return "", err
 	}
 
-	return r.Network.ID, nil
+	return resp.Network.ID, nil
 }
 
 // RemoveNetwork removes a cluster network.
 func (c *Cluster) RemoveNetwork(input string) error {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	return c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+		network, err := getNetwork(ctx, state.controlClient, input)
+		if err != nil {
+			return err
+		}
 
-	state := c.currentNodeState()
-	if !state.IsActiveManager() {
-		return c.errNoManager(state)
-	}
-
-	ctx, cancel := c.getRequestContext()
-	defer cancel()
-
-	network, err := getNetwork(ctx, state.controlClient, input)
-	if err != nil {
+		_, err = state.controlClient.RemoveNetwork(ctx, &swarmapi.RemoveNetworkRequest{NetworkID: network.ID})
 		return err
-	}
-
-	_, err = state.controlClient.RemoveNetwork(ctx, &swarmapi.RemoveNetworkRequest{NetworkID: network.ID})
-	return err
+	})
 }
 
 func (c *Cluster) populateNetworkID(ctx context.Context, client swarmapi.ControlClient, s *types.ServiceSpec) error {

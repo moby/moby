@@ -187,95 +187,75 @@ func (c *Cluster) Join(req types.JoinRequest) error {
 
 // Inspect retrieves the configuration properties of a managed swarm cluster.
 func (c *Cluster) Inspect() (types.Swarm, error) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	state := c.currentNodeState()
-	if !state.IsActiveManager() {
-		return types.Swarm{}, c.errNoManager(state)
-	}
-
-	ctx, cancel := c.getRequestContext()
-	defer cancel()
-
-	swarm, err := getSwarm(ctx, state.controlClient)
-	if err != nil {
+	var swarm *swarmapi.Cluster
+	if err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+		s, err := getSwarm(ctx, state.controlClient)
+		if err != nil {
+			return err
+		}
+		swarm = s
+		return nil
+	}); err != nil {
 		return types.Swarm{}, err
 	}
-
 	return convert.SwarmFromGRPC(*swarm), nil
 }
 
 // Update updates configuration of a managed swarm cluster.
 func (c *Cluster) Update(version uint64, spec types.Spec, flags types.UpdateFlags) error {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	return c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+		swarm, err := getSwarm(ctx, state.controlClient)
+		if err != nil {
+			return err
+		}
 
-	state := c.currentNodeState()
-	if !state.IsActiveManager() {
-		return c.errNoManager(state)
-	}
+		// In update, client should provide the complete spec of the swarm, including
+		// Name and Labels. If a field is specified with 0 or nil, then the default value
+		// will be used to swarmkit.
+		clusterSpec, err := convert.SwarmSpecToGRPC(spec)
+		if err != nil {
+			return apierrors.NewBadRequestError(err)
+		}
 
-	ctx, cancel := c.getRequestContext()
-	defer cancel()
-
-	swarm, err := getSwarm(ctx, state.controlClient)
-	if err != nil {
+		_, err = state.controlClient.UpdateCluster(
+			ctx,
+			&swarmapi.UpdateClusterRequest{
+				ClusterID: swarm.ID,
+				Spec:      &clusterSpec,
+				ClusterVersion: &swarmapi.Version{
+					Index: version,
+				},
+				Rotation: swarmapi.KeyRotation{
+					WorkerJoinToken:  flags.RotateWorkerToken,
+					ManagerJoinToken: flags.RotateManagerToken,
+					ManagerUnlockKey: flags.RotateManagerUnlockKey,
+				},
+			},
+		)
 		return err
-	}
-
-	// In update, client should provide the complete spec of the swarm, including
-	// Name and Labels. If a field is specified with 0 or nil, then the default value
-	// will be used to swarmkit.
-	clusterSpec, err := convert.SwarmSpecToGRPC(spec)
-	if err != nil {
-		return apierrors.NewBadRequestError(err)
-	}
-
-	_, err = state.controlClient.UpdateCluster(
-		ctx,
-		&swarmapi.UpdateClusterRequest{
-			ClusterID: swarm.ID,
-			Spec:      &clusterSpec,
-			ClusterVersion: &swarmapi.Version{
-				Index: version,
-			},
-			Rotation: swarmapi.KeyRotation{
-				WorkerJoinToken:  flags.RotateWorkerToken,
-				ManagerJoinToken: flags.RotateManagerToken,
-				ManagerUnlockKey: flags.RotateManagerUnlockKey,
-			},
-		},
-	)
-	return err
+	})
 }
 
 // GetUnlockKey returns the unlock key for the swarm.
 func (c *Cluster) GetUnlockKey() (string, error) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	var resp *swarmapi.GetUnlockKeyResponse
+	if err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+		client := swarmapi.NewCAClient(state.grpcConn)
 
-	state := c.currentNodeState()
-	if !state.IsActiveManager() {
-		return "", c.errNoManager(state)
-	}
-
-	ctx, cancel := c.getRequestContext()
-	defer cancel()
-
-	client := swarmapi.NewCAClient(state.grpcConn)
-
-	r, err := client.GetUnlockKey(ctx, &swarmapi.GetUnlockKeyRequest{})
-	if err != nil {
+		r, err := client.GetUnlockKey(ctx, &swarmapi.GetUnlockKeyRequest{})
+		if err != nil {
+			return err
+		}
+		resp = r
+		return nil
+	}); err != nil {
 		return "", err
 	}
-
-	if len(r.UnlockKey) == 0 {
+	if len(resp.UnlockKey) == 0 {
 		// no key
 		return "", nil
 	}
-
-	return encryption.HumanReadableKey(r.UnlockKey), nil
+	return encryption.HumanReadableKey(resp.UnlockKey), nil
 }
 
 // UnlockSwarm provides a key to decrypt data that is encrypted at rest.

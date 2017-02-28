@@ -59,19 +59,15 @@ func (c *Cluster) GetServices(options apitypes.ServiceListOptions) ([]types.Serv
 
 // GetService returns a service based on an ID or name.
 func (c *Cluster) GetService(input string) (types.Service, error) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	state := c.currentNodeState()
-	if !state.IsActiveManager() {
-		return types.Service{}, c.errNoManager(state)
-	}
-
-	ctx, cancel := c.getRequestContext()
-	defer cancel()
-
-	service, err := getService(ctx, state.controlClient, input)
-	if err != nil {
+	var service *swarmapi.Service
+	if err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+		s, err := getService(ctx, state.controlClient, input)
+		if err != nil {
+			return err
+		}
+		service = s
+		return nil
+	}); err != nil {
 		return types.Service{}, err
 	}
 	return convert.ServiceFromGRPC(*service), nil
@@ -79,187 +75,165 @@ func (c *Cluster) GetService(input string) (types.Service, error) {
 
 // CreateService creates a new service in a managed swarm cluster.
 func (c *Cluster) CreateService(s types.ServiceSpec, encodedAuth string) (*apitypes.ServiceCreateResponse, error) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	state := c.currentNodeState()
-	if !state.IsActiveManager() {
-		return nil, c.errNoManager(state)
-	}
-
-	ctx, cancel := c.getRequestContext()
-	defer cancel()
-
-	err := c.populateNetworkID(ctx, state.controlClient, &s)
-	if err != nil {
-		return nil, err
-	}
-
-	serviceSpec, err := convert.ServiceSpecToGRPC(s)
-	if err != nil {
-		return nil, apierrors.NewBadRequestError(err)
-	}
-
-	ctnr := serviceSpec.Task.GetContainer()
-	if ctnr == nil {
-		return nil, errors.New("service does not use container tasks")
-	}
-
-	if encodedAuth != "" {
-		ctnr.PullOptions = &swarmapi.ContainerSpec_PullOptions{RegistryAuth: encodedAuth}
-	}
-
-	// retrieve auth config from encoded auth
-	authConfig := &apitypes.AuthConfig{}
-	if encodedAuth != "" {
-		if err := json.NewDecoder(base64.NewDecoder(base64.URLEncoding, strings.NewReader(encodedAuth))).Decode(authConfig); err != nil {
-			logrus.Warnf("invalid authconfig: %v", err)
-		}
-	}
-
-	resp := &apitypes.ServiceCreateResponse{}
-
-	// pin image by digest
-	if os.Getenv("DOCKER_SERVICE_PREFER_OFFLINE_IMAGE") != "1" {
-		digestImage, err := c.imageWithDigestString(ctx, ctnr.Image, authConfig)
+	var resp *apitypes.ServiceCreateResponse
+	err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+		err := c.populateNetworkID(ctx, state.controlClient, &s)
 		if err != nil {
-			logrus.Warnf("unable to pin image %s to digest: %s", ctnr.Image, err.Error())
-			resp.Warnings = append(resp.Warnings, fmt.Sprintf("unable to pin image %s to digest: %s", ctnr.Image, err.Error()))
-		} else if ctnr.Image != digestImage {
-			logrus.Debugf("pinning image %s by digest: %s", ctnr.Image, digestImage)
-			ctnr.Image = digestImage
-		} else {
-			logrus.Debugf("creating service using supplied digest reference %s", ctnr.Image)
+			return err
 		}
-	}
 
-	r, err := state.controlClient.CreateService(ctx, &swarmapi.CreateServiceRequest{Spec: &serviceSpec})
-	if err != nil {
-		return nil, err
-	}
+		serviceSpec, err := convert.ServiceSpecToGRPC(s)
+		if err != nil {
+			return apierrors.NewBadRequestError(err)
+		}
 
-	resp.ID = r.Service.ID
-	return resp, nil
+		ctnr := serviceSpec.Task.GetContainer()
+		if ctnr == nil {
+			return errors.New("service does not use container tasks")
+		}
+
+		if encodedAuth != "" {
+			ctnr.PullOptions = &swarmapi.ContainerSpec_PullOptions{RegistryAuth: encodedAuth}
+		}
+
+		// retrieve auth config from encoded auth
+		authConfig := &apitypes.AuthConfig{}
+		if encodedAuth != "" {
+			if err := json.NewDecoder(base64.NewDecoder(base64.URLEncoding, strings.NewReader(encodedAuth))).Decode(authConfig); err != nil {
+				logrus.Warnf("invalid authconfig: %v", err)
+			}
+		}
+
+		resp = &apitypes.ServiceCreateResponse{}
+
+		// pin image by digest
+		if os.Getenv("DOCKER_SERVICE_PREFER_OFFLINE_IMAGE") != "1" {
+			digestImage, err := c.imageWithDigestString(ctx, ctnr.Image, authConfig)
+			if err != nil {
+				logrus.Warnf("unable to pin image %s to digest: %s", ctnr.Image, err.Error())
+				resp.Warnings = append(resp.Warnings, fmt.Sprintf("unable to pin image %s to digest: %s", ctnr.Image, err.Error()))
+			} else if ctnr.Image != digestImage {
+				logrus.Debugf("pinning image %s by digest: %s", ctnr.Image, digestImage)
+				ctnr.Image = digestImage
+			} else {
+				logrus.Debugf("creating service using supplied digest reference %s", ctnr.Image)
+			}
+		}
+
+		r, err := state.controlClient.CreateService(ctx, &swarmapi.CreateServiceRequest{Spec: &serviceSpec})
+		if err != nil {
+			return err
+		}
+
+		resp.ID = r.Service.ID
+		return nil
+	})
+	return resp, err
 }
 
 // UpdateService updates existing service to match new properties.
 func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec types.ServiceSpec, encodedAuth string, registryAuthFrom string) (*apitypes.ServiceUpdateResponse, error) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	var resp *apitypes.ServiceUpdateResponse
 
-	state := c.currentNodeState()
-	if !state.IsActiveManager() {
-		return nil, c.errNoManager(state)
-	}
+	err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
 
-	ctx, cancel := c.getRequestContext()
-	defer cancel()
-
-	err := c.populateNetworkID(ctx, state.controlClient, &spec)
-	if err != nil {
-		return nil, err
-	}
-
-	serviceSpec, err := convert.ServiceSpecToGRPC(spec)
-	if err != nil {
-		return nil, apierrors.NewBadRequestError(err)
-	}
-
-	currentService, err := getService(ctx, state.controlClient, serviceIDOrName)
-	if err != nil {
-		return nil, err
-	}
-
-	newCtnr := serviceSpec.Task.GetContainer()
-	if newCtnr == nil {
-		return nil, errors.New("service does not use container tasks")
-	}
-
-	if encodedAuth != "" {
-		newCtnr.PullOptions = &swarmapi.ContainerSpec_PullOptions{RegistryAuth: encodedAuth}
-	} else {
-		// this is needed because if the encodedAuth isn't being updated then we
-		// shouldn't lose it, and continue to use the one that was already present
-		var ctnr *swarmapi.ContainerSpec
-		switch registryAuthFrom {
-		case apitypes.RegistryAuthFromSpec, "":
-			ctnr = currentService.Spec.Task.GetContainer()
-		case apitypes.RegistryAuthFromPreviousSpec:
-			if currentService.PreviousSpec == nil {
-				return nil, errors.New("service does not have a previous spec")
-			}
-			ctnr = currentService.PreviousSpec.Task.GetContainer()
-		default:
-			return nil, errors.New("unsupported registryAuthFrom value")
-		}
-		if ctnr == nil {
-			return nil, errors.New("service does not use container tasks")
-		}
-		newCtnr.PullOptions = ctnr.PullOptions
-		// update encodedAuth so it can be used to pin image by digest
-		if ctnr.PullOptions != nil {
-			encodedAuth = ctnr.PullOptions.RegistryAuth
-		}
-	}
-
-	// retrieve auth config from encoded auth
-	authConfig := &apitypes.AuthConfig{}
-	if encodedAuth != "" {
-		if err := json.NewDecoder(base64.NewDecoder(base64.URLEncoding, strings.NewReader(encodedAuth))).Decode(authConfig); err != nil {
-			logrus.Warnf("invalid authconfig: %v", err)
-		}
-	}
-
-	resp := &apitypes.ServiceUpdateResponse{}
-
-	// pin image by digest
-	if os.Getenv("DOCKER_SERVICE_PREFER_OFFLINE_IMAGE") != "1" {
-		digestImage, err := c.imageWithDigestString(ctx, newCtnr.Image, authConfig)
+		err := c.populateNetworkID(ctx, state.controlClient, &spec)
 		if err != nil {
-			logrus.Warnf("unable to pin image %s to digest: %s", newCtnr.Image, err.Error())
-			resp.Warnings = append(resp.Warnings, fmt.Sprintf("unable to pin image %s to digest: %s", newCtnr.Image, err.Error()))
-		} else if newCtnr.Image != digestImage {
-			logrus.Debugf("pinning image %s by digest: %s", newCtnr.Image, digestImage)
-			newCtnr.Image = digestImage
-		} else {
-			logrus.Debugf("updating service using supplied digest reference %s", newCtnr.Image)
+			return err
 		}
-	}
 
-	_, err = state.controlClient.UpdateService(
-		ctx,
-		&swarmapi.UpdateServiceRequest{
-			ServiceID: currentService.ID,
-			Spec:      &serviceSpec,
-			ServiceVersion: &swarmapi.Version{
-				Index: version,
+		serviceSpec, err := convert.ServiceSpecToGRPC(spec)
+		if err != nil {
+			return apierrors.NewBadRequestError(err)
+		}
+
+		currentService, err := getService(ctx, state.controlClient, serviceIDOrName)
+		if err != nil {
+			return err
+		}
+
+		newCtnr := serviceSpec.Task.GetContainer()
+		if newCtnr == nil {
+			return errors.New("service does not use container tasks")
+		}
+
+		if encodedAuth != "" {
+			newCtnr.PullOptions = &swarmapi.ContainerSpec_PullOptions{RegistryAuth: encodedAuth}
+		} else {
+			// this is needed because if the encodedAuth isn't being updated then we
+			// shouldn't lose it, and continue to use the one that was already present
+			var ctnr *swarmapi.ContainerSpec
+			switch registryAuthFrom {
+			case apitypes.RegistryAuthFromSpec, "":
+				ctnr = currentService.Spec.Task.GetContainer()
+			case apitypes.RegistryAuthFromPreviousSpec:
+				if currentService.PreviousSpec == nil {
+					return errors.New("service does not have a previous spec")
+				}
+				ctnr = currentService.PreviousSpec.Task.GetContainer()
+			default:
+				return errors.New("unsupported registryAuthFrom value")
+			}
+			if ctnr == nil {
+				return errors.New("service does not use container tasks")
+			}
+			newCtnr.PullOptions = ctnr.PullOptions
+			// update encodedAuth so it can be used to pin image by digest
+			if ctnr.PullOptions != nil {
+				encodedAuth = ctnr.PullOptions.RegistryAuth
+			}
+		}
+
+		// retrieve auth config from encoded auth
+		authConfig := &apitypes.AuthConfig{}
+		if encodedAuth != "" {
+			if err := json.NewDecoder(base64.NewDecoder(base64.URLEncoding, strings.NewReader(encodedAuth))).Decode(authConfig); err != nil {
+				logrus.Warnf("invalid authconfig: %v", err)
+			}
+		}
+
+		resp := &apitypes.ServiceUpdateResponse{}
+
+		// pin image by digest
+		if os.Getenv("DOCKER_SERVICE_PREFER_OFFLINE_IMAGE") != "1" {
+			digestImage, err := c.imageWithDigestString(ctx, newCtnr.Image, authConfig)
+			if err != nil {
+				logrus.Warnf("unable to pin image %s to digest: %s", newCtnr.Image, err.Error())
+				resp.Warnings = append(resp.Warnings, fmt.Sprintf("unable to pin image %s to digest: %s", newCtnr.Image, err.Error()))
+			} else if newCtnr.Image != digestImage {
+				logrus.Debugf("pinning image %s by digest: %s", newCtnr.Image, digestImage)
+				newCtnr.Image = digestImage
+			} else {
+				logrus.Debugf("updating service using supplied digest reference %s", newCtnr.Image)
+			}
+		}
+
+		_, err = state.controlClient.UpdateService(
+			ctx,
+			&swarmapi.UpdateServiceRequest{
+				ServiceID: currentService.ID,
+				Spec:      &serviceSpec,
+				ServiceVersion: &swarmapi.Version{
+					Index: version,
+				},
 			},
-		},
-	)
-
+		)
+		return err
+	})
 	return resp, err
 }
 
 // RemoveService removes a service from a managed swarm cluster.
 func (c *Cluster) RemoveService(input string) error {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	return c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+		service, err := getService(ctx, state.controlClient, input)
+		if err != nil {
+			return err
+		}
 
-	state := c.currentNodeState()
-	if !state.IsActiveManager() {
-		return c.errNoManager(state)
-	}
-
-	ctx, cancel := c.getRequestContext()
-	defer cancel()
-
-	service, err := getService(ctx, state.controlClient, input)
-	if err != nil {
+		_, err = state.controlClient.RemoveService(ctx, &swarmapi.RemoveServiceRequest{ServiceID: service.ID})
 		return err
-	}
-
-	_, err = state.controlClient.RemoveService(ctx, &swarmapi.RemoveServiceRequest{ServiceID: service.ID})
-	return err
+	})
 }
 
 // ServiceLogs collects service logs and writes them back to `config.OutStream`
