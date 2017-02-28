@@ -1276,19 +1276,21 @@ func (daemon *Daemon) initCgroupsPath(path string) error {
 
 	path = filepath.Join(root, path)
 	sysinfo := sysinfo.New(true)
-	if sysinfo.CPURealtimePeriod && daemon.configStore.CPURealtimePeriod != 0 {
-		if err := os.MkdirAll(path, 0755); err != nil && !os.IsExist(err) {
-			return err
-		}
-		if err := ioutil.WriteFile(filepath.Join(path, "cpu.rt_period_us"), []byte(strconv.FormatInt(daemon.configStore.CPURealtimePeriod, 10)), 0700); err != nil {
-			return err
-		}
+	if err := maybeCreateCPURealTimeFile(sysinfo.CPURealtimePeriod, daemon.configStore.CPURealtimePeriod, "cpu.rt_period_us", path); err != nil {
+		return err
 	}
-	if sysinfo.CPURealtimeRuntime && daemon.configStore.CPURealtimeRuntime != 0 {
+	if err := maybeCreateCPURealTimeFile(sysinfo.CPURealtimeRuntime, daemon.configStore.CPURealtimeRuntime, "cpu.rt_runtime_us", path); err != nil {
+		return err
+	}
+	return nil
+}
+
+func maybeCreateCPURealTimeFile(sysinfoPresent bool, configValue int64, file string, path string) error {
+	if sysinfoPresent && configValue != 0 {
 		if err := os.MkdirAll(path, 0755); err != nil && !os.IsExist(err) {
 			return err
 		}
-		if err := ioutil.WriteFile(filepath.Join(path, "cpu.rt_runtime_us"), []byte(strconv.FormatInt(daemon.configStore.CPURealtimeRuntime, 10)), 0700); err != nil {
+		if err := ioutil.WriteFile(filepath.Join(path, file), []byte(strconv.FormatInt(configValue, 10)), 0700); err != nil {
 			return err
 		}
 	}
