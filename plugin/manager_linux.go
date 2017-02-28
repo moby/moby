@@ -5,6 +5,7 @@ package plugin
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -77,7 +78,8 @@ func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) error {
 }
 
 func (pm *Manager) pluginPostStart(p *v2.Plugin, c *controller) error {
-	client, err := plugins.NewClientWithTimeout("unix://"+filepath.Join(pm.config.ExecRoot, p.GetID(), p.GetSocket()), nil, c.timeoutInSecs)
+	sockAddr := filepath.Join(pm.config.ExecRoot, p.GetID(), p.GetSocket())
+	client, err := plugins.NewClientWithTimeout("unix://"+sockAddr, nil, c.timeoutInSecs)
 	if err != nil {
 		c.restart = false
 		shutdownPlugin(p, c, pm.containerdClient)
@@ -85,6 +87,27 @@ func (pm *Manager) pluginPostStart(p *v2.Plugin, c *controller) error {
 	}
 
 	p.SetPClient(client)
+
+	maxRetries := 3
+	var retries int
+	for {
+		time.Sleep(3 * time.Second)
+		retries++
+
+		if retries > maxRetries {
+			logrus.Debugf("error net dialing plugin: %v", err)
+			c.restart = false
+			shutdownPlugin(p, c, pm.containerdClient)
+			return err
+		}
+
+		// net dial into the unix socket to see if someone's listening.
+		conn, err := net.Dial("unix", sockAddr)
+		if err == nil {
+			conn.Close()
+			break
+		}
+	}
 	pm.config.Store.SetState(p, true)
 	pm.config.Store.CallHandler(p)
 
