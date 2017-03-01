@@ -100,6 +100,9 @@ Conflicts: docker
 Conflicts: docker-io
 Conflicts: docker-engine-cs
 
+# provides package
+Provides: docker-engine
+
 %description
 Docker is an open source project to build, ship and run any application as a
 lightweight container.
