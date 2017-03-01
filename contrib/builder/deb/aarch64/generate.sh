@@ -69,7 +69,7 @@ for version in "${versions[@]}"; do
 			# golang-1.6-go package can be used as bootstrap.
 			packages+=( golang-1.6-go )
 			;;
-		xenial)
+		stretch|xenial)
 			packages+=( libsystemd-dev )
 			packages+=( golang-go libseccomp-dev)
 
