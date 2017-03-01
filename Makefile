@@ -59,10 +59,11 @@ DOCKER_MOUNT := $(if $(DOCKER_MOUNT),$(DOCKER_MOUNT),-v /go/src/github.com/docke
 DOCKER_CONTAINER_NAME := $(if $(CONTAINER_NAME),--name $(CONTAINER_NAME),)
 
 # enable package cache if DOCKER_INCREMENTAL_BINARY and DOCKER_MOUNT (i.e.DOCKER_HOST) are set
-PKGCACHE_MAP := gopath:/go/pkg goroot-linux_amd64_netgo:/usr/local/go/pkg/linux_amd64_netgo
+PKGCACHE_MAP := gopath:/go/pkg goroot-linux_amd64:/usr/local/go/pkg/linux_amd64 goroot-linux_amd64_netgo:/usr/local/go/pkg/linux_amd64_netgo
 PKGCACHE_VOLROOT := dockerdev-go-pkg-cache
 PKGCACHE_VOL := $(if $(PKGCACHE_DIR),$(CURDIR)/$(PKGCACHE_DIR)/,$(PKGCACHE_VOLROOT)-)
-DOCKER_MOUNT := $(if $(DOCKER_INCREMENTAL_BINARY),$(DOCKER_MOUNT) $(shell echo $(PKGCACHE_MAP) | sed -E 's@([^ ]*)@-v "$(PKGCACHE_VOL)\1"@g'),$(DOCKER_MOUNT))
+DOCKER_MOUNT_PKGCACHE := $(if $(DOCKER_INCREMENTAL_BINARY),$(shell echo $(PKGCACHE_MAP) | sed -E 's@([^ ]*)@-v "$(PKGCACHE_VOL)\1"@g'),)
+DOCKER_MOUNT := $(DOCKER_MOUNT) $(DOCKER_MOUNT_PKGCACHE)
 
 GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
 GIT_BRANCH_CLEAN := $(shell echo $(GIT_BRANCH) | sed -e "s/[^[:alnum:]]/-/g")
@@ -74,6 +75,9 @@ BUILD_APT_MIRROR := $(if $(DOCKER_BUILD_APT_MIRROR),--build-arg APT_MIRROR=$(DOC
 export BUILD_APT_MIRROR
 
 SWAGGER_DOCS_PORT ?= 9000
+
+INTEGRATION_CLI_MASTER_IMAGE := $(if $(INTEGRATION_CLI_MASTER_IMAGE), $(INTEGRATION_CLI_MASTER_IMAGE), integration-cli-master)
+INTEGRATION_CLI_WORKER_IMAGE := $(if $(INTEGRATION_CLI_WORKER_IMAGE), $(INTEGRATION_CLI_WORKER_IMAGE), integration-cli-worker)
 
 # if this session isn't interactive, then we don't want to allocate a
 # TTY, which would fail, but if it is interactive, we do want to attach
@@ -173,3 +177,19 @@ swagger-docs: ## preview the API documentation
 		-e 'REDOC_OPTIONS=hide-hostname="true" lazy-rendering' \
 		-p $(SWAGGER_DOCS_PORT):80 \
 		bfirsh/redoc:1.6.2
+
+build-integration-cli-on-swarm: build ## build images and binary for running integration-cli on Swarm in parallel
+	@echo "Building hack/integration-cli-on-swarm"
+	go build -o ./hack/integration-cli-on-swarm/integration-cli-on-swarm ./hack/integration-cli-on-swarm/host
+	@echo "Building $(INTEGRATION_CLI_MASTER_IMAGE)"
+	docker build -t $(INTEGRATION_CLI_MASTER_IMAGE) hack/integration-cli-on-swarm/agent
+# For worker, we don't use `docker build` so as to enable DOCKER_INCREMENTAL_BINARY and so on
+	@echo "Building $(INTEGRATION_CLI_WORKER_IMAGE) from $(DOCKER_IMAGE)"
+	$(eval tmp := integration-cli-worker-tmp)
+# We mount pkgcache, but not bundle (bundle needs to be baked into the image)
+# For avoiding bakings DOCKER_GRAPHDRIVER and so on to image, we cannot use $(DOCKER_ENVS) here
+	docker run -t -d --name $(tmp) -e DOCKER_GITCOMMIT -e BUILDFLAGS -e DOCKER_INCREMENTAL_BINARY --privileged $(DOCKER_MOUNT_PKGCACHE) $(DOCKER_IMAGE) top
+	docker exec $(tmp) hack/make.sh build-integration-test-binary dynbinary
+	docker exec $(tmp) go build -o /worker github.com/docker/docker/hack/integration-cli-on-swarm/agent/worker
+	docker commit -c 'ENTRYPOINT ["/worker"]' $(tmp) $(INTEGRATION_CLI_WORKER_IMAGE)
+	docker rm -f $(tmp)
