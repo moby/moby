@@ -197,7 +197,7 @@ func (s *DockerSuite) TestBuildEnvironmentReplacementEnv(c *check.C) {
 		} else if strings.HasPrefix(parts[0], "env") {
 			envCount++
 			if parts[1] != "zzz" {
-				c.Fatalf("%s should be 'foo' but instead its %q", parts[0], parts[1])
+				c.Fatalf("%s should be 'zzz' but instead its %q", parts[0], parts[1])
 			}
 		} else if strings.HasPrefix(parts[0], "env") {
 			envCount++
