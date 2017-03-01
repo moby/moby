@@ -287,7 +287,7 @@ func existsMountpointWithPrefix(mountpointPrefix string) (bool, error) {
 }
 
 func (s *DockerDaemonSuite) TestPluginListFilterEnabled(c *check.C) {
-	testRequires(c, Network)
+	testRequires(c, IsAmd64, Network)
 
 	s.d.Start(c)
 
@@ -315,7 +315,7 @@ func (s *DockerDaemonSuite) TestPluginListFilterEnabled(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestPluginListFilterCapability(c *check.C) {
-	testRequires(c, Network)
+	testRequires(c, IsAmd64, Network)
 
 	s.d.Start(c)
 

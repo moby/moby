@@ -350,7 +350,7 @@ func (s *DockerTrustSuite) TestPluginUntrustedInstall(c *check.C) {
 }
 
 func (s *DockerSuite) TestPluginIDPrefix(c *check.C) {
-	testRequires(c, DaemonIsLinux, Network)
+	testRequires(c, DaemonIsLinux, IsAmd64, Network)
 	_, _, err := dockerCmdWithError("plugin", "install", "--disable", "--grant-all-permissions", pNameWithTag)
 	c.Assert(err, checker.IsNil)
 
