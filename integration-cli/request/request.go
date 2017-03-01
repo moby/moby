@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	dclient "github.com/docker/docker/client"
@@ -32,10 +33,30 @@ func Method(method string) func(*http.Request) error {
 	}
 }
 
+// RawString sets the specified string as body for the request
+func RawString(content string) func(*http.Request) error {
+	return RawContent(ioutil.NopCloser(strings.NewReader(content)))
+}
+
+// RawContent sets the specified reader as body for the request
+func RawContent(reader io.ReadCloser) func(*http.Request) error {
+	return func(req *http.Request) error {
+		req.Body = reader
+		return nil
+	}
+}
+
+// ContentType sets the specified Content-Type request header
+func ContentType(contentType string) func(*http.Request) error {
+	return func(req *http.Request) error {
+		req.Header.Set("Content-Type", contentType)
+		return nil
+	}
+}
+
 // JSON sets the Content-Type request header to json
 func JSON(req *http.Request) error {
-	req.Header.Set("Content-Type", "application/json")
-	return nil
+	return ContentType("application/json")(req)
 }
 
 // JSONBody creates a modifier that encodes the specified data to a JSON string and set it as request body. It also sets
