@@ -307,6 +307,24 @@ func (r *controller) Wait(pctx context.Context) error {
 	return nil
 }
 
+func (r *controller) hasServiceBinding() bool {
+	if r.task == nil {
+		return false
+	}
+
+	// service is attached to a network besides the default bridge
+	for _, na := range r.task.Networks {
+		if na.Network == nil ||
+			na.Network.DriverState == nil ||
+			na.Network.DriverState.Name == "bridge" && na.Network.Spec.Annotations.Name == "bridge" {
+			continue
+		}
+		return true
+	}
+
+	return false
+}
+
 // Shutdown the container cleanly.
 func (r *controller) Shutdown(ctx context.Context) error {
 	if err := r.checkClosed(); err != nil {
@@ -317,20 +335,19 @@ func (r *controller) Shutdown(ctx context.Context) error {
 		r.cancelPull()
 	}
 
-	// remove container from service binding
-	if err := r.adapter.deactivateServiceBinding(); err != nil {
-		log.G(ctx).WithError(err).Warningf("failed to deactivate service binding for container %s", r.adapter.container.name())
-		// Don't return an error here, because failure to deactivate
-		// the service binding is expected if the container was never
-		// started.
-	}
+	if r.hasServiceBinding() {
+		// remove container from service binding
+		if err := r.adapter.deactivateServiceBinding(); err != nil {
+			log.G(ctx).WithError(err).Warningf("failed to deactivate service binding for container %s", r.adapter.container.name())
+			// Don't return an error here, because failure to deactivate
+			// the service binding is expected if the container was never
+			// started.
+		}
 
-	// add a delay for gossip converge
-	// TODO(dongluochen): this delay shoud be configurable to fit different cluster size and network delay.
-	// TODO(dongluochen): if there is no service binding for this container, this delay is not necessary.
-	// if r.adapter.deactivateServiceBinding can return an error to indicate that, it'd reduce service
-	// converge time.
-	time.Sleep(defaultGossipConvergeDelay)
+		// add a delay for gossip converge
+		// TODO(dongluochen): this delay shoud be configurable to fit different cluster size and network delay.
+		time.Sleep(defaultGossipConvergeDelay)
+	}
 
 	if err := r.adapter.shutdown(ctx); err != nil {
 		if isUnknownContainer(err) || isStoppedContainer(err) {
