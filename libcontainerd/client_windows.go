@@ -170,6 +170,7 @@ func (clnt *client) Create(containerID string, checkpoint string, checkpointDir 
 			if n.DNSSearchList != nil {
 				configuration.DNSSearchList = strings.Join(n.DNSSearchList, ",")
 			}
+			configuration.NetworkSharedContainerName = n.NetworkSharedContainerID
 			continue
 		}
 		if c, ok := option.(*CredentialsOption); ok {

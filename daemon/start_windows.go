@@ -157,14 +157,17 @@ func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Contain
 	createOptions = append(createOptions, &libcontainerd.FlushOption{IgnoreFlushesDuringBoot: !container.HasBeenStartedBefore})
 	createOptions = append(createOptions, hvOpts)
 	createOptions = append(createOptions, layerOpts)
-	if epList != nil {
-		createOptions = append(createOptions, &libcontainerd.NetworkEndpointsOption{
-			Endpoints:                epList,
-			AllowUnqualifiedDNSQuery: AllowUnqualifiedDNSQuery,
-			DNSSearchList:            dnsSearch,
-		})
-	}
 
+	var networkSharedContainerID string
+	if container.HostConfig.NetworkMode.IsContainer() {
+		networkSharedContainerID = container.NetworkSharedContainerID
+	}
+	createOptions = append(createOptions, &libcontainerd.NetworkEndpointsOption{
+		Endpoints:                epList,
+		AllowUnqualifiedDNSQuery: AllowUnqualifiedDNSQuery,
+		DNSSearchList:            dnsSearch,
+		NetworkSharedContainerID: networkSharedContainerID,
+	})
 	return createOptions, nil
 }
 
