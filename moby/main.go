@@ -9,32 +9,11 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"syscall"
 
 	"github.com/docker/moby/pkg/initrd"
-	"gopkg.in/yaml.v2"
 )
 
-type moby struct {
-	Kernel string
-	Init   string
-	System []struct {
-		Name        string
-		Image       string
-		CapDrop     []string `yaml:"cap_drop"`
-		CapAdd      []string `yaml:"cap_add"`
-		Bind        string
-		OomScoreAdj int64 `yaml:"oom_score_adj"`
-		Command     []string
-	}
-	Database []struct {
-		File  string
-		Value string
-	}
-}
-
 const (
-	riddler    = "mobylinux/riddler:7d4545d8b8ac2700971a83f12a3446a76db28c14@sha256:11b7310df6482fc38aa52b419c2ef1065d7b9207c633d47554e13aa99f6c0b72"
 	docker2tar = "mobylinux/docker2tar:82a3f11f70b2959c7100dd6e184b511ebfc65908@sha256:e4fd36febc108477a2e5316d263ac257527779409891c7ac10d455a162df05c1"
 )
 
@@ -96,11 +75,9 @@ func build() {
 		log.Fatalf("Cannot open config file: %v", err)
 	}
 
-	m := moby{}
-
-	err = yaml.Unmarshal(config, &m)
+	m, err := NewConfig(config)
 	if err != nil {
-		log.Fatalf("Yaml parse error: %v", err)
+		log.Fatalf("Invalid config: %v", err)
 	}
 
 	// TODO switch to using Docker client API not exec - just a quick prototype
@@ -142,19 +119,7 @@ func build() {
 	containers = append(containers, buffer)
 
 	for _, image := range m.System {
-		// riddler arguments
-		args := []string{"run", "--rm", "-v", "/var/run/docker.sock:/var/run/docker.sock", riddler, image.Image, "/containers/" + image.Name}
-		// docker arguments
-		for _, cap := range image.CapDrop {
-			args = append(args, "--cap-drop", cap)
-		}
-		for _, cap := range image.CapAdd {
-			args = append(args, "--cap-add", cap)
-		}
-		// image
-		args = append(args, image.Image)
-		// command
-		args = append(args, image.Command...)
+		args := ConfigToRun(&image)
 		cmd := exec.Command(docker, args...)
 
 		// get output tarball
@@ -182,19 +147,6 @@ func build() {
 	}
 }
 
-func run() {
-	env := os.Environ()
-	args := []string{}
-	err := syscall.Exec("./hyperkit.sh", args, env)
-	if err != nil {
-		log.Fatalf("Could not run")
-	}
-}
-
 func main() {
-	if len(os.Args) >= 2 && os.Args[1] == "run" {
-		run()
-	}
 	build()
-
 }
