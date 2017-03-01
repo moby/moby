@@ -5,7 +5,6 @@ package runconfig
 import (
 	"fmt"
 	"runtime"
-	"strings"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/sysinfo"
@@ -30,15 +29,10 @@ func ValidateNetMode(c *container.Config, hc *container.HostConfig) error {
 	if hc == nil {
 		return nil
 	}
-	parts := strings.Split(string(hc.NetworkMode), ":")
-	if parts[0] == "container" {
-		if len(parts) < 2 || parts[1] == "" {
-			return fmt.Errorf("--net: invalid net mode: invalid container format container:<name|id>")
-		}
-	}
 
-	if hc.NetworkMode.IsContainer() && c.Hostname != "" {
-		return ErrConflictNetworkHostname
+	err := ValidateNetContainerMode(c, hc)
+	if err != nil {
+		return err
 	}
 
 	if hc.UTSMode.IsHost() && c.Hostname != "" {
@@ -49,29 +43,6 @@ func ValidateNetMode(c *container.Config, hc *container.HostConfig) error {
 		return ErrConflictHostNetworkAndLinks
 	}
 
-	if hc.NetworkMode.IsContainer() && len(hc.Links) > 0 {
-		return ErrConflictContainerNetworkAndLinks
-	}
-
-	if hc.NetworkMode.IsContainer() && len(hc.DNS) > 0 {
-		return ErrConflictNetworkAndDNS
-	}
-
-	if hc.NetworkMode.IsContainer() && len(hc.ExtraHosts) > 0 {
-		return ErrConflictNetworkHosts
-	}
-
-	if (hc.NetworkMode.IsContainer() || hc.NetworkMode.IsHost()) && c.MacAddress != "" {
-		return ErrConflictContainerNetworkAndMac
-	}
-
-	if hc.NetworkMode.IsContainer() && (len(hc.PortBindings) > 0 || hc.PublishAllPorts == true) {
-		return ErrConflictNetworkPublishPorts
-	}
-
-	if hc.NetworkMode.IsContainer() && len(c.ExposedPorts) > 0 {
-		return ErrConflictNetworkExposePorts
-	}
 	return nil
 }
 

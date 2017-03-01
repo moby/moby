@@ -10,9 +10,6 @@ import (
 	"github.com/docker/go-units"
 )
 
-// NetworkMode represents the container network stack.
-type NetworkMode string
-
 // Isolation represents the isolation technology of a container. The supported
 // values are platform specific
 type Isolation string
@@ -62,6 +59,47 @@ func (n IpcMode) Container() string {
 	parts := strings.SplitN(string(n), ":", 2)
 	if len(parts) > 1 {
 		return parts[1]
+	}
+	return ""
+}
+
+// NetworkMode represents the container network stack.
+type NetworkMode string
+
+// IsNone indicates whether container isn't using a network stack.
+func (n NetworkMode) IsNone() bool {
+	return n == "none"
+}
+
+// IsDefault indicates whether container uses the default network stack.
+func (n NetworkMode) IsDefault() bool {
+	return n == "default"
+}
+
+// IsPrivate indicates whether container uses its private network stack.
+func (n NetworkMode) IsPrivate() bool {
+	return !(n.IsHost() || n.IsContainer())
+}
+
+// IsContainer indicates whether container uses a container network stack.
+func (n NetworkMode) IsContainer() bool {
+	parts := strings.SplitN(string(n), ":", 2)
+	return len(parts) > 1 && parts[0] == "container"
+}
+
+// ConnectedContainer is the id of the container which network this container is connected to.
+func (n NetworkMode) ConnectedContainer() string {
+	parts := strings.SplitN(string(n), ":", 2)
+	if len(parts) > 1 {
+		return parts[1]
+	}
+	return ""
+}
+
+//UserDefined indicates user-created network
+func (n NetworkMode) UserDefined() string {
+	if n.IsUserDefined() {
+		return string(n)
 	}
 	return ""
 }

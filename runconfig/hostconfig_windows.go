@@ -2,7 +2,6 @@ package runconfig
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/sysinfo"
@@ -25,10 +24,16 @@ func ValidateNetMode(c *container.Config, hc *container.HostConfig) error {
 	if hc == nil {
 		return nil
 	}
-	parts := strings.Split(string(hc.NetworkMode), ":")
-	if len(parts) > 1 {
-		return fmt.Errorf("invalid --net: %s", hc.NetworkMode)
+
+	err := ValidateNetContainerMode(c, hc)
+	if err != nil {
+		return err
 	}
+
+	if hc.NetworkMode.IsContainer() && hc.Isolation.IsHyperV() {
+		return fmt.Errorf("net mode --net=container:<NameOrId> unsupported for hyperv isolation")
+	}
+
 	return nil
 }
 
