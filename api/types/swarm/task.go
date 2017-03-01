@@ -65,6 +65,9 @@ type TaskSpec struct {
 	// ForceUpdate is a counter that triggers an update even if no relevant
 	// parameters have been changed.
 	ForceUpdate uint64
+
+	Runtime     RuntimeType `json:",omitempty"`
+	RuntimeData []byte      `json:",omitempty"`
 }
 
 // Resources represents resources (CPU/Memory).
