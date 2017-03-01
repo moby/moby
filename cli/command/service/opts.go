@@ -269,6 +269,7 @@ type serviceOptions struct {
 	workdir         string
 	user            string
 	groups          opts.ListOpts
+	stopSignal      string
 	tty             bool
 	readOnly        bool
 	mounts          opts.MountOpt
@@ -372,17 +373,18 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 		},
 		TaskTemplate: swarm.TaskSpec{
 			ContainerSpec: swarm.ContainerSpec{
-				Image:    opts.image,
-				Args:     opts.args,
-				Env:      currentEnv,
-				Hostname: opts.hostname,
-				Labels:   runconfigopts.ConvertKVStringsToMap(opts.containerLabels.GetAll()),
-				Dir:      opts.workdir,
-				User:     opts.user,
-				Groups:   opts.groups.GetAll(),
-				TTY:      opts.tty,
-				ReadOnly: opts.readOnly,
-				Mounts:   opts.mounts.Value(),
+				Image:      opts.image,
+				Args:       opts.args,
+				Env:        currentEnv,
+				Hostname:   opts.hostname,
+				Labels:     runconfigopts.ConvertKVStringsToMap(opts.containerLabels.GetAll()),
+				Dir:        opts.workdir,
+				User:       opts.user,
+				Groups:     opts.groups.GetAll(),
+				StopSignal: opts.stopSignal,
+				TTY:        opts.tty,
+				ReadOnly:   opts.readOnly,
+				Mounts:     opts.mounts.Value(),
 				DNSConfig: &swarm.DNSConfig{
 					Nameservers: opts.dns.GetAll(),
 					Search:      opts.dnsSearch.GetAll(),
@@ -470,6 +472,9 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 
 	flags.BoolVar(&opts.readOnly, flagReadOnly, false, "Mount the container's root filesystem as read only")
 	flags.SetAnnotation(flagReadOnly, "version", []string{"1.27"})
+
+	flags.StringVar(&opts.stopSignal, flagStopSignal, "", "Signal to stop the container")
+	flags.SetAnnotation(flagStopSignal, "version", []string{"1.27"})
 }
 
 const (
@@ -523,6 +528,7 @@ const (
 	flagRestartMaxAttempts    = "restart-max-attempts"
 	flagRestartWindow         = "restart-window"
 	flagStopGracePeriod       = "stop-grace-period"
+	flagStopSignal            = "stop-signal"
 	flagTTY                   = "tty"
 	flagUpdateDelay           = "update-delay"
 	flagUpdateFailureAction   = "update-failure-action"

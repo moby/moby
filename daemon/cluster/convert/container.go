@@ -14,20 +14,21 @@ import (
 
 func containerSpecFromGRPC(c *swarmapi.ContainerSpec) types.ContainerSpec {
 	containerSpec := types.ContainerSpec{
-		Image:     c.Image,
-		Labels:    c.Labels,
-		Command:   c.Command,
-		Args:      c.Args,
-		Hostname:  c.Hostname,
-		Env:       c.Env,
-		Dir:       c.Dir,
-		User:      c.User,
-		Groups:    c.Groups,
-		TTY:       c.TTY,
-		OpenStdin: c.OpenStdin,
-		ReadOnly:  c.ReadOnly,
-		Hosts:     c.Hosts,
-		Secrets:   secretReferencesFromGRPC(c.Secrets),
+		Image:      c.Image,
+		Labels:     c.Labels,
+		Command:    c.Command,
+		Args:       c.Args,
+		Hostname:   c.Hostname,
+		Env:        c.Env,
+		Dir:        c.Dir,
+		User:       c.User,
+		Groups:     c.Groups,
+		StopSignal: c.StopSignal,
+		TTY:        c.TTY,
+		OpenStdin:  c.OpenStdin,
+		ReadOnly:   c.ReadOnly,
+		Hosts:      c.Hosts,
+		Secrets:    secretReferencesFromGRPC(c.Secrets),
 	}
 
 	if c.DNSConfig != nil {
@@ -136,20 +137,21 @@ func secretReferencesFromGRPC(sr []*swarmapi.SecretReference) []*types.SecretRef
 
 func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 	containerSpec := &swarmapi.ContainerSpec{
-		Image:     c.Image,
-		Labels:    c.Labels,
-		Command:   c.Command,
-		Args:      c.Args,
-		Hostname:  c.Hostname,
-		Env:       c.Env,
-		Dir:       c.Dir,
-		User:      c.User,
-		Groups:    c.Groups,
-		TTY:       c.TTY,
-		OpenStdin: c.OpenStdin,
-		ReadOnly:  c.ReadOnly,
-		Hosts:     c.Hosts,
-		Secrets:   secretReferencesToGRPC(c.Secrets),
+		Image:      c.Image,
+		Labels:     c.Labels,
+		Command:    c.Command,
+		Args:       c.Args,
+		Hostname:   c.Hostname,
+		Env:        c.Env,
+		Dir:        c.Dir,
+		User:       c.User,
+		Groups:     c.Groups,
+		StopSignal: c.StopSignal,
+		TTY:        c.TTY,
+		OpenStdin:  c.OpenStdin,
+		ReadOnly:   c.ReadOnly,
+		Hosts:      c.Hosts,
+		Secrets:    secretReferencesToGRPC(c.Secrets),
 	}
 
 	if c.DNSConfig != nil {

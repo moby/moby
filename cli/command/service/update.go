@@ -349,6 +349,8 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 		cspec.ReadOnly = readOnly
 	}
 
+	updateString(flagStopSignal, &cspec.StopSignal)
+
 	return nil
 }
 

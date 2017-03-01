@@ -441,3 +441,25 @@ func TestUpdateReadOnly(t *testing.T) {
 	updateService(flags, spec)
 	assert.Equal(t, cspec.ReadOnly, false)
 }
+
+func TestUpdateStopSignal(t *testing.T) {
+	spec := &swarm.ServiceSpec{}
+	cspec := &spec.TaskTemplate.ContainerSpec
+
+	// Update with --stop-signal=SIGUSR1
+	flags := newUpdateCommand(nil).Flags()
+	flags.Set("stop-signal", "SIGUSR1")
+	updateService(flags, spec)
+	assert.Equal(t, cspec.StopSignal, "SIGUSR1")
+
+	// Update without --stop-signal, no change
+	flags = newUpdateCommand(nil).Flags()
+	updateService(flags, spec)
+	assert.Equal(t, cspec.StopSignal, "SIGUSR1")
+
+	// Update with --stop-signal=SIGWINCH
+	flags = newUpdateCommand(nil).Flags()
+	flags.Set("stop-signal", "SIGWINCH")
+	updateService(flags, spec)
+	assert.Equal(t, cspec.StopSignal, "SIGWINCH")
+}
