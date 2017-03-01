@@ -81,8 +81,8 @@ func (s *containerRouter) getContainersLogs(ctx context.Context, w http.Response
 	}
 
 	// Args are validated before the stream starts because when it starts we're
-	// sending HTTP 200 by writing an empty chunk of data to tell the client that
-	// daemon is going to stream. By sending this initial HTTP 200 we can't report
+	// sending HTTP 200 by writing an empty chunk of data that tells the client that
+	// daemon is going to stream. By sending this initial HTTP 200, we can't report
 	// any error after the stream starts (i.e. container not found, wrong parameters)
 	// with the appropriate status code.
 	stdout, stderr := httputils.BoolValue(r, "stdout"), httputils.BoolValue(r, "stderr")
@@ -109,8 +109,8 @@ func (s *containerRouter) getContainersLogs(ctx context.Context, w http.Response
 		select {
 		case <-chStarted:
 			// The client may be expecting all of the data we're sending to
-			// be multiplexed, so mux it through the Systemerr stream, which
-			// will cause the client to throw an error when demuxing
+			// be multiplexed. Mux it through the Systemerr stream which
+			// will cause the client to throw an error when demuxing.
 			stdwriter := stdcopy.NewStdWriter(logsConfig.OutStream, stdcopy.Systemerr)
 			fmt.Fprintf(stdwriter, "Error running logs job: %v\n", err)
 		default:
@@ -131,7 +131,7 @@ func (s *containerRouter) postContainersStart(ctx context.Context, w http.Respon
 	// https://golang.org/src/pkg/net/http/request.go#L139
 	// net/http otherwise seems to swallow any headers related to chunked encoding
 	// including r.TransferEncoding
-	// allow a nil body for backwards compatibility
+	// Allow a nil body for backwards compatibility.
 
 	version := httputils.VersionFromContext(ctx)
 	var hostConfig *container.HostConfig

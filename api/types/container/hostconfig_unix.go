@@ -4,7 +4,7 @@ package container
 
 import "strings"
 
-// IsValid indicates if an isolation technology is valid
+// IsValid indicates if an isolation technology is valid.
 func (i Isolation) IsValid() bool {
 	return i.IsDefault()
 }
@@ -37,7 +37,7 @@ func (n NetworkMode) NetworkName() string {
 	return ""
 }
 
-// IsBridge indicates whether container uses the bridge network stack
+// IsBridge indicates whether container uses the bridge network stack.
 func (n NetworkMode) IsBridge() bool {
 	return n == "bridge"
 }
@@ -67,12 +67,12 @@ func (n NetworkMode) ConnectedContainer() string {
 	return ""
 }
 
-// IsUserDefined indicates user-created network
+// IsUserDefined indicates user-created network.
 func (n NetworkMode) IsUserDefined() bool {
 	return !n.IsDefault() && !n.IsBridge() && !n.IsHost() && !n.IsNone() && !n.IsContainer()
 }
 
-//UserDefined indicates user-created network
+//UserDefined indicates user-created network.
 func (n NetworkMode) UserDefined() string {
 	if n.IsUserDefined() {
 		return string(n)

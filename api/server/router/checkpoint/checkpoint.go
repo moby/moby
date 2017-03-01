@@ -5,7 +5,7 @@ import (
 	"github.com/docker/docker/api/server/router"
 )
 
-// checkpointRouter is a router to talk with the checkpoint controller
+// checkpointRouter is a router that talks with the checkpoint controller
 type checkpointRouter struct {
 	backend Backend
 	decoder httputils.ContainerDecoder

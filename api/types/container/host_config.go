@@ -7,17 +7,16 @@ import (
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/go-connections/nat"
-	"github.com/docker/go-units"
 )
 
 // NetworkMode represents the container network stack.
 type NetworkMode string
 
 // Isolation represents the isolation technology of a container. The supported
-// values are platform specific
+// values are platform specific.
 type Isolation string
 
-// IsDefault indicates the default isolation technology of a container. On Linux this
+// IsDefault indicates the default isolation technology of a container. On Linux, this
 // is the native driver. On Windows, this is a Windows Server Container.
 func (i Isolation) IsDefault() bool {
 	return strings.ToLower(string(i)) == "default" || string(i) == ""
@@ -93,7 +92,7 @@ func (n UsernsMode) Valid() bool {
 // CgroupSpec represents the cgroup to use for the container.
 type CgroupSpec string
 
-// IsContainer indicates whether the container is using another container cgroup
+// IsContainer indicates whether the container is using another container cgroup.
 func (c CgroupSpec) IsContainer() bool {
 	parts := strings.SplitN(string(c), ":", 2)
 	return len(parts) > 1 && parts[0] == "container"
@@ -218,12 +217,12 @@ func (rp *RestartPolicy) IsUnlessStopped() bool {
 	return rp.Name == "unless-stopped"
 }
 
-// IsSame compares two RestartPolicy to see if they are the same
+// IsSame compares two RestartPolicy to see if they are the same.
 func (rp *RestartPolicy) IsSame(tp *RestartPolicy) bool {
 	return rp.Name == tp.Name && rp.MaximumRetryCount == tp.MaximumRetryCount
 }
 
-// LogMode is a type to define the available modes for logging
+// LogMode is a type to define the available modes for logging.
 // These modes affect how logs are handled when log messages start piling up.
 type LogMode string
 
@@ -287,7 +286,7 @@ type UpdateConfig struct {
 	RestartPolicy RestartPolicy
 }
 
-// HostConfig the non-portable Config structure of a container.
+// HostConfig is the non-portable Config structure of a container.
 // Here, "non-portable" means "dependent of the host we are running on".
 // Portable information *should* appear in Config.
 type HostConfig struct {
@@ -337,7 +336,7 @@ type HostConfig struct {
 	// Mounts specs used by the container
 	Mounts []mount.Mount `json:",omitempty"`
 
-	// Run a custom init inside the container, if null, use the daemon's configured settings
+	// Run a custom init inside the container. If null, use the daemon's configured settings.
 	Init *bool `json:",omitempty"`
 
 	// Custom init path

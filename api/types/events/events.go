@@ -1,17 +1,17 @@
 package events
 
 const (
-	// ContainerEventType is the event type that containers generate
+	// ContainerEventType is the event type that containers generate.
 	ContainerEventType = "container"
-	// DaemonEventType is the event type that daemon generate
+	// DaemonEventType is the event type that daemon generate.
 	DaemonEventType = "daemon"
-	// ImageEventType is the event type that images generate
+	// ImageEventType is the event type that images generate.
 	ImageEventType = "image"
-	// NetworkEventType is the event type that networks generate
+	// NetworkEventType is the event type that networks generate.
 	NetworkEventType = "network"
-	// PluginEventType is the event type that plugins generate
+	// PluginEventType is the event type that plugins generate.
 	PluginEventType = "plugin"
-	// VolumeEventType is the event type that volumes generate
+	// VolumeEventType is the event type that volumes generate.
 	VolumeEventType = "volume"
 )
 
@@ -25,7 +25,7 @@ type Actor struct {
 	Attributes map[string]string
 }
 
-// Message represents the information an event contains
+// Message represents the information an event contains.
 type Message struct {
 	// Deprecated information from JSONMessage.
 	// With data only in container events.

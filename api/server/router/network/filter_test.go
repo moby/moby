@@ -102,7 +102,7 @@ func TestFilterNetworks(t *testing.T) {
 			if err != nil {
 				t.Fatalf("expect no error, got error '%s'", err)
 			}
-			// Make sure result is not nil
+			// Make sure the result is not nil.
 			if result == nil {
 				t.Fatal("filterNetworks should not return nil")
 			}

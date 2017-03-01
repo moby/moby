@@ -5,14 +5,14 @@ import (
 	"github.com/docker/docker/daemon/cluster"
 )
 
-// networkRouter is a router to talk with the network controller
+// networkRouter is a router to talk with the network controller.
 type networkRouter struct {
 	backend Backend
 	cluster *cluster.Cluster
 	routes  []router.Route
 }
 
-// NewRouter initializes a new network router
+// NewRouter initializes a new network router.
 func NewRouter(b Backend, c *cluster.Cluster) router.Router {
 	r := &networkRouter{
 		backend: b,
@@ -22,7 +22,7 @@ func NewRouter(b Backend, c *cluster.Cluster) router.Router {
 	return r
 }
 
-// Routes returns the available routes to the network controller
+// Routes returns the available routes to the network controller.
 func (r *networkRouter) Routes() []router.Route {
 	return r.routes
 }

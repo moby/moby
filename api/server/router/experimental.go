@@ -23,18 +23,18 @@ type ExperimentalRoute interface {
 }
 
 // experimentalRoute defines an experimental API route that can be enabled or disabled.
-// It implements ExperimentalRoute
+// It implements ExperimentalRoute.
 type experimentalRoute struct {
 	local   Route
 	handler httputils.APIFunc
 }
 
-// Enable enables this experimental route
+// Enable enables this experimental route.
 func (r *experimentalRoute) Enable() {
 	r.handler = r.local.Handler()
 }
 
-// Disable disables the experimental route
+// Disable disables the experimental route.
 func (r *experimentalRoute) Disable() {
 	r.handler = experimentalHandler
 }

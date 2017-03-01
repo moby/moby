@@ -21,7 +21,6 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
-	"github.com/docker/go-units"
 	"golang.org/x/net/context"
 )
 
@@ -96,8 +95,8 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	// or  --build-arg foo
 	// where foo's value was picked up from an env var.
 	// The second ("foo":nil) is where they put --build-arg foo
-	// but "foo" isn't set as an env var. In that case we can't just drop
-	// the fact they mentioned it, we need to pass that along to the builder
+	// but "foo" isn't set as an env var. In that case, we can't just drop
+	// the fact they mentioned it. We need to pass that along to the builder
 	// so that it can print a warning about "foo" being unused if there is
 	// no "ARG foo" in the Dockerfile.
 	if buildArgsJSON != "" {
@@ -150,8 +149,8 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 	if authConfigsEncoded != "" {
 		authConfigsJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authConfigsEncoded))
 		if err := json.NewDecoder(authConfigsJSON).Decode(&authConfigs); err != nil {
-			// for a pull it is not an error if no auth was given
-			// to increase compatibility with the existing api it is defaulting
+			// For a pull, it is not an error if no auth was given.
+			// To increase compatibility with the existing api, it is defaulting
 			// to be empty.
 		}
 	}
@@ -185,7 +184,7 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 
 	remoteURL := r.FormValue("remote")
 
-	// Currently, only used if context is from a remote url.
+	// Currently, createProgressReader is only used if context is from a remote url.
 	// Look at code in DetectContextFromRemoteURL for more information.
 	createProgressReader := func(in io.ReadCloser) io.ReadCloser {
 		progressOutput := sf.NewProgressOutput(output, true)
@@ -215,8 +214,8 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 		return errf(err)
 	}
 
-	// Everything worked so if -q was provided the output from the daemon
-	// should be just the image ID and we'll print that to stdout.
+	// Everything worked so that if -q was provided, the output from the daemon
+	// should be just the image ID, and we'll print that to stdout.
 	if buildOptions.SuppressOutput {
 		stdout := &streamformatter.StdoutFormatter{Writer: output, StreamFormatter: sf}
 		fmt.Fprintf(stdout, "%s\n", string(imgID))

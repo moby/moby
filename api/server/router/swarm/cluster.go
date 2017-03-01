@@ -2,13 +2,13 @@ package swarm
 
 import "github.com/docker/docker/api/server/router"
 
-// swarmRouter is a router to talk with the build controller
+// swarmRouter is a router to talk with the build controller.
 type swarmRouter struct {
 	backend Backend
 	routes  []router.Route
 }
 
-// NewRouter initializes a new build router
+// NewRouter initializes a new build router.
 func NewRouter(b Backend) router.Router {
 	r := &swarmRouter{
 		backend: b,
@@ -17,7 +17,7 @@ func NewRouter(b Backend) router.Router {
 	return r
 }
 
-// Routes returns the available routers to the swarm controller
+// Routes returns the available routers to the swarm controller.
 func (sr *swarmRouter) Routes() []router.Route {
 	return sr.routes
 }

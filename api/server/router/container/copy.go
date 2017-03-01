@@ -54,7 +54,7 @@ func (s *containerRouter) postContainersCopy(ctx context.Context, w http.Respons
 	return err
 }
 
-// // Encode the stat to JSON, base64 encode, and place in a header.
+// Encode the stat to JSON, base64 encode, and place in a header.
 func setContainerPathStatHeader(stat *types.ContainerPathStat, header http.Header) error {
 	statJSON, err := json.Marshal(stat)
 	if err != nil {

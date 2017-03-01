@@ -167,7 +167,7 @@ func (sr *swarmRouter) createService(ctx context.Context, w http.ResponseWriter,
 		return err
 	}
 
-	// Get returns "" if the header does not exist
+	// Get returns "" if the header does not exist.
 	encodedAuth := r.Header.Get("X-Registry-Auth")
 
 	resp, err := sr.backend.CreateService(service, encodedAuth)
@@ -192,7 +192,7 @@ func (sr *swarmRouter) updateService(ctx context.Context, w http.ResponseWriter,
 		return errors.NewBadRequestError(err)
 	}
 
-	// Get returns "" if the header does not exist
+	// Get returns "" if the header does not exist.
 	encodedAuth := r.Header.Get("X-Registry-Auth")
 
 	registryAuthFrom := r.URL.Query().Get("registryAuthFrom")
@@ -220,7 +220,7 @@ func (sr *swarmRouter) getServiceLogs(ctx context.Context, w http.ResponseWriter
 
 	// Args are validated before the stream starts because when it starts we're
 	// sending HTTP 200 by writing an empty chunk of data to tell the client that
-	// daemon is going to stream. By sending this initial HTTP 200 we can't report
+	// daemon is going to stream. By sending this initial HTTP 200, we can't report
 	// any error after the stream starts (i.e. container not found, wrong parameters)
 	// with the appropriate status code.
 	stdout, stderr := httputils.BoolValue(r, "stdout"), httputils.BoolValue(r, "stderr")
