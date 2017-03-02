@@ -1,6 +1,10 @@
 package main
 
 import (
+	"archive/tar"
+	"bytes"
+	"errors"
+	"path"
 	"strconv"
 	"strings"
 
@@ -8,12 +12,12 @@ import (
 )
 
 type Moby struct {
-	Kernel   string
-	Init     string
-	System   []MobyImage
-	Database []struct {
-		File  string
-		Value string
+	Kernel string
+	Init   string
+	System []MobyImage
+	Files  []struct {
+		Path     string
+		Contents string
 	}
 }
 
@@ -66,4 +70,55 @@ func ConfigToRun(image *MobyImage) []string {
 	args = append(args, image.Command...)
 
 	return args
+}
+
+func Filesystem(m *Moby) (*bytes.Buffer, error) {
+	buf := new(bytes.Buffer)
+	tw := tar.NewWriter(buf)
+	defer tw.Close()
+
+	for _, f := range m.Files {
+		if f.Path == "" {
+			return buf, errors.New("Did not specify path for file")
+		}
+		if f.Contents == "" {
+			return buf, errors.New("Contents of file not specified")
+		}
+		// we need all the leading directories
+		parts := strings.Split(path.Dir(f.Path), "/")
+		root := ""
+		for _, p := range parts {
+			if p == "." || p == "/" {
+				continue
+			}
+			if root == "" {
+				root = p
+			} else {
+				root = root + "/" + p
+			}
+			hdr := &tar.Header{
+				Name:     root,
+				Typeflag: tar.TypeDir,
+				Mode:     0700,
+			}
+			err := tw.WriteHeader(hdr)
+			if err != nil {
+				return buf, err
+			}
+		}
+		hdr := &tar.Header{
+			Name: f.Path,
+			Mode: 0600,
+			Size: int64(len(f.Contents)),
+		}
+		err := tw.WriteHeader(hdr)
+		if err != nil {
+			return buf, err
+		}
+		_, err = tw.Write([]byte(f.Contents))
+		if err != nil {
+			return buf, err
+		}
+	}
+	return buf, nil
 }

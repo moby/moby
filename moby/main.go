@@ -131,6 +131,13 @@ func build() {
 		containers = append(containers, buffer)
 	}
 
+	// add files
+	buffer, err = Filesystem(m)
+	if err != nil {
+		log.Fatalf("failed to add filesystem parts: %v", err)
+	}
+	containers = append(containers, buffer)
+
 	initrd, err := containersInitrd(containers)
 	if err != nil {
 		log.Fatalf("Failed to make initrd %v", err)
