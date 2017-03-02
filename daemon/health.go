@@ -78,6 +78,7 @@ func (p *cmdProbe) run(ctx context.Context, d *Daemon, container *container.Cont
 	execConfig.Tty = false
 	execConfig.Privileged = false
 	execConfig.User = container.Config.User
+	execConfig.Env = container.Config.Env
 
 	d.registerExecCommand(container, execConfig)
 	d.LogContainerEvent(container, "exec_create: "+execConfig.Entrypoint+" "+strings.Join(execConfig.Args, " "))
