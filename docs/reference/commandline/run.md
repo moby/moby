@@ -542,7 +542,6 @@ retrieve the container's ID once the container has finished running.
 ### Add host device to container (--device)
 
 ```bash
-{% raw %}
 $ docker run --device=/dev/sdc:/dev/xvdc \
              --device=/dev/sdd --device=/dev/zero:/dev/nulo \
              -i -t \
@@ -551,7 +550,6 @@ $ docker run --device=/dev/sdc:/dev/xvdc \
 brw-rw---- 1 root disk 8, 2 Feb  9 16:05 /dev/xvdc
 brw-rw---- 1 root disk 8, 3 Feb  9 16:05 /dev/sdd
 crw-rw-rw- 1 root root 1, 5 Feb  9 16:05 /dev/nulo
-{% endraw %}
 ```
 
 It is often necessary to directly expose devices to a container. The `--device`
@@ -635,10 +633,8 @@ using IPv4 or IPv6 networking in your containers. Use the following
 flags for IPv4 address retrieval for a network device named `eth0`:
 
 ```bash
-{% raw %}
 $ HOSTIP=`ip -4 addr show scope global dev eth0 | grep inet | awk '{print \$2}' | cut -d / -f 1`
 $ docker run  --add-host=docker:${HOSTIP} --rm -it debian
-{% endraw %}
 ```
 
 For IPv6 use the `-6` flag instead of the `-4` flag. For other network

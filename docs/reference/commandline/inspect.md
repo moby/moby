@@ -45,33 +45,25 @@ For the most part, you can pick out any field from the JSON in a fairly
 straightforward manner.
 
 ```bash
-{% raw %}
 $ docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $INSTANCE_ID
-{% endraw %}
 ```
 
 ### Get an instance's MAC address
 
 ```bash
-{% raw %}
 $ docker inspect --format='{{range .NetworkSettings.Networks}}{{.MacAddress}}{{end}}' $INSTANCE_ID
-{% endraw %}
 ```
 
 ### Get an instance's log path
 
 ```bash
-{% raw %}
 $ docker inspect --format='{{.LogPath}}' $INSTANCE_ID
-{% endraw %}
 ```
 
 ### Get an instance's image name
 
 ```bash
-{% raw %}
 $ docker inspect --format='{{.Container.Spec.Image}}' $INSTANCE_ID
-{% endraw %}
 ```
 
 ### List all port bindings
@@ -80,9 +72,7 @@ You can loop over arrays and maps in the results to produce simple text
 output:
 
 ```bash
-{% raw %}
 $ docker inspect --format='{{range $p, $conf := .NetworkSettings.Ports}} {{$p}} -> {{(index $conf 0).HostPort}} {{end}}' $INSTANCE_ID
-{% endraw %}
 ```
 
 ### Find a specific port mapping
@@ -96,9 +86,7 @@ then `index` 0 contains the first object inside of that. Then we ask for
 the `HostPort` field to get the public address.
 
 ```bash
-{% raw %}
 $ docker inspect --format='{{(index (index .NetworkSettings.Ports "8787/tcp") 0).HostPort}}' $INSTANCE_ID
-{% endraw %}
 ```
 
 ### Get a subsection in JSON format
@@ -109,7 +97,5 @@ Docker adds a template function, `json`, which can be applied to get
 results in JSON format.
 
 ```bash
-{% raw %}
 $ docker inspect --format='{{json .Config}}' $INSTANCE_ID
-{% endraw %}
 ```

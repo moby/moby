@@ -546,9 +546,8 @@ In this example, we are going to set the template of the created containers base
 service's name and the node's ID where it sits.
 
 ```bash
-{% raw %}
 $ docker service create --name hosttempl \
-                        --hostname={% raw %}"{{.Node.ID}}-{{.Service.Name}}"\
+                        --hostname="{{.Node.ID}}-{{.Service.Name}}"\
                          busybox top
 
 va8ew30grofhjoychbr6iot8c
@@ -561,7 +560,6 @@ wo41w8hg8qan  hosttempl.1  busybox:latest@sha256:29f5d56d12684887bdfa50dcd29fc31
 $ docker inspect --format="{{.Config.Hostname}}" hosttempl.1.wo41w8hg8qanxwjwsg4kxpprj
 
 x3ti0erg11rjpg64m75kej2mz-hosttempl
-{% endraw %}
 ```
 
 ## Related commands
