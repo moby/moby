@@ -197,7 +197,6 @@ The global `-D` option causes all `docker` commands to output debug information.
 You can also specify the output format:
 
 ```bash
-{% raw %}
 $ docker info --format '{{json .}}'
 
 {"ID":"I54V:OLXT:HVMM:TPKO:JPHQ:CQCD:JNLC:O3BZ:4ZVJ:43XJ:PFHZ:6N2S","Containers":14, ...}

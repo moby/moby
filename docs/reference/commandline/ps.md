@@ -296,7 +296,6 @@ The `volume` filter shows only containers that mount a specific volume or have
 a volume mounted in a specific path:
 
 ```bash
-{% raw %}
 $ docker ps --filter volume=remote-volume --format "table {{.ID}}\t{{.Mounts}}"
 CONTAINER ID        MOUNTS
 9c3527ed70ce        remote-volume
@@ -304,7 +303,6 @@ CONTAINER ID        MOUNTS
 $ docker ps --filter volume=/data --format "table {{.ID}}\t{{.Mounts}}"
 CONTAINER ID        MOUNTS
 9c3527ed70ce        remote-volume
-{% endraw %}
 ```
 
 #### network
@@ -330,9 +328,7 @@ example shows all containers that are attached to the `net1` network, using
 the network id as a filter;
 
 ```bash
-{% raw %}
 $ docker network inspect --format "{{.ID}}" net1
-{% endraw %}
 
 8c0b4110ae930dbe26b258de9bc34a03f98056ed6f27f991d32919bfe401d7c5
 
@@ -361,7 +357,7 @@ Placeholder   | Description
 `.Size`       | Container disk size.
 `.Names`      | Container names.
 `.Labels`     | All labels assigned to the container.
-`.Label`      | Value of a specific label for this container. For example `'{% raw %}{{.Label "com.docker.swarm.cpu"}}{% endraw %}'`
+`.Label`      | Value of a specific label for this container. For example `'{{.Label "com.docker.swarm.cpu"}}'`
 `.Mounts`     | Names of the volumes mounted in this container.
 `.Networks`   | Names of the networks attached to this container.
 
@@ -373,9 +369,7 @@ The following example uses a template without headers and outputs the `ID` and
 `Command` entries separated by a colon for all running containers:
 
 ```bash
-{% raw %}
 $ docker ps --format "{{.ID}}: {{.Command}}"
-{% endraw %}
 
 a87ecb4f327c: /bin/sh -c #(nop) MA
 01946d9d34d8: /bin/sh -c #(nop) MA
@@ -386,9 +380,7 @@ c1d3b0166030: /bin/sh -c yum -y up
 To list all running containers with their labels in a table format you can use:
 
 ```bash
-{% raw %}
 $ docker ps --format "table {{.ID}}\t{{.Labels}}"
-{% endraw %}
 
 CONTAINER ID        LABELS
 a87ecb4f327c        com.docker.swarm.node=ubuntu,com.docker.swarm.storage=ssd

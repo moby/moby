@@ -326,7 +326,6 @@ $ docker events --filter 'type=plugin'
 ### Format the output
 
 ```bash
-{% raw %}
 $ docker events --filter 'type=container' --format 'Type={{.Type}}  Status={{.Status}}  ID={{.ID}}'
 
 Type=container  Status=create  ID=2ee349dac409e97974ce8d01b70d250b85e0ba8189299c126a87812311951e26
@@ -335,13 +334,11 @@ Type=container  Status=start  ID=2ee349dac409e97974ce8d01b70d250b85e0ba8189299c1
 Type=container  Status=resize  ID=2ee349dac409e97974ce8d01b70d250b85e0ba8189299c126a87812311951e26
 Type=container  Status=die  ID=2ee349dac409e97974ce8d01b70d250b85e0ba8189299c126a87812311951e26
 Type=container  Status=destroy  ID=2ee349dac409e97974ce8d01b70d250b85e0ba8189299c126a87812311951e26
-{% endraw %}
 ```
 
 #### Format as JSON
 
 ```none
-{% raw %}
     $ docker events --format '{{json .}}'
 
     {"status":"create","id":"196016a57679bf42424484918746a9474cd905dd993c4d0f4..
@@ -349,5 +346,4 @@ Type=container  Status=destroy  ID=2ee349dac409e97974ce8d01b70d250b85e0ba8189299
     {"Type":"network","Action":"connect","Actor":{"ID":"1b50a5bf755f6021dfa78e..
     {"status":"start","id":"196016a57679bf42424484918746a9474cd905dd993c4d0f42..
     {"status":"resize","id":"196016a57679bf42424484918746a9474cd905dd993c4d0f4..
-{% endraw %}
 ```

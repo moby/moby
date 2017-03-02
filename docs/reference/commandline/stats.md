@@ -107,25 +107,21 @@ The following example uses a template without headers and outputs the
 `Container` and `CPUPerc` entries separated by a colon for all images:
 
 ```bash
-{% raw %}
 $ docker stats --format "{{.Container}}: {{.CPUPerc}}"
 
 09d3bb5b1604: 6.61%
 9db7aa4d986d: 9.19%
 3f214c61ad1d: 0.00%
-{% endraw %}
 ```
 
 To list all containers statistics with their name, CPU percentage and memory
 usage in a table format you can use:
 
 ```bash
-{% raw %}
 $ docker stats --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}"
 
 CONTAINER           CPU %               PRIV WORKING SET
 1285939c1fd3        0.07%               796 KiB / 64 MiB
 9c76f7834ae2        0.07%               2.746 MiB / 64 MiB
 d1ea048f04e4        0.03%               4.583 MiB / 64 MiB
-{% endraw %}
 ```

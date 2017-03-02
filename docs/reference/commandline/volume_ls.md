@@ -183,13 +183,11 @@ The following example uses a template without headers and outputs the
 `Name` and `Driver` entries separated by a colon for all volumes:
 
 ```bash
-{% raw %}
 $ docker volume ls --format "{{.Name}}: {{.Driver}}"
 
 vol1: local
 vol2: local
 vol3: local
-{% endraw %}
 ```
 
 ## Related commands
