@@ -84,9 +84,12 @@ Requires: device-mapper >= 1.02.90-2
 %if 0%{?fedora} >= 22
 %global selinux_policyver 3.13.1-128
 %endif # fedora 22
-%if 0%{?centos} >= 7 || 0%{?rhel} >= 7 || 0%{?oraclelinux} >= 7
+%if 0%{?centos} >= 7 || 0%{?rhel} >= 7
 %global selinux_policyver 3.13.1-23
-%endif # centos,oraclelinux 7
+%endif # centos,rhel 7
+%if 0%{?oraclelinux} >= 7
+%global selinux_policyver 3.13.1-102.0.3.el7_3.15
+%endif # oraclelinux 7
 %endif # with_selinux
 
 # RE: rhbz#1195804 - ensure min NVR for selinux-policy
