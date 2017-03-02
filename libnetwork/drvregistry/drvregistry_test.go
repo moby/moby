@@ -91,6 +91,10 @@ func (m *mockDriver) NetworkFree(id string) error {
 func (m *mockDriver) EventNotify(etype driverapi.EventType, nid, tableName, key string, value []byte) {
 }
 
+func (m *mockDriver) DecodeTableEntry(tablename string, key string, value []byte) (string, map[string]string) {
+	return "", nil
+}
+
 func getNew(t *testing.T) *DrvRegistry {
 	reg, err := New(nil, nil, nil, nil, nil)
 	if err != nil {

@@ -72,6 +72,16 @@ type Driver interface {
 	// only invoked for the global scope driver.
 	EventNotify(event EventType, nid string, tableName string, key string, value []byte)
 
+	// DecodeTableEntry passes the driver a key, value pair from table it registered
+	// with libnetwork. Driver should return {object ID, map[string]string} tuple.
+	// If DecodeTableEntry is called for a table associated with NetworkObject or
+	// EndpointObject the return object ID should be the network id or endppoint id
+	// associated with that entry. map should have information about the object that
+	// can be presented to the user.
+	// For exampe: overlay driver returns the VTEP IP of the host that has the endpoint
+	// which is shown in 'network inspect --verbose'
+	DecodeTableEntry(tablename string, key string, value []byte) (string, map[string]string)
+
 	// Type returns the type of this driver, the network type this driver manages
 	Type() string
 
@@ -84,7 +94,7 @@ type Driver interface {
 type NetworkInfo interface {
 	// TableEventRegister registers driver interest in a given
 	// table name.
-	TableEventRegister(tableName string) error
+	TableEventRegister(tableName string, objType ObjectType) error
 }
 
 // InterfaceInfo provides a go interface for drivers to retrive
@@ -175,3 +185,28 @@ const (
 	// Delete event is generated when a table entry is deleted.
 	Delete
 )
+
+// ObjectType represents the type of object driver wants to store in libnetwork's networkDB
+type ObjectType int
+
+const (
+	// EndpointObject should be set for libnetwork endpoint object related data
+	EndpointObject ObjectType = 1 + iota
+	// NetworkObject should be set for libnetwork network object related data
+	NetworkObject
+	// OpaqueObject is for driver specific data with no corresponding libnetwork object
+	OpaqueObject
+)
+
+// IsValidType validates the passed in type against the valid object types
+func IsValidType(objType ObjectType) bool {
+	switch objType {
+	case EndpointObject:
+		fallthrough
+	case NetworkObject:
+		fallthrough
+	case OpaqueObject:
+		return true
+	}
+	return false
+}
