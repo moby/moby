@@ -103,6 +103,38 @@ func TestDaemonConfigurationMergeConflicts(t *testing.T) {
 	}
 }
 
+func TestDaemonConfigurationMergeConcurrent(t *testing.T) {
+	f, err := ioutil.TempFile("", "docker-config-")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	configFile := f.Name()
+	f.Write([]byte(`{"max-concurrent-downloads": 1}`))
+	f.Close()
+
+	_, err = MergeDaemonConfigurations(&Config{}, nil, configFile)
+	if err != nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestDaemonConfigurationMergeConcurrentError(t *testing.T) {
+	f, err := ioutil.TempFile("", "docker-config-")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	configFile := f.Name()
+	f.Write([]byte(`{"max-concurrent-downloads": -1}`))
+	f.Close()
+
+	_, err = MergeDaemonConfigurations(&Config{}, nil, configFile)
+	if err == nil {
+		t.Fatalf("expected no error, got error %v", err)
+	}
+}
+
 func TestDaemonConfigurationMergeConflictsWithInnerStructs(t *testing.T) {
 	f, err := ioutil.TempFile("", "docker-config-")
 	if err != nil {
@@ -240,6 +272,7 @@ func TestValidateConfigurationErrors(t *testing.T) {
 }
 
 func TestValidateConfiguration(t *testing.T) {
+	minusNumber := 4
 	testCases := []struct {
 		config *Config
 	}{
@@ -261,6 +294,28 @@ func TestValidateConfiguration(t *testing.T) {
 			config: &Config{
 				CommonConfig: CommonConfig{
 					DNSSearch: []string{"a.b.c"},
+				},
+			},
+		},
+		{
+			config: &Config{
+				CommonConfig: CommonConfig{
+					MaxConcurrentDownloads: &minusNumber,
+					// This is weird...
+					ValuesSet: map[string]interface{}{
+						"max-concurrent-downloads": -1,
+					},
+				},
+			},
+		},
+		{
+			config: &Config{
+				CommonConfig: CommonConfig{
+					MaxConcurrentUploads: &minusNumber,
+					// This is weird...
+					ValuesSet: map[string]interface{}{
+						"max-concurrent-uploads": -1,
+					},
 				},
 			},
 		},

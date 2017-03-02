@@ -276,7 +276,7 @@ func MergeDaemonConfigurations(flagsConfig *Config, flags *pflag.FlagSet, config
 	}
 
 	if err := Validate(fileConfig); err != nil {
-		return nil, fmt.Errorf("file configuration validation failed (%v)", err)
+		return nil, fmt.Errorf("configuration validation from file failed (%v)", err)
 	}
 
 	// merge flags configuration on top of the file configuration
@@ -287,7 +287,7 @@ func MergeDaemonConfigurations(flagsConfig *Config, flags *pflag.FlagSet, config
 	// We need to validate again once both fileConfig and flagsConfig
 	// have been merged
 	if err := Validate(fileConfig); err != nil {
-		return nil, fmt.Errorf("file configuration validation failed (%v)", err)
+		return nil, fmt.Errorf("merged configuration validation from file and command line flags failed (%v)", err)
 	}
 
 	return fileConfig, nil
@@ -459,14 +459,12 @@ func Validate(config *Config) error {
 			return err
 		}
 	}
-
 	// validate MaxConcurrentDownloads
-	if config.IsValueSet("max-concurrent-downloads") && config.MaxConcurrentDownloads != nil && *config.MaxConcurrentDownloads < 0 {
+	if config.MaxConcurrentDownloads != nil && *config.MaxConcurrentDownloads < 0 {
 		return fmt.Errorf("invalid max concurrent downloads: %d", *config.MaxConcurrentDownloads)
 	}
-
 	// validate MaxConcurrentUploads
-	if config.IsValueSet("max-concurrent-uploads") && config.MaxConcurrentUploads != nil && *config.MaxConcurrentUploads < 0 {
+	if config.MaxConcurrentUploads != nil && *config.MaxConcurrentUploads < 0 {
 		return fmt.Errorf("invalid max concurrent uploads: %d", *config.MaxConcurrentUploads)
 	}
 
