@@ -72,7 +72,6 @@ svendowideit/testimage            version3            f5283438590d        16 sec
 ### Commit a container with new configurations
 
 ```bash
-{% raw %}
 $ docker ps
 
 ICONTAINER ID       IMAGE               COMMAND             CREATED             STATUS              PORTS              NAMES
@@ -90,7 +89,6 @@ f5283438590d
 $ docker inspect -f "{{ .Config.Env }}" f5283438590d
 
 [HOME=/ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin DEBUG=true]
-{% endraw %}
 ```
 
 ### Commit a container with new `CMD` and `EXPOSE` instructions

@@ -101,11 +101,9 @@ The following example uses a template without headers and outputs the
 `ID` and `Name` entries separated by a colon for all plugins:
 
 ```bash
-{% raw %}
 $ docker plugin ls --format "{{.ID}}: {{.Name}}"
 
 4be01827a72e: tiborvass/no-remove
-{% endraw %}
 ```
 
 

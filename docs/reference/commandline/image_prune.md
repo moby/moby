@@ -92,7 +92,6 @@ fraction of a second no more than nine digits long.
 The following removes images created before `2017-01-04T00:00:00`:
 
 ```bash
-{% raw %}
 $ docker images --format 'table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.CreatedAt}}\t{{.Size}}'
 REPOSITORY          TAG                 IMAGE ID            CREATED AT                      SIZE
 foo                 latest              2f287ac753da        2017-01-04 13:42:23 -0800 PST   3.98 MB
@@ -115,7 +114,6 @@ $ docker images --format 'table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.CreatedAt
 
 REPOSITORY          TAG                 IMAGE ID            CREATED AT                      SIZE
 foo                 latest              2f287ac753da        2017-01-04 13:42:23 -0800 PST   3.98 MB
-{% endraw %}
 ```
 
 The following removes images created more than 10 days (`240h`) ago:
