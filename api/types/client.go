@@ -177,6 +177,7 @@ type ImageBuildOptions struct {
 	CacheFrom   []string
 	SecurityOpt []string
 	ExtraHosts  []string // List of extra hosts
+	Volumes     []string // List of build-time volumes
 }
 
 // ImageBuildResponse holds information
