@@ -632,7 +632,7 @@ func (ep *endpoint) hasInterface(iName string) bool {
 
 func (ep *endpoint) Leave(sbox Sandbox, options ...EndpointOption) error {
 	if sbox == nil || sbox.ID() == "" || sbox.Key() == "" {
-		return types.BadRequestErrorf("invalid Sandbox passed to enpoint leave: %v", sbox)
+		return types.BadRequestErrorf("invalid Sandbox passed to endpoint leave: %v", sbox)
 	}
 
 	sb, ok := sbox.(*sandbox)
