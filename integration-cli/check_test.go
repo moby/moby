@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"sync"
 	"syscall"
 	"testing"
@@ -33,9 +32,6 @@ const (
 
 var (
 	testEnv *environment.Execution
-
-	// FIXME(vdemeester) remove these and use environmentdaemonPid
-	protectedImages = map[string]struct{}{}
 
 	// the docker client binary to use
 	dockerBinary = "docker"
@@ -64,16 +60,6 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	cmd := exec.Command(dockerBinary, "images", "-f", "dangling=false", "--format", "{{.Repository}}:{{.Tag}}")
-	cmd.Env = appendBaseEnv(true)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		panic(fmt.Errorf("err=%v\nout=%s\n", err, out))
-	}
-	images := strings.Split(strings.TrimSpace(string(out)), "\n")
-	for _, img := range images {
-		protectedImages[img] = struct{}{}
-	}
 	if testEnv.LocalDaemon() {
 		fmt.Println("INFO: Testing against a local daemon")
 	} else {
@@ -104,14 +90,7 @@ func (s *DockerSuite) OnTimeout(c *check.C) {
 }
 
 func (s *DockerSuite) TearDownTest(c *check.C) {
-	unpauseAllContainers(c)
-	deleteAllContainers(c)
-	deleteAllImages(c)
-	deleteAllVolumes(c)
-	deleteAllNetworks(c)
-	if testEnv.DaemonPlatform() == "linux" {
-		deleteAllPlugins(c)
-	}
+	testEnv.Clean(c, dockerBinary)
 }
 
 func init() {

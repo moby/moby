@@ -32,6 +32,9 @@ type Execution struct {
 	// baseImage is the name of the base image for testing
 	// Environment variable WINDOWS_BASE_IMAGE can override this
 	baseImage string
+
+	client            client.APIClient
+	protectedElements *ProtectedElements
 }
 
 // New creates a new Execution struct
@@ -53,7 +56,13 @@ func New() (*Execution, error) {
 	if len(os.Getenv("DOCKER_REMOTE_DAEMON")) > 0 {
 		localDaemon = false
 	}
-	info, err := getDaemonDockerInfo()
+
+	cli, err := client.NewEnvClient()
+	if err != nil {
+		return nil, err
+	}
+
+	info, err := getDaemonDockerInfo(cli)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +97,14 @@ func New() (*Execution, error) {
 			daemonPid = int(p)
 		}
 	}
+
+	protectedElts, err := listExistingElement(cli)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Execution{
+		client:               cli,
 		localDaemon:          localDaemon,
 		daemonPlatform:       daemonPlatform,
 		daemonStorageDriver:  info.Driver,
@@ -100,15 +116,11 @@ func New() (*Execution, error) {
 		daemonPid:            daemonPid,
 		experimentalDaemon:   info.ExperimentalBuild,
 		baseImage:            baseImage,
+		protectedElements:    protectedElts,
 	}, nil
 }
-func getDaemonDockerInfo() (types.Info, error) {
-	// FIXME(vdemeester) should be safe to use as is
-	client, err := client.NewEnvClient()
-	if err != nil {
-		return types.Info{}, err
-	}
-	return client.Info(context.Background())
+func getDaemonDockerInfo(cli client.APIClient) (types.Info, error) {
+	return cli.Info(context.Background())
 }
 
 // LocalDaemon is true if the daemon under test is on the same

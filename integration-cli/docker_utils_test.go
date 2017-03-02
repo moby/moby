@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
-	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/integration-cli/registry"
@@ -63,136 +62,6 @@ func deleteAllContainers(c *check.C) {
 	if containers != "" {
 		err := deleteContainer(true, strings.Split(strings.TrimSpace(containers), "\n")...)
 		c.Assert(err, checker.IsNil)
-	}
-}
-
-func deleteAllNetworks(c *check.C) {
-	networks, err := getAllNetworks()
-	c.Assert(err, check.IsNil)
-	var errs []string
-	for _, n := range networks {
-		if n.Name == "bridge" || n.Name == "none" || n.Name == "host" {
-			continue
-		}
-		if testEnv.DaemonPlatform() == "windows" && strings.ToLower(n.Name) == "nat" {
-			// nat is a pre-defined network on Windows and cannot be removed
-			continue
-		}
-		status, b, err := request.SockRequest("DELETE", "/networks/"+n.Name, nil, daemonHost())
-		if err != nil {
-			errs = append(errs, err.Error())
-			continue
-		}
-		if status != http.StatusNoContent {
-			errs = append(errs, fmt.Sprintf("error deleting network %s: %s", n.Name, string(b)))
-		}
-	}
-	c.Assert(errs, checker.HasLen, 0, check.Commentf(strings.Join(errs, "\n")))
-}
-
-func getAllNetworks() ([]types.NetworkResource, error) {
-	var networks []types.NetworkResource
-	_, b, err := request.SockRequest("GET", "/networks", nil, daemonHost())
-	if err != nil {
-		return nil, err
-	}
-	if err := json.Unmarshal(b, &networks); err != nil {
-		return nil, err
-	}
-	return networks, nil
-}
-
-func deleteAllPlugins(c *check.C) {
-	plugins, err := getAllPlugins()
-	c.Assert(err, checker.IsNil)
-	var errs []string
-	for _, p := range plugins {
-		pluginName := p.Name
-		status, b, err := request.SockRequest("DELETE", "/plugins/"+pluginName+"?force=1", nil, daemonHost())
-		if err != nil {
-			errs = append(errs, err.Error())
-			continue
-		}
-		if status != http.StatusOK {
-			errs = append(errs, fmt.Sprintf("error deleting plugin %s: %s", p.Name, string(b)))
-		}
-	}
-	c.Assert(errs, checker.HasLen, 0, check.Commentf(strings.Join(errs, "\n")))
-}
-
-func getAllPlugins() (types.PluginsListResponse, error) {
-	var plugins types.PluginsListResponse
-	_, b, err := request.SockRequest("GET", "/plugins", nil, daemonHost())
-	if err != nil {
-		return nil, err
-	}
-	if err := json.Unmarshal(b, &plugins); err != nil {
-		return nil, err
-	}
-	return plugins, nil
-}
-
-func deleteAllVolumes(c *check.C) {
-	volumes, err := getAllVolumes()
-	c.Assert(err, checker.IsNil)
-	var errs []string
-	for _, v := range volumes {
-		status, b, err := request.SockRequest("DELETE", "/volumes/"+v.Name, nil, daemonHost())
-		if err != nil {
-			errs = append(errs, err.Error())
-			continue
-		}
-		if status != http.StatusNoContent {
-			errs = append(errs, fmt.Sprintf("error deleting volume %s: %s", v.Name, string(b)))
-		}
-	}
-	c.Assert(errs, checker.HasLen, 0, check.Commentf(strings.Join(errs, "\n")))
-}
-
-func getAllVolumes() ([]*types.Volume, error) {
-	var volumes volumetypes.VolumesListOKBody
-	_, b, err := request.SockRequest("GET", "/volumes", nil, daemonHost())
-	if err != nil {
-		return nil, err
-	}
-	if err := json.Unmarshal(b, &volumes); err != nil {
-		return nil, err
-	}
-	return volumes.Volumes, nil
-}
-
-func deleteAllImages(c *check.C) {
-	cmd := exec.Command(dockerBinary, "images", "--digests")
-	cmd.Env = appendBaseEnv(true)
-	out, err := cmd.CombinedOutput()
-	c.Assert(err, checker.IsNil)
-	lines := strings.Split(string(out), "\n")[1:]
-	imgMap := map[string]struct{}{}
-	for _, l := range lines {
-		if l == "" {
-			continue
-		}
-		fields := strings.Fields(l)
-		imgTag := fields[0] + ":" + fields[1]
-		if _, ok := protectedImages[imgTag]; !ok {
-			if fields[0] == "<none>" || fields[1] == "<none>" {
-				if fields[2] != "<none>" {
-					imgMap[fields[0]+"@"+fields[2]] = struct{}{}
-				} else {
-					imgMap[fields[3]] = struct{}{}
-				}
-				// continue
-			} else {
-				imgMap[imgTag] = struct{}{}
-			}
-		}
-	}
-	if len(imgMap) != 0 {
-		imgs := make([]string, 0, len(imgMap))
-		for k := range imgMap {
-			imgs = append(imgs, k)
-		}
-		dockerCmd(c, append([]string{"rmi", "-f"}, imgs...)...)
 	}
 }
 
@@ -486,8 +355,7 @@ func newRemoteFileServer(c *check.C, ctx *FakeContext) *remoteFileServer {
 		image     = fmt.Sprintf("fileserver-img-%s", strings.ToLower(stringutils.GenerateRandomAlphaOnlyString(10)))
 		container = fmt.Sprintf("fileserver-cnt-%s", strings.ToLower(stringutils.GenerateRandomAlphaOnlyString(10)))
 	)
-
-	c.Assert(ensureHTTPServerImage(), checker.IsNil)
+	ensureHTTPServerImage(c)
 
 	// Build the image
 	fakeContextAddDockerfile(c, ctx, `FROM httpserver
