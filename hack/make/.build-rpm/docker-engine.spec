@@ -161,7 +161,14 @@ install -d $RPM_BUILD_ROOT/%{_initddir}
 
 %if 0%{?is_systemd}
 install -d $RPM_BUILD_ROOT/%{_unitdir}
+
+%if 0%{?centos} || 0%{?rhel}
+# rhel/centos 7.3 kernels need MountFlags=slave (TODO remove once 7.4 is released with an updated kernel)
+install -p -m 644 contrib/init/systemd/docker.service.rpm-centos $RPM_BUILD_ROOT/%{_unitdir}/docker.service
+%else
 install -p -m 644 contrib/init/systemd/docker.service.rpm $RPM_BUILD_ROOT/%{_unitdir}/docker.service
+%endif
+
 %else
 install -p -m 644 contrib/init/sysvinit-redhat/docker.sysconfig $RPM_BUILD_ROOT/etc/sysconfig/docker
 install -p -m 755 contrib/init/sysvinit-redhat/docker $RPM_BUILD_ROOT/%{_initddir}/docker
