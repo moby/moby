@@ -109,7 +109,6 @@ $ docker node inspect swarm-manager
 ### Specify an output format
 
 ```none
-{% raw %}
 $ docker node inspect --format '{{ .ManagerStatus.Leader }}' self
 
 false
@@ -136,7 +135,6 @@ Plugins:
   Network:              overlay, bridge, null, host, overlay
   Volume:               local
 Engine Version:         1.12.0
-{% endraw %}
 ```
 
 ## Related commands

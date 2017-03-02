@@ -75,11 +75,9 @@ secret. The following example command outputs the creation time of the
 secret.
 
 ```bash
-{% raw %}
 $ docker secret inspect --format='{{.CreatedAt}}' mhv17xfe3gh6xc4rij5orpfds
 
 2016-10-27 23:25:43.909181089 +0000 UTC
-{% endraw %}
 ```
 
 

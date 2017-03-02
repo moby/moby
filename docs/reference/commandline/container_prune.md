@@ -70,7 +70,6 @@ fraction of a second no more than nine digits long.
 The following removes containers created more than 5 minutes ago:
 
 ```bash
-{% raw %}
 $ docker ps -a --format 'table {{.ID}}\t{{.Image}}\t{{.Command}}\t{{.CreatedAt}}\t{{.Status}}'
 
 CONTAINER ID        IMAGE               COMMAND             CREATED AT                      STATUS
@@ -88,13 +87,11 @@ $ docker ps -a --format 'table {{.ID}}\t{{.Image}}\t{{.Command}}\t{{.CreatedAt}}
 
 CONTAINER ID        IMAGE               COMMAND             CREATED AT                      STATUS
 61b9efa71024        busybox             "sh"                2017-01-04 13:23:33 -0800 PST   Exited (0) 44 seconds ago
-{% endraw %}
 ```
 
 The following removes containers created before `2017-01-04T13:10:00`:
 
 ```bash
-{% raw %}
 $ docker ps -a --format 'table {{.ID}}\t{{.Image}}\t{{.Command}}\t{{.CreatedAt}}\t{{.Status}}'
 
 CONTAINER ID        IMAGE               COMMAND             CREATED AT                      STATUS
@@ -112,7 +109,6 @@ $ docker ps -a --format 'table {{.ID}}\t{{.Image}}\t{{.Command}}\t{{.CreatedAt}}
 
 CONTAINER ID        IMAGE               COMMAND             CREATED AT                      STATUS
 53a9bc23a516        busybox             "sh"                2017-01-04 13:11:59 -0800 PST   Exited (0) 9 minutes ago
-{% endraw %}
 ```
 
 ## Related commands
