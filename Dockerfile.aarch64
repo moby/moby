@@ -47,8 +47,9 @@ RUN apt-get update && apt-get install -y \
 	python-dev \
 	python-mock \
 	python-pip \
+	python-setuptools \
 	python-websocket \
-	gccgo \
+	golang-go \
 	iproute2 \
 	iputils-ping \
 	vim-common \
@@ -93,8 +94,8 @@ RUN set -x \
 	&& rm -rf "$SECCOMP_PATH"
 
 # Install Go
-# We don't have official binary tarballs for ARM64, eigher for Go or bootstrap,
-# so we use gccgo as bootstrap to build Go from source code.
+# We don't have official binary golang 1.7.5 tarballs for ARM64, eigher for Go or
+# bootstrap, so we use golang-go (1.6) as bootstrap to build Go from source code.
 # We don't use the official ARMv6 released binaries as a GOROOT_BOOTSTRAP, because
 # not all ARM64 platforms support 32-bit mode. 32-bit mode is optional for ARMv8.
 ENV GO_VERSION 1.7.5
@@ -145,6 +146,7 @@ ENV DOCKER_PY_COMMIT e2655f658408f9ad1f62abdef3eb6ed43c0cf324
 RUN git clone https://github.com/docker/docker-py.git /docker-py \
 	&& cd /docker-py \
 	&& git checkout -q $DOCKER_PY_COMMIT \
+	&& pip install wheel \
 	&& pip install -r test-requirements.txt
 
 # Install yamllint for validating swagger.yaml
