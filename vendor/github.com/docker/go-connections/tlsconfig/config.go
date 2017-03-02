@@ -118,7 +118,7 @@ func Server(options Options) (*tls.Config, error) {
 		return nil, fmt.Errorf("Error reading X509 key pair (cert: %q, key: %q): %v. Make sure the key is not encrypted.", options.CertFile, options.KeyFile, err)
 	}
 	tlsConfig.Certificates = []tls.Certificate{tlsCert}
-	if options.ClientAuth >= tls.VerifyClientCertIfGiven {
+	if options.ClientAuth >= tls.VerifyClientCertIfGiven && options.CAFile != "" {
 		CAs, err := certPool(options.CAFile)
 		if err != nil {
 			return nil, err
