@@ -48,10 +48,8 @@ $ docker volume inspect 85bffb0677236974f93955d8ecc4df55ef5070117b0e53333cc1b443
   }
 ]
 
-{% raw %}
 $ docker volume inspect --format '{{ .Mountpoint }}' 85bffb0677236974f93955d8ecc4df55ef5070117b0e53333cc1b443777be24d
 /var/lib/docker/volumes/85bffb0677236974f93955d8ecc4df55ef5070117b0e53333cc1b443777be24d/_data
-{% endraw %}
 ```
 
 ## Related commands

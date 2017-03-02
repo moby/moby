@@ -6503,7 +6503,7 @@ paths:
           schema:
             $ref: "#/definitions/ErrorResponse"
       parameters:
-        - name: "name"
+        - name: "remote"
           in: "query"
           description: "The name of the plugin. The `:latest` tag is optional, and is the default if omitted."
           required: true
@@ -6834,14 +6834,6 @@ paths:
             type: "array"
             items:
               $ref: "#/definitions/Node"
-        400:
-          description: "bad parameter"
-          schema:
-            $ref: "#/definitions/ErrorResponse"
-        404:
-          description: "no such node"
-          schema:
-            $ref: "#/definitions/ErrorResponse"
         500:
           description: "server error"
           schema:
@@ -7934,6 +7926,10 @@ paths:
             $ref: "#/definitions/ErrorResponse"
         500:
           description: "server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        503:
+          description: "node is not part of a swarm"
           schema:
             $ref: "#/definitions/ErrorResponse"
       parameters:

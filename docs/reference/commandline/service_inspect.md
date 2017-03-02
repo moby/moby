@@ -150,11 +150,9 @@ service. For example, the following command outputs the number of replicas
 of the "redis" service.
 
 ```bash
-{% raw %}
 $ docker service inspect --format='{{.Spec.Mode.Replicated.Replicas}}' redis
 
 10
-{% endraw %}
 ```
 
 
