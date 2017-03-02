@@ -45,6 +45,12 @@ type ImageInspect struct {
 	VirtualSize     int64
 	GraphDriver     GraphDriverData
 	RootFS          RootFS
+	Metadata        ImageMetadata
+}
+
+// ImageMetadata contains engine-local data about the image
+type ImageMetadata struct {
+	LastTagTime time.Time `json:",omitempty"`
 }
 
 // Container contains response of Engine API:

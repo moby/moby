@@ -949,6 +949,12 @@ definitions:
               type: "string"
           BaseLayer:
             type: "string"
+      Metadata:
+        type: "object"
+        properties:
+          LastTagTime:
+            type: "string"
+            format: "dateTime"
 
   ImageSummary:
     type: "object"

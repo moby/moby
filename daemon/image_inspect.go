@@ -61,6 +61,11 @@ func (daemon *Daemon) LookupImage(name string) (*types.ImageInspect, error) {
 		comment = img.History[len(img.History)-1].Comment
 	}
 
+	lastUpdated, err := daemon.stores[platform].imageStore.GetLastUpdated(img.ID())
+	if err != nil {
+		return nil, err
+	}
+
 	imageInspect := &types.ImageInspect{
 		ID:              img.ID().String(),
 		RepoTags:        repoTags,
@@ -79,6 +84,9 @@ func (daemon *Daemon) LookupImage(name string) (*types.ImageInspect, error) {
 		Size:            size,
 		VirtualSize:     size, // TODO: field unused, deprecate
 		RootFS:          rootFSToAPIType(img.RootFS),
+		Metadata: types.ImageMetadata{
+			LastTagTime: lastUpdated,
+		},
 	}
 
 	imageInspect.GraphDriver.Name = daemon.GraphDriverName(platform)
