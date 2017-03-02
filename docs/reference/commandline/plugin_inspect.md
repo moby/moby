@@ -148,11 +148,9 @@ $ docker plugin inspect tiborvass/sample-volume-plugin:latest
 ### Formatting the output
 
 ```bash
-{% raw %}
 $ docker plugin inspect -f '{{.Id}}' tiborvass/sample-volume-plugin:latest
 
 8c74c978c434745c3ade82f1bc0acf38d04990eaf494fa507c16d9f1daa99c21
-{% endraw %}
 ```
 
 
