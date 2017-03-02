@@ -32,6 +32,8 @@ type Execution struct {
 	// baseImage is the name of the base image for testing
 	// Environment variable WINDOWS_BASE_IMAGE can override this
 	baseImage string
+
+	protectedElements protectedElements
 }
 
 // New creates a new Execution struct
@@ -100,6 +102,9 @@ func New() (*Execution, error) {
 		daemonPid:            daemonPid,
 		experimentalDaemon:   info.ExperimentalBuild,
 		baseImage:            baseImage,
+		protectedElements: protectedElements{
+			images: map[string]struct{}{},
+		},
 	}, nil
 }
 func getDaemonDockerInfo() (types.Info, error) {
