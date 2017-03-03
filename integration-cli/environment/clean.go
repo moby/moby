@@ -53,7 +53,15 @@ func getPausedContainers(t testingT, dockerBinary string) []string {
 func deleteAllContainers(t testingT, dockerBinary string) {
 	containers := getAllContainers(t, dockerBinary)
 	if len(containers) > 0 {
-		icmd.RunCommand(dockerBinary, append([]string{"rm", "-fv"}, containers...)...).Assert(t, icmd.Success)
+		result := icmd.RunCommand(dockerBinary, append([]string{"rm", "-fv"}, containers...)...)
+		if result.Error != nil {
+			// If the error is "No such container: ..." this means the container doesn't exists anymore,
+			// we can safely ignore that one.
+			if strings.Contains(result.Stderr(), "No such container") {
+				return
+			}
+			t.Fatalf("error removing containers %v : %v (%s)", containers, result.Error, result.Combined())
+		}
 	}
 }
 

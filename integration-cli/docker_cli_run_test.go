@@ -2029,7 +2029,7 @@ func (s *DockerSuite) TestRunDeallocatePortOnMissingIptablesRule(c *check.C) {
 	icmd.RunCommand("iptables", "-D", "DOCKER", "-d", fmt.Sprintf("%s/32", ip),
 		"!", "-i", "docker0", "-o", "docker0", "-p", "tcp", "-m", "tcp", "--dport", "23", "-j", "ACCEPT").Assert(c, icmd.Success)
 
-	if err := deleteContainer(false, id); err != nil {
+	if err := deleteContainer(id); err != nil {
 		c.Fatal(err)
 	}
 

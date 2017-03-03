@@ -42,7 +42,7 @@ func setupImageWithTag(c *check.C, tag string) (digest.Digest, error) {
 	c.Assert(err, checker.IsNil, check.Commentf("image tagging failed: %s", out))
 
 	// delete the container as we don't need it any more
-	err = deleteContainer(false, containerName)
+	err = deleteContainer(containerName)
 	c.Assert(err, checker.IsNil)
 
 	// push the image
