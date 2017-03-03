@@ -32,10 +32,10 @@ taskID2
 `,
 		},
 		{
-			Context{Format: NewTaskFormat("table {{.Name}} {{.Node}} {{.Ports}}", false)},
+			Context{Format: NewTaskFormat("table {{.Name}}\t{{.Node}}\t{{.Ports}}", false)},
 			`NAME                NODE                PORTS
-foobar_baz foo1 
-foobar_bar foo2 
+foobar_baz          foo1                
+foobar_bar          foo2                
 `,
 		},
 		{

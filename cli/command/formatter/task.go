@@ -52,8 +52,21 @@ func TaskWrite(ctx Context, tasks []swarm.Task, names map[string]string, nodes m
 		}
 		return nil
 	}
-	return ctx.Write(&taskContext{}, render)
+	taskCtx := taskContext{}
+	taskCtx.header = taskHeaderContext{
+		"ID":           taskIDHeader,
+		"Name":         nameHeader,
+		"Image":        imageHeader,
+		"Node":         nodeHeader,
+		"DesiredState": desiredStateHeader,
+		"CurrentState": currentStateHeader,
+		"Error":        errorHeader,
+		"Ports":        portsHeader,
+	}
+	return ctx.Write(&taskCtx, render)
 }
+
+type taskHeaderContext map[string]string
 
 type taskContext struct {
 	HeaderContext
@@ -68,7 +81,6 @@ func (c *taskContext) MarshalJSON() ([]byte, error) {
 }
 
 func (c *taskContext) ID() string {
-	c.AddHeader(taskIDHeader)
 	if c.trunc {
 		return stringid.TruncateID(c.task.ID)
 	}
@@ -76,12 +88,10 @@ func (c *taskContext) ID() string {
 }
 
 func (c *taskContext) Name() string {
-	c.AddHeader(nameHeader)
 	return c.name
 }
 
 func (c *taskContext) Image() string {
-	c.AddHeader(imageHeader)
 	image := c.task.Spec.ContainerSpec.Image
 	if c.trunc {
 		ref, err := reference.ParseNormalizedNamed(image)
@@ -98,17 +108,14 @@ func (c *taskContext) Image() string {
 }
 
 func (c *taskContext) Node() string {
-	c.AddHeader(nodeHeader)
 	return c.node
 }
 
 func (c *taskContext) DesiredState() string {
-	c.AddHeader(desiredStateHeader)
 	return command.PrettyPrint(c.task.DesiredState)
 }
 
 func (c *taskContext) CurrentState() string {
-	c.AddHeader(currentStateHeader)
 	return fmt.Sprintf("%s %s ago",
 		command.PrettyPrint(c.task.Status.State),
 		strings.ToLower(units.HumanDuration(time.Since(c.task.Status.Timestamp))),
@@ -116,7 +123,6 @@ func (c *taskContext) CurrentState() string {
 }
 
 func (c *taskContext) Error() string {
-	c.AddHeader(errorHeader)
 	// Trim and quote the error message.
 	taskErr := c.task.Status.Err
 	if c.trunc && len(taskErr) > maxErrLength {
@@ -129,7 +135,6 @@ func (c *taskContext) Error() string {
 }
 
 func (c *taskContext) Ports() string {
-	c.AddHeader(portsHeader)
 	if len(c.task.Status.PortStatus.Ports) == 0 {
 		return ""
 	}
