@@ -105,7 +105,7 @@ func TestCommandsTooManyArguments(t *testing.T) {
 }
 
 func TestCommandseBlankNames(t *testing.T) {
-	bflags := &BFlags{}
+	bflags := &BFlags{flags: make(map[string]*Flag)}
 	config := &container.Config{}
 
 	b := &Builder{flags: bflags, runConfig: config, disableCommit: true}
@@ -133,7 +133,7 @@ func TestCommandseBlankNames(t *testing.T) {
 func TestEnv2Variables(t *testing.T) {
 	variables := []string{"var1", "val1", "var2", "val2"}
 
-	bflags := &BFlags{}
+	bflags := &BFlags{flags: make(map[string]*Flag)}
 	config := &container.Config{}
 
 	b := &Builder{flags: bflags, runConfig: config, disableCommit: true}

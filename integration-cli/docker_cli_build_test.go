@@ -21,6 +21,7 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/pkg/testutil"
+	"github.com/docker/docker/pkg/testutil/assert"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
 )
@@ -5832,4 +5833,54 @@ func (s *DockerSuite) TestBuildLineErrorWithComments(c *check.C) {
 		ExitCode: 1,
 		Err:      "Dockerfile parse error line 5: Unknown instruction: NOINSTRUCTION",
 	})
+}
+
+func (s *DockerSuite) TestBuildEnvLazyExpandWithCmd(c *check.C) {
+	testRequires(c, DaemonIsWindows)
+	name := "test_build_env_lazy_expand_with_cmd"
+	basePath, _ := dockerCmd(c, "run", "--rm", testEnv.MinimalBaseImage(), "cmd", "/s", "/c", "echo", "%path%")
+	buildImage(name, withDockerfile(`FROM `+testEnv.MinimalBaseImage()+`
+	ENV --lazy-expand p2 ${PATH};test`))
+	expandedPath, _ := dockerCmd(c, "run", "--rm", name, "cmd", "/s", "/c", "echo", "%p2%")
+	expectedPath := basePath + ";test"
+
+	assert.EqualNormalizedString(c, assert.RemoveSpace, expandedPath, expectedPath)
+}
+
+func (s *DockerSuite) TestBuildEnvLazyExpandWithPowershell(c *check.C) {
+	testRequires(c, DaemonIsWindows)
+	name := "test_build_env_lazy_expand_with_powershell"
+	basePath, _ := dockerCmd(c, "run", "--rm", testEnv.MinimalBaseImage(), "cmd", "/s", "/c", "echo", "%path%")
+	buildImage(name, withDockerfile(`FROM `+testEnv.MinimalBaseImage()+`
+	ENV --lazy-expand p2 ${PATH};test`))
+	expandedPath, _ := dockerCmd(c, "run", "--rm", name, "powershell", "-command", "Write-Host \"${env:p2}\"")
+	expectedPath := basePath + ";test"
+
+	assert.EqualNormalizedString(c, assert.RemoveSpace, expandedPath, expectedPath)
+}
+
+func (s *DockerSuite) TestBuildEnvLazyExpandWithOverride(c *check.C) {
+	testRequires(c, DaemonIsWindows)
+	name := "test_build_env_lazy_expand_with_override"
+	basePath, _ := dockerCmd(c, "run", "--rm", testEnv.MinimalBaseImage(), "cmd", "/s", "/c", "echo", "%path%")
+	buildImage(name, withDockerfile(`FROM `+testEnv.MinimalBaseImage()+`
+	ENV --lazy-expand path ${PATH};test`))
+	expandedPath, _ := dockerCmd(c, "run", "--rm", name, "powershell", "-command", "Write-Host \"${env:PATH}\"")
+	expectedPath := basePath + ";test"
+
+	assert.EqualNormalizedString(c, assert.RemoveSpace, expandedPath, expectedPath)
+}
+
+func (s *DockerSuite) TestBuildEnvLazyExpandWithDockerfile(c *check.C) {
+	testRequires(c, DaemonIsWindows)
+	name := "test_build_env_lazy_expand_with_dockerfile"
+	basePath, _ := dockerCmd(c, "run", "--rm", testEnv.MinimalBaseImage(), "cmd", "/s", "/c", "echo", "%path%")
+	buildImage(name, withDockerfile(`FROM `+testEnv.MinimalBaseImage()+`
+	ENV --lazy-expand p2 ${PATH};test
+	RUN echo %p2% > test.txt`))
+	expandedPath, _ := dockerCmd(c, "run", "--rm", name, "powershell", "-command", "Get-Content \"./test.txt\"")
+	expandedPath = strings.Trim(expandedPath, " \n\r\t")
+	expectedPath := strings.Trim(basePath, "\n\r\t") + ";test"
+
+	assert.EqualNormalizedString(c, assert.RemoveSpace, expandedPath, expectedPath)
 }

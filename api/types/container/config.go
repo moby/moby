@@ -45,6 +45,7 @@ type Config struct {
 	OpenStdin       bool                // Open stdin
 	StdinOnce       bool                // If true, close stdin after the 1 attached client disconnects.
 	Env             []string            // List of environment variable to set in the container
+	LazyEnvVarNames []string            `json:",omitempty"` // List of environment variable names that should be expanded at runtime
 	Cmd             strslice.StrSlice   // Command to run when starting the container
 	Healthcheck     *HealthConfig       `json:",omitempty"` // Healthcheck describes how to check the container is healthy
 	ArgsEscaped     bool                `json:",omitempty"` // True if command is already escaped (Windows specific)

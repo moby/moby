@@ -3,12 +3,46 @@ package daemon
 import (
 	"syscall"
 
+	"fmt"
+
+	"strings"
+
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
+
+func fixupLazyEnvVars(c *container.Container, s *specs.Spec) {
+
+	if len(c.Config.LazyEnvVarNames) == 0 {
+		return
+	}
+
+	// cmd /s /c does not allow multiple statement, and there is not equivalent to `name=value echo ${name}` style syntax
+	// Tried with set name=value & echo %value% style, without success
+	// So rely on powershell to set env variables and open a nested cmd with the original args
+	toPrepend := ""
+	for _, name := range c.Config.LazyEnvVarNames {
+		upperName := strings.ToUpper(name)
+		for i, envspec := range s.Process.Env {
+			parts := strings.SplitN(envspec, "=", 2)
+			if len(parts) != 2 {
+				continue
+			}
+			envspecUpperName := strings.ToUpper(parts[0])
+			if upperName == envspecUpperName {
+				toPrepend += fmt.Sprint("${env:", name, "}=\\\"", parts[1], "\\\"; ")
+				s.Process.Env = append(s.Process.Env[:i], s.Process.Env[i+1:]...)
+				break
+			}
+		}
+	}
+	toPrepend += "cmd /S /C "
+	cmdLine := "'" + strings.Join(s.Process.Args, " ") + "'"
+	s.Process.Args = append([]string{}, "powershell", "-Command", toPrepend, "cmd", "/s", "/c", cmdLine)
+}
 
 func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	s := oci.DefaultSpec()
@@ -58,6 +92,10 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 		s.Process.Cwd = `C:\`
 	}
 	s.Process.Env = c.CreateDaemonEnvironment(c.Config.Tty, linkedEnv)
+	fixupLazyEnvVars(c, &s)
+	if err != nil {
+		return nil, err
+	}
 	s.Process.ConsoleSize.Height = c.HostConfig.ConsoleSize[0]
 	s.Process.ConsoleSize.Width = c.HostConfig.ConsoleSize[1]
 	s.Process.Terminal = c.Config.Tty

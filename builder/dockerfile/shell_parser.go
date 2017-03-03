@@ -7,6 +7,7 @@ package dockerfile
 // be added by adding code to the "special ${} format processing" section
 
 import (
+	"errors"
 	"fmt"
 	"runtime"
 	"strings"
@@ -15,25 +16,31 @@ import (
 )
 
 type shellWord struct {
-	word        string
-	scanner     scanner.Scanner
-	envs        []string
-	pos         int
-	escapeToken rune
+	word            string
+	scanner         scanner.Scanner
+	envs            []string
+	lazyEnvVars     []string
+	pos             int
+	escapeToken     rune
+	allowLazyExpand bool
+	hasLazyExpand   bool
 }
 
 // ProcessWord will use the 'env' list of environment variables,
 // and replace any env var references in 'word'.
-func ProcessWord(word string, env []string, escapeToken rune) (string, error) {
+// if allowLazyExpand is true, detects undeclared variables and don't replace it with empty string
+func ProcessWord(word string, env, lazyEnvVars []string, escapeToken rune, allowLazyExpand bool) (outWord string, isLazyExpanded bool, err error) {
 	sw := &shellWord{
-		word:        word,
-		envs:        env,
-		pos:         0,
-		escapeToken: escapeToken,
+		word:            word,
+		envs:            env,
+		lazyEnvVars:     lazyEnvVars,
+		pos:             0,
+		escapeToken:     escapeToken,
+		allowLazyExpand: allowLazyExpand,
 	}
 	sw.scanner.Init(strings.NewReader(word))
-	word, _, err := sw.process()
-	return word, err
+	outWord, _, err = sw.process()
+	return outWord, sw.hasLazyExpand, err
 }
 
 // ProcessWords will use the 'env' list of environment variables,
@@ -43,16 +50,19 @@ func ProcessWord(word string, env []string, escapeToken rune) (string, error) {
 // this splitting is done **after** the env var substitutions are done.
 // Note, each one is trimmed to remove leading and trailing spaces (unless
 // they are quoted", but ProcessWord retains spaces between words.
-func ProcessWords(word string, env []string, escapeToken rune) ([]string, error) {
+// if allowLazyExpand is true, detects undeclared variables and don't replace it with empty string
+func ProcessWords(word string, env, lazyEnvVars []string, escapeToken rune, allowLazyExpand bool) (words []string, isLazyExpanded bool, err error) {
 	sw := &shellWord{
-		word:        word,
-		envs:        env,
-		pos:         0,
-		escapeToken: escapeToken,
+		word:            word,
+		envs:            env,
+		lazyEnvVars:     lazyEnvVars,
+		pos:             0,
+		escapeToken:     escapeToken,
+		allowLazyExpand: allowLazyExpand,
 	}
 	sw.scanner.Init(strings.NewReader(word))
-	_, words, err := sw.process()
-	return words, err
+	_, words, err = sw.process()
+	return words, false, err
 }
 
 func (sw *shellWord) process() (string, []string, error) {
@@ -232,7 +242,16 @@ func (sw *shellWord) processDollar() (string, error) {
 		if ch == '}' {
 			// Normal ${xx} case
 			sw.scanner.Next()
-			return sw.getEnv(name), nil
+			lookupResult := sw.getEnv(name)
+			if !sw.allowLazyExpand && lookupResult.isLazyExpanded {
+				return "", errors.New("can't reference a lazy expanded variable here")
+			}
+			if sw.allowLazyExpand {
+				if !lookupResult.found || lookupResult.isLazyExpanded {
+					sw.hasLazyExpand = true
+				}
+			}
+			return lookupResult.value, nil
 		}
 		if ch == ':' {
 			// Special ${xx:...} format processing
@@ -248,7 +267,15 @@ func (sw *shellWord) processDollar() (string, error) {
 
 			// Grab the current value of the variable in question so we
 			// can use to to determine what to do based on the modifier
-			newValue := sw.getEnv(name)
+			lookupResult := sw.getEnv(name)
+			if lookupResult.isLazyExpanded {
+				return "", errors.New("Cannot substitute a lazy expanded variable")
+			}
+			if !lookupResult.found {
+				lookupResult.value = ""
+			}
+
+			newValue := lookupResult.value
 
 			switch modifier {
 			case '+':
@@ -274,7 +301,16 @@ func (sw *shellWord) processDollar() (string, error) {
 	if name == "" {
 		return "$", nil
 	}
-	return sw.getEnv(name), nil
+	lookupResult := sw.getEnv(name)
+	if !sw.allowLazyExpand && lookupResult.isLazyExpanded {
+		return "", errors.New("can't reference a lazy expanded variable here")
+	}
+	if sw.allowLazyExpand {
+		if !lookupResult.found || lookupResult.isLazyExpanded {
+			sw.hasLazyExpand = true
+		}
+	}
+	return lookupResult.value, nil
 }
 
 func (sw *shellWord) processName() string {
@@ -298,7 +334,13 @@ func (sw *shellWord) processName() string {
 	return name
 }
 
-func (sw *shellWord) getEnv(name string) string {
+type envResult struct {
+	value          string
+	found          bool
+	isLazyExpanded bool
+}
+
+func (sw *shellWord) getEnv(name string) envResult {
 	if runtime.GOOS == "windows" {
 		// Case-insensitive environment variables on Windows
 		name = strings.ToUpper(name)
@@ -312,7 +354,7 @@ func (sw *shellWord) getEnv(name string) string {
 			if name == env {
 				// Should probably never get here, but just in case treat
 				// it like "var" and "var=" are the same
-				return ""
+				return envResult{"", true, sw.isEnvVarLazyExpanded(name)}
 			}
 			continue
 		}
@@ -323,7 +365,28 @@ func (sw *shellWord) getEnv(name string) string {
 		if name != compareName {
 			continue
 		}
-		return env[i+1:]
+		return envResult{env[i+1:], true, sw.isEnvVarLazyExpanded(name)}
 	}
-	return ""
+	if sw.allowLazyExpand {
+		return envResult{sw.lazyExpandedVariableReference(name), false, true}
+	}
+	return envResult{"", false, false}
+
+}
+
+func (sw *shellWord) isEnvVarLazyExpanded(name string) bool {
+	if runtime.GOOS == "windows" {
+		// Case-insensitive environment variables on Windows
+		name = strings.ToUpper(name)
+	}
+
+	for _, known := range sw.lazyEnvVars {
+		if runtime.GOOS == "windows" {
+			known = strings.ToUpper(known)
+		}
+		if known == name {
+			return true
+		}
+	}
+	return false
 }

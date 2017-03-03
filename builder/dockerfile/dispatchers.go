@@ -42,6 +42,7 @@ func env(b *Builder, args []string, attributes map[string]bool, original string)
 		return errTooManyArguments("ENV")
 	}
 
+	lazy := b.flags.AddBool("lazy-expand", false)
 	if err := b.flags.Parse(); err != nil {
 		return err
 	}
@@ -63,6 +64,9 @@ func env(b *Builder, args []string, attributes map[string]bool, original string)
 	*/
 
 	commitStr := "ENV"
+	if lazy.IsTrue() {
+		commitStr += " --lazy-expand"
+	}
 
 	for j := 0; j < len(args); j++ {
 		// name  ==> args[j]
@@ -73,16 +77,17 @@ func env(b *Builder, args []string, attributes map[string]bool, original string)
 		}
 		newVar := args[j] + "=" + args[j+1] + ""
 		commitStr += " " + newVar
-
+		compareTo := args[j]
+		if runtime.GOOS == "windows" {
+			compareTo = strings.ToUpper(compareTo)
+		}
 		gotOne := false
 		for i, envVar := range b.runConfig.Env {
 			envParts := strings.SplitN(envVar, "=", 2)
 			compareFrom := envParts[0]
-			compareTo := args[j]
 			if runtime.GOOS == "windows" {
 				// Case insensitive environment variables on Windows
 				compareFrom = strings.ToUpper(compareFrom)
-				compareTo = strings.ToUpper(compareTo)
 			}
 			if compareFrom == compareTo {
 				b.runConfig.Env[i] = newVar
@@ -92,6 +97,22 @@ func env(b *Builder, args []string, attributes map[string]bool, original string)
 		}
 		if !gotOne {
 			b.runConfig.Env = append(b.runConfig.Env, newVar)
+		}
+		if lazy.IsTrue() {
+			found := false
+			for _, compareFrom := range b.runConfig.LazyEnvVarNames {
+				if runtime.GOOS == "windows" {
+					// Case insensitive environment variables on Windows
+					compareFrom = strings.ToUpper(compareFrom)
+				}
+				if compareFrom == compareTo {
+					found = true
+					break
+				}
+			}
+			if !found {
+				b.runConfig.LazyEnvVarNames = append(b.runConfig.LazyEnvVarNames, args[j])
+			}
 		}
 		j++
 	}

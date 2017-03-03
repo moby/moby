@@ -56,6 +56,14 @@ var allowWordExpansion = map[string]bool{
 	command.Expose: true,
 }
 
+// Certain commands are allowed to have their values expanded lazily (when the container is run)
+// this is very usefull on Windows for things like
+//  ENV PATH ${PATH};/myapp/bin
+//  RUN myapp
+var allowedLazyWordExpansion = map[string]bool{
+	command.Env: true,
+}
+
 var evaluateTable map[string]func(*Builder, []string, map[string]bool, string) error
 
 func init() {
@@ -79,6 +87,15 @@ func init() {
 		command.Volume:      volume,
 		command.Workdir:     workdir,
 	}
+}
+
+func containsString(s []string, val string) bool {
+	for _, v := range s {
+		if v == val {
+			return true
+		}
+	}
+	return false
 }
 
 // This method is the entrypoint to all statement handling routines.
@@ -149,19 +166,17 @@ func (b *Builder) dispatch(stepN int, stepTotal int, ast *parser.Node) error {
 		var str string
 		str = ast.Value
 		if replaceEnvAllowed[cmd] {
-			var err error
-			var words []string
 
 			if allowWordExpansion[cmd] {
-				words, err = ProcessWords(str, envs, b.directive.EscapeToken)
+				words, _, err := ProcessWords(str, envs, b.runConfig.LazyEnvVarNames, b.directive.EscapeToken, allowedLazyWordExpansion[cmd] && containsString(flags, "--lazy-expand"))
 				if err != nil {
-					return err
+					return fmt.Errorf("%v, %v at %v", original, err, ast.Value)
 				}
 				strList = append(strList, words...)
 			} else {
-				str, err = ProcessWord(str, envs, b.directive.EscapeToken)
+				str, _, err := ProcessWord(str, envs, b.runConfig.LazyEnvVarNames, b.directive.EscapeToken, allowedLazyWordExpansion[cmd] && containsString(flags, "--lazy-expand"))
 				if err != nil {
-					return err
+					return fmt.Errorf("%v, %v at %v", original, err, ast.Value)
 				}
 				strList = append(strList, str)
 			}

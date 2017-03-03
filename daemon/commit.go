@@ -62,6 +62,28 @@ func merge(userConf, imageConf *containertypes.Config) error {
 		}
 	}
 
+	if len(userConf.LazyEnvVarNames) == 0 {
+		userConf.LazyEnvVarNames = imageConf.LazyEnvVarNames
+	} else {
+		for _, imageEnvKey := range imageConf.LazyEnvVarNames {
+			found := false
+			for _, userEnvKey := range userConf.LazyEnvVarNames {
+				if runtime.GOOS == "windows" {
+					// Case insensitive environment variables on Windows
+					imageEnvKey = strings.ToUpper(imageEnvKey)
+					userEnvKey = strings.ToUpper(userEnvKey)
+				}
+				if imageEnvKey == userEnvKey {
+					found = true
+					break
+				}
+			}
+			if !found {
+				userConf.LazyEnvVarNames = append(userConf.LazyEnvVarNames, imageEnvKey)
+			}
+		}
+	}
+
 	if userConf.Labels == nil {
 		userConf.Labels = map[string]string{}
 	}
