@@ -365,6 +365,48 @@ func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintLabel(c *check.C) {
 	}
 }
 
+func (s *DockerSwarmSuite) TestAPISwarmServicePlacementPrefs(c *check.C) {
+	const nodeCount = 3
+	var daemons [nodeCount]*daemon.Swarm
+	for i := 0; i < nodeCount; i++ {
+		daemons[i] = s.AddDaemon(c, true, i == 0)
+	}
+	// wait for nodes ready
+	waitAndAssert(c, 5*time.Second, daemons[0].CheckNodeReadyCount, checker.Equals, nodeCount)
+	nodes := daemons[0].ListNodes(c)
+	c.Assert(len(nodes), checker.Equals, nodeCount)
+
+	// add labels to nodes
+	daemons[0].UpdateNode(c, nodes[0].ID, func(n *swarm.Node) {
+		n.Spec.Annotations.Labels = map[string]string{
+			"rack": "a",
+		}
+	})
+	for i := 1; i < nodeCount; i++ {
+		daemons[0].UpdateNode(c, nodes[i].ID, func(n *swarm.Node) {
+			n.Spec.Annotations.Labels = map[string]string{
+				"rack": "b",
+			}
+		})
+	}
+
+	// create service
+	instances := 4
+	prefs := []swarm.PlacementPreference{{Spread: &swarm.SpreadOver{SpreadDescriptor: "node.labels.rack"}}}
+	id := daemons[0].CreateService(c, simpleTestService, setPlacementPrefs(prefs), setInstances(instances))
+	// wait for tasks ready
+	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].CheckServiceRunningTasks(id), checker.Equals, instances)
+	tasks := daemons[0].GetServiceTasks(c, id)
+	// validate all tasks are running on nodes[0]
+	tasksOnNode := make(map[string]int)
+	for _, task := range tasks {
+		tasksOnNode[task.NodeID]++
+	}
+	c.Assert(tasksOnNode[nodes[0].ID], checker.Equals, 2)
+	c.Assert(tasksOnNode[nodes[1].ID], checker.Equals, 1)
+	c.Assert(tasksOnNode[nodes[2].ID], checker.Equals, 1)
+}
+
 func (s *DockerSwarmSuite) TestAPISwarmServicesStateReporting(c *check.C) {
 	testRequires(c, SameHostDaemon)
 	testRequires(c, DaemonIsLinux)

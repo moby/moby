@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -115,6 +116,45 @@ func (f *floatValue) String() string {
 
 func (f *floatValue) Value() float32 {
 	return float32(*f)
+}
+
+// placementPrefOpts holds a list of placement preferences.
+type placementPrefOpts struct {
+	prefs   []swarm.PlacementPreference
+	strings []string
+}
+
+func (opts *placementPrefOpts) String() string {
+	if len(opts.strings) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("%v", opts.strings)
+}
+
+// Set validates the input value and adds it to the internal slices.
+// Note: in the future strategies other than "spread", may be supported,
+// as well as additional comma-separated options.
+func (opts *placementPrefOpts) Set(value string) error {
+	fields := strings.Split(value, "=")
+	if len(fields) != 2 {
+		return errors.New(`placement preference must be of the format "<strategy>=<arg>"`)
+	}
+	if fields[0] != "spread" {
+		return fmt.Errorf("unsupported placement preference %s (only spread is supported)", fields[0])
+	}
+
+	opts.prefs = append(opts.prefs, swarm.PlacementPreference{
+		Spread: &swarm.SpreadOver{
+			SpreadDescriptor: fields[1],
+		},
+	})
+	opts.strings = append(opts.strings, value)
+	return nil
+}
+
+// Type returns a string name for this Option type
+func (opts *placementPrefOpts) Type() string {
+	return "pref"
 }
 
 type updateOptions struct {
@@ -284,11 +324,12 @@ type serviceOptions struct {
 	replicas Uint64Opt
 	mode     string
 
-	restartPolicy restartPolicyOptions
-	constraints   opts.ListOpts
-	update        updateOptions
-	networks      opts.ListOpts
-	endpoint      endpointOptions
+	restartPolicy  restartPolicyOptions
+	constraints    opts.ListOpts
+	placementPrefs placementPrefOpts
+	update         updateOptions
+	networks       opts.ListOpts
+	endpoint       endpointOptions
 
 	registryAuth bool
 
@@ -400,6 +441,7 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 			RestartPolicy: opts.restartPolicy.ToRestartPolicy(),
 			Placement: &swarm.Placement{
 				Constraints: opts.constraints.GetAll(),
+				Preferences: opts.placementPrefs.prefs,
 			},
 			LogDriver: opts.logDriver.toLogDriver(),
 		},
@@ -478,6 +520,9 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 }
 
 const (
+	flagPlacementPref         = "placement-pref"
+	flagPlacementPrefAdd      = "placement-pref-add"
+	flagPlacementPrefRemove   = "placement-pref-rm"
 	flagConstraint            = "constraint"
 	flagConstraintRemove      = "constraint-rm"
 	flagConstraintAdd         = "constraint-add"

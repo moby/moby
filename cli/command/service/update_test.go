@@ -51,7 +51,7 @@ func TestUpdateLabelsRemoveALabelThatDoesNotExist(t *testing.T) {
 	assert.Equal(t, len(labels), 1)
 }
 
-func TestUpdatePlacement(t *testing.T) {
+func TestUpdatePlacementConstraints(t *testing.T) {
 	flags := newUpdateCommand(nil).Flags()
 	flags.Set("constraint-add", "node=toadd")
 	flags.Set("constraint-rm", "node!=toremove")
@@ -60,10 +60,36 @@ func TestUpdatePlacement(t *testing.T) {
 		Constraints: []string{"node!=toremove", "container=tokeep"},
 	}
 
-	updatePlacement(flags, placement)
+	updatePlacementConstraints(flags, placement)
 	assert.Equal(t, len(placement.Constraints), 2)
 	assert.Equal(t, placement.Constraints[0], "container=tokeep")
 	assert.Equal(t, placement.Constraints[1], "node=toadd")
+}
+
+func TestUpdatePlacementPrefs(t *testing.T) {
+	flags := newUpdateCommand(nil).Flags()
+	flags.Set("placement-pref-add", "spread=node.labels.dc")
+	flags.Set("placement-pref-rm", "spread=node.labels.rack")
+
+	placement := &swarm.Placement{
+		Preferences: []swarm.PlacementPreference{
+			{
+				Spread: &swarm.SpreadOver{
+					SpreadDescriptor: "node.labels.rack",
+				},
+			},
+			{
+				Spread: &swarm.SpreadOver{
+					SpreadDescriptor: "node.labels.row",
+				},
+			},
+		},
+	}
+
+	updatePlacementPreferences(flags, placement)
+	assert.Equal(t, len(placement.Preferences), 2)
+	assert.Equal(t, placement.Preferences[0].Spread.SpreadDescriptor, "node.labels.row")
+	assert.Equal(t, placement.Preferences[1].Spread.SpreadDescriptor, "node.labels.dc")
 }
 
 func TestUpdateEnvironment(t *testing.T) {

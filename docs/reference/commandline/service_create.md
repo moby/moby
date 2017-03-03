@@ -47,6 +47,7 @@ Options:
       --name string                      Service name
       --network list                     Network attachments (default [])
       --no-healthcheck                   Disable any container-specified HEALTHCHECK
+      --placement-pref pref              Add a placement preference
   -p, --publish port                     Publish a port as a node port
       --read-only                        Mount the container's root filesystem as read only
       --replicas uint                    Number of tasks
@@ -435,6 +436,77 @@ $ docker service create \
   --constraint 'node.labels.type == queue' \
   redis:3.0.6
 ```
+
+### Specify service placement preferences (--placement-pref)
+
+You can set up the service to divide tasks evenly over different categories of
+nodes. One example of where this can be useful is to balance tasks over a set
+of datacenters or availability zones. The example below illustrates this:
+
+```bash
+$ docker service create \
+  --replicas 9 \
+  --name redis_2 \
+  --placement-pref 'spread=node.labels.datacenter' \
+  redis:3.0.6
+```
+
+This uses `--placement-pref` with a `spread` strategy (currently the only
+supported strategy) to spread tasks evenly over the values of the `datacenter`
+node label. In this example, we assume that every node has a `datacenter` node
+label attached to it. If there are three different values of this label among
+nodes in the swarm, one third of the tasks will be placed on the nodes
+associated with each value. This is true even if there are more nodes with one
+value than another. For example, consider the following set of nodes:
+
+- Three nodes with `node.labels.datacenter=east`
+- Two nodes with `node.labels.datacenter=south`
+- One node with `node.labels.datacenter=west`
+
+Since we are spreading over the values of the `datacenter` label and the
+service has 9 replicas, 3 replicas will end up in each datacenter. There are
+three nodes associated with the value `east`, so each one will get one of the
+three replicas reserved for this value. There are two nodes with the value
+`south`, and the three replicas for this value will be divided between them,
+with one receiving two replicas and another receiving just one. Finally, `west`
+has a single node that will get all three replicas reserved for `west`.
+
+If the nodes in one category (for example, those with
+`node.labels.datacenter=south`) can't handle their fair share of tasks due to
+constraints or resource limitations, the extra tasks will be assigned to other
+nodes instead, if possible.
+
+Both engine labels and node labels are supported by placement preferences. The
+example above uses a node label, because the label is referenced with
+`node.labels.datacenter`. To spread over the values of an engine label, use
+`--placement-pref spread=engine.labels.<labelname>`.
+
+It is possible to add multiple placement preferences to a service. This
+establishes a hierarchy of preferences, so that tasks are first divided over
+one category, and then further divided over additional categories. One example
+of where this may be useful is dividing tasks fairly between datacenters, and
+then splitting the tasks within each datacenter over a choice of racks. To add
+multiple placement preferences, specify the `--placement-pref` flag multiple
+times. The order is significant, and the placement preferences will be applied
+in the order given when making scheduling decisions.
+
+The following example sets up a service with multiple placement preferences.
+Tasks are spread first over the various datacenters, and then over racks
+(as indicated by the respective labels):
+
+```bash
+$ docker service create \
+  --replicas 9 \
+  --name redis_2 \
+  --placement-pref 'spread=node.labels.datacenter' \
+  --placement-pref 'spread=node.labels.rack' \
+  redis:3.0.6
+```
+
+When updating a service with `docker service update`, `--placement-pref-add`
+appends a new placement preference after all existing placement preferences.
+`--placement-pref-rm` removes an existing placement preference that matches the
+argument.
 
 ### Attach a service to an existing network (--network)
 

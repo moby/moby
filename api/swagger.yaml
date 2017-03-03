@@ -2050,6 +2050,18 @@ definitions:
             type: "array"
             items:
               type: "string"
+          Preferences:
+            description: "Preferences provide a way to make the scheduler aware of factors such as topology. They are provided in order from highest to lowest precedence."
+            type: "array"
+            items:
+              type: "object"
+              properties:
+                Spread:
+                  type: "object"
+                  properties:
+                    SpreadDescriptor:
+                      description: "label descriptor, such as engine.labels.az"
+                      type: "string"
       ForceUpdate:
         description: "A counter that triggers an update even if no relevant parameters have been changed."
         type: "integer"

@@ -604,6 +604,15 @@ func setConstraints(constraints []string) daemon.ServiceConstructor {
 	}
 }
 
+func setPlacementPrefs(prefs []swarm.PlacementPreference) daemon.ServiceConstructor {
+	return func(s *swarm.Service) {
+		if s.Spec.TaskTemplate.Placement == nil {
+			s.Spec.TaskTemplate.Placement = &swarm.Placement{}
+		}
+		s.Spec.TaskTemplate.Placement.Preferences = prefs
+	}
+}
+
 func setGlobalMode(s *swarm.Service) {
 	s.Spec.Mode = swarm.ServiceMode{
 		Global: &swarm.GlobalService{},

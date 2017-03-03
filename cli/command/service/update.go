@@ -69,6 +69,10 @@ func newUpdateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.SetAnnotation(flagSecretAdd, "version", []string{"1.25"})
 	flags.Var(&serviceOpts.mounts, flagMountAdd, "Add or update a mount on a service")
 	flags.Var(&serviceOpts.constraints, flagConstraintAdd, "Add or update a placement constraint")
+	flags.Var(&serviceOpts.placementPrefs, flagPlacementPrefAdd, "Add a placement preference")
+	flags.SetAnnotation(flagPlacementPrefAdd, "version", []string{"1.27"})
+	flags.Var(&placementPrefOpts{}, flagPlacementPrefRemove, "Remove a placement preference")
+	flags.SetAnnotation(flagPlacementPrefRemove, "version", []string{"1.27"})
 	flags.Var(&serviceOpts.endpoint.publishPorts, flagPublishAdd, "Add or update a published port")
 	flags.Var(&serviceOpts.groups, flagGroupAdd, "Add an additional supplementary user group to the container")
 	flags.SetAnnotation(flagGroupAdd, "version", []string{"1.25"})
@@ -260,7 +264,14 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 		if task.Placement == nil {
 			task.Placement = &swarm.Placement{}
 		}
-		updatePlacement(flags, task.Placement)
+		updatePlacementConstraints(flags, task.Placement)
+	}
+
+	if anyChanged(flags, flagPlacementPrefAdd, flagPlacementPrefRemove) {
+		if task.Placement == nil {
+			task.Placement = &swarm.Placement{}
+		}
+		updatePlacementPreferences(flags, task.Placement)
 	}
 
 	if err := updateReplicas(flags, &spec.Mode); err != nil {
@@ -374,7 +385,7 @@ func anyChanged(flags *pflag.FlagSet, fields ...string) bool {
 	return false
 }
 
-func updatePlacement(flags *pflag.FlagSet, placement *swarm.Placement) {
+func updatePlacementConstraints(flags *pflag.FlagSet, placement *swarm.Placement) {
 	if flags.Changed(flagConstraintAdd) {
 		values := flags.Lookup(flagConstraintAdd).Value.(*opts.ListOpts).GetAll()
 		placement.Constraints = append(placement.Constraints, values...)
@@ -391,6 +402,35 @@ func updatePlacement(flags *pflag.FlagSet, placement *swarm.Placement) {
 	sort.Strings(newConstraints)
 
 	placement.Constraints = newConstraints
+}
+
+func updatePlacementPreferences(flags *pflag.FlagSet, placement *swarm.Placement) {
+	var newPrefs []swarm.PlacementPreference
+
+	if flags.Changed(flagPlacementPrefRemove) {
+		for _, existing := range placement.Preferences {
+			removed := false
+			for _, removal := range flags.Lookup(flagPlacementPrefRemove).Value.(*placementPrefOpts).prefs {
+				if removal.Spread != nil && existing.Spread != nil && removal.Spread.SpreadDescriptor == existing.Spread.SpreadDescriptor {
+					removed = true
+					break
+				}
+			}
+			if !removed {
+				newPrefs = append(newPrefs, existing)
+			}
+		}
+	} else {
+		newPrefs = placement.Preferences
+	}
+
+	if flags.Changed(flagPlacementPrefAdd) {
+		for _, addition := range flags.Lookup(flagPlacementPrefAdd).Value.(*placementPrefOpts).prefs {
+			newPrefs = append(newPrefs, addition)
+		}
+	}
+
+	placement.Preferences = newPrefs
 }
 
 func updateContainerLabels(flags *pflag.FlagSet, field *map[string]string) {
