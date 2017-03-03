@@ -570,7 +570,7 @@ __docker_subcommands() {
 			$(__docker_to_extglob "$subcommands") )
 				subcommand_pos=$counter
 				local subcommand=${words[$counter]}
-				local completions_func=_docker_${command}_${subcommand}
+				local completions_func=_docker_${command}_${subcommand//-/_}
 				declare -F $completions_func >/dev/null && $completions_func
 				return 0
 				;;
@@ -660,7 +660,7 @@ __docker_complete_capabilities_droppable() {
 	" -- "$cur" ) )
 }
 
-__docker_complete_detach-keys() {
+__docker_complete_detach_keys() {
 	case "$prev" in
 		--detach-keys)
 			case "$cur" in
@@ -1057,7 +1057,7 @@ _docker_container() {
 }
 
 _docker_container_attach() {
-	__docker_complete_detach-keys && return
+	__docker_complete_detach_keys && return
 
 	case "$cur" in
 		-*)
@@ -1164,7 +1164,7 @@ _docker_container_diff() {
 }
 
 _docker_container_exec() {
-	__docker_complete_detach-keys && return
+	__docker_complete_detach_keys && return
 
 	case "$prev" in
 		--env|-e)
@@ -1508,7 +1508,7 @@ _docker_container_run() {
 			--rm
 			--sig-proxy=false
 		"
-		__docker_complete_detach-keys && return
+		__docker_complete_detach_keys && return
 	fi
 
 	local all_options="$options_with_args $boolean_options"
@@ -1700,7 +1700,7 @@ _docker_container_run() {
 }
 
 _docker_container_start() {
-	__docker_complete_detach-keys && return
+	__docker_complete_detach_keys && return
 
 	case "$prev" in
 		--checkpoint)
@@ -3155,7 +3155,7 @@ _docker_swarm_join() {
 	esac
 }
 
-_docker_swarm_join-token() {
+_docker_swarm_join_token() {
 	case "$cur" in
 		-*)
 			COMPREPLY=( $( compgen -W "--help --quiet -q --rotate" -- "$cur" ) )
@@ -3185,7 +3185,7 @@ _docker_swarm_unlock() {
 	esac
 }
 
-_docker_swarm_unlock-key() {
+_docker_swarm_unlock_key() {
 	case "$cur" in
 		-*)
 			COMPREPLY=( $( compgen -W "--help --quiet -q --rotate" -- "$cur" ) )
@@ -4303,7 +4303,7 @@ _docker() {
 		command_pos=0
 	fi
 
-	local completions_func=_docker_${command}
+	local completions_func=_docker_${command//-/_}
 	declare -F $completions_func >/dev/null && $completions_func
 
 	eval "$previous_extglob_setting"
