@@ -7398,6 +7398,7 @@ paths:
 
             - `id=<service id>`
             - `label=<service label>`
+            - `mode=["replicated"|"global"]`
             - `name=<service name>`
       tags: ["Service"]
   /services/create:

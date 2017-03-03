@@ -21,6 +21,7 @@ import (
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/stdcopy"
+	runconfigopts "github.com/docker/docker/runconfig/opts"
 	swarmapi "github.com/docker/swarmkit/api"
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/pkg/errors"
@@ -37,10 +38,25 @@ func (c *Cluster) GetServices(options apitypes.ServiceListOptions) ([]types.Serv
 		return nil, c.errNoManager(state)
 	}
 
-	filters, err := newListServicesFilters(options.Filters)
-	if err != nil {
+	// We move the accepted filter check here as "mode" filter
+	// is processed in the daemon, not in SwarmKit. So it might
+	// be good to have accepted file check in the same file as
+	// the filter processing (in the for loop below).
+	accepted := map[string]bool{
+		"name":  true,
+		"id":    true,
+		"label": true,
+		"mode":  true,
+	}
+	if err := options.Filters.Validate(accepted); err != nil {
 		return nil, err
 	}
+	filters := &swarmapi.ListServicesRequest_Filters{
+		NamePrefixes: options.Filters.Get("name"),
+		IDPrefixes:   options.Filters.Get("id"),
+		Labels:       runconfigopts.ConvertKVStringsToMap(options.Filters.Get("label")),
+	}
+
 	ctx, cancel := c.getRequestContext()
 	defer cancel()
 
@@ -54,6 +70,19 @@ func (c *Cluster) GetServices(options apitypes.ServiceListOptions) ([]types.Serv
 	services := []types.Service{}
 
 	for _, service := range r.Services {
+		if options.Filters.Include("mode") {
+			var mode string
+			switch service.Spec.GetMode().(type) {
+			case *swarmapi.ServiceSpec_Global:
+				mode = "global"
+			case *swarmapi.ServiceSpec_Replicated:
+				mode = "replicated"
+			}
+
+			if !options.Filters.ExactMatch("mode", mode) {
+				continue
+			}
+		}
 		services = append(services, convert.ServiceFromGRPC(*service))
 	}
 

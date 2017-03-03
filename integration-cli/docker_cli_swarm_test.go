@@ -1797,3 +1797,34 @@ func (s *DockerSwarmSuite) TestSwarmStopSignal(c *check.C) {
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	c.Assert(strings.TrimSpace(out), checker.Equals, "SIGUSR1")
 }
+
+func (s *DockerSwarmSuite) TestSwarmServiceLsFilterMode(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	out, err := d.Cmd("service", "create", "--name", "top1", "busybox", "top")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+
+	out, err = d.Cmd("service", "create", "--name", "top2", "--mode=global", "busybox", "top")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+
+	// make sure task has been deployed.
+	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 2)
+
+	out, err = d.Cmd("service", "ls")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "top1")
+	c.Assert(out, checker.Contains, "top2")
+	c.Assert(out, checker.Not(checker.Contains), "localnet")
+
+	out, err = d.Cmd("service", "ls", "--filter", "mode=global")
+	c.Assert(out, checker.Not(checker.Contains), "top1")
+	c.Assert(out, checker.Contains, "top2")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	out, err = d.Cmd("service", "ls", "--filter", "mode=replicated")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "top1")
+	c.Assert(out, checker.Not(checker.Contains), "top2")
+}

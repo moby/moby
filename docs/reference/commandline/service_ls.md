@@ -60,6 +60,7 @@ The currently supported filters are:
 
 * [id](service_ls.md#id)
 * [label](service_ls.md#label)
+* [mode](service_ls.md#mode)
 * [name](service_ls.md#name)
 
 #### id
@@ -96,6 +97,18 @@ $ docker service ls --filter label=project=project-a
 ID            NAME      MODE        REPLICAS  IMAGE
 36xvvwwauej0  frontend  replicated  5/5       nginx:alpine
 74nzcxxjv6fq  backend   replicated  3/3       redis:3.0.6
+```
+
+#### mode
+
+The `mode` filter matches on the mode (either `replicated` or `global`) of a service.
+
+The following filter matches only `global` services.
+
+```bash
+$ docker service ls --filter mode=global
+ID                  NAME                MODE                REPLICAS            IMAGE
+w7y0v2yrn620        top                 global              1/1                 busybox
 ```
 
 #### name
