@@ -129,7 +129,24 @@ func ContainerStatsWrite(ctx Context, containerStats []StatsEntry, osType string
 		}
 		return nil
 	}
-	return ctx.Write(&containerStatsContext{os: osType}, render)
+	memUsage := memUseHeader
+	if osType == winOSType {
+		memUsage = winMemUseHeader
+	}
+	containerStatsCtx := containerStatsContext{}
+	containerStatsCtx.header = map[string]string{
+		"Container": containerHeader,
+		"Name":      nameHeader,
+		"ID":        containerIDHeader,
+		"CPUPerc":   cpuPercHeader,
+		"MemUsage":  memUsage,
+		"MemPerc":   memPercHeader,
+		"NetIO":     netIOHeader,
+		"BlockIO":   blockIOHeader,
+		"PIDs":      pidsHeader,
+	}
+	containerStatsCtx.os = osType
+	return ctx.Write(&containerStatsCtx, render)
 }
 
 type containerStatsContext struct {
@@ -143,12 +160,10 @@ func (c *containerStatsContext) MarshalJSON() ([]byte, error) {
 }
 
 func (c *containerStatsContext) Container() string {
-	c.AddHeader(containerHeader)
 	return c.s.Container
 }
 
 func (c *containerStatsContext) Name() string {
-	c.AddHeader(nameHeader)
 	if len(c.s.Name) > 1 {
 		return c.s.Name[1:]
 	}
@@ -156,12 +171,10 @@ func (c *containerStatsContext) Name() string {
 }
 
 func (c *containerStatsContext) ID() string {
-	c.AddHeader(containerIDHeader)
 	return c.s.ID
 }
 
 func (c *containerStatsContext) CPUPerc() string {
-	c.AddHeader(cpuPercHeader)
 	if c.s.IsInvalid {
 		return fmt.Sprintf("--")
 	}
@@ -169,11 +182,6 @@ func (c *containerStatsContext) CPUPerc() string {
 }
 
 func (c *containerStatsContext) MemUsage() string {
-	header := memUseHeader
-	if c.os == winOSType {
-		header = winMemUseHeader
-	}
-	c.AddHeader(header)
 	if c.s.IsInvalid {
 		return fmt.Sprintf("-- / --")
 	}
@@ -184,8 +192,6 @@ func (c *containerStatsContext) MemUsage() string {
 }
 
 func (c *containerStatsContext) MemPerc() string {
-	header := memPercHeader
-	c.AddHeader(header)
 	if c.s.IsInvalid || c.os == winOSType {
 		return fmt.Sprintf("--")
 	}
@@ -193,7 +199,6 @@ func (c *containerStatsContext) MemPerc() string {
 }
 
 func (c *containerStatsContext) NetIO() string {
-	c.AddHeader(netIOHeader)
 	if c.s.IsInvalid {
 		return fmt.Sprintf("--")
 	}
@@ -201,7 +206,6 @@ func (c *containerStatsContext) NetIO() string {
 }
 
 func (c *containerStatsContext) BlockIO() string {
-	c.AddHeader(blockIOHeader)
 	if c.s.IsInvalid {
 		return fmt.Sprintf("--")
 	}
@@ -209,7 +213,6 @@ func (c *containerStatsContext) BlockIO() string {
 }
 
 func (c *containerStatsContext) PIDs() string {
-	c.AddHeader(pidsHeader)
 	if c.s.IsInvalid || c.os == winOSType {
 		return fmt.Sprintf("--")
 	}

@@ -18,27 +18,26 @@ func TestImageContext(t *testing.T) {
 
 	var ctx imageContext
 	cases := []struct {
-		imageCtx  imageContext
-		expValue  string
-		expHeader string
-		call      func() string
+		imageCtx imageContext
+		expValue string
+		call     func() string
 	}{
 		{imageContext{
 			i:     types.ImageSummary{ID: imageID},
 			trunc: true,
-		}, stringid.TruncateID(imageID), imageIDHeader, ctx.ID},
+		}, stringid.TruncateID(imageID), ctx.ID},
 		{imageContext{
 			i:     types.ImageSummary{ID: imageID},
 			trunc: false,
-		}, imageID, imageIDHeader, ctx.ID},
+		}, imageID, ctx.ID},
 		{imageContext{
 			i:     types.ImageSummary{Size: 10, VirtualSize: 10},
 			trunc: true,
-		}, "10B", sizeHeader, ctx.Size},
+		}, "10B", ctx.Size},
 		{imageContext{
 			i:     types.ImageSummary{Created: unix},
 			trunc: true,
-		}, time.Unix(unix, 0).String(), createdAtHeader, ctx.CreatedAt},
+		}, time.Unix(unix, 0).String(), ctx.CreatedAt},
 		// FIXME
 		// {imageContext{
 		// 	i:     types.ImageSummary{Created: unix},
@@ -47,15 +46,15 @@ func TestImageContext(t *testing.T) {
 		{imageContext{
 			i:    types.ImageSummary{},
 			repo: "busybox",
-		}, "busybox", repositoryHeader, ctx.Repository},
+		}, "busybox", ctx.Repository},
 		{imageContext{
 			i:   types.ImageSummary{},
 			tag: "latest",
-		}, "latest", tagHeader, ctx.Tag},
+		}, "latest", ctx.Tag},
 		{imageContext{
 			i:      types.ImageSummary{},
 			digest: "sha256:d149ab53f8718e987c3a3024bb8aa0e2caadf6c0328f1d9d850b2a2a67f2819a",
-		}, "sha256:d149ab53f8718e987c3a3024bb8aa0e2caadf6c0328f1d9d850b2a2a67f2819a", digestHeader, ctx.Digest},
+		}, "sha256:d149ab53f8718e987c3a3024bb8aa0e2caadf6c0328f1d9d850b2a2a67f2819a", ctx.Digest},
 	}
 
 	for _, c := range cases {
@@ -65,11 +64,6 @@ func TestImageContext(t *testing.T) {
 			compareMultipleValues(t, v, c.expValue)
 		} else if v != c.expValue {
 			t.Fatalf("Expected %s, was %s\n", c.expValue, v)
-		}
-
-		h := ctx.FullHeader()
-		if h != c.expHeader {
-			t.Fatalf("Expected %s, was %s\n", c.expHeader, h)
 		}
 	}
 }

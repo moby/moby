@@ -77,7 +77,15 @@ func (ctx *DiskUsageContext) Write() {
 			return
 		}
 
-		ctx.postFormat(tmpl, &diskUsageContainersContext{containers: []*types.Container{}})
+		diskUsageContainersCtx := diskUsageContainersContext{containers: []*types.Container{}}
+		diskUsageContainersCtx.header = map[string]string{
+			"Type":        typeHeader,
+			"TotalCount":  totalHeader,
+			"Active":      activeHeader,
+			"Size":        sizeHeader,
+			"Reclaimable": reclaimableHeader,
+		}
+		ctx.postFormat(tmpl, &diskUsageContainersCtx)
 
 		return
 	}
@@ -114,7 +122,7 @@ func (ctx *DiskUsageContext) Write() {
 			return
 		}
 	}
-	ctx.postFormat(tmpl, &imageContext{})
+	ctx.postFormat(tmpl, newImageContext())
 
 	// Now containers
 	ctx.Output.Write([]byte("\nContainers space usage:\n\n"))
@@ -133,7 +141,7 @@ func (ctx *DiskUsageContext) Write() {
 			return
 		}
 	}
-	ctx.postFormat(tmpl, &containerContext{})
+	ctx.postFormat(tmpl, newContainerContext())
 
 	// And volumes
 	ctx.Output.Write([]byte("\nLocal Volumes space usage:\n\n"))
@@ -149,7 +157,7 @@ func (ctx *DiskUsageContext) Write() {
 			return
 		}
 	}
-	ctx.postFormat(tmpl, &volumeContext{v: types.Volume{}})
+	ctx.postFormat(tmpl, newVolumeContext())
 }
 
 type diskUsageImagesContext struct {
@@ -163,17 +171,14 @@ func (c *diskUsageImagesContext) MarshalJSON() ([]byte, error) {
 }
 
 func (c *diskUsageImagesContext) Type() string {
-	c.AddHeader(typeHeader)
 	return "Images"
 }
 
 func (c *diskUsageImagesContext) TotalCount() string {
-	c.AddHeader(totalHeader)
 	return fmt.Sprintf("%d", len(c.images))
 }
 
 func (c *diskUsageImagesContext) Active() string {
-	c.AddHeader(activeHeader)
 	used := 0
 	for _, i := range c.images {
 		if i.Containers > 0 {
@@ -185,7 +190,6 @@ func (c *diskUsageImagesContext) Active() string {
 }
 
 func (c *diskUsageImagesContext) Size() string {
-	c.AddHeader(sizeHeader)
 	return units.HumanSize(float64(c.totalSize))
 
 }
@@ -193,7 +197,6 @@ func (c *diskUsageImagesContext) Size() string {
 func (c *diskUsageImagesContext) Reclaimable() string {
 	var used int64
 
-	c.AddHeader(reclaimableHeader)
 	for _, i := range c.images {
 		if i.Containers != 0 {
 			if i.VirtualSize == -1 || i.SharedSize == -1 {
@@ -221,12 +224,10 @@ func (c *diskUsageContainersContext) MarshalJSON() ([]byte, error) {
 }
 
 func (c *diskUsageContainersContext) Type() string {
-	c.AddHeader(typeHeader)
 	return "Containers"
 }
 
 func (c *diskUsageContainersContext) TotalCount() string {
-	c.AddHeader(totalHeader)
 	return fmt.Sprintf("%d", len(c.containers))
 }
 
@@ -237,7 +238,6 @@ func (c *diskUsageContainersContext) isActive(container types.Container) bool {
 }
 
 func (c *diskUsageContainersContext) Active() string {
-	c.AddHeader(activeHeader)
 	used := 0
 	for _, container := range c.containers {
 		if c.isActive(*container) {
@@ -251,7 +251,6 @@ func (c *diskUsageContainersContext) Active() string {
 func (c *diskUsageContainersContext) Size() string {
 	var size int64
 
-	c.AddHeader(sizeHeader)
 	for _, container := range c.containers {
 		size += container.SizeRw
 	}
@@ -263,7 +262,6 @@ func (c *diskUsageContainersContext) Reclaimable() string {
 	var reclaimable int64
 	var totalSize int64
 
-	c.AddHeader(reclaimableHeader)
 	for _, container := range c.containers {
 		if !c.isActive(*container) {
 			reclaimable += container.SizeRw
@@ -289,17 +287,14 @@ func (c *diskUsageVolumesContext) MarshalJSON() ([]byte, error) {
 }
 
 func (c *diskUsageVolumesContext) Type() string {
-	c.AddHeader(typeHeader)
 	return "Local Volumes"
 }
 
 func (c *diskUsageVolumesContext) TotalCount() string {
-	c.AddHeader(totalHeader)
 	return fmt.Sprintf("%d", len(c.volumes))
 }
 
 func (c *diskUsageVolumesContext) Active() string {
-	c.AddHeader(activeHeader)
 
 	used := 0
 	for _, v := range c.volumes {
@@ -314,7 +309,6 @@ func (c *diskUsageVolumesContext) Active() string {
 func (c *diskUsageVolumesContext) Size() string {
 	var size int64
 
-	c.AddHeader(sizeHeader)
 	for _, v := range c.volumes {
 		if v.UsageData.Size != -1 {
 			size += v.UsageData.Size
@@ -328,7 +322,6 @@ func (c *diskUsageVolumesContext) Reclaimable() string {
 	var reclaimable int64
 	var totalSize int64
 
-	c.AddHeader(reclaimableHeader)
 	for _, v := range c.volumes {
 		if v.UsageData.Size != -1 {
 			if v.UsageData.RefCount == 0 {

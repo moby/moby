@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	defaultImageTableFormat           = "table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.CreatedSince}} ago\t{{.Size}}"
-	defaultImageTableFormatWithDigest = "table {{.Repository}}\t{{.Tag}}\t{{.Digest}}\t{{.ID}}\t{{.CreatedSince}} ago\t{{.Size}}"
+	defaultImageTableFormat           = "table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.CreatedSince}}\t{{.Size}}"
+	defaultImageTableFormatWithDigest = "table {{.Repository}}\t{{.Tag}}\t{{.Digest}}\t{{.ID}}\t{{.CreatedSince}}\t{{.Size}}"
 
 	imageIDHeader    = "IMAGE ID"
 	repositoryHeader = "REPOSITORY"
@@ -76,7 +76,7 @@ func ImageWrite(ctx ImageContext, images []types.ImageSummary) error {
 	render := func(format func(subContext subContext) error) error {
 		return imageFormat(ctx, images, format)
 	}
-	return ctx.Write(&imageContext{}, render)
+	return ctx.Write(newImageContext(), render)
 }
 
 func imageFormat(ctx ImageContext, images []types.ImageSummary, format func(subContext subContext) error) error {
@@ -192,12 +192,29 @@ type imageContext struct {
 	digest string
 }
 
+func newImageContext() *imageContext {
+	imageCtx := imageContext{}
+	imageCtx.header = map[string]string{
+		"ID":           imageIDHeader,
+		"Repository":   repositoryHeader,
+		"Tag":          tagHeader,
+		"Digest":       digestHeader,
+		"CreatedSince": createdSinceHeader,
+		"CreatedAt":    createdAtHeader,
+		"Size":         sizeHeader,
+		"Containers":   containersHeader,
+		"VirtualSize":  sizeHeader,
+		"SharedSize":   sharedSizeHeader,
+		"UniqueSize":   uniqueSizeHeader,
+	}
+	return &imageCtx
+}
+
 func (c *imageContext) MarshalJSON() ([]byte, error) {
 	return marshalJSON(c)
 }
 
 func (c *imageContext) ID() string {
-	c.AddHeader(imageIDHeader)
 	if c.trunc {
 		return stringid.TruncateID(c.i.ID)
 	}
@@ -205,38 +222,31 @@ func (c *imageContext) ID() string {
 }
 
 func (c *imageContext) Repository() string {
-	c.AddHeader(repositoryHeader)
 	return c.repo
 }
 
 func (c *imageContext) Tag() string {
-	c.AddHeader(tagHeader)
 	return c.tag
 }
 
 func (c *imageContext) Digest() string {
-	c.AddHeader(digestHeader)
 	return c.digest
 }
 
 func (c *imageContext) CreatedSince() string {
-	c.AddHeader(createdSinceHeader)
 	createdAt := time.Unix(int64(c.i.Created), 0)
-	return units.HumanDuration(time.Now().UTC().Sub(createdAt))
+	return units.HumanDuration(time.Now().UTC().Sub(createdAt)) + " ago"
 }
 
 func (c *imageContext) CreatedAt() string {
-	c.AddHeader(createdAtHeader)
 	return time.Unix(int64(c.i.Created), 0).String()
 }
 
 func (c *imageContext) Size() string {
-	c.AddHeader(sizeHeader)
 	return units.HumanSizeWithPrecision(float64(c.i.Size), 3)
 }
 
 func (c *imageContext) Containers() string {
-	c.AddHeader(containersHeader)
 	if c.i.Containers == -1 {
 		return "N/A"
 	}
@@ -244,12 +254,10 @@ func (c *imageContext) Containers() string {
 }
 
 func (c *imageContext) VirtualSize() string {
-	c.AddHeader(sizeHeader)
 	return units.HumanSize(float64(c.i.VirtualSize))
 }
 
 func (c *imageContext) SharedSize() string {
-	c.AddHeader(sharedSizeHeader)
 	if c.i.SharedSize == -1 {
 		return "N/A"
 	}
@@ -257,7 +265,6 @@ func (c *imageContext) SharedSize() string {
 }
 
 func (c *imageContext) UniqueSize() string {
-	c.AddHeader(uniqueSizeHeader)
 	if c.i.VirtualSize == -1 || c.i.SharedSize == -1 {
 		return "N/A"
 	}

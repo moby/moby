@@ -44,7 +44,28 @@ func NetworkWrite(ctx Context, networks []types.NetworkResource) error {
 		}
 		return nil
 	}
-	return ctx.Write(&networkContext{}, render)
+	networkCtx := networkContext{}
+	networkCtx.header = networkHeaderContext{
+		"ID":        networkIDHeader,
+		"Name":      nameHeader,
+		"Driver":    driverHeader,
+		"Scope":     scopeHeader,
+		"IPv6":      ipv6Header,
+		"Internal":  internalHeader,
+		"Labels":    labelsHeader,
+		"CreatedAt": createdAtHeader,
+	}
+	return ctx.Write(&networkCtx, render)
+}
+
+type networkHeaderContext map[string]string
+
+func (c networkHeaderContext) Label(name string) string {
+	n := strings.Split(name, ".")
+	r := strings.NewReplacer("-", " ", "_", " ")
+	h := r.Replace(n[len(n)-1])
+
+	return h
 }
 
 type networkContext struct {
@@ -58,7 +79,6 @@ func (c *networkContext) MarshalJSON() ([]byte, error) {
 }
 
 func (c *networkContext) ID() string {
-	c.AddHeader(networkIDHeader)
 	if c.trunc {
 		return stringid.TruncateID(c.n.ID)
 	}
@@ -66,32 +86,26 @@ func (c *networkContext) ID() string {
 }
 
 func (c *networkContext) Name() string {
-	c.AddHeader(nameHeader)
 	return c.n.Name
 }
 
 func (c *networkContext) Driver() string {
-	c.AddHeader(driverHeader)
 	return c.n.Driver
 }
 
 func (c *networkContext) Scope() string {
-	c.AddHeader(scopeHeader)
 	return c.n.Scope
 }
 
 func (c *networkContext) IPv6() string {
-	c.AddHeader(ipv6Header)
 	return fmt.Sprintf("%v", c.n.EnableIPv6)
 }
 
 func (c *networkContext) Internal() string {
-	c.AddHeader(internalHeader)
 	return fmt.Sprintf("%v", c.n.Internal)
 }
 
 func (c *networkContext) Labels() string {
-	c.AddHeader(labelsHeader)
 	if c.n.Labels == nil {
 		return ""
 	}
@@ -104,12 +118,6 @@ func (c *networkContext) Labels() string {
 }
 
 func (c *networkContext) Label(name string) string {
-	n := strings.Split(name, ".")
-	r := strings.NewReplacer("-", " ", "_", " ")
-	h := r.Replace(n[len(n)-1])
-
-	c.AddHeader(h)
-
 	if c.n.Labels == nil {
 		return ""
 	}
@@ -117,6 +125,5 @@ func (c *networkContext) Label(name string) string {
 }
 
 func (c *networkContext) CreatedAt() string {
-	c.AddHeader(createdAtHeader)
 	return c.n.Created.String()
 }

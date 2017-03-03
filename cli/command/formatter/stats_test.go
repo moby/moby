@@ -42,11 +42,6 @@ func TestContainerStatsContext(t *testing.T) {
 		if v := te.call(); v != te.expValue {
 			t.Fatalf("Expected %q, got %q", te.expValue, v)
 		}
-
-		h := ctx.FullHeader()
-		if h != te.expHeader {
-			t.Fatalf("Expected %q, got %q", te.expHeader, h)
-		}
 	}
 }
 

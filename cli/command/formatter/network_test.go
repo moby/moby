@@ -19,41 +19,40 @@ func TestNetworkContext(t *testing.T) {
 	cases := []struct {
 		networkCtx networkContext
 		expValue   string
-		expHeader  string
 		call       func() string
 	}{
 		{networkContext{
 			n:     types.NetworkResource{ID: networkID},
 			trunc: false,
-		}, networkID, networkIDHeader, ctx.ID},
+		}, networkID, ctx.ID},
 		{networkContext{
 			n:     types.NetworkResource{ID: networkID},
 			trunc: true,
-		}, stringid.TruncateID(networkID), networkIDHeader, ctx.ID},
+		}, stringid.TruncateID(networkID), ctx.ID},
 		{networkContext{
 			n: types.NetworkResource{Name: "network_name"},
-		}, "network_name", nameHeader, ctx.Name},
+		}, "network_name", ctx.Name},
 		{networkContext{
 			n: types.NetworkResource{Driver: "driver_name"},
-		}, "driver_name", driverHeader, ctx.Driver},
+		}, "driver_name", ctx.Driver},
 		{networkContext{
 			n: types.NetworkResource{EnableIPv6: true},
-		}, "true", ipv6Header, ctx.IPv6},
+		}, "true", ctx.IPv6},
 		{networkContext{
 			n: types.NetworkResource{EnableIPv6: false},
-		}, "false", ipv6Header, ctx.IPv6},
+		}, "false", ctx.IPv6},
 		{networkContext{
 			n: types.NetworkResource{Internal: true},
-		}, "true", internalHeader, ctx.Internal},
+		}, "true", ctx.Internal},
 		{networkContext{
 			n: types.NetworkResource{Internal: false},
-		}, "false", internalHeader, ctx.Internal},
+		}, "false", ctx.Internal},
 		{networkContext{
 			n: types.NetworkResource{},
-		}, "", labelsHeader, ctx.Labels},
+		}, "", ctx.Labels},
 		{networkContext{
 			n: types.NetworkResource{Labels: map[string]string{"label1": "value1", "label2": "value2"}},
-		}, "label1=value1,label2=value2", labelsHeader, ctx.Labels},
+		}, "label1=value1,label2=value2", ctx.Labels},
 	}
 
 	for _, c := range cases {
@@ -63,11 +62,6 @@ func TestNetworkContext(t *testing.T) {
 			compareMultipleValues(t, v, c.expValue)
 		} else if v != c.expValue {
 			t.Fatalf("Expected %s, was %s\n", c.expValue, v)
-		}
-
-		h := ctx.FullHeader()
-		if h != c.expHeader {
-			t.Fatalf("Expected %s, was %s\n", c.expHeader, h)
 		}
 	}
 }
