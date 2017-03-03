@@ -19,6 +19,9 @@ type Moby struct {
 		Path     string
 		Contents string
 	}
+	Outputs []struct {
+		Format string
+	}
 }
 
 type MobyImage struct {

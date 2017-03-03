@@ -69,8 +69,8 @@ func containersInitrd(containers []*bytes.Buffer) (*bytes.Buffer, error) {
 	return w, nil
 }
 
-func build() {
-	config, err := ioutil.ReadFile("moby.yaml")
+func build(configfile string) {
+	config, err := ioutil.ReadFile(configfile)
 	if err != nil {
 		log.Fatalf("Cannot open config file: %v", err)
 	}
@@ -143,17 +143,33 @@ func build() {
 		log.Fatalf("Failed to make initrd %v", err)
 	}
 
-	// TODO should we tar these up? Also output to other formats
-	err = ioutil.WriteFile("initrd.img", initrd.Bytes(), os.FileMode(0644))
-	if err != nil {
-		log.Fatalf("could not write initrd: %v", err)
-	}
-	err = ioutil.WriteFile("bzImage", bzimage.Bytes(), os.FileMode(0644))
-	if err != nil {
-		log.Fatalf("could not write kernel: %v", err)
+	for _, o := range m.Outputs {
+		switch o.Format {
+		case "kernel+initrd":
+			err = OutputKernelInitrd(bzimage.Bytes(), initrd.Bytes())
+			if err != nil {
+				log.Fatalf("Error writing %s output: %v", o.Format, err)
+			}
+		case "":
+			log.Fatalf("No format specified for output")
+		default:
+			log.Fatalf("Unknown output type %s", o.Format)
+		}
 	}
 }
 
+func OutputKernelInitrd(bzimage []byte, initrd []byte) error {
+	err := ioutil.WriteFile("initrd.img", initrd, os.FileMode(0644))
+	if err != nil {
+		return err
+	}
+	err = ioutil.WriteFile("bzImage", bzimage, os.FileMode(0644))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func main() {
-	build()
+	build("moby.yaml")
 }
