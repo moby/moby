@@ -1,10 +1,7 @@
 package registry
 
 import (
-	"fmt"
 	"sort"
-	"strings"
-	"text/tabwriter"
 
 	"golang.org/x/net/context"
 
@@ -12,8 +9,8 @@ import (
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/cli/command/formatter"
 	"github.com/docker/docker/opts"
-	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/registry"
 	"github.com/spf13/cobra"
 )
@@ -23,6 +20,7 @@ type searchOptions struct {
 	noTrunc bool
 	limit   int
 	filter  opts.FilterOpt
+	format  string
 
 	// Deprecated
 	stars     uint
@@ -48,6 +46,7 @@ func NewSearchCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.BoolVar(&opts.noTrunc, "no-trunc", false, "Don't truncate output")
 	flags.VarP(&opts.filter, "filter", "f", "Filter output based on conditions provided")
 	flags.IntVar(&opts.limit, "limit", registry.DefaultSearchLimit, "Max number of search results")
+	flags.StringVar(&opts.format, "format", "", "Pretty-print search using a Go template")
 
 	flags.BoolVar(&opts.automated, "automated", false, "Only show automated builds")
 	flags.UintVarP(&opts.stars, "stars", "s", 0, "Only displays with at least x stars")
@@ -91,31 +90,18 @@ func runSearch(dockerCli *command.DockerCli, opts searchOptions) error {
 	results := searchResultsByStars(unorderedResults)
 	sort.Sort(results)
 
-	w := tabwriter.NewWriter(dockerCli.Out(), 10, 1, 3, ' ', 0)
-	fmt.Fprintf(w, "NAME\tDESCRIPTION\tSTARS\tOFFICIAL\tAUTOMATED\n")
-	for _, res := range results {
-		// --automated and -s, --stars are deprecated since Docker 1.12
-		if (opts.automated && !res.IsAutomated) || (int(opts.stars) > res.StarCount) {
-			continue
-		}
-		desc := strings.Replace(res.Description, "\n", " ", -1)
-		desc = strings.Replace(desc, "\r", " ", -1)
-		if !opts.noTrunc {
-			desc = stringutils.Ellipsis(desc, 45)
-		}
-		fmt.Fprintf(w, "%s\t%s\t%d\t", res.Name, desc, res.StarCount)
-		if res.IsOfficial {
-			fmt.Fprint(w, "[OK]")
-
-		}
-		fmt.Fprint(w, "\t")
-		if res.IsAutomated {
-			fmt.Fprint(w, "[OK]")
-		}
-		fmt.Fprint(w, "\n")
+	format := opts.format
+	if len(format) == 0 {
+		format = formatter.TableFormatKey
 	}
-	w.Flush()
-	return nil
+
+	searchCtx := formatter.Context{
+		Output: dockerCli.Out(),
+		Format: formatter.NewSearchFormat(format),
+		Trunc:  !opts.noTrunc,
+	}
+
+	return formatter.SearchWrite(searchCtx, results, opts.automated, int(opts.stars))
 }
 
 // searchResultsByStars sorts search results in descending order by number of stars.
