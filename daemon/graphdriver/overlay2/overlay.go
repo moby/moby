@@ -172,7 +172,7 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		return nil, err
 	}
 	if !supportsDType {
-		// not a fatal error until v1.16 (#27443)
+		// not a fatal error until v17.12 (#27443)
 		logrus.Warn(overlayutils.ErrDTypeNotSupported("overlay2", backingFs))
 	}
 
