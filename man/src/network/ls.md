@@ -35,6 +35,7 @@ The currently supported filters are:
 * id (network's id)
 * label (`label=<key>` or `label=<key>=<value>`)
 * name (network's name)
+* scope (`swarm|global|local`)
 * type (custom|builtin)
 
 #### Driver
@@ -116,6 +117,30 @@ $ docker network ls --filter name=foo
 NETWORK ID          NAME                DRIVER
 95e74588f40d        foo                 bridge
 06e7eef0a170        foobar              bridge
+```
+
+#### Scope
+
+The `scope` filter matches networks based on their scope.
+
+The following example matches networks with the `swarm` scope:
+
+```bash
+$ docker network ls --filter scope=swarm
+NETWORK ID          NAME                DRIVER              SCOPE
+xbtm0v4f1lfh        ingress             overlay             swarm
+ic6r88twuu92        swarmnet            overlay             swarm
+```
+
+The following example matches networks with the `local` scope:
+
+```bash
+$ docker network ls --filter scope=local
+NETWORK ID          NAME                DRIVER              SCOPE
+e85227439ac7        bridge              bridge              local
+0ca0e19443ed        host                host                local
+ca13cc149a36        localnet            bridge              local
+f9e115d2de35        none                null                local
 ```
 
 #### Type

@@ -15,22 +15,32 @@ func TestFilterNetworks(t *testing.T) {
 		{
 			Name:   "host",
 			Driver: "host",
+			Scope:  "local",
 		},
 		{
 			Name:   "bridge",
 			Driver: "bridge",
+			Scope:  "local",
 		},
 		{
 			Name:   "none",
 			Driver: "null",
+			Scope:  "local",
 		},
 		{
 			Name:   "myoverlay",
 			Driver: "overlay",
+			Scope:  "swarm",
 		},
 		{
 			Name:   "mydrivernet",
 			Driver: "mydriver",
+			Scope:  "local",
+		},
+		{
+			Name:   "mykvnet",
+			Driver: "mykvdriver",
+			Scope:  "global",
 		},
 	}
 
@@ -51,6 +61,15 @@ func TestFilterNetworks(t *testing.T) {
 
 	invalidDriverFilters := filters.NewArgs()
 	invalidDriverFilters.Add("type", "invalid")
+
+	localScopeFilters := filters.NewArgs()
+	localScopeFilters.Add("scope", "local")
+
+	swarmScopeFilters := filters.NewArgs()
+	swarmScopeFilters.Add("scope", "swarm")
+
+	globalScopeFilters := filters.NewArgs()
+	globalScopeFilters.Add("scope", "global")
 
 	testCases := []struct {
 		filter      filters.Args
@@ -74,7 +93,7 @@ func TestFilterNetworks(t *testing.T) {
 		},
 		{
 			filter:      customDriverFilters,
-			resultCount: 2,
+			resultCount: 3,
 			err:         "",
 		},
 		{
@@ -86,6 +105,21 @@ func TestFilterNetworks(t *testing.T) {
 			filter:      invalidDriverFilters,
 			resultCount: 0,
 			err:         "Invalid filter: 'type'='invalid'",
+		},
+		{
+			filter:      localScopeFilters,
+			resultCount: 4,
+			err:         "",
+		},
+		{
+			filter:      swarmScopeFilters,
+			resultCount: 1,
+			err:         "",
+		},
+		{
+			filter:      globalScopeFilters,
+			resultCount: 1,
+			err:         "",
 		},
 	}
 

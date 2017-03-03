@@ -27,6 +27,7 @@ var (
 		"name":   true,
 		"id":     true,
 		"label":  true,
+		"scope":  true,
 	}
 )
 
