@@ -39,7 +39,7 @@ type buildOptions struct {
 	labels         opts.ListOpts
 	buildArgs      opts.ListOpts
 	extraHosts     opts.ListOpts
-	volumes        opts.ListOpts
+	mounts         opts.MountOpt
 	ulimits        *opts.UlimitOpt
 	memory         string
 	memorySwap     string
@@ -72,7 +72,7 @@ func NewBuildCommand(dockerCli *command.DockerCli) *cobra.Command {
 		ulimits:    opts.NewUlimitOpt(&ulimits),
 		labels:     opts.NewListOpts(opts.ValidateEnv),
 		extraHosts: opts.NewListOpts(opts.ValidateExtraHost),
-		volumes:    opts.NewListOpts(nil),
+		mounts:     opts.NewMountOpt(),
 	}
 
 	cmd := &cobra.Command{
@@ -113,7 +113,7 @@ func NewBuildCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.StringVar(&options.networkMode, "network", "default", "Set the networking mode for the RUN instructions during build")
 	flags.SetAnnotation("network", "version", []string{"1.25"})
 	flags.Var(&options.extraHosts, "add-host", "Add a custom host-to-IP mapping (host:ip)")
-	flags.VarP(&options.volumes, "volume", "v", "Bind mount a volume")
+	flags.Var(&options.mounts, "mount", "Attach a filesystem mount to the service")
 
 	command.AddTrustVerificationFlags(flags)
 
@@ -308,7 +308,7 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		NetworkMode:    options.networkMode,
 		Squash:         options.squash,
 		ExtraHosts:     options.extraHosts.GetAll(),
-		Volumes:        options.volumes.GetAll(),
+		Mounts:         options.mounts.Value(),
 	}
 
 	response, err := dockerCli.Client().ImageBuild(ctx, body, buildOptions)

@@ -16,6 +16,11 @@ type MountOpt struct {
 	values []mounttypes.Mount
 }
 
+// NewMountOpt creates a new MountOpt
+func NewMountOpt() MountOpt {
+	return MountOpt{}
+}
+
 // Set a new mount value
 func (m *MountOpt) Set(value string) error {
 	csvReader := csv.NewReader(strings.NewReader(value))

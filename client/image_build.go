@@ -120,11 +120,11 @@ func (cli *Client) imageBuildOptionsToQuery(options types.ImageBuildOptions) (ur
 	}
 	query.Set("cachefrom", string(cacheFromJSON))
 
-	volumesJSON, err := json.Marshal(options.Volumes)
+	mountsJSON, err := json.Marshal(options.Mounts)
 	if err != nil {
 		return query, err
 	}
-	query.Set("volumes", string(volumesJSON))
+	query.Set("mounts", string(mountsJSON))
 
 	return query, nil
 }

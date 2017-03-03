@@ -4549,18 +4549,19 @@ paths:
         `container:<name|id>`. Any other value is taken as a custom network's
         name to which this container should connect to."
           type: "string"
-        - name: "volumes"
+        - name: "mounts"
           in: "query"
           description: |
-            A list of volume bindings for this container. Each volume binding is a string in one of these forms:
+            This is a JSON array of mounts to be used during build-time only. For example:
 
-            - `host-src:container-dest` to bind-mount a host path into the container. Both `host-src`, and `container-dest` must be an _absolute_ path.
-            - `host-src:container-dest:ro` to make the bind-mount read-only inside the container. Both `host-src`, and `container-dest` must be an _absolute_ path.
-            - `volume-name:container-dest` to bind-mount a volume managed by a volume driver into the container. `container-dest` must be an _absolute_ path.
-            - `volume-name:container-dest:ro` to mount the volume read-only inside the container.  `container-dest` must be an _absolute_ path.
-          type: "array"
-          items:
-            type: "string"
+            ```
+            [{
+              type: "bind",
+              source: "/path/to/host/folder",
+              target: "/path/to/container/folder"
+            }]
+            ```
+          type: "string"
         - name: "Content-type"
           in: "header"
           type: "string"
