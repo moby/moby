@@ -463,6 +463,10 @@ func (ep *endpoint) deleteDriverInfoFromCluster() error {
 }
 
 func (ep *endpoint) addServiceInfoToCluster() error {
+	if ep.isAnonymous() && len(ep.myAliases) == 0 || ep.Iface().Address() == nil {
+		return nil
+	}
+
 	n := ep.getNetwork()
 	if !n.isClusterEligible() {
 		return nil
@@ -470,38 +474,42 @@ func (ep *endpoint) addServiceInfoToCluster() error {
 
 	c := n.getController()
 	agent := c.getAgent()
-	if !ep.isAnonymous() && ep.Iface().Address() != nil {
-		var ingressPorts []*PortConfig
-		if ep.svcID != "" {
-			// Gossip ingress ports only in ingress network.
-			if n.ingress {
-				ingressPorts = ep.ingressPorts
-			}
 
-			if err := c.addServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), ep.virtualIP, ingressPorts, ep.svcAliases, ep.Iface().Address().IP); err != nil {
-				return err
-			}
+	var ingressPorts []*PortConfig
+	if ep.svcID != "" {
+		// Gossip ingress ports only in ingress network.
+		if n.ingress {
+			ingressPorts = ep.ingressPorts
 		}
 
-		buf, err := proto.Marshal(&EndpointRecord{
-			Name:         ep.Name(),
-			ServiceName:  ep.svcName,
-			ServiceID:    ep.svcID,
-			VirtualIP:    ep.virtualIP.String(),
-			IngressPorts: ingressPorts,
-			Aliases:      ep.svcAliases,
-			TaskAliases:  ep.myAliases,
-			EndpointIP:   ep.Iface().Address().IP.String(),
-		})
-
-		if err != nil {
+		if err := c.addServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), ep.virtualIP, ingressPorts, ep.svcAliases, ep.Iface().Address().IP); err != nil {
 			return err
 		}
+	}
 
-		if agent != nil {
-			if err := agent.networkDB.CreateEntry("endpoint_table", n.ID(), ep.ID(), buf); err != nil {
-				return err
-			}
+	name := ep.Name()
+	if ep.isAnonymous() {
+		name = ep.MyAliases()[0]
+	}
+
+	buf, err := proto.Marshal(&EndpointRecord{
+		Name:         name,
+		ServiceName:  ep.svcName,
+		ServiceID:    ep.svcID,
+		VirtualIP:    ep.virtualIP.String(),
+		IngressPorts: ingressPorts,
+		Aliases:      ep.svcAliases,
+		TaskAliases:  ep.myAliases,
+		EndpointIP:   ep.Iface().Address().IP.String(),
+	})
+
+	if err != nil {
+		return err
+	}
+
+	if agent != nil {
+		if err := agent.networkDB.CreateEntry("endpoint_table", n.ID(), ep.ID(), buf); err != nil {
+			return err
 		}
 	}
 
@@ -509,6 +517,10 @@ func (ep *endpoint) addServiceInfoToCluster() error {
 }
 
 func (ep *endpoint) deleteServiceInfoFromCluster() error {
+	if ep.isAnonymous() && len(ep.myAliases) == 0 {
+		return nil
+	}
+
 	n := ep.getNetwork()
 	if !n.isClusterEligible() {
 		return nil
@@ -517,23 +529,23 @@ func (ep *endpoint) deleteServiceInfoFromCluster() error {
 	c := n.getController()
 	agent := c.getAgent()
 
-	if !ep.isAnonymous() {
-		if ep.svcID != "" && ep.Iface().Address() != nil {
-			var ingressPorts []*PortConfig
-			if n.ingress {
-				ingressPorts = ep.ingressPorts
-			}
-
-			if err := c.rmServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), ep.virtualIP, ingressPorts, ep.svcAliases, ep.Iface().Address().IP); err != nil {
-				return err
-			}
+	if ep.svcID != "" && ep.Iface().Address() != nil {
+		var ingressPorts []*PortConfig
+		if n.ingress {
+			ingressPorts = ep.ingressPorts
 		}
-		if agent != nil {
-			if err := agent.networkDB.DeleteEntry("endpoint_table", n.ID(), ep.ID()); err != nil {
-				return err
-			}
+
+		if err := c.rmServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), ep.virtualIP, ingressPorts, ep.svcAliases, ep.Iface().Address().IP); err != nil {
+			return err
 		}
 	}
+
+	if agent != nil {
+		if err := agent.networkDB.DeleteEntry("endpoint_table", n.ID(), ep.ID()); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
