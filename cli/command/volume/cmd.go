@@ -13,6 +13,7 @@ func NewVolumeCommand(dockerCli *command.DockerCli) *cobra.Command {
 		Short: "Manage volumes",
 		Args:  cli.NoArgs,
 		RunE:  dockerCli.ShowHelp,
+		Tags:  map[string]string{"version": "1.21"},
 	}
 	cmd.AddCommand(
 		newCreateCommand(dockerCli),

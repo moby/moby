@@ -14,6 +14,7 @@ func NewSwarmCommand(dockerCli *command.DockerCli) *cobra.Command {
 		Short: "Manage Swarm",
 		Args:  cli.NoArgs,
 		RunE:  dockerCli.ShowHelp,
+		Tags:  map[string]string{"version": "1.24"},
 	}
 	cmd.AddCommand(
 		newInitCommand(dockerCli),

@@ -26,6 +26,7 @@ func newUpgradeCommand(dockerCli *command.DockerCli) *cobra.Command {
 			}
 			return runUpgrade(dockerCli, options)
 		},
+		Tags: map[string]string{"version": "1.26"},
 	}
 
 	flags := cmd.Flags()
