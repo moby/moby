@@ -57,7 +57,7 @@ func TaskFromGRPC(t swarmapi.Task) types.Task {
 
 	// NetworksAttachments
 	for _, na := range t.Networks {
-		task.NetworksAttachments = append(task.NetworksAttachments, networkAttachementFromGRPC(na))
+		task.NetworksAttachments = append(task.NetworksAttachments, networkAttachmentFromGRPC(na))
 	}
 
 	if t.Status.PortStatus == nil {

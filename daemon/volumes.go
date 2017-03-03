@@ -253,7 +253,7 @@ func backportMountSpec(container *container.Container) error {
 			m.Type = mounttypes.TypeVolume
 			m.Spec.Type = mounttypes.TypeVolume
 
-			// make sure this is not an anyonmous volume before setting the spec source
+			// make sure this is not an anonymous volume before setting the spec source
 			if _, exists := container.Config.Volumes[target]; !exists {
 				m.Spec.Source = m.Name
 			}
