@@ -36,16 +36,8 @@ func daemonHost() string {
 }
 
 // FIXME(vdemeester) move this away are remove ignoreNoSuchContainer bool
-func deleteContainer(ignoreNoSuchContainer bool, container ...string) error {
-	result := icmd.RunCommand(dockerBinary, append([]string{"rm", "-fv"}, container...)...)
-	if ignoreNoSuchContainer && result.Error != nil {
-		// If the error is "No such container: ..." this means the container doesn't exists anymore,
-		// we can safely ignore that one.
-		if strings.Contains(result.Stderr(), "No such container") {
-			return nil
-		}
-	}
-	return result.Compare(icmd.Success)
+func deleteContainer(container ...string) error {
+	return icmd.RunCommand(dockerBinary, append([]string{"rm", "-fv"}, container...)...).Compare(icmd.Success)
 }
 
 func getAllContainers(c *check.C) string {
@@ -58,7 +50,7 @@ func getAllContainers(c *check.C) string {
 func deleteAllContainers(c *check.C) {
 	containers := getAllContainers(c)
 	if containers != "" {
-		err := deleteContainer(true, strings.Split(strings.TrimSpace(containers), "\n")...)
+		err := deleteContainer(strings.Split(strings.TrimSpace(containers), "\n")...)
 		c.Assert(err, checker.IsNil)
 	}
 }
@@ -346,7 +338,7 @@ func (f *remoteFileServer) Close() error {
 	if f.container == "" {
 		return nil
 	}
-	return deleteContainer(false, f.container)
+	return deleteContainer(f.container)
 }
 
 func newRemoteFileServer(c *check.C, ctx *FakeContext) *remoteFileServer {
