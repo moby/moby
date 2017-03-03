@@ -229,17 +229,14 @@ func hideUnsupportedFeatures(cmd *cobra.Command, clientVersion, osType string, h
 }
 
 func isSupported(cmd *cobra.Command, clientVersion, osType string, hasExperimental bool) error {
-	// We check recursively so that, e.g., `docker stack ls` will return the same output as `docker stack`
-	if !hasExperimental {
-		for curr := cmd; curr != nil; curr = curr.Parent() {
-			if _, ok := curr.Tags["experimental"]; ok {
-				return errors.New("only supported on a Docker daemon with experimental features enabled")
-			}
+	// Check recursively so that, e.g., `docker stack ls` returns the same output as `docker stack`
+	for curr := cmd; curr != nil; curr = curr.Parent() {
+		if cmdVersion, ok := curr.Tags["version"]; ok && versions.LessThan(clientVersion, cmdVersion) {
+			return fmt.Errorf("%s requires API version %s, but the Docker daemon API version is %s", cmd.CommandPath(), cmdVersion, clientVersion)
 		}
-	}
-
-	if cmdVersion, ok := cmd.Tags["version"]; ok && versions.LessThan(clientVersion, cmdVersion) {
-		return fmt.Errorf("requires API version %s, but the Docker daemon API version is %s", cmdVersion, clientVersion)
+		if _, ok := curr.Tags["experimental"]; ok && !hasExperimental {
+			return fmt.Errorf("%s is only supported on a Docker daemon with experimental features enabled", cmd.CommandPath())
+		}
 	}
 
 	errs := []string{}
