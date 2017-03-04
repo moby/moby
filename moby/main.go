@@ -7,7 +7,6 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"os"
 	"os/exec"
 
 	"github.com/docker/moby/pkg/initrd"
@@ -16,6 +15,37 @@ import (
 const (
 	docker2tar = "mobylinux/docker2tar:82a3f11f70b2959c7100dd6e184b511ebfc65908@sha256:e4fd36febc108477a2e5316d263ac257527779409891c7ac10d455a162df05c1"
 )
+
+func dockerRun(args ...string) ([]byte, error) {
+	// TODO switch to using Docker client API not exec - just a quick prototype
+	docker, err := exec.LookPath("docker")
+	if err != nil {
+		return []byte{}, errors.New("Docker does not seem to be installed")
+	}
+	args = append([]string{"run", "--rm"}, args...)
+	cmd := exec.Command(docker, args...)
+	out, err := cmd.Output()
+	if err != nil {
+		return []byte{}, err
+	}
+	return out, nil
+}
+
+func dockerRunInput(input io.Reader, args ...string) ([]byte, error) {
+	// TODO switch to using Docker client API not exec - just a quick prototype
+	docker, err := exec.LookPath("docker")
+	if err != nil {
+		return []byte{}, errors.New("Docker does not seem to be installed")
+	}
+	args = append([]string{"run", "--rm", "-i"}, args...)
+	cmd := exec.Command(docker, args...)
+	cmd.Stdin = input
+	out, err := cmd.Output()
+	if err != nil {
+		return []byte{}, err
+	}
+	return out, nil
+}
 
 func untarKernel(buf *bytes.Buffer, bzimageName, ktarName string) (*bytes.Buffer, *bytes.Buffer, error) {
 	tr := tar.NewReader(buf)
@@ -80,13 +110,6 @@ func build(configfile string) {
 		log.Fatalf("Invalid config: %v", err)
 	}
 
-	// TODO switch to using Docker client API not exec - just a quick prototype
-
-	docker, err := exec.LookPath("docker")
-	if err != nil {
-		log.Fatalf("Docker does not seem to be installed")
-	}
-
 	containers := []*bytes.Buffer{}
 
 	// get kernel bzImage and initrd tarball from container
@@ -95,9 +118,7 @@ func build(configfile string) {
 		bzimageName = "bzImage"
 		ktarName    = "kernel.tar"
 	)
-	args := []string{"run", "--rm", m.Kernel, "tar", "cf", "-", bzimageName, ktarName}
-	cmd := exec.Command(docker, args...)
-	out, err := cmd.Output()
+	out, err := dockerRun(m.Kernel, "tar", "cf", "-", bzimageName, ktarName)
 	if err != nil {
 		log.Fatalf("Failed to extract kernel image and tarball")
 	}
@@ -109,9 +130,7 @@ func build(configfile string) {
 	containers = append(containers, ktar)
 
 	// convert init image to tarball
-	args = []string{"run", "--rm", "-v", "/var/run/docker.sock:/var/run/docker.sock", docker2tar, m.Init}
-	cmd = exec.Command(docker, args...)
-	init, err := cmd.Output()
+	init, err := dockerRun("-v", "/var/run/docker.sock:/var/run/docker.sock", docker2tar, m.Init)
 	if err != nil {
 		log.Fatalf("Failed to build init tarball: %v", err)
 	}
@@ -120,10 +139,8 @@ func build(configfile string) {
 
 	for _, image := range m.System {
 		args := ConfigToRun(&image)
-		cmd := exec.Command(docker, args...)
-
 		// get output tarball
-		out, err := cmd.Output()
+		out, err := dockerRun(args...)
 		if err != nil {
 			log.Fatalf("Failed to build container tarball: %v", err)
 		}
@@ -143,31 +160,10 @@ func build(configfile string) {
 		log.Fatalf("Failed to make initrd %v", err)
 	}
 
-	for _, o := range m.Outputs {
-		switch o.Format {
-		case "kernel+initrd":
-			err = OutputKernelInitrd(bzimage.Bytes(), initrd.Bytes())
-			if err != nil {
-				log.Fatalf("Error writing %s output: %v", o.Format, err)
-			}
-		case "":
-			log.Fatalf("No format specified for output")
-		default:
-			log.Fatalf("Unknown output type %s", o.Format)
-		}
-	}
-}
-
-func OutputKernelInitrd(bzimage []byte, initrd []byte) error {
-	err := ioutil.WriteFile("initrd.img", initrd, os.FileMode(0644))
+	err = outputs(m, bzimage.Bytes(), initrd.Bytes())
 	if err != nil {
-		return err
+		log.Fatalf("Error writing outputs: %v", err)
 	}
-	err = ioutil.WriteFile("bzImage", bzimage, os.FileMode(0644))
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func main() {

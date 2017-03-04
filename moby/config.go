@@ -49,7 +49,7 @@ func NewConfig(config []byte) (*Moby, error) {
 
 func ConfigToRun(image *MobyImage) []string {
 	// riddler arguments
-	args := []string{"run", "--rm", "-v", "/var/run/docker.sock:/var/run/docker.sock", riddler, image.Image, "/containers/" + image.Name}
+	args := []string{"-v", "/var/run/docker.sock:/var/run/docker.sock", riddler, image.Image, "/containers/" + image.Name}
 	// docker arguments
 	args = append(args, "--cap-drop", "all")
 	for _, cap := range image.Capabilities {
