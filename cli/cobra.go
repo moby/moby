@@ -31,7 +31,7 @@ func SetupRootCommand(rootCmd *cobra.Command) {
 func FlagErrorFunc(cmd *cobra.Command, err error) error {
 
 	if err == nil {
-		return nil
+		return nil //returning "nil" to ensure no error, and hence no need to continue
 	}
 
 	usage := ""
