@@ -168,6 +168,8 @@ equivalent docker daemon flags used for docker0 bridge:
 | `com.docker.network.bridge.host_binding_ipv4`    | `--ip`      | Default IP when binding container ports               |
 | `com.docker.network.driver.mtu`                  | `--mtu`     | Set the containers network MTU                        |
 
+The `com.docker.network.driver.mtu` option is also supported by the `overlay` driver.
+
 The following arguments can be passed to `docker network create` for any
 network driver, again with their approximate equivalents to `docker daemon`.
 

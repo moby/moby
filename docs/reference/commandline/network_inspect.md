@@ -73,6 +73,12 @@ $ sudo docker network inspect bridge
                     "Subnet": "172.17.42.1/16",
                     "Gateway": "172.17.42.1"
                 }
+            ],
+            "State": [
+                {
+                    "Subnet": "172.17.42.1/16",
+                    "Gateway": "172.17.42.1"
+                }
             ]
         },
         "Internal": false,
@@ -128,6 +134,12 @@ $ docker network inspect simple-network
         "IPAM": {
             "Driver": "default",
             "Config": [
+                {
+                    "Subnet": "172.22.0.0/16",
+                    "Gateway": "172.22.0.1"
+                }
+            ],
+            "State": [
                 {
                     "Subnet": "172.22.0.0/16",
                     "Gateway": "172.22.0.1"

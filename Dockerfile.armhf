@@ -137,10 +137,11 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Get the "docker-py" source so we can run their integration tests
-ENV DOCKER_PY_COMMIT e2655f658408f9ad1f62abdef3eb6ed43c0cf324
+ENV DOCKER_PY_COMMIT 886e6ff9ea61a5c2177be1b64af397fedf420750
 RUN git clone https://github.com/docker/docker-py.git /docker-py \
 	&& cd /docker-py \
 	&& git checkout -q $DOCKER_PY_COMMIT \
+	&& pip install docker-pycreds==0.2.1 \
 	&& pip install -r test-requirements.txt
 
 # Set user.email so crosbymichael's in-container merge commits go smoothly

@@ -678,6 +678,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkInspectDefault(c *check.C) {
 	c.Assert(nr.EnableIPv6, checker.Equals, false)
 	c.Assert(nr.IPAM.Driver, checker.Equals, "default")
 	c.Assert(len(nr.IPAM.Config), checker.Equals, 0)
+	c.Assert(len(nr.IPAM.State), checker.Equals, 0)
 
 	nr = getNetworkResource(c, "host")
 	c.Assert(nr.Driver, checker.Equals, "host")
@@ -686,6 +687,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkInspectDefault(c *check.C) {
 	c.Assert(nr.EnableIPv6, checker.Equals, false)
 	c.Assert(nr.IPAM.Driver, checker.Equals, "default")
 	c.Assert(len(nr.IPAM.Config), checker.Equals, 0)
+	c.Assert(len(nr.IPAM.State), checker.Equals, 0)
 
 	nr = getNetworkResource(c, "bridge")
 	c.Assert(nr.Driver, checker.Equals, "bridge")
@@ -696,6 +698,9 @@ func (s *DockerNetworkSuite) TestDockerNetworkInspectDefault(c *check.C) {
 	c.Assert(len(nr.IPAM.Config), checker.Equals, 1)
 	c.Assert(nr.IPAM.Config[0].Subnet, checker.NotNil)
 	c.Assert(nr.IPAM.Config[0].Gateway, checker.NotNil)
+	c.Assert(len(nr.IPAM.State), checker.Equals, 1)
+	c.Assert(nr.IPAM.State[0].Subnet, checker.NotNil)
+	c.Assert(nr.IPAM.State[0].Gateway, checker.NotNil)
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkInspectCustomUnspecified(c *check.C) {

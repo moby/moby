@@ -11,6 +11,7 @@ type IPAM struct {
 	Driver  string
 	Options map[string]string //Per network IPAM driver options
 	Config  []IPAMConfig
+	State   []IPAMConfig // IPAM operational state
 }
 
 // IPAMConfig represents IPAM configurations
