@@ -138,6 +138,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesUpdate(c *check.C) {
 	// create service
 	instances := 5
 	parallelism := 2
+	rollbackParallelism := 3
 	id := daemons[0].CreateService(c, serviceForUpdate, setInstances(instances))
 
 	// wait for tasks ready
@@ -161,19 +162,15 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesUpdate(c *check.C) {
 		map[string]int{image2: instances})
 
 	// Roll back to the previous version. This uses the CLI because
-	// rollback is a client-side operation.
+	// rollback used to be a client-side operation.
 	out, err := daemons[0].Cmd("service", "update", "--rollback", id)
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	// first batch
 	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].CheckRunningTaskImages, checker.DeepEquals,
-		map[string]int{image2: instances - parallelism, image1: parallelism})
+		map[string]int{image2: instances - rollbackParallelism, image1: rollbackParallelism})
 
 	// 2nd batch
-	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].CheckRunningTaskImages, checker.DeepEquals,
-		map[string]int{image2: instances - 2*parallelism, image1: 2 * parallelism})
-
-	// 3nd batch
 	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].CheckRunningTaskImages, checker.DeepEquals,
 		map[string]int{image1: instances})
 }
@@ -210,7 +207,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesFailedUpdate(c *check.C) {
 	c.Assert(v, checker.Equals, instances-2)
 
 	// Roll back to the previous version. This uses the CLI because
-	// rollback is a client-side operation.
+	// rollback used to be a client-side operation.
 	out, err := daemons[0].Cmd("service", "update", "--rollback", id)
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 

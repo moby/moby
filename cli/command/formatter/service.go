@@ -57,6 +57,18 @@ UpdateConfig:
 {{- end }}
  Max failure ratio: {{ .UpdateMaxFailureRatio }}
 {{- end }}
+{{- if .HasRollbackConfig }}
+RollbackConfig:
+ Parallelism:	{{ .RollbackParallelism }}
+{{- if .HasRollbackDelay}}
+ Delay:		{{ .RollbackDelay }}
+{{- end }}
+ On failure:	{{ .RollbackOnFailure }}
+{{- if .HasRollbackMonitor}}
+ Monitoring Period: {{ .RollbackMonitor }}
+{{- end }}
+ Max failure ratio: {{ .RollbackMaxFailureRatio }}
+{{- end }}
 ContainerSpec:
  Image:		{{ .ContainerImage }}
 {{- if .ContainerArgs }}
@@ -257,6 +269,38 @@ func (ctx *serviceInspectContext) UpdateMonitor() time.Duration {
 
 func (ctx *serviceInspectContext) UpdateMaxFailureRatio() float32 {
 	return ctx.Service.Spec.UpdateConfig.MaxFailureRatio
+}
+
+func (ctx *serviceInspectContext) HasRollbackConfig() bool {
+	return ctx.Service.Spec.RollbackConfig != nil
+}
+
+func (ctx *serviceInspectContext) RollbackParallelism() uint64 {
+	return ctx.Service.Spec.RollbackConfig.Parallelism
+}
+
+func (ctx *serviceInspectContext) HasRollbackDelay() bool {
+	return ctx.Service.Spec.RollbackConfig.Delay.Nanoseconds() > 0
+}
+
+func (ctx *serviceInspectContext) RollbackDelay() time.Duration {
+	return ctx.Service.Spec.RollbackConfig.Delay
+}
+
+func (ctx *serviceInspectContext) RollbackOnFailure() string {
+	return ctx.Service.Spec.RollbackConfig.FailureAction
+}
+
+func (ctx *serviceInspectContext) HasRollbackMonitor() bool {
+	return ctx.Service.Spec.RollbackConfig.Monitor.Nanoseconds() > 0
+}
+
+func (ctx *serviceInspectContext) RollbackMonitor() time.Duration {
+	return ctx.Service.Spec.RollbackConfig.Monitor
+}
+
+func (ctx *serviceInspectContext) RollbackMaxFailureRatio() float32 {
+	return ctx.Service.Spec.RollbackConfig.MaxFailureRatio
 }
 
 func (ctx *serviceInspectContext) ContainerImage() string {

@@ -2256,12 +2256,39 @@ definitions:
             enum:
               - "continue"
               - "pause"
+              - "rollback"
           Monitor:
             description: "Amount of time to monitor each updated task for failures, in nanoseconds."
             type: "integer"
             format: "int64"
           MaxFailureRatio:
             description: "The fraction of tasks that may fail during an update before the failure action is invoked, specified as a floating point number between 0 and 1."
+            type: "number"
+            default: 0
+      RollbackConfig:
+        description: "Specification for the rollback strategy of the service."
+        type: "object"
+        properties:
+          Parallelism:
+            description: "Maximum number of tasks to be rolled back in one iteration (0 means unlimited parallelism)."
+            type: "integer"
+            format: "int64"
+          Delay:
+            description: "Amount of time between rollback iterations, in nanoseconds."
+            type: "integer"
+            format: "int64"
+          FailureAction:
+            description: "Action to take if an rolled back task fails to run, or stops running during the rollback."
+            type: "string"
+            enum:
+              - "continue"
+              - "pause"
+          Monitor:
+            description: "Amount of time to monitor each rolled back task for failures, in nanoseconds."
+            type: "integer"
+            format: "int64"
+          MaxFailureRatio:
+            description: "The fraction of tasks that may fail during a rollback before the failure action is invoked, specified as a floating point number between 0 and 1."
             type: "number"
             default: 0
       Networks:
@@ -2386,6 +2413,13 @@ definitions:
             Replicas: 1
         UpdateConfig:
           Parallelism: 1
+          Delay: 1000000000
+          FailureAction: "pause"
+          Monitor: 15000000000
+          MaxFailureRatio: 0.15
+        RollbackConfig:
+          Parallelism: 1
+          Delay: 1000000000
           FailureAction: "pause"
           Monitor: 15000000000
           MaxFailureRatio: 0.15
@@ -7435,9 +7469,17 @@ paths:
                     Replicated:
                       Replicas: 4
                   UpdateConfig:
-                    Delay: 30000000000
                     Parallelism: 2
+                    Delay: 1000000000
                     FailureAction: "pause"
+                    Monitor: 15000000000
+                    MaxFailureRatio: 0.15
+                  RollbackConfig:
+                    Parallelism: 1
+                    Delay: 1000000000
+                    FailureAction: "pause"
+                    Monitor: 15000000000
+                    MaxFailureRatio: 0.15
                   EndpointSpec:
                     Ports:
                       -
@@ -7563,7 +7605,15 @@ paths:
                     Replicated:
                       Replicas: 1
                   UpdateConfig:
+                    Parallelism: 2
+                    Delay: 1000000000
+                    FailureAction: "pause"
+                    Monitor: 15000000000
+                    MaxFailureRatio: 0.15
+                  RollbackConfig:
                     Parallelism: 1
+                    Delay: 1000000000
+                    FailureAction: "pause"
                     Monitor: 15000000000
                     MaxFailureRatio: 0.15
                   EndpointSpec:
@@ -7581,6 +7631,12 @@ paths:
   parameter indicates where to find registry authorization credentials. The
   valid values are `spec` and `previous-spec`."
           default: "spec"
+        - name: "rollback"
+          in: "query"
+          type: "string"
+          description: "Set to this parameter to `previous` to cause a
+  server-side rollback to the previous service spec. The supplied spec will be
+  ignored in this case."
         - name: "X-Registry-Auth"
           in: "header"
           description: "A base64-encoded auth configuration for pulling from private registries. [See the authentication section for details.](#section/Authentication)"

@@ -27,6 +27,10 @@ func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, version 
 		query.Set("registryAuthFrom", options.RegistryAuthFrom)
 	}
 
+	if options.Rollback != "" {
+		query.Set("rollback", options.Rollback)
+	}
+
 	query.Set("version", strconv.FormatUint(version.Index, 10))
 
 	var response types.ServiceUpdateResponse

@@ -192,12 +192,14 @@ func (sr *swarmRouter) updateService(ctx context.Context, w http.ResponseWriter,
 		return errors.NewBadRequestError(err)
 	}
 
+	var flags basictypes.ServiceUpdateOptions
+
 	// Get returns "" if the header does not exist
-	encodedAuth := r.Header.Get("X-Registry-Auth")
+	flags.EncodedRegistryAuth = r.Header.Get("X-Registry-Auth")
+	flags.RegistryAuthFrom = r.URL.Query().Get("registryAuthFrom")
+	flags.Rollback = r.URL.Query().Get("rollback")
 
-	registryAuthFrom := r.URL.Query().Get("registryAuthFrom")
-
-	resp, err := sr.backend.UpdateService(vars["id"], version, service, encodedAuth, registryAuthFrom)
+	resp, err := sr.backend.UpdateService(vars["id"], version, service, flags)
 	if err != nil {
 		logrus.Errorf("Error updating service %s: %v", vars["id"], err)
 		return err

@@ -19,7 +19,7 @@ type Backend interface {
 	GetServices(basictypes.ServiceListOptions) ([]types.Service, error)
 	GetService(string) (types.Service, error)
 	CreateService(types.ServiceSpec, string) (*basictypes.ServiceCreateResponse, error)
-	UpdateService(string, uint64, types.ServiceSpec, string, string) (*basictypes.ServiceUpdateResponse, error)
+	UpdateService(string, uint64, types.ServiceSpec, basictypes.ServiceUpdateOptions) (*basictypes.ServiceUpdateResponse, error)
 	RemoveService(string) error
 	ServiceLogs(context.Context, string, *backend.ContainerLogsConfig, chan struct{}) error
 	GetNodes(basictypes.NodeListOptions) ([]types.Node, error)
