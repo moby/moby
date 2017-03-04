@@ -167,6 +167,12 @@ message PublishLogsMessage {
 
 	// Messages is the log message for publishing.
 	repeated LogMessage messages = 2 [(gogoproto.nullable) = false];
+
+	// Close is a boolean for whether or not the client has completed its log
+	// stream. When close is called, the manager can hang up the subscription.
+	// Any further logs from this subscription are an error condition. Any
+	// messages included when close is set can be discarded
+	bool close = 3;
 }
 
 message PublishLogsResponse { }

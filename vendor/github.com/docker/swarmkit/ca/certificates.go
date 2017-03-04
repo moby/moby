@@ -5,7 +5,7 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
-	"crypto/rand"
+	cryptorand "crypto/rand"
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
@@ -100,18 +100,29 @@ type CertPaths struct {
 	Cert, Key string
 }
 
-// RootCA is the representation of everything we need to sign certificates
-type RootCA struct {
+// LocalSigner is a signer that can sign CSRs
+type LocalSigner struct {
+	cfsigner.Signer
+
 	// Key will only be used by the original manager to put the private
 	// key-material in raft, no signing operations depend on it.
 	Key []byte
-	// Cert includes the PEM encoded Certificate for the Root CA
+}
+
+// RootCA is the representation of everything we need to sign certificates
+type RootCA struct {
+	// Cert contains a bundle of PEM encoded Certificate for the Root CA, the first one of which
+	// must correspond to the key in the local signer, if provided
 	Cert []byte
+
+	// Pool is the root pool used to validate TLS certificates
 	Pool *x509.CertPool
-	// Digest of the serialized bytes of the certificate
+
+	// Digest of the serialized bytes of the certificate(s)
 	Digest digest.Digest
+
 	// This signer will be nil if the node doesn't have the appropriate key material
-	Signer cfsigner.Signer
+	Signer *LocalSigner
 }
 
 // CanSign ensures that the signer has all three necessary elements needed to operate
@@ -154,25 +165,6 @@ func (rca *RootCA) IssueAndSaveNewCertificates(kw KeyWriter, cn, ou, org string)
 	return &tlsKeyPair, nil
 }
 
-// Normally we can just call cert.Verify(opts), but since we actually want more information about
-// whether a certificate is not yet valid or expired, we also need to perform the expiry checks ourselves.
-func verifyCertificate(cert *x509.Certificate, opts x509.VerifyOptions, allowExpired bool) error {
-	_, err := cert.Verify(opts)
-	if invalidErr, ok := err.(x509.CertificateInvalidError); ok && invalidErr.Reason == x509.Expired {
-		now := time.Now().UTC()
-		if now.Before(cert.NotBefore) {
-			return errors.Wrapf(err, "certificate not valid before %s, and it is currently %s",
-				cert.NotBefore.UTC().Format(time.RFC1123), now.Format(time.RFC1123))
-		}
-		if allowExpired {
-			return nil
-		}
-		return errors.Wrapf(err, "certificate expires at %s, and it is currently %s",
-			cert.NotAfter.UTC().Format(time.RFC1123), now.Format(time.RFC1123))
-	}
-	return err
-}
-
 // RequestAndSaveNewCertificates gets new certificates issued, either by signing them locally if a signer is
 // available, or by requesting them from the remote server at remoteAddr.
 func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, kw KeyWriter, config CertificateRequestConfig) (*tls.Certificate, error) {
@@ -208,20 +200,9 @@ func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, kw KeyWrit
 	// Доверяй, но проверяй.
 	// Before we overwrite our local key + certificate, let's make sure the server gave us one that is valid
 	// Create an X509Cert so we can .Verify()
-	certBlock, _ := pem.Decode(signedCert)
-	if certBlock == nil {
-		return nil, errors.New("failed to parse certificate PEM")
-	}
-	X509Cert, err := x509.ParseCertificate(certBlock.Bytes)
-	if err != nil {
-		return nil, err
-	}
-	// Include our current root pool
-	opts := x509.VerifyOptions{
-		Roots: rca.Pool,
-	}
 	// Check to see if this certificate was signed by our CA, and isn't expired
-	if err := verifyCertificate(X509Cert, opts, false); err != nil {
+	parsedCerts, err := ValidateCertChain(rca.Pool, signedCert, false)
+	if err != nil {
 		return nil, err
 	}
 
@@ -233,7 +214,8 @@ func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, kw KeyWrit
 
 	var kekUpdate *KEKData
 	for i := 0; i < 5; i++ {
-		kekUpdate, err = rca.getKEKUpdate(ctx, X509Cert, tlsKeyPair, config.ConnBroker)
+		// ValidateCertChain will always return at least 1 cert, so indexing at 0 is safe
+		kekUpdate, err = rca.getKEKUpdate(ctx, parsedCerts[0], tlsKeyPair, config.ConnBroker)
 		if err == nil {
 			break
 		}
@@ -412,7 +394,104 @@ func NewRootCA(certBytes, keyBytes []byte, certExpiry time.Duration) (RootCA, er
 		}
 	}
 
-	return RootCA{Signer: signer, Key: keyBytes, Digest: digest, Cert: certBytes, Pool: pool}, nil
+	return RootCA{Signer: &LocalSigner{Signer: signer, Key: keyBytes}, Digest: digest, Cert: certBytes, Pool: pool}, nil
+}
+
+// ValidateCertChain checks checks that the certificates provided chain up to the root pool provided.  In addition
+// it also enforces that every cert in the bundle certificates form a chain, each one certifying the one above,
+// as per RFC5246 section 7.4.2, and that every certificate (whether or not it is necessary to form a chain to the root
+// pool) is currently valid and not yet expired (unless allowExpiry is set to true).
+// This is additional validation not required by go's Certificate.Verify (which allows invalid certs in the
+// intermediate pool), because this function is intended to be used when reading certs from untrusted locations such as
+// from disk or over a network when a CSR is signed, so it is extra pedantic.
+// This function always returns all the parsed certificates in the bundle in order, which means there will always be
+// at least 1 certificate if there is no error.
+func ValidateCertChain(rootPool *x509.CertPool, certs []byte, allowExpired bool) ([]*x509.Certificate, error) {
+	// Parse all the certificates in the cert bundle
+	parsedCerts, err := helpers.ParseCertificatesPEM(certs)
+	if err != nil {
+		return nil, err
+	}
+	if len(parsedCerts) == 0 {
+		return nil, errors.New("no certificates to validate")
+	}
+	now := time.Now()
+	// ensure that they form a chain, each one being signed by the one after it
+	var intermediatePool *x509.CertPool
+	for i, cert := range parsedCerts {
+		// Manual expiry validation because we want more information on which certificate in the chain is expired, and
+		// because this is an easier way to allow expired certs.
+		if now.Before(cert.NotBefore) {
+			return nil, errors.Wrapf(
+				x509.CertificateInvalidError{
+					Cert:   cert,
+					Reason: x509.Expired,
+				},
+				"certificate (%d - %s) not valid before %s, and it is currently %s",
+				i+1, cert.Subject.CommonName, cert.NotBefore.UTC().Format(time.RFC1123), now.Format(time.RFC1123))
+		}
+		if !allowExpired && now.After(cert.NotAfter) {
+			return nil, errors.Wrapf(
+				x509.CertificateInvalidError{
+					Cert:   cert,
+					Reason: x509.Expired,
+				},
+				"certificate (%d - %s) not valid after %s, and it is currently %s",
+				i+1, cert.Subject.CommonName, cert.NotAfter.UTC().Format(time.RFC1123), now.Format(time.RFC1123))
+		}
+
+		if i > 0 {
+			// check that the previous cert was signed by this cert
+			prevCert := parsedCerts[i-1]
+			if err := prevCert.CheckSignatureFrom(cert); err != nil {
+				return nil, errors.Wrapf(err, "certificates do not form a chain: (%d - %s) is not signed by (%d - %s)",
+					i, prevCert.Subject.CommonName, i+1, cert.Subject.CommonName)
+			}
+
+			if intermediatePool == nil {
+				intermediatePool = x509.NewCertPool()
+			}
+			intermediatePool.AddCert(cert)
+
+		}
+	}
+
+	verifyOpts := x509.VerifyOptions{
+		Roots:         rootPool,
+		Intermediates: intermediatePool,
+		CurrentTime:   now,
+	}
+
+	// If we accept expired certs, try to build a valid cert chain using some subset of the certs.  We start off using the
+	// first certificate's NotAfter as the current time, thus ensuring that the first cert is not expired. If the chain
+	// still fails to validate due to expiry issues, continue iterating over the rest of the certs.
+	// If any of the other certs has an earlier NotAfter time, use that time as the current time instead. This insures that
+	// particular cert, and any that came before it, are not expired.  Note that the root that the certs chain up to
+	// should also not be expired at that "current" time.
+	if allowExpired {
+		verifyOpts.CurrentTime = parsedCerts[0].NotAfter.Add(time.Hour)
+		for _, cert := range parsedCerts {
+			if !cert.NotAfter.Before(verifyOpts.CurrentTime) {
+				continue
+			}
+			verifyOpts.CurrentTime = cert.NotAfter
+
+			_, err = parsedCerts[0].Verify(verifyOpts)
+			if err == nil {
+				return parsedCerts, nil
+			}
+		}
+		if invalid, ok := err.(x509.CertificateInvalidError); ok && invalid.Reason == x509.Expired {
+			return nil, errors.New("there is no time span for which all of the certificates, including a root, are valid")
+		}
+		return nil, err
+	}
+
+	_, err = parsedCerts[0].Verify(verifyOpts)
+	if err != nil {
+		return nil, err
+	}
+	return parsedCerts, nil
 }
 
 func ensureCertKeyMatch(cert *x509.Certificate, key crypto.PublicKey) error {
@@ -666,17 +745,11 @@ func saveRootCA(rootCA RootCA, paths CertPaths) error {
 }
 
 // GenerateNewCSR returns a newly generated key and CSR signed with said key
-func GenerateNewCSR() (csr, key []byte, err error) {
+func GenerateNewCSR() ([]byte, []byte, error) {
 	req := &cfcsr.CertificateRequest{
 		KeyRequest: cfcsr.NewBasicKeyRequest(),
 	}
-
-	csr, key, err = cfcsr.ParseRequest(req)
-	if err != nil {
-		return
-	}
-
-	return
+	return cfcsr.ParseRequest(req)
 }
 
 // EncryptECPrivateKey receives a PEM encoded private key and returns an encrypted
@@ -692,7 +765,7 @@ func EncryptECPrivateKey(key []byte, passphraseStr string) ([]byte, error) {
 		return nil, errors.New("error while decoding PEM key")
 	}
 
-	encryptedPEMBlock, err := x509.EncryptPEMBlock(rand.Reader,
+	encryptedPEMBlock, err := x509.EncryptPEMBlock(cryptorand.Reader,
 		"EC PRIVATE KEY",
 		keyBlock.Bytes,
 		passphrase,

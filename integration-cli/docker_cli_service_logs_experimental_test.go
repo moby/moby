@@ -38,7 +38,8 @@ func (s *DockerSwarmSuite) TestServiceLogs(c *check.C) {
 
 	// make sure task has been deployed.
 	waitAndAssert(c, defaultReconciliationTimeout,
-		d.CheckActiveContainerCount, checker.Equals, len(services))
+		d.CheckRunningTaskImages, checker.DeepEquals,
+		map[string]int{"busybox": len(services)})
 
 	for name, message := range services {
 		out, err := d.Cmd("service", "logs", name)

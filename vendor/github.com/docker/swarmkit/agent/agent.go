@@ -266,6 +266,7 @@ func (a *Agent) run(ctx context.Context) {
 
 			subCtx, subCancel := context.WithCancel(ctx)
 			subscriptions[sub.ID] = subCancel
+			// TODO(dperny) we're tossing the error here, that seems wrong
 			go a.worker.Subscribe(subCtx, sub)
 		case <-registered:
 			log.G(ctx).Debugln("agent: registered")
@@ -487,10 +488,21 @@ func (a *Agent) Publisher(ctx context.Context, subscriptionID string) (exec.LogP
 		return nil, nil, err
 	}
 
+	// make little closure for ending the log stream
+	sendCloseMsg := func() {
+		// send a close message, to tell the manager our logs are done
+		publisher.Send(&api.PublishLogsMessage{
+			SubscriptionID: subscriptionID,
+			Close:          true,
+		})
+		// close the stream forreal
+		publisher.CloseSend()
+	}
+
 	return exec.LogPublisherFunc(func(ctx context.Context, message api.LogMessage) error {
 			select {
 			case <-ctx.Done():
-				publisher.CloseSend()
+				sendCloseMsg()
 				return ctx.Err()
 			default:
 			}
@@ -500,7 +512,7 @@ func (a *Agent) Publisher(ctx context.Context, subscriptionID string) (exec.LogP
 				Messages:       []api.LogMessage{message},
 			})
 		}), func() {
-			publisher.CloseSend()
+			sendCloseMsg()
 		}, nil
 }
 

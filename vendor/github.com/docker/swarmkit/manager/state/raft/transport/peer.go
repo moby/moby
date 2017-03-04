@@ -132,14 +132,6 @@ func (p *peer) resolveAddr(ctx context.Context, id uint64) (string, error) {
 	return resp.Addr, nil
 }
 
-func (p *peer) reportSnapshot(failure bool) {
-	if failure {
-		p.tr.config.ReportSnapshot(p.id, raft.SnapshotFailure)
-		return
-	}
-	p.tr.config.ReportSnapshot(p.id, raft.SnapshotFinish)
-}
-
 func (p *peer) sendProcessMessage(ctx context.Context, m raftpb.Message) error {
 	ctx, cancel := context.WithTimeout(ctx, p.tr.config.SendTimeout)
 	defer cancel()
@@ -151,9 +143,9 @@ func (p *peer) sendProcessMessage(ctx context.Context, m raftpb.Message) error {
 		if err != nil {
 			p.tr.config.ReportSnapshot(m.To, raft.SnapshotFailure)
 		} else {
+			p.tr.config.ReportSnapshot(m.To, raft.SnapshotFinish)
 		}
 	}
-	p.reportSnapshot(err != nil)
 	if err != nil {
 		p.tr.config.ReportUnreachable(m.To)
 		return err

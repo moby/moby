@@ -360,7 +360,7 @@ func (lb *LogBroker) PublishLogs(stream api.LogBroker_PublishLogsServer) (err er
 	}()
 
 	for {
-		log, err := stream.Recv()
+		logMsg, err := stream.Recv()
 		if err == io.EOF {
 			return stream.SendAndClose(&api.PublishLogsResponse{})
 		}
@@ -368,28 +368,37 @@ func (lb *LogBroker) PublishLogs(stream api.LogBroker_PublishLogsServer) (err er
 			return err
 		}
 
-		if log.SubscriptionID == "" {
+		if logMsg.SubscriptionID == "" {
 			return grpc.Errorf(codes.InvalidArgument, "missing subscription ID")
 		}
 
 		if currentSubscription == nil {
-			currentSubscription = lb.getSubscription(log.SubscriptionID)
+			currentSubscription = lb.getSubscription(logMsg.SubscriptionID)
 			if currentSubscription == nil {
 				return grpc.Errorf(codes.NotFound, "unknown subscription ID")
 			}
 		} else {
-			if log.SubscriptionID != currentSubscription.message.ID {
+			if logMsg.SubscriptionID != currentSubscription.message.ID {
 				return grpc.Errorf(codes.InvalidArgument, "different subscription IDs in the same session")
 			}
 		}
 
+		// if we have a close message, close out the subscription
+		if logMsg.Close {
+			// Mark done and then set to nil so if we error after this point,
+			// we don't try to close again in the defer
+			currentSubscription.Done(remote.NodeID, err)
+			currentSubscription = nil
+			return nil
+		}
+
 		// Make sure logs are emitted using the right Node ID to avoid impersonation.
-		for _, msg := range log.Messages {
+		for _, msg := range logMsg.Messages {
 			if msg.Context.NodeID != remote.NodeID {
 				return grpc.Errorf(codes.PermissionDenied, "invalid NodeID: expected=%s;received=%s", remote.NodeID, msg.Context.NodeID)
 			}
 		}
 
-		lb.publish(log)
+		lb.publish(logMsg)
 	}
 }

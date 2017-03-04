@@ -1,7 +1,7 @@
 package encryption
 
 import (
-	"crypto/rand"
+	cryptorand "crypto/rand"
 	"fmt"
 	"io"
 
@@ -37,7 +37,7 @@ func (n NACLSecretbox) Algorithm() api.MaybeEncryptedRecord_Algorithm {
 // Encrypt encrypts some bytes and returns an encrypted record
 func (n NACLSecretbox) Encrypt(data []byte) (*api.MaybeEncryptedRecord, error) {
 	var nonce [24]byte
-	if _, err := io.ReadFull(rand.Reader, nonce[:]); err != nil {
+	if _, err := io.ReadFull(cryptorand.Reader, nonce[:]); err != nil {
 		return nil, err
 	}
 

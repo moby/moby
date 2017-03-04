@@ -514,7 +514,7 @@ func (m *Manager) Run(parent context.Context) error {
 	}
 	raftConfig := c.Spec.Raft
 
-	if err := m.watchForKEKChanges(ctx); err != nil {
+	if err := m.watchForClusterChanges(ctx); err != nil {
 		return err
 	}
 
@@ -679,7 +679,7 @@ func (m *Manager) updateKEK(ctx context.Context, cluster *api.Cluster) error {
 	return nil
 }
 
-func (m *Manager) watchForKEKChanges(ctx context.Context) error {
+func (m *Manager) watchForClusterChanges(ctx context.Context) error {
 	clusterID := m.config.SecurityConfig.ClientTLSCreds.Organization()
 	clusterWatch, clusterWatchCancel, err := store.ViewAndWatch(m.raftNode.MemoryStore(),
 		func(tx store.ReadTx) error {
@@ -687,6 +687,7 @@ func (m *Manager) watchForKEKChanges(ctx context.Context) error {
 			if cluster == nil {
 				return fmt.Errorf("unable to get current cluster")
 			}
+			m.caserver.UpdateRootCA(ctx, cluster)
 			return m.updateKEK(ctx, cluster)
 		},
 		state.EventUpdateCluster{
@@ -702,6 +703,7 @@ func (m *Manager) watchForKEKChanges(ctx context.Context) error {
 			select {
 			case event := <-clusterWatch:
 				clusterEvent := event.(state.EventUpdateCluster)
+				m.caserver.UpdateRootCA(ctx, clusterEvent.Cluster)
 				m.updateKEK(ctx, clusterEvent.Cluster)
 			case <-ctx.Done():
 				clusterWatchCancel()
@@ -1030,6 +1032,10 @@ func defaultClusterObject(
 	encryptionConfig api.EncryptionConfig,
 	initialUnlockKeys []*api.EncryptionKey,
 	rootCA *ca.RootCA) *api.Cluster {
+	var caKey []byte
+	if rootCA.Signer != nil {
+		caKey = rootCA.Signer.Key
+	}
 
 	return &api.Cluster{
 		ID: clusterID,
@@ -1048,7 +1054,7 @@ func defaultClusterObject(
 			EncryptionConfig: encryptionConfig,
 		},
 		RootCA: api.RootCA{
-			CAKey:      rootCA.Key,
+			CAKey:      caKey,
 			CACert:     rootCA.Cert,
 			CACertHash: rootCA.Digest.String(),
 			JoinTokens: api.JoinTokens{

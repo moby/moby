@@ -5,6 +5,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cloudflare/cfssl/helpers"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/swarm"
@@ -175,6 +177,24 @@ func (s *DockerSwarmSuite) TestAPISwarmPromoteDemote(c *check.C) {
 	})
 
 	waitAndAssert(c, defaultReconciliationTimeout, d2.CheckControlAvailable, checker.False)
+
+	// Wait for the role to change to worker in the cert. This is partially
+	// done because it's something worth testing in its own right, and
+	// partially because changing the role from manager to worker and then
+	// back to manager quickly might cause the node to pause for awhile
+	// while waiting for the role to change to worker, and the test can
+	// time out during this interval.
+	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
+		certBytes, err := ioutil.ReadFile(filepath.Join(d2.Folder, "root", "swarm", "certificates", "swarm-node.crt"))
+		if err != nil {
+			return "", check.Commentf("error: %v", err)
+		}
+		certs, err := helpers.ParseCertificatesPEM(certBytes)
+		if err == nil && len(certs) > 0 && len(certs[0].Subject.OrganizationalUnit) > 0 {
+			return certs[0].Subject.OrganizationalUnit[0], nil
+		}
+		return "", check.Commentf("could not get organizational unit from certificate")
+	}, checker.Equals, "swarm-worker")
 
 	// Demoting last node should fail
 	node := d1.GetNode(c, d1.NodeID)
