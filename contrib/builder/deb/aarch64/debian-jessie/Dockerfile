@@ -5,7 +5,7 @@
 FROM aarch64/debian:jessie
 
 RUN echo deb http://ftp.debian.org/debian jessie-backports main > /etc/apt/sources.list.d/backports.list
-RUN apt-get update && apt-get install -y apparmor bash-completion btrfs-tools build-essential cmake curl ca-certificates debhelper dh-apparmor dh-systemd git libapparmor-dev libdevmapper-dev libltdl-dev pkg-config vim-common libsystemd-journal-dev golang-1.6-go --no-install-recommends && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y apparmor bash-completion btrfs-tools build-essential cmake curl ca-certificates debhelper dh-apparmor dh-systemd git libapparmor-dev libdevmapper-dev libltdl-dev pkg-config vim-common libsystemd-journal-dev golang-1.6-go libseccomp-dev --no-install-recommends && rm -rf /var/lib/apt/lists/*
 
 RUN update-alternatives --install /usr/bin/go go /usr/lib/go-1.6/bin/go 100
 
@@ -21,5 +21,5 @@ ENV PATH /usr/src/go/bin:$PATH
 
 ENV AUTO_GOPATH 1
 
-ENV DOCKER_BUILDTAGS apparmor pkcs11 selinux
-ENV RUNC_BUILDTAGS apparmor selinux
+ENV DOCKER_BUILDTAGS apparmor pkcs11 selinux seccomp
+ENV RUNC_BUILDTAGS apparmor selinux seccomp
