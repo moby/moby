@@ -3131,6 +3131,10 @@ _docker_service_update_and_create() {
 			COMPREPLY=( $( compgen -W "continue pause" -- "$cur" ) )
 			return
 			;;
+		--update-failure-action)
+			COMPREPLY=( $( compgen -W "continue pause rollback" -- "$cur" ) )
+			return
+			;;
 		--user|-u)
 			__docker_complete_user_group
 			return
