@@ -1,15 +1,12 @@
 package stack
 
 import (
-	"fmt"
-	"io"
 	"sort"
-	"strconv"
-	"text/tabwriter"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/cli/command/formatter"
 	"github.com/docker/docker/cli/compose/convert"
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
@@ -17,11 +14,8 @@ import (
 	"golang.org/x/net/context"
 )
 
-const (
-	listItemFmt = "%s\t%s\n"
-)
-
 type listOptions struct {
+	format string
 }
 
 func newListCommand(dockerCli *command.DockerCli) *cobra.Command {
@@ -37,6 +31,8 @@ func newListCommand(dockerCli *command.DockerCli) *cobra.Command {
 		},
 	}
 
+	flags := cmd.Flags()
+	flags.StringVar(&opts.format, "format", "", "Pretty-print stacks using a Go template")
 	return cmd
 }
 
@@ -48,55 +44,32 @@ func runList(dockerCli *command.DockerCli, opts listOptions) error {
 	if err != nil {
 		return err
 	}
-
-	out := dockerCli.Out()
-	printTable(out, stacks)
-	return nil
+	format := opts.format
+	if len(format) == 0 {
+		format = formatter.TableFormatKey
+	}
+	stackCtx := formatter.Context{
+		Output: dockerCli.Out(),
+		Format: formatter.NewStackFormat(format),
+	}
+	sort.Sort(byName(stacks))
+	return formatter.StackWrite(stackCtx, stacks)
 }
 
-type byName []*stack
+type byName []*formatter.Stack
 
 func (n byName) Len() int           { return len(n) }
 func (n byName) Swap(i, j int)      { n[i], n[j] = n[j], n[i] }
 func (n byName) Less(i, j int) bool { return n[i].Name < n[j].Name }
 
-func printTable(out io.Writer, stacks []*stack) {
-	writer := tabwriter.NewWriter(out, 0, 4, 2, ' ', 0)
-
-	// Ignore flushing errors
-	defer writer.Flush()
-
-	sort.Sort(byName(stacks))
-
-	fmt.Fprintf(writer, listItemFmt, "NAME", "SERVICES")
-	for _, stack := range stacks {
-		fmt.Fprintf(
-			writer,
-			listItemFmt,
-			stack.Name,
-			strconv.Itoa(stack.Services),
-		)
-	}
-}
-
-type stack struct {
-	// Name is the name of the stack
-	Name string
-	// Services is the number of the services
-	Services int
-}
-
-func getStacks(
-	ctx context.Context,
-	apiclient client.APIClient,
-) ([]*stack, error) {
+func getStacks(ctx context.Context, apiclient client.APIClient) ([]*formatter.Stack, error) {
 	services, err := apiclient.ServiceList(
 		ctx,
 		types.ServiceListOptions{Filters: getAllStacksFilter()})
 	if err != nil {
 		return nil, err
 	}
-	m := make(map[string]*stack, 0)
+	m := make(map[string]*formatter.Stack, 0)
 	for _, service := range services {
 		labels := service.Spec.Labels
 		name, ok := labels[convert.LabelNamespace]
@@ -106,7 +79,7 @@ func getStacks(
 		}
 		ztack, ok := m[name]
 		if !ok {
-			m[name] = &stack{
+			m[name] = &formatter.Stack{
 				Name:     name,
 				Services: 1,
 			}
@@ -114,7 +87,7 @@ func getStacks(
 			ztack.Services++
 		}
 	}
-	var stacks []*stack
+	var stacks []*formatter.Stack
 	for _, stack := range m {
 		stacks = append(stacks, stack)
 	}
