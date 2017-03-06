@@ -444,3 +444,39 @@ func (m *MemBytes) UnmarshalJSON(s []byte) error {
 	*m = MemBytes(val)
 	return err
 }
+
+// MemSwapBytes is a type for human readable memory bytes (like 128M, 2g, etc).
+// It differs from MemBytes in that -1 is valid and the default.
+type MemSwapBytes int64
+
+// Set sets the value of the MemSwapBytes by passing a string
+func (m *MemSwapBytes) Set(value string) error {
+	if value == "-1" {
+		*m = MemSwapBytes(-1)
+		return nil
+	}
+	val, err := units.RAMInBytes(value)
+	*m = MemSwapBytes(val)
+	return err
+}
+
+// Type returns the type
+func (m *MemSwapBytes) Type() string {
+	return "bytes"
+}
+
+// Value returns the value in int64
+func (m *MemSwapBytes) Value() int64 {
+	return int64(*m)
+}
+
+func (m *MemSwapBytes) String() string {
+	b := MemBytes(*m)
+	return b.String()
+}
+
+// UnmarshalJSON is the customized unmarshaler for MemSwapBytes
+func (m *MemSwapBytes) UnmarshalJSON(s []byte) error {
+	b := MemBytes(*m)
+	return b.UnmarshalJSON(s)
+}

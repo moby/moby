@@ -18,7 +18,6 @@ import (
 	"github.com/docker/docker/pkg/signal"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/go-connections/nat"
-	units "github.com/docker/go-units"
 	"github.com/spf13/pflag"
 )
 
@@ -72,10 +71,10 @@ type containerOptions struct {
 	containerIDFile    string
 	entrypoint         string
 	hostname           string
-	memoryString       string
-	memoryReservation  string
-	memorySwap         string
-	kernelMemory       string
+	memory             opts.MemBytes
+	memoryReservation  opts.MemBytes
+	memorySwap         opts.MemSwapBytes
+	kernelMemory       opts.MemBytes
 	user               string
 	workingDir         string
 	cpuCount           int64
@@ -89,7 +88,7 @@ type containerOptions struct {
 	cpusetCpus         string
 	cpusetMems         string
 	blkioWeight        uint16
-	ioMaxBandwidth     string
+	ioMaxBandwidth     opts.MemBytes
 	ioMaxIOps          uint64
 	swappiness         int64
 	netMode            string
@@ -254,12 +253,12 @@ func addFlags(flags *pflag.FlagSet) *containerOptions {
 	flags.Var(&copts.deviceReadIOps, "device-read-iops", "Limit read rate (IO per second) from a device")
 	flags.Var(&copts.deviceWriteBps, "device-write-bps", "Limit write rate (bytes per second) to a device")
 	flags.Var(&copts.deviceWriteIOps, "device-write-iops", "Limit write rate (IO per second) to a device")
-	flags.StringVar(&copts.ioMaxBandwidth, "io-maxbandwidth", "", "Maximum IO bandwidth limit for the system drive (Windows only)")
+	flags.Var(&copts.ioMaxBandwidth, "io-maxbandwidth", "Maximum IO bandwidth limit for the system drive (Windows only)")
 	flags.Uint64Var(&copts.ioMaxIOps, "io-maxiops", 0, "Maximum IOps limit for the system drive (Windows only)")
-	flags.StringVar(&copts.kernelMemory, "kernel-memory", "", "Kernel memory limit")
-	flags.StringVarP(&copts.memoryString, "memory", "m", "", "Memory limit")
-	flags.StringVar(&copts.memoryReservation, "memory-reservation", "", "Memory soft limit")
-	flags.StringVar(&copts.memorySwap, "memory-swap", "", "Swap limit equal to memory plus swap: '-1' to enable unlimited swap")
+	flags.Var(&copts.kernelMemory, "kernel-memory", "Kernel memory limit")
+	flags.VarP(&copts.memory, "memory", "m", "Memory limit")
+	flags.Var(&copts.memoryReservation, "memory-reservation", "Memory soft limit")
+	flags.Var(&copts.memorySwap, "memory-swap", "Swap limit equal to memory plus swap: '-1' to enable unlimited swap")
 	flags.Int64Var(&copts.swappiness, "memory-swappiness", -1, "Tune container memory swappiness (0 to 100)")
 	flags.BoolVar(&copts.oomKillDisable, "oom-kill-disable", false, "Disable OOM Killer")
 	flags.IntVar(&copts.oomScoreAdj, "oom-score-adj", 0, "Tune host's OOM preferences (-1000 to 1000)")
@@ -308,57 +307,9 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*container.Config, *c
 
 	var err error
 
-	var memory int64
-	if copts.memoryString != "" {
-		memory, err = units.RAMInBytes(copts.memoryString)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-	}
-
-	var memoryReservation int64
-	if copts.memoryReservation != "" {
-		memoryReservation, err = units.RAMInBytes(copts.memoryReservation)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-	}
-
-	var memorySwap int64
-	if copts.memorySwap != "" {
-		if copts.memorySwap == "-1" {
-			memorySwap = -1
-		} else {
-			memorySwap, err = units.RAMInBytes(copts.memorySwap)
-			if err != nil {
-				return nil, nil, nil, err
-			}
-		}
-	}
-
-	var kernelMemory int64
-	if copts.kernelMemory != "" {
-		kernelMemory, err = units.RAMInBytes(copts.kernelMemory)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-	}
-
 	swappiness := copts.swappiness
 	if swappiness != -1 && (swappiness < 0 || swappiness > 100) {
 		return nil, nil, nil, fmt.Errorf("invalid value: %d. Valid memory swappiness range is 0-100", swappiness)
-	}
-
-	// TODO FIXME units.RAMInBytes should have a uint64 version
-	var maxIOBandwidth int64
-	if copts.ioMaxBandwidth != "" {
-		maxIOBandwidth, err = units.RAMInBytes(copts.ioMaxBandwidth)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		if maxIOBandwidth < 0 {
-			return nil, nil, nil, fmt.Errorf("invalid value: %s. Maximum IO Bandwidth must be positive", copts.ioMaxBandwidth)
-		}
 	}
 
 	var binds []string
@@ -530,11 +481,11 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*container.Config, *c
 
 	resources := container.Resources{
 		CgroupParent:         copts.cgroupParent,
-		Memory:               memory,
-		MemoryReservation:    memoryReservation,
-		MemorySwap:           memorySwap,
+		Memory:               copts.memory.Value(),
+		MemoryReservation:    copts.memoryReservation.Value(),
+		MemorySwap:           copts.memorySwap.Value(),
 		MemorySwappiness:     &copts.swappiness,
-		KernelMemory:         kernelMemory,
+		KernelMemory:         copts.kernelMemory.Value(),
 		OomKillDisable:       &copts.oomKillDisable,
 		NanoCPUs:             copts.cpus.Value(),
 		CPUCount:             copts.cpuCount,
@@ -554,7 +505,7 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*container.Config, *c
 		BlkioDeviceReadIOps:  copts.deviceReadIOps.GetList(),
 		BlkioDeviceWriteIOps: copts.deviceWriteIOps.GetList(),
 		IOMaximumIOps:        copts.ioMaxIOps,
-		IOMaximumBandwidth:   uint64(maxIOBandwidth),
+		IOMaximumBandwidth:   uint64(copts.ioMaxBandwidth),
 		Ulimits:              copts.ulimits.GetList(),
 		DeviceCgroupRules:    copts.deviceCgroupRules.GetAll(),
 		Devices:              deviceMappings,
