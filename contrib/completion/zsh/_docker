@@ -621,6 +621,7 @@ __docker_container_subcommand() {
         "($help)--init[Run an init inside the container that forwards signals and reaps processes]"
         "($help)--ip=[IPv4 address]:IPv4: "
         "($help)--ip6=[IPv6 address]:IPv6: "
+        "($help)*--ipam=[Custom IPAM driver options]:ipam: "
         "($help)--ipc=[IPC namespace to use]:IPC namespace: "
         "($help)--isolation=[Container isolation technology]:isolation:(default hyperv process)"
         "($help)*--link=[Add link to another container]:link:->link"
@@ -630,7 +631,7 @@ __docker_container_subcommand() {
         "($help)*--log-opt=[Log driver specific options]:log driver options:__docker_complete_log_options"
         "($help)--mac-address=[Container MAC address]:MAC address: "
         "($help)--name=[Container name]:name: "
-        "($help)--network=[Connect a container to a network]:network mode:(bridge none container host)"
+        "($help)--network=[Connect a container to a network, optionally passing a map of options]:network:(bridge none container host)"
         "($help)*--network-alias=[Add network-scoped alias for the container]:alias: "
         "($help)--oom-kill-disable[Disable OOM Killer]"
         "($help)--oom-score-adj[Tune the host's OOM preferences for containers (accepts -1000 to 1000)]"
@@ -1225,8 +1226,10 @@ __docker_network_subcommand() {
                 "($help)*--alias=[Add network-scoped alias for the container]:alias: " \
                 "($help)--ip=[IPv4 address]:IPv4: " \
                 "($help)--ip6=[IPv6 address]:IPv6: " \
+                "($help)*--ipam-opt=[Custom IPAM driver options]:opt=value:  "\
                 "($help)*--link=[Add a link to another container]:link:->link" \
                 "($help)*--link-local-ip=[Add a link-local address for the container]:IPv4/IPv6: " \
+                "($help)*--network-opt=[Custom network driver options]:opt=value: "\
                 "($help -)1:network:__docker_complete_networks" \
                 "($help -)2:containers:__docker_complete_containers" && ret=0
 

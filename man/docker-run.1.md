@@ -48,6 +48,7 @@ docker-run - Run a command in a new container
 [**--ip**[=*IPv4-ADDRESS*]]
 [**--ip6**[=*IPv6-ADDRESS*]]
 [**--ipc**[=*IPC*]]
+[**--ipam**[=*""*]]
 [**--isolation**[=*default*]]
 [**--kernel-memory**[=*KERNEL-MEMORY*]]
 [**-l**|**--label**[=*[]*]]
@@ -345,6 +346,9 @@ redirection on the host system.
 
    It can only be used in conjunction with **--network** for user-defined networks
 
+**--ipam**=""
+      Add IPAM driver specific options.
+
 **--ipc**=""
    Default is to create a private IPC namespace (POSIX SysV IPC) for the container
                                'container:<name|id>': reuses another container shared memory, semaphores and message queues
@@ -441,7 +445,7 @@ other place you need to identify a container). This works for both background
 and foreground Docker containers.
 
 **--network**="*bridge*"
-   Set the Network mode for the container
+   Set the Network mode for the container, optionally passing driver options
                                'bridge': create a network stack on the default Docker bridge
                                'none': no networking
                                'container:<name|id>': reuse another container's network stack

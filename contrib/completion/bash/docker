@@ -1477,6 +1477,7 @@ _docker_container_run_and_create() {
 		--init-path
 		--ip
 		--ip6
+		--ipam
 		--ipc
 		--kernel-memory
 		--label-file
@@ -2595,8 +2596,10 @@ _docker_network_connect() {
 		--alias
 		--ip
 		--ip6
+		--ipam-opt
 		--link
 		--link-local-ip
+		--network-opt
 	"
 
 	local boolean_options="

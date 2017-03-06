@@ -23,9 +23,10 @@ type IPAMConfig struct {
 
 // EndpointIPAMConfig represents IPAM configurations for the endpoint
 type EndpointIPAMConfig struct {
-	IPv4Address  string   `json:",omitempty"`
-	IPv6Address  string   `json:",omitempty"`
-	LinkLocalIPs []string `json:",omitempty"`
+	IPv4Address  string            `json:",omitempty"`
+	IPv6Address  string            `json:",omitempty"`
+	LinkLocalIPs []string          `json:",omitempty"`
+	Options      map[string]string `json:"Options,omitempty"`
 }
 
 // Copy makes a copy of the endpoint ipam config
@@ -58,6 +59,7 @@ type EndpointSettings struct {
 	GlobalIPv6Address   string
 	GlobalIPv6PrefixLen int
 	MacAddress          string
+	NetworkOpts         map[string]string
 }
 
 // Copy makes a deep copy of `EndpointSettings`

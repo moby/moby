@@ -31,6 +31,11 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 * `POST /plugins/(plugin name)/upgrade` upgrade a plugin.
 
+* `POST /containers/create` now accepts a `NetworkOpts` object in NetworkSettings with options to pass to the network driver on endpoint creation.
+* `GET /containers/(id or name)/json` now returns the `NetworkOpts` object given on `POST /containers/create`.
+* `POST /containers/create` now accepts a `IPAMOpts` object in IPAMConfig with options to pass to the IPAM driver on address request for endpoint creation.
+* `GET /containers/(id or name)/json` now returns the `IPAMOpts` object given on `POST /containers/create`.
+
 ## v1.25 API changes
 
 [Docker Engine API v1.25](https://docs.docker.com/engine/api/v1.25/) documentation

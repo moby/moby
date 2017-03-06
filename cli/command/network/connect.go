@@ -7,6 +7,7 @@ import (
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/opts"
+	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/spf13/cobra"
 )
 
@@ -18,11 +19,15 @@ type connectOptions struct {
 	links        opts.ListOpts
 	aliases      []string
 	linklocalips []string
+	networkOpts  opts.ListOpts
+	ipamOpts     opts.ListOpts
 }
 
 func newConnectCommand(dockerCli *command.DockerCli) *cobra.Command {
 	opts := connectOptions{
-		links: opts.NewListOpts(opts.ValidateLink),
+		links:       opts.NewListOpts(opts.ValidateLink),
+		networkOpts: opts.NewListOpts(nil),
+		ipamOpts:    opts.NewListOpts(nil),
 	}
 
 	cmd := &cobra.Command{
@@ -42,6 +47,8 @@ func newConnectCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.Var(&opts.links, "link", "Add link to another container")
 	flags.StringSliceVar(&opts.aliases, "alias", []string{}, "Add network-scoped alias for the container")
 	flags.StringSliceVar(&opts.linklocalips, "link-local-ip", []string{}, "Add a link-local address for the container")
+	flags.Var(&opts.networkOpts, "network-opt", "Set network driver options for a container endpoint")
+	flags.Var(&opts.ipamOpts, "ipam-opt", "Set IPAM driver options for a container endpoint")
 
 	return cmd
 }
@@ -54,9 +61,11 @@ func runConnect(dockerCli *command.DockerCli, opts connectOptions) error {
 			IPv4Address:  opts.ipaddress,
 			IPv6Address:  opts.ipv6address,
 			LinkLocalIPs: opts.linklocalips,
+			Options:      runconfigopts.ConvertKVStringsToMap(opts.ipamOpts.GetAll()),
 		},
-		Links:   opts.links.GetAll(),
-		Aliases: opts.aliases,
+		Links:       opts.links.GetAll(),
+		Aliases:     opts.aliases,
+		NetworkOpts: runconfigopts.ConvertKVStringsToMap(opts.networkOpts.GetAll()),
 	}
 
 	return client.NetworkConnect(context.Background(), opts.network, opts.container, epConfig)

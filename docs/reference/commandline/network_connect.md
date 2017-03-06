@@ -25,8 +25,10 @@ Options:
       --help                  Print usage
       --ip string             IPv4 address (e.g., 172.30.100.104)
       --ip6 string            IPv6 address (e.g., 2001:db8::33)
+      --ipam-opt value        IPAM driver options (default [])
       --link value            Add link to another container (default [])
       --link-local-ip value   Add a link-local address for the container (default [])
+      --network-opt value     Network driver options (default [])
 ```
 
 ## Description
@@ -49,6 +51,20 @@ You can also use the `docker run --network=<network-name>` option to start a con
 
 ```bash
 $ docker run -itd --network=multi-host-network busybox
+```
+
+### Specify options for network and ipam driver
+
+`--ipam-opt` option can be used to configure IPAM driver specific options when the container is attached to the network.
+
+```bash
+$ docker network connect --ipam-opt "com.example.ipam.option"="foo" multi-host-network container2
+```
+
+`--network-opt` option can be used to configure network driver specific options when the container is attached to the network.
+
+```bash
+$ docker network connect --network-opt "com.example.net.option"="foo" multi-host-network container2
 ```
 
 ### Specify the IP address a container will use on a given network
