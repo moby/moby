@@ -30,7 +30,7 @@ func SetupRootCommand(rootCmd *cobra.Command) {
 // docker/docker/cli error messages
 func FlagErrorFunc(cmd *cobra.Command, err error) error {
 	if err == nil {
-		return err
+		return nil
 	}
 
 	usage := ""
