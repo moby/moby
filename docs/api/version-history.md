@@ -13,6 +13,12 @@ keywords: "API, Docker, rcli, REST, documentation"
      will be rejected.
 -->
 
+## v1.27 API changes
+
+[Docker Engine API v1.27](https://docs.docker.com/engine/api/v1.27/) documentation
+
+* `GET /containers/(id or name)/stats` now includes an `online_cpus` field in both `precpu_stats` and `cpu_stats`. If this field is `nil` then for compatibility with older daemons the length of the corresponding `cpu_usage.percpu_usage` array should be used.
+
 ## v1.26 API changes
 
 [Docker Engine API v1.26](https://docs.docker.com/engine/api/v1.26/) documentation
