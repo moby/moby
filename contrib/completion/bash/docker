@@ -2987,7 +2987,11 @@ _docker_service_update_and_create() {
 		--restart-delay
 		--restart-max-attempts
 		--restart-window
-		--rollback
+		--rollback-delay
+		--rollback-failure-action
+		--rollback-max-failure-ratio
+		--rollback-monitor
+		--rollback-parallelism
 		--stop-grace-period
 		--update-delay
 		--update-failure-action
@@ -3067,6 +3071,7 @@ _docker_service_update_and_create() {
 			--image
 			--publish-add
 			--publish-rm
+			--rollback
 			--secret-add
 			--secret-rm
 		"
@@ -3120,6 +3125,14 @@ _docker_service_update_and_create() {
 			;;
 		--restart-condition)
 			COMPREPLY=( $( compgen -W "any none on-failure" -- "$cur" ) )
+			return
+			;;
+		--rollback-failure-action)
+			COMPREPLY=( $( compgen -W "continue pause" -- "$cur" ) )
+			return
+			;;
+		--update-failure-action)
+			COMPREPLY=( $( compgen -W "continue pause rollback" -- "$cur" ) )
 			return
 			;;
 		--user|-u)
