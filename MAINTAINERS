@@ -43,7 +43,6 @@
 			"mavenugo",
 			"mhbauer",
 			"mlaventure",
-			"mrjana",
 			"runcom",
 			"stevvooe",
 			"tianon",
@@ -149,6 +148,16 @@
 			# public repositories was originally referenced in
 			# maryatdocker/docker-whale back in May 2015.
 			"moxiegirl",
+
+			# Jana Radhakrishnan was part of the SocketPlane team that joined Docker.
+			# As a maintainer, he was the lead architect for the Container Network
+			# Model (CNM) implemented through libnetwork, and the "routing mesh" powering
+			# Swarm mode networking.
+			#
+			# Jana started new adventures in networking, but you can find him tweeting as @mrjana,
+			# coding on GitHub https://github.com/mrjana, and he may be hiding on the Docker Community
+			# slack channel :-)
+			"mrjana",
 
 			# Sven Dowideit became a well known person in the Docker ecosphere, building
 			# boot2docker, and became a regular contributor to the project, starting as
