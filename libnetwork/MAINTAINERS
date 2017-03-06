@@ -14,10 +14,9 @@
 			"aboch",
 			"LK4D4",
 			"icecrime",
-			"mrjana",
 			"mavenugo",
-                        "sanimej",
-                        "chenchun",
+			"sanimej",
+			"chenchun",
 		]
 
 [people]
@@ -47,11 +46,6 @@
 	Name = "Arnaud Porterie"
 	Email = "arnaud@docker.com"
 	GitHub = "icecrime"
-
-	[people.mrjana]
-	Name = "Jana Radhakrishnan"
-	Email = "mrjana@docker.com"
-	GitHub = "mrjana"
 
 	[people.mavenugo]
 	Name = "Madhu Venugopal"
