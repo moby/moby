@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"errors"
+	"fmt"
 	"path"
 	"strconv"
 	"strings"
@@ -11,10 +12,12 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+// Moby is the type of a Moby config file
 type Moby struct {
 	Kernel string
 	Init   string
 	System []MobyImage
+	Daemon []MobyImage
 	Files  []struct {
 		Path     string
 		Contents string
@@ -24,6 +27,7 @@ type Moby struct {
 	}
 }
 
+// MobyImage is the type of an image config, based on Compose
 type MobyImage struct {
 	Name         string
 	Image        string
@@ -32,10 +36,12 @@ type MobyImage struct {
 	OomScoreAdj  int64 `yaml:"oom_score_adj"`
 	Command      []string
 	NetworkMode  string `yaml:"network_mode"`
+	Pid          string
 }
 
 const riddler = "mobylinux/riddler:7d4545d8b8ac2700971a83f12a3446a76db28c14@sha256:11b7310df6482fc38aa52b419c2ef1065d7b9207c633d47554e13aa99f6c0b72"
 
+// NewConfig parses a config file
 func NewConfig(config []byte) (*Moby, error) {
 	m := Moby{}
 
@@ -47,9 +53,11 @@ func NewConfig(config []byte) (*Moby, error) {
 	return &m, nil
 }
 
-func ConfigToRun(image *MobyImage) []string {
+// ConfigToRun converts a config to a series of arguments for docker run
+func ConfigToRun(order int, path string, image *MobyImage) []string {
 	// riddler arguments
-	args := []string{"-v", "/var/run/docker.sock:/var/run/docker.sock", riddler, image.Image, "/containers/" + image.Name}
+	so := fmt.Sprintf("%03d", order)
+	args := []string{"-v", "/var/run/docker.sock:/var/run/docker.sock", riddler, image.Image, "/containers/" + path + "/" + so + "-" + image.Name}
 	// docker arguments
 	args = append(args, "--cap-drop", "all")
 	for _, cap := range image.Capabilities {
@@ -62,7 +70,12 @@ func ConfigToRun(image *MobyImage) []string {
 		args = append(args, "--oom-score-adj", strconv.FormatInt(image.OomScoreAdj, 10))
 	}
 	if image.NetworkMode != "" {
-		args = append(args, "--net", image.NetworkMode)
+		// TODO only "host" supported
+		args = append(args, "--net="+image.NetworkMode)
+	}
+	if image.Pid != "" {
+		// TODO only "host" supported
+		args = append(args, "--pid="+image.Pid)
 	}
 	for _, bind := range image.Binds {
 		args = append(args, "-v", bind)
@@ -75,7 +88,7 @@ func ConfigToRun(image *MobyImage) []string {
 	return args
 }
 
-func Filesystem(m *Moby) (*bytes.Buffer, error) {
+func filesystem(m *Moby) (*bytes.Buffer, error) {
 	buf := new(bytes.Buffer)
 	tw := tar.NewWriter(buf)
 	defer tw.Close()

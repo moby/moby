@@ -7,7 +7,9 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"os"
 	"os/exec"
+	"path/filepath"
 
 	"github.com/docker/moby/pkg/initrd"
 )
@@ -137,9 +139,18 @@ func build(configfile string) {
 	buffer := bytes.NewBuffer(init)
 	containers = append(containers, buffer)
 
-	for _, image := range m.System {
-		args := ConfigToRun(&image)
-		// get output tarball
+	for i, image := range m.System {
+		args := ConfigToRun(i, "system", &image)
+		out, err := dockerRun(args...)
+		if err != nil {
+			log.Fatalf("Failed to build container tarball: %v", err)
+		}
+		buffer := bytes.NewBuffer(out)
+		containers = append(containers, buffer)
+	}
+
+	for i, image := range m.Daemon {
+		args := ConfigToRun(i, "daemon", &image)
 		out, err := dockerRun(args...)
 		if err != nil {
 			log.Fatalf("Failed to build container tarball: %v", err)
@@ -149,7 +160,7 @@ func build(configfile string) {
 	}
 
 	// add files
-	buffer, err = Filesystem(m)
+	buffer, err = filesystem(m)
 	if err != nil {
 		log.Fatalf("failed to add filesystem parts: %v", err)
 	}
@@ -160,12 +171,23 @@ func build(configfile string) {
 		log.Fatalf("Failed to make initrd %v", err)
 	}
 
-	err = outputs(m, bzimage.Bytes(), initrd.Bytes())
+	base := filepath.Base(conf)
+	ext := filepath.Ext(conf)
+	if ext != "" {
+		base = base[:len(base)-len(ext)]
+	}
+
+	err = outputs(m, base, bzimage.Bytes(), initrd.Bytes())
 	if err != nil {
 		log.Fatalf("Error writing outputs: %v", err)
 	}
 }
 
+var conf = "moby.yaml"
+
 func main() {
-	build("moby.yaml")
+	if len(os.Args) >= 2 {
+		conf = os.Args[1]
+	}
+	build(conf)
 }

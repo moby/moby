@@ -13,21 +13,21 @@ const (
 	efi  = "mobylinux/mkimage-iso-efi:40f35270037dae95584324427e56f829756ff145@sha256:ae5b37ae560a5e030342f3d493d4ad611f2694bcd54eba86bf42ca069da986a7"
 )
 
-func outputs(m *Moby, bzimage []byte, initrd []byte) error {
+func outputs(m *Moby, base string, bzimage []byte, initrd []byte) error {
 	for _, o := range m.Outputs {
 		switch o.Format {
 		case "kernel+initrd":
-			err := outputKernelInitrd(bzimage, initrd)
+			err := outputKernelInitrd(base, bzimage, initrd)
 			if err != nil {
 				return fmt.Errorf("Error writing %s output: %v", o.Format, err)
 			}
 		case "iso-bios":
-			err := outputISO(bios, "mobylinux.iso", bzimage, initrd)
+			err := outputISO(bios, base+".iso", bzimage, initrd)
 			if err != nil {
 				return fmt.Errorf("Error writing %s output: %v", o.Format, err)
 			}
 		case "iso-efi":
-			err := outputISO(efi, "mobylinux-efi.iso", bzimage, initrd)
+			err := outputISO(efi, base+"-efi.iso", bzimage, initrd)
 			if err != nil {
 				return fmt.Errorf("Error writing %s output: %v", o.Format, err)
 			}
@@ -87,15 +87,15 @@ func outputISO(image, filename string, bzimage []byte, initrd []byte) error {
 	return nil
 }
 
-func outputKernelInitrd(bzimage []byte, initrd []byte) error {
-	err := ioutil.WriteFile("initrd.img", initrd, os.FileMode(0644))
+func outputKernelInitrd(base string, bzimage []byte, initrd []byte) error {
+	err := ioutil.WriteFile(base+"-initrd.img", initrd, os.FileMode(0644))
 	if err != nil {
 		return err
 	}
-	err = ioutil.WriteFile("bzImage", bzimage, os.FileMode(0644))
+	err = ioutil.WriteFile(base+"-bzImage", bzimage, os.FileMode(0644))
 	if err != nil {
 		return err
 	}
-	fmt.Println("bzImage initrd.img")
+	fmt.Println(base + "-bzImage " + base + "-initrd.img")
 	return nil
 }
