@@ -423,12 +423,52 @@ func (s *DockerSuite) TestVolumeCLIRmForce(c *check.C) {
 	path := strings.TrimSuffix(strings.TrimSpace(out), "/_data")
 	icmd.RunCommand("rm", "-rf", path).Assert(c, icmd.Success)
 
-	dockerCmd(c, "volume", "rm", "-f", "test")
+	dockerCmd(c, "volume", "rm", "-f", name)
 	out, _ = dockerCmd(c, "volume", "ls")
 	c.Assert(out, checker.Not(checker.Contains), name)
-	dockerCmd(c, "volume", "create", "test")
+	dockerCmd(c, "volume", "create", name)
 	out, _ = dockerCmd(c, "volume", "ls")
 	c.Assert(out, checker.Contains, name)
+}
+
+// TestVolumeCLIRmForceInUse verifies that repeated `docker volume rm -f` calls does not remove a volume
+// if it is in use. Test case for https://github.com/docker/docker/issues/31446
+func (s *DockerSuite) TestVolumeCLIRmForceInUse(c *check.C) {
+	name := "testvolume"
+	out, _ := dockerCmd(c, "volume", "create", name)
+	id := strings.TrimSpace(out)
+	c.Assert(id, checker.Equals, name)
+
+	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
+	out, e := dockerCmd(c, "create", "-v", "testvolume:"+prefix+slash+"foo", "busybox")
+	cid := strings.TrimSpace(out)
+
+	_, _, err := dockerCmdWithError("volume", "rm", "-f", name)
+	c.Assert(err, check.NotNil)
+	c.Assert(err.Error(), checker.Contains, "volume is in use")
+	out, _ = dockerCmd(c, "volume", "ls")
+	c.Assert(out, checker.Contains, name)
+
+	// The original issue did not _remove_ the volume from the list
+	// the first time. But a second call to `volume rm` removed it.
+	// Calling `volume rm` a second time to confirm it's not removed
+	// when calling twice.
+	_, _, err = dockerCmdWithError("volume", "rm", "-f", name)
+	c.Assert(err, check.NotNil)
+	c.Assert(err.Error(), checker.Contains, "volume is in use")
+	out, _ = dockerCmd(c, "volume", "ls")
+	c.Assert(out, checker.Contains, name)
+
+	// Verify removing the volume after the container is removed works
+	_, e = dockerCmd(c, "rm", cid)
+	c.Assert(e, check.Equals, 0)
+
+	_, e = dockerCmd(c, "volume", "rm", "-f", name)
+	c.Assert(e, check.Equals, 0)
+
+	out, e = dockerCmd(c, "volume", "ls")
+	c.Assert(e, check.Equals, 0)
+	c.Assert(out, checker.Not(checker.Contains), name)
 }
 
 func (s *DockerSuite) TestVolumeCliInspectWithVolumeOpts(c *check.C) {
