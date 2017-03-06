@@ -257,7 +257,7 @@ func createDeletePredefinedNetwork(c *check.C, name string) {
 }
 
 func isNetworkAvailable(c *check.C, name string) bool {
-	resp, body, err := request.Get(daemonHost(), "/networks")
+	resp, body, err := request.Get("/networks")
 	c.Assert(err, checker.IsNil)
 	defer resp.Body.Close()
 	c.Assert(resp.StatusCode, checker.Equals, http.StatusOK)
@@ -284,7 +284,7 @@ func getNetworkIDByName(c *check.C, name string) string {
 	c.Assert(err, checker.IsNil)
 	v.Set("filters", filterJSON)
 
-	resp, body, err := request.Get(daemonHost(), "/networks?"+v.Encode())
+	resp, body, err := request.Get("/networks?" + v.Encode())
 	c.Assert(resp.StatusCode, checker.Equals, http.StatusOK)
 	c.Assert(err, checker.IsNil)
 
@@ -297,7 +297,7 @@ func getNetworkIDByName(c *check.C, name string) string {
 }
 
 func getNetworkResource(c *check.C, id string) *types.NetworkResource {
-	_, obj, err := request.Get(daemonHost(), "/networks/"+id)
+	_, obj, err := request.Get("/networks/" + id)
 	c.Assert(err, checker.IsNil)
 
 	nr := types.NetworkResource{}
@@ -308,7 +308,7 @@ func getNetworkResource(c *check.C, id string) *types.NetworkResource {
 }
 
 func createNetwork(c *check.C, config types.NetworkCreateRequest, shouldSucceed bool) string {
-	resp, body, err := request.Post(daemonHost(), "/networks/create", request.JSONBody(config))
+	resp, body, err := request.Post("/networks/create", request.JSONBody(config))
 	c.Assert(err, checker.IsNil)
 	defer resp.Body.Close()
 	if !shouldSucceed {
@@ -330,7 +330,7 @@ func connectNetwork(c *check.C, nid, cid string) {
 		Container: cid,
 	}
 
-	resp, _, err := request.Post(daemonHost(), "/networks/"+nid+"/connect", request.JSONBody(config))
+	resp, _, err := request.Post("/networks/"+nid+"/connect", request.JSONBody(config))
 	c.Assert(resp.StatusCode, checker.Equals, http.StatusOK)
 	c.Assert(err, checker.IsNil)
 }
@@ -340,13 +340,13 @@ func disconnectNetwork(c *check.C, nid, cid string) {
 		Container: cid,
 	}
 
-	resp, _, err := request.Post(daemonHost(), "/networks/"+nid+"/disconnect", request.JSONBody(config))
+	resp, _, err := request.Post("/networks/"+nid+"/disconnect", request.JSONBody(config))
 	c.Assert(resp.StatusCode, checker.Equals, http.StatusOK)
 	c.Assert(err, checker.IsNil)
 }
 
 func deleteNetwork(c *check.C, id string, shouldSucceed bool) {
-	resp, _, err := request.Delete(daemonHost(), "/networks/"+id)
+	resp, _, err := request.Delete("/networks/" + id)
 	c.Assert(err, checker.IsNil)
 	defer resp.Body.Close()
 	if !shouldSucceed {

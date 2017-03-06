@@ -56,14 +56,14 @@ func (s *DockerSuite) TestAPIImagesSaveAndLoad(c *check.C) {
 	buildImageSuccessfully(c, "saveandload", withDockerfile("FROM busybox\nENV FOO bar"))
 	id := getIDByName(c, "saveandload")
 
-	res, body, err := request.Get(daemonHost(), "/images/"+id+"/get")
+	res, body, err := request.Get("/images/" + id + "/get")
 	c.Assert(err, checker.IsNil)
 	defer body.Close()
 	c.Assert(res.StatusCode, checker.Equals, http.StatusOK)
 
 	dockerCmd(c, "rmi", id)
 
-	res, loadBody, err := request.Post(daemonHost(), "/images/load", request.RawContent(body), request.ContentType("application/x-tar"))
+	res, loadBody, err := request.Post("/images/load", request.RawContent(body), request.ContentType("application/x-tar"))
 	c.Assert(err, checker.IsNil)
 	defer loadBody.Close()
 	c.Assert(res.StatusCode, checker.Equals, http.StatusOK)
@@ -119,7 +119,7 @@ func (s *DockerSuite) TestAPIImagesHistory(c *check.C) {
 func (s *DockerSuite) TestAPIImagesSearchJSONContentType(c *check.C) {
 	testRequires(c, Network)
 
-	res, b, err := request.Get(daemonHost(), "/images/search?term=test", request.JSON)
+	res, b, err := request.Get("/images/search?term=test", request.JSON)
 	c.Assert(err, check.IsNil)
 	b.Close()
 	c.Assert(res.StatusCode, checker.Equals, http.StatusOK)

@@ -220,7 +220,7 @@ func (s *DockerSuite) TestUpdateStats(c *check.C) {
 	c.Assert(waitRun(name), checker.IsNil)
 
 	getMemLimit := func(id string) uint64 {
-		resp, body, err := request.Get(daemonHost(), fmt.Sprintf("/containers/%s/stats?stream=false", id))
+		resp, body, err := request.Get(fmt.Sprintf("/containers/%s/stats?stream=false", id))
 		c.Assert(err, checker.IsNil)
 		c.Assert(resp.Header.Get("Content-Type"), checker.Equals, "application/json")
 

@@ -4,13 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/docker/docker/api/types"
 	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/integration-cli/request"
-	"github.com/docker/docker/opts"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 )
 
@@ -111,7 +109,7 @@ func deleteAllVolumes(t testingT, dockerBinary string) {
 	}
 	var errs []string
 	for _, v := range volumes {
-		status, b, err := request.SockRequest("DELETE", "/volumes/"+v.Name, nil, DaemonHost())
+		status, b, err := request.SockRequest("DELETE", "/volumes/"+v.Name, nil, request.DaemonHost())
 		if err != nil {
 			errs = append(errs, err.Error())
 			continue
@@ -127,7 +125,7 @@ func deleteAllVolumes(t testingT, dockerBinary string) {
 
 func getAllVolumes() ([]*types.Volume, error) {
 	var volumes volumetypes.VolumesListOKBody
-	_, b, err := request.SockRequest("GET", "/volumes", nil, DaemonHost())
+	_, b, err := request.SockRequest("GET", "/volumes", nil, request.DaemonHost())
 	if err != nil {
 		return nil, err
 	}
@@ -151,7 +149,7 @@ func deleteAllNetworks(t testingT, dockerBinary string, daemonPlatform string) {
 			// nat is a pre-defined network on Windows and cannot be removed
 			continue
 		}
-		status, b, err := request.SockRequest("DELETE", "/networks/"+n.Name, nil, DaemonHost())
+		status, b, err := request.SockRequest("DELETE", "/networks/"+n.Name, nil, request.DaemonHost())
 		if err != nil {
 			errs = append(errs, err.Error())
 			continue
@@ -167,7 +165,7 @@ func deleteAllNetworks(t testingT, dockerBinary string, daemonPlatform string) {
 
 func getAllNetworks() ([]types.NetworkResource, error) {
 	var networks []types.NetworkResource
-	_, b, err := request.SockRequest("GET", "/networks", nil, DaemonHost())
+	_, b, err := request.SockRequest("GET", "/networks", nil, request.DaemonHost())
 	if err != nil {
 		return nil, err
 	}
@@ -185,7 +183,7 @@ func deleteAllPlugins(t testingT, dockerBinary string) {
 	var errs []string
 	for _, p := range plugins {
 		pluginName := p.Name
-		status, b, err := request.SockRequest("DELETE", "/plugins/"+pluginName+"?force=1", nil, DaemonHost())
+		status, b, err := request.SockRequest("DELETE", "/plugins/"+pluginName+"?force=1", nil, request.DaemonHost())
 		if err != nil {
 			errs = append(errs, err.Error())
 			continue
@@ -201,7 +199,7 @@ func deleteAllPlugins(t testingT, dockerBinary string) {
 
 func getAllPlugins() (types.PluginsListResponse, error) {
 	var plugins types.PluginsListResponse
-	_, b, err := request.SockRequest("GET", "/plugins", nil, DaemonHost())
+	_, b, err := request.SockRequest("GET", "/plugins", nil, request.DaemonHost())
 	if err != nil {
 		return nil, err
 	}
@@ -209,13 +207,4 @@ func getAllPlugins() (types.PluginsListResponse, error) {
 		return nil, err
 	}
 	return plugins, nil
-}
-
-// DaemonHost return the daemon host string for this test execution
-func DaemonHost() string {
-	daemonURLStr := "unix://" + opts.DefaultUnixSocket
-	if daemonHostVar := os.Getenv("DOCKER_HOST"); daemonHostVar != "" {
-		daemonURLStr = daemonHostVar
-	}
-	return daemonURLStr
 }
