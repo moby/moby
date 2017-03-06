@@ -40,7 +40,7 @@ func TestRestore(t *testing.T) {
 	assert.Equal(t, img2.Comment, "def")
 
 	p, err := is.GetParent(ID(id1))
-	assert.Error(t, err, "no such file")
+	assert.Error(t, err, "failed to read metadata")
 
 	p, err = is.GetParent(ID(id2))
 	assert.NilError(t, err)
@@ -90,13 +90,13 @@ func TestAddDelete(t *testing.T) {
 	assert.NilError(t, err)
 
 	_, err = is.Get(id1)
-	assert.Error(t, err, "no such file or directory")
+	assert.Error(t, err, "failed to get digest")
 
 	_, err = is.Get(id2)
 	assert.NilError(t, err)
 
 	_, err = is.GetParent(id2)
-	assert.Error(t, err, "no such file or directory")
+	assert.Error(t, err, "failed to read metadata")
 }
 
 func TestSearchAfterDelete(t *testing.T) {

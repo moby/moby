@@ -50,7 +50,7 @@ func TestFSInvalidSet(t *testing.T) {
 	assert.NilError(t, err)
 
 	_, err = store.Set([]byte("foobar"))
-	assert.Error(t, err, "is a directory")
+	assert.Error(t, err, "failed to write digest data")
 }
 
 func TestFSInvalidRoot(t *testing.T) {
@@ -73,11 +73,11 @@ func TestFSInvalidRoot(t *testing.T) {
 		assert.NilError(t, err)
 
 		f, err := os.Create(filePath)
-		defer f.Close()
 		assert.NilError(t, err)
+		f.Close()
 
 		_, err = NewFSStoreBackend(root)
-		assert.Error(t, err, "not a directory")
+		assert.Error(t, err, "failed to create storage backend")
 
 		os.RemoveAll(root)
 	}
@@ -117,14 +117,14 @@ func TestFSMetadataGetSet(t *testing.T) {
 	}
 
 	_, err = store.GetMetadata(id2, "tkey2")
-	assert.Error(t, err, "no such file or directory")
+	assert.Error(t, err, "failed to read metadata")
 
 	id3 := digest.FromBytes([]byte("baz"))
 	err = store.SetMetadata(id3, "tkey", []byte("tval"))
-	assert.Error(t, err, "no such file or directory")
+	assert.Error(t, err, "failed to get digest")
 
 	_, err = store.GetMetadata(id3, "tkey")
-	assert.Error(t, err, "no such file or directory")
+	assert.Error(t, err, "failed to get digest")
 }
 
 func TestFSInvalidWalker(t *testing.T) {
@@ -194,7 +194,7 @@ func TestFSGetUnsetKey(t *testing.T) {
 
 	for _, key := range []digest.Digest{"foobar:abc", "sha256:abc", "sha256:c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2a"} {
 		_, err := store.Get(key)
-		assert.Error(t, err, "no such file or directory")
+		assert.Error(t, err, "failed to get digest")
 	}
 }
 
@@ -222,7 +222,7 @@ func TestFSDelete(t *testing.T) {
 	assert.NilError(t, err)
 
 	_, err = store.Get(id)
-	assert.Error(t, err, "no such file or directory")
+	assert.Error(t, err, "failed to get digest")
 
 	_, err = store.Get(id2)
 	assert.NilError(t, err)
@@ -231,7 +231,7 @@ func TestFSDelete(t *testing.T) {
 	assert.NilError(t, err)
 
 	_, err = store.Get(id2)
-	assert.Error(t, err, "no such file or directory")
+	assert.Error(t, err, "failed to get digest")
 }
 
 func TestFSWalker(t *testing.T) {
