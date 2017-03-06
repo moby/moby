@@ -1396,6 +1396,35 @@ To use these, simply pass them on the command line using the flag:
 --build-arg <varname>=<value>
 ```
 
+By default, these pre-defined variables are excluded from the output of
+`docker history`. Excluding them reduces the risk of accidentally leaking
+sensitive authentication information in an `HTTP_PROXY` variable.
+
+For example, consider building the following Dockerfile using
+`--build-arg HTTP_PROXY=http://user:pass@proxy.lon.example.com`
+
+``` Dockerfile
+FROM ubuntu
+RUN echo "Hello World"
+```
+
+In this case, the value of the `HTTP_PROXY` variable is not available in the
+`docker history` and is not cached. If you were to change location, and your
+proxy server changed to `http://user:pass@proxy.sfo.example.com`, a subsequent
+build does not result in a cache miss.
+
+If you need to override this behaviour then you may do so by adding an `ARG`
+statement in the Dockerfile as follows:
+
+``` Dockerfile
+FROM ubuntu
+ARG HTTP_PROXY
+RUN echo "Hello World"
+```
+
+When building this Dockerfile, the `HTTP_PROXY` is preserved in the
+`docker history`, and changing its value invalidates the build cache.
+
 ### Impact on build caching
 
 `ARG` variables are not persisted into the built image as `ENV` variables are.
@@ -1404,6 +1433,8 @@ Dockerfile defines an `ARG` variable whose value is different from a previous
 build, then a "cache miss" occurs upon its first usage, not its definition. In
 particular, all `RUN` instructions following an `ARG` instruction use the `ARG`
 variable implicitly (as an environment variable), thus can cause a cache miss.
+All predefined `ARG` variables are exempt from caching unless there is a
+matching `ARG` statement in the `Dockerfile`.
 
 For example, consider these two Dockerfile:
 

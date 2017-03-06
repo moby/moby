@@ -38,6 +38,8 @@ var validCommitCommands = map[string]bool{
 }
 
 // BuiltinAllowedBuildArgs is list of built-in allowed build args
+// these args are considered transparent and are excluded from the image history.
+// Filtering from history is implemented in dispatchers.go
 var BuiltinAllowedBuildArgs = map[string]bool{
 	"HTTP_PROXY":  true,
 	"http_proxy":  true,

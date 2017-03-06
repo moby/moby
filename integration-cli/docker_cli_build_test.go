@@ -4290,6 +4290,36 @@ func (s *DockerSuite) TestBuildBuildTimeArgHistory(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestBuildTimeArgHistoryExclusions(c *check.C) {
+	imgName := "bldargtest"
+	envKey := "foo"
+	envVal := "bar"
+	proxy := "HTTP_PROXY=http://user:password@proxy.example.com"
+	explicitProxyKey := "http_proxy"
+	explicitProxyVal := "http://user:password@someproxy.example.com"
+	dockerfile := fmt.Sprintf(`FROM busybox
+		ARG %s
+		ARG %s
+		RUN echo "Testing Build Args!"`, envKey, explicitProxyKey)
+	buildImage(imgName,
+		withBuildFlags("--build-arg", fmt.Sprintf("%s=%s", envKey, envVal),
+			"--build-arg", fmt.Sprintf("%s=%s", explicitProxyKey, explicitProxyVal),
+			"--build-arg", proxy),
+		withDockerfile(dockerfile),
+	).Assert(c, icmd.Success)
+
+	out, _ := dockerCmd(c, "history", "--no-trunc", imgName)
+	if strings.Contains(out, proxy) {
+		c.Fatalf("failed to exclude proxy settings from history!")
+	}
+	if !strings.Contains(out, fmt.Sprintf("%s=%s", envKey, envVal)) {
+		c.Fatalf("explicitly defined ARG %s is not in output", explicitProxyKey)
+	}
+	if !strings.Contains(out, fmt.Sprintf("%s=%s", envKey, envVal)) {
+		c.Fatalf("missing build arguments from output")
+	}
+}
+
 func (s *DockerSuite) TestBuildBuildTimeArgCacheHit(c *check.C) {
 	imgName := "bldargtest"
 	envKey := "foo"

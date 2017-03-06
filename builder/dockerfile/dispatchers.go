@@ -411,6 +411,26 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	// have the build-time env vars in it (if any) so that future cache look-ups
 	// properly match it.
 	b.runConfig.Env = env
+
+	// remove BuiltinAllowedBuildArgs (see: builder.go)  from the saveCmd
+	// these args are transparent so resulting image should be the same regardless of the value
+	if len(cmdBuildEnv) > 0 {
+		saveCmd = config.Cmd
+		tmpBuildEnv := make([]string, len(cmdBuildEnv))
+		copy(tmpBuildEnv, cmdBuildEnv)
+		for i, env := range tmpBuildEnv {
+			key := strings.SplitN(env, "=", 2)[0]
+			if _, ok := BuiltinAllowedBuildArgs[key]; ok {
+				// If an built-in arg is explicitly added in the Dockerfile, don't prune it
+				if _, ok := b.allowedBuildArgs[key]; !ok {
+					tmpBuildEnv = append(tmpBuildEnv[:i], tmpBuildEnv[i+1:]...)
+				}
+			}
+		}
+		sort.Strings(tmpBuildEnv)
+		tmpEnv := append([]string{fmt.Sprintf("|%d", len(tmpBuildEnv))}, tmpBuildEnv...)
+		saveCmd = strslice.StrSlice(append(tmpEnv, saveCmd...))
+	}
 	b.runConfig.Cmd = saveCmd
 	return b.commit(cID, cmd, "run")
 }
