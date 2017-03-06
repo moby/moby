@@ -32,7 +32,7 @@ RUN find /tmp/`
 	server := fakeStorage(c, map[string]string{"testD": testD})
 	defer server.Close()
 
-	res, body, err := request.Post(daemonHost(), "/build?dockerfile=baz&remote="+server.URL()+"/testD", request.JSON)
+	res, body, err := request.Post("/build?dockerfile=baz&remote="+server.URL()+"/testD", request.JSON)
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusOK)
 
@@ -71,7 +71,7 @@ func (s *DockerSuite) TestBuildAPIRemoteTarballContext(c *check.C) {
 	})
 	defer server.Close()
 
-	res, b, err := request.Post(daemonHost(), "/build?remote="+server.URL()+"/testT.tar", request.ContentType("application/tar"))
+	res, b, err := request.Post("/build?remote="+server.URL()+"/testT.tar", request.ContentType("application/tar"))
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusOK)
 	b.Close()
@@ -119,7 +119,7 @@ RUN echo 'right'
 	defer server.Close()
 
 	url := "/build?dockerfile=custom&remote=" + server.URL() + "/testT.tar"
-	res, body, err := request.Post(daemonHost(), url, request.ContentType("application/tar"))
+	res, body, err := request.Post(url, request.ContentType("application/tar"))
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusOK)
 
@@ -138,7 +138,7 @@ RUN echo from dockerfile`,
 	}, false)
 	defer git.Close()
 
-	res, body, err := request.Post(daemonHost(), "/build?remote="+git.RepoURL, request.JSON)
+	res, body, err := request.Post("/build?remote="+git.RepoURL, request.JSON)
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusOK)
 
@@ -159,7 +159,7 @@ RUN echo from Dockerfile`,
 	defer git.Close()
 
 	// Make sure it tries to 'dockerfile' query param value
-	res, body, err := request.Post(daemonHost(), "/build?dockerfile=baz&remote="+git.RepoURL, request.JSON)
+	res, body, err := request.Post("/build?dockerfile=baz&remote="+git.RepoURL, request.JSON)
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusOK)
 
@@ -181,7 +181,7 @@ RUN echo from dockerfile`,
 	defer git.Close()
 
 	// Make sure it tries to 'dockerfile' query param value
-	res, body, err := request.Post(daemonHost(), "/build?remote="+git.RepoURL, request.JSON)
+	res, body, err := request.Post("/build?remote="+git.RepoURL, request.JSON)
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusOK)
 
@@ -228,7 +228,7 @@ func (s *DockerSuite) TestBuildAPIUnnormalizedTarPaths(c *check.C) {
 		// failed to close tar archive
 		c.Assert(tw.Close(), checker.IsNil)
 
-		res, body, err := request.Post(daemonHost(), "/build", request.RawContent(ioutil.NopCloser(buffer)), request.ContentType("application/x-tar"))
+		res, body, err := request.Post("/build", request.RawContent(ioutil.NopCloser(buffer)), request.ContentType("application/x-tar"))
 		c.Assert(err, checker.IsNil)
 		c.Assert(res.StatusCode, checker.Equals, http.StatusOK)
 

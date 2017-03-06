@@ -718,7 +718,7 @@ func (d *Daemon) ReloadConfig() error {
 	errCh := make(chan error)
 	started := make(chan struct{})
 	go func() {
-		_, body, err := request.Get(d.Sock(), "/events")
+		_, body, err := request.DoOnHost(d.Sock(), "/events", request.Method(http.MethodGet))
 		close(started)
 		if err != nil {
 			errCh <- err

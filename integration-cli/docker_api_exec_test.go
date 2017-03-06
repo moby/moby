@@ -38,7 +38,7 @@ func (s *DockerSuite) TestExecAPICreateNoValidContentType(c *check.C) {
 		c.Fatalf("Can not encode data to json %s", err)
 	}
 
-	res, body, err := request.Post(daemonHost(), fmt.Sprintf("/containers/%s/exec", name), request.RawContent(ioutil.NopCloser(jsonData)), request.ContentType("test/plain"))
+	res, body, err := request.Post(fmt.Sprintf("/containers/%s/exec", name), request.RawContent(ioutil.NopCloser(jsonData)), request.ContentType("test/plain"))
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
 
@@ -96,7 +96,7 @@ func (s *DockerSuite) TestExecAPIStartEnsureHeaders(c *check.C) {
 	dockerCmd(c, "run", "-d", "--name", "test", "busybox", "top")
 
 	id := createExec(c, "test")
-	resp, _, err := request.Post(daemonHost(), fmt.Sprintf("/exec/%s/start", id), request.RawString(`{"Detach": true}`), request.JSON)
+	resp, _, err := request.Post(fmt.Sprintf("/exec/%s/start", id), request.RawString(`{"Detach": true}`), request.JSON)
 	c.Assert(err, checker.IsNil)
 	c.Assert(resp.Header.Get("Server"), checker.Not(checker.Equals), "")
 }
@@ -106,7 +106,7 @@ func (s *DockerSuite) TestExecAPIStartBackwardsCompatible(c *check.C) {
 	runSleepingContainer(c, "-d", "--name", "test")
 	id := createExec(c, "test")
 
-	resp, body, err := request.Post(daemonHost(), fmt.Sprintf("/v1.20/exec/%s/start", id), request.RawString(`{"Detach": true}`), request.ContentType("text/plain"))
+	resp, body, err := request.Post(fmt.Sprintf("/v1.20/exec/%s/start", id), request.RawString(`{"Detach": true}`), request.ContentType("text/plain"))
 	c.Assert(err, checker.IsNil)
 
 	b, err := testutil.ReadBody(body)
@@ -141,14 +141,14 @@ func (s *DockerSuite) TestExecAPIStartWithDetach(c *check.C) {
 	}{}
 	c.Assert(json.Unmarshal(b, &createResp), checker.IsNil, check.Commentf(string(b)))
 
-	_, body, err := request.Post(daemonHost(), fmt.Sprintf("/exec/%s/start", createResp.ID), request.RawString(`{"Detach": true}`), request.JSON)
+	_, body, err := request.Post(fmt.Sprintf("/exec/%s/start", createResp.ID), request.RawString(`{"Detach": true}`), request.JSON)
 	c.Assert(err, checker.IsNil)
 
 	b, err = testutil.ReadBody(body)
 	comment := check.Commentf("response body: %s", b)
 	c.Assert(err, checker.IsNil, comment)
 
-	resp, _, err := request.Get(daemonHost(), "/_ping")
+	resp, _, err := request.Get("/_ping")
 	c.Assert(err, checker.IsNil)
 	if resp.StatusCode != http.StatusOK {
 		c.Fatal("daemon is down, it should alive")
@@ -191,7 +191,7 @@ func createExec(c *check.C, name string) string {
 }
 
 func createExecCmd(c *check.C, name string, cmd string) string {
-	_, reader, err := request.Post(daemonHost(), fmt.Sprintf("/containers/%s/exec", name), request.JSONBody(map[string]interface{}{"Cmd": []string{cmd}}))
+	_, reader, err := request.Post(fmt.Sprintf("/containers/%s/exec", name), request.JSONBody(map[string]interface{}{"Cmd": []string{cmd}}))
 	c.Assert(err, checker.IsNil)
 	b, err := ioutil.ReadAll(reader)
 	c.Assert(err, checker.IsNil)
@@ -204,7 +204,7 @@ func createExecCmd(c *check.C, name string, cmd string) string {
 }
 
 func startExec(c *check.C, id string, code int) {
-	resp, body, err := request.Post(daemonHost(), fmt.Sprintf("/exec/%s/start", id), request.RawString(`{"Detach": true}`), request.JSON)
+	resp, body, err := request.Post(fmt.Sprintf("/exec/%s/start", id), request.RawString(`{"Detach": true}`), request.JSON)
 	c.Assert(err, checker.IsNil)
 
 	b, err := testutil.ReadBody(body)
@@ -214,7 +214,7 @@ func startExec(c *check.C, id string, code int) {
 }
 
 func inspectExec(c *check.C, id string, out interface{}) {
-	resp, body, err := request.Get(daemonHost(), fmt.Sprintf("/exec/%s/json", id))
+	resp, body, err := request.Get(fmt.Sprintf("/exec/%s/json", id))
 	c.Assert(err, checker.IsNil)
 	defer body.Close()
 	c.Assert(resp.StatusCode, checker.Equals, http.StatusOK)
@@ -240,7 +240,7 @@ func waitForExec(c *check.C, id string) {
 }
 
 func inspectContainer(c *check.C, id string, out interface{}) {
-	resp, body, err := request.Get(daemonHost(), fmt.Sprintf("/containers/%s/json", id))
+	resp, body, err := request.Get(fmt.Sprintf("/containers/%s/json", id))
 	c.Assert(err, checker.IsNil)
 	defer body.Close()
 	c.Assert(resp.StatusCode, checker.Equals, http.StatusOK)
