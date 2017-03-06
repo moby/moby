@@ -12,8 +12,10 @@ import (
 
 func newDaemonCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:    "daemon",
-		Hidden: true,
+		Use:                "daemon",
+		Hidden:             true,
+		Args:               cobra.ArbitraryArgs,
+		DisableFlagParsing: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runDaemon()
 		},
