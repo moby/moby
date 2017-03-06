@@ -189,6 +189,26 @@ func ProgramChain(c *ChainInfo, bridgeName string, hairpinMode, enable bool) err
 			}
 
 		}
+		establish := []string{
+			"-o", bridgeName,
+			"-m", "conntrack",
+			"--ctstate", "RELATED,ESTABLISHED",
+			"-j", "ACCEPT"}
+		if !Exists(Filter, "FORWARD", establish...) && enable {
+			insert := append([]string{string(Insert), "FORWARD"}, establish...)
+			if output, err := Raw(insert...); err != nil {
+				return err
+			} else if len(output) != 0 {
+				return fmt.Errorf("Could not create establish rule to %s: %s", c.Table, output)
+			}
+		} else if Exists(Filter, "FORWARD", establish...) && !enable {
+			del := append([]string{string(Delete), "FORWARD"}, establish...)
+			if output, err := Raw(del...); err != nil {
+				return err
+			} else if len(output) != 0 {
+				return fmt.Errorf("Could not delete establish rule from %s: %s", c.Table, output)
+			}
+		}
 	}
 	return nil
 }
