@@ -3468,6 +3468,10 @@ paths:
         The `precpu_stats` is the CPU statistic of last read, which is used
         for calculating the CPU usage percentage. It is not the same as the
         `cpu_stats` field.
+
+        If either `precpu_stats.online_cpus` or `cpu_stats.online_cpus` is
+        nil then for compatibility with older daemons the length of the
+        corresponding `cpu_usage.percpu_usage` array should be used.
       operationId: "ContainerStats"
       produces: ["application/json"]
       responses:
@@ -3546,6 +3550,7 @@ paths:
                   total_usage: 100215355
                   usage_in_kernelmode: 30000000
                 system_cpu_usage: 739306590000000
+                online_cpus: 4
                 throttling_data:
                   periods: 0
                   throttled_periods: 0
@@ -3561,6 +3566,7 @@ paths:
                   total_usage: 100093996
                   usage_in_kernelmode: 30000000
                 system_cpu_usage: 9492140000000
+                online_cpus: 4
                 throttling_data:
                   periods: 0
                   throttled_periods: 0
