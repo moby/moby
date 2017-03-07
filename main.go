@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -26,11 +27,38 @@ func dockerRun(args ...string) ([]byte, error) {
 	}
 	args = append([]string{"run", "--rm"}, args...)
 	cmd := exec.Command(docker, args...)
-	out, err := cmd.Output()
+
+	stderrPipe, err := cmd.StderrPipe()
 	if err != nil {
 		return []byte{}, err
 	}
-	return out, nil
+
+	stdoutPipe, err := cmd.StdoutPipe()
+	if err != nil {
+		return []byte{}, err
+	}
+
+	err = cmd.Start()
+	if err != nil {
+		return []byte{}, err
+	}
+
+	stdout, err := ioutil.ReadAll(stdoutPipe)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	stderr, err := ioutil.ReadAll(stderrPipe)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	err = cmd.Wait()
+	if err != nil {
+		return []byte{}, fmt.Errorf("%s: %s", err, stderr)
+	}
+
+	return stdout, nil
 }
 
 func dockerRunInput(input io.Reader, args ...string) ([]byte, error) {
@@ -122,7 +150,7 @@ func build(configfile string) {
 	)
 	out, err := dockerRun(m.Kernel, "tar", "cf", "-", bzimageName, ktarName)
 	if err != nil {
-		log.Fatalf("Failed to extract kernel image and tarball")
+		log.Fatalf("Failed to extract kernel image and tarball: %v", err)
 	}
 	buf := bytes.NewBuffer(out)
 	bzimage, ktar, err := untarKernel(buf, bzimageName, ktarName)
