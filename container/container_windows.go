@@ -70,13 +70,39 @@ func (container *Container) TmpfsMounts() ([]Mount, error) {
 func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfig) error {
 	container.Lock()
 	defer container.Unlock()
+
 	resources := hostConfig.Resources
-	if resources.BlkioWeight != 0 || resources.CPUShares != 0 ||
-		resources.CPUPeriod != 0 || resources.CPUQuota != 0 ||
-		resources.CpusetCpus != "" || resources.CpusetMems != "" ||
-		resources.Memory != 0 || resources.MemorySwap != 0 ||
-		resources.MemoryReservation != 0 || resources.KernelMemory != 0 {
-		return fmt.Errorf("Resource updating isn't supported on Windows")
+	if resources.CPUShares != 0 ||
+		resources.Memory != 0 ||
+		resources.NanoCPUs != 0 ||
+		resources.CgroupParent != "" ||
+		resources.BlkioWeight != 0 ||
+		len(resources.BlkioWeightDevice) != 0 ||
+		len(resources.BlkioDeviceReadBps) != 0 ||
+		len(resources.BlkioDeviceWriteBps) != 0 ||
+		len(resources.BlkioDeviceReadIOps) != 0 ||
+		len(resources.BlkioDeviceWriteIOps) != 0 ||
+		resources.CPUPeriod != 0 ||
+		resources.CPUQuota != 0 ||
+		resources.CPURealtimePeriod != 0 ||
+		resources.CPURealtimeRuntime != 0 ||
+		resources.CpusetCpus != "" ||
+		resources.CpusetMems != "" ||
+		len(resources.Devices) != 0 ||
+		len(resources.DeviceCgroupRules) != 0 ||
+		resources.DiskQuota != 0 ||
+		resources.KernelMemory != 0 ||
+		resources.MemoryReservation != 0 ||
+		resources.MemorySwap != 0 ||
+		resources.MemorySwappiness != nil ||
+		resources.OomKillDisable != nil ||
+		resources.PidsLimit != 0 ||
+		len(resources.Ulimits) != 0 ||
+		resources.CPUCount != 0 ||
+		resources.CPUPercent != 0 ||
+		resources.IOMaximumIOps != 0 ||
+		resources.IOMaximumBandwidth != 0 {
+		return fmt.Errorf("resource updating isn't supported on Windows")
 	}
 	// update HostConfig of container
 	if hostConfig.RestartPolicy.Name != "" {
