@@ -34,8 +34,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 		vim-common \
 	&& rm -rf /var/lib/apt/lists/*
 
-# Install seccomp: the version shipped in trusty is too old
-ENV SECCOMP_VERSION 2.3.1
+# Install seccomp: the version shipped upstream is too old
+ENV SECCOMP_VERSION 2.3.2
 RUN set -x \
 	&& export SECCOMP_PATH="$(mktemp -d)" \
 	&& curl -fsSL "https://github.com/seccomp/libseccomp/releases/download/v${SECCOMP_VERSION}/libseccomp-${SECCOMP_VERSION}.tar.gz" \
