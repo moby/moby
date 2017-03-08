@@ -33,7 +33,10 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-const stateFilename = "state.json"
+const (
+	stateFilename     = "state.json"
+	roleChangeTimeout = 16 * time.Second
+)
 
 var (
 	errNodeStarted    = errors.New("node: already started")
@@ -269,12 +272,11 @@ func (n *Node) run(ctx context.Context) (err error) {
 				}
 				n.Lock()
 				// If we got a role change, renew
-				lastRole := n.role
 				role := ca.WorkerRole
 				if node.Role == api.NodeRoleManager {
 					role = ca.ManagerRole
 				}
-				if lastRole == role {
+				if n.role == role {
 					n.Unlock()
 					continue
 				}
@@ -284,23 +286,23 @@ func (n *Node) run(ctx context.Context) (err error) {
 		}
 	}()
 
+	var wg sync.WaitGroup
+	wg.Add(3)
+
 	updates := ca.RenewTLSConfig(ctx, securityConfig, n.connBroker, forceCertRenewal)
 	go func() {
-		for {
-			select {
-			case certUpdate := <-updates:
-				if certUpdate.Err != nil {
-					logrus.Warnf("error renewing TLS certificate: %v", certUpdate.Err)
-					continue
-				}
-				n.Lock()
-				n.role = certUpdate.Role
-				n.roleCond.Broadcast()
-				n.Unlock()
-			case <-ctx.Done():
-				return
+		for certUpdate := range updates {
+			if certUpdate.Err != nil {
+				logrus.Warnf("error renewing TLS certificate: %v", certUpdate.Err)
+				continue
 			}
+			n.Lock()
+			n.role = certUpdate.Role
+			n.roleCond.Broadcast()
+			n.Unlock()
 		}
+
+		wg.Done()
 	}()
 
 	role := n.role
@@ -309,10 +311,8 @@ func (n *Node) run(ctx context.Context) (err error) {
 	agentReady := make(chan struct{})
 	var managerErr error
 	var agentErr error
-	var wg sync.WaitGroup
-	wg.Add(2)
 	go func() {
-		managerErr = n.superviseManager(ctx, securityConfig, managerReady) // store err and loop
+		managerErr = n.superviseManager(ctx, securityConfig, managerReady, forceCertRenewal) // store err and loop
 		wg.Done()
 		cancel()
 	}()
@@ -703,7 +703,7 @@ func (n *Node) waitRole(ctx context.Context, role string) error {
 	return nil
 }
 
-func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig, ready chan struct{}, workerRole <-chan struct{}) error {
+func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig, ready chan struct{}, workerRole <-chan struct{}) (bool, error) {
 	var remoteAPI *manager.RemoteAddrs
 	if n.config.ListenRemoteAPI != "" {
 		remoteAPI = &manager.RemoteAddrs{
@@ -729,7 +729,7 @@ func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig
 		PluginGetter:     n.config.PluginGetter,
 	})
 	if err != nil {
-		return err
+		return false, err
 	}
 	done := make(chan struct{})
 	var runErr error
@@ -762,7 +762,7 @@ func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig
 	// wait for manager stop or for role change
 	select {
 	case <-done:
-		return runErr
+		return false, runErr
 	case <-workerRole:
 		log.G(ctx).Info("role changed to worker, stopping manager")
 		clearData = true
@@ -770,12 +770,12 @@ func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig
 		log.G(ctx).Info("manager removed from raft cluster, stopping manager")
 		clearData = true
 	case <-ctx.Done():
-		return ctx.Err()
+		return false, ctx.Err()
 	}
-	return nil
+	return clearData, nil
 }
 
-func (n *Node) superviseManager(ctx context.Context, securityConfig *ca.SecurityConfig, ready chan struct{}) error {
+func (n *Node) superviseManager(ctx context.Context, securityConfig *ca.SecurityConfig, ready chan struct{}, forceCertRenewal chan struct{}) error {
 	for {
 		if err := n.waitRole(ctx, ca.ManagerRole); err != nil {
 			return err
@@ -789,7 +789,8 @@ func (n *Node) superviseManager(ctx context.Context, securityConfig *ca.Security
 			}
 		}()
 
-		if err := n.runManager(ctx, securityConfig, ready, workerRole); err != nil {
+		wasRemoved, err := n.runManager(ctx, securityConfig, ready, workerRole)
+		if err != nil {
 			waitRoleCancel()
 			return errors.Wrap(err, "manager stopped")
 		}
@@ -798,18 +799,60 @@ func (n *Node) superviseManager(ctx context.Context, securityConfig *ca.Security
 		// "manager", it's possible that the manager was demoted and
 		// the agent hasn't realized this yet. We should wait for the
 		// role to change instead of restarting the manager immediately.
-		timer := time.NewTimer(16 * time.Second)
-		select {
-		case <-timer.C:
-			log.G(ctx).Warn("failed to get worker role after manager stop, restarting manager")
-		case <-workerRole:
-		case <-ctx.Done():
-			timer.Stop()
-			waitRoleCancel()
-			return ctx.Err()
+		err = func() error {
+			timer := time.NewTimer(roleChangeTimeout)
+			defer timer.Stop()
+			defer waitRoleCancel()
+
+			select {
+			case <-timer.C:
+			case <-workerRole:
+				return nil
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+
+			if !wasRemoved {
+				log.G(ctx).Warn("failed to get worker role after manager stop, restarting manager")
+				return nil
+			}
+			// We need to be extra careful about restarting the
+			// manager. It may cause the node to wrongly join under
+			// a new Raft ID. Since we didn't see a role change
+			// yet, force a certificate renewal. If the certificate
+			// comes back with a worker role, we know we shouldn't
+			// restart the manager. However, if we don't see
+			// workerRole get closed, it means we didn't switch to
+			// a worker certificate, either because we couldn't
+			// contact a working CA, or because we've been
+			// re-promoted. In this case, we must assume we were
+			// re-promoted, and restart the manager.
+			log.G(ctx).Warn("failed to get worker role after manager stop, forcing certificate renewal")
+			timer.Reset(roleChangeTimeout)
+
+			select {
+			case forceCertRenewal <- struct{}{}:
+			case <-timer.C:
+				log.G(ctx).Warn("failed to trigger certificate renewal after manager stop, restarting manager")
+				return nil
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+
+			// Now that the renewal request has been sent to the
+			// renewal goroutine, wait for a change in role.
+			select {
+			case <-timer.C:
+				log.G(ctx).Warn("failed to get worker role after manager stop, restarting manager")
+			case <-workerRole:
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+			return nil
+		}()
+		if err != nil {
+			return err
 		}
-		timer.Stop()
-		waitRoleCancel()
 
 		ready = nil
 	}

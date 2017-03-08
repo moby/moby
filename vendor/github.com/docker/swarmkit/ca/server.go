@@ -392,14 +392,12 @@ func (s *Server) Run(ctx context.Context) error {
 			if len(clusters) != 1 {
 				return errors.New("could not find cluster object")
 			}
-			s.updateCluster(ctx, clusters[0])
-
+			s.UpdateRootCA(ctx, clusters[0]) // call once to ensure that the join tokens are always set
 			nodes, err = store.FindNodes(readTx, store.All)
 			return err
 		},
 		state.EventCreateNode{},
 		state.EventUpdateNode{},
-		state.EventUpdateCluster{},
 	)
 
 	// Do this after updateCluster has been called, so isRunning never
@@ -435,6 +433,12 @@ func (s *Server) Run(ctx context.Context) error {
 	// to the cluster
 	for {
 		select {
+		case <-ctx.Done():
+			return nil
+		default:
+		}
+
+		select {
 		case event := <-updates:
 			switch v := event.(type) {
 			case state.EventCreateNode:
@@ -445,8 +449,6 @@ func (s *Server) Run(ctx context.Context) error {
 				if !isFinalState(v.Node.Certificate.Status) {
 					s.evaluateAndSignNodeCert(ctx, v.Node)
 				}
-			case state.EventUpdateCluster:
-				s.updateCluster(ctx, v.Cluster)
 			}
 		case <-ticker.C:
 			for _, node := range s.pending {
@@ -512,9 +514,10 @@ func (s *Server) isRunning() bool {
 	return true
 }
 
-// updateCluster is called when there are cluster changes, and it ensures that the local RootCA is
-// always aware of changes in clusterExpiry and the Root CA key material
-func (s *Server) updateCluster(ctx context.Context, cluster *api.Cluster) {
+// UpdateRootCA is called when there are cluster changes, and it ensures that the local RootCA is
+// always aware of changes in clusterExpiry and the Root CA key material - this can be called by
+// anything to update the root CA material
+func (s *Server) UpdateRootCA(ctx context.Context, cluster *api.Cluster) {
 	s.mu.Lock()
 	s.joinTokens = cluster.RootCA.JoinTokens.Copy()
 	s.mu.Unlock()

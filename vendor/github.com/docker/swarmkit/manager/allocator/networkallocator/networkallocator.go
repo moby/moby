@@ -454,7 +454,7 @@ func (na *NetworkAllocator) releaseEndpoints(networks []*api.NetworkAttachment) 
 func (na *NetworkAllocator) allocateVIP(vip *api.Endpoint_VirtualIP) error {
 	localNet := na.getNetwork(vip.NetworkID)
 	if localNet == nil {
-		return fmt.Errorf("networkallocator: could not find local network state")
+		return errors.New("networkallocator: could not find local network state")
 	}
 
 	// If this IP is already allocated in memory we don't need to
@@ -682,7 +682,7 @@ func (na *NetworkAllocator) resolveDriver(n *api.Network) (driverapi.Driver, str
 func (na *NetworkAllocator) loadDriver(name string) error {
 	pg := na.drvRegistry.GetPluginGetter()
 	if pg == nil {
-		return fmt.Errorf("plugin store is uninitialized")
+		return errors.New("plugin store is uninitialized")
 	}
 	_, err := pg.Get(name, driverapi.NetworkPluginEndpointType, plugingetter.Lookup)
 	return err
@@ -739,7 +739,7 @@ func (na *NetworkAllocator) allocatePools(n *api.Network) (map[string]string, er
 	}
 
 	// We don't support user defined address spaces yet so just
-	// retrive default address space names for the driver.
+	// retrieve default address space names for the driver.
 	_, asName, err := na.drvRegistry.IPAMDefaultAddressSpaces(dName)
 	if err != nil {
 		return nil, err

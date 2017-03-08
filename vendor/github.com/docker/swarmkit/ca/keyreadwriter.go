@@ -1,7 +1,7 @@
 package ca
 
 import (
-	"crypto/rand"
+	cryptorand "crypto/rand"
 	"crypto/x509"
 	"encoding/pem"
 	"io/ioutil"
@@ -345,7 +345,7 @@ func (k *KeyReadWriter) readKey() (*pem.Block, error) {
 // writing it to disk.  If the kek is nil, writes it to disk unencrypted.
 func (k *KeyReadWriter) writeKey(keyBlock *pem.Block, kekData KEKData, pkh PEMKeyHeaders) error {
 	if kekData.KEK != nil {
-		encryptedPEMBlock, err := x509.EncryptPEMBlock(rand.Reader,
+		encryptedPEMBlock, err := x509.EncryptPEMBlock(cryptorand.Reader,
 			keyBlock.Type,
 			keyBlock.Bytes,
 			kekData.KEK,

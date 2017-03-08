@@ -1,7 +1,7 @@
 package encryption
 
 import (
-	"crypto/rand"
+	cryptorand "crypto/rand"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -105,7 +105,7 @@ func Defaults(key []byte) (Encrypter, Decrypter) {
 // using this package
 func GenerateSecretKey() []byte {
 	secretData := make([]byte, naclSecretboxKeySize)
-	if _, err := io.ReadFull(rand.Reader, secretData); err != nil {
+	if _, err := io.ReadFull(cryptorand.Reader, secretData); err != nil {
 		// panic if we can't read random data
 		panic(errors.Wrap(err, "failed to read random bytes"))
 	}
