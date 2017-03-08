@@ -46,9 +46,10 @@ ID                           HOSTNAME        STATUS  AVAILABILITY  MANAGER STATU
 38ciaotwjuritcdtn9npbnkuz    swarm-worker1   Ready   Active
 e216jshn25ckzbvmwlnh5jr3g *  swarm-manager1  Ready   Active        Leader
 ```
-> **Note:**
-> If the `ID` field of the node is followed by a `*` (e.g., `e216jshn25ckzbvmwlnh5jr3g *`)
-> in the above example output, then this node is also the node of the current docker daemon.
+> **Note**:
+> In the above example output, there is a hidden column of `.Self` that indicates if the
+> node is the same node as the current docker daemon. A `*` (e.g., `e216jshn25ckzbvmwlnh5jr3g *`)
+> means this node is the current docker daemon.
 
 
 ### Filtering
@@ -139,6 +140,7 @@ Valid placeholders for the Go template are listed below:
 Placeholder      | Description
 -----------------|------------------------------------------------------------------------------------------
 `.ID`            | Node ID
+`.Self`          | Node of the daemon (`true/false`, `true`indicates that the node is the same as current docker daemon)
 `.Hostname`      | Node hostname
 `.Status`        | Node status
 `.Availability`  | Node availability ("active", "pause", or "drain")
@@ -153,7 +155,7 @@ The following example uses a template without headers and outputs the
 
 ```bash
 $ docker node ls --format "{{.ID}}: {{.Hostname}}"
-e216jshn25ckzbvmwlnh5jr3g *: swarm-manager1
+e216jshn25ckzbvmwlnh5jr3g: swarm-manager1
 ``
 
 

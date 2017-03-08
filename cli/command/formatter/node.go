@@ -7,9 +7,10 @@ import (
 )
 
 const (
-	defaultNodeTableFormat = "table {{.ID}}\t{{.Hostname}}\t{{.Status}}\t{{.Availability}}\t{{.ManagerStatus}}"
+	defaultNodeTableFormat = "table {{.ID}} {{if .Self}}*{{else}} {{ end }}\t{{.Hostname}}\t{{.Status}}\t{{.Availability}}\t{{.ManagerStatus}}"
 
 	nodeIDHeader        = "ID"
+	selfHeader          = ""
 	hostnameHeader      = "HOSTNAME"
 	availabilityHeader  = "AVAILABILITY"
 	managerStatusHeader = "MANAGER STATUS"
@@ -46,6 +47,7 @@ func NodeWrite(ctx Context, nodes []swarm.Node, info types.Info) error {
 	nodeCtx := nodeContext{}
 	nodeCtx.header = nodeHeaderContext{
 		"ID":            nodeIDHeader,
+		"Self":          selfHeader,
 		"Hostname":      hostnameHeader,
 		"Status":        statusHeader,
 		"Availability":  availabilityHeader,
@@ -67,11 +69,11 @@ func (c *nodeContext) MarshalJSON() ([]byte, error) {
 }
 
 func (c *nodeContext) ID() string {
-	nodeID := c.n.ID
-	if nodeID == c.info.Swarm.NodeID {
-		nodeID = nodeID + " *"
-	}
-	return nodeID
+	return c.n.ID
+}
+
+func (c *nodeContext) Self() bool {
+	return c.n.ID == c.info.Swarm.NodeID
 }
 
 func (c *nodeContext) Hostname() string {

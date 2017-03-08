@@ -148,8 +148,8 @@ func TestNodeContextWriteJSON(t *testing.T) {
 		{ID: "nodeID2", Description: swarm.NodeDescription{Hostname: "foobar_bar"}},
 	}
 	expectedJSONs := []map[string]interface{}{
-		{"Availability": "", "Hostname": "foobar_baz", "ID": "nodeID1", "ManagerStatus": "", "Status": ""},
-		{"Availability": "", "Hostname": "foobar_bar", "ID": "nodeID2", "ManagerStatus": "", "Status": ""},
+		{"Availability": "", "Hostname": "foobar_baz", "ID": "nodeID1", "ManagerStatus": "", "Status": "", "Self": false},
+		{"Availability": "", "Hostname": "foobar_bar", "ID": "nodeID2", "ManagerStatus": "", "Status": "", "Self": false},
 	}
 
 	out := bytes.NewBufferString("")

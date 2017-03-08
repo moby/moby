@@ -169,8 +169,8 @@ format. For a list of supported formatting directives, see
 
 The property `nodesFormat` specifies the default format for `docker node ls` output.
 When the `--format` flag is not provided with the `docker node ls` command,
-Docker's client uses this property. If this property is not set, the client
-falls back to the default table format. For a list of supported formatting
+Docker's client uses the value of `nodesFormat`. If the value of `nodesFormat` is not set,
+the client uses the default table format. For a list of supported formatting
 directives, see the [**Formatting** section in the `docker node ls` documentation](node_ls.md)
 
 The property `credsStore` specifies an external binary to serve as the default

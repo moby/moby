@@ -129,7 +129,7 @@ func TestNodeListDefaultFormat(t *testing.T) {
 	})
 	cmd := newListCommand(cli)
 	assert.NilError(t, cmd.Execute())
-	assert.Contains(t, buf.String(), `nodeID1 *: nodeHostname1 Ready/Leader`)
+	assert.Contains(t, buf.String(), `nodeID1: nodeHostname1 Ready/Leader`)
 	assert.Contains(t, buf.String(), `nodeID2: nodeHostname2 Ready/Reachable`)
 	assert.Contains(t, buf.String(), `nodeID3: nodeHostname3 Ready`)
 }
