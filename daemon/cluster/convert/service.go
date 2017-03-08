@@ -69,24 +69,9 @@ func serviceSpecFromGRPC(spec *swarmapi.ServiceSpec) *types.ServiceSpec {
 		serviceNetworks = append(serviceNetworks, types.NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases})
 	}
 
-	taskNetworks := make([]types.NetworkAttachmentConfig, 0, len(spec.Task.Networks))
-	for _, n := range spec.Task.Networks {
-		taskNetworks = append(taskNetworks, types.NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases})
-	}
-
-	containerConfig := spec.Task.Runtime.(*swarmapi.TaskSpec_Container).Container
 	convertedSpec := &types.ServiceSpec{
-		Annotations: annotationsFromGRPC(spec.Annotations),
-		TaskTemplate: types.TaskSpec{
-			ContainerSpec: containerSpecFromGRPC(containerConfig),
-			Resources:     resourcesFromGRPC(spec.Task.Resources),
-			RestartPolicy: restartPolicyFromGRPC(spec.Task.Restart),
-			Placement:     placementFromGRPC(spec.Task.Placement),
-			LogDriver:     driverFromGRPC(spec.Task.LogDriver),
-			Networks:      taskNetworks,
-			ForceUpdate:   spec.Task.ForceUpdate,
-		},
-
+		Annotations:  annotationsFromGRPC(spec.Annotations),
+		TaskTemplate: taskSpecFromGRPC(spec.Task),
 		Networks:     serviceNetworks,
 		EndpointSpec: endpointSpecFromGRPC(spec.Endpoint),
 	}
@@ -437,4 +422,21 @@ func updateConfigToGRPC(updateConfig *types.UpdateConfig) (*swarmapi.UpdateConfi
 	}
 
 	return converted, nil
+}
+
+func taskSpecFromGRPC(taskSpec swarmapi.TaskSpec) types.TaskSpec {
+	taskNetworks := make([]types.NetworkAttachmentConfig, 0, len(taskSpec.Networks))
+	for _, n := range taskSpec.Networks {
+		taskNetworks = append(taskNetworks, types.NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases})
+	}
+
+	return types.TaskSpec{
+		ContainerSpec: containerSpecFromGRPC(taskSpec.GetContainer()),
+		Resources:     resourcesFromGRPC(taskSpec.Resources),
+		RestartPolicy: restartPolicyFromGRPC(taskSpec.Restart),
+		Placement:     placementFromGRPC(taskSpec.Placement),
+		LogDriver:     driverFromGRPC(taskSpec.LogDriver),
+		Networks:      taskNetworks,
+		ForceUpdate:   taskSpec.ForceUpdate,
+	}
 }
