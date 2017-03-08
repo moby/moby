@@ -8069,7 +8069,7 @@ paths:
       parameters:
         - name: "id"
           in: "path"
-          description: "The ID of the secret"
+          description: "The ID or name of the secret"
           type: "string"
           required: true
         - name: "body"

@@ -95,13 +95,18 @@ func (c *Cluster) RemoveSecret(input string) error {
 
 // UpdateSecret updates a secret in a managed swarm cluster.
 // Note: this is not exposed to the CLI but is available from the API only
-func (c *Cluster) UpdateSecret(id string, version uint64, spec types.SecretSpec) error {
+func (c *Cluster) UpdateSecret(input string, version uint64, spec types.SecretSpec) error {
 	return c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+		secret, err := getSecret(ctx, state.controlClient, input)
+		if err != nil {
+			return err
+		}
+
 		secretSpec := convert.SecretSpecToGRPC(spec)
 
-		_, err := state.controlClient.UpdateSecret(ctx,
+		_, err = state.controlClient.UpdateSecret(ctx,
 			&swarmapi.UpdateSecretRequest{
-				SecretID: id,
+				SecretID: secret.ID,
 				SecretVersion: &swarmapi.Version{
 					Index: version,
 				},
