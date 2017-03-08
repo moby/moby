@@ -74,13 +74,18 @@ func runDaemon(opts daemonOptions) error {
 
 	// On Windows, this may be launching as a service or with an option to
 	// register the service.
-	stop, err := initService(daemonCli)
+	stop, runAsService, err := initService(daemonCli)
 	if err != nil {
 		logrus.Fatal(err)
 	}
 
 	if stop {
 		return nil
+	}
+
+	// If Windows SCM manages the service - no need for PID files
+	if runAsService {
+		opts.daemonConfig.Pidfile = ""
 	}
 
 	err = daemonCli.start(opts)
