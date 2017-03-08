@@ -149,7 +149,7 @@ func getCgroupMountsHelper(ss map[string]bool, mi io.Reader, all bool) ([]Mount,
 		if sepIdx == -1 {
 			return nil, fmt.Errorf("invalid mountinfo format")
 		}
-		if txt[sepIdx+3:sepIdx+9] != "cgroup" {
+		if txt[sepIdx+3:sepIdx+10] == "cgroup2" || txt[sepIdx+3:sepIdx+9] != "cgroup" {
 			continue
 		}
 		fields := strings.Split(txt, " ")
