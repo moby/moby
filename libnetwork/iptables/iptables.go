@@ -50,8 +50,7 @@ var (
 	bestEffortLock sync.Mutex
 	// ErrIptablesNotFound is returned when the rule is not found.
 	ErrIptablesNotFound = errors.New("Iptables not found")
-	probeOnce           sync.Once
-	firewalldOnce       sync.Once
+	initOnce            sync.Once
 )
 
 // ChainInfo defines the iptables chain.
@@ -86,22 +85,32 @@ func initFirewalld() {
 	}
 }
 
+func detectIptables() {
+	path, err := exec.LookPath("iptables")
+	if err != nil {
+		return
+	}
+	iptablesPath = path
+	supportsXlock = exec.Command(iptablesPath, "--wait", "-L", "-n").Run() == nil
+	mj, mn, mc, err := GetVersion()
+	if err != nil {
+		logrus.Warnf("Failed to read iptables version: %v", err)
+		return
+	}
+	supportsCOpt = supportsCOption(mj, mn, mc)
+}
+
+func initIptables() {
+	probe()
+	initFirewalld()
+	detectIptables()
+}
+
 func initCheck() error {
+	initOnce.Do(initIptables)
+
 	if iptablesPath == "" {
-		probeOnce.Do(probe)
-		firewalldOnce.Do(initFirewalld)
-		path, err := exec.LookPath("iptables")
-		if err != nil {
-			return ErrIptablesNotFound
-		}
-		iptablesPath = path
-		supportsXlock = exec.Command(iptablesPath, "--wait", "-L", "-n").Run() == nil
-		mj, mn, mc, err := GetVersion()
-		if err != nil {
-			logrus.Warnf("Failed to read iptables version: %v", err)
-			return nil
-		}
-		supportsCOpt = supportsCOption(mj, mn, mc)
+		return ErrIptablesNotFound
 	}
 	return nil
 }
@@ -373,7 +382,11 @@ func exists(native bool, table Table, chain string, rule ...string) bool {
 		table = Filter
 	}
 
-	initCheck()
+	if err := initCheck(); err != nil {
+		// The exists() signature does not allow us to return an error, but at least
+		// we can skip the (likely invalid) exec invocation.
+		return false
+	}
 
 	if supportsCOpt {
 		// if exit status is 0 then return true, the rule exists
@@ -456,9 +469,9 @@ func ExistChain(chain string, table Table) bool {
 	return false
 }
 
-// GetVersion reads the iptables version numbers
+// GetVersion reads the iptables version numbers during initialization
 func GetVersion() (major, minor, micro int, err error) {
-	out, err := Raw("--version")
+	out, err := exec.Command(iptablesPath, "--version").CombinedOutput()
 	if err == nil {
 		major, minor, micro = parseVersionNumbers(string(out))
 	}
