@@ -54,6 +54,7 @@ func (s *DockerSwarmSuite) TestSwarmVolumePlugin(c *check.C) {
 
 // Test network plugin filter in swarm
 func (s *DockerSwarmSuite) TestSwarmNetworkPluginV2(c *check.C) {
+	testRequires(c, IsAmd64)
 	d1 := s.AddDaemon(c, true, true)
 	d2 := s.AddDaemon(c, true, false)
 
