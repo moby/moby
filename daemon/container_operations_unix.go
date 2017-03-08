@@ -178,11 +178,6 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 		}
 
 		targetPath := filepath.Clean(s.File.Name)
-		// ensure that the target is a filename only; no paths allowed
-		if targetPath != filepath.Base(targetPath) {
-			return fmt.Errorf("error creating secret: secret must not be a path")
-		}
-
 		fPath := filepath.Join(localMountPath, targetPath)
 		if err := idtools.MkdirAllAs(filepath.Dir(fPath), 0700, rootUID, rootGID); err != nil {
 			return errors.Wrap(err, "error creating secret mount path")
@@ -196,9 +191,6 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 		if secret == nil {
 			return fmt.Errorf("unable to get secret from secret store")
 		}
-		if err := ioutil.WriteFile(fPath, secret.Spec.Data, s.File.Mode); err != nil {
-			return errors.Wrap(err, "error injecting secret")
-		}
 
 		uid, err := strconv.Atoi(s.File.UID)
 		if err != nil {
@@ -208,7 +200,15 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 		if err != nil {
 			return err
 		}
-
+		if s.File.Mode.IsDir() {
+			if err := idtools.MkdirAllAs(fPath, s.File.Mode, rootUID+uid, rootGID+gid); err != nil {
+				return errors.Wrap(err, "error injecting secret dir")
+			}
+		} else {
+			if err := ioutil.WriteFile(fPath, secret.Spec.Data, s.File.Mode); err != nil {
+				return errors.Wrap(err, "error injecting secret")
+			}
+		}
 		if err := os.Chown(fPath, rootUID+uid, rootGID+gid); err != nil {
 			return errors.Wrap(err, "error setting ownership for secret")
 		}
