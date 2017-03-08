@@ -75,7 +75,7 @@ func Load(configDetails types.ConfigDetails) (*types.Config, error) {
 			return nil, err
 		}
 
-		servicesList, err := loadServices(servicesConfig, configDetails.WorkingDir)
+		servicesList, err := LoadServices(servicesConfig, configDetails.WorkingDir)
 		if err != nil {
 			return nil, err
 		}
@@ -89,7 +89,7 @@ func Load(configDetails types.ConfigDetails) (*types.Config, error) {
 			return nil, err
 		}
 
-		networksMapping, err := loadNetworks(networksConfig)
+		networksMapping, err := LoadNetworks(networksConfig)
 		if err != nil {
 			return nil, err
 		}
@@ -103,7 +103,7 @@ func Load(configDetails types.ConfigDetails) (*types.Config, error) {
 			return nil, err
 		}
 
-		volumesMapping, err := loadVolumes(volumesConfig)
+		volumesMapping, err := LoadVolumes(volumesConfig)
 		if err != nil {
 			return nil, err
 		}
@@ -117,7 +117,7 @@ func Load(configDetails types.ConfigDetails) (*types.Config, error) {
 			return nil, err
 		}
 
-		secretsMapping, err := loadSecrets(secretsConfig, configDetails.WorkingDir)
+		secretsMapping, err := LoadSecrets(secretsConfig, configDetails.WorkingDir)
 		if err != nil {
 			return nil, err
 		}
@@ -304,11 +304,13 @@ func formatInvalidKeyError(keyPrefix string, key interface{}) error {
 	return fmt.Errorf("Non-string key %s: %#v", location, key)
 }
 
-func loadServices(servicesDict types.Dict, workingDir string) ([]types.ServiceConfig, error) {
+// LoadServices produces a ServiceConfig map from a compose file Dict
+// the servicesDict is not validated if directly used. Use Load() to enable validation
+func LoadServices(servicesDict types.Dict, workingDir string) ([]types.ServiceConfig, error) {
 	var services []types.ServiceConfig
 
 	for name, serviceDef := range servicesDict {
-		serviceConfig, err := loadService(name, serviceDef.(types.Dict), workingDir)
+		serviceConfig, err := LoadService(name, serviceDef.(types.Dict), workingDir)
 		if err != nil {
 			return nil, err
 		}
@@ -318,7 +320,9 @@ func loadServices(servicesDict types.Dict, workingDir string) ([]types.ServiceCo
 	return services, nil
 }
 
-func loadService(name string, serviceDict types.Dict, workingDir string) (*types.ServiceConfig, error) {
+// LoadService produces a single ServiceConfig from a compose file Dict
+// the serviceDict is not validated if directly used. Use Load() to enable validation
+func LoadService(name string, serviceDict types.Dict, workingDir string) (*types.ServiceConfig, error) {
 	serviceConfig := &types.ServiceConfig{}
 	if err := transform(serviceDict, serviceConfig); err != nil {
 		return nil, err
@@ -405,7 +409,9 @@ func transformUlimits(data interface{}) (interface{}, error) {
 	}
 }
 
-func loadNetworks(source types.Dict) (map[string]types.NetworkConfig, error) {
+// LoadNetworks produces a NetworkConfig map from a compose file Dict
+// the source Dict is not validated if directly used. Use Load() to enable validation
+func LoadNetworks(source types.Dict) (map[string]types.NetworkConfig, error) {
 	networks := make(map[string]types.NetworkConfig)
 	err := transform(source, &networks)
 	if err != nil {
@@ -420,7 +426,9 @@ func loadNetworks(source types.Dict) (map[string]types.NetworkConfig, error) {
 	return networks, nil
 }
 
-func loadVolumes(source types.Dict) (map[string]types.VolumeConfig, error) {
+// LoadVolumes produces a VolumeConfig map from a compose file Dict
+// the source Dict is not validated if directly used. Use Load() to enable validation
+func LoadVolumes(source types.Dict) (map[string]types.VolumeConfig, error) {
 	volumes := make(map[string]types.VolumeConfig)
 	err := transform(source, &volumes)
 	if err != nil {
@@ -435,7 +443,9 @@ func loadVolumes(source types.Dict) (map[string]types.VolumeConfig, error) {
 	return volumes, nil
 }
 
-func loadSecrets(source types.Dict, workingDir string) (map[string]types.SecretConfig, error) {
+// LoadSecrets produces a SecretConfig map from a compose file Dict
+// the source Dict is not validated if directly used. Use Load() to enable validation
+func LoadSecrets(source types.Dict, workingDir string) (map[string]types.SecretConfig, error) {
 	secrets := make(map[string]types.SecretConfig)
 	if err := transform(source, &secrets); err != nil {
 		return secrets, err
