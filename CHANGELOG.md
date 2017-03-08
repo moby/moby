@@ -37,7 +37,7 @@ Upgrading from Docker 1.13.1 to 17.03.0 is expected to be simple and low-risk.
 
 * Fix a deadlock in docker logs [#30223](https://github.com/docker/docker/pull/30223)
 * Fix cpu spin waiting for log write events [#31070](https://github.com/docker/docker/pull/31070)
-* Fix a possible crash when using journald [#31231](https://github.com/docker/docker/pull/31231) [#31263](https://github.com/docker/docker/pull/31231)
+* Fix a possible crash when using journald [#31231](https://github.com/docker/docker/pull/31231) [#31263](https://github.com/docker/docker/pull/31263)
 * Fix a panic on close of nil channel [#31274](https://github.com/docker/docker/pull/31274)
 * Fix duplicate mount point for `--volumes-from` in `docker run` [#29563](https://github.com/docker/docker/pull/29563)
 * Fix `--cache-from` does not cache last step [#31189](https://github.com/docker/docker/pull/31189)
