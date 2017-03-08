@@ -2403,7 +2403,7 @@ func (s *DockerSuite) TestBuildDockerignoringBadExclusion(c *check.C) {
 		withFile(".dockerignore", "!\n"),
 	)).Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err:      "Error checking context: 'Illegal exclusion pattern: !",
+		Err:      "Error checking context: 'illegal exclusion pattern: \"!\"",
 	})
 }
 
