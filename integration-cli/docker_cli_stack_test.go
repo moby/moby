@@ -67,6 +67,31 @@ func (s *DockerSwarmSuite) TestStackDeployComposeFile(c *check.C) {
 	c.Assert(out, check.Equals, "NAME  SERVICES\n")
 }
 
+func (s *DockerSwarmSuite) TestStackDeployServiceNameOrder(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+	testStackNames := []string{"test-10", "test-2"}
+	for _, stackName := range testStackNames {
+		stackArgs := []string{
+			"stack", "deploy",
+			"--compose-file", "fixtures/deploy/default.yaml",
+			stackName,
+		}
+		out, err := d.Cmd(stackArgs...)
+		c.Assert(err, checker.IsNil, check.Commentf(out))
+	}
+
+	out, err := d.Cmd("stack", "ls")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, check.Equals, "NAME     SERVICES\n"+"test-2   2\n"+"test-10  2\n")
+	for _, stackName := range testStackNames {
+		_, err := d.Cmd("stack", "rm", stackName)
+		c.Assert(err, checker.IsNil)
+	}
+	out, err = d.Cmd("stack", "ls")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, check.Equals, "NAME  SERVICES\n")
+}
+
 func (s *DockerSwarmSuite) TestStackDeployWithSecretsTwice(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 

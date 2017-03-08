@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
+	"vbom.ml/util/sortorder"
 )
 
 const (
@@ -57,7 +58,7 @@ type byName []*stack
 
 func (n byName) Len() int           { return len(n) }
 func (n byName) Swap(i, j int)      { n[i], n[j] = n[j], n[i] }
-func (n byName) Less(i, j int) bool { return n[i].Name < n[j].Name }
+func (n byName) Less(i, j int) bool { return sortorder.NaturalLess(n[i].Name, n[j].Name) }
 
 func printTable(out io.Writer, stacks []*stack) {
 	writer := tabwriter.NewWriter(out, 0, 4, 2, ' ', 0)
