@@ -150,6 +150,13 @@ func computePrivileges(c types.PluginConfig) (types.PluginPrivileges, error) {
 			Value:       []string{c.Network.Type},
 		})
 	}
+	if c.IpcHost {
+		privileges = append(privileges, types.PluginPrivilege{
+			Name:        "host ipc namespace",
+			Description: "allow access to host ipc namespace",
+			Value:       []string{"true"},
+		})
+	}
 	for _, mount := range c.Mounts {
 		if mount.Source != nil {
 			privileges = append(privileges, types.PluginPrivilege{

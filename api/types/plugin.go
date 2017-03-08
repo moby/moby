@@ -58,6 +58,10 @@ type PluginConfig struct {
 	// Required: true
 	Interface PluginConfigInterface `json:"Interface"`
 
+	// ipc host
+	// Required: true
+	IpcHost bool `json:"IpcHost"`
+
 	// linux
 	// Required: true
 	Linux PluginConfigLinux `json:"Linux"`

@@ -61,6 +61,10 @@ func (p *Plugin) InitSpec(execRoot string) (*specs.Spec, error) {
 			})
 	}
 
+	if p.PluginObj.Config.IpcHost {
+		oci.RemoveNamespace(&s, specs.NamespaceType("ipc"))
+	}
+
 	for _, mnt := range mounts {
 		m := specs.Mount{
 			Destination: mnt.Destination,

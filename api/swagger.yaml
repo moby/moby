@@ -1446,6 +1446,7 @@ definitions:
           - Network
           - Linux
           - PropagatedMount
+          - IpcHost
           - Mounts
           - Env
           - Args
@@ -1512,6 +1513,9 @@ definitions:
                   $ref: "#/definitions/PluginDevice"
           PropagatedMount:
             type: "string"
+            x-nullable: false
+          IpcHost:
+            type: "boolean"
             x-nullable: false
           Mounts:
             type: "array"
