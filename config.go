@@ -14,7 +14,10 @@ import (
 
 // Moby is the type of a Moby config file
 type Moby struct {
-	Kernel string
+	Kernel struct {
+		Image   string
+		Cmdline string
+	}
 	Init   string
 	System []MobyImage
 	Daemon []MobyImage

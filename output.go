@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	bios = "mobylinux/mkimage-iso-bios:6b3ef6d6bdcc5fdf2ee683febac99533c2268c89@sha256:2484146c4dfbd2eee83d9dd3adf84d9232e5dd739d8762275dcd50bf60a529c6"
-	efi  = "mobylinux/mkimage-iso-efi:40f35270037dae95584324427e56f829756ff145@sha256:ae5b37ae560a5e030342f3d493d4ad611f2694bcd54eba86bf42ca069da986a7"
+	bios = "mobylinux/mkimage-iso-bios:489b1f054a77a8f379d0bfc6cd91639b4db6b67c@sha256:0f058951aac4367d132682aa19eeb5cdcb05600a5d51fe5d0fcbd97b03ae4f87"
+	efi  = "mobylinux/mkimage-iso-efi:b210c58e096e53082d35b28fa2b52dba6ae200c8@sha256:10c2789bf5fbd27c35c5fe2f3b97f75a7108bbde389d0f5ed750e3e2dae95376"
 )
 
 func outputs(m *Moby, base string, bzimage []byte, initrd []byte) error {
@@ -22,12 +22,12 @@ func outputs(m *Moby, base string, bzimage []byte, initrd []byte) error {
 				return fmt.Errorf("Error writing %s output: %v", o.Format, err)
 			}
 		case "iso-bios":
-			err := outputISO(bios, base+".iso", bzimage, initrd)
+			err := outputISO(bios, base+".iso", bzimage, initrd, m.Kernel.Cmdline)
 			if err != nil {
 				return fmt.Errorf("Error writing %s output: %v", o.Format, err)
 			}
 		case "iso-efi":
-			err := outputISO(efi, base+"-efi.iso", bzimage, initrd)
+			err := outputISO(efi, base+"-efi.iso", bzimage, initrd, m.Kernel.Cmdline)
 			if err != nil {
 				return fmt.Errorf("Error writing %s output: %v", o.Format, err)
 			}
@@ -41,7 +41,7 @@ func outputs(m *Moby, base string, bzimage []byte, initrd []byte) error {
 }
 
 // TODO add kernel command line
-func outputISO(image, filename string, bzimage []byte, initrd []byte) error {
+func outputISO(image, filename string, bzimage []byte, initrd []byte, args ...string) error {
 	// first build the input tarball from kernel and initrd
 	buf := new(bytes.Buffer)
 	tw := tar.NewWriter(buf)
@@ -75,7 +75,7 @@ func outputISO(image, filename string, bzimage []byte, initrd []byte) error {
 	if err != nil {
 		return err
 	}
-	iso, err := dockerRunInput(buf, image)
+	iso, err := dockerRunInput(buf, append([]string{image}, args...)...)
 	if err != nil {
 		return err
 	}
