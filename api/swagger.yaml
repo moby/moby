@@ -741,7 +741,7 @@ definitions:
         default: false
       Env:
         description: |
-          A list of environment variables to set inside the container in the form `["VAR=value", ...]`
+          A list of environment variables to set inside the container in the form `["VAR=value", ...]`. A variable without `=` is removed from the environment, rather than to have an empty value.
         type: "array"
         items:
           type: "string"
