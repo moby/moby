@@ -67,7 +67,7 @@ func inspectImages(ctx context.Context, dockerCli *command.DockerCli) inspect.Ge
 
 func inspectNetwork(ctx context.Context, dockerCli *command.DockerCli) inspect.GetRefFunc {
 	return func(ref string) (interface{}, []byte, error) {
-		return dockerCli.Client().NetworkInspectWithRaw(ctx, ref)
+		return dockerCli.Client().NetworkInspectWithRaw(ctx, ref, false)
 	}
 }
 

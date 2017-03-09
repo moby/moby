@@ -140,7 +140,7 @@ func validateExternalNetworks(
 	client := dockerCli.Client()
 
 	for _, networkName := range externalNetworks {
-		network, err := client.NetworkInspect(ctx, networkName)
+		network, err := client.NetworkInspect(ctx, networkName, false)
 		if err != nil {
 			if dockerclient.IsErrNetworkNotFound(err) {
 				return fmt.Errorf("network %q is declared as external, but could not be found. You need to create the network before the stack is deployed (with overlay driver)", networkName)

@@ -17,6 +17,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.27](https://docs.docker.com/engine/api/v1.27/) documentation
 
+* Optional query parameter `verbose` for `GET /networks/(id or name)` will now list all services with all the tasks, including the non-local tasks on the given network.
 * `GET /containers/(id or name)/attach/ws` now returns WebSocket in binary frame format for API version >= v1.27, and returns WebSocket in text frame format for API version< v1.27, for the purpose of backward-compatibility.
 * `GET /networks` is optimised only to return list of all networks and network specific information. List of all containers attached to a specific network is removed from this API and is only available using the network specific `GET /networks/{network-id}.
 * `GET /containers/json` now supports `publish` and `expose` filters to filter containers that expose or publish certain ports.
