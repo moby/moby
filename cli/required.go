@@ -1,9 +1,9 @@
 package cli
 
 import (
-	"fmt"
 	"strings"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -14,10 +14,10 @@ func NoArgs(cmd *cobra.Command, args []string) error {
 	}
 
 	if cmd.HasSubCommands() {
-		return fmt.Errorf("\n" + strings.TrimRight(cmd.UsageString(), "\n"))
+		return errors.Errorf("\n" + strings.TrimRight(cmd.UsageString(), "\n"))
 	}
 
-	return fmt.Errorf(
+	return errors.Errorf(
 		"\"%s\" accepts no argument(s).\nSee '%s --help'.\n\nUsage:  %s\n\n%s",
 		cmd.CommandPath(),
 		cmd.CommandPath(),
@@ -32,7 +32,7 @@ func RequiresMinArgs(min int) cobra.PositionalArgs {
 		if len(args) >= min {
 			return nil
 		}
-		return fmt.Errorf(
+		return errors.Errorf(
 			"\"%s\" requires at least %d argument(s).\nSee '%s --help'.\n\nUsage:  %s\n\n%s",
 			cmd.CommandPath(),
 			min,
@@ -49,7 +49,7 @@ func RequiresMaxArgs(max int) cobra.PositionalArgs {
 		if len(args) <= max {
 			return nil
 		}
-		return fmt.Errorf(
+		return errors.Errorf(
 			"\"%s\" requires at most %d argument(s).\nSee '%s --help'.\n\nUsage:  %s\n\n%s",
 			cmd.CommandPath(),
 			max,
@@ -66,7 +66,7 @@ func RequiresRangeArgs(min int, max int) cobra.PositionalArgs {
 		if len(args) >= min && len(args) <= max {
 			return nil
 		}
-		return fmt.Errorf(
+		return errors.Errorf(
 			"\"%s\" requires at least %d and at most %d argument(s).\nSee '%s --help'.\n\nUsage:  %s\n\n%s",
 			cmd.CommandPath(),
 			min,
@@ -84,7 +84,7 @@ func ExactArgs(number int) cobra.PositionalArgs {
 		if len(args) == number {
 			return nil
 		}
-		return fmt.Errorf(
+		return errors.Errorf(
 			"\"%s\" requires exactly %d argument(s).\nSee '%s --help'.\n\nUsage:  %s\n\n%s",
 			cmd.CommandPath(),
 			number,

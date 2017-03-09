@@ -1,7 +1,7 @@
 package container
 
 import (
-	"errors"
+	"github.com/pkg/errors"
 	"io"
 
 	"github.com/docker/docker/cli"

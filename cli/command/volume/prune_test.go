@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/cli/internal/test"
 	"github.com/docker/docker/pkg/testutil/assert"
 	"github.com/docker/docker/pkg/testutil/golden"
+	"github.com/pkg/errors"
 )
 
 func TestVolumePruneErrors(t *testing.T) {
@@ -31,7 +32,7 @@ func TestVolumePruneErrors(t *testing.T) {
 				"force": "true",
 			},
 			volumePruneFunc: func(args filters.Args) (types.VolumesPruneReport, error) {
-				return types.VolumesPruneReport{}, fmt.Errorf("error pruning volumes")
+				return types.VolumesPruneReport{}, errors.Errorf("error pruning volumes")
 			},
 			expectedError: "error pruning volumes",
 		},

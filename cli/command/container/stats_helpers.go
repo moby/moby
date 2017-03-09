@@ -2,7 +2,7 @@ package container
 
 import (
 	"encoding/json"
-	"errors"
+	"github.com/pkg/errors"
 	"io"
 	"strings"
 	"sync"

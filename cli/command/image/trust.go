@@ -3,7 +3,6 @@ package image
 import (
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"path"
@@ -19,6 +18,7 @@ import (
 	"github.com/docker/notary/client"
 	"github.com/docker/notary/tuf/data"
 	"github.com/opencontainers/go-digest"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
 
@@ -92,7 +92,7 @@ func PushTrustedReference(cli *command.DockerCli, repoInfo *registry.RepositoryI
 	}
 
 	if cnt > 1 {
-		return fmt.Errorf("internal error: only one call to handleTarget expected")
+		return errors.Errorf("internal error: only one call to handleTarget expected")
 	}
 
 	if target == nil {
@@ -195,7 +195,7 @@ func addTargetToAllSignableRoles(repo *client.NotaryRepository, target *client.T
 	}
 
 	if len(signableRoles) == 0 {
-		return fmt.Errorf("no valid signing keys for delegation roles")
+		return errors.Errorf("no valid signing keys for delegation roles")
 	}
 
 	return repo.AddTarget(target, signableRoles...)
@@ -245,7 +245,7 @@ func trustedPull(ctx context.Context, cli *command.DockerCli, repoInfo *registry
 			refs = append(refs, t)
 		}
 		if len(refs) == 0 {
-			return trust.NotaryError(ref.Name(), fmt.Errorf("No trusted tags for %s", ref.Name()))
+			return trust.NotaryError(ref.Name(), errors.Errorf("No trusted tags for %s", ref.Name()))
 		}
 	} else {
 		t, err := notaryRepo.GetTargetByName(tagged.Tag(), trust.ReleasesRole, data.CanonicalTargetsRole)
@@ -255,7 +255,7 @@ func trustedPull(ctx context.Context, cli *command.DockerCli, repoInfo *registry
 		// Only get the tag if it's in the top level targets role or the releases delegation role
 		// ignore it if it's in any other delegation roles
 		if t.Role != trust.ReleasesRole && t.Role != data.CanonicalTargetsRole {
-			return trust.NotaryError(ref.Name(), fmt.Errorf("No trust data for %s", tagged.Tag()))
+			return trust.NotaryError(ref.Name(), errors.Errorf("No trust data for %s", tagged.Tag()))
 		}
 
 		logrus.Debugf("retrieving target for %s role\n", t.Role)
@@ -347,7 +347,7 @@ func TrustedReference(ctx context.Context, cli *command.DockerCli, ref reference
 	// Only list tags in the top level targets role or the releases delegation role - ignore
 	// all other delegation roles
 	if t.Role != trust.ReleasesRole && t.Role != data.CanonicalTargetsRole {
-		return nil, trust.NotaryError(repoInfo.Name.Name(), fmt.Errorf("No trust data for %s", ref.Tag()))
+		return nil, trust.NotaryError(repoInfo.Name.Name(), errors.Errorf("No trust data for %s", ref.Tag()))
 	}
 	r, err := convertTarget(t.Target)
 	if err != nil {

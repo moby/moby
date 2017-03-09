@@ -1,7 +1,6 @@
 package service
 
 import (
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -11,6 +10,7 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
+	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
 )
 
@@ -32,7 +32,7 @@ func (d *PositiveDurationOpt) Set(s string) error {
 		return err
 	}
 	if *d.DurationOpt.value < 0 {
-		return fmt.Errorf("duration cannot be negative")
+		return errors.Errorf("duration cannot be negative")
 	}
 	return nil
 }
@@ -140,7 +140,7 @@ func (opts *placementPrefOpts) Set(value string) error {
 		return errors.New(`placement preference must be of the format "<strategy>=<arg>"`)
 	}
 	if fields[0] != "spread" {
-		return fmt.Errorf("unsupported placement preference %s (only spread is supported)", fields[0])
+		return errors.Errorf("unsupported placement preference %s (only spread is supported)", fields[0])
 	}
 
 	opts.prefs = append(opts.prefs, swarm.PlacementPreference{
@@ -268,7 +268,7 @@ func (opts *healthCheckOptions) toHealthConfig() (*container.HealthConfig, error
 		opts.retries != 0
 	if opts.noHealthcheck {
 		if haveHealthSettings {
-			return nil, fmt.Errorf("--%s conflicts with --health-* options", flagNoHealthcheck)
+			return nil, errors.Errorf("--%s conflicts with --health-* options", flagNoHealthcheck)
 		}
 		healthConfig = &container.HealthConfig{Test: []string{"NONE"}}
 	} else if haveHealthSettings {
@@ -372,7 +372,7 @@ func (opts *serviceOptions) ToServiceMode() (swarm.ServiceMode, error) {
 	switch opts.mode {
 	case "global":
 		if opts.replicas.Value() != nil {
-			return serviceMode, fmt.Errorf("replicas can only be used with replicated mode")
+			return serviceMode, errors.Errorf("replicas can only be used with replicated mode")
 		}
 
 		serviceMode.Global = &swarm.GlobalService{}
@@ -381,7 +381,7 @@ func (opts *serviceOptions) ToServiceMode() (swarm.ServiceMode, error) {
 			Replicas: opts.replicas.Value(),
 		}
 	default:
-		return serviceMode, fmt.Errorf("Unknown mode: %s, only replicated and global supported", opts.mode)
+		return serviceMode, errors.Errorf("Unknown mode: %s, only replicated and global supported", opts.mode)
 	}
 	return serviceMode, nil
 }

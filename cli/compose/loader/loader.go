@@ -36,7 +36,7 @@ func ParseYAML(source []byte) (map[string]interface{}, error) {
 	}
 	cfgMap, ok := cfg.(map[interface{}]interface{})
 	if !ok {
-		return nil, fmt.Errorf("Top-level object must be a mapping")
+		return nil, errors.Errorf("Top-level object must be a mapping")
 	}
 	converted, err := convertToStringKeysRecursive(cfgMap, "")
 	if err != nil {
@@ -48,10 +48,10 @@ func ParseYAML(source []byte) (map[string]interface{}, error) {
 // Load reads a ConfigDetails and returns a fully loaded configuration
 func Load(configDetails types.ConfigDetails) (*types.Config, error) {
 	if len(configDetails.ConfigFiles) < 1 {
-		return nil, fmt.Errorf("No files specified")
+		return nil, errors.Errorf("No files specified")
 	}
 	if len(configDetails.ConfigFiles) > 1 {
-		return nil, fmt.Errorf("Multiple files are not yet supported")
+		return nil, errors.Errorf("Multiple files are not yet supported")
 	}
 
 	configDict := getConfigDict(configDetails)
@@ -310,7 +310,7 @@ func formatInvalidKeyError(keyPrefix string, key interface{}) error {
 	} else {
 		location = fmt.Sprintf("in %s", keyPrefix)
 	}
-	return fmt.Errorf("Non-string key %s: %#v", location, key)
+	return errors.Errorf("Non-string key %s: %#v", location, key)
 }
 
 // LoadServices produces a ServiceConfig map from a compose file Dict
@@ -415,7 +415,7 @@ func transformUlimits(data interface{}) (interface{}, error) {
 		ulimit.Hard = value["hard"].(int)
 		return ulimit, nil
 	default:
-		return data, fmt.Errorf("invalid type %T for ulimits", value)
+		return data, errors.Errorf("invalid type %T for ulimits", value)
 	}
 }
 
@@ -503,7 +503,7 @@ func transformMapStringString(data interface{}) (interface{}, error) {
 	case map[string]string:
 		return value, nil
 	default:
-		return data, fmt.Errorf("invalid type %T for map[string]string", value)
+		return data, errors.Errorf("invalid type %T for map[string]string", value)
 	}
 }
 
@@ -514,7 +514,7 @@ func transformExternal(data interface{}) (interface{}, error) {
 	case map[string]interface{}:
 		return map[string]interface{}{"external": true, "name": value["name"]}, nil
 	default:
-		return data, fmt.Errorf("invalid type %T for external", value)
+		return data, errors.Errorf("invalid type %T for external", value)
 	}
 }
 
@@ -542,12 +542,12 @@ func transformServicePort(data interface{}) (interface{}, error) {
 			case map[string]interface{}:
 				ports = append(ports, value)
 			default:
-				return data, fmt.Errorf("invalid type %T for port", value)
+				return data, errors.Errorf("invalid type %T for port", value)
 			}
 		}
 		return ports, nil
 	default:
-		return data, fmt.Errorf("invalid type %T for port", entries)
+		return data, errors.Errorf("invalid type %T for port", entries)
 	}
 }
 
@@ -558,7 +558,7 @@ func transformServiceSecret(data interface{}) (interface{}, error) {
 	case map[string]interface{}:
 		return data, nil
 	default:
-		return data, fmt.Errorf("invalid type %T for secret", value)
+		return data, errors.Errorf("invalid type %T for secret", value)
 	}
 }
 
@@ -569,7 +569,7 @@ func transformServiceVolumeConfig(data interface{}) (interface{}, error) {
 	case map[string]interface{}:
 		return data, nil
 	default:
-		return data, fmt.Errorf("invalid type %T for service volume", value)
+		return data, errors.Errorf("invalid type %T for service volume", value)
 	}
 
 }
@@ -601,7 +601,7 @@ func transformStringList(data interface{}) (interface{}, error) {
 	case []interface{}:
 		return value, nil
 	default:
-		return data, fmt.Errorf("invalid type %T for string list", value)
+		return data, errors.Errorf("invalid type %T for string list", value)
 	}
 }
 
@@ -625,7 +625,7 @@ func transformMappingOrList(mappingOrList interface{}, sep string, allowNil bool
 		}
 		return result
 	}
-	panic(fmt.Errorf("expected a map or a list, got %T: %#v", mappingOrList, mappingOrList))
+	panic(errors.Errorf("expected a map or a list, got %T: %#v", mappingOrList, mappingOrList))
 }
 
 func transformShellCommand(value interface{}) (interface{}, error) {
@@ -642,7 +642,7 @@ func transformHealthCheckTest(data interface{}) (interface{}, error) {
 	case []interface{}:
 		return value, nil
 	default:
-		return value, fmt.Errorf("invalid type %T for healthcheck.test", value)
+		return value, errors.Errorf("invalid type %T for healthcheck.test", value)
 	}
 }
 
@@ -653,7 +653,7 @@ func transformSize(value interface{}) (int64, error) {
 	case string:
 		return units.RAMInBytes(value)
 	}
-	panic(fmt.Errorf("invalid type for size %T", value))
+	panic(errors.Errorf("invalid type for size %T", value))
 }
 
 func toServicePortConfigs(value string) ([]interface{}, error) {

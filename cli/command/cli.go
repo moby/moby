@@ -1,8 +1,8 @@
 package command
 
 import (
-	"errors"
 	"fmt"
+	"github.com/pkg/errors"
 	"io"
 	"net/http"
 	"os"

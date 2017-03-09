@@ -261,7 +261,7 @@ func convertHealthcheck(healthcheck *composetypes.HealthCheckConfig) (*container
 	)
 	if healthcheck.Disable {
 		if len(healthcheck.Test) != 0 {
-			return nil, fmt.Errorf("test and disable can't be set at the same time")
+			return nil, errors.Errorf("test and disable can't be set at the same time")
 		}
 		return &container.HealthConfig{
 			Test: []string{"NONE"},
@@ -312,7 +312,7 @@ func convertRestartPolicy(restart string, source *composetypes.RestartPolicy) (*
 				MaxAttempts: &attempts,
 			}, nil
 		default:
-			return nil, fmt.Errorf("unknown restart policy: %s", restart)
+			return nil, errors.Errorf("unknown restart policy: %s", restart)
 		}
 	}
 	return &swarm.RestartPolicy{
@@ -418,13 +418,13 @@ func convertDeployMode(mode string, replicas *uint64) (swarm.ServiceMode, error)
 	switch mode {
 	case "global":
 		if replicas != nil {
-			return serviceMode, fmt.Errorf("replicas can only be used with replicated mode")
+			return serviceMode, errors.Errorf("replicas can only be used with replicated mode")
 		}
 		serviceMode.Global = &swarm.GlobalService{}
 	case "replicated", "":
 		serviceMode.Replicated = &swarm.ReplicatedService{Replicas: replicas}
 	default:
-		return serviceMode, fmt.Errorf("Unknown mode: %s", mode)
+		return serviceMode, errors.Errorf("Unknown mode: %s", mode)
 	}
 	return serviceMode, nil
 }

@@ -1,12 +1,12 @@
 package container
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )
@@ -45,7 +45,7 @@ func runRename(dockerCli *command.DockerCli, opts *renameOptions) error {
 
 	if err := dockerCli.Client().ContainerRename(ctx, oldName, newName); err != nil {
 		fmt.Fprintln(dockerCli.Err(), err)
-		return fmt.Errorf("Error: failed to rename container named %s", oldName)
+		return errors.Errorf("Error: failed to rename container named %s", oldName)
 	}
 	return nil
 }

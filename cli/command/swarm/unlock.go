@@ -2,8 +2,8 @@ package swarm
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
+	"github.com/pkg/errors"
 	"io"
 	"strings"
 

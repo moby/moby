@@ -2,13 +2,13 @@ package formatter
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"strings"
 	"text/tabwriter"
 	"text/template"
 
 	"github.com/docker/docker/pkg/templates"
+	"github.com/pkg/errors"
 )
 
 // Format keys used to specify certain kinds of output formats
@@ -64,7 +64,7 @@ func (c *Context) preFormat() {
 func (c *Context) parseFormat() (*template.Template, error) {
 	tmpl, err := templates.Parse(c.finalFormat)
 	if err != nil {
-		return tmpl, fmt.Errorf("Template parsing error: %v\n", err)
+		return tmpl, errors.Errorf("Template parsing error: %v\n", err)
 	}
 	return tmpl, err
 }
@@ -85,7 +85,7 @@ func (c *Context) postFormat(tmpl *template.Template, subContext subContext) {
 
 func (c *Context) contextFormat(tmpl *template.Template, subContext subContext) error {
 	if err := tmpl.Execute(c.buffer, subContext); err != nil {
-		return fmt.Errorf("Template parsing error: %v\n", err)
+		return errors.Errorf("Template parsing error: %v\n", err)
 	}
 	if c.Format.IsTable() && c.header != nil {
 		c.header = subContext.FullHeader()

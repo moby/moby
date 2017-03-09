@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/pkg/testutil/assert"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/nat"
+	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
 )
 
@@ -224,7 +225,7 @@ func compareRandomizedStrings(a, b, c, d string) error {
 	if a == d && b == c {
 		return nil
 	}
-	return fmt.Errorf("strings don't match")
+	return errors.Errorf("strings don't match")
 }
 
 // Simple parse with MacAddress validation
@@ -751,14 +752,14 @@ func callDecodeContainerConfig(volumes []string, binds []string) (*container.Con
 		w.Config.Volumes[v] = struct{}{}
 	}
 	if b, err = json.Marshal(w); err != nil {
-		return nil, nil, fmt.Errorf("Error on marshal %s", err.Error())
+		return nil, nil, errors.Errorf("Error on marshal %s", err.Error())
 	}
 	c, h, _, err = runconfig.DecodeContainerConfig(bytes.NewReader(b))
 	if err != nil {
-		return nil, nil, fmt.Errorf("Error parsing %s: %v", string(b), err)
+		return nil, nil, errors.Errorf("Error parsing %s: %v", string(b), err)
 	}
 	if c == nil || h == nil {
-		return nil, nil, fmt.Errorf("Empty config or hostconfig")
+		return nil, nil, errors.Errorf("Empty config or hostconfig")
 	}
 
 	return c, h, err

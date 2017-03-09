@@ -1,8 +1,8 @@
 package image
 
 import (
-	"errors"
 	"fmt"
+	"github.com/pkg/errors"
 	"strings"
 
 	"golang.org/x/net/context"

@@ -1,8 +1,6 @@
 package plugin
 
 import (
-	"fmt"
-
 	"golang.org/x/net/context"
 
 	"github.com/docker/distribution/reference"
@@ -11,6 +9,7 @@ import (
 	"github.com/docker/docker/cli/command/image"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/registry"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -37,7 +36,7 @@ func runPush(dockerCli *command.DockerCli, name string) error {
 		return err
 	}
 	if _, ok := named.(reference.Canonical); ok {
-		return fmt.Errorf("invalid name: %s", name)
+		return errors.Errorf("invalid name: %s", name)
 	}
 
 	named = reference.TagNameOnly(named)

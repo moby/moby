@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )
@@ -32,7 +33,7 @@ func newCreateCommand(dockerCli command.Cli) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 1 {
 				if opts.name != "" {
-					return fmt.Errorf("Conflicting options: either specify --name or provide positional arg, not both\n")
+					return errors.Errorf("Conflicting options: either specify --name or provide positional arg, not both\n")
 				}
 				opts.name = args[0]
 			}

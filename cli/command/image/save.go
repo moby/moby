@@ -1,7 +1,7 @@
 package image
 
 import (
-	"errors"
+	"github.com/pkg/errors"
 	"io"
 
 	"golang.org/x/net/context"

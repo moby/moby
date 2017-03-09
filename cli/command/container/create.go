@@ -14,6 +14,7 @@ import (
 	apiclient "github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/registry"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"golang.org/x/net/context"
@@ -118,7 +119,7 @@ func (cid *cidFile) Close() error {
 		return nil
 	}
 	if err := os.Remove(cid.path); err != nil {
-		return fmt.Errorf("failed to remove the CID file '%s': %s \n", cid.path, err)
+		return errors.Errorf("failed to remove the CID file '%s': %s \n", cid.path, err)
 	}
 
 	return nil
@@ -126,7 +127,7 @@ func (cid *cidFile) Close() error {
 
 func (cid *cidFile) Write(id string) error {
 	if _, err := cid.file.Write([]byte(id)); err != nil {
-		return fmt.Errorf("Failed to write the container ID to the file: %s", err)
+		return errors.Errorf("Failed to write the container ID to the file: %s", err)
 	}
 	cid.written = true
 	return nil
@@ -134,12 +135,12 @@ func (cid *cidFile) Write(id string) error {
 
 func newCIDFile(path string) (*cidFile, error) {
 	if _, err := os.Stat(path); err == nil {
-		return nil, fmt.Errorf("Container ID file found, make sure the other container isn't running or delete %s", path)
+		return nil, errors.Errorf("Container ID file found, make sure the other container isn't running or delete %s", path)
 	}
 
 	f, err := os.Create(path)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create the container ID file: %s", err)
+		return nil, errors.Errorf("Failed to create the container ID file: %s", err)
 	}
 
 	return &cidFile{path: path, file: f}, nil

@@ -17,6 +17,7 @@ import (
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/registry"
+	"github.com/pkg/errors"
 )
 
 // ElectAuthServer returns the default registry to use (by asking the daemon)
@@ -95,7 +96,7 @@ func ConfigureAuth(cli *DockerCli, flUser, flPassword, serverAddress string, isD
 	// will hit this if you attempt docker login from mintty where stdin
 	// is a pipe, not a character based console.
 	if flPassword == "" && !cli.In().IsTerminal() {
-		return authconfig, fmt.Errorf("Error: Cannot perform an interactive login from a non TTY device")
+		return authconfig, errors.Errorf("Error: Cannot perform an interactive login from a non TTY device")
 	}
 
 	authconfig.Username = strings.TrimSpace(authconfig.Username)
@@ -113,7 +114,7 @@ func ConfigureAuth(cli *DockerCli, flUser, flPassword, serverAddress string, isD
 		}
 	}
 	if flUser == "" {
-		return authconfig, fmt.Errorf("Error: Non-null Username Required")
+		return authconfig, errors.Errorf("Error: Non-null Username Required")
 	}
 	if flPassword == "" {
 		oldState, err := term.SaveState(cli.In().FD())
@@ -128,7 +129,7 @@ func ConfigureAuth(cli *DockerCli, flUser, flPassword, serverAddress string, isD
 
 		term.RestoreTerminal(cli.In().FD(), oldState)
 		if flPassword == "" {
-			return authconfig, fmt.Errorf("Error: Password Required")
+			return authconfig, errors.Errorf("Error: Password Required")
 		}
 	}
 

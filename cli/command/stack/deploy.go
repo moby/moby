@@ -52,9 +52,9 @@ func runDeploy(dockerCli *command.DockerCli, opts deployOptions) error {
 
 	switch {
 	case opts.bundlefile == "" && opts.composefile == "":
-		return fmt.Errorf("Please specify either a bundle file (with --bundle-file) or a Compose file (with --compose-file).")
+		return errors.Errorf("Please specify either a bundle file (with --bundle-file) or a Compose file (with --compose-file).")
 	case opts.bundlefile != "" && opts.composefile != "":
-		return fmt.Errorf("You cannot specify both a bundle file and a Compose file.")
+		return errors.Errorf("You cannot specify both a bundle file and a Compose file.")
 	case opts.bundlefile != "":
 		return deployBundle(ctx, dockerCli, opts)
 	default:

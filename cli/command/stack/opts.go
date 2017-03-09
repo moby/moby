@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/docker/docker/cli/command/bundlefile"
+	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
 )
 
@@ -30,7 +31,7 @@ func loadBundlefile(stderr io.Writer, namespace string, path string) (*bundlefil
 		path = defaultPath
 	}
 	if _, err := os.Stat(path); err != nil {
-		return nil, fmt.Errorf(
+		return nil, errors.Errorf(
 			"Bundle %s not found. Specify the path with --file",
 			path)
 	}
@@ -44,7 +45,7 @@ func loadBundlefile(stderr io.Writer, namespace string, path string) (*bundlefil
 
 	bundle, err := bundlefile.LoadFile(reader)
 	if err != nil {
-		return nil, fmt.Errorf("Error reading %s: %v\n", path, err)
+		return nil, errors.Errorf("Error reading %s: %v\n", path, err)
 	}
 	return bundle, err
 }

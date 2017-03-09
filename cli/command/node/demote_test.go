@@ -2,12 +2,12 @@ package node
 
 import (
 	"bytes"
-	"fmt"
 	"io/ioutil"
 	"testing"
 
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli/internal/test"
+	"github.com/pkg/errors"
 	// Import builders to get the builder function as package function
 	. "github.com/docker/docker/cli/internal/test/builders"
 	"github.com/docker/docker/pkg/testutil/assert"
@@ -26,14 +26,14 @@ func TestNodeDemoteErrors(t *testing.T) {
 		{
 			args: []string{"nodeID"},
 			nodeInspectFunc: func() (swarm.Node, []byte, error) {
-				return swarm.Node{}, []byte{}, fmt.Errorf("error inspecting the node")
+				return swarm.Node{}, []byte{}, errors.Errorf("error inspecting the node")
 			},
 			expectedError: "error inspecting the node",
 		},
 		{
 			args: []string{"nodeID"},
 			nodeUpdateFunc: func(nodeID string, version swarm.Version, node swarm.NodeSpec) error {
-				return fmt.Errorf("error updating the node")
+				return errors.Errorf("error updating the node")
 			},
 			expectedError: "error updating the node",
 		},
@@ -60,7 +60,7 @@ func TestNodeDemoteNoChange(t *testing.T) {
 			},
 			nodeUpdateFunc: func(nodeID string, version swarm.Version, node swarm.NodeSpec) error {
 				if node.Role != swarm.NodeRoleWorker {
-					return fmt.Errorf("expected role worker, got %s", node.Role)
+					return errors.Errorf("expected role worker, got %s", node.Role)
 				}
 				return nil
 			},
@@ -78,7 +78,7 @@ func TestNodeDemoteMultipleNode(t *testing.T) {
 			},
 			nodeUpdateFunc: func(nodeID string, version swarm.Version, node swarm.NodeSpec) error {
 				if node.Role != swarm.NodeRoleWorker {
-					return fmt.Errorf("expected role worker, got %s", node.Role)
+					return errors.Errorf("expected role worker, got %s", node.Role)
 				}
 				return nil
 			},

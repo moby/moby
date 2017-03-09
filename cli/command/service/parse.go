@@ -1,12 +1,11 @@
 package service
 
 import (
-	"fmt"
-
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
 
@@ -18,7 +17,7 @@ func ParseSecrets(client client.SecretAPIClient, requestedSecrets []*swarmtypes.
 
 	for _, secret := range requestedSecrets {
 		if _, exists := secretRefs[secret.File.Name]; exists {
-			return nil, fmt.Errorf("duplicate secret target for %s not allowed", secret.SecretName)
+			return nil, errors.Errorf("duplicate secret target for %s not allowed", secret.SecretName)
 		}
 		secretRef := new(swarmtypes.SecretReference)
 		*secretRef = *secret
@@ -47,7 +46,7 @@ func ParseSecrets(client client.SecretAPIClient, requestedSecrets []*swarmtypes.
 	for _, ref := range secretRefs {
 		id, ok := foundSecrets[ref.SecretName]
 		if !ok {
-			return nil, fmt.Errorf("secret not found: %s", ref.SecretName)
+			return nil, errors.Errorf("secret not found: %s", ref.SecretName)
 		}
 
 		// set the id for the ref to properly assign in swarm

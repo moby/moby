@@ -1,8 +1,8 @@
 package container
 
 import (
-	"errors"
 	"fmt"
+	"github.com/pkg/errors"
 	"io"
 	"net/http/httputil"
 	"os"

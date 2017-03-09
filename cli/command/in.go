@@ -1,7 +1,7 @@
 package command
 
 import (
-	"errors"
+	"github.com/pkg/errors"
 	"io"
 	"os"
 	"runtime"

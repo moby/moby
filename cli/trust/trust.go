@@ -2,7 +2,6 @@ package trust
 
 import (
 	"encoding/json"
-	"fmt"
 	"net"
 	"net/http"
 	"net/url"
@@ -29,6 +28,7 @@ import (
 	"github.com/docker/notary/trustpinning"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -57,7 +57,7 @@ func Server(index *registrytypes.IndexInfo) (string, error) {
 	if s := os.Getenv("DOCKER_CONTENT_TRUST_SERVER"); s != "" {
 		urlObj, err := url.Parse(s)
 		if err != nil || urlObj.Scheme != "https" {
-			return "", fmt.Errorf("valid https URL required for trust server, got %s", s)
+			return "", errors.Errorf("valid https URL required for trust server, got %s", s)
 		}
 
 		return s, nil
@@ -205,27 +205,27 @@ func NotaryError(repoName string, err error) error {
 	switch err.(type) {
 	case *json.SyntaxError:
 		logrus.Debugf("Notary syntax error: %s", err)
-		return fmt.Errorf("Error: no trust data available for remote repository %s. Try running notary server and setting DOCKER_CONTENT_TRUST_SERVER to its HTTPS address?", repoName)
+		return errors.Errorf("Error: no trust data available for remote repository %s. Try running notary server and setting DOCKER_CONTENT_TRUST_SERVER to its HTTPS address?", repoName)
 	case signed.ErrExpired:
-		return fmt.Errorf("Error: remote repository %s out-of-date: %v", repoName, err)
+		return errors.Errorf("Error: remote repository %s out-of-date: %v", repoName, err)
 	case trustmanager.ErrKeyNotFound:
-		return fmt.Errorf("Error: signing keys for remote repository %s not found: %v", repoName, err)
+		return errors.Errorf("Error: signing keys for remote repository %s not found: %v", repoName, err)
 	case storage.NetworkError:
-		return fmt.Errorf("Error: error contacting notary server: %v", err)
+		return errors.Errorf("Error: error contacting notary server: %v", err)
 	case storage.ErrMetaNotFound:
-		return fmt.Errorf("Error: trust data missing for remote repository %s or remote repository not found: %v", repoName, err)
+		return errors.Errorf("Error: trust data missing for remote repository %s or remote repository not found: %v", repoName, err)
 	case trustpinning.ErrRootRotationFail, trustpinning.ErrValidationFail, signed.ErrInvalidKeyType:
-		return fmt.Errorf("Warning: potential malicious behavior - trust data mismatch for remote repository %s: %v", repoName, err)
+		return errors.Errorf("Warning: potential malicious behavior - trust data mismatch for remote repository %s: %v", repoName, err)
 	case signed.ErrNoKeys:
-		return fmt.Errorf("Error: could not find signing keys for remote repository %s, or could not decrypt signing key: %v", repoName, err)
+		return errors.Errorf("Error: could not find signing keys for remote repository %s, or could not decrypt signing key: %v", repoName, err)
 	case signed.ErrLowVersion:
-		return fmt.Errorf("Warning: potential malicious behavior - trust data version is lower than expected for remote repository %s: %v", repoName, err)
+		return errors.Errorf("Warning: potential malicious behavior - trust data version is lower than expected for remote repository %s: %v", repoName, err)
 	case signed.ErrRoleThreshold:
-		return fmt.Errorf("Warning: potential malicious behavior - trust data has insufficient signatures for remote repository %s: %v", repoName, err)
+		return errors.Errorf("Warning: potential malicious behavior - trust data has insufficient signatures for remote repository %s: %v", repoName, err)
 	case client.ErrRepositoryNotExist:
-		return fmt.Errorf("Error: remote trust data does not exist for %s: %v", repoName, err)
+		return errors.Errorf("Error: remote trust data does not exist for %s: %v", repoName, err)
 	case signed.ErrInsufficientSignatures:
-		return fmt.Errorf("Error: could not produce valid signature for %s.  If Yubikey was used, was touch input provided?: %v", repoName, err)
+		return errors.Errorf("Error: could not produce valid signature for %s.  If Yubikey was used, was touch input provided?: %v", repoName, err)
 	}
 
 	return err

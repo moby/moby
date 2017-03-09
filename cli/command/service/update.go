@@ -1,7 +1,6 @@
 package service
 
 import (
-	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -19,6 +18,7 @@ import (
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/go-connections/nat"
 	shlex "github.com/flynn-archive/go-shlex"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"golang.org/x/net/context"
@@ -136,7 +136,7 @@ func runUpdate(dockerCli *command.DockerCli, flags *pflag.FlagSet, serviceID str
 			clientSideRollback = true
 			spec = service.PreviousSpec
 			if spec == nil {
-				return fmt.Errorf("service does not have a previous specification to roll back to")
+				return errors.Errorf("service does not have a previous specification to roll back to")
 			}
 		} else {
 			serverSideRollback = true
@@ -621,7 +621,7 @@ func updateMounts(flags *pflag.FlagSet, mounts *[]mounttypes.Mount) error {
 		values := flags.Lookup(flagMountAdd).Value.(*opts.MountOpt).Value()
 		for _, mount := range values {
 			if _, ok := mountsByTarget[mount.Target]; ok {
-				return fmt.Errorf("duplicate mount target")
+				return errors.Errorf("duplicate mount target")
 			}
 			mountsByTarget[mount.Target] = mount
 		}
@@ -819,7 +819,7 @@ func updateReplicas(flags *pflag.FlagSet, serviceMode *swarm.ServiceMode) error 
 	}
 
 	if serviceMode == nil || serviceMode.Replicated == nil {
-		return fmt.Errorf("replicas can only be used with replicated mode")
+		return errors.Errorf("replicas can only be used with replicated mode")
 	}
 	serviceMode.Replicated.Replicas = flags.Lookup(flagReplicas).Value.(*Uint64Opt).Value()
 	return nil
@@ -908,7 +908,7 @@ func updateHealthcheck(flags *pflag.FlagSet, containerSpec *swarm.ContainerSpec)
 			}
 			return nil
 		}
-		return fmt.Errorf("--%s conflicts with --health-* options", flagNoHealthcheck)
+		return errors.Errorf("--%s conflicts with --health-* options", flagNoHealthcheck)
 	}
 	if len(containerSpec.Healthcheck.Test) > 0 && containerSpec.Healthcheck.Test[0] == "NONE" {
 		containerSpec.Healthcheck.Test = nil

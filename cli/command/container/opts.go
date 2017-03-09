@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/pkg/signal"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/go-connections/nat"
+	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
 )
 
@@ -304,7 +305,7 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*containerConfig, err
 	// Validate the input mac address
 	if copts.macAddress != "" {
 		if _, err := opts.ValidateMACAddress(copts.macAddress); err != nil {
-			return nil, fmt.Errorf("%s is not a valid mac address", copts.macAddress)
+			return nil, errors.Errorf("%s is not a valid mac address", copts.macAddress)
 		}
 	}
 	if copts.stdin {
@@ -320,7 +321,7 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*containerConfig, err
 
 	swappiness := copts.swappiness
 	if swappiness != -1 && (swappiness < 0 || swappiness > 100) {
-		return nil, fmt.Errorf("invalid value: %d. Valid memory swappiness range is 0-100", swappiness)
+		return nil, errors.Errorf("invalid value: %d. Valid memory swappiness range is 0-100", swappiness)
 	}
 
 	var binds []string
@@ -371,7 +372,7 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*containerConfig, err
 	// Merge in exposed ports to the map of published ports
 	for _, e := range copts.expose.GetAll() {
 		if strings.Contains(e, ":") {
-			return nil, fmt.Errorf("invalid port format for --expose: %s", e)
+			return nil, errors.Errorf("invalid port format for --expose: %s", e)
 		}
 		//support two formats for expose, original format <portnum>/[<proto>] or <startport-endport>/[<proto>]
 		proto, port := nat.SplitProtoPort(e)
@@ -379,7 +380,7 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*containerConfig, err
 		//if expose a port, the start and end port are the same
 		start, end, err := nat.ParsePortRange(port)
 		if err != nil {
-			return nil, fmt.Errorf("invalid range format for --expose: %s, error: %s", e, err)
+			return nil, errors.Errorf("invalid range format for --expose: %s, error: %s", e, err)
 		}
 		for i := start; i <= end; i++ {
 			p, err := nat.NewPort(proto, strconv.FormatUint(i, 10))
@@ -416,22 +417,22 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*containerConfig, err
 
 	ipcMode := container.IpcMode(copts.ipcMode)
 	if !ipcMode.Valid() {
-		return nil, fmt.Errorf("--ipc: invalid IPC mode")
+		return nil, errors.Errorf("--ipc: invalid IPC mode")
 	}
 
 	pidMode := container.PidMode(copts.pidMode)
 	if !pidMode.Valid() {
-		return nil, fmt.Errorf("--pid: invalid PID mode")
+		return nil, errors.Errorf("--pid: invalid PID mode")
 	}
 
 	utsMode := container.UTSMode(copts.utsMode)
 	if !utsMode.Valid() {
-		return nil, fmt.Errorf("--uts: invalid UTS mode")
+		return nil, errors.Errorf("--uts: invalid UTS mode")
 	}
 
 	usernsMode := container.UsernsMode(copts.usernsMode)
 	if !usernsMode.Valid() {
-		return nil, fmt.Errorf("--userns: invalid USER mode")
+		return nil, errors.Errorf("--userns: invalid USER mode")
 	}
 
 	restartPolicy, err := runconfigopts.ParseRestartPolicy(copts.restartPolicy)
@@ -462,7 +463,7 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*containerConfig, err
 		copts.healthRetries != 0
 	if copts.noHealthcheck {
 		if haveHealthSettings {
-			return nil, fmt.Errorf("--no-healthcheck conflicts with --health-* options")
+			return nil, errors.Errorf("--no-healthcheck conflicts with --health-* options")
 		}
 		test := strslice.StrSlice{"NONE"}
 		healthConfig = &container.HealthConfig{Test: test}
@@ -473,13 +474,13 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*containerConfig, err
 			probe = strslice.StrSlice(args)
 		}
 		if copts.healthInterval < 0 {
-			return nil, fmt.Errorf("--health-interval cannot be negative")
+			return nil, errors.Errorf("--health-interval cannot be negative")
 		}
 		if copts.healthTimeout < 0 {
-			return nil, fmt.Errorf("--health-timeout cannot be negative")
+			return nil, errors.Errorf("--health-timeout cannot be negative")
 		}
 		if copts.healthRetries < 0 {
-			return nil, fmt.Errorf("--health-retries cannot be negative")
+			return nil, errors.Errorf("--health-retries cannot be negative")
 		}
 
 		healthConfig = &container.HealthConfig{
@@ -594,7 +595,7 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*containerConfig, err
 	}
 
 	if copts.autoRemove && !hostConfig.RestartPolicy.IsNone() {
-		return nil, fmt.Errorf("Conflicting options: --restart and --rm")
+		return nil, errors.Errorf("Conflicting options: --restart and --rm")
 	}
 
 	// only set this value if the user provided the flag, else it should default to nil
@@ -656,7 +657,7 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*containerConfig, err
 func parseLoggingOpts(loggingDriver string, loggingOpts []string) (map[string]string, error) {
 	loggingOptsMap := runconfigopts.ConvertKVStringsToMap(loggingOpts)
 	if loggingDriver == "none" && len(loggingOpts) > 0 {
-		return map[string]string{}, fmt.Errorf("invalid logging opts for driver %s", loggingDriver)
+		return map[string]string{}, errors.Errorf("invalid logging opts for driver %s", loggingDriver)
 	}
 	return loggingOptsMap, nil
 }
@@ -669,17 +670,17 @@ func parseSecurityOpts(securityOpts []string) ([]string, error) {
 			if strings.Contains(opt, ":") {
 				con = strings.SplitN(opt, ":", 2)
 			} else {
-				return securityOpts, fmt.Errorf("Invalid --security-opt: %q", opt)
+				return securityOpts, errors.Errorf("Invalid --security-opt: %q", opt)
 			}
 		}
 		if con[0] == "seccomp" && con[1] != "unconfined" {
 			f, err := ioutil.ReadFile(con[1])
 			if err != nil {
-				return securityOpts, fmt.Errorf("opening seccomp profile (%s) failed: %v", con[1], err)
+				return securityOpts, errors.Errorf("opening seccomp profile (%s) failed: %v", con[1], err)
 			}
 			b := bytes.NewBuffer(nil)
 			if err := json.Compact(b, f); err != nil {
-				return securityOpts, fmt.Errorf("compacting json for seccomp profile (%s) failed: %v", con[1], err)
+				return securityOpts, errors.Errorf("compacting json for seccomp profile (%s) failed: %v", con[1], err)
 			}
 			securityOpts[key] = fmt.Sprintf("seccomp=%s", b.Bytes())
 		}
@@ -696,7 +697,7 @@ func parseStorageOpts(storageOpts []string) (map[string]string, error) {
 			opt := strings.SplitN(option, "=", 2)
 			m[opt[0]] = opt[1]
 		} else {
-			return nil, fmt.Errorf("invalid storage option")
+			return nil, errors.Errorf("invalid storage option")
 		}
 	}
 	return m, nil
@@ -722,7 +723,7 @@ func parseDevice(device string) (container.DeviceMapping, error) {
 	case 1:
 		src = arr[0]
 	default:
-		return container.DeviceMapping{}, fmt.Errorf("invalid device specification: %s", device)
+		return container.DeviceMapping{}, errors.Errorf("invalid device specification: %s", device)
 	}
 
 	if dst == "" {
@@ -745,7 +746,7 @@ func validateDeviceCgroupRule(val string) (string, error) {
 		return val, nil
 	}
 
-	return val, fmt.Errorf("invalid device cgroup format '%s'", val)
+	return val, errors.Errorf("invalid device cgroup format '%s'", val)
 }
 
 // validDeviceMode checks if the mode for device is valid or not.
@@ -781,12 +782,12 @@ func validatePath(val string, validator func(string) bool) (string, error) {
 	var mode string
 
 	if strings.Count(val, ":") > 2 {
-		return val, fmt.Errorf("bad format for path: %s", val)
+		return val, errors.Errorf("bad format for path: %s", val)
 	}
 
 	split := strings.SplitN(val, ":", 3)
 	if split[0] == "" {
-		return val, fmt.Errorf("bad format for path: %s", val)
+		return val, errors.Errorf("bad format for path: %s", val)
 	}
 	switch len(split) {
 	case 1:
@@ -805,13 +806,13 @@ func validatePath(val string, validator func(string) bool) (string, error) {
 		containerPath = split[1]
 		mode = split[2]
 		if isValid := validator(split[2]); !isValid {
-			return val, fmt.Errorf("bad mode specified: %s", mode)
+			return val, errors.Errorf("bad mode specified: %s", mode)
 		}
 		val = fmt.Sprintf("%s:%s:%s", split[0], containerPath, mode)
 	}
 
 	if !path.IsAbs(containerPath) {
-		return val, fmt.Errorf("%s is not an absolute path", containerPath)
+		return val, errors.Errorf("%s is not an absolute path", containerPath)
 	}
 	return val, nil
 }
@@ -885,5 +886,5 @@ func validateAttach(val string) (string, error) {
 			return s, nil
 		}
 	}
-	return val, fmt.Errorf("valid streams are STDIN, STDOUT and STDERR")
+	return val, errors.Errorf("valid streams are STDIN, STDOUT and STDERR")
 }

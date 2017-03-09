@@ -1,7 +1,6 @@
 package config
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -9,6 +8,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli/config/configfile"
 	"github.com/docker/docker/pkg/homedir"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -84,18 +84,18 @@ func Load(configDir string) (*configfile.ConfigFile, error) {
 	if _, err := os.Stat(configFile.Filename); err == nil {
 		file, err := os.Open(configFile.Filename)
 		if err != nil {
-			return &configFile, fmt.Errorf("%s - %v", configFile.Filename, err)
+			return &configFile, errors.Errorf("%s - %v", configFile.Filename, err)
 		}
 		defer file.Close()
 		err = configFile.LoadFromReader(file)
 		if err != nil {
-			err = fmt.Errorf("%s - %v", configFile.Filename, err)
+			err = errors.Errorf("%s - %v", configFile.Filename, err)
 		}
 		return &configFile, err
 	} else if !os.IsNotExist(err) {
 		// if file is there but we can't stat it for any reason other
 		// than it doesn't exist then stop
-		return &configFile, fmt.Errorf("%s - %v", configFile.Filename, err)
+		return &configFile, errors.Errorf("%s - %v", configFile.Filename, err)
 	}
 
 	// Can't find latest config file so check for the old one
@@ -105,12 +105,12 @@ func Load(configDir string) (*configfile.ConfigFile, error) {
 	}
 	file, err := os.Open(confFile)
 	if err != nil {
-		return &configFile, fmt.Errorf("%s - %v", confFile, err)
+		return &configFile, errors.Errorf("%s - %v", confFile, err)
 	}
 	defer file.Close()
 	err = configFile.LegacyLoadFromReader(file)
 	if err != nil {
-		return &configFile, fmt.Errorf("%s - %v", confFile, err)
+		return &configFile, errors.Errorf("%s - %v", confFile, err)
 	}
 
 	if configFile.HTTPHeaders == nil {
