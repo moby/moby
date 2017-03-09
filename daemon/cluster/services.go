@@ -111,7 +111,8 @@ func (c *Cluster) CreateService(s types.ServiceSpec, encodedAuth string) (*apity
 			digestImage, err := c.imageWithDigestString(ctx, ctnr.Image, authConfig)
 			if err != nil {
 				logrus.Warnf("unable to pin image %s to digest: %s", ctnr.Image, err.Error())
-				resp.Warnings = append(resp.Warnings, fmt.Sprintf("unable to pin image %s to digest: %s", ctnr.Image, err.Error()))
+				// warning in the client response should be concise
+				resp.Warnings = append(resp.Warnings, digestWarning(ctnr.Image))
 			} else if ctnr.Image != digestImage {
 				logrus.Debugf("pinning image %s by digest: %s", ctnr.Image, digestImage)
 				ctnr.Image = digestImage
@@ -200,7 +201,8 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec typ
 			digestImage, err := c.imageWithDigestString(ctx, newCtnr.Image, authConfig)
 			if err != nil {
 				logrus.Warnf("unable to pin image %s to digest: %s", newCtnr.Image, err.Error())
-				resp.Warnings = append(resp.Warnings, fmt.Sprintf("unable to pin image %s to digest: %s", newCtnr.Image, err.Error()))
+				// warning in the client response should be concise
+				resp.Warnings = append(resp.Warnings, digestWarning(newCtnr.Image))
 			} else if newCtnr.Image != digestImage {
 				logrus.Debugf("pinning image %s by digest: %s", newCtnr.Image, digestImage)
 				newCtnr.Image = digestImage
@@ -351,7 +353,7 @@ func (c *Cluster) imageWithDigestString(ctx context.Context, image string, authC
 	namedRef, ok := ref.(reference.Named)
 	if !ok {
 		if _, ok := ref.(reference.Digested); ok {
-			return "", errors.New("image reference is an image ID")
+			return image, nil
 		}
 		return "", errors.Errorf("unknown image reference format: %s", image)
 	}
@@ -382,4 +384,11 @@ func (c *Cluster) imageWithDigestString(ctx context.Context, image string, authC
 	}
 	// reference already contains a digest, so just return it
 	return reference.FamiliarString(ref), nil
+}
+
+// digestWarning constructs a formatted warning string
+// using the image name that could not be pinned by digest. The
+// formatting is hardcoded, but could me made smarter in the future
+func digestWarning(image string) string {
+	return fmt.Sprintf("image %s could not be accessed on a registry to record\nits digest. Each node will access %s independently,\npossibly leading to different nodes running different\nversions of the image.\n", image, image)
 }
