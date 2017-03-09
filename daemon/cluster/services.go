@@ -262,6 +262,13 @@ func (c *Cluster) ServiceLogs(ctx context.Context, input string, config *backend
 		c.mu.RUnlock()
 		return err
 	}
+	container := service.Spec.Task.GetContainer()
+	if container == nil {
+		return errors.New("service logs only supported for container tasks")
+	}
+	if container.TTY {
+		return errors.New("service logs not supported on tasks with a TTY attached")
+	}
 
 	// set the streams we'll use
 	stdStreams := []swarmapi.LogStream{}
