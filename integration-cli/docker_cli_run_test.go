@@ -4421,6 +4421,30 @@ func (s *DockerSuite) TestRunRmAndWait(c *check.C) {
 	c.Assert(code, checker.Equals, 0)
 }
 
+// Test that auto-remove is performed by the daemon (API 1.25 and above)
+func (s *DockerSuite) TestRunRm(c *check.C) {
+	name := "miss-me-when-im-gone"
+	dockerCmd(c, "run", "--name="+name, "--rm", "busybox")
+
+	_, err := inspectFieldWithError(name, "name")
+	c.Assert(err, checker.Not(check.IsNil))
+	c.Assert(err.Error(), checker.Contains, "No such object: "+name)
+}
+
+// Test that auto-remove is performed by the client on API versions that do not support daemon-side api-remove (API < 1.25)
+func (s *DockerSuite) TestRunRmPre125Api(c *check.C) {
+	name := "miss-me-when-im-gone"
+	result := icmd.RunCmd(icmd.Cmd{
+		Command: binaryWithArgs("run", "--name="+name, "--rm", "busybox"),
+		Env:     appendBaseEnv(false, "DOCKER_API_VERSION=1.24"),
+	})
+	c.Assert(result, icmd.Matches, icmd.Success)
+
+	_, err := inspectFieldWithError(name, "name")
+	c.Assert(err, checker.Not(check.IsNil))
+	c.Assert(err.Error(), checker.Contains, "No such object: "+name)
+}
+
 // Test case for #23498
 func (s *DockerSuite) TestRunUnsetEntrypoint(c *check.C) {
 	testRequires(c, DaemonIsLinux)
