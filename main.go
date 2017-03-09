@@ -70,11 +70,38 @@ func dockerRunInput(input io.Reader, args ...string) ([]byte, error) {
 	args = append([]string{"run", "--rm", "-i"}, args...)
 	cmd := exec.Command(docker, args...)
 	cmd.Stdin = input
-	out, err := cmd.Output()
+
+	stderrPipe, err := cmd.StderrPipe()
 	if err != nil {
 		return []byte{}, err
 	}
-	return out, nil
+
+	stdoutPipe, err := cmd.StdoutPipe()
+	if err != nil {
+		return []byte{}, err
+	}
+
+	err = cmd.Start()
+	if err != nil {
+		return []byte{}, err
+	}
+
+	stdout, err := ioutil.ReadAll(stdoutPipe)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	stderr, err := ioutil.ReadAll(stderrPipe)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	err = cmd.Wait()
+	if err != nil {
+		return []byte{}, fmt.Errorf("%s: %s", err, stderr)
+	}
+
+	return stdout, nil
 }
 
 func untarKernel(buf *bytes.Buffer, bzimageName, ktarName string) (*bytes.Buffer, *bytes.Buffer, error) {
