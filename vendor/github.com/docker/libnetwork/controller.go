@@ -957,6 +957,8 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (s
 
 	if sb.ingress {
 		c.ingressSandbox = sb
+		sb.config.hostsPath = c.cfg.Daemon.DataDir + "/network/files/hosts"
+		sb.config.resolvConfPath = c.cfg.Daemon.DataDir + "/network/files/resolv.conf"
 		sb.id = "ingress_sbox"
 	}
 	c.Unlock()
