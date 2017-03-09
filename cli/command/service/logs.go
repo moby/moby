@@ -23,11 +23,10 @@ import (
 type logsOptions struct {
 	noResolve  bool
 	noTrunc    bool
-	noIDs      bool
+	noTaskIDs  bool
 	follow     bool
 	since      string
 	timestamps bool
-	details    bool
 	tail       string
 
 	service string
@@ -50,11 +49,10 @@ func newLogsCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags := cmd.Flags()
 	flags.BoolVar(&opts.noResolve, "no-resolve", false, "Do not map IDs to Names")
 	flags.BoolVar(&opts.noTrunc, "no-trunc", false, "Do not truncate output")
-	flags.BoolVar(&opts.noIDs, "no-ids", false, "Do not include task IDs")
+	flags.BoolVar(&opts.noTaskIDs, "no-task-ids", false, "Do not include task IDs")
 	flags.BoolVarP(&opts.follow, "follow", "f", false, "Follow log output")
 	flags.StringVar(&opts.since, "since", "", "Show logs since timestamp")
 	flags.BoolVarP(&opts.timestamps, "timestamps", "t", false, "Show timestamps")
-	flags.BoolVar(&opts.details, "details", false, "Show extra details provided to logs")
 	flags.StringVar(&opts.tail, "tail", "all", "Number of lines to show from the end of the logs")
 	return cmd
 }
@@ -69,7 +67,6 @@ func runLogs(dockerCli *command.DockerCli, opts *logsOptions) error {
 		Timestamps: opts.timestamps,
 		Follow:     opts.follow,
 		Tail:       opts.tail,
-		Details:    opts.details,
 	}
 
 	client := dockerCli.Client()
@@ -86,10 +83,12 @@ func runLogs(dockerCli *command.DockerCli, opts *logsOptions) error {
 	defer responseBody.Close()
 
 	var replicas uint64
+	padding := 1
 	if service.Spec.Mode.Replicated != nil && service.Spec.Mode.Replicated.Replicas != nil {
+		// if replicas are initialized, figure out if we need to pad them
 		replicas = *service.Spec.Mode.Replicated.Replicas
+		padding = len(strconv.FormatUint(replicas, 10))
 	}
-	padding := len(strconv.FormatUint(replicas, 10))
 
 	taskFormatter := newTaskFormatter(client, opts, padding)
 
@@ -141,7 +140,7 @@ func (f *taskFormatter) format(ctx context.Context, logCtx logContext) (string, 
 	}
 
 	taskName := fmt.Sprintf("%s.%d", serviceName, task.Slot)
-	if !f.opts.noIDs {
+	if !f.opts.noTaskIDs {
 		if f.opts.noTrunc {
 			taskName += fmt.Sprintf(".%s", task.ID)
 		} else {
