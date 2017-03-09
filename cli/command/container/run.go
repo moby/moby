@@ -136,6 +136,9 @@ func runRun(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *runOptions
 
 	ctx, cancelFun := context.WithCancel(context.Background())
 
+	// preserve AutoRemove state. createContainer() / ContainerCreate() disables daemon-side auto-remove on API < 1.25
+	autoRemove := hostConfig.AutoRemove
+
 	createResponse, err := createContainer(ctx, dockerCli, config, hostConfig, networkingConfig, hostConfig.ContainerIDFile, opts.name)
 	if err != nil {
 		reportError(stderr, cmdPath, err.Error(), true)
@@ -207,7 +210,7 @@ func runRun(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *runOptions
 		})
 	}
 
-	statusChan := waitExitOrRemoved(ctx, dockerCli, createResponse.ID, hostConfig.AutoRemove)
+	statusChan := waitExitOrRemoved(ctx, dockerCli, createResponse.ID, autoRemove)
 
 	//start the container
 	if err := client.ContainerStart(ctx, createResponse.ID, types.ContainerStartOptions{}); err != nil {
@@ -220,7 +223,7 @@ func runRun(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *runOptions
 		}
 
 		reportError(stderr, cmdPath, err.Error(), false)
-		if hostConfig.AutoRemove {
+		if autoRemove {
 			// wait container to be removed
 			<-statusChan
 		}
