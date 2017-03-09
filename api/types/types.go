@@ -400,6 +400,7 @@ type NetworkResource struct {
 	IPAM       network.IPAM                   // IPAM is the network's IP Address Management
 	Internal   bool                           // Internal represents if the network is used internal only
 	Attachable bool                           // Attachable represents if the global scope is manually attachable by regular containers from workers in swarm mode.
+	Ingress    bool                           // Ingress indicates the network is providing the routing-mesh for the swarm cluster.
 	Containers map[string]EndpointResource    // Containers contains endpoints belonging to the network
 	Options    map[string]string              // Options holds the network specific options to use for when creating the network
 	Labels     map[string]string              // Labels holds metadata specific to the network being created
@@ -431,6 +432,7 @@ type NetworkCreate struct {
 	IPAM           *network.IPAM
 	Internal       bool
 	Attachable     bool
+	Ingress        bool
 	Options        map[string]string
 	Labels         map[string]string
 }

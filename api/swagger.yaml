@@ -1117,6 +1117,8 @@ definitions:
         type: "boolean"
       Attachable:
         type: "boolean"
+      Ingress:
+        type: "boolean"
       Containers:
         type: "object"
         additionalProperties:
@@ -1145,6 +1147,7 @@ definitions:
           foo: "bar"
       Internal: false
       Attachable: false
+      Ingress: false
       Containers:
         19a4d5d687db25203351ed79d478946f861258f018fe384f229f2efa4b23513c:
           Name: "test"
@@ -6211,6 +6214,7 @@ paths:
                 EnableIPv6: false
                 Internal: false
                 Attachable: false
+                Ingress: false
                 IPAM:
                   Driver: "default"
                   Config:
@@ -6237,6 +6241,7 @@ paths:
                 EnableIPv6: false
                 Internal: false
                 Attachable: false
+                Ingress: false
                 IPAM:
                   Driver: "default"
                   Config: []
@@ -6250,6 +6255,7 @@ paths:
                 EnableIPv6: false
                 Internal: false
                 Attachable: false
+                Ingress: false
                 IPAM:
                   Driver: "default"
                   Config: []
@@ -6383,6 +6389,9 @@ paths:
               Attachable:
                 description: "Globally scoped network is manually attachable by regular containers from workers in swarm mode."
                 type: "boolean"
+              Ingress:
+                description: "Ingress network is the network which provides the routing-mesh in swarm mode."
+                type: "boolean"
               IPAM:
                 description: "Optional custom IP scheme for the network."
                 $ref: "#/definitions/IPAM"
@@ -6416,6 +6425,7 @@ paths:
                   foo: "bar"
               Internal: true
               Attachable: false
+              Ingress: false
               Options:
                 com.docker.network.bridge.default_bridge: "true"
                 com.docker.network.bridge.enable_icc: "true"

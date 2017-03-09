@@ -24,6 +24,7 @@ type createOptions struct {
 	internal   bool
 	ipv6       bool
 	attachable bool
+	ingress    bool
 
 	ipamDriver  string
 	ipamSubnet  []string
@@ -59,6 +60,8 @@ func newCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.BoolVar(&opts.ipv6, "ipv6", false, "Enable IPv6 networking")
 	flags.BoolVar(&opts.attachable, "attachable", false, "Enable manual container attachment")
 	flags.SetAnnotation("attachable", "version", []string{"1.25"})
+	flags.BoolVar(&opts.ingress, "ingress", false, "Create swarm routing-mesh network")
+	flags.SetAnnotation("ingress", "version", []string{"1.29"})
 
 	flags.StringVar(&opts.ipamDriver, "ipam-driver", "default", "IP Address Management Driver")
 	flags.StringSliceVar(&opts.ipamSubnet, "subnet", []string{}, "Subnet in CIDR format that represents a network segment")
@@ -92,6 +95,7 @@ func runCreate(dockerCli *command.DockerCli, opts createOptions) error {
 		Internal:       opts.internal,
 		EnableIPv6:     opts.ipv6,
 		Attachable:     opts.attachable,
+		Ingress:        opts.ingress,
 		Labels:         runconfigopts.ConvertKVStringsToMap(opts.labels.GetAll()),
 	}
 

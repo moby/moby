@@ -117,3 +117,20 @@ By default, when you connect a container to an `overlay` network, Docker also
 connects a bridge network to it to provide external connectivity. If you want
 to create an externally isolated `overlay` network, you can specify the
 `--internal` option.
+
+### Network ingress mode
+
+You can create the network which will be used to provide the routing-mesh in the
+swarm cluster. You do so by specifying `--ingress` when creating the network. Only
+one ingress network can be created at the time. The network can be removed only
+if no services depend on it. Any option available when creating a overlay network
+is also available when creating the ingress network, besides the `--attachable` option.
+
+```bash
+$ docker network create -d overlay \
+  --subnet=10.11.0.0/16 \
+  --ingress \
+  --opt com.docker.network.mtu=9216 \
+  --opt encrypted=true \
+  my-ingress-network
+```
