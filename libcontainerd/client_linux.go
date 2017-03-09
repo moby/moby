@@ -523,8 +523,18 @@ func (clnt *client) Restore(containerID string, attachStdio StdioCallback, optio
 	if err := clnt.Signal(containerID, int(syscall.SIGTERM)); err != nil {
 		logrus.Errorf("libcontainerd: error sending sigterm to %v: %v", containerID, err)
 	}
+
 	// Let the main loop handle the exit event
 	clnt.remote.Unlock()
+
+	if ev != nil && ev.Type == StatePause {
+		// resume container, it depends on the main loop, so we do it after Unlock()
+		logrus.Debugf("libcontainerd: %s was paused, resuming it so it can die", containerID)
+		if err := clnt.Resume(containerID); err != nil {
+			return fmt.Errorf("failed to resume container: %v", err)
+		}
+	}
+
 	select {
 	case <-time.After(10 * time.Second):
 		if err := clnt.Signal(containerID, int(syscall.SIGKILL)); err != nil {
