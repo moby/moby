@@ -2993,6 +2993,7 @@ _docker_service_update_and_create() {
 		--rollback-monitor
 		--rollback-parallelism
 		--stop-grace-period
+		--stop-signal
 		--update-delay
 		--update-failure-action
 		--update-max-failure-ratio
@@ -3129,6 +3130,10 @@ _docker_service_update_and_create() {
 			;;
 		--rollback-failure-action)
 			COMPREPLY=( $( compgen -W "continue pause" -- "$cur" ) )
+			return
+			;;
+		--stop-signal)
+			__docker_complete_signals
 			return
 			;;
 		--update-failure-action)
