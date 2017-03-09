@@ -16,7 +16,7 @@ version: "3"
 services:
   worker:
     image: "{{.WorkerImage}}"
-    command: ["-worker-image-digest={{.WorkerImageDigest}}", "-dry-run={{.DryRun}}"]
+    command: ["-worker-image-digest={{.WorkerImageDigest}}", "-dry-run={{.DryRun}}", "-keep-executor={{.KeepExecutor}}"]
     networks:
       - net
     volumes:
@@ -57,14 +57,15 @@ volumes:
 `
 
 type composeOptions struct {
-	Replicas    int
-	Chunks      int
-	MasterImage string
-	WorkerImage string
-	Volume      string
-	Shuffle     bool
-	RandSeed    int64
-	DryRun      bool
+	Replicas     int
+	Chunks       int
+	MasterImage  string
+	WorkerImage  string
+	Volume       string
+	Shuffle      bool
+	RandSeed     int64
+	DryRun       bool
+	KeepExecutor bool
 }
 
 type composeTemplateOptions struct {

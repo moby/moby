@@ -24,6 +24,7 @@ func validImageDigest(s string) bool {
 func xmain() error {
 	workerImageDigest := flag.String("worker-image-digest", "", "Needs to be the digest of this worker image itself")
 	dryRun := flag.Bool("dry-run", false, "Dry run")
+	keepExecutor := flag.Bool("keep-executor", false, "Do not auto-remove executor containers, which is used for running privileged programs on Swarm")
 	flag.Parse()
 	if !validImageDigest(*workerImageDigest) {
 		// Because of issue #29582.
@@ -31,9 +32,9 @@ func xmain() error {
 		// So, `docker run localregistry.example.com/blahblah:latest` fails: `Unable to find image 'localregistry.example.com/blahblah:latest' locally`
 		return fmt.Errorf("worker-image-digest must be a digest, got %q", *workerImageDigest)
 	}
-	executor := privilegedTestChunkExecutor
+	executor := privilegedTestChunkExecutor(!*keepExecutor)
 	if *dryRun {
-		executor = dryTestChunkExecutor
+		executor = dryTestChunkExecutor()
 	}
 	return handle(*workerImageDigest, executor)
 }
