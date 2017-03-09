@@ -23,6 +23,9 @@ type Copier struct {
 	copyJobs  sync.WaitGroup
 	closeOnce sync.Once
 	closed    chan struct{}
+	// err is the error occurs during `Copier.Run()`
+	err     error
+	errLock sync.Mutex
 }
 
 // NewCopier creates a new Copier
@@ -31,6 +34,7 @@ func NewCopier(srcs map[string]io.Reader, dst Logger) *Copier {
 		srcs:   srcs,
 		dst:    dst,
 		closed: make(chan struct{}),
+		err:    nil,
 	}
 }
 
@@ -64,6 +68,7 @@ func (c *Copier) copySrc(name string, src io.Reader) {
 				if err != nil {
 					if err != io.EOF {
 						logrus.Errorf("Error scanning log stream: %s", err)
+						c.Error(err)
 						return
 					}
 					eof = true
@@ -88,6 +93,7 @@ func (c *Copier) copySrc(name string, src io.Reader) {
 
 					if logErr := c.dst.Log(msg); logErr != nil {
 						logrus.Errorf("Failed to log msg %q for logger %s: %s", msg.Line, c.dst.Name(), logErr)
+						c.Error(logErr)
 					}
 				}
 				p += q + 1
@@ -105,6 +111,7 @@ func (c *Copier) copySrc(name string, src io.Reader) {
 
 					if logErr := c.dst.Log(msg); logErr != nil {
 						logrus.Errorf("Failed to log msg %q for logger %s: %s", msg.Line, c.dst.Name(), logErr)
+						c.Error(logErr)
 					}
 					p = 0
 					n = 0
@@ -132,4 +139,11 @@ func (c *Copier) Close() {
 	c.closeOnce.Do(func() {
 		close(c.closed)
 	})
+}
+
+// Error records an error with a lock
+func (c *Copier) Error(err error) {
+	c.errLock.Lock()
+	defer c.errLock.Unlock()
+	c.err = err
 }
