@@ -122,7 +122,7 @@ Options:
                                     Unit is optional and can be `b` (bytes), `k` (kilobytes), `m` (megabytes),
                                     or `g` (gigabytes). If you omit the unit, the system uses bytes.
       --sig-proxy                   Proxy received signals to the process (default true)
-      --stop-signal string          Signal to stop a container, SIGTERM by default (default "SIGTERM")
+      --stop-signal string          Signal to stop a container (default "SIGTERM")
       --stop-timeout=10             Timeout (in seconds) to stop a container
       --storage-opt value           Storage driver options for the container (default [])
       --sysctl value                Sysctl options (default map[])
