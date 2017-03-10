@@ -303,10 +303,15 @@ func (s *DockerSwarmSuite) TestSwarmContainerEndpointOptions(c *check.C) {
 	_, err = d.Cmd("run", "-d", "--net=foo", "--name=second", "busybox", "top")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
-	// ping first container and its alias
+	_, err = d.Cmd("run", "-d", "--net=foo", "--net-alias=third-alias", "busybox", "top")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	// ping first container and its alias, also ping third and anonymous container by its alias
 	_, err = d.Cmd("exec", "second", "ping", "-c", "1", "first")
 	c.Assert(err, check.IsNil, check.Commentf(out))
 	_, err = d.Cmd("exec", "second", "ping", "-c", "1", "first-alias")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	_, err = d.Cmd("exec", "second", "ping", "-c", "1", "third-alias")
 	c.Assert(err, check.IsNil, check.Commentf(out))
 }
 
