@@ -30,12 +30,25 @@ Options:
 
 ## Description
 
-By default, `docker inspect` will render all results in a JSON array. If the container and
-image have the same name, this will return container JSON for unspecified type.
+Docker inspect provides detailed information on constructs controlled by Docker.
+
+By default, `docker inspect` will render results in a JSON array.
+
+## Request a custom response format (--format)
 If a format is specified, the given template will be executed for each result.
 
 Go's [text/template](http://golang.org/pkg/text/template/) package
 describes all the details of the format.
+
+## Specify target type (--type)
+
+`--type container|image|node|network|service|volume|task|plugin`
+
+It has always been possible for a container to be assigned the same name as an image.
+In this case the result of the inspect will target one of these constructs.  Which type
+is given precedence is not guaranteed. In this case, specify type as an argument
+to the request.  In addition inspect can target any construct type, which may further
+lead to name collision. 
 
 ## Examples
 
