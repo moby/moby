@@ -10,13 +10,20 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/docker/docker/builder/dockerfile/command"
 )
 
 var (
 	errDockerfileNotStringArray = errors.New("When using JSON array syntax, arrays must be comprised of strings only.")
+)
+
+const (
+	commandLabel = "LABEL"
 )
 
 // ignore the current argument. This will still leave a command parsed, but
@@ -133,7 +140,7 @@ func parseWords(rest string, d *Directive) []string {
 
 // parse environment like statements. Note that this does *not* handle
 // variable interpolation, which will be handled in the evaluator.
-func parseNameVal(rest string, key string, d *Directive) (*Node, map[string]bool, error) {
+func parseNameVal(rest string, key string, d *Directive) (*Node, error) {
 	// This is kind of tricky because we need to support the old
 	// variant:   KEY name value
 	// as well as the new one:    KEY name=value ...
@@ -142,57 +149,86 @@ func parseNameVal(rest string, key string, d *Directive) (*Node, map[string]bool
 
 	words := parseWords(rest, d)
 	if len(words) == 0 {
-		return nil, nil, nil
+		return nil, nil
 	}
-
-	var rootnode *Node
 
 	// Old format (KEY name value)
 	if !strings.Contains(words[0], "=") {
-		node := &Node{}
-		rootnode = node
-		strs := tokenWhitespace.Split(rest, 2)
-
-		if len(strs) < 2 {
-			return nil, nil, fmt.Errorf(key + " must have two arguments")
+		parts := tokenWhitespace.Split(rest, 2)
+		if len(parts) < 2 {
+			return nil, fmt.Errorf(key + " must have two arguments")
 		}
-
-		node.Value = strs[0]
-		node.Next = &Node{}
-		node.Next.Value = strs[1]
-	} else {
-		var prevNode *Node
-		for i, word := range words {
-			if !strings.Contains(word, "=") {
-				return nil, nil, fmt.Errorf("Syntax error - can't find = in %q. Must be of the form: name=value", word)
-			}
-			parts := strings.SplitN(word, "=", 2)
-
-			name := &Node{}
-			value := &Node{}
-
-			name.Next = value
-			name.Value = parts[0]
-			value.Value = parts[1]
-
-			if i == 0 {
-				rootnode = name
-			} else {
-				prevNode.Next = name
-			}
-			prevNode = value
-		}
+		return newKeyValueNode(parts[0], parts[1]), nil
 	}
 
-	return rootnode, nil, nil
+	var rootNode *Node
+	var prevNode *Node
+	for _, word := range words {
+		if !strings.Contains(word, "=") {
+			return nil, fmt.Errorf("Syntax error - can't find = in %q. Must be of the form: name=value", word)
+		}
+
+		parts := strings.SplitN(word, "=", 2)
+		node := newKeyValueNode(parts[0], parts[1])
+		rootNode, prevNode = appendKeyValueNode(node, rootNode, prevNode)
+	}
+
+	return rootNode, nil
+}
+
+func newKeyValueNode(key, value string) *Node {
+	return &Node{
+		Value: key,
+		Next:  &Node{Value: value},
+	}
+}
+
+func appendKeyValueNode(node, rootNode, prevNode *Node) (*Node, *Node) {
+	if rootNode == nil {
+		rootNode = node
+	}
+	if prevNode != nil {
+		prevNode.Next = node
+	}
+
+	prevNode = node.Next
+	return rootNode, prevNode
 }
 
 func parseEnv(rest string, d *Directive) (*Node, map[string]bool, error) {
-	return parseNameVal(rest, "ENV", d)
+	node, err := parseNameVal(rest, "ENV", d)
+	return node, nil, err
 }
 
 func parseLabel(rest string, d *Directive) (*Node, map[string]bool, error) {
-	return parseNameVal(rest, "LABEL", d)
+	node, err := parseNameVal(rest, commandLabel, d)
+	return node, nil, err
+}
+
+// NodeFromLabels returns a Node for the injected labels
+func NodeFromLabels(labels map[string]string) *Node {
+	keys := []string{}
+	for key := range labels {
+		keys = append(keys, key)
+	}
+	// Sort the label to have a repeatable order
+	sort.Strings(keys)
+
+	labelPairs := []string{}
+	var rootNode *Node
+	var prevNode *Node
+	for _, key := range keys {
+		value := labels[key]
+		labelPairs = append(labelPairs, fmt.Sprintf("%q='%s'", key, value))
+		node := newKeyValueNode(key, value)
+		rootNode, prevNode = appendKeyValueNode(node, rootNode, prevNode)
+	}
+
+	return &Node{
+		Value:    command.Label,
+		Original: commandLabel + " " + strings.Join(labelPairs, " "),
+		Next:     rootNode,
+	}
 }
 
 // parses a statement containing one or more keyword definition(s) and/or
