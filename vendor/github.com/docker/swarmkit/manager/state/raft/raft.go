@@ -375,6 +375,9 @@ func (n *Node) JoinAndStart(ctx context.Context) (err error) {
 	n.addrLock.Lock()
 	defer n.addrLock.Unlock()
 
+	// override the module field entirely, since etcd/raft is not exactly a submodule
+	n.Config.Logger = log.G(ctx).WithField("module", "raft")
+
 	// restore from snapshot
 	if loadAndStartErr == nil {
 		if n.opts.JoinAddr != "" {

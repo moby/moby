@@ -2,14 +2,21 @@ package ca
 
 import (
 	"bytes"
+	cryptorand "crypto/rand"
 	"crypto/tls"
+	"crypto/x509"
+	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"io/ioutil"
 	"net/http"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/cloudflare/cfssl/api"
+	"github.com/cloudflare/cfssl/config"
+	"github.com/cloudflare/cfssl/csr"
+	"github.com/cloudflare/cfssl/helpers"
 	"github.com/cloudflare/cfssl/signer"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
@@ -95,6 +102,62 @@ func (eca *ExternalCA) Sign(ctx context.Context, req signer.SignRequest) (cert [
 	}
 
 	return nil, err
+}
+
+// CrossSignRootCA takes a RootCA object, generates a CA CSR, sends a signing request with the CA CSR to the external
+// CFSSL API server in order to obtain a cross-signed root
+func (eca *ExternalCA) CrossSignRootCA(ctx context.Context, rca RootCA) ([]byte, error) {
+	if !rca.CanSign() {
+		return nil, errors.Wrap(ErrNoValidSigner, "cannot generate CSR for a cross-signed root")
+	}
+	rootCert, err := helpers.ParseCertificatePEM(rca.Cert)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not parse CA certificate")
+	}
+	rootSigner, err := helpers.ParsePrivateKeyPEM(rca.Signer.Key)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not parse old CA key")
+	}
+	// ExtractCertificateRequest generates a new key request, and we want to continue to use the old
+	// key.  However, ExtractCertificateRequest will also convert the pkix.Name to csr.Name, which we
+	// need in order to generate a signing request
+	cfCSRObj := csr.ExtractCertificateRequest(rootCert)
+
+	der, err := x509.CreateCertificateRequest(cryptorand.Reader, &x509.CertificateRequest{
+		RawSubjectPublicKeyInfo: rootCert.RawSubjectPublicKeyInfo,
+		RawSubject:              rootCert.RawSubject,
+		PublicKeyAlgorithm:      rootCert.PublicKeyAlgorithm,
+		Subject:                 rootCert.Subject,
+		Extensions:              rootCert.Extensions,
+		DNSNames:                rootCert.DNSNames,
+		EmailAddresses:          rootCert.EmailAddresses,
+		IPAddresses:             rootCert.IPAddresses,
+	}, rootSigner)
+	if err != nil {
+		return nil, err
+	}
+	req := signer.SignRequest{
+		Request: string(pem.EncodeToMemory(&pem.Block{
+			Type:  "CERTIFICATE REQUEST",
+			Bytes: der,
+		})),
+		Subject: &signer.Subject{
+			CN:    rootCert.Subject.CommonName,
+			Names: cfCSRObj.Names,
+		},
+	}
+	// cfssl actually ignores non subject alt name extensions in the CSR, so we have to add the CA extension in the signing
+	// request as well
+	for _, ext := range rootCert.Extensions {
+		if ext.Id.Equal(BasicConstraintsOID) {
+			req.Extensions = append(req.Extensions, signer.Extension{
+				ID:       config.OID(ext.Id),
+				Critical: ext.Critical,
+				Value:    hex.EncodeToString(ext.Value),
+			})
+		}
+	}
+	return eca.Sign(ctx, req)
 }
 
 func makeExternalSignRequest(ctx context.Context, client *http.Client, url string, csrJSON []byte) (cert []byte, err error) {

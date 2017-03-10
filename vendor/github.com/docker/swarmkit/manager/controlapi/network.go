@@ -167,8 +167,10 @@ func (s *Server) RemoveNetwork(ctx context.Context, request *api.RemoveNetworkRe
 			return grpc.Errorf(codes.Internal, "could not find tasks using network %s: %v", request.NetworkID, err)
 		}
 
-		if len(tasks) != 0 {
-			return grpc.Errorf(codes.FailedPrecondition, "network %s is in use by task %s", request.NetworkID, tasks[0].ID)
+		for _, t := range tasks {
+			if t.DesiredState <= api.TaskStateRunning && t.Status.State <= api.TaskStateRunning {
+				return grpc.Errorf(codes.FailedPrecondition, "network %s is in use by task %s", request.NetworkID, t.ID)
+			}
 		}
 
 		nw := store.GetNetwork(tx, request.NetworkID)
