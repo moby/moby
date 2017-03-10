@@ -43,8 +43,12 @@ func unpauseAllContainers(t testingT, dockerBinary string) {
 }
 
 func getPausedContainers(t testingT, dockerBinary string) []string {
+	fmt.Println("--> getPausedContainers")
 	result := icmd.RunCommand(dockerBinary, "ps", "-f", "status=paused", "-q", "-a")
+	fmt.Println("result ", result)
 	result.Assert(t, icmd.Success)
+
+	// Is the bug that result.Assert doesn't return???
 	return strings.Fields(result.Combined())
 }
 
