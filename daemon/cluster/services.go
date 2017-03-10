@@ -193,7 +193,7 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec typ
 			}
 		}
 
-		resp := &apitypes.ServiceUpdateResponse{}
+		resp = &apitypes.ServiceUpdateResponse{}
 
 		// pin image by digest
 		if os.Getenv("DOCKER_SERVICE_PREFER_OFFLINE_IMAGE") != "1" {
