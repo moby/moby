@@ -12,6 +12,7 @@ const (
 	bios = "mobylinux/mkimage-iso-bios:489b1f054a77a8f379d0bfc6cd91639b4db6b67c@sha256:0f058951aac4367d132682aa19eeb5cdcb05600a5d51fe5d0fcbd97b03ae4f87"
 	efi  = "mobylinux/mkimage-iso-efi:b210c58e096e53082d35b28fa2b52dba6ae200c8@sha256:10c2789bf5fbd27c35c5fe2f3b97f75a7108bbde389d0f5ed750e3e2dae95376"
 	gce  = "mobylinux/mkimage-gce:2039be4e39e855d1845aee188e266bba3f1d2eed@sha256:e12f76003fd9eaa0c6f39f149db5998cf56de42539b989c994893c8344ca69c0"
+	qcow = "mobylinux/mkimage-qcow:9b3632f111675898ed3a22ac71897e735b5a8364@sha256:2132cf3fb593d65f09c8d109d40e1fad138d81485d4750fc29a7f54611d78d35"
 	vhd  = "mobylinux/mkimage-vhd:73c80e433bf717578c507621a84fd58cec27fe95@sha256:0ae1eda2d6592f309977dc4b25cca120cc4e2ee2cc786e88fdc2761c0d49cb14"
 )
 
@@ -35,6 +36,11 @@ func outputs(m *Moby, base string, bzimage []byte, initrd []byte) error {
 			}
 		case "gce-img":
 			err := outputImg(gce, base+".img.tar.gz", bzimage, initrd, m.Kernel.Cmdline)
+			if err != nil {
+				return fmt.Errorf("Error writing %s output: %v", o.Format, err)
+			}
+		case "qcow", "qcow2":
+			err := outputImg(qcow, base+".qcow2", bzimage, initrd, m.Kernel.Cmdline)
 			if err != nil {
 				return fmt.Errorf("Error writing %s output: %v", o.Format, err)
 			}
