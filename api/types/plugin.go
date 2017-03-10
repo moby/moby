@@ -74,6 +74,10 @@ type PluginConfig struct {
 	// Required: true
 	Network PluginConfigNetwork `json:"Network"`
 
+	// pid host
+	// Required: true
+	PidHost bool `json:"PidHost"`
+
 	// propagated mount
 	// Required: true
 	PropagatedMount string `json:"PropagatedMount"`

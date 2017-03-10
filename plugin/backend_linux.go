@@ -157,6 +157,13 @@ func computePrivileges(c types.PluginConfig) (types.PluginPrivileges, error) {
 			Value:       []string{"true"},
 		})
 	}
+	if c.PidHost {
+		privileges = append(privileges, types.PluginPrivilege{
+			Name:        "host pid namespace",
+			Description: "allow access to host pid namespace",
+			Value:       []string{"true"},
+		})
+	}
 	for _, mount := range c.Mounts {
 		if mount.Source != nil {
 			privileges = append(privileges, types.PluginPrivilege{

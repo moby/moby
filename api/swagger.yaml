@@ -1445,6 +1445,7 @@ definitions:
           - WorkDir
           - Network
           - Linux
+          - PidHost
           - PropagatedMount
           - IpcHost
           - Mounts
@@ -1515,6 +1516,9 @@ definitions:
             type: "string"
             x-nullable: false
           IpcHost:
+            type: "boolean"
+            x-nullable: false
+          PidHost:
             type: "boolean"
             x-nullable: false
           Mounts:

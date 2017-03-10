@@ -60,6 +60,9 @@ func (p *Plugin) InitSpec(execRoot string) (*specs.Spec, error) {
 				Options:     []string{"rbind", "ro"},
 			})
 	}
+	if p.PluginObj.Config.PidHost {
+		oci.RemoveNamespace(&s, specs.NamespaceType("pid"))
+	}
 
 	if p.PluginObj.Config.IpcHost {
 		oci.RemoveNamespace(&s, specs.NamespaceType("ipc"))
