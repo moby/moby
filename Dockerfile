@@ -191,10 +191,15 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Get the "docker-py" source so we can run their integration tests
-ENV DOCKER_PY_COMMIT e2655f658408f9ad1f62abdef3eb6ed43c0cf324
+ENV DOCKER_PY_COMMIT 4a08d04aef0595322e1b5ac7c52f28a931da85a5
 RUN git clone https://github.com/docker/docker-py.git /docker-py \
 	&& cd /docker-py \
 	&& git checkout -q $DOCKER_PY_COMMIT \
+	# To run integration tests docker-pycreds is required.
+	# Before running the integration tests conftest.py is
+	# loaded which results in loads auth.py that
+	# imports the docker-pycreds module.
+	&& pip install docker-pycreds==0.2.1 \
 	&& pip install -r test-requirements.txt
 
 # Install yamllint for validating swagger.yaml
