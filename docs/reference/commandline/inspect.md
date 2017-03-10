@@ -30,12 +30,33 @@ Options:
 
 ## Description
 
-By default, `docker inspect` will render all results in a JSON array. If the container and
-image have the same name, this will return container JSON for unspecified type.
+Docker inspect provides detailed information on constructs controlled by Docker.
+
+By default, `docker inspect` will render results in a JSON array.
+
+## Request a custom response format (--format)
+
 If a format is specified, the given template will be executed for each result.
 
 Go's [text/template](http://golang.org/pkg/text/template/) package
 describes all the details of the format.
+
+## Specify target type (--type)
+
+`--type container|image|node|network|secret|service|volume|task|plugin`
+
+The `docker inspect` command matches any type of object by either ID or name.
+In some cases multiple type of objects (for example, a container and a volume)
+exist with the same name, making the result ambigious.
+
+To restrict `docker inspect` to a specific type of object, use the `--type`
+option.
+
+The following example inspects a _volume_ named "myvolume"
+
+```bash
+$ docker inspect --type=volume myvolume
+```
 
 ## Examples
 
