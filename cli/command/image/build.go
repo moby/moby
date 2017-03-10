@@ -40,8 +40,8 @@ type buildOptions struct {
 	buildArgs      opts.ListOpts
 	extraHosts     opts.ListOpts
 	ulimits        *opts.UlimitOpt
-	memory         string
-	memorySwap     string
+	memory         opts.MemBytes
+	memorySwap     opts.MemSwapBytes
 	shmSize        opts.MemBytes
 	cpuShares      int64
 	cpuPeriod      int64
@@ -89,8 +89,8 @@ func NewBuildCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.Var(&options.buildArgs, "build-arg", "Set build-time variables")
 	flags.Var(options.ulimits, "ulimit", "Ulimit options")
 	flags.StringVarP(&options.dockerfileName, "file", "f", "", "Name of the Dockerfile (Default is 'PATH/Dockerfile')")
-	flags.StringVarP(&options.memory, "memory", "m", "", "Memory limit")
-	flags.StringVar(&options.memorySwap, "memory-swap", "", "Swap limit equal to memory plus swap: '-1' to enable unlimited swap")
+	flags.VarP(&options.memory, "memory", "m", "Memory limit")
+	flags.Var(&options.memorySwap, "memory-swap", "Swap limit equal to memory plus swap: '-1' to enable unlimited swap")
 	flags.Var(&options.shmSize, "shm-size", "Size of /dev/shm")
 	flags.Int64VarP(&options.cpuShares, "cpu-shares", "c", 0, "CPU shares (relative weight)")
 	flags.Int64Var(&options.cpuPeriod, "cpu-period", 0, "Limit the CPU CFS (Completely Fair Scheduler) period")
@@ -138,7 +138,6 @@ func (out *lastProgressOutput) WriteProgress(prog progress.Progress) error {
 }
 
 func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
-
 	var (
 		buildCtx      io.ReadCloser
 		err           error
@@ -255,32 +254,10 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 
 	var body io.Reader = progress.NewProgressReader(buildCtx, progressOutput, 0, "", "Sending build context to Docker daemon")
 
-	var memory int64
-	if options.memory != "" {
-		parsedMemory, err := units.RAMInBytes(options.memory)
-		if err != nil {
-			return err
-		}
-		memory = parsedMemory
-	}
-
-	var memorySwap int64
-	if options.memorySwap != "" {
-		if options.memorySwap == "-1" {
-			memorySwap = -1
-		} else {
-			parsedMemorySwap, err := units.RAMInBytes(options.memorySwap)
-			if err != nil {
-				return err
-			}
-			memorySwap = parsedMemorySwap
-		}
-	}
-
 	authConfigs, _ := dockerCli.GetAllCredentials()
 	buildOptions := types.ImageBuildOptions{
-		Memory:         memory,
-		MemorySwap:     memorySwap,
+		Memory:         options.memory.Value(),
+		MemorySwap:     options.memorySwap.Value(),
 		Tags:           options.tags.GetAll(),
 		SuppressOutput: options.quiet,
 		NoCache:        options.noCache,
@@ -333,7 +310,11 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 	// Windows: show error message about modified file permissions if the
 	// daemon isn't running Windows.
 	if response.OSType != "windows" && runtime.GOOS == "windows" && !options.quiet {
-		fmt.Fprintln(dockerCli.Out(), `SECURITY WARNING: You are building a Docker image from Windows against a non-Windows Docker host. All files and directories added to build context will have '-rwxr-xr-x' permissions. It is recommended to double check and reset permissions for sensitive files and directories.`)
+		fmt.Fprintln(dockerCli.Out(), "SECURITY WARNING: You are building a Docker "+
+			"image from Windows against a non-Windows Docker host. All files and "+
+			"directories added to build context will have '-rwxr-xr-x' permissions. "+
+			"It is recommended to double check and reset permissions for sensitive "+
+			"files and directories.")
 	}
 
 	// Everything worked so if -q was provided the output from the daemon

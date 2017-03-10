@@ -13,6 +13,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	networktypes "github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/pkg/testutil/assert"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/nat"
 	"github.com/spf13/pflag"
@@ -235,28 +236,24 @@ func TestParseWithMacAddress(t *testing.T) {
 
 func TestParseWithMemory(t *testing.T) {
 	invalidMemory := "--memory=invalid"
-	validMemory := "--memory=1G"
-	if _, _, _, err := parseRun([]string{invalidMemory, "img", "cmd"}); err != nil && err.Error() != "invalid size: 'invalid'" {
-		t.Fatalf("Expected an error with '%v' Memory, got '%v'", invalidMemory, err)
-	}
-	if _, hostconfig := mustParse(t, validMemory); hostconfig.Memory != 1073741824 {
-		t.Fatalf("Expected the config to have '1G' as Memory, got '%v'", hostconfig.Memory)
-	}
+	_, _, _, err := parseRun([]string{invalidMemory, "img", "cmd"})
+	assert.Error(t, err, invalidMemory)
+
+	_, hostconfig := mustParse(t, "--memory=1G")
+	assert.Equal(t, hostconfig.Memory, int64(1073741824))
 }
 
 func TestParseWithMemorySwap(t *testing.T) {
 	invalidMemory := "--memory-swap=invalid"
-	validMemory := "--memory-swap=1G"
-	anotherValidMemory := "--memory-swap=-1"
-	if _, _, _, err := parseRun([]string{invalidMemory, "img", "cmd"}); err == nil || err.Error() != "invalid size: 'invalid'" {
-		t.Fatalf("Expected an error with '%v' MemorySwap, got '%v'", invalidMemory, err)
-	}
-	if _, hostconfig := mustParse(t, validMemory); hostconfig.MemorySwap != 1073741824 {
-		t.Fatalf("Expected the config to have '1073741824' as MemorySwap, got '%v'", hostconfig.MemorySwap)
-	}
-	if _, hostconfig := mustParse(t, anotherValidMemory); hostconfig.MemorySwap != -1 {
-		t.Fatalf("Expected the config to have '-1' as MemorySwap, got '%v'", hostconfig.MemorySwap)
-	}
+
+	_, _, _, err := parseRun([]string{invalidMemory, "img", "cmd"})
+	assert.Error(t, err, invalidMemory)
+
+	_, hostconfig := mustParse(t, "--memory-swap=1G")
+	assert.Equal(t, hostconfig.MemorySwap, int64(1073741824))
+
+	_, hostconfig = mustParse(t, "--memory-swap=-1")
+	assert.Equal(t, hostconfig.MemorySwap, int64(-1))
 }
 
 func TestParseHostname(t *testing.T) {
