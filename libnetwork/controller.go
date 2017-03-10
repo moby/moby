@@ -47,6 +47,7 @@ import (
 	"container/heap"
 	"fmt"
 	"net"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -957,6 +958,8 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (s
 
 	if sb.ingress {
 		c.ingressSandbox = sb
+		sb.config.hostsPath = filepath.Join(c.cfg.Daemon.DataDir, "/network/files/hosts")
+		sb.config.resolvConfPath = filepath.Join(c.cfg.Daemon.DataDir, "/network/files/resolv.conf")
 		sb.id = "ingress_sbox"
 	}
 	c.Unlock()
