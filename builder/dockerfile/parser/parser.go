@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -34,6 +35,31 @@ type Node struct {
 	Flags      []string        // only top Node should have this set
 	StartLine  int             // the line in the original dockerfile where the node begins
 	EndLine    int             // the line in the original dockerfile where the node ends
+}
+
+// Dump dumps the AST defined by `node` as a list of sexps.
+// Returns a string suitable for printing.
+func (node *Node) Dump() string {
+	str := ""
+	str += node.Value
+
+	if len(node.Flags) > 0 {
+		str += fmt.Sprintf(" %q", node.Flags)
+	}
+
+	for _, n := range node.Children {
+		str += "(" + n.Dump() + ")\n"
+	}
+
+	for n := node.Next; n != nil; n = n.Next {
+		if len(n.Children) > 0 {
+			str += " " + n.Dump()
+		} else {
+			str += " " + strconv.Quote(n.Value)
+		}
+	}
+
+	return strings.TrimSpace(str)
 }
 
 // Directive is the structure used during a build run to hold the state of
@@ -96,24 +122,9 @@ func init() {
 
 // ParseLine parses a line and returns the remainder.
 func ParseLine(line string, d *Directive, ignoreCont bool) (string, *Node, error) {
-	// Handle the parser directive '# escape=<char>. Parser directives must precede
-	// any builder instruction or other comments, and cannot be repeated.
-	if d.LookingForDirectives {
-		tecMatch := tokenEscapeCommand.FindStringSubmatch(strings.ToLower(line))
-		if len(tecMatch) > 0 {
-			if d.EscapeSeen == true {
-				return "", nil, fmt.Errorf("only one escape parser directive can be used")
-			}
-			for i, n := range tokenEscapeCommand.SubexpNames() {
-				if n == "escapechar" {
-					if err := SetEscapeToken(tecMatch[i], d); err != nil {
-						return "", nil, err
-					}
-					d.EscapeSeen = true
-					return "", nil, nil
-				}
-			}
-		}
+	if escapeFound, err := handleParserDirective(line, d); err != nil || escapeFound {
+		d.EscapeSeen = escapeFound
+		return "", nil, err
 	}
 
 	d.LookingForDirectives = false
@@ -127,25 +138,60 @@ func ParseLine(line string, d *Directive, ignoreCont bool) (string, *Node, error
 		return line, nil, nil
 	}
 
+	node, err := newNodeFromLine(line, d)
+	return "", node, err
+}
+
+// newNodeFromLine splits the line into parts, and dispatches to a function
+// based on the command and command arguments. A Node is created from the
+// result of the dispatch.
+func newNodeFromLine(line string, directive *Directive) (*Node, error) {
 	cmd, flags, args, err := splitCommand(line)
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
 
-	node := &Node{}
-	node.Value = cmd
-
-	sexp, attrs, err := fullDispatch(cmd, args, d)
+	fn := dispatch[cmd]
+	// Ignore invalid Dockerfile instructions
+	if fn == nil {
+		fn = parseIgnore
+	}
+	next, attrs, err := fn(args, directive)
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
 
-	node.Next = sexp
-	node.Attributes = attrs
-	node.Original = line
-	node.Flags = flags
+	return &Node{
+		Value:      cmd,
+		Original:   line,
+		Flags:      flags,
+		Next:       next,
+		Attributes: attrs,
+	}, nil
+}
 
-	return "", node, nil
+// Handle the parser directive '# escape=<char>. Parser directives must precede
+// any builder instruction or other comments, and cannot be repeated.
+func handleParserDirective(line string, d *Directive) (bool, error) {
+	if !d.LookingForDirectives {
+		return false, nil
+	}
+	tecMatch := tokenEscapeCommand.FindStringSubmatch(strings.ToLower(line))
+	if len(tecMatch) == 0 {
+		return false, nil
+	}
+	if d.EscapeSeen == true {
+		return false, fmt.Errorf("only one escape parser directive can be used")
+	}
+	for i, n := range tokenEscapeCommand.SubexpNames() {
+		if n == "escapechar" {
+			if err := SetEscapeToken(tecMatch[i], d); err != nil {
+				return false, err
+			}
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // Parse is the main parse routine.
@@ -218,4 +264,15 @@ func Parse(rwc io.Reader, d *Directive) (*Node, error) {
 	}
 
 	return root, nil
+}
+
+// covers comments and empty lines. Lines should be trimmed before passing to
+// this function.
+func stripComments(line string) string {
+	// string is already trimmed at this point
+	if tokenComment.MatchString(line) {
+		return tokenComment.ReplaceAllString(line, "")
+	}
+
+	return line
 }
