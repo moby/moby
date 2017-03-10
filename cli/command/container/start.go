@@ -101,8 +101,11 @@ func runStart(dockerCli *command.DockerCli, opts *startOptions) error {
 			return errAttach
 		}
 		defer resp.Close()
+
+		cAttachDone := make(chan struct{})
 		cErr := promise.Go(func() error {
 			errHijack := holdHijackedConnection(ctx, dockerCli, c.Config.Tty, in, dockerCli.Out(), dockerCli.Err(), resp)
+			close(cAttachDone)
 			if errHijack == nil {
 				return errAttach
 			}
@@ -111,7 +114,7 @@ func runStart(dockerCli *command.DockerCli, opts *startOptions) error {
 
 		// 3. We should open a channel for receiving status code of the container
 		// no matter it's detached, removed on daemon side(--rm) or exit normally.
-		statusChan := waitExitOrRemoved(ctx, dockerCli, c.ID, c.HostConfig.AutoRemove)
+		statusChan := waitExitOrRemoved(ctx, dockerCli, c.ID, cAttachDone, c.HostConfig.AutoRemove)
 		startOptions := types.ContainerStartOptions{
 			CheckpointID:  opts.checkpoint,
 			CheckpointDir: opts.checkpointDir,
