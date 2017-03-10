@@ -22,15 +22,15 @@ func IsPreDefinedNetwork(network string) bool {
 	return n.IsBridge() || n.IsHost() || n.IsNone() || n.IsDefault() || network == "ingress"
 }
 
-// ValidateNetMode ensures that the various combinations of requested
+// validateNetMode ensures that the various combinations of requested
 // network settings are valid.
-func ValidateNetMode(c *container.Config, hc *container.HostConfig) error {
+func validateNetMode(c *container.Config, hc *container.HostConfig) error {
 	// We may not be passed a host config, such as in the case of docker commit
 	if hc == nil {
 		return nil
 	}
 
-	err := ValidateNetContainerMode(c, hc)
+	err := validateNetContainerMode(c, hc)
 	if err != nil {
 		return err
 	}
@@ -46,10 +46,10 @@ func ValidateNetMode(c *container.Config, hc *container.HostConfig) error {
 	return nil
 }
 
-// ValidateIsolation performs platform specific validation of
+// validateIsolation performs platform specific validation of
 // isolation in the hostconfig structure. Linux only supports "default"
 // which is LXC container isolation
-func ValidateIsolation(hc *container.HostConfig) error {
+func validateIsolation(hc *container.HostConfig) error {
 	// We may not be passed a host config, such as in the case of docker commit
 	if hc == nil {
 		return nil
@@ -60,8 +60,8 @@ func ValidateIsolation(hc *container.HostConfig) error {
 	return nil
 }
 
-// ValidateQoS performs platform specific validation of the QoS settings
-func ValidateQoS(hc *container.HostConfig) error {
+// validateQoS performs platform specific validation of the QoS settings
+func validateQoS(hc *container.HostConfig) error {
 	// We may not be passed a host config, such as in the case of docker commit
 	if hc == nil {
 		return nil
@@ -77,9 +77,9 @@ func ValidateQoS(hc *container.HostConfig) error {
 	return nil
 }
 
-// ValidateResources performs platform specific validation of the resource settings
+// validateResources performs platform specific validation of the resource settings
 // cpu-rt-runtime and cpu-rt-period can not be greater than their parent, cpu-rt-runtime requires sys_nice
-func ValidateResources(hc *container.HostConfig, si *sysinfo.SysInfo) error {
+func validateResources(hc *container.HostConfig, si *sysinfo.SysInfo) error {
 	// We may not be passed a host config, such as in the case of docker commit
 	if hc == nil {
 		return nil
@@ -96,5 +96,10 @@ func ValidateResources(hc *container.HostConfig, si *sysinfo.SysInfo) error {
 	if hc.Resources.CPURealtimePeriod != 0 && hc.Resources.CPURealtimeRuntime != 0 && hc.Resources.CPURealtimeRuntime > hc.Resources.CPURealtimePeriod {
 		return fmt.Errorf("invalid --cpu-rt-runtime: rt runtime cannot be higher than rt period")
 	}
+	return nil
+}
+
+// validatePrivileged performs platform specific validation of the Privileged setting
+func validatePrivileged(hc *container.HostConfig) error {
 	return nil
 }

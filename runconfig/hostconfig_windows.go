@@ -18,14 +18,14 @@ func IsPreDefinedNetwork(network string) bool {
 	return !container.NetworkMode(network).IsUserDefined()
 }
 
-// ValidateNetMode ensures that the various combinations of requested
+// validateNetMode ensures that the various combinations of requested
 // network settings are valid.
-func ValidateNetMode(c *container.Config, hc *container.HostConfig) error {
+func validateNetMode(c *container.Config, hc *container.HostConfig) error {
 	if hc == nil {
 		return nil
 	}
 
-	err := ValidateNetContainerMode(c, hc)
+	err := validateNetContainerMode(c, hc)
 	if err != nil {
 		return err
 	}
@@ -37,10 +37,10 @@ func ValidateNetMode(c *container.Config, hc *container.HostConfig) error {
 	return nil
 }
 
-// ValidateIsolation performs platform specific validation of the
+// validateIsolation performs platform specific validation of the
 // isolation in the hostconfig structure. Windows supports 'default' (or
 // blank), 'process', or 'hyperv'.
-func ValidateIsolation(hc *container.HostConfig) error {
+func validateIsolation(hc *container.HostConfig) error {
 	// We may not be passed a host config, such as in the case of docker commit
 	if hc == nil {
 		return nil
@@ -51,23 +51,34 @@ func ValidateIsolation(hc *container.HostConfig) error {
 	return nil
 }
 
-// ValidateQoS performs platform specific validation of the Qos settings
-func ValidateQoS(hc *container.HostConfig) error {
+// validateQoS performs platform specific validation of the Qos settings
+func validateQoS(hc *container.HostConfig) error {
 	return nil
 }
 
-// ValidateResources performs platform specific validation of the resource settings
-func ValidateResources(hc *container.HostConfig, si *sysinfo.SysInfo) error {
+// validateResources performs platform specific validation of the resource settings
+func validateResources(hc *container.HostConfig, si *sysinfo.SysInfo) error {
 	// We may not be passed a host config, such as in the case of docker commit
 	if hc == nil {
 		return nil
 	}
-
 	if hc.Resources.CPURealtimePeriod != 0 {
 		return fmt.Errorf("invalid --cpu-rt-period: Windows does not support this feature")
 	}
 	if hc.Resources.CPURealtimeRuntime != 0 {
 		return fmt.Errorf("invalid --cpu-rt-runtime: Windows does not support this feature")
+	}
+	return nil
+}
+
+// validatePrivileged performs platform specific validation of the Privileged setting
+func validatePrivileged(hc *container.HostConfig) error {
+	// We may not be passed a host config, such as in the case of docker commit
+	if hc == nil {
+		return nil
+	}
+	if hc.Privileged {
+		return fmt.Errorf("invalid --privileged: Windows does not support this feature")
 	}
 	return nil
 }
