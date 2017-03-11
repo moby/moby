@@ -1,6 +1,7 @@
 package discovery
 
 import (
+	"fmt"
 	"testing"
 	"time"
 )
@@ -84,6 +85,13 @@ func TestDiscoveryOpts(t *testing.T) {
 	expected = 30 * time.Second / defaultDiscoveryTTLFactor
 	if heartbeat != expected {
 		t.Fatalf("Heartbeat - Expected : %v, Actual : %v", expected, heartbeat)
+	}
+
+	discaveryTTL := fmt.Sprintf("%d", defaultDiscoveryTTLFactor-1)
+	clusterOpts = map[string]string{"discovery.ttl": discaveryTTL}
+	heartbeat, ttl, err = discoveryOpts(clusterOpts)
+	if err == nil && heartbeat == 0 {
+		t.Fatal("discovery.heartbeat must be positive")
 	}
 
 	clusterOpts = map[string]string{}
