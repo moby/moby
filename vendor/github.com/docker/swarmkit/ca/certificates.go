@@ -9,6 +9,7 @@ import (
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/asn1"
 	"encoding/pem"
 	"fmt"
 	"io"
@@ -71,6 +72,9 @@ const (
 	// MinNodeCertExpiration represents the minimum expiration for node certificates
 	MinNodeCertExpiration = 1 * time.Hour
 )
+
+// BasicConstraintsOID is the ASN1 Object ID indicating a basic constraints extension
+var BasicConstraintsOID = asn1.ObjectIdentifier{2, 5, 29, 19}
 
 // A recoverableErr is a non-fatal error encountered signing a certificate,
 // which means that the certificate issuance may be retried at a later time.
@@ -303,6 +307,42 @@ func (rca *RootCA) ParseValidateAndSignCSR(csrBytes []byte, cn, ou, org string) 
 	}
 
 	return cert, nil
+}
+
+// CrossSignCACertificate takes a CA root certificate and generates an intermediate CA from it signed with the current root signer
+func (rca *RootCA) CrossSignCACertificate(otherCAPEM []byte) ([]byte, error) {
+	if !rca.CanSign() {
+		return nil, ErrNoValidSigner
+	}
+
+	// create a new cert with exactly the same parameters, including the public key and exact NotBefore and NotAfter
+	rootCert, err := helpers.ParseCertificatePEM(rca.Cert)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not parse old CA certificate")
+	}
+	rootSigner, err := helpers.ParsePrivateKeyPEM(rca.Signer.Key)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not parse old CA key")
+	}
+
+	newCert, err := helpers.ParseCertificatePEM(otherCAPEM)
+	if err != nil {
+		return nil, errors.New("could not parse new CA certificate")
+	}
+
+	if !newCert.IsCA {
+		return nil, errors.New("certificate not a CA")
+	}
+
+	derBytes, err := x509.CreateCertificate(cryptorand.Reader, newCert, rootCert, newCert.PublicKey, rootSigner)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not cross-sign new CA certificate using old CA material")
+	}
+
+	return pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: derBytes,
+	}), nil
 }
 
 // NewRootCA creates a new RootCA object from unparsed PEM cert bundle and key byte

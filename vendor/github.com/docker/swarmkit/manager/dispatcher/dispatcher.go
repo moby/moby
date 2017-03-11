@@ -841,11 +841,6 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 		}
 		var newSecrets []*api.Secret
 		for _, secretRef := range container.Secrets {
-			// Empty ID prefix will return all secrets. Bail if there is no SecretID
-			if secretRef.SecretID == "" {
-				log.Debugf("invalid secret reference")
-				continue
-			}
 			secretID := secretRef.SecretID
 			log := log.WithFields(logrus.Fields{
 				"secret.id":   secretID,
@@ -855,21 +850,15 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 			if len(tasksUsingSecret[secretID]) == 0 {
 				tasksUsingSecret[secretID] = make(map[string]struct{})
 
-				secrets, err := store.FindSecrets(readTx, store.ByIDPrefix(secretID))
-				if err != nil {
-					log.WithError(err).Errorf("error retrieving secret")
-					continue
-				}
-				if len(secrets) != 1 {
-					log.Debugf("secret not found")
+				secret := store.GetSecret(readTx, secretID)
+				if secret == nil {
+					log.Debug("secret not found")
 					continue
 				}
 
-				// If the secret was found and there was one result
-				// (there should never be more than one because of the
-				// uniqueness constraint), add this secret to our
-				// initial set that we send down.
-				newSecrets = append(newSecrets, secrets[0])
+				// If the secret was found, add this secret to
+				// our set that we send down.
+				newSecrets = append(newSecrets, secret)
 			}
 			tasksUsingSecret[secretID][t.ID] = struct{}{}
 		}

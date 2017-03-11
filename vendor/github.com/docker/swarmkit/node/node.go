@@ -227,18 +227,20 @@ func (n *Node) run(ctx context.Context) (err error) {
 	defer cancel()
 	ctx = log.WithModule(ctx, "node")
 
-	go func() {
+	go func(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 		case <-n.stopped:
 			cancel()
 		}
-	}()
+	}(ctx)
 
 	securityConfig, err := n.loadSecurityConfig(ctx)
 	if err != nil {
 		return err
 	}
+
+	ctx = log.WithLogger(ctx, log.G(ctx).WithField("node.id", n.NodeID()))
 
 	taskDBPath := filepath.Join(n.config.StateDir, "worker/tasks.db")
 	if err := os.MkdirAll(filepath.Dir(taskDBPath), 0777); err != nil {
@@ -251,18 +253,26 @@ func (n *Node) run(ctx context.Context) (err error) {
 	}
 	defer db.Close()
 
+	agentDone := make(chan struct{})
+
 	forceCertRenewal := make(chan struct{})
 	renewCert := func() {
-		select {
-		case forceCertRenewal <- struct{}{}:
-		case <-ctx.Done():
+		for {
+			select {
+			case forceCertRenewal <- struct{}{}:
+				return
+			case <-agentDone:
+				return
+			case <-n.notifyNodeChange:
+				// consume from the channel to avoid blocking the writer
+			}
 		}
 	}
 
 	go func() {
 		for {
 			select {
-			case <-ctx.Done():
+			case <-agentDone:
 				return
 			case node := <-n.notifyNodeChange:
 				// If the server is sending us a ForceRenewal State, renew
@@ -320,6 +330,7 @@ func (n *Node) run(ctx context.Context) (err error) {
 		agentErr = n.runAgent(ctx, db, securityConfig.ClientTLSCreds, agentReady)
 		wg.Done()
 		cancel()
+		close(agentDone)
 	}()
 
 	go func() {
@@ -733,12 +744,12 @@ func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig
 	}
 	done := make(chan struct{})
 	var runErr error
-	go func() {
-		if err := m.Run(context.Background()); err != nil {
+	go func(logger *logrus.Entry) {
+		if err := m.Run(log.WithLogger(context.Background(), logger)); err != nil {
 			runErr = err
 		}
 		close(done)
-	}()
+	}(log.G(ctx))
 
 	var clearData bool
 	defer func() {
