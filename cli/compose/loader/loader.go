@@ -435,9 +435,21 @@ func LoadVolumes(source types.Dict) (map[string]types.VolumeConfig, error) {
 		return volumes, err
 	}
 	for name, volume := range volumes {
-		if volume.External.External && volume.External.Name == "" {
-			volume.External.Name = name
-			volumes[name] = volume
+		if volume.External.External {
+			template := "conflicting parameters \"external\" and %q specified for volume %q"
+			if volume.Driver != "" {
+				return nil, fmt.Errorf(template, "driver", name)
+			}
+			if len(volume.DriverOpts) > 0 {
+				return nil, fmt.Errorf(template, "driver_opts", name)
+			}
+			if len(volume.Labels) > 0 {
+				return nil, fmt.Errorf(template, "labels", name)
+			}
+			if volume.External.Name == "" {
+				volume.External.Name = name
+				volumes[name] = volume
+			}
 		}
 	}
 	return volumes, nil

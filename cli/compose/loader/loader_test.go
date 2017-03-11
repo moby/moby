@@ -541,6 +541,50 @@ services:
 	assert.Contains(t, forbidden, "extends")
 }
 
+func TestInvalidExternalAndDriverCombination(t *testing.T) {
+	_, err := loadYAML(`
+version: "3"
+volumes:
+  external_volume:
+    external: true
+    driver: foobar
+`)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "conflicting parameters \"external\" and \"driver\" specified for volume")
+	assert.Contains(t, err.Error(), "external_volume")
+}
+
+func TestInvalidExternalAndDirverOptsCombination(t *testing.T) {
+	_, err := loadYAML(`
+version: "3"
+volumes:
+  external_volume:
+    external: true
+    driver_opts:
+      beep: boop
+`)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "conflicting parameters \"external\" and \"driver_opts\" specified for volume")
+	assert.Contains(t, err.Error(), "external_volume")
+}
+
+func TestInvalidExternalAndLabelsCombination(t *testing.T) {
+	_, err := loadYAML(`
+version: "3"
+volumes:
+  external_volume:
+    external: true
+    labels:
+      - beep=boop
+`)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "conflicting parameters \"external\" and \"labels\" specified for volume")
+	assert.Contains(t, err.Error(), "external_volume")
+}
+
 func durationPtr(value time.Duration) *time.Duration {
 	return &value
 }
