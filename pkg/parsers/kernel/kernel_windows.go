@@ -67,3 +67,8 @@ func GetKernelVersion() (*VersionInfo, error) {
 
 	return KVI, nil
 }
+
+// CheckKernelVersionNproc checks if current kernel is 4.10+.
+func CheckKernelVersionNproc() bool {
+	return false
+}
