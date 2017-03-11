@@ -76,7 +76,7 @@ func runPull(dockerCli *command.DockerCli, opts pullOptions) error {
 		err = imagePullPrivileged(ctx, dockerCli, authConfig, reference.FamiliarString(distributionRef), requestPrivilege, opts.all)
 	}
 	if err != nil {
-		if strings.Contains(err.Error(), "target is plugin") {
+		if strings.Contains(err.Error(), "when fetching 'plugin'") {
 			return errors.New(err.Error() + " - Use `docker plugin install`")
 		}
 		return err

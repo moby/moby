@@ -181,7 +181,7 @@ func (s *DockerRegistrySuite) TestPluginInstallImage(c *check.C) {
 
 	out, _, err := dockerCmdWithError("plugin", "install", repoName)
 	c.Assert(err, checker.NotNil)
-	c.Assert(out, checker.Contains, "target is image")
+	c.Assert(out, checker.Contains, `Encountered remote "application/vnd.docker.container.image.v1+json"(image) when fetching`)
 }
 
 func (s *DockerSuite) TestPluginEnableDisableNegative(c *check.C) {

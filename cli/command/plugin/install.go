@@ -144,7 +144,7 @@ func runInstall(dockerCli *command.DockerCli, opts pluginOptions) error {
 	}
 	responseBody, err := dockerCli.Client().PluginInstall(ctx, localName, options)
 	if err != nil {
-		if strings.Contains(err.Error(), "target is image") {
+		if strings.Contains(err.Error(), "(image) when fetching") {
 			return errors.New(err.Error() + " - Use `docker image pull`")
 		}
 		return err

@@ -363,7 +363,7 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 			if configClass == "" {
 				configClass = "unknown"
 			}
-			return false, fmt.Errorf("target is %s", configClass)
+			return false, fmt.Errorf("Encountered remote %q(%s) when fetching", m.Manifest.Config.MediaType, configClass)
 		}
 	}
 
