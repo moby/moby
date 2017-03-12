@@ -28,12 +28,12 @@ Options:
   -q, --quiet           Only display IDs
 ```
 
-### Description
+## Description
 
 Lists the services that are running as part of the specified stack. This
 command has to be run targeting a manager node.
 
-### Examples
+## Examples
 
 The following command shows all services in the `myapp` stack:
 
