@@ -18,6 +18,26 @@ func newService(name string, id string, ingressPorts []*PortConfig, aliases []st
 	}
 }
 
+func (c *controller) getLBIndex(sid, nid string, ingressPorts []*PortConfig) int {
+	skey := serviceKey{
+		id:    sid,
+		ports: portConfigs(ingressPorts).String(),
+	}
+	c.Lock()
+	s, ok := c.serviceBindings[skey]
+	c.Unlock()
+
+	if !ok {
+		return 0
+	}
+
+	s.Lock()
+	lb := s.loadBalancers[nid]
+	s.Unlock()
+
+	return int(lb.fwMark)
+}
+
 func (c *controller) cleanupServiceBindings(cleanupNID string) {
 	var cleanupFuncs []func()
 

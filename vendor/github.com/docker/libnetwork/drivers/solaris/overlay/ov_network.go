@@ -153,7 +153,7 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 	}
 
 	if nInfo != nil {
-		if err := nInfo.TableEventRegister(ovPeerTable); err != nil {
+		if err := nInfo.TableEventRegister(ovPeerTable, driverapi.EndpointObject); err != nil {
 			return err
 		}
 	}

@@ -93,6 +93,10 @@ func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key stri
 	d.peerAdd(nid, eid, addr.IP, addr.Mask, mac, vtep, true)
 }
 
+func (d *driver) DecodeTableEntry(tablename string, key string, value []byte) (string, map[string]string) {
+	return "", nil
+}
+
 // Leave method is invoked when a Sandbox detaches from an endpoint.
 func (d *driver) Leave(nid, eid string) error {
 	if err := validateID(nid, eid); err != nil {
