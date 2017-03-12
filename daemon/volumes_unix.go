@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 
+	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/mount"
@@ -36,6 +37,9 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 		tmpfsMounts[m.Destination] = true
 	}
 	for _, m := range c.MountPoints {
+		if m.Type == mounttypes.TypeOverlay {
+			continue
+		}
 		if tmpfsMounts[m.Destination] {
 			continue
 		}

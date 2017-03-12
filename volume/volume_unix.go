@@ -24,6 +24,11 @@ var rwModes = map[string]bool{
 	"ro": true,
 }
 
+// type modes
+var typeModes = map[string]bool{
+	"overlay": true,
+}
+
 // label modes
 var labelModes = map[string]bool{
 	"Z": true,
@@ -62,9 +67,12 @@ func ValidMountMode(mode string) bool {
 	labelModeCount := 0
 	propagationModeCount := 0
 	copyModeCount := 0
+	typeModeCount := 0
 
 	for _, o := range strings.Split(mode, ",") {
 		switch {
+		case typeModes[o]:
+			typeModeCount++
 		case rwModes[o]:
 			rwModeCount++
 		case labelModes[o]:
@@ -79,7 +87,7 @@ func ValidMountMode(mode string) bool {
 	}
 
 	// Only one string for each mode is allowed.
-	if rwModeCount > 1 || labelModeCount > 1 || propagationModeCount > 1 || copyModeCount > 1 {
+	if rwModeCount > 1 || typeModeCount > 1 || labelModeCount > 1 || propagationModeCount > 1 || copyModeCount > 1 {
 		return false
 	}
 	return true

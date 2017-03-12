@@ -97,6 +97,8 @@ func validateMountConfig(mnt *mount.Mount, options ...func(*validateOpts)) error
 		if _, err := ConvertTmpfsOptions(mnt.TmpfsOptions, mnt.ReadOnly); err != nil {
 			return &errMountConfig{mnt, err}
 		}
+	case mount.TypeOverlay:
+		return nil
 	default:
 		return &errMountConfig{mnt, errors.New("mount type unknown")}
 	}
