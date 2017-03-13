@@ -55,7 +55,7 @@ func convertService(
 ) (swarm.ServiceSpec, error) {
 	name := namespace.Scope(service.Name)
 
-	endpoint, err := convertEndpointSpec(service.EndpointMode, service.Ports)
+	endpoint, err := convertEndpointSpec(service.Deploy.EndpointMode, service.Ports)
 	if err != nil {
 		return swarm.ServiceSpec{}, err
 	}
