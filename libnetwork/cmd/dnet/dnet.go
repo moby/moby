@@ -141,7 +141,7 @@ func startDiscovery(cfg *config.ClusterCfg) ([]config.Option, error) {
 	if hb == 0 {
 		hb = defaultHeartbeat
 	}
-	logrus.Infof("discovery : %s $s", cfg.Discovery, hb.String())
+	logrus.Infof("discovery : %s %s", cfg.Discovery, hb.String())
 	d, err := discovery.New(cfg.Discovery, hb, ttlFactor*hb, map[string]string{})
 	if err != nil {
 		return nil, err
