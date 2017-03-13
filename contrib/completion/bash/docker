@@ -2967,7 +2967,6 @@ _docker_service_update_and_create() {
 	local $subcommand="${words[$subcommand_pos]}"
 
 	local options_with_args="
-		--constraint
 		--endpoint-mode
 		--env -e
 		--force
@@ -3018,6 +3017,7 @@ _docker_service_update_and_create() {
 
 	if [ "$subcommand" = "create" ] ; then
 		options_with_args="$options_with_args
+			--constraint
 			--container-label
 			--dns
 			--dns-option
@@ -3061,6 +3061,8 @@ _docker_service_update_and_create() {
 	if [ "$subcommand" = "update" ] ; then
 		options_with_args="$options_with_args
 			--arg
+			--constraint-add
+			--constraint-rm
 			--container-label-add
 			--container-label-rm
 			--dns-add
