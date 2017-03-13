@@ -59,9 +59,12 @@ func (r *Result) Assert(t testingT, exp Expected) {
 	if err == nil {
 		return
 	}
-
-	_, file, line, _ := runtime.Caller(1)
-	t.Fatalf("at %s:%d\n%s", filepath.Base(file), line, err.Error())
+	_, file, line, ok := runtime.Caller(1)
+	if ok {
+		t.Fatalf("at %s:%d - %s", filepath.Base(file), line, err.Error())
+	} else {
+		t.Fatalf("(no file/line info) - %s", err.Error())
+	}
 }
 
 // Compare returns a formatted error with the command, stdout, stderr, exit
@@ -123,10 +126,11 @@ func (r *Result) String() string {
 	}
 
 	return fmt.Sprintf(`
-Command: %s
-ExitCode: %d%s, Error: %s
-Stdout: %v
-Stderr: %v
+Command:  %s
+ExitCode: %d%s
+Error:    %v
+Stdout:   %v
+Stderr:   %v
 `,
 		strings.Join(r.Cmd.Args, " "),
 		r.ExitCode,
