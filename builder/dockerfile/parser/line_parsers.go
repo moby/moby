@@ -220,7 +220,9 @@ func NodeFromLabels(labels map[string]string) *Node {
 	for _, key := range keys {
 		value := labels[key]
 		labelPairs = append(labelPairs, fmt.Sprintf("%q='%s'", key, value))
-		node := newKeyValueNode(key, value)
+		// Value must be single quoted to prevent env variable expansion
+		// See https://github.com/docker/docker/issues/26027
+		node := newKeyValueNode(key, "'"+value+"'")
 		rootNode, prevNode = appendKeyValueNode(node, rootNode, prevNode)
 	}
 

@@ -6,6 +6,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/docker/docker/pkg/testutil/assert"
 )
 
 func TestShellParser4EnvVars(t *testing.T) {
@@ -13,9 +15,7 @@ func TestShellParser4EnvVars(t *testing.T) {
 	lineCount := 0
 
 	file, err := os.Open(fn)
-	if err != nil {
-		t.Fatalf("Can't open '%s': %s", err, fn)
-	}
+	assert.NilError(t, err)
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
@@ -36,29 +36,25 @@ func TestShellParser4EnvVars(t *testing.T) {
 		}
 
 		words := strings.Split(line, "|")
-		if len(words) != 3 {
-			t.Fatalf("Error in '%s' - should be exactly one | in:%q", fn, line)
-		}
+		assert.Equal(t, len(words), 3)
 
-		words[0] = strings.TrimSpace(words[0])
-		words[1] = strings.TrimSpace(words[1])
-		words[2] = strings.TrimSpace(words[2])
+		platform := strings.TrimSpace(words[0])
+		source := strings.TrimSpace(words[1])
+		expected := strings.TrimSpace(words[2])
 
 		// Key W=Windows; A=All; U=Unix
-		if (words[0] != "W") && (words[0] != "A") && (words[0] != "U") {
-			t.Fatalf("Invalid tag %s at line %d of %s. Must be W, A or U", words[0], lineCount, fn)
+		if platform != "W" && platform != "A" && platform != "U" {
+			t.Fatalf("Invalid tag %s at line %d of %s. Must be W, A or U", platform, lineCount, fn)
 		}
 
-		if ((words[0] == "W" || words[0] == "A") && runtime.GOOS == "windows") ||
-			((words[0] == "U" || words[0] == "A") && runtime.GOOS != "windows") {
-			newWord, err := ProcessWord(words[1], envs, '\\')
-
-			if err != nil {
-				newWord = "error"
-			}
-
-			if newWord != words[2] {
-				t.Fatalf("Error. Src: %s  Calc: %s  Expected: %s at line %d", words[1], newWord, words[2], lineCount)
+		if ((platform == "W" || platform == "A") && runtime.GOOS == "windows") ||
+			((platform == "U" || platform == "A") && runtime.GOOS != "windows") {
+			newWord, err := ProcessWord(source, envs, '\\')
+			if expected == "error" {
+				assert.Error(t, err, "")
+			} else {
+				assert.NilError(t, err)
+				assert.DeepEqual(t, newWord, []string{expected})
 			}
 		}
 	}

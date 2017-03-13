@@ -40,19 +40,19 @@ func TestParseNameValNewFormat(t *testing.T) {
 func TestNodeFromLabels(t *testing.T) {
 	labels := map[string]string{
 		"foo":   "bar",
-		"weird": "'first second'",
+		"weird": "first' second",
 	}
 	expected := &Node{
 		Value:    "label",
-		Original: `LABEL "foo"='bar' "weird"=''first second''`,
+		Original: `LABEL "foo"='bar' "weird"='first' second'`,
 		Next: &Node{
 			Value: "foo",
 			Next: &Node{
-				Value: "bar",
+				Value: "'bar'",
 				Next: &Node{
 					Value: "weird",
 					Next: &Node{
-						Value: "'first second'",
+						Value: "'first' second'",
 					},
 				},
 			},

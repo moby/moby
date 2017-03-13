@@ -129,47 +129,18 @@ func (b *Builder) dispatch(stepN int, stepTotal int, ast *parser.Node) error {
 
 	}
 
-	// count the number of nodes that we are going to traverse first
-	// so we can pre-create the argument and message array. This speeds up the
-	// allocation of those list a lot when they have a lot of arguments
-	cursor := ast
-	var n int
-	for cursor.Next != nil {
-		cursor = cursor.Next
-		n++
-	}
-	msgList := make([]string, n)
-
-	var i int
+	msgList := initMsgList(ast)
 	// Append build args to runConfig environment variables
 	envs := append(b.runConfig.Env, b.buildArgsWithoutConfigEnv()...)
 
-	for ast.Next != nil {
+	for i := 0; ast.Next != nil; i++ {
 		ast = ast.Next
-		var str string
-		str = ast.Value
-		if replaceEnvAllowed[cmd] {
-			var err error
-			var words []string
-
-			if allowWordExpansion[cmd] {
-				words, err = ProcessWords(str, envs, b.directive.EscapeToken)
-				if err != nil {
-					return err
-				}
-				strList = append(strList, words...)
-			} else {
-				str, err = ProcessWord(str, envs, b.directive.EscapeToken)
-				if err != nil {
-					return err
-				}
-				strList = append(strList, str)
-			}
-		} else {
-			strList = append(strList, str)
+		words, err := b.evaluateEnv(cmd, ast.Value, envs)
+		if err != nil {
+			return err
 		}
+		strList = append(strList, words...)
 		msgList[i] = ast.Value
-		i++
 	}
 
 	msg += " " + strings.Join(msgList, " ")
@@ -184,6 +155,29 @@ func (b *Builder) dispatch(stepN int, stepTotal int, ast *parser.Node) error {
 	}
 
 	return fmt.Errorf("Unknown instruction: %s", upperCasedCmd)
+}
+
+// count the number of nodes that we are going to traverse first
+// allocation of those list a lot when they have a lot of arguments
+func initMsgList(cursor *parser.Node) []string {
+	var n int
+	for ; cursor.Next != nil; n++ {
+		cursor = cursor.Next
+	}
+	return make([]string, n)
+}
+
+func (b *Builder) evaluateEnv(cmd string, str string, envs []string) ([]string, error) {
+	if !replaceEnvAllowed[cmd] {
+		return []string{str}, nil
+	}
+	var processFunc func(string, []string, rune) ([]string, error)
+	if allowWordExpansion[cmd] {
+		processFunc = ProcessWords
+	} else {
+		processFunc = ProcessWord
+	}
+	return processFunc(str, envs, b.directive.EscapeToken)
 }
 
 // buildArgsWithoutConfigEnv returns a list of key=value pairs for all the build
