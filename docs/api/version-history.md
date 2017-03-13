@@ -15,8 +15,6 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 ## v1.27 API changes
 
-[Docker Engine API v1.27](https://docs.docker.com/engine/api/v1.27/) documentation
-
 * `GET /containers/(id or name)/attach/ws` now returns WebSocket in binary frame format for API version >= v1.27, and returns WebSocket in text frame format for API version< v1.27, for the purpose of backward-compatibility.
 * `GET /networks` is optimised only to return list of all networks and network specific information. List of all containers attached to a specific network is removed from this API and is only available using the network specific `GET /networks/{network-id}.
 * `GET /containers/json` now supports `publish` and `expose` filters to filter containers that expose or publish certain ports.
