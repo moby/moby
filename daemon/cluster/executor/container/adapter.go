@@ -397,6 +397,12 @@ func (c *containerAdapter) deactivateServiceBinding() error {
 }
 
 func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscriptionOptions) (io.ReadCloser, error) {
+	// we can't handle the peculiarities of a TTY-attached container yet
+	conf := c.container.config()
+	if conf != nil && conf.Tty {
+		return nil, errors.New("logs not supported on containers with a TTY attached")
+	}
+
 	reader, writer := io.Pipe()
 
 	apiOptions := &backend.ContainerLogsConfig{
