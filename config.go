@@ -83,7 +83,7 @@ func ConfigToRun(order int, path string, image *MobyImage) []string {
 	}
 	if image.Ipc != "" {
 		// TODO only "host" supported
-		args = append(args, "--ipc="+image.Pid)
+		args = append(args, "--ipc="+image.Ipc)
 	}
 	for _, bind := range image.Binds {
 		args = append(args, "-v", bind)
