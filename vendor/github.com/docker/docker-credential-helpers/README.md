@@ -58,11 +58,12 @@ You can see examples of each function in the [client](https://godoc.org/github.c
 
 ## Development
 
-A credential helper can be any program that can read values from the standard input. We use the first argument in the command line to differentiate the kind of command to execute. There are three valid values:
+A credential helper can be any program that can read values from the standard input. We use the first argument in the command line to differentiate the kind of command to execute. There are four valid values:
 
 - `store`: Adds credentials to the keychain. The payload in the standard input is a JSON document with `ServerURL`, `Username` and `Secret`.
 - `get`: Retrieves credentials from the keychain. The payload in the standard input is the raw value for the `ServerURL`.
 - `erase`: Removes credentials from the keychain. The payload in the standard input is the raw value for the `ServerURL`.
+- `list`: Lists stored credentials. There is no standard input payload.
 
 This repository also includes libraries to implement new credentials programs in Go. Adding a new helper program is pretty easy. You can see how the OS X keychain helper works in the [osxkeychain](osxkeychain) directory.
 

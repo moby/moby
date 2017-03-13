@@ -1,5 +1,6 @@
 #include "osxkeychain_darwin.h"
 #include <CoreFoundation/CoreFoundation.h>
+#include <Foundation/NSValue.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -13,7 +14,9 @@ char *get_error(OSStatus status) {
   return buf;
 }
 
-char *keychain_add(struct Server *server, char *username, char *secret) {
+char *keychain_add(struct Server *server, char *label, char *username, char *secret) {
+  SecKeychainItemRef item;
+
   OSStatus status = SecKeychainAddInternetPassword(
     NULL,
     strlen(server->host), server->host,
@@ -24,11 +27,27 @@ char *keychain_add(struct Server *server, char *username, char *secret) {
     server->proto,
     kSecAuthenticationTypeDefault,
     strlen(secret), secret,
-    NULL
+    &item
   );
+
   if (status) {
     return get_error(status);
   }
+
+  SecKeychainAttribute attribute;
+  SecKeychainAttributeList attrs;
+  attribute.tag = kSecLabelItemAttr;
+  attribute.data = label;
+  attribute.length = strlen(label);
+  attrs.count = 1;
+  attrs.attr = &attribute;
+
+  status = SecKeychainItemModifyContent(item, &attrs, 0, NULL);
+
+  if (status) {
+    return get_error(status);
+  }
+
   return NULL;
 }
 
@@ -115,44 +134,42 @@ char * CFStringToCharArr(CFStringRef aString) {
   return NULL;
 }
 
-char *keychain_list(char *** paths, char *** accts, unsigned int *list_l) {
+char *keychain_list(char *credsLabel, char *** paths, char *** accts, unsigned int *list_l) {
+    CFStringRef credsLabelCF = CFStringCreateWithCString(NULL, credsLabel, kCFStringEncodingUTF8);
     CFMutableDictionaryRef query = CFDictionaryCreateMutable (NULL, 1, NULL, NULL);
     CFDictionaryAddValue(query, kSecClass, kSecClassInternetPassword);
     CFDictionaryAddValue(query, kSecReturnAttributes, kCFBooleanTrue);
     CFDictionaryAddValue(query, kSecMatchLimit, kSecMatchLimitAll);
+    CFDictionaryAddValue(query, kSecAttrLabel, credsLabelCF);
     //Use this query dictionary
     CFTypeRef result= NULL;
     OSStatus status = SecItemCopyMatching(
-    query,
-    &result);
+                                          query,
+                                          &result);
+
+    CFRelease(credsLabelCF);
+
     //Ran a search and store the results in result
     if (status) {
         return get_error(status);
     }
-    int numKeys = CFArrayGetCount(result);
+    CFIndex numKeys = CFArrayGetCount(result);
     *paths = (char **) malloc((int)sizeof(char *)*numKeys);
     *accts = (char **) malloc((int)sizeof(char *)*numKeys);
     //result is of type CFArray
-    for(int i=0; i<numKeys; i++) {
+    for(CFIndex i=0; i<numKeys; i++) {
         CFDictionaryRef currKey = CFArrayGetValueAtIndex(result,i);
-        if (CFDictionaryContainsKey(currKey, CFSTR("path"))) {
-            //Even if a key is stored without an account, Apple defaults it to null so these arrays will be of the same length
-            CFStringRef pathTmp = CFDictionaryGetValue(currKey, CFSTR("path"));
-            CFStringRef acctTmp = CFDictionaryGetValue(currKey, CFSTR("acct"));
-            if (acctTmp == NULL) {
-                acctTmp = CFSTR("account not defined");
+
+        CFStringRef protocolTmp = CFDictionaryGetValue(currKey, CFSTR("ptcl"));
+        if (protocolTmp != NULL) {
+            CFStringRef protocolStr = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@"), protocolTmp);
+            if (CFStringCompare(protocolStr, CFSTR("htps"), 0) == kCFCompareEqualTo) {
+                protocolTmp = CFSTR("https://");
             }
-            char * path = (char *) malloc(CFStringGetLength(pathTmp)+1);
-            path = CFStringToCharArr(pathTmp);
-            path[strlen(path)] = '\0';
-            char * acct = (char *) malloc(CFStringGetLength(acctTmp)+1);
-            acct = CFStringToCharArr(acctTmp);
-            acct[strlen(acct)] = '\0';
-            //We now have all we need, username and servername. Now export this to .go
-            (*paths)[i] = (char *) malloc(sizeof(char)*(strlen(path)+1));
-            memcpy((*paths)[i], path, sizeof(char)*(strlen(path)+1));
-            (*accts)[i] = (char *) malloc(sizeof(char)*(strlen(acct)+1));
-            memcpy((*accts)[i], acct, sizeof(char)*(strlen(acct)+1));
+            else {
+                protocolTmp = CFSTR("http://");
+            }
+            CFRelease(protocolStr);
         }
         else {
             char * path = "0";
@@ -161,9 +178,45 @@ char *keychain_list(char *** paths, char *** accts, unsigned int *list_l) {
             memcpy((*paths)[i], path, sizeof(char)*(strlen(path)));
             (*accts)[i] = (char *) malloc(sizeof(char)*(strlen(acct)));
             memcpy((*accts)[i], acct, sizeof(char)*(strlen(acct)));
+            continue;
         }
+        
+        CFMutableStringRef str = CFStringCreateMutableCopy(NULL, 0, protocolTmp);
+        CFStringRef serverTmp = CFDictionaryGetValue(currKey, CFSTR("srvr"));
+        if (serverTmp != NULL) {
+            CFStringAppend(str, serverTmp);
+        }
+        
+        CFStringRef pathTmp = CFDictionaryGetValue(currKey, CFSTR("path"));
+        if (pathTmp != NULL) {
+            CFStringAppend(str, pathTmp);
+        }
+        
+        const NSNumber * portTmp = CFDictionaryGetValue(currKey, CFSTR("port"));
+        if (portTmp != NULL && portTmp.integerValue != 0) {
+            CFStringRef portStr = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@"), portTmp);
+            CFStringAppend(str, CFSTR(":"));
+            CFStringAppend(str, portStr);
+            CFRelease(portStr);
+        }
+        
+        CFStringRef acctTmp = CFDictionaryGetValue(currKey, CFSTR("acct"));
+        if (acctTmp == NULL) {
+            acctTmp = CFSTR("account not defined");
+        }
+
+        char * path = CFStringToCharArr(str);
+        char * acct = CFStringToCharArr(acctTmp);
+
+        //We now have all we need, username and servername. Now export this to .go
+        (*paths)[i] = (char *) malloc(sizeof(char)*(strlen(path)+1));
+        memcpy((*paths)[i], path, sizeof(char)*(strlen(path)+1));
+        (*accts)[i] = (char *) malloc(sizeof(char)*(strlen(acct)+1));
+        memcpy((*accts)[i], acct, sizeof(char)*(strlen(acct)+1));
+
+        CFRelease(str);
     }
-    *list_l = numKeys;
+    *list_l = (int)numKeys;
     return NULL;
 }
 
