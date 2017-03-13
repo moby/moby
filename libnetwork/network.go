@@ -66,6 +66,7 @@ type NetworkInfo interface {
 	IPv6Enabled() bool
 	Internal() bool
 	Attachable() bool
+	Ingress() bool
 	Labels() map[string]string
 	Dynamic() bool
 	Created() time.Time
@@ -615,9 +616,9 @@ func NetworkOptionGeneric(generic map[string]interface{}) NetworkOption {
 
 // NetworkOptionIngress returns an option setter to indicate if a network is
 // an ingress network.
-func NetworkOptionIngress() NetworkOption {
+func NetworkOptionIngress(ingress bool) NetworkOption {
 	return func(n *network) {
-		n.ingress = true
+		n.ingress = ingress
 	}
 }
 
@@ -1587,6 +1588,13 @@ func (n *network) Attachable() bool {
 	defer n.Unlock()
 
 	return n.attachable
+}
+
+func (n *network) Ingress() bool {
+	n.Lock()
+	defer n.Unlock()
+
+	return n.ingress
 }
 
 func (n *network) Dynamic() bool {
