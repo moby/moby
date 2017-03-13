@@ -25,7 +25,9 @@ type logT interface {
 // and removing everything else. It's meant to run after any tests so that they don't
 // depend on each others.
 func (e *Execution) Clean(t testingT, dockerBinary string) {
-	unpauseAllContainers(t, dockerBinary)
+	if (e.DaemonPlatform() != "windows") || (e.DaemonPlatform() == "windows" && e.Isolation() == "hyperv") {
+		unpauseAllContainers(t, dockerBinary)
+	}
 	deleteAllContainers(t, dockerBinary)
 	deleteAllImages(t, dockerBinary, e.protectedElements.images)
 	deleteAllVolumes(t, dockerBinary)
