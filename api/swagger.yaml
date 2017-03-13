@@ -398,6 +398,12 @@ definitions:
         type: "array"
         items:
           $ref: "#/definitions/DeviceMapping"
+      DeviceCgroupRules:
+        description: "a list of cgroup rules to apply to the container"
+        type: "array"
+        items:
+          type: "string"
+          example: "c 13:* rwm"
       DiskQuota:
         description: "Disk limit (in bytes)."
         type: "integer"
