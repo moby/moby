@@ -1,12 +1,8 @@
 package container
 
 import (
-	"strconv"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/cli/command"
 	clientapi "github.com/docker/docker/client"
@@ -19,80 +15,57 @@ func waitExitOrRemoved(ctx context.Context, dockerCli *command.DockerCli, contai
 		panic("Internal Error: waitExitOrRemoved needs a containerID as parameter")
 	}
 
-	var removeErr error
-	statusChan := make(chan int)
-	exitCode := 125
+	waitChan := make(chan int)
+	waitCtx, cancel := context.WithCancel(ctx)
 
-	// Get events via Events API
-	f := filters.NewArgs()
-	f.Add("type", "container")
-	f.Add("container", containerID)
-	options := types.EventsOptions{
-		Filters: f,
-	}
-	eventCtx, cancel := context.WithCancel(ctx)
-	eventq, errq := dockerCli.Client().Events(eventCtx, options)
-
-	eventProcessor := func(e events.Message) bool {
-		stopProcessing := false
-		switch e.Status {
-		case "die":
-			if v, ok := e.Actor.Attributes["exitCode"]; ok {
-				code, cerr := strconv.Atoi(v)
-				if cerr != nil {
-					logrus.Errorf("failed to convert exitcode '%q' to int: %v", v, cerr)
-				} else {
-					exitCode = code
-				}
-			}
-			if !waitRemove {
-				stopProcessing = true
-			} else {
-				// If we are talking to an older daemon, `AutoRemove` is not supported.
-				// We need to fall back to the old behavior, which is client-side removal
-				if versions.LessThan(dockerCli.Client().ClientVersion(), "1.25") {
-					go func() {
-						removeErr = dockerCli.Client().ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{RemoveVolumes: true})
-						if removeErr != nil {
-							logrus.Errorf("error removing container: %v", removeErr)
-							cancel() // cancel the event Q
-						}
-					}()
-				}
-			}
-		case "detach":
-			exitCode = 0
-			stopProcessing = true
-		case "destroy":
-			stopProcessing = true
-		}
-		return stopProcessing
-	}
-
+	// Spawn a goroutine which waits for the container to exit.
 	go func() {
-		defer func() {
-			statusChan <- exitCode // must always send an exit code or the caller will block
+		// FIXME: It would be *much* better if the container '/wait'
+		// API first acknowledged the request (perhaps by returning
+		// response headers immediately?) then we could eliminate any
+		// race condition between this request and the container
+		// '/start' request made by the caller.
+		exitStatus, err := dockerCli.Client().ContainerWait(ctx, containerID)
+		if err != nil {
+			logrus.Errorf("error waiting for container to exit: %v", err)
 			cancel()
-		}()
+			return
+		}
 
-		for {
-			select {
-			case <-eventCtx.Done():
-				if removeErr != nil {
-					return
-				}
-			case evt := <-eventq:
-				if eventProcessor(evt) {
-					return
-				}
-			case err := <-errq:
-				logrus.Errorf("error getting events from daemon: %v", err)
+		// If we are talking to an older daemon, `AutoRemove` is not
+		// supported. We need to fall back to the old behavior, which
+		// is client-side removal.
+		if waitRemove && versions.LessThan(dockerCli.Client().ClientVersion(), "1.25") {
+			err = dockerCli.Client().ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{RemoveVolumes: true})
+			if err != nil {
+				logrus.Errorf("error removing container: %v", err)
+				cancel()
 				return
 			}
 		}
+
+		waitChan <- int(exitStatus)
 	}()
 
-	return statusChan
+	resultChan := make(chan int)
+
+	go func() {
+		exitCode := 125
+
+		// Must always send an exit code or the caller will block.
+		defer func() {
+			resultChan <- exitCode
+		}()
+
+		select {
+		case waitStatus := <-waitChan:
+			exitCode = waitStatus
+		case <-waitCtx.Done():
+			logrus.Errorf("unable to wait for container exit status: %v", waitCtx.Err())
+		}
+	}()
+
+	return resultChan
 }
 
 // getExitCode performs an inspect on the container. It returns
