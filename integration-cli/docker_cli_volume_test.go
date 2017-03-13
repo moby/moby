@@ -51,9 +51,9 @@ func (s *DockerSuite) TestVolumeCLIInspect(c *check.C) {
 func (s *DockerSuite) TestVolumeCLIInspectMulti(c *check.C) {
 	dockerCmd(c, "volume", "create", "test1")
 	dockerCmd(c, "volume", "create", "test2")
-	dockerCmd(c, "volume", "create", "not-shown")
+	dockerCmd(c, "volume", "create", "test3")
 
-	result := dockerCmdWithResult("volume", "inspect", "--format={{ .Name }}", "test1", "test2", "doesntexist", "not-shown")
+	result := dockerCmdWithResult("volume", "inspect", "--format={{ .Name }}", "test1", "test2", "doesntexist", "test3")
 	c.Assert(result, icmd.Matches, icmd.Expected{
 		ExitCode: 1,
 		Err:      "No such volume: doesntexist",
@@ -61,11 +61,11 @@ func (s *DockerSuite) TestVolumeCLIInspectMulti(c *check.C) {
 
 	out := result.Stdout()
 	outArr := strings.Split(strings.TrimSpace(out), "\n")
-	c.Assert(len(outArr), check.Equals, 2, check.Commentf("\n%s", out))
+	c.Assert(len(outArr), check.Equals, 3, check.Commentf("\n%s", out))
 
 	c.Assert(out, checker.Contains, "test1")
 	c.Assert(out, checker.Contains, "test2")
-	c.Assert(out, checker.Not(checker.Contains), "not-shown")
+	c.Assert(out, checker.Contains, "test3")
 }
 
 func (s *DockerSuite) TestVolumeCLILs(c *check.C) {
