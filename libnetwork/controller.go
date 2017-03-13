@@ -844,6 +844,10 @@ addToStore:
 		c.Unlock()
 	}
 
+	c.Lock()
+	arrangeUserFilterRule()
+	c.Unlock()
+
 	return network, nil
 }
 
