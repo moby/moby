@@ -41,6 +41,7 @@ type MobyImage struct {
 	NetworkMode  string `yaml:"network_mode"`
 	Pid          string
 	Ipc          string
+	ReadOnly     bool `yaml:"read_only"`
 }
 
 const riddler = "mobylinux/riddler:7d4545d8b8ac2700971a83f12a3446a76db28c14@sha256:11b7310df6482fc38aa52b419c2ef1065d7b9207c633d47554e13aa99f6c0b72"
@@ -87,6 +88,9 @@ func ConfigToRun(order int, path string, image *MobyImage) []string {
 	}
 	for _, bind := range image.Binds {
 		args = append(args, "-v", bind)
+	}
+	if image.ReadOnly {
+		args = append(args, "--read-only")
 	}
 	// image
 	args = append(args, image.Image)
