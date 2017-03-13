@@ -199,8 +199,8 @@ directive:
 
 ```Dockerfile
 # About my dockerfile
-FROM ImageName
 # directive=value
+FROM ImageName
 ```
 
 The unknown directive is treated as a comment due to not being recognized. In
