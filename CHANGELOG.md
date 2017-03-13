@@ -5,6 +5,38 @@ information on the list of deprecated flags and APIs please have a look at
 https://docs.docker.com/engine/deprecated/ where target removal dates can also
 be found.
 
+## 17.03.1-ce (2017-03-20)
+
+### Remote API (v1.27) & Client
+
+* Fix autoremove on older api [#31692](https://github.com/docker/docker/pull/31692)
+* Support customizing the default network for a stack [#31258](https://github.com/docker/docker/pull/31258/)
+* Correct CPU usage calculation in presence of offline CPUs and newer Linux [#31802](https://github.com/docker/docker/pull/31802)
+* Fix issue where service healthcheck is `{}` in remote API [#30197](https://github.com/docker/docker/pull/30197)
+
+### Runtime
+
+* Update runc to 54296cf40ad8143b62dbcaa1d90e520a2136ddfe [#3166](https://github.com/docker/docker/pull/31666)
+ * Ignore cgroup2 mountpoints [opencontainers/runc#1266](https://github.com/opencontainers/runc/pull/1266)
+* Update containerd to 595e75c212d19a81d2b808a518fe1afc1391dad5 [#31662](https://github.com/docker/docker/pull/31662)
+ * Register healtcheck service before calling restore() [docker/containerd#609](https://github.com/docker/containerd/pull/609)
+* ensureDefaultApparmorProfile in exec path [#31773](https://github.com/docker/docker/pull/31773)
+*  Fix unmounting layer without merge dir with Overlay2 [#31069](https://github.com/docker/docker/pull/31069)
+* Do not ignore "volume in use" errors when force-delete [#31450](https://github.com/docker/docker/pull/31450)
+
+### Swarm Mode
+
+* Update swarmkit to 17756457ad6dc4d8a639a1f0b7a85d1b65a617bb [#31807](https://github.com/docker/docker/pull/31807)
+ * Scheduler now correctly considers tasks which have been assigned to a node but aren't yet running [docker/swarmkit#1980](https://github.com/docker/swarmkit/pull/1980)
+ * Allow removal of a network when only dead tasks reference it [docker/swarmkit#2018](https://github.com/docker/swarmkit/pull/2018)
+ * Retry failed network allocations less aggressively [docker/swarmkit#2021](https://github.com/docker/swarmkit/pull/2021)
+ * Avoid network allocation for tasks that are no longer running [docker/swarmkit#2017](https://github.com/docker/swarmkit/pull/2017)
+ * Bookkeeping fixes inside network allocator allocator [docker/swarmkit#2019](https://github.com/docker/swarmkit/pull/2019) [docker/swarmkit#2020](https://github.com/docker/swarmkit/pull/2020)
+
+### Windows
+
+* Cleanup HCS on restore [#31503](https://github.com/docker/docker/pull/31503)
+
 ## 17.03.0-ce (2017-03-01)
 
 **IMPORTANT**: Starting with this release, Docker is on a monthly release cycle and uses a
@@ -45,9 +77,6 @@ Upgrading from Docker 1.13.1 to 17.03.0 is expected to be simple and low-risk.
 ### Swarm Mode
 
 * Shutdown leaks an error when the container was never started [#31279](https://github.com/docker/docker/pull/31279)
-
-### Swarm Mode
-
 * Fix possibility of tasks getting stuck in the "NEW" state during a leader failover [docker/swarmkit#1938](https://github.com/docker/swarmkit/pull/1938)
 * Fix extraneous task creations for global services that led to confusing replica counts in `docker service ls` [docker/swarmkit#1957](https://github.com/docker/swarmkit/pull/1957)
 * Fix problem that made rolling updates slow when `task-history-limit` was set to 1 [docker/swarmkit#1948](https://github.com/docker/swarmkit/pull/1948)
