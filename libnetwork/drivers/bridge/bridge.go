@@ -28,11 +28,11 @@ import (
 )
 
 const (
-	networkType             = "bridge"
-	vethPrefix              = "veth"
-	vethLen                 = 7
-	containerVethPrefix     = "eth"
-	maxAllocatePortAttempts = 10
+	networkType                = "bridge"
+	vethPrefix                 = "veth"
+	vethLen                    = 7
+	defaultContainerVethPrefix = "eth"
+	maxAllocatePortAttempts    = 10
 )
 
 const (
@@ -55,14 +55,15 @@ type configuration struct {
 
 // networkConfiguration for network specific configuration
 type networkConfiguration struct {
-	ID                 string
-	BridgeName         string
-	EnableIPv6         bool
-	EnableIPMasquerade bool
-	EnableICC          bool
-	Mtu                int
-	DefaultBindingIP   net.IP
-	DefaultBridge      bool
+	ID                   string
+	BridgeName           string
+	EnableIPv6           bool
+	EnableIPMasquerade   bool
+	EnableICC            bool
+	Mtu                  int
+	DefaultBindingIP     net.IP
+	DefaultBridge        bool
+	ContainerIfacePrefix string
 	// Internal fields set after ipam data parsing
 	AddressIPv4        *net.IPNet
 	AddressIPv6        *net.IPNet
@@ -239,6 +240,8 @@ func (c *networkConfiguration) fromLabels(labels map[string]string) error {
 			if c.DefaultBindingIP = net.ParseIP(value); c.DefaultBindingIP == nil {
 				return parseErr(label, value, "nil ip")
 			}
+		case netlabel.ContainerIfacePrefix:
+			c.ContainerIfacePrefix = value
 		}
 	}
 
@@ -1221,6 +1224,10 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 	}
 
 	iNames := jinfo.InterfaceName()
+	containerVethPrefix := defaultContainerVethPrefix
+	if network.config.ContainerIfacePrefix != "" {
+		containerVethPrefix = network.config.ContainerIfacePrefix
+	}
 	err = iNames.SetNames(endpoint.srcName, containerVethPrefix)
 	if err != nil {
 		return err
