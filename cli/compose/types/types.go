@@ -89,7 +89,6 @@ type ServiceConfig struct {
 	DNS             StringList
 	DNSSearch       StringList `mapstructure:"dns_search"`
 	DomainName      string     `mapstructure:"domainname"`
-	EndpointMode    string
 	Entrypoint      ShellCommand
 	Environment     MappingWithEquals
 	EnvFile         StringList `mapstructure:"env_file"`
@@ -157,6 +156,7 @@ type DeployConfig struct {
 	Resources     Resources
 	RestartPolicy *RestartPolicy `mapstructure:"restart_policy"`
 	Placement     Placement
+	EndpointMode  string
 }
 
 // HealthCheckConfig the healthcheck configuration for a service
