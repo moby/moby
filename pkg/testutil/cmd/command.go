@@ -59,9 +59,13 @@ func (r *Result) Assert(t testingT, exp Expected) {
 	if err == nil {
 		return
 	}
-
-	_, file, line, _ := runtime.Caller(1)
-	t.Fatalf("at %s:%d\n%s", filepath.Base(file), line, err.Error())
+	fmt.Println("**** Assert failed")
+	_, file, line, ok := runtime.Caller(1)
+	if ok {
+		t.Fatalf("at %s:%d\n%s", filepath.Base(file), line, err.Error())
+	} else {
+		t.Fatalf("Error (no file/line info)\n%s", err.Error())
+	}
 }
 
 // Compare returns a formatted error with the command, stdout, stderr, exit
