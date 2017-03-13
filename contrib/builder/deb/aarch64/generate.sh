@@ -76,6 +76,9 @@ for version in "${versions[@]}"; do
 			dockerBuildTags="$dockerBuildTags seccomp"
 			runcBuildTags="$runcBuildTags seccomp"
 			;;
+		jessie)
+			packages+=( bzip2 )
+			;;
 		*)
 			echo "Unsupported distro:" $distro:$suite
 			rm -fr "$version"
@@ -96,15 +99,31 @@ for version in "${versions[@]}"; do
 			;;
 	esac
 
-	echo "# Install Go" >> "$version/Dockerfile"
-	echo "# aarch64 doesn't have official go binaries, so use the version of go installed from" >> "$version/Dockerfile"
-	echo "# the image to build go from source." >> "$version/Dockerfile"
+	case "$suite" in
+		jessie)
+			echo "# Install Go" >> "$version/Dockerfile"
 
-	awk '$1 == "ENV" && $2 == "GO_VERSION" { print; exit }' ../../../../Dockerfile.aarch64 >> "$version/Dockerfile"
-	echo 'RUN mkdir /usr/src/go && curl -fsSL https://golang.org/dl/go${GO_VERSION}.src.tar.gz | tar -v -C /usr/src/go -xz --strip-components=1 \' >> "$version/Dockerfile"
-	echo '	&& cd /usr/src/go/src \' >> "$version/Dockerfile"
-	echo '	&& GOOS=linux GOARCH=arm64 GOROOT_BOOTSTRAP="$(go env GOROOT)" ./make.bash' >> "$version/Dockerfile"
-	echo >> "$version/Dockerfile"
+			awk '$1 == "ENV" && $2 == "GO_VERSION" { print; exit }' ../../../../Dockerfile.aarch64 >> "$version/Dockerfile"
+			echo 'RUN mkdir /usr/src/go-bootstrap \' >> "$version/Dockerfile"
+			echo '  && curl -fsSL https://github.com/DieterReuter/go-bootstrap/releases/download/v20170118-193232/go-linux-arm64-bootstrap.tbz | tar -v -C /usr/src/go-bootstrap -xj --strip-components=1' >> "$version/Dockerfile"
+			echo >> "$version/Dockerfile"
+
+			echo 'RUN mkdir /usr/src/go && curl -fsSL https://golang.org/dl/go${GO_VERSION}.src.tar.gz | tar -v -C /usr/src/go -xz --strip-components=1 \' >> "$version/Dockerfile"
+			echo '  && cd /usr/src/go/src \' >> "$version/Dockerfile"
+			echo '  && GOOS=linux GOARCH=arm64 GOROOT_BOOTSTRAP="/usr/src/go-bootstrap" ./make.bash' >> "$version/Dockerfile"
+			echo >> "$version/Dockerfile"			;;
+		*)
+			echo "# Install Go" >> "$version/Dockerfile"
+			echo "# aarch64 doesn't have official go binaries, so use the version of go installed from" >> "$version/Dockerfile"
+			echo "# the image to build go from source." >> "$version/Dockerfile"
+
+			awk '$1 == "ENV" && $2 == "GO_VERSION" { print; exit }' ../../../../Dockerfile.aarch64 >> "$version/Dockerfile"
+			echo 'RUN mkdir /usr/src/go && curl -fsSL https://golang.org/dl/go${GO_VERSION}.src.tar.gz | tar -v -C /usr/src/go -xz --strip-components=1 \' >> "$version/Dockerfile"
+			echo '  && cd /usr/src/go/src \' >> "$version/Dockerfile"
+			echo '  && GOOS=linux GOARCH=arm64 GOROOT_BOOTSTRAP="$(go env GOROOT)" ./make.bash' >> "$version/Dockerfile"
+			echo >> "$version/Dockerfile"
+			;;
+	esac
 
 	echo 'ENV PATH $PATH:/usr/src/go/bin' >> "$version/Dockerfile"
 	echo >> "$version/Dockerfile"
