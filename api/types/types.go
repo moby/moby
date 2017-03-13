@@ -97,6 +97,7 @@ type ContainerStats struct {
 // GET "/_ping"
 type Ping struct {
 	APIVersion   string
+	OSType       string
 	Experimental bool
 }
 

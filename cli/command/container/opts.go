@@ -189,6 +189,7 @@ func addFlags(flags *pflag.FlagSet) *containerOptions {
 	flags.Var(&copts.securityOpt, "security-opt", "Security Options")
 	flags.StringVar(&copts.usernsMode, "userns", "", "User namespace to use")
 	flags.StringVar(&copts.credentialSpec, "credentialspec", "", "Credential spec for managed service account (Windows only)")
+	flags.SetAnnotation("credentialspec", "ostype", []string{"windows"})
 
 	// Network and port publishing flag
 	flags.Var(&copts.extraHosts, "add-host", "Add a custom host-to-IP mapping (host:ip)")
@@ -239,7 +240,9 @@ func addFlags(flags *pflag.FlagSet) *containerOptions {
 	flags.StringVar(&copts.cpusetCpus, "cpuset-cpus", "", "CPUs in which to allow execution (0-3, 0,1)")
 	flags.StringVar(&copts.cpusetMems, "cpuset-mems", "", "MEMs in which to allow execution (0-3, 0,1)")
 	flags.Int64Var(&copts.cpuCount, "cpu-count", 0, "CPU count (Windows only)")
+	flags.SetAnnotation("cpu-count", "ostype", []string{"windows"})
 	flags.Int64Var(&copts.cpuPercent, "cpu-percent", 0, "CPU percent (Windows only)")
+	flags.SetAnnotation("cpu-percent", "ostype", []string{"windows"})
 	flags.Int64Var(&copts.cpuPeriod, "cpu-period", 0, "Limit CPU CFS (Completely Fair Scheduler) period")
 	flags.Int64Var(&copts.cpuQuota, "cpu-quota", 0, "Limit CPU CFS (Completely Fair Scheduler) quota")
 	flags.Int64Var(&copts.cpuRealtimePeriod, "cpu-rt-period", 0, "Limit CPU real-time period in microseconds")
@@ -254,7 +257,9 @@ func addFlags(flags *pflag.FlagSet) *containerOptions {
 	flags.Var(&copts.deviceWriteBps, "device-write-bps", "Limit write rate (bytes per second) to a device")
 	flags.Var(&copts.deviceWriteIOps, "device-write-iops", "Limit write rate (IO per second) to a device")
 	flags.Var(&copts.ioMaxBandwidth, "io-maxbandwidth", "Maximum IO bandwidth limit for the system drive (Windows only)")
+	flags.SetAnnotation("io-maxbandwidth", "ostype", []string{"windows"})
 	flags.Uint64Var(&copts.ioMaxIOps, "io-maxiops", 0, "Maximum IOps limit for the system drive (Windows only)")
+	flags.SetAnnotation("io-maxiops", "ostype", []string{"windows"})
 	flags.Var(&copts.kernelMemory, "kernel-memory", "Kernel memory limit")
 	flags.VarP(&copts.memory, "memory", "m", "Memory limit")
 	flags.Var(&copts.memoryReservation, "memory-reservation", "Memory soft limit")

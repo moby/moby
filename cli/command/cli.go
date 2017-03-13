@@ -51,12 +51,18 @@ type DockerCli struct {
 	keyFile         string
 	client          client.APIClient
 	hasExperimental bool
+	osType          string
 	defaultVersion  string
 }
 
 // HasExperimental returns true if experimental features are accessible.
 func (cli *DockerCli) HasExperimental() bool {
 	return cli.hasExperimental
+}
+
+// OSType returns the operating system the daemon is running on.
+func (cli *DockerCli) OSType() string {
+	return cli.osType
 }
 
 // DefaultVersion returns api.defaultVersion of DOCKER_API_VERSION if specified.
@@ -166,6 +172,7 @@ func (cli *DockerCli) Initialize(opts *cliflags.ClientOptions) error {
 
 	if ping, err := cli.client.Ping(context.Background()); err == nil {
 		cli.hasExperimental = ping.Experimental
+		cli.osType = ping.OSType
 
 		// since the new header was added in 1.25, assume server is 1.24 if header is not present.
 		if ping.APIVersion == "" {
