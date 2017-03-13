@@ -24,6 +24,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `POST /build` now accepts `extrahosts` parameter to specify a host to ip mapping to use during the build.
 * `POST /services/create` and `POST /services/(id or name)/update` now accept a `rollback` value for `FailureAction`.
 * `POST /services/create` and `POST /services/(id or name)/update` now accept an optional `RollbackConfig` object which specifies rollback options.
+* `GET /containers/(id or name)/stats` now includes an `online_cpus` field in both `precpu_stats` and `cpu_stats`. If this field is `nil` then for compatibility with older daemons the length of the corresponding `cpu_usage.percpu_usage` array should be used.
 
 ## v1.26 API changes
 

@@ -80,6 +80,12 @@ func (s *Collector) Run() {
 			continue
 		}
 
+		onlineCPUs, err := s.getNumberOnlineCPUs()
+		if err != nil {
+			logrus.Errorf("collecting system online cpu count: %v", err)
+			continue
+		}
+
 		for _, pair := range pairs {
 			stats, err := s.supervisor.GetContainerStats(pair.container)
 			if err != nil {
@@ -97,6 +103,7 @@ func (s *Collector) Run() {
 			}
 			// FIXME: move to containerd on Linux (not Windows)
 			stats.CPUStats.SystemUsage = systemUsage
+			stats.CPUStats.OnlineCPUs = onlineCPUs
 
 			pair.publisher.Publish(*stats)
 		}
