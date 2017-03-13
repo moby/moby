@@ -276,7 +276,7 @@ func TestValidateResources(t *testing.T) {
 		si.CPURealtimePeriod = rt.SysInfoCPURealtimePeriod
 		si.CPURealtimeRuntime = rt.SysInfoCPURealtimeRuntime
 
-		if err := ValidateResources(&hc, &si); (err != nil) != rt.ErrorExpected {
+		if err := validateResources(&hc, &si); (err != nil) != rt.ErrorExpected {
 			t.Fatal(rt.FailureMsg, err)
 		}
 	}

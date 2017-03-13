@@ -35,9 +35,9 @@ func SetDefaultNetModeIfBlank(hc *container.HostConfig) {
 	}
 }
 
-// ValidateNetContainerMode ensures that the various combinations of requested
+// validateNetContainerMode ensures that the various combinations of requested
 // network settings wrt container mode are valid.
-func ValidateNetContainerMode(c *container.Config, hc *container.HostConfig) error {
+func validateNetContainerMode(c *container.Config, hc *container.HostConfig) error {
 	// We may not be passed a host config, such as in the case of docker commit
 	if hc == nil {
 		return nil
