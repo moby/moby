@@ -71,7 +71,7 @@ Options:
       --update-delay duration              Delay between updates (ns|us|ms|s|m|h) (default 0s)
       --update-failure-action string       Action on update failure ("pause"|"continue"|"rollback") (default "pause")
       --update-max-failure-ratio float     Failure rate to tolerate during an update
-      --update-monitor duration            Duration after each task update to monitor for failure (ns|us|ms|s|m|h) (default 0s)
+      --update-monitor duration            Duration after each task update to monitor for failure (ns|us|ms|s|m|h)
       --update-parallelism uint            Maximum number of tasks updated simultaneously (0 to update all at once) (default 1)
   -u, --user string                        Username or UID (format: <name|uid>[:<group|gid>])
       --with-registry-auth                 Send registry authentication details to swarm agents
