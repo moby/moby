@@ -23,9 +23,10 @@ type Mount struct {
 	// Source specifies the name of the mount. Depending on mount type, this
 	// may be a volume name or a host path, or even ignored.
 	// Source is not supported for tmpfs (must be an empty value)
-	Source   string `json:",omitempty"`
-	Target   string `json:",omitempty"`
-	ReadOnly bool   `json:",omitempty"`
+	Source      string      `json:",omitempty"`
+	Target      string      `json:",omitempty"`
+	ReadOnly    bool        `json:",omitempty"`
+	Consistency Consistency `json:",omitempty"`
 
 	BindOptions   *BindOptions   `json:",omitempty"`
 	VolumeOptions *VolumeOptions `json:",omitempty"`
@@ -59,6 +60,20 @@ var Propagations = []Propagation{
 	PropagationRSlave,
 	PropagationSlave,
 }
+
+// Consistency represents the consistency requirements of a mount.
+type Consistency string
+
+const (
+	// ConsistencyFull guarantees bind-mount-like consistency
+	ConsistencyFull Consistency = "consistent"
+	// ConsistencyCached mounts can cache read data and FS structure
+	ConsistencyCached Consistency = "cached"
+	// ConsistencyDelegated mounts can cache read and written data and structure
+	ConsistencyDelegated Consistency = "delegated"
+	// ConsistencyDefault provides "consistent" behavior unless overridden
+	ConsistencyDefault Consistency = "default"
+)
 
 // BindOptions defines options specific to mounts of type "bind".
 type BindOptions struct {
