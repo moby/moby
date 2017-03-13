@@ -10,7 +10,7 @@ be found.
 ### Remote API (v1.27) & Client
 
 * Fix autoremove on older api [#31692](https://github.com/docker/docker/pull/31692)
-* Support customizing the default network for a stack [#31258](https://github.com/docker/docker/pull/31258/)
+* Fix default network customization for a stack [#31258](https://github.com/docker/docker/pull/31258/)
 * Correct CPU usage calculation in presence of offline CPUs and newer Linux [#31802](https://github.com/docker/docker/pull/31802)
 * Fix issue where service healthcheck is `{}` in remote API [#30197](https://github.com/docker/docker/pull/30197)
 
@@ -20,8 +20,8 @@ be found.
  * Ignore cgroup2 mountpoints [opencontainers/runc#1266](https://github.com/opencontainers/runc/pull/1266)
 * Update containerd to 595e75c212d19a81d2b808a518fe1afc1391dad5 [#31662](https://github.com/docker/docker/pull/31662)
  * Register healtcheck service before calling restore() [docker/containerd#609](https://github.com/docker/containerd/pull/609)
-* ensureDefaultApparmorProfile in exec path [#31773](https://github.com/docker/docker/pull/31773)
-*  Fix unmounting layer without merge dir with Overlay2 [#31069](https://github.com/docker/docker/pull/31069)
+* Fix `docker exec` not working after unattended upgrades that reload apparmor profiles [#31773](https://github.com/docker/docker/pull/31773)
+* Fix unmounting layer without merge dir with Overlay2 [#31069](https://github.com/docker/docker/pull/31069)
 * Do not ignore "volume in use" errors when force-delete [#31450](https://github.com/docker/docker/pull/31450)
 
 ### Swarm Mode
