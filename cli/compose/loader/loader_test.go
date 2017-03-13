@@ -933,7 +933,7 @@ func (sbn servicesByName) Less(i, j int) bool { return sbn[i].Name < sbn[j].Name
 
 func TestLoadAttachableNetwork(t *testing.T) {
 	config, err := loadYAML(`
-version: "3.1"
+version: "3.2"
 networks:
   mynet1:
     driver: overlay
@@ -941,7 +941,9 @@ networks:
   mynet2:
     driver: bridge
 `)
-	assert.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	expected := map[string]types.NetworkConfig{
 		"mynet1": {
@@ -959,7 +961,7 @@ networks:
 
 func TestLoadExpandedPortFormat(t *testing.T) {
 	config, err := loadYAML(`
-version: "3.1"
+version: "3.2"
 services:
   web:
     image: busybox
@@ -975,7 +977,9 @@ services:
         target: 22
         published: 10022
 `)
-	assert.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	expected := []types.ServicePortConfig{
 		{
@@ -1044,7 +1048,7 @@ services:
 
 func TestLoadExpandedMountFormat(t *testing.T) {
 	config, err := loadYAML(`
-version: "3.1"
+version: "3.2"
 services:
   web:
     image: busybox
@@ -1056,7 +1060,9 @@ services:
 volumes:
   foo: {}
 `)
-	assert.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	expected := types.ServiceVolumeConfig{
 		Type:     "volume",
