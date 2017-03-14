@@ -179,10 +179,14 @@ func calculateCPUPercentUnix(previousCPU, previousSystem uint64, v *types.StatsJ
 		cpuDelta = float64(v.CPUStats.CPUUsage.TotalUsage) - float64(previousCPU)
 		// calculate the change for the entire system between readings
 		systemDelta = float64(v.CPUStats.SystemUsage) - float64(previousSystem)
+		onlineCPUs  = float64(v.CPUStats.OnlineCPUs)
 	)
 
+	if onlineCPUs == 0.0 {
+		onlineCPUs = float64(len(v.CPUStats.CPUUsage.PercpuUsage))
+	}
 	if systemDelta > 0.0 && cpuDelta > 0.0 {
-		cpuPercent = (cpuDelta / systemDelta) * float64(len(v.CPUStats.CPUUsage.PercpuUsage)) * 100.0
+		cpuPercent = (cpuDelta / systemDelta) * onlineCPUs * 100.0
 	}
 	return cpuPercent
 }

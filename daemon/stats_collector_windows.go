@@ -13,3 +13,7 @@ func platformNewStatsCollector(s *statsCollector) {
 func (s *statsCollector) getSystemCPUUsage() (uint64, error) {
 	return 0, nil
 }
+
+func (s *statsCollector) getNumberOnlineCPUs() (uint32, error) {
+	return 0, nil
+}
