@@ -2846,7 +2846,7 @@ _docker_service_logs() {
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--details --follow -f --help --no-resolve --since --tail --timestamps -t" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--follow -f --help --no-resolve --no-task-ids --no-trunc --since --tail --timestamps -t" -- "$cur" ) )
 			;;
 		*)
 			local counter=$(__docker_pos_first_nonflag '--since|--tail')
