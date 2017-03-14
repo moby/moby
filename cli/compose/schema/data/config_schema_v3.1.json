@@ -263,6 +263,7 @@
       "type": ["object", "null"],
       "properties": {
         "mode": {"type": "string"},
+        "endpoint_mode": {"type": "string"},
         "replicas": {"type": "integer"},
         "labels": {"$ref": "#/definitions/list_or_dict"},
         "update_config": {
