@@ -156,6 +156,7 @@ type DeployConfig struct {
 	Resources     Resources
 	RestartPolicy *RestartPolicy `mapstructure:"restart_policy"`
 	Placement     Placement
+	EndpointMode  string
 }
 
 // HealthCheckConfig the healthcheck configuration for a service
