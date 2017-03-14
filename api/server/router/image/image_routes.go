@@ -255,7 +255,7 @@ func (s *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter, 
 
 	version := httputils.VersionFromContext(ctx)
 	filterParam := r.Form.Get("filter")
-	if versions.LessThan(version, "1.28") && filterParam != "" {
+	if versions.LessThanOrEqualTo(version, "1.28") && filterParam != "" {
 		imageFilters.Add("reference", filterParam)
 	}
 
