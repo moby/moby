@@ -114,11 +114,29 @@ func (cli *Client) buildRequest(method, path string, body io.Reader, headers hea
 }
 
 func (cli *Client) sendRequest(ctx context.Context, method, path string, query url.Values, body io.Reader, headers headers) (serverResponse, error) {
-	req, err := cli.buildRequest(method, cli.getAPIPath(path, query), body, headers)
+	requestURL := cli.getAPIPath(path, query)
+
+	if err := cli.validatePath(requestURL); err != nil {
+		return serverResponse{}, err
+	}
+	req, err := cli.buildRequest(method, requestURL, body, headers)
 	if err != nil {
 		return serverResponse{}, err
 	}
 	return cli.doRequest(ctx, req)
+}
+
+func (cli *Client) validatePath(url string) error {
+	forbiddenStrings := []string{
+		"../", // causes strange server redirect 301 replies
+		"//",  // causes strange server redirect 301 replies
+	}
+	for _, s := range forbiddenStrings {
+		if strings.Contains(url, s) {
+			return fmt.Errorf("Invalid api request:'%s'. Endpoint should not include %s", url, s)
+		}
+	}
+	return nil
 }
 
 func (cli *Client) doRequest(ctx context.Context, req *http.Request) (serverResponse, error) {
