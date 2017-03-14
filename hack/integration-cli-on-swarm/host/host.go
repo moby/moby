@@ -25,13 +25,14 @@ const (
 )
 
 func main() {
-	if err := xmain(); err != nil {
+	rc, err := xmain()
+	if err != nil {
 		logrus.Fatalf("fatal error: %v", err)
 	}
+	os.Exit(rc)
 }
 
-// xmain can call os.Exit()
-func xmain() error {
+func xmain() (int, error) {
 	// Should we use cobra maybe?
 	replicas := flag.Int("replicas", 1, "Number of worker service replica")
 	chunks := flag.Int("chunks", 0, "Number of test chunks executed in batch (0 == replicas)")
@@ -50,7 +51,7 @@ func xmain() error {
 	}
 	cli, err := client.NewEnvClient()
 	if err != nil {
-		return err
+		return 1, err
 	}
 	if hasStack(cli, defaultStackName) {
 		logrus.Infof("Removing stack %s", defaultStackName)
@@ -61,13 +62,13 @@ func xmain() error {
 		removeVolume(cli, defaultVolumeName)
 	}
 	if err = ensureImages(cli, []string{defaultWorkerImageName, defaultMasterImageName}); err != nil {
-		return err
+		return 1, err
 	}
 	workerImageForStack := defaultWorkerImageName
 	if *pushWorkerImage != "" {
 		logrus.Infof("Pushing %s to %s", defaultWorkerImageName, *pushWorkerImage)
 		if err = pushImage(cli, *pushWorkerImage, defaultWorkerImageName); err != nil {
-			return err
+			return 1, err
 		}
 		workerImageForStack = *pushWorkerImage
 	}
@@ -82,18 +83,18 @@ func xmain() error {
 		DryRun:      *dryRun,
 	})
 	if err != nil {
-		return err
+		return 1, err
 	}
 	filters, err := filtersBytes(*filtersFile)
 	if err != nil {
-		return err
+		return 1, err
 	}
 	logrus.Infof("Creating volume %s with input data", defaultVolumeName)
 	if err = createVolumeWithData(cli,
 		defaultVolumeName,
 		map[string][]byte{"/input": filters},
 		defaultMasterImageName); err != nil {
-		return err
+		return 1, err
 	}
 	logrus.Infof("Deploying stack %s from %s", defaultStackName, compose)
 	defer func() {
@@ -105,22 +106,21 @@ func xmain() error {
 		logrus.Infof(" - Worker image: %s", workerImageForStack)
 	}()
 	if err = deployStack(cli, defaultStackName, compose); err != nil {
-		return err
+		return 1, err
 	}
 	logrus.Infof("The log will be displayed here after some duration."+
 		"You can watch the live status via `docker service logs %s_worker`",
 		defaultStackName)
 	masterContainerID, err := waitForMasterUp(cli, defaultStackName)
 	if err != nil {
-		return err
+		return 1, err
 	}
 	rc, err := waitForContainerCompletion(cli, os.Stdout, os.Stderr, masterContainerID)
 	if err != nil {
-		return err
+		return 1, err
 	}
 	logrus.Infof("Exit status: %d", rc)
-	os.Exit(int(rc))
-	return nil
+	return int(rc), nil
 }
 
 func ensureImages(cli *client.Client, images []string) error {
