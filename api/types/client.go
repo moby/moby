@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"time"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
@@ -345,7 +346,7 @@ type PluginRemoveOptions struct {
 
 // PluginEnableOptions holds parameters to enable plugins.
 type PluginEnableOptions struct {
-	Timeout int
+	Timeout time.Duration
 }
 
 // PluginDisableOptions holds parameters to disable plugins.
