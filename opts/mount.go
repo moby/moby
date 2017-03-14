@@ -102,7 +102,7 @@ func (m *MountOpt) Set(value string) error {
 		case "volume-nocopy":
 			volumeOptions().NoCopy, err = strconv.ParseBool(value)
 			if err != nil {
-				return fmt.Errorf("invalid value for populate: %s", value)
+				return fmt.Errorf("invalid value for volume-nocopy: %s", value)
 			}
 		case "volume-label":
 			setValueOnMap(volumeOptions().Labels, value)

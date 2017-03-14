@@ -78,18 +78,27 @@ func Validate(config map[string]interface{}, version string) error {
 
 func toError(result *gojsonschema.Result) error {
 	err := getMostSpecificError(result.Errors())
-	description := getDescription(err)
-	return fmt.Errorf("%s %s", err.Field(), description)
+	return err
 }
 
-func getDescription(err gojsonschema.ResultError) string {
-	if err.Type() == "invalid_type" {
-		if expectedType, ok := err.Details()["expected"].(string); ok {
+const (
+	jsonschemaOneOf = "number_one_of"
+	jsonschemaAnyOf = "number_any_of"
+)
+
+func getDescription(err validationError) string {
+	switch err.parent.Type() {
+	case "invalid_type":
+		if expectedType, ok := err.parent.Details()["expected"].(string); ok {
 			return fmt.Sprintf("must be a %s", humanReadableType(expectedType))
 		}
+	case jsonschemaOneOf, jsonschemaAnyOf:
+		if err.child == nil {
+			return err.parent.Description()
+		}
+		return err.child.Description()
 	}
-
-	return err.Description()
+	return err.parent.Description()
 }
 
 func humanReadableType(definition string) string {
@@ -113,23 +122,45 @@ func humanReadableType(definition string) string {
 	return definition
 }
 
-func getMostSpecificError(errors []gojsonschema.ResultError) gojsonschema.ResultError {
-	var mostSpecificError gojsonschema.ResultError
+type validationError struct {
+	parent gojsonschema.ResultError
+	child  gojsonschema.ResultError
+}
 
-	for _, err := range errors {
-		if mostSpecificError == nil {
-			mostSpecificError = err
-		} else if specificity(err) > specificity(mostSpecificError) {
-			mostSpecificError = err
-		} else if specificity(err) == specificity(mostSpecificError) {
+func (err validationError) Error() string {
+	description := getDescription(err)
+	return fmt.Sprintf("%s %s", err.parent.Field(), description)
+}
+
+func getMostSpecificError(errors []gojsonschema.ResultError) validationError {
+	mostSpecificError := 0
+	for i, err := range errors {
+		if specificity(err) > specificity(errors[mostSpecificError]) {
+			mostSpecificError = i
+			continue
+		}
+
+		if specificity(err) == specificity(errors[mostSpecificError]) {
 			// Invalid type errors win in a tie-breaker for most specific field name
-			if err.Type() == "invalid_type" && mostSpecificError.Type() != "invalid_type" {
-				mostSpecificError = err
+			if err.Type() == "invalid_type" && errors[mostSpecificError].Type() != "invalid_type" {
+				mostSpecificError = i
 			}
 		}
 	}
 
-	return mostSpecificError
+	if mostSpecificError+1 == len(errors) {
+		return validationError{parent: errors[mostSpecificError]}
+	}
+
+	switch errors[mostSpecificError].Type() {
+	case "number_one_of", "number_any_of":
+		return validationError{
+			parent: errors[mostSpecificError],
+			child:  errors[mostSpecificError+1],
+		}
+	default:
+		return validationError{parent: errors[mostSpecificError]}
+	}
 }
 
 func specificity(err gojsonschema.ResultError) int {
