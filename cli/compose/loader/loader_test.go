@@ -27,6 +27,19 @@ func buildConfigDetails(source types.Dict, env map[string]string) types.ConfigDe
 	}
 }
 
+func loadYAML(yaml string) (*types.Config, error) {
+	return loadYAMLWithEnv(yaml, nil)
+}
+
+func loadYAMLWithEnv(yaml string, env map[string]string) (*types.Config, error) {
+	dict, err := ParseYAML([]byte(yaml))
+	if err != nil {
+		return nil, err
+	}
+
+	return Load(buildConfigDetails(dict, env))
+}
+
 var sampleYAML = `
 version: "3"
 services:
@@ -98,12 +111,16 @@ var sampleDict = types.Dict{
 	},
 }
 
+func strPtr(val string) *string {
+	return &val
+}
+
 var sampleConfig = types.Config{
 	Services: []types.ServiceConfig{
 		{
 			Name:        "foo",
 			Image:       "busybox",
-			Environment: map[string]string{},
+			Environment: map[string]*string{},
 			Networks: map[string]*types.ServiceNetworkConfig{
 				"with_me": nil,
 			},
@@ -111,7 +128,7 @@ var sampleConfig = types.Config{
 		{
 			Name:        "bar",
 			Image:       "busybox",
-			Environment: map[string]string{"FOO": "1"},
+			Environment: map[string]*string{"FOO": strPtr("1")},
 			Networks: map[string]*types.ServiceNetworkConfig{
 				"with_ipam": nil,
 			},
@@ -173,7 +190,7 @@ services:
 secrets:
   super:
     external: true
-`, nil)
+`)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -182,7 +199,7 @@ secrets:
 }
 
 func TestParseAndLoad(t *testing.T) {
-	actual, err := loadYAML(sampleYAML, nil)
+	actual, err := loadYAML(sampleYAML)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -192,15 +209,15 @@ func TestParseAndLoad(t *testing.T) {
 }
 
 func TestInvalidTopLevelObjectType(t *testing.T) {
-	_, err := loadYAML("1", nil)
+	_, err := loadYAML("1")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Top-level object must be a mapping")
 
-	_, err = loadYAML("\"hello\"", nil)
+	_, err = loadYAML("\"hello\"")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Top-level object must be a mapping")
 
-	_, err = loadYAML("[\"hello\"]", nil)
+	_, err = loadYAML("[\"hello\"]")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Top-level object must be a mapping")
 }
@@ -211,7 +228,7 @@ version: "3"
 123:
   foo:
     image: busybox
-`, nil)
+`)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Non-string key at top level: 123")
 
@@ -222,7 +239,7 @@ services:
     image: busybox
   123:
     image: busybox
-`, nil)
+`)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Non-string key in services: 123")
 
@@ -236,7 +253,7 @@ networks:
     ipam:
       config:
         - 123: oh dear
-`, nil)
+`)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Non-string key in networks.default.ipam.config[0]: 123")
 
@@ -247,7 +264,7 @@ services:
     image: busybox
     environment:
       1: FOO
-`, nil)
+`)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Non-string key in services.dict-env.environment: 1")
 }
@@ -258,7 +275,7 @@ version: "3"
 services:
   foo:
     image: busybox
-`, nil)
+`)
 	assert.NoError(t, err)
 
 	_, err = loadYAML(`
@@ -266,7 +283,7 @@ version: "3.0"
 services:
   foo:
     image: busybox
-`, nil)
+`)
 	assert.NoError(t, err)
 }
 
@@ -276,7 +293,7 @@ version: "2"
 services:
   foo:
     image: busybox
-`, nil)
+`)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "version")
 
@@ -285,7 +302,7 @@ version: "2.0"
 services:
   foo:
     image: busybox
-`, nil)
+`)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "version")
 }
@@ -296,7 +313,7 @@ version: 3
 services:
   foo:
     image: busybox
-`, nil)
+`)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "version must be a string")
 }
@@ -305,7 +322,7 @@ func TestV1Unsupported(t *testing.T) {
 	_, err := loadYAML(`
 foo:
   image: busybox
-`, nil)
+`)
 	assert.Error(t, err)
 }
 
@@ -315,7 +332,7 @@ version: "3"
 services:
   - foo:
       image: busybox
-`, nil)
+`)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "services must be a mapping")
 
@@ -323,7 +340,7 @@ services:
 version: "3"
 services:
   foo: busybox
-`, nil)
+`)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "services.foo must be a mapping")
 
@@ -332,7 +349,7 @@ version: "3"
 networks:
   - default:
       driver: bridge
-`, nil)
+`)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "networks must be a mapping")
 
@@ -340,7 +357,7 @@ networks:
 version: "3"
 networks:
   default: bridge
-`, nil)
+`)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "networks.default must be a mapping")
 
@@ -349,7 +366,7 @@ version: "3"
 volumes:
   - data:
       driver: local
-`, nil)
+`)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "volumes must be a mapping")
 
@@ -357,7 +374,7 @@ volumes:
 version: "3"
 volumes:
   data: local
-`, nil)
+`)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "volumes.data must be a mapping")
 }
@@ -368,13 +385,13 @@ version: "3"
 services:
   foo:
     image: ["busybox", "latest"]
-`, nil)
+`)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "services.foo.image must be a string")
 }
 
-func TestValidEnvironment(t *testing.T) {
-	config, err := loadYAML(`
+func TestLoadWithEnvironment(t *testing.T) {
+	config, err := loadYAMLWithEnv(`
 version: "3"
 services:
   dict-env:
@@ -391,17 +408,17 @@ services:
       - FOO=1
       - BAR=2
       - BAZ=2.5
-      - QUX
-      - QUUX=
+      - QUX=
+      - QUUX
 `, map[string]string{"QUX": "qux"})
 	assert.NoError(t, err)
 
 	expected := types.MappingWithEquals{
-		"FOO":  "1",
-		"BAR":  "2",
-		"BAZ":  "2.5",
-		"QUX":  "qux",
-		"QUUX": "",
+		"FOO":  strPtr("1"),
+		"BAR":  strPtr("2"),
+		"BAZ":  strPtr("2.5"),
+		"QUX":  strPtr("qux"),
+		"QUUX": nil,
 	}
 
 	assert.Equal(t, 2, len(config.Services))
@@ -419,7 +436,7 @@ services:
     image: busybox
     environment:
       FOO: ["1"]
-`, nil)
+`)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "services.dict-env.environment.FOO must be a string, number or null")
 }
@@ -431,14 +448,14 @@ services:
   dict-env:
     image: busybox
     environment: "FOO=1"
-`, nil)
+`)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "services.dict-env.environment must be a mapping")
 }
 
 func TestEnvironmentInterpolation(t *testing.T) {
 	home := "/home/foo"
-	config, err := loadYAML(`
+	config, err := loadYAMLWithEnv(`
 version: "3"
 services:
   test:
@@ -461,7 +478,7 @@ volumes:
 
 	assert.NoError(t, err)
 
-	expectedLabels := types.MappingWithEquals{
+	expectedLabels := types.Labels{
 		"home1":       home,
 		"home2":       home,
 		"nonexistent": "",
@@ -534,7 +551,7 @@ services:
   bar:
     extends:
       service: foo
-`, nil)
+`)
 
 	assert.Error(t, err)
 	assert.IsType(t, &ForbiddenPropertiesError{}, err)
@@ -607,7 +624,8 @@ func TestFullExample(t *testing.T) {
 	assert.NoError(t, err)
 
 	homeDir := "/home/foo"
-	config, err := loadYAML(string(bytes), map[string]string{"HOME": homeDir, "QUX": "2"})
+	env := map[string]string{"HOME": homeDir, "QUX": "qux_from_environment"}
+	config, err := loadYAMLWithEnv(string(bytes), env)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -662,14 +680,11 @@ func TestFullExample(t *testing.T) {
 		DNSSearch:  []string{"dc1.example.com", "dc2.example.com"},
 		DomainName: "foo.com",
 		Entrypoint: []string{"/code/entrypoint.sh", "-p", "3000"},
-		Environment: map[string]string{
-			"RACK_ENV":       "development",
-			"SHOW":           "true",
-			"SESSION_SECRET": "",
-			"FOO":            "1",
-			"BAR":            "2",
-			"BAZ":            "3",
-			"QUX":            "2",
+		Environment: map[string]*string{
+			"FOO": strPtr("foo_from_env_file"),
+			"BAR": strPtr("bar_from_env_file_2"),
+			"BAZ": strPtr("baz_from_service_def"),
+			"QUX": strPtr("qux_from_environment"),
 		},
 		EnvFile: []string{
 			"./example1.env",
@@ -959,15 +974,6 @@ func TestFullExample(t *testing.T) {
 	}
 
 	assert.Equal(t, expectedVolumeConfig, config.Volumes)
-}
-
-func loadYAML(yaml string, env map[string]string) (*types.Config, error) {
-	dict, err := ParseYAML([]byte(yaml))
-	if err != nil {
-		return nil, err
-	}
-
-	return Load(buildConfigDetails(dict, env))
 }
 
 func serviceSort(services []types.ServiceConfig) []types.ServiceConfig {
