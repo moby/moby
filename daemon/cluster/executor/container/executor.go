@@ -152,7 +152,7 @@ func (e *executor) Controller(t *api.Task) (exec.Controller, error) {
 		return newNetworkAttacherController(e.backend, t, e.secrets)
 	}
 
-	ctlr, err := newController(e.backend, t, e.secrets)
+	ctlr, err := newController(e.backend, t, secrets.Restrict(e.secrets, t))
 	if err != nil {
 		return nil, err
 	}
