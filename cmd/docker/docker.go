@@ -14,6 +14,7 @@ import (
 	cliconfig "github.com/docker/docker/cli/config"
 	"github.com/docker/docker/cli/debug"
 	cliflags "github.com/docker/docker/cli/flags"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/term"
 	"github.com/spf13/cobra"
@@ -49,7 +50,7 @@ func newDockerCommand(dockerCli *command.DockerCli) *cobra.Command {
 			if err := dockerCli.Initialize(opts); err != nil {
 				return err
 			}
-			return isSupported(cmd, dockerCli.Client().ClientVersion(), dockerCli.OSType(), dockerCli.HasExperimental())
+			return isSupported(cmd, dockerCli)
 		},
 	}
 	cli.SetupRootCommand(cmd)
@@ -80,7 +81,7 @@ func setFlagErrorFunc(dockerCli *command.DockerCli, cmd *cobra.Command, flags *p
 	flagErrorFunc := cmd.FlagErrorFunc()
 	cmd.SetFlagErrorFunc(func(cmd *cobra.Command, err error) error {
 		initializeDockerCli(dockerCli, flags, opts)
-		if err := isSupported(cmd, dockerCli.Client().ClientVersion(), dockerCli.OSType(), dockerCli.HasExperimental()); err != nil {
+		if err := isSupported(cmd, dockerCli); err != nil {
 			return err
 		}
 		return flagErrorFunc(cmd, err)
@@ -90,12 +91,12 @@ func setFlagErrorFunc(dockerCli *command.DockerCli, cmd *cobra.Command, flags *p
 func setHelpFunc(dockerCli *command.DockerCli, cmd *cobra.Command, flags *pflag.FlagSet, opts *cliflags.ClientOptions) {
 	cmd.SetHelpFunc(func(ccmd *cobra.Command, args []string) {
 		initializeDockerCli(dockerCli, flags, opts)
-		if err := isSupported(ccmd, dockerCli.Client().ClientVersion(), dockerCli.OSType(), dockerCli.HasExperimental()); err != nil {
+		if err := isSupported(ccmd, dockerCli); err != nil {
 			ccmd.Println(err)
 			return
 		}
 
-		hideUnsupportedFeatures(ccmd, dockerCli.Client().ClientVersion(), dockerCli.OSType(), dockerCli.HasExperimental())
+		hideUnsupportedFeatures(ccmd, dockerCli)
 
 		if err := ccmd.Help(); err != nil {
 			ccmd.Println(err)
@@ -122,7 +123,7 @@ func setValidateArgs(dockerCli *command.DockerCli, cmd *cobra.Command, flags *pf
 		cmdArgs := ccmd.Args
 		ccmd.Args = func(cmd *cobra.Command, args []string) error {
 			initializeDockerCli(dockerCli, flags, opts)
-			if err := isSupported(cmd, dockerCli.Client().ClientVersion(), dockerCli.OSType(), dockerCli.HasExperimental()); err != nil {
+			if err := isSupported(cmd, dockerCli); err != nil {
 				return err
 			}
 			return cmdArgs(cmd, args)
@@ -198,7 +199,16 @@ func dockerPreRun(opts *cliflags.ClientOptions) {
 	}
 }
 
-func hideUnsupportedFeatures(cmd *cobra.Command, clientVersion, osType string, hasExperimental bool) {
+type versionDetails interface {
+	Client() client.APIClient
+	ServerInfo() command.ServerInfo
+}
+
+func hideUnsupportedFeatures(cmd *cobra.Command, details versionDetails) {
+	clientVersion := details.Client().ClientVersion()
+	osType := details.ServerInfo().OSType
+	hasExperimental := details.ServerInfo().HasExperimental
+
 	cmd.Flags().VisitAll(func(f *pflag.Flag) {
 		// hide experimental flags
 		if !hasExperimental {
@@ -228,7 +238,11 @@ func hideUnsupportedFeatures(cmd *cobra.Command, clientVersion, osType string, h
 	}
 }
 
-func isSupported(cmd *cobra.Command, clientVersion, osType string, hasExperimental bool) error {
+func isSupported(cmd *cobra.Command, details versionDetails) error {
+	clientVersion := details.Client().ClientVersion()
+	osType := details.ServerInfo().OSType
+	hasExperimental := details.ServerInfo().HasExperimental
+
 	// Check recursively so that, e.g., `docker stack ls` returns the same output as `docker stack`
 	for curr := cmd; curr != nil; curr = curr.Parent() {
 		if cmdVersion, ok := curr.Tags["version"]; ok && versions.LessThan(clientVersion, cmdVersion) {
