@@ -6271,6 +6271,11 @@ paths:
           description: "Network ID or name"
           required: true
           type: "string"
+        - name: "verbose"
+          in: "query"
+          description: "Detailed inspect output for troubleshooting"
+          type: "boolean"
+          default: false
       tags: ["Network"]
 
     delete:

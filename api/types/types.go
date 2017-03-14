@@ -391,19 +391,20 @@ type MountPoint struct {
 
 // NetworkResource is the body of the "get network" http response message
 type NetworkResource struct {
-	Name       string                      // Name is the requested name of the network
-	ID         string                      `json:"Id"` // ID uniquely identifies a network on a single machine
-	Created    time.Time                   // Created is the time the network created
-	Scope      string                      // Scope describes the level at which the network exists (e.g. `global` for cluster-wide or `local` for machine level)
-	Driver     string                      // Driver is the Driver name used to create the network (e.g. `bridge`, `overlay`)
-	EnableIPv6 bool                        // EnableIPv6 represents whether to enable IPv6
-	IPAM       network.IPAM                // IPAM is the network's IP Address Management
-	Internal   bool                        // Internal represents if the network is used internal only
-	Attachable bool                        // Attachable represents if the global scope is manually attachable by regular containers from workers in swarm mode.
-	Containers map[string]EndpointResource // Containers contains endpoints belonging to the network
-	Options    map[string]string           // Options holds the network specific options to use for when creating the network
-	Labels     map[string]string           // Labels holds metadata specific to the network being created
-	Peers      []network.PeerInfo          `json:",omitempty"` // List of peer nodes for an overlay network
+	Name       string                         // Name is the requested name of the network
+	ID         string                         `json:"Id"` // ID uniquely identifies a network on a single machine
+	Created    time.Time                      // Created is the time the network created
+	Scope      string                         // Scope describes the level at which the network exists (e.g. `global` for cluster-wide or `local` for machine level)
+	Driver     string                         // Driver is the Driver name used to create the network (e.g. `bridge`, `overlay`)
+	EnableIPv6 bool                           // EnableIPv6 represents whether to enable IPv6
+	IPAM       network.IPAM                   // IPAM is the network's IP Address Management
+	Internal   bool                           // Internal represents if the network is used internal only
+	Attachable bool                           // Attachable represents if the global scope is manually attachable by regular containers from workers in swarm mode.
+	Containers map[string]EndpointResource    // Containers contains endpoints belonging to the network
+	Options    map[string]string              // Options holds the network specific options to use for when creating the network
+	Labels     map[string]string              // Labels holds metadata specific to the network being created
+	Peers      []network.PeerInfo             `json:",omitempty"` // List of peer nodes for an overlay network
+	Services   map[string]network.ServiceInfo `json:",omitempty"`
 }
 
 // EndpointResource contains network resources allocated and used for a container in a network

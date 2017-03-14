@@ -140,7 +140,6 @@ func setupIPTablesInternal(bridgeIface string, addr net.Addr, icc, ipmasq, hairp
 		hpNatRule = iptRule{table: iptables.Nat, chain: "POSTROUTING", preArgs: []string{"-t", "nat"}, args: []string{"-m", "addrtype", "--src-type", "LOCAL", "-o", bridgeIface, "-j", "MASQUERADE"}}
 		skipDNAT  = iptRule{table: iptables.Nat, chain: DockerChain, preArgs: []string{"-t", "nat"}, args: []string{"-i", bridgeIface, "-j", "RETURN"}}
 		outRule   = iptRule{table: iptables.Filter, chain: "FORWARD", args: []string{"-i", bridgeIface, "!", "-o", bridgeIface, "-j", "ACCEPT"}}
-		inRule    = iptRule{table: iptables.Filter, chain: "FORWARD", args: []string{"-o", bridgeIface, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"}}
 	)
 
 	// Set NAT.
@@ -170,11 +169,6 @@ func setupIPTablesInternal(bridgeIface string, addr net.Addr, icc, ipmasq, hairp
 
 	// Set Accept on all non-intercontainer outgoing packets.
 	if err := programChainRule(outRule, "ACCEPT NON_ICC OUTGOING", enable); err != nil {
-		return err
-	}
-
-	// Set Accept on incoming packets for existing connections.
-	if err := programChainRule(inRule, "ACCEPT INCOMING", enable); err != nil {
 		return err
 	}
 

@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"golang.org/x/net/context"
 
+	"github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -65,7 +67,7 @@ SKIP:
 		// run across all the networks. Starting API version 1.27, this detailed
 		// info is available for network specific GET API (equivalent to inspect)
 		if versions.LessThan(httputils.VersionFromContext(ctx), "1.27") {
-			nr = n.buildDetailedNetworkResources(nw)
+			nr = n.buildDetailedNetworkResources(nw, false)
 		} else {
 			nr = n.buildNetworkResource(nw)
 		}
@@ -85,6 +87,16 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 	}
 
 	term := vars["id"]
+	var (
+		verbose bool
+		err     error
+	)
+	if v := r.URL.Query().Get("verbose"); v != "" {
+		if verbose, err = strconv.ParseBool(v); err != nil {
+			err = fmt.Errorf("invalid value for verbose: %s", v)
+			return errors.NewBadRequestError(err)
+		}
+	}
 
 	// In case multiple networks have duplicate names, return error.
 	// TODO (yongtang): should we wrap with version here for backward compatibility?
@@ -100,17 +112,17 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 	nw := n.backend.GetNetworks()
 	for _, network := range nw {
 		if network.ID() == term {
-			return httputils.WriteJSON(w, http.StatusOK, *n.buildDetailedNetworkResources(network))
+			return httputils.WriteJSON(w, http.StatusOK, *n.buildDetailedNetworkResources(network, verbose))
 		}
 		if network.Name() == term {
 			// No need to check the ID collision here as we are still in
 			// local scope and the network ID is unique in this scope.
-			listByFullName[network.ID()] = *n.buildDetailedNetworkResources(network)
+			listByFullName[network.ID()] = *n.buildDetailedNetworkResources(network, verbose)
 		}
 		if strings.HasPrefix(network.ID(), term) {
 			// No need to check the ID collision here as we are still in
 			// local scope and the network ID is unique in this scope.
-			listByPartialID[network.ID()] = *n.buildDetailedNetworkResources(network)
+			listByPartialID[network.ID()] = *n.buildDetailedNetworkResources(network, verbose)
 		}
 	}
 
@@ -294,7 +306,7 @@ func (n *networkRouter) buildNetworkResource(nw libnetwork.Network) *types.Netwo
 	return r
 }
 
-func (n *networkRouter) buildDetailedNetworkResources(nw libnetwork.Network) *types.NetworkResource {
+func (n *networkRouter) buildDetailedNetworkResources(nw libnetwork.Network, verbose bool) *types.NetworkResource {
 	if nw == nil {
 		return &types.NetworkResource{}
 	}
@@ -314,6 +326,28 @@ func (n *networkRouter) buildDetailedNetworkResources(nw libnetwork.Network) *ty
 		}
 
 		r.Containers[key] = buildEndpointResource(tmpID, e.Name(), ei)
+	}
+	if !verbose {
+		return r
+	}
+	services := nw.Info().Services()
+	r.Services = make(map[string]network.ServiceInfo)
+	for name, service := range services {
+		tasks := []network.Task{}
+		for _, t := range service.Tasks {
+			tasks = append(tasks, network.Task{
+				Name:       t.Name,
+				EndpointID: t.EndpointID,
+				EndpointIP: t.EndpointIP,
+				Info:       t.Info,
+			})
+		}
+		r.Services[name] = network.ServiceInfo{
+			VIP:          service.VIP,
+			Ports:        service.Ports,
+			Tasks:        tasks,
+			LocalLBIndex: service.LocalLBIndex,
+		}
 	}
 	return r
 }

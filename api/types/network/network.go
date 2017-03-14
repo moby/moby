@@ -60,6 +60,22 @@ type EndpointSettings struct {
 	MacAddress          string
 }
 
+// Task carries the information about one backend task
+type Task struct {
+	Name       string
+	EndpointID string
+	EndpointIP string
+	Info       map[string]string
+}
+
+// ServiceInfo represents service parameters with the list of service's tasks
+type ServiceInfo struct {
+	VIP          string
+	Ports        []string
+	LocalLBIndex int
+	Tasks        []Task
+}
+
 // Copy makes a deep copy of `EndpointSettings`
 func (es *EndpointSettings) Copy() *EndpointSettings {
 	epCopy := *es

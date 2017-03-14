@@ -307,6 +307,22 @@ func (nDB *NetworkDB) UpdateEntry(tname, nid, key string, value []byte) error {
 	return nil
 }
 
+// GetTableByNetwork walks the networkdb by the give table and network id and
+// returns a map of keys and values
+func (nDB *NetworkDB) GetTableByNetwork(tname, nid string) map[string]interface{} {
+	entries := make(map[string]interface{})
+	nDB.indexes[byTable].WalkPrefix(fmt.Sprintf("/%s/%s", tname, nid), func(k string, v interface{}) bool {
+		entry := v.(*entry)
+		if entry.deleting {
+			return false
+		}
+		key := k[strings.LastIndex(k, "/")+1:]
+		entries[key] = entry.value
+		return false
+	})
+	return entries
+}
+
 // DeleteEntry deletes a table entry in NetworkDB for given (network,
 // table, key) tuple and if the NetworkDB is part of the cluster
 // propagates this event to the cluster.

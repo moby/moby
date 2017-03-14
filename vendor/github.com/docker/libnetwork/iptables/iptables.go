@@ -50,8 +50,7 @@ var (
 	bestEffortLock sync.Mutex
 	// ErrIptablesNotFound is returned when the rule is not found.
 	ErrIptablesNotFound = errors.New("Iptables not found")
-	probeOnce           sync.Once
-	firewalldOnce       sync.Once
+	initOnce            sync.Once
 )
 
 // ChainInfo defines the iptables chain.
@@ -86,22 +85,32 @@ func initFirewalld() {
 	}
 }
 
+func detectIptables() {
+	path, err := exec.LookPath("iptables")
+	if err != nil {
+		return
+	}
+	iptablesPath = path
+	supportsXlock = exec.Command(iptablesPath, "--wait", "-L", "-n").Run() == nil
+	mj, mn, mc, err := GetVersion()
+	if err != nil {
+		logrus.Warnf("Failed to read iptables version: %v", err)
+		return
+	}
+	supportsCOpt = supportsCOption(mj, mn, mc)
+}
+
+func initIptables() {
+	probe()
+	initFirewalld()
+	detectIptables()
+}
+
 func initCheck() error {
+	initOnce.Do(initIptables)
+
 	if iptablesPath == "" {
-		probeOnce.Do(probe)
-		firewalldOnce.Do(initFirewalld)
-		path, err := exec.LookPath("iptables")
-		if err != nil {
-			return ErrIptablesNotFound
-		}
-		iptablesPath = path
-		supportsXlock = exec.Command(iptablesPath, "--wait", "-L", "-n").Run() == nil
-		mj, mn, mc, err := GetVersion()
-		if err != nil {
-			logrus.Warnf("Failed to read iptables version: %v", err)
-			return nil
-		}
-		supportsCOpt = supportsCOption(mj, mn, mc)
+		return ErrIptablesNotFound
 	}
 	return nil
 }
@@ -188,6 +197,26 @@ func ProgramChain(c *ChainInfo, bridgeName string, hairpinMode, enable bool) err
 				return fmt.Errorf("Could not delete linking rule from %s/%s: %s", c.Table, c.Name, output)
 			}
 
+		}
+		establish := []string{
+			"-o", bridgeName,
+			"-m", "conntrack",
+			"--ctstate", "RELATED,ESTABLISHED",
+			"-j", "ACCEPT"}
+		if !Exists(Filter, "FORWARD", establish...) && enable {
+			insert := append([]string{string(Insert), "FORWARD"}, establish...)
+			if output, err := Raw(insert...); err != nil {
+				return err
+			} else if len(output) != 0 {
+				return fmt.Errorf("Could not create establish rule to %s: %s", c.Table, output)
+			}
+		} else if Exists(Filter, "FORWARD", establish...) && !enable {
+			del := append([]string{string(Delete), "FORWARD"}, establish...)
+			if output, err := Raw(del...); err != nil {
+				return err
+			} else if len(output) != 0 {
+				return fmt.Errorf("Could not delete establish rule from %s: %s", c.Table, output)
+			}
 		}
 	}
 	return nil
@@ -353,7 +382,11 @@ func exists(native bool, table Table, chain string, rule ...string) bool {
 		table = Filter
 	}
 
-	initCheck()
+	if err := initCheck(); err != nil {
+		// The exists() signature does not allow us to return an error, but at least
+		// we can skip the (likely invalid) exec invocation.
+		return false
+	}
 
 	if supportsCOpt {
 		// if exit status is 0 then return true, the rule exists
@@ -436,9 +469,9 @@ func ExistChain(chain string, table Table) bool {
 	return false
 }
 
-// GetVersion reads the iptables version numbers
+// GetVersion reads the iptables version numbers during initialization
 func GetVersion() (major, minor, micro int, err error) {
-	out, err := Raw("--version")
+	out, err := exec.Command(iptablesPath, "--version").CombinedOutput()
 	if err == nil {
 		major, minor, micro = parseVersionNumbers(string(out))
 	}

@@ -74,6 +74,9 @@ type NetworkInfo interface {
 	// gossip cluster. For non-dynamic overlay networks and bridge networks it returns an
 	// empty slice
 	Peers() []networkdb.PeerInfo
+	//Services returns a map of services keyed by the service name with the details
+	//of all the tasks that belong to the service. Applicable only in swarm mode.
+	Services() map[string]ServiceInfo
 }
 
 // EndpointWalker is a client provided function which will be used to walk the Endpoints.
@@ -106,6 +109,11 @@ type servicePorts struct {
 	portName string
 	proto    string
 	target   []serviceTarget
+}
+
+type networkDBTable struct {
+	name    string
+	objType driverapi.ObjectType
 }
 
 // IpamConf contains all the ipam related configurations for a network
@@ -208,7 +216,7 @@ type network struct {
 	attachable   bool
 	inDelete     bool
 	ingress      bool
-	driverTables []string
+	driverTables []networkDBTable
 	dynamic      bool
 	sync.Mutex
 }
@@ -1607,11 +1615,18 @@ func (n *network) Labels() map[string]string {
 	return lbls
 }
 
-func (n *network) TableEventRegister(tableName string) error {
+func (n *network) TableEventRegister(tableName string, objType driverapi.ObjectType) error {
+	if !driverapi.IsValidType(objType) {
+		return fmt.Errorf("invalid object type %v in registering table, %s", objType, tableName)
+	}
+
+	t := networkDBTable{
+		name:    tableName,
+		objType: objType,
+	}
 	n.Lock()
 	defer n.Unlock()
-
-	n.driverTables = append(n.driverTables, tableName)
+	n.driverTables = append(n.driverTables, t)
 	return nil
 }
 
