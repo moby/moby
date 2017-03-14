@@ -62,11 +62,11 @@ SKIP:
 		}
 
 		var nr *types.NetworkResource
-		// Versions < 1.27 fetches all the containers attached to a network
+		// Versions < 1.28 fetches all the containers attached to a network
 		// in a network list api call. It is a heavy weight operation when
-		// run across all the networks. Starting API version 1.27, this detailed
+		// run across all the networks. Starting API version 1.28, this detailed
 		// info is available for network specific GET API (equivalent to inspect)
-		if versions.LessThan(httputils.VersionFromContext(ctx), "1.27") {
+		if versions.LessThan(httputils.VersionFromContext(ctx), "1.28") {
 			nr = n.buildDetailedNetworkResources(nw, false)
 		} else {
 			nr = n.buildNetworkResource(nw)

@@ -498,15 +498,15 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags.SetAnnotation(flagUpdateMaxFailureRatio, "version", []string{"1.25"})
 
 	flags.Uint64Var(&opts.rollback.parallelism, flagRollbackParallelism, 1, "Maximum number of tasks rolled back simultaneously (0 to roll back all at once)")
-	flags.SetAnnotation(flagRollbackParallelism, "version", []string{"1.27"})
+	flags.SetAnnotation(flagRollbackParallelism, "version", []string{"1.28"})
 	flags.DurationVar(&opts.rollback.delay, flagRollbackDelay, time.Duration(0), "Delay between task rollbacks (ns|us|ms|s|m|h) (default 0s)")
-	flags.SetAnnotation(flagRollbackDelay, "version", []string{"1.27"})
+	flags.SetAnnotation(flagRollbackDelay, "version", []string{"1.28"})
 	flags.DurationVar(&opts.rollback.monitor, flagRollbackMonitor, time.Duration(0), "Duration after each task rollback to monitor for failure (ns|us|ms|s|m|h) (default 0s)")
-	flags.SetAnnotation(flagRollbackMonitor, "version", []string{"1.27"})
+	flags.SetAnnotation(flagRollbackMonitor, "version", []string{"1.28"})
 	flags.StringVar(&opts.rollback.onFailure, flagRollbackFailureAction, "pause", `Action on rollback failure ("pause"|"continue")`)
-	flags.SetAnnotation(flagRollbackFailureAction, "version", []string{"1.27"})
+	flags.SetAnnotation(flagRollbackFailureAction, "version", []string{"1.28"})
 	flags.Var(&opts.rollback.maxFailureRatio, flagRollbackMaxFailureRatio, "Failure rate to tolerate during a rollback")
-	flags.SetAnnotation(flagRollbackMaxFailureRatio, "version", []string{"1.27"})
+	flags.SetAnnotation(flagRollbackMaxFailureRatio, "version", []string{"1.28"})
 
 	flags.StringVar(&opts.endpoint.mode, flagEndpointMode, "vip", "Endpoint mode (vip or dnsrr)")
 
@@ -530,10 +530,10 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags.SetAnnotation(flagTTY, "version", []string{"1.25"})
 
 	flags.BoolVar(&opts.readOnly, flagReadOnly, false, "Mount the container's root filesystem as read only")
-	flags.SetAnnotation(flagReadOnly, "version", []string{"1.27"})
+	flags.SetAnnotation(flagReadOnly, "version", []string{"1.28"})
 
 	flags.StringVar(&opts.stopSignal, flagStopSignal, "", "Signal to stop the container")
-	flags.SetAnnotation(flagStopSignal, "version", []string{"1.27"})
+	flags.SetAnnotation(flagStopSignal, "version", []string{"1.28"})
 }
 
 const (

@@ -72,9 +72,9 @@ func newUpdateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.Var(&serviceOpts.mounts, flagMountAdd, "Add or update a mount on a service")
 	flags.Var(&serviceOpts.constraints, flagConstraintAdd, "Add or update a placement constraint")
 	flags.Var(&serviceOpts.placementPrefs, flagPlacementPrefAdd, "Add a placement preference")
-	flags.SetAnnotation(flagPlacementPrefAdd, "version", []string{"1.27"})
+	flags.SetAnnotation(flagPlacementPrefAdd, "version", []string{"1.28"})
 	flags.Var(&placementPrefOpts{}, flagPlacementPrefRemove, "Remove a placement preference")
-	flags.SetAnnotation(flagPlacementPrefRemove, "version", []string{"1.27"})
+	flags.SetAnnotation(flagPlacementPrefRemove, "version", []string{"1.28"})
 	flags.Var(&serviceOpts.endpoint.publishPorts, flagPublishAdd, "Add or update a published port")
 	flags.Var(&serviceOpts.groups, flagGroupAdd, "Add an additional supplementary user group to the container")
 	flags.SetAnnotation(flagGroupAdd, "version", []string{"1.25"})
@@ -132,7 +132,7 @@ func runUpdate(dockerCli *command.DockerCli, flags *pflag.FlagSet, serviceID str
 			return errors.New("other flags may not be combined with --rollback")
 		}
 
-		if versions.LessThan(dockerCli.Client().ClientVersion(), "1.27") {
+		if versions.LessThan(dockerCli.Client().ClientVersion(), "1.28") {
 			clientSideRollback = true
 			spec = service.PreviousSpec
 			if spec == nil {
