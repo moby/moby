@@ -682,6 +682,10 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 		return nil, err
 	}
 
+	if network.ingress && cap.DataScope != datastore.GlobalScope {
+		return nil, types.ForbiddenErrorf("Ingress network can only be global scope network")
+	}
+
 	if cap.DataScope == datastore.GlobalScope && !c.isDistributedControl() && !network.dynamic {
 		if c.isManager() {
 			// For non-distributed controlled environment, globalscoped non-dynamic networks are redirected to Manager
@@ -1161,15 +1165,29 @@ func (c *controller) clearIngress(clusterLeave bool) {
 	c.ingressSandbox = nil
 	c.Unlock()
 
+	var n *network
 	if ingressSandbox != nil {
+		for _, ep := range ingressSandbox.getConnectedEndpoints() {
+			if nw := ep.getNetwork(); nw.ingress {
+				n = nw
+				break
+			}
+		}
 		if err := ingressSandbox.Delete(); err != nil {
 			logrus.Warnf("Could not delete ingress sandbox while leaving: %v", err)
 		}
 	}
 
-	n, err := c.NetworkByName("ingress")
-	if err != nil && clusterLeave {
-		logrus.Warnf("Could not find ingress network while leaving: %v", err)
+	if n == nil {
+		for _, nw := range c.Networks() {
+			if nw.Info().Ingress() {
+				n = nw.(*network)
+				break
+			}
+		}
+	}
+	if n == nil && clusterLeave {
+		logrus.Warnf("Could not find ingress network while leaving")
 	}
 
 	if n != nil {
