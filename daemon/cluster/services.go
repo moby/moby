@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
@@ -14,6 +16,7 @@ import (
 	apitypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	types "github.com/docker/docker/api/types/swarm"
+	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/daemon/cluster/convert"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/pkg/ioutils"
@@ -281,6 +284,44 @@ func (c *Cluster) ServiceLogs(ctx context.Context, input string, config *backend
 		stdStreams = append(stdStreams, swarmapi.LogStreamStderr)
 	}
 
+	// Get tail value squared away - the number of previous log lines we look at
+	var tail int64
+	if config.Tail == "all" {
+		// tail of 0 means send all logs on the swarmkit side
+		tail = 0
+	} else {
+		t, err := strconv.Atoi(config.Tail)
+		if err != nil {
+			return errors.New("tail value must be a positive integer or \"all\"")
+		}
+		if t < 0 {
+			return errors.New("negative tail values not supported")
+		}
+		// we actually use negative tail in swarmkit to represent messages
+		// backwards starting from the beginning. also, -1 means no logs. so,
+		// basically, for api compat with docker container logs, add one and
+		// flip the sign. we error above if you try to negative tail, which
+		// isn't supported by docker (and would error deeper in the stack
+		// anyway)
+		//
+		// See the logs protobuf for more information
+		tail = int64(-(t + 1))
+	}
+
+	// get the since value - the time in the past we're looking at logs starting from
+	var sinceProto *gogotypes.Timestamp
+	if config.Since != "" {
+		s, n, err := timetypes.ParseTimestamps(config.Since, 0)
+		if err != nil {
+			return errors.Wrap(err, "could not parse since timestamp")
+		}
+		since := time.Unix(s, n)
+		sinceProto, err = gogotypes.TimestampProto(since)
+		if err != nil {
+			return errors.Wrap(err, "could not parse timestamp to proto")
+		}
+	}
+
 	stream, err := state.logsClient.SubscribeLogs(ctx, &swarmapi.SubscribeLogsRequest{
 		Selector: &swarmapi.LogSelector{
 			ServiceIDs: []string{service.ID},
@@ -288,6 +329,8 @@ func (c *Cluster) ServiceLogs(ctx context.Context, input string, config *backend
 		Options: &swarmapi.LogSubscriptionOptions{
 			Follow:  config.Follow,
 			Streams: stdStreams,
+			Tail:    tail,
+			Since:   sinceProto,
 		},
 	})
 	if err != nil {

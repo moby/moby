@@ -423,7 +423,10 @@ func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscription
 		if err != nil {
 			return nil, err
 		}
-		apiOptions.Since = since.Format(time.RFC3339Nano)
+		// print since as this formatted string because the docker container
+		// logs interface expects it like this.
+		// see github.com/docker/docker/api/types/time.ParseTimestamps
+		apiOptions.Since = fmt.Sprintf("%d.%09d", since.Unix(), int64(since.Nanosecond()))
 	}
 
 	if options.Tail < 0 {
