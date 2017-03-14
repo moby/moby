@@ -17,6 +17,7 @@ import (
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/registry"
+	"io/ioutil"
 )
 
 // ElectAuthServer returns the default registry to use (by asking the daemon)
@@ -50,7 +51,7 @@ func RegistryAuthenticationPrivilegedFunc(cli *DockerCli, index *registrytypes.I
 		fmt.Fprintf(cli.Out(), "\nPlease login prior to %s:\n", cmdName)
 		indexServer := registry.GetAuthConfigKey(index)
 		isDefaultRegistry := indexServer == ElectAuthServer(context.Background(), cli)
-		authConfig, err := ConfigureAuth(cli, "", "", indexServer, isDefaultRegistry)
+		authConfig, err := ConfigureAuth(cli, "", "", "", indexServer, isDefaultRegistry)
 		if err != nil {
 			return "", err
 		}
@@ -72,7 +73,7 @@ func ResolveAuthConfig(ctx context.Context, cli *DockerCli, index *registrytypes
 }
 
 // ConfigureAuth returns an AuthConfig from the specified user, password and server.
-func ConfigureAuth(cli *DockerCli, flUser, flPassword, serverAddress string, isDefaultRegistry bool) (types.AuthConfig, error) {
+func ConfigureAuth(cli *DockerCli, flUser, flPassword, flPasswordFile, serverAddress string, isDefaultRegistry bool) (types.AuthConfig, error) {
 	// On Windows, force the use of the regular OS stdin stream. Fixes #14336/#14210
 	if runtime.GOOS == "windows" {
 		cli.in = NewInStream(os.Stdin)
@@ -85,6 +86,13 @@ func ConfigureAuth(cli *DockerCli, flUser, flPassword, serverAddress string, isD
 	authconfig, err := cli.CredentialsStore(serverAddress).Get(serverAddress)
 	if err != nil {
 		return authconfig, err
+	}
+
+	if flPasswordFile != "" {
+		var err error
+		if flPassword, err = readPasswordFromFile(flPasswordFile); err != nil {
+			return authconfig, err
+		}
 	}
 
 	// Some links documenting this:
@@ -138,6 +146,15 @@ func ConfigureAuth(cli *DockerCli, flUser, flPassword, serverAddress string, isD
 	authconfig.IdentityToken = ""
 
 	return authconfig, nil
+}
+
+func readPasswordFromFile(filename string) (string, error) {
+	dat, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return "", err
+	}
+	s := strings.TrimSpace(string(dat))
+	return s, nil
 }
 
 func readInput(in io.Reader, out io.Writer) string {

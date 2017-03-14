@@ -14,6 +14,7 @@ type loginOptions struct {
 	serverAddress string
 	user          string
 	password      string
+	passwordfile  string
 	email         string
 }
 
@@ -37,6 +38,7 @@ func NewLoginCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags := cmd.Flags()
 	flags.StringVarP(&opts.user, "username", "u", "", "Username")
 	flags.StringVarP(&opts.password, "password", "p", "", "Password")
+	flags.StringVar(&opts.passwordfile, "password-file", "", "Read password from file")
 
 	return cmd
 }
@@ -57,7 +59,8 @@ func runLogin(dockerCli *command.DockerCli, opts loginOptions) error {
 
 	isDefaultRegistry := serverAddress == authServer
 
-	authConfig, err := command.ConfigureAuth(dockerCli, opts.user, opts.password, serverAddress, isDefaultRegistry)
+	authConfig, err := command.ConfigureAuth(dockerCli, opts.user, opts.password, opts.passwordfile, serverAddress,
+		isDefaultRegistry)
 	if err != nil {
 		return err
 	}
