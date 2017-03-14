@@ -253,9 +253,11 @@ func transformHook(
 	case reflect.TypeOf(map[string]*types.ServiceNetworkConfig{}):
 		return transformServiceNetworkMap(data)
 	case reflect.TypeOf(types.MappingWithEquals{}):
-		return transformMappingOrList(data, "="), nil
+		return transformMappingOrList(data, "=", true), nil
+	case reflect.TypeOf(types.Labels{}):
+		return transformMappingOrList(data, "=", false), nil
 	case reflect.TypeOf(types.MappingWithColon{}):
-		return transformMappingOrList(data, ":"), nil
+		return transformMappingOrList(data, ":", false), nil
 	case reflect.TypeOf(types.ServiceVolumeConfig{}):
 		return transformServiceVolumeConfig(data)
 	}
@@ -317,7 +319,7 @@ func LoadServices(servicesDict types.Dict, workingDir string, lookupEnv template
 	var services []types.ServiceConfig
 
 	for name, serviceDef := range servicesDict {
-		serviceConfig, err := loadService(name, serviceDef.(types.Dict), workingDir, lookupEnv)
+		serviceConfig, err := LoadService(name, serviceDef.(types.Dict), workingDir, lookupEnv)
 		if err != nil {
 			return nil, err
 		}
@@ -344,25 +346,20 @@ func LoadService(name string, serviceDict types.Dict, workingDir string, lookupE
 	return serviceConfig, nil
 }
 
-func updateEnvironment(environment map[string]string, vars map[string]string, lookupEnv template.Mapping) map[string]string {
-	result := make(map[string]string, len(environment))
-	for k, v := range environment {
-		result[k]=v
-	}
+func updateEnvironment(environment map[string]*string, vars map[string]*string, lookupEnv template.Mapping) {
 	for k, v := range vars {
 		interpolatedV, ok := lookupEnv(k)
-		if ok {
+		if (v == nil || *v == "") && ok {
 			// lookupEnv is prioritized over vars
-			result[k] = interpolatedV
+			environment[k] = &interpolatedV
 		} else {
-			result[k] = v
+			environment[k] = v
 		}
 	}
-	return result
 }
 
 func resolveEnvironment(serviceConfig *types.ServiceConfig, workingDir string, lookupEnv template.Mapping) error {
-	environment := make(map[string]string)
+	environment := make(map[string]*string)
 
 	if len(serviceConfig.EnvFile) > 0 {
 		var envVars []string
@@ -375,12 +372,12 @@ func resolveEnvironment(serviceConfig *types.ServiceConfig, workingDir string, l
 			}
 			envVars = append(envVars, fileVars...)
 		}
-		environment = updateEnvironment(environment,
-			runconfigopts.ConvertKVStringsToMap(envVars), lookupEnv)
+		updateEnvironment(environment,
+			runconfigopts.ConvertKVStringsToMapWithNil(envVars), lookupEnv)
 	}
 
-	serviceConfig.Environment = updateEnvironment(environment,
-		serviceConfig.Environment, lookupEnv)
+	updateEnvironment(environment, serviceConfig.Environment, lookupEnv)
+	serviceConfig.Environment = environment
 	return nil
 }
 
@@ -497,9 +494,9 @@ func absPath(workingDir string, filepath string) string {
 func transformMapStringString(data interface{}) (interface{}, error) {
 	switch value := data.(type) {
 	case map[string]interface{}:
-		return toMapStringString(value), nil
+		return toMapStringString(value, false), nil
 	case types.Dict:
-		return toMapStringString(value), nil
+		return toMapStringString(value, false), nil
 	case map[string]string:
 		return value, nil
 	default:
@@ -613,23 +610,27 @@ func transformStringList(data interface{}) (interface{}, error) {
 	}
 }
 
-func transformMappingOrList(mappingOrList interface{}, sep string) map[string]string {
-	if mapping, ok := mappingOrList.(types.Dict); ok {
-		return toMapStringString(mapping)
-	}
-	if list, ok := mappingOrList.([]interface{}); ok {
-		result := make(map[string]string)
-		for _, value := range list {
+func transformMappingOrList(mappingOrList interface{}, sep string, allowNil bool) interface{} {
+	switch value := mappingOrList.(type) {
+	case types.Dict:
+		return toMapStringString(value, allowNil)
+	case ([]interface{}):
+		result := make(map[string]interface{})
+		for _, value := range value {
 			parts := strings.SplitN(value.(string), sep, 2)
-			if len(parts) == 1 {
-				result[parts[0]] = ""
-			} else {
-				result[parts[0]] = parts[1]
+			key := parts[0]
+			switch {
+			case len(parts) == 1 && allowNil:
+				result[key] = nil
+			case len(parts) == 1 && !allowNil:
+				result[key] = ""
+			default:
+				result[key] = parts[1]
 			}
 		}
 		return result
 	}
-	panic(fmt.Errorf("expected a map or a slice, got: %#v", mappingOrList))
+	panic(fmt.Errorf("expected a map or a list, got %T: %#v", mappingOrList, mappingOrList))
 }
 
 func transformShellCommand(value interface{}) (interface{}, error) {
@@ -693,17 +694,21 @@ func toServicePortConfigs(value string) ([]interface{}, error) {
 	return portConfigs, nil
 }
 
-func toMapStringString(value map[string]interface{}) map[string]string {
-	output := make(map[string]string)
+func toMapStringString(value map[string]interface{}, allowNil bool) map[string]interface{} {
+	output := make(map[string]interface{})
 	for key, value := range value {
-		output[key] = toString(value)
+		output[key] = toString(value, allowNil)
 	}
 	return output
 }
 
-func toString(value interface{}) string {
-	if value == nil {
+func toString(value interface{}, allowNil bool) interface{} {
+	switch {
+	case value != nil:
+		return fmt.Sprint(value)
+	case allowNil:
+		return nil
+	default:
 		return ""
 	}
-	return fmt.Sprint(value)
 }
