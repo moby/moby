@@ -69,9 +69,20 @@ for version in "${versions[@]}"; do
 			# golang-1.6-go package can be used as bootstrap.
 			packages+=( golang-1.6-go )
 			;;
-		xenial)
+		jessie)
+			packages+=( libsystemd-journal-dev )
+			# aarch64 doesn't have an official downloadable binary for go.
+			# And gccgo for jessie only includes Go 1.2 implementation which
+			# is too old to build current go source, fortunately jessie backports
+			# has golang-1.6-go package can be used as bootstrap.
+			packages+=( golang-1.6-go libseccomp-dev )
+
+			dockerBuildTags="$dockerBuildTags seccomp"
+			runcBuildTags="$runcBuildTags seccomp"
+			;;
+		stretch|xenial)
 			packages+=( libsystemd-dev )
-			packages+=( golang-go libseccomp-dev)
+			packages+=( golang-go libseccomp-dev )
 
 			dockerBuildTags="$dockerBuildTags seccomp"
 			runcBuildTags="$runcBuildTags seccomp"
@@ -83,12 +94,20 @@ for version in "${versions[@]}"; do
 			;;
 	esac
 
+	case "$suite" in
+		jessie)
+			echo 'RUN echo deb http://ftp.debian.org/debian jessie-backports main > /etc/apt/sources.list.d/backports.list' >> "$version/Dockerfile"
+			;;
+		*)
+			;;
+	esac
+
 	# update and install packages
 	echo "RUN apt-get update && apt-get install -y ${packages[*]} --no-install-recommends && rm -rf /var/lib/apt/lists/*" >> "$version/Dockerfile"
 	echo >> "$version/Dockerfile"
 
 	case "$suite" in
-		trusty)
+		jessie|trusty)
 			echo 'RUN update-alternatives --install /usr/bin/go go /usr/lib/go-1.6/bin/go 100' >> "$version/Dockerfile"
 			echo >> "$version/Dockerfile"
 			;;
@@ -106,7 +125,7 @@ for version in "${versions[@]}"; do
 	echo '	&& GOOS=linux GOARCH=arm64 GOROOT_BOOTSTRAP="$(go env GOROOT)" ./make.bash' >> "$version/Dockerfile"
 	echo >> "$version/Dockerfile"
 
-	echo 'ENV PATH $PATH:/usr/src/go/bin' >> "$version/Dockerfile"
+	echo 'ENV PATH /usr/src/go/bin:$PATH' >> "$version/Dockerfile"
 	echo >> "$version/Dockerfile"
 
 	echo "ENV AUTO_GOPATH 1" >> "$version/Dockerfile"
