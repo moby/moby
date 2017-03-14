@@ -47,7 +47,7 @@ func (m *Manager) IsStateDirty() (bool, error) {
 		if structField.Type.Kind() != reflect.Slice {
 			panic("unexpected field type in StoreSnapshot")
 		}
-		if structField.Name != "Nodes" && structField.Name != "Clusters" && field.Len() != 0 {
+		if structField.Name != "Nodes" && structField.Name != "Clusters" && structField.Name != "Networks" && field.Len() != 0 {
 			// One of the other data types has an entry
 			return true, nil
 		}

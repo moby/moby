@@ -416,14 +416,48 @@ func (s *DockerSwarmSuite) TestOverlayAttachableReleaseResourcesOnFailure(c *che
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 }
 
-func (s *DockerSwarmSuite) TestSwarmRemoveInternalNetwork(c *check.C) {
+func (s *DockerSwarmSuite) TestSwarmIngressNetwork(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
-	name := "ingress"
-	out, err := d.Cmd("network", "rm", name)
+	// Ingress network can be removed
+	out, err := d.Cmd("network", "rm", "ingress")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	// And recreated
+	out, err = d.Cmd("network", "create", "-d", "overlay", "--ingress", "new-ingress")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	// But only one is allowed
+	out, err = d.Cmd("network", "create", "-d", "overlay", "--ingress", "another-ingress")
 	c.Assert(err, checker.NotNil)
-	c.Assert(strings.TrimSpace(out), checker.Contains, name)
-	c.Assert(strings.TrimSpace(out), checker.Contains, "is a pre-defined network and cannot be removed")
+	c.Assert(strings.TrimSpace(out), checker.Contains, "is already present")
+
+	// It cannot be removed if it is being used
+	out, err = d.Cmd("service", "create", "--name", "srv1", "-p", "9000:8000", "busybox", "top")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	out, err = d.Cmd("network", "rm", "new-ingress")
+	c.Assert(err, checker.NotNil)
+	c.Assert(strings.TrimSpace(out), checker.Contains, "ingress network cannot be removed because service")
+
+	// But it can be removed once no more services depend on it
+	out, err = d.Cmd("service", "update", "--publish-rm", "9000:8000", "srv1")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	out, err = d.Cmd("network", "rm", "new-ingress")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	// A service which needs the ingress network cannot be created if no ingress is present
+	out, err = d.Cmd("service", "create", "--name", "srv2", "-p", "500:500", "busybox", "top")
+	c.Assert(err, checker.NotNil)
+	c.Assert(strings.TrimSpace(out), checker.Contains, "no ingress network is present")
+
+	// An existing service cannot be updated to use the ingress nw if the nw is not present
+	out, err = d.Cmd("service", "update", "--publish-add", "9000:8000", "srv1")
+	c.Assert(err, checker.NotNil)
+	c.Assert(strings.TrimSpace(out), checker.Contains, "no ingress network is present")
+
+	// But services which do not need routing mesh can be created regardless
+	out, err = d.Cmd("service", "create", "--name", "srv3", "--endpoint-mode", "dnsrr", "busybox", "top")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
 }
 
 // Test case for #24108, also the case from:

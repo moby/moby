@@ -132,7 +132,7 @@ func (s *SecurityConfig) UpdateRootCA(cert, key []byte, certExpiry time.Duration
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	rootCA, err := NewRootCA(cert, key, certExpiry)
+	rootCA, err := NewRootCA(cert, key, certExpiry, nil)
 	if err != nil {
 		return err
 	}
