@@ -3027,6 +3027,7 @@ _docker_service_update_and_create() {
 			--host
 			--mode
 			--name
+			--placement-pref
 			--publish -p
 			--secret
 		"
@@ -3050,6 +3051,11 @@ _docker_service_update_and_create() {
 				;;
 			--mode)
 				COMPREPLY=( $( compgen -W "global replicated" -- "$cur" ) )
+				return
+				;;
+			--placement-pref)
+				COMPREPLY=( $( compgen -W "spread" -S = -- "$cur" ) )
+				__docker_nospace
 				return
 				;;
 			--secret)
@@ -3076,6 +3082,8 @@ _docker_service_update_and_create() {
 			--host-add
 			--host-rm
 			--image
+			--placement-pref-add
+			--placement-pref-rm
 			--publish-add
 			--publish-rm
 			--rollback
@@ -3100,12 +3108,26 @@ _docker_service_update_and_create() {
 				__docker_complete_image_repos_and_tags
 				return
 				;;
+			--placement-pref-add|--placement-pref-rm)
+				COMPREPLY=( $( compgen -W "spread" -S = -- "$cur" ) )
+				__docker_nospace
+				return
+				;;
 			--secret-add|--secret-rm)
 				__docker_complete_secrets
 				return
 				;;
 		esac
 	fi
+
+	local strategy=$(__docker_map_key_of_current_option '--placement-pref|--placement-pref-add|--placement-pref-rm')
+	case "$strategy" in
+		spread)
+			COMPREPLY=( $( compgen -W "engine.labels node.labels" -S . -- "${cur##*=}" ) )
+			__docker_nospace
+			return
+			;;
+	esac
 
 	case "$prev" in
 		--endpoint-mode)
