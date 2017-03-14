@@ -145,10 +145,9 @@ func TestConvertHealthcheckDisableWithTest(t *testing.T) {
 
 func TestConvertServiceNetworksOnlyDefault(t *testing.T) {
 	networkConfigs := networkMap{}
-	networks := map[string]*composetypes.ServiceNetworkConfig{}
 
 	configs, err := convertServiceNetworks(
-		networks, networkConfigs, NewNamespace("foo"), "service")
+		nil, networkConfigs, NewNamespace("foo"), "service")
 
 	expected := []swarm.NetworkAttachmentConfig{
 		{
@@ -199,6 +198,31 @@ func TestConvertServiceNetworks(t *testing.T) {
 
 	assert.NilError(t, err)
 	assert.DeepEqual(t, []swarm.NetworkAttachmentConfig(sortedConfigs), expected)
+}
+
+func TestConvertServiceNetworksCustomDefault(t *testing.T) {
+	networkConfigs := networkMap{
+		"default": composetypes.NetworkConfig{
+			External: composetypes.External{
+				External: true,
+				Name:     "custom",
+			},
+		},
+	}
+	networks := map[string]*composetypes.ServiceNetworkConfig{}
+
+	configs, err := convertServiceNetworks(
+		networks, networkConfigs, NewNamespace("foo"), "service")
+
+	expected := []swarm.NetworkAttachmentConfig{
+		{
+			Target:  "custom",
+			Aliases: []string{"service"},
+		},
+	}
+
+	assert.NilError(t, err)
+	assert.DeepEqual(t, []swarm.NetworkAttachmentConfig(configs), expected)
 }
 
 type byTargetSort []swarm.NetworkAttachmentConfig

@@ -8,11 +8,12 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/errors"
+	apierrors "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/layer"
 	volumestore "github.com/docker/docker/volume/store"
+	"github.com/pkg/errors"
 )
 
 // ContainerRm removes the container id from the filesystem. An error
@@ -29,7 +30,7 @@ func (daemon *Daemon) ContainerRm(name string, config *types.ContainerRmConfig) 
 	// Container state RemovalInProgress should be used to avoid races.
 	if inProgress := container.SetRemovalInProgress(); inProgress {
 		err := fmt.Errorf("removal of container %s is already in progress", name)
-		return errors.NewBadRequestError(err)
+		return apierrors.NewBadRequestError(err)
 	}
 	defer container.ResetRemovalInProgress()
 
@@ -80,7 +81,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 	if container.IsRunning() {
 		if !forceRemove {
 			err := fmt.Errorf("You cannot remove a running container %s. Stop the container before attempting removal or use -f", container.ID)
-			return errors.NewRequestConflictError(err)
+			return apierrors.NewRequestConflictError(err)
 		}
 		if err := daemon.Kill(container); err != nil {
 			return fmt.Errorf("Could not kill running container %s, cannot remove - %v", container.ID, err)
@@ -143,6 +144,9 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 // This is called directly from the Engine API
 func (daemon *Daemon) VolumeRm(name string, force bool) error {
 	err := daemon.volumeRm(name)
+	if err != nil && volumestore.IsInUse(err) {
+		return apierrors.NewRequestConflictError(err)
+	}
 	if err == nil || force {
 		daemon.volumes.Purge(name)
 		return nil
@@ -157,11 +161,7 @@ func (daemon *Daemon) volumeRm(name string) error {
 	}
 
 	if err := daemon.volumes.Remove(v); err != nil {
-		if volumestore.IsInUse(err) {
-			err := fmt.Errorf("Unable to remove volume, volume still in use: %v", err)
-			return errors.NewRequestConflictError(err)
-		}
-		return fmt.Errorf("Error while removing volume %s: %v", name, err)
+		return errors.Wrap(err, "unable to remove volume")
 	}
 	daemon.LogVolumeEvent(v.Name(), "destroy", map[string]string{"driver": v.DriverName()})
 	return nil

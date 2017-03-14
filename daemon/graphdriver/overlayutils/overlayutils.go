@@ -13,6 +13,6 @@ func ErrDTypeNotSupported(driver, backingFs string) error {
 	if backingFs == "xfs" {
 		msg += " Reformat the filesystem with ftype=1 to enable d_type support."
 	}
-	msg += " Running without d_type support will no longer be supported in Docker 1.16."
+	msg += " Running without d_type support will no longer be supported in Docker 17.12."
 	return errors.New(msg)
 }

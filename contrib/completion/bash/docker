@@ -570,7 +570,7 @@ __docker_subcommands() {
 			$(__docker_to_extglob "$subcommands") )
 				subcommand_pos=$counter
 				local subcommand=${words[$counter]}
-				local completions_func=_docker_${command}_${subcommand}
+				local completions_func=_docker_${command}_${subcommand//-/_}
 				declare -F $completions_func >/dev/null && $completions_func
 				return 0
 				;;
@@ -605,38 +605,25 @@ __docker_complete_local_interfaces() {
 	COMPREPLY=( $( compgen -W "$(__docker_local_interfaces) $additional_interface" -- "$cur" ) )
 }
 
-__docker_complete_capabilities() {
-	# The list of capabilities is defined in types.go, ALL was added manually.
+# __docker_complete_capabilities_addable completes Linux capabilities which are
+# not granted by default and may be added.
+# see https://docs.docker.com/engine/reference/run/#/runtime-privilege-and-linux-capabilities
+__docker_complete_capabilities_addable() {
 	COMPREPLY=( $( compgen -W "
 		ALL
 		AUDIT_CONTROL
-		AUDIT_WRITE
-		AUDIT_READ
 		BLOCK_SUSPEND
-		CHOWN
-		DAC_OVERRIDE
 		DAC_READ_SEARCH
-		FOWNER
-		FSETID
 		IPC_LOCK
 		IPC_OWNER
-		KILL
 		LEASE
 		LINUX_IMMUTABLE
 		MAC_ADMIN
 		MAC_OVERRIDE
-		MKNOD
 		NET_ADMIN
-		NET_BIND_SERVICE
 		NET_BROADCAST
-		NET_RAW
-		SETFCAP
-		SETGID
-		SETPCAP
-		SETUID
 		SYS_ADMIN
 		SYS_BOOT
-		SYS_CHROOT
 		SYSLOG
 		SYS_MODULE
 		SYS_NICE
@@ -650,7 +637,30 @@ __docker_complete_capabilities() {
 	" -- "$cur" ) )
 }
 
-__docker_complete_detach-keys() {
+# __docker_complete_capabilities_droppable completes Linux capability options which are
+# allowed by default and can be dropped.
+# see https://docs.docker.com/engine/reference/run/#/runtime-privilege-and-linux-capabilities
+__docker_complete_capabilities_droppable() {
+	COMPREPLY=( $( compgen -W "
+		ALL
+		AUDIT_WRITE
+		CHOWN
+		DAC_OVERRIDE
+		FOWNER
+		FSETID
+		KILL
+		MKNOD
+		NET_BIND_SERVICE
+		NET_RAW
+		SETFCAP
+		SETGID
+		SETPCAP
+		SETUID
+		SYS_CHROOT
+	" -- "$cur" ) )
+}
+
+__docker_complete_detach_keys() {
 	case "$prev" in
 		--detach-keys)
 			case "$cur" in
@@ -1047,7 +1057,7 @@ _docker_container() {
 }
 
 _docker_container_attach() {
-	__docker_complete_detach-keys && return
+	__docker_complete_detach_keys && return
 
 	case "$cur" in
 		-*)
@@ -1154,7 +1164,7 @@ _docker_container_diff() {
 }
 
 _docker_container_exec() {
-	__docker_complete_detach-keys && return
+	__docker_complete_detach_keys && return
 
 	case "$prev" in
 		--env|-e)
@@ -1498,7 +1508,7 @@ _docker_container_run() {
 			--rm
 			--sig-proxy=false
 		"
-		__docker_complete_detach-keys && return
+		__docker_complete_detach_keys && return
 	fi
 
 	local all_options="$options_with_args $boolean_options"
@@ -1538,8 +1548,12 @@ _docker_container_run() {
 			COMPREPLY=( $( compgen -W 'stdin stdout stderr' -- "$cur" ) )
 			return
 			;;
-		--cap-add|--cap-drop)
-			__docker_complete_capabilities
+		--cap-add)
+			__docker_complete_capabilities_addable
+			return
+			;;
+		--cap-drop)
+			__docker_complete_capabilities_droppable
 			return
 			;;
 		--cidfile|--env-file|--init-path|--label-file)
@@ -1686,7 +1700,7 @@ _docker_container_run() {
 }
 
 _docker_container_start() {
-	__docker_complete_detach-keys && return
+	__docker_complete_detach_keys && return
 
 	case "$prev" in
 		--checkpoint)
@@ -3141,7 +3155,7 @@ _docker_swarm_join() {
 	esac
 }
 
-_docker_swarm_join-token() {
+_docker_swarm_join_token() {
 	case "$cur" in
 		-*)
 			COMPREPLY=( $( compgen -W "--help --quiet -q --rotate" -- "$cur" ) )
@@ -3171,7 +3185,7 @@ _docker_swarm_unlock() {
 	esac
 }
 
-_docker_swarm_unlock-key() {
+_docker_swarm_unlock_key() {
 	case "$cur" in
 		-*)
 			COMPREPLY=( $( compgen -W "--help --quiet -q --rotate" -- "$cur" ) )
@@ -4289,7 +4303,7 @@ _docker() {
 		command_pos=0
 	fi
 
-	local completions_func=_docker_${command}
+	local completions_func=_docker_${command//-/_}
 	declare -F $completions_func >/dev/null && $completions_func
 
 	eval "$previous_extglob_setting"

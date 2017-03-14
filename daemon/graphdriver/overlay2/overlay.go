@@ -30,7 +30,7 @@ import (
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
-	"github.com/docker/go-units"
+	units "github.com/docker/go-units"
 
 	"github.com/opencontainers/runc/libcontainer/label"
 )
@@ -170,7 +170,7 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		return nil, err
 	}
 	if !supportsDType {
-		// not a fatal error until v1.16 (#27443)
+		// not a fatal error until v17.12 (#27443)
 		logrus.Warn(overlayutils.ErrDTypeNotSupported("overlay2", backingFs))
 	}
 
@@ -553,7 +553,17 @@ func (d *Driver) Get(id string, mountLabel string) (s string, err error) {
 
 // Put unmounts the mount path created for the give id.
 func (d *Driver) Put(id string) error {
-	mountpoint := path.Join(d.dir(id), "merged")
+	dir := d.dir(id)
+	_, err := ioutil.ReadFile(path.Join(dir, lowerFile))
+	if err != nil {
+		// If no lower, no mount happened and just return directly
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+
+	mountpoint := path.Join(dir, "merged")
 	if count := d.ctr.Decrement(mountpoint); count > 0 {
 		return nil
 	}

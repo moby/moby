@@ -74,7 +74,7 @@ The currently supported filters are:
 * id (network's id)
 * label (`label=<key>` or `label=<key>=<value>`)
 * name (network's name)
-* type (custom|builtin)
+* type (`custom|builtin`)
 
 #### Driver
 

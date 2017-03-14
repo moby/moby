@@ -118,8 +118,6 @@ tags:
       Run new commands inside running containers. See the [command-line reference](https://docs.docker.com/engine/reference/commandline/exec/) for more information.
 
       To exec a command in a container, you first need to create an exec instance, then start it. These two API endpoints are wrapped up in a single command-line command, `docker exec`.
-  - name: "Secret"
-    x-displayName: "Secrets"
   # Swarm things
   - name: "Swarm"
     x-displayName: "Swarm"
@@ -137,6 +135,10 @@ tags:
     x-displayName: "Tasks"
     description: |
       A task is a container running on a swarm. It is the atomic scheduling unit of swarm. Swarm mode must be enabled for these endpoints to work.
+  - name: "Secret"
+    x-displayName: "Secrets"
+    description: |
+      Secrets are sensitive data that can be used by services. Swarm mode must be enabled for these endpoints to work.
   # System things
   - name: "Plugin"
     x-displayName: "Plugins"

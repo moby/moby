@@ -205,17 +205,11 @@ func (r *controller) Start(ctx context.Context) error {
 	}
 
 	// no health check
-	if ctnr.Config == nil || ctnr.Config.Healthcheck == nil {
+	if ctnr.Config == nil || ctnr.Config.Healthcheck == nil || len(ctnr.Config.Healthcheck.Test) == 0 || ctnr.Config.Healthcheck.Test[0] == "NONE" {
 		if err := r.adapter.activateServiceBinding(); err != nil {
 			log.G(ctx).WithError(err).Errorf("failed to activate service binding for container %s which has no healthcheck config", r.adapter.container.name())
 			return err
 		}
-		return nil
-	}
-
-	healthCmd := ctnr.Config.Healthcheck.Test
-
-	if len(healthCmd) == 0 || healthCmd[0] == "NONE" {
 		return nil
 	}
 
