@@ -255,6 +255,12 @@ func unregisterService() error {
 }
 
 func initService(daemonCli *DaemonCli) (bool, error) {
+	if !*flUnregisterService {
+		if !*flRegisterService {
+			return true, errors.New("--register-service and --unregister-service cannot be both empty")
+		}
+	}
+
 	if *flUnregisterService {
 		if *flRegisterService {
 			return true, errors.New("--register-service and --unregister-service cannot be used together")
