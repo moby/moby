@@ -6,7 +6,9 @@ import (
 
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/cli/command/formatter"
 	"github.com/docker/go-connections/nat"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )
@@ -38,6 +40,9 @@ func NewPortCommand(dockerCli *command.DockerCli) *cobra.Command {
 
 func runPort(dockerCli *command.DockerCli, opts *portOptions) error {
 	ctx := context.Background()
+	portCtx := formatter.Context{
+		Output: dockerCli.Out(),
+	}
 
 	c, err := dockerCli.Client().ContainerInspect(ctx, opts.container)
 	if err != nil {
@@ -48,6 +53,7 @@ func runPort(dockerCli *command.DockerCli, opts *portOptions) error {
 		port := opts.port
 		proto := "tcp"
 		parts := strings.SplitN(port, "/", 2)
+		portCtx.Format = formatter.Format("{{.HostIP}}:{{.HostPort}}")
 
 		if len(parts) == 2 && len(parts[1]) != 0 {
 			port = parts[0]
@@ -58,20 +64,18 @@ func runPort(dockerCli *command.DockerCli, opts *portOptions) error {
 		if err != nil {
 			return err
 		}
-		if frontends, exists := c.NetworkSettings.Ports[newP]; exists && frontends != nil {
-			for _, frontend := range frontends {
-				fmt.Fprintf(dockerCli.Out(), "%s:%s\n", frontend.HostIP, frontend.HostPort)
-			}
-			return nil
+		if frontends, exists := c.NetworkSettings.Ports[newP]; exists && len(frontends) > 0 {
+			return formatter.PortWrite(portCtx, frontends)
 		}
 		return fmt.Errorf("Error: No public port '%s' published for %s", natPort, opts.container)
 	}
 
+	var allErr error
 	for from, frontends := range c.NetworkSettings.Ports {
-		for _, frontend := range frontends {
-			fmt.Fprintf(dockerCli.Out(), "%s -> %s:%s\n", from, frontend.HostIP, frontend.HostPort)
+		portCtx.Format = formatter.Format(fmt.Sprintf("%s -> {{.HostIP}}:{{.HostPort}}", from))
+		if fErr := formatter.PortWrite(portCtx, frontends); fErr != nil {
+			allErr = errors.Wrap(allErr, fErr.Error())
 		}
 	}
-
-	return nil
+	return allErr
 }
