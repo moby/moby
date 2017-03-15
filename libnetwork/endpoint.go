@@ -519,6 +519,14 @@ func (ep *endpoint) sbJoin(sb *sandbox, options ...EndpointOption) error {
 		return err
 	}
 
+	defer func() {
+		if err != nil {
+			if e := ep.deleteDriverInfoFromCluster(); e != nil {
+				logrus.Errorf("Could not delete endpoint state for endpoint %s from cluster on join failure: %v", ep.Name(), e)
+			}
+		}
+	}()
+
 	if sb.needDefaultGW() && sb.getEndpointInGWNetwork() == nil {
 		return sb.setupDefaultGW()
 	}
