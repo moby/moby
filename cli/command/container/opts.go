@@ -396,8 +396,24 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*container.Config, *c
 		deviceMappings = append(deviceMappings, deviceMapping)
 	}
 
+	// Check if the user passed a wildcard to any `-e` option (e.g.: `-e
+	// FOO_*`) and if they did, replace it with expanded options for each
+	// environment variable that matches the specified pattern.
+	envOpts := copts.env.GetAll()
+	var envOpts2 []string
+
+	for _, envOpt := range envOpts {
+		if strings.Contains(envOpt, "*") {
+			for _, newEnvOpt := range opts.ExpandEnvWildcard(envOpt) {
+				envOpts2 = append(envOpts2, newEnvOpt)
+			}
+		} else {
+			envOpts2 = append(envOpts2, envOpt)
+		}
+	}
+
 	// collect all the environment variables for the container
-	envVariables, err := runconfigopts.ReadKVStrings(copts.envFile.GetAll(), copts.env.GetAll())
+	envVariables, err := runconfigopts.ReadKVStrings(copts.envFile.GetAll(), envOpts2)
 	if err != nil {
 		return nil, nil, nil, err
 	}
