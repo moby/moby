@@ -30,6 +30,7 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) types.ContainerSpec {
 		ReadOnly:   c.ReadOnly,
 		Hosts:      c.Hosts,
 		Secrets:    secretReferencesFromGRPC(c.Secrets),
+		Configs:    configReferencesFromGRPC(c.Configs),
 	}
 
 	if c.DNSConfig != nil {
@@ -137,6 +138,7 @@ func secretReferencesToGRPC(sr []*types.SecretReference) []*swarmapi.SecretRefer
 
 	return refs
 }
+
 func secretReferencesFromGRPC(sr []*swarmapi.SecretReference) []*types.SecretReference {
 	refs := make([]*types.SecretReference, 0, len(sr))
 	for _, s := range sr {
@@ -161,6 +163,54 @@ func secretReferencesFromGRPC(sr []*swarmapi.SecretReference) []*types.SecretRef
 	return refs
 }
 
+func configReferencesToGRPC(sr []*types.ConfigReference) []*swarmapi.ConfigReference {
+	refs := make([]*swarmapi.ConfigReference, 0, len(sr))
+	for _, s := range sr {
+		ref := &swarmapi.ConfigReference{
+			ConfigID:   s.ConfigID,
+			ConfigName: s.ConfigName,
+		}
+		if s.File != nil {
+			ref.Target = &swarmapi.ConfigReference_File{
+				File: &swarmapi.FileTarget{
+					Name: s.File.Name,
+					UID:  s.File.UID,
+					GID:  s.File.GID,
+					Mode: s.File.Mode,
+				},
+			}
+		}
+
+		refs = append(refs, ref)
+	}
+
+	return refs
+}
+
+func configReferencesFromGRPC(sr []*swarmapi.ConfigReference) []*types.ConfigReference {
+	refs := make([]*types.ConfigReference, 0, len(sr))
+	for _, s := range sr {
+		target := s.GetFile()
+		if target == nil {
+			// not a file target
+			logrus.Warnf("config target not a file: config=%s", s.ConfigID)
+			continue
+		}
+		refs = append(refs, &types.ConfigReference{
+			File: &types.ConfigReferenceFileTarget{
+				Name: target.Name,
+				UID:  target.UID,
+				GID:  target.GID,
+				Mode: target.Mode,
+			},
+			ConfigID:   s.ConfigID,
+			ConfigName: s.ConfigName,
+		})
+	}
+
+	return refs
+}
+
 func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 	containerSpec := &swarmapi.ContainerSpec{
 		Image:      c.Image,
@@ -178,6 +228,7 @@ func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 		ReadOnly:   c.ReadOnly,
 		Hosts:      c.Hosts,
 		Secrets:    secretReferencesToGRPC(c.Secrets),
+		Configs:    configReferencesToGRPC(c.Configs),
 	}
 
 	if c.DNSConfig != nil {

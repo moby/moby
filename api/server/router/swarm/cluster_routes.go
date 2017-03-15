@@ -408,3 +408,74 @@ func (sr *swarmRouter) updateSecret(ctx context.Context, w http.ResponseWriter, 
 
 	return nil
 }
+
+func (sr *swarmRouter) getConfigs(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+	filters, err := filters.FromParam(r.Form.Get("filters"))
+	if err != nil {
+		return err
+	}
+
+	configs, err := sr.backend.GetConfigs(basictypes.ConfigListOptions{Filters: filters})
+	if err != nil {
+		return err
+	}
+
+	return httputils.WriteJSON(w, http.StatusOK, configs)
+}
+
+func (sr *swarmRouter) createConfig(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	var config types.ConfigSpec
+	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
+		return err
+	}
+
+	id, err := sr.backend.CreateConfig(config)
+	if err != nil {
+		return err
+	}
+
+	return httputils.WriteJSON(w, http.StatusCreated, &basictypes.ConfigCreateResponse{
+		ID: id,
+	})
+}
+
+func (sr *swarmRouter) removeConfig(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := sr.backend.RemoveConfig(vars["id"]); err != nil {
+		return err
+	}
+	w.WriteHeader(http.StatusNoContent)
+
+	return nil
+}
+
+func (sr *swarmRouter) getConfig(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	config, err := sr.backend.GetConfig(vars["id"])
+	if err != nil {
+		return err
+	}
+
+	return httputils.WriteJSON(w, http.StatusOK, config)
+}
+
+func (sr *swarmRouter) updateConfig(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	var config types.ConfigSpec
+	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
+		return errors.NewBadRequestError(err)
+	}
+
+	rawVersion := r.URL.Query().Get("version")
+	version, err := strconv.ParseUint(rawVersion, 10, 64)
+	if err != nil {
+		return errors.NewBadRequestError(fmt.Errorf("invalid config version"))
+	}
+
+	id := vars["id"]
+	if err := sr.backend.UpdateConfig(id, version, config); err != nil {
+		return err
+	}
+
+	return nil
+}
