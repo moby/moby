@@ -11,7 +11,7 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
-	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 type int64Value interface {
@@ -468,9 +468,7 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 
 // addServiceFlags adds all flags that are common to both `create` and `update`.
 // Any flags that are not common are added separately in the individual command
-func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
-	flags := cmd.Flags()
-
+func addServiceFlags(flags *pflag.FlagSet, opts *serviceOptions) {
 	flags.StringVarP(&opts.workdir, flagWorkdir, "w", "", "Working directory inside the container")
 	flags.StringVarP(&opts.user, flagUser, "u", "", "Username or UID (format: <name|uid>[:<group|gid>])")
 	flags.StringVar(&opts.hostname, flagHostname, "", "Container hostname")
