@@ -11,7 +11,6 @@ import (
 	apierrors "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
-	clustertypes "github.com/docker/docker/daemon/cluster/provider"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/libnetwork"
@@ -19,7 +18,6 @@ import (
 	"github.com/docker/libnetwork/ipamapi"
 	networktypes "github.com/docker/libnetwork/types"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 )
 
 // NetworkControllerEnabled checks if the networking stack is enabled.
@@ -118,112 +116,9 @@ func ingressWait() func() {
 	return func() { <-ingressChan }
 }
 
-// SetupIngress setups ingress networking.
-func (daemon *Daemon) SetupIngress(create clustertypes.NetworkCreateRequest, nodeIP string) error {
-	ip, _, err := net.ParseCIDR(nodeIP)
-	if err != nil {
-		return err
-	}
-
-	go func() {
-		controller := daemon.netController
-		controller.AgentInitWait()
-
-		if n, err := daemon.GetNetworkByName(create.Name); err == nil && n != nil && n.ID() != create.ID {
-			if err := controller.SandboxDestroy("ingress-sbox"); err != nil {
-				logrus.Errorf("Failed to delete stale ingress sandbox: %v", err)
-				return
-			}
-
-			// Cleanup any stale endpoints that might be left over during previous iterations
-			epList := n.Endpoints()
-			for _, ep := range epList {
-				if err := ep.Delete(true); err != nil {
-					logrus.Errorf("Failed to delete endpoint %s (%s): %v", ep.Name(), ep.ID(), err)
-				}
-			}
-
-			if err := n.Delete(); err != nil {
-				logrus.Errorf("Failed to delete stale ingress network %s: %v", n.ID(), err)
-				return
-			}
-		}
-
-		if _, err := daemon.createNetwork(create.NetworkCreateRequest, create.ID, true); err != nil {
-			// If it is any other error other than already
-			// exists error log error and return.
-			if _, ok := err.(libnetwork.NetworkNameError); !ok {
-				logrus.Errorf("Failed creating ingress network: %v", err)
-				return
-			}
-
-			// Otherwise continue down the call to create or recreate sandbox.
-		}
-
-		n, err := daemon.GetNetworkByID(create.ID)
-		if err != nil {
-			logrus.Errorf("Failed getting ingress network by id after creating: %v", err)
-			return
-		}
-
-		sb, err := controller.NewSandbox("ingress-sbox", libnetwork.OptionIngress())
-		if err != nil {
-			if _, ok := err.(networktypes.ForbiddenError); !ok {
-				logrus.Errorf("Failed creating ingress sandbox: %v", err)
-			}
-			return
-		}
-
-		ep, err := n.CreateEndpoint("ingress-endpoint", libnetwork.CreateOptionIpam(ip, nil, nil, nil))
-		if err != nil {
-			logrus.Errorf("Failed creating ingress endpoint: %v", err)
-			return
-		}
-
-		if err := ep.Join(sb, nil); err != nil {
-			logrus.Errorf("Failed joining ingress sandbox to ingress endpoint: %v", err)
-		}
-
-		if err := sb.EnableService(); err != nil {
-			logrus.WithError(err).Error("Failed enabling service for ingress sandbox")
-		}
-	}()
-
-	return nil
-}
-
 // SetNetworkBootstrapKeys sets the bootstrap keys.
 func (daemon *Daemon) SetNetworkBootstrapKeys(keys []*networktypes.EncryptionKey) error {
 	return daemon.netController.SetKeys(keys)
-}
-
-// UpdateAttachment notifies the attacher about the attachment config.
-func (daemon *Daemon) UpdateAttachment(networkName, networkID, containerID string, config *network.NetworkingConfig) error {
-	if daemon.clusterProvider == nil {
-		return fmt.Errorf("cluster provider is not initialized")
-	}
-
-	if err := daemon.clusterProvider.UpdateAttachment(networkName, containerID, config); err != nil {
-		return daemon.clusterProvider.UpdateAttachment(networkID, containerID, config)
-	}
-
-	return nil
-}
-
-// WaitForDetachment makes the cluster manager wait for detachment of
-// the container from the network.
-func (daemon *Daemon) WaitForDetachment(ctx context.Context, networkName, networkID, taskID, containerID string) error {
-	if daemon.clusterProvider == nil {
-		return fmt.Errorf("cluster provider is not initialized")
-	}
-
-	return daemon.clusterProvider.WaitForDetachment(ctx, networkName, networkID, taskID, containerID)
-}
-
-// CreateManagedNetwork creates an agent network.
-func (daemon *Daemon) CreateManagedNetwork(create clustertypes.NetworkCreateRequest) error {
-	_, err := daemon.createNetwork(create.NetworkCreateRequest, create.ID, true)
-	return err
 }
 
 // CreateNetwork creates a network with the given name, driver and other optional parameters
@@ -356,17 +251,6 @@ func getIpamConfig(data []network.IPAMConfig) ([]*libnetwork.IpamConf, []*libnet
 		}
 	}
 	return ipamV4Cfg, ipamV6Cfg, nil
-}
-
-// UpdateContainerServiceConfig updates a service configuration.
-func (daemon *Daemon) UpdateContainerServiceConfig(containerName string, serviceConfig *clustertypes.ServiceConfig) error {
-	container, err := daemon.GetContainer(containerName)
-	if err != nil {
-		return err
-	}
-
-	container.NetworkSettings.Service = serviceConfig
-	return nil
 }
 
 // ConnectContainerToNetwork connects the given container to the given

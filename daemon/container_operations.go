@@ -363,24 +363,8 @@ func (daemon *Daemon) findAndAttachNetwork(container *container.Container, idOrN
 	)
 
 	for {
-		// In all other cases, attempt to attach to the network to
-		// trigger attachment in the swarm cluster manager.
-		if daemon.clusterProvider != nil {
-			var err error
-			config, err = daemon.clusterProvider.AttachNetwork(idOrName, container.ID, addresses)
-			if err != nil {
-				return nil, nil, err
-			}
-		}
-
 		n, err = daemon.FindNetwork(idOrName)
 		if err != nil {
-			if daemon.clusterProvider != nil {
-				if err := daemon.clusterProvider.DetachNetwork(idOrName, container.ID); err != nil {
-					logrus.Warnf("Could not rollback attachment for container %s to network %s: %v", container.ID, idOrName, err)
-				}
-			}
-
 			// Retry network attach again if we failed to
 			// find the network after successfull
 			// attachment because the only reason that
@@ -823,15 +807,6 @@ func (daemon *Daemon) disconnectFromNetwork(container *container.Container, n li
 
 	delete(container.NetworkSettings.Networks, n.Name())
 
-	if daemon.clusterProvider != nil && n.Info().Dynamic() && !container.Managed {
-		if err := daemon.clusterProvider.DetachNetwork(n.Name(), container.ID); err != nil {
-			logrus.Warnf("error detaching from network %s: %v", n.Name(), err)
-			if err := daemon.clusterProvider.DetachNetwork(n.ID(), container.ID); err != nil {
-				logrus.Warnf("error detaching from network %s: %v", n.ID(), err)
-			}
-		}
-	}
-
 	return nil
 }
 
@@ -925,14 +900,6 @@ func (daemon *Daemon) releaseNetwork(container *container.Container) {
 	}
 
 	for _, nw := range networks {
-		if daemon.clusterProvider != nil && nw.Info().Dynamic() && !container.Managed {
-			if err := daemon.clusterProvider.DetachNetwork(nw.Name(), container.ID); err != nil {
-				logrus.Warnf("error detaching from network %s: %v", nw.Name(), err)
-				if err := daemon.clusterProvider.DetachNetwork(nw.ID(), container.ID); err != nil {
-					logrus.Warnf("error detaching from network %s: %v", nw.ID(), err)
-				}
-			}
-		}
 
 		attributes := map[string]string{
 			"container": container.ID,

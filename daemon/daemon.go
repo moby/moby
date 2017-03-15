@@ -29,7 +29,6 @@ import (
 	"github.com/docker/docker/daemon/initlayer"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/plugin"
-	"github.com/docker/libnetwork/cluster"
 	// register graph drivers
 	_ "github.com/docker/docker/daemon/graphdriver/register"
 	dmetadata "github.com/docker/docker/distribution/metadata"
@@ -103,8 +102,6 @@ type Daemon struct {
 	containerd                libcontainerd.Client
 	containerdRemote          libcontainerd.Remote
 	defaultIsolation          containertypes.Isolation // Default isolation mode on Windows
-	clusterProvider           cluster.Provider
-	cluster                   Cluster
 
 	seccompProfile     []byte
 	seccompProfilePath string
@@ -375,25 +372,6 @@ func (daemon *Daemon) restore() error {
 // RestartSwarmContainers restarts any autostart container which has a
 // swarm endpoint.
 func (daemon *Daemon) RestartSwarmContainers() {
-	group := sync.WaitGroup{}
-	for _, c := range daemon.List() {
-		if !c.IsRunning() && !c.IsPaused() {
-			// Autostart all the containers which has a
-			// swarm endpoint now that the cluster is
-			// initialized.
-			if daemon.configStore.AutoRestart && c.ShouldRestart() && c.NetworkSettings.HasSwarmEndpoint {
-				group.Add(1)
-				go func(c *container.Container) {
-					defer group.Done()
-					if err := daemon.containerStart(c, "", "", true); err != nil {
-						logrus.Error(err)
-					}
-				}(c)
-			}
-		}
-
-	}
-	group.Wait()
 }
 
 // waitForNetworks is used during daemon initialization when starting up containers
@@ -446,35 +424,10 @@ func (daemon *Daemon) registerLink(parent, child *container.Container, alias str
 	return nil
 }
 
-// DaemonJoinsCluster informs the daemon has joined the cluster and provides
-// the handler to query the cluster component
-func (daemon *Daemon) DaemonJoinsCluster(clusterProvider cluster.Provider) {
-	daemon.setClusterProvider(clusterProvider)
-}
-
-// DaemonLeavesCluster informs the daemon has left the cluster
-func (daemon *Daemon) DaemonLeavesCluster() {
-	// Daemon is in charge of removing the attachable networks with
-	// connected containers when the node leaves the swarm
-	daemon.clearAttachableNetworks()
-	daemon.setClusterProvider(nil)
-}
-
-// setClusterProvider sets a component for querying the current cluster state.
-func (daemon *Daemon) setClusterProvider(clusterProvider cluster.Provider) {
-	daemon.clusterProvider = clusterProvider
-	// call this in a goroutine to allow netcontroller handle this event async
-	// and not block if it is in the middle of talking with cluster
-	go daemon.netController.SetClusterProvider(clusterProvider)
-}
-
 // IsSwarmCompatible verifies if the current daemon
 // configuration is compatible with the swarm mode
 func (daemon *Daemon) IsSwarmCompatible() error {
-	if daemon.configStore == nil {
-		return nil
-	}
-	return daemon.configStore.isSwarmCompatible()
+	return fmt.Errorf("--live-restore daemon configuration is incompatible with swarm mode")
 }
 
 // NewDaemon sets up everything for the daemon to be able to service
@@ -1146,12 +1099,6 @@ func (daemon *Daemon) reloadClusterDiscovery(config *Config) error {
 		}
 	}
 
-	if daemon.clusterProvider != nil {
-		if err := config.isSwarmCompatible(); err != nil {
-			return err
-		}
-	}
-
 	// check discovery modifications
 	if !modifiedDiscoverySettings(daemon.configStore, newAdvertise, newClusterStore, config.ClusterOpts) {
 		return nil
@@ -1260,16 +1207,6 @@ func copyBlkioEntry(entries []*containerd.BlkioStatsEntry) []types.BlkioStatEntr
 		}
 	}
 	return out
-}
-
-// GetCluster returns the cluster
-func (daemon *Daemon) GetCluster() Cluster {
-	return daemon.cluster
-}
-
-// SetCluster sets the cluster
-func (daemon *Daemon) SetCluster(cluster Cluster) {
-	daemon.cluster = cluster
 }
 
 func (daemon *Daemon) pluginShutdown() {

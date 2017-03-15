@@ -10,9 +10,7 @@ type swarmRouter struct {
 
 // NewRouter initializes a new build router
 func NewRouter(b Backend) router.Router {
-	r := &swarmRouter{
-		backend: b,
-	}
+	r := &swarmRouter{}
 	r.initRoutes()
 	return r
 }

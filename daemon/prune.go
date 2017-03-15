@@ -2,8 +2,6 @@ package daemon
 
 import (
 	"fmt"
-	"regexp"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/api/types"
@@ -187,45 +185,10 @@ func (daemon *Daemon) localNetworksPrune(pruneFilters filters.Args) (*types.Netw
 	return rep, err
 }
 
-// clusterNetworksPrune removes unused cluster networks
-func (daemon *Daemon) clusterNetworksPrune(pruneFilters filters.Args) (*types.NetworksPruneReport, error) {
-	rep := &types.NetworksPruneReport{}
-	cluster := daemon.GetCluster()
-	networks, err := cluster.GetNetworks()
-	if err != nil {
-		return rep, err
-	}
-	networkIsInUse := regexp.MustCompile(`network ([[:alnum:]]+) is in use`)
-	for _, nw := range networks {
-		if nw.Name == "ingress" {
-			continue
-		}
-		// https://github.com/docker/docker/issues/24186
-		// `docker network inspect` unfortunately displays ONLY those containers that are local to that node.
-		// So we try to remove it anyway and check the error
-		err = cluster.RemoveNetwork(nw.ID)
-		if err != nil {
-			// we can safely ignore the "network .. is in use" error
-			match := networkIsInUse.FindStringSubmatch(err.Error())
-			if len(match) != 2 || match[1] != nw.ID {
-				logrus.Warnf("could not remove network %s: %v", nw.Name, err)
-			}
-			continue
-		}
-		rep.NetworksDeleted = append(rep.NetworksDeleted, nw.Name)
-	}
-	return rep, nil
-}
-
 // NetworksPrune removes unused networks
 func (daemon *Daemon) NetworksPrune(pruneFilters filters.Args) (*types.NetworksPruneReport, error) {
 	rep := &types.NetworksPruneReport{}
-	clusterRep, err := daemon.clusterNetworksPrune(pruneFilters)
-	if err != nil {
-		logrus.Warnf("could not remove cluster networks: %v", err)
-	} else {
-		rep.NetworksDeleted = append(rep.NetworksDeleted, clusterRep.NetworksDeleted...)
-	}
+	rep.NetworksDeleted = rep.NetworksDeleted
 	localRep, err := daemon.localNetworksPrune(pruneFilters)
 	if err != nil {
 		logrus.Warnf("could not remove local networks: %v", err)
