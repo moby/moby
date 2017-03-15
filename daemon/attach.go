@@ -73,7 +73,7 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, c *backend.ContainerA
 }
 
 // ContainerAttachRaw attaches the provided streams to the container's stdio
-func (daemon *Daemon) ContainerAttachRaw(prefixOrName string, stdin io.ReadCloser, stdout, stderr io.Writer, doStream bool) error {
+func (daemon *Daemon) ContainerAttachRaw(prefixOrName string, stdin io.ReadCloser, stdout, stderr io.Writer, doStream bool, attached chan struct{}) error {
 	container, err := daemon.GetContainer(prefixOrName)
 	if err != nil {
 		return err
@@ -86,6 +86,7 @@ func (daemon *Daemon) ContainerAttachRaw(prefixOrName string, stdin io.ReadClose
 		CloseStdin: container.Config.StdinOnce,
 	}
 	container.StreamConfig.AttachStreams(&cfg)
+	close(attached)
 	if cfg.UseStdin {
 		cfg.Stdin = stdin
 	}
