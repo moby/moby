@@ -36,7 +36,7 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, c *backend.ContainerA
 	}
 
 	cfg := stream.AttachConfig{
-		UseStdin:   c.UseStdin && container.Config.OpenStdin,
+		UseStdin:   c.UseStdin,
 		UseStdout:  c.UseStdout,
 		UseStderr:  c.UseStderr,
 		TTY:        container.Config.Tty,
@@ -79,7 +79,7 @@ func (daemon *Daemon) ContainerAttachRaw(prefixOrName string, stdin io.ReadClose
 		return err
 	}
 	cfg := stream.AttachConfig{
-		UseStdin:   stdin != nil && container.Config.OpenStdin,
+		UseStdin:   stdin != nil,
 		UseStdout:  stdout != nil,
 		UseStderr:  stderr != nil,
 		TTY:        container.Config.Tty,
@@ -145,6 +145,10 @@ func (daemon *Daemon) containerAttach(c *container.Container, cfg *stream.Attach
 			io.Copy(w, stdin)
 		}(cfg.Stdin)
 		cfg.Stdin = r
+	}
+
+	if !c.Config.OpenStdin {
+		cfg.Stdin = nil
 	}
 
 	waitChan := make(chan struct{})
