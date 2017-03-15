@@ -18,12 +18,13 @@ import (
 const name = "journald"
 
 type journald struct {
+	mu      sync.Mutex
 	vars    map[string]string // additional variables and values to send to the journal along with the log message
 	readers readerList
+	closed  bool
 }
 
 type readerList struct {
-	mu      sync.Mutex
 	readers map[*logger.LogWatcher]*logger.LogWatcher
 }
 
