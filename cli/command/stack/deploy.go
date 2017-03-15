@@ -3,8 +3,10 @@ package stack
 import (
 	"fmt"
 
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/cli/compose/convert"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
@@ -19,6 +21,7 @@ type deployOptions struct {
 	composefile      string
 	namespace        string
 	sendRegistryAuth bool
+	prune            bool
 }
 
 func newDeployCommand(dockerCli *command.DockerCli) *cobra.Command {
@@ -39,6 +42,8 @@ func newDeployCommand(dockerCli *command.DockerCli) *cobra.Command {
 	addBundlefileFlag(&opts.bundlefile, flags)
 	addComposefileFlag(&opts.composefile, flags)
 	addRegistryAuthFlag(&opts.sendRegistryAuth, flags)
+	flags.BoolVar(&opts.prune, "prune", false, "Prune services that are no longer referenced")
+	flags.SetAnnotation("prune", "version", []string{"1.27"})
 	return cmd
 }
 
@@ -70,4 +75,23 @@ func checkDaemonIsSwarmManager(ctx context.Context, dockerCli *command.DockerCli
 		return errors.New("This node is not a swarm manager. Use \"docker swarm init\" or \"docker swarm join\" to connect this node to swarm and try again.")
 	}
 	return nil
+}
+
+// pruneServices removes services that are no longer referenced in the source
+func pruneServices(ctx context.Context, dockerCli command.Cli, namespace convert.Namespace, services map[string]struct{}) bool {
+	client := dockerCli.Client()
+
+	oldServices, err := getServices(ctx, client, namespace.Name())
+	if err != nil {
+		fmt.Fprintf(dockerCli.Err(), "Failed to list services: %s", err)
+		return true
+	}
+
+	pruneServices := []swarm.Service{}
+	for _, service := range oldServices {
+		if _, exists := services[namespace.Descope(service.Spec.Name)]; !exists {
+			pruneServices = append(pruneServices, service)
+		}
+	}
+	return removeServices(ctx, dockerCli, pruneServices)
 }
