@@ -33,7 +33,7 @@ func (m *MockBackend) PullOnBuild(ctx context.Context, name string, authConfigs 
 	return nil, nil
 }
 
-func (m *MockBackend) ContainerAttachRaw(cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool) error {
+func (m *MockBackend) ContainerAttachRaw(cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool, attached chan struct{}) error {
 	return nil
 }
 
