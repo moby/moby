@@ -10,6 +10,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+const defaultSocketGroup = "docker"
+
 func lookupGID(name string) (int, error) {
 	groupFile, err := user.GetGroupPath()
 	if err != nil {
