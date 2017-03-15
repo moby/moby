@@ -27,10 +27,18 @@ Options:
       --no-trunc        Do not truncate output
 ```
 
+## Description
+
 Lists the tasks that are running as part of the specified stack. This
 command has to be run targeting a manager node.
 
-## Filtering
+## Examples
+
+```bash
+$ docker stack ps
+```
+
+### Filtering
 
 The filtering flag (`-f` or `--filter`) format is a `key=value` pair. If there
 is more than one filter, then pass multiple flags (e.g. `--filter "foo=bar" --filter "bif=baz"`).
@@ -43,7 +51,7 @@ The currently supported filters are:
 * name
 * desired-state
 
-## Related information
+## Related commands
 
 * [stack deploy](stack_deploy.md)
 * [stack ls](stack_ls.md)

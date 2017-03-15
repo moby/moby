@@ -24,6 +24,8 @@ Options:
       --help                    Print usage
 ```
 
+## Description
+
 Change settings for a plugin. The plugin must be disabled.
 
 The settings currently supported are:
@@ -32,11 +34,16 @@ The settings currently supported are:
  * path of devices
  * args
 
+## Examples
+
+### Change an environment variable
+
 The following example change the env variable `DEBUG` on the
 `sample-volume-plugin` plugin.
 
 ```bash
 $ docker plugin inspect -f {{.Settings.Env}} tiborvass/sample-volume-plugin
+
 [DEBUG=0]
 
 $ docker plugin set tiborvass/sample-volume-plugin DEBUG=1
@@ -44,6 +51,8 @@ $ docker plugin set tiborvass/sample-volume-plugin DEBUG=1
 $ docker plugin inspect -f {{.Settings.Env}} tiborvass/sample-volume-plugin
 [DEBUG=1]
 ```
+
+### Change the source of a mount
 
 The following example change the source of the `mymount` mount on
 the `myplugin` plugin.
@@ -58,7 +67,10 @@ $ docker plugin inspect -f '{{with $mount := index .Settings.Mounts 0}}{{$mount.
 /bar
 ```
 
-Note: since only `source` is settable in `mymount`, `docker plugins set mymount=/bar myplugin` would work too.
+> **Note**: Since only `source` is settable in `mymount`,
+> `docker plugins set mymount=/bar myplugin` would work too.
+
+### Change a device path
 
 The following example change the path of the `mydevice` device on
 the `myplugin` plugin.
@@ -73,7 +85,10 @@ $ docker plugin inspect -f '{{with $device := index .Settings.Devices 0}}{{$devi
 /dev/bar
 ```
 
-Note: since only `path` is settable in `mydevice`, `docker plugins set mydevice=/dev/bar myplugin` would work too.
+> **Note**: Since only `path` is settable in `mydevice`,
+> `docker plugins set mydevice=/dev/bar myplugin` would work too.
+
+### Change the source of the arguments
 
 The following example change the source of the args on the `myplugin` plugin.
 
@@ -87,7 +102,7 @@ $ docker plugin inspect -f '{{.Settings.Args}}' myplugin
 ["foo", "bar", "baz"]
 ```
 
-## Related information
+## Related commands
 
 * [plugin create](plugin_create.md)
 * [plugin disable](plugin_disable.md)

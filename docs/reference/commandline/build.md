@@ -58,6 +58,8 @@ Options:
       --ulimit value            Ulimit options (default [])
 ```
 
+## Description
+
 Builds Docker images from a Dockerfile and a "context". A build's context is
 the files located in the specified `PATH` or `URL`. The build process can refer
 to any of the files in the context. For example, your build can use an
@@ -108,9 +110,6 @@ Build Syntax Suffix             | Commit Used           | Build Context Used
 ### Tarball contexts
 
 If you pass an URL to a remote tarball, the URL itself is sent to the daemon:
-
-Instead of specifying a context, you can pass a single Dockerfile in the `URL`
-or pipe the file in via `STDIN`. To pipe a Dockerfile from `STDIN`:
 
 ```bash
 $ docker build http://server/context.tar.gz
@@ -285,7 +284,7 @@ $ docker build - < context.tar.gz
 This will build an image for a compressed context read from `STDIN`.  Supported
 formats are: bzip2, gzip and xz.
 
-### Usage of .dockerignore
+### Use a .dockerignore file
 
 ```bash
 $ docker build .
@@ -315,7 +314,7 @@ directory from the context. Its effect can be seen in the changed size of the
 uploaded context. The builder reference contains detailed information on
 [creating a .dockerignore file](../builder.md#dockerignore-file)
 
-### Tag image (-t)
+### Tag an image (-t)
 
 ```bash
 $ docker build -t vieux/apache:2.0 .
@@ -334,7 +333,7 @@ For example, to tag an image both as `whenry/fedora-jboss:latest` and
 ```bash
 $ docker build -t whenry/fedora-jboss:latest -t whenry/fedora-jboss:v2.1 .
 ```
-### Specify Dockerfile (-f)
+### Specify a Dockerfile (-f)
 
 ```bash
 $ docker build -f Dockerfile.debug .
@@ -373,7 +372,7 @@ the command line.
 > repeatable builds on remote Docker hosts. This is also the reason why
 > `ADD ../file` will not work.
 
-### Optional parent cgroup (--cgroup-parent)
+### Use a custom parent cgroup (--cgroup-parent)
 
 When `docker build` is run with the `--cgroup-parent` option the containers
 used in the build will be run with the [corresponding `docker run`

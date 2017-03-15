@@ -13,7 +13,7 @@ keywords: "resources, update, dynamically"
      will be rejected.
 -->
 
-## update
+# update
 
 ```markdown
 Usage:  docker node update [OPTIONS] NODE
@@ -28,6 +28,12 @@ Options:
       --role string           Role of the node (worker/manager)
 ```
 
+## Description
+
+Update metadata about a node, such as its availability, labels, or roles.
+
+## Examples
+
 ### Add label metadata to a node
 
 Add metadata to a swarm node using node labels. You can specify a node label as
@@ -39,7 +45,7 @@ $ docker node update --label-add foo worker1
 
 To add multiple labels to a node, pass the `--label-add` flag for each label:
 
-``` bash
+```bash
 $ docker node update --label-add foo --label-add bar worker1
 ```
 
@@ -61,7 +67,7 @@ entity within the swarm. Do not confuse them with the docker daemon labels for
 For more information about labels, refer to [apply custom
 metadata](https://docs.docker.com/engine/userguide/labels-custom-metadata/).
 
-## Related information
+## Related commands
 
 * [node demote](node_demote.md)
 * [node inspect](node_inspect.md)

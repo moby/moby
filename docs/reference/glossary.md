@@ -32,6 +32,28 @@ An image that has no parent is a **base image**.
 [boot2docker](http://boot2docker.io/) is a lightweight Linux distribution made
 specifically to run Docker containers. The boot2docker management tool for Mac and Windows was deprecated and replaced by [`docker-machine`](#machine) which you can install with the Docker Toolbox.
 
+## bridge
+
+In terms of generic networking, a bridge is a Link Layer device which forwards
+traffic between network segments. A bridge can be a hardware device or a
+software device running within a host machine's kernel.
+
+In terms of Docker, a bridge network uses a software bridge which allows
+containers connected to the same bridge network to communicate, while providing
+isolation from containers which are not connected to that bridge network.
+The Docker bridge driver automatically installs rules in the host machine so
+that containers on different bridge networks cannot communicate directly with
+each other.
+
+The default bridge network, which is also named `bridge`, behaves differently
+from user-defined bridge networks. Containers connected to the default `bridge`
+network can communicate with each other across the bridge by IP address but
+cannot resolve each other's container name to an IP address unless they are
+explicitly linked using the `--link` flag to `docker run`.
+
+For more information about Docker networking, see
+[Understand container communication](https://docs.docker.com/engine/userguide/networking/default_network/container-communication/).
+
 ## btrfs
 
 btrfs (B-tree file system) is a Linux [filesystem](#filesystem) that Docker
@@ -61,6 +83,28 @@ application up in a single command which does everything that needs to
 be done to get it running.
 
 *Also known as : docker-compose, fig*
+
+## copy-on-write
+
+Docker uses a
+[copy-on-write](https://docs.docker.com/engine/userguide/storagedriver/imagesandcontainers/#/the-copy-on-write-strategy)
+technique and a [union file system](#union-file-system) for both images and
+containers to optimize resources and speed performance. Multiple copies of an
+entity share the same instance and each one makes only specific changes to its
+unique layer.
+
+Multiple containers can share access to the same image, and make
+container-specific changes on a writable layer which is deleted when
+the container is removed. This speeds up container start times and performance.
+
+Images are essentially layers of filesystems typically predicated on a base
+image under a writable layer, and built up with layers of differences from the
+base image. This minimizes the footprint of the image and enables shared
+development.
+
+For more about copy-on-write in the context of Docker, see [Understand images,
+containers, and storage
+drivers](https://docs.docker.com/engine/userguide/storagedriver/imagesandcontainers/).
 
 ## container
 
@@ -92,6 +136,29 @@ The term Docker can refer to
 develop, ship, and run applications
 - The docker daemon process running on the host which manages images and containers
 
+
+## Docker for Mac
+
+[Docker for Mac](https://docs.docker.com/docker-for-mac/) is an easy-to-install,
+lightweight Docker development environment designed specifically for the Mac. A
+native Mac application, Docker for Mac uses the macOS Hypervisor framework,
+networking, and filesystem. It's the best solution if you want to build, debug,
+test, package, and ship Dockerized applications on a Mac. Docker for Mac
+supersedes [Docker Toolbox](#toolbox) as state-of-the-art Docker on macOS.
+
+
+## Docker for Windows
+
+[Docker for Windows](https://docs.docker.com/docker-for-windows/) is an
+easy-to-install, lightweight Docker development environment designed
+specifically for Windows 10 systems that support Microsoft Hyper-V
+(Professional, Enterprise and Education). Docker for Windows uses Hyper-V for
+virtualization, and runs as a native Windows app. It works with Windows Server
+2016, and gives you the ability to set up and run Windows containers as well as
+the standard Linux containers, with an option to switch between the two. Docker
+for Windows is the best solution if you want to build, debug, test, package, and
+ship Dockerized applications from Windows machines. Docker for Windows
+supersedes [Docker Toolbox](#toolbox) as state-of-the-art Docker on Windows.
 
 ## Docker Hub
 
@@ -264,15 +331,36 @@ containers.
 
 ## Toolbox
 
-Docker Toolbox is the installer for Mac and Windows users.
+[Docker Toolbox](https://docs.docker.com/toolbox/overview/) is a legacy
+installer for Mac and Windows users. It uses Oracle VirtualBox for
+virtualization.
 
+For Macs running OS X El Capitan 10.11 and newer macOS releases, [Docker for
+Mac](https://docs.docker.com/docker-for-mac/) is the better solution.
+
+For Windows 10 systems that support Microsoft Hyper-V (Professional, Enterprise
+and Education), [Docker for
+Windows](https://docs.docker.com/docker-for-windows/) is the better solution.
 
 ## Union file system
 
-Union file systems, or UnionFS, are file systems that operate by creating layers, making them
-very lightweight and fast. Docker uses union file systems to provide the building
-blocks for containers.
+Union file systems implement a [union
+mount](https://en.wikipedia.org/wiki/Union_mount) and operate by creating
+layers. Docker uses union file systems in conjunction with
+[copy-on-write](#copy-on-write) techniques to provide the building blocks for
+containers, making them very lightweight and fast.
 
+For more on Docker and union file systems, see [Docker and AUFS in
+practice](https://docs.docker.com/engine/userguide/storagedriver/aufs-driver/),
+[Docker and Btrfs in
+practice](https://docs.docker.com/engine/userguide/storagedriver/btrfs-driver/),
+and [Docker and OverlayFS in
+practice](https://docs.docker.com/engine/userguide/storagedriver/overlayfs-driver/)
+
+Example implementations of union file systems are
+[UnionFS](https://en.wikipedia.org/wiki/UnionFS),
+[AUFS](https://en.wikipedia.org/wiki/Aufs), and
+[Btrfs](https://btrfs.wiki.kernel.org/index.php/Main_Page).
 
 ## virtual machine
 

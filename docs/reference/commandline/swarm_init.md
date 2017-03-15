@@ -34,9 +34,12 @@ Options:
       --task-history-limit int          Task history retention limit (default 5)
 ```
 
+## Description
+
 Initialize a swarm. The docker engine targeted by this command becomes a manager
 in the newly created single-node swarm.
 
+## Examples
 
 ```bash
 $ docker swarm init --advertise-addr 192.168.99.121
@@ -133,7 +136,17 @@ Snapshots compact the Raft log and allow for more efficient transfer of the
 state to new managers. However, there is a performance cost to taking snapshots
 frequently.
 
-## Related information
+### `--availability`
+
+This flag specifies the availability of the node at the time the node joins a master.
+Possible availability values are `active`, `pause`, or `drain`.
+
+This flag is useful in certain situations. For example, a cluster may want to have
+dedicated manager nodes that are not served as worker nodes. This could be achieved
+by passing `--availability=drain` to `docker swarm init`.
+
+
+## Related commands
 
 * [swarm join](swarm_join.md)
 * [swarm leave](swarm_leave.md)

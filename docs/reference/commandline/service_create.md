@@ -68,6 +68,8 @@ Options:
   -w, --workdir string                   Working directory inside the container
 ```
 
+## Description
+
 Creates a service as described by the specified parameters. You must run this
 command on a manager node.
 
@@ -77,12 +79,15 @@ command on a manager node.
 
 ```bash
 $ docker service create --name redis redis:3.0.6
+
 dmu1ept4cxcfe8k8lhtux3ro3
 
 $ docker service create --mode global --name redis2 redis:3.0.6
+
 a8q9dasaafudfs8q8w32udass
 
 $ docker service ls
+
 ID            NAME    MODE        REPLICAS  IMAGE
 dmu1ept4cxcf  redis   replicated  1/1       redis:3.0.6
 a8q9dasaafud  redis2  global      1/1       redis:3.0.6
@@ -95,6 +100,7 @@ service. The following command creates a `redis` service with `5` replica tasks:
 
 ```bash
 $ docker service create --name redis --replicas=5 redis:3.0.6
+
 4cdgfyky7ozwh3htjfw0d12qv
 ```
 
@@ -108,6 +114,7 @@ number of `RUNNING` tasks is `3`:
 
 ```bash
 $ docker service ls
+
 ID            NAME   MODE        REPLICAS  IMAGE
 4cdgfyky7ozw  redis  replicated  3/5       redis:3.0.7
 ```
@@ -117,11 +124,13 @@ equal to the desired number:
 
 ```bash
 $ docker service ls
+
 ID            NAME   MODE        REPLICAS  IMAGE
 4cdgfyky7ozw  redis  replicated  5/5       redis:3.0.7
 ```
 
 ### Create a service with secrets
+
 Use the `--secret` flag to give a container access to a
 [secret](secret_create.md).
 
@@ -129,6 +138,7 @@ Create a service specifying a secret:
 
 ```bash
 $ docker service create --name redis --secret secret.json redis:3.0.6
+
 4cdgfyky7ozwh3htjfw0d12qv
 ```
 
@@ -139,6 +149,7 @@ $ docker service create --name redis \
     --secret source=ssh-key,target=ssh \
     --secret source=app-key,target=app,uid=1000,gid=1001,mode=0400 \
     redis:3.0.6
+
 4cdgfyky7ozwh3htjfw0d12qv
 ```
 
@@ -172,12 +183,15 @@ This sets environmental variables for all tasks in a service. For example:
 $ docker service create --name redis_2 --replicas 5 --env MYVAR=foo redis:3.0.6
 ```
 
-### Create a docker service with specific hostname (--hostname)
+### Create a service with specific hostname (--hostname)
 
-This option sets the docker service containers hostname to a specific string. For example:
+This option sets the docker service containers hostname to a specific string.
+For example:
+
 ```bash
 $ docker service create --name redis --hostname myredis redis:3.0.6
 ```
+
 ### Set metadata on a service (-l, --label)
 
 A label is a `key=value` pair that applies metadata to a service. To label a
@@ -201,7 +215,7 @@ or write from files or directories on other containers or the host operating
 system. These types are _data volumes_ (often referred to simply as volumes) and
 _bind-mounts_.
 
-Additionally, Docker also supports tmpfs mounts.
+Additionally, Docker supports `tmpfs` mounts.
 
 A **bind-mount** makes a file or directory on the host available to the
 container it is mounted within. A bind-mount may be either read-only or
@@ -235,12 +249,69 @@ For more information about named volumes, see
 The following table describes options which apply to both bind-mounts and named
 volumes in a service:
 
-| Option                                   | Required                  | Description
-|:-----------------------------------------|:--------------------------|:-----------------------------------------------------------------------------------------
-| **type**                                 |                           | The type of mount, can be either `volume`, `bind`, or `tmpfs`. Defaults to `volume` if no type is specified.<ul><li>`volume`: mounts a [managed volume](volume_create.md) into the container.</li><li>`bind`: bind-mounts a directory or file from the host into the container.</li><li>`tmpfs`: mount a tmpfs in the container</li></ul>
-| **src** or **source**                    | for `type=bind`&nbsp;only | <ul><li>`type=volume`: `src` is an optional way to specify the name of the volume (for example, `src=my-volume`). If the named volume does not exist, it is automatically created. If no `src` is specified, the volume is assigned a random name which is guaranteed to be unique on the host, but may not be unique cluster-wide. A randomly-named volume has the same lifecycle as its container and is destroyed when the *container* is destroyed (which is upon `service update`, or when scaling or re-balancing the service).</li><li>`type=bind`: `src` is required, and specifies an absolute path to the file or directory to bind-mount (for example, `src=/path/on/host/`).  An error is produced if the file or directory does not exist.</li><li>`type=tmpfs`: `src` is not supported.</li></ul>
-| **dst** or **destination** or **target** | yes                       | Mount path inside the container, for example `/some/path/in/container/`. If the path does not exist in the container's filesystem, the Engine creates a directory at the specified location before mounting the volume or bind-mount.
-| **readonly** or **ro**                   |                           | The Engine mounts binds and volumes `read-write` unless `readonly` option is given when mounting the bind or volume.<br /><br /><ul><li>`true` or `1` or no value: Mounts the bind or volume read-only.</li><li>`false` or `0`: Mounts the bind or volume read-write.</li></ul>
+<table>
+  <tr>
+    <th>Option</th>
+    <th>Required</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><b>types</b></td>
+    <td></td>
+    <td>
+      <p>The type of mount, can be either <tt>volume</tt>, <tt>bind</tt>, or <tt>tmpfs</tt>. Defaults to <tt>volume</tt> if no type is specified.
+      <ul>
+        <li><tt>volume</tt>: mounts a [managed volume](volume_create.md) into the container.</li>
+        <li><tt>bind</tt>: bind-mounts a directory or file from the host into the container.</li>
+        <li><tt>tmpfs</tt>: mount a tmpfs in the container</li>
+      </ul></p>
+    </td>
+  </tr>
+  <tr>
+    <td><b>src</b> or <b>source</b></td>
+    <td>for <tt>type=bind</tt> only></td>
+    <td>
+      <ul>
+        <li>
+         <tt>type=volume</tt>: <tt>src</tt> is an optional way to specify the name of the volume (for example, <tt>src=my-volume</tt>).
+          If the named volume does not exist, it is automatically created. If no <tt>src</tt> is specified, the volume is
+          assigned a random name which is guaranteed to be unique on the host, but may not be unique cluster-wide.
+          A randomly-named volume has the same lifecycle as its container and is destroyed when the <i>container</i>
+          is destroyed (which is upon <tt>service update</tt>, or when scaling or re-balancing the service)
+        </li>
+        <li>
+          <tt>type=bind</tt>: <tt>src</tt> is required, and specifies an absolute path to the file or directory to bind-mount
+          (for example, <tt>src=/path/on/host/</tt>). An error is produced if the file or directory does not exist.
+        </li>
+        <li>
+          <tt>type=tmpfs</tt>: <tt>src</tt> is not supported.
+        </li>
+      </ul>
+    </td>
+  </tr>
+  <tr>
+    <td><p><b>dst</b> or <b>destination</b> or <b>target</b></p></td>
+    <td>yes</td>
+    <td>
+      <p>Mount path inside the container, for example <tt>/some/path/in/container/</tt>.
+      If the path does not exist in the container's filesystem, the Engine creates
+      a directory at the specified location before mounting the volume or bind-mount.</p>
+    </td>
+  </tr>
+  <tr>
+    <td><p><b>readonly</b> or <b>ro</b></p></td>
+    <td></td>
+    <td>
+      <p>The Engine mounts binds and volumes <tt>read-write</tt> unless <tt>readonly</tt> option
+      is given when mounting the bind or volume.
+      <ul>
+        <li><tt>true</tt> or <tt>1</tt> or no value: Mounts the bind or volume read-only.</li>
+        <li><tt>false</tt> or <tt>0</tt>: Mounts the bind or volume read-write.</li>
+      </ul></p>
+    </td>
+  </tr>
+</table>
+
 
 #### Bind Propagation
 
@@ -280,22 +351,84 @@ For more information about bind propagation, see the
 [Linux kernel documentation for shared subtree](https://www.kernel.org/doc/Documentation/filesystems/sharedsubtree.txt).
 
 #### Options for Named Volumes
+
 The following options can only be used for named volumes (`type=volume`);
 
-| Option                | Description
-|:----------------------|:--------------------------------------------------------------------------------------------------------------------
-| **volume-driver**     | Name of the volume-driver plugin to use for the volume. Defaults to ``"local"``, to use the local volume driver to create the volume if the volume does not exist.
-| **volume-label**      | One or more custom metadata ("labels") to apply to the volume upon creation. For example, `volume-label=mylabel=hello-world,my-other-label=hello-mars`. For more information about labels, refer to [apply custom metadata](https://docs.docker.com/engine/userguide/labels-custom-metadata/).
-| **volume-nocopy**     | By default, if you attach an empty volume to a container, and files or directories already existed at the mount-path in the container (`dst`), the Engine copies those files and directories into the volume, allowing the host to access them. Set `volume-nocopy` to disables copying files from the container's filesystem to the volume and mount the empty volume.<br /><br />A value is optional:<ul><li>`true` or `1`: Default if you do not provide a value. Disables copying.</li><li>`false` or `0`: Enables copying.</li></ul>
-| **volume-opt**        | Options specific to a given volume driver, which will be passed to the driver when creating the volume. Options are provided as a comma-separated list of key/value pairs, for example, `volume-opt=some-option=some-value,some-other-option=some-other-value`. For available options for a given driver, refer to that driver's documentation.
+
+<table>
+  <tr>
+    <th>Option</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><b>volume-driver</b></td>
+    <td>
+      <p>Name of the volume-driver plugin to use for the volume. Defaults to
+      <tt>"local"</tt>, to use the local volume driver to create the volume if the
+      volume does not exist.</p>
+    </td>
+  </tr>
+  <tr>
+    <td><b>volume-label</b></td>
+    <td>
+      One or more custom metadata ("labels") to apply to the volume upon
+      creation. For example,
+      `volume-label=mylabel=hello-world,my-other-label=hello-mars`. For more
+      information about labels, refer to
+      <a href="https://docs.docker.com/engine/userguide/labels-custom-metadata/">apply custom metadata</a>.
+    </td>
+  </tr>
+  <tr>
+    <td><b>volume-nocopy</b></td>
+    <td>
+      By default, if you attach an empty volume to a container, and files or
+      directories already existed at the mount-path in the container (<tt>dst</tt>),
+      the Engine copies those files and directories into the volume, allowing
+      the host to access them. Set `volume-nocopy` to disables copying files
+      from the container's filesystem to the volume and mount the empty volume.
+
+      A value is optional:
+
+      <ul>
+        <li><tt>true</tt> or <tt>1</tt>: Default if you do not provide a value. Disables copying.</li>
+        <li><tt>false</tt> or <tt>0</tt>: Enables copying.</li>
+      </ul>
+    </td>
+  </tr>
+  <tr>
+    <td><b>volume-opt</b></td>
+    <td>
+      Options specific to a given volume driver, which will be passed to the
+      driver when creating the volume. Options are provided as a comma-separated
+      list of key/value pairs, for example,
+      <tt>volume-opt=some-option=some-value,some-other-option=some-other-value</tt>.
+      For available options for a given driver, refer to that driver's
+      documentation.
+    </td>
+  </tr>
+</table>
+
 
 #### Options for tmpfs
+
 The following options can only be used for tmpfs mounts (`type=tmpfs`);
 
-| Option                | Description
-|:----------------------|:--------------------------------------------------------------------------------------------------------------------
-| **tmpfs-size**        | Size of the tmpfs mount in bytes. Unlimited by default in Linux.
-| **tmpfs-mode**        | File mode of the tmpfs in octal. (e.g. `"700"` or `"0700"`.) Defaults to ``"1777"`` in Linux.
+
+<table>
+  <tr>
+    <th>Option</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><b>tmpfs-size</b></td>
+    <td>Size of the tmpfs mount in bytes. Unlimited by default in Linux.</td>
+  </tr>
+  <tr>
+    <td><b>tmpfs-mode</b></td>
+    <td>File mode of the tmpfs in octal. (e.g. <tt>"700"</tt> or <tt>"0700"</tt>.) Defaults to <tt>"1777"</tt> in Linux.</td>
+  </tr>
+</table>
+
 
 #### Differences between "--mount" and "--volume"
 
@@ -303,19 +436,19 @@ The `--mount` flag supports most options that are supported by the `-v`
 or `--volume` flag for `docker run`, with some important exceptions:
 
 - The `--mount` flag allows you to specify a volume driver and volume driver
-    options *per volume*, without creating the volumes in advance. In contrast,
-    `docker run` allows you to specify a single volume driver which is shared
-    by all volumes, using the `--volume-driver` flag.
+  options *per volume*, without creating the volumes in advance. In contrast,
+  `docker run` allows you to specify a single volume driver which is shared
+  by all volumes, using the `--volume-driver` flag.
 
 - The `--mount` flag allows you to specify custom metadata ("labels") for a volume,
-    before the volume is created.
+  before the volume is created.
 
 - When you use `--mount` with `type=bind`, the host-path must refer to an *existing*
-    path on the host. The path will not be created for you and the service will fail
-    with an error if the path does not exist.
+  path on the host. The path will not be created for you and the service will fail
+  with an error if the path does not exist.
 
 - The `--mount` flag does not allow you to relabel a volume with `Z` or `z` flags,
-    which are used for `selinux` labeling.
+  which are used for `selinux` labeling.
 
 #### Create a service using a named volume
 
@@ -398,13 +531,40 @@ constraint expressions. Multiple constraints find nodes that satisfy every
 expression (AND match). Constraints can match node or Docker Engine labels as
 follows:
 
-| node attribute  | matches                   | example                                         |
-|:----------------|:--------------------------|:------------------------------------------------|
-| node.id         | node ID                   | `node.id == 2ivku8v2gvtg4`                      |
-| node.hostname   | node hostname             | `node.hostname != node-2`                       |
-| node.role       | node role: manager        | `node.role == manager`                          |
-| node.labels     | user defined node labels  | `node.labels.security == high`                  |
-| engine.labels   | Docker Engine's labels    | `engine.labels.operatingsystem == ubuntu 14.04` |
+
+<table>
+  <tr>
+    <th>node attribute</th>
+    <th>matches</th>
+    <th>example</th>
+  </tr>
+  <tr>
+    <td><tt>node.id</tt></td>
+    <td>Node ID</td>
+    <td><tt>node.id == 2ivku8v2gvtg4</tt></td>
+  </tr>
+  <tr>
+    <td><tt>node.hostname</tt></td>
+    <td>Node hostname</td>
+    <td><tt>node.hostname != node-2</tt></td>
+  </tr>
+  <tr>
+    <td<tt>node.role</tt></td>
+    <td><tt>node role: manager</tt></td>
+    <td><tt>node.role == manager</tt></td>
+  </tr>
+  <tr>
+    <td><tt>node.labels</tt></td>
+    <td>user defined node labels</td>
+    <td><tt>node.labels.security == high</tt></td>
+  </tr>
+  <tr>
+    <td><tt>engine.labels</tt></td>
+    <td>Docker Engine's labels</td>
+    <td><tt>engine.labels.operatingsystem == ubuntu 14.04</tt></td>
+  </tr>
+</table>
+
 
 `engine.labels` apply to Docker Engine labels like operating system,
 drivers, etc. Swarm administrators add `node.labels` for operational purposes by
@@ -506,7 +666,7 @@ $ docker service create --name dns-cache -p 53:53/udp dns-cache
 ### Create services using templates
 
 You can use templates for some flags of `service create`, using the syntax
-provided by the Go's [text/template](http://golange.org/pkg/text/template/) package.
+provided by the Go's [text/template](http://golang.org/pkg/text/template/) package.
 
 The supported flags are the following :
 
@@ -516,15 +676,42 @@ The supported flags are the following :
 
 Valid placeholders for the Go template are listed below:
 
-Placeholder       | Description
------------------ | --------------------------------------------
-`.Service.ID`     | Service ID
-`.Service.Name`   | Service name
-`.Service.Labels` | Service labels
-`.Node.ID`        | Node ID
-`.Task.ID`        | Task ID
-`.Task.Name`      | Task name
-`.Task.Slot`      | Task slot
+
+<table>
+  <tr>
+    <th>Placeholder</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><tt>.Service.ID</tt></td>
+    <td>Service ID</td>
+  </tr>
+  <tr>
+    <td><tt>.Service.Name</tt></td>
+    <td>Service name</td>
+  </tr>
+  <tr>
+    <td><tt>.Service.Labels</tt></td>
+    <td>Service labels</td>
+  </tr>
+  <tr>
+    <td><tt>.Node.ID</tt></td>
+    <td>Node ID</td>
+  </tr>
+  <tr>
+    <td><tt>.Task.ID</tt></td>
+    <td>Task ID</td>
+  </tr>
+  <tr>
+    <td><tt>.Task.Name</tt></td>
+    <td>Task name</td>
+  </tr>
+  <tr>
+    <td><tt>.Task.Slot</tt></td>
+    <td>Task slot</td>
+  </tr>
+</table>
+
 
 #### Template example
 
@@ -532,18 +719,23 @@ In this example, we are going to set the template of the created containers base
 service's name and the node's ID where it sits.
 
 ```bash
-$ docker service create --name hosttempl --hostname={% raw %}"{{.Node.ID}}-{{.Service.Name}}"{% endraw %} busybox top
+$ docker service create --name hosttempl \
+                        --hostname="{{.Node.ID}}-{{.Service.Name}}"\
+                         busybox top
+
 va8ew30grofhjoychbr6iot8c
 
 $ docker service ps va8ew30grofhjoychbr6iot8c
+
 ID            NAME         IMAGE                                                                                   NODE          DESIRED STATE  CURRENT STATE               ERROR  PORTS
 wo41w8hg8qan  hosttempl.1  busybox:latest@sha256:29f5d56d12684887bdfa50dcd29fc31eea4aaf4ad3bec43daf19026a7ce69912  2e7a8a9c4da2  Running        Running about a minute ago
 
-$ docker inspect --format={% raw %}"{{.Config.Hostname}}"{% endraw %} hosttempl.1.wo41w8hg8qanxwjwsg4kxpprj
+$ docker inspect --format="{{.Config.Hostname}}" hosttempl.1.wo41w8hg8qanxwjwsg4kxpprj
+
 x3ti0erg11rjpg64m75kej2mz-hosttempl
 ```
 
-## Related information
+## Related commands
 
 * [service inspect](service_inspect.md)
 * [service logs](service_logs.md)
