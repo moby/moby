@@ -146,6 +146,9 @@ type Backend interface {
 
 	// SquashImage squashes the fs layers from the provided image down to the specified `to` image
 	SquashImage(from string, to string) (string, error)
+
+	// MountImage returns mounted path with rootfs of an image.
+	MountImage(name string) (string, func() error, error)
 }
 
 // Image represents a Docker image used by the builder.

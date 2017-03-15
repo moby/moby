@@ -69,7 +69,8 @@ type Builder struct {
 	runConfig        *container.Config // runconfig for cmd, run, entrypoint etc.
 	flags            *BFlags
 	tmpContainers    map[string]struct{}
-	image            string // imageID
+	image            string         // imageID
+	imageContexts    *imageContexts // helper for storing contexts from builds
 	noBaseImage      bool
 	maintainer       string
 	cmdSet           bool
@@ -88,12 +89,13 @@ type Builder struct {
 
 // BuildManager implements builder.Backend and is shared across all Builder objects.
 type BuildManager struct {
-	backend builder.Backend
+	backend   builder.Backend
+	pathCache *pathCache // TODO: make this persistent
 }
 
 // NewBuildManager creates a BuildManager.
 func NewBuildManager(b builder.Backend) (bm *BuildManager) {
-	return &BuildManager{backend: b}
+	return &BuildManager{backend: b, pathCache: &pathCache{}}
 }
 
 // BuildFromContext builds a new image from a given context.
@@ -118,6 +120,7 @@ func (bm *BuildManager) BuildFromContext(ctx context.Context, src io.ReadCloser,
 	if err != nil {
 		return "", err
 	}
+	b.imageContexts.cache = bm.pathCache
 	return b.build(pg.StdoutFormatter, pg.StderrFormatter, pg.Output)
 }
 
@@ -147,6 +150,7 @@ func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, back
 			LookingForDirectives: true,
 		},
 	}
+	b.imageContexts = &imageContexts{b: b}
 
 	parser.SetEscapeToken(parser.DefaultEscapeToken, &b.directive) // Assume the default token for escape
 
@@ -239,6 +243,8 @@ func (b *Builder) processLabels() error {
 // * Print a happy message and return the image ID.
 //
 func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (string, error) {
+	defer b.imageContexts.unmount()
+
 	b.Stdout = stdout
 	b.Stderr = stderr
 	b.Output = out

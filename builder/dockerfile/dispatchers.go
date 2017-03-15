@@ -8,7 +8,6 @@ package dockerfile
 // package.
 
 import (
-	"errors"
 	"fmt"
 	"regexp"
 	"runtime"
@@ -25,6 +24,7 @@ import (
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/go-connections/nat"
+	"github.com/pkg/errors"
 )
 
 // ENV foo bar
@@ -169,7 +169,7 @@ func add(b *Builder, args []string, attributes map[string]bool, original string)
 		return err
 	}
 
-	return b.runContextCommand(args, true, true, "ADD")
+	return b.runContextCommand(args, true, true, "ADD", nil)
 }
 
 // COPY foo /path
@@ -181,11 +181,26 @@ func dispatchCopy(b *Builder, args []string, attributes map[string]bool, origina
 		return errAtLeastTwoArguments("COPY")
 	}
 
+	flFrom := b.flags.AddString("from", "")
+
 	if err := b.flags.Parse(); err != nil {
 		return err
 	}
 
-	return b.runContextCommand(args, false, false, "COPY")
+	var contextID *int
+	if flFrom.IsUsed() {
+		var err error
+		context, err := strconv.Atoi(flFrom.Value)
+		if err != nil {
+			return errors.Wrap(err, "from expects an integer value corresponding to the context number")
+		}
+		if err := b.imageContexts.validate(context); err != nil {
+			return err
+		}
+		contextID = &context
+	}
+
+	return b.runContextCommand(args, false, false, "COPY", contextID)
 }
 
 // FROM imagename
@@ -206,6 +221,7 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 	var image builder.Image
 
 	b.resetImageCache()
+	b.imageContexts.new()
 
 	// Windows cannot support a container with no base image.
 	if name == api.NoBaseImageSpecifier {
@@ -227,6 +243,7 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 				return err
 			}
 		}
+		b.imageContexts.update(image.ImageID())
 	}
 	b.from = image
 

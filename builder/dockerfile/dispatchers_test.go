@@ -191,6 +191,7 @@ func TestLabel(t *testing.T) {
 
 func TestFrom(t *testing.T) {
 	b := &Builder{flags: &BFlags{}, runConfig: &container.Config{}, disableCommit: true}
+	b.imageContexts = &imageContexts{b: b}
 
 	err := from(b, []string{"scratch"}, nil, "")
 

@@ -3,6 +3,7 @@ package tarsum
 import (
 	"archive/tar"
 	"errors"
+	"io"
 	"sort"
 	"strconv"
 	"strings"
@@ -20,6 +21,13 @@ const (
 	// VersionDev this constant will be either the latest or an unsettled next-version of the TarSum calculation
 	VersionDev
 )
+
+// WriteV1Header writes a tar header to a writer in V1 tarsum format.
+func WriteV1Header(h *tar.Header, w io.Writer) {
+	for _, elem := range v1TarHeaderSelect(h) {
+		w.Write([]byte(elem[0] + elem[1]))
+	}
+}
 
 // VersionLabelForChecksum returns the label for the given tarsum
 // checksum, i.e., everything before the first `+` character in
