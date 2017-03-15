@@ -458,10 +458,6 @@ If a container is connected to the default bridge network and `linked`
 with other containers, then the container's `/etc/hosts` file is updated
 with the linked container's name.
 
-If the container is connected to user-defined network, the container's
-`/etc/hosts` file is updated with names of all other containers in that
-user-defined network.
-
 > **Note** Since Docker may live update the container’s `/etc/hosts` file, there
 may be situations when processes inside the container can end up reading an
 empty or incomplete `/etc/hosts` file. In most cases, retrying the read again
