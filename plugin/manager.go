@@ -131,15 +131,6 @@ func (pm *Manager) StateChanged(id string, e libcontainerd.StateInfo) error {
 			return err
 		}
 
-		pm.mu.RLock()
-		c := pm.cMap[p]
-
-		if c.exitChan != nil {
-			close(c.exitChan)
-		}
-		restart := c.restart
-		pm.mu.RUnlock()
-
 		os.RemoveAll(filepath.Join(pm.config.ExecRoot, id))
 
 		if p.PropagatedMount != "" {
@@ -151,6 +142,14 @@ func (pm *Manager) StateChanged(id string, e libcontainerd.StateInfo) error {
 				logrus.Warn("Could not unmount %s: %v", propRoot, err)
 			}
 		}
+
+		pm.mu.RLock()
+		c := pm.cMap[p]
+		if c.exitChan != nil {
+			close(c.exitChan)
+		}
+		restart := c.restart
+		pm.mu.RUnlock()
 
 		if restart {
 			pm.enable(p, c, true)
