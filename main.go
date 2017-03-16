@@ -156,7 +156,7 @@ func containersInitrd(containers []*bytes.Buffer) (*bytes.Buffer, error) {
 	return w, nil
 }
 
-func build(m *Moby) {
+func build(m *Moby, name string) {
 	containers := []*bytes.Buffer{}
 
 	// get kernel bzImage and initrd tarball from container
@@ -216,13 +216,7 @@ func build(m *Moby) {
 		log.Fatalf("Failed to make initrd %v", err)
 	}
 
-	base := filepath.Base(conf)
-	ext := filepath.Ext(conf)
-	if ext != "" {
-		base = base[:len(base)-len(ext)]
-	}
-
-	err = outputs(m, base, bzimage.Bytes(), initrd.Bytes())
+	err = outputs(m, name, bzimage.Bytes(), initrd.Bytes())
 	if err != nil {
 		log.Fatalf("Error writing outputs: %v", err)
 	}
@@ -231,15 +225,25 @@ func build(m *Moby) {
 var (
 	conf    string
 	cmdline bool
+	name    string
 )
 
 func main() {
 	flag.BoolVar(&cmdline, "cmdline", false, "Print the kernel command line and exit")
+	flag.StringVar(&name, "name", "", "Name to use for output files")
 	flag.Parse()
 
 	conf = "moby.yaml"
 	if len(flag.Args()) > 0 {
 		conf = flag.Args()[0]
+	}
+
+	if name == "" {
+		name = filepath.Base(conf)
+		ext := filepath.Ext(conf)
+		if ext != "" {
+			name = name[:len(name)-len(ext)]
+		}
 	}
 
 	config, err := ioutil.ReadFile(conf)
@@ -257,5 +261,5 @@ func main() {
 		return
 	}
 
-	build(m)
+	build(m, name)
 }
