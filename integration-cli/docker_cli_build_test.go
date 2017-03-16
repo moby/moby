@@ -4740,6 +4740,94 @@ func (s *DockerSuite) TestBuildBuildTimeArgDefintionWithNoEnvInjection(c *check.
 	}
 }
 
+func (s *DockerSuite) TestBuildBuildTimeArgMultipleFrom(c *check.C) {
+	imgName := "multifrombldargtest"
+	dockerfile := `FROM busybox
+    ARG foo=abc
+    LABEL multifromtest=1
+    RUN env > /out
+    FROM busybox
+    ARG bar=def
+    RUN env > /out`
+
+	result := buildImage(imgName, withDockerfile(dockerfile))
+	result.Assert(c, icmd.Success)
+
+	result = icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "images", "-q", "-f", "label=multifromtest=1"},
+	})
+	result.Assert(c, icmd.Success)
+	parentID := strings.TrimSpace(result.Stdout())
+
+	result = icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "run", "--rm", parentID, "cat", "/out"},
+	})
+	result.Assert(c, icmd.Success)
+	c.Assert(result.Stdout(), checker.Contains, "foo=abc")
+
+	result = icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "run", "--rm", imgName, "cat", "/out"},
+	})
+	result.Assert(c, icmd.Success)
+	c.Assert(result.Stdout(), checker.Not(checker.Contains), "foo")
+	c.Assert(result.Stdout(), checker.Contains, "bar=def")
+}
+
+func (s *DockerSuite) TestBuildBuildTimeFromArgMultipleFrom(c *check.C) {
+	imgName := "multifrombldargtest"
+	dockerfile := `ARG tag=nosuchtag
+    FROM busybox:$tag
+    LABEL multifromtest=1
+    RUN env > /out
+    FROM busybox
+    ARG tag
+    RUN env > /out`
+
+	result := buildImage(imgName, withDockerfile(dockerfile), withBuildFlags(
+		"--build-arg", fmt.Sprintf("tag=latest")))
+	result.Assert(c, icmd.Success)
+
+	result = icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "images", "-q", "-f", "label=multifromtest=1"},
+	})
+	result.Assert(c, icmd.Success)
+	parentID := strings.TrimSpace(result.Stdout())
+
+	result = icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "run", "--rm", parentID, "cat", "/out"},
+	})
+	result.Assert(c, icmd.Success)
+	c.Assert(result.Stdout(), checker.Not(checker.Contains), "tag")
+
+	result = icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "run", "--rm", imgName, "cat", "/out"},
+	})
+	result.Assert(c, icmd.Success)
+	c.Assert(result.Stdout(), checker.Contains, "tag=latest")
+}
+
+func (s *DockerSuite) TestBuildBuildTimeUnusedArgMultipleFrom(c *check.C) {
+	imgName := "multifromunusedarg"
+	dockerfile := `FROM busybox
+    ARG foo
+    FROM busybox
+    ARG bar
+    RUN env > /out`
+
+	result := buildImage(imgName, withDockerfile(dockerfile), withBuildFlags(
+		"--build-arg", fmt.Sprintf("baz=abc")))
+	result.Assert(c, icmd.Success)
+	c.Assert(result.Combined(), checker.Contains, "[Warning]")
+	c.Assert(result.Combined(), checker.Contains, "[baz] were not consumed")
+
+	result = icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "run", "--rm", imgName, "cat", "/out"},
+	})
+	result.Assert(c, icmd.Success)
+	c.Assert(result.Stdout(), checker.Not(checker.Contains), "bar")
+	c.Assert(result.Stdout(), checker.Not(checker.Contains), "baz")
+}
+
 func (s *DockerSuite) TestBuildNoNamedVolume(c *check.C) {
 	volName := "testname:/foo"
 

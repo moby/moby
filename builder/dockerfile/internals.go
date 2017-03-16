@@ -667,3 +667,40 @@ func (b *Builder) parseDockerfile() error {
 
 	return nil
 }
+
+func (b *Builder) getBuildArg(arg string, from bool) (string, bool) {
+	definedArgs := b.allowedBuildArgs
+	if from {
+		definedArgs = b.allowedBuildArgsFrom
+	}
+	defaultValue, defined := definedArgs[arg]
+	_, builtin := BuiltinAllowedBuildArgs[arg]
+	if defined || builtin {
+		if v, ok := b.options.BuildArgs[arg]; ok && v != nil {
+			return *v, ok
+		}
+	}
+	if defaultValue == nil {
+		return "", false
+	}
+	return *defaultValue, defined
+}
+
+func (b *Builder) getBuildArgs() map[string]string {
+	m := make(map[string]string)
+	for arg := range b.options.BuildArgs {
+		v, ok := b.getBuildArg(arg, false)
+		if ok {
+			m[arg] = v
+		}
+	}
+	for arg := range b.allowedBuildArgs {
+		if _, ok := m[arg]; !ok {
+			v, ok := b.getBuildArg(arg, false)
+			if ok {
+				m[arg] = v
+			}
+		}
+	}
+	return m
+}

@@ -71,13 +71,15 @@ type Builder struct {
 	tmpContainers map[string]struct{}
 	image         string // imageID
 	// A flag to track the use of `scratch` as the base image
-	noBaseImage      bool
-	maintainer       string
-	cmdSet           bool
-	disableCommit    bool
-	cacheBusted      bool
-	allowedBuildArgs map[string]bool // list of build-time args that are allowed for expansion/substitution and passing to commands in 'run'.
-	directive        parser.Directive
+	noBaseImage          bool
+	maintainer           string
+	cmdSet               bool
+	disableCommit        bool
+	cacheBusted          bool
+	allowedBuildArgsFrom map[string]*string  // list of build-time args for `FROM` commands
+	allowedBuildArgs     map[string]*string  // list of build-time args that are allowed for expansion/substitution and passing to commands in 'run'.
+	allBuildArgs         map[string]struct{} // list of all build-time args found during parsing of the Dockerfile
+	directive            parser.Directive
 
 	// TODO: remove once docker.Commit can receive a tag
 	id string
@@ -128,22 +130,21 @@ func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, back
 	if config == nil {
 		config = new(types.ImageBuildOptions)
 	}
-	if config.BuildArgs == nil {
-		config.BuildArgs = make(map[string]*string)
-	}
 	ctx, cancel := context.WithCancel(clientCtx)
 	b = &Builder{
-		clientCtx:        ctx,
-		cancel:           cancel,
-		options:          config,
-		Stdout:           os.Stdout,
-		Stderr:           os.Stderr,
-		docker:           backend,
-		context:          buildContext,
-		runConfig:        new(container.Config),
-		tmpContainers:    map[string]struct{}{},
-		id:               stringid.GenerateNonCryptoID(),
-		allowedBuildArgs: make(map[string]bool),
+		clientCtx:            ctx,
+		cancel:               cancel,
+		options:              config,
+		Stdout:               os.Stdout,
+		Stderr:               os.Stderr,
+		docker:               backend,
+		context:              buildContext,
+		runConfig:            new(container.Config),
+		tmpContainers:        map[string]struct{}{},
+		id:                   stringid.GenerateNonCryptoID(),
+		allowedBuildArgs:     make(map[string]*string),
+		allowedBuildArgsFrom: make(map[string]*string),
+		allBuildArgs:         make(map[string]struct{}),
 		directive: parser.Directive{
 			EscapeSeen:           false,
 			LookingForDirectives: true,
@@ -321,7 +322,7 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 func (b *Builder) warnOnUnusedBuildArgs() {
 	leftoverArgs := []string{}
 	for arg := range b.options.BuildArgs {
-		if !b.isBuildArgAllowed(arg) {
+		if _, ok := b.allBuildArgs[arg]; !ok {
 			leftoverArgs = append(leftoverArgs, arg)
 		}
 	}
