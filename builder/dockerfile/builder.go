@@ -287,18 +287,7 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 		}
 	}
 
-	// check if there are any leftover build-args that were passed but not
-	// consumed during build. Return a warning, if there are any.
-	leftoverArgs := []string{}
-	for arg := range b.options.BuildArgs {
-		if !b.isBuildArgAllowed(arg) {
-			leftoverArgs = append(leftoverArgs, arg)
-		}
-	}
-
-	if len(leftoverArgs) > 0 {
-		fmt.Fprintf(b.Stderr, "[Warning] One or more build-args %v were not consumed\n", leftoverArgs)
-	}
+	b.warnOnUnusedBuildArgs()
 
 	if b.image == "" {
 		return "", errors.New("No image was generated. Is your Dockerfile empty?")
@@ -324,6 +313,21 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 
 	fmt.Fprintf(b.Stdout, "Successfully built %s\n", shortImgID)
 	return b.image, nil
+}
+
+// check if there are any leftover build-args that were passed but not
+// consumed during build. Print a warning, if there are any.
+func (b *Builder) warnOnUnusedBuildArgs() {
+	leftoverArgs := []string{}
+	for arg := range b.options.BuildArgs {
+		if !b.isBuildArgAllowed(arg) {
+			leftoverArgs = append(leftoverArgs, arg)
+		}
+	}
+
+	if len(leftoverArgs) > 0 {
+		fmt.Fprintf(b.Stderr, "[Warning] One or more build-args %v were not consumed\n", leftoverArgs)
+	}
 }
 
 // Cancel cancels an ongoing Dockerfile build.
