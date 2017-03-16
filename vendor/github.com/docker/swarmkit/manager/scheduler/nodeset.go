@@ -111,6 +111,10 @@ func (ns *nodeSet) tree(serviceID string, preferences []*api.PlacementPreference
 			tree = next
 		}
 
+		if node.ActiveTasksCountByService != nil {
+			tree.tasks += node.ActiveTasksCountByService[serviceID]
+		}
+
 		if tree.nodeHeap.lessFunc == nil {
 			tree.nodeHeap.lessFunc = nodeLess
 		}
