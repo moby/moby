@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
-  "id": "config_schema_v3.1.json",
+  "id": "config_schema_v3.2.json",
   "type": "object",
   "required": ["version"],
 
