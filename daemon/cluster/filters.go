@@ -45,22 +45,6 @@ func newListNodesFilters(filter filters.Args) (*swarmapi.ListNodesRequest_Filter
 	return f, nil
 }
 
-func newListServicesFilters(filter filters.Args) (*swarmapi.ListServicesRequest_Filters, error) {
-	accepted := map[string]bool{
-		"name":  true,
-		"id":    true,
-		"label": true,
-	}
-	if err := filter.Validate(accepted); err != nil {
-		return nil, err
-	}
-	return &swarmapi.ListServicesRequest_Filters{
-		NamePrefixes: filter.Get("name"),
-		IDPrefixes:   filter.Get("id"),
-		Labels:       runconfigopts.ConvertKVStringsToMap(filter.Get("label")),
-	}, nil
-}
-
 func newListTasksFilters(filter filters.Args, transformFunc func(filters.Args) error) (*swarmapi.ListTasksRequest_Filters, error) {
 	accepted := map[string]bool{
 		"name":          true,

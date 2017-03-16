@@ -27,6 +27,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `POST /build` now accepts `extrahosts` parameter to specify a host to ip mapping to use during the build.
 * `POST /services/create` and `POST /services/(id or name)/update` now accept a `rollback` value for `FailureAction`.
 * `POST /services/create` and `POST /services/(id or name)/update` now accept an optional `RollbackConfig` object which specifies rollback options.
+* `GET /services` now supports a `mode` filter to filter services based on the service mode (either `global` or `replicated`).
 
 ## v1.27 API changes
 
