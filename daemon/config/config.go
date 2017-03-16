@@ -159,6 +159,9 @@ type CommonConfig struct {
 	ValuesSet map[string]interface{}
 
 	Experimental bool `json:"experimental"` // Experimental indicates whether experimental features should be exposed or not
+
+	// enables the pprof http endpoints
+	EnableProfilerEndpoints bool `json:"enable-profiler-endpoints"`
 }
 
 // IsValueSet returns true if a configuration value

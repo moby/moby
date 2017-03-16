@@ -46,6 +46,7 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
 	flags.BoolVar(&conf.Experimental, "experimental", false, "Enable experimental features")
 
 	flags.StringVar(&conf.MetricsAddress, "metrics-addr", "", "Set default address and port to serve the metrics api on")
+	flags.BoolVar(&conf.EnableProfilerEndpoints, "enable-profiler-endpoints", false, "Enables the profiler endpoints")
 
 	conf.MaxConcurrentDownloads = &maxConcurrentDownloads
 	conf.MaxConcurrentUploads = &maxConcurrentUploads
