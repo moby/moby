@@ -55,7 +55,9 @@ func closeNetworkDBInstances(dbs []*NetworkDB) {
 
 func (db *NetworkDB) verifyNodeExistence(t *testing.T, node string, present bool) {
 	for i := 0; i < 80; i++ {
+		db.RLock()
 		_, ok := db.nodes[node]
+		db.RUnlock()
 		if present && ok {
 			return
 		}
@@ -72,7 +74,10 @@ func (db *NetworkDB) verifyNodeExistence(t *testing.T, node string, present bool
 
 func (db *NetworkDB) verifyNetworkExistence(t *testing.T, node string, id string, present bool) {
 	for i := 0; i < 80; i++ {
-		if nn, nnok := db.networks[node]; nnok {
+		db.RLock()
+		nn, nnok := db.networks[node]
+		db.RUnlock()
+		if nnok {
 			n, ok := nn[id]
 			if present && ok {
 				return
