@@ -41,9 +41,6 @@ func UnpackLayer(dest string, layer io.Reader, options *TarOptions) (size int64,
 	aufsTempdir := ""
 	aufsHardlinks := make(map[string]*tar.Header)
 
-	if options == nil {
-		options = &TarOptions{}
-	}
 	// Iterate through the files in the archive.
 	for {
 		hdr, err := tr.Next()
