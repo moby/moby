@@ -205,6 +205,8 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 
 	var image builder.Image
 
+	b.resetImageCache()
+
 	// Windows cannot support a container with no base image.
 	if name == api.NoBaseImageSpecifier {
 		if runtime.GOOS == "windows" {
