@@ -1,6 +1,7 @@
 package convert
 
 import (
+	"os"
 	"sort"
 	"strings"
 	"testing"
@@ -51,6 +52,38 @@ func TestConvertEnvironment(t *testing.T) {
 	env := convertEnvironment(source)
 	sort.Strings(env)
 	assert.DeepEqual(t, env, []string{"foo=bar", "key=value"})
+}
+
+func TestConvertEnvironmentEmptyShouldUseOsEnv(t *testing.T) {
+	defer setEnvironmentForTest(t, map[string]string{
+		"foo": "bar",
+	})()
+	source := map[string]string{
+		"foo": "",
+		"key": "value",
+	}
+	env := convertEnvironment(source)
+	sort.Strings(env)
+	assert.DeepEqual(t, env, []string{"foo=bar", "key=value"})
+}
+
+func setEnvironmentForTest(t *testing.T, envs map[string]string) func() {
+	oldEnvs := map[string]string{}
+	for key, value := range envs {
+		if oldEnv := os.Getenv(key); oldEnv != "" {
+			oldEnvs[key] = oldEnv
+		}
+		if err := os.Setenv(key, value); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return func() {
+		for key, value := range oldEnvs {
+			if err := os.Setenv(key, value); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
 }
 
 func TestConvertResourcesFull(t *testing.T) {
