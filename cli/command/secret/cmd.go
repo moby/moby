@@ -14,6 +14,7 @@ func NewSecretCommand(dockerCli *command.DockerCli) *cobra.Command {
 		Short: "Manage Docker secrets",
 		Args:  cli.NoArgs,
 		RunE:  dockerCli.ShowHelp,
+		Tags:  map[string]string{"version": "1.25"},
 	}
 	cmd.AddCommand(
 		newSecretListCommand(dockerCli),
