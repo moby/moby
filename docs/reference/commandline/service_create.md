@@ -572,8 +572,8 @@ follows:
     <td><tt>node.hostname != node-2</tt></td>
   </tr>
   <tr>
-    <td<tt>node.role</tt></td>
-    <td><tt>node role: manager</tt></td>
+    <td><tt>node.role</tt></td>
+    <td>Node role</td>
     <td><tt>node.role == manager</tt></td>
   </tr>
   <tr>
