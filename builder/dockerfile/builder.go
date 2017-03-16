@@ -75,7 +75,8 @@ type Builder struct {
 	cmdSet           bool
 	disableCommit    bool
 	cacheBusted      bool
-	allowedBuildArgs map[string]bool // list of build-time args that are allowed for expansion/substitution and passing to commands in 'run'.
+	allowedBuildArgs map[string]*string  // list of build-time args that are allowed for expansion/substitution and passing to commands in 'run'.
+	allBuildArgs     map[string]struct{} // list of all build-time args found during parsing of the Dockerfile
 	directive        parser.Directive
 
 	// TODO: remove once docker.Commit can receive a tag
@@ -127,9 +128,6 @@ func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, back
 	if config == nil {
 		config = new(types.ImageBuildOptions)
 	}
-	if config.BuildArgs == nil {
-		config.BuildArgs = make(map[string]*string)
-	}
 	ctx, cancel := context.WithCancel(clientCtx)
 	b = &Builder{
 		clientCtx:        ctx,
@@ -142,7 +140,8 @@ func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, back
 		runConfig:        new(container.Config),
 		tmpContainers:    map[string]struct{}{},
 		id:               stringid.GenerateNonCryptoID(),
-		allowedBuildArgs: make(map[string]bool),
+		allowedBuildArgs: make(map[string]*string),
+		allBuildArgs:     make(map[string]struct{}),
 		directive: parser.Directive{
 			EscapeSeen:           false,
 			LookingForDirectives: true,
@@ -320,7 +319,7 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 func (b *Builder) warnOnUnusedBuildArgs() {
 	leftoverArgs := []string{}
 	for arg := range b.options.BuildArgs {
-		if !b.isBuildArgAllowed(arg) {
+		if _, ok := b.allBuildArgs[arg]; !ok {
 			leftoverArgs = append(leftoverArgs, arg)
 		}
 	}

@@ -205,6 +205,8 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 
 	var image builder.Image
 
+	b.noBaseImage = false
+
 	// Windows cannot support a container with no base image.
 	if name == api.NoBaseImageSpecifier {
 		if runtime.GOOS == "windows" {
@@ -227,6 +229,8 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 		}
 	}
 	b.from = image
+
+	b.allowedBuildArgs = make(map[string]*string)
 
 	return b.processImageFrom(image)
 }
@@ -729,17 +733,13 @@ func arg(b *Builder, args []string, attributes map[string]bool, original string)
 		hasDefault = false
 	}
 	// add the arg to allowed list of build-time args from this step on.
-	b.allowedBuildArgs[name] = true
+	b.allBuildArgs[name] = struct{}{}
 
-	// If there is a default value associated with this arg then add it to the
-	// b.buildArgs if one is not already passed to the builder. The args passed
-	// to builder override the default value of 'arg'. Note that a 'nil' for
-	// a value means that the user specified "--build-arg FOO" and "FOO" wasn't
-	// defined as an env var - and in that case we DO want to use the default
-	// value specified in the ARG cmd.
-	if baValue, ok := b.options.BuildArgs[name]; (!ok || baValue == nil) && hasDefault {
-		b.options.BuildArgs[name] = &newValue
+	var value *string
+	if hasDefault {
+		value = &newValue
 	}
+	b.allowedBuildArgs[name] = value
 
 	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("ARG %s", arg))
 }

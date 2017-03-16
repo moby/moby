@@ -668,14 +668,35 @@ func (b *Builder) parseDockerfile() error {
 	return nil
 }
 
-// determine if build arg is part of built-in args or user
-// defined args in Dockerfile at any point in time.
-func (b *Builder) isBuildArgAllowed(arg string) bool {
-	if _, ok := BuiltinAllowedBuildArgs[arg]; ok {
-		return true
+func (b *Builder) getBuildArg(arg string) (string, bool) {
+	defaultValue, defined := b.allowedBuildArgs[arg]
+	_, builtin := BuiltinAllowedBuildArgs[arg]
+	if defined || builtin {
+		if v, ok := b.options.BuildArgs[arg]; ok && v != nil {
+			return *v, ok
+		}
 	}
-	if _, ok := b.allowedBuildArgs[arg]; ok {
-		return true
+	if defaultValue == nil {
+		return "", false
 	}
-	return false
+	return *defaultValue, defined
+}
+
+func (b *Builder) getBuildArgs() map[string]string {
+	m := make(map[string]string)
+	for arg := range b.options.BuildArgs {
+		v, ok := b.getBuildArg(arg)
+		if ok {
+			m[arg] = v
+		}
+	}
+	for arg := range b.allowedBuildArgs {
+		if _, ok := m[arg]; !ok {
+			v, ok := b.getBuildArg(arg)
+			if ok {
+				m[arg] = v
+			}
+		}
+	}
+	return m
 }
