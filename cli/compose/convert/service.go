@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/swarm"
 	servicecli "github.com/docker/docker/cli/command/service"
@@ -196,7 +195,7 @@ func convertServiceSecrets(
 	secrets []composetypes.ServiceSecretConfig,
 	secretSpecs map[string]composetypes.SecretConfig,
 ) ([]*swarm.SecretReference, error) {
-	opts := []*types.SecretRequestOption{}
+	refs := []*swarm.SecretReference{}
 	for _, secret := range secrets {
 		target := secret.Target
 		if target == "" {
@@ -222,16 +221,18 @@ func convertServiceSecrets(
 			mode = uint32Ptr(0444)
 		}
 
-		opts = append(opts, &types.SecretRequestOption{
-			Source: source,
-			Target: target,
-			UID:    uid,
-			GID:    gid,
-			Mode:   os.FileMode(*mode),
+		refs = append(refs, &swarm.SecretReference{
+			File: &swarm.SecretReferenceFileTarget{
+				Name: target,
+				UID:  uid,
+				GID:  gid,
+				Mode: os.FileMode(*mode),
+			},
+			SecretName: source,
 		})
 	}
 
-	return servicecli.ParseSecrets(client, opts)
+	return servicecli.ParseSecrets(client, refs)
 }
 
 func uint32Ptr(value uint32) *uint32 {
