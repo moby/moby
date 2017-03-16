@@ -16,10 +16,10 @@ func TestSecretOptionsSimple(t *testing.T) {
 	reqs := opt.Value()
 	assert.Equal(t, len(reqs), 1)
 	req := reqs[0]
-	assert.Equal(t, req.Source, "app-secret")
-	assert.Equal(t, req.Target, "app-secret")
-	assert.Equal(t, req.UID, "0")
-	assert.Equal(t, req.GID, "0")
+	assert.Equal(t, req.SecretName, "app-secret")
+	assert.Equal(t, req.File.Name, "app-secret")
+	assert.Equal(t, req.File.UID, "0")
+	assert.Equal(t, req.File.GID, "0")
 }
 
 func TestSecretOptionsSourceTarget(t *testing.T) {
@@ -31,8 +31,8 @@ func TestSecretOptionsSourceTarget(t *testing.T) {
 	reqs := opt.Value()
 	assert.Equal(t, len(reqs), 1)
 	req := reqs[0]
-	assert.Equal(t, req.Source, "foo")
-	assert.Equal(t, req.Target, "testing")
+	assert.Equal(t, req.SecretName, "foo")
+	assert.Equal(t, req.File.Name, "testing")
 }
 
 func TestSecretOptionsShorthand(t *testing.T) {
@@ -44,7 +44,7 @@ func TestSecretOptionsShorthand(t *testing.T) {
 	reqs := opt.Value()
 	assert.Equal(t, len(reqs), 1)
 	req := reqs[0]
-	assert.Equal(t, req.Source, "foo")
+	assert.Equal(t, req.SecretName, "foo")
 }
 
 func TestSecretOptionsCustomUidGid(t *testing.T) {
@@ -56,10 +56,10 @@ func TestSecretOptionsCustomUidGid(t *testing.T) {
 	reqs := opt.Value()
 	assert.Equal(t, len(reqs), 1)
 	req := reqs[0]
-	assert.Equal(t, req.Source, "foo")
-	assert.Equal(t, req.Target, "testing")
-	assert.Equal(t, req.UID, "1000")
-	assert.Equal(t, req.GID, "1001")
+	assert.Equal(t, req.SecretName, "foo")
+	assert.Equal(t, req.File.Name, "testing")
+	assert.Equal(t, req.File.UID, "1000")
+	assert.Equal(t, req.File.GID, "1001")
 }
 
 func TestSecretOptionsCustomMode(t *testing.T) {
@@ -71,9 +71,9 @@ func TestSecretOptionsCustomMode(t *testing.T) {
 	reqs := opt.Value()
 	assert.Equal(t, len(reqs), 1)
 	req := reqs[0]
-	assert.Equal(t, req.Source, "foo")
-	assert.Equal(t, req.Target, "testing")
-	assert.Equal(t, req.UID, "1000")
-	assert.Equal(t, req.GID, "1001")
-	assert.Equal(t, req.Mode, os.FileMode(0444))
+	assert.Equal(t, req.SecretName, "foo")
+	assert.Equal(t, req.File.Name, "testing")
+	assert.Equal(t, req.File.UID, "1000")
+	assert.Equal(t, req.File.GID, "1001")
+	assert.Equal(t, req.File.Mode, os.FileMode(0444))
 }

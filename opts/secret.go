@@ -8,12 +8,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/api/types"
+	swarmtypes "github.com/docker/docker/api/types/swarm"
 )
 
 // SecretOpt is a Value type for parsing secrets
 type SecretOpt struct {
-	values []*types.SecretRequestOption
+	values []*swarmtypes.SecretReference
 }
 
 // Set a new secret value
@@ -24,18 +24,18 @@ func (o *SecretOpt) Set(value string) error {
 		return err
 	}
 
-	options := &types.SecretRequestOption{
-		Source: "",
-		Target: "",
-		UID:    "0",
-		GID:    "0",
-		Mode:   0444,
+	options := &swarmtypes.SecretReference{
+		File: &swarmtypes.SecretReferenceFileTarget{
+			UID:  "0",
+			GID:  "0",
+			Mode: 0444,
+		},
 	}
 
 	// support a simple syntax of --secret foo
 	if len(fields) == 1 {
-		options.Source = fields[0]
-		options.Target = fields[0]
+		options.File.Name = fields[0]
+		options.SecretName = fields[0]
 		o.values = append(o.values, options)
 		return nil
 	}
@@ -51,34 +51,30 @@ func (o *SecretOpt) Set(value string) error {
 		value := parts[1]
 		switch key {
 		case "source", "src":
-			options.Source = value
+			options.SecretName = value
 		case "target":
 			tDir, _ := filepath.Split(value)
 			if tDir != "" {
 				return fmt.Errorf("target must not be a path")
 			}
-			options.Target = value
+			options.File.Name = value
 		case "uid":
-			options.UID = value
+			options.File.UID = value
 		case "gid":
-			options.GID = value
+			options.File.GID = value
 		case "mode":
 			m, err := strconv.ParseUint(value, 0, 32)
 			if err != nil {
 				return fmt.Errorf("invalid mode specified: %v", err)
 			}
 
-			options.Mode = os.FileMode(m)
+			options.File.Mode = os.FileMode(m)
 		default:
-			if len(fields) == 1 && value == "" {
-
-			} else {
-				return fmt.Errorf("invalid field in secret request: %s", key)
-			}
+			return fmt.Errorf("invalid field in secret request: %s", key)
 		}
 	}
 
-	if options.Source == "" {
+	if options.SecretName == "" {
 		return fmt.Errorf("source is required")
 	}
 
@@ -95,13 +91,13 @@ func (o *SecretOpt) Type() string {
 func (o *SecretOpt) String() string {
 	secrets := []string{}
 	for _, secret := range o.values {
-		repr := fmt.Sprintf("%s -> %s", secret.Source, secret.Target)
+		repr := fmt.Sprintf("%s -> %s", secret.SecretName, secret.File.Name)
 		secrets = append(secrets, repr)
 	}
 	return strings.Join(secrets, ", ")
 }
 
 // Value returns the secret requests
-func (o *SecretOpt) Value() []*types.SecretRequestOption {
+func (o *SecretOpt) Value() []*swarmtypes.SecretReference {
 	return o.values
 }
