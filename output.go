@@ -63,7 +63,7 @@ func outputs(m *Moby, base string, bzimage []byte, initrd []byte) error {
 			if err != nil {
 				return fmt.Errorf("Error copying to Google Storage: %v", err)
 			}
-			err = imageGS(base, o.Project, "https://storage.googleapis.com/"+o.Bucket+"/"+base+".img.tar.gz")
+			err = imageGS(base, o.Project, "https://storage.googleapis.com/"+o.Bucket+"/"+base+".img.tar.gz", o.Family, o.Replace)
 			if err != nil {
 				return fmt.Errorf("Error creating Google Compute Image: %v", err)
 			}

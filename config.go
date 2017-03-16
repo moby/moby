@@ -29,7 +29,9 @@ type Moby struct {
 		Format  string
 		Project string
 		Bucket  string
+		Family  string
 		Public  bool
+		Replace bool
 	}
 }
 

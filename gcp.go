@@ -34,7 +34,8 @@ func uploadGS(filename, project, bucket string, public bool) error {
 	}
 	defer f.Close()
 
-	wc := client.Bucket(bucket).Object(filename).NewWriter(ctx)
+	obj := client.Bucket(bucket).Object(filename)
+	wc := obj.NewWriter(ctx)
 	_, err = io.Copy(wc, f)
 	if err != nil {
 		return err
@@ -44,14 +45,19 @@ func uploadGS(filename, project, bucket string, public bool) error {
 		return err
 	}
 
-	// TODO make public if requested
+	if public {
+		err = obj.ACL().Set(ctx, storage.AllUsers, storage.RoleReader)
+		if err != nil {
+			return err
+		}
+	}
 
 	fmt.Println("gs://" + bucket + "/" + filename)
 
 	return nil
 }
 
-func imageGS(filename, project, storage string) error {
+func imageGS(filename, project, storage, family string, replace bool) error {
 	if project != "" {
 		err := os.Setenv("GOOGLE_CLOUD_PROJECT", project)
 		if err != nil {
@@ -68,7 +74,19 @@ func imageGS(filename, project, storage string) error {
 	if err != nil {
 		return errors.New("Please install the gcloud binary")
 	}
-	args := []string{"compute", "images", "create", "--source-uri", storage, filename}
+
+	if replace {
+		args := []string{"compute", "images", "delete", filename}
+		cmd := exec.Command(gcloud, args...)
+		// ignore failures; it may not exist
+		_ = cmd.Run()
+	}
+
+	args := []string{"compute", "images", "create", "--source-uri", storage}
+	if family != "" {
+		args = append(args, "--family", family)
+	}
+	args = append(args, filename)
 	cmd := exec.Command(gcloud, args...)
 
 	out, err := cmd.CombinedOutput()
