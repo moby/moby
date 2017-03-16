@@ -291,7 +291,7 @@ The response indicating success is empty:
 
 * Node Discovery
 
-Similar to the DiscoverNew call, Node Discovery is represented by a `DiscoveryType` value of `1` and the corresponding `DiscoveryData` will carry Node discovery data to be delted.
+Similar to the DiscoverNew call, Node Discovery is represented by a `DiscoveryType` value of `1` and the corresponding `DiscoveryData` will carry Node discovery data to be deleted.
 
     {
 		"DiscoveryType": int,
