@@ -52,7 +52,7 @@ func NewSearchCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.BoolVar(&opts.automated, "automated", false, "Only show automated builds")
 	flags.UintVarP(&opts.stars, "stars", "s", 0, "Only displays with at least x stars")
 
-	flags.MarkDeprecated("automated", "use --filter=automated=true instead")
+	flags.MarkDeprecated("automated", "use --filter=is-automated=true instead")
 	flags.MarkDeprecated("stars", "use --filter=stars=3 instead")
 
 	return cmd
