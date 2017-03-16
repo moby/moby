@@ -118,6 +118,11 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 		if layerID != "" {
 			l, err := daemon.layerStore.Get(layerID)
 			if err != nil {
+				// The layer may have been deleted between the call to `Map()` or
+				// `Heads()` and the call to `Get()`, so we just ignore this error
+				if err == layer.ErrLayerDoesNotExist {
+					continue
+				}
 				return nil, err
 			}
 
