@@ -46,10 +46,11 @@ type MobyImage struct {
 	NetworkMode  string `yaml:"network_mode"`
 	Pid          string
 	Ipc          string
+	Uts          string
 	ReadOnly     bool `yaml:"read_only"`
 }
 
-const riddler = "mobylinux/riddler:7d4545d8b8ac2700971a83f12a3446a76db28c14@sha256:11b7310df6482fc38aa52b419c2ef1065d7b9207c633d47554e13aa99f6c0b72"
+const riddler = "mobylinux/riddler:8fe62ff02b9d28767554105b55d4613db3e77429@sha256:42b7f5c81fb85f8afb17548e00e5b81cfa4818c192e1199d61850491a178b0da"
 
 // NewConfig parses a config file
 func NewConfig(config []byte) (*Moby, error) {
@@ -90,6 +91,10 @@ func ConfigToRun(order int, path string, image *MobyImage) []string {
 	if image.Ipc != "" {
 		// TODO only "host" supported
 		args = append(args, "--ipc="+image.Ipc)
+	}
+	if image.Uts != "" {
+		// TODO only "host" supported
+		args = append(args, "--uts="+image.Uts)
 	}
 	for _, bind := range image.Binds {
 		args = append(args, "-v", bind)
