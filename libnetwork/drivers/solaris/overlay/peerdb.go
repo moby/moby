@@ -279,7 +279,7 @@ func (d *driver) peerAdd(nid, eid string, peerIP net.IP, peerIPMask net.IPMask,
 	}
 
 	// Add neighbor entry for the peer IP
-	if err := sbox.AddNeighbor(peerIP, peerMac, sbox.NeighborOptions().LinkName(s.vxlanName)); err != nil {
+	if err := sbox.AddNeighbor(peerIP, peerMac, false, sbox.NeighborOptions().LinkName(s.vxlanName)); err != nil {
 		return fmt.Errorf("could not add neigbor entry into the sandbox: %v", err)
 	}
 

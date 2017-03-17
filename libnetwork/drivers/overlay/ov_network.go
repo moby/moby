@@ -646,14 +646,17 @@ func (n *network) watchMiss(nlSock *nl.NetlinkSocket) {
 			}
 
 			var (
-				ip  net.IP
-				mac net.HardwareAddr
+				ip             net.IP
+				mac            net.HardwareAddr
+				l2Miss, l3Miss bool
 			)
 			if neigh.IP.To4() != nil {
 				ip = neigh.IP
+				l3Miss = true
 			} else if neigh.HardwareAddr != nil {
 				mac = []byte(neigh.HardwareAddr)
 				ip = net.IP(mac[2:])
+				l2Miss = true
 			} else {
 				continue
 			}
@@ -679,7 +682,7 @@ func (n *network) watchMiss(nlSock *nl.NetlinkSocket) {
 				continue
 			}
 
-			if err := n.driver.peerAdd(n.id, "dummy", ip, IPmask, mac, vtep, true); err != nil {
+			if err := n.driver.peerAdd(n.id, "dummy", ip, IPmask, mac, vtep, true, l2Miss, l3Miss); err != nil {
 				logrus.Errorf("could not add neighbor entry for missed peer %q: %v", ip, err)
 			}
 		}
