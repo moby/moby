@@ -25,6 +25,20 @@ func NewMiddleware(names []string, pg plugingetter.PluginGetter) *Middleware {
 	}
 }
 
+// GetAuthzPlugins gets authorization plugins
+func (m *Middleware) GetAuthzPlugins() []Plugin {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.plugins
+}
+
+// SetAuthzPlugins sets authorization plugins
+func (m *Middleware) SetAuthzPlugins(plugins []Plugin) {
+	m.mu.Lock()
+	m.plugins = plugins
+	m.mu.Unlock()
+}
+
 // SetPlugins sets the plugin used for authorization
 func (m *Middleware) SetPlugins(names []string) {
 	m.mu.Lock()
@@ -35,10 +49,7 @@ func (m *Middleware) SetPlugins(names []string) {
 // WrapHandler returns a new handler function wrapping the previous one in the request chain.
 func (m *Middleware) WrapHandler(handler func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error) func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-
-		m.mu.Lock()
-		plugins := m.plugins
-		m.mu.Unlock()
+		plugins := m.GetAuthzPlugins()
 		if len(plugins) == 0 {
 			return handler(ctx, w, r, vars)
 		}
@@ -69,6 +80,16 @@ func (m *Middleware) WrapHandler(handler func(ctx context.Context, w http.Respon
 		if errD = handler(ctx, rw, r, vars); errD != nil {
 			logrus.Errorf("Handler for %s %s returned error: %s", r.Method, r.RequestURI, errD)
 		}
+
+		// There's a chance that the authCtx.plugins was updated. One of the reasons
+		// this can happen is when an authzplugin is disabled.
+		plugins = m.GetAuthzPlugins()
+		if len(plugins) == 0 {
+			logrus.Debug("There are no authz plugins in the chain")
+			return nil
+		}
+
+		authCtx.plugins = plugins
 
 		if err := authCtx.AuthZResponse(rw, r); errD == nil && err != nil {
 			logrus.Errorf("AuthZResponse for %s %s returned error: %s", r.Method, r.RequestURI, err)

@@ -465,7 +465,7 @@ func (daemon *Daemon) IsSwarmCompatible() error {
 
 // NewDaemon sets up everything for the daemon to be able to service
 // requests from the webserver.
-func NewDaemon(config *config.Config, registryService registry.Service, containerdRemote libcontainerd.Remote) (daemon *Daemon, err error) {
+func NewDaemon(config *config.Config, registryService registry.Service, containerdRemote libcontainerd.Remote, pluginStore *plugin.Store) (daemon *Daemon, err error) {
 	setDefaultMtu(config)
 
 	// Ensure that we have a correct root key limit for launching containers.
@@ -562,7 +562,8 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	}
 
 	d.RegistryService = registryService
-	d.PluginStore = plugin.NewStore(config.Root) // todo: remove
+	d.PluginStore = pluginStore
+
 	// Plugin system initialization should happen before restore. Do not change order.
 	d.pluginManager, err = plugin.NewManager(plugin.ManagerConfig{
 		Root:               filepath.Join(config.Root, "plugins"),
@@ -572,6 +573,7 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 		RegistryService:    registryService,
 		LiveRestoreEnabled: config.LiveRestoreEnabled,
 		LogPluginEvent:     d.LogPluginEvent, // todo: make private
+		AuthzMiddleware:    config.AuthzMiddleware,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "couldn't create plugin manager")

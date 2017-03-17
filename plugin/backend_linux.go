@@ -26,6 +26,7 @@ import (
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
+	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/pools"
@@ -54,6 +55,19 @@ func (pm *Manager) Disable(refOrID string, config *types.PluginDisableConfig) er
 
 	if !config.ForceDisable && p.GetRefCount() > 0 {
 		return fmt.Errorf("plugin %s is in use", p.Name())
+	}
+
+	for _, typ := range p.GetTypes() {
+		if typ.Capability == authorization.AuthZApiImplements {
+			authzList := pm.config.AuthzMiddleware.GetAuthzPlugins()
+			for i, authPlugin := range authzList {
+				if authPlugin.Name() == p.Name() {
+					// Remove plugin from authzmiddleware chain
+					authzList = append(authzList[:i], authzList[i+1:]...)
+					pm.config.AuthzMiddleware.SetAuthzPlugins(authzList)
+				}
+			}
+		}
 	}
 
 	if err := pm.disable(p, c); err != nil {
