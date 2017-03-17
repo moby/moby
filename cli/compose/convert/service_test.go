@@ -43,10 +43,14 @@ func TestConvertRestartPolicyFromFailure(t *testing.T) {
 	assert.DeepEqual(t, policy, expected)
 }
 
+func strPtr(val string) *string {
+	return &val
+}
+
 func TestConvertEnvironment(t *testing.T) {
-	source := map[string]string{
-		"foo": "bar",
-		"key": "value",
+	source := map[string]*string{
+		"foo": strPtr("bar"),
+		"key": strPtr("value"),
 	}
 	env := convertEnvironment(source)
 	sort.Strings(env)
