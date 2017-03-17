@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	sockFile      = "docker-containerd.sock"
-	debugSockFile = "docker-containerd-debug.sock"
+	sockFile      = "moby-containerd.sock"
+	debugSockFile = "moby-containerd-debug.sock"
 )
 
 func (r *remote) setDefaults() {

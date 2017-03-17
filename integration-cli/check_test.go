@@ -33,10 +33,10 @@ const (
 	privateRegistryURL = "127.0.0.1:5000"
 
 	// path to containerd's ctr binary
-	ctrBinary = "docker-containerd-ctr"
+	ctrBinary = "moby-containerd-ctr"
 
-	// the docker daemon binary to use
-	dockerdBinary = "dockerd"
+	// the daemon binary to use
+	engineBinary = "moby-engine"
 )
 
 var (
@@ -128,7 +128,7 @@ func (s *DockerRegistrySuite) OnTimeout(c *check.C) {
 func (s *DockerRegistrySuite) SetUpTest(c *check.C) {
 	testRequires(c, DaemonIsLinux, registry.Hosting, SameHostDaemon)
 	s.reg = setupRegistry(c, false, "", "")
-	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
+	s.d = daemon.New(c, dockerBinary, engineBinary, daemon.Config{
 		Experimental: testEnv.ExperimentalDaemon(),
 	})
 }
@@ -162,7 +162,7 @@ func (s *DockerSchema1RegistrySuite) OnTimeout(c *check.C) {
 func (s *DockerSchema1RegistrySuite) SetUpTest(c *check.C) {
 	testRequires(c, DaemonIsLinux, registry.Hosting, NotArm64, SameHostDaemon)
 	s.reg = setupRegistry(c, true, "", "")
-	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
+	s.d = daemon.New(c, dockerBinary, engineBinary, daemon.Config{
 		Experimental: testEnv.ExperimentalDaemon(),
 	})
 }
@@ -196,7 +196,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) OnTimeout(c *check.C) {
 func (s *DockerRegistryAuthHtpasswdSuite) SetUpTest(c *check.C) {
 	testRequires(c, DaemonIsLinux, registry.Hosting, SameHostDaemon)
 	s.reg = setupRegistry(c, false, "htpasswd", "")
-	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
+	s.d = daemon.New(c, dockerBinary, engineBinary, daemon.Config{
 		Experimental: testEnv.ExperimentalDaemon(),
 	})
 }
@@ -231,7 +231,7 @@ func (s *DockerRegistryAuthTokenSuite) OnTimeout(c *check.C) {
 
 func (s *DockerRegistryAuthTokenSuite) SetUpTest(c *check.C) {
 	testRequires(c, DaemonIsLinux, registry.Hosting, SameHostDaemon)
-	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
+	s.d = daemon.New(c, dockerBinary, engineBinary, daemon.Config{
 		Experimental: testEnv.ExperimentalDaemon(),
 	})
 }
@@ -272,7 +272,7 @@ func (s *DockerDaemonSuite) OnTimeout(c *check.C) {
 
 func (s *DockerDaemonSuite) SetUpTest(c *check.C) {
 	testRequires(c, DaemonIsLinux, SameHostDaemon)
-	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
+	s.d = daemon.New(c, dockerBinary, engineBinary, daemon.Config{
 		Experimental: testEnv.ExperimentalDaemon(),
 	})
 }
@@ -330,7 +330,7 @@ func (s *DockerSwarmSuite) SetUpTest(c *check.C) {
 
 func (s *DockerSwarmSuite) AddDaemon(c *check.C, joinSwarm, manager bool) *daemon.Swarm {
 	d := &daemon.Swarm{
-		Daemon: daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
+		Daemon: daemon.New(c, dockerBinary, engineBinary, daemon.Config{
 			Experimental: testEnv.ExperimentalDaemon(),
 		}),
 		Port: defaultSwarmPort + s.portIndex,
