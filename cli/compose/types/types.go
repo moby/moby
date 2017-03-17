@@ -134,7 +134,9 @@ type StringList []string
 type StringOrNumberList []string
 
 // MappingWithEquals is a mapping type that can be converted from a list of
-// key=value strings
+// key[=value] strings.
+// For the key with an empty value (`key=`), the mapped value is set to a pointer to `""`.
+// For the key without value (`key`), the mapped value is set to nil.
 type MappingWithEquals map[string]*string
 
 // Labels is a mapping type for labels
