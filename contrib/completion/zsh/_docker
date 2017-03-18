@@ -78,7 +78,7 @@ __docker_get_containers() {
             s="${${line[${begin[CONTAINER ID]},${end[CONTAINER ID]}]%% ##}[0,12]}"
             s="$s:${(l:15:: :::)${${line[${begin[CREATED]},${end[CREATED]}]/ ago/}%% ##}}"
             s="$s, ${${${line[${begin[IMAGE]},${end[IMAGE]}]}/:/\\:}%% ##}"
-            if [[ ${line[${begin[STATUS]},${end[STATUS]}]} = Exit* ]]; then
+            if [[ ${line[${begin[STATUS]},${end[STATUS]}]} = (Exit*|Created*) ]]; then
                 stopped=($stopped $s)
             else
                 running=($running $s)
@@ -100,7 +100,7 @@ __docker_get_containers() {
             (( $#s != 0 )) || continue
             s="$s:${(l:15:: :::)${${line[${begin[CREATED]},${end[CREATED]}]/ ago/}%% ##}}"
             s="$s, ${${${line[${begin[IMAGE]},${end[IMAGE]}]}/:/\\:}%% ##}"
-            if [[ ${line[${begin[STATUS]},${end[STATUS]}]} = Exit* ]]; then
+            if [[ ${line[${begin[STATUS]},${end[STATUS]}]} = (Exit*|Created*) ]]; then
                 stopped=($stopped $s)
             else
                 running=($running $s)
