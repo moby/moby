@@ -5,6 +5,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/pkg/pools"
@@ -56,7 +58,7 @@ func (c *lazyContext) Stat(path string) (string, builder.FileInfo, error) {
 		return "", nil, errors.WithStack(convertPathError(err, cleanPath))
 	}
 
-	relPath, err := filepath.Rel(c.root, fullPath)
+	relPath, err := rel(c.root, fullPath)
 	if err != nil {
 		return "", nil, errors.WithStack(convertPathError(err, cleanPath))
 	}
@@ -82,7 +84,7 @@ func (c *lazyContext) Walk(root string, walkFn builder.WalkFunc) error {
 		return err
 	}
 	return filepath.Walk(fullPath, func(fullPath string, fi os.FileInfo, err error) error {
-		relPath, err := filepath.Rel(c.root, fullPath)
+		relPath, err := rel(c.root, fullPath)
 		if err != nil {
 			return errors.WithStack(err)
 		}
@@ -146,4 +148,19 @@ func convertPathError(err error, cleanpath string) error {
 		return err
 	}
 	return err
+}
+
+func rel(basepath, targpath string) (string, error) {
+	// filepath.Rel can't handle UUID paths in windows
+	if runtime.GOOS == "windows" {
+		pfx := basepath + `\`
+		if strings.HasPrefix(targpath, pfx) {
+			p := strings.TrimPrefix(targpath, pfx)
+			if p == "" {
+				p = "."
+			}
+			return p, nil
+		}
+	}
+	return filepath.Rel(basepath, targpath)
 }
