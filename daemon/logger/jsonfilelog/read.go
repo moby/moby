@@ -11,9 +11,9 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"golang.org/x/net/context"
 
-	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/jsonfilelog/multireader"
+	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/docker/pkg/filenotify"
 	"github.com/docker/docker/pkg/jsonlog"
 	"github.com/docker/docker/pkg/tailfile"
@@ -22,27 +22,6 @@ import (
 )
 
 const maxJSONDecodeRetry = 20000
-
-func decodeLogLine(dec *json.Decoder, l *jsonlog.JSONLog) (*logger.Message, error) {
-	l.Reset()
-	if err := dec.Decode(l); err != nil {
-		return nil, err
-	}
-	var attrs []backend.LogAttr
-	if len(l.Attrs) != 0 {
-		attrs = make([]backend.LogAttr, 0, len(l.Attrs))
-		for k, v := range l.Attrs {
-			attrs = append(attrs, backend.LogAttr{Key: k, Value: v})
-		}
-	}
-	msg := &logger.Message{
-		Source:    l.Stream,
-		Timestamp: l.Created,
-		Line:      []byte(l.Log),
-		Attrs:     attrs,
-	}
-	return msg, nil
-}
 
 // ReadLogs implements the logger's LogReader interface for the logs
 // created by this driver.
@@ -63,6 +42,7 @@ func (l *JSONFileLogger) readLogs(logWatcher *logger.LogWatcher, config logger.R
 	// TODO it would be nice to move a lot of this reader implementation to the rotate logger object
 	pth := l.writer.LogPath()
 	var files []io.ReadSeeker
+	meta := l.writer.MetaData()
 	for i := l.writer.MaxFiles(); i > 1; i-- {
 		f, err := os.Open(fmt.Sprintf("%s.%d", pth, i-1))
 		if err != nil {
@@ -74,6 +54,12 @@ func (l *JSONFileLogger) readLogs(logWatcher *logger.LogWatcher, config logger.R
 			continue
 		}
 		defer f.Close()
+
+		// not select files with mtime earlier than config.Since
+		if !config.Since.IsZero() &&
+			meta[i-1].LastLogTime.Before(config.Since) {
+			continue
+		}
 		files = append(files, f)
 	}
 
@@ -150,7 +136,7 @@ func tailFile(f io.ReadSeeker, logWatcher *logger.LogWatcher, tail int, since ti
 	dec := json.NewDecoder(rdr)
 	l := &jsonlog.JSONLog{}
 	for {
-		msg, err := decodeLogLine(dec, l)
+		msg, err := loggerutils.DecodeLogLine(dec, l)
 		if err != nil {
 			if err != io.EOF {
 				logWatcher.Err <- err
@@ -312,7 +298,7 @@ func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan int
 
 	// main loop
 	for {
-		msg, err := decodeLogLine(dec, l)
+		msg, err := loggerutils.DecodeLogLine(dec, l)
 		if err != nil {
 			if err := handleDecodeErr(err); err != nil {
 				if err == errDone {
@@ -335,7 +321,7 @@ func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan int
 		case <-ctx.Done():
 			logWatcher.Msg <- msg
 			for {
-				msg, err := decodeLogLine(dec, l)
+				msg, err := loggerutils.DecodeLogLine(dec, l)
 				if err != nil {
 					return
 				}
