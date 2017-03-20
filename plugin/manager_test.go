@@ -14,33 +14,33 @@ func TestValidatePrivileges(t *testing.T) {
 	}{
 		"diff-len": {
 			requiredPrivileges: []types.PluginPrivilege{
-				{"Privilege1", "Description", []string{"abc", "def", "ghi"}},
+				{Name: "Privilege1", Description: "Description", Value: []string{"abc", "def", "ghi"}},
 			},
 			privileges: []types.PluginPrivilege{
-				{"Privilege1", "Description", []string{"abc", "def", "ghi"}},
-				{"Privilege2", "Description", []string{"123", "456", "789"}},
+				{Name: "Privilege1", Description: "Description", Value: []string{"abc", "def", "ghi"}},
+				{Name: "Privilege2", Description: "Description", Value: []string{"123", "456", "789"}},
 			},
 			result: false,
 		},
 		"diff-value": {
 			requiredPrivileges: []types.PluginPrivilege{
-				{"Privilege1", "Description", []string{"abc", "def", "GHI"}},
-				{"Privilege2", "Description", []string{"123", "456", "***"}},
+				{Name: "Privilege1", Description: "Description", Value: []string{"abc", "def", "GHI"}},
+				{Name: "Privilege2", Description: "Description", Value: []string{"123", "456", "***"}},
 			},
 			privileges: []types.PluginPrivilege{
-				{"Privilege1", "Description", []string{"abc", "def", "ghi"}},
-				{"Privilege2", "Description", []string{"123", "456", "789"}},
+				{Name: "Privilege1", Description: "Description", Value: []string{"abc", "def", "ghi"}},
+				{Name: "Privilege2", Description: "Description", Value: []string{"123", "456", "789"}},
 			},
 			result: false,
 		},
 		"diff-order-but-same-value": {
 			requiredPrivileges: []types.PluginPrivilege{
-				{"Privilege1", "Description", []string{"abc", "def", "GHI"}},
-				{"Privilege2", "Description", []string{"123", "456", "789"}},
+				{Name: "Privilege1", Description: "Description", Value: []string{"abc", "def", "GHI"}},
+				{Name: "Privilege2", Description: "Description", Value: []string{"123", "456", "789"}},
 			},
 			privileges: []types.PluginPrivilege{
-				{"Privilege2", "Description", []string{"123", "456", "789"}},
-				{"Privilege1", "Description", []string{"GHI", "abc", "def"}},
+				{Name: "Privilege2", Description: "Description", Value: []string{"123", "456", "789"}},
+				{Name: "Privilege1", Description: "Description", Value: []string{"GHI", "abc", "def"}},
 			},
 			result: true,
 		},

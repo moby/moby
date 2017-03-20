@@ -24,10 +24,10 @@ func (s *DockerSwarmSuite) TestAPISwarmSecretsCreate(c *check.C) {
 
 	testName := "test_secret"
 	id := d.CreateSecret(c, swarm.SecretSpec{
-		swarm.Annotations{
+		Annotations: swarm.Annotations{
 			Name: testName,
 		},
-		[]byte("TESTINGDATA"),
+		Data: []byte("TESTINGDATA"),
 	})
 	c.Assert(id, checker.Not(checker.Equals), "", check.Commentf("secrets: %s", id))
 
@@ -41,11 +41,10 @@ func (s *DockerSwarmSuite) TestAPISwarmSecretsDelete(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
 	testName := "test_secret"
-	id := d.CreateSecret(c, swarm.SecretSpec{
-		swarm.Annotations{
-			Name: testName,
-		},
-		[]byte("TESTINGDATA"),
+	id := d.CreateSecret(c, swarm.SecretSpec{Annotations: swarm.Annotations{
+		Name: testName,
+	},
+		Data: []byte("TESTINGDATA"),
 	})
 	c.Assert(id, checker.Not(checker.Equals), "", check.Commentf("secrets: %s", id))
 
@@ -63,13 +62,13 @@ func (s *DockerSwarmSuite) TestAPISwarmSecretsUpdate(c *check.C) {
 
 	testName := "test_secret"
 	id := d.CreateSecret(c, swarm.SecretSpec{
-		swarm.Annotations{
+		Annotations: swarm.Annotations{
 			Name: testName,
 			Labels: map[string]string{
 				"test": "test1",
 			},
 		},
-		[]byte("TESTINGDATA"),
+		Data: []byte("TESTINGDATA"),
 	})
 	c.Assert(id, checker.Not(checker.Equals), "", check.Commentf("secrets: %s", id))
 
