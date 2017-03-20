@@ -1,16 +1,10 @@
-package builder
+package remotecontext
 
 import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
-)
-
-const (
-	dockerfileContents   = "FROM busybox"
-	dockerignoreFilename = ".dockerignore"
-	testfileContents     = "test"
 )
 
 // createTestTempDir creates a temporary directory for testing.

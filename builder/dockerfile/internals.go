@@ -8,7 +8,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -25,7 +24,7 @@ import (
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/parser"
-	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/builder/remotecontext"
 	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/jsonmessage"
@@ -33,7 +32,6 @@ import (
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/system"
-	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/pkg/errors"
 )
@@ -88,7 +86,9 @@ func (b *Builder) commit(id string, autoCmd strslice.StrSlice, comment string) e
 }
 
 type copyInfo struct {
-	builder.FileInfo
+	root       string
+	path       string
+	hash       string
 	decompress bool
 }
 
@@ -109,19 +109,23 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalD
 	// the copy until we've looked at all src files
 	var err error
 	for _, orig := range args[0 : len(args)-1] {
-		var fi builder.FileInfo
 		if urlutil.IsURL(orig) {
 			if !allowRemote {
 				return fmt.Errorf("Source can't be a URL for %s", cmdName)
 			}
-			fi, err = b.download(orig)
+			remote, path, err := b.download(orig)
 			if err != nil {
 				return err
 			}
-			defer os.RemoveAll(filepath.Dir(fi.Path()))
+			defer os.RemoveAll(remote.Root())
+			h, err := remote.Hash(path)
+			if err != nil {
+				return err
+			}
 			infos = append(infos, copyInfo{
-				FileInfo:   fi,
-				decompress: false,
+				root: remote.Root(),
+				path: path,
+				hash: h,
 			})
 			continue
 		}
@@ -147,20 +151,15 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalD
 	var origPaths string
 
 	if len(infos) == 1 {
-		fi := infos[0].FileInfo
-		origPaths = fi.Name()
-		if hfi, ok := fi.(builder.Hashed); ok {
-			srcHash = hfi.Hash()
-		}
+		info := infos[0]
+		origPaths = info.path
+		srcHash = info.hash
 	} else {
 		var hashs []string
 		var origs []string
 		for _, info := range infos {
-			fi := info.FileInfo
-			origs = append(origs, fi.Name())
-			if hfi, ok := fi.(builder.Hashed); ok {
-				hashs = append(hashs, hfi.Hash())
-			}
+			origs = append(origs, info.path)
+			hashs = append(hashs, info.hash)
 		}
 		hasher := sha256.New()
 		hasher.Write([]byte(strings.Join(hashs, ",")))
@@ -197,7 +196,7 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalD
 	}
 
 	for _, info := range infos {
-		if err := b.docker.CopyOnBuild(container.ID, dest, info.FileInfo, info.decompress); err != nil {
+		if err := b.docker.CopyOnBuild(container.ID, dest, info.root, info.path, info.decompress); err != nil {
 			return err
 		}
 	}
@@ -205,7 +204,7 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalD
 	return b.commit(container.ID, cmd, comment)
 }
 
-func (b *Builder) download(srcURL string) (fi builder.FileInfo, err error) {
+func (b *Builder) download(srcURL string) (remote builder.Source, p string, err error) {
 	// get filename from URL
 	u, err := url.Parse(srcURL)
 	if err != nil {
@@ -248,17 +247,12 @@ func (b *Builder) download(srcURL string) (fi builder.FileInfo, err error) {
 	progressOutput := stdoutFormatter.StreamFormatter.NewProgressOutput(stdoutFormatter.Writer, true)
 	progressReader := progress.NewProgressReader(resp.Body, progressOutput, resp.ContentLength, "", "Downloading")
 	// Download and dump result to tmp file
+	// TODO: add filehash directly
 	if _, err = io.Copy(tmpFile, progressReader); err != nil {
 		tmpFile.Close()
 		return
 	}
 	fmt.Fprintln(b.Stdout)
-	// ignoring error because the file was already opened successfully
-	tmpFileSt, err := tmpFile.Stat()
-	if err != nil {
-		tmpFile.Close()
-		return
-	}
 
 	// Set the mtime to the Last-Modified header value if present
 	// Otherwise just remove atime and mtime
@@ -279,21 +273,12 @@ func (b *Builder) download(srcURL string) (fi builder.FileInfo, err error) {
 		return
 	}
 
-	// Calc the checksum, even if we're using the cache
-	r, err := archive.Tar(tmpFileName, archive.Uncompressed)
+	lc, err := remotecontext.NewLazyContext(tmpDir)
 	if err != nil {
 		return
 	}
-	tarSum, err := tarsum.NewTarSum(r, true, tarsum.Version1)
-	if err != nil {
-		return
-	}
-	if _, err = io.Copy(ioutil.Discard, tarSum); err != nil {
-		return
-	}
-	hash := tarSum.Sum(nil)
-	r.Close()
-	return &builder.HashedFileInfo{FileInfo: builder.PathFileInfo{FileInfo: tmpFileSt, FilePath: tmpFileName}, FileHash: hash}, nil
+
+	return lc, filename, nil
 }
 
 var windowsBlacklist = map[string]bool{
@@ -328,37 +313,40 @@ func (b *Builder) calcCopyInfo(cmdName, origPath string, allowLocalDecompression
 	}
 	origPath = strings.TrimPrefix(origPath, "."+string(os.PathSeparator))
 
-	context := b.context
+	source := b.source
 	var err error
 	if imageSource != nil {
-		context, err = imageSource.context()
+		source, err = imageSource.context()
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	if context == nil {
+	if source == nil {
 		return nil, errors.Errorf("No context given. Impossible to use %s", cmdName)
 	}
 
 	// Deal with wildcards
 	if allowWildcards && containsWildcards(origPath) {
 		var copyInfos []copyInfo
-		if err := context.Walk("", func(path string, info builder.FileInfo, err error) error {
+		if err := filepath.Walk(source.Root(), func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
-			if info.Name() == "" {
-				// Why are we doing this check?
+			rel, err := remotecontext.Rel(source.Root(), path)
+			if err != nil {
+				return err
+			}
+			if rel == "." {
 				return nil
 			}
-			if match, _ := filepath.Match(origPath, path); !match {
+			if match, _ := filepath.Match(origPath, rel); !match {
 				return nil
 			}
 
 			// Note we set allowWildcards to false in case the name has
 			// a * in it
-			subInfos, err := b.calcCopyInfo(cmdName, path, allowLocalDecompression, false, imageSource)
+			subInfos, err := b.calcCopyInfo(cmdName, rel, allowLocalDecompression, false, imageSource)
 			if err != nil {
 				return err
 			}
@@ -371,38 +359,56 @@ func (b *Builder) calcCopyInfo(cmdName, origPath string, allowLocalDecompression
 	}
 
 	// Must be a dir or a file
-	statPath, fi, err := context.Stat(origPath)
+	hash, err := source.Hash(origPath)
 	if err != nil {
 		return nil, err
 	}
 
-	copyInfos := []copyInfo{{FileInfo: fi, decompress: allowLocalDecompression}}
-
-	hfi, handleHash := fi.(builder.Hashed)
-	if !handleHash {
-		return copyInfos, nil
+	fi, err := remotecontext.StatAt(source, origPath)
+	if err != nil {
+		return nil, err
 	}
+
+	// TODO: remove, handle dirs in Hash()
+	copyInfos := []copyInfo{{root: source.Root(), path: origPath, hash: hash, decompress: allowLocalDecompression}}
+
 	if imageSource != nil {
 		// fast-cache based on imageID
 		if h, ok := b.imageContexts.getCache(imageSource.id, origPath); ok {
-			hfi.SetHash(h.(string))
+			copyInfos[0].hash = h.(string)
 			return copyInfos, nil
 		}
 	}
 
 	// Deal with the single file case
 	if !fi.IsDir() {
-		hfi.SetHash("file:" + hfi.Hash())
+		copyInfos[0].hash = "file:" + copyInfos[0].hash
 		return copyInfos, nil
+	}
+
+	fp, err := remotecontext.FullPath(source, origPath)
+	if err != nil {
+		return nil, err
 	}
 	// Must be a dir
 	var subfiles []string
-	err = context.Walk(statPath, func(path string, info builder.FileInfo, err error) error {
+	err = filepath.Walk(fp, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
+		rel, err := remotecontext.Rel(source.Root(), path)
+		if err != nil {
+			return err
+		}
+		if rel == "." {
+			return nil
+		}
+		hash, err := source.Hash(rel)
+		if err != nil {
+			return nil
+		}
 		// we already checked handleHash above
-		subfiles = append(subfiles, info.(builder.Hashed).Hash())
+		subfiles = append(subfiles, hash)
 		return nil
 	})
 	if err != nil {
@@ -412,9 +418,9 @@ func (b *Builder) calcCopyInfo(cmdName, origPath string, allowLocalDecompression
 	sort.Strings(subfiles)
 	hasher := sha256.New()
 	hasher.Write([]byte(strings.Join(subfiles, ",")))
-	hfi.SetHash("dir:" + hex.EncodeToString(hasher.Sum(nil)))
+	copyInfos[0].hash = "dir:" + hex.EncodeToString(hasher.Sum(nil))
 	if imageSource != nil {
-		b.imageContexts.setCache(imageSource.id, origPath, hfi.Hash())
+		b.imageContexts.setCache(imageSource.id, origPath, copyInfos[0].hash)
 	}
 
 	return copyInfos, nil
@@ -654,60 +660,4 @@ func (b *Builder) clearTmp() {
 		delete(b.tmpContainers, c)
 		fmt.Fprintf(b.Stdout, "Removing intermediate container %s\n", stringid.TruncateID(c))
 	}
-}
-
-// readAndParseDockerfile reads a Dockerfile from the current context.
-func (b *Builder) readAndParseDockerfile() (*parser.Result, error) {
-	// If no -f was specified then look for 'Dockerfile'. If we can't find
-	// that then look for 'dockerfile'.  If neither are found then default
-	// back to 'Dockerfile' and use that in the error message.
-	if b.options.Dockerfile == "" {
-		b.options.Dockerfile = builder.DefaultDockerfileName
-		if _, _, err := b.context.Stat(b.options.Dockerfile); os.IsNotExist(err) {
-			lowercase := strings.ToLower(b.options.Dockerfile)
-			if _, _, err := b.context.Stat(lowercase); err == nil {
-				b.options.Dockerfile = lowercase
-			}
-		}
-	}
-
-	result, err := b.parseDockerfile()
-	if err != nil {
-		return nil, err
-	}
-
-	// After the Dockerfile has been parsed, we need to check the .dockerignore
-	// file for either "Dockerfile" or ".dockerignore", and if either are
-	// present then erase them from the build context. These files should never
-	// have been sent from the client but we did send them to make sure that
-	// we had the Dockerfile to actually parse, and then we also need the
-	// .dockerignore file to know whether either file should be removed.
-	// Note that this assumes the Dockerfile has been read into memory and
-	// is now safe to be removed.
-	if dockerIgnore, ok := b.context.(builder.DockerIgnoreContext); ok {
-		dockerIgnore.Process([]string{b.options.Dockerfile})
-	}
-	return result, nil
-}
-
-func (b *Builder) parseDockerfile() (*parser.Result, error) {
-	f, err := b.context.Open(b.options.Dockerfile)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("Cannot locate specified Dockerfile: %s", b.options.Dockerfile)
-		}
-		return nil, err
-	}
-	defer f.Close()
-	if f, ok := f.(*os.File); ok {
-		// ignoring error because Open already succeeded
-		fi, err := f.Stat()
-		if err != nil {
-			return nil, fmt.Errorf("Unexpected error reading Dockerfile: %v", err)
-		}
-		if fi.Size() == 0 {
-			return nil, fmt.Errorf("The Dockerfile (%s) cannot be empty", b.options.Dockerfile)
-		}
-	}
-	return parser.Parse(f)
 }

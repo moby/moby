@@ -119,14 +119,14 @@ func (ic *imageContexts) setCache(id, path string, v interface{}) {
 // by an existing image
 type imageMount struct {
 	id        string
-	ctx       builder.Context
+	source    builder.Source
 	release   func() error
 	ic        *imageContexts
 	runConfig *container.Config
 }
 
-func (im *imageMount) context() (builder.Context, error) {
-	if im.ctx == nil {
+func (im *imageMount) context() (builder.Source, error) {
+	if im.source == nil {
 		if im.id == "" {
 			return nil, errors.Errorf("could not copy from empty context")
 		}
@@ -134,14 +134,14 @@ func (im *imageMount) context() (builder.Context, error) {
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to mount %s", im.id)
 		}
-		ctx, err := remotecontext.NewLazyContext(p)
+		source, err := remotecontext.NewLazyContext(p)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to create lazycontext for %s", p)
 		}
 		im.release = release
-		im.ctx = ctx
+		im.source = source
 	}
-	return im.ctx, nil
+	return im.source, nil
 }
 
 func (im *imageMount) unmount() error {
