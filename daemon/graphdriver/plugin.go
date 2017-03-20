@@ -38,6 +38,6 @@ func newPluginDriver(name string, pl plugingetter.CompatPlugin, config Options) 
 			}
 		}
 	}
-	proxy := &graphDriverProxy{name, pl}
+	proxy := &graphDriverProxy{name, pl, Capabilities{}}
 	return proxy, proxy.Init(filepath.Join(home, name), config.DriverOptions, config.UIDMaps, config.GIDMaps)
 }
