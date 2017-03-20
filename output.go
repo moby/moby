@@ -20,7 +20,7 @@ func outputs(m *Moby, base string, bzimage []byte, initrd []byte) error {
 	for _, o := range m.Outputs {
 		switch o.Format {
 		case "kernel+initrd":
-			err := outputKernelInitrd(base, bzimage, initrd)
+			err := outputKernelInitrd(base, bzimage, initrd, m.Kernel.Cmdline)
 			if err != nil {
 				return fmt.Errorf("Error writing %s output: %v", o.Format, err)
 			}
@@ -156,7 +156,7 @@ func outputISO(image, filename string, bzimage []byte, initrd []byte, args ...st
 	return nil
 }
 
-func outputKernelInitrd(base string, bzimage []byte, initrd []byte) error {
+func outputKernelInitrd(base string, bzimage []byte, initrd []byte, cmdline string) error {
 	err := ioutil.WriteFile(base+"-initrd.img", initrd, os.FileMode(0644))
 	if err != nil {
 		return err
@@ -165,6 +165,10 @@ func outputKernelInitrd(base string, bzimage []byte, initrd []byte) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(base + "-bzImage " + base + "-initrd.img")
+	err = ioutil.WriteFile(base+"-cmdline", []byte(cmdline), os.FileMode(0644))
+	if err != nil {
+		return err
+	}
+	fmt.Println(base + "-bzImage " + base + "-initrd.img " + base + "-cmdline")
 	return nil
 }

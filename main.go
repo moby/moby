@@ -223,13 +223,11 @@ func build(m *Moby, name string) {
 }
 
 var (
-	conf    string
-	cmdline bool
-	name    string
+	conf string
+	name string
 )
 
 func main() {
-	flag.BoolVar(&cmdline, "cmdline", false, "Print the kernel command line and exit")
 	flag.StringVar(&name, "name", "", "Name to use for output files")
 	flag.Parse()
 
@@ -254,11 +252,6 @@ func main() {
 	m, err := NewConfig(config)
 	if err != nil {
 		log.Fatalf("Invalid config: %v", err)
-	}
-
-	if cmdline {
-		fmt.Printf("%s\n", m.Kernel.Cmdline)
-		return
 	}
 
 	build(m, name)
