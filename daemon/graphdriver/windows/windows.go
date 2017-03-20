@@ -370,6 +370,9 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 	mountPath, err := hcsshim.GetLayerMountPath(d.info, rID)
 	if err != nil {
 		d.ctr.Decrement(rID)
+		if err := hcsshim.UnprepareLayer(d.info, rID); err != nil {
+			logrus.Warnf("Failed to Unprepare %s: %s", id, err)
+		}
 		if err2 := hcsshim.DeactivateLayer(d.info, rID); err2 != nil {
 			logrus.Warnf("Failed to Deactivate %s: %s", id, err)
 		}
@@ -402,8 +405,14 @@ func (d *Driver) Put(id string) error {
 		return nil
 	}
 	d.cacheMu.Lock()
+	_, exists := d.cache[rID]
 	delete(d.cache, rID)
 	d.cacheMu.Unlock()
+
+	// If the cache was not populated, then the layer was left unprepared and deactivated
+	if !exists {
+		return nil
+	}
 
 	if err := hcsshim.UnprepareLayer(d.info, rID); err != nil {
 		return err
