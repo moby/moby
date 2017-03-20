@@ -11,7 +11,8 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
-// Snapshot is a read only view for Containers
+// Snapshot is a read only view for Containers. It holds all information necessary to serve container queries in a
+// versioned ACID in-memory store. Pointers are avoided here to make sure all values are copied into the store.
 type Snapshot struct {
 	ID           string `json:"Id"`
 	Name         string
