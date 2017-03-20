@@ -900,7 +900,8 @@
 			"names": [
 				"settimeofday",
 				"stime",
-				"adjtimex"
+				"adjtimex",
+				"clock_settime"
 			],
 			"action": "SCMP_ACT_ALLOW",
 			"args": [],

@@ -735,6 +735,7 @@ func DefaultProfile() *types.Seccomp {
 				"settimeofday",
 				"stime",
 				"adjtimex",
+				"clock_settime",
 			},
 			Action: types.ActAllow,
 			Args:   []*types.Arg{},
