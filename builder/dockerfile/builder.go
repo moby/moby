@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/command"
 	"github.com/docker/docker/builder/dockerfile/parser"
+	"github.com/docker/docker/builder/remotecontext"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
@@ -48,7 +49,7 @@ type Builder struct {
 	Output io.Writer
 
 	docker    builder.Backend
-	context   builder.Context
+	source    builder.Source
 	clientCtx context.Context
 
 	runConfig     *container.Config // runconfig for cmd, run, entrypoint etc.
@@ -80,35 +81,37 @@ func NewBuildManager(b builder.Backend) (bm *BuildManager) {
 }
 
 // BuildFromContext builds a new image from a given context.
-func (bm *BuildManager) BuildFromContext(ctx context.Context, src io.ReadCloser, remote string, buildOptions *types.ImageBuildOptions, pg backend.ProgressWriter) (string, error) {
+func (bm *BuildManager) BuildFromContext(ctx context.Context, src io.ReadCloser, buildOptions *types.ImageBuildOptions, pg backend.ProgressWriter) (string, error) {
 	if buildOptions.Squash && !bm.backend.HasExperimental() {
 		return "", apierrors.NewBadRequestError(errors.New("squash is only supported with experimental mode"))
 	}
-	buildContext, dockerfileName, err := builder.DetectContextFromRemoteURL(src, remote, pg.ProgressReaderFunc)
+	if buildOptions.Dockerfile == "" {
+		buildOptions.Dockerfile = builder.DefaultDockerfileName
+	}
+
+	source, dockerfile, err := remotecontext.Detect(ctx, buildOptions.RemoteContext, buildOptions.Dockerfile, src, pg.ProgressReaderFunc)
 	if err != nil {
 		return "", err
 	}
-	defer func() {
-		if err := buildContext.Close(); err != nil {
-			logrus.Debugf("[BUILDER] failed to remove temporary context: %v", err)
-		}
-	}()
-
-	if len(dockerfileName) > 0 {
-		buildOptions.Dockerfile = dockerfileName
+	if source != nil {
+		defer func() {
+			if err := source.Close(); err != nil {
+				logrus.Debugf("[BUILDER] failed to remove temporary context: %v", err)
+			}
+		}()
 	}
-	b, err := NewBuilder(ctx, buildOptions, bm.backend, builder.DockerIgnoreContext{ModifiableContext: buildContext})
+	b, err := NewBuilder(ctx, buildOptions, bm.backend, source)
 	if err != nil {
 		return "", err
 	}
 	b.imageContexts.cache = bm.pathCache
-	return b.build(pg.StdoutFormatter, pg.StderrFormatter, pg.Output)
+	return b.build(dockerfile, pg.StdoutFormatter, pg.StderrFormatter, pg.Output)
 }
 
 // NewBuilder creates a new Dockerfile builder from an optional dockerfile and a Config.
 // If dockerfile is nil, the Dockerfile specified by Config.DockerfileName,
 // will be read from the Context passed to Build().
-func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, backend builder.Backend, buildContext builder.Context) (b *Builder, err error) {
+func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, backend builder.Backend, source builder.Source) (b *Builder, err error) {
 	if config == nil {
 		config = new(types.ImageBuildOptions)
 	}
@@ -118,7 +121,7 @@ func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, back
 		Stdout:        os.Stdout,
 		Stderr:        os.Stderr,
 		docker:        backend,
-		context:       buildContext,
+		source:        source,
 		runConfig:     new(container.Config),
 		tmpContainers: map[string]struct{}{},
 		buildArgs:     newBuildArgs(config.BuildArgs),
@@ -173,17 +176,12 @@ func sanitizeRepoAndTags(names []string) ([]reference.Named, error) {
 
 // build runs the Dockerfile builder from a context and a docker object that allows to make calls
 // to Docker.
-func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (string, error) {
+func (b *Builder) build(dockerfile *parser.Result, stdout io.Writer, stderr io.Writer, out io.Writer) (string, error) {
 	defer b.imageContexts.unmount()
 
 	b.Stdout = stdout
 	b.Stderr = stderr
 	b.Output = out
-
-	dockerfile, err := b.readAndParseDockerfile()
-	if err != nil {
-		return "", err
-	}
 
 	repoAndTags, err := sanitizeRepoAndTags(b.options.Tags)
 	if err != nil {

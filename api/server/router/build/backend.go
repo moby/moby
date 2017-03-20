@@ -16,5 +16,5 @@ type Backend interface {
 	// by the caller.
 	//
 	// TODO: make this return a reference instead of string
-	BuildFromContext(ctx context.Context, src io.ReadCloser, remote string, buildOptions *types.ImageBuildOptions, pg backend.ProgressWriter) (string, error)
+	BuildFromContext(ctx context.Context, src io.ReadCloser, buildOptions *types.ImageBuildOptions, pg backend.ProgressWriter) (string, error)
 }
