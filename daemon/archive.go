@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/builder"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
@@ -15,6 +14,7 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
 )
@@ -369,8 +369,12 @@ func (daemon *Daemon) containerCopy(container *container.Container, resource str
 // specified by a container object.
 // TODO: make sure callers don't unnecessarily convert destPath with filepath.FromSlash (Copy does it already).
 // CopyOnBuild should take in abstract paths (with slashes) and the implementation should convert it to OS-specific paths.
-func (daemon *Daemon) CopyOnBuild(cID string, destPath string, src builder.FileInfo, decompress bool) error {
-	srcPath := src.Path()
+func (daemon *Daemon) CopyOnBuild(cID, destPath, srcRoot, srcPath string, decompress bool) error {
+	fullSrcPath, err := symlink.FollowSymlinkInScope(filepath.Join(srcRoot, srcPath), srcRoot)
+	if err != nil {
+		return err
+	}
+
 	destExists := true
 	destDir := false
 	rootUID, rootGID := daemon.GetRemappedUIDGID()
@@ -418,14 +422,19 @@ func (daemon *Daemon) CopyOnBuild(cID string, destPath string, src builder.FileI
 		GIDMaps: gidMaps,
 	}
 
+	src, err := os.Stat(fullSrcPath)
+	if err != nil {
+		return err
+	}
+
 	if src.IsDir() {
 		// copy as directory
-		if err := archiver.CopyWithTar(srcPath, destPath); err != nil {
+		if err := archiver.CopyWithTar(fullSrcPath, destPath); err != nil {
 			return err
 		}
-		return fixPermissions(srcPath, destPath, rootUID, rootGID, destExists)
+		return fixPermissions(fullSrcPath, destPath, rootUID, rootGID, destExists)
 	}
-	if decompress && archive.IsArchivePath(srcPath) {
+	if decompress && archive.IsArchivePath(fullSrcPath) {
 		// Only try to untar if it is a file and that we've been told to decompress (when ADD-ing a remote file)
 
 		// First try to unpack the source as an archive
@@ -438,7 +447,7 @@ func (daemon *Daemon) CopyOnBuild(cID string, destPath string, src builder.FileI
 		}
 
 		// try to successfully untar the orig
-		err := archiver.UntarPath(srcPath, tarDest)
+		err := archiver.UntarPath(fullSrcPath, tarDest)
 		/*
 			if err != nil {
 				logrus.Errorf("Couldn't untar to %s: %v", tarDest, err)
@@ -449,17 +458,17 @@ func (daemon *Daemon) CopyOnBuild(cID string, destPath string, src builder.FileI
 
 	// only needed for fixPermissions, but might as well put it before CopyFileWithTar
 	if destDir || (destExists && destStat.IsDir()) {
-		destPath = filepath.Join(destPath, src.Name())
+		destPath = filepath.Join(destPath, filepath.Base(srcPath))
 	}
 
 	if err := idtools.MkdirAllNewAs(filepath.Dir(destPath), 0755, rootUID, rootGID); err != nil {
 		return err
 	}
-	if err := archiver.CopyFileWithTar(srcPath, destPath); err != nil {
+	if err := archiver.CopyFileWithTar(fullSrcPath, destPath); err != nil {
 		return err
 	}
 
-	return fixPermissions(srcPath, destPath, rootUID, rootGID, destExists)
+	return fixPermissions(fullSrcPath, destPath, rootUID, rootGID, destExists)
 }
 
 // MountImage returns mounted path with rootfs of an image.

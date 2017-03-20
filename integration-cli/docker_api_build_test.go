@@ -21,13 +21,11 @@ func (s *DockerSuite) TestBuildAPIDockerFileRemote(c *check.C) {
 	var testD string
 	if testEnv.DaemonPlatform() == "windows" {
 		testD = `FROM busybox
-COPY * /tmp/
 RUN find / -name ba*
 RUN find /tmp/`
 	} else {
 		// -xdev is required because sysfs can cause EPERM
 		testD = `FROM busybox
-COPY * /tmp/
 RUN find / -xdev -name ba*
 RUN find /tmp/`
 	}
@@ -44,7 +42,7 @@ RUN find /tmp/`
 	// Make sure Dockerfile exists.
 	// Make sure 'baz' doesn't exist ANYWHERE despite being mentioned in the URL
 	out := string(buf)
-	c.Assert(out, checker.Contains, "/tmp/Dockerfile")
+	c.Assert(out, checker.Contains, "RUN find /tmp")
 	c.Assert(out, checker.Not(checker.Contains), "baz")
 }
 

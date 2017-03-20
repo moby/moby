@@ -117,13 +117,13 @@ func (ic *imageContexts) setCache(id, path string, v interface{}) {
 // by an existing image
 type imageMount struct {
 	id        string
-	ctx       builder.Context
+	ctx       builder.Source
 	release   func() error
 	ic        *imageContexts
 	runConfig *container.Config
 }
 
-func (im *imageMount) context() (builder.Context, error) {
+func (im *imageMount) context() (builder.Source, error) {
 	if im.ctx == nil {
 		if im.id == "" {
 			return nil, errors.Errorf("could not copy from empty context")

@@ -1,11 +1,13 @@
 package dockerfile
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/builder"
+	"github.com/docker/docker/builder/remotecontext"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,7 +19,7 @@ func TestEmptyDockerfile(t *testing.T) {
 
 	createTestTempFile(t, contextDir, builder.DefaultDockerfileName, "", 0777)
 
-	readAndCheckDockerfile(t, "emptyDockerfile", contextDir, "", "The Dockerfile (Dockerfile) cannot be empty")
+	readAndCheckDockerfile(t, "emptyDockerfile", contextDir, "", "the Dockerfile (Dockerfile) cannot be empty")
 }
 
 func TestSymlinkDockerfile(t *testing.T) {
@@ -63,21 +65,13 @@ func readAndCheckDockerfile(t *testing.T, testName, contextDir, dockerfilePath, 
 		}
 	}()
 
-	context, err := builder.MakeTarSumContext(tarStream)
-	require.NoError(t, err)
-
-	defer func() {
-		if err = context.Close(); err != nil {
-			t.Fatalf("Error when closing tar context: %s", err)
-		}
-	}()
-
-	options := &types.ImageBuildOptions{
-		Dockerfile: dockerfilePath,
+	if dockerfilePath == "" { // handled in BuildWithContext
+		dockerfilePath = builder.DefaultDockerfileName
 	}
 
-	b := &Builder{options: options, context: context}
-
-	_, err = b.readAndParseDockerfile()
+	remote, df, err := remotecontext.Detect(context.Background(), "", dockerfilePath, tarStream, nil)
+	if err == nil {
+		_, err = NewBuilder(context.Background(), &types.ImageBuildOptions{Dockerfile: dockerfilePath}, nil, remote, df)
+	}
 	assert.EqualError(t, err, expectedError)
 }
