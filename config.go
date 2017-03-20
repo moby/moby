@@ -50,7 +50,7 @@ type MobyImage struct {
 	ReadOnly     bool `yaml:"read_only"`
 }
 
-const riddler = "mobylinux/riddler:8fe62ff02b9d28767554105b55d4613db3e77429@sha256:42b7f5c81fb85f8afb17548e00e5b81cfa4818c192e1199d61850491a178b0da"
+const riddler = "mobylinux/riddler:c23ab4b6e2a2a4ebd4dd51a059cef7f270da72cb@sha256:7e7744b2f554518411633200db98e599782b120e323348495f43f540de26f7b6"
 
 // NewConfig parses a config file
 func NewConfig(config []byte) (*Moby, error) {
