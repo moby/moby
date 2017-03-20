@@ -27,6 +27,9 @@ import (
 	"github.com/opencontainers/go-digest"
 	"golang.org/x/net/context"
 	"golang.org/x/time/rate"
+
+	// TODO(dperny) refactor to remove this daemon import
+	"github.com/docker/docker/daemon/logger"
 )
 
 // containerAdapter conducts remote operations for a container. All calls
@@ -396,15 +399,7 @@ func (c *containerAdapter) deactivateServiceBinding() error {
 	return c.backend.DeactivateContainerServiceBinding(c.container.name())
 }
 
-func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscriptionOptions) (io.ReadCloser, error) {
-	// we can't handle the peculiarities of a TTY-attached container yet
-	conf := c.container.config()
-	if conf != nil && conf.Tty {
-		return nil, errors.New("logs not supported on containers with a TTY attached")
-	}
-
-	reader, writer := io.Pipe()
-
+func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscriptionOptions) (chan *logger.Message, error) {
 	apiOptions := &backend.ContainerLogsConfig{
 		ContainerLogsOptions: types.ContainerLogsOptions{
 			Follow: options.Follow,
@@ -415,7 +410,6 @@ func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscription
 			Timestamps: true,
 			Details:    false, // no clue what to do with this, let's just deprecate it.
 		},
-		OutStream: writer,
 	}
 
 	if options.Since != nil {
@@ -450,13 +444,11 @@ func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscription
 		}
 	}
 
-	chStarted := make(chan struct{})
+	chMsgs := make(chan *logger.Message, 1)
 	go func() {
-		defer writer.Close()
-		c.backend.ContainerLogs(ctx, c.container.name(), apiOptions, chStarted)
+		c.backend.ContainerLogsRawChan(ctx, c.container.name(), apiOptions, chMsgs)
 	}()
-
-	return reader, nil
+	return chMsgs, nil
 }
 
 // todo: typed/wrapped errors
