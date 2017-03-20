@@ -208,7 +208,7 @@ func regexpMatch(pattern, path string) (bool, error) {
 
 	regStr += "$"
 
-	res, err := regexp.MatchString(regStr, path)
+	res, err := memoizeRegexpCompileMatch(regStr, path)
 
 	// Map regexp's error to filepath's so no one knows we're not using filepath
 	if err != nil {
@@ -216,6 +216,22 @@ func regexpMatch(pattern, path string) (bool, error) {
 	}
 
 	return res, err
+}
+
+var compiledRegexps = map[string]*regexp.Regexp{}
+
+func memoizeRegexpCompileMatch(regStr, testStr string) (bool, error) {
+	var err error
+
+	re, ok := compiledRegexps[regStr]
+	if !ok {
+		re, err = regexp.Compile(regStr)
+		if err != nil {
+			return false, err
+		}
+		compiledRegexps[regStr] = re
+	}
+	return re.MatchString(testStr), nil
 }
 
 // CopyFile copies from src to dst until either EOF is reached
