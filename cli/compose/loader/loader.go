@@ -561,7 +561,7 @@ func transformServiceSecret(data interface{}) (interface{}, error) {
 	case map[string]interface{}:
 		return data, nil
 	default:
-		return data, fmt.Errorf("invalid type %T for external", value)
+		return data, fmt.Errorf("invalid type %T for secret", value)
 	}
 }
 
