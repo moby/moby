@@ -13,98 +13,74 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
-// exclusion returns true if the specified pattern is an exclusion
-func exclusion(pattern string) bool {
-	return pattern[0] == '!'
+// PatternMatcher allows checking paths agaist a list of patterns
+type PatternMatcher struct {
+	patterns   []*Pattern
+	exclusions bool
 }
 
-// empty returns true if the specified pattern is empty
-func empty(pattern string) bool {
-	return pattern == ""
-}
-
-// CleanPatterns takes a slice of patterns returns a new
-// slice of patterns cleaned with filepath.Clean, stripped
-// of any empty patterns and lets the caller know whether the
-// slice contains any exception patterns (prefixed with !).
-func CleanPatterns(patterns []string) ([]string, [][]string, bool, error) {
-	// Loop over exclusion patterns and:
-	// 1. Clean them up.
-	// 2. Indicate whether we are dealing with any exception rules.
-	// 3. Error if we see a single exclusion marker on its own (!).
-	cleanedPatterns := []string{}
-	patternDirs := [][]string{}
-	exceptions := false
-	for _, pattern := range patterns {
+// NewPatternMatcher creates a new matcher object for specific patterns that can
+// be used later to match against patterns against paths
+func NewPatternMatcher(patterns []string) (*PatternMatcher, error) {
+	pm := &PatternMatcher{
+		patterns: make([]*Pattern, 0, len(patterns)),
+	}
+	for _, p := range patterns {
 		// Eliminate leading and trailing whitespace.
-		pattern = strings.TrimSpace(pattern)
-		if empty(pattern) {
+		p = strings.TrimSpace(p)
+		if p == "" {
 			continue
 		}
-		if exclusion(pattern) {
-			if len(pattern) == 1 {
-				return nil, nil, false, errors.New("Illegal exclusion pattern: !")
+		p = filepath.Clean(p)
+		newp := &Pattern{}
+		if p[0] == '!' {
+			if len(p) == 1 {
+				return nil, errors.New("illegal exclusion pattern: \"!\"")
 			}
-			exceptions = true
+			newp.exclusion = true
+			p = p[1:]
+			pm.exclusions = true
 		}
-		pattern = filepath.Clean(pattern)
-		cleanedPatterns = append(cleanedPatterns, pattern)
-		if exclusion(pattern) {
-			pattern = pattern[1:]
+		// Do some syntax checking on the pattern.
+		// filepath's Match() has some really weird rules that are inconsistent
+		// so instead of trying to dup their logic, just call Match() for its
+		// error state and if there is an error in the pattern return it.
+		// If this becomes an issue we can remove this since its really only
+		// needed in the error (syntax) case - which isn't really critical.
+		if _, err := filepath.Match(p, "."); err != nil {
+			return nil, err
 		}
-		patternDirs = append(patternDirs, strings.Split(pattern, string(os.PathSeparator)))
+		newp.cleanedPattern = p
+		newp.dirs = strings.Split(p, string(os.PathSeparator))
+		pm.patterns = append(pm.patterns, newp)
 	}
-
-	return cleanedPatterns, patternDirs, exceptions, nil
+	return pm, nil
 }
 
-// Matches returns true if file matches any of the patterns
-// and isn't excluded by any of the subsequent patterns.
-func Matches(file string, patterns []string) (bool, error) {
-	file = filepath.Clean(file)
-
-	if file == "." {
-		// Don't let them exclude everything, kind of silly.
-		return false, nil
-	}
-
-	patterns, patDirs, _, err := CleanPatterns(patterns)
-	if err != nil {
-		return false, err
-	}
-
-	return OptimizedMatches(file, patterns, patDirs)
-}
-
-// OptimizedMatches is basically the same as fileutils.Matches() but optimized for archive.go.
-// It will assume that the inputs have been preprocessed and therefore the function
-// doesn't need to do as much error checking and clean-up. This was done to avoid
-// repeating these steps on each file being checked during the archive process.
-// The more generic fileutils.Matches() can't make these assumptions.
-func OptimizedMatches(file string, patterns []string, patDirs [][]string) (bool, error) {
+// Matches matches path against all the patterns. Matches is not safe to be
+// called concurrently
+func (pm *PatternMatcher) Matches(file string) (bool, error) {
 	matched := false
 	file = filepath.FromSlash(file)
 	parentPath := filepath.Dir(file)
 	parentPathDirs := strings.Split(parentPath, string(os.PathSeparator))
 
-	for i, pattern := range patterns {
+	for _, pattern := range pm.patterns {
 		negative := false
 
-		if exclusion(pattern) {
+		if pattern.exclusion {
 			negative = true
-			pattern = pattern[1:]
 		}
 
-		match, err := regexpMatch(pattern, file)
+		match, err := pattern.match(file)
 		if err != nil {
-			return false, fmt.Errorf("Error in pattern (%s): %s", pattern, err)
+			return false, err
 		}
 
 		if !match && parentPath != "." {
 			// Check to see if the pattern matches one of our parent dirs.
-			if len(patDirs[i]) <= len(parentPathDirs) {
-				match, _ = regexpMatch(strings.Join(patDirs[i], string(os.PathSeparator)),
-					strings.Join(parentPathDirs[:len(patDirs[i])], string(os.PathSeparator)))
+			if len(pattern.dirs) <= len(parentPathDirs) {
+				match, _ = pattern.match(strings.Join(parentPathDirs[:len(pattern.dirs)], string(os.PathSeparator)))
 			}
 		}
 
@@ -120,28 +96,49 @@ func OptimizedMatches(file string, patterns []string, patDirs [][]string) (bool,
 	return matched, nil
 }
 
-// regexpMatch tries to match the logic of filepath.Match but
-// does so using regexp logic. We do this so that we can expand the
-// wildcard set to include other things, like "**" to mean any number
-// of directories.  This means that we should be backwards compatible
-// with filepath.Match(). We'll end up supporting more stuff, due to
-// the fact that we're using regexp, but that's ok - it does no harm.
-//
-// As per the comment in golangs filepath.Match, on Windows, escaping
-// is disabled. Instead, '\\' is treated as path separator.
-func regexpMatch(pattern, path string) (bool, error) {
-	regStr := "^"
+// Exclusions returns true if any of the patterns define exclusions
+func (pm *PatternMatcher) Exclusions() bool {
+	return pm.exclusions
+}
 
-	// Do some syntax checking on the pattern.
-	// filepath's Match() has some really weird rules that are inconsistent
-	// so instead of trying to dup their logic, just call Match() for its
-	// error state and if there is an error in the pattern return it.
-	// If this becomes an issue we can remove this since its really only
-	// needed in the error (syntax) case - which isn't really critical.
-	if _, err := filepath.Match(pattern, path); err != nil {
-		return false, err
+// Patterns returns array of active patterns
+func (pm *PatternMatcher) Patterns() []*Pattern {
+	return pm.patterns
+}
+
+// Pattern defines a single regexp used used to filter file paths.
+type Pattern struct {
+	cleanedPattern string
+	dirs           []string
+	regexp         *regexp.Regexp
+	exclusion      bool
+}
+
+func (p *Pattern) String() string {
+	return p.cleanedPattern
+}
+
+// Exclusion returns true if this pattern defines exclusion
+func (p *Pattern) Exclusion() bool {
+	return p.exclusion
+}
+
+func (p *Pattern) match(path string) (bool, error) {
+
+	if p.regexp == nil {
+		if err := p.compile(); err != nil {
+			return false, filepath.ErrBadPattern
+		}
 	}
 
+	b := p.regexp.MatchString(path)
+
+	return b, nil
+}
+
+func (p *Pattern) compile() error {
+	regStr := "^"
+	pattern := p.cleanedPattern
 	// Go through the pattern and convert it to a regexp.
 	// We use a scanner so we can support utf-8 chars.
 	var scan scanner.Scanner
@@ -208,14 +205,30 @@ func regexpMatch(pattern, path string) (bool, error) {
 
 	regStr += "$"
 
-	res, err := regexp.MatchString(regStr, path)
-
-	// Map regexp's error to filepath's so no one knows we're not using filepath
+	re, err := regexp.Compile(regStr)
 	if err != nil {
-		err = filepath.ErrBadPattern
+		return err
 	}
 
-	return res, err
+	p.regexp = re
+	return nil
+}
+
+// Matches returns true if file matches any of the patterns
+// and isn't excluded by any of the subsequent patterns.
+func Matches(file string, patterns []string) (bool, error) {
+	pm, err := NewPatternMatcher(patterns)
+	if err != nil {
+		return false, err
+	}
+	file = filepath.Clean(file)
+
+	if file == "." {
+		// Don't let them exclude everything, kind of silly.
+		return false, nil
+	}
+
+	return pm.Matches(file)
 }
 
 // CopyFile copies from src to dst until either EOF is reached

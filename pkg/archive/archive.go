@@ -553,8 +553,7 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 	// on platforms other than Windows.
 	srcPath = fixVolumePathPrefix(srcPath)
 
-	patterns, patDirs, exceptions, err := fileutils.CleanPatterns(options.ExcludePatterns)
-
+	pm, err := fileutils.NewPatternMatcher(options.ExcludePatterns)
 	if err != nil {
 		return nil, err
 	}
@@ -651,7 +650,7 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 				// is asking for that file no matter what - which is true
 				// for some files, like .dockerignore and Dockerfile (sometimes)
 				if include != relFilePath {
-					skip, err = fileutils.OptimizedMatches(relFilePath, patterns, patDirs)
+					skip, err = pm.Matches(relFilePath)
 					if err != nil {
 						logrus.Errorf("Error matching %s: %v", relFilePath, err)
 						return err
@@ -670,18 +669,17 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 					}
 
 					// No exceptions (!...) in patterns so just skip dir
-					if !exceptions {
+					if !pm.Exclusions() {
 						return filepath.SkipDir
 					}
 
 					dirSlash := relFilePath + string(filepath.Separator)
 
-					for _, pat := range patterns {
-						if pat[0] != '!' {
+					for _, pat := range pm.Patterns() {
+						if !pat.Exclusion() {
 							continue
 						}
-						pat = pat[1:] + string(filepath.Separator)
-						if strings.HasPrefix(pat, dirSlash) {
+						if strings.HasPrefix(pat.String()+string(filepath.Separator), dirSlash) {
 							// found a match - so can't skip this dir
 							return nil
 						}
