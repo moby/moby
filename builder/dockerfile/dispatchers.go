@@ -189,15 +189,20 @@ func dispatchCopy(b *Builder, args []string, attributes map[string]bool, origina
 
 	var contextID *int
 	if flFrom.IsUsed() {
-		var err error
-		context, err := strconv.Atoi(flFrom.Value)
-		if err != nil {
-			return errors.Wrap(err, "from expects an integer value corresponding to the context number")
+		flFrom.Value = strings.ToLower(flFrom.Value)
+		if context, ok := b.imageContexts.byName[flFrom.Value]; ok {
+			contextID = &context
+		} else {
+			var err error
+			context, err := strconv.Atoi(flFrom.Value)
+			if err != nil {
+				return errors.Wrap(err, "from expects an integer value corresponding to the context number")
+			}
+			if err := b.imageContexts.validate(context); err != nil {
+				return err
+			}
+			contextID = &context
 		}
-		if err := b.imageContexts.validate(context); err != nil {
-			return err
-		}
-		contextID = &context
 	}
 
 	return b.runContextCommand(args, false, false, "COPY", contextID)
@@ -208,7 +213,13 @@ func dispatchCopy(b *Builder, args []string, attributes map[string]bool, origina
 // This sets the image the dockerfile will build on top of.
 //
 func from(b *Builder, args []string, attributes map[string]bool, original string) error {
-	if len(args) != 1 {
+	ctxName := ""
+	if len(args) == 3 && strings.EqualFold(args[1], "as") {
+		ctxName = strings.ToLower(args[2])
+		if ok, _ := regexp.MatchString("^[a-z][a-z0-9-_\\.]*$", ctxName); !ok {
+			return errors.Errorf("invalid name for build stage: %q, name can't start with a number or contain symbols", ctxName)
+		}
+	} else if len(args) != 1 {
 		return errExactlyOneArgument("FROM")
 	}
 
@@ -221,7 +232,9 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 	var image builder.Image
 
 	b.resetImageCache()
-	b.imageContexts.new()
+	if err := b.imageContexts.new(ctxName); err != nil {
+		return err
+	}
 
 	// Windows cannot support a container with no base image.
 	if name == api.NoBaseImageSpecifier {

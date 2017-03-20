@@ -5752,7 +5752,7 @@ func (s *DockerSuite) TestBuildContChar(c *check.C) {
 
 func (s *DockerSuite) TestBuildCopyFromPreviousRootFS(c *check.C) {
 	dockerfile := `
-		FROM busybox
+		FROM busybox AS first
 		COPY foo bar
 		FROM busybox
     %s
@@ -5762,7 +5762,8 @@ func (s *DockerSuite) TestBuildCopyFromPreviousRootFS(c *check.C) {
     COPY bar /
     COPY --from=1 baz sub/
     COPY --from=0 bar baz
-    COPY --from=0 bar bay`
+    COPY --from=first bar bay`
+
 	ctx := fakeContext(c, fmt.Sprintf(dockerfile, ""), map[string]string{
 		"Dockerfile": dockerfile,
 		"foo":        "abc",
@@ -5847,6 +5848,36 @@ func (s *DockerSuite) TestBuildCopyFromPreviousRootFSErrors(c *check.C) {
 		ExitCode: 1,
 		Err:      "invalid from flag value 0 refers current build block",
 	})
+
+	dockerfile = `
+		FROM busybox AS foo
+		COPY --from=bar foo bar`
+
+	ctx = fakeContext(c, dockerfile, map[string]string{
+		"Dockerfile": dockerfile,
+		"foo":        "abc",
+	})
+	defer ctx.Close()
+
+	buildImage("build1", withExternalBuildContext(ctx)).Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Err:      "invalid context value bar",
+	})
+
+	dockerfile = `
+		FROM busybox AS 1
+		COPY --from=1 foo bar`
+
+	ctx = fakeContext(c, dockerfile, map[string]string{
+		"Dockerfile": dockerfile,
+		"foo":        "abc",
+	})
+	defer ctx.Close()
+
+	buildImage("build1", withExternalBuildContext(ctx)).Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Err:      "invalid name for build stage",
+	})
 }
 
 func (s *DockerSuite) TestBuildCopyFromPreviousFrom(c *check.C) {
@@ -5863,9 +5894,9 @@ func (s *DockerSuite) TestBuildCopyFromPreviousFrom(c *check.C) {
 	result.Assert(c, icmd.Success)
 
 	dockerfile = `
-		FROM build1:latest
+		FROM build1:latest AS foo
     FROM busybox
-		COPY --from=0 bar /
+		COPY --from=foo bar /
 		COPY foo /`
 	ctx = fakeContext(c, dockerfile, map[string]string{
 		"Dockerfile": dockerfile,

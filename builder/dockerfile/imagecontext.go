@@ -12,9 +12,10 @@ import (
 // imageContexts is a helper for stacking up built image rootfs and reusing
 // them as contexts
 type imageContexts struct {
-	b     *Builder
-	list  []*imageMount
-	cache *pathCache
+	b      *Builder
+	list   []*imageMount
+	byName map[string]int
+	cache  *pathCache
 }
 
 type imageMount struct {
@@ -23,8 +24,18 @@ type imageMount struct {
 	release func() error
 }
 
-func (ic *imageContexts) new() {
+func (ic *imageContexts) new(name string) error {
+	if len(name) > 0 {
+		if ic.byName == nil {
+			ic.byName = make(map[string]int)
+		}
+		if _, ok := ic.byName[name]; ok {
+			return errors.Errorf("duplicate name %s", name)
+		}
+		ic.byName[name] = len(ic.list)
+	}
 	ic.list = append(ic.list, &imageMount{})
+	return nil
 }
 
 func (ic *imageContexts) update(imageID string) {
