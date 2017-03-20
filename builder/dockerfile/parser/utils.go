@@ -116,7 +116,7 @@ func extractBuilderFlags(line string) (string, []string, error) {
 				return line[pos:], words, nil
 			}
 
-			phase = inWord // found someting with "--", fall through
+			phase = inWord // found something with "--", fall through
 		}
 		if (phase == inWord || phase == inQuote) && (pos == len(line)) {
 			if word != "--" && (blankOK || len(word) > 0) {
