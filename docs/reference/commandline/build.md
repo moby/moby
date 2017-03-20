@@ -334,6 +334,7 @@ For example, to tag an image both as `whenry/fedora-jboss:latest` and
 ```bash
 $ docker build -t whenry/fedora-jboss:latest -t whenry/fedora-jboss:v2.1 .
 ```
+
 ### Specify a Dockerfile (-f)
 
 ```bash
