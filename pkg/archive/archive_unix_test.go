@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"syscall"
 	"testing"
 
@@ -259,5 +260,60 @@ func TestTarUntarWithXattr(t *testing.T) {
 		if capability == nil && capability[0] != 0x00 {
 			t.Fatalf("Untar should have kept the 'security.capability' xattr.")
 		}
+	}
+}
+
+func TestCopyInfoDestinationPathSymlink(t *testing.T) {
+	tmpDir, _ := getTestTempDirs(t)
+	defer removeAllPaths(tmpDir)
+
+	root := strings.TrimRight(tmpDir, "/") + "/"
+
+	type FileTestData struct {
+		resource FileData
+		file     string
+		expected CopyInfo
+	}
+
+	testData := []FileTestData{
+		//Create a directory: /tmp/archive-copy-test*/dir1
+		//Test will "copy" file1 to dir1
+		{resource: FileData{filetype: Dir, path: "dir1", permissions: 0740}, file: "file1", expected: CopyInfo{Path: root + "dir1/file1", Exists: false, IsDir: false}},
+
+		//Create a symlink directory to dir1: /tmp/archive-copy-test*/dirSymlink -> dir1
+		//Test will "copy" file2 to dirSymlink
+		{resource: FileData{filetype: Symlink, path: "dirSymlink", contents: root + "dir1", permissions: 0600}, file: "file2", expected: CopyInfo{Path: root + "dirSymlink/file2", Exists: false, IsDir: false}},
+
+		//Create a file in tmp directory: /tmp/archive-copy-test*/file1
+		//Test to cover when the full file path already exists.
+		{resource: FileData{filetype: Regular, path: "file1", permissions: 0600}, file: "", expected: CopyInfo{Path: root + "file1", Exists: true}},
+
+		//Create a directory: /tmp/archive-copy*/dir2
+		//Test to cover when the full directory path already exists
+		{resource: FileData{filetype: Dir, path: "dir2", permissions: 0740}, file: "", expected: CopyInfo{Path: root + "dir2", Exists: true, IsDir: true}},
+
+		//Create a symlink to a non-existent target: /tmp/archive-copy*/symlink1 -> noSuchTarget
+		//Negative test to cover symlinking to a target that does not exit
+		{resource: FileData{filetype: Symlink, path: "symlink1", contents: "noSuchTarget", permissions: 0600}, file: "", expected: CopyInfo{Path: root + "noSuchTarget", Exists: false}},
+
+		//Create a file in tmp directory for next test: /tmp/existingfile
+		{resource: FileData{filetype: Regular, path: "existingfile", permissions: 0600}, file: "", expected: CopyInfo{Path: root + "existingfile", Exists: true}},
+
+		//Create a symlink to an existing file: /tmp/archive-copy*/symlink2 -> /tmp/existingfile
+		//Test to cover when the parent directory of a new file is a symlink
+		{resource: FileData{filetype: Symlink, path: "symlink2", contents: "existingfile", permissions: 0600}, file: "", expected: CopyInfo{Path: root + "existingfile", Exists: true}},
+	}
+
+	var dirs []FileData
+	for _, data := range testData {
+		dirs = append(dirs, data.resource)
+	}
+	provisionSampleDir(t, tmpDir, dirs)
+
+	for _, info := range testData {
+		p := filepath.Join(tmpDir, info.resource.path, info.file)
+		ci, err := CopyInfoDestinationPath(p)
+		assert.NoError(t, err)
+		assert.Equal(t, info.expected, ci)
 	}
 }
