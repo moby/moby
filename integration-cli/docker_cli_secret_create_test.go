@@ -17,10 +17,10 @@ func (s *DockerSwarmSuite) TestSecretCreate(c *check.C) {
 
 	testName := "test_secret"
 	id := d.CreateSecret(c, swarm.SecretSpec{
-		swarm.Annotations{
+		Annotations: swarm.Annotations{
 			Name: testName,
 		},
-		[]byte("TESTINGDATA"),
+		Data: []byte("TESTINGDATA"),
 	})
 	c.Assert(id, checker.Not(checker.Equals), "", check.Commentf("secrets: %s", id))
 
@@ -33,14 +33,14 @@ func (s *DockerSwarmSuite) TestSecretCreateWithLabels(c *check.C) {
 
 	testName := "test_secret"
 	id := d.CreateSecret(c, swarm.SecretSpec{
-		swarm.Annotations{
+		Annotations: swarm.Annotations{
 			Name: testName,
 			Labels: map[string]string{
 				"key1": "value1",
 				"key2": "value2",
 			},
 		},
-		[]byte("TESTINGDATA"),
+		Data: []byte("TESTINGDATA"),
 	})
 	c.Assert(id, checker.Not(checker.Equals), "", check.Commentf("secrets: %s", id))
 
@@ -57,18 +57,18 @@ func (s *DockerSwarmSuite) TestSecretCreateResolve(c *check.C) {
 
 	name := "test_secret"
 	id := d.CreateSecret(c, swarm.SecretSpec{
-		swarm.Annotations{
+		Annotations: swarm.Annotations{
 			Name: name,
 		},
-		[]byte("foo"),
+		Data: []byte("foo"),
 	})
 	c.Assert(id, checker.Not(checker.Equals), "", check.Commentf("secrets: %s", id))
 
 	fake := d.CreateSecret(c, swarm.SecretSpec{
-		swarm.Annotations{
+		Annotations: swarm.Annotations{
 			Name: id,
 		},
-		[]byte("fake foo"),
+		Data: []byte("fake foo"),
 	})
 	c.Assert(fake, checker.Not(checker.Equals), "", check.Commentf("secrets: %s", fake))
 
