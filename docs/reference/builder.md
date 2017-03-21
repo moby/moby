@@ -803,6 +803,14 @@ the source will be copied inside the destination container.
     ADD test relativeDir/          # adds "test" to `WORKDIR`/relativeDir/
     ADD test /absoluteDir/         # adds "test" to /absoluteDir/
 
+When adding files or directories that contain special characters (such as `[`
+and `]`), you need to escape those paths following the Golang rules to prevent
+them from being treated as a matching pattern. For example, to add a file
+named `arr[0].txt`, use the following;
+
+    ADD arr[[]0].txt /mydir/    # copy a file named "arr[0].txt" to /mydir/
+
+
 All new files and directories are created with a UID and GID of 0.
 
 In the case where `<src>` is a remote file URL, the destination will
@@ -914,6 +922,14 @@ the source will be copied inside the destination container.
 
     COPY test relativeDir/   # adds "test" to `WORKDIR`/relativeDir/
     COPY test /absoluteDir/  # adds "test" to /absoluteDir/
+
+
+When copying files or directories that contain special characters (such as `[`
+and `]`), you need to escape those paths following the Golang rules to prevent
+them from being treated as a matching pattern. For example, to copy a file
+named `arr[0].txt`, use the following;
+
+    COPY arr[[]0].txt /mydir/    # copy a file named "arr[0].txt" to /mydir/
 
 All new files and directories are created with a UID and GID of 0.
 
