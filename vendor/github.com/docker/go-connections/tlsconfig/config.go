@@ -29,6 +29,11 @@ type Options struct {
 	InsecureSkipVerify bool
 	// server-only option
 	ClientAuth tls.ClientAuthType
+
+	// If ExclusiveRootPools is set, then if a CA file is provided, the root pool used for TLS
+	// creds will include exclusively the roots in that CA file.  If no CA file is provided,
+	// the system pool will be used.
+	ExclusiveRootPools bool
 }
 
 // Extra (server-side) accepted CBC cipher suites - will phase out in the future
@@ -66,11 +71,19 @@ func ClientDefault() *tls.Config {
 }
 
 // certPool returns an X.509 certificate pool from `caFile`, the certificate file.
-func certPool(caFile string) (*x509.CertPool, error) {
+func certPool(caFile string, exclusivePool bool) (*x509.CertPool, error) {
 	// If we should verify the server, we need to load a trusted ca
-	certPool, err := SystemCertPool()
-	if err != nil {
-		return nil, fmt.Errorf("failed to read system certificates: %v", err)
+	var (
+		certPool *x509.CertPool
+		err      error
+	)
+	if exclusivePool {
+		certPool = x509.NewCertPool()
+	} else {
+		certPool, err = SystemCertPool()
+		if err != nil {
+			return nil, fmt.Errorf("failed to read system certificates: %v", err)
+		}
 	}
 	pem, err := ioutil.ReadFile(caFile)
 	if err != nil {
@@ -88,7 +101,7 @@ func Client(options Options) (*tls.Config, error) {
 	tlsConfig := ClientDefault()
 	tlsConfig.InsecureSkipVerify = options.InsecureSkipVerify
 	if !options.InsecureSkipVerify && options.CAFile != "" {
-		CAs, err := certPool(options.CAFile)
+		CAs, err := certPool(options.CAFile, options.ExclusiveRootPools)
 		if err != nil {
 			return nil, err
 		}
@@ -119,7 +132,7 @@ func Server(options Options) (*tls.Config, error) {
 	}
 	tlsConfig.Certificates = []tls.Certificate{tlsCert}
 	if options.ClientAuth >= tls.VerifyClientCertIfGiven && options.CAFile != "" {
-		CAs, err := certPool(options.CAFile)
+		CAs, err := certPool(options.CAFile, options.ExclusiveRootPools)
 		if err != nil {
 			return nil, err
 		}
