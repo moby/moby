@@ -6,9 +6,8 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
+	"os"
 	"os/exec"
-	"path/filepath"
 )
 
 func dockerRun(args ...string) ([]byte, error) {
@@ -96,37 +95,40 @@ func dockerRunInput(input io.Reader, args ...string) ([]byte, error) {
 	return stdout, nil
 }
 
-var (
-	conf string
-	name string
-)
-
 func main() {
-	flag.StringVar(&name, "name", "", "Name to use for output files")
-	flag.Parse()
-
-	conf = "moby.yaml"
-	if len(flag.Args()) > 0 {
-		conf = flag.Args()[0]
+	flag.Usage = func() {
+		fmt.Printf("USAGE: %s COMMAND\n\n", os.Args[0])
+		fmt.Printf("Commands:\n")
+		fmt.Printf("  build       Build a Moby image from a YAML file\n")
+		fmt.Printf("  help        Print this message\n")
+		fmt.Printf("\n")
+		fmt.Printf("Run '%s COMMAND --help' for more information on the command\n", os.Args[0])
 	}
 
-	if name == "" {
-		name = filepath.Base(conf)
-		ext := filepath.Ext(conf)
-		if ext != "" {
-			name = name[:len(name)-len(ext)]
-		}
+	buildCmd := flag.NewFlagSet("build", flag.ExitOnError)
+	buildCmd.Usage = func() {
+		fmt.Printf("USAGE: %s build [options] [file.yaml]\n\n", os.Args[0])
+		fmt.Printf("'file.yaml' defaults to 'moby.yaml' if not specified.\n\n")
+		fmt.Printf("Options:\n")
+		buildCmd.PrintDefaults()
+	}
+	buildName := buildCmd.String("name", "", "Name to use for output files")
+
+	if len(os.Args) < 2 {
+		fmt.Printf("Please specify a command.\n\n")
+		flag.Usage()
+		os.Exit(1)
 	}
 
-	config, err := ioutil.ReadFile(conf)
-	if err != nil {
-		log.Fatalf("Cannot open config file: %v", err)
+	switch os.Args[1] {
+	case "build":
+		buildCmd.Parse(os.Args[2:])
+		build(*buildName, buildCmd.Args())
+	case "help":
+		flag.Usage()
+	default:
+		fmt.Printf("%q is not valid command.\n\n", os.Args[1])
+		flag.Usage()
+		os.Exit(1)
 	}
-
-	m, err := NewConfig(config)
-	if err != nil {
-		log.Fatalf("Invalid config: %v", err)
-	}
-
-	build(m, name)
 }

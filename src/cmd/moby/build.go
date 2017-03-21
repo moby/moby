@@ -5,7 +5,9 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"io/ioutil"
 	"log"
+	"path/filepath"
 
 	"github.com/docker/moby/src/initrd"
 )
@@ -66,7 +68,30 @@ func containersInitrd(containers []*bytes.Buffer) (*bytes.Buffer, error) {
 	return w, nil
 }
 
-func build(m *Moby, name string) {
+func build(name string, args []string) {
+	conf := "moby.yaml"
+	if len(args) > 0 {
+		conf = args[0]
+	}
+
+	if name == "" {
+		name = filepath.Base(conf)
+		ext := filepath.Ext(conf)
+		if ext != "" {
+			name = name[:len(name)-len(ext)]
+		}
+	}
+
+	config, err := ioutil.ReadFile(conf)
+	if err != nil {
+		log.Fatalf("Cannot open config file: %v", err)
+	}
+
+	m, err := NewConfig(config)
+	if err != nil {
+		log.Fatalf("Invalid config: %v", err)
+	}
+
 	containers := []*bytes.Buffer{}
 
 	// get kernel bzImage and initrd tarball from container
