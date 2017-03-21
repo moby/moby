@@ -51,7 +51,12 @@ func parseRun(args []string) (*container.Config, *container.HostConfig, *network
 	if err := flags.Parse(args); err != nil {
 		return nil, nil, nil, err
 	}
-	return parse(flags, copts)
+	// TODO: fix tests to accept ContainerConfig
+	containerConfig, err := parse(flags, copts)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return containerConfig.Config, containerConfig.HostConfig, containerConfig.NetworkingConfig, err
 }
 
 func parsetest(t *testing.T, args string) (*container.Config, *container.HostConfig, error) {

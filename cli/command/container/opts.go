@@ -285,10 +285,16 @@ func addFlags(flags *pflag.FlagSet) *containerOptions {
 	return copts
 }
 
+type containerConfig struct {
+	Config           *container.Config
+	HostConfig       *container.HostConfig
+	NetworkingConfig *networktypes.NetworkingConfig
+}
+
 // parse parses the args for the specified command and generates a Config,
 // a HostConfig and returns them with the specified command.
 // If the specified args are not valid, it will return an error.
-func parse(flags *pflag.FlagSet, copts *containerOptions) (*container.Config, *container.HostConfig, *networktypes.NetworkingConfig, error) {
+func parse(flags *pflag.FlagSet, copts *containerOptions) (*containerConfig, error) {
 	var (
 		attachStdin  = copts.attach.Get("stdin")
 		attachStdout = copts.attach.Get("stdout")
@@ -298,7 +304,7 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*container.Config, *c
 	// Validate the input mac address
 	if copts.macAddress != "" {
 		if _, err := opts.ValidateMACAddress(copts.macAddress); err != nil {
-			return nil, nil, nil, fmt.Errorf("%s is not a valid mac address", copts.macAddress)
+			return nil, fmt.Errorf("%s is not a valid mac address", copts.macAddress)
 		}
 	}
 	if copts.stdin {
@@ -314,7 +320,7 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*container.Config, *c
 
 	swappiness := copts.swappiness
 	if swappiness != -1 && (swappiness < 0 || swappiness > 100) {
-		return nil, nil, nil, fmt.Errorf("invalid value: %d. Valid memory swappiness range is 0-100", swappiness)
+		return nil, fmt.Errorf("invalid value: %d. Valid memory swappiness range is 0-100", swappiness)
 	}
 
 	var binds []string
@@ -359,13 +365,13 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*container.Config, *c
 
 	ports, portBindings, err := nat.ParsePortSpecs(copts.publish.GetAll())
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
 
 	// Merge in exposed ports to the map of published ports
 	for _, e := range copts.expose.GetAll() {
 		if strings.Contains(e, ":") {
-			return nil, nil, nil, fmt.Errorf("invalid port format for --expose: %s", e)
+			return nil, fmt.Errorf("invalid port format for --expose: %s", e)
 		}
 		//support two formats for expose, original format <portnum>/[<proto>] or <startport-endport>/[<proto>]
 		proto, port := nat.SplitProtoPort(e)
@@ -373,12 +379,12 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*container.Config, *c
 		//if expose a port, the start and end port are the same
 		start, end, err := nat.ParsePortRange(port)
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("invalid range format for --expose: %s, error: %s", e, err)
+			return nil, fmt.Errorf("invalid range format for --expose: %s, error: %s", e, err)
 		}
 		for i := start; i <= end; i++ {
 			p, err := nat.NewPort(proto, strconv.FormatUint(i, 10))
 			if err != nil {
-				return nil, nil, nil, err
+				return nil, err
 			}
 			if _, exists := ports[p]; !exists {
 				ports[p] = struct{}{}
@@ -391,7 +397,7 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*container.Config, *c
 	for _, device := range copts.devices.GetAll() {
 		deviceMapping, err := parseDevice(device)
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, err
 		}
 		deviceMappings = append(deviceMappings, deviceMapping)
 	}
@@ -399,53 +405,53 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*container.Config, *c
 	// collect all the environment variables for the container
 	envVariables, err := runconfigopts.ReadKVStrings(copts.envFile.GetAll(), copts.env.GetAll())
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
 
 	// collect all the labels for the container
 	labels, err := runconfigopts.ReadKVStrings(copts.labelsFile.GetAll(), copts.labels.GetAll())
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
 
 	ipcMode := container.IpcMode(copts.ipcMode)
 	if !ipcMode.Valid() {
-		return nil, nil, nil, fmt.Errorf("--ipc: invalid IPC mode")
+		return nil, fmt.Errorf("--ipc: invalid IPC mode")
 	}
 
 	pidMode := container.PidMode(copts.pidMode)
 	if !pidMode.Valid() {
-		return nil, nil, nil, fmt.Errorf("--pid: invalid PID mode")
+		return nil, fmt.Errorf("--pid: invalid PID mode")
 	}
 
 	utsMode := container.UTSMode(copts.utsMode)
 	if !utsMode.Valid() {
-		return nil, nil, nil, fmt.Errorf("--uts: invalid UTS mode")
+		return nil, fmt.Errorf("--uts: invalid UTS mode")
 	}
 
 	usernsMode := container.UsernsMode(copts.usernsMode)
 	if !usernsMode.Valid() {
-		return nil, nil, nil, fmt.Errorf("--userns: invalid USER mode")
+		return nil, fmt.Errorf("--userns: invalid USER mode")
 	}
 
 	restartPolicy, err := runconfigopts.ParseRestartPolicy(copts.restartPolicy)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
 
 	loggingOpts, err := parseLoggingOpts(copts.loggingDriver, copts.loggingOpts.GetAll())
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
 
 	securityOpts, err := parseSecurityOpts(copts.securityOpt.GetAll())
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
 
 	storageOpts, err := parseStorageOpts(copts.storageOpt.GetAll())
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
 
 	// Healthcheck
@@ -456,7 +462,7 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*container.Config, *c
 		copts.healthRetries != 0
 	if copts.noHealthcheck {
 		if haveHealthSettings {
-			return nil, nil, nil, fmt.Errorf("--no-healthcheck conflicts with --health-* options")
+			return nil, fmt.Errorf("--no-healthcheck conflicts with --health-* options")
 		}
 		test := strslice.StrSlice{"NONE"}
 		healthConfig = &container.HealthConfig{Test: test}
@@ -467,13 +473,13 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*container.Config, *c
 			probe = strslice.StrSlice(args)
 		}
 		if copts.healthInterval < 0 {
-			return nil, nil, nil, fmt.Errorf("--health-interval cannot be negative")
+			return nil, fmt.Errorf("--health-interval cannot be negative")
 		}
 		if copts.healthTimeout < 0 {
-			return nil, nil, nil, fmt.Errorf("--health-timeout cannot be negative")
+			return nil, fmt.Errorf("--health-timeout cannot be negative")
 		}
 		if copts.healthRetries < 0 {
-			return nil, nil, nil, fmt.Errorf("--health-retries cannot be negative")
+			return nil, fmt.Errorf("--health-retries cannot be negative")
 		}
 
 		healthConfig = &container.HealthConfig{
@@ -588,7 +594,7 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*container.Config, *c
 	}
 
 	if copts.autoRemove && !hostConfig.RestartPolicy.IsNone() {
-		return nil, nil, nil, fmt.Errorf("Conflicting options: --restart and --rm")
+		return nil, fmt.Errorf("Conflicting options: --restart and --rm")
 	}
 
 	// only set this value if the user provided the flag, else it should default to nil
@@ -640,7 +646,11 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*container.Config, *c
 		networkingConfig.EndpointsConfig[string(hostConfig.NetworkMode)] = epConfig
 	}
 
-	return config, hostConfig, networkingConfig, nil
+	return &containerConfig{
+		Config:           config,
+		HostConfig:       hostConfig,
+		NetworkingConfig: networkingConfig,
+	}, nil
 }
 
 func parseLoggingOpts(loggingDriver string, loggingOpts []string) (map[string]string, error) {

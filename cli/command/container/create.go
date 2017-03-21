@@ -8,7 +8,6 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/command/image"
@@ -57,12 +56,12 @@ func NewCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 }
 
 func runCreate(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *createOptions, copts *containerOptions) error {
-	config, hostConfig, networkingConfig, err := parse(flags, copts)
+	containerConfig, err := parse(flags, copts)
 	if err != nil {
 		reportError(dockerCli.Err(), "create", err.Error(), true)
 		return cli.StatusError{StatusCode: 125}
 	}
-	response, err := createContainer(context.Background(), dockerCli, config, hostConfig, networkingConfig, hostConfig.ContainerIDFile, opts.name)
+	response, err := createContainer(context.Background(), dockerCli, containerConfig, opts.name)
 	if err != nil {
 		return err
 	}
@@ -146,7 +145,10 @@ func newCIDFile(path string) (*cidFile, error) {
 	return &cidFile{path: path, file: f}, nil
 }
 
-func createContainer(ctx context.Context, dockerCli *command.DockerCli, config *container.Config, hostConfig *container.HostConfig, networkingConfig *networktypes.NetworkingConfig, cidfile, name string) (*container.ContainerCreateCreatedBody, error) {
+func createContainer(ctx context.Context, dockerCli *command.DockerCli, containerConfig *containerConfig, name string) (*container.ContainerCreateCreatedBody, error) {
+	config := containerConfig.Config
+	hostConfig := containerConfig.HostConfig
+	networkingConfig := containerConfig.NetworkingConfig
 	stderr := dockerCli.Err()
 
 	var (
@@ -155,6 +157,7 @@ func createContainer(ctx context.Context, dockerCli *command.DockerCli, config *
 		namedRef        reference.Named
 	)
 
+	cidfile := hostConfig.ContainerIDFile
 	if cidfile != "" {
 		var err error
 		if containerIDFile, err = newCIDFile(cidfile); err != nil {
