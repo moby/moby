@@ -12,7 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/docker/moby/pkg/initrd"
+	"github.com/docker/moby/src/initrd"
 )
 
 const (
