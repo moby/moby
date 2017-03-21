@@ -115,7 +115,6 @@ type containerOptions struct {
 	autoRemove         bool
 	init               bool
 	initPath           string
-	credentialSpec     string
 
 	Image string
 	Args  []string
@@ -188,8 +187,6 @@ func addFlags(flags *pflag.FlagSet) *containerOptions {
 	flags.BoolVar(&copts.privileged, "privileged", false, "Give extended privileges to this container")
 	flags.Var(&copts.securityOpt, "security-opt", "Security Options")
 	flags.StringVar(&copts.usernsMode, "userns", "", "User namespace to use")
-	flags.StringVar(&copts.credentialSpec, "credentialspec", "", "Credential spec for managed service account (Windows only)")
-	flags.SetAnnotation("credentialspec", "ostype", []string{"windows"})
 
 	// Network and port publishing flag
 	flags.Var(&copts.extraHosts, "add-host", "Add a custom host-to-IP mapping (host:ip)")
