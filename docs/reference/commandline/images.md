@@ -158,6 +158,7 @@ The currently supported filters are:
 * label (`label=<key>` or `label=<key>=<value>`)
 * before (`<image-name>[:<tag>]`,  `<image id>` or `<image@digest>`) - filter images created before given id or references
 * since (`<image-name>[:<tag>]`,  `<image id>` or `<image@digest>`) - filter images created since given id or references
+* reference (pattern of an image reference) - filter images whose reference matches the specified pattern
 
 #### Show untagged images (dangling)
 
