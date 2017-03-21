@@ -13,7 +13,6 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/filters"
 	types "github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/pkg/stdcopy"
 	"golang.org/x/net/context"
 )
 
@@ -215,54 +214,28 @@ func (sr *swarmRouter) removeService(ctx context.Context, w http.ResponseWriter,
 	return nil
 }
 
+func (sr *swarmRouter) getTaskLogs(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+
+	// make a selector to pass to the helper function
+	selector := &backend.LogSelector{
+		Tasks: []string{vars["id"]},
+	}
+	return sr.swarmLogs(ctx, w, r, selector)
+}
+
 func (sr *swarmRouter) getServiceLogs(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
 
-	// Args are validated before the stream starts because when it starts we're
-	// sending HTTP 200 by writing an empty chunk of data to tell the client that
-	// daemon is going to stream. By sending this initial HTTP 200 we can't report
-	// any error after the stream starts (i.e. container not found, wrong parameters)
-	// with the appropriate status code.
-	stdout, stderr := httputils.BoolValue(r, "stdout"), httputils.BoolValue(r, "stderr")
-	if !(stdout || stderr) {
-		return fmt.Errorf("Bad parameters: you must choose at least one stream")
+	// make a selector to pass to the helper function
+	selector := &backend.LogSelector{
+		Services: []string{vars["id"]},
 	}
-
-	serviceName := vars["id"]
-	logsConfig := &backend.ContainerLogsConfig{
-		ContainerLogsOptions: basictypes.ContainerLogsOptions{
-			Follow:     httputils.BoolValue(r, "follow"),
-			Timestamps: httputils.BoolValue(r, "timestamps"),
-			Since:      r.Form.Get("since"),
-			Tail:       r.Form.Get("tail"),
-			ShowStdout: stdout,
-			ShowStderr: stderr,
-			Details:    httputils.BoolValue(r, "details"),
-		},
-		OutStream: w,
-	}
-
-	if logsConfig.Details {
-		return fmt.Errorf("Bad parameters: details is not currently supported")
-	}
-
-	chStarted := make(chan struct{})
-	if err := sr.backend.ServiceLogs(ctx, serviceName, logsConfig, chStarted); err != nil {
-		select {
-		case <-chStarted:
-			// The client may be expecting all of the data we're sending to
-			// be multiplexed, so send it through OutStream, which will
-			// have been set up to handle that if needed.
-			stdwriter := stdcopy.NewStdWriter(w, stdcopy.Systemerr)
-			fmt.Fprintf(stdwriter, "Error grabbing service logs: %v\n", err)
-		default:
-			return err
-		}
-	}
-
-	return nil
+	return sr.swarmLogs(ctx, w, r, selector)
 }
 
 func (sr *swarmRouter) getNodes(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

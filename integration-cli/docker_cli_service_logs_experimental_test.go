@@ -12,6 +12,7 @@ import (
 
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/daemon"
+	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
 )
 
@@ -56,10 +57,10 @@ func (s *DockerSwarmSuite) TestServiceLogs(c *check.C) {
 // output.
 func countLogLines(d *daemon.Swarm, name string) func(*check.C) (interface{}, check.CommentInterface) {
 	return func(c *check.C) (interface{}, check.CommentInterface) {
-		out, err := d.Cmd("service", "logs", "-t", name)
-		c.Assert(err, checker.IsNil)
-		lines := strings.Split(strings.TrimSpace(out), "\n")
-		return len(lines), check.Commentf("output, %q", string(out))
+		result := icmd.RunCmd(d.Command("service", "logs", "-t", name))
+		result.Assert(c, icmd.Expected{})
+		lines := strings.Split(strings.TrimSpace(result.Stdout()), "\n")
+		return len(lines), check.Commentf("output, %q", string(result.Stdout()))
 	}
 }
 
@@ -70,7 +71,7 @@ func (s *DockerSwarmSuite) TestServiceLogsCompleteness(c *check.C) {
 	name := "TestServiceLogsCompleteness"
 
 	// make a service that prints 6 lines
-	out, err := d.Cmd("service", "create", "--name", name, "busybox", "sh", "-c", "for line in $(seq 1 6); do echo log test $line; done; sleep 100000")
+	out, err := d.Cmd("service", "create", "--name", name, "busybox", "sh", "-c", "for line in $(seq 0 5); do echo log test $line; done; sleep 100000")
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
 
@@ -79,22 +80,15 @@ func (s *DockerSwarmSuite) TestServiceLogsCompleteness(c *check.C) {
 	// and make sure we have all the log lines
 	waitAndAssert(c, defaultReconciliationTimeout, countLogLines(d, name), checker.Equals, 6)
 
-	args := []string{"service", "logs", name}
-	cmd := exec.Command(dockerBinary, d.PrependHostArg(args)...)
-	r, w := io.Pipe()
-	cmd.Stdout = w
-	cmd.Stderr = w
-	c.Assert(cmd.Start(), checker.IsNil)
+	out, err = d.Cmd("service", "logs", name)
+	c.Assert(err, checker.IsNil)
+	lines := strings.Split(strings.TrimSpace(out), "\n")
 
-	reader := bufio.NewReader(r)
 	// i have heard anecdotal reports that logs may come back from the engine
 	// mis-ordered. if this tests fails, consider the possibility that that
 	// might be occurring
-	for i := 1; i <= 6; i++ {
-		msg := &logMessage{}
-		msg.data, _, msg.err = reader.ReadLine()
-		c.Assert(msg.err, checker.IsNil)
-		c.Assert(string(msg.data), checker.Contains, fmt.Sprintf("log test %v", i))
+	for i, line := range lines {
+		c.Assert(line, checker.Contains, fmt.Sprintf("log test %v", i))
 	}
 }
 
@@ -113,21 +107,13 @@ func (s *DockerSwarmSuite) TestServiceLogsTail(c *check.C) {
 	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
 	waitAndAssert(c, defaultReconciliationTimeout, countLogLines(d, name), checker.Equals, 6)
 
-	args := []string{"service", "logs", "--tail=2", name}
-	cmd := exec.Command(dockerBinary, d.PrependHostArg(args)...)
-	r, w := io.Pipe()
-	cmd.Stdout = w
-	cmd.Stderr = w
-	c.Assert(cmd.Start(), checker.IsNil)
+	out, err = d.Cmd("service", "logs", "--tail=2", name)
+	c.Assert(err, checker.IsNil)
+	lines := strings.Split(strings.TrimSpace(out), "\n")
 
-	reader := bufio.NewReader(r)
-	// see TestServiceLogsCompleteness for comments about logs being well-
-	// ordered, if this flakes
-	for i := 5; i <= 6; i++ {
-		msg := &logMessage{}
-		msg.data, _, msg.err = reader.ReadLine()
-		c.Assert(msg.err, checker.IsNil)
-		c.Assert(string(msg.data), checker.Contains, fmt.Sprintf("log test %v", i))
+	for i, line := range lines {
+		// doing i+5 is hacky but not too fragile, it's good enough. if it flakes something else is wrong
+		c.Assert(line, checker.Contains, fmt.Sprintf("log test %v", i+5))
 	}
 }
 
@@ -212,4 +198,59 @@ func (s *DockerSwarmSuite) TestServiceLogsFollow(c *check.C) {
 	close(done)
 
 	c.Assert(cmd.Process.Kill(), checker.IsNil)
+}
+
+func (s *DockerSwarmSuite) TestServiceLogsTaskLogs(c *check.C) {
+	testRequires(c, ExperimentalDaemon)
+
+	d := s.AddDaemon(c, true, true)
+
+	name := "TestServicelogsTaskLogs"
+	replicas := 2
+
+	result := icmd.RunCmd(d.Command(
+		// create a service with the name
+		"service", "create", "--name", name,
+		// which has some number of replicas
+		fmt.Sprintf("--replicas=%v", replicas),
+		// which has this the task id as an environment variable templated in
+		"--env", "TASK={{.Task.ID}}",
+		// and runs this command to print exaclty 6 logs lines
+		"busybox", "sh", "-c", "for line in $(seq 0 5); do echo $TASK log test $line; done; sleep 100000",
+	))
+	result.Assert(c, icmd.Expected{})
+	// ^^ verify that we get no error
+	// then verify that we have an id in stdout
+	id := strings.TrimSpace(result.Stdout())
+	c.Assert(id, checker.Not(checker.Equals), "")
+	// so, right here, we're basically inspecting by id and returning only
+	// the ID. if they don't match, the service doesn't exist.
+	result = icmd.RunCmd(d.Command("service", "inspect", "--format=\"{{.ID}}\"", id))
+	result.Assert(c, icmd.Expected{Out: id})
+
+	// make sure task has been deployed.
+	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, replicas)
+	waitAndAssert(c, defaultReconciliationTimeout, countLogLines(d, name), checker.Equals, 6*replicas)
+
+	// get the task ids
+	result = icmd.RunCmd(d.Command("service", "ps", "-q", name))
+	result.Assert(c, icmd.Expected{})
+	// make sure we have two tasks
+	taskIDs := strings.Split(strings.TrimSpace(result.Stdout()), "\n")
+	c.Assert(taskIDs, checker.HasLen, replicas)
+
+	for _, taskID := range taskIDs {
+		c.Logf("checking task %v", taskID)
+		result := icmd.RunCmd(d.Command("service", "logs", taskID))
+		result.Assert(c, icmd.Expected{})
+		lines := strings.Split(strings.TrimSpace(result.Stdout()), "\n")
+
+		c.Logf("checking messages for %v", taskID)
+		for i, line := range lines {
+			// make sure the message is in order
+			c.Assert(line, checker.Contains, fmt.Sprintf("log test %v", i))
+			// make sure it contains the task id
+			c.Assert(line, checker.Contains, taskID)
+		}
+	}
 }
