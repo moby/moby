@@ -39,13 +39,12 @@ func ExpandEnvWildcard(pattern string) []string {
 	for _, entry := range os.Environ() {
 		parts := strings.SplitN(entry, "=", 2)
 		name := parts[0]
-		val := parts[1]
 		matched, err := filepath.Match(pattern, name)
 		if err != nil {
 			break
 		}
 		if matched {
-			opts = append(opts, fmt.Sprintf("%s=%s", name, val))
+			opts = append(opts, entry)
 		}
 	}
 
