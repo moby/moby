@@ -42,6 +42,9 @@ type PluginConfig struct {
 	// Required: true
 	Description string `json:"Description"`
 
+	// Docker Version used to create the plugin
+	DockerVersion string `json:"DockerVersion,omitempty"`
+
 	// documentation
 	// Required: true
 	Documentation string `json:"Documentation"`
