@@ -77,6 +77,15 @@ my-named-vol                                                       0            
 > **Note**: Network information is not shown because it doesn't consume the disk
 > space.
 
+## Performance
+
+The `system df` command can be very resource-intensive. It traverses the
+filesystem of every image, container, and volume in the system. You should be
+careful running this command in systems with lots of images, containers, or
+volumes or in systems where some images, containers, or volumes have very large
+filesystems with many files. You should also be careful not to run this command
+in systems where performance is critical.
+
 ## Related commands
 * [system prune](system_prune.md)
 * [container prune](container_prune.md)
