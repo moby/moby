@@ -52,7 +52,7 @@ func ReserveLabel(label string) error {
 	return nil
 }
 
-func UnreserveLabel(label string) error {
+func ReleaseLabel(label string) error {
 	return nil
 }
 

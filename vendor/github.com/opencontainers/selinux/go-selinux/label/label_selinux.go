@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/opencontainers/runc/libcontainer/selinux"
+	"github.com/opencontainers/selinux/go-selinux"
 )
 
 // Valid Label Options
@@ -25,10 +25,10 @@ var ErrIncompatibleLabel = fmt.Errorf("Bad SELinux option z and Z can not be use
 // the labels.  The labels returned will include a random MCS String, that is
 // guaranteed to be unique.
 func InitLabels(options []string) (string, string, error) {
-	if !selinux.SelinuxEnabled() {
+	if !selinux.GetEnabled() {
 		return "", "", nil
 	}
-	processLabel, mountLabel := selinux.GetLxcContexts()
+	processLabel, mountLabel := selinux.ContainerLabels()
 	if processLabel != "" {
 		pcon := selinux.NewContext(processLabel)
 		mcon := selinux.NewContext(mountLabel)
@@ -55,8 +55,8 @@ func InitLabels(options []string) (string, string, error) {
 	return processLabel, mountLabel, nil
 }
 
-func GetROMountLabel() string {
-	return selinux.GetROFileLabel()
+func ROMountLabel() string {
+	return selinux.ROFileLabel()
 }
 
 // DEPRECATED: The GenLabels function is only to be used during the transition to the official API.
@@ -88,33 +88,33 @@ func SetProcessLabel(processLabel string) error {
 	if processLabel == "" {
 		return nil
 	}
-	return selinux.Setexeccon(processLabel)
+	return selinux.SetExecLabel(processLabel)
 }
 
-// GetProcessLabel returns the process label that the kernel will assign
+// ProcessLabel returns the process label that the kernel will assign
 // to the next program executed by the current process.  If "" is returned
 // this indicates that the default labeling will happen for the process.
-func GetProcessLabel() (string, error) {
-	return selinux.Getexeccon()
+func ProcessLabel() (string, error) {
+	return selinux.ExecLabel()
 }
 
 // GetFileLabel returns the label for specified path
-func GetFileLabel(path string) (string, error) {
-	return selinux.Getfilecon(path)
+func FileLabel(path string) (string, error) {
+	return selinux.FileLabel(path)
 }
 
 // SetFileLabel modifies the "path" label to the specified file label
 func SetFileLabel(path string, fileLabel string) error {
-	if selinux.SelinuxEnabled() && fileLabel != "" {
-		return selinux.Setfilecon(path, fileLabel)
+	if selinux.GetEnabled() && fileLabel != "" {
+		return selinux.SetFileLabel(path, fileLabel)
 	}
 	return nil
 }
 
 // SetFileCreateLabel tells the kernel the label for all files to be created
 func SetFileCreateLabel(fileLabel string) error {
-	if selinux.SelinuxEnabled() {
-		return selinux.Setfscreatecon(fileLabel)
+	if selinux.GetEnabled() {
+		return selinux.SetFSCreateLabel(fileLabel)
 	}
 	return nil
 }
@@ -123,7 +123,7 @@ func SetFileCreateLabel(fileLabel string) error {
 // It changes the MCS label to s0 if shared is true.
 // This will allow all containers to share the content.
 func Relabel(path string, fileLabel string, shared bool) error {
-	if !selinux.SelinuxEnabled() {
+	if !selinux.GetEnabled() {
 		return nil
 	}
 
@@ -147,14 +147,14 @@ func Relabel(path string, fileLabel string, shared bool) error {
 	return nil
 }
 
-// GetPidLabel will return the label of the process running with the specified pid
-func GetPidLabel(pid int) (string, error) {
-	return selinux.Getpidcon(pid)
+// PidLabel will return the label of the process running with the specified pid
+func PidLabel(pid int) (string, error) {
+	return selinux.PidLabel(pid)
 }
 
 // Init initialises the labeling system
 func Init() {
-	selinux.SelinuxEnabled()
+	selinux.GetEnabled()
 }
 
 // ReserveLabel will record the fact that the MCS label has already been used.
@@ -165,15 +165,15 @@ func ReserveLabel(label string) error {
 	return nil
 }
 
-// UnreserveLabel will remove the reservation of the MCS label.
+// ReleaseLabel will remove the reservation of the MCS label.
 // This will allow InitLabels to use the MCS label in a newly created
 // containers
-func UnreserveLabel(label string) error {
-	selinux.FreeLxcContexts(label)
+func ReleaseLabel(label string) error {
+	selinux.ReleaseLabel(label)
 	return nil
 }
 
-// DupSecOpt takes an process label and returns security options that
+// DupSecOpt takes a process label and returns security options that
 // can be used to set duplicate labels on future container processes
 func DupSecOpt(src string) []string {
 	return selinux.DupSecOpt(src)
