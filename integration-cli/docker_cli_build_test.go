@@ -4641,6 +4641,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgEnv(c *check.C) {
 		ARG FOO4=fromfile
 		ARG FOO5
 		ARG FOO6
+		ARG FO10
 		RUN env
 		RUN [ "$FOO1" == "fromcmd" ]
 		RUN [ "$FOO2" == "" ]
@@ -4652,6 +4653,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgEnv(c *check.C) {
 		RUN [ "$(env | grep FOO7)" == "" ]
 		RUN [ "$(env | grep FOO8)" == "" ]
 		RUN [ "$(env | grep FOO9)" == "" ]
+		RUN [ "$FO10" == "" ]
 	    `
 	result := buildImage("testbuildtimeargenv",
 		withBuildFlags(
@@ -4664,6 +4666,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgEnv(c *check.C) {
 			"--build-arg", fmt.Sprintf("FOO7=fromcmd"), // should produce a warning
 			"--build-arg", fmt.Sprintf("FOO8="), // should produce a warning
 			"--build-arg", fmt.Sprintf("FOO9"), // should produce a warning
+			"--build-arg", fmt.Sprintf("FO10"), // not set in env, empty value
 		),
 		withEnvironmentVariales(append(os.Environ(),
 			"FOO1=fromenv",
