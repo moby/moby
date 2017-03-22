@@ -137,7 +137,8 @@ Options:
   -v, --volume value                Bind mount a volume (default []). The format
                                     is `[host-src:]container-dest[:<options>]`.
                                     The comma-delimited `options` are [rw|ro],
-                                    [z|Z], [[r]shared|[r]slave|[r]private], and
+                                    [z|Z], [[r]shared|[r]slave|[r]private],
+                                    [delegated|cached|consistent], and
                                     [nocopy]. The 'host-src' is an absolute path
                                     or a name value.
       --volume-driver string        Optional volume driver for the container
