@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func buildConfigDetails(source types.Dict, env map[string]string) types.ConfigDetails {
+func buildConfigDetails(source map[string]interface{}, env map[string]string) types.ConfigDetails {
 	workingDir, err := os.Getwd()
 	if err != nil {
 		panic(err)
@@ -70,39 +70,39 @@ networks:
         - subnet: 172.28.0.0/16
 `
 
-var sampleDict = types.Dict{
+var sampleDict = map[string]interface{}{
 	"version": "3",
-	"services": types.Dict{
-		"foo": types.Dict{
+	"services": map[string]interface{}{
+		"foo": map[string]interface{}{
 			"image":    "busybox",
-			"networks": types.Dict{"with_me": nil},
+			"networks": map[string]interface{}{"with_me": nil},
 		},
-		"bar": types.Dict{
+		"bar": map[string]interface{}{
 			"image":       "busybox",
 			"environment": []interface{}{"FOO=1"},
 			"networks":    []interface{}{"with_ipam"},
 		},
 	},
-	"volumes": types.Dict{
-		"hello": types.Dict{
+	"volumes": map[string]interface{}{
+		"hello": map[string]interface{}{
 			"driver": "default",
-			"driver_opts": types.Dict{
+			"driver_opts": map[string]interface{}{
 				"beep": "boop",
 			},
 		},
 	},
-	"networks": types.Dict{
-		"default": types.Dict{
+	"networks": map[string]interface{}{
+		"default": map[string]interface{}{
 			"driver": "bridge",
-			"driver_opts": types.Dict{
+			"driver_opts": map[string]interface{}{
 				"beep": "boop",
 			},
 		},
-		"with_ipam": types.Dict{
-			"ipam": types.Dict{
+		"with_ipam": map[string]interface{}{
+			"ipam": map[string]interface{}{
 				"driver": "default",
 				"config": []interface{}{
-					types.Dict{
+					map[string]interface{}{
 						"subnet": "172.28.0.0/16",
 					},
 				},

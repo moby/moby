@@ -4,8 +4,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/docker/docker/cli/compose/types"
 )
 
 var defaults = map[string]string{
@@ -19,25 +17,25 @@ func defaultMapping(name string) (string, bool) {
 }
 
 func TestInterpolate(t *testing.T) {
-	services := types.Dict{
-		"servicea": types.Dict{
+	services := map[string]interface{}{
+		"servicea": map[string]interface{}{
 			"image":   "example:${USER}",
 			"volumes": []interface{}{"$FOO:/target"},
-			"logging": types.Dict{
+			"logging": map[string]interface{}{
 				"driver": "${FOO}",
-				"options": types.Dict{
+				"options": map[string]interface{}{
 					"user": "$USER",
 				},
 			},
 		},
 	}
-	expected := types.Dict{
-		"servicea": types.Dict{
+	expected := map[string]interface{}{
+		"servicea": map[string]interface{}{
 			"image":   "example:jenny",
 			"volumes": []interface{}{"bar:/target"},
-			"logging": types.Dict{
+			"logging": map[string]interface{}{
 				"driver": "bar",
-				"options": types.Dict{
+				"options": map[string]interface{}{
 					"user": "jenny",
 				},
 			},
@@ -49,8 +47,8 @@ func TestInterpolate(t *testing.T) {
 }
 
 func TestInvalidInterpolation(t *testing.T) {
-	services := types.Dict{
-		"servicea": types.Dict{
+	services := map[string]interface{}{
+		"servicea": map[string]interface{}{
 			"image": "${",
 		},
 	}

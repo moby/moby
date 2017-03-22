@@ -4,19 +4,18 @@ import (
 	"fmt"
 
 	"github.com/docker/docker/cli/compose/template"
-	"github.com/docker/docker/cli/compose/types"
 )
 
 // Interpolate replaces variables in a string with the values from a mapping
-func Interpolate(config types.Dict, section string, mapping template.Mapping) (types.Dict, error) {
-	out := types.Dict{}
+func Interpolate(config map[string]interface{}, section string, mapping template.Mapping) (map[string]interface{}, error) {
+	out := map[string]interface{}{}
 
 	for name, item := range config {
 		if item == nil {
 			out[name] = nil
 			continue
 		}
-		interpolatedItem, err := interpolateSectionItem(name, item.(types.Dict), section, mapping)
+		interpolatedItem, err := interpolateSectionItem(name, item.(map[string]interface{}), section, mapping)
 		if err != nil {
 			return nil, err
 		}
@@ -28,12 +27,12 @@ func Interpolate(config types.Dict, section string, mapping template.Mapping) (t
 
 func interpolateSectionItem(
 	name string,
-	item types.Dict,
+	item map[string]interface{},
 	section string,
 	mapping template.Mapping,
-) (types.Dict, error) {
+) (map[string]interface{}, error) {
 
-	out := types.Dict{}
+	out := map[string]interface{}{}
 
 	for key, value := range item {
 		interpolatedValue, err := recursiveInterpolate(value, mapping)
@@ -60,8 +59,8 @@ func recursiveInterpolate(
 	case string:
 		return template.Substitute(value, mapping)
 
-	case types.Dict:
-		out := types.Dict{}
+	case map[string]interface{}:
+		out := map[string]interface{}{}
 		for key, elem := range value {
 			interpolatedElem, err := recursiveInterpolate(elem, mapping)
 			if err != nil {

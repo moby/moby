@@ -28,7 +28,7 @@ var (
 
 // ParseYAML reads the bytes from a file, parses the bytes into a mapping
 // structure, and returns it.
-func ParseYAML(source []byte) (types.Dict, error) {
+func ParseYAML(source []byte) (map[string]interface{}, error) {
 	var cfg interface{}
 	if err := yaml.Unmarshal(source, &cfg); err != nil {
 		return nil, err
@@ -41,7 +41,7 @@ func ParseYAML(source []byte) (types.Dict, error) {
 	if err != nil {
 		return nil, err
 	}
-	return converted.(types.Dict), nil
+	return converted.(map[string]interface{}), nil
 }
 
 // Load reads a ConfigDetails and returns a fully loaded configuration
@@ -56,7 +56,7 @@ func Load(configDetails types.ConfigDetails) (*types.Config, error) {
 	configDict := getConfigDict(configDetails)
 
 	if services, ok := configDict["services"]; ok {
-		if servicesDict, ok := services.(types.Dict); ok {
+		if servicesDict, ok := services.(map[string]interface{}); ok {
 			forbidden := getProperties(servicesDict, types.ForbiddenProperties)
 
 			if len(forbidden) > 0 {
@@ -75,7 +75,7 @@ func Load(configDetails types.ConfigDetails) (*types.Config, error) {
 		return v, ok
 	}
 	if services, ok := configDict["services"]; ok {
-		servicesConfig, err := interpolation.Interpolate(services.(types.Dict), "service", lookupEnv)
+		servicesConfig, err := interpolation.Interpolate(services.(map[string]interface{}), "service", lookupEnv)
 		if err != nil {
 			return nil, err
 		}
@@ -89,7 +89,7 @@ func Load(configDetails types.ConfigDetails) (*types.Config, error) {
 	}
 
 	if networks, ok := configDict["networks"]; ok {
-		networksConfig, err := interpolation.Interpolate(networks.(types.Dict), "network", lookupEnv)
+		networksConfig, err := interpolation.Interpolate(networks.(map[string]interface{}), "network", lookupEnv)
 		if err != nil {
 			return nil, err
 		}
@@ -103,7 +103,7 @@ func Load(configDetails types.ConfigDetails) (*types.Config, error) {
 	}
 
 	if volumes, ok := configDict["volumes"]; ok {
-		volumesConfig, err := interpolation.Interpolate(volumes.(types.Dict), "volume", lookupEnv)
+		volumesConfig, err := interpolation.Interpolate(volumes.(map[string]interface{}), "volume", lookupEnv)
 		if err != nil {
 			return nil, err
 		}
@@ -117,7 +117,7 @@ func Load(configDetails types.ConfigDetails) (*types.Config, error) {
 	}
 
 	if secrets, ok := configDict["secrets"]; ok {
-		secretsConfig, err := interpolation.Interpolate(secrets.(types.Dict), "secret", lookupEnv)
+		secretsConfig, err := interpolation.Interpolate(secrets.(map[string]interface{}), "secret", lookupEnv)
 		if err != nil {
 			return nil, err
 		}
@@ -139,7 +139,7 @@ func GetUnsupportedProperties(configDetails types.ConfigDetails) []string {
 	unsupported := map[string]bool{}
 
 	for _, service := range getServices(getConfigDict(configDetails)) {
-		serviceDict := service.(types.Dict)
+		serviceDict := service.(map[string]interface{})
 		for _, property := range types.UnsupportedProperties {
 			if _, isSet := serviceDict[property]; isSet {
 				unsupported[property] = true
@@ -165,11 +165,11 @@ func GetDeprecatedProperties(configDetails types.ConfigDetails) map[string]strin
 	return getProperties(getServices(getConfigDict(configDetails)), types.DeprecatedProperties)
 }
 
-func getProperties(services types.Dict, propertyMap map[string]string) map[string]string {
+func getProperties(services map[string]interface{}, propertyMap map[string]string) map[string]string {
 	output := map[string]string{}
 
 	for _, service := range services {
-		if serviceDict, ok := service.(types.Dict); ok {
+		if serviceDict, ok := service.(map[string]interface{}); ok {
 			for property, description := range propertyMap {
 				if _, isSet := serviceDict[property]; isSet {
 					output[property] = description
@@ -192,18 +192,18 @@ func (e *ForbiddenPropertiesError) Error() string {
 }
 
 // TODO: resolve multiple files into a single config
-func getConfigDict(configDetails types.ConfigDetails) types.Dict {
+func getConfigDict(configDetails types.ConfigDetails) map[string]interface{} {
 	return configDetails.ConfigFiles[0].Config
 }
 
-func getServices(configDict types.Dict) types.Dict {
+func getServices(configDict map[string]interface{}) map[string]interface{} {
 	if services, ok := configDict["services"]; ok {
-		if servicesDict, ok := services.(types.Dict); ok {
+		if servicesDict, ok := services.(map[string]interface{}); ok {
 			return servicesDict
 		}
 	}
 
-	return types.Dict{}
+	return map[string]interface{}{}
 }
 
 func transform(source map[string]interface{}, target interface{}) error {
@@ -265,10 +265,9 @@ func transformHook(
 }
 
 // keys needs to be converted to strings for jsonschema
-// TODO: don't use types.Dict
 func convertToStringKeysRecursive(value interface{}, keyPrefix string) (interface{}, error) {
 	if mapping, ok := value.(map[interface{}]interface{}); ok {
-		dict := make(types.Dict)
+		dict := make(map[string]interface{})
 		for key, entry := range mapping {
 			str, ok := key.(string)
 			if !ok {
@@ -315,11 +314,11 @@ func formatInvalidKeyError(keyPrefix string, key interface{}) error {
 
 // LoadServices produces a ServiceConfig map from a compose file Dict
 // the servicesDict is not validated if directly used. Use Load() to enable validation
-func LoadServices(servicesDict types.Dict, workingDir string, lookupEnv template.Mapping) ([]types.ServiceConfig, error) {
+func LoadServices(servicesDict map[string]interface{}, workingDir string, lookupEnv template.Mapping) ([]types.ServiceConfig, error) {
 	var services []types.ServiceConfig
 
 	for name, serviceDef := range servicesDict {
-		serviceConfig, err := LoadService(name, serviceDef.(types.Dict), workingDir, lookupEnv)
+		serviceConfig, err := LoadService(name, serviceDef.(map[string]interface{}), workingDir, lookupEnv)
 		if err != nil {
 			return nil, err
 		}
@@ -331,7 +330,7 @@ func LoadServices(servicesDict types.Dict, workingDir string, lookupEnv template
 
 // LoadService produces a single ServiceConfig from a compose file Dict
 // the serviceDict is not validated if directly used. Use Load() to enable validation
-func LoadService(name string, serviceDict types.Dict, workingDir string, lookupEnv template.Mapping) (*types.ServiceConfig, error) {
+func LoadService(name string, serviceDict map[string]interface{}, workingDir string, lookupEnv template.Mapping) (*types.ServiceConfig, error) {
 	serviceConfig := &types.ServiceConfig{}
 	if err := transform(serviceDict, serviceConfig); err != nil {
 		return nil, err
@@ -409,7 +408,7 @@ func transformUlimits(data interface{}) (interface{}, error) {
 	switch value := data.(type) {
 	case int:
 		return types.UlimitsConfig{Single: value}, nil
-	case types.Dict:
+	case map[string]interface{}:
 		ulimit := types.UlimitsConfig{}
 		ulimit.Soft = value["soft"].(int)
 		ulimit.Hard = value["hard"].(int)
@@ -421,7 +420,7 @@ func transformUlimits(data interface{}) (interface{}, error) {
 
 // LoadNetworks produces a NetworkConfig map from a compose file Dict
 // the source Dict is not validated if directly used. Use Load() to enable validation
-func LoadNetworks(source types.Dict) (map[string]types.NetworkConfig, error) {
+func LoadNetworks(source map[string]interface{}) (map[string]types.NetworkConfig, error) {
 	networks := make(map[string]types.NetworkConfig)
 	err := transform(source, &networks)
 	if err != nil {
@@ -438,7 +437,7 @@ func LoadNetworks(source types.Dict) (map[string]types.NetworkConfig, error) {
 
 // LoadVolumes produces a VolumeConfig map from a compose file Dict
 // the source Dict is not validated if directly used. Use Load() to enable validation
-func LoadVolumes(source types.Dict) (map[string]types.VolumeConfig, error) {
+func LoadVolumes(source map[string]interface{}) (map[string]types.VolumeConfig, error) {
 	volumes := make(map[string]types.VolumeConfig)
 	err := transform(source, &volumes)
 	if err != nil {
@@ -467,7 +466,7 @@ func LoadVolumes(source types.Dict) (map[string]types.VolumeConfig, error) {
 
 // LoadSecrets produces a SecretConfig map from a compose file Dict
 // the source Dict is not validated if directly used. Use Load() to enable validation
-func LoadSecrets(source types.Dict, workingDir string) (map[string]types.SecretConfig, error) {
+func LoadSecrets(source map[string]interface{}, workingDir string) (map[string]types.SecretConfig, error) {
 	secrets := make(map[string]types.SecretConfig)
 	if err := transform(source, &secrets); err != nil {
 		return secrets, err
@@ -495,8 +494,6 @@ func transformMapStringString(data interface{}) (interface{}, error) {
 	switch value := data.(type) {
 	case map[string]interface{}:
 		return toMapStringString(value, false), nil
-	case types.Dict:
-		return toMapStringString(value, false), nil
 	case map[string]string:
 		return value, nil
 	default:
@@ -508,8 +505,6 @@ func transformExternal(data interface{}) (interface{}, error) {
 	switch value := data.(type) {
 	case bool:
 		return map[string]interface{}{"external": value}, nil
-	case types.Dict:
-		return map[string]interface{}{"external": true, "name": value["name"]}, nil
 	case map[string]interface{}:
 		return map[string]interface{}{"external": true, "name": value["name"]}, nil
 	default:
@@ -538,8 +533,6 @@ func transformServicePort(data interface{}) (interface{}, error) {
 					return data, err
 				}
 				ports = append(ports, v...)
-			case types.Dict:
-				ports = append(ports, value)
 			case map[string]interface{}:
 				ports = append(ports, value)
 			default:
@@ -556,8 +549,6 @@ func transformServiceSecret(data interface{}) (interface{}, error) {
 	switch value := data.(type) {
 	case string:
 		return map[string]interface{}{"source": value}, nil
-	case types.Dict:
-		return data, nil
 	case map[string]interface{}:
 		return data, nil
 	default:
@@ -569,8 +560,6 @@ func transformServiceVolumeConfig(data interface{}) (interface{}, error) {
 	switch value := data.(type) {
 	case string:
 		return parseVolume(value)
-	case types.Dict:
-		return data, nil
 	case map[string]interface{}:
 		return data, nil
 	default:
@@ -612,7 +601,7 @@ func transformStringList(data interface{}) (interface{}, error) {
 
 func transformMappingOrList(mappingOrList interface{}, sep string, allowNil bool) interface{} {
 	switch value := mappingOrList.(type) {
-	case types.Dict:
+	case map[string]interface{}:
 		return toMapStringString(value, allowNil)
 	case ([]interface{}):
 		result := make(map[string]interface{})
