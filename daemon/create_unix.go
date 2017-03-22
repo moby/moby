@@ -12,7 +12,7 @@ import (
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/opencontainers/runc/libcontainer/label"
+	"github.com/opencontainers/selinux/go-selinux/label"
 )
 
 // createContainerPlatformSpecificSettings performs platform specific container create functionality
