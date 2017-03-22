@@ -50,13 +50,10 @@ var ForbiddenProperties = map[string]string{
 	"memswap_limit": "Set resource limits using deploy.resources",
 }
 
-// Dict is a mapping of strings to interface{}
-type Dict map[string]interface{}
-
 // ConfigFile is a filename and the contents of the file as a Dict
 type ConfigFile struct {
 	Filename string
-	Config   Dict
+	Config   map[string]interface{}
 }
 
 // ConfigDetails are the details about a group of ConfigFiles
