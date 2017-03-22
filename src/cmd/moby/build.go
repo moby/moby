@@ -12,10 +12,6 @@ import (
 	"github.com/docker/moby/src/initrd"
 )
 
-const (
-	docker2tar = "mobylinux/docker2tar:82a3f11f70b2959c7100dd6e184b511ebfc65908@sha256:e4fd36febc108477a2e5316d263ac257527779409891c7ac10d455a162df05c1"
-)
-
 func untarKernel(buf *bytes.Buffer, bzimageName, ktarName string) (*bytes.Buffer, *bytes.Buffer, error) {
 	tr := tar.NewReader(buf)
 
@@ -112,7 +108,7 @@ func build(name string, args []string) {
 	containers = append(containers, ktar)
 
 	// convert init image to tarball
-	init, err := dockerRun("-v", "/var/run/docker.sock:/var/run/docker.sock", docker2tar, m.Init)
+	init, err := imageExtract(m.Init)
 	if err != nil {
 		log.Fatalf("Failed to build init tarball: %v", err)
 	}
