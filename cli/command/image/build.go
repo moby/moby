@@ -305,6 +305,7 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 			}
 			return cli.StatusError{Status: jerr.Message, StatusCode: jerr.Code}
 		}
+		return err
 	}
 
 	// Windows: show error message about modified file permissions if the
