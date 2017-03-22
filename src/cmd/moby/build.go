@@ -107,7 +107,7 @@ func build(name string, args []string) {
 	buf := bytes.NewBuffer(out)
 	bzimage, ktar, err := untarKernel(buf, bzimageName, ktarName)
 	if err != nil {
-		log.Fatalf("Could not extract bzImage and kernel filesystem from tarball")
+		log.Fatalf("Could not extract bzImage and kernel filesystem from tarball. %v", err)
 	}
 	containers = append(containers, ktar)
 
