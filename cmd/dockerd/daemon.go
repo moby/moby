@@ -22,12 +22,14 @@ import (
 	"github.com/docker/docker/api/server/router/image"
 	"github.com/docker/docker/api/server/router/network"
 	pluginrouter "github.com/docker/docker/api/server/router/plugin"
+	swarmrouter "github.com/docker/docker/api/server/router/swarm"
 	systemrouter "github.com/docker/docker/api/server/router/system"
 	"github.com/docker/docker/api/server/router/volume"
 	"github.com/docker/docker/builder/dockerfile"
 	cliflags "github.com/docker/docker/cli/flags"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/daemon"
+	"github.com/docker/docker/daemon/cluster"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/libcontainerd"
@@ -272,6 +274,25 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 		}
 	}
 
+	name, _ := os.Hostname()
+
+	c, err := cluster.New(cluster.Config{
+		Root:                   cli.Config.Root,
+		Name:                   name,
+		Backend:                d,
+		NetworkSubnetsProvider: d,
+		DefaultAdvertiseAddr:   cli.Config.SwarmDefaultAdvertiseAddr,
+		RuntimeRoot:            cli.getSwarmRunRoot(),
+	})
+	if err != nil {
+		logrus.Fatalf("Error creating cluster component: %v", err)
+	}
+
+	// Restart all autostart containers which has a swarm endpoint
+	// and is not yet running now that we have successfully
+	// initialized the cluster.
+	d.RestartSwarmContainers()
+
 	logrus.Info("Daemon has completed initialization")
 
 	logrus.WithFields(logrus.Fields{
@@ -286,8 +307,8 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 	if err := cli.initMiddlewares(api, serverConfig); err != nil {
 		logrus.Fatalf("Error creating middlewares: %v", err)
 	}
-
-	initRouter(api, d)
+	d.SetCluster(c)
+	initRouter(api, d, c)
 
 	cli.setupConfigReloadTrap()
 
@@ -303,6 +324,7 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 	// Daemon is fully initialized and handling API traffic
 	// Wait for serve API to complete
 	errAPI := <-serveAPIWait
+	c.Cleanup()
 	shutdownDaemon(d)
 	containerdRemote.Cleanup()
 	if errAPI != nil {
@@ -436,7 +458,7 @@ func loadDaemonCliConfig(opts daemonOptions) (*daemon.Config, error) {
 	return config, nil
 }
 
-func initRouter(s *apiserver.Server, d *daemon.Daemon) {
+func initRouter(s *apiserver.Server, d *daemon.Daemon, c *cluster.Cluster) {
 	decoder := runconfig.ContainerDecoder{}
 
 	routers := []router.Router{
@@ -444,14 +466,15 @@ func initRouter(s *apiserver.Server, d *daemon.Daemon) {
 		checkpointrouter.NewRouter(d, decoder),
 		container.NewRouter(d, decoder),
 		image.NewRouter(d, decoder),
-		systemrouter.NewRouter(d),
+		systemrouter.NewRouter(d, c),
 		volume.NewRouter(d),
 		build.NewRouter(dockerfile.NewBuildManager(d)),
+		swarmrouter.NewRouter(c),
 		pluginrouter.NewRouter(d.PluginManager()),
 	}
 
 	if d.NetworkControllerEnabled() {
-		routers = append(routers, network.NewRouter(d))
+		routers = append(routers, network.NewRouter(d, c))
 	}
 
 	if d.HasExperimental() {
