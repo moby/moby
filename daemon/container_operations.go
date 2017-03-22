@@ -546,6 +546,28 @@ func (daemon *Daemon) allocateNetwork(container *container.Container) error {
 		}
 	}
 
+	// If the container is not to be connected to any network,
+	// create its network sandbox now if not present
+	if len(networks) == 0 {
+		if nil == daemon.getNetworkSandbox(container) {
+			options, err := daemon.buildSandboxOptions(container)
+			if err != nil {
+				return err
+			}
+			sb, err := daemon.netController.NewSandbox(container.ID, options...)
+			if err != nil {
+				return err
+			}
+			container.UpdateSandboxNetworkSettings(sb)
+			defer func() {
+				if err != nil {
+					sb.Delete()
+				}
+			}()
+		}
+
+	}
+
 	if err := container.WriteHostConfig(); err != nil {
 		return err
 	}
@@ -916,7 +938,7 @@ func (daemon *Daemon) releaseNetwork(container *container.Container) {
 	settings := container.NetworkSettings.Networks
 	container.NetworkSettings.Ports = nil
 
-	if sid == "" || len(settings) == 0 {
+	if sid == "" {
 		return
 	}
 
