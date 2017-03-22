@@ -75,6 +75,23 @@ func (s *DockerSuite) TestRestartWithVolumes(c *check.C) {
 	c.Assert(source, checker.Equals, sourceAfterRestart)
 }
 
+func (s *DockerSuite) TestRestartDisconnectedContainer(c *check.C) {
+	testRequires(c, DaemonIsLinux, SameHostDaemon, NotUserNamespace, NotArm)
+
+	// Run a container on the default bridge network
+	out, _ := dockerCmd(c, "run", "-d", "--name", "c0", "busybox", "top")
+	cleanedContainerID := strings.TrimSpace(out)
+	c.Assert(waitRun(cleanedContainerID), checker.IsNil)
+
+	// Disconnect the container from the network
+	out, err := dockerCmd(c, "network", "disconnect", "bridge", "c0")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+
+	// Restart the container
+	dockerCmd(c, "restart", "c0")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+}
+
 func (s *DockerSuite) TestRestartPolicyNO(c *check.C) {
 	out, _ := dockerCmd(c, "create", "--restart=no", "busybox")
 
