@@ -1223,6 +1223,11 @@ create a new mount point at `/myvol` and copy the  `greeting` file
 into the newly created volume.
 
 > **Note**:
+> When using Windows-based containers, the destination of a volume inside the
+> container must be one of: a non-existing or empty directory; or a drive other
+> than C:.
+
+> **Note**:
 > If any build steps change the data within the volume after it has been
 > declared, those changes will be discarded.
 
