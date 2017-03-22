@@ -67,18 +67,21 @@ type Builder struct {
 	clientCtx context.Context
 	cancel    context.CancelFunc
 
-	dockerfile       *parser.Node
-	runConfig        *container.Config // runconfig for cmd, run, entrypoint etc.
-	flags            *BFlags
-	tmpContainers    map[string]struct{}
-	image            string // imageID
-	noBaseImage      bool
-	maintainer       string
-	cmdSet           bool
-	disableCommit    bool
-	cacheBusted      bool
-	allowedBuildArgs map[string]bool // list of build-time args that are allowed for expansion/substitution and passing to commands in 'run'.
-	directive        parser.Directive
+	dockerfile    *parser.Node
+	runConfig     *container.Config // runconfig for cmd, run, entrypoint etc.
+	flags         *BFlags
+	tmpContainers map[string]struct{}
+	image         string // imageID
+	// A flag to track the use of `scratch` as the base image
+	noBaseImage          bool
+	maintainer           string
+	cmdSet               bool
+	disableCommit        bool
+	cacheBusted          bool
+	allowedBuildArgsFrom map[string]*string  // list of build-time args for `FROM` commands
+	allowedBuildArgs     map[string]*string  // list of build-time args that are allowed for expansion/substitution and passing to commands in 'run'.
+	allBuildArgs         map[string]struct{} // list of all build-time args found during parsing of the Dockerfile
+	directive            parser.Directive
 
 	// TODO: remove once docker.Commit can receive a tag
 	id string
@@ -129,22 +132,21 @@ func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, back
 	if config == nil {
 		config = new(types.ImageBuildOptions)
 	}
-	if config.BuildArgs == nil {
-		config.BuildArgs = make(map[string]*string)
-	}
 	ctx, cancel := context.WithCancel(clientCtx)
 	b = &Builder{
-		clientCtx:        ctx,
-		cancel:           cancel,
-		options:          config,
-		Stdout:           os.Stdout,
-		Stderr:           os.Stderr,
-		docker:           backend,
-		context:          buildContext,
-		runConfig:        new(container.Config),
-		tmpContainers:    map[string]struct{}{},
-		id:               stringid.GenerateNonCryptoID(),
-		allowedBuildArgs: make(map[string]bool),
+		clientCtx:            ctx,
+		cancel:               cancel,
+		options:              config,
+		Stdout:               os.Stdout,
+		Stderr:               os.Stderr,
+		docker:               backend,
+		context:              buildContext,
+		runConfig:            new(container.Config),
+		tmpContainers:        map[string]struct{}{},
+		id:                   stringid.GenerateNonCryptoID(),
+		allowedBuildArgs:     make(map[string]*string),
+		allowedBuildArgsFrom: make(map[string]*string),
+		allBuildArgs:         make(map[string]struct{}),
 		directive: parser.Directive{
 			EscapeSeen:           false,
 			LookingForDirectives: true,
@@ -322,7 +324,7 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 func (b *Builder) warnOnUnusedBuildArgs() {
 	leftoverArgs := []string{}
 	for arg := range b.options.BuildArgs {
-		if !b.isBuildArgAllowed(arg) {
+		if _, ok := b.allBuildArgs[arg]; !ok {
 			leftoverArgs = append(leftoverArgs, arg)
 		}
 	}
@@ -330,6 +332,23 @@ func (b *Builder) warnOnUnusedBuildArgs() {
 	if len(leftoverArgs) > 0 {
 		fmt.Fprintf(b.Stderr, "[Warning] One or more build-args %v were not consumed\n", leftoverArgs)
 	}
+}
+
+// determine if build arg is part of built-in args or user
+// defined args in Dockerfile at any point in time.
+func (b *Builder) isBuildArgAllowed(arg string) bool {
+	if _, ok := BuiltinAllowedBuildArgs[arg]; ok {
+		return true
+	}
+	if _, ok := b.allowedBuildArgs[arg]; ok {
+		return true
+	}
+	return false
+}
+
+// hasFromImage returns true if the builder has processed a `FROM <image>` line
+func (b *Builder) hasFromImage() bool {
+	return b.image != "" || b.noBaseImage
 }
 
 // Cancel cancels an ongoing Dockerfile build.

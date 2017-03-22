@@ -3,12 +3,12 @@ package interpolation
 import (
 	"fmt"
 
-	"github.com/docker/docker/cli/compose/template"
 	"github.com/docker/docker/cli/compose/types"
+	"github.com/docker/docker/pkg/shellvar"
 )
 
 // Interpolate replaces variables in a string with the values from a mapping
-func Interpolate(config types.Dict, section string, mapping template.Mapping) (types.Dict, error) {
+func Interpolate(config types.Dict, section string, mapping shellvar.Mapping) (types.Dict, error) {
 	out := types.Dict{}
 
 	for name, item := range config {
@@ -30,7 +30,7 @@ func interpolateSectionItem(
 	name string,
 	item types.Dict,
 	section string,
-	mapping template.Mapping,
+	mapping shellvar.Mapping,
 ) (types.Dict, error) {
 
 	out := types.Dict{}
@@ -52,13 +52,13 @@ func interpolateSectionItem(
 
 func recursiveInterpolate(
 	value interface{},
-	mapping template.Mapping,
-) (interface{}, *template.InvalidTemplateError) {
+	mapping shellvar.Mapping,
+) (interface{}, *shellvar.InvalidTemplateError) {
 
 	switch value := value.(type) {
 
 	case string:
-		return template.Substitute(value, mapping)
+		return shellvar.Substitute(value, mapping)
 
 	case types.Dict:
 		out := types.Dict{}

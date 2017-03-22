@@ -23,6 +23,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/builder"
+	"github.com/docker/docker/pkg/shellvar"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/go-connections/nat"
 )
@@ -201,9 +202,17 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 		return err
 	}
 
-	name := args[0]
+	getBuildArg := func(key string) (string, bool) {
+		return b.getBuildArg(key, true)
+	}
+	name, err := shellvar.Substitute(args[0], getBuildArg)
+	if err != nil {
+		return err
+	}
 
 	var image builder.Image
+
+	b.noBaseImage = false
 
 	// Windows cannot support a container with no base image.
 	if name == api.NoBaseImageSpecifier {
@@ -227,6 +236,8 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 		}
 	}
 	b.from = image
+
+	b.allowedBuildArgs = make(map[string]*string)
 
 	return b.processImageFrom(image)
 }
@@ -334,7 +345,7 @@ func workdir(b *Builder, args []string, attributes map[string]bool, original str
 // RUN [ "echo", "hi" ] # echo hi
 //
 func run(b *Builder, args []string, attributes map[string]bool, original string) error {
-	if b.image == "" && !b.noBaseImage {
+	if !b.hasFromImage() {
 		return errors.New("Please provide a source image with `from` prior to run")
 	}
 
@@ -749,17 +760,20 @@ func arg(b *Builder, args []string, attributes map[string]bool, original string)
 		hasDefault = false
 	}
 	// add the arg to allowed list of build-time args from this step on.
-	b.allowedBuildArgs[name] = true
+	b.allBuildArgs[name] = struct{}{}
 
-	// If there is a default value associated with this arg then add it to the
-	// b.buildArgs if one is not already passed to the builder. The args passed
-	// to builder override the default value of 'arg'. Note that a 'nil' for
-	// a value means that the user specified "--build-arg FOO" and "FOO" wasn't
-	// defined as an env var - and in that case we DO want to use the default
-	// value specified in the ARG cmd.
-	if baValue, ok := b.options.BuildArgs[name]; (!ok || baValue == nil) && hasDefault {
-		b.options.BuildArgs[name] = &newValue
+	var value *string
+	if hasDefault {
+		value = &newValue
 	}
+
+	// Arg before FROM doesn't add a layer
+	if !b.hasFromImage() {
+		b.allowedBuildArgsFrom[name] = value
+		return nil
+	}
+
+	b.allowedBuildArgs[name] = value
 
 	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("ARG %s", arg))
 }
