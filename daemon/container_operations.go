@@ -916,7 +916,7 @@ func (daemon *Daemon) releaseNetwork(container *container.Container) {
 	settings := container.NetworkSettings.Networks
 	container.NetworkSettings.Ports = nil
 
-	if sid == "" || len(settings) == 0 {
+	if sid == "" {
 		return
 	}
 
