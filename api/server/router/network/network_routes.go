@@ -75,7 +75,9 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 
 	nw, err := n.backend.CreateNetwork(create)
 	if err != nil {
-		return err
+		if _, ok := err.(libnetwork.ManagerRedirectError); !ok {
+			return err
+		}
 	}
 
 	return httputils.WriteJSON(w, http.StatusCreated, nw)
