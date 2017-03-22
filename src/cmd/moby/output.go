@@ -14,6 +14,7 @@ const (
 	gce  = "mobylinux/mkimage-gce:2039be4e39e855d1845aee188e266bba3f1d2eed@sha256:e12f76003fd9eaa0c6f39f149db5998cf56de42539b989c994893c8344ca69c0"
 	qcow = "mobylinux/mkimage-qcow:9b3632f111675898ed3a22ac71897e735b5a8364@sha256:2132cf3fb593d65f09c8d109d40e1fad138d81485d4750fc29a7f54611d78d35"
 	vhd  = "mobylinux/mkimage-vhd:73c80e433bf717578c507621a84fd58cec27fe95@sha256:0ae1eda2d6592f309977dc4b25cca120cc4e2ee2cc786e88fdc2761c0d49cb14"
+	vmdk = "mobylinux/mkimage-vmdk:1de360a30f3ac6a91d4eae1ae4611cea4b82f22a@sha256:d7e65edc6dd88f6e12dcb0d749d4c7e5793d1250e548b58c105dbfd082940787"
 )
 
 func outputs(m *Moby, base string, bzimage []byte, initrd []byte) error {
@@ -74,6 +75,11 @@ func outputs(m *Moby, base string, bzimage []byte, initrd []byte) error {
 			}
 		case "vhd":
 			err := outputImg(vhd, base+".vhd", bzimage, initrd, m.Kernel.Cmdline)
+			if err != nil {
+				return fmt.Errorf("Error writing %s output: %v", o.Format, err)
+			}
+		case "vmdk":
+			err := outputImg(vmdk, base+".vmdk", bzimage, initrd, m.Kernel.Cmdline)
 			if err != nil {
 				return fmt.Errorf("Error writing %s output: %v", o.Format, err)
 			}
