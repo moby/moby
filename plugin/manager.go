@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/libcontainerd"
+	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/plugin/v2"
@@ -49,6 +50,7 @@ type ManagerConfig struct {
 	LogPluginEvent     eventLogger
 	Root               string
 	ExecRoot           string
+	AuthzMiddleware    *authorization.Middleware
 }
 
 // Manager controls the plugin subsystem.

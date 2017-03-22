@@ -16,6 +16,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	daemondiscovery "github.com/docker/docker/daemon/discovery"
 	"github.com/docker/docker/opts"
+	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/docker/registry"
 	"github.com/imdario/mergo"
@@ -82,25 +83,26 @@ type CommonTLSOptions struct {
 // It includes json tags to deserialize configuration from a file
 // using the same names that the flags in the command line use.
 type CommonConfig struct {
-	AuthorizationPlugins []string            `json:"authorization-plugins,omitempty"` // AuthorizationPlugins holds list of authorization plugins
-	AutoRestart          bool                `json:"-"`
-	Context              map[string][]string `json:"-"`
-	DisableBridge        bool                `json:"-"`
-	DNS                  []string            `json:"dns,omitempty"`
-	DNSOptions           []string            `json:"dns-opts,omitempty"`
-	DNSSearch            []string            `json:"dns-search,omitempty"`
-	ExecOptions          []string            `json:"exec-opts,omitempty"`
-	GraphDriver          string              `json:"storage-driver,omitempty"`
-	GraphOptions         []string            `json:"storage-opts,omitempty"`
-	Labels               []string            `json:"labels,omitempty"`
-	Mtu                  int                 `json:"mtu,omitempty"`
-	Pidfile              string              `json:"pidfile,omitempty"`
-	RawLogs              bool                `json:"raw-logs,omitempty"`
-	Root                 string              `json:"graph,omitempty"`
-	SocketGroup          string              `json:"group,omitempty"`
-	TrustKeyPath         string              `json:"-"`
-	CorsHeaders          string              `json:"api-cors-header,omitempty"`
-	EnableCors           bool                `json:"api-enable-cors,omitempty"`
+	AuthzMiddleware      *authorization.Middleware `json:"-"`
+	AuthorizationPlugins []string                  `json:"authorization-plugins,omitempty"` // AuthorizationPlugins holds list of authorization plugins
+	AutoRestart          bool                      `json:"-"`
+	Context              map[string][]string       `json:"-"`
+	DisableBridge        bool                      `json:"-"`
+	DNS                  []string                  `json:"dns,omitempty"`
+	DNSOptions           []string                  `json:"dns-opts,omitempty"`
+	DNSSearch            []string                  `json:"dns-search,omitempty"`
+	ExecOptions          []string                  `json:"exec-opts,omitempty"`
+	GraphDriver          string                    `json:"storage-driver,omitempty"`
+	GraphOptions         []string                  `json:"storage-opts,omitempty"`
+	Labels               []string                  `json:"labels,omitempty"`
+	Mtu                  int                       `json:"mtu,omitempty"`
+	Pidfile              string                    `json:"pidfile,omitempty"`
+	RawLogs              bool                      `json:"raw-logs,omitempty"`
+	Root                 string                    `json:"graph,omitempty"`
+	SocketGroup          string                    `json:"group,omitempty"`
+	TrustKeyPath         string                    `json:"-"`
+	CorsHeaders          string                    `json:"api-cors-header,omitempty"`
+	EnableCors           bool                      `json:"api-enable-cors,omitempty"`
 
 	// LiveRestoreEnabled determines whether we should keep containers
 	// alive upon daemon shutdown/start
