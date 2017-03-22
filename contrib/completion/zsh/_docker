@@ -1485,8 +1485,10 @@ __docker_node_subcommand() {
                 $opts_help \
                 "($help -a --all)"{-a,--all}"[Display all instances]" \
                 "($help)*"{-f=,--filter=}"[Provide filter values]:filter:__docker_node_complete_ps_filters" \
+                "($help)--format=[Format the output using the given go template]:template: " \
                 "($help)--no-resolve[Do not map IDs to Names]" \
                 "($help)--no-trunc[Do not truncate output]" \
+                "($help -q --quiet)"{-q,--quiet}"[Only display IDs]" \
                 "($help -)*:node:__docker_complete_nodes" && ret=0
             ;;
         (update)
@@ -2052,6 +2054,7 @@ __docker_service_subcommand() {
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help)*"{-f=,--filter=}"[Provide filter values]:filter:__docker_service_complete_ps_filters" \
+                "($help)--format=[Format the output using the given go template]:template: " \
                 "($help)--no-resolve[Do not map IDs to Names]" \
                 "($help)--no-trunc[Do not truncate output]" \
                 "($help -q --quiet)"{-q,--quiet}"[Only display task IDs]" \
@@ -2206,8 +2209,10 @@ __docker_stack_subcommand() {
                 $opts_help \
                 "($help -a --all)"{-a,--all}"[Display all tasks]" \
                 "($help)*"{-f=,--filter=}"[Filter output based on conditions provided]:filter:__docker_stack_complete_ps_filters" \
+                "($help)--format=[Format the output using the given go template]:template: " \
                 "($help)--no-resolve[Do not map IDs to Names]" \
                 "($help)--no-trunc[Do not truncate output]" \
+                "($help -q --quiet)"{-q,--quiet}"[Only display task IDs]" \
                 "($help -):stack:__docker_complete_stacks" && ret=0
             ;;
         (rm|remove|down)
