@@ -642,6 +642,7 @@ __docker_container_subcommand() {
         "($help)--read-only[Mount the container's root filesystem as read only]"
         "($help)*--security-opt=[Security options]:security option: "
         "($help)*--shm-size=[Size of '/dev/shm' (format is '<number><unit>')]:shm size: "
+        "($help)--stop-signal=[Signal to kill a container]:signal:_signals"
         "($help)--stop-timeout=[Timeout (in seconds) to stop a container]:time: "
         "($help)*--sysctl=-[sysctl options]:sysctl: "
         "($help -t --tty)"{-t,--tty}"[Allocate a pseudo-tty]"
@@ -858,7 +859,6 @@ __docker_container_subcommand() {
                 "($help)--rm[Remove intermediate containers when it exits]" \
                 "($help)--runtime=[Name of the runtime to be used for that container]:runtime:__docker_complete_runtimes" \
                 "($help)--sig-proxy[Proxy all received signals to the process (non-TTY mode only)]" \
-                "($help)--stop-signal=[Signal to kill a container]:signal:_signals" \
                 "($help)--storage-opt=[Storage driver options for the container]:storage options:->storage-opt" \
                 "($help -): :__docker_complete_images" \
                 "($help -):command: _command_names -e" \
@@ -1908,6 +1908,7 @@ __docker_service_subcommand() {
         "($help)--restart-window=[Window used to evaluate the restart policy]:window: "
         "($help)*--secret=[Specify secrets to expose to the service]:secret:__docker_complete_secrets"
         "($help)--stop-grace-period=[Time to wait before force killing a container]:grace period: "
+        "($help)--stop-signal=[Signal to stop the container]:signal:_signals"
         "($help -t --tty)"{-t,--tty}"[Allocate a pseudo-TTY]"
         "($help)--update-delay=[Delay between updates]:delay: "
         "($help)--update-failure-action=[Action on update failure]:mode:(pause continue)"
