@@ -99,7 +99,7 @@ type ServiceConfig struct {
 	HealthCheck     *HealthCheckConfig
 	Image           string
 	Ipc             string
-	Labels          MappingWithEquals
+	Labels          Labels
 	Links           []string
 	Logging         *LoggingConfig
 	MacAddress      string `mapstructure:"mac_address"`
@@ -134,8 +134,13 @@ type StringList []string
 type StringOrNumberList []string
 
 // MappingWithEquals is a mapping type that can be converted from a list of
-// key=value strings
-type MappingWithEquals map[string]string
+// key[=value] strings.
+// For the key with an empty value (`key=`), the mapped value is set to a pointer to `""`.
+// For the key without value (`key`), the mapped value is set to nil.
+type MappingWithEquals map[string]*string
+
+// Labels is a mapping type for labels
+type Labels map[string]string
 
 // MappingWithColon is a mapping type that can be converted from a list of
 // 'key: value' strings
@@ -151,7 +156,7 @@ type LoggingConfig struct {
 type DeployConfig struct {
 	Mode          string
 	Replicas      *uint64
-	Labels        MappingWithEquals
+	Labels        Labels
 	UpdateConfig  *UpdateConfig `mapstructure:"update_config"`
 	Resources     Resources
 	RestartPolicy *RestartPolicy `mapstructure:"restart_policy"`
@@ -268,7 +273,7 @@ type NetworkConfig struct {
 	External   External
 	Internal   bool
 	Attachable bool
-	Labels     MappingWithEquals
+	Labels     Labels
 }
 
 // IPAMConfig for a network
@@ -287,7 +292,7 @@ type VolumeConfig struct {
 	Driver     string
 	DriverOpts map[string]string `mapstructure:"driver_opts"`
 	External   External
-	Labels     MappingWithEquals
+	Labels     Labels
 }
 
 // External identifies a Volume or Network as a reference to a resource that is
@@ -301,5 +306,5 @@ type External struct {
 type SecretConfig struct {
 	File     string
 	External External
-	Labels   MappingWithEquals
+	Labels   Labels
 }

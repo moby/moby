@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func buildConfigDetails(source types.Dict) types.ConfigDetails {
+func buildConfigDetails(source types.Dict, env map[string]string) types.ConfigDetails {
 	workingDir, err := os.Getwd()
 	if err != nil {
 		panic(err)
@@ -23,8 +23,21 @@ func buildConfigDetails(source types.Dict) types.ConfigDetails {
 		ConfigFiles: []types.ConfigFile{
 			{Filename: "filename.yml", Config: source},
 		},
-		Environment: nil,
+		Environment: env,
 	}
+}
+
+func loadYAML(yaml string) (*types.Config, error) {
+	return loadYAMLWithEnv(yaml, nil)
+}
+
+func loadYAMLWithEnv(yaml string, env map[string]string) (*types.Config, error) {
+	dict, err := ParseYAML([]byte(yaml))
+	if err != nil {
+		return nil, err
+	}
+
+	return Load(buildConfigDetails(dict, env))
 }
 
 var sampleYAML = `
@@ -98,12 +111,16 @@ var sampleDict = types.Dict{
 	},
 }
 
+func strPtr(val string) *string {
+	return &val
+}
+
 var sampleConfig = types.Config{
 	Services: []types.ServiceConfig{
 		{
 			Name:        "foo",
 			Image:       "busybox",
-			Environment: map[string]string{},
+			Environment: map[string]*string{},
 			Networks: map[string]*types.ServiceNetworkConfig{
 				"with_me": nil,
 			},
@@ -111,7 +128,7 @@ var sampleConfig = types.Config{
 		{
 			Name:        "bar",
 			Image:       "busybox",
-			Environment: map[string]string{"FOO": "1"},
+			Environment: map[string]*string{"FOO": strPtr("1")},
 			Networks: map[string]*types.ServiceNetworkConfig{
 				"with_ipam": nil,
 			},
@@ -154,7 +171,7 @@ func TestParseYAML(t *testing.T) {
 }
 
 func TestLoad(t *testing.T) {
-	actual, err := Load(buildConfigDetails(sampleDict))
+	actual, err := Load(buildConfigDetails(sampleDict, nil))
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -373,8 +390,8 @@ services:
 	assert.Contains(t, err.Error(), "services.foo.image must be a string")
 }
 
-func TestValidEnvironment(t *testing.T) {
-	config, err := loadYAML(`
+func TestLoadWithEnvironment(t *testing.T) {
+	config, err := loadYAMLWithEnv(`
 version: "3"
 services:
   dict-env:
@@ -383,6 +400,7 @@ services:
       FOO: "1"
       BAR: 2
       BAZ: 2.5
+      QUX:
       QUUX:
   list-env:
     image: busybox
@@ -390,15 +408,17 @@ services:
       - FOO=1
       - BAR=2
       - BAZ=2.5
-      - QUUX=
-`)
+      - QUX=
+      - QUUX
+`, map[string]string{"QUX": "qux"})
 	assert.NoError(t, err)
 
 	expected := types.MappingWithEquals{
-		"FOO":  "1",
-		"BAR":  "2",
-		"BAZ":  "2.5",
-		"QUUX": "",
+		"FOO":  strPtr("1"),
+		"BAR":  strPtr("2"),
+		"BAZ":  strPtr("2.5"),
+		"QUX":  strPtr("qux"),
+		"QUUX": nil,
 	}
 
 	assert.Equal(t, 2, len(config.Services))
@@ -434,7 +454,8 @@ services:
 }
 
 func TestEnvironmentInterpolation(t *testing.T) {
-	config, err := loadYAML(`
+	home := "/home/foo"
+	config, err := loadYAMLWithEnv(`
 version: "3"
 services:
   test:
@@ -450,13 +471,14 @@ networks:
 volumes:
   test:
     driver: $HOME
-`)
+`, map[string]string{
+		"HOME": home,
+		"FOO":  "foo",
+	})
 
 	assert.NoError(t, err)
 
-	home := os.Getenv("HOME")
-
-	expectedLabels := types.MappingWithEquals{
+	expectedLabels := types.Labels{
 		"home1":       home,
 		"home2":       home,
 		"nonexistent": "",
@@ -483,7 +505,7 @@ services:
 `))
 	assert.NoError(t, err)
 
-	configDetails := buildConfigDetails(dict)
+	configDetails := buildConfigDetails(dict, nil)
 
 	_, err = Load(configDetails)
 	assert.NoError(t, err)
@@ -506,7 +528,7 @@ services:
 `))
 	assert.NoError(t, err)
 
-	configDetails := buildConfigDetails(dict)
+	configDetails := buildConfigDetails(dict, nil)
 
 	_, err = Load(configDetails)
 	assert.NoError(t, err)
@@ -601,7 +623,9 @@ func TestFullExample(t *testing.T) {
 	bytes, err := ioutil.ReadFile("full-example.yml")
 	assert.NoError(t, err)
 
-	config, err := loadYAML(string(bytes))
+	homeDir := "/home/foo"
+	env := map[string]string{"HOME": homeDir, "QUX": "qux_from_environment"}
+	config, err := loadYAMLWithEnv(string(bytes), env)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -609,7 +633,6 @@ func TestFullExample(t *testing.T) {
 	workingDir, err := os.Getwd()
 	assert.NoError(t, err)
 
-	homeDir := os.Getenv("HOME")
 	stopGracePeriod := time.Duration(20 * time.Second)
 
 	expectedServiceConfig := types.ServiceConfig{
@@ -657,13 +680,11 @@ func TestFullExample(t *testing.T) {
 		DNSSearch:  []string{"dc1.example.com", "dc2.example.com"},
 		DomainName: "foo.com",
 		Entrypoint: []string{"/code/entrypoint.sh", "-p", "3000"},
-		Environment: map[string]string{
-			"RACK_ENV":       "development",
-			"SHOW":           "true",
-			"SESSION_SECRET": "",
-			"FOO":            "1",
-			"BAR":            "2",
-			"BAZ":            "3",
+		Environment: map[string]*string{
+			"FOO": strPtr("foo_from_env_file"),
+			"BAR": strPtr("bar_from_env_file_2"),
+			"BAZ": strPtr("baz_from_service_def"),
+			"QUX": strPtr("qux_from_environment"),
 		},
 		EnvFile: []string{
 			"./example1.env",
@@ -953,15 +974,6 @@ func TestFullExample(t *testing.T) {
 	}
 
 	assert.Equal(t, expectedVolumeConfig, config.Volumes)
-}
-
-func loadYAML(yaml string) (*types.Config, error) {
-	dict, err := ParseYAML([]byte(yaml))
-	if err != nil {
-		return nil, err
-	}
-
-	return Load(buildConfigDetails(dict))
 }
 
 func serviceSort(services []types.ServiceConfig) []types.ServiceConfig {
