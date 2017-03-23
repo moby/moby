@@ -7,8 +7,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	cliconfig "github.com/docker/docker/cli/config"
+	daemonconfig "github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/opts"
-	"github.com/docker/go-connections/tlsconfig"
 	"github.com/spf13/pflag"
 )
 
@@ -37,7 +37,7 @@ type CommonOptions struct {
 	LogLevel   string
 	TLS        bool
 	TLSVerify  bool
-	TLSOptions *tlsconfig.Options
+	TLSOptions *daemonconfig.CommonTLSOptions
 	TrustKey   string
 }
 
@@ -59,7 +59,7 @@ func (commonOpts *CommonOptions) InstallFlags(flags *pflag.FlagSet) {
 
 	// TODO use flag flags.String("identity"}, "i", "", "Path to libtrust key file")
 
-	commonOpts.TLSOptions = &tlsconfig.Options{
+	commonOpts.TLSOptions = &daemonconfig.CommonTLSOptions{
 		CAFile:   filepath.Join(dockerCertPath, DefaultCaFile),
 		CertFile: filepath.Join(dockerCertPath, DefaultCertFile),
 		KeyFile:  filepath.Join(dockerCertPath, DefaultKeyFile),
@@ -68,6 +68,7 @@ func (commonOpts *CommonOptions) InstallFlags(flags *pflag.FlagSet) {
 	flags.Var(opts.NewQuotedString(&tlsOptions.CAFile), "tlscacert", "Trust certs signed only by this CA")
 	flags.Var(opts.NewQuotedString(&tlsOptions.CertFile), "tlscert", "Path to TLS certificate file")
 	flags.Var(opts.NewQuotedString(&tlsOptions.KeyFile), "tlskey", "Path to TLS key file")
+	flags.Var(opts.NewQuotedString(&tlsOptions.MinVersion), "tlsminversion", "Minimum TLS version")
 
 	hostOpt := opts.NewNamedListOptsRef("hosts", &commonOpts.Hosts, opts.ValidateHost)
 	flags.VarP(hostOpt, "host", "H", "Daemon socket(s) to connect to")
@@ -88,7 +89,6 @@ func (commonOpts *CommonOptions) SetDefaultOptions(flags *pflag.FlagSet) {
 		commonOpts.TLSOptions = nil
 	} else {
 		tlsOptions := commonOpts.TLSOptions
-		tlsOptions.InsecureSkipVerify = !commonOpts.TLSVerify
 
 		// Reset CertFile and KeyFile to empty string if the user did not specify
 		// the respective flags and the respective default files were not found.

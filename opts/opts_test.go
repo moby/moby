@@ -1,6 +1,7 @@
 package opts
 
 import (
+	"crypto/tls"
 	"fmt"
 	"strings"
 	"testing"
@@ -303,5 +304,30 @@ func TestParseLink(t *testing.T) {
 	// more than two colons are not allowed
 	if _, _, err := ParseLink("link:alias:wrong"); err == nil || !strings.Contains(err.Error(), "bad format for links: link:alias:wrong") {
 		t.Fatalf("Expected error 'bad format for links: link:alias:wrong' but got: %v", err)
+	}
+}
+
+func TestParseTLSMinVersion(t *testing.T) {
+	// empty minimum version string
+	version, err := ParseTLSMinVersion("")
+	if err != nil {
+		t.Fatalf("Expected not to error out on an empty version string, but got: %v", err)
+	}
+	if version != 0 {
+		t.Fatalf("TLS minimum version should have been 0, got %v instead", version)
+	}
+
+	// valid minimum version strings
+	version, err = ParseTLSMinVersion("versionTLS11")
+	if err != nil {
+		t.Fatalf("Expected not to error out on valid version string 'versionTLS11', but got: %v", err)
+	}
+	if version != tls.VersionTLS11 {
+		t.Fatalf("TLS minimum version should have been %v, got %v instead", tls.VersionTLS11, version)
+	}
+
+	// invalid minimum version string is not allowed
+	if _, err := ParseTLSMinVersion("invalid version"); err == nil || !strings.Contains(err.Error(), "invalid minimum TLS version string") {
+		t.Fatalf("Expected error 'invalid minimum TLS version string' but got: %v", err)
 	}
 }

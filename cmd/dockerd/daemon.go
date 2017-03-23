@@ -187,10 +187,17 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 	}
 
 	if cli.Config.TLS {
+
+		tlsMinVersion, err := dopts.ParseTLSMinVersion(cli.Config.CommonTLSOptions.MinVersion)
+		if err != nil {
+			return err
+		}
+
 		tlsOptions := tlsconfig.Options{
-			CAFile:   cli.Config.CommonTLSOptions.CAFile,
-			CertFile: cli.Config.CommonTLSOptions.CertFile,
-			KeyFile:  cli.Config.CommonTLSOptions.KeyFile,
+			CAFile:     cli.Config.CommonTLSOptions.CAFile,
+			CertFile:   cli.Config.CommonTLSOptions.CertFile,
+			KeyFile:    cli.Config.CommonTLSOptions.KeyFile,
+			MinVersion: tlsMinVersion,
 		}
 
 		if cli.Config.TLSVerify {
@@ -418,9 +425,7 @@ func loadDaemonCliConfig(opts daemonOptions) (*config.Config, error) {
 	conf.CommonTLSOptions = config.CommonTLSOptions{}
 
 	if opts.common.TLSOptions != nil {
-		conf.CommonTLSOptions.CAFile = opts.common.TLSOptions.CAFile
-		conf.CommonTLSOptions.CertFile = opts.common.TLSOptions.CertFile
-		conf.CommonTLSOptions.KeyFile = opts.common.TLSOptions.KeyFile
+		conf.CommonTLSOptions = *opts.common.TLSOptions
 	}
 
 	if opts.configFile != "" {

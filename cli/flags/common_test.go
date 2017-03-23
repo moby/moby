@@ -18,11 +18,13 @@ func TestCommonOptionsInstallFlags(t *testing.T) {
 		"--tlscacert=\"/foo/cafile\"",
 		"--tlscert=\"/foo/cert\"",
 		"--tlskey=\"/foo/key\"",
+		"--tlsminversion=\"TLS.TLSV11\"",
 	})
 	assert.NilError(t, err)
 	assert.Equal(t, opts.TLSOptions.CAFile, "/foo/cafile")
 	assert.Equal(t, opts.TLSOptions.CertFile, "/foo/cert")
 	assert.Equal(t, opts.TLSOptions.KeyFile, "/foo/key")
+	assert.Equal(t, opts.TLSOptions.MinVersion, "TLS.TLSV11")
 }
 
 func defaultPath(filename string) string {
