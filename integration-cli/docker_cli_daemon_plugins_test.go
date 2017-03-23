@@ -155,7 +155,34 @@ func (s *DockerDaemonSuite) TestDaemonShutdownWithPlugins(c *check.C) {
 		Error:    "exit status 1",
 	})
 
-	s.d.Start(c, "--live-restore")
+	s.d.Start(c)
+	icmd.RunCommand("pgrep", "-f", pluginProcessName).Assert(c, icmd.Success)
+}
+
+// TestDaemonKillWithPlugins leaves plugins running.
+func (s *DockerDaemonSuite) TestDaemonKillWithPlugins(c *check.C) {
+	testRequires(c, IsAmd64, Network, SameHostDaemon)
+
+	s.d.Start(c)
+	if out, err := s.d.Cmd("plugin", "install", "--grant-all-permissions", pName); err != nil {
+		c.Fatalf("Could not install plugin: %v %s", err, out)
+	}
+
+	defer func() {
+		s.d.Restart(c)
+		if out, err := s.d.Cmd("plugin", "disable", pName); err != nil {
+			c.Fatalf("Could not disable plugin: %v %s", err, out)
+		}
+		if out, err := s.d.Cmd("plugin", "remove", pName); err != nil {
+			c.Fatalf("Could not remove plugin: %v %s", err, out)
+		}
+	}()
+
+	if err := s.d.Kill(); err != nil {
+		c.Fatalf("Could not kill daemon: %v", err)
+	}
+
+	// assert that plugins are running.
 	icmd.RunCommand("pgrep", "-f", pluginProcessName).Assert(c, icmd.Success)
 }
 
