@@ -5941,6 +5941,67 @@ func (s *DockerSuite) TestBuildCopyFromImplicitFrom(c *check.C) {
 	}
 }
 
+func (s *DockerRegistrySuite) TestBuildCopyFromImplicitPullingFrom(c *check.C) {
+	repoName := fmt.Sprintf("%v/dockercli/testf", privateRegistryURL)
+
+	dockerfile := `
+		FROM busybox
+		COPY foo bar`
+	ctx := fakeContext(c, dockerfile, map[string]string{
+		"Dockerfile": dockerfile,
+		"foo":        "abc",
+	})
+	defer ctx.Close()
+
+	result := buildImage(repoName, withExternalBuildContext(ctx))
+	result.Assert(c, icmd.Success)
+
+	dockerCmd(c, "push", repoName)
+	dockerCmd(c, "rmi", repoName)
+
+	dockerfile = `
+		FROM busybox
+		COPY --from=%s bar baz`
+
+	ctx = fakeContext(c, fmt.Sprintf(dockerfile, repoName), map[string]string{
+		"Dockerfile": dockerfile,
+	})
+	defer ctx.Close()
+
+	result = buildImage("build1", withExternalBuildContext(ctx))
+	result.Assert(c, icmd.Success)
+
+	dockerCmdWithResult("run", "build1", "cat", "baz").Assert(c, icmd.Expected{Out: "abc"})
+}
+
+func (s *DockerSuite) TestBuildFromPreviousBlock(c *check.C) {
+	dockerfile := `
+		FROM busybox as foo
+		COPY foo /
+		FROM foo as foo1
+		RUN echo 1 >> foo
+		FROM foo as foO2
+		RUN echo 2 >> foo
+		FROM foo
+		COPY --from=foo1 foo f1
+		COPY --from=FOo2 foo f2
+		` // foo2 case also tests that names are canse insensitive
+	ctx := fakeContext(c, dockerfile, map[string]string{
+		"Dockerfile": dockerfile,
+		"foo":        "bar",
+	})
+	defer ctx.Close()
+
+	result := buildImage("build1", withExternalBuildContext(ctx))
+	result.Assert(c, icmd.Success)
+
+	dockerCmdWithResult("run", "build1", "cat", "foo").Assert(c, icmd.Expected{Out: "bar"})
+
+	dockerCmdWithResult("run", "build1", "cat", "f1").Assert(c, icmd.Expected{Out: "bar1"})
+
+	dockerCmdWithResult("run", "build1", "cat", "f2").Assert(c, icmd.Expected{Out: "bar2"})
+}
+
 // TestBuildOpaqueDirectory tests that a build succeeds which
 // creates opaque directories.
 // See https://github.com/docker/docker/issues/25244

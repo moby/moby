@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/remotecontext"
 	"github.com/pkg/errors"
@@ -37,8 +38,9 @@ func (ic *imageContexts) new(name string, increment bool) (*imageMount, error) {
 	return im, nil
 }
 
-func (ic *imageContexts) update(imageID string) {
+func (ic *imageContexts) update(imageID string, runConfig *container.Config) {
 	ic.list[len(ic.list)-1].id = imageID
+	ic.list[len(ic.list)-1].runConfig = runConfig
 }
 
 func (ic *imageContexts) validate(i int) error {
@@ -105,10 +107,11 @@ func (ic *imageContexts) setCache(id, path string, v interface{}) {
 // imageMount is a reference for getting access to a buildcontext that is backed
 // by an existing image
 type imageMount struct {
-	id      string
-	ctx     builder.Context
-	release func() error
-	ic      *imageContexts
+	id        string
+	ctx       builder.Context
+	release   func() error
+	ic        *imageContexts
+	runConfig *container.Config
 }
 
 func (im *imageMount) context() (builder.Context, error) {
@@ -138,6 +141,13 @@ func (im *imageMount) unmount() error {
 		im.release = nil
 	}
 	return nil
+}
+
+func (im *imageMount) ImageID() string {
+	return im.id
+}
+func (im *imageMount) RunConfig() *container.Config {
+	return im.runConfig
 }
 
 type pathCache struct {

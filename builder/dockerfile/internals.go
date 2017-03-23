@@ -85,7 +85,7 @@ func (b *Builder) commit(id string, autoCmd strslice.StrSlice, comment string) e
 	}
 
 	b.image = imageID
-	b.imageContexts.update(imageID)
+	b.imageContexts.update(imageID, &autoConfig)
 	return nil
 }
 
@@ -497,7 +497,7 @@ func (b *Builder) probeCache() (bool, error) {
 	fmt.Fprint(b.Stdout, " ---> Using cache\n")
 	logrus.Debugf("[BUILDER] Use cached version: %s", b.runConfig.Cmd)
 	b.image = string(cache)
-	b.imageContexts.update(b.image)
+	b.imageContexts.update(b.image, b.runConfig)
 
 	return true, nil
 }
