@@ -490,12 +490,12 @@ func (s *DockerSuite) TestExecOnReadonlyContainer(c *check.C) {
 func (s *DockerSuite) TestExecUlimits(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	name := "testexeculimits"
-	runSleepingContainer(c, "-d", "--ulimit", "nproc=21", "--name", name)
+	runSleepingContainer(c, "-d", "--ulimit", "nofile=511:511", "--name", name)
 	c.Assert(waitRun(name), checker.IsNil)
 
-	out, _, err := dockerCmdWithError("exec", name, "sh", "-c", "ulimit -p")
+	out, _, err := dockerCmdWithError("exec", name, "sh", "-c", "ulimit -n")
 	c.Assert(err, checker.IsNil)
-	c.Assert(strings.TrimSpace(out), checker.Equals, "21")
+	c.Assert(strings.TrimSpace(out), checker.Equals, "511")
 }
 
 // #15750
