@@ -105,11 +105,19 @@ func setRawTerminal(streams command.Streams) error {
 func restoreTerminal(streams command.Streams, in io.Closer) error {
 	streams.In().RestoreTerminal()
 	streams.Out().RestoreTerminal()
-	// WARNING: DO NOT REMOVE THE OS CHECK !!!
+	// WARNING: DO NOT REMOVE THE OS CHECKS !!!
 	// For some reason this Close call blocks on darwin..
-	// As the client exists right after, simply discard the close
+	// As the client exits right after, simply discard the close
 	// until we find a better solution.
-	if in != nil && runtime.GOOS != "darwin" {
+	//
+	// This can also cause the client on Windows to get stuck in Win32 CloseHandle()
+	// in some cases. See https://github.com/docker/docker/issues/28267#issuecomment-288237442
+	// Tracked internally at Microsoft by VSO #11352156. In the
+	// Windows case, you hit this if you are using the native/v2 console,
+	// not the "legacy" console, and you start the client in a new window. eg
+	// `start docker run --rm -it microsoft/nanoserver cmd /s /c echo foobar`
+	// will hang. Remove start, and it won't repro.
+	if in != nil && runtime.GOOS != "darwin" && runtime.GOOS != "windows" {
 		return in.Close()
 	}
 	return nil
