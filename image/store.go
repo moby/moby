@@ -72,6 +72,11 @@ func (is *store) restore() error {
 		if chainID := img.RootFS.ChainID(); chainID != "" {
 			l, err = is.ls.Get(chainID)
 			if err != nil {
+				logrus.Errorf("Failed to restore layer %s for image %s: %v", chainID, dgst, err)
+				// If the layer doesn't exist, return nil to ignore this image.
+				if err == layer.ErrLayerDoesNotExist {
+					return nil
+				}
 				return err
 			}
 		}

@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -25,6 +24,7 @@ import (
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/devicemapper"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/loopback"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
@@ -304,6 +304,10 @@ func (devices *DeviceSet) ensureImage(name string, size int64) (string, error) {
 	return filename, nil
 }
 
+func (devices *DeviceSet) removeDeviceMap(hash string) {
+	delete(devices.Devices, hash)
+}
+
 func (devices *DeviceSet) allocateTransactionID() uint64 {
 	devices.OpenTransactionID = devices.TransactionID + 1
 	return devices.OpenTransactionID
@@ -326,28 +330,9 @@ func (devices *DeviceSet) removeMetadata(info *devInfo) error {
 
 // Given json data and file path, write it to disk
 func (devices *DeviceSet) writeMetaFile(jsonData []byte, filePath string) error {
-	tmpFile, err := ioutil.TempFile(devices.metadataDir(), ".tmp")
-	if err != nil {
-		return fmt.Errorf("devmapper: Error creating metadata file: %s", err)
+	if err := ioutils.AtomicWriteFile(filePath, jsonData, 0600); err != nil {
+		return fmt.Errorf("devmapper: Error writing metadata to %s: %s", filePath, err)
 	}
-
-	n, err := tmpFile.Write(jsonData)
-	if err != nil {
-		return fmt.Errorf("devmapper: Error writing metadata to %s: %s", tmpFile.Name(), err)
-	}
-	if n < len(jsonData) {
-		return io.ErrShortWrite
-	}
-	if err := tmpFile.Sync(); err != nil {
-		return fmt.Errorf("devmapper: Error syncing metadata file %s: %s", tmpFile.Name(), err)
-	}
-	if err := tmpFile.Close(); err != nil {
-		return fmt.Errorf("devmapper: Error closing metadata file %s: %s", tmpFile.Name(), err)
-	}
-	if err := os.Rename(tmpFile.Name(), filePath); err != nil {
-		return fmt.Errorf("devmapper: Error committing metadata file %s: %s", tmpFile.Name(), err)
-	}
-
 	return nil
 }
 
@@ -483,7 +468,7 @@ func (devices *DeviceSet) unregisterDevice(hash string) error {
 		Hash: hash,
 	}
 
-	delete(devices.Devices, hash)
+	devices.removeDeviceMap(hash)
 
 	if err := devices.removeMetadata(info); err != nil {
 		logrus.Debugf("devmapper: Error removing metadata: %s", err)
@@ -509,7 +494,7 @@ func (devices *DeviceSet) registerDevice(id int, hash string, size uint64, trans
 
 	if err := devices.saveMetadata(info); err != nil {
 		// Try to remove unused device
-		delete(devices.Devices, hash)
+		devices.removeDeviceMap(hash)
 		return nil, err
 	}
 
@@ -1161,7 +1146,7 @@ func (devices *DeviceSet) checkGrowBaseDeviceFS(info *devInfo) error {
 
 	if err := devices.saveMetadata(info); err != nil {
 		// Try to remove unused device
-		delete(devices.Devices, info.Hash)
+		devices.removeDeviceMap(info.Hash)
 		return err
 	}
 
@@ -1417,6 +1402,8 @@ func (devices *DeviceSet) rollbackTransaction() error {
 		devices.markDeviceIDFree(devices.DeviceID)
 	}
 
+	devices.removeDeviceMap(dinfo.Hash)
+
 	if err := devices.removeTransactionMetaData(); err != nil {
 		logrus.Errorf("devmapper: Unable to remove transaction meta file %s: %s", devices.transactionMetaFile(), err)
 	}
@@ -1498,6 +1485,7 @@ func (devices *DeviceSet) closeTransaction() error {
 		logrus.Debug("devmapper: Failed to close Transaction")
 		return err
 	}
+
 	return nil
 }
 

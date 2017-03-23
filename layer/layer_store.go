@@ -89,7 +89,7 @@ func NewStoreFromGraphDriver(store MetadataStore, driver graphdriver.Driver) (St
 	for _, id := range ids {
 		l, err := ls.loadLayer(id)
 		if err != nil {
-			logrus.Debugf("Failed to load layer %s: %s", id, err)
+			logrus.Warnf("Failed to load layer %s: %s", id, err)
 			continue
 		}
 		if l.parent != nil {
@@ -106,11 +106,17 @@ func NewStoreFromGraphDriver(store MetadataStore, driver graphdriver.Driver) (St
 	return ls, nil
 }
 
-func (ls *layerStore) loadLayer(layer ChainID) (*roLayer, error) {
+func (ls *layerStore) loadLayer(layer ChainID) (l *roLayer, err error) {
 	cl, ok := ls.layerMap[layer]
 	if ok {
 		return cl, nil
 	}
+	defer func() {
+		// If failed to load the layer, remove the layer metadata.
+		if err != nil {
+			ls.store.Remove(layer)
+		}
+	}()
 
 	diff, err := ls.store.GetDiffID(layer)
 	if err != nil {
@@ -125,6 +131,11 @@ func (ls *layerStore) loadLayer(layer ChainID) (*roLayer, error) {
 	cacheID, err := ls.store.GetCacheID(layer)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get cache id for %s: %s", layer, err)
+	}
+
+	// Check whether the layer exists in graphdriver here.
+	if exist := ls.driver.Exists(cacheID); !exist {
+		return nil, fmt.Errorf("cacheID %s for layer %s does not exists in graphdriver", cacheID, layer)
 	}
 
 	parent, err := ls.store.GetParent(layer)
