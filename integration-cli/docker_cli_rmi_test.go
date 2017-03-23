@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/pkg/stringid"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
@@ -147,7 +148,7 @@ func (s *DockerSuite) TestRmiImgIDForce(c *check.C) {
 // See https://github.com/docker/docker/issues/14116
 func (s *DockerSuite) TestRmiImageIDForceWithRunningContainersAndMultipleTags(c *check.C) {
 	dockerfile := "FROM busybox\nRUN echo test 14116\n"
-	buildImageSuccessfully(c, "test-14116", withDockerfile(dockerfile))
+	buildImageSuccessfully(c, "test-14116", build.WithDockerfile(dockerfile))
 	imgID := getIDByName(c, "test-14116")
 
 	newTag := "newtag"
@@ -205,7 +206,7 @@ func (s *DockerSuite) TestRmiForceWithMultipleRepositories(c *check.C) {
 	tag1 := imageName + ":tag1"
 	tag2 := imageName + ":tag2"
 
-	buildImageSuccessfully(c, tag1, withDockerfile(`FROM busybox
+	buildImageSuccessfully(c, tag1, build.WithDockerfile(`FROM busybox
 		MAINTAINER "docker"`))
 	dockerCmd(c, "tag", tag1, tag2)
 
@@ -234,7 +235,7 @@ func (s *DockerSuite) TestRmiContainerImageNotFound(c *check.C) {
 	imageIds := make([]string, 2)
 	for i, name := range imageNames {
 		dockerfile := fmt.Sprintf("FROM busybox\nMAINTAINER %s\nRUN echo %s\n", name, name)
-		buildImageSuccessfully(c, name, withoutCache, withDockerfile(dockerfile))
+		buildImageSuccessfully(c, name, build.WithoutCache, build.WithDockerfile(dockerfile))
 		id := getIDByName(c, name)
 		imageIds[i] = id
 	}
@@ -263,7 +264,7 @@ RUN echo 0 #layer0
 RUN echo 1 #layer1
 RUN echo 2 #layer2
 `
-	buildImageSuccessfully(c, image, withoutCache, withDockerfile(dockerfile))
+	buildImageSuccessfully(c, image, build.WithoutCache, build.WithDockerfile(dockerfile))
 	out, _ := dockerCmd(c, "history", "-q", image)
 	ids := strings.Split(out, "\n")
 	idToTag := ids[2]
@@ -299,7 +300,7 @@ RUN echo 2 #layer2
 }
 
 func (*DockerSuite) TestRmiParentImageFail(c *check.C) {
-	buildImageSuccessfully(c, "test", withDockerfile(`
+	buildImageSuccessfully(c, "test", build.WithDockerfile(`
 	FROM busybox
 	RUN echo hello`))
 

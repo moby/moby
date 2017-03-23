@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli/build"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
 	"github.com/kr/pty"
@@ -71,7 +72,7 @@ func (s *DockerSuite) TestSaveAndLoadRepoStdout(c *check.C) {
 
 func (s *DockerSuite) TestSaveAndLoadWithProgressBar(c *check.C) {
 	name := "test-load"
-	buildImageSuccessfully(c, name, withDockerfile(`FROM busybox
+	buildImageSuccessfully(c, name, build.WithDockerfile(`FROM busybox
 	RUN touch aa
 	`))
 

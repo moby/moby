@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/integration-cli/request"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
@@ -497,7 +498,7 @@ func (s *DockerSuite) TestDuplicateMountpointsForVolumesFrom(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 
 	image := "vimage"
-	buildImageSuccessfully(c, image, withDockerfile(`
+	buildImageSuccessfully(c, image, build.WithDockerfile(`
 		FROM busybox
 		VOLUME ["/tmp/data"]`))
 
@@ -539,7 +540,7 @@ func (s *DockerSuite) TestDuplicateMountpointsForVolumesFromAndBind(c *check.C) 
 	testRequires(c, DaemonIsLinux)
 
 	image := "vimage"
-	buildImageSuccessfully(c, image, withDockerfile(`
+	buildImageSuccessfully(c, image, build.WithDockerfile(`
                 FROM busybox
                 VOLUME ["/tmp/data"]`))
 
@@ -583,7 +584,7 @@ func (s *DockerSuite) TestDuplicateMountpointsForVolumesFromAndMounts(c *check.C
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
 	image := "vimage"
-	buildImageSuccessfully(c, image, withDockerfile(`
+	buildImageSuccessfully(c, image, build.WithDockerfile(`
                 FROM busybox
                 VOLUME ["/tmp/data"]`))
 

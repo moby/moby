@@ -13,6 +13,7 @@ import (
 
 	"github.com/docker/docker/api/types/swarm"
 	cliconfig "github.com/docker/docker/cli/config"
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/integration-cli/environment"
 	"github.com/docker/docker/integration-cli/registry"
@@ -51,15 +52,7 @@ func init() {
 }
 
 func TestMain(m *testing.M) {
-	var err error
-	if dockerBin := os.Getenv("DOCKER_BINARY"); dockerBin != "" {
-		dockerBinary = dockerBin
-	}
-	dockerBinary, err = exec.LookPath(dockerBinary)
-	if err != nil {
-		fmt.Printf("ERROR: couldn't resolve full path to the Docker binary (%v)\n", err)
-		os.Exit(1)
-	}
+	dockerBinary = testEnv.DockerBinary()
 
 	if testEnv.LocalDaemon() {
 		fmt.Println("INFO: Testing against a local daemon")
@@ -71,6 +64,7 @@ func TestMain(m *testing.M) {
 }
 
 func Test(t *testing.T) {
+	cli.EnsureTestEnvIsLoaded(t)
 	cmd := exec.Command(dockerBinary, "images", "-f", "dangling=false", "--format", "{{.Repository}}:{{.Tag}}")
 	cmd.Env = appendBaseEnv(true)
 	out, err := cmd.CombinedOutput()

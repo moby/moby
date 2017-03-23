@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/go-check/check"
 )
 
@@ -14,7 +15,7 @@ import (
 // sort is not predictable it doesn't always fail.
 func (s *DockerSuite) TestBuildHistory(c *check.C) {
 	name := "testbuildhistory"
-	buildImageSuccessfully(c, name, withDockerfile(`FROM `+minimalBaseImage()+`
+	buildImageSuccessfully(c, name, build.WithDockerfile(`FROM `+minimalBaseImage()+`
 LABEL label.A="A"
 LABEL label.B="B"
 LABEL label.C="C"

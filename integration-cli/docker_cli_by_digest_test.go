@@ -12,6 +12,7 @@ import (
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/go-check/check"
 	"github.com/opencontainers/go-digest"
@@ -196,7 +197,7 @@ func (s *DockerRegistrySuite) TestBuildByDigest(c *check.C) {
 
 	// do the build
 	name := "buildbydigest"
-	buildImageSuccessfully(c, name, withDockerfile(fmt.Sprintf(
+	buildImageSuccessfully(c, name, build.WithDockerfile(fmt.Sprintf(
 		`FROM %s
      CMD ["/bin/echo", "Hello World"]`, imageReference)))
 	c.Assert(err, checker.IsNil)
@@ -419,7 +420,7 @@ func (s *DockerRegistrySuite) TestPsListContainersFilterAncestorImageByDigest(c 
 
 	// build an image from it
 	imageName1 := "images_ps_filter_test"
-	buildImageSuccessfully(c, imageName1, withDockerfile(fmt.Sprintf(
+	buildImageSuccessfully(c, imageName1, build.WithDockerfile(fmt.Sprintf(
 		`FROM %s
 		 LABEL match me 1`, imageReference)))
 

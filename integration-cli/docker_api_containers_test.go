@@ -21,6 +21,7 @@ import (
 	mounttypes "github.com/docker/docker/api/types/mount"
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/integration-cli/request"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/mount"
@@ -1768,7 +1769,7 @@ func (s *DockerSuite) TestContainersAPICreateMountsCreate(c *check.C) {
 	)
 	if testEnv.DaemonPlatform() != "windows" {
 		testImg = "test-mount-config"
-		buildImageSuccessfully(c, testImg, withDockerfile(`
+		buildImageSuccessfully(c, testImg, build.WithDockerfile(`
 	FROM busybox
 	RUN mkdir `+destPath+` && touch `+destPath+slash+`bar
 	CMD cat `+destPath+slash+`bar

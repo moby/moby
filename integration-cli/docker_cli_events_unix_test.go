@@ -15,6 +15,7 @@ import (
 	"unicode"
 
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/go-check/check"
 	"github.com/kr/pty"
 )
@@ -111,7 +112,7 @@ func (s *DockerSuite) TestEventsOOMDisableTrue(c *check.C) {
 	case <-time.After(20 * time.Second):
 		observer.CheckEventError(c, containerID, "oom", matcher)
 	case <-testActions["oom"]:
-		// ignore, done
+	// ignore, done
 	case errRun := <-errChan:
 		if errRun != nil {
 			c.Fatalf("%v", errRun)
@@ -310,7 +311,7 @@ func (s *DockerSuite) TestEventsImageUntagDelete(c *check.C) {
 	defer observer.Stop()
 
 	name := "testimageevents"
-	buildImageSuccessfully(c, name, withDockerfile(`FROM scratch
+	buildImageSuccessfully(c, name, build.WithDockerfile(`FROM scratch
 		MAINTAINER "docker"`))
 	imageID := getIDByName(c, name)
 	c.Assert(deleteImages(name), checker.IsNil)

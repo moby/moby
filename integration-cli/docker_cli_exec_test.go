@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/integration-cli/request"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
@@ -470,7 +471,7 @@ func (s *DockerSuite) TestExecWithImageUser(c *check.C) {
 	// Not applicable on Windows
 	testRequires(c, DaemonIsLinux)
 	name := "testbuilduser"
-	buildImageSuccessfully(c, name, withDockerfile(`FROM busybox
+	buildImageSuccessfully(c, name, build.WithDockerfile(`FROM busybox
 		RUN echo 'dockerio:x:1001:1001::/bin:/bin/false' >> /etc/passwd
 		USER dockerio`))
 	dockerCmd(c, "run", "-d", "--name", "dockerioexec", name, "top")
