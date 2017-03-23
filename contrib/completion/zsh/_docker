@@ -1736,6 +1736,7 @@ __docker_secret_subcommand() {
         (ls|list)
             _arguments $(__docker_arguments) \
                 $opts_help \
+                "($help)--format=[Format the output using the given go template]:template: " \
                 "($help -q --quiet)"{-q,--quiet}"[Only display IDs]" && ret=0
             ;;
         (rm|remove)
