@@ -1799,6 +1799,28 @@ __docker_service_complete_ps_filters() {
     return ret
 }
 
+__docker_service_complete_placement_pref() {
+    [[ $PREFIX = -* ]] && return 1
+    integer ret=1
+
+    if compset -P '*='; then
+        case "${${words[-1]%=*}#*=}" in
+            (spread)
+                opts=('engine.labels' 'node.labels')
+                _describe -t spread-opts "spread options" opts -qS "." && ret=0
+                ;;
+            *)
+                _message 'value' && ret=0
+                ;;
+        esac
+    else
+        opts=('spread')
+        _describe -t pref-opts "placement pref options" opts -qS "=" && ret=0
+    fi
+
+    return ret
+}
+
 __docker_services() {
     [[ $PREFIX = -* ]] && return 1
     integer ret=1
@@ -1931,6 +1953,7 @@ __docker_service_subcommand() {
                 "($help)*--env-file=[Read environment variables from a file]:environment file:_files" \
                 "($help)--mode=[Service Mode]:mode:(global replicated)" \
                 "($help)--name=[Service name]:name: " \
+                "($help)*--placement-pref=[Add a placement preference]:pref:__docker_service_complete_placement_pref" \
                 "($help)*--publish=[Publish a port]:port: " \
                 "($help -): :__docker_complete_images" \
                 "($help -):command: _command_names -e" \
@@ -2016,6 +2039,8 @@ __docker_service_subcommand() {
                 "($help)*--group-add=[Add additional supplementary user groups to the container]:group:_groups" \
                 "($help)*--group-rm=[Remove previously added supplementary user groups from the container]:group:_groups" \
                 "($help)--image=[Service image tag]:image:__docker_complete_repositories" \
+                "($help)*--placement-pref-add=[Add a placement preference]:pref:__docker_service_complete_placement_pref" \
+                "($help)*--placement-pref-rm=[Remove a placement preference]:pref:__docker_service_complete_placement_pref" \
                 "($help)*--publish-add=[Add or update a port]:port: " \
                 "($help)*--publish-rm=[Remove a port(target-port mandatory)]:port: " \
                 "($help)--rollback[Rollback to previous specification]" \
