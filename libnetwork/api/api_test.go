@@ -234,7 +234,7 @@ func TestCreateDeleteNetwork(t *testing.T) {
 
 	_, errRsp = procCreateNetwork(c, vars, goodBody)
 	if errRsp != &createdResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
+		t.Fatalf("Unexpected failure: %v", errRsp)
 	}
 
 	vars[urlNwName] = ""
@@ -252,7 +252,7 @@ func TestCreateDeleteNetwork(t *testing.T) {
 	vars[urlNwName] = "network_1"
 	_, errRsp = procDeleteNetwork(c, vars, nil)
 	if errRsp != &successResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
+		t.Fatalf("Unexpected failure: %v", errRsp)
 	}
 }
 
@@ -278,7 +278,7 @@ func TestGetNetworksAndEndpoints(t *testing.T) {
 	vars := make(map[string]string)
 	inid, errRsp := procCreateNetwork(c, vars, body)
 	if errRsp != &createdResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
+		t.Fatalf("Unexpected failure: %v", errRsp)
 	}
 	nid, ok := inid.(string)
 	if !ok {
@@ -302,13 +302,13 @@ func TestGetNetworksAndEndpoints(t *testing.T) {
 	vars[urlEpName] = "ep1"
 	ieid1, errRsp := procCreateEndpoint(c, vars, b1)
 	if errRsp != &createdResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
+		t.Fatalf("Unexpected failure: %v", errRsp)
 	}
 	eid1 := i2s(ieid1)
 	vars[urlEpName] = "ep2"
 	ieid2, errRsp := procCreateEndpoint(c, vars, b2)
 	if errRsp != &createdResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
+		t.Fatalf("Unexpected failure: %v", errRsp)
 	}
 	eid2 := i2s(ieid2)
 
@@ -348,33 +348,33 @@ func TestGetNetworksAndEndpoints(t *testing.T) {
 	vars[urlNwName] = "sh"
 	i1, errRsp := procGetEndpoint(c, vars, nil)
 	if errRsp != &successResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
+		t.Fatalf("Unexpected failure: %v", errRsp)
 	}
 	// nw by name and ep by name
 	delete(vars, urlEpID)
 	vars[urlEpName] = "ep1"
 	i2, errRsp := procGetEndpoint(c, vars, nil)
 	if errRsp != &successResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
+		t.Fatalf("Unexpected failure: %v", errRsp)
 	}
 	// nw by id and ep by name
 	delete(vars, urlNwName)
 	vars[urlNwID] = nid
 	i3, errRsp := procGetEndpoint(c, vars, nil)
 	if errRsp != &successResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
+		t.Fatalf("Unexpected failure: %v", errRsp)
 	}
 	// nw by id and ep by id
 	delete(vars, urlEpName)
 	vars[urlEpID] = eid1
 	i4, errRsp := procGetEndpoint(c, vars, nil)
 	if errRsp != &successResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
+		t.Fatalf("Unexpected failure: %v", errRsp)
 	}
 
 	id1 := i2e(i1).ID
 	if id1 != i2e(i2).ID || id1 != i2e(i3).ID || id1 != i2e(i4).ID {
-		t.Fatalf("Endpoints retireved via different query parameters differ: %v, %v, %v, %v", i1, i2, i3, i4)
+		t.Fatalf("Endpoints retrieved via different query parameters differ: %v, %v, %v, %v", i1, i2, i3, i4)
 	}
 
 	vars[urlNwName] = ""
@@ -393,13 +393,13 @@ func TestGetNetworksAndEndpoints(t *testing.T) {
 	vars[urlNwID] = nid
 	_, errRsp = procGetEndpoints(c, vars, nil)
 	if errRsp != &successResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
+		t.Fatalf("Unexpected failure: %v", errRsp)
 	}
 
 	vars[urlNwName] = "sh"
 	iepList, errRsp := procGetEndpoints(c, vars, nil)
 	if errRsp != &successResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
+		t.Fatalf("Unexpected failure: %v", errRsp)
 	}
 	epList := i2eL(iepList)
 	if len(epList) != 2 {
@@ -413,17 +413,17 @@ func TestGetNetworksAndEndpoints(t *testing.T) {
 	vars[urlNwName] = ""
 	_, errRsp = procGetNetwork(c, vars, nil)
 	if errRsp == &successResponse {
-		t.Fatalf("Exepected failure, got: %v", errRsp)
+		t.Fatalf("Expected failure, got: %v", errRsp)
 	}
 	vars[urlNwName] = "shhhhh"
 	_, errRsp = procGetNetwork(c, vars, nil)
 	if errRsp == &successResponse {
-		t.Fatalf("Exepected failure, got: %v", errRsp)
+		t.Fatalf("Expected failure, got: %v", errRsp)
 	}
 	vars[urlNwName] = "sh"
 	inr1, errRsp := procGetNetwork(c, vars, nil)
 	if errRsp != &successResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
+		t.Fatalf("Unexpected failure: %v", errRsp)
 	}
 	nr1 := i2n(inr1)
 
@@ -454,7 +454,7 @@ func TestGetNetworksAndEndpoints(t *testing.T) {
 
 	iList, errRsp := procGetNetworks(c, nil, nil)
 	if errRsp != &successResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
+		t.Fatalf("Unexpected failure: %v", errRsp)
 	}
 	netList := i2nL(iList)
 	if len(netList) != 1 {
@@ -466,18 +466,18 @@ func TestGetNetworksAndEndpoints(t *testing.T) {
 
 	_, errRsp = procDeleteNetwork(c, vars, nil)
 	if errRsp == &successResponse {
-		t.Fatalf("Exepected failure, got: %v", errRsp)
+		t.Fatalf("Expected failure, got: %v", errRsp)
 	}
 
 	vars[urlEpName] = "ep1"
 	_, errRsp = procDeleteEndpoint(c, vars, nil)
 	if errRsp != &successResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
+		t.Fatalf("Unexpected failure: %v", errRsp)
 	}
 	delete(vars, urlEpName)
 	iepList, errRsp = procGetEndpoints(c, vars, nil)
 	if errRsp != &successResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
+		t.Fatalf("Unexpected failure: %v", errRsp)
 	}
 	epList = i2eL(iepList)
 	if len(epList) != 1 {
@@ -487,11 +487,11 @@ func TestGetNetworksAndEndpoints(t *testing.T) {
 	vars[urlEpName] = "ep2"
 	_, errRsp = procDeleteEndpoint(c, vars, nil)
 	if errRsp != &successResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
+		t.Fatalf("Unexpected failure: %v", errRsp)
 	}
 	iepList, errRsp = procGetEndpoints(c, vars, nil)
 	if errRsp != &successResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
+		t.Fatalf("Unexpected failure: %v", errRsp)
 	}
 	epList = i2eL(iepList)
 	if len(epList) != 0 {
@@ -500,12 +500,12 @@ func TestGetNetworksAndEndpoints(t *testing.T) {
 
 	_, errRsp = procDeleteNetwork(c, vars, nil)
 	if errRsp != &successResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
+		t.Fatalf("Unexpected failure: %v", errRsp)
 	}
 
 	iList, errRsp = procGetNetworks(c, nil, nil)
 	if errRsp != &successResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
+		t.Fatalf("Unexpected failure: %v", errRsp)
 	}
 	netList = i2nL(iList)
 	if len(netList) != 0 {
@@ -1122,11 +1122,11 @@ func TestCreateDeleteEndpoints(t *testing.T) {
 	vars := make(map[string]string)
 	i, errRsp := procCreateNetwork(c, vars, body)
 	if errRsp != &createdResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
+		t.Fatalf("Unexpected failure: %v", errRsp)
 	}
 	nid := i2s(i)
 
-	vbad, err := json.Marshal("bad endppoint create data")
+	vbad, err := json.Marshal("bad endpoint create data")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1161,7 +1161,7 @@ func TestCreateDeleteEndpoints(t *testing.T) {
 
 	i, errRsp = procCreateEndpoint(c, vars, b)
 	if errRsp != &createdResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
+		t.Fatalf("Unexpected failure: %v", errRsp)
 	}
 	eid := i2s(i)
 
@@ -1172,26 +1172,26 @@ func TestCreateDeleteEndpoints(t *testing.T) {
 
 	ep0, errRsp := findEndpoint(c, nid, "firstEp", byID, byName)
 	if errRsp != &successResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
+		t.Fatalf("Unexpected failure: %v", errRsp)
 	}
 
 	ep1, errRsp := findEndpoint(c, "firstNet", "firstEp", byName, byName)
 	if errRsp != &successResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
+		t.Fatalf("Unexpected failure: %v", errRsp)
 	}
 
 	ep2, errRsp := findEndpoint(c, nid, eid, byID, byID)
 	if errRsp != &successResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
+		t.Fatalf("Unexpected failure: %v", errRsp)
 	}
 
 	ep3, errRsp := findEndpoint(c, "firstNet", eid, byName, byID)
 	if errRsp != &successResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
+		t.Fatalf("Unexpected failure: %v", errRsp)
 	}
 
 	if ep0.ID() != ep1.ID() || ep0.ID() != ep2.ID() || ep0.ID() != ep3.ID() {
-		t.Fatalf("Diffenrent queries returned different endpoints: \nep0: %v\nep1: %v\nep2: %v\nep3: %v", ep0, ep1, ep2, ep3)
+		t.Fatalf("Different queries returned different endpoints: \nep0: %v\nep1: %v\nep2: %v\nep3: %v", ep0, ep1, ep2, ep3)
 	}
 
 	vars = make(map[string]string)
@@ -1218,7 +1218,7 @@ func TestCreateDeleteEndpoints(t *testing.T) {
 	vars[urlEpName] = "firstEp"
 	_, errRsp = procDeleteEndpoint(c, vars, nil)
 	if errRsp != &successResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
+		t.Fatalf("Unexpected failure: %v", errRsp)
 	}
 
 	_, errRsp = findEndpoint(c, "firstNet", "firstEp", byName, byName)
@@ -1246,7 +1246,7 @@ func TestJoinLeave(t *testing.T) {
 	vars := make(map[string]string)
 	_, errRsp := procCreateNetwork(c, vars, nb)
 	if errRsp != &createdResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
+		t.Fatalf("Unexpected failure: %v", errRsp)
 	}
 
 	eb, err := json.Marshal(endpointCreate{Name: "endpoint"})
@@ -1256,7 +1256,7 @@ func TestJoinLeave(t *testing.T) {
 	vars[urlNwName] = "network"
 	_, errRsp = procCreateEndpoint(c, vars, eb)
 	if errRsp != &createdResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
+		t.Fatalf("Unexpected failure: %v", errRsp)
 	}
 
 	vbad, err := json.Marshal("bad data")
@@ -1313,7 +1313,7 @@ func TestJoinLeave(t *testing.T) {
 	vars[urlEpName] = "endpoint"
 	key, errRsp := procJoinEndpoint(c, vars, jlb)
 	if errRsp != &successResponse {
-		t.Fatalf("Unexepected failure, got: %v", errRsp)
+		t.Fatalf("Unexpected failure, got: %v", errRsp)
 	}
 
 	keyStr := i2s(key)
@@ -1373,7 +1373,7 @@ func TestJoinLeave(t *testing.T) {
 	vars[urlSbID] = sb.ID()
 	_, errRsp = procLeaveEndpoint(c, vars, jlb)
 	if errRsp != &successResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
+		t.Fatalf("Unexpected failure: %v", errRsp)
 	}
 
 	_, errRsp = procLeaveEndpoint(c, vars, jlb)
@@ -1383,7 +1383,7 @@ func TestJoinLeave(t *testing.T) {
 
 	_, errRsp = procDeleteEndpoint(c, vars, nil)
 	if errRsp != &successResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
+		t.Fatalf("Unexpected failure: %v", errRsp)
 	}
 }
 
@@ -1430,37 +1430,37 @@ func TestFindEndpointUtil(t *testing.T) {
 
 	ep0, errRsp := findEndpoint(c, nid, "secondEp", byID, byName)
 	if errRsp != &successResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
+		t.Fatalf("Unexpected failure: %v", errRsp)
 	}
 
 	ep1, errRsp := findEndpoint(c, "network", "secondEp", byName, byName)
 	if errRsp != &successResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
+		t.Fatalf("Unexpected failure: %v", errRsp)
 	}
 
 	ep2, errRsp := findEndpoint(c, nid, eid, byID, byID)
 	if errRsp != &successResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
+		t.Fatalf("Unexpected failure: %v", errRsp)
 	}
 
 	ep3, errRsp := findEndpoint(c, "network", eid, byName, byID)
 	if errRsp != &successResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
+		t.Fatalf("Unexpected failure: %v", errRsp)
 	}
 
 	ep4, errRsp := findService(c, "secondEp", byName)
 	if errRsp != &successResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
+		t.Fatalf("Unexpected failure: %v", errRsp)
 	}
 
 	ep5, errRsp := findService(c, eid, byID)
 	if errRsp != &successResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
+		t.Fatalf("Unexpected failure: %v", errRsp)
 	}
 
 	if ep0.ID() != ep1.ID() || ep0.ID() != ep2.ID() ||
 		ep0.ID() != ep3.ID() || ep0.ID() != ep4.ID() || ep0.ID() != ep5.ID() {
-		t.Fatal("Diffenrent queries returned different endpoints")
+		t.Fatal("Different queries returned different endpoints")
 	}
 
 	ep.Delete(false)
@@ -1742,7 +1742,7 @@ func TestHttpHandlerUninit(t *testing.T) {
 
 	handleRequest(rsp, req)
 	if rsp.statusCode != http.StatusOK {
-		t.Fatalf("Unexpectded failure: (%d): %s", rsp.statusCode, rsp.body)
+		t.Fatalf("Unexpected failure: (%d): %s", rsp.statusCode, rsp.body)
 	}
 	if len(rsp.body) == 0 {
 		t.Fatal("Empty list of networks")
@@ -1820,7 +1820,7 @@ func TestEndToEnd(t *testing.T) {
 	}
 	handleRequest(rsp, req)
 	if rsp.statusCode != http.StatusCreated {
-		t.Fatalf("Unexpectded status code. Expected (%d). Got (%d): %s.", http.StatusCreated, rsp.statusCode, string(rsp.body))
+		t.Fatalf("Unexpected status code. Expected (%d). Got (%d): %s.", http.StatusCreated, rsp.statusCode, string(rsp.body))
 	}
 	if len(rsp.body) == 0 {
 		t.Fatal("Empty response body")
@@ -1899,7 +1899,7 @@ func TestEndToEnd(t *testing.T) {
 	}
 	handleRequest(rsp, req)
 	if rsp.statusCode != http.StatusOK {
-		t.Fatalf("Unexpectded failure: (%d): %s", rsp.statusCode, rsp.body)
+		t.Fatalf("Unexpected failure: (%d): %s", rsp.statusCode, rsp.body)
 	}
 
 	err = json.Unmarshal(rsp.body, &list)
@@ -1922,7 +1922,7 @@ func TestEndToEnd(t *testing.T) {
 	}
 	handleRequest(rsp, req)
 	if rsp.statusCode != http.StatusOK {
-		t.Fatalf("Unexpectded failure: (%d): %s", rsp.statusCode, rsp.body)
+		t.Fatalf("Unexpected failure: (%d): %s", rsp.statusCode, rsp.body)
 	}
 
 	err = json.Unmarshal(rsp.body, &list)
@@ -1943,7 +1943,7 @@ func TestEndToEnd(t *testing.T) {
 	}
 	handleRequest(rsp, req)
 	if rsp.statusCode != http.StatusOK {
-		t.Fatalf("Unexpectded failure: (%d): %s", rsp.statusCode, rsp.body)
+		t.Fatalf("Unexpected failure: (%d): %s", rsp.statusCode, rsp.body)
 	}
 
 	var nwr networkResource
@@ -1968,7 +1968,7 @@ func TestEndToEnd(t *testing.T) {
 	}
 	handleRequest(rsp, req)
 	if rsp.statusCode != http.StatusCreated {
-		t.Fatalf("Unexpectded status code. Expected (%d). Got (%d): %s.", http.StatusCreated, rsp.statusCode, string(rsp.body))
+		t.Fatalf("Unexpected status code. Expected (%d). Got (%d): %s.", http.StatusCreated, rsp.statusCode, string(rsp.body))
 	}
 	if len(rsp.body) == 0 {
 		t.Fatal("Empty response body")
@@ -1996,7 +1996,7 @@ func TestEndToEnd(t *testing.T) {
 	}
 	handleRequest(rsp, req)
 	if rsp.statusCode != http.StatusOK {
-		t.Fatalf("Unexpectded failure: (%d): %s", rsp.statusCode, rsp.body)
+		t.Fatalf("Unexpected failure: (%d): %s", rsp.statusCode, rsp.body)
 	}
 	var epList []*endpointResource
 	err = json.Unmarshal(rsp.body, &epList)
@@ -2014,7 +2014,7 @@ func TestEndToEnd(t *testing.T) {
 	}
 	handleRequest(rsp, req)
 	if rsp.statusCode != http.StatusOK {
-		t.Fatalf("Unexpectded failure: (%d): %s", rsp.statusCode, rsp.body)
+		t.Fatalf("Unexpected failure: (%d): %s", rsp.statusCode, rsp.body)
 	}
 
 	err = json.Unmarshal(rsp.body, &epList)
@@ -2037,7 +2037,7 @@ func TestEndToEnd(t *testing.T) {
 	}
 	handleRequest(rsp, req)
 	if rsp.statusCode != http.StatusOK {
-		t.Fatalf("Unexpectded failure: (%d): %s", rsp.statusCode, rsp.body)
+		t.Fatalf("Unexpected failure: (%d): %s", rsp.statusCode, rsp.body)
 	}
 
 	err = json.Unmarshal(rsp.body, &epList)
@@ -2058,7 +2058,7 @@ func TestEndToEnd(t *testing.T) {
 	}
 	handleRequest(rsp, req)
 	if rsp.statusCode != http.StatusOK {
-		t.Fatalf("Unexpectded failure: (%d): %s", rsp.statusCode, rsp.body)
+		t.Fatalf("Unexpected failure: (%d): %s", rsp.statusCode, rsp.body)
 	}
 
 	var epr endpointResource
@@ -2092,7 +2092,7 @@ func TestEndToEnd(t *testing.T) {
 	}
 	handleRequest(rsp, req)
 	if rsp.statusCode != http.StatusCreated {
-		t.Fatalf("Unexpectded status code. Expected (%d). Got (%d): %s.", http.StatusCreated, rsp.statusCode, string(rsp.body))
+		t.Fatalf("Unexpected status code. Expected (%d). Got (%d): %s.", http.StatusCreated, rsp.statusCode, string(rsp.body))
 	}
 	if len(rsp.body) == 0 {
 		t.Fatal("Empty response body")
@@ -2119,7 +2119,7 @@ func TestEndToEnd(t *testing.T) {
 	}
 	handleRequest(rsp, req)
 	if rsp.statusCode != http.StatusCreated {
-		t.Fatalf("Unexpectded status code. Expected (%d). Got (%d): %s.", http.StatusCreated, rsp.statusCode, string(rsp.body))
+		t.Fatalf("Unexpected status code. Expected (%d). Got (%d): %s.", http.StatusCreated, rsp.statusCode, string(rsp.body))
 	}
 	if len(rsp.body) == 0 {
 		t.Fatal("Empty response body")
@@ -2159,7 +2159,7 @@ func TestEndToEnd(t *testing.T) {
 	}
 	handleRequest(rsp, req)
 	if rsp.statusCode != http.StatusOK {
-		t.Fatalf("Unexpectded failure: (%d): %s", rsp.statusCode, rsp.body)
+		t.Fatalf("Unexpected failure: (%d): %s", rsp.statusCode, rsp.body)
 	}
 
 	var sbr sandboxResource
@@ -2178,7 +2178,7 @@ func TestEndToEnd(t *testing.T) {
 	}
 	handleRequest(rsp, req)
 	if rsp.statusCode != http.StatusOK {
-		t.Fatalf("Unexpectded failure: (%d): %s", rsp.statusCode, rsp.body)
+		t.Fatalf("Unexpected failure: (%d): %s", rsp.statusCode, rsp.body)
 	}
 
 	err = json.Unmarshal(rsp.body, &sbList)
@@ -2199,7 +2199,7 @@ func TestEndToEnd(t *testing.T) {
 	}
 	handleRequest(rsp, req)
 	if rsp.statusCode != http.StatusOK {
-		t.Fatalf("Unexpectded failure: (%d): %s", rsp.statusCode, rsp.body)
+		t.Fatalf("Unexpected failure: (%d): %s", rsp.statusCode, rsp.body)
 	}
 
 	err = json.Unmarshal(rsp.body, &sbList)
@@ -2220,7 +2220,7 @@ func TestEndToEnd(t *testing.T) {
 	}
 	handleRequest(rsp, req)
 	if rsp.statusCode != http.StatusOK {
-		t.Fatalf("Unexpectded failure: (%d): %s", rsp.statusCode, rsp.body)
+		t.Fatalf("Unexpected failure: (%d): %s", rsp.statusCode, rsp.body)
 	}
 
 	err = json.Unmarshal(rsp.body, &sbList)
