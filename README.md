@@ -252,7 +252,7 @@ We are always open to suggestions on process improvements, and are always lookin
   <tr>
     <td>Stack Overflow</td>
     <td>
-      Stack Overflow has over 7000 Docker questions listed. We regularly
+      Stack Overflow has thousands of Docker questions listed. We regularly
       monitor <a href="https://stackoverflow.com/search?tab=newest&q=docker" target="_blank">Docker questions</a>
       and so do many other knowledgeable Docker users.
     </td>
