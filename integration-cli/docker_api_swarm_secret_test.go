@@ -23,18 +23,25 @@ func (s *DockerSwarmSuite) TestAPISwarmSecretsCreate(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
 	testName := "test_secret"
-	id := d.CreateSecret(c, swarm.SecretSpec{
+	secretSpec := swarm.SecretSpec{
 		Annotations: swarm.Annotations{
 			Name: testName,
 		},
 		Data: []byte("TESTINGDATA"),
-	})
+	}
+
+	id := d.CreateSecret(c, secretSpec)
 	c.Assert(id, checker.Not(checker.Equals), "", check.Commentf("secrets: %s", id))
 
 	secrets := d.ListSecrets(c)
 	c.Assert(len(secrets), checker.Equals, 1, check.Commentf("secrets: %#v", secrets))
 	name := secrets[0].Spec.Annotations.Name
 	c.Assert(name, checker.Equals, testName, check.Commentf("secret: %s", name))
+
+	// create an already existing secret, daemon should return a status code of 409
+	status, out, err := d.SockRequest("POST", "/secrets/create", secretSpec)
+	c.Assert(err, checker.IsNil)
+	c.Assert(status, checker.Equals, http.StatusConflict, check.Commentf("secret create: %s", string(out)))
 }
 
 func (s *DockerSwarmSuite) TestAPISwarmSecretsDelete(c *check.C) {
@@ -55,6 +62,13 @@ func (s *DockerSwarmSuite) TestAPISwarmSecretsDelete(c *check.C) {
 	status, out, err := d.SockRequest("GET", "/secrets/"+id, nil)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusNotFound, check.Commentf("secret delete: %s", string(out)))
+
+	// delete non-existing secret, daemon should return a status code of 404
+	id = "non-existing"
+	status, out, err = d.SockRequest("DELETE", "/secrets/"+id, nil)
+	c.Assert(err, checker.IsNil)
+	c.Assert(status, checker.Equals, http.StatusNotFound, check.Commentf("secret delete: %s", string(out)))
+
 }
 
 func (s *DockerSwarmSuite) TestAPISwarmSecretsUpdate(c *check.C) {
@@ -114,5 +128,5 @@ func (s *DockerSwarmSuite) TestAPISwarmSecretsUpdate(c *check.C) {
 	status, out, err := d.SockRequest("POST", url, secret.Spec)
 
 	c.Assert(err, checker.IsNil, check.Commentf(string(out)))
-	c.Assert(status, checker.Equals, http.StatusInternalServerError, check.Commentf("output: %q", string(out)))
+	c.Assert(status, checker.Equals, http.StatusBadRequest, check.Commentf("output: %q", string(out)))
 }

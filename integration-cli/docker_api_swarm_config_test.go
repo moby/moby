@@ -114,5 +114,5 @@ func (s *DockerSwarmSuite) TestAPISwarmConfigsUpdate(c *check.C) {
 	status, out, err := d.SockRequest("POST", url, config.Spec)
 
 	c.Assert(err, checker.IsNil, check.Commentf(string(out)))
-	c.Assert(status, checker.Equals, http.StatusInternalServerError, check.Commentf("output: %q", string(out)))
+	c.Assert(status, checker.Equals, http.StatusBadRequest, check.Commentf("output: %q", string(out)))
 }

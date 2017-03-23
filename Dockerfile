@@ -186,7 +186,7 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Get the "docker-py" source so we can run their integration tests
-ENV DOCKER_PY_COMMIT 4a08d04aef0595322e1b5ac7c52f28a931da85a5
+ENV DOCKER_PY_COMMIT dc2b24dcdd4ed7c8f6874ee5dd95716761ab6c93
 # To run integration tests docker-pycreds is required.
 # Before running the integration tests conftest.py is
 # loaded which results in loads auth.py that

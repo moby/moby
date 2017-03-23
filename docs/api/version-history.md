@@ -29,6 +29,10 @@ keywords: "API, Docker, rcli, REST, documentation"
  generate and rotate to a new CA certificate/key pair.
 * `POST /service/create` and `POST /services/(id or name)/update` now take the field `Platforms` as part of the service `Placement`, allowing to specify platforms supported by the service.
 * `POST /containers/(name)/wait` now accepts a `condition` query parameter to indicate which state change condition to wait for. Also, response headers are now returned immediately to acknowledge that the server has registered a wait callback for the client.
+* `DELETE /secrets/(name)` now returns status code 404 instead of 500 when the secret does not exist.
+* `POST /secrets/create` now returns status code 409 instead of 500 when creating an already existing secret.
+* `POST /secrets/(name)/update` now returns status code 400 instead of 500 when updating a secret's content which is not the labels.
+* `POST /nodes/(name)/update` now returns status code 400 instead of 500 when demoting last node fails.
 
 ## v1.29 API changes
 
