@@ -5572,6 +5572,30 @@ func (s *DockerSuite) TestBuildCacheFrom(c *check.C) {
 	c.Assert(layers1[len(layers1)-1], checker.Not(checker.Equals), layers2[len(layers1)-1])
 }
 
+func (s *DockerSuite) TestBuildCacheMultipleFrom(c *check.C) {
+	testRequires(c, DaemonIsLinux) // All tests that do save are skipped in windows
+	dockerfile := `
+		FROM busybox
+		ADD baz /
+		FROM busybox
+    ADD baz /`
+	ctx := fakeContext(c, dockerfile, map[string]string{
+		"Dockerfile": dockerfile,
+		"baz":        "baz",
+	})
+	defer ctx.Close()
+
+	result := buildImage("build1", withExternalBuildContext(ctx))
+	result.Assert(c, icmd.Success)
+	// second part of dockerfile was a repeat of first so should be cached
+	c.Assert(strings.Count(result.Combined(), "Using cache"), checker.Equals, 1)
+
+	result = buildImage("build2", withBuildFlags("--cache-from=build1"), withExternalBuildContext(ctx))
+	result.Assert(c, icmd.Success)
+	// now both parts of dockerfile should be cached
+	c.Assert(strings.Count(result.Combined(), "Using cache"), checker.Equals, 2)
+}
+
 func (s *DockerSuite) TestBuildNetNone(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	name := "testbuildnetnone"

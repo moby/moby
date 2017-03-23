@@ -150,9 +150,6 @@ func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, back
 			LookingForDirectives: true,
 		},
 	}
-	if icb, ok := backend.(builder.ImageCacheBuilder); ok {
-		b.imageCache = icb.MakeImageCache(config.CacheFrom)
-	}
 
 	parser.SetEscapeToken(parser.DefaultEscapeToken, &b.directive) // Assume the default token for escape
 
@@ -164,6 +161,14 @@ func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, back
 	}
 
 	return b, nil
+}
+
+func (b *Builder) resetImageCache() {
+	if icb, ok := b.docker.(builder.ImageCacheBuilder); ok {
+		b.imageCache = icb.MakeImageCache(b.options.CacheFrom)
+	}
+	b.noBaseImage = false
+	b.cacheBusted = false
 }
 
 // sanitizeRepoAndTags parses the raw "t" parameter received from the client
