@@ -8,6 +8,9 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"encoding/json"
+
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
@@ -217,6 +220,21 @@ func NewAPIClientFromFlags(opts *cliflags.CommonOptions, configFile *configfile.
 		customHeaders = map[string]string{}
 	}
 	customHeaders["User-Agent"] = UserAgent()
+
+	headersVar := os.Getenv("DOCKER_CUSTOMHEADER")
+	if headersVar != "" {
+		var varHeaders map[string]string
+		err = json.Unmarshal([]byte(headersVar), &varHeaders)
+		if err != nil {
+			return &client.Client{}, fmt.Errorf("Error parsing DOCKER_CUSTOMHEADER %s", err)
+		}
+		for k, v := range varHeaders {
+			if existing, conflict := customHeaders[k]; conflict {
+				logrus.Infof("HTTP Header %s:%s will be overridden by environment configuration %s", k, existing, v)
+			}
+			customHeaders[k] = v
+		}
+	}
 
 	verStr := api.DefaultVersion
 	if tmpStr := os.Getenv("DOCKER_API_VERSION"); tmpStr != "" {

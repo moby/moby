@@ -66,6 +66,47 @@ func (s *DockerSuite) TestConfigHTTPHeader(c *check.C) {
 
 }
 
+func (s *DockerSuite) TestConfigHTTPHeaderWithEnv(c *check.C) {
+	testRequires(c, UnixCli) // Can't set/unset HOME on windows right now
+	// We either need a level of Go that supports Unsetenv (for cases
+	// when HOME/USERPROFILE isn't set), or we need to be able to use
+	// os/user but user.Current() only works if we aren't statically compiling
+
+	var headers map[string][]string
+
+	server := httptest.NewServer(http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("API-Version", api.DefaultVersion)
+			headers = r.Header
+		}))
+	defer server.Close()
+
+	homeKey := homedir.Key()
+	homeVal := homedir.Get()
+	tmpDir, err := ioutil.TempDir("", "fake-home")
+	c.Assert(err, checker.IsNil)
+	defer os.RemoveAll(tmpDir)
+
+	defer func() { os.Setenv(homeKey, homeVal) }()
+	os.Setenv(homeKey, tmpDir)
+	os.Setenv("DOCKER_CUSTOMHEADER", "{\"hdr1\":\"value1\", \"hdr2\":\"value2\"}")
+
+	result := icmd.RunCommand(dockerBinary, "-H="+server.URL[7:], "ps")
+	result.Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Error:    "exit status 1",
+	})
+
+	c.Assert(headers["User-Agent"], checker.NotNil, check.Commentf("Missing User-Agent"))
+
+	c.Assert(headers["User-Agent"][0], checker.Equals, "Docker-Client/"+dockerversion.Version+" ("+runtime.GOOS+")", check.Commentf("Badly formatted User-Agent,out:%v", result.Combined()))
+
+	c.Assert(headers["hdr1"], checker.NotNil)
+	c.Assert(headers["hdr1"][0], checker.Equals, "value1", check.Commentf("Missing/bad header,out:%v", result.Combined()))
+	c.Assert(headers["hdr2"], checker.NotNil)
+	c.Assert(headers["hdr2"][0], checker.Equals, "value2", check.Commentf("Missing/bad header,out:%v", result.Combined()))
+}
+
 func (s *DockerSuite) TestConfigDir(c *check.C) {
 	cDir, err := ioutil.TempDir("", "fake-home")
 	c.Assert(err, checker.IsNil)
