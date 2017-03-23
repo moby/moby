@@ -1972,9 +1972,10 @@ __docker_service_subcommand() {
         (logs)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                "($help)--details[Show extra details provided to logs]" \
                 "($help -f --follow)"{-f,--follow}"[Follow log output]" \
                 "($help)--no-resolve[Do not map IDs to Names]" \
+                "($help)--no-task-ids[Do not include task IDs]" \
+                "($help)--no-trunc[Do not truncate output]" \
                 "($help)--since=[Show logs since timestamp]:timestamp: " \
                 "($help)--tail=[Number of lines to show from the end of the logs]:lines:(1 10 20 50 all)" \
                 "($help -t --timestamps)"{-t,--timestamps}"[Show timestamps]" \
