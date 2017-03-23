@@ -5831,7 +5831,7 @@ func (s *DockerSuite) TestBuildCopyFromPreviousRootFSErrors(c *check.C) {
 
 	buildImage("build1", withExternalBuildContext(ctx)).Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err:      "from expects an integer value corresponding to the context number",
+		Err:      "invalid from flag value foo",
 	})
 
 	dockerfile = `
@@ -5861,7 +5861,7 @@ func (s *DockerSuite) TestBuildCopyFromPreviousRootFSErrors(c *check.C) {
 
 	buildImage("build1", withExternalBuildContext(ctx)).Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err:      "invalid context value bar",
+		Err:      "invalid from flag value bar",
 	})
 
 	dockerfile = `
@@ -5911,6 +5911,34 @@ func (s *DockerSuite) TestBuildCopyFromPreviousFrom(c *check.C) {
 	c.Assert(strings.TrimSpace(out), check.Equals, "abc")
 	out, _ = dockerCmd(c, "run", "build2", "cat", "foo")
 	c.Assert(strings.TrimSpace(out), check.Equals, "def")
+}
+
+func (s *DockerSuite) TestBuildCopyFromImplicitFrom(c *check.C) {
+	dockerfile := `
+		FROM busybox
+		COPY --from=busybox /etc/passwd /mypasswd
+		RUN cmp /etc/passwd /mypasswd`
+
+	if DaemonIsWindows() {
+		dockerfile = `
+			FROM busybox
+			COPY --from=busybox License.txt foo`
+	}
+
+	ctx := fakeContext(c, dockerfile, map[string]string{
+		"Dockerfile": dockerfile,
+	})
+	defer ctx.Close()
+
+	result := buildImage("build1", withExternalBuildContext(ctx))
+	result.Assert(c, icmd.Success)
+
+	if DaemonIsWindows() {
+		out, _ := dockerCmd(c, "run", "build1", "cat", "License.txt")
+		c.Assert(len(out), checker.GreaterThan, 10)
+		out2, _ := dockerCmd(c, "run", "build1", "cat", "foo")
+		c.Assert(out, check.Equals, out2)
+	}
 }
 
 // TestBuildOpaqueDirectory tests that a build succeeds which

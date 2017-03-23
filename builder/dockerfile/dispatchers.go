@@ -187,25 +187,16 @@ func dispatchCopy(b *Builder, args []string, attributes map[string]bool, origina
 		return err
 	}
 
-	var contextID *int
+	var im *imageMount
 	if flFrom.IsUsed() {
-		flFrom.Value = strings.ToLower(flFrom.Value)
-		if context, ok := b.imageContexts.byName[flFrom.Value]; ok {
-			contextID = &context
-		} else {
-			var err error
-			context, err := strconv.Atoi(flFrom.Value)
-			if err != nil {
-				return errors.Wrap(err, "from expects an integer value corresponding to the context number")
-			}
-			if err := b.imageContexts.validate(context); err != nil {
-				return err
-			}
-			contextID = &context
+		var err error
+		im, err = b.imageContexts.get(flFrom.Value)
+		if err != nil {
+			return err
 		}
 	}
 
-	return b.runContextCommand(args, false, false, "COPY", contextID)
+	return b.runContextCommand(args, false, false, "COPY", im)
 }
 
 // FROM imagename
@@ -232,7 +223,7 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 	var image builder.Image
 
 	b.resetImageCache()
-	if err := b.imageContexts.new(ctxName); err != nil {
+	if _, err := b.imageContexts.new(ctxName, true); err != nil {
 		return err
 	}
 
@@ -843,4 +834,25 @@ func getShell(c *container.Config) []string {
 		return append([]string{}, defaultShell[:]...)
 	}
 	return append([]string{}, c.Shell[:]...)
+}
+
+// mountByRef creates an imageMount from a reference. pulling the image if needed.
+func mountByRef(b *Builder, name string) (*imageMount, error) {
+	var image builder.Image
+	if !b.options.PullParent {
+		image, _ = b.docker.GetImageOnBuild(name)
+	}
+	if image == nil {
+		var err error
+		image, err = b.docker.PullOnBuild(b.clientCtx, name, b.options.AuthConfigs, b.Output)
+		if err != nil {
+			return nil, err
+		}
+	}
+	im, err := b.imageContexts.new("", false)
+	if err != nil {
+		return nil, err
+	}
+	im.id = image.ImageID()
+	return im, nil
 }
