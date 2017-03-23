@@ -72,16 +72,13 @@ func structPointer_Copy(oldptr structPointer, newptr structPointer, size int) {
 
 func appendStructPointer(base structPointer, f field, typ reflect.Type) structPointer {
 	size := typ.Elem().Size()
-	oldHeader := structPointer_GetSliceHeader(base, f)
-	newLen := oldHeader.Len + 1
-	slice := reflect.MakeSlice(typ, newLen, newLen)
-	bas := toStructPointer(slice)
-	for i := 0; i < oldHeader.Len; i++ {
-		newElemptr := uintptr(bas) + uintptr(i)*size
-		oldElemptr := oldHeader.Data + uintptr(i)*size
-		copyUintPtr(oldElemptr, newElemptr, int(size))
-	}
 
+	oldHeader := structPointer_GetSliceHeader(base, f)
+	oldSlice := reflect.NewAt(typ, unsafe.Pointer(oldHeader)).Elem()
+	newLen := oldHeader.Len + 1
+	newSlice := reflect.MakeSlice(typ, newLen, newLen)
+	reflect.Copy(newSlice, oldSlice)
+	bas := toStructPointer(newSlice)
 	oldHeader.Data = uintptr(bas)
 	oldHeader.Len = newLen
 	oldHeader.Cap = newLen
