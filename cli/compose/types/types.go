@@ -11,8 +11,6 @@ var UnsupportedProperties = []string{
 	"cap_drop",
 	"cgroup_parent",
 	"devices",
-	"dns",
-	"dns_search",
 	"domainname",
 	"external_links",
 	"ipc",

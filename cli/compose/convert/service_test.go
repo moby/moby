@@ -277,3 +277,42 @@ func (s byTargetSort) Less(i, j int) bool {
 func (s byTargetSort) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }
+
+func TestConvertDNSConfigEmpty(t *testing.T) {
+	dnsConfig, err := convertDNSConfig(nil, nil)
+
+	assert.NilError(t, err)
+	assert.Equal(t, dnsConfig, (*swarm.DNSConfig)(nil))
+}
+
+var (
+	nameservers = []string{"8.8.8.8", "9.9.9.9"}
+	search      = []string{"dc1.example.com", "dc2.example.com"}
+)
+
+func TestConvertDNSConfigAll(t *testing.T) {
+	dnsConfig, err := convertDNSConfig(nameservers, search)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, dnsConfig, &swarm.DNSConfig{
+		Nameservers: nameservers,
+		Search:      search,
+	})
+}
+
+func TestConvertDNSConfigNameservers(t *testing.T) {
+	dnsConfig, err := convertDNSConfig(nameservers, nil)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, dnsConfig, &swarm.DNSConfig{
+		Nameservers: nameservers,
+		Search:      nil,
+	})
+}
+
+func TestConvertDNSConfigSearch(t *testing.T) {
+	dnsConfig, err := convertDNSConfig(nil, search)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, dnsConfig, &swarm.DNSConfig{
+		Nameservers: nil,
+		Search:      search,
+	})
+}
