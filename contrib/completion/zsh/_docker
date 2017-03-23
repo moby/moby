@@ -1268,6 +1268,7 @@ __docker_network_subcommand() {
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help -f --format)"{-f=,--format=}"[Format the output using the given go template]:template: " \
+                "($help)--verbose[Show detailed information]" \
                 "($help -)*:network:__docker_complete_networks" && ret=0
             ;;
         (ls)
