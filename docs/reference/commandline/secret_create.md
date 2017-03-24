@@ -36,11 +36,13 @@ command on a manager node.
 
 ```bash
 $ echo <secret> | docker secret create my_secret -
-mhv17xfe3gh6xc4rij5orpfds
+
+onakdyv307se2tl7nl20anokv
 
 $ docker secret ls
-ID                          NAME                    CREATED                                   UPDATED                                   SIZE
-mhv17xfe3gh6xc4rij5orpfds   my_secret               2016-10-27 23:25:43.909181089 +0000 UTC   2016-10-27 23:25:43.909181089 +0000 UTC   1679
+
+ID                          NAME                CREATED             UPDATED
+onakdyv307se2tl7nl20anokv   my_secret           6 seconds ago       6 seconds ago
 ```
 
 ### Create a secret with a file
@@ -48,22 +50,22 @@ mhv17xfe3gh6xc4rij5orpfds   my_secret               2016-10-27 23:25:43.90918108
 ```bash
 $ docker secret create my_secret ./secret.json
 
-mhv17xfe3gh6xc4rij5orpfds
+dg426haahpi5ezmkkj5kyl3sn
 
 $ docker secret ls
 
-ID                          NAME                    CREATED                                   UPDATED                                   SIZE
-mhv17xfe3gh6xc4rij5orpfds   my_secret               2016-10-27 23:25:43.909181089 +0000 UTC   2016-10-27 23:25:43.909181089 +0000 UTC   1679
+ID                          NAME                CREATED             UPDATED
+dg426haahpi5ezmkkj5kyl3sn   my_secret           7 seconds ago       7 seconds ago
 ```
 
 ### Create a secret with labels
 
 ```bash
 $ docker secret create --label env=dev \
-                       --label rev=20161102 \
+                       --label rev=20170324 \
                        my_secret ./secret.json
 
-jtn7g6aukl5ky7nr9gvwafoxh
+eo7jnzguqgtpdah3cm5srfb97
 ```
 
 ```none
@@ -71,22 +73,19 @@ $ docker secret inspect my_secret
 
 [
     {
-        "ID": "jtn7g6aukl5ky7nr9gvwafoxh",
+        "ID": "eo7jnzguqgtpdah3cm5srfb97",
         "Version": {
-            "Index": 541
+            "Index": 17
         },
-        "CreatedAt": "2016-11-03T20:54:12.924766548Z",
-        "UpdatedAt": "2016-11-03T20:54:12.924766548Z",
+        "CreatedAt": "2017-03-24T08:15:09.735271783Z",
+        "UpdatedAt": "2017-03-24T08:15:09.735271783Z",
         "Spec": {
             "Name": "my_secret",
             "Labels": {
                 "env": "dev",
-                "rev": "20161102"
-            },
-            "Data": null
-        },
-        "Digest": "sha256:4212a44b14e94154359569333d3fc6a80f6b9959dfdaff26412f4b2796b1f387",
-        "SecretSize": 1679
+                "rev": "20170324"
+            }
+        }
     }
 ]
 ```
