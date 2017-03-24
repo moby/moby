@@ -250,8 +250,9 @@ func newHTTPClient(host string, tlsOptions *tlsconfig.Options) (*http.Client, er
 		// let the api client configure the default transport.
 		return nil, nil
 	}
-
-	config, err := tlsconfig.Client(*tlsOptions)
+	opts := *tlsOptions
+	opts.ExclusiveRootPools = true
+	config, err := tlsconfig.Client(opts)
 	if err != nil {
 		return nil, err
 	}
