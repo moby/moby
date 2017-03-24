@@ -97,6 +97,8 @@ func (pm *Manager) pluginPostStart(p *v2.Plugin, c *controller) error {
 		if retries > maxRetries {
 			logrus.Debugf("error net dialing plugin: %v", err)
 			c.restart = false
+			// While restoring plugins, we need to explicitly set the state to disabled
+			pm.config.Store.SetState(p, false)
 			shutdownPlugin(p, c, pm.containerdClient)
 			return err
 		}
