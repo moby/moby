@@ -13,7 +13,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"sort"
 	"strings"
@@ -298,16 +297,30 @@ func (b *Builder) download(srcURL string) (fi builder.FileInfo, err error) {
 	return &builder.HashedFileInfo{FileInfo: builder.PathFileInfo{FileInfo: tmpFileSt, FilePath: tmpFileName}, FileHash: hash}, nil
 }
 
+var windowsBlacklist = map[string]bool{
+	"c:\\":        true,
+	"c:\\windows": true,
+}
+
 func (b *Builder) calcCopyInfo(cmdName, origPath string, allowLocalDecompression, allowWildcards bool, imageSource *imageMount) ([]copyInfo, error) {
 
 	// Work in daemon-specific OS filepath semantics
 	origPath = filepath.FromSlash(origPath)
-
 	// validate windows paths from other images
 	if imageSource != nil && runtime.GOOS == "windows" {
-		forbid := regexp.MustCompile("(?i)^" + string(os.PathSeparator) + "?(windows(" + string(os.PathSeparator) + ".+)?)?$")
-		if p := filepath.Clean(origPath); p == "." || forbid.MatchString(p) {
-			return nil, errors.Errorf("copy from %s is not allowed on windows", origPath)
+		p := strings.ToLower(filepath.Clean(origPath))
+		if !filepath.IsAbs(p) {
+			if filepath.VolumeName(p) != "" {
+				if p[len(p)-2:] == ":." { // case where clean returns weird c:. paths
+					p = p[:len(p)-1]
+				}
+				p += "\\"
+			} else {
+				p = filepath.Join("c:\\", p)
+			}
+		}
+		if _, blacklisted := windowsBlacklist[p]; blacklisted {
+			return nil, errors.New("copy from c:\\ or c:\\windows is not allowed on windows")
 		}
 	}
 
