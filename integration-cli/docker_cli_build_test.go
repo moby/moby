@@ -4783,7 +4783,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgMultipleFrom(c *check.C) {
     ARG bar=def
     RUN env > /out`
 
-	result := buildImage(imgName, withDockerfile(dockerfile))
+	result := buildImage(imgName, build.WithDockerfile(dockerfile))
 	result.Assert(c, icmd.Success)
 
 	result = icmd.RunCmd(icmd.Cmd{
@@ -4814,7 +4814,7 @@ func (s *DockerSuite) TestBuildBuildTimeUnusedArgMultipleFrom(c *check.C) {
     ARG bar
     RUN env > /out`
 
-	result := buildImage(imgName, withDockerfile(dockerfile), withBuildFlags(
+	result := buildImage(imgName, build.WithDockerfile(dockerfile), cli.WithFlags(
 		"--build-arg", fmt.Sprintf("baz=abc")))
 	result.Assert(c, icmd.Success)
 	c.Assert(result.Combined(), checker.Contains, "[Warning]")
@@ -5645,7 +5645,7 @@ func (s *DockerSuite) TestBuildCacheMultipleFrom(c *check.C) {
 	// second part of dockerfile was a repeat of first so should be cached
 	c.Assert(strings.Count(result.Combined(), "Using cache"), checker.Equals, 1)
 
-	result = buildImage("build2", withBuildFlags("--cache-from=build1"), withExternalBuildContext(ctx))
+	result = buildImage("build2", cli.WithFlags("--cache-from=build1"), withExternalBuildContext(ctx))
 	result.Assert(c, icmd.Success)
 	// now both parts of dockerfile should be cached
 	c.Assert(strings.Count(result.Combined(), "Using cache"), checker.Equals, 2)
