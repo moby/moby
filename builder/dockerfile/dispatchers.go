@@ -8,7 +8,6 @@ package dockerfile
 // package.
 
 import (
-	"errors"
 	"fmt"
 	"regexp"
 	"runtime"
@@ -25,6 +24,7 @@ import (
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/go-connections/nat"
+	"github.com/pkg/errors"
 )
 
 // ENV foo bar
@@ -169,7 +169,7 @@ func add(b *Builder, args []string, attributes map[string]bool, original string)
 		return err
 	}
 
-	return b.runContextCommand(args, true, true, "ADD")
+	return b.runContextCommand(args, true, true, "ADD", nil)
 }
 
 // COPY foo /path
@@ -181,11 +181,26 @@ func dispatchCopy(b *Builder, args []string, attributes map[string]bool, origina
 		return errAtLeastTwoArguments("COPY")
 	}
 
+	flFrom := b.flags.AddString("from", "")
+
 	if err := b.flags.Parse(); err != nil {
 		return err
 	}
 
-	return b.runContextCommand(args, false, false, "COPY")
+	var contextID *int
+	if flFrom.IsUsed() {
+		var err error
+		context, err := strconv.Atoi(flFrom.Value)
+		if err != nil {
+			return errors.Wrap(err, "from expects an integer value corresponding to the context number")
+		}
+		if err := b.imageContexts.validate(context); err != nil {
+			return err
+		}
+		contextID = &context
+	}
+
+	return b.runContextCommand(args, false, false, "COPY", contextID)
 }
 
 // FROM imagename
@@ -204,6 +219,9 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 	name := args[0]
 
 	var image builder.Image
+
+	b.resetImageCache()
+	b.imageContexts.new()
 
 	// Windows cannot support a container with no base image.
 	if name == api.NoBaseImageSpecifier {
@@ -225,8 +243,11 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 				return err
 			}
 		}
+		b.imageContexts.update(image.ImageID())
 	}
 	b.from = image
+
+	b.allowedBuildArgs = make(map[string]*string)
 
 	return b.processImageFrom(image)
 }
@@ -749,17 +770,13 @@ func arg(b *Builder, args []string, attributes map[string]bool, original string)
 		hasDefault = false
 	}
 	// add the arg to allowed list of build-time args from this step on.
-	b.allowedBuildArgs[name] = true
+	b.allBuildArgs[name] = struct{}{}
 
-	// If there is a default value associated with this arg then add it to the
-	// b.buildArgs if one is not already passed to the builder. The args passed
-	// to builder override the default value of 'arg'. Note that a 'nil' for
-	// a value means that the user specified "--build-arg FOO" and "FOO" wasn't
-	// defined as an env var - and in that case we DO want to use the default
-	// value specified in the ARG cmd.
-	if baValue, ok := b.options.BuildArgs[name]; (!ok || baValue == nil) && hasDefault {
-		b.options.BuildArgs[name] = &newValue
+	var value *string
+	if hasDefault {
+		value = &newValue
 	}
+	b.allowedBuildArgs[name] = value
 
 	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("ARG %s", arg))
 }

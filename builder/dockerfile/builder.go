@@ -71,13 +71,15 @@ type Builder struct {
 	runConfig        *container.Config // runconfig for cmd, run, entrypoint etc.
 	flags            *BFlags
 	tmpContainers    map[string]struct{}
-	image            string // imageID
+	image            string         // imageID
+	imageContexts    *imageContexts // helper for storing contexts from builds
 	noBaseImage      bool
 	maintainer       string
 	cmdSet           bool
 	disableCommit    bool
 	cacheBusted      bool
-	allowedBuildArgs map[string]bool // list of build-time args that are allowed for expansion/substitution and passing to commands in 'run'.
+	allowedBuildArgs map[string]*string  // list of build-time args that are allowed for expansion/substitution and passing to commands in 'run'.
+	allBuildArgs     map[string]struct{} // list of all build-time args found during parsing of the Dockerfile
 	directive        parser.Directive
 
 	// TODO: remove once docker.Commit can receive a tag
@@ -89,12 +91,13 @@ type Builder struct {
 
 // BuildManager implements builder.Backend and is shared across all Builder objects.
 type BuildManager struct {
-	backend builder.Backend
+	backend   builder.Backend
+	pathCache *pathCache // TODO: make this persistent
 }
 
 // NewBuildManager creates a BuildManager.
 func NewBuildManager(b builder.Backend) (bm *BuildManager) {
-	return &BuildManager{backend: b}
+	return &BuildManager{backend: b, pathCache: &pathCache{}}
 }
 
 // BuildFromContext builds a new image from a given context.
@@ -119,6 +122,7 @@ func (bm *BuildManager) BuildFromContext(ctx context.Context, src io.ReadCloser,
 	if err != nil {
 		return "", err
 	}
+	b.imageContexts.cache = bm.pathCache
 	return b.build(pg.StdoutFormatter, pg.StderrFormatter, pg.Output)
 }
 
@@ -128,9 +132,6 @@ func (bm *BuildManager) BuildFromContext(ctx context.Context, src io.ReadCloser,
 func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, backend builder.Backend, buildContext builder.Context, dockerfile io.ReadCloser) (b *Builder, err error) {
 	if config == nil {
 		config = new(types.ImageBuildOptions)
-	}
-	if config.BuildArgs == nil {
-		config.BuildArgs = make(map[string]*string)
 	}
 	ctx, cancel := context.WithCancel(clientCtx)
 	b = &Builder{
@@ -144,15 +145,14 @@ func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, back
 		runConfig:        new(container.Config),
 		tmpContainers:    map[string]struct{}{},
 		id:               stringid.GenerateNonCryptoID(),
-		allowedBuildArgs: make(map[string]bool),
+		allowedBuildArgs: make(map[string]*string),
+		allBuildArgs:     make(map[string]struct{}),
 		directive: parser.Directive{
 			EscapeSeen:           false,
 			LookingForDirectives: true,
 		},
 	}
-	if icb, ok := backend.(builder.ImageCacheBuilder); ok {
-		b.imageCache = icb.MakeImageCache(config.CacheFrom)
-	}
+	b.imageContexts = &imageContexts{b: b}
 
 	parser.SetEscapeToken(parser.DefaultEscapeToken, &b.directive) // Assume the default token for escape
 
@@ -164,6 +164,14 @@ func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, back
 	}
 
 	return b, nil
+}
+
+func (b *Builder) resetImageCache() {
+	if icb, ok := b.docker.(builder.ImageCacheBuilder); ok {
+		b.imageCache = icb.MakeImageCache(b.options.CacheFrom)
+	}
+	b.noBaseImage = false
+	b.cacheBusted = false
 }
 
 // sanitizeRepoAndTags parses the raw "t" parameter received from the client
@@ -237,6 +245,8 @@ func (b *Builder) processLabels() error {
 // * Print a happy message and return the image ID.
 //
 func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (string, error) {
+	defer b.imageContexts.unmount()
+
 	b.Stdout = stdout
 	b.Stderr = stderr
 	b.Output = out
@@ -322,7 +332,7 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 func (b *Builder) warnOnUnusedBuildArgs() {
 	leftoverArgs := []string{}
 	for arg := range b.options.BuildArgs {
-		if !b.isBuildArgAllowed(arg) {
+		if _, ok := b.allBuildArgs[arg]; !ok {
 			leftoverArgs = append(leftoverArgs, arg)
 		}
 	}

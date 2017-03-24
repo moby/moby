@@ -4773,6 +4773,61 @@ func (s *DockerSuite) TestBuildBuildTimeArgDefintionWithNoEnvInjection(c *check.
 	}
 }
 
+func (s *DockerSuite) TestBuildBuildTimeArgMultipleFrom(c *check.C) {
+	imgName := "multifrombldargtest"
+	dockerfile := `FROM busybox
+    ARG foo=abc
+    LABEL multifromtest=1
+    RUN env > /out
+    FROM busybox
+    ARG bar=def
+    RUN env > /out`
+
+	result := buildImage(imgName, withDockerfile(dockerfile))
+	result.Assert(c, icmd.Success)
+
+	result = icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "images", "-q", "-f", "label=multifromtest=1"},
+	})
+	result.Assert(c, icmd.Success)
+	parentID := strings.TrimSpace(result.Stdout())
+
+	result = icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "run", "--rm", parentID, "cat", "/out"},
+	})
+	result.Assert(c, icmd.Success)
+	c.Assert(result.Stdout(), checker.Contains, "foo=abc")
+
+	result = icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "run", "--rm", imgName, "cat", "/out"},
+	})
+	result.Assert(c, icmd.Success)
+	c.Assert(result.Stdout(), checker.Not(checker.Contains), "foo")
+	c.Assert(result.Stdout(), checker.Contains, "bar=def")
+}
+
+func (s *DockerSuite) TestBuildBuildTimeUnusedArgMultipleFrom(c *check.C) {
+	imgName := "multifromunusedarg"
+	dockerfile := `FROM busybox
+    ARG foo
+    FROM busybox
+    ARG bar
+    RUN env > /out`
+
+	result := buildImage(imgName, withDockerfile(dockerfile), withBuildFlags(
+		"--build-arg", fmt.Sprintf("baz=abc")))
+	result.Assert(c, icmd.Success)
+	c.Assert(result.Combined(), checker.Contains, "[Warning]")
+	c.Assert(result.Combined(), checker.Contains, "[baz] were not consumed")
+
+	result = icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "run", "--rm", imgName, "cat", "/out"},
+	})
+	result.Assert(c, icmd.Success)
+	c.Assert(result.Stdout(), checker.Not(checker.Contains), "bar")
+	c.Assert(result.Stdout(), checker.Not(checker.Contains), "baz")
+}
+
 func (s *DockerSuite) TestBuildNoNamedVolume(c *check.C) {
 	volName := "testname:/foo"
 
@@ -5572,6 +5627,30 @@ func (s *DockerSuite) TestBuildCacheFrom(c *check.C) {
 	c.Assert(layers1[len(layers1)-1], checker.Not(checker.Equals), layers2[len(layers1)-1])
 }
 
+func (s *DockerSuite) TestBuildCacheMultipleFrom(c *check.C) {
+	testRequires(c, DaemonIsLinux) // All tests that do save are skipped in windows
+	dockerfile := `
+		FROM busybox
+		ADD baz /
+		FROM busybox
+    ADD baz /`
+	ctx := fakeContext(c, dockerfile, map[string]string{
+		"Dockerfile": dockerfile,
+		"baz":        "baz",
+	})
+	defer ctx.Close()
+
+	result := buildImage("build1", withExternalBuildContext(ctx))
+	result.Assert(c, icmd.Success)
+	// second part of dockerfile was a repeat of first so should be cached
+	c.Assert(strings.Count(result.Combined(), "Using cache"), checker.Equals, 1)
+
+	result = buildImage("build2", withBuildFlags("--cache-from=build1"), withExternalBuildContext(ctx))
+	result.Assert(c, icmd.Success)
+	// now both parts of dockerfile should be cached
+	c.Assert(strings.Count(result.Combined(), "Using cache"), checker.Equals, 2)
+}
+
 func (s *DockerSuite) TestBuildNetNone(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	name := "testbuildnetnone"
@@ -5707,6 +5786,138 @@ func (s *DockerSuite) TestBuildContChar(c *check.C) {
 	result.Assert(c, icmd.Success)
 	c.Assert(result.Combined(), checker.Contains, "Step 1/2 : FROM busybox")
 	c.Assert(result.Combined(), checker.Contains, "Step 2/2 : RUN echo hi \\\\\n")
+}
+
+func (s *DockerSuite) TestBuildCopyFromPreviousRootFS(c *check.C) {
+	dockerfile := `
+		FROM busybox
+		COPY foo bar
+		FROM busybox
+    %s
+    COPY baz baz
+    RUN echo mno > baz/cc
+		FROM busybox
+    COPY bar /
+    COPY --from=1 baz sub/
+    COPY --from=0 bar baz
+    COPY --from=0 bar bay`
+	ctx := fakeContext(c, fmt.Sprintf(dockerfile, ""), map[string]string{
+		"Dockerfile": dockerfile,
+		"foo":        "abc",
+		"bar":        "def",
+		"baz/aa":     "ghi",
+		"baz/bb":     "jkl",
+	})
+	defer ctx.Close()
+
+	result := buildImage("build1", withExternalBuildContext(ctx))
+	result.Assert(c, icmd.Success)
+
+	out, _ := dockerCmd(c, "run", "build1", "cat", "bar")
+	c.Assert(strings.TrimSpace(out), check.Equals, "def")
+	out, _ = dockerCmd(c, "run", "build1", "cat", "sub/aa")
+	c.Assert(strings.TrimSpace(out), check.Equals, "ghi")
+	out, _ = dockerCmd(c, "run", "build1", "cat", "sub/cc")
+	c.Assert(strings.TrimSpace(out), check.Equals, "mno")
+	out, _ = dockerCmd(c, "run", "build1", "cat", "baz")
+	c.Assert(strings.TrimSpace(out), check.Equals, "abc")
+	out, _ = dockerCmd(c, "run", "build1", "cat", "bay")
+	c.Assert(strings.TrimSpace(out), check.Equals, "abc")
+
+	result = buildImage("build2", withExternalBuildContext(ctx))
+	result.Assert(c, icmd.Success)
+
+	// all commands should be cached
+	c.Assert(strings.Count(result.Combined(), "Using cache"), checker.Equals, 7)
+
+	err := ioutil.WriteFile(filepath.Join(ctx.Dir, "Dockerfile"), []byte(fmt.Sprintf(dockerfile, "COPY baz/aa foo")), 0644)
+	c.Assert(err, checker.IsNil)
+
+	// changing file in parent block should not affect last block
+	result = buildImage("build3", withExternalBuildContext(ctx))
+	result.Assert(c, icmd.Success)
+
+	c.Assert(strings.Count(result.Combined(), "Using cache"), checker.Equals, 5)
+
+	c.Assert(getIDByName(c, "build1"), checker.Equals, getIDByName(c, "build2"))
+
+	err = ioutil.WriteFile(filepath.Join(ctx.Dir, "foo"), []byte("pqr"), 0644)
+	c.Assert(err, checker.IsNil)
+
+	// changing file in parent block should affect both first and last block
+	result = buildImage("build4", withExternalBuildContext(ctx))
+	result.Assert(c, icmd.Success)
+	c.Assert(strings.Count(result.Combined(), "Using cache"), checker.Equals, 5)
+
+	out, _ = dockerCmd(c, "run", "build4", "cat", "bay")
+	c.Assert(strings.TrimSpace(out), check.Equals, "pqr")
+	out, _ = dockerCmd(c, "run", "build4", "cat", "baz")
+	c.Assert(strings.TrimSpace(out), check.Equals, "pqr")
+}
+
+func (s *DockerSuite) TestBuildCopyFromPreviousRootFSErrors(c *check.C) {
+	dockerfile := `
+		FROM busybox
+		COPY --from=foo foo bar`
+
+	ctx := fakeContext(c, dockerfile, map[string]string{
+		"Dockerfile": dockerfile,
+		"foo":        "abc",
+	})
+	defer ctx.Close()
+
+	buildImage("build1", withExternalBuildContext(ctx)).Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Err:      "from expects an integer value corresponding to the context number",
+	})
+
+	dockerfile = `
+		FROM busybox
+		COPY --from=0 foo bar`
+
+	ctx = fakeContext(c, dockerfile, map[string]string{
+		"Dockerfile": dockerfile,
+		"foo":        "abc",
+	})
+	defer ctx.Close()
+
+	buildImage("build1", withExternalBuildContext(ctx)).Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Err:      "invalid from flag value 0 refers current build block",
+	})
+}
+
+func (s *DockerSuite) TestBuildCopyFromPreviousFrom(c *check.C) {
+	dockerfile := `
+		FROM busybox
+		COPY foo bar`
+	ctx := fakeContext(c, dockerfile, map[string]string{
+		"Dockerfile": dockerfile,
+		"foo":        "abc",
+	})
+	defer ctx.Close()
+
+	result := buildImage("build1", withExternalBuildContext(ctx))
+	result.Assert(c, icmd.Success)
+
+	dockerfile = `
+		FROM build1:latest
+    FROM busybox
+		COPY --from=0 bar /
+		COPY foo /`
+	ctx = fakeContext(c, dockerfile, map[string]string{
+		"Dockerfile": dockerfile,
+		"foo":        "def",
+	})
+	defer ctx.Close()
+
+	result = buildImage("build2", withExternalBuildContext(ctx))
+	result.Assert(c, icmd.Success)
+
+	out, _ := dockerCmd(c, "run", "build2", "cat", "bar")
+	c.Assert(strings.TrimSpace(out), check.Equals, "abc")
+	out, _ = dockerCmd(c, "run", "build2", "cat", "foo")
+	c.Assert(strings.TrimSpace(out), check.Equals, "def")
 }
 
 // TestBuildOpaqueDirectory tests that a build succeeds which
