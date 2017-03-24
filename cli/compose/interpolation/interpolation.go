@@ -1,9 +1,8 @@
 package interpolation
 
 import (
-	"fmt"
-
 	"github.com/docker/docker/cli/compose/template"
+	"github.com/pkg/errors"
 )
 
 // Interpolate replaces variables in a string with the values from a mapping
@@ -15,7 +14,11 @@ func Interpolate(config map[string]interface{}, section string, mapping template
 			out[name] = nil
 			continue
 		}
-		interpolatedItem, err := interpolateSectionItem(name, item.(map[string]interface{}), section, mapping)
+		mapItem, ok := item.(map[string]interface{})
+		if !ok {
+			return nil, errors.Errorf("Invalid type for %s : %T instead of %T", name, item, out)
+		}
+		interpolatedItem, err := interpolateSectionItem(name, mapItem, section, mapping)
 		if err != nil {
 			return nil, err
 		}
@@ -37,7 +40,7 @@ func interpolateSectionItem(
 	for key, value := range item {
 		interpolatedValue, err := recursiveInterpolate(value, mapping)
 		if err != nil {
-			return nil, fmt.Errorf(
+			return nil, errors.Errorf(
 				"Invalid interpolation format for %#v option in %s %#v: %#v. You may need to escape any $ with another $.",
 				key, section, name, err.Template,
 			)
