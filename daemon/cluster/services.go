@@ -40,18 +40,21 @@ func (c *Cluster) GetServices(options apitypes.ServiceListOptions) ([]types.Serv
 	// be good to have accepted file check in the same file as
 	// the filter processing (in the for loop below).
 	accepted := map[string]bool{
-		"name":  true,
-		"id":    true,
-		"label": true,
-		"mode":  true,
+		"name":     true,
+		"id":       true,
+		"label":    true,
+		"mode":     true,
+		"runtimes": true,
 	}
 	if err := options.Filters.Validate(accepted); err != nil {
 		return nil, err
 	}
+
 	filters := &swarmapi.ListServicesRequest_Filters{
 		NamePrefixes: options.Filters.Get("name"),
 		IDPrefixes:   options.Filters.Get("id"),
 		Labels:       runconfigopts.ConvertKVStringsToMap(options.Filters.Get("label")),
+		Runtimes:     options.Filters.Get("runtimes"),
 	}
 
 	ctx, cancel := c.getRequestContext()
