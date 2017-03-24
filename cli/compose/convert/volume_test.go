@@ -188,5 +188,5 @@ func TestConvertVolumeToMountVolumeDoesNotExist(t *testing.T) {
 		ReadOnly: true,
 	}
 	_, err := convertVolumeToMount(config, volumes{}, namespace)
-	assert.Error(t, err, "undefined volume: unknown")
+	assert.Error(t, err, "undefined volume \"unknown\"")
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
+	"github.com/pkg/errors"
 )
 
 const defaultNetwork = "default"
@@ -35,11 +36,11 @@ func Services(
 
 		secrets, err := convertServiceSecrets(client, namespace, service.Secrets, config.Secrets)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrapf(err, "service %s", service.Name)
 		}
 		serviceSpec, err := convertService(namespace, service, networks, volumes, secrets)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrapf(err, "service %s", service.Name)
 		}
 		result[service.Name] = serviceSpec
 	}
@@ -68,7 +69,6 @@ func convertService(
 
 	mounts, err := Volumes(service.Volumes, volumes, namespace)
 	if err != nil {
-		// TODO: better error message (include service name)
 		return swarm.ServiceSpec{}, err
 	}
 
@@ -167,8 +167,7 @@ func convertServiceNetworks(
 	for networkName, network := range networks {
 		networkConfig, ok := networkConfigs[networkName]
 		if !ok && networkName != defaultNetwork {
-			return []swarm.NetworkAttachmentConfig{}, fmt.Errorf(
-				"service %q references network %q, which is not declared", name, networkName)
+			return nil, errors.Errorf("undefined network %q", networkName)
 		}
 		var aliases []string
 		if network != nil {
@@ -202,8 +201,12 @@ func convertServiceSecrets(
 			target = secret.Source
 		}
 
+		secretSpec, exists := secretSpecs[secret.Source]
+		if !exists {
+			return nil, errors.Errorf("undefined secret %q", secret.Source)
+		}
+
 		source := namespace.Scope(secret.Source)
-		secretSpec := secretSpecs[secret.Source]
 		if secretSpec.External.External {
 			source = secretSpec.External.Name
 		}

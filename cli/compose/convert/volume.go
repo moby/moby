@@ -57,7 +57,7 @@ func convertVolumeToMount(
 
 	stackVolume, exists := stackVolumes[volume.Source]
 	if !exists {
-		return result, errors.Errorf("undefined volume: %s", volume.Source)
+		return result, errors.Errorf("undefined volume %q", volume.Source)
 	}
 
 	result.Source = namespace.Scope(volume.Source)
