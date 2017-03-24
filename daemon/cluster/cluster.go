@@ -126,6 +126,7 @@ type Cluster struct {
 type attacher struct {
 	taskID           string
 	config           *network.NetworkingConfig
+	inProgress       bool
 	attachWaitCh     chan *network.NetworkingConfig
 	attachCompleteCh chan struct{}
 	detachWaitCh     chan struct{}
