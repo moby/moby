@@ -2,17 +2,20 @@ package service
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	shlex "github.com/flynn-archive/go-shlex"
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
+	"golang.org/x/net/context"
 )
 
 type int64Value interface {
@@ -270,12 +273,17 @@ func (c *credentialSpecOpt) Value() *swarm.CredentialSpec {
 	return c.value
 }
 
-func convertNetworks(networks []string) []swarm.NetworkAttachmentConfig {
+func convertNetworks(ctx context.Context, apiClient client.NetworkAPIClient, networks []string) ([]swarm.NetworkAttachmentConfig, error) {
 	nets := []swarm.NetworkAttachmentConfig{}
-	for _, network := range networks {
-		nets = append(nets, swarm.NetworkAttachmentConfig{Target: network})
+	for _, networkIDOrName := range networks {
+		network, err := apiClient.NetworkInspect(ctx, networkIDOrName, false)
+		if err != nil {
+			return nil, err
+		}
+		nets = append(nets, swarm.NetworkAttachmentConfig{Target: network.ID})
 	}
-	return nets
+	sort.Sort(byNetworkTarget(nets))
+	return nets, nil
 }
 
 type endpointOptions struct {
@@ -455,7 +463,7 @@ func (opts *serviceOptions) ToServiceMode() (swarm.ServiceMode, error) {
 	return serviceMode, nil
 }
 
-func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
+func (opts *serviceOptions) ToService(ctx context.Context, apiClient client.APIClient) (swarm.ServiceSpec, error) {
 	var service swarm.ServiceSpec
 
 	envVariables, err := runconfigopts.ReadKVStrings(opts.envFile.GetAll(), opts.env.GetAll())
@@ -483,6 +491,11 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 	}
 
 	serviceMode, err := opts.ToServiceMode()
+	if err != nil {
+		return service, err
+	}
+
+	networks, err := convertNetworks(ctx, apiClient, opts.networks.GetAll())
 	if err != nil {
 		return service, err
 	}
@@ -517,7 +530,7 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 				Secrets:         nil,
 				Healthcheck:     healthConfig,
 			},
-			Networks:      convertNetworks(opts.networks.GetAll()),
+			Networks:      networks,
 			Resources:     opts.resources.ToResourceRequirements(),
 			RestartPolicy: opts.restartPolicy.ToRestartPolicy(),
 			Placement: &swarm.Placement{
@@ -526,7 +539,6 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 			},
 			LogDriver: opts.logDriver.toLogDriver(),
 		},
-		Networks:       convertNetworks(opts.networks.GetAll()),
 		Mode:           serviceMode,
 		UpdateConfig:   opts.update.config(),
 		RollbackConfig: opts.rollback.config(),
@@ -666,6 +678,8 @@ const (
 	flagMountAdd                = "mount-add"
 	flagName                    = "name"
 	flagNetwork                 = "network"
+	flagNetworkAdd              = "network-add"
+	flagNetworkRemove           = "network-rm"
 	flagPublish                 = "publish"
 	flagPublishRemove           = "publish-rm"
 	flagPublishAdd              = "publish-add"
