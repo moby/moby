@@ -19,6 +19,7 @@ import (
 	units "github.com/docker/go-units"
 	shellwords "github.com/mattn/go-shellwords"
 	"github.com/mitchellh/mapstructure"
+	"github.com/pkg/errors"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -435,6 +436,12 @@ func LoadNetworks(source map[string]interface{}) (map[string]types.NetworkConfig
 	return networks, nil
 }
 
+func externalVolumeError(volume, key string) error {
+	return errors.Errorf(
+		"conflicting parameters \"external\" and %q specified for volume %q",
+		key, volume)
+}
+
 // LoadVolumes produces a VolumeConfig map from a compose file Dict
 // the source Dict is not validated if directly used. Use Load() to enable validation
 func LoadVolumes(source map[string]interface{}) (map[string]types.VolumeConfig, error) {
@@ -445,15 +452,14 @@ func LoadVolumes(source map[string]interface{}) (map[string]types.VolumeConfig, 
 	}
 	for name, volume := range volumes {
 		if volume.External.External {
-			template := "conflicting parameters \"external\" and %q specified for volume %q"
 			if volume.Driver != "" {
-				return nil, fmt.Errorf(template, "driver", name)
+				return nil, externalVolumeError(name, "driver")
 			}
 			if len(volume.DriverOpts) > 0 {
-				return nil, fmt.Errorf(template, "driver_opts", name)
+				return nil, externalVolumeError(name, "driver_opts")
 			}
 			if len(volume.Labels) > 0 {
-				return nil, fmt.Errorf(template, "labels", name)
+				return nil, externalVolumeError(name, "labels")
 			}
 			if volume.External.Name == "" {
 				volume.External.Name = name
