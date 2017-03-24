@@ -29,6 +29,10 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 		return err
 	}
 
+	if container.RemovalInProgress || container.Dead {
+		return errors.New("can not get logs from container which is dead or marked for removal")
+	}
+
 	if container.HostConfig.LogConfig.Type == "none" {
 		return logger.ErrReadLogsNotSupported
 	}
