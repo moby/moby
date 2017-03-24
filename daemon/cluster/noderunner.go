@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"fmt"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -51,6 +52,7 @@ type nodeStartConfig struct {
 	joinToken       string
 	lockKey         []byte
 	autolock        bool
+	availability    types.NodeAvailability
 }
 
 func (n *nodeRunner) Ready() chan error {
@@ -92,8 +94,9 @@ func (n *nodeRunner) start(conf nodeStartConfig) error {
 		control = filepath.Join(n.cluster.runtimeRoot, controlSocket)
 	}
 
-	node, err := swarmnode.New(&swarmnode.Config{
-		Hostname:           n.cluster.config.Name,
+	// Hostname is not set here. Instead, it is obtained from
+	// the node description that is reported periodically
+	swarmnodeConfig := swarmnode.Config{
 		ForceNewCluster:    conf.forceNewCluster,
 		ListenControlAPI:   control,
 		ListenRemoteAPI:    conf.ListenAddr,
@@ -106,7 +109,16 @@ func (n *nodeRunner) start(conf nodeStartConfig) error {
 		ElectionTick:       3,
 		UnlockKey:          conf.lockKey,
 		AutoLockManagers:   conf.autolock,
-	})
+		PluginGetter:       n.cluster.config.Backend.PluginGetter(),
+	}
+	if conf.availability != "" {
+		avail, ok := swarmapi.NodeSpec_Availability_value[strings.ToUpper(string(conf.availability))]
+		if !ok {
+			return fmt.Errorf("invalid Availability: %q", conf.availability)
+		}
+		swarmnodeConfig.Availability = swarmapi.NodeSpec_Availability(avail)
+	}
+	node, err := swarmnode.New(&swarmnodeConfig)
 	if err != nil {
 		return err
 	}

@@ -7,9 +7,9 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
-	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/spf13/cobra"
 )
@@ -36,13 +36,13 @@ func NewPullCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags := cmd.Flags()
 
 	flags.BoolVarP(&opts.all, "all-tags", "a", false, "Download all tagged images in the repository")
-	command.AddTrustedFlags(flags, true)
+	command.AddTrustVerificationFlags(flags)
 
 	return cmd
 }
 
 func runPull(dockerCli *command.DockerCli, opts pullOptions) error {
-	distributionRef, err := reference.ParseNamed(opts.remote)
+	distributionRef, err := reference.ParseNormalizedNamed(opts.remote)
 	if err != nil {
 		return err
 	}
@@ -51,8 +51,10 @@ func runPull(dockerCli *command.DockerCli, opts pullOptions) error {
 	}
 
 	if !opts.all && reference.IsNameOnly(distributionRef) {
-		distributionRef = reference.WithDefaultTag(distributionRef)
-		fmt.Fprintf(dockerCli.Out(), "Using default tag: %s\n", reference.DefaultTag)
+		distributionRef = reference.TagNameOnly(distributionRef)
+		if tagged, ok := distributionRef.(reference.Tagged); ok {
+			fmt.Fprintf(dockerCli.Out(), "Using default tag: %s\n", tagged.Tag())
+		}
 	}
 
 	// Resolve the Repository name from fqn to RepositoryInfo
@@ -71,10 +73,10 @@ func runPull(dockerCli *command.DockerCli, opts pullOptions) error {
 	if command.IsTrusted() && !isCanonical {
 		err = trustedPull(ctx, dockerCli, repoInfo, distributionRef, authConfig, requestPrivilege)
 	} else {
-		err = imagePullPrivileged(ctx, dockerCli, authConfig, distributionRef.String(), requestPrivilege, opts.all)
+		err = imagePullPrivileged(ctx, dockerCli, authConfig, reference.FamiliarString(distributionRef), requestPrivilege, opts.all)
 	}
 	if err != nil {
-		if strings.Contains(err.Error(), "target is plugin") {
+		if strings.Contains(err.Error(), "when fetching 'plugin'") {
 			return errors.New(err.Error() + " - Use `docker plugin install`")
 		}
 		return err

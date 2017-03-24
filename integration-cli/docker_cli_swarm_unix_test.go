@@ -5,6 +5,7 @@ package main
 import (
 	"encoding/json"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/integration-cli/checker"
@@ -49,4 +50,55 @@ func (s *DockerSwarmSuite) TestSwarmVolumePlugin(c *check.C) {
 	c.Assert(len(mounts), checker.Equals, 1, check.Commentf(out))
 	c.Assert(mounts[0].Name, checker.Equals, "my-volume")
 	c.Assert(mounts[0].Driver, checker.Equals, "customvolumedriver")
+}
+
+// Test network plugin filter in swarm
+func (s *DockerSwarmSuite) TestSwarmNetworkPluginV2(c *check.C) {
+	testRequires(c, IsAmd64)
+	d1 := s.AddDaemon(c, true, true)
+	d2 := s.AddDaemon(c, true, false)
+
+	// install plugin on d1 and d2
+	pluginName := "aragunathan/global-net-plugin:latest"
+
+	_, err := d1.Cmd("plugin", "install", pluginName, "--grant-all-permissions")
+	c.Assert(err, checker.IsNil)
+
+	_, err = d2.Cmd("plugin", "install", pluginName, "--grant-all-permissions")
+	c.Assert(err, checker.IsNil)
+
+	// create network
+	networkName := "globalnet"
+	_, err = d1.Cmd("network", "create", "--driver", pluginName, networkName)
+	c.Assert(err, checker.IsNil)
+
+	// create a global service to ensure that both nodes will have an instance
+	serviceName := "my-service"
+	_, err = d1.Cmd("service", "create", "--name", serviceName, "--mode=global", "--network", networkName, "busybox", "top")
+	c.Assert(err, checker.IsNil)
+
+	// wait for tasks ready
+	waitAndAssert(c, defaultReconciliationTimeout, reducedCheck(sumAsIntegers, d1.CheckActiveContainerCount, d2.CheckActiveContainerCount), checker.Equals, 2)
+
+	// remove service
+	_, err = d1.Cmd("service", "rm", serviceName)
+	c.Assert(err, checker.IsNil)
+
+	// wait to ensure all containers have exited before removing the plugin. Else there's a
+	// possibility of container exits erroring out due to plugins being unavailable.
+	waitAndAssert(c, defaultReconciliationTimeout, reducedCheck(sumAsIntegers, d1.CheckActiveContainerCount, d2.CheckActiveContainerCount), checker.Equals, 0)
+
+	// disable plugin on worker
+	_, err = d2.Cmd("plugin", "disable", "-f", pluginName)
+	c.Assert(err, checker.IsNil)
+
+	time.Sleep(20 * time.Second)
+
+	image := "busybox"
+	// create a new global service again.
+	_, err = d1.Cmd("service", "create", "--name", serviceName, "--mode=global", "--network", networkName, image, "top")
+	c.Assert(err, checker.IsNil)
+
+	waitAndAssert(c, defaultReconciliationTimeout, d1.CheckRunningTaskImages, checker.DeepEquals,
+		map[string]int{image: 1})
 }

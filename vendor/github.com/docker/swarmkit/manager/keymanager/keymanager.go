@@ -6,7 +6,7 @@ package keymanager
 // which is used to exchange service discovery and overlay network control
 // plane information. It can also be used to encrypt overlay data traffic.
 import (
-	"crypto/rand"
+	cryptorand "crypto/rand"
 	"encoding/binary"
 	"sync"
 	"time"
@@ -95,7 +95,7 @@ func New(store *store.MemoryStore, config *Config) *KeyManager {
 func (k *KeyManager) allocateKey(ctx context.Context, subsys string) *api.EncryptionKey {
 	key := make([]byte, k.config.Keylen)
 
-	_, err := rand.Read(key)
+	_, err := cryptorand.Read(key)
 	if err != nil {
 		panic(errors.Wrap(err, "key generated failed"))
 	}
@@ -200,8 +200,6 @@ func (k *KeyManager) Run(ctx context.Context) error {
 	} else {
 		k.keyRing.lClock = cluster.EncryptionKeyLamportClock
 		k.keyRing.keys = cluster.NetworkBootstrapKeys
-
-		k.rotateKey(ctx)
 	}
 
 	ticker := time.NewTicker(k.config.RotationInterval)
@@ -234,7 +232,7 @@ func (k *KeyManager) Stop() error {
 // genSkew generates a random uint64 number between 0 and 65535
 func genSkew() uint64 {
 	b := make([]byte, 2)
-	if _, err := rand.Read(b); err != nil {
+	if _, err := cryptorand.Read(b); err != nil {
 		panic(err)
 	}
 	return uint64(binary.BigEndian.Uint16(b))

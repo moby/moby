@@ -8,7 +8,7 @@ import (
 )
 
 // secrets is a map that keeps all the currently available secrets to the agent
-// mapped by secret ID
+// mapped by secret ID.
 type secrets struct {
 	mu sync.RWMutex
 	m  map[string]*api.Secret
@@ -31,7 +31,7 @@ func (s *secrets) Get(secretID string) *api.Secret {
 	return nil
 }
 
-// add adds one or more secrets to the secret map
+// Add adds one or more secrets to the secret map.
 func (s *secrets) Add(secrets ...api.Secret) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -40,7 +40,7 @@ func (s *secrets) Add(secrets ...api.Secret) {
 	}
 }
 
-// remove removes one or more secrets by ID from the secret map.  Succeeds
+// Remove removes one or more secrets by ID from the secret map.  Succeeds
 // whether or not the given IDs are in the map.
 func (s *secrets) Remove(secrets []string) {
 	s.mu.Lock()
@@ -50,7 +50,7 @@ func (s *secrets) Remove(secrets []string) {
 	}
 }
 
-// reset removes all the secrets
+// Reset removes all the secrets.
 func (s *secrets) Reset() {
 	s.mu.Lock()
 	defer s.mu.Unlock()

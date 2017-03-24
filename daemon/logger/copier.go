@@ -47,7 +47,6 @@ func (c *Copier) copySrc(name string, src io.Reader) {
 	buf := make([]byte, bufSize)
 	n := 0
 	eof := false
-	msg := &Message{Source: name}
 
 	for {
 		select {
@@ -77,14 +76,16 @@ func (c *Copier) copySrc(name string, src io.Reader) {
 			}
 			// Break up the data that we've buffered up into lines, and log each in turn.
 			p := 0
-			for q := bytes.Index(buf[p:n], []byte{'\n'}); q >= 0; q = bytes.Index(buf[p:n], []byte{'\n'}) {
-				msg.Line = buf[p : p+q]
-				msg.Timestamp = time.Now().UTC()
-				msg.Partial = false
+			for q := bytes.IndexByte(buf[p:n], '\n'); q >= 0; q = bytes.IndexByte(buf[p:n], '\n') {
 				select {
 				case <-c.closed:
 					return
 				default:
+					msg := NewMessage()
+					msg.Source = name
+					msg.Timestamp = time.Now().UTC()
+					msg.Line = append(msg.Line, buf[p:p+q]...)
+
 					if logErr := c.dst.Log(msg); logErr != nil {
 						logrus.Errorf("Failed to log msg %q for logger %s: %s", msg.Line, c.dst.Name(), logErr)
 					}
@@ -96,9 +97,12 @@ func (c *Copier) copySrc(name string, src io.Reader) {
 			// noting that it's a partial log line.
 			if eof || (p == 0 && n == len(buf)) {
 				if p < n {
-					msg.Line = buf[p:n]
+					msg := NewMessage()
+					msg.Source = name
 					msg.Timestamp = time.Now().UTC()
+					msg.Line = append(msg.Line, buf[p:n]...)
 					msg.Partial = true
+
 					if logErr := c.dst.Log(msg); logErr != nil {
 						logrus.Errorf("Failed to log msg %q for logger %s: %s", msg.Line, c.dst.Name(), logErr)
 					}

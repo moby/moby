@@ -38,6 +38,8 @@ var acceptedPsFilterTags = map[string]bool{
 	"volume":    true,
 	"network":   true,
 	"is-task":   true,
+	"publish":   true,
+	"expose":    true,
 }
 
 // iterationAction represents possible outcomes happening during the container iteration.
@@ -89,6 +91,12 @@ type listContext struct {
 	taskFilter bool
 	// isTask tells us if the we should filter container that are a task (true) or not (false)
 	isTask bool
+
+	// publish is a list of published ports to filter with
+	publish map[nat.Port]bool
+	// expose is a list of exposed ports to filter with
+	expose map[nat.Port]bool
+
 	// ContainerListOptions is the filters set by the user
 	*types.ContainerListOptions
 }
@@ -200,19 +208,32 @@ func (daemon *Daemon) reduceContainers(config *types.ContainerListOptions, reduc
 // reducePsContainer is the basic representation for a container as expected by the ps command.
 func (daemon *Daemon) reducePsContainer(container *container.Container, ctx *listContext, reducer containerReducer) (*types.Container, error) {
 	container.Lock()
-	defer container.Unlock()
 
 	// filter containers to return
 	action := includeContainerInList(container, ctx)
 	switch action {
 	case excludeContainer:
+		container.Unlock()
 		return nil, nil
 	case stopIteration:
+		container.Unlock()
 		return nil, errStopIteration
 	}
 
 	// transform internal container struct into api structs
-	return reducer(container, ctx)
+	newC, err := reducer(container, ctx)
+	container.Unlock()
+	if err != nil {
+		return nil, err
+	}
+
+	// release lock because size calculation is slow
+	if ctx.Size {
+		sizeRw, sizeRootFs := daemon.getSize(newC.ID)
+		newC.SizeRw = sizeRw
+		newC.SizeRootFs = sizeRootFs
+	}
+	return newC, nil
 }
 
 // foldFilter generates the container filter based on the user's filtering options.
@@ -311,6 +332,18 @@ func (daemon *Daemon) foldFilter(config *types.ContainerListOptions) (*listConte
 		})
 	}
 
+	publishFilter := map[nat.Port]bool{}
+	err = psFilters.WalkValues("publish", portOp("publish", publishFilter))
+	if err != nil {
+		return nil, err
+	}
+
+	exposeFilter := map[nat.Port]bool{}
+	err = psFilters.WalkValues("expose", portOp("expose", exposeFilter))
+	if err != nil {
+		return nil, err
+	}
+
 	return &listContext{
 		filters:              psFilters,
 		ancestorFilter:       ancestorFilter,
@@ -320,9 +353,32 @@ func (daemon *Daemon) foldFilter(config *types.ContainerListOptions) (*listConte
 		sinceFilter:          sinceContFilter,
 		taskFilter:           taskFilter,
 		isTask:               isTask,
+		publish:              publishFilter,
+		expose:               exposeFilter,
 		ContainerListOptions: config,
 		names:                daemon.nameIndex.GetAll(),
 	}, nil
+}
+func portOp(key string, filter map[nat.Port]bool) func(value string) error {
+	return func(value string) error {
+		if strings.Contains(value, ":") {
+			return fmt.Errorf("filter for '%s' should not contain ':': %s", key, value)
+		}
+		//support two formats, original format <portnum>/[<proto>] or <startport-endport>/[<proto>]
+		proto, port := nat.SplitProtoPort(value)
+		start, end, err := nat.ParsePortRange(port)
+		if err != nil {
+			return fmt.Errorf("error while looking up for %s %s: %s", key, value, err)
+		}
+		for i := start; i <= end; i++ {
+			p, err := nat.NewPort(proto, strconv.FormatUint(i, 10))
+			if err != nil {
+				return fmt.Errorf("error while looking up for %s %s: %s", key, value, err)
+			}
+			filter[p] = true
+		}
+		return nil
+	}
 }
 
 // includeContainerInList decides whether a container should be included in the output or not based in the filter.
@@ -459,6 +515,32 @@ func includeContainerInList(container *container.Container, ctx *listContext) it
 		}
 	}
 
+	if len(ctx.publish) > 0 {
+		shouldSkip := true
+		for port := range ctx.publish {
+			if _, ok := container.HostConfig.PortBindings[port]; ok {
+				shouldSkip = false
+				break
+			}
+		}
+		if shouldSkip {
+			return excludeContainer
+		}
+	}
+
+	if len(ctx.expose) > 0 {
+		shouldSkip := true
+		for port := range ctx.expose {
+			if _, ok := container.Config.ExposedPorts[port]; ok {
+				shouldSkip = false
+				break
+			}
+		}
+		if shouldSkip {
+			return excludeContainer
+		}
+	}
+
 	return includeContainer
 }
 
@@ -558,11 +640,6 @@ func (daemon *Daemon) transformContainer(container *container.Container, ctx *li
 		}
 	}
 
-	if ctx.Size {
-		sizeRw, sizeRootFs := daemon.getSize(container)
-		newC.SizeRw = sizeRw
-		newC.SizeRootFs = sizeRootFs
-	}
 	newC.Labels = container.Config.Labels
 	newC.Mounts = addMountPoints(container)
 

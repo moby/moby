@@ -54,14 +54,18 @@ type Result struct {
 
 // Assert compares the Result against the Expected struct, and fails the test if
 // any of the expcetations are not met.
-func (r *Result) Assert(t testingT, exp Expected) {
+func (r *Result) Assert(t testingT, exp Expected) *Result {
 	err := r.Compare(exp)
 	if err == nil {
-		return
+		return r
 	}
-
-	_, file, line, _ := runtime.Caller(1)
-	t.Fatalf("at %s:%d\n%s", filepath.Base(file), line, err.Error())
+	_, file, line, ok := runtime.Caller(1)
+	if ok {
+		t.Fatalf("at %s:%d - %s", filepath.Base(file), line, err.Error())
+	} else {
+		t.Fatalf("(no file/line info) - %s", err.Error())
+	}
+	return nil
 }
 
 // Compare returns a formatted error with the command, stdout, stderr, exit
@@ -123,10 +127,11 @@ func (r *Result) String() string {
 	}
 
 	return fmt.Sprintf(`
-Command: %s
-ExitCode: %d%s, Error: %s
-Stdout: %v
-Stderr: %v
+Command:  %s
+ExitCode: %d%s
+Error:    %v
+Stdout:   %v
+Stderr:   %v
 `,
 		strings.Join(r.Cmd.Args, " "),
 		r.ExitCode,

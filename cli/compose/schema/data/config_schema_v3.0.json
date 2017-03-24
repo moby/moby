@@ -167,9 +167,10 @@
         "restart": {"type": "string"},
         "security_opt": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
         "shm_size": {"type": ["number", "string"]},
+        "sysctls": {"$ref": "#/definitions/list_or_dict"},
         "stdin_open": {"type": "boolean"},
-        "stop_signal": {"type": "string"},
         "stop_grace_period": {"type": "string", "format": "duration"},
+        "stop_signal": {"type": "string"},
         "tmpfs": {"$ref": "#/definitions/string_or_list"},
         "tty": {"type": "boolean"},
         "ulimits": {
@@ -192,6 +193,7 @@
           }
         },
         "user": {"type": "string"},
+        "userns_mode": {"type": "string"},
         "volumes": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
         "working_dir": {"type": "string"}
       },
@@ -200,10 +202,11 @@
 
     "healthcheck": {
       "id": "#/definitions/healthcheck",
-      "type": ["object", "null"],
+      "type": "object",
+      "additionalProperties": false,
       "properties": {
-        "interval": {"type":"string"},
-        "timeout": {"type":"string"},
+        "disable": {"type": "boolean"},
+        "interval": {"type": "string"},
         "retries": {"type": "number"},
         "test": {
           "oneOf": [
@@ -211,9 +214,8 @@
             {"type": "array", "items": {"type": "string"}}
           ]
         },
-        "disable": {"type": "boolean"}
-      },
-      "additionalProperties": false
+        "timeout": {"type": "string"}
+      }
     },
     "deployment": {
       "id": "#/definitions/deployment",
@@ -306,6 +308,7 @@
           },
           "additionalProperties": false
         },
+        "internal": {"type": "boolean"},
         "labels": {"$ref": "#/definitions/list_or_dict"}
       },
       "additionalProperties": false
@@ -326,10 +329,11 @@
           "type": ["boolean", "object"],
           "properties": {
             "name": {"type": "string"}
-          }
-        }
+          },
+          "additionalProperties": false
+        },
+        "labels": {"$ref": "#/definitions/list_or_dict"}
       },
-      "labels": {"$ref": "#/definitions/list_or_dict"},
       "additionalProperties": false
     },
 

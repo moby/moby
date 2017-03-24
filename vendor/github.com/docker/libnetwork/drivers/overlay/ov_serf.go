@@ -73,7 +73,7 @@ func (d *driver) serfJoin(neighIP string) error {
 	if neighIP == "" {
 		return fmt.Errorf("no neighbor to join")
 	}
-	if _, err := d.serfInstance.Join([]string{neighIP}, false); err != nil {
+	if _, err := d.serfInstance.Join([]string{neighIP}, true); err != nil {
 		return fmt.Errorf("Failed to join the cluster at neigh IP %s: %v",
 			neighIP, err)
 	}
@@ -94,8 +94,8 @@ func (d *driver) notifyEvent(event ovNotify) {
 }
 
 func (d *driver) processEvent(u serf.UserEvent) {
-	logrus.Debugf("Received user event name:%s, payload:%s\n", u.Name,
-		string(u.Payload))
+	logrus.Debugf("Received user event name:%s, payload:%s LTime:%d \n", u.Name,
+		string(u.Payload), uint64(u.LTime))
 
 	var dummy, action, vtepStr, nid, eid, ipStr, maskStr, macStr string
 	if _, err := fmt.Sscan(u.Name, &dummy, &vtepStr, &nid, &eid); err != nil {
@@ -146,6 +146,7 @@ func (d *driver) processQuery(q *serf.Query) {
 		return
 	}
 
+	logrus.Debugf("Sending peer query resp mac %s, mask %s, vtep %s", peerMac, net.IP(peerIPMask), vtep)
 	q.Respond([]byte(fmt.Sprintf("%s %s %s", peerMac.String(), net.IP(peerIPMask).String(), vtep.String())))
 }
 
@@ -173,6 +174,7 @@ func (d *driver) resolvePeer(nid string, peerIP net.IP) (net.HardwareAddr, net.I
 			return nil, nil, nil, fmt.Errorf("failed to parse mac: %v", err)
 		}
 
+		logrus.Debugf("Received peer query response, mac %s, vtep %s, mask %s", macStr, vtepStr, maskStr)
 		return mac, net.IPMask(net.ParseIP(maskStr).To4()), net.ParseIP(vtepStr), nil
 
 	case <-time.After(time.Second):

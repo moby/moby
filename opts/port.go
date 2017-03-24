@@ -94,11 +94,24 @@ func (p *PortOpt) Set(value string) error {
 	} else {
 		// short syntax
 		portConfigs := []swarm.PortConfig{}
-		// We can ignore errors because the format was already validated by ValidatePort
-		ports, portBindings, _ := nat.ParsePortSpecs([]string{value})
+		ports, portBindingMap, err := nat.ParsePortSpecs([]string{value})
+		if err != nil {
+			return err
+		}
+		for _, portBindings := range portBindingMap {
+			for _, portBinding := range portBindings {
+				if portBinding.HostIP != "" {
+					return fmt.Errorf("HostIP is not supported.")
+				}
+			}
+		}
 
 		for port := range ports {
-			portConfigs = append(portConfigs, ConvertPortToPortConfig(port, portBindings)...)
+			portConfig, err := ConvertPortToPortConfig(port, portBindingMap)
+			if err != nil {
+				return err
+			}
+			portConfigs = append(portConfigs, portConfig...)
 		}
 		p.ports = append(p.ports, portConfigs...)
 	}
@@ -129,11 +142,14 @@ func (p *PortOpt) Value() []swarm.PortConfig {
 func ConvertPortToPortConfig(
 	port nat.Port,
 	portBindings map[nat.Port][]nat.PortBinding,
-) []swarm.PortConfig {
+) ([]swarm.PortConfig, error) {
 	ports := []swarm.PortConfig{}
 
 	for _, binding := range portBindings[port] {
-		hostPort, _ := strconv.ParseUint(binding.HostPort, 10, 16)
+		hostPort, err := strconv.ParseUint(binding.HostPort, 10, 16)
+		if err != nil && binding.HostPort != "" {
+			return nil, fmt.Errorf("invalid hostport binding (%s) for port (%s)", binding.HostPort, port.Port())
+		}
 		ports = append(ports, swarm.PortConfig{
 			//TODO Name: ?
 			Protocol:      swarm.PortConfigProtocol(strings.ToLower(port.Proto())),
@@ -142,5 +158,5 @@ func ConvertPortToPortConfig(
 			PublishMode:   swarm.PortConfigPublishModeIngress,
 		})
 	}
-	return ports
+	return ports, nil
 }

@@ -49,16 +49,6 @@ func ByName(name string) By {
 	return byName(name)
 }
 
-type byCN string
-
-func (b byCN) isBy() {
-}
-
-// ByCN creates an object to pass to Find to select by CN.
-func ByCN(name string) By {
-	return byCN(name)
-}
-
 type byService string
 
 func (b byService) isBy() {

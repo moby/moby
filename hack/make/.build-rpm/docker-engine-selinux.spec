@@ -13,20 +13,7 @@ URL: https://dockerproject.org
 Vendor: Docker
 Packager: Docker <support@docker.com>
 
-# Version of SELinux we were using
-%if 0%{?fedora} == 20
-%global selinux_policyver 3.12.1-197
-%endif # fedora 20
-%if 0%{?fedora} == 21
-%global selinux_policyver 3.13.1-105
-%endif # fedora 21
-%if 0%{?fedora} >= 22
-%global selinux_policyver 3.13.1-128
-%endif # fedora 22
-%if 0%{?centos} >= 7 || 0%{?rhel} >= 7 || 0%{?oraclelinux} >= 7
-%global selinux_policyver 3.13.1-23
-%endif # centos,rhel,oraclelinux 7
-
+%global selinux_policyver 3.13.1-102
 %global selinuxtype targeted
 %global moduletype  services
 %global modulenames docker
@@ -84,7 +71,7 @@ if %{_sbindir}/selinuxenabled ; then
     %{_sbindir}/load_policy
     %relabel_files
     if [ $1 -eq 1 ]; then
-	restorecon -R %{_sharedstatedir}/docker
+      restorecon -R %{_sharedstatedir}/docker
     fi
 fi
 

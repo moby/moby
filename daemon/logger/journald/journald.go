@@ -105,10 +105,14 @@ func (s *journald) Log(msg *logger.Message) error {
 	if msg.Partial {
 		vars["CONTAINER_PARTIAL_MESSAGE"] = "true"
 	}
+
+	line := string(msg.Line)
+	logger.PutMessage(msg)
+
 	if msg.Source == "stderr" {
-		return journal.Send(string(msg.Line), journal.PriErr, vars)
+		return journal.Send(line, journal.PriErr, vars)
 	}
-	return journal.Send(string(msg.Line), journal.PriInfo, vars)
+	return journal.Send(line, journal.PriInfo, vars)
 }
 
 func (s *journald) Name() string {

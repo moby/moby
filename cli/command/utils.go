@@ -1,18 +1,22 @@
 package command
 
 import (
+	"bufio"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/docker/docker/pkg/system"
 )
 
 // CopyToFile writes the content of the reader to the specified file
 func CopyToFile(outfile string, r io.Reader) error {
-	tmpFile, err := ioutil.TempFile(filepath.Dir(outfile), ".docker_temp_")
+	// We use sequential file access here to avoid depleting the standby list
+	// on Windows. On Linux, this is a call directly to ioutil.TempFile
+	tmpFile, err := system.TempFileSequential(filepath.Dir(outfile), ".docker_temp_")
 	if err != nil {
 		return err
 	}
@@ -77,11 +81,7 @@ func PromptForConfirmation(ins *InStream, outs *OutStream, message string) bool 
 		ins = NewInStream(os.Stdin)
 	}
 
-	answer := ""
-	n, _ := fmt.Fscan(ins, &answer)
-	if n != 1 || (answer != "y" && answer != "Y") {
-		return false
-	}
-
-	return true
+	reader := bufio.NewReader(ins)
+	answer, _, _ := reader.ReadLine()
+	return strings.ToLower(string(answer)) == "y"
 }

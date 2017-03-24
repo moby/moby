@@ -8,18 +8,20 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/libcontainerd"
+	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/plugin/v2"
-	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
@@ -48,6 +50,7 @@ type ManagerConfig struct {
 	LogPluginEvent     eventLogger
 	Root               string
 	ExecRoot           string
+	AuthzMiddleware    *authorization.Middleware
 }
 
 // Manager controls the plugin subsystem.
@@ -130,22 +133,25 @@ func (pm *Manager) StateChanged(id string, e libcontainerd.StateInfo) error {
 			return err
 		}
 
-		pm.mu.RLock()
-		c := pm.cMap[p]
-
-		if c.exitChan != nil {
-			close(c.exitChan)
-		}
-		restart := c.restart
-		pm.mu.RUnlock()
-
 		os.RemoveAll(filepath.Join(pm.config.ExecRoot, id))
 
 		if p.PropagatedMount != "" {
 			if err := mount.Unmount(p.PropagatedMount); err != nil {
 				logrus.Warnf("Could not unmount %s: %v", p.PropagatedMount, err)
 			}
+			propRoot := filepath.Join(filepath.Dir(p.Rootfs), "propagated-mount")
+			if err := mount.Unmount(propRoot); err != nil {
+				logrus.Warn("Could not unmount %s: %v", propRoot, err)
+			}
 		}
+
+		pm.mu.RLock()
+		c := pm.cMap[p]
+		if c.exitChan != nil {
+			close(c.exitChan)
+		}
+		restart := c.restart
+		pm.mu.RUnlock()
 
 		if restart {
 			pm.enable(p, c, true)
@@ -193,6 +199,27 @@ func (pm *Manager) reload() error { // todo: restore
 			for _, typ := range p.PluginObj.Config.Interface.Types {
 				if (typ.Capability == "volumedriver" || typ.Capability == "graphdriver") && typ.Prefix == "docker" && strings.HasPrefix(typ.Version, "1.") {
 					if p.PluginObj.Config.PropagatedMount != "" {
+						propRoot := filepath.Join(filepath.Dir(p.Rootfs), "propagated-mount")
+
+						// check if we need to migrate an older propagated mount from before
+						// these mounts were stored outside the plugin rootfs
+						if _, err := os.Stat(propRoot); os.IsNotExist(err) {
+							if _, err := os.Stat(p.PropagatedMount); err == nil {
+								// make sure nothing is mounted here
+								// don't care about errors
+								mount.Unmount(p.PropagatedMount)
+								if err := os.Rename(p.PropagatedMount, propRoot); err != nil {
+									logrus.WithError(err).WithField("dir", propRoot).Error("error migrating propagated mount storage")
+								}
+								if err := os.MkdirAll(p.PropagatedMount, 0755); err != nil {
+									logrus.WithError(err).WithField("dir", p.PropagatedMount).Error("error migrating propagated mount storage")
+								}
+							}
+						}
+
+						if err := os.MkdirAll(propRoot, 0755); err != nil {
+							logrus.Errorf("failed to create PropagatedMount directory at %s: %v", propRoot, err)
+						}
 						// TODO: sanitize PropagatedMount and prevent breakout
 						p.PropagatedMount = filepath.Join(p.Rootfs, p.PluginObj.Config.PropagatedMount)
 						if err := os.MkdirAll(p.PropagatedMount, 0755); err != nil {
@@ -237,7 +264,7 @@ func (pm *Manager) save(p *v2.Plugin) error {
 		return errors.Wrap(err, "failed to marshal plugin json")
 	}
 	if err := ioutils.AtomicWriteFile(filepath.Join(pm.config.Root, p.GetID(), configFileName), pluginJSON, 0600); err != nil {
-		return err
+		return errors.Wrap(err, "failed to write atomically plugin json")
 	}
 	return nil
 }
@@ -289,11 +316,36 @@ func attachToLog(id string) func(libcontainerd.IOPipe) error {
 }
 
 func validatePrivileges(requiredPrivileges, privileges types.PluginPrivileges) error {
-	// todo: make a better function that doesn't check order
-	if !reflect.DeepEqual(privileges, requiredPrivileges) {
+	if !isEqual(requiredPrivileges, privileges, isEqualPrivilege) {
 		return errors.New("incorrect privileges")
 	}
+
 	return nil
+}
+
+func isEqual(arrOne, arrOther types.PluginPrivileges, compare func(x, y types.PluginPrivilege) bool) bool {
+	if len(arrOne) != len(arrOther) {
+		return false
+	}
+
+	sort.Sort(arrOne)
+	sort.Sort(arrOther)
+
+	for i := 1; i < arrOne.Len(); i++ {
+		if !compare(arrOne[i], arrOther[i]) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func isEqualPrivilege(a, b types.PluginPrivilege) bool {
+	if a.Name != b.Name {
+		return false
+	}
+
+	return reflect.DeepEqual(a.Value, b.Value)
 }
 
 func configToRootFS(c []byte) (*image.RootFS, error) {

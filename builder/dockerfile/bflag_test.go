@@ -130,7 +130,7 @@ func TestBuilderFlags(t *testing.T) {
 	}
 
 	if !flBool1.IsTrue() {
-		t.Fatalf("Test-b2 Bool1 was supposed to be true")
+		t.Fatal("Test-b2 Bool1 was supposed to be true")
 	}
 
 	// ---
@@ -179,9 +179,9 @@ func TestBuilderFlags(t *testing.T) {
 	}
 
 	if flStr1.Value != "BYE" {
-		t.Fatalf("Teset %s, str1 should be BYE", bf.Args)
+		t.Fatalf("Test %s, str1 should be BYE", bf.Args)
 	}
 	if !flBool1.IsTrue() {
-		t.Fatalf("Teset %s, bool1 should be true", bf.Args)
+		t.Fatalf("Test %s, bool1 should be true", bf.Args)
 	}
 }

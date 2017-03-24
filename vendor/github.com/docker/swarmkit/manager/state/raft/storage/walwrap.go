@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"context"
 	"io"
 	"io/ioutil"
 	"os"
@@ -15,6 +14,7 @@ import (
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/encryption"
 	"github.com/pkg/errors"
+	"golang.org/x/net/context"
 )
 
 // This package wraps the github.com/coreos/etcd/wal package, and encrypts
@@ -136,7 +136,7 @@ func (o originalWAL) Open(dirpath string, walsnap walpb.Snapshot) (WAL, error) {
 	return wal.Open(dirpath, walsnap)
 }
 
-// OriginalWAL is the original `wal` package as an implemntation of the WALFactory interface
+// OriginalWAL is the original `wal` package as an implementation of the WALFactory interface
 var OriginalWAL WALFactory = originalWAL{}
 
 // WALData contains all the data returned by a WAL's ReadAll() function

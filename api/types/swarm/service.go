@@ -18,9 +18,10 @@ type ServiceSpec struct {
 
 	// TaskTemplate defines how the service should construct new tasks when
 	// orchestrating this service.
-	TaskTemplate TaskSpec      `json:",omitempty"`
-	Mode         ServiceMode   `json:",omitempty"`
-	UpdateConfig *UpdateConfig `json:",omitempty"`
+	TaskTemplate   TaskSpec      `json:",omitempty"`
+	Mode           ServiceMode   `json:",omitempty"`
+	UpdateConfig   *UpdateConfig `json:",omitempty"`
+	RollbackConfig *UpdateConfig `json:",omitempty"`
 
 	// Networks field in ServiceSpec is deprecated. The
 	// same field in TaskSpec should be used instead.
@@ -45,6 +46,12 @@ const (
 	UpdateStatePaused UpdateState = "paused"
 	// UpdateStateCompleted is the completed state.
 	UpdateStateCompleted UpdateState = "completed"
+	// UpdateStateRollbackStarted is the state with a rollback in progress.
+	UpdateStateRollbackStarted UpdateState = "rollback_started"
+	// UpdateStateRollbackPaused is the state with a rollback in progress.
+	UpdateStateRollbackPaused UpdateState = "rollback_paused"
+	// UpdateStateRollbackCompleted is the state with a rollback in progress.
+	UpdateStateRollbackCompleted UpdateState = "rollback_completed"
 )
 
 // UpdateStatus reports the status of a service update.
@@ -68,6 +75,8 @@ const (
 	UpdateFailureActionPause = "pause"
 	// UpdateFailureActionContinue CONTINUE
 	UpdateFailureActionContinue = "continue"
+	// UpdateFailureActionRollback ROLLBACK
+	UpdateFailureActionRollback = "rollback"
 )
 
 // UpdateConfig represents the update configuration.

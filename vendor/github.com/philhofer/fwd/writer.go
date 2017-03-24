@@ -98,7 +98,7 @@ func (w *Writer) Write(p []byte) (int, error) {
 	return copy(w.buf[l:], p), nil
 }
 
-// WriteString is analagous to Write, but it takes a string.
+// WriteString is analogous to Write, but it takes a string.
 func (w *Writer) WriteString(s string) (int, error) {
 	c, l, ln := cap(w.buf), len(w.buf), len(s)
 	avail := c - l
@@ -215,7 +215,7 @@ func (w *Writer) ReadFrom(r io.Reader) (int64, error) {
 	// we only clear here
 	// because we are sure
 	// the writes have
-	// suceeded. otherwise,
+	// succeeded. otherwise,
 	// we retain the data in case
 	// future writes succeed.
 	w.buf = w.buf[0:0]

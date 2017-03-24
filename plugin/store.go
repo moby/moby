@@ -5,10 +5,10 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/plugin/v2"
-	"github.com/docker/docker/reference"
 	"github.com/pkg/errors"
 )
 
@@ -230,19 +230,19 @@ func (ps *Store) resolvePluginID(idOrName string) (string, error) {
 		return idOrName, nil
 	}
 
-	ref, err := reference.ParseNamed(idOrName)
+	ref, err := reference.ParseNormalizedNamed(idOrName)
 	if err != nil {
 		return "", errors.WithStack(ErrNotFound(idOrName))
 	}
 	if _, ok := ref.(reference.Canonical); ok {
-		logrus.Warnf("canonical references cannot be resolved: %v", ref.String())
+		logrus.Warnf("canonical references cannot be resolved: %v", reference.FamiliarString(ref))
 		return "", errors.WithStack(ErrNotFound(idOrName))
 	}
 
-	fullRef := reference.WithDefaultTag(ref)
+	ref = reference.TagNameOnly(ref)
 
 	for _, p := range ps.plugins {
-		if p.PluginObj.Name == fullRef.String() {
+		if p.PluginObj.Name == reference.FamiliarString(ref) {
 			return p.PluginObj.ID, nil
 		}
 	}

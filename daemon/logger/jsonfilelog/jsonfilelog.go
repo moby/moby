@@ -100,6 +100,7 @@ func (l *JSONFileLogger) Log(msg *logger.Message) error {
 		Created:  timestamp,
 		RawAttrs: l.extra,
 	}).MarshalJSONBuf(l.buf)
+	logger.PutMessage(msg)
 	if err != nil {
 		l.mu.Unlock()
 		return err

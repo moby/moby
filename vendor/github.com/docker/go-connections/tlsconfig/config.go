@@ -29,6 +29,11 @@ type Options struct {
 	InsecureSkipVerify bool
 	// server-only option
 	ClientAuth tls.ClientAuthType
+	// If ExclusiveRootPools is set, then if a CA file is provided, the root pool used for TLS
+	// creds will include exclusively the roots in that CA file.  If no CA file is provided,
+	// the system pool will be used.
+	ExclusiveRootPools bool
+	MinVersion         uint16
 }
 
 // Extra (server-side) accepted CBC cipher suites - will phase out in the future
@@ -45,6 +50,15 @@ var acceptedCBCCiphers = []uint16{
 // options struct but wants to use a commonly accepted set of TLS cipher suites, with
 // known weak algorithms removed.
 var DefaultServerAcceptedCiphers = append(clientCipherSuites, acceptedCBCCiphers...)
+
+// allTLSVersions lists all the TLS versions and is used by the code that validates
+// a uint16 value as a TLS version.
+var allTLSVersions = map[uint16]struct{}{
+	tls.VersionSSL30: {},
+	tls.VersionTLS10: {},
+	tls.VersionTLS11: {},
+	tls.VersionTLS12: {},
+}
 
 // ServerDefault returns a secure-enough TLS configuration for the server TLS configuration.
 func ServerDefault() *tls.Config {
@@ -66,11 +80,19 @@ func ClientDefault() *tls.Config {
 }
 
 // certPool returns an X.509 certificate pool from `caFile`, the certificate file.
-func certPool(caFile string) (*x509.CertPool, error) {
+func certPool(caFile string, exclusivePool bool) (*x509.CertPool, error) {
 	// If we should verify the server, we need to load a trusted ca
-	certPool, err := SystemCertPool()
-	if err != nil {
-		return nil, fmt.Errorf("failed to read system certificates: %v", err)
+	var (
+		certPool *x509.CertPool
+		err      error
+	)
+	if exclusivePool {
+		certPool = x509.NewCertPool()
+	} else {
+		certPool, err = SystemCertPool()
+		if err != nil {
+			return nil, fmt.Errorf("failed to read system certificates: %v", err)
+		}
 	}
 	pem, err := ioutil.ReadFile(caFile)
 	if err != nil {
@@ -83,12 +105,34 @@ func certPool(caFile string) (*x509.CertPool, error) {
 	return certPool, nil
 }
 
+// isValidMinVersion checks that the input value is a valid tls minimum version
+func isValidMinVersion(version uint16) bool {
+	_, ok := allTLSVersions[version]
+	return ok
+}
+
+// adjustMinVersion sets the MinVersion on `config`, the input configuration.
+// It assumes the current MinVersion on the `config` is the lowest allowed.
+func adjustMinVersion(options Options, config *tls.Config) error {
+	if options.MinVersion > 0 {
+		if !isValidMinVersion(options.MinVersion) {
+			return fmt.Errorf("Invalid minimum TLS version: %x", options.MinVersion)
+		}
+		if options.MinVersion < config.MinVersion {
+			return fmt.Errorf("Requested minimum TLS version is too low. Should be at-least: %x", config.MinVersion)
+		}
+		config.MinVersion = options.MinVersion
+	}
+
+	return nil
+}
+
 // Client returns a TLS configuration meant to be used by a client.
 func Client(options Options) (*tls.Config, error) {
 	tlsConfig := ClientDefault()
 	tlsConfig.InsecureSkipVerify = options.InsecureSkipVerify
 	if !options.InsecureSkipVerify && options.CAFile != "" {
-		CAs, err := certPool(options.CAFile)
+		CAs, err := certPool(options.CAFile, options.ExclusiveRootPools)
 		if err != nil {
 			return nil, err
 		}
@@ -101,6 +145,10 @@ func Client(options Options) (*tls.Config, error) {
 			return nil, fmt.Errorf("Could not load X509 key pair: %v. Make sure the key is not encrypted", err)
 		}
 		tlsConfig.Certificates = []tls.Certificate{tlsCert}
+	}
+
+	if err := adjustMinVersion(options, tlsConfig); err != nil {
+		return nil, err
 	}
 
 	return tlsConfig, nil
@@ -118,12 +166,17 @@ func Server(options Options) (*tls.Config, error) {
 		return nil, fmt.Errorf("Error reading X509 key pair (cert: %q, key: %q): %v. Make sure the key is not encrypted.", options.CertFile, options.KeyFile, err)
 	}
 	tlsConfig.Certificates = []tls.Certificate{tlsCert}
-	if options.ClientAuth >= tls.VerifyClientCertIfGiven {
-		CAs, err := certPool(options.CAFile)
+	if options.ClientAuth >= tls.VerifyClientCertIfGiven && options.CAFile != "" {
+		CAs, err := certPool(options.CAFile, options.ExclusiveRootPools)
 		if err != nil {
 			return nil, err
 		}
 		tlsConfig.ClientCAs = CAs
 	}
+
+	if err := adjustMinVersion(options, tlsConfig); err != nil {
+		return nil, err
+	}
+
 	return tlsConfig, nil
 }

@@ -21,6 +21,7 @@ dockerd - Enable daemon mode
 [**--default-gateway**[=*DEFAULT-GATEWAY*]]
 [**--default-gateway-v6**[=*DEFAULT-GATEWAY-V6*]]
 [**--default-runtime**[=*runc*]]
+[**--default-shm-size**[=*64MiB*]]
 [**--default-ulimit**[=*[]*]]
 [**--disable-legacy-registry**]
 [**--dns**[=*[]*]]
@@ -163,6 +164,9 @@ $ sudo dockerd --add-runtime runc=runc --add-runtime custom=/usr/local/bin/my-ru
 
 **--default-runtime**="runc"
   Set default runtime if there're more than one specified by `--add-runtime`.
+
+**--default-shm-size**=*64MiB*
+  Set the daemon-wide default shm size for containers. Default is `64MiB`.
 
 **--default-ulimit**=[]
   Default ulimits for containers.
@@ -649,7 +653,7 @@ Example use: `dockerd -s zfs --storage-opt zfs.fsname=zroot/docker`
 
 #### btrfs.min_space
 
-Specifies the mininum size to use when creating the subvolume which is used for
+Specifies the minimum size to use when creating the subvolume which is used for
 containers. If user uses disk quota for btrfs when creating or running a
 container with **--storage-opt size** option, docker should ensure the **size**
 cannot be smaller than **btrfs.min_space**.

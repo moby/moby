@@ -27,6 +27,28 @@ import "C"
 
 // Exported types
 
+// VersionError denotes that the system libseccomp version is incompatible
+// with this package.
+type VersionError struct {
+	message string
+	minimum string
+}
+
+func (e VersionError) Error() string {
+	format := "Libseccomp version too low: "
+	if e.message != "" {
+		format += e.message + ": "
+	}
+	format += "minimum supported is "
+	if e.minimum != "" {
+		format += e.minimum + ": "
+	} else {
+		format += "2.1.0: "
+	}
+	format += "detected %d.%d.%d"
+	return fmt.Sprintf(format, verMajor, verMinor, verMicro)
+}
+
 // ScmpArch represents a CPU architecture. Seccomp can restrict syscalls on a
 // per-architecture basis.
 type ScmpArch uint
@@ -151,6 +173,10 @@ const (
 // GetArchFromString returns an ScmpArch constant from a string representing an
 // architecture
 func GetArchFromString(arch string) (ScmpArch, error) {
+	if err := ensureSupportedVersion(); err != nil {
+		return ArchInvalid, err
+	}
+
 	switch strings.ToLower(arch) {
 	case "x86":
 		return ArchX86, nil
@@ -338,6 +364,10 @@ func (s ScmpSyscall) GetNameByArch(arch ScmpArch) (string, error) {
 // Returns the number of the syscall, or an error if no syscall with that name
 // was found.
 func GetSyscallFromName(name string) (ScmpSyscall, error) {
+	if err := ensureSupportedVersion(); err != nil {
+		return 0, err
+	}
+
 	cString := C.CString(name)
 	defer C.free(unsafe.Pointer(cString))
 
@@ -355,6 +385,9 @@ func GetSyscallFromName(name string) (ScmpSyscall, error) {
 // Returns the number of the syscall, or an error if an invalid architecture is
 // passed or a syscall with that name was not found.
 func GetSyscallFromNameByArch(name string, arch ScmpArch) (ScmpSyscall, error) {
+	if err := ensureSupportedVersion(); err != nil {
+		return 0, err
+	}
 	if err := sanitizeArch(arch); err != nil {
 		return 0, err
 	}
@@ -386,6 +419,10 @@ func GetSyscallFromNameByArch(name string, arch ScmpArch) (ScmpSyscall, error) {
 func MakeCondition(arg uint, comparison ScmpCompareOp, values ...uint64) (ScmpCondition, error) {
 	var condStruct ScmpCondition
 
+	if err := ensureSupportedVersion(); err != nil {
+		return condStruct, err
+	}
+
 	if comparison == CompareInvalid {
 		return condStruct, fmt.Errorf("invalid comparison operator")
 	} else if arg > 5 {
@@ -413,6 +450,10 @@ func MakeCondition(arg uint, comparison ScmpCompareOp, values ...uint64) (ScmpCo
 // GetNativeArch returns architecture token representing the native kernel
 // architecture
 func GetNativeArch() (ScmpArch, error) {
+	if err := ensureSupportedVersion(); err != nil {
+		return ArchInvalid, err
+	}
+
 	arch := C.seccomp_arch_native()
 
 	return archFromNative(arch)
@@ -435,6 +476,10 @@ type ScmpFilter struct {
 // Returns a reference to a valid filter context, or nil and an error if the
 // filter context could not be created or an invalid default action was given.
 func NewFilter(defaultAction ScmpAction) (*ScmpFilter, error) {
+	if err := ensureSupportedVersion(); err != nil {
+		return nil, err
+	}
+
 	if err := sanitizeAction(defaultAction); err != nil {
 		return nil, err
 	}

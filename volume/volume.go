@@ -124,7 +124,20 @@ type MountPoint struct {
 
 // Setup sets up a mount point by either mounting the volume if it is
 // configured, or creating the source directory if supplied.
-func (m *MountPoint) Setup(mountLabel string, rootUID, rootGID int) (string, error) {
+func (m *MountPoint) Setup(mountLabel string, rootUID, rootGID int) (path string, err error) {
+	defer func() {
+		if err == nil {
+			if label.RelabelNeeded(m.Mode) {
+				if err = label.Relabel(m.Source, mountLabel, label.IsShared(m.Mode)); err != nil {
+					path = ""
+					err = errors.Wrapf(err, "error setting label on mount source '%s'", m.Source)
+					return
+				}
+			}
+		}
+		return
+	}()
+
 	if m.Volume != nil {
 		id := m.ID
 		if id == "" {
@@ -150,11 +163,6 @@ func (m *MountPoint) Setup(mountLabel string, rootUID, rootGID int) (string, err
 					return "", errors.Wrapf(err, "error while creating mount source path '%s'", m.Source)
 				}
 			}
-		}
-	}
-	if label.RelabelNeeded(m.Mode) {
-		if err := label.Relabel(m.Source, mountLabel, label.IsShared(m.Mode)); err != nil {
-			return "", errors.Wrapf(err, "error setting label on mount source '%s'", m.Source)
 		}
 	}
 	return m.Source, nil

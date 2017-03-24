@@ -13,6 +13,7 @@ func NewPluginCommand(dockerCli *command.DockerCli) *cobra.Command {
 		Short: "Manage plugins",
 		Args:  cli.NoArgs,
 		RunE:  dockerCli.ShowHelp,
+		Tags:  map[string]string{"version": "1.25"},
 	}
 
 	cmd.AddCommand(
@@ -25,6 +26,7 @@ func NewPluginCommand(dockerCli *command.DockerCli) *cobra.Command {
 		newSetCommand(dockerCli),
 		newPushCommand(dockerCli),
 		newCreateCommand(dockerCli),
+		newUpgradeCommand(dockerCli),
 	)
 	return cmd
 }

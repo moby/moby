@@ -33,7 +33,7 @@ type DockerAuthzV2Suite struct {
 func (s *DockerAuthzV2Suite) SetUpTest(c *check.C) {
 	testRequires(c, DaemonIsLinux, Network)
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
-		Experimental: experimentalDaemon,
+		Experimental: testEnv.ExperimentalDaemon(),
 	})
 	s.d.Start(c)
 }
@@ -73,6 +73,36 @@ func (s *DockerAuthzV2Suite) TestAuthZPluginAllowNonVolumeRequest(c *check.C) {
 	out, err = s.d.Cmd("ps")
 	c.Assert(err, check.IsNil)
 	c.Assert(assertContainerList(out, []string{id}), check.Equals, true)
+}
+
+func (s *DockerAuthzV2Suite) TestAuthZPluginDisable(c *check.C) {
+	testRequires(c, DaemonIsLinux, IsAmd64, Network)
+	// Install authz plugin
+	_, err := s.d.Cmd("plugin", "install", "--grant-all-permissions", authzPluginNameWithTag)
+	c.Assert(err, checker.IsNil)
+	// start the daemon with the plugin and load busybox, --net=none build fails otherwise
+	// because it needs to pull busybox
+	s.d.Restart(c, "--authorization-plugin="+authzPluginNameWithTag)
+	c.Assert(s.d.LoadBusybox(), check.IsNil)
+
+	// defer removing the plugin
+	defer func() {
+		s.d.Restart(c)
+		_, err = s.d.Cmd("plugin", "rm", "-f", authzPluginNameWithTag)
+		c.Assert(err, checker.IsNil)
+	}()
+
+	out, err := s.d.Cmd("volume", "create")
+	c.Assert(err, check.NotNil)
+	c.Assert(out, checker.Contains, fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag))
+
+	// disable the plugin
+	_, err = s.d.Cmd("plugin", "disable", authzPluginNameWithTag)
+	c.Assert(err, checker.IsNil)
+
+	// now test to see if the docker api works.
+	_, err = s.d.Cmd("volume", "create")
+	c.Assert(err, checker.IsNil)
 }
 
 func (s *DockerAuthzV2Suite) TestAuthZPluginRejectVolumeRequests(c *check.C) {

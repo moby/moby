@@ -38,6 +38,7 @@ func makefile(contents string) (string, func(), error) {
 // attempt to contact any v1 registry endpoints.
 func (s *DockerRegistrySuite) TestV2Only(c *check.C) {
 	reg, err := registry.NewMock(c)
+	defer reg.Close()
 	c.Assert(err, check.IsNil)
 
 	reg.RegisterHandler("/v2/", func(w http.ResponseWriter, r *http.Request) {
@@ -70,6 +71,7 @@ func (s *DockerRegistrySuite) TestV2Only(c *check.C) {
 // login, push, pull, build & run
 func (s *DockerRegistrySuite) TestV1(c *check.C) {
 	reg, err := registry.NewMock(c)
+	defer reg.Close()
 	c.Assert(err, check.IsNil)
 
 	v2Pings := 0

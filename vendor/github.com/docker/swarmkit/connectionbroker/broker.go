@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/remotes"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"google.golang.org/grpc"
 )
 
@@ -59,6 +60,10 @@ func (b *Broker) SelectRemote(dialOpts ...grpc.DialOption) (*Conn, error) {
 		return nil, err
 	}
 
+	dialOpts = append(dialOpts,
+		grpc.WithUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
+		grpc.WithStreamInterceptor(grpc_prometheus.StreamClientInterceptor))
+
 	cc, err := grpc.Dial(peer.Addr, dialOpts...)
 	if err != nil {
 		b.remotes.ObserveIfExists(peer, -remotes.DefaultObservationWeight)
@@ -96,9 +101,9 @@ func (c *Conn) Close(success bool) error {
 	}
 
 	if success {
-		c.remotes.ObserveIfExists(c.peer, -remotes.DefaultObservationWeight)
-	} else {
 		c.remotes.ObserveIfExists(c.peer, remotes.DefaultObservationWeight)
+	} else {
+		c.remotes.ObserveIfExists(c.peer, -remotes.DefaultObservationWeight)
 	}
 
 	return c.ClientConn.Close()

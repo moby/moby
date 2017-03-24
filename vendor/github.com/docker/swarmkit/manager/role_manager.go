@@ -41,7 +41,8 @@ func newRoleManager(store *store.MemoryStore, raftNode *raft.Node) *roleManager 
 }
 
 // Run is roleManager's main loop.
-func (rm *roleManager) Run() {
+// ctx is only used for logging.
+func (rm *roleManager) Run(ctx context.Context) {
 	defer close(rm.doneChan)
 
 	var (
@@ -60,11 +61,11 @@ func (rm *roleManager) Run() {
 	defer cancelWatch()
 
 	if err != nil {
-		log.L.WithError(err).Error("failed to check nodes for role changes")
+		log.G(ctx).WithError(err).Error("failed to check nodes for role changes")
 	} else {
 		for _, node := range nodes {
 			rm.pending[node.ID] = node
-			rm.reconcileRole(node)
+			rm.reconcileRole(ctx, node)
 		}
 		if len(rm.pending) != 0 {
 			ticker = time.NewTicker(roleReconcileInterval)
@@ -77,14 +78,14 @@ func (rm *roleManager) Run() {
 		case event := <-watcher:
 			node := event.(state.EventUpdateNode).Node
 			rm.pending[node.ID] = node
-			rm.reconcileRole(node)
+			rm.reconcileRole(ctx, node)
 			if len(rm.pending) != 0 && ticker == nil {
 				ticker = time.NewTicker(roleReconcileInterval)
 				tickerCh = ticker.C
 			}
 		case <-tickerCh:
 			for _, node := range rm.pending {
-				rm.reconcileRole(node)
+				rm.reconcileRole(ctx, node)
 			}
 			if len(rm.pending) == 0 {
 				ticker.Stop()
@@ -100,7 +101,7 @@ func (rm *roleManager) Run() {
 	}
 }
 
-func (rm *roleManager) reconcileRole(node *api.Node) {
+func (rm *roleManager) reconcileRole(ctx context.Context, node *api.Node) {
 	if node.Role == node.Spec.DesiredRole {
 		// Nothing to do.
 		delete(rm.pending, node.ID)
@@ -118,7 +119,7 @@ func (rm *roleManager) reconcileRole(node *api.Node) {
 			return store.UpdateNode(tx, updatedNode)
 		})
 		if err != nil {
-			log.L.WithError(err).Errorf("failed to promote node %s", node.ID)
+			log.G(ctx).WithError(err).Errorf("failed to promote node %s", node.ID)
 		} else {
 			delete(rm.pending, node.ID)
 		}
@@ -129,18 +130,28 @@ func (rm *roleManager) reconcileRole(node *api.Node) {
 			// Quorum safeguard
 			if !rm.raft.CanRemoveMember(member.RaftID) {
 				// TODO(aaronl): Retry later
-				log.L.Debugf("can't demote node %s at this time: removing member from raft would result in a loss of quorum", node.ID)
+				log.G(ctx).Debugf("can't demote node %s at this time: removing member from raft would result in a loss of quorum", node.ID)
 				return
 			}
 
 			rmCtx, rmCancel := context.WithTimeout(rm.ctx, 5*time.Second)
 			defer rmCancel()
 
+			if member.RaftID == rm.raft.Config.ID {
+				// Don't use rmCtx, because we expect to lose
+				// leadership, which will cancel this context.
+				log.G(ctx).Info("demoted; transferring leadership")
+				err := rm.raft.TransferLeadership(context.Background())
+				if err == nil {
+					return
+				}
+				log.G(ctx).WithError(err).Info("failed to transfer leadership")
+			}
 			if err := rm.raft.RemoveMember(rmCtx, member.RaftID); err != nil {
 				// TODO(aaronl): Retry later
-				log.L.WithError(err).Debugf("can't demote node %s at this time", node.ID)
-				return
+				log.G(ctx).WithError(err).Debugf("can't demote node %s at this time", node.ID)
 			}
+			return
 		}
 
 		err := rm.store.Update(func(tx store.Tx) error {
@@ -153,7 +164,7 @@ func (rm *roleManager) reconcileRole(node *api.Node) {
 			return store.UpdateNode(tx, updatedNode)
 		})
 		if err != nil {
-			log.L.WithError(err).Errorf("failed to demote node %s", node.ID)
+			log.G(ctx).WithError(err).Errorf("failed to demote node %s", node.ID)
 		} else {
 			delete(rm.pending, node.ID)
 		}

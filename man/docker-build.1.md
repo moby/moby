@@ -6,6 +6,7 @@ docker-build - Build an image from a Dockerfile
 
 # SYNOPSIS
 **docker build**
+[**--add-host**[=*[]*]]
 [**--build-arg**[=*[]*]]
 [**--cpu-shares**[=*0*]]
 [**--cgroup-parent**[=*CGROUP-PARENT*]]
@@ -73,6 +74,12 @@ set as the **URL**, the repository is cloned locally and then sent as the contex
    **Note**: using this option you may see significantly more space used due to
    storing two copies of the image, one for the build cache with all the cache
    layers in tact, and one for the squashed version.
+
+**--add-host**=[]
+   Add a custom host-to-IP mapping (host:ip)
+
+   Add a line to /etc/hosts. The format is hostname:ip.  The **--add-host**
+option can be set multiple times.
 
 **--build-arg**=*variable*
    name and value of a **buildarg**.

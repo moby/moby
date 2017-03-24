@@ -31,6 +31,7 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/longpath"
 	"github.com/docker/docker/pkg/reexec"
+	"github.com/docker/docker/pkg/system"
 	units "github.com/docker/go-units"
 	"golang.org/x/sys/windows"
 )
@@ -265,19 +266,35 @@ func (d *Driver) Remove(id string) error {
 	// it is a transient error. Retry until it succeeds.
 	var computeSystems []hcsshim.ContainerProperties
 	retryCount := 0
+	osv := system.GetOSVersion()
 	for {
-		// Get and terminate any template VMs that are currently using the layer
+		// Get and terminate any template VMs that are currently using the layer.
+		// Note: It is unfortunate that we end up in the graphdrivers Remove() call
+		// for both containers and images, but the logic for template VMs is only
+		// needed for images - specifically we are looking to see if a base layer
+		// is in use by a template VM as a result of having started a Hyper-V
+		// container at some point.
+		//
+		// We have a retry loop for ErrVmcomputeOperationInvalidState and
+		// ErrVmcomputeOperationAccessIsDenied as there is a race condition
+		// in RS1 and RS2 building during enumeration when a silo is going away
+		// for example under it, in HCS. AccessIsDenied added to fix 30278.
+		//
+		// TODO @jhowardmsft - For RS3, we can remove the retries. Also consider
+		// using platform APIs (if available) to get this more succinctly. Also
+		// consider enlighting the Remove() interface to have context of why
+		// the remove is being called - that could improve efficiency by not
+		// enumerating compute systems during a remove of a container as it's
+		// not required.
 		computeSystems, err = hcsshim.GetContainers(hcsshim.ComputeSystemQuery{})
 		if err != nil {
-			if err == hcsshim.ErrVmcomputeOperationInvalidState {
-				if retryCount >= 5 {
-					// If we are unable to get the list of containers
-					// go ahead and attempt to delete the layer anyway
-					// as it will most likely work.
+			if (osv.Build < 15139) &&
+				((err == hcsshim.ErrVmcomputeOperationInvalidState) || (err == hcsshim.ErrVmcomputeOperationAccessIsDenied)) {
+				if retryCount >= 500 {
 					break
 				}
 				retryCount++
-				time.Sleep(2 * time.Second)
+				time.Sleep(10 * time.Millisecond)
 				continue
 			}
 			return err
@@ -395,7 +412,29 @@ func (d *Driver) Put(id string) error {
 }
 
 // Cleanup ensures the information the driver stores is properly removed.
+// We use this opportunity to cleanup any -removing folders which may be
+// still left if the daemon was killed while it was removing a layer.
 func (d *Driver) Cleanup() error {
+
+	items, err := ioutil.ReadDir(d.info.HomeDir)
+	if err != nil {
+		return err
+	}
+
+	// Note we don't return an error below - it's possible the files
+	// are locked. However, next time around after the daemon exits,
+	// we likely will be able to to cleanup successfully. Instead we log
+	// warnings if there are errors.
+	for _, item := range items {
+		if item.IsDir() && strings.HasSuffix(item.Name(), "-removing") {
+			if err := hcsshim.DestroyLayer(d.info, item.Name()); err != nil {
+				logrus.Warnf("Failed to cleanup %s: %s", item.Name(), err)
+			} else {
+				logrus.Infof("Cleaned up %s", item.Name())
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -825,14 +864,16 @@ func (fg *fileGetCloserWithBackupPrivileges) Get(filename string) (io.ReadCloser
 	var f *os.File
 	// Open the file while holding the Windows backup privilege. This ensures that the
 	// file can be opened even if the caller does not actually have access to it according
-	// to the security descriptor.
+	// to the security descriptor. Also use sequential file access to avoid depleting the
+	// standby list - Microsoft VSO Bug Tracker #9900466
 	err := winio.RunWithPrivilege(winio.SeBackupPrivilege, func() error {
 		path := longpath.AddPrefix(filepath.Join(fg.path, filename))
 		p, err := syscall.UTF16FromString(path)
 		if err != nil {
 			return err
 		}
-		h, err := syscall.CreateFile(&p[0], syscall.GENERIC_READ, syscall.FILE_SHARE_READ, nil, syscall.OPEN_EXISTING, syscall.FILE_FLAG_BACKUP_SEMANTICS, 0)
+		const fileFlagSequentialScan = 0x08000000 // FILE_FLAG_SEQUENTIAL_SCAN
+		h, err := syscall.CreateFile(&p[0], syscall.GENERIC_READ, syscall.FILE_SHARE_READ, nil, syscall.OPEN_EXISTING, syscall.FILE_FLAG_BACKUP_SEMANTICS|fileFlagSequentialScan, 0)
 		if err != nil {
 			return &os.PathError{Op: "open", Path: path, Err: err}
 		}

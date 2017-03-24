@@ -65,7 +65,7 @@ type authorizationController struct {
 
 func (s *DockerAuthzSuite) SetUpTest(c *check.C) {
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
-		Experimental: experimentalDaemon,
+		Experimental: testEnv.ExperimentalDaemon(),
 	})
 	s.ctrl = &authorizationController{}
 }

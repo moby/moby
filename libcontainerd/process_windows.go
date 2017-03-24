@@ -13,10 +13,7 @@ type process struct {
 	processCommon
 
 	// Platform specific fields are below here.
-
-	// commandLine is to support returning summary information for docker top
-	commandLine string
-	hcsProcess  hcsshim.Process
+	hcsProcess hcsshim.Process
 }
 
 type autoClosingReader struct {

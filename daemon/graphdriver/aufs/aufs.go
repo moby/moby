@@ -44,6 +44,7 @@ import (
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/directory"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/locker"
 	mountpk "github.com/docker/docker/pkg/mount"
 
 	"github.com/opencontainers/runc/libcontainer/label"
@@ -75,6 +76,7 @@ type Driver struct {
 	pathCacheLock sync.Mutex
 	pathCache     map[string]string
 	naiveDiff     graphdriver.DiffDriver
+	locker        *locker.Locker
 }
 
 // Init returns a new AUFS driver.
@@ -112,6 +114,7 @@ func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		gidMaps:   gidMaps,
 		pathCache: make(map[string]string),
 		ctr:       graphdriver.NewRefCounter(graphdriver.NewFsChecker(graphdriver.FsMagicAufs)),
+		locker:    locker.New(),
 	}
 
 	rootUID, rootGID, err := idtools.GetRootUIDGID(uidMaps, gidMaps)
@@ -269,41 +272,10 @@ func (a *Driver) createDirsFor(id string) error {
 	return nil
 }
 
-// Helper function to debug EBUSY errors on remove.
-func debugEBusy(mountPath string) (out []string, err error) {
-	// lsof is not part of GNU coreutils. This is a best effort
-	// attempt to detect offending processes.
-	c := exec.Command("lsof")
-
-	r, err := c.StdoutPipe()
-	if err != nil {
-		return nil, fmt.Errorf("Assigning pipes failed with %v", err)
-	}
-
-	if err := c.Start(); err != nil {
-		return nil, fmt.Errorf("Starting %s failed with %v", c.Path, err)
-	}
-
-	defer func() {
-		waiterr := c.Wait()
-		if waiterr != nil && err == nil {
-			err = fmt.Errorf("Waiting for %s failed with %v", c.Path, waiterr)
-		}
-	}()
-
-	sc := bufio.NewScanner(r)
-	for sc.Scan() {
-		entry := sc.Text()
-		if strings.Contains(entry, mountPath) {
-			out = append(out, entry, "\n")
-		}
-	}
-
-	return out, nil
-}
-
 // Remove will unmount and remove the given id.
 func (a *Driver) Remove(id string) error {
+	a.locker.Lock(id)
+	defer a.locker.Unlock(id)
 	a.pathCacheLock.Lock()
 	mountpoint, exists := a.pathCache[id]
 	a.pathCacheLock.Unlock()
@@ -326,10 +298,6 @@ func (a *Driver) Remove(id string) error {
 				return fmt.Errorf("aufs: unmount error: %s: %v", mountpoint, err)
 			}
 			if retries >= 5 {
-				out, debugErr := debugEBusy(mountpoint)
-				if debugErr == nil {
-					logrus.Warnf("debugEBusy returned %v", out)
-				}
 				return fmt.Errorf("aufs: unmount error after retries: %s: %v", mountpoint, err)
 			}
 			// If unmount returns EBUSY, it could be a transient error. Sleep and retry.
@@ -348,10 +316,6 @@ func (a *Driver) Remove(id string) error {
 	if err := os.Rename(mountpoint, tmpMntPath); err != nil && !os.IsNotExist(err) {
 		if err == syscall.EBUSY {
 			logrus.Warn("os.Rename err due to EBUSY")
-			out, debugErr := debugEBusy(mountpoint)
-			if debugErr == nil {
-				logrus.Warnf("debugEBusy returned %v", out)
-			}
 		}
 		return err
 	}
@@ -377,6 +341,8 @@ func (a *Driver) Remove(id string) error {
 // Get returns the rootfs path for the id.
 // This will mount the dir at its given path
 func (a *Driver) Get(id, mountLabel string) (string, error) {
+	a.locker.Lock(id)
+	defer a.locker.Unlock(id)
 	parents, err := a.getParentLayerPaths(id)
 	if err != nil && !os.IsNotExist(err) {
 		return "", err
@@ -412,6 +378,8 @@ func (a *Driver) Get(id, mountLabel string) (string, error) {
 
 // Put unmounts and updates list of active mounts.
 func (a *Driver) Put(id string) error {
+	a.locker.Lock(id)
+	defer a.locker.Unlock(id)
 	a.pathCacheLock.Lock()
 	m, exists := a.pathCache[id]
 	if !exists {

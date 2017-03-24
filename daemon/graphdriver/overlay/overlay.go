@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/fsutils"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/locker"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/opencontainers/runc/libcontainer/label"
 )
@@ -97,6 +98,7 @@ type Driver struct {
 	gidMaps       []idtools.IDMap
 	ctr           *graphdriver.RefCounter
 	supportsDType bool
+	locker        *locker.Locker
 }
 
 func init() {
@@ -144,7 +146,7 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		return nil, err
 	}
 	if !supportsDType {
-		// not a fatal error until v1.16 (#27443)
+		// not a fatal error until v17.12 (#27443)
 		logrus.Warn(overlayutils.ErrDTypeNotSupported("overlay", backingFs))
 	}
 
@@ -154,6 +156,7 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		gidMaps:       gidMaps,
 		ctr:           graphdriver.NewRefCounter(graphdriver.NewFsChecker(graphdriver.FsMagicOverlay)),
 		supportsDType: supportsDType,
+		locker:        locker.New(),
 	}
 
 	return NaiveDiffDriverWithApply(d, uidMaps, gidMaps), nil
@@ -334,6 +337,8 @@ func (d *Driver) dir(id string) string {
 
 // Remove cleans the directories that are created for this id.
 func (d *Driver) Remove(id string) error {
+	d.locker.Lock(id)
+	defer d.locker.Unlock(id)
 	if err := os.RemoveAll(d.dir(id)); err != nil && !os.IsNotExist(err) {
 		return err
 	}
@@ -342,6 +347,8 @@ func (d *Driver) Remove(id string) error {
 
 // Get creates and mounts the required file system for the given id and returns the mount path.
 func (d *Driver) Get(id string, mountLabel string) (s string, err error) {
+	d.locker.Lock(id)
+	defer d.locker.Unlock(id)
 	dir := d.dir(id)
 	if _, err := os.Stat(dir); err != nil {
 		return "", err
@@ -389,6 +396,8 @@ func (d *Driver) Get(id string, mountLabel string) (s string, err error) {
 
 // Put unmounts the mount path created for the give id.
 func (d *Driver) Put(id string) error {
+	d.locker.Lock(id)
+	defer d.locker.Unlock(id)
 	// If id has a root, just return
 	if _, err := os.Stat(path.Join(d.dir(id), "root")); err == nil {
 		return nil

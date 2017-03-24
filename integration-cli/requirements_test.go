@@ -14,7 +14,7 @@ import (
 )
 
 func PlatformIs(platform string) bool {
-	return daemonPlatform == platform
+	return testEnv.DaemonPlatform() == platform
 }
 
 func ArchitectureIs(arch string) bool {
@@ -26,11 +26,11 @@ func ArchitectureIsNot(arch string) bool {
 }
 
 func StorageDriverIs(storageDriver string) bool {
-	return strings.HasPrefix(daemonStorageDriver, storageDriver)
+	return strings.HasPrefix(testEnv.DaemonStorageDriver(), storageDriver)
 }
 
 func StorageDriverIsNot(storageDriver string) bool {
-	return !strings.HasPrefix(daemonStorageDriver, storageDriver)
+	return !strings.HasPrefix(testEnv.DaemonStorageDriver(), storageDriver)
 }
 
 func DaemonIsWindows() bool {
@@ -42,11 +42,11 @@ func DaemonIsLinux() bool {
 }
 
 func ExperimentalDaemon() bool {
-	return experimentalDaemon
+	return testEnv.ExperimentalDaemon()
 }
 
 func NotExperimentalDaemon() bool {
-	return !experimentalDaemon
+	return !testEnv.ExperimentalDaemon()
 }
 
 func IsAmd64() bool {
@@ -70,7 +70,7 @@ func NotS390X() bool {
 }
 
 func SameHostDaemon() bool {
-	return isLocalDaemon
+	return testEnv.LocalDaemon()
 }
 
 func UnixCli() bool {
@@ -171,21 +171,21 @@ func UserNamespaceInKernel() bool {
 }
 
 func IsPausable() bool {
-	if daemonPlatform == "windows" {
-		return isolation == "hyperv"
+	if testEnv.DaemonPlatform() == "windows" {
+		return testEnv.Isolation() == "hyperv"
 	}
 	return true
 }
 
 func NotPausable() bool {
-	if daemonPlatform == "windows" {
-		return isolation == "process"
+	if testEnv.DaemonPlatform() == "windows" {
+		return testEnv.Isolation() == "process"
 	}
 	return false
 }
 
 func IsolationIs(expectedIsolation string) bool {
-	return daemonPlatform == "windows" && string(isolation) == expectedIsolation
+	return testEnv.DaemonPlatform() == "windows" && string(testEnv.Isolation()) == expectedIsolation
 }
 
 func IsolationIsHyperv() bool {

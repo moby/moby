@@ -47,7 +47,7 @@ func (s *DockerSuite) TestPluginBasicOps(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, checker.Contains, pNameWithTag)
 
-	_, err = os.Stat(filepath.Join(dockerBasePath, "plugins", id))
+	_, err = os.Stat(filepath.Join(testEnv.DockerBasePath(), "plugins", id))
 	if !os.IsNotExist(err) {
 		c.Fatal(err)
 	}
@@ -181,7 +181,7 @@ func (s *DockerRegistrySuite) TestPluginInstallImage(c *check.C) {
 
 	out, _, err := dockerCmdWithError("plugin", "install", repoName)
 	c.Assert(err, checker.NotNil)
-	c.Assert(out, checker.Contains, "target is image")
+	c.Assert(out, checker.Contains, `Encountered remote "application/vnd.docker.container.image.v1+json"(image) when fetching`)
 }
 
 func (s *DockerSuite) TestPluginEnableDisableNegative(c *check.C) {
@@ -350,7 +350,7 @@ func (s *DockerTrustSuite) TestPluginUntrustedInstall(c *check.C) {
 }
 
 func (s *DockerSuite) TestPluginIDPrefix(c *check.C) {
-	testRequires(c, DaemonIsLinux, Network)
+	testRequires(c, DaemonIsLinux, IsAmd64, Network)
 	_, _, err := dockerCmdWithError("plugin", "install", "--disable", "--grant-all-permissions", pNameWithTag)
 	c.Assert(err, checker.IsNil)
 
@@ -400,4 +400,62 @@ func (s *DockerSuite) TestPluginIDPrefix(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, checker.Not(checker.Contains), pName)
 	c.Assert(out, checker.Not(checker.Contains), pTag)
+}
+
+func (s *DockerSuite) TestPluginListDefaultFormat(c *check.C) {
+	testRequires(c, DaemonIsLinux, Network, IsAmd64)
+
+	config, err := ioutil.TempDir("", "config-file-")
+	c.Assert(err, check.IsNil)
+	defer os.RemoveAll(config)
+
+	err = ioutil.WriteFile(filepath.Join(config, "config.json"), []byte(`{"pluginsFormat": "raw"}`), 0644)
+	c.Assert(err, check.IsNil)
+
+	out, _ := dockerCmd(c, "plugin", "install", "--grant-all-permissions", pName)
+	c.Assert(strings.TrimSpace(out), checker.Contains, pName)
+
+	out, _ = dockerCmd(c, "plugin", "inspect", "--format", "{{.ID}}", pNameWithTag)
+	id := strings.TrimSpace(out)
+
+	// We expect the format to be in `raw + --no-trunc`
+	expectedOutput := fmt.Sprintf(`plugin_id: %s
+name: %s
+description: A sample volume plugin for Docker
+enabled: true`, id, pNameWithTag)
+
+	out, _ = dockerCmd(c, "--config", config, "plugin", "ls", "--no-trunc")
+	c.Assert(strings.TrimSpace(out), checker.Contains, expectedOutput)
+}
+
+func (s *DockerSuite) TestPluginUpgrade(c *check.C) {
+	testRequires(c, DaemonIsLinux, Network, SameHostDaemon, IsAmd64)
+	plugin := "cpuguy83/docker-volume-driver-plugin-local:latest"
+	pluginV2 := "cpuguy83/docker-volume-driver-plugin-local:v2"
+
+	dockerCmd(c, "plugin", "install", "--grant-all-permissions", plugin)
+	dockerCmd(c, "volume", "create", "--driver", plugin, "bananas")
+	dockerCmd(c, "run", "--rm", "-v", "bananas:/apple", "busybox", "sh", "-c", "touch /apple/core")
+
+	out, _, err := dockerCmdWithError("plugin", "upgrade", "--grant-all-permissions", plugin, pluginV2)
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "disabled before upgrading")
+
+	out, _ = dockerCmd(c, "plugin", "inspect", "--format={{.ID}}", plugin)
+	id := strings.TrimSpace(out)
+
+	// make sure "v2" does not exists
+	_, err = os.Stat(filepath.Join(testEnv.DockerBasePath(), "plugins", id, "rootfs", "v2"))
+	c.Assert(os.IsNotExist(err), checker.True, check.Commentf(out))
+
+	dockerCmd(c, "plugin", "disable", "-f", plugin)
+	dockerCmd(c, "plugin", "upgrade", "--grant-all-permissions", "--skip-remote-check", plugin, pluginV2)
+
+	// make sure "v2" file exists
+	_, err = os.Stat(filepath.Join(testEnv.DockerBasePath(), "plugins", id, "rootfs", "v2"))
+	c.Assert(err, checker.IsNil)
+
+	dockerCmd(c, "plugin", "enable", plugin)
+	dockerCmd(c, "volume", "inspect", "bananas")
+	dockerCmd(c, "run", "--rm", "-v", "bananas:/apple", "busybox", "sh", "-c", "ls -lh /apple/core")
 }

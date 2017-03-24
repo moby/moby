@@ -137,6 +137,12 @@ echo_docker_as_nonroot() {
 
 	Remember that you will have to log out and back in for this to take effect!
 
+	WARNING: Adding a user to the "docker" group will grant the ability to run
+	         containers which can be used to obtain root privileges on the
+	         docker host.
+	         Refer to https://docs.docker.com/engine/security/security/#docker-daemon-attack-surface
+	         for more information.
+
 	EOF
 }
 
@@ -172,6 +178,9 @@ check_forked() {
 				lsb_dist=debian
 				dist_version="$(cat /etc/debian_version | sed 's/\/.*//' | sed 's/\..*//')"
 				case "$dist_version" in
+					9)
+						dist_version="stretch"
+					;;
 					8|'Kali Linux 2')
 						dist_version="jessie"
 					;;
@@ -204,7 +213,11 @@ do_install() {
 		# unofficially supported without available repositories
 		aarch64|arm64|ppc64le|s390x)
 			cat 1>&2 <<-EOF
-			Error: Docker doesn't officially support $architecture and no Docker $architecture repository exists.
+			Error: This install script does not support $architecture, because no
+			$architecture package exists in Docker's repositories.
+
+			Other install options include checking your distribution's package repository
+			for a version of Docker, or building Docker from source.
 			EOF
 			exit 1
 			;;
@@ -449,9 +462,15 @@ do_install() {
 				( set -x; $sh_c 'sleep 3; apt-get install -y -q curl ca-certificates' )
 				curl='curl -sSL'
 			fi
-			if [ ! -e /usr/bin/gpg ]; then
+			if ! command -v gpg > /dev/null; then
 				apt_get_update
 				( set -x; $sh_c 'sleep 3; apt-get install -y -q gnupg2 || apt-get install -y -q gnupg' )
+			fi
+
+			# dirmngr is a separate package in ubuntu yakkety; see https://bugs.launchpad.net/ubuntu/+source/apt/+bug/1634464
+			if ! command -v dirmngr > /dev/null; then
+				apt_get_update
+				( set -x; $sh_c 'sleep 3; apt-get install -y -q dirmngr' )
 			fi
 
 			(

@@ -190,10 +190,11 @@ type Properties struct {
 	proto3   bool   // whether this is known to be a proto3 field; set for []byte only
 	oneof    bool   // whether this is a oneof field
 
-	Default    string // default value
-	HasDefault bool   // whether an explicit default was provided
-	CustomType string
-	def_uint64 uint64
+	Default     string // default value
+	HasDefault  bool   // whether an explicit default was provided
+	CustomType  string
+	StdTime     bool
+	StdDuration bool
 
 	enc           encoder
 	valEnc        valueEncoder // set for bool and numeric types only
@@ -340,6 +341,10 @@ func (p *Properties) Parse(s string) {
 			p.OrigName = strings.Split(f, "=")[1]
 		case strings.HasPrefix(f, "customtype="):
 			p.CustomType = strings.Split(f, "=")[1]
+		case f == "stdtime":
+			p.StdTime = true
+		case f == "stdduration":
+			p.StdDuration = true
 		}
 	}
 }
@@ -355,8 +360,19 @@ func (p *Properties) setEncAndDec(typ reflect.Type, f *reflect.StructField, lock
 	p.enc = nil
 	p.dec = nil
 	p.size = nil
-	if len(p.CustomType) > 0 {
+	isMap := typ.Kind() == reflect.Map
+	if len(p.CustomType) > 0 && !isMap {
 		p.setCustomEncAndDec(typ)
+		p.setTag(lockGetProp)
+		return
+	}
+	if p.StdTime && !isMap {
+		p.setTimeEncAndDec(typ)
+		p.setTag(lockGetProp)
+		return
+	}
+	if p.StdDuration && !isMap {
+		p.setDurationEncAndDec(typ)
 		p.setTag(lockGetProp)
 		return
 	}
@@ -630,6 +646,10 @@ func (p *Properties) setEncAndDec(typ reflect.Type, f *reflect.StructField, lock
 			// so we need encoders for the pointer to this type.
 			vtype = reflect.PtrTo(vtype)
 		}
+
+		p.mvalprop.CustomType = p.CustomType
+		p.mvalprop.StdDuration = p.StdDuration
+		p.mvalprop.StdTime = p.StdTime
 		p.mvalprop.init(vtype, "Value", f.Tag.Get("protobuf_val"), nil, lockGetProp)
 	}
 	p.setTag(lockGetProp)
@@ -920,7 +940,15 @@ func RegisterType(x Message, name string) {
 }
 
 // MessageName returns the fully-qualified proto name for the given message type.
-func MessageName(x Message) string { return revProtoTypes[reflect.TypeOf(x)] }
+func MessageName(x Message) string {
+	type xname interface {
+		XXX_MessageName() string
+	}
+	if m, ok := x.(xname); ok {
+		return m.XXX_MessageName()
+	}
+	return revProtoTypes[reflect.TypeOf(x)]
+}
 
 // MessageType returns the message type (pointer to struct) for a named message.
 func MessageType(name string) reflect.Type { return protoTypes[name] }

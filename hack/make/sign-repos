@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # This script signs the deliverables from release-deb and release-rpm
 # with a designated GPG key.

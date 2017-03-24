@@ -26,20 +26,20 @@ end
 function __fish_print_docker_containers --description 'Print a list of docker containers' -a select
     switch $select
         case running
-            docker ps -a --no-trunc | command awk 'NR>1' | command awk 'BEGIN {FS="  +"}; $5 ~ "^Up" {print $1 "\n" $(NF)}' | tr ',' '\n'
+            docker ps -a --no-trunc --filter status=running --format "{{.ID}}\n{{.Names}}" | tr ',' '\n'
         case stopped
-            docker ps -a --no-trunc | command awk 'NR>1' | command awk 'BEGIN {FS="  +"}; $5 ~ "^Exit" {print $1 "\n" $(NF)}' | tr ',' '\n'
+            docker ps -a --no-trunc --filter status=exited --format "{{.ID}}\n{{.Names}}" | tr ',' '\n'
         case all
-            docker ps -a --no-trunc | command awk 'NR>1' | command awk 'BEGIN {FS="  +"}; {print $1 "\n" $(NF)}' | tr ',' '\n'
+            docker ps -a --no-trunc --format "{{.ID}}\n{{.Names}}" | tr ',' '\n'
     end
 end
 
 function __fish_print_docker_images --description 'Print a list of docker images'
-    docker images | command awk 'NR>1' | command grep -v '<none>' | command awk '{print $1":"$2}'
+    docker images --format "{{.Repository}}:{{.Tag}}" | command grep -v '<none>'
 end
 
 function __fish_print_docker_repositories --description 'Print a list of docker repositories'
-    docker images | command awk 'NR>1' | command grep -v '<none>' | command awk '{print $1}' | command sort | command uniq
+    docker images --format "{{.Repository}}" | command grep -v '<none>' | command sort | command uniq
 end
 
 # common options
@@ -121,6 +121,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l cap-drop -d 
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l cidfile -d 'Write the container ID to the file'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l cpuset -d 'CPUs in which to allow execution (0-3, 0,1)'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l device -d 'Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)'
+complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l device-cgroup-rule -d 'Add a rule to the cgroup allowed devices list (e.g. --device-cgroup-rule="c 13:37 rwm")'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l dns -d 'Set custom DNS servers'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l dns-opt -d "Set custom DNS options (Use --dns-opt='' if you don't wish to set options)"
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l dns-search -d "Set custom DNS search domains (Use --dns-search=. if you don't wish to set the search domain)"
@@ -312,6 +313,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l cidfile -d 'Wri
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l cpuset -d 'CPUs in which to allow execution (0-3, 0,1)'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s d -l detach -d 'Detached mode: run the container in the background and print the new container ID'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l device -d 'Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)'
+complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l device-cgroup-rule -d 'Add a rule to the cgroup allowed devices list (e.g. --device-cgroup-rule="c 13:37 rwm")'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l dns -d 'Set custom DNS servers'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l dns-opt -d "Set custom DNS options (Use --dns-opt='' if you don't wish to set options)"
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l dns-search -d "Set custom DNS search domains (Use --dns-search=. if you don't wish to set the search domain)"

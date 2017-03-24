@@ -62,6 +62,18 @@ func loadLongDescription(cmd *cobra.Command, path string) error {
 			return err
 		}
 		cmd.Long = string(content)
+
+		fullpath = filepath.Join(path, cmd.Name()+"-example.md")
+		if _, err := os.Stat(fullpath); err != nil {
+			continue
+		}
+
+		content, err = ioutil.ReadFile(fullpath)
+		if err != nil {
+			return err
+		}
+		cmd.Example = string(content)
+
 	}
 	return nil
 }

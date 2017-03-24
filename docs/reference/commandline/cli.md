@@ -13,7 +13,7 @@ keywords: "Docker, Docker documentation, CLI, command line"
      will be rejected.
 -->
 
-# Use the Docker command line
+# docker
 
 To list available commands, either run `docker` with no parameters
 or execute `docker help`:
@@ -30,7 +30,7 @@ Options:
   -D, --debug              Enable debug mode
       --help               Print usage
   -H, --host value         Daemon socket(s) to connect to (default [])
-  -l, --log-level string   Set the logging level ("debug", "info", "warn", "error", "fatal") (default "info")
+  -l, --log-level string   Set the logging level ("debug"|"info"|"warn"|"error"|"fatal") (default "info")
       --tls                Use TLS; implied by --tlsverify
       --tlscacert string   Trust certs signed only by this CA (default "/root/.docker/ca.pem")
       --tlscert string     Path to TLS certificate file (default "/root/.docker/cert.pem")
@@ -43,6 +43,8 @@ Commands:
     # […]
 ```
 
+## Description
+
 Depending on your Docker system configuration, you may be required to preface
 each `docker` command with `sudo`. To avoid having to use `sudo` with the
 `docker` command, your system administrator can create a Unix group called
@@ -51,7 +53,7 @@ each `docker` command with `sudo`. To avoid having to use `sudo` with the
 For more information about installing Docker or `sudo` configuration, refer to
 the [installation](https://docs.docker.com/engine/installation/) instructions for your operating system.
 
-## Environment variables
+### Environment variables
 
 For easy reference, the following list of environment variables are supported
 by the `docker` command line:
@@ -69,7 +71,7 @@ by the `docker` command line:
   Equates to `--disable-content-trust=false` for build, create, pull, push, run.
 * `DOCKER_CONTENT_TRUST_SERVER` The URL of the Notary server to use. This defaults
   to the same URL as the registry.
-* `DOCKER_HIDE_LEGACY_COMMANDS` When set, Docker hides "legacy" top-level commands (such as `docker rm`, and 
+* `DOCKER_HIDE_LEGACY_COMMANDS` When set, Docker hides "legacy" top-level commands (such as `docker rm`, and
   `docker pull`) in `docker help` output, and only `Management commands` per object-type (e.g., `docker container`) are
   printed. This may become the default in a future release, at which point this environment-variable is removed.
 * `DOCKER_TMPDIR` Location for temporary Docker files.
@@ -85,7 +87,7 @@ These Go environment variables are case-insensitive. See the
 [Go specification](http://golang.org/pkg/net/http/) for details on these
 variables.
 
-## Configuration files
+### Configuration files
 
 By default, the Docker command line stores its configuration files in a
 directory called `.docker` within your `$HOME` directory. However, you can
@@ -131,6 +133,19 @@ Docker's client uses this property. If this property is not set, the client
 falls back to the default table format. For a list of supported formatting
 directives, see the [**Formatting** section in the `docker images` documentation](images.md)
 
+The property `pluginsFormat` specifies the default format for `docker plugin ls` output.
+When the `--format` flag is not provided with the `docker plugin ls` command,
+Docker's client uses this property. If this property is not set, the client
+falls back to the default table format. For a list of supported formatting
+directives, see the [**Formatting** section in the `docker plugin ls` documentation](plugin_ls.md)
+
+The property `servicesFormat` specifies the default format for `docker
+service ls` output. When the `--format` flag is not provided with the
+`docker service ls` command, Docker's client uses this property. If this
+property is not set, the client falls back to the default json format. For a
+list of supported formatting directives, see the
+[**Formatting** section in the `docker service ls` documentation](service_ls.md)
+
 The property `serviceInspectFormat` specifies the default format for `docker
 service inspect` output. When the `--format` flag is not provided with the
 `docker service inspect` command, Docker's client uses this property. If this
@@ -144,6 +159,14 @@ stats` output. When the `--format` flag is not provided with the
 property is not set, the client falls back to the default table
 format. For a list of supported formatting directives, see
 [**Formatting** section in the `docker stats` documentation](stats.md)
+
+The property `secretFormat` specifies the default format for `docker
+secret ls` output. When the `--format` flag is not provided with the
+`docker secret ls` command, Docker's client uses this property. If this
+property is not set, the client falls back to the default table
+format. For a list of supported formatting directives, see
+[**Formatting** section in the `docker secret ls` documentation](secret_ls.md)
+
 
 The property `credsStore` specifies an external binary to serve as the default
 credential store. When this property is set, `docker login` will attempt to
@@ -179,23 +202,26 @@ attach`, `docker exec`, `docker run` or `docker start` command.
 
 Following is a sample `config.json` file:
 
-    {% raw %}
-    {
-      "HttpHeaders": {
-        "MyHeader": "MyValue"
-      },
-      "psFormat": "table {{.ID}}\\t{{.Image}}\\t{{.Command}}\\t{{.Labels}}",
-      "imagesFormat": "table {{.ID}}\\t{{.Repository}}\\t{{.Tag}}\\t{{.CreatedAt}}",
-      "statsFormat": "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}",
-      "serviceInspectFormat": "pretty",
-      "detachKeys": "ctrl-e,e",
-      "credsStore": "secretservice",
-      "credHelpers": {
-        "awesomereg.example.org": "hip-star",
-        "unicorn.example.com": "vcbait"
-      }
-    }
-    {% endraw %}
+```json
+{
+  "HttpHeaders": {
+    "MyHeader": "MyValue"
+  },
+  "psFormat": "table {{.ID}}\\t{{.Image}}\\t{{.Command}}\\t{{.Labels}}",
+  "imagesFormat": "table {{.ID}}\\t{{.Repository}}\\t{{.Tag}}\\t{{.CreatedAt}}",
+  "pluginsFormat": "table {{.ID}}\t{{.Name}}\t{{.Enabled}}",
+  "statsFormat": "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}",
+  "servicesFormat": "table {{.ID}}\t{{.Name}}\t{{.Mode}}",
+  "secretFormat": "table {{.ID}}\t{{.Name}}\t{{.CreatedAt}}\t{{.UpdatedAt}}",
+  "serviceInspectFormat": "pretty",
+  "detachKeys": "ctrl-e,e",
+  "credsStore": "secretservice",
+  "credHelpers": {
+    "awesomereg.example.org": "hip-star",
+    "unicorn.example.com": "vcbait"
+  }
+}
+```
 
 ### Notary
 
@@ -206,7 +232,9 @@ Certificate Authority, you need to place the certificate at
 Alternatively you can trust the certificate globally by adding it to your system's
 list of root Certificate Authorities.
 
-## Help
+## Examples
+
+### Display help text
 
 To list the help on any command just execute the command, followed by the
 `--help` option.
@@ -222,13 +250,13 @@ To list the help on any command just execute the command, followed by the
       -a, --attach value               Attach to STDIN, STDOUT or STDERR (default [])
     ...
 
-## Option types
+### Option types
 
 Single character command line options can be combined, so rather than
 typing `docker run -i -t --name test busybox sh`,
 you can write `docker run -it --name test busybox sh`.
 
-### Boolean
+#### Boolean
 
 Boolean options take the form `-d=false`. The value you see in the help text is
 the default value which is set if you do **not** specify that flag. If you
@@ -241,27 +269,33 @@ container **will** run in "detached" mode, in the background.
 Options which default to `true` (e.g., `docker build --rm=true`) can only be
 set to the non-default value by explicitly setting them to `false`:
 
-    $ docker build --rm=false .
+```bash
+$ docker build --rm=false .
+```
 
-### Multi
+#### Multi
 
 You can specify options like `-a=[]` multiple times in a single command line,
 for example in these commands:
 
-    $ docker run -a stdin -a stdout -i -t ubuntu /bin/bash
-    $ docker run -a stdin -a stdout -a stderr ubuntu /bin/ls
+```bash
+$ docker run -a stdin -a stdout -i -t ubuntu /bin/bash
+
+$ docker run -a stdin -a stdout -a stderr ubuntu /bin/ls
+```
 
 Sometimes, multiple options can call for a more complex value string as for
 `-v`:
 
-    $ docker run -v /host:/container example/mysql
+```bash
+$ docker run -v /host:/container example/mysql
+```
 
-> **Note:**
-> Do not use the `-t` and `-a stderr` options together due to
+> **Note**: Do not use the `-t` and `-a stderr` options together due to
 > limitations in the `pty` implementation. All `stderr` in `pty` mode
 > simply goes to `stdout`.
 
-### Strings and Integers
+#### Strings and Integers
 
 Options like `--name=""` expect a string, and they
 can only be specified once. Options like `-c=0`

@@ -32,7 +32,7 @@ func newExecOptions() *execOptions {
 	}
 }
 
-// NewExecCommand creats a new cobra.Command for `docker exec`
+// NewExecCommand creates a new cobra.Command for `docker exec`
 func NewExecCommand(dockerCli *command.DockerCli) *cobra.Command {
 	opts := newExecOptions()
 

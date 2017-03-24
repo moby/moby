@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/docker/docker/pkg/plugingetter"
+	"github.com/docker/libnetwork/driverapi"
+	"github.com/docker/libnetwork/ipamapi"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/identity"
 	"github.com/docker/swarmkit/manager/state/store"
@@ -47,14 +50,14 @@ func validateIPAMConfiguration(ipamConf *api.IPAMConfig) error {
 	return nil
 }
 
-func validateIPAM(ipam *api.IPAMOptions) error {
+func validateIPAM(ipam *api.IPAMOptions, pg plugingetter.PluginGetter) error {
 	if ipam == nil {
 		// It is ok to not specify any IPAM configurations. We
 		// will choose good defaults.
 		return nil
 	}
 
-	if err := validateDriver(ipam.Driver); err != nil {
+	if err := validateDriver(ipam.Driver, pg, ipamapi.PluginEndpointType); err != nil {
 		return err
 	}
 
@@ -67,7 +70,7 @@ func validateIPAM(ipam *api.IPAMOptions) error {
 	return nil
 }
 
-func validateNetworkSpec(spec *api.NetworkSpec) error {
+func validateNetworkSpec(spec *api.NetworkSpec, pg plugingetter.PluginGetter) error {
 	if spec == nil {
 		return grpc.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
 	}
@@ -76,11 +79,11 @@ func validateNetworkSpec(spec *api.NetworkSpec) error {
 		return err
 	}
 
-	if err := validateDriver(spec.DriverConfig); err != nil {
+	if err := validateDriver(spec.DriverConfig, pg, driverapi.NetworkPluginEndpointType); err != nil {
 		return err
 	}
 
-	if err := validateIPAM(spec.IPAM); err != nil {
+	if err := validateIPAM(spec.IPAM, pg); err != nil {
 		return err
 	}
 
@@ -93,7 +96,7 @@ func validateNetworkSpec(spec *api.NetworkSpec) error {
 func (s *Server) CreateNetwork(ctx context.Context, request *api.CreateNetworkRequest) (*api.CreateNetworkResponse, error) {
 	// if you change this function, you have to change createInternalNetwork in
 	// the tests to match it (except the part where we check the label).
-	if err := validateNetworkSpec(request.Spec); err != nil {
+	if err := validateNetworkSpec(request.Spec, s.pg); err != nil {
 		return nil, err
 	}
 
@@ -164,8 +167,10 @@ func (s *Server) RemoveNetwork(ctx context.Context, request *api.RemoveNetworkRe
 			return grpc.Errorf(codes.Internal, "could not find tasks using network %s: %v", request.NetworkID, err)
 		}
 
-		if len(tasks) != 0 {
-			return grpc.Errorf(codes.FailedPrecondition, "network %s is in use by task %s", request.NetworkID, tasks[0].ID)
+		for _, t := range tasks {
+			if t.DesiredState <= api.TaskStateRunning && t.Status.State <= api.TaskStateRunning {
+				return grpc.Errorf(codes.FailedPrecondition, "network %s is in use by task %s", request.NetworkID, t.ID)
+			}
 		}
 
 		nw := store.GetNetwork(tx, request.NetworkID)

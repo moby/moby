@@ -191,6 +191,7 @@ func TestLabel(t *testing.T) {
 
 func TestFrom(t *testing.T) {
 	b := &Builder{flags: &BFlags{}, runConfig: &container.Config{}, disableCommit: true}
+	b.imageContexts = &imageContexts{b: b}
 
 	err := from(b, []string{"scratch"}, nil, "")
 
@@ -210,7 +211,7 @@ func TestFrom(t *testing.T) {
 		}
 
 		if b.image != "" {
-			t.Fatalf("Image shoule be empty, got: %s", b.image)
+			t.Fatalf("Image should be empty, got: %s", b.image)
 		}
 
 		if b.noBaseImage != true {
@@ -460,9 +461,11 @@ func TestStopSignal(t *testing.T) {
 }
 
 func TestArg(t *testing.T) {
+	// This is a bad test that tests implementation details and not at
+	// any features of the builder. Replace or remove.
 	buildOptions := &types.ImageBuildOptions{BuildArgs: make(map[string]*string)}
 
-	b := &Builder{flags: &BFlags{}, runConfig: &container.Config{}, disableCommit: true, allowedBuildArgs: make(map[string]bool), options: buildOptions}
+	b := &Builder{flags: &BFlags{}, runConfig: &container.Config{}, disableCommit: true, allowedBuildArgs: make(map[string]*string), allBuildArgs: make(map[string]struct{}), options: buildOptions}
 
 	argName := "foo"
 	argVal := "bar"
@@ -472,24 +475,14 @@ func TestArg(t *testing.T) {
 		t.Fatalf("Error should be empty, got: %s", err.Error())
 	}
 
-	allowed, ok := b.allowedBuildArgs[argName]
-
-	if !ok {
-		t.Fatalf("%s argument should be allowed as a build arg", argName)
-	}
-
-	if !allowed {
-		t.Fatalf("%s argument was present in map but disallowed as a build arg", argName)
-	}
-
-	val, ok := b.options.BuildArgs[argName]
+	value, ok := b.getBuildArg(argName)
 
 	if !ok {
 		t.Fatalf("%s argument should be a build arg", argName)
 	}
 
-	if *val != "bar" {
-		t.Fatalf("%s argument should have default value 'bar', got %s", argName, val)
+	if value != "bar" {
+		t.Fatalf("%s argument should have default value 'bar', got %s", argName, value)
 	}
 }
 

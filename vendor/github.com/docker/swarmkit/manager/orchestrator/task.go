@@ -65,3 +65,10 @@ func IsTaskDirty(s *api.Service, t *api.Task) bool {
 	return !reflect.DeepEqual(s.Spec.Task, t.Spec) ||
 		(t.Endpoint != nil && !reflect.DeepEqual(s.Spec.Endpoint, t.Endpoint.Spec))
 }
+
+// InvalidNode is true if the node is nil, down, or drained
+func InvalidNode(n *api.Node) bool {
+	return n == nil ||
+		n.Status.State == api.NodeStatus_DOWN ||
+		n.Spec.Availability == api.NodeAvailabilityDrain
+}

@@ -106,6 +106,37 @@ func TestCreateSuccess(t *testing.T) {
 	}
 }
 
+func TestCreateLogGroupSuccess(t *testing.T) {
+	mockClient := newMockClient()
+	stream := &logStream{
+		client:         mockClient,
+		logGroupName:   groupName,
+		logStreamName:  streamName,
+		logCreateGroup: true,
+	}
+	mockClient.createLogGroupResult <- &createLogGroupResult{}
+	mockClient.createLogStreamResult <- &createLogStreamResult{}
+
+	err := stream.create()
+
+	if err != nil {
+		t.Errorf("Received unexpected err: %v\n", err)
+	}
+	argument := <-mockClient.createLogStreamArgument
+	if argument.LogGroupName == nil {
+		t.Fatal("Expected non-nil LogGroupName")
+	}
+	if *argument.LogGroupName != groupName {
+		t.Errorf("Expected LogGroupName to be %s", groupName)
+	}
+	if argument.LogStreamName == nil {
+		t.Fatal("Expected non-nil LogStreamName")
+	}
+	if *argument.LogStreamName != streamName {
+		t.Errorf("Expected LogStreamName to be %s", streamName)
+	}
+}
+
 func TestCreateError(t *testing.T) {
 	mockClient := newMockClient()
 	stream := &logStream{

@@ -51,7 +51,7 @@ func TestUpdateLabelsRemoveALabelThatDoesNotExist(t *testing.T) {
 	assert.Equal(t, len(labels), 1)
 }
 
-func TestUpdatePlacement(t *testing.T) {
+func TestUpdatePlacementConstraints(t *testing.T) {
 	flags := newUpdateCommand(nil).Flags()
 	flags.Set("constraint-add", "node=toadd")
 	flags.Set("constraint-rm", "node!=toremove")
@@ -60,10 +60,36 @@ func TestUpdatePlacement(t *testing.T) {
 		Constraints: []string{"node!=toremove", "container=tokeep"},
 	}
 
-	updatePlacement(flags, placement)
+	updatePlacementConstraints(flags, placement)
 	assert.Equal(t, len(placement.Constraints), 2)
 	assert.Equal(t, placement.Constraints[0], "container=tokeep")
 	assert.Equal(t, placement.Constraints[1], "node=toadd")
+}
+
+func TestUpdatePlacementPrefs(t *testing.T) {
+	flags := newUpdateCommand(nil).Flags()
+	flags.Set("placement-pref-add", "spread=node.labels.dc")
+	flags.Set("placement-pref-rm", "spread=node.labels.rack")
+
+	placement := &swarm.Placement{
+		Preferences: []swarm.PlacementPreference{
+			{
+				Spread: &swarm.SpreadOver{
+					SpreadDescriptor: "node.labels.rack",
+				},
+			},
+			{
+				Spread: &swarm.SpreadOver{
+					SpreadDescriptor: "node.labels.row",
+				},
+			},
+		},
+	}
+
+	updatePlacementPreferences(flags, placement)
+	assert.Equal(t, len(placement.Preferences), 2)
+	assert.Equal(t, placement.Preferences[0].Spread.SpreadDescriptor, "node.labels.row")
+	assert.Equal(t, placement.Preferences[1].Spread.SpreadDescriptor, "node.labels.dc")
 }
 
 func TestUpdateEnvironment(t *testing.T) {
@@ -362,29 +388,6 @@ func TestUpdatePortsRmWithProtocol(t *testing.T) {
 	assert.Equal(t, portConfigs[1].TargetPort, uint32(82))
 }
 
-// FIXME(vdemeester) port to opts.PortOpt
-func TestValidatePort(t *testing.T) {
-	validPorts := []string{"80/tcp", "80", "80/udp"}
-	invalidPorts := map[string]string{
-		"9999999":   "out of range",
-		"80:80/tcp": "invalid port format",
-		"53:53/udp": "invalid port format",
-		"80:80":     "invalid port format",
-		"80/xyz":    "invalid protocol",
-		"tcp":       "invalid syntax",
-		"udp":       "invalid syntax",
-		"":          "invalid protocol",
-	}
-	for _, port := range validPorts {
-		_, err := validatePublishRemove(port)
-		assert.Equal(t, err, nil)
-	}
-	for port, e := range invalidPorts {
-		_, err := validatePublishRemove(port)
-		assert.Error(t, err, e)
-	}
-}
-
 type secretAPIClientMock struct {
 	listResult []swarm.Secret
 }
@@ -400,6 +403,9 @@ func (s secretAPIClientMock) SecretRemove(ctx context.Context, id string) error 
 }
 func (s secretAPIClientMock) SecretInspectWithRaw(ctx context.Context, name string) (swarm.Secret, []byte, error) {
 	return swarm.Secret{}, []byte{}, nil
+}
+func (s secretAPIClientMock) SecretUpdate(ctx context.Context, id string, version swarm.Version, secret swarm.SecretSpec) error {
+	return nil
 }
 
 // TestUpdateSecretUpdateInPlace tests the ability to update the "target" of an secret with "docker service update"
@@ -438,4 +444,48 @@ func TestUpdateSecretUpdateInPlace(t *testing.T) {
 	assert.Equal(t, updatedSecrets[0].SecretID, "tn9qiblgnuuut11eufquw5dev")
 	assert.Equal(t, updatedSecrets[0].SecretName, "foo")
 	assert.Equal(t, updatedSecrets[0].File.Name, "foo2")
+}
+
+func TestUpdateReadOnly(t *testing.T) {
+	spec := &swarm.ServiceSpec{}
+	cspec := &spec.TaskTemplate.ContainerSpec
+
+	// Update with --read-only=true, changed to true
+	flags := newUpdateCommand(nil).Flags()
+	flags.Set("read-only", "true")
+	updateService(flags, spec)
+	assert.Equal(t, cspec.ReadOnly, true)
+
+	// Update without --read-only, no change
+	flags = newUpdateCommand(nil).Flags()
+	updateService(flags, spec)
+	assert.Equal(t, cspec.ReadOnly, true)
+
+	// Update with --read-only=false, changed to false
+	flags = newUpdateCommand(nil).Flags()
+	flags.Set("read-only", "false")
+	updateService(flags, spec)
+	assert.Equal(t, cspec.ReadOnly, false)
+}
+
+func TestUpdateStopSignal(t *testing.T) {
+	spec := &swarm.ServiceSpec{}
+	cspec := &spec.TaskTemplate.ContainerSpec
+
+	// Update with --stop-signal=SIGUSR1
+	flags := newUpdateCommand(nil).Flags()
+	flags.Set("stop-signal", "SIGUSR1")
+	updateService(flags, spec)
+	assert.Equal(t, cspec.StopSignal, "SIGUSR1")
+
+	// Update without --stop-signal, no change
+	flags = newUpdateCommand(nil).Flags()
+	updateService(flags, spec)
+	assert.Equal(t, cspec.StopSignal, "SIGUSR1")
+
+	// Update with --stop-signal=SIGWINCH
+	flags = newUpdateCommand(nil).Flags()
+	flags.Set("stop-signal", "SIGWINCH")
+	updateService(flags, spec)
+	assert.Equal(t, cspec.StopSignal, "SIGWINCH")
 }

@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/cloudflare/cfssl/log"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/links"
 	"github.com/docker/docker/pkg/idtools"
@@ -59,32 +58,34 @@ func (daemon *Daemon) setupLinkedContainers(container *container.Container) ([]s
 
 func (daemon *Daemon) getIpcContainer(container *container.Container) (*container.Container, error) {
 	containerID := container.HostConfig.IpcMode.Container()
-	c, err := daemon.GetContainer(containerID)
+	container, err := daemon.GetContainer(containerID)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "cannot join IPC of a non running container: %s", container.ID)
 	}
-	if !c.IsRunning() {
-		return nil, fmt.Errorf("cannot join IPC of a non running container: %s", containerID)
-	}
-	if c.IsRestarting() {
-		return nil, errContainerIsRestarting(container.ID)
-	}
-	return c, nil
+	return container, daemon.checkContainer(container, containerIsRunning, containerIsNotRestarting)
 }
 
 func (daemon *Daemon) getPidContainer(container *container.Container) (*container.Container, error) {
 	containerID := container.HostConfig.PidMode.Container()
-	c, err := daemon.GetContainer(containerID)
+	container, err := daemon.GetContainer(containerID)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "cannot join PID of a non running container: %s", container.ID)
 	}
+	return container, daemon.checkContainer(container, containerIsRunning, containerIsNotRestarting)
+}
+
+func containerIsRunning(c *container.Container) error {
 	if !c.IsRunning() {
-		return nil, fmt.Errorf("cannot join PID of a non running container: %s", containerID)
+		return errors.Errorf("container %s is not running", c.ID)
 	}
+	return nil
+}
+
+func containerIsNotRestarting(c *container.Container) error {
 	if c.IsRestarting() {
-		return nil, errContainerIsRestarting(container.ID)
+		return errContainerIsRestarting(c.ID)
 	}
-	return c, nil
+	return nil
 }
 
 func (daemon *Daemon) setupIpcDirs(c *container.Container) error {
@@ -118,7 +119,7 @@ func (daemon *Daemon) setupIpcDirs(c *container.Container) error {
 				return err
 			}
 
-			shmSize := container.DefaultSHMSize
+			shmSize := int64(daemon.configStore.ShmSize)
 			if c.HostConfig.ShmSize != 0 {
 				shmSize = c.HostConfig.ShmSize
 			}
@@ -150,7 +151,7 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 			_ = detachMounted(localMountPath)
 
 			if err := os.RemoveAll(localMountPath); err != nil {
-				log.Errorf("error cleaning up secret mount: %s", err)
+				logrus.Errorf("error cleaning up secret mount: %s", err)
 			}
 		}
 	}()

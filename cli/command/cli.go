@@ -38,6 +38,7 @@ type Cli interface {
 	Out() *OutStream
 	Err() io.Writer
 	In() *InStream
+	ConfigFile() *configfile.ConfigFile
 }
 
 // DockerCli is an instance the docker command line client.
@@ -50,12 +51,18 @@ type DockerCli struct {
 	keyFile         string
 	client          client.APIClient
 	hasExperimental bool
+	osType          string
 	defaultVersion  string
 }
 
 // HasExperimental returns true if experimental features are accessible.
 func (cli *DockerCli) HasExperimental() bool {
 	return cli.hasExperimental
+}
+
+// OSType returns the operating system the daemon is running on.
+func (cli *DockerCli) OSType() string {
+	return cli.osType
 }
 
 // DefaultVersion returns api.defaultVersion of DOCKER_API_VERSION if specified.
@@ -165,6 +172,7 @@ func (cli *DockerCli) Initialize(opts *cliflags.ClientOptions) error {
 
 	if ping, err := cli.client.Ping(context.Background()); err == nil {
 		cli.hasExperimental = ping.Experimental
+		cli.osType = ping.OSType
 
 		// since the new header was added in 1.25, assume server is 1.24 if header is not present.
 		if ping.APIVersion == "" {
@@ -242,8 +250,9 @@ func newHTTPClient(host string, tlsOptions *tlsconfig.Options) (*http.Client, er
 		// let the api client configure the default transport.
 		return nil, nil
 	}
-
-	config, err := tlsconfig.Client(*tlsOptions)
+	opts := *tlsOptions
+	opts.ExclusiveRootPools = true
+	config, err := tlsconfig.Client(opts)
 	if err != nil {
 		return nil, err
 	}

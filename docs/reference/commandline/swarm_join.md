@@ -22,14 +22,19 @@ Join a swarm as a node and/or manager
 
 Options:
       --advertise-addr string   Advertised address (format: <ip|interface>[:port])
+      --availability string     Availability of the node ("active"|"pause"|"drain") (default "active")
       --help                    Print usage
       --listen-addr node-addr   Listen address (format: <ip|interface>[:port]) (default 0.0.0.0:2377)
       --token string            Token for entry into the swarm
 ```
 
+## Description
+
 Join a node to a swarm. The node joins as a manager node or worker node based upon the token you
 pass with the `--token` flag. If you pass a manager token, the node joins as a manager. If you
 pass a worker token, the node joins as a worker.
+
+## Examples
 
 ### Join a node to swarm as a manager
 
@@ -94,8 +99,17 @@ This flag is generally not necessary when joining an existing swarm.
 
 Secret value required for nodes to join the swarm
 
+### `--availability`
 
-## Related information
+This flag specifies the availability of the node at the time the node joins a master.
+Possible availability values are `active`, `pause`, or `drain`.
+
+This flag is useful in certain situations. For example, a cluster may want to have
+dedicated manager nodes that are not served as worker nodes. This could be achieved
+by passing `--availability=drain` to `docker swarm join`.
+
+
+## Related commands
 
 * [swarm init](swarm_init.md)
 * [swarm join-token](swarm_join_token.md)

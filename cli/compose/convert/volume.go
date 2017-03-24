@@ -1,21 +1,19 @@
 package convert
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/docker/docker/api/types/mount"
 	composetypes "github.com/docker/docker/cli/compose/types"
+	"github.com/pkg/errors"
 )
 
 type volumes map[string]composetypes.VolumeConfig
 
 // Volumes from compose-file types to engine api types
-func Volumes(serviceVolumes []string, stackVolumes volumes, namespace Namespace) ([]mount.Mount, error) {
+func Volumes(serviceVolumes []composetypes.ServiceVolumeConfig, stackVolumes volumes, namespace Namespace) ([]mount.Mount, error) {
 	var mounts []mount.Mount
 
-	for _, volumeSpec := range serviceVolumes {
-		mount, err := convertVolumeToMount(volumeSpec, stackVolumes, namespace)
+	for _, volumeConfig := range serviceVolumes {
+		mount, err := convertVolumeToMount(volumeConfig, stackVolumes, namespace)
 		if err != nil {
 			return nil, err
 		}
@@ -24,105 +22,65 @@ func Volumes(serviceVolumes []string, stackVolumes volumes, namespace Namespace)
 	return mounts, nil
 }
 
-func convertVolumeToMount(volumeSpec string, stackVolumes volumes, namespace Namespace) (mount.Mount, error) {
-	var source, target string
-	var mode []string
+func convertVolumeToMount(
+	volume composetypes.ServiceVolumeConfig,
+	stackVolumes volumes,
+	namespace Namespace,
+) (mount.Mount, error) {
+	result := mount.Mount{
+		Type:     mount.Type(volume.Type),
+		Source:   volume.Source,
+		Target:   volume.Target,
+		ReadOnly: volume.ReadOnly,
+	}
 
-	// TODO: split Windows path mappings properly
-	parts := strings.SplitN(volumeSpec, ":", 3)
+	// Anonymous volumes
+	if volume.Source == "" {
+		return result, nil
+	}
+	if volume.Type == "volume" && volume.Bind != nil {
+		return result, errors.New("bind options are incompatible with type volume")
+	}
+	if volume.Type == "bind" && volume.Volume != nil {
+		return result, errors.New("volume options are incompatible with type bind")
+	}
 
-	for _, part := range parts {
-		if strings.TrimSpace(part) == "" {
-			return mount.Mount{}, fmt.Errorf("invalid volume: %s", volumeSpec)
+	if volume.Bind != nil {
+		result.BindOptions = &mount.BindOptions{
+			Propagation: mount.Propagation(volume.Bind.Propagation),
 		}
 	}
-
-	switch len(parts) {
-	case 3:
-		source = parts[0]
-		target = parts[1]
-		mode = strings.Split(parts[2], ",")
-	case 2:
-		source = parts[0]
-		target = parts[1]
-	case 1:
-		target = parts[0]
+	// Binds volumes
+	if volume.Type == "bind" {
+		return result, nil
 	}
 
-	if source == "" {
-		// Anonymous volume
-		return mount.Mount{
-			Type:   mount.TypeVolume,
-			Target: target,
-		}, nil
-	}
-
-	// TODO: catch Windows paths here
-	if strings.HasPrefix(source, "/") {
-		return mount.Mount{
-			Type:        mount.TypeBind,
-			Source:      source,
-			Target:      target,
-			ReadOnly:    isReadOnly(mode),
-			BindOptions: getBindOptions(mode),
-		}, nil
-	}
-
-	stackVolume, exists := stackVolumes[source]
+	stackVolume, exists := stackVolumes[volume.Source]
 	if !exists {
-		return mount.Mount{}, fmt.Errorf("undefined volume: %s", source)
+		return result, errors.Errorf("undefined volume: %s", volume.Source)
 	}
 
-	var volumeOptions *mount.VolumeOptions
-	if stackVolume.External.Name != "" {
-		source = stackVolume.External.Name
-	} else {
-		volumeOptions = &mount.VolumeOptions{
-			Labels: AddStackLabel(namespace, stackVolume.Labels),
-			NoCopy: isNoCopy(mode),
-		}
+	result.Source = namespace.Scope(volume.Source)
+	result.VolumeOptions = &mount.VolumeOptions{}
 
-		if stackVolume.Driver != "" {
-			volumeOptions.DriverConfig = &mount.Driver{
-				Name:    stackVolume.Driver,
-				Options: stackVolume.DriverOpts,
-			}
-		}
-		source = namespace.Scope(source)
+	if volume.Volume != nil {
+		result.VolumeOptions.NoCopy = volume.Volume.NoCopy
 	}
-	return mount.Mount{
-		Type:          mount.TypeVolume,
-		Source:        source,
-		Target:        target,
-		ReadOnly:      isReadOnly(mode),
-		VolumeOptions: volumeOptions,
-	}, nil
-}
 
-func modeHas(mode []string, field string) bool {
-	for _, item := range mode {
-		if item == field {
-			return true
+	// External named volumes
+	if stackVolume.External.External {
+		result.Source = stackVolume.External.Name
+		return result, nil
+	}
+
+	result.VolumeOptions.Labels = AddStackLabel(namespace, stackVolume.Labels)
+	if stackVolume.Driver != "" || stackVolume.DriverOpts != nil {
+		result.VolumeOptions.DriverConfig = &mount.Driver{
+			Name:    stackVolume.Driver,
+			Options: stackVolume.DriverOpts,
 		}
 	}
-	return false
-}
 
-func isReadOnly(mode []string) bool {
-	return modeHas(mode, "ro")
-}
-
-func isNoCopy(mode []string) bool {
-	return modeHas(mode, "nocopy")
-}
-
-func getBindOptions(mode []string) *mount.BindOptions {
-	for _, item := range mode {
-		for _, propagation := range mount.Propagations {
-			if mount.Propagation(item) == propagation {
-				return &mount.BindOptions{Propagation: mount.Propagation(item)}
-			}
-		}
-	}
-	return nil
+	// Named volumes
+	return result, nil
 }

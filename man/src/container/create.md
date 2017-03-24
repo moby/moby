@@ -6,7 +6,7 @@ any point.
 
 The initial status of the container created with **docker create** is 'created'.
 
-# OPTIONS 
+### OPTIONS 
 
 The `CONTAINER-DIR` must be an absolute path such as `/src/docs`. The `HOST-DIR`
 can be an absolute path or a `name` value. A `name` value must start with an
@@ -23,9 +23,12 @@ You can specify multiple  **-v** options to mount one or more mounts to a
 container. To use these same mounts in other containers, specify the
 **--volumes-from** option also.
 
-You can add `:ro` or `:rw` suffix to a volume to mount it  read-only or
-read-write mode, respectively. By default, the volumes are mounted read-write.
-See examples.
+You can supply additional options for each bind-mount following an additional
+colon.  A `:ro` or `:rw` suffix mounts a volume in read-only or read-write
+mode, respectively. By default, volumes are mounted in read-write mode.  
+You can also specify the consistency requirement for the mount, either
+`:consistent` (the default), `:cached`, or `:delegated`.  Multiple options are
+separated by commas, e.g. `:ro,cached`.
 
 Labeling systems like SELinux require that proper labels are placed on volume
 content mounted into a container. Without a label, the security system might
@@ -60,7 +63,7 @@ Use `df <source-dir>` to figure out the source mount and then use
 `findmnt -o TARGET,PROPAGATION <source-mount-dir>` to figure out propagation
 properties of source mount. If `findmnt` utility is not available, then one
 can look at mount entry for source mount point in `/proc/self/mountinfo`. Look
-at `optional fields` and see if any propagaion properties are specified.
+at `optional fields` and see if any propagation properties are specified.
 `shared:X` means mount is `shared`, `master:X` means mount is `slave` and if
 nothing is there that means mount is `private`.
 
@@ -82,18 +85,3 @@ change propagation properties of source mount. Say `/` is source mount for
 
 To disable automatic copying of data from the container path to the volume, use
 the `nocopy` flag. The `nocopy` flag can be set on bind mounts and named volumes.
-
-# EXAMPLES
-
-## Specify isolation technology for container (--isolation)
-
-This option is useful in situations where you are running Docker containers on
-Windows. The `--isolation=<value>` option sets a container's isolation
-technology. On Linux, the only supported is the `default` option which uses
-Linux namespaces. On Microsoft Windows, you can specify these values:
-
-* `default`: Use the value specified by the Docker daemon's `--exec-opt` . If the `daemon` does not specify an isolation technology, Microsoft Windows uses `process` as its default value.
-* `process`: Namespace isolation only.
-* `hyperv`: Hyper-V hypervisor partition-based isolation.
-
-Specifying the `--isolation` flag without a value is the same as setting `--isolation="default"`.

@@ -50,6 +50,10 @@ var (
 
 	// ErrProcNotFound is an error encountered when the the process cannot be found
 	ErrProcNotFound = syscall.Errno(0x7f)
+
+	// ErrVmcomputeOperationAccessIsDenied is an error which can be encountered when enumerating compute systems in RS1/RS2
+	// builds when the underlying silo might be in the process of terminating. HCS was fixed in RS3.
+	ErrVmcomputeOperationAccessIsDenied = syscall.Errno(0x5)
 )
 
 // ProcessError is an error encountered in HCS during an operation on a Process object

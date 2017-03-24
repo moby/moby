@@ -1,15 +1,18 @@
 package registry
 
 import (
-	"errors"
 	"fmt"
 	"net"
 	"net/url"
+	"regexp"
+	"strconv"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/reference"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/opts"
-	"github.com/docker/docker/reference"
+	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
 )
 
@@ -59,6 +62,10 @@ var (
 	ErrInvalidRepositoryName = errors.New("Invalid repository name (ex: \"registry.domain.tld/myrepos\")")
 
 	emptyServiceConfig = newServiceConfig(ServiceOptions{})
+)
+
+var (
+	validHostPortRegex = regexp.MustCompile(`^` + reference.DomainRegexp.String() + `$`)
 )
 
 // for mocking in unit tests
@@ -150,6 +157,19 @@ skip:
 			config.ServiceConfig.IndexConfigs = originalIndexInfos
 			return err
 		}
+		if strings.HasPrefix(strings.ToLower(r), "http://") {
+			logrus.Warnf("insecure registry %s should not contain 'http://' and 'http://' has been removed from the insecure registry config", r)
+			r = r[7:]
+		} else if strings.HasPrefix(strings.ToLower(r), "https://") {
+			logrus.Warnf("insecure registry %s should not contain 'https://' and 'https://' has been removed from the insecure registry config", r)
+			r = r[8:]
+		} else if validateNoScheme(r) != nil {
+			// Insecure registry should not contain '://'
+			// before returning err, roll back to original data
+			config.ServiceConfig.InsecureRegistryCIDRs = originalCIDRs
+			config.ServiceConfig.IndexConfigs = originalIndexInfos
+			return fmt.Errorf("insecure registry %s should not contain '://'", r)
+		}
 		// Check if CIDR was passed to --insecure-registry
 		_, ipnet, err := net.ParseCIDR(r)
 		if err == nil {
@@ -164,6 +184,12 @@ skip:
 			config.InsecureRegistryCIDRs = append(config.InsecureRegistryCIDRs, data)
 
 		} else {
+			if err := validateHostPort(r); err != nil {
+				config.ServiceConfig.InsecureRegistryCIDRs = originalCIDRs
+				config.ServiceConfig.IndexConfigs = originalIndexInfos
+				return fmt.Errorf("insecure registry %s is not valid: %v", r, err)
+
+			}
 			// Assume `host:port` if not CIDR.
 			config.IndexConfigs[r] = &registrytypes.IndexInfo{
 				Name:     r,
@@ -256,8 +282,9 @@ func ValidateMirror(val string) (string, error) {
 
 // ValidateIndexName validates an index name.
 func ValidateIndexName(val string) (string, error) {
-	if val == reference.LegacyDefaultHostname {
-		val = reference.DefaultHostname
+	// TODO: upstream this to check to reference package
+	if val == "index.docker.io" {
+		val = "docker.io"
 	}
 	if strings.HasPrefix(val, "-") || strings.HasSuffix(val, "-") {
 		return "", fmt.Errorf("Invalid index name (%s). Cannot begin or end with a hyphen.", val)
@@ -269,6 +296,30 @@ func validateNoScheme(reposName string) error {
 	if strings.Contains(reposName, "://") {
 		// It cannot contain a scheme!
 		return ErrInvalidRepositoryName
+	}
+	return nil
+}
+
+func validateHostPort(s string) error {
+	// Split host and port, and in case s can not be splitted, assume host only
+	host, port, err := net.SplitHostPort(s)
+	if err != nil {
+		host = s
+		port = ""
+	}
+	// If match against the `host:port` pattern fails,
+	// it might be `IPv6:port`, which will be captured by net.ParseIP(host)
+	if !validHostPortRegex.MatchString(s) && net.ParseIP(host) == nil {
+		return fmt.Errorf("invalid host %q", host)
+	}
+	if port != "" {
+		v, err := strconv.Atoi(port)
+		if err != nil {
+			return err
+		}
+		if v < 0 || v > 65535 {
+			return fmt.Errorf("invalid port %q", port)
+		}
 	}
 	return nil
 }
@@ -307,13 +358,14 @@ func GetAuthConfigKey(index *registrytypes.IndexInfo) string {
 
 // newRepositoryInfo validates and breaks down a repository name into a RepositoryInfo
 func newRepositoryInfo(config *serviceConfig, name reference.Named) (*RepositoryInfo, error) {
-	index, err := newIndexInfo(config, name.Hostname())
+	index, err := newIndexInfo(config, reference.Domain(name))
 	if err != nil {
 		return nil, err
 	}
-	official := !strings.ContainsRune(name.Name(), '/')
+	official := !strings.ContainsRune(reference.FamiliarName(name), '/')
+
 	return &RepositoryInfo{
-		Named:    name,
+		Name:     reference.TrimNamed(name),
 		Index:    index,
 		Official: official,
 	}, nil

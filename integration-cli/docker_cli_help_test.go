@@ -93,7 +93,7 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 		// Create the list of commands we want to test
 		cmdsToTest := []string{}
 		for _, cmd := range helpOut {
-			// Stop on blank line or non-idented line
+			// Stop on blank line or non-indented line
 			if cmd == "" || !unicode.IsSpace(rune(cmd[0])) {
 				break
 			}
@@ -118,7 +118,7 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 		cmdsToTest = append(cmdsToTest, "network ls")
 		cmdsToTest = append(cmdsToTest, "network rm")
 
-		if experimentalDaemon {
+		if testEnv.ExperimentalDaemon() {
 			cmdsToTest = append(cmdsToTest, "checkpoint create")
 			cmdsToTest = append(cmdsToTest, "checkpoint ls")
 			cmdsToTest = append(cmdsToTest, "checkpoint rm")
@@ -233,14 +233,6 @@ func testCommand(cmd string, newEnvs []string, scanForHome bool, home string) er
 		i := strings.Index(line, "~")
 		if i >= 0 && i != len(line)-1 && line[i+1] != '/' {
 			return fmt.Errorf("Help for %q should not have used ~:\n%s", cmd, line)
-		}
-
-		// If a line starts with 4 spaces then assume someone
-		// added a multi-line description for an option and we need
-		// to flag it
-		if strings.HasPrefix(line, "    ") &&
-			!strings.HasPrefix(strings.TrimLeft(line, " "), "--") {
-			return fmt.Errorf("Help for %q should not have a multi-line option", cmd)
 		}
 
 		// Options should NOT end with a period

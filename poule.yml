@@ -4,7 +4,7 @@
   operations:
       - type:       label
         filters: {
-            ~labels: [ " status/0-triage", "status/1-design-review", "status/2-code-review", "status/3-docs-review", "status/4-merge" ],
+            ~labels: [ "status/0-triage", "status/1-design-review", "status/2-code-review", "status/3-docs-review", "status/4-merge" ],
         }
         settings: {
             patterns: {
@@ -72,6 +72,11 @@
         }
       - type:       rebuild
         settings: {
+            configurations: [ powerpc ],
+            label:          "rebuild/powerpc",
+        }
+      - type:       rebuild
+        settings: {
             configurations: [ userns ],
             label:          "rebuild/userns",
         }
@@ -89,4 +94,43 @@
         settings: {
             configurations: [ windowsRS1 ],
             label:          "rebuild/windowsRS1",
+        }
+      - type:       rebuild
+        settings: {
+            configurations: [ z ],
+            label:          "rebuild/z",
+        }
+
+# Once a day, randomly assign pull requests older than 2 weeks.
+- schedule:         "@daily"
+  operations:
+      - type:       random-assign
+        filters: {
+            age:    "2w",
+            is:     "pr",
+        }
+        settings: {
+            users: [
+                "aaronlehmann",
+                "akihirosuda",
+                "aluzzardi",
+                "anusha-ragunathan",
+                "coolljt0725",
+                "cpuguy83",
+                "crosbymichael",
+                "dnephin",
+                "duglin",
+                "justincormack",
+                "lk4d4",
+                "mhbauer",
+                "mlaventure",
+                "runcom",
+                "stevvooe",
+                "thajeztah",
+                "tiborvass",
+                "tonistiigi",
+                "vdemeester",
+                "vieux",
+                "yongtang",
+            ]
         }

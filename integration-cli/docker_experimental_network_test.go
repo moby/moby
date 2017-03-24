@@ -12,29 +12,22 @@ import (
 	"github.com/go-check/check"
 )
 
+// ensure Kernel version is >= v3.9 for macvlan support
 func macvlanKernelSupport() bool {
-	const macvlanKernelVer = 3 // minimum macvlan kernel support
-	const macvlanMajorVer = 9  // minimum macvlan major kernel support
-	kv, err := kernel.GetKernelVersion()
-	if err != nil {
-		return false
-	}
-	// ensure Kernel version is >= v3.9 for macvlan support
-	if kv.Kernel < macvlanKernelVer || (kv.Kernel == macvlanKernelVer && kv.Major < macvlanMajorVer) {
-		return false
-	}
-	return true
+	return checkKernelMajorVersionGreaterOrEqualThen(3, 9)
 }
 
+// ensure Kernel version is >= v4.2 for ipvlan support
 func ipvlanKernelSupport() bool {
-	const ipvlanKernelVer = 4 // minimum ipvlan kernel support
-	const ipvlanMajorVer = 2  // minimum ipvlan major kernel support
+	return checkKernelMajorVersionGreaterOrEqualThen(4, 2)
+}
+
+func checkKernelMajorVersionGreaterOrEqualThen(kernelVersion int, majorVersion int) bool {
 	kv, err := kernel.GetKernelVersion()
 	if err != nil {
 		return false
 	}
-	// ensure Kernel version is >= v4.2 for ipvlan support
-	if kv.Kernel < ipvlanKernelVer || (kv.Kernel == ipvlanKernelVer && kv.Major < ipvlanMajorVer) {
+	if kv.Kernel < kernelVersion || (kv.Kernel == kernelVersion && kv.Major < majorVersion) {
 		return false
 	}
 	return true

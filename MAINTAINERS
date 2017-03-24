@@ -43,7 +43,6 @@
 			"mavenugo",
 			"mhbauer",
 			"mlaventure",
-			"mrjana",
 			"runcom",
 			"stevvooe",
 			"tianon",
@@ -51,7 +50,8 @@
 			"tonistiigi",
 			"unclejack",
 			"vdemeester",
-			"vieux"
+			"vieux",
+			"yongtang"
 		]
 
 	[Org."Docs maintainers"]
@@ -59,9 +59,7 @@
 	# TODO Describe the docs maintainers role.
 
 		people = [
-			"jamtur01",
 			"misty",
-			"sven",
 			"thajeztah"
 		]
 
@@ -79,10 +77,16 @@
 
 		people = [
 			"aboch",
+			"alexellis",
 			"andrewhsu",
+			"anonymuse",
+			"chanwit",
 			"ehazlett",
+			"fntlnz",
+			"gianarb",
 			"mgoelzer",
 			"programmerq",
+			"rheinwein",
 			"thajeztah"
 		]
 
@@ -110,6 +114,15 @@
 			# still stumble into him in our issue tracker, or on IRC.
 			"erikh",
 
+			# After a false start with his first PR being rejected, James Turnbull became a frequent
+			# contributor to the documentation, and became a docs maintainer on December 5, 2013. As
+			# a maintainer, James lifted the docs to a higher standard, and introduced the community
+			# guidelines ("three strikes"). James is currently changing the world as CTO of https://www.empatico.org,
+			# meanwhile authoring various books that are worth checking out. You can find him on Twitter,
+			# rambling as @kartar, and although no longer active as a maintainer, he's always "game" to
+			# help out reviewing docs PRs, so you may still see him around in the repository.
+			"jamtur01",
+
 			# Jessica Frazelle, also known as the "Keyser Söze of containers",
 			# runs *everything* in containers. She started contributing to
 			# Docker with a (fun fun) change involving both iptables and regular
@@ -135,6 +148,30 @@
 			# public repositories was originally referenced in
 			# maryatdocker/docker-whale back in May 2015.
 			"moxiegirl",
+
+			# Jana Radhakrishnan was part of the SocketPlane team that joined Docker.
+			# As a maintainer, he was the lead architect for the Container Network
+			# Model (CNM) implemented through libnetwork, and the "routing mesh" powering
+			# Swarm mode networking.
+			#
+			# Jana started new adventures in networking, but you can find him tweeting as @mrjana,
+			# coding on GitHub https://github.com/mrjana, and he may be hiding on the Docker Community
+			# slack channel :-)
+			"mrjana",
+
+			# Sven Dowideit became a well known person in the Docker ecosphere, building
+			# boot2docker, and became a regular contributor to the project, starting as
+			# early as October 2013 (https://github.com/docker/docker/pull/2119), to become
+			# a maintainer less than two months later (https://github.com/docker/docker/pull/3061).
+			#
+			# As a maintainer, Sven took on the task to convert the documentation from
+			# ReStructuredText to Markdown, migrate to Hugo for generating the docs, and
+			# writing tooling for building, testing, and publishing them.
+			#
+			# If you're not in the occasion to visit "the Australian office", you
+			# can keep up with Sven on Twitter (@SvenDowideit), his blog http://fosiki.com,
+			# and of course on GitHub.
+			"sven",
 
 			# Vincent "vbatts!" Batts made his first contribution to the project
 			# in November 2013, to become a maintainer a few months later, on
@@ -175,6 +212,11 @@
 	Email = "aboch@docker.com"
 	GitHub = "aboch"
 
+	[people.alexellis]
+	Name = "Alex Ellis"
+	Email = "alexellis2@gmail.com"
+	GitHub = "alexellis"
+
 	[people.akihirosuda]
 	Name = "Akihiro Suda"
 	Email = "suda.akihiro@lab.ntt.co.jp"
@@ -189,6 +231,11 @@
 	Name = "Andrew Hsu"
 	Email = "andrewhsu@docker.com"
 	GitHub = "andrewhsu"
+
+	[people.anonymuse]
+	Name = "Jesse White"
+	Email = "anonymuse@gmail.com"
+	GitHub = "anonymuse"
 
 	[people.anusha]
 	Name = "Anusha Ragunathan"
@@ -209,6 +256,11 @@
 	Name = "Brian Goff"
 	Email = "cpuguy83@gmail.com"
 	Github = "cpuguy83"
+
+	[people.chanwit]
+	Name = "Chanwit Kaewkasi"
+	Email = "chanwit@gmail.com"
+	GitHub = "chanwit"
 
 	[people.crosbymichael]
 	Name = "Michael Crosby"
@@ -239,6 +291,16 @@
 	Name = "Phil Estes"
 	Email = "estesp@linux.vnet.ibm.com"
 	GitHub = "estesp"
+
+	[people.fntlnz]
+	Name = "Lorenzo Fontana"
+	Email = "fontanalorenz@gmail.com"
+	GitHub = "fntlnz"
+
+	[people.gianarb]
+	Name = "Gianluca Arbezzano"
+	Email = "ga@thumpflow.com"
+	GitHub = "gianarb"
 
 	[people.icecrime]
 	Name = "Arnaud Porterie"
@@ -310,6 +372,11 @@
 	Email = "jeff@docker.com"
 	GitHub = "programmerq"
 
+	[people.rheinwein]
+	Name = "Laura Frank"
+	Email = "laura@codeship.com"
+	GitHub = "rheinwein"
+
 	[people.runcom]
 	Name = "Antonio Murdaca"
 	Email = "runcom@redhat.com"
@@ -374,3 +441,9 @@
 	Name = "Vishnu Kannan"
 	Email = "vishnuk@google.com"
 	GitHub = "vishh"
+
+	[people.yongtang]
+	Name = "Yong Tang"
+	Email = "yong.tang.github@outlook.com"
+	GitHub = "yongtang"
+

@@ -31,8 +31,14 @@ Options:
   -q, --quiet           Only display network IDs
 ```
 
+## Description
+
 Lists all the networks the Engine `daemon` knows about. This includes the
-networks that span across multiple hosts in a cluster, for example:
+networks that span across multiple hosts in a cluster.
+
+## Examples
+
+### List all networks
 
 ```bash
 $ sudo docker network ls
@@ -55,7 +61,7 @@ c288470c46f6c8949c5f7e5099b5b7947b07eabe8d9a27d79a9cbf111adcbf47   host         
 63d1ff1f77b07ca51070a8c227e962238358bd310bde1529cf62e6c307ade161   dev                 bridge           local
 ```
 
-## Filtering
+### Filtering
 
 The filtering flag (`-f` or `--filter`) format is a `key=value` pair. If there
 is more than one filter, then pass multiple flags (e.g. `--filter "foo=bar" --filter "bif=baz"`).
@@ -68,7 +74,7 @@ The currently supported filters are:
 * id (network's id)
 * label (`label=<key>` or `label=<key>=<value>`)
 * name (network's name)
-* type (custom|builtin)
+* type (`custom|builtin`)
 
 #### Driver
 
@@ -175,23 +181,24 @@ $ docker network rm `docker network ls --filter type=custom -q`
 A warning will be issued when trying to remove a network that has containers
 attached.
 
-## Formatting
+### Formatting
 
 The formatting options (`--format`) pretty-prints networks output
 using a Go template.
 
 Valid placeholders for the Go template are listed below:
 
-Placeholder | Description
-------------|------------------------------------------------------------------------------------------
-`.ID`       | Network ID
-`.Name`     | Network name
-`.Driver`   | Network driver
-`.Scope`    | Network scope (local, global)
-`.IPv6`     | Whether IPv6 is enabled on the network or not.
-`.Internal` | Whether the network is internal or not.
-`.Labels`   | All labels assigned to the network.
-`.Label`    | Value of a specific label for this network. For example `{{.Label "project.version"}}`
+Placeholder  | Description
+-------------|------------------------------------------------------------------------------------------
+`.ID`        | Network ID
+`.Name`      | Network name
+`.Driver`    | Network driver
+`.Scope`     | Network scope (local, global)
+`.IPv6`      | Whether IPv6 is enabled on the network or not.
+`.Internal`  | Whether the network is internal or not.
+`.Labels`    | All labels assigned to the network.
+`.Label`     | Value of a specific label for this network. For example `{{.Label "project.version"}}`
+`.CreatedAt` | Time when the network was created
 
 When using the `--format` option, the `network ls` command will either
 output the data exactly as the template declares or, when using the
@@ -207,7 +214,7 @@ d1584f8dc718: host
 391df270dc66: null
 ```
 
-## Related information
+## Related commands
 
 * [network disconnect ](network_disconnect.md)
 * [network connect](network_connect.md)

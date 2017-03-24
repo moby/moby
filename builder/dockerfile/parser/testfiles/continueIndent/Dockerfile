@@ -13,6 +13,8 @@ world
 RUN echo hello \
 goodbye\
 frog
+RUN echo hello  \  
+world
 RUN echo hi \
  \
  world \

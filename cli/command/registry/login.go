@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/registry"
 	"github.com/spf13/cobra"
 )
 
@@ -35,8 +36,13 @@ func NewLoginCommand(dockerCli *command.DockerCli) *cobra.Command {
 	}
 
 	flags := cmd.Flags()
+
 	flags.StringVarP(&opts.user, "username", "u", "", "Username")
 	flags.StringVarP(&opts.password, "password", "p", "", "Password")
+
+	// Deprecated in 1.11: Should be removed in docker 17.06
+	flags.StringVarP(&opts.email, "email", "e", "", "Email")
+	flags.MarkDeprecated("email", "will be removed in 17.06.")
 
 	return cmd
 }
@@ -49,7 +55,7 @@ func runLogin(dockerCli *command.DockerCli, opts loginOptions) error {
 		serverAddress string
 		authServer    = command.ElectAuthServer(ctx, dockerCli)
 	)
-	if opts.serverAddress != "" {
+	if opts.serverAddress != "" && opts.serverAddress != registry.DefaultNamespace {
 		serverAddress = opts.serverAddress
 	} else {
 		serverAddress = authServer

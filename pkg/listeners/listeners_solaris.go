@@ -4,7 +4,9 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
+	"os"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/go-connections/sockets"
 )
 
@@ -18,7 +20,15 @@ func Init(proto, addr, socketGroup string, tlsConfig *tls.Config) (ls []net.List
 		}
 		ls = append(ls, l)
 	case "unix":
-		l, err := sockets.NewUnixSocket(addr, socketGroup)
+		gid, err := lookupGID(socketGroup)
+		if err != nil {
+			if socketGroup != defaultSocketGroup {
+				return nil, err
+			}
+			logrus.Warnf("could not change group %s to %s: %v", addr, defaultSocketGroup, err)
+			gid = os.Getgid()
+		}
+		l, err := sockets.NewUnixSocket(addr, gid)
 		if err != nil {
 			return nil, fmt.Errorf("can't create unix socket %s: %v", addr, err)
 		}

@@ -59,3 +59,8 @@ func NewMock(t testingT) (*Mock, error) {
 func (tr *Mock) URL() string {
 	return tr.hostport
 }
+
+// Close closes mock and releases resources
+func (tr *Mock) Close() {
+	tr.server.Close()
+}

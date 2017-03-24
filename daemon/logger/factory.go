@@ -3,6 +3,10 @@ package logger
 import (
 	"fmt"
 	"sync"
+
+	containertypes "github.com/docker/docker/api/types/container"
+	units "github.com/docker/go-units"
+	"github.com/pkg/errors"
 )
 
 // Creator builds a logging driver instance with given context.
@@ -85,6 +89,11 @@ func GetLogDriver(name string) (Creator, error) {
 	return factory.get(name)
 }
 
+var builtInLogOpts = map[string]bool{
+	"mode":            true,
+	"max-buffer-size": true,
+}
+
 // ValidateLogOpts checks the options for the given log driver. The
 // options supported are specific to the LogDriver implementation.
 func ValidateLogOpts(name string, cfg map[string]string) error {
@@ -92,13 +101,35 @@ func ValidateLogOpts(name string, cfg map[string]string) error {
 		return nil
 	}
 
+	switch containertypes.LogMode(cfg["mode"]) {
+	case containertypes.LogModeBlocking, containertypes.LogModeNonBlock, containertypes.LogModeUnset:
+	default:
+		return fmt.Errorf("logger: logging mode not supported: %s", cfg["mode"])
+	}
+
+	if s, ok := cfg["max-buffer-size"]; ok {
+		if containertypes.LogMode(cfg["mode"]) != containertypes.LogModeNonBlock {
+			return fmt.Errorf("logger: max-buffer-size option is only supported with 'mode=%s'", containertypes.LogModeNonBlock)
+		}
+		if _, err := units.RAMInBytes(s); err != nil {
+			return errors.Wrap(err, "error parsing option max-buffer-size")
+		}
+	}
+
 	if !factory.driverRegistered(name) {
 		return fmt.Errorf("logger: no log driver named '%s' is registered", name)
 	}
 
+	filteredOpts := make(map[string]string, len(builtInLogOpts))
+	for k, v := range cfg {
+		if !builtInLogOpts[k] {
+			filteredOpts[k] = v
+		}
+	}
+
 	validator := factory.getLogOptValidator(name)
 	if validator != nil {
-		return validator(cfg)
+		return validator(filteredOpts)
 	}
 	return nil
 }

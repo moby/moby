@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -10,33 +11,11 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
-	"github.com/docker/go-connections/nat"
-	units "github.com/docker/go-units"
-	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 type int64Value interface {
 	Value() int64
-}
-
-type memBytes int64
-
-func (m *memBytes) String() string {
-	return units.BytesSize(float64(m.Value()))
-}
-
-func (m *memBytes) Set(value string) error {
-	val, err := units.RAMInBytes(value)
-	*m = memBytes(val)
-	return err
-}
-
-func (m *memBytes) Type() string {
-	return "bytes"
-}
-
-func (m *memBytes) Value() int64 {
-	return int64(*m)
 }
 
 // PositiveDurationOpt is an option type for time.Duration that uses a pointer.
@@ -139,6 +118,45 @@ func (f *floatValue) Value() float32 {
 	return float32(*f)
 }
 
+// placementPrefOpts holds a list of placement preferences.
+type placementPrefOpts struct {
+	prefs   []swarm.PlacementPreference
+	strings []string
+}
+
+func (opts *placementPrefOpts) String() string {
+	if len(opts.strings) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("%v", opts.strings)
+}
+
+// Set validates the input value and adds it to the internal slices.
+// Note: in the future strategies other than "spread", may be supported,
+// as well as additional comma-separated options.
+func (opts *placementPrefOpts) Set(value string) error {
+	fields := strings.Split(value, "=")
+	if len(fields) != 2 {
+		return errors.New(`placement preference must be of the format "<strategy>=<arg>"`)
+	}
+	if fields[0] != "spread" {
+		return fmt.Errorf("unsupported placement preference %s (only spread is supported)", fields[0])
+	}
+
+	opts.prefs = append(opts.prefs, swarm.PlacementPreference{
+		Spread: &swarm.SpreadOver{
+			SpreadDescriptor: fields[1],
+		},
+	})
+	opts.strings = append(opts.strings, value)
+	return nil
+}
+
+// Type returns a string name for this Option type
+func (opts *placementPrefOpts) Type() string {
+	return "pref"
+}
+
 type updateOptions struct {
 	parallelism     uint64
 	delay           time.Duration
@@ -147,11 +165,21 @@ type updateOptions struct {
 	maxFailureRatio floatValue
 }
 
+func (opts updateOptions) config() *swarm.UpdateConfig {
+	return &swarm.UpdateConfig{
+		Parallelism:     opts.parallelism,
+		Delay:           opts.delay,
+		Monitor:         opts.monitor,
+		FailureAction:   opts.onFailure,
+		MaxFailureRatio: opts.maxFailureRatio.Value(),
+	}
+}
+
 type resourceOptions struct {
 	limitCPU      opts.NanoCPUs
-	limitMemBytes memBytes
+	limitMemBytes opts.MemBytes
 	resCPU        opts.NanoCPUs
-	resMemBytes   memBytes
+	resMemBytes   opts.MemBytes
 }
 
 func (r *resourceOptions) ToResourceRequirements() *swarm.ResourceRequirements {
@@ -265,17 +293,6 @@ func (opts *healthCheckOptions) toHealthConfig() (*container.HealthConfig, error
 	return healthConfig, nil
 }
 
-// ValidatePort validates a string is in the expected format for a port definition
-func ValidatePort(value string) (string, error) {
-	portMappings, err := nat.ParsePortSpec(value)
-	for _, portMapping := range portMappings {
-		if portMapping.Binding.HostIP != "" {
-			return "", fmt.Errorf("HostIP is not supported by a service.")
-		}
-	}
-	return value, err
-}
-
 // convertExtraHostsToSwarmHosts converts an array of extra hosts in cli
 //     <host>:<ip>
 // into a swarmkit host format:
@@ -302,7 +319,9 @@ type serviceOptions struct {
 	workdir         string
 	user            string
 	groups          opts.ListOpts
+	stopSignal      string
 	tty             bool
+	readOnly        bool
 	mounts          opts.MountOpt
 	dns             opts.ListOpts
 	dnsSearch       opts.ListOpts
@@ -315,11 +334,13 @@ type serviceOptions struct {
 	replicas Uint64Opt
 	mode     string
 
-	restartPolicy restartPolicyOptions
-	constraints   opts.ListOpts
-	update        updateOptions
-	networks      opts.ListOpts
-	endpoint      endpointOptions
+	restartPolicy  restartPolicyOptions
+	constraints    opts.ListOpts
+	placementPrefs placementPrefOpts
+	update         updateOptions
+	rollback       updateOptions
+	networks       opts.ListOpts
+	endpoint       endpointOptions
 
 	registryAuth bool
 
@@ -346,6 +367,25 @@ func newServiceOptions() *serviceOptions {
 	}
 }
 
+func (opts *serviceOptions) ToServiceMode() (swarm.ServiceMode, error) {
+	serviceMode := swarm.ServiceMode{}
+	switch opts.mode {
+	case "global":
+		if opts.replicas.Value() != nil {
+			return serviceMode, fmt.Errorf("replicas can only be used with replicated mode")
+		}
+
+		serviceMode.Global = &swarm.GlobalService{}
+	case "replicated":
+		serviceMode.Replicated = &swarm.ReplicatedService{
+			Replicas: opts.replicas.Value(),
+		}
+	default:
+		return serviceMode, fmt.Errorf("Unknown mode: %s, only replicated and global supported", opts.mode)
+	}
+	return serviceMode, nil
+}
+
 func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 	var service swarm.ServiceSpec
 
@@ -368,6 +408,16 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 		currentEnv = append(currentEnv, env)
 	}
 
+	healthConfig, err := opts.healthcheck.toHealthConfig()
+	if err != nil {
+		return service, err
+	}
+
+	serviceMode, err := opts.ToServiceMode()
+	if err != nil {
+		return service, err
+	}
+
 	service = swarm.ServiceSpec{
 		Annotations: swarm.Annotations{
 			Name:   opts.name,
@@ -375,16 +425,18 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 		},
 		TaskTemplate: swarm.TaskSpec{
 			ContainerSpec: swarm.ContainerSpec{
-				Image:    opts.image,
-				Args:     opts.args,
-				Env:      currentEnv,
-				Hostname: opts.hostname,
-				Labels:   runconfigopts.ConvertKVStringsToMap(opts.containerLabels.GetAll()),
-				Dir:      opts.workdir,
-				User:     opts.user,
-				Groups:   opts.groups.GetAll(),
-				TTY:      opts.tty,
-				Mounts:   opts.mounts.Value(),
+				Image:      opts.image,
+				Args:       opts.args,
+				Env:        currentEnv,
+				Hostname:   opts.hostname,
+				Labels:     runconfigopts.ConvertKVStringsToMap(opts.containerLabels.GetAll()),
+				Dir:        opts.workdir,
+				User:       opts.user,
+				Groups:     opts.groups.GetAll(),
+				StopSignal: opts.stopSignal,
+				TTY:        opts.tty,
+				ReadOnly:   opts.readOnly,
+				Mounts:     opts.mounts.Value(),
 				DNSConfig: &swarm.DNSConfig{
 					Nameservers: opts.dns.GetAll(),
 					Search:      opts.dnsSearch.GetAll(),
@@ -393,58 +445,34 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 				Hosts:           convertExtraHostsToSwarmHosts(opts.hosts.GetAll()),
 				StopGracePeriod: opts.stopGrace.Value(),
 				Secrets:         nil,
+				Healthcheck:     healthConfig,
 			},
 			Networks:      convertNetworks(opts.networks.GetAll()),
 			Resources:     opts.resources.ToResourceRequirements(),
 			RestartPolicy: opts.restartPolicy.ToRestartPolicy(),
 			Placement: &swarm.Placement{
 				Constraints: opts.constraints.GetAll(),
+				Preferences: opts.placementPrefs.prefs,
 			},
 			LogDriver: opts.logDriver.toLogDriver(),
 		},
-		Networks: convertNetworks(opts.networks.GetAll()),
-		Mode:     swarm.ServiceMode{},
-		UpdateConfig: &swarm.UpdateConfig{
-			Parallelism:     opts.update.parallelism,
-			Delay:           opts.update.delay,
-			Monitor:         opts.update.monitor,
-			FailureAction:   opts.update.onFailure,
-			MaxFailureRatio: opts.update.maxFailureRatio.Value(),
-		},
-		EndpointSpec: opts.endpoint.ToEndpointSpec(),
+		Networks:       convertNetworks(opts.networks.GetAll()),
+		Mode:           serviceMode,
+		UpdateConfig:   opts.update.config(),
+		RollbackConfig: opts.rollback.config(),
+		EndpointSpec:   opts.endpoint.ToEndpointSpec(),
 	}
 
-	healthConfig, err := opts.healthcheck.toHealthConfig()
-	if err != nil {
-		return service, err
-	}
-	service.TaskTemplate.ContainerSpec.Healthcheck = healthConfig
-
-	switch opts.mode {
-	case "global":
-		if opts.replicas.Value() != nil {
-			return service, fmt.Errorf("replicas can only be used with replicated mode")
-		}
-
-		service.Mode.Global = &swarm.GlobalService{}
-	case "replicated":
-		service.Mode.Replicated = &swarm.ReplicatedService{
-			Replicas: opts.replicas.Value(),
-		}
-	default:
-		return service, fmt.Errorf("Unknown mode: %s", opts.mode)
-	}
 	return service, nil
 }
 
 // addServiceFlags adds all flags that are common to both `create` and `update`.
 // Any flags that are not common are added separately in the individual command
-func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
-	flags := cmd.Flags()
-
+func addServiceFlags(flags *pflag.FlagSet, opts *serviceOptions) {
 	flags.StringVarP(&opts.workdir, flagWorkdir, "w", "", "Working directory inside the container")
 	flags.StringVarP(&opts.user, flagUser, "u", "", "Username or UID (format: <name|uid>[:<group|gid>])")
 	flags.StringVar(&opts.hostname, flagHostname, "", "Container hostname")
+	flags.SetAnnotation(flagHostname, "version", []string{"1.25"})
 
 	flags.Var(&opts.resources.limitCPU, flagLimitCPU, "Limit CPUs")
 	flags.Var(&opts.resources.limitMemBytes, flagLimitMemory, "Limit Memory")
@@ -454,18 +482,31 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 
 	flags.Var(&opts.replicas, flagReplicas, "Number of tasks")
 
-	flags.StringVar(&opts.restartPolicy.condition, flagRestartCondition, "", "Restart when condition is met (none, on-failure, or any)")
+	flags.StringVar(&opts.restartPolicy.condition, flagRestartCondition, "", `Restart when condition is met ("none"|"on-failure"|"any")`)
 	flags.Var(&opts.restartPolicy.delay, flagRestartDelay, "Delay between restart attempts (ns|us|ms|s|m|h)")
 	flags.Var(&opts.restartPolicy.maxAttempts, flagRestartMaxAttempts, "Maximum number of restarts before giving up")
 	flags.Var(&opts.restartPolicy.window, flagRestartWindow, "Window used to evaluate the restart policy (ns|us|ms|s|m|h)")
 
 	flags.Uint64Var(&opts.update.parallelism, flagUpdateParallelism, 1, "Maximum number of tasks updated simultaneously (0 to update all at once)")
 	flags.DurationVar(&opts.update.delay, flagUpdateDelay, time.Duration(0), "Delay between updates (ns|us|ms|s|m|h) (default 0s)")
-	flags.DurationVar(&opts.update.monitor, flagUpdateMonitor, time.Duration(0), "Duration after each task update to monitor for failure (ns|us|ms|s|m|h) (default 0s)")
-	flags.StringVar(&opts.update.onFailure, flagUpdateFailureAction, "pause", "Action on update failure (pause|continue)")
+	flags.DurationVar(&opts.update.monitor, flagUpdateMonitor, time.Duration(0), "Duration after each task update to monitor for failure (ns|us|ms|s|m|h)")
+	flags.SetAnnotation(flagUpdateMonitor, "version", []string{"1.25"})
+	flags.StringVar(&opts.update.onFailure, flagUpdateFailureAction, "pause", `Action on update failure ("pause"|"continue"|"rollback")`)
 	flags.Var(&opts.update.maxFailureRatio, flagUpdateMaxFailureRatio, "Failure rate to tolerate during an update")
+	flags.SetAnnotation(flagUpdateMaxFailureRatio, "version", []string{"1.25"})
 
-	flags.StringVar(&opts.endpoint.mode, flagEndpointMode, "", "Endpoint mode (vip or dnsrr)")
+	flags.Uint64Var(&opts.rollback.parallelism, flagRollbackParallelism, 1, "Maximum number of tasks rolled back simultaneously (0 to roll back all at once)")
+	flags.SetAnnotation(flagRollbackParallelism, "version", []string{"1.28"})
+	flags.DurationVar(&opts.rollback.delay, flagRollbackDelay, time.Duration(0), "Delay between task rollbacks (ns|us|ms|s|m|h) (default 0s)")
+	flags.SetAnnotation(flagRollbackDelay, "version", []string{"1.28"})
+	flags.DurationVar(&opts.rollback.monitor, flagRollbackMonitor, time.Duration(0), "Duration after each task rollback to monitor for failure (ns|us|ms|s|m|h) (default 0s)")
+	flags.SetAnnotation(flagRollbackMonitor, "version", []string{"1.28"})
+	flags.StringVar(&opts.rollback.onFailure, flagRollbackFailureAction, "pause", `Action on rollback failure ("pause"|"continue")`)
+	flags.SetAnnotation(flagRollbackFailureAction, "version", []string{"1.28"})
+	flags.Var(&opts.rollback.maxFailureRatio, flagRollbackMaxFailureRatio, "Failure rate to tolerate during a rollback")
+	flags.SetAnnotation(flagRollbackMaxFailureRatio, "version", []string{"1.28"})
+
+	flags.StringVar(&opts.endpoint.mode, flagEndpointMode, "vip", "Endpoint mode (vip or dnsrr)")
 
 	flags.BoolVar(&opts.registryAuth, flagRegistryAuth, false, "Send registry authentication details to swarm agents")
 
@@ -473,81 +514,103 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags.Var(&opts.logDriver.opts, flagLogOpt, "Logging driver options")
 
 	flags.StringVar(&opts.healthcheck.cmd, flagHealthCmd, "", "Command to run to check health")
+	flags.SetAnnotation(flagHealthCmd, "version", []string{"1.25"})
 	flags.Var(&opts.healthcheck.interval, flagHealthInterval, "Time between running the check (ns|us|ms|s|m|h)")
+	flags.SetAnnotation(flagHealthInterval, "version", []string{"1.25"})
 	flags.Var(&opts.healthcheck.timeout, flagHealthTimeout, "Maximum time to allow one check to run (ns|us|ms|s|m|h)")
+	flags.SetAnnotation(flagHealthTimeout, "version", []string{"1.25"})
 	flags.IntVar(&opts.healthcheck.retries, flagHealthRetries, 0, "Consecutive failures needed to report unhealthy")
+	flags.SetAnnotation(flagHealthRetries, "version", []string{"1.25"})
 	flags.BoolVar(&opts.healthcheck.noHealthcheck, flagNoHealthcheck, false, "Disable any container-specified HEALTHCHECK")
+	flags.SetAnnotation(flagNoHealthcheck, "version", []string{"1.25"})
 
 	flags.BoolVarP(&opts.tty, flagTTY, "t", false, "Allocate a pseudo-TTY")
+	flags.SetAnnotation(flagTTY, "version", []string{"1.25"})
+
+	flags.BoolVar(&opts.readOnly, flagReadOnly, false, "Mount the container's root filesystem as read only")
+	flags.SetAnnotation(flagReadOnly, "version", []string{"1.28"})
+
+	flags.StringVar(&opts.stopSignal, flagStopSignal, "", "Signal to stop the container")
+	flags.SetAnnotation(flagStopSignal, "version", []string{"1.28"})
 }
 
 const (
-	flagConstraint            = "constraint"
-	flagConstraintRemove      = "constraint-rm"
-	flagConstraintAdd         = "constraint-add"
-	flagContainerLabel        = "container-label"
-	flagContainerLabelRemove  = "container-label-rm"
-	flagContainerLabelAdd     = "container-label-add"
-	flagDNS                   = "dns"
-	flagDNSRemove             = "dns-rm"
-	flagDNSAdd                = "dns-add"
-	flagDNSOption             = "dns-option"
-	flagDNSOptionRemove       = "dns-option-rm"
-	flagDNSOptionAdd          = "dns-option-add"
-	flagDNSSearch             = "dns-search"
-	flagDNSSearchRemove       = "dns-search-rm"
-	flagDNSSearchAdd          = "dns-search-add"
-	flagEndpointMode          = "endpoint-mode"
-	flagHost                  = "host"
-	flagHostAdd               = "host-add"
-	flagHostRemove            = "host-rm"
-	flagHostname              = "hostname"
-	flagEnv                   = "env"
-	flagEnvFile               = "env-file"
-	flagEnvRemove             = "env-rm"
-	flagEnvAdd                = "env-add"
-	flagGroup                 = "group"
-	flagGroupAdd              = "group-add"
-	flagGroupRemove           = "group-rm"
-	flagLabel                 = "label"
-	flagLabelRemove           = "label-rm"
-	flagLabelAdd              = "label-add"
-	flagLimitCPU              = "limit-cpu"
-	flagLimitMemory           = "limit-memory"
-	flagMode                  = "mode"
-	flagMount                 = "mount"
-	flagMountRemove           = "mount-rm"
-	flagMountAdd              = "mount-add"
-	flagName                  = "name"
-	flagNetwork               = "network"
-	flagPublish               = "publish"
-	flagPublishRemove         = "publish-rm"
-	flagPublishAdd            = "publish-add"
-	flagReplicas              = "replicas"
-	flagReserveCPU            = "reserve-cpu"
-	flagReserveMemory         = "reserve-memory"
-	flagRestartCondition      = "restart-condition"
-	flagRestartDelay          = "restart-delay"
-	flagRestartMaxAttempts    = "restart-max-attempts"
-	flagRestartWindow         = "restart-window"
-	flagStopGracePeriod       = "stop-grace-period"
-	flagTTY                   = "tty"
-	flagUpdateDelay           = "update-delay"
-	flagUpdateFailureAction   = "update-failure-action"
-	flagUpdateMaxFailureRatio = "update-max-failure-ratio"
-	flagUpdateMonitor         = "update-monitor"
-	flagUpdateParallelism     = "update-parallelism"
-	flagUser                  = "user"
-	flagWorkdir               = "workdir"
-	flagRegistryAuth          = "with-registry-auth"
-	flagLogDriver             = "log-driver"
-	flagLogOpt                = "log-opt"
-	flagHealthCmd             = "health-cmd"
-	flagHealthInterval        = "health-interval"
-	flagHealthRetries         = "health-retries"
-	flagHealthTimeout         = "health-timeout"
-	flagNoHealthcheck         = "no-healthcheck"
-	flagSecret                = "secret"
-	flagSecretAdd             = "secret-add"
-	flagSecretRemove          = "secret-rm"
+	flagPlacementPref           = "placement-pref"
+	flagPlacementPrefAdd        = "placement-pref-add"
+	flagPlacementPrefRemove     = "placement-pref-rm"
+	flagConstraint              = "constraint"
+	flagConstraintRemove        = "constraint-rm"
+	flagConstraintAdd           = "constraint-add"
+	flagContainerLabel          = "container-label"
+	flagContainerLabelRemove    = "container-label-rm"
+	flagContainerLabelAdd       = "container-label-add"
+	flagDNS                     = "dns"
+	flagDNSRemove               = "dns-rm"
+	flagDNSAdd                  = "dns-add"
+	flagDNSOption               = "dns-option"
+	flagDNSOptionRemove         = "dns-option-rm"
+	flagDNSOptionAdd            = "dns-option-add"
+	flagDNSSearch               = "dns-search"
+	flagDNSSearchRemove         = "dns-search-rm"
+	flagDNSSearchAdd            = "dns-search-add"
+	flagEndpointMode            = "endpoint-mode"
+	flagHost                    = "host"
+	flagHostAdd                 = "host-add"
+	flagHostRemove              = "host-rm"
+	flagHostname                = "hostname"
+	flagEnv                     = "env"
+	flagEnvFile                 = "env-file"
+	flagEnvRemove               = "env-rm"
+	flagEnvAdd                  = "env-add"
+	flagGroup                   = "group"
+	flagGroupAdd                = "group-add"
+	flagGroupRemove             = "group-rm"
+	flagLabel                   = "label"
+	flagLabelRemove             = "label-rm"
+	flagLabelAdd                = "label-add"
+	flagLimitCPU                = "limit-cpu"
+	flagLimitMemory             = "limit-memory"
+	flagMode                    = "mode"
+	flagMount                   = "mount"
+	flagMountRemove             = "mount-rm"
+	flagMountAdd                = "mount-add"
+	flagName                    = "name"
+	flagNetwork                 = "network"
+	flagPublish                 = "publish"
+	flagPublishRemove           = "publish-rm"
+	flagPublishAdd              = "publish-add"
+	flagReadOnly                = "read-only"
+	flagReplicas                = "replicas"
+	flagReserveCPU              = "reserve-cpu"
+	flagReserveMemory           = "reserve-memory"
+	flagRestartCondition        = "restart-condition"
+	flagRestartDelay            = "restart-delay"
+	flagRestartMaxAttempts      = "restart-max-attempts"
+	flagRestartWindow           = "restart-window"
+	flagRollbackDelay           = "rollback-delay"
+	flagRollbackFailureAction   = "rollback-failure-action"
+	flagRollbackMaxFailureRatio = "rollback-max-failure-ratio"
+	flagRollbackMonitor         = "rollback-monitor"
+	flagRollbackParallelism     = "rollback-parallelism"
+	flagStopGracePeriod         = "stop-grace-period"
+	flagStopSignal              = "stop-signal"
+	flagTTY                     = "tty"
+	flagUpdateDelay             = "update-delay"
+	flagUpdateFailureAction     = "update-failure-action"
+	flagUpdateMaxFailureRatio   = "update-max-failure-ratio"
+	flagUpdateMonitor           = "update-monitor"
+	flagUpdateParallelism       = "update-parallelism"
+	flagUser                    = "user"
+	flagWorkdir                 = "workdir"
+	flagRegistryAuth            = "with-registry-auth"
+	flagLogDriver               = "log-driver"
+	flagLogOpt                  = "log-opt"
+	flagHealthCmd               = "health-cmd"
+	flagHealthInterval          = "health-interval"
+	flagHealthRetries           = "health-retries"
+	flagHealthTimeout           = "health-timeout"
+	flagNoHealthcheck           = "no-healthcheck"
+	flagSecret                  = "secret"
+	flagSecretAdd               = "secret-add"
+	flagSecretRemove            = "secret-rm"
 )

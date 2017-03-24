@@ -21,6 +21,7 @@ import (
 	mounttypes "github.com/docker/docker/api/types/mount"
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/integration-cli/request"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/mount"
@@ -31,9 +32,7 @@ import (
 )
 
 func (s *DockerSuite) TestContainerAPIGetAll(c *check.C) {
-	startCount, err := getContainerCount()
-	c.Assert(err, checker.IsNil, check.Commentf("Cannot query container count"))
-
+	startCount := getContainerCount(c)
 	name := "getall"
 	dockerCmd(c, "run", "--name", name, "busybox", "true")
 
@@ -215,10 +214,10 @@ func (s *DockerSuite) TestGetContainerStatsRmRunning(c *check.C) {
 	out, _ := runSleepingContainer(c)
 	id := strings.TrimSpace(out)
 
-	buf := &testutil.ChannelBuffer{make(chan []byte, 1)}
+	buf := &testutil.ChannelBuffer{C: make(chan []byte, 1)}
 	defer buf.Close()
 
-	_, body, err := request.SockRequestRaw("GET", "/containers/"+id+"/stats?stream=1", nil, "application/json", daemonHost())
+	_, body, err := request.Get("/containers/"+id+"/stats?stream=1", request.JSON)
 	c.Assert(err, checker.IsNil)
 	defer body.Close()
 
@@ -252,13 +251,13 @@ func (s *DockerSuite) TestGetContainerStatsStream(c *check.C) {
 
 	type b struct {
 		status int
-		body   []byte
+		body   io.ReadCloser
 		err    error
 	}
 	bc := make(chan b, 1)
 	go func() {
-		status, body, err := request.SockRequest("GET", "/containers/"+name+"/stats", nil, daemonHost())
-		bc <- b{status, body, err}
+		status, body, err := request.Get("/containers/" + name + "/stats")
+		bc <- b{status.StatusCode, body, err}
 	}()
 
 	// allow some time to stream the stats from the container
@@ -274,7 +273,9 @@ func (s *DockerSuite) TestGetContainerStatsStream(c *check.C) {
 		c.Assert(sr.err, checker.IsNil)
 		c.Assert(sr.status, checker.Equals, http.StatusOK)
 
-		s := string(sr.body)
+		b, err := ioutil.ReadAll(sr.body)
+		c.Assert(err, checker.IsNil)
+		s := string(b)
 		// count occurrences of "read" of types.Stats
 		if l := strings.Count(s, "read"); l < 2 {
 			c.Fatalf("Expected more than one stat streamed, got %d", l)
@@ -329,7 +330,7 @@ func (s *DockerSuite) TestGetStoppedContainerStats(c *check.C) {
 	// We expect an immediate response, but if it's not immediate, the test would hang, so put it in a goroutine
 	// below we'll check this on a timeout.
 	go func() {
-		resp, body, err := request.SockRequestRaw("GET", "/containers/"+name+"/stats", nil, "", daemonHost())
+		resp, body, err := request.Get("/containers/" + name + "/stats")
 		body.Close()
 		chResp <- stats{resp.StatusCode, err}
 	}()
@@ -354,8 +355,7 @@ func (s *DockerSuite) TestContainerAPIPause(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusNoContent)
 
-	pausedContainers, err := getPausedContainers()
-	c.Assert(err, checker.IsNil, check.Commentf("error thrown while checking if containers were paused"))
+	pausedContainers := getPausedContainers(c)
 
 	if len(pausedContainers) != 1 || stringid.TruncateID(ContainerID) != pausedContainers[0] {
 		c.Fatalf("there should be one paused container and not %d", len(pausedContainers))
@@ -365,8 +365,7 @@ func (s *DockerSuite) TestContainerAPIPause(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusNoContent)
 
-	pausedContainers, err = getPausedContainers()
-	c.Assert(err, checker.IsNil, check.Commentf("error thrown while checking if containers were paused"))
+	pausedContainers = getPausedContainers(c)
 	c.Assert(pausedContainers, checker.HasLen, 0, check.Commentf("There should be no paused container."))
 }
 
@@ -564,32 +563,11 @@ func (s *DockerSuite) TestContainerAPICreateMultipleNetworksConfig(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerAPICreateWithHostName(c *check.C) {
-	hostName := "test-host"
-	config := map[string]interface{}{
-		"Image":    "busybox",
-		"Hostname": hostName,
-	}
-
-	status, body, err := request.SockRequest("POST", "/containers/create", config, daemonHost())
-	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusCreated)
-
-	var container containertypes.ContainerCreateCreatedBody
-	c.Assert(json.Unmarshal(body, &container), checker.IsNil)
-
-	status, body, err = request.SockRequest("GET", "/containers/"+container.ID+"/json", nil, daemonHost())
-	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusOK)
-
-	var containerJSON types.ContainerJSON
-	c.Assert(json.Unmarshal(body, &containerJSON), checker.IsNil)
-	c.Assert(containerJSON.Config.Hostname, checker.Equals, hostName, check.Commentf("Mismatched Hostname"))
-}
-
-func (s *DockerSuite) TestContainerAPICreateWithDomainName(c *check.C) {
 	domainName := "test-domain"
+	hostName := "test-hostname"
 	config := map[string]interface{}{
 		"Image":      "busybox",
+		"Hostname":   hostName,
 		"Domainname": domainName,
 	}
 
@@ -606,6 +584,7 @@ func (s *DockerSuite) TestContainerAPICreateWithDomainName(c *check.C) {
 
 	var containerJSON types.ContainerJSON
 	c.Assert(json.Unmarshal(body, &containerJSON), checker.IsNil)
+	c.Assert(containerJSON.Config.Hostname, checker.Equals, hostName, check.Commentf("Mismatched Hostname"))
 	c.Assert(containerJSON.Config.Domainname, checker.Equals, domainName, check.Commentf("Mismatched Domainname"))
 }
 
@@ -683,7 +662,7 @@ func (s *DockerSuite) TestContainerAPIVerifyHeader(c *check.C) {
 	create := func(ct string) (*http.Response, io.ReadCloser, error) {
 		jsonData := bytes.NewBuffer(nil)
 		c.Assert(json.NewEncoder(jsonData).Encode(config), checker.IsNil)
-		return request.SockRequestRaw("POST", "/containers/create", jsonData, ct, daemonHost())
+		return request.Post("/containers/create", request.RawContent(ioutil.NopCloser(jsonData)), request.ContentType(ct))
 	}
 
 	// Try with no content-type
@@ -719,7 +698,7 @@ func (s *DockerSuite) TestContainerAPIInvalidPortSyntax(c *check.C) {
 				  }
 				}`
 
-	res, body, err := request.SockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json", daemonHost())
+	res, body, err := request.Post("/containers/create", request.RawString(config), request.JSON)
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
 
@@ -739,7 +718,7 @@ func (s *DockerSuite) TestContainerAPIRestartPolicyInvalidPolicyName(c *check.C)
 		}
 	}`
 
-	res, body, err := request.SockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json", daemonHost())
+	res, body, err := request.Post("/containers/create", request.RawString(config), request.JSON)
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
 
@@ -759,7 +738,7 @@ func (s *DockerSuite) TestContainerAPIRestartPolicyRetryMismatch(c *check.C) {
 		}
 	}`
 
-	res, body, err := request.SockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json", daemonHost())
+	res, body, err := request.Post("/containers/create", request.RawString(config), request.JSON)
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
 
@@ -779,7 +758,7 @@ func (s *DockerSuite) TestContainerAPIRestartPolicyNegativeRetryCount(c *check.C
 		}
 	}`
 
-	res, body, err := request.SockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json", daemonHost())
+	res, body, err := request.Post("/containers/create", request.RawString(config), request.JSON)
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
 
@@ -799,7 +778,7 @@ func (s *DockerSuite) TestContainerAPIRestartPolicyDefaultRetryCount(c *check.C)
 		}
 	}`
 
-	res, _, err := request.SockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json", daemonHost())
+	res, _, err := request.Post("/containers/create", request.RawString(config), request.JSON)
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusCreated)
 }
@@ -830,7 +809,7 @@ func (s *DockerSuite) TestContainerAPIPostCreateNull(c *check.C) {
 		"NetworkDisabled":false,
 		"OnBuild":null}`
 
-	res, body, err := request.SockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json", daemonHost())
+	res, body, err := request.Post("/containers/create", request.RawString(config), request.JSON)
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusCreated)
 
@@ -861,7 +840,7 @@ func (s *DockerSuite) TestCreateWithTooLowMemoryLimit(c *check.C) {
 		"Memory":    524287
 	}`
 
-	res, body, err := request.SockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json", daemonHost())
+	res, body, err := request.Post("/containers/create", request.RawString(config), request.JSON)
 	c.Assert(err, checker.IsNil)
 	b, err2 := testutil.ReadBody(body)
 	c.Assert(err2, checker.IsNil)
@@ -939,7 +918,7 @@ func (s *DockerSuite) TestContainerAPIStart(c *check.C) {
 	c.Assert(err, checker.IsNil)
 
 	// TODO(tibor): figure out why this doesn't work on windows
-	if isLocalDaemon {
+	if testEnv.LocalDaemon() {
 		c.Assert(status, checker.Equals, http.StatusNotModified)
 	}
 }
@@ -963,7 +942,7 @@ func (s *DockerSuite) TestContainerAPIWait(c *check.C) {
 	name := "test-api-wait"
 
 	sleepCmd := "/bin/sleep"
-	if daemonPlatform == "windows" {
+	if testEnv.DaemonPlatform() == "windows" {
 		sleepCmd = "sleep"
 	}
 	dockerCmd(c, "run", "--name", name, "busybox", sleepCmd, "2")
@@ -1132,7 +1111,7 @@ func (s *DockerSuite) TestContainerAPIDeleteRemoveVolume(c *check.C) {
 	testRequires(c, SameHostDaemon)
 
 	vol := "/testvolume"
-	if daemonPlatform == "windows" {
+	if testEnv.DaemonPlatform() == "windows" {
 		vol = `c:\testvolume`
 	}
 
@@ -1161,7 +1140,7 @@ func (s *DockerSuite) TestContainerAPIChunkedEncoding(c *check.C) {
 		"OpenStdin": true,
 	}
 
-	resp, _, err := request.Post(daemonHost(), "/containers/create", request.JSONBody(config), func(req *http.Request) error {
+	resp, _, err := request.Post("/containers/create", request.JSONBody(config), func(req *http.Request) error {
 		// This is a cheat to make the http request do chunked encoding
 		// Otherwise (just setting the Content-Encoding to chunked) net/http will overwrite
 		// https://golang.org/src/pkg/net/http/request.go?s=11980:12172
@@ -1169,6 +1148,7 @@ func (s *DockerSuite) TestContainerAPIChunkedEncoding(c *check.C) {
 		return nil
 	})
 	c.Assert(err, checker.IsNil, check.Commentf("error creating container with chunked encoding"))
+	defer resp.Body.Close()
 	c.Assert(resp.StatusCode, checker.Equals, http.StatusCreated)
 }
 
@@ -1282,7 +1262,7 @@ func (s *DockerSuite) TestPutContainerArchiveErrSymlinkInVolumeToReadOnlyRootfs(
 		readOnly: true,
 		volumes:  defaultVolumes(testVol), // Our bind mount is at /vol2
 	})
-	defer deleteContainer(false, cID)
+	defer deleteContainer(cID)
 
 	// Attempt to extract to a symlink in the volume which points to a
 	// directory outside the volume. This should cause an error because the
@@ -1785,19 +1765,18 @@ func (s *DockerSuite) TestContainersAPICreateMountsCreate(c *check.C) {
 	destPath := prefix + slash + "foo"
 
 	var (
-		err     error
 		testImg string
 	)
-	if daemonPlatform != "windows" {
-		testImg, err = buildImage("test-mount-config", `
+	if testEnv.DaemonPlatform() != "windows" {
+		testImg = "test-mount-config"
+		buildImageSuccessfully(c, testImg, build.WithDockerfile(`
 	FROM busybox
 	RUN mkdir `+destPath+` && touch `+destPath+slash+`bar
 	CMD cat `+destPath+slash+`bar
-	`, true)
+	`))
 	} else {
 		testImg = "busybox"
 	}
-	c.Assert(err, checker.IsNil)
 
 	type testCase struct {
 		cfg      mounttypes.Mount
@@ -1841,7 +1820,7 @@ func (s *DockerSuite) TestContainersAPICreateMountsCreate(c *check.C) {
 		}
 	}
 
-	if daemonPlatform != "windows" { // Windows does not support volume populate
+	if testEnv.DaemonPlatform() != "windows" { // Windows does not support volume populate
 		cases = append(cases, []testCase{
 			{mounttypes.Mount{Type: "volume", Target: destPath, VolumeOptions: &mounttypes.VolumeOptions{NoCopy: true}}, types.MountPoint{Driver: volume.DefaultDriverName, Type: "volume", RW: true, Destination: destPath}},
 			{mounttypes.Mount{Type: "volume", Target: destPath + slash, VolumeOptions: &mounttypes.VolumeOptions{NoCopy: true}}, types.MountPoint{Driver: volume.DefaultDriverName, Type: "volume", RW: true, Destination: destPath}},
@@ -1891,7 +1870,7 @@ func (s *DockerSuite) TestContainersAPICreateMountsCreate(c *check.C) {
 		}
 
 		out, _, err := dockerCmdWithError("start", "-a", id)
-		if (x.cfg.Type != "volume" || (x.cfg.VolumeOptions != nil && x.cfg.VolumeOptions.NoCopy)) && daemonPlatform != "windows" {
+		if (x.cfg.Type != "volume" || (x.cfg.VolumeOptions != nil && x.cfg.VolumeOptions.NoCopy)) && testEnv.DaemonPlatform() != "windows" {
 			c.Assert(err, checker.NotNil, check.Commentf("%s\n%v", out, mps[0]))
 		} else {
 			c.Assert(err, checker.IsNil, check.Commentf("%s\n%v", out, mps[0]))

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/stringid"
@@ -18,41 +19,40 @@ func TestNetworkContext(t *testing.T) {
 	cases := []struct {
 		networkCtx networkContext
 		expValue   string
-		expHeader  string
 		call       func() string
 	}{
 		{networkContext{
 			n:     types.NetworkResource{ID: networkID},
 			trunc: false,
-		}, networkID, networkIDHeader, ctx.ID},
+		}, networkID, ctx.ID},
 		{networkContext{
 			n:     types.NetworkResource{ID: networkID},
 			trunc: true,
-		}, stringid.TruncateID(networkID), networkIDHeader, ctx.ID},
+		}, stringid.TruncateID(networkID), ctx.ID},
 		{networkContext{
 			n: types.NetworkResource{Name: "network_name"},
-		}, "network_name", nameHeader, ctx.Name},
+		}, "network_name", ctx.Name},
 		{networkContext{
 			n: types.NetworkResource{Driver: "driver_name"},
-		}, "driver_name", driverHeader, ctx.Driver},
+		}, "driver_name", ctx.Driver},
 		{networkContext{
 			n: types.NetworkResource{EnableIPv6: true},
-		}, "true", ipv6Header, ctx.IPv6},
+		}, "true", ctx.IPv6},
 		{networkContext{
 			n: types.NetworkResource{EnableIPv6: false},
-		}, "false", ipv6Header, ctx.IPv6},
+		}, "false", ctx.IPv6},
 		{networkContext{
 			n: types.NetworkResource{Internal: true},
-		}, "true", internalHeader, ctx.Internal},
+		}, "true", ctx.Internal},
 		{networkContext{
 			n: types.NetworkResource{Internal: false},
-		}, "false", internalHeader, ctx.Internal},
+		}, "false", ctx.Internal},
 		{networkContext{
 			n: types.NetworkResource{},
-		}, "", labelsHeader, ctx.Labels},
+		}, "", ctx.Labels},
 		{networkContext{
 			n: types.NetworkResource{Labels: map[string]string{"label1": "value1", "label2": "value2"}},
-		}, "label1=value1,label2=value2", labelsHeader, ctx.Labels},
+		}, "label1=value1,label2=value2", ctx.Labels},
 	}
 
 	for _, c := range cases {
@@ -62,11 +62,6 @@ func TestNetworkContext(t *testing.T) {
 			compareMultipleValues(t, v, c.expValue)
 		} else if v != c.expValue {
 			t.Fatalf("Expected %s, was %s\n", c.expValue, v)
-		}
-
-		h := ctx.FullHeader()
-		if h != c.expHeader {
-			t.Fatalf("Expected %s, was %s\n", c.expHeader, h)
 		}
 	}
 }
@@ -144,12 +139,22 @@ network_id: networkID2
 foobar_bar
 `,
 		},
+		// Custom Format with CreatedAt
+		{
+			Context{Format: NewNetworkFormat("{{.Name}} {{.CreatedAt}}", false)},
+			`foobar_baz 2016-01-01 00:00:00 +0000 UTC
+foobar_bar 2017-01-01 00:00:00 +0000 UTC
+`,
+		},
 	}
+
+	timestamp1, _ := time.Parse("2006-01-02", "2016-01-01")
+	timestamp2, _ := time.Parse("2006-01-02", "2017-01-01")
 
 	for _, testcase := range cases {
 		networks := []types.NetworkResource{
-			{ID: "networkID1", Name: "foobar_baz", Driver: "foo", Scope: "local"},
-			{ID: "networkID2", Name: "foobar_bar", Driver: "bar", Scope: "local"},
+			{ID: "networkID1", Name: "foobar_baz", Driver: "foo", Scope: "local", Created: timestamp1},
+			{ID: "networkID2", Name: "foobar_bar", Driver: "bar", Scope: "local", Created: timestamp2},
 		}
 		out := bytes.NewBufferString("")
 		testcase.context.Output = out
@@ -168,8 +173,8 @@ func TestNetworkContextWriteJSON(t *testing.T) {
 		{ID: "networkID2", Name: "foobar_bar"},
 	}
 	expectedJSONs := []map[string]interface{}{
-		{"Driver": "", "ID": "networkID1", "IPv6": "false", "Internal": "false", "Labels": "", "Name": "foobar_baz", "Scope": ""},
-		{"Driver": "", "ID": "networkID2", "IPv6": "false", "Internal": "false", "Labels": "", "Name": "foobar_bar", "Scope": ""},
+		{"Driver": "", "ID": "networkID1", "IPv6": "false", "Internal": "false", "Labels": "", "Name": "foobar_baz", "Scope": "", "CreatedAt": "0001-01-01 00:00:00 +0000 UTC"},
+		{"Driver": "", "ID": "networkID2", "IPv6": "false", "Internal": "false", "Labels": "", "Name": "foobar_bar", "Scope": "", "CreatedAt": "0001-01-01 00:00:00 +0000 UTC"},
 	}
 
 	out := bytes.NewBufferString("")

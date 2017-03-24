@@ -22,30 +22,21 @@ func NewRefCounter(c Checker) *RefCounter {
 	}
 }
 
-// Increment increaes the ref count for the given id and returns the current count
+// Increment increases the ref count for the given id and returns the current count
 func (c *RefCounter) Increment(path string) int {
-	c.mu.Lock()
-	m := c.counts[path]
-	if m == nil {
-		m = &minfo{}
-		c.counts[path] = m
-	}
-	// if we are checking this path for the first time check to make sure
-	// if it was already mounted on the system and make sure we have a correct ref
-	// count if it is mounted as it is in use.
-	if !m.check {
-		m.check = true
-		if c.checker.IsMounted(path) {
-			m.count++
-		}
-	}
-	m.count++
-	c.mu.Unlock()
-	return m.count
+	return c.incdec(path, func(minfo *minfo) {
+		minfo.count++
+	})
 }
 
 // Decrement decreases the ref count for the given id and returns the current count
 func (c *RefCounter) Decrement(path string) int {
+	return c.incdec(path, func(minfo *minfo) {
+		minfo.count--
+	})
+}
+
+func (c *RefCounter) incdec(path string, infoOp func(minfo *minfo)) int {
 	c.mu.Lock()
 	m := c.counts[path]
 	if m == nil {
@@ -61,7 +52,8 @@ func (c *RefCounter) Decrement(path string) int {
 			m.count++
 		}
 	}
-	m.count--
+	infoOp(m)
+	count := m.count
 	c.mu.Unlock()
-	return m.count
+	return count
 }

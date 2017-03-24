@@ -25,7 +25,10 @@ Aliases:
 
 Options:
   -q, --quiet          Only display IDs
+  -format string       Pretty-print secrets using a Go template
 ```
+
+## Description
 
 Run this command on a manager node to list the secrets in the swarm.
 
@@ -33,10 +36,55 @@ Run this command on a manager node to list the secrets in the swarm.
 
 ```bash
 $ docker secret ls
+
 ID                          NAME                    CREATED                                   UPDATED
 mhv17xfe3gh6xc4rij5orpfds   secret.json             2016-10-27 23:25:43.909181089 +0000 UTC   2016-10-27 23:25:43.909181089 +0000 UTC
 ```
-## Related information
+
+### Format the output
+
+The formatting option (`--format`) pretty prints secrets output
+using a Go template.
+
+Valid placeholders for the Go template are listed below:
+
+| Placeholder  | Description                                                                          |
+| ------------ | ------------------------------------------------------------------------------------ |
+| `.ID`        | Secret ID                                                                            |
+| `.Name`      | Secret name                                                                          |
+| `.CreatedAt` | Time when the secret was created                                                     |
+| `.UpdatedAt` | Time when the secret was updated                                                     |
+| `.Labels`    | All labels assigned to the secret                                                    |
+| `.Label`     | Value of a specific label for this secret. For example `{{.Label "secret.ssh.key"}}` |
+
+When using the `--format` option, the `secret ls` command will either
+output the data exactly as the template declares or, when using the
+`table` directive, will include column headers as well.
+
+The following example uses a template without headers and outputs the
+`ID` and `Name` entries separated by a colon for all images:
+
+```bash
+$ docker secret ls --format "{{.ID}}: {{.Name}}"
+
+77af4d6b9913: secret-1
+b6fa739cedf5: secret-2
+78a85c484f71: secret-3
+```
+
+To list all secrets with their name and created date in a table format you
+can use:
+
+```bash
+$ docker secret ls --format "table {{.ID}}\t{{.Name}}\t{{.CreatedAt}}"
+
+ID                  NAME                      CREATED
+77af4d6b9913        secret-1                  5 minutes ago
+b6fa739cedf5        secret-2                  3 hours ago
+78a85c484f71        secret-3                  10 days ago
+```
+
+## Related commands
 
 * [secret create](secret_create.md)
 * [secret inspect](secret_inspect.md)

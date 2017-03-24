@@ -7,7 +7,7 @@ import (
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/manager/state/raft/membership"
 	"github.com/docker/swarmkit/manager/state/store"
-	"github.com/docker/swarmkit/protobuf/ptypes"
+	gogotypes "github.com/gogo/protobuf/types"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -294,7 +294,7 @@ func (s *Server) RemoveNode(ctx context.Context, request *api.RemoveNodeRequest)
 			if certBlock != nil {
 				X509Cert, err := x509.ParseCertificate(certBlock.Bytes)
 				if err == nil && !X509Cert.NotAfter.IsZero() {
-					expiry, err := ptypes.TimestampProto(X509Cert.NotAfter)
+					expiry, err := gogotypes.TimestampProto(X509Cert.NotAfter)
 					if err == nil {
 						blacklistedCert.Expiry = expiry
 					}

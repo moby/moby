@@ -245,6 +245,42 @@ func TestPortOptInvalidComplexSyntax(t *testing.T) {
 	}
 }
 
+func TestPortOptInvalidSimpleSyntax(t *testing.T) {
+	testCases := []struct {
+		value         string
+		expectedError string
+	}{
+		{
+			value:         "9999999",
+			expectedError: "Invalid containerPort: 9999999",
+		},
+		{
+			value:         "80/xyz",
+			expectedError: "Invalid proto: xyz",
+		},
+		{
+			value:         "tcp",
+			expectedError: "Invalid containerPort: tcp",
+		},
+		{
+			value:         "udp",
+			expectedError: "Invalid containerPort: udp",
+		},
+		{
+			value:         "",
+			expectedError: "No port specified",
+		},
+		{
+			value:         "1.1.1.1:80:80",
+			expectedError: "HostIP is not supported",
+		},
+	}
+	for _, tc := range testCases {
+		var port PortOpt
+		assert.Error(t, port.Set(tc.value), tc.expectedError)
+	}
+}
+
 func assertContains(t *testing.T, portConfigs []swarm.PortConfig, expected swarm.PortConfig) {
 	var contains = false
 	for _, portConfig := range portConfigs {

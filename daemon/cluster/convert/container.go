@@ -9,24 +9,26 @@ import (
 	mounttypes "github.com/docker/docker/api/types/mount"
 	types "github.com/docker/docker/api/types/swarm"
 	swarmapi "github.com/docker/swarmkit/api"
-	"github.com/docker/swarmkit/protobuf/ptypes"
+	gogotypes "github.com/gogo/protobuf/types"
 )
 
 func containerSpecFromGRPC(c *swarmapi.ContainerSpec) types.ContainerSpec {
 	containerSpec := types.ContainerSpec{
-		Image:     c.Image,
-		Labels:    c.Labels,
-		Command:   c.Command,
-		Args:      c.Args,
-		Hostname:  c.Hostname,
-		Env:       c.Env,
-		Dir:       c.Dir,
-		User:      c.User,
-		Groups:    c.Groups,
-		TTY:       c.TTY,
-		OpenStdin: c.OpenStdin,
-		Hosts:     c.Hosts,
-		Secrets:   secretReferencesFromGRPC(c.Secrets),
+		Image:      c.Image,
+		Labels:     c.Labels,
+		Command:    c.Command,
+		Args:       c.Args,
+		Hostname:   c.Hostname,
+		Env:        c.Env,
+		Dir:        c.Dir,
+		User:       c.User,
+		Groups:     c.Groups,
+		StopSignal: c.StopSignal,
+		TTY:        c.TTY,
+		OpenStdin:  c.OpenStdin,
+		ReadOnly:   c.ReadOnly,
+		Hosts:      c.Hosts,
+		Secrets:    secretReferencesFromGRPC(c.Secrets),
 	}
 
 	if c.DNSConfig != nil {
@@ -75,7 +77,7 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) types.ContainerSpec {
 	}
 
 	if c.StopGracePeriod != nil {
-		grace, _ := ptypes.Duration(c.StopGracePeriod)
+		grace, _ := gogotypes.DurationFromProto(c.StopGracePeriod)
 		containerSpec.StopGracePeriod = &grace
 	}
 
@@ -135,19 +137,21 @@ func secretReferencesFromGRPC(sr []*swarmapi.SecretReference) []*types.SecretRef
 
 func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 	containerSpec := &swarmapi.ContainerSpec{
-		Image:     c.Image,
-		Labels:    c.Labels,
-		Command:   c.Command,
-		Args:      c.Args,
-		Hostname:  c.Hostname,
-		Env:       c.Env,
-		Dir:       c.Dir,
-		User:      c.User,
-		Groups:    c.Groups,
-		TTY:       c.TTY,
-		OpenStdin: c.OpenStdin,
-		Hosts:     c.Hosts,
-		Secrets:   secretReferencesToGRPC(c.Secrets),
+		Image:      c.Image,
+		Labels:     c.Labels,
+		Command:    c.Command,
+		Args:       c.Args,
+		Hostname:   c.Hostname,
+		Env:        c.Env,
+		Dir:        c.Dir,
+		User:       c.User,
+		Groups:     c.Groups,
+		StopSignal: c.StopSignal,
+		TTY:        c.TTY,
+		OpenStdin:  c.OpenStdin,
+		ReadOnly:   c.ReadOnly,
+		Hosts:      c.Hosts,
+		Secrets:    secretReferencesToGRPC(c.Secrets),
 	}
 
 	if c.DNSConfig != nil {
@@ -159,7 +163,7 @@ func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 	}
 
 	if c.StopGracePeriod != nil {
-		containerSpec.StopGracePeriod = ptypes.DurationProto(*c.StopGracePeriod)
+		containerSpec.StopGracePeriod = gogotypes.DurationProto(*c.StopGracePeriod)
 	}
 
 	// Mounts
@@ -215,8 +219,8 @@ func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 }
 
 func healthConfigFromGRPC(h *swarmapi.HealthConfig) *container.HealthConfig {
-	interval, _ := ptypes.Duration(h.Interval)
-	timeout, _ := ptypes.Duration(h.Timeout)
+	interval, _ := gogotypes.DurationFromProto(h.Interval)
+	timeout, _ := gogotypes.DurationFromProto(h.Timeout)
 	return &container.HealthConfig{
 		Test:     h.Test,
 		Interval: interval,
@@ -228,8 +232,8 @@ func healthConfigFromGRPC(h *swarmapi.HealthConfig) *container.HealthConfig {
 func healthConfigToGRPC(h *container.HealthConfig) *swarmapi.HealthConfig {
 	return &swarmapi.HealthConfig{
 		Test:     h.Test,
-		Interval: ptypes.DurationProto(h.Interval),
-		Timeout:  ptypes.DurationProto(h.Timeout),
+		Interval: gogotypes.DurationProto(h.Interval),
+		Timeout:  gogotypes.DurationProto(h.Timeout),
 		Retries:  int32(h.Retries),
 	}
 }

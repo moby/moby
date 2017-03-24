@@ -186,24 +186,24 @@ func (c *networkConfiguration) Validate() error {
 // Conflicts check if two NetworkConfiguration objects overlap
 func (c *networkConfiguration) Conflicts(o *networkConfiguration) error {
 	if o == nil {
-		return fmt.Errorf("same configuration")
+		return errors.New("same configuration")
 	}
 
 	// Also empty, because only one network with empty name is allowed
 	if c.BridgeName == o.BridgeName {
-		return fmt.Errorf("networks have same bridge name")
+		return errors.New("networks have same bridge name")
 	}
 
 	// They must be in different subnets
 	if (c.AddressIPv4 != nil && o.AddressIPv4 != nil) &&
 		(c.AddressIPv4.Contains(o.AddressIPv4.IP) || o.AddressIPv4.Contains(c.AddressIPv4.IP)) {
-		return fmt.Errorf("networks have overlapping IPv4")
+		return errors.New("networks have overlapping IPv4")
 	}
 
 	// They must be in different v6 subnets
 	if (c.AddressIPv6 != nil && o.AddressIPv6 != nil) &&
 		(c.AddressIPv6.Contains(o.AddressIPv6.IP) || o.AddressIPv6.Contains(c.AddressIPv6.IP)) {
-		return fmt.Errorf("networks have overlapping IPv6")
+		return errors.New("networks have overlapping IPv6")
 	}
 
 	return nil
@@ -573,6 +573,10 @@ func (d *driver) NetworkFree(id string) error {
 }
 
 func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key string, value []byte) {
+}
+
+func (d *driver) DecodeTableEntry(tablename string, key string, value []byte) (string, map[string]string) {
+	return "", nil
 }
 
 // Create a new network using bridge plugin

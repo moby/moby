@@ -62,7 +62,7 @@ func (s *DockerSuite) TestExecResizeImmediatelyAfterExecStart(c *check.C) {
 		}
 		defer conn.Close()
 
-		_, rc, err := request.SockRequestRaw("POST", fmt.Sprintf("/exec/%s/resize?h=24&w=80", execID), nil, "text/plain", daemonHost())
+		_, rc, err := request.Post(fmt.Sprintf("/exec/%s/resize?h=24&w=80", execID), request.ContentType("text/plain"))
 		// It's probably a panic of the daemon if io.ErrUnexpectedEOF is returned.
 		if err == io.ErrUnexpectedEOF {
 			return fmt.Errorf("The daemon might have crashed.")

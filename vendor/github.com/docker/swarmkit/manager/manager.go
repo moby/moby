@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/go-events"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/ca"
@@ -34,9 +35,10 @@ import (
 	"github.com/docker/swarmkit/manager/state"
 	"github.com/docker/swarmkit/manager/state/raft"
 	"github.com/docker/swarmkit/manager/state/store"
-	"github.com/docker/swarmkit/protobuf/ptypes"
 	"github.com/docker/swarmkit/remotes"
 	"github.com/docker/swarmkit/xnet"
+	gogotypes "github.com/gogo/protobuf/types"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -71,7 +73,7 @@ type Config struct {
 
 	// RemoteAPI is a listening address for serving the remote API, and
 	// an optional advertise address.
-	RemoteAPI RemoteAddrs
+	RemoteAPI *RemoteAddrs
 
 	// JoinRaft is an optional address of a node in an existing raft
 	// cluster to join.
@@ -105,14 +107,16 @@ type Config struct {
 
 	// Availability allows a user to control the current scheduling status of a node
 	Availability api.NodeSpec_Availability
+
+	// PluginGetter provides access to docker's plugin inventory.
+	PluginGetter plugingetter.PluginGetter
 }
 
 // Manager is the cluster manager for Swarm.
 // This is the high-level object holding and initializing all the manager
 // subsystems.
 type Manager struct {
-	config    *Config
-	listeners []net.Listener
+	config Config
 
 	caserver               *ca.Server
 	dispatcher             *dispatcher.Dispatcher
@@ -132,9 +136,18 @@ type Manager struct {
 
 	cancelFunc context.CancelFunc
 
-	mu      sync.Mutex
+	// mu is a general mutex used to coordinate starting/stopping and
+	// leadership events.
+	mu sync.Mutex
+	// addrMu is a mutex that protects config.ControlAPI and config.RemoteAPI
+	addrMu sync.Mutex
+
 	started chan struct{}
 	stopped bool
+
+	remoteListener  chan net.Listener
+	controlListener chan net.Listener
+	errServe        chan error
 }
 
 type closeOnceListener struct {
@@ -152,29 +165,6 @@ func (l *closeOnceListener) Close() error {
 
 // New creates a Manager which has not started to accept requests yet.
 func New(config *Config) (*Manager, error) {
-	dispatcherConfig := dispatcher.DefaultConfig()
-
-	// If an AdvertiseAddr was specified, we use that as our
-	// externally-reachable address.
-	advertiseAddr := config.RemoteAPI.AdvertiseAddr
-
-	var advertiseAddrPort string
-	if advertiseAddr == "" {
-		// Otherwise, we know we are joining an existing swarm. Use a
-		// wildcard address to trigger remote autodetection of our
-		// address.
-		var err error
-		_, advertiseAddrPort, err = net.SplitHostPort(config.RemoteAPI.ListenAddr)
-		if err != nil {
-			return nil, fmt.Errorf("missing or invalid listen address %s", config.RemoteAPI.ListenAddr)
-		}
-
-		// Even with an IPv6 listening address, it's okay to use
-		// 0.0.0.0 here. Any "unspecified" (wildcard) IP will
-		// be substituted with the actual source address.
-		advertiseAddr = net.JoinHostPort("0.0.0.0", advertiseAddrPort)
-	}
-
 	err := os.MkdirAll(config.StateDir, 0700)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create state directory")
@@ -185,49 +175,6 @@ func New(config *Config) (*Manager, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create raft state directory")
 	}
-
-	var listeners []net.Listener
-
-	// don't create a socket directory if we're on windows. we used named pipe
-	if runtime.GOOS != "windows" {
-		err := os.MkdirAll(filepath.Dir(config.ControlAPI), 0700)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to create socket directory")
-		}
-	}
-
-	l, err := xnet.ListenLocal(config.ControlAPI)
-
-	// A unix socket may fail to bind if the file already
-	// exists. Try replacing the file.
-	if runtime.GOOS != "windows" {
-		unwrappedErr := err
-		if op, ok := unwrappedErr.(*net.OpError); ok {
-			unwrappedErr = op.Err
-		}
-		if sys, ok := unwrappedErr.(*os.SyscallError); ok {
-			unwrappedErr = sys.Err
-		}
-		if unwrappedErr == syscall.EADDRINUSE {
-			os.Remove(config.ControlAPI)
-			l, err = xnet.ListenLocal(config.ControlAPI)
-		}
-	}
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to listen on control API address")
-	}
-
-	listeners = append(listeners, l)
-
-	l, err = net.Listen("tcp", config.RemoteAPI.ListenAddr)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to listen on remote API address")
-	}
-	if advertiseAddrPort == "0" {
-		advertiseAddr = l.Addr().String()
-		config.RemoteAPI.ListenAddr = advertiseAddr
-	}
-	listeners = append(listeners, l)
 
 	raftCfg := raft.DefaultNodeConfig()
 
@@ -245,7 +192,6 @@ func New(config *Config) (*Manager, error) {
 
 	newNodeOpts := raft.NodeOptions{
 		ID:              config.SecurityConfig.ClientTLSCreds.NodeID(),
-		Addr:            advertiseAddr,
 		JoinAddr:        config.JoinRaft,
 		Config:          raftCfg,
 		StateDir:        raftStateDir,
@@ -256,22 +202,136 @@ func New(config *Config) (*Manager, error) {
 	raftNode := raft.NewNode(newNodeOpts)
 
 	opts := []grpc.ServerOption{
-		grpc.Creds(config.SecurityConfig.ServerTLSCreds)}
+		grpc.Creds(config.SecurityConfig.ServerTLSCreds),
+		grpc.StreamInterceptor(grpc_prometheus.StreamServerInterceptor),
+		grpc.UnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
+	}
 
 	m := &Manager{
-		config:      config,
-		listeners:   listeners,
-		caserver:    ca.NewServer(raftNode.MemoryStore(), config.SecurityConfig),
-		dispatcher:  dispatcher.New(raftNode, dispatcherConfig),
-		logbroker:   logbroker.New(raftNode.MemoryStore()),
-		server:      grpc.NewServer(opts...),
-		localserver: grpc.NewServer(opts...),
-		raftNode:    raftNode,
-		started:     make(chan struct{}),
-		dekRotator:  dekRotator,
+		config:          *config,
+		caserver:        ca.NewServer(raftNode.MemoryStore(), config.SecurityConfig),
+		dispatcher:      dispatcher.New(raftNode, dispatcher.DefaultConfig()),
+		logbroker:       logbroker.New(raftNode.MemoryStore()),
+		server:          grpc.NewServer(opts...),
+		localserver:     grpc.NewServer(opts...),
+		raftNode:        raftNode,
+		started:         make(chan struct{}),
+		dekRotator:      dekRotator,
+		remoteListener:  make(chan net.Listener, 1),
+		controlListener: make(chan net.Listener, 1),
+		errServe:        make(chan error, 2),
+	}
+
+	if config.ControlAPI != "" {
+		m.config.ControlAPI = ""
+		if err := m.BindControl(config.ControlAPI); err != nil {
+			return nil, err
+		}
+	}
+
+	if config.RemoteAPI != nil {
+		m.config.RemoteAPI = nil
+		// The context isn't used in this case (before (*Manager).Run).
+		if err := m.BindRemote(context.Background(), *config.RemoteAPI); err != nil {
+			if config.ControlAPI != "" {
+				l := <-m.controlListener
+				l.Close()
+			}
+			return nil, err
+		}
 	}
 
 	return m, nil
+}
+
+// BindControl binds a local socket for the control API.
+func (m *Manager) BindControl(addr string) error {
+	m.addrMu.Lock()
+	defer m.addrMu.Unlock()
+
+	if m.config.ControlAPI != "" {
+		return errors.New("manager already has a control API address")
+	}
+
+	// don't create a socket directory if we're on windows. we used named pipe
+	if runtime.GOOS != "windows" {
+		err := os.MkdirAll(filepath.Dir(addr), 0700)
+		if err != nil {
+			return errors.Wrap(err, "failed to create socket directory")
+		}
+	}
+
+	l, err := xnet.ListenLocal(addr)
+
+	// A unix socket may fail to bind if the file already
+	// exists. Try replacing the file.
+	if runtime.GOOS != "windows" {
+		unwrappedErr := err
+		if op, ok := unwrappedErr.(*net.OpError); ok {
+			unwrappedErr = op.Err
+		}
+		if sys, ok := unwrappedErr.(*os.SyscallError); ok {
+			unwrappedErr = sys.Err
+		}
+		if unwrappedErr == syscall.EADDRINUSE {
+			os.Remove(addr)
+			l, err = xnet.ListenLocal(addr)
+		}
+	}
+	if err != nil {
+		return errors.Wrap(err, "failed to listen on control API address")
+	}
+
+	m.config.ControlAPI = addr
+	m.controlListener <- l
+	return nil
+}
+
+// BindRemote binds a port for the remote API.
+func (m *Manager) BindRemote(ctx context.Context, addrs RemoteAddrs) error {
+	m.addrMu.Lock()
+	defer m.addrMu.Unlock()
+
+	if m.config.RemoteAPI != nil {
+		return errors.New("manager already has remote API address")
+	}
+
+	// If an AdvertiseAddr was specified, we use that as our
+	// externally-reachable address.
+	advertiseAddr := addrs.AdvertiseAddr
+
+	var advertiseAddrPort string
+	if advertiseAddr == "" {
+		// Otherwise, we know we are joining an existing swarm. Use a
+		// wildcard address to trigger remote autodetection of our
+		// address.
+		var err error
+		_, advertiseAddrPort, err = net.SplitHostPort(addrs.ListenAddr)
+		if err != nil {
+			return fmt.Errorf("missing or invalid listen address %s", addrs.ListenAddr)
+		}
+
+		// Even with an IPv6 listening address, it's okay to use
+		// 0.0.0.0 here. Any "unspecified" (wildcard) IP will
+		// be substituted with the actual source address.
+		advertiseAddr = net.JoinHostPort("0.0.0.0", advertiseAddrPort)
+	}
+
+	l, err := net.Listen("tcp", addrs.ListenAddr)
+	if err != nil {
+		return errors.Wrap(err, "failed to listen on remote API address")
+	}
+	if advertiseAddrPort == "0" {
+		advertiseAddr = l.Addr().String()
+		addrs.ListenAddr = advertiseAddr
+	}
+
+	m.config.RemoteAPI = &addrs
+
+	m.raftNode.SetAddr(ctx, advertiseAddr)
+	m.remoteListener <- l
+
+	return nil
 }
 
 // RemovedFromRaft returns a channel that's closed if the manager is removed
@@ -282,6 +342,12 @@ func (m *Manager) RemovedFromRaft() <-chan struct{} {
 
 // Addr returns tcp address on which remote api listens.
 func (m *Manager) Addr() string {
+	m.addrMu.Lock()
+	defer m.addrMu.Unlock()
+
+	if m.config.RemoteAPI == nil {
+		return ""
+	}
 	return m.config.RemoteAPI.ListenAddr
 }
 
@@ -322,7 +388,7 @@ func (m *Manager) Run(parent context.Context) error {
 		return err
 	}
 
-	baseControlAPI := controlapi.NewServer(m.raftNode.MemoryStore(), m.raftNode, m.config.SecurityConfig.RootCA())
+	baseControlAPI := controlapi.NewServer(m.raftNode.MemoryStore(), m.raftNode, m.config.SecurityConfig.RootCA(), m.config.PluginGetter)
 	baseResourceAPI := resourceapi.New(m.raftNode.MemoryStore())
 	healthServer := health.NewHealthServer()
 	localHealthServer := health.NewHealthServer()
@@ -353,12 +419,17 @@ func (m *Manager) Run(parent context.Context) error {
 	// requests (it has no TLS information to put in the metadata map).
 	forwardAsOwnRequest := func(ctx context.Context) (context.Context, error) { return ctx, nil }
 	handleRequestLocally := func(ctx context.Context) (context.Context, error) {
-		var remoteAddr string
-		if m.config.RemoteAPI.AdvertiseAddr != "" {
-			remoteAddr = m.config.RemoteAPI.AdvertiseAddr
-		} else {
-			remoteAddr = m.config.RemoteAPI.ListenAddr
+		remoteAddr := "127.0.0.1:0"
+
+		m.addrMu.Lock()
+		if m.config.RemoteAPI != nil {
+			if m.config.RemoteAPI.AdvertiseAddr != "" {
+				remoteAddr = m.config.RemoteAPI.AdvertiseAddr
+			} else {
+				remoteAddr = m.config.RemoteAPI.ListenAddr
+			}
 		}
+		m.addrMu.Unlock()
 
 		creds := m.config.SecurityConfig.ClientTLSCreds
 
@@ -391,6 +462,7 @@ func (m *Manager) Run(parent context.Context) error {
 	api.RegisterLogBrokerServer(m.server, proxyLogBrokerAPI)
 	api.RegisterResourceAllocatorServer(m.server, proxyResourceAPI)
 	api.RegisterDispatcherServer(m.server, proxyDispatcherAPI)
+	grpc_prometheus.Register(m.server)
 
 	api.RegisterControlServer(m.localserver, localProxyControlAPI)
 	api.RegisterLogsServer(m.localserver, localProxyLogsAPI)
@@ -400,14 +472,13 @@ func (m *Manager) Run(parent context.Context) error {
 	api.RegisterNodeCAServer(m.localserver, localProxyNodeCAAPI)
 	api.RegisterResourceAllocatorServer(m.localserver, localProxyResourceAPI)
 	api.RegisterLogBrokerServer(m.localserver, localProxyLogBrokerAPI)
+	grpc_prometheus.Register(m.localserver)
 
 	healthServer.SetServingStatus("Raft", api.HealthCheckResponse_NOT_SERVING)
 	localHealthServer.SetServingStatus("ControlAPI", api.HealthCheckResponse_NOT_SERVING)
 
-	errServe := make(chan error, len(m.listeners))
-	for _, lis := range m.listeners {
-		go m.serveListener(ctx, errServe, lis)
-	}
+	go m.serveListener(ctx, m.remoteListener)
+	go m.serveListener(ctx, m.controlListener)
 
 	defer func() {
 		m.server.Stop()
@@ -443,7 +514,7 @@ func (m *Manager) Run(parent context.Context) error {
 	}
 	raftConfig := c.Spec.Raft
 
-	if err := m.watchForKEKChanges(ctx); err != nil {
+	if err := m.watchForClusterChanges(ctx); err != nil {
 		return err
 	}
 
@@ -455,7 +526,7 @@ func (m *Manager) Run(parent context.Context) error {
 	}
 
 	// wait for an error in serving.
-	err = <-errServe
+	err = <-m.errServe
 	m.mu.Lock()
 	if m.stopped {
 		m.mu.Unlock()
@@ -478,7 +549,7 @@ func (m *Manager) Stop(ctx context.Context, clearData bool) {
 	// starting up.
 	<-m.started
 
-	// the mutex stops us from trying to stop while we're alrady stopping, or
+	// the mutex stops us from trying to stop while we're already stopping, or
 	// from returning before we've finished stopping.
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -583,6 +654,8 @@ func (m *Manager) updateKEK(ctx context.Context, cluster *api.Cluster) error {
 
 			conn, err := grpc.Dial(
 				m.config.ControlAPI,
+				grpc.WithUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
+				grpc.WithStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
 				grpc.WithTransportCredentials(insecureCreds),
 				grpc.WithDialer(
 					func(addr string, timeout time.Duration) (net.Conn, error) {
@@ -606,7 +679,7 @@ func (m *Manager) updateKEK(ctx context.Context, cluster *api.Cluster) error {
 	return nil
 }
 
-func (m *Manager) watchForKEKChanges(ctx context.Context) error {
+func (m *Manager) watchForClusterChanges(ctx context.Context) error {
 	clusterID := m.config.SecurityConfig.ClientTLSCreds.Organization()
 	clusterWatch, clusterWatchCancel, err := store.ViewAndWatch(m.raftNode.MemoryStore(),
 		func(tx store.ReadTx) error {
@@ -614,6 +687,7 @@ func (m *Manager) watchForKEKChanges(ctx context.Context) error {
 			if cluster == nil {
 				return fmt.Errorf("unable to get current cluster")
 			}
+			m.caserver.UpdateRootCA(ctx, cluster)
 			return m.updateKEK(ctx, cluster)
 		},
 		state.EventUpdateCluster{
@@ -629,6 +703,7 @@ func (m *Manager) watchForKEKChanges(ctx context.Context) error {
 			select {
 			case event := <-clusterWatch:
 				clusterEvent := event.(state.EventUpdateCluster)
+				m.caserver.UpdateRootCA(ctx, clusterEvent.Cluster)
 				m.updateKEK(ctx, clusterEvent.Cluster)
 			case <-ctx.Done():
 				clusterWatchCancel()
@@ -755,7 +830,13 @@ func (m *Manager) handleLeadershipEvents(ctx context.Context, leadershipCh chan 
 }
 
 // serveListener serves a listener for local and non local connections.
-func (m *Manager) serveListener(ctx context.Context, errServe chan error, l net.Listener) {
+func (m *Manager) serveListener(ctx context.Context, lCh <-chan net.Listener) {
+	var l net.Listener
+	select {
+	case l = <-lCh:
+	case <-ctx.Done():
+		return
+	}
 	ctx = log.WithLogger(ctx, log.G(ctx).WithFields(
 		logrus.Fields{
 			"proto": l.Addr().Network(),
@@ -766,10 +847,10 @@ func (m *Manager) serveListener(ctx context.Context, errServe chan error, l net.
 		// we need to disallow double closes because UnixListener.Close
 		// can delete unix-socket file of newer listener. grpc calls
 		// Close twice indeed: in Serve and in Stop.
-		errServe <- m.localserver.Serve(&closeOnceListener{Listener: l})
+		m.errServe <- m.localserver.Serve(&closeOnceListener{Listener: l})
 	} else {
 		log.G(ctx).Info("Listening for connections")
-		errServe <- m.server.Serve(l)
+		m.errServe <- m.server.Serve(l)
 	}
 }
 
@@ -833,7 +914,7 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 	// shutdown underlying manager processes when leadership is
 	// lost.
 
-	m.allocator, err = allocator.New(s)
+	m.allocator, err = allocator.New(s, m.config.PluginGetter)
 	if err != nil {
 		log.G(ctx).WithError(err).Error("failed to create allocator")
 		// TODO(stevvooe): It doesn't seem correct here to fail
@@ -904,7 +985,7 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 	}(m.globalOrchestrator)
 
 	go func(roleManager *roleManager) {
-		roleManager.Run()
+		roleManager.Run(ctx)
 	}(m.roleManager)
 }
 
@@ -951,6 +1032,10 @@ func defaultClusterObject(
 	encryptionConfig api.EncryptionConfig,
 	initialUnlockKeys []*api.EncryptionKey,
 	rootCA *ca.RootCA) *api.Cluster {
+	var caKey []byte
+	if rootCA.Signer != nil {
+		caKey = rootCA.Signer.Key
+	}
 
 	return &api.Cluster{
 		ID: clusterID,
@@ -962,14 +1047,14 @@ func defaultClusterObject(
 				TaskHistoryRetentionLimit: defaultTaskHistoryRetentionLimit,
 			},
 			Dispatcher: api.DispatcherConfig{
-				HeartbeatPeriod: ptypes.DurationProto(dispatcher.DefaultHeartBeatPeriod),
+				HeartbeatPeriod: gogotypes.DurationProto(dispatcher.DefaultHeartBeatPeriod),
 			},
 			Raft:             raftCfg,
 			CAConfig:         initialCAConfig,
 			EncryptionConfig: encryptionConfig,
 		},
 		RootCA: api.RootCA{
-			CAKey:      rootCA.Key,
+			CAKey:      caKey,
 			CACert:     rootCA.Cert,
 			CACertHash: rootCA.Digest.String(),
 			JoinTokens: api.JoinTokens{

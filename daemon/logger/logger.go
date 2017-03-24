@@ -26,9 +26,24 @@ const (
 	logWatcherBufferSize = 4096
 )
 
+var messagePool = &sync.Pool{New: func() interface{} { return &Message{Line: make([]byte, 0, 256)} }}
+
+// NewMessage returns a new message from the message sync.Pool
+func NewMessage() *Message {
+	return messagePool.Get().(*Message)
+}
+
+// PutMessage puts the specified message back n the message pool.
+// The message fields are reset before putting into the pool.
+func PutMessage(msg *Message) {
+	msg.reset()
+	messagePool.Put(msg)
+}
+
 // Message is datastructure that represents piece of output produced by some
 // container.  The Line member is a slice of an array whose contents can be
 // changed after a log driver's Log() method returns.
+// Any changes made to this struct must also be updated in the `reset` function
 type Message struct {
 	Line      []byte
 	Source    string
@@ -37,22 +52,14 @@ type Message struct {
 	Partial   bool
 }
 
-// CopyMessage creates a copy of the passed-in Message which will remain
-// unchanged if the original is changed.  Log drivers which buffer Messages
-// rather than dispatching them during their Log() method should use this
-// function to obtain a Message whose Line member's contents won't change.
-func CopyMessage(msg *Message) *Message {
-	m := new(Message)
-	m.Line = make([]byte, len(msg.Line))
-	copy(m.Line, msg.Line)
-	m.Source = msg.Source
-	m.Timestamp = msg.Timestamp
-	m.Partial = msg.Partial
-	m.Attrs = make(LogAttributes)
-	for k, v := range msg.Attrs {
-		m.Attrs[k] = v
-	}
-	return m
+// reset sets the message back to default values
+// This is used when putting a message back into the message pool.
+// Any changes to the `Message` struct should be reflected here.
+func (m *Message) reset() {
+	m.Line = m.Line[:0]
+	m.Source = ""
+	m.Attrs = nil
+	m.Partial = false
 }
 
 // LogAttributes is used to hold the extra attributes available in the log message

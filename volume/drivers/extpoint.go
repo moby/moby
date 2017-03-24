@@ -4,6 +4,7 @@ package volumedrivers
 
 import (
 	"fmt"
+	"sort"
 	"sync"
 
 	"github.com/docker/docker/pkg/locker"
@@ -176,6 +177,7 @@ func GetDriverList() []string {
 		driverList = append(driverList, driverName)
 	}
 	drivers.Unlock()
+	sort.Strings(driverList)
 	return driverList
 }
 
@@ -200,12 +202,12 @@ func GetAllDrivers() ([]volume.Driver, error) {
 
 	for _, p := range plugins {
 		name := p.Name()
-		ext, ok := drivers.extensions[name]
-		if ok {
+
+		if _, ok := drivers.extensions[name]; ok {
 			continue
 		}
 
-		ext = NewVolumeDriver(name, p.BasePath(), p.Client())
+		ext := NewVolumeDriver(name, p.BasePath(), p.Client())
 		if p.IsV1() {
 			drivers.extensions[name] = ext
 		}

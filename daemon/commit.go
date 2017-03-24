@@ -2,12 +2,12 @@ package daemon
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"runtime"
 	"strings"
 	"time"
 
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder/dockerfile"
@@ -16,7 +16,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/reference"
+	"github.com/pkg/errors"
 )
 
 // merge merges two Config, the image container configuration (defaults values),
@@ -128,7 +128,7 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 
 	// It is not possible to commit a running container on Windows and on Solaris.
 	if (runtime.GOOS == "windows" || runtime.GOOS == "solaris") && container.IsRunning() {
-		return "", fmt.Errorf("%+v does not support commit of a running container", runtime.GOOS)
+		return "", errors.Errorf("%+v does not support commit of a running container", runtime.GOOS)
 	}
 
 	if c.Pause && !container.IsPaused() {
@@ -228,9 +228,12 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 
 	imageRef := ""
 	if c.Repo != "" {
-		newTag, err := reference.WithName(c.Repo) // todo: should move this to API layer
+		newTag, err := reference.ParseNormalizedNamed(c.Repo) // todo: should move this to API layer
 		if err != nil {
 			return "", err
+		}
+		if !reference.IsNameOnly(newTag) {
+			return "", errors.Errorf("unexpected repository name: %s", c.Repo)
 		}
 		if c.Tag != "" {
 			if newTag, err = reference.WithTag(newTag, c.Tag); err != nil {
@@ -240,7 +243,7 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		if err := daemon.TagImageWithReference(id, newTag); err != nil {
 			return "", err
 		}
-		imageRef = newTag.String()
+		imageRef = reference.FamiliarString(newTag)
 	}
 
 	attributes := map[string]string{

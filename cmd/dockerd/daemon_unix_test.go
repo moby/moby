@@ -6,10 +6,11 @@
 package main
 
 import (
-	"github.com/docker/docker/daemon"
+	"testing"
+
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/pkg/testutil/assert"
 	"github.com/docker/docker/pkg/testutil/tempfile"
-	"testing"
 )
 
 func TestLoadDaemonCliConfigWithDaemonFlags(t *testing.T) {
@@ -82,10 +83,10 @@ func TestLoadDaemonConfigWithTrueDefaultValues(t *testing.T) {
 
 	// make sure reloading doesn't generate configuration
 	// conflicts after normalizing boolean values.
-	reload := func(reloadedConfig *daemon.Config) {
+	reload := func(reloadedConfig *config.Config) {
 		assert.Equal(t, reloadedConfig.EnableUserlandProxy, false)
 	}
-	assert.NilError(t, daemon.ReloadConfiguration(opts.configFile, opts.flags, reload))
+	assert.NilError(t, config.Reload(opts.configFile, opts.flags, reload))
 }
 
 func TestLoadDaemonConfigWithTrueDefaultValuesLeaveDefaults(t *testing.T) {

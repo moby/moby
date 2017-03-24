@@ -23,6 +23,7 @@ Initialize a swarm
 Options:
       --advertise-addr string           Advertised address (format: <ip|interface>[:port])
       --autolock                        Enable manager autolocking (requiring an unlock key to start a stopped manager)
+      --availability string             Availability of the node ("active"|"pause"|"drain") (default "active")
       --cert-expiry duration            Validity period for node certificates (ns|us|ms|s|m|h) (default 2160h0m0s)
       --dispatcher-heartbeat duration   Dispatcher heartbeat period (ns|us|ms|s|m|h) (default 5s)
       --external-ca external-ca         Specifications of one or more certificate signing endpoints
@@ -34,9 +35,12 @@ Options:
       --task-history-limit int          Task history retention limit (default 5)
 ```
 
+## Description
+
 Initialize a swarm. The docker engine targeted by this command becomes a manager
 in the newly created single-node swarm.
 
+## Examples
 
 ```bash
 $ docker swarm init --advertise-addr 192.168.99.121
@@ -133,7 +137,17 @@ Snapshots compact the Raft log and allow for more efficient transfer of the
 state to new managers. However, there is a performance cost to taking snapshots
 frequently.
 
-## Related information
+### `--availability`
+
+This flag specifies the availability of the node at the time the node joins a master.
+Possible availability values are `active`, `pause`, or `drain`.
+
+This flag is useful in certain situations. For example, a cluster may want to have
+dedicated manager nodes that are not served as worker nodes. This could be achieved
+by passing `--availability=drain` to `docker swarm init`.
+
+
+## Related commands
 
 * [swarm join](swarm_join.md)
 * [swarm join-token](swarm_join_token.md)

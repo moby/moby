@@ -44,6 +44,7 @@ Options:
       --cpuset-cpus string          CPUs in which to allow execution (0-3, 0,1)
       --cpuset-mems string          MEMs in which to allow execution (0-3, 0,1)
       --device value                Add a host device to the container (default [])
+      --device-cgroup-rule value    Add a rule to the cgroup allowed devices list
       --device-read-bps value       Limit read rate (bytes per second) from a device (default [])
       --device-read-iops value      Limit read rate (IO per second) from a device (default [])
       --device-write-bps value      Limit write rate (bytes per second) to a device (default [])
@@ -63,6 +64,8 @@ Options:
       --health-timeout duration     Maximum time to allow one check to run (ns|us|ms|s|m|h) (default 0s)
       --help                        Print usage
   -h, --hostname string             Container host name
+      --init                        Run an init inside the container that forwards signals and reaps processes
+      --init-path string            Path to the docker-init binary
   -i, --interactive                 Keep STDIN open even if not attached
       --io-maxbandwidth string      Maximum IO bandwidth limit for the system drive (Windows only)
       --io-maxiops uint             Maximum IOps limit for the system drive (Windows only)
@@ -104,11 +107,11 @@ Options:
       --rm                          Automatically remove the container when it exits
       --runtime string              Runtime to use for this container
       --security-opt value          Security Options (default [])
-      --shm-size string             Size of /dev/shm, default value is 64MB.
+      --shm-size bytes              Size of /dev/shm
                                     The format is `<number><unit>`. `number` must be greater than `0`.
                                     Unit is optional and can be `b` (bytes), `k` (kilobytes), `m` (megabytes),
                                     or `g` (gigabytes). If you omit the unit, the system uses bytes.
-      --stop-signal string          Signal to stop a container, SIGTERM by default (default "SIGTERM")
+      --stop-signal string          Signal to stop a container (default "SIGTERM")
       --stop-timeout=10             Timeout (in seconds) to stop a container
       --storage-opt value           Storage driver options for the container (default [])
       --sysctl value                Sysctl options (default map[])
@@ -123,13 +126,15 @@ Options:
   -v, --volume value                Bind mount a volume (default []). The format
                                     is `[host-src:]container-dest[:<options>]`.
                                     The comma-delimited `options` are [rw|ro],
-                                    [z|Z], [[r]shared|[r]slave|[r]private], and
+                                    [z|Z], [[r]shared|[r]slave|[r]private],
+                                    [delegated|cached|consistent], and
                                     [nocopy]. The 'host-src' is an absolute path
                                     or a name value.
       --volume-driver string        Optional volume driver for the container
       --volumes-from value          Mount volumes from the specified container(s) (default [])
   -w, --workdir string              Working directory inside the container
 ```
+## Description
 
 The `docker create` command creates a writeable container layer over the
 specified image and prepares it for running the specified command.  The
@@ -145,42 +150,64 @@ Please see the [run command](run.md) section and the [Docker run reference](../r
 
 ## Examples
 
-    $ docker create -t -i fedora bash
-    6d8af538ec541dd581ebc2a24153a28329acb5268abe5ef868c1f1a261221752
-    $ docker start -a -i 6d8af538ec5
-    bash-4.2#
+### Create and start a container
+
+```bash
+$ docker create -t -i fedora bash
+
+6d8af538ec541dd581ebc2a24153a28329acb5268abe5ef868c1f1a261221752
+
+$ docker start -a -i 6d8af538ec5
+
+bash-4.2#
+```
+
+### Initialize volumes
 
 As of v1.4.0 container volumes are initialized during the `docker create` phase
 (i.e., `docker run` too). For example, this allows you to `create` the `data`
 volume container, and then use it from another container:
 
-    $ docker create -v /data --name data ubuntu
-    240633dfbb98128fa77473d3d9018f6123b99c454b3251427ae190a7d951ad57
-    $ docker run --rm --volumes-from data ubuntu ls -la /data
-    total 8
-    drwxr-xr-x  2 root root 4096 Dec  5 04:10 .
-    drwxr-xr-x 48 root root 4096 Dec  5 04:11 ..
+```bash
+$ docker create -v /data --name data ubuntu
+
+240633dfbb98128fa77473d3d9018f6123b99c454b3251427ae190a7d951ad57
+
+$ docker run --rm --volumes-from data ubuntu ls -la /data
+
+total 8
+drwxr-xr-x  2 root root 4096 Dec  5 04:10 .
+drwxr-xr-x 48 root root 4096 Dec  5 04:11 ..
+```
 
 Similarly, `create` a host directory bind mounted volume container, which can
 then be used from the subsequent container:
 
-    $ docker create -v /home/docker:/docker --name docker ubuntu
-    9aa88c08f319cd1e4515c3c46b0de7cc9aa75e878357b1e96f91e2c773029f03
-    $ docker run --rm --volumes-from docker ubuntu ls -la /docker
-    total 20
-    drwxr-sr-x  5 1000 staff  180 Dec  5 04:00 .
-    drwxr-xr-x 48 root root  4096 Dec  5 04:13 ..
-    -rw-rw-r--  1 1000 staff 3833 Dec  5 04:01 .ash_history
-    -rw-r--r--  1 1000 staff  446 Nov 28 11:51 .ashrc
-    -rw-r--r--  1 1000 staff   25 Dec  5 04:00 .gitconfig
-    drwxr-sr-x  3 1000 staff   60 Dec  1 03:28 .local
-    -rw-r--r--  1 1000 staff  920 Nov 28 11:51 .profile
-    drwx--S---  2 1000 staff  460 Dec  5 00:51 .ssh
-    drwxr-xr-x 32 1000 staff 1140 Dec  5 04:01 docker
+```bash
+$ docker create -v /home/docker:/docker --name docker ubuntu
+
+9aa88c08f319cd1e4515c3c46b0de7cc9aa75e878357b1e96f91e2c773029f03
+
+$ docker run --rm --volumes-from docker ubuntu ls -la /docker
+
+total 20
+drwxr-sr-x  5 1000 staff  180 Dec  5 04:00 .
+drwxr-xr-x 48 root root  4096 Dec  5 04:13 ..
+-rw-rw-r--  1 1000 staff 3833 Dec  5 04:01 .ash_history
+-rw-r--r--  1 1000 staff  446 Nov 28 11:51 .ashrc
+-rw-r--r--  1 1000 staff   25 Dec  5 04:00 .gitconfig
+drwxr-sr-x  3 1000 staff   60 Dec  1 03:28 .local
+-rw-r--r--  1 1000 staff  920 Nov 28 11:51 .profile
+drwx--S---  2 1000 staff  460 Dec  5 00:51 .ssh
+drwxr-xr-x 32 1000 staff 1140 Dec  5 04:01 docker
+```
+
 
 Set storage driver options per container.
 
-    $ docker create -it --storage-opt size=120G fedora /bin/bash
+```bash
+$ docker create -it --storage-opt size=120G fedora /bin/bash
+```
 
 This (size) will allow to set the container rootfs size to 120G at creation time.
 This option is only available for the `devicemapper`, `btrfs`, `overlay2`,
@@ -207,3 +234,26 @@ daemon is running on Windows server, or `hyperv` if running on Windows client.  
 | `hyperv`   | Hyper-V hypervisor partition-based isolation.                                                                                                                  |
 
 Specifying the `--isolation` flag without a value is the same as setting `--isolation="default"`.
+
+### Dealing with dynamically created devices (--device-cgroup-rule)
+
+Devices available to a container are assigned at creation time. The
+assigned devices will both be added to the cgroup.allow file and
+created into the container once it is run. This poses a problem when
+a new device needs to be added to running container.
+
+One of the solution is to add a more permissive rule to a container
+allowing it access to a wider range of devices. For example, supposing
+our container needs access to a character device with major `42` and
+any number of minor number (added as new devices appear), the
+following rule would be added:
+
+```
+docker create --device-cgroup-rule='c 42:* rmw' -name my-container my-image
+```
+
+Then, a user could ask `udev` to execute a script that would `docker exec my-container mknod newDevX c 42 <minor>`
+the required device when it is added.
+
+NOTE: initially present devices still need to be explicitely added to
+the create/run command

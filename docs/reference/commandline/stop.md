@@ -25,5 +25,13 @@ Options:
   -t, --time int   Seconds to wait for stop before killing it (default 10)
 ```
 
+## Description
+
 The main process inside the container will receive `SIGTERM`, and after a grace
 period, `SIGKILL`.
+
+## Examples
+
+```bash
+$ docker stop my_container
+```

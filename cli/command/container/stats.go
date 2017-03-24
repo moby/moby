@@ -213,7 +213,7 @@ func runStats(dockerCli *command.DockerCli, opts *statsOptions) error {
 			ccstats = append(ccstats, c.GetStatistics())
 		}
 		cStats.mu.Unlock()
-		if err = formatter.ContainerStatsWrite(statsCtx, ccstats); err != nil {
+		if err = formatter.ContainerStatsWrite(statsCtx, ccstats, daemonOSType); err != nil {
 			break
 		}
 		if len(cStats.cs) == 0 && !showAll {

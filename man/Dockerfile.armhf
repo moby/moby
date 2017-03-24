@@ -1,9 +1,27 @@
-FROM    armhf/alpine:3.4
+FROM armhf/debian:jessie
 
-RUN     apk add -U git go bash curl gcc musl-dev make
+# allow replacing httpredir or deb mirror
+ARG APT_MIRROR=deb.debian.org
+RUN sed -ri "s/(httpredir|deb).debian.org/$APT_MIRROR/g" /etc/apt/sources.list
+
+RUN apt-get update && apt-get install -y \
+  git \
+  bash \
+  curl \
+  gcc \
+  make
+
+ENV GO_VERSION 1.7.5
+RUN curl -fsSL "https://golang.org/dl/go${GO_VERSION}.linux-armv6l.tar.gz" \
+  | tar -xzC /usr/local
+ENV PATH /go/bin:/usr/local/go/bin:$PATH
+ENV GOPATH /go
+
+# We're building for armhf, which is ARMv7, so let's be explicit about that
+ENV GOARCH arm
+ENV GOARM 7
 
 RUN     mkdir -p /go/src /go/bin /go/pkg
-ENV     GOPATH=/go
 RUN     export GLIDE=v0.11.1; \
         export TARGET=/go/src/github.com/Masterminds; \
         mkdir -p ${TARGET} && \

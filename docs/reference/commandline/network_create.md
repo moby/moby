@@ -38,6 +38,8 @@ Options:
                              network segment (default [])
 ```
 
+## Description
+
 Creates a new network. The `DRIVER` accepts `bridge` or `overlay` which are the
 built-in network drivers. If you have installed a third party or your own custom
 network driver you can specify that `DRIVER` here also. If you don't specify the
@@ -86,7 +88,9 @@ Network names must be unique. The Docker daemon attempts to identify naming
 conflicts but this is not guaranteed. It is the user's responsibility to avoid
 name conflicts.
 
-## Connect containers
+## Examples
+
+### Connect containers
 
 When you start a container, use the `--network` flag to connect it to a network.
 This example adds the `busybox` container to the `mynet` network:
@@ -107,7 +111,7 @@ Engines can also communicate in this way.
 You can disconnect a container from a network using the `docker network
 disconnect` command.
 
-## Specifying advanced options
+### Specify advanced options
 
 When you create a network, Engine creates a non-overlapping subnetwork for the
 network by default. This subnetwork is not a subdivision of an existing
@@ -150,7 +154,7 @@ $ docker network create -d overlay \
 Be sure that your subnetworks do not overlap. If they do, the network create
 fails and Engine returns an error.
 
-# Bridge driver options
+### Bridge driver options
 
 When creating a custom network, the default network driver (i.e. `bridge`) has
 additional options that can be passed. The following are those options and the
@@ -191,7 +195,7 @@ connects a bridge network to it to provide external connectivity. If you want
 to create an externally isolated `overlay` network, you can specify the
 `--internal` option.
 
-## Related information
+## Related commands
 
 * [network inspect](network_inspect.md)
 * [network connect](network_connect.md)

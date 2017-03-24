@@ -138,6 +138,7 @@ func (r *V2) Ping() error {
 // Close kills the registry server
 func (r *V2) Close() {
 	r.cmd.Process.Kill()
+	r.cmd.Process.Wait()
 	os.RemoveAll(r.dir)
 }
 
@@ -200,6 +201,11 @@ func (r *V2) Username() string {
 // Password returns the configured password of the server
 func (r *V2) Password() string {
 	return r.password
+}
+
+// Email returns the configured email of the server
+func (r *V2) Email() string {
+	return r.email
 }
 
 // Path returns the path where the registry write data

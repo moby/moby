@@ -77,12 +77,15 @@ type clientConfig struct {
 }
 
 // New returns a Daemon instance to be used for testing.
-// This will create a directory such as d123456789 in the folder specified by $DEST.
+// This will create a directory such as d123456789 in the folder specified by $DOCKER_INTEGRATION_DAEMON_DEST or $DEST.
 // The daemon will not automatically start.
 func New(t testingT, dockerBinary string, dockerdBinary string, config Config) *Daemon {
-	dest := os.Getenv("DEST")
+	dest := os.Getenv("DOCKER_INTEGRATION_DAEMON_DEST")
 	if dest == "" {
-		t.Fatalf("Please set the DEST environment variable")
+		dest = os.Getenv("DEST")
+	}
+	if dest == "" {
+		t.Fatalf("Please set the DOCKER_INTEGRATION_DAEMON_DEST or the DEST environment variable")
 	}
 
 	if err := os.MkdirAll(SockRoot, 0700); err != nil {
@@ -180,6 +183,7 @@ func (d *Daemon) getClientConfig() (*clientConfig, error) {
 	if err := sockets.ConfigureTransport(transport, proto, addr); err != nil {
 		return nil, err
 	}
+	transport.DisableKeepAlives = true
 
 	return &clientConfig{
 		transport: transport,
@@ -301,6 +305,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 			if err != nil {
 				continue
 			}
+			resp.Body.Close()
 			if resp.StatusCode != http.StatusOK {
 				d.log.Logf("[%s] received status != 200 OK: %s\n", d.id, resp.Status)
 			}
@@ -581,16 +586,17 @@ func (d *Daemon) GetBaseDeviceSize(c *check.C) int64 {
 	return basesizeBytes
 }
 
-// Cmd will execute a docker CLI command against this Daemon.
+// Cmd executes a docker CLI command against this daemon.
 // Example: d.Cmd("version") will run docker -H unix://path/to/unix.sock version
 func (d *Daemon) Cmd(args ...string) (string, error) {
-	b, err := d.Command(args...).CombinedOutput()
-	return string(b), err
+	result := icmd.RunCmd(d.Command(args...))
+	return result.Combined(), result.Error
 }
 
-// Command will create a docker CLI command against this Daeomn.
-func (d *Daemon) Command(args ...string) *exec.Cmd {
-	return exec.Command(d.dockerBinary, d.PrependHostArg(args)...)
+// Command creates a docker CLI command against this daemon, to be executed later.
+// Example: d.Command("version") creates a command to run "docker -H unix://path/to/unix.sock version"
+func (d *Daemon) Command(args ...string) icmd.Cmd {
+	return icmd.Command(d.dockerBinary, d.PrependHostArg(args)...)
 }
 
 // PrependHostArg prepend the specified arguments by the daemon host flags
@@ -620,6 +626,7 @@ func (d *Daemon) SockRequest(method, endpoint string, data interface{}) (int, []
 
 // SockRequestRaw executes a socket request on a daemon and returns an http
 // response and a reader for the output data.
+// Deprecated: use request package instead
 func (d *Daemon) SockRequestRaw(method, endpoint string, data io.Reader, ct string) (*http.Response, io.ReadCloser, error) {
 	return request.SockRequestRaw(method, endpoint, data, ct, d.Sock())
 }
@@ -711,7 +718,7 @@ func (d *Daemon) ReloadConfig() error {
 	errCh := make(chan error)
 	started := make(chan struct{})
 	go func() {
-		_, body, err := request.SockRequestRaw("GET", "/events", nil, "", d.Sock())
+		_, body, err := request.DoOnHost(d.Sock(), "/events", request.Method(http.MethodGet))
 		close(started)
 		if err != nil {
 			errCh <- err
@@ -759,7 +766,7 @@ func WaitInspectWithArgs(dockerBinary, name, expr, expected string, timeout time
 	for {
 		result := icmd.RunCommand(dockerBinary, args...)
 		if result.Error != nil {
-			if !strings.Contains(result.Stderr(), "No such") {
+			if !strings.Contains(strings.ToLower(result.Stderr()), "no such") {
 				return errors.Errorf("error executing docker inspect: %v\n%s",
 					result.Stderr(), result.Stdout())
 			}
@@ -789,6 +796,7 @@ func WaitInspectWithArgs(dockerBinary, name, expr, expected string, timeout time
 }
 
 // BuildImageCmdWithHost create a build command with the specified arguments.
+// Deprecated
 // FIXME(vdemeester) move this away
 func BuildImageCmdWithHost(dockerBinary, name, dockerfile, host string, useCache bool, buildFlags ...string) *exec.Cmd {
 	args := []string{}

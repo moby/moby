@@ -37,7 +37,6 @@ type StatsEntry struct {
 	BlockWrite       float64
 	PidsCurrent      uint64 // Not used on Windows
 	IsInvalid        bool
-	OSType           string
 }
 
 // ContainerStats represents an entity to store containers statistics synchronously
@@ -88,7 +87,6 @@ func (cs *ContainerStats) SetStatistics(s StatsEntry) {
 	cs.mutex.Lock()
 	defer cs.mutex.Unlock()
 	s.Container = cs.Container
-	s.OSType = cs.OSType
 	cs.StatsEntry = s
 }
 
@@ -113,16 +111,17 @@ func NewStatsFormat(source, osType string) Format {
 // NewContainerStats returns a new ContainerStats entity and sets in it the given name
 func NewContainerStats(container, osType string) *ContainerStats {
 	return &ContainerStats{
-		StatsEntry: StatsEntry{Container: container, OSType: osType},
+		StatsEntry: StatsEntry{Container: container},
 	}
 }
 
 // ContainerStatsWrite renders the context for a list of containers statistics
-func ContainerStatsWrite(ctx Context, containerStats []StatsEntry) error {
+func ContainerStatsWrite(ctx Context, containerStats []StatsEntry, osType string) error {
 	render := func(format func(subContext subContext) error) error {
 		for _, cstats := range containerStats {
 			containerStatsCtx := &containerStatsContext{
-				s: cstats,
+				s:  cstats,
+				os: osType,
 			}
 			if err := format(containerStatsCtx); err != nil {
 				return err
@@ -130,32 +129,52 @@ func ContainerStatsWrite(ctx Context, containerStats []StatsEntry) error {
 		}
 		return nil
 	}
-	return ctx.Write(&containerStatsContext{}, render)
+	memUsage := memUseHeader
+	if osType == winOSType {
+		memUsage = winMemUseHeader
+	}
+	containerStatsCtx := containerStatsContext{}
+	containerStatsCtx.header = map[string]string{
+		"Container": containerHeader,
+		"Name":      nameHeader,
+		"ID":        containerIDHeader,
+		"CPUPerc":   cpuPercHeader,
+		"MemUsage":  memUsage,
+		"MemPerc":   memPercHeader,
+		"NetIO":     netIOHeader,
+		"BlockIO":   blockIOHeader,
+		"PIDs":      pidsHeader,
+	}
+	containerStatsCtx.os = osType
+	return ctx.Write(&containerStatsCtx, render)
 }
 
 type containerStatsContext struct {
 	HeaderContext
-	s StatsEntry
+	s  StatsEntry
+	os string
+}
+
+func (c *containerStatsContext) MarshalJSON() ([]byte, error) {
+	return marshalJSON(c)
 }
 
 func (c *containerStatsContext) Container() string {
-	c.AddHeader(containerHeader)
 	return c.s.Container
 }
 
 func (c *containerStatsContext) Name() string {
-	c.AddHeader(nameHeader)
-	name := c.s.Name[1:]
-	return name
+	if len(c.s.Name) > 1 {
+		return c.s.Name[1:]
+	}
+	return "--"
 }
 
 func (c *containerStatsContext) ID() string {
-	c.AddHeader(containerIDHeader)
 	return c.s.ID
 }
 
 func (c *containerStatsContext) CPUPerc() string {
-	c.AddHeader(cpuPercHeader)
 	if c.s.IsInvalid {
 		return fmt.Sprintf("--")
 	}
@@ -163,31 +182,23 @@ func (c *containerStatsContext) CPUPerc() string {
 }
 
 func (c *containerStatsContext) MemUsage() string {
-	header := memUseHeader
-	if c.s.OSType == winOSType {
-		header = winMemUseHeader
-	}
-	c.AddHeader(header)
 	if c.s.IsInvalid {
 		return fmt.Sprintf("-- / --")
 	}
-	if c.s.OSType == winOSType {
+	if c.os == winOSType {
 		return fmt.Sprintf("%s", units.BytesSize(c.s.Memory))
 	}
 	return fmt.Sprintf("%s / %s", units.BytesSize(c.s.Memory), units.BytesSize(c.s.MemoryLimit))
 }
 
 func (c *containerStatsContext) MemPerc() string {
-	header := memPercHeader
-	c.AddHeader(header)
-	if c.s.IsInvalid || c.s.OSType == winOSType {
+	if c.s.IsInvalid || c.os == winOSType {
 		return fmt.Sprintf("--")
 	}
 	return fmt.Sprintf("%.2f%%", c.s.MemoryPercentage)
 }
 
 func (c *containerStatsContext) NetIO() string {
-	c.AddHeader(netIOHeader)
 	if c.s.IsInvalid {
 		return fmt.Sprintf("--")
 	}
@@ -195,7 +206,6 @@ func (c *containerStatsContext) NetIO() string {
 }
 
 func (c *containerStatsContext) BlockIO() string {
-	c.AddHeader(blockIOHeader)
 	if c.s.IsInvalid {
 		return fmt.Sprintf("--")
 	}
@@ -203,8 +213,7 @@ func (c *containerStatsContext) BlockIO() string {
 }
 
 func (c *containerStatsContext) PIDs() string {
-	c.AddHeader(pidsHeader)
-	if c.s.IsInvalid || c.s.OSType == winOSType {
+	if c.s.IsInvalid || c.os == winOSType {
 		return fmt.Sprintf("--")
 	}
 	return fmt.Sprintf("%d", c.s.PidsCurrent)

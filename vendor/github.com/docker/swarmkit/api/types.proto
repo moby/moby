@@ -2,8 +2,8 @@ syntax = "proto3";
 
 package docker.swarmkit.v1;
 
-import "timestamp/timestamp.proto"; // TODO(stevvooe): use our own until we fix gogoproto/deepcopy
-import "duration/duration.proto"; // TODO(stevvooe): use our own until we fix gogoproto/deepcopy
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
 import "gogoproto/gogo.proto";
 
 // This file contains types that are common to objects and spec or that are not
@@ -259,7 +259,8 @@ message RestartPolicy {
 	RestartCondition condition = 1;
 
 	// Delay between restart attempts
-	Duration delay = 2;
+	// Note: can't use stdduration because this field needs to be nullable.
+	google.protobuf.Duration delay = 2;
 
 	// MaxAttempts is the maximum number of restarts to attempt on an
 	// instance before giving up. Ignored if 0.
@@ -267,7 +268,8 @@ message RestartPolicy {
 
 	// Window is the time window used to evaluate the restart policy.
 	// The time window is unbounded if this is 0.
-	Duration window = 4;
+	// Note: can't use stdduration because this field needs to be nullable.
+	google.protobuf.Duration window = 4;
 }
 
 // UpdateConfig specifies the rate and policy of updates.
@@ -278,17 +280,11 @@ message UpdateConfig {
 	uint64 parallelism = 1;
 
 	// Amount of time between updates.
-	Duration delay = 2 [(gogoproto.nullable) = false];
+	google.protobuf.Duration delay = 2 [(gogoproto.stdduration) = true, (gogoproto.nullable) = false];
 
 	enum FailureAction {
 		PAUSE = 0;
 		CONTINUE = 1;
-		// NOTE: Automated rollback triggered as a failure action is an
-		// experimental feature that is not yet exposed to the end
-		// user. Currently, rollbacks must be initiated manually
-		// through the API by setting Spec to PreviousSpec. We may
-		// decide to expose automatic rollback in the future based on
-		// user feedback, or remove this feature otherwise.
 		ROLLBACK = 2;
 	}
 
@@ -301,7 +297,8 @@ message UpdateConfig {
 	// this counts as a failure. If it fails after Monitor, it does not
 	// count as a failure. If Monitor is unspecified, a default value will
 	// be used.
-	Duration monitor = 4;
+	// Note: can't use stdduration because this field needs to be nullable.
+	google.protobuf.Duration monitor = 4;
 
 	// MaxFailureRatio is the fraction of tasks that may fail during
 	// an update before the failure action is invoked. Any task created by
@@ -317,11 +314,6 @@ message UpdateConfig {
 	// If the failure action is ROLLBACK, the orchestrator will attempt to
 	// roll back to the previous service spec. If the MaxFailureRatio
 	// threshold is hit during the rollback, the rollback will pause.
-	//
-	// TODO(aaronl): Should there be a separate failure threshold for
-	// rollbacks? Should there be a failure action for rollbacks (to allow
-	// them to do something other than pause when the rollback encounters
-	// errors)?
 	float max_failure_ratio = 5;
 }
 
@@ -343,11 +335,13 @@ message UpdateStatus {
 	UpdateState state = 1;
 
 	// StartedAt is the time at which the update was started.
-	Timestamp started_at = 2;
+	// Note: can't use stdtime because this field is nullable.
+	google.protobuf.Timestamp started_at = 2;
 
 	// CompletedAt is the time at which the update completed successfully,
 	// paused, or finished rolling back.
-	Timestamp completed_at = 3;
+	// Note: can't use stdtime because this field is nullable.
+	google.protobuf.Timestamp completed_at = 3;
 
 	// TODO(aaronl): Consider adding a timestamp showing when the most
 	// recent task update took place. Currently, this is nontrivial
@@ -405,7 +399,7 @@ enum TaskState {
 
 // Container specific status.
 message ContainerStatus {
-	string container_id = 1 [(gogoproto.customname) = "ContainerID"];
+	string container_id = 1;
 
 	int32 pid = 2 [(gogoproto.customname) = "PID"];
 	int32 exit_code = 3;
@@ -418,7 +412,8 @@ message PortStatus {
 }
 
 message TaskStatus {
-	Timestamp timestamp = 1;
+	// Note: can't use stdtime because this field is nullable.
+	google.protobuf.Timestamp timestamp = 1;
 
 	// State expresses the current state of the task.
 	TaskState state = 2;
@@ -568,7 +563,7 @@ message IPAMOptions {
 
 // Peer should be used anywhere where we are describing a remote peer.
 message Peer {
-	string node_id = 1 [(gogoproto.customname) = "NodeID"];
+	string node_id = 1;
 	string addr = 2;
 }
 
@@ -644,7 +639,8 @@ message ExternalCA {
 
 message CAConfig {
 	// NodeCertExpiry is the duration certificates should be issued for
-	Duration node_cert_expiry = 1;
+	// Note: can't use stdduration because this field needs to be nullable.
+	google.protobuf.Duration node_cert_expiry = 1;
 
 	// ExternalCAs is a list of CAs to which a manager node will make
 	// certificate signing requests for node certificates.
@@ -673,7 +669,8 @@ message TaskDefaults {
 message DispatcherConfig {
 	// HeartbeatPeriod defines how often agent should send heartbeats to
 	// dispatcher.
-	Duration heartbeat_period = 1;
+	// Note: can't use stdduration because this field needs to be nullable.
+	google.protobuf.Duration heartbeat_period = 1;
 }
 
 // RaftConfig defines raft settings for the cluster.
@@ -701,10 +698,29 @@ message EncryptionConfig {
 	bool auto_lock_managers = 1;
 }
 
+message SpreadOver {
+	string spread_descriptor = 1; // label descriptor, such as engine.labels.az
+	// TODO: support node information beyond engine and node labels
+
+	// TODO: in the future, add a map that provides weights for weighted
+	// spreading.
+}
+
+message PlacementPreference {
+	oneof Preference {
+		SpreadOver spread = 1;
+	}
+}
+
 // Placement specifies task distribution constraints.
 message Placement {
-	// constraints specifies a set of requirements a node should meet for a task.
+	// Constraints specifies a set of requirements a node should meet for a task.
 	repeated string constraints = 1;
+
+	// Preferences provide a way to make the scheduler aware of factors
+	// such as topology. They are provided in order from highest to lowest
+	// precedence.
+	repeated PlacementPreference preferences = 2;
 }
 
 // JoinToken contains the join tokens for workers and managers.
@@ -779,7 +795,7 @@ message EncryptionKey {
 message ManagerStatus {
 	// RaftID specifies the internal ID used by the manager in a raft context, it can never be modified
 	// and is used only for information purposes
-	uint64 raft_id = 1 [(gogoproto.customname) = "RaftID"];
+	uint64 raft_id = 1;
 
 	// Addr is the address advertised to raft.
 	string addr = 2;
@@ -797,7 +813,7 @@ message SecretReference {
 	// SecretID represents the ID of the specific Secret that we're
 	// referencing. This identifier exists so that SecretReferences don't leak
 	// any information about the secret contents.
-	string secret_id = 1 [(gogoproto.customname) = "SecretID"];
+	string secret_id = 1;
 
 	// SecretName is the name of the secret that this references, but this is just provided for
 	// lookup/display purposes.  The secret in the reference will be identified by its ID.
@@ -829,7 +845,8 @@ message SecretReference {
 message BlacklistedCertificate {
 	// Expiry is the latest known expiration time of a certificate that
 	// was issued for the given CN.
-	Timestamp expiry = 1;
+	// Note: can't use stdtime because this field is nullable.
+	google.protobuf.Timestamp expiry = 1;
 }
 
 // HealthConfig holds configuration settings for the HEALTHCHECK feature.
@@ -844,11 +861,13 @@ message HealthConfig {
 	repeated string test = 1;
 
 	// Interval is the time to wait between checks. Zero means inherit.
-	Duration interval = 2;
+	// Note: can't use stdduration because this field needs to be nullable.
+	google.protobuf.Duration interval = 2;
 
 	// Timeout is the time to wait before considering the check to have hung.
 	// Zero means inherit.
-	Duration timeout = 3;
+	// Note: can't use stdduration because this field needs to be nullable.
+	google.protobuf.Duration timeout = 3;
 
 	// Retries is the number of consecutive failures needed to consider a
 	// container as unhealthy. Zero means inherit.

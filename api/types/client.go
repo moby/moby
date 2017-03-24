@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"io"
 	"net"
-	"os"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
@@ -160,9 +159,10 @@ type ImageBuildOptions struct {
 	ShmSize        int64
 	Dockerfile     string
 	Ulimits        []*units.Ulimit
-	// See the parsing of buildArgs in api/server/router/build/build_routes.go
-	// for an explaination of why BuildArgs needs to use *string instead of
-	// just a string
+	// BuildArgs needs to be a *string instead of just a string so that
+	// we can tell the difference between "" (empty string) and no value
+	// at all (nil). See the parsing of buildArgs in
+	// api/server/router/build/build_routes.go for even more info.
 	BuildArgs   map[string]*string
 	AuthConfigs map[string]AuthConfig
 	Context     io.Reader
@@ -175,6 +175,7 @@ type ImageBuildOptions struct {
 	// specified here do not need to have a valid parent chain to match cache.
 	CacheFrom   []string
 	SecurityOpt []string
+	ExtraHosts  []string // List of extra hosts
 }
 
 // ImageBuildResponse holds information
@@ -192,8 +193,8 @@ type ImageCreateOptions struct {
 
 // ImageImportSource holds source information for ImageImport
 type ImageImportSource struct {
-	Source     io.Reader // Source is the data to send to the server to create this image from (mutually exclusive with SourceName)
-	SourceName string    // SourceName is the name of the image to pull (mutually exclusive with Source)
+	Source     io.Reader // Source is the data to send to the server to create this image from. You must set SourceName to "-" to leverage this.
+	SourceName string    // SourceName is the name of the image to pull. Set to "-" to leverage the Source attribute.
 }
 
 // ImageImportOptions holds information to import images from the client host.
@@ -318,6 +319,12 @@ type ServiceUpdateOptions struct {
 	// credentials if they are not given in EncodedRegistryAuth. Valid
 	// values are "spec" and "previous-spec".
 	RegistryAuthFrom string
+
+	// Rollback indicates whether a server-side rollback should be
+	// performed. When this is set, the provided spec will be ignored.
+	// The valid values are "previous" and "none". An empty value is the
+	// same as "none".
+	Rollback string
 }
 
 // ServiceListOptions holds parameters to list  services with.
@@ -354,15 +361,6 @@ type PluginInstallOptions struct {
 	PrivilegeFunc         RequestPrivilegeFunc
 	AcceptPermissionsFunc func(PluginPrivileges) (bool, error)
 	Args                  []string
-}
-
-// SecretRequestOption is a type for requesting secrets
-type SecretRequestOption struct {
-	Source string
-	Target string
-	UID    string
-	GID    string
-	Mode   os.FileMode
 }
 
 // SwarmUnlockKeyResponse contains the response for Engine API:

@@ -7,8 +7,9 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/reference"
+	"github.com/docker/docker/api/types/filters"
 	"golang.org/x/net/context"
 )
 
@@ -39,8 +40,13 @@ func (pm *Manager) Pull(ctx context.Context, ref reference.Named, name string, m
 	return errNotSupported
 }
 
+// Upgrade pulls a plugin, check if the correct privileges are provided and install the plugin.
+func (pm *Manager) Upgrade(ctx context.Context, ref reference.Named, name string, metaHeader http.Header, authConfig *types.AuthConfig, privileges types.PluginPrivileges, outStream io.Writer) error {
+	return errNotSupported
+}
+
 // List displays the list of plugins and associated metadata.
-func (pm *Manager) List() ([]types.Plugin, error) {
+func (pm *Manager) List(pluginFilters filters.Args) ([]types.Plugin, error) {
 	return nil, errNotSupported
 }
 

@@ -76,7 +76,9 @@ func (etwLogger *etwLogs) Log(msg *logger.Message) error {
 		logrus.Error(errorMessage)
 		return errors.New(errorMessage)
 	}
-	return callEventWriteString(createLogMessage(etwLogger, msg))
+	m := createLogMessage(etwLogger, msg)
+	logger.PutMessage(msg)
+	return callEventWriteString(m)
 }
 
 // Close closes the logger by unregistering the ETW provider.
@@ -146,7 +148,13 @@ func callEventRegister() error {
 }
 
 func callEventWriteString(message string) error {
-	ret, _, _ := procEventWriteString.Call(uintptr(providerHandle), 0, 0, uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr(message))))
+	utf16message, err := syscall.UTF16FromString(message)
+
+	if err != nil {
+		return err
+	}
+
+	ret, _, _ := procEventWriteString.Call(uintptr(providerHandle), 0, 0, uintptr(unsafe.Pointer(&utf16message[0])))
 	if ret != win32CallSuccess {
 		errorMessage := fmt.Sprintf("ETWLogs provider failed to log message. Error: %d", ret)
 		logrus.Error(errorMessage)

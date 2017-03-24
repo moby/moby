@@ -10,6 +10,7 @@ import (
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/volume"
 	"github.com/docker/docker/volume/drivers"
 	"github.com/docker/docker/volume/local"
@@ -179,10 +180,39 @@ func TestParseSecurityOpt(t *testing.T) {
 	}
 }
 
+func TestParseNNPSecurityOptions(t *testing.T) {
+	daemon := &Daemon{
+		configStore: &config.Config{NoNewPrivileges: true},
+	}
+	container := &container.Container{}
+	config := &containertypes.HostConfig{}
+
+	// test NNP when "daemon:true" and "no-new-privileges=false""
+	config.SecurityOpt = []string{"no-new-privileges=false"}
+
+	if err := daemon.parseSecurityOpt(container, config); err != nil {
+		t.Fatalf("Unexpected daemon.parseSecurityOpt error: %v", err)
+	}
+	if container.NoNewPrivileges {
+		t.Fatalf("container.NoNewPrivileges should be FALSE: %v", container.NoNewPrivileges)
+	}
+
+	// test NNP when "daemon:false" and "no-new-privileges=true""
+	daemon.configStore.NoNewPrivileges = false
+	config.SecurityOpt = []string{"no-new-privileges=true"}
+
+	if err := daemon.parseSecurityOpt(container, config); err != nil {
+		t.Fatalf("Unexpected daemon.parseSecurityOpt error: %v", err)
+	}
+	if !container.NoNewPrivileges {
+		t.Fatalf("container.NoNewPrivileges should be TRUE: %v", container.NoNewPrivileges)
+	}
+}
+
 func TestNetworkOptions(t *testing.T) {
 	daemon := &Daemon{}
-	dconfigCorrect := &Config{
-		CommonConfig: CommonConfig{
+	dconfigCorrect := &config.Config{
+		CommonConfig: config.CommonConfig{
 			ClusterStore:     "consul://localhost:8500",
 			ClusterAdvertise: "192.168.0.1:8000",
 		},
@@ -192,14 +222,14 @@ func TestNetworkOptions(t *testing.T) {
 		t.Fatalf("Expect networkOptions success, got error: %v", err)
 	}
 
-	dconfigWrong := &Config{
-		CommonConfig: CommonConfig{
+	dconfigWrong := &config.Config{
+		CommonConfig: config.CommonConfig{
 			ClusterStore: "consul://localhost:8500://test://bbb",
 		},
 	}
 
 	if _, err := daemon.networkOptions(dconfigWrong, nil, nil); err == nil {
-		t.Fatalf("Expected networkOptions error, got nil")
+		t.Fatal("Expected networkOptions error, got nil")
 	}
 }
 

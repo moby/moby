@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/docker/distribution"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
@@ -14,7 +15,6 @@ import (
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
 	"github.com/docker/docker/plugin"
-	"github.com/docker/docker/reference"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/cluster"
 	networktypes "github.com/docker/libnetwork/types"
@@ -47,7 +47,8 @@ type Backend interface {
 	VolumeCreate(name, driverName string, opts, labels map[string]string) (*types.Volume, error)
 	Containers(config *types.ContainerListOptions) ([]*types.Container, error)
 	SetNetworkBootstrapKeys([]*networktypes.EncryptionKey) error
-	SetClusterProvider(provider cluster.Provider)
+	DaemonJoinsCluster(provider cluster.Provider)
+	DaemonLeavesCluster()
 	IsSwarmCompatible() error
 	SubscribeToEvents(since, until time.Time, filter filters.Args) ([]events.Message, chan interface{})
 	UnsubscribeFromEvents(listener chan interface{})
@@ -56,4 +57,5 @@ type Backend interface {
 	GetRepository(context.Context, reference.NamedTagged, *types.AuthConfig) (distribution.Repository, bool, error)
 	LookupImage(name string) (*types.ImageInspect, error)
 	PluginManager() *plugin.Manager
+	PluginGetter() *plugin.Store
 }

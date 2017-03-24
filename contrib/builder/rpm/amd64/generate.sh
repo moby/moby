@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 # usage: ./generate.sh [versions]
@@ -60,7 +60,7 @@ for version in "${versions[@]}"; do
 	esac
 
 	case "$from" in
-		centos:*)
+		centos:*|amazonlinux:latest)
 			# get "Development Tools" packages dependencies
 			echo 'RUN yum groupinstall -y "Development Tools"' >> "$version/Dockerfile"
 
@@ -95,7 +95,6 @@ for version in "${versions[@]}"; do
 		pkgconfig # for the pkg-config command
 		selinux-policy
 		selinux-policy-devel
-		sqlite-devel # for "sqlite3.h"
 		systemd-devel # for "sd-journal.h" and libraries
 		tar # older versions of dev-tools do not have tar
 		git # required for containerd and runc clone
@@ -111,7 +110,7 @@ for version in "${versions[@]}"; do
 	esac
 
 	case "$from" in
-		oraclelinux:6)
+		oraclelinux:6|amazonlinux:latest)
 			# doesn't use systemd, doesn't have a devel package for it
 			packages=( "${packages[@]/systemd-devel}" )
 			;;

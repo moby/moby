@@ -33,7 +33,7 @@ const (
 // vtInputSupported is true if enableVirtualTerminalInput is supported by the console
 var vtInputSupported bool
 
-// StdStreams returns the standard streams (stdin, stdout, stedrr).
+// StdStreams returns the standard streams (stdin, stdout, stderr).
 func StdStreams() (stdIn io.ReadCloser, stdOut, stdErr io.Writer) {
 	// Turn on VT handling on all std handles, if possible. This might
 	// fail, in which case we will fall back to terminal emulation.

@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/pkg/homedir"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
@@ -89,7 +90,7 @@ func (s *DockerSuite) TestRunDeviceDirectory(c *check.C) {
 	c.Assert(strings.Trim(out, "\r\n"), checker.Contains, "seq", check.Commentf("expected output /dev/othersnd/seq"))
 }
 
-// TestRunDetach checks attaching and detaching with the default escape sequence.
+// TestRunAttachDetach checks attaching and detaching with the default escape sequence.
 func (s *DockerSuite) TestRunAttachDetach(c *check.C) {
 	name := "attach-detach"
 
@@ -140,7 +141,7 @@ func (s *DockerSuite) TestRunAttachDetach(c *check.C) {
 	c.Assert(out, checker.Contains, "detach")
 }
 
-// TestRunDetach checks attaching and detaching with the escape sequence specified via flags.
+// TestRunAttachDetachFromFlag checks attaching and detaching with the escape sequence specified via flags.
 func (s *DockerSuite) TestRunAttachDetachFromFlag(c *check.C) {
 	name := "attach-detach"
 	keyCtrlA := []byte{1}
@@ -201,7 +202,7 @@ func (s *DockerSuite) TestRunAttachDetachFromFlag(c *check.C) {
 	c.Assert(running, checker.Equals, "true", check.Commentf("expected container to still be running"))
 }
 
-// TestRunDetach checks attaching and detaching with the escape sequence specified via flags.
+// TestRunAttachDetachFromInvalidFlag checks attaching and detaching with the escape sequence specified via flags.
 func (s *DockerSuite) TestRunAttachDetachFromInvalidFlag(c *check.C) {
 	name := "attach-detach"
 	dockerCmd(c, "run", "--name", name, "-itd", "busybox", "top")
@@ -229,11 +230,11 @@ func (s *DockerSuite) TestRunAttachDetachFromInvalidFlag(c *check.C) {
 		c.Fatal(err)
 	}
 	// it should print a warning to indicate the detach key flag is invalid
-	errStr := "Invalid escape keys (ctrl-A,a) provided"
+	errStr := "Invalid detach keys (ctrl-A,a) provided"
 	c.Assert(strings.TrimSpace(out), checker.Equals, errStr)
 }
 
-// TestRunDetach checks attaching and detaching with the escape sequence specified via config file.
+// TestRunAttachDetachFromConfig checks attaching and detaching with the escape sequence specified via config file.
 func (s *DockerSuite) TestRunAttachDetachFromConfig(c *check.C) {
 	keyCtrlA := []byte{1}
 	keyA := []byte{97}
@@ -316,7 +317,7 @@ func (s *DockerSuite) TestRunAttachDetachFromConfig(c *check.C) {
 	c.Assert(running, checker.Equals, "true", check.Commentf("expected container to still be running"))
 }
 
-// TestRunDetach checks attaching and detaching with the detach flags, making sure it overrides config file
+// TestRunAttachDetachKeysOverrideConfig checks attaching and detaching with the detach flags, making sure it overrides config file
 func (s *DockerSuite) TestRunAttachDetachKeysOverrideConfig(c *check.C) {
 	keyCtrlA := []byte{1}
 	keyA := []byte{97}
@@ -828,17 +829,11 @@ func (s *DockerSuite) TestRunTmpfsMounts(c *check.C) {
 
 func (s *DockerSuite) TestRunTmpfsMountsOverrideImageVolumes(c *check.C) {
 	name := "img-with-volumes"
-	_, err := buildImage(
-		name,
-		`
+	buildImageSuccessfully(c, name, build.WithDockerfile(`
     FROM busybox
     VOLUME /run
     RUN touch /run/stuff
-    `,
-		true)
-	if err != nil {
-		c.Fatal(err)
-	}
+    `))
 	out, _ := dockerCmd(c, "run", "--tmpfs", "/run", name, "ls", "/run")
 	c.Assert(out, checker.Not(checker.Contains), "stuff")
 }
@@ -978,7 +973,7 @@ func (s *DockerSuite) TestRunSeccompProfileDenyChmod(c *check.C) {
 }
 
 // TestRunSeccompProfileDenyUnshareUserns checks that 'docker run debian:jessie unshare --map-root-user --user sh -c whoami' with a specific profile to
-// deny unhare of a userns exits with operation not permitted.
+// deny unshare of a userns exits with operation not permitted.
 func (s *DockerSuite) TestRunSeccompProfileDenyUnshareUserns(c *check.C) {
 	testRequires(c, SameHostDaemon, seccompEnabled, NotArm, Apparmor)
 	// from sched.h
@@ -1013,6 +1008,18 @@ func (s *DockerSuite) TestRunSeccompProfileDenyUnshareUserns(c *check.C) {
 		ExitCode: 1,
 		Err:      "Operation not permitted",
 	})
+}
+
+// TestRunSeccompProfileDenyUnusualSocketFamilies checks that rarely used socket families such as Appletalk are blocked by the default profile
+func (s *DockerSuite) TestRunSeccompProfileDenyUnusualSocketFamilies(c *check.C) {
+	testRequires(c, SameHostDaemon, seccompEnabled)
+	ensureSyscallTest(c)
+
+	runCmd := exec.Command(dockerBinary, "run", "syscall-test", "appletalk-test")
+	_, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		c.Fatal("expected opening appletalk socket family to fail")
+	}
 }
 
 // TestRunSeccompProfileDenyCloneUserns checks that 'docker run syscall-test'
@@ -1134,9 +1141,22 @@ func (s *DockerSuite) TestRunSeccompDefaultProfileNS(c *check.C) {
 	}
 }
 
-// TestRunNoNewPrivSetuid checks that --security-opt=no-new-privileges prevents
+// TestRunNoNewPrivSetuid checks that --security-opt='no-new-privileges=true' prevents
 // effective uid transtions on executing setuid binaries.
 func (s *DockerSuite) TestRunNoNewPrivSetuid(c *check.C) {
+	testRequires(c, DaemonIsLinux, NotUserNamespace, SameHostDaemon)
+	ensureNNPTest(c)
+
+	// test that running a setuid binary results in no effective uid transition
+	icmd.RunCommand(dockerBinary, "run", "--security-opt", "no-new-privileges=true", "--user", "1000",
+		"nnp-test", "/usr/bin/nnp-test").Assert(c, icmd.Expected{
+		Out: "EUID=1000",
+	})
+}
+
+// TestLegacyRunNoNewPrivSetuid checks that --security-opt=no-new-privileges prevents
+// effective uid transtions on executing setuid binaries.
+func (s *DockerSuite) TestLegacyRunNoNewPrivSetuid(c *check.C) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace, SameHostDaemon)
 	ensureNNPTest(c)
 

@@ -15,7 +15,7 @@ func BoolValue(r *http.Request, k string) bool {
 }
 
 // BoolValueOrDefault returns the default bool passed if the query param is
-// missing, otherwise it's just a proxy to boolValue above
+// missing, otherwise it's just a proxy to boolValue above.
 func BoolValueOrDefault(r *http.Request, k string, d bool) bool {
 	if _, ok := r.Form[k]; !ok {
 		return d

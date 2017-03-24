@@ -8,12 +8,11 @@ import proto "github.com/gogo/protobuf/proto"
 import fmt "fmt"
 import math "math"
 import _ "github.com/gogo/protobuf/gogoproto"
-import docker_swarmkit_v11 "github.com/docker/swarmkit/api/duration"
+import google_protobuf1 "github.com/gogo/protobuf/types"
+
+import github_com_docker_swarmkit_api_deepcopy "github.com/docker/swarmkit/api/deepcopy"
 
 import strings "strings"
-import github_com_gogo_protobuf_proto "github.com/gogo/protobuf/proto"
-import sort "sort"
-import strconv "strconv"
 import reflect "reflect"
 import github_com_gogo_protobuf_sortkeys "github.com/gogo/protobuf/sortkeys"
 
@@ -76,7 +75,7 @@ func (NodeSpec_Availability) EnumDescriptor() ([]byte, []int) { return fileDescr
 
 // ResolutionMode specifies the mode of resolution to use for
 // internal loadbalancing between tasks which are all within
-// the cluster. This is sometimes calles east-west data path.
+// the cluster. This is sometimes calls east-west data path.
 type EndpointSpec_ResolutionMode int32
 
 const (
@@ -139,8 +138,15 @@ type ServiceSpec struct {
 	//	*ServiceSpec_Replicated
 	//	*ServiceSpec_Global
 	Mode isServiceSpec_Mode `protobuf_oneof:"mode"`
-	// UpdateConfig controls the rate and policy of updates.
-	Update   *UpdateConfig              `protobuf:"bytes,6,opt,name=update" json:"update,omitempty"`
+	// Update contains settings which affect updates.
+	Update *UpdateConfig `protobuf:"bytes,6,opt,name=update" json:"update,omitempty"`
+	// Rollback contains settings which affect rollbacks of updates.
+	Rollback *UpdateConfig `protobuf:"bytes,9,opt,name=rollback" json:"rollback,omitempty"`
+	// ServiceSpec.Networks has been deprecated and is replaced by
+	// Networks field in Task (TaskSpec.Networks).
+	// This field (ServiceSpec.Networks) is kept for compatibility.
+	// In case TaskSpec.Networks does not exist, ServiceSpec.Networks
+	// is still honored if it exists.
 	Networks []*NetworkAttachmentConfig `protobuf:"bytes,7,rep,name=networks" json:"networks,omitempty"`
 	// Service endpoint specifies the user provided configuration
 	// to properly discover and load balance a service.
@@ -422,7 +428,7 @@ func _TaskSpec_OneofSizer(msg proto.Message) (n int) {
 // NetworkAttachmentSpec specifies runtime parameters required to attach
 // a container to a network.
 type NetworkAttachmentSpec struct {
-	// ContainerID spcifies a unique ID of the container for which
+	// ContainerID specifies a unique ID of the container for which
 	// this attachment is for.
 	ContainerID string `protobuf:"bytes,1,opt,name=container_id,json=containerId,proto3" json:"container_id,omitempty"`
 }
@@ -479,11 +485,19 @@ type ContainerSpec struct {
 	// including stdin if it is still open.
 	TTY bool `protobuf:"varint,13,opt,name=tty,proto3" json:"tty,omitempty"`
 	// OpenStdin declares that the standard input (stdin) should be open.
-	OpenStdin bool    `protobuf:"varint,18,opt,name=open_stdin,json=openStdin,proto3" json:"open_stdin,omitempty"`
-	Mounts    []Mount `protobuf:"bytes,8,rep,name=mounts" json:"mounts"`
+	OpenStdin bool `protobuf:"varint,18,opt,name=open_stdin,json=openStdin,proto3" json:"open_stdin,omitempty"`
+	// ReadOnly declares that the container root filesystem is read-only.
+	// This only impacts the root filesystem, not additional mounts (including
+	// tmpfs). For additional mounts that are not part of the initial rootfs,
+	// they will be decided by the modes passed in the mount definition.
+	ReadOnly bool `protobuf:"varint,19,opt,name=read_only,json=readOnly,proto3" json:"read_only,omitempty"`
+	// StopSignal defines the signal to stop the container.
+	StopSignal string  `protobuf:"bytes,20,opt,name=stop_signal,json=stopSignal,proto3" json:"stop_signal,omitempty"`
+	Mounts     []Mount `protobuf:"bytes,8,rep,name=mounts" json:"mounts"`
 	// StopGracePeriod the grace period for stopping the container before
 	// forcefully killing the container.
-	StopGracePeriod *docker_swarmkit_v11.Duration `protobuf:"bytes,9,opt,name=stop_grace_period,json=stopGracePeriod" json:"stop_grace_period,omitempty"`
+	// Note: Can't use stdduration here because this needs to be nullable.
+	StopGracePeriod *google_protobuf1.Duration `protobuf:"bytes,9,opt,name=stop_grace_period,json=stopGracePeriod" json:"stop_grace_period,omitempty"`
 	// PullOptions parameterize the behavior of image pulls.
 	PullOptions *ContainerSpec_PullOptions `protobuf:"bytes,10,opt,name=pull_options,json=pullOptions" json:"pull_options,omitempty"`
 	// SecretReference contains references to zero or more secrets that
@@ -642,666 +656,461 @@ func (m *NodeSpec) Copy() *NodeSpec {
 	if m == nil {
 		return nil
 	}
-
-	o := &NodeSpec{
-		Annotations:  *m.Annotations.Copy(),
-		DesiredRole:  m.DesiredRole,
-		Membership:   m.Membership,
-		Availability: m.Availability,
-	}
-
+	o := &NodeSpec{}
+	o.CopyFrom(m)
 	return o
+}
+
+func (m *NodeSpec) CopyFrom(src interface{}) {
+
+	o := src.(*NodeSpec)
+	*m = *o
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Annotations, &o.Annotations)
 }
 
 func (m *ServiceSpec) Copy() *ServiceSpec {
 	if m == nil {
 		return nil
 	}
-
-	o := &ServiceSpec{
-		Annotations: *m.Annotations.Copy(),
-		Task:        *m.Task.Copy(),
-		Update:      m.Update.Copy(),
-		Endpoint:    m.Endpoint.Copy(),
-	}
-
-	if m.Networks != nil {
-		o.Networks = make([]*NetworkAttachmentConfig, 0, len(m.Networks))
-		for _, v := range m.Networks {
-			o.Networks = append(o.Networks, v.Copy())
-		}
-	}
-
-	switch m.Mode.(type) {
-	case *ServiceSpec_Replicated:
-		i := &ServiceSpec_Replicated{
-			Replicated: m.GetReplicated().Copy(),
-		}
-
-		o.Mode = i
-	case *ServiceSpec_Global:
-		i := &ServiceSpec_Global{
-			Global: m.GetGlobal().Copy(),
-		}
-
-		o.Mode = i
-	}
-
+	o := &ServiceSpec{}
+	o.CopyFrom(m)
 	return o
+}
+
+func (m *ServiceSpec) CopyFrom(src interface{}) {
+
+	o := src.(*ServiceSpec)
+	*m = *o
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Annotations, &o.Annotations)
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Task, &o.Task)
+	if o.Update != nil {
+		m.Update = &UpdateConfig{}
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.Update, o.Update)
+	}
+	if o.Rollback != nil {
+		m.Rollback = &UpdateConfig{}
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.Rollback, o.Rollback)
+	}
+	if o.Networks != nil {
+		m.Networks = make([]*NetworkAttachmentConfig, len(o.Networks))
+		for i := range m.Networks {
+			m.Networks[i] = &NetworkAttachmentConfig{}
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.Networks[i], o.Networks[i])
+		}
+	}
+
+	if o.Endpoint != nil {
+		m.Endpoint = &EndpointSpec{}
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.Endpoint, o.Endpoint)
+	}
+	if o.Mode != nil {
+		switch o.Mode.(type) {
+		case *ServiceSpec_Replicated:
+			v := ServiceSpec_Replicated{
+				Replicated: &ReplicatedService{},
+			}
+			github_com_docker_swarmkit_api_deepcopy.Copy(v.Replicated, o.GetReplicated())
+			m.Mode = &v
+		case *ServiceSpec_Global:
+			v := ServiceSpec_Global{
+				Global: &GlobalService{},
+			}
+			github_com_docker_swarmkit_api_deepcopy.Copy(v.Global, o.GetGlobal())
+			m.Mode = &v
+		}
+	}
+
 }
 
 func (m *ReplicatedService) Copy() *ReplicatedService {
 	if m == nil {
 		return nil
 	}
-
-	o := &ReplicatedService{
-		Replicas: m.Replicas,
-	}
-
+	o := &ReplicatedService{}
+	o.CopyFrom(m)
 	return o
+}
+
+func (m *ReplicatedService) CopyFrom(src interface{}) {
+
+	o := src.(*ReplicatedService)
+	*m = *o
 }
 
 func (m *GlobalService) Copy() *GlobalService {
 	if m == nil {
 		return nil
 	}
-
 	o := &GlobalService{}
-
+	o.CopyFrom(m)
 	return o
 }
 
+func (m *GlobalService) CopyFrom(src interface{}) {}
 func (m *TaskSpec) Copy() *TaskSpec {
 	if m == nil {
 		return nil
 	}
-
-	o := &TaskSpec{
-		Resources:   m.Resources.Copy(),
-		Restart:     m.Restart.Copy(),
-		Placement:   m.Placement.Copy(),
-		LogDriver:   m.LogDriver.Copy(),
-		ForceUpdate: m.ForceUpdate,
-	}
-
-	if m.Networks != nil {
-		o.Networks = make([]*NetworkAttachmentConfig, 0, len(m.Networks))
-		for _, v := range m.Networks {
-			o.Networks = append(o.Networks, v.Copy())
-		}
-	}
-
-	switch m.Runtime.(type) {
-	case *TaskSpec_Attachment:
-		i := &TaskSpec_Attachment{
-			Attachment: m.GetAttachment().Copy(),
-		}
-
-		o.Runtime = i
-	case *TaskSpec_Container:
-		i := &TaskSpec_Container{
-			Container: m.GetContainer().Copy(),
-		}
-
-		o.Runtime = i
-	}
-
+	o := &TaskSpec{}
+	o.CopyFrom(m)
 	return o
+}
+
+func (m *TaskSpec) CopyFrom(src interface{}) {
+
+	o := src.(*TaskSpec)
+	*m = *o
+	if o.Resources != nil {
+		m.Resources = &ResourceRequirements{}
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.Resources, o.Resources)
+	}
+	if o.Restart != nil {
+		m.Restart = &RestartPolicy{}
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.Restart, o.Restart)
+	}
+	if o.Placement != nil {
+		m.Placement = &Placement{}
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.Placement, o.Placement)
+	}
+	if o.LogDriver != nil {
+		m.LogDriver = &Driver{}
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.LogDriver, o.LogDriver)
+	}
+	if o.Networks != nil {
+		m.Networks = make([]*NetworkAttachmentConfig, len(o.Networks))
+		for i := range m.Networks {
+			m.Networks[i] = &NetworkAttachmentConfig{}
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.Networks[i], o.Networks[i])
+		}
+	}
+
+	if o.Runtime != nil {
+		switch o.Runtime.(type) {
+		case *TaskSpec_Attachment:
+			v := TaskSpec_Attachment{
+				Attachment: &NetworkAttachmentSpec{},
+			}
+			github_com_docker_swarmkit_api_deepcopy.Copy(v.Attachment, o.GetAttachment())
+			m.Runtime = &v
+		case *TaskSpec_Container:
+			v := TaskSpec_Container{
+				Container: &ContainerSpec{},
+			}
+			github_com_docker_swarmkit_api_deepcopy.Copy(v.Container, o.GetContainer())
+			m.Runtime = &v
+		}
+	}
+
 }
 
 func (m *NetworkAttachmentSpec) Copy() *NetworkAttachmentSpec {
 	if m == nil {
 		return nil
 	}
-
-	o := &NetworkAttachmentSpec{
-		ContainerID: m.ContainerID,
-	}
-
+	o := &NetworkAttachmentSpec{}
+	o.CopyFrom(m)
 	return o
+}
+
+func (m *NetworkAttachmentSpec) CopyFrom(src interface{}) {
+
+	o := src.(*NetworkAttachmentSpec)
+	*m = *o
 }
 
 func (m *ContainerSpec) Copy() *ContainerSpec {
 	if m == nil {
 		return nil
 	}
-
-	o := &ContainerSpec{
-		Image:           m.Image,
-		Hostname:        m.Hostname,
-		Dir:             m.Dir,
-		User:            m.User,
-		TTY:             m.TTY,
-		OpenStdin:       m.OpenStdin,
-		StopGracePeriod: m.StopGracePeriod.Copy(),
-		PullOptions:     m.PullOptions.Copy(),
-		DNSConfig:       m.DNSConfig.Copy(),
-		Healthcheck:     m.Healthcheck.Copy(),
-	}
-
-	if m.Labels != nil {
-		o.Labels = make(map[string]string)
-		for k, v := range m.Labels {
-			o.Labels[k] = v
-		}
-	}
-
-	if m.Command != nil {
-		o.Command = make([]string, 0, len(m.Command))
-		o.Command = append(o.Command, m.Command...)
-	}
-
-	if m.Args != nil {
-		o.Args = make([]string, 0, len(m.Args))
-		o.Args = append(o.Args, m.Args...)
-	}
-
-	if m.Env != nil {
-		o.Env = make([]string, 0, len(m.Env))
-		o.Env = append(o.Env, m.Env...)
-	}
-
-	if m.Groups != nil {
-		o.Groups = make([]string, 0, len(m.Groups))
-		o.Groups = append(o.Groups, m.Groups...)
-	}
-
-	if m.Mounts != nil {
-		o.Mounts = make([]Mount, 0, len(m.Mounts))
-		for _, v := range m.Mounts {
-			o.Mounts = append(o.Mounts, *v.Copy())
-		}
-	}
-
-	if m.Secrets != nil {
-		o.Secrets = make([]*SecretReference, 0, len(m.Secrets))
-		for _, v := range m.Secrets {
-			o.Secrets = append(o.Secrets, v.Copy())
-		}
-	}
-
-	if m.Hosts != nil {
-		o.Hosts = make([]string, 0, len(m.Hosts))
-		o.Hosts = append(o.Hosts, m.Hosts...)
-	}
-
+	o := &ContainerSpec{}
+	o.CopyFrom(m)
 	return o
+}
+
+func (m *ContainerSpec) CopyFrom(src interface{}) {
+
+	o := src.(*ContainerSpec)
+	*m = *o
+	if o.Labels != nil {
+		m.Labels = make(map[string]string, len(o.Labels))
+		for k, v := range o.Labels {
+			m.Labels[k] = v
+		}
+	}
+
+	if o.Command != nil {
+		m.Command = make([]string, len(o.Command))
+		copy(m.Command, o.Command)
+	}
+
+	if o.Args != nil {
+		m.Args = make([]string, len(o.Args))
+		copy(m.Args, o.Args)
+	}
+
+	if o.Env != nil {
+		m.Env = make([]string, len(o.Env))
+		copy(m.Env, o.Env)
+	}
+
+	if o.Groups != nil {
+		m.Groups = make([]string, len(o.Groups))
+		copy(m.Groups, o.Groups)
+	}
+
+	if o.Mounts != nil {
+		m.Mounts = make([]Mount, len(o.Mounts))
+		for i := range m.Mounts {
+			github_com_docker_swarmkit_api_deepcopy.Copy(&m.Mounts[i], &o.Mounts[i])
+		}
+	}
+
+	if o.StopGracePeriod != nil {
+		m.StopGracePeriod = &google_protobuf1.Duration{}
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.StopGracePeriod, o.StopGracePeriod)
+	}
+	if o.PullOptions != nil {
+		m.PullOptions = &ContainerSpec_PullOptions{}
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.PullOptions, o.PullOptions)
+	}
+	if o.Secrets != nil {
+		m.Secrets = make([]*SecretReference, len(o.Secrets))
+		for i := range m.Secrets {
+			m.Secrets[i] = &SecretReference{}
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.Secrets[i], o.Secrets[i])
+		}
+	}
+
+	if o.Hosts != nil {
+		m.Hosts = make([]string, len(o.Hosts))
+		copy(m.Hosts, o.Hosts)
+	}
+
+	if o.DNSConfig != nil {
+		m.DNSConfig = &ContainerSpec_DNSConfig{}
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.DNSConfig, o.DNSConfig)
+	}
+	if o.Healthcheck != nil {
+		m.Healthcheck = &HealthConfig{}
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.Healthcheck, o.Healthcheck)
+	}
 }
 
 func (m *ContainerSpec_PullOptions) Copy() *ContainerSpec_PullOptions {
 	if m == nil {
 		return nil
 	}
-
-	o := &ContainerSpec_PullOptions{
-		RegistryAuth: m.RegistryAuth,
-	}
-
+	o := &ContainerSpec_PullOptions{}
+	o.CopyFrom(m)
 	return o
+}
+
+func (m *ContainerSpec_PullOptions) CopyFrom(src interface{}) {
+
+	o := src.(*ContainerSpec_PullOptions)
+	*m = *o
 }
 
 func (m *ContainerSpec_DNSConfig) Copy() *ContainerSpec_DNSConfig {
 	if m == nil {
 		return nil
 	}
-
 	o := &ContainerSpec_DNSConfig{}
-
-	if m.Nameservers != nil {
-		o.Nameservers = make([]string, 0, len(m.Nameservers))
-		o.Nameservers = append(o.Nameservers, m.Nameservers...)
-	}
-
-	if m.Search != nil {
-		o.Search = make([]string, 0, len(m.Search))
-		o.Search = append(o.Search, m.Search...)
-	}
-
-	if m.Options != nil {
-		o.Options = make([]string, 0, len(m.Options))
-		o.Options = append(o.Options, m.Options...)
-	}
-
+	o.CopyFrom(m)
 	return o
+}
+
+func (m *ContainerSpec_DNSConfig) CopyFrom(src interface{}) {
+
+	o := src.(*ContainerSpec_DNSConfig)
+	*m = *o
+	if o.Nameservers != nil {
+		m.Nameservers = make([]string, len(o.Nameservers))
+		copy(m.Nameservers, o.Nameservers)
+	}
+
+	if o.Search != nil {
+		m.Search = make([]string, len(o.Search))
+		copy(m.Search, o.Search)
+	}
+
+	if o.Options != nil {
+		m.Options = make([]string, len(o.Options))
+		copy(m.Options, o.Options)
+	}
+
 }
 
 func (m *EndpointSpec) Copy() *EndpointSpec {
 	if m == nil {
 		return nil
 	}
+	o := &EndpointSpec{}
+	o.CopyFrom(m)
+	return o
+}
 
-	o := &EndpointSpec{
-		Mode: m.Mode,
-	}
+func (m *EndpointSpec) CopyFrom(src interface{}) {
 
-	if m.Ports != nil {
-		o.Ports = make([]*PortConfig, 0, len(m.Ports))
-		for _, v := range m.Ports {
-			o.Ports = append(o.Ports, v.Copy())
+	o := src.(*EndpointSpec)
+	*m = *o
+	if o.Ports != nil {
+		m.Ports = make([]*PortConfig, len(o.Ports))
+		for i := range m.Ports {
+			m.Ports[i] = &PortConfig{}
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.Ports[i], o.Ports[i])
 		}
 	}
 
-	return o
 }
 
 func (m *NetworkSpec) Copy() *NetworkSpec {
 	if m == nil {
 		return nil
 	}
-
-	o := &NetworkSpec{
-		Annotations:  *m.Annotations.Copy(),
-		DriverConfig: m.DriverConfig.Copy(),
-		Ipv6Enabled:  m.Ipv6Enabled,
-		Internal:     m.Internal,
-		IPAM:         m.IPAM.Copy(),
-		Attachable:   m.Attachable,
-	}
-
+	o := &NetworkSpec{}
+	o.CopyFrom(m)
 	return o
+}
+
+func (m *NetworkSpec) CopyFrom(src interface{}) {
+
+	o := src.(*NetworkSpec)
+	*m = *o
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Annotations, &o.Annotations)
+	if o.DriverConfig != nil {
+		m.DriverConfig = &Driver{}
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.DriverConfig, o.DriverConfig)
+	}
+	if o.IPAM != nil {
+		m.IPAM = &IPAMOptions{}
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.IPAM, o.IPAM)
+	}
 }
 
 func (m *ClusterSpec) Copy() *ClusterSpec {
 	if m == nil {
 		return nil
 	}
-
-	o := &ClusterSpec{
-		Annotations:      *m.Annotations.Copy(),
-		AcceptancePolicy: *m.AcceptancePolicy.Copy(),
-		Orchestration:    *m.Orchestration.Copy(),
-		Raft:             *m.Raft.Copy(),
-		Dispatcher:       *m.Dispatcher.Copy(),
-		CAConfig:         *m.CAConfig.Copy(),
-		TaskDefaults:     *m.TaskDefaults.Copy(),
-		EncryptionConfig: *m.EncryptionConfig.Copy(),
-	}
-
+	o := &ClusterSpec{}
+	o.CopyFrom(m)
 	return o
+}
+
+func (m *ClusterSpec) CopyFrom(src interface{}) {
+
+	o := src.(*ClusterSpec)
+	*m = *o
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Annotations, &o.Annotations)
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.AcceptancePolicy, &o.AcceptancePolicy)
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Orchestration, &o.Orchestration)
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Raft, &o.Raft)
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Dispatcher, &o.Dispatcher)
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.CAConfig, &o.CAConfig)
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.TaskDefaults, &o.TaskDefaults)
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.EncryptionConfig, &o.EncryptionConfig)
 }
 
 func (m *SecretSpec) Copy() *SecretSpec {
 	if m == nil {
 		return nil
 	}
-
-	o := &SecretSpec{
-		Annotations: *m.Annotations.Copy(),
-		Data:        m.Data,
-	}
-
+	o := &SecretSpec{}
+	o.CopyFrom(m)
 	return o
 }
 
-func (this *NodeSpec) GoString() string {
-	if this == nil {
-		return "nil"
-	}
-	s := make([]string, 0, 8)
-	s = append(s, "&api.NodeSpec{")
-	s = append(s, "Annotations: "+strings.Replace(this.Annotations.GoString(), `&`, ``, 1)+",\n")
-	s = append(s, "DesiredRole: "+fmt.Sprintf("%#v", this.DesiredRole)+",\n")
-	s = append(s, "Membership: "+fmt.Sprintf("%#v", this.Membership)+",\n")
-	s = append(s, "Availability: "+fmt.Sprintf("%#v", this.Availability)+",\n")
-	s = append(s, "}")
-	return strings.Join(s, "")
+func (m *SecretSpec) CopyFrom(src interface{}) {
+
+	o := src.(*SecretSpec)
+	*m = *o
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Annotations, &o.Annotations)
 }
-func (this *ServiceSpec) GoString() string {
-	if this == nil {
-		return "nil"
-	}
-	s := make([]string, 0, 11)
-	s = append(s, "&api.ServiceSpec{")
-	s = append(s, "Annotations: "+strings.Replace(this.Annotations.GoString(), `&`, ``, 1)+",\n")
-	s = append(s, "Task: "+strings.Replace(this.Task.GoString(), `&`, ``, 1)+",\n")
-	if this.Mode != nil {
-		s = append(s, "Mode: "+fmt.Sprintf("%#v", this.Mode)+",\n")
-	}
-	if this.Update != nil {
-		s = append(s, "Update: "+fmt.Sprintf("%#v", this.Update)+",\n")
-	}
-	if this.Networks != nil {
-		s = append(s, "Networks: "+fmt.Sprintf("%#v", this.Networks)+",\n")
-	}
-	if this.Endpoint != nil {
-		s = append(s, "Endpoint: "+fmt.Sprintf("%#v", this.Endpoint)+",\n")
-	}
-	s = append(s, "}")
-	return strings.Join(s, "")
-}
-func (this *ServiceSpec_Replicated) GoString() string {
-	if this == nil {
-		return "nil"
-	}
-	s := strings.Join([]string{`&api.ServiceSpec_Replicated{` +
-		`Replicated:` + fmt.Sprintf("%#v", this.Replicated) + `}`}, ", ")
-	return s
-}
-func (this *ServiceSpec_Global) GoString() string {
-	if this == nil {
-		return "nil"
-	}
-	s := strings.Join([]string{`&api.ServiceSpec_Global{` +
-		`Global:` + fmt.Sprintf("%#v", this.Global) + `}`}, ", ")
-	return s
-}
-func (this *ReplicatedService) GoString() string {
-	if this == nil {
-		return "nil"
-	}
-	s := make([]string, 0, 5)
-	s = append(s, "&api.ReplicatedService{")
-	s = append(s, "Replicas: "+fmt.Sprintf("%#v", this.Replicas)+",\n")
-	s = append(s, "}")
-	return strings.Join(s, "")
-}
-func (this *GlobalService) GoString() string {
-	if this == nil {
-		return "nil"
-	}
-	s := make([]string, 0, 4)
-	s = append(s, "&api.GlobalService{")
-	s = append(s, "}")
-	return strings.Join(s, "")
-}
-func (this *TaskSpec) GoString() string {
-	if this == nil {
-		return "nil"
-	}
-	s := make([]string, 0, 12)
-	s = append(s, "&api.TaskSpec{")
-	if this.Runtime != nil {
-		s = append(s, "Runtime: "+fmt.Sprintf("%#v", this.Runtime)+",\n")
-	}
-	if this.Resources != nil {
-		s = append(s, "Resources: "+fmt.Sprintf("%#v", this.Resources)+",\n")
-	}
-	if this.Restart != nil {
-		s = append(s, "Restart: "+fmt.Sprintf("%#v", this.Restart)+",\n")
-	}
-	if this.Placement != nil {
-		s = append(s, "Placement: "+fmt.Sprintf("%#v", this.Placement)+",\n")
-	}
-	if this.LogDriver != nil {
-		s = append(s, "LogDriver: "+fmt.Sprintf("%#v", this.LogDriver)+",\n")
-	}
-	if this.Networks != nil {
-		s = append(s, "Networks: "+fmt.Sprintf("%#v", this.Networks)+",\n")
-	}
-	s = append(s, "ForceUpdate: "+fmt.Sprintf("%#v", this.ForceUpdate)+",\n")
-	s = append(s, "}")
-	return strings.Join(s, "")
-}
-func (this *TaskSpec_Attachment) GoString() string {
-	if this == nil {
-		return "nil"
-	}
-	s := strings.Join([]string{`&api.TaskSpec_Attachment{` +
-		`Attachment:` + fmt.Sprintf("%#v", this.Attachment) + `}`}, ", ")
-	return s
-}
-func (this *TaskSpec_Container) GoString() string {
-	if this == nil {
-		return "nil"
-	}
-	s := strings.Join([]string{`&api.TaskSpec_Container{` +
-		`Container:` + fmt.Sprintf("%#v", this.Container) + `}`}, ", ")
-	return s
-}
-func (this *NetworkAttachmentSpec) GoString() string {
-	if this == nil {
-		return "nil"
-	}
-	s := make([]string, 0, 5)
-	s = append(s, "&api.NetworkAttachmentSpec{")
-	s = append(s, "ContainerID: "+fmt.Sprintf("%#v", this.ContainerID)+",\n")
-	s = append(s, "}")
-	return strings.Join(s, "")
-}
-func (this *ContainerSpec) GoString() string {
-	if this == nil {
-		return "nil"
-	}
-	s := make([]string, 0, 22)
-	s = append(s, "&api.ContainerSpec{")
-	s = append(s, "Image: "+fmt.Sprintf("%#v", this.Image)+",\n")
-	keysForLabels := make([]string, 0, len(this.Labels))
-	for k, _ := range this.Labels {
-		keysForLabels = append(keysForLabels, k)
-	}
-	github_com_gogo_protobuf_sortkeys.Strings(keysForLabels)
-	mapStringForLabels := "map[string]string{"
-	for _, k := range keysForLabels {
-		mapStringForLabels += fmt.Sprintf("%#v: %#v,", k, this.Labels[k])
-	}
-	mapStringForLabels += "}"
-	if this.Labels != nil {
-		s = append(s, "Labels: "+mapStringForLabels+",\n")
-	}
-	s = append(s, "Command: "+fmt.Sprintf("%#v", this.Command)+",\n")
-	s = append(s, "Args: "+fmt.Sprintf("%#v", this.Args)+",\n")
-	s = append(s, "Hostname: "+fmt.Sprintf("%#v", this.Hostname)+",\n")
-	s = append(s, "Env: "+fmt.Sprintf("%#v", this.Env)+",\n")
-	s = append(s, "Dir: "+fmt.Sprintf("%#v", this.Dir)+",\n")
-	s = append(s, "User: "+fmt.Sprintf("%#v", this.User)+",\n")
-	s = append(s, "Groups: "+fmt.Sprintf("%#v", this.Groups)+",\n")
-	s = append(s, "TTY: "+fmt.Sprintf("%#v", this.TTY)+",\n")
-	s = append(s, "OpenStdin: "+fmt.Sprintf("%#v", this.OpenStdin)+",\n")
-	if this.Mounts != nil {
-		s = append(s, "Mounts: "+fmt.Sprintf("%#v", this.Mounts)+",\n")
-	}
-	if this.StopGracePeriod != nil {
-		s = append(s, "StopGracePeriod: "+fmt.Sprintf("%#v", this.StopGracePeriod)+",\n")
-	}
-	if this.PullOptions != nil {
-		s = append(s, "PullOptions: "+fmt.Sprintf("%#v", this.PullOptions)+",\n")
-	}
-	if this.Secrets != nil {
-		s = append(s, "Secrets: "+fmt.Sprintf("%#v", this.Secrets)+",\n")
-	}
-	s = append(s, "Hosts: "+fmt.Sprintf("%#v", this.Hosts)+",\n")
-	if this.DNSConfig != nil {
-		s = append(s, "DNSConfig: "+fmt.Sprintf("%#v", this.DNSConfig)+",\n")
-	}
-	if this.Healthcheck != nil {
-		s = append(s, "Healthcheck: "+fmt.Sprintf("%#v", this.Healthcheck)+",\n")
-	}
-	s = append(s, "}")
-	return strings.Join(s, "")
-}
-func (this *ContainerSpec_PullOptions) GoString() string {
-	if this == nil {
-		return "nil"
-	}
-	s := make([]string, 0, 5)
-	s = append(s, "&api.ContainerSpec_PullOptions{")
-	s = append(s, "RegistryAuth: "+fmt.Sprintf("%#v", this.RegistryAuth)+",\n")
-	s = append(s, "}")
-	return strings.Join(s, "")
-}
-func (this *ContainerSpec_DNSConfig) GoString() string {
-	if this == nil {
-		return "nil"
-	}
-	s := make([]string, 0, 7)
-	s = append(s, "&api.ContainerSpec_DNSConfig{")
-	s = append(s, "Nameservers: "+fmt.Sprintf("%#v", this.Nameservers)+",\n")
-	s = append(s, "Search: "+fmt.Sprintf("%#v", this.Search)+",\n")
-	s = append(s, "Options: "+fmt.Sprintf("%#v", this.Options)+",\n")
-	s = append(s, "}")
-	return strings.Join(s, "")
-}
-func (this *EndpointSpec) GoString() string {
-	if this == nil {
-		return "nil"
-	}
-	s := make([]string, 0, 6)
-	s = append(s, "&api.EndpointSpec{")
-	s = append(s, "Mode: "+fmt.Sprintf("%#v", this.Mode)+",\n")
-	if this.Ports != nil {
-		s = append(s, "Ports: "+fmt.Sprintf("%#v", this.Ports)+",\n")
-	}
-	s = append(s, "}")
-	return strings.Join(s, "")
-}
-func (this *NetworkSpec) GoString() string {
-	if this == nil {
-		return "nil"
-	}
-	s := make([]string, 0, 10)
-	s = append(s, "&api.NetworkSpec{")
-	s = append(s, "Annotations: "+strings.Replace(this.Annotations.GoString(), `&`, ``, 1)+",\n")
-	if this.DriverConfig != nil {
-		s = append(s, "DriverConfig: "+fmt.Sprintf("%#v", this.DriverConfig)+",\n")
-	}
-	s = append(s, "Ipv6Enabled: "+fmt.Sprintf("%#v", this.Ipv6Enabled)+",\n")
-	s = append(s, "Internal: "+fmt.Sprintf("%#v", this.Internal)+",\n")
-	if this.IPAM != nil {
-		s = append(s, "IPAM: "+fmt.Sprintf("%#v", this.IPAM)+",\n")
-	}
-	s = append(s, "Attachable: "+fmt.Sprintf("%#v", this.Attachable)+",\n")
-	s = append(s, "}")
-	return strings.Join(s, "")
-}
-func (this *ClusterSpec) GoString() string {
-	if this == nil {
-		return "nil"
-	}
-	s := make([]string, 0, 12)
-	s = append(s, "&api.ClusterSpec{")
-	s = append(s, "Annotations: "+strings.Replace(this.Annotations.GoString(), `&`, ``, 1)+",\n")
-	s = append(s, "AcceptancePolicy: "+strings.Replace(this.AcceptancePolicy.GoString(), `&`, ``, 1)+",\n")
-	s = append(s, "Orchestration: "+strings.Replace(this.Orchestration.GoString(), `&`, ``, 1)+",\n")
-	s = append(s, "Raft: "+strings.Replace(this.Raft.GoString(), `&`, ``, 1)+",\n")
-	s = append(s, "Dispatcher: "+strings.Replace(this.Dispatcher.GoString(), `&`, ``, 1)+",\n")
-	s = append(s, "CAConfig: "+strings.Replace(this.CAConfig.GoString(), `&`, ``, 1)+",\n")
-	s = append(s, "TaskDefaults: "+strings.Replace(this.TaskDefaults.GoString(), `&`, ``, 1)+",\n")
-	s = append(s, "EncryptionConfig: "+strings.Replace(this.EncryptionConfig.GoString(), `&`, ``, 1)+",\n")
-	s = append(s, "}")
-	return strings.Join(s, "")
-}
-func (this *SecretSpec) GoString() string {
-	if this == nil {
-		return "nil"
-	}
-	s := make([]string, 0, 6)
-	s = append(s, "&api.SecretSpec{")
-	s = append(s, "Annotations: "+strings.Replace(this.Annotations.GoString(), `&`, ``, 1)+",\n")
-	s = append(s, "Data: "+fmt.Sprintf("%#v", this.Data)+",\n")
-	s = append(s, "}")
-	return strings.Join(s, "")
-}
-func valueToGoStringSpecs(v interface{}, typ string) string {
-	rv := reflect.ValueOf(v)
-	if rv.IsNil() {
-		return "nil"
-	}
-	pv := reflect.Indirect(rv).Interface()
-	return fmt.Sprintf("func(v %v) *%v { return &v } ( %#v )", typ, typ, pv)
-}
-func extensionToGoStringSpecs(m github_com_gogo_protobuf_proto.Message) string {
-	e := github_com_gogo_protobuf_proto.GetUnsafeExtensionsMap(m)
-	if e == nil {
-		return "nil"
-	}
-	s := "proto.NewUnsafeXXX_InternalExtensions(map[int32]proto.Extension{"
-	keys := make([]int, 0, len(e))
-	for k := range e {
-		keys = append(keys, int(k))
-	}
-	sort.Ints(keys)
-	ss := []string{}
-	for _, k := range keys {
-		ss = append(ss, strconv.Itoa(k)+": "+e[int32(k)].GoString())
-	}
-	s += strings.Join(ss, ",") + "})"
-	return s
-}
-func (m *NodeSpec) Marshal() (data []byte, err error) {
+
+func (m *NodeSpec) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
-	data = make([]byte, size)
-	n, err := m.MarshalTo(data)
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
 	if err != nil {
 		return nil, err
 	}
-	return data[:n], nil
+	return dAtA[:n], nil
 }
 
-func (m *NodeSpec) MarshalTo(data []byte) (int, error) {
+func (m *NodeSpec) MarshalTo(dAtA []byte) (int, error) {
 	var i int
 	_ = i
 	var l int
 	_ = l
-	data[i] = 0xa
+	dAtA[i] = 0xa
 	i++
-	i = encodeVarintSpecs(data, i, uint64(m.Annotations.Size()))
-	n1, err := m.Annotations.MarshalTo(data[i:])
+	i = encodeVarintSpecs(dAtA, i, uint64(m.Annotations.Size()))
+	n1, err := m.Annotations.MarshalTo(dAtA[i:])
 	if err != nil {
 		return 0, err
 	}
 	i += n1
 	if m.DesiredRole != 0 {
-		data[i] = 0x10
+		dAtA[i] = 0x10
 		i++
-		i = encodeVarintSpecs(data, i, uint64(m.DesiredRole))
+		i = encodeVarintSpecs(dAtA, i, uint64(m.DesiredRole))
 	}
 	if m.Membership != 0 {
-		data[i] = 0x18
+		dAtA[i] = 0x18
 		i++
-		i = encodeVarintSpecs(data, i, uint64(m.Membership))
+		i = encodeVarintSpecs(dAtA, i, uint64(m.Membership))
 	}
 	if m.Availability != 0 {
-		data[i] = 0x20
+		dAtA[i] = 0x20
 		i++
-		i = encodeVarintSpecs(data, i, uint64(m.Availability))
+		i = encodeVarintSpecs(dAtA, i, uint64(m.Availability))
 	}
 	return i, nil
 }
 
-func (m *ServiceSpec) Marshal() (data []byte, err error) {
+func (m *ServiceSpec) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
-	data = make([]byte, size)
-	n, err := m.MarshalTo(data)
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
 	if err != nil {
 		return nil, err
 	}
-	return data[:n], nil
+	return dAtA[:n], nil
 }
 
-func (m *ServiceSpec) MarshalTo(data []byte) (int, error) {
+func (m *ServiceSpec) MarshalTo(dAtA []byte) (int, error) {
 	var i int
 	_ = i
 	var l int
 	_ = l
-	data[i] = 0xa
+	dAtA[i] = 0xa
 	i++
-	i = encodeVarintSpecs(data, i, uint64(m.Annotations.Size()))
-	n2, err := m.Annotations.MarshalTo(data[i:])
+	i = encodeVarintSpecs(dAtA, i, uint64(m.Annotations.Size()))
+	n2, err := m.Annotations.MarshalTo(dAtA[i:])
 	if err != nil {
 		return 0, err
 	}
 	i += n2
-	data[i] = 0x12
+	dAtA[i] = 0x12
 	i++
-	i = encodeVarintSpecs(data, i, uint64(m.Task.Size()))
-	n3, err := m.Task.MarshalTo(data[i:])
+	i = encodeVarintSpecs(dAtA, i, uint64(m.Task.Size()))
+	n3, err := m.Task.MarshalTo(dAtA[i:])
 	if err != nil {
 		return 0, err
 	}
 	i += n3
 	if m.Mode != nil {
-		nn4, err := m.Mode.MarshalTo(data[i:])
+		nn4, err := m.Mode.MarshalTo(dAtA[i:])
 		if err != nil {
 			return 0, err
 		}
 		i += nn4
 	}
 	if m.Update != nil {
-		data[i] = 0x32
+		dAtA[i] = 0x32
 		i++
-		i = encodeVarintSpecs(data, i, uint64(m.Update.Size()))
-		n5, err := m.Update.MarshalTo(data[i:])
+		i = encodeVarintSpecs(dAtA, i, uint64(m.Update.Size()))
+		n5, err := m.Update.MarshalTo(dAtA[i:])
 		if err != nil {
 			return 0, err
 		}
@@ -1309,10 +1118,10 @@ func (m *ServiceSpec) MarshalTo(data []byte) (int, error) {
 	}
 	if len(m.Networks) > 0 {
 		for _, msg := range m.Networks {
-			data[i] = 0x3a
+			dAtA[i] = 0x3a
 			i++
-			i = encodeVarintSpecs(data, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(data[i:])
+			i = encodeVarintSpecs(dAtA, i, uint64(msg.Size()))
+			n, err := msg.MarshalTo(dAtA[i:])
 			if err != nil {
 				return 0, err
 			}
@@ -1320,25 +1129,20 @@ func (m *ServiceSpec) MarshalTo(data []byte) (int, error) {
 		}
 	}
 	if m.Endpoint != nil {
-		data[i] = 0x42
+		dAtA[i] = 0x42
 		i++
-		i = encodeVarintSpecs(data, i, uint64(m.Endpoint.Size()))
-		n6, err := m.Endpoint.MarshalTo(data[i:])
+		i = encodeVarintSpecs(dAtA, i, uint64(m.Endpoint.Size()))
+		n6, err := m.Endpoint.MarshalTo(dAtA[i:])
 		if err != nil {
 			return 0, err
 		}
 		i += n6
 	}
-	return i, nil
-}
-
-func (m *ServiceSpec_Replicated) MarshalTo(data []byte) (int, error) {
-	i := 0
-	if m.Replicated != nil {
-		data[i] = 0x1a
+	if m.Rollback != nil {
+		dAtA[i] = 0x4a
 		i++
-		i = encodeVarintSpecs(data, i, uint64(m.Replicated.Size()))
-		n7, err := m.Replicated.MarshalTo(data[i:])
+		i = encodeVarintSpecs(dAtA, i, uint64(m.Rollback.Size()))
+		n7, err := m.Rollback.MarshalTo(dAtA[i:])
 		if err != nil {
 			return 0, err
 		}
@@ -1346,13 +1150,14 @@ func (m *ServiceSpec_Replicated) MarshalTo(data []byte) (int, error) {
 	}
 	return i, nil
 }
-func (m *ServiceSpec_Global) MarshalTo(data []byte) (int, error) {
+
+func (m *ServiceSpec_Replicated) MarshalTo(dAtA []byte) (int, error) {
 	i := 0
-	if m.Global != nil {
-		data[i] = 0x22
+	if m.Replicated != nil {
+		dAtA[i] = 0x1a
 		i++
-		i = encodeVarintSpecs(data, i, uint64(m.Global.Size()))
-		n8, err := m.Global.MarshalTo(data[i:])
+		i = encodeVarintSpecs(dAtA, i, uint64(m.Replicated.Size()))
+		n8, err := m.Replicated.MarshalTo(dAtA[i:])
 		if err != nil {
 			return 0, err
 		}
@@ -1360,40 +1165,54 @@ func (m *ServiceSpec_Global) MarshalTo(data []byte) (int, error) {
 	}
 	return i, nil
 }
-func (m *ReplicatedService) Marshal() (data []byte, err error) {
+func (m *ServiceSpec_Global) MarshalTo(dAtA []byte) (int, error) {
+	i := 0
+	if m.Global != nil {
+		dAtA[i] = 0x22
+		i++
+		i = encodeVarintSpecs(dAtA, i, uint64(m.Global.Size()))
+		n9, err := m.Global.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n9
+	}
+	return i, nil
+}
+func (m *ReplicatedService) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
-	data = make([]byte, size)
-	n, err := m.MarshalTo(data)
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
 	if err != nil {
 		return nil, err
 	}
-	return data[:n], nil
+	return dAtA[:n], nil
 }
 
-func (m *ReplicatedService) MarshalTo(data []byte) (int, error) {
+func (m *ReplicatedService) MarshalTo(dAtA []byte) (int, error) {
 	var i int
 	_ = i
 	var l int
 	_ = l
 	if m.Replicas != 0 {
-		data[i] = 0x8
+		dAtA[i] = 0x8
 		i++
-		i = encodeVarintSpecs(data, i, uint64(m.Replicas))
+		i = encodeVarintSpecs(dAtA, i, uint64(m.Replicas))
 	}
 	return i, nil
 }
 
-func (m *GlobalService) Marshal() (data []byte, err error) {
+func (m *GlobalService) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
-	data = make([]byte, size)
-	n, err := m.MarshalTo(data)
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
 	if err != nil {
 		return nil, err
 	}
-	return data[:n], nil
+	return dAtA[:n], nil
 }
 
-func (m *GlobalService) MarshalTo(data []byte) (int, error) {
+func (m *GlobalService) MarshalTo(dAtA []byte) (int, error) {
 	var i int
 	_ = i
 	var l int
@@ -1401,74 +1220,74 @@ func (m *GlobalService) MarshalTo(data []byte) (int, error) {
 	return i, nil
 }
 
-func (m *TaskSpec) Marshal() (data []byte, err error) {
+func (m *TaskSpec) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
-	data = make([]byte, size)
-	n, err := m.MarshalTo(data)
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
 	if err != nil {
 		return nil, err
 	}
-	return data[:n], nil
+	return dAtA[:n], nil
 }
 
-func (m *TaskSpec) MarshalTo(data []byte) (int, error) {
+func (m *TaskSpec) MarshalTo(dAtA []byte) (int, error) {
 	var i int
 	_ = i
 	var l int
 	_ = l
 	if m.Runtime != nil {
-		nn9, err := m.Runtime.MarshalTo(data[i:])
+		nn10, err := m.Runtime.MarshalTo(dAtA[i:])
 		if err != nil {
 			return 0, err
 		}
-		i += nn9
+		i += nn10
 	}
 	if m.Resources != nil {
-		data[i] = 0x12
+		dAtA[i] = 0x12
 		i++
-		i = encodeVarintSpecs(data, i, uint64(m.Resources.Size()))
-		n10, err := m.Resources.MarshalTo(data[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n10
-	}
-	if m.Restart != nil {
-		data[i] = 0x22
-		i++
-		i = encodeVarintSpecs(data, i, uint64(m.Restart.Size()))
-		n11, err := m.Restart.MarshalTo(data[i:])
+		i = encodeVarintSpecs(dAtA, i, uint64(m.Resources.Size()))
+		n11, err := m.Resources.MarshalTo(dAtA[i:])
 		if err != nil {
 			return 0, err
 		}
 		i += n11
 	}
-	if m.Placement != nil {
-		data[i] = 0x2a
+	if m.Restart != nil {
+		dAtA[i] = 0x22
 		i++
-		i = encodeVarintSpecs(data, i, uint64(m.Placement.Size()))
-		n12, err := m.Placement.MarshalTo(data[i:])
+		i = encodeVarintSpecs(dAtA, i, uint64(m.Restart.Size()))
+		n12, err := m.Restart.MarshalTo(dAtA[i:])
 		if err != nil {
 			return 0, err
 		}
 		i += n12
 	}
-	if m.LogDriver != nil {
-		data[i] = 0x32
+	if m.Placement != nil {
+		dAtA[i] = 0x2a
 		i++
-		i = encodeVarintSpecs(data, i, uint64(m.LogDriver.Size()))
-		n13, err := m.LogDriver.MarshalTo(data[i:])
+		i = encodeVarintSpecs(dAtA, i, uint64(m.Placement.Size()))
+		n13, err := m.Placement.MarshalTo(dAtA[i:])
 		if err != nil {
 			return 0, err
 		}
 		i += n13
 	}
+	if m.LogDriver != nil {
+		dAtA[i] = 0x32
+		i++
+		i = encodeVarintSpecs(dAtA, i, uint64(m.LogDriver.Size()))
+		n14, err := m.LogDriver.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n14
+	}
 	if len(m.Networks) > 0 {
 		for _, msg := range m.Networks {
-			data[i] = 0x3a
+			dAtA[i] = 0x3a
 			i++
-			i = encodeVarintSpecs(data, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(data[i:])
+			i = encodeVarintSpecs(dAtA, i, uint64(msg.Size()))
+			n, err := msg.MarshalTo(dAtA[i:])
 			if err != nil {
 				return 0, err
 			}
@@ -1476,34 +1295,20 @@ func (m *TaskSpec) MarshalTo(data []byte) (int, error) {
 		}
 	}
 	if m.ForceUpdate != 0 {
-		data[i] = 0x48
+		dAtA[i] = 0x48
 		i++
-		i = encodeVarintSpecs(data, i, uint64(m.ForceUpdate))
+		i = encodeVarintSpecs(dAtA, i, uint64(m.ForceUpdate))
 	}
 	return i, nil
 }
 
-func (m *TaskSpec_Container) MarshalTo(data []byte) (int, error) {
+func (m *TaskSpec_Container) MarshalTo(dAtA []byte) (int, error) {
 	i := 0
 	if m.Container != nil {
-		data[i] = 0xa
+		dAtA[i] = 0xa
 		i++
-		i = encodeVarintSpecs(data, i, uint64(m.Container.Size()))
-		n14, err := m.Container.MarshalTo(data[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n14
-	}
-	return i, nil
-}
-func (m *TaskSpec_Attachment) MarshalTo(data []byte) (int, error) {
-	i := 0
-	if m.Attachment != nil {
-		data[i] = 0x42
-		i++
-		i = encodeVarintSpecs(data, i, uint64(m.Attachment.Size()))
-		n15, err := m.Attachment.MarshalTo(data[i:])
+		i = encodeVarintSpecs(dAtA, i, uint64(m.Container.Size()))
+		n15, err := m.Container.MarshalTo(dAtA[i:])
 		if err != nil {
 			return 0, err
 		}
@@ -1511,131 +1316,145 @@ func (m *TaskSpec_Attachment) MarshalTo(data []byte) (int, error) {
 	}
 	return i, nil
 }
-func (m *NetworkAttachmentSpec) Marshal() (data []byte, err error) {
+func (m *TaskSpec_Attachment) MarshalTo(dAtA []byte) (int, error) {
+	i := 0
+	if m.Attachment != nil {
+		dAtA[i] = 0x42
+		i++
+		i = encodeVarintSpecs(dAtA, i, uint64(m.Attachment.Size()))
+		n16, err := m.Attachment.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n16
+	}
+	return i, nil
+}
+func (m *NetworkAttachmentSpec) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
-	data = make([]byte, size)
-	n, err := m.MarshalTo(data)
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
 	if err != nil {
 		return nil, err
 	}
-	return data[:n], nil
+	return dAtA[:n], nil
 }
 
-func (m *NetworkAttachmentSpec) MarshalTo(data []byte) (int, error) {
+func (m *NetworkAttachmentSpec) MarshalTo(dAtA []byte) (int, error) {
 	var i int
 	_ = i
 	var l int
 	_ = l
 	if len(m.ContainerID) > 0 {
-		data[i] = 0xa
+		dAtA[i] = 0xa
 		i++
-		i = encodeVarintSpecs(data, i, uint64(len(m.ContainerID)))
-		i += copy(data[i:], m.ContainerID)
+		i = encodeVarintSpecs(dAtA, i, uint64(len(m.ContainerID)))
+		i += copy(dAtA[i:], m.ContainerID)
 	}
 	return i, nil
 }
 
-func (m *ContainerSpec) Marshal() (data []byte, err error) {
+func (m *ContainerSpec) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
-	data = make([]byte, size)
-	n, err := m.MarshalTo(data)
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
 	if err != nil {
 		return nil, err
 	}
-	return data[:n], nil
+	return dAtA[:n], nil
 }
 
-func (m *ContainerSpec) MarshalTo(data []byte) (int, error) {
+func (m *ContainerSpec) MarshalTo(dAtA []byte) (int, error) {
 	var i int
 	_ = i
 	var l int
 	_ = l
 	if len(m.Image) > 0 {
-		data[i] = 0xa
+		dAtA[i] = 0xa
 		i++
-		i = encodeVarintSpecs(data, i, uint64(len(m.Image)))
-		i += copy(data[i:], m.Image)
+		i = encodeVarintSpecs(dAtA, i, uint64(len(m.Image)))
+		i += copy(dAtA[i:], m.Image)
 	}
 	if len(m.Labels) > 0 {
 		for k, _ := range m.Labels {
-			data[i] = 0x12
+			dAtA[i] = 0x12
 			i++
 			v := m.Labels[k]
 			mapSize := 1 + len(k) + sovSpecs(uint64(len(k))) + 1 + len(v) + sovSpecs(uint64(len(v)))
-			i = encodeVarintSpecs(data, i, uint64(mapSize))
-			data[i] = 0xa
+			i = encodeVarintSpecs(dAtA, i, uint64(mapSize))
+			dAtA[i] = 0xa
 			i++
-			i = encodeVarintSpecs(data, i, uint64(len(k)))
-			i += copy(data[i:], k)
-			data[i] = 0x12
+			i = encodeVarintSpecs(dAtA, i, uint64(len(k)))
+			i += copy(dAtA[i:], k)
+			dAtA[i] = 0x12
 			i++
-			i = encodeVarintSpecs(data, i, uint64(len(v)))
-			i += copy(data[i:], v)
+			i = encodeVarintSpecs(dAtA, i, uint64(len(v)))
+			i += copy(dAtA[i:], v)
 		}
 	}
 	if len(m.Command) > 0 {
 		for _, s := range m.Command {
-			data[i] = 0x1a
+			dAtA[i] = 0x1a
 			i++
 			l = len(s)
 			for l >= 1<<7 {
-				data[i] = uint8(uint64(l)&0x7f | 0x80)
+				dAtA[i] = uint8(uint64(l)&0x7f | 0x80)
 				l >>= 7
 				i++
 			}
-			data[i] = uint8(l)
+			dAtA[i] = uint8(l)
 			i++
-			i += copy(data[i:], s)
+			i += copy(dAtA[i:], s)
 		}
 	}
 	if len(m.Args) > 0 {
 		for _, s := range m.Args {
-			data[i] = 0x22
+			dAtA[i] = 0x22
 			i++
 			l = len(s)
 			for l >= 1<<7 {
-				data[i] = uint8(uint64(l)&0x7f | 0x80)
+				dAtA[i] = uint8(uint64(l)&0x7f | 0x80)
 				l >>= 7
 				i++
 			}
-			data[i] = uint8(l)
+			dAtA[i] = uint8(l)
 			i++
-			i += copy(data[i:], s)
+			i += copy(dAtA[i:], s)
 		}
 	}
 	if len(m.Env) > 0 {
 		for _, s := range m.Env {
-			data[i] = 0x2a
+			dAtA[i] = 0x2a
 			i++
 			l = len(s)
 			for l >= 1<<7 {
-				data[i] = uint8(uint64(l)&0x7f | 0x80)
+				dAtA[i] = uint8(uint64(l)&0x7f | 0x80)
 				l >>= 7
 				i++
 			}
-			data[i] = uint8(l)
+			dAtA[i] = uint8(l)
 			i++
-			i += copy(data[i:], s)
+			i += copy(dAtA[i:], s)
 		}
 	}
 	if len(m.Dir) > 0 {
-		data[i] = 0x32
+		dAtA[i] = 0x32
 		i++
-		i = encodeVarintSpecs(data, i, uint64(len(m.Dir)))
-		i += copy(data[i:], m.Dir)
+		i = encodeVarintSpecs(dAtA, i, uint64(len(m.Dir)))
+		i += copy(dAtA[i:], m.Dir)
 	}
 	if len(m.User) > 0 {
-		data[i] = 0x3a
+		dAtA[i] = 0x3a
 		i++
-		i = encodeVarintSpecs(data, i, uint64(len(m.User)))
-		i += copy(data[i:], m.User)
+		i = encodeVarintSpecs(dAtA, i, uint64(len(m.User)))
+		i += copy(dAtA[i:], m.User)
 	}
 	if len(m.Mounts) > 0 {
 		for _, msg := range m.Mounts {
-			data[i] = 0x42
+			dAtA[i] = 0x42
 			i++
-			i = encodeVarintSpecs(data, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(data[i:])
+			i = encodeVarintSpecs(dAtA, i, uint64(msg.Size()))
+			n, err := msg.MarshalTo(dAtA[i:])
 			if err != nil {
 				return 0, err
 			}
@@ -1643,46 +1462,46 @@ func (m *ContainerSpec) MarshalTo(data []byte) (int, error) {
 		}
 	}
 	if m.StopGracePeriod != nil {
-		data[i] = 0x4a
+		dAtA[i] = 0x4a
 		i++
-		i = encodeVarintSpecs(data, i, uint64(m.StopGracePeriod.Size()))
-		n16, err := m.StopGracePeriod.MarshalTo(data[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n16
-	}
-	if m.PullOptions != nil {
-		data[i] = 0x52
-		i++
-		i = encodeVarintSpecs(data, i, uint64(m.PullOptions.Size()))
-		n17, err := m.PullOptions.MarshalTo(data[i:])
+		i = encodeVarintSpecs(dAtA, i, uint64(m.StopGracePeriod.Size()))
+		n17, err := m.StopGracePeriod.MarshalTo(dAtA[i:])
 		if err != nil {
 			return 0, err
 		}
 		i += n17
 	}
+	if m.PullOptions != nil {
+		dAtA[i] = 0x52
+		i++
+		i = encodeVarintSpecs(dAtA, i, uint64(m.PullOptions.Size()))
+		n18, err := m.PullOptions.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n18
+	}
 	if len(m.Groups) > 0 {
 		for _, s := range m.Groups {
-			data[i] = 0x5a
+			dAtA[i] = 0x5a
 			i++
 			l = len(s)
 			for l >= 1<<7 {
-				data[i] = uint8(uint64(l)&0x7f | 0x80)
+				dAtA[i] = uint8(uint64(l)&0x7f | 0x80)
 				l >>= 7
 				i++
 			}
-			data[i] = uint8(l)
+			dAtA[i] = uint8(l)
 			i++
-			i += copy(data[i:], s)
+			i += copy(dAtA[i:], s)
 		}
 	}
 	if len(m.Secrets) > 0 {
 		for _, msg := range m.Secrets {
-			data[i] = 0x62
+			dAtA[i] = 0x62
 			i++
-			i = encodeVarintSpecs(data, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(data[i:])
+			i = encodeVarintSpecs(dAtA, i, uint64(msg.Size()))
+			n, err := msg.MarshalTo(dAtA[i:])
 			if err != nil {
 				return 0, err
 			}
@@ -1690,190 +1509,210 @@ func (m *ContainerSpec) MarshalTo(data []byte) (int, error) {
 		}
 	}
 	if m.TTY {
-		data[i] = 0x68
+		dAtA[i] = 0x68
 		i++
 		if m.TTY {
-			data[i] = 1
+			dAtA[i] = 1
 		} else {
-			data[i] = 0
+			dAtA[i] = 0
 		}
 		i++
 	}
 	if len(m.Hostname) > 0 {
-		data[i] = 0x72
+		dAtA[i] = 0x72
 		i++
-		i = encodeVarintSpecs(data, i, uint64(len(m.Hostname)))
-		i += copy(data[i:], m.Hostname)
+		i = encodeVarintSpecs(dAtA, i, uint64(len(m.Hostname)))
+		i += copy(dAtA[i:], m.Hostname)
 	}
 	if m.DNSConfig != nil {
-		data[i] = 0x7a
+		dAtA[i] = 0x7a
 		i++
-		i = encodeVarintSpecs(data, i, uint64(m.DNSConfig.Size()))
-		n18, err := m.DNSConfig.MarshalTo(data[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n18
-	}
-	if m.Healthcheck != nil {
-		data[i] = 0x82
-		i++
-		data[i] = 0x1
-		i++
-		i = encodeVarintSpecs(data, i, uint64(m.Healthcheck.Size()))
-		n19, err := m.Healthcheck.MarshalTo(data[i:])
+		i = encodeVarintSpecs(dAtA, i, uint64(m.DNSConfig.Size()))
+		n19, err := m.DNSConfig.MarshalTo(dAtA[i:])
 		if err != nil {
 			return 0, err
 		}
 		i += n19
 	}
+	if m.Healthcheck != nil {
+		dAtA[i] = 0x82
+		i++
+		dAtA[i] = 0x1
+		i++
+		i = encodeVarintSpecs(dAtA, i, uint64(m.Healthcheck.Size()))
+		n20, err := m.Healthcheck.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n20
+	}
 	if len(m.Hosts) > 0 {
 		for _, s := range m.Hosts {
-			data[i] = 0x8a
+			dAtA[i] = 0x8a
 			i++
-			data[i] = 0x1
+			dAtA[i] = 0x1
 			i++
 			l = len(s)
 			for l >= 1<<7 {
-				data[i] = uint8(uint64(l)&0x7f | 0x80)
+				dAtA[i] = uint8(uint64(l)&0x7f | 0x80)
 				l >>= 7
 				i++
 			}
-			data[i] = uint8(l)
+			dAtA[i] = uint8(l)
 			i++
-			i += copy(data[i:], s)
+			i += copy(dAtA[i:], s)
 		}
 	}
 	if m.OpenStdin {
-		data[i] = 0x90
+		dAtA[i] = 0x90
 		i++
-		data[i] = 0x1
+		dAtA[i] = 0x1
 		i++
 		if m.OpenStdin {
-			data[i] = 1
+			dAtA[i] = 1
 		} else {
-			data[i] = 0
+			dAtA[i] = 0
 		}
 		i++
+	}
+	if m.ReadOnly {
+		dAtA[i] = 0x98
+		i++
+		dAtA[i] = 0x1
+		i++
+		if m.ReadOnly {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i++
+	}
+	if len(m.StopSignal) > 0 {
+		dAtA[i] = 0xa2
+		i++
+		dAtA[i] = 0x1
+		i++
+		i = encodeVarintSpecs(dAtA, i, uint64(len(m.StopSignal)))
+		i += copy(dAtA[i:], m.StopSignal)
 	}
 	return i, nil
 }
 
-func (m *ContainerSpec_PullOptions) Marshal() (data []byte, err error) {
+func (m *ContainerSpec_PullOptions) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
-	data = make([]byte, size)
-	n, err := m.MarshalTo(data)
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
 	if err != nil {
 		return nil, err
 	}
-	return data[:n], nil
+	return dAtA[:n], nil
 }
 
-func (m *ContainerSpec_PullOptions) MarshalTo(data []byte) (int, error) {
+func (m *ContainerSpec_PullOptions) MarshalTo(dAtA []byte) (int, error) {
 	var i int
 	_ = i
 	var l int
 	_ = l
 	if len(m.RegistryAuth) > 0 {
-		data[i] = 0x82
+		dAtA[i] = 0x82
 		i++
-		data[i] = 0x4
+		dAtA[i] = 0x4
 		i++
-		i = encodeVarintSpecs(data, i, uint64(len(m.RegistryAuth)))
-		i += copy(data[i:], m.RegistryAuth)
+		i = encodeVarintSpecs(dAtA, i, uint64(len(m.RegistryAuth)))
+		i += copy(dAtA[i:], m.RegistryAuth)
 	}
 	return i, nil
 }
 
-func (m *ContainerSpec_DNSConfig) Marshal() (data []byte, err error) {
+func (m *ContainerSpec_DNSConfig) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
-	data = make([]byte, size)
-	n, err := m.MarshalTo(data)
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
 	if err != nil {
 		return nil, err
 	}
-	return data[:n], nil
+	return dAtA[:n], nil
 }
 
-func (m *ContainerSpec_DNSConfig) MarshalTo(data []byte) (int, error) {
+func (m *ContainerSpec_DNSConfig) MarshalTo(dAtA []byte) (int, error) {
 	var i int
 	_ = i
 	var l int
 	_ = l
 	if len(m.Nameservers) > 0 {
 		for _, s := range m.Nameservers {
-			data[i] = 0xa
+			dAtA[i] = 0xa
 			i++
 			l = len(s)
 			for l >= 1<<7 {
-				data[i] = uint8(uint64(l)&0x7f | 0x80)
+				dAtA[i] = uint8(uint64(l)&0x7f | 0x80)
 				l >>= 7
 				i++
 			}
-			data[i] = uint8(l)
+			dAtA[i] = uint8(l)
 			i++
-			i += copy(data[i:], s)
+			i += copy(dAtA[i:], s)
 		}
 	}
 	if len(m.Search) > 0 {
 		for _, s := range m.Search {
-			data[i] = 0x12
+			dAtA[i] = 0x12
 			i++
 			l = len(s)
 			for l >= 1<<7 {
-				data[i] = uint8(uint64(l)&0x7f | 0x80)
+				dAtA[i] = uint8(uint64(l)&0x7f | 0x80)
 				l >>= 7
 				i++
 			}
-			data[i] = uint8(l)
+			dAtA[i] = uint8(l)
 			i++
-			i += copy(data[i:], s)
+			i += copy(dAtA[i:], s)
 		}
 	}
 	if len(m.Options) > 0 {
 		for _, s := range m.Options {
-			data[i] = 0x1a
+			dAtA[i] = 0x1a
 			i++
 			l = len(s)
 			for l >= 1<<7 {
-				data[i] = uint8(uint64(l)&0x7f | 0x80)
+				dAtA[i] = uint8(uint64(l)&0x7f | 0x80)
 				l >>= 7
 				i++
 			}
-			data[i] = uint8(l)
+			dAtA[i] = uint8(l)
 			i++
-			i += copy(data[i:], s)
+			i += copy(dAtA[i:], s)
 		}
 	}
 	return i, nil
 }
 
-func (m *EndpointSpec) Marshal() (data []byte, err error) {
+func (m *EndpointSpec) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
-	data = make([]byte, size)
-	n, err := m.MarshalTo(data)
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
 	if err != nil {
 		return nil, err
 	}
-	return data[:n], nil
+	return dAtA[:n], nil
 }
 
-func (m *EndpointSpec) MarshalTo(data []byte) (int, error) {
+func (m *EndpointSpec) MarshalTo(dAtA []byte) (int, error) {
 	var i int
 	_ = i
 	var l int
 	_ = l
 	if m.Mode != 0 {
-		data[i] = 0x8
+		dAtA[i] = 0x8
 		i++
-		i = encodeVarintSpecs(data, i, uint64(m.Mode))
+		i = encodeVarintSpecs(dAtA, i, uint64(m.Mode))
 	}
 	if len(m.Ports) > 0 {
 		for _, msg := range m.Ports {
-			data[i] = 0x12
+			dAtA[i] = 0x12
 			i++
-			i = encodeVarintSpecs(data, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(data[i:])
+			i = encodeVarintSpecs(dAtA, i, uint64(msg.Size()))
+			n, err := msg.MarshalTo(dAtA[i:])
 			if err != nil {
 				return 0, err
 			}
@@ -1883,221 +1722,221 @@ func (m *EndpointSpec) MarshalTo(data []byte) (int, error) {
 	return i, nil
 }
 
-func (m *NetworkSpec) Marshal() (data []byte, err error) {
+func (m *NetworkSpec) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
-	data = make([]byte, size)
-	n, err := m.MarshalTo(data)
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
 	if err != nil {
 		return nil, err
 	}
-	return data[:n], nil
+	return dAtA[:n], nil
 }
 
-func (m *NetworkSpec) MarshalTo(data []byte) (int, error) {
+func (m *NetworkSpec) MarshalTo(dAtA []byte) (int, error) {
 	var i int
 	_ = i
 	var l int
 	_ = l
-	data[i] = 0xa
+	dAtA[i] = 0xa
 	i++
-	i = encodeVarintSpecs(data, i, uint64(m.Annotations.Size()))
-	n20, err := m.Annotations.MarshalTo(data[i:])
+	i = encodeVarintSpecs(dAtA, i, uint64(m.Annotations.Size()))
+	n21, err := m.Annotations.MarshalTo(dAtA[i:])
 	if err != nil {
 		return 0, err
 	}
-	i += n20
+	i += n21
 	if m.DriverConfig != nil {
-		data[i] = 0x12
+		dAtA[i] = 0x12
 		i++
-		i = encodeVarintSpecs(data, i, uint64(m.DriverConfig.Size()))
-		n21, err := m.DriverConfig.MarshalTo(data[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n21
-	}
-	if m.Ipv6Enabled {
-		data[i] = 0x18
-		i++
-		if m.Ipv6Enabled {
-			data[i] = 1
-		} else {
-			data[i] = 0
-		}
-		i++
-	}
-	if m.Internal {
-		data[i] = 0x20
-		i++
-		if m.Internal {
-			data[i] = 1
-		} else {
-			data[i] = 0
-		}
-		i++
-	}
-	if m.IPAM != nil {
-		data[i] = 0x2a
-		i++
-		i = encodeVarintSpecs(data, i, uint64(m.IPAM.Size()))
-		n22, err := m.IPAM.MarshalTo(data[i:])
+		i = encodeVarintSpecs(dAtA, i, uint64(m.DriverConfig.Size()))
+		n22, err := m.DriverConfig.MarshalTo(dAtA[i:])
 		if err != nil {
 			return 0, err
 		}
 		i += n22
 	}
+	if m.Ipv6Enabled {
+		dAtA[i] = 0x18
+		i++
+		if m.Ipv6Enabled {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i++
+	}
+	if m.Internal {
+		dAtA[i] = 0x20
+		i++
+		if m.Internal {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i++
+	}
+	if m.IPAM != nil {
+		dAtA[i] = 0x2a
+		i++
+		i = encodeVarintSpecs(dAtA, i, uint64(m.IPAM.Size()))
+		n23, err := m.IPAM.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n23
+	}
 	if m.Attachable {
-		data[i] = 0x30
+		dAtA[i] = 0x30
 		i++
 		if m.Attachable {
-			data[i] = 1
+			dAtA[i] = 1
 		} else {
-			data[i] = 0
+			dAtA[i] = 0
 		}
 		i++
 	}
 	return i, nil
 }
 
-func (m *ClusterSpec) Marshal() (data []byte, err error) {
+func (m *ClusterSpec) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
-	data = make([]byte, size)
-	n, err := m.MarshalTo(data)
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
 	if err != nil {
 		return nil, err
 	}
-	return data[:n], nil
+	return dAtA[:n], nil
 }
 
-func (m *ClusterSpec) MarshalTo(data []byte) (int, error) {
+func (m *ClusterSpec) MarshalTo(dAtA []byte) (int, error) {
 	var i int
 	_ = i
 	var l int
 	_ = l
-	data[i] = 0xa
+	dAtA[i] = 0xa
 	i++
-	i = encodeVarintSpecs(data, i, uint64(m.Annotations.Size()))
-	n23, err := m.Annotations.MarshalTo(data[i:])
-	if err != nil {
-		return 0, err
-	}
-	i += n23
-	data[i] = 0x12
-	i++
-	i = encodeVarintSpecs(data, i, uint64(m.AcceptancePolicy.Size()))
-	n24, err := m.AcceptancePolicy.MarshalTo(data[i:])
+	i = encodeVarintSpecs(dAtA, i, uint64(m.Annotations.Size()))
+	n24, err := m.Annotations.MarshalTo(dAtA[i:])
 	if err != nil {
 		return 0, err
 	}
 	i += n24
-	data[i] = 0x1a
+	dAtA[i] = 0x12
 	i++
-	i = encodeVarintSpecs(data, i, uint64(m.Orchestration.Size()))
-	n25, err := m.Orchestration.MarshalTo(data[i:])
+	i = encodeVarintSpecs(dAtA, i, uint64(m.AcceptancePolicy.Size()))
+	n25, err := m.AcceptancePolicy.MarshalTo(dAtA[i:])
 	if err != nil {
 		return 0, err
 	}
 	i += n25
-	data[i] = 0x22
+	dAtA[i] = 0x1a
 	i++
-	i = encodeVarintSpecs(data, i, uint64(m.Raft.Size()))
-	n26, err := m.Raft.MarshalTo(data[i:])
+	i = encodeVarintSpecs(dAtA, i, uint64(m.Orchestration.Size()))
+	n26, err := m.Orchestration.MarshalTo(dAtA[i:])
 	if err != nil {
 		return 0, err
 	}
 	i += n26
-	data[i] = 0x2a
+	dAtA[i] = 0x22
 	i++
-	i = encodeVarintSpecs(data, i, uint64(m.Dispatcher.Size()))
-	n27, err := m.Dispatcher.MarshalTo(data[i:])
+	i = encodeVarintSpecs(dAtA, i, uint64(m.Raft.Size()))
+	n27, err := m.Raft.MarshalTo(dAtA[i:])
 	if err != nil {
 		return 0, err
 	}
 	i += n27
-	data[i] = 0x32
+	dAtA[i] = 0x2a
 	i++
-	i = encodeVarintSpecs(data, i, uint64(m.CAConfig.Size()))
-	n28, err := m.CAConfig.MarshalTo(data[i:])
+	i = encodeVarintSpecs(dAtA, i, uint64(m.Dispatcher.Size()))
+	n28, err := m.Dispatcher.MarshalTo(dAtA[i:])
 	if err != nil {
 		return 0, err
 	}
 	i += n28
-	data[i] = 0x3a
+	dAtA[i] = 0x32
 	i++
-	i = encodeVarintSpecs(data, i, uint64(m.TaskDefaults.Size()))
-	n29, err := m.TaskDefaults.MarshalTo(data[i:])
+	i = encodeVarintSpecs(dAtA, i, uint64(m.CAConfig.Size()))
+	n29, err := m.CAConfig.MarshalTo(dAtA[i:])
 	if err != nil {
 		return 0, err
 	}
 	i += n29
-	data[i] = 0x42
+	dAtA[i] = 0x3a
 	i++
-	i = encodeVarintSpecs(data, i, uint64(m.EncryptionConfig.Size()))
-	n30, err := m.EncryptionConfig.MarshalTo(data[i:])
+	i = encodeVarintSpecs(dAtA, i, uint64(m.TaskDefaults.Size()))
+	n30, err := m.TaskDefaults.MarshalTo(dAtA[i:])
 	if err != nil {
 		return 0, err
 	}
 	i += n30
-	return i, nil
-}
-
-func (m *SecretSpec) Marshal() (data []byte, err error) {
-	size := m.Size()
-	data = make([]byte, size)
-	n, err := m.MarshalTo(data)
-	if err != nil {
-		return nil, err
-	}
-	return data[:n], nil
-}
-
-func (m *SecretSpec) MarshalTo(data []byte) (int, error) {
-	var i int
-	_ = i
-	var l int
-	_ = l
-	data[i] = 0xa
+	dAtA[i] = 0x42
 	i++
-	i = encodeVarintSpecs(data, i, uint64(m.Annotations.Size()))
-	n31, err := m.Annotations.MarshalTo(data[i:])
+	i = encodeVarintSpecs(dAtA, i, uint64(m.EncryptionConfig.Size()))
+	n31, err := m.EncryptionConfig.MarshalTo(dAtA[i:])
 	if err != nil {
 		return 0, err
 	}
 	i += n31
+	return i, nil
+}
+
+func (m *SecretSpec) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *SecretSpec) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	dAtA[i] = 0xa
+	i++
+	i = encodeVarintSpecs(dAtA, i, uint64(m.Annotations.Size()))
+	n32, err := m.Annotations.MarshalTo(dAtA[i:])
+	if err != nil {
+		return 0, err
+	}
+	i += n32
 	if len(m.Data) > 0 {
-		data[i] = 0x12
+		dAtA[i] = 0x12
 		i++
-		i = encodeVarintSpecs(data, i, uint64(len(m.Data)))
-		i += copy(data[i:], m.Data)
+		i = encodeVarintSpecs(dAtA, i, uint64(len(m.Data)))
+		i += copy(dAtA[i:], m.Data)
 	}
 	return i, nil
 }
 
-func encodeFixed64Specs(data []byte, offset int, v uint64) int {
-	data[offset] = uint8(v)
-	data[offset+1] = uint8(v >> 8)
-	data[offset+2] = uint8(v >> 16)
-	data[offset+3] = uint8(v >> 24)
-	data[offset+4] = uint8(v >> 32)
-	data[offset+5] = uint8(v >> 40)
-	data[offset+6] = uint8(v >> 48)
-	data[offset+7] = uint8(v >> 56)
+func encodeFixed64Specs(dAtA []byte, offset int, v uint64) int {
+	dAtA[offset] = uint8(v)
+	dAtA[offset+1] = uint8(v >> 8)
+	dAtA[offset+2] = uint8(v >> 16)
+	dAtA[offset+3] = uint8(v >> 24)
+	dAtA[offset+4] = uint8(v >> 32)
+	dAtA[offset+5] = uint8(v >> 40)
+	dAtA[offset+6] = uint8(v >> 48)
+	dAtA[offset+7] = uint8(v >> 56)
 	return offset + 8
 }
-func encodeFixed32Specs(data []byte, offset int, v uint32) int {
-	data[offset] = uint8(v)
-	data[offset+1] = uint8(v >> 8)
-	data[offset+2] = uint8(v >> 16)
-	data[offset+3] = uint8(v >> 24)
+func encodeFixed32Specs(dAtA []byte, offset int, v uint32) int {
+	dAtA[offset] = uint8(v)
+	dAtA[offset+1] = uint8(v >> 8)
+	dAtA[offset+2] = uint8(v >> 16)
+	dAtA[offset+3] = uint8(v >> 24)
 	return offset + 4
 }
-func encodeVarintSpecs(data []byte, offset int, v uint64) int {
+func encodeVarintSpecs(dAtA []byte, offset int, v uint64) int {
 	for v >= 1<<7 {
-		data[offset] = uint8(v&0x7f | 0x80)
+		dAtA[offset] = uint8(v&0x7f | 0x80)
 		v >>= 7
 		offset++
 	}
-	data[offset] = uint8(v)
+	dAtA[offset] = uint8(v)
 	return offset + 1
 }
 
@@ -2140,6 +1979,10 @@ func (m *ServiceSpec) Size() (n int) {
 	}
 	if m.Endpoint != nil {
 		l = m.Endpoint.Size()
+		n += 1 + l + sovSpecs(uint64(l))
+	}
+	if m.Rollback != nil {
+		l = m.Rollback.Size()
 		n += 1 + l + sovSpecs(uint64(l))
 	}
 	return n
@@ -2331,6 +2174,13 @@ func (m *ContainerSpec) Size() (n int) {
 	if m.OpenStdin {
 		n += 3
 	}
+	if m.ReadOnly {
+		n += 3
+	}
+	l = len(m.StopSignal)
+	if l > 0 {
+		n += 2 + l + sovSpecs(uint64(l))
+	}
 	return n
 }
 
@@ -2479,6 +2329,7 @@ func (this *ServiceSpec) String() string {
 		`Update:` + strings.Replace(fmt.Sprintf("%v", this.Update), "UpdateConfig", "UpdateConfig", 1) + `,`,
 		`Networks:` + strings.Replace(fmt.Sprintf("%v", this.Networks), "NetworkAttachmentConfig", "NetworkAttachmentConfig", 1) + `,`,
 		`Endpoint:` + strings.Replace(fmt.Sprintf("%v", this.Endpoint), "EndpointSpec", "EndpointSpec", 1) + `,`,
+		`Rollback:` + strings.Replace(fmt.Sprintf("%v", this.Rollback), "UpdateConfig", "UpdateConfig", 1) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -2591,7 +2442,7 @@ func (this *ContainerSpec) String() string {
 		`Dir:` + fmt.Sprintf("%v", this.Dir) + `,`,
 		`User:` + fmt.Sprintf("%v", this.User) + `,`,
 		`Mounts:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.Mounts), "Mount", "Mount", 1), `&`, ``, 1) + `,`,
-		`StopGracePeriod:` + strings.Replace(fmt.Sprintf("%v", this.StopGracePeriod), "Duration", "docker_swarmkit_v11.Duration", 1) + `,`,
+		`StopGracePeriod:` + strings.Replace(fmt.Sprintf("%v", this.StopGracePeriod), "Duration", "google_protobuf1.Duration", 1) + `,`,
 		`PullOptions:` + strings.Replace(fmt.Sprintf("%v", this.PullOptions), "ContainerSpec_PullOptions", "ContainerSpec_PullOptions", 1) + `,`,
 		`Groups:` + fmt.Sprintf("%v", this.Groups) + `,`,
 		`Secrets:` + strings.Replace(fmt.Sprintf("%v", this.Secrets), "SecretReference", "SecretReference", 1) + `,`,
@@ -2601,6 +2452,8 @@ func (this *ContainerSpec) String() string {
 		`Healthcheck:` + strings.Replace(fmt.Sprintf("%v", this.Healthcheck), "HealthConfig", "HealthConfig", 1) + `,`,
 		`Hosts:` + fmt.Sprintf("%v", this.Hosts) + `,`,
 		`OpenStdin:` + fmt.Sprintf("%v", this.OpenStdin) + `,`,
+		`ReadOnly:` + fmt.Sprintf("%v", this.ReadOnly) + `,`,
+		`StopSignal:` + fmt.Sprintf("%v", this.StopSignal) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -2689,8 +2542,8 @@ func valueToStringSpecs(v interface{}) string {
 	pv := reflect.Indirect(rv).Interface()
 	return fmt.Sprintf("*%v", pv)
 }
-func (m *NodeSpec) Unmarshal(data []byte) error {
-	l := len(data)
+func (m *NodeSpec) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
 		preIndex := iNdEx
@@ -2702,7 +2555,7 @@ func (m *NodeSpec) Unmarshal(data []byte) error {
 			if iNdEx >= l {
 				return io.ErrUnexpectedEOF
 			}
-			b := data[iNdEx]
+			b := dAtA[iNdEx]
 			iNdEx++
 			wire |= (uint64(b) & 0x7F) << shift
 			if b < 0x80 {
@@ -2730,7 +2583,7 @@ func (m *NodeSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -2744,7 +2597,7 @@ func (m *NodeSpec) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if err := m.Annotations.Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := m.Annotations.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -2760,7 +2613,7 @@ func (m *NodeSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				m.DesiredRole |= (NodeRole(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -2779,7 +2632,7 @@ func (m *NodeSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				m.Membership |= (NodeSpec_Membership(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -2798,7 +2651,7 @@ func (m *NodeSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				m.Availability |= (NodeSpec_Availability(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -2807,7 +2660,7 @@ func (m *NodeSpec) Unmarshal(data []byte) error {
 			}
 		default:
 			iNdEx = preIndex
-			skippy, err := skipSpecs(data[iNdEx:])
+			skippy, err := skipSpecs(dAtA[iNdEx:])
 			if err != nil {
 				return err
 			}
@@ -2826,8 +2679,8 @@ func (m *NodeSpec) Unmarshal(data []byte) error {
 	}
 	return nil
 }
-func (m *ServiceSpec) Unmarshal(data []byte) error {
-	l := len(data)
+func (m *ServiceSpec) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
 		preIndex := iNdEx
@@ -2839,7 +2692,7 @@ func (m *ServiceSpec) Unmarshal(data []byte) error {
 			if iNdEx >= l {
 				return io.ErrUnexpectedEOF
 			}
-			b := data[iNdEx]
+			b := dAtA[iNdEx]
 			iNdEx++
 			wire |= (uint64(b) & 0x7F) << shift
 			if b < 0x80 {
@@ -2867,7 +2720,7 @@ func (m *ServiceSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -2881,7 +2734,7 @@ func (m *ServiceSpec) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if err := m.Annotations.Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := m.Annotations.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -2897,7 +2750,7 @@ func (m *ServiceSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -2911,7 +2764,7 @@ func (m *ServiceSpec) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if err := m.Task.Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := m.Task.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -2927,7 +2780,7 @@ func (m *ServiceSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -2942,7 +2795,7 @@ func (m *ServiceSpec) Unmarshal(data []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			v := &ReplicatedService{}
-			if err := v.Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			m.Mode = &ServiceSpec_Replicated{v}
@@ -2959,7 +2812,7 @@ func (m *ServiceSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -2974,7 +2827,7 @@ func (m *ServiceSpec) Unmarshal(data []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			v := &GlobalService{}
-			if err := v.Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			m.Mode = &ServiceSpec_Global{v}
@@ -2991,7 +2844,7 @@ func (m *ServiceSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -3008,7 +2861,7 @@ func (m *ServiceSpec) Unmarshal(data []byte) error {
 			if m.Update == nil {
 				m.Update = &UpdateConfig{}
 			}
-			if err := m.Update.Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := m.Update.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -3024,7 +2877,7 @@ func (m *ServiceSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -3039,7 +2892,7 @@ func (m *ServiceSpec) Unmarshal(data []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.Networks = append(m.Networks, &NetworkAttachmentConfig{})
-			if err := m.Networks[len(m.Networks)-1].Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := m.Networks[len(m.Networks)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -3055,7 +2908,7 @@ func (m *ServiceSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -3072,13 +2925,46 @@ func (m *ServiceSpec) Unmarshal(data []byte) error {
 			if m.Endpoint == nil {
 				m.Endpoint = &EndpointSpec{}
 			}
-			if err := m.Endpoint.Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := m.Endpoint.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 9:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Rollback", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSpecs
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthSpecs
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Rollback == nil {
+				m.Rollback = &UpdateConfig{}
+			}
+			if err := m.Rollback.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
-			skippy, err := skipSpecs(data[iNdEx:])
+			skippy, err := skipSpecs(dAtA[iNdEx:])
 			if err != nil {
 				return err
 			}
@@ -3097,8 +2983,8 @@ func (m *ServiceSpec) Unmarshal(data []byte) error {
 	}
 	return nil
 }
-func (m *ReplicatedService) Unmarshal(data []byte) error {
-	l := len(data)
+func (m *ReplicatedService) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
 		preIndex := iNdEx
@@ -3110,7 +2996,7 @@ func (m *ReplicatedService) Unmarshal(data []byte) error {
 			if iNdEx >= l {
 				return io.ErrUnexpectedEOF
 			}
-			b := data[iNdEx]
+			b := dAtA[iNdEx]
 			iNdEx++
 			wire |= (uint64(b) & 0x7F) << shift
 			if b < 0x80 {
@@ -3138,7 +3024,7 @@ func (m *ReplicatedService) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				m.Replicas |= (uint64(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -3147,7 +3033,7 @@ func (m *ReplicatedService) Unmarshal(data []byte) error {
 			}
 		default:
 			iNdEx = preIndex
-			skippy, err := skipSpecs(data[iNdEx:])
+			skippy, err := skipSpecs(dAtA[iNdEx:])
 			if err != nil {
 				return err
 			}
@@ -3166,8 +3052,8 @@ func (m *ReplicatedService) Unmarshal(data []byte) error {
 	}
 	return nil
 }
-func (m *GlobalService) Unmarshal(data []byte) error {
-	l := len(data)
+func (m *GlobalService) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
 		preIndex := iNdEx
@@ -3179,7 +3065,7 @@ func (m *GlobalService) Unmarshal(data []byte) error {
 			if iNdEx >= l {
 				return io.ErrUnexpectedEOF
 			}
-			b := data[iNdEx]
+			b := dAtA[iNdEx]
 			iNdEx++
 			wire |= (uint64(b) & 0x7F) << shift
 			if b < 0x80 {
@@ -3197,7 +3083,7 @@ func (m *GlobalService) Unmarshal(data []byte) error {
 		switch fieldNum {
 		default:
 			iNdEx = preIndex
-			skippy, err := skipSpecs(data[iNdEx:])
+			skippy, err := skipSpecs(dAtA[iNdEx:])
 			if err != nil {
 				return err
 			}
@@ -3216,8 +3102,8 @@ func (m *GlobalService) Unmarshal(data []byte) error {
 	}
 	return nil
 }
-func (m *TaskSpec) Unmarshal(data []byte) error {
-	l := len(data)
+func (m *TaskSpec) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
 		preIndex := iNdEx
@@ -3229,7 +3115,7 @@ func (m *TaskSpec) Unmarshal(data []byte) error {
 			if iNdEx >= l {
 				return io.ErrUnexpectedEOF
 			}
-			b := data[iNdEx]
+			b := dAtA[iNdEx]
 			iNdEx++
 			wire |= (uint64(b) & 0x7F) << shift
 			if b < 0x80 {
@@ -3257,7 +3143,7 @@ func (m *TaskSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -3272,7 +3158,7 @@ func (m *TaskSpec) Unmarshal(data []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			v := &ContainerSpec{}
-			if err := v.Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			m.Runtime = &TaskSpec_Container{v}
@@ -3289,7 +3175,7 @@ func (m *TaskSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -3306,7 +3192,7 @@ func (m *TaskSpec) Unmarshal(data []byte) error {
 			if m.Resources == nil {
 				m.Resources = &ResourceRequirements{}
 			}
-			if err := m.Resources.Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := m.Resources.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -3322,7 +3208,7 @@ func (m *TaskSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -3339,7 +3225,7 @@ func (m *TaskSpec) Unmarshal(data []byte) error {
 			if m.Restart == nil {
 				m.Restart = &RestartPolicy{}
 			}
-			if err := m.Restart.Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := m.Restart.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -3355,7 +3241,7 @@ func (m *TaskSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -3372,7 +3258,7 @@ func (m *TaskSpec) Unmarshal(data []byte) error {
 			if m.Placement == nil {
 				m.Placement = &Placement{}
 			}
-			if err := m.Placement.Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := m.Placement.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -3388,7 +3274,7 @@ func (m *TaskSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -3405,7 +3291,7 @@ func (m *TaskSpec) Unmarshal(data []byte) error {
 			if m.LogDriver == nil {
 				m.LogDriver = &Driver{}
 			}
-			if err := m.LogDriver.Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := m.LogDriver.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -3421,7 +3307,7 @@ func (m *TaskSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -3436,7 +3322,7 @@ func (m *TaskSpec) Unmarshal(data []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.Networks = append(m.Networks, &NetworkAttachmentConfig{})
-			if err := m.Networks[len(m.Networks)-1].Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := m.Networks[len(m.Networks)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -3452,7 +3338,7 @@ func (m *TaskSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -3467,7 +3353,7 @@ func (m *TaskSpec) Unmarshal(data []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			v := &NetworkAttachmentSpec{}
-			if err := v.Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			m.Runtime = &TaskSpec_Attachment{v}
@@ -3484,7 +3370,7 @@ func (m *TaskSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				m.ForceUpdate |= (uint64(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -3493,7 +3379,7 @@ func (m *TaskSpec) Unmarshal(data []byte) error {
 			}
 		default:
 			iNdEx = preIndex
-			skippy, err := skipSpecs(data[iNdEx:])
+			skippy, err := skipSpecs(dAtA[iNdEx:])
 			if err != nil {
 				return err
 			}
@@ -3512,8 +3398,8 @@ func (m *TaskSpec) Unmarshal(data []byte) error {
 	}
 	return nil
 }
-func (m *NetworkAttachmentSpec) Unmarshal(data []byte) error {
-	l := len(data)
+func (m *NetworkAttachmentSpec) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
 		preIndex := iNdEx
@@ -3525,7 +3411,7 @@ func (m *NetworkAttachmentSpec) Unmarshal(data []byte) error {
 			if iNdEx >= l {
 				return io.ErrUnexpectedEOF
 			}
-			b := data[iNdEx]
+			b := dAtA[iNdEx]
 			iNdEx++
 			wire |= (uint64(b) & 0x7F) << shift
 			if b < 0x80 {
@@ -3553,7 +3439,7 @@ func (m *NetworkAttachmentSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				stringLen |= (uint64(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -3568,11 +3454,11 @@ func (m *NetworkAttachmentSpec) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.ContainerID = string(data[iNdEx:postIndex])
+			m.ContainerID = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
-			skippy, err := skipSpecs(data[iNdEx:])
+			skippy, err := skipSpecs(dAtA[iNdEx:])
 			if err != nil {
 				return err
 			}
@@ -3591,8 +3477,8 @@ func (m *NetworkAttachmentSpec) Unmarshal(data []byte) error {
 	}
 	return nil
 }
-func (m *ContainerSpec) Unmarshal(data []byte) error {
-	l := len(data)
+func (m *ContainerSpec) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
 		preIndex := iNdEx
@@ -3604,7 +3490,7 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 			if iNdEx >= l {
 				return io.ErrUnexpectedEOF
 			}
-			b := data[iNdEx]
+			b := dAtA[iNdEx]
 			iNdEx++
 			wire |= (uint64(b) & 0x7F) << shift
 			if b < 0x80 {
@@ -3632,7 +3518,7 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				stringLen |= (uint64(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -3647,7 +3533,7 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Image = string(data[iNdEx:postIndex])
+			m.Image = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
@@ -3661,7 +3547,7 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -3683,7 +3569,7 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				keykey |= (uint64(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -3698,7 +3584,7 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				stringLenmapkey |= (uint64(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -3713,7 +3599,7 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 			if postStringIndexmapkey > l {
 				return io.ErrUnexpectedEOF
 			}
-			mapkey := string(data[iNdEx:postStringIndexmapkey])
+			mapkey := string(dAtA[iNdEx:postStringIndexmapkey])
 			iNdEx = postStringIndexmapkey
 			if m.Labels == nil {
 				m.Labels = make(map[string]string)
@@ -3727,7 +3613,7 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 					if iNdEx >= l {
 						return io.ErrUnexpectedEOF
 					}
-					b := data[iNdEx]
+					b := dAtA[iNdEx]
 					iNdEx++
 					valuekey |= (uint64(b) & 0x7F) << shift
 					if b < 0x80 {
@@ -3742,7 +3628,7 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 					if iNdEx >= l {
 						return io.ErrUnexpectedEOF
 					}
-					b := data[iNdEx]
+					b := dAtA[iNdEx]
 					iNdEx++
 					stringLenmapvalue |= (uint64(b) & 0x7F) << shift
 					if b < 0x80 {
@@ -3757,7 +3643,7 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 				if postStringIndexmapvalue > l {
 					return io.ErrUnexpectedEOF
 				}
-				mapvalue := string(data[iNdEx:postStringIndexmapvalue])
+				mapvalue := string(dAtA[iNdEx:postStringIndexmapvalue])
 				iNdEx = postStringIndexmapvalue
 				m.Labels[mapkey] = mapvalue
 			} else {
@@ -3777,7 +3663,7 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				stringLen |= (uint64(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -3792,7 +3678,7 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Command = append(m.Command, string(data[iNdEx:postIndex]))
+			m.Command = append(m.Command, string(dAtA[iNdEx:postIndex]))
 			iNdEx = postIndex
 		case 4:
 			if wireType != 2 {
@@ -3806,7 +3692,7 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				stringLen |= (uint64(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -3821,7 +3707,7 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Args = append(m.Args, string(data[iNdEx:postIndex]))
+			m.Args = append(m.Args, string(dAtA[iNdEx:postIndex]))
 			iNdEx = postIndex
 		case 5:
 			if wireType != 2 {
@@ -3835,7 +3721,7 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				stringLen |= (uint64(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -3850,7 +3736,7 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Env = append(m.Env, string(data[iNdEx:postIndex]))
+			m.Env = append(m.Env, string(dAtA[iNdEx:postIndex]))
 			iNdEx = postIndex
 		case 6:
 			if wireType != 2 {
@@ -3864,7 +3750,7 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				stringLen |= (uint64(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -3879,7 +3765,7 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Dir = string(data[iNdEx:postIndex])
+			m.Dir = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 7:
 			if wireType != 2 {
@@ -3893,7 +3779,7 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				stringLen |= (uint64(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -3908,7 +3794,7 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.User = string(data[iNdEx:postIndex])
+			m.User = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 8:
 			if wireType != 2 {
@@ -3922,7 +3808,7 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -3937,7 +3823,7 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.Mounts = append(m.Mounts, Mount{})
-			if err := m.Mounts[len(m.Mounts)-1].Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := m.Mounts[len(m.Mounts)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -3953,7 +3839,7 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -3968,9 +3854,9 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			if m.StopGracePeriod == nil {
-				m.StopGracePeriod = &docker_swarmkit_v11.Duration{}
+				m.StopGracePeriod = &google_protobuf1.Duration{}
 			}
-			if err := m.StopGracePeriod.Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := m.StopGracePeriod.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -3986,7 +3872,7 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -4003,7 +3889,7 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 			if m.PullOptions == nil {
 				m.PullOptions = &ContainerSpec_PullOptions{}
 			}
-			if err := m.PullOptions.Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := m.PullOptions.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -4019,7 +3905,7 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				stringLen |= (uint64(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -4034,7 +3920,7 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Groups = append(m.Groups, string(data[iNdEx:postIndex]))
+			m.Groups = append(m.Groups, string(dAtA[iNdEx:postIndex]))
 			iNdEx = postIndex
 		case 12:
 			if wireType != 2 {
@@ -4048,7 +3934,7 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -4063,7 +3949,7 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.Secrets = append(m.Secrets, &SecretReference{})
-			if err := m.Secrets[len(m.Secrets)-1].Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := m.Secrets[len(m.Secrets)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -4079,7 +3965,7 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				v |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -4099,7 +3985,7 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				stringLen |= (uint64(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -4114,7 +4000,7 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Hostname = string(data[iNdEx:postIndex])
+			m.Hostname = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 15:
 			if wireType != 2 {
@@ -4128,7 +4014,7 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -4145,7 +4031,7 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 			if m.DNSConfig == nil {
 				m.DNSConfig = &ContainerSpec_DNSConfig{}
 			}
-			if err := m.DNSConfig.Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := m.DNSConfig.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -4161,7 +4047,7 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -4178,7 +4064,7 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 			if m.Healthcheck == nil {
 				m.Healthcheck = &HealthConfig{}
 			}
-			if err := m.Healthcheck.Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := m.Healthcheck.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -4194,7 +4080,7 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				stringLen |= (uint64(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -4209,7 +4095,7 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Hosts = append(m.Hosts, string(data[iNdEx:postIndex]))
+			m.Hosts = append(m.Hosts, string(dAtA[iNdEx:postIndex]))
 			iNdEx = postIndex
 		case 18:
 			if wireType != 0 {
@@ -4223,7 +4109,7 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				v |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -4231,9 +4117,58 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 				}
 			}
 			m.OpenStdin = bool(v != 0)
+		case 19:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ReadOnly", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSpecs
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.ReadOnly = bool(v != 0)
+		case 20:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field StopSignal", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSpecs
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthSpecs
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.StopSignal = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
-			skippy, err := skipSpecs(data[iNdEx:])
+			skippy, err := skipSpecs(dAtA[iNdEx:])
 			if err != nil {
 				return err
 			}
@@ -4252,8 +4187,8 @@ func (m *ContainerSpec) Unmarshal(data []byte) error {
 	}
 	return nil
 }
-func (m *ContainerSpec_PullOptions) Unmarshal(data []byte) error {
-	l := len(data)
+func (m *ContainerSpec_PullOptions) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
 		preIndex := iNdEx
@@ -4265,7 +4200,7 @@ func (m *ContainerSpec_PullOptions) Unmarshal(data []byte) error {
 			if iNdEx >= l {
 				return io.ErrUnexpectedEOF
 			}
-			b := data[iNdEx]
+			b := dAtA[iNdEx]
 			iNdEx++
 			wire |= (uint64(b) & 0x7F) << shift
 			if b < 0x80 {
@@ -4293,7 +4228,7 @@ func (m *ContainerSpec_PullOptions) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				stringLen |= (uint64(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -4308,11 +4243,11 @@ func (m *ContainerSpec_PullOptions) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.RegistryAuth = string(data[iNdEx:postIndex])
+			m.RegistryAuth = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
-			skippy, err := skipSpecs(data[iNdEx:])
+			skippy, err := skipSpecs(dAtA[iNdEx:])
 			if err != nil {
 				return err
 			}
@@ -4331,8 +4266,8 @@ func (m *ContainerSpec_PullOptions) Unmarshal(data []byte) error {
 	}
 	return nil
 }
-func (m *ContainerSpec_DNSConfig) Unmarshal(data []byte) error {
-	l := len(data)
+func (m *ContainerSpec_DNSConfig) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
 		preIndex := iNdEx
@@ -4344,7 +4279,7 @@ func (m *ContainerSpec_DNSConfig) Unmarshal(data []byte) error {
 			if iNdEx >= l {
 				return io.ErrUnexpectedEOF
 			}
-			b := data[iNdEx]
+			b := dAtA[iNdEx]
 			iNdEx++
 			wire |= (uint64(b) & 0x7F) << shift
 			if b < 0x80 {
@@ -4372,7 +4307,7 @@ func (m *ContainerSpec_DNSConfig) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				stringLen |= (uint64(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -4387,7 +4322,7 @@ func (m *ContainerSpec_DNSConfig) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Nameservers = append(m.Nameservers, string(data[iNdEx:postIndex]))
+			m.Nameservers = append(m.Nameservers, string(dAtA[iNdEx:postIndex]))
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
@@ -4401,7 +4336,7 @@ func (m *ContainerSpec_DNSConfig) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				stringLen |= (uint64(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -4416,7 +4351,7 @@ func (m *ContainerSpec_DNSConfig) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Search = append(m.Search, string(data[iNdEx:postIndex]))
+			m.Search = append(m.Search, string(dAtA[iNdEx:postIndex]))
 			iNdEx = postIndex
 		case 3:
 			if wireType != 2 {
@@ -4430,7 +4365,7 @@ func (m *ContainerSpec_DNSConfig) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				stringLen |= (uint64(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -4445,11 +4380,11 @@ func (m *ContainerSpec_DNSConfig) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Options = append(m.Options, string(data[iNdEx:postIndex]))
+			m.Options = append(m.Options, string(dAtA[iNdEx:postIndex]))
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
-			skippy, err := skipSpecs(data[iNdEx:])
+			skippy, err := skipSpecs(dAtA[iNdEx:])
 			if err != nil {
 				return err
 			}
@@ -4468,8 +4403,8 @@ func (m *ContainerSpec_DNSConfig) Unmarshal(data []byte) error {
 	}
 	return nil
 }
-func (m *EndpointSpec) Unmarshal(data []byte) error {
-	l := len(data)
+func (m *EndpointSpec) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
 		preIndex := iNdEx
@@ -4481,7 +4416,7 @@ func (m *EndpointSpec) Unmarshal(data []byte) error {
 			if iNdEx >= l {
 				return io.ErrUnexpectedEOF
 			}
-			b := data[iNdEx]
+			b := dAtA[iNdEx]
 			iNdEx++
 			wire |= (uint64(b) & 0x7F) << shift
 			if b < 0x80 {
@@ -4509,7 +4444,7 @@ func (m *EndpointSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				m.Mode |= (EndpointSpec_ResolutionMode(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -4528,7 +4463,7 @@ func (m *EndpointSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -4543,13 +4478,13 @@ func (m *EndpointSpec) Unmarshal(data []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.Ports = append(m.Ports, &PortConfig{})
-			if err := m.Ports[len(m.Ports)-1].Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := m.Ports[len(m.Ports)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
-			skippy, err := skipSpecs(data[iNdEx:])
+			skippy, err := skipSpecs(dAtA[iNdEx:])
 			if err != nil {
 				return err
 			}
@@ -4568,8 +4503,8 @@ func (m *EndpointSpec) Unmarshal(data []byte) error {
 	}
 	return nil
 }
-func (m *NetworkSpec) Unmarshal(data []byte) error {
-	l := len(data)
+func (m *NetworkSpec) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
 		preIndex := iNdEx
@@ -4581,7 +4516,7 @@ func (m *NetworkSpec) Unmarshal(data []byte) error {
 			if iNdEx >= l {
 				return io.ErrUnexpectedEOF
 			}
-			b := data[iNdEx]
+			b := dAtA[iNdEx]
 			iNdEx++
 			wire |= (uint64(b) & 0x7F) << shift
 			if b < 0x80 {
@@ -4609,7 +4544,7 @@ func (m *NetworkSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -4623,7 +4558,7 @@ func (m *NetworkSpec) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if err := m.Annotations.Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := m.Annotations.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -4639,7 +4574,7 @@ func (m *NetworkSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -4656,7 +4591,7 @@ func (m *NetworkSpec) Unmarshal(data []byte) error {
 			if m.DriverConfig == nil {
 				m.DriverConfig = &Driver{}
 			}
-			if err := m.DriverConfig.Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := m.DriverConfig.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -4672,7 +4607,7 @@ func (m *NetworkSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				v |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -4692,7 +4627,7 @@ func (m *NetworkSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				v |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -4712,7 +4647,7 @@ func (m *NetworkSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -4729,7 +4664,7 @@ func (m *NetworkSpec) Unmarshal(data []byte) error {
 			if m.IPAM == nil {
 				m.IPAM = &IPAMOptions{}
 			}
-			if err := m.IPAM.Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := m.IPAM.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -4745,7 +4680,7 @@ func (m *NetworkSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				v |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -4755,7 +4690,7 @@ func (m *NetworkSpec) Unmarshal(data []byte) error {
 			m.Attachable = bool(v != 0)
 		default:
 			iNdEx = preIndex
-			skippy, err := skipSpecs(data[iNdEx:])
+			skippy, err := skipSpecs(dAtA[iNdEx:])
 			if err != nil {
 				return err
 			}
@@ -4774,8 +4709,8 @@ func (m *NetworkSpec) Unmarshal(data []byte) error {
 	}
 	return nil
 }
-func (m *ClusterSpec) Unmarshal(data []byte) error {
-	l := len(data)
+func (m *ClusterSpec) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
 		preIndex := iNdEx
@@ -4787,7 +4722,7 @@ func (m *ClusterSpec) Unmarshal(data []byte) error {
 			if iNdEx >= l {
 				return io.ErrUnexpectedEOF
 			}
-			b := data[iNdEx]
+			b := dAtA[iNdEx]
 			iNdEx++
 			wire |= (uint64(b) & 0x7F) << shift
 			if b < 0x80 {
@@ -4815,7 +4750,7 @@ func (m *ClusterSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -4829,7 +4764,7 @@ func (m *ClusterSpec) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if err := m.Annotations.Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := m.Annotations.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -4845,7 +4780,7 @@ func (m *ClusterSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -4859,7 +4794,7 @@ func (m *ClusterSpec) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if err := m.AcceptancePolicy.Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := m.AcceptancePolicy.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -4875,7 +4810,7 @@ func (m *ClusterSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -4889,7 +4824,7 @@ func (m *ClusterSpec) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if err := m.Orchestration.Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := m.Orchestration.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -4905,7 +4840,7 @@ func (m *ClusterSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -4919,7 +4854,7 @@ func (m *ClusterSpec) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if err := m.Raft.Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := m.Raft.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -4935,7 +4870,7 @@ func (m *ClusterSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -4949,7 +4884,7 @@ func (m *ClusterSpec) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if err := m.Dispatcher.Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := m.Dispatcher.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -4965,7 +4900,7 @@ func (m *ClusterSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -4979,7 +4914,7 @@ func (m *ClusterSpec) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if err := m.CAConfig.Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := m.CAConfig.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -4995,7 +4930,7 @@ func (m *ClusterSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -5009,7 +4944,7 @@ func (m *ClusterSpec) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if err := m.TaskDefaults.Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := m.TaskDefaults.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -5025,7 +4960,7 @@ func (m *ClusterSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -5039,13 +4974,13 @@ func (m *ClusterSpec) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if err := m.EncryptionConfig.Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := m.EncryptionConfig.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
-			skippy, err := skipSpecs(data[iNdEx:])
+			skippy, err := skipSpecs(dAtA[iNdEx:])
 			if err != nil {
 				return err
 			}
@@ -5064,8 +4999,8 @@ func (m *ClusterSpec) Unmarshal(data []byte) error {
 	}
 	return nil
 }
-func (m *SecretSpec) Unmarshal(data []byte) error {
-	l := len(data)
+func (m *SecretSpec) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
 		preIndex := iNdEx
@@ -5077,7 +5012,7 @@ func (m *SecretSpec) Unmarshal(data []byte) error {
 			if iNdEx >= l {
 				return io.ErrUnexpectedEOF
 			}
-			b := data[iNdEx]
+			b := dAtA[iNdEx]
 			iNdEx++
 			wire |= (uint64(b) & 0x7F) << shift
 			if b < 0x80 {
@@ -5105,7 +5040,7 @@ func (m *SecretSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -5119,7 +5054,7 @@ func (m *SecretSpec) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if err := m.Annotations.Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := m.Annotations.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -5135,7 +5070,7 @@ func (m *SecretSpec) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				byteLen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -5149,14 +5084,14 @@ func (m *SecretSpec) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Data = append(m.Data[:0], data[iNdEx:postIndex]...)
+			m.Data = append(m.Data[:0], dAtA[iNdEx:postIndex]...)
 			if m.Data == nil {
 				m.Data = []byte{}
 			}
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
-			skippy, err := skipSpecs(data[iNdEx:])
+			skippy, err := skipSpecs(dAtA[iNdEx:])
 			if err != nil {
 				return err
 			}
@@ -5175,8 +5110,8 @@ func (m *SecretSpec) Unmarshal(data []byte) error {
 	}
 	return nil
 }
-func skipSpecs(data []byte) (n int, err error) {
-	l := len(data)
+func skipSpecs(dAtA []byte) (n int, err error) {
+	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
 		var wire uint64
@@ -5187,7 +5122,7 @@ func skipSpecs(data []byte) (n int, err error) {
 			if iNdEx >= l {
 				return 0, io.ErrUnexpectedEOF
 			}
-			b := data[iNdEx]
+			b := dAtA[iNdEx]
 			iNdEx++
 			wire |= (uint64(b) & 0x7F) << shift
 			if b < 0x80 {
@@ -5205,7 +5140,7 @@ func skipSpecs(data []byte) (n int, err error) {
 					return 0, io.ErrUnexpectedEOF
 				}
 				iNdEx++
-				if data[iNdEx-1] < 0x80 {
+				if dAtA[iNdEx-1] < 0x80 {
 					break
 				}
 			}
@@ -5222,7 +5157,7 @@ func skipSpecs(data []byte) (n int, err error) {
 				if iNdEx >= l {
 					return 0, io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				length |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -5245,7 +5180,7 @@ func skipSpecs(data []byte) (n int, err error) {
 					if iNdEx >= l {
 						return 0, io.ErrUnexpectedEOF
 					}
-					b := data[iNdEx]
+					b := dAtA[iNdEx]
 					iNdEx++
 					innerWire |= (uint64(b) & 0x7F) << shift
 					if b < 0x80 {
@@ -5256,7 +5191,7 @@ func skipSpecs(data []byte) (n int, err error) {
 				if innerWireType == 4 {
 					break
 				}
-				next, err := skipSpecs(data[start:])
+				next, err := skipSpecs(dAtA[start:])
 				if err != nil {
 					return 0, err
 				}
@@ -5283,108 +5218,112 @@ var (
 func init() { proto.RegisterFile("specs.proto", fileDescriptorSpecs) }
 
 var fileDescriptorSpecs = []byte{
-	// 1647 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0xac, 0x57, 0xdd, 0x6e, 0xe3, 0xc6,
-	0x15, 0x16, 0x6d, 0x59, 0x3f, 0x87, 0xf2, 0xae, 0x3c, 0xc8, 0x0f, 0x57, 0x49, 0x64, 0xad, 0xb2,
-	0x4d, 0x9d, 0x06, 0xf5, 0xa2, 0x6e, 0x91, 0x6e, 0xba, 0x0d, 0x5a, 0xc9, 0x52, 0xbd, 0xae, 0x6b,
-	0x47, 0x18, 0x3b, 0x5b, 0xec, 0x95, 0x30, 0x26, 0xc7, 0x12, 0x61, 0x8a, 0xc3, 0xce, 0x0c, 0x15,
-	0xf8, 0xae, 0x97, 0xc1, 0x5e, 0xf4, 0x0d, 0x7c, 0xd5, 0x67, 0xe8, 0x3b, 0xec, 0x65, 0x2f, 0xdb,
-	0x1b, 0xa3, 0xab, 0x27, 0x28, 0xd0, 0x07, 0x68, 0x31, 0xc3, 0x21, 0x45, 0x25, 0x74, 0x76, 0x81,
-	0xfa, 0x6e, 0xe6, 0xf0, 0xfb, 0x0e, 0xcf, 0x9c, 0xf9, 0x78, 0xce, 0x21, 0xd8, 0x22, 0xa2, 0xae,
-	0xd8, 0x8d, 0x38, 0x93, 0x0c, 0x21, 0x8f, 0xb9, 0x97, 0x94, 0xef, 0x8a, 0x6f, 0x08, 0x9f, 0x5d,
-	0xfa, 0x72, 0x77, 0xfe, 0xb3, 0x96, 0x2d, 0xaf, 0x22, 0x6a, 0x00, 0xad, 0x77, 0x26, 0x6c, 0xc2,
-	0xf4, 0xf2, 0xb1, 0x5a, 0x19, 0xeb, 0xfb, 0x5e, 0xcc, 0x89, 0xf4, 0x59, 0xf8, 0x38, 0x5d, 0x24,
-	0x0f, 0xba, 0xd7, 0x65, 0xa8, 0x9d, 0x30, 0x8f, 0x9e, 0x46, 0xd4, 0x45, 0x07, 0x60, 0x93, 0x30,
-	0x64, 0x52, 0x03, 0x84, 0x63, 0x75, 0xac, 0x1d, 0x7b, 0x6f, 0x7b, 0xf7, 0xfb, 0xaf, 0xdc, 0xed,
-	0x2d, 0x61, 0xfd, 0xf2, 0xab, 0x9b, 0xed, 0x12, 0xce, 0x33, 0xd1, 0x6f, 0xa0, 0xe1, 0x51, 0xe1,
-	0x73, 0xea, 0x8d, 0x39, 0x0b, 0xa8, 0xb3, 0xd6, 0xb1, 0x76, 0xee, 0xed, 0x7d, 0x58, 0xe4, 0x49,
-	0xbd, 0x1c, 0xb3, 0x80, 0x62, 0xdb, 0x30, 0xd4, 0x06, 0x1d, 0x00, 0xcc, 0xe8, 0xec, 0x9c, 0x72,
-	0x31, 0xf5, 0x23, 0x67, 0x5d, 0xd3, 0x7f, 0x7c, 0x1b, 0x5d, 0xc5, 0xbe, 0x7b, 0x9c, 0xc1, 0x71,
-	0x8e, 0x8a, 0x8e, 0xa1, 0x41, 0xe6, 0xc4, 0x0f, 0xc8, 0xb9, 0x1f, 0xf8, 0xf2, 0xca, 0x29, 0x6b,
-	0x57, 0x9f, 0xfe, 0xa0, 0xab, 0x5e, 0x8e, 0x80, 0x57, 0xe8, 0x5d, 0x0f, 0x60, 0xf9, 0x22, 0xf4,
-	0x09, 0x54, 0x47, 0xc3, 0x93, 0xc1, 0xe1, 0xc9, 0x41, 0xb3, 0xd4, 0x7a, 0xf0, 0xf2, 0xba, 0xf3,
-	0xae, 0xf2, 0xb1, 0x04, 0x8c, 0x68, 0xe8, 0xf9, 0xe1, 0x04, 0xed, 0x40, 0xad, 0xb7, 0xbf, 0x3f,
-	0x1c, 0x9d, 0x0d, 0x07, 0x4d, 0xab, 0xd5, 0x7a, 0x79, 0xdd, 0x79, 0x6f, 0x15, 0xd8, 0x73, 0x5d,
-	0x1a, 0x49, 0xea, 0xb5, 0xca, 0xdf, 0xfe, 0xb5, 0x5d, 0xea, 0x7e, 0x6b, 0x41, 0x23, 0x1f, 0x04,
-	0xfa, 0x04, 0x2a, 0xbd, 0xfd, 0xb3, 0xc3, 0xe7, 0xc3, 0x66, 0x69, 0x49, 0xcf, 0x23, 0x7a, 0xae,
-	0xf4, 0xe7, 0x14, 0x3d, 0x82, 0x8d, 0x51, 0xef, 0xeb, 0xd3, 0x61, 0xd3, 0x5a, 0x86, 0x93, 0x87,
-	0x8d, 0x48, 0x2c, 0x34, 0x6a, 0x80, 0x7b, 0x87, 0x27, 0xcd, 0xb5, 0x62, 0xd4, 0x80, 0x13, 0x3f,
-	0x34, 0xa1, 0xbc, 0x5e, 0x07, 0xfb, 0x94, 0xf2, 0xb9, 0xef, 0xde, 0xb1, 0x44, 0x3e, 0x87, 0xb2,
-	0x24, 0xe2, 0x52, 0x4b, 0xc3, 0x2e, 0x96, 0xc6, 0x19, 0x11, 0x97, 0xea, 0xa5, 0x86, 0xae, 0xf1,
-	0x4a, 0x19, 0x9c, 0x46, 0x81, 0xef, 0x12, 0x49, 0x3d, 0xad, 0x0c, 0x7b, 0xef, 0x47, 0x45, 0x6c,
-	0x9c, 0xa1, 0x4c, 0xfc, 0xcf, 0x4a, 0x38, 0x47, 0x45, 0x4f, 0xa1, 0x32, 0x09, 0xd8, 0x39, 0x09,
-	0xb4, 0x26, 0xec, 0xbd, 0x87, 0x45, 0x4e, 0x0e, 0x34, 0x62, 0xe9, 0xc0, 0x50, 0xd0, 0x13, 0xa8,
-	0xc4, 0x91, 0x47, 0x24, 0x75, 0x2a, 0x9a, 0xdc, 0x29, 0x22, 0x7f, 0xad, 0x11, 0xfb, 0x2c, 0xbc,
-	0xf0, 0x27, 0xd8, 0xe0, 0xd1, 0x11, 0xd4, 0x42, 0x2a, 0xbf, 0x61, 0xfc, 0x52, 0x38, 0xd5, 0xce,
-	0xfa, 0x8e, 0xbd, 0xf7, 0x59, 0xa1, 0x18, 0x13, 0x4c, 0x4f, 0x4a, 0xe2, 0x4e, 0x67, 0x34, 0x94,
-	0x89, 0x9b, 0xfe, 0x9a, 0x63, 0xe1, 0xcc, 0x01, 0xfa, 0x35, 0xd4, 0x68, 0xe8, 0x45, 0xcc, 0x0f,
-	0xa5, 0x53, 0xbb, 0x3d, 0x90, 0xa1, 0xc1, 0xa8, 0x64, 0xe2, 0x8c, 0xd1, 0xaf, 0x40, 0x79, 0xc6,
-	0x3c, 0xda, 0x7d, 0x0c, 0x5b, 0xdf, 0x4b, 0x16, 0x6a, 0x41, 0xcd, 0x24, 0x2b, 0xb9, 0xe5, 0x32,
-	0xce, 0xf6, 0xdd, 0xfb, 0xb0, 0xb9, 0x92, 0x98, 0xee, 0x5f, 0xca, 0x50, 0x4b, 0x6f, 0x0b, 0xf5,
-	0xa0, 0xee, 0xb2, 0x50, 0x12, 0x3f, 0xa4, 0xdc, 0x08, 0xa4, 0x30, 0xb7, 0xfb, 0x29, 0x48, 0xb1,
-	0x9e, 0x95, 0xf0, 0x92, 0x85, 0x7e, 0x07, 0x75, 0x4e, 0x05, 0x8b, 0xb9, 0x4b, 0x85, 0x51, 0xc8,
-	0x4e, 0xf1, 0x1d, 0x27, 0x20, 0x4c, 0xff, 0x14, 0xfb, 0x9c, 0xaa, 0x3c, 0x09, 0xbc, 0xa4, 0xa2,
-	0xa7, 0x50, 0xe5, 0x54, 0x48, 0xc2, 0xe5, 0x0f, 0x5d, 0x32, 0x4e, 0x20, 0x23, 0x16, 0xf8, 0xee,
-	0x15, 0x4e, 0x19, 0xe8, 0x29, 0xd4, 0xa3, 0x80, 0xb8, 0xda, 0xab, 0xb3, 0xa1, 0xe9, 0x1f, 0x15,
-	0xd1, 0x47, 0x29, 0x08, 0x2f, 0xf1, 0xe8, 0x0b, 0x80, 0x80, 0x4d, 0xc6, 0x1e, 0xf7, 0xe7, 0x94,
-	0x1b, 0x91, 0xb4, 0x8a, 0xd8, 0x03, 0x8d, 0xc0, 0xf5, 0x80, 0x4d, 0x92, 0x25, 0x3a, 0xf8, 0xbf,
-	0x14, 0x92, 0x53, 0xc7, 0x11, 0x00, 0xc9, 0x9e, 0x1a, 0x7d, 0x7c, 0xfa, 0x56, 0xae, 0xcc, 0x8d,
-	0xe4, 0xe8, 0xe8, 0x21, 0x34, 0x2e, 0x18, 0x77, 0xe9, 0xd8, 0xe8, 0xbe, 0xae, 0x35, 0x61, 0x6b,
-	0x5b, 0x22, 0xf4, 0x7e, 0x1d, 0xaa, 0x3c, 0x0e, 0xa5, 0x3f, 0xa3, 0xdd, 0x23, 0x78, 0xb7, 0xd0,
-	0x29, 0xda, 0x83, 0x46, 0x76, 0xcd, 0x63, 0xdf, 0xd3, 0xfa, 0xa8, 0xf7, 0xef, 0x2f, 0x6e, 0xb6,
-	0xed, 0x4c, 0x0f, 0x87, 0x03, 0x6c, 0x67, 0xa0, 0x43, 0xaf, 0xfb, 0xcf, 0x2a, 0x6c, 0xae, 0x88,
-	0x05, 0xbd, 0x03, 0x1b, 0xfe, 0x8c, 0x4c, 0x68, 0x42, 0xc7, 0xc9, 0x06, 0x0d, 0xa1, 0x12, 0x90,
-	0x73, 0x1a, 0x28, 0xc9, 0xa8, 0xb4, 0xfd, 0xf4, 0x8d, 0xaa, 0xdb, 0xfd, 0x83, 0xc6, 0x0f, 0x43,
-	0xc9, 0xaf, 0xb0, 0x21, 0x23, 0x07, 0xaa, 0x2e, 0x9b, 0xcd, 0x48, 0xa8, 0xca, 0xcb, 0xfa, 0x4e,
-	0x1d, 0xa7, 0x5b, 0x84, 0xa0, 0x4c, 0xf8, 0x44, 0x38, 0x65, 0x6d, 0xd6, 0x6b, 0xd4, 0x84, 0x75,
-	0x1a, 0xce, 0x9d, 0x0d, 0x6d, 0x52, 0x4b, 0x65, 0xf1, 0xfc, 0xe4, 0xce, 0xeb, 0x58, 0x2d, 0x15,
-	0x2f, 0x16, 0x94, 0x3b, 0x55, 0x6d, 0xd2, 0x6b, 0xf4, 0x4b, 0xa8, 0xcc, 0x58, 0x1c, 0x4a, 0xe1,
-	0xd4, 0x74, 0xb0, 0x0f, 0x8a, 0x82, 0x3d, 0x56, 0x08, 0x53, 0xfe, 0x0c, 0x1c, 0x3d, 0x83, 0x2d,
-	0x21, 0x59, 0x34, 0x9e, 0x70, 0xe2, 0xd2, 0x71, 0x44, 0xb9, 0xcf, 0x3c, 0x7d, 0x1b, 0xb7, 0x54,
-	0xd1, 0x81, 0x69, 0xf8, 0xf8, 0xbe, 0xa2, 0x1d, 0x28, 0xd6, 0x48, 0x93, 0xd0, 0x08, 0x1a, 0x51,
-	0x1c, 0x04, 0x63, 0x16, 0x25, 0xc5, 0x1c, 0xb4, 0x93, 0xb7, 0xc8, 0xda, 0x28, 0x0e, 0x82, 0xaf,
-	0x12, 0x12, 0xb6, 0xa3, 0xe5, 0x06, 0xbd, 0x07, 0x95, 0x09, 0x67, 0x71, 0x24, 0x1c, 0x5b, 0xe7,
-	0xc3, 0xec, 0xd0, 0x97, 0x50, 0x15, 0xd4, 0xe5, 0x54, 0x0a, 0xa7, 0xa1, 0x4f, 0xfb, 0x71, 0xd1,
-	0x4b, 0x4e, 0x35, 0x04, 0xd3, 0x0b, 0xca, 0x69, 0xe8, 0x52, 0x9c, 0x72, 0xd0, 0x03, 0x58, 0x97,
-	0xf2, 0xca, 0xd9, 0xec, 0x58, 0x3b, 0xb5, 0x7e, 0x75, 0x71, 0xb3, 0xbd, 0x7e, 0x76, 0xf6, 0x02,
-	0x2b, 0x9b, 0x2a, 0x53, 0x53, 0x26, 0x64, 0x48, 0x66, 0xd4, 0xb9, 0xa7, 0xd3, 0x9b, 0xed, 0xd1,
-	0x0b, 0x00, 0x2f, 0x14, 0x63, 0x57, 0x7f, 0x17, 0xce, 0x7d, 0x7d, 0xba, 0xcf, 0xde, 0x7c, 0xba,
-	0xc1, 0xc9, 0xa9, 0x29, 0xb6, 0x9b, 0x8b, 0x9b, 0xed, 0x7a, 0xb6, 0xc5, 0x75, 0x2f, 0x14, 0xc9,
-	0x12, 0xf5, 0xc1, 0x9e, 0x52, 0x12, 0xc8, 0xa9, 0x3b, 0xa5, 0xee, 0xa5, 0xd3, 0xbc, 0xbd, 0xf6,
-	0x3e, 0xd3, 0x30, 0xe3, 0x21, 0x4f, 0x52, 0x22, 0x56, 0xa1, 0x0a, 0x67, 0x4b, 0xe7, 0x2a, 0xd9,
-	0xa0, 0x8f, 0x00, 0x58, 0x44, 0xc3, 0xb1, 0x90, 0x9e, 0x1f, 0x3a, 0x48, 0x1d, 0x19, 0xd7, 0x95,
-	0xe5, 0x54, 0x19, 0x5a, 0x5f, 0x80, 0x9d, 0xd3, 0xac, 0xd2, 0xda, 0x25, 0xbd, 0x32, 0x9f, 0x81,
-	0x5a, 0x2a, 0xaf, 0x73, 0x12, 0xc4, 0xc9, 0xcc, 0x55, 0xc7, 0xc9, 0xe6, 0x57, 0x6b, 0x4f, 0xac,
-	0xd6, 0x1e, 0xd8, 0xb9, 0x8b, 0x43, 0x1f, 0xc3, 0x26, 0xa7, 0x13, 0x5f, 0x48, 0x7e, 0x35, 0x26,
-	0xb1, 0x9c, 0x3a, 0xbf, 0xd5, 0x84, 0x46, 0x6a, 0xec, 0xc5, 0x72, 0xda, 0x1a, 0xc3, 0xf2, 0xfc,
-	0xa8, 0x03, 0xb6, 0xca, 0xab, 0xa0, 0x7c, 0x4e, 0xb9, 0xea, 0x0a, 0x2a, 0xec, 0xbc, 0x49, 0xdd,
-	0xbf, 0xa0, 0x84, 0xbb, 0x53, 0xfd, 0x05, 0xd6, 0xb1, 0xd9, 0xa9, 0x4f, 0x2a, 0x15, 0x99, 0xf9,
-	0xa4, 0xcc, 0xb6, 0xfb, 0x1f, 0x0b, 0x1a, 0xf9, 0xf6, 0x84, 0xf6, 0x93, 0xa6, 0xa4, 0x8f, 0x74,
-	0x6f, 0xef, 0xf1, 0x9b, 0xda, 0x99, 0x6e, 0x01, 0x41, 0xac, 0x9c, 0x1d, 0xab, 0x49, 0x52, 0x93,
-	0xd1, 0x2f, 0x60, 0x23, 0x62, 0x5c, 0xa6, 0x85, 0xa0, 0x5d, 0x58, 0xb6, 0x19, 0x4f, 0x4b, 0x66,
-	0x02, 0xee, 0x4e, 0xe1, 0xde, 0xaa, 0x37, 0xf4, 0x08, 0xd6, 0x9f, 0x1f, 0x8e, 0x9a, 0xa5, 0xd6,
-	0x07, 0x2f, 0xaf, 0x3b, 0xef, 0xaf, 0x3e, 0x7c, 0xee, 0x73, 0x19, 0x93, 0xe0, 0x70, 0x84, 0x7e,
-	0x02, 0x1b, 0x83, 0x93, 0x53, 0x8c, 0x9b, 0x56, 0x6b, 0xfb, 0xe5, 0x75, 0xe7, 0x83, 0x55, 0x9c,
-	0x7a, 0xc4, 0xe2, 0xd0, 0xc3, 0xec, 0x3c, 0x9b, 0xaa, 0xfe, 0xb6, 0x06, 0xb6, 0xa9, 0x8f, 0x77,
-	0x3d, 0x78, 0x6f, 0x26, 0x2d, 0x27, 0x55, 0xfd, 0xda, 0x1b, 0x3b, 0x4f, 0x23, 0x21, 0x98, 0x3b,
-	0x7e, 0x08, 0x0d, 0x3f, 0x9a, 0x7f, 0x3e, 0xa6, 0x21, 0x39, 0x0f, 0xcc, 0x80, 0x55, 0xc3, 0xb6,
-	0xb2, 0x0d, 0x13, 0x93, 0xfa, 0xe4, 0xfc, 0x50, 0x52, 0x1e, 0x9a, 0xd1, 0xa9, 0x86, 0xb3, 0x3d,
-	0xfa, 0x12, 0xca, 0x7e, 0x44, 0x66, 0xa6, 0x5d, 0x16, 0x9e, 0xe0, 0x70, 0xd4, 0x3b, 0x36, 0x1a,
-	0xec, 0xd7, 0x16, 0x37, 0xdb, 0x65, 0x65, 0xc0, 0x9a, 0x86, 0xda, 0x69, 0xc7, 0x52, 0x6f, 0xd2,
-	0x15, 0xb4, 0x86, 0x73, 0x96, 0xee, 0x7f, 0xcb, 0x60, 0xef, 0x07, 0xb1, 0x90, 0xa6, 0x0f, 0xdc,
-	0x59, 0xde, 0x5e, 0xc0, 0x16, 0xd1, 0x33, 0x38, 0x09, 0x55, 0x51, 0xd5, 0x93, 0x80, 0xc9, 0xdd,
-	0xa3, 0x42, 0x77, 0x19, 0x38, 0x99, 0x1a, 0xfa, 0x15, 0xe5, 0xd3, 0xb1, 0x70, 0x93, 0x7c, 0xe7,
-	0x09, 0x3a, 0x85, 0x4d, 0xc6, 0xdd, 0x29, 0x15, 0x32, 0xa9, 0xc3, 0x66, 0x66, 0x2d, 0xfc, 0x9b,
-	0xf9, 0x2a, 0x0f, 0x34, 0x45, 0x28, 0x89, 0x76, 0xd5, 0x07, 0x7a, 0x02, 0x65, 0x4e, 0x2e, 0xd2,
-	0xa9, 0xa6, 0x50, 0xdf, 0x98, 0x5c, 0xc8, 0x15, 0x17, 0x9a, 0x81, 0x7e, 0x0f, 0xe0, 0xf9, 0x22,
-	0x22, 0xd2, 0x9d, 0x52, 0x6e, 0xee, 0xa9, 0xf0, 0x88, 0x83, 0x0c, 0xb5, 0xe2, 0x25, 0xc7, 0x46,
-	0x47, 0x50, 0x77, 0x49, 0xaa, 0xb4, 0xca, 0xed, 0x2d, 0x68, 0xbf, 0x67, 0x5c, 0x34, 0x95, 0x8b,
-	0xc5, 0xcd, 0x76, 0x2d, 0xb5, 0xe0, 0x9a, 0x4b, 0x8c, 0xf2, 0x8e, 0x60, 0x53, 0x0d, 0xf8, 0x63,
-	0x8f, 0x5e, 0x90, 0x38, 0x90, 0x42, 0x77, 0xcb, 0x5b, 0x8a, 0xaa, 0x9a, 0x35, 0x07, 0x06, 0x67,
-	0xe2, 0x6a, 0xc8, 0x9c, 0x0d, 0xfd, 0x11, 0xb6, 0x68, 0xe8, 0xf2, 0x2b, 0xad, 0xb3, 0x34, 0xc2,
-	0xda, 0xed, 0x87, 0x1d, 0x66, 0xe0, 0x95, 0xc3, 0x36, 0xe9, 0x77, 0xec, 0x5d, 0x1f, 0x20, 0x69,
-	0x53, 0x77, 0xab, 0x3f, 0x04, 0x65, 0x8f, 0x48, 0xa2, 0x25, 0xd7, 0xc0, 0x7a, 0xdd, 0xff, 0xf0,
-	0xd5, 0xeb, 0x76, 0xe9, 0x1f, 0xaf, 0xdb, 0xa5, 0x7f, 0xbf, 0x6e, 0x5b, 0x7f, 0x5e, 0xb4, 0xad,
-	0x57, 0x8b, 0xb6, 0xf5, 0xf7, 0x45, 0xdb, 0xfa, 0xd7, 0xa2, 0x6d, 0x9d, 0x57, 0xf4, 0xff, 0xfb,
-	0xcf, 0xff, 0x17, 0x00, 0x00, 0xff, 0xff, 0x66, 0xb4, 0xcd, 0xfe, 0x1e, 0x10, 0x00, 0x00,
+	// 1707 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0xac, 0x57, 0x41, 0x73, 0x1b, 0xb7,
+	0x15, 0x26, 0x25, 0x8a, 0x5a, 0xbe, 0xa5, 0x6c, 0x1a, 0x75, 0xd2, 0x35, 0xdd, 0x90, 0x34, 0xe3,
+	0xa6, 0x4a, 0x33, 0xa5, 0xa6, 0x6a, 0x27, 0x75, 0xea, 0x66, 0x5a, 0x52, 0x64, 0x65, 0x55, 0x95,
+	0xcc, 0x01, 0x15, 0x77, 0x7c, 0xe2, 0x80, 0xbb, 0x10, 0xb9, 0xa3, 0xe5, 0x62, 0x0b, 0x60, 0x99,
+	0xe1, 0xad, 0xc7, 0x8c, 0x0f, 0x3d, 0xf5, 0xaa, 0xe9, 0xa1, 0xbf, 0xa1, 0xff, 0xc1, 0xc7, 0x1e,
+	0x7b, 0xd2, 0x34, 0xfc, 0x0b, 0xfd, 0x01, 0xed, 0x00, 0x0b, 0x92, 0xcb, 0x64, 0x15, 0x7b, 0x26,
+	0xbe, 0xe1, 0xbd, 0xfd, 0xbe, 0x07, 0xe0, 0xe1, 0xc3, 0xc3, 0x5b, 0xb0, 0x45, 0x44, 0x5d, 0xd1,
+	0x8a, 0x38, 0x93, 0x0c, 0x21, 0x8f, 0xb9, 0x57, 0x94, 0xb7, 0xc4, 0x97, 0x84, 0x4f, 0xaf, 0x7c,
+	0xd9, 0x9a, 0xfd, 0xbc, 0x6a, 0xcb, 0x79, 0x44, 0x0d, 0xa0, 0x7a, 0x7f, 0xcc, 0xc6, 0x4c, 0x0f,
+	0x0f, 0xd4, 0xc8, 0x78, 0x6b, 0x63, 0xc6, 0xc6, 0x01, 0x3d, 0xd0, 0xd6, 0x28, 0xbe, 0x3c, 0xf0,
+	0x62, 0x4e, 0xa4, 0xcf, 0xc2, 0xe4, 0x7b, 0xf3, 0xba, 0x00, 0xd6, 0x39, 0xf3, 0xe8, 0x20, 0xa2,
+	0x2e, 0x3a, 0x06, 0x9b, 0x84, 0x21, 0x93, 0x1a, 0x20, 0x9c, 0x7c, 0x23, 0xbf, 0x6f, 0x1f, 0xd6,
+	0x5b, 0xdf, 0x9e, 0xb9, 0xd5, 0x5e, 0xc3, 0x3a, 0x85, 0xd7, 0x37, 0xf5, 0x1c, 0x4e, 0x33, 0xd1,
+	0x6f, 0xa1, 0xec, 0x51, 0xe1, 0x73, 0xea, 0x0d, 0x39, 0x0b, 0xa8, 0xb3, 0xd5, 0xc8, 0xef, 0xdf,
+	0x39, 0xfc, 0x51, 0x56, 0x24, 0x35, 0x39, 0x66, 0x01, 0xc5, 0xb6, 0x61, 0x28, 0x03, 0x1d, 0x03,
+	0x4c, 0xe9, 0x74, 0x44, 0xb9, 0x98, 0xf8, 0x91, 0xb3, 0xad, 0xe9, 0x3f, 0xb9, 0x8d, 0xae, 0xd6,
+	0xde, 0x3a, 0x5b, 0xc1, 0x71, 0x8a, 0x8a, 0xce, 0xa0, 0x4c, 0x66, 0xc4, 0x0f, 0xc8, 0xc8, 0x0f,
+	0x7c, 0x39, 0x77, 0x0a, 0x3a, 0xd4, 0xc7, 0xdf, 0x19, 0xaa, 0x9d, 0x22, 0xe0, 0x0d, 0x7a, 0xd3,
+	0x03, 0x58, 0x4f, 0x84, 0x3e, 0x82, 0xdd, 0x7e, 0xef, 0xbc, 0x7b, 0x72, 0x7e, 0x5c, 0xc9, 0x55,
+	0x1f, 0xbc, 0xba, 0x6e, 0xbc, 0xa7, 0x62, 0xac, 0x01, 0x7d, 0x1a, 0x7a, 0x7e, 0x38, 0x46, 0xfb,
+	0x60, 0xb5, 0x8f, 0x8e, 0x7a, 0xfd, 0x8b, 0x5e, 0xb7, 0x92, 0xaf, 0x56, 0x5f, 0x5d, 0x37, 0xde,
+	0xdf, 0x04, 0xb6, 0x5d, 0x97, 0x46, 0x92, 0x7a, 0xd5, 0xc2, 0x57, 0xff, 0xa8, 0xe5, 0x9a, 0x5f,
+	0xe5, 0xa1, 0x9c, 0x5e, 0x04, 0xfa, 0x08, 0x8a, 0xed, 0xa3, 0x8b, 0x93, 0x17, 0xbd, 0x4a, 0x6e,
+	0x4d, 0x4f, 0x23, 0xda, 0xae, 0xf4, 0x67, 0x14, 0x3d, 0x86, 0x9d, 0x7e, 0xfb, 0x8b, 0x41, 0xaf,
+	0x92, 0x5f, 0x2f, 0x27, 0x0d, 0xeb, 0x93, 0x58, 0x68, 0x54, 0x17, 0xb7, 0x4f, 0xce, 0x2b, 0x5b,
+	0xd9, 0xa8, 0x2e, 0x27, 0x7e, 0x68, 0x96, 0xf2, 0xf7, 0x02, 0xd8, 0x03, 0xca, 0x67, 0xbe, 0xfb,
+	0x8e, 0x25, 0xf2, 0x29, 0x14, 0x24, 0x11, 0x57, 0x5a, 0x1a, 0x76, 0xb6, 0x34, 0x2e, 0x88, 0xb8,
+	0x52, 0x93, 0x1a, 0xba, 0xc6, 0x2b, 0x65, 0x70, 0x1a, 0x05, 0xbe, 0x4b, 0x24, 0xf5, 0xb4, 0x32,
+	0xec, 0xc3, 0x1f, 0x67, 0xb1, 0xf1, 0x0a, 0x65, 0xd6, 0xff, 0x2c, 0x87, 0x53, 0x54, 0xf4, 0x14,
+	0x8a, 0xe3, 0x80, 0x8d, 0x48, 0xa0, 0x35, 0x61, 0x1f, 0x3e, 0xca, 0x0a, 0x72, 0xac, 0x11, 0xeb,
+	0x00, 0x86, 0x82, 0x9e, 0x40, 0x31, 0x8e, 0x3c, 0x22, 0xa9, 0x53, 0xd4, 0xe4, 0x46, 0x16, 0xf9,
+	0x0b, 0x8d, 0x38, 0x62, 0xe1, 0xa5, 0x3f, 0xc6, 0x06, 0x8f, 0x4e, 0xc1, 0x0a, 0xa9, 0xfc, 0x92,
+	0xf1, 0x2b, 0xe1, 0xec, 0x36, 0xb6, 0xf7, 0xed, 0xc3, 0x4f, 0x32, 0xc5, 0x98, 0x60, 0xda, 0x52,
+	0x12, 0x77, 0x32, 0xa5, 0xa1, 0x4c, 0xc2, 0x74, 0xb6, 0x9c, 0x3c, 0x5e, 0x05, 0x40, 0xbf, 0x01,
+	0x8b, 0x86, 0x5e, 0xc4, 0xfc, 0x50, 0x3a, 0xd6, 0xed, 0x0b, 0xe9, 0x19, 0x8c, 0x4a, 0x26, 0x5e,
+	0x31, 0x14, 0x9b, 0xb3, 0x20, 0x18, 0x11, 0xf7, 0xca, 0x29, 0xbd, 0xe5, 0x36, 0x56, 0x8c, 0x4e,
+	0x11, 0x0a, 0x53, 0xe6, 0xd1, 0xe6, 0x01, 0xdc, 0xfb, 0x56, 0xaa, 0x51, 0x15, 0x2c, 0x93, 0xea,
+	0x44, 0x23, 0x05, 0xbc, 0xb2, 0x9b, 0x77, 0x61, 0x6f, 0x23, 0xad, 0xcd, 0xbf, 0x16, 0xc0, 0x5a,
+	0x9e, 0x35, 0x6a, 0x43, 0xc9, 0x65, 0xa1, 0x24, 0x7e, 0x48, 0xb9, 0x91, 0x57, 0xe6, 0xc9, 0x1c,
+	0x2d, 0x41, 0x8a, 0xf5, 0x2c, 0x87, 0xd7, 0x2c, 0xf4, 0x7b, 0x28, 0x71, 0x2a, 0x58, 0xcc, 0x5d,
+	0x2a, 0x8c, 0xbe, 0xf6, 0xb3, 0x15, 0x92, 0x80, 0x30, 0xfd, 0x73, 0xec, 0x73, 0xaa, 0xb2, 0x2c,
+	0xf0, 0x9a, 0x8a, 0x9e, 0xc2, 0x2e, 0xa7, 0x42, 0x12, 0x2e, 0xbf, 0x4b, 0x22, 0x38, 0x81, 0xf4,
+	0x59, 0xe0, 0xbb, 0x73, 0xbc, 0x64, 0xa0, 0xa7, 0x50, 0x8a, 0x02, 0xe2, 0xea, 0xa8, 0xce, 0x8e,
+	0xa6, 0x7f, 0x90, 0x45, 0xef, 0x2f, 0x41, 0x78, 0x8d, 0x47, 0x9f, 0x01, 0x04, 0x6c, 0x3c, 0xf4,
+	0xb8, 0x3f, 0xa3, 0xdc, 0x48, 0xac, 0x9a, 0xc5, 0xee, 0x6a, 0x04, 0x2e, 0x05, 0x6c, 0x9c, 0x0c,
+	0xd1, 0xf1, 0xf7, 0xd2, 0x57, 0x4a, 0x5b, 0xa7, 0x00, 0x64, 0xf5, 0xd5, 0xa8, 0xeb, 0xe3, 0xb7,
+	0x0a, 0x65, 0x4e, 0x24, 0x45, 0x47, 0x8f, 0xa0, 0x7c, 0xc9, 0xb8, 0x4b, 0x87, 0xe6, 0xd6, 0x94,
+	0xb4, 0x26, 0x6c, 0xed, 0x4b, 0xf4, 0xd5, 0x29, 0xc1, 0x2e, 0x8f, 0x43, 0xe9, 0x4f, 0x69, 0xf3,
+	0x14, 0xde, 0xcb, 0x0c, 0x8a, 0x0e, 0xa1, 0xbc, 0x3a, 0xe6, 0xa1, 0xef, 0x69, 0x7d, 0x94, 0x3a,
+	0x77, 0x17, 0x37, 0x75, 0x7b, 0xa5, 0x87, 0x93, 0x2e, 0xb6, 0x57, 0xa0, 0x13, 0xaf, 0xf9, 0x37,
+	0x0b, 0xf6, 0x36, 0xc4, 0x82, 0xee, 0xc3, 0x8e, 0x3f, 0x25, 0x63, 0x9a, 0xd0, 0x71, 0x62, 0xa0,
+	0x1e, 0x14, 0x03, 0x32, 0xa2, 0x81, 0x92, 0x8c, 0x4a, 0xdb, 0xcf, 0xde, 0xa8, 0xba, 0xd6, 0x1f,
+	0x35, 0xbe, 0x17, 0x4a, 0x3e, 0xc7, 0x86, 0x8c, 0x1c, 0xd8, 0x75, 0xd9, 0x74, 0x4a, 0x42, 0x55,
+	0x9c, 0xb6, 0xf7, 0x4b, 0x78, 0x69, 0x22, 0x04, 0x05, 0xc2, 0xc7, 0xc2, 0x29, 0x68, 0xb7, 0x1e,
+	0xa3, 0x0a, 0x6c, 0xd3, 0x70, 0xe6, 0xec, 0x68, 0x97, 0x1a, 0x2a, 0x8f, 0xe7, 0x27, 0x67, 0x5e,
+	0xc2, 0x6a, 0xa8, 0x78, 0xb1, 0xa0, 0xdc, 0xd9, 0xd5, 0x2e, 0x3d, 0x46, 0xbf, 0x82, 0xe2, 0x94,
+	0xc5, 0xa1, 0x14, 0x8e, 0xa5, 0x17, 0xfb, 0x20, 0x6b, 0xb1, 0x67, 0x0a, 0x61, 0x8a, 0xa7, 0x81,
+	0xa3, 0x1e, 0xdc, 0x13, 0x92, 0x45, 0xc3, 0x31, 0x27, 0x2e, 0x1d, 0x46, 0x94, 0xfb, 0xcc, 0x33,
+	0x97, 0xff, 0x41, 0x2b, 0xe9, 0x15, 0x5a, 0xcb, 0x5e, 0xa1, 0xd5, 0x35, 0xbd, 0x02, 0xbe, 0xab,
+	0x38, 0xc7, 0x8a, 0xd2, 0xd7, 0x0c, 0xd4, 0x87, 0x72, 0x14, 0x07, 0xc1, 0x90, 0x45, 0xc9, 0x3b,
+	0x00, 0x3a, 0xc2, 0x5b, 0xa4, 0xac, 0x1f, 0x07, 0xc1, 0xf3, 0x84, 0x84, 0xed, 0x68, 0x6d, 0xa0,
+	0xf7, 0xa1, 0x38, 0xe6, 0x2c, 0x8e, 0x84, 0x63, 0xeb, 0x64, 0x18, 0x0b, 0x7d, 0x0e, 0xbb, 0x82,
+	0xba, 0x9c, 0x4a, 0xe1, 0x94, 0xf5, 0x56, 0x3f, 0xcc, 0x9a, 0x64, 0xa0, 0x21, 0x98, 0x5e, 0x52,
+	0x4e, 0x43, 0x97, 0xe2, 0x25, 0x07, 0x3d, 0x80, 0x6d, 0x29, 0xe7, 0xce, 0x5e, 0x23, 0xbf, 0x6f,
+	0x75, 0x76, 0x17, 0x37, 0xf5, 0xed, 0x8b, 0x8b, 0x97, 0x58, 0xf9, 0x54, 0x8d, 0x9a, 0x30, 0x21,
+	0x43, 0x32, 0xa5, 0xce, 0x1d, 0x9d, 0xdb, 0x95, 0x8d, 0x5e, 0x02, 0x78, 0xa1, 0x18, 0xba, 0xfa,
+	0x52, 0x38, 0x77, 0xf5, 0xee, 0x3e, 0x79, 0xf3, 0xee, 0xba, 0xe7, 0x03, 0x53, 0xa7, 0xf7, 0x16,
+	0x37, 0xf5, 0xd2, 0xca, 0xc4, 0x25, 0x2f, 0x14, 0xc9, 0x10, 0x75, 0xc0, 0x9e, 0x50, 0x12, 0xc8,
+	0x89, 0x3b, 0xa1, 0xee, 0x95, 0x53, 0xb9, 0xbd, 0xf0, 0x3e, 0xd3, 0x30, 0x13, 0x21, 0x4d, 0x52,
+	0x0a, 0x56, 0x4b, 0x15, 0xce, 0x3d, 0x9d, 0xab, 0xc4, 0x40, 0x1f, 0x00, 0xb0, 0x88, 0x86, 0x43,
+	0x21, 0x3d, 0x3f, 0x74, 0x90, 0xda, 0x32, 0x2e, 0x29, 0xcf, 0x40, 0x39, 0xd0, 0x43, 0x55, 0x16,
+	0x89, 0x37, 0x64, 0x61, 0x30, 0x77, 0x7e, 0xa0, 0xbf, 0x5a, 0xca, 0xf1, 0x3c, 0x0c, 0xe6, 0xa8,
+	0x0e, 0xb6, 0xd6, 0x85, 0xf0, 0xc7, 0x21, 0x09, 0x9c, 0xfb, 0x3a, 0x1f, 0xa0, 0x5c, 0x03, 0xed,
+	0xa9, 0x7e, 0x06, 0x76, 0x4a, 0xee, 0x4a, 0xa6, 0x57, 0x74, 0x6e, 0x6e, 0x90, 0x1a, 0xaa, 0x35,
+	0xcd, 0x48, 0x10, 0x27, 0xcd, 0x5e, 0x09, 0x27, 0xc6, 0xaf, 0xb7, 0x9e, 0xe4, 0xab, 0x87, 0x60,
+	0xa7, 0x8e, 0x1d, 0x7d, 0x08, 0x7b, 0x9c, 0x8e, 0x7d, 0x21, 0xf9, 0x7c, 0x48, 0x62, 0x39, 0x71,
+	0x7e, 0xa7, 0x09, 0xe5, 0xa5, 0xb3, 0x1d, 0xcb, 0x49, 0x75, 0x08, 0xeb, 0xec, 0xa1, 0x06, 0xd8,
+	0xea, 0x54, 0x04, 0xe5, 0x33, 0xca, 0xd5, 0x83, 0xa2, 0x36, 0x9d, 0x76, 0x29, 0xf5, 0x08, 0x4a,
+	0xb8, 0x3b, 0xd1, 0x97, 0xb7, 0x84, 0x8d, 0xa5, 0x6e, 0xe3, 0x52, 0xa2, 0xe6, 0x36, 0x1a, 0xb3,
+	0xf9, 0xdf, 0x3c, 0x94, 0xd3, 0xef, 0x22, 0x3a, 0x4a, 0xde, 0x33, 0xbd, 0xa5, 0x3b, 0x87, 0x07,
+	0x6f, 0x7a, 0x47, 0xf5, 0xeb, 0x11, 0xc4, 0x2a, 0xd8, 0x99, 0x6a, 0x61, 0x35, 0x19, 0xfd, 0x12,
+	0x76, 0x22, 0xc6, 0xe5, 0xb2, 0x86, 0xd4, 0x32, 0x2b, 0x3e, 0xe3, 0xcb, 0x6a, 0x9b, 0x80, 0x9b,
+	0x13, 0xb8, 0xb3, 0x19, 0x0d, 0x3d, 0x86, 0xed, 0x17, 0x27, 0xfd, 0x4a, 0xae, 0xfa, 0xf0, 0xd5,
+	0x75, 0xe3, 0x87, 0x9b, 0x1f, 0x5f, 0xf8, 0x5c, 0xc6, 0x24, 0x38, 0xe9, 0xa3, 0x9f, 0xc2, 0x4e,
+	0xf7, 0x7c, 0x80, 0x71, 0x25, 0x5f, 0xad, 0xbf, 0xba, 0x6e, 0x3c, 0xdc, 0xc4, 0xa9, 0x4f, 0x2c,
+	0x0e, 0x3d, 0xcc, 0x46, 0xab, 0x76, 0xee, 0x9f, 0x5b, 0x60, 0x9b, 0xd2, 0xfa, 0xae, 0x3b, 0xfe,
+	0xbd, 0xe4, 0xb5, 0x5a, 0xde, 0x99, 0xad, 0x37, 0x3e, 0x5a, 0xe5, 0x84, 0x60, 0xce, 0xf8, 0x11,
+	0x94, 0xfd, 0x68, 0xf6, 0xe9, 0x90, 0x86, 0x64, 0x14, 0x98, 0xce, 0xce, 0xc2, 0xb6, 0xf2, 0xf5,
+	0x12, 0x97, 0xba, 0xb0, 0x7e, 0x28, 0x29, 0x0f, 0x4d, 0xcf, 0x66, 0xe1, 0x95, 0x8d, 0x3e, 0x87,
+	0x82, 0x1f, 0x91, 0xa9, 0x79, 0x69, 0x33, 0x77, 0x70, 0xd2, 0x6f, 0x9f, 0x19, 0x0d, 0x76, 0xac,
+	0xc5, 0x4d, 0xbd, 0xa0, 0x1c, 0x58, 0xd3, 0x50, 0x6d, 0xf9, 0xd8, 0xa9, 0x99, 0x74, 0xf1, 0xb5,
+	0x70, 0xca, 0xd3, 0xfc, 0x5f, 0x01, 0xec, 0xa3, 0x20, 0x16, 0xd2, 0x3c, 0x21, 0xef, 0x2c, 0x6f,
+	0x2f, 0xe1, 0x1e, 0xd1, 0xcd, 0x3f, 0x09, 0x55, 0x3d, 0xd6, 0x4d, 0x84, 0xc9, 0xdd, 0xe3, 0xcc,
+	0x70, 0x2b, 0x70, 0xd2, 0x70, 0x74, 0x8a, 0x2a, 0xa6, 0x93, 0xc7, 0x15, 0xf2, 0x8d, 0x2f, 0x68,
+	0x00, 0x7b, 0x8c, 0xbb, 0x13, 0x2a, 0x64, 0x52, 0xc5, 0x4d, 0xb3, 0x9c, 0xf9, 0x1b, 0xf5, 0x3c,
+	0x0d, 0x34, 0x25, 0x2c, 0x59, 0xed, 0x66, 0x0c, 0xf4, 0x04, 0x0a, 0x9c, 0x5c, 0x2e, 0x1b, 0xa2,
+	0x4c, 0x7d, 0x63, 0x72, 0x29, 0x37, 0x42, 0x68, 0x06, 0xfa, 0x03, 0x80, 0xe7, 0x8b, 0x88, 0x48,
+	0x77, 0x42, 0xb9, 0x39, 0xa7, 0xcc, 0x2d, 0x76, 0x57, 0xa8, 0x8d, 0x28, 0x29, 0x36, 0x3a, 0x85,
+	0x92, 0x4b, 0x96, 0x4a, 0x2b, 0xde, 0xfe, 0x07, 0x71, 0xd4, 0x36, 0x21, 0x2a, 0x2a, 0xc4, 0xe2,
+	0xa6, 0x6e, 0x2d, 0x3d, 0xd8, 0x72, 0x89, 0x51, 0xde, 0x29, 0xec, 0xa9, 0x3f, 0x8b, 0xa1, 0x47,
+	0x2f, 0x49, 0x1c, 0x48, 0xa1, 0x1f, 0xda, 0x5b, 0x4a, 0xb2, 0x6a, 0x53, 0xbb, 0x06, 0x67, 0xd6,
+	0x55, 0x96, 0x29, 0x1f, 0xfa, 0x13, 0xdc, 0xa3, 0xa1, 0xcb, 0xe7, 0x5a, 0x67, 0xcb, 0x15, 0x5a,
+	0xb7, 0x6f, 0xb6, 0xb7, 0x02, 0x6f, 0x6c, 0xb6, 0x42, 0xbf, 0xe1, 0x6f, 0xfa, 0x00, 0xc9, 0x23,
+	0xf7, 0x6e, 0xf5, 0x87, 0xa0, 0xe0, 0x11, 0x49, 0xb4, 0xe4, 0xca, 0x58, 0x8f, 0x3b, 0xce, 0xeb,
+	0xaf, 0x6b, 0xb9, 0x7f, 0x7f, 0x5d, 0xcb, 0xfd, 0x65, 0x51, 0xcb, 0xbf, 0x5e, 0xd4, 0xf2, 0xff,
+	0x5a, 0xd4, 0xf2, 0xff, 0x59, 0xd4, 0xf2, 0xa3, 0xa2, 0x6e, 0x0d, 0x7e, 0xf1, 0xff, 0x00, 0x00,
+	0x00, 0xff, 0xff, 0xed, 0xbe, 0x26, 0xe6, 0x9a, 0x10, 0x00, 0x00,
 }

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/pkg/testutil"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
@@ -149,11 +150,10 @@ func (s *DockerTrustSuite) TestTrustedOfflinePull(c *check.C) {
 func (s *DockerTrustSuite) TestTrustedPullDelete(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/%s:latest", privateRegistryURL, "trusted-pull-delete")
 	// tag the image and upload it to the private registry
-	_, err := buildImage(repoName, `
+	buildImageSuccessfully(c, repoName, build.WithDockerfile(`
                     FROM busybox
                     CMD echo trustedpulldelete
-                `, true)
-
+                `))
 	icmd.RunCmd(icmd.Command(dockerBinary, "push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
 
 	dockerCmd(c, "rmi", repoName)
@@ -176,7 +176,7 @@ func (s *DockerTrustSuite) TestTrustedPullDelete(c *check.C) {
 	// rmi of tag should also remove the digest reference
 	dockerCmd(c, "rmi", repoName)
 
-	_, err = inspectFieldWithError(imageByDigest, "Id")
+	_, err := inspectFieldWithError(imageByDigest, "Id")
 	c.Assert(err, checker.NotNil, check.Commentf("digest reference should have been removed"))
 
 	_, err = inspectFieldWithError(imageID, "Id")

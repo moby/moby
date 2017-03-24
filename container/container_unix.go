@@ -22,9 +22,7 @@ import (
 )
 
 const (
-	// DefaultSHMSize is the default size (64MB) of the SHM which will be mounted in the container
-	DefaultSHMSize           int64 = 67108864
-	containerSecretMountPath       = "/run/secrets"
+	containerSecretMountPath = "/run/secrets"
 )
 
 // Container holds the fields specific to unixen implementations.
@@ -439,12 +437,6 @@ func (container *Container) TmpfsMounts() ([]Mount, error) {
 // cleanResourcePath cleans a resource path and prepares to combine with mnt path
 func cleanResourcePath(path string) string {
 	return filepath.Join(string(os.PathSeparator), path)
-}
-
-// canMountFS determines if the file system for the container
-// can be mounted locally. A no-op on non-Windows platforms
-func (container *Container) canMountFS() bool {
-	return true
 }
 
 // EnableServiceDiscoveryOnDefaultNetwork Enable service discovery on default network

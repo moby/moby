@@ -24,6 +24,7 @@ RUN sed -ri "s/(httpredir|deb).debian.org/$APT_MIRROR/g" /etc/apt/sources.list
 # Packaged dependencies
 RUN apt-get update && apt-get install -y \
 	apparmor \
+	apt-utils \
 	aufs-tools \
 	automake \
 	bash-completion \
@@ -40,7 +41,6 @@ RUN apt-get update && apt-get install -y \
 	libapparmor-dev \
 	libcap-dev \
 	libltdl-dev \
-	libsqlite3-dev \
 	libsystemd-journal-dev \
 	libtool \
 	mercurial \
@@ -77,8 +77,8 @@ RUN cd /usr/local/lvm2 \
 	&& make install_device-mapper
 # See https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
 
-# Install seccomp: the version shipped in jessie is too old
-ENV SECCOMP_VERSION 2.3.1
+# Install seccomp: the version shipped upstream is too old
+ENV SECCOMP_VERSION 2.3.2
 RUN set -x \
         && export SECCOMP_PATH="$(mktemp -d)" \
         && curl -fsSL "https://github.com/seccomp/libseccomp/releases/download/v${SECCOMP_VERSION}/libseccomp-${SECCOMP_VERSION}.tar.gz" \
@@ -95,7 +95,7 @@ RUN set -x \
 
 # Install Go
 # NOTE: official ppc64le go binaries weren't available until go 1.6.4 and 1.7.4
-ENV GO_VERSION 1.7.4
+ENV GO_VERSION 1.7.5
 RUN curl -fsSL "https://golang.org/dl/go${GO_VERSION}.linux-ppc64le.tar.gz" \
 	| tar -xzC /usr/local
 
@@ -136,9 +136,9 @@ RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/docker/notary.git "$GOPATH/src/github.com/docker/notary" \
 	&& (cd "$GOPATH/src/github.com/docker/notary" && git checkout -q "$NOTARY_VERSION") \
-	&& GOPATH="$GOPATH/src/github.com/docker/notary/Godeps/_workspace:$GOPATH" \
+	&& GOPATH="$GOPATH/src/github.com/docker/notary/vendor:$GOPATH" \
 		go build -o /usr/local/bin/notary-server github.com/docker/notary/cmd/notary-server \
-	&& GOPATH="$GOPATH/src/github.com/docker/notary/Godeps/_workspace:$GOPATH" \
+	&& GOPATH="$GOPATH/src/github.com/docker/notary/vendor:$GOPATH" \
 		go build -o /usr/local/bin/notary github.com/docker/notary/cmd/notary \
 	&& rm -rf "$GOPATH"
 

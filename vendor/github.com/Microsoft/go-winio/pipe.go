@@ -87,7 +87,11 @@ func (f *win32MessageBytePipe) CloseWrite() error {
 	if f.writeClosed {
 		return errPipeWriteClosed
 	}
-	_, err := f.win32File.Write(nil)
+	err := f.win32File.Flush()
+	if err != nil {
+		return err
+	}
+	_, err = f.win32File.Write(nil)
 	if err != nil {
 		return err
 	}

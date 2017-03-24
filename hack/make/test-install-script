@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # This script is used for testing install.sh and that it works for
 # each of component of our apt and yum repos
 set -e

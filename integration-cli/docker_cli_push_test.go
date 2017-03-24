@@ -15,6 +15,7 @@ import (
 	"github.com/docker/distribution/reference"
 	cliconfig "github.com/docker/docker/cli/config"
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/pkg/testutil"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
@@ -161,14 +162,13 @@ func testConcurrentPush(c *check.C) {
 	repos := []string{}
 	for _, tag := range []string{"push1", "push2", "push3"} {
 		repo := fmt.Sprintf("%v:%v", repoName, tag)
-		_, err := buildImage(repo, fmt.Sprintf(`
+		buildImageSuccessfully(c, repo, build.WithDockerfile(fmt.Sprintf(`
 	FROM busybox
 	ENTRYPOINT ["/bin/echo"]
 	ENV FOO foo
 	ENV BAR bar
 	CMD echo %s
-`, repo), true)
-		c.Assert(err, checker.IsNil)
+`, repo)))
 		repos = append(repos, repo)
 	}
 

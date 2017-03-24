@@ -12,8 +12,7 @@ import (
 
 func (s *DockerSuite) TestRestartStoppedContainer(c *check.C) {
 	dockerCmd(c, "run", "--name=test", "busybox", "echo", "foobar")
-	cleanedContainerID, err := getIDByName("test")
-	c.Assert(err, check.IsNil)
+	cleanedContainerID := getIDByName(c, "test")
 
 	out, _ := dockerCmd(c, "logs", cleanedContainerID)
 	c.Assert(out, checker.Equals, "foobar\n")
@@ -21,7 +20,7 @@ func (s *DockerSuite) TestRestartStoppedContainer(c *check.C) {
 	dockerCmd(c, "restart", cleanedContainerID)
 
 	// Wait until the container has stopped
-	err = waitInspect(cleanedContainerID, "{{.State.Running}}", "false", 20*time.Second)
+	err := waitInspect(cleanedContainerID, "{{.State.Running}}", "false", 20*time.Second)
 	c.Assert(err, checker.IsNil)
 
 	out, _ = dockerCmd(c, "logs", cleanedContainerID)
@@ -74,6 +73,23 @@ func (s *DockerSuite) TestRestartWithVolumes(c *check.C) {
 	sourceAfterRestart, err := inspectMountSourceField(cleanedContainerID, prefix+slash+"test")
 	c.Assert(err, checker.IsNil)
 	c.Assert(source, checker.Equals, sourceAfterRestart)
+}
+
+func (s *DockerSuite) TestRestartDisconnectedContainer(c *check.C) {
+	testRequires(c, DaemonIsLinux, SameHostDaemon, NotUserNamespace, NotArm)
+
+	// Run a container on the default bridge network
+	out, _ := dockerCmd(c, "run", "-d", "--name", "c0", "busybox", "top")
+	cleanedContainerID := strings.TrimSpace(out)
+	c.Assert(waitRun(cleanedContainerID), checker.IsNil)
+
+	// Disconnect the container from the network
+	out, err := dockerCmd(c, "network", "disconnect", "bridge", "c0")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+
+	// Restart the container
+	dockerCmd(c, "restart", "c0")
+	c.Assert(err, check.NotNil, check.Commentf(out))
 }
 
 func (s *DockerSuite) TestRestartPolicyNO(c *check.C) {
@@ -253,7 +269,7 @@ func (s *DockerSuite) TestRestartContainerwithRestartPolicy(c *check.C) {
 	id1 := strings.TrimSpace(string(out1))
 	id2 := strings.TrimSpace(string(out2))
 	waitTimeout := 15 * time.Second
-	if daemonPlatform == "windows" {
+	if testEnv.DaemonPlatform() == "windows" {
 		waitTimeout = 150 * time.Second
 	}
 	err := waitInspect(id1, "{{ .State.Restarting }} {{ .State.Running }}", "false false", waitTimeout)

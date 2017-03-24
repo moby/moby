@@ -41,7 +41,7 @@ func newDockerHubPullSuite() *DockerHubPullSuite {
 func (s *DockerHubPullSuite) SetUpSuite(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
-		Experimental: experimentalDaemon,
+		Experimental: testEnv.ExperimentalDaemon(),
 	})
 	s.d.Start(c)
 }

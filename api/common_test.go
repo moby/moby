@@ -286,7 +286,7 @@ func TestLoadOrCreateTrustKeyInvalidKeyFile(t *testing.T) {
 	}
 
 	if _, err := LoadOrCreateTrustKey(tmpKeyFile.Name()); err == nil {
-		t.Fatalf("expected an error, got nothing.")
+		t.Fatal("expected an error, got nothing.")
 	}
 
 }

@@ -7,7 +7,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-// Ping pings the server and returns the value of the "Docker-Experimental" & "API-Version" headers
+// Ping pings the server and returns the value of the "Docker-Experimental", "OS-Type" & "API-Version" headers
 func (cli *Client) Ping(ctx context.Context) (types.Ping, error) {
 	var ping types.Ping
 	req, err := cli.buildRequest("GET", fmt.Sprintf("%s/_ping", cli.basePath), nil, nil)
@@ -25,6 +25,8 @@ func (cli *Client) Ping(ctx context.Context) (types.Ping, error) {
 	if serverResp.header.Get("Docker-Experimental") == "true" {
 		ping.Experimental = true
 	}
+
+	ping.OSType = serverResp.header.Get("OSType")
 
 	return ping, nil
 }

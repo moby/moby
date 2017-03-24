@@ -237,7 +237,10 @@ drain:
 
 	// free(NULL) is safe
 	C.free(unsafe.Pointer(oldCursor))
-	C.sd_journal_get_cursor(j, &cursor)
+	if C.sd_journal_get_cursor(j, &cursor) != 0 {
+		// ensure that we won't be freeing an address that's invalid
+		cursor = nil
+	}
 	return cursor
 }
 
@@ -245,34 +248,47 @@ func (s *journald) followJournal(logWatcher *logger.LogWatcher, config logger.Re
 	s.readers.mu.Lock()
 	s.readers.readers[logWatcher] = logWatcher
 	s.readers.mu.Unlock()
+
+	newCursor := make(chan *C.char)
+
 	go func() {
-		// Keep copying journal data out until we're notified to stop
-		// or we hit an error.
-		status := C.wait_for_data_cancelable(j, pfd[0])
-		for status == 1 {
+		for {
+			// Keep copying journal data out until we're notified to stop
+			// or we hit an error.
+			status := C.wait_for_data_cancelable(j, pfd[0])
+			if status < 0 {
+				cerrstr := C.strerror(C.int(-status))
+				errstr := C.GoString(cerrstr)
+				fmtstr := "error %q while attempting to follow journal for container %q"
+				logrus.Errorf(fmtstr, errstr, s.vars["CONTAINER_ID_FULL"])
+				break
+			}
+
 			cursor = s.drainJournal(logWatcher, config, j, cursor)
-			status = C.wait_for_data_cancelable(j, pfd[0])
+
+			if status != 1 {
+				// We were notified to stop
+				break
+			}
 		}
-		if status < 0 {
-			cerrstr := C.strerror(C.int(-status))
-			errstr := C.GoString(cerrstr)
-			fmtstr := "error %q while attempting to follow journal for container %q"
-			logrus.Errorf(fmtstr, errstr, s.vars["CONTAINER_ID_FULL"])
-		}
+
 		// Clean up.
 		C.close(pfd[0])
 		s.readers.mu.Lock()
 		delete(s.readers.readers, logWatcher)
 		s.readers.mu.Unlock()
-		C.sd_journal_close(j)
 		close(logWatcher.Msg)
+		newCursor <- cursor
 	}()
+
 	// Wait until we're told to stop.
 	select {
 	case <-logWatcher.WatchClose():
 		// Notify the other goroutine that its work is done.
 		C.close(pfd[1])
 	}
+
+	cursor = <-newCursor
 
 	return cursor
 }
@@ -298,9 +314,9 @@ func (s *journald) readLogs(logWatcher *logger.LogWatcher, config logger.ReadCon
 	following := false
 	defer func(pfollowing *bool) {
 		if !*pfollowing {
-			C.sd_journal_close(j)
 			close(logWatcher.Msg)
 		}
+		C.sd_journal_close(j)
 	}(&following)
 	// Remove limits on the size of data items that we'll retrieve.
 	rc = C.sd_journal_set_data_threshold(j, C.size_t(0))

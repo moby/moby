@@ -5,9 +5,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/distribution/reference"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli/command/inspect"
+	"github.com/docker/docker/pkg/stringid"
 	units "github.com/docker/go-units"
 )
 
@@ -37,8 +39,11 @@ UpdateStatus:
  Message:	{{ .UpdateStatusMessage }}
 {{- end }}
 Placement:
-{{- if .TaskPlacementConstraints -}}
- Contraints:	{{ .TaskPlacementConstraints }}
+{{- if .TaskPlacementConstraints }}
+ Constraints:	{{ .TaskPlacementConstraints }}
+{{- end }}
+{{- if .TaskPlacementPreferences }}
+ Preferences:   {{ .TaskPlacementPreferences }}
 {{- end }}
 {{- if .HasUpdateConfig }}
 UpdateConfig:
@@ -51,6 +56,18 @@ UpdateConfig:
  Monitoring Period: {{ .UpdateMonitor }}
 {{- end }}
  Max failure ratio: {{ .UpdateMaxFailureRatio }}
+{{- end }}
+{{- if .HasRollbackConfig }}
+RollbackConfig:
+ Parallelism:	{{ .RollbackParallelism }}
+{{- if .HasRollbackDelay}}
+ Delay:		{{ .RollbackDelay }}
+{{- end }}
+ On failure:	{{ .RollbackOnFailure }}
+{{- if .HasRollbackMonitor}}
+ Monitoring Period: {{ .RollbackMonitor }}
+{{- end }}
+ Max failure ratio: {{ .RollbackMaxFailureRatio }}
 {{- end }}
 ContainerSpec:
  Image:		{{ .ContainerImage }}
@@ -100,7 +117,7 @@ Endpoint Mode:	{{ .EndpointMode }}
 {{- if .Ports }}
 Ports:
 {{- range $port := .Ports }}
- PublishedPort {{ $port.PublishedPort }}
+ PublishedPort = {{ $port.PublishedPort }}
   Protocol = {{ $port.Protocol }}
   TargetPort = {{ $port.TargetPort }}
   PublishMode = {{ $port.PublishMode }}
@@ -209,6 +226,19 @@ func (ctx *serviceInspectContext) TaskPlacementConstraints() []string {
 	return nil
 }
 
+func (ctx *serviceInspectContext) TaskPlacementPreferences() []string {
+	if ctx.Service.Spec.TaskTemplate.Placement == nil {
+		return nil
+	}
+	var strings []string
+	for _, pref := range ctx.Service.Spec.TaskTemplate.Placement.Preferences {
+		if pref.Spread != nil {
+			strings = append(strings, "spread="+pref.Spread.SpreadDescriptor)
+		}
+	}
+	return strings
+}
+
 func (ctx *serviceInspectContext) HasUpdateConfig() bool {
 	return ctx.Service.Spec.UpdateConfig != nil
 }
@@ -239,6 +269,38 @@ func (ctx *serviceInspectContext) UpdateMonitor() time.Duration {
 
 func (ctx *serviceInspectContext) UpdateMaxFailureRatio() float32 {
 	return ctx.Service.Spec.UpdateConfig.MaxFailureRatio
+}
+
+func (ctx *serviceInspectContext) HasRollbackConfig() bool {
+	return ctx.Service.Spec.RollbackConfig != nil
+}
+
+func (ctx *serviceInspectContext) RollbackParallelism() uint64 {
+	return ctx.Service.Spec.RollbackConfig.Parallelism
+}
+
+func (ctx *serviceInspectContext) HasRollbackDelay() bool {
+	return ctx.Service.Spec.RollbackConfig.Delay.Nanoseconds() > 0
+}
+
+func (ctx *serviceInspectContext) RollbackDelay() time.Duration {
+	return ctx.Service.Spec.RollbackConfig.Delay
+}
+
+func (ctx *serviceInspectContext) RollbackOnFailure() string {
+	return ctx.Service.Spec.RollbackConfig.FailureAction
+}
+
+func (ctx *serviceInspectContext) HasRollbackMonitor() bool {
+	return ctx.Service.Spec.RollbackConfig.Monitor.Nanoseconds() > 0
+}
+
+func (ctx *serviceInspectContext) RollbackMonitor() time.Duration {
+	return ctx.Service.Spec.RollbackConfig.Monitor
+}
+
+func (ctx *serviceInspectContext) RollbackMaxFailureRatio() float32 {
+	return ctx.Service.Spec.RollbackConfig.MaxFailureRatio
 }
 
 func (ctx *serviceInspectContext) ContainerImage() string {
@@ -326,4 +388,98 @@ func (ctx *serviceInspectContext) EndpointMode() string {
 
 func (ctx *serviceInspectContext) Ports() []swarm.PortConfig {
 	return ctx.Service.Endpoint.Ports
+}
+
+const (
+	defaultServiceTableFormat = "table {{.ID}}\t{{.Name}}\t{{.Mode}}\t{{.Replicas}}\t{{.Image}}"
+
+	serviceIDHeader = "ID"
+	modeHeader      = "MODE"
+	replicasHeader  = "REPLICAS"
+)
+
+// NewServiceListFormat returns a Format for rendering using a service Context
+func NewServiceListFormat(source string, quiet bool) Format {
+	switch source {
+	case TableFormatKey:
+		if quiet {
+			return defaultQuietFormat
+		}
+		return defaultServiceTableFormat
+	case RawFormatKey:
+		if quiet {
+			return `id: {{.ID}}`
+		}
+		return `id: {{.ID}}\nname: {{.Name}}\nmode: {{.Mode}}\nreplicas: {{.Replicas}}\nimage: {{.Image}}\n`
+	}
+	return Format(source)
+}
+
+// ServiceListInfo stores the information about mode and replicas to be used by template
+type ServiceListInfo struct {
+	Mode     string
+	Replicas string
+}
+
+// ServiceListWrite writes the context
+func ServiceListWrite(ctx Context, services []swarm.Service, info map[string]ServiceListInfo) error {
+	render := func(format func(subContext subContext) error) error {
+		for _, service := range services {
+			serviceCtx := &serviceContext{service: service, mode: info[service.ID].Mode, replicas: info[service.ID].Replicas}
+			if err := format(serviceCtx); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	serviceCtx := serviceContext{}
+	serviceCtx.header = map[string]string{
+		"ID":       serviceIDHeader,
+		"Name":     nameHeader,
+		"Mode":     modeHeader,
+		"Replicas": replicasHeader,
+		"Image":    imageHeader,
+	}
+	return ctx.Write(&serviceCtx, render)
+}
+
+type serviceContext struct {
+	HeaderContext
+	service  swarm.Service
+	mode     string
+	replicas string
+}
+
+func (c *serviceContext) MarshalJSON() ([]byte, error) {
+	return marshalJSON(c)
+}
+
+func (c *serviceContext) ID() string {
+	return stringid.TruncateID(c.service.ID)
+}
+
+func (c *serviceContext) Name() string {
+	return c.service.Spec.Name
+}
+
+func (c *serviceContext) Mode() string {
+	return c.mode
+}
+
+func (c *serviceContext) Replicas() string {
+	return c.replicas
+}
+
+func (c *serviceContext) Image() string {
+	image := c.service.Spec.TaskTemplate.ContainerSpec.Image
+	if ref, err := reference.ParseNormalizedNamed(image); err == nil {
+		// update image string for display, (strips any digest)
+		if nt, ok := ref.(reference.NamedTagged); ok {
+			if namedTagged, err := reference.WithTag(reference.TrimNamed(nt), nt.Tag()); err == nil {
+				image = reference.FamiliarString(namedTagged)
+			}
+		}
+	}
+
+	return image
 }

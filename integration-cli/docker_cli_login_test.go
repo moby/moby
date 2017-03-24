@@ -28,3 +28,17 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestLoginToPrivateRegistry(c *check.C)
 	// now it's fine
 	dockerCmd(c, "login", "-u", s.reg.Username(), "-p", s.reg.Password(), privateRegistryURL)
 }
+
+func (s *DockerRegistryAuthHtpasswdSuite) TestLoginToPrivateRegistryDeprecatedEmailFlag(c *check.C) {
+	// Test to make sure login still works with the deprecated -e and --email flags
+	// wrong credentials
+	out, _, err := dockerCmdWithError("login", "-u", s.reg.Username(), "-p", "WRONGPASSWORD", "-e", s.reg.Email(), privateRegistryURL)
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "401 Unauthorized")
+
+	// now it's fine
+	// -e flag
+	dockerCmd(c, "login", "-u", s.reg.Username(), "-p", s.reg.Password(), "-e", s.reg.Email(), privateRegistryURL)
+	// --email flag
+	dockerCmd(c, "login", "-u", s.reg.Username(), "-p", s.reg.Password(), "--email", s.reg.Email(), privateRegistryURL)
+}

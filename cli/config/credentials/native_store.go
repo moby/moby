@@ -120,7 +120,7 @@ func (c *nativeStore) getCredentialsFromStore(serverAddress string) (types.AuthC
 	if err != nil {
 		if credentials.IsErrCredentialsNotFound(err) {
 			// do not return an error if the credentials are not
-			// in the keyckain. Let docker ask for new credentials.
+			// in the keychain. Let docker ask for new credentials.
 			return ret, nil
 		}
 		return ret, err

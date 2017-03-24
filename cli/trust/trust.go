@@ -148,7 +148,7 @@ func GetNotaryRepository(streams command.Streams, repoInfo *registry.RepositoryI
 	}
 
 	scope := auth.RepositoryScope{
-		Repository: repoInfo.FullName(),
+		Repository: repoInfo.Name.Name(),
 		Actions:    actions,
 		Class:      repoInfo.Class,
 	}
@@ -166,7 +166,7 @@ func GetNotaryRepository(streams command.Streams, repoInfo *registry.RepositoryI
 
 	return client.NewNotaryRepository(
 		trustDirectory(),
-		repoInfo.FullName(),
+		repoInfo.Name.Name(),
 		server,
 		tr,
 		getPassphraseRetriever(streams),

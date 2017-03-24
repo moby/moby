@@ -35,7 +35,6 @@ func IsKilled(err error) bool {
 }
 
 func runCommandWithOutput(cmd *exec.Cmd) (output string, exitCode int, err error) {
-	exitCode = 0
 	out, err := cmd.CombinedOutput()
 	exitCode = system.ProcessExitCode(err)
 	output = string(out)

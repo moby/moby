@@ -96,15 +96,7 @@ func (daemon *Daemon) GetNetworksByID(partialID string) []libnetwork.Network {
 
 // getAllNetworks returns a list containing all networks
 func (daemon *Daemon) getAllNetworks() []libnetwork.Network {
-	c := daemon.netController
-	list := []libnetwork.Network{}
-	l := func(nw libnetwork.Network) bool {
-		list = append(list, nw)
-		return false
-	}
-	c.WalkNetworks(l)
-
-	return list
+	return daemon.netController.Networks()
 }
 
 func isIngressNetwork(name string) bool {
@@ -256,6 +248,8 @@ func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string
 		}
 	}
 	if nw != nil {
+		// check if user defined CheckDuplicate, if set true, return err
+		// otherwise prepare a warning message
 		if create.CheckDuplicate {
 			return nil, libnetwork.NetworkNameError(create.Name)
 		}
@@ -467,4 +461,32 @@ func (daemon *Daemon) deleteNetwork(networkID string, dynamic bool) error {
 // GetNetworks returns a list of all networks
 func (daemon *Daemon) GetNetworks() []libnetwork.Network {
 	return daemon.getAllNetworks()
+}
+
+// clearAttachableNetworks removes the attachable networks
+// after disconnecting any connected container
+func (daemon *Daemon) clearAttachableNetworks() {
+	for _, n := range daemon.GetNetworks() {
+		if !n.Info().Attachable() {
+			continue
+		}
+		for _, ep := range n.Endpoints() {
+			epInfo := ep.Info()
+			if epInfo == nil {
+				continue
+			}
+			sb := epInfo.Sandbox()
+			if sb == nil {
+				continue
+			}
+			containerID := sb.ContainerID()
+			if err := daemon.DisconnectContainerFromNetwork(containerID, n.ID(), true); err != nil {
+				logrus.Warnf("Failed to disconnect container %s from swarm network %s on cluster leave: %v",
+					containerID, n.Name(), err)
+			}
+		}
+		if err := daemon.DeleteManagedNetwork(n.ID()); err != nil {
+			logrus.Warnf("Failed to remove swarm network %s on cluster leave: %v", n.Name(), err)
+		}
+	}
 }
