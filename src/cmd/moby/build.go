@@ -65,7 +65,7 @@ func containersInitrd(containers []*bytes.Buffer) (*bytes.Buffer, error) {
 	return w, nil
 }
 
-func build(name string, args []string) {
+func build(name string, pull bool, args []string) {
 	conf := "moby.yaml"
 	if len(args) > 0 {
 		conf = args[0]
@@ -91,6 +91,12 @@ func build(name string, args []string) {
 
 	containers := []*bytes.Buffer{}
 
+	if pull {
+		err := dockerPull(m.Kernel.Image)
+		if err != nil {
+			log.Fatalf("Could not pull image %s: %v", m.Kernel.Image, err)
+		}
+	}
 	// get kernel bzImage and initrd tarball from container
 	// TODO examine contents to see what names they might have
 	const (
@@ -109,6 +115,12 @@ func build(name string, args []string) {
 	containers = append(containers, ktar)
 
 	// convert init image to tarball
+	if pull {
+		err := dockerPull(m.Init)
+		if err != nil {
+			log.Fatalf("Could not pull image %s: %v", m.Init, err)
+		}
+	}
 	init, err := ImageExtract(m.Init, "")
 	if err != nil {
 		log.Fatalf("Failed to build init tarball: %v", err)
@@ -117,6 +129,12 @@ func build(name string, args []string) {
 	containers = append(containers, buffer)
 
 	for i, image := range m.System {
+		if pull {
+			err := dockerPull(image.Image)
+			if err != nil {
+				log.Fatalf("Could not pull image %s: %v", image.Image, err)
+			}
+		}
 		config, err := ConfigToOCI(&image)
 		if err != nil {
 			log.Fatalf("Failed to run riddler to get config.json for %s: %v", image.Image, err)
@@ -132,6 +150,12 @@ func build(name string, args []string) {
 	}
 
 	for _, image := range m.Daemon {
+		if pull {
+			err := dockerPull(image.Image)
+			if err != nil {
+				log.Fatalf("Could not pull image %s: %v", image.Image, err)
+			}
+		}
 		config, err := ConfigToOCI(&image)
 		if err != nil {
 			log.Fatalf("Failed to run riddler to get config.json for %s: %v", image.Image, err)

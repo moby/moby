@@ -1,99 +1,10 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"os"
-	"os/exec"
 )
-
-func dockerRun(args ...string) ([]byte, error) {
-	// TODO switch to using Docker client API not exec - just a quick prototype
-	docker, err := exec.LookPath("docker")
-	if err != nil {
-		return []byte{}, errors.New("Docker does not seem to be installed")
-	}
-	args = append([]string{"run", "--rm"}, args...)
-	cmd := exec.Command(docker, args...)
-
-	stderrPipe, err := cmd.StderrPipe()
-	if err != nil {
-		return []byte{}, err
-	}
-
-	stdoutPipe, err := cmd.StdoutPipe()
-	if err != nil {
-		return []byte{}, err
-	}
-
-	err = cmd.Start()
-	if err != nil {
-		return []byte{}, err
-	}
-
-	stdout, err := ioutil.ReadAll(stdoutPipe)
-	if err != nil {
-		return []byte{}, err
-	}
-
-	stderr, err := ioutil.ReadAll(stderrPipe)
-	if err != nil {
-		return []byte{}, err
-	}
-
-	err = cmd.Wait()
-	if err != nil {
-		return []byte{}, fmt.Errorf("%s: %s", err, stderr)
-	}
-
-	return stdout, nil
-}
-
-func dockerRunInput(input io.Reader, args ...string) ([]byte, error) {
-	// TODO switch to using Docker client API not exec - just a quick prototype
-	docker, err := exec.LookPath("docker")
-	if err != nil {
-		return []byte{}, errors.New("Docker does not seem to be installed")
-	}
-	args = append([]string{"run", "--rm", "-i"}, args...)
-	cmd := exec.Command(docker, args...)
-	cmd.Stdin = input
-
-	stderrPipe, err := cmd.StderrPipe()
-	if err != nil {
-		return []byte{}, err
-	}
-
-	stdoutPipe, err := cmd.StdoutPipe()
-	if err != nil {
-		return []byte{}, err
-	}
-
-	err = cmd.Start()
-	if err != nil {
-		return []byte{}, err
-	}
-
-	stdout, err := ioutil.ReadAll(stdoutPipe)
-	if err != nil {
-		return []byte{}, err
-	}
-
-	stderr, err := ioutil.ReadAll(stderrPipe)
-	if err != nil {
-		return []byte{}, err
-	}
-
-	err = cmd.Wait()
-	if err != nil {
-		return []byte{}, fmt.Errorf("%s: %s", err, stderr)
-	}
-
-	return stdout, nil
-}
 
 func main() {
 	flag.Usage = func() {
@@ -114,6 +25,7 @@ func main() {
 		buildCmd.PrintDefaults()
 	}
 	buildName := buildCmd.String("name", "", "Name to use for output files")
+	buildPull := buildCmd.Bool("pull", false, "Always pull images")
 
 	runCmd := flag.NewFlagSet("run", flag.ExitOnError)
 	runCmd.Usage = func() {
@@ -141,7 +53,7 @@ func main() {
 	switch os.Args[1] {
 	case "build":
 		buildCmd.Parse(os.Args[2:])
-		build(*buildName, buildCmd.Args())
+		build(*buildName, *buildPull, buildCmd.Args())
 	case "run":
 		runCmd.Parse(os.Args[2:])
 		run(*runCPUs, *runMem, *runDiskSz, *runDisk, runCmd.Args())
