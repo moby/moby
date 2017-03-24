@@ -28,8 +28,9 @@ type Moby struct {
 	System []MobyImage
 	Daemon []MobyImage
 	Files  []struct {
-		Path     string
-		Contents string
+		Path      string
+		Directory bool
+		Contents  string
 	}
 	Outputs []struct {
 		Format  string
@@ -381,7 +382,7 @@ func filesystem(m *Moby) (*bytes.Buffer, error) {
 		if f.Path == "" {
 			return buf, errors.New("Did not specify path for file")
 		}
-		if f.Contents == "" {
+		if !f.Directory && f.Contents == "" {
 			return buf, errors.New("Contents of file not specified")
 		}
 		// we need all the leading directories
@@ -406,18 +407,34 @@ func filesystem(m *Moby) (*bytes.Buffer, error) {
 				return buf, err
 			}
 		}
-		hdr := &tar.Header{
-			Name: f.Path,
-			Mode: 0600,
-			Size: int64(len(f.Contents)),
-		}
-		err := tw.WriteHeader(hdr)
-		if err != nil {
-			return buf, err
-		}
-		_, err = tw.Write([]byte(f.Contents))
-		if err != nil {
-			return buf, err
+
+		if f.Directory {
+			if f.Contents != "" {
+				return buf, errors.New("Directory with contents not allowed")
+			}
+			hdr := &tar.Header{
+				Name:     f.Path,
+				Typeflag: tar.TypeDir,
+				Mode:     0700,
+			}
+			err := tw.WriteHeader(hdr)
+			if err != nil {
+				return buf, err
+			}
+		} else {
+			hdr := &tar.Header{
+				Name: f.Path,
+				Mode: 0600,
+				Size: int64(len(f.Contents)),
+			}
+			err := tw.WriteHeader(hdr)
+			if err != nil {
+				return buf, err
+			}
+			_, err = tw.Write([]byte(f.Contents))
+			if err != nil {
+				return buf, err
+			}
 		}
 	}
 	return buf, nil
