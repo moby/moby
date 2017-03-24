@@ -75,6 +75,8 @@ func (l *JSONFileLogger) readLogs(logWatcher *logger.LogWatcher, config logger.R
 		return
 	}
 	defer latestFile.Close()
+	// relese lock as soon as possible for issue #31373
+	l.mu.Unlock()
 
 	if config.Tail != 0 {
 		tailer := ioutils.MultiReadSeeker(append(files, latestFile)...)
@@ -92,7 +94,6 @@ func (l *JSONFileLogger) readLogs(logWatcher *logger.LogWatcher, config logger.R
 		if err := latestFile.Close(); err != nil {
 			logrus.Errorf("Error closing file: %v", err)
 		}
-		l.mu.Unlock()
 		return
 	}
 
@@ -101,7 +102,6 @@ func (l *JSONFileLogger) readLogs(logWatcher *logger.LogWatcher, config logger.R
 	}
 
 	l.readers[logWatcher] = struct{}{}
-	l.mu.Unlock()
 
 	notifyRotate := l.writer.NotifyRotate()
 	followLogs(latestFile, logWatcher, notifyRotate, config.Since)
