@@ -59,6 +59,11 @@ func filterNetworks(nws []types.NetworkResource, filter filters.Args) ([]types.N
 				continue
 			}
 		}
+		if filter.Include("scope") {
+			if !filter.ExactMatch("scope", nw.Scope) {
+				continue
+			}
+		}
 		displayNet = append(displayNet, nw)
 	}
 
