@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/pkg/stringid"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
@@ -46,15 +47,15 @@ func (s *DockerSuite) TestImagesEnsureImageWithBadTagIsNotListed(c *check.C) {
 }
 
 func (s *DockerSuite) TestImagesOrderedByCreationDate(c *check.C) {
-	buildImageSuccessfully(c, "order:test_a", withDockerfile(`FROM busybox
+	buildImageSuccessfully(c, "order:test_a", build.WithDockerfile(`FROM busybox
                 MAINTAINER dockerio1`))
 	id1 := getIDByName(c, "order:test_a")
 	time.Sleep(1 * time.Second)
-	buildImageSuccessfully(c, "order:test_c", withDockerfile(`FROM busybox
+	buildImageSuccessfully(c, "order:test_c", build.WithDockerfile(`FROM busybox
                 MAINTAINER dockerio2`))
 	id2 := getIDByName(c, "order:test_c")
 	time.Sleep(1 * time.Second)
-	buildImageSuccessfully(c, "order:test_b", withDockerfile(`FROM busybox
+	buildImageSuccessfully(c, "order:test_b", build.WithDockerfile(`FROM busybox
                 MAINTAINER dockerio3`))
 	id3 := getIDByName(c, "order:test_b")
 
@@ -75,15 +76,15 @@ func (s *DockerSuite) TestImagesFilterLabelMatch(c *check.C) {
 	imageName1 := "images_filter_test1"
 	imageName2 := "images_filter_test2"
 	imageName3 := "images_filter_test3"
-	buildImageSuccessfully(c, imageName1, withDockerfile(`FROM busybox
+	buildImageSuccessfully(c, imageName1, build.WithDockerfile(`FROM busybox
                  LABEL match me`))
 	image1ID := getIDByName(c, imageName1)
 
-	buildImageSuccessfully(c, imageName2, withDockerfile(`FROM busybox
+	buildImageSuccessfully(c, imageName2, build.WithDockerfile(`FROM busybox
                  LABEL match="me too"`))
 	image2ID := getIDByName(c, imageName2)
 
-	buildImageSuccessfully(c, imageName3, withDockerfile(`FROM busybox
+	buildImageSuccessfully(c, imageName3, build.WithDockerfile(`FROM busybox
                  LABEL nomatch me`))
 	image3ID := getIDByName(c, imageName3)
 
@@ -112,13 +113,13 @@ func (s *DockerSuite) TestImagesFilterLabelWithCommit(c *check.C) {
 }
 
 func (s *DockerSuite) TestImagesFilterSinceAndBefore(c *check.C) {
-	buildImageSuccessfully(c, "image:1", withDockerfile(`FROM `+minimalBaseImage()+`
+	buildImageSuccessfully(c, "image:1", build.WithDockerfile(`FROM `+minimalBaseImage()+`
 LABEL number=1`))
 	imageID1 := getIDByName(c, "image:1")
-	buildImageSuccessfully(c, "image:2", withDockerfile(`FROM `+minimalBaseImage()+`
+	buildImageSuccessfully(c, "image:2", build.WithDockerfile(`FROM `+minimalBaseImage()+`
 LABEL number=2`))
 	imageID2 := getIDByName(c, "image:2")
-	buildImageSuccessfully(c, "image:3", withDockerfile(`FROM `+minimalBaseImage()+`
+	buildImageSuccessfully(c, "image:3", build.WithDockerfile(`FROM `+minimalBaseImage()+`
 LABEL number=3`))
 	imageID3 := getIDByName(c, "image:3")
 
@@ -184,7 +185,7 @@ func assertImageList(out string, expected []string) bool {
 func (s *DockerSuite) TestImagesFilterSpaceTrimCase(c *check.C) {
 	imageName := "images_filter_test"
 	// Build a image and fail to build so that we have dangling images ?
-	buildImage(imageName, withDockerfile(`FROM busybox
+	buildImage(imageName, build.WithDockerfile(`FROM busybox
                  RUN touch /test/foo
                  RUN touch /test/bar
                  RUN touch /test/baz`)).Assert(c, icmd.Expected{
@@ -261,7 +262,7 @@ func (s *DockerSuite) TestImagesEnsureOnlyHeadsImagesShown(c *check.C) {
         MAINTAINER docker
         ENV foo bar`
 	name := "scratch-image"
-	result := buildImage(name, withDockerfile(dockerfile))
+	result := buildImage(name, build.WithDockerfile(dockerfile))
 	result.Assert(c, icmd.Success)
 	id := getIDByName(c, name)
 
@@ -285,7 +286,7 @@ func (s *DockerSuite) TestImagesEnsureImagesFromScratchShown(c *check.C) {
         MAINTAINER docker`
 
 	name := "scratch-image"
-	buildImageSuccessfully(c, name, withDockerfile(dockerfile))
+	buildImageSuccessfully(c, name, build.WithDockerfile(dockerfile))
 	id := getIDByName(c, name)
 
 	out, _ := dockerCmd(c, "images")
@@ -301,7 +302,7 @@ func (s *DockerSuite) TestImagesEnsureImagesFromBusyboxShown(c *check.C) {
         MAINTAINER docker`
 	name := "busybox-image"
 
-	buildImageSuccessfully(c, name, withDockerfile(dockerfile))
+	buildImageSuccessfully(c, name, build.WithDockerfile(dockerfile))
 	id := getIDByName(c, name)
 
 	out, _ := dockerCmd(c, "images")

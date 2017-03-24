@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/pkg/testutil"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
@@ -265,7 +266,7 @@ func (s *DockerSuite) TestSaveDirectoryPermissions(c *check.C) {
 	os.Mkdir(extractionDirectory, 0777)
 
 	defer os.RemoveAll(tmpDir)
-	buildImageSuccessfully(c, name, withDockerfile(`FROM busybox
+	buildImageSuccessfully(c, name, build.WithDockerfile(`FROM busybox
 	RUN adduser -D user && mkdir -p /opt/a/b && chown -R user:user /opt/a
 	RUN touch /opt/a/b/c && chown user:user /opt/a/b/c`))
 
@@ -360,7 +361,7 @@ func (s *DockerSuite) TestSaveLoadNoTag(c *check.C) {
 
 	name := "saveloadnotag"
 
-	buildImageSuccessfully(c, name, withDockerfile("FROM busybox\nENV foo=bar"))
+	buildImageSuccessfully(c, name, build.WithDockerfile("FROM busybox\nENV foo=bar"))
 	id := inspectField(c, name, "Id")
 
 	// Test to make sure that save w/o name just shows imageID during load

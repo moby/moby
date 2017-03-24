@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/pkg/stringid"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
@@ -305,17 +306,17 @@ func (s *DockerSuite) TestPsListContainersFilterName(c *check.C) {
 func (s *DockerSuite) TestPsListContainersFilterAncestorImage(c *check.C) {
 	// Build images
 	imageName1 := "images_ps_filter_test1"
-	buildImageSuccessfully(c, imageName1, withDockerfile(`FROM busybox
+	buildImageSuccessfully(c, imageName1, build.WithDockerfile(`FROM busybox
 		 LABEL match me 1`))
 	imageID1 := getIDByName(c, imageName1)
 
 	imageName1Tagged := "images_ps_filter_test1:tag"
-	buildImageSuccessfully(c, imageName1Tagged, withDockerfile(`FROM busybox
+	buildImageSuccessfully(c, imageName1Tagged, build.WithDockerfile(`FROM busybox
 		 LABEL match me 1 tagged`))
 	imageID1Tagged := getIDByName(c, imageName1Tagged)
 
 	imageName2 := "images_ps_filter_test2"
-	buildImageSuccessfully(c, imageName2, withDockerfile(fmt.Sprintf(`FROM %s
+	buildImageSuccessfully(c, imageName2, build.WithDockerfile(fmt.Sprintf(`FROM %s
 		 LABEL match me 2`, imageName1)))
 	imageID2 := getIDByName(c, imageName2)
 

@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/daemon"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/docker/libnetwork/driverapi"
@@ -57,8 +58,8 @@ func (s *DockerSwarmSuite) TestSwarmInit(c *check.C) {
 		return sw.Spec
 	}
 
-	out, err := d.Cmd("swarm", "init", "--cert-expiry", "30h", "--dispatcher-heartbeat", "11s")
-	c.Assert(err, checker.IsNil, check.Commentf("out: %v", out))
+	cli.Docker(cli.Cmd("swarm", "init", "--cert-expiry", "30h", "--dispatcher-heartbeat", "11s"),
+		cli.Daemon(d.Daemon)).Assert(c, icmd.Success)
 
 	spec := getSpec()
 	c.Assert(spec.CAConfig.NodeCertExpiry, checker.Equals, 30*time.Hour)
@@ -66,8 +67,7 @@ func (s *DockerSwarmSuite) TestSwarmInit(c *check.C) {
 
 	c.Assert(d.Leave(true), checker.IsNil)
 	time.Sleep(500 * time.Millisecond) // https://github.com/docker/swarmkit/issues/1421
-	out, err = d.Cmd("swarm", "init")
-	c.Assert(err, checker.IsNil, check.Commentf("out: %v", out))
+	cli.Docker(cli.Cmd("swarm", "init"), cli.Daemon(d.Daemon)).Assert(c, icmd.Success)
 
 	spec = getSpec()
 	c.Assert(spec.CAConfig.NodeCertExpiry, checker.Equals, 90*24*time.Hour)
@@ -77,15 +77,12 @@ func (s *DockerSwarmSuite) TestSwarmInit(c *check.C) {
 func (s *DockerSwarmSuite) TestSwarmInitIPv6(c *check.C) {
 	testRequires(c, IPv6)
 	d1 := s.AddDaemon(c, false, false)
-	out, err := d1.Cmd("swarm", "init", "--listen-addr", "::1")
-	c.Assert(err, checker.IsNil, check.Commentf("out: %v", out))
+	cli.Docker(cli.Cmd("swarm", "init", "--listen-add", "::1"), cli.Daemon(d1.Daemon)).Assert(c, icmd.Success)
 
 	d2 := s.AddDaemon(c, false, false)
-	out, err = d2.Cmd("swarm", "join", "::1")
-	c.Assert(err, checker.IsNil, check.Commentf("out: %v", out))
+	cli.Docker(cli.Cmd("swarm", "join", "::1"), cli.Daemon(d2.Daemon)).Assert(c, icmd.Success)
 
-	out, err = d2.Cmd("info")
-	c.Assert(err, checker.IsNil, check.Commentf("out: %v", out))
+	out := cli.Docker(cli.Cmd("info"), cli.Daemon(d2.Daemon)).Assert(c, icmd.Success).Combined()
 	c.Assert(out, checker.Contains, "Swarm: active")
 }
 

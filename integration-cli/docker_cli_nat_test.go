@@ -38,16 +38,6 @@ func getExternalAddress(c *check.C) net.IP {
 	return ifaceIP
 }
 
-func getContainerLogs(c *check.C, containerID string) string {
-	out, _ := dockerCmd(c, "logs", containerID)
-	return strings.Trim(out, "\r\n")
-}
-
-func getContainerStatus(c *check.C, containerID string) string {
-	out := inspectField(c, containerID, "State.Running")
-	return out
-}
-
 func (s *DockerSuite) TestNetworkNat(c *check.C) {
 	testRequires(c, DaemonIsLinux, SameHostDaemon)
 	msg := "it works"

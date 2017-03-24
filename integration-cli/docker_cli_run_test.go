@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/stringutils"
@@ -410,7 +411,7 @@ func (s *DockerSuite) TestRunCreateVolumesInSymlinkDir(c *check.C) {
 		containerPath = "/test/test"
 		cmd = "true"
 	}
-	buildImageSuccessfully(c, name, withDockerfile(dockerFile))
+	buildImageSuccessfully(c, name, build.WithDockerfile(dockerFile))
 	dockerCmd(c, "run", "-v", containerPath, name, cmd)
 }
 
@@ -435,7 +436,7 @@ func (s *DockerSuite) TestRunCreateVolumesInSymlinkDir2(c *check.C) {
 		containerPath = "/test/test"
 		cmd = "true"
 	}
-	buildImageSuccessfully(c, name, withDockerfile(dockerFile))
+	buildImageSuccessfully(c, name, build.WithDockerfile(dockerFile))
 	dockerCmd(c, "run", "-v", containerPath, name, cmd)
 }
 
@@ -1658,7 +1659,7 @@ func (s *DockerSuite) TestRunCopyVolumeUIDGID(c *check.C) {
 	// Not applicable on Windows as it does not support uid or gid in this way
 	testRequires(c, DaemonIsLinux)
 	name := "testrunvolumesuidgid"
-	buildImageSuccessfully(c, name, withDockerfile(`FROM busybox
+	buildImageSuccessfully(c, name, build.WithDockerfile(`FROM busybox
 		RUN echo 'dockerio:x:1001:1001::/bin:/bin/false' >> /etc/passwd
 		RUN echo 'dockerio:x:1001:' >> /etc/group
 		RUN mkdir -p /hello && touch /hello/test && chown dockerio.dockerio /hello`))
@@ -1677,7 +1678,7 @@ func (s *DockerSuite) TestRunCopyVolumeContent(c *check.C) {
 	// that copies from the image to the volume.
 	testRequires(c, DaemonIsLinux)
 	name := "testruncopyvolumecontent"
-	buildImageSuccessfully(c, name, withDockerfile(`FROM busybox
+	buildImageSuccessfully(c, name, build.WithDockerfile(`FROM busybox
 		RUN mkdir -p /hello/local && echo hello > /hello/local/world`))
 
 	// Test that the content is copied from the image to the volume
@@ -1689,7 +1690,7 @@ func (s *DockerSuite) TestRunCopyVolumeContent(c *check.C) {
 
 func (s *DockerSuite) TestRunCleanupCmdOnEntrypoint(c *check.C) {
 	name := "testrunmdcleanuponentrypoint"
-	buildImageSuccessfully(c, name, withDockerfile(`FROM busybox
+	buildImageSuccessfully(c, name, build.WithDockerfile(`FROM busybox
 		ENTRYPOINT ["echo"]
 		CMD ["testingpoint"]`))
 
@@ -2173,7 +2174,7 @@ func (s *DockerSuite) TestVolumesNoCopyData(c *check.C) {
 	// are pre-populated such as is built in the dockerfile used in this test.
 	testRequires(c, DaemonIsLinux)
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
-	buildImageSuccessfully(c, "dataimage", withDockerfile(`FROM busybox
+	buildImageSuccessfully(c, "dataimage", build.WithDockerfile(`FROM busybox
 		RUN ["mkdir", "-p", "/foo"]
 		RUN ["touch", "/foo/bar"]`))
 	dockerCmd(c, "run", "--name", "test", "-v", prefix+slash+"foo", "busybox")
@@ -2204,7 +2205,7 @@ func (s *DockerSuite) TestRunNoOutputFromPullInStdout(c *check.C) {
 func (s *DockerSuite) TestRunVolumesCleanPaths(c *check.C) {
 	testRequires(c, SameHostDaemon)
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
-	buildImageSuccessfully(c, "run_volumes_clean_paths", withDockerfile(`FROM busybox
+	buildImageSuccessfully(c, "run_volumes_clean_paths", build.WithDockerfile(`FROM busybox
 		VOLUME `+prefix+`/foo/`))
 	dockerCmd(c, "run", "-v", prefix+"/foo", "-v", prefix+"/bar/", "--name", "dark_helmet", "run_volumes_clean_paths")
 
@@ -3843,7 +3844,7 @@ func (s *DockerSuite) TestRunInitLayerPathOwnership(c *check.C) {
 	// Not applicable on Windows as it does not support Linux uid/gid ownership
 	testRequires(c, DaemonIsLinux)
 	name := "testetcfileownership"
-	buildImageSuccessfully(c, name, withDockerfile(`FROM busybox
+	buildImageSuccessfully(c, name, build.WithDockerfile(`FROM busybox
 		RUN echo 'dockerio:x:1001:1001::/bin:/bin/false' >> /etc/passwd
 		RUN echo 'dockerio:x:1001:' >> /etc/group
 		RUN chown dockerio:dockerio /etc`))
@@ -3975,7 +3976,7 @@ func (s *DockerSuite) TestRunNamedVolumeCopyImageData(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 
 	testImg := "testvolumecopy"
-	buildImageSuccessfully(c, testImg, withDockerfile(`
+	buildImageSuccessfully(c, testImg, build.WithDockerfile(`
 	FROM busybox
 	RUN mkdir -p /foo && echo hello > /foo/hello
 	`))
@@ -4054,7 +4055,7 @@ func (s *DockerSuite) TestRunVolumeWithOneCharacter(c *check.C) {
 
 func (s *DockerSuite) TestRunVolumeCopyFlag(c *check.C) {
 	testRequires(c, DaemonIsLinux) // Windows does not support copying data from image to the volume
-	buildImageSuccessfully(c, "volumecopy", withDockerfile(`FROM busybox
+	buildImageSuccessfully(c, "volumecopy", build.WithDockerfile(`FROM busybox
 		RUN mkdir /foo && echo hello > /foo/bar
 		CMD cat /foo/bar`))
 	dockerCmd(c, "volume", "create", "test")

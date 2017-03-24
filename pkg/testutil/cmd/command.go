@@ -54,10 +54,10 @@ type Result struct {
 
 // Assert compares the Result against the Expected struct, and fails the test if
 // any of the expcetations are not met.
-func (r *Result) Assert(t testingT, exp Expected) {
+func (r *Result) Assert(t testingT, exp Expected) *Result {
 	err := r.Compare(exp)
 	if err == nil {
-		return
+		return r
 	}
 	_, file, line, ok := runtime.Caller(1)
 	if ok {
@@ -65,6 +65,7 @@ func (r *Result) Assert(t testingT, exp Expected) {
 	} else {
 		t.Fatalf("(no file/line info) - %s", err.Error())
 	}
+	return nil
 }
 
 // Compare returns a formatted error with the command, stdout, stderr, exit

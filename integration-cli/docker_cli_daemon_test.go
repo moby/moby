@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/stringid"
@@ -47,21 +48,20 @@ func (s *DockerDaemonSuite) TestLegacyDaemonCommand(c *check.C) {
 func (s *DockerDaemonSuite) TestDaemonRestartWithRunningContainersPorts(c *check.C) {
 	s.d.StartWithBusybox(c)
 
-	if out, err := s.d.Cmd("run", "-d", "--name", "top1", "-p", "1234:80", "--restart", "always", "busybox:latest", "top"); err != nil {
-		c.Fatalf("Could not run top1: err=%v\n%s", err, out)
-	}
-	// --restart=no by default
-	if out, err := s.d.Cmd("run", "-d", "--name", "top2", "-p", "80", "busybox:latest", "top"); err != nil {
-		c.Fatalf("Could not run top2: err=%v\n%s", err, out)
-	}
+	cli.Docker(
+		cli.Cmd("run", "-d", "--name", "top1", "-p", "1234:80", "--restart", "always", "busybox:latest", "top"),
+		cli.Daemon(s.d),
+	).Assert(c, icmd.Success)
+
+	cli.Docker(
+		cli.Cmd("run", "-d", "--name", "top2", "-p", "80", "busybox:latest", "top"),
+		cli.Daemon(s.d),
+	).Assert(c, icmd.Success)
 
 	testRun := func(m map[string]bool, prefix string) {
 		var format string
 		for cont, shouldRun := range m {
-			out, err := s.d.Cmd("ps")
-			if err != nil {
-				c.Fatalf("Could not run ps: err=%v\n%q", err, out)
-			}
+			out := cli.Docker(cli.Cmd("ps"), cli.Daemon(s.d)).Assert(c, icmd.Success).Combined()
 			if shouldRun {
 				format = "%scontainer %q is not running"
 			} else {

@@ -21,6 +21,8 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli"
+	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/integration-cli/registry"
 	"github.com/docker/docker/integration-cli/request"
@@ -351,7 +353,7 @@ func newRemoteFileServer(c *check.C, ctx *FakeContext) *remoteFileServer {
 	// Build the image
 	fakeContextAddDockerfile(c, ctx, `FROM httpserver
 COPY . /static`)
-	buildImageSuccessfully(c, image, withoutCache, withExternalBuildContext(ctx))
+	buildImageSuccessfully(c, image, build.WithoutCache, withExternalBuildContext(ctx))
 
 	// Start the container
 	dockerCmd(c, "run", "-d", "-P", "--name", container, image)
@@ -484,26 +486,14 @@ func getIDByName(c *check.C, name string) string {
 	return id
 }
 
-func buildImageSuccessfully(c *check.C, name string, cmdOperators ...func(*icmd.Cmd) func()) {
+// Deprecated: use cli.Build
+func buildImageSuccessfully(c *check.C, name string, cmdOperators ...cli.CmdOperator) {
 	buildImage(name, cmdOperators...).Assert(c, icmd.Success)
 }
 
-func buildImage(name string, cmdOperators ...func(*icmd.Cmd) func()) *icmd.Result {
-	cmd := icmd.Command(dockerBinary, "build", "-t", name)
-	for _, op := range cmdOperators {
-		deferFn := op(&cmd)
-		if deferFn != nil {
-			defer deferFn()
-		}
-	}
-	return icmd.RunCmd(cmd)
-}
-
-func withBuildContextPath(path string) func(*icmd.Cmd) func() {
-	return func(cmd *icmd.Cmd) func() {
-		cmd.Command = append(cmd.Command, path)
-		return nil
-	}
+// Deprecated: use cli.Build
+func buildImage(name string, cmdOperators ...cli.CmdOperator) *icmd.Result {
+	return cli.Docker(cli.Build(name), cmdOperators...)
 }
 
 func withExternalBuildContext(ctx *FakeContext) func(*icmd.Cmd) func() {
@@ -528,18 +518,6 @@ func withBuildContext(c *check.C, contextOperators ...func(*FakeContext) error) 
 	}
 }
 
-func withBuildFlags(flags ...string) func(*icmd.Cmd) func() {
-	return func(cmd *icmd.Cmd) func() {
-		cmd.Command = append(cmd.Command, flags...)
-		return nil
-	}
-}
-
-func withoutCache(cmd *icmd.Cmd) func() {
-	cmd.Command = append(cmd.Command, "--no-cache")
-	return nil
-}
-
 func withFile(name, content string) func(*FakeContext) error {
 	return func(ctx *FakeContext) error {
 		return ctx.Add(name, content)
@@ -554,24 +532,9 @@ func closeBuildContext(c *check.C, ctx *FakeContext) func() {
 	}
 }
 
-func withDockerfile(dockerfile string) func(*icmd.Cmd) func() {
-	return func(cmd *icmd.Cmd) func() {
-		cmd.Command = append(cmd.Command, "-")
-		cmd.Stdin = strings.NewReader(dockerfile)
-		return nil
-	}
-}
-
 func trustedBuild(cmd *icmd.Cmd) func() {
 	trustedCmd(cmd)
 	return nil
-}
-
-func withEnvironmentVariales(envs ...string) func(cmd *icmd.Cmd) func() {
-	return func(cmd *icmd.Cmd) func() {
-		cmd.Env = envs
-		return nil
-	}
 }
 
 type gitServer interface {
