@@ -131,7 +131,7 @@ func dockerCreate(image string) (string, error) {
 
 	err = cmd.Wait()
 	if err != nil {
-		return "", fmt.Errorf("%s: %s", err, stderr)
+		return "", fmt.Errorf("%v: %s", err, stderr)
 	}
 
 	container := strings.TrimSpace(string(stdout))
@@ -214,7 +214,7 @@ func dockerRm(container string) error {
 
 	err = cmd.Wait()
 	if err != nil {
-		return fmt.Errorf("%s: %s", err, stderr)
+		return fmt.Errorf("%v: %s", err, stderr)
 	}
 
 	return nil
@@ -255,7 +255,7 @@ func dockerPull(image string) error {
 
 	err = cmd.Wait()
 	if err != nil {
-		return fmt.Errorf("%s: %s", err, stderr)
+		return fmt.Errorf("%v: %s", err, stderr)
 	}
 
 	return nil
