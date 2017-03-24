@@ -165,8 +165,8 @@ func (e *executor) Controller(t *api.Task) (exec.Controller, error) {
 	switch r := t.Spec.GetRuntime().(type) {
 	case *api.TaskSpec_Generic:
 		logrus.WithFields(logrus.Fields{
-			"kind":       r.Generic.Kind,
-			"runtimeUrl": r.Generic.Payload.TypeUrl,
+			"kind":     r.Generic.Kind,
+			"type_url": r.Generic.Payload.TypeUrl,
 		}).Debug("custom runtime requested")
 		runtimeKind, err := naming.Runtime(t.Spec)
 		if err != nil {

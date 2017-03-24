@@ -85,8 +85,8 @@ func serviceSpecFromGRPC(spec *swarmapi.ServiceSpec) (*types.ServiceSpec, error)
 		taskTemplate.ContainerSpec = containerSpecFromGRPC(containerConfig)
 		taskTemplate.Runtime = types.RuntimeContainer
 	case *swarmapi.TaskSpec_Generic:
-		switch t.Generic.Payload.TypeUrl {
-		case string(types.RuntimeURLPlugin):
+		switch t.Generic.Kind {
+		case string(types.RuntimePlugin):
 			taskTemplate.Runtime = types.RuntimePlugin
 		default:
 			return nil, fmt.Errorf("unknown task runtime type: %s", t.Generic.Payload.TypeUrl)
