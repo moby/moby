@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -108,7 +109,7 @@ func build(name string, args []string) {
 	containers = append(containers, ktar)
 
 	// convert init image to tarball
-	init, err := imageExtract(m.Init)
+	init, err := ImageExtract(m.Init, "")
 	if err != nil {
 		log.Fatalf("Failed to build init tarball: %v", err)
 	}
@@ -116,20 +117,29 @@ func build(name string, args []string) {
 	containers = append(containers, buffer)
 
 	for i, image := range m.System {
-		args := ConfigToRun(i, "system", &image)
-		out, err := dockerRun(args...)
+		config, err := ConfigToOCI(&image)
 		if err != nil {
-			log.Fatalf("Failed to build container tarball: %v", err)
+			log.Fatalf("Failed to run riddler to get config.json for %s: %v", image.Image, err)
+		}
+		so := fmt.Sprintf("%03d", i)
+		path := "containers/system/" + so + "-" + image.Name
+		out, err := ImageBundle(path, image.Image, config)
+		if err != nil {
+			log.Fatalf("Failed to extract root filesystem for %s: %v", image.Image, err)
 		}
 		buffer := bytes.NewBuffer(out)
 		containers = append(containers, buffer)
 	}
 
-	for i, image := range m.Daemon {
-		args := ConfigToRun(i, "daemon", &image)
-		out, err := dockerRun(args...)
+	for _, image := range m.Daemon {
+		config, err := ConfigToOCI(&image)
 		if err != nil {
-			log.Fatalf("Failed to build container tarball: %v", err)
+			log.Fatalf("Failed to run riddler to get config.json for %s: %v", image.Image, err)
+		}
+		path := "containers/daemon/" + image.Name
+		out, err := ImageBundle(path, image.Image, config)
+		if err != nil {
+			log.Fatalf("Failed to extract root filesystem for %s: %v", image.Image, err)
 		}
 		buffer := bytes.NewBuffer(out)
 		containers = append(containers, buffer)

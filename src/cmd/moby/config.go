@@ -50,7 +50,7 @@ type MobyImage struct {
 	ReadOnly     bool `yaml:"read_only"`
 }
 
-const riddler = "mobylinux/riddler:c23ab4b6e2a2a4ebd4dd51a059cef7f270da72cb@sha256:7e7744b2f554518411633200db98e599782b120e323348495f43f540de26f7b6"
+const riddler = "mobylinux/riddler:2b4051422b155f659019f9e3fef8cca04e153f5c@sha256:f4bb0c39f1e5c636ed52ebd3ed8ec447ca6c0dc554ffb5784cbeff423ac70d34"
 
 // NewConfig parses a config file
 func NewConfig(config []byte) (*Moby, error) {
@@ -64,11 +64,10 @@ func NewConfig(config []byte) (*Moby, error) {
 	return &m, nil
 }
 
-// ConfigToRun converts a config to a series of arguments for docker run
-func ConfigToRun(order int, path string, image *MobyImage) []string {
+// ConfigToOCI converts a config specification to an OCI config file
+func ConfigToOCI(image *MobyImage) (string, error) {
 	// riddler arguments
-	so := fmt.Sprintf("%03d", order)
-	args := []string{"-v", "/var/run/docker.sock:/var/run/docker.sock", riddler, image.Image, "/containers/" + path + "/" + so + "-" + image.Name}
+	args := []string{"-v", "/var/run/docker.sock:/var/run/docker.sock", riddler, image.Image}
 	// docker arguments
 	args = append(args, "--cap-drop", "all")
 	for _, cap := range image.Capabilities {
@@ -107,7 +106,12 @@ func ConfigToRun(order int, path string, image *MobyImage) []string {
 	// command
 	args = append(args, image.Command...)
 
-	return args
+	config, err := dockerRun(args...)
+	if err != nil {
+		return "", fmt.Errorf("Failed to run riddler to get config.json: %v", err)
+	}
+
+	return string(config), nil
 }
 
 func filesystem(m *Moby) (*bytes.Buffer, error) {
