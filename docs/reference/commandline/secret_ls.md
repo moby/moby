@@ -37,8 +37,8 @@ Run this command on a manager node to list the secrets in the swarm.
 ```bash
 $ docker secret ls
 
-ID                          NAME                    CREATED                                   UPDATED
-mhv17xfe3gh6xc4rij5orpfds   secret.json             2016-10-27 23:25:43.909181089 +0000 UTC   2016-10-27 23:25:43.909181089 +0000 UTC
+ID                          NAME                CREATED             UPDATED
+eo7jnzguqgtpdah3cm5srfb97   my_secret           11 minutes ago      11 minutes ago
 ```
 
 ### Format the output

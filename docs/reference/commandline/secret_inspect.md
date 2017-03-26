@@ -46,8 +46,9 @@ For example, given the following secret:
 
 ```bash
 $ docker secret ls
-ID                          NAME                    CREATED                                   UPDATED
-mhv17xfe3gh6xc4rij5orpfds   secret.json             2016-10-27 23:25:43.909181089 +0000 UTC   2016-10-27 23:25:43.909181089 +0000 UTC
+
+ID                          NAME                CREATED             UPDATED
+eo7jnzguqgtpdah3cm5srfb97   my_secret           3 minutes ago       3 minutes ago
 ```
 
 ```none
@@ -55,14 +56,18 @@ $ docker secret inspect secret.json
 
 [
     {
-        "ID": "mhv17xfe3gh6xc4rij5orpfds",
-            "Version": {
-            "Index": 1198
+        "ID": "eo7jnzguqgtpdah3cm5srfb97",
+        "Version": {
+            "Index": 17
         },
-        "CreatedAt": "2016-10-27T23:25:43.909181089Z",
-        "UpdatedAt": "2016-10-27T23:25:43.909181089Z",
+        "CreatedAt": "2017-03-24T08:15:09.735271783Z",
+        "UpdatedAt": "2017-03-24T08:15:09.735271783Z",
         "Spec": {
-            "Name": "secret.json"
+            "Name": "my_secret",
+            "Labels": {
+                "env": "dev",
+                "rev": "20170324"
+            }
         }
     }
 ]
@@ -75,9 +80,9 @@ secret. The following example command outputs the creation time of the
 secret.
 
 ```bash
-$ docker secret inspect --format='{{.CreatedAt}}' mhv17xfe3gh6xc4rij5orpfds
+$ docker secret inspect --format='{{.CreatedAt}}' eo7jnzguqgtpdah3cm5srfb97
 
-2016-10-27 23:25:43.909181089 +0000 UTC
+2017-03-24 08:15:09.735271783 +0000 UTC
 ```
 
 
