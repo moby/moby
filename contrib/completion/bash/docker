@@ -1522,7 +1522,6 @@ _docker_container_run_and_create() {
 	__docker_daemon_os_is windows && options_with_args+="
 		--cpu-count
 		--cpu-percent
-		--credentialspec
 		--io-maxbandwidth
 		--io-maxiops
 		--isolation
