@@ -1120,16 +1120,20 @@ __docker_network_complete_ls_filters() {
             (name)
                 __docker_complete_networks_names && ret=0
                 ;;
+            (scope)
+                opts=('global' 'local' 'swarm')
+                _describe -t scope-filter-opts "Scope filter options" opts && ret=0
+                ;;
             (type)
-                type_opts=('builtin' 'custom')
-                _describe -t type-filter-opts "Type Filter Options" type_opts && ret=0
+                opts=('builtin' 'custom')
+                _describe -t type-filter-opts "Type filter options" opts && ret=0
                 ;;
             *)
                 _message 'value' && ret=0
                 ;;
         esac
     else
-        opts=('driver' 'id' 'label' 'name' 'type')
+        opts=('driver' 'id' 'label' 'name' 'scope' 'type')
         _describe -t filter-opts "Filter Options" opts -qS "=" && ret=0
     fi
 
