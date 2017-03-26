@@ -2,6 +2,8 @@ package hcsshim
 
 import (
 	"encoding/json"
+	"fmt"
+	"os"
 	"runtime"
 	"sync"
 	"syscall"
@@ -103,8 +105,27 @@ type ProcessListItem struct {
 	UserTime100ns                uint64    `json:",omitempty"`
 }
 
+// createContainerAdditionalJSON is read from the environment at initialisation
+// time. It allows an environment variable to define additional JSON which
+// is merged in the CreateContainer call to HCS.
+var createContainerAdditionalJSON string
+
+func init() {
+	createContainerAdditionalJSON = os.Getenv("HCSSHIM_CREATECONTAINER_ADDITIONALJSON")
+}
+
 // CreateContainer creates a new container with the given configuration but does not start it.
 func CreateContainer(id string, c *ContainerConfig) (Container, error) {
+	return createContainerWithJSON(id, c, "")
+}
+
+// CreateContainerWithJSON creates a new container with the given configuration but does not start it.
+// It is identical to CreateContainer except that optional additional JSON can be merged before passing to HCS.
+func CreateContainerWithJSON(id string, c *ContainerConfig, additionalJSON string) (Container, error) {
+	return createContainerWithJSON(id, c, additionalJSON)
+}
+
+func createContainerWithJSON(id string, c *ContainerConfig, additionalJSON string) (Container, error) {
 	operation := "CreateContainer"
 	title := "HCSShim::" + operation
 
@@ -119,6 +140,32 @@ func CreateContainer(id string, c *ContainerConfig) (Container, error) {
 
 	configuration := string(configurationb)
 	logrus.Debugf(title+" id=%s config=%s", id, configuration)
+
+	// Merge any additional JSON. Priority is given to what is passed in explicitly,
+	// falling back to what's set in the environment.
+	if additionalJSON == "" && createContainerAdditionalJSON != "" {
+		additionalJSON = createContainerAdditionalJSON
+	}
+	if additionalJSON != "" {
+		configurationMap := map[string]interface{}{}
+		if err := json.Unmarshal([]byte(configuration), &configurationMap); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal %s: %s", configuration, err)
+		}
+
+		additionalMap := map[string]interface{}{}
+		if err := json.Unmarshal([]byte(additionalJSON), &additionalMap); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal %s: %s", additionalJSON, err)
+		}
+
+		mergedMap := mergeMaps(additionalMap, configurationMap)
+		mergedJSON, err := json.Marshal(mergedMap)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal merged configuration map %+v: %s", mergedMap, err)
+		}
+
+		configuration = string(mergedJSON)
+		logrus.Debugf(title+" id=%s merged config=%s", id, configuration)
+	}
 
 	var (
 		resultp  *uint16
@@ -140,6 +187,33 @@ func CreateContainer(id string, c *ContainerConfig) (Container, error) {
 	logrus.Debugf(title+" succeeded id=%s handle=%d", id, container.handle)
 	runtime.SetFinalizer(container, closeContainer)
 	return container, nil
+}
+
+// mergeMaps recursively merges map `fromMap` into map `ToMap`. Any pre-existing values
+// in ToMap are overwritten. Values in fromMap are added to ToMap.
+// From http://stackoverflow.com/questions/40491438/merging-two-json-strings-in-golang
+func mergeMaps(fromMap, ToMap interface{}) interface{} {
+	switch fromMap := fromMap.(type) {
+	case map[string]interface{}:
+		ToMap, ok := ToMap.(map[string]interface{})
+		if !ok {
+			return fromMap
+		}
+		for keyToMap, valueToMap := range ToMap {
+			if valueFromMap, ok := fromMap[keyToMap]; ok {
+				fromMap[keyToMap] = mergeMaps(valueFromMap, valueToMap)
+			} else {
+				fromMap[keyToMap] = valueToMap
+			}
+		}
+	case nil:
+		// merge(nil, map[string]interface{...}) -> map[string]interface{...}
+		ToMap, ok := ToMap.(map[string]interface{})
+		if ok {
+			return ToMap
+		}
+	}
+	return fromMap
 }
 
 // OpenContainer opens an existing container by ID.
