@@ -8,6 +8,7 @@ import (
 	"os"
 	"runtime"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"github.com/Sirupsen/logrus"
@@ -44,6 +45,8 @@ const (
 	addNodeOnResume AddNodeType = iota
 	addNodeOnCreate
 )
+
+const defaultTimeout = 10 * time.Second
 
 // List of errors returned when using devicemapper.
 var (
@@ -83,6 +86,7 @@ type (
 	// command to execute.
 	Task struct {
 		unmanaged *cdmTask
+		timeout   time.Duration
 	}
 	// Deps represents dependents (layer) of a device.
 	Deps struct {
@@ -146,16 +150,28 @@ func TaskCreate(tasktype TaskType) *Task {
 	if Ctask == nil {
 		return nil
 	}
-	task := &Task{unmanaged: Ctask}
+	task := &Task{unmanaged: Ctask, timeout: defaultTimeout}
 	runtime.SetFinalizer(task, (*Task).destroy)
 	return task
 }
 
 func (t *Task) run() error {
-	if res := DmTaskRun(t.unmanaged); res != 1 {
-		return ErrTaskRun
+	ch := make(chan error, 1)
+
+	go func() {
+		if res := DmTaskRun(t.unmanaged); res != 1 {
+			ch <- ErrTaskRun
+		} else {
+			ch <- nil
+		}
+	}()
+
+	select {
+	case ret := <-ch:
+		return ret
+	case <-time.After(t.timeout):
+		return fmt.Errorf("operation timed out after %s", t.timeout)
 	}
-	return nil
 }
 
 func (t *Task) setName(name string) error {
