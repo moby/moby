@@ -756,7 +756,7 @@ func (daemon *Daemon) initNetworkController(config *config.Config, activeSandbox
 
 	// Clear stale bridge network
 	if n, err := controller.NetworkByName("bridge"); err == nil {
-		if err = n.Delete(); err != nil {
+		if err = n.Delete(false); err != nil {
 			return nil, fmt.Errorf("could not delete the default bridge network: %v", err)
 		}
 	}

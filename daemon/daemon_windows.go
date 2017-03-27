@@ -289,7 +289,7 @@ func (daemon *Daemon) initNetworkController(config *config.Config, activeSandbox
 		if !found {
 			// global networks should not be deleted by local HNS
 			if v.Info().Scope() != datastore.GlobalScope {
-				err = v.Delete()
+				err = v.Delete(false)
 				if err != nil {
 					logrus.Errorf("Error occurred when removing network %v", err)
 				}
@@ -336,7 +336,7 @@ func (daemon *Daemon) initNetworkController(config *config.Config, activeSandbox
 			v.Name = n.Name()
 			// This will not cause network delete from HNS as the network
 			// is not yet populated in the libnetwork windows driver
-			n.Delete()
+			n.Delete(false)
 		}
 
 		netOption := map[string]string{

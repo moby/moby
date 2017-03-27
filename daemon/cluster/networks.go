@@ -243,7 +243,7 @@ func (c *Cluster) CreateNetwork(s apitypes.NetworkCreateRequest) (string, error)
 }
 
 // RemoveNetwork removes a cluster network.
-func (c *Cluster) RemoveNetwork(input string) error {
+func (c *Cluster) RemoveNetwork(input string, force bool) error {
 	return c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
 		network, err := getNetwork(ctx, state.controlClient, input)
 		if err != nil {

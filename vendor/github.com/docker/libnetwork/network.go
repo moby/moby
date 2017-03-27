@@ -39,7 +39,7 @@ type Network interface {
 	CreateEndpoint(name string, options ...EndpointOption) (Endpoint, error)
 
 	// Delete the network.
-	Delete() error
+	Delete(force bool) error
 
 	// Endpoints returns the list of Endpoint(s) in this network.
 	Endpoints() []Endpoint
@@ -779,8 +779,8 @@ func (n *network) driver(load bool) (driverapi.Driver, error) {
 	return d, nil
 }
 
-func (n *network) Delete() error {
-	return n.delete(false)
+func (n *network) Delete(force bool) error {
+	return n.delete(force)
 }
 
 func (n *network) delete(force bool) error {
