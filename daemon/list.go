@@ -100,18 +100,18 @@ type listContext struct {
 	*types.ContainerListOptions
 }
 
-// byContainerCreated is a temporary type used to sort a list of containers by creation time.
-type byContainerCreated []container.Snapshot
+// byCreatedDescending is a temporary type used to sort a list of containers by creation time.
+type byCreatedDescending []container.Snapshot
 
-func (r byContainerCreated) Len() int      { return len(r) }
-func (r byContainerCreated) Swap(i, j int) { r[i], r[j] = r[j], r[i] }
-func (r byContainerCreated) Less(i, j int) bool {
-	return r[i].Created.UnixNano() < r[j].Created.UnixNano()
+func (r byCreatedDescending) Len() int      { return len(r) }
+func (r byCreatedDescending) Swap(i, j int) { r[i], r[j] = r[j], r[i] }
+func (r byCreatedDescending) Less(i, j int) bool {
+	return r[j].CreatedAt.UnixNano() < r[i].CreatedAt.UnixNano()
 }
 
 // Containers returns the list of containers to show given the user's filtering.
 func (daemon *Daemon) Containers(config *types.ContainerListOptions) ([]*types.Container, error) {
-	return daemon.reduceContainers(config, daemon.transformContainer)
+	return daemon.reduceContainers(config, daemon.refreshImage)
 }
 
 func (daemon *Daemon) filterByNameIDMatches(view container.View, ctx *listContext) ([]container.Snapshot, error) {
@@ -123,7 +123,7 @@ func (daemon *Daemon) filterByNameIDMatches(view container.View, ctx *listContex
 		// standard behavior of walking the entire container
 		// list from the daemon's in-memory store
 		all, err := view.All()
-		sort.Sort(sort.Reverse(byContainerCreated(all)))
+		sort.Sort(byCreatedDescending(all))
 		return all, err
 	}
 
@@ -172,7 +172,7 @@ func (daemon *Daemon) filterByNameIDMatches(view container.View, ctx *listContex
 
 	// Restore sort-order after filtering
 	// Created gives us nanosec resolution for sorting
-	sort.Sort(sort.Reverse(byContainerCreated(cntrs)))
+	sort.Sort(byCreatedDescending(cntrs))
 
 	return cntrs, nil
 }
@@ -180,7 +180,7 @@ func (daemon *Daemon) filterByNameIDMatches(view container.View, ctx *listContex
 // reduceContainers parses the user's filtering options and generates the list of containers to return based on a reducer.
 func (daemon *Daemon) reduceContainers(config *types.ContainerListOptions, reducer containerReducer) ([]*types.Container, error) {
 	var (
-		view       = daemon.containersReplica.Snapshot()
+		view       = daemon.containersReplica.Snapshot(daemon.nameIndex)
 		containers = []*types.Container{}
 	)
 
@@ -503,9 +503,15 @@ func includeContainerInList(container *container.Snapshot, ctx *listContext) ite
 		}
 	}
 
-	networkExist := fmt.Errorf("container part of network")
+	var (
+		networkExist = errors.New("container part of network")
+		noNetworks   = errors.New("container is not part of any networks")
+	)
 	if ctx.filters.Include("network") {
 		err := ctx.filters.WalkValues("network", func(value string) error {
+			if container.NetworkSettings == nil {
+				return noNetworks
+			}
 			if _, ok := container.NetworkSettings.Networks[value]; ok {
 				return networkExist
 			}
@@ -527,7 +533,7 @@ func includeContainerInList(container *container.Snapshot, ctx *listContext) ite
 	if len(ctx.publish) > 0 {
 		shouldSkip := true
 		for port := range ctx.publish {
-			if _, ok := container.PublishPorts[port]; ok {
+			if _, ok := container.PortBindings[port]; ok {
 				shouldSkip = false
 				break
 			}
@@ -553,40 +559,22 @@ func includeContainerInList(container *container.Snapshot, ctx *listContext) ite
 	return includeContainer
 }
 
-// transformContainer generates the container type expected by the docker ps command.
-func (daemon *Daemon) transformContainer(container *container.Snapshot, ctx *listContext) (*types.Container, error) {
-	newC := &types.Container{
-		ID:              container.ID,
-		Names:           ctx.names[container.ID],
-		ImageID:         container.ImageID,
-		Command:         container.Command,
-		Created:         container.Created.Unix(),
-		State:           container.State,
-		Status:          container.Status,
-		NetworkSettings: &container.NetworkSettings,
-		Ports:           container.Ports,
-		Labels:          container.Labels,
-		Mounts:          container.Mounts,
-	}
-	if newC.Names == nil {
-		// Dead containers will often have no name, so make sure the response isn't null
-		newC.Names = []string{}
-	}
-	newC.HostConfig.NetworkMode = container.HostConfig.NetworkMode
-
-	image := container.Image // if possible keep the original ref
-	if image != container.ImageID {
+// refreshImage checks if the Image ref still points to the correct ID, and updates the ref to the actual ID when it doesn't
+func (daemon *Daemon) refreshImage(s *container.Snapshot, ctx *listContext) (*types.Container, error) {
+	c := s.Container
+	image := s.Image // keep the original ref if still valid (hasn't changed)
+	if image != s.ImageID {
 		id, _, err := daemon.GetImageIDAndPlatform(image)
 		if _, isDNE := err.(ErrImageDoesNotExist); err != nil && !isDNE {
 			return nil, err
 		}
-		if err != nil || id.String() != container.ImageID {
-			image = container.ImageID
+		if err != nil || id.String() != s.ImageID {
+			// ref changed, we need to use original ID
+			image = s.ImageID
 		}
 	}
-	newC.Image = image
-
-	return newC, nil
+	c.Image = image
+	return &c, nil
 }
 
 // Volumes lists known volumes, using the filter to restrict the range

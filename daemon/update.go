@@ -38,7 +38,7 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 		if restoreConfig {
 			container.Lock()
 			container.HostConfig = &backupHostConfig
-			container.CheckpointAndSaveToDisk(daemon.containersReplica)
+			container.CheckpointTo(daemon.containersReplica)
 			container.Unlock()
 		}
 	}()

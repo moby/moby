@@ -217,7 +217,7 @@ func (daemon *Daemon) restore() error {
 		go func(c *container.Container) {
 			defer wg.Done()
 			daemon.backportMountSpec(c)
-			if err := c.ToDiskLocking(); err != nil {
+			if err := daemon.checkpointAndSave(c); err != nil {
 				logrus.WithError(err).WithField("container", c.ID).Error("error saving backported mountspec to disk")
 			}
 
@@ -289,7 +289,9 @@ func (daemon *Daemon) restore() error {
 				logrus.Debugf("Resetting RemovalInProgress flag from %v", c.ID)
 				c.RemovalInProgress = false
 				c.Dead = true
-				c.ToDisk()
+				if err := c.CheckpointTo(daemon.containersReplica); err != nil {
+					logrus.Errorf("Failed to update container %s state: %v", c.ID, err)
+				}
 			}
 			c.Unlock()
 		}(c)

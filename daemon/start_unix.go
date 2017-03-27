@@ -9,13 +9,14 @@ import (
 	"github.com/docker/docker/libcontainerd"
 )
 
+// getLibcontainerdCreateOptions callers must hold a lock on the container
 func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Container) ([]libcontainerd.CreateOption, error) {
 	createOptions := []libcontainerd.CreateOption{}
 
 	// Ensure a runtime has been assigned to this container
 	if container.HostConfig.Runtime == "" {
 		container.HostConfig.Runtime = daemon.configStore.GetDefaultRuntimeName()
-		container.ToDisk()
+		container.CheckpointTo(daemon.containersReplica)
 	}
 
 	rt := daemon.configStore.GetRuntime(container.HostConfig.Runtime)

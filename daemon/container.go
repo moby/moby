@@ -218,7 +218,7 @@ func (daemon *Daemon) setHostConfig(container *container.Container, hostConfig *
 
 	runconfig.SetDefaultNetModeIfBlank(hostConfig)
 	container.HostConfig = hostConfig
-	return container.CheckpointAndSaveToDisk(daemon.containersReplica)
+	return container.CheckpointTo(daemon.containersReplica)
 }
 
 // verifyContainerSettings performs validation of the hostconfig and config

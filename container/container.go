@@ -159,7 +159,7 @@ func (container *Container) FromDisk() error {
 }
 
 // ToDisk saves the container configuration on disk.
-func (container *Container) ToDisk() error {
+func (container *Container) toDisk() error {
 	pth, err := container.ConfigPath()
 	if err != nil {
 		return err
@@ -181,27 +181,13 @@ func (container *Container) ToDisk() error {
 	return container.WriteHostConfig()
 }
 
-// ToDiskLocking saves the container configuration on disk in a thread safe way.
-func (container *Container) ToDiskLocking() error {
-	container.Lock()
-	err := container.ToDisk()
-	container.Unlock()
-	return err
-}
-
-// CheckpointTo makes the Container's current state visible to queries.
+// CheckpointTo makes the Container's current state visible to queries, and persists state.
 // Callers must hold a Container lock.
 func (container *Container) CheckpointTo(store ViewDB) error {
-	return store.Save(container.snapshot())
-}
-
-// CheckpointAndSaveToDisk is equivalent to calling CheckpointTo and ToDisk.
-// Callers must hold a Container lock.
-func (container *Container) CheckpointAndSaveToDisk(store ViewDB) error {
-	if err := container.CheckpointTo(store); err != nil {
+	if err := container.toDisk(); err != nil {
 		return err
 	}
-	return container.ToDisk()
+	return store.Save(container)
 }
 
 // readHostConfig reads the host configuration from disk for the container.
