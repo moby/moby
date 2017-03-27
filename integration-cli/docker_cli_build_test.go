@@ -3565,37 +3565,21 @@ func (s *DockerSuite) TestBuildRenamedDockerfile(c *check.C) {
 		})
 	defer ctx.Close()
 
-	out, _, err := dockerCmdInDir(c, ctx.Dir, "build", "-t", "test1", ".")
-	if err != nil {
-		c.Fatalf("Failed to build: %s\n%s", out, err)
-	}
-	if !strings.Contains(out, "from Dockerfile") {
-		c.Fatalf("test1 should have used Dockerfile, output:%s", out)
-	}
+	cli.Docker(cli.Args("build", "-t", "test1", "."), cli.InDir(ctx.Dir)).Assert(c, icmd.Expected{
+		Out: "from Dockerfile",
+	})
 
-	out, _, err = dockerCmdInDir(c, ctx.Dir, "build", "-f", filepath.Join("files", "Dockerfile"), "-t", "test2", ".")
-	if err != nil {
-		c.Fatal(err)
-	}
-	if !strings.Contains(out, "from files/Dockerfile") {
-		c.Fatalf("test2 should have used files/Dockerfile, output:%s", out)
-	}
+	cli.Docker(cli.Args("build", "-f", filepath.Join("files", "Dockerfile"), "-t", "test2", "."), cli.InDir(ctx.Dir)).Assert(c, icmd.Expected{
+		Out: "from files/Dockerfile",
+	})
 
-	out, _, err = dockerCmdInDir(c, ctx.Dir, "build", fmt.Sprintf("--file=%s", filepath.Join("files", "dFile")), "-t", "test3", ".")
-	if err != nil {
-		c.Fatal(err)
-	}
-	if !strings.Contains(out, "from files/dFile") {
-		c.Fatalf("test3 should have used files/dFile, output:%s", out)
-	}
+	cli.Docker(cli.Args("build", fmt.Sprintf("--file=%s", filepath.Join("files", "dFile")), "-t", "test3", "."), cli.InDir(ctx.Dir)).Assert(c, icmd.Expected{
+		Out: "from files/dFile",
+	})
 
-	out, _, err = dockerCmdInDir(c, ctx.Dir, "build", "--file=dFile", "-t", "test4", ".")
-	if err != nil {
-		c.Fatal(err)
-	}
-	if !strings.Contains(out, "from dFile") {
-		c.Fatalf("test4 should have used dFile, output:%s", out)
-	}
+	cli.Docker(cli.Args("build", "--file=dFile", "-t", "test4", "."), cli.InDir(ctx.Dir)).Assert(c, icmd.Expected{
+		Out: "from dFile",
+	})
 
 	dirWithNoDockerfile, err := ioutil.TempDir(os.TempDir(), "test5")
 	c.Assert(err, check.IsNil)
@@ -3603,54 +3587,32 @@ func (s *DockerSuite) TestBuildRenamedDockerfile(c *check.C) {
 	if _, err = os.Create(nonDockerfileFile); err != nil {
 		c.Fatal(err)
 	}
-	out, _, err = dockerCmdInDir(c, ctx.Dir, "build", fmt.Sprintf("--file=%s", nonDockerfileFile), "-t", "test5", ".")
+	cli.Docker(cli.Args("build", fmt.Sprintf("--file=%s", nonDockerfileFile), "-t", "test5", "."), cli.InDir(ctx.Dir)).Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Err:      fmt.Sprintf("The Dockerfile (%s) must be within the build context (.)", nonDockerfileFile),
+	})
 
-	if err == nil {
-		c.Fatalf("test5 was supposed to fail to find passwd")
-	}
+	cli.Docker(cli.Args("build", "-f", filepath.Join("..", "Dockerfile"), "-t", "test6", ".."), cli.InDir(filepath.Join(ctx.Dir, "files"))).Assert(c, icmd.Expected{
+		Out: "from Dockerfile",
+	})
 
-	if expected := fmt.Sprintf("The Dockerfile (%s) must be within the build context (.)", nonDockerfileFile); !strings.Contains(out, expected) {
-		c.Fatalf("wrong error message:%v\nexpected to contain=%v", out, expected)
-	}
+	cli.Docker(cli.Args("build", "-f", filepath.Join(ctx.Dir, "files", "Dockerfile"), "-t", "test7", ".."), cli.InDir(filepath.Join(ctx.Dir, "files"))).Assert(c, icmd.Expected{
+		Out: "from files/Dockerfile",
+	})
 
-	out, _, err = dockerCmdInDir(c, filepath.Join(ctx.Dir, "files"), "build", "-f", filepath.Join("..", "Dockerfile"), "-t", "test6", "..")
-	if err != nil {
-		c.Fatalf("test6 failed: %s", err)
-	}
-	if !strings.Contains(out, "from Dockerfile") {
-		c.Fatalf("test6 should have used root Dockerfile, output:%s", out)
-	}
-
-	out, _, err = dockerCmdInDir(c, filepath.Join(ctx.Dir, "files"), "build", "-f", filepath.Join(ctx.Dir, "files", "Dockerfile"), "-t", "test7", "..")
-	if err != nil {
-		c.Fatalf("test7 failed: %s", err)
-	}
-	if !strings.Contains(out, "from files/Dockerfile") {
-		c.Fatalf("test7 should have used files Dockerfile, output:%s", out)
-	}
-
-	out, _, err = dockerCmdInDir(c, filepath.Join(ctx.Dir, "files"), "build", "-f", filepath.Join("..", "Dockerfile"), "-t", "test8", ".")
-	if err == nil || !strings.Contains(out, "must be within the build context") {
-		c.Fatalf("test8 should have failed with Dockerfile out of context: %s", err)
-	}
+	cli.Docker(cli.Args("build", "-f", filepath.Join("..", "Dockerfile"), "-t", "test8", "."), cli.InDir(filepath.Join(ctx.Dir, "files"))).Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Err:      "must be within the build context",
+	})
 
 	tmpDir := os.TempDir()
-	out, _, err = dockerCmdInDir(c, tmpDir, "build", "-t", "test9", ctx.Dir)
-	if err != nil {
-		c.Fatalf("test9 - failed: %s", err)
-	}
-	if !strings.Contains(out, "from Dockerfile") {
-		c.Fatalf("test9 should have used root Dockerfile, output:%s", out)
-	}
+	cli.Docker(cli.Args("build", "-t", "test9", ctx.Dir), cli.InDir(tmpDir)).Assert(c, icmd.Expected{
+		Out: "from Dockerfile",
+	})
 
-	out, _, err = dockerCmdInDir(c, filepath.Join(ctx.Dir, "files"), "build", "-f", "dFile2", "-t", "test10", ".")
-	if err != nil {
-		c.Fatalf("test10 should have worked: %s", err)
-	}
-	if !strings.Contains(out, "from files/dFile2") {
-		c.Fatalf("test10 should have used files/dFile2, output:%s", out)
-	}
-
+	cli.Docker(cli.Args("build", "-f", "dFile2", "-t", "test10", "."), cli.InDir(filepath.Join(ctx.Dir, "files"))).Assert(c, icmd.Expected{
+		Out: "from files/dFile2",
+	})
 }
 
 func (s *DockerSuite) TestBuildFromMixedcaseDockerfile(c *check.C) {

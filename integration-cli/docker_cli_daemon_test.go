@@ -49,19 +49,19 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithRunningContainersPorts(c *check
 	s.d.StartWithBusybox(c)
 
 	cli.Docker(
-		cli.Cmd("run", "-d", "--name", "top1", "-p", "1234:80", "--restart", "always", "busybox:latest", "top"),
+		cli.Args("run", "-d", "--name", "top1", "-p", "1234:80", "--restart", "always", "busybox:latest", "top"),
 		cli.Daemon(s.d),
 	).Assert(c, icmd.Success)
 
 	cli.Docker(
-		cli.Cmd("run", "-d", "--name", "top2", "-p", "80", "busybox:latest", "top"),
+		cli.Args("run", "-d", "--name", "top2", "-p", "80", "busybox:latest", "top"),
 		cli.Daemon(s.d),
 	).Assert(c, icmd.Success)
 
 	testRun := func(m map[string]bool, prefix string) {
 		var format string
 		for cont, shouldRun := range m {
-			out := cli.Docker(cli.Cmd("ps"), cli.Daemon(s.d)).Assert(c, icmd.Success).Combined()
+			out := cli.Docker(cli.Args("ps"), cli.Daemon(s.d)).Assert(c, icmd.Success).Combined()
 			if shouldRun {
 				format = "%scontainer %q is not running"
 			} else {

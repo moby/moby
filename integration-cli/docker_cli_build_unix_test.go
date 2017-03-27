@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/pkg/testutil"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/docker/go-units"
@@ -29,12 +30,12 @@ func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *check.C) {
 	FROM hello-world:frozen
 	RUN ["/hello"]
 	`, map[string]string{})
-	_, _, err := dockerCmdInDir(c, ctx.Dir, "build", "--no-cache", "--rm=false", "--memory=64m", "--memory-swap=-1", "--cpuset-cpus=0", "--cpuset-mems=0", "--cpu-shares=100", "--cpu-quota=8000", "--ulimit", "nofile=42", "-t", name, ".")
-	if err != nil {
-		c.Fatal(err)
-	}
+	cli.Docker(
+		cli.Args("build", "--no-cache", "--rm=false", "--memory=64m", "--memory-swap=-1", "--cpuset-cpus=0", "--cpuset-mems=0", "--cpu-shares=100", "--cpu-quota=8000", "--ulimit", "nofile=42", "-t", name, "."),
+		cli.InDir(ctx.Dir),
+	).Assert(c, icmd.Success)
 
-	out, _ := dockerCmd(c, "ps", "-lq")
+	out := cli.DockerCmd(c, "ps", "-lq").Combined()
 	cID := strings.TrimSpace(out)
 
 	type hostConfig struct {
@@ -50,7 +51,7 @@ func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *check.C) {
 	cfg := inspectFieldJSON(c, cID, "HostConfig")
 
 	var c1 hostConfig
-	err = json.Unmarshal([]byte(cfg), &c1)
+	err := json.Unmarshal([]byte(cfg), &c1)
 	c.Assert(err, checker.IsNil, check.Commentf(cfg))
 
 	c.Assert(c1.Memory, checker.Equals, int64(64*1024*1024), check.Commentf("resource constraints not set properly for Memory"))
@@ -63,7 +64,7 @@ func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *check.C) {
 	c.Assert(c1.Ulimits[0].Hard, checker.Equals, int64(42), check.Commentf("resource constraints not set properly for Ulimits"))
 
 	// Make sure constraints aren't saved to image
-	dockerCmd(c, "run", "--name=test", name)
+	cli.DockerCmd(c, "run", "--name=test", name)
 
 	cfg = inspectFieldJSON(c, "test", "HostConfig")
 
