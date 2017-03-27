@@ -79,7 +79,7 @@ func serviceSpecFromGRPC(spec *swarmapi.ServiceSpec) (*types.ServiceSpec, error)
 
 	taskTemplate := taskSpecFromGRPC(spec.Task)
 
-	switch t := spec.Task.Runtime.(type) {
+	switch t := spec.Task.GetRuntime().(type) {
 	case *swarmapi.TaskSpec_Container:
 		containerConfig := t.Container
 		taskTemplate.ContainerSpec = containerSpecFromGRPC(containerConfig)

@@ -185,11 +185,11 @@ func (e *executor) Controller(t *api.Task) (exec.Controller, error) {
 	case *api.TaskSpec_Container:
 		c, err := newController(e.backend, t, secrets.Restrict(e.secrets, t))
 		if err != nil {
-			return nil, err
+			return ctlr, err
 		}
 		ctlr = c
 	default:
-		return nil, fmt.Errorf("unsupported runtime: %q", r)
+		return ctlr, fmt.Errorf("unsupported runtime: %q", r)
 	}
 
 	return ctlr, nil

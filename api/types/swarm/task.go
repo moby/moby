@@ -66,8 +66,10 @@ type TaskSpec struct {
 	// parameters have been changed.
 	ForceUpdate uint64
 
-	Runtime     RuntimeType `json:",omitempty"`
-	RuntimeData []byte      `json:",omitempty"`
+	Runtime RuntimeType `json:",omitempty"`
+	// TODO (ehazlett): this should be removed and instead
+	// use struct tags (proto) for the runtimes
+	RuntimeData []byte `json:",omitempty"`
 }
 
 // Resources represents resources (CPU/Memory).
