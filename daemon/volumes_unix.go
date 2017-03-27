@@ -137,6 +137,9 @@ func migrateVolume(id, vfs string) error {
 // verifyVolumesInfo ports volumes configured for the containers pre docker 1.7.
 // It reads the container configuration and creates valid mount points for the old volumes.
 func (daemon *Daemon) verifyVolumesInfo(container *container.Container) error {
+	container.Lock()
+	defer container.Unlock()
+
 	// Inspect old structures only when we're upgrading from old versions
 	// to versions >= 1.7 and the MountPoints has not been populated with volumes data.
 	type volumes struct {
