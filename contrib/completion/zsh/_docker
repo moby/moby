@@ -1043,16 +1043,11 @@ __docker_image_subcommand() {
                 $opts_help \
                 "($help -a --all)"{-a,--all}"[Show all images]" \
                 "($help)--digests[Show digests]" \
-                "($help)*"{-f=,--filter=}"[Filter values]:filter:->filter-options" \
+                "($help)*"{-f=,--filter=}"[Filter values]:filter:__docker_complete_images_filters" \
                 "($help)--format=[Pretty-print images using a Go template]:template: " \
                 "($help)--no-trunc[Do not truncate output]" \
                 "($help -q --quiet)"{-q,--quiet}"[Only show numeric IDs]" \
                 "($help -): :__docker_complete_repositories" && ret=0
-            case $state in
-                (filter-options)
-                    __docker_complete_images_filters && ret=0
-                    ;;
-            esac
             ;;
         (prune)
             _arguments $(__docker_arguments) \
@@ -1275,14 +1270,9 @@ __docker_network_subcommand() {
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help)--no-trunc[Do not truncate the output]" \
-                "($help)*"{-f=,--filter=}"[Provide filter values]:filter:->filter-options" \
+                "($help)*"{-f=,--filter=}"[Provide filter values]:filter:__docker_network_complete_ls_filters" \
                 "($help)--format=[Pretty-print networks using a Go template]:template: " \
                 "($help -q --quiet)"{-q,--quiet}"[Only display numeric IDs]" && ret=0
-            case $state in
-                (filter-options)
-                    __docker_network_complete_ls_filters && ret=0
-                    ;;
-            esac
             ;;
         (prune)
             _arguments $(__docker_arguments) \
@@ -1478,13 +1468,8 @@ __docker_node_subcommand() {
         (ls|list)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                "($help)*"{-f=,--filter=}"[Provide filter values]:filter:->filter-options" \
+                "($help)*"{-f=,--filter=}"[Provide filter values]:filter:__docker_node_complete_ls_filters" \
                 "($help -q --quiet)"{-q,--quiet}"[Only display IDs]" && ret=0
-            case $state in
-                (filter-options)
-                    __docker_node_complete_ls_filters && ret=0
-                    ;;
-            esac
             ;;
         (promote)
              _arguments $(__docker_arguments) \
@@ -1495,15 +1480,10 @@ __docker_node_subcommand() {
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help -a --all)"{-a,--all}"[Display all instances]" \
-                "($help)*"{-f=,--filter=}"[Provide filter values]:filter:->filter-options" \
+                "($help)*"{-f=,--filter=}"[Provide filter values]:filter:__docker_node_complete_ps_filters" \
                 "($help)--no-resolve[Do not map IDs to Names]" \
                 "($help)--no-trunc[Do not truncate output]" \
                 "($help -)*:node:__docker_complete_nodes" && ret=0
-            case $state in
-                (filter-options)
-                    __docker_node_complete_ps_filters && ret=0
-                    ;;
-            esac
             ;;
         (update)
             _arguments $(__docker_arguments) \
@@ -1526,13 +1506,42 @@ __docker_node_subcommand() {
 
 # BO plugin
 
-__docker_complete_plugins() {
+__docker_plugin_complete_ls_filters() {
+    [[ $PREFIX = -* ]] && return 1
+    integer ret=1
+
+    if compset -P '*='; then
+        case "${${words[-1]%=*}#*=}" in
+            (capability)
+                opts=('authz' 'ipamdriver' 'networkdriver' 'volumedriver')
+                _describe -t capability-opts "capability options" opts && ret=0
+                ;;
+            (enabled)
+                opts=('false' 'true')
+                _describe -t enabled-opts "enabled options" opts && ret=0
+                ;;
+            *)
+                _message 'value' && ret=0
+                ;;
+        esac
+    else
+        opts=('capability' 'enabled')
+        _describe -t filter-opts "filter options" opts -qS "=" && ret=0
+    fi
+
+    return ret
+}
+
+__docker_plugins() {
     [[ $PREFIX = -* ]] && return 1
     integer ret=1
     local line s
-    declare -a lines plugins
+    declare -a lines plugins args
 
-    lines=(${(f)${:-"$(_call_program commands docker $docker_options plugin ls)"$'\n'}})
+    filter=$1; shift
+    [[ $filter != "none" ]] && args=("-f $filter")
+
+    lines=(${(f)${:-"$(_call_program commands docker $docker_options plugin ls $args)"$'\n'}})
 
     # Parse header line to find columns
     local i=1 j=1 k header=${lines[1]}
@@ -1556,6 +1565,21 @@ __docker_complete_plugins() {
 
     _describe -t plugins-list "plugins" plugins "$@" && ret=0
     return ret
+}
+
+__docker_complete_plugins() {
+    [[ $PREFIX = -* ]] && return 1
+    __docker_plugins none "$@"
+}
+
+__docker_complete_enabled_plugins() {
+    [[ $PREFIX = -* ]] && return 1
+    __docker_plugins enabled=true "$@"
+}
+
+__docker_complete_disabled_plugins() {
+    [[ $PREFIX = -* ]] && return 1
+    __docker_plugins enabled=false "$@"
 }
 
 __docker_plugin_commands() {
@@ -1586,13 +1610,13 @@ __docker_plugin_subcommand() {
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help -f --force)"{-f,--force}"[Force the disable of an active plugin]" \
-                "($help -)1:plugin:__docker_complete_plugins" && ret=0
+                "($help -)1:plugin:__docker_complete_enabled_plugins" && ret=0
             ;;
         (enable)
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help)--timeout=[HTTP client timeout (in seconds)]:timeout: " \
-                "($help -)1:plugin:__docker_complete_plugins" && ret=0
+                "($help -)1:plugin:__docker_complete_disabled_plugins" && ret=0
             ;;
         (inspect)
             _arguments $(__docker_arguments) \
@@ -1613,7 +1637,10 @@ __docker_plugin_subcommand() {
         (ls|list)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                "($help)--no-trunc[Don't truncate output]" && ret=0
+                "($help)*"{-f=,--filter=}"[Filter output based on conditions provided]:filter:__docker_plugin_complete_ls_filters" \
+                "($help --format)--format=[Format the output using the given Go template]:template: " \
+                "($help)--no-trunc[Don't truncate output]" \
+                "($help -q --quiet)"{-q,--quiet}"[Only display IDs]" && ret=0
             ;;
         (push)
             _arguments $(__docker_arguments) \
@@ -1994,14 +2021,9 @@ __docker_service_subcommand() {
         (ls|list)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                "($help)*"{-f=,--filter=}"[Filter output based on conditions provided]:filter:->filter-options" \
+                "($help)*"{-f=,--filter=}"[Filter output based on conditions provided]:filter:__docker_service_complete_ls_filters" \
                 "($help)--format=[Pretty-print services using a Go template]:template: " \
                 "($help -q --quiet)"{-q,--quiet}"[Only display IDs]" && ret=0
-            case $state in
-                (filter-options)
-                    __docker_service_complete_ls_filters && ret=0
-                    ;;
-            esac
             ;;
         (rm|remove)
             _arguments $(__docker_arguments) \
@@ -2025,16 +2047,11 @@ __docker_service_subcommand() {
         (ps)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                "($help)*"{-f=,--filter=}"[Provide filter values]:filter:->filter-options" \
+                "($help)*"{-f=,--filter=}"[Provide filter values]:filter:__docker_service_complete_ps_filters" \
                 "($help)--no-resolve[Do not map IDs to Names]" \
                 "($help)--no-trunc[Do not truncate output]" \
                 "($help -q --quiet)"{-q,--quiet}"[Only display task IDs]" \
                 "($help -)*:service:__docker_complete_services" && ret=0
-            case $state in
-                (filter-options)
-                    __docker_service_complete_ps_filters && ret=0
-                    ;;
-            esac
             ;;
         (update)
             _arguments $(__docker_arguments) \
@@ -2458,14 +2475,9 @@ __docker_volume_subcommand() {
         (ls)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                "($help)*"{-f=,--filter=}"[Provide filter values]:filter:->filter-options" \
+                "($help)*"{-f=,--filter=}"[Provide filter values]:filter:__docker_volume_complete_ls_filters" \
                 "($help)--format=[Pretty-print volumes using a Go template]:template: " \
                 "($help -q --quiet)"{-q,--quiet}"[Only display volume names]" && ret=0
-            case $state in
-                (filter-options)
-                    __docker_volume_complete_ls_filters && ret=0
-                    ;;
-            esac
             ;;
         (prune)
             _arguments $(__docker_arguments) \
@@ -2803,16 +2815,10 @@ __docker_subcommand() {
         (search)
             _arguments $(__docker_arguments) -A '-*' \
                 $opts_help \
-                "($help)*"{-f=,--filter=}"[Filter values]:filter:->filter-options" \
+                "($help)*"{-f=,--filter=}"[Filter values]:filter:__docker_complete_search_filters" \
                 "($help)--limit=[Maximum returned search results]:limit:(1 5 10 25 50)" \
                 "($help)--no-trunc[Do not truncate output]" \
                 "($help -):term: " && ret=0
-
-            case $state in
-                (filter-options)
-                    __docker_complete_search_filters && ret=0
-                    ;;
-            esac
             ;;
         (secret)
             local curcontext="$curcontext" state
