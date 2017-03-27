@@ -241,8 +241,8 @@ func (n *networkNamespace) AddInterface(srcName, dstPrefix string, options ...If
 	if n.isDefault {
 		i.dstName = i.srcName
 	} else {
-		i.dstName = fmt.Sprintf("%s%d", i.dstName, n.nextIfIndex)
-		n.nextIfIndex++
+		i.dstName = fmt.Sprintf("%s%d", dstPrefix, n.nextIfIndex[dstPrefix])
+		n.nextIfIndex[dstPrefix]++
 	}
 
 	path := n.path

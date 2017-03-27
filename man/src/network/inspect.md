@@ -32,6 +32,7 @@ $ sudo docker network inspect bridge
             ]
         },
         "Internal": false,
+        "Ingress": false,
         "Containers": {
             "bda12f8922785d1f160be70736f26c1e331ab8aaf8ed8d56728508f2e2fd4727": {
                 "Name": "container2",
@@ -116,6 +117,7 @@ $ docker network inspect --verbose ov1
         },
         "Internal": false,
         "Attachable": false,
+        "Ingress": false,
         "Containers": {
             "020403bd88a15f60747fd25d1ad5fa1272eb740e8a97fc547d8ad07b2f721c5e": {
                 "Name": "s1.1.pjn2ik0sfgkfzed3h0s00gs9o",

@@ -575,6 +575,7 @@ func (c *containerConfig) networkCreateRequest(name string) (clustertypes.Networ
 		Labels:         na.Network.Spec.Annotations.Labels,
 		Internal:       na.Network.Spec.Internal,
 		Attachable:     na.Network.Spec.Attachable,
+		Ingress:        na.Network.Spec.Ingress,
 		EnableIPv6:     na.Network.Spec.Ipv6Enabled,
 		CheckDuplicate: true,
 	}

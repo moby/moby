@@ -22,12 +22,22 @@ func newRemoveCommand(dockerCli *command.DockerCli) *cobra.Command {
 	}
 }
 
+const ingressWarning = "WARNING! Before removing the routing-mesh network, " +
+	"make sure all the nodes in your swarm run the same docker engine version. " +
+	"Otherwise, removal may not be effective and functionality of newly create " +
+	"ingress networks will be impaired.\nAre you sure you want to continue?"
+
 func runRemove(dockerCli *command.DockerCli, networks []string) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 	status := 0
 
 	for _, name := range networks {
+		if nw, _, err := client.NetworkInspectWithRaw(ctx, name, false); err == nil &&
+			nw.Ingress &&
+			!command.PromptForConfirmation(dockerCli.In(), dockerCli.Out(), ingressWarning) {
+			continue
+		}
 		if err := client.NetworkRemove(ctx, name); err != nil {
 			fmt.Fprintf(dockerCli.Err(), "%s\n", err)
 			status = 1

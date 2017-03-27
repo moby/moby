@@ -116,6 +116,7 @@ func (e *executor) Describe(ctx context.Context) (*api.NodeDescription, error) {
 func (e *executor) Configure(ctx context.Context, node *api.Node) error {
 	na := node.Attachment
 	if na == nil {
+		e.backend.ReleaseIngress()
 		return nil
 	}
 
@@ -125,6 +126,7 @@ func (e *executor) Configure(ctx context.Context, node *api.Node) error {
 			Driver: na.Network.IPAM.Driver.Name,
 		},
 		Options:        na.Network.DriverState.Options,
+		Ingress:        true,
 		CheckDuplicate: true,
 	}
 

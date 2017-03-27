@@ -28,6 +28,7 @@ func networkFromGRPC(n *swarmapi.Network) types.Network {
 				IPv6Enabled: n.Spec.Ipv6Enabled,
 				Internal:    n.Spec.Internal,
 				Attachable:  n.Spec.Attachable,
+				Ingress:     n.Spec.Ingress,
 				IPAMOptions: ipamFromGRPC(n.Spec.IPAM),
 			},
 			IPAMOptions: ipamFromGRPC(n.IPAM),
@@ -156,6 +157,7 @@ func BasicNetworkFromGRPC(n swarmapi.Network) basictypes.NetworkResource {
 		IPAM:       ipam,
 		Internal:   spec.Internal,
 		Attachable: spec.Attachable,
+		Ingress:    spec.Ingress,
 		Labels:     n.Spec.Annotations.Labels,
 	}
 
@@ -181,6 +183,7 @@ func BasicNetworkCreateToGRPC(create basictypes.NetworkCreateRequest) swarmapi.N
 		Ipv6Enabled: create.EnableIPv6,
 		Internal:    create.Internal,
 		Attachable:  create.Attachable,
+		Ingress:     create.Ingress,
 	}
 	if create.IPAM != nil {
 		driver := create.IPAM.Driver
