@@ -94,7 +94,7 @@ type NetworkAPIClient interface {
 	NetworkInspect(ctx context.Context, networkID string, verbose bool) (types.NetworkResource, error)
 	NetworkInspectWithRaw(ctx context.Context, networkID string, verbose bool) (types.NetworkResource, []byte, error)
 	NetworkList(ctx context.Context, options types.NetworkListOptions) ([]types.NetworkResource, error)
-	NetworkRemove(ctx context.Context, networkID string) error
+	NetworkRemove(ctx context.Context, networkID string, force bool) error
 	NetworksPrune(ctx context.Context, pruneFilter filters.Args) (types.NetworksPruneReport, error)
 }
 

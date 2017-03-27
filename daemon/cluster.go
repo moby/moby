@@ -8,5 +8,5 @@ import (
 type Cluster interface {
 	GetNetwork(input string) (apitypes.NetworkResource, error)
 	GetNetworks() ([]apitypes.NetworkResource, error)
-	RemoveNetwork(input string) error
+	RemoveNetwork(input string, force bool) error
 }

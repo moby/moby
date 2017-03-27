@@ -258,14 +258,15 @@ func (n *networkRouter) deleteNetwork(ctx context.Context, w http.ResponseWriter
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
+	force := httputils.BoolValue(r, "force")
 	if _, err := n.cluster.GetNetwork(vars["id"]); err == nil {
-		if err = n.cluster.RemoveNetwork(vars["id"]); err != nil {
+		if err = n.cluster.RemoveNetwork(vars["id"], force); err != nil {
 			return err
 		}
 		w.WriteHeader(http.StatusNoContent)
 		return nil
 	}
-	if err := n.backend.DeleteNetwork(vars["id"]); err != nil {
+	if err := n.backend.DeleteNetwork(vars["id"], force); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)

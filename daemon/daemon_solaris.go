@@ -384,7 +384,7 @@ func (daemon *Daemon) initNetworkController(config *Config, activeSandboxes map[
 
 func initBridgeDriver(controller libnetwork.NetworkController, config *Config) error {
 	if n, err := controller.NetworkByName("bridge"); err == nil {
-		if err = n.Delete(); err != nil {
+		if err = n.Delete(false); err != nil {
 			return fmt.Errorf("could not delete the default bridge network: %v", err)
 		}
 	}

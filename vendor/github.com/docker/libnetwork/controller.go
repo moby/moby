@@ -1173,7 +1173,7 @@ func (c *controller) clearIngress(clusterLeave bool) {
 	}
 
 	if n != nil {
-		if err := n.Delete(); err != nil {
+		if err := n.Delete(false); err != nil {
 			logrus.Warnf("Could not delete ingress network while leaving: %v", err)
 		}
 	}

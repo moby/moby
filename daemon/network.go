@@ -135,7 +135,7 @@ func (daemon *Daemon) SetupIngress(create clustertypes.NetworkCreateRequest, nod
 				}
 			}
 
-			if err := n.Delete(); err != nil {
+			if err := n.Delete(false); err != nil {
 				logrus.Errorf("Failed to delete stale ingress network %s: %v", n.ID(), err)
 				return
 			}
@@ -429,15 +429,15 @@ func (daemon *Daemon) GetNetworkDriverList() []string {
 
 // DeleteManagedNetwork deletes an agent network.
 func (daemon *Daemon) DeleteManagedNetwork(networkID string) error {
-	return daemon.deleteNetwork(networkID, true)
+	return daemon.deleteNetwork(networkID, true, false)
 }
 
 // DeleteNetwork destroys a network unless it's one of docker's predefined networks.
-func (daemon *Daemon) DeleteNetwork(networkID string) error {
-	return daemon.deleteNetwork(networkID, false)
+func (daemon *Daemon) DeleteNetwork(networkID string, force bool) error {
+	return daemon.deleteNetwork(networkID, false, force)
 }
 
-func (daemon *Daemon) deleteNetwork(networkID string, dynamic bool) error {
+func (daemon *Daemon) deleteNetwork(networkID string, dynamic bool, force bool) error {
 	nw, err := daemon.FindNetwork(networkID)
 	if err != nil {
 		return err
@@ -448,7 +448,7 @@ func (daemon *Daemon) deleteNetwork(networkID string, dynamic bool) error {
 		return apierrors.NewRequestForbiddenError(err)
 	}
 
-	if err := nw.Delete(); err != nil {
+	if err := nw.Delete(force); err != nil {
 		return err
 	}
 	daemon.pluginRefCount(nw.Type(), driverapi.NetworkPluginEndpointType, plugingetter.Release)

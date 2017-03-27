@@ -207,7 +207,7 @@ func (daemon *Daemon) localNetworksPrune(pruneFilters filters.Args) *types.Netwo
 		if len(nw.Endpoints()) > 0 {
 			return false
 		}
-		if err := daemon.DeleteNetwork(nw.ID()); err != nil {
+		if err := daemon.DeleteNetwork(nw.ID(), false); err != nil {
 			logrus.Warnf("could not remove local network %s: %v", nwName, err)
 			return false
 		}
@@ -240,7 +240,7 @@ func (daemon *Daemon) clusterNetworksPrune(pruneFilters filters.Args) (*types.Ne
 		// https://github.com/docker/docker/issues/24186
 		// `docker network inspect` unfortunately displays ONLY those containers that are local to that node.
 		// So we try to remove it anyway and check the error
-		err = cluster.RemoveNetwork(nw.ID)
+		err = cluster.RemoveNetwork(nw.ID, false)
 		if err != nil {
 			// we can safely ignore the "network .. is in use" error
 			match := networkIsInUse.FindStringSubmatch(err.Error())
