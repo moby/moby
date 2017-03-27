@@ -66,7 +66,7 @@ func containersInitrd(containers []*bytes.Buffer) (*bytes.Buffer, error) {
 }
 
 func build(name string, pull bool, args []string) {
-	conf := "moby.yaml"
+	conf := "moby.yml"
 	if len(args) > 0 {
 		conf = args[0]
 	}

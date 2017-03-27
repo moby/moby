@@ -19,8 +19,8 @@ func main() {
 
 	buildCmd := flag.NewFlagSet("build", flag.ExitOnError)
 	buildCmd.Usage = func() {
-		fmt.Printf("USAGE: %s build [options] [file.yaml]\n\n", os.Args[0])
-		fmt.Printf("'file.yaml' defaults to 'moby.yaml' if not specified.\n\n")
+		fmt.Printf("USAGE: %s build [options] [file.yml]\n\n", os.Args[0])
+		fmt.Printf("'file.yml' defaults to 'moby.yml' if not specified.\n\n")
 		fmt.Printf("Options:\n")
 		buildCmd.PrintDefaults()
 	}
