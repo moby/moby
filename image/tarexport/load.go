@@ -44,30 +44,20 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 	if err := chrootarchive.Untar(inTar, tmpDir, nil); err != nil {
 		return err
 	}
-	// read manifest, if no file then load in legacy mode
-	manifestPath, err := safePath(tmpDir, manifestFileName)
+
+	loader, err := l.Loader(tmpDir, outStream, progressOutput)
 	if err != nil {
 		return err
 	}
-	manifestFile, err := os.Open(manifestPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return l.legacyLoad(tmpDir, outStream, progressOutput)
-		}
-		return err
-	}
-	defer manifestFile.Close()
+	return loader.Load()
+}
 
-	var manifest []manifestItem
-	if err := json.NewDecoder(manifestFile).Decode(&manifest); err != nil {
-		return err
-	}
-
+func (l *tarexporter) loadHelper(manifests []manifestItem, outStream io.Writer, progressOutput progress.Output, tmpDir string) error {
 	var parentLinks []parentLink
 	var imageIDsStr string
 	var imageRefCount int
 
-	for _, m := range manifest {
+	for _, m := range manifests {
 		configPath, err := safePath(tmpDir, m.Config)
 		if err != nil {
 			return err
@@ -97,6 +87,10 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 			r.Append(diffID)
 			newLayer, err := l.ls.Get(r.ChainID())
 			if err != nil {
+				// FIXME: LayerSources cannot be populated from OCI formats since
+				// we don't have the diffID of a given layer when creating the
+				// _manifeset_ slice. Any idea?
+				// See https://github.com/docker/docker/pull/22866/files#r96125181
 				newLayer, err = l.loadLayer(layerPath, rootFS, diffID.String(), m.LayerSources[diffID], progressOutput)
 				if err != nil {
 					return err
@@ -147,6 +141,59 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 	}
 
 	return nil
+}
+
+func (l *tarexporter) Loader(tmpDir string, outStream io.Writer, progressOutput progress.Output) (loader, error) {
+	// check and try to load an OCI image layout
+	ociLayoutPath, err := safePath(tmpDir, "oci-layout")
+	if err != nil {
+		return nil, err
+	}
+	ociLayoutFile, err := os.Open(ociLayoutPath)
+	if err == nil {
+		ociLayoutFile.Close()
+		if !l.experimental {
+			return nil, fmt.Errorf("loading from OCI format is experimental, please run daemon with --experimental")
+		}
+		return &ociLoader{
+			tr:             l,
+			tmpDir:         tmpDir,
+			outStream:      outStream,
+			progressOutput: progressOutput,
+		}, nil
+	}
+
+	// read manifest, if no file then load in legacy mode
+	manifestPath, err := safePath(tmpDir, manifestFileName)
+	if err != nil {
+		return nil, err
+	}
+	manifestFile, err := os.Open(manifestPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return &dockerLegacyLoader{
+				tr:             l,
+				tmpDir:         tmpDir,
+				outStream:      outStream,
+				progressOutput: progressOutput,
+			}, nil
+		}
+		return nil, err
+	}
+	defer manifestFile.Close()
+
+	var manifest []manifestItem
+	if err := json.NewDecoder(manifestFile).Decode(&manifest); err != nil {
+		return nil, err
+	}
+
+	return &dockerLoader{
+		manifests:      manifest,
+		tr:             l,
+		tmpDir:         tmpDir,
+		outStream:      outStream,
+		progressOutput: progressOutput,
+	}, nil
 }
 
 func (l *tarexporter) setParentID(id, parentID image.ID) error {

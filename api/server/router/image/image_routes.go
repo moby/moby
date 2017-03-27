@@ -186,7 +186,16 @@ func (s *imageRouter) getImagesGet(ctx context.Context, w http.ResponseWriter, r
 		names = r.Form["names"]
 	}
 
-	if err := s.backend.ExportImage(names, output); err != nil {
+	format := r.FormValue("format")
+	refs := map[string]string{}
+	refsJSON := r.FormValue("refs")
+	if refsJSON != "" {
+		if err := json.NewDecoder(strings.NewReader(refsJSON)).Decode(&refs); err != nil {
+			return err
+		}
+	}
+
+	if err := s.backend.ExportImage(names, format, refs, output); err != nil {
 		if !output.Flushed() {
 			return err
 		}
@@ -201,12 +210,20 @@ func (s *imageRouter) postImagesLoad(ctx context.Context, w http.ResponseWriter,
 		return err
 	}
 	quiet := httputils.BoolValueOrDefault(r, "quiet", true)
+	name := r.FormValue("name")
+	var refs = map[string]string{}
+	refsJSON := r.FormValue("refs")
+	if refsJSON != "" {
+		if err := json.NewDecoder(strings.NewReader(refsJSON)).Decode(&refs); err != nil {
+			return err
+		}
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 
 	output := ioutils.NewWriteFlusher(w)
 	defer output.Close()
-	if err := s.backend.LoadImage(r.Body, output, quiet); err != nil {
+	if err := s.backend.LoadImage(r.Body, output, name, refs, quiet); err != nil {
 		output.Write(streamformatter.NewJSONStreamFormatter().FormatError(err))
 	}
 	return nil

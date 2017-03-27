@@ -383,3 +383,153 @@ func (s *DockerSuite) TestSaveLoadNoTag(c *check.C) {
 	c.Assert(out, checker.Contains, "Loaded image: "+name+":latest")
 	c.Assert(out, checker.Not(checker.Contains), "Loaded image ID:")
 }
+
+func (s *DockerSuite) TestSaveOCIReferencesConflicts(c *check.C) {
+	testRequires(c, DaemonIsLinux, ExperimentalDaemon)
+
+	name0 := "frombusybox0"
+	_, err := buildImage(name0, "FROM busybox\nENV oci=true", true)
+	c.Assert(err, checker.IsNil)
+
+	name1 := "frombusybox1"
+	_, err = buildImage(name1, "FROM busybox\nENV oci=true\nENV oci=false", true)
+	c.Assert(err, checker.IsNil)
+
+	// test that the same tag conflicts
+	out, _, err := dockerCmdWithError("save", "--format", "oci.v1", "-o", "test.tar", "busybox", name0)
+	c.Assert(err, checker.NotNil)
+	c.Assert(out, checker.Contains, `unable to include unique references "latest" in OCI image`)
+
+	// test that --ref on just a subset of the images raise a conflict (because name1 and busybox are still "latest")
+	out, _, err = dockerCmdWithError("save", "--format", "oci.v1", "--ref", name0+"="+name0+"-latest", "-o", "test.tar", "busybox", name0, name1)
+	c.Assert(err, checker.NotNil)
+	c.Assert(out, checker.Contains, `unable to include unique references "latest" in OCI image`)
+
+	// silly test
+	out, _, err = dockerCmdWithError("save", "--format", "oci.v1", "-o", "test.tar", "notexists")
+	c.Assert(err, checker.NotNil)
+	c.Assert(out, checker.Contains, "No such image: notexists")
+
+	// test that the same tag is invalid even if it's not "latest"
+	dockerCmd(c, "tag", name0, name0+":12.04")
+	dockerCmd(c, "tag", "busybox:latest", "busybox:12.04")
+	out, _, err = dockerCmdWithError("save", "--format", "oci.v1", "-o", "test.tar", "busybox", name0+":12.04", "busybox:12.04")
+	c.Assert(err, checker.NotNil)
+	c.Assert(out, checker.Contains, `unable to include unique references "12.04" in OCI image`)
+
+	// silly test in case you have --ref pointing to an actual tag
+	out, _, err = dockerCmdWithError("save", "--format", "oci.v1", "--ref", "busybox:latest=12.04", "-o", "test.tar", "busybox:latest", name0+":12.04")
+	c.Assert(err, checker.NotNil)
+	c.Assert(out, checker.Contains, `unable to include unique references "12.04" in OCI image`)
+
+	dockerCmd(c, "tag", "busybox:latest", "busybox0")
+	out, _, err = dockerCmdWithError("save", "--format", "oci.v1", "-o", "test.tar", "busybox:latest", "busybox0")
+	c.Assert(err, checker.NotNil)
+	c.Assert(out, checker.Contains, `unable to include unique references "latest" in OCI image`)
+
+	// test that invalid --ref aren't accepted
+	out, _, err = dockerCmdWithError("save", "--format", "oci.v1", "-o", "test.tar", "--ref", "busybox=invalid:reference", "busybox")
+	c.Assert(err, checker.NotNil)
+	c.Assert(out, checker.Contains, `invalid reference "busybox=invalid:reference", reference must not include characters outside of the set of "A" to "Z", "a" to "z", "0" to "9", the hyphen "-", the dot ".", and the underscore "_"`)
+}
+
+func (s *DockerSuite) TestSaveOCIReferences(c *check.C) {
+	testRequires(c, DaemonIsLinux, ExperimentalDaemon)
+
+	name0 := "frombusybox0"
+	_, err := buildImage(name0, "FROM busybox\nENV oci=true", true)
+	c.Assert(err, checker.IsNil)
+
+	// test that the same tag can be saved with --ref
+	out, _, err := testutil.RunCommandPipelineWithOutput(
+		exec.Command(dockerBinary, "save", "--format", "oci.v1", "--ref", name0+"="+name0+"-latest", "busybox:latest", name0),
+		exec.Command("tar", "t"))
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	//index := ociv1.ImageIndex{}
+	//c.Assert(json.Unmarshal(out, &index), checker.IsNil)
+	//c.Assert(len(index.Manifests), checker.Equals, 2)
+
+	// save with just an image
+	out, _, err = testutil.RunCommandPipelineWithOutput(
+		exec.Command(dockerBinary, "save", "--format", "oci.v1", "busybox:latest"),
+		exec.Command("tar", "t"))
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "refs/latest")
+	// additional test...
+	c.Assert(out, checker.Contains, "oci-layout")
+
+	// test save with 2 tags (same underlying image)
+	dockerCmd(c, "tag", "busybox:latest", "busybox:notlatest")
+	out, _, err = testutil.RunCommandPipelineWithOutput(
+		exec.Command(dockerBinary, "save", "--format", "oci.v1", "busybox:notlatest", "busybox"),
+		exec.Command("tar", "t"))
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "refs/notlatest")
+	c.Assert(out, checker.Contains, "refs/latest")
+
+	// test can save with image id
+	imageID := inspectField(c, "busybox:latest", "Id")
+	imageID = strings.Replace(imageID, "sha256:", "", -1)
+
+	out, _, err = testutil.RunCommandPipelineWithOutput(
+		exec.Command(dockerBinary, "save", "--format", "oci.v1", imageID),
+		exec.Command("tar", "t"))
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "refs/"+imageID)
+
+	// test that saving "name:tag" just includes "refs/tag" and not all the tags
+	out, _, err = testutil.RunCommandPipelineWithOutput(
+		exec.Command(dockerBinary, "save", "--format", "oci.v1", "busybox:latest"),
+		exec.Command("tar", "t"))
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "refs/")
+	c.Assert(out, checker.Contains, "refs/latest")
+	c.Assert(strings.Count(out, "refs/"), checker.Equals, 2)
+
+	// as in saving just "name"
+	dockerCmd(c, "tag", "busybox:latest", "img0")
+	dockerCmd(c, "tag", "img0:latest", "img0:notlatest")
+	dockerCmd(c, "tag", "img0:latest", "img0:another")
+	out, _, err = testutil.RunCommandPipelineWithOutput(
+		exec.Command(dockerBinary, "save", "--format", "oci.v1", "img0"),
+		exec.Command("tar", "t"))
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "refs/")
+	c.Assert(out, checker.Contains, "refs/latest")
+	c.Assert(out, checker.Contains, "refs/notlatest")
+	c.Assert(out, checker.Contains, "refs/another")
+	c.Assert(strings.Count(out, "refs/"), checker.Equals, 4)
+
+	// test --ref name:tag=reference
+	dockerCmd(c, "tag", "busybox:latest", "img0")
+	dockerCmd(c, "tag", "img0:latest", "img0:notlatest")
+	dockerCmd(c, "tag", "busybox:latest", "busybox:notlatest")
+	dockerCmd(c, "tag", "img0:latest", "img0:another")
+	out, _, err = testutil.RunCommandPipelineWithOutput(
+		exec.Command(dockerBinary, "save", "--format", "oci.v1", "--ref", "img0:notlatest=img0-notlatest-ref", "busybox:latest", "busybox:notlatest", "img0:notlatest"),
+		exec.Command("tar", "t"))
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "refs/")
+	c.Assert(out, checker.Contains, "refs/img0-notlatest-ref")
+	c.Assert(out, checker.Contains, "refs/notlatest")
+	c.Assert(out, checker.Contains, "refs/latest")
+	c.Assert(strings.Count(out, "refs/"), checker.Equals, 4)
+}
+
+func (s *DockerSuite) TestSaveLoadOCI(c *check.C) {
+	testRequires(c, DaemonIsLinux, ExperimentalDaemon)
+
+	out, _, err := testutil.RunCommandPipelineWithOutput(
+		exec.Command(dockerBinary, "save", "--format", "oci.v1", "busybox:latest"),
+		exec.Command(dockerBinary, "load", "--name", "busybox"))
+	c.Assert(err, checker.IsNil, check.Commentf("failed to save OCI and load repo: %s", out))
+	c.Assert(out, checker.Contains, "Loaded image: busybox:latest")
+}
+
+func (s *DockerSuite) TestSaveUnknownFormat(c *check.C) {
+	testRequires(c, DaemonIsLinux, ExperimentalDaemon)
+
+	out, _, err := dockerCmdWithError("save", "--format", "test", "-o", "test.tar", "busybox")
+	c.Assert(err, checker.NotNil)
+	c.Assert(out, checker.Contains, `format "test" unsupported`)
+}
