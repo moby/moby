@@ -61,7 +61,6 @@ read the [`dockerd`](dockerd.md) reference page.
 | [cp](cp.md) | Copy files/folders from a container to a HOSTDIR or to STDOUT  |
 | [create](create.md) | Create a new container                                 |
 | [diff](diff.md) | Inspect changes on a container's filesystem                |
-| [events](events.md) | Get real time events from the server                   |
 | [exec](exec.md) | Run a command in a running container                       |
 | [export](export.md) | Export a container's filesystem as a tar archive       |
 | [kill](kill.md) | Kill a running container                                   |
@@ -182,3 +181,12 @@ read the [`dockerd`](dockerd.md) reference page.
 | [plugin push](plugin_push.md) | Push a plugin to a registry                  |
 | [plugin rm](plugin_rm.md) | Remove a plugin                                  |
 | [plugin set](plugin_set.md)  | Change settings for a plugin                  |
+
+### System commands
+
+| Command | Description                                                        |
+|:--------|:-------------------------------------------------------------------|
+| [system df](system_df.md) | Show docker filesystem usage                      |
+| [system events](events.md) | Get real time events from the server            |
+| [system info](info.md) | Display system-wide information                     |
+| [system prune](system_prune.md) | Delete unused data                         |
