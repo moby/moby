@@ -498,6 +498,9 @@ var (
 		// Wilhelm Conrad Röntgen - German physicist who was awarded the first Nobel Prize in Physics in 1901 for the discovery of X-rays (Röntgen rays). https://en.wikipedia.org/wiki/Wilhelm_R%C3%B6ntgen
 		"roentgen",
 
+		// Virginia (Ginny) Rometty - President, Chairman, and CEO of IBM, first female to hold any of those positions at IBM - https://en.wikipedia.org/wiki/Ginni_Rometty
+		"rometty",
+
 		// Rosalind Franklin - British biophysicist and X-ray crystallographer whose research was critical to the understanding of DNA - https://en.wikipedia.org/wiki/Rosalind_Franklin
 		"rosalind",
 
@@ -560,6 +563,9 @@ var (
 
 		// Christiane Nüsslein-Volhard - German biologist, won Nobel Prize in Physiology or Medicine in 1995 for research on the genetic control of embryonic development. https://en.wikipedia.org/wiki/Christiane_N%C3%BCsslein-Volhard
 		"volhard",
+
+		// Thomas J. Watson - famed IBM CEO and Chairman during computer punch card era, IBM "THINK" motto originator, namesake for Watson AI Jeopardy gameshow winner - https://en.wikipedia.org/wiki/Thomas_J._Watson
+		"watson",
 
 		// Marlyn Wescoff - one of the original programmers of the ENIAC. https://en.wikipedia.org/wiki/ENIAC - https://en.wikipedia.org/wiki/Marlyn_Meltzer
 		"wescoff",
