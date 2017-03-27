@@ -112,7 +112,7 @@ This is usually difficult for several reasons:
     of them handle it differently.
 
 
-Docker solves the problem of dependency hell by giving the developer a simple
+Docker solves the problem of dependency hell by giving developers a simple
 way to express *all* their application's dependencies in one place, while
 streamlining the process of assembling them. If this makes you think of
 [XKCD 927](https://xkcd.com/927/), don't worry. Docker doesn't
