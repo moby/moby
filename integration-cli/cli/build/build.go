@@ -21,9 +21,8 @@ func WithoutCache(cmd *icmd.Cmd) func() {
 	return nil
 }
 
-// WithContextPath set the build context path
+// WithContextPath sets the build context path
 func WithContextPath(path string) func(*icmd.Cmd) func() {
-	// WithContextPath sets the build context path
 	return func(cmd *icmd.Cmd) func() {
 		cmd.Command = append(cmd.Command, path)
 		return nil
