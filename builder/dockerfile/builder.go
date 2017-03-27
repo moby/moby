@@ -316,14 +316,16 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 		}
 	}
 
+	fmt.Fprintf(b.Stdout, "Successfully built %s\n", shortImgID)
+
 	imageID := image.ID(b.image)
 	for _, rt := range repoAndTags {
 		if err := b.docker.TagImageWithReference(imageID, rt); err != nil {
 			return "", err
 		}
+		fmt.Fprintf(b.Stdout, "Successfully tagged %s\n", reference.FamiliarString(rt))
 	}
 
-	fmt.Fprintf(b.Stdout, "Successfully built %s\n", shortImgID)
 	return b.image, nil
 }
 
