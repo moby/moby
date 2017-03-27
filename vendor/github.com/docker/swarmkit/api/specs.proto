@@ -321,6 +321,12 @@ message NetworkSpec {
 	// enabled(default case) no manual attachment to this network
 	// can happen.
 	bool attachable = 6;
+	
+	// Ingress indicates this network will provide the routing-mesh.
+	// In older versions, the network providing the routing mesh was
+	// swarm internally created only and it was identified by the name
+	// "ingress" and the label "com.docker.swarm.internal": "true".
+	bool ingress = 7;
 }
 
 // ClusterSpec specifies global cluster settings.

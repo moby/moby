@@ -113,11 +113,38 @@ type LocalSigner struct {
 	Key []byte
 }
 
-// RootCA is the representation of everything we need to sign certificates
+// RootCA is the representation of everything we need to sign certificates and/or to verify certificates
+//
+// RootCA.Cert:          [signing CA cert][CA cert1][CA cert2]
+// RootCA.Intermediates: [intermediate CA1][intermediate CA2][intermediate CA3]
+// RootCA.Signer.Key:    [signing CA key]
+//
+// Requirements:
+//
+// - [signing CA key] must be the private key for [signing CA cert]
+// - [signing CA cert] must be the first cert in RootCA.Cert
+//
+// - [intermediate CA1] must have the same public key and subject as [signing CA cert], because otherwise when
+//   appended to a leaf certificate, the intermediates will not form a chain (because [intermediate CA1] won't because
+//   the signer of the leaf certificate)
+// - [intermediate CA1] must be signed by [intermediate CA2], which must be signed by [intermediate CA3]
+//
+// - When we issue a certificate, the intermediates will be appended so that the certificate looks like:
+//   [leaf signed by signing CA cert][intermediate CA1][intermediate CA2][intermediate CA3]
+// - [leaf signed by signing CA cert][intermediate CA1][intermediate CA2][intermediate CA3] is guaranteed to form a
+//   valid chain from [leaf signed by signing CA cert] to one of the root certs ([signing CA cert], [CA cert1], [CA cert2])
+//   using zero or more of the intermediate certs ([intermediate CA1][intermediate CA2][intermediate CA3]) as intermediates
+//
 type RootCA struct {
 	// Cert contains a bundle of PEM encoded Certificate for the Root CA, the first one of which
 	// must correspond to the key in the local signer, if provided
 	Cert []byte
+
+	// Intermediates contains a bundle of PEM encoded intermediate CA certificates to append to any
+	// issued TLS (leaf) certificates. The first one must have the same public key and subject as the
+	// signing root certificate, and the rest must form a chain, each one certifying the one above it,
+	// as per RFC5246 section 7.4.2.
+	Intermediates []byte
 
 	// Pool is the root pool used to validate TLS certificates
 	Pool *x509.CertPool
@@ -306,7 +333,7 @@ func (rca *RootCA) ParseValidateAndSignCSR(csrBytes []byte, cn, ou, org string) 
 		return nil, errors.Wrap(err, "failed to sign node certificate")
 	}
 
-	return cert, nil
+	return append(cert, rca.Intermediates...), nil
 }
 
 // CrossSignCACertificate takes a CA root certificate and generates an intermediate CA from it signed with the current root signer
@@ -348,7 +375,7 @@ func (rca *RootCA) CrossSignCACertificate(otherCAPEM []byte) ([]byte, error) {
 // NewRootCA creates a new RootCA object from unparsed PEM cert bundle and key byte
 // slices. key may be nil, and in this case NewRootCA will return a RootCA
 // without a signer.
-func NewRootCA(certBytes, keyBytes []byte, certExpiry time.Duration) (RootCA, error) {
+func NewRootCA(certBytes, keyBytes []byte, certExpiry time.Duration, intermediates []byte) (RootCA, error) {
 	// Parse all the certificates in the cert bundle
 	parsedCerts, err := helpers.ParseCertificatesPEM(certBytes)
 	if err != nil {
@@ -368,7 +395,6 @@ func NewRootCA(certBytes, keyBytes []byte, certExpiry time.Duration) (RootCA, er
 		default:
 			return RootCA{}, fmt.Errorf("unsupported signature algorithm: %s", cert.SignatureAlgorithm.String())
 		}
-
 		// Check to see if all of the certificates are valid, self-signed root CA certs
 		selfpool := x509.NewCertPool()
 		selfpool.AddCert(cert)
@@ -381,9 +407,28 @@ func NewRootCA(certBytes, keyBytes []byte, certExpiry time.Duration) (RootCA, er
 	// Calculate the digest for our Root CA bundle
 	digest := digest.FromBytes(certBytes)
 
+	// We do not yet support arbitrary chains of intermediates (e.g. the case of an offline root, and the swarm CA is an
+	// intermediate CA). We currently only intermediates for which the first intermediate is cross-signed version of the
+	// CA signing cert (the first cert of the root certs) for the purposes of root rotation.  If we wanted to support
+	// offline roots, we'd have to separate the CA signing cert from the self-signed root certs, but this intermediate
+	// validation logic should remain the same.  Either the first intermediate would BE the intermediate CA we sign with
+	// (in which case it'd have the same subject and public key), or it would be a cross-signed intermediate with the
+	// same subject and public key as our signing cert (which could be either an intermediate cert or a self-signed root
+	// cert).
+	if len(intermediates) > 0 {
+		parsedIntermediates, err := ValidateCertChain(pool, intermediates, false)
+		if err != nil {
+			return RootCA{}, errors.Wrap(err, "invalid intermediate chain")
+		}
+		if !bytes.Equal(parsedIntermediates[0].RawSubject, parsedCerts[0].RawSubject) ||
+			!bytes.Equal(parsedIntermediates[0].RawSubjectPublicKeyInfo, parsedCerts[0].RawSubjectPublicKeyInfo) {
+			return RootCA{}, errors.New("invalid intermediate chain - the first intermediate must have the same subject and public key as the root")
+		}
+	}
+
 	if len(keyBytes) == 0 {
-		// This RootCA does not have a valid signer.
-		return RootCA{Cert: certBytes, Digest: digest, Pool: pool}, nil
+		// This RootCA does not have a valid signer
+		return RootCA{Cert: certBytes, Intermediates: intermediates, Digest: digest, Pool: pool}, nil
 	}
 
 	var (
@@ -434,7 +479,7 @@ func NewRootCA(certBytes, keyBytes []byte, certExpiry time.Duration) (RootCA, er
 		}
 	}
 
-	return RootCA{Signer: &LocalSigner{Signer: signer, Key: keyBytes}, Digest: digest, Cert: certBytes, Pool: pool}, nil
+	return RootCA{Signer: &LocalSigner{Signer: signer, Key: keyBytes}, Intermediates: intermediates, Digest: digest, Cert: certBytes, Pool: pool}, nil
 }
 
 // ValidateCertChain checks checks that the certificates provided chain up to the root pool provided.  In addition
@@ -586,7 +631,7 @@ func GetLocalRootCA(paths CertPaths) (RootCA, error) {
 		key = nil
 	}
 
-	return NewRootCA(cert, key, DefaultNodeCertExpiration)
+	return NewRootCA(cert, key, DefaultNodeCertExpiration, nil)
 }
 
 func getGRPCConnection(creds credentials.TransportCredentials, connBroker *connectionbroker.Broker, forceRemote bool) (*connectionbroker.Conn, error) {
@@ -641,7 +686,7 @@ func GetRemoteCA(ctx context.Context, d digest.Digest, connBroker *connectionbro
 
 	// NewRootCA will validate that the certificates are otherwise valid and create a RootCA object.
 	// Since there is no key, the certificate expiry does not matter and will not be used.
-	return NewRootCA(response.Certificate, nil, DefaultNodeCertExpiration)
+	return NewRootCA(response.Certificate, nil, DefaultNodeCertExpiration, nil)
 }
 
 // CreateRootCA creates a Certificate authority for a new Swarm Cluster, potentially
@@ -660,7 +705,7 @@ func CreateRootCA(rootCN string, paths CertPaths) (RootCA, error) {
 		return RootCA{}, err
 	}
 
-	rootCA, err := NewRootCA(cert, key, DefaultNodeCertExpiration)
+	rootCA, err := NewRootCA(cert, key, DefaultNodeCertExpiration, nil)
 	if err != nil {
 		return RootCA{}, err
 	}
