@@ -5,6 +5,7 @@ import (
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/command/formatter"
+	"github.com/docker/docker/opts"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )
@@ -12,10 +13,11 @@ import (
 type listOptions struct {
 	quiet  bool
 	format string
+	filter opts.FilterOpt
 }
 
 func newSecretListCommand(dockerCli *command.DockerCli) *cobra.Command {
-	opts := listOptions{}
+	opts := listOptions{filter: opts.NewFilterOpt()}
 
 	cmd := &cobra.Command{
 		Use:     "ls [OPTIONS]",
@@ -30,6 +32,7 @@ func newSecretListCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags := cmd.Flags()
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "Only display IDs")
 	flags.StringVarP(&opts.format, "format", "", "", "Pretty-print secrets using a Go template")
+	flags.VarP(&opts.filter, "filter", "f", "Filter output based on conditions provided")
 
 	return cmd
 }
@@ -38,7 +41,7 @@ func runSecretList(dockerCli *command.DockerCli, opts listOptions) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 
-	secrets, err := client.SecretList(ctx, types.SecretListOptions{})
+	secrets, err := client.SecretList(ctx, types.SecretListOptions{Filters: opts.filter.Value()})
 	if err != nil {
 		return err
 	}
