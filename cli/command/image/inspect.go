@@ -14,7 +14,7 @@ type inspectOptions struct {
 	refs   []string
 }
 
-// newInspectCommand creates a new cobra.Command for `docker image inspect`
+// newInspectCommand creates a new cobra.Command for `docker inspect <image>`
 func newInspectCommand(dockerCli *command.DockerCli) *cobra.Command {
 	var opts inspectOptions
 
