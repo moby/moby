@@ -121,6 +121,8 @@ func (d *daemonDiscoveryReloader) advertiseHeartbeat(address string) {
 	if err := d.initHeartbeat(address); err == nil {
 		ready = true
 		close(d.readyCh)
+	} else {
+		logrus.WithError(err).Debug("First discovery heartbeat failed")
 	}
 
 	for {
