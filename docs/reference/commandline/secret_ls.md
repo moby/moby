@@ -31,6 +31,8 @@ Options:
 
 Run this command on a manager node to list the secrets in the swarm.
 
+For detailed information about using secrets, refer to [manage sensitive data with Docker secrets](https://docs.docker.com/engine/swarm/secrets/).
+
 ## Examples
 
 ```bash
