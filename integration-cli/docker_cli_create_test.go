@@ -321,6 +321,7 @@ func (s *DockerTrustSuite) TestTrustedIsolatedCreate(c *check.C) {
 
 	// Try create
 	icmd.RunCmd(icmd.Command(dockerBinary, "--config", "/tmp/docker-isolated-create", "create", repoName), trustedCmd).Assert(c, SuccessTagging)
+	defer os.RemoveAll("/tmp/docker-isolated-create")
 
 	dockerCmd(c, "rmi", repoName)
 }
