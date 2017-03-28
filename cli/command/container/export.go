@@ -1,11 +1,11 @@
 package container
 
 import (
-	"github.com/pkg/errors"
 	"io"
 
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )

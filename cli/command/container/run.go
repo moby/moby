@@ -2,7 +2,6 @@ package container
 
 import (
 	"fmt"
-	"github.com/pkg/errors"
 	"io"
 	"net/http/httputil"
 	"os"
@@ -18,6 +17,7 @@ import (
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/libnetwork/resolvconf/dns"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"golang.org/x/net/context"

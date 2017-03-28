@@ -2,16 +2,15 @@ package image
 
 import (
 	"fmt"
-	"github.com/pkg/errors"
 	"strings"
-
-	"golang.org/x/net/context"
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/registry"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 type pullOptions struct {

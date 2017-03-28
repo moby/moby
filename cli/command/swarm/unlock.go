@@ -3,16 +3,15 @@ package swarm
 import (
 	"bufio"
 	"fmt"
-	"github.com/pkg/errors"
 	"io"
 	"strings"
-
-	"github.com/spf13/cobra"
-	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+	"golang.org/x/crypto/ssh/terminal"
 	"golang.org/x/net/context"
 )
 

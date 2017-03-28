@@ -2,7 +2,6 @@ package container
 
 import (
 	"fmt"
-	"github.com/pkg/errors"
 	"strings"
 
 	containertypes "github.com/docker/docker/api/types/container"
@@ -10,6 +9,7 @@ import (
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )

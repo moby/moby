@@ -2,7 +2,6 @@ package command
 
 import (
 	"fmt"
-	"github.com/pkg/errors"
 	"io"
 	"net/http"
 	"os"
@@ -21,6 +20,7 @@ import (
 	dopts "github.com/docker/docker/opts"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )
