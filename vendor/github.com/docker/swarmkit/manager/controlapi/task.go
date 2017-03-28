@@ -87,6 +87,8 @@ func (s *Server) ListTasks(ctx context.Context, request *api.ListTasksRequest) (
 			tasks, err = store.FindTasks(tx, buildFilters(store.ByIDPrefix, request.Filters.IDPrefixes))
 		case request.Filters != nil && len(request.Filters.ServiceIDs) > 0:
 			tasks, err = store.FindTasks(tx, buildFilters(store.ByServiceID, request.Filters.ServiceIDs))
+		case request.Filters != nil && len(request.Filters.Runtimes) > 0:
+			tasks, err = store.FindTasks(tx, buildFilters(store.ByRuntime, request.Filters.Runtimes))
 		case request.Filters != nil && len(request.Filters.NodeIDs) > 0:
 			tasks, err = store.FindTasks(tx, buildFilters(store.ByNodeID, request.Filters.NodeIDs))
 		case request.Filters != nil && len(request.Filters.DesiredStates) > 0:
@@ -121,6 +123,16 @@ func (s *Server) ListTasks(ctx context.Context, request *api.ListTasksRequest) (
 			},
 			func(e *api.Task) bool {
 				return filterContains(e.NodeID, request.Filters.NodeIDs)
+			},
+			func(e *api.Task) bool {
+				if len(request.Filters.Runtimes) == 0 {
+					return true
+				}
+				r, err := naming.Runtime(e.Spec)
+				if err != nil {
+					return false
+				}
+				return filterContains(r, request.Filters.Runtimes)
 			},
 			func(e *api.Task) bool {
 				if len(request.Filters.DesiredStates) == 0 {

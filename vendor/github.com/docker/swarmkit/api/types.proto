@@ -14,11 +14,20 @@ message Version {
 	uint64 index = 1;
 }
 
+message IndexEntry {
+	string key = 1;
+	string val = 2;
+}
+
 // Annotations provide useful information to identify API objects. They are
 // common to all API specs.
 message Annotations {
 	string name = 1;
 	map<string, string> labels = 2;
+
+	// Indices provides keys and values for indexing this object.
+	// A single key may have multiple values.
+	repeated IndexEntry indices = 4 [(gogoproto.nullable) = false];
 }
 
 message Resources {
@@ -315,6 +324,17 @@ message UpdateConfig {
 	// roll back to the previous service spec. If the MaxFailureRatio
 	// threshold is hit during the rollback, the rollback will pause.
 	float max_failure_ratio = 5;
+
+	// UpdateOrder controls the order of operations when rolling out an
+	// updated task. Either the old task is shut down before the new task
+	// is started, or the new task is started before the old task is shut
+	// down.
+	enum UpdateOrder {
+		STOP_FIRST = 0;
+		START_FIRST = 1;
+	}
+
+	UpdateOrder order = 6;
 }
 
 // UpdateStatus is the status of an update in progress.
@@ -635,6 +655,9 @@ message ExternalCA {
 	// Options is a set of additional key/value pairs whose interpretation
 	// depends on the specified CA type.
 	map<string, string> options = 3;
+
+	// CACert specifies which root CA is used by this external CA
+	bytes ca_cert = 4 [(gogoproto.customname) = "CACert"];
 }
 
 message CAConfig {
@@ -744,6 +767,10 @@ message RootCA {
 
 	// JoinTokens contains the join tokens for workers and managers.
 	JoinTokens join_tokens = 4 [(gogoproto.nullable) = false];
+
+	// RootRotation contains the new root cert and key we want to rotate to - if this is nil, we are not in the
+	// middle of a root rotation
+	RootRotation root_rotation = 5;
 }
 
 
@@ -872,6 +899,11 @@ message HealthConfig {
 	// Retries is the number of consecutive failures needed to consider a
 	// container as unhealthy. Zero means inherit.
 	int32 retries = 4;
+
+	// Start period is the period for container initialization during
+	// which health check failures will note count towards the maximum
+	// number of retries.
+	google.protobuf.Duration start_period = 5;
 }
 
 message MaybeEncryptedRecord {
@@ -883,4 +915,12 @@ message MaybeEncryptedRecord {
 	Algorithm algorithm = 1;
 	bytes data = 2;
 	bytes nonce = 3;
+}
+
+
+message RootRotation {
+	bytes ca_cert = 1 [(gogoproto.customname) = "CACert"];
+	bytes ca_key = 2 [(gogoproto.customname) = "CAKey"];
+	// cross-signed CA cert is the CACert that has been cross-signed by the previous root
+	bytes cross_signed_ca_cert = 3 [(gogoproto.customname) = "CrossSignedCACert"];;
 }

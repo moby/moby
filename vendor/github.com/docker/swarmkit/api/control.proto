@@ -191,6 +191,8 @@ message ListTasksRequest {
 		repeated docker.swarmkit.v1.TaskState desired_states = 6;
 		// NamePrefixes matches all objects with the given prefixes
 		repeated string name_prefixes = 7;
+		repeated string runtimes = 9;
+
 		// UpToDate matches tasks that are consistent with the current
 		// service definition.
 		// Note: this is intended for internal status reporting rather
@@ -260,6 +262,7 @@ message ListServicesRequest {
 		map<string, string> labels = 3;
 		// NamePrefixes matches all objects with the given prefixes
 		repeated string name_prefixes = 4;
+		repeated string runtimes = 5;
 	}
 
 	Filters filters = 1;

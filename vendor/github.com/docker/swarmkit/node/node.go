@@ -600,8 +600,11 @@ func (n *Node) loadSecurityConfig(ctx context.Context) (*ca.SecurityConfig, erro
 				n.unlockKey = encryption.GenerateSecretKey()
 			}
 			krw = ca.NewKeyReadWriter(paths.Node, n.unlockKey, &manager.RaftDEKData{})
-			rootCA, err = ca.CreateRootCA(ca.DefaultRootCN, paths.RootCA)
+			rootCA, err = ca.CreateRootCA(ca.DefaultRootCN)
 			if err != nil {
+				return nil, err
+			}
+			if err := ca.SaveRootCA(rootCA, paths.RootCA); err != nil {
 				return nil, err
 			}
 			log.G(ctx).Debug("generated CA key and certificate")

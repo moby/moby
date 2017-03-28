@@ -200,7 +200,7 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 			}
 			return nil
 		},
-		state.EventUpdateCluster{},
+		api.EventUpdateCluster{},
 	)
 	if err != nil {
 		d.mu.Unlock()
@@ -249,7 +249,7 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 			d.processUpdates(ctx)
 			batchTimer.Reset(maxBatchInterval)
 		case v := <-configWatcher:
-			cluster := v.(state.EventUpdateCluster)
+			cluster := v.(api.EventUpdateCluster)
 			d.mu.Lock()
 			if cluster.Cluster.Spec.Dispatcher.HeartbeatPeriod != nil {
 				// ignore error, since Spec has passed validation before
@@ -346,9 +346,9 @@ func (d *Dispatcher) markNodesUnknown(ctx context.Context) error {
 
 				expireFunc := func() {
 					log := log.WithField("node", nodeID)
-					log.Debugf("heartbeat expiration for unknown node")
+					log.Debug("heartbeat expiration for unknown node")
 					if err := d.markNodeNotReady(nodeID, api.NodeStatus_DOWN, `heartbeat failure for node in "unknown" state`); err != nil {
-						log.WithError(err).Errorf(`failed deregistering node after heartbeat expiration for node in "unknown" state`)
+						log.WithError(err).Error(`failed deregistering node after heartbeat expiration for node in "unknown" state`)
 					}
 				}
 				if err := d.nodes.AddUnknown(node, expireFunc); err != nil {
@@ -360,7 +360,7 @@ func (d *Dispatcher) markNodesUnknown(ctx context.Context) error {
 				return nil
 			})
 			if err != nil {
-				log.WithField("node", n.ID).WithError(err).Errorf(`failed to move node to "unknown" state`)
+				log.WithField("node", n.ID).WithError(err).Error(`failed to move node to "unknown" state`)
 			}
 		}
 		return nil
@@ -457,7 +457,7 @@ func (d *Dispatcher) register(ctx context.Context, nodeID string, description *a
 
 	addr, err := nodeIPFromContext(ctx)
 	if err != nil {
-		log.G(ctx).Debugf(err.Error())
+		log.G(ctx).Debug(err.Error())
 	}
 
 	if err := d.markNodeReady(dctx, nodeID, description, addr); err != nil {
@@ -701,12 +701,12 @@ func (d *Dispatcher) Tasks(r *api.TasksRequest, stream api.Dispatcher_TasksServe
 			}
 			return nil
 		},
-		state.EventCreateTask{Task: &api.Task{NodeID: nodeID},
-			Checks: []state.TaskCheckFunc{state.TaskCheckNodeID}},
-		state.EventUpdateTask{Task: &api.Task{NodeID: nodeID},
-			Checks: []state.TaskCheckFunc{state.TaskCheckNodeID}},
-		state.EventDeleteTask{Task: &api.Task{NodeID: nodeID},
-			Checks: []state.TaskCheckFunc{state.TaskCheckNodeID}},
+		api.EventCreateTask{Task: &api.Task{NodeID: nodeID},
+			Checks: []api.TaskCheckFunc{state.TaskCheckNodeID}},
+		api.EventUpdateTask{Task: &api.Task{NodeID: nodeID},
+			Checks: []api.TaskCheckFunc{state.TaskCheckNodeID}},
+		api.EventDeleteTask{Task: &api.Task{NodeID: nodeID},
+			Checks: []api.TaskCheckFunc{state.TaskCheckNodeID}},
 	)
 	if err != nil {
 		return err
@@ -742,10 +742,10 @@ func (d *Dispatcher) Tasks(r *api.TasksRequest, stream api.Dispatcher_TasksServe
 			select {
 			case event := <-nodeTasks:
 				switch v := event.(type) {
-				case state.EventCreateTask:
+				case api.EventCreateTask:
 					tasksMap[v.Task.ID] = v.Task
 					modificationCnt++
-				case state.EventUpdateTask:
+				case api.EventUpdateTask:
 					if oldTask, exists := tasksMap[v.Task.ID]; exists {
 						// States ASSIGNED and below are set by the orchestrator/scheduler,
 						// not the agent, so tasks in these states need to be sent to the
@@ -758,7 +758,7 @@ func (d *Dispatcher) Tasks(r *api.TasksRequest, stream api.Dispatcher_TasksServe
 					}
 					tasksMap[v.Task.ID] = v.Task
 					modificationCnt++
-				case state.EventDeleteTask:
+				case api.EventDeleteTask:
 					delete(tasksMap, v.Task.ID)
 					modificationCnt++
 				}
@@ -915,12 +915,12 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 			}
 			return nil
 		},
-		state.EventUpdateTask{Task: &api.Task{NodeID: nodeID},
-			Checks: []state.TaskCheckFunc{state.TaskCheckNodeID}},
-		state.EventDeleteTask{Task: &api.Task{NodeID: nodeID},
-			Checks: []state.TaskCheckFunc{state.TaskCheckNodeID}},
-		state.EventUpdateSecret{},
-		state.EventDeleteSecret{},
+		api.EventUpdateTask{Task: &api.Task{NodeID: nodeID},
+			Checks: []api.TaskCheckFunc{state.TaskCheckNodeID}},
+		api.EventDeleteTask{Task: &api.Task{NodeID: nodeID},
+			Checks: []api.TaskCheckFunc{state.TaskCheckNodeID}},
+		api.EventUpdateSecret{},
+		api.EventDeleteSecret{},
 	)
 	if err != nil {
 		return err
@@ -996,7 +996,7 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 				// created by the orchestrator, then the scheduler moves
 				// them to ASSIGNED. If this ever changes, we will need
 				// to monitor task creations as well.
-				case state.EventUpdateTask:
+				case api.EventUpdateTask:
 					// We only care about tasks that are ASSIGNED or
 					// higher.
 					if v.Task.Status.State < api.TaskStateAssigned {
@@ -1038,7 +1038,7 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 					updateTasks[v.Task.ID] = v.Task
 
 					oneModification()
-				case state.EventDeleteTask:
+				case api.EventDeleteTask:
 					if _, exists := tasksMap[v.Task.ID]; !exists {
 						continue
 					}
@@ -1056,14 +1056,14 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 					oneModification()
 				// TODO(aaronl): For node secrets, we'll need to handle
 				// EventCreateSecret.
-				case state.EventUpdateSecret:
+				case api.EventUpdateSecret:
 					if _, exists := tasksUsingSecret[v.Secret.ID]; !exists {
 						continue
 					}
 					log.Debugf("Secret %s (ID: %d) was updated though it was still referenced by one or more tasks",
 						v.Secret.Spec.Annotations.Name, v.Secret.ID)
 
-				case state.EventDeleteSecret:
+				case api.EventDeleteSecret:
 					if _, exists := tasksUsingSecret[v.Secret.ID]; !exists {
 						continue
 					}
@@ -1171,7 +1171,16 @@ func (d *Dispatcher) moveTasksToOrphaned(nodeID string) error {
 		}
 
 		for _, task := range tasks {
-			if task.Status.State < api.TaskStateOrphaned {
+			// Tasks running on an unreachable node need to be marked as
+			// orphaned since we have no idea whether the task is still running
+			// or not.
+			//
+			// This only applies for tasks that could have made progress since
+			// the agent became unreachable (assigned<->running)
+			//
+			// Tasks in a final state (e.g. rejected) *cannot* have made
+			// progress, therefore there's no point in marking them as orphaned
+			if task.Status.State >= api.TaskStateAssigned && task.Status.State <= api.TaskStateRunning {
 				task.Status.State = api.TaskStateOrphaned
 			}
 
@@ -1327,8 +1336,8 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 	nodeUpdates, cancel, err := store.ViewAndWatch(d.store, func(readTx store.ReadTx) error {
 		nodeObj = store.GetNode(readTx, nodeID)
 		return nil
-	}, state.EventUpdateNode{Node: &api.Node{ID: nodeID},
-		Checks: []state.NodeCheckFunc{state.NodeCheckID}},
+	}, api.EventUpdateNode{Node: &api.Node{ID: nodeID},
+		Checks: []api.NodeCheckFunc{state.NodeCheckID}},
 	)
 	if cancel != nil {
 		defer cancel()
@@ -1394,7 +1403,7 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 		case ev := <-managerUpdates:
 			mgrs = ev.([]*api.WeightedPeer)
 		case ev := <-nodeUpdates:
-			nodeObj = ev.(state.EventUpdateNode).Node
+			nodeObj = ev.(api.EventUpdateNode).Node
 		case <-stream.Context().Done():
 			return stream.Context().Err()
 		case <-node.Disconnect:

@@ -68,7 +68,7 @@ func (s *subscription) Run(ctx context.Context) {
 
 	if s.follow() {
 		wq := s.store.WatchQueue()
-		ch, cancel := state.Watch(wq, state.EventCreateTask{}, state.EventUpdateTask{})
+		ch, cancel := state.Watch(wq, api.EventCreateTask{}, api.EventUpdateTask{})
 		go func() {
 			defer cancel()
 			s.watch(ch)
@@ -227,9 +227,9 @@ func (s *subscription) watch(ch <-chan events.Event) error {
 			return s.ctx.Err()
 		case event := <-ch:
 			switch v := event.(type) {
-			case state.EventCreateTask:
+			case api.EventCreateTask:
 				t = v.Task
-			case state.EventUpdateTask:
+			case api.EventUpdateTask:
 				t = v.Task
 			}
 		}

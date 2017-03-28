@@ -10,6 +10,7 @@ import (
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/swarmkit/api"
+	"github.com/docker/swarmkit/api/naming"
 	"github.com/docker/swarmkit/identity"
 	"github.com/docker/swarmkit/manager/allocator"
 	"github.com/docker/swarmkit/manager/constraint"
@@ -23,7 +24,7 @@ import (
 )
 
 var (
-	errNetworkUpdateNotSupported = errors.New("changing network in service is not supported")
+	errNetworkUpdateNotSupported = errors.New("networks must be migrated to TaskSpec before being changed")
 	errRenameNotSupported        = errors.New("renaming services is not supported")
 	errModeChangeNotAllowed      = errors.New("service mode change is not allowed")
 )
@@ -118,9 +119,27 @@ func validateUpdate(uc *api.UpdateConfig) error {
 	return nil
 }
 
-func validateContainerSpec(container *api.ContainerSpec) error {
-	if container == nil {
-		return grpc.Errorf(codes.InvalidArgument, "ContainerSpec: missing in service spec")
+func validateContainerSpec(taskSpec api.TaskSpec) error {
+	// Building a empty/dummy Task to validate the templating and
+	// the resulting container spec as well. This is a *best effort*
+	// validation.
+	container, err := template.ExpandContainerSpec(&api.Task{
+		Spec:      taskSpec,
+		ServiceID: "serviceid",
+		Slot:      1,
+		NodeID:    "nodeid",
+		Networks:  []*api.NetworkAttachment{},
+		Annotations: api.Annotations{
+			Name: "taskname",
+		},
+		ServiceAnnotations: api.Annotations{
+			Name: "servicename",
+		},
+		Endpoint:  &api.Endpoint{},
+		LogDriver: taskSpec.LogDriver,
+	})
+	if err != nil {
+		return grpc.Errorf(codes.InvalidArgument, err.Error())
 	}
 
 	if container.Image == "" {
@@ -137,6 +156,37 @@ func validateContainerSpec(container *api.ContainerSpec) error {
 			return grpc.Errorf(codes.InvalidArgument, "ContainerSpec: duplicate mount point: %s", mount.Target)
 		}
 		mountMap[mount.Target] = true
+	}
+
+	return nil
+}
+
+func validateGenericRuntimeSpec(taskSpec api.TaskSpec) error {
+	generic := taskSpec.GetGeneric()
+
+	if len(generic.Kind) < 3 {
+		return grpc.Errorf(codes.InvalidArgument, "Generic runtime: Invalid name %q", generic.Kind)
+	}
+
+	reservedNames := []string{"container", "attachment"}
+	for _, n := range reservedNames {
+		if strings.ToLower(generic.Kind) == n {
+			return grpc.Errorf(codes.InvalidArgument, "Generic runtime: %q is a reserved name", generic.Kind)
+		}
+	}
+
+	payload := generic.Payload
+
+	if payload == nil {
+		return grpc.Errorf(codes.InvalidArgument, "Generic runtime is missing payload")
+	}
+
+	if payload.TypeUrl == "" {
+		return grpc.Errorf(codes.InvalidArgument, "Generic runtime is missing payload type")
+	}
+
+	if len(payload.Value) == 0 {
+		return grpc.Errorf(codes.InvalidArgument, "Generic runtime has an empty payload")
 	}
 
 	return nil
@@ -164,34 +214,17 @@ func validateTaskSpec(taskSpec api.TaskSpec) error {
 		return grpc.Errorf(codes.InvalidArgument, "TaskSpec: missing runtime")
 	}
 
-	_, ok := taskSpec.GetRuntime().(*api.TaskSpec_Container)
-	if !ok {
+	switch taskSpec.GetRuntime().(type) {
+	case *api.TaskSpec_Container:
+		if err := validateContainerSpec(taskSpec); err != nil {
+			return err
+		}
+	case *api.TaskSpec_Generic:
+		if err := validateGenericRuntimeSpec(taskSpec); err != nil {
+			return err
+		}
+	default:
 		return grpc.Errorf(codes.Unimplemented, "RuntimeSpec: unimplemented runtime in service spec")
-	}
-
-	// Building a empty/dummy Task to validate the templating and
-	// the resulting container spec as well. This is a *best effort*
-	// validation.
-	preparedSpec, err := template.ExpandContainerSpec(&api.Task{
-		Spec:      taskSpec,
-		ServiceID: "serviceid",
-		Slot:      1,
-		NodeID:    "nodeid",
-		Networks:  []*api.NetworkAttachment{},
-		Annotations: api.Annotations{
-			Name: "taskname",
-		},
-		ServiceAnnotations: api.Annotations{
-			Name: "servicename",
-		},
-		Endpoint:  &api.Endpoint{},
-		LogDriver: taskSpec.LogDriver,
-	})
-	if err != nil {
-		return grpc.Errorf(codes.InvalidArgument, err.Error())
-	}
-	if err := validateContainerSpec(preparedSpec); err != nil {
-		return err
 	}
 
 	return nil
@@ -425,36 +458,6 @@ func (s *Server) checkSecretExistence(tx store.Tx, spec *api.ServiceSpec) error 
 	return nil
 }
 
-func doesServiceNeedIngress(srv *api.Service) bool {
-	// Only VIP mode with target ports needs routing mesh.
-	// If no endpoint is specified, it defaults to VIP mode but no target ports
-	// are specified, so the service does not need the routing mesh.
-	if srv.Spec.Endpoint == nil || srv.Spec.Endpoint.Mode != api.ResolutionModeVirtualIP {
-		return false
-	}
-	// Go through the ports' config
-	for _, p := range srv.Spec.Endpoint.Ports {
-		if p.PublishMode != api.PublishModeIngress {
-			continue
-		}
-		if p.PublishedPort != 0 {
-			return true
-		}
-	}
-	// Go through the ports' state
-	if srv.Endpoint != nil {
-		for _, p := range srv.Endpoint.Ports {
-			if p.PublishMode != api.PublishModeIngress {
-				continue
-			}
-			if p.PublishedPort != 0 {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 // CreateService creates and returns a Service based on the provided ServiceSpec.
 // - Returns `InvalidArgument` if the ServiceSpec is malformed.
 // - Returns `Unimplemented` if the ServiceSpec references unimplemented features.
@@ -476,11 +479,12 @@ func (s *Server) CreateService(ctx context.Context, request *api.CreateServiceRe
 	// TODO(aluzzardi): Consider using `Name` as a primary key to handle
 	// duplicate creations. See #65
 	service := &api.Service{
-		ID:   identity.NewID(),
-		Spec: *request.Spec,
+		ID:          identity.NewID(),
+		Spec:        *request.Spec,
+		SpecVersion: &api.Version{},
 	}
 
-	if doesServiceNeedIngress(service) {
+	if allocator.IsIngressNetworkNeeded(service) {
 		if _, err := allocator.GetIngressNetwork(s.store); err == allocator.ErrNoIngress {
 			return nil, grpc.Errorf(codes.FailedPrecondition, "service needs ingress network, but no ingress network is present")
 		}
@@ -558,18 +562,14 @@ func (s *Server) UpdateService(ctx context.Context, request *api.UpdateServiceRe
 		if service == nil {
 			return grpc.Errorf(codes.NotFound, "service %s not found", request.ServiceID)
 		}
-		// temporary disable network update
-		requestSpecNetworks := request.Spec.Task.Networks
-		if len(requestSpecNetworks) == 0 {
-			requestSpecNetworks = request.Spec.Networks
-		}
 
-		specNetworks := service.Spec.Task.Networks
-		if len(specNetworks) == 0 {
-			specNetworks = service.Spec.Networks
-		}
-
-		if !reflect.DeepEqual(requestSpecNetworks, specNetworks) {
+		// It's not okay to update Service.Spec.Networks on its own.
+		// However, if Service.Spec.Task.Networks is also being
+		// updated, that's okay (for example when migrating from the
+		// deprecated Spec.Networks field to Spec.Task.Networks).
+		if (len(request.Spec.Networks) != 0 || len(service.Spec.Networks) != 0) &&
+			!reflect.DeepEqual(request.Spec.Networks, service.Spec.Networks) &&
+			reflect.DeepEqual(request.Spec.Task.Networks, service.Spec.Task.Networks) {
 			return grpc.Errorf(codes.Unimplemented, errNetworkUpdateNotSupported.Error())
 		}
 
@@ -599,8 +599,11 @@ func (s *Server) UpdateService(ctx context.Context, request *api.UpdateServiceRe
 			}
 
 			curSpec := service.Spec.Copy()
+			curSpecVersion := service.SpecVersion
 			service.Spec = *service.PreviousSpec.Copy()
+			service.SpecVersion = service.PreviousSpecVersion.Copy()
 			service.PreviousSpec = curSpec
+			service.PreviousSpecVersion = curSpecVersion
 
 			service.UpdateStatus = &api.UpdateStatus{
 				State:     api.UpdateStatus_ROLLBACK_STARTED,
@@ -609,13 +612,19 @@ func (s *Server) UpdateService(ctx context.Context, request *api.UpdateServiceRe
 			}
 		} else {
 			service.PreviousSpec = service.Spec.Copy()
+			service.PreviousSpecVersion = service.SpecVersion
 			service.Spec = *request.Spec.Copy()
+			// Set spec version. Note that this will not match the
+			// service's Meta.Version after the store update. The
+			// versionsfor the spec and the service itself are not
+			// meant to be directly comparable.
+			service.SpecVersion = service.Meta.Version.Copy()
 
 			// Reset update status
 			service.UpdateStatus = nil
 		}
 
-		if doesServiceNeedIngress(service) {
+		if allocator.IsIngressNetworkNeeded(service) {
 			if _, err := allocator.GetIngressNetwork(s.store); err == allocator.ErrNoIngress {
 				return grpc.Errorf(codes.FailedPrecondition, "service needs ingress network, but no ingress network is present")
 			}
@@ -687,6 +696,8 @@ func (s *Server) ListServices(ctx context.Context, request *api.ListServicesRequ
 			services, err = store.FindServices(tx, buildFilters(store.ByNamePrefix, request.Filters.NamePrefixes))
 		case request.Filters != nil && len(request.Filters.IDPrefixes) > 0:
 			services, err = store.FindServices(tx, buildFilters(store.ByIDPrefix, request.Filters.IDPrefixes))
+		case request.Filters != nil && len(request.Filters.Runtimes) > 0:
+			services, err = store.FindServices(tx, buildFilters(store.ByRuntime, request.Filters.Runtimes))
 		default:
 			services, err = store.FindServices(tx, store.All)
 		}
@@ -708,6 +719,16 @@ func (s *Server) ListServices(ctx context.Context, request *api.ListServicesRequ
 			},
 			func(e *api.Service) bool {
 				return filterMatchLabels(e.Spec.Annotations.Labels, request.Filters.Labels)
+			},
+			func(e *api.Service) bool {
+				if len(request.Filters.Runtimes) == 0 {
+					return true
+				}
+				r, err := naming.Runtime(e.Spec.Task)
+				if err != nil {
+					return false
+				}
+				return filterContains(r, request.Filters.Runtimes)
 			},
 		)
 	}

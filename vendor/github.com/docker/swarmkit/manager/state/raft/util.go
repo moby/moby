@@ -59,7 +59,7 @@ func WaitForLeader(ctx context.Context, n *Node) error {
 // committed to raft. This ensures that we can see and serve informations
 // related to the cluster.
 func WaitForCluster(ctx context.Context, n *Node) (cluster *api.Cluster, err error) {
-	watch, cancel := state.Watch(n.MemoryStore().WatchQueue(), state.EventCreateCluster{})
+	watch, cancel := state.Watch(n.MemoryStore().WatchQueue(), api.EventCreateCluster{})
 	defer cancel()
 
 	var clusters []*api.Cluster
@@ -76,7 +76,7 @@ func WaitForCluster(ctx context.Context, n *Node) (cluster *api.Cluster, err err
 	} else {
 		select {
 		case e := <-watch:
-			cluster = e.(state.EventCreateCluster).Cluster
+			cluster = e.(api.EventCreateCluster).Cluster
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		}

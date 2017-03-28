@@ -16,7 +16,6 @@ import (
 	"github.com/cloudflare/cfssl/api"
 	"github.com/cloudflare/cfssl/config"
 	"github.com/cloudflare/cfssl/csr"
-	"github.com/cloudflare/cfssl/helpers"
 	"github.com/cloudflare/cfssl/signer"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
@@ -107,20 +106,14 @@ func (eca *ExternalCA) Sign(ctx context.Context, req signer.SignRequest) (cert [
 // CrossSignRootCA takes a RootCA object, generates a CA CSR, sends a signing request with the CA CSR to the external
 // CFSSL API server in order to obtain a cross-signed root
 func (eca *ExternalCA) CrossSignRootCA(ctx context.Context, rca RootCA) ([]byte, error) {
-	if !rca.CanSign() {
-		return nil, errors.Wrap(ErrNoValidSigner, "cannot generate CSR for a cross-signed root")
-	}
-	rootCert, err := helpers.ParseCertificatePEM(rca.Cert)
-	if err != nil {
-		return nil, errors.Wrap(err, "could not parse CA certificate")
-	}
-	rootSigner, err := helpers.ParsePrivateKeyPEM(rca.Signer.Key)
-	if err != nil {
-		return nil, errors.Wrap(err, "could not parse old CA key")
-	}
 	// ExtractCertificateRequest generates a new key request, and we want to continue to use the old
 	// key.  However, ExtractCertificateRequest will also convert the pkix.Name to csr.Name, which we
 	// need in order to generate a signing request
+	rcaSigner, err := rca.Signer()
+	if err != nil {
+		return nil, err
+	}
+	rootCert := rcaSigner.parsedCert
 	cfCSRObj := csr.ExtractCertificateRequest(rootCert)
 
 	der, err := x509.CreateCertificateRequest(cryptorand.Reader, &x509.CertificateRequest{
@@ -132,7 +125,7 @@ func (eca *ExternalCA) CrossSignRootCA(ctx context.Context, rca RootCA) ([]byte,
 		DNSNames:                rootCert.DNSNames,
 		EmailAddresses:          rootCert.EmailAddresses,
 		IPAddresses:             rootCert.IPAddresses,
-	}, rootSigner)
+	}, rcaSigner.cryptoSigner)
 	if err != nil {
 		return nil, err
 	}

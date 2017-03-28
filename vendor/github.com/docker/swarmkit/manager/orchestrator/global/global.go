@@ -8,7 +8,6 @@ import (
 	"github.com/docker/swarmkit/manager/orchestrator/restart"
 	"github.com/docker/swarmkit/manager/orchestrator/taskinit"
 	"github.com/docker/swarmkit/manager/orchestrator/update"
-	"github.com/docker/swarmkit/manager/state"
 	"github.com/docker/swarmkit/manager/state/store"
 	"golang.org/x/net/context"
 )
@@ -130,21 +129,21 @@ func (g *Orchestrator) Run(ctx context.Context) error {
 		case event := <-watcher:
 			// TODO(stevvooe): Use ctx to limit running time of operation.
 			switch v := event.(type) {
-			case state.EventUpdateCluster:
+			case api.EventUpdateCluster:
 				g.cluster = v.Cluster
-			case state.EventCreateService:
+			case api.EventCreateService:
 				if !orchestrator.IsGlobalService(v.Service) {
 					continue
 				}
 				g.updateService(v.Service)
 				g.reconcileServices(ctx, []string{v.Service.ID})
-			case state.EventUpdateService:
+			case api.EventUpdateService:
 				if !orchestrator.IsGlobalService(v.Service) {
 					continue
 				}
 				g.updateService(v.Service)
 				g.reconcileServices(ctx, []string{v.Service.ID})
-			case state.EventDeleteService:
+			case api.EventDeleteService:
 				if !orchestrator.IsGlobalService(v.Service) {
 					continue
 				}
@@ -152,10 +151,10 @@ func (g *Orchestrator) Run(ctx context.Context) error {
 				// delete the service from service map
 				delete(g.globalServices, v.Service.ID)
 				g.restarts.ClearServiceHistory(v.Service.ID)
-			case state.EventCreateNode:
+			case api.EventCreateNode:
 				g.updateNode(v.Node)
 				g.reconcileOneNode(ctx, v.Node)
-			case state.EventUpdateNode:
+			case api.EventUpdateNode:
 				g.updateNode(v.Node)
 				switch v.Node.Status.State {
 				// NodeStatus_DISCONNECTED is a transient state, no need to make any change
@@ -165,12 +164,12 @@ func (g *Orchestrator) Run(ctx context.Context) error {
 					// node could come back to READY from DOWN or DISCONNECT
 					g.reconcileOneNode(ctx, v.Node)
 				}
-			case state.EventDeleteNode:
+			case api.EventDeleteNode:
 				g.removeTasksFromNode(ctx, v.Node)
 				delete(g.nodes, v.Node.ID)
-			case state.EventUpdateTask:
+			case api.EventUpdateTask:
 				g.handleTaskChange(ctx, v.Task)
-			case state.EventDeleteTask:
+			case api.EventDeleteTask:
 				// CLI allows deleting task
 				if _, exists := g.globalServices[v.Task.ServiceID]; !exists {
 					continue

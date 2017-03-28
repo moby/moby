@@ -1411,7 +1411,7 @@ func (n *Node) registerNode(node *api.RaftMember) error {
 
 // ProposeValue calls Propose on the raft and waits
 // on the commit log action before returning a result
-func (n *Node) ProposeValue(ctx context.Context, storeAction []*api.StoreAction, cb func()) error {
+func (n *Node) ProposeValue(ctx context.Context, storeAction []api.StoreAction, cb func()) error {
 	ctx, cancel := n.WithContext(ctx)
 	defer cancel()
 	_, err := n.processInternalRaftRequest(ctx, &api.InternalRaftRequest{Action: storeAction}, cb)
@@ -1661,10 +1661,6 @@ func (n *Node) processEntry(ctx context.Context, entry raftpb.Entry) error {
 	err := proto.Unmarshal(entry.Data, r)
 	if err != nil {
 		return err
-	}
-
-	if r.Action == nil {
-		return nil
 	}
 
 	if !n.wait.trigger(r.ID, r) {

@@ -98,7 +98,7 @@ message ResolveAddressResponse {
 message InternalRaftRequest {
 	uint64 id = 1;
 
-	repeated StoreAction action = 2;
+	repeated StoreAction action = 2 [(gogoproto.nullable) = false];
 }
 
 // TODO(stevvooe): Storage actions may belong in another protobuf file. They
@@ -125,5 +125,7 @@ message StoreAction {
 		Network network = 5;
 		Cluster cluster = 6;
 		Secret secret = 7;
+		Resource resource = 8;
+		Extension extension = 9;
 	}
 }
