@@ -117,6 +117,29 @@ func (s *DockerSuite) TestAPIImagesHistory(c *check.C) {
 	c.Assert(historydata[0].Tags[0], checker.Equals, "test-api-images-history:latest")
 }
 
+func (s *DockerSuite) TestAPIImagesImportBadSrc(c *check.C) {
+	testRequires(c, Network)
+
+	tt := []struct {
+		statusExp int
+		fromSrc   string
+	}{
+		{http.StatusNotFound, "http://example.com/nofile.tar"},
+		{http.StatusNotFound, "example.com/nofile.tar"},
+		{http.StatusNotFound, "example.com%2Fdata%2Ffile.tar"},
+		{http.StatusInternalServerError, "%2Fdata%2Ffile.tar"},
+	}
+
+	for _, te := range tt {
+		res, b, err := request.SockRequestRaw("POST", strings.Join([]string{"/images/create?fromSrc=", te.fromSrc}, ""), nil, "application/json", daemonHost())
+		c.Assert(err, check.IsNil)
+		b.Close()
+		c.Assert(res.StatusCode, checker.Equals, te.statusExp)
+		c.Assert(res.Header.Get("Content-Type"), checker.Equals, "application/json")
+	}
+
+}
+
 // #14846
 func (s *DockerSuite) TestAPIImagesSearchJSONContentType(c *check.C) {
 	testRequires(c, Network)
