@@ -1,6 +1,7 @@
 package convert
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -8,6 +9,11 @@ import (
 	"github.com/docker/docker/pkg/namesgenerator"
 	swarmapi "github.com/docker/swarmkit/api"
 	gogotypes "github.com/gogo/protobuf/types"
+)
+
+var (
+	// ErrUnsupportedRuntime returns an error if the runtime is not supported by the daemon
+	ErrUnsupportedRuntime = errors.New("unsupported runtime")
 )
 
 // ServiceFromGRPC converts a grpc Service to a Service.
@@ -170,7 +176,7 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 			},
 		}
 	default:
-		return swarmapi.ServiceSpec{}, fmt.Errorf("error creating service; unsupported runtime %q", s.TaskTemplate.Runtime)
+		return swarmapi.ServiceSpec{}, ErrUnsupportedRuntime
 	}
 
 	restartPolicy, err := restartPolicyToGRPC(s.TaskTemplate.RestartPolicy)
@@ -489,8 +495,14 @@ func taskSpecFromGRPC(taskSpec swarmapi.TaskSpec) types.TaskSpec {
 		taskNetworks = append(taskNetworks, types.NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases})
 	}
 
+	c := taskSpec.GetContainer()
+	cSpec := types.ContainerSpec{}
+	if c != nil {
+		cSpec = containerSpecFromGRPC(c)
+	}
+
 	return types.TaskSpec{
-		ContainerSpec: containerSpecFromGRPC(taskSpec.GetContainer()),
+		ContainerSpec: cSpec,
 		Resources:     resourcesFromGRPC(taskSpec.Resources),
 		RestartPolicy: restartPolicyFromGRPC(taskSpec.Restart),
 		Placement:     placementFromGRPC(taskSpec.Placement),
