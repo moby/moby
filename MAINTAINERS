@@ -28,6 +28,7 @@
 		people = [
 			"aaronlehmann",
 			"akihirosuda",
+			"albers",
 			"aluzzardi",
 			"anusha",
 			"coolljt0725",
@@ -228,6 +229,11 @@
 	Name = "Andrea Luzzardi"
 	Email = "al@docker.com"
 	GitHub = "aluzzardi"
+
+	[people.albers]
+	Name = "Harald Albers"
+	Email = "github@albersweb.de"
+	GitHub = "albers"
 
 	[people.andrewhsu]
 	Name = "Andrew Hsu"
