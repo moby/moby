@@ -13,7 +13,7 @@ keywords: "list, changed, files, container"
      will be rejected.
 -->
 
-## diff
+# diff
 
 ```markdown
 Usage:  docker diff CONTAINER
@@ -23,6 +23,8 @@ Inspect changes to files or directories on a container's filesystem
 Options:
       --help   Print usage
 ```
+
+## Description
 
 List the changed files and directories in a container᾿s filesystem since the
 container was created. Three different types of change are tracked:

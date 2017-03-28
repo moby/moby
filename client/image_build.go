@@ -48,6 +48,7 @@ func (cli *Client) imageBuildOptionsToQuery(options types.ImageBuildOptions) (ur
 	query := url.Values{
 		"t":           options.Tags,
 		"securityopt": options.SecurityOpt,
+		"extrahosts":  options.ExtraHosts,
 	}
 	if options.SuppressOutput {
 		query.Set("q", "1")

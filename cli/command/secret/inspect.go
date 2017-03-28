@@ -33,13 +33,9 @@ func runSecretInspect(dockerCli *command.DockerCli, opts inspectOptions) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 
-	ids, err := getCliRequestedSecretIDs(ctx, client, opts.names)
-	if err != nil {
-		return err
-	}
 	getRef := func(id string) (interface{}, []byte, error) {
 		return client.SecretInspectWithRaw(ctx, id)
 	}
 
-	return inspect.Inspect(dockerCli.Out(), ids, opts.format, getRef)
+	return inspect.Inspect(dockerCli.Out(), opts.names, opts.format, getRef)
 }

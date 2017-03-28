@@ -108,8 +108,8 @@ RUN set -x \
 	&& UNATTENDED=yes OSX_VERSION_MIN=10.6 ${OSXCROSS_PATH}/build.sh
 ENV PATH /osxcross/target/bin:$PATH
 
-# Install seccomp: the version shipped in trusty is too old
-ENV SECCOMP_VERSION 2.3.1
+# Install seccomp: the version shipped upstream is too old
+ENV SECCOMP_VERSION 2.3.2
 RUN set -x \
 	&& export SECCOMP_PATH="$(mktemp -d)" \
 	&& curl -fsSL "https://github.com/seccomp/libseccomp/releases/download/v${SECCOMP_VERSION}/libseccomp-${SECCOMP_VERSION}.tar.gz" \
@@ -127,7 +127,7 @@ RUN set -x \
 # IMPORTANT: If the version of Go is updated, the Windows to Linux CI machines
 #            will need updating, to avoid errors. Ping #docker-maintainers on IRC
 #            with a heads-up.
-ENV GO_VERSION 1.7.4
+ENV GO_VERSION 1.7.5
 RUN curl -fsSL "https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz" \
 	| tar -xzC /usr/local
 
@@ -191,10 +191,15 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Get the "docker-py" source so we can run their integration tests
-ENV DOCKER_PY_COMMIT e2655f658408f9ad1f62abdef3eb6ed43c0cf324
+ENV DOCKER_PY_COMMIT 4a08d04aef0595322e1b5ac7c52f28a931da85a5
+# To run integration tests docker-pycreds is required.
+# Before running the integration tests conftest.py is
+# loaded which results in loads auth.py that
+# imports the docker-pycreds module.
 RUN git clone https://github.com/docker/docker-py.git /docker-py \
 	&& cd /docker-py \
 	&& git checkout -q $DOCKER_PY_COMMIT \
+	&& pip install docker-pycreds==0.2.1 \
 	&& pip install -r test-requirements.txt
 
 # Install yamllint for validating swagger.yaml

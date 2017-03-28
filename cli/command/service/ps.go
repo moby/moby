@@ -1,7 +1,6 @@
 package service
 
 import (
-	"fmt"
 	"strings"
 
 	"golang.org/x/net/context"
@@ -10,10 +9,12 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/cli/command/formatter"
 	"github.com/docker/docker/cli/command/idresolver"
 	"github.com/docker/docker/cli/command/node"
 	"github.com/docker/docker/cli/command/task"
 	"github.com/docker/docker/opts"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -22,6 +23,7 @@ type psOptions struct {
 	quiet     bool
 	noResolve bool
 	noTrunc   bool
+	format    string
 	filter    opts.FilterOpt
 }
 
@@ -41,6 +43,7 @@ func newPsCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "Only display task IDs")
 	flags.BoolVar(&opts.noTrunc, "no-trunc", false, "Do not truncate output")
 	flags.BoolVar(&opts.noResolve, "no-resolve", false, "Do not map IDs to Names")
+	flags.StringVar(&opts.format, "format", "", "Pretty-print tasks using a Go template")
 	flags.VarP(&opts.filter, "filter", "f", "Filter output based on conditions provided")
 
 	return cmd
@@ -86,7 +89,7 @@ func runPS(dockerCli *command.DockerCli, opts psOptions) error {
 		}
 		// If nothing has been found, return immediately.
 		if serviceCount == 0 {
-			return fmt.Errorf("no such services: %s", service)
+			return errors.Errorf("no such services: %s", service)
 		}
 	}
 
@@ -107,8 +110,14 @@ func runPS(dockerCli *command.DockerCli, opts psOptions) error {
 		return err
 	}
 
-	if opts.quiet {
-		return task.PrintQuiet(dockerCli, tasks)
+	format := opts.format
+	if len(format) == 0 {
+		if len(dockerCli.ConfigFile().TasksFormat) > 0 && !opts.quiet {
+			format = dockerCli.ConfigFile().TasksFormat
+		} else {
+			format = formatter.TableFormatKey
+		}
 	}
-	return task.Print(dockerCli, ctx, tasks, idresolver.New(client, opts.noResolve), opts.noTrunc)
+
+	return task.Print(dockerCli, ctx, tasks, idresolver.New(client, opts.noResolve), !opts.noTrunc, opts.quiet, format)
 }

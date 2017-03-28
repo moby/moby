@@ -2,6 +2,8 @@
 title: "Dockerfile reference"
 description: "Dockerfiles use a simple DSL which allows you to automate the steps you would normally manually take to create an image."
 keywords: "builder, docker, Dockerfile, automation, image creation"
+redirect_from:
+- /reference/builder/
 ---
 
 <!-- This file is maintained within the docker/docker Github
@@ -197,8 +199,8 @@ directive:
 
 ```Dockerfile
 # About my dockerfile
-FROM ImageName
 # directive=value
+FROM ImageName
 ```
 
 The unknown directive is treated as a comment due to not being recognized. In
@@ -403,9 +405,9 @@ Here is an example `.dockerignore` file:
 
 ```
 # comment
-    */temp*
-    */*/temp*
-    temp?
+*/temp*
+*/*/temp*
+temp?
 ```
 
 This file causes the following build behavior:
@@ -709,7 +711,7 @@ it instead, as it enables setting any metadata you require, and can be viewed
 easily, for example with `docker inspect`. To set a label corresponding to the
 `MAINTAINER` field you could use:
 
-    LABEL maintainer "SvenDowideit@home.org.au"
+    LABEL maintainer="SvenDowideit@home.org.au"
 
 This will then be visible from `docker inspect` with the other labels.
 
@@ -800,6 +802,14 @@ the source will be copied inside the destination container.
 
     ADD test relativeDir/          # adds "test" to `WORKDIR`/relativeDir/
     ADD test /absoluteDir/         # adds "test" to /absoluteDir/
+
+When adding files or directories that contain special characters (such as `[`
+and `]`), you need to escape those paths following the Golang rules to prevent
+them from being treated as a matching pattern. For example, to add a file
+named `arr[0].txt`, use the following;
+
+    ADD arr[[]0].txt /mydir/    # copy a file named "arr[0].txt" to /mydir/
+
 
 All new files and directories are created with a UID and GID of 0.
 
@@ -912,6 +922,14 @@ the source will be copied inside the destination container.
 
     COPY test relativeDir/   # adds "test" to `WORKDIR`/relativeDir/
     COPY test /absoluteDir/  # adds "test" to /absoluteDir/
+
+
+When copying files or directories that contain special characters (such as `[`
+and `]`), you need to escape those paths following the Golang rules to prevent
+them from being treated as a matching pattern. For example, to copy a file
+named `arr[0].txt`, use the following;
+
+    COPY arr[[]0].txt /mydir/    # copy a file named "arr[0].txt" to /mydir/
 
 All new files and directories are created with a UID and GID of 0.
 
@@ -1027,7 +1045,7 @@ the final executable receives the Unix signals by using `exec` and `gosu`
 commands:
 
 ```bash
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 if [ "$1" = 'postgres' ]; then
@@ -1221,6 +1239,11 @@ create a new mount point at `/myvol` and copy the  `greeting` file
 into the newly created volume.
 
 > **Note**:
+> When using Windows-based containers, the destination of a volume inside the
+> container must be one of: a non-existing or empty directory; or a drive other
+> than C:.
+
+> **Note**:
 > If any build steps change the data within the volume after it has been
 > declared, those changes will be discarded.
 
@@ -1268,26 +1291,13 @@ For example:
 The output of the final `pwd` command in this `Dockerfile` would be
 `/path/$DIRNAME`
 
-On Windows, `WORKDIR` behaves differently depending on whether using Windows
-Server containers or Hyper-V containers. For Hyper-V containers, the engine
-is, for architectural reasons, unable to create the directory if it does not
-previously exist. For Windows Server containers, the directory is created
-if it does not exist. Hence, for consistency between Windows Server and 
-Hyper-V containers, it is strongly recommended to include an explicit instruction
-to create the directory in the Dockerfile. For example:
-
-    # escape=`
-    FROM microsoft/nanoserver
-    RUN mkdir c:\myapp
-    WORKDIR c:\myapp
-
 ## ARG
 
     ARG <name>[=<default value>]
 
 The `ARG` instruction defines a variable that users can pass at build-time to
-the builder with the `docker build` command using the `--build-arg
-<varname>=<value>` flag. If a user specifies a build argument that was not
+the builder with the `docker build` command using the `--build-arg <varname>=<value>`
+flag. If a user specifies a build argument that was not
 defined in the Dockerfile, the build outputs a warning.
 
 ```
@@ -1375,7 +1385,7 @@ useful interactions between `ARG` and `ENV` instructions:
 ```
 
 Unlike an `ARG` instruction, `ENV` values are always persisted in the built
-image. Consider a docker build without the --build-arg flag:
+image. Consider a docker build without the `--build-arg` flag:
 
 ```
 $ docker build Dockerfile
@@ -1407,6 +1417,35 @@ To use these, simply pass them on the command line using the flag:
 --build-arg <varname>=<value>
 ```
 
+By default, these pre-defined variables are excluded from the output of
+`docker history`. Excluding them reduces the risk of accidentally leaking
+sensitive authentication information in an `HTTP_PROXY` variable.
+
+For example, consider building the following Dockerfile using
+`--build-arg HTTP_PROXY=http://user:pass@proxy.lon.example.com`
+
+``` Dockerfile
+FROM ubuntu
+RUN echo "Hello World"
+```
+
+In this case, the value of the `HTTP_PROXY` variable is not available in the
+`docker history` and is not cached. If you were to change location, and your
+proxy server changed to `http://user:pass@proxy.sfo.example.com`, a subsequent
+build does not result in a cache miss.
+
+If you need to override this behaviour then you may do so by adding an `ARG`
+statement in the Dockerfile as follows:
+
+``` Dockerfile
+FROM ubuntu
+ARG HTTP_PROXY
+RUN echo "Hello World"
+```
+
+When building this Dockerfile, the `HTTP_PROXY` is preserved in the
+`docker history`, and changing its value invalidates the build cache.
+
 ### Impact on build caching
 
 `ARG` variables are not persisted into the built image as `ENV` variables are.
@@ -1415,6 +1454,8 @@ Dockerfile defines an `ARG` variable whose value is different from a previous
 build, then a "cache miss" occurs upon its first usage, not its definition. In
 particular, all `RUN` instructions following an `ARG` instruction use the `ARG`
 variable implicitly (as an environment variable), thus can cause a cache miss.
+All predefined `ARG` variables are exempt from caching unless there is a
+matching `ARG` statement in the `Dockerfile`.
 
 For example, consider these two Dockerfile:
 
@@ -1638,9 +1679,9 @@ The command invoked by docker will be:
 
     cmd /S /C powershell -command Execute-MyCmdlet -param1 "c:\foo.txt"
 
- This is inefficient for two reasons. First, there is an un-necessary cmd.exe command
- processor (aka shell) being invoked. Second, each `RUN` instruction in the *shell*
- form requires an extra `powershell -command` prefixing the command.
+This is inefficient for two reasons. First, there is an un-necessary cmd.exe command
+processor (aka shell) being invoked. Second, each `RUN` instruction in the *shell*
+form requires an extra `powershell -command` prefixing the command.
 
 To make this more efficient, one of two mechanisms can be employed. One is to
 use the JSON form of the RUN command such as:

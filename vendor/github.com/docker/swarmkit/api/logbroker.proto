@@ -3,7 +3,7 @@ syntax = "proto3";
 package docker.swarmkit.v1;
 
 import "gogoproto/gogo.proto";
-import "timestamp/timestamp.proto"; // TODO(stevvooe): use our own until we fix gogoproto/deepcopy
+import "google/protobuf/timestamp.proto";
 import "plugin/plugin.proto";
 
 // LogStream defines the stream from which the log message came.
@@ -44,7 +44,8 @@ message LogSubscriptionOptions {
 
 	// Since indicates that only log messages produced after this timestamp
 	// should be sent.
-	Timestamp since = 4;
+	// Note: can't use stdtime because this field is nullable.
+	google.protobuf.Timestamp since = 4;
 }
 
 // LogSelector will match logs from ANY of the defined parameters.
@@ -53,16 +54,16 @@ message LogSubscriptionOptions {
 // possible. For example, if they want to listen to all the tasks of a service,
 // they should use the service id, rather than specifying the individual tasks.
 message LogSelector {
-	repeated string service_ids = 1 [(gogoproto.customname) = "ServiceIDs"];
-	repeated string node_ids = 2 [(gogoproto.customname) = "NodeIDs"];
-	repeated string task_ids = 3 [(gogoproto.customname) = "TaskIDs"];
+	repeated string service_ids = 1;
+	repeated string node_ids = 2;
+	repeated string task_ids = 3;
 }
 
 // LogContext marks the context from which a log message was generated.
 message LogContext {
-	string service_id = 1 [(gogoproto.customname) = "ServiceID"];
-	string node_id = 2 [(gogoproto.customname) = "NodeID"];
-	string task_id = 3 [(gogoproto.customname) = "TaskID"];
+	string service_id = 1;
+	string node_id = 2;
+	string task_id = 3;
 }
 
 // LogMessage
@@ -71,7 +72,8 @@ message LogMessage {
 	LogContext context = 1 [(gogoproto.nullable) = false];
 
 	// Timestamp is the time at which the message was generated.
-	Timestamp timestamp = 2;
+	// Note: can't use stdtime because this field is nullable.
+	google.protobuf.Timestamp timestamp = 2;
 
 	// Stream identifies the stream of the log message, stdout or stderr.
 	LogStream stream = 3;
@@ -145,7 +147,7 @@ message ListenSubscriptionsRequest { }
 // If Options.Follow == false, the worker should end the subscription on its own.
 message SubscriptionMessage {
 	// ID identifies the subscription.
-	string id = 1 [(gogoproto.customname) = "ID"];
+	string id = 1;
 
 	// Selector defines which sources should be sent for the subscription.
 	LogSelector selector = 2;
@@ -161,10 +163,16 @@ message SubscriptionMessage {
 message PublishLogsMessage {
 	// SubscriptionID identifies which subscription the set of messages should
 	// be sent to. We can think of this as a "mail box" for the subscription.
-	string subscription_id = 1 [(gogoproto.customname) = "SubscriptionID"];
+	string subscription_id = 1;
 
 	// Messages is the log message for publishing.
 	repeated LogMessage messages = 2 [(gogoproto.nullable) = false];
+
+	// Close is a boolean for whether or not the client has completed its log
+	// stream. When close is called, the manager can hang up the subscription.
+	// Any further logs from this subscription are an error condition. Any
+	// messages included when close is set can be discarded
+	bool close = 3;
 }
 
 message PublishLogsResponse { }

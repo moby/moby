@@ -219,3 +219,7 @@ func (f *win32File) SetWriteDeadline(t time.Time) error {
 	f.writeDeadline = t
 	return nil
 }
+
+func (f *win32File) Flush() error {
+	return syscall.FlushFileBuffers(f.handle)
+}

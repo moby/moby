@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -41,7 +42,7 @@ func newJoinCommand(dockerCli command.Cli) *cobra.Command {
 	flags.Var(&opts.listenAddr, flagListenAddr, "Listen address (format: <ip|interface>[:port])")
 	flags.StringVar(&opts.advertiseAddr, flagAdvertiseAddr, "", "Advertised address (format: <ip|interface>[:port])")
 	flags.StringVar(&opts.token, flagToken, "", "Token for entry into the swarm")
-	flags.StringVar(&opts.availability, flagAvailability, "active", "Availability of the node (active/pause/drain)")
+	flags.StringVar(&opts.availability, flagAvailability, "active", `Availability of the node ("active"|"pause"|"drain")`)
 	return cmd
 }
 
@@ -61,7 +62,7 @@ func runJoin(dockerCli command.Cli, flags *pflag.FlagSet, opts joinOptions) erro
 		case swarm.NodeAvailabilityActive, swarm.NodeAvailabilityPause, swarm.NodeAvailabilityDrain:
 			req.Availability = availability
 		default:
-			return fmt.Errorf("invalid availability %q, only active, pause and drain are supported", opts.availability)
+			return errors.Errorf("invalid availability %q, only active, pause and drain are supported", opts.availability)
 		}
 	}
 

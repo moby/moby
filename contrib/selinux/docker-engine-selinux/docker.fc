@@ -7,8 +7,6 @@
 /etc/docker(/.*)?		gen_context(system_u:object_r:docker_config_t,s0)
 
 /var/lib/docker(/.*)?		gen_context(system_u:object_r:docker_var_lib_t,s0)
-/var/lib/kublet(/.*)?		gen_context(system_u:object_r:docker_var_lib_t,s0)
-/var/lib/docker/vfs(/.*)?	gen_context(system_u:object_r:svirt_sandbox_file_t,s0)
 
 /var/run/docker\.pid		--	gen_context(system_u:object_r:docker_var_run_t,s0)
 /var/run/docker\.sock		-s	gen_context(system_u:object_r:docker_var_run_t,s0)

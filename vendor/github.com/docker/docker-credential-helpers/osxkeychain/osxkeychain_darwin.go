@@ -1,8 +1,8 @@
 package osxkeychain
 
 /*
-#cgo CFLAGS: -x objective-c
-#cgo LDFLAGS: -framework Security -framework Foundation
+#cgo CFLAGS: -x objective-c -mmacosx-version-min=10.10
+#cgo LDFLAGS: -framework Security -framework Foundation -mmacosx-version-min=10.10
 
 #include "osxkeychain_darwin.h"
 #include <stdlib.h>
@@ -10,11 +10,12 @@ package osxkeychain
 import "C"
 import (
 	"errors"
-	"github.com/docker/docker-credential-helpers/credentials"
 	"net/url"
 	"strconv"
 	"strings"
 	"unsafe"
+
+	"github.com/docker/docker-credential-helpers/credentials"
 )
 
 // errCredentialsNotFound is the specific error message returned by OS X
@@ -26,18 +27,22 @@ type Osxkeychain struct{}
 
 // Add adds new credentials to the keychain.
 func (h Osxkeychain) Add(creds *credentials.Credentials) error {
+	h.Delete(creds.ServerURL)
+
 	s, err := splitServer(creds.ServerURL)
 	if err != nil {
 		return err
 	}
 	defer freeServer(s)
 
+	label := C.CString(credentials.CredsLabel)
+	defer C.free(unsafe.Pointer(label))
 	username := C.CString(creds.Username)
 	defer C.free(unsafe.Pointer(username))
 	secret := C.CString(creds.Secret)
 	defer C.free(unsafe.Pointer(secret))
 
-	errMsg := C.keychain_add(s, username, secret)
+	errMsg := C.keychain_add(s, label, username, secret)
 	if errMsg != nil {
 		defer C.free(unsafe.Pointer(errMsg))
 		return errors.New(C.GoString(errMsg))
@@ -96,12 +101,15 @@ func (h Osxkeychain) Get(serverURL string) (string, string, error) {
 
 // List returns the stored URLs and corresponding usernames.
 func (h Osxkeychain) List() (map[string]string, error) {
+	credsLabelC := C.CString(credentials.CredsLabel)
+	defer C.free(unsafe.Pointer(credsLabelC))
+
 	var pathsC **C.char
 	defer C.free(unsafe.Pointer(pathsC))
 	var acctsC **C.char
 	defer C.free(unsafe.Pointer(acctsC))
 	var listLenC C.uint
-	errMsg := C.keychain_list(&pathsC, &acctsC, &listLenC)
+	errMsg := C.keychain_list(credsLabelC, &pathsC, &acctsC, &listLenC)
 	if errMsg != nil {
 		defer C.free(unsafe.Pointer(errMsg))
 		goMsg := C.GoString(errMsg)

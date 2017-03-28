@@ -200,7 +200,7 @@ func TestCopierSlow(t *testing.T) {
 	c.Close()
 	select {
 	case <-time.After(200 * time.Millisecond):
-		t.Fatalf("failed to exit in time after the copier is closed")
+		t.Fatal("failed to exit in time after the copier is closed")
 	case <-wait:
 	}
 }
@@ -208,7 +208,7 @@ func TestCopierSlow(t *testing.T) {
 type BenchmarkLoggerDummy struct {
 }
 
-func (l *BenchmarkLoggerDummy) Log(m *Message) error { return nil }
+func (l *BenchmarkLoggerDummy) Log(m *Message) error { PutMessage(m); return nil }
 
 func (l *BenchmarkLoggerDummy) Close() error { return nil }
 

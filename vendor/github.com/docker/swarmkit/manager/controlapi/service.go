@@ -6,14 +6,17 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/identity"
+	"github.com/docker/swarmkit/manager/allocator"
 	"github.com/docker/swarmkit/manager/constraint"
 	"github.com/docker/swarmkit/manager/state/store"
 	"github.com/docker/swarmkit/protobuf/ptypes"
 	"github.com/docker/swarmkit/template"
+	gogotypes "github.com/gogo/protobuf/types"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -59,7 +62,7 @@ func validateRestartPolicy(rp *api.RestartPolicy) error {
 	}
 
 	if rp.Delay != nil {
-		delay, err := ptypes.Duration(rp.Delay)
+		delay, err := gogotypes.DurationFromProto(rp.Delay)
 		if err != nil {
 			return err
 		}
@@ -69,7 +72,7 @@ func validateRestartPolicy(rp *api.RestartPolicy) error {
 	}
 
 	if rp.Window != nil {
-		win, err := ptypes.Duration(rp.Window)
+		win, err := gogotypes.DurationFromProto(rp.Window)
 		if err != nil {
 			return err
 		}
@@ -94,13 +97,22 @@ func validateUpdate(uc *api.UpdateConfig) error {
 		return nil
 	}
 
-	delay, err := ptypes.Duration(&uc.Delay)
-	if err != nil {
-		return err
+	if uc.Delay < 0 {
+		return grpc.Errorf(codes.InvalidArgument, "TaskSpec: update-delay cannot be negative")
 	}
 
-	if delay < 0 {
-		return grpc.Errorf(codes.InvalidArgument, "TaskSpec: update-delay cannot be negative")
+	if uc.Monitor != nil {
+		monitor, err := gogotypes.DurationFromProto(uc.Monitor)
+		if err != nil {
+			return err
+		}
+		if monitor < 0 {
+			return grpc.Errorf(codes.InvalidArgument, "TaskSpec: update-monitor cannot be negative")
+		}
+	}
+
+	if uc.MaxFailureRatio < 0 || uc.MaxFailureRatio > 1 {
+		return grpc.Errorf(codes.InvalidArgument, "TaskSpec: update-maxfailureratio cannot be less than 0 or bigger than 1")
 	}
 
 	return nil
@@ -115,7 +127,7 @@ func validateContainerSpec(container *api.ContainerSpec) error {
 		return grpc.Errorf(codes.InvalidArgument, "ContainerSpec: image reference must be provided")
 	}
 
-	if _, err := reference.ParseNamed(container.Image); err != nil {
+	if _, err := reference.ParseNormalizedNamed(container.Image); err != nil {
 		return grpc.Errorf(codes.InvalidArgument, "ContainerSpec: %q is not a valid repository/tag", container.Image)
 	}
 
@@ -130,7 +142,7 @@ func validateContainerSpec(container *api.ContainerSpec) error {
 	return nil
 }
 
-func validateTask(taskSpec api.TaskSpec) error {
+func validateTaskSpec(taskSpec api.TaskSpec) error {
 	if err := validateResourceRequirements(taskSpec.Resources); err != nil {
 		return err
 	}
@@ -140,6 +152,11 @@ func validateTask(taskSpec api.TaskSpec) error {
 	}
 
 	if err := validatePlacement(taskSpec.Placement); err != nil {
+		return err
+	}
+
+	// Check to see if the Secret Reference portion of the spec is valid
+	if err := validateSecretRefsSpec(taskSpec); err != nil {
 		return err
 	}
 
@@ -223,8 +240,8 @@ func validateEndpointSpec(epSpec *api.EndpointSpec) error {
 
 // validateSecretRefsSpec finds if the secrets passed in spec are valid and have no
 // conflicting targets.
-func validateSecretRefsSpec(spec *api.ServiceSpec) error {
-	container := spec.Task.GetContainer()
+func validateSecretRefsSpec(spec api.TaskSpec) error {
+	container := spec.GetContainer()
 	if container == nil {
 		return nil
 	}
@@ -238,7 +255,7 @@ func validateSecretRefsSpec(spec *api.ServiceSpec) error {
 			return grpc.Errorf(codes.InvalidArgument, "malformed secret reference")
 		}
 
-		// Every secret referece requires a Target
+		// Every secret reference requires a Target
 		if secretRef.GetTarget() == nil {
 			return grpc.Errorf(codes.InvalidArgument, "malformed secret reference, no target provided")
 		}
@@ -262,6 +279,7 @@ func validateSecretRefsSpec(spec *api.ServiceSpec) error {
 
 	return nil
 }
+
 func (s *Server) validateNetworks(networks []*api.NetworkAttachmentConfig) error {
 	for _, na := range networks {
 		var network *api.Network
@@ -271,12 +289,27 @@ func (s *Server) validateNetworks(networks []*api.NetworkAttachmentConfig) error
 		if network == nil {
 			continue
 		}
-		if _, ok := network.Spec.Annotations.Labels["com.docker.swarm.internal"]; ok {
+		if network.Spec.Internal {
 			return grpc.Errorf(codes.InvalidArgument,
 				"Service cannot be explicitly attached to %q network which is a swarm internal network",
 				network.Spec.Annotations.Name)
 		}
 	}
+	return nil
+}
+
+func validateMode(s *api.ServiceSpec) error {
+	m := s.GetMode()
+	switch m.(type) {
+	case *api.ServiceSpec_Replicated:
+		if int64(m.(*api.ServiceSpec_Replicated).Replicated.Replicas) < 0 {
+			return grpc.Errorf(codes.InvalidArgument, "Number of replicas must be non-negative")
+		}
+	case *api.ServiceSpec_Global:
+	default:
+		return grpc.Errorf(codes.InvalidArgument, "Unrecognized service mode")
+	}
+
 	return nil
 }
 
@@ -287,7 +320,7 @@ func validateServiceSpec(spec *api.ServiceSpec) error {
 	if err := validateAnnotations(spec.Annotations); err != nil {
 		return err
 	}
-	if err := validateTask(spec.Task); err != nil {
+	if err := validateTaskSpec(spec.Task); err != nil {
 		return err
 	}
 	if err := validateUpdate(spec.Update); err != nil {
@@ -296,8 +329,7 @@ func validateServiceSpec(spec *api.ServiceSpec) error {
 	if err := validateEndpointSpec(spec.Endpoint); err != nil {
 		return err
 	}
-	// Check to see if the Secret Reference portion of the spec is valid
-	if err := validateSecretRefsSpec(spec); err != nil {
+	if err := validateMode(spec); err != nil {
 		return err
 	}
 
@@ -393,7 +425,37 @@ func (s *Server) checkSecretExistence(tx store.Tx, spec *api.ServiceSpec) error 
 	return nil
 }
 
-// CreateService creates and return a Service based on the provided ServiceSpec.
+func doesServiceNeedIngress(srv *api.Service) bool {
+	// Only VIP mode with target ports needs routing mesh.
+	// If no endpoint is specified, it defaults to VIP mode but no target ports
+	// are specified, so the service does not need the routing mesh.
+	if srv.Spec.Endpoint == nil || srv.Spec.Endpoint.Mode != api.ResolutionModeVirtualIP {
+		return false
+	}
+	// Go through the ports' config
+	for _, p := range srv.Spec.Endpoint.Ports {
+		if p.PublishMode != api.PublishModeIngress {
+			continue
+		}
+		if p.PublishedPort != 0 {
+			return true
+		}
+	}
+	// Go through the ports' state
+	if srv.Endpoint != nil {
+		for _, p := range srv.Endpoint.Ports {
+			if p.PublishMode != api.PublishModeIngress {
+				continue
+			}
+			if p.PublishedPort != 0 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// CreateService creates and returns a Service based on the provided ServiceSpec.
 // - Returns `InvalidArgument` if the ServiceSpec is malformed.
 // - Returns `Unimplemented` if the ServiceSpec references unimplemented features.
 // - Returns `AlreadyExists` if the ServiceID conflicts.
@@ -416,6 +478,12 @@ func (s *Server) CreateService(ctx context.Context, request *api.CreateServiceRe
 	service := &api.Service{
 		ID:   identity.NewID(),
 		Spec: *request.Spec,
+	}
+
+	if doesServiceNeedIngress(service) {
+		if _, err := allocator.GetIngressNetwork(s.store); err == allocator.ErrNoIngress {
+			return nil, grpc.Errorf(codes.FailedPrecondition, "service needs ingress network, but no ingress network is present")
+		}
 	}
 
 	err := s.store.Update(func(tx store.Tx) error {
@@ -502,7 +570,7 @@ func (s *Server) UpdateService(ctx context.Context, request *api.UpdateServiceRe
 		}
 
 		if !reflect.DeepEqual(requestSpecNetworks, specNetworks) {
-			return errNetworkUpdateNotSupported
+			return grpc.Errorf(codes.Unimplemented, errNetworkUpdateNotSupported.Error())
 		}
 
 		// Check to see if all the secrets being added exist as objects
@@ -516,19 +584,42 @@ func (s *Server) UpdateService(ctx context.Context, request *api.UpdateServiceRe
 		// with service mode change (comparing current config with previous config).
 		// proper way to change service mode is to delete and re-add.
 		if reflect.TypeOf(service.Spec.Mode) != reflect.TypeOf(request.Spec.Mode) {
-			return errModeChangeNotAllowed
+			return grpc.Errorf(codes.Unimplemented, errModeChangeNotAllowed.Error())
 		}
 
 		if service.Spec.Annotations.Name != request.Spec.Annotations.Name {
-			return errRenameNotSupported
+			return grpc.Errorf(codes.Unimplemented, errRenameNotSupported.Error())
 		}
 
 		service.Meta.Version = *request.ServiceVersion
-		service.PreviousSpec = service.Spec.Copy()
-		service.Spec = *request.Spec.Copy()
 
-		// Reset update status
-		service.UpdateStatus = nil
+		if request.Rollback == api.UpdateServiceRequest_PREVIOUS {
+			if service.PreviousSpec == nil {
+				return grpc.Errorf(codes.FailedPrecondition, "service %s does not have a previous spec", request.ServiceID)
+			}
+
+			curSpec := service.Spec.Copy()
+			service.Spec = *service.PreviousSpec.Copy()
+			service.PreviousSpec = curSpec
+
+			service.UpdateStatus = &api.UpdateStatus{
+				State:     api.UpdateStatus_ROLLBACK_STARTED,
+				Message:   "manually requested rollback",
+				StartedAt: ptypes.MustTimestampProto(time.Now()),
+			}
+		} else {
+			service.PreviousSpec = service.Spec.Copy()
+			service.Spec = *request.Spec.Copy()
+
+			// Reset update status
+			service.UpdateStatus = nil
+		}
+
+		if doesServiceNeedIngress(service) {
+			if _, err := allocator.GetIngressNetwork(s.store); err == allocator.ErrNoIngress {
+				return grpc.Errorf(codes.FailedPrecondition, "service needs ingress network, but no ingress network is present")
+			}
+		}
 
 		return store.UpdateService(tx, service)
 	})

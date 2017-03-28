@@ -118,6 +118,11 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 		if layerID != "" {
 			l, err := daemon.layerStore.Get(layerID)
 			if err != nil {
+				// The layer may have been deleted between the call to `Map()` or
+				// `Heads()` and the call to `Get()`, so we just ignore this error
+				if err == layer.ErrLayerDoesNotExist {
+					continue
+				}
 				return nil, err
 			}
 
@@ -135,7 +140,7 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 				var found bool
 				var matchErr error
 				for _, pattern := range imageFilters.Get("reference") {
-					found, matchErr = reference.Match(pattern, ref)
+					found, matchErr = reference.FamiliarMatch(pattern, ref)
 					if matchErr != nil {
 						return nil, matchErr
 					}
@@ -145,10 +150,10 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 				}
 			}
 			if _, ok := ref.(reference.Canonical); ok {
-				newImage.RepoDigests = append(newImage.RepoDigests, ref.String())
+				newImage.RepoDigests = append(newImage.RepoDigests, reference.FamiliarString(ref))
 			}
 			if _, ok := ref.(reference.NamedTagged); ok {
-				newImage.RepoTags = append(newImage.RepoTags, ref.String())
+				newImage.RepoTags = append(newImage.RepoTags, reference.FamiliarString(ref))
 			}
 		}
 		if newImage.RepoDigests == nil && newImage.RepoTags == nil {
@@ -171,7 +176,7 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 		}
 
 		if withExtraAttrs {
-			// lazyly init variables
+			// lazily init variables
 			if imagesMap == nil {
 				allContainers = daemon.List()
 				allLayers = daemon.layerStore.Map()
@@ -205,7 +210,7 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 	}
 
 	if withExtraAttrs {
-		// Get Shared and Unique sizes
+		// Get Shared sizes
 		for img, newImage := range imagesMap {
 			rootFS := *img.RootFS
 			rootFS.DiffIDs = nil

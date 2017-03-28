@@ -1,7 +1,6 @@
 package scheduler
 
 import (
-	"container/list"
 	"time"
 
 	"github.com/docker/swarmkit/api"
@@ -30,7 +29,7 @@ type schedulingDecision struct {
 // Scheduler assigns tasks to nodes.
 type Scheduler struct {
 	store           *store.MemoryStore
-	unassignedTasks *list.List
+	unassignedTasks map[string]*api.Task
 	// preassignedTasks already have NodeID, need resource validation
 	preassignedTasks map[string]*api.Task
 	nodeSet          nodeSet
@@ -47,7 +46,7 @@ type Scheduler struct {
 func New(store *store.MemoryStore) *Scheduler {
 	return &Scheduler{
 		store:            store,
-		unassignedTasks:  list.New(),
+		unassignedTasks:  make(map[string]*api.Task),
 		preassignedTasks: make(map[string]*api.Task),
 		allTasks:         make(map[string]*api.Task),
 		stopChan:         make(chan struct{}),
@@ -191,7 +190,7 @@ func (s *Scheduler) Stop() {
 
 // enqueue queues a task for scheduling.
 func (s *Scheduler) enqueue(t *api.Task) {
-	s.unassignedTasks.PushBack(t)
+	s.unassignedTasks[t.ID] = t
 }
 
 func (s *Scheduler) createTask(ctx context.Context, t *api.Task) int {
@@ -333,15 +332,12 @@ func (s *Scheduler) processPreassignedTasks(ctx context.Context) {
 // tick attempts to schedule the queue.
 func (s *Scheduler) tick(ctx context.Context) {
 	tasksByCommonSpec := make(map[string]map[string]*api.Task)
-	schedulingDecisions := make(map[string]schedulingDecision, s.unassignedTasks.Len())
+	schedulingDecisions := make(map[string]schedulingDecision, len(s.unassignedTasks))
 
-	var next *list.Element
-	for e := s.unassignedTasks.Front(); e != nil; e = next {
-		next = e.Next()
-		t := s.allTasks[e.Value.(*api.Task).ID]
+	for taskID, t := range s.unassignedTasks {
 		if t == nil || t.NodeID != "" {
 			// task deleted or already assigned
-			s.unassignedTasks.Remove(e)
+			delete(s.unassignedTasks, taskID)
 			continue
 		}
 
@@ -362,8 +358,8 @@ func (s *Scheduler) tick(ctx context.Context) {
 		if tasksByCommonSpec[taskGroupKey] == nil {
 			tasksByCommonSpec[taskGroupKey] = make(map[string]*api.Task)
 		}
-		tasksByCommonSpec[taskGroupKey][t.ID] = t
-		s.unassignedTasks.Remove(e)
+		tasksByCommonSpec[taskGroupKey][taskID] = t
+		delete(s.unassignedTasks, taskID)
 	}
 
 	for _, taskGroup := range tasksByCommonSpec {
@@ -517,8 +513,8 @@ func (s *Scheduler) scheduleTaskGroup(ctx context.Context, taskGroup map[string]
 			}
 		}
 
-		tasksByServiceA := a.DesiredRunningTasksCountByService[t.ServiceID]
-		tasksByServiceB := b.DesiredRunningTasksCountByService[t.ServiceID]
+		tasksByServiceA := a.ActiveTasksCountByService[t.ServiceID]
+		tasksByServiceB := b.ActiveTasksCountByService[t.ServiceID]
 
 		if tasksByServiceA < tasksByServiceB {
 			return true
@@ -528,23 +524,91 @@ func (s *Scheduler) scheduleTaskGroup(ctx context.Context, taskGroup map[string]
 		}
 
 		// Total number of tasks breaks ties.
-		return a.DesiredRunningTasksCount < b.DesiredRunningTasksCount
+		return a.ActiveTasksCount < b.ActiveTasksCount
 	}
 
-	nodes := s.nodeSet.findBestNodes(len(taskGroup), s.pipeline.Process, nodeLess)
-	if len(nodes) == 0 {
+	var prefs []*api.PlacementPreference
+	if t.Spec.Placement != nil {
+		prefs = t.Spec.Placement.Preferences
+	}
+
+	tree := s.nodeSet.tree(t.ServiceID, prefs, len(taskGroup), s.pipeline.Process, nodeLess)
+
+	s.scheduleNTasksOnSubtree(ctx, len(taskGroup), taskGroup, &tree, schedulingDecisions, nodeLess)
+	if len(taskGroup) != 0 {
 		s.noSuitableNode(ctx, taskGroup, schedulingDecisions)
-		return
+	}
+}
+
+func (s *Scheduler) scheduleNTasksOnSubtree(ctx context.Context, n int, taskGroup map[string]*api.Task, tree *decisionTree, schedulingDecisions map[string]schedulingDecision, nodeLess func(a *NodeInfo, b *NodeInfo) bool) int {
+	if tree.next == nil {
+		nodes := tree.orderedNodes(s.pipeline.Process, nodeLess)
+		if len(nodes) == 0 {
+			return 0
+		}
+
+		return s.scheduleNTasksOnNodes(ctx, n, taskGroup, nodes, schedulingDecisions, nodeLess)
 	}
 
+	// Walk the tree and figure out how the tasks should be split at each
+	// level.
+	tasksScheduled := 0
+	tasksInUsableBranches := tree.tasks
+	var noRoom map[*decisionTree]struct{}
+
+	// Try to make branches even until either all branches are
+	// full, or all tasks have been scheduled.
+	for tasksScheduled != n && len(noRoom) != len(tree.next) {
+		desiredTasksPerBranch := (tasksInUsableBranches + n - tasksScheduled) / (len(tree.next) - len(noRoom))
+		remainder := (tasksInUsableBranches + n - tasksScheduled) % (len(tree.next) - len(noRoom))
+
+		for _, subtree := range tree.next {
+			if noRoom != nil {
+				if _, ok := noRoom[subtree]; ok {
+					continue
+				}
+			}
+			subtreeTasks := subtree.tasks
+			if subtreeTasks < desiredTasksPerBranch || (subtreeTasks == desiredTasksPerBranch && remainder > 0) {
+				tasksToAssign := desiredTasksPerBranch - subtreeTasks
+				if remainder > 0 {
+					tasksToAssign++
+				}
+				res := s.scheduleNTasksOnSubtree(ctx, tasksToAssign, taskGroup, subtree, schedulingDecisions, nodeLess)
+				if res < tasksToAssign {
+					if noRoom == nil {
+						noRoom = make(map[*decisionTree]struct{})
+					}
+					noRoom[subtree] = struct{}{}
+					tasksInUsableBranches -= subtreeTasks
+				} else if remainder > 0 {
+					remainder--
+				}
+				tasksScheduled += res
+			}
+		}
+	}
+
+	return tasksScheduled
+}
+
+func (s *Scheduler) scheduleNTasksOnNodes(ctx context.Context, n int, taskGroup map[string]*api.Task, nodes []NodeInfo, schedulingDecisions map[string]schedulingDecision, nodeLess func(a *NodeInfo, b *NodeInfo) bool) int {
+	tasksScheduled := 0
 	failedConstraints := make(map[int]bool) // key is index in nodes slice
 	nodeIter := 0
+	nodeCount := len(nodes)
 	for taskID, t := range taskGroup {
-		n := &nodes[nodeIter%len(nodes)]
+		// Skip tasks which were already scheduled because they ended
+		// up in two groups at once.
+		if _, exists := schedulingDecisions[taskID]; exists {
+			continue
+		}
 
-		log.G(ctx).WithField("task.id", t.ID).Debugf("assigning to node %s", n.ID)
+		node := &nodes[nodeIter%nodeCount]
+
+		log.G(ctx).WithField("task.id", t.ID).Debugf("assigning to node %s", node.ID)
 		newT := *t
-		newT.NodeID = n.ID
+		newT.NodeID = node.ID
 		newT.Status = api.TaskStatus{
 			State:     api.TaskStateAssigned,
 			Timestamp: ptypes.MustTimestampProto(time.Now()),
@@ -552,19 +616,23 @@ func (s *Scheduler) scheduleTaskGroup(ctx context.Context, taskGroup map[string]
 		}
 		s.allTasks[t.ID] = &newT
 
-		nodeInfo, err := s.nodeSet.nodeInfo(n.ID)
+		nodeInfo, err := s.nodeSet.nodeInfo(node.ID)
 		if err == nil && nodeInfo.addTask(&newT) {
 			s.nodeSet.updateNode(nodeInfo)
-			nodes[nodeIter%len(nodes)] = nodeInfo
+			nodes[nodeIter%nodeCount] = nodeInfo
 		}
 
 		schedulingDecisions[taskID] = schedulingDecision{old: t, new: &newT}
 		delete(taskGroup, taskID)
+		tasksScheduled++
+		if tasksScheduled == n {
+			return tasksScheduled
+		}
 
-		if nodeIter+1 < len(nodes) {
+		if nodeIter+1 < nodeCount {
 			// First pass fills the nodes until they have the same
 			// number of tasks from this service.
-			nextNode := nodes[(nodeIter+1)%len(nodes)]
+			nextNode := nodes[(nodeIter+1)%nodeCount]
 			if nodeLess(&nextNode, &nodeInfo) {
 				nodeIter++
 			}
@@ -575,16 +643,17 @@ func (s *Scheduler) scheduleTaskGroup(ctx context.Context, taskGroup map[string]
 		}
 
 		origNodeIter := nodeIter
-		for failedConstraints[nodeIter%len(nodes)] || !s.pipeline.Process(&nodes[nodeIter%len(nodes)]) {
-			failedConstraints[nodeIter%len(nodes)] = true
+		for failedConstraints[nodeIter%nodeCount] || !s.pipeline.Process(&nodes[nodeIter%nodeCount]) {
+			failedConstraints[nodeIter%nodeCount] = true
 			nodeIter++
-			if nodeIter-origNodeIter == len(nodes) {
+			if nodeIter-origNodeIter == nodeCount {
 				// None of the nodes meet the constraints anymore.
-				s.noSuitableNode(ctx, taskGroup, schedulingDecisions)
-				return
+				return tasksScheduled
 			}
 		}
 	}
+
+	return tasksScheduled
 }
 
 func (s *Scheduler) noSuitableNode(ctx context.Context, taskGroup map[string]*api.Task, schedulingDecisions map[string]schedulingDecision) {

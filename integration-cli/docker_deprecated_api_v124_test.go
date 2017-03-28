@@ -150,7 +150,7 @@ func (s *DockerSuite) TestDeprecatedStartWithTooLowMemoryLimit(c *check.C) {
                 "Memory":    524287
         }`
 
-	res, body, err := request.SockRequestRaw("POST", formatV123StartAPIURL("/containers/"+containerID+"/start"), strings.NewReader(config), "application/json", daemonHost())
+	res, body, err := request.Post(formatV123StartAPIURL("/containers/"+containerID+"/start"), request.RawString(config), request.JSON)
 	c.Assert(err, checker.IsNil)
 	b, err2 := testutil.ReadBody(body)
 	c.Assert(err2, checker.IsNil)
@@ -169,7 +169,7 @@ func (s *DockerSuite) TestDeprecatedPostContainersStartWithoutLinksInHostConfig(
 	hc := inspectFieldJSON(c, name, "HostConfig")
 	config := `{"HostConfig":` + hc + `}`
 
-	res, b, err := request.SockRequestRaw("POST", formatV123StartAPIURL("/containers/"+name+"/start"), strings.NewReader(config), "application/json", daemonHost())
+	res, b, err := request.Post(formatV123StartAPIURL("/containers/"+name+"/start"), request.RawString(config), request.JSON)
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusNoContent)
 	b.Close()
@@ -187,7 +187,7 @@ func (s *DockerSuite) TestDeprecatedPostContainersStartWithLinksInHostConfig(c *
 	hc := inspectFieldJSON(c, name, "HostConfig")
 	config := `{"HostConfig":` + hc + `}`
 
-	res, b, err := request.SockRequestRaw("POST", formatV123StartAPIURL("/containers/"+name+"/start"), strings.NewReader(config), "application/json", daemonHost())
+	res, b, err := request.Post(formatV123StartAPIURL("/containers/"+name+"/start"), request.RawString(config), request.JSON)
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusNoContent)
 	b.Close()
@@ -205,7 +205,7 @@ func (s *DockerSuite) TestDeprecatedPostContainersStartWithLinksInHostConfigIdLi
 	hc := inspectFieldJSON(c, name, "HostConfig")
 	config := `{"HostConfig":` + hc + `}`
 
-	res, b, err := request.SockRequestRaw("POST", formatV123StartAPIURL("/containers/"+name+"/start"), strings.NewReader(config), "application/json", daemonHost())
+	res, b, err := request.Post(formatV123StartAPIURL("/containers/"+name+"/start"), request.RawString(config), request.JSON)
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusNoContent)
 	b.Close()
@@ -219,7 +219,7 @@ func (s *DockerSuite) TestDeprecatedStartWithNilDNS(c *check.C) {
 
 	config := `{"HostConfig": {"Dns": null}}`
 
-	res, b, err := request.SockRequestRaw("POST", formatV123StartAPIURL("/containers/"+containerID+"/start"), strings.NewReader(config), "application/json", daemonHost())
+	res, b, err := request.Post(formatV123StartAPIURL("/containers/"+containerID+"/start"), request.RawString(config), request.JSON)
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusNoContent)
 	b.Close()

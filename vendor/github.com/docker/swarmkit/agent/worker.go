@@ -148,7 +148,7 @@ func (w *worker) Assign(ctx context.Context, assignments []*api.AssignmentChange
 // Update updates the set of tasks and secret for the worker.
 // Tasks in the added set will be added to the worker, and tasks in the removed set
 // will be removed from the worker
-// Serets in the added set will be added to the worker, and secrets in the removed set
+// Secrets in the added set will be added to the worker, and secrets in the removed set
 // will be removed from the worker.
 func (w *worker) Update(ctx context.Context, assignments []*api.AssignmentChange) error {
 	w.mu.Lock()
@@ -396,7 +396,10 @@ func (w *worker) taskManager(ctx context.Context, tx *bolt.Tx, task *api.Task) (
 }
 
 func (w *worker) newTaskManager(ctx context.Context, tx *bolt.Tx, task *api.Task) (*taskManager, error) {
-	ctx = log.WithLogger(ctx, log.G(ctx).WithField("task.id", task.ID))
+	ctx = log.WithLogger(ctx, log.G(ctx).WithFields(logrus.Fields{
+		"task.id":    task.ID,
+		"service.id": task.ServiceID,
+	}))
 
 	ctlr, status, err := exec.Resolve(ctx, task, w.executor)
 	if err := w.updateTaskStatus(ctx, tx, task.ID, status); err != nil {

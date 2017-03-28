@@ -68,18 +68,18 @@ func init() {
 func rfc5424formatterWithAppNameAsTag(p syslog.Priority, hostname, tag, content string) string {
 	timestamp := time.Now().Format(time.RFC3339)
 	pid := os.Getpid()
-	msg := fmt.Sprintf("<%d>%d %s %s %s %d %s %s",
+	msg := fmt.Sprintf("<%d>%d %s %s %s %d %s - %s",
 		p, 1, timestamp, hostname, tag, pid, tag, content)
 	return msg
 }
 
 // The timestamp field in rfc5424 is derived from rfc3339. Whereas rfc3339 makes allowances
-// for multiple syntaxes, there are further restrictions in rfc5424, i.e., the maximium
+// for multiple syntaxes, there are further restrictions in rfc5424, i.e., the maximum
 // resolution is limited to "TIME-SECFRAC" which is 6 (microsecond resolution)
 func rfc5424microformatterWithAppNameAsTag(p syslog.Priority, hostname, tag, content string) string {
 	timestamp := time.Now().Format("2006-01-02T15:04:05.999999Z07:00")
 	pid := os.Getpid()
-	msg := fmt.Sprintf("<%d>%d %s %s %s %d %s %s",
+	msg := fmt.Sprintf("<%d>%d %s %s %s %d %s - %s",
 		p, 1, timestamp, hostname, tag, pid, tag, content)
 	return msg
 }
@@ -132,10 +132,12 @@ func New(info logger.Info) (logger.Logger, error) {
 }
 
 func (s *syslogger) Log(msg *logger.Message) error {
+	line := string(msg.Line)
+	logger.PutMessage(msg)
 	if msg.Source == "stderr" {
-		return s.writer.Err(string(msg.Line))
+		return s.writer.Err(line)
 	}
-	return s.writer.Info(string(msg.Line))
+	return s.writer.Info(line)
 }
 
 func (s *syslogger) Close() error {

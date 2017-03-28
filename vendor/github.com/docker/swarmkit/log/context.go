@@ -29,6 +29,21 @@ func WithLogger(ctx context.Context, logger *logrus.Entry) context.Context {
 	return context.WithValue(ctx, loggerKey{}, logger)
 }
 
+// WithFields returns a new context with added fields to logger.
+func WithFields(ctx context.Context, fields logrus.Fields) context.Context {
+	logger := ctx.Value(loggerKey{})
+
+	if logger == nil {
+		logger = L
+	}
+	return WithLogger(ctx, logger.(*logrus.Entry).WithFields(fields))
+}
+
+// WithField is convenience wrapper around WithFields.
+func WithField(ctx context.Context, key, value string) context.Context {
+	return WithFields(ctx, logrus.Fields{key: value})
+}
+
 // GetLogger retrieves the current logger from the context. If no logger is
 // available, the default logger is returned.
 func GetLogger(ctx context.Context) *logrus.Entry {

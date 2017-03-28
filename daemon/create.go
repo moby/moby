@@ -143,7 +143,7 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 	}
 	// Make sure NetworkMode has an acceptable value. We do this to ensure
 	// backwards API compatibility.
-	container.HostConfig = runconfig.SetDefaultNetModeIfBlank(container.HostConfig)
+	runconfig.SetDefaultNetModeIfBlank(container.HostConfig)
 
 	daemon.updateContainerNetworkSettings(container, endpointsConfigs)
 
@@ -151,14 +151,22 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 		logrus.Errorf("Error saving new container to disk: %v", err)
 		return nil, err
 	}
-	if err := daemon.Register(container); err != nil {
-		return nil, err
-	}
+	daemon.Register(container)
 	daemon.LogContainerEvent(container, "create")
 	return container, nil
 }
 
-func (daemon *Daemon) generateSecurityOpt(ipcMode containertypes.IpcMode, pidMode containertypes.PidMode, privileged bool) ([]string, error) {
+func (daemon *Daemon) generateSecurityOpt(hostConfig *containertypes.HostConfig) ([]string, error) {
+	for _, opt := range hostConfig.SecurityOpt {
+		con := strings.Split(opt, "=")
+		if con[0] == "label" {
+			// Caller overrode SecurityOpts
+			return nil, nil
+		}
+	}
+	ipcMode := hostConfig.IpcMode
+	pidMode := hostConfig.PidMode
+	privileged := hostConfig.Privileged
 	if ipcMode.IsHost() || pidMode.IsHost() || privileged {
 		return label.DisableSecOpt(), nil
 	}

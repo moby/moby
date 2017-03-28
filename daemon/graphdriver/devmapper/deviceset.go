@@ -28,7 +28,7 @@ import (
 	"github.com/docker/docker/pkg/loopback"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
-	"github.com/docker/go-units"
+	units "github.com/docker/go-units"
 
 	"github.com/opencontainers/runc/libcontainer/label"
 )
@@ -858,6 +858,7 @@ func (devices *DeviceSet) takeSnapshot(hash string, baseInfo *devInfo, size uint
 				if err != devicemapper.ErrEnxio {
 					return err
 				}
+				devinfo = nil
 			} else {
 				defer devices.deactivateDevice(baseInfo)
 			}
@@ -1706,9 +1707,9 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	// https://github.com/docker/docker/issues/4036
 	if supported := devicemapper.UdevSetSyncSupport(true); !supported {
 		if dockerversion.IAmStatic == "true" {
-			logrus.Error("devmapper: Udev sync is not supported. This will lead to data loss and unexpected behavior. Install a dynamic binary to use devicemapper or select a different storage driver. For more information, see https://docs.docker.com/engine/reference/commandline/daemon/#daemon-storage-driver-option")
+			logrus.Error("devmapper: Udev sync is not supported. This will lead to data loss and unexpected behavior. Install a dynamic binary to use devicemapper or select a different storage driver. For more information, see https://docs.docker.com/engine/reference/commandline/dockerd/#storage-driver-options")
 		} else {
-			logrus.Error("devmapper: Udev sync is not supported. This will lead to data loss and unexpected behavior. Install a more recent version of libdevmapper or select a different storage driver. For more information, see https://docs.docker.com/engine/reference/commandline/daemon/#daemon-storage-driver-option")
+			logrus.Error("devmapper: Udev sync is not supported. This will lead to data loss and unexpected behavior. Install a more recent version of libdevmapper or select a different storage driver. For more information, see https://docs.docker.com/engine/reference/commandline/dockerd/#storage-driver-options")
 		}
 
 		if !devices.overrideUdevSyncCheck {

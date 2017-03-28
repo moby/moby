@@ -39,6 +39,7 @@ type Agent struct {
 	ready     chan struct{}
 	leaving   chan struct{}
 	leaveOnce sync.Once
+	left      chan struct{} // closed after "run" processes "leaving" and will no longer accept new assignments
 	stopped   chan struct{} // requests shutdown
 	stopOnce  sync.Once     // only allow stop to be called once
 	closed    chan struct{} // only closed in run
@@ -56,6 +57,7 @@ func New(config *Config) (*Agent, error) {
 		sessionq: make(chan sessionOperation),
 		started:  make(chan struct{}),
 		leaving:  make(chan struct{}),
+		left:     make(chan struct{}),
 		stopped:  make(chan struct{}),
 		closed:   make(chan struct{}),
 		ready:    make(chan struct{}),
@@ -95,6 +97,16 @@ func (a *Agent) Leave(ctx context.Context) error {
 	a.leaveOnce.Do(func() {
 		close(a.leaving)
 	})
+
+	// Do not call Wait until we have confirmed that the agent is no longer
+	// accepting assignments. Starting a worker might race with Wait.
+	select {
+	case <-a.left:
+	case <-a.closed:
+		return ErrClosed
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 
 	// agent could be closed while Leave is in progress
 	var err error
@@ -167,13 +179,13 @@ func (a *Agent) run(ctx context.Context) {
 
 	ctx = log.WithModule(ctx, "agent")
 
-	log.G(ctx).Debugf("(*Agent).run")
-	defer log.G(ctx).Debugf("(*Agent).run exited")
+	log.G(ctx).Debug("(*Agent).run")
+	defer log.G(ctx).Debug("(*Agent).run exited")
 
 	// get the node description
 	nodeDescription, err := a.nodeDescriptionWithHostname(ctx)
 	if err != nil {
-		log.G(ctx).WithError(err).WithField("agent", a.config.Executor).Errorf("agent: node description unavailable")
+		log.G(ctx).WithError(err).WithField("agent", a.config.Executor).Error("agent: node description unavailable")
 	}
 	// nodeUpdateTicker is used to periodically check for updates to node description
 	nodeUpdateTicker := time.NewTicker(nodeUpdatePeriod)
@@ -215,6 +227,8 @@ func (a *Agent) run(ctx context.Context) {
 			if err := a.worker.Assign(ctx, nil); err != nil {
 				log.G(ctx).WithError(err).Error("failed removing all assignments")
 			}
+
+			close(a.left)
 		case msg := <-session.assignments:
 			// if we have left, accept no more assignments
 			if leaving == nil {
@@ -252,6 +266,7 @@ func (a *Agent) run(ctx context.Context) {
 
 			subCtx, subCancel := context.WithCancel(ctx)
 			subscriptions[sub.ID] = subCancel
+			// TODO(dperny) we're tossing the error here, that seems wrong
 			go a.worker.Subscribe(subCtx, sub)
 		case <-registered:
 			log.G(ctx).Debugln("agent: registered")
@@ -298,7 +313,7 @@ func (a *Agent) run(ctx context.Context) {
 			// get the current node description
 			newNodeDescription, err := a.nodeDescriptionWithHostname(ctx)
 			if err != nil {
-				log.G(ctx).WithError(err).WithField("agent", a.config.Executor).Errorf("agent: updated node description unavailable")
+				log.G(ctx).WithError(err).WithField("agent", a.config.Executor).Error("agent: updated node description unavailable")
 			}
 
 			// if newNodeDescription is nil, it will cause a panic when
@@ -417,7 +432,7 @@ func (a *Agent) withSession(ctx context.Context, fn func(session *session) error
 //
 // If an error is returned, the operation should be retried.
 func (a *Agent) UpdateTaskStatus(ctx context.Context, taskID string, status *api.TaskStatus) error {
-	log.G(ctx).WithField("task.id", taskID).Debugf("(*Agent).UpdateTaskStatus")
+	log.G(ctx).WithField("task.id", taskID).Debug("(*Agent).UpdateTaskStatus")
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -473,10 +488,21 @@ func (a *Agent) Publisher(ctx context.Context, subscriptionID string) (exec.LogP
 		return nil, nil, err
 	}
 
+	// make little closure for ending the log stream
+	sendCloseMsg := func() {
+		// send a close message, to tell the manager our logs are done
+		publisher.Send(&api.PublishLogsMessage{
+			SubscriptionID: subscriptionID,
+			Close:          true,
+		})
+		// close the stream forreal
+		publisher.CloseSend()
+	}
+
 	return exec.LogPublisherFunc(func(ctx context.Context, message api.LogMessage) error {
 			select {
 			case <-ctx.Done():
-				publisher.CloseSend()
+				sendCloseMsg()
 				return ctx.Err()
 			default:
 			}
@@ -486,7 +512,7 @@ func (a *Agent) Publisher(ctx context.Context, subscriptionID string) (exec.LogP
 				Messages:       []api.LogMessage{message},
 			})
 		}), func() {
-			publisher.CloseSend()
+			sendCloseMsg()
 		}, nil
 }
 

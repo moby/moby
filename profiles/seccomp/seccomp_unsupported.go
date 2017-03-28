@@ -8,6 +8,6 @@ import (
 )
 
 // DefaultProfile returns a nil pointer on unsupported systems.
-func DefaultProfile(rs *specs.Spec) *types.Seccomp {
+func DefaultProfile() *types.Seccomp {
 	return nil
 }

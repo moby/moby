@@ -30,7 +30,7 @@ var (
 
 	// ErrNotSupported returned when driver is not supported.
 	ErrNotSupported = errors.New("driver not supported")
-	// ErrPrerequisites retuned when driver does not meet prerequisites.
+	// ErrPrerequisites returned when driver does not meet prerequisites.
 	ErrPrerequisites = errors.New("prerequisites for driver not satisfied (wrong filesystem?)")
 	// ErrIncompatibleFS returned when file system is not supported.
 	ErrIncompatibleFS = fmt.Errorf("backing file system is unsupported for this graph driver")

@@ -49,7 +49,6 @@ func formatServiceInspect(t *testing.T, format formatter.Format, now time.Time) 
 					Replicas: &two,
 				},
 			},
-			UpdateConfig: nil,
 			Networks: []swarm.NetworkAttachmentConfig{
 				{
 					Target:  "5vpyomhb6ievnk0i0o60gcnei",

@@ -87,6 +87,10 @@ func TestNetworkConnect(t *testing.T) {
 				return nil, fmt.Errorf("expected 'container_id', got %s", connect.Container)
 			}
 
+			if connect.EndpointConfig == nil {
+				return nil, fmt.Errorf("expected connect.EndpointConfig to be not nil, got %v", connect.EndpointConfig)
+			}
+
 			if connect.EndpointConfig.NetworkID != "NetworkID" {
 				return nil, fmt.Errorf("expected 'NetworkID', got %s", connect.EndpointConfig.NetworkID)
 			}

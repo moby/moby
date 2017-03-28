@@ -9,7 +9,7 @@ import (
 
 func TestEmptyLayer(t *testing.T) {
 	if EmptyLayer.ChainID() != ChainID(DigestSHA256EmptyTar) {
-		t.Fatal("wrong ID for empty layer")
+		t.Fatal("wrong ChainID for empty layer")
 	}
 
 	if EmptyLayer.DiffID() != DigestSHA256EmptyTar {

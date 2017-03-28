@@ -8,18 +8,19 @@ import (
 	"path/filepath"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/reference"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )
 
 // validateTag checks if the given repoName can be resolved.
 func validateTag(rawRepo string) error {
-	_, err := reference.ParseNamed(rawRepo)
+	_, err := reference.ParseNormalizedNamed(rawRepo)
 
 	return err
 }
@@ -50,7 +51,7 @@ func validateContextDir(contextDir string) (string, error) {
 	}
 
 	if !stat.IsDir() {
-		return "", fmt.Errorf("context must be a directory")
+		return "", errors.Errorf("context must be a directory")
 	}
 
 	return absContextDir, nil

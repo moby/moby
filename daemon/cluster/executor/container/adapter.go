@@ -6,23 +6,24 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/daemon/cluster/convert"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
-	"github.com/docker/docker/reference"
 	"github.com/docker/libnetwork"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
-	"github.com/docker/swarmkit/protobuf/ptypes"
+	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/opencontainers/go-digest"
 	"golang.org/x/net/context"
 	"golang.org/x/time/rate"
@@ -60,7 +61,7 @@ func (c *containerAdapter) pullImage(ctx context.Context) error {
 
 	// Skip pulling if the image is referenced by digest and already
 	// exists locally.
-	named, err := reference.ParseNamed(spec.Image)
+	named, err := reference.ParseNormalizedNamed(spec.Image)
 	if err == nil {
 		if _, ok := named.(reference.Canonical); ok {
 			_, err := c.backend.LookupImage(spec.Image)
@@ -259,7 +260,28 @@ func (c *containerAdapter) create(ctx context.Context) error {
 	return nil
 }
 
+// checkMounts ensures that the provided mounts won't have any host-specific
+// problems at start up. For example, we disallow bind mounts without an
+// existing path, which slightly different from the container API.
+func (c *containerAdapter) checkMounts() error {
+	spec := c.container.spec()
+	for _, mount := range spec.Mounts {
+		switch mount.Type {
+		case api.MountTypeBind:
+			if _, err := os.Stat(mount.Source); os.IsNotExist(err) {
+				return fmt.Errorf("invalid bind mount source, source path not found: %s", mount.Source)
+			}
+		}
+	}
+
+	return nil
+}
+
 func (c *containerAdapter) start(ctx context.Context) error {
+	if err := c.checkMounts(); err != nil {
+		return err
+	}
+
 	return c.backend.ContainerStart(c.container.name(), nil, "", "")
 }
 
@@ -375,6 +397,12 @@ func (c *containerAdapter) deactivateServiceBinding() error {
 }
 
 func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscriptionOptions) (io.ReadCloser, error) {
+	// we can't handle the peculiarities of a TTY-attached container yet
+	conf := c.container.config()
+	if conf != nil && conf.Tty {
+		return nil, errors.New("logs not supported on containers with a TTY attached")
+	}
+
 	reader, writer := io.Pipe()
 
 	apiOptions := &backend.ContainerLogsConfig{
@@ -391,11 +419,14 @@ func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscription
 	}
 
 	if options.Since != nil {
-		since, err := ptypes.Timestamp(options.Since)
+		since, err := gogotypes.TimestampFromProto(options.Since)
 		if err != nil {
 			return nil, err
 		}
-		apiOptions.Since = since.Format(time.RFC3339Nano)
+		// print since as this formatted string because the docker container
+		// logs interface expects it like this.
+		// see github.com/docker/docker/api/types/time.ParseTimestamps
+		apiOptions.Since = fmt.Sprintf("%d.%09d", since.Unix(), int64(since.Nanosecond()))
 	}
 
 	if options.Tail < 0 {

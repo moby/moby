@@ -31,6 +31,7 @@ import (
 	cliflags "github.com/docker/docker/cli/flags"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/cluster"
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/libcontainerd"
@@ -42,6 +43,7 @@ import (
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/system"
+	"github.com/docker/docker/plugin"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/tlsconfig"
@@ -54,7 +56,7 @@ const (
 
 // DaemonCli represents the daemon CLI.
 type DaemonCli struct {
-	*daemon.Config
+	*config.Config
 	configFile *string
 	flags      *pflag.FlagSet
 
@@ -68,7 +70,7 @@ func NewDaemonCli() *DaemonCli {
 	return &DaemonCli{}
 }
 
-func migrateKey(config *daemon.Config) (err error) {
+func migrateKey(config *config.Config) (err error) {
 	// No migration necessary on Windows
 	if runtime.GOOS == "windows" {
 		return nil
@@ -260,9 +262,23 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 		<-stopc // wait for daemonCli.start() to return
 	})
 
-	d, err := daemon.NewDaemon(cli.Config, registryService, containerdRemote)
+	// Notify that the API is active, but before daemon is set up.
+	preNotifySystem()
+
+	pluginStore := plugin.NewStore()
+
+	if err := cli.initMiddlewares(api, serverConfig, pluginStore); err != nil {
+		logrus.Fatalf("Error creating middlewares: %v", err)
+	}
+
+	d, err := daemon.NewDaemon(cli.Config, registryService, containerdRemote, pluginStore)
 	if err != nil {
 		return fmt.Errorf("Error starting daemon: %v", err)
+	}
+
+	// validate after NewDaemon has restored enabled plugins. Dont change order.
+	if err := validateAuthzPlugins(cli.Config.AuthorizationPlugins, pluginStore); err != nil {
+		return fmt.Errorf("Error validating authorization plugin: %v", err)
 	}
 
 	if cli.Config.MetricsAddress != "" {
@@ -303,10 +319,6 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 
 	cli.d = d
 
-	// initMiddlewares needs cli.d to be populated. Dont change this init order.
-	if err := cli.initMiddlewares(api, serverConfig); err != nil {
-		logrus.Fatalf("Error creating middlewares: %v", err)
-	}
 	d.SetCluster(c)
 	initRouter(api, d, c)
 
@@ -335,7 +347,7 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 }
 
 func (cli *DaemonCli) reloadConfig() {
-	reload := func(config *daemon.Config) {
+	reload := func(config *config.Config) {
 
 		// Revalidate and reload the authorization plugins
 		if err := validateAuthzPlugins(config.AuthorizationPlugins, cli.d.PluginStore); err != nil {
@@ -363,7 +375,7 @@ func (cli *DaemonCli) reloadConfig() {
 		}
 	}
 
-	if err := daemon.ReloadConfiguration(*cli.configFile, cli.flags, reload); err != nil {
+	if err := config.Reload(*cli.configFile, cli.flags, reload); err != nil {
 		logrus.Error(err)
 	}
 }
@@ -395,24 +407,24 @@ func shutdownDaemon(d *daemon.Daemon) {
 	}
 }
 
-func loadDaemonCliConfig(opts daemonOptions) (*daemon.Config, error) {
-	config := opts.daemonConfig
+func loadDaemonCliConfig(opts daemonOptions) (*config.Config, error) {
+	conf := opts.daemonConfig
 	flags := opts.flags
-	config.Debug = opts.common.Debug
-	config.Hosts = opts.common.Hosts
-	config.LogLevel = opts.common.LogLevel
-	config.TLS = opts.common.TLS
-	config.TLSVerify = opts.common.TLSVerify
-	config.CommonTLSOptions = daemon.CommonTLSOptions{}
+	conf.Debug = opts.common.Debug
+	conf.Hosts = opts.common.Hosts
+	conf.LogLevel = opts.common.LogLevel
+	conf.TLS = opts.common.TLS
+	conf.TLSVerify = opts.common.TLSVerify
+	conf.CommonTLSOptions = config.CommonTLSOptions{}
 
 	if opts.common.TLSOptions != nil {
-		config.CommonTLSOptions.CAFile = opts.common.TLSOptions.CAFile
-		config.CommonTLSOptions.CertFile = opts.common.TLSOptions.CertFile
-		config.CommonTLSOptions.KeyFile = opts.common.TLSOptions.KeyFile
+		conf.CommonTLSOptions.CAFile = opts.common.TLSOptions.CAFile
+		conf.CommonTLSOptions.CertFile = opts.common.TLSOptions.CertFile
+		conf.CommonTLSOptions.KeyFile = opts.common.TLSOptions.KeyFile
 	}
 
 	if opts.configFile != "" {
-		c, err := daemon.MergeDaemonConfigurations(config, flags, opts.configFile)
+		c, err := config.MergeDaemonConfigurations(conf, flags, opts.configFile)
 		if err != nil {
 			if flags.Changed(flagDaemonConfigFile) || !os.IsNotExist(err) {
 				return nil, fmt.Errorf("unable to configure the Docker daemon with file %s: %v\n", opts.configFile, err)
@@ -421,11 +433,11 @@ func loadDaemonCliConfig(opts daemonOptions) (*daemon.Config, error) {
 		// the merged configuration can be nil if the config file didn't exist.
 		// leave the current configuration as it is if when that happens.
 		if c != nil {
-			config = c
+			conf = c
 		}
 	}
 
-	if err := daemon.ValidateConfiguration(config); err != nil {
+	if err := config.Validate(conf); err != nil {
 		return nil, err
 	}
 
@@ -433,7 +445,7 @@ func loadDaemonCliConfig(opts daemonOptions) (*daemon.Config, error) {
 	// This is deprecated in 1.13, and, be removed after 3 release cycles.
 	// The following will check the conflict of labels, and report a warning for deprecation.
 	//
-	// TODO: After 3 release cycles (1.16) an error will be returned, and labels will be
+	// TODO: After 3 release cycles (17.12) an error will be returned, and labels will be
 	// sanitized to consolidate duplicate key-value pairs (config.Labels = newLabels):
 	//
 	// newLabels, err := daemon.GetConflictFreeLabels(config.Labels)
@@ -442,20 +454,20 @@ func loadDaemonCliConfig(opts daemonOptions) (*daemon.Config, error) {
 	// }
 	// config.Labels = newLabels
 	//
-	if _, err := daemon.GetConflictFreeLabels(config.Labels); err != nil {
+	if _, err := config.GetConflictFreeLabels(conf.Labels); err != nil {
 		logrus.Warnf("Engine labels with duplicate keys and conflicting values have been deprecated: %s", err)
 	}
 
 	// Regardless of whether the user sets it to true or false, if they
 	// specify TLSVerify at all then we need to turn on TLS
-	if config.IsValueSet(cliflags.FlagTLSVerify) {
-		config.TLS = true
+	if conf.IsValueSet(cliflags.FlagTLSVerify) {
+		conf.TLS = true
 	}
 
 	// ensure that the log level is the one set after merging configurations
-	cliflags.SetLogLevel(config.LogLevel)
+	cliflags.SetLogLevel(conf.LogLevel)
 
-	return config, nil
+	return conf, nil
 }
 
 func initRouter(s *apiserver.Server, d *daemon.Daemon, c *cluster.Cluster) {
@@ -490,10 +502,10 @@ func initRouter(s *apiserver.Server, d *daemon.Daemon, c *cluster.Cluster) {
 	s.InitRouter(debug.IsEnabled(), routers...)
 }
 
-func (cli *DaemonCli) initMiddlewares(s *apiserver.Server, cfg *apiserver.Config) error {
+func (cli *DaemonCli) initMiddlewares(s *apiserver.Server, cfg *apiserver.Config, pluginStore *plugin.Store) error {
 	v := cfg.Version
 
-	exp := middleware.NewExperimentalMiddleware(cli.d.HasExperimental())
+	exp := middleware.NewExperimentalMiddleware(cli.Config.Experimental)
 	s.UseMiddleware(exp)
 
 	vm := middleware.NewVersionMiddleware(v, api.DefaultVersion, api.MinVersion)
@@ -504,10 +516,8 @@ func (cli *DaemonCli) initMiddlewares(s *apiserver.Server, cfg *apiserver.Config
 		s.UseMiddleware(c)
 	}
 
-	if err := validateAuthzPlugins(cli.Config.AuthorizationPlugins, cli.d.PluginStore); err != nil {
-		return fmt.Errorf("Error validating authorization plugin: %v", err)
-	}
-	cli.authzMiddleware = authorization.NewMiddleware(cli.Config.AuthorizationPlugins, cli.d.PluginStore)
+	cli.authzMiddleware = authorization.NewMiddleware(cli.Config.AuthorizationPlugins, pluginStore)
+	cli.Config.AuthzMiddleware = cli.authzMiddleware
 	s.UseMiddleware(cli.authzMiddleware)
 	return nil
 }

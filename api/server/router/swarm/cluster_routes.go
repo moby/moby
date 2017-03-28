@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/filters"
 	types "github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/pkg/stdcopy"
 	"golang.org/x/net/context"
 )
 
@@ -191,12 +192,14 @@ func (sr *swarmRouter) updateService(ctx context.Context, w http.ResponseWriter,
 		return errors.NewBadRequestError(err)
 	}
 
+	var flags basictypes.ServiceUpdateOptions
+
 	// Get returns "" if the header does not exist
-	encodedAuth := r.Header.Get("X-Registry-Auth")
+	flags.EncodedRegistryAuth = r.Header.Get("X-Registry-Auth")
+	flags.RegistryAuthFrom = r.URL.Query().Get("registryAuthFrom")
+	flags.Rollback = r.URL.Query().Get("rollback")
 
-	registryAuthFrom := r.URL.Query().Get("registryAuthFrom")
-
-	resp, err := sr.backend.UpdateService(vars["id"], version, service, encodedAuth, registryAuthFrom)
+	resp, err := sr.backend.UpdateService(vars["id"], version, service, flags)
 	if err != nil {
 		logrus.Errorf("Error updating service %s: %v", vars["id"], err)
 		return err
@@ -252,7 +255,8 @@ func (sr *swarmRouter) getServiceLogs(ctx context.Context, w http.ResponseWriter
 			// The client may be expecting all of the data we're sending to
 			// be multiplexed, so send it through OutStream, which will
 			// have been set up to handle that if needed.
-			fmt.Fprintf(logsConfig.OutStream, "Error grabbing service logs: %v\n", err)
+			stdwriter := stdcopy.NewStdWriter(w, stdcopy.Systemerr)
+			fmt.Fprintf(stdwriter, "Error grabbing service logs: %v\n", err)
 		default:
 			return err
 		}

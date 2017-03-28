@@ -7,12 +7,12 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/distribution/registry/api/v2"
 	"github.com/docker/distribution/registry/client"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/docker/distribution/xfer"
-	"github.com/docker/docker/reference"
 	"github.com/pkg/errors"
 )
 
@@ -78,11 +78,11 @@ func TranslatePullError(err error, ref reference.Named) error {
 		switch v.Code {
 		case errcode.ErrorCodeDenied:
 			// ErrorCodeDenied is used when access to the repository was denied
-			newErr = errors.Errorf("repository %s not found: does not exist or no pull access", ref.Name())
+			newErr = errors.Errorf("repository %s not found: does not exist or no pull access", reference.FamiliarName(ref))
 		case v2.ErrorCodeManifestUnknown:
-			newErr = errors.Errorf("manifest for %s not found", ref.String())
+			newErr = errors.Errorf("manifest for %s not found", reference.FamiliarString(ref))
 		case v2.ErrorCodeNameUnknown:
-			newErr = errors.Errorf("repository %s not found", ref.Name())
+			newErr = errors.Errorf("repository %s not found", reference.FamiliarName(ref))
 		}
 		if newErr != nil {
 			logrus.Infof("Translating %q to %q", err, newErr)

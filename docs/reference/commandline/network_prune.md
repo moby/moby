@@ -17,12 +17,16 @@ Options:
       --help            Print usage
 ```
 
-Remove all unused networks. Unused networks are those which are not referenced by any containers.
+## Description
 
-Example output:
+Remove all unused networks. Unused networks are those which are not referenced
+by any containers.
+
+## Examples
 
 ```bash
 $ docker network prune
+
 WARNING! This will remove all networks not used by at least one container.
 Are you sure you want to continue? [y/N] y
 Deleted Networks:
@@ -30,7 +34,7 @@ n1
 n2
 ```
 
-## Filtering
+### Filtering
 
 The filtering flag (`-f` or `--filter`) format is of "key=value". If there is more
 than one filter, then pass multiple flags (e.g., `--filter "foo=bar" --filter "bif=baz"`)
@@ -54,8 +58,9 @@ fraction of a second no more than nine digits long.
 The following removes networks created more than 5 minutes ago. Note that
 system networks such as `bridge`, `host`, and `none` will never be pruned:
 
-```bash
+```none
 $ docker network ls
+
 NETWORK ID          NAME                DRIVER              SCOPE
 7430df902d7a        bridge              bridge              local
 ea92373fd499        foo-1-day-ago       bridge              local
@@ -64,10 +69,12 @@ ab53663ed3c7        foo-1-min-ago       bridge              local
 f949d337b1f5        none                null                local
 
 $ docker network prune --force --filter until=5m
+
 Deleted Networks:
 foo-1-day-ago
 
 $ docker network ls
+
 NETWORK ID          NAME                DRIVER              SCOPE
 7430df902d7a        bridge              bridge              local
 ab53663ed3c7        foo-1-min-ago       bridge              local
@@ -75,7 +82,7 @@ ab53663ed3c7        foo-1-min-ago       bridge              local
 f949d337b1f5        none                null                local
 ```
 
-## Related information
+## Related commands
 
 * [network disconnect ](network_disconnect.md)
 * [network connect](network_connect.md)

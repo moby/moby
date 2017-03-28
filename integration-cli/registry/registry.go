@@ -203,6 +203,11 @@ func (r *V2) Password() string {
 	return r.password
 }
 
+// Email returns the configured email of the server
+func (r *V2) Email() string {
+	return r.email
+}
+
 // Path returns the path where the registry write data
 func (r *V2) Path() string {
 	return filepath.Join(r.dir, "docker", "registry", "v2")

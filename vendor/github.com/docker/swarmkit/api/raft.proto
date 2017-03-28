@@ -40,10 +40,10 @@ service RaftMembership {
 message RaftMember {
 	// RaftID specifies the internal ID used by the manager in a raft context, it can never be modified
 	// and is used only for information purposes
-	uint64 raft_id = 1 [(gogoproto.customname) = "RaftID"];
+	uint64 raft_id = 1;
 
 	// NodeID is the node's ID.
-	string node_id = 2 [(gogoproto.customname) = "NodeID"];
+	string node_id = 2;
 
 	// Addr specifies the address of the member
 	string addr = 3;
@@ -59,7 +59,7 @@ message JoinRequest {
 
 message JoinResponse {
 	// RaftID is the ID assigned to the new member.
-	uint64 raft_id = 1 [(gogoproto.customname) = "RaftID"];
+	uint64 raft_id = 1;
 
 	// Members is the membership set of the cluster.
 	repeated RaftMember members = 2;
@@ -84,7 +84,7 @@ message ProcessRaftMessageResponse {}
 
 message ResolveAddressRequest {
 	// raft_id is the ID to resolve to an address.
-	uint64 raft_id = 1 [(gogoproto.customname) = "RaftID"];
+	uint64 raft_id = 1;
 }
 
 message ResolveAddressResponse {
@@ -96,7 +96,7 @@ message ResolveAddressResponse {
 // over the raft backend with a request ID to track when the
 // action is effectively applied
 message InternalRaftRequest {
-	uint64 id = 1 [(gogoproto.customname) = "ID"];
+	uint64 id = 1;
 
 	repeated StoreAction action = 2;
 }

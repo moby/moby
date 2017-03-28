@@ -2,14 +2,19 @@ package network
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"golang.org/x/net/context"
 
+	"github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/networkdb"
 )
@@ -22,6 +27,7 @@ var (
 		"name":   true,
 		"id":     true,
 		"label":  true,
+		"scope":  true,
 	}
 )
 
@@ -55,7 +61,18 @@ SKIP:
 				continue SKIP
 			}
 		}
-		list = append(list, *n.buildNetworkResource(nw))
+
+		var nr *types.NetworkResource
+		// Versions < 1.28 fetches all the containers attached to a network
+		// in a network list api call. It is a heavy weight operation when
+		// run across all the networks. Starting API version 1.28, this detailed
+		// info is available for network specific GET API (equivalent to inspect)
+		if versions.LessThan(httputils.VersionFromContext(ctx), "1.28") {
+			nr = n.buildDetailedNetworkResources(nw, false)
+		} else {
+			nr = n.buildNetworkResource(nw)
+		}
+		list = append(list, *nr)
 	}
 
 	list, err = filterNetworks(list, netFilters)
@@ -70,14 +87,90 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 		return err
 	}
 
-	nw, err := n.backend.FindNetwork(vars["id"])
-	if err != nil {
-		if nr, err := n.cluster.GetNetwork(vars["id"]); err == nil {
-			return httputils.WriteJSON(w, http.StatusOK, nr)
+	term := vars["id"]
+	var (
+		verbose bool
+		err     error
+	)
+	if v := r.URL.Query().Get("verbose"); v != "" {
+		if verbose, err = strconv.ParseBool(v); err != nil {
+			err = fmt.Errorf("invalid value for verbose: %s", v)
+			return errors.NewBadRequestError(err)
 		}
-		return err
 	}
-	return httputils.WriteJSON(w, http.StatusOK, n.buildNetworkResource(nw))
+
+	// In case multiple networks have duplicate names, return error.
+	// TODO (yongtang): should we wrap with version here for backward compatibility?
+
+	// First find based on full ID, return immediately once one is found.
+	// If a network appears both in swarm and local, assume it is in local first
+
+	// For full name and partial ID, save the result first, and process later
+	// in case multiple records was found based on the same term
+	listByFullName := map[string]types.NetworkResource{}
+	listByPartialID := map[string]types.NetworkResource{}
+
+	nw := n.backend.GetNetworks()
+	for _, network := range nw {
+		if network.ID() == term {
+			return httputils.WriteJSON(w, http.StatusOK, *n.buildDetailedNetworkResources(network, verbose))
+		}
+		if network.Name() == term {
+			// No need to check the ID collision here as we are still in
+			// local scope and the network ID is unique in this scope.
+			listByFullName[network.ID()] = *n.buildDetailedNetworkResources(network, verbose)
+		}
+		if strings.HasPrefix(network.ID(), term) {
+			// No need to check the ID collision here as we are still in
+			// local scope and the network ID is unique in this scope.
+			listByPartialID[network.ID()] = *n.buildDetailedNetworkResources(network, verbose)
+		}
+	}
+
+	nr, _ := n.cluster.GetNetworks()
+	for _, network := range nr {
+		if network.ID == term {
+			return httputils.WriteJSON(w, http.StatusOK, network)
+		}
+		if network.Name == term {
+			// Check the ID collision as we are in swarm scope here, and
+			// the map (of the listByFullName) may have already had a
+			// network with the same ID (from local scope previously)
+			if _, ok := listByFullName[network.ID]; !ok {
+				listByFullName[network.ID] = network
+			}
+		}
+		if strings.HasPrefix(network.ID, term) {
+			// Check the ID collision as we are in swarm scope here, and
+			// the map (of the listByPartialID) may have already had a
+			// network with the same ID (from local scope previously)
+			if _, ok := listByPartialID[network.ID]; !ok {
+				listByPartialID[network.ID] = network
+			}
+		}
+	}
+
+	// Find based on full name, returns true only if no duplicates
+	if len(listByFullName) == 1 {
+		for _, v := range listByFullName {
+			return httputils.WriteJSON(w, http.StatusOK, v)
+		}
+	}
+	if len(listByFullName) > 1 {
+		return fmt.Errorf("network %s is ambiguous (%d matches found based on name)", term, len(listByFullName))
+	}
+
+	// Find based on partial ID, returns true only if no duplicates
+	if len(listByPartialID) == 1 {
+		for _, v := range listByPartialID {
+			return httputils.WriteJSON(w, http.StatusOK, v)
+		}
+	}
+	if len(listByPartialID) > 1 {
+		return fmt.Errorf("network %s is ambiguous (%d matches found based on ID prefix)", term, len(listByPartialID))
+	}
+
+	return libnetwork.ErrNoSuchNetwork(term)
 }
 
 func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -101,6 +194,16 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 
 	nw, err := n.backend.CreateNetwork(create)
 	if err != nil {
+		var warning string
+		if _, ok := err.(libnetwork.NetworkNameError); ok {
+			// check if user defined CheckDuplicate, if set true, return err
+			// otherwise prepare a warning message
+			if create.CheckDuplicate {
+				return libnetwork.NetworkNameError(create.Name)
+			}
+			warning = libnetwork.NetworkNameError(create.Name).Error()
+		}
+
 		if _, ok := err.(libnetwork.ManagerRedirectError); !ok {
 			return err
 		}
@@ -108,7 +211,10 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 		if err != nil {
 			return err
 		}
-		nw = &types.NetworkCreateResponse{ID: id}
+		nw = &types.NetworkCreateResponse{
+			ID:      id,
+			Warning: warning,
+		}
 	}
 
 	return httputils.WriteJSON(w, http.StatusCreated, nw)
@@ -178,7 +284,7 @@ func (n *networkRouter) buildNetworkResource(nw libnetwork.Network) *types.Netwo
 	r.Created = info.Created()
 	r.Scope = info.Scope()
 	if n.cluster.IsManager() {
-		if _, err := n.cluster.GetNetwork(nw.Name()); err == nil {
+		if _, err := n.cluster.GetNetwork(nw.ID()); err == nil {
 			r.Scope = "swarm"
 		}
 	} else if info.Dynamic() {
@@ -188,6 +294,7 @@ func (n *networkRouter) buildNetworkResource(nw libnetwork.Network) *types.Netwo
 	r.EnableIPv6 = info.IPv6Enabled()
 	r.Internal = info.Internal()
 	r.Attachable = info.Attachable()
+	r.Ingress = info.Ingress()
 	r.Options = info.DriverOptions()
 	r.Containers = make(map[string]types.EndpointResource)
 	buildIpamResources(r, info)
@@ -198,6 +305,15 @@ func (n *networkRouter) buildNetworkResource(nw libnetwork.Network) *types.Netwo
 		r.Peers = buildPeerInfoResources(peers)
 	}
 
+	return r
+}
+
+func (n *networkRouter) buildDetailedNetworkResources(nw libnetwork.Network, verbose bool) *types.NetworkResource {
+	if nw == nil {
+		return &types.NetworkResource{}
+	}
+
+	r := n.buildNetworkResource(nw)
 	epl := nw.Endpoints()
 	for _, e := range epl {
 		ei := e.Info()
@@ -212,6 +328,28 @@ func (n *networkRouter) buildNetworkResource(nw libnetwork.Network) *types.Netwo
 		}
 
 		r.Containers[key] = buildEndpointResource(tmpID, e.Name(), ei)
+	}
+	if !verbose {
+		return r
+	}
+	services := nw.Info().Services()
+	r.Services = make(map[string]network.ServiceInfo)
+	for name, service := range services {
+		tasks := []network.Task{}
+		for _, t := range service.Tasks {
+			tasks = append(tasks, network.Task{
+				Name:       t.Name,
+				EndpointID: t.EndpointID,
+				EndpointIP: t.EndpointIP,
+				Info:       t.Info,
+			})
+		}
+		r.Services[name] = network.ServiceInfo{
+			VIP:          service.VIP,
+			Ports:        service.Ports,
+			Tasks:        tasks,
+			LocalLBIndex: service.LocalLBIndex,
+		}
 	}
 	return r
 }

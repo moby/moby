@@ -6,13 +6,6 @@ policy_module(docker, 1.0.0)
 #
 
 ## <desc>
-## <p>
-## Allow sandbox containers manage fuse files
-## </p>
-## </desc>
-gen_tunable(virt_sandbox_use_fusefs, false)
-
-## <desc>
 ##  <p>
 ##  Determine whether docker can
 ##  connect to all TCP ports.

@@ -11,7 +11,7 @@ import (
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/state"
 	"github.com/docker/swarmkit/manager/state/store"
-	"github.com/docker/swarmkit/protobuf/ptypes"
+	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -40,7 +40,7 @@ type Server struct {
 	// renewal. They are indexed by node ID.
 	pending map[string]*api.Node
 
-	// Started is a channel which gets closed once the server is running
+	// started is a channel which gets closed once the server is running
 	// and able to service RPCs.
 	started chan struct{}
 }
@@ -48,7 +48,7 @@ type Server struct {
 // DefaultCAConfig returns the default CA Config, with a default expiration.
 func DefaultCAConfig() api.CAConfig {
 	return api.CAConfig{
-		NodeCertExpiry: ptypes.DurationProto(DefaultNodeCertExpiration),
+		NodeCertExpiry: gogotypes.DurationProto(DefaultNodeCertExpiration),
 	}
 }
 
@@ -102,10 +102,10 @@ func (s *Server) NodeCertificateStatus(ctx context.Context, request *api.NodeCer
 		return nil, grpc.Errorf(codes.InvalidArgument, codes.InvalidArgument.String())
 	}
 
-	if err := s.addTask(); err != nil {
+	serverCtx, err := s.isRunningLocked()
+	if err != nil {
 		return nil, err
 	}
-	defer s.doneTask()
 
 	var node *api.Node
 
@@ -171,7 +171,7 @@ func (s *Server) NodeCertificateStatus(ctx context.Context, request *api.NodeCer
 			}
 		case <-ctx.Done():
 			return nil, ctx.Err()
-		case <-s.ctx.Done():
+		case <-serverCtx.Done():
 			return nil, s.ctx.Err()
 		}
 	}
@@ -189,10 +189,9 @@ func (s *Server) IssueNodeCertificate(ctx context.Context, request *api.IssueNod
 		return nil, grpc.Errorf(codes.InvalidArgument, codes.InvalidArgument.String())
 	}
 
-	if err := s.addTask(); err != nil {
+	if _, err := s.isRunningLocked(); err != nil {
 		return nil, err
 	}
-	defer s.doneTask()
 
 	var (
 		blacklistedCerts map[string]*api.BlacklistedCertificate
@@ -353,7 +352,7 @@ func (s *Server) issueRenewCertificate(ctx context.Context, nodeID string, csr [
 	}, nil
 }
 
-// GetRootCACertificate returns the certificate of the Root CA. It is used as a convinience for distributing
+// GetRootCACertificate returns the certificate of the Root CA. It is used as a convenience for distributing
 // the root of trust for the swarm. Clients should be using the CA hash to verify if they weren't target to
 // a MiTM. If they fail to do so, node bootstrap works with TOFU semantics.
 func (s *Server) GetRootCACertificate(ctx context.Context, request *api.GetRootCACertificateRequest) (*api.GetRootCACertificateResponse, error) {
@@ -393,22 +392,21 @@ func (s *Server) Run(ctx context.Context) error {
 			if len(clusters) != 1 {
 				return errors.New("could not find cluster object")
 			}
-			s.updateCluster(ctx, clusters[0])
-
+			s.UpdateRootCA(ctx, clusters[0]) // call once to ensure that the join tokens are always set
 			nodes, err = store.FindNodes(readTx, store.All)
 			return err
 		},
 		state.EventCreateNode{},
 		state.EventUpdateNode{},
-		state.EventUpdateCluster{},
 	)
 
 	// Do this after updateCluster has been called, so isRunning never
 	// returns true without joinTokens being set correctly.
 	s.mu.Lock()
 	s.ctx, s.cancel = context.WithCancel(ctx)
-	s.mu.Unlock()
+	ctx = s.ctx
 	close(s.started)
+	s.mu.Unlock()
 
 	if err != nil {
 		log.G(ctx).WithFields(logrus.Fields{
@@ -435,6 +433,12 @@ func (s *Server) Run(ctx context.Context) error {
 	// to the cluster
 	for {
 		select {
+		case <-ctx.Done():
+			return nil
+		default:
+		}
+
+		select {
 		case event := <-updates:
 			switch v := event.(type) {
 			case state.EventCreateNode:
@@ -445,8 +449,6 @@ func (s *Server) Run(ctx context.Context) error {
 				if !isFinalState(v.Node.Certificate.Status) {
 					s.evaluateAndSignNodeCert(ctx, v.Node)
 				}
-			case state.EventUpdateCluster:
-				s.updateCluster(ctx, v.Cluster)
 			}
 		case <-ticker.C:
 			for _, node := range s.pending {
@@ -459,8 +461,6 @@ func (s *Server) Run(ctx context.Context) error {
 				}
 			}
 		case <-ctx.Done():
-			return ctx.Err()
-		case <-s.ctx.Done():
 			return nil
 		}
 	}
@@ -469,36 +469,37 @@ func (s *Server) Run(ctx context.Context) error {
 // Stop stops the CA and closes all grpc streams.
 func (s *Server) Stop() error {
 	s.mu.Lock()
+
 	if !s.isRunning() {
 		s.mu.Unlock()
 		return errors.New("CA signer is already stopped")
 	}
 	s.cancel()
-	s.mu.Unlock()
-	// wait for all handlers to finish their CA deals,
-	s.wg.Wait()
 	s.started = make(chan struct{})
+	s.mu.Unlock()
+
+	// Wait for Run to complete
+	s.wg.Wait()
+
 	return nil
 }
 
 // Ready waits on the ready channel and returns when the server is ready to serve.
 func (s *Server) Ready() <-chan struct{} {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	return s.started
 }
 
-func (s *Server) addTask() error {
+func (s *Server) isRunningLocked() (context.Context, error) {
 	s.mu.Lock()
 	if !s.isRunning() {
 		s.mu.Unlock()
-		return grpc.Errorf(codes.Aborted, "CA signer is stopped")
+		return nil, grpc.Errorf(codes.Aborted, "CA signer is stopped")
 	}
-	s.wg.Add(1)
+	ctx := s.ctx
 	s.mu.Unlock()
-	return nil
-}
-
-func (s *Server) doneTask() {
-	s.wg.Done()
+	return ctx, nil
 }
 
 func (s *Server) isRunning() bool {
@@ -513,9 +514,10 @@ func (s *Server) isRunning() bool {
 	return true
 }
 
-// updateCluster is called when there are cluster changes, and it ensures that the local RootCA is
-// always aware of changes in clusterExpiry and the Root CA key material
-func (s *Server) updateCluster(ctx context.Context, cluster *api.Cluster) {
+// UpdateRootCA is called when there are cluster changes, and it ensures that the local RootCA is
+// always aware of changes in clusterExpiry and the Root CA key material - this can be called by
+// anything to update the root CA material
+func (s *Server) UpdateRootCA(ctx context.Context, cluster *api.Cluster) {
 	s.mu.Lock()
 	s.joinTokens = cluster.RootCA.JoinTokens.Copy()
 	s.mu.Unlock()
@@ -527,7 +529,7 @@ func (s *Server) updateCluster(ctx context.Context, cluster *api.Cluster) {
 		expiry := DefaultNodeCertExpiration
 		if cluster.Spec.CAConfig.NodeCertExpiry != nil {
 			// NodeCertExpiry exists, let's try to parse the duration out of it
-			clusterExpiry, err := ptypes.Duration(cluster.Spec.CAConfig.NodeCertExpiry)
+			clusterExpiry, err := gogotypes.DurationFromProto(cluster.Spec.CAConfig.NodeCertExpiry)
 			if err != nil {
 				log.G(ctx).WithFields(logrus.Fields{
 					"cluster.id": cluster.ID,
@@ -716,7 +718,7 @@ func (s *Server) signNodeCert(ctx context.Context, node *api.Node) error {
 	return nil
 }
 
-// reconcileNodeCertificates is a helper method that calles evaluateAndSignNodeCert on all the
+// reconcileNodeCertificates is a helper method that calls evaluateAndSignNodeCert on all the
 // nodes.
 func (s *Server) reconcileNodeCertificates(ctx context.Context, nodes []*api.Node) error {
 	for _, node := range nodes {

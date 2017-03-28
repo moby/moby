@@ -13,6 +13,7 @@ import (
 	"unsafe"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/system"
 	"github.com/spf13/pflag"
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/svc"
@@ -165,10 +166,20 @@ func registerService() error {
 		return err
 	}
 	defer m.Disconnect()
+
+	depends := []string{}
+
+	// This dependency is required on build 14393 (RS1)
+	// it is added to the platform in newer builds
+	if system.GetOSVersion().Build == 14393 {
+		depends = append(depends, "ConDrv")
+	}
+
 	c := mgr.Config{
 		ServiceType:  windows.SERVICE_WIN32_OWN_PROCESS,
 		StartType:    mgr.StartAutomatic,
 		ErrorControl: mgr.ErrorNormal,
+		Dependencies: depends,
 		DisplayName:  "Docker Engine",
 	}
 
@@ -243,25 +254,28 @@ func unregisterService() error {
 	return nil
 }
 
-func initService(daemonCli *DaemonCli) (bool, error) {
+// initService is the entry point for running the daemon as a Windows
+// service. It returns an indication to stop (if registering/un-registering);
+// an indication of whether it is running as a service; and an error.
+func initService(daemonCli *DaemonCli) (bool, bool, error) {
 	if *flUnregisterService {
 		if *flRegisterService {
-			return true, errors.New("--register-service and --unregister-service cannot be used together")
+			return true, false, errors.New("--register-service and --unregister-service cannot be used together")
 		}
-		return true, unregisterService()
+		return true, false, unregisterService()
 	}
 
 	if *flRegisterService {
-		return true, registerService()
+		return true, false, registerService()
 	}
 
 	if !*flRunService {
-		return false, nil
+		return false, false, nil
 	}
 
 	interactive, err := svc.IsAnInteractiveSession()
 	if err != nil {
-		return false, err
+		return false, false, err
 	}
 
 	h := &handler{
@@ -274,7 +288,7 @@ func initService(daemonCli *DaemonCli) (bool, error) {
 	if !interactive {
 		log, err = eventlog.Open(*flServiceName)
 		if err != nil {
-			return false, err
+			return false, false, err
 		}
 	}
 
@@ -295,9 +309,9 @@ func initService(daemonCli *DaemonCli) (bool, error) {
 	// Wait for the first signal from the service handler.
 	err = <-h.fromsvc
 	if err != nil {
-		return false, err
+		return false, false, err
 	}
-	return false, nil
+	return false, true, nil
 }
 
 func (h *handler) started() error {

@@ -13,7 +13,7 @@ import (
 func TestVersionMiddleware(t *testing.T) {
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 		if httputils.VersionFromContext(ctx) == "" {
-			t.Fatalf("Expected version, got empty string")
+			t.Fatal("Expected version, got empty string")
 		}
 		return nil
 	}
@@ -34,7 +34,7 @@ func TestVersionMiddleware(t *testing.T) {
 func TestVersionMiddlewareWithErrors(t *testing.T) {
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 		if httputils.VersionFromContext(ctx) == "" {
-			t.Fatalf("Expected version, got empty string")
+			t.Fatal("Expected version, got empty string")
 		}
 		return nil
 	}

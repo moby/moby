@@ -66,7 +66,7 @@ func GenManTreeFromOpts(cmd *cobra.Command, opts GenManTreeOptions) error {
 		separator = opts.CommandSeparator
 	}
 	basename := strings.Replace(cmd.CommandPath(), " ", separator, -1)
-	filename := filepath.Join(opts.Path, basename + "." + section)
+	filename := filepath.Join(opts.Path, basename+"."+section)
 	f, err := os.Create(filename)
 	if err != nil {
 		return err
@@ -197,7 +197,7 @@ func genMan(cmd *cobra.Command, header *GenManHeader) []byte {
 	manPrintOptions(buf, cmd)
 	if len(cmd.Example) > 0 {
 		fmt.Fprintf(buf, "# EXAMPLE\n")
-		fmt.Fprintf(buf, "```\n%s\n```\n", cmd.Example)
+		fmt.Fprintf(buf, "\n%s\n\n", cmd.Example)
 	}
 	if hasSeeAlso(cmd) {
 		fmt.Fprintf(buf, "# SEE ALSO\n")

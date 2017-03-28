@@ -1,12 +1,12 @@
 package command
 
 import (
-	"errors"
 	"io"
 	"os"
 	"runtime"
 
 	"github.com/docker/docker/pkg/term"
+	"github.com/pkg/errors"
 )
 
 // InStream is an input stream used by the DockerCli to read user input

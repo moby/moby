@@ -4,7 +4,7 @@ package docker.swarmkit.v1;
 
 import "types.proto";
 import "gogoproto/gogo.proto";
-import "duration/duration.proto"; // TODO(stevvooe): use our own until we fix gogoproto/deepcopy
+import "google/protobuf/duration.proto";
 
 // Specs are container objects for user provided input. All creations and
 // updates are done through spec types. As a convention, user input from a spec
@@ -69,9 +69,17 @@ message ServiceSpec {
 		GlobalService global = 4;
 	}
 
-	// UpdateConfig controls the rate and policy of updates.
+	// Update contains settings which affect updates.
 	UpdateConfig update = 6;
 
+	// Rollback contains settings which affect rollbacks of updates.
+	UpdateConfig rollback = 9;
+
+	// ServiceSpec.Networks has been deprecated and is replaced by
+	// Networks field in Task (TaskSpec.Networks).
+	// This field (ServiceSpec.Networks) is kept for compatibility.
+	// In case TaskSpec.Networks does not exist, ServiceSpec.Networks
+	// is still honored if it exists.
 	repeated NetworkAttachmentConfig networks = 7 [deprecated=true];
 
 	// Service endpoint specifies the user provided configuration
@@ -123,9 +131,9 @@ message TaskSpec {
 // NetworkAttachmentSpec specifies runtime parameters required to attach
 // a container to a network.
 message NetworkAttachmentSpec {
-	// ContainerID spcifies a unique ID of the container for which
+	// ContainerID specifies a unique ID of the container for which
 	// this attachment is for.
-	string container_id = 1 [(gogoproto.customname) = "ContainerID"];
+	string container_id = 1;
 }
 
 
@@ -189,11 +197,21 @@ message ContainerSpec {
 	// OpenStdin declares that the standard input (stdin) should be open.
 	bool open_stdin = 18;
 
+	// ReadOnly declares that the container root filesystem is read-only.
+	// This only impacts the root filesystem, not additional mounts (including
+	// tmpfs). For additional mounts that are not part of the initial rootfs,
+	// they will be decided by the modes passed in the mount definition.
+	bool read_only = 19;
+
+	// StopSignal defines the signal to stop the container.
+	string stop_signal = 20;
+
 	repeated Mount mounts = 8 [(gogoproto.nullable) = false];
 
 	// StopGracePeriod the grace period for stopping the container before
 	// forcefully killing the container.
-	Duration stop_grace_period = 9;
+	// Note: Can't use stdduration here because this needs to be nullable.
+	google.protobuf.Duration stop_grace_period = 9;
 
 	// PullOptions allows one to parameterize an image pull.
 	message PullOptions {
@@ -253,7 +271,7 @@ message ContainerSpec {
 message EndpointSpec {
 	// ResolutionMode specifies the mode of resolution to use for
 	// internal loadbalancing between tasks which are all within
-	// the cluster. This is sometimes calles east-west data path.
+	// the cluster. This is sometimes calls east-west data path.
 	enum ResolutionMode {
 		option (gogoproto.goproto_enum_prefix) = false;
 
@@ -303,6 +321,12 @@ message NetworkSpec {
 	// enabled(default case) no manual attachment to this network
 	// can happen.
 	bool attachable = 6;
+	
+	// Ingress indicates this network will provide the routing-mesh.
+	// In older versions, the network providing the routing mesh was
+	// swarm internally created only and it was identified by the name
+	// "ingress" and the label "com.docker.swarm.internal": "true".
+	bool ingress = 7;
 }
 
 // ClusterSpec specifies global cluster settings.

@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/container/stream"
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/pkg/pools"
@@ -164,18 +165,25 @@ func (d *Daemon) ContainerExecStart(ctx context.Context, name string, stdin io.R
 		return fmt.Errorf("Error: Exec command %s is already running", ec.ID)
 	}
 	ec.Running = true
-	defer func() {
-		if err != nil {
-			ec.Running = false
-			exitCode := 126
-			ec.ExitCode = &exitCode
-		}
-	}()
 	ec.Unlock()
 
 	c := d.containers.Get(ec.ContainerID)
 	logrus.Debugf("starting exec command %s in container %s", ec.ID, c.ID)
 	d.LogContainerEvent(c, "exec_start: "+ec.Entrypoint+" "+strings.Join(ec.Args, " "))
+
+	defer func() {
+		if err != nil {
+			ec.Lock()
+			ec.Running = false
+			exitCode := 126
+			ec.ExitCode = &exitCode
+			if err := ec.CloseStreams(); err != nil {
+				logrus.Errorf("failed to cleanup exec %s streams: %s", c.ID, err)
+			}
+			ec.Unlock()
+			c.ExecCommands.Delete(ec.ID)
+		}
+	}()
 
 	if ec.OpenStdin && stdin != nil {
 		r, w := io.Pipe()
@@ -209,7 +217,19 @@ func (d *Daemon) ContainerExecStart(ctx context.Context, name string, stdin io.R
 		return err
 	}
 
-	attachErr := container.AttachStreams(ctx, ec.StreamConfig, ec.OpenStdin, true, ec.Tty, cStdin, cStdout, cStderr, ec.DetachKeys)
+	attachConfig := stream.AttachConfig{
+		TTY:        ec.Tty,
+		UseStdin:   cStdin != nil,
+		UseStdout:  cStdout != nil,
+		UseStderr:  cStderr != nil,
+		Stdin:      cStdin,
+		Stdout:     cStdout,
+		Stderr:     cStderr,
+		DetachKeys: ec.DetachKeys,
+		CloseStdin: true,
+	}
+	ec.StreamConfig.AttachStreams(&attachConfig)
+	attachErr := ec.StreamConfig.CopyStreams(ctx, &attachConfig)
 
 	systemPid, err := d.containerd.AddProcess(ctx, c.ID, name, p, ec.InitializeStdio)
 	if err != nil {
@@ -233,7 +253,7 @@ func (d *Daemon) ContainerExecStart(ctx context.Context, name string, stdin io.R
 		return fmt.Errorf("context cancelled")
 	case err := <-attachErr:
 		if err != nil {
-			if _, ok := err.(container.DetachError); !ok {
+			if _, ok := err.(stream.DetachError); !ok {
 				return fmt.Errorf("exec attach failed with error: %v", err)
 			}
 			d.LogContainerEvent(c, "exec_detach")

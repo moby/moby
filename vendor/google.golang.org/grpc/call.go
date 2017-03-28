@@ -49,9 +49,8 @@ import (
 // On error, it returns the error and indicates whether the call should be retried.
 //
 // TODO(zhaoq): Check whether the received message sequence is valid.
-func recvResponse(dopts dialOptions, t transport.ClientTransport, c *callInfo, stream *transport.Stream, reply interface{}) error {
+func recvResponse(dopts dialOptions, t transport.ClientTransport, c *callInfo, stream *transport.Stream, reply interface{}) (err error) {
 	// Try to acquire header metadata from the server if there is any.
-	var err error
 	defer func() {
 		if err != nil {
 			if _, ok := err.(transport.ConnectionError); !ok {
@@ -61,7 +60,7 @@ func recvResponse(dopts dialOptions, t transport.ClientTransport, c *callInfo, s
 	}()
 	c.headerMD, err = stream.Header()
 	if err != nil {
-		return err
+		return
 	}
 	p := &parser{r: stream}
 	for {
@@ -69,7 +68,7 @@ func recvResponse(dopts dialOptions, t transport.ClientTransport, c *callInfo, s
 			if err == io.EOF {
 				break
 			}
-			return err
+			return
 		}
 	}
 	c.trailerMD = stream.Trailer()

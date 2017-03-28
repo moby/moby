@@ -2,13 +2,13 @@ package swarm
 
 import (
 	"bytes"
-	"fmt"
 	"io/ioutil"
 	"strings"
 	"testing"
 
 	"github.com/docker/docker/cli/internal/test"
 	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/pkg/errors"
 )
 
 func TestSwarmLeaveErrors(t *testing.T) {
@@ -26,7 +26,7 @@ func TestSwarmLeaveErrors(t *testing.T) {
 		{
 			name: "leave-failed",
 			swarmLeaveFunc: func() error {
-				return fmt.Errorf("error leaving the swarm")
+				return errors.Errorf("error leaving the swarm")
 			},
 			expectedError: "error leaving the swarm",
 		},

@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/signal"
+	"github.com/docker/docker/pkg/stdcopy"
 	"golang.org/x/net/context"
 	"golang.org/x/net/websocket"
 )
@@ -108,9 +109,10 @@ func (s *containerRouter) getContainersLogs(ctx context.Context, w http.Response
 		select {
 		case <-chStarted:
 			// The client may be expecting all of the data we're sending to
-			// be multiplexed, so send it through OutStream, which will
-			// have been set up to handle that if needed.
-			fmt.Fprintf(logsConfig.OutStream, "Error running logs job: %v\n", err)
+			// be multiplexed, so mux it through the Systemerr stream, which
+			// will cause the client to throw an error when demuxing
+			stdwriter := stdcopy.NewStdWriter(logsConfig.OutStream, stdcopy.Systemerr)
+			fmt.Fprintf(stdwriter, "Error running logs job: %v\n", err)
 		default:
 			return err
 		}
@@ -502,6 +504,8 @@ func (s *containerRouter) wsContainersAttach(ctx context.Context, w http.Respons
 	done := make(chan struct{})
 	started := make(chan struct{})
 
+	version := httputils.VersionFromContext(ctx)
+
 	setupStreams := func() (io.ReadCloser, io.Writer, io.Writer, error) {
 		wsChan := make(chan *websocket.Conn)
 		h := func(conn *websocket.Conn) {
@@ -516,6 +520,11 @@ func (s *containerRouter) wsContainersAttach(ctx context.Context, w http.Respons
 		}()
 
 		conn := <-wsChan
+		// In case version 1.28 and above, a binary frame will be sent.
+		// See 28176 for details.
+		if versions.GreaterThanOrEqualTo(version, "1.28") {
+			conn.PayloadType = websocket.BinaryFrame
+		}
 		return conn, conn, conn, nil
 	}
 

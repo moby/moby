@@ -1,4 +1,4 @@
-// +build linux freebsd solaris
+// +build linux freebsd solaris openbsd
 
 // Package kernel provides helper function to get, parse and compare kernel
 // versions for different platforms.

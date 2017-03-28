@@ -25,12 +25,18 @@ Options:
   -v, --verbose   Show detailed information on space usage
 ```
 
+## Description
+
 The `docker system df` command displays information regarding the
 amount of disk space used by the docker daemon.
 
+## Examples
+
 By default the command will just show a summary of the data used:
+
 ```bash
 $ docker system df
+
 TYPE                TOTAL               ACTIVE              SIZE                RECLAIMABLE
 Images              5                   2                   16.43 MB            11.63 MB (70%)
 Containers          2                   0                   212 B               212 B (100%)
@@ -38,8 +44,10 @@ Local Volumes       2                   1                   36 B                
 ```
 
 A more detailed view can be requested using the `-v, --verbose` flag:
+
 ```bash
 $ docker system df -v
+
 Images space usage:
 
 REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE                SHARED SIZE         UNIQUE SIZE         CONTAINERS
@@ -66,9 +74,19 @@ my-named-vol                                                       0            
 * `UNIQUE SIZE` is the amount of space that is only used by a given image
 * `SIZE` is the virtual size of the image, it is the sum of `SHARED SIZE` and `UNIQUE SIZE`
 
-Note that network information is not shown because it doesn't consume the disk space.
+> **Note**: Network information is not shown because it doesn't consume the disk
+> space.
 
-## Related Information
+## Performance
+
+The `system df` command can be very resource-intensive. It traverses the
+filesystem of every image, container, and volume in the system. You should be
+careful running this command in systems with lots of images, containers, or
+volumes or in systems where some images, containers, or volumes have very large
+filesystems with many files. You should also be careful not to run this command
+in systems where performance is critical.
+
+## Related commands
 * [system prune](system_prune.md)
 * [container prune](container_prune.md)
 * [volume prune](volume_prune.md)

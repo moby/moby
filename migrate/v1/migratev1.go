@@ -14,12 +14,13 @@ import (
 	"encoding/json"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/image"
 	imagev1 "github.com/docker/docker/image/v1"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/reference"
+	refstore "github.com/docker/docker/reference"
 	"github.com/opencontainers/go-digest"
 )
 
@@ -56,7 +57,7 @@ var (
 
 // Migrate takes an old graph directory and transforms the metadata into the
 // new format.
-func Migrate(root, driverName string, ls layer.Store, is image.Store, rs reference.Store, ms metadata.Store) error {
+func Migrate(root, driverName string, ls layer.Store, is image.Store, rs refstore.Store, ms metadata.Store) error {
 	graphDir := filepath.Join(root, graphDirName)
 	if _, err := os.Lstat(graphDir); os.IsNotExist(err) {
 		return nil
@@ -322,9 +323,13 @@ func migrateRefs(root, driverName string, rs refAdder, mappings map[string]image
 	for name, repo := range repos.Repositories {
 		for tag, id := range repo {
 			if strongID, exists := mappings[id]; exists {
-				ref, err := reference.WithName(name)
+				ref, err := reference.ParseNormalizedNamed(name)
 				if err != nil {
 					logrus.Errorf("migrate tags: invalid name %q, %q", name, err)
+					continue
+				}
+				if !reference.IsNameOnly(ref) {
+					logrus.Errorf("migrate tags: invalid name %q, unexpected tag or digest", name)
 					continue
 				}
 				if dgst, err := digest.Parse(tag); err == nil {
@@ -334,7 +339,7 @@ func migrateRefs(root, driverName string, rs refAdder, mappings map[string]image
 						continue
 					}
 					if err := rs.AddDigest(canonical, strongID.Digest(), false); err != nil {
-						logrus.Errorf("can't migrate digest %q for %q, err: %q", ref.String(), strongID, err)
+						logrus.Errorf("can't migrate digest %q for %q, err: %q", reference.FamiliarString(ref), strongID, err)
 					}
 				} else {
 					tagRef, err := reference.WithTag(ref, tag)
@@ -343,7 +348,7 @@ func migrateRefs(root, driverName string, rs refAdder, mappings map[string]image
 						continue
 					}
 					if err := rs.AddTag(tagRef, strongID.Digest(), false); err != nil {
-						logrus.Errorf("can't migrate tag %q for %q, err: %q", ref.String(), strongID, err)
+						logrus.Errorf("can't migrate tag %q for %q, err: %q", reference.FamiliarString(ref), strongID, err)
 					}
 				}
 				logrus.Infof("migrated tag %s:%s to point to %s", name, tag, strongID)

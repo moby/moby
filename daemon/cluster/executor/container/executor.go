@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
@@ -53,7 +54,7 @@ func (e *executor) Describe(ctx context.Context) (*api.NodeDescription, error) {
 	addPlugins("Authorization", info.Plugins.Authorization)
 
 	// add v2 plugins
-	v2Plugins, err := e.backend.PluginManager().List()
+	v2Plugins, err := e.backend.PluginManager().List(filters.NewArgs())
 	if err == nil {
 		for _, plgn := range v2Plugins {
 			for _, typ := range plgn.Config.Interface.Types {
@@ -115,6 +116,7 @@ func (e *executor) Describe(ctx context.Context) (*api.NodeDescription, error) {
 func (e *executor) Configure(ctx context.Context, node *api.Node) error {
 	na := node.Attachment
 	if na == nil {
+		e.backend.ReleaseIngress()
 		return nil
 	}
 
@@ -124,6 +126,7 @@ func (e *executor) Configure(ctx context.Context, node *api.Node) error {
 			Driver: na.Network.IPAM.Driver.Name,
 		},
 		Options:        na.Network.DriverState.Options,
+		Ingress:        true,
 		CheckDuplicate: true,
 	}
 
@@ -151,7 +154,7 @@ func (e *executor) Controller(t *api.Task) (exec.Controller, error) {
 		return newNetworkAttacherController(e.backend, t, e.secrets)
 	}
 
-	ctlr, err := newController(e.backend, t, e.secrets)
+	ctlr, err := newController(e.backend, t, secrets.Restrict(e.secrets, t))
 	if err != nil {
 		return nil, err
 	}

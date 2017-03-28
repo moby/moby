@@ -9,11 +9,11 @@ import (
 	"os"
 	"time"
 
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/reference"
 	"golang.org/x/net/context"
 )
 
@@ -146,6 +146,9 @@ type Backend interface {
 
 	// SquashImage squashes the fs layers from the provided image down to the specified `to` image
 	SquashImage(from string, to string) (string, error)
+
+	// MountImage returns mounted path with rootfs of an image.
+	MountImage(name string) (string, func() error, error)
 }
 
 // Image represents a Docker image used by the builder.

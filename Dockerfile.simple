@@ -34,8 +34,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 		vim-common \
 	&& rm -rf /var/lib/apt/lists/*
 
-# Install seccomp: the version shipped in trusty is too old
-ENV SECCOMP_VERSION 2.3.1
+# Install seccomp: the version shipped upstream is too old
+ENV SECCOMP_VERSION 2.3.2
 RUN set -x \
 	&& export SECCOMP_PATH="$(mktemp -d)" \
 	&& curl -fsSL "https://github.com/seccomp/libseccomp/releases/download/v${SECCOMP_VERSION}/libseccomp-${SECCOMP_VERSION}.tar.gz" \
@@ -53,7 +53,7 @@ RUN set -x \
 # IMPORTANT: If the version of Go is updated, the Windows to Linux CI machines
 #            will need updating, to avoid errors. Ping #docker-maintainers on IRC
 #            with a heads-up.
-ENV GO_VERSION 1.7.4
+ENV GO_VERSION 1.7.5
 RUN curl -fsSL "https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz" \
 	| tar -xzC /usr/local
 ENV PATH /go/bin:/usr/local/go/bin:$PATH

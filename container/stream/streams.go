@@ -62,6 +62,7 @@ func (c *Config) StdinPipe() io.WriteCloser {
 
 // StdoutPipe creates a new io.ReadCloser with an empty bytes pipe.
 // It adds this new out pipe to the Stdout broadcaster.
+// This will block stdout if unconsumed.
 func (c *Config) StdoutPipe() io.ReadCloser {
 	bytesPipe := ioutils.NewBytesPipe()
 	c.stdout.Add(bytesPipe)
@@ -70,6 +71,7 @@ func (c *Config) StdoutPipe() io.ReadCloser {
 
 // StderrPipe creates a new io.ReadCloser with an empty bytes pipe.
 // It adds this new err pipe to the Stderr broadcaster.
+// This will block stderr if unconsumed.
 func (c *Config) StderrPipe() io.ReadCloser {
 	bytesPipe := ioutils.NewBytesPipe()
 	c.stderr.Add(bytesPipe)

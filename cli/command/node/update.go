@@ -1,7 +1,6 @@
 package node
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/docker/docker/api/types/swarm"
@@ -9,6 +8,7 @@ import (
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"golang.org/x/net/context"
@@ -31,8 +31,8 @@ func newUpdateCommand(dockerCli command.Cli) *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	flags.StringVar(&nodeOpts.role, flagRole, "", "Role of the node (worker/manager)")
-	flags.StringVar(&nodeOpts.availability, flagAvailability, "", "Availability of the node (active/pause/drain)")
+	flags.StringVar(&nodeOpts.role, flagRole, "", `Role of the node ("worker"|"manager")`)
+	flags.StringVar(&nodeOpts.availability, flagAvailability, "", `Availability of the node ("active"|"pause"|"drain")`)
 	flags.Var(&nodeOpts.annotations.labels, flagLabelAdd, "Add or update a node label (key=value)")
 	labelKeys := opts.NewListOpts(nil)
 	flags.Var(&labelKeys, flagLabelRemove, "Remove a node label if exists")
@@ -104,7 +104,7 @@ func mergeNodeUpdate(flags *pflag.FlagSet) func(*swarm.Node) error {
 			for _, k := range keys {
 				// if a key doesn't exist, fail the command explicitly
 				if _, exists := spec.Annotations.Labels[k]; !exists {
-					return fmt.Errorf("key %s doesn't exist in node's labels", k)
+					return errors.Errorf("key %s doesn't exist in node's labels", k)
 				}
 				delete(spec.Annotations.Labels, k)
 			}

@@ -23,7 +23,7 @@ Initialize a swarm
 Options:
       --advertise-addr string           Advertised address (format: <ip|interface>[:port])
       --autolock                        Enable manager autolocking (requiring an unlock key to start a stopped manager)
-      --availability string             Availability of the node (active/pause/drain) (default "active")
+      --availability string             Availability of the node ("active"|"pause"|"drain") (default "active")
       --cert-expiry duration            Validity period for node certificates (ns|us|ms|s|m|h) (default 2160h0m0s)
       --dispatcher-heartbeat duration   Dispatcher heartbeat period (ns|us|ms|s|m|h) (default 5s)
       --external-ca external-ca         Specifications of one or more certificate signing endpoints
@@ -35,9 +35,12 @@ Options:
       --task-history-limit int          Task history retention limit (default 5)
 ```
 
+## Description
+
 Initialize a swarm. The docker engine targeted by this command becomes a manager
 in the newly created single-node swarm.
 
+## Examples
 
 ```bash
 $ docker swarm init --advertise-addr 192.168.99.121
@@ -144,7 +147,7 @@ dedicated manager nodes that are not served as worker nodes. This could be achie
 by passing `--availability=drain` to `docker swarm init`.
 
 
-## Related information
+## Related commands
 
 * [swarm join](swarm_join.md)
 * [swarm join-token](swarm_join_token.md)

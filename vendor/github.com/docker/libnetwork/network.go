@@ -66,6 +66,7 @@ type NetworkInfo interface {
 	IPv6Enabled() bool
 	Internal() bool
 	Attachable() bool
+	Ingress() bool
 	Labels() map[string]string
 	Dynamic() bool
 	Created() time.Time
@@ -74,6 +75,9 @@ type NetworkInfo interface {
 	// gossip cluster. For non-dynamic overlay networks and bridge networks it returns an
 	// empty slice
 	Peers() []networkdb.PeerInfo
+	//Services returns a map of services keyed by the service name with the details
+	//of all the tasks that belong to the service. Applicable only in swarm mode.
+	Services() map[string]ServiceInfo
 }
 
 // EndpointWalker is a client provided function which will be used to walk the Endpoints.
@@ -106,6 +110,11 @@ type servicePorts struct {
 	portName string
 	proto    string
 	target   []serviceTarget
+}
+
+type networkDBTable struct {
+	name    string
+	objType driverapi.ObjectType
 }
 
 // IpamConf contains all the ipam related configurations for a network
@@ -208,7 +217,7 @@ type network struct {
 	attachable   bool
 	inDelete     bool
 	ingress      bool
-	driverTables []string
+	driverTables []networkDBTable
 	dynamic      bool
 	sync.Mutex
 }
@@ -607,9 +616,9 @@ func NetworkOptionGeneric(generic map[string]interface{}) NetworkOption {
 
 // NetworkOptionIngress returns an option setter to indicate if a network is
 // an ingress network.
-func NetworkOptionIngress() NetworkOption {
+func NetworkOptionIngress(ingress bool) NetworkOption {
 	return func(n *network) {
-		n.ingress = true
+		n.ingress = ingress
 	}
 }
 
@@ -879,9 +888,8 @@ func (n *network) addEndpoint(ep *endpoint) error {
 
 func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoint, error) {
 	var err error
-
-	if err = config.ValidateName(name); err != nil {
-		return nil, ErrInvalidName(err.Error())
+	if !config.IsValidName(name) {
+		return nil, ErrInvalidName(name)
 	}
 
 	if _, err = n.EndpointByName(name); err == nil {
@@ -1119,6 +1127,8 @@ func (n *network) addSvcRecords(name string, epIP net.IP, epIPv6 net.IP, ipMapUp
 		return
 	}
 
+	logrus.Debugf("(%s).addSvcRecords(%s, %s, %s, %t)", n.ID()[0:7], name, epIP, epIPv6, ipMapUpdate)
+
 	c := n.getController()
 	c.Lock()
 	defer c.Unlock()
@@ -1151,6 +1161,8 @@ func (n *network) deleteSvcRecords(name string, epIP net.IP, epIPv6 net.IP, ipMa
 	if n.ingress {
 		return
 	}
+
+	logrus.Debugf("(%s).deleteSvcRecords(%s, %s, %s, %t)", n.ID()[0:7], name, epIP, epIPv6, ipMapUpdate)
 
 	c := n.getController()
 	c.Lock()
@@ -1578,6 +1590,13 @@ func (n *network) Attachable() bool {
 	return n.attachable
 }
 
+func (n *network) Ingress() bool {
+	n.Lock()
+	defer n.Unlock()
+
+	return n.ingress
+}
+
 func (n *network) Dynamic() bool {
 	n.Lock()
 	defer n.Unlock()
@@ -1604,11 +1623,18 @@ func (n *network) Labels() map[string]string {
 	return lbls
 }
 
-func (n *network) TableEventRegister(tableName string) error {
+func (n *network) TableEventRegister(tableName string, objType driverapi.ObjectType) error {
+	if !driverapi.IsValidType(objType) {
+		return fmt.Errorf("invalid object type %v in registering table, %s", objType, tableName)
+	}
+
+	t := networkDBTable{
+		name:    tableName,
+		objType: objType,
+	}
 	n.Lock()
 	defer n.Unlock()
-
-	n.driverTables = append(n.driverTables, tableName)
+	n.driverTables = append(n.driverTables, t)
 	return nil
 }
 

@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -36,7 +37,7 @@ func ValidateContextDirectory(srcPath string, excludes []string) error {
 	return filepath.Walk(contextRoot, func(filePath string, f os.FileInfo, err error) error {
 		if err != nil {
 			if os.IsPermission(err) {
-				return fmt.Errorf("can't stat '%s'", filePath)
+				return errors.Errorf("can't stat '%s'", filePath)
 			}
 			if os.IsNotExist(err) {
 				return nil
@@ -65,7 +66,7 @@ func ValidateContextDirectory(srcPath string, excludes []string) error {
 		if !f.IsDir() {
 			currentFile, err := os.Open(filePath)
 			if err != nil && os.IsPermission(err) {
-				return fmt.Errorf("no permission to read from '%s'", filePath)
+				return errors.Errorf("no permission to read from '%s'", filePath)
 			}
 			currentFile.Close()
 		}
@@ -81,7 +82,7 @@ func GetContextFromReader(r io.ReadCloser, dockerfileName string) (out io.ReadCl
 
 	magic, err := buf.Peek(archive.HeaderSize)
 	if err != nil && err != io.EOF {
-		return nil, "", fmt.Errorf("failed to peek context header from STDIN: %v", err)
+		return nil, "", errors.Errorf("failed to peek context header from STDIN: %v", err)
 	}
 
 	if archive.IsArchive(magic) {
@@ -91,7 +92,7 @@ func GetContextFromReader(r io.ReadCloser, dockerfileName string) (out io.ReadCl
 	// Input should be read as a Dockerfile.
 	tmpDir, err := ioutil.TempDir("", "docker-build-context-")
 	if err != nil {
-		return nil, "", fmt.Errorf("unbale to create temporary context directory: %v", err)
+		return nil, "", errors.Errorf("unable to create temporary context directory: %v", err)
 	}
 
 	f, err := os.Create(filepath.Join(tmpDir, DefaultDockerfileName))
@@ -131,10 +132,10 @@ func GetContextFromReader(r io.ReadCloser, dockerfileName string) (out io.ReadCl
 // success.
 func GetContextFromGitURL(gitURL, dockerfileName string) (absContextDir, relDockerfile string, err error) {
 	if _, err := exec.LookPath("git"); err != nil {
-		return "", "", fmt.Errorf("unable to find 'git': %v", err)
+		return "", "", errors.Errorf("unable to find 'git': %v", err)
 	}
 	if absContextDir, err = gitutils.Clone(gitURL); err != nil {
-		return "", "", fmt.Errorf("unable to 'git clone' to temporary context directory: %v", err)
+		return "", "", errors.Errorf("unable to 'git clone' to temporary context directory: %v", err)
 	}
 
 	return getDockerfileRelPath(absContextDir, dockerfileName)
@@ -147,7 +148,7 @@ func GetContextFromGitURL(gitURL, dockerfileName string) (absContextDir, relDock
 func GetContextFromURL(out io.Writer, remoteURL, dockerfileName string) (io.ReadCloser, string, error) {
 	response, err := httputils.Download(remoteURL)
 	if err != nil {
-		return nil, "", fmt.Errorf("unable to download remote context %s: %v", remoteURL, err)
+		return nil, "", errors.Errorf("unable to download remote context %s: %v", remoteURL, err)
 	}
 	progressOutput := streamformatter.NewStreamFormatter().NewProgressOutput(out, true)
 
@@ -167,7 +168,7 @@ func GetContextFromLocalDir(localDir, dockerfileName string) (absContextDir, rel
 	// current directory and not the context directory.
 	if dockerfileName != "" {
 		if dockerfileName, err = filepath.Abs(dockerfileName); err != nil {
-			return "", "", fmt.Errorf("unable to get absolute path to Dockerfile: %v", err)
+			return "", "", errors.Errorf("unable to get absolute path to Dockerfile: %v", err)
 		}
 	}
 
@@ -179,7 +180,7 @@ func GetContextFromLocalDir(localDir, dockerfileName string) (absContextDir, rel
 // the dockerfile in that context directory, and a non-nil error on success.
 func getDockerfileRelPath(givenContextDir, givenDockerfile string) (absContextDir, relDockerfile string, err error) {
 	if absContextDir, err = filepath.Abs(givenContextDir); err != nil {
-		return "", "", fmt.Errorf("unable to get absolute context directory of given context directory %q: %v", givenContextDir, err)
+		return "", "", errors.Errorf("unable to get absolute context directory of given context directory %q: %v", givenContextDir, err)
 	}
 
 	// The context dir might be a symbolic link, so follow it to the actual
@@ -192,17 +193,17 @@ func getDockerfileRelPath(givenContextDir, givenDockerfile string) (absContextDi
 	if !isUNC(absContextDir) {
 		absContextDir, err = filepath.EvalSymlinks(absContextDir)
 		if err != nil {
-			return "", "", fmt.Errorf("unable to evaluate symlinks in context path: %v", err)
+			return "", "", errors.Errorf("unable to evaluate symlinks in context path: %v", err)
 		}
 	}
 
 	stat, err := os.Lstat(absContextDir)
 	if err != nil {
-		return "", "", fmt.Errorf("unable to stat context directory %q: %v", absContextDir, err)
+		return "", "", errors.Errorf("unable to stat context directory %q: %v", absContextDir, err)
 	}
 
 	if !stat.IsDir() {
-		return "", "", fmt.Errorf("context must be a directory: %s", absContextDir)
+		return "", "", errors.Errorf("context must be a directory: %s", absContextDir)
 	}
 
 	absDockerfile := givenDockerfile
@@ -236,23 +237,23 @@ func getDockerfileRelPath(givenContextDir, givenDockerfile string) (absContextDi
 	if !isUNC(absDockerfile) {
 		absDockerfile, err = filepath.EvalSymlinks(absDockerfile)
 		if err != nil {
-			return "", "", fmt.Errorf("unable to evaluate symlinks in Dockerfile path: %v", err)
+			return "", "", errors.Errorf("unable to evaluate symlinks in Dockerfile path: %v", err)
 		}
 	}
 
 	if _, err := os.Lstat(absDockerfile); err != nil {
 		if os.IsNotExist(err) {
-			return "", "", fmt.Errorf("Cannot locate Dockerfile: %q", absDockerfile)
+			return "", "", errors.Errorf("Cannot locate Dockerfile: %q", absDockerfile)
 		}
-		return "", "", fmt.Errorf("unable to stat Dockerfile: %v", err)
+		return "", "", errors.Errorf("unable to stat Dockerfile: %v", err)
 	}
 
 	if relDockerfile, err = filepath.Rel(absContextDir, absDockerfile); err != nil {
-		return "", "", fmt.Errorf("unable to get relative Dockerfile path: %v", err)
+		return "", "", errors.Errorf("unable to get relative Dockerfile path: %v", err)
 	}
 
 	if strings.HasPrefix(relDockerfile, ".."+string(filepath.Separator)) {
-		return "", "", fmt.Errorf("The Dockerfile (%s) must be within the build context (%s)", givenDockerfile, givenContextDir)
+		return "", "", errors.Errorf("The Dockerfile (%s) must be within the build context (%s)", givenDockerfile, givenContextDir)
 	}
 
 	return absContextDir, relDockerfile, nil

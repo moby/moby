@@ -24,6 +24,8 @@ Options:
       --help   Print usage
 ```
 
+## Description
+
 The `docker pause` command suspends all processes in the specified containers.
 On Linux, this uses the cgroups freezer. Traditionally, when suspending a process
 the `SIGSTOP` signal is used, which is observable by the process being suspended.
@@ -35,6 +37,12 @@ See the
 [cgroups freezer documentation](https://www.kernel.org/doc/Documentation/cgroup-v1/freezer-subsystem.txt)
 for further details.
 
-## Related information
+## Examples
+
+```bash
+$ docker pause my_container
+```
+
+## Related commands
 
 * [unpause](unpause.md)

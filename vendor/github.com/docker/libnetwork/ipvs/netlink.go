@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"unsafe"
 
@@ -118,6 +119,7 @@ func fillDestinaton(d *Destination) nl.NetlinkRequestData {
 
 func (i *Handle) doCmd(s *Service, d *Destination, cmd uint8) error {
 	req := newIPVSRequest(cmd)
+	req.Seq = atomic.AddUint32(&i.seq, 1)
 	req.AddData(fillService(s))
 
 	if d != nil {
@@ -136,6 +138,7 @@ func getIPVSFamily() (int, error) {
 	if err != nil {
 		return 0, err
 	}
+	defer sock.Close()
 
 	req := newGenlRequest(genlCtrlID, genlCtrlCmdGetFamily)
 	req.AddData(nl.NewRtAttr(genlCtrlAttrFamilyName, nl.ZeroTerminated("IPVS")))
@@ -206,7 +209,7 @@ done:
 		}
 		for _, m := range msgs {
 			if m.Header.Seq != req.Seq {
-				return nil, fmt.Errorf("Wrong Seq nr %d, expected %d", m.Header.Seq, req.Seq)
+				continue
 			}
 			if m.Header.Pid != pid {
 				return nil, fmt.Errorf("Wrong pid %d, expected %d", m.Header.Pid, pid)

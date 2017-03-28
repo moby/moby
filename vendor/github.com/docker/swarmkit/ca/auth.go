@@ -19,7 +19,7 @@ import (
 type localRequestKeyType struct{}
 
 // LocalRequestKey is a context key to mark a request that originating on the
-// local node. The assocated value is a RemoteNodeInfo structure describing the
+// local node. The associated value is a RemoteNodeInfo structure describing the
 // local node.
 var LocalRequestKey = localRequestKeyType{}
 

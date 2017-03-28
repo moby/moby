@@ -2,13 +2,13 @@ package formatter
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"strings"
 	"text/tabwriter"
 	"text/template"
 
 	"github.com/docker/docker/pkg/templates"
+	"github.com/pkg/errors"
 )
 
 // Format keys used to specify certain kinds of output formats
@@ -44,7 +44,7 @@ type Context struct {
 
 	// internal element
 	finalFormat string
-	header      string
+	header      interface{}
 	buffer      *bytes.Buffer
 }
 
@@ -64,21 +64,17 @@ func (c *Context) preFormat() {
 func (c *Context) parseFormat() (*template.Template, error) {
 	tmpl, err := templates.Parse(c.finalFormat)
 	if err != nil {
-		return tmpl, fmt.Errorf("Template parsing error: %v\n", err)
+		return tmpl, errors.Errorf("Template parsing error: %v\n", err)
 	}
 	return tmpl, err
 }
 
 func (c *Context) postFormat(tmpl *template.Template, subContext subContext) {
 	if c.Format.IsTable() {
-		if len(c.header) == 0 {
-			// if we still don't have a header, we didn't have any containers so we need to fake it to get the right headers from the template
-			tmpl.Execute(bytes.NewBufferString(""), subContext)
-			c.header = subContext.FullHeader()
-		}
-
 		t := tabwriter.NewWriter(c.Output, 20, 1, 3, ' ', 0)
-		t.Write([]byte(c.header))
+		buffer := bytes.NewBufferString("")
+		tmpl.Funcs(templates.HeaderFunctions).Execute(buffer, subContext.FullHeader())
+		buffer.WriteTo(t)
 		t.Write([]byte("\n"))
 		c.buffer.WriteTo(t)
 		t.Flush()
@@ -89,9 +85,9 @@ func (c *Context) postFormat(tmpl *template.Template, subContext subContext) {
 
 func (c *Context) contextFormat(tmpl *template.Template, subContext subContext) error {
 	if err := tmpl.Execute(c.buffer, subContext); err != nil {
-		return fmt.Errorf("Template parsing error: %v\n", err)
+		return errors.Errorf("Template parsing error: %v\n", err)
 	}
-	if c.Format.IsTable() && len(c.header) == 0 {
+	if c.Format.IsTable() && c.header != nil {
 		c.header = subContext.FullHeader()
 	}
 	c.buffer.WriteString("\n")

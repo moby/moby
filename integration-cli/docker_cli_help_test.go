@@ -235,14 +235,6 @@ func testCommand(cmd string, newEnvs []string, scanForHome bool, home string) er
 			return fmt.Errorf("Help for %q should not have used ~:\n%s", cmd, line)
 		}
 
-		// If a line starts with 4 spaces then assume someone
-		// added a multi-line description for an option and we need
-		// to flag it
-		if strings.HasPrefix(line, "    ") &&
-			!strings.HasPrefix(strings.TrimLeft(line, " "), "--") {
-			return fmt.Errorf("Help for %q should not have a multi-line option", cmd)
-		}
-
 		// Options should NOT end with a period
 		if strings.HasPrefix(line, "  -") && strings.HasSuffix(line, ".") {
 			return fmt.Errorf("Help for %q should not end with a period: %s", cmd, line)

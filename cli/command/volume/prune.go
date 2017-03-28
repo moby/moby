@@ -3,13 +3,12 @@ package volume
 import (
 	"fmt"
 
-	"golang.org/x/net/context"
-
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	units "github.com/docker/go-units"
 	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 type pruneOptions struct {
@@ -17,7 +16,7 @@ type pruneOptions struct {
 }
 
 // NewPruneCommand returns a new cobra prune command for volumes
-func NewPruneCommand(dockerCli *command.DockerCli) *cobra.Command {
+func NewPruneCommand(dockerCli command.Cli) *cobra.Command {
 	var opts pruneOptions
 
 	cmd := &cobra.Command{
@@ -47,7 +46,7 @@ func NewPruneCommand(dockerCli *command.DockerCli) *cobra.Command {
 const warning = `WARNING! This will remove all volumes not used by at least one container.
 Are you sure you want to continue?`
 
-func runPrune(dockerCli *command.DockerCli, opts pruneOptions) (spaceReclaimed uint64, output string, err error) {
+func runPrune(dockerCli command.Cli, opts pruneOptions) (spaceReclaimed uint64, output string, err error) {
 	if !opts.force && !command.PromptForConfirmation(dockerCli.In(), dockerCli.Out(), warning) {
 		return
 	}

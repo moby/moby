@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )
@@ -19,7 +20,7 @@ type createOptions struct {
 	labels     opts.ListOpts
 }
 
-func newCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
+func newCreateCommand(dockerCli command.Cli) *cobra.Command {
 	opts := createOptions{
 		driverOpts: *opts.NewMapOpts(nil, nil),
 		labels:     opts.NewListOpts(opts.ValidateEnv),
@@ -32,8 +33,7 @@ func newCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 1 {
 				if opts.name != "" {
-					fmt.Fprint(dockerCli.Err(), "Conflicting options: either specify --name or provide positional arg, not both\n")
-					return cli.StatusError{StatusCode: 1}
+					return errors.Errorf("Conflicting options: either specify --name or provide positional arg, not both\n")
 				}
 				opts.name = args[0]
 			}
@@ -50,7 +50,7 @@ func newCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func runCreate(dockerCli *command.DockerCli, opts createOptions) error {
+func runCreate(dockerCli command.Cli, opts createOptions) error {
 	client := dockerCli.Client()
 
 	volReq := volumetypes.VolumesCreateBody{

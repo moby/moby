@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/pkg/testutil"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
@@ -149,7 +150,7 @@ func (s *DockerTrustSuite) TestTrustedOfflinePull(c *check.C) {
 func (s *DockerTrustSuite) TestTrustedPullDelete(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/%s:latest", privateRegistryURL, "trusted-pull-delete")
 	// tag the image and upload it to the private registry
-	buildImageSuccessfully(c, repoName, withDockerfile(`
+	buildImageSuccessfully(c, repoName, build.WithDockerfile(`
                     FROM busybox
                     CMD echo trustedpulldelete
                 `))

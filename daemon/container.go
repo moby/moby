@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/truncindex"
+	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/nat"
 )
 
@@ -54,6 +55,16 @@ func (daemon *Daemon) GetContainer(prefixOrName string) (*container.Container, e
 	return daemon.containers.Get(containerID), nil
 }
 
+// checkContainer make sure the specified container validates the specified conditions
+func (daemon *Daemon) checkContainer(container *container.Container, conditions ...func(*container.Container) error) error {
+	for _, condition := range conditions {
+		if err := condition(container); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Exists returns a true if a container of the specified ID or name exists,
 // false otherwise.
 func (daemon *Daemon) Exists(id string) bool {
@@ -88,7 +99,7 @@ func (daemon *Daemon) load(id string) (*container.Container, error) {
 }
 
 // Register makes a container object usable by the daemon as <container.ID>
-func (daemon *Daemon) Register(c *container.Container) error {
+func (daemon *Daemon) Register(c *container.Container) {
 	// Attach to stdout and stderr
 	if c.Config.OpenStdin {
 		c.StreamConfig.NewInputPipes()
@@ -98,8 +109,6 @@ func (daemon *Daemon) Register(c *container.Container) error {
 
 	daemon.containers.Add(c.ID, c)
 	daemon.idIndex.Add(c.ID)
-
-	return nil
 }
 
 func (daemon *Daemon) newContainer(name string, config *containertypes.Config, hostConfig *containertypes.HostConfig, imgID image.ID, managed bool) (*container.Container, error) {
@@ -183,7 +192,7 @@ func (daemon *Daemon) generateHostname(id string, config *containertypes.Config)
 func (daemon *Daemon) setSecurityOptions(container *container.Container, hostConfig *containertypes.HostConfig) error {
 	container.Lock()
 	defer container.Unlock()
-	return parseSecurityOpt(container, hostConfig)
+	return daemon.parseSecurityOpt(container, hostConfig)
 }
 
 func (daemon *Daemon) setHostConfig(container *container.Container, hostConfig *containertypes.HostConfig) error {
@@ -201,6 +210,7 @@ func (daemon *Daemon) setHostConfig(container *container.Container, hostConfig *
 		return err
 	}
 
+	runconfig.SetDefaultNetModeIfBlank(hostConfig)
 	container.HostConfig = hostConfig
 	return container.ToDisk()
 }
@@ -231,6 +241,21 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *containertypes.HostCon
 				return nil, err
 			}
 		}
+
+		// Validate the healthcheck params of Config
+		if config.Healthcheck != nil {
+			if config.Healthcheck.Interval != 0 && config.Healthcheck.Interval < time.Second {
+				return nil, fmt.Errorf("Interval in Healthcheck cannot be less than one second")
+			}
+
+			if config.Healthcheck.Timeout != 0 && config.Healthcheck.Timeout < time.Second {
+				return nil, fmt.Errorf("Timeout in Healthcheck cannot be less than one second")
+			}
+
+			if config.Healthcheck.Retries < 0 {
+				return nil, fmt.Errorf("Retries in Healthcheck cannot be negative")
+			}
+		}
 	}
 
 	if hostConfig == nil {
@@ -239,6 +264,12 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *containertypes.HostCon
 
 	if hostConfig.AutoRemove && !hostConfig.RestartPolicy.IsNone() {
 		return nil, fmt.Errorf("can't create 'AutoRemove' container with restart policy")
+	}
+
+	for _, extraHost := range hostConfig.ExtraHosts {
+		if _, err := opts.ValidateExtraHost(extraHost); err != nil {
+			return nil, err
+		}
 	}
 
 	for port := range hostConfig.PortBindings {

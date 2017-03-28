@@ -3,13 +3,14 @@ package inspect
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
+	"strings"
 	"text/template"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/pkg/templates"
+	"github.com/pkg/errors"
 )
 
 // Inspector defines an interface to implement to process elements
@@ -43,7 +44,7 @@ func NewTemplateInspectorFromString(out io.Writer, tmplStr string) (Inspector, e
 
 	tmpl, err := templates.Parse(tmplStr)
 	if err != nil {
-		return nil, fmt.Errorf("Template parsing error: %s", err)
+		return nil, errors.Errorf("Template parsing error: %s", err)
 	}
 	return NewTemplateInspector(out, tmpl), nil
 }
@@ -60,17 +61,16 @@ func Inspect(out io.Writer, references []string, tmplStr string, getRef GetRefFu
 		return cli.StatusError{StatusCode: 64, Status: err.Error()}
 	}
 
-	var inspectErr error
+	var inspectErrs []string
 	for _, ref := range references {
 		element, raw, err := getRef(ref)
 		if err != nil {
-			inspectErr = err
-			break
+			inspectErrs = append(inspectErrs, err.Error())
+			continue
 		}
 
 		if err := inspector.Inspect(element, raw); err != nil {
-			inspectErr = err
-			break
+			inspectErrs = append(inspectErrs, err.Error())
 		}
 	}
 
@@ -78,8 +78,11 @@ func Inspect(out io.Writer, references []string, tmplStr string, getRef GetRefFu
 		logrus.Errorf("%s\n", err)
 	}
 
-	if inspectErr != nil {
-		return cli.StatusError{StatusCode: 1, Status: inspectErr.Error()}
+	if len(inspectErrs) != 0 {
+		return cli.StatusError{
+			StatusCode: 1,
+			Status:     strings.Join(inspectErrs, "\n"),
+		}
 	}
 	return nil
 }
@@ -91,7 +94,7 @@ func (i *TemplateInspector) Inspect(typedElement interface{}, rawElement []byte)
 	buffer := new(bytes.Buffer)
 	if err := i.tmpl.Execute(buffer, typedElement); err != nil {
 		if rawElement == nil {
-			return fmt.Errorf("Template parsing error: %v", err)
+			return errors.Errorf("Template parsing error: %v", err)
 		}
 		return i.tryRawInspectFallback(rawElement)
 	}
@@ -109,12 +112,12 @@ func (i *TemplateInspector) tryRawInspectFallback(rawElement []byte) error {
 	dec := json.NewDecoder(rdr)
 
 	if rawErr := dec.Decode(&raw); rawErr != nil {
-		return fmt.Errorf("unable to read inspect data: %v", rawErr)
+		return errors.Errorf("unable to read inspect data: %v", rawErr)
 	}
 
 	tmplMissingKey := i.tmpl.Option("missingkey=error")
 	if rawErr := tmplMissingKey.Execute(buffer, raw); rawErr != nil {
-		return fmt.Errorf("Template parsing error: %v", rawErr)
+		return errors.Errorf("Template parsing error: %v", rawErr)
 	}
 
 	i.buffer.Write(buffer.Bytes())

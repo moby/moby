@@ -59,6 +59,8 @@ type LayerOption struct {
 type NetworkEndpointsOption struct {
 	Endpoints                []string
 	AllowUnqualifiedDNSQuery bool
+	DNSSearchList            []string
+	NetworkSharedContainerID string
 }
 
 // CredentialsOption is a CreateOption that indicates the credentials from

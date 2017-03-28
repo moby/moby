@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli/build"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
 	"github.com/kr/pty"
@@ -41,11 +42,10 @@ func (s *DockerSuite) TestSaveAndLoadRepoStdout(c *check.C) {
 
 	deleteImages(repoName)
 
-	loadCmd := exec.Command(dockerBinary, "load")
-	loadCmd.Stdin = tmpFile
-
-	out, _, err := runCommandWithOutput(loadCmd)
-	c.Assert(err, check.IsNil, check.Commentf(out))
+	icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "load"},
+		Stdin:   tmpFile,
+	}).Assert(c, icmd.Success)
 
 	after := inspectField(c, repoName, "Id")
 	after = strings.TrimRight(after, "\n")
@@ -67,12 +67,12 @@ func (s *DockerSuite) TestSaveAndLoadRepoStdout(c *check.C) {
 
 	n, err := pty.Read(buf)
 	c.Assert(err, check.IsNil) //could not read tty output
-	c.Assert(string(buf[:n]), checker.Contains, "Cowardly refusing", check.Commentf("help output is not being yielded", out))
+	c.Assert(string(buf[:n]), checker.Contains, "Cowardly refusing", check.Commentf("help output is not being yielded"))
 }
 
 func (s *DockerSuite) TestSaveAndLoadWithProgressBar(c *check.C) {
 	name := "test-load"
-	buildImageSuccessfully(c, name, withDockerfile(`FROM busybox
+	buildImageSuccessfully(c, name, build.WithDockerfile(`FROM busybox
 	RUN touch aa
 	`))
 

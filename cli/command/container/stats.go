@@ -1,7 +1,6 @@
 package container
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -14,6 +13,7 @@ import (
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/command/formatter"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )
@@ -213,7 +213,7 @@ func runStats(dockerCli *command.DockerCli, opts *statsOptions) error {
 			ccstats = append(ccstats, c.GetStatistics())
 		}
 		cStats.mu.Unlock()
-		if err = formatter.ContainerStatsWrite(statsCtx, ccstats); err != nil {
+		if err = formatter.ContainerStatsWrite(statsCtx, ccstats, daemonOSType); err != nil {
 			break
 		}
 		if len(cStats.cs) == 0 && !showAll {

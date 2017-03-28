@@ -81,7 +81,21 @@ type ResourceRequirements struct {
 
 // Placement represents orchestration parameters.
 type Placement struct {
-	Constraints []string `json:",omitempty"`
+	Constraints []string              `json:",omitempty"`
+	Preferences []PlacementPreference `json:",omitempty"`
+}
+
+// PlacementPreference provides a way to make the scheduler aware of factors
+// such as topology.
+type PlacementPreference struct {
+	Spread *SpreadOver
+}
+
+// SpreadOver is a scheduling preference that instructs the scheduler to spread
+// tasks evenly over groups of nodes identified by labels.
+type SpreadOver struct {
+	// label descriptor, such as engine.labels.az
+	SpreadDescriptor string
 }
 
 // RestartPolicy represents the restart policy.

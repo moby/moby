@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/docker/distribution/manifest/schema1"
-	"github.com/docker/docker/reference"
+	"github.com/docker/distribution/reference"
 	"github.com/opencontainers/go-digest"
 )
 
@@ -113,7 +113,7 @@ func TestValidateManifest(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Needs fixing on Windows")
 	}
-	expectedDigest, err := reference.ParseNamed("repo@sha256:02fee8c3220ba806531f606525eceb83f4feb654f62b207191b1c9209188dedd")
+	expectedDigest, err := reference.ParseNormalizedNamed("repo@sha256:02fee8c3220ba806531f606525eceb83f4feb654f62b207191b1c9209188dedd")
 	if err != nil {
 		t.Fatal("could not parse reference")
 	}

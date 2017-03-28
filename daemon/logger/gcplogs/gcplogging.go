@@ -87,7 +87,7 @@ func initGCP() {
 			// These will fail on instances if the metadata service is
 			// down or the client is compiled with an API version that
 			// has been removed. Since these are not vital, let's ignore
-			// them and make their fields in the dockeLogEntry ,omitempty
+			// them and make their fields in the dockerLogEntry ,omitempty
 			projectID, _ = metadata.ProjectID()
 			zone, _ = metadata.Zone()
 			instanceName, _ = metadata.InstanceName()
@@ -111,7 +111,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		project = projectID
 	}
 	if project == "" {
-		return nil, fmt.Errorf("No project was specified and couldn't read project from the meatadata server. Please specify a project")
+		return nil, fmt.Errorf("No project was specified and couldn't read project from the metadata server. Please specify a project")
 	}
 
 	// Issue #29344: gcplogs segfaults (static binary)
@@ -194,12 +194,16 @@ func ValidateLogOpts(cfg map[string]string) error {
 }
 
 func (l *gcplogs) Log(m *logger.Message) error {
+	data := string(m.Line)
+	ts := m.Timestamp
+	logger.PutMessage(m)
+
 	l.logger.Log(logging.Entry{
-		Timestamp: m.Timestamp,
+		Timestamp: ts,
 		Payload: &dockerLogEntry{
 			Instance:  l.instance,
 			Container: l.container,
-			Data:      string(m.Line),
+			Data:      data,
 		},
 	})
 	return nil

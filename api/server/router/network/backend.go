@@ -11,8 +11,6 @@ import (
 // to provide network specific functionality.
 type Backend interface {
 	FindNetwork(idName string) (libnetwork.Network, error)
-	GetNetworkByName(idName string) (libnetwork.Network, error)
-	GetNetworksByID(partialID string) []libnetwork.Network
 	GetNetworks() []libnetwork.Network
 	CreateNetwork(nc types.NetworkCreateRequest) (*types.NetworkCreateResponse, error)
 	ConnectContainerToNetwork(containerName, networkName string, endpointConfig *network.EndpointSettings) error

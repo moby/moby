@@ -25,7 +25,16 @@ Options:
       --help            Print usage
 ```
 
-Returns information about one or more networks. By default, this command renders all results in a JSON object. For example, if you connect two containers to the default `bridge` network:
+## Description
+
+Returns information about one or more networks. By default, this command renders
+all results in a JSON object.
+
+## Examples
+
+## Inspect the `bridge` network
+
+Connect two containers to the default `bridge` network:
 
 ```bash
 $ sudo docker run -itd --name=container1 busybox
@@ -39,7 +48,7 @@ The `network inspect` command shows the containers, by id, in its
 results. For networks backed by multi-host network driver, such as Overlay,
 this command also shows the container endpoints in other hosts in the
 cluster. These endpoints are represented as "ep-{endpoint-id}" in the output.
-However, for swarm-scoped networks, only the endpoints that are local to the
+However, for swarm mode networks, only the endpoints that are local to the
 node are shown.
 
 You can specify an alternate format to execute a given
@@ -47,8 +56,9 @@ template for each result. Go's
 [text/template](http://golang.org/pkg/text/template/) package describes all the
 details of the format.
 
-```bash
+```none
 $ sudo docker network inspect bridge
+
 [
     {
         "Name": "bridge",
@@ -95,12 +105,19 @@ $ sudo docker network inspect bridge
 ]
 ```
 
-Returns the information about the user-defined network:
+### Inspect a user-defined network
+
+Create and inspect a user-defined network:
 
 ```bash
 $ docker network create simple-network
+
 69568e6336d8c96bbf57869030919f7c69524f71183b44d80948bd3927c87f6a
+```
+
+```none
 $ docker network inspect simple-network
+
 [
     {
         "Name": "simple-network",
@@ -124,12 +141,15 @@ $ docker network inspect simple-network
 ]
 ```
 
-For swarm mode overlay networks `network inspect` also shows the IP address and node name 
-of the peers. Peers are the nodes in the swarm cluster which have at least one task attached 
+### Inspect the `ingress` network
+
+For swarm mode overlay networks `network inspect` also shows the IP address and node name
+of the peers. Peers are the nodes in the swarm cluster which have at least one task attached
 to the network. Node name is of the format `<hostname>-<unique ID>`.
 
-```bash
+```none
 $ docker network inspect ingress
+
 [
     {
         "Name": "ingress",
@@ -181,7 +201,102 @@ $ docker network inspect ingress
 ]
 ```
 
-## Related information
+### Using `verbose` option for `network inspect`
+
+`docker network inspect --verbose` for swarm mode overlay networks shows service-specific
+details such as the service's VIP and port mappings. It also shows IPs of service tasks,
+and the IPs of the nodes where the tasks are running.
+
+Following is an example output for a overlay network `ov1` that has one service `s1`
+attached to. service `s1` in this case has three replicas.
+
+```bash
+$ docker network inspect --verbose ov1
+[
+    {
+        "Name": "ov1",
+        "Id": "ybmyjvao9vtzy3oorxbssj13b",
+        "Created": "2017-03-13T17:04:39.776106792Z",
+        "Scope": "swarm",
+        "Driver": "overlay",
+        "EnableIPv6": false,
+        "IPAM": {
+            "Driver": "default",
+            "Options": null,
+            "Config": [
+                {
+                    "Subnet": "10.0.0.0/24",
+                    "Gateway": "10.0.0.1"
+                }
+            ]
+        },
+        "Internal": false,
+        "Attachable": false,
+        "Containers": {
+            "020403bd88a15f60747fd25d1ad5fa1272eb740e8a97fc547d8ad07b2f721c5e": {
+                "Name": "s1.1.pjn2ik0sfgkfzed3h0s00gs9o",
+                "EndpointID": "ad16946f416562d658f3bb30b9830d73ad91ccf6feae44411269cd0ff674714e",
+                "MacAddress": "02:42:0a:00:00:04",
+                "IPv4Address": "10.0.0.4/24",
+                "IPv6Address": ""
+            }
+        },
+        "Options": {
+            "com.docker.network.driver.overlay.vxlanid_list": "4097"
+        },
+        "Labels": {},
+        "Peers": [
+            {
+                "Name": "net-3-5d3cfd30a58c",
+                "IP": "192.168.33.13"
+            },
+            {
+                "Name": "net-1-6ecbc0040a73",
+                "IP": "192.168.33.11"
+            },
+            {
+                "Name": "net-2-fb80208efd75",
+                "IP": "192.168.33.12"
+            }
+        ],
+        "Services": {
+            "s1": {
+                "VIP": "10.0.0.2",
+                "Ports": [],
+                "LocalLBIndex": 257,
+                "Tasks": [
+                    {
+                        "Name": "s1.2.q4hcq2aiiml25ubtrtg4q1txt",
+                        "EndpointID": "040879b027e55fb658e8b60ae3b87c6cdac7d291e86a190a3b5ac6567b26511a",
+                        "EndpointIP": "10.0.0.5",
+                        "Info": {
+                            "Host IP": "192.168.33.11"
+                        }
+                    },
+                    {
+                        "Name": "s1.3.yawl4cgkp7imkfx469kn9j6lm",
+                        "EndpointID": "106edff9f120efe44068b834e1cddb5b39dd4a3af70211378b2f7a9e562bbad8",
+                        "EndpointIP": "10.0.0.3",
+                        "Info": {
+                            "Host IP": "192.168.33.12"
+                        }
+                    },
+                    {
+                        "Name": "s1.1.pjn2ik0sfgkfzed3h0s00gs9o",
+                        "EndpointID": "ad16946f416562d658f3bb30b9830d73ad91ccf6feae44411269cd0ff674714e",
+                        "EndpointIP": "10.0.0.4",
+                        "Info": {
+                            "Host IP": "192.168.33.13"
+                        }
+                    }
+                ]
+            }
+        }
+    }
+]
+```
+
+## Related commands
 
 * [network disconnect ](network_disconnect.md)
 * [network connect](network_connect.md)

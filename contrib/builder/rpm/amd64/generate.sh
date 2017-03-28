@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 # usage: ./generate.sh [versions]
@@ -60,7 +60,7 @@ for version in "${versions[@]}"; do
 	esac
 
 	case "$from" in
-		centos:*)
+		centos:*|amazonlinux:latest)
 			# get "Development Tools" packages dependencies
 			echo 'RUN yum groupinstall -y "Development Tools"' >> "$version/Dockerfile"
 
@@ -110,7 +110,7 @@ for version in "${versions[@]}"; do
 	esac
 
 	case "$from" in
-		oraclelinux:6)
+		oraclelinux:6|amazonlinux:latest)
 			# doesn't use systemd, doesn't have a devel package for it
 			packages=( "${packages[@]/systemd-devel}" )
 			;;

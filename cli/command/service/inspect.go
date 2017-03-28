@@ -1,7 +1,6 @@
 package service
 
 import (
-	"fmt"
 	"strings"
 
 	"golang.org/x/net/context"
@@ -10,6 +9,7 @@ import (
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/command/formatter"
 	apiclient "github.com/docker/docker/client"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -30,7 +30,7 @@ func newInspectCommand(dockerCli *command.DockerCli) *cobra.Command {
 			opts.refs = args
 
 			if opts.pretty && len(opts.format) > 0 {
-				return fmt.Errorf("--format is incompatible with human friendly format")
+				return errors.Errorf("--format is incompatible with human friendly format")
 			}
 			return runInspect(dockerCli, opts)
 		},
@@ -38,7 +38,7 @@ func newInspectCommand(dockerCli *command.DockerCli) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.StringVarP(&opts.format, "format", "f", "", "Format the output using the given Go template")
-	flags.BoolVar(&opts.pretty, "pretty", false, "Print the information in a human friendly format.")
+	flags.BoolVar(&opts.pretty, "pretty", false, "Print the information in a human friendly format")
 	return cmd
 }
 
@@ -55,7 +55,7 @@ func runInspect(dockerCli *command.DockerCli, opts inspectOptions) error {
 		if err == nil || !apiclient.IsErrServiceNotFound(err) {
 			return service, nil, err
 		}
-		return nil, nil, fmt.Errorf("Error: no such service: %s", ref)
+		return nil, nil, errors.Errorf("Error: no such service: %s", ref)
 	}
 
 	f := opts.format
@@ -69,7 +69,7 @@ func runInspect(dockerCli *command.DockerCli, opts inspectOptions) error {
 	// check if the user is trying to apply a template to the pretty format, which
 	// is not supported
 	if strings.HasPrefix(f, "pretty") && f != "pretty" {
-		return fmt.Errorf("Cannot supply extra formatting options to the pretty template")
+		return errors.Errorf("Cannot supply extra formatting options to the pretty template")
 	}
 
 	serviceCtx := formatter.Context{

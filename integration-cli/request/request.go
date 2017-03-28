@@ -14,9 +14,11 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	dclient "github.com/docker/docker/client"
+	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/testutil"
 	"github.com/docker/go-connections/sockets"
@@ -32,10 +34,30 @@ func Method(method string) func(*http.Request) error {
 	}
 }
 
+// RawString sets the specified string as body for the request
+func RawString(content string) func(*http.Request) error {
+	return RawContent(ioutil.NopCloser(strings.NewReader(content)))
+}
+
+// RawContent sets the specified reader as body for the request
+func RawContent(reader io.ReadCloser) func(*http.Request) error {
+	return func(req *http.Request) error {
+		req.Body = reader
+		return nil
+	}
+}
+
+// ContentType sets the specified Content-Type request header
+func ContentType(contentType string) func(*http.Request) error {
+	return func(req *http.Request) error {
+		req.Header.Set("Content-Type", contentType)
+		return nil
+	}
+}
+
 // JSON sets the Content-Type request header to json
 func JSON(req *http.Request) error {
-	req.Header.Set("Content-Type", "application/json")
-	return nil
+	return ContentType("application/json")(req)
 }
 
 // JSONBody creates a modifier that encodes the specified data to a JSON string and set it as request body. It also sets
@@ -53,22 +75,27 @@ func JSONBody(data interface{}) func(*http.Request) error {
 }
 
 // Post creates and execute a POST request on the specified host and endpoint, with the specified request modifiers
-func Post(host, endpoint string, modifiers ...func(*http.Request) error) (*http.Response, io.ReadCloser, error) {
-	return Do(host, endpoint, append(modifiers, Method(http.MethodPost))...)
+func Post(endpoint string, modifiers ...func(*http.Request) error) (*http.Response, io.ReadCloser, error) {
+	return Do(endpoint, append(modifiers, Method(http.MethodPost))...)
 }
 
 // Delete creates and execute a DELETE request on the specified host and endpoint, with the specified request modifiers
-func Delete(host, endpoint string, modifiers ...func(*http.Request) error) (*http.Response, io.ReadCloser, error) {
-	return Do(host, endpoint, append(modifiers, Method(http.MethodDelete))...)
+func Delete(endpoint string, modifiers ...func(*http.Request) error) (*http.Response, io.ReadCloser, error) {
+	return Do(endpoint, append(modifiers, Method(http.MethodDelete))...)
 }
 
 // Get creates and execute a GET request on the specified host and endpoint, with the specified request modifiers
-func Get(host, endpoint string, modifiers ...func(*http.Request) error) (*http.Response, io.ReadCloser, error) {
-	return Do(host, endpoint, modifiers...)
+func Get(endpoint string, modifiers ...func(*http.Request) error) (*http.Response, io.ReadCloser, error) {
+	return Do(endpoint, modifiers...)
 }
 
-// Do creates and execute a request on the specified host and endpoint, with the specified request modifiers
-func Do(host, endpoint string, modifiers ...func(*http.Request) error) (*http.Response, io.ReadCloser, error) {
+// Do creates and execute a request on the specified endpoint, with the specified request modifiers
+func Do(endpoint string, modifiers ...func(*http.Request) error) (*http.Response, io.ReadCloser, error) {
+	return DoOnHost(DaemonHost(), endpoint, modifiers...)
+}
+
+// DoOnHost creates and execute a request on the specified host and endpoint, with the specified request modifiers
+func DoOnHost(host, endpoint string, modifiers ...func(*http.Request) error) (*http.Response, io.ReadCloser, error) {
 	req, err := New(host, endpoint, modifiers...)
 	if err != nil {
 		return nil, nil, err
@@ -261,4 +288,13 @@ func getTLSConfig() (*tls.Config, error) {
 	}
 
 	return tlsConfig, nil
+}
+
+// DaemonHost return the daemon host string for this test execution
+func DaemonHost() string {
+	daemonURLStr := "unix://" + opts.DefaultUnixSocket
+	if daemonHostVar := os.Getenv("DOCKER_HOST"); daemonHostVar != "" {
+		daemonURLStr = daemonHostVar
+	}
+	return daemonURLStr
 }

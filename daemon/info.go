@@ -174,7 +174,7 @@ func (daemon *Daemon) showPluginsInfo() types.PluginsInfo {
 
 	pluginsInfo.Volume = volumedrivers.GetDriverList()
 	pluginsInfo.Network = daemon.GetNetworkDriverList()
-	pluginsInfo.Authorization = daemon.configStore.AuthorizationPlugins
+	pluginsInfo.Authorization = daemon.configStore.GetAuthorizationPlugins()
 
 	return pluginsInfo
 }

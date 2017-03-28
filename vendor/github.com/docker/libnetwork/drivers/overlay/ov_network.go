@@ -154,11 +154,12 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 	if !n.secure {
 		for _, vni := range vnis {
 			programMangle(vni, false)
+			programInput(vni, false)
 		}
 	}
 
 	if nInfo != nil {
-		if err := nInfo.TableEventRegister(ovPeerTable); err != nil {
+		if err := nInfo.TableEventRegister(ovPeerTable, driverapi.EndpointObject); err != nil {
 			return err
 		}
 	}
@@ -204,6 +205,7 @@ func (d *driver) DeleteNetwork(nid string) error {
 	if n.secure {
 		for _, vni := range vnis {
 			programMangle(vni, false)
+			programInput(vni, false)
 		}
 	}
 
@@ -612,13 +614,13 @@ func (n *network) initSandbox(restore bool) error {
 	var nlSock *nl.NetlinkSocket
 	sbox.InvokeFunc(func() {
 		nlSock, err = nl.Subscribe(syscall.NETLINK_ROUTE, syscall.RTNLGRP_NEIGH)
-		if err != nil {
-			err = fmt.Errorf("failed to subscribe to neighbor group netlink messages")
-		}
 	})
 
-	if nlSock != nil {
+	if err == nil {
 		go n.watchMiss(nlSock)
+	} else {
+		logrus.Errorf("failed to subscribe to neighbor group netlink messages for overlay network %s in sbox %s: %v",
+			n.id, sbox.Key(), err)
 	}
 
 	return nil
@@ -644,6 +646,9 @@ func (n *network) watchMiss(nlSock *nl.NetlinkSocket) {
 			}
 
 			if neigh.IP.To4() == nil {
+				if neigh.HardwareAddr != nil {
+					logrus.Debugf("Miss notification, l2 mac %v", neigh.HardwareAddr)
+				}
 				continue
 			}
 

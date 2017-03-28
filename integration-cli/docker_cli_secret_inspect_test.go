@@ -15,10 +15,10 @@ func (s *DockerSwarmSuite) TestSecretInspect(c *check.C) {
 
 	testName := "test_secret"
 	id := d.CreateSecret(c, swarm.SecretSpec{
-		swarm.Annotations{
+		Annotations: swarm.Annotations{
 			Name: testName,
 		},
-		[]byte("TESTINGDATA"),
+		Data: []byte("TESTINGDATA"),
 	})
 	c.Assert(id, checker.Not(checker.Equals), "", check.Commentf("secrets: %s", id))
 
@@ -42,10 +42,10 @@ func (s *DockerSwarmSuite) TestSecretInspectMultiple(c *check.C) {
 	}
 	for _, n := range testNames {
 		id := d.CreateSecret(c, swarm.SecretSpec{
-			swarm.Annotations{
+			Annotations: swarm.Annotations{
 				Name: n,
 			},
-			[]byte("TESTINGDATA"),
+			Data: []byte("TESTINGDATA"),
 		})
 		c.Assert(id, checker.Not(checker.Equals), "", check.Commentf("secrets: %s", id))
 

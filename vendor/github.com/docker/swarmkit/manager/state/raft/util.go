@@ -8,6 +8,7 @@ import (
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/manager/state"
 	"github.com/docker/swarmkit/manager/state/store"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
@@ -17,6 +18,8 @@ func dial(addr string, protocol string, creds credentials.TransportCredentials, 
 	grpcOptions := []grpc.DialOption{
 		grpc.WithBackoffMaxDelay(2 * time.Second),
 		grpc.WithTransportCredentials(creds),
+		grpc.WithUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
+		grpc.WithStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
 	}
 
 	if timeout != 0 {

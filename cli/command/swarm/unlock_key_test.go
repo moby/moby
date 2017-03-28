@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli/internal/test"
+	"github.com/pkg/errors"
 	// Import builders to get the builder function as package function
 	. "github.com/docker/docker/cli/internal/test/builders"
 	"github.com/docker/docker/pkg/testutil/assert"
@@ -36,7 +37,7 @@ func TestSwarmUnlockKeyErrors(t *testing.T) {
 				flagRotate: "true",
 			},
 			swarmInspectFunc: func() (swarm.Swarm, error) {
-				return swarm.Swarm{}, fmt.Errorf("error inspecting the swarm")
+				return swarm.Swarm{}, errors.Errorf("error inspecting the swarm")
 			},
 			expectedError: "error inspecting the swarm",
 		},
@@ -59,14 +60,14 @@ func TestSwarmUnlockKeyErrors(t *testing.T) {
 				return *Swarm(Autolock()), nil
 			},
 			swarmUpdateFunc: func(swarm swarm.Spec, flags swarm.UpdateFlags) error {
-				return fmt.Errorf("error updating the swarm")
+				return errors.Errorf("error updating the swarm")
 			},
 			expectedError: "error updating the swarm",
 		},
 		{
 			name: "swarm-get-unlock-key-failed",
 			swarmGetUnlockKeyFunc: func() (types.SwarmUnlockKeyResponse, error) {
-				return types.SwarmUnlockKeyResponse{}, fmt.Errorf("error getting unlock key")
+				return types.SwarmUnlockKeyResponse{}, errors.Errorf("error getting unlock key")
 			},
 			expectedError: "error getting unlock key",
 		},
