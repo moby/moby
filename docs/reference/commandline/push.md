@@ -36,6 +36,10 @@ image and tag names.
 Killing the `docker push` process, for example by pressing `CTRL-c` while it is
 running in a terminal, terminates the push operation.
 
+Progress bars are shown during docker push, which show the uncompressed size. The 
+actual amount of data that's pushed will be compressed before sending, so the uploaded
+ size will not be reflected by the progress bar. 
+
 Registry credentials are managed by [docker login](login.md).
 
 ### Concurrent uploads
