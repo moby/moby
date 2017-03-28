@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"path/filepath"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/moby/src/initrd"
 )
 

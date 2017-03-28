@@ -4,10 +4,10 @@ package main
 
 import (
 	"io/ioutil"
-	"log"
 	"os"
 	"os/user"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/hyperkit/go"
 )
 

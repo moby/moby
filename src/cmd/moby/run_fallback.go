@@ -3,7 +3,7 @@
 package main
 
 import (
-	"log"
+	log "github.com/Sirupsen/logrus"
 )
 
 func run(cpus, mem, diskSz int, userData string, args []string) {
