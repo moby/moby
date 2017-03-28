@@ -39,6 +39,7 @@
 			"estesp",
 			"icecrime",
 			"jhowardmsft",
+			"johnstep",
 			"justincormack",
 			"lk4d4",
 			"mavenugo",
@@ -322,6 +323,11 @@
 	Name = "Jessie Frazelle"
 	Email = "jess@linux.com"
 	GitHub = "jessfraz"
+
+	[people.johnstep]
+	Name = "John Stephens"
+	Email = "johnstep@docker.com"
+	GitHub = "johnstep"
 
 	[people.justincormack]
 	Name = "Justin Cormack"
