@@ -84,7 +84,7 @@ $ docker inspect --format='{{.LogPath}}' $INSTANCE_ID
 ### Get an instance's image name
 
 ```bash
-$ docker inspect --format='{{.Container.Spec.Image}}' $INSTANCE_ID
+$ docker inspect --format='{{.Config.Image}}' $INSTANCE_ID
 ```
 
 ### List all port bindings
