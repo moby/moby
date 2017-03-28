@@ -32,6 +32,8 @@ Options:
 Removes the specified secrets from the swarm. This command has to be run
 targeting a manager node.
 
+For detailed information about using secrets, refer to [manage sensitive data with Docker secrets](https://docs.docker.com/engine/swarm/secrets/).
+
 ## Examples
 
 This example removes a secret:
