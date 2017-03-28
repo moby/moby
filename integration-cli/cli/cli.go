@@ -127,3 +127,14 @@ func WithFlags(flags ...string) func(*icmd.Cmd) func() {
 		return nil
 	}
 }
+
+// WithConfigFile sets the location of the client config file
+func WithConfigFile(dir string) func(*icmd.Cmd) func() {
+	return func(cmd *icmd.Cmd) func() {
+		cmd.Command = append(
+			[]string{"--config", dir},
+			cmd.Command...,
+		)
+		return nil
+	}
+}

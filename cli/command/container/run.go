@@ -14,8 +14,11 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/cli/config/configfile"
+	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/signal"
+	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/libnetwork/resolvconf/dns"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -82,8 +85,8 @@ func warnOnLocalhostDNS(hostConfig container.HostConfig, stderr io.Writer) {
 		}
 	}
 }
-
 func runRun(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *runOptions, copts *containerOptions) error {
+	copts.env = parseProxyConfig(dockerCli.ConfigFile(), dockerCli.Client().ClientHost(), copts.env)
 	containerConfig, err := parse(flags, copts)
 	// just in case the parse does not exit
 	if err != nil {
@@ -145,6 +148,7 @@ func runContainer(dockerCli *command.DockerCli, opts *runOptions, copts *contain
 		sigc := ForwardAllSignals(ctx, dockerCli, createResponse.ID)
 		defer signal.StopCatch(sigc)
 	}
+
 	var (
 		waitDisplayID chan struct{}
 		errCh         chan error
@@ -293,4 +297,45 @@ func runStartContainerErr(err error) error {
 	}
 
 	return statusError
+}
+
+func parseProxyConfig(cfg *configfile.ConfigFile, host string, o opts.ListOpts) opts.ListOpts {
+	var cfgKey string
+
+	if _, ok := cfg.Proxies[host]; !ok {
+		cfgKey = "default"
+	} else {
+		cfgKey = host
+	}
+
+	config, _ := cfg.Proxies[cfgKey]
+	permitted := map[string]*string{
+		"HTTP_PROXY":  &config.HTTPProxy,
+		"HTTPS_PROXY": &config.HTTPSProxy,
+		"NO_PROXY":    &config.NoProxy,
+		"FTP_PROXY":   &config.FTPProxy,
+	}
+
+	m := runconfigopts.ConvertKVStringsToMapWithNil(o.GetAll())
+	for k := range permitted {
+		if *permitted[k] == "" {
+			continue
+		}
+		if _, ok := m[k]; !ok {
+			m[k] = permitted[k]
+		}
+		if _, ok := m[strings.ToLower(k)]; !ok {
+			m[strings.ToLower(k)] = permitted[k]
+		}
+	}
+
+	result := []string{}
+	for k, v := range m {
+		if v == nil {
+			result = append(result, k)
+		} else {
+			result = append(result, fmt.Sprintf("%s=%s", k, *v))
+		}
+	}
+	return *opts.NewListOptsRef(&result, nil)
 }

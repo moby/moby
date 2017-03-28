@@ -496,6 +496,16 @@ func buildImage(name string, cmdOperators ...cli.CmdOperator) *icmd.Result {
 	return cli.Docker(cli.Build(name), cmdOperators...)
 }
 
+func withConfigFile(dir string) func(*icmd.Cmd) func() {
+	return func(cmd *icmd.Cmd) func() {
+		cmd.Command = append(cmd.Command, "", "")
+		copy(cmd.Command[3:], cmd.Command[1:])
+		cmd.Command[1] = "--config"
+		cmd.Command[2] = dir
+		return nil
+	}
+}
+
 func withExternalBuildContext(ctx *FakeContext) func(*icmd.Cmd) func() {
 	return func(cmd *icmd.Cmd) func() {
 		cmd.Dir = ctx.Dir

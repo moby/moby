@@ -915,6 +915,57 @@ func (s *DockerSuite) TestRunEnvironmentOverride(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestRunEnvironmentFromConfig(c *check.C) {
+	// TODO Windows: Environment handling is different between Linux and
+	// Windows and this test relies currently on unix functionality.
+	testRequires(c, DaemonIsLinux)
+
+	tmp, err := ioutil.TempDir("", "integration-cli-")
+	c.Assert(err, checker.IsNil)
+	config := `{ "proxies": { "default": { "httpProxy": "http://127.0.0.1:9000" }}}`
+	configPath := filepath.Join(tmp, "config.json")
+	err = ioutil.WriteFile(configPath, []byte(config), 0644)
+	c.Assert(err, checker.IsNil)
+
+	result := icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "--config", tmp, "run", "busybox", "env"},
+	})
+	result.Assert(c, icmd.Success)
+
+	if !strings.Contains(result.Combined(), "http://127.0.0.1:9000") {
+		c.Fatalf("Proxy config missing from output! %s", result.Combined())
+	}
+}
+
+func (s *DockerSuite) TestRunEnvironmentFromConfigOverride(c *check.C) {
+	// TODO Windows: Environment handling is different between Linux and
+	// Windows and this test relies currently on unix functionality.
+	testRequires(c, DaemonIsLinux)
+
+	expected := "http://proxy.example.com"
+	tmp, err := ioutil.TempDir("", "integration-cli-")
+	c.Assert(err, checker.IsNil)
+	config := `{ "proxies": { "default": { "httpProxy": "http://127.0.0.1:9000" }}}`
+	configPath := filepath.Join(tmp, "config.json")
+	err = ioutil.WriteFile(configPath, []byte(config), 0644)
+	c.Assert(err, checker.IsNil)
+
+	result := icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "--config", tmp, "run",
+			"-e", fmt.Sprintf("HTTP_PROXY=%s", expected),
+			"-e", fmt.Sprintf("http_proxy=%s", expected),
+			"busybox", "env"},
+	})
+	result.Assert(c, icmd.Success)
+
+	if strings.Contains(result.Combined(), "http://127.0.0.1:9000") {
+		c.Fatalf("Wrong Proxy config in the output! %s", result.Combined())
+	}
+	if !strings.ContainsAny(result.Combined(), expected) {
+		c.Fatalf("Expected proxy config %s, missing from output: %s", expected, result.Combined())
+	}
+}
+
 func (s *DockerSuite) TestRunContainerNetwork(c *check.C) {
 	if testEnv.DaemonPlatform() == "windows" {
 		// Windows busybox does not have ping. Use built in ping instead.
