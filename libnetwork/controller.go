@@ -337,9 +337,6 @@ func (c *controller) clusterAgentInit() {
 			// service bindings
 			c.agentClose()
 			c.cleanupServiceBindings("")
-
-			c.clearIngress(true)
-
 			return
 		}
 	}
@@ -1153,46 +1150,7 @@ func (c *controller) getIPAMDriver(name string) (ipamapi.Ipam, *ipamapi.Capabili
 }
 
 func (c *controller) Stop() {
-	c.clearIngress(false)
 	c.closeStores()
 	c.stopExternalKeyListener()
 	osl.GC()
-}
-
-func (c *controller) clearIngress(clusterLeave bool) {
-	c.Lock()
-	ingressSandbox := c.ingressSandbox
-	c.ingressSandbox = nil
-	c.Unlock()
-
-	var n *network
-	if ingressSandbox != nil {
-		for _, ep := range ingressSandbox.getConnectedEndpoints() {
-			if nw := ep.getNetwork(); nw.ingress {
-				n = nw
-				break
-			}
-		}
-		if err := ingressSandbox.Delete(); err != nil {
-			logrus.Warnf("Could not delete ingress sandbox while leaving: %v", err)
-		}
-	}
-
-	if n == nil {
-		for _, nw := range c.Networks() {
-			if nw.Info().Ingress() {
-				n = nw.(*network)
-				break
-			}
-		}
-	}
-	if n == nil && clusterLeave {
-		logrus.Warnf("Could not find ingress network while leaving")
-	}
-
-	if n != nil {
-		if err := n.Delete(); err != nil {
-			logrus.Warnf("Could not delete ingress network while leaving: %v", err)
-		}
-	}
 }
