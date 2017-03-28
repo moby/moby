@@ -189,7 +189,7 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 		return err
 	}
 	b.resetImageCache()
-	if _, err := b.imageContexts.new(ctxName, true); err != nil {
+	if _, err := b.imageContexts.add(ctxName); err != nil {
 		return err
 	}
 
@@ -846,11 +846,7 @@ func mountByRef(b *Builder, name string) (*imageMount, error) {
 	if err != nil {
 		return nil, err
 	}
-	im, err := b.imageContexts.new("", false)
-	if err != nil {
-		return nil, err
-	}
-	im.id = image.ImageID()
+	im := b.imageContexts.newImageMount(image.ImageID())
 	return im, nil
 }
 
