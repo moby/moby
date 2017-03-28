@@ -22,7 +22,11 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
 	flags.Var(opts.NewNamedListOptsRef("exec-opts", &conf.ExecOptions, nil), "exec-opt", "Runtime execution options")
 	flags.StringVarP(&conf.Pidfile, "pidfile", "p", defaultPidFile, "Path to use for daemon PID file")
 	flags.StringVarP(&conf.Root, "graph", "g", defaultDataRoot, "Root of the Docker runtime")
-	flags.MarkDeprecated("graph", "Please use --data-root instead")
+
+	// "--graph" is "soft-deprecated" in favor of "data-root". This flag was added
+	// before Docker 1.0, so won't be removed, only hidden, to discourage its usage.
+	flags.MarkHidden("graph")
+
 	flags.StringVar(&conf.Root, "data-root", defaultDataRoot, "Root directory of persistent Docker state")
 
 	flags.BoolVarP(&conf.AutoRestart, "restart", "r", true, "--restart on the daemon has been deprecated in favor of --restart policies on docker run")
