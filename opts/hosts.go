@@ -15,6 +15,8 @@ var (
 	DefaultHTTPPort = 2375 // Default HTTP Port
 	// DefaultTLSHTTPPort Default HTTP Port used when TLS enabled
 	DefaultTLSHTTPPort = 2376 // Default TLS encrypted HTTP Port
+	// DefaultSSHPort is the default OpenSSH port
+	DefaultSSHPort = 22
 	// DefaultUnixSocket Path for the unix socket.
 	// Docker daemon by default always listens on the default unix socket
 	DefaultUnixSocket = "/var/run/docker.sock"
@@ -77,6 +79,12 @@ func parseDockerDaemonHost(addr string) (string, error) {
 		return parseSimpleProtoAddr("npipe", addrParts[1], DefaultNamedPipe)
 	case "fd":
 		return addr, nil
+	case "ssh": // unix over ssh (can be specified for `docker -H` but not for `dockerd -H`)
+		usr, err := whoami()
+		if err != nil {
+			return "", err
+		}
+		return parseSSHAddr(addrParts[1], usr, DefaultSSHPort, DefaultUnixSocket)
 	default:
 		return "", fmt.Errorf("Invalid bind address format: %s", addr)
 	}
@@ -162,4 +170,22 @@ func ValidateExtraHost(val string) (string, error) {
 		return "", fmt.Errorf("invalid IP address in add-host: %q", arr[1])
 	}
 	return val, nil
+}
+
+func parseSSHAddr(addr, defaultUsername string, defaultSSHPort int, defaultUnixSocket string) (string, error) {
+	addr = strings.TrimPrefix(addr, "ssh://")
+	u, err := url.Parse("ssh://" + addr)
+	if err != nil {
+		return "", err
+	}
+	if u.User == nil || u.User.Username() == "" {
+		u.User = url.User(defaultUsername)
+	}
+	if !strings.Contains(u.Host, ":") {
+		u.Host = fmt.Sprintf("%s:%d", u.Host, defaultSSHPort)
+	}
+	if u.Path == "" {
+		u.Path = defaultUnixSocket
+	}
+	return u.String(), nil
 }

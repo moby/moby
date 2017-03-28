@@ -37,6 +37,7 @@ RUN apt-get update && apt-get install -y \
 	iptables \
 	jq \
 	net-tools \
+	openssh-server \
 	libapparmor-dev \
 	libcap-dev \
 	libltdl-dev \

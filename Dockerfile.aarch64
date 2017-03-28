@@ -42,6 +42,7 @@ RUN apt-get update && apt-get install -y \
 	libyaml-dev \
 	mercurial \
 	net-tools \
+	openssh-server \
 	parallel \
 	pkg-config \
 	python-dev \

@@ -46,7 +46,8 @@ func (cli *Client) postHijacked(ctx context.Context, path string, query url.Valu
 	}
 	req = cli.addHeaders(req, headers)
 
-	req.Host = cli.addr
+	req.Host = cli.httpRequestHost()
+	// we do not need to set req.URL here
 	req.Header.Set("Connection", "Upgrade")
 	req.Header.Set("Upgrade", "tcp")
 
@@ -166,12 +167,15 @@ func tlsDialWithDialer(dialer *net.Dialer, network, addr string, config *tls.Con
 }
 
 func dial(proto, addr string, tlsConfig *tls.Config) (net.Conn, error) {
-	if tlsConfig != nil && proto != "unix" && proto != "npipe" {
+	if tlsConfig != nil && proto != "unix" && proto != "npipe" && proto != "ssh" {
 		// Notice this isn't Go standard's tls.Dial function
 		return tlsDial(proto, addr, tlsConfig)
 	}
 	if proto == "npipe" {
 		return sockets.DialPipe(addr, 32*time.Second)
+	}
+	if proto == "ssh" {
+		return sockets.DialSSH(addr)
 	}
 	return net.Dial(proto, addr)
 }

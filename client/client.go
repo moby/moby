@@ -133,6 +133,8 @@ func NewEnvClient() (*Client, error) {
 // It won't send any version information if the version number is empty. It is
 // highly recommended that you set a version or your client may break if the
 // server is upgraded.
+//
+// Note that mock test does not call this function.
 func NewClient(host string, version string, client *http.Client, httpHeaders map[string]string) (*Client, error) {
 	proto, addr, basePath, err := ParseHost(host)
 	if err != nil {
@@ -145,7 +147,9 @@ func NewClient(host string, version string, client *http.Client, httpHeaders map
 		}
 	} else {
 		transport := new(http.Transport)
-		sockets.ConfigureTransport(transport, proto, addr)
+		if err := sockets.ConfigureTransport(transport, proto, addr); err != nil {
+			return nil, err
+		}
 		client = &http.Client{
 			Transport: transport,
 		}
@@ -258,4 +262,26 @@ func (cli *Client) CustomHTTPHeaders() map[string]string {
 // instance of the Client. This operation doesn't acquire a mutex.
 func (cli *Client) SetCustomHTTPHeaders(headers map[string]string) {
 	cli.customHTTPHeaders = headers
+}
+
+// httpRequestHost returns a string used as http.Request.Host,
+// which is used as a HTTP Host header
+func (cli *Client) httpRequestHost() string {
+	if cli.proto == "unix" || cli.proto == "npipe" || cli.proto == "ssh" {
+		// For local communications, it doesn't matter what the host is. We just
+		// need a valid and meaningful host name. (See docker/engine-api#189)
+		return "docker"
+	}
+	return ""
+}
+
+// httpRequestURLHost returns a string used as http.Request.URL.Host.
+// URL.Host is set to Host header, if http.Request.Host is empty.
+// (See docker/engine-api#189)
+func (cli *Client) httpRequestURLHost() string {
+	if cli.proto == "ssh" {
+		return "docker"
+	}
+	// this does not hurt for unix and npipe
+	return cli.addr
 }
