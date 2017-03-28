@@ -20,9 +20,9 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
-	"github.com/docker/docker/builder"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/go-connections/nat"
 	"github.com/pkg/errors"
@@ -160,21 +160,27 @@ func dispatchCopy(req dispatchRequest) error {
 	}
 
 	flFrom := req.flags.AddString("from", "")
-
 	if err := req.flags.Parse(); err != nil {
 		return err
 	}
 
-	var im *imageMount
-	if flFrom.IsUsed() {
-		var err error
-		im, err = req.builder.imageContexts.get(flFrom.Value)
-		if err != nil {
-			return err
-		}
+	im, err := req.builder.getImageMount(flFrom)
+	if err != nil {
+		return errors.Wrapf(err, "invalid from flag value %s", flFrom.Value)
 	}
-
 	return req.builder.runContextCommand(req, false, false, "COPY", im)
+}
+
+func (b *Builder) getImageMount(fromFlag *Flag) (*imageMount, error) {
+	if !fromFlag.IsUsed() {
+		// TODO: this could return the mount in the default case as well
+		return nil, nil
+	}
+	im, err := b.imageContexts.getMount(fromFlag.Value)
+	if err != nil || im != nil {
+		return im, err
+	}
+	return b.getImage(fromFlag.Value)
 }
 
 // FROM imagename[:tag | @digest] [AS build-stage-name]
@@ -192,20 +198,17 @@ func from(req dispatchRequest) error {
 	req.builder.resetImageCache()
 	req.state.noBaseImage = false
 	req.state.stageName = stageName
-	if _, err := req.builder.imageContexts.add(stageName); err != nil {
-		return err
-	}
-
-	image, err := req.builder.getFromImage(req.state, req.shlex, req.args[0])
+	image, err := req.builder.getFromImage(req.shlex, req.args[0])
 	if err != nil {
 		return err
 	}
-	switch image {
-	case nil:
+	if image == nil {
 		req.state.imageID = ""
 		req.state.noBaseImage = true
-	default:
-		req.builder.imageContexts.update(image.ImageID(), image.RunConfig())
+		image = newImageMount(nil, nil)
+	}
+	if err := req.builder.imageContexts.add(stageName, image); err != nil {
+		return err
 	}
 	req.state.baseImage = image
 
@@ -228,7 +231,7 @@ func parseBuildStageName(args []string) (string, error) {
 	return stageName, nil
 }
 
-func (b *Builder) getFromImage(dispatchState *dispatchState, shlex *ShellLex, name string) (builder.Image, error) {
+func (b *Builder) getFromImage(shlex *ShellLex, name string) (*imageMount, error) {
 	substitutionArgs := []string{}
 	for key, value := range b.buildArgs.GetAllMeta() {
 		substitutionArgs = append(substitutionArgs, key+"="+value)
@@ -254,7 +257,19 @@ func (b *Builder) getFromImage(dispatchState *dispatchState, shlex *ShellLex, na
 		}
 		return nil, nil
 	}
-	return pullOrGetImage(b, name)
+	return b.getImage(name)
+}
+
+func (b *Builder) getImage(name string) (*imageMount, error) {
+	image, layer, err := b.docker.GetImageAndLayer(b.clientCtx, name, backend.GetImageAndLayerOptions{
+		ForcePull:  b.options.PullParent,
+		AuthConfig: b.options.AuthConfigs,
+		Output:     b.Output,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return newImageMount(image, layer), nil
 }
 
 // ONBUILD RUN echo yo
@@ -800,30 +815,4 @@ func errBlankCommandNames(command string) error {
 
 func errTooManyArguments(command string) error {
 	return fmt.Errorf("Bad input to %s, too many arguments", command)
-}
-
-// mountByRef creates an imageMount from a reference. pulling the image if needed.
-func mountByRef(b *Builder, name string) (*imageMount, error) {
-	image, err := pullOrGetImage(b, name)
-	if err != nil {
-		return nil, err
-	}
-	im := b.imageContexts.newImageMount(image.ImageID())
-	return im, nil
-}
-
-func pullOrGetImage(b *Builder, name string) (builder.Image, error) {
-	var image builder.Image
-	if !b.options.PullParent {
-		image, _ = b.docker.GetImageOnBuild(name)
-		// TODO: shouldn't we error out if error is different from "not found" ?
-	}
-	if image == nil {
-		var err error
-		image, err = b.docker.PullOnBuild(b.clientCtx, name, b.options.AuthConfigs, b.Output)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return image, nil
 }

@@ -372,7 +372,7 @@ func (b *Builder) calcCopyInfo(cmdName, origPath string, allowLocalDecompression
 	if imageSource != nil {
 		source, err = imageSource.context()
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrapf(err, "failed to copy")
 		}
 	}
 

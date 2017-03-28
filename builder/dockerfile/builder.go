@@ -45,7 +45,10 @@ type BuildManager struct {
 
 // NewBuildManager creates a BuildManager
 func NewBuildManager(b builder.Backend) *BuildManager {
-	return &BuildManager{backend: b, pathCache: &syncmap.Map{}}
+	return &BuildManager{
+		backend:   b,
+		pathCache: &syncmap.Map{},
+	}
 }
 
 // Build starts a new build from a BuildConfig
@@ -122,8 +125,8 @@ func newBuilder(clientCtx context.Context, options builderOptions) *Builder {
 		docker:        options.Backend,
 		tmpContainers: map[string]struct{}{},
 		buildArgs:     newBuildArgs(config.BuildArgs),
+		imageContexts: &imageContexts{},
 	}
-	b.imageContexts = &imageContexts{b: b, cache: options.PathCache}
 	return b
 }
 

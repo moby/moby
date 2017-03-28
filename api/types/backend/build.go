@@ -22,3 +22,10 @@ type BuildConfig struct {
 	ProgressWriter ProgressWriter
 	Options        *types.ImageBuildOptions
 }
+
+// GetImageAndLayerOptions are the options supported by GetImageAndLayer
+type GetImageAndLayerOptions struct {
+	ForcePull  bool
+	AuthConfig map[string]types.AuthConfig
+	Output     io.Writer
+}

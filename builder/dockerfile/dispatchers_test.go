@@ -47,16 +47,17 @@ func defaultDispatchReq(builder *Builder, args ...string) dispatchRequest {
 }
 
 func newBuilderWithMockBackend() *Builder {
+	mockBackend := &MockBackend{}
 	b := &Builder{
 		options:       &types.ImageBuildOptions{},
-		docker:        &MockBackend{},
+		docker:        mockBackend,
 		buildArgs:     newBuildArgs(make(map[string]*string)),
 		tmpContainers: make(map[string]struct{}),
 		Stdout:        new(bytes.Buffer),
 		clientCtx:     context.Background(),
 		disableCommit: true,
+		imageContexts: &imageContexts{},
 	}
-	b.imageContexts = &imageContexts{b: b}
 	return b
 }
 
@@ -198,12 +199,12 @@ func TestFromScratch(t *testing.T) {
 func TestFromWithArg(t *testing.T) {
 	tag, expected := ":sometag", "expectedthisid"
 
-	getImage := func(name string) (builder.Image, error) {
+	getImage := func(name string) (builder.Image, builder.ReleaseableLayer, error) {
 		assert.Equal(t, "alpine"+tag, name)
-		return &mockImage{id: "expectedthisid"}, nil
+		return &mockImage{id: "expectedthisid"}, nil, nil
 	}
 	b := newBuilderWithMockBackend()
-	b.docker.(*MockBackend).getImageOnBuildFunc = getImage
+	b.docker.(*MockBackend).getImageFunc = getImage
 
 	require.NoError(t, arg(defaultDispatchReq(b, "THETAG="+tag)))
 	req := defaultDispatchReq(b, "alpine${THETAG}")
@@ -219,12 +220,12 @@ func TestFromWithArg(t *testing.T) {
 func TestFromWithUndefinedArg(t *testing.T) {
 	tag, expected := "sometag", "expectedthisid"
 
-	getImage := func(name string) (builder.Image, error) {
+	getImage := func(name string) (builder.Image, builder.ReleaseableLayer, error) {
 		assert.Equal(t, "alpine", name)
-		return &mockImage{id: "expectedthisid"}, nil
+		return &mockImage{id: "expectedthisid"}, nil, nil
 	}
 	b := newBuilderWithMockBackend()
-	b.docker.(*MockBackend).getImageOnBuildFunc = getImage
+	b.docker.(*MockBackend).getImageFunc = getImage
 	b.options.BuildArgs = map[string]*string{"THETAG": &tag}
 
 	req := defaultDispatchReq(b, "alpine${THETAG}")
@@ -474,9 +475,11 @@ func TestRunWithBuildArgs(t *testing.T) {
 	b.imageCache = imageCache
 
 	mockBackend := b.docker.(*MockBackend)
-	mockBackend.getImageOnBuildImage = &mockImage{
-		id:     "abcdef",
-		config: &container.Config{Cmd: origCmd},
+	mockBackend.getImageFunc = func(_ string) (builder.Image, builder.ReleaseableLayer, error) {
+		return &mockImage{
+			id:     "abcdef",
+			config: &container.Config{Cmd: origCmd},
+		}, nil, nil
 	}
 	mockBackend.containerCreateFunc = func(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error) {
 		// Check the runConfig.Cmd sent to create()

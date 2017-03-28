@@ -34,12 +34,8 @@ type Source interface {
 
 // Backend abstracts calls to a Docker Daemon.
 type Backend interface {
-	// TODO: use digest reference instead of name
+	GetImageAndLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (Image, ReleaseableLayer, error)
 
-	// GetImageOnBuild looks up a Docker image referenced by `name`.
-	GetImageOnBuild(name string) (Image, error)
-	// PullOnBuild tells Docker to pull image referenced by `name`.
-	PullOnBuild(ctx context.Context, name string, authConfigs map[string]types.AuthConfig, output io.Writer) (Image, error)
 	// ContainerAttachRaw attaches to container.
 	ContainerAttachRaw(cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool, attached chan struct{}) error
 	// ContainerCreate creates a new Docker container and returns potential warnings
@@ -62,15 +58,6 @@ type Backend interface {
 	// TODO: extract in the builder instead of passing `decompress`
 	// TODO: use containerd/fs.changestream instead as a source
 	CopyOnBuild(containerID string, destPath string, srcRoot string, srcPath string, decompress bool) error
-
-	// MountImage returns mounted path with rootfs of an image.
-	MountImage(name string) (string, func() error, error)
-}
-
-// Image represents a Docker image used by the builder.
-type Image interface {
-	ImageID() string
-	RunConfig() *container.Config
 }
 
 // Result is the output produced by a Builder
@@ -91,4 +78,16 @@ type ImageCache interface {
 	// GetCache returns a reference to a cached image whose parent equals `parent`
 	// and runconfig equals `cfg`. A cache miss is expected to return an empty ID and a nil error.
 	GetCache(parentID string, cfg *container.Config) (imageID string, err error)
+}
+
+// Image represents a Docker image used by the builder.
+type Image interface {
+	ImageID() string
+	RunConfig() *container.Config
+}
+
+// ReleaseableLayer is an image layer that can be mounted and released
+type ReleaseableLayer interface {
+	Release() error
+	Mount() (string, error)
 }
