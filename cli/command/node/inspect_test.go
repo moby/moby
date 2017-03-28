@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli/internal/test"
+	"github.com/pkg/errors"
 	// Import builders to get the builder function as package function
 	. "github.com/docker/docker/cli/internal/test/builders"
 	"github.com/docker/docker/pkg/testutil/assert"
@@ -29,24 +30,24 @@ func TestNodeInspectErrors(t *testing.T) {
 		{
 			args: []string{"self"},
 			infoFunc: func() (types.Info, error) {
-				return types.Info{}, fmt.Errorf("error asking for node info")
+				return types.Info{}, errors.Errorf("error asking for node info")
 			},
 			expectedError: "error asking for node info",
 		},
 		{
 			args: []string{"nodeID"},
 			nodeInspectFunc: func() (swarm.Node, []byte, error) {
-				return swarm.Node{}, []byte{}, fmt.Errorf("error inspecting the node")
+				return swarm.Node{}, []byte{}, errors.Errorf("error inspecting the node")
 			},
 			infoFunc: func() (types.Info, error) {
-				return types.Info{}, fmt.Errorf("error asking for node info")
+				return types.Info{}, errors.Errorf("error asking for node info")
 			},
 			expectedError: "error inspecting the node",
 		},
 		{
 			args: []string{"self"},
 			nodeInspectFunc: func() (swarm.Node, []byte, error) {
-				return swarm.Node{}, []byte{}, fmt.Errorf("error inspecting the node")
+				return swarm.Node{}, []byte{}, errors.Errorf("error inspecting the node")
 			},
 			infoFunc: func() (types.Info, error) {
 				return types.Info{}, nil
@@ -59,7 +60,7 @@ func TestNodeInspectErrors(t *testing.T) {
 				"pretty": "true",
 			},
 			infoFunc: func() (types.Info, error) {
-				return types.Info{}, fmt.Errorf("error asking for node info")
+				return types.Info{}, errors.Errorf("error asking for node info")
 			},
 			expectedError: "error asking for node info",
 		},

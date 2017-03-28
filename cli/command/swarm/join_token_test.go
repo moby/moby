@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli/internal/test"
+	"github.com/pkg/errors"
 	// Import builders to get the builder function as package function
 	. "github.com/docker/docker/cli/internal/test/builders"
 	"github.com/docker/docker/pkg/testutil/assert"
@@ -44,7 +45,7 @@ func TestSwarmJoinTokenErrors(t *testing.T) {
 			name: "swarm-inspect-failed",
 			args: []string{"worker"},
 			swarmInspectFunc: func() (swarm.Swarm, error) {
-				return swarm.Swarm{}, fmt.Errorf("error inspecting the swarm")
+				return swarm.Swarm{}, errors.Errorf("error inspecting the swarm")
 			},
 			expectedError: "error inspecting the swarm",
 		},
@@ -55,7 +56,7 @@ func TestSwarmJoinTokenErrors(t *testing.T) {
 				flagRotate: "true",
 			},
 			swarmInspectFunc: func() (swarm.Swarm, error) {
-				return swarm.Swarm{}, fmt.Errorf("error inspecting the swarm")
+				return swarm.Swarm{}, errors.Errorf("error inspecting the swarm")
 			},
 			expectedError: "error inspecting the swarm",
 		},
@@ -66,7 +67,7 @@ func TestSwarmJoinTokenErrors(t *testing.T) {
 				flagRotate: "true",
 			},
 			swarmUpdateFunc: func(swarm swarm.Spec, flags swarm.UpdateFlags) error {
-				return fmt.Errorf("error updating the swarm")
+				return errors.Errorf("error updating the swarm")
 			},
 			expectedError: "error updating the swarm",
 		},
@@ -74,7 +75,7 @@ func TestSwarmJoinTokenErrors(t *testing.T) {
 			name: "node-inspect-failed",
 			args: []string{"worker"},
 			nodeInspectFunc: func() (swarm.Node, []byte, error) {
-				return swarm.Node{}, []byte{}, fmt.Errorf("error inspecting node")
+				return swarm.Node{}, []byte{}, errors.Errorf("error inspecting node")
 			},
 			expectedError: "error inspecting node",
 		},
@@ -82,7 +83,7 @@ func TestSwarmJoinTokenErrors(t *testing.T) {
 			name: "info-failed",
 			args: []string{"worker"},
 			infoFunc: func() (types.Info, error) {
-				return types.Info{}, fmt.Errorf("error asking for node info")
+				return types.Info{}, errors.Errorf("error asking for node info")
 			},
 			expectedError: "error asking for node info",
 		},

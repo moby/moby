@@ -2,12 +2,12 @@ package volume
 
 import (
 	"bytes"
-	"fmt"
 	"io/ioutil"
 	"testing"
 
 	"github.com/docker/docker/cli/internal/test"
 	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/pkg/errors"
 )
 
 func TestVolumeRemoveErrors(t *testing.T) {
@@ -22,7 +22,7 @@ func TestVolumeRemoveErrors(t *testing.T) {
 		{
 			args: []string{"nodeID"},
 			volumeRemoveFunc: func(volumeID string, force bool) error {
-				return fmt.Errorf("error removing the volume")
+				return errors.Errorf("error removing the volume")
 			},
 			expectedError: "error removing the volume",
 		},

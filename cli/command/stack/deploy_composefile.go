@@ -28,7 +28,7 @@ func deployCompose(ctx context.Context, dockerCli *command.DockerCli, opts deplo
 	config, err := loader.Load(configDetails)
 	if err != nil {
 		if fpe, ok := err.(*loader.ForbiddenPropertiesError); ok {
-			return fmt.Errorf("Compose file contains unsupported options:\n\n%s\n",
+			return errors.Errorf("Compose file contains unsupported options:\n\n%s\n",
 				propertyWarnings(fpe.Properties))
 		}
 
@@ -168,12 +168,12 @@ func validateExternalNetworks(
 		network, err := client.NetworkInspect(ctx, networkName, false)
 		if err != nil {
 			if dockerclient.IsErrNetworkNotFound(err) {
-				return fmt.Errorf("network %q is declared as external, but could not be found. You need to create the network before the stack is deployed (with overlay driver)", networkName)
+				return errors.Errorf("network %q is declared as external, but could not be found. You need to create the network before the stack is deployed (with overlay driver)", networkName)
 			}
 			return err
 		}
 		if network.Scope != "swarm" {
-			return fmt.Errorf("network %q is declared as external, but it is not in the right scope: %q instead of %q", networkName, network.Scope, "swarm")
+			return errors.Errorf("network %q is declared as external, but it is not in the right scope: %q instead of %q", networkName, network.Scope, "swarm")
 		}
 	}
 

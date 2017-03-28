@@ -2,13 +2,13 @@ package swarm
 
 import (
 	"encoding/csv"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/opts"
+	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
 )
 
@@ -139,7 +139,7 @@ func parseExternalCA(caSpec string) (*swarm.ExternalCA, error) {
 		parts := strings.SplitN(field, "=", 2)
 
 		if len(parts) != 2 {
-			return nil, fmt.Errorf("invalid field '%s' must be a key=value pair", field)
+			return nil, errors.Errorf("invalid field '%s' must be a key=value pair", field)
 		}
 
 		key, value := parts[0], parts[1]
@@ -150,7 +150,7 @@ func parseExternalCA(caSpec string) (*swarm.ExternalCA, error) {
 			if strings.ToLower(value) == string(swarm.ExternalCAProtocolCFSSL) {
 				externalCA.Protocol = swarm.ExternalCAProtocolCFSSL
 			} else {
-				return nil, fmt.Errorf("unrecognized external CA protocol %s", value)
+				return nil, errors.Errorf("unrecognized external CA protocol %s", value)
 			}
 		case "url":
 			hasURL = true

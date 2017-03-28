@@ -1,7 +1,6 @@
 package service
 
 import (
-	"fmt"
 	"strings"
 
 	"golang.org/x/net/context"
@@ -15,6 +14,7 @@ import (
 	"github.com/docker/docker/cli/command/node"
 	"github.com/docker/docker/cli/command/task"
 	"github.com/docker/docker/opts"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -89,7 +89,7 @@ func runPS(dockerCli *command.DockerCli, opts psOptions) error {
 		}
 		// If nothing has been found, return immediately.
 		if serviceCount == 0 {
-			return fmt.Errorf("no such services: %s", service)
+			return errors.Errorf("no such services: %s", service)
 		}
 	}
 

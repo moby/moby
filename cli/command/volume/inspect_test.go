@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli/internal/test"
+	"github.com/pkg/errors"
 	// Import builders to get the builder function as package function
 	. "github.com/docker/docker/cli/internal/test/builders"
 	"github.com/docker/docker/pkg/testutil/assert"
@@ -27,7 +28,7 @@ func TestVolumeInspectErrors(t *testing.T) {
 		{
 			args: []string{"foo"},
 			volumeInspectFunc: func(volumeID string) (types.Volume, error) {
-				return types.Volume{}, fmt.Errorf("error while inspecting the volume")
+				return types.Volume{}, errors.Errorf("error while inspecting the volume")
 			},
 			expectedError: "error while inspecting the volume",
 		},
@@ -46,7 +47,7 @@ func TestVolumeInspectErrors(t *testing.T) {
 						Name: "foo",
 					}, nil
 				}
-				return types.Volume{}, fmt.Errorf("error while inspecting the volume")
+				return types.Volume{}, errors.Errorf("error while inspecting the volume")
 			},
 			expectedError: "error while inspecting the volume",
 		},
@@ -78,7 +79,7 @@ func TestVolumeInspectWithoutFormat(t *testing.T) {
 			args: []string{"foo"},
 			volumeInspectFunc: func(volumeID string) (types.Volume, error) {
 				if volumeID != "foo" {
-					return types.Volume{}, fmt.Errorf("Invalid volumeID, expected %s, got %s", "foo", volumeID)
+					return types.Volume{}, errors.Errorf("Invalid volumeID, expected %s, got %s", "foo", volumeID)
 				}
 				return *Volume(), nil
 			},

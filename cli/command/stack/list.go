@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/compose/convert"
 	"github.com/docker/docker/client"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )
@@ -100,7 +101,7 @@ func getStacks(
 		labels := service.Spec.Labels
 		name, ok := labels[convert.LabelNamespace]
 		if !ok {
-			return nil, fmt.Errorf("cannot get label %s for service %s",
+			return nil, errors.Errorf("cannot get label %s for service %s",
 				convert.LabelNamespace, service.ID)
 		}
 		ztack, ok := m[name]

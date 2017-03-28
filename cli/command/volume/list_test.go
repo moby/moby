@@ -2,7 +2,6 @@ package volume
 
 import (
 	"bytes"
-	"fmt"
 	"io/ioutil"
 	"testing"
 
@@ -11,6 +10,7 @@ import (
 	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/cli/config/configfile"
 	"github.com/docker/docker/cli/internal/test"
+	"github.com/pkg/errors"
 	// Import builders to get the builder function as package function
 	. "github.com/docker/docker/cli/internal/test/builders"
 	"github.com/docker/docker/pkg/testutil/assert"
@@ -30,7 +30,7 @@ func TestVolumeListErrors(t *testing.T) {
 		},
 		{
 			volumeListFunc: func(filter filters.Args) (volumetypes.VolumesListOKBody, error) {
-				return volumetypes.VolumesListOKBody{}, fmt.Errorf("error listing volumes")
+				return volumetypes.VolumesListOKBody{}, errors.Errorf("error listing volumes")
 			},
 			expectedError: "error listing volumes",
 		},

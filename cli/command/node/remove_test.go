@@ -2,12 +2,12 @@ package node
 
 import (
 	"bytes"
-	"fmt"
 	"io/ioutil"
 	"testing"
 
 	"github.com/docker/docker/cli/internal/test"
 	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/pkg/errors"
 )
 
 func TestNodeRemoveErrors(t *testing.T) {
@@ -22,7 +22,7 @@ func TestNodeRemoveErrors(t *testing.T) {
 		{
 			args: []string{"nodeID"},
 			nodeRemoveFunc: func() error {
-				return fmt.Errorf("error removing the node")
+				return errors.Errorf("error removing the node")
 			},
 			expectedError: "error removing the node",
 		},

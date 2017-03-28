@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -170,7 +171,7 @@ func (lw *logWriter) Write(buf []byte) (int, error) {
 
 	parts := bytes.SplitN(buf, []byte(" "), numParts)
 	if len(parts) != numParts {
-		return 0, fmt.Errorf("invalid context in log message: %v", string(buf))
+		return 0, errors.Errorf("invalid context in log message: %v", string(buf))
 	}
 
 	logCtx, err := lw.parseContext(string(parts[contextIndex]))
@@ -210,24 +211,24 @@ func (lw *logWriter) parseContext(input string) (logContext, error) {
 	for _, component := range components {
 		parts := strings.SplitN(component, "=", 2)
 		if len(parts) != 2 {
-			return logContext{}, fmt.Errorf("invalid context: %s", input)
+			return logContext{}, errors.Errorf("invalid context: %s", input)
 		}
 		context[parts[0]] = parts[1]
 	}
 
 	nodeID, ok := context["com.docker.swarm.node.id"]
 	if !ok {
-		return logContext{}, fmt.Errorf("missing node id in context: %s", input)
+		return logContext{}, errors.Errorf("missing node id in context: %s", input)
 	}
 
 	serviceID, ok := context["com.docker.swarm.service.id"]
 	if !ok {
-		return logContext{}, fmt.Errorf("missing service id in context: %s", input)
+		return logContext{}, errors.Errorf("missing service id in context: %s", input)
 	}
 
 	taskID, ok := context["com.docker.swarm.task.id"]
 	if !ok {
-		return logContext{}, fmt.Errorf("missing task id in context: %s", input)
+		return logContext{}, errors.Errorf("missing task id in context: %s", input)
 	}
 
 	return logContext{

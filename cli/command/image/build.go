@@ -28,6 +28,7 @@ import (
 	"github.com/docker/docker/pkg/urlutil"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	units "github.com/docker/go-units"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )
@@ -166,14 +167,14 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 	case urlutil.IsURL(specifiedContext):
 		buildCtx, relDockerfile, err = build.GetContextFromURL(progBuff, specifiedContext, options.dockerfileName)
 	default:
-		return fmt.Errorf("unable to prepare context: path %q not found", specifiedContext)
+		return errors.Errorf("unable to prepare context: path %q not found", specifiedContext)
 	}
 
 	if err != nil {
 		if options.quiet && urlutil.IsURL(specifiedContext) {
 			fmt.Fprintln(dockerCli.Err(), progBuff)
 		}
-		return fmt.Errorf("unable to prepare context: %s", err)
+		return errors.Errorf("unable to prepare context: %s", err)
 	}
 
 	if tempDir != "" {
@@ -185,7 +186,7 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		// And canonicalize dockerfile name to a platform-independent one
 		relDockerfile, err = archive.CanonicalTarNameForPath(relDockerfile)
 		if err != nil {
-			return fmt.Errorf("cannot canonicalize dockerfile path %s: %v", relDockerfile, err)
+			return errors.Errorf("cannot canonicalize dockerfile path %s: %v", relDockerfile, err)
 		}
 
 		f, err := os.Open(filepath.Join(contextDir, ".dockerignore"))
@@ -203,7 +204,7 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		}
 
 		if err := build.ValidateContextDirectory(contextDir, excludes); err != nil {
-			return fmt.Errorf("Error checking context: '%s'.", err)
+			return errors.Errorf("Error checking context: '%s'.", err)
 		}
 
 		// If .dockerignore mentions .dockerignore or the Dockerfile

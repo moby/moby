@@ -2,7 +2,6 @@ package service
 
 import (
 	"encoding/hex"
-	"fmt"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
@@ -72,7 +71,7 @@ func trustedResolveDigest(ctx context.Context, cli *command.DockerCli, ref refer
 	// Only get the tag if it's in the top level targets role or the releases delegation role
 	// ignore it if it's in any other delegation roles
 	if t.Role != trust.ReleasesRole && t.Role != data.CanonicalTargetsRole {
-		return nil, trust.NotaryError(repoInfo.Name.Name(), fmt.Errorf("No trust data for %s", reference.FamiliarString(ref)))
+		return nil, trust.NotaryError(repoInfo.Name.Name(), errors.Errorf("No trust data for %s", reference.FamiliarString(ref)))
 	}
 
 	logrus.Debugf("retrieving target for %s role\n", t.Role)

@@ -1,7 +1,6 @@
 package formatter
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/docker/docker/cli/command/inspect"
 	"github.com/docker/docker/pkg/stringid"
 	units "github.com/docker/go-units"
+	"github.com/pkg/errors"
 )
 
 const serviceInspectPrettyTemplate Format = `
@@ -147,7 +147,7 @@ func ServiceInspectWrite(ctx Context, refs []string, getRef inspect.GetRefFunc) 
 			}
 			service, ok := serviceI.(swarm.Service)
 			if !ok {
-				return fmt.Errorf("got wrong object to inspect")
+				return errors.Errorf("got wrong object to inspect")
 			}
 			if err := format(&serviceInspectContext{Service: service}); err != nil {
 				return err

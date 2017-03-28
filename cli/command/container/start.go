@@ -1,7 +1,6 @@
 package container
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"net/http/httputil"
@@ -12,6 +11,7 @@ import (
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/signal"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )
@@ -173,7 +173,7 @@ func startContainersWithoutAttachments(ctx context.Context, dockerCli *command.D
 	}
 
 	if len(failedContainers) > 0 {
-		return fmt.Errorf("Error: failed to start containers: %s", strings.Join(failedContainers, ", "))
+		return errors.Errorf("Error: failed to start containers: %s", strings.Join(failedContainers, ", "))
 	}
 	return nil
 }
