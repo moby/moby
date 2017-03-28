@@ -7,6 +7,7 @@ import (
 	"unicode"
 
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/pkg/homedir"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
@@ -149,29 +150,29 @@ func (s *DockerSuite) TestHelpExitCodesHelpOutput(c *check.C) {
 	// various good and bad cases are what we expect
 
 	// docker : stdout=all, stderr=empty, rc=0
-	out, _ := dockerCmd(c)
+	out := cli.DockerCmd(c).Combined()
 	// Be really pick
 	c.Assert(out, checker.Not(checker.HasSuffix), "\n\n", check.Commentf("Should not have a blank line at the end of 'docker'\n"))
 
 	// docker help: stdout=all, stderr=empty, rc=0
-	out, _ = dockerCmd(c, "help")
+	out = cli.DockerCmd(c, "help").Combined()
 	// Be really pick
 	c.Assert(out, checker.Not(checker.HasSuffix), "\n\n", check.Commentf("Should not have a blank line at the end of 'docker help'\n"))
 
 	// docker --help: stdout=all, stderr=empty, rc=0
-	out, _ = dockerCmd(c, "--help")
+	out = cli.DockerCmd(c, "--help").Combined()
 	// Be really pick
 	c.Assert(out, checker.Not(checker.HasSuffix), "\n\n", check.Commentf("Should not have a blank line at the end of 'docker --help'\n"))
 
 	// docker inspect busybox: stdout=all, stderr=empty, rc=0
 	// Just making sure stderr is empty on valid cmd
-	out, _ = dockerCmd(c, "inspect", "busybox")
+	out = cli.DockerCmd(c, "inspect", "busybox").Combined()
 	// Be really pick
 	c.Assert(out, checker.Not(checker.HasSuffix), "\n\n", check.Commentf("Should not have a blank line at the end of 'docker inspect busyBox'\n"))
 
 	// docker rm: stdout=empty, stderr=all, rc!=0
 	// testing the min arg error msg
-	icmd.RunCommand(dockerBinary, "rm").Assert(c, icmd.Expected{
+	cli.Docker(cli.Args("rm")).Assert(c, icmd.Expected{
 		ExitCode: 1,
 		Error:    "exit status 1",
 		Out:      "",
@@ -182,8 +183,7 @@ func (s *DockerSuite) TestHelpExitCodesHelpOutput(c *check.C) {
 
 	// docker rm NoSuchContainer: stdout=empty, stderr=all, rc=0
 	// testing to make sure no blank line on error
-	result := icmd.RunCommand(dockerBinary, "rm", "NoSuchContainer")
-	result.Assert(c, icmd.Expected{
+	result := cli.Docker(cli.Args("rm", "NoSuchContainer")).Assert(c, icmd.Expected{
 		ExitCode: 1,
 		Error:    "exit status 1",
 		Out:      "",
@@ -193,7 +193,7 @@ func (s *DockerSuite) TestHelpExitCodesHelpOutput(c *check.C) {
 	c.Assert(result.Stderr(), checker.Not(checker.HasSuffix), "\n\n", check.Commentf("Should not have a blank line at the end of 'docker rm'\n"))
 
 	// docker BadCmd: stdout=empty, stderr=all, rc=0
-	icmd.RunCommand(dockerBinary, "BadCmd").Assert(c, icmd.Expected{
+	cli.Docker(cli.Args("BadCmd")).Assert(c, icmd.Expected{
 		ExitCode: 1,
 		Error:    "exit status 1",
 		Out:      "",

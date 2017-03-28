@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/pkg/stringid"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
@@ -185,26 +186,26 @@ func (s *DockerSuite) TestPsListContainersSize(c *check.C) {
 
 func (s *DockerSuite) TestPsListContainersFilterStatus(c *check.C) {
 	// start exited container
-	out, _ := dockerCmd(c, "run", "-d", "busybox")
+	out := cli.DockerCmd(c, "run", "-d", "busybox").Combined()
 	firstID := strings.TrimSpace(out)
 
 	// make sure the exited container is not running
-	dockerCmd(c, "wait", firstID)
+	cli.DockerCmd(c, "wait", firstID)
 
 	// start running container
-	out, _ = dockerCmd(c, "run", "-itd", "busybox")
+	out = cli.DockerCmd(c, "run", "-itd", "busybox").Combined()
 	secondID := strings.TrimSpace(out)
 
 	// filter containers by exited
-	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter=status=exited")
+	out = cli.DockerCmd(c, "ps", "--no-trunc", "-q", "--filter=status=exited").Combined()
 	containerOut := strings.TrimSpace(out)
 	c.Assert(containerOut, checker.Equals, firstID)
 
-	out, _ = dockerCmd(c, "ps", "-a", "--no-trunc", "-q", "--filter=status=running")
+	out = cli.DockerCmd(c, "ps", "-a", "--no-trunc", "-q", "--filter=status=running").Combined()
 	containerOut = strings.TrimSpace(out)
 	c.Assert(containerOut, checker.Equals, secondID)
 
-	result := dockerCmdWithTimeout(time.Second*60, "ps", "-a", "-q", "--filter=status=rubbish")
+	result := cli.Docker(cli.Args("ps", "-a", "-q", "--filter=status=rubbish"), cli.WithTimeout(time.Second*60))
 	c.Assert(result, icmd.Matches, icmd.Expected{
 		ExitCode: 1,
 		Err:      "Unrecognised filter value for status",
@@ -213,13 +214,13 @@ func (s *DockerSuite) TestPsListContainersFilterStatus(c *check.C) {
 	// Windows doesn't support pausing of containers
 	if testEnv.DaemonPlatform() != "windows" {
 		// pause running container
-		out, _ = dockerCmd(c, "run", "-itd", "busybox")
+		out = cli.DockerCmd(c, "run", "-itd", "busybox").Combined()
 		pausedID := strings.TrimSpace(out)
-		dockerCmd(c, "pause", pausedID)
+		cli.DockerCmd(c, "pause", pausedID)
 		// make sure the container is unpaused to let the daemon stop it properly
-		defer func() { dockerCmd(c, "unpause", pausedID) }()
+		defer func() { cli.DockerCmd(c, "unpause", pausedID) }()
 
-		out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter=status=paused")
+		out = cli.DockerCmd(c, "ps", "--no-trunc", "-q", "--filter=status=paused").Combined()
 		containerOut = strings.TrimSpace(out)
 		c.Assert(containerOut, checker.Equals, pausedID)
 	}

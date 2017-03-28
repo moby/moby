@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/pkg/homedir"
 	"github.com/docker/docker/pkg/mount"
@@ -495,11 +496,13 @@ func (s *DockerSuite) TestRunWithKernelMemory(c *check.C) {
 	testRequires(c, kernelMemorySupport)
 
 	file := "/sys/fs/cgroup/memory/memory.kmem.limit_in_bytes"
-	stdout, _, _ := dockerCmdWithStdoutStderr(c, "run", "--kernel-memory", "50M", "--name", "test1", "busybox", "cat", file)
-	c.Assert(strings.TrimSpace(stdout), checker.Equals, "52428800")
+	cli.DockerCmd(c, "run", "--kernel-memory", "50M", "--name", "test1", "busybox", "cat", file).Assert(c, icmd.Expected{
+		Out: "52428800",
+	})
 
-	out := inspectField(c, "test1", "HostConfig.KernelMemory")
-	c.Assert(out, check.Equals, "52428800")
+	cli.InspectCmd(c, "test1", cli.Format(".HostConfig.KernelMemory")).Assert(c, icmd.Expected{
+		Out: "52428800",
+	})
 }
 
 func (s *DockerSuite) TestRunWithInvalidKernelMemory(c *check.C) {
@@ -531,8 +534,9 @@ func (s *DockerSuite) TestRunWithCPUShares(c *check.C) {
 func (s *DockerSuite) TestRunEchoStdoutWithCPUSharesAndMemoryLimit(c *check.C) {
 	testRequires(c, cpuShare)
 	testRequires(c, memoryLimitSupport)
-	out, _, _ := dockerCmdWithStdoutStderr(c, "run", "--cpu-shares", "1000", "-m", "32m", "busybox", "echo", "test")
-	c.Assert(out, checker.Equals, "test\n", check.Commentf("container should've printed 'test'"))
+	cli.DockerCmd(c, "run", "--cpu-shares", "1000", "-m", "32m", "busybox", "echo", "test").Assert(c, icmd.Expected{
+		Out: "test\n",
+	})
 }
 
 func (s *DockerSuite) TestRunWithCpusetCpus(c *check.C) {
@@ -629,11 +633,12 @@ func (s *DockerSuite) TestRunWithMemoryLimit(c *check.C) {
 	testRequires(c, memoryLimitSupport)
 
 	file := "/sys/fs/cgroup/memory/memory.limit_in_bytes"
-	stdout, _, _ := dockerCmdWithStdoutStderr(c, "run", "-m", "32M", "--name", "test", "busybox", "cat", file)
-	c.Assert(strings.TrimSpace(stdout), checker.Equals, "33554432")
-
-	out := inspectField(c, "test", "HostConfig.Memory")
-	c.Assert(out, check.Equals, "33554432")
+	cli.DockerCmd(c, "run", "-m", "32M", "--name", "test", "busybox", "cat", file).Assert(c, icmd.Expected{
+		Out: "33554432",
+	})
+	cli.InspectCmd(c, "test", cli.Format(".HostConfig.Memory")).Assert(c, icmd.Expected{
+		Out: "33554432",
+	})
 }
 
 // TestRunWithoutMemoryswapLimit sets memory limit and disables swap

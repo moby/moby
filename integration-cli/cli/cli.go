@@ -2,12 +2,15 @@ package cli
 
 import (
 	"fmt"
+	"io"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/integration-cli/environment"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -40,8 +43,8 @@ type testingT interface {
 }
 
 // DockerCmd executes the specified docker command and expect a success
-func DockerCmd(t testingT, command string, args ...string) *icmd.Result {
-	return Docker(Cmd(command, args...)).Assert(t, icmd.Success)
+func DockerCmd(t testingT, args ...string) *icmd.Result {
+	return Docker(Args(args...)).Assert(t, icmd.Success)
 }
 
 // BuildCmd executes the specified docker build command and expect a success
@@ -63,7 +66,30 @@ func Docker(cmd icmd.Cmd, cmdOperators ...CmdOperator) *icmd.Result {
 		}
 	}
 	appendDocker(&cmd)
+	if err := validateArgs(cmd.Command...); err != nil {
+		return &icmd.Result{
+			Error: err,
+		}
+	}
 	return icmd.RunCmd(cmd)
+}
+
+// validateArgs is a checker to ensure tests are not running commands which are
+// not supported on platforms. Specifically on Windows this is 'busybox top'.
+func validateArgs(args ...string) error {
+	if testEnv.DaemonPlatform() != "windows" {
+		return nil
+	}
+	foundBusybox := -1
+	for key, value := range args {
+		if strings.ToLower(value) == "busybox" {
+			foundBusybox = key
+		}
+		if (foundBusybox != -1) && (key == foundBusybox+1) && (strings.ToLower(value) == "top") {
+			return errors.New("cannot use 'busybox top' in tests on Windows. Use runSleepingContainer()")
+		}
+	}
+	return nil
 }
 
 // Build executes the specified docker build command
@@ -91,9 +117,16 @@ func appendDocker(cmd *icmd.Cmd) {
 	cmd.Command = append([]string{testEnv.DockerBinary()}, cmd.Command...)
 }
 
-// Cmd build an icmd.Cmd struct from the specified command and arguments
-func Cmd(command string, args ...string) icmd.Cmd {
-	return icmd.Command(command, args...)
+// Args build an icmd.Cmd struct from the specified arguments
+func Args(args ...string) icmd.Cmd {
+	switch len(args) {
+	case 0:
+		return icmd.Cmd{}
+	case 1:
+		return icmd.Command(args[0])
+	default:
+		return icmd.Command(args[0], args[1:]...)
+	}
 }
 
 // Daemon points to the specified daemon
@@ -124,6 +157,22 @@ func WithEnvironmentVariables(envs ...string) func(cmd *icmd.Cmd) func() {
 func WithFlags(flags ...string) func(*icmd.Cmd) func() {
 	return func(cmd *icmd.Cmd) func() {
 		cmd.Command = append(cmd.Command, flags...)
+		return nil
+	}
+}
+
+// InDir sets the folder in which the command should be executed
+func InDir(path string) func(*icmd.Cmd) func() {
+	return func(cmd *icmd.Cmd) func() {
+		cmd.Dir = path
+		return nil
+	}
+}
+
+// WithStdout sets the standard output writer of the command
+func WithStdout(writer io.Writer) func(*icmd.Cmd) func() {
+	return func(cmd *icmd.Cmd) func() {
+		cmd.Stdout = writer
 		return nil
 	}
 }
