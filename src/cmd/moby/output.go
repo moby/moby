@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 const (
@@ -18,6 +20,7 @@ const (
 )
 
 func outputs(m *Moby, base string, bzimage []byte, initrd []byte) error {
+	log.Debugf("output: %s %s", m.Outputs, base)
 	for _, o := range m.Outputs {
 		switch o.Format {
 		case "kernel+initrd":
@@ -129,6 +132,7 @@ func tarInitrdKernel(bzimage, initrd []byte) (*bytes.Buffer, error) {
 }
 
 func outputImg(image, filename string, bzimage []byte, initrd []byte, args ...string) error {
+	log.Debugf("output img: %s %s", image, filename)
 	buf, err := tarInitrdKernel(bzimage, initrd)
 	if err != nil {
 		return err
@@ -146,6 +150,7 @@ func outputImg(image, filename string, bzimage []byte, initrd []byte, args ...st
 }
 
 func outputISO(image, filename string, bzimage []byte, initrd []byte, args ...string) error {
+	log.Debugf("output iso: %s %s", image, filename)
 	buf, err := tarInitrdKernel(bzimage, initrd)
 	if err != nil {
 		return err
@@ -163,6 +168,7 @@ func outputISO(image, filename string, bzimage []byte, initrd []byte, args ...st
 }
 
 func outputKernelInitrd(base string, bzimage []byte, initrd []byte, cmdline string) error {
+	log.Debugf("output kernel/initrd: %s %s", base, cmdline)
 	err := ioutil.WriteFile(base+"-initrd.img", initrd, os.FileMode(0644))
 	if err != nil {
 		return err

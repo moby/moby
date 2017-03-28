@@ -7,6 +7,8 @@ import (
 	"io"
 	"io/ioutil"
 	"strings"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 // This uses Docker to convert a Docker image into a tarball. It would be an improvement if we
@@ -39,6 +41,7 @@ nameserver 2001:4860:4860::8844
 
 // ImageExtract extracts the filesystem from an image and returns a tarball with the files prefixed by the given path
 func ImageExtract(image, prefix string) ([]byte, error) {
+	log.Debugf("image extract: %s %s", image, prefix)
 	out := new(bytes.Buffer)
 	tw := tar.NewWriter(out)
 	err := tarPrefix(prefix, tw)
@@ -83,6 +86,7 @@ func tarPrefix(path string, tw *tar.Writer) error {
 }
 
 func imageTar(image, prefix string, tw *tar.Writer) error {
+	log.Debugf("image tar: %s %s", image, prefix)
 	if prefix != "" && prefix[len(prefix)-1] != byte('/') {
 		return fmt.Errorf("prefix does not end with /: %s", prefix)
 	}
@@ -113,16 +117,19 @@ func imageTar(image, prefix string, tw *tar.Writer) error {
 			return err
 		}
 		if exclude[hdr.Name] {
+			log.Debugf("image tar: %s %s exclude %s", image, prefix, hdr.Name)
 			io.Copy(ioutil.Discard, tr)
 		} else if replace[hdr.Name] != "" {
 			contents := replace[hdr.Name]
 			hdr.Size = int64(len(contents))
 			hdr.Name = prefix + hdr.Name
+			log.Debugf("image tar: %s %s add %s", image, prefix, hdr.Name)
 			tw.WriteHeader(hdr)
 			buf := bytes.NewBufferString(contents)
 			io.Copy(tw, buf)
 			io.Copy(ioutil.Discard, tr)
 		} else {
+			log.Debugf("image tar: %s %s add %s", image, prefix, hdr.Name)
 			hdr.Name = prefix + hdr.Name
 			tw.WriteHeader(hdr)
 			io.Copy(tw, tr)
@@ -137,6 +144,7 @@ func imageTar(image, prefix string, tw *tar.Writer) error {
 
 // ImageBundle produces an OCI bundle at the given path in a tarball, given an image and a config.json
 func ImageBundle(path, image, config string) ([]byte, error) {
+	log.Debugf("image bundle: %s %s cfg: %s", path, image, config)
 	out := new(bytes.Buffer)
 	tw := tar.NewWriter(out)
 	err := tarPrefix(path+"/rootfs/", tw)

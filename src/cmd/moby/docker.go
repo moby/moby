@@ -10,9 +10,12 @@ import (
 	"io/ioutil"
 	"os/exec"
 	"strings"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 func dockerRun(args ...string) ([]byte, error) {
+	log.Debugf("docker run: %s", strings.Join(args, " "))
 	docker, err := exec.LookPath("docker")
 	if err != nil {
 		return []byte{}, errors.New("Docker does not seem to be installed")
@@ -50,10 +53,12 @@ func dockerRun(args ...string) ([]byte, error) {
 		return []byte{}, fmt.Errorf("%v: %s", err, stderr)
 	}
 
+	log.Debugf("docker run: %s...Done", strings.Join(args, " "))
 	return stdout, nil
 }
 
 func dockerRunInput(input io.Reader, args ...string) ([]byte, error) {
+	log.Debugf("docker run (input): %s", strings.Join(args, " "))
 	docker, err := exec.LookPath("docker")
 	if err != nil {
 		return []byte{}, errors.New("Docker does not seem to be installed")
@@ -92,10 +97,12 @@ func dockerRunInput(input io.Reader, args ...string) ([]byte, error) {
 		return []byte{}, fmt.Errorf("%v: %s", err, stderr)
 	}
 
+	log.Debugf("docker run (input): %s...Done", strings.Join(args, " "))
 	return stdout, nil
 }
 
 func dockerCreate(image string) (string, error) {
+	log.Debugf("docker create: %s", image)
 	docker, err := exec.LookPath("docker")
 	if err != nil {
 		return "", errors.New("Docker does not seem to be installed")
@@ -135,10 +142,12 @@ func dockerCreate(image string) (string, error) {
 	}
 
 	container := strings.TrimSpace(string(stdout))
+	log.Debugf("docker create: %s...Done", image)
 	return container, nil
 }
 
 func dockerExport(container string) ([]byte, error) {
+	log.Debugf("docker export: %s", container)
 	docker, err := exec.LookPath("docker")
 	if err != nil {
 		return []byte{}, errors.New("Docker does not seem to be installed")
@@ -176,10 +185,12 @@ func dockerExport(container string) ([]byte, error) {
 		return []byte{}, fmt.Errorf("%v: %s", err, stderr)
 	}
 
+	log.Debugf("docker export: %s...Done", container)
 	return stdout, nil
 }
 
 func dockerRm(container string) error {
+	log.Debugf("docker rm: %s", container)
 	docker, err := exec.LookPath("docker")
 	if err != nil {
 		return errors.New("Docker does not seem to be installed")
@@ -217,10 +228,12 @@ func dockerRm(container string) error {
 		return fmt.Errorf("%v: %s", err, stderr)
 	}
 
+	log.Debugf("docker rm: %s...Done", container)
 	return nil
 }
 
 func dockerPull(image string) error {
+	log.Debugf("docker pull: %s", image)
 	docker, err := exec.LookPath("docker")
 	if err != nil {
 		return errors.New("Docker does not seem to be installed")
@@ -258,5 +271,6 @@ func dockerPull(image string) error {
 		return fmt.Errorf("%v: %s", err, stderr)
 	}
 
+	log.Debugf("docker pull: %s...Done", image)
 	return nil
 }
