@@ -42,6 +42,7 @@ func xmain() (int, error) {
 	randSeed := flag.Int64("rand-seed", int64(0), "Random seed used for shuffling (0 == curent time)")
 	filtersFile := flag.String("filters-file", "", "Path to optional file composed of `-check.f` filter strings")
 	dryRun := flag.Bool("dry-run", false, "Dry run")
+	keepExecutor := flag.Bool("keep-executor", false, "Do not auto-remove executor containers, which is used for running privileged programs on Swarm")
 	flag.Parse()
 	if *chunks == 0 {
 		*chunks = *replicas
@@ -73,14 +74,15 @@ func xmain() (int, error) {
 		workerImageForStack = *pushWorkerImage
 	}
 	compose, err := createCompose("", cli, composeOptions{
-		Replicas:    *replicas,
-		Chunks:      *chunks,
-		MasterImage: defaultMasterImageName,
-		WorkerImage: workerImageForStack,
-		Volume:      defaultVolumeName,
-		Shuffle:     *shuffle,
-		RandSeed:    *randSeed,
-		DryRun:      *dryRun,
+		Replicas:     *replicas,
+		Chunks:       *chunks,
+		MasterImage:  defaultMasterImageName,
+		WorkerImage:  workerImageForStack,
+		Volume:       defaultVolumeName,
+		Shuffle:      *shuffle,
+		RandSeed:     *randSeed,
+		DryRun:       *dryRun,
+		KeepExecutor: *keepExecutor,
 	})
 	if err != nil {
 		return 1, err

@@ -64,3 +64,4 @@ Flags for debugging IT on Swarm itself:
  - `-rand-seed N`: the random seed. This flag is useful for deterministic replaying. By default(0), the timestamp is used.
  - `-filters-file FILE`: the file contains `-check.f` strings. By default, the file is automatically generated.
  - `-dry-run`: skip the actual workload
+ - `keep-executor`: do not auto-remove executor containers, which is used for running privileged programs on Swarm
