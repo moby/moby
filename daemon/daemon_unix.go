@@ -274,7 +274,7 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 		}
 	}
 	var err error
-	opts, err := daemon.generateSecurityOpt(hostConfig.IpcMode, hostConfig.PidMode, hostConfig.Privileged)
+	opts, err := daemon.generateSecurityOpt(hostConfig)
 	if err != nil {
 		return err
 	}
