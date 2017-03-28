@@ -225,6 +225,11 @@ func (daemon *Daemon) clusterNetworksPrune(pruneFilters filters.Args) (*types.Ne
 	until, _ := getUntilFromPruneFilters(pruneFilters)
 
 	cluster := daemon.GetCluster()
+
+	if !cluster.IsManager() {
+		return rep, nil
+	}
+
 	networks, err := cluster.GetNetworks()
 	if err != nil {
 		return rep, err
