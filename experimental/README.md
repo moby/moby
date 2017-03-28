@@ -13,9 +13,9 @@ please feel free to provide any feedback on these features you wish.
 
 Experimental features are now included in the standard Docker binaries as of
 version 1.13.0.
-For enabling experimental features, you need to start the Docker daemon with
-`--experimental` flag.
-You can also enable the daemon flag via `/etc/docker/daemon.json`. e.g.
+To enable experimental features, start the Docker daemon with the
+`--experimental` flag or enable the daemon flag in the
+`/etc/docker/daemon.json` configuration file:
 
 ```json
 {
@@ -23,7 +23,8 @@ You can also enable the daemon flag via `/etc/docker/daemon.json`. e.g.
 }
 ```
 
-Then make sure the experimental flag is enabled:
+You can check to see if experimental features are enabled on a running daemon
+using the following command:
 
 ```bash
 $ docker version -f '{{.Server.Experimental}}'
@@ -32,9 +33,18 @@ true
 
 ## Current experimental features
 
+Docker service logs command to view logs for a Docker service. This is needed in Swarm mode.
+Option to squash image layers to the base image after successful builds.
+Checkpoint and restore support for Containers.
+Metrics (Prometheus) output for basic container, image, and daemon operations.
+
+ * The top-level [docker deploy](../../docs/reference/deploy.md) command. The
+   `docker stack deploy` command is **not** experimental.
+ * [`docker service logs` command](../docs/reference/commandline/service_logs.md)
+ * [`--squash` option to `docker build` command](../docs/reference/commandline/build.md##squash-an-images-layers---squash-experimental-only)
  * [External graphdriver plugins](../docs/extend/plugins_graphdriver.md)
  * [Ipvlan Network Drivers](vlan-networks.md)
- * [Docker Stacks and Distributed Application Bundles](docker-stacks-and-bundles.md)
+ * [Distributed Application Bundles](docker-stacks-and-bundles.md)
  * [Checkpoint & Restore](checkpoint-restore.md)
 
 ## How to comment on an experimental feature
