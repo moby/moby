@@ -10,6 +10,7 @@ import (
 )
 
 const blockSize = 1024
+const maxBlock = -1024
 
 var eol = []byte("\n")
 
@@ -30,20 +31,21 @@ func TailFile(f io.ReadSeeker, n int) ([][]byte, error) {
 	var cnt int
 	for {
 		var b []byte
+		dataLen := int64(len(data))
 		step := int64(block * blockSize)
-		left := size + step // how many bytes to beginning
+		left := size + step - dataLen // how many bytes to beginning
 		if left < 0 {
 			if _, err := f.Seek(0, os.SEEK_SET); err != nil {
 				return nil, err
 			}
-			b = make([]byte, blockSize+left)
+			b = make([]byte, size-dataLen)
 			if _, err := f.Read(b); err != nil {
 				return nil, err
 			}
 			data = append(b, data...)
 			break
 		} else {
-			b = make([]byte, blockSize)
+			b = make([]byte, (0 - step))
 			if _, err := f.Seek(left, os.SEEK_SET); err != nil {
 				return nil, err
 			}
@@ -56,7 +58,10 @@ func TailFile(f io.ReadSeeker, n int) ([][]byte, error) {
 		if cnt > n {
 			break
 		}
-		block--
+		block = 2 * block
+		if block < maxBlock {
+			block = maxBlock
+		}
 	}
 	lines := bytes.Split(data, eol)
 	if n < len(lines) {
