@@ -3,7 +3,6 @@ package awslogs
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"os"
 	"regexp"
@@ -25,6 +24,7 @@ import (
 	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/templates"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -109,7 +109,7 @@ func parseMultilineOptions(info logger.Info) (*regexp.Regexp, error) {
 	if multilinePatternKey != "" {
 		multilinePattern, err := regexp.Compile(multilinePatternKey)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrapf(err, "awslogs could not parse multiline pattern key %q", multilinePatternKey)
 		}
 		return multilinePattern, nil
 	}
