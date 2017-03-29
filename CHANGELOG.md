@@ -88,7 +88,6 @@ be found.
 
 ### Windows
 
-* Wait for OOBE to prevent crashing during host update [#31054](https://github.com/docker/docker/pull/31054)
 * Block pulling Windows images on non-Windows daemons [#29001](https://github.com/docker/docker/pull/29001)
 
 ## 17.03.1-ce (2017-03-27)
