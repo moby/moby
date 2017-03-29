@@ -407,8 +407,7 @@ func (c *Cluster) Info() types.Info {
 			info.Error = err.Error()
 		}
 
-		// Strip JoinTokens
-		info.Cluster = swarm.ClusterInfo
+		info.Cluster = &swarm.ClusterInfo
 
 		if r, err := state.controlClient.ListNodes(ctx, &swarmapi.ListNodesRequest{}); err != nil {
 			info.Error = err.Error()
