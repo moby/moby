@@ -44,12 +44,13 @@ if [ -n "$DOCKER_STORAGE_OPTS" ]; then
 	unset IFS
 fi
 
-# example usage: DOCKER_STORAGE_OPTS="dm.basesize=20G,dm.loopdatasize=200G"
+# example usage: DOCKER_REMAP_ROOT=default
 extra_params=""
 if [ "$DOCKER_REMAP_ROOT" ]; then
 	extra_params="--userns-remap $DOCKER_REMAP_ROOT"
 fi
 
+# example usage: DOCKER_EXPERIMENTAL=1
 if [  "$DOCKER_EXPERIMENTAL" ]; then
 	echo >&2 '# DOCKER_EXPERIMENTAL is set: starting daemon with experimental features enabled! '
 	extra_params="$extra_params --experimental"
