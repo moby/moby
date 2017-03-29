@@ -366,6 +366,9 @@ do_install() {
 		debian|raspbian)
 			dist_version="$(cat /etc/debian_version | sed 's/\/.*//' | sed 's/\..*//')"
 			case "$dist_version" in
+				9)
+					dist_version="stretch"
+				;;
 				8)
 					dist_version="jessie"
 				;;
