@@ -56,19 +56,22 @@ func (daemon *Daemon) FillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 
 	v.InitCommit.Expected = dockerversion.InitCommitID
 	if rv, err := exec.Command(DefaultInitBinary, "--version").Output(); err == nil {
+		// examples of how Tini outputs version info:
+		//   "tini version 0.13.0 - git.949e6fa"
+		//   "tini version 0.13.2"
 		parts := strings.Split(strings.TrimSpace(string(rv)), " - ")
-		if len(parts) == 2 {
-			if dockerversion.InitCommitID[0] == 'v' {
-				vs := strings.TrimPrefix(parts[0], "tini version ")
-				v.InitCommit.ID = "v" + vs
-			} else {
-				// Get the sha1
-				gitParts := strings.Split(parts[1], ".")
-				if len(gitParts) == 2 && gitParts[0] == "git" {
-					v.InitCommit.ID = gitParts[1]
-					v.InitCommit.Expected = dockerversion.InitCommitID[0:len(gitParts[1])]
-				}
+
+		v.InitCommit.ID = ""
+		if v.InitCommit.ID == "" && len(parts) >= 2 {
+			gitParts := strings.Split(parts[1], ".")
+			if len(gitParts) == 2 && gitParts[0] == "git" {
+				v.InitCommit.ID = gitParts[1]
+				v.InitCommit.Expected = dockerversion.InitCommitID[0:len(v.InitCommit.ID)]
 			}
+		}
+		if v.InitCommit.ID == "" && len(parts) >= 1 {
+			vs := strings.TrimPrefix(parts[0], "tini version ")
+			v.InitCommit.ID = "v" + vs
 		}
 
 		if v.InitCommit.ID == "" {
