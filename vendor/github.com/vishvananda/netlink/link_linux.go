@@ -29,7 +29,6 @@ const (
 	TUNTAP_ONE_QUEUE TuntapFlag = syscall.IFF_ONE_QUEUE
 )
 
-var native = nl.NativeEndian()
 var lookupByDump = false
 
 var macvlanModes = [...]uint32{
@@ -57,6 +56,44 @@ func (h *Handle) ensureIndex(link *LinkAttrs) {
 			link.Index = newlink.Attrs().Index
 		}
 	}
+}
+
+func (h *Handle) LinkSetARPOff(link Link) error {
+	base := link.Attrs()
+	h.ensureIndex(base)
+	req := h.newNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
+	msg.Change |= syscall.IFF_NOARP
+	msg.Flags |= syscall.IFF_NOARP
+	msg.Index = int32(base.Index)
+	req.AddData(msg)
+
+	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
+	return err
+}
+
+func LinkSetARPOff(link Link) error {
+	return pkgHandle.LinkSetARPOff(link)
+}
+
+func (h *Handle) LinkSetARPOn(link Link) error {
+	base := link.Attrs()
+	h.ensureIndex(base)
+	req := h.newNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
+	msg.Change |= syscall.IFF_NOARP
+	msg.Flags &= ^uint32(syscall.IFF_NOARP)
+	msg.Index = int32(base.Index)
+	req.AddData(msg)
+
+	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
+	return err
+}
+
+func LinkSetARPOn(link Link) error {
+	return pkgHandle.LinkSetARPOn(link)
 }
 
 func (h *Handle) SetPromiscOn(link Link) error {
@@ -1441,26 +1478,6 @@ func linkFlags(rawFlags uint32) net.Flags {
 		f |= net.FlagMulticast
 	}
 	return f
-}
-
-func htonl(val uint32) []byte {
-	bytes := make([]byte, 4)
-	binary.BigEndian.PutUint32(bytes, val)
-	return bytes
-}
-
-func htons(val uint16) []byte {
-	bytes := make([]byte, 2)
-	binary.BigEndian.PutUint16(bytes, val)
-	return bytes
-}
-
-func ntohl(buf []byte) uint32 {
-	return binary.BigEndian.Uint32(buf)
-}
-
-func ntohs(buf []byte) uint16 {
-	return binary.BigEndian.Uint16(buf)
 }
 
 func addGretapAttrs(gretap *Gretap, linkInfo *nl.RtAttr) {

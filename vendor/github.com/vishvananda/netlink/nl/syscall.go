@@ -35,3 +35,34 @@ const (
 	FR_ACT_UNREACHABLE /* Drop with ENETUNREACH */
 	FR_ACT_PROHIBIT    /* Drop with EACCES */
 )
+
+// socket diags related
+const (
+	SOCK_DIAG_BY_FAMILY = 20         /* linux.sock_diag.h */
+	TCPDIAG_NOCOOKIE    = 0xFFFFFFFF /* TCPDIAG_NOCOOKIE in net/ipv4/tcp_diag.h*/
+)
+
+const (
+	AF_MPLS = 28
+)
+
+const (
+	RTA_NEWDST     = 0x13
+	RTA_ENCAP_TYPE = 0x15
+	RTA_ENCAP      = 0x16
+)
+
+// RTA_ENCAP subtype
+const (
+	MPLS_IPTUNNEL_UNSPEC = iota
+	MPLS_IPTUNNEL_DST
+)
+
+// light weight tunnel encap types
+const (
+	LWTUNNEL_ENCAP_NONE = iota
+	LWTUNNEL_ENCAP_MPLS
+	LWTUNNEL_ENCAP_IP
+	LWTUNNEL_ENCAP_ILA
+	LWTUNNEL_ENCAP_IP6
+)

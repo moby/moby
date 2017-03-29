@@ -83,11 +83,12 @@ type XfrmState struct {
 	Crypt        *XfrmStateAlgo
 	Aead         *XfrmStateAlgo
 	Encap        *XfrmStateEncap
+	ESN          bool
 }
 
 func (sa XfrmState) String() string {
-	return fmt.Sprintf("Dst: %v, Src: %v, Proto: %s, Mode: %s, SPI: 0x%x, ReqID: 0x%x, ReplayWindow: %d, Mark: %v, Auth: %v, Crypt: %v, Aead: %v,Encap: %v",
-		sa.Dst, sa.Src, sa.Proto, sa.Mode, sa.Spi, sa.Reqid, sa.ReplayWindow, sa.Mark, sa.Auth, sa.Crypt, sa.Aead, sa.Encap)
+	return fmt.Sprintf("Dst: %v, Src: %v, Proto: %s, Mode: %s, SPI: 0x%x, ReqID: 0x%x, ReplayWindow: %d, Mark: %v, Auth: %v, Crypt: %v, Aead: %v, Encap: %v, ESN: %t",
+		sa.Dst, sa.Src, sa.Proto, sa.Mode, sa.Spi, sa.Reqid, sa.ReplayWindow, sa.Mark, sa.Auth, sa.Crypt, sa.Aead, sa.Encap, sa.ESN)
 }
 func (sa XfrmState) Print(stats bool) string {
 	if !stats {

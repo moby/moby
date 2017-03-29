@@ -2,14 +2,7 @@
 
 package netlink
 
-import (
-	"errors"
-	"net"
-)
-
-var (
-	ErrNotImplemented = errors.New("not implemented")
-)
+import "net"
 
 func LinkSetUp(link Link) error {
 	return ErrNotImplemented
@@ -23,7 +16,7 @@ func LinkSetMTU(link Link, mtu int) error {
 	return ErrNotImplemented
 }
 
-func LinkSetMaster(link Link, master *Link) error {
+func LinkSetMaster(link Link, master *Bridge) error {
 	return ErrNotImplemented
 }
 
@@ -68,6 +61,14 @@ func LinkSetMasterByIndex(link Link, masterIndex int) error {
 }
 
 func LinkSetXdpFd(link Link, fd int) error {
+	return ErrNotImplemented
+}
+
+func LinkSetARPOff(link Link) error {
+	return ErrNotImplemented
+}
+
+func LinkSetARPOn(link Link) error {
 	return ErrNotImplemented
 }
 
@@ -212,5 +213,9 @@ func NeighList(linkIndex, family int) ([]Neigh, error) {
 }
 
 func NeighDeserialize(m []byte) (*Neigh, error) {
+	return nil, ErrNotImplemented
+}
+
+func SocketGet(local, remote net.Addr) (*Socket, error) {
 	return nil, ErrNotImplemented
 }
