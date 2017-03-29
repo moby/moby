@@ -36,7 +36,7 @@ Options:
       --tlscert string     Path to TLS certificate file (default "/root/.docker/cert.pem")
       --tlskey string      Path to TLS key file (default "/root/.docker/key.pem")
       --tlsverify          Use TLS and verify the remote
-  -v, --version            Print version information and quit
+  -v, --version            Show version information
 
 Commands:
     attach    Attach to a running container

@@ -55,7 +55,7 @@ func newDockerCommand(dockerCli *command.DockerCli) *cobra.Command {
 	cli.SetupRootCommand(cmd)
 
 	flags = cmd.Flags()
-	flags.BoolVarP(&opts.Version, "version", "v", false, "Print version information and quit")
+	flags.BoolVarP(&opts.Version, "version", "v", false, "Show version information")
 	flags.StringVar(&opts.ConfigDir, "config", cliconfig.Dir(), "Location of client config files")
 	opts.Common.InstallFlags(flags)
 
