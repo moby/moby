@@ -28,7 +28,7 @@ Commands:
   inspect     Display detailed information on one or more services
   logs        Fetch the logs of a service
   ls          List services
-  ps          List the tasks of a service
+  ps          List the tasks of one or more services
   rm          Remove one or more services
   scale       Scale one or multiple replicated services
   update      Update a service
