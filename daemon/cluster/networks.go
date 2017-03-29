@@ -81,15 +81,22 @@ func attacherKey(target, containerID string) string {
 // waiter who is trying to start or attach the container to the
 // network.
 func (c *Cluster) UpdateAttachment(target, containerID string, config *network.NetworkingConfig) error {
-	c.mu.RLock()
+	c.mu.Lock()
 	attacher, ok := c.attachers[attacherKey(target, containerID)]
-	c.mu.RUnlock()
 	if !ok || attacher == nil {
+		c.mu.Unlock()
 		return fmt.Errorf("could not find attacher for container %s to network %s", containerID, target)
 	}
+	if attacher.inProgress {
+		logrus.Debugf("Discarding redundant notice of resource allocation on network %s for task id %s", target, attacher.taskID)
+		c.mu.Unlock()
+		return nil
+	}
+	attacher.inProgress = true
+	c.mu.Unlock()
 
 	attacher.attachWaitCh <- config
-	close(attacher.attachWaitCh)
+
 	return nil
 }
 
