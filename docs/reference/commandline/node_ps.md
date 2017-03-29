@@ -104,7 +104,7 @@ redis.7.bg8c07zzg87di2mufeq51a2qp  redis:3.0.6  swarm-manager1  Running        R
 
 #### desired-state
 
-The `desired-state` filter can take the values `running`, `shutdown`, and `accepted`.
+The `desired-state` filter can take the values `running`, `shutdown`, or `accepted`.
 
 
 ### Formatting
@@ -119,7 +119,7 @@ Placeholder     | Description
 `.Name`         | Task name
 `.Image`        | Task image
 `.Node`         | Node ID
-`.DesiredState` | Desired state of the task (`running`, `shutdown`, and `accepted`)
+`.DesiredState` | Desired state of the task (`running`, `shutdown`, or `accepted`)
 `.CurrentState` | Current state of the task
 `.Error`        | Error
 `.Ports`        | Task published ports
@@ -129,7 +129,7 @@ output the data exactly as the template declares or, when using the
 `table` directive, includes column headers as well.
 
 The following example uses a template without headers and outputs the
-`ID` and `Driver` entries separated by a colon for all tasks:
+`Name` and `Image` entries separated by a colon for all tasks:
 
 ```bash
 $ docker node ps --format "{{.Name}}: {{.Image}}"
