@@ -133,6 +133,7 @@ func tarInitrdKernel(bzimage, initrd []byte) (*bytes.Buffer, error) {
 
 func outputImg(image, filename string, bzimage []byte, initrd []byte, args ...string) error {
 	log.Debugf("output img: %s %s", image, filename)
+	log.Infof("  %s", filename)
 	buf, err := tarInitrdKernel(bzimage, initrd)
 	if err != nil {
 		return err
@@ -145,12 +146,12 @@ func outputImg(image, filename string, bzimage []byte, initrd []byte, args ...st
 	if err != nil {
 		return err
 	}
-	fmt.Println(filename)
 	return nil
 }
 
 func outputISO(image, filename string, bzimage []byte, initrd []byte, args ...string) error {
 	log.Debugf("output iso: %s %s", image, filename)
+	log.Infof("  %s", filename)
 	buf, err := tarInitrdKernel(bzimage, initrd)
 	if err != nil {
 		return err
@@ -163,12 +164,12 @@ func outputISO(image, filename string, bzimage []byte, initrd []byte, args ...st
 	if err != nil {
 		return err
 	}
-	fmt.Println(filename)
 	return nil
 }
 
 func outputKernelInitrd(base string, bzimage []byte, initrd []byte, cmdline string) error {
 	log.Debugf("output kernel/initrd: %s %s", base, cmdline)
+	log.Infof("  %s %s %s", base+"-bzImage", base+"-initrd.img", base+"-cmdline")
 	err := ioutil.WriteFile(base+"-initrd.img", initrd, os.FileMode(0644))
 	if err != nil {
 		return err
@@ -181,6 +182,5 @@ func outputKernelInitrd(base string, bzimage []byte, initrd []byte, cmdline stri
 	if err != nil {
 		return err
 	}
-	fmt.Println(base + "-bzImage " + base + "-initrd.img " + base + "-cmdline")
 	return nil
 }

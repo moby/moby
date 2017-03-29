@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	log "github.com/Sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 )
 
@@ -119,7 +120,9 @@ func filesystem(m *Moby) (*bytes.Buffer, error) {
 	tw := tar.NewWriter(buf)
 	defer tw.Close()
 
+	log.Infof("Add files:")
 	for _, f := range m.Files {
+		log.Infof("  %s", f.Path)
 		if f.Path == "" {
 			return buf, errors.New("Did not specify path for file")
 		}
