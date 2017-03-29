@@ -8,6 +8,22 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
+var (
+	defaultLogFormatter = &log.TextFormatter{}
+)
+
+// infoFormatter overrides the default format for Info() log events to
+// provide an easier to read output
+type infoFormatter struct {
+}
+
+func (f *infoFormatter) Format(entry *log.Entry) ([]byte, error) {
+	if entry.Level == log.InfoLevel {
+		return append([]byte(entry.Message), '\n'), nil
+	}
+	return defaultLogFormatter.Format(entry)
+}
+
 func main() {
 	flag.Usage = func() {
 		fmt.Printf("USAGE: %s [options] COMMAND\n\n", os.Args[0])
@@ -52,7 +68,7 @@ func main() {
 	runDisk := runCmd.String("disk", "", "Path to disk image to used")
 
 	// Set up logging
-	log.SetFormatter(&log.TextFormatter{})
+	log.SetFormatter(new(infoFormatter))
 	log.SetLevel(log.InfoLevel)
 	flag.Parse()
 	if *flagQuiet && *flagVerbose {
@@ -63,6 +79,8 @@ func main() {
 		log.SetLevel(log.ErrorLevel)
 	}
 	if *flagVerbose {
+		// Switch back to the standard formatter
+		log.SetFormatter(defaultLogFormatter)
 		log.SetLevel(log.DebugLevel)
 	}
 
