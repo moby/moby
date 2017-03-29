@@ -1,3 +1,5 @@
+// +build !windows
+
 package plugins
 
 // BasePath returns the path to which all paths returned by the plugin are relative to.
