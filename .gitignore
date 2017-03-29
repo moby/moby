@@ -16,6 +16,7 @@ autogen/
 bundles/
 cmd/dockerd/dockerd
 cmd/docker/docker
+contrib/builder/rpm/*/changelog
 dockerversion/version_autogen.go
 dockerversion/version_autogen_unix.go
 docs/AWS_S3_BUCKET

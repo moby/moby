@@ -54,6 +54,7 @@ set -e
 	make manpages
 
 	# Convert the CHANGELOG.md file into RPM changelog format
+	rm -f contrib/builder/rpm/${PACKAGE_ARCH}/changelog
 	VERSION_REGEX="^\W\W (.*) \((.*)\)$"
 	ENTRY_REGEX="^[-+*] (.*)$"
 	while read -r line || [[ -n "$line" ]]; do
