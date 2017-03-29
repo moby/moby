@@ -46,7 +46,7 @@ func deployBundle(ctx context.Context, dockerCli *command.DockerCli, opts deploy
 		for _, networkName := range service.Networks {
 			nets = append(nets, swarm.NetworkAttachmentConfig{
 				Target:  namespace.Scope(networkName),
-				Aliases: []string{networkName},
+				Aliases: []string{internalName},
 			})
 		}
 
