@@ -1,6 +1,7 @@
 package container
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -29,23 +30,25 @@ type State struct {
 	ErrorMsg          string `json:"Error"` // contains last known error when starting the container
 	StartedAt         time.Time
 	FinishedAt        time.Time
-	waitChan          chan struct{}
 	Health            *Health
+
+	waitStop   chan struct{}
+	waitRemove chan struct{}
 }
 
-// StateStatus is used to return an error type implementing both
-// exec.ExitCode and error.
+// StateStatus is used to return container wait results.
+// Implements exec.ExitCode interface.
 // This type is needed as State include a sync.Mutex field which make
 // copying it unsafe.
 type StateStatus struct {
 	exitCode int
-	error    string
+	err      error
 }
 
-func newStateStatus(ec int, err string) *StateStatus {
+func newStateStatus(ec int, err error) *StateStatus {
 	return &StateStatus{
 		exitCode: ec,
-		error:    err,
+		err:      err,
 	}
 }
 
@@ -54,15 +57,17 @@ func (ss *StateStatus) ExitCode() int {
 	return ss.exitCode
 }
 
-// Error returns current error for the state.
-func (ss *StateStatus) Error() string {
-	return ss.error
+// Err returns current error for the state. Returns nil if the container had
+// exited on its own.
+func (ss *StateStatus) Err() error {
+	return ss.err
 }
 
 // NewState creates a default state object with a fresh channel for state changes.
 func NewState() *State {
 	return &State{
-		waitChan: make(chan struct{}),
+		waitStop:   make(chan struct{}),
+		waitRemove: make(chan struct{}),
 	}
 }
 
@@ -160,64 +165,73 @@ func IsValidStateString(s string) bool {
 	return true
 }
 
-func wait(waitChan <-chan struct{}, timeout time.Duration) error {
-	if timeout < 0 {
-		<-waitChan
-		return nil
-	}
-	select {
-	case <-time.After(timeout):
-		return fmt.Errorf("Timed out: %v", timeout)
-	case <-waitChan:
-		return nil
+func (s *State) isStopped() bool {
+	// The state is not considered "stopped" if it is either "created",
+	// "running", or "paused".
+	switch s.StateString() {
+	case "created", "running", "paused":
+		return false
+	default:
+		return true
 	}
 }
 
-// WaitStop waits until state is stopped. If state already stopped it returns
-// immediately. If you want wait forever you must supply negative timeout.
-// Returns exit code, that was passed to SetStopped
-func (s *State) WaitStop(timeout time.Duration) (int, error) {
-	ctx := context.Background()
-	if timeout >= 0 {
-		var cancel func()
-		ctx, cancel = context.WithTimeout(ctx, timeout)
-		defer cancel()
-	}
-	if err := s.WaitWithContext(ctx); err != nil {
-		if status, ok := err.(*StateStatus); ok {
-			return status.ExitCode(), nil
-		}
-		return -1, err
-	}
-	return 0, nil
-}
-
-// WaitWithContext waits for the container to stop. Optional context can be
-// passed for canceling the request.
-func (s *State) WaitWithContext(ctx context.Context) error {
+// Wait waits until the continer is in a "stopped" state. A context can be used
+// for cancelling the request or controlling timeouts. If untilRemoved is true,
+// Wait will block until the SetRemoved() method has been called. Wait must be
+// called without holding the state lock. Returns a channel which can be used
+// to receive the result. If the container exited on its own, the result's Err() method wil be nil and
+// its ExitCode() method will return the conatiners exit code, otherwise, the
+// results Err() method will return an error indicating why the wait operation
+// failed.
+func (s *State) Wait(ctx context.Context, untilRemoved bool) <-chan *StateStatus {
 	s.Lock()
-	if !s.Running {
-		state := newStateStatus(s.ExitCode(), s.Error())
-		defer s.Unlock()
-		if state.ExitCode() == 0 {
-			return nil
-		}
-		return state
+	defer s.Unlock()
+
+	if !untilRemoved && s.isStopped() {
+		// We are not waiting for removal and the container is already
+		// in a stopped state so just return the current state.
+		result := newStateStatus(s.ExitCode(), s.Err())
+
+		// Buffer so we don't block putting it in the channel.
+		resultC := make(chan *StateStatus, 1)
+		resultC <- result
+
+		return resultC
 	}
-	waitChan := s.waitChan
-	s.Unlock()
-	select {
-	case <-waitChan:
+
+	// The waitStop chan will remain nil if we are waiting for removal, in
+	// which case it would block forever.
+	var waitStop chan struct{}
+	if !untilRemoved {
+		waitStop = s.waitStop
+	}
+
+	// Always wait for removal, just in case the container gets removed
+	// while it is still in a "created" state, in which case it is never
+	// actually stopped.
+	waitRemove := s.waitRemove
+
+	resultC := make(chan *StateStatus)
+
+	go func() {
+		select {
+		case <-ctx.Done():
+			// Context timeout or cancellation.
+			resultC <- newStateStatus(-1, ctx.Err())
+			return
+		case <-waitStop:
+		case <-waitRemove:
+		}
+
 		s.Lock()
-		state := newStateStatus(s.ExitCode(), s.Error())
+		result := newStateStatus(s.ExitCode(), s.Err())
 		s.Unlock()
-		if state.ExitCode() == 0 {
-			return nil
-		}
-		return state
-	case <-ctx.Done():
-		return ctx.Err()
-	}
+
+		resultC <- result
+	}()
+
+	return resultC
 }
 
 // IsRunning returns whether the running flag is set. Used by Container to check whether a container is running.
@@ -268,8 +282,8 @@ func (s *State) SetStopped(exitStatus *ExitStatus) {
 	s.Pid = 0
 	s.FinishedAt = time.Now().UTC()
 	s.setFromExitStatus(exitStatus)
-	close(s.waitChan) // fire waiters for stop
-	s.waitChan = make(chan struct{})
+	close(s.waitStop) // Fire waiters for stop
+	s.waitStop = make(chan struct{})
 }
 
 // SetRestarting sets the container state to "restarting" without locking.
@@ -282,8 +296,8 @@ func (s *State) SetRestarting(exitStatus *ExitStatus) {
 	s.Pid = 0
 	s.FinishedAt = time.Now().UTC()
 	s.setFromExitStatus(exitStatus)
-	close(s.waitChan) // fire waiters for stop
-	s.waitChan = make(chan struct{})
+	close(s.waitStop) // Fire waiters for stop
+	s.waitStop = make(chan struct{})
 }
 
 // SetError sets the container's error state. This is useful when we want to
@@ -333,6 +347,23 @@ func (s *State) SetDead() {
 	s.Lock()
 	s.Dead = true
 	s.Unlock()
+}
+
+// SetRemoved assumes this container is already in the "dead" state and
+// closes the internal waitRemove channel to unblock callers waiting for a
+// container to be removed.
+func (s *State) SetRemoved() {
+	s.Lock()
+	close(s.waitRemove) // Unblock those waiting on remove.
+	s.Unlock()
+}
+
+// Err returns an error if there is one.
+func (s *State) Err() error {
+	if s.ErrorMsg != "" {
+		return errors.New(s.ErrorMsg)
+	}
+	return nil
 }
 
 // Error returns current error for the state.

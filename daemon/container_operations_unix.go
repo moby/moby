@@ -3,6 +3,7 @@
 package daemon
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -291,7 +292,12 @@ func (daemon *Daemon) setupConfigDir(c *container.Container) (setupErr error) {
 }
 
 func killProcessDirectly(container *container.Container) error {
-	if _, err := container.WaitStop(10 * time.Second); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Block until the container to stops or timeout.
+	status := <-container.Wait(ctx, false)
+	if status.Err() != nil {
 		// Ensure that we don't kill ourselves
 		if pid := container.GetPID(); pid != 0 {
 			logrus.Infof("Container %s failed to exit within 10 seconds of kill - trying direct SIGKILL", stringid.TruncateID(container.ID))

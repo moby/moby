@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
+	containerpkg "github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/cluster/convert"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	"github.com/docker/libnetwork"
@@ -337,8 +338,8 @@ func (c *containerAdapter) events(ctx context.Context) <-chan events.Message {
 	return eventsq
 }
 
-func (c *containerAdapter) wait(ctx context.Context) error {
-	return c.backend.ContainerWaitWithContext(ctx, c.container.nameOrID())
+func (c *containerAdapter) wait(ctx context.Context) (<-chan *containerpkg.StateStatus, error) {
+	return c.backend.ContainerWait(ctx, c.container.nameOrID(), false)
 }
 
 func (c *containerAdapter) shutdown(ctx context.Context) error {

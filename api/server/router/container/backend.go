@@ -2,7 +2,6 @@ package container
 
 import (
 	"io"
-	"time"
 
 	"golang.org/x/net/context"
 
@@ -10,6 +9,7 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
+	containerpkg "github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/archive"
 )
 
@@ -44,7 +44,7 @@ type stateBackend interface {
 	ContainerStop(name string, seconds *int) error
 	ContainerUnpause(name string) error
 	ContainerUpdate(name string, hostConfig *container.HostConfig) (container.ContainerUpdateOKBody, error)
-	ContainerWait(name string, timeout time.Duration) (int, error)
+	ContainerWait(ctx context.Context, name string, untilRemoved bool) (<-chan *containerpkg.StateStatus, error)
 }
 
 // monitorBackend includes functions to implement to provide containers monitoring functionality.

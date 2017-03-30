@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strconv"
 	"syscall"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
@@ -284,13 +283,15 @@ func (s *containerRouter) postContainersUnpause(ctx context.Context, w http.Resp
 }
 
 func (s *containerRouter) postContainersWait(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	status, err := s.backend.ContainerWait(vars["name"], -1*time.Second)
+	waitC, err := s.backend.ContainerWait(ctx, vars["name"], false)
 	if err != nil {
 		return err
 	}
 
+	status := <-waitC
+
 	return httputils.WriteJSON(w, http.StatusOK, &container.ContainerWaitOKBody{
-		StatusCode: int64(status),
+		StatusCode: int64(status.ExitCode()),
 	})
 }
 

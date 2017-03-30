@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"time"
@@ -60,7 +61,10 @@ func (daemon *Daemon) containerStop(container *container.Container, seconds int)
 		// So, instead we'll give it up to 2 more seconds to complete and if
 		// by that time the container is still running, then the error
 		// we got is probably valid and so we force kill it.
-		if _, err := container.WaitStop(2 * time.Second); err != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+
+		if status := <-container.Wait(ctx, false); status.Err() != nil {
 			logrus.Infof("Container failed to stop after sending signal %d to the process, force killing", stopSignal)
 			if err := daemon.killPossiblyDeadProcess(container, 9); err != nil {
 				return err
@@ -69,11 +73,15 @@ func (daemon *Daemon) containerStop(container *container.Container, seconds int)
 	}
 
 	// 2. Wait for the process to exit on its own
-	if _, err := container.WaitStop(time.Duration(seconds) * time.Second); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(seconds)*time.Second)
+	defer cancel()
+
+	if status := <-container.Wait(ctx, false); status.Err() != nil {
 		logrus.Infof("Container %v failed to exit within %d seconds of signal %d - using the force", container.ID, seconds, stopSignal)
 		// 3. If it doesn't, then send SIGKILL
 		if err := daemon.Kill(container); err != nil {
-			container.WaitStop(-1 * time.Second)
+			// Wait without a timeout, ignore result.
+			_ = <-container.Wait(context.Background(), false)
 			logrus.Warn(err) // Don't return error because we only care that container is stopped, not what function stopped it
 		}
 	}

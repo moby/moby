@@ -6,12 +6,13 @@ package builder
 
 import (
 	"io"
-	"time"
+
+	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
-	"golang.org/x/net/context"
+	containerpkg "github.com/docker/docker/container"
 )
 
 const (
@@ -49,7 +50,7 @@ type Backend interface {
 	// ContainerStart starts a new container
 	ContainerStart(containerID string, hostConfig *container.HostConfig, checkpoint string, checkpointDir string) error
 	// ContainerWait stops processing until the given container is stopped.
-	ContainerWait(containerID string, timeout time.Duration) (int, error)
+	ContainerWait(ctx context.Context, name string, untilRemoved bool) (<-chan *containerpkg.StateStatus, error)
 	// ContainerCreateWorkdir creates the workdir
 	ContainerCreateWorkdir(containerID string) error
 

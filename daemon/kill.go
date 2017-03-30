@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"context"
 	"fmt"
 	"runtime"
 	"strings"
@@ -131,7 +132,10 @@ func (daemon *Daemon) Kill(container *container.Container) error {
 			return nil
 		}
 
-		if _, err2 := container.WaitStop(2 * time.Second); err2 != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+
+		if status := <-container.Wait(ctx, false); status.Err() != nil {
 			return err
 		}
 	}
@@ -144,7 +148,10 @@ func (daemon *Daemon) Kill(container *container.Container) error {
 		return err
 	}
 
-	container.WaitStop(-1 * time.Second)
+	// Wait for exit with no timeout.
+	// Ignore returned status.
+	_ = <-container.Wait(context.Background(), false)
+
 	return nil
 }
 

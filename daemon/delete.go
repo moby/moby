@@ -134,6 +134,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 	if e := daemon.removeMountPoints(container, removeVolume); e != nil {
 		logrus.Error(e)
 	}
+	container.SetRemoved()
 	stateCtr.del(container.ID)
 	daemon.LogContainerEvent(container, "destroy")
 	return nil

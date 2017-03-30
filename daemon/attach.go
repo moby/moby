@@ -1,9 +1,9 @@
 package daemon
 
 import (
+	"context"
 	"fmt"
 	"io"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/errors"
@@ -160,14 +160,11 @@ func (daemon *Daemon) containerAttach(c *container.Container, cfg *stream.Attach
 		cfg.Stdin = nil
 	}
 
-	waitChan := make(chan struct{})
 	if c.Config.StdinOnce && !c.Config.Tty {
+		// Wait for the container to stop before returning.
+		waitChan := c.Wait(context.Background(), false)
 		defer func() {
-			<-waitChan
-		}()
-		go func() {
-			c.WaitStop(-1 * time.Second)
-			close(waitChan)
+			_ = <-waitChan // Ignore returned exit code.
 		}()
 	}
 
