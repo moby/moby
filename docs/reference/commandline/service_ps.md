@@ -150,7 +150,7 @@ ID            NAME      IMAGE        NODE      DESIRED STATE  CURRENT STATE     
 
 #### desired-state
 
-The `desired-state` filter can take the values `running`, `shutdown`, and `accepted`.
+The `desired-state` filter can take the values `running`, `shutdown`, or `accepted`.
 
 
 ### Formatting
@@ -166,7 +166,7 @@ Placeholder     | Description
 `.Name`         | Task name
 `.Image`        | Task image
 `.Node`         | Node ID
-`.DesiredState` | Desired state of the task (`running`, `shutdown`, and `accepted`)
+`.DesiredState` | Desired state of the task (`running`, `shutdown`, or `accepted`)
 `.CurrentState` | Current state of the task
 `.Error`        | Error
 `.Ports`        | Task published ports
