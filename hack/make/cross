@@ -31,6 +31,11 @@ for platform in $DOCKER_CROSSPLATFORMS; do
 
 		if [ "$GOOS" != "solaris" ]; then
 			# TODO. Solaris cannot be cross build because of CGO calls.
+
+			# go install docker/docker/pkg packages to ensure that
+			# they build cross platform.
+			go install github.com/docker/docker/pkg/...
+
 			if [ -z "${daemonSupporting[$platform]}" ]; then
 				# we just need a simple client for these platforms
 				export LDFLAGS_STATIC_DOCKER=""
