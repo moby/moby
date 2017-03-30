@@ -44,7 +44,7 @@ func (w *filePoller) Add(name string) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	if w.closed == true {
+	if w.closed {
 		return errPollerClosed
 	}
 
@@ -78,7 +78,7 @@ func (w *filePoller) Remove(name string) error {
 }
 
 func (w *filePoller) remove(name string) error {
-	if w.closed == true {
+	if w.closed {
 		return errPollerClosed
 	}
 

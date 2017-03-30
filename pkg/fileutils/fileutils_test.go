@@ -208,7 +208,7 @@ func TestReadSymlinkedDirectoryToFile(t *testing.T) {
 
 func TestWildcardMatches(t *testing.T) {
 	match, _ := Matches("fileutils.go", []string{"*"})
-	if match != true {
+	if !match {
 		t.Errorf("failed to get a wildcard match, got %v", match)
 	}
 }
@@ -216,7 +216,7 @@ func TestWildcardMatches(t *testing.T) {
 // A simple pattern match should return true.
 func TestPatternMatches(t *testing.T) {
 	match, _ := Matches("fileutils.go", []string{"*.go"})
-	if match != true {
+	if !match {
 		t.Errorf("failed to get a match, got %v", match)
 	}
 }
@@ -224,7 +224,7 @@ func TestPatternMatches(t *testing.T) {
 // An exclusion followed by an inclusion should return true.
 func TestExclusionPatternMatchesPatternBefore(t *testing.T) {
 	match, _ := Matches("fileutils.go", []string{"!fileutils.go", "*.go"})
-	if match != true {
+	if !match {
 		t.Errorf("failed to get true match on exclusion pattern, got %v", match)
 	}
 }
@@ -232,7 +232,7 @@ func TestExclusionPatternMatchesPatternBefore(t *testing.T) {
 // A folder pattern followed by an exception should return false.
 func TestPatternMatchesFolderExclusions(t *testing.T) {
 	match, _ := Matches("docs/README.md", []string{"docs", "!docs/README.md"})
-	if match != false {
+	if match {
 		t.Errorf("failed to get a false match on exclusion pattern, got %v", match)
 	}
 }
@@ -240,7 +240,7 @@ func TestPatternMatchesFolderExclusions(t *testing.T) {
 // A folder pattern followed by an exception should return false.
 func TestPatternMatchesFolderWithSlashExclusions(t *testing.T) {
 	match, _ := Matches("docs/README.md", []string{"docs/", "!docs/README.md"})
-	if match != false {
+	if match {
 		t.Errorf("failed to get a false match on exclusion pattern, got %v", match)
 	}
 }
@@ -248,7 +248,7 @@ func TestPatternMatchesFolderWithSlashExclusions(t *testing.T) {
 // A folder pattern followed by an exception should return false.
 func TestPatternMatchesFolderWildcardExclusions(t *testing.T) {
 	match, _ := Matches("docs/README.md", []string{"docs/*", "!docs/README.md"})
-	if match != false {
+	if match {
 		t.Errorf("failed to get a false match on exclusion pattern, got %v", match)
 	}
 }
@@ -256,7 +256,7 @@ func TestPatternMatchesFolderWildcardExclusions(t *testing.T) {
 // A pattern followed by an exclusion should return false.
 func TestExclusionPatternMatchesPatternAfter(t *testing.T) {
 	match, _ := Matches("fileutils.go", []string{"*.go", "!fileutils.go"})
-	if match != false {
+	if match {
 		t.Errorf("failed to get false match on exclusion pattern, got %v", match)
 	}
 }
@@ -264,7 +264,7 @@ func TestExclusionPatternMatchesPatternAfter(t *testing.T) {
 // A filename evaluating to . should return false.
 func TestExclusionPatternMatchesWholeDirectory(t *testing.T) {
 	match, _ := Matches(".", []string{"*.go"})
-	if match != false {
+	if match {
 		t.Errorf("failed to get false match on ., got %v", match)
 	}
 }
@@ -573,7 +573,7 @@ func TestMatch(t *testing.T) {
 		pattern := tt.pattern
 		s := tt.s
 		if runtime.GOOS == "windows" {
-			if strings.Index(pattern, "\\") >= 0 {
+			if strings.Contains(pattern, "\\") {
 				// no escape allowed on windows.
 				continue
 			}
