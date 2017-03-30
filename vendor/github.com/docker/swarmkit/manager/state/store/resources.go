@@ -16,12 +16,12 @@ func init() {
 				indexID: {
 					Name:    indexID,
 					Unique:  true,
-					Indexer: api.ResourceIndexerByID{},
+					Indexer: resourceIndexerByID{},
 				},
 				indexName: {
 					Name:    indexName,
 					Unique:  true,
-					Indexer: api.ResourceIndexerByName{},
+					Indexer: resourceIndexerByName{},
 				},
 				indexKind: {
 					Name:    indexKind,
@@ -29,7 +29,7 @@ func init() {
 				},
 				indexCustom: {
 					Name:         indexCustom,
-					Indexer:      api.ResourceCustomIndexer{},
+					Indexer:      resourceCustomIndexer{},
 					AllowMissing: true,
 				},
 			},
@@ -76,6 +76,10 @@ func init() {
 
 type resourceEntry struct {
 	*api.Resource
+}
+
+func (r resourceEntry) CopyStoreObject() api.StoreObject {
+	return resourceEntry{Resource: r.Resource.Copy()}
 }
 
 func confirmExtension(tx Tx, r *api.Resource) error {
@@ -156,4 +160,40 @@ func (ri resourceIndexerByKind) FromObject(obj interface{}) (bool, []byte, error
 	// Add the null character as a terminator
 	val := r.Resource.Kind + "\x00"
 	return true, []byte(val), nil
+}
+
+type resourceIndexerByID struct{}
+
+func (indexer resourceIndexerByID) FromArgs(args ...interface{}) ([]byte, error) {
+	return api.ResourceIndexerByID{}.FromArgs(args...)
+}
+func (indexer resourceIndexerByID) PrefixFromArgs(args ...interface{}) ([]byte, error) {
+	return api.ResourceIndexerByID{}.PrefixFromArgs(args...)
+}
+func (indexer resourceIndexerByID) FromObject(obj interface{}) (bool, []byte, error) {
+	return api.ResourceIndexerByID{}.FromObject(obj.(resourceEntry).Resource)
+}
+
+type resourceIndexerByName struct{}
+
+func (indexer resourceIndexerByName) FromArgs(args ...interface{}) ([]byte, error) {
+	return api.ResourceIndexerByName{}.FromArgs(args...)
+}
+func (indexer resourceIndexerByName) PrefixFromArgs(args ...interface{}) ([]byte, error) {
+	return api.ResourceIndexerByName{}.PrefixFromArgs(args...)
+}
+func (indexer resourceIndexerByName) FromObject(obj interface{}) (bool, []byte, error) {
+	return api.ResourceIndexerByName{}.FromObject(obj.(resourceEntry).Resource)
+}
+
+type resourceCustomIndexer struct{}
+
+func (indexer resourceCustomIndexer) FromArgs(args ...interface{}) ([]byte, error) {
+	return api.ResourceCustomIndexer{}.FromArgs(args...)
+}
+func (indexer resourceCustomIndexer) PrefixFromArgs(args ...interface{}) ([]byte, error) {
+	return api.ResourceCustomIndexer{}.PrefixFromArgs(args...)
+}
+func (indexer resourceCustomIndexer) FromObject(obj interface{}) (bool, [][]byte, error) {
+	return api.ResourceCustomIndexer{}.FromObject(obj.(resourceEntry).Resource)
 }

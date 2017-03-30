@@ -350,6 +350,9 @@ type CertificateRequestConfig struct {
 	// where the local node is running a manager, but is in the process of
 	// being demoted.
 	ForceRemote bool
+	// NodeCertificateStatusRequestTimeout determines how long to wait for a node
+	// status RPC result.  If not provided (zero value), will default to 5 seconds.
+	NodeCertificateStatusRequestTimeout time.Duration
 }
 
 // CreateSecurityConfig creates a new key and cert for this node, either locally

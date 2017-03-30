@@ -217,6 +217,7 @@ message CreateServiceResponse {
 
 message GetServiceRequest {
 	string service_id = 1;
+	bool insert_defaults = 2;
 }
 
 message GetServiceResponse {

@@ -9,6 +9,7 @@
 		plugin.proto
 
 	It has these top-level messages:
+		WatchSelectors
 		StoreObject
 		TLSAuthorization
 */
@@ -18,6 +19,8 @@ import proto "github.com/gogo/protobuf/proto"
 import fmt "fmt"
 import math "math"
 import google_protobuf "github.com/gogo/protobuf/protoc-gen-gogo/descriptor"
+
+import github_com_gogo_protobuf_proto "github.com/gogo/protobuf/proto"
 
 import strings "strings"
 import reflect "reflect"
@@ -35,13 +38,39 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
 
-type StoreObject struct {
+type WatchSelectors struct {
+	// supported by all object types
+	ID           *bool `protobuf:"varint,1,opt,name=id" json:"id,omitempty"`
+	IDPrefix     *bool `protobuf:"varint,2,opt,name=id_prefix,json=idPrefix" json:"id_prefix,omitempty"`
+	Name         *bool `protobuf:"varint,3,opt,name=name" json:"name,omitempty"`
+	NamePrefix   *bool `protobuf:"varint,4,opt,name=name_prefix,json=namePrefix" json:"name_prefix,omitempty"`
+	Custom       *bool `protobuf:"varint,5,opt,name=custom" json:"custom,omitempty"`
+	CustomPrefix *bool `protobuf:"varint,6,opt,name=custom_prefix,json=customPrefix" json:"custom_prefix,omitempty"`
+	// supported by tasks only
+	ServiceID    *bool `protobuf:"varint,7,opt,name=service_id,json=serviceId" json:"service_id,omitempty"`
+	NodeID       *bool `protobuf:"varint,8,opt,name=node_id,json=nodeId" json:"node_id,omitempty"`
+	Slot         *bool `protobuf:"varint,9,opt,name=slot" json:"slot,omitempty"`
+	DesiredState *bool `protobuf:"varint,10,opt,name=desired_state,json=desiredState" json:"desired_state,omitempty"`
+	// supported by nodes only
+	Role       *bool `protobuf:"varint,11,opt,name=role" json:"role,omitempty"`
+	Membership *bool `protobuf:"varint,12,opt,name=membership" json:"membership,omitempty"`
+	// supported by: resource
+	Kind             *bool  `protobuf:"varint,13,opt,name=kind" json:"kind,omitempty"`
 	XXX_unrecognized []byte `json:"-"`
+}
+
+func (m *WatchSelectors) Reset()                    { *m = WatchSelectors{} }
+func (*WatchSelectors) ProtoMessage()               {}
+func (*WatchSelectors) Descriptor() ([]byte, []int) { return fileDescriptorPlugin, []int{0} }
+
+type StoreObject struct {
+	WatchSelectors   *WatchSelectors `protobuf:"bytes,1,req,name=watch_selectors,json=watchSelectors" json:"watch_selectors,omitempty"`
+	XXX_unrecognized []byte          `json:"-"`
 }
 
 func (m *StoreObject) Reset()                    { *m = StoreObject{} }
 func (*StoreObject) ProtoMessage()               {}
-func (*StoreObject) Descriptor() ([]byte, []int) { return fileDescriptorPlugin, []int{0} }
+func (*StoreObject) Descriptor() ([]byte, []int) { return fileDescriptorPlugin, []int{1} }
 
 type TLSAuthorization struct {
 	// Roles contains the acceptable TLS OU roles for the handler.
@@ -55,7 +84,7 @@ type TLSAuthorization struct {
 
 func (m *TLSAuthorization) Reset()                    { *m = TLSAuthorization{} }
 func (*TLSAuthorization) ProtoMessage()               {}
-func (*TLSAuthorization) Descriptor() ([]byte, []int) { return fileDescriptorPlugin, []int{1} }
+func (*TLSAuthorization) Descriptor() ([]byte, []int) { return fileDescriptorPlugin, []int{2} }
 
 var E_Deepcopy = &proto.ExtensionDesc{
 	ExtendedType:  (*google_protobuf.MessageOptions)(nil),
@@ -82,12 +111,164 @@ var E_TlsAuthorization = &proto.ExtensionDesc{
 }
 
 func init() {
+	proto.RegisterType((*WatchSelectors)(nil), "docker.protobuf.plugin.WatchSelectors")
 	proto.RegisterType((*StoreObject)(nil), "docker.protobuf.plugin.StoreObject")
 	proto.RegisterType((*TLSAuthorization)(nil), "docker.protobuf.plugin.TLSAuthorization")
 	proto.RegisterExtension(E_Deepcopy)
 	proto.RegisterExtension(E_StoreObject)
 	proto.RegisterExtension(E_TlsAuthorization)
 }
+func (m *WatchSelectors) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *WatchSelectors) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.ID != nil {
+		dAtA[i] = 0x8
+		i++
+		if *m.ID {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i++
+	}
+	if m.IDPrefix != nil {
+		dAtA[i] = 0x10
+		i++
+		if *m.IDPrefix {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i++
+	}
+	if m.Name != nil {
+		dAtA[i] = 0x18
+		i++
+		if *m.Name {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i++
+	}
+	if m.NamePrefix != nil {
+		dAtA[i] = 0x20
+		i++
+		if *m.NamePrefix {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i++
+	}
+	if m.Custom != nil {
+		dAtA[i] = 0x28
+		i++
+		if *m.Custom {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i++
+	}
+	if m.CustomPrefix != nil {
+		dAtA[i] = 0x30
+		i++
+		if *m.CustomPrefix {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i++
+	}
+	if m.ServiceID != nil {
+		dAtA[i] = 0x38
+		i++
+		if *m.ServiceID {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i++
+	}
+	if m.NodeID != nil {
+		dAtA[i] = 0x40
+		i++
+		if *m.NodeID {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i++
+	}
+	if m.Slot != nil {
+		dAtA[i] = 0x48
+		i++
+		if *m.Slot {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i++
+	}
+	if m.DesiredState != nil {
+		dAtA[i] = 0x50
+		i++
+		if *m.DesiredState {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i++
+	}
+	if m.Role != nil {
+		dAtA[i] = 0x58
+		i++
+		if *m.Role {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i++
+	}
+	if m.Membership != nil {
+		dAtA[i] = 0x60
+		i++
+		if *m.Membership {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i++
+	}
+	if m.Kind != nil {
+		dAtA[i] = 0x68
+		i++
+		if *m.Kind {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i++
+	}
+	if m.XXX_unrecognized != nil {
+		i += copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	return i, nil
+}
+
 func (m *StoreObject) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -103,6 +284,18 @@ func (m *StoreObject) MarshalTo(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if m.WatchSelectors == nil {
+		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("watch_selectors")
+	} else {
+		dAtA[i] = 0xa
+		i++
+		i = encodeVarintPlugin(dAtA, i, uint64(m.WatchSelectors.Size()))
+		n1, err := m.WatchSelectors.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n1
+	}
 	if m.XXX_unrecognized != nil {
 		i += copy(dAtA[i:], m.XXX_unrecognized)
 	}
@@ -182,9 +375,61 @@ func encodeVarintPlugin(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return offset + 1
 }
+func (m *WatchSelectors) Size() (n int) {
+	var l int
+	_ = l
+	if m.ID != nil {
+		n += 2
+	}
+	if m.IDPrefix != nil {
+		n += 2
+	}
+	if m.Name != nil {
+		n += 2
+	}
+	if m.NamePrefix != nil {
+		n += 2
+	}
+	if m.Custom != nil {
+		n += 2
+	}
+	if m.CustomPrefix != nil {
+		n += 2
+	}
+	if m.ServiceID != nil {
+		n += 2
+	}
+	if m.NodeID != nil {
+		n += 2
+	}
+	if m.Slot != nil {
+		n += 2
+	}
+	if m.DesiredState != nil {
+		n += 2
+	}
+	if m.Role != nil {
+		n += 2
+	}
+	if m.Membership != nil {
+		n += 2
+	}
+	if m.Kind != nil {
+		n += 2
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
 func (m *StoreObject) Size() (n int) {
 	var l int
 	_ = l
+	if m.WatchSelectors != nil {
+		l = m.WatchSelectors.Size()
+		n += 1 + l + sovPlugin(uint64(l))
+	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
 	}
@@ -222,11 +467,35 @@ func sovPlugin(x uint64) (n int) {
 func sozPlugin(x uint64) (n int) {
 	return sovPlugin(uint64((x << 1) ^ uint64((int64(x) >> 63))))
 }
+func (this *WatchSelectors) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&WatchSelectors{`,
+		`ID:` + valueToStringPlugin(this.ID) + `,`,
+		`IDPrefix:` + valueToStringPlugin(this.IDPrefix) + `,`,
+		`Name:` + valueToStringPlugin(this.Name) + `,`,
+		`NamePrefix:` + valueToStringPlugin(this.NamePrefix) + `,`,
+		`Custom:` + valueToStringPlugin(this.Custom) + `,`,
+		`CustomPrefix:` + valueToStringPlugin(this.CustomPrefix) + `,`,
+		`ServiceID:` + valueToStringPlugin(this.ServiceID) + `,`,
+		`NodeID:` + valueToStringPlugin(this.NodeID) + `,`,
+		`Slot:` + valueToStringPlugin(this.Slot) + `,`,
+		`DesiredState:` + valueToStringPlugin(this.DesiredState) + `,`,
+		`Role:` + valueToStringPlugin(this.Role) + `,`,
+		`Membership:` + valueToStringPlugin(this.Membership) + `,`,
+		`Kind:` + valueToStringPlugin(this.Kind) + `,`,
+		`XXX_unrecognized:` + fmt.Sprintf("%v", this.XXX_unrecognized) + `,`,
+		`}`,
+	}, "")
+	return s
+}
 func (this *StoreObject) String() string {
 	if this == nil {
 		return "nil"
 	}
 	s := strings.Join([]string{`&StoreObject{`,
+		`WatchSelectors:` + strings.Replace(fmt.Sprintf("%v", this.WatchSelectors), "WatchSelectors", "WatchSelectors", 1) + `,`,
 		`XXX_unrecognized:` + fmt.Sprintf("%v", this.XXX_unrecognized) + `,`,
 		`}`,
 	}, "")
@@ -252,7 +521,332 @@ func valueToStringPlugin(v interface{}) string {
 	pv := reflect.Indirect(rv).Interface()
 	return fmt.Sprintf("*%v", pv)
 }
+func (m *WatchSelectors) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowPlugin
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: WatchSelectors: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: WatchSelectors: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ID", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowPlugin
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			b := bool(v != 0)
+			m.ID = &b
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field IDPrefix", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowPlugin
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			b := bool(v != 0)
+			m.IDPrefix = &b
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Name", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowPlugin
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			b := bool(v != 0)
+			m.Name = &b
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field NamePrefix", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowPlugin
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			b := bool(v != 0)
+			m.NamePrefix = &b
+		case 5:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Custom", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowPlugin
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			b := bool(v != 0)
+			m.Custom = &b
+		case 6:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field CustomPrefix", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowPlugin
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			b := bool(v != 0)
+			m.CustomPrefix = &b
+		case 7:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ServiceID", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowPlugin
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			b := bool(v != 0)
+			m.ServiceID = &b
+		case 8:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field NodeID", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowPlugin
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			b := bool(v != 0)
+			m.NodeID = &b
+		case 9:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Slot", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowPlugin
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			b := bool(v != 0)
+			m.Slot = &b
+		case 10:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field DesiredState", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowPlugin
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			b := bool(v != 0)
+			m.DesiredState = &b
+		case 11:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Role", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowPlugin
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			b := bool(v != 0)
+			m.Role = &b
+		case 12:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Membership", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowPlugin
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			b := bool(v != 0)
+			m.Membership = &b
+		case 13:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Kind", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowPlugin
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			b := bool(v != 0)
+			m.Kind = &b
+		default:
+			iNdEx = preIndex
+			skippy, err := skipPlugin(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthPlugin
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
 func (m *StoreObject) Unmarshal(dAtA []byte) error {
+	var hasFields [1]uint64
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -281,6 +875,40 @@ func (m *StoreObject) Unmarshal(dAtA []byte) error {
 			return fmt.Errorf("proto: StoreObject: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field WatchSelectors", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowPlugin
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthPlugin
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.WatchSelectors == nil {
+				m.WatchSelectors = &WatchSelectors{}
+			}
+			if err := m.WatchSelectors.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+			hasFields[0] |= uint64(0x00000001)
 		default:
 			iNdEx = preIndex
 			skippy, err := skipPlugin(dAtA[iNdEx:])
@@ -296,6 +924,9 @@ func (m *StoreObject) Unmarshal(dAtA []byte) error {
 			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
 			iNdEx += skippy
 		}
+	}
+	if hasFields[0]&uint64(0x00000001) == 0 {
+		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("watch_selectors")
 	}
 
 	if iNdEx > l {
@@ -512,24 +1143,40 @@ var (
 func init() { proto.RegisterFile("plugin.proto", fileDescriptorPlugin) }
 
 var fileDescriptorPlugin = []byte{
-	// 296 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0xe2, 0xe2, 0x29, 0xc8, 0x29, 0x4d,
-	0xcf, 0xcc, 0xd3, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x12, 0x4b, 0xc9, 0x4f, 0xce, 0x4e, 0x2d,
-	0x82, 0xf0, 0x92, 0x4a, 0xd3, 0xf4, 0x20, 0xb2, 0x52, 0x0a, 0xe9, 0xf9, 0xf9, 0xe9, 0x39, 0xa9,
-	0xfa, 0x30, 0x71, 0xfd, 0x94, 0xd4, 0xe2, 0xe4, 0xa2, 0xcc, 0x82, 0x92, 0x7c, 0xa8, 0x5a, 0x25,
-	0x5e, 0x2e, 0xee, 0xe0, 0x92, 0xfc, 0xa2, 0x54, 0xff, 0xa4, 0xac, 0xd4, 0xe4, 0x12, 0x25, 0x17,
-	0x2e, 0x81, 0x10, 0x9f, 0x60, 0xc7, 0xd2, 0x92, 0x8c, 0xfc, 0xa2, 0xcc, 0xaa, 0xc4, 0x92, 0xcc,
-	0xfc, 0x3c, 0x21, 0x11, 0x2e, 0xd6, 0xa2, 0xfc, 0x9c, 0xd4, 0x62, 0x09, 0x46, 0x05, 0x66, 0x0d,
-	0xce, 0x20, 0x08, 0x47, 0x48, 0x8a, 0x8b, 0x23, 0x33, 0xaf, 0x38, 0x35, 0xb9, 0xb4, 0x28, 0x55,
-	0x82, 0x49, 0x81, 0x51, 0x83, 0x23, 0x08, 0xce, 0xb7, 0x72, 0xe6, 0xe2, 0x48, 0x49, 0x4d, 0x2d,
-	0x48, 0xce, 0x2f, 0xa8, 0x14, 0x92, 0xd7, 0x83, 0xb8, 0x01, 0xe1, 0x36, 0xdf, 0xd4, 0xe2, 0xe2,
-	0xc4, 0xf4, 0x54, 0xff, 0x02, 0x90, 0xe9, 0xc5, 0x12, 0x1f, 0x16, 0xb1, 0x80, 0xb4, 0x5b, 0xb1,
-	0x94, 0x14, 0x95, 0xa6, 0x06, 0xc1, 0x35, 0x5a, 0x65, 0x72, 0xf1, 0x14, 0x83, 0x5c, 0x16, 0x9f,
-	0x0f, 0x76, 0x1a, 0x61, 0x83, 0x3e, 0x82, 0x0d, 0xe2, 0x36, 0x52, 0xd6, 0xc3, 0x1e, 0x1a, 0x7a,
-	0x48, 0x1e, 0x0d, 0xe2, 0x2e, 0x46, 0x70, 0xac, 0x2a, 0xb8, 0x04, 0x4b, 0x72, 0x8a, 0xe3, 0x13,
-	0x51, 0xbc, 0x2d, 0x87, 0xc5, 0xbe, 0x92, 0x8c, 0xfc, 0x14, 0x98, 0x75, 0x2f, 0x9f, 0xf6, 0x2a,
-	0x83, 0xed, 0xd3, 0xc0, 0x65, 0x1f, 0x7a, 0x48, 0x06, 0x09, 0x94, 0xe4, 0x14, 0xa3, 0x88, 0x38,
-	0x49, 0x9c, 0x78, 0x28, 0xc7, 0x70, 0xe3, 0xa1, 0x1c, 0x43, 0xc3, 0x23, 0x39, 0xc6, 0x13, 0x8f,
-	0xe4, 0x18, 0x2f, 0x3c, 0x92, 0x63, 0x7c, 0xf0, 0x48, 0x8e, 0x11, 0x10, 0x00, 0x00, 0xff, 0xff,
-	0xc2, 0x49, 0xd6, 0x3b, 0xe1, 0x01, 0x00, 0x00,
+	// 551 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0x84, 0x52, 0xc1, 0x6e, 0xd3, 0x40,
+	0x10, 0xad, 0xd3, 0x36, 0x4d, 0xc6, 0x69, 0x29, 0x2b, 0x54, 0xad, 0x7a, 0xb0, 0xab, 0x46, 0x42,
+	0x41, 0x42, 0xa9, 0xd4, 0x63, 0x6e, 0x94, 0x5c, 0x22, 0x01, 0x45, 0x0e, 0x12, 0x37, 0x2c, 0xd7,
+	0x3b, 0x4d, 0x96, 0x3a, 0x5e, 0x6b, 0x77, 0x4d, 0x0b, 0x27, 0x7e, 0x80, 0x0f, 0xe0, 0xca, 0xd7,
+	0xf4, 0xc8, 0x91, 0x53, 0x44, 0x2d, 0x71, 0xe0, 0x06, 0x7f, 0x80, 0x76, 0xd7, 0x69, 0x09, 0x6a,
+	0xc5, 0xc9, 0x33, 0x6f, 0xe6, 0xcd, 0xcc, 0xdb, 0x67, 0xe8, 0x14, 0x59, 0x39, 0xe1, 0x79, 0xbf,
+	0x90, 0x42, 0x0b, 0xb2, 0xc3, 0x44, 0x7a, 0x86, 0xd2, 0x65, 0x27, 0xe5, 0x69, 0xdf, 0x55, 0x77,
+	0xf7, 0x26, 0x42, 0x4c, 0x32, 0x3c, 0x58, 0xe0, 0x07, 0x0c, 0x55, 0x2a, 0x79, 0xa1, 0x45, 0xdd,
+	0xbb, 0xff, 0x79, 0x15, 0xb6, 0x5e, 0x27, 0x3a, 0x9d, 0x8e, 0x31, 0xc3, 0x54, 0x0b, 0xa9, 0xc8,
+	0x0e, 0x34, 0x38, 0xa3, 0xde, 0x9e, 0xd7, 0x6b, 0x1d, 0x35, 0xab, 0x79, 0xd8, 0x18, 0x0d, 0xa3,
+	0x06, 0x67, 0xe4, 0x11, 0xb4, 0x39, 0x8b, 0x0b, 0x89, 0xa7, 0xfc, 0x82, 0x36, 0x6c, 0xb9, 0x53,
+	0xcd, 0xc3, 0xd6, 0x68, 0xf8, 0xd2, 0x62, 0x51, 0x8b, 0x33, 0x17, 0x11, 0x02, 0x6b, 0x79, 0x32,
+	0x43, 0xba, 0x6a, 0xba, 0x22, 0x1b, 0x93, 0x10, 0x7c, 0xf3, 0x5d, 0x0c, 0x58, 0xb3, 0x25, 0x30,
+	0x50, 0x4d, 0xda, 0x81, 0x66, 0x5a, 0x2a, 0x2d, 0x66, 0x74, 0xdd, 0xd6, 0xea, 0x8c, 0x74, 0x61,
+	0xd3, 0x45, 0x0b, 0x6a, 0xd3, 0x96, 0x3b, 0x0e, 0xac, 0xc9, 0x8f, 0x01, 0x14, 0xca, 0x77, 0x3c,
+	0xc5, 0x98, 0x33, 0xba, 0x61, 0xaf, 0xdb, 0xac, 0xe6, 0x61, 0x7b, 0xec, 0xd0, 0xd1, 0x30, 0x6a,
+	0xd7, 0x0d, 0x23, 0x46, 0xba, 0xb0, 0x91, 0x0b, 0x66, 0x5b, 0x5b, 0xb6, 0x15, 0xaa, 0x79, 0xd8,
+	0x7c, 0x21, 0x98, 0xe9, 0x6b, 0x9a, 0xd2, 0x88, 0x19, 0x11, 0x2a, 0x13, 0x9a, 0xb6, 0x9d, 0x08,
+	0x13, 0x9b, 0x5b, 0x18, 0x2a, 0x2e, 0x91, 0xc5, 0x4a, 0x27, 0x1a, 0x29, 0xb8, 0x5b, 0x6a, 0x70,
+	0x6c, 0x30, 0x43, 0x94, 0x22, 0x43, 0xea, 0x3b, 0xa2, 0x89, 0x49, 0x00, 0x30, 0xc3, 0xd9, 0x09,
+	0x4a, 0x35, 0xe5, 0x05, 0xed, 0x38, 0xf1, 0x37, 0x88, 0xe1, 0x9c, 0xf1, 0x9c, 0xd1, 0x4d, 0xc7,
+	0x31, 0xf1, 0xfe, 0x1b, 0xf0, 0xc7, 0x5a, 0x48, 0x3c, 0x3e, 0x79, 0x8b, 0xa9, 0x26, 0xc7, 0x70,
+	0xef, 0xdc, 0x38, 0x15, 0xab, 0x85, 0x55, 0xd4, 0xdb, 0x6b, 0xf4, 0xfc, 0xc3, 0x87, 0xfd, 0xdb,
+	0xed, 0xef, 0x2f, 0x1b, 0x1b, 0x6d, 0x9d, 0x2f, 0xe5, 0xfb, 0x43, 0xd8, 0x7e, 0xf5, 0x6c, 0xfc,
+	0xa4, 0xd4, 0x53, 0x21, 0xf9, 0x87, 0x44, 0x73, 0x91, 0x93, 0x07, 0xb0, 0x6e, 0xee, 0x35, 0xa3,
+	0x57, 0x7b, 0xed, 0xc8, 0x25, 0x64, 0x17, 0x5a, 0x3c, 0x57, 0x98, 0x96, 0x12, 0x9d, 0xf3, 0xd1,
+	0x75, 0x3e, 0x78, 0x0a, 0x2d, 0x86, 0x58, 0xa4, 0xa2, 0x78, 0x4f, 0xc2, 0xbe, 0xfb, 0xe1, 0x6e,
+	0x2e, 0x79, 0x8e, 0x4a, 0x25, 0x13, 0x3c, 0x2e, 0xcc, 0x74, 0x45, 0x7f, 0x7d, 0xb1, 0xbe, 0x0f,
+	0xd6, 0xb4, 0x2c, 0x31, 0xba, 0x26, 0x0e, 0x38, 0x74, 0x94, 0x91, 0x1a, 0x0b, 0xa7, 0xf5, 0xbf,
+	0x83, 0x7e, 0xdb, 0x41, 0xfe, 0x61, 0xf7, 0x2e, 0xed, 0x7f, 0xbd, 0x5c, 0xe4, 0xab, 0x9b, 0x64,
+	0x70, 0x01, 0xf7, 0x75, 0xa6, 0xe2, 0x64, 0x49, 0x76, 0x70, 0xcb, 0x3e, 0x3d, 0x15, 0x6c, 0xb1,
+	0xee, 0xe7, 0x8f, 0x4f, 0x5d, 0xbb, 0xaf, 0x77, 0xd7, 0xbe, 0x7f, 0x5f, 0x32, 0xda, 0xd6, 0x99,
+	0x5a, 0x42, 0x8e, 0xe8, 0xe5, 0x55, 0xb0, 0xf2, 0xed, 0x2a, 0x58, 0xf9, 0x58, 0x05, 0xde, 0x65,
+	0x15, 0x78, 0x5f, 0xab, 0xc0, 0xfb, 0x5e, 0x05, 0xde, 0x9f, 0x00, 0x00, 0x00, 0xff, 0xff, 0x94,
+	0xd6, 0x21, 0x73, 0xce, 0x03, 0x00, 0x00,
 }

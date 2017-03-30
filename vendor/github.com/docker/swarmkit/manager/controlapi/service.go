@@ -10,6 +10,7 @@ import (
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/swarmkit/api"
+	"github.com/docker/swarmkit/api/defaults"
 	"github.com/docker/swarmkit/api/naming"
 	"github.com/docker/swarmkit/identity"
 	"github.com/docker/swarmkit/manager/allocator"
@@ -523,6 +524,10 @@ func (s *Server) GetService(ctx context.Context, request *api.GetServiceRequest)
 	})
 	if service == nil {
 		return nil, grpc.Errorf(codes.NotFound, "service %s not found", request.ServiceID)
+	}
+
+	if request.InsertDefaults {
+		service.Spec = *defaults.InterpolateService(&service.Spec)
 	}
 
 	return &api.GetServiceResponse{

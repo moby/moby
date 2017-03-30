@@ -9,10 +9,6 @@ import (
 	"github.com/docker/swarmkit/protobuf/ptypes"
 )
 
-// DefaultRestartDelay is the restart delay value to use when none is
-// specified.
-const DefaultRestartDelay = 5 * time.Second
-
 // NewTask creates a new task.
 func NewTask(cluster *api.Cluster, service *api.Service, slot uint64, nodeID string) *api.Task {
 	var logDriver *api.Driver

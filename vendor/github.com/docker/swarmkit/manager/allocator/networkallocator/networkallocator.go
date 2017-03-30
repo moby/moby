@@ -9,6 +9,7 @@ import (
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/drvregistry"
 	"github.com/docker/libnetwork/ipamapi"
+	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
 	"github.com/pkg/errors"
@@ -773,7 +774,7 @@ func (na *NetworkAllocator) allocatePools(n *api.Network) (map[string]string, er
 	}
 
 	for i, ic := range ipamConfigs {
-		poolID, poolIP, _, err := ipam.RequestPool(asName, ic.Subnet, ic.Range, dOptions, false)
+		poolID, poolIP, meta, err := ipam.RequestPool(asName, ic.Subnet, ic.Range, dOptions, false)
 		if err != nil {
 			// Rollback by releasing all the resources allocated so far.
 			releasePools(ipam, ipamConfigs[:i], pools)
@@ -781,11 +782,29 @@ func (na *NetworkAllocator) allocatePools(n *api.Network) (map[string]string, er
 		}
 		pools[poolIP.String()] = poolID
 
-		gwIP, _, err := ipam.RequestAddress(poolID, net.ParseIP(ic.Gateway), nil)
-		if err != nil {
-			// Rollback by releasing all the resources allocated so far.
-			releasePools(ipam, ipamConfigs[:i], pools)
-			return nil, err
+		// The IPAM contract allows the IPAM driver to autonomously
+		// provide a network gateway in response to the pool request.
+		// But if the network spec contains a gateway, we will allocate
+		// it irrespective of whether the ipam driver returned one already.
+		// If none of the above is true, we need to allocate one now, and
+		// let the driver know this request is for the network gateway.
+		var (
+			gwIP *net.IPNet
+			ip   net.IP
+		)
+		if gws, ok := meta[netlabel.Gateway]; ok {
+			if ip, gwIP, err = net.ParseCIDR(gws); err != nil {
+				return nil, fmt.Errorf("failed to parse gateway address (%v) returned by ipam driver: %v", gws, err)
+			}
+			gwIP.IP = ip
+		}
+		if ic.Gateway != "" || gwIP == nil {
+			gwIP, _, err = ipam.RequestAddress(poolID, net.ParseIP(ic.Gateway), map[string]string{ipamapi.RequestAddressType: netlabel.Gateway})
+			if err != nil {
+				// Rollback by releasing all the resources allocated so far.
+				releasePools(ipam, ipamConfigs[:i], pools)
+				return nil, err
+			}
 		}
 
 		if ic.Subnet == "" {

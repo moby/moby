@@ -103,7 +103,6 @@ func (s *Server) UpdateCluster(ctx context.Context, request *api.UpdateClusterRe
 		cluster = store.GetCluster(tx, request.ClusterID)
 		if cluster == nil {
 			return grpc.Errorf(codes.NotFound, "cluster %s not found", request.ClusterID)
-
 		}
 		// This ensures that we always have the latest security config, so our ca.SecurityConfig.RootCA and
 		// ca.SecurityConfig.externalCA objects are up-to-date with the current api.Cluster.RootCA and
@@ -128,6 +127,12 @@ func (s *Server) UpdateCluster(ctx context.Context, request *api.UpdateClusterRe
 		if request.Rotation.ManagerJoinToken {
 			cluster.RootCA.JoinTokens.Manager = ca.GenerateJoinToken(rootCA)
 		}
+
+		updatedRootCA, err := validateCAConfig(ctx, s.securityConfig, cluster)
+		if err != nil {
+			return err
+		}
+		cluster.RootCA = *updatedRootCA
 
 		var unlockKeys []*api.EncryptionKey
 		var managerKey *api.EncryptionKey
@@ -239,19 +244,22 @@ func redactClusters(clusters []*api.Cluster) []*api.Cluster {
 	// Only add public fields to the new clusters
 	for _, cluster := range clusters {
 		// Copy all the mandatory fields
-		// Do not copy secret key
+		// Do not copy secret keys
+		redactedSpec := cluster.Spec.Copy()
+		redactedSpec.CAConfig.SigningCAKey = nil
+
+		redactedRootCA := cluster.RootCA.Copy()
+		redactedRootCA.CAKey = nil
+		if r := redactedRootCA.RootRotation; r != nil {
+			r.CAKey = nil
+		}
 		newCluster := &api.Cluster{
-			ID:   cluster.ID,
-			Meta: cluster.Meta,
-			Spec: cluster.Spec,
-			RootCA: api.RootCA{
-				CACert:     cluster.RootCA.CACert,
-				CACertHash: cluster.RootCA.CACertHash,
-				JoinTokens: cluster.RootCA.JoinTokens,
-			},
+			ID:                      cluster.ID,
+			Meta:                    cluster.Meta,
+			Spec:                    *redactedSpec,
+			RootCA:                  *redactedRootCA,
 			BlacklistedCertificates: cluster.BlacklistedCertificates,
 		}
-
 		redactedClusters = append(redactedClusters, newCluster)
 	}
 

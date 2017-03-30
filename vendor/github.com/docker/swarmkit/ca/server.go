@@ -12,7 +12,6 @@ import (
 	"github.com/docker/swarmkit/api/equality"
 	"github.com/docker/swarmkit/identity"
 	"github.com/docker/swarmkit/log"
-	"github.com/docker/swarmkit/manager/state"
 	"github.com/docker/swarmkit/manager/state/store"
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/pkg/errors"
@@ -129,7 +128,7 @@ func (s *Server) NodeCertificateStatus(ctx context.Context, request *api.NodeCer
 
 	event := api.EventUpdateNode{
 		Node:   &api.Node{ID: request.NodeID},
-		Checks: []api.NodeCheckFunc{state.NodeCheckID},
+		Checks: []api.NodeCheckFunc{api.NodeCheckID},
 	}
 
 	// Retrieve the current value of the certificate with this token, and create a watcher
@@ -542,7 +541,6 @@ func (s *Server) UpdateRootCA(ctx context.Context, cluster *api.Cluster) error {
 
 	s.secConfigMu.Lock()
 	defer s.secConfigMu.Unlock()
-	var err error
 	rCA := cluster.RootCA
 	rootCAChanged := len(rCA.CACert) != 0 && !equality.RootCAEqualStable(s.lastSeenClusterRootCA, &cluster.RootCA)
 	externalCAChanged := !equality.ExternalCAsEqualStable(s.lastSeenExternalCAs, cluster.Spec.CAConfig.ExternalCAs)
@@ -565,7 +563,7 @@ func (s *Server) UpdateRootCA(ctx context.Context, cluster *api.Cluster) error {
 			}
 		} else {
 			// NodeCertExpiry seems to be nil
-			logger.WithError(err).Warn("failed to parse certificate expiration, using default")
+			logger.Warn("no certificate expiration specified, using default")
 		}
 		// Attempt to update our local RootCA with the new parameters
 		var intermediates []byte
