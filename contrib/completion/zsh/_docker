@@ -2729,6 +2729,8 @@ __docker_subcommand() {
                         __docker_complete_nodes && ret=0
                     elif [[ ${words[(r)--type=plugin]} == --type=plugin ]]; then
                         __docker_complete_plugins && ret=0
+                    elif [[ ${words[(r)--type=service]} == --type=secrets ]]; then
+                        __docker_complete_secrets && ret=0
                     elif [[ ${words[(r)--type=service]} == --type=service ]]; then
                         __docker_complete_services && ret=0
                     elif [[ ${words[(r)--type=volume]} == --type=volume ]]; then
@@ -2739,6 +2741,7 @@ __docker_subcommand() {
                         __docker_complete_networks
                         __docker_complete_nodes
                         __docker_complete_plugins
+                        __docker_complete_secrets
                         __docker_complete_services
                         __docker_complete_volumes && ret=0
                     fi

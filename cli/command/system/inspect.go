@@ -4,14 +4,13 @@ import (
 	"fmt"
 	"strings"
 
-	"golang.org/x/net/context"
-
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/command/inspect"
 	apiclient "github.com/docker/docker/client"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 type inspectOptions struct {
@@ -46,7 +45,7 @@ func NewInspectCommand(dockerCli *command.DockerCli) *cobra.Command {
 func runInspect(dockerCli *command.DockerCli, opts inspectOptions) error {
 	var elementSearcher inspect.GetRefFunc
 	switch opts.inspectType {
-	case "", "container", "image", "node", "network", "service", "volume", "task", "plugin":
+	case "", "container", "image", "node", "network", "service", "volume", "task", "plugin", "secret":
 		elementSearcher = inspectAll(context.Background(), dockerCli, opts.size, opts.inspectType)
 	default:
 		return errors.Errorf("%q is not a valid value for --type", opts.inspectType)
@@ -102,6 +101,12 @@ func inspectPlugin(ctx context.Context, dockerCli *command.DockerCli) inspect.Ge
 	}
 }
 
+func inspectSecret(ctx context.Context, dockerCli *command.DockerCli) inspect.GetRefFunc {
+	return func(ref string) (interface{}, []byte, error) {
+		return dockerCli.Client().SecretInspectWithRaw(ctx, ref)
+	}
+}
+
 func inspectAll(ctx context.Context, dockerCli *command.DockerCli, getSize bool, typeConstraint string) inspect.GetRefFunc {
 	var inspectAutodetect = []struct {
 		objectType      string
@@ -144,6 +149,11 @@ func inspectAll(ctx context.Context, dockerCli *command.DockerCli, getSize bool,
 		{
 			objectType:      "plugin",
 			objectInspector: inspectPlugin(ctx, dockerCli),
+		},
+		{
+			objectType:      "secret",
+			isSwarmObject:   true,
+			objectInspector: inspectSecret(ctx, dockerCli),
 		},
 	}
 
