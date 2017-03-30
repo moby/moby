@@ -3850,9 +3850,15 @@ _docker_secret_list() {
 }
 
 _docker_secret_ls() {
+	case "$prev" in
+		--format)
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help --quiet -q" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--format --help --quiet -q" -- "$cur" ) )
 			;;
 	esac
 }
