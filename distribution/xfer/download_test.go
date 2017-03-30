@@ -145,6 +145,10 @@ func (ls *mockLayerStore) Cleanup() error {
 	return nil
 }
 
+func (ls *mockLayerStore) DriverPut(id string) error {
+	return nil
+}
+
 func (ls *mockLayerStore) DriverStatus() [][2]string {
 	return [][2]string{}
 }

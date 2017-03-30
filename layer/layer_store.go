@@ -665,6 +665,10 @@ func (ls *layerStore) Cleanup() error {
 	return ls.driver.Cleanup()
 }
 
+func (ls *layerStore) DriverPut(id string) error {
+	return ls.driver.Put(id)
+}
+
 func (ls *layerStore) DriverStatus() [][2]string {
 	return ls.driver.Status()
 }

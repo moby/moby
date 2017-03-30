@@ -270,6 +270,13 @@ func (daemon *Daemon) restore() error {
 		}(c)
 	}
 	wg.Wait()
+
+	err = daemon.removeRedundantMounts(containers)
+	if err != nil {
+		// just print error info
+		logrus.Errorf("removeRedundantMounts failed %v", err)
+	}
+
 	daemon.netController, err = daemon.initNetworkController(daemon.configStore, activeSandboxes)
 	if err != nil {
 		return fmt.Errorf("Error initializing network controller: %v", err)

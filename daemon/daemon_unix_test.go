@@ -311,3 +311,33 @@ func TestMigratePre17Volumes(t *testing.T) {
 		}
 	}
 }
+
+func TestGetContainerMountId(t *testing.T) {
+	id := "56e143922c405419a38b23bfbccc92284f35525e3f2ad7011ea904501ccd1219"
+
+	id1 := getContainerMountId("/var/lib/docker/aufs/mnt/" + id)
+	if id1 != id {
+		t.Fatalf("Expected container mount id [%s], but got [%s]", id, id1)
+	}
+
+	id1 = getContainerMountId("/var/lib/docker/devicemapper/mnt/" + id)
+	if id1 != id {
+		t.Fatalf("Expected container mount id [%s], but got [%s]", id, id1)
+	}
+
+	id1 = getContainerMountId("/var/lib/docker/overlay/" + id + "/merged")
+	if id1 != id {
+		t.Fatalf("Expected container mount id [%s], but got [%s]", id, id1)
+	}
+
+	id1 = getContainerMountId("/var/lib/docker/zfs/graph/" + id)
+	if id1 != id {
+		t.Fatalf("Expected container mount id [%s], but got [%s]", id, id1)
+	}
+
+	id1 = getContainerMountId("/var/lib/docker/devicemapper_err/mnt" + id)
+
+	if id1 != "" {
+		t.Fatalf("Expected a empty container mount id, but got [%s]", id1)
+	}
+}

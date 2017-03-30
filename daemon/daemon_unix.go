@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"runtime/debug"
 	"strconv"
@@ -1305,6 +1306,77 @@ func (daemon *Daemon) setupSeccompProfile() error {
 			return fmt.Errorf("opening seccomp profile (%s) failed: %v", daemon.configStore.SeccompProfile, err)
 		}
 		daemon.seccompProfile = b
+	}
+	return nil
+}
+
+func getIdPatterns(id string) (regexps []*regexp.Regexp) {
+	var patterns []string
+	if id == "" {
+		id = "(?P<id>[0-9a-f]{64})"
+	}
+	patterns = append(patterns, "aufs/mnt/"+id+"$", "overlay/"+id+"/merged$", "zfs/graph/"+id+"$", "devicemapper/mnt/"+id+"$")
+	for _, p := range patterns {
+		r, err := regexp.Compile(p)
+		if err == nil {
+			regexps = append(regexps, r)
+		}
+	}
+	return
+}
+
+func getContainerMountId(path string) string {
+	regs := getIdPatterns("")
+	for _, reg := range regs {
+		ret := reg.FindStringSubmatch(path)
+		if len(ret) == 2 {
+			return ret[1]
+		}
+	}
+	return ""
+}
+
+func (daemon *Daemon) removeRedundantMounts(containers map[string]*container.Container) error {
+	f, err := os.Open("/proc/self/mountinfo")
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	activeContainers := map[string]string{}
+	for _, c := range containers {
+		if c.IsRunning() {
+			if mountid, err := daemon.layerStore.GetMountID(c.ID); err == nil {
+				activeContainers[mountid] = c.ID
+			}
+		}
+	}
+	root := filepath.Join(daemon.root, daemon.layerStore.DriverName())
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		text := scanner.Text()
+		fields := strings.Split(text, " ")
+		if len(fields) < 5 {
+			return fmt.Errorf("%s", "/proc/self/mountinfo format err")
+		}
+		path := fields[4]
+		if !strings.HasPrefix(path, root) || path == root {
+			continue
+		}
+		id := getContainerMountId(path)
+		if id == "" {
+			continue
+		}
+
+		if _, ok := activeContainers[id]; !ok {
+			logrus.Debugf("Umount legacy mountpoint [%s] [%s]", path, id)
+			if err := daemon.layerStore.DriverPut(id); err != nil {
+				logrus.Errorf("Umount legacy mountpoint [%v]", err)
+			}
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return err
 	}
 	return nil
 }
