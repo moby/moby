@@ -4,73 +4,42 @@ import (
 	"archive/tar"
 	"bytes"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/moby/src/initrd"
 )
 
-func untarKernel(buf *bytes.Buffer, bzimageName, ktarName string) (*bytes.Buffer, *bytes.Buffer, error) {
-	tr := tar.NewReader(buf)
-
-	var bzimage, ktar *bytes.Buffer
-
-	for {
-		hdr, err := tr.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			log.Fatalln(err)
-		}
-		switch hdr.Name {
-		case bzimageName:
-			bzimage = new(bytes.Buffer)
-			_, err := io.Copy(bzimage, tr)
-			if err != nil {
-				return nil, nil, err
-			}
-		case ktarName:
-			ktar = new(bytes.Buffer)
-			_, err := io.Copy(bzimage, tr)
-			if err != nil {
-				return nil, nil, err
-			}
-		default:
-			continue
-		}
+// Process the build arguments and execute build
+func build(args []string) {
+	buildCmd := flag.NewFlagSet("build", flag.ExitOnError)
+	buildCmd.Usage = func() {
+		fmt.Printf("USAGE: %s build [options] [file.yml]\n\n", os.Args[0])
+		fmt.Printf("'file.yml' defaults to 'moby.yml' if not specified.\n\n")
+		fmt.Printf("Options:\n")
+		buildCmd.PrintDefaults()
 	}
+	buildName := buildCmd.String("name", "", "Name to use for output files")
+	buildPull := buildCmd.Bool("pull", false, "Always pull images")
 
-	if ktar == nil || bzimage == nil {
-		return nil, nil, errors.New("did not find bzImage and kernel.tar in tarball")
-	}
+	buildCmd.Parse(args)
+	remArgs := buildCmd.Args()
 
-	return bzimage, ktar, nil
-}
-
-func containersInitrd(containers []*bytes.Buffer) (*bytes.Buffer, error) {
-	w := new(bytes.Buffer)
-	iw := initrd.NewWriter(w)
-	defer iw.Close()
-	for _, file := range containers {
-		_, err := initrd.Copy(iw, file)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return w, nil
-}
-
-func build(name string, pull bool, args []string) {
 	conf := "moby.yml"
-	if len(args) > 0 {
-		conf = args[0]
+	if len(remArgs) > 0 {
+		conf = remArgs[0]
 	}
 
+	buildInternal(*buildName, *buildPull, conf)
+}
+
+// Perform the actual build process
+func buildInternal(name string, pull bool, conf string) {
 	if name == "" {
 		name = filepath.Base(conf)
 		ext := filepath.Ext(conf)
@@ -197,4 +166,56 @@ func build(name string, pull bool, args []string) {
 	if err != nil {
 		log.Fatalf("Error writing outputs: %v", err)
 	}
+}
+
+func untarKernel(buf *bytes.Buffer, bzimageName, ktarName string) (*bytes.Buffer, *bytes.Buffer, error) {
+	tr := tar.NewReader(buf)
+
+	var bzimage, ktar *bytes.Buffer
+
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Fatalln(err)
+		}
+		switch hdr.Name {
+		case bzimageName:
+			bzimage = new(bytes.Buffer)
+			_, err := io.Copy(bzimage, tr)
+			if err != nil {
+				return nil, nil, err
+			}
+		case ktarName:
+			ktar = new(bytes.Buffer)
+			_, err := io.Copy(bzimage, tr)
+			if err != nil {
+				return nil, nil, err
+			}
+		default:
+			continue
+		}
+	}
+
+	if ktar == nil || bzimage == nil {
+		return nil, nil, errors.New("did not find bzImage and kernel.tar in tarball")
+	}
+
+	return bzimage, ktar, nil
+}
+
+func containersInitrd(containers []*bytes.Buffer) (*bytes.Buffer, error) {
+	w := new(bytes.Buffer)
+	iw := initrd.NewWriter(w)
+	defer iw.Close()
+	for _, file := range containers {
+		_, err := initrd.Copy(iw, file)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return w, nil
 }

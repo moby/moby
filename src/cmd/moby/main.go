@@ -40,16 +40,6 @@ func main() {
 	flagQuiet := flag.Bool("q", false, "Quiet execution")
 	flagVerbose := flag.Bool("v", false, "Verbose execution")
 
-	buildCmd := flag.NewFlagSet("build", flag.ExitOnError)
-	buildCmd.Usage = func() {
-		fmt.Printf("USAGE: %s build [options] [file.yml]\n\n", os.Args[0])
-		fmt.Printf("'file.yml' defaults to 'moby.yml' if not specified.\n\n")
-		fmt.Printf("Options:\n")
-		buildCmd.PrintDefaults()
-	}
-	buildName := buildCmd.String("name", "", "Name to use for output files")
-	buildPull := buildCmd.Bool("pull", false, "Always pull images")
-
 	runCmd := flag.NewFlagSet("run", flag.ExitOnError)
 	runCmd.Usage = func() {
 		fmt.Printf("USAGE: %s run [options] [prefix]\n\n", os.Args[0])
@@ -93,8 +83,7 @@ func main() {
 
 	switch args[0] {
 	case "build":
-		buildCmd.Parse(args[1:])
-		build(*buildName, *buildPull, buildCmd.Args())
+		build(args[1:])
 	case "run":
 		runCmd.Parse(args[1:])
 		run(*runCPUs, *runMem, *runDiskSz, *runDisk, runCmd.Args())
