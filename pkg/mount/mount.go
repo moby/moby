@@ -46,10 +46,7 @@ func Mount(device, target, mType, options string) error {
 // flags.go for supported option flags.
 func ForceMount(device, target, mType, options string) error {
 	flag, data := parseOptions(options)
-	if err := mount(device, target, mType, uintptr(flag), data); err != nil {
-		return err
-	}
-	return nil
+	return mount(device, target, mType, uintptr(flag), data)
 }
 
 // Unmount will unmount the target filesystem, so long as it is mounted.

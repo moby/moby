@@ -14,7 +14,7 @@ func TestOutputOnPrematureClose(t *testing.T) {
 
 	pr := NewProgressReader(reader, ChanOutput(progressChan), int64(len(content)), "Test", "Read")
 
-	part := make([]byte, 4, 4)
+	part := make([]byte, 4)
 	_, err := io.ReadFull(pr, part)
 	if err != nil {
 		pr.Close()
