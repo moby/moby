@@ -100,9 +100,7 @@ func (r *Registrar) GetNames(key string) ([]string, error) {
 	}
 
 	ls := make([]string, 0, len(names))
-	for _, n := range names {
-		ls = append(ls, n)
-	}
+	ls = append(ls, names...)
 	return ls, nil
 }
 

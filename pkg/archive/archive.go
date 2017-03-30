@@ -145,7 +145,7 @@ func DetectCompression(source []byte) Compression {
 			logrus.Debug("Len too short")
 			continue
 		}
-		if bytes.Compare(m, source[:len(m)]) == 0 {
+		if bytes.Equal(m, source[:len(m)]) {
 			return compression
 		}
 	}

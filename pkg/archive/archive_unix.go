@@ -107,10 +107,7 @@ func handleTarTypeBlockCharFifo(hdr *tar.Header, path string) error {
 		mode |= syscall.S_IFIFO
 	}
 
-	if err := system.Mknod(path, mode, int(system.Mkdev(hdr.Devmajor, hdr.Devminor))); err != nil {
-		return err
-	}
-	return nil
+	return system.Mknod(path, mode, int(system.Mkdev(hdr.Devmajor, hdr.Devminor)))
 }
 
 func handleLChmod(hdr *tar.Header, path string, hdrInfo os.FileInfo) error {
