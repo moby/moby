@@ -6,6 +6,8 @@ import "types.proto";
 import "specs.proto";
 import "google/protobuf/timestamp.proto";
 import "gogoproto/gogo.proto";
+import "google/protobuf/any.proto";
+import "plugin/plugin.proto";
 
 // This file contains definitions for all first-class objects in the cluster
 // API. Such types typically have a corresponding specification, with the
@@ -24,6 +26,8 @@ message Meta {
 
 // Node provides the internal node state as seen by the cluster.
 message Node {
+	option (docker.protobuf.plugin.store_object) = { };
+
 	// ID specifies the identity of the node.
 	string id = 1;
 
@@ -63,15 +67,25 @@ message Node {
 }
 
 message Service {
+	option (docker.protobuf.plugin.store_object) = { };
+
 	string id = 1;
 
 	Meta meta = 2 [(gogoproto.nullable) = false];
 
 	ServiceSpec spec = 3 [(gogoproto.nullable) = false];
 
+	// SpecVersion versions Spec, to identify changes in the spec. Note that
+	// this is not directly comparable to the service's Version.
+	Version spec_version = 10;
+
 	// PreviousSpec is the previous service spec that was in place before
 	// "Spec".
 	ServiceSpec previous_spec = 6;
+
+	// PreviousSpecVersion versions PreviousSpec. Note that this is not
+	// directly comparable to the service's Version.
+	Version previous_spec_version = 11;
 
 	// Runtime state of service endpoint. This may be different
 	// from the spec version because the user may not have entered
@@ -123,6 +137,8 @@ message Endpoint {
 // immutable and idempotent. Once it is dispatched to a node, it will not be
 // dispatched to another node.
 message Task {
+	option (docker.protobuf.plugin.store_object) = { };
+
 	string id = 1;
 
 	Meta meta = 2 [(gogoproto.nullable) = false];
@@ -130,6 +146,11 @@ message Task {
 	// Spec defines the desired state of the task as specified by the user.
 	// The system will honor this and will *never* modify it.
 	TaskSpec spec = 3 [(gogoproto.nullable) = false];
+
+	// SpecVersion is copied from Service, to identify which version of the
+	// spec this task has. Note that this is not directly comparable to the
+	// service's Version.
+	Version spec_version = 14;
 
 	// ServiceID indicates the service under which this task is orchestrated. This
 	// should almost always be set.
@@ -204,6 +225,8 @@ message NetworkAttachment {
 }
 
 message Network {
+	option (docker.protobuf.plugin.store_object) = { };
+
 	string id = 1;
 
 	Meta meta = 2 [(gogoproto.nullable) = false];
@@ -220,6 +243,8 @@ message Network {
 
 // Cluster provides global cluster settings.
 message Cluster {
+	option (docker.protobuf.plugin.store_object) = { };
+
 	string id = 1;
 
 	Meta meta = 2 [(gogoproto.nullable) = false];
@@ -256,6 +281,8 @@ message Cluster {
 // information that is generated from the secret data in the `spec`, such as
 // the digest and size of the secret data.
 message Secret {
+	option (docker.protobuf.plugin.store_object) = { };
+
 	string id = 1;
 
 	Meta meta = 2 [(gogoproto.nullable) = false];
@@ -266,4 +293,55 @@ message Secret {
 
 	// Whether the secret is an internal secret (not set by a user) or not.
 	bool internal = 4;
+}
+
+// Resource is a top-level object with externally defined content and indexing.
+// SwarmKit can serve as a store for these objects without understanding their
+// meanings.
+message Resource {
+	option (docker.protobuf.plugin.store_object) = { };
+
+	string id = 1 [(gogoproto.customname) = "ID"];
+
+	Meta meta = 2 [(gogoproto.nullable) = false];
+
+	Annotations annotations = 3 [(gogoproto.nullable) = false];
+
+	// Kind identifies this class of object. It is essentially a namespace
+	// to keep IDs or indices from colliding between unrelated Resource
+	// objects. This must correspond to the name of an Extension.
+	string kind = 4;
+
+	// Payload bytes. This data is not interpreted in any way by SwarmKit.
+	// By convention, it should be a marshalled protocol buffers message.
+	google.protobuf.Any payload = 5;
+}
+
+// Extension declares a type of "resource" object. This message provides some
+// metadata about the objects.
+message Extension {
+	option (docker.protobuf.plugin.store_object) = { };
+
+	string id = 1 [(gogoproto.customname) = "ID"];
+
+	Meta meta = 2 [(gogoproto.nullable) = false];
+
+	Annotations annotations = 3 [(gogoproto.nullable) = false];
+
+	string description = 4;
+
+	// TODO(aaronl): Add optional indexing capabilities. It would be
+	// extremely useful be able to automatically introspect protobuf, json,
+	// etc. objects and automatically index them based on a schema and field
+	// paths defined here.
+	//
+	//oneof Schema {
+	//	google.protobuf.Descriptor protobuf = 1;
+	//	bytes json = 2;
+	//}
+	//
+	//Schema schema = 5;
+	//
+	// // Indices, with values expressed as Go templates.
+	//repeated IndexEntry index_templates = 6;
 }

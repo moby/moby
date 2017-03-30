@@ -327,17 +327,17 @@ func (r *Supervisor) DelayStart(ctx context.Context, _ store.Tx, oldTask *api.Ta
 		// node to become unavailable.
 		watch, cancelWatch = state.Watch(
 			r.store.WatchQueue(),
-			state.EventUpdateTask{
+			api.EventUpdateTask{
 				Task:   &api.Task{ID: oldTask.ID, Status: api.TaskStatus{State: api.TaskStateRunning}},
-				Checks: []state.TaskCheckFunc{state.TaskCheckID, state.TaskCheckStateGreaterThan},
+				Checks: []api.TaskCheckFunc{state.TaskCheckID, state.TaskCheckStateGreaterThan},
 			},
-			state.EventUpdateNode{
+			api.EventUpdateNode{
 				Node:   &api.Node{ID: oldTask.NodeID, Status: api.NodeStatus{State: api.NodeStatus_DOWN}},
-				Checks: []state.NodeCheckFunc{state.NodeCheckID, state.NodeCheckState},
+				Checks: []api.NodeCheckFunc{state.NodeCheckID, state.NodeCheckState},
 			},
-			state.EventDeleteNode{
+			api.EventDeleteNode{
 				Node:   &api.Node{ID: oldTask.NodeID},
-				Checks: []state.NodeCheckFunc{state.NodeCheckID},
+				Checks: []api.NodeCheckFunc{state.NodeCheckID},
 			},
 		)
 	}

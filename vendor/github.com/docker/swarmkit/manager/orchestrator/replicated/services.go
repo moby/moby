@@ -7,7 +7,6 @@ import (
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/orchestrator"
-	"github.com/docker/swarmkit/manager/state"
 	"github.com/docker/swarmkit/manager/state/store"
 	"golang.org/x/net/context"
 )
@@ -47,19 +46,19 @@ func (r *Orchestrator) initServices(readTx store.ReadTx) error {
 
 func (r *Orchestrator) handleServiceEvent(ctx context.Context, event events.Event) {
 	switch v := event.(type) {
-	case state.EventDeleteService:
+	case api.EventDeleteService:
 		if !orchestrator.IsReplicatedService(v.Service) {
 			return
 		}
 		orchestrator.DeleteServiceTasks(ctx, r.store, v.Service)
 		r.restarts.ClearServiceHistory(v.Service.ID)
 		delete(r.reconcileServices, v.Service.ID)
-	case state.EventCreateService:
+	case api.EventCreateService:
 		if !orchestrator.IsReplicatedService(v.Service) {
 			return
 		}
 		r.reconcileServices[v.Service.ID] = v.Service
-	case state.EventUpdateService:
+	case api.EventUpdateService:
 		if !orchestrator.IsReplicatedService(v.Service) {
 			return
 		}

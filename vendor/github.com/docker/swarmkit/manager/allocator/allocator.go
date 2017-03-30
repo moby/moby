@@ -5,6 +5,7 @@ import (
 
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/go-events"
+	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/manager/state"
 	"github.com/docker/swarmkit/manager/state/store"
 	"golang.org/x/net/context"
@@ -99,17 +100,17 @@ func (a *Allocator) Run(ctx context.Context) error {
 
 	var actors []func() error
 	watch, watchCancel := state.Watch(a.store.WatchQueue(),
-		state.EventCreateNetwork{},
-		state.EventDeleteNetwork{},
-		state.EventCreateService{},
-		state.EventUpdateService{},
-		state.EventDeleteService{},
-		state.EventCreateTask{},
-		state.EventUpdateTask{},
-		state.EventDeleteTask{},
-		state.EventCreateNode{},
-		state.EventUpdateNode{},
-		state.EventDeleteNode{},
+		api.EventCreateNetwork{},
+		api.EventDeleteNetwork{},
+		api.EventCreateService{},
+		api.EventUpdateService{},
+		api.EventDeleteService{},
+		api.EventCreateTask{},
+		api.EventUpdateTask{},
+		api.EventDeleteTask{},
+		api.EventCreateNode{},
+		api.EventUpdateNode{},
+		api.EventDeleteNode{},
 		state.EventCommit{},
 	)
 

@@ -219,7 +219,7 @@ func (s *Server) removeIngressNetwork(id string) error {
 			return grpc.Errorf(codes.Internal, "could not find services using network %s: %v", id, err)
 		}
 		for _, srv := range services {
-			if doesServiceNeedIngress(srv) {
+			if allocator.IsIngressNetworkNeeded(srv) {
 				return grpc.Errorf(codes.FailedPrecondition, "ingress network cannot be removed because service %s depends on it", srv.ID)
 			}
 		}

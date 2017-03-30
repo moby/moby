@@ -41,7 +41,7 @@ type TaskReaper struct {
 
 // New creates a new TaskReaper.
 func New(store *store.MemoryStore) *TaskReaper {
-	watcher, cancel := state.Watch(store.WatchQueue(), state.EventCreateTask{}, state.EventUpdateTask{}, state.EventUpdateCluster{})
+	watcher, cancel := state.Watch(store.WatchQueue(), api.EventCreateTask{}, api.EventUpdateTask{}, api.EventUpdateCluster{})
 
 	return &TaskReaper{
 		store:       store,
@@ -93,19 +93,19 @@ func (tr *TaskReaper) Run() {
 		select {
 		case event := <-tr.watcher:
 			switch v := event.(type) {
-			case state.EventCreateTask:
+			case api.EventCreateTask:
 				t := v.Task
 				tr.dirty[instanceTuple{
 					instance:  t.Slot,
 					serviceID: t.ServiceID,
 					nodeID:    t.NodeID,
 				}] = struct{}{}
-			case state.EventUpdateTask:
+			case api.EventUpdateTask:
 				t := v.Task
 				if t.Status.State >= api.TaskStateOrphaned && t.ServiceID == "" {
 					tr.orphaned = append(tr.orphaned, t.ID)
 				}
-			case state.EventUpdateCluster:
+			case api.EventUpdateCluster:
 				tr.taskHistory = v.Cluster.Spec.Orchestration.TaskHistoryRetentionLimit
 			}
 

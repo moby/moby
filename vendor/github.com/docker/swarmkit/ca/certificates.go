@@ -111,18 +111,25 @@ type LocalSigner struct {
 	// Key will only be used by the original manager to put the private
 	// key-material in raft, no signing operations depend on it.
 	Key []byte
+
+	// Cert is one PEM encoded Certificate used as the signing CA.  It must correspond to the key.
+	Cert []byte
+
+	// just cached parsed values for validation, etc.
+	parsedCert   *x509.Certificate
+	cryptoSigner crypto.Signer
 }
 
 // RootCA is the representation of everything we need to sign certificates and/or to verify certificates
 //
-// RootCA.Cert:          [signing CA cert][CA cert1][CA cert2]
+// RootCA.Cert:          [CA cert1][CA cert2]
 // RootCA.Intermediates: [intermediate CA1][intermediate CA2][intermediate CA3]
-// RootCA.Signer.Key:    [signing CA key]
+// RootCA.signer.Cert:   [signing CA cert]
+// RootCA.signer.Key:    [signing CA key]
 //
 // Requirements:
 //
-// - [signing CA key] must be the private key for [signing CA cert]
-// - [signing CA cert] must be the first cert in RootCA.Cert
+// - [signing CA key] must be the private key for [signing CA cert], and either both or none must be provided
 //
 // - [intermediate CA1] must have the same public key and subject as [signing CA cert], because otherwise when
 //   appended to a leaf certificate, the intermediates will not form a chain (because [intermediate CA1] won't because
@@ -135,10 +142,29 @@ type LocalSigner struct {
 //   valid chain from [leaf signed by signing CA cert] to one of the root certs ([signing CA cert], [CA cert1], [CA cert2])
 //   using zero or more of the intermediate certs ([intermediate CA1][intermediate CA2][intermediate CA3]) as intermediates
 //
+// Example 1:  Simple root rotation
+// - Initial state:
+// 	 - RootCA.Cert:          [Root CA1 self-signed]
+// 	 - RootCA.Intermediates: []
+// 	 - RootCA.signer.Cert:   [Root CA1 self-signed]
+// 	 - Issued TLS cert:      [leaf signed by Root CA1]
+//
+// - Intermediate state (during root rotation):
+//   - RootCA.Cert:          [Root CA1 self-signed]
+//   - RootCA.Intermediates: [Root CA2 signed by Root CA1]
+//   - RootCA.signer.Cert:   [Root CA2 signed by Root CA1]
+//   - Issued TLS cert:      [leaf signed by Root CA2][Root CA2 signed by Root CA1]
+//
+// - Final state:
+//   - RootCA.Cert:          [Root CA2 self-signed]
+//   - RootCA.Intermediates: []
+//   - RootCA.signer.Cert:   [Root CA2 self-signed]
+//   - Issued TLS cert:      [leaf signed by Root CA2]
+//
 type RootCA struct {
-	// Cert contains a bundle of PEM encoded Certificate for the Root CA, the first one of which
-	// must correspond to the key in the local signer, if provided
-	Cert []byte
+	// Certs contains a bundle of self-signed, PEM encoded certificates for the Root CA to be used
+	// as the root of trust.
+	Certs []byte
 
 	// Intermediates contains a bundle of PEM encoded intermediate CA certificates to append to any
 	// issued TLS (leaf) certificates. The first one must have the same public key and subject as the
@@ -153,16 +179,16 @@ type RootCA struct {
 	Digest digest.Digest
 
 	// This signer will be nil if the node doesn't have the appropriate key material
-	Signer *LocalSigner
+	signer *LocalSigner
 }
 
-// CanSign ensures that the signer has all three necessary elements needed to operate
-func (rca *RootCA) CanSign() bool {
-	if rca.Cert == nil || rca.Pool == nil || rca.Signer == nil {
-		return false
+// Signer is an accessor for the local signer that returns an error if this root cannot sign.
+func (rca *RootCA) Signer() (*LocalSigner, error) {
+	if rca.Pool == nil || rca.signer == nil || len(rca.signer.Cert) == 0 || rca.signer.Signer == nil {
+		return nil, ErrNoValidSigner
 	}
 
-	return true
+	return rca.signer, nil
 }
 
 // IssueAndSaveNewCertificates generates a new key-pair, signs it with the local root-ca, and returns a
@@ -171,10 +197,6 @@ func (rca *RootCA) IssueAndSaveNewCertificates(kw KeyWriter, cn, ou, org string)
 	csr, key, err := GenerateNewCSR()
 	if err != nil {
 		return nil, errors.Wrap(err, "error when generating new node certs")
-	}
-
-	if !rca.CanSign() {
-		return nil, ErrNoValidSigner
 	}
 
 	// Obtain a signed Certificate
@@ -322,13 +344,12 @@ func PrepareCSR(csrBytes []byte, cn, ou, org string) cfsigner.SignRequest {
 
 // ParseValidateAndSignCSR returns a signed certificate from a particular rootCA and a CSR.
 func (rca *RootCA) ParseValidateAndSignCSR(csrBytes []byte, cn, ou, org string) ([]byte, error) {
-	if !rca.CanSign() {
-		return nil, ErrNoValidSigner
-	}
-
 	signRequest := PrepareCSR(csrBytes, cn, ou, org)
-
-	cert, err := rca.Signer.Sign(signRequest)
+	signer, err := rca.Signer()
+	if err != nil {
+		return nil, err
+	}
+	cert, err := signer.Sign(signRequest)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to sign node certificate")
 	}
@@ -338,20 +359,12 @@ func (rca *RootCA) ParseValidateAndSignCSR(csrBytes []byte, cn, ou, org string) 
 
 // CrossSignCACertificate takes a CA root certificate and generates an intermediate CA from it signed with the current root signer
 func (rca *RootCA) CrossSignCACertificate(otherCAPEM []byte) ([]byte, error) {
-	if !rca.CanSign() {
-		return nil, ErrNoValidSigner
+	signer, err := rca.Signer()
+	if err != nil {
+		return nil, err
 	}
 
 	// create a new cert with exactly the same parameters, including the public key and exact NotBefore and NotAfter
-	rootCert, err := helpers.ParseCertificatePEM(rca.Cert)
-	if err != nil {
-		return nil, errors.Wrap(err, "could not parse old CA certificate")
-	}
-	rootSigner, err := helpers.ParsePrivateKeyPEM(rca.Signer.Key)
-	if err != nil {
-		return nil, errors.Wrap(err, "could not parse old CA key")
-	}
-
 	newCert, err := helpers.ParseCertificatePEM(otherCAPEM)
 	if err != nil {
 		return nil, errors.New("could not parse new CA certificate")
@@ -361,7 +374,7 @@ func (rca *RootCA) CrossSignCACertificate(otherCAPEM []byte) ([]byte, error) {
 		return nil, errors.New("certificate not a CA")
 	}
 
-	derBytes, err := x509.CreateCertificate(cryptorand.Reader, newCert, rootCert, newCert.PublicKey, rootSigner)
+	derBytes, err := x509.CreateCertificate(cryptorand.Reader, newCert, signer.parsedCert, newCert.PublicKey, signer.cryptoSigner)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not cross-sign new CA certificate using old CA material")
 	}
@@ -372,28 +385,34 @@ func (rca *RootCA) CrossSignCACertificate(otherCAPEM []byte) ([]byte, error) {
 	}), nil
 }
 
+func validateSignatureAlgorithm(cert *x509.Certificate) error {
+	switch cert.SignatureAlgorithm {
+	case x509.SHA256WithRSA, x509.SHA384WithRSA, x509.SHA512WithRSA, x509.ECDSAWithSHA256, x509.ECDSAWithSHA384, x509.ECDSAWithSHA512:
+		return nil
+	default:
+		return fmt.Errorf("unsupported signature algorithm: %s", cert.SignatureAlgorithm.String())
+	}
+}
+
 // NewRootCA creates a new RootCA object from unparsed PEM cert bundle and key byte
 // slices. key may be nil, and in this case NewRootCA will return a RootCA
 // without a signer.
-func NewRootCA(certBytes, keyBytes []byte, certExpiry time.Duration, intermediates []byte) (RootCA, error) {
+func NewRootCA(rootCertBytes, signCertBytes, signKeyBytes []byte, certExpiry time.Duration, intermediates []byte) (RootCA, error) {
 	// Parse all the certificates in the cert bundle
-	parsedCerts, err := helpers.ParseCertificatesPEM(certBytes)
+	parsedCerts, err := helpers.ParseCertificatesPEM(rootCertBytes)
 	if err != nil {
-		return RootCA{}, err
+		return RootCA{}, errors.Wrap(err, "invalid root certificates")
 	}
 	// Check to see if we have at least one valid cert
 	if len(parsedCerts) < 1 {
-		return RootCA{}, errors.New("no valid Root CA certificates found")
+		return RootCA{}, errors.New("no valid root CA certificates found")
 	}
 
 	// Create a Pool with all of the certificates found
 	pool := x509.NewCertPool()
 	for _, cert := range parsedCerts {
-		switch cert.SignatureAlgorithm {
-		case x509.SHA256WithRSA, x509.SHA384WithRSA, x509.SHA512WithRSA, x509.ECDSAWithSHA256, x509.ECDSAWithSHA384, x509.ECDSAWithSHA512:
-			break
-		default:
-			return RootCA{}, fmt.Errorf("unsupported signature algorithm: %s", cert.SignatureAlgorithm.String())
+		if err := validateSignatureAlgorithm(cert); err != nil {
+			return RootCA{}, err
 		}
 		// Check to see if all of the certificates are valid, self-signed root CA certs
 		selfpool := x509.NewCertPool()
@@ -405,81 +424,42 @@ func NewRootCA(certBytes, keyBytes []byte, certExpiry time.Duration, intermediat
 	}
 
 	// Calculate the digest for our Root CA bundle
-	digest := digest.FromBytes(certBytes)
+	digest := digest.FromBytes(rootCertBytes)
 
-	// We do not yet support arbitrary chains of intermediates (e.g. the case of an offline root, and the swarm CA is an
-	// intermediate CA). We currently only intermediates for which the first intermediate is cross-signed version of the
-	// CA signing cert (the first cert of the root certs) for the purposes of root rotation.  If we wanted to support
-	// offline roots, we'd have to separate the CA signing cert from the self-signed root certs, but this intermediate
-	// validation logic should remain the same.  Either the first intermediate would BE the intermediate CA we sign with
-	// (in which case it'd have the same subject and public key), or it would be a cross-signed intermediate with the
-	// same subject and public key as our signing cert (which could be either an intermediate cert or a self-signed root
-	// cert).
+	// The intermediates supplied must be able to chain up to the root certificates, so that when they are appended to
+	// a leaf certificate, the leaf certificate can be validated through the intermediates to the root certificates.
+	var intermediatePool *x509.CertPool
+	var parsedIntermediates []*x509.Certificate
 	if len(intermediates) > 0 {
-		parsedIntermediates, err := ValidateCertChain(pool, intermediates, false)
+		parsedIntermediates, err = ValidateCertChain(pool, intermediates, false)
 		if err != nil {
 			return RootCA{}, errors.Wrap(err, "invalid intermediate chain")
 		}
-		if !bytes.Equal(parsedIntermediates[0].RawSubject, parsedCerts[0].RawSubject) ||
-			!bytes.Equal(parsedIntermediates[0].RawSubjectPublicKeyInfo, parsedCerts[0].RawSubjectPublicKeyInfo) {
-			return RootCA{}, errors.New("invalid intermediate chain - the first intermediate must have the same subject and public key as the root")
+		intermediatePool = x509.NewCertPool()
+		for _, cert := range parsedIntermediates {
+			intermediatePool.AddCert(cert)
 		}
 	}
 
-	if len(keyBytes) == 0 {
-		// This RootCA does not have a valid signer
-		return RootCA{Cert: certBytes, Intermediates: intermediates, Digest: digest, Pool: pool}, nil
-	}
-
-	var (
-		passphraseStr              string
-		passphrase, passphrasePrev []byte
-		priv                       crypto.Signer
-	)
-
-	// Attempt two distinct passphrases, so we can do a hitless passphrase rotation
-	if passphraseStr = os.Getenv(PassphraseENVVar); passphraseStr != "" {
-		passphrase = []byte(passphraseStr)
-	}
-
-	if p := os.Getenv(PassphraseENVVarPrev); p != "" {
-		passphrasePrev = []byte(p)
-	}
-
-	// Attempt to decrypt the current private-key with the passphrases provided
-	priv, err = helpers.ParsePrivateKeyPEMWithPassword(keyBytes, passphrase)
-	if err != nil {
-		priv, err = helpers.ParsePrivateKeyPEMWithPassword(keyBytes, passphrasePrev)
-		if err != nil {
-			return RootCA{}, errors.Wrap(err, "malformed private key")
-		}
-	}
-
-	// We will always use the first certificate inside of the root bundle as the active one
-	if err := ensureCertKeyMatch(parsedCerts[0], priv.Public()); err != nil {
-		return RootCA{}, err
-	}
-
-	signer, err := local.NewSigner(priv, parsedCerts[0], cfsigner.DefaultSigAlgo(priv), SigningPolicy(certExpiry))
-	if err != nil {
-		return RootCA{}, err
-	}
-
-	// If the key was loaded from disk unencrypted, but there is a passphrase set,
-	// ensure it is encrypted, so it doesn't hit raft in plain-text
-	keyBlock, _ := pem.Decode(keyBytes)
-	if keyBlock == nil {
-		// This RootCA does not have a valid signer.
-		return RootCA{Cert: certBytes, Digest: digest, Pool: pool}, nil
-	}
-	if passphraseStr != "" && !x509.IsEncryptedPEMBlock(keyBlock) {
-		keyBytes, err = EncryptECPrivateKey(keyBytes, passphraseStr)
+	var localSigner *LocalSigner
+	if len(signKeyBytes) != 0 || len(signCertBytes) != 0 {
+		localSigner, err = newLocalSigner(signKeyBytes, signCertBytes, certExpiry, pool, intermediatePool)
 		if err != nil {
 			return RootCA{}, err
 		}
+
+		// If a signer is provided and there are intermediates, then either the first intermediate would be the signer CA
+		// certificate (in which case it'd have the same subject and public key), or it would be a cross-signed
+		// intermediate with the same subject and public key as our signing CA certificate (which could be either an
+		// intermediate cert or a self-signed root cert).
+		if len(parsedIntermediates) > 0 && (!bytes.Equal(parsedIntermediates[0].RawSubject, localSigner.parsedCert.RawSubject) ||
+			!bytes.Equal(parsedIntermediates[0].RawSubjectPublicKeyInfo, localSigner.parsedCert.RawSubjectPublicKeyInfo)) {
+			return RootCA{}, errors.New(
+				"invalid intermediate chain - the first intermediate must have the same subject and public key as the signing cert")
+		}
 	}
 
-	return RootCA{Signer: &LocalSigner{Signer: signer, Key: keyBytes}, Intermediates: intermediates, Digest: digest, Cert: certBytes, Pool: pool}, nil
+	return RootCA{signer: localSigner, Intermediates: intermediates, Digest: digest, Certs: rootCertBytes, Pool: pool}, nil
 }
 
 // ValidateCertChain checks checks that the certificates provided chain up to the root pool provided.  In addition
@@ -579,6 +559,78 @@ func ValidateCertChain(rootPool *x509.CertPool, certs []byte, allowExpired bool)
 	return parsedCerts, nil
 }
 
+// newLocalSigner validates the signing cert and signing key to create a local signer, which accepts a crypto signer and a cert
+func newLocalSigner(keyBytes, certBytes []byte, certExpiry time.Duration, rootPool, intermediatePool *x509.CertPool) (*LocalSigner, error) {
+	if len(keyBytes) == 0 || len(certBytes) == 0 {
+		return nil, errors.New("must provide both a signing key and a signing cert, or neither")
+	}
+
+	parsedCerts, err := helpers.ParseCertificatesPEM(certBytes)
+	if err != nil {
+		return nil, errors.Wrap(err, "invalid signing CA cert")
+	}
+	if len(parsedCerts) == 0 {
+		return nil, errors.New("no valid signing CA certificates found")
+	}
+	if err := validateSignatureAlgorithm(parsedCerts[0]); err != nil {
+		return nil, err
+	}
+	opts := x509.VerifyOptions{
+		Roots:         rootPool,
+		Intermediates: intermediatePool,
+	}
+	if _, err := parsedCerts[0].Verify(opts); err != nil {
+		return nil, errors.Wrap(err, "error while validating signing CA certificate against roots and intermediates")
+	}
+
+	var (
+		passphraseStr              string
+		passphrase, passphrasePrev []byte
+		priv                       crypto.Signer
+	)
+
+	// Attempt two distinct passphrases, so we can do a hitless passphrase rotation
+	if passphraseStr = os.Getenv(PassphraseENVVar); passphraseStr != "" {
+		passphrase = []byte(passphraseStr)
+	}
+
+	if p := os.Getenv(PassphraseENVVarPrev); p != "" {
+		passphrasePrev = []byte(p)
+	}
+
+	// Attempt to decrypt the current private-key with the passphrases provided
+	priv, err = helpers.ParsePrivateKeyPEMWithPassword(keyBytes, passphrase)
+	if err != nil {
+		priv, err = helpers.ParsePrivateKeyPEMWithPassword(keyBytes, passphrasePrev)
+		if err != nil {
+			return nil, errors.Wrap(err, "malformed private key")
+		}
+	}
+
+	// We will always use the first certificate inside of the root bundle as the active one
+	if err := ensureCertKeyMatch(parsedCerts[0], priv.Public()); err != nil {
+		return nil, err
+	}
+
+	signer, err := local.NewSigner(priv, parsedCerts[0], cfsigner.DefaultSigAlgo(priv), SigningPolicy(certExpiry))
+	if err != nil {
+		return nil, err
+	}
+
+	// If the key was loaded from disk unencrypted, but there is a passphrase set,
+	// ensure it is encrypted, so it doesn't hit raft in plain-text
+	// we don't have to check for nil, because if we couldn't pem-decode the bytes, then parsing above would have failed
+	keyBlock, _ := pem.Decode(keyBytes)
+	if passphraseStr != "" && !x509.IsEncryptedPEMBlock(keyBlock) {
+		keyBytes, err = EncryptECPrivateKey(keyBytes, passphraseStr)
+		if err != nil {
+			return nil, errors.Wrap(err, "unable to encrypt signing CA key material")
+		}
+	}
+
+	return &LocalSigner{Cert: certBytes, Key: keyBytes, Signer: signer, parsedCert: parsedCerts[0], cryptoSigner: priv}, nil
+}
+
 func ensureCertKeyMatch(cert *x509.Certificate, key crypto.PublicKey) error {
 	switch certPub := cert.PublicKey.(type) {
 	case *rsa.PublicKey:
@@ -620,6 +672,7 @@ func GetLocalRootCA(paths CertPaths) (RootCA, error) {
 
 		return RootCA{}, err
 	}
+	signingCert := cert
 
 	key, err := ioutil.ReadFile(paths.Key)
 	if err != nil {
@@ -629,9 +682,10 @@ func GetLocalRootCA(paths CertPaths) (RootCA, error) {
 		// There may not be a local key. It's okay to pass in a nil
 		// key. We'll get a root CA without a signer.
 		key = nil
+		signingCert = nil
 	}
 
-	return NewRootCA(cert, key, DefaultNodeCertExpiration, nil)
+	return NewRootCA(cert, signingCert, key, DefaultNodeCertExpiration, nil)
 }
 
 func getGRPCConnection(creds credentials.TransportCredentials, connBroker *connectionbroker.Broker, forceRemote bool) (*connectionbroker.Conn, error) {
@@ -686,12 +740,12 @@ func GetRemoteCA(ctx context.Context, d digest.Digest, connBroker *connectionbro
 
 	// NewRootCA will validate that the certificates are otherwise valid and create a RootCA object.
 	// Since there is no key, the certificate expiry does not matter and will not be used.
-	return NewRootCA(response.Certificate, nil, DefaultNodeCertExpiration, nil)
+	return NewRootCA(response.Certificate, nil, nil, DefaultNodeCertExpiration, nil)
 }
 
 // CreateRootCA creates a Certificate authority for a new Swarm Cluster, potentially
 // overwriting any existing CAs.
-func CreateRootCA(rootCN string, paths CertPaths) (RootCA, error) {
+func CreateRootCA(rootCN string) (RootCA, error) {
 	// Create a simple CSR for the CA using the default CA validator and policy
 	req := cfcsr.CertificateRequest{
 		CN:         rootCN,
@@ -705,13 +759,8 @@ func CreateRootCA(rootCN string, paths CertPaths) (RootCA, error) {
 		return RootCA{}, err
 	}
 
-	rootCA, err := NewRootCA(cert, key, DefaultNodeCertExpiration, nil)
+	rootCA, err := NewRootCA(cert, cert, key, DefaultNodeCertExpiration, nil)
 	if err != nil {
-		return RootCA{}, err
-	}
-
-	// save the cert to disk
-	if err := saveRootCA(rootCA, paths); err != nil {
 		return RootCA{}, err
 	}
 
@@ -818,7 +867,8 @@ func readCertValidity(kr KeyReader) (time.Time, time.Time, error) {
 
 }
 
-func saveRootCA(rootCA RootCA, paths CertPaths) error {
+// SaveRootCA saves a RootCA object to disk
+func SaveRootCA(rootCA RootCA, paths CertPaths) error {
 	// Make sure the necessary dirs exist and they are writable
 	err := os.MkdirAll(filepath.Dir(paths.Cert), 0755)
 	if err != nil {
@@ -826,7 +876,7 @@ func saveRootCA(rootCA RootCA, paths CertPaths) error {
 	}
 
 	// If the root certificate got returned successfully, save the rootCA to disk.
-	return ioutils.AtomicWriteFile(paths.Cert, rootCA.Cert, 0644)
+	return ioutils.AtomicWriteFile(paths.Cert, rootCA.Certs, 0644)
 }
 
 // GenerateNewCSR returns a newly generated key and CSR signed with said key

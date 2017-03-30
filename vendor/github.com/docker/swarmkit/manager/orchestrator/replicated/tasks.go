@@ -6,7 +6,6 @@ import (
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/orchestrator"
 	"github.com/docker/swarmkit/manager/orchestrator/taskinit"
-	"github.com/docker/swarmkit/manager/state"
 	"github.com/docker/swarmkit/manager/state/store"
 	"golang.org/x/net/context"
 )
@@ -22,13 +21,13 @@ func (r *Orchestrator) initTasks(ctx context.Context, readTx store.ReadTx) error
 
 func (r *Orchestrator) handleTaskEvent(ctx context.Context, event events.Event) {
 	switch v := event.(type) {
-	case state.EventDeleteNode:
+	case api.EventDeleteNode:
 		r.restartTasksByNodeID(ctx, v.Node.ID)
-	case state.EventCreateNode:
+	case api.EventCreateNode:
 		r.handleNodeChange(ctx, v.Node)
-	case state.EventUpdateNode:
+	case api.EventUpdateNode:
 		r.handleNodeChange(ctx, v.Node)
-	case state.EventDeleteTask:
+	case api.EventDeleteTask:
 		if v.Task.DesiredState <= api.TaskStateRunning {
 			service := r.resolveService(ctx, v.Task)
 			if !orchestrator.IsReplicatedService(service) {
@@ -37,9 +36,9 @@ func (r *Orchestrator) handleTaskEvent(ctx context.Context, event events.Event) 
 			r.reconcileServices[service.ID] = service
 		}
 		r.restarts.Cancel(v.Task.ID)
-	case state.EventUpdateTask:
+	case api.EventUpdateTask:
 		r.handleTaskChange(ctx, v.Task)
-	case state.EventCreateTask:
+	case api.EventCreateTask:
 		r.handleTaskChange(ctx, v.Task)
 	}
 }

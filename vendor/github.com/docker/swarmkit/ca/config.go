@@ -71,6 +71,8 @@ type SecurityConfig struct {
 	externalCA    *ExternalCA
 	keyReadWriter *KeyReadWriter
 
+	externalCAClientRootPool *x509.CertPool
+
 	ServerTLSCreds *MutableTLSCreds
 	ClientTLSCreds *MutableTLSCreds
 }
@@ -95,11 +97,12 @@ func NewSecurityConfig(rootCA *RootCA, krw *KeyReadWriter, clientTLSCreds, serve
 	}
 
 	return &SecurityConfig{
-		rootCA:         rootCA,
-		keyReadWriter:  krw,
-		externalCA:     NewExternalCA(rootCA, externalCATLSConfig),
-		ClientTLSCreds: clientTLSCreds,
-		ServerTLSCreds: serverTLSCreds,
+		rootCA:                   rootCA,
+		keyReadWriter:            krw,
+		externalCA:               NewExternalCA(rootCA, externalCATLSConfig),
+		ClientTLSCreds:           clientTLSCreds,
+		ServerTLSCreds:           serverTLSCreds,
+		externalCAClientRootPool: rootCA.Pool,
 	}
 }
 
@@ -126,18 +129,13 @@ func (s *SecurityConfig) KeyReader() KeyReader {
 	return s.keyReadWriter
 }
 
-// UpdateRootCA replaces the root CA with a new root CA based on the specified
-// certificate, key, and the number of hours the certificates issue should last.
-func (s *SecurityConfig) UpdateRootCA(cert, key []byte, certExpiry time.Duration) error {
+// UpdateRootCA replaces the root CA with a new root CA
+func (s *SecurityConfig) UpdateRootCA(rootCA *RootCA, externalCARootPool *x509.CertPool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	rootCA, err := NewRootCA(cert, key, certExpiry, nil)
-	if err != nil {
-		return err
-	}
-
-	s.rootCA = &rootCA
+	s.rootCA = rootCA
+	s.externalCAClientRootPool = externalCARootPool
 	clientTLSConfig := s.ClientTLSCreds.Config()
 	return s.updateTLSCredentials(clientTLSConfig.Certificates)
 }
@@ -163,7 +161,7 @@ func (s *SecurityConfig) updateTLSCredentials(certificates []tls.Certificate) er
 	// config using a copy without a serverName specified.
 	s.externalCA.UpdateTLSConfig(&tls.Config{
 		Certificates: certificates,
-		RootCAs:      s.rootCA.Pool,
+		RootCAs:      s.externalCAClientRootPool,
 		MinVersion:   tls.VersionTLS12,
 	})
 
@@ -278,7 +276,7 @@ func DownloadRootCA(ctx context.Context, paths CertPaths, token string, connBrok
 	}
 
 	// Save root CA certificate to disk
-	if err = saveRootCA(rootCA, paths); err != nil {
+	if err = SaveRootCA(rootCA, paths); err != nil {
 		return RootCA{}, err
 	}
 
@@ -359,31 +357,14 @@ type CertificateRequestConfig struct {
 func (rootCA RootCA) CreateSecurityConfig(ctx context.Context, krw *KeyReadWriter, config CertificateRequestConfig) (*SecurityConfig, error) {
 	ctx = log.WithModule(ctx, "tls")
 
-	var (
-		tlsKeyPair *tls.Certificate
-		err        error
-	)
+	// Create a new random ID for this certificate
+	cn := identity.NewID()
+	org := identity.NewID()
 
-	if rootCA.CanSign() {
-		// Create a new random ID for this certificate
-		cn := identity.NewID()
-		org := identity.NewID()
-
-		proposedRole := ManagerRole
-		tlsKeyPair, err = rootCA.IssueAndSaveNewCertificates(krw, cn, proposedRole, org)
-		if err != nil {
-			log.G(ctx).WithFields(logrus.Fields{
-				"node.id":   cn,
-				"node.role": proposedRole,
-			}).WithError(err).Errorf("failed to issue and save new certificate")
-			return nil, err
-		}
-
-		log.G(ctx).WithFields(logrus.Fields{
-			"node.id":   cn,
-			"node.role": proposedRole,
-		}).Debug("issued new TLS certificate")
-	} else {
+	proposedRole := ManagerRole
+	tlsKeyPair, err := rootCA.IssueAndSaveNewCertificates(krw, cn, proposedRole, org)
+	switch errors.Cause(err) {
+	case ErrNoValidSigner:
 		// Request certificate issuance from a remote CA.
 		// Last argument is nil because at this point we don't have any valid TLS creds
 		tlsKeyPair, err = rootCA.RequestAndSaveNewCertificates(ctx, krw, config)
@@ -391,7 +372,19 @@ func (rootCA RootCA) CreateSecurityConfig(ctx context.Context, krw *KeyReadWrite
 			log.G(ctx).WithError(err).Error("failed to request save new certificate")
 			return nil, err
 		}
+	case nil:
+		log.G(ctx).WithFields(logrus.Fields{
+			"node.id":   cn,
+			"node.role": proposedRole,
+		}).Debug("issued new TLS certificate")
+	default:
+		log.G(ctx).WithFields(logrus.Fields{
+			"node.id":   cn,
+			"node.role": proposedRole,
+		}).WithError(err).Errorf("failed to issue and save new certificate")
+		return nil, err
 	}
+
 	// Create the Server TLS Credentials for this node. These will not be used by workers.
 	serverTLSCreds, err := rootCA.NewServerTLSCredentials(tlsKeyPair)
 	if err != nil {

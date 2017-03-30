@@ -26,6 +26,15 @@ type CopierFrom interface {
 // types that use this function.
 func Copy(dst, src interface{}) {
 	switch dst := dst.(type) {
+	case *types.Any:
+		src := src.(*types.Any)
+		dst.TypeUrl = src.TypeUrl
+		if src.Value != nil {
+			dst.Value = make([]byte, len(src.Value))
+			copy(dst.Value, src.Value)
+		} else {
+			dst.Value = nil
+		}
 	case *types.Duration:
 		src := src.(*types.Duration)
 		*dst = *src

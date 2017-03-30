@@ -5,7 +5,6 @@ import (
 
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
-	"github.com/docker/swarmkit/manager/state"
 	"github.com/docker/swarmkit/manager/state/raft"
 	"github.com/docker/swarmkit/manager/state/store"
 	"golang.org/x/net/context"
@@ -57,7 +56,7 @@ func (rm *roleManager) Run(ctx context.Context) {
 			nodes, err = store.FindNodes(readTx, store.All)
 			return err
 		},
-		state.EventUpdateNode{})
+		api.EventUpdateNode{})
 	defer cancelWatch()
 
 	if err != nil {
@@ -76,7 +75,7 @@ func (rm *roleManager) Run(ctx context.Context) {
 	for {
 		select {
 		case event := <-watcher:
-			node := event.(state.EventUpdateNode).Node
+			node := event.(api.EventUpdateNode).Node
 			rm.pending[node.ID] = node
 			rm.reconcileRole(ctx, node)
 			if len(rm.pending) != 0 && ticker == nil {

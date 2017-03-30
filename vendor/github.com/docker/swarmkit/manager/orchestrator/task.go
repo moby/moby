@@ -29,6 +29,7 @@ func NewTask(cluster *api.Cluster, service *api.Service, slot uint64, nodeID str
 		ID:                 taskID,
 		ServiceAnnotations: service.Spec.Annotations,
 		Spec:               service.Spec.Task,
+		SpecVersion:        service.SpecVersion,
 		ServiceID:          service.ID,
 		Slot:               slot,
 		Status: api.TaskStatus{
@@ -62,6 +63,13 @@ func RestartCondition(task *api.Task) api.RestartPolicy_RestartCondition {
 
 // IsTaskDirty determines whether a task matches the given service's spec.
 func IsTaskDirty(s *api.Service, t *api.Task) bool {
+	// If the spec version matches, we know the task is not dirty. However,
+	// if it does not match, that doesn't mean the task is dirty, since
+	// only a portion of the spec is included in the comparison.
+	if t.SpecVersion != nil && *s.SpecVersion == *t.SpecVersion {
+		return false
+	}
+
 	return !reflect.DeepEqual(s.Spec.Task, t.Spec) ||
 		(t.Endpoint != nil && !reflect.DeepEqual(s.Spec.Endpoint, t.Endpoint.Spec))
 }

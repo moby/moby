@@ -162,6 +162,7 @@ func (u *Updater) Run(ctx context.Context, slots []orchestrator.Slot) {
 		failureAction          = api.UpdateConfig_PAUSE
 		allowedFailureFraction = float32(0)
 		monitoringPeriod       = defaultMonitor
+		order                  = api.UpdateConfig_STOP_FIRST
 	)
 
 	updateConfig := service.Spec.Update
@@ -174,6 +175,7 @@ func (u *Updater) Run(ctx context.Context, slots []orchestrator.Slot) {
 		allowedFailureFraction = updateConfig.MaxFailureRatio
 		parallelism = int(updateConfig.Parallelism)
 		delay = updateConfig.Delay
+		order = updateConfig.Order
 
 		var err error
 		if updateConfig.Monitor != nil {
@@ -196,7 +198,7 @@ func (u *Updater) Run(ctx context.Context, slots []orchestrator.Slot) {
 	wg.Add(parallelism)
 	for i := 0; i < parallelism; i++ {
 		go func() {
-			u.worker(ctx, slotQueue, delay)
+			u.worker(ctx, slotQueue, delay, order)
 			wg.Done()
 		}()
 	}
@@ -207,9 +209,9 @@ func (u *Updater) Run(ctx context.Context, slots []orchestrator.Slot) {
 		var cancelWatch func()
 		failedTaskWatch, cancelWatch = state.Watch(
 			u.store.WatchQueue(),
-			state.EventUpdateTask{
+			api.EventUpdateTask{
 				Task:   &api.Task{ServiceID: service.ID, Status: api.TaskStatus{State: api.TaskStateRunning}},
-				Checks: []state.TaskCheckFunc{state.TaskCheckServiceID, state.TaskCheckStateGreaterThan},
+				Checks: []api.TaskCheckFunc{state.TaskCheckServiceID, state.TaskCheckStateGreaterThan},
 			},
 		)
 		defer cancelWatch()
@@ -270,7 +272,7 @@ slotsLoop:
 				stopped = true
 				break slotsLoop
 			case ev := <-failedTaskWatch:
-				if failureTriggersAction(ev.(state.EventUpdateTask).Task) {
+				if failureTriggersAction(ev.(api.EventUpdateTask).Task) {
 					break slotsLoop
 				}
 			case slotQueue <- slot:
@@ -295,7 +297,7 @@ slotsLoop:
 			case <-doneMonitoring:
 				break monitorLoop
 			case ev := <-failedTaskWatch:
-				if failureTriggersAction(ev.(state.EventUpdateTask).Task) {
+				if failureTriggersAction(ev.(api.EventUpdateTask).Task) {
 					break monitorLoop
 				}
 			}
@@ -310,7 +312,7 @@ slotsLoop:
 	}
 }
 
-func (u *Updater) worker(ctx context.Context, queue <-chan orchestrator.Slot, delay time.Duration) {
+func (u *Updater) worker(ctx context.Context, queue <-chan orchestrator.Slot, delay time.Duration, order api.UpdateConfig_UpdateOrder) {
 	for slot := range queue {
 		// Do we have a task with the new spec in desired state = RUNNING?
 		// If so, all we have to do to complete the update is remove the
@@ -347,7 +349,7 @@ func (u *Updater) worker(ctx context.Context, queue <-chan orchestrator.Slot, de
 			}
 			updated.DesiredState = api.TaskStateReady
 
-			if err := u.updateTask(ctx, slot, updated); err != nil {
+			if err := u.updateTask(ctx, slot, updated, order); err != nil {
 				log.G(ctx).WithError(err).WithField("task.id", updated.ID).Error("update failed")
 			}
 		}
@@ -362,11 +364,11 @@ func (u *Updater) worker(ctx context.Context, queue <-chan orchestrator.Slot, de
 	}
 }
 
-func (u *Updater) updateTask(ctx context.Context, slot orchestrator.Slot, updated *api.Task) error {
+func (u *Updater) updateTask(ctx context.Context, slot orchestrator.Slot, updated *api.Task, order api.UpdateConfig_UpdateOrder) error {
 	// Kick off the watch before even creating the updated task. This is in order to avoid missing any event.
-	taskUpdates, cancel := state.Watch(u.watchQueue, state.EventUpdateTask{
+	taskUpdates, cancel := state.Watch(u.watchQueue, api.EventUpdateTask{
 		Task:   &api.Task{ID: updated.ID},
-		Checks: []state.TaskCheckFunc{state.TaskCheckID},
+		Checks: []api.TaskCheckFunc{state.TaskCheckID},
 	})
 	defer cancel()
 
@@ -377,15 +379,11 @@ func (u *Updater) updateTask(ctx context.Context, slot orchestrator.Slot, update
 	u.updatedTasks[updated.ID] = time.Time{}
 	u.updatedTasksMu.Unlock()
 
+	startThenStop := false
 	var delayStartCh <-chan struct{}
 	// Atomically create the updated task and bring down the old one.
 	_, err := u.store.Batch(func(batch *store.Batch) error {
-		oldTask, err := u.removeOldTasks(ctx, batch, slot)
-		if err != nil {
-			return err
-		}
-
-		err = batch.Update(func(tx store.Tx) error {
+		err := batch.Update(func(tx store.Tx) error {
 			if store.GetService(tx, updated.ServiceID) == nil {
 				return errors.New("service was deleted")
 			}
@@ -399,7 +397,16 @@ func (u *Updater) updateTask(ctx context.Context, slot orchestrator.Slot, update
 			return err
 		}
 
-		delayStartCh = u.restarts.DelayStart(ctx, nil, oldTask, updated.ID, 0, true)
+		if order == api.UpdateConfig_START_FIRST {
+			delayStartCh = u.restarts.DelayStart(ctx, nil, nil, updated.ID, 0, false)
+			startThenStop = true
+		} else {
+			oldTask, err := u.removeOldTasks(ctx, batch, slot)
+			if err != nil {
+				return err
+			}
+			delayStartCh = u.restarts.DelayStart(ctx, nil, oldTask, updated.ID, 0, true)
+		}
 
 		return nil
 
@@ -421,11 +428,22 @@ func (u *Updater) updateTask(ctx context.Context, slot orchestrator.Slot, update
 	for {
 		select {
 		case e := <-taskUpdates:
-			updated = e.(state.EventUpdateTask).Task
+			updated = e.(api.EventUpdateTask).Task
 			if updated.Status.State >= api.TaskStateRunning {
 				u.updatedTasksMu.Lock()
 				u.updatedTasks[updated.ID] = time.Now()
 				u.updatedTasksMu.Unlock()
+
+				if startThenStop {
+					_, err := u.store.Batch(func(batch *store.Batch) error {
+						_, err := u.removeOldTasks(ctx, batch, slot)
+						if err != nil {
+							log.G(ctx).WithError(err).WithField("task.id", updated.ID).Warning("failed to remove old task after starting replacement")
+						}
+						return nil
+					})
+					return err
+				}
 				return nil
 			}
 		case <-u.stopChan:

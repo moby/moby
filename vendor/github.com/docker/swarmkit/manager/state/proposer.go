@@ -12,6 +12,6 @@ type Proposer interface {
 	// proposed changes. The callback is necessary for the Proposer to make
 	// sure that the changes are committed before it interacts further
 	// with the store.
-	ProposeValue(ctx context.Context, storeAction []*api.StoreAction, cb func()) error
+	ProposeValue(ctx context.Context, storeAction []api.StoreAction, cb func()) error
 	GetVersion() *api.Version
 }

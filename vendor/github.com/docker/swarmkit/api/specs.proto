@@ -5,6 +5,7 @@ package docker.swarmkit.v1;
 import "types.proto";
 import "gogoproto/gogo.proto";
 import "google/protobuf/duration.proto";
+import "google/protobuf/any.proto";
 
 // Specs are container objects for user provided input. All creations and
 // updates are done through spec types. As a convention, user input from a spec
@@ -101,6 +102,7 @@ message TaskSpec {
 	oneof runtime {
 		NetworkAttachmentSpec attachment = 8;
 		ContainerSpec container = 1;
+		GenericRuntimeSpec generic = 10;
 	}
 
 	// Resource requirements for the container.
@@ -126,6 +128,11 @@ message TaskSpec {
 	// using the same reconciliation-based mechanism that performs rolling
 	// updates.
 	uint64 force_update = 9;
+}
+
+message GenericRuntimeSpec {
+	string kind = 1;
+	google.protobuf.Any payload = 2;
 }
 
 // NetworkAttachmentSpec specifies runtime parameters required to attach
@@ -321,7 +328,7 @@ message NetworkSpec {
 	// enabled(default case) no manual attachment to this network
 	// can happen.
 	bool attachable = 6;
-	
+
 	// Ingress indicates this network will provide the routing-mesh.
 	// In older versions, the network providing the routing mesh was
 	// swarm internally created only and it was identified by the name
