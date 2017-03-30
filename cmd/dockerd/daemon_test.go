@@ -19,7 +19,7 @@ func defaultOptions(configFile string) daemonOptions {
 	}
 	opts.common.InstallFlags(opts.flags)
 	installConfigFlags(opts.daemonConfig, opts.flags)
-	opts.flags.StringVar(&opts.configFile, flagDaemonConfigFile, defaultDaemonConfigFile, "")
+	opts.flags.StringVar(&opts.configFile, "config-file", defaultDaemonConfigFile, "")
 	opts.configFile = configFile
 	return opts
 }
@@ -55,7 +55,7 @@ func TestLoadDaemonCliConfigWithConflicts(t *testing.T) {
 	opts := defaultOptions(configFile)
 	flags := opts.flags
 
-	assert.NilError(t, flags.Set(flagDaemonConfigFile, configFile))
+	assert.NilError(t, flags.Set("config-file", configFile))
 	assert.NilError(t, flags.Set("label", "l1=bar"))
 	assert.NilError(t, flags.Set("label", "l2=baz"))
 
