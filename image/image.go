@@ -47,7 +47,7 @@ type V1Image struct {
 	Author string `json:"author,omitempty"`
 	// Config is the configuration of the container received from the client
 	Config *container.Config `json:"config,omitempty"`
-	// Architecture is the hardware that the image is build and runs on
+	// Architecture is the hardware that the image is built and runs on
 	Architecture string `json:"architecture,omitempty"`
 	// OS is the operating system used to build and run the image
 	OS string `json:"os,omitempty"`
