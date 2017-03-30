@@ -1,5 +1,3 @@
-// +build darwin
-
 package main
 
 import (
@@ -13,33 +11,33 @@ import (
 )
 
 // Process the run arguments and execute run
-func run(args []string) {
-	runCmd := flag.NewFlagSet("run", flag.ExitOnError)
-	runCmd.Usage = func() {
-		fmt.Printf("USAGE: %s run [options] [prefix]\n\n", os.Args[0])
+func runHyperKit(args []string) {
+	hyperkitCmd := flag.NewFlagSet("hyperkit", flag.ExitOnError)
+	hyperkitCmd.Usage = func() {
+		fmt.Printf("USAGE: %s run hyperkit [options] [prefix]\n\n", os.Args[0])
 		fmt.Printf("'prefix' specifies the path to the VM image.\n")
 		fmt.Printf("It defaults to './moby'.\n")
 		fmt.Printf("\n")
 		fmt.Printf("Options:\n")
-		runCmd.PrintDefaults()
+		hyperkitCmd.PrintDefaults()
 	}
-	runCPUs := runCmd.Int("cpus", 1, "Number of CPUs")
-	runMem := runCmd.Int("mem", 1024, "Amount of memory in MB")
-	runDiskSz := runCmd.Int("disk-size", 0, "Size of Disk in MB")
-	runDisk := runCmd.String("disk", "", "Path to disk image to used")
+	runCPUs := hyperkitCmd.Int("cpus", 1, "Number of CPUs")
+	runMem := hyperkitCmd.Int("mem", 1024, "Amount of memory in MB")
+	runDiskSz := hyperkitCmd.Int("disk-size", 0, "Size of Disk in MB")
+	runDisk := hyperkitCmd.String("disk", "", "Path to disk image to used")
 
-	runCmd.Parse(args)
-	remArgs := runCmd.Args()
+	hyperkitCmd.Parse(args)
+	remArgs := hyperkitCmd.Args()
 
 	prefix := "moby"
 	if len(remArgs) > 0 {
 		prefix = remArgs[0]
 	}
 
-	runInternal(*runCPUs, *runMem, *runDiskSz, *runDisk, prefix)
+	runHyperKitInternal(*runCPUs, *runMem, *runDiskSz, *runDisk, prefix)
 }
 
-func runInternal(cpus, mem, diskSz int, disk, prefix string) {
+func runHyperKitInternal(cpus, mem, diskSz int, disk, prefix string) {
 	cmdline, err := ioutil.ReadFile(prefix + "-cmdline")
 	if err != nil {
 		log.Fatalf("Cannot open cmdline file: %v", err)
