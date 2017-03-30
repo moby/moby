@@ -60,6 +60,10 @@ func runAttach(dockerCli *command.DockerCli, opts *attachOptions) error {
 		return errors.New("You cannot attach to a paused container, unpause it first")
 	}
 
+	if c.State.Restarting {
+		return errors.New("You cannot attach to a restarting container, wait until it is running")
+	}
+
 	if err := dockerCli.In().CheckTty(!opts.noStdin, c.Config.Tty); err != nil {
 		return err
 	}

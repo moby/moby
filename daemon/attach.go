@@ -35,6 +35,10 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, c *backend.ContainerA
 		return errors.NewRequestConflictError(err)
 	}
 
+	if container.IsRestarting() {
+		err := fmt.Errorf("Container %s is restarting. Wait until the container is running", prefixOrName)
+		return errors.NewRequestConflictError(err)
+	}
 	cfg := stream.AttachConfig{
 		UseStdin:   c.UseStdin,
 		UseStdout:  c.UseStdout,
