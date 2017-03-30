@@ -827,7 +827,7 @@ func errTooManyArguments(command string) error {
 // shell-form of RUN, ENTRYPOINT and CMD instructions
 func getShell(c *container.Config) []string {
 	if 0 == len(c.Shell) {
-		return defaultShell[:]
+		return append([]string{}, defaultShell[:]...)
 	}
-	return c.Shell[:]
+	return append([]string{}, c.Shell[:]...)
 }
