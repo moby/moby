@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -408,6 +409,12 @@ func initPanicFile(path string) error {
 	if r == 0 && err != nil {
 		return err
 	}
+
+	// Reset os.Stderr to the panic file (so fmt.Fprintf(os.Stderr,...) actually gets redirected)
+	os.Stderr = os.NewFile(uintptr(panicFile.Fd()), "/dev/stderr")
+
+	// Force threads that panic to write to stderr (the panicFile handle now), otherwise it will go into the ether
+	log.SetOutput(os.Stderr)
 
 	return nil
 }
