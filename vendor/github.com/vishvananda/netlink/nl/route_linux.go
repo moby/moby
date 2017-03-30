@@ -43,12 +43,38 @@ func (msg *RtMsg) Serialize() []byte {
 
 type RtNexthop struct {
 	syscall.RtNexthop
+	Children []NetlinkRequestData
 }
 
 func DeserializeRtNexthop(b []byte) *RtNexthop {
 	return (*RtNexthop)(unsafe.Pointer(&b[0:syscall.SizeofRtNexthop][0]))
 }
 
+func (msg *RtNexthop) Len() int {
+	if len(msg.Children) == 0 {
+		return syscall.SizeofRtNexthop
+	}
+
+	l := 0
+	for _, child := range msg.Children {
+		l += rtaAlignOf(child.Len())
+	}
+	l += syscall.SizeofRtNexthop
+	return rtaAlignOf(l)
+}
+
 func (msg *RtNexthop) Serialize() []byte {
-	return (*(*[syscall.SizeofRtNexthop]byte)(unsafe.Pointer(msg)))[:]
+	length := msg.Len()
+	msg.RtNexthop.Len = uint16(length)
+	buf := make([]byte, length)
+	copy(buf, (*(*[syscall.SizeofRtNexthop]byte)(unsafe.Pointer(msg)))[:])
+	next := rtaAlignOf(syscall.SizeofRtNexthop)
+	if len(msg.Children) > 0 {
+		for _, child := range msg.Children {
+			childBuf := child.Serialize()
+			copy(buf[next:], childBuf)
+			next += rtaAlignOf(len(childBuf))
+		}
+	}
+	return buf
 }

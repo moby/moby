@@ -3,6 +3,7 @@ package netlink
 import (
 	"fmt"
 	"net"
+	"strings"
 	"syscall"
 
 	"github.com/vishvananda/netlink/nl"
@@ -42,14 +43,90 @@ var testFlags = []flagString{
 	{f: FLAG_PERVASIVE, s: "pervasive"},
 }
 
-func (r *Route) ListFlags() []string {
+func listFlags(flag int) []string {
 	var flags []string
 	for _, tf := range testFlags {
-		if r.Flags&int(tf.f) != 0 {
+		if flag&int(tf.f) != 0 {
 			flags = append(flags, tf.s)
 		}
 	}
 	return flags
+}
+
+func (r *Route) ListFlags() []string {
+	return listFlags(r.Flags)
+}
+
+func (n *NexthopInfo) ListFlags() []string {
+	return listFlags(n.Flags)
+}
+
+type MPLSDestination struct {
+	Labels []int
+}
+
+func (d *MPLSDestination) Family() int {
+	return nl.FAMILY_MPLS
+}
+
+func (d *MPLSDestination) Decode(buf []byte) error {
+	d.Labels = nl.DecodeMPLSStack(buf)
+	return nil
+}
+
+func (d *MPLSDestination) Encode() ([]byte, error) {
+	return nl.EncodeMPLSStack(d.Labels...), nil
+}
+
+func (d *MPLSDestination) String() string {
+	s := make([]string, 0, len(d.Labels))
+	for _, l := range d.Labels {
+		s = append(s, fmt.Sprintf("%d", l))
+	}
+	return strings.Join(s, "/")
+}
+
+type MPLSEncap struct {
+	Labels []int
+}
+
+func (e *MPLSEncap) Type() int {
+	return nl.LWTUNNEL_ENCAP_MPLS
+}
+
+func (e *MPLSEncap) Decode(buf []byte) error {
+	if len(buf) < 4 {
+		return fmt.Errorf("Lack of bytes")
+	}
+	native := nl.NativeEndian()
+	l := native.Uint16(buf)
+	if len(buf) < int(l) {
+		return fmt.Errorf("Lack of bytes")
+	}
+	buf = buf[:l]
+	typ := native.Uint16(buf[2:])
+	if typ != nl.MPLS_IPTUNNEL_DST {
+		return fmt.Errorf("Unknown MPLS Encap Type: %d", typ)
+	}
+	e.Labels = nl.DecodeMPLSStack(buf[4:])
+	return nil
+}
+
+func (e *MPLSEncap) Encode() ([]byte, error) {
+	s := nl.EncodeMPLSStack(e.Labels...)
+	native := nl.NativeEndian()
+	hdr := make([]byte, 4)
+	native.PutUint16(hdr, uint16(len(s)+4))
+	native.PutUint16(hdr[2:], nl.MPLS_IPTUNNEL_DST)
+	return append(hdr, s...), nil
+}
+
+func (e *MPLSEncap) String() string {
+	s := make([]string, 0, len(e.Labels))
+	for _, l := range e.Labels {
+		s = append(s, fmt.Sprintf("%d", l))
+	}
+	return strings.Join(s, "/")
 }
 
 // RouteAdd will add a route to the system.
@@ -61,7 +138,22 @@ func RouteAdd(route *Route) error {
 // RouteAdd will add a route to the system.
 // Equivalent to: `ip route add $route`
 func (h *Handle) RouteAdd(route *Route) error {
-	req := h.newNetlinkRequest(syscall.RTM_NEWROUTE, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
+	flags := syscall.NLM_F_CREATE | syscall.NLM_F_EXCL | syscall.NLM_F_ACK
+	req := h.newNetlinkRequest(syscall.RTM_NEWROUTE, flags)
+	return h.routeHandle(route, req, nl.NewRtMsg())
+}
+
+// RouteReplace will add a route to the system.
+// Equivalent to: `ip route replace $route`
+func RouteReplace(route *Route) error {
+	return pkgHandle.RouteReplace(route)
+}
+
+// RouteReplace will add a route to the system.
+// Equivalent to: `ip route replace $route`
+func (h *Handle) RouteReplace(route *Route) error {
+	flags := syscall.NLM_F_CREATE | syscall.NLM_F_REPLACE | syscall.NLM_F_ACK
+	req := h.newNetlinkRequest(syscall.RTM_NEWROUTE, flags)
 	return h.routeHandle(route, req, nl.NewRtMsg())
 }
 
@@ -79,7 +171,7 @@ func (h *Handle) RouteDel(route *Route) error {
 }
 
 func (h *Handle) routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg) error {
-	if (route.Dst == nil || route.Dst.IP == nil) && route.Src == nil && route.Gw == nil {
+	if (route.Dst == nil || route.Dst.IP == nil) && route.Src == nil && route.Gw == nil && route.MPLSDst == nil {
 		return fmt.Errorf("one of Dst.IP, Src, or Gw must not be nil")
 	}
 
@@ -98,6 +190,33 @@ func (h *Handle) routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg
 			dstData = route.Dst.IP.To16()
 		}
 		rtAttrs = append(rtAttrs, nl.NewRtAttr(syscall.RTA_DST, dstData))
+	} else if route.MPLSDst != nil {
+		family = nl.FAMILY_MPLS
+		msg.Dst_len = uint8(20)
+		msg.Type = syscall.RTN_UNICAST
+		rtAttrs = append(rtAttrs, nl.NewRtAttr(syscall.RTA_DST, nl.EncodeMPLSStack(*route.MPLSDst)))
+	}
+
+	if route.NewDst != nil {
+		if family != -1 && family != route.NewDst.Family() {
+			return fmt.Errorf("new destination and destination are not the same address family")
+		}
+		buf, err := route.NewDst.Encode()
+		if err != nil {
+			return err
+		}
+		rtAttrs = append(rtAttrs, nl.NewRtAttr(nl.RTA_NEWDST, buf))
+	}
+
+	if route.Encap != nil {
+		buf := make([]byte, 2)
+		native.PutUint16(buf, uint16(route.Encap.Type()))
+		rtAttrs = append(rtAttrs, nl.NewRtAttr(nl.RTA_ENCAP_TYPE, buf))
+		buf, err := route.Encap.Encode()
+		if err != nil {
+			return err
+		}
+		rtAttrs = append(rtAttrs, nl.NewRtAttr(nl.RTA_ENCAP, buf))
 	}
 
 	if route.Src != nil {
@@ -138,26 +257,43 @@ func (h *Handle) routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg
 				RtNexthop: syscall.RtNexthop{
 					Hops:    uint8(nh.Hops),
 					Ifindex: int32(nh.LinkIndex),
-					Len:     uint16(syscall.SizeofRtNexthop),
+					Flags:   uint8(nh.Flags),
 				},
 			}
-			var gwData []byte
+			children := []nl.NetlinkRequestData{}
 			if nh.Gw != nil {
 				gwFamily := nl.GetIPFamily(nh.Gw)
 				if family != -1 && family != gwFamily {
 					return fmt.Errorf("gateway, source, and destination ip are not the same IP family")
 				}
-				var gw *nl.RtAttr
 				if gwFamily == FAMILY_V4 {
-					gw = nl.NewRtAttr(syscall.RTA_GATEWAY, []byte(nh.Gw.To4()))
+					children = append(children, nl.NewRtAttr(syscall.RTA_GATEWAY, []byte(nh.Gw.To4())))
 				} else {
-					gw = nl.NewRtAttr(syscall.RTA_GATEWAY, []byte(nh.Gw.To16()))
+					children = append(children, nl.NewRtAttr(syscall.RTA_GATEWAY, []byte(nh.Gw.To16())))
 				}
-				gwData = gw.Serialize()
-				rtnh.Len += uint16(len(gwData))
 			}
+			if nh.NewDst != nil {
+				if family != -1 && family != nh.NewDst.Family() {
+					return fmt.Errorf("new destination and destination are not the same address family")
+				}
+				buf, err := nh.NewDst.Encode()
+				if err != nil {
+					return err
+				}
+				children = append(children, nl.NewRtAttr(nl.RTA_NEWDST, buf))
+			}
+			if nh.Encap != nil {
+				buf := make([]byte, 2)
+				native.PutUint16(buf, uint16(nh.Encap.Type()))
+				rtAttrs = append(rtAttrs, nl.NewRtAttr(nl.RTA_ENCAP_TYPE, buf))
+				buf, err := nh.Encap.Encode()
+				if err != nil {
+					return err
+				}
+				children = append(children, nl.NewRtAttr(nl.RTA_ENCAP, buf))
+			}
+			rtnh.Children = children
 			buf = append(buf, rtnh.Serialize()...)
-			buf = append(buf, gwData...)
 		}
 		rtAttrs = append(rtAttrs, nl.NewRtAttr(syscall.RTA_MULTIPATH, buf))
 	}
@@ -284,18 +420,20 @@ func (h *Handle) RouteListFiltered(family int, filter *Route, filterMask uint64)
 			case filterMask&RT_FILTER_SRC != 0 && !route.Src.Equal(filter.Src):
 				continue
 			case filterMask&RT_FILTER_DST != 0:
-				if filter.Dst == nil {
-					if route.Dst != nil {
-						continue
-					}
-				} else {
-					if route.Dst == nil {
-						continue
-					}
-					aMaskLen, aMaskBits := route.Dst.Mask.Size()
-					bMaskLen, bMaskBits := filter.Dst.Mask.Size()
-					if !(route.Dst.IP.Equal(filter.Dst.IP) && aMaskLen == bMaskLen && aMaskBits == bMaskBits) {
-						continue
+				if filter.MPLSDst == nil || route.MPLSDst == nil || (*filter.MPLSDst) != (*route.MPLSDst) {
+					if filter.Dst == nil {
+						if route.Dst != nil {
+							continue
+						}
+					} else {
+						if route.Dst == nil {
+							continue
+						}
+						aMaskLen, aMaskBits := route.Dst.Mask.Size()
+						bMaskLen, bMaskBits := filter.Dst.Mask.Size()
+						if !(route.Dst.IP.Equal(filter.Dst.IP) && aMaskLen == bMaskLen && aMaskBits == bMaskBits) {
+							continue
+						}
 					}
 				}
 			}
@@ -322,6 +460,7 @@ func deserializeRoute(m []byte) (Route, error) {
 	}
 
 	native := nl.NativeEndian()
+	var encap, encapType syscall.NetlinkRouteAttr
 	for _, attr := range attrs {
 		switch attr.Attr.Type {
 		case syscall.RTA_GATEWAY:
@@ -329,9 +468,17 @@ func deserializeRoute(m []byte) (Route, error) {
 		case syscall.RTA_PREFSRC:
 			route.Src = net.IP(attr.Value)
 		case syscall.RTA_DST:
-			route.Dst = &net.IPNet{
-				IP:   attr.Value,
-				Mask: net.CIDRMask(int(msg.Dst_len), 8*len(attr.Value)),
+			if msg.Family == nl.FAMILY_MPLS {
+				stack := nl.DecodeMPLSStack(attr.Value)
+				if len(stack) == 0 || len(stack) > 1 {
+					return route, fmt.Errorf("invalid MPLS RTA_DST")
+				}
+				route.MPLSDst = &stack[0]
+			} else {
+				route.Dst = &net.IPNet{
+					IP:   attr.Value,
+					Mask: net.CIDRMask(int(msg.Dst_len), 8*len(attr.Value)),
+				}
 			}
 		case syscall.RTA_OIF:
 			route.LinkIndex = int(native.Uint32(attr.Value[0:4]))
@@ -353,17 +500,47 @@ func deserializeRoute(m []byte) (Route, error) {
 				info := &NexthopInfo{
 					LinkIndex: int(nh.RtNexthop.Ifindex),
 					Hops:      int(nh.RtNexthop.Hops),
+					Flags:     int(nh.RtNexthop.Flags),
 				}
 				attrs, err := nl.ParseRouteAttr(value[syscall.SizeofRtNexthop:int(nh.RtNexthop.Len)])
 				if err != nil {
 					return nil, nil, err
 				}
+				var encap, encapType syscall.NetlinkRouteAttr
 				for _, attr := range attrs {
 					switch attr.Attr.Type {
 					case syscall.RTA_GATEWAY:
 						info.Gw = net.IP(attr.Value)
+					case nl.RTA_NEWDST:
+						var d Destination
+						switch msg.Family {
+						case nl.FAMILY_MPLS:
+							d = &MPLSDestination{}
+						}
+						if err := d.Decode(attr.Value); err != nil {
+							return nil, nil, err
+						}
+						info.NewDst = d
+					case nl.RTA_ENCAP_TYPE:
+						encapType = attr
+					case nl.RTA_ENCAP:
+						encap = attr
 					}
 				}
+
+				if len(encap.Value) != 0 && len(encapType.Value) != 0 {
+					typ := int(native.Uint16(encapType.Value[0:2]))
+					var e Encap
+					switch typ {
+					case nl.LWTUNNEL_ENCAP_MPLS:
+						e = &MPLSEncap{}
+						if err := e.Decode(encap.Value); err != nil {
+							return nil, nil, err
+						}
+					}
+					info.Encap = e
+				}
+
 				return info, value[int(nh.RtNexthop.Len):], nil
 			}
 			rest := attr.Value
@@ -375,8 +552,36 @@ func deserializeRoute(m []byte) (Route, error) {
 				route.MultiPath = append(route.MultiPath, info)
 				rest = buf
 			}
+		case nl.RTA_NEWDST:
+			var d Destination
+			switch msg.Family {
+			case nl.FAMILY_MPLS:
+				d = &MPLSDestination{}
+			}
+			if err := d.Decode(attr.Value); err != nil {
+				return route, err
+			}
+			route.NewDst = d
+		case nl.RTA_ENCAP_TYPE:
+			encapType = attr
+		case nl.RTA_ENCAP:
+			encap = attr
 		}
 	}
+
+	if len(encap.Value) != 0 && len(encapType.Value) != 0 {
+		typ := int(native.Uint16(encapType.Value[0:2]))
+		var e Encap
+		switch typ {
+		case nl.LWTUNNEL_ENCAP_MPLS:
+			e = &MPLSEncap{}
+			if err := e.Decode(encap.Value); err != nil {
+				return route, err
+			}
+		}
+		route.Encap = e
+	}
+
 	return route, nil
 }
 

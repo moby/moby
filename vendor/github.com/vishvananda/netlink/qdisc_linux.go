@@ -169,11 +169,18 @@ func qdiscPayload(req *nl.NetlinkRequest, qdisc Qdisc) error {
 	} else if tbf, ok := qdisc.(*Tbf); ok {
 		opt := nl.TcTbfQopt{}
 		opt.Rate.Rate = uint32(tbf.Rate)
+		opt.Peakrate.Rate = uint32(tbf.Peakrate)
 		opt.Limit = tbf.Limit
 		opt.Buffer = tbf.Buffer
 		nl.NewRtAttrChild(options, nl.TCA_TBF_PARMS, opt.Serialize())
 		if tbf.Rate >= uint64(1<<32) {
 			nl.NewRtAttrChild(options, nl.TCA_TBF_RATE64, nl.Uint64Attr(tbf.Rate))
+		}
+		if tbf.Peakrate >= uint64(1<<32) {
+			nl.NewRtAttrChild(options, nl.TCA_TBF_PRATE64, nl.Uint64Attr(tbf.Peakrate))
+		}
+		if tbf.Peakrate > 0 {
+			nl.NewRtAttrChild(options, nl.TCA_TBF_PBURST, nl.Uint32Attr(tbf.Minburst))
 		}
 	} else if htb, ok := qdisc.(*Htb); ok {
 		opt := nl.TcHtbGlob{}
@@ -420,10 +427,15 @@ func parseTbfData(qdisc Qdisc, data []syscall.NetlinkRouteAttr) error {
 		case nl.TCA_TBF_PARMS:
 			opt := nl.DeserializeTcTbfQopt(datum.Value)
 			tbf.Rate = uint64(opt.Rate.Rate)
+			tbf.Peakrate = uint64(opt.Peakrate.Rate)
 			tbf.Limit = opt.Limit
 			tbf.Buffer = opt.Buffer
 		case nl.TCA_TBF_RATE64:
 			tbf.Rate = native.Uint64(datum.Value[0:8])
+		case nl.TCA_TBF_PRATE64:
+			tbf.Peakrate = native.Uint64(datum.Value[0:8])
+		case nl.TCA_TBF_PBURST:
+			tbf.Minburst = native.Uint32(datum.Value[0:4])
 		}
 	}
 	return nil

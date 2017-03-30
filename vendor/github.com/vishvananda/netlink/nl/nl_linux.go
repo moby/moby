@@ -17,9 +17,10 @@ import (
 
 const (
 	// Family type definitions
-	FAMILY_ALL = syscall.AF_UNSPEC
-	FAMILY_V4  = syscall.AF_INET
-	FAMILY_V6  = syscall.AF_INET6
+	FAMILY_ALL  = syscall.AF_UNSPEC
+	FAMILY_V4   = syscall.AF_INET
+	FAMILY_V6   = syscall.AF_INET6
+	FAMILY_MPLS = AF_MPLS
 )
 
 // SupportedNlFamilies contains the list of netlink families this netlink package supports
@@ -450,7 +451,7 @@ type NetlinkSocket struct {
 }
 
 func getNetlinkSocket(protocol int) (*NetlinkSocket, error) {
-	fd, err := syscall.Socket(syscall.AF_NETLINK, syscall.SOCK_RAW, protocol)
+	fd, err := syscall.Socket(syscall.AF_NETLINK, syscall.SOCK_RAW|syscall.SOCK_CLOEXEC, protocol)
 	if err != nil {
 		return nil, err
 	}

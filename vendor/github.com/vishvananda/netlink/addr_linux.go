@@ -90,6 +90,10 @@ func (h *Handle) addrHandle(link Link, addr *Addr, req *nl.NetlinkRequest) error
 		}
 	}
 
+	if addr.Broadcast != nil {
+		req.AddData(nl.NewRtAttr(syscall.IFA_BROADCAST, addr.Broadcast))
+	}
+
 	if addr.Label != "" {
 		labelData := nl.NewRtAttr(syscall.IFA_LABEL, nl.ZeroTerminated(addr.Label))
 		req.AddData(labelData)
