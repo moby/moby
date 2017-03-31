@@ -77,6 +77,11 @@ func TestCopier(t *testing.T) {
 		t.Fatal("Copier failed to do its work in 1 second")
 	case <-wait:
 	}
+
+	if c.err != nil {
+		t.Fatal(c.err)
+	}
+
 	dec := json.NewDecoder(&jsonBuf)
 	for {
 		var msg Message
