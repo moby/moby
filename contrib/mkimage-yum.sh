@@ -114,6 +114,8 @@ rm -rf "$target"/sbin/sln
 #  ldconfig
 rm -rf "$target"/etc/ld.so.cache "$target"/var/cache/ldconfig
 mkdir -p --mode=0755 "$target"/var/cache/ldconfig
+#allow x86 to use yum
+cp /etc/rpm/platform "$target"/etc/rpm/platform
 
 version=
 for file in "$target"/etc/{redhat,system}-release
