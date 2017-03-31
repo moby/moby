@@ -463,7 +463,7 @@ func (clnt *client) Restore(containerID string, attachStdio StdioCallback, optio
 	// exactly the same.
 	cont, err := clnt.getContainerdContainer(containerID)
 	// Get its last event
-	ev, eerr := clnt.getContainerLastEvent(containerID)
+	ev, err := clnt.getContainerLastEvent(containerID)
 	if err != nil || cont.Status == "Stopped" {
 		if err != nil {
 			logrus.Warnf("libcontainerd: failed to retrieve container %s state: %v", containerID, err)
