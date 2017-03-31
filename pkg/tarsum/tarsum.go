@@ -173,7 +173,11 @@ func (ts *tarSum) initTarSum() error {
 	ts.tarR = tar.NewReader(ts.Reader)
 	ts.tarW = tar.NewWriter(ts.bufTar)
 	if !ts.DisableCompression {
-		ts.writer = gzip.NewWriter(ts.bufWriter)
+		var err error
+		ts.writer, err = gzip.NewWriterLevel(ts.bufWriter, gzip.BestSpeed)
+		if err != nil {
+			panic(err) // impossible
+		}
 	} else {
 		ts.writer = &nopCloseFlusher{Writer: ts.bufWriter}
 	}
