@@ -98,7 +98,16 @@ if [ -n "$2" ]; then
 else
 	_dh_action=start
 fi
-service docker $_dh_action 2>/dev/null || true
+# Figure out how to start/stop docker daemon
+if which service >/dev/null 2>&1; then
+    _service_invoke="service docker"
+elif which invoke-rc.d >/dev/null 2>&1; then
+    _service_invoke="invoke-rc.d docker"
+else
+    _service_invoke=/etc/init.d/docker
+fi
+
+${_service_invoke} $_dh_action 2>/dev/null || true
 
 #DEBHELPER#
 EOF
@@ -107,7 +116,15 @@ EOF
 set -e
 set -u
 
-service docker stop 2>/dev/null || true
+# Figure out how to start/stop docker daemon
+if which service >/dev/null 2>&1; then
+    _service_invoke="service docker"
+elif which invoke-rc.d >/dev/null 2>&1; then
+    _service_invoke="invoke-rc.d docker"
+else
+    _service_invoke=/etc/init.d/docker
+fi
+${_service_invoke} stop 2>/dev/null || true
 
 #DEBHELPER#
 EOF
