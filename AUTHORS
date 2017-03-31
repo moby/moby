@@ -1,5 +1,5 @@
 # This file lists all individuals having contributed content to the repository.
-# For how it is generated, see `hack/generate-authors.sh`.
+# For how it is generated, see `project/generate-authors.sh`.
 
 Aanand Prasad <aanand.prasad@gmail.com>
 Aaron Davidson <aaron@databricks.com>
