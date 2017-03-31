@@ -6039,3 +6039,18 @@ func (s *DockerSuite) TestBuildLineErrorWithComments(c *check.C) {
 		Err:      "Dockerfile parse error line 5: Unknown instruction: NOINSTRUCTION",
 	})
 }
+
+// #31957
+func (s *DockerSuite) TestBuildSetCommandWithDefinedShell(c *check.C) {
+	buildImageSuccessfully(c, "build1", build.WithDockerfile(`
+FROM busybox
+SHELL ["/bin/sh", "-c"]
+`))
+	buildImageSuccessfully(c, "build2", build.WithDockerfile(`
+FROM build1
+CMD echo foo
+`))
+
+	out, _ := dockerCmd(c, "inspect", "--format", "{{ json .Config.Cmd }}", "build2")
+	c.Assert(strings.TrimSpace(out), checker.Equals, `["/bin/sh","-c","echo foo"]`)
+}
