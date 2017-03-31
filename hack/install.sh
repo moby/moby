@@ -354,6 +354,18 @@ do_install() {
 
 	case "$lsb_dist" in
 
+		trisquel)
+			lsb_dist="ubuntu"
+			if command_exists lsb_release; then
+				dist_version="$(lsb_release --codename | cut -f2)"
+			fi
+			case "$dist_version" in
+				belenos)
+					dist_version="trusty"
+				;;
+			esac
+		;;
+
 		ubuntu)
 			if command_exists lsb_release; then
 				dist_version="$(lsb_release --codename | cut -f2)"
