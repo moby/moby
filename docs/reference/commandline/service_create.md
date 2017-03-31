@@ -424,7 +424,7 @@ The following options can only be used for named volumes (`type=volume`);
       Options specific to a given volume driver, which will be passed to the
       driver when creating the volume. Options are provided as a comma-separated
       list of key/value pairs, for example,
-      <tt>volume-opt=some-option=some-value,some-other-option=some-other-value</tt>.
+      <tt>volume-opt=some-option=some-value,volume-opt=some-other-option=some-other-value</tt>.
       For available options for a given driver, refer to that driver's
       documentation.
     </td>
