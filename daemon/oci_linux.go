@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -18,6 +17,7 @@ import (
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
+	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/volume"
@@ -758,14 +758,9 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 
 	for _, ns := range s.Linux.Namespaces {
 		if ns.Type == "network" && ns.Path == "" && !c.Config.NetworkDisabled {
-			target, err := os.Readlink(filepath.Join("/proc", strconv.Itoa(os.Getpid()), "exe"))
-			if err != nil {
-				return nil, err
-			}
-
 			s.Hooks = specs.Hooks{
 				Prestart: []specs.Hook{{
-					Path: target, // FIXME: cross-platform
+					Path: reexec.Self(),
 					Args: []string{"libnetwork-setkey", c.ID, daemon.netController.ID()},
 				}},
 			}
