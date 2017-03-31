@@ -319,6 +319,40 @@ func (r *Session) GetRemoteImageLayer(imgID, registry string, imgSize int64) (io
 	return res.Body, nil
 }
 
+func (r *Session) getResponseBody(endpoint string) (io.ReadCloser, error) {
+	res, err := r.client.Get(endpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	if res.StatusCode == 401 && res.Header.Get("Set-Cookie") != "" {
+		// Some proxies expect browser-like behavior, with an Authorizaton
+		// header only sent in response to a server challenge. Try again
+		// with cookies from the 401 response.
+		// See https://github.com/docker/docker/issues/22503
+		logrus.Debugf("Got status code %d from %s, retrying...", res.StatusCode, endpoint)
+		res.Body.Close()
+
+		res, err = r.client.Get(endpoint)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	logrus.Debugf("Got status code %d from %s", res.StatusCode, endpoint)
+
+	if res.StatusCode == 404 {
+		res.Body.Close()
+		return nil, ErrRepoNotFound
+	}
+	if res.StatusCode != 200 {
+		res.Body.Close()
+		return nil, nil
+	}
+
+	return res.Body, nil
+}
+
 // GetRemoteTag retrieves the tag named in the askedTag argument from the given
 // repository. It queries each of the registries supplied in the registries
 // argument, and returns data from the first one that answers the query
@@ -333,26 +367,18 @@ func (r *Session) GetRemoteTag(registries []string, repositoryRef reference.Name
 	}
 	for _, host := range registries {
 		endpoint := fmt.Sprintf("%srepositories/%s/tags/%s", host, repository, askedTag)
-		res, err := r.client.Get(endpoint)
+		body, err := r.getResponseBody(endpoint)
 		if err != nil {
 			return "", err
 		}
-
-		logrus.Debugf("Got status code %d from %s", res.StatusCode, endpoint)
-		defer res.Body.Close()
-
-		if res.StatusCode == 404 {
-			return "", ErrRepoNotFound
+		if body != nil {
+			defer body.Close()
+			var tagID string
+			if err := json.NewDecoder(body).Decode(&tagID); err != nil {
+				return "", err
+			}
+			return tagID, nil
 		}
-		if res.StatusCode != 200 {
-			continue
-		}
-
-		var tagID string
-		if err := json.NewDecoder(res.Body).Decode(&tagID); err != nil {
-			return "", err
-		}
-		return tagID, nil
 	}
 	return "", fmt.Errorf("Could not reach any registry endpoint")
 }
@@ -371,26 +397,18 @@ func (r *Session) GetRemoteTags(registries []string, repositoryRef reference.Nam
 	}
 	for _, host := range registries {
 		endpoint := fmt.Sprintf("%srepositories/%s/tags", host, repository)
-		res, err := r.client.Get(endpoint)
+		body, err := r.getResponseBody(endpoint)
 		if err != nil {
 			return nil, err
 		}
-
-		logrus.Debugf("Got status code %d from %s", res.StatusCode, endpoint)
-		defer res.Body.Close()
-
-		if res.StatusCode == 404 {
-			return nil, ErrRepoNotFound
+		if body != nil {
+			defer body.Close()
+			result := make(map[string]string)
+			if err := json.NewDecoder(body).Decode(&result); err != nil {
+				return nil, err
+			}
+			return result, nil
 		}
-		if res.StatusCode != 200 {
-			continue
-		}
-
-		result := make(map[string]string)
-		if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
-			return nil, err
-		}
-		return result, nil
 	}
 	return nil, fmt.Errorf("Could not reach any registry endpoint")
 }
