@@ -200,7 +200,7 @@ func loadWithRetry(name string, retry bool) (*Plugin, error) {
 	for {
 		pl, err := registry.Plugin(name)
 		if err != nil {
-			if !retry {
+			if !retry || err == ErrNotFound {
 				return nil, err
 			}
 
