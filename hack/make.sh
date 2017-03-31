@@ -260,20 +260,12 @@ install_binary() {
 }
 
 main() {
-	# We want this to fail if the bundles already exist and cannot be removed.
-	# This is to avoid mixing bundles from different versions of the code.
+	# We want this to fail if the working direcory already exists and cannot be removed.
 	mkdir -p bundles
-	if [ -e "bundles/$VERSION" ] && [ -z "$KEEPBUNDLE" ]; then
-		echo "bundles/$VERSION already exists. Removing."
-		rm -fr "bundles/$VERSION" && mkdir "bundles/$VERSION" || exit 1
+	if [ -e "bundles/$VERSION-working" ]; then
+		echo "bundles/$VERSION-working already exists. Removing."
+		rm -fr "bundles/$VERSION-working" && mkdir "bundles/$VERSION-working" || exit 1
 		echo
-	fi
-
-	if [ "$(go env GOHOSTOS)" != 'windows' ]; then
-		# Windows and symlinks don't get along well
-
-		rm -f bundles/latest
-		ln -s "$VERSION" bundles/latest
 	fi
 
 	if [ $# -lt 1 ]; then
@@ -281,8 +273,9 @@ main() {
 	else
 		bundles=($@)
 	fi
+
 	for bundle in ${bundles[@]}; do
-		export DEST="bundles/$VERSION/$(basename "$bundle")"
+		export DEST="bundles/$VERSION-working/$(basename "$bundle")"
 		# Cygdrive paths don't play well with go build -o.
 		if [[ "$(uname -s)" == CYGWIN* ]]; then
 			export DEST="$(cygpath -mw "$DEST")"
@@ -292,6 +285,21 @@ main() {
 		bundle "$bundle"
 		echo
 	done
+
+	if [ -e "bundles/$VERSION" ] && [ -z "$KEEPBUNDLE" ]; then
+		echo "bundles/$VERSION already exists. Removing."
+		rm -fr "bundles/$VERSION" || exit 1
+		echo
+	fi
+
+	# move the in progress build to its final "VERSION" path
+	mv "bundles/$VERSION-working" "bundles/$VERSION"
+
+	if [ "$(go env GOHOSTOS)" != 'windows' ]; then
+		# Windows and symlinks don't get along well
+		rm -f bundles/latest
+		ln -s "$VERSION" bundles/latest
+	fi
 }
 
 main "$@"
