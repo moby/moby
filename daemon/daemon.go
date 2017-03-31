@@ -62,7 +62,7 @@ import (
 
 var (
 	// DefaultRuntimeBinary is the default runtime to be used by
-	// containerd if none is specified
+	// container if none is specified
 	DefaultRuntimeBinary = "docker-runc"
 
 	// DefaultInitBinary is the name of the default init binary
