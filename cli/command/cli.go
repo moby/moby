@@ -118,6 +118,12 @@ func (cli *DockerCli) GetAllCredentials() (map[string]types.AuthConfig, error) {
 	return auths, nil
 }
 
+// GetRegistryCredentials returns the auth config used for a given registry
+func (cli *DockerCli) GetRegistryCredentials(registry string) (types.AuthConfig, error) {
+	helper := cli.CredentialsStore(registry)
+	return helper.Get(registry)
+}
+
 func addAll(to, from map[string]types.AuthConfig) {
 	for reg, ac := range from {
 		to[reg] = ac

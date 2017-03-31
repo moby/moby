@@ -11,6 +11,8 @@ import (
 	"regexp"
 	"runtime"
 
+	"io/ioutil"
+
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
@@ -26,6 +28,7 @@ import (
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/urlutil"
+	"github.com/docker/docker/registry"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	units "github.com/docker/go-units"
 	"github.com/pkg/errors"
@@ -138,6 +141,9 @@ func (out *lastProgressOutput) WriteProgress(prog progress.Progress) error {
 	return out.output.WriteProgress(prog)
 }
 
+type translatorFunc func(context.Context, reference.NamedTagged) (reference.Canonical, error)
+type observerFunc func(context.Context, reference.Named)
+
 func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 	var (
 		buildCtx      io.ReadCloser
@@ -247,6 +253,66 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		buildCtx = replaceDockerfileTarWrapper(ctx, buildCtx, relDockerfile, translator, &resolvedTags)
 	}
 
+	// write ctx tar to disk, to make it readable for Image Reference extraction
+	originCtx := buildCtx
+	defer originCtx.Close()
+	readbackTar, err := ioutil.TempFile("", "docker-ctx")
+	defer os.Remove(readbackTar.Name())
+	defer readbackTar.Close()
+	if err != nil {
+		return err
+	}
+	_, err = io.Copy(readbackTar, buildCtx)
+	if err != nil {
+		return err
+	}
+	_, err = readbackTar.Seek(0, os.SEEK_SET)
+	if err != nil {
+		return err
+	}
+
+	// read dockerfile and extract registry information
+
+	referencedRegs := make(map[string]bool)
+
+	observer := func(ctx context.Context, ref reference.Named) {
+		repoInfo, err := registry.ParseRepositoryInfo(ref)
+		if err != nil {
+			// can't get repo info, ignore
+			return
+		}
+		if repoInfo != nil && repoInfo.Index != nil {
+			referencedRegs[registry.GetAuthConfigKey(repoInfo.Index)] = true
+		}
+	}
+
+	tarReader := tar.NewReader(readbackTar)
+
+	for {
+		hdr, err := tarReader.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		if hdr.Name == relDockerfile {
+			content := io.Reader(tarReader)
+			_, _, err = rewriteDockerfileFrom(ctx, content, nil, observer)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	_, err = readbackTar.Seek(0, os.SEEK_SET)
+	if err != nil {
+		return err
+	}
+
+	buildCtx = readbackTar
+
 	// Setup an upload progress bar
 	progressOutput := streamformatter.NewStreamFormatter().NewProgressOutput(progBuff, true)
 	if !dockerCli.Out().IsTerminal() {
@@ -255,7 +321,14 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 
 	var body io.Reader = progress.NewProgressReader(buildCtx, progressOutput, 0, "", "Sending build context to Docker daemon")
 
-	authConfigs, _ := dockerCli.GetAllCredentials()
+	authConfigs := make(map[string]types.AuthConfig)
+	for registry := range referencedRegs {
+		conf, err := dockerCli.GetRegistryCredentials(registry)
+		if err != nil {
+			return err
+		}
+		authConfigs[registry] = conf
+	}
 	buildOptions := types.ImageBuildOptions{
 		Memory:         options.memory.Value(),
 		MemorySwap:     options.memorySwap.Value(),
@@ -343,8 +416,6 @@ func isLocalDir(c string) bool {
 	return err == nil
 }
 
-type translatorFunc func(context.Context, reference.NamedTagged) (reference.Canonical, error)
-
 // validateTag checks if the given image name can be resolved.
 func validateTag(rawRepo string) (string, error) {
 	_, err := reference.ParseNormalizedNamed(rawRepo)
@@ -368,7 +439,7 @@ type resolvedTag struct {
 // "FROM <image>" instructions to a digest reference. `translator` is a
 // function that takes a repository name and tag reference and returns a
 // trusted digest reference.
-func rewriteDockerfileFrom(ctx context.Context, dockerfile io.Reader, translator translatorFunc) (newDockerfile []byte, resolvedTags []*resolvedTag, err error) {
+func rewriteDockerfileFrom(ctx context.Context, dockerfile io.Reader, translator translatorFunc, observer observerFunc) (newDockerfile []byte, resolvedTags []*resolvedTag, err error) {
 	scanner := bufio.NewScanner(dockerfile)
 	buf := bytes.NewBuffer(nil)
 
@@ -384,18 +455,24 @@ func rewriteDockerfileFrom(ctx context.Context, dockerfile io.Reader, translator
 			if err != nil {
 				return nil, nil, err
 			}
-			ref = reference.TagNameOnly(ref)
-			if ref, ok := ref.(reference.NamedTagged); ok && command.IsTrusted() {
-				trustedRef, err := translator(ctx, ref)
-				if err != nil {
-					return nil, nil, err
-				}
+			taggedRef := reference.TagNameOnly(ref)
+			if taggedRef, ok := taggedRef.(reference.NamedTagged); ok {
+				if command.IsTrusted() && translator != nil {
+					trustedRef, err := translator(ctx, taggedRef)
+					if err != nil {
+						return nil, nil, err
+					}
 
-				line = dockerfileFromLinePattern.ReplaceAllLiteralString(line, fmt.Sprintf("FROM %s", reference.FamiliarString(trustedRef)))
-				resolvedTags = append(resolvedTags, &resolvedTag{
-					digestRef: trustedRef,
-					tagRef:    ref,
-				})
+					line = dockerfileFromLinePattern.ReplaceAllLiteralString(line, fmt.Sprintf("FROM %s", reference.FamiliarString(trustedRef)))
+					resolvedTags = append(resolvedTags, &resolvedTag{
+						digestRef: trustedRef,
+						tagRef:    taggedRef,
+					})
+					ref = trustedRef
+				}
+			}
+			if observer != nil {
+				observer(ctx, ref)
 			}
 		}
 
@@ -439,7 +516,7 @@ func replaceDockerfileTarWrapper(ctx context.Context, inputTarStream io.ReadClos
 				// generated from a directory on the local filesystem, the
 				// Dockerfile will only appear once in the archive.
 				var newDockerfile []byte
-				newDockerfile, *resolvedTags, err = rewriteDockerfileFrom(ctx, content, translator)
+				newDockerfile, *resolvedTags, err = rewriteDockerfileFrom(ctx, content, translator, nil)
 				if err != nil {
 					pipeWriter.CloseWithError(err)
 					return
