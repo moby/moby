@@ -16,8 +16,7 @@ func statDifferent(oldStat *system.StatT, newStat *system.StatT) bool {
 		oldStat.GID() != newStat.GID() ||
 		oldStat.Rdev() != newStat.Rdev() ||
 		// Don't look at size for dirs, its not a good measure of change
-		(oldStat.Mode()&syscall.S_IFDIR != syscall.S_IFDIR &&
-			(!sameFsTimeSpec(oldStat.Mtim(), newStat.Mtim()) || (oldStat.Size() != newStat.Size()))) {
+		(oldStat.Mode()&syscall.S_IFDIR != syscall.S_IFDIR && oldStat.Size() != newStat.Size()) {
 		return true
 	}
 	return false
