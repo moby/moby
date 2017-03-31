@@ -355,6 +355,7 @@ check_limit_over()
 
 echo 'Limits:'
 check_limit_over /proc/sys/kernel/keys/root_maxkeys 10000
+check_limit_over /proc/sys/kernel/pid_max 327680
 echo
 
 exit $EXITCODE
