@@ -14,7 +14,7 @@ type tagOptions struct {
 }
 
 // NewTagCommand creates a new `docker tag` command
-func NewTagCommand(dockerCli *command.DockerCli) *cobra.Command {
+func NewTagCommand(dockerCli command.Cli) *cobra.Command {
 	var opts tagOptions
 
 	cmd := &cobra.Command{
@@ -34,7 +34,7 @@ func NewTagCommand(dockerCli *command.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func runTag(dockerCli *command.DockerCli, opts tagOptions) error {
+func runTag(dockerCli command.Cli, opts tagOptions) error {
 	ctx := context.Background()
 
 	return dockerCli.Client().ImageTag(ctx, opts.image, opts.name)

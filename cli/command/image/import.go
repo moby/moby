@@ -23,7 +23,7 @@ type importOptions struct {
 }
 
 // NewImportCommand creates a new `docker import` command
-func NewImportCommand(dockerCli *command.DockerCli) *cobra.Command {
+func NewImportCommand(dockerCli command.Cli) *cobra.Command {
 	var opts importOptions
 
 	cmd := &cobra.Command{
@@ -48,7 +48,7 @@ func NewImportCommand(dockerCli *command.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func runImport(dockerCli *command.DockerCli, opts importOptions) error {
+func runImport(dockerCli command.Cli, opts importOptions) error {
 	var (
 		in      io.Reader
 		srcName = opts.source
