@@ -425,7 +425,7 @@ func (daemon *Daemon) registerLink(parent, child *container.Container, alias str
 	fullName := path.Join(parent.Name, alias)
 	if err := daemon.nameIndex.Reserve(fullName, child.ID); err != nil {
 		if err == registrar.ErrNameReserved {
-			logrus.Warnf("error registering link for %s, to %s, as alias %s, ignoring: %v", parent.ID, child.ID, alias, err)
+			logrus.Errorf("error registering link for %s, to %s, as alias %s, ignoring: %v", parent.ID, child.ID, alias, err)
 			return nil
 		}
 		return err

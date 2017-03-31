@@ -319,7 +319,7 @@ func (daemon *Daemon) foldFilter(config *types.ContainerListOptions) (*listConte
 		psFilters.WalkValues("ancestor", func(ancestor string) error {
 			id, err := daemon.GetImageID(ancestor)
 			if err != nil {
-				logrus.Warnf("Error while looking up for image %v", ancestor)
+				logrus.Errorf("Error while looking up for image %v", ancestor)
 				return nil
 			}
 			if imagesFilter[id] {
