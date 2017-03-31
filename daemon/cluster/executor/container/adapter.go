@@ -297,7 +297,7 @@ func (c *containerAdapter) inspect(ctx context.Context) (types.ContainerJSON, er
 }
 
 // events issues a call to the events API and returns a channel with all
-// events. The stream of events can be shutdown by cancelling the context.
+// events. The stream of events can been shutdown by cancelling the context.
 func (c *containerAdapter) events(ctx context.Context) <-chan events.Message {
 	log.G(ctx).Debugf("waiting on events")
 	buffer, l := c.backend.SubscribeToEvents(time.Time{}, time.Time{}, c.container.eventFilter())
