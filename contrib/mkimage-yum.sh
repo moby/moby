@@ -115,22 +115,8 @@ rm -rf "$target"/sbin/sln
 rm -rf "$target"/etc/ld.so.cache "$target"/var/cache/ldconfig
 mkdir -p --mode=0755 "$target"/var/cache/ldconfig
 
-version=
-for file in "$target"/etc/{redhat,system}-release
-do
-    if [ -r "$file" ]; then
-        version="$(sed 's/^[^0-9\]*\([0-9.]\+\).*$/\1/' "$file")"
-        break
-    fi
-done
+tar --numeric-owner -c -C "$target" . | docker import - $name
 
-if [ -z "$version" ]; then
-    echo >&2 "warning: cannot autodetect OS version, using '$name' as tag"
-    version=$name
-fi
-
-tar --numeric-owner -c -C "$target" . | docker import - $name:$version
-
-docker run -i -t --rm $name:$version /bin/bash -c 'echo success'
+docker run -i -t --rm $name /bin/bash -c 'echo success'
 
 rm -rf "$target"
