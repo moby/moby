@@ -4458,6 +4458,7 @@ paths:
 
             - `before`=(`<image-name>[:<tag>]`,  `<image id>` or `<image@digest>`)
             - `dangling=true`
+            - `reverse=<boolean>` when set to `true` reverse the order of images by creation date
             - `label=key` or `label="key=value"` of an image label
             - `reference`=(`<image-name>[:<tag>]`)
             - `since`=(`<image-name>[:<tag>]`,  `<image id>` or `<image@digest>`)

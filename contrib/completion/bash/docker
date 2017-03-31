@@ -2337,7 +2337,7 @@ _docker_image_ls() {
 			__docker_complete_images
 			return
 			;;
-		dangling)
+		dangling|reverse)
 			COMPREPLY=( $( compgen -W "false true" -- "${cur##*=}" ) )
 			return
 			;;

@@ -22,6 +22,7 @@ var acceptedImageFilterTags = map[string]bool{
 	"before":    true,
 	"since":     true,
 	"reference": true,
+	"reverse":   true,
 }
 
 // byCreated is a temporary type used to sort a list of images by creation
@@ -47,6 +48,7 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 		allImages    map[image.ID]*image.Image
 		err          error
 		danglingOnly = false
+		reverse      = false
 	)
 
 	if err := imageFilters.Validate(acceptedImageFilterTags); err != nil {
@@ -232,7 +234,19 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 		}
 	}
 
-	sort.Sort(sort.Reverse(byCreated(images)))
+	if imageFilters.Include("reverse") {
+		if imageFilters.ExactMatch("reverse", "true") {
+			reverse = true
+		}
+	}
+
+	if reverse {
+		// Most recently created images will be on the bottom
+		sort.Sort(byCreated(images))
+	} else {
+		// Default behavior: most recently created images will be on the top
+		sort.Sort(sort.Reverse(byCreated(images)))
+	}
 
 	return images, nil
 }
