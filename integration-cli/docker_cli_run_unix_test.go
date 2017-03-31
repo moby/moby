@@ -1350,6 +1350,15 @@ func (s *DockerSuite) TestRunApparmorProcDirectory(c *check.C) {
 	}
 }
 
+// test that non existent apparmor profile gives helpful error
+func (s *DockerSuite) TestRunApparmorProfileNotFound(c *check.C) {
+	testRequires(c, SameHostDaemon, Apparmor)
+
+	out, _, err := dockerCmdWithError("run", "--security-opt", "apparmor=thisapparmorprofiledoesnotexistonthismachine", "busybox", "ls")
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Error response from daemon: Apparmor profile not found.")
+}
+
 // make sure the default profile can be successfully parsed (using unshare as it is
 // something which we know is blocked in the default profile)
 func (s *DockerSuite) TestRunSeccompWithDefaultProfile(c *check.C) {

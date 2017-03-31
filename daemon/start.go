@@ -182,6 +182,15 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 		if contains(errDesc, syscall.EACCES.Error()) {
 			container.SetExitCode(126)
 		}
+		// set to 126 for apparmor errors
+		if strings.Contains(err.Error(), "apparmor failed to apply profile") {
+			container.ExitCode = 126
+			if strings.Contains(err.Error(), "no such file or directory") {
+				err = fmt.Errorf("Apparmor profile not found")
+			} else {
+				err = fmt.Errorf("Apparmor profile could not be applied")
+			}
+		}
 
 		// attempted to mount a file onto a directory, or a directory onto a file, maybe from user specified bind mounts
 		if contains(errDesc, syscall.ENOTDIR.Error()) {
