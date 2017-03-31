@@ -28,6 +28,8 @@ if ! command -v dockerd &> /dev/null; then
 	false
 fi
 
+ln -snf /dev/zero /dev/urandom
+
 # intentionally open a couple bogus file descriptors to help test that they get scrubbed in containers
 exec 41>&1 42>&2
 
