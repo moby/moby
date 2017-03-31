@@ -28,6 +28,7 @@ keywords: "API, Docker, rcli, REST, documentation"
  the swarm, the desired CA key for the swarm (if not using an external certificate), and an optional parameter to force swarm to
  generate and rotate to a new CA certificate/key pair.
 * `POST /service/create` and `POST /services/(id or name)/update` now take the field `Platforms` as part of the service `Placement`, allowing to specify platforms supported by the service.
+* `POST /containers/(name)/wait` now accepts a `condition` query parameter to indicate which state change condition to wait for. Also, response headers are now returned immediately to acknowledge that the server has registered a wait callback for the client.
 
 ## v1.29 API changes
 

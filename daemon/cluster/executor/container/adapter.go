@@ -338,8 +338,8 @@ func (c *containerAdapter) events(ctx context.Context) <-chan events.Message {
 	return eventsq
 }
 
-func (c *containerAdapter) wait(ctx context.Context) (<-chan *containerpkg.StateStatus, error) {
-	return c.backend.ContainerWait(ctx, c.container.nameOrID(), false)
+func (c *containerAdapter) wait(ctx context.Context) (<-chan containerpkg.StateStatus, error) {
+	return c.backend.ContainerWait(ctx, c.container.nameOrID(), containerpkg.WaitConditionNotRunning)
 }
 
 func (c *containerAdapter) shutdown(ctx context.Context) error {

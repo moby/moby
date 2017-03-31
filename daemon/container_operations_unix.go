@@ -291,16 +291,16 @@ func (daemon *Daemon) setupConfigDir(c *container.Container) (setupErr error) {
 	return nil
 }
 
-func killProcessDirectly(container *container.Container) error {
+func killProcessDirectly(cntr *container.Container) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	// Block until the container to stops or timeout.
-	status := <-container.Wait(ctx, false)
+	status := <-cntr.Wait(ctx, container.WaitConditionNotRunning)
 	if status.Err() != nil {
 		// Ensure that we don't kill ourselves
-		if pid := container.GetPID(); pid != 0 {
-			logrus.Infof("Container %s failed to exit within 10 seconds of kill - trying direct SIGKILL", stringid.TruncateID(container.ID))
+		if pid := cntr.GetPID(); pid != 0 {
+			logrus.Infof("Container %s failed to exit within 10 seconds of kill - trying direct SIGKILL", stringid.TruncateID(cntr.ID))
 			if err := syscall.Kill(pid, 9); err != nil {
 				if err != syscall.ESRCH {
 					return err

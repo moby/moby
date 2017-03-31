@@ -779,7 +779,7 @@ func (daemon *Daemon) shutdownContainer(c *container.Container) error {
 		defer cancel()
 
 		// Wait with timeout for container to exit.
-		if status := <-c.Wait(ctx, false); status.Err() != nil {
+		if status := <-c.Wait(ctx, container.WaitConditionNotRunning); status.Err() != nil {
 			logrus.Debugf("container %s failed to exit in %d second of SIGTERM, sending SIGKILL to force", c.ID, stopTimeout)
 			sig, ok := signal.SignalMap["KILL"]
 			if !ok {
@@ -790,7 +790,7 @@ func (daemon *Daemon) shutdownContainer(c *container.Container) error {
 			}
 			// Wait for exit again without a timeout.
 			// Explicitly ignore the result.
-			_ = <-c.Wait(context.Background(), false)
+			_ = <-c.Wait(context.Background(), container.WaitConditionNotRunning)
 			return status.Err()
 		}
 	}
@@ -801,7 +801,7 @@ func (daemon *Daemon) shutdownContainer(c *container.Container) error {
 
 	// Wait without timeout for the container to exit.
 	// Ignore the result.
-	_ = <-c.Wait(context.Background(), false)
+	_ = <-c.Wait(context.Background(), container.WaitConditionNotRunning)
 	return nil
 }
 

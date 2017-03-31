@@ -162,7 +162,7 @@ func (daemon *Daemon) containerAttach(c *container.Container, cfg *stream.Attach
 
 	if c.Config.StdinOnce && !c.Config.Tty {
 		// Wait for the container to stop before returning.
-		waitChan := c.Wait(context.Background(), false)
+		waitChan := c.Wait(context.Background(), container.WaitConditionNotRunning)
 		defer func() {
 			_ = <-waitChan // Ignore returned exit code.
 		}()
@@ -171,7 +171,7 @@ func (daemon *Daemon) containerAttach(c *container.Container, cfg *stream.Attach
 	ctx := c.InitAttachContext()
 	err := <-c.StreamConfig.CopyStreams(ctx, cfg)
 	if err != nil {
-		if _, ok := err.(stream.DetachError); ok {
+		if _, ok := err.(term.EscapeError); ok {
 			daemon.LogContainerEvent(c, "detach")
 		} else {
 			logrus.Errorf("attach failed with error: %v", err)

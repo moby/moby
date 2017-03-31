@@ -50,7 +50,7 @@ type Backend interface {
 	// ContainerStart starts a new container
 	ContainerStart(containerID string, hostConfig *container.HostConfig, checkpoint string, checkpointDir string) error
 	// ContainerWait stops processing until the given container is stopped.
-	ContainerWait(ctx context.Context, name string, untilRemoved bool) (<-chan *containerpkg.StateStatus, error)
+	ContainerWait(ctx context.Context, name string, condition containerpkg.WaitCondition) (<-chan containerpkg.StateStatus, error)
 	// ContainerCreateWorkdir creates the workdir
 	ContainerCreateWorkdir(containerID string) error
 
