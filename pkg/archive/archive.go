@@ -471,7 +471,7 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 
 		// the reason we don't need to check symlinks in the path (with FollowSymlinkInScope) is because
 		// that symlink would first have to be created, which would be caught earlier, at this very check:
-		if !strings.HasPrefix(targetPath, extractDir) {
+		if extractDir != "." && !strings.HasPrefix(targetPath, extractDir) {
 			return breakoutError(fmt.Errorf("invalid symlink %q -> %q", path, hdr.Linkname))
 		}
 		if err := os.Symlink(hdr.Linkname, path); err != nil {

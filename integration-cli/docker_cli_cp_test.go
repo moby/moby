@@ -167,6 +167,31 @@ func (s *DockerSuite) TestCpAbsolutePath(c *check.C) {
 	c.Assert(string(test), checker.Equals, cpContainerContents)
 }
 
+func (s *DockerSuite) TestCpSymlinkToCurrentDir(c *check.C) {
+	out, exitCode := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", " mkdir -p '/tmp/test/subdir1' '/tmp/test/subdir2' && touch '/tmp/test/subdir1/a' && cd '/tmp/test/subdir2' && ln -s '../subdir1/a'")
+	if exitCode != 0 {
+		c.Fatal("failed to create a container", out)
+	}
+
+	cleanedContainerID := strings.TrimSpace(out)
+	defer deleteContainer(cleanedContainerID)
+
+	out, exitCode = dockerCmd(c, "wait", cleanedContainerID)
+	if exitCode != 0 || strings.TrimSpace(out) != "0" {
+		c.Fatal("failed to set up container", out)
+	}
+
+	tmpdir := "."
+	defer os.RemoveAll("./test")
+
+	path := path.Join("/", "tmp/test")
+
+	_, exitCode = dockerCmd(c, "cp", cleanedContainerID+":"+path, tmpdir)
+	if exitCode != 0 {
+		c.Errorf("failed to cp relative symlink to current dir: %s:%s", cleanedContainerID, path)
+	}
+}
+
 // Test for #5619
 // Check that absolute symlinks are still relative to the container's rootfs
 func (s *DockerSuite) TestCpAbsoluteSymlink(c *check.C) {
