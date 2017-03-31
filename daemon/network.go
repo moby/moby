@@ -101,8 +101,9 @@ func (daemon *Daemon) getAllNetworks() []libnetwork.Network {
 }
 
 type ingressJob struct {
-	create *clustertypes.NetworkCreateRequest
-	ip     net.IP
+	create  *clustertypes.NetworkCreateRequest
+	ip      net.IP
+	jobDone chan struct{}
 }
 
 var (
@@ -124,6 +125,7 @@ func (daemon *Daemon) startIngressWorker() {
 					daemon.releaseIngress(ingressID)
 					ingressID = ""
 				}
+				close(r.jobDone)
 			}
 		}
 	}()
@@ -137,19 +139,23 @@ func (daemon *Daemon) enqueueIngressJob(job *ingressJob) {
 }
 
 // SetupIngress setups ingress networking.
-func (daemon *Daemon) SetupIngress(create clustertypes.NetworkCreateRequest, nodeIP string) error {
+// The function returns a channel which will signal the caller when the programming is completed.
+func (daemon *Daemon) SetupIngress(create clustertypes.NetworkCreateRequest, nodeIP string) (<-chan struct{}, error) {
 	ip, _, err := net.ParseCIDR(nodeIP)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	daemon.enqueueIngressJob(&ingressJob{&create, ip})
-	return nil
+	done := make(chan struct{})
+	daemon.enqueueIngressJob(&ingressJob{&create, ip, done})
+	return done, nil
 }
 
 // ReleaseIngress releases the ingress networking.
-func (daemon *Daemon) ReleaseIngress() error {
-	daemon.enqueueIngressJob(&ingressJob{nil, nil})
-	return nil
+// The function returns a channel which will signal the caller when the programming is completed.
+func (daemon *Daemon) ReleaseIngress() (<-chan struct{}, error) {
+	done := make(chan struct{})
+	daemon.enqueueIngressJob(&ingressJob{nil, nil, done})
+	return done, nil
 }
 
 func (daemon *Daemon) setupIngress(create *clustertypes.NetworkCreateRequest, ip net.IP, staleID string) {

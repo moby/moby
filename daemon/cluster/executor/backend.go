@@ -27,8 +27,8 @@ type Backend interface {
 	CreateManagedNetwork(clustertypes.NetworkCreateRequest) error
 	DeleteManagedNetwork(name string) error
 	FindNetwork(idName string) (libnetwork.Network, error)
-	SetupIngress(req clustertypes.NetworkCreateRequest, nodeIP string) error
-	ReleaseIngress() error
+	SetupIngress(clustertypes.NetworkCreateRequest, string) (<-chan struct{}, error)
+	ReleaseIngress() (<-chan struct{}, error)
 	PullImage(ctx context.Context, image, tag string, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error
 	CreateManagedContainer(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error)
 	ContainerStart(name string, hostConfig *container.HostConfig, checkpoint string, checkpointDir string) error
