@@ -1652,10 +1652,13 @@ func (s *DockerSuite) TestDockerNetworkInternalMode(c *check.C) {
 	c.Assert(waitRun("first"), check.IsNil)
 	dockerCmd(c, "run", "-d", "--net=internal", "--name=second", "busybox", "top")
 	c.Assert(waitRun("second"), check.IsNil)
-	out, _, err := dockerCmdWithError("exec", "first", "ping", "-W", "4", "-c", "1", "www.google.com")
+	// The majority of the time spent in the test are from the following `ping` test cases.
+	// In this test IPV4 (`-4`) options are used explicitly to reduce the execution time
+	// significantly.
+	out, _, err := dockerCmdWithError("exec", "first", "ping", "-4", "-W", "4", "-c", "1", "www.google.com")
 	c.Assert(err, check.NotNil)
 	c.Assert(out, checker.Contains, "ping: bad address")
-	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "first")
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-4", "-c", "1", "first")
 	c.Assert(err, check.IsNil)
 }
 
