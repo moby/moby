@@ -269,10 +269,22 @@ Please see the [Coding Style](#coding-style) for further guidelines.
 Docker maintainers use LGTM (Looks Good To Me) in comments on the code review to
 indicate acceptance.
 
-A change requires LGTMs from an absolute majority of the maintainers of each
-component affected. For example, if a change affects `docs/` and `registry/`, it
-needs an absolute majority from the maintainers of `docs/` AND, separately, an
-absolute majority of the maintainers of `registry/`.
+A code change requires LGTMs from an absolute majority of the maintainers of
+each component affected. For example, if a change affects `daemon/` and
+`registry/`, it needs an absolute majority from the maintainers of `daemon/`
+AND, separately, an absolute majority of the maintainers of `registry/`.
+
+Changes to `docs/` are slightly different. Changes to documentation require only
+two LGTMs from docs maintainers and one LGTM from a maintainer of the component
+being discussed or described in the proposed docs change. If more than one
+component is discussed in the docs, then an LGTM is required from a maintainer
+of each component being documented. For example, documents covering a change
+that affects both `daemon/` and `registry/` would require two LGTMs from docs
+maintainers and one LGTM from a maintainer of each component. 
+
+The exception to this is any docs change that could be described as a "copy
+edit:" fixing a typo, correcting a bad URL, fixing a formatting mistake,
+correcting grammar, etc. See the "Small patch exception" section below.
 
 For more details, see the [MAINTAINERS](MAINTAINERS) page.
 
