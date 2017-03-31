@@ -20,6 +20,19 @@ of thousands of applications and databases.
 
 ![Docker logo](docs/static_files/docker-logo-compressed.png "Docker")
 
+## A quick intro for non-developers
+
+Think of the simplicity of installing an app on your smartphone : you push one button, the installation begins, and a few minutes later your app can run on your phone. 
+
+Now think of the process of installing an application / program you coded on a server : it’s tedious and complicated, many things can go wrong, conflicts can easily emerge. But what if you could install your whole application on any server as easily as installing an app on your phone ?
+
+Enter Docker : an engine that wraps your entire application in a sealed container, that guarantees that **your code will always run the same, on any computer, any server, any infrastructure, any cloud**.
+
+What does this mean ? Think of the process of printing a book : once the book is written, it can be replicated an infinite number of times yet always remain exactly the same. Docker does the same for your piece of software packed as a container : once its has been developed and shipped, it can be installed and deployed by anyone, on any environment, and will always run exactly the same.
+
+**Docker containers makes your application portable** : very easy to package, ship and install on any type of environment, by anyone.
+
+
 ## Security Disclosure
 
 Security is very important to us. If you have any issue regarding security,
