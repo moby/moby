@@ -468,6 +468,24 @@ func (s *DockerSwarmSuite) TestSwarmIngressNetwork(c *check.C) {
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 }
 
+func (s *DockerSwarmSuite) TestSwarmCreateServiceWithNoIngressNetwork(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	// Remove ingress network
+	out, _, err := testutil.RunCommandPipelineWithOutput(
+		exec.Command("echo", "Y"),
+		exec.Command("docker", "-H", d.Sock(), "network", "rm", "ingress"),
+	)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	// Create a overlay network and launch a service on it
+	// Make sure nothing panics because ingress network is missing
+	out, err = d.Cmd("network", "create", "-d", "overlay", "another-network")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	out, err = d.Cmd("service", "create", "--name", "srv4", "--network", "another-network", "busybox", "top")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+}
+
 // Test case for #24108, also the case from:
 // https://github.com/docker/docker/pull/24620#issuecomment-233715656
 func (s *DockerSwarmSuite) TestSwarmTaskListFilter(c *check.C) {

@@ -1859,8 +1859,9 @@ func (e EventCreateNode) Matches(apiEvent github_com_docker_go_events.Event) boo
 }
 
 type EventUpdateNode struct {
-	Node   *Node
-	Checks []NodeCheckFunc
+	Node    *Node
+	OldNode *Node
+	Checks  []NodeCheckFunc
 }
 
 func (e EventUpdateNode) Matches(apiEvent github_com_docker_go_events.Event) bool {
@@ -1915,12 +1916,132 @@ func (m *Node) EventCreate() Event {
 	return EventCreateNode{Node: m}
 }
 
-func (m *Node) EventUpdate() Event {
-	return EventUpdateNode{Node: m}
+func (m *Node) EventUpdate(oldObject StoreObject) Event {
+	if oldObject != nil {
+		return EventUpdateNode{Node: m, OldNode: oldObject.(*Node)}
+	} else {
+		return EventUpdateNode{Node: m}
+	}
 }
 
 func (m *Node) EventDelete() Event {
 	return EventDeleteNode{Node: m}
+}
+
+func NodeCheckID(v1, v2 *Node) bool {
+	return v1.ID == v2.ID
+}
+
+func NodeCheckIDPrefix(v1, v2 *Node) bool {
+	return strings.HasPrefix(v2.ID, v1.ID)
+}
+
+func NodeCheckName(v1, v2 *Node) bool {
+	if v1.Description == nil || v2.Description == nil {
+		return false
+	}
+	return v1.Description.Hostname == v2.Description.Hostname
+}
+
+func NodeCheckNamePrefix(v1, v2 *Node) bool {
+	if v1.Description == nil || v2.Description == nil {
+		return false
+	}
+	return strings.HasPrefix(v2.Description.Hostname, v1.Description.Hostname)
+}
+
+func NodeCheckCustom(v1, v2 *Node) bool {
+	return checkCustom(v1.Spec.Annotations, v2.Spec.Annotations)
+}
+
+func NodeCheckCustomPrefix(v1, v2 *Node) bool {
+	return checkCustomPrefix(v1.Spec.Annotations, v2.Spec.Annotations)
+}
+
+func NodeCheckRole(v1, v2 *Node) bool {
+	return v1.Role == v2.Role
+}
+
+func NodeCheckMembership(v1, v2 *Node) bool {
+	return v1.Spec.Membership == v2.Spec.Membership
+}
+
+func ConvertNodeWatch(action WatchActionKind, filters []*SelectBy) ([]Event, error) {
+	var (
+		m             Node
+		checkFuncs    []NodeCheckFunc
+		hasRole       bool
+		hasMembership bool
+	)
+
+	for _, filter := range filters {
+		switch v := filter.By.(type) {
+		case *SelectBy_ID:
+			if m.ID != "" {
+				return nil, errConflictingFilters
+			}
+			m.ID = v.ID
+			checkFuncs = append(checkFuncs, NodeCheckID)
+		case *SelectBy_IDPrefix:
+			if m.ID != "" {
+				return nil, errConflictingFilters
+			}
+			m.ID = v.IDPrefix
+			checkFuncs = append(checkFuncs, NodeCheckIDPrefix)
+		case *SelectBy_Name:
+			if m.Description != nil {
+				return nil, errConflictingFilters
+			}
+			m.Description = &NodeDescription{Hostname: v.Name}
+			checkFuncs = append(checkFuncs, NodeCheckName)
+		case *SelectBy_NamePrefix:
+			if m.Description != nil {
+				return nil, errConflictingFilters
+			}
+			m.Description = &NodeDescription{Hostname: v.NamePrefix}
+			checkFuncs = append(checkFuncs, NodeCheckNamePrefix)
+		case *SelectBy_Custom:
+			if len(m.Spec.Annotations.Indices) != 0 {
+				return nil, errConflictingFilters
+			}
+			m.Spec.Annotations.Indices = []IndexEntry{{Key: v.Custom.Index, Val: v.Custom.Value}}
+			checkFuncs = append(checkFuncs, NodeCheckCustom)
+		case *SelectBy_CustomPrefix:
+			if len(m.Spec.Annotations.Indices) != 0 {
+				return nil, errConflictingFilters
+			}
+			m.Spec.Annotations.Indices = []IndexEntry{{Key: v.CustomPrefix.Index, Val: v.CustomPrefix.Value}}
+			checkFuncs = append(checkFuncs, NodeCheckCustomPrefix)
+		case *SelectBy_Role:
+			if hasRole {
+				return nil, errConflictingFilters
+			}
+			hasRole = true
+			m.Role = v.Role
+			checkFuncs = append(checkFuncs, NodeCheckRole)
+		case *SelectBy_Membership:
+			if hasMembership {
+				return nil, errConflictingFilters
+			}
+			hasMembership = true
+			m.Spec.Membership = v.Membership
+			checkFuncs = append(checkFuncs, NodeCheckMembership)
+		}
+	}
+	var events []Event
+	if (action & WatchActionKindCreate) != 0 {
+		events = append(events, EventCreateNode{Node: &m, Checks: checkFuncs})
+	}
+	if (action & WatchActionKindUpdate) != 0 {
+		events = append(events, EventUpdateNode{Node: &m, Checks: checkFuncs})
+	}
+	if (action & WatchActionKindRemove) != 0 {
+		events = append(events, EventDeleteNode{Node: &m, Checks: checkFuncs})
+	}
+	if len(events) == 0 {
+		return nil, errUnrecognizedAction
+	}
+	return events, nil
 }
 
 type NodeIndexerByID struct{}
@@ -1985,8 +2106,9 @@ func (e EventCreateService) Matches(apiEvent github_com_docker_go_events.Event) 
 }
 
 type EventUpdateService struct {
-	Service *Service
-	Checks  []ServiceCheckFunc
+	Service    *Service
+	OldService *Service
+	Checks     []ServiceCheckFunc
 }
 
 func (e EventUpdateService) Matches(apiEvent github_com_docker_go_events.Event) bool {
@@ -2041,12 +2163,102 @@ func (m *Service) EventCreate() Event {
 	return EventCreateService{Service: m}
 }
 
-func (m *Service) EventUpdate() Event {
-	return EventUpdateService{Service: m}
+func (m *Service) EventUpdate(oldObject StoreObject) Event {
+	if oldObject != nil {
+		return EventUpdateService{Service: m, OldService: oldObject.(*Service)}
+	} else {
+		return EventUpdateService{Service: m}
+	}
 }
 
 func (m *Service) EventDelete() Event {
 	return EventDeleteService{Service: m}
+}
+
+func ServiceCheckID(v1, v2 *Service) bool {
+	return v1.ID == v2.ID
+}
+
+func ServiceCheckIDPrefix(v1, v2 *Service) bool {
+	return strings.HasPrefix(v2.ID, v1.ID)
+}
+
+func ServiceCheckName(v1, v2 *Service) bool {
+	return v1.Spec.Annotations.Name == v2.Spec.Annotations.Name
+}
+
+func ServiceCheckNamePrefix(v1, v2 *Service) bool {
+	return strings.HasPrefix(v2.Spec.Annotations.Name, v1.Spec.Annotations.Name)
+}
+
+func ServiceCheckCustom(v1, v2 *Service) bool {
+	return checkCustom(v1.Spec.Annotations, v2.Spec.Annotations)
+}
+
+func ServiceCheckCustomPrefix(v1, v2 *Service) bool {
+	return checkCustomPrefix(v1.Spec.Annotations, v2.Spec.Annotations)
+}
+
+func ConvertServiceWatch(action WatchActionKind, filters []*SelectBy) ([]Event, error) {
+	var (
+		m          Service
+		checkFuncs []ServiceCheckFunc
+	)
+
+	for _, filter := range filters {
+		switch v := filter.By.(type) {
+		case *SelectBy_ID:
+			if m.ID != "" {
+				return nil, errConflictingFilters
+			}
+			m.ID = v.ID
+			checkFuncs = append(checkFuncs, ServiceCheckID)
+		case *SelectBy_IDPrefix:
+			if m.ID != "" {
+				return nil, errConflictingFilters
+			}
+			m.ID = v.IDPrefix
+			checkFuncs = append(checkFuncs, ServiceCheckIDPrefix)
+		case *SelectBy_Name:
+			if m.Spec.Annotations.Name != "" {
+				return nil, errConflictingFilters
+			}
+			m.Spec.Annotations.Name = v.Name
+			checkFuncs = append(checkFuncs, ServiceCheckName)
+		case *SelectBy_NamePrefix:
+			if m.Spec.Annotations.Name != "" {
+				return nil, errConflictingFilters
+			}
+			m.Spec.Annotations.Name = v.NamePrefix
+			checkFuncs = append(checkFuncs, ServiceCheckNamePrefix)
+		case *SelectBy_Custom:
+			if len(m.Spec.Annotations.Indices) != 0 {
+				return nil, errConflictingFilters
+			}
+			m.Spec.Annotations.Indices = []IndexEntry{{Key: v.Custom.Index, Val: v.Custom.Value}}
+			checkFuncs = append(checkFuncs, ServiceCheckCustom)
+		case *SelectBy_CustomPrefix:
+			if len(m.Spec.Annotations.Indices) != 0 {
+				return nil, errConflictingFilters
+			}
+			m.Spec.Annotations.Indices = []IndexEntry{{Key: v.CustomPrefix.Index, Val: v.CustomPrefix.Value}}
+			checkFuncs = append(checkFuncs, ServiceCheckCustomPrefix)
+		}
+	}
+	var events []Event
+	if (action & WatchActionKindCreate) != 0 {
+		events = append(events, EventCreateService{Service: &m, Checks: checkFuncs})
+	}
+	if (action & WatchActionKindUpdate) != 0 {
+		events = append(events, EventUpdateService{Service: &m, Checks: checkFuncs})
+	}
+	if (action & WatchActionKindRemove) != 0 {
+		events = append(events, EventDeleteService{Service: &m, Checks: checkFuncs})
+	}
+	if len(events) == 0 {
+		return nil, errUnrecognizedAction
+	}
+	return events, nil
 }
 
 type ServiceIndexerByID struct{}
@@ -2111,8 +2323,9 @@ func (e EventCreateTask) Matches(apiEvent github_com_docker_go_events.Event) boo
 }
 
 type EventUpdateTask struct {
-	Task   *Task
-	Checks []TaskCheckFunc
+	Task    *Task
+	OldTask *Task
+	Checks  []TaskCheckFunc
 }
 
 func (e EventUpdateTask) Matches(apiEvent github_com_docker_go_events.Event) bool {
@@ -2167,12 +2380,145 @@ func (m *Task) EventCreate() Event {
 	return EventCreateTask{Task: m}
 }
 
-func (m *Task) EventUpdate() Event {
-	return EventUpdateTask{Task: m}
+func (m *Task) EventUpdate(oldObject StoreObject) Event {
+	if oldObject != nil {
+		return EventUpdateTask{Task: m, OldTask: oldObject.(*Task)}
+	} else {
+		return EventUpdateTask{Task: m}
+	}
 }
 
 func (m *Task) EventDelete() Event {
 	return EventDeleteTask{Task: m}
+}
+
+func TaskCheckID(v1, v2 *Task) bool {
+	return v1.ID == v2.ID
+}
+
+func TaskCheckIDPrefix(v1, v2 *Task) bool {
+	return strings.HasPrefix(v2.ID, v1.ID)
+}
+
+func TaskCheckName(v1, v2 *Task) bool {
+	return v1.Annotations.Name == v2.Annotations.Name
+}
+
+func TaskCheckNamePrefix(v1, v2 *Task) bool {
+	return strings.HasPrefix(v2.Annotations.Name, v1.Annotations.Name)
+}
+
+func TaskCheckCustom(v1, v2 *Task) bool {
+	return checkCustom(v1.Annotations, v2.Annotations)
+}
+
+func TaskCheckCustomPrefix(v1, v2 *Task) bool {
+	return checkCustomPrefix(v1.Annotations, v2.Annotations)
+}
+
+func TaskCheckNodeID(v1, v2 *Task) bool {
+	return v1.NodeID == v2.NodeID
+}
+
+func TaskCheckServiceID(v1, v2 *Task) bool {
+	return v1.ServiceID == v2.ServiceID
+}
+
+func TaskCheckSlot(v1, v2 *Task) bool {
+	return v1.Slot == v2.Slot
+}
+
+func TaskCheckDesiredState(v1, v2 *Task) bool {
+	return v1.DesiredState == v2.DesiredState
+}
+
+func ConvertTaskWatch(action WatchActionKind, filters []*SelectBy) ([]Event, error) {
+	var (
+		m               Task
+		checkFuncs      []TaskCheckFunc
+		hasDesiredState bool
+	)
+
+	for _, filter := range filters {
+		switch v := filter.By.(type) {
+		case *SelectBy_ID:
+			if m.ID != "" {
+				return nil, errConflictingFilters
+			}
+			m.ID = v.ID
+			checkFuncs = append(checkFuncs, TaskCheckID)
+		case *SelectBy_IDPrefix:
+			if m.ID != "" {
+				return nil, errConflictingFilters
+			}
+			m.ID = v.IDPrefix
+			checkFuncs = append(checkFuncs, TaskCheckIDPrefix)
+		case *SelectBy_Name:
+			if m.Annotations.Name != "" {
+				return nil, errConflictingFilters
+			}
+			m.Annotations.Name = v.Name
+			checkFuncs = append(checkFuncs, TaskCheckName)
+		case *SelectBy_NamePrefix:
+			if m.Annotations.Name != "" {
+				return nil, errConflictingFilters
+			}
+			m.Annotations.Name = v.NamePrefix
+			checkFuncs = append(checkFuncs, TaskCheckNamePrefix)
+		case *SelectBy_Custom:
+			if len(m.Annotations.Indices) != 0 {
+				return nil, errConflictingFilters
+			}
+			m.Annotations.Indices = []IndexEntry{{Key: v.Custom.Index, Val: v.Custom.Value}}
+			checkFuncs = append(checkFuncs, TaskCheckCustom)
+		case *SelectBy_CustomPrefix:
+			if len(m.Annotations.Indices) != 0 {
+				return nil, errConflictingFilters
+			}
+			m.Annotations.Indices = []IndexEntry{{Key: v.CustomPrefix.Index, Val: v.CustomPrefix.Value}}
+			checkFuncs = append(checkFuncs, TaskCheckCustomPrefix)
+		case *SelectBy_ServiceID:
+			if m.ServiceID != "" {
+				return nil, errConflictingFilters
+			}
+			m.ServiceID = v.ServiceID
+			checkFuncs = append(checkFuncs, TaskCheckServiceID)
+		case *SelectBy_NodeID:
+			if m.NodeID != "" {
+				return nil, errConflictingFilters
+			}
+			m.NodeID = v.NodeID
+			checkFuncs = append(checkFuncs, TaskCheckNodeID)
+		case *SelectBy_Slot:
+			if m.Slot != 0 || m.ServiceID != "" {
+				return nil, errConflictingFilters
+			}
+			m.ServiceID = v.Slot.ServiceID
+			m.Slot = v.Slot.Slot
+			checkFuncs = append(checkFuncs, TaskCheckNodeID, TaskCheckSlot)
+		case *SelectBy_DesiredState:
+			if hasDesiredState {
+				return nil, errConflictingFilters
+			}
+			hasDesiredState = true
+			m.DesiredState = v.DesiredState
+			checkFuncs = append(checkFuncs, TaskCheckDesiredState)
+		}
+	}
+	var events []Event
+	if (action & WatchActionKindCreate) != 0 {
+		events = append(events, EventCreateTask{Task: &m, Checks: checkFuncs})
+	}
+	if (action & WatchActionKindUpdate) != 0 {
+		events = append(events, EventUpdateTask{Task: &m, Checks: checkFuncs})
+	}
+	if (action & WatchActionKindRemove) != 0 {
+		events = append(events, EventDeleteTask{Task: &m, Checks: checkFuncs})
+	}
+	if len(events) == 0 {
+		return nil, errUnrecognizedAction
+	}
+	return events, nil
 }
 
 type TaskIndexerByID struct{}
@@ -2237,8 +2583,9 @@ func (e EventCreateNetwork) Matches(apiEvent github_com_docker_go_events.Event) 
 }
 
 type EventUpdateNetwork struct {
-	Network *Network
-	Checks  []NetworkCheckFunc
+	Network    *Network
+	OldNetwork *Network
+	Checks     []NetworkCheckFunc
 }
 
 func (e EventUpdateNetwork) Matches(apiEvent github_com_docker_go_events.Event) bool {
@@ -2293,12 +2640,102 @@ func (m *Network) EventCreate() Event {
 	return EventCreateNetwork{Network: m}
 }
 
-func (m *Network) EventUpdate() Event {
-	return EventUpdateNetwork{Network: m}
+func (m *Network) EventUpdate(oldObject StoreObject) Event {
+	if oldObject != nil {
+		return EventUpdateNetwork{Network: m, OldNetwork: oldObject.(*Network)}
+	} else {
+		return EventUpdateNetwork{Network: m}
+	}
 }
 
 func (m *Network) EventDelete() Event {
 	return EventDeleteNetwork{Network: m}
+}
+
+func NetworkCheckID(v1, v2 *Network) bool {
+	return v1.ID == v2.ID
+}
+
+func NetworkCheckIDPrefix(v1, v2 *Network) bool {
+	return strings.HasPrefix(v2.ID, v1.ID)
+}
+
+func NetworkCheckName(v1, v2 *Network) bool {
+	return v1.Spec.Annotations.Name == v2.Spec.Annotations.Name
+}
+
+func NetworkCheckNamePrefix(v1, v2 *Network) bool {
+	return strings.HasPrefix(v2.Spec.Annotations.Name, v1.Spec.Annotations.Name)
+}
+
+func NetworkCheckCustom(v1, v2 *Network) bool {
+	return checkCustom(v1.Spec.Annotations, v2.Spec.Annotations)
+}
+
+func NetworkCheckCustomPrefix(v1, v2 *Network) bool {
+	return checkCustomPrefix(v1.Spec.Annotations, v2.Spec.Annotations)
+}
+
+func ConvertNetworkWatch(action WatchActionKind, filters []*SelectBy) ([]Event, error) {
+	var (
+		m          Network
+		checkFuncs []NetworkCheckFunc
+	)
+
+	for _, filter := range filters {
+		switch v := filter.By.(type) {
+		case *SelectBy_ID:
+			if m.ID != "" {
+				return nil, errConflictingFilters
+			}
+			m.ID = v.ID
+			checkFuncs = append(checkFuncs, NetworkCheckID)
+		case *SelectBy_IDPrefix:
+			if m.ID != "" {
+				return nil, errConflictingFilters
+			}
+			m.ID = v.IDPrefix
+			checkFuncs = append(checkFuncs, NetworkCheckIDPrefix)
+		case *SelectBy_Name:
+			if m.Spec.Annotations.Name != "" {
+				return nil, errConflictingFilters
+			}
+			m.Spec.Annotations.Name = v.Name
+			checkFuncs = append(checkFuncs, NetworkCheckName)
+		case *SelectBy_NamePrefix:
+			if m.Spec.Annotations.Name != "" {
+				return nil, errConflictingFilters
+			}
+			m.Spec.Annotations.Name = v.NamePrefix
+			checkFuncs = append(checkFuncs, NetworkCheckNamePrefix)
+		case *SelectBy_Custom:
+			if len(m.Spec.Annotations.Indices) != 0 {
+				return nil, errConflictingFilters
+			}
+			m.Spec.Annotations.Indices = []IndexEntry{{Key: v.Custom.Index, Val: v.Custom.Value}}
+			checkFuncs = append(checkFuncs, NetworkCheckCustom)
+		case *SelectBy_CustomPrefix:
+			if len(m.Spec.Annotations.Indices) != 0 {
+				return nil, errConflictingFilters
+			}
+			m.Spec.Annotations.Indices = []IndexEntry{{Key: v.CustomPrefix.Index, Val: v.CustomPrefix.Value}}
+			checkFuncs = append(checkFuncs, NetworkCheckCustomPrefix)
+		}
+	}
+	var events []Event
+	if (action & WatchActionKindCreate) != 0 {
+		events = append(events, EventCreateNetwork{Network: &m, Checks: checkFuncs})
+	}
+	if (action & WatchActionKindUpdate) != 0 {
+		events = append(events, EventUpdateNetwork{Network: &m, Checks: checkFuncs})
+	}
+	if (action & WatchActionKindRemove) != 0 {
+		events = append(events, EventDeleteNetwork{Network: &m, Checks: checkFuncs})
+	}
+	if len(events) == 0 {
+		return nil, errUnrecognizedAction
+	}
+	return events, nil
 }
 
 type NetworkIndexerByID struct{}
@@ -2363,8 +2800,9 @@ func (e EventCreateCluster) Matches(apiEvent github_com_docker_go_events.Event) 
 }
 
 type EventUpdateCluster struct {
-	Cluster *Cluster
-	Checks  []ClusterCheckFunc
+	Cluster    *Cluster
+	OldCluster *Cluster
+	Checks     []ClusterCheckFunc
 }
 
 func (e EventUpdateCluster) Matches(apiEvent github_com_docker_go_events.Event) bool {
@@ -2419,12 +2857,102 @@ func (m *Cluster) EventCreate() Event {
 	return EventCreateCluster{Cluster: m}
 }
 
-func (m *Cluster) EventUpdate() Event {
-	return EventUpdateCluster{Cluster: m}
+func (m *Cluster) EventUpdate(oldObject StoreObject) Event {
+	if oldObject != nil {
+		return EventUpdateCluster{Cluster: m, OldCluster: oldObject.(*Cluster)}
+	} else {
+		return EventUpdateCluster{Cluster: m}
+	}
 }
 
 func (m *Cluster) EventDelete() Event {
 	return EventDeleteCluster{Cluster: m}
+}
+
+func ClusterCheckID(v1, v2 *Cluster) bool {
+	return v1.ID == v2.ID
+}
+
+func ClusterCheckIDPrefix(v1, v2 *Cluster) bool {
+	return strings.HasPrefix(v2.ID, v1.ID)
+}
+
+func ClusterCheckName(v1, v2 *Cluster) bool {
+	return v1.Spec.Annotations.Name == v2.Spec.Annotations.Name
+}
+
+func ClusterCheckNamePrefix(v1, v2 *Cluster) bool {
+	return strings.HasPrefix(v2.Spec.Annotations.Name, v1.Spec.Annotations.Name)
+}
+
+func ClusterCheckCustom(v1, v2 *Cluster) bool {
+	return checkCustom(v1.Spec.Annotations, v2.Spec.Annotations)
+}
+
+func ClusterCheckCustomPrefix(v1, v2 *Cluster) bool {
+	return checkCustomPrefix(v1.Spec.Annotations, v2.Spec.Annotations)
+}
+
+func ConvertClusterWatch(action WatchActionKind, filters []*SelectBy) ([]Event, error) {
+	var (
+		m          Cluster
+		checkFuncs []ClusterCheckFunc
+	)
+
+	for _, filter := range filters {
+		switch v := filter.By.(type) {
+		case *SelectBy_ID:
+			if m.ID != "" {
+				return nil, errConflictingFilters
+			}
+			m.ID = v.ID
+			checkFuncs = append(checkFuncs, ClusterCheckID)
+		case *SelectBy_IDPrefix:
+			if m.ID != "" {
+				return nil, errConflictingFilters
+			}
+			m.ID = v.IDPrefix
+			checkFuncs = append(checkFuncs, ClusterCheckIDPrefix)
+		case *SelectBy_Name:
+			if m.Spec.Annotations.Name != "" {
+				return nil, errConflictingFilters
+			}
+			m.Spec.Annotations.Name = v.Name
+			checkFuncs = append(checkFuncs, ClusterCheckName)
+		case *SelectBy_NamePrefix:
+			if m.Spec.Annotations.Name != "" {
+				return nil, errConflictingFilters
+			}
+			m.Spec.Annotations.Name = v.NamePrefix
+			checkFuncs = append(checkFuncs, ClusterCheckNamePrefix)
+		case *SelectBy_Custom:
+			if len(m.Spec.Annotations.Indices) != 0 {
+				return nil, errConflictingFilters
+			}
+			m.Spec.Annotations.Indices = []IndexEntry{{Key: v.Custom.Index, Val: v.Custom.Value}}
+			checkFuncs = append(checkFuncs, ClusterCheckCustom)
+		case *SelectBy_CustomPrefix:
+			if len(m.Spec.Annotations.Indices) != 0 {
+				return nil, errConflictingFilters
+			}
+			m.Spec.Annotations.Indices = []IndexEntry{{Key: v.CustomPrefix.Index, Val: v.CustomPrefix.Value}}
+			checkFuncs = append(checkFuncs, ClusterCheckCustomPrefix)
+		}
+	}
+	var events []Event
+	if (action & WatchActionKindCreate) != 0 {
+		events = append(events, EventCreateCluster{Cluster: &m, Checks: checkFuncs})
+	}
+	if (action & WatchActionKindUpdate) != 0 {
+		events = append(events, EventUpdateCluster{Cluster: &m, Checks: checkFuncs})
+	}
+	if (action & WatchActionKindRemove) != 0 {
+		events = append(events, EventDeleteCluster{Cluster: &m, Checks: checkFuncs})
+	}
+	if len(events) == 0 {
+		return nil, errUnrecognizedAction
+	}
+	return events, nil
 }
 
 type ClusterIndexerByID struct{}
@@ -2489,8 +3017,9 @@ func (e EventCreateSecret) Matches(apiEvent github_com_docker_go_events.Event) b
 }
 
 type EventUpdateSecret struct {
-	Secret *Secret
-	Checks []SecretCheckFunc
+	Secret    *Secret
+	OldSecret *Secret
+	Checks    []SecretCheckFunc
 }
 
 func (e EventUpdateSecret) Matches(apiEvent github_com_docker_go_events.Event) bool {
@@ -2545,12 +3074,102 @@ func (m *Secret) EventCreate() Event {
 	return EventCreateSecret{Secret: m}
 }
 
-func (m *Secret) EventUpdate() Event {
-	return EventUpdateSecret{Secret: m}
+func (m *Secret) EventUpdate(oldObject StoreObject) Event {
+	if oldObject != nil {
+		return EventUpdateSecret{Secret: m, OldSecret: oldObject.(*Secret)}
+	} else {
+		return EventUpdateSecret{Secret: m}
+	}
 }
 
 func (m *Secret) EventDelete() Event {
 	return EventDeleteSecret{Secret: m}
+}
+
+func SecretCheckID(v1, v2 *Secret) bool {
+	return v1.ID == v2.ID
+}
+
+func SecretCheckIDPrefix(v1, v2 *Secret) bool {
+	return strings.HasPrefix(v2.ID, v1.ID)
+}
+
+func SecretCheckName(v1, v2 *Secret) bool {
+	return v1.Spec.Annotations.Name == v2.Spec.Annotations.Name
+}
+
+func SecretCheckNamePrefix(v1, v2 *Secret) bool {
+	return strings.HasPrefix(v2.Spec.Annotations.Name, v1.Spec.Annotations.Name)
+}
+
+func SecretCheckCustom(v1, v2 *Secret) bool {
+	return checkCustom(v1.Spec.Annotations, v2.Spec.Annotations)
+}
+
+func SecretCheckCustomPrefix(v1, v2 *Secret) bool {
+	return checkCustomPrefix(v1.Spec.Annotations, v2.Spec.Annotations)
+}
+
+func ConvertSecretWatch(action WatchActionKind, filters []*SelectBy) ([]Event, error) {
+	var (
+		m          Secret
+		checkFuncs []SecretCheckFunc
+	)
+
+	for _, filter := range filters {
+		switch v := filter.By.(type) {
+		case *SelectBy_ID:
+			if m.ID != "" {
+				return nil, errConflictingFilters
+			}
+			m.ID = v.ID
+			checkFuncs = append(checkFuncs, SecretCheckID)
+		case *SelectBy_IDPrefix:
+			if m.ID != "" {
+				return nil, errConflictingFilters
+			}
+			m.ID = v.IDPrefix
+			checkFuncs = append(checkFuncs, SecretCheckIDPrefix)
+		case *SelectBy_Name:
+			if m.Spec.Annotations.Name != "" {
+				return nil, errConflictingFilters
+			}
+			m.Spec.Annotations.Name = v.Name
+			checkFuncs = append(checkFuncs, SecretCheckName)
+		case *SelectBy_NamePrefix:
+			if m.Spec.Annotations.Name != "" {
+				return nil, errConflictingFilters
+			}
+			m.Spec.Annotations.Name = v.NamePrefix
+			checkFuncs = append(checkFuncs, SecretCheckNamePrefix)
+		case *SelectBy_Custom:
+			if len(m.Spec.Annotations.Indices) != 0 {
+				return nil, errConflictingFilters
+			}
+			m.Spec.Annotations.Indices = []IndexEntry{{Key: v.Custom.Index, Val: v.Custom.Value}}
+			checkFuncs = append(checkFuncs, SecretCheckCustom)
+		case *SelectBy_CustomPrefix:
+			if len(m.Spec.Annotations.Indices) != 0 {
+				return nil, errConflictingFilters
+			}
+			m.Spec.Annotations.Indices = []IndexEntry{{Key: v.CustomPrefix.Index, Val: v.CustomPrefix.Value}}
+			checkFuncs = append(checkFuncs, SecretCheckCustomPrefix)
+		}
+	}
+	var events []Event
+	if (action & WatchActionKindCreate) != 0 {
+		events = append(events, EventCreateSecret{Secret: &m, Checks: checkFuncs})
+	}
+	if (action & WatchActionKindUpdate) != 0 {
+		events = append(events, EventUpdateSecret{Secret: &m, Checks: checkFuncs})
+	}
+	if (action & WatchActionKindRemove) != 0 {
+		events = append(events, EventDeleteSecret{Secret: &m, Checks: checkFuncs})
+	}
+	if len(events) == 0 {
+		return nil, errUnrecognizedAction
+	}
+	return events, nil
 }
 
 type SecretIndexerByID struct{}
@@ -2615,8 +3234,9 @@ func (e EventCreateResource) Matches(apiEvent github_com_docker_go_events.Event)
 }
 
 type EventUpdateResource struct {
-	Resource *Resource
-	Checks   []ResourceCheckFunc
+	Resource    *Resource
+	OldResource *Resource
+	Checks      []ResourceCheckFunc
 }
 
 func (e EventUpdateResource) Matches(apiEvent github_com_docker_go_events.Event) bool {
@@ -2671,12 +3291,108 @@ func (m *Resource) EventCreate() Event {
 	return EventCreateResource{Resource: m}
 }
 
-func (m *Resource) EventUpdate() Event {
-	return EventUpdateResource{Resource: m}
+func (m *Resource) EventUpdate(oldObject StoreObject) Event {
+	if oldObject != nil {
+		return EventUpdateResource{Resource: m, OldResource: oldObject.(*Resource)}
+	} else {
+		return EventUpdateResource{Resource: m}
+	}
 }
 
 func (m *Resource) EventDelete() Event {
 	return EventDeleteResource{Resource: m}
+}
+
+func ResourceCheckID(v1, v2 *Resource) bool {
+	return v1.ID == v2.ID
+}
+
+func ResourceCheckIDPrefix(v1, v2 *Resource) bool {
+	return strings.HasPrefix(v2.ID, v1.ID)
+}
+
+func ResourceCheckName(v1, v2 *Resource) bool {
+	return v1.Annotations.Name == v2.Annotations.Name
+}
+
+func ResourceCheckNamePrefix(v1, v2 *Resource) bool {
+	return strings.HasPrefix(v2.Annotations.Name, v1.Annotations.Name)
+}
+
+func ResourceCheckCustom(v1, v2 *Resource) bool {
+	return checkCustom(v1.Annotations, v2.Annotations)
+}
+
+func ResourceCheckCustomPrefix(v1, v2 *Resource) bool {
+	return checkCustomPrefix(v1.Annotations, v2.Annotations)
+}
+
+func ResourceCheckKind(v1, v2 *Resource) bool {
+	return v1.Kind == v2.Kind
+}
+
+func ConvertResourceWatch(action WatchActionKind, filters []*SelectBy, kind string) ([]Event, error) {
+	var (
+		m          Resource
+		checkFuncs []ResourceCheckFunc
+	)
+	m.Kind = kind
+	checkFuncs = append(checkFuncs, ResourceCheckKind)
+
+	for _, filter := range filters {
+		switch v := filter.By.(type) {
+		case *SelectBy_ID:
+			if m.ID != "" {
+				return nil, errConflictingFilters
+			}
+			m.ID = v.ID
+			checkFuncs = append(checkFuncs, ResourceCheckID)
+		case *SelectBy_IDPrefix:
+			if m.ID != "" {
+				return nil, errConflictingFilters
+			}
+			m.ID = v.IDPrefix
+			checkFuncs = append(checkFuncs, ResourceCheckIDPrefix)
+		case *SelectBy_Name:
+			if m.Annotations.Name != "" {
+				return nil, errConflictingFilters
+			}
+			m.Annotations.Name = v.Name
+			checkFuncs = append(checkFuncs, ResourceCheckName)
+		case *SelectBy_NamePrefix:
+			if m.Annotations.Name != "" {
+				return nil, errConflictingFilters
+			}
+			m.Annotations.Name = v.NamePrefix
+			checkFuncs = append(checkFuncs, ResourceCheckNamePrefix)
+		case *SelectBy_Custom:
+			if len(m.Annotations.Indices) != 0 {
+				return nil, errConflictingFilters
+			}
+			m.Annotations.Indices = []IndexEntry{{Key: v.Custom.Index, Val: v.Custom.Value}}
+			checkFuncs = append(checkFuncs, ResourceCheckCustom)
+		case *SelectBy_CustomPrefix:
+			if len(m.Annotations.Indices) != 0 {
+				return nil, errConflictingFilters
+			}
+			m.Annotations.Indices = []IndexEntry{{Key: v.CustomPrefix.Index, Val: v.CustomPrefix.Value}}
+			checkFuncs = append(checkFuncs, ResourceCheckCustomPrefix)
+		}
+	}
+	var events []Event
+	if (action & WatchActionKindCreate) != 0 {
+		events = append(events, EventCreateResource{Resource: &m, Checks: checkFuncs})
+	}
+	if (action & WatchActionKindUpdate) != 0 {
+		events = append(events, EventUpdateResource{Resource: &m, Checks: checkFuncs})
+	}
+	if (action & WatchActionKindRemove) != 0 {
+		events = append(events, EventDeleteResource{Resource: &m, Checks: checkFuncs})
+	}
+	if len(events) == 0 {
+		return nil, errUnrecognizedAction
+	}
+	return events, nil
 }
 
 type ResourceIndexerByID struct{}
@@ -2741,8 +3457,9 @@ func (e EventCreateExtension) Matches(apiEvent github_com_docker_go_events.Event
 }
 
 type EventUpdateExtension struct {
-	Extension *Extension
-	Checks    []ExtensionCheckFunc
+	Extension    *Extension
+	OldExtension *Extension
+	Checks       []ExtensionCheckFunc
 }
 
 func (e EventUpdateExtension) Matches(apiEvent github_com_docker_go_events.Event) bool {
@@ -2797,12 +3514,102 @@ func (m *Extension) EventCreate() Event {
 	return EventCreateExtension{Extension: m}
 }
 
-func (m *Extension) EventUpdate() Event {
-	return EventUpdateExtension{Extension: m}
+func (m *Extension) EventUpdate(oldObject StoreObject) Event {
+	if oldObject != nil {
+		return EventUpdateExtension{Extension: m, OldExtension: oldObject.(*Extension)}
+	} else {
+		return EventUpdateExtension{Extension: m}
+	}
 }
 
 func (m *Extension) EventDelete() Event {
 	return EventDeleteExtension{Extension: m}
+}
+
+func ExtensionCheckID(v1, v2 *Extension) bool {
+	return v1.ID == v2.ID
+}
+
+func ExtensionCheckIDPrefix(v1, v2 *Extension) bool {
+	return strings.HasPrefix(v2.ID, v1.ID)
+}
+
+func ExtensionCheckName(v1, v2 *Extension) bool {
+	return v1.Annotations.Name == v2.Annotations.Name
+}
+
+func ExtensionCheckNamePrefix(v1, v2 *Extension) bool {
+	return strings.HasPrefix(v2.Annotations.Name, v1.Annotations.Name)
+}
+
+func ExtensionCheckCustom(v1, v2 *Extension) bool {
+	return checkCustom(v1.Annotations, v2.Annotations)
+}
+
+func ExtensionCheckCustomPrefix(v1, v2 *Extension) bool {
+	return checkCustomPrefix(v1.Annotations, v2.Annotations)
+}
+
+func ConvertExtensionWatch(action WatchActionKind, filters []*SelectBy) ([]Event, error) {
+	var (
+		m          Extension
+		checkFuncs []ExtensionCheckFunc
+	)
+
+	for _, filter := range filters {
+		switch v := filter.By.(type) {
+		case *SelectBy_ID:
+			if m.ID != "" {
+				return nil, errConflictingFilters
+			}
+			m.ID = v.ID
+			checkFuncs = append(checkFuncs, ExtensionCheckID)
+		case *SelectBy_IDPrefix:
+			if m.ID != "" {
+				return nil, errConflictingFilters
+			}
+			m.ID = v.IDPrefix
+			checkFuncs = append(checkFuncs, ExtensionCheckIDPrefix)
+		case *SelectBy_Name:
+			if m.Annotations.Name != "" {
+				return nil, errConflictingFilters
+			}
+			m.Annotations.Name = v.Name
+			checkFuncs = append(checkFuncs, ExtensionCheckName)
+		case *SelectBy_NamePrefix:
+			if m.Annotations.Name != "" {
+				return nil, errConflictingFilters
+			}
+			m.Annotations.Name = v.NamePrefix
+			checkFuncs = append(checkFuncs, ExtensionCheckNamePrefix)
+		case *SelectBy_Custom:
+			if len(m.Annotations.Indices) != 0 {
+				return nil, errConflictingFilters
+			}
+			m.Annotations.Indices = []IndexEntry{{Key: v.Custom.Index, Val: v.Custom.Value}}
+			checkFuncs = append(checkFuncs, ExtensionCheckCustom)
+		case *SelectBy_CustomPrefix:
+			if len(m.Annotations.Indices) != 0 {
+				return nil, errConflictingFilters
+			}
+			m.Annotations.Indices = []IndexEntry{{Key: v.CustomPrefix.Index, Val: v.CustomPrefix.Value}}
+			checkFuncs = append(checkFuncs, ExtensionCheckCustomPrefix)
+		}
+	}
+	var events []Event
+	if (action & WatchActionKindCreate) != 0 {
+		events = append(events, EventCreateExtension{Extension: &m, Checks: checkFuncs})
+	}
+	if (action & WatchActionKindUpdate) != 0 {
+		events = append(events, EventUpdateExtension{Extension: &m, Checks: checkFuncs})
+	}
+	if (action & WatchActionKindRemove) != 0 {
+		events = append(events, EventDeleteExtension{Extension: &m, Checks: checkFuncs})
+	}
+	if len(events) == 0 {
+		return nil, errUnrecognizedAction
+	}
+	return events, nil
 }
 
 type ExtensionIndexerByID struct{}
@@ -2923,6 +3730,235 @@ func NewStoreAction(c Event) (StoreAction, error) {
 		return StoreAction{}, errUnknownStoreAction
 	}
 	return sa, nil
+}
+
+func EventFromStoreAction(sa StoreAction, oldObject StoreObject) (Event, error) {
+	switch v := sa.Target.(type) {
+	case *StoreAction_Node:
+		switch sa.Action {
+		case StoreActionKindCreate:
+			return EventCreateNode{Node: v.Node}, nil
+		case StoreActionKindUpdate:
+			if oldObject != nil {
+				return EventUpdateNode{Node: v.Node, OldNode: oldObject.(*Node)}, nil
+			} else {
+				return EventUpdateNode{Node: v.Node}, nil
+			}
+		case StoreActionKindRemove:
+			return EventDeleteNode{Node: v.Node}, nil
+		}
+	case *StoreAction_Service:
+		switch sa.Action {
+		case StoreActionKindCreate:
+			return EventCreateService{Service: v.Service}, nil
+		case StoreActionKindUpdate:
+			if oldObject != nil {
+				return EventUpdateService{Service: v.Service, OldService: oldObject.(*Service)}, nil
+			} else {
+				return EventUpdateService{Service: v.Service}, nil
+			}
+		case StoreActionKindRemove:
+			return EventDeleteService{Service: v.Service}, nil
+		}
+	case *StoreAction_Task:
+		switch sa.Action {
+		case StoreActionKindCreate:
+			return EventCreateTask{Task: v.Task}, nil
+		case StoreActionKindUpdate:
+			if oldObject != nil {
+				return EventUpdateTask{Task: v.Task, OldTask: oldObject.(*Task)}, nil
+			} else {
+				return EventUpdateTask{Task: v.Task}, nil
+			}
+		case StoreActionKindRemove:
+			return EventDeleteTask{Task: v.Task}, nil
+		}
+	case *StoreAction_Network:
+		switch sa.Action {
+		case StoreActionKindCreate:
+			return EventCreateNetwork{Network: v.Network}, nil
+		case StoreActionKindUpdate:
+			if oldObject != nil {
+				return EventUpdateNetwork{Network: v.Network, OldNetwork: oldObject.(*Network)}, nil
+			} else {
+				return EventUpdateNetwork{Network: v.Network}, nil
+			}
+		case StoreActionKindRemove:
+			return EventDeleteNetwork{Network: v.Network}, nil
+		}
+	case *StoreAction_Cluster:
+		switch sa.Action {
+		case StoreActionKindCreate:
+			return EventCreateCluster{Cluster: v.Cluster}, nil
+		case StoreActionKindUpdate:
+			if oldObject != nil {
+				return EventUpdateCluster{Cluster: v.Cluster, OldCluster: oldObject.(*Cluster)}, nil
+			} else {
+				return EventUpdateCluster{Cluster: v.Cluster}, nil
+			}
+		case StoreActionKindRemove:
+			return EventDeleteCluster{Cluster: v.Cluster}, nil
+		}
+	case *StoreAction_Secret:
+		switch sa.Action {
+		case StoreActionKindCreate:
+			return EventCreateSecret{Secret: v.Secret}, nil
+		case StoreActionKindUpdate:
+			if oldObject != nil {
+				return EventUpdateSecret{Secret: v.Secret, OldSecret: oldObject.(*Secret)}, nil
+			} else {
+				return EventUpdateSecret{Secret: v.Secret}, nil
+			}
+		case StoreActionKindRemove:
+			return EventDeleteSecret{Secret: v.Secret}, nil
+		}
+	case *StoreAction_Resource:
+		switch sa.Action {
+		case StoreActionKindCreate:
+			return EventCreateResource{Resource: v.Resource}, nil
+		case StoreActionKindUpdate:
+			if oldObject != nil {
+				return EventUpdateResource{Resource: v.Resource, OldResource: oldObject.(*Resource)}, nil
+			} else {
+				return EventUpdateResource{Resource: v.Resource}, nil
+			}
+		case StoreActionKindRemove:
+			return EventDeleteResource{Resource: v.Resource}, nil
+		}
+	case *StoreAction_Extension:
+		switch sa.Action {
+		case StoreActionKindCreate:
+			return EventCreateExtension{Extension: v.Extension}, nil
+		case StoreActionKindUpdate:
+			if oldObject != nil {
+				return EventUpdateExtension{Extension: v.Extension, OldExtension: oldObject.(*Extension)}, nil
+			} else {
+				return EventUpdateExtension{Extension: v.Extension}, nil
+			}
+		case StoreActionKindRemove:
+			return EventDeleteExtension{Extension: v.Extension}, nil
+		}
+	}
+	return nil, errUnknownStoreAction
+}
+
+func WatchMessageEvent(c Event) *WatchMessage_Event {
+	switch v := c.(type) {
+	case EventCreateNode:
+		return &WatchMessage_Event{Action: WatchActionKindCreate, Object: &Object{Object: &Object_Node{Node: v.Node}}}
+	case EventUpdateNode:
+		if v.OldNode != nil {
+			return &WatchMessage_Event{Action: WatchActionKindUpdate, Object: &Object{Object: &Object_Node{Node: v.Node}}, OldObject: &Object{Object: &Object_Node{Node: v.OldNode}}}
+		} else {
+			return &WatchMessage_Event{Action: WatchActionKindUpdate, Object: &Object{Object: &Object_Node{Node: v.Node}}}
+		}
+	case EventDeleteNode:
+		return &WatchMessage_Event{Action: WatchActionKindRemove, Object: &Object{Object: &Object_Node{Node: v.Node}}}
+	case EventCreateService:
+		return &WatchMessage_Event{Action: WatchActionKindCreate, Object: &Object{Object: &Object_Service{Service: v.Service}}}
+	case EventUpdateService:
+		if v.OldService != nil {
+			return &WatchMessage_Event{Action: WatchActionKindUpdate, Object: &Object{Object: &Object_Service{Service: v.Service}}, OldObject: &Object{Object: &Object_Service{Service: v.OldService}}}
+		} else {
+			return &WatchMessage_Event{Action: WatchActionKindUpdate, Object: &Object{Object: &Object_Service{Service: v.Service}}}
+		}
+	case EventDeleteService:
+		return &WatchMessage_Event{Action: WatchActionKindRemove, Object: &Object{Object: &Object_Service{Service: v.Service}}}
+	case EventCreateTask:
+		return &WatchMessage_Event{Action: WatchActionKindCreate, Object: &Object{Object: &Object_Task{Task: v.Task}}}
+	case EventUpdateTask:
+		if v.OldTask != nil {
+			return &WatchMessage_Event{Action: WatchActionKindUpdate, Object: &Object{Object: &Object_Task{Task: v.Task}}, OldObject: &Object{Object: &Object_Task{Task: v.OldTask}}}
+		} else {
+			return &WatchMessage_Event{Action: WatchActionKindUpdate, Object: &Object{Object: &Object_Task{Task: v.Task}}}
+		}
+	case EventDeleteTask:
+		return &WatchMessage_Event{Action: WatchActionKindRemove, Object: &Object{Object: &Object_Task{Task: v.Task}}}
+	case EventCreateNetwork:
+		return &WatchMessage_Event{Action: WatchActionKindCreate, Object: &Object{Object: &Object_Network{Network: v.Network}}}
+	case EventUpdateNetwork:
+		if v.OldNetwork != nil {
+			return &WatchMessage_Event{Action: WatchActionKindUpdate, Object: &Object{Object: &Object_Network{Network: v.Network}}, OldObject: &Object{Object: &Object_Network{Network: v.OldNetwork}}}
+		} else {
+			return &WatchMessage_Event{Action: WatchActionKindUpdate, Object: &Object{Object: &Object_Network{Network: v.Network}}}
+		}
+	case EventDeleteNetwork:
+		return &WatchMessage_Event{Action: WatchActionKindRemove, Object: &Object{Object: &Object_Network{Network: v.Network}}}
+	case EventCreateCluster:
+		return &WatchMessage_Event{Action: WatchActionKindCreate, Object: &Object{Object: &Object_Cluster{Cluster: v.Cluster}}}
+	case EventUpdateCluster:
+		if v.OldCluster != nil {
+			return &WatchMessage_Event{Action: WatchActionKindUpdate, Object: &Object{Object: &Object_Cluster{Cluster: v.Cluster}}, OldObject: &Object{Object: &Object_Cluster{Cluster: v.OldCluster}}}
+		} else {
+			return &WatchMessage_Event{Action: WatchActionKindUpdate, Object: &Object{Object: &Object_Cluster{Cluster: v.Cluster}}}
+		}
+	case EventDeleteCluster:
+		return &WatchMessage_Event{Action: WatchActionKindRemove, Object: &Object{Object: &Object_Cluster{Cluster: v.Cluster}}}
+	case EventCreateSecret:
+		return &WatchMessage_Event{Action: WatchActionKindCreate, Object: &Object{Object: &Object_Secret{Secret: v.Secret}}}
+	case EventUpdateSecret:
+		if v.OldSecret != nil {
+			return &WatchMessage_Event{Action: WatchActionKindUpdate, Object: &Object{Object: &Object_Secret{Secret: v.Secret}}, OldObject: &Object{Object: &Object_Secret{Secret: v.OldSecret}}}
+		} else {
+			return &WatchMessage_Event{Action: WatchActionKindUpdate, Object: &Object{Object: &Object_Secret{Secret: v.Secret}}}
+		}
+	case EventDeleteSecret:
+		return &WatchMessage_Event{Action: WatchActionKindRemove, Object: &Object{Object: &Object_Secret{Secret: v.Secret}}}
+	case EventCreateResource:
+		return &WatchMessage_Event{Action: WatchActionKindCreate, Object: &Object{Object: &Object_Resource{Resource: v.Resource}}}
+	case EventUpdateResource:
+		if v.OldResource != nil {
+			return &WatchMessage_Event{Action: WatchActionKindUpdate, Object: &Object{Object: &Object_Resource{Resource: v.Resource}}, OldObject: &Object{Object: &Object_Resource{Resource: v.OldResource}}}
+		} else {
+			return &WatchMessage_Event{Action: WatchActionKindUpdate, Object: &Object{Object: &Object_Resource{Resource: v.Resource}}}
+		}
+	case EventDeleteResource:
+		return &WatchMessage_Event{Action: WatchActionKindRemove, Object: &Object{Object: &Object_Resource{Resource: v.Resource}}}
+	case EventCreateExtension:
+		return &WatchMessage_Event{Action: WatchActionKindCreate, Object: &Object{Object: &Object_Extension{Extension: v.Extension}}}
+	case EventUpdateExtension:
+		if v.OldExtension != nil {
+			return &WatchMessage_Event{Action: WatchActionKindUpdate, Object: &Object{Object: &Object_Extension{Extension: v.Extension}}, OldObject: &Object{Object: &Object_Extension{Extension: v.OldExtension}}}
+		} else {
+			return &WatchMessage_Event{Action: WatchActionKindUpdate, Object: &Object{Object: &Object_Extension{Extension: v.Extension}}}
+		}
+	case EventDeleteExtension:
+		return &WatchMessage_Event{Action: WatchActionKindRemove, Object: &Object{Object: &Object_Extension{Extension: v.Extension}}}
+	}
+	return nil
+}
+
+func ConvertWatchArgs(entries []*WatchRequest_WatchEntry) ([]Event, error) {
+	var events []Event
+	for _, entry := range entries {
+		var newEvents []Event
+		var err error
+		switch entry.Kind {
+		case "":
+			return nil, errNoKindSpecified
+		case "node":
+			newEvents, err = ConvertNodeWatch(entry.Action, entry.Filters)
+		case "service":
+			newEvents, err = ConvertServiceWatch(entry.Action, entry.Filters)
+		case "task":
+			newEvents, err = ConvertTaskWatch(entry.Action, entry.Filters)
+		case "network":
+			newEvents, err = ConvertNetworkWatch(entry.Action, entry.Filters)
+		case "cluster":
+			newEvents, err = ConvertClusterWatch(entry.Action, entry.Filters)
+		case "secret":
+			newEvents, err = ConvertSecretWatch(entry.Action, entry.Filters)
+		default:
+			newEvents, err = ConvertResourceWatch(entry.Action, entry.Filters, entry.Kind)
+		case "extension":
+			newEvents, err = ConvertExtensionWatch(entry.Action, entry.Filters)
+		}
+		if err != nil {
+			return nil, err
+		}
+		events = append(events, newEvents...)
+	}
+	return events, nil
 }
 
 func (this *Meta) String() string {
@@ -5947,89 +6983,92 @@ var (
 func init() { proto.RegisterFile("objects.proto", fileDescriptorObjects) }
 
 var fileDescriptorObjects = []byte{
-	// 1333 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0xcc, 0x57, 0xc1, 0x8f, 0x1b, 0xb5,
-	0x17, 0xde, 0x49, 0x66, 0x93, 0xcc, 0xcb, 0x66, 0xf5, 0xfb, 0xb9, 0xa5, 0x4c, 0x97, 0x25, 0x59,
-	0xb6, 0x02, 0x55, 0xa8, 0xca, 0x42, 0x29, 0x68, 0x5b, 0x28, 0x90, 0x64, 0x23, 0x88, 0x4a, 0x69,
-	0xe5, 0x96, 0xf6, 0x18, 0x79, 0x67, 0xdc, 0x30, 0x64, 0x32, 0x1e, 0xd9, 0x4e, 0x4a, 0x6e, 0x88,
-	0x23, 0x47, 0x84, 0xc4, 0x0d, 0x89, 0x0b, 0x67, 0xae, 0xfc, 0x07, 0x7b, 0xe4, 0xc8, 0x69, 0x45,
-	0x73, 0xe3, 0xc2, 0xdf, 0x80, 0xec, 0xf1, 0x64, 0x67, 0x9b, 0xc9, 0x6e, 0x8b, 0xaa, 0x15, 0xa7,
-	0xd8, 0xe3, 0xef, 0x7b, 0x7e, 0xcf, 0xfe, 0xfc, 0xd9, 0x81, 0x1a, 0xdb, 0xff, 0x8a, 0x7a, 0x52,
-	0x34, 0x63, 0xce, 0x24, 0x43, 0xc8, 0x67, 0xde, 0x90, 0xf2, 0xa6, 0x78, 0x4c, 0xf8, 0x68, 0x18,
-	0xc8, 0xe6, 0xe4, 0xed, 0x8d, 0xaa, 0x9c, 0xc6, 0xd4, 0x00, 0x36, 0xaa, 0x22, 0xa6, 0x5e, 0xda,
-	0x69, 0x0c, 0x18, 0x1b, 0x84, 0x74, 0x47, 0xf7, 0xf6, 0xc7, 0x8f, 0x76, 0x64, 0x30, 0xa2, 0x42,
-	0x92, 0x51, 0x6c, 0x00, 0xe7, 0x07, 0x6c, 0xc0, 0x74, 0x73, 0x47, 0xb5, 0xcc, 0xd7, 0x8b, 0x4f,
-	0xd3, 0x48, 0x34, 0x35, 0x43, 0xe7, 0xe2, 0x70, 0x3c, 0x08, 0xa2, 0x9d, 0xe4, 0x27, 0xf9, 0xb8,
-	0xfd, 0x9b, 0x05, 0xf6, 0x6d, 0x2a, 0x09, 0x7a, 0x1f, 0xca, 0x13, 0xca, 0x45, 0xc0, 0x22, 0xd7,
-	0xda, 0xb2, 0x2e, 0x57, 0xaf, 0xbe, 0xd2, 0x5c, 0xcc, 0xb7, 0xf9, 0x20, 0x81, 0xb4, 0xed, 0x83,
-	0xc3, 0xc6, 0x0a, 0x4e, 0x19, 0xe8, 0x3a, 0x80, 0xc7, 0x29, 0x91, 0xd4, 0xef, 0x13, 0xe9, 0x16,
-	0x34, 0x7f, 0xa3, 0x99, 0xa4, 0xd2, 0x4c, 0x53, 0x69, 0xde, 0x4f, 0x2b, 0xc0, 0x8e, 0x41, 0xb7,
-	0xa4, 0xa2, 0x8e, 0x63, 0x3f, 0xa5, 0x16, 0x4f, 0xa7, 0x1a, 0x74, 0x4b, 0x6e, 0xff, 0x6c, 0x83,
-	0xfd, 0x39, 0xf3, 0x29, 0xba, 0x00, 0x85, 0xc0, 0xd7, 0x69, 0x3b, 0xed, 0xd2, 0xec, 0xb0, 0x51,
-	0xe8, 0xed, 0xe1, 0x42, 0xe0, 0xa3, 0xab, 0x60, 0x8f, 0xa8, 0x24, 0x26, 0x21, 0x37, 0xaf, 0x20,
-	0x55, 0xbb, 0xa9, 0x46, 0x63, 0xd1, 0x7b, 0x60, 0xab, 0x6d, 0x30, 0x99, 0x6c, 0xe6, 0x71, 0xd4,
-	0x9c, 0xf7, 0x62, 0xea, 0xa5, 0x3c, 0x85, 0x47, 0x5d, 0xa8, 0xfa, 0x54, 0x78, 0x3c, 0x88, 0xa5,
-	0x5a, 0x43, 0x5b, 0xd3, 0x2f, 0x2d, 0xa3, 0xef, 0x1d, 0x41, 0x71, 0x96, 0x87, 0x3e, 0x80, 0x92,
-	0x90, 0x44, 0x8e, 0x85, 0xbb, 0xaa, 0x23, 0xd4, 0x97, 0x26, 0xa0, 0x51, 0x26, 0x05, 0xc3, 0x41,
-	0x9f, 0xc2, 0xfa, 0x88, 0x44, 0x64, 0x40, 0x79, 0xdf, 0x44, 0x29, 0xe9, 0x28, 0xaf, 0xe5, 0x96,
-	0x9e, 0x20, 0x93, 0x40, 0xb8, 0x36, 0xca, 0x76, 0x51, 0x17, 0x80, 0x48, 0x49, 0xbc, 0x2f, 0x47,
-	0x34, 0x92, 0x6e, 0x59, 0x47, 0x79, 0x3d, 0x37, 0x17, 0x2a, 0x1f, 0x33, 0x3e, 0x6c, 0xcd, 0xc1,
-	0x38, 0x43, 0x44, 0x9f, 0x40, 0xd5, 0xa3, 0x5c, 0x06, 0x8f, 0x02, 0x8f, 0x48, 0xea, 0x56, 0x74,
-	0x9c, 0x46, 0x5e, 0x9c, 0xce, 0x11, 0xcc, 0x14, 0x95, 0x65, 0xa2, 0xb7, 0xc0, 0xe6, 0x2c, 0xa4,
-	0xae, 0xb3, 0x65, 0x5d, 0x5e, 0x5f, 0xbe, 0x2d, 0x98, 0x85, 0x14, 0x6b, 0xe4, 0x0d, 0xfb, 0xbb,
-	0x1f, 0xb7, 0x57, 0xb6, 0xff, 0x2e, 0x42, 0xf9, 0x1e, 0xe5, 0x93, 0xc0, 0x7b, 0xb1, 0x32, 0xb9,
-	0x7e, 0x4c, 0x26, 0xb9, 0x15, 0x99, 0x69, 0x17, 0x94, 0xb2, 0x0b, 0x15, 0x1a, 0xf9, 0x31, 0x0b,
-	0x22, 0x69, 0x64, 0x92, 0x5b, 0x4e, 0xd7, 0x60, 0xf0, 0x1c, 0x8d, 0xba, 0x50, 0x4b, 0xd4, 0xdf,
-	0x3f, 0xa6, 0x91, 0xad, 0x3c, 0xfa, 0x17, 0x1a, 0x68, 0x36, 0x77, 0x6d, 0x9c, 0xe9, 0xa1, 0x3d,
-	0xa8, 0xc5, 0x9c, 0x4e, 0x02, 0x36, 0x16, 0x7d, 0x5d, 0x44, 0xe9, 0x99, 0x8a, 0xc0, 0x6b, 0x29,
-	0x4b, 0xf5, 0xd0, 0x87, 0xb0, 0xa6, 0xc8, 0xfd, 0xd4, 0x35, 0xe0, 0x54, 0xd7, 0xc0, 0xda, 0xe0,
-	0x4c, 0x07, 0xdd, 0x81, 0x97, 0x8e, 0x65, 0x31, 0x0f, 0x54, 0x3d, 0x3d, 0xd0, 0xb9, 0x6c, 0x26,
-	0xe6, 0xa3, 0xd9, 0xf0, 0x9f, 0x0a, 0x50, 0x49, 0x97, 0x0e, 0x5d, 0x33, 0xbb, 0x64, 0x2d, 0x5f,
-	0xa7, 0x14, 0xab, 0x2b, 0x4c, 0x36, 0xe8, 0x1a, 0xac, 0xc6, 0x8c, 0x4b, 0xe1, 0x16, 0xb6, 0x8a,
-	0xcb, 0x8e, 0xe0, 0x5d, 0xc6, 0x65, 0x87, 0x45, 0x8f, 0x82, 0x01, 0x4e, 0xc0, 0xe8, 0x21, 0x54,
-	0x27, 0x01, 0x97, 0x63, 0x12, 0xf6, 0x83, 0x58, 0xb8, 0x45, 0xcd, 0x7d, 0xe3, 0xa4, 0x29, 0x9b,
-	0x0f, 0x12, 0x7c, 0xef, 0x6e, 0x7b, 0x7d, 0x76, 0xd8, 0x80, 0x79, 0x57, 0x60, 0x30, 0xa1, 0x7a,
-	0xb1, 0xd8, 0xb8, 0x0d, 0xce, 0x7c, 0x04, 0x5d, 0x01, 0x88, 0x92, 0x13, 0xd7, 0x9f, 0x6b, 0xb9,
-	0x36, 0x3b, 0x6c, 0x38, 0xe6, 0x1c, 0xf6, 0xf6, 0xb0, 0x63, 0x00, 0x3d, 0x1f, 0x21, 0xb0, 0x89,
-	0xef, 0x73, 0xad, 0x6c, 0x07, 0xeb, 0xf6, 0xf6, 0xf7, 0x25, 0xb0, 0xef, 0x13, 0x31, 0x3c, 0x6b,
-	0xd7, 0x54, 0x73, 0x2e, 0x9c, 0x85, 0x2b, 0x00, 0x22, 0x51, 0x98, 0x2a, 0xc7, 0x3e, 0x2a, 0xc7,
-	0xe8, 0x4e, 0x95, 0x63, 0x00, 0x49, 0x39, 0x22, 0x64, 0x52, 0xcb, 0xde, 0xc6, 0xba, 0x8d, 0x2e,
-	0x41, 0x39, 0x62, 0xbe, 0xa6, 0x97, 0x34, 0x1d, 0x66, 0x87, 0x8d, 0x92, 0xf2, 0x82, 0xde, 0x1e,
-	0x2e, 0xa9, 0xa1, 0x9e, 0xaf, 0x6c, 0x88, 0x44, 0x11, 0x93, 0x44, 0x79, 0xac, 0x30, 0x76, 0x96,
-	0xab, 0xf7, 0xd6, 0x11, 0x2c, 0xb5, 0xa1, 0x0c, 0x13, 0x3d, 0x80, 0x73, 0x69, 0xbe, 0xd9, 0x80,
-	0x95, 0xe7, 0x09, 0x88, 0x4c, 0x84, 0xcc, 0x48, 0xc6, 0xf6, 0x9d, 0xe5, 0xb6, 0xaf, 0x57, 0x30,
-	0xcf, 0xf6, 0xdb, 0x50, 0xf3, 0xa9, 0x08, 0x38, 0xf5, 0xb5, 0x31, 0x50, 0x7d, 0x16, 0xd7, 0xaf,
-	0xbe, 0x7a, 0x52, 0x10, 0x8a, 0xd7, 0x0c, 0x47, 0xf7, 0x50, 0x0b, 0x2a, 0x46, 0x37, 0xc2, 0xad,
-	0x6a, 0xed, 0x3e, 0xa3, 0xdd, 0xcf, 0x69, 0xc7, 0x8c, 0x6d, 0xed, 0xb9, 0x8c, 0xed, 0x3a, 0x40,
-	0xc8, 0x06, 0x7d, 0x9f, 0x07, 0x13, 0xca, 0xdd, 0x9a, 0x79, 0x04, 0xe4, 0x70, 0xf7, 0x34, 0x02,
-	0x3b, 0x21, 0x1b, 0x24, 0xcd, 0x05, 0x1b, 0x5a, 0x7f, 0x3e, 0x1b, 0x32, 0xae, 0xf1, 0xad, 0x05,
-	0xff, 0x5f, 0x28, 0x0d, 0xbd, 0x0b, 0x65, 0x53, 0xdc, 0x49, 0x6f, 0x22, 0xc3, 0xc3, 0x29, 0x16,
-	0x6d, 0x82, 0xa3, 0x4e, 0x1a, 0x15, 0x82, 0x26, 0x1e, 0xe2, 0xe0, 0xa3, 0x0f, 0xc8, 0x85, 0x32,
-	0x09, 0x03, 0xa2, 0xc6, 0x8a, 0x7a, 0x2c, 0xed, 0x6e, 0xff, 0x50, 0x80, 0xb2, 0x09, 0x76, 0xd6,
-	0x77, 0x95, 0x99, 0x76, 0xe1, 0x7c, 0xde, 0x84, 0xb5, 0x64, 0x53, 0x8c, 0xb0, 0xec, 0x53, 0xb7,
-	0xa6, 0x9a, 0xe0, 0x13, 0x51, 0xdd, 0x04, 0x3b, 0x88, 0xc9, 0xc8, 0xdc, 0x53, 0xb9, 0x33, 0xf7,
-	0xee, 0xb6, 0x6e, 0xdf, 0x89, 0x93, 0xf3, 0x51, 0x99, 0x1d, 0x36, 0x6c, 0xf5, 0x01, 0x6b, 0x9a,
-	0xd9, 0x9b, 0x5f, 0x56, 0xa1, 0xdc, 0x09, 0xc7, 0x42, 0x52, 0x7e, 0xd6, 0xcb, 0x62, 0xa6, 0x5d,
-	0x58, 0x96, 0x0e, 0x94, 0x39, 0x63, 0xb2, 0xef, 0x91, 0x93, 0x56, 0x04, 0x33, 0x26, 0x3b, 0xad,
-	0xf6, 0xba, 0x22, 0x2a, 0x53, 0x4a, 0xfa, 0xb8, 0xa4, 0xa8, 0x1d, 0x82, 0x1e, 0xc2, 0x85, 0xd4,
-	0xca, 0xf7, 0x19, 0x93, 0x42, 0x72, 0x12, 0xf7, 0x87, 0x74, 0xaa, 0xae, 0xf5, 0xe2, 0xb2, 0x47,
-	0x5b, 0x37, 0xf2, 0xf8, 0x54, 0x2f, 0xd7, 0x2d, 0x3a, 0xc5, 0xe7, 0x4d, 0x80, 0x76, 0xca, 0xbf,
-	0x45, 0xa7, 0x02, 0x7d, 0x04, 0x9b, 0x74, 0x0e, 0x53, 0x11, 0xfb, 0x21, 0x19, 0xa9, 0x4b, 0xaa,
-	0xef, 0x85, 0xcc, 0x1b, 0x6a, 0x9f, 0xb4, 0xf1, 0x45, 0x9a, 0x0d, 0xf5, 0x59, 0x82, 0xe8, 0x28,
-	0x00, 0x12, 0xe0, 0xee, 0x87, 0xc4, 0x1b, 0x86, 0x81, 0x50, 0xef, 0xf2, 0xcc, 0x3b, 0x4c, 0x59,
-	0x9d, 0xca, 0x6d, 0xf7, 0x84, 0xd5, 0x6a, 0xb6, 0x8f, 0xb8, 0x99, 0x57, 0x9d, 0xe8, 0x46, 0x92,
-	0x4f, 0xf1, 0xcb, 0xfb, 0xf9, 0xa3, 0xa8, 0x0d, 0xd5, 0x71, 0xa4, 0xa6, 0x4f, 0xd6, 0xc0, 0x79,
-	0xd6, 0x35, 0x80, 0x84, 0xa5, 0x2a, 0xdf, 0x98, 0xc0, 0xe6, 0x49, 0x93, 0xa3, 0xff, 0x41, 0x71,
-	0x48, 0xa7, 0x89, 0x7e, 0xb0, 0x6a, 0xa2, 0x8f, 0x61, 0x75, 0x42, 0xc2, 0x31, 0x35, 0xca, 0x79,
-	0x33, 0x6f, 0xbe, 0xfc, 0x90, 0x38, 0x21, 0xde, 0x28, 0xec, 0x5a, 0x46, 0xa8, 0xbf, 0x5a, 0x50,
-	0xba, 0x47, 0x3d, 0x4e, 0xe5, 0x0b, 0xd5, 0xe9, 0xee, 0x31, 0x9d, 0xd6, 0xf3, 0x5f, 0x69, 0x6a,
-	0xd6, 0x05, 0x99, 0x6e, 0x40, 0x25, 0x88, 0x24, 0xe5, 0x11, 0x09, 0xb5, 0x4e, 0x2b, 0x78, 0xde,
-	0x37, 0x29, 0xff, 0x65, 0x41, 0x05, 0x53, 0xc1, 0xc6, 0xfc, 0x05, 0xbf, 0x8f, 0x9f, 0xba, 0x71,
-	0x8b, 0xff, 0xfa, 0xc6, 0x45, 0x60, 0x0f, 0x83, 0xc8, 0xbc, 0x0d, 0xb0, 0x6e, 0xa3, 0x26, 0x94,
-	0x63, 0x32, 0x0d, 0x19, 0xf1, 0x8d, 0xb3, 0x9c, 0x5f, 0xf8, 0xc3, 0xd8, 0x8a, 0xa6, 0x38, 0x05,
-	0x99, 0x5a, 0x0f, 0x2c, 0x70, 0xba, 0x5f, 0x4b, 0x1a, 0xe9, 0xe7, 0xe7, 0x7f, 0xb2, 0xd8, 0xad,
-	0xc5, 0x3f, 0x91, 0xce, 0xb1, 0xff, 0x87, 0x49, 0x29, 0x6d, 0xf7, 0xe0, 0x49, 0x7d, 0xe5, 0x8f,
-	0x27, 0xf5, 0x95, 0x6f, 0x66, 0x75, 0xeb, 0x60, 0x56, 0xb7, 0x7e, 0x9f, 0xd5, 0xad, 0x3f, 0x67,
-	0x75, 0x6b, 0xbf, 0xa4, 0x57, 0xe0, 0x9d, 0x7f, 0x02, 0x00, 0x00, 0xff, 0xff, 0xe5, 0x6e, 0x08,
-	0x2c, 0x7c, 0x10, 0x00, 0x00,
+	// 1390 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0xcc, 0x57, 0xc1, 0x6f, 0x1b, 0x45,
+	0x17, 0xef, 0xda, 0x1b, 0xdb, 0xfb, 0x9c, 0x58, 0xf9, 0xa6, 0xf9, 0xf2, 0x6d, 0xf3, 0xe5, 0xb3,
+	0xf3, 0xb9, 0x02, 0x55, 0xa8, 0x72, 0x4a, 0x29, 0x28, 0x0d, 0x14, 0x6a, 0x27, 0x16, 0xb5, 0x4a,
+	0x69, 0x34, 0x2d, 0x2d, 0x37, 0x33, 0xd9, 0x9d, 0xba, 0x8b, 0xd7, 0x3b, 0xab, 0x9d, 0xb1, 0x8b,
+	0x6f, 0x88, 0x63, 0xfe, 0x81, 0xdc, 0x38, 0x70, 0xe2, 0x0e, 0x17, 0x2e, 0x9c, 0x7b, 0xe4, 0x84,
+	0x38, 0x45, 0xd4, 0xff, 0x05, 0x12, 0x07, 0x34, 0xb3, 0xb3, 0xce, 0xa6, 0x5e, 0x27, 0x2d, 0xaa,
+	0x2a, 0x4e, 0x9e, 0xd9, 0xf9, 0xfd, 0xde, 0xbc, 0xf7, 0xe6, 0x37, 0x6f, 0x9e, 0x61, 0x89, 0xed,
+	0x7f, 0x49, 0x1d, 0xc1, 0x1b, 0x61, 0xc4, 0x04, 0x43, 0xc8, 0x65, 0x4e, 0x9f, 0x46, 0x0d, 0xfe,
+	0x84, 0x44, 0x83, 0xbe, 0x27, 0x1a, 0xa3, 0xb7, 0xd7, 0xca, 0x62, 0x1c, 0x52, 0x0d, 0x58, 0x2b,
+	0xf3, 0x90, 0x3a, 0xc9, 0xa4, 0xd6, 0x63, 0xac, 0xe7, 0xd3, 0x4d, 0x35, 0xdb, 0x1f, 0x3e, 0xda,
+	0x14, 0xde, 0x80, 0x72, 0x41, 0x06, 0xa1, 0x06, 0xac, 0xf4, 0x58, 0x8f, 0xa9, 0xe1, 0xa6, 0x1c,
+	0xe9, 0xaf, 0x17, 0x9e, 0xa7, 0x91, 0x60, 0xac, 0x97, 0xce, 0x87, 0xfe, 0xb0, 0xe7, 0x05, 0x9b,
+	0xf1, 0x4f, 0xfc, 0xb1, 0xfe, 0x93, 0x01, 0xe6, 0x1d, 0x2a, 0x08, 0x7a, 0x1f, 0x8a, 0x23, 0x1a,
+	0x71, 0x8f, 0x05, 0xb6, 0xb1, 0x61, 0x5c, 0x2a, 0x5f, 0xfd, 0x6f, 0x63, 0xd6, 0xdf, 0xc6, 0x83,
+	0x18, 0xd2, 0x32, 0x9f, 0x1e, 0xd5, 0xce, 0xe1, 0x84, 0x81, 0xae, 0x03, 0x38, 0x11, 0x25, 0x82,
+	0xba, 0x5d, 0x22, 0xec, 0x9c, 0xe2, 0xaf, 0x35, 0x62, 0x57, 0x1a, 0x89, 0x2b, 0x8d, 0xfb, 0x49,
+	0x04, 0xd8, 0xd2, 0xe8, 0xa6, 0x90, 0xd4, 0x61, 0xe8, 0x26, 0xd4, 0xfc, 0xd9, 0x54, 0x8d, 0x6e,
+	0x8a, 0xfa, 0x0f, 0x26, 0x98, 0x9f, 0x32, 0x97, 0xa2, 0x55, 0xc8, 0x79, 0xae, 0x72, 0xdb, 0x6a,
+	0x15, 0x26, 0x47, 0xb5, 0x5c, 0x67, 0x17, 0xe7, 0x3c, 0x17, 0x5d, 0x05, 0x73, 0x40, 0x05, 0xd1,
+	0x0e, 0xd9, 0x59, 0x01, 0xc9, 0xd8, 0x75, 0x34, 0x0a, 0x8b, 0xde, 0x03, 0x53, 0x1e, 0x83, 0xf6,
+	0x64, 0x3d, 0x8b, 0x23, 0xf7, 0xbc, 0x17, 0x52, 0x27, 0xe1, 0x49, 0x3c, 0x6a, 0x43, 0xd9, 0xa5,
+	0xdc, 0x89, 0xbc, 0x50, 0xc8, 0x1c, 0x9a, 0x8a, 0x7e, 0x71, 0x1e, 0x7d, 0xf7, 0x18, 0x8a, 0xd3,
+	0x3c, 0xf4, 0x01, 0x14, 0xb8, 0x20, 0x62, 0xc8, 0xed, 0x05, 0x65, 0xa1, 0x3a, 0xd7, 0x01, 0x85,
+	0xd2, 0x2e, 0x68, 0x0e, 0xba, 0x05, 0x95, 0x01, 0x09, 0x48, 0x8f, 0x46, 0x5d, 0x6d, 0xa5, 0xa0,
+	0xac, 0xfc, 0x3f, 0x33, 0xf4, 0x18, 0x19, 0x1b, 0xc2, 0x4b, 0x83, 0xf4, 0x14, 0xb5, 0x01, 0x88,
+	0x10, 0xc4, 0x79, 0x3c, 0xa0, 0x81, 0xb0, 0x8b, 0xca, 0xca, 0x1b, 0x99, 0xbe, 0x50, 0xf1, 0x84,
+	0x45, 0xfd, 0xe6, 0x14, 0x8c, 0x53, 0x44, 0xf4, 0x31, 0x94, 0x1d, 0x1a, 0x09, 0xef, 0x91, 0xe7,
+	0x10, 0x41, 0xed, 0x92, 0xb2, 0x53, 0xcb, 0xb2, 0xb3, 0x73, 0x0c, 0xd3, 0x41, 0xa5, 0x99, 0xe8,
+	0x0a, 0x98, 0x11, 0xf3, 0xa9, 0x6d, 0x6d, 0x18, 0x97, 0x2a, 0xf3, 0x8f, 0x05, 0x33, 0x9f, 0x62,
+	0x85, 0xdc, 0x5e, 0x3d, 0x38, 0xac, 0x23, 0x58, 0x2e, 0x19, 0xcb, 0x86, 0x92, 0x86, 0x71, 0xc5,
+	0xf8, 0xdc, 0xf8, 0xc2, 0xa8, 0xff, 0x99, 0x87, 0xe2, 0x3d, 0x1a, 0x8d, 0x3c, 0xe7, 0xd5, 0x0a,
+	0xe7, 0xfa, 0x09, 0xe1, 0x64, 0xc6, 0xa8, 0xb7, 0x9d, 0xd1, 0xce, 0x16, 0x94, 0x68, 0xe0, 0x86,
+	0xcc, 0x0b, 0x84, 0x16, 0x4e, 0x66, 0x80, 0x6d, 0x8d, 0xc1, 0x53, 0x34, 0x6a, 0xc3, 0x52, 0x7c,
+	0x1f, 0xba, 0x27, 0x54, 0xb3, 0x91, 0x45, 0xff, 0x4c, 0x01, 0xf5, 0x71, 0x2f, 0x0e, 0x53, 0x33,
+	0xb4, 0x0b, 0x4b, 0x61, 0x44, 0x47, 0x1e, 0x1b, 0xf2, 0xae, 0x0a, 0xa2, 0xf0, 0x42, 0x41, 0xe0,
+	0xc5, 0x84, 0x25, 0x67, 0xe8, 0x43, 0x58, 0x94, 0xe4, 0x6e, 0x52, 0x47, 0xe0, 0xcc, 0x3a, 0x82,
+	0x55, 0xc9, 0xd3, 0x13, 0x74, 0x17, 0xfe, 0x7d, 0xc2, 0x8b, 0xa9, 0xa1, 0xf2, 0xd9, 0x86, 0xce,
+	0xa7, 0x3d, 0xd1, 0x1f, 0xb7, 0xd1, 0xc1, 0x61, 0xbd, 0x02, 0x8b, 0x69, 0x09, 0xd4, 0xbf, 0xcd,
+	0x41, 0x29, 0x49, 0x24, 0xba, 0xa6, 0xcf, 0xcc, 0x98, 0x9f, 0xb5, 0x04, 0xab, 0xe2, 0x8d, 0x8f,
+	0xeb, 0x1a, 0x2c, 0x84, 0x2c, 0x12, 0xdc, 0xce, 0x6d, 0xe4, 0xe7, 0x5d, 0xd1, 0x3d, 0x16, 0x89,
+	0x1d, 0x16, 0x3c, 0xf2, 0x7a, 0x38, 0x06, 0xa3, 0x87, 0x50, 0x1e, 0x79, 0x91, 0x18, 0x12, 0xbf,
+	0xeb, 0x85, 0xdc, 0xce, 0x2b, 0xee, 0x9b, 0xa7, 0x6d, 0xd9, 0x78, 0x10, 0xe3, 0x3b, 0x7b, 0xad,
+	0xca, 0xe4, 0xa8, 0x06, 0xd3, 0x29, 0xc7, 0xa0, 0x4d, 0x75, 0x42, 0xbe, 0x76, 0x07, 0xac, 0xe9,
+	0x0a, 0xba, 0x0c, 0x10, 0xc4, 0x37, 0xb2, 0x3b, 0x55, 0xf6, 0xd2, 0xe4, 0xa8, 0x66, 0xe9, 0x7b,
+	0xda, 0xd9, 0xc5, 0x96, 0x06, 0x74, 0x5c, 0x84, 0xc0, 0x24, 0xae, 0x1b, 0x29, 0x9d, 0x5b, 0x58,
+	0x8d, 0xeb, 0xdf, 0x17, 0xc0, 0xbc, 0x4f, 0x78, 0xff, 0x75, 0x57, 0x55, 0xb9, 0xe7, 0xcc, 0xcd,
+	0xb8, 0x0c, 0xc0, 0x63, 0xbd, 0xc9, 0x70, 0xcc, 0xe3, 0x70, 0xb4, 0x0a, 0x65, 0x38, 0x1a, 0x10,
+	0x87, 0xc3, 0x7d, 0x26, 0xd4, 0x25, 0x30, 0xb1, 0x1a, 0xa3, 0x8b, 0x50, 0x0c, 0x98, 0xab, 0xe8,
+	0x05, 0x45, 0x87, 0xc9, 0x51, 0xad, 0x20, 0x6b, 0x45, 0x67, 0x17, 0x17, 0xe4, 0x52, 0xc7, 0x95,
+	0x65, 0x8a, 0x04, 0x01, 0x13, 0x44, 0xd6, 0x60, 0xae, 0xcb, 0x5d, 0xa6, 0xfa, 0x9b, 0xc7, 0xb0,
+	0xa4, 0x4c, 0xa5, 0x98, 0xe8, 0x01, 0x9c, 0x4f, 0xfc, 0x4d, 0x1b, 0x2c, 0xbd, 0x8c, 0x41, 0xa4,
+	0x2d, 0xa4, 0x56, 0x52, 0xcf, 0x82, 0x35, 0xff, 0x59, 0x50, 0x19, 0xcc, 0x7a, 0x16, 0x5a, 0xb0,
+	0xe4, 0x52, 0xee, 0x45, 0xd4, 0x55, 0x65, 0x82, 0xaa, 0x9b, 0x59, 0xb9, 0xfa, 0xbf, 0xd3, 0x8c,
+	0x50, 0xbc, 0xa8, 0x39, 0x6a, 0x86, 0x9a, 0x50, 0xd2, 0xba, 0xe1, 0x76, 0x59, 0x69, 0xf7, 0x05,
+	0x9f, 0x83, 0x29, 0xed, 0x44, 0x99, 0x5b, 0x7c, 0xa9, 0x32, 0x77, 0x1d, 0xc0, 0x67, 0xbd, 0xae,
+	0x1b, 0x79, 0x23, 0x1a, 0xd9, 0x4b, 0xba, 0x49, 0xc8, 0xe0, 0xee, 0x2a, 0x04, 0xb6, 0x7c, 0xd6,
+	0x8b, 0x87, 0x33, 0x45, 0xa9, 0xf2, 0x72, 0x45, 0x69, 0x7b, 0xed, 0xe0, 0xb0, 0xbe, 0x0a, 0x2b,
+	0xe9, 0x1a, 0xb2, 0x65, 0xdc, 0x34, 0x6e, 0x19, 0x7b, 0x46, 0xfd, 0x1b, 0x03, 0xfe, 0x35, 0x13,
+	0x30, 0x7a, 0x17, 0x8a, 0x3a, 0xe4, 0xd3, 0x3a, 0x29, 0xcd, 0xc3, 0x09, 0x16, 0xad, 0x83, 0x25,
+	0xef, 0x1f, 0xe5, 0x9c, 0xc6, 0x95, 0xc5, 0xc2, 0xc7, 0x1f, 0x90, 0x0d, 0x45, 0xe2, 0x7b, 0x44,
+	0xae, 0xe5, 0xd5, 0x5a, 0x32, 0xad, 0x7f, 0x97, 0x83, 0xa2, 0x36, 0xf6, 0xba, 0xdf, 0x33, 0xbd,
+	0xed, 0xcc, 0xad, 0xbd, 0x01, 0x8b, 0xf1, 0x51, 0x69, 0xb9, 0x99, 0x67, 0x1e, 0x58, 0x39, 0xc6,
+	0xc7, 0x52, 0xbb, 0x01, 0xa6, 0x17, 0x92, 0x81, 0x7e, 0xcb, 0x32, 0x77, 0xee, 0xec, 0x35, 0xef,
+	0xdc, 0x0d, 0xe3, 0x5b, 0x53, 0x9a, 0x1c, 0xd5, 0x4c, 0xf9, 0x01, 0x2b, 0x5a, 0x66, 0xd5, 0xff,
+	0x71, 0x01, 0x8a, 0x3b, 0xfe, 0x90, 0x0b, 0x1a, 0xbd, 0xee, 0x24, 0xe9, 0x6d, 0x67, 0x92, 0xb4,
+	0x03, 0xc5, 0x88, 0x31, 0xd1, 0x75, 0xc8, 0x69, 0xf9, 0xc1, 0x8c, 0x89, 0x9d, 0x66, 0xab, 0x22,
+	0x89, 0xb2, 0x70, 0xc5, 0x73, 0x5c, 0x90, 0xd4, 0x1d, 0x82, 0x1e, 0xc2, 0x6a, 0x52, 0xee, 0xf7,
+	0x19, 0x13, 0x5c, 0x44, 0x24, 0xec, 0xf6, 0xe9, 0x58, 0x36, 0x02, 0xf9, 0x79, 0x8d, 0x5f, 0x3b,
+	0x70, 0xa2, 0xb1, 0x4a, 0xde, 0x6d, 0x3a, 0xc6, 0x2b, 0xda, 0x40, 0x2b, 0xe1, 0xdf, 0xa6, 0x63,
+	0x8e, 0x3e, 0x82, 0x75, 0x3a, 0x85, 0x49, 0x8b, 0x5d, 0x9f, 0x0c, 0xe4, 0x43, 0xd6, 0x75, 0x7c,
+	0xe6, 0xf4, 0x55, 0x2d, 0x35, 0xf1, 0x05, 0x9a, 0x36, 0xf5, 0x49, 0x8c, 0xd8, 0x91, 0x00, 0xc4,
+	0xc1, 0xde, 0xf7, 0x89, 0xd3, 0xf7, 0x3d, 0x2e, 0x7b, 0xfb, 0x54, 0x2f, 0x27, 0xcb, 0xa1, 0xf4,
+	0x6d, 0xeb, 0x94, 0x6c, 0x35, 0x5a, 0xc7, 0xdc, 0x54, 0x67, 0xc8, 0xdb, 0x81, 0x88, 0xc6, 0xf8,
+	0x3f, 0xfb, 0xd9, 0xab, 0xa8, 0x05, 0xe5, 0x61, 0x20, 0xb7, 0x8f, 0x73, 0x60, 0xbd, 0x68, 0x0e,
+	0x20, 0x66, 0xc9, 0xc8, 0xd7, 0x46, 0xb0, 0x7e, 0xda, 0xe6, 0x68, 0x19, 0xf2, 0x7d, 0x3a, 0x8e,
+	0xf5, 0x83, 0xe5, 0x10, 0xdd, 0x84, 0x85, 0x11, 0xf1, 0x87, 0x54, 0x2b, 0xe7, 0xad, 0xac, 0xfd,
+	0xb2, 0x4d, 0xe2, 0x98, 0xb8, 0x9d, 0xdb, 0x32, 0x32, 0x65, 0xfb, 0xb3, 0x01, 0x85, 0x7b, 0xd4,
+	0x89, 0xa8, 0x78, 0xa5, 0xaa, 0xdd, 0x3a, 0xa1, 0xda, 0x6a, 0x76, 0x97, 0x27, 0x77, 0x9d, 0x11,
+	0xed, 0x1a, 0x94, 0xbc, 0x40, 0xd0, 0x28, 0x20, 0xbe, 0x52, 0x6d, 0x09, 0x4f, 0xe7, 0x99, 0x01,
+	0xfc, 0x61, 0x40, 0x09, 0x53, 0xce, 0x86, 0xd1, 0x2b, 0xee, 0xb6, 0x9f, 0x7b, 0xb1, 0xf3, 0x7f,
+	0xfb, 0xc5, 0x46, 0x60, 0xf6, 0xbd, 0x40, 0xf7, 0x16, 0x58, 0x8d, 0x51, 0x03, 0x8a, 0x21, 0x19,
+	0xfb, 0x8c, 0xb8, 0xba, 0x06, 0xad, 0xcc, 0xfc, 0x21, 0x6d, 0x06, 0x63, 0x9c, 0x80, 0xb6, 0x57,
+	0x0e, 0x0e, 0xeb, 0xcb, 0x50, 0x49, 0x47, 0xfe, 0xd8, 0xa8, 0xff, 0x6a, 0x80, 0xd5, 0xfe, 0x4a,
+	0xd0, 0x40, 0x35, 0xb7, 0xff, 0xc8, 0xe0, 0x37, 0x66, 0xff, 0xb4, 0x5a, 0x27, 0xfe, 0x8f, 0x66,
+	0x1d, 0x6a, 0xcb, 0x7e, 0xfa, 0xac, 0x7a, 0xee, 0xb7, 0x67, 0xd5, 0x73, 0x5f, 0x4f, 0xaa, 0xc6,
+	0xd3, 0x49, 0xd5, 0xf8, 0x65, 0x52, 0x35, 0x7e, 0x9f, 0x54, 0x8d, 0xfd, 0x82, 0xca, 0xcf, 0x3b,
+	0x7f, 0x05, 0x00, 0x00, 0xff, 0xff, 0x01, 0x4f, 0xd2, 0x2a, 0xfa, 0x10, 0x00, 0x00,
 }

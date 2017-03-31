@@ -3,21 +3,27 @@ package api
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/docker/go-events"
 )
 
-var errUnknownStoreAction = errors.New("unrecognized action type")
+var (
+	errUnknownStoreAction = errors.New("unrecognized action type")
+	errConflictingFilters = errors.New("conflicting filters specified")
+	errNoKindSpecified    = errors.New("no kind of object specified")
+	errUnrecognizedAction = errors.New("unrecognized action")
+)
 
 // StoreObject is an abstract object that can be handled by the store.
 type StoreObject interface {
-	GetID() string                // Get ID
-	GetMeta() Meta                // Retrieve metadata
-	SetMeta(Meta)                 // Set metadata
-	CopyStoreObject() StoreObject // Return a copy of this object
-	EventCreate() Event           // Return a creation event
-	EventUpdate() Event           // Return an update event
-	EventDelete() Event           // Return a deletion event
+	GetID() string                           // Get ID
+	GetMeta() Meta                           // Retrieve metadata
+	SetMeta(Meta)                            // Set metadata
+	CopyStoreObject() StoreObject            // Return a copy of this object
+	EventCreate() Event                      // Return a creation event
+	EventUpdate(oldObject StoreObject) Event // Return an update event
+	EventDelete() Event                      // Return a deletion event
 }
 
 // Event is the type used for events passed over watcher channels, and also
@@ -77,4 +83,26 @@ func prefixFromArgs(args ...interface{}) ([]byte, error) {
 		return val[:n-1], nil
 	}
 	return val, nil
+}
+
+func checkCustom(a1, a2 Annotations) bool {
+	if len(a1.Indices) == 1 {
+		for _, ind := range a2.Indices {
+			if ind.Key == a1.Indices[0].Key && ind.Val == a1.Indices[0].Val {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func checkCustomPrefix(a1, a2 Annotations) bool {
+	if len(a1.Indices) == 1 {
+		for _, ind := range a2.Indices {
+			if ind.Key == a1.Indices[0].Key && strings.HasPrefix(ind.Val, a1.Indices[0].Val) {
+				return true
+			}
+		}
+	}
+	return false
 }

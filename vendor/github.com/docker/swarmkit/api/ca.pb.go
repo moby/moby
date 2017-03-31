@@ -215,6 +215,10 @@ func (m *IssueNodeCertificateRequest) CopyFrom(src interface{}) {
 
 	o := src.(*IssueNodeCertificateRequest)
 	*m = *o
+	if o.CSR != nil {
+		m.CSR = make([]byte, len(o.CSR))
+		copy(m.CSR, o.CSR)
+	}
 }
 
 func (m *IssueNodeCertificateResponse) Copy() *IssueNodeCertificateResponse {
@@ -255,6 +259,10 @@ func (m *GetRootCACertificateResponse) CopyFrom(src interface{}) {
 
 	o := src.(*GetRootCACertificateResponse)
 	*m = *o
+	if o.Certificate != nil {
+		m.Certificate = make([]byte, len(o.Certificate))
+		copy(m.Certificate, o.Certificate)
+	}
 }
 
 func (m *GetUnlockKeyRequest) Copy() *GetUnlockKeyRequest {
@@ -280,6 +288,10 @@ func (m *GetUnlockKeyResponse) CopyFrom(src interface{}) {
 
 	o := src.(*GetUnlockKeyResponse)
 	*m = *o
+	if o.UnlockKey != nil {
+		m.UnlockKey = make([]byte, len(o.UnlockKey))
+		copy(m.UnlockKey, o.UnlockKey)
+	}
 	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Version, &o.Version)
 }
 

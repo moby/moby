@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/go-events"
 	"github.com/docker/swarmkit/api"
+	"github.com/docker/swarmkit/api/defaults"
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/orchestrator"
 	"github.com/docker/swarmkit/manager/state"
@@ -159,10 +160,10 @@ func (r *Supervisor) Restart(ctx context.Context, tx store.Tx, cluster *api.Clus
 			restartDelay, err = gogotypes.DurationFromProto(t.Spec.Restart.Delay)
 			if err != nil {
 				log.G(ctx).WithError(err).Error("invalid restart delay; using default")
-				restartDelay = orchestrator.DefaultRestartDelay
+				restartDelay, _ = gogotypes.DurationFromProto(defaults.Service.Task.Restart.Delay)
 			}
 		} else {
-			restartDelay = orchestrator.DefaultRestartDelay
+			restartDelay, _ = gogotypes.DurationFromProto(defaults.Service.Task.Restart.Delay)
 		}
 	}
 
@@ -329,15 +330,15 @@ func (r *Supervisor) DelayStart(ctx context.Context, _ store.Tx, oldTask *api.Ta
 			r.store.WatchQueue(),
 			api.EventUpdateTask{
 				Task:   &api.Task{ID: oldTask.ID, Status: api.TaskStatus{State: api.TaskStateRunning}},
-				Checks: []api.TaskCheckFunc{state.TaskCheckID, state.TaskCheckStateGreaterThan},
+				Checks: []api.TaskCheckFunc{api.TaskCheckID, state.TaskCheckStateGreaterThan},
 			},
 			api.EventUpdateNode{
 				Node:   &api.Node{ID: oldTask.NodeID, Status: api.NodeStatus{State: api.NodeStatus_DOWN}},
-				Checks: []api.NodeCheckFunc{state.NodeCheckID, state.NodeCheckState},
+				Checks: []api.NodeCheckFunc{api.NodeCheckID, state.NodeCheckState},
 			},
 			api.EventDeleteNode{
 				Node:   &api.Node{ID: oldTask.NodeID},
-				Checks: []api.NodeCheckFunc{state.NodeCheckID},
+				Checks: []api.NodeCheckFunc{api.NodeCheckID},
 			},
 		)
 	}

@@ -17,7 +17,6 @@ import (
 	"github.com/docker/swarmkit/api/equality"
 	"github.com/docker/swarmkit/ca"
 	"github.com/docker/swarmkit/log"
-	"github.com/docker/swarmkit/manager/state"
 	"github.com/docker/swarmkit/manager/state/store"
 	"github.com/docker/swarmkit/remotes"
 	"github.com/docker/swarmkit/watch"
@@ -702,11 +701,11 @@ func (d *Dispatcher) Tasks(r *api.TasksRequest, stream api.Dispatcher_TasksServe
 			return nil
 		},
 		api.EventCreateTask{Task: &api.Task{NodeID: nodeID},
-			Checks: []api.TaskCheckFunc{state.TaskCheckNodeID}},
+			Checks: []api.TaskCheckFunc{api.TaskCheckNodeID}},
 		api.EventUpdateTask{Task: &api.Task{NodeID: nodeID},
-			Checks: []api.TaskCheckFunc{state.TaskCheckNodeID}},
+			Checks: []api.TaskCheckFunc{api.TaskCheckNodeID}},
 		api.EventDeleteTask{Task: &api.Task{NodeID: nodeID},
-			Checks: []api.TaskCheckFunc{state.TaskCheckNodeID}},
+			Checks: []api.TaskCheckFunc{api.TaskCheckNodeID}},
 	)
 	if err != nil {
 		return err
@@ -916,9 +915,9 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 			return nil
 		},
 		api.EventUpdateTask{Task: &api.Task{NodeID: nodeID},
-			Checks: []api.TaskCheckFunc{state.TaskCheckNodeID}},
+			Checks: []api.TaskCheckFunc{api.TaskCheckNodeID}},
 		api.EventDeleteTask{Task: &api.Task{NodeID: nodeID},
-			Checks: []api.TaskCheckFunc{state.TaskCheckNodeID}},
+			Checks: []api.TaskCheckFunc{api.TaskCheckNodeID}},
 		api.EventUpdateSecret{},
 		api.EventDeleteSecret{},
 	)
@@ -1337,7 +1336,7 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 		nodeObj = store.GetNode(readTx, nodeID)
 		return nil
 	}, api.EventUpdateNode{Node: &api.Node{ID: nodeID},
-		Checks: []api.NodeCheckFunc{state.NodeCheckID}},
+		Checks: []api.NodeCheckFunc{api.NodeCheckID}},
 	)
 	if cancel != nil {
 		defer cancel()

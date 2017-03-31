@@ -26,7 +26,18 @@ message Meta {
 
 // Node provides the internal node state as seen by the cluster.
 message Node {
-	option (docker.protobuf.plugin.store_object) = { };
+	option (docker.protobuf.plugin.store_object) = {
+		watch_selectors: {
+			id: true
+			id_prefix: true
+			name: true
+			name_prefix: true
+			custom: true
+			custom_prefix: true
+			role: true
+			membership: true
+		}
+	};
 
 	// ID specifies the identity of the node.
 	string id = 1;
@@ -67,7 +78,16 @@ message Node {
 }
 
 message Service {
-	option (docker.protobuf.plugin.store_object) = { };
+	option (docker.protobuf.plugin.store_object) = {
+		watch_selectors: {
+			id: true
+			id_prefix: true
+			name: true
+			name_prefix: true
+			custom: true
+			custom_prefix: true
+		}
+	};
 
 	string id = 1;
 
@@ -137,7 +157,20 @@ message Endpoint {
 // immutable and idempotent. Once it is dispatched to a node, it will not be
 // dispatched to another node.
 message Task {
-	option (docker.protobuf.plugin.store_object) = { };
+	option (docker.protobuf.plugin.store_object) = {
+		watch_selectors: {
+			id: true
+			id_prefix: true
+			name: true
+			name_prefix: true
+			custom: true
+			custom_prefix: true
+			service_id: true
+			node_id: true
+			slot: true
+			desired_state: true
+		}
+	};
 
 	string id = 1;
 
@@ -225,7 +258,16 @@ message NetworkAttachment {
 }
 
 message Network {
-	option (docker.protobuf.plugin.store_object) = { };
+	option (docker.protobuf.plugin.store_object) = {
+		watch_selectors: {
+			id: true
+			id_prefix: true
+			name: true
+			name_prefix: true
+			custom: true
+			custom_prefix: true
+		}
+	};
 
 	string id = 1;
 
@@ -243,7 +285,16 @@ message Network {
 
 // Cluster provides global cluster settings.
 message Cluster {
-	option (docker.protobuf.plugin.store_object) = { };
+	option (docker.protobuf.plugin.store_object) = {
+		watch_selectors: {
+			id: true
+			id_prefix: true
+			name: true
+			name_prefix: true
+			custom: true
+			custom_prefix: true
+		}
+	};
 
 	string id = 1;
 
@@ -281,7 +332,16 @@ message Cluster {
 // information that is generated from the secret data in the `spec`, such as
 // the digest and size of the secret data.
 message Secret {
-	option (docker.protobuf.plugin.store_object) = { };
+	option (docker.protobuf.plugin.store_object) = {
+		watch_selectors: {
+			id: true
+			id_prefix: true
+			name: true
+			name_prefix: true
+			custom: true
+			custom_prefix: true
+		}
+	};
 
 	string id = 1;
 
@@ -299,7 +359,17 @@ message Secret {
 // SwarmKit can serve as a store for these objects without understanding their
 // meanings.
 message Resource {
-	option (docker.protobuf.plugin.store_object) = { };
+	option (docker.protobuf.plugin.store_object) = {
+		watch_selectors: {
+			id: true
+			id_prefix: true
+			name: true
+			name_prefix: true
+			custom: true
+			custom_prefix: true
+			kind: true
+		}
+	};
 
 	string id = 1 [(gogoproto.customname) = "ID"];
 
@@ -320,7 +390,16 @@ message Resource {
 // Extension declares a type of "resource" object. This message provides some
 // metadata about the objects.
 message Extension {
-	option (docker.protobuf.plugin.store_object) = { };
+	option (docker.protobuf.plugin.store_object) = {
+		watch_selectors: {
+			id: true
+			id_prefix: true
+			name: true
+			name_prefix: true
+			custom: true
+			custom_prefix: true
+		}
+	};
 
 	string id = 1 [(gogoproto.customname) = "ID"];
 

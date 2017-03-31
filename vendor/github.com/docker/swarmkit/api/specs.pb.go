@@ -1097,6 +1097,10 @@ func (m *SecretSpec) CopyFrom(src interface{}) {
 	o := src.(*SecretSpec)
 	*m = *o
 	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Annotations, &o.Annotations)
+	if o.Data != nil {
+		m.Data = make([]byte, len(o.Data))
+		copy(m.Data, o.Data)
+	}
 }
 
 func (m *NodeSpec) Marshal() (dAtA []byte, err error) {

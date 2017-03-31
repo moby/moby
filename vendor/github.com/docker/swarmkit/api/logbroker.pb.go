@@ -357,6 +357,10 @@ func (m *LogMessage) CopyFrom(src interface{}) {
 		m.Timestamp = &google_protobuf.Timestamp{}
 		github_com_docker_swarmkit_api_deepcopy.Copy(m.Timestamp, o.Timestamp)
 	}
+	if o.Data != nil {
+		m.Data = make([]byte, len(o.Data))
+		copy(m.Data, o.Data)
+	}
 }
 
 func (m *SubscribeLogsRequest) Copy() *SubscribeLogsRequest {

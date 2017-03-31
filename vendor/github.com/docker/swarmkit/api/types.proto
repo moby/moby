@@ -668,6 +668,21 @@ message CAConfig {
 	// ExternalCAs is a list of CAs to which a manager node will make
 	// certificate signing requests for node certificates.
 	repeated ExternalCA external_cas = 2 [(gogoproto.customname) = "ExternalCAs"];
+
+	// SigningCACert is the desired CA certificate to be used as the root and
+	// signing CA for the swarm.  If not provided, indicates that we are either happy
+	// with the current configuration, or (together with a bump in the ForceRotate value)
+	// that we want a certificate and key generated for us.
+	bytes signing_ca_cert = 3 [(gogoproto.customname) = "SigningCACert"];
+
+	// SigningCAKey is the desired private key, matching the signing CA cert, to be used
+	// to sign certificates for the swarm
+	bytes signing_ca_key = 4 [(gogoproto.customname) = "SigningCAKey"];
+
+	// ForceRotate is a counter that triggers a root CA rotation even if no relevant
+	// parameters have been in the spec. This will force the manager to generate a new
+	// certificate and key, if none have been provided.
+	uint64 force_rotate = 5;
 }
 
 // OrchestrationConfig defines cluster-level orchestration settings.
@@ -771,6 +786,10 @@ message RootCA {
 	// RootRotation contains the new root cert and key we want to rotate to - if this is nil, we are not in the
 	// middle of a root rotation
 	RootRotation root_rotation = 5;
+
+	// LastForcedRotation matches the Cluster Spec's CAConfig's ForceRotation counter.
+	// It indicates when the current CA cert and key were generated (or updated).
+	uint64 last_forced_rotation = 6;
 }
 
 
@@ -922,5 +941,5 @@ message RootRotation {
 	bytes ca_cert = 1 [(gogoproto.customname) = "CACert"];
 	bytes ca_key = 2 [(gogoproto.customname) = "CAKey"];
 	// cross-signed CA cert is the CACert that has been cross-signed by the previous root
-	bytes cross_signed_ca_cert = 3 [(gogoproto.customname) = "CrossSignedCACert"];;
+	bytes cross_signed_ca_cert = 3 [(gogoproto.customname) = "CrossSignedCACert"];
 }

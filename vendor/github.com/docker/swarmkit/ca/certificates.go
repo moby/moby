@@ -244,7 +244,6 @@ func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, kw KeyWrit
 		// the local connection will not be returned by the connection
 		// broker anymore.
 		config.ForceRemote = true
-
 	}
 	if err != nil {
 		return nil, err
@@ -284,9 +283,9 @@ func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, kw KeyWrit
 	return &tlsKeyPair, nil
 }
 
-func (rca *RootCA) getKEKUpdate(ctx context.Context, cert *x509.Certificate, keypair tls.Certificate, connBroker *connectionbroker.Broker) (*KEKData, error) {
+func (rca *RootCA) getKEKUpdate(ctx context.Context, leafCert *x509.Certificate, keypair tls.Certificate, connBroker *connectionbroker.Broker) (*KEKData, error) {
 	var managerRole bool
-	for _, ou := range cert.Subject.OrganizationalUnit {
+	for _, ou := range leafCert.Subject.OrganizationalUnit {
 		if ou == ManagerRole {
 			managerRole = true
 			break
@@ -773,7 +772,6 @@ func GetRemoteSignedCertificate(ctx context.Context, csr []byte, rootCAPool *x50
 	if rootCAPool == nil {
 		return nil, errors.New("valid root CA pool required")
 	}
-
 	creds := config.Credentials
 
 	if creds == nil {
@@ -810,17 +808,29 @@ func GetRemoteSignedCertificate(ctx context.Context, csr []byte, rootCAPool *x50
 
 	// Exponential backoff with Max of 30 seconds to wait for a new retry
 	for {
-		// Send the Request and retrieve the certificate
-		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		defer cancel()
-		statusResponse, err := caClient.NodeCertificateStatus(ctx, statusRequest)
-		if err != nil {
-			conn.Close(false)
-			return nil, err
+		timeout := 5 * time.Second
+		if config.NodeCertificateStatusRequestTimeout > 0 {
+			timeout = config.NodeCertificateStatusRequestTimeout
 		}
+		// Send the Request and retrieve the certificate
+		stateCtx, cancel := context.WithTimeout(ctx, timeout)
+		defer cancel()
+		statusResponse, err := caClient.NodeCertificateStatus(stateCtx, statusRequest)
+		switch {
+		case err != nil && grpc.Code(err) != codes.DeadlineExceeded:
+			conn.Close(false)
+			// Because IssueNodeCertificate succeeded, if this call failed likely it is due to an issue with this
+			// particular connection, so we need to get another.  We should try a remote connection - the local node
+			// may be a manager that was demoted, so the local connection (which is preferred) may not work.
+			config.ForceRemote = true
+			conn, err = getGRPCConnection(creds, config.ConnBroker, config.ForceRemote)
+			if err != nil {
+				return nil, err
+			}
+			caClient = api.NewNodeCAClient(conn.ClientConn)
 
-		// If the certificate was issued, return
-		if statusResponse.Status.State == api.IssuanceStateIssued {
+		// If there was no deadline exceeded error, and the certificate was issued, return
+		case err == nil && statusResponse.Status.State == api.IssuanceStateIssued:
 			if statusResponse.Certificate == nil {
 				conn.Close(false)
 				return nil, errors.New("no certificate in CertificateStatus response")
@@ -837,10 +847,15 @@ func GetRemoteSignedCertificate(ctx context.Context, csr []byte, rootCAPool *x50
 			}
 		}
 
-		// If we're still pending, the issuance failed, or the state is unknown
-		// let's continue trying.
+		// If NodeCertificateStatus timed out, we're still pending, the issuance failed, or
+		// the state is unknown let's continue trying after an exponential backoff
 		expBackoff.Failure(nil, nil)
-		time.Sleep(expBackoff.Proceed(nil))
+		select {
+		case <-ctx.Done():
+			conn.Close(true)
+			return nil, err
+		case <-time.After(expBackoff.Proceed(nil)):
+		}
 	}
 }
 

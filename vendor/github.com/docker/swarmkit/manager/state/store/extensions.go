@@ -18,16 +18,16 @@ func init() {
 				indexID: {
 					Name:    indexID,
 					Unique:  true,
-					Indexer: api.ExtensionIndexerByID{},
+					Indexer: extensionIndexerByID{},
 				},
 				indexName: {
 					Name:    indexName,
 					Unique:  true,
-					Indexer: api.ExtensionIndexerByName{},
+					Indexer: extensionIndexerByName{},
 				},
 				indexCustom: {
 					Name:         indexCustom,
-					Indexer:      api.ExtensionCustomIndexer{},
+					Indexer:      extensionCustomIndexer{},
 					AllowMissing: true,
 				},
 			},
@@ -74,6 +74,10 @@ func init() {
 
 type extensionEntry struct {
 	*api.Extension
+}
+
+func (e extensionEntry) CopyStoreObject() api.StoreObject {
+	return extensionEntry{Extension: e.Extension.Copy()}
 }
 
 // CreateExtension adds a new extension to the store.
@@ -147,4 +151,40 @@ func FindExtensions(tx ReadTx, by By) ([]*api.Extension, error) {
 
 	err := tx.find(tableExtension, by, checkType, appendResult)
 	return extensionList, err
+}
+
+type extensionIndexerByID struct{}
+
+func (indexer extensionIndexerByID) FromArgs(args ...interface{}) ([]byte, error) {
+	return api.ExtensionIndexerByID{}.FromArgs(args...)
+}
+func (indexer extensionIndexerByID) PrefixFromArgs(args ...interface{}) ([]byte, error) {
+	return api.ExtensionIndexerByID{}.PrefixFromArgs(args...)
+}
+func (indexer extensionIndexerByID) FromObject(obj interface{}) (bool, []byte, error) {
+	return api.ExtensionIndexerByID{}.FromObject(obj.(extensionEntry).Extension)
+}
+
+type extensionIndexerByName struct{}
+
+func (indexer extensionIndexerByName) FromArgs(args ...interface{}) ([]byte, error) {
+	return api.ExtensionIndexerByName{}.FromArgs(args...)
+}
+func (indexer extensionIndexerByName) PrefixFromArgs(args ...interface{}) ([]byte, error) {
+	return api.ExtensionIndexerByName{}.PrefixFromArgs(args...)
+}
+func (indexer extensionIndexerByName) FromObject(obj interface{}) (bool, []byte, error) {
+	return api.ExtensionIndexerByName{}.FromObject(obj.(extensionEntry).Extension)
+}
+
+type extensionCustomIndexer struct{}
+
+func (indexer extensionCustomIndexer) FromArgs(args ...interface{}) ([]byte, error) {
+	return api.ExtensionCustomIndexer{}.FromArgs(args...)
+}
+func (indexer extensionCustomIndexer) PrefixFromArgs(args ...interface{}) ([]byte, error) {
+	return api.ExtensionCustomIndexer{}.PrefixFromArgs(args...)
+}
+func (indexer extensionCustomIndexer) FromObject(obj interface{}) (bool, [][]byte, error) {
+	return api.ExtensionCustomIndexer{}.FromObject(obj.(extensionEntry).Extension)
 }
