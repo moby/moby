@@ -85,6 +85,7 @@ set -e
 		( set -x && docker build ${DOCKER_BUILD_ARGS} -t "$tempImage" -f "$DEST/$version/Dockerfile.build" . )
 		docker run --rm "$tempImage" bash -c 'cd .. && tar -c *_*' | tar -xvC "$DEST/$version"
 		docker rmi "$tempImage"
+		rm "$DEST/$version/Dockerfile.build"
 	done
 
 	bundle .integration-daemon-stop
