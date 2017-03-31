@@ -11,6 +11,14 @@ if [ ! "$(go env GOOS)" = 'windows' ]; then
 		fi
 	done
 
+	for pidFile in $(find "$DEST" -name stackdump.pid); do
+		pid=$(set -x; cat "$pidFile")
+		( set -x; kill "$pid" )
+		if ! wait "$pid"; then
+			echo >&2 "warning: PID $pid from $pidFile had a nonzero exit code"
+		fi
+	done
+
 	if [ -z "$DOCKER_TEST_HOST" ]; then
 		# Stop apparmor if it is enabled
 		if [ -e "/sys/module/apparmor/parameters/enabled" ] && [ "$(cat /sys/module/apparmor/parameters/enabled)" == "Y" ]; then
@@ -21,7 +29,7 @@ if [ ! "$(go env GOOS)" = 'windows' ]; then
 		fi
 	fi
 else
-	# Note this script is not actionable on Windows to Linux CI. Instead the 
+	# Note this script is not actionable on Windows to Linux CI. Instead the
 	# DIND daemon under test is torn down by the Jenkins tear-down script
 	echo "INFO: Not stopping daemon on Windows CI"
 fi

@@ -79,6 +79,18 @@ if [ -z "$DOCKER_TEST_HOST" ]; then
 		$extra_params \
 			&> "$DEST/docker.log"
 	) &
+	( set -x; \
+		timeout=$(echo $TIMEOUT | sed 's/\([0-9]*\)[dhms]/\1/') ; \
+		unit=$(echo $TIMEOUT | sed 's/[0-9]*\([dhms]\)/\1/') ; \
+		dumptimeout=$(( $timeout - 5 )) ; \
+		if [ $dumptimeout -gt 0 ] ; then \
+		   sleep $dumptimeout$unit ; \
+		   kill -USR1 $(cat "$DEST/docker.pid") ; \
+	       bridge link show ; \
+		   grep goroutine "$DEST/docker.log" | sed 's/\\n/\n/g' | sed 's/\\t/\t/g' ; \
+		fi
+	) &
+	echo $! > "$DEST/stackdump.pid"
 	# make sure that if the script exits unexpectedly, we stop this daemon we just started
 	trap 'bundle .integration-daemon-stop' EXIT
 else
@@ -115,3 +127,5 @@ while ! docker version &> /dev/null; do
 	sleep 2
 done
 printf "\n"
+
+(set -x; bridge link show)
