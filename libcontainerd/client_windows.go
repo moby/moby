@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 
 	"golang.org/x/net/context"
 
@@ -567,10 +568,18 @@ func (clnt *client) Restore(containerID string, _ StdioCallback, unusedOnWindows
 	// We explicitly just log a warning if the terminate fails.
 	// Then we tell the backend the container exited.
 	if hc, err := hcsshim.OpenContainer(containerID); err == nil {
-		if err := hc.Terminate(); err != nil {
-			if !hcsshim.IsPending(err) {
-				logrus.Warnf("libcontainerd: failed to terminate %s on restore - %q", containerID, err)
-			}
+		const terminateTimeout = time.Minute * 2
+		err := hc.Terminate()
+
+		if hcsshim.IsPending(err) {
+			err = hc.WaitTimeout(terminateTimeout)
+		} else if hcsshim.IsAlreadyStopped(err) {
+			err = nil
+		}
+
+		if err != nil {
+			logrus.Warnf("libcontainerd: failed to terminate %s on restore - %q", containerID, err)
+			return err
 		}
 	}
 	return clnt.backend.StateChanged(containerID, StateInfo{
