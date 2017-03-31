@@ -205,7 +205,7 @@ func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key stri
 		return
 	}
 
-	d.peerAdd(nid, eid, addr.IP, addr.Mask, mac, vtep, true)
+	d.peerAdd(nid, eid, addr.IP, addr.Mask, mac, vtep, true, false, false)
 }
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
