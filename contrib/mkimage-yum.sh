@@ -18,6 +18,8 @@ OPTIONS:
                    The default is "Core".
   -y <yumconf>     The path to the yum config to install packages from. The
                    default is /etc/yum.conf for Centos/RHEL and /etc/dnf/dnf.conf for Fedora
+  -f <filename>    The filename of the output tarfile
+  -c               If specified, the tarfile will be bzip2 compressed
 EOOPTS
     exit 1
 }
@@ -29,12 +31,15 @@ if [ -f /etc/dnf/dnf.conf ] && command -v dnf &> /dev/null; then
 	alias yum=dnf
 fi
 install_groups="Core"
-while getopts ":y:p:g:h" opt; do
+filename=''
+compress='N'
+while getopts ":f:y:p:g:hc" opt; do
     case $opt in
         y)
             yum_config=$OPTARG
             ;;
         h)
+	    echo 'in h'
             usage
             ;;
         p)
@@ -42,6 +47,12 @@ while getopts ":y:p:g:h" opt; do
             ;;
         g)
             install_groups="$OPTARG"
+            ;;
+        f)
+            filename="$OPTARG"
+            ;;
+        c)
+            compress='Y'
             ;;
         \?)
             echo "Invalid option: -$OPTARG"
@@ -129,8 +140,19 @@ if [ -z "$version" ]; then
     version=$name
 fi
 
-tar --numeric-owner -c -C "$target" . | docker import - $name:$version
+if [ -n "${filename}" ] ; then
+    if [ "${compress}" = 'Y' ] ; then
+        taropts="-j"
+        filename="${filename}.tar.bz2"
+    else
+        filename="${filename}.tar"
+        taropts=''
+    fi
+    tar --numeric-owner -c -C "$target" ${taropts} -f "${filename}" .
+else
+    tar --numeric-owner -c -C "$target" . | docker import - $name:$version
 
-docker run -i -t --rm $name:$version /bin/bash -c 'echo success'
+    docker run -i -t --rm $name:$version /bin/bash -c 'echo success'
+fi
 
 rm -rf "$target"
