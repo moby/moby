@@ -319,6 +319,7 @@ do_install() {
 	if command_exists lsb_release; then
 		lsb_dist="$(lsb_release -si)"
 	fi
+	[ "$lsb_dist" = "CentOS" ] && unset lsb_dist # don't relay on lsb_release for CentOS
 	if [ -z "$lsb_dist" ] && [ -r /etc/lsb-release ]; then
 		lsb_dist="$(. /etc/lsb-release && echo "$DISTRIB_ID")"
 	fi
