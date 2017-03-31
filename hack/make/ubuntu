@@ -49,7 +49,7 @@ bundle_ubuntu() {
 	mkdir -p "$DIR/etc/default"
 	cp contrib/init/sysvinit-debian/docker.default "$DIR/etc/default/docker"
 	mkdir -p "$DIR/lib/systemd/system"
-	cp contrib/init/systemd/docker.{service,socket} "$DIR/lib/systemd/system/"
+	cp contrib/init/systemd-ubuntu/docker.{service,socket} "$DIR/lib/systemd/system/"
 
 	# Include contributed completions
 	mkdir -p "$DIR/etc/bash_completion.d"
@@ -93,6 +93,13 @@ if ! { [ -x /sbin/initctl ] && /sbin/initctl version 2>/dev/null | grep -q upsta
 	# we only need to do this if upstart isn't in charge
 	update-rc.d docker defaults > /dev/null || true
 fi
+
+# If the system uses systemd, the configuration file format changes
+# We need to update it accordingly (removing variable exports)
+if [ -d /run/systemd/system ] ; then
+	sed -i -e "s/^export //" -e "s/#export /#/" /etc/default/docker 2>/dev/null || true
+fi
+
 if [ -n "$2" ]; then
 	_dh_action=restart
 else
@@ -165,6 +172,8 @@ EOF
 			--config-files /etc/init/docker.conf \
 			--config-files /etc/init.d/docker \
 			--config-files /etc/default/docker \
+			--config-files /lib/systemd/system/docker.service \
+			--config-files /lib/systemd/system/docker.socket \
 			--deb-compression gz \
 			-t deb .
 		# TODO replace "Suggests: cgroup-lite" with "Recommends: cgroupfs-mount | cgroup-lite" once cgroupfs-mount is available
