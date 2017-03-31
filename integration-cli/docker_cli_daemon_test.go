@@ -2954,3 +2954,63 @@ func (s *DockerDaemonSuite) TestShmSizeReload(c *check.C) {
 	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
 	c.Assert(strings.TrimSpace(out), check.Equals, fmt.Sprintf("%v", size))
 }
+
+func TestDaemonwithwrongkey(t *testing.T) {
+        type Config struct {
+                Crv string `json:"crv"`
+                D   string `json:"d"`
+                Kid string `json:"kid"`
+                Kty string `json:"kty"`
+                X   string `json:"x"`
+                Y   string `json:"y"`
+        }
+
+        os.Remove("/etc/docker/key.json")
+        k, err := libtrust.GenerateECP256PrivateKey()
+        if err != nil {
+                t.Fatalf("Error generating private key: %s", err)
+        }
+        if err := os.MkdirAll(filepath.Join(os.Getenv("HOME"), ".docker"), 0755); err != nil {
+                t.Fatalf("Error creating .docker directory: %s", err)
+        }
+        if err := libtrust.SaveKey(filepath.Join(os.Getenv("HOME"), ".docker", "key.json"), k); err != nil {
+                t.Fatalf("Error saving private key: %s", err)
+        }
+        d := NewDaemon(t)
+        if err := d.Start(); err != nil {
+                t.Fatalf("Failed to start daemon: %v", err)
+        }
+        d.Stop()
+
+        config := &Config{}
+        bytes, err := ioutil.ReadFile("/etc/docker/key.json")
+        if err != nil {
+                t.Fatalf("Error reading key.json file: %s", err)
+        }
+
+        // byte[] to Data-Struct
+        if err := json.Unmarshal(bytes, &config); err != nil {
+                t.Fatalf("Error Unmarshal: %s", err)
+        }
+
+        //replace config.D with the fake value
+        config.D = "VSAJ:FUYR:X3H2:B2VZ:KZ6U:CJD5:K7BX:ZXHY:UZXT:P4FT:MJWG:HRJ4";
+
+        // NEW Data-Struct to byte[]
+        newBytes, err := json.Marshal(&config)
+        if err != nil {
+                t.Fatalf("Error Marshal: %s", err)
+        }
+
+        // write back
+        if err := ioutil.WriteFile("/etc/docker/key.json", newBytes, 0400); err != nil {
+                t.Fatalf("Error ioutil.WriteFile: %s", err)
+        }
+
+        d1 := NewDaemon(t)
+        if err := d1.Start(); err == nil {
+                t.Fatalf("It should not be succssful to start daemon with wrong key: %v", err)
+        }
+
+        logDone("daemon - it should be failed to start daemon with wrong key")
+}
