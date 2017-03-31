@@ -2605,6 +2605,7 @@ __docker_subcommand() {
                 "($help)*--cluster-store-opt=[Cluster store options]:Cluster options:->cluster-store-options" \
                 "($help)--config-file=[Path to daemon configuration file]:Config File:_files" \
                 "($help)--containerd=[Path to containerd socket]:socket:_files -g \"*.sock\"" \
+                "($help)--data-root=[Root directory of persisted Docker data]:path:_directories" \
                 "($help -D --debug)"{-D,--debug}"[Enable debug mode]" \
                 "($help)--default-gateway[Container default gateway IPv4 address]:IPv4 address: " \
                 "($help)--default-gateway-v6[Container default gateway IPv6 address]:IPv6 address: " \
@@ -2620,7 +2621,6 @@ __docker_subcommand() {
                 "($help)--fixed-cidr=[IPv4 subnet for fixed IPs]:IPv4 subnet: " \
                 "($help)--fixed-cidr-v6=[IPv6 subnet for fixed IPs]:IPv6 subnet: " \
                 "($help -G --group)"{-G=,--group=}"[Group for the unix socket]:group:_groups" \
-                "($help -g --graph)"{-g=,--graph=}"[Root of the Docker runtime]:path:_directories" \
                 "($help -H --host)"{-H=,--host=}"[tcp://host:port to bind/connect to]:host: " \
                 "($help)--icc[Enable inter-container communication]" \
                 "($help)--init[Run an init inside containers to forward signals and reap processes]" \

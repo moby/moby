@@ -1936,6 +1936,7 @@ _docker_daemon() {
 		--cluster-store-opt
 		--config-file
 		--containerd
+		--data-root
 		--default-gateway
 		--default-gateway-v6
 		--default-shm-size
@@ -1947,7 +1948,6 @@ _docker_daemon() {
 		--exec-root
 		--fixed-cidr
 		--fixed-cidr-v6
-		--graph -g
 		--group -G
 		--init-path
 		--insecure-registry
@@ -2016,7 +2016,7 @@ _docker_daemon() {
 			_filedir
 			return
 			;;
-		--exec-root|--graph|-g)
+		--exec-root|--data-root)
 			_filedir -d
 			return
 			;;
