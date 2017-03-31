@@ -1,0 +1,204 @@
+@media print {
+.noprint {
+display: none;
+}}
+
+body {
+    color: #777;
+    background-color: #FFF;
+    font-family: Verdana, Geneva, Arial, Helvetica, sans-serif;
+    margin: 0px;
+    padding: 0px;
+}
+
+table {
+    /* Mickael Hartl's suggestion to get rid of cellspacing="0" in tables: */ 
+    border-collapse: collapse;
+    
+    border: 0px;
+    border-bottom: 1px solid Black;
+    margin: 0px 10px 10px 10px;
+    padding: 0px;
+    font-size: 9pt;
+    color: #000;
+}
+
+table caption {
+    padding: 1px 5px;
+    margin-top: 5px;
+    background-color: White;
+    text-align: left;
+    color: Black;
+    font-size: 9pt;
+    margin: 10px 10px 0px 10px;
+    font-weight: bold;
+    font-style: italic;
+}
+
+th {
+    padding: 1px 5px;
+    margin-top: 5px;
+    background-color: Black;
+    border-top: 2px solid Black;
+    border-bottom: 1px solid white;
+    text-align: left;
+    font-size: 8pt;
+    color: White;
+}
+
+.logo {
+    border: 0px;
+    padding: 5px 20px;
+    margin: auto;
+    border-bottom: 8px double #FFF;
+    vertical-align: middle;
+    width: auto;
+    background-color: #000;
+}
+
+td {
+    border-top: 1px solid Black;
+    margin: 0px;
+    padding: 0px 5px;
+    vertical-align: top;
+    font-size: 9pt;}
+
+.main {
+    background-color: #FFF;
+    color: #222;
+    width: 100%;
+    margin: auto;
+    padding: 0px;
+    font-size: 10pt;
+    border: 0px;
+}
+
+.content {
+    font-size: 9pt;
+    padding: 0px 20px 20px 20px;
+    margin: 0px;
+    margin-right: auto;
+    vertical-align: top;
+    border: 0px;
+}
+
+a {
+    color: Navy;
+    text-decoration: none;
+}
+
+a:hover {
+    color: Red;
+}
+
+h1 {
+    color: White;
+    padding: 0px;
+    margin: 0px;
+    font-size: 28pt;
+    font-weight: bold;
+    text-align: center;
+}
+
+h2 {
+    color: White;
+    background-color: Black;
+    letter-spacing: .1em;
+    word-spacing: .2em;
+    padding: 2px 2px 0px 2px;
+    margin: 40px 0px 10px 0px;
+    font-size: 16pt;
+    font-weight: bold;
+    border-bottom: 5px double White; 
+    text-transform: none;
+    display: block;
+    text-align: left;
+}
+
+h3 {
+    color: Black;
+    padding: 0px 0px 0px 0px;
+    margin: 15px 0px 0px 0px;
+    letter-spacing: .1em;
+    word-spacing: .2em;
+    font-size: 13pt;
+    font-weight: bold;
+    border-bottom: 3px solid Black; 
+    text-transform: none;
+    width: 100%;
+    display: block;
+    margin-bottom: 10px;
+}
+
+h4 {
+    color: Black;
+    padding: 0px;
+    margin: 10px 0px 5px 0px;
+    letter-spacing: .1em;
+    font-size: 10pt;
+    font-weight: bold;
+    font-style: italic;
+    border-bottom: 2px solid Black; 
+    text-transform: none;
+    display: block;
+}
+
+dl {
+    margin: 0px 0px 10px 0px;
+    font-size: 9pt;
+}
+
+dt { 
+    font-style: italic;
+}
+
+dd { 
+    margin-left: 20px;
+}
+
+.invisible {
+    display: none;
+}
+
+ul, ol {
+    padding-top: 0px;
+    padding-bottom: 0px;
+    margin-top: 0px;
+    margin-bottom: 0px;
+}
+
+code {
+    color: black;
+}
+
+pre {
+    color: black;
+    padding: 5px 10px 5px 10px;
+    margin: 0px;
+    font-size: 8pt;
+}
+
+blockquote {
+    padding: 5px;
+    margin: 5px 10px;
+    font-size: 8pt;
+    background-color: White;
+    border: 2px dotted Black;
+    display: block;
+}
+
+/********************
+CHANGE STYLES
+********************/
+.since27 {color: #722}
+.since26 {color: #D82}
+.since25 {color: #006633}
+.since24 { }
+.since23 { }
+.since22 { }
+.since21 { }
+.since20 { }
+
+.warning {
+    color: Fuchsia;
+}
