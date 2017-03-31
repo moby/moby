@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/go-connections/nat"
+	"github.com/docker/swarmkit/api/defaults"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -42,7 +43,7 @@ func newUpdateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.SetAnnotation("rollback", "version", []string{"1.25"})
 	flags.Bool("force", false, "Force update even if no changes require it")
 	flags.SetAnnotation("force", "version", []string{"1.25"})
-	addServiceFlags(flags, serviceOpts)
+	addServiceFlags(flags, serviceOpts, nil)
 
 	flags.Var(newListOptsVar(), flagEnvRemove, "Remove an environment variable")
 	flags.Var(newListOptsVar(), flagGroupRemove, "Remove a previously added supplementary user group from the container")
@@ -294,9 +295,8 @@ func updateService(ctx context.Context, apiClient client.APIClient, flags *pflag
 
 	if anyChanged(flags, flagRestartCondition, flagRestartDelay, flagRestartMaxAttempts, flagRestartWindow) {
 		if task.RestartPolicy == nil {
-			task.RestartPolicy = &swarm.RestartPolicy{}
+			task.RestartPolicy = defaultRestartPolicy()
 		}
-
 		if flags.Changed(flagRestartCondition) {
 			value, _ := flags.GetString(flagRestartCondition)
 			task.RestartPolicy.Condition = swarm.RestartPolicyCondition(value)
@@ -332,7 +332,7 @@ func updateService(ctx context.Context, apiClient client.APIClient, flags *pflag
 
 	if anyChanged(flags, flagUpdateParallelism, flagUpdateDelay, flagUpdateMonitor, flagUpdateFailureAction, flagUpdateMaxFailureRatio, flagUpdateOrder) {
 		if spec.UpdateConfig == nil {
-			spec.UpdateConfig = &swarm.UpdateConfig{}
+			spec.UpdateConfig = updateConfigFromDefaults(defaults.Service.Update)
 		}
 		updateUint64(flagUpdateParallelism, &spec.UpdateConfig.Parallelism)
 		updateDuration(flagUpdateDelay, &spec.UpdateConfig.Delay)
@@ -344,7 +344,7 @@ func updateService(ctx context.Context, apiClient client.APIClient, flags *pflag
 
 	if anyChanged(flags, flagRollbackParallelism, flagRollbackDelay, flagRollbackMonitor, flagRollbackFailureAction, flagRollbackMaxFailureRatio, flagRollbackOrder) {
 		if spec.RollbackConfig == nil {
-			spec.RollbackConfig = &swarm.UpdateConfig{}
+			spec.RollbackConfig = updateConfigFromDefaults(defaults.Service.Rollback)
 		}
 		updateUint64(flagRollbackParallelism, &spec.RollbackConfig.Parallelism)
 		updateDuration(flagRollbackDelay, &spec.RollbackConfig.Delay)

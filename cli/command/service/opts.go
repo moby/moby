@@ -12,7 +12,10 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
+	"github.com/docker/swarmkit/api"
+	"github.com/docker/swarmkit/api/defaults"
 	shlex "github.com/flynn-archive/go-shlex"
+	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
 	"golang.org/x/net/context"
@@ -177,6 +180,9 @@ func (s *ShlexOpt) Type() string {
 }
 
 func (s *ShlexOpt) String() string {
+	if len(*s) == 0 {
+		return ""
+	}
 	return fmt.Sprint(*s)
 }
 
@@ -194,15 +200,75 @@ type updateOptions struct {
 	order           string
 }
 
-func (opts updateOptions) config() *swarm.UpdateConfig {
+func updateConfigFromDefaults(defaultUpdateConfig *api.UpdateConfig) *swarm.UpdateConfig {
+	defaultFailureAction := strings.ToLower(api.UpdateConfig_FailureAction_name[int32(defaultUpdateConfig.FailureAction)])
+	defaultMonitor, _ := gogotypes.DurationFromProto(defaultUpdateConfig.Monitor)
 	return &swarm.UpdateConfig{
-		Parallelism:     opts.parallelism,
-		Delay:           opts.delay,
-		Monitor:         opts.monitor,
-		FailureAction:   opts.onFailure,
-		MaxFailureRatio: opts.maxFailureRatio.Value(),
-		Order:           opts.order,
+		Parallelism:     defaultUpdateConfig.Parallelism,
+		Delay:           defaultUpdateConfig.Delay,
+		Monitor:         defaultMonitor,
+		FailureAction:   defaultFailureAction,
+		MaxFailureRatio: defaultUpdateConfig.MaxFailureRatio,
+		Order:           defaultOrder(defaultUpdateConfig.Order),
 	}
+}
+
+func (opts updateOptions) updateConfig(flags *pflag.FlagSet) *swarm.UpdateConfig {
+	if !anyChanged(flags, flagUpdateParallelism, flagUpdateDelay, flagUpdateMonitor, flagUpdateFailureAction, flagUpdateMaxFailureRatio) {
+		return nil
+	}
+
+	updateConfig := updateConfigFromDefaults(defaults.Service.Update)
+
+	if flags.Changed(flagUpdateParallelism) {
+		updateConfig.Parallelism = opts.parallelism
+	}
+	if flags.Changed(flagUpdateDelay) {
+		updateConfig.Delay = opts.delay
+	}
+	if flags.Changed(flagUpdateMonitor) {
+		updateConfig.Monitor = opts.monitor
+	}
+	if flags.Changed(flagUpdateFailureAction) {
+		updateConfig.FailureAction = opts.onFailure
+	}
+	if flags.Changed(flagUpdateMaxFailureRatio) {
+		updateConfig.MaxFailureRatio = opts.maxFailureRatio.Value()
+	}
+	if flags.Changed(flagUpdateOrder) {
+		updateConfig.Order = opts.order
+	}
+
+	return updateConfig
+}
+
+func (opts updateOptions) rollbackConfig(flags *pflag.FlagSet) *swarm.UpdateConfig {
+	if !anyChanged(flags, flagRollbackParallelism, flagRollbackDelay, flagRollbackMonitor, flagRollbackFailureAction, flagRollbackMaxFailureRatio) {
+		return nil
+	}
+
+	updateConfig := updateConfigFromDefaults(defaults.Service.Rollback)
+
+	if flags.Changed(flagRollbackParallelism) {
+		updateConfig.Parallelism = opts.parallelism
+	}
+	if flags.Changed(flagRollbackDelay) {
+		updateConfig.Delay = opts.delay
+	}
+	if flags.Changed(flagRollbackMonitor) {
+		updateConfig.Monitor = opts.monitor
+	}
+	if flags.Changed(flagRollbackFailureAction) {
+		updateConfig.FailureAction = opts.onFailure
+	}
+	if flags.Changed(flagRollbackMaxFailureRatio) {
+		updateConfig.MaxFailureRatio = opts.maxFailureRatio.Value()
+	}
+	if flags.Changed(flagRollbackOrder) {
+		updateConfig.Order = opts.order
+	}
+
+	return updateConfig
 }
 
 type resourceOptions struct {
@@ -232,13 +298,70 @@ type restartPolicyOptions struct {
 	window      DurationOpt
 }
 
-func (r *restartPolicyOptions) ToRestartPolicy() *swarm.RestartPolicy {
-	return &swarm.RestartPolicy{
-		Condition:   swarm.RestartPolicyCondition(r.condition),
-		Delay:       r.delay.Value(),
-		MaxAttempts: r.maxAttempts.Value(),
-		Window:      r.window.Value(),
+func defaultRestartPolicy() *swarm.RestartPolicy {
+	defaultMaxAttempts := defaults.Service.Task.Restart.MaxAttempts
+	rp := &swarm.RestartPolicy{
+		MaxAttempts: &defaultMaxAttempts,
 	}
+
+	if defaults.Service.Task.Restart.Delay != nil {
+		defaultRestartDelay, _ := gogotypes.DurationFromProto(defaults.Service.Task.Restart.Delay)
+		rp.Delay = &defaultRestartDelay
+	}
+	if defaults.Service.Task.Restart.Window != nil {
+		defaultRestartWindow, _ := gogotypes.DurationFromProto(defaults.Service.Task.Restart.Window)
+		rp.Window = &defaultRestartWindow
+	}
+	rp.Condition = defaultRestartCondition()
+
+	return rp
+}
+
+func defaultRestartCondition() swarm.RestartPolicyCondition {
+	switch defaults.Service.Task.Restart.Condition {
+	case api.RestartOnNone:
+		return "none"
+	case api.RestartOnFailure:
+		return "on-failure"
+	case api.RestartOnAny:
+		return "any"
+	default:
+		return ""
+	}
+}
+
+func defaultOrder(order api.UpdateConfig_UpdateOrder) string {
+	switch order {
+	case api.UpdateConfig_STOP_FIRST:
+		return "stop-first"
+	case api.UpdateConfig_START_FIRST:
+		return "start-first"
+	default:
+		return ""
+	}
+}
+
+func (r *restartPolicyOptions) ToRestartPolicy(flags *pflag.FlagSet) *swarm.RestartPolicy {
+	if !anyChanged(flags, flagRestartDelay, flagRestartMaxAttempts, flagRestartWindow, flagRestartCondition) {
+		return nil
+	}
+
+	restartPolicy := defaultRestartPolicy()
+
+	if flags.Changed(flagRestartDelay) {
+		restartPolicy.Delay = r.delay.Value()
+	}
+	if flags.Changed(flagRestartCondition) {
+		restartPolicy.Condition = swarm.RestartPolicyCondition(r.condition)
+	}
+	if flags.Changed(flagRestartMaxAttempts) {
+		restartPolicy.MaxAttempts = r.maxAttempts.Value()
+	}
+	if flags.Changed(flagRestartWindow) {
+		restartPolicy.Window = r.window.Value()
+	}
+
+	return restartPolicy
 }
 
 type credentialSpecOpt struct {
@@ -463,7 +586,14 @@ func (opts *serviceOptions) ToServiceMode() (swarm.ServiceMode, error) {
 	return serviceMode, nil
 }
 
-func (opts *serviceOptions) ToService(ctx context.Context, apiClient client.APIClient) (swarm.ServiceSpec, error) {
+func (opts *serviceOptions) ToStopGracePeriod(flags *pflag.FlagSet) *time.Duration {
+	if flags.Changed(flagStopGracePeriod) {
+		return opts.stopGrace.Value()
+	}
+	return nil
+}
+
+func (opts *serviceOptions) ToService(ctx context.Context, apiClient client.APIClient, flags *pflag.FlagSet) (swarm.ServiceSpec, error) {
 	var service swarm.ServiceSpec
 
 	envVariables, err := runconfigopts.ReadKVStrings(opts.envFile.GetAll(), opts.env.GetAll())
@@ -526,13 +656,13 @@ func (opts *serviceOptions) ToService(ctx context.Context, apiClient client.APIC
 					Options:     opts.dnsOption.GetAll(),
 				},
 				Hosts:           convertExtraHostsToSwarmHosts(opts.hosts.GetAll()),
-				StopGracePeriod: opts.stopGrace.Value(),
+				StopGracePeriod: opts.ToStopGracePeriod(flags),
 				Secrets:         nil,
 				Healthcheck:     healthConfig,
 			},
 			Networks:      networks,
 			Resources:     opts.resources.ToResourceRequirements(),
-			RestartPolicy: opts.restartPolicy.ToRestartPolicy(),
+			RestartPolicy: opts.restartPolicy.ToRestartPolicy(flags),
 			Placement: &swarm.Placement{
 				Constraints: opts.constraints.GetAll(),
 				Preferences: opts.placementPrefs.prefs,
@@ -540,8 +670,8 @@ func (opts *serviceOptions) ToService(ctx context.Context, apiClient client.APIC
 			LogDriver: opts.logDriver.toLogDriver(),
 		},
 		Mode:           serviceMode,
-		UpdateConfig:   opts.update.config(),
-		RollbackConfig: opts.rollback.config(),
+		UpdateConfig:   opts.update.updateConfig(flags),
+		RollbackConfig: opts.update.rollbackConfig(flags),
 		EndpointSpec:   opts.endpoint.ToEndpointSpec(),
 	}
 
@@ -554,9 +684,67 @@ func (opts *serviceOptions) ToService(ctx context.Context, apiClient client.APIC
 	return service, nil
 }
 
+type flagDefaults map[string]interface{}
+
+func (fd flagDefaults) getUint64(flagName string) uint64 {
+	if val, ok := fd[flagName].(uint64); ok {
+		return val
+	}
+	return 0
+}
+
+func (fd flagDefaults) getString(flagName string) string {
+	if val, ok := fd[flagName].(string); ok {
+		return val
+	}
+	return ""
+}
+
+func buildServiceDefaultFlagMapping() flagDefaults {
+	defaultFlagValues := make(map[string]interface{})
+
+	defaultFlagValues[flagStopGracePeriod], _ = gogotypes.DurationFromProto(defaults.Service.Task.GetContainer().StopGracePeriod)
+	defaultFlagValues[flagRestartCondition] = `"` + defaultRestartCondition() + `"`
+	defaultFlagValues[flagRestartDelay], _ = gogotypes.DurationFromProto(defaults.Service.Task.Restart.Delay)
+
+	if defaults.Service.Task.Restart.MaxAttempts != 0 {
+		defaultFlagValues[flagRestartMaxAttempts] = defaults.Service.Task.Restart.MaxAttempts
+	}
+
+	defaultRestartWindow, _ := gogotypes.DurationFromProto(defaults.Service.Task.Restart.Window)
+	if defaultRestartWindow != 0 {
+		defaultFlagValues[flagRestartWindow] = defaultRestartWindow
+	}
+
+	defaultFlagValues[flagUpdateParallelism] = defaults.Service.Update.Parallelism
+	defaultFlagValues[flagUpdateDelay] = defaults.Service.Update.Delay
+	defaultFlagValues[flagUpdateMonitor], _ = gogotypes.DurationFromProto(defaults.Service.Update.Monitor)
+	defaultFlagValues[flagUpdateFailureAction] = `"` + strings.ToLower(api.UpdateConfig_FailureAction_name[int32(defaults.Service.Update.FailureAction)]) + `"`
+	defaultFlagValues[flagUpdateMaxFailureRatio] = defaults.Service.Update.MaxFailureRatio
+	defaultFlagValues[flagUpdateOrder] = `"` + defaultOrder(defaults.Service.Update.Order) + `"`
+
+	defaultFlagValues[flagRollbackParallelism] = defaults.Service.Rollback.Parallelism
+	defaultFlagValues[flagRollbackDelay] = defaults.Service.Rollback.Delay
+	defaultFlagValues[flagRollbackMonitor], _ = gogotypes.DurationFromProto(defaults.Service.Rollback.Monitor)
+	defaultFlagValues[flagRollbackFailureAction] = `"` + strings.ToLower(api.UpdateConfig_FailureAction_name[int32(defaults.Service.Rollback.FailureAction)]) + `"`
+	defaultFlagValues[flagRollbackMaxFailureRatio] = defaults.Service.Rollback.MaxFailureRatio
+	defaultFlagValues[flagRollbackOrder] = `"` + defaultOrder(defaults.Service.Rollback.Order) + `"`
+
+	defaultFlagValues[flagEndpointMode] = "vip"
+
+	return defaultFlagValues
+}
+
 // addServiceFlags adds all flags that are common to both `create` and `update`.
 // Any flags that are not common are added separately in the individual command
-func addServiceFlags(flags *pflag.FlagSet, opts *serviceOptions) {
+func addServiceFlags(flags *pflag.FlagSet, opts *serviceOptions, defaultFlagValues flagDefaults) {
+	flagDesc := func(flagName string, desc string) string {
+		if defaultValue, ok := defaultFlagValues[flagName]; ok {
+			return fmt.Sprintf("%s (default %v)", desc, defaultValue)
+		}
+		return desc
+	}
+
 	flags.BoolVarP(&opts.detach, "detach", "d", true, "Exit immediately instead of waiting for the service to converge")
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "Suppress progress output")
 
@@ -572,39 +760,40 @@ func addServiceFlags(flags *pflag.FlagSet, opts *serviceOptions) {
 	flags.Var(&opts.resources.limitMemBytes, flagLimitMemory, "Limit Memory")
 	flags.Var(&opts.resources.resCPU, flagReserveCPU, "Reserve CPUs")
 	flags.Var(&opts.resources.resMemBytes, flagReserveMemory, "Reserve Memory")
-	flags.Var(&opts.stopGrace, flagStopGracePeriod, "Time to wait before force killing a container (ns|us|ms|s|m|h)")
 
+	flags.Var(&opts.stopGrace, flagStopGracePeriod, flagDesc(flagStopGracePeriod, "Time to wait before force killing a container (ns|us|ms|s|m|h)"))
 	flags.Var(&opts.replicas, flagReplicas, "Number of tasks")
 
-	flags.StringVar(&opts.restartPolicy.condition, flagRestartCondition, "", `Restart when condition is met ("none"|"on-failure"|"any")`)
-	flags.Var(&opts.restartPolicy.delay, flagRestartDelay, "Delay between restart attempts (ns|us|ms|s|m|h)")
-	flags.Var(&opts.restartPolicy.maxAttempts, flagRestartMaxAttempts, "Maximum number of restarts before giving up")
-	flags.Var(&opts.restartPolicy.window, flagRestartWindow, "Window used to evaluate the restart policy (ns|us|ms|s|m|h)")
+	flags.StringVar(&opts.restartPolicy.condition, flagRestartCondition, "", flagDesc(flagRestartCondition, `Restart when condition is met ("none"|"on-failure"|"any")`))
+	flags.Var(&opts.restartPolicy.delay, flagRestartDelay, flagDesc(flagRestartDelay, "Delay between restart attempts (ns|us|ms|s|m|h)"))
+	flags.Var(&opts.restartPolicy.maxAttempts, flagRestartMaxAttempts, flagDesc(flagRestartMaxAttempts, "Maximum number of restarts before giving up"))
 
-	flags.Uint64Var(&opts.update.parallelism, flagUpdateParallelism, 1, "Maximum number of tasks updated simultaneously (0 to update all at once)")
-	flags.DurationVar(&opts.update.delay, flagUpdateDelay, time.Duration(0), "Delay between updates (ns|us|ms|s|m|h) (default 0s)")
-	flags.DurationVar(&opts.update.monitor, flagUpdateMonitor, time.Duration(0), "Duration after each task update to monitor for failure (ns|us|ms|s|m|h)")
+	flags.Var(&opts.restartPolicy.window, flagRestartWindow, flagDesc(flagRestartWindow, "Window used to evaluate the restart policy (ns|us|ms|s|m|h)"))
+
+	flags.Uint64Var(&opts.update.parallelism, flagUpdateParallelism, defaultFlagValues.getUint64(flagUpdateParallelism), "Maximum number of tasks updated simultaneously (0 to update all at once)")
+	flags.DurationVar(&opts.update.delay, flagUpdateDelay, 0, flagDesc(flagUpdateDelay, "Delay between updates (ns|us|ms|s|m|h)"))
+	flags.DurationVar(&opts.update.monitor, flagUpdateMonitor, 0, flagDesc(flagUpdateMonitor, "Duration after each task update to monitor for failure (ns|us|ms|s|m|h)"))
 	flags.SetAnnotation(flagUpdateMonitor, "version", []string{"1.25"})
-	flags.StringVar(&opts.update.onFailure, flagUpdateFailureAction, "pause", `Action on update failure ("pause"|"continue"|"rollback")`)
-	flags.Var(&opts.update.maxFailureRatio, flagUpdateMaxFailureRatio, "Failure rate to tolerate during an update")
+	flags.StringVar(&opts.update.onFailure, flagUpdateFailureAction, "", flagDesc(flagUpdateFailureAction, `Action on update failure ("pause"|"continue"|"rollback")`))
+	flags.Var(&opts.update.maxFailureRatio, flagUpdateMaxFailureRatio, flagDesc(flagUpdateMaxFailureRatio, "Failure rate to tolerate during an update"))
 	flags.SetAnnotation(flagUpdateMaxFailureRatio, "version", []string{"1.25"})
-	flags.StringVar(&opts.update.order, flagUpdateOrder, "stop-first", `Update order ("start-first"|"stop-first")`)
+	flags.StringVar(&opts.update.order, flagUpdateOrder, "", flagDesc(flagUpdateOrder, `Update order ("start-first"|"stop-first")`))
 	flags.SetAnnotation(flagUpdateOrder, "version", []string{"1.29"})
 
-	flags.Uint64Var(&opts.rollback.parallelism, flagRollbackParallelism, 1, "Maximum number of tasks rolled back simultaneously (0 to roll back all at once)")
+	flags.Uint64Var(&opts.rollback.parallelism, flagRollbackParallelism, defaultFlagValues.getUint64(flagRollbackParallelism), "Maximum number of tasks rolled back simultaneously (0 to roll back all at once)")
 	flags.SetAnnotation(flagRollbackParallelism, "version", []string{"1.28"})
-	flags.DurationVar(&opts.rollback.delay, flagRollbackDelay, time.Duration(0), "Delay between task rollbacks (ns|us|ms|s|m|h) (default 0s)")
+	flags.DurationVar(&opts.rollback.delay, flagRollbackDelay, 0, flagDesc(flagRollbackDelay, "Delay between task rollbacks (ns|us|ms|s|m|h)"))
 	flags.SetAnnotation(flagRollbackDelay, "version", []string{"1.28"})
-	flags.DurationVar(&opts.rollback.monitor, flagRollbackMonitor, time.Duration(0), "Duration after each task rollback to monitor for failure (ns|us|ms|s|m|h) (default 0s)")
+	flags.DurationVar(&opts.rollback.monitor, flagRollbackMonitor, 0, flagDesc(flagRollbackMonitor, "Duration after each task rollback to monitor for failure (ns|us|ms|s|m|h)"))
 	flags.SetAnnotation(flagRollbackMonitor, "version", []string{"1.28"})
-	flags.StringVar(&opts.rollback.onFailure, flagRollbackFailureAction, "pause", `Action on rollback failure ("pause"|"continue")`)
+	flags.StringVar(&opts.rollback.onFailure, flagRollbackFailureAction, "", flagDesc(flagRollbackFailureAction, `Action on rollback failure ("pause"|"continue")`))
 	flags.SetAnnotation(flagRollbackFailureAction, "version", []string{"1.28"})
-	flags.Var(&opts.rollback.maxFailureRatio, flagRollbackMaxFailureRatio, "Failure rate to tolerate during a rollback")
+	flags.Var(&opts.rollback.maxFailureRatio, flagRollbackMaxFailureRatio, flagDesc(flagRollbackMaxFailureRatio, "Failure rate to tolerate during a rollback"))
 	flags.SetAnnotation(flagRollbackMaxFailureRatio, "version", []string{"1.28"})
-	flags.StringVar(&opts.rollback.order, flagRollbackOrder, "stop-first", `Rollback order ("start-first"|"stop-first")`)
+	flags.StringVar(&opts.rollback.order, flagRollbackOrder, "", flagDesc(flagRollbackOrder, `Rollback order ("start-first"|"stop-first")`))
 	flags.SetAnnotation(flagRollbackOrder, "version", []string{"1.29"})
 
-	flags.StringVar(&opts.endpoint.mode, flagEndpointMode, "vip", "Endpoint mode (vip or dnsrr)")
+	flags.StringVar(&opts.endpoint.mode, flagEndpointMode, defaultFlagValues.getString(flagEndpointMode), "Endpoint mode (vip or dnsrr)")
 
 	flags.BoolVar(&opts.registryAuth, flagRegistryAuth, false, "Send registry authentication details to swarm agents")
 
