@@ -102,7 +102,7 @@ func PushTrustedReference(cli *command.DockerCli, repoInfo *registry.RepositoryI
 
 	fmt.Fprintln(cli.Out(), "Signing and pushing trust metadata")
 
-	repo, err := trust.GetNotaryRepository(cli, repoInfo, authConfig, "push", "pull")
+	repo, err := trust.GetMirroredNotaryRepository(cli, repoInfo, authConfig, "push", "pull")
 	if err != nil {
 		fmt.Fprintf(cli.Out(), "Error establishing connection to notary repository: %s\n", err)
 		return err
@@ -219,7 +219,7 @@ func imagePushPrivileged(ctx context.Context, cli *command.DockerCli, authConfig
 func trustedPull(ctx context.Context, cli *command.DockerCli, repoInfo *registry.RepositoryInfo, ref reference.Named, authConfig types.AuthConfig, requestPrivilege types.RequestPrivilegeFunc) error {
 	var refs []target
 
-	notaryRepo, err := trust.GetNotaryRepository(cli, repoInfo, authConfig, "pull")
+	notaryRepo, err := trust.GetMirroredNotaryRepository(cli, repoInfo, authConfig, "pull")
 	if err != nil {
 		fmt.Fprintf(cli.Out(), "Error establishing connection to trust repository: %s\n", err)
 		return err
@@ -334,7 +334,7 @@ func TrustedReference(ctx context.Context, cli *command.DockerCli, ref reference
 	// Resolve the Auth config relevant for this server
 	authConfig := command.ResolveAuthConfig(ctx, cli, repoInfo.Index)
 
-	notaryRepo, err := trust.GetNotaryRepository(cli, repoInfo, authConfig, "pull")
+	notaryRepo, err := trust.GetMirroredNotaryRepository(cli, repoInfo, authConfig, "pull")
 	if err != nil {
 		fmt.Fprintf(cli.Out(), "Error establishing connection to trust repository: %s\n", err)
 		return nil, err
