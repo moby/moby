@@ -1,7 +1,10 @@
 # Docker Upstart and SysVinit configuration file
 
 #
-# THIS FILE DOES NOT APPLY TO SYSTEMD
+# THIS FILE SHOULDN'T BE USED ON SYSTEMD CONTROLLED OPERATING SYSTEMS
+#
+#   Systemd has become the default init system for multiple systems.
+#   For ex.: RHEL >= 7.x, Ubuntu >= 15.04, Debian >= 8
 #
 #   Please see the documentation for "systemd drop-ins":
 #   https://docs.docker.com/engine/admin/systemd/
