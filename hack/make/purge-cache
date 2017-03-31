@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# This script purges the cache for our apt and yum repos
+# It is intended that you run this after the sign-repos script
+
+: ${DOCKER_RELEASE_DIR:=$DEST}
+: ${APTDOMAIN:=https://apt.dockerproject.org}
+: ${YUMDOMAIN:=https://yum.dockerproject.org}
+APTDIR=$DOCKER_RELEASE_DIR/apt/repo
+YUMDIR=$DOCKER_RELEASE_DIR/yum/repo
+
+if [ ! -d $APTDIR ] && [ ! -d $YUMDIR ]; then
+	echo >&2 'release-rpm or release-deb must be run before purge-cache'
+	exit 1
+fi
+
+purge_cache(){
+	if [ -d $APTDIR ]; then
+		for F in $(find $APTDIR -type f -printf "%P\n"); do
+			curl -X PURGE ${APTDOMAIN}/repo/${F}
+		done
+	fi
+
+	if [ -d $YUMDIR ]; then
+		for F in $(find $YUMDIR -type f -printf "%P\n" ); do
+			curl -X PURGE ${YUMDOMAIN}/repo/${F}
+		done
+	fi
+}
+
+purge_cache
