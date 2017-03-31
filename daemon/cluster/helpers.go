@@ -58,9 +58,9 @@ func getNode(ctx context.Context, c swarmapi.ControlClient, input string) (*swar
 	return rl.Nodes[0], nil
 }
 
-func getService(ctx context.Context, c swarmapi.ControlClient, input string) (*swarmapi.Service, error) {
+func getService(ctx context.Context, c swarmapi.ControlClient, input string, insertDefaults bool) (*swarmapi.Service, error) {
 	// GetService to match via full ID.
-	if rg, err := c.GetService(ctx, &swarmapi.GetServiceRequest{ServiceID: input}); err == nil {
+	if rg, err := c.GetService(ctx, &swarmapi.GetServiceRequest{ServiceID: input, InsertDefaults: insertDefaults}); err == nil {
 		return rg.Service, nil
 	}
 
@@ -91,7 +91,15 @@ func getService(ctx context.Context, c swarmapi.ControlClient, input string) (*s
 		return nil, fmt.Errorf("service %s is ambiguous (%d matches found)", input, l)
 	}
 
-	return rl.Services[0], nil
+	if !insertDefaults {
+		return rl.Services[0], nil
+	}
+
+	rg, err := c.GetService(ctx, &swarmapi.GetServiceRequest{ServiceID: rl.Services[0].ID, InsertDefaults: true})
+	if err == nil {
+		return rg.Service, nil
+	}
+	return nil, err
 }
 
 func getTask(ctx context.Context, c swarmapi.ControlClient, input string) (*swarmapi.Task, error) {

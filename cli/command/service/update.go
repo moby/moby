@@ -101,7 +101,7 @@ func runUpdate(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *service
 	apiClient := dockerCli.Client()
 	ctx := context.Background()
 
-	service, _, err := apiClient.ServiceInspectWithRaw(ctx, serviceID)
+	service, _, err := apiClient.ServiceInspectWithRaw(ctx, serviceID, types.ServiceInspectOptions{})
 	if err != nil {
 		return err
 	}

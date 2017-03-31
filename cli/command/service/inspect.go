@@ -5,6 +5,7 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/command/formatter"
@@ -51,7 +52,8 @@ func runInspect(dockerCli *command.DockerCli, opts inspectOptions) error {
 	}
 
 	getRef := func(ref string) (interface{}, []byte, error) {
-		service, _, err := client.ServiceInspectWithRaw(ctx, ref)
+		// Service inspect shows defaults values in empty fields.
+		service, _, err := client.ServiceInspectWithRaw(ctx, ref, types.ServiceInspectOptions{InsertDefaults: true})
 		if err == nil || !apiclient.IsErrServiceNotFound(err) {
 			return service, nil, err
 		}

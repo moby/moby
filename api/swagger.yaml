@@ -7584,6 +7584,11 @@ paths:
           description: "ID or name of service."
           required: true
           type: "string"
+        - name: "insertDefaults"
+          in: "query"
+          description: "Fill empty fields with default values."
+          type: "boolean"
+          default: false
       tags: ["Service"]
     delete:
       summary: "Delete a service"

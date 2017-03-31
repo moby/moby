@@ -87,10 +87,10 @@ func (c *Cluster) GetServices(options apitypes.ServiceListOptions) ([]types.Serv
 }
 
 // GetService returns a service based on an ID or name.
-func (c *Cluster) GetService(input string) (types.Service, error) {
+func (c *Cluster) GetService(input string, insertDefaults bool) (types.Service, error) {
 	var service *swarmapi.Service
 	if err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
-		s, err := getService(ctx, state.controlClient, input)
+		s, err := getService(ctx, state.controlClient, input, insertDefaults)
 		if err != nil {
 			return err
 		}
@@ -187,7 +187,7 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec typ
 			return apierrors.NewBadRequestError(err)
 		}
 
-		currentService, err := getService(ctx, state.controlClient, serviceIDOrName)
+		currentService, err := getService(ctx, state.controlClient, serviceIDOrName, false)
 		if err != nil {
 			return err
 		}
@@ -289,7 +289,7 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec typ
 // RemoveService removes a service from a managed swarm cluster.
 func (c *Cluster) RemoveService(input string) error {
 	return c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
-		service, err := getService(ctx, state.controlClient, input)
+		service, err := getService(ctx, state.controlClient, input, false)
 		if err != nil {
 			return err
 		}
@@ -442,7 +442,7 @@ func convertSelector(ctx context.Context, cc swarmapi.ControlClient, selector *b
 	// don't rely on swarmkit to resolve IDs, do it ourselves
 	swarmSelector := &swarmapi.LogSelector{}
 	for _, s := range selector.Services {
-		service, err := getService(ctx, cc, s)
+		service, err := getService(ctx, cc, s, false)
 		if err != nil {
 			return nil, err
 		}
