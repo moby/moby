@@ -5,6 +5,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -20,6 +21,7 @@ import (
 	"github.com/docker/docker/integration-cli/request"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
+	"github.com/kr/pty"
 )
 
 func (s *DockerSuite) TestExec(c *check.C) {
@@ -221,6 +223,52 @@ func (s *DockerSuite) TestExecParseError(c *check.C) {
 		Error:    "exit status 1",
 		Err:      "See 'docker exec --help'",
 	})
+}
+
+func (s *DockerSuite) TestExecTTYWithStdin(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	dockerCmd(c, "run", "-d", "--name", "testing", "busybox", "sh", "-c", "top")
+
+	ttyExecCommand := func(command string) string {
+		output := ""
+		_, tty, err := pty.Open()
+		c.Assert(err, checker.IsNil, check.Commentf("Could not open pty"))
+		cmd := exec.Command(dockerBinary, "exec", "-ti", "testing", command)
+		cmd.Stdin = tty
+		cmd.Stdout = tty
+		cmd.Stderr = tty
+		c.Assert(cmd.Start(), checker.IsNil)
+		ch := make(chan error)
+		go func() {
+			ch <- cmd.Wait()
+			close(ch)
+		}()
+		go func() {
+			scanner := bufio.NewScanner(tty)
+			for scanner.Scan() {
+				output = scanner.Text()
+			}
+		}()
+		go func() {
+			io.Copy(tty, os.Stdin)
+		}()
+		select {
+		case <-time.After(10 * time.Second):
+			c.Fatal("command timeout")
+		case err := <-ch:
+			c.Assert(err, checker.IsNil, check.Commentf("wait err"))
+		}
+		return output
+	}
+
+	out := ttyExecCommand("uname")
+
+	c.Assert(out, checker.Equals, "Linux")
+	c.Assert(out, checker.Not(checker.Contains), '\r')
+
+	out = ttyExecCommand(`echo "\n\n\n"`)
+	c.Assert(out, checker.Equals, `\n\n\n`)
+	c.Assert(out, checker.Not(checker.Contains), '\r')
 }
 
 func (s *DockerSuite) TestExecStopNotHanging(c *check.C) {
