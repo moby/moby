@@ -64,15 +64,25 @@ func New(rootPath string) (*VolumeStore, error) {
 	}
 
 	if rootPath != "" {
+		var err error
+		var hostname string
+
 		// initialize metadata store
 		volPath := filepath.Join(rootPath, volumeDataDir)
 		if err := os.MkdirAll(volPath, 750); err != nil {
 			return nil, err
 		}
 
-		dbPath := filepath.Join(volPath, "metadata.db")
+		// initialize database name
+		hostname, err = os.Hostname()
+		if err != nil {
+			return nil, err
+		}
 
-		var err error
+		dbName := "metadata-"+hostname+".db"
+
+		dbPath := filepath.Join(volPath, dbName)
+
 		vs.db, err = bolt.Open(dbPath, 0600, &bolt.Options{Timeout: 1 * time.Second})
 		if err != nil {
 			return nil, errors.Wrap(err, "error while opening volume store metadata database")
