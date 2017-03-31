@@ -35,6 +35,28 @@
         }
       - type:       version-label
 
+# Randomly assign newly opened pull requests.
+- triggers:
+      pull_request: [ opened ]
+  operations:
+      - type:       random-assign
+        settings: {
+            users: [
+                "anusha-ragunathan",
+                "cpuguy83",
+                "crosbymichael",
+                "dnephin",
+                "justincormack",
+                "lk4d4",
+                "mlaventure",
+                "thajeztah",
+                "tiborvass",
+                "tonistiigi",
+                "vdemeester",
+                "vieux",
+            ]
+        }
+
 # When a pull request is closed, attach it to the currently active milestone.
 - triggers:
       pull_request: [ closed ]
