@@ -201,10 +201,14 @@ func (s *DockerSuite) TestRestartWithPolicyUserDefinedNetwork(c *check.C) {
 		"--link=first:foo", "busybox", "top")
 	c.Assert(waitRun("second"), check.IsNil)
 
+	// The majority of the time spent in the test are from the `ping` test cases.
+	// In this test IPv4 (`-4`) options is used exlicitly to reduce the execution
+	// time.
+
 	// ping to first and its alias foo must succeed
-	_, _, err := dockerCmdWithError("exec", "second", "ping", "-c", "1", "first")
+	_, _, err := dockerCmdWithError("exec", "second", "ping", "-4", "-c", "1", "first")
 	c.Assert(err, check.IsNil)
-	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "foo")
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-4", "-c", "1", "foo")
 	c.Assert(err, check.IsNil)
 
 	// Now kill the second container and let the restart policy kick in
@@ -225,10 +229,13 @@ func (s *DockerSuite) TestRestartWithPolicyUserDefinedNetwork(c *check.C) {
 
 	err = waitInspect("second", "{{.State.Status}}", "running", 5*time.Second)
 
+	// Again IPv4 (`-4`) are used explicitly to prevent usage of IPv6 so that
+	// execution time could be reduced,.
+
 	// ping to first and its alias foo must still succeed
-	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "first")
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-4", "-c", "1", "first")
 	c.Assert(err, check.IsNil)
-	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "foo")
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-4", "-c", "1", "foo")
 	c.Assert(err, check.IsNil)
 }
 
