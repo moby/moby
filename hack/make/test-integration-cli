@@ -9,6 +9,7 @@ source hack/make/.integration-test-helpers
 
 	bundle .integration-daemon-setup
 
+	export PATH=$PATH:/go/bin
 	bundle_test_integration_cli
 
 	bundle .integration-daemon-stop
