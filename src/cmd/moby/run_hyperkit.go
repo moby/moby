@@ -21,6 +21,7 @@ func runHyperKit(args []string) {
 		fmt.Printf("Options:\n")
 		hyperkitCmd.PrintDefaults()
 	}
+	runHyperKit := hyperkitCmd.String("hyperkit", "", "Path to hyperkit binary (if not in default location)")
 	runCPUs := hyperkitCmd.Int("cpus", 1, "Number of CPUs")
 	runMem := hyperkitCmd.Int("mem", 1024, "Amount of memory in MB")
 	runDiskSz := hyperkitCmd.Int("disk-size", 0, "Size of Disk in MB")
@@ -34,10 +35,10 @@ func runHyperKit(args []string) {
 		prefix = remArgs[0]
 	}
 
-	runHyperKitInternal(*runCPUs, *runMem, *runDiskSz, *runDisk, prefix)
+	runHyperKitInternal(*runHyperKit, *runCPUs, *runMem, *runDiskSz, *runDisk, prefix)
 }
 
-func runHyperKitInternal(cpus, mem, diskSz int, disk, prefix string) {
+func runHyperKitInternal(hyperkitPath string, cpus, mem, diskSz int, disk, prefix string) {
 	cmdline, err := ioutil.ReadFile(prefix + "-cmdline")
 	if err != nil {
 		log.Fatalf("Cannot open cmdline file: %v", err)
@@ -47,7 +48,7 @@ func runHyperKitInternal(cpus, mem, diskSz int, disk, prefix string) {
 		disk = prefix + "-disk.img"
 	}
 
-	h, err := hyperkit.New("", "", "auto", disk)
+	h, err := hyperkit.New(hyperkitPath, "", "auto", disk)
 	if err != nil {
 		log.Fatalln("Error creating hyperkit: ", err)
 	}
