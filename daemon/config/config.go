@@ -98,8 +98,7 @@ type CommonConfig struct {
 	Mtu                  int                       `json:"mtu,omitempty"`
 	Pidfile              string                    `json:"pidfile,omitempty"`
 	RawLogs              bool                      `json:"raw-logs,omitempty"`
-	RootDeprecated       string                    `json:"graph,omitempty"`
-	Root                 string                    `json:"data-root,omitempty"`
+	Root                 string                    `json:"graph,omitempty"`
 	SocketGroup          string                    `json:"group,omitempty"`
 	TrustKeyPath         string                    `json:"-"`
 	CorsHeaders          string                    `json:"api-cors-header,omitempty"`
@@ -354,21 +353,8 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 	}
 
 	reader = bytes.NewReader(b)
-	if err := json.NewDecoder(reader).Decode(&config); err != nil {
-		return nil, err
-	}
-
-	if config.RootDeprecated != "" {
-		logrus.Warn(`The "graph" config file option is deprecated. Please use "data-root" instead.`)
-
-		if config.Root != "" {
-			return nil, fmt.Errorf(`cannot specify both "graph" and "data-root" config file options`)
-		}
-
-		config.Root = config.RootDeprecated
-	}
-
-	return &config, nil
+	err = json.NewDecoder(reader).Decode(&config)
+	return &config, err
 }
 
 // configValuesSet returns the configuration values explicitly set in the file.
