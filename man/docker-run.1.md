@@ -61,6 +61,7 @@ docker-run - Run a command in a new container
 [**--memory-reservation**[=*MEMORY-RESERVATION*]]
 [**--memory-swap**[=*LIMIT*]]
 [**--memory-swappiness**[=*MEMORY-SWAPPINESS*]]
+[**--mount**[=*[MOUNT]*]]
 [**--name**[=*NAME*]]
 [**--network-alias**[=*[]*]]
 [**--network**[=*"bridge"*]]
@@ -425,6 +426,42 @@ unit, `b` is used. Set LIMIT to `-1` to enable unlimited swap.
 The IPv6 link-local address will be based on the device's MAC address
 according to RFC4862.
 
+**--mount**=[*[type=TYPE[,TYPE-SPECIFIC-OPTIONS]]*]
+   Attach a filesystem mount to the container
+
+   Current supported mount `TYPES` are `bind`, `volume`, and `tmpfs`.
+
+   e.g.
+
+   `type=bind,source=/path/on/host,destination=/path/in/container`
+
+   `type=volume,source=my-volume,destination=/path/in/container,volume-label="color=red",volume-label="shape=round"`
+
+   `type=tmpfs,tmpfs-size=512M,destination=/path/in/container`
+
+   Common Options:
+
+   * `src`, `source`: mount source spec for `bind` and `volume`. Mandatory for `bind`.
+   * `dst`, `destination`, `target`: mount destination spec.
+   * `ro`, `read-only`: `true` or `false` (default).
+
+   Options specific to `bind`:
+
+   * `bind-propagation`: `shared`, `slave`, `private`, `rshared`, `rslave`, or `rprivate`(default). See also `mount(2)`.
+   * `consistency`: `consistent`(default), `cached`, or `delegated`. Currently, only effective for Docker for Mac.
+
+   Options specific to `volume`:
+
+   * `volume-driver`: Name of the volume-driver plugin.
+   * `volume-label`: Custom metadata.
+   * `volume-nocopy`: `true`(default) or `false`. If set to `false`, the Engine copies existing files and directories under the mount-path into the volume, allowing the host to access them.
+   * `volume-opt`: specific to a given volume driver.
+
+   Options specific to `tmpfs`:
+
+   * `tmpfs-size`: Size of the tmpfs mount in bytes. Unlimited by default in Linux.
+   * `tmpfs-mode`: File mode of the tmpfs in octal. (e.g. `700` or `0700`.) Defaults to `1777` in Linux.
+
 **--name**=""
    Assign a name to the container
 
@@ -604,6 +641,9 @@ options are the same as the Linux default `mount` flags. If you do not specify
 any options, the systems uses the following options:
 `rw,noexec,nosuid,nodev,size=65536k`.
 
+   See also `--mount`, which is the successor of `--tmpfs` and `--volume`.
+   Even though there is no plan to deprecate `--tmpfs`, usage of `--mount` is recommended.
+
 **-u**, **--user**=""
    Sets the username or UID used and optionally the groupname or GID for the specified command.
 
@@ -703,6 +743,9 @@ change propagation properties of source mount. Say `/` is source mount for
 
 To disable automatic copying of data from the container path to the volume, use
 the `nocopy` flag. The `nocopy` flag can be set on bind mounts and named volumes.
+
+See also `--mount`, which is the successor of `--tmpfs` and `--volume`.
+Even though there is no plan to deprecate `--volume`, usage of `--mount` is recommended.
 
 **--volume-driver**=""
    Container's volume driver. This driver creates volumes specified either from

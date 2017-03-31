@@ -1518,6 +1518,7 @@ _docker_container_run_and_create() {
 		--memory-swap
 		--memory-swappiness
 		--memory-reservation
+		--mount
 		--name
 		--network
 		--network-alias

@@ -95,6 +95,7 @@ Options:
       --memory-reservation string   Memory soft limit
       --memory-swap string          Swap limit equal to memory plus swap: '-1' to enable unlimited swap
       --memory-swappiness int       Tune container memory swappiness (0 to 100) (default -1)
+      --mount value                 Attach a filesystem mount to the container (default [])
       --name string                 Assign a name to the container
       --network-alias value         Add network-scoped alias for the container (default [])
       --network string              Connect a container to a network
@@ -315,6 +316,29 @@ docker run -v c:\foo:c:\existing-directory-with-contents ...
 ```
 
 For in-depth information about volumes, refer to [manage data in containers](https://docs.docker.com/engine/tutorials/dockervolumes/)
+
+
+### Add bind-mounts or volumes using the --mount flag
+
+The `--mount` flag allows you to mount volumes, host-directories and `tmpfs`
+mounts in a container.
+
+The `--mount` flag supports most options that are supported by the `-v` or the
+`--volume` flag, but uses a different syntax. For in-depth information on the
+`--mount` flag, and a comparison between `--volume` and `--mount`, refer to
+the [service create command reference](service_create.md#add-bind-mounts-or-volumes).
+
+Even though there is no plan to deprecate `--volume`, usage of `--mount` is recommended.
+
+Examples:
+
+```bash
+$ docker run --read-only --mount type=volume,target=/icanwrite busybox touch /icanwrite/here
+```
+
+```bash
+$ docker run -t -i --mount type=bind,src=/data,dst=/data busybox sh
+```
 
 ### Publish or expose port (-p, --expose)
 
