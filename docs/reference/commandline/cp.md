@@ -37,15 +37,15 @@ The `docker cp` utility copies the contents of `SRC_PATH` to the `DEST_PATH`.
 You can copy from the container's file system to the local machine or the
 reverse, from the local filesystem to the container. If `-` is specified for
 either the `SRC_PATH` or `DEST_PATH`, you can also stream a tar archive from
-`STDIN` or to `STDOUT`. The `CONTAINER` can be a running or stopped container.
-The `SRC_PATH` or `DEST_PATH` can be a file or directory.
+`STDIN` or to `STDOUT`. The `CONTAINER` is a running or stopped container.
+The `SRC_PATH` or `DEST_PATH` is a file or directory.
 
 The `docker cp` command assumes container paths are relative to the container's
 `/` (root) directory. This means supplying the initial forward slash is optional;
 The command sees `compassionate_darwin:/tmp/foo/myfile.txt` and
-`compassionate_darwin:tmp/foo/myfile.txt` as identical. Local machine paths can
-be an absolute or relative value. The command interprets a local machine's
-relative paths as relative to the current working directory where `docker cp` is
+`compassionate_darwin:tmp/foo/myfile.txt` as identical. Local machine path
+is an absolute or relative value. The command interprets a local machine's
+relative path as relative to the current working directory where `docker cp` is
 run.
 
 The `cp` command behaves like the Unix `cp -a` command in that directories are
