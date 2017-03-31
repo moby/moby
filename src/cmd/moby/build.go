@@ -30,7 +30,7 @@ func build(args []string) {
 	remArgs := buildCmd.Args()
 
 	if len(remArgs) == 0 {
-		fmt.Println("Please specify a configuration file\n")
+		fmt.Println("Please specify a configuration file")
 		buildCmd.Usage()
 		os.Exit(1)
 	}

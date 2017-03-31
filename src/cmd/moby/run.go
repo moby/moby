@@ -15,6 +15,7 @@ func runUsage() {
 	fmt.Printf("If not specified the platform specific default will be used\n")
 	fmt.Printf("Supported backends are (default platform in brackets):\n")
 	fmt.Printf("  hyperkit [macOS]\n")
+	fmt.Printf("  vmware\n")
 	fmt.Printf("\n")
 	fmt.Printf("'options' are the backend specific options.\n")
 	fmt.Printf("See 'moby run [backend] --help' for details.\n\n")
@@ -34,6 +35,8 @@ func run(args []string) {
 		os.Exit(0)
 	case "hyperkit":
 		runHyperKit(args[1:])
+	case "vmware":
+		runVMware(args[1:])
 	default:
 		switch runtime.GOOS {
 		case "darwin":
