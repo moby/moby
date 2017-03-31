@@ -17,7 +17,6 @@ dockerd - Enable daemon mode
 [**--cluster-store-opt**[=*map[]*]]
 [**--config-file**[=*/etc/docker/daemon.json*]]
 [**--containerd**[=*SOCKET-PATH*]]
-[**--data-root**[=*/var/lib/docker*]]
 [**-D**|**--debug**]
 [**--default-gateway**[=*DEFAULT-GATEWAY*]]
 [**--default-gateway-v6**[=*DEFAULT-GATEWAY-V6*]]
@@ -34,6 +33,7 @@ dockerd - Enable daemon mode
 [**--fixed-cidr**[=*FIXED-CIDR*]]
 [**--fixed-cidr-v6**[=*FIXED-CIDR-V6*]]
 [**-G**|**--group**[=*docker*]]
+[**-g**|**--graph**[=*/var/lib/docker*]]
 [**-H**|**--host**[=*[]*]]
 [**--help**]
 [**--icc**[=*true*]]
@@ -152,11 +152,6 @@ $ sudo dockerd --add-runtime runc=runc --add-runtime custom=/usr/local/bin/my-ru
 **--containerd**=""
   Path to containerd socket.
 
-**--data-root**=""
-  Path to the directory used to store persisted Docker data such as
-  configuration for resources, swarm cluster state, and filesystem data for
-  images, containers, and local volumes. Default is `/var/lib/docker`.
-
 **-D**, **--debug**=*true*|*false*
   Enable debug mode. Default is false.
 
@@ -208,6 +203,9 @@ $ sudo dockerd --add-runtime runc=runc --add-runtime custom=/usr/local/bin/my-ru
 **-G**, **--group**=""
   Group to assign the unix socket specified by -H when running in daemon mode.
   use '' (the empty string) to disable setting of a group. Default is `docker`.
+
+**-g**, **--graph**=""
+  Path to use as the root of the Docker runtime. Default is `/var/lib/docker`.
 
 **-H**, **--host**=[*unix:///var/run/docker.sock*]: tcp://[host:port] to bind or
 unix://[/path/to/socket] to use.
