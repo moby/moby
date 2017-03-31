@@ -17,13 +17,14 @@ import (
 const (
 	name = "gcplogs"
 
-	projectOptKey = "gcp-project"
-	logLabelsKey  = "labels"
-	logEnvKey     = "env"
-	logCmdKey     = "gcp-log-cmd"
-	logZoneKey    = "gcp-meta-zone"
-	logNameKey    = "gcp-meta-name"
-	logIDKey      = "gcp-meta-id"
+	projectOptKey  = "gcp-project"
+	logLabelsKey   = "labels"
+	logEnvKey      = "env"
+	logEnvRegexKey = "env-regex"
+	logCmdKey      = "gcp-log-cmd"
+	logZoneKey     = "gcp-meta-zone"
+	logNameKey     = "gcp-meta-name"
+	logIDKey       = "gcp-meta-id"
 )
 
 var (
@@ -133,6 +134,11 @@ func New(info logger.Info) (logger.Logger, error) {
 		return nil, fmt.Errorf("unable to connect or authenticate with Google Cloud Logging: %v", err)
 	}
 
+	extraAttributes, err := info.ExtraAttributes(nil)
+	if err != nil {
+		return nil, err
+	}
+
 	l := &gcplogs{
 		logger: lg,
 		container: &containerInfo{
@@ -141,7 +147,7 @@ func New(info logger.Info) (logger.Logger, error) {
 			ImageName: info.ContainerImageName,
 			ImageID:   info.ContainerImageID,
 			Created:   info.ContainerCreated,
-			Metadata:  info.ExtraAttributes(nil),
+			Metadata:  extraAttributes,
 		},
 	}
 
@@ -185,7 +191,7 @@ func New(info logger.Info) (logger.Logger, error) {
 func ValidateLogOpts(cfg map[string]string) error {
 	for k := range cfg {
 		switch k {
-		case projectOptKey, logLabelsKey, logEnvKey, logCmdKey, logZoneKey, logNameKey, logIDKey:
+		case projectOptKey, logLabelsKey, logEnvKey, logEnvRegexKey, logCmdKey, logZoneKey, logNameKey, logIDKey:
 		default:
 			return fmt.Errorf("%q is not a valid option for the gcplogs driver", k)
 		}
