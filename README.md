@@ -73,6 +73,14 @@ application-centric design.
 Perhaps best of all, because Docker operates at the OS level, it can still be
 run inside a VM!
 
+## When to use dockers?
+
+Consider to use docker to deliver your application if your app needs to go through multiple environments (DEV,QA1,QA2,PROD) before deployment. You can configuration your Docker environment just like the production, and check the whole container into QA or production. When something goes wrong, you would not need to analyze it is an environment issue or it is your code issue. It should be your code issue. 
+
+Consider to use docker if you need different versions of somethings for your app. You really don't need to manage those version dependency if you use docker. You can running different versions of servers in containers and isolation your applications. 
+
+Consider to user docker if you need bring applications back to work quickly when indecent happens. Because releases for each application are in different and isolated containers, you can easily roll back the container which has defect codes to previous release. 
+
 ## Plays well with others
 
 Docker does not require you to buy into a particular programming
