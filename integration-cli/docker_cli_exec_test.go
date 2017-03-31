@@ -597,3 +597,44 @@ func (s *DockerSuite) TestExecWindowsOpenHandles(c *check.C) {
 		break
 	}
 }
+
+// regression test for #9476
+func TestExecTtyCloseStdin(t *testing.T) {
+	defer deleteAllContainers()
+
+	cmd := exec.Command(dockerBinary, "run", "-d", "-it", "--name", "exec_tty_stdin", "busybox")
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		t.Fatal(out, err)
+	}
+
+	cmd = exec.Command(dockerBinary, "exec", "-it", "exec_tty_stdin", "cat")
+	stdinRw, err := cmd.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	stdinRw.Write([]byte("test"))
+	stdinRw.Close()
+
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		t.Fatal(out, err)
+	}
+
+	cmd = exec.Command(dockerBinary, "top", "exec_tty_stdin")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+
+	outArr := strings.Split(out, "\n")
+	if len(outArr) > 3 || strings.Contains(out, "nsenter-exec") {
+		// This is the really bad part
+		if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "rm", "-f", "exec_tty_stdin")); err != nil {
+			t.Fatal(out, err)
+		}
+
+		t.Fatalf("exec process left running\n\t %s", out)
+	}
+
+	logDone("exec - stdin is closed properly with tty enabled")
+}
