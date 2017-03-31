@@ -426,6 +426,18 @@ func GetBlockDeviceSize(file *os.File) (uint64, error) {
 	return uint64(size), nil
 }
 
+// syncfs syscall available in newer linux kernels (2.6.39)
+// syscall.SYS_SYNCFS = 306
+func syncfs(fd uintptr) (err error) {
+	_, _, e := syscall.Syscall(syscall.SYS_SYNCFS, fd, 0, 0)
+
+	if e != 0 {
+		err = syscall.Errno(e)
+	}
+
+	return
+}
+
 // BlockDeviceDiscard runs discard for the given path.
 // This is used as a workaround for the kernel not discarding block so
 // on the thin pool when we remove a thinp device, so we do it
@@ -448,7 +460,7 @@ func BlockDeviceDiscard(path string) error {
 
 	// Without this sometimes the remove of the device that happens after
 	// discard fails with EBUSY.
-	syscall.Sync()
+	syncfs(file.Fd())
 
 	return nil
 }
