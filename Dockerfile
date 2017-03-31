@@ -71,7 +71,7 @@ RUN apt-get update && apt-get install -y \
 	protobuf-c-compiler \
 	python-dev \
 	python-mock \
-	python-pip \
+	python-pip=1.5.4-1 \
 	python-websocket \
 	tar \
 	ubuntu-zfs \
