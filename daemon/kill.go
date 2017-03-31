@@ -137,14 +137,13 @@ func (daemon *Daemon) Kill(container *container.Container) error {
 	}
 
 	// 2. Wait for the process to die, in last resort, try to kill the process directly
+	wc := container.GetWaitChan()
 	if err := killProcessDirectly(container); err != nil {
 		if isErrNoSuchProcess(err) {
 			return nil
 		}
-		return err
 	}
-
-	container.WaitStop(-1 * time.Second)
+	container.WaitOnChan(wc, -1*time.Second)
 	return nil
 }
 
