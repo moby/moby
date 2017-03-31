@@ -42,11 +42,16 @@ func (p *profileData) generateDefault(out io.Writer) error {
 		p.Imports = append(p.Imports, "#include <tunables/global>")
 	} else {
 		p.Imports = append(p.Imports, "@{PROC}=/proc/")
+		p.Imports = append(p.Imports, "@{HOME}=/home/*/ /root/")
 	}
 
 	if macroExists("abstractions/base") {
 		p.InnerImports = append(p.InnerImports, "#include <abstractions/base>")
 	}
+	if macroExists("abstractions/private-files-strict") {
+		p.InnerImports = append(p.InnerImports, "#include <abstractions/private-files-strict>")
+	}
+
 
 	ver, err := aaparser.GetVersion()
 	if err != nil {
