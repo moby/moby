@@ -595,10 +595,9 @@ var (
 // integer between 0 and 10 will be added to the end of the name, e.g `focused_turing3`
 func GetRandomName(retry int) string {
 	rnd := random.Rand
-begin:
 	name := fmt.Sprintf("%s_%s", left[rnd.Intn(len(left))], right[rnd.Intn(len(right))])
 	if name == "boring_wozniak" /* Steve Wozniak is not boring */ {
-		goto begin
+		return GetRandomName(retry)
 	}
 
 	if retry > 0 {
