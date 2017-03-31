@@ -552,7 +552,7 @@ Or, to get the last time the container was (re)started;
 
 Combining `--restart` (restart policy) with the `--rm` (clean up) flag results
 in an error. On container restart, attached clients are disconnected. See the
-examples on using the [`--rm` (clean up)](#clean-up-rm) flag later in this page.
+examples on using the [`--rm` (clean up)](#clean-up---rm) flag later in this page.
 
 ### Examples
 
