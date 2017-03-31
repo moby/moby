@@ -468,3 +468,12 @@ func (s *DockerSuite) TestCreateStopTimeout(c *check.C) {
 	res = inspectFieldJSON(c, name2, "Config.StopTimeout")
 	c.Assert(res, checker.Contains, "null")
 }
+
+func TestCreateWithTooLowMemoryLimit(t *testing.T) {
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "create", "--cpu-shares=1000", "--memory=524287", "busybox", "echo", "test123"))
+	if err == nil || !strings.Contains(string(out), "Minimum memory limit allowed is 4MB") {
+		t.Errorf("Memory limit is smaller than the allowed limit. Container creation should've failed!")
+	}
+
+	logDone("create -  can't set too low memory limit")
+}
