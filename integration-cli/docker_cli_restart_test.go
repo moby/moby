@@ -307,3 +307,33 @@ func (s *DockerSuite) TestRestartAutoRemoveContainer(c *check.C) {
 	// Kill the container to make sure it will be removed
 	dockerCmd(c, "kill", id)
 }
+
+func (s *DockerSuite) TestCreateStartRestartStopStartKillRm(c *check.C) {
+	defer deleteAllContainers()
+
+	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
+	out, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		c.Fatal(out, err)
+	}
+
+	cleanedContainerID := strings.TrimSpace(out)
+
+	out, _ = dockerCmd(c, "ps", "-aq")
+	if strings.HasPrefix(cleanedContainerID, out) {
+		c.Fatal("Containers id is not listed")
+	}
+
+	dockerCmd(c, "restart", cleanedContainerID)
+
+	dockerCmd(c, "stop", cleanedContainerID)
+
+	dockerCmd(c, "start", cleanedContainerID)
+
+	dockerCmd(c, "kill", cleanedContainerID)
+
+	dockerCmd(c, "rm", cleanedContainerID)
+
+	dockerCmd(c, "ps", "-aq")
+
+}
