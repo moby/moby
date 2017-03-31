@@ -322,6 +322,10 @@ do_install() {
 	if [ -z "$lsb_dist" ] && [ -r /etc/lsb-release ]; then
 		lsb_dist="$(. /etc/lsb-release && echo "$DISTRIB_ID")"
 	fi
+	if [ "$lsb_dist" = 'LinuxMint' ]; then
+		# We need more information.
+		lsb_dist=''
+	fi
 	if [ -z "$lsb_dist" ] && [ -r /etc/debian_version ]; then
 		lsb_dist='debian'
 	fi
