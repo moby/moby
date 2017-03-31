@@ -220,6 +220,23 @@ func (s *State) WaitWithContext(ctx context.Context) error {
 	}
 }
 
+func (s *State) GetWaitChan() <-chan struct{} {
+	return s.waitChan
+}
+
+func (s *State) WaitOnChan(waitChan <-chan struct{}, timeout time.Duration) error {
+	if timeout < 0 {
+		<-waitChan
+		return nil
+	}
+	select {
+	case <-time.After(timeout):
+		return fmt.Errorf("Timed out: %v", timeout)
+	case <-waitChan:
+		return nil
+	}
+}
+
 // IsRunning returns whether the running flag is set. Used by Container to check whether a container is running.
 func (s *State) IsRunning() bool {
 	s.Lock()
