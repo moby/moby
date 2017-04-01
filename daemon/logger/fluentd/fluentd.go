@@ -78,7 +78,10 @@ func New(info logger.Info) (logger.Logger, error) {
 		return nil, err
 	}
 
-	extra := info.ExtraAttributes(nil)
+	extra, err := info.ExtraAttributes(nil)
+	if err != nil {
+		return nil, err
+	}
 
 	bufferLimit := defaultBufferLimit
 	if info.Config[bufferLimitKey] != "" {
@@ -172,6 +175,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 	for key := range cfg {
 		switch key {
 		case "env":
+		case "env-regex":
 		case "labels":
 		case "tag":
 		case addressKey:

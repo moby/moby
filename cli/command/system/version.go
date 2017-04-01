@@ -1,7 +1,6 @@
 package system
 
 import (
-	"fmt"
 	"runtime"
 	"time"
 
@@ -17,7 +16,7 @@ import (
 
 var versionTemplate = `Client:
  Version:      {{.Client.Version}}
- API version:  {{.Client.APIVersion}}
+ API version:  {{.Client.APIVersion}}{{if ne .Client.APIVersion .Client.DefaultAPIVersion}} (downgraded from {{.Client.DefaultAPIVersion}}){{end}}
  Go version:   {{.Client.GoVersion}}
  Git commit:   {{.Client.GitCommit}}
  Built:        {{.Client.BuildTime}}
@@ -34,6 +33,29 @@ Server:
 
 type versionOptions struct {
 	format string
+}
+
+// versionInfo contains version information of both the Client, and Server
+type versionInfo struct {
+	Client clientVersion
+	Server *types.Version
+}
+
+type clientVersion struct {
+	Version           string
+	APIVersion        string `json:"ApiVersion"`
+	DefaultAPIVersion string `json:"DefaultAPIVersion,omitempty"`
+	GitCommit         string
+	GoVersion         string
+	Os                string
+	Arch              string
+	BuildTime         string `json:",omitempty"`
+}
+
+// ServerOK returns true when the client could connect to the docker server
+// and parse the information received. It returns false otherwise.
+func (v versionInfo) ServerOK() bool {
+	return v.Server != nil
 }
 
 // NewVersionCommand creates a new cobra.Command for `docker version`
@@ -70,20 +92,16 @@ func runVersion(dockerCli *command.DockerCli, opts *versionOptions) error {
 			Status: "Template parsing error: " + err.Error()}
 	}
 
-	APIVersion := dockerCli.Client().ClientVersion()
-	if defaultAPIVersion := dockerCli.DefaultVersion(); APIVersion != defaultAPIVersion {
-		APIVersion = fmt.Sprintf("%s (downgraded from %s)", APIVersion, defaultAPIVersion)
-	}
-
-	vd := types.VersionResponse{
-		Client: &types.Version{
-			Version:    dockerversion.Version,
-			APIVersion: APIVersion,
-			GoVersion:  runtime.Version(),
-			GitCommit:  dockerversion.GitCommit,
-			BuildTime:  dockerversion.BuildTime,
-			Os:         runtime.GOOS,
-			Arch:       runtime.GOARCH,
+	vd := versionInfo{
+		Client: clientVersion{
+			Version:           dockerversion.Version,
+			APIVersion:        dockerCli.Client().ClientVersion(),
+			DefaultAPIVersion: dockerCli.DefaultVersion(),
+			GoVersion:         runtime.Version(),
+			GitCommit:         dockerversion.GitCommit,
+			BuildTime:         dockerversion.BuildTime,
+			Os:                runtime.GOOS,
+			Arch:              runtime.GOARCH,
 		},
 	}
 

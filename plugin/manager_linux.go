@@ -207,9 +207,8 @@ func (pm *Manager) upgradePlugin(p *v2.Plugin, configDigest digest.Digest, blobs
 				logrus.WithError(rmErr).WithField("dir", backup).Error("error cleaning up after failed upgrade")
 				return
 			}
-
-			if err := os.Rename(backup, orig); err != nil {
-				err = errors.Wrap(err, "error restoring old plugin root on upgrade failure")
+			if mvErr := os.Rename(backup, orig); mvErr != nil {
+				err = errors.Wrap(mvErr, "error restoring old plugin root on upgrade failure")
 			}
 			if rmErr := os.RemoveAll(tmpRootFSDir); rmErr != nil && !os.IsNotExist(rmErr) {
 				logrus.WithError(rmErr).WithField("plugin", p.Name()).Errorf("error cleaning up plugin upgrade dir: %s", tmpRootFSDir)
