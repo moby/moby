@@ -104,7 +104,14 @@ func main() {
 
 	// Set terminal emulation based on platform as required.
 	_, stdout, stderr := term.StdStreams()
-	logrus.SetOutput(stderr)
+
+	// @jhowardmsft - maybe there is a historic reason why on non-Windows, stderr is used
+	// here. However, on Windows it makes no sense and there is no need.
+	if runtime.GOOS == "windows" {
+		logrus.SetOutput(stdout)
+	} else {
+		logrus.SetOutput(stderr)
+	}
 
 	cmd := newDaemonCommand()
 	cmd.SetOutput(stdout)
