@@ -112,6 +112,10 @@ case "$mirror" in
 		apt_url="https://mirror.azure.cn/docker-engine/apt"
 		yum_url="https://mirror.azure.cn/docker-engine/yum"
 		;;
+	Aliyun)
+		apt_url="http://mirrors.aliyun.com/docker-engine/apt"
+		yum_url="http://mirrors.aliyun.com/docker-engine/yum"
+		;;
 esac
 
 command_exists() {
