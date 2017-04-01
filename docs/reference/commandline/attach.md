@@ -18,7 +18,7 @@ keywords: "attach, running, container"
 ```markdown
 Usage: docker attach [OPTIONS] CONTAINER
 
-Attach to a running container
+Attach local standard input, output, and error streams to a running container
 
 Options:
       --detach-keys string   Override the key sequence for detaching a container
@@ -29,10 +29,13 @@ Options:
 
 ## Description
 
-Use `docker attach` to attach to a running container using the container's ID
-or name, either to view its ongoing output or to control it interactively.
+Use `docker attach` to attach your terminal's standard input, output, and error
+(or any combination of the three) to a running container using the container's
+ID or name. This allows you to view its ongoing output or to control it
+interactively, as though the commands were running directly in your terminal.
+
 You can attach to the same contained process multiple times simultaneously,
-screen sharing style, or quickly view the progress of your detached process.
+even as a different user with the appropriate permissions.
 
 To stop a container, use `CTRL-c`. This key sequence sends `SIGKILL` to the
 container. If `--sig-proxy` is true (the default),`CTRL-c` sends a `SIGINT` to

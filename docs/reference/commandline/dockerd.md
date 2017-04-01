@@ -413,7 +413,6 @@ Specifies extra mkfs arguments to be used when creating the base device.
 
 ###### Example
 
->>>>>>> 52df69f00... Standardized formatting of CLI reference commands
 ```bash
 $ sudo dockerd --storage-opt "dm.mkfsarg=-O ^has_journal"
 ```
