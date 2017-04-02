@@ -117,7 +117,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 		if err == nil || forceRemove {
 			daemon.nameIndex.Delete(container.ID)
 			daemon.linkIndex.delete(container)
-			selinuxFreeLxcContexts(container.ProcessLabel)
+			selinuxReleaseLabel(container.ProcessLabel)
 			daemon.idIndex.Delete(container.ID)
 			daemon.containers.Delete(container.ID)
 			if e := daemon.removeMountPoints(container, removeVolume); e != nil {

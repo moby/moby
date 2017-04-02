@@ -41,9 +41,9 @@ import (
 	lntypes "github.com/docker/libnetwork/types"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
-	"github.com/opencontainers/runc/libcontainer/label"
 	rsystem "github.com/opencontainers/runc/libcontainer/system"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
 )

@@ -15,7 +15,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/volume"
 	"github.com/docker/docker/volume/drivers"
-	"github.com/opencontainers/runc/libcontainer/label"
+	"github.com/opencontainers/selinux/go-selinux/label"
 )
 
 var (

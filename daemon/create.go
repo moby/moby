@@ -21,7 +21,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
 	volumestore "github.com/docker/docker/volume/store"
-	"github.com/opencontainers/runc/libcontainer/label"
+	"github.com/opencontainers/selinux/go-selinux/label"
 )
 
 // CreateManagedContainer creates a container that is managed by a Service
