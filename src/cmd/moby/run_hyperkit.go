@@ -14,9 +14,8 @@ import (
 func runHyperKit(args []string) {
 	hyperkitCmd := flag.NewFlagSet("hyperkit", flag.ExitOnError)
 	hyperkitCmd.Usage = func() {
-		fmt.Printf("USAGE: %s run hyperkit [options] [prefix]\n\n", os.Args[0])
+		fmt.Printf("USAGE: %s run hyperkit [options] prefix\n\n", os.Args[0])
 		fmt.Printf("'prefix' specifies the path to the VM image.\n")
-		fmt.Printf("It defaults to './moby'.\n")
 		fmt.Printf("\n")
 		fmt.Printf("Options:\n")
 		hyperkitCmd.PrintDefaults()
@@ -29,11 +28,12 @@ func runHyperKit(args []string) {
 
 	hyperkitCmd.Parse(args)
 	remArgs := hyperkitCmd.Args()
-
-	prefix := "moby"
-	if len(remArgs) > 0 {
-		prefix = remArgs[0]
+	if len(remArgs) == 0 {
+		fmt.Println("Please specify the prefix to the image to boot\n")
+		hyperkitCmd.Usage()
+		os.Exit(1)
 	}
+	prefix := remArgs[0]
 
 	runHyperKitInternal(*runHyperKit, *runCPUs, *runMem, *runDiskSz, *runDisk, prefix)
 }
