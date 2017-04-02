@@ -19,8 +19,7 @@ import (
 func build(args []string) {
 	buildCmd := flag.NewFlagSet("build", flag.ExitOnError)
 	buildCmd.Usage = func() {
-		fmt.Printf("USAGE: %s build [options] [file.yml]\n\n", os.Args[0])
-		fmt.Printf("'file.yml' defaults to 'moby.yml' if not specified.\n\n")
+		fmt.Printf("USAGE: %s build [options] <file.yml>\n\n", os.Args[0])
 		fmt.Printf("Options:\n")
 		buildCmd.PrintDefaults()
 	}
@@ -30,10 +29,12 @@ func build(args []string) {
 	buildCmd.Parse(args)
 	remArgs := buildCmd.Args()
 
-	conf := "moby.yml"
-	if len(remArgs) > 0 {
-		conf = remArgs[0]
+	if len(remArgs) == 0 {
+		fmt.Println("Please specify a configuration file\n")
+		buildCmd.Usage()
+		os.Exit(1)
 	}
+	conf := remArgs[0]
 
 	buildInternal(*buildName, *buildPull, conf)
 }
