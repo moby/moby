@@ -19,7 +19,7 @@ import (
 func build(args []string) {
 	buildCmd := flag.NewFlagSet("build", flag.ExitOnError)
 	buildCmd.Usage = func() {
-		fmt.Printf("USAGE: %s build [options] <file.yml>\n\n", os.Args[0])
+		fmt.Printf("USAGE: %s build [options] <file>[.yml]\n\n", os.Args[0])
 		fmt.Printf("Options:\n")
 		buildCmd.PrintDefaults()
 	}
@@ -35,6 +35,9 @@ func build(args []string) {
 		os.Exit(1)
 	}
 	conf := remArgs[0]
+	if filepath.Ext(conf) == "" {
+		conf = conf + ".yml"
+	}
 
 	buildInternal(*buildName, *buildPull, conf)
 }
