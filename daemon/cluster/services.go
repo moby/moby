@@ -316,12 +316,10 @@ func (c *Cluster) ServiceLogs(ctx context.Context, input string, config *backend
 		c.mu.RUnlock()
 		return err
 	}
+	// TODO(dperny) there is probably a better way to get the container?
 	container := service.Spec.Task.GetContainer()
 	if container == nil {
 		return errors.New("service logs only supported for container tasks")
-	}
-	if container.TTY {
-		return errors.New("service logs not supported on tasks with a TTY attached")
 	}
 
 	// set the streams we'll use
@@ -392,8 +390,13 @@ func (c *Cluster) ServiceLogs(ctx context.Context, input string, config *backend
 	close(started)
 	wf.Flush()
 
-	outStream := stdcopy.NewStdWriter(wf, stdcopy.Stdout)
-	errStream := stdcopy.NewStdWriter(wf, stdcopy.Stderr)
+	var outStream io.Writer
+	outStream = wf
+	errStream := outStream
+	if !container.TTY {
+		errStream = stdcopy.NewStdWriter(outStream, stdcopy.Stderr)
+		outStream = stdcopy.NewStdWriter(outStream, stdcopy.Stdout)
+	}
 
 	// Release the lock before starting the stream.
 	c.mu.RUnlock()
@@ -424,11 +427,13 @@ func (c *Cluster) ServiceLogs(ctx context.Context, input string, config *backend
 				data = append(data, []byte(ts.Format(logger.TimeFormat)+" ")...)
 			}
 
-			data = append(data, []byte(fmt.Sprintf("%s.node.id=%s,%s.service.id=%s,%s.task.id=%s ",
-				contextPrefix, msg.Context.NodeID,
-				contextPrefix, msg.Context.ServiceID,
-				contextPrefix, msg.Context.TaskID,
-			))...)
+			if config.Details {
+				data = append(data, []byte(fmt.Sprintf("%s.node.id=%s,%s.service.id=%s,%s.task.id=%s ",
+					contextPrefix, msg.Context.NodeID,
+					contextPrefix, msg.Context.ServiceID,
+					contextPrefix, msg.Context.TaskID,
+				))...)
+			}
 
 			data = append(data, msg.Data...)
 

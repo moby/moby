@@ -20,6 +20,9 @@ import (
 	networktypes "github.com/docker/libnetwork/types"
 	"github.com/docker/swarmkit/agent/exec"
 	"golang.org/x/net/context"
+
+	// TODO(dperny) fix this to avoid this import
+	"github.com/docker/docker/daemon/logger"
 )
 
 // Backend defines the executor component for a swarm agent.
@@ -34,6 +37,7 @@ type Backend interface {
 	ContainerStart(name string, hostConfig *container.HostConfig, checkpoint string, checkpointDir string) error
 	ContainerStop(name string, seconds *int) error
 	ContainerLogs(context.Context, string, *backend.ContainerLogsConfig, chan struct{}) error
+	ContainerLogsRawChan(context.Context, string, *backend.ContainerLogsConfig, chan *logger.Message) error
 	ConnectContainerToNetwork(containerName, networkName string, endpointConfig *network.EndpointSettings) error
 	ActivateContainerServiceBinding(containerName string) error
 	DeactivateContainerServiceBinding(containerName string) error

@@ -1,15 +1,10 @@
 package container
 
 import (
-	"bufio"
-	"bytes"
-	"encoding/binary"
 	"fmt"
-	"io"
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
@@ -22,7 +17,6 @@ import (
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
-	"golang.org/x/time/rate"
 )
 
 // controller implements agent.Controller against docker's API.
@@ -445,72 +439,50 @@ func (r *controller) Logs(ctx context.Context, publisher exec.LogPublisher, opti
 		return errors.Wrap(err, "container not ready for logs")
 	}
 
-	rc, err := r.adapter.logs(ctx, options)
+	msgs, err := r.adapter.logs(ctx, options)
 	if err != nil {
 		return errors.Wrap(err, "failed getting container logs")
 	}
-	defer rc.Close()
 
 	var (
 		// use a rate limiter to keep things under control but also provides some
 		// ability coalesce messages.
-		limiter = rate.NewLimiter(rate.Every(time.Second), 10<<20) // 10 MB/s
-		msgctx  = api.LogContext{
+		// limiter = rate.NewLimiter(rate.Every(time.Second), 10<<20) // 10 MB/s
+		msgctx = api.LogContext{
 			NodeID:    r.task.NodeID,
 			ServiceID: r.task.ServiceID,
 			TaskID:    r.task.ID,
 		}
 	)
 
-	brd := bufio.NewReader(rc)
 	for {
-		// so, message header is 8 bytes, treat as uint64, pull stream off MSB
-		var header uint64
-		if err := binary.Read(brd, binary.BigEndian, &header); err != nil {
-			if err == io.EOF {
+		// TODO(dperny) limit here to decrease allocation back pressure.
+		// TODO(dperny) select statement with 1 case lol that's dumb
+		select {
+		case msg, ok := <-msgs:
+			if !ok {
+				// we're done here, no more messages
 				return nil
 			}
+			tsp, err := gogotypes.TimestampProto(msg.Timestamp)
+			if err != nil {
+				return errors.Wrap(err, "failed to convert timestamp")
+			}
+			var stream api.LogStream
+			if msg.Source == "stdout" {
+				stream = api.LogStreamStdout
+			} else if msg.Source == "stderr" {
+				stream = api.LogStreamStderr
+			}
 
-			return errors.Wrap(err, "failed reading log header")
-		}
-
-		stream, size := (header>>(7<<3))&0xFF, header & ^(uint64(0xFF)<<(7<<3))
-
-		// limit here to decrease allocation back pressure.
-		if err := limiter.WaitN(ctx, int(size)); err != nil {
-			return errors.Wrap(err, "failed rate limiter")
-		}
-
-		buf := make([]byte, size)
-		_, err := io.ReadFull(brd, buf)
-		if err != nil {
-			return errors.Wrap(err, "failed reading buffer")
-		}
-
-		// Timestamp is RFC3339Nano with 1 space after. Lop, parse, publish
-		parts := bytes.SplitN(buf, []byte(" "), 2)
-		if len(parts) != 2 {
-			return fmt.Errorf("invalid timestamp in log message: %v", buf)
-		}
-
-		ts, err := time.Parse(time.RFC3339Nano, string(parts[0]))
-		if err != nil {
-			return errors.Wrap(err, "failed to parse timestamp")
-		}
-
-		tsp, err := gogotypes.TimestampProto(ts)
-		if err != nil {
-			return errors.Wrap(err, "failed to convert timestamp")
-		}
-
-		if err := publisher.Publish(ctx, api.LogMessage{
-			Context:   msgctx,
-			Timestamp: tsp,
-			Stream:    api.LogStream(stream),
-
-			Data: parts[1],
-		}); err != nil {
-			return errors.Wrap(err, "failed to publish log message")
+			if err := publisher.Publish(ctx, api.LogMessage{
+				Context:   msgctx,
+				Timestamp: tsp,
+				Stream:    stream,
+				Data:      msg.Line,
+			}); err != nil {
+				return errors.Wrap(err, "failed to publish log message")
+			}
 		}
 	}
 }

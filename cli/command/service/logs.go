@@ -68,6 +68,7 @@ func runLogs(dockerCli *command.DockerCli, opts *logsOptions) error {
 		Timestamps: opts.timestamps,
 		Follow:     opts.follow,
 		Tail:       opts.tail,
+		Details:    true,
 	}
 
 	client := dockerCli.Client()
@@ -76,12 +77,25 @@ func runLogs(dockerCli *command.DockerCli, opts *logsOptions) error {
 	if err != nil {
 		return err
 	}
+	// TODO(dperny) nil checks
+	tty := service.Spec.TaskTemplate.ContainerSpec.TTY
+
+	// TODO(dperny) hot fix until we get a nice details system squared away,
+	// ignores details (including task context) if we have a TTY log
+	if tty {
+		options.Details = false
+	}
 
 	responseBody, err := client.ServiceLogs(ctx, opts.service, options)
 	if err != nil {
 		return err
 	}
 	defer responseBody.Close()
+
+	if tty {
+		_, err = io.Copy(dockerCli.Out(), responseBody)
+		return err
+	}
 
 	var replicas uint64
 	padding := 1

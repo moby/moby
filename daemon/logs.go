@@ -18,9 +18,16 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 )
 
-// ContainerLogs hooks up a container's stdout and stderr streams
-// configured with the given struct.
-func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, config *backend.ContainerLogsConfig, started chan struct{}) error {
+// ContainerLogsRawChan, given a channel, returns raw log message structs from
+// the container logger.
+func (daemon *Daemon) ContainerLogsRawChan(ctx context.Context, containerName string, config *backend.ContainerLogsConfig, msgs chan *logger.Message) error {
+	// TODO(dperny) there might be something weird with returning log messages
+	// straight off that channel. there's some kind of ring buffer log thing
+	// available so i don't actually know how long the pointers i'm returning
+	// are valid for. watch out for weird errors about it
+
+	// close the messages channel
+	defer close(msgs)
 	if !(config.ShowStdout || config.ShowStderr) {
 		return errors.New("You must choose at least one stream")
 	}
@@ -37,6 +44,7 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 	if err != nil {
 		return err
 	}
+
 	logReader, ok := cLog.(logger.LogReader)
 	if !ok {
 		return logger.ErrReadLogsNotSupported
@@ -58,13 +66,14 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 		}
 		since = time.Unix(s, n)
 	}
+
 	readConfig := logger.ReadConfig{
 		Since:  since,
 		Tail:   tailLines,
 		Follow: follow,
 	}
+
 	logs := logReader.ReadLogs(readConfig)
-	// Close logWatcher on exit
 	defer func() {
 		logs.Close()
 		if cLog != container.LogDriver {
@@ -76,6 +85,36 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 			}
 		}
 	}()
+
+	// TODO(dperny) fix logrus to be pretty
+	for {
+		select {
+		case err := <-logs.Err:
+			logrus.Errorf("Error streaming logs: %v", err)
+			return nil
+		case <-ctx.Done():
+			logrus.Debug("logs: end stream, ctx is done: %v", ctx.Err())
+			return nil
+		case msg, ok := <-logs.Msg:
+			if !ok {
+				logrus.Debug("logs: end stream")
+				return nil
+			}
+			// TODO(dperny) this will block here if msgs isn't buffered
+			msgs <- msg
+		}
+	}
+}
+
+// ContainerLogs hooks up a container's stdout and stderr streams
+// configured with the given struct.
+func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, config *backend.ContainerLogsConfig, started chan struct{}) error {
+	chMsgs := make(chan *logger.Message, 1)
+
+	container, err := daemon.GetContainer(containerName)
+	if err != nil {
+		return err
+	}
 
 	wf := ioutils.NewWriteFlusher(config.OutStream)
 	defer wf.Close()
@@ -90,15 +129,21 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 		outStream = stdcopy.NewStdWriter(outStream, stdcopy.Stdout)
 	}
 
+	// gerr belongs to this gofunc
+	// TODO(dperny) sloppy and racy
+	gerr := make(chan error)
+	go func() {
+		gerr <- daemon.ContainerLogsRawChan(ctx, containerName, config, chMsgs)
+	}()
+
 	for {
 		select {
-		case err := <-logs.Err:
-			logrus.Errorf("Error streaming logs: %v", err)
-			return nil
+		case err := <-gerr:
+			return err
 		case <-ctx.Done():
 			logrus.Debugf("logs: end stream, ctx is done: %v", ctx.Err())
 			return nil
-		case msg, ok := <-logs.Msg:
+		case msg, ok := <-chMsgs:
 			if !ok {
 				logrus.Debug("logs: end stream")
 				return nil
@@ -118,8 +163,8 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 			}
 		}
 	}
-}
 
+}
 func (daemon *Daemon) getLogger(container *container.Container) (logger.Logger, error) {
 	if container.LogDriver != nil && container.IsRunning() {
 		return container.LogDriver, nil
