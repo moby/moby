@@ -105,6 +105,9 @@ type Config struct {
 
 	// path to store runtime state, such as the swarm control socket
 	RuntimeRoot string
+
+	// WatchStream is a channel to pass watch API notifications to daemon
+	WatchStream chan *swarmapi.WatchMessage
 }
 
 // Cluster provides capabilities to participate in a cluster as a worker or a
@@ -118,6 +121,7 @@ type Cluster struct {
 	config       Config
 	configEvent  chan lncluster.ConfigEventType // todo: make this array and goroutine safe
 	attachers    map[string]*attacher
+	watchStream  chan *swarmapi.WatchMessage
 }
 
 // attacher manages the in-memory attachment state of a container
@@ -151,6 +155,7 @@ func New(config Config) (*Cluster, error) {
 		configEvent: make(chan lncluster.ConfigEventType, 10),
 		runtimeRoot: config.RuntimeRoot,
 		attachers:   make(map[string]*attacher),
+		watchStream: config.WatchStream,
 	}
 	return c, nil
 }
