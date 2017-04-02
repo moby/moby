@@ -8,6 +8,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/hyperkit/go"
+	"github.com/rneugeba/iso9660wrap"
 )
 
 // Process the run arguments and execute run
@@ -25,6 +26,7 @@ func runHyperKit(args []string) {
 	mem := hyperkitCmd.Int("mem", 1024, "Amount of memory in MB")
 	diskSz := hyperkitCmd.Int("disk-size", 0, "Size of Disk in MB")
 	disk := hyperkitCmd.String("disk", "", "Path to disk image to used")
+	data := hyperkitCmd.String("data", "", "Metadata to pass to VM (either a path to a file or a string)")
 
 	hyperkitCmd.Parse(args)
 	remArgs := hyperkitCmd.Args()
@@ -34,6 +36,29 @@ func runHyperKit(args []string) {
 		os.Exit(1)
 	}
 	prefix := remArgs[0]
+
+	isoPath := ""
+	if *data != "" {
+		var d []byte
+		if _, err := os.Stat(*data); os.IsNotExist(err) {
+			d = []byte(*data)
+		} else {
+			d, err = ioutil.ReadFile(*data)
+			if err != nil {
+				log.Fatalf("Cannot read user data: %v", err)
+			}
+		}
+		isoPath = prefix + "-data.iso"
+		outfh, err := os.OpenFile(isoPath, os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			log.Fatalf("Cannot create user data ISO: %v", err)
+		}
+		err = iso9660wrap.WriteBuffer(outfh, d, "config")
+		if err != nil {
+			log.Fatalf("Cannot write user data ISO: %v", err)
+		}
+		outfh.Close()
+	}
 
 	// Run
 	cmdline, err := ioutil.ReadFile(prefix + "-cmdline")
@@ -52,6 +77,7 @@ func runHyperKit(args []string) {
 
 	h.Kernel = prefix + "-bzImage"
 	h.Initrd = prefix + "-initrd.img"
+	h.ISOImage = isoPath
 	h.CPUs = *cpus
 	h.Memory = *mem
 	h.DiskSize = *diskSz
