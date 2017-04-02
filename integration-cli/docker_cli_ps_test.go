@@ -877,6 +877,23 @@ func (s *DockerSuite) TestPsListContainersFilterNetwork(c *check.C) {
 	containerOut = strings.TrimSpace(string(out))
 
 	c.Assert(containerOut, checker.Contains, "onbridgenetwork")
+
+	// Filter by partial network ID
+	partialnwID := string(nwID[0:4])
+
+	out, _ = dockerCmd(c, "ps", "--filter", "network="+partialnwID)
+	containerOut = strings.TrimSpace(string(out))
+
+	lines = strings.Split(containerOut, "\n")
+	// skip header
+	lines = lines[1:]
+
+	// ps output should have only one container
+	c.Assert(lines, checker.HasLen, 1)
+
+	// Making sure onbridgenetwork is on the output
+	c.Assert(containerOut, checker.Contains, "onbridgenetwork", check.Commentf("Missing the container on network\n"))
+
 }
 
 func (s *DockerSuite) TestPsByOrder(c *check.C) {
