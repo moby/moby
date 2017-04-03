@@ -19,10 +19,15 @@ func profilerSetup(mainRouter *mux.Router) {
 	r.HandleFunc("/pprof/profile", pprof.Profile)
 	r.HandleFunc("/pprof/symbol", pprof.Symbol)
 	r.HandleFunc("/pprof/trace", pprof.Trace)
-	r.HandleFunc("/pprof/block", pprof.Handler("block").ServeHTTP)
-	r.HandleFunc("/pprof/heap", pprof.Handler("heap").ServeHTTP)
-	r.HandleFunc("/pprof/goroutine", pprof.Handler("goroutine").ServeHTTP)
-	r.HandleFunc("/pprof/threadcreate", pprof.Handler("threadcreate").ServeHTTP)
+	r.HandleFunc("/pprof/{name}", handlePprof)
+}
+
+func handlePprof(w http.ResponseWriter, r *http.Request) {
+	var name string
+	if vars := mux.Vars(r); vars != nil {
+		name = vars["name"]
+	}
+	pprof.Handler(name).ServeHTTP(w, r)
 }
 
 // Replicated from expvar.go as not public.
