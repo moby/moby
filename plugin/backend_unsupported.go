@@ -10,6 +10,7 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/pkg/ioutils"
 	"golang.org/x/net/context"
 )
 
@@ -68,5 +69,15 @@ func (pm *Manager) Set(name string, args []string) error {
 // CreateFromContext creates a plugin from the given pluginDir which contains
 // both the rootfs and the config.json and a repoName with optional tag.
 func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, options *types.PluginCreateOptions) error {
+	return errNotSupported
+}
+
+// LoadPlugin loads a plugin from a tar stream
+func (pm *Manager) LoadPlugin(input io.ReadCloser, outStream io.Writer, quiet bool) error {
+	return errNotSupported
+}
+
+// SavePlugin saves a plugin into a tar stream
+func (pm *Manager) SavePlugin(plugin string, output *ioutils.WriteFlusher) error {
 	return errNotSupported
 }

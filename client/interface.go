@@ -119,6 +119,8 @@ type PluginAPIClient interface {
 	PluginSet(ctx context.Context, name string, args []string) error
 	PluginInspectWithRaw(ctx context.Context, name string) (*types.Plugin, []byte, error)
 	PluginCreate(ctx context.Context, createContext io.Reader, options types.PluginCreateOptions) error
+	PluginLoad(ctx context.Context, input io.Reader) (types.PluginLoadResponse, error)
+	PluginSave(ctx context.Context, plugin string) (io.ReadCloser, error)
 }
 
 // ServiceAPIClient defines API client methods for the services

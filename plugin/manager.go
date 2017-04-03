@@ -161,6 +161,47 @@ func (pm *Manager) StateChanged(id string, e libcontainerd.StateInfo) error {
 	return nil
 }
 
+// XXX: function doesnt return errors.
+// error in this, should fail LoadPlugin?
+// maybe error can be ignore in the reload.
+func mountPropUpdate(p *v2.Plugin) {
+	// We should only enable rootfs propagation for certain plugin types that need it.
+	for _, typ := range p.PluginObj.Config.Interface.Types {
+		if (typ.Capability == "volumedriver" || typ.Capability == "graphdriver") &&
+			typ.Prefix == "docker" && strings.HasPrefix(typ.Version, "1.") {
+			if p.PluginObj.Config.PropagatedMount != "" {
+				propRoot := filepath.Join(filepath.Dir(p.Rootfs), "propagated-mount")
+
+				// check if we need to migrate an older propagated mount from before
+				// these mounts were stored outside the plugin rootfs
+				if _, err := os.Stat(propRoot); os.IsNotExist(err) {
+					if _, err := os.Stat(p.PropagatedMount); err == nil {
+						// make sure nothing is mounted here
+						// don't care about errors
+						mount.Unmount(p.PropagatedMount)
+						if err := os.Rename(p.PropagatedMount, propRoot); err != nil {
+							logrus.WithError(err).WithField("dir", propRoot).Error("error migrating propagated mount storage")
+						}
+						if err := os.MkdirAll(p.PropagatedMount, 0755); err != nil {
+							logrus.WithError(err).WithField("dir", p.PropagatedMount).Error("error migrating propagated mount storage")
+						}
+					}
+				}
+
+				if err := os.MkdirAll(propRoot, 0755); err != nil {
+					logrus.Errorf("failed to create PropagatedMount directory at %s: %v", propRoot, err)
+				}
+				// TODO: sanitize PropagatedMount and prevent breakout
+				p.PropagatedMount = filepath.Join(p.Rootfs, p.PluginObj.Config.PropagatedMount)
+				if err := os.MkdirAll(p.PropagatedMount, 0755); err != nil {
+					logrus.Errorf("failed to create PropagatedMount directory at %s: %v", p.PropagatedMount, err)
+					return
+				}
+			}
+		}
+	}
+}
+
 func (pm *Manager) reload() error { // todo: restore
 	dir, err := ioutil.ReadDir(pm.config.Root)
 	if err != nil {
@@ -195,40 +236,7 @@ func (pm *Manager) reload() error { // todo: restore
 				p.Rootfs = filepath.Join(pm.config.Root, p.PluginObj.ID, "rootfs")
 			}
 
-			// We should only enable rootfs propagation for certain plugin types that need it.
-			for _, typ := range p.PluginObj.Config.Interface.Types {
-				if (typ.Capability == "volumedriver" || typ.Capability == "graphdriver") && typ.Prefix == "docker" && strings.HasPrefix(typ.Version, "1.") {
-					if p.PluginObj.Config.PropagatedMount != "" {
-						propRoot := filepath.Join(filepath.Dir(p.Rootfs), "propagated-mount")
-
-						// check if we need to migrate an older propagated mount from before
-						// these mounts were stored outside the plugin rootfs
-						if _, err := os.Stat(propRoot); os.IsNotExist(err) {
-							if _, err := os.Stat(p.PropagatedMount); err == nil {
-								// make sure nothing is mounted here
-								// don't care about errors
-								mount.Unmount(p.PropagatedMount)
-								if err := os.Rename(p.PropagatedMount, propRoot); err != nil {
-									logrus.WithError(err).WithField("dir", propRoot).Error("error migrating propagated mount storage")
-								}
-								if err := os.MkdirAll(p.PropagatedMount, 0755); err != nil {
-									logrus.WithError(err).WithField("dir", p.PropagatedMount).Error("error migrating propagated mount storage")
-								}
-							}
-						}
-
-						if err := os.MkdirAll(propRoot, 0755); err != nil {
-							logrus.Errorf("failed to create PropagatedMount directory at %s: %v", propRoot, err)
-						}
-						// TODO: sanitize PropagatedMount and prevent breakout
-						p.PropagatedMount = filepath.Join(p.Rootfs, p.PluginObj.Config.PropagatedMount)
-						if err := os.MkdirAll(p.PropagatedMount, 0755); err != nil {
-							logrus.Errorf("failed to create PropagatedMount directory at %s: %v", p.PropagatedMount, err)
-							return
-						}
-					}
-				}
-			}
+			mountPropUpdate(p)
 
 			pm.save(p)
 			requiresManualRestore := !pm.config.LiveRestoreEnabled && p.IsEnabled()
@@ -269,7 +277,7 @@ func (pm *Manager) save(p *v2.Plugin) error {
 	return nil
 }
 
-// GC cleans up unrefrenced blobs. This is recommended to run in a goroutine
+// GC cleans up unreferenced blobs. This is recommended to run in a goroutine
 func (pm *Manager) GC() {
 	pm.muGC.Lock()
 	defer pm.muGC.Unlock()

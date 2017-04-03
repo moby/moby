@@ -7,6 +7,7 @@ import (
 	"github.com/docker/distribution/reference"
 	enginetypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/pkg/ioutils"
 	"golang.org/x/net/context"
 )
 
@@ -23,4 +24,6 @@ type Backend interface {
 	Push(ctx context.Context, name string, metaHeaders http.Header, authConfig *enginetypes.AuthConfig, outStream io.Writer) error
 	Upgrade(ctx context.Context, ref reference.Named, name string, metaHeaders http.Header, authConfig *enginetypes.AuthConfig, privileges enginetypes.PluginPrivileges, outStream io.Writer) error
 	CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, options *enginetypes.PluginCreateOptions) error
+	SavePlugin(plugin string, output *ioutils.WriteFlusher) error
+	LoadPlugin(input io.ReadCloser, outStream io.Writer, quiet bool) error
 }

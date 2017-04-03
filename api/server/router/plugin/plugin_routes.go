@@ -214,6 +214,48 @@ func (pr *pluginRouter) createPlugin(ctx context.Context, w http.ResponseWriter,
 	return nil
 }
 
+func (pr *pluginRouter) savePlugin(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+
+	// set the content type of the responsewriter
+	w.Header().Set("Content-Type", "application/x-tar")
+
+	output := ioutils.NewWriteFlusher(w)
+	defer output.Close()
+
+	plugin := r.FormValue("plugin")
+
+	// send output to the backend, so that it can be filled with the tar stream
+	if err := pr.backend.SavePlugin(plugin, output); err != nil {
+		if !output.Flushed() {
+			return err
+		}
+		output.Write(streamformatter.FormatError(err))
+	}
+	return nil
+}
+
+func (pr *pluginRouter) loadPlugin(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+
+	quiet := httputils.BoolValueOrDefault(r, "quiet", true)
+
+	// set the response to json
+	w.Header().Set("Content-Type", "application/json")
+
+	output := ioutils.NewWriteFlusher(w)
+	defer output.Close()
+
+	if err := pr.backend.LoadPlugin(r.Body, output, quiet); err != nil {
+		output.Write(streamformatter.FormatError(err))
+	}
+	return nil
+}
+
 func (pr *pluginRouter) enablePlugin(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err

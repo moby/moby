@@ -333,6 +333,13 @@ type TaskListOptions struct {
 	Filters filters.Args
 }
 
+// PluginLoadResponse returns information to the client about a load process.
+type PluginLoadResponse struct {
+	// Body must be closed to avoid a resource leak
+	Body io.ReadCloser
+	JSON bool
+}
+
 // PluginRemoveOptions holds parameters to remove plugins.
 type PluginRemoveOptions struct {
 	Force bool
