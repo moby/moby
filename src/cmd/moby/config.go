@@ -3,13 +3,14 @@ package main
 import (
 	"archive/tar"
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path"
-	"strconv"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"gopkg.in/yaml.v2"
 )
 
@@ -36,22 +37,30 @@ type Moby struct {
 	}
 }
 
-// MobyImage is the type of an image config, based on Compose
+// MobyImage is the type of an image config
 type MobyImage struct {
-	Name         string
-	Image        string
-	Capabilities []string
-	Binds        []string
-	OomScoreAdj  int64 `yaml:"oom_score_adj"`
-	Command      []string
-	NetworkMode  string `yaml:"network_mode"`
-	Pid          string
-	Ipc          string
-	Uts          string
-	ReadOnly     bool `yaml:"read_only"`
+	Name             string
+	Image            string
+	Capabilities     []string
+	Mounts           []specs.Mount
+	Binds            []string
+	Tmpfs            []string
+	Args             []string
+	Env              []string
+	Cwd              string
+	Net              string
+	Pid              string
+	Ipc              string
+	Uts              string
+	Readonly         bool
+	UID              uint32   `yaml:"uid"`
+	GID              uint32   `yaml:"gid"`
+	AdditionalGids   []uint32 `yaml:"additionalGids"`
+	NoNewPrivileges  bool     `yaml:"noNewPrivileges"`
+	Hostname         string
+	OomScoreAdj      int  `yaml:"oomScoreAdj"`
+	DisableOOMKiller bool `yaml:"disableOOMKiller"`
 }
-
-const riddler = "mobylinux/riddler:decf6c9e24b579175a038a76f9721e7aca507abd@sha256:9d24a7c48204b94b5d76cc3d6cf70f779d87d08d8a893169292c98d0e19ab579"
 
 // NewConfig parses a config file
 func NewConfig(config []byte) (*Moby, error) {
@@ -66,53 +75,183 @@ func NewConfig(config []byte) (*Moby, error) {
 }
 
 // ConfigToOCI converts a config specification to an OCI config file
-func ConfigToOCI(image *MobyImage) (string, error) {
-	// riddler arguments
-	args := []string{"-v", "/var/run/docker.sock:/var/run/docker.sock", riddler, image.Image}
-	// docker arguments
-	args = append(args, "--cap-drop", "all")
-	for _, cap := range image.Capabilities {
-		if strings.ToUpper(cap)[0:4] == "CAP_" {
-			cap = cap[4:]
-		}
-		args = append(args, "--cap-add", cap)
-	}
-	if image.OomScoreAdj != 0 {
-		args = append(args, "--oom-score-adj", strconv.FormatInt(image.OomScoreAdj, 10))
-	}
-	if image.NetworkMode != "" {
-		// TODO only "host" supported
-		args = append(args, "--net="+image.NetworkMode)
-	}
-	if image.Pid != "" {
-		// TODO only "host" supported
-		args = append(args, "--pid="+image.Pid)
-	}
-	if image.Ipc != "" {
-		// TODO only "host" supported
-		args = append(args, "--ipc="+image.Ipc)
-	}
-	if image.Uts != "" {
-		// TODO only "host" supported
-		args = append(args, "--uts="+image.Uts)
-	}
-	for _, bind := range image.Binds {
-		args = append(args, "-v", bind)
-	}
-	if image.ReadOnly {
-		args = append(args, "--read-only")
-	}
-	// image
-	args = append(args, image.Image)
-	// command
-	args = append(args, image.Command...)
+func ConfigToOCI(image *MobyImage) ([]byte, error) {
+	oci := specs.Spec{}
 
-	config, err := dockerRun(args...)
+	// TODO pass through same docker client to all functions
+	cli, err := dockerClient()
 	if err != nil {
-		return "", fmt.Errorf("Failed to run riddler to get config.json: %v", err)
+		return []byte{}, err
 	}
 
-	return string(config), nil
+	inspect, err := dockerInspectImage(cli, image.Image)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	config := inspect.Config
+	if config == nil {
+		return []byte{}, errors.New("empty image config")
+	}
+
+	args := append(config.Entrypoint, config.Cmd...)
+	if len(image.Args) != 0 {
+		args = image.Args
+	}
+	env := config.Env
+	if len(image.Env) != 0 {
+		env = image.Env
+	}
+	cwd := config.WorkingDir
+	if image.Cwd != "" {
+		cwd = image.Cwd
+	}
+	if cwd == "" {
+		cwd = "/"
+	}
+	devOptions := []string{"nosuid", "strictatime", "mode=755", "size=65536k"}
+	if image.Readonly {
+		devOptions = append(devOptions, "ro")
+	}
+	ptsOptions := []string{"nosuid", "noexec", "newinstance", "ptmxmode=0666", "mode=0620"}
+	sysOptions := []string{"nosuid", "noexec", "nodev"}
+	if image.Readonly {
+		sysOptions = append(sysOptions, "ro")
+	}
+	cgroupOptions := []string{"nosuid", "noexec", "nodev", "relatime", "ro"}
+	// note omits "standard" /dev/shm and /dev/mqueue
+	mounts := []specs.Mount{
+		{Destination: "/proc", Type: "proc", Source: "proc"},
+		{Destination: "/dev", Type: "tmpfs", Source: "tmpfs", Options: devOptions},
+		{Destination: "/dev/pts", Type: "devpts", Source: "devpts", Options: ptsOptions},
+		{Destination: "/sys", Type: "sysfs", Source: "sysfs", Options: sysOptions},
+		{Destination: "/sys/fs/cgroup", Type: "cgroup", Source: "cgroup", Options: cgroupOptions},
+	}
+	// TODO if any standard mount points supplied, remove from above, so can change options
+	mounts = append(mounts, image.Mounts...)
+	for _, t := range image.Tmpfs {
+		parts := strings.Split(t, ":")
+		if len(parts) > 2 {
+			return []byte{}, fmt.Errorf("Cannot parse tmpfs, too many ':': %s", t)
+		}
+		dest := parts[0]
+		opts := []string{}
+		if len(parts) == 2 {
+			opts = strings.Split(parts[2], ",")
+		}
+		mounts = append(mounts, specs.Mount{Destination: dest, Type: "tmpfs", Source: "tmpfs", Options: opts})
+	}
+	for _, b := range image.Binds {
+		parts := strings.Split(b, ":")
+		if len(parts) < 2 {
+			return []byte{}, fmt.Errorf("Cannot parse bind, missing ':': %s", b)
+		}
+		if len(parts) > 3 {
+			return []byte{}, fmt.Errorf("Cannot parse bind, too many ':': %s", b)
+		}
+		src := parts[0]
+		dest := parts[1]
+		opts := []string{"rw", "rbind", "rprivate"}
+		if len(parts) == 3 {
+			opts = strings.Split(parts[2], ",")
+		}
+		mounts = append(mounts, specs.Mount{Destination: dest, Type: "bind", Source: src, Options: opts})
+	}
+
+	namespaces := []specs.LinuxNamespace{}
+	if image.Net != "" && image.Net != "host" {
+		return []byte{}, fmt.Errorf("invalid net namespace: %s", image.Net)
+	}
+	if image.Net == "" {
+		namespaces = append(namespaces, specs.LinuxNamespace{Type: specs.NetworkNamespace})
+	}
+	if image.Pid != "" && image.Pid != "host" {
+		return []byte{}, fmt.Errorf("invalid pid namespace: %s", image.Pid)
+	}
+	if image.Pid == "" {
+		namespaces = append(namespaces, specs.LinuxNamespace{Type: specs.PIDNamespace})
+	}
+	if image.Ipc != "" && image.Ipc != "host" {
+		return []byte{}, fmt.Errorf("invalid ipc namespace: %s", image.Ipc)
+	}
+	if image.Ipc == "" {
+		namespaces = append(namespaces, specs.LinuxNamespace{Type: specs.IPCNamespace})
+	}
+	if image.Uts != "" && image.Uts != "host" {
+		return []byte{}, fmt.Errorf("invalid uts namespace: %s", image.Uts)
+	}
+	if image.Uts == "" {
+		namespaces = append(namespaces, specs.LinuxNamespace{Type: specs.UTSNamespace})
+	}
+	// TODO user, cgroup namespaces, maybe mount=host if useful
+	namespaces = append(namespaces, specs.LinuxNamespace{Type: specs.MountNamespace})
+
+	oci.Version = specs.Version
+
+	oci.Platform = specs.Platform{
+		OS:   inspect.Os,
+		Arch: inspect.Architecture,
+	}
+
+	oci.Process = specs.Process{
+		Terminal: false,
+		//ConsoleSize
+		User: specs.User{
+			UID:            image.UID,
+			GID:            image.GID,
+			AdditionalGids: image.AdditionalGids,
+			// Username (Windows)
+		},
+		Args: args,
+		Env:  env,
+		Cwd:  cwd,
+		Capabilities: &specs.LinuxCapabilities{
+			Bounding:    image.Capabilities,
+			Effective:   image.Capabilities,
+			Inheritable: image.Capabilities,
+			Permitted:   image.Capabilities,
+			Ambient:     []string{},
+		},
+		Rlimits:         []specs.LinuxRlimit{},
+		NoNewPrivileges: image.NoNewPrivileges,
+		// ApparmorProfile
+		// SelinuxLabel
+	}
+
+	oci.Root = specs.Root{
+		Path:     "rootfs",
+		Readonly: image.Readonly,
+	}
+
+	oci.Hostname = image.Hostname
+	oci.Mounts = mounts
+
+	oci.Linux = &specs.Linux{
+		// UIDMappings
+		// GIDMappings
+		// Sysctl
+		Resources: &specs.LinuxResources{
+			// Devices
+			DisableOOMKiller: &image.DisableOOMKiller,
+			// Memory
+			// CPU
+			// Pids
+			// BlockIO
+			// HugepageLimits
+			// Network
+		},
+		// CgroupsPath
+		Namespaces: namespaces,
+		// Devices
+		// Seccomp
+		// RootfsPropagation
+		// MaskedPaths
+		// ReadonlyPaths
+		// MountLabel
+		// IntelRdt
+	}
+
+	return json.MarshalIndent(oci, "", "    ")
 }
 
 func filesystem(m *Moby) (*bytes.Buffer, error) {

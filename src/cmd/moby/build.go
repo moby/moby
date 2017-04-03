@@ -117,7 +117,7 @@ func buildInternal(name string, pull bool, conf string) {
 		log.Infof("  Create OCI config for %s", image.Image)
 		config, err := ConfigToOCI(&image)
 		if err != nil {
-			log.Fatalf("Failed to run riddler to get config.json for %s: %v", image.Image, err)
+			log.Fatalf("Failed to create config.json for %s: %v", image.Image, err)
 		}
 		so := fmt.Sprintf("%03d", i)
 		path := "containers/system/" + so + "-" + image.Name
@@ -141,7 +141,7 @@ func buildInternal(name string, pull bool, conf string) {
 		log.Infof("  Create OCI config for %s", image.Image)
 		config, err := ConfigToOCI(&image)
 		if err != nil {
-			log.Fatalf("Failed to run riddler to get config.json for %s: %v", image.Image, err)
+			log.Fatalf("Failed to create config.json for %s: %v", image.Image, err)
 		}
 		path := "containers/daemon/" + image.Name
 		out, err := ImageBundle(path, image.Image, config)

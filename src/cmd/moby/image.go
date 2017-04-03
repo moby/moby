@@ -143,8 +143,8 @@ func imageTar(image, prefix string, tw *tar.Writer) error {
 }
 
 // ImageBundle produces an OCI bundle at the given path in a tarball, given an image and a config.json
-func ImageBundle(path, image, config string) ([]byte, error) {
-	log.Debugf("image bundle: %s %s cfg: %s", path, image, config)
+func ImageBundle(path string, image string, config []byte) ([]byte, error) {
+	log.Debugf("image bundle: %s %s cfg: %s", path, image, string(config))
 	out := new(bytes.Buffer)
 	tw := tar.NewWriter(out)
 	err := tarPrefix(path+"/rootfs/", tw)
@@ -160,7 +160,7 @@ func ImageBundle(path, image, config string) ([]byte, error) {
 	if err != nil {
 		return []byte{}, err
 	}
-	buf := bytes.NewBufferString(config)
+	buf := bytes.NewBuffer(config)
 	_, err = io.Copy(tw, buf)
 	if err != nil {
 		return []byte{}, err

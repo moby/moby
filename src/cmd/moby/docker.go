@@ -8,10 +8,14 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
 	"os/exec"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/engine-api/client"
+	"github.com/docker/engine-api/types"
+	"golang.org/x/net/context"
 )
 
 func dockerRun(args ...string) ([]byte, error) {
@@ -273,4 +277,37 @@ func dockerPull(image string) error {
 
 	log.Debugf("docker pull: %s...Done", image)
 	return nil
+}
+
+func dockerClient() (*client.Client, error) {
+	// for maximum compatibility as we use nothing new
+	err := os.Setenv("DOCKER_API_VERSION", "1.23")
+	if err != nil {
+		return nil, err
+	}
+	return client.NewEnvClient()
+}
+
+func dockerInspectImage(cli *client.Client, image string) (types.ImageInspect, error) {
+	log.Debugf("docker inspect image: %s", image)
+
+	inspect, _, err := cli.ImageInspectWithRaw(context.Background(), image, false)
+	if err != nil {
+		if client.IsErrImageNotFound(err) {
+			pullErr := dockerPull(image)
+			if pullErr != nil {
+				return types.ImageInspect{}, pullErr
+			}
+			inspect, _, err = cli.ImageInspectWithRaw(context.Background(), image, false)
+			if err != nil {
+				return types.ImageInspect{}, err
+			}
+		} else {
+			return types.ImageInspect{}, err
+		}
+	}
+
+	log.Debugf("docker inspect image: %s...Done", image)
+
+	return inspect, nil
 }
