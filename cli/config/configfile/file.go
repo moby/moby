@@ -40,6 +40,7 @@ type ConfigFile struct {
 	SecretFormat         string                      `json:"secretFormat,omitempty"`
 	NodesFormat          string                      `json:"nodesFormat,omitempty"`
 	PruneFilters         []string                    `json:"pruneFilters,omitempty"`
+	InsecureRegistries   []string                    `json:"insecure-registries,omitempty"`
 }
 
 // LegacyLoadFromReader reads the non-nested configuration data given and sets up the
