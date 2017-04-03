@@ -1,0 +1,19 @@
+#!/bin/bash
+
+if [ -n "${BUILD_DOCS}" ]; then
+	set -e
+	DOCS_IMAGE=${DOCS_IMAGE:-${IMAGE_NAME}-docs}
+	docker run \
+		--entrypoint '' \
+		--privileged \
+		-e DOCKER_GITCOMMIT=$(git rev-parse --short HEAD) \
+		-v $(pwd)/docs/yaml/docs:/docs \
+		"${IMAGE_NAME}" \
+		sh -c 'hack/make.sh yaml-docs-generator && bundles/latest/yaml-docs-generator/yaml-docs-generator --target /docs'
+
+	(
+		cd docs/yaml
+		docker build -t ${DOCS_IMAGE} .
+		docker push ${DOCS_IMAGE}
+	)
+fi
