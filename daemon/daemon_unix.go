@@ -1269,12 +1269,17 @@ func (daemon *Daemon) initCgroupsPath(path string) error {
 	// for the period and runtime as this limits what the children can be set to.
 	daemon.initCgroupsPath(filepath.Dir(path))
 
-	_, root, err := cgroups.FindCgroupMountpointAndRoot("cpu")
+	mnt, root, err := cgroups.FindCgroupMountpointAndRoot("cpu")
 	if err != nil {
 		return err
 	}
+	// When docker is run inside docker, the root is based of the host cgroup.
+	// Should this be handled in runc/libcontainer/cgroups ?
+	if strings.HasPrefix(root, "/docker/") {
+		root = "/"
+	}
 
-	path = filepath.Join(root, path)
+	path = filepath.Join(mnt, root, path)
 	sysinfo := sysinfo.New(true)
 	if err := maybeCreateCPURealTimeFile(sysinfo.CPURealtimePeriod, daemon.configStore.CPURealtimePeriod, "cpu.rt_period_us", path); err != nil {
 		return err
