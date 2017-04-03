@@ -16,9 +16,9 @@ be found.
 
 ### Runtime
 
-* Update runc to 54296cf40ad8143b62dbcaa1d90e520a2136ddfe [#3166](https://github.com/docker/docker/pull/31666)
+* Update runc to 54296cf40ad8143b62dbcaa1d90e520a2136ddfe [#31666](https://github.com/docker/docker/pull/31666)
  * Ignore cgroup2 mountpoints [opencontainers/runc#1266](https://github.com/opencontainers/runc/pull/1266)
-* Update containerd to 595e75c212d19a81d2b808a518fe1afc1391dad5 [#31662](https://github.com/docker/docker/pull/31662)
+* Update containerd to 4ab9917febca54791c5f071a9d1f404867857fcc [#31662](https://github.com/docker/docker/pull/31662) [#31852](https://github.com/docker/docker/pull/31852)
  * Register healtcheck service before calling restore() [docker/containerd#609](https://github.com/docker/containerd/pull/609)
 * Fix `docker exec` not working after unattended upgrades that reload apparmor profiles [#31773](https://github.com/docker/docker/pull/31773)
 * Fix unmounting layer without merge dir with Overlay2 [#31069](https://github.com/docker/docker/pull/31069)
