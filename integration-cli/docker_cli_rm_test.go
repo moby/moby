@@ -3,6 +3,8 @@ package main
 import (
 	"io/ioutil"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli/build"
@@ -93,6 +95,17 @@ func (s *DockerSuite) TestRmRestartingContainer(c *check.C) {
 	dockerCmd(c, "run", "--name", name, "--restart=always", "busybox", "date")
 
 	res, _, err := dockerCmdWithError("rm", name)
+
+	for strings.Contains(res, "cannot remove a running container") {
+		// The `date` command hasn't exited yet. It should end
+		// up in a "restarting" state if we wait a bit, though
+		// it is possible that it might be running again by
+		// that time. The wait period between each restart
+		// increases though so we just loop in this condition.
+		time.Sleep(100 * time.Millisecond)
+		res, _, err = dockerCmdWithError("rm", name)
+	}
+
 	c.Assert(err, checker.NotNil, check.Commentf("Expected error on rm a restarting container, got none"))
 	c.Assert(res, checker.Contains, "cannot remove a restarting container")
 	c.Assert(res, checker.Contains, "Stop the container before attempting removal or force remove")
