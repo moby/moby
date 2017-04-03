@@ -95,8 +95,10 @@ func runPs(dockerCli command.Cli, opts psOptions) error {
 		}
 	}
 
-	if err := task.Print(dockerCli, ctx, tasks, idresolver.New(client, opts.noResolve), !opts.noTrunc, opts.quiet, format); err != nil {
-		errs = append(errs, err.Error())
+	if len(errs) == 0 || len(tasks) != 0 {
+		if err := task.Print(dockerCli, ctx, tasks, idresolver.New(client, opts.noResolve), !opts.noTrunc, opts.quiet, format); err != nil {
+			errs = append(errs, err.Error())
+		}
 	}
 
 	if len(errs) > 0 {

@@ -50,7 +50,7 @@ func TestNodeInspectErrors(t *testing.T) {
 				return swarm.Node{}, []byte{}, errors.Errorf("error inspecting the node")
 			},
 			infoFunc: func() (types.Info, error) {
-				return types.Info{}, nil
+				return types.Info{Swarm: swarm.Info{NodeID: "abc"}}, nil
 			},
 			expectedError: "error inspecting the node",
 		},
