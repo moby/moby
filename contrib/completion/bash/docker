@@ -738,7 +738,7 @@ __docker_complete_log_options() {
 	# see repository docker/docker.github.io/engine/admin/logging/
 	local common_options="max-buffer-size mode"
 
-	local awslogs_options="$common_options awslogs-region awslogs-group awslogs-stream awslogs-create-group"
+	local awslogs_options="$common_options awslogs-create-group awslogs-group awslogs-region awslogs-stream"
 	local fluentd_options="$common_options env fluentd-address fluentd-async-connect fluentd-buffer-limit fluentd-retry-wait fluentd-max-retries labels tag"
 	local gcplogs_options="$common_options env gcp-log-cmd gcp-project labels"
 	local gelf_options="$common_options env gelf-address gelf-compression-level gelf-compression-type labels tag"
@@ -792,6 +792,10 @@ __docker_complete_log_options() {
 __docker_complete_log_driver_options() {
 	local key=$(__docker_map_key_of_current_option '--log-opt')
 	case "$key" in
+		awslogs-create-group)
+			COMPREPLY=( $( compgen -W "false true" -- "${cur##*=}" ) )
+			return
+			;;
 		fluentd-async-connect)
 			COMPREPLY=( $( compgen -W "false true" -- "${cur##*=}" ) )
 			return
