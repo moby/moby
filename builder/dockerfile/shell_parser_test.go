@@ -75,8 +75,10 @@ func TestShellParser4Words(t *testing.T) {
 
 	envs := []string{}
 	scanner := bufio.NewScanner(file)
+	lineNum := 0
 	for scanner.Scan() {
 		line := scanner.Text()
+		lineNum = lineNum + 1
 
 		if strings.HasPrefix(line, "#") {
 			continue
@@ -90,7 +92,7 @@ func TestShellParser4Words(t *testing.T) {
 
 		words := strings.Split(line, "|")
 		if len(words) != 2 {
-			t.Fatalf("Error in '%s' - should be exactly one | in: %q", fn, line)
+			t.Fatalf("Error in '%s'(line %d) - should be exactly one | in: %q", fn, lineNum, line)
 		}
 		test := strings.TrimSpace(words[0])
 		expected := strings.Split(strings.TrimLeft(words[1], " "), ",")
@@ -102,11 +104,11 @@ func TestShellParser4Words(t *testing.T) {
 		}
 
 		if len(result) != len(expected) {
-			t.Fatalf("Error. %q was suppose to result in %q, but got %q instead", test, expected, result)
+			t.Fatalf("Error on line %d. %q was suppose to result in %q, but got %q instead", lineNum, test, expected, result)
 		}
 		for i, w := range expected {
 			if w != result[i] {
-				t.Fatalf("Error. %q was suppose to result in %q, but got %q instead", test, expected, result)
+				t.Fatalf("Error on line %d. %q was suppose to result in %q, but got %q instead", lineNum, test, expected, result)
 			}
 		}
 	}

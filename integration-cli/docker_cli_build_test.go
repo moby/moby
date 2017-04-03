@@ -182,6 +182,14 @@ func (s *DockerSuite) TestBuildEnvironmentReplacementEnv(c *check.C) {
   RUN [ "$abc3" = '$foo' ] && (echo "$abc3" | grep -q foo)
   ENV abc4 "\$foo"
   RUN [ "$abc4" = '$foo' ] && (echo "$abc4" | grep -q foo)
+  ENV foo2="abc\def"
+  RUN [ "$foo2" = 'abc\def' ]
+  ENV foo3="abc\\def"
+  RUN [ "$foo3" = 'abc\def' ]
+  ENV foo4='abc\\def'
+  RUN [ "$foo4" = 'abc\\def' ]
+  ENV foo5='abc\def'
+  RUN [ "$foo5" = 'abc\def' ]
   `))
 
 	envResult := []string{}
