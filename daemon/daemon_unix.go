@@ -1269,12 +1269,12 @@ func (daemon *Daemon) initCgroupsPath(path string) error {
 	// for the period and runtime as this limits what the children can be set to.
 	daemon.initCgroupsPath(filepath.Dir(path))
 
-	_, root, err := cgroups.FindCgroupMountpointAndRoot("cpu")
+	mountpoint, err := cgroups.FindCgroupMountpoint("cpu")
 	if err != nil {
 		return err
 	}
 
-	path = filepath.Join(root, path)
+	path = filepath.Join(mountpoint, path)
 	sysinfo := sysinfo.New(true)
 	if err := maybeCreateCPURealTimeFile(sysinfo.CPURealtimePeriod, daemon.configStore.CPURealtimePeriod, "cpu.rt_period_us", path); err != nil {
 		return err
