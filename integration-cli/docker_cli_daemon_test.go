@@ -94,8 +94,8 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithVolumesRefs(c *check.C) {
 		c.Fatal(err)
 	}
 
-	if _, err := s.d.Cmd("run", "-d", "--volumes-from", "volrestarttest1", "--name", "volrestarttest2", "busybox", "top"); err != nil {
-		c.Fatal(err)
+	if out, err := s.d.Cmd("run", "-d", "--volumes-from", "volrestarttest1", "--name", "volrestarttest2", "busybox", "top"); err != nil {
+		c.Fatal(err, out)
 	}
 
 	if out, err := s.d.Cmd("rm", "-fv", "volrestarttest2"); err != nil {
