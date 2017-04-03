@@ -44,6 +44,7 @@ versions.
    - label=<key> or label=<key>=<value>
    - before=(<image-name>[:tag]|<image-id>|<image@digest>)
    - since=(<image-name>[:tag]|<image-id>|<image@digest>)
+   - reference=(pattern of an image reference)
 
 **--format**="*TEMPLATE*"
    Pretty-print images using a Go template.

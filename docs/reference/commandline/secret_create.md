@@ -27,8 +27,9 @@ Options:
 
 ## Description
 
-Creates a secret using standard input or from a file for the secret content. You must run this
-command on a manager node.
+Creates a secret using standard input or from a file for the secret content. You must run this command on a manager node. 
+
+For detailed information about using secrets, refer to [manage sensitive data with Docker secrets](https://docs.docker.com/engine/swarm/secrets/).
 
 ## Examples
 

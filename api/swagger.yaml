@@ -479,10 +479,10 @@ definitions:
         description: |
           The test to perform. Possible values are:
 
-          - `{}` inherit healthcheck from image or parent image
-          - `{"NONE"}` disable healthcheck
-          - `{"CMD", args...}` exec arguments directly
-          - `{"CMD-SHELL", command}` run command with system's default shell
+          - `[]` inherit healthcheck from image or parent image
+          - `["NONE"]` disable healthcheck
+          - `["CMD", args...]` exec arguments directly
+          - `["CMD-SHELL", command]` run command with system's default shell
         type: "array"
         items:
           type: "string"

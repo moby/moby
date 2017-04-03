@@ -36,6 +36,8 @@ the given template will be executed for each result.
 Go's [text/template](http://golang.org/pkg/text/template/) package
 describes all the details of the format.
 
+For detailed information about using secrets, refer to [manage sensitive data with Docker secrets](https://docs.docker.com/engine/swarm/secrets/).
+
 ## Examples
 
 ### Inspect a secret by name or ID
