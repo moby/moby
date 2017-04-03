@@ -27,10 +27,12 @@ Options:
       --help   Print usage
 ```
 
+## Description
+
 Remove the stack from the swarm. This command has to be run targeting
 a manager node.
 
-## Related information
+## Related commands
 
 * [stack deploy](stack_deploy.md)
 * [stack ls](stack_ls.md)

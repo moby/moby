@@ -34,9 +34,12 @@ Options:
       --task-history-limit int          Task history retention limit (default 5)
 ```
 
+## Description
+
 Initialize a swarm. The docker engine targeted by this command becomes a manager
 in the newly created single-node swarm.
 
+## Examples
 
 ```bash
 $ docker swarm init --advertise-addr 192.168.99.121
@@ -133,7 +136,7 @@ Snapshots compact the Raft log and allow for more efficient transfer of the
 state to new managers. However, there is a performance cost to taking snapshots
 frequently.
 
-## Related information
+## Related commands
 
 * [swarm join](swarm_join.md)
 * [swarm leave](swarm_leave.md)

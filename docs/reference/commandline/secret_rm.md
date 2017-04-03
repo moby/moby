@@ -27,8 +27,12 @@ Options:
       --help   Print usage
 ```
 
+## Description
+
 Removes the specified secrets from the swarm. This command has to be run
 targeting a manager node.
+
+## Examples
 
 This example removes a secret:
 
@@ -41,7 +45,7 @@ sapth4csdo5b6wz2p5uimh5xg
 > before removing a secret.
 
 
-## Related information
+## Related commands
 
 * [secret create](secret_create.md)
 * [secret inspect](secret_inspect.md)

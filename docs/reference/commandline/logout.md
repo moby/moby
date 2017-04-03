@@ -25,6 +25,8 @@ Options:
       --help   Print usage
 ```
 
-For example:
+## Examples
 
-    $ docker logout localhost:8080
+```bash
+$ docker logout localhost:8080
+```

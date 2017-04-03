@@ -16,12 +16,16 @@ Options:
       --help    Print usage
 ```
 
-Remove all unused networks. Unused networks are those which are not referenced by any containers.
+## Description
 
-Example output:
+Remove all unused networks. Unused networks are those which are not referenced
+by any containers.
+
+## Examples
 
 ```bash
 $ docker network prune
+
 WARNING! This will remove all networks not used by at least one container.
 Are you sure you want to continue? [y/N] y
 Deleted Networks:
@@ -29,7 +33,7 @@ n1
 n2
 ```
 
-## Related information
+## Related commands
 
 * [network disconnect ](network_disconnect.md)
 * [network connect](network_connect.md)

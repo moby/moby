@@ -25,7 +25,16 @@ Options:
       --help            Print usage
 ```
 
-Returns information about one or more networks. By default, this command renders all results in a JSON object. For example, if you connect two containers to the default `bridge` network:
+## Description
+
+Returns information about one or more networks. By default, this command renders
+all results in a JSON object.
+
+## Examples
+
+## Inspect the `bridge` network
+
+Connect two containers to the default `bridge` network:
 
 ```bash
 $ sudo docker run -itd --name=container1 busybox
@@ -47,8 +56,9 @@ template for each result. Go's
 [text/template](http://golang.org/pkg/text/template/) package describes all the
 details of the format.
 
-```bash
+```none
 $ sudo docker network inspect bridge
+
 [
     {
         "Name": "bridge",
@@ -95,12 +105,19 @@ $ sudo docker network inspect bridge
 ]
 ```
 
-Returns the information about the user-defined network:
+### Inspect a user-defined network
+
+Create and inspect a user-defined network:
 
 ```bash
 $ docker network create simple-network
+
 69568e6336d8c96bbf57869030919f7c69524f71183b44d80948bd3927c87f6a
+```
+
+```none
 $ docker network inspect simple-network
+
 [
     {
         "Name": "simple-network",
@@ -124,12 +141,15 @@ $ docker network inspect simple-network
 ]
 ```
 
-For swarm mode overlay networks `network inspect` also shows the IP address and node name 
-of the peers. Peers are the nodes in the swarm cluster which have at least one task attached 
+### Inspect the `ingress` network
+
+For swarm mode overlay networks `network inspect` also shows the IP address and node name
+of the peers. Peers are the nodes in the swarm cluster which have at least one task attached
 to the network. Node name is of the format `<hostname>-<unique ID>`.
 
-```bash
+```none
 $ docker network inspect ingress
+
 [
     {
         "Name": "ingress",
@@ -181,7 +201,7 @@ $ docker network inspect ingress
 ]
 ```
 
-## Related information
+## Related commands
 
 * [network disconnect ](network_disconnect.md)
 * [network connect](network_connect.md)

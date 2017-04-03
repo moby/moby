@@ -27,24 +27,29 @@ Options:
       --help   Print usage
 ```
 
+## Description
+
 Removes the specified services from the swarm. This command has to be run
 targeting a manager node.
 
-For example, to remove the redis service:
+## Examples
+
+Remove the `redis` service:
 
 ```bash
 $ docker service rm redis
+
 redis
+
 $ docker service ls
+
 ID  NAME  MODE  REPLICAS  IMAGE
 ```
 
 > **Warning**: Unlike `docker rm`, this command does not ask for confirmation
 > before removing a running service.
 
-
-
-## Related information
+## Related commands
 
 * [service create](service_create.md)
 * [service inspect](service_inspect.md)

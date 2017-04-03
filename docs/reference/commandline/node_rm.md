@@ -28,33 +28,40 @@ Options:
       --help    Print usage
 ```
 
+## Description
+
 When run from a manager node, removes the specified nodes from a swarm.
 
 
-Example output:
+## Examples
 
-```nohighlight
+### Remove a stopped node from the swarm
+
+```bash
 $ docker node rm swarm-node-02
 
 Node swarm-node-02 removed from swarm
 ```
+### Attempt to remove a running node from a swarm
 
 Removes the specified nodes from the swarm, but only if the nodes are in the
 down state. If you attempt to remove an active node you will receive an error:
 
-```nohighlight
+```non
 $ docker node rm swarm-node-03
 
 Error response from daemon: rpc error: code = 9 desc = node swarm-node-03 is not
 down and can't be removed
 ```
 
+### Forcibly remove an inaccessible node from a swarm
+
 If you lose access to a worker node or need to shut it down because it has been
 compromised or is not behaving as expected, you can use the `--force` option.
 This may cause transient errors or interruptions, depending on the type of task
 being run on the node.
 
-```nohighlight
+```bash
 $ docker node rm --force swarm-node-03
 
 Node swarm-node-03 removed from swarm
@@ -63,7 +70,7 @@ Node swarm-node-03 removed from swarm
 A manager node must be demoted to a worker node (using `docker node demote`)
 before you can remove it from the swarm.
 
-## Related information
+## Related commands
 
 * [node demote](node_demote.md)
 * [node inspect](node_inspect.md)

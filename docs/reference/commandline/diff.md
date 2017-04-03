@@ -24,8 +24,10 @@ Options:
       --help   Print usage
 ```
 
-List the changed files and directories in a container᾿s filesystem.
- There are 3 events that are listed in the `diff`:
+## Description
+
+List the changed files and directories in a container᾿s filesystem since the
+container was created. Three different types of change are tracked:
 
 1. `A` - Add
 2. `D` - Delete

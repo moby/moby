@@ -25,6 +25,8 @@ Options:
   -l, --label list    Secret labels (default [])
 ```
 
+## Description
+
 Creates a secret using standard input or from a file for the secret content. You must run this
 command on a manager node.
 
@@ -45,9 +47,11 @@ mhv17xfe3gh6xc4rij5orpfds   my_secret               2016-10-27 23:25:43.90918108
 
 ```bash
 $ docker secret create my_secret ./secret.json
+
 mhv17xfe3gh6xc4rij5orpfds
 
 $ docker secret ls
+
 ID                          NAME                    CREATED                                   UPDATED                                   SIZE
 mhv17xfe3gh6xc4rij5orpfds   my_secret               2016-10-27 23:25:43.909181089 +0000 UTC   2016-10-27 23:25:43.909181089 +0000 UTC   1679
 ```
@@ -55,10 +59,16 @@ mhv17xfe3gh6xc4rij5orpfds   my_secret               2016-10-27 23:25:43.90918108
 ### Create a secret with labels
 
 ```bash
-$ docker secret create --label env=dev --label rev=20161102 my_secret ./secret.json
-jtn7g6aukl5ky7nr9gvwafoxh
+$ docker secret create --label env=dev \
+                       --label rev=20161102 \
+                       my_secret ./secret.json
 
+jtn7g6aukl5ky7nr9gvwafoxh
+```
+
+```none
 $ docker secret inspect my_secret
+
 [
     {
         "ID": "jtn7g6aukl5ky7nr9gvwafoxh",
@@ -79,11 +89,10 @@ $ docker secret inspect my_secret
         "SecretSize": 1679
     }
 ]
-
 ```
 
 
-## Related information
+## Related commands
 
 * [secret inspect](secret_inspect.md)
 * [secret ls](secret_ls.md)
