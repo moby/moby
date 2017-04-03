@@ -220,9 +220,7 @@ func transform(source map[string]interface{}, target interface{}) error {
 	if err != nil {
 		return err
 	}
-	err = decoder.Decode(source)
-	// TODO: log unused keys
-	return err
+	return decoder.Decode(source)
 }
 
 func transformHook(

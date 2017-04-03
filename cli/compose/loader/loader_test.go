@@ -674,6 +674,7 @@ func TestFullExample(t *testing.T) {
 			Placement: types.Placement{
 				Constraints: []string{"node=foo"},
 			},
+			EndpointMode: "dnsrr",
 		},
 		Devices:    []string{"/dev/ttyUSB0:/dev/ttyUSB0"},
 		DNS:        []string{"8.8.8.8", "9.9.9.9"},
