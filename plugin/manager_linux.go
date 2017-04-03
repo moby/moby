@@ -194,7 +194,7 @@ func (pm *Manager) Shutdown() {
 }
 
 func (pm *Manager) upgradePlugin(p *v2.Plugin, configDigest digest.Digest, blobsums []digest.Digest, tmpRootFSDir string, privileges *types.PluginPrivileges) (err error) {
-	config, err := pm.setupNewPlugin(configDigest, blobsums, privileges)
+	config, err := pm.setupNewPlugin(configDigest, privileges)
 	if err != nil {
 		return err
 	}
@@ -245,7 +245,7 @@ func (pm *Manager) upgradePlugin(p *v2.Plugin, configDigest digest.Digest, blobs
 	return errors.Wrap(err, "error saving upgraded plugin config")
 }
 
-func (pm *Manager) setupNewPlugin(configDigest digest.Digest, blobsums []digest.Digest, privileges *types.PluginPrivileges) (types.PluginConfig, error) {
+func (pm *Manager) setupNewPlugin(configDigest digest.Digest, privileges *types.PluginPrivileges) (types.PluginConfig, error) {
 	configRC, err := pm.blobStore.Get(configDigest)
 	if err != nil {
 		return types.PluginConfig{}, err
@@ -280,7 +280,7 @@ func (pm *Manager) createPlugin(name string, configDigest digest.Digest, blobsum
 		return nil, errdefs.InvalidParameter(err)
 	}
 
-	config, err := pm.setupNewPlugin(configDigest, blobsums, privileges)
+	config, err := pm.setupNewPlugin(configDigest, privileges)
 	if err != nil {
 		return nil, err
 	}

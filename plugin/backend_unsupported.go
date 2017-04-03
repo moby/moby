@@ -70,3 +70,13 @@ func (pm *Manager) Set(name string, args []string) error {
 func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, options *types.PluginCreateOptions) error {
 	return errNotSupported
 }
+
+// LoadPlugin loads a plugin from a tar stream
+func (pm *Manager) LoadPlugin(ctx context.Context, input io.ReadCloser, outStream io.Writer) error {
+	return errNotSupported
+}
+
+// SavePlugin saves a plugin into a tar stream
+func (pm *Manager) SavePlugin(ctx context.Context, plugin string, output io.Writer) error {
+	return errNotSupported
+}

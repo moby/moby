@@ -351,6 +351,9 @@ type TaskListOptions struct {
 	Filters filters.Args
 }
 
+// PluginLoadResponse returns information to the client about a load process.
+type PluginLoadResponse ImageLoadResponse
+
 // PluginRemoveOptions holds parameters to remove plugins.
 type PluginRemoveOptions struct {
 	Force bool

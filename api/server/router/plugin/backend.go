@@ -24,4 +24,6 @@ type Backend interface {
 	Push(ctx context.Context, name string, metaHeaders http.Header, authConfig *enginetypes.AuthConfig, outStream io.Writer) error
 	Upgrade(ctx context.Context, ref reference.Named, name string, metaHeaders http.Header, authConfig *enginetypes.AuthConfig, privileges enginetypes.PluginPrivileges, outStream io.Writer) error
 	CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, options *enginetypes.PluginCreateOptions) error
+	SavePlugin(ctx context.Context, plugin string, output io.Writer) error
+	LoadPlugin(ctx context.Context, input io.Reader, outStream io.Writer) error
 }

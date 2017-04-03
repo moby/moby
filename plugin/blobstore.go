@@ -14,15 +14,23 @@ import (
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
+	"github.com/docker/docker/pkg/symlink"
 	"github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
+var errDigestMismatch = errors.New("digest does not match")
+
 type blobstore interface {
 	New() (WriteCommitCloser, error)
+	readOnlyBlobstore
+}
+
+type readOnlyBlobstore interface {
 	Get(dgst digest.Digest) (io.ReadCloser, error)
 	Size(dgst digest.Digest) (int64, error)
 }
@@ -40,7 +48,11 @@ func newBasicBlobStore(p string) (*basicBlobStore, error) {
 }
 
 func (b *basicBlobStore) New() (WriteCommitCloser, error) {
-	f, err := ioutil.TempFile(filepath.Join(b.path, "tmp"), ".insertion")
+	tmpPath := filepath.Join(b.path, "tmp")
+	if err := os.MkdirAll(tmpPath, 0755); err != nil {
+		return nil, errors.Wrap(err, "failed to create tmp dir")
+	}
+	f, err := ioutil.TempFile(tmpPath, ".insertion")
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create temp file")
 	}
@@ -48,7 +60,12 @@ func (b *basicBlobStore) New() (WriteCommitCloser, error) {
 }
 
 func (b *basicBlobStore) Get(dgst digest.Digest) (io.ReadCloser, error) {
-	return os.Open(filepath.Join(b.path, string(dgst.Algorithm()), dgst.Hex()))
+	p := filepath.Join(b.path, string(dgst.Algorithm()), dgst.Hex())
+	p, err := symlink.FollowSymlinkInScope(p, b.path)
+	if err != nil {
+		return nil, errors.Wrap(err, "error in blob path")
+	}
+	return os.Open(p)
 }
 
 func (b *basicBlobStore) Size(dgst digest.Digest) (int64, error) {
@@ -79,6 +96,11 @@ func (b *basicBlobStore) gc(whitelist map[digest.Digest]struct{}) {
 // WriteCommitCloser defines object that can be committed to blobstore.
 type WriteCommitCloser interface {
 	io.WriteCloser
+	Committer
+}
+
+// Committer is an object that can commit a blob and return it's digest
+type Committer interface {
 	Commit() (digest.Digest, error)
 }
 
@@ -107,7 +129,9 @@ func (i *insertion) Commit() (digest.Digest, error) {
 	if err := os.MkdirAll(filepath.Join(d, string(dgst.Algorithm())), 0700); err != nil {
 		return "", errors.Wrapf(err, "failed to mkdir %v", d)
 	}
-	if err := os.Rename(p, filepath.Join(d, string(dgst.Algorithm()), dgst.Hex())); err != nil {
+
+	blobPath := filepath.Join(d, string(dgst.Algorithm()), dgst.Hex())
+	if err := os.Rename(p, blobPath); err != nil {
 		return "", errors.Wrapf(err, "failed to rename %v", p)
 	}
 	return dgst, nil
@@ -183,7 +207,44 @@ func (dm *downloadManager) Get(d digest.Digest) ([]byte, error) {
 func (dm *downloadManager) RootFSFromConfig(c []byte) (*image.RootFS, error) {
 	return configToRootFS(c)
 }
+
 func (dm *downloadManager) PlatformFromConfig(c []byte) (*specs.Platform, error) {
 	// TODO: LCOW/Plugins. This will need revisiting. For now use the runtime OS
 	return &specs.Platform{OS: runtime.GOOS}, nil
+}
+
+// getBlob looks for a blob in the passed in local blob store, then the remote store
+// If the blob is in the remote store it sets up the blob to be imported into the
+// local store once read, and returns a function to verifiy the imported digest
+// against the passed in digest.
+func getBlob(local blobstore, remote readOnlyBlobstore, dgst digest.Digest) (io.ReadCloser, func() error, error) {
+	if f, err := local.Get(dgst); err == nil {
+		return f, func() error { return nil }, nil
+	}
+
+	f, err := remote.Get(dgst)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	committer, err := local.New()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	verifier := func() error {
+		d, err := committer.Commit()
+		if err != nil {
+			return err
+		}
+		if d != dgst {
+			return errDigestMismatch
+		}
+		return nil
+	}
+
+	return ioutils.NewReadCloserWrapper(io.TeeReader(f, committer), func() error {
+		committer.Close()
+		return f.Close()
+	}), verifier, nil
 }
