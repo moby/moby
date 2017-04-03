@@ -17,7 +17,7 @@ aliases: ["/engine/reference/commandline/service_tasks/"]
 # service ps
 
 ```Markdown
-Usage:  docker service ps [OPTIONS] SERVICE
+Usage:  docker service ps [OPTIONS] SERVICE [SERVICE...]
 
 List the tasks of one or more services
 
@@ -147,11 +147,9 @@ ID            NAME      IMAGE        NODE      DESIRED STATE  CURRENT STATE     
 8eaxrb2fqpbn  redis.10  redis:3.0.6  manager1  Running        Running 8 seconds
 ```
 
-
 #### desired-state
 
-The `desired-state` filter can take the values `running`, `shutdown`, and `accepted`.
-
+The `desired-state` filter can take the values `running`, `shutdown`, or `accepted`.
 
 ### Formatting
 
@@ -166,7 +164,7 @@ Placeholder     | Description
 `.Name`         | Task name
 `.Image`        | Task image
 `.Node`         | Node ID
-`.DesiredState` | Desired state of the task (`running`, `shutdown`, and `accepted`)
+`.DesiredState` | Desired state of the task (`running`, `shutdown`, or `accepted`)
 `.CurrentState` | Current state of the task
 `.Error`        | Error
 `.Ports`        | Task published ports
@@ -176,7 +174,7 @@ output the data exactly as the template declares or, when using the
 `table` directive, includes column headers as well.
 
 The following example uses a template without headers and outputs the
-`ID` and `Driver` entries separated by a colon for all tasks:
+`Name` and `Image` entries separated by a colon for all tasks:
 
 ```bash
 $ docker service ps --format "{{.Name}}: {{.Image}}" top

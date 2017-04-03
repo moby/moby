@@ -21,6 +21,7 @@ Filters the output based on these conditions:
    - label=<key> or label=<key>=<value>
    - before=(<image-name>[:tag]|<image-id>|<image@digest>)
    - since=(<image-name>[:tag]|<image-id>|<image@digest>)
+   - reference=(pattern of an image reference)
 
 ## Format
 
