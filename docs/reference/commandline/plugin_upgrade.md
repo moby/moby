@@ -27,10 +27,14 @@ Options:
       --skip-remote-check       Do not check if specified remote plugin matches existing plugin image
 ```
 
+## Description
+
 Upgrades an existing plugin to the specified remote plugin image. If no remote
 is specified, Docker will re-pull the current image and use the updated version.
 All existing references to the plugin will continue to work.
 The plugin must be disabled before running the upgrade.
+
+## Examples
 
 The following example installs `vieus/sshfs` plugin, uses it to create and use
 a volume, then upgrades the plugin.
@@ -71,7 +75,7 @@ $ docker run -it -v sshvolume:/data alpine sh -c "ls /data"
 hello
 ```
 
-## Related information
+## Related commands
 
 * [plugin create](plugin_create.md)
 * [plugin disable](plugin_disable.md)

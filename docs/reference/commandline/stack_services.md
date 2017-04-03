@@ -27,10 +27,14 @@ Options:
   -q, --quiet          Only display IDs
 ```
 
+### Description
+
 Lists the services that are running as part of the specified stack. This
 command has to be run targeting a manager node.
 
-For example, the following command shows all services in the `myapp` stack:
+### Examples
+
+The following command shows all services in the `myapp` stack:
 
 ```bash
 $ docker stack services myapp
@@ -40,7 +44,7 @@ ID            NAME            REPLICAS  IMAGE                                   
 dn7m7nhhfb9y  myapp_db        1/1       mysql@sha256:a9a5b559f8821fe73d58c3606c812d1c044868d42c63817fa5125fd9d8b7b539
 ```
 
-## Filtering
+### Filtering
 
 The filtering flag (`-f` or `--filter`) format is a `key=value` pair. If there
 is more than one filter, then pass multiple flags (e.g. `--filter "foo=bar" --filter "bif=baz"`).
@@ -62,7 +66,7 @@ The currently supported filters are:
 * name (`--filter name=myapp_web`)
 * label (`--filter label=key=value`)
 
-## Related information
+## Related commands
 
 * [stack deploy](stack_deploy.md)
 * [stack ls](stack_ls.md)

@@ -26,12 +26,17 @@ Options:
       --help    Print usage
 ```
 
+## Description
+
 Remove all dangling images. If `-a` is specified, will also remove all images not referenced by any container.
+
+## Examples
 
 Example output:
 
 ```bash
 $ docker image prune -a
+
 WARNING! This will remove all images without at least one container associated to them.
 Are you sure you want to continue? [y/N] y
 Deleted Images:
@@ -62,7 +67,7 @@ deleted: sha256:2c675ee9ed53425e31a13e3390bf3f539bf8637000e4bcfbb85ee03ef4d910a1
 Total reclaimed space: 16.43 MB
 ```
 
-## Related information
+## Related commands
 
 * [system df](system_df.md)
 * [container prune](container_prune.md)

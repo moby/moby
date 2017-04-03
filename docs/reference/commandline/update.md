@@ -37,6 +37,8 @@ Options:
       --restart string              Restart policy to apply when a container exits
 ```
 
+## Description
+
 The `docker update` command dynamically updates container configuration.
 You can use this command to prevent containers from consuming too many
 resources from their Docker host.  With a single command, you can place

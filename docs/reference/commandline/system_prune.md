@@ -26,12 +26,15 @@ Options:
       --help    Print usage
 ```
 
+## Description
+
 Remove all unused containers, volumes, networks and images (both dangling and unreferenced).
 
-Example output:
+## Examples
 
 ```bash
 $ docker system prune -a
+
 WARNING! This will remove:
 	- all stopped containers
 	- all volumes not used by at least one container
@@ -64,7 +67,7 @@ deleted: sha256:3a88a5c81eb5c283e72db2dbc6d65cbfd8e80b6c89bb6e714cfaaa0eed99c548
 Total reclaimed space: 13.5 MB
 ```
 
-## Related information
+## Related commands
 
 * [volume create](volume_create.md)
 * [volume ls](volume_ls.md)

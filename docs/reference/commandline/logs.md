@@ -29,6 +29,8 @@ Options:
   -t, --timestamps     Show timestamps
 ```
 
+## Description
+
 The `docker logs` command batch-retrieves logs present at the time of execution.
 
 > **Note**: this command is only functional for containers that are started with

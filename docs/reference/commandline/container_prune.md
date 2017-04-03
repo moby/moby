@@ -25,7 +25,13 @@ Options:
       --help    Print usage
 ```
 
+## Description
+
+Removes all stopped containers.
+
 ## Examples
+
+### Prune containers
 
 ```bash
 $ docker container prune
@@ -38,7 +44,7 @@ f98f9c2aa1eaf727e4ec9c0283bc7d4aa4762fbdba7f26191f26c97f64090360
 Total reclaimed space: 212 B
 ```
 
-## Related information
+## Related commands
 
 * [system df](system_df.md)
 * [volume prune](volume_prune.md)

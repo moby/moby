@@ -25,6 +25,8 @@ You start the Docker daemon with the command line. How you start the daemon
 affects your Docker containers. For that reason you should also make sure to
 read the [`dockerd`](dockerd.md) reference page.
 
+## Commands by object
+
 ### Docker management commands
 
 | Command | Description                                                        |
@@ -122,7 +124,7 @@ read the [`dockerd`](dockerd.md) reference page.
 | [node ls](node_ls.md) | List nodes in the swarm                              |
 | [node rm](node_rm.md) | Remove one or more nodes from the swarm                         |
 
-### Swarm swarm commands
+### Swarm management commands
 
 | Command | Description                                                        |
 |:--------|:-------------------------------------------------------------------|

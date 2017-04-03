@@ -28,10 +28,12 @@ Options:
       --no-trunc   Don't truncate output
 ```
 
+## Description
+
 Lists all the plugins that are currently installed. You can install plugins
 using the [`docker plugin install`](plugin_install.md) command.
 
-Example output:
+## Examples
 
 ```bash
 $ docker plugin ls
@@ -40,7 +42,7 @@ ID                  NAME                             TAG                 DESCRIP
 69553ca1d123        tiborvass/sample-volume-plugin   latest              A test plugin for Docker   true
 ```
 
-## Related information
+## Related commands
 
 * [plugin create](plugin_create.md)
 * [plugin disable](plugin_disable.md)

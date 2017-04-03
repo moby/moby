@@ -26,6 +26,8 @@ Options:
       --help                    Print usage
 ```
 
+## Description
+
 Most of your images will be created on top of a base image from the
 [Docker Hub](https://hub.docker.com) registry.
 
@@ -35,7 +37,7 @@ can `pull` and try without needing to define and configure your own.
 To download a particular image, or set of images (i.e., a repository),
 use `docker pull`.
 
-## Proxy configuration
+### Proxy configuration
 
 If you are behind an HTTP proxy server, for example in corporate settings,
 before open a connect to registry, you may need to configure the Docker
@@ -44,7 +46,7 @@ environment variables. To set these environment variables on a host using
 `systemd`, refer to the [control and configure Docker with systemd](https://docs.docker.com/engine/admin/systemd/#http-proxy)
 for variables configuration.
 
-## Concurrent downloads
+### Concurrent downloads
 
 By default the Docker daemon will pull three layers of an image at a time.
 If you are on a low bandwidth connection this may cause timeout issues and you may want to lower
@@ -110,7 +112,7 @@ For more information about images, layers, and the content-addressable store,
 refer to [understand images, containers, and storage drivers](https://docs.docker.com/engine/userguide/storagedriver/imagesandcontainers/).
 
 
-## Pull an image by digest (immutable identifier)
+### Pull an image by digest (immutable identifier)
 
 So far, you've pulled images by their name (and "tag"). Using names and tags is
 a convenient way to work with images. When using tags, you can `docker pull` an
@@ -175,7 +177,7 @@ MAINTAINER some maintainer <maintainer@example.com>
 > digest accordingly.
 
 
-## Pulling from a different registry
+### Pull from a different registry
 
 By default, `docker pull` pulls images from [Docker Hub](https://hub.docker.com). It is also possible to
 manually specify the path of a registry to pull from. For example, if you have
@@ -196,7 +198,7 @@ registry is allowed to be accessed over an insecure connection. Refer to the
 [insecure registries](dockerd.md#insecure-registries) section for more information.
 
 
-## Pull a repository with multiple images
+### Pull a repository with multiple images
 
 By default, `docker pull` pulls a *single* image from the registry. A repository
 can contain multiple images. To pull all images from a repository, provide the
@@ -231,7 +233,7 @@ fedora       heisenbug   105182bb5e8b    5 days ago   372.7 MB
 fedora       latest      105182bb5e8b    5 days ago   372.7 MB
 ```
 
-## Canceling a pull
+### Cancel a pull
 
 Killing the `docker pull` process, for example by pressing `CTRL-c` while it is
 running in a terminal, will terminate the pull operation.
