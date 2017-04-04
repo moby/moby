@@ -28,6 +28,26 @@ type SecretsProvider interface {
 	Secrets() SecretsManager
 }
 
+// ConfigsProvider is implemented by objects that can store configs,
+// typically an executor.
+type ConfigsProvider interface {
+	Configs() ConfigsManager
+}
+
+// DependencyManager is a meta-object that can keep track of typed objects
+// such as secrets and configs.
+type DependencyManager interface {
+	SecretsProvider
+	ConfigsProvider
+}
+
+// DependencyGetter is a meta-object that can provide access to typed objects
+// such as secrets and configs.
+type DependencyGetter interface {
+	Secrets() SecretGetter
+	Configs() ConfigGetter
+}
+
 // SecretGetter contains secret data necessary for the Controller.
 type SecretGetter interface {
 	// Get returns the the secret with a specific secret ID, if available.
@@ -42,4 +62,20 @@ type SecretsManager interface {
 	Add(secrets ...api.Secret) // add one or more secrets
 	Remove(secrets []string)   // remove the secrets by ID
 	Reset()                    // remove all secrets
+}
+
+// ConfigGetter contains config data necessary for the Controller.
+type ConfigGetter interface {
+	// Get returns the the config with a specific config ID, if available.
+	// When the config is not available, the return will be nil.
+	Get(configID string) *api.Config
+}
+
+// ConfigsManager is the interface for config storage and updates.
+type ConfigsManager interface {
+	ConfigGetter
+
+	Add(configs ...api.Config) // add one or more configs
+	Remove(configs []string)   // remove the configs by ID
+	Reset()                    // remove all configs
 }

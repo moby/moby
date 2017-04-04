@@ -92,7 +92,7 @@ service Control {
 		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
 	};
 
-	// ListSecrets returns a `ListSecretResponse` with a list all non-internal `Secret`s being
+	// ListSecrets returns a `ListSecretResponse` with a list of all non-internal `Secret`s being
 	// managed, or all secrets matching any name in `ListSecretsRequest.Names`, any
 	// name prefix in `ListSecretsRequest.NamePrefixes`, any id in
 	// `ListSecretsRequest.SecretIDs`, or any id prefix in `ListSecretsRequest.IDPrefixes`.
@@ -114,6 +114,51 @@ service Control {
 	// - Returns `NotFound` if the a secret named `RemoveSecretRequest.ID` is not found.
 	// - Returns an error if the deletion fails.
 	rpc RemoveSecret(RemoveSecretRequest) returns (RemoveSecretResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	}
+
+	// --- config APIs ---
+
+	// GetConfig returns a `GetConfigResponse` with a `Config` with the same
+	// id as `GetConfigRequest.ConfigID`
+	// - Returns `NotFound` if the Config with the given id is not found.
+	// - Returns `InvalidArgument` if the `GetConfigRequest.ConfigID` is empty.
+	// - Returns an error if getting fails.
+	rpc GetConfig(GetConfigRequest) returns (GetConfigResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	}
+
+	// UpdateConfig returns a `UpdateConfigResponse` with a `Config` with the same
+	// id as `GetConfigRequest.ConfigID`
+	// - Returns `NotFound` if the Config with the given id is not found.
+	// - Returns `InvalidArgument` if the `GetConfigRequest.ConfigID` is empty.
+	// - Returns an error if updating fails.
+	rpc UpdateConfig(UpdateConfigRequest) returns (UpdateConfigResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	};
+
+	// ListConfigs returns a `ListConfigResponse` with a list of `Config`s being
+	// managed, or all configs matching any name in `ListConfigsRequest.Names`, any
+	// name prefix in `ListConfigsRequest.NamePrefixes`, any id in
+	// `ListConfigsRequest.ConfigIDs`, or any id prefix in `ListConfigsRequest.IDPrefixes`.
+	// - Returns an error if listing fails.
+	rpc ListConfigs(ListConfigsRequest) returns (ListConfigsResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	}
+	// CreateConfig creates and return a `CreateConfigResponse` with a `Config` based
+	// on the provided `CreateConfigRequest.ConfigSpec`.
+	// - Returns `InvalidArgument` if the `CreateConfigRequest.ConfigSpec` is malformed,
+	//   or if the config data is too long or contains invalid characters.
+	// - Returns an error if the creation fails.
+	rpc CreateConfig(CreateConfigRequest) returns (CreateConfigResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	}
+
+	// RemoveConfig removes the config referenced by `RemoveConfigRequest.ID`.
+	// - Returns `InvalidArgument` if `RemoveConfigRequest.ID` is empty.
+	// - Returns `NotFound` if the a config named `RemoveConfigRequest.ID` is not found.
+	// - Returns an error if the deletion fails.
+	rpc RemoveConfig(RemoveConfigRequest) returns (RemoveConfigResponse) {
 		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
 	}
 }
@@ -396,7 +441,6 @@ message UpdateSecretResponse {
 	Secret secret = 1;
 }
 
-
 // ListSecretRequest is the request to list all non-internal secrets in the secret store,
 // or all secrets filtered by (name or name prefix or id prefix) and labels.
 message ListSecretsRequest {
@@ -424,7 +468,7 @@ message CreateSecretRequest {
 	SecretSpec spec = 1;
 }
 
-// CreateSecretResponse contains the newly created `Secret`` corresponding to the
+// CreateSecretResponse contains the newly created `Secret` corresponding to the
 // name in `CreateSecretRequest`.  The `Secret.Spec.Data` field should be nil instead
 // of actually containing the secret bytes.
 message CreateSecretResponse {
@@ -440,3 +484,71 @@ message RemoveSecretRequest {
 // RemoveSecretResponse is an empty object indicating the successful removal of
 // a secret.
 message RemoveSecretResponse {}
+
+// GetConfigRequest is the request to get a `Config` object given a config id.
+message GetConfigRequest {
+	string config_id = 1;
+}
+
+// GetConfigResponse contains the Config corresponding to the id in
+// `GetConfigRequest`.
+message GetConfigResponse {
+	Config config = 1;
+}
+
+message UpdateConfigRequest {
+	// ConfigID is the config ID to update.
+	string config_id = 1;
+
+	// ConfigVersion is the version of the config being updated.
+	Version config_version = 2;
+
+	// Spec is the new spec to apply to the Config
+	// Only some fields are allowed to be updated.
+	ConfigSpec spec = 3;
+}
+
+message UpdateConfigResponse {
+	Config config = 1;
+}
+
+// ListConfigRequest is the request to list all configs in the config store,
+// or all configs filtered by (name or name prefix or id prefix) and labels.
+message ListConfigsRequest {
+	message Filters {
+		repeated string names = 1;
+		repeated string id_prefixes = 2;
+		map<string, string> labels = 3;
+		repeated string name_prefixes = 4;
+	}
+
+	Filters filters = 1;
+}
+
+// ListConfigResponse contains a list of all the configs that match the name or
+// name prefix filters provided in `ListConfigRequest`.
+message ListConfigsResponse {
+	repeated Config configs = 1;
+}
+
+// CreateConfigRequest specifies a new config (it will not update an existing
+// config) to create.
+message CreateConfigRequest {
+	ConfigSpec spec = 1;
+}
+
+// CreateConfigResponse contains the newly created `Config` corresponding to the
+// name in `CreateConfigRequest`.
+message CreateConfigResponse {
+	Config config = 1;
+}
+
+// RemoveConfigRequest contains the ID of the config that should be removed.  This
+// removes all versions of the config.
+message RemoveConfigRequest {
+	string config_id = 1;
+}
+
+// RemoveConfigResponse is an empty object indicating the successful removal of
+// a config.
+message RemoveConfigResponse {}

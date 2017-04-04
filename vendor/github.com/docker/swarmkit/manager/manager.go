@@ -65,6 +65,9 @@ type RemoteAddrs struct {
 type Config struct {
 	SecurityConfig *ca.SecurityConfig
 
+	// RootCAPaths is the path to which new root certs should be save
+	RootCAPaths ca.CertPaths
+
 	// ExternalCAs is a list of initial CAs to which a manager node
 	// will make certificate signing requests for node certificates.
 	ExternalCAs []*api.ExternalCA
@@ -210,7 +213,7 @@ func New(config *Config) (*Manager, error) {
 
 	m := &Manager{
 		config:          *config,
-		caserver:        ca.NewServer(raftNode.MemoryStore(), config.SecurityConfig),
+		caserver:        ca.NewServer(raftNode.MemoryStore(), config.SecurityConfig, config.RootCAPaths),
 		dispatcher:      dispatcher.New(raftNode, dispatcher.DefaultConfig()),
 		logbroker:       logbroker.New(raftNode.MemoryStore()),
 		server:          grpc.NewServer(opts...),

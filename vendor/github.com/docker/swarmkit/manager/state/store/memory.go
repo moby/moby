@@ -33,6 +33,7 @@ const (
 	indexMembership   = "membership"
 	indexNetwork      = "network"
 	indexSecret       = "secret"
+	indexConfig       = "config"
 	indexKind         = "kind"
 	indexCustom       = "custom"
 
@@ -692,6 +693,12 @@ func (tx readTx) findIterators(table string, by By, checkType func(By) error) ([
 		return []memdb.ResultIterator{it}, nil
 	case byReferencedSecretID:
 		it, err := tx.memDBTx.Get(table, indexSecret, string(v))
+		if err != nil {
+			return nil, err
+		}
+		return []memdb.ResultIterator{it}, nil
+	case byReferencedConfigID:
+		it, err := tx.memDBTx.Get(table, indexConfig, string(v))
 		if err != nil {
 			return nil, err
 		}

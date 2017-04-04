@@ -97,7 +97,7 @@ func secretReferencesToGRPC(sr []*types.SecretReference) []*swarmapi.SecretRefer
 		}
 		if s.File != nil {
 			ref.Target = &swarmapi.SecretReference_File{
-				File: &swarmapi.SecretReference_FileTarget{
+				File: &swarmapi.FileTarget{
 					Name: s.File.Name,
 					UID:  s.File.UID,
 					GID:  s.File.GID,

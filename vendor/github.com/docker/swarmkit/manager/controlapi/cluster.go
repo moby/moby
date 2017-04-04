@@ -38,7 +38,7 @@ func validateClusterSpec(spec *api.ClusterSpec) error {
 	}
 
 	// Validate that AcceptancePolicies only include Secrets that are bcrypted
-	// TODO(diogo): Add a global list of acceptace algorithms. We only support bcrypt for now.
+	// TODO(diogo): Add a global list of acceptance algorithms. We only support bcrypt for now.
 	if len(spec.AcceptancePolicy.Policies) > 0 {
 		for _, policy := range spec.AcceptancePolicy.Policies {
 			if policy.Secret != nil && strings.ToLower(policy.Secret.Alg) != "bcrypt" {

@@ -64,6 +64,11 @@ func init() {
 					AllowMissing: true,
 					Indexer:      taskIndexerBySecret{},
 				},
+				indexConfig: {
+					Name:         indexConfig,
+					AllowMissing: true,
+					Indexer:      taskIndexerByConfig{},
+				},
 				indexCustom: {
 					Name:         indexCustom,
 					Indexer:      api.TaskCustomIndexer{},
@@ -143,7 +148,7 @@ func GetTask(tx ReadTx, id string) *api.Task {
 func FindTasks(tx ReadTx, by By) ([]*api.Task, error) {
 	checkType := func(by By) error {
 		switch by.(type) {
-		case byName, byNamePrefix, byIDPrefix, byRuntime, byDesiredState, byTaskState, byNode, byService, bySlot, byReferencedNetworkID, byReferencedSecretID, byCustom, byCustomPrefix:
+		case byName, byNamePrefix, byIDPrefix, byRuntime, byDesiredState, byTaskState, byNode, byService, bySlot, byReferencedNetworkID, byReferencedSecretID, byReferencedConfigID, byCustom, byCustomPrefix:
 			return nil
 		default:
 			return ErrInvalidFindBy
@@ -293,6 +298,33 @@ func (ti taskIndexerBySecret) FromObject(obj interface{}) (bool, [][]byte, error
 	}
 
 	return len(secretIDs) != 0, secretIDs, nil
+}
+
+type taskIndexerByConfig struct{}
+
+func (ti taskIndexerByConfig) FromArgs(args ...interface{}) ([]byte, error) {
+	return fromArgs(args...)
+}
+
+func (ti taskIndexerByConfig) FromObject(obj interface{}) (bool, [][]byte, error) {
+	t, ok := obj.(*api.Task)
+	if !ok {
+		panic("unexpected type passed to FromObject")
+	}
+
+	container := t.Spec.GetContainer()
+	if container == nil {
+		return false, nil, nil
+	}
+
+	var configIDs [][]byte
+
+	for _, configRef := range container.Configs {
+		// Add the null character as a terminator
+		configIDs = append(configIDs, []byte(configRef.ConfigID+"\x00"))
+	}
+
+	return len(configIDs) != 0, configIDs, nil
 }
 
 type taskIndexerByTaskState struct{}

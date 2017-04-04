@@ -197,6 +197,9 @@ message ContainerSpec {
 	// Groups specifies supplementary groups available to the user.
 	repeated string groups = 11;
 
+	// Privileges specifies security configuration/permissions.
+	Privileges privileges = 22;
+
 	// TTY declares that a TTY should be attached to the standard streams,
 	// including stdin if it is still open.
 	bool tty = 13 [(gogoproto.customname) = "TTY"];
@@ -235,6 +238,10 @@ message ContainerSpec {
 	// SecretReference contains references to zero or more secrets that
 	// will be exposed to the container.
 	repeated SecretReference secrets = 12;
+
+	// ConfigReference contains references to zero or more configs that
+	// will be exposed to the container.
+	repeated ConfigReference configs = 21;
 
 	// Hosts allow additional entries to be specified in /etc/hosts
 	// that associates IP addresses with hostnames.
@@ -369,5 +376,15 @@ message SecretSpec {
 	Annotations annotations = 1 [(gogoproto.nullable) = false];
 
 	// Data is the secret payload - the maximum size is 500KB (that is, 500*1024 bytes)
+	bytes data = 2;
+}
+
+// ConfigSpec specifies user-provided configuration files.
+message ConfigSpec {
+	Annotations annotations = 1 [(gogoproto.nullable) = false];
+
+	// Data is the config payload - the maximum size is 500KB (that is, 500*1024 bytes)
+	// TODO(aaronl): Do we want to revise this to include multiple payloads in a single
+	// ConfigSpec? Define this to be a tar? etc...
 	bytes data = 2;
 }
