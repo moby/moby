@@ -151,7 +151,7 @@ func (d *Driver) Remove(id string) error {
 
 	// This assumes the device has been properly Get/Put:ed and thus is unmounted
 	if err := d.DeviceSet.DeleteDevice(id, false); err != nil {
-		return err
+		return fmt.Errorf("failed to remove device %s: %v", id, err)
 	}
 
 	mp := path.Join(d.home, "mnt", id)
