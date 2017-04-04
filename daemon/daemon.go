@@ -526,6 +526,14 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 		}
 	}()
 
+	// set up SIGUSR1 handler on Unix-like systems, or a Win32 global event
+	// on Windows to dump Go routine stacks
+	stackDumpDir := config.Root
+	if execRoot := config.GetExecRoot(); execRoot != "" {
+		stackDumpDir = execRoot
+	}
+	d.setupDumpStackTrap(stackDumpDir)
+
 	if err := d.setupSeccompProfile(); err != nil {
 		return nil, err
 	}
@@ -713,14 +721,6 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	).Set(1)
 	engineCpus.Set(float64(info.NCPU))
 	engineMemory.Set(float64(info.MemTotal))
-
-	// set up SIGUSR1 handler on Unix-like systems, or a Win32 global event
-	// on Windows to dump Go routine stacks
-	stackDumpDir := config.Root
-	if execRoot := config.GetExecRoot(); execRoot != "" {
-		stackDumpDir = execRoot
-	}
-	d.setupDumpStackTrap(stackDumpDir)
 
 	return d, nil
 }
