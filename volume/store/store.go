@@ -568,7 +568,7 @@ func (s *VolumeStore) Remove(v volume.Volume) error {
 
 	vd, err := volumedrivers.GetDriver(v.DriverName())
 	if err != nil {
-		return &OpErr{Err: err, Name: vd.Name(), Op: "remove"}
+		return &OpErr{Err: err, Name: v.DriverName(), Op: "remove"}
 	}
 
 	logrus.Debugf("Removing volume reference: driver %s, name %s", v.DriverName(), name)
