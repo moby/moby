@@ -2,6 +2,10 @@
 set -e
 
 docker-version-osarch() {
+	if ! type docker &>/dev/null; then
+		# docker is not installed
+		return
+	fi
 	local target="$1" # "Client" or "Server"
 	local fmtStr="{{.${target}.Os}}/{{.${target}.Arch}}"
 	if docker version -f "$fmtStr" 2>/dev/null; then
