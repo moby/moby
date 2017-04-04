@@ -20,13 +20,13 @@
 package dockerfile
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/docker/docker/builder/dockerfile/command"
 	"github.com/docker/docker/builder/dockerfile/parser"
-	runconfigopts "github.com/docker/docker/runconfig/opts"
+	"github.com/docker/docker/runconfig/opts"
+	"github.com/pkg/errors"
 )
 
 // Environment variable interpolation will happen on these statements only.
@@ -187,7 +187,7 @@ func (b *Builder) evaluateEnv(cmd string, str string, envs []string) ([]string, 
 // args that are not overriden by runConfig environment variables.
 func (b *Builder) buildArgsWithoutConfigEnv() []string {
 	envs := []string{}
-	configEnv := runconfigopts.ConvertKVStringsToMap(b.runConfig.Env)
+	configEnv := b.runConfigEnvMapping()
 
 	for key, val := range b.buildArgs.GetAllAllowed() {
 		if _, ok := configEnv[key]; !ok {
@@ -195,6 +195,10 @@ func (b *Builder) buildArgsWithoutConfigEnv() []string {
 		}
 	}
 	return envs
+}
+
+func (b *Builder) runConfigEnvMapping() map[string]string {
+	return opts.ConvertKVStringsToMap(b.runConfig.Env)
 }
 
 // checkDispatch does a simple check for syntax errors of the Dockerfile.
@@ -235,5 +239,5 @@ func (b *Builder) checkDispatch(ast *parser.Node, onbuild bool) error {
 		return nil
 	}
 
-	return fmt.Errorf("Unknown instruction: %s", upperCasedCmd)
+	return errors.Errorf("unknown instruction: %s", upperCasedCmd)
 }

@@ -2,7 +2,6 @@ package dockerfile
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -20,7 +19,7 @@ import (
 	"github.com/docker/docker/builder/dockerfile/parser"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
-	perrors "github.com/pkg/errors"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
 
@@ -220,7 +219,7 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 	total := len(dockerfile.Children)
 	for _, n := range dockerfile.Children {
 		if err := b.checkDispatch(n, false); err != nil {
-			return "", perrors.Wrapf(err, "Dockerfile parse error line %d", n.StartLine)
+			return "", errors.Wrapf(err, "Dockerfile parse error line %d", n.StartLine)
 		}
 	}
 
@@ -253,7 +252,7 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 	}
 
 	if b.options.Target != "" && !b.imageContexts.isCurrentTarget(b.options.Target) {
-		return "", perrors.Errorf("failed to reach build target %s in Dockerfile", b.options.Target)
+		return "", errors.Errorf("failed to reach build target %s in Dockerfile", b.options.Target)
 	}
 
 	b.warnOnUnusedBuildArgs()
@@ -269,7 +268,7 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 		}
 		b.image, err = b.docker.SquashImage(b.image, fromID)
 		if err != nil {
-			return "", perrors.Wrap(err, "error squashing image")
+			return "", errors.Wrap(err, "error squashing image")
 		}
 	}
 
