@@ -430,9 +430,17 @@ func (c *Cluster) ServiceLogs(ctx context.Context, selector *backend.LogSelector
 				if err != nil {
 					m.Err = err
 				}
+				// copy over all of the details
+				for _, d := range msg.Attrs {
+					m.Attrs[d.Key] = d.Value
+				}
+				// we have the final say over context details (in case there
+				// is a conflict (if the user added a detail with a context's
+				// key for some reason))
 				m.Attrs[contextPrefix+".node.id"] = msg.Context.NodeID
 				m.Attrs[contextPrefix+".service.id"] = msg.Context.ServiceID
 				m.Attrs[contextPrefix+".task.id"] = msg.Context.TaskID
+
 				switch msg.Stream {
 				case swarmapi.LogStreamStdout:
 					m.Source = "stdout"

@@ -55,8 +55,14 @@ func (s *DockerSwarmSuite) TestServiceLogs(c *check.C) {
 // output.
 func countLogLines(d *daemon.Swarm, name string) func(*check.C) (interface{}, check.CommentInterface) {
 	return func(c *check.C) (interface{}, check.CommentInterface) {
-		result := icmd.RunCmd(d.Command("service", "logs", "-t", name))
+		result := icmd.RunCmd(d.Command("service", "logs", "-t", "--raw", name))
 		result.Assert(c, icmd.Expected{})
+		// if this returns an emptystring, trying to split it later will return
+		// an array containing emptystring. a valid log line will NEVER be
+		// emptystring because we ask for the timestamp.
+		if result.Stdout() == "" {
+			return 0, check.Commentf("Empty stdout")
+		}
 		lines := strings.Split(strings.TrimSpace(result.Stdout()), "\n")
 		return len(lines), check.Commentf("output, %q", string(result.Stdout()))
 	}
@@ -277,7 +283,7 @@ func (s *DockerSwarmSuite) TestServiceLogsTTY(c *check.C) {
 	// and make sure we have all the log lines
 	waitAndAssert(c, defaultReconciliationTimeout, countLogLines(d, name), checker.Equals, 2)
 
-	cmd := d.Command("service", "logs", name)
+	cmd := d.Command("service", "logs", "--raw", name)
 	result = icmd.RunCmd(cmd)
 	// for some reason there is carriage return in the output. i think this is
 	// just expected.
@@ -331,4 +337,51 @@ func (s *DockerSwarmSuite) TestServiceLogsNoHangDeletedContainer(c *check.C) {
 	// if the command is timed out, result.Timeout will be true, but the
 	// Expected defaults to false
 	c.Assert(result, icmd.Matches, icmd.Expected{})
+}
+
+func (s *DockerSwarmSuite) TestServiceLogsDetails(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	name := "TestServiceLogsDetails"
+
+	result := icmd.RunCmd(d.Command(
+		// create a service
+		"service", "create",
+		// name it $name
+		"--name", name,
+		// add an environment variable
+		"--env", "asdf=test1",
+		// add a log driver (without explicitly setting a driver, log-opt doesn't work)
+		"--log-driver", "json-file",
+		// add a log option to print the environment variable
+		"--log-opt", "env=asdf",
+		// busybox image, shell string
+		"busybox", "sh", "-c",
+		// make a log line
+		"echo LogLine; while true; do sleep 1; done;",
+	))
+
+	result.Assert(c, icmd.Expected{})
+	id := strings.TrimSpace(result.Stdout())
+	c.Assert(id, checker.Not(checker.Equals), "")
+
+	// make sure task has been deployed
+	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
+	// and make sure we have all the log lines
+	waitAndAssert(c, defaultReconciliationTimeout, countLogLines(d, name), checker.Equals, 1)
+
+	// First, test without pretty printing
+	// call service logs with details. set raw to skip pretty printing
+	result = icmd.RunCmd(d.Command("service", "logs", "--raw", "--details", name))
+	// in this case, we should get details and we should get log message, but
+	// there will also be context as details (which will fall after the detail
+	// we inserted in alphabetical order
+	c.Assert(result, icmd.Matches, icmd.Expected{Out: "asdf=test1"})
+	c.Assert(result, icmd.Matches, icmd.Expected{Out: "LogLine"})
+
+	// call service logs with details. this time, don't pass raw
+	result = icmd.RunCmd(d.Command("service", "logs", "--details", id))
+	// in this case, we should get details space logmessage as well. the context
+	// is part of the pretty part of the logline
+	c.Assert(result, icmd.Matches, icmd.Expected{Out: "asdf=test1 LogLine"})
 }
