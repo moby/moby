@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/engine-api/types"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"gopkg.in/yaml.v2"
 )
@@ -76,7 +77,6 @@ func NewConfig(config []byte) (*Moby, error) {
 
 // ConfigToOCI converts a config specification to an OCI config file
 func ConfigToOCI(image *MobyImage) ([]byte, error) {
-	oci := specs.Spec{}
 
 	// TODO pass through same docker client to all functions
 	cli, err := dockerClient()
@@ -88,6 +88,13 @@ func ConfigToOCI(image *MobyImage) ([]byte, error) {
 	if err != nil {
 		return []byte{}, err
 	}
+
+	return ConfigInspectToOCI(image, inspect)
+}
+
+// ConfigInspectToOCI converts a config and the output of image inspect to an OCI config file
+func ConfigInspectToOCI(image *MobyImage, inspect types.ImageInspect) ([]byte, error) {
+	oci := specs.Spec{}
 
 	config := inspect.Config
 	if config == nil {
