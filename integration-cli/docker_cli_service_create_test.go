@@ -16,7 +16,7 @@ import (
 
 func (s *DockerSwarmSuite) TestServiceCreateMountVolume(c *check.C) {
 	d := s.AddDaemon(c, true, true)
-	out, err := d.Cmd("service", "create", "--mount", "type=volume,source=foo,target=/foo,volume-nocopy", "busybox", "top")
+	out, err := d.Cmd("service", "create", "--detach=true", "--mount", "type=volume,source=foo,target=/foo,volume-nocopy", "busybox", "top")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	id := strings.TrimSpace(out)
 
@@ -123,7 +123,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretSourceTarget(c *check.C) {
 
 func (s *DockerSwarmSuite) TestServiceCreateMountTmpfs(c *check.C) {
 	d := s.AddDaemon(c, true, true)
-	out, err := d.Cmd("service", "create", "--mount", "type=tmpfs,target=/foo,tmpfs-size=1MB", "busybox", "sh", "-c", "mount | grep foo; tail -f /dev/null")
+	out, err := d.Cmd("service", "create", "--detach=true", "--mount", "type=tmpfs,target=/foo,tmpfs-size=1MB", "busybox", "sh", "-c", "mount | grep foo; tail -f /dev/null")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	id := strings.TrimSpace(out)
 

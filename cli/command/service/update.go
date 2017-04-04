@@ -31,7 +31,7 @@ func newUpdateCommand(dockerCli *command.DockerCli) *cobra.Command {
 		Short: "Update a service",
 		Args:  cli.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runUpdate(dockerCli, cmd.Flags(), args[0])
+			return runUpdate(dockerCli, cmd.Flags(), serviceOpts, args[0])
 		},
 	}
 
@@ -93,7 +93,7 @@ func newListOptsVar() *opts.ListOpts {
 	return opts.NewListOptsRef(&[]string{}, nil)
 }
 
-func runUpdate(dockerCli *command.DockerCli, flags *pflag.FlagSet, serviceID string) error {
+func runUpdate(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *serviceOptions, serviceID string) error {
 	apiClient := dockerCli.Client()
 	ctx := context.Background()
 
@@ -195,7 +195,16 @@ func runUpdate(dockerCli *command.DockerCli, flags *pflag.FlagSet, serviceID str
 	}
 
 	fmt.Fprintf(dockerCli.Out(), "%s\n", serviceID)
-	return nil
+
+	if opts.detach {
+		if !flags.Changed("detach") {
+			fmt.Fprintln(dockerCli.Err(), "Since --detach=false was not specified, tasks will be updated in the background.\n"+
+				"In a future release, --detach=false will become the default.")
+		}
+		return nil
+	}
+
+	return waitOnService(ctx, dockerCli, serviceID, opts)
 }
 
 func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {

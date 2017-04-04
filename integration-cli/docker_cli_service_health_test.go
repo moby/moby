@@ -31,7 +31,7 @@ func (s *DockerSwarmSuite) TestServiceHealthRun(c *check.C) {
 	c.Check(err, check.IsNil)
 
 	serviceName := "healthServiceRun"
-	out, err := d.Cmd("service", "create", "--name", serviceName, imageName, "top")
+	out, err := d.Cmd("service", "create", "--detach=true", "--name", serviceName, imageName, "top")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	id := strings.TrimSpace(out)
 
@@ -92,7 +92,7 @@ func (s *DockerSwarmSuite) TestServiceHealthStart(c *check.C) {
 	c.Check(err, check.IsNil)
 
 	serviceName := "healthServiceStart"
-	out, err := d.Cmd("service", "create", "--name", serviceName, imageName, "top")
+	out, err := d.Cmd("service", "create", "--detach=true", "--name", serviceName, imageName, "top")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	id := strings.TrimSpace(out)
 

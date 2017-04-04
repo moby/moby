@@ -26,6 +26,8 @@ Options:
       --constraint-rm list                 Remove a constraint (default [])
       --container-label-add list           Add or update a container label (default [])
       --container-label-rm list            Remove a container label by its key (default [])
+  -d, --detach                             Exit immediately instead of waiting for the service to converge
+                                           (default true)
       --dns-add list                       Add or update a custom DNS server (default [])
       --dns-option-add list                Add or update a DNS option (default [])
       --dns-option-rm list                 Remove a DNS option (default [])

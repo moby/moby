@@ -1611,13 +1611,13 @@ func (s *DockerSwarmSuite) TestSwarmServicePsMultipleServiceIDs(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
 	name1 := "top1"
-	out, err := d.Cmd("service", "create", "--name", name1, "--replicas=3", "busybox", "top")
+	out, err := d.Cmd("service", "create", "--detach=true", "--name", name1, "--replicas=3", "busybox", "top")
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
 	id1 := strings.TrimSpace(out)
 
 	name2 := "top2"
-	out, err = d.Cmd("service", "create", "--name", name2, "--replicas=3", "busybox", "top")
+	out, err = d.Cmd("service", "create", "--detach=true", "--name", name2, "--replicas=3", "busybox", "top")
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
 	id2 := strings.TrimSpace(out)
@@ -1680,7 +1680,7 @@ func (s *DockerSwarmSuite) TestSwarmServicePsMultipleServiceIDs(c *check.C) {
 func (s *DockerSwarmSuite) TestSwarmPublishDuplicatePorts(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
-	out, err := d.Cmd("service", "create", "--publish", "5005:80", "--publish", "5006:80", "--publish", "80", "--publish", "80", "busybox", "top")
+	out, err := d.Cmd("service", "create", "--detach=true", "--publish", "5005:80", "--publish", "5006:80", "--publish", "80", "--publish", "80", "busybox", "top")
 	c.Assert(err, check.IsNil, check.Commentf(out))
 	id := strings.TrimSpace(out)
 
