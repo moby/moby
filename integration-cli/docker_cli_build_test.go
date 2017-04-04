@@ -6002,6 +6002,28 @@ func (s *DockerSuite) TestBuildFromPreviousBlock(c *check.C) {
 	dockerCmdWithResult("run", "build1", "cat", "f2").Assert(c, icmd.Expected{Out: "bar2"})
 }
 
+func (s *DockerTrustSuite) TestCopyFromTrustedBuild(c *check.C) {
+	img1 := s.setupTrustedImage(c, "trusted-build1")
+	img2 := s.setupTrustedImage(c, "trusted-build2")
+	dockerFile := fmt.Sprintf(`
+	FROM %s AS build-base
+	RUN echo ok > /foo
+	FROM %s
+	COPY --from=build-base foo bar`, img1, img2)
+
+	name := "testcopyfromtrustedbuild"
+
+	r := buildImage(name, trustedBuild, build.WithDockerfile(dockerFile))
+	r.Assert(c, icmd.Expected{
+		Out: fmt.Sprintf("FROM %s@sha", img1[:len(img1)-7]),
+	})
+	r.Assert(c, icmd.Expected{
+		Out: fmt.Sprintf("FROM %s@sha", img2[:len(img2)-7]),
+	})
+
+	dockerCmdWithResult("run", name, "cat", "bar").Assert(c, icmd.Expected{Out: "ok"})
+}
+
 // TestBuildOpaqueDirectory tests that a build succeeds which
 // creates opaque directories.
 // See https://github.com/docker/docker/issues/25244
