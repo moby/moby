@@ -7,7 +7,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"sort"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -209,26 +208,13 @@ func sanitizeRepoAndTags(names []string) ([]reference.Named, error) {
 	return repoAndTags, nil
 }
 
-func (b *Builder) processLabels() error {
+func (b *Builder) processLabels() {
 	if len(b.options.Labels) == 0 {
-		return nil
+		return
 	}
 
-	var labels []string
-	for k, v := range b.options.Labels {
-		labels = append(labels, fmt.Sprintf("%q='%s'", k, v))
-	}
-	// Sort the label to have a repeatable order
-	sort.Strings(labels)
-
-	line := "LABEL " + strings.Join(labels, " ")
-	_, node, err := parser.ParseLine(line, &b.directive, false)
-	if err != nil {
-		return err
-	}
+	node := parser.NodeFromLabels(b.options.Labels)
 	b.dockerfile.Children = append(b.dockerfile.Children, node)
-
-	return nil
 }
 
 // build runs the Dockerfile builder from a context and a docker object that allows to make calls
@@ -263,9 +249,7 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 		return "", err
 	}
 
-	if err := b.processLabels(); err != nil {
-		return "", err
-	}
+	b.processLabels()
 
 	var shortImgID string
 	total := len(b.dockerfile.Children)

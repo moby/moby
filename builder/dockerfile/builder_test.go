@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder/dockerfile/parser"
+	"github.com/docker/docker/pkg/testutil/assert"
 )
 
 func TestBuildProcessLabels(t *testing.T) {
@@ -15,9 +16,7 @@ func TestBuildProcessLabels(t *testing.T) {
 	d := parser.Directive{}
 	parser.SetEscapeToken(parser.DefaultEscapeToken, &d)
 	n, err := parser.Parse(strings.NewReader(dockerfile), &d)
-	if err != nil {
-		t.Fatalf("Error when parsing Dockerfile: %s", err)
-	}
+	assert.NilError(t, err)
 
 	options := &types.ImageBuildOptions{
 		Labels: map[string]string{
@@ -34,21 +33,14 @@ func TestBuildProcessLabels(t *testing.T) {
 		directive:  d,
 		dockerfile: n,
 	}
-	err = b.processLabels()
-	if err != nil {
-		t.Fatalf("Error when processing labels: %s", err)
-	}
+	b.processLabels()
 
 	expected := []string{
 		"FROM scratch",
 		`LABEL "org.a"='cli-a' "org.b"='cli-b' "org.c"='cli-c' "org.d"='cli-d' "org.e"='cli-e'`,
 	}
-	if len(b.dockerfile.Children) != 2 {
-		t.Fatalf("Expect 2, got %d", len(b.dockerfile.Children))
-	}
+	assert.Equal(t, len(b.dockerfile.Children), 2)
 	for i, v := range b.dockerfile.Children {
-		if v.Original != expected[i] {
-			t.Fatalf("Expect '%s' for %dth children, got, '%s'", expected[i], i, v.Original)
-		}
+		assert.Equal(t, v.Original, expected[i])
 	}
 }
