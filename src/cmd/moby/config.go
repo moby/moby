@@ -45,7 +45,7 @@ type MobyImage struct {
 	Mounts           []specs.Mount
 	Binds            []string
 	Tmpfs            []string
-	Args             []string
+	Command          []string
 	Env              []string
 	Cwd              string
 	Net              string
@@ -95,8 +95,8 @@ func ConfigToOCI(image *MobyImage) ([]byte, error) {
 	}
 
 	args := append(config.Entrypoint, config.Cmd...)
-	if len(image.Args) != 0 {
-		args = image.Args
+	if len(image.Command) != 0 {
+		args = image.Command
 	}
 	env := config.Env
 	if len(image.Env) != 0 {
