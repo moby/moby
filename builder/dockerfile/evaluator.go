@@ -206,8 +206,7 @@ func (b *Builder) runConfigEnvMapping() map[string]string {
 // arg, env, etc., this syntax check will not be complete and could not replace
 // the runtime check. Instead, this function is only a helper that allows
 // user to find out the obvious error in Dockerfile earlier on.
-// onbuild bool: indicate if instruction XXX is part of `ONBUILD XXX` trigger
-func (b *Builder) checkDispatch(ast *parser.Node, onbuild bool) error {
+func checkDispatch(ast *parser.Node) error {
 	cmd := ast.Value
 	upperCasedCmd := strings.ToUpper(cmd)
 
@@ -222,16 +221,6 @@ func (b *Builder) checkDispatch(ast *parser.Node, onbuild bool) error {
 	if upperCasedCmd == "ONBUILD" {
 		if ast.Next == nil {
 			return errors.New("ONBUILD requires at least one argument")
-		}
-	}
-
-	// The instruction is part of ONBUILD trigger (not the instruction itself)
-	if onbuild {
-		switch upperCasedCmd {
-		case "ONBUILD":
-			return errors.New("Chaining ONBUILD via `ONBUILD ONBUILD` isn't allowed")
-		case "MAINTAINER", "FROM":
-			return fmt.Errorf("%s isn't allowed as an ONBUILD trigger", upperCasedCmd)
 		}
 	}
 

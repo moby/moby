@@ -185,17 +185,6 @@ func sanitizeRepoAndTags(names []string) ([]reference.Named, error) {
 
 // build runs the Dockerfile builder from a context and a docker object that allows to make calls
 // to Docker.
-//
-// This will (barring errors):
-//
-// * read the dockerfile from context
-// * parse the dockerfile if not already parsed
-// * walk the AST and execute it by dispatching to handlers. If Remove
-//   or ForceRemove is set, additional cleanup around containers happens after
-//   processing.
-// * Tag image, if applicable.
-// * Print a happy message and return the image ID.
-//
 func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (string, error) {
 	defer b.imageContexts.unmount()
 
@@ -203,7 +192,7 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 	b.Stderr = stderr
 	b.Output = out
 
-	dockerfile, err := b.readDockerfile()
+	dockerfile, err := b.readAndParseDockerfile()
 	if err != nil {
 		return "", err
 	}
@@ -215,14 +204,37 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 
 	addNodesForLabelOption(dockerfile, b.options.Labels)
 
-	var shortImgID string
-	total := len(dockerfile.Children)
-	for _, n := range dockerfile.Children {
-		if err := b.checkDispatch(n, false); err != nil {
-			return "", errors.Wrapf(err, "Dockerfile parse error line %d", n.StartLine)
+	if err := checkDispatchDockerfile(dockerfile); err != nil {
+		return "", err
+	}
+
+	shortImageID, err := b.dispatchDockerfileWithCancellation(dockerfile)
+	if err != nil {
+		return "", err
+	}
+
+	b.warnOnUnusedBuildArgs()
+
+	if b.image == "" {
+		return "", errors.New("No image was generated. Is your Dockerfile empty?")
+	}
+
+	if b.options.Squash {
+		if err := b.squashBuild(); err != nil {
+			return "", err
 		}
 	}
 
+	fmt.Fprintf(b.Stdout, "Successfully built %s\n", shortImageID)
+	if err := b.tagImages(repoAndTags); err != nil {
+		return "", err
+	}
+	return b.image, nil
+}
+
+func (b *Builder) dispatchDockerfileWithCancellation(dockerfile *parser.Node) (string, error) {
+	total := len(dockerfile.Children)
+	var shortImgID string
 	for i, n := range dockerfile.Children {
 		select {
 		case <-b.clientCtx.Done():
@@ -255,34 +267,20 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 		return "", errors.Errorf("failed to reach build target %s in Dockerfile", b.options.Target)
 	}
 
-	b.warnOnUnusedBuildArgs()
+	return shortImgID, nil
+}
 
-	if b.image == "" {
-		return "", errors.New("No image was generated. Is your Dockerfile empty?")
+func (b *Builder) squashBuild() error {
+	var fromID string
+	var err error
+	if b.from != nil {
+		fromID = b.from.ImageID()
 	}
-
-	if b.options.Squash {
-		var fromID string
-		if b.from != nil {
-			fromID = b.from.ImageID()
-		}
-		b.image, err = b.docker.SquashImage(b.image, fromID)
-		if err != nil {
-			return "", errors.Wrap(err, "error squashing image")
-		}
+	b.image, err = b.docker.SquashImage(b.image, fromID)
+	if err != nil {
+		return errors.Wrap(err, "error squashing image")
 	}
-
-	fmt.Fprintf(b.Stdout, "Successfully built %s\n", shortImgID)
-
-	imageID := image.ID(b.image)
-	for _, rt := range repoAndTags {
-		if err := b.docker.TagImageWithReference(imageID, rt); err != nil {
-			return "", err
-		}
-		fmt.Fprintf(b.Stdout, "Successfully tagged %s\n", reference.FamiliarString(rt))
-	}
-
-	return b.image, nil
+	return nil
 }
 
 func addNodesForLabelOption(dockerfile *parser.Node, labels map[string]string) {
@@ -301,6 +299,17 @@ func (b *Builder) warnOnUnusedBuildArgs() {
 	if len(leftoverArgs) > 0 {
 		fmt.Fprintf(b.Stderr, "[Warning] One or more build-args %v were not consumed\n", leftoverArgs)
 	}
+}
+
+func (b *Builder) tagImages(repoAndTags []reference.Named) error {
+	imageID := image.ID(b.image)
+	for _, rt := range repoAndTags {
+		if err := b.docker.TagImageWithReference(imageID, rt); err != nil {
+			return err
+		}
+		fmt.Fprintf(b.Stdout, "Successfully tagged %s\n", reference.FamiliarString(rt))
+	}
+	return nil
 }
 
 // hasFromImage returns true if the builder has processed a `FROM <image>` line
@@ -345,18 +354,31 @@ func BuildFromConfig(config *container.Config, changes []string) (*container.Con
 	b.Stderr = ioutil.Discard
 	b.disableCommit = true
 
-	total := len(ast.Children)
-	for _, n := range ast.Children {
-		if err := b.checkDispatch(n, false); err != nil {
-			return nil, err
-		}
+	if err := checkDispatchDockerfile(ast); err != nil {
+		return nil, err
 	}
 
+	if err := dispatchFromDockerfile(b, ast); err != nil {
+		return nil, err
+	}
+	return b.runConfig, nil
+}
+
+func checkDispatchDockerfile(dockerfile *parser.Node) error {
+	for _, n := range dockerfile.Children {
+		if err := checkDispatch(n); err != nil {
+			return errors.Wrapf(err, "Dockerfile parse error line %d", n.StartLine)
+		}
+	}
+	return nil
+}
+
+func dispatchFromDockerfile(b *Builder, ast *parser.Node) error {
+	total := len(ast.Children)
 	for i, n := range ast.Children {
 		if err := b.dispatch(i, total, n); err != nil {
-			return nil, err
+			return err
 		}
 	}
-
-	return b.runConfig, nil
+	return nil
 }

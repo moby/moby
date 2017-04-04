@@ -467,19 +467,24 @@ func (b *Builder) processImageFrom(img builder.Image) error {
 			return err
 		}
 
-		total := len(ast.Children)
 		for _, n := range ast.Children {
-			if err := b.checkDispatch(n, true); err != nil {
+			if err := checkDispatch(n); err != nil {
 				return err
+			}
+
+			upperCasedCmd := strings.ToUpper(n.Value)
+			switch upperCasedCmd {
+			case "ONBUILD":
+				return errors.New("Chaining ONBUILD via `ONBUILD ONBUILD` isn't allowed")
+			case "MAINTAINER", "FROM":
+				return errors.Errorf("%s isn't allowed as an ONBUILD trigger", upperCasedCmd)
 			}
 		}
-		for i, n := range ast.Children {
-			if err := b.dispatch(i, total, n); err != nil {
-				return err
-			}
+
+		if err := dispatchFromDockerfile(b, ast); err != nil {
+			return err
 		}
 	}
-
 	return nil
 }
 
@@ -644,8 +649,8 @@ func (b *Builder) clearTmp() {
 	}
 }
 
-// readDockerfile reads a Dockerfile from the current context.
-func (b *Builder) readDockerfile() (*parser.Node, error) {
+// readAndParseDockerfile reads a Dockerfile from the current context.
+func (b *Builder) readAndParseDockerfile() (*parser.Node, error) {
 	// If no -f was specified then look for 'Dockerfile'. If we can't find
 	// that then look for 'dockerfile'.  If neither are found then default
 	// back to 'Dockerfile' and use that in the error message.
