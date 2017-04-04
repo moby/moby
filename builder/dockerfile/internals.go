@@ -85,7 +85,7 @@ func (b *Builder) commit(id string, autoCmd strslice.StrSlice, comment string) e
 	}
 
 	b.image = imageID
-	b.imageContexts.update(imageID)
+	b.imageContexts.update(imageID, &autoConfig)
 	return nil
 }
 
@@ -94,7 +94,7 @@ type copyInfo struct {
 	decompress bool
 }
 
-func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalDecompression bool, cmdName string, contextID *int) error {
+func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalDecompression bool, cmdName string, imageSource *imageMount) error {
 	if len(args) < 2 {
 		return fmt.Errorf("Invalid %s format - at least two arguments required", cmdName)
 	}
@@ -128,7 +128,7 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalD
 			continue
 		}
 		// not a URL
-		subInfos, err := b.calcCopyInfo(cmdName, orig, allowLocalDecompression, true, contextID)
+		subInfos, err := b.calcCopyInfo(cmdName, orig, allowLocalDecompression, true, imageSource)
 		if err != nil {
 			return err
 		}
@@ -298,13 +298,13 @@ func (b *Builder) download(srcURL string) (fi builder.FileInfo, err error) {
 	return &builder.HashedFileInfo{FileInfo: builder.PathFileInfo{FileInfo: tmpFileSt, FilePath: tmpFileName}, FileHash: hash}, nil
 }
 
-func (b *Builder) calcCopyInfo(cmdName, origPath string, allowLocalDecompression, allowWildcards bool, contextID *int) ([]copyInfo, error) {
+func (b *Builder) calcCopyInfo(cmdName, origPath string, allowLocalDecompression, allowWildcards bool, imageSource *imageMount) ([]copyInfo, error) {
 
 	// Work in daemon-specific OS filepath semantics
 	origPath = filepath.FromSlash(origPath)
 
 	// validate windows paths from other images
-	if contextID != nil && runtime.GOOS == "windows" {
+	if imageSource != nil && runtime.GOOS == "windows" {
 		forbid := regexp.MustCompile("(?i)^" + string(os.PathSeparator) + "?(windows(" + string(os.PathSeparator) + ".+)?)?$")
 		if p := filepath.Clean(origPath); p == "." || forbid.MatchString(p) {
 			return nil, errors.Errorf("copy from %s is not allowed on windows", origPath)
@@ -318,8 +318,8 @@ func (b *Builder) calcCopyInfo(cmdName, origPath string, allowLocalDecompression
 
 	context := b.context
 	var err error
-	if contextID != nil {
-		context, err = b.imageContexts.context(*contextID)
+	if imageSource != nil {
+		context, err = imageSource.context()
 		if err != nil {
 			return nil, err
 		}
@@ -346,7 +346,7 @@ func (b *Builder) calcCopyInfo(cmdName, origPath string, allowLocalDecompression
 
 			// Note we set allowWildcards to false in case the name has
 			// a * in it
-			subInfos, err := b.calcCopyInfo(cmdName, path, allowLocalDecompression, false, contextID)
+			subInfos, err := b.calcCopyInfo(cmdName, path, allowLocalDecompression, false, imageSource)
 			if err != nil {
 				return err
 			}
@@ -370,9 +370,9 @@ func (b *Builder) calcCopyInfo(cmdName, origPath string, allowLocalDecompression
 	if !handleHash {
 		return copyInfos, nil
 	}
-	if contextID != nil {
+	if imageSource != nil {
 		// fast-cache based on imageID
-		if h, ok := b.imageContexts.getCache(*contextID, origPath); ok {
+		if h, ok := b.imageContexts.getCache(imageSource.id, origPath); ok {
 			hfi.SetHash(h.(string))
 			return copyInfos, nil
 		}
@@ -401,8 +401,8 @@ func (b *Builder) calcCopyInfo(cmdName, origPath string, allowLocalDecompression
 	hasher := sha256.New()
 	hasher.Write([]byte(strings.Join(subfiles, ",")))
 	hfi.SetHash("dir:" + hex.EncodeToString(hasher.Sum(nil)))
-	if contextID != nil {
-		b.imageContexts.setCache(*contextID, origPath, hfi.Hash())
+	if imageSource != nil {
+		b.imageContexts.setCache(imageSource.id, origPath, hfi.Hash())
 	}
 
 	return copyInfos, nil
@@ -497,7 +497,7 @@ func (b *Builder) probeCache() (bool, error) {
 	fmt.Fprint(b.Stdout, " ---> Using cache\n")
 	logrus.Debugf("[BUILDER] Use cached version: %s", b.runConfig.Cmd)
 	b.image = string(cache)
-	b.imageContexts.update(b.image)
+	b.imageContexts.update(b.image, b.runConfig)
 
 	return true, nil
 }

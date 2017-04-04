@@ -187,20 +187,16 @@ func dispatchCopy(b *Builder, args []string, attributes map[string]bool, origina
 		return err
 	}
 
-	var contextID *int
+	var im *imageMount
 	if flFrom.IsUsed() {
 		var err error
-		context, err := strconv.Atoi(flFrom.Value)
+		im, err = b.imageContexts.get(flFrom.Value)
 		if err != nil {
-			return errors.Wrap(err, "from expects an integer value corresponding to the context number")
-		}
-		if err := b.imageContexts.validate(context); err != nil {
 			return err
 		}
-		contextID = &context
 	}
 
-	return b.runContextCommand(args, false, false, "COPY", contextID)
+	return b.runContextCommand(args, false, false, "COPY", im)
 }
 
 // FROM imagename
@@ -208,7 +204,13 @@ func dispatchCopy(b *Builder, args []string, attributes map[string]bool, origina
 // This sets the image the dockerfile will build on top of.
 //
 func from(b *Builder, args []string, attributes map[string]bool, original string) error {
-	if len(args) != 1 {
+	ctxName := ""
+	if len(args) == 3 && strings.EqualFold(args[1], "as") {
+		ctxName = strings.ToLower(args[2])
+		if ok, _ := regexp.MatchString("^[a-z][a-z0-9-_\\.]*$", ctxName); !ok {
+			return errors.Errorf("invalid name for build stage: %q, name can't start with a number or contain symbols", ctxName)
+		}
+	} else if len(args) != 1 {
 		return errExactlyOneArgument("FROM")
 	}
 
@@ -221,29 +223,32 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 	var image builder.Image
 
 	b.resetImageCache()
-	b.imageContexts.new()
+	if _, err := b.imageContexts.new(ctxName, true); err != nil {
+		return err
+	}
 
-	// Windows cannot support a container with no base image.
-	if name == api.NoBaseImageSpecifier {
-		if runtime.GOOS == "windows" {
-			return errors.New("Windows does not support FROM scratch")
+	if im, ok := b.imageContexts.byName[name]; ok {
+		if len(im.ImageID()) > 0 {
+			image = im
 		}
-		b.image = ""
-		b.noBaseImage = true
 	} else {
-		// TODO: don't use `name`, instead resolve it to a digest
-		if !b.options.PullParent {
-			image, _ = b.docker.GetImageOnBuild(name)
-			// TODO: shouldn't we error out if error is different from "not found" ?
-		}
-		if image == nil {
+		// Windows cannot support a container with no base image.
+		if name == api.NoBaseImageSpecifier {
+			if runtime.GOOS == "windows" {
+				return errors.New("Windows does not support FROM scratch")
+			}
+			b.image = ""
+			b.noBaseImage = true
+		} else {
 			var err error
-			image, err = b.docker.PullOnBuild(b.clientCtx, name, b.options.AuthConfigs, b.Output)
+			image, err = pullOrGetImage(b, name)
 			if err != nil {
 				return err
 			}
 		}
-		b.imageContexts.update(image.ImageID())
+	}
+	if image != nil {
+		b.imageContexts.update(image.ImageID(), image.RunConfig())
 	}
 	b.from = image
 
@@ -830,4 +835,34 @@ func getShell(c *container.Config) []string {
 		return append([]string{}, defaultShell[:]...)
 	}
 	return append([]string{}, c.Shell[:]...)
+}
+
+// mountByRef creates an imageMount from a reference. pulling the image if needed.
+func mountByRef(b *Builder, name string) (*imageMount, error) {
+	image, err := pullOrGetImage(b, name)
+	if err != nil {
+		return nil, err
+	}
+	im, err := b.imageContexts.new("", false)
+	if err != nil {
+		return nil, err
+	}
+	im.id = image.ImageID()
+	return im, nil
+}
+
+func pullOrGetImage(b *Builder, name string) (builder.Image, error) {
+	var image builder.Image
+	if !b.options.PullParent {
+		image, _ = b.docker.GetImageOnBuild(name)
+		// TODO: shouldn't we error out if error is different from "not found" ?
+	}
+	if image == nil {
+		var err error
+		image, err = b.docker.PullOnBuild(b.clientCtx, name, b.options.AuthConfigs, b.Output)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return image, nil
 }

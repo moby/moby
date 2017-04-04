@@ -5752,7 +5752,7 @@ func (s *DockerSuite) TestBuildContChar(c *check.C) {
 
 func (s *DockerSuite) TestBuildCopyFromPreviousRootFS(c *check.C) {
 	dockerfile := `
-		FROM busybox
+		FROM busybox AS first
 		COPY foo bar
 		FROM busybox
     %s
@@ -5762,7 +5762,8 @@ func (s *DockerSuite) TestBuildCopyFromPreviousRootFS(c *check.C) {
     COPY bar /
     COPY --from=1 baz sub/
     COPY --from=0 bar baz
-    COPY --from=0 bar bay`
+    COPY --from=first bar bay`
+
 	ctx := fakeContext(c, fmt.Sprintf(dockerfile, ""), map[string]string{
 		"Dockerfile": dockerfile,
 		"foo":        "abc",
@@ -5830,7 +5831,7 @@ func (s *DockerSuite) TestBuildCopyFromPreviousRootFSErrors(c *check.C) {
 
 	buildImage("build1", withExternalBuildContext(ctx)).Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err:      "from expects an integer value corresponding to the context number",
+		Err:      "invalid from flag value foo",
 	})
 
 	dockerfile = `
@@ -5846,6 +5847,36 @@ func (s *DockerSuite) TestBuildCopyFromPreviousRootFSErrors(c *check.C) {
 	buildImage("build1", withExternalBuildContext(ctx)).Assert(c, icmd.Expected{
 		ExitCode: 1,
 		Err:      "invalid from flag value 0 refers current build block",
+	})
+
+	dockerfile = `
+		FROM busybox AS foo
+		COPY --from=bar foo bar`
+
+	ctx = fakeContext(c, dockerfile, map[string]string{
+		"Dockerfile": dockerfile,
+		"foo":        "abc",
+	})
+	defer ctx.Close()
+
+	buildImage("build1", withExternalBuildContext(ctx)).Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Err:      "invalid from flag value bar",
+	})
+
+	dockerfile = `
+		FROM busybox AS 1
+		COPY --from=1 foo bar`
+
+	ctx = fakeContext(c, dockerfile, map[string]string{
+		"Dockerfile": dockerfile,
+		"foo":        "abc",
+	})
+	defer ctx.Close()
+
+	buildImage("build1", withExternalBuildContext(ctx)).Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Err:      "invalid name for build stage",
 	})
 }
 
@@ -5863,9 +5894,9 @@ func (s *DockerSuite) TestBuildCopyFromPreviousFrom(c *check.C) {
 	result.Assert(c, icmd.Success)
 
 	dockerfile = `
-		FROM build1:latest
+		FROM build1:latest AS foo
     FROM busybox
-		COPY --from=0 bar /
+		COPY --from=foo bar /
 		COPY foo /`
 	ctx = fakeContext(c, dockerfile, map[string]string{
 		"Dockerfile": dockerfile,
@@ -5880,6 +5911,117 @@ func (s *DockerSuite) TestBuildCopyFromPreviousFrom(c *check.C) {
 	c.Assert(strings.TrimSpace(out), check.Equals, "abc")
 	out, _ = dockerCmd(c, "run", "build2", "cat", "foo")
 	c.Assert(strings.TrimSpace(out), check.Equals, "def")
+}
+
+func (s *DockerSuite) TestBuildCopyFromImplicitFrom(c *check.C) {
+	dockerfile := `
+		FROM busybox
+		COPY --from=busybox /etc/passwd /mypasswd
+		RUN cmp /etc/passwd /mypasswd`
+
+	if DaemonIsWindows() {
+		dockerfile = `
+			FROM busybox
+			COPY --from=busybox License.txt foo`
+	}
+
+	ctx := fakeContext(c, dockerfile, map[string]string{
+		"Dockerfile": dockerfile,
+	})
+	defer ctx.Close()
+
+	result := buildImage("build1", withExternalBuildContext(ctx))
+	result.Assert(c, icmd.Success)
+
+	if DaemonIsWindows() {
+		out, _ := dockerCmd(c, "run", "build1", "cat", "License.txt")
+		c.Assert(len(out), checker.GreaterThan, 10)
+		out2, _ := dockerCmd(c, "run", "build1", "cat", "foo")
+		c.Assert(out, check.Equals, out2)
+	}
+}
+
+func (s *DockerRegistrySuite) TestBuildCopyFromImplicitPullingFrom(c *check.C) {
+	repoName := fmt.Sprintf("%v/dockercli/testf", privateRegistryURL)
+
+	dockerfile := `
+		FROM busybox
+		COPY foo bar`
+	ctx := fakeContext(c, dockerfile, map[string]string{
+		"Dockerfile": dockerfile,
+		"foo":        "abc",
+	})
+	defer ctx.Close()
+
+	result := buildImage(repoName, withExternalBuildContext(ctx))
+	result.Assert(c, icmd.Success)
+
+	dockerCmd(c, "push", repoName)
+	dockerCmd(c, "rmi", repoName)
+
+	dockerfile = `
+		FROM busybox
+		COPY --from=%s bar baz`
+
+	ctx = fakeContext(c, fmt.Sprintf(dockerfile, repoName), map[string]string{
+		"Dockerfile": dockerfile,
+	})
+	defer ctx.Close()
+
+	result = buildImage("build1", withExternalBuildContext(ctx))
+	result.Assert(c, icmd.Success)
+
+	dockerCmdWithResult("run", "build1", "cat", "baz").Assert(c, icmd.Expected{Out: "abc"})
+}
+
+func (s *DockerSuite) TestBuildFromPreviousBlock(c *check.C) {
+	dockerfile := `
+		FROM busybox as foo
+		COPY foo /
+		FROM foo as foo1
+		RUN echo 1 >> foo
+		FROM foo as foO2
+		RUN echo 2 >> foo
+		FROM foo
+		COPY --from=foo1 foo f1
+		COPY --from=FOo2 foo f2
+		` // foo2 case also tests that names are canse insensitive
+	ctx := fakeContext(c, dockerfile, map[string]string{
+		"Dockerfile": dockerfile,
+		"foo":        "bar",
+	})
+	defer ctx.Close()
+
+	result := buildImage("build1", withExternalBuildContext(ctx))
+	result.Assert(c, icmd.Success)
+
+	dockerCmdWithResult("run", "build1", "cat", "foo").Assert(c, icmd.Expected{Out: "bar"})
+
+	dockerCmdWithResult("run", "build1", "cat", "f1").Assert(c, icmd.Expected{Out: "bar1"})
+
+	dockerCmdWithResult("run", "build1", "cat", "f2").Assert(c, icmd.Expected{Out: "bar2"})
+}
+
+func (s *DockerTrustSuite) TestCopyFromTrustedBuild(c *check.C) {
+	img1 := s.setupTrustedImage(c, "trusted-build1")
+	img2 := s.setupTrustedImage(c, "trusted-build2")
+	dockerFile := fmt.Sprintf(`
+	FROM %s AS build-base
+	RUN echo ok > /foo
+	FROM %s
+	COPY --from=build-base foo bar`, img1, img2)
+
+	name := "testcopyfromtrustedbuild"
+
+	r := buildImage(name, trustedBuild, build.WithDockerfile(dockerFile))
+	r.Assert(c, icmd.Expected{
+		Out: fmt.Sprintf("FROM %s@sha", img1[:len(img1)-7]),
+	})
+	r.Assert(c, icmd.Expected{
+		Out: fmt.Sprintf("FROM %s@sha", img2[:len(img2)-7]),
+	})
+
+	dockerCmdWithResult("run", name, "cat", "bar").Assert(c, icmd.Expected{Out: "ok"})
 }
 
 // TestBuildOpaqueDirectory tests that a build succeeds which
