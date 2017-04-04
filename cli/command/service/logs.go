@@ -30,9 +30,14 @@ type logsOptions struct {
 	timestamps bool
 	tail       string
 
-	service string
+	target string
 }
 
+// TODO(dperny) the whole CLI for this is kind of a mess IMHOIRL and it needs
+// to be refactored agressively. There may be changes to the implementation of
+// details, which will be need to be reflected in this code. The refactoring
+// should be put off until we make those changes, tho, because I think the
+// decisions made WRT details will impact the design of the CLI.
 func newLogsCommand(dockerCli *command.DockerCli) *cobra.Command {
 	var opts logsOptions
 
@@ -41,16 +46,16 @@ func newLogsCommand(dockerCli *command.DockerCli) *cobra.Command {
 		Short: "Fetch the logs of a service",
 		Args:  cli.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			opts.service = args[0]
+			opts.target = args[0]
 			return runLogs(dockerCli, &opts)
 		},
 		Tags: map[string]string{"experimental": ""},
 	}
 
 	flags := cmd.Flags()
-	flags.BoolVar(&opts.noResolve, "no-resolve", false, "Do not map IDs to Names")
+	flags.BoolVar(&opts.noResolve, "no-resolve", false, "Do not map IDs to Names in output")
 	flags.BoolVar(&opts.noTrunc, "no-trunc", false, "Do not truncate output")
-	flags.BoolVar(&opts.noTaskIDs, "no-task-ids", false, "Do not include task IDs")
+	flags.BoolVar(&opts.noTaskIDs, "no-task-ids", false, "Do not include task IDs in output")
 	flags.BoolVarP(&opts.follow, "follow", "f", false, "Follow log output")
 	flags.StringVar(&opts.since, "since", "", "Show logs since timestamp (e.g. 2013-01-02T13:23:37) or relative (e.g. 42m for 42 minutes)")
 	flags.BoolVarP(&opts.timestamps, "timestamps", "t", false, "Show timestamps")
@@ -70,28 +75,44 @@ func runLogs(dockerCli *command.DockerCli, opts *logsOptions) error {
 		Tail:       opts.tail,
 	}
 
-	client := dockerCli.Client()
+	cli := dockerCli.Client()
 
-	service, _, err := client.ServiceInspectWithRaw(ctx, opts.service)
-	if err != nil {
-		return err
-	}
+	var (
+		maxLength    = 1
+		responseBody io.ReadCloser
+	)
 
-	responseBody, err := client.ServiceLogs(ctx, opts.service, options)
+	service, _, err := cli.ServiceInspectWithRaw(ctx, opts.target)
 	if err != nil {
-		return err
+		// if it's any error other than service not found, it's Real
+		if !client.IsErrServiceNotFound(err) {
+			return err
+		}
+		task, _, err := cli.TaskInspectWithRaw(ctx, opts.target)
+		if err != nil {
+			if client.IsErrTaskNotFound(err) {
+				// if the task ALSO isn't found, rewrite the error to be clear
+				// that we looked for services AND tasks
+				err = fmt.Errorf("No such task or service")
+			}
+			return err
+		}
+		maxLength = getMaxLength(task.Slot)
+		responseBody, err = cli.TaskLogs(ctx, opts.target, options)
+	} else {
+		responseBody, err = cli.ServiceLogs(ctx, opts.target, options)
+		if err != nil {
+			return err
+		}
+		if service.Spec.Mode.Replicated != nil && service.Spec.Mode.Replicated.Replicas != nil {
+			// if replicas are initialized, figure out if we need to pad them
+			replicas := *service.Spec.Mode.Replicated.Replicas
+			maxLength = getMaxLength(int(replicas))
+		}
 	}
 	defer responseBody.Close()
 
-	var replicas uint64
-	padding := 1
-	if service.Spec.Mode.Replicated != nil && service.Spec.Mode.Replicated.Replicas != nil {
-		// if replicas are initialized, figure out if we need to pad them
-		replicas = *service.Spec.Mode.Replicated.Replicas
-		padding = len(strconv.FormatUint(replicas, 10))
-	}
-
-	taskFormatter := newTaskFormatter(client, opts, padding)
+	taskFormatter := newTaskFormatter(cli, opts, maxLength)
 
 	stdout := &logWriter{ctx: ctx, opts: opts, f: taskFormatter, w: dockerCli.Out()}
 	stderr := &logWriter{ctx: ctx, opts: opts, f: taskFormatter, w: dockerCli.Err()}
@@ -99,6 +120,11 @@ func runLogs(dockerCli *command.DockerCli, opts *logsOptions) error {
 	// TODO(aluzzardi): Do an io.Copy for services with TTY enabled.
 	_, err = stdcopy.StdCopy(stdout, stderr, responseBody)
 	return err
+}
+
+// getMaxLength gets the maximum length of the number in base 10
+func getMaxLength(i int) int {
+	return len(strconv.FormatInt(int64(i), 10))
 }
 
 type taskFormatter struct {
@@ -148,7 +174,8 @@ func (f *taskFormatter) format(ctx context.Context, logCtx logContext) (string, 
 			taskName += fmt.Sprintf(".%s", stringid.TruncateID(task.ID))
 		}
 	}
-	padding := strings.Repeat(" ", f.padding-len(strconv.FormatInt(int64(task.Slot), 10)))
+
+	padding := strings.Repeat(" ", f.padding-getMaxLength(task.Slot))
 	formatted := fmt.Sprintf("%s@%s%s", taskName, nodeName, padding)
 	f.cache[logCtx] = formatted
 	return formatted, nil

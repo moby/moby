@@ -43,6 +43,7 @@ func (sr *swarmRouter) initRoutes() {
 		router.NewPostRoute("/nodes/{id}/update", sr.updateNode),
 		router.NewGetRoute("/tasks", sr.getTasks),
 		router.NewGetRoute("/tasks/{id}", sr.getTask),
+		router.Experimental(router.Cancellable(router.NewGetRoute("/tasks/{id}/logs", sr.getTaskLogs))),
 		router.NewGetRoute("/secrets", sr.getSecrets),
 		router.NewPostRoute("/secrets/create", sr.createSecret),
 		router.NewDeleteRoute("/secrets/{id}", sr.removeSecret),

@@ -303,24 +303,32 @@ func (c *Cluster) RemoveService(input string) error {
 }
 
 // ServiceLogs collects service logs and writes them back to `config.OutStream`
-func (c *Cluster) ServiceLogs(ctx context.Context, input string, config *backend.ContainerLogsConfig, started chan struct{}) error {
+func (c *Cluster) ServiceLogs(ctx context.Context, selector *backend.LogSelector, config *backend.ContainerLogsConfig, started chan struct{}) error {
 	c.mu.RLock()
+	defer func() {
+		select {
+		case <-started:
+			// if we've started streaming logs, we are no longer holding the
+			// lock and do not have to release it
+			return
+		default:
+			// before we start, though, we're holding this lock and it needs to
+			// be released
+			c.mu.RUnlock()
+		}
+	}()
 	state := c.currentNodeState()
 	if !state.IsActiveManager() {
-		c.mu.RUnlock()
 		return c.errNoManager(state)
 	}
 
-	service, err := getService(ctx, state.controlClient, input)
+	swarmSelector, tty, err := convertSelector(ctx, state.controlClient, selector)
 	if err != nil {
-		c.mu.RUnlock()
-		return err
+		return errors.Wrap(err, "error making log selector")
 	}
-	container := service.Spec.Task.GetContainer()
-	if container == nil {
-		return errors.New("service logs only supported for container tasks")
-	}
-	if container.TTY {
+
+	// TODO(dperny) this goes away when we support TTY logs, which is in the works
+	if tty {
 		return errors.New("service logs not supported on tasks with a TTY attached")
 	}
 
@@ -335,7 +343,7 @@ func (c *Cluster) ServiceLogs(ctx context.Context, input string, config *backend
 
 	// Get tail value squared away - the number of previous log lines we look at
 	var tail int64
-	if config.Tail == "all" {
+	if config.Tail == "all" || config.Tail == "" {
 		// tail of 0 means send all logs on the swarmkit side
 		tail = 0
 	} else {
@@ -372,9 +380,7 @@ func (c *Cluster) ServiceLogs(ctx context.Context, input string, config *backend
 	}
 
 	stream, err := state.logsClient.SubscribeLogs(ctx, &swarmapi.SubscribeLogsRequest{
-		Selector: &swarmapi.LogSelector{
-			ServiceIDs: []string{service.ID},
-		},
+		Selector: swarmSelector,
 		Options: &swarmapi.LogSubscriptionOptions{
 			Follow:  config.Follow,
 			Streams: stdStreams,
@@ -383,20 +389,26 @@ func (c *Cluster) ServiceLogs(ctx context.Context, input string, config *backend
 		},
 	})
 	if err != nil {
-		c.mu.RUnlock()
 		return err
 	}
 
 	wf := ioutils.NewWriteFlusher(config.OutStream)
 	defer wf.Close()
+
+	// Release the lock before starting the stream.
+	//
+	// this feels like it could be racy because we would double unlock if we
+	// somehow returned right after we unlocked but before we closed, but I do
+	// not think such a thing is possible. i wish it were possible to atomically
+	// close and unlock but that might be overkill. programming is hard.
+	c.mu.RUnlock()
 	close(started)
+
 	wf.Flush()
 
 	outStream := stdcopy.NewStdWriter(wf, stdcopy.Stdout)
 	errStream := stdcopy.NewStdWriter(wf, stdcopy.Stderr)
 
-	// Release the lock before starting the stream.
-	c.mu.RUnlock()
 	for {
 		// Check the context before doing anything.
 		select {
@@ -440,6 +452,43 @@ func (c *Cluster) ServiceLogs(ctx context.Context, input string, config *backend
 			}
 		}
 	}
+}
+
+// convertSelector takes a backend.LogSelector, which contains raw names that
+// may or may not be valid, and converts them to an api.LogSelector proto. It
+// also returns a boolean, true if any of the services use a TTY (false
+// otherwise) and an error if something fails
+func convertSelector(ctx context.Context, cc swarmapi.ControlClient, selector *backend.LogSelector) (*swarmapi.LogSelector, bool, error) {
+	// if ANY tasks use a TTY, don't mux streams
+	var tty bool
+	// don't rely on swarmkit to resolve IDs, do it ourselves
+	swarmSelector := &swarmapi.LogSelector{}
+	for _, s := range selector.Services {
+		service, err := getService(ctx, cc, s)
+		if err != nil {
+			return nil, false, err
+		}
+		c := service.Spec.Task.GetContainer()
+		if c == nil {
+			return nil, false, errors.New("logs only supported on container tasks")
+		}
+		// set TTY true if we have a TTY service, or if it's already true
+		tty = tty || c.TTY
+		swarmSelector.ServiceIDs = append(swarmSelector.ServiceIDs, service.ID)
+	}
+	for _, t := range selector.Tasks {
+		task, err := getTask(ctx, cc, t)
+		if err != nil {
+			return nil, false, err
+		}
+		c := task.Spec.GetContainer()
+		if c == nil {
+			return nil, false, errors.New("logs only supported on container tasks")
+		}
+		tty = tty || c.TTY
+		swarmSelector.TaskIDs = append(swarmSelector.TaskIDs, task.ID)
+	}
+	return swarmSelector, tty, nil
 }
 
 // imageWithDigestString takes an image such as name or name:tag

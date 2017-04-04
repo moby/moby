@@ -32,6 +32,16 @@ type ContainerLogsConfig struct {
 	OutStream io.Writer
 }
 
+// LogSelector is a list of services and tasks that should be returned as part
+// of a log stream. It is similar to swarmapi.LogSelector, with the difference
+// that the names don't have to be resolved to IDs; this is mostly to avoid
+// accidents later where a swarmapi LogSelector might have been incorrectly
+// used verbatim (and to avoid the handler having to import swarmapi types)
+type LogSelector struct {
+	Services []string
+	Tasks    []string
+}
+
 // ContainerStatsConfig holds information for configuring the runtime
 // behavior of a backend.ContainerStats() call.
 type ContainerStatsConfig struct {
