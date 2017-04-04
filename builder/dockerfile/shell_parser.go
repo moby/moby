@@ -24,9 +24,9 @@ type shellWord struct {
 
 // ProcessWord will use the 'env' list of environment variables,
 // and replace any env var references in 'word'.
-func ProcessWord(word string, env []string, escapeToken rune) ([]string, error) {
+func ProcessWord(word string, env []string, escapeToken rune) (string, error) {
 	word, _, err := process(word, env, escapeToken)
-	return []string{word}, err
+	return word, err
 }
 
 // ProcessWords will use the 'env' list of environment variables,
