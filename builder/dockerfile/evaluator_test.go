@@ -173,7 +173,7 @@ func executeTestCase(t *testing.T, testCase dispatchTestCase) {
 	r := strings.NewReader(testCase.dockerfile)
 	d := parser.Directive{}
 	parser.SetEscapeToken(parser.DefaultEscapeToken, &d)
-	n, err := parser.Parse(r, &d)
+	n, err := parser.Parse(r, ioutil.Discard, &d)
 
 	if err != nil {
 		t.Fatalf("Error when parsing Dockerfile: %s", err)

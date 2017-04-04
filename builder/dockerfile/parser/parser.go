@@ -150,7 +150,7 @@ func ParseLine(line string, d *Directive, ignoreCont bool) (string, *Node, error
 
 // Parse is the main parse routine.
 // It handles an io.ReadWriteCloser and returns the root of the AST.
-func Parse(rwc io.Reader, d *Directive) (*Node, error) {
+func Parse(rwc io.Reader, stderr io.Writer, d *Directive) (*Node, error) {
 	currentLine := 0
 	root := &Node{}
 	root.StartLine = -1
@@ -171,10 +171,19 @@ func Parse(rwc io.Reader, d *Directive) (*Node, error) {
 		}
 		startLine := currentLine
 
+		warning := false
 		if line != "" && child == nil {
 			for scanner.Scan() {
 				newline := scanner.Text()
+				// Keep the original content of the current instruction
+				scannedLine += "\n" + newline
 				currentLine++
+
+				// If escape followed by an empty line then a warning will be generated
+				if strings.TrimSpace(newline) == "" {
+					warning = true
+					continue
+				}
 
 				if stripComments(strings.TrimSpace(newline)) == "" {
 					continue
@@ -204,6 +213,13 @@ func Parse(rwc io.Reader, d *Directive) (*Node, error) {
 		}
 
 		if child != nil {
+			if warning {
+				fmt.Fprintf(stderr, "[WARNING]: Empty lines detected in the following instruction:\n")
+				for _, line := range strings.Split(scannedLine, "\n") {
+					fmt.Fprintf(stderr, "[WARNING]:   %s\n", line)
+				}
+				fmt.Fprintf(stderr, "[WARNING]: Empty lines inside a RUN instruction is deprecated, and will be removed in Docker 1.16.\n")
+			}
 			// Update the line information for the current child.
 			child.StartLine = startLine
 			child.EndLine = currentLine

@@ -42,7 +42,7 @@ func TestTestNegative(t *testing.T) {
 
 		d := Directive{LookingForDirectives: true}
 		SetEscapeToken(DefaultEscapeToken, &d)
-		_, err = Parse(df, &d)
+		_, err = Parse(df, ioutil.Discard, &d)
 		if err == nil {
 			t.Fatalf("No error parsing broken dockerfile for %s", dir)
 		}
@@ -62,7 +62,7 @@ func TestTestData(t *testing.T) {
 
 		d := Directive{LookingForDirectives: true}
 		SetEscapeToken(DefaultEscapeToken, &d)
-		ast, err := Parse(df, &d)
+		ast, err := Parse(df, ioutil.Discard, &d)
 		if err != nil {
 			t.Fatalf("Error parsing %s's dockerfile: %v", dir, err)
 		}
@@ -145,7 +145,7 @@ func TestLineInformation(t *testing.T) {
 
 	d := Directive{LookingForDirectives: true}
 	SetEscapeToken(DefaultEscapeToken, &d)
-	ast, err := Parse(df, &d)
+	ast, err := Parse(df, ioutil.Discard, &d)
 	if err != nil {
 		t.Fatalf("Error parsing dockerfile %s: %v", testFileLineInfo, err)
 	}

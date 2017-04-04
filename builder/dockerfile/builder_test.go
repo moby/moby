@@ -1,6 +1,7 @@
 package dockerfile
 
 import (
+	"io/ioutil"
 	"strings"
 
 	"testing"
@@ -14,7 +15,7 @@ func TestBuildProcessLabels(t *testing.T) {
 	dockerfile := "FROM scratch"
 	d := parser.Directive{}
 	parser.SetEscapeToken(parser.DefaultEscapeToken, &d)
-	n, err := parser.Parse(strings.NewReader(dockerfile), &d)
+	n, err := parser.Parse(strings.NewReader(dockerfile), ioutil.Discard, &d)
 	if err != nil {
 		t.Fatalf("Error when parsing Dockerfile: %s", err)
 	}
