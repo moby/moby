@@ -116,6 +116,7 @@ func ConfigInspectToOCI(image *MobyImage, inspect types.ImageInspect) ([]byte, e
 	if cwd == "" {
 		cwd = "/"
 	}
+	procOptions := []string{"nosuid", "nodev", "noexec", "relatime"}
 	devOptions := []string{"nosuid", "strictatime", "mode=755", "size=65536k"}
 	if image.Readonly {
 		devOptions = append(devOptions, "ro")
@@ -128,7 +129,7 @@ func ConfigInspectToOCI(image *MobyImage, inspect types.ImageInspect) ([]byte, e
 	cgroupOptions := []string{"nosuid", "noexec", "nodev", "relatime", "ro"}
 	// note omits "standard" /dev/shm and /dev/mqueue
 	mounts := []specs.Mount{
-		{Destination: "/proc", Type: "proc", Source: "proc"},
+		{Destination: "/proc", Type: "proc", Source: "proc", Options: procOptions},
 		{Destination: "/dev", Type: "tmpfs", Source: "tmpfs", Options: devOptions},
 		{Destination: "/dev/pts", Type: "devpts", Source: "devpts", Options: ptsOptions},
 		{Destination: "/sys", Type: "sysfs", Source: "sysfs", Options: sysOptions},
