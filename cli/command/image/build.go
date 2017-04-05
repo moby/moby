@@ -247,46 +247,10 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 
 	// replace Dockerfile if added dynamically
 	if dockerfileCtx != nil {
-		file, err := ioutil.ReadAll(dockerfileCtx)
-		dockerfileCtx.Close()
+		buildCtx, relDockerfile, err = addDockerfileToBuildContext(dockerfileCtx, buildCtx)
 		if err != nil {
 			return err
 		}
-		now := time.Now()
-		hdrTmpl := &tar.Header{
-			Mode:       0600,
-			Uid:        0,
-			Gid:        0,
-			ModTime:    now,
-			Typeflag:   tar.TypeReg,
-			AccessTime: now,
-			ChangeTime: now,
-		}
-		randomName := ".dockerfile." + stringid.GenerateRandomID()[:20]
-
-		buildCtx = archive.ReplaceFileTarWrapper(buildCtx, map[string]archive.TarModifierFunc{
-			randomName: func(_ string, h *tar.Header, content io.Reader) (*tar.Header, []byte, error) {
-				return hdrTmpl, file, nil
-			},
-			".dockerignore": func(_ string, h *tar.Header, content io.Reader) (*tar.Header, []byte, error) {
-				if h == nil {
-					h = hdrTmpl
-				}
-				extraIgnore := randomName + "\n"
-				b := &bytes.Buffer{}
-				if content != nil {
-					_, err := b.ReadFrom(content)
-					if err != nil {
-						return nil, nil, err
-					}
-				} else {
-					extraIgnore += ".dockerignore\n"
-				}
-				b.Write([]byte("\n" + extraIgnore))
-				return h, b.Bytes(), nil
-			},
-		})
-		relDockerfile = randomName
 	}
 
 	ctx := context.Background()
@@ -390,6 +354,51 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 	}
 
 	return nil
+}
+
+func addDockerfileToBuildContext(dockerfileCtx io.ReadCloser, buildCtx io.ReadCloser) (io.ReadCloser, string, error) {
+	file, err := ioutil.ReadAll(dockerfileCtx)
+	dockerfileCtx.Close()
+	if err != nil {
+		return nil, "", err
+	}
+	now := time.Now()
+	hdrTmpl := &tar.Header{
+		Mode:       0600,
+		Uid:        0,
+		Gid:        0,
+		ModTime:    now,
+		Typeflag:   tar.TypeReg,
+		AccessTime: now,
+		ChangeTime: now,
+	}
+	randomName := ".dockerfile." + stringid.GenerateRandomID()[:20]
+
+	buildCtx = archive.ReplaceFileTarWrapper(buildCtx, map[string]archive.TarModifierFunc{
+		// Add the dockerfile with a random filename
+		randomName: func(_ string, h *tar.Header, content io.Reader) (*tar.Header, []byte, error) {
+			return hdrTmpl, file, nil
+		},
+		// Update .dockerignore to include the random filename
+		".dockerignore": func(_ string, h *tar.Header, content io.Reader) (*tar.Header, []byte, error) {
+			if h == nil {
+				h = hdrTmpl
+			}
+			extraIgnore := randomName + "\n"
+			b := &bytes.Buffer{}
+			if content != nil {
+				_, err := b.ReadFrom(content)
+				if err != nil {
+					return nil, nil, err
+				}
+			} else {
+				extraIgnore += ".dockerignore\n"
+			}
+			b.Write([]byte("\n" + extraIgnore))
+			return h, b.Bytes(), nil
+		},
+	})
+	return buildCtx, randomName, nil
 }
 
 func isLocalDir(c string) bool {

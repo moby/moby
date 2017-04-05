@@ -230,10 +230,8 @@ func CompressStream(dest io.Writer, compression Compression) (io.WriteCloser, er
 // define a modification step for a single path
 type TarModifierFunc func(path string, header *tar.Header, content io.Reader) (*tar.Header, []byte, error)
 
-// ReplaceFileTarWrapper converts inputTarStream to a new tar stream
-// while replacing a single file called header.Name with new contents.
-// If the file with header.Name does not exist it is added to the tar stream.
-// TODO: make this into a generic tar conversion function with walkFn argument
+// ReplaceFileTarWrapper converts inputTarStream to a new tar stream. Files in the
+// tar stream are modified if they match any of the keys in mods.
 func ReplaceFileTarWrapper(inputTarStream io.ReadCloser, mods map[string]TarModifierFunc) io.ReadCloser {
 	pipeReader, pipeWriter := io.Pipe()
 
@@ -255,7 +253,7 @@ func ReplaceFileTarWrapper(inputTarStream io.ReadCloser, mods map[string]TarModi
 			for len(modKeys) > 0 && (err == io.EOF || err == nil && hdr.Name >= modKeys[0]) {
 				var h *tar.Header
 				var rdr io.Reader
-				if hdr != nil && hdr.Name == modKeys[0] {
+				if err == nil && hdr != nil && hdr.Name == modKeys[0] {
 					h = hdr
 					rdr = tarReader
 				}
