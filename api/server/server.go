@@ -139,11 +139,9 @@ func (s *Server) makeHTTPHandler(handler httputils.APIFunc) http.HandlerFunc {
 
 		if err := handlerFunc(ctx, w, r, vars); err != nil {
 			statusCode := httputils.GetHTTPErrorStatusCode(err)
-			errFormat := "%v"
-			if statusCode == http.StatusInternalServerError {
-				errFormat = "%+v"
+			if statusCode >= 500 {
+				logrus.Errorf("Handler for %s %s returned error: %v", r.Method, r.URL.Path, err)
 			}
-			logrus.Errorf("Handler for %s %s returned error: "+errFormat, r.Method, r.URL.Path, err)
 			httputils.MakeErrorHandler(err)(w, r)
 		}
 	}
