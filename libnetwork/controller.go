@@ -127,6 +127,9 @@ type NetworkController interface {
 	// Wait for agent initialization complete in libnetwork controller
 	AgentInitWait()
 
+	// Wait for agent to stop if running
+	AgentStopWait()
+
 	// SetKeys configures the encryption key for gossip and overlay data path
 	SetKeys(keys []*types.EncryptionKey) error
 }
@@ -160,6 +163,7 @@ type controller struct {
 	agent                  *agent
 	networkLocker          *locker.Locker
 	agentInitDone          chan struct{}
+	agentStopDone          chan struct{}
 	keys                   []*types.EncryptionKey
 	clusterConfigAvailable bool
 	sync.Mutex
@@ -337,6 +341,14 @@ func (c *controller) clusterAgentInit() {
 			// service bindings
 			c.agentClose()
 			c.cleanupServiceBindings("")
+
+			c.Lock()
+			if c.agentStopDone != nil {
+				close(c.agentStopDone)
+				c.agentStopDone = nil
+			}
+			c.Unlock()
+
 			return
 		}
 	}
@@ -351,6 +363,15 @@ func (c *controller) AgentInitWait() {
 
 	if agentInitDone != nil {
 		<-agentInitDone
+	}
+}
+
+func (c *controller) AgentStopWait() {
+	c.Lock()
+	agentStopDone := c.agentStopDone
+	c.Unlock()
+	if agentStopDone != nil {
+		<-agentStopDone
 	}
 }
 
