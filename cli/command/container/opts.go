@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types/container"
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/strslice"
@@ -31,6 +32,7 @@ type containerOptions struct {
 	attach             opts.ListOpts
 	volumes            opts.ListOpts
 	tmpfs              opts.ListOpts
+	mounts             opts.MountOpt
 	blkioWeightDevice  opts.WeightdeviceOpt
 	deviceReadBps      opts.ThrottledeviceOpt
 	deviceWriteBps     opts.ThrottledeviceOpt
@@ -223,6 +225,7 @@ func addFlags(flags *pflag.FlagSet) *containerOptions {
 	flags.Var(&copts.tmpfs, "tmpfs", "Mount a tmpfs directory")
 	flags.Var(&copts.volumesFrom, "volumes-from", "Mount volumes from the specified container(s)")
 	flags.VarP(&copts.volumes, "volume", "v", "Bind mount a volume")
+	flags.Var(&copts.mounts, "mount", "Attach a filesystem mount to the container")
 
 	// Health-checking
 	flags.StringVar(&copts.healthCmd, "health-cmd", "", "Command to run to check health")
@@ -321,6 +324,10 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*containerConfig, err
 		return nil, errors.Errorf("invalid value: %d. Valid memory swappiness range is 0-100", swappiness)
 	}
 
+	mounts := copts.mounts.Value()
+	if len(mounts) > 0 && copts.volumeDriver != "" {
+		logrus.Warn("`--volume-driver` is ignored for volumes specified via `--mount`. Use `--mount type=volume,volume-driver=...` instead.")
+	}
 	var binds []string
 	volumes := copts.volumes.GetMap()
 	// add any bind targets to the list of container volumes
@@ -589,6 +596,7 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*containerConfig, err
 		Tmpfs:          tmpfs,
 		Sysctls:        copts.sysctls.GetAll(),
 		Runtime:        copts.runtime,
+		Mounts:         mounts,
 	}
 
 	if copts.autoRemove && !hostConfig.RestartPolicy.IsNone() {
