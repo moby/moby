@@ -35,8 +35,8 @@ Run 'docker volume COMMAND --help' for more information on a command.
 
 ## Description
 
-Manage volumes. You can use subcommand to create, list, inspect, remove
-volumes.
+Manage volumes. You can use subcommands to create, inspect, list, remove, or
+prune volumes.
 
 ## Related commands
 
