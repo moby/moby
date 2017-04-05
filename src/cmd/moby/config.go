@@ -192,6 +192,49 @@ func ConfigInspectToOCI(image *MobyImage, inspect types.ImageInspect) ([]byte, e
 	}
 	// TODO user, cgroup namespaces, maybe mount=host if useful
 	namespaces = append(namespaces, specs.LinuxNamespace{Type: specs.MountNamespace})
+	caps := image.Capabilities
+	if len(caps) == 1 && strings.ToLower(caps[0]) == "all" {
+		caps = []string{
+			"CAP_AUDIT_CONTROL",
+			"CAP_AUDIT_READ",
+			"CAP_AUDIT_WRITE",
+			"CAP_BLOCK_SUSPEND",
+			"CAP_CHOWN",
+			"CAP_DAC_OVERRIDE",
+			"CAP_DAC_READ_SEARCH",
+			"CAP_FOWNER",
+			"CAP_FSETID",
+			"CAP_IPC_LOCK",
+			"CAP_IPC_OWNER",
+			"CAP_KILL",
+			"CAP_LEASE",
+			"CAP_LINUX_IMMUTABLE",
+			"CAP_MAC_ADMIN",
+			"CAP_MAC_OVERRIDE",
+			"CAP_MKNOD",
+			"CAP_NET_ADMIN",
+			"CAP_NET_BIND_SERVICE",
+			"CAP_NET_BROADCAST",
+			"CAP_NET_RAW",
+			"CAP_SETFCAP",
+			"CAP_SETGID",
+			"CAP_SETPCAP",
+			"CAP_SETUID",
+			"CAP_SYSLOG",
+			"CAP_SYS_ADMIN",
+			"CAP_SYS_BOOT",
+			"CAP_SYS_CHROOT",
+			"CAP_SYS_MODULE",
+			"CAP_SYS_NICE",
+			"CAP_SYS_PACCT",
+			"CAP_SYS_PTRACE",
+			"CAP_SYS_RAWIO",
+			"CAP_SYS_RESOURCE",
+			"CAP_SYS_TIME",
+			"CAP_SYS_TTY_CONFIG",
+			"CAP_WAKE_ALARM",
+		}
+	}
 
 	oci.Version = specs.Version
 
@@ -213,10 +256,10 @@ func ConfigInspectToOCI(image *MobyImage, inspect types.ImageInspect) ([]byte, e
 		Env:  env,
 		Cwd:  cwd,
 		Capabilities: &specs.LinuxCapabilities{
-			Bounding:    image.Capabilities,
-			Effective:   image.Capabilities,
-			Inheritable: image.Capabilities,
-			Permitted:   image.Capabilities,
+			Bounding:    caps,
+			Effective:   caps,
+			Inheritable: caps,
+			Permitted:   caps,
 			Ambient:     []string{},
 		},
 		Rlimits:         []specs.LinuxRlimit{},
