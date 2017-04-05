@@ -66,36 +66,6 @@ The currently supported filters are:
 * name (`--filter name=myapp_web`)
 * label (`--filter label=key=value`)
 
-### Formatting
-
-The formatting options (`--format`) pretty-prints services output
-using a Go template.
-
-Valid placeholders for the Go template are listed below:
-
-Placeholder | Description
-------------|------------------------------------------------------------------------------------------
-`.ID`       | Service ID
-`.Name`     | Service name
-`.Mode`     | Service mode (replicated, global)
-`.Replicas` | Service replicas
-`.Image`    | Service image
-
-When using the `--format` option, the `stack services` command will either
-output the data exactly as the template declares or, when using the
-`table` directive, includes column headers as well.
-
-The following example uses a template without headers and outputs the
-`ID`, `Mode`, and `Replicas` entries separated by a colon for all services:
-
-```bash
-$ docker stack services --format "{{.ID}}: {{.Mode}} {{.Replicas}}"
-
-0zmvwuiu3vue: replicated 10/10
-fm6uf97exkul: global 5/5
-```
-
-
 ## Related commands
 
 * [stack deploy](stack_deploy.md)

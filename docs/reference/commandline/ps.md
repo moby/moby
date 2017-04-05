@@ -338,44 +338,6 @@ CONTAINER ID        IMAGE       COMMAND       CREATED             STATUS        
 9d4893ed80fe        ubuntu      "top"         10 minutes ago      Up 10 minutes                           test1
 ```
 
-#### publish and expose
-
-The `publish` and `expose` filters show only containers that have published or exposed port with a given port
-number, port range, and/or protocol. The default protocol is `tcp` when not specified.
-
-The following filter matches all containers that have published port of 80:
-
-```bash
-$ docker run -d --publish=80 busybox top
-$ docker run -d --expose=8080 busybox top
-
-$ docker ps -a
-
-CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS                   NAMES
-9833437217a5        busybox             "top"               5 seconds ago       Up 4 seconds        8080/tcp                dreamy_mccarthy
-fc7e477723b7        busybox             "top"               50 seconds ago      Up 50 seconds       0.0.0.0:32768->80/tcp   admiring_roentgen
-
-$ docker ps --filter publish=80
-
-CONTAINER ID        IMAGE               COMMAND             CREATED              STATUS              PORTS                   NAMES
-fc7e477723b7        busybox             "top"               About a minute ago   Up About a minute   0.0.0.0:32768->80/tcp   admiring_roentgen
-```
-
-The following filter matches all containers that have exposed TCP port in the range of `8000-8080`:
-```bash
-$ docker ps --filter expose=8000-8080/tcp
-
-CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS               NAMES
-9833437217a5        busybox             "top"               21 seconds ago      Up 19 seconds       8080/tcp            dreamy_mccarthy
-```
-
-The following filter matches all containers that have exposed UDP port `80`:
-```bash
-$ docker ps --filter publish=80/udp
-
-CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS               NAMES
-```
-
 ### Formatting
 
 The formatting option (`--format`) pretty-prints container output using a Go
