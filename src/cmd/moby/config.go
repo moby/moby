@@ -6,7 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"path"
+	"path/filepath"
+	"sort"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
@@ -93,6 +96,39 @@ func ConfigToOCI(image *MobyImage) ([]byte, error) {
 	return ConfigInspectToOCI(image, inspect)
 }
 
+func defaultMountpoint(tp string) string {
+	switch tp {
+	case "proc":
+		return "/proc"
+	case "devpts":
+		return "/dev/pts"
+	case "sysfs":
+		return "/sys"
+	case "cgroup":
+		return "/sys/fs/cgroup"
+	case "mqueue":
+		return "/dev/mqueue"
+	default:
+		return ""
+	}
+}
+
+// Sort mounts by number of path components so /dev/pts is listed after /dev
+type mlist []specs.Mount
+
+func (m mlist) Len() int {
+	return len(m)
+}
+func (m mlist) Less(i, j int) bool {
+	return m.parts(i) < m.parts(j)
+}
+func (m mlist) Swap(i, j int) {
+	m[i], m[j] = m[j], m[i]
+}
+func (m mlist) parts(i int) int {
+	return strings.Count(filepath.Clean(m[i].Destination), string(os.PathSeparator))
+}
+
 // ConfigInspectToOCI converts a config and the output of image inspect to an OCI config file
 func ConfigInspectToOCI(image *MobyImage, inspect types.ImageInspect) ([]byte, error) {
 	oci := specs.Spec{}
@@ -117,6 +153,7 @@ func ConfigInspectToOCI(image *MobyImage, inspect types.ImageInspect) ([]byte, e
 	if cwd == "" {
 		cwd = "/"
 	}
+	// default options match what Docker does
 	procOptions := []string{"nosuid", "nodev", "noexec", "relatime"}
 	devOptions := []string{"nosuid", "strictatime", "mode=755", "size=65536k"}
 	if image.Readonly {
@@ -129,15 +166,13 @@ func ConfigInspectToOCI(image *MobyImage, inspect types.ImageInspect) ([]byte, e
 	}
 	cgroupOptions := []string{"nosuid", "noexec", "nodev", "relatime", "ro"}
 	// note omits "standard" /dev/shm and /dev/mqueue
-	mounts := []specs.Mount{
-		{Destination: "/proc", Type: "proc", Source: "proc", Options: procOptions},
-		{Destination: "/dev", Type: "tmpfs", Source: "tmpfs", Options: devOptions},
-		{Destination: "/dev/pts", Type: "devpts", Source: "devpts", Options: ptsOptions},
-		{Destination: "/sys", Type: "sysfs", Source: "sysfs", Options: sysOptions},
-		{Destination: "/sys/fs/cgroup", Type: "cgroup", Source: "cgroup", Options: cgroupOptions},
+	mounts := map[string]specs.Mount{
+		"/proc":          {Destination: "/proc", Type: "proc", Source: "proc", Options: procOptions},
+		"/dev":           {Destination: "/dev", Type: "tmpfs", Source: "tmpfs", Options: devOptions},
+		"/dev/pts":       {Destination: "/dev/pts", Type: "devpts", Source: "devpts", Options: ptsOptions},
+		"/sys":           {Destination: "/sys", Type: "sysfs", Source: "sysfs", Options: sysOptions},
+		"/sys/fs/cgroup": {Destination: "/sys/fs/cgroup", Type: "cgroup", Source: "cgroup", Options: cgroupOptions},
 	}
-	// TODO if any standard mount points supplied, remove from above, so can change options
-	mounts = append(mounts, image.Mounts...)
 	for _, t := range image.Tmpfs {
 		parts := strings.Split(t, ":")
 		if len(parts) > 2 {
@@ -148,7 +183,7 @@ func ConfigInspectToOCI(image *MobyImage, inspect types.ImageInspect) ([]byte, e
 		if len(parts) == 2 {
 			opts = strings.Split(parts[2], ",")
 		}
-		mounts = append(mounts, specs.Mount{Destination: dest, Type: "tmpfs", Source: "tmpfs", Options: opts})
+		mounts[dest] = specs.Mount{Destination: dest, Type: "tmpfs", Source: "tmpfs", Options: opts}
 	}
 	for _, b := range image.Binds {
 		parts := strings.Split(b, ":")
@@ -164,9 +199,42 @@ func ConfigInspectToOCI(image *MobyImage, inspect types.ImageInspect) ([]byte, e
 		if len(parts) == 3 {
 			opts = strings.Split(parts[2], ",")
 		}
-		mounts = append(mounts, specs.Mount{Destination: dest, Type: "bind", Source: src, Options: opts})
+		mounts[dest] = specs.Mount{Destination: dest, Type: "bind", Source: src, Options: opts}
 	}
-
+	for _, m := range image.Mounts {
+		tp := m.Type
+		src := m.Source
+		dest := m.Destination
+		opts := m.Options
+		if tp == "" {
+			switch src {
+			case "mqueue", "devpts", "proc", "sysfs", "cgroup":
+				tp = src
+			}
+		}
+		if tp == "" && dest == "/dev" {
+			tp = "tmpfs"
+		}
+		if tp == "" {
+			return []byte{}, fmt.Errorf("Mount for destination %s is missing type", dest)
+		}
+		if src == "" {
+			// usually sane, eg proc, tmpfs etc
+			src = tp
+		}
+		if dest == "" {
+			dest = defaultMountpoint(tp)
+		}
+		if dest == "" {
+			return []byte{}, fmt.Errorf("Mount type %s is missing destination", tp)
+		}
+		mounts[dest] = specs.Mount{Destination: dest, Type: tp, Source: src, Options: opts}
+	}
+	mountList := mlist{}
+	for _, m := range mounts {
+		mountList = append(mountList, m)
+	}
+	sort.Sort(mountList)
 	namespaces := []specs.LinuxNamespace{}
 	if image.Net != "" && image.Net != "host" {
 		return []byte{}, fmt.Errorf("invalid net namespace: %s", image.Net)
@@ -276,7 +344,7 @@ func ConfigInspectToOCI(image *MobyImage, inspect types.ImageInspect) ([]byte, e
 	}
 
 	oci.Hostname = image.Hostname
-	oci.Mounts = mounts
+	oci.Mounts = mountList
 
 	oci.Linux = &specs.Linux{
 		// UIDMappings
