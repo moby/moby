@@ -33,6 +33,7 @@ type Moby struct {
 		Project string
 		Bucket  string
 		Family  string
+		Keys    string
 		Public  bool
 		Replace bool
 	}

@@ -51,7 +51,11 @@ func outputs(m *Moby, base string, bzimage []byte, initrd []byte) error {
 			if o.Bucket == "" {
 				return fmt.Errorf("No bucket specified for GCE output")
 			}
-			err = uploadGS(base+".img.tar.gz", o.Project, o.Bucket, o.Public)
+			gClient, err := NewGCPClient(o.Keys, o.Project)
+			if err != nil {
+				return fmt.Errorf("Unable to connect to GCP")
+			}
+			err = gClient.UploadFile(base+".img.tar.gz", o.Bucket, o.Public)
 			if err != nil {
 				return fmt.Errorf("Error copying to Google Storage: %v", err)
 			}
@@ -63,11 +67,15 @@ func outputs(m *Moby, base string, bzimage []byte, initrd []byte) error {
 			if o.Bucket == "" {
 				return fmt.Errorf("No bucket specified for GCE output")
 			}
-			err = uploadGS(base+".img.tar.gz", o.Project, o.Bucket, o.Public)
+			gClient, err := NewGCPClient(o.Keys, o.Project)
+			if err != nil {
+				return fmt.Errorf("Unable to connect to GCP")
+			}
+			err = gClient.UploadFile(base+".img.tar.gz", o.Bucket, o.Public)
 			if err != nil {
 				return fmt.Errorf("Error copying to Google Storage: %v", err)
 			}
-			err = imageGS(base, o.Project, "https://storage.googleapis.com/"+o.Bucket+"/"+base+".img.tar.gz", o.Family, o.Replace)
+			err = gClient.CreateImage(base, "https://storage.googleapis.com/"+o.Bucket+"/"+base+".img.tar.gz", o.Family, o.Replace)
 			if err != nil {
 				return fmt.Errorf("Error creating Google Compute Image: %v", err)
 			}
