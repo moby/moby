@@ -35,7 +35,7 @@ func build(args []string) {
 		os.Exit(1)
 	}
 	conf := remArgs[0]
-	if filepath.Ext(conf) == "" {
+	if !(filepath.Ext(conf) == ".yml" || filepath.Ext(conf) == ".yaml") {
 		conf = conf + ".yml"
 	}
 
