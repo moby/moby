@@ -37,8 +37,8 @@ Run 'docker network COMMAND --help' for more information on a command.
 
 ## Description
 
-Manage networks. You can use subcommand to create, list, inspect, remove,
-connect and disconnect networks.
+Manage networks. You can use subcommands to create, inspect, list, remove,
+prune, connect, and disconnect networks.
 
 ## Related commands
 
@@ -47,3 +47,5 @@ connect and disconnect networks.
 * [network list](network_list.md)
 * [network rm](network_rm.md)
 * [network prune](network_prune.md)
+* [network connect](network_connect.md)
+* [network disconnect](network_disconnect.md)

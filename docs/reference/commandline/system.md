@@ -34,4 +34,4 @@ Run 'docker system COMMAND --help' for more information on a command.
 
 ## Description
 
-Manage docker.
+Manage Docker.
