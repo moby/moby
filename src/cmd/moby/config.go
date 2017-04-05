@@ -44,27 +44,30 @@ type Moby struct {
 
 // MobyImage is the type of an image config
 type MobyImage struct {
-	Name             string
-	Image            string
-	Capabilities     []string
-	Mounts           []specs.Mount
-	Binds            []string
-	Tmpfs            []string
-	Command          []string
-	Env              []string
-	Cwd              string
-	Net              string
-	Pid              string
-	Ipc              string
-	Uts              string
-	Readonly         bool
-	UID              uint32   `yaml:"uid"`
-	GID              uint32   `yaml:"gid"`
-	AdditionalGids   []uint32 `yaml:"additionalGids"`
-	NoNewPrivileges  bool     `yaml:"noNewPrivileges"`
-	Hostname         string
-	OomScoreAdj      int  `yaml:"oomScoreAdj"`
-	DisableOOMKiller bool `yaml:"disableOOMKiller"`
+	Name              string
+	Image             string
+	Capabilities      []string
+	Mounts            []specs.Mount
+	Binds             []string
+	Tmpfs             []string
+	Command           []string
+	Env               []string
+	Cwd               string
+	Net               string
+	Pid               string
+	Ipc               string
+	Uts               string
+	Readonly          bool
+	UID               uint32   `yaml:"uid"`
+	GID               uint32   `yaml:"gid"`
+	AdditionalGids    []uint32 `yaml:"additionalGids"`
+	NoNewPrivileges   bool     `yaml:"noNewPrivileges"`
+	Hostname          string
+	OomScoreAdj       int    `yaml:"oomScoreAdj"`
+	DisableOOMKiller  bool   `yaml:"disableOOMKiller"`
+	RootfsPropagation string `yaml:"rootfsPropagation"`
+	CgroupsPath       string `yaml:"cgroupsPath"`
+	Sysctl            map[string]string
 }
 
 // NewConfig parses a config file
@@ -349,7 +352,7 @@ func ConfigInspectToOCI(image *MobyImage, inspect types.ImageInspect) ([]byte, e
 	oci.Linux = &specs.Linux{
 		// UIDMappings
 		// GIDMappings
-		// Sysctl
+		Sysctl: image.Sysctl,
 		Resources: &specs.LinuxResources{
 			// Devices
 			DisableOOMKiller: &image.DisableOOMKiller,
@@ -360,11 +363,11 @@ func ConfigInspectToOCI(image *MobyImage, inspect types.ImageInspect) ([]byte, e
 			// HugepageLimits
 			// Network
 		},
-		// CgroupsPath
-		Namespaces: namespaces,
+		CgroupsPath: image.CgroupsPath,
+		Namespaces:  namespaces,
 		// Devices
 		// Seccomp
-		// RootfsPropagation
+		RootfsPropagation: image.RootfsPropagation,
 		// MaskedPaths
 		// ReadonlyPaths
 		// MountLabel
