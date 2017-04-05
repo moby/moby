@@ -4,12 +4,19 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	log "github.com/Sirupsen/logrus"
 )
 
 var (
 	defaultLogFormatter = &log.TextFormatter{}
+
+	// Version is the human-readable version
+	Version = "unknown"
+
+	// GitCommit hash, set at compile time
+	GitCommit = "unknown"
 )
 
 // infoFormatter overrides the default format for Info() log events to
@@ -24,15 +31,22 @@ func (f *infoFormatter) Format(entry *log.Entry) ([]byte, error) {
 	return defaultLogFormatter.Format(entry)
 }
 
+func version() {
+	fmt.Printf("%s version %s\n", filepath.Base(os.Args[0]), Version)
+	fmt.Printf("commit: %s\n", GitCommit)
+	os.Exit(0)
+}
+
 func main() {
 	flag.Usage = func() {
-		fmt.Printf("USAGE: %s [options] COMMAND\n\n", os.Args[0])
+		fmt.Printf("USAGE: %s [options] COMMAND\n\n", filepath.Base(os.Args[0]))
 		fmt.Printf("Commands:\n")
 		fmt.Printf("  build       Build a Moby image from a YAML file\n")
 		fmt.Printf("  run         Run a Moby image on a local hypervisor\n")
+		fmt.Printf("  version     Print version information\n")
 		fmt.Printf("  help        Print this message\n")
 		fmt.Printf("\n")
-		fmt.Printf("Run '%s COMMAND --help' for more information on the command\n", os.Args[0])
+		fmt.Printf("Run '%s COMMAND --help' for more information on the command\n", filepath.Base(os.Args[0]))
 		fmt.Printf("\n")
 		fmt.Printf("Options:\n")
 		flag.PrintDefaults()
@@ -69,6 +83,8 @@ func main() {
 		build(args[1:])
 	case "run":
 		run(args[1:])
+	case "version":
+		version()
 	case "help":
 		flag.Usage()
 	default:
