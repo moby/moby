@@ -33,8 +33,8 @@ func (ns *nodeSet) addOrUpdateNode(n NodeInfo) {
 	if n.Tasks == nil {
 		n.Tasks = make(map[string]*api.Task)
 	}
-	if n.DesiredRunningTasksCountByService == nil {
-		n.DesiredRunningTasksCountByService = make(map[string]int)
+	if n.ActiveTasksCountByService == nil {
+		n.ActiveTasksCountByService = make(map[string]int)
 	}
 	if n.recentFailures == nil {
 		n.recentFailures = make(map[string][]time.Time)
