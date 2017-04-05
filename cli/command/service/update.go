@@ -152,12 +152,6 @@ func runUpdate(dockerCli *command.DockerCli, flags *pflag.FlagSet, serviceID str
 		return err
 	}
 
-	if flags.Changed("image") {
-		if err := resolveServiceImageDigest(dockerCli, spec); err != nil {
-			return err
-		}
-	}
-
 	updatedSecrets, err := getUpdatedSecrets(apiClient, flags, spec.TaskTemplate.ContainerSpec.Secrets)
 	if err != nil {
 		return err
@@ -183,6 +177,13 @@ func runUpdate(dockerCli *command.DockerCli, flags *pflag.FlagSet, serviceID str
 		updateOpts.RegistryAuthFrom = types.RegistryAuthFromPreviousSpec
 	} else {
 		updateOpts.RegistryAuthFrom = types.RegistryAuthFromSpec
+	}
+
+	// TODO(nishanttotla): Figure out correct registry auth to pass here
+	if flags.Changed("image") {
+		if err := resolveServiceImageDigest(dockerCli, spec, updateOpts.EncodedRegistryAuth); err != nil {
+			return err
+		}
 	}
 
 	response, err := apiClient.ServiceUpdate(ctx, service.ID, service.Version, *spec, updateOpts)
