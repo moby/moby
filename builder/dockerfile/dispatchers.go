@@ -211,7 +211,7 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 			return errors.Errorf("invalid name for build stage: %q, name can't start with a number or contain symbols", ctxName)
 		}
 	} else if len(args) != 1 {
-		return errExactlyOneArgument("FROM")
+		return errors.New("FROM requires either one or three arguments")
 	}
 
 	if err := b.flags.Parse(); err != nil {
