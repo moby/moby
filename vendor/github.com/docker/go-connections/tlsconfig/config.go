@@ -8,11 +8,13 @@ package tlsconfig
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"os"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/pkg/errors"
 )
 
 // Options represents the information needed to create client and server TLS configurations.
@@ -34,6 +36,9 @@ type Options struct {
 	// the system pool will be used.
 	ExclusiveRootPools bool
 	MinVersion         uint16
+	// If Passphrase is set, it will be used to decrypt a TLS private key
+	// if the key is encrypted
+	Passphrase string
 }
 
 // Extra (server-side) accepted CBC cipher suites - will phase out in the future
@@ -127,6 +132,67 @@ func adjustMinVersion(options Options, config *tls.Config) error {
 	return nil
 }
 
+// IsErrEncryptedKey returns true if the 'err' is an error of incorrect
+// password when tryin to decrypt a TLS private key
+func IsErrEncryptedKey(err error) bool {
+	return errors.Cause(err) == x509.IncorrectPasswordError
+}
+
+// getPrivateKey returns the private key in 'keyBytes', in PEM-encoded format.
+// If the private key is encrypted, 'passphrase' is used to decrypted the
+// private key.
+func getPrivateKey(keyBytes []byte, passphrase string) ([]byte, error) {
+	// this section makes some small changes to code from notary/tuf/utils/x509.go
+	pemBlock, _ := pem.Decode(keyBytes)
+	if pemBlock == nil {
+		return nil, fmt.Errorf("no valid private key found")
+	}
+
+	var err error
+	if x509.IsEncryptedPEMBlock(pemBlock) {
+		keyBytes, err = x509.DecryptPEMBlock(pemBlock, []byte(passphrase))
+		if err != nil {
+			return nil, errors.Wrap(err, "private key is encrypted, but could not decrypt it")
+		}
+		keyBytes = pem.EncodeToMemory(&pem.Block{Type: pemBlock.Type, Bytes: keyBytes})
+	}
+
+	return keyBytes, nil
+}
+
+// getCert returns a Certificate from the CertFile and KeyFile in 'options',
+// if the key is encrypted, the Passphrase in 'options' will be used to
+// decrypt it.
+func getCert(options Options) ([]tls.Certificate, error) {
+	if options.CertFile == "" && options.KeyFile == "" {
+		return nil, nil
+	}
+
+	errMessage := "Could not load X509 key pair"
+
+	cert, err := ioutil.ReadFile(options.CertFile)
+	if err != nil {
+		return nil, errors.Wrap(err, errMessage)
+	}
+
+	prKeyBytes, err := ioutil.ReadFile(options.KeyFile)
+	if err != nil {
+		return nil, errors.Wrap(err, errMessage)
+	}
+
+	prKeyBytes, err = getPrivateKey(prKeyBytes, options.Passphrase)
+	if err != nil {
+		return nil, errors.Wrap(err, errMessage)
+	}
+
+	tlsCert, err := tls.X509KeyPair(cert, prKeyBytes)
+	if err != nil {
+		return nil, errors.Wrap(err, errMessage)
+	}
+
+	return []tls.Certificate{tlsCert}, nil
+}
+
 // Client returns a TLS configuration meant to be used by a client.
 func Client(options Options) (*tls.Config, error) {
 	tlsConfig := ClientDefault()
@@ -139,13 +205,11 @@ func Client(options Options) (*tls.Config, error) {
 		tlsConfig.RootCAs = CAs
 	}
 
-	if options.CertFile != "" || options.KeyFile != "" {
-		tlsCert, err := tls.LoadX509KeyPair(options.CertFile, options.KeyFile)
-		if err != nil {
-			return nil, fmt.Errorf("Could not load X509 key pair: %v. Make sure the key is not encrypted", err)
-		}
-		tlsConfig.Certificates = []tls.Certificate{tlsCert}
+	tlsCerts, err := getCert(options)
+	if err != nil {
+		return nil, err
 	}
+	tlsConfig.Certificates = tlsCerts
 
 	if err := adjustMinVersion(options, tlsConfig); err != nil {
 		return nil, err
