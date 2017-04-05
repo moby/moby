@@ -194,7 +194,7 @@ func untarKernel(buf *bytes.Buffer, bzimageName, ktarName string) (*bytes.Buffer
 			}
 		case ktarName:
 			ktar = new(bytes.Buffer)
-			_, err := io.Copy(bzimage, tr)
+			_, err := io.Copy(ktar, tr)
 			if err != nil {
 				return nil, nil, err
 			}
