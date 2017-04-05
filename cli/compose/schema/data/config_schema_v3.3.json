@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
-  "id": "config_schema_v3.2.json",
+  "id": "config_schema_v3.3.json",
   "type": "object",
   "required": ["version"],
 
@@ -330,7 +330,17 @@
         "placement": {
           "type": "object",
           "properties": {
-            "constraints": {"type": "array", "items": {"type": "string"}}
+            "constraints": {"type": "array", "items": {"type": "string"}},
+            "preferences": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "spread": {"type": "string"}
+                },
+                "additionalProperties": false
+              }
+            }
           },
           "additionalProperties": false
         }

@@ -135,6 +135,7 @@ func convertService(
 			RestartPolicy: restartPolicy,
 			Placement: &swarm.Placement{
 				Constraints: service.Deploy.Placement.Constraints,
+				Preferences: getPlacementPreference(service.Deploy.Placement.Preferences),
 			},
 		},
 		EndpointSpec: endpoint,
@@ -155,6 +156,19 @@ func convertService(
 		serviceSpec.TaskTemplate.Networks = networks
 	}
 	return serviceSpec, nil
+}
+
+func getPlacementPreference(preferences []composetypes.PlacementPreferences) []swarm.PlacementPreference {
+	result := []swarm.PlacementPreference{}
+	for _, preference := range preferences {
+		spreadDescriptor := preference.Spread
+		result = append(result, swarm.PlacementPreference{
+			Spread: &swarm.SpreadOver{
+				SpreadDescriptor: spreadDescriptor,
+			},
+		})
+	}
+	return result
 }
 
 func sortStrings(strs []string) []string {
