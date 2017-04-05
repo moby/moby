@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"fmt"
+	"github.com/docker/docker/pkg/testutil/assert"
 	"io"
 	"io/ioutil"
 	"os"
@@ -1161,58 +1162,110 @@ func TestTempArchiveCloseMultipleTimes(t *testing.T) {
 	}
 }
 
-func testReplaceFileTarWrapper(t *testing.T, name string) {
-	srcDir, err := ioutil.TempDir("", "docker-test-srcDir")
-	if err != nil {
-		t.Fatal(err)
+func TestReplaceFileTarWrapper(t *testing.T) {
+	filesInArchive := 20
+	testcases := []struct {
+		doc       string
+		filename  string
+		modifier  TarModifierFunc
+		expected  string
+		fileCount int
+	}{
+		{
+			doc:       "Modifier creates a new file",
+			filename:  "newfile",
+			modifier:  createModifier(t),
+			expected:  "the new content",
+			fileCount: filesInArchive + 1,
+		},
+		{
+			doc:       "Modifier replaces a file",
+			filename:  "file-2",
+			modifier:  createOrReplaceModifier,
+			expected:  "the new content",
+			fileCount: filesInArchive,
+		},
+		{
+			doc:       "Modifier replaces the last file",
+			filename:  fmt.Sprintf("file-%d", filesInArchive-1),
+			modifier:  createOrReplaceModifier,
+			expected:  "the new content",
+			fileCount: filesInArchive,
+		},
+		{
+			doc:       "Modifier appends to a file",
+			filename:  "file-3",
+			modifier:  appendModifier,
+			expected:  "fooo\nnext line",
+			fileCount: filesInArchive,
+		},
 	}
-	defer os.RemoveAll(srcDir)
 
-	destDir, err := ioutil.TempDir("", "docker-test-destDir")
-	if err != nil {
-		t.Fatal(err)
+	for _, testcase := range testcases {
+		sourceArchive, cleanup := buildSourceArchive(t, filesInArchive)
+		defer cleanup()
+
+		resultArchive := ReplaceFileTarWrapper(
+			sourceArchive,
+			map[string]TarModifierFunc{testcase.filename: testcase.modifier})
+
+		actual := readFileFromArchive(t, resultArchive, testcase.filename, testcase.fileCount, testcase.doc)
+		assert.Equal(t, actual, testcase.expected, testcase.doc)
 	}
+}
+
+func buildSourceArchive(t *testing.T, numberOfFiles int) (io.ReadCloser, func()) {
+	srcDir, err := ioutil.TempDir("", "docker-test-srcDir")
+	assert.NilError(t, err)
+
+	_, err = prepareUntarSourceDirectory(numberOfFiles, srcDir, false)
+	assert.NilError(t, err)
+
+	sourceArchive, err := TarWithOptions(srcDir, &TarOptions{})
+	assert.NilError(t, err)
+	return sourceArchive, func() {
+		os.RemoveAll(srcDir)
+		sourceArchive.Close()
+	}
+}
+
+func createOrReplaceModifier(path string, header *tar.Header, content io.Reader) (*tar.Header, []byte, error) {
+	return &tar.Header{
+		Mode:     0600,
+		Typeflag: tar.TypeReg,
+	}, []byte("the new content"), nil
+}
+
+func createModifier(t *testing.T) TarModifierFunc {
+	return func(path string, header *tar.Header, content io.Reader) (*tar.Header, []byte, error) {
+		assert.Nil(t, content)
+		return createOrReplaceModifier(path, header, content)
+	}
+}
+
+func appendModifier(path string, header *tar.Header, content io.Reader) (*tar.Header, []byte, error) {
+	buffer := bytes.Buffer{}
+	if content != nil {
+		if _, err := buffer.ReadFrom(content); err != nil {
+			return nil, nil, err
+		}
+	}
+	buffer.WriteString("\nnext line")
+	return &tar.Header{Mode: 0600, Typeflag: tar.TypeReg}, buffer.Bytes(), nil
+}
+
+func readFileFromArchive(t *testing.T, archive io.ReadCloser, name string, expectedCount int, doc string) string {
+	destDir, err := ioutil.TempDir("", "docker-test-destDir")
+	assert.NilError(t, err)
 	defer os.RemoveAll(destDir)
 
-	_, err = prepareUntarSourceDirectory(20, srcDir, false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	err = Untar(archive, destDir, nil)
+	assert.NilError(t, err)
 
-	archive, err := TarWithOptions(srcDir, &TarOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer archive.Close()
+	files, _ := ioutil.ReadDir(destDir)
+	assert.Equal(t, len(files), expectedCount, doc)
 
-	archive2 := ReplaceFileTarWrapper(archive, map[string]TarModifierFunc{name: func(path string, header *tar.Header, content io.Reader) (*tar.Header, []byte, error) {
-		return &tar.Header{
-			Mode:     0600,
-			Typeflag: tar.TypeReg,
-		}, []byte("foobar"), nil
-	}})
-
-	if err := Untar(archive2, destDir, nil); err != nil {
-		t.Fatal(err)
-	}
-
-	dt, err := ioutil.ReadFile(filepath.Join(destDir, name))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if expected, actual := "foobar", string(dt); actual != expected {
-		t.Fatalf("file contents mismatch, expected: %q, got %q", expected, actual)
-	}
-}
-
-func TestReplaceFileTarWrapperNewFile(t *testing.T) {
-	testReplaceFileTarWrapper(t, "abc")
-}
-
-func TestReplaceFileTarWrapperReplaceFile(t *testing.T) {
-	testReplaceFileTarWrapper(t, "file-2")
-}
-
-func TestReplaceFileTarWrapperLastFile(t *testing.T) {
-	testReplaceFileTarWrapper(t, "file-999")
+	content, err := ioutil.ReadFile(filepath.Join(destDir, name))
+	assert.NilError(t, err)
+	return string(content)
 }

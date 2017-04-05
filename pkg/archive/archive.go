@@ -14,7 +14,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"sort"
 	"strings"
 	"syscall"
 
@@ -227,7 +226,10 @@ func CompressStream(dest io.Writer, compression Compression) (io.WriteCloser, er
 }
 
 // TarModifierFunc is a function that can be passed to ReplaceFileTarWrapper to
-// define a modification step for a single path
+// modify the contents or header of an entry in the archive. If the file already
+// exists in the archive the TarModifierFunc will be called with the Header and
+// a reader which will return the files content. If the file does not exist both
+// header and content will be nil.
 type TarModifierFunc func(path string, header *tar.Header, content io.Reader) (*tar.Header, []byte, error)
 
 // ReplaceFileTarWrapper converts inputTarStream to a new tar stream. Files in the
@@ -235,76 +237,77 @@ type TarModifierFunc func(path string, header *tar.Header, content io.Reader) (*
 func ReplaceFileTarWrapper(inputTarStream io.ReadCloser, mods map[string]TarModifierFunc) io.ReadCloser {
 	pipeReader, pipeWriter := io.Pipe()
 
-	modKeys := make([]string, 0, len(mods))
-	for key := range mods {
-		modKeys = append(modKeys, key)
-	}
-	sort.Strings(modKeys)
-
 	go func() {
 		tarReader := tar.NewReader(inputTarStream)
 		tarWriter := tar.NewWriter(pipeWriter)
-
 		defer inputTarStream.Close()
+		defer tarWriter.Close()
 
-	loop0:
+		modify := func(name string, original *tar.Header, modifier TarModifierFunc, tarReader io.Reader) error {
+			header, data, err := modifier(name, original, tarReader)
+			switch {
+			case err != nil:
+				return err
+			case header == nil:
+				return nil
+			}
+
+			header.Name = name
+			header.Size = int64(len(data))
+			if err := tarWriter.WriteHeader(header); err != nil {
+				return err
+			}
+			if len(data) != 0 {
+				if _, err := tarWriter.Write(data); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+
+		var err error
+		var originalHeader *tar.Header
 		for {
-			hdr, err := tarReader.Next()
-			for len(modKeys) > 0 && (err == io.EOF || err == nil && hdr.Name >= modKeys[0]) {
-				var h *tar.Header
-				var rdr io.Reader
-				if err == nil && hdr != nil && hdr.Name == modKeys[0] {
-					h = hdr
-					rdr = tarReader
-				}
-
-				h2, dt, err := mods[modKeys[0]](modKeys[0], h, rdr)
-				if err != nil {
-					pipeWriter.CloseWithError(err)
-					return
-				}
-				if h2 != nil {
-					h2.Name = modKeys[0]
-					h2.Size = int64(len(dt))
-					if err := tarWriter.WriteHeader(h2); err != nil {
-						pipeWriter.CloseWithError(err)
-						return
-					}
-					if len(dt) != 0 {
-						if _, err := tarWriter.Write(dt); err != nil {
-							pipeWriter.CloseWithError(err)
-							return
-						}
-					}
-				}
-				modKeys = modKeys[1:]
-				if h != nil {
-					continue loop0
-				}
-			}
-
+			originalHeader, err = tarReader.Next()
 			if err == io.EOF {
-				tarWriter.Close()
-				pipeWriter.Close()
-				return
+				break
 			}
-
 			if err != nil {
 				pipeWriter.CloseWithError(err)
 				return
 			}
 
-			if err := tarWriter.WriteHeader(hdr); err != nil {
+			modifier, ok := mods[originalHeader.Name]
+			if !ok {
+				// No modifiers for this file, copy the header and data
+				if err := tarWriter.WriteHeader(originalHeader); err != nil {
+					pipeWriter.CloseWithError(err)
+					return
+				}
+				if _, err := pools.Copy(tarWriter, tarReader); err != nil {
+					pipeWriter.CloseWithError(err)
+					return
+				}
+				continue
+			}
+			delete(mods, originalHeader.Name)
+
+			if err := modify(originalHeader.Name, originalHeader, modifier, tarReader); err != nil {
 				pipeWriter.CloseWithError(err)
 				return
 			}
-
-			if _, err := pools.Copy(tarWriter, tarReader); err != nil {
-				pipeWriter.CloseWithError(err)
-				return
-			}
-
 		}
+
+		// Apply the modifiers that haven't matched any files in the archive
+		for name, modifier := range mods {
+			if err := modify(name, nil, modifier, nil); err != nil {
+				pipeWriter.CloseWithError(err)
+				return
+			}
+		}
+
+		pipeWriter.Close()
+
 	}()
 	return pipeReader
 }

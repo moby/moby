@@ -2069,34 +2069,40 @@ func (s *DockerSuite) testBuildDockerfileStdinNoExtraFiles(c *check.C, hasDocker
 	name := "stdindockerfilenoextra"
 	tmpDir, err := ioutil.TempDir("", "fake-context")
 	c.Assert(err, check.IsNil)
-	err = ioutil.WriteFile(filepath.Join(tmpDir, "foo"), []byte("bar"), 0600)
-	c.Assert(err, check.IsNil)
-	if hasDockerignore {
-		// test that this file is removed
-		err = ioutil.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(""), 0600)
+	defer os.RemoveAll(tmpDir)
+
+	writeFile := func(filename, content string) {
+		err = ioutil.WriteFile(filepath.Join(tmpDir, filename), []byte(content), 0600)
 		c.Assert(err, check.IsNil)
+	}
+
+	writeFile("foo", "bar")
+
+	if hasDockerignore {
+		// Add an empty Dockerfile to verify that it is not added to the image
+		writeFile("Dockerfile", "")
+
 		ignores := "Dockerfile\n"
 		if ignoreDockerignore {
 			ignores += ".dockerignore\n"
 		}
-		err = ioutil.WriteFile(filepath.Join(tmpDir, ".dockerignore"), []byte(ignores), 0600)
-		c.Assert(err, check.IsNil)
+		writeFile(".dockerignore", ignores)
 	}
 
-	icmd.RunCmd(icmd.Cmd{
+	result := icmd.RunCmd(icmd.Cmd{
 		Command: []string{dockerBinary, "build", "-t", name, "-f", "-", tmpDir},
 		Stdin: strings.NewReader(
 			`FROM busybox
 COPY . /baz`),
-	}).Assert(c, icmd.Success)
+	})
+	result.Assert(c, icmd.Success)
 
-	out, _ := dockerCmd(c, "run", "--rm", name, "ls", "-A", "/baz")
+	result = cli.DockerCmd(c, "run", "--rm", name, "ls", "-A", "/baz")
 	if hasDockerignore && !ignoreDockerignore {
-		c.Assert(strings.TrimSpace(string(out)), checker.Equals, ".dockerignore\nfoo")
+		c.Assert(result.Stdout(), checker.Equals, ".dockerignore\nfoo\n")
 	} else {
-		c.Assert(strings.TrimSpace(string(out)), checker.Equals, "foo")
+		c.Assert(result.Stdout(), checker.Equals, "foo\n")
 	}
-
 }
 
 func (s *DockerSuite) TestBuildWithVolumeOwnership(c *check.C) {

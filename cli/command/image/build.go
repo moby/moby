@@ -218,13 +218,14 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 			return errors.Errorf("Error checking context: '%s'.", err)
 		}
 
-		// If .dockerignore mentions .dockerignore or the Dockerfile
-		// then make sure we send both files over to the daemon
-		// because Dockerfile is, obviously, needed no matter what, and
-		// .dockerignore is needed to know if either one needs to be
-		// removed. The daemon will remove them for us, if needed, after it
-		// parses the Dockerfile. Ignore errors here, as they will have been
-		// caught by validateContextDirectory above.
+		// If .dockerignore mentions .dockerignore or the Dockerfile then make
+		// sure we send both files over to the daemon because Dockerfile is,
+		// obviously, needed no matter what, and .dockerignore is needed to know
+		// if either one needs to be removed. The daemon will remove them
+		// if necessary, after it parses the Dockerfile. Ignore errors here, as
+		// they will have been caught by validateContextDirectory above.
+		// Excludes are used instead of includes to maintain the order of files
+		// in the archive.
 		if keep, _ := fileutils.Matches(".dockerignore", excludes); keep {
 			excludes = append(excludes, "!.dockerignore")
 		}
@@ -384,17 +385,16 @@ func addDockerfileToBuildContext(dockerfileCtx io.ReadCloser, buildCtx io.ReadCl
 			if h == nil {
 				h = hdrTmpl
 			}
-			extraIgnore := randomName + "\n"
+
 			b := &bytes.Buffer{}
 			if content != nil {
-				_, err := b.ReadFrom(content)
-				if err != nil {
+				if _, err := b.ReadFrom(content); err != nil {
 					return nil, nil, err
 				}
 			} else {
-				extraIgnore += ".dockerignore\n"
+				b.WriteString(".dockerignore")
 			}
-			b.Write([]byte("\n" + extraIgnore))
+			b.WriteString("\n" + randomName + "\n")
 			return h, b.Bytes(), nil
 		},
 	})
