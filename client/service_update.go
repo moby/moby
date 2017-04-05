@@ -15,6 +15,7 @@ func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, version 
 	var (
 		headers map[string][]string
 		query   = url.Values{}
+		distErr error
 	)
 
 	if options.EncodedRegistryAuth != "" {
@@ -33,6 +34,20 @@ func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, version 
 
 	query.Set("version", strconv.FormatUint(version.Index, 10))
 
+	// Contact the registry to retrieve digest and platform information
+	// This happens only when the image has changed
+	if options.QueryRegistry {
+		distributionInspect, err := cli.DistributionInspect(ctx, service.TaskTemplate.ContainerSpec.Image, options.EncodedRegistryAuth)
+		distErr = err
+		if err == nil {
+			// now pin by digest if the image doesn't already contain a digest
+			img := imageWithDigestString(service.TaskTemplate.ContainerSpec.Image, distributionInspect.Descriptor.Digest)
+			if img != "" {
+				service.TaskTemplate.ContainerSpec.Image = img
+			}
+		}
+	}
+
 	var response types.ServiceUpdateResponse
 	resp, err := cli.post(ctx, "/services/"+serviceID+"/update", query, service, headers)
 	if err != nil {
@@ -40,6 +55,11 @@ func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, version 
 	}
 
 	err = json.NewDecoder(resp.body).Decode(&response)
+
+	if distErr != nil {
+		response.Warnings = append(response.Warnings, digestWarning(service.TaskTemplate.ContainerSpec.Image))
+	}
+
 	ensureReaderClosed(resp)
 	return response, err
 }
