@@ -176,6 +176,15 @@ type ImageBuildOptions struct {
 	CacheFrom   []string
 	SecurityOpt []string
 	ExtraHosts  []string // List of extra hosts
+	// Parallel is experimental feature for multi-stage build
+	Parallel bool
+	// Parallelism is experimental and can be changed in future release without notice.
+	// Anyway, this is NOT implemented yet.
+	//  Parallelism == 0 && !Parallel: sequential build (for compatibility)
+	//  Parallelism == 0 &&  Parallel: maximum parallelism as possible. Actually, this is concurrency rather than parallelism though.
+	//  Parallelism >  0 && !Parallel: result in an error
+	//  Parallelism >  0 &&  Parallel: use specified parallelism
+	Parallelism int64
 }
 
 // ImageBuildResponse holds information
