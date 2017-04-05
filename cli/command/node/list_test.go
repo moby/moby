@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/cli/config/configfile"
 	"github.com/docker/docker/cli/internal/test"
 	"github.com/pkg/errors"
 	// Import builders to get the builder function as package function
@@ -42,11 +43,12 @@ func TestNodeListErrorOnAPIFailure(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		buf := new(bytes.Buffer)
-		cmd := newListCommand(
-			test.NewFakeCli(&fakeClient{
-				nodeListFunc: tc.nodeListFunc,
-				infoFunc:     tc.infoFunc,
-			}, buf))
+		cli := test.NewFakeCli(&fakeClient{
+			nodeListFunc: tc.nodeListFunc,
+			infoFunc:     tc.infoFunc,
+		}, buf)
+		cli.SetConfigfile(&configfile.ConfigFile{})
+		cmd := newListCommand(cli)
 		cmd.SetOutput(ioutil.Discard)
 		assert.Error(t, cmd.Execute(), tc.expectedError)
 	}
@@ -54,39 +56,41 @@ func TestNodeListErrorOnAPIFailure(t *testing.T) {
 
 func TestNodeList(t *testing.T) {
 	buf := new(bytes.Buffer)
-	cmd := newListCommand(
-		test.NewFakeCli(&fakeClient{
-			nodeListFunc: func() ([]swarm.Node, error) {
-				return []swarm.Node{
-					*Node(NodeID("nodeID1"), Hostname("nodeHostname1"), Manager(Leader())),
-					*Node(NodeID("nodeID2"), Hostname("nodeHostname2"), Manager()),
-					*Node(NodeID("nodeID3"), Hostname("nodeHostname3")),
-				}, nil
-			},
-			infoFunc: func() (types.Info, error) {
-				return types.Info{
-					Swarm: swarm.Info{
-						NodeID: "nodeID1",
-					},
-				}, nil
-			},
-		}, buf))
+	cli := test.NewFakeCli(&fakeClient{
+		nodeListFunc: func() ([]swarm.Node, error) {
+			return []swarm.Node{
+				*Node(NodeID("nodeID1"), Hostname("nodeHostname1"), Manager(Leader())),
+				*Node(NodeID("nodeID2"), Hostname("nodeHostname2"), Manager()),
+				*Node(NodeID("nodeID3"), Hostname("nodeHostname3")),
+			}, nil
+		},
+		infoFunc: func() (types.Info, error) {
+			return types.Info{
+				Swarm: swarm.Info{
+					NodeID: "nodeID1",
+				},
+			}, nil
+		},
+	}, buf)
+	cli.SetConfigfile(&configfile.ConfigFile{})
+	cmd := newListCommand(cli)
 	assert.NilError(t, cmd.Execute())
-	assert.Contains(t, buf.String(), `nodeID1 *  nodeHostname1  Ready   Active        Leader`)
-	assert.Contains(t, buf.String(), `nodeID2    nodeHostname2  Ready   Active        Reachable`)
-	assert.Contains(t, buf.String(), `nodeID3    nodeHostname3  Ready   Active`)
+	assert.Contains(t, buf.String(), `nodeID1 *           nodeHostname1       Ready               Active              Leader`)
+	assert.Contains(t, buf.String(), `nodeID2             nodeHostname2       Ready               Active              Reachable`)
+	assert.Contains(t, buf.String(), `nodeID3             nodeHostname3       Ready               Active`)
 }
 
 func TestNodeListQuietShouldOnlyPrintIDs(t *testing.T) {
 	buf := new(bytes.Buffer)
-	cmd := newListCommand(
-		test.NewFakeCli(&fakeClient{
-			nodeListFunc: func() ([]swarm.Node, error) {
-				return []swarm.Node{
-					*Node(),
-				}, nil
-			},
-		}, buf))
+	cli := test.NewFakeCli(&fakeClient{
+		nodeListFunc: func() ([]swarm.Node, error) {
+			return []swarm.Node{
+				*Node(),
+			}, nil
+		},
+	}, buf)
+	cli.SetConfigfile(&configfile.ConfigFile{})
+	cmd := newListCommand(cli)
 	cmd.Flags().Set("quiet", "true")
 	assert.NilError(t, cmd.Execute())
 	assert.Contains(t, buf.String(), "nodeID")
@@ -95,7 +99,64 @@ func TestNodeListQuietShouldOnlyPrintIDs(t *testing.T) {
 // Test case for #24090
 func TestNodeListContainsHostname(t *testing.T) {
 	buf := new(bytes.Buffer)
-	cmd := newListCommand(test.NewFakeCli(&fakeClient{}, buf))
+	cli := test.NewFakeCli(&fakeClient{}, buf)
+	cli.SetConfigfile(&configfile.ConfigFile{})
+	cmd := newListCommand(cli)
 	assert.NilError(t, cmd.Execute())
 	assert.Contains(t, buf.String(), "HOSTNAME")
+}
+
+func TestNodeListDefaultFormat(t *testing.T) {
+	buf := new(bytes.Buffer)
+	cli := test.NewFakeCli(&fakeClient{
+		nodeListFunc: func() ([]swarm.Node, error) {
+			return []swarm.Node{
+				*Node(NodeID("nodeID1"), Hostname("nodeHostname1"), Manager(Leader())),
+				*Node(NodeID("nodeID2"), Hostname("nodeHostname2"), Manager()),
+				*Node(NodeID("nodeID3"), Hostname("nodeHostname3")),
+			}, nil
+		},
+		infoFunc: func() (types.Info, error) {
+			return types.Info{
+				Swarm: swarm.Info{
+					NodeID: "nodeID1",
+				},
+			}, nil
+		},
+	}, buf)
+	cli.SetConfigfile(&configfile.ConfigFile{
+		NodesFormat: "{{.ID}}: {{.Hostname}} {{.Status}}/{{.ManagerStatus}}",
+	})
+	cmd := newListCommand(cli)
+	assert.NilError(t, cmd.Execute())
+	assert.Contains(t, buf.String(), `nodeID1: nodeHostname1 Ready/Leader`)
+	assert.Contains(t, buf.String(), `nodeID2: nodeHostname2 Ready/Reachable`)
+	assert.Contains(t, buf.String(), `nodeID3: nodeHostname3 Ready`)
+}
+
+func TestNodeListFormat(t *testing.T) {
+	buf := new(bytes.Buffer)
+	cli := test.NewFakeCli(&fakeClient{
+		nodeListFunc: func() ([]swarm.Node, error) {
+			return []swarm.Node{
+				*Node(NodeID("nodeID1"), Hostname("nodeHostname1"), Manager(Leader())),
+				*Node(NodeID("nodeID2"), Hostname("nodeHostname2"), Manager()),
+			}, nil
+		},
+		infoFunc: func() (types.Info, error) {
+			return types.Info{
+				Swarm: swarm.Info{
+					NodeID: "nodeID1",
+				},
+			}, nil
+		},
+	}, buf)
+	cli.SetConfigfile(&configfile.ConfigFile{
+		NodesFormat: "{{.ID}}: {{.Hostname}} {{.Status}}/{{.ManagerStatus}}",
+	})
+	cmd := newListCommand(cli)
+	cmd.Flags().Set("format", "{{.Hostname}}: {{.ManagerStatus}}")
+	assert.NilError(t, cmd.Execute())
+	assert.Contains(t, buf.String(), `nodeHostname1: Leader`)
+	assert.Contains(t, buf.String(), `nodeHostname2: Reachable`)
 }
