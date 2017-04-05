@@ -37,6 +37,8 @@ func run(args []string) {
 		runHyperKit(args[1:])
 	case "vmware":
 		runVMware(args[1:])
+	case "gcp":
+		runGcp(args[1:])
 	default:
 		switch runtime.GOOS {
 		case "darwin":
