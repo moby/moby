@@ -109,40 +109,7 @@ ID            NAME   MODE        REPLICAS  IMAGE
 0bcjwfh8ychr  redis  replicated  1/1       redis:3.0.6
 ```
 
-<<<<<<< HEAD
-## Related information
-=======
-### Formatting
-
-The formatting options (`--format`) pretty-prints services output
-using a Go template.
-
-Valid placeholders for the Go template are listed below:
-
-Placeholder | Description
-------------|------------------------------------------------------------------------------------------
-`.ID`       | Service ID
-`.Name`     | Service name
-`.Mode`     | Service mode (replicated, global)
-`.Replicas` | Service replicas
-`.Image`    | Service image
-
-When using the `--format` option, the `service ls` command will either
-output the data exactly as the template declares or, when using the
-`table` directive, includes column headers as well.
-
-The following example uses a template without headers and outputs the
-`ID`, `Mode`, and `Replicas` entries separated by a colon for all services:
-
-```bash
-$ docker service ls --format "{{.ID}}: {{.Mode}} {{.Replicas}}"
-
-0zmvwuiu3vue: replicated 10/10
-fm6uf97exkul: global 5/5
-```
-
 ## Related commands
->>>>>>> 40dbbd3... Merge pull request #30804 from mstanleyjones/cli_fixups
 
 * [service create](service_create.md)
 * [service inspect](service_inspect.md)
