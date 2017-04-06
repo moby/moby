@@ -95,7 +95,7 @@ func (db *memDB) Save(c *Container) error {
 	txn := db.store.Txn(true)
 	defer txn.Commit()
 	deepCopy := NewBaseContainer(c.ID, c.Root)
-	err := deepCopy.FromDisk() // TODO: deal with reserveLabel
+	err := deepCopy.FromDisk()
 	if err != nil {
 		return err
 	}

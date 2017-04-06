@@ -45,7 +45,6 @@ import (
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/types"
 	agentexec "github.com/docker/swarmkit/agent/exec"
-	"github.com/opencontainers/selinux/go-selinux/label"
 )
 
 const configFileName = "config.v2.json"
@@ -152,9 +151,6 @@ func (container *Container) FromDisk() error {
 		container.Platform = runtime.GOOS
 	}
 
-	if err := label.ReserveLabel(container.ProcessLabel); err != nil {
-		return err
-	}
 	return container.readHostConfig()
 }
 
