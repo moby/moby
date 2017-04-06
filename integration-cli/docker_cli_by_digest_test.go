@@ -3,20 +3,24 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
-	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest/schema1"
+	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/pkg/stringutils"
-	"github.com/docker/docker/utils"
 	"github.com/go-check/check"
+	"github.com/opencontainers/go-digest"
 )
 
 var (
 	remoteRepoName  = "dockercli/busybox-by-dgst"
-	repoName        = fmt.Sprintf("%v/%s", privateRegistryURL, remoteRepoName)
+	repoName        = fmt.Sprintf("%s/%s", privateRegistryURL, remoteRepoName)
 	pushDigestRegex = regexp.MustCompile("[\\S]+: digest: ([\\S]+) size: [0-9]+")
 	digestRegex     = regexp.MustCompile("Digest: ([\\S]+)")
 )
@@ -28,68 +32,64 @@ func setupImage(c *check.C) (digest.Digest, error) {
 func setupImageWithTag(c *check.C, tag string) (digest.Digest, error) {
 	containerName := "busyboxbydigest"
 
-	dockerCmd(c, "run", "-d", "-e", "digest=1", "--name", containerName, "busybox")
+	// new file is committed because this layer is used for detecting malicious
+	// changes. if this was committed as empty layer it would be skipped on pull
+	// and malicious changes would never be detected.
+	dockerCmd(c, "run", "-e", "digest=1", "--name", containerName, "busybox", "touch", "anewfile")
 
 	// tag the image to upload it to the private registry
-	repoAndTag := utils.ImageReference(repoName, tag)
-	if out, _, err := dockerCmdWithError("commit", containerName, repoAndTag); err != nil {
-		return "", fmt.Errorf("image tagging failed: %s, %v", out, err)
-	}
+	repoAndTag := repoName + ":" + tag
+	out, _, err := dockerCmdWithError("commit", containerName, repoAndTag)
+	c.Assert(err, checker.IsNil, check.Commentf("image tagging failed: %s", out))
 
 	// delete the container as we don't need it any more
-	if err := deleteContainer(containerName); err != nil {
-		return "", err
-	}
+	err = deleteContainer(containerName)
+	c.Assert(err, checker.IsNil)
 
 	// push the image
-	out, _, err := dockerCmdWithError("push", repoAndTag)
-	if err != nil {
-		return "", fmt.Errorf("pushing the image to the private registry has failed: %s, %v", out, err)
-	}
+	out, _, err = dockerCmdWithError("push", repoAndTag)
+	c.Assert(err, checker.IsNil, check.Commentf("pushing the image to the private registry has failed: %s", out))
 
 	// delete our local repo that we previously tagged
-	if rmiout, _, err := dockerCmdWithError("rmi", repoAndTag); err != nil {
-		return "", fmt.Errorf("error deleting images prior to real test: %s, %v", rmiout, err)
-	}
+	rmiout, _, err := dockerCmdWithError("rmi", repoAndTag)
+	c.Assert(err, checker.IsNil, check.Commentf("error deleting images prior to real test: %s", rmiout))
 
 	matches := pushDigestRegex.FindStringSubmatch(out)
-	if len(matches) != 2 {
-		return "", fmt.Errorf("unable to parse digest from push output: %s", out)
-	}
+	c.Assert(matches, checker.HasLen, 2, check.Commentf("unable to parse digest from push output: %s", out))
 	pushDigest := matches[1]
 
 	return digest.Digest(pushDigest), nil
 }
 
-func (s *DockerRegistrySuite) TestPullByTagDisplaysDigest(c *check.C) {
+func testPullByTagDisplaysDigest(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	pushDigest, err := setupImage(c)
-	if err != nil {
-		c.Fatalf("error setting up image: %v", err)
-	}
+	c.Assert(err, checker.IsNil, check.Commentf("error setting up image"))
 
 	// pull from the registry using the tag
 	out, _ := dockerCmd(c, "pull", repoName)
 
 	// the pull output includes "Digest: <digest>", so find that
 	matches := digestRegex.FindStringSubmatch(out)
-	if len(matches) != 2 {
-		c.Fatalf("unable to parse digest from pull output: %s", out)
-	}
+	c.Assert(matches, checker.HasLen, 2, check.Commentf("unable to parse digest from pull output: %s", out))
 	pullDigest := matches[1]
 
 	// make sure the pushed and pull digests match
-	if pushDigest.String() != pullDigest {
-		c.Fatalf("push digest %q didn't match pull digest %q", pushDigest, pullDigest)
-	}
+	c.Assert(pushDigest.String(), checker.Equals, pullDigest)
 }
 
-func (s *DockerRegistrySuite) TestPullByDigest(c *check.C) {
+func (s *DockerRegistrySuite) TestPullByTagDisplaysDigest(c *check.C) {
+	testPullByTagDisplaysDigest(c)
+}
+
+func (s *DockerSchema1RegistrySuite) TestPullByTagDisplaysDigest(c *check.C) {
+	testPullByTagDisplaysDigest(c)
+}
+
+func testPullByDigest(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	pushDigest, err := setupImage(c)
-	if err != nil {
-		c.Fatalf("error setting up image: %v", err)
-	}
+	c.Assert(err, checker.IsNil, check.Commentf("error setting up image"))
 
 	// pull from the registry using the <name>@<digest> reference
 	imageReference := fmt.Sprintf("%s@%s", repoName, pushDigest)
@@ -97,52 +97,54 @@ func (s *DockerRegistrySuite) TestPullByDigest(c *check.C) {
 
 	// the pull output includes "Digest: <digest>", so find that
 	matches := digestRegex.FindStringSubmatch(out)
-	if len(matches) != 2 {
-		c.Fatalf("unable to parse digest from pull output: %s", out)
-	}
+	c.Assert(matches, checker.HasLen, 2, check.Commentf("unable to parse digest from pull output: %s", out))
 	pullDigest := matches[1]
 
 	// make sure the pushed and pull digests match
-	if pushDigest.String() != pullDigest {
-		c.Fatalf("push digest %q didn't match pull digest %q", pushDigest, pullDigest)
-	}
+	c.Assert(pushDigest.String(), checker.Equals, pullDigest)
 }
 
-func (s *DockerRegistrySuite) TestPullByDigestNoFallback(c *check.C) {
+func (s *DockerRegistrySuite) TestPullByDigest(c *check.C) {
+	testPullByDigest(c)
+}
+
+func (s *DockerSchema1RegistrySuite) TestPullByDigest(c *check.C) {
+	testPullByDigest(c)
+}
+
+func testPullByDigestNoFallback(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	// pull from the registry using the <name>@<digest> reference
 	imageReference := fmt.Sprintf("%s@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", repoName)
 	out, _, err := dockerCmdWithError("pull", imageReference)
-	if err == nil || !strings.Contains(out, "manifest unknown") {
-		c.Fatalf("expected non-zero exit status and correct error message when pulling non-existing image: %s", out)
-	}
+	c.Assert(err, checker.NotNil, check.Commentf("expected non-zero exit status and correct error message when pulling non-existing image"))
+	c.Assert(out, checker.Contains, fmt.Sprintf("manifest for %s not found", imageReference), check.Commentf("expected non-zero exit status and correct error message when pulling non-existing image"))
+}
+
+func (s *DockerRegistrySuite) TestPullByDigestNoFallback(c *check.C) {
+	testPullByDigestNoFallback(c)
+}
+
+func (s *DockerSchema1RegistrySuite) TestPullByDigestNoFallback(c *check.C) {
+	testPullByDigestNoFallback(c)
 }
 
 func (s *DockerRegistrySuite) TestCreateByDigest(c *check.C) {
 	pushDigest, err := setupImage(c)
-	if err != nil {
-		c.Fatalf("error setting up image: %v", err)
-	}
+	c.Assert(err, checker.IsNil, check.Commentf("error setting up image"))
 
 	imageReference := fmt.Sprintf("%s@%s", repoName, pushDigest)
 
 	containerName := "createByDigest"
-	out, _ := dockerCmd(c, "create", "--name", containerName, imageReference)
+	dockerCmd(c, "create", "--name", containerName, imageReference)
 
-	res, err := inspectField(containerName, "Config.Image")
-	if err != nil {
-		c.Fatalf("failed to get Config.Image: %s, %v", out, err)
-	}
-	if res != imageReference {
-		c.Fatalf("unexpected Config.Image: %s (expected %s)", res, imageReference)
-	}
+	res := inspectField(c, containerName, "Config.Image")
+	c.Assert(res, checker.Equals, imageReference)
 }
 
 func (s *DockerRegistrySuite) TestRunByDigest(c *check.C) {
 	pushDigest, err := setupImage(c)
-	if err != nil {
-		c.Fatalf("error setting up image: %v", err)
-	}
+	c.Assert(err, checker.IsNil)
 
 	imageReference := fmt.Sprintf("%s@%s", repoName, pushDigest)
 
@@ -151,27 +153,16 @@ func (s *DockerRegistrySuite) TestRunByDigest(c *check.C) {
 
 	foundRegex := regexp.MustCompile("found=([^\n]+)")
 	matches := foundRegex.FindStringSubmatch(out)
-	if len(matches) != 2 {
-		c.Fatalf("error locating expected 'found=1' output: %s", out)
-	}
-	if matches[1] != "1" {
-		c.Fatalf("Expected %q, got %q", "1", matches[1])
-	}
+	c.Assert(matches, checker.HasLen, 2, check.Commentf("unable to parse digest from pull output: %s", out))
+	c.Assert(matches[1], checker.Equals, "1", check.Commentf("Expected %q, got %q", "1", matches[1]))
 
-	res, err := inspectField(containerName, "Config.Image")
-	if err != nil {
-		c.Fatalf("failed to get Config.Image: %s, %v", out, err)
-	}
-	if res != imageReference {
-		c.Fatalf("unexpected Config.Image: %s (expected %s)", res, imageReference)
-	}
+	res := inspectField(c, containerName, "Config.Image")
+	c.Assert(res, checker.Equals, imageReference)
 }
 
 func (s *DockerRegistrySuite) TestRemoveImageByDigest(c *check.C) {
 	digest, err := setupImage(c)
-	if err != nil {
-		c.Fatalf("error setting up image: %v", err)
-	}
+	c.Assert(err, checker.IsNil, check.Commentf("error setting up image"))
 
 	imageReference := fmt.Sprintf("%s@%s", repoName, digest)
 
@@ -179,28 +170,22 @@ func (s *DockerRegistrySuite) TestRemoveImageByDigest(c *check.C) {
 	dockerCmd(c, "pull", imageReference)
 
 	// make sure inspect runs ok
-	if _, err := inspectField(imageReference, "Id"); err != nil {
-		c.Fatalf("failed to inspect image: %v", err)
-	}
+	inspectField(c, imageReference, "Id")
 
 	// do the delete
-	if err := deleteImages(imageReference); err != nil {
-		c.Fatalf("unexpected error deleting image: %v", err)
-	}
+	err = deleteImages(imageReference)
+	c.Assert(err, checker.IsNil, check.Commentf("unexpected error deleting image"))
 
 	// try to inspect again - it should error this time
-	if _, err := inspectField(imageReference, "Id"); err == nil {
-		c.Fatalf("unexpected nil err trying to inspect what should be a non-existent image")
-	} else if !strings.Contains(err.Error(), "No such image") {
-		c.Fatalf("expected 'No such image' output, got %v", err)
-	}
+	_, err = inspectFieldWithError(imageReference, "Id")
+	//unexpected nil err trying to inspect what should be a non-existent image
+	c.Assert(err, checker.NotNil)
+	c.Assert(err.Error(), checker.Contains, "No such object")
 }
 
 func (s *DockerRegistrySuite) TestBuildByDigest(c *check.C) {
 	digest, err := setupImage(c)
-	if err != nil {
-		c.Fatalf("error setting up image: %v", err)
-	}
+	c.Assert(err, checker.IsNil, check.Commentf("error setting up image"))
 
 	imageReference := fmt.Sprintf("%s@%s", repoName, digest)
 
@@ -208,37 +193,24 @@ func (s *DockerRegistrySuite) TestBuildByDigest(c *check.C) {
 	dockerCmd(c, "pull", imageReference)
 
 	// get the image id
-	imageID, err := inspectField(imageReference, "Id")
-	if err != nil {
-		c.Fatalf("error getting image id: %v", err)
-	}
+	imageID := inspectField(c, imageReference, "Id")
 
 	// do the build
 	name := "buildbydigest"
-	_, err = buildImage(name, fmt.Sprintf(
+	buildImageSuccessfully(c, name, build.WithDockerfile(fmt.Sprintf(
 		`FROM %s
-     CMD ["/bin/echo", "Hello World"]`, imageReference),
-		true)
-	if err != nil {
-		c.Fatal(err)
-	}
+     CMD ["/bin/echo", "Hello World"]`, imageReference)))
+	c.Assert(err, checker.IsNil)
 
 	// get the build's image id
-	res, err := inspectField(name, "Config.Image")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectField(c, name, "Config.Image")
 	// make sure they match
-	if res != imageID {
-		c.Fatalf("Image %s, expected %s", res, imageID)
-	}
+	c.Assert(res, checker.Equals, imageID)
 }
 
 func (s *DockerRegistrySuite) TestTagByDigest(c *check.C) {
 	digest, err := setupImage(c)
-	if err != nil {
-		c.Fatalf("error setting up image: %v", err)
-	}
+	c.Assert(err, checker.IsNil, check.Commentf("error setting up image"))
 
 	imageReference := fmt.Sprintf("%s@%s", repoName, digest)
 
@@ -249,26 +221,15 @@ func (s *DockerRegistrySuite) TestTagByDigest(c *check.C) {
 	tag := "tagbydigest"
 	dockerCmd(c, "tag", imageReference, tag)
 
-	expectedID, err := inspectField(imageReference, "Id")
-	if err != nil {
-		c.Fatalf("error getting original image id: %v", err)
-	}
+	expectedID := inspectField(c, imageReference, "Id")
 
-	tagID, err := inspectField(tag, "Id")
-	if err != nil {
-		c.Fatalf("error getting tagged image id: %v", err)
-	}
-
-	if tagID != expectedID {
-		c.Fatalf("expected image id %q, got %q", expectedID, tagID)
-	}
+	tagID := inspectField(c, tag, "Id")
+	c.Assert(tagID, checker.Equals, expectedID)
 }
 
 func (s *DockerRegistrySuite) TestListImagesWithoutDigests(c *check.C) {
 	digest, err := setupImage(c)
-	if err != nil {
-		c.Fatalf("error setting up image: %v", err)
-	}
+	c.Assert(err, checker.IsNil, check.Commentf("error setting up image"))
 
 	imageReference := fmt.Sprintf("%s@%s", repoName, digest)
 
@@ -276,20 +237,14 @@ func (s *DockerRegistrySuite) TestListImagesWithoutDigests(c *check.C) {
 	dockerCmd(c, "pull", imageReference)
 
 	out, _ := dockerCmd(c, "images")
-
-	if strings.Contains(out, "DIGEST") {
-		c.Fatalf("list output should not have contained DIGEST header: %s", out)
-	}
-
+	c.Assert(out, checker.Not(checker.Contains), "DIGEST", check.Commentf("list output should not have contained DIGEST header"))
 }
 
 func (s *DockerRegistrySuite) TestListImagesWithDigests(c *check.C) {
 
 	// setup image1
 	digest1, err := setupImageWithTag(c, "tag1")
-	if err != nil {
-		c.Fatalf("error setting up image: %v", err)
-	}
+	c.Assert(err, checker.IsNil, check.Commentf("error setting up image"))
 	imageReference1 := fmt.Sprintf("%s@%s", repoName, digest1)
 	c.Logf("imageReference1 = %s", imageReference1)
 
@@ -301,15 +256,11 @@ func (s *DockerRegistrySuite) TestListImagesWithDigests(c *check.C) {
 
 	// make sure repo shown, tag=<none>, digest = $digest1
 	re1 := regexp.MustCompile(`\s*` + repoName + `\s*<none>\s*` + digest1.String() + `\s`)
-	if !re1.MatchString(out) {
-		c.Fatalf("expected %q: %s", re1.String(), out)
-	}
-
+	c.Assert(re1.MatchString(out), checker.True, check.Commentf("expected %q: %s", re1.String(), out))
 	// setup image2
 	digest2, err := setupImageWithTag(c, "tag2")
-	if err != nil {
-		c.Fatalf("error setting up image: %v", err)
-	}
+	//error setting up image
+	c.Assert(err, checker.IsNil)
 	imageReference2 := fmt.Sprintf("%s@%s", repoName, digest2)
 	c.Logf("imageReference2 = %s", imageReference2)
 
@@ -323,15 +274,11 @@ func (s *DockerRegistrySuite) TestListImagesWithDigests(c *check.C) {
 	out, _ = dockerCmd(c, "images", "--digests")
 
 	// make sure repo shown, tag=<none>, digest = $digest1
-	if !re1.MatchString(out) {
-		c.Fatalf("expected %q: %s", re1.String(), out)
-	}
+	c.Assert(re1.MatchString(out), checker.True, check.Commentf("expected %q: %s", re1.String(), out))
 
 	// make sure repo shown, tag=<none>, digest = $digest2
 	re2 := regexp.MustCompile(`\s*` + repoName + `\s*<none>\s*` + digest2.String() + `\s`)
-	if !re2.MatchString(out) {
-		c.Fatalf("expected %q: %s", re2.String(), out)
-	}
+	c.Assert(re2.MatchString(out), checker.True, check.Commentf("expected %q: %s", re2.String(), out))
 
 	// pull tag1
 	dockerCmd(c, "pull", repoName+":tag1")
@@ -340,18 +287,10 @@ func (s *DockerRegistrySuite) TestListImagesWithDigests(c *check.C) {
 	out, _ = dockerCmd(c, "images", "--digests")
 
 	// make sure image 1 has repo, tag, <none> AND repo, <none>, digest
-	reWithTag1 := regexp.MustCompile(`\s*` + repoName + `\s*tag1\s*<none>\s`)
-	reWithDigest1 := regexp.MustCompile(`\s*` + repoName + `\s*<none>\s*` + digest1.String() + `\s`)
-	if !reWithTag1.MatchString(out) {
-		c.Fatalf("expected %q: %s", reWithTag1.String(), out)
-	}
-	if !reWithDigest1.MatchString(out) {
-		c.Fatalf("expected %q: %s", reWithDigest1.String(), out)
-	}
+	reWithDigest1 := regexp.MustCompile(`\s*` + repoName + `\s*tag1\s*` + digest1.String() + `\s`)
+	c.Assert(reWithDigest1.MatchString(out), checker.True, check.Commentf("expected %q: %s", reWithDigest1.String(), out))
 	// make sure image 2 has repo, <none>, digest
-	if !re2.MatchString(out) {
-		c.Fatalf("expected %q: %s", re2.String(), out)
-	}
+	c.Assert(re2.MatchString(out), checker.True, check.Commentf("expected %q: %s", re2.String(), out))
 
 	// pull tag 2
 	dockerCmd(c, "pull", repoName+":tag2")
@@ -360,41 +299,100 @@ func (s *DockerRegistrySuite) TestListImagesWithDigests(c *check.C) {
 	out, _ = dockerCmd(c, "images", "--digests")
 
 	// make sure image 1 has repo, tag, digest
-	if !reWithTag1.MatchString(out) {
-		c.Fatalf("expected %q: %s", re1.String(), out)
-	}
+	c.Assert(reWithDigest1.MatchString(out), checker.True, check.Commentf("expected %q: %s", reWithDigest1.String(), out))
 
 	// make sure image 2 has repo, tag, digest
-	reWithTag2 := regexp.MustCompile(`\s*` + repoName + `\s*tag2\s*<none>\s`)
-	reWithDigest2 := regexp.MustCompile(`\s*` + repoName + `\s*<none>\s*` + digest2.String() + `\s`)
-	if !reWithTag2.MatchString(out) {
-		c.Fatalf("expected %q: %s", reWithTag2.String(), out)
-	}
-	if !reWithDigest2.MatchString(out) {
-		c.Fatalf("expected %q: %s", reWithDigest2.String(), out)
-	}
+	reWithDigest2 := regexp.MustCompile(`\s*` + repoName + `\s*tag2\s*` + digest2.String() + `\s`)
+	c.Assert(reWithDigest2.MatchString(out), checker.True, check.Commentf("expected %q: %s", reWithDigest2.String(), out))
 
 	// list images
 	out, _ = dockerCmd(c, "images", "--digests")
 
 	// make sure image 1 has repo, tag, digest
-	if !reWithTag1.MatchString(out) {
-		c.Fatalf("expected %q: %s", re1.String(), out)
-	}
+	c.Assert(reWithDigest1.MatchString(out), checker.True, check.Commentf("expected %q: %s", reWithDigest1.String(), out))
 	// make sure image 2 has repo, tag, digest
-	if !reWithTag2.MatchString(out) {
-		c.Fatalf("expected %q: %s", re2.String(), out)
-	}
+	c.Assert(reWithDigest2.MatchString(out), checker.True, check.Commentf("expected %q: %s", reWithDigest2.String(), out))
 	// make sure busybox has tag, but not digest
 	busyboxRe := regexp.MustCompile(`\s*busybox\s*latest\s*<none>\s`)
-	if !busyboxRe.MatchString(out) {
-		c.Fatalf("expected %q: %s", busyboxRe.String(), out)
-	}
+	c.Assert(busyboxRe.MatchString(out), checker.True, check.Commentf("expected %q: %s", busyboxRe.String(), out))
+}
+
+func (s *DockerRegistrySuite) TestListDanglingImagesWithDigests(c *check.C) {
+	// setup image1
+	digest1, err := setupImageWithTag(c, "dangle1")
+	c.Assert(err, checker.IsNil, check.Commentf("error setting up image"))
+	imageReference1 := fmt.Sprintf("%s@%s", repoName, digest1)
+	c.Logf("imageReference1 = %s", imageReference1)
+
+	// pull image1 by digest
+	dockerCmd(c, "pull", imageReference1)
+
+	// list images
+	out, _ := dockerCmd(c, "images", "--digests")
+
+	// make sure repo shown, tag=<none>, digest = $digest1
+	re1 := regexp.MustCompile(`\s*` + repoName + `\s*<none>\s*` + digest1.String() + `\s`)
+	c.Assert(re1.MatchString(out), checker.True, check.Commentf("expected %q: %s", re1.String(), out))
+	// setup image2
+	digest2, err := setupImageWithTag(c, "dangle2")
+	//error setting up image
+	c.Assert(err, checker.IsNil)
+	imageReference2 := fmt.Sprintf("%s@%s", repoName, digest2)
+	c.Logf("imageReference2 = %s", imageReference2)
+
+	// pull image1 by digest
+	dockerCmd(c, "pull", imageReference1)
+
+	// pull image2 by digest
+	dockerCmd(c, "pull", imageReference2)
+
+	// list images
+	out, _ = dockerCmd(c, "images", "--digests", "--filter=dangling=true")
+
+	// make sure repo shown, tag=<none>, digest = $digest1
+	c.Assert(re1.MatchString(out), checker.True, check.Commentf("expected %q: %s", re1.String(), out))
+
+	// make sure repo shown, tag=<none>, digest = $digest2
+	re2 := regexp.MustCompile(`\s*` + repoName + `\s*<none>\s*` + digest2.String() + `\s`)
+	c.Assert(re2.MatchString(out), checker.True, check.Commentf("expected %q: %s", re2.String(), out))
+
+	// pull dangle1 tag
+	dockerCmd(c, "pull", repoName+":dangle1")
+
+	// list images
+	out, _ = dockerCmd(c, "images", "--digests", "--filter=dangling=true")
+
+	// make sure image 1 has repo, tag, <none> AND repo, <none>, digest
+	reWithDigest1 := regexp.MustCompile(`\s*` + repoName + `\s*dangle1\s*` + digest1.String() + `\s`)
+	c.Assert(reWithDigest1.MatchString(out), checker.False, check.Commentf("unexpected %q: %s", reWithDigest1.String(), out))
+	// make sure image 2 has repo, <none>, digest
+	c.Assert(re2.MatchString(out), checker.True, check.Commentf("expected %q: %s", re2.String(), out))
+
+	// pull dangle2 tag
+	dockerCmd(c, "pull", repoName+":dangle2")
+
+	// list images, show tagged images
+	out, _ = dockerCmd(c, "images", "--digests")
+
+	// make sure image 1 has repo, tag, digest
+	c.Assert(reWithDigest1.MatchString(out), checker.True, check.Commentf("expected %q: %s", reWithDigest1.String(), out))
+
+	// make sure image 2 has repo, tag, digest
+	reWithDigest2 := regexp.MustCompile(`\s*` + repoName + `\s*dangle2\s*` + digest2.String() + `\s`)
+	c.Assert(reWithDigest2.MatchString(out), checker.True, check.Commentf("expected %q: %s", reWithDigest2.String(), out))
+
+	// list images, no longer dangling, should not match
+	out, _ = dockerCmd(c, "images", "--digests", "--filter=dangling=true")
+
+	// make sure image 1 has repo, tag, digest
+	c.Assert(reWithDigest1.MatchString(out), checker.False, check.Commentf("unexpected %q: %s", reWithDigest1.String(), out))
+	// make sure image 2 has repo, tag, digest
+	c.Assert(reWithDigest2.MatchString(out), checker.False, check.Commentf("unexpected %q: %s", reWithDigest2.String(), out))
 }
 
 func (s *DockerRegistrySuite) TestInspectImageWithDigests(c *check.C) {
 	digest, err := setupImage(c)
-	c.Assert(err, check.IsNil, check.Commentf("error setting up image: %v", err))
+	c.Assert(err, check.IsNil, check.Commentf("error setting up image"))
 
 	imageReference := fmt.Sprintf("%s@%s", repoName, digest)
 
@@ -404,46 +402,42 @@ func (s *DockerRegistrySuite) TestInspectImageWithDigests(c *check.C) {
 	out, _ := dockerCmd(c, "inspect", imageReference)
 
 	var imageJSON []types.ImageInspect
-	if err = json.Unmarshal([]byte(out), &imageJSON); err != nil {
-		c.Fatalf("unable to unmarshal body for latest version: %v", err)
-	}
-
-	c.Assert(len(imageJSON), check.Equals, 1)
-	c.Assert(len(imageJSON[0].RepoDigests), check.Equals, 1)
-	c.Assert(stringutils.InSlice(imageJSON[0].RepoDigests, imageReference), check.Equals, true)
+	err = json.Unmarshal([]byte(out), &imageJSON)
+	c.Assert(err, checker.IsNil)
+	c.Assert(imageJSON, checker.HasLen, 1)
+	c.Assert(imageJSON[0].RepoDigests, checker.HasLen, 1)
+	c.Assert(stringutils.InSlice(imageJSON[0].RepoDigests, imageReference), checker.Equals, true)
 }
 
 func (s *DockerRegistrySuite) TestPsListContainersFilterAncestorImageByDigest(c *check.C) {
 	digest, err := setupImage(c)
-	c.Assert(err, check.IsNil, check.Commentf("error setting up image: %v", err))
+	c.Assert(err, checker.IsNil, check.Commentf("error setting up image"))
 
 	imageReference := fmt.Sprintf("%s@%s", repoName, digest)
 
 	// pull from the registry using the <name>@<digest> reference
 	dockerCmd(c, "pull", imageReference)
 
-	// build a image from it
+	// build an image from it
 	imageName1 := "images_ps_filter_test"
-	_, err = buildImage(imageName1, fmt.Sprintf(
+	buildImageSuccessfully(c, imageName1, build.WithDockerfile(fmt.Sprintf(
 		`FROM %s
-		 LABEL match me 1`, imageReference), true)
-	c.Assert(err, check.IsNil)
+		 LABEL match me 1`, imageReference)))
 
 	// run a container based on that
-	out, _ := dockerCmd(c, "run", "-d", imageReference, "echo", "hello")
-	expectedID := strings.TrimSpace(out)
+	dockerCmd(c, "run", "--name=test1", imageReference, "echo", "hello")
+	expectedID := getIDByName(c, "test1")
 
 	// run a container based on the a descendant of that too
-	out, _ = dockerCmd(c, "run", "-d", imageName1, "echo", "hello")
-	expectedID1 := strings.TrimSpace(out)
+	dockerCmd(c, "run", "--name=test2", imageName1, "echo", "hello")
+	expectedID1 := getIDByName(c, "test2")
 
 	expectedIDs := []string{expectedID, expectedID1}
 
 	// Invalid imageReference
-	out, _ = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", fmt.Sprintf("--filter=ancestor=busybox@%s", digest))
-	if strings.TrimSpace(out) != "" {
-		c.Fatalf("Expected filter container for %s ancestor filter to be empty, got %v", fmt.Sprintf("busybox@%s", digest), strings.TrimSpace(out))
-	}
+	out, _ := dockerCmd(c, "ps", "-a", "-q", "--no-trunc", fmt.Sprintf("--filter=ancestor=busybox@%s", digest))
+	// Filter container for ancestor filter should be empty
+	c.Assert(strings.TrimSpace(out), checker.Equals, "")
 
 	// Valid imageReference
 	out, _ = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=ancestor="+imageReference)
@@ -452,39 +446,138 @@ func (s *DockerRegistrySuite) TestPsListContainersFilterAncestorImageByDigest(c 
 
 func (s *DockerRegistrySuite) TestDeleteImageByIDOnlyPulledByDigest(c *check.C) {
 	pushDigest, err := setupImage(c)
-	if err != nil {
-		c.Fatalf("error setting up image: %v", err)
-	}
+	c.Assert(err, checker.IsNil, check.Commentf("error setting up image"))
 
 	// pull from the registry using the <name>@<digest> reference
 	imageReference := fmt.Sprintf("%s@%s", repoName, pushDigest)
 	dockerCmd(c, "pull", imageReference)
 	// just in case...
 
-	imageID, err := inspectField(imageReference, "Id")
-	if err != nil {
-		c.Fatalf("error inspecting image id: %v", err)
-	}
+	dockerCmd(c, "tag", imageReference, repoName+":sometag")
+
+	imageID := inspectField(c, imageReference, "Id")
 
 	dockerCmd(c, "rmi", imageID)
+
+	_, err = inspectFieldWithError(imageID, "Id")
+	c.Assert(err, checker.NotNil, check.Commentf("image should have been deleted"))
+}
+
+func (s *DockerRegistrySuite) TestDeleteImageWithDigestAndTag(c *check.C) {
+	pushDigest, err := setupImage(c)
+	c.Assert(err, checker.IsNil, check.Commentf("error setting up image"))
+
+	// pull from the registry using the <name>@<digest> reference
+	imageReference := fmt.Sprintf("%s@%s", repoName, pushDigest)
+	dockerCmd(c, "pull", imageReference)
+
+	imageID := inspectField(c, imageReference, "Id")
+
+	repoTag := repoName + ":sometag"
+	repoTag2 := repoName + ":othertag"
+	dockerCmd(c, "tag", imageReference, repoTag)
+	dockerCmd(c, "tag", imageReference, repoTag2)
+
+	dockerCmd(c, "rmi", repoTag2)
+
+	// rmi should have deleted only repoTag2, because there's another tag
+	inspectField(c, repoTag, "Id")
+
+	dockerCmd(c, "rmi", repoTag)
+
+	// rmi should have deleted the tag, the digest reference, and the image itself
+	_, err = inspectFieldWithError(imageID, "Id")
+	c.Assert(err, checker.NotNil, check.Commentf("image should have been deleted"))
+}
+
+func (s *DockerRegistrySuite) TestDeleteImageWithDigestAndMultiRepoTag(c *check.C) {
+	pushDigest, err := setupImage(c)
+	c.Assert(err, checker.IsNil, check.Commentf("error setting up image"))
+
+	repo2 := fmt.Sprintf("%s/%s", repoName, "repo2")
+
+	// pull from the registry using the <name>@<digest> reference
+	imageReference := fmt.Sprintf("%s@%s", repoName, pushDigest)
+	dockerCmd(c, "pull", imageReference)
+
+	imageID := inspectField(c, imageReference, "Id")
+
+	repoTag := repoName + ":sometag"
+	repoTag2 := repo2 + ":othertag"
+	dockerCmd(c, "tag", imageReference, repoTag)
+	dockerCmd(c, "tag", imageReference, repoTag2)
+
+	dockerCmd(c, "rmi", repoTag)
+
+	// rmi should have deleted repoTag and image reference, but left repoTag2
+	inspectField(c, repoTag2, "Id")
+	_, err = inspectFieldWithError(imageReference, "Id")
+	c.Assert(err, checker.NotNil, check.Commentf("image digest reference should have been removed"))
+
+	_, err = inspectFieldWithError(repoTag, "Id")
+	c.Assert(err, checker.NotNil, check.Commentf("image tag reference should have been removed"))
+
+	dockerCmd(c, "rmi", repoTag2)
+
+	// rmi should have deleted the tag, the digest reference, and the image itself
+	_, err = inspectFieldWithError(imageID, "Id")
+	c.Assert(err, checker.NotNil, check.Commentf("image should have been deleted"))
 }
 
 // TestPullFailsWithAlteredManifest tests that a `docker pull` fails when
 // we have modified a manifest blob and its digest cannot be verified.
+// This is the schema2 version of the test.
 func (s *DockerRegistrySuite) TestPullFailsWithAlteredManifest(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	manifestDigest, err := setupImage(c)
-	if err != nil {
-		c.Fatalf("error setting up image: %v", err)
-	}
+	c.Assert(err, checker.IsNil, check.Commentf("error setting up image"))
 
 	// Load the target manifest blob.
-	manifestBlob := s.reg.readBlobContents(c, manifestDigest)
+	manifestBlob := s.reg.ReadBlobContents(c, manifestDigest)
+
+	var imgManifest schema2.Manifest
+	err = json.Unmarshal(manifestBlob, &imgManifest)
+	c.Assert(err, checker.IsNil, check.Commentf("unable to decode image manifest from blob"))
+
+	// Change a layer in the manifest.
+	imgManifest.Layers[0].Digest = digest.Digest("sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+
+	// Move the existing data file aside, so that we can replace it with a
+	// malicious blob of data. NOTE: we defer the returned undo func.
+	undo := s.reg.TempMoveBlobData(c, manifestDigest)
+	defer undo()
+
+	alteredManifestBlob, err := json.MarshalIndent(imgManifest, "", "   ")
+	c.Assert(err, checker.IsNil, check.Commentf("unable to encode altered image manifest to JSON"))
+
+	s.reg.WriteBlobContents(c, manifestDigest, alteredManifestBlob)
+
+	// Now try pulling that image by digest. We should get an error about
+	// digest verification for the manifest digest.
+
+	// Pull from the registry using the <name>@<digest> reference.
+	imageReference := fmt.Sprintf("%s@%s", repoName, manifestDigest)
+	out, exitStatus, _ := dockerCmdWithError("pull", imageReference)
+	c.Assert(exitStatus, checker.Not(check.Equals), 0)
+
+	expectedErrorMsg := fmt.Sprintf("manifest verification failed for digest %s", manifestDigest)
+	c.Assert(out, checker.Contains, expectedErrorMsg)
+}
+
+// TestPullFailsWithAlteredManifest tests that a `docker pull` fails when
+// we have modified a manifest blob and its digest cannot be verified.
+// This is the schema1 version of the test.
+func (s *DockerSchema1RegistrySuite) TestPullFailsWithAlteredManifest(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	manifestDigest, err := setupImage(c)
+	c.Assert(err, checker.IsNil, check.Commentf("error setting up image"))
+
+	// Load the target manifest blob.
+	manifestBlob := s.reg.ReadBlobContents(c, manifestDigest)
 
 	var imgManifest schema1.Manifest
-	if err := json.Unmarshal(manifestBlob, &imgManifest); err != nil {
-		c.Fatalf("unable to decode image manifest from blob: %s", err)
-	}
+	err = json.Unmarshal(manifestBlob, &imgManifest)
+	c.Assert(err, checker.IsNil, check.Commentf("unable to decode image manifest from blob"))
 
 	// Change a layer in the manifest.
 	imgManifest.FSLayers[0] = schema1.FSLayer{
@@ -493,15 +586,13 @@ func (s *DockerRegistrySuite) TestPullFailsWithAlteredManifest(c *check.C) {
 
 	// Move the existing data file aside, so that we can replace it with a
 	// malicious blob of data. NOTE: we defer the returned undo func.
-	undo := s.reg.tempMoveBlobData(c, manifestDigest)
+	undo := s.reg.TempMoveBlobData(c, manifestDigest)
 	defer undo()
 
 	alteredManifestBlob, err := json.MarshalIndent(imgManifest, "", "   ")
-	if err != nil {
-		c.Fatalf("unable to encode altered image manifest to JSON: %s", err)
-	}
+	c.Assert(err, checker.IsNil, check.Commentf("unable to encode altered image manifest to JSON"))
 
-	s.reg.writeBlobContents(c, manifestDigest, alteredManifestBlob)
+	s.reg.WriteBlobContents(c, manifestDigest, alteredManifestBlob)
 
 	// Now try pulling that image by digest. We should get an error about
 	// digest verification for the manifest digest.
@@ -509,56 +600,94 @@ func (s *DockerRegistrySuite) TestPullFailsWithAlteredManifest(c *check.C) {
 	// Pull from the registry using the <name>@<digest> reference.
 	imageReference := fmt.Sprintf("%s@%s", repoName, manifestDigest)
 	out, exitStatus, _ := dockerCmdWithError("pull", imageReference)
-	if exitStatus == 0 {
-		c.Fatalf("expected a non-zero exit status but got %d: %s", exitStatus, out)
-	}
+	c.Assert(exitStatus, checker.Not(check.Equals), 0)
 
 	expectedErrorMsg := fmt.Sprintf("image verification failed for digest %s", manifestDigest)
-	if !strings.Contains(out, expectedErrorMsg) {
-		c.Fatalf("expected error message %q in output: %s", expectedErrorMsg, out)
-	}
+	c.Assert(out, checker.Contains, expectedErrorMsg)
 }
 
 // TestPullFailsWithAlteredLayer tests that a `docker pull` fails when
 // we have modified a layer blob and its digest cannot be verified.
+// This is the schema2 version of the test.
 func (s *DockerRegistrySuite) TestPullFailsWithAlteredLayer(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	manifestDigest, err := setupImage(c)
-	if err != nil {
-		c.Fatalf("error setting up image: %v", err)
-	}
+	c.Assert(err, checker.IsNil)
 
 	// Load the target manifest blob.
-	manifestBlob := s.reg.readBlobContents(c, manifestDigest)
+	manifestBlob := s.reg.ReadBlobContents(c, manifestDigest)
+
+	var imgManifest schema2.Manifest
+	err = json.Unmarshal(manifestBlob, &imgManifest)
+	c.Assert(err, checker.IsNil)
+
+	// Next, get the digest of one of the layers from the manifest.
+	targetLayerDigest := imgManifest.Layers[0].Digest
+
+	// Move the existing data file aside, so that we can replace it with a
+	// malicious blob of data. NOTE: we defer the returned undo func.
+	undo := s.reg.TempMoveBlobData(c, targetLayerDigest)
+	defer undo()
+
+	// Now make a fake data blob in this directory.
+	s.reg.WriteBlobContents(c, targetLayerDigest, []byte("This is not the data you are looking for."))
+
+	// Now try pulling that image by digest. We should get an error about
+	// digest verification for the target layer digest.
+
+	// Remove distribution cache to force a re-pull of the blobs
+	if err := os.RemoveAll(filepath.Join(testEnv.DockerBasePath(), "image", s.d.StorageDriver(), "distribution")); err != nil {
+		c.Fatalf("error clearing distribution cache: %v", err)
+	}
+
+	// Pull from the registry using the <name>@<digest> reference.
+	imageReference := fmt.Sprintf("%s@%s", repoName, manifestDigest)
+	out, exitStatus, _ := dockerCmdWithError("pull", imageReference)
+	c.Assert(exitStatus, checker.Not(check.Equals), 0, check.Commentf("expected a non-zero exit status"))
+
+	expectedErrorMsg := fmt.Sprintf("filesystem layer verification failed for digest %s", targetLayerDigest)
+	c.Assert(out, checker.Contains, expectedErrorMsg, check.Commentf("expected error message in output: %s", out))
+}
+
+// TestPullFailsWithAlteredLayer tests that a `docker pull` fails when
+// we have modified a layer blob and its digest cannot be verified.
+// This is the schema1 version of the test.
+func (s *DockerSchema1RegistrySuite) TestPullFailsWithAlteredLayer(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	manifestDigest, err := setupImage(c)
+	c.Assert(err, checker.IsNil)
+
+	// Load the target manifest blob.
+	manifestBlob := s.reg.ReadBlobContents(c, manifestDigest)
 
 	var imgManifest schema1.Manifest
-	if err := json.Unmarshal(manifestBlob, &imgManifest); err != nil {
-		c.Fatalf("unable to decode image manifest from blob: %s", err)
-	}
+	err = json.Unmarshal(manifestBlob, &imgManifest)
+	c.Assert(err, checker.IsNil)
 
 	// Next, get the digest of one of the layers from the manifest.
 	targetLayerDigest := imgManifest.FSLayers[0].BlobSum
 
 	// Move the existing data file aside, so that we can replace it with a
 	// malicious blob of data. NOTE: we defer the returned undo func.
-	undo := s.reg.tempMoveBlobData(c, targetLayerDigest)
+	undo := s.reg.TempMoveBlobData(c, targetLayerDigest)
 	defer undo()
 
 	// Now make a fake data blob in this directory.
-	s.reg.writeBlobContents(c, targetLayerDigest, []byte("This is not the data you are looking for."))
+	s.reg.WriteBlobContents(c, targetLayerDigest, []byte("This is not the data you are looking for."))
 
 	// Now try pulling that image by digest. We should get an error about
 	// digest verification for the target layer digest.
 
+	// Remove distribution cache to force a re-pull of the blobs
+	if err := os.RemoveAll(filepath.Join(testEnv.DockerBasePath(), "image", s.d.StorageDriver(), "distribution")); err != nil {
+		c.Fatalf("error clearing distribution cache: %v", err)
+	}
+
 	// Pull from the registry using the <name>@<digest> reference.
 	imageReference := fmt.Sprintf("%s@%s", repoName, manifestDigest)
 	out, exitStatus, _ := dockerCmdWithError("pull", imageReference)
-	if exitStatus == 0 {
-		c.Fatalf("expected a zero exit status but got: %d", exitStatus)
-	}
+	c.Assert(exitStatus, checker.Not(check.Equals), 0, check.Commentf("expected a non-zero exit status"))
 
 	expectedErrorMsg := fmt.Sprintf("filesystem layer verification failed for digest %s", targetLayerDigest)
-	if !strings.Contains(out, expectedErrorMsg) {
-		c.Fatalf("expected error message %q in output: %s", expectedErrorMsg, out)
-	}
+	c.Assert(out, checker.Contains, expectedErrorMsg, check.Commentf("expected error message in output: %s", out))
 }

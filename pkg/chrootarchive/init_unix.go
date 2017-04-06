@@ -23,6 +23,6 @@ func fatal(err error) {
 
 // flush consumes all the bytes from the reader discarding
 // any errors
-func flush(r io.Reader) {
-	io.Copy(ioutil.Discard, r)
+func flush(r io.Reader) (bytes int64, err error) {
+	return io.Copy(ioutil.Discard, r)
 }

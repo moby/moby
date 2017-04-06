@@ -29,7 +29,7 @@ func loadIds(root string) ([]string, error) {
 //
 // If there are no lines in the file then the id has no parent
 // and an empty slice is returned.
-func getParentIds(root, id string) ([]string, error) {
+func getParentIDs(root, id string) ([]string, error) {
 	f, err := os.Open(path.Join(root, "layers", id))
 	if err != nil {
 		return nil, err
@@ -45,4 +45,20 @@ func getParentIds(root, id string) ([]string, error) {
 		}
 	}
 	return out, s.Err()
+}
+
+func (a *Driver) getMountpoint(id string) string {
+	return path.Join(a.mntPath(), id)
+}
+
+func (a *Driver) mntPath() string {
+	return path.Join(a.rootPath(), "mnt")
+}
+
+func (a *Driver) getDiffPath(id string) string {
+	return path.Join(a.diffPath(), id)
+}
+
+func (a *Driver) diffPath() string {
+	return path.Join(a.rootPath(), "diff")
 }

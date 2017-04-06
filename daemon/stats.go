@@ -2,57 +2,64 @@ package daemon
 
 import (
 	"encoding/json"
-	"io"
+	"errors"
+	"fmt"
+	"runtime"
+	"time"
+
+	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/api/types/versions/v1p20"
-	"github.com/docker/docker/daemon/execdriver"
-	"github.com/docker/docker/pkg/version"
+	"github.com/docker/docker/container"
+	"github.com/docker/docker/pkg/ioutils"
 )
-
-// ContainerStatsConfig holds information for configuring the runtime
-// behavior of a daemon.ContainerStats() call.
-type ContainerStatsConfig struct {
-	Stream    bool
-	OutStream io.Writer
-	Stop      <-chan bool
-	Version   version.Version
-}
 
 // ContainerStats writes information about the container to the stream
 // given in the config object.
-func (daemon *Daemon) ContainerStats(prefixOrName string, config *ContainerStatsConfig) error {
+func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, config *backend.ContainerStatsConfig) error {
+	if runtime.GOOS == "solaris" {
+		return fmt.Errorf("%+v does not support stats", runtime.GOOS)
+	}
+	// Engine API version (used for backwards compatibility)
+	apiVersion := config.Version
 
-	container, err := daemon.Get(prefixOrName)
+	container, err := daemon.GetContainer(prefixOrName)
 	if err != nil {
 		return err
 	}
 
-	// If the container is not running and requires no stream, return an empty stats.
-	if !container.IsRunning() && !config.Stream {
-		return json.NewEncoder(config.OutStream).Encode(&types.Stats{})
+	// If the container is either not running or restarting and requires no stream, return an empty stats.
+	if (!container.IsRunning() || container.IsRestarting()) && !config.Stream {
+		return json.NewEncoder(config.OutStream).Encode(&types.StatsJSON{
+			Name: container.Name,
+			ID:   container.ID})
 	}
 
+	outStream := config.OutStream
 	if config.Stream {
-		// Write an empty chunk of data.
-		// This is to ensure that the HTTP status code is sent immediately,
-		// even if the container has not yet produced any data.
-		config.OutStream.Write(nil)
+		wf := ioutils.NewWriteFlusher(outStream)
+		defer wf.Close()
+		wf.Flush()
+		outStream = wf
 	}
 
 	var preCPUStats types.CPUStats
+	var preRead time.Time
 	getStatJSON := func(v interface{}) *types.StatsJSON {
-		update := v.(*execdriver.ResourceStats)
-		ss := convertStatsToAPITypes(update.Stats)
+		ss := v.(types.StatsJSON)
+		ss.Name = container.Name
+		ss.ID = container.ID
 		ss.PreCPUStats = preCPUStats
-		ss.MemoryStats.Limit = uint64(update.MemoryLimit)
-		ss.Read = update.Read
-		ss.CPUStats.SystemUsage = update.SystemUsage
+		ss.PreRead = preRead
 		preCPUStats = ss.CPUStats
-		return ss
+		preRead = ss.Read
+		return &ss
 	}
 
-	enc := json.NewEncoder(config.OutStream)
+	enc := json.NewEncoder(outStream)
 
 	updates := daemon.subscribeToContainerStats(container)
 	defer daemon.unsubscribeToContainerStats(container, updates)
@@ -67,7 +74,10 @@ func (daemon *Daemon) ContainerStats(prefixOrName string, config *ContainerStats
 
 			var statsJSON interface{}
 			statsJSONPost120 := getStatJSON(v)
-			if config.Version.LessThan("1.21") {
+			if versions.LessThan(apiVersion, "1.21") {
+				if runtime.GOOS == "windows" {
+					return errors.New("API versions pre v1.21 do not support stats on Windows")
+				}
 				var (
 					rxBytes   uint64
 					rxPackets uint64
@@ -118,8 +128,33 @@ func (daemon *Daemon) ContainerStats(prefixOrName string, config *ContainerStats
 			if !config.Stream {
 				return nil
 			}
-		case <-config.Stop:
+		case <-ctx.Done():
 			return nil
 		}
 	}
+}
+
+func (daemon *Daemon) subscribeToContainerStats(c *container.Container) chan interface{} {
+	return daemon.statsCollector.Collect(c)
+}
+
+func (daemon *Daemon) unsubscribeToContainerStats(c *container.Container, ch chan interface{}) {
+	daemon.statsCollector.Unsubscribe(c, ch)
+}
+
+// GetContainerStats collects all the stats published by a container
+func (daemon *Daemon) GetContainerStats(container *container.Container) (*types.StatsJSON, error) {
+	stats, err := daemon.stats(container)
+	if err != nil {
+		return nil, err
+	}
+
+	// We already have the network stats on Windows directly from HCS.
+	if !container.Config.NetworkDisabled && runtime.GOOS != "windows" {
+		if stats.Networks, err = daemon.getNetworkStats(container); err != nil {
+			return nil, err
+		}
+	}
+
+	return stats, nil
 }

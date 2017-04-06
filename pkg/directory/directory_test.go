@@ -168,6 +168,9 @@ func TestMoveToSubdir(t *testing.T) {
 	}
 	// validate that the files were moved to the subdirectory
 	infos, err := ioutil.ReadDir(subDir)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(infos) != 4 {
 		t.Fatalf("Should be four files in the subdir after the migration: actual length: %d", len(infos))
 	}
@@ -178,5 +181,12 @@ func TestMoveToSubdir(t *testing.T) {
 	sort.Sort(sort.StringSlice(results))
 	if !reflect.DeepEqual(filesList, results) {
 		t.Fatalf("Results after migration do not equal list of files: expected: %v, got: %v", filesList, results)
+	}
+}
+
+// Test a non-existing directory
+func TestSizeNonExistingDirectory(t *testing.T) {
+	if _, err := Size("/thisdirectoryshouldnotexist/TestSizeNonExistingDirectory"); err == nil {
+		t.Fatalf("error is expected")
 	}
 }

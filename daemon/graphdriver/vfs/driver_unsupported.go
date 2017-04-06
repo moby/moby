@@ -1,3 +1,0 @@
-// +build !daemon
-
-package vfs

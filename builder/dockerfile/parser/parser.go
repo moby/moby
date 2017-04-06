@@ -3,8 +3,11 @@ package parser
 
 import (
 	"bufio"
+	"bytes"
+	"fmt"
 	"io"
 	"regexp"
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -30,14 +33,63 @@ type Node struct {
 	Attributes map[string]bool // special attributes for this node
 	Original   string          // original line used before parsing
 	Flags      []string        // only top Node should have this set
+	StartLine  int             // the line in the original dockerfile where the node begins
+	EndLine    int             // the line in the original dockerfile where the node ends
+}
+
+// Dump dumps the AST defined by `node` as a list of sexps.
+// Returns a string suitable for printing.
+func (node *Node) Dump() string {
+	str := ""
+	str += node.Value
+
+	if len(node.Flags) > 0 {
+		str += fmt.Sprintf(" %q", node.Flags)
+	}
+
+	for _, n := range node.Children {
+		str += "(" + n.Dump() + ")\n"
+	}
+
+	for n := node.Next; n != nil; n = n.Next {
+		if len(n.Children) > 0 {
+			str += " " + n.Dump()
+		} else {
+			str += " " + strconv.Quote(n.Value)
+		}
+	}
+
+	return strings.TrimSpace(str)
+}
+
+// Directive is the structure used during a build run to hold the state of
+// parsing directives.
+type Directive struct {
+	EscapeToken           rune           // Current escape token
+	LineContinuationRegex *regexp.Regexp // Current line continuation regex
+	LookingForDirectives  bool           // Whether we are currently looking for directives
+	EscapeSeen            bool           // Whether the escape directive has been seen
 }
 
 var (
-	dispatch              map[string]func(string) (*Node, map[string]bool, error)
-	tokenWhitespace       = regexp.MustCompile(`[\t\v\f\r ]+`)
-	tokenLineContinuation = regexp.MustCompile(`\\[ \t]*$`)
-	tokenComment          = regexp.MustCompile(`^#.*$`)
+	dispatch           map[string]func(string, *Directive) (*Node, map[string]bool, error)
+	tokenWhitespace    = regexp.MustCompile(`[\t\v\f\r ]+`)
+	tokenEscapeCommand = regexp.MustCompile(`^#[ \t]*escape[ \t]*=[ \t]*(?P<escapechar>.).*$`)
+	tokenComment       = regexp.MustCompile(`^#.*$`)
 )
+
+// DefaultEscapeToken is the default escape token
+const DefaultEscapeToken = "\\"
+
+// SetEscapeToken sets the default token for escaping characters in a Dockerfile.
+func SetEscapeToken(s string, d *Directive) error {
+	if s != "`" && s != "\\" {
+		return fmt.Errorf("invalid ESCAPE '%s'. Must be ` or \\", s)
+	}
+	d.EscapeToken = rune(s[0])
+	d.LineContinuationRegex = regexp.MustCompile(`\` + s + `[ \t]*$`)
+	return nil
+}
 
 func init() {
 	// Dispatch Table. see line_parsers.go for the parse functions.
@@ -46,80 +98,135 @@ func init() {
 	// reformulating the arguments according to the rules in the parser
 	// functions. Errors are propagated up by Parse() and the resulting AST can
 	// be incorporated directly into the existing AST as a next.
-	dispatch = map[string]func(string) (*Node, map[string]bool, error){
-		command.User:       parseString,
-		command.Onbuild:    parseSubCommand,
-		command.Workdir:    parseString,
-		command.Env:        parseEnv,
-		command.Label:      parseLabel,
-		command.Maintainer: parseString,
-		command.From:       parseString,
-		command.Add:        parseMaybeJSONToList,
-		command.Copy:       parseMaybeJSONToList,
-		command.Run:        parseMaybeJSON,
-		command.Cmd:        parseMaybeJSON,
-		command.Entrypoint: parseMaybeJSON,
-		command.Expose:     parseStringsWhitespaceDelimited,
-		command.Volume:     parseMaybeJSONToList,
-		command.StopSignal: parseString,
-		command.Arg:        parseNameOrNameVal,
+	dispatch = map[string]func(string, *Directive) (*Node, map[string]bool, error){
+		command.Add:         parseMaybeJSONToList,
+		command.Arg:         parseNameOrNameVal,
+		command.Cmd:         parseMaybeJSON,
+		command.Copy:        parseMaybeJSONToList,
+		command.Entrypoint:  parseMaybeJSON,
+		command.Env:         parseEnv,
+		command.Expose:      parseStringsWhitespaceDelimited,
+		command.From:        parseStringsWhitespaceDelimited,
+		command.Healthcheck: parseHealthConfig,
+		command.Label:       parseLabel,
+		command.Maintainer:  parseString,
+		command.Onbuild:     parseSubCommand,
+		command.Run:         parseMaybeJSON,
+		command.Shell:       parseMaybeJSON,
+		command.StopSignal:  parseString,
+		command.User:        parseString,
+		command.Volume:      parseMaybeJSONToList,
+		command.Workdir:     parseString,
 	}
 }
 
-// parse a line and return the remainder.
-func parseLine(line string) (string, *Node, error) {
+// ParseLine parses a line and returns the remainder.
+func ParseLine(line string, d *Directive, ignoreCont bool) (string, *Node, error) {
+	if escapeFound, err := handleParserDirective(line, d); err != nil || escapeFound {
+		d.EscapeSeen = escapeFound
+		return "", nil, err
+	}
+
+	d.LookingForDirectives = false
+
 	if line = stripComments(line); line == "" {
 		return "", nil, nil
 	}
 
-	if tokenLineContinuation.MatchString(line) {
-		line = tokenLineContinuation.ReplaceAllString(line, "")
+	if !ignoreCont && d.LineContinuationRegex.MatchString(line) {
+		line = d.LineContinuationRegex.ReplaceAllString(line, "")
 		return line, nil, nil
 	}
 
+	node, err := newNodeFromLine(line, d)
+	return "", node, err
+}
+
+// newNodeFromLine splits the line into parts, and dispatches to a function
+// based on the command and command arguments. A Node is created from the
+// result of the dispatch.
+func newNodeFromLine(line string, directive *Directive) (*Node, error) {
 	cmd, flags, args, err := splitCommand(line)
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
 
-	node := &Node{}
-	node.Value = cmd
-
-	sexp, attrs, err := fullDispatch(cmd, args)
+	fn := dispatch[cmd]
+	// Ignore invalid Dockerfile instructions
+	if fn == nil {
+		fn = parseIgnore
+	}
+	next, attrs, err := fn(args, directive)
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
 
-	node.Next = sexp
-	node.Attributes = attrs
-	node.Original = line
-	node.Flags = flags
+	return &Node{
+		Value:      cmd,
+		Original:   line,
+		Flags:      flags,
+		Next:       next,
+		Attributes: attrs,
+	}, nil
+}
 
-	return "", node, nil
+// Handle the parser directive '# escape=<char>. Parser directives must precede
+// any builder instruction or other comments, and cannot be repeated.
+func handleParserDirective(line string, d *Directive) (bool, error) {
+	if !d.LookingForDirectives {
+		return false, nil
+	}
+	tecMatch := tokenEscapeCommand.FindStringSubmatch(strings.ToLower(line))
+	if len(tecMatch) == 0 {
+		return false, nil
+	}
+	if d.EscapeSeen == true {
+		return false, fmt.Errorf("only one escape parser directive can be used")
+	}
+	for i, n := range tokenEscapeCommand.SubexpNames() {
+		if n == "escapechar" {
+			if err := SetEscapeToken(tecMatch[i], d); err != nil {
+				return false, err
+			}
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // Parse is the main parse routine.
 // It handles an io.ReadWriteCloser and returns the root of the AST.
-func Parse(rwc io.Reader) (*Node, error) {
+func Parse(rwc io.Reader, d *Directive) (*Node, error) {
+	currentLine := 0
 	root := &Node{}
+	root.StartLine = -1
 	scanner := bufio.NewScanner(rwc)
 
+	utf8bom := []byte{0xEF, 0xBB, 0xBF}
 	for scanner.Scan() {
-		scannedLine := strings.TrimLeftFunc(scanner.Text(), unicode.IsSpace)
-		line, child, err := parseLine(scannedLine)
+		scannedBytes := scanner.Bytes()
+		// We trim UTF8 BOM
+		if currentLine == 0 {
+			scannedBytes = bytes.TrimPrefix(scannedBytes, utf8bom)
+		}
+		scannedLine := strings.TrimLeftFunc(string(scannedBytes), unicode.IsSpace)
+		currentLine++
+		line, child, err := ParseLine(scannedLine, d, false)
 		if err != nil {
 			return nil, err
 		}
+		startLine := currentLine
 
 		if line != "" && child == nil {
 			for scanner.Scan() {
 				newline := scanner.Text()
+				currentLine++
 
 				if stripComments(strings.TrimSpace(newline)) == "" {
 					continue
 				}
 
-				line, child, err = parseLine(line + newline)
+				line, child, err = ParseLine(line+newline, d, false)
 				if err != nil {
 					return nil, err
 				}
@@ -129,7 +236,13 @@ func Parse(rwc io.Reader) (*Node, error) {
 				}
 			}
 			if child == nil && line != "" {
-				line, child, err = parseLine(line)
+				// When we call ParseLine we'll pass in 'true' for
+				// the ignoreCont param if we're at the EOF. This will
+				// prevent the func from returning immediately w/o
+				// parsing the line thinking that there's more input
+				// to come.
+
+				_, child, err = ParseLine(line, d, scanner.Err() == nil)
 				if err != nil {
 					return nil, err
 				}
@@ -137,9 +250,29 @@ func Parse(rwc io.Reader) (*Node, error) {
 		}
 
 		if child != nil {
+			// Update the line information for the current child.
+			child.StartLine = startLine
+			child.EndLine = currentLine
+			// Update the line information for the root. The starting line of the root is always the
+			// starting line of the first child and the ending line is the ending line of the last child.
+			if root.StartLine < 0 {
+				root.StartLine = currentLine
+			}
+			root.EndLine = currentLine
 			root.Children = append(root.Children, child)
 		}
 	}
 
 	return root, nil
+}
+
+// covers comments and empty lines. Lines should be trimmed before passing to
+// this function.
+func stripComments(line string) string {
+	// string is already trimmed at this point
+	if tokenComment.MatchString(line) {
+		return tokenComment.ReplaceAllString(line, "")
+	}
+
+	return line
 }

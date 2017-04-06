@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -15,6 +16,7 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/system"
+	rsystem "github.com/opencontainers/runc/libcontainer/system"
 )
 
 type applyLayerResponse struct {
@@ -27,13 +29,14 @@ type applyLayerResponse struct {
 func applyLayer() {
 
 	var (
-		tmpDir  = ""
+		tmpDir  string
 		err     error
 		options *archive.TarOptions
 	)
 	runtime.LockOSThread()
 	flag.Parse()
 
+	inUserns := rsystem.RunningInUserNS()
 	if err := chroot(flag.Arg(0)); err != nil {
 		fatal(err)
 	}
@@ -47,6 +50,10 @@ func applyLayer() {
 
 	if err := json.Unmarshal([]byte(os.Getenv("OPT")), &options); err != nil {
 		fatal(err)
+	}
+
+	if inUserns {
+		options.InUserNS = true
 	}
 
 	if tmpDir, err = ioutil.TempDir("/", "temp-docker-extract"); err != nil {
@@ -65,15 +72,17 @@ func applyLayer() {
 		fatal(fmt.Errorf("unable to encode layerSize JSON: %s", err))
 	}
 
-	flush(os.Stdout)
-	flush(os.Stdin)
+	if _, err := flush(os.Stdin); err != nil {
+		fatal(err)
+	}
+
 	os.Exit(0)
 }
 
 // applyLayerHandler parses a diff in the standard layer format from `layer`, and
 // applies it to the directory `dest`. Returns the size in bytes of the
 // contents of the layer.
-func applyLayerHandler(dest string, layer archive.Reader, options *archive.TarOptions, decompress bool) (size int64, err error) {
+func applyLayerHandler(dest string, layer io.Reader, options *archive.TarOptions, decompress bool) (size int64, err error) {
 	dest = filepath.Clean(dest)
 	if decompress {
 		decompressed, err := archive.DecompressStream(layer)
@@ -86,6 +95,9 @@ func applyLayerHandler(dest string, layer archive.Reader, options *archive.TarOp
 	}
 	if options == nil {
 		options = &archive.TarOptions{}
+		if rsystem.RunningInUserNS() {
+			options.InUserNS = true
+		}
 	}
 	if options.ExcludePatterns == nil {
 		options.ExcludePatterns = []string{}

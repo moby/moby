@@ -1,37 +1,62 @@
-<!--[metadata]>
-+++
-title = "save"
-description = "The save command description and usage"
-keywords = ["tarred, repository, backup"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "save"
+description: "The save command description and usage"
+keywords: "tarred, repository, backup"
+---
+
+<!-- This file is maintained within the docker/docker Github
+     repository at https://github.com/docker/docker/. Make all
+     pull requests against that repo. If you see this file in
+     another repository, consider it read-only there, as it will
+     periodically be overwritten by the definitive file. Pull
+     requests which include edits to this file in other repositories
+     will be rejected.
+-->
 
 # save
 
-    Usage: docker save [OPTIONS] IMAGE [IMAGE...]
+```markdown
+Usage:  docker save [OPTIONS] IMAGE [IMAGE...]
 
-    Save an image(s) to a tar archive (streamed to STDOUT by default)
+Save one or more images to a tar archive (streamed to STDOUT by default)
 
-      --help=false       Print usage
-      -o, --output=""    Write to a file, instead of STDOUT
+Options:
+      --help            Print usage
+  -o, --output string   Write to a file, instead of STDOUT
+```
+
+## Description
 
 Produces a tarred repository to the standard output stream.
 Contains all parent layers, and all tags + versions, or specified `repo:tag`, for
 each argument provided.
 
-It is used to create a backup that can then be used with `docker load`
+## Examples
 
-    $ docker save busybox > busybox.tar
-    $ ls -sh busybox.tar
-    2.7M busybox.tar
-    $ docker save --output busybox.tar busybox
-    $ ls -sh busybox.tar
-    2.7M busybox.tar
-    $ docker save -o fedora-all.tar fedora
-    $ docker save -o fedora-latest.tar fedora:latest
+### Create a backup that can then be used with `docker load`.
 
-It is even useful to cherry-pick particular tags of an image repository
+```bash
+$ docker save busybox > busybox.tar
 
-    $ docker save -o ubuntu.tar ubuntu:lucid ubuntu:saucy
+$ ls -sh busybox.tar
+
+2.7M busybox.tar
+
+$ docker save --output busybox.tar busybox
+
+$ ls -sh busybox.tar
+
+2.7M busybox.tar
+
+$ docker save -o fedora-all.tar fedora
+
+$ docker save -o fedora-latest.tar fedora:latest
+```
+
+### Cherry-pick particular tags
+
+You can even cherry-pick particular tags of an image repository.
+
+```bash
+$ docker save -o ubuntu.tar ubuntu:lucid ubuntu:saucy
+```

@@ -4,13 +4,14 @@ package overlay
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"syscall"
 	"time"
 
+	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/system"
+	rsystem "github.com/opencontainers/runc/libcontainer/system"
 )
 
 type copyFlags int
@@ -32,7 +33,7 @@ func copyRegular(srcPath, dstPath string, mode os.FileMode) error {
 	}
 	defer dstFile.Close()
 
-	_, err = io.Copy(dstFile, srcFile)
+	_, err = pools.Copy(dstFile, srcFile)
 
 	return err
 }
@@ -105,6 +106,10 @@ func copyDir(srcDir, dstDir string, flags copyFlags) error {
 		case os.ModeNamedPipe:
 			fallthrough
 		case os.ModeSocket:
+			if rsystem.RunningInUserNS() {
+				// cannot create a device if running in user namespace
+				return nil
+			}
 			if err := syscall.Mkfifo(dstPath, stat.Mode); err != nil {
 				return err
 			}

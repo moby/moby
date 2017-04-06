@@ -1,41 +1,59 @@
 package registry
 
 import (
-	"encoding/json"
-	"errors"
 	"fmt"
 	"net"
 	"net/url"
+	"regexp"
+	"strconv"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/image"
+	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/opts"
-	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/pkg/errors"
+	"github.com/spf13/pflag"
 )
 
-// Options holds command line options.
-type Options struct {
-	Mirrors            opts.ListOpts
-	InsecureRegistries opts.ListOpts
+// ServiceOptions holds command line options.
+type ServiceOptions struct {
+	Mirrors            []string `json:"registry-mirrors,omitempty"`
+	InsecureRegistries []string `json:"insecure-registries,omitempty"`
+
+	// V2Only controls access to legacy registries.  If it is set to true via the
+	// command line flag the daemon will not attempt to contact v1 legacy registries
+	V2Only bool `json:"disable-legacy-registry,omitempty"`
 }
 
-const (
+// serviceConfig holds daemon configuration for the registry service.
+type serviceConfig struct {
+	registrytypes.ServiceConfig
+	V2Only bool
+}
+
+var (
 	// DefaultNamespace is the default namespace
 	DefaultNamespace = "docker.io"
 	// DefaultRegistryVersionHeader is the name of the default HTTP header
 	// that carries Registry version info
 	DefaultRegistryVersionHeader = "Docker-Distribution-Api-Version"
 
-	// IndexServer is the v1 registry server used for user auth + account creation
-	IndexServer = DefaultV1Registry + "/v1/"
+	// IndexHostname is the index hostname
+	IndexHostname = "index.docker.io"
+	// IndexServer is used for user auth and image search
+	IndexServer = "https://" + IndexHostname + "/v1/"
 	// IndexName is the name of the index
 	IndexName = "docker.io"
 
 	// NotaryServer is the endpoint serving the Notary trust server
 	NotaryServer = "https://notary.docker.io"
 
-	// IndexServer = "https://registry-stage.hub.docker.com/v1/"
+	// DefaultV2Registry is the URI of the default v2 registry
+	DefaultV2Registry = &url.URL{
+		Scheme: "https",
+		Host:   "registry-1.docker.io",
+	}
 )
 
 var (
@@ -43,80 +61,137 @@ var (
 	// not have the correct form
 	ErrInvalidRepositoryName = errors.New("Invalid repository name (ex: \"registry.domain.tld/myrepos\")")
 
-	emptyServiceConfig = NewServiceConfig(nil)
-
-	// V2Only controls access to legacy registries.  If it is set to true via the
-	// command line flag the daemon will not attempt to contact v1 legacy registries
-	V2Only = false
+	emptyServiceConfig = newServiceConfig(ServiceOptions{})
 )
 
-// InstallFlags adds command-line options to the top-level flag parser for
+var (
+	validHostPortRegex = regexp.MustCompile(`^` + reference.DomainRegexp.String() + `$`)
+)
+
+// for mocking in unit tests
+var lookupIP = net.LookupIP
+
+// InstallCliFlags adds command-line options to the top-level flag parser for
 // the current process.
-func (options *Options) InstallFlags(cmd *flag.FlagSet, usageFn func(string) string) {
-	options.Mirrors = opts.NewListOpts(ValidateMirror)
-	cmd.Var(&options.Mirrors, []string{"-registry-mirror"}, usageFn("Preferred Docker registry mirror"))
-	options.InsecureRegistries = opts.NewListOpts(ValidateIndexName)
-	cmd.Var(&options.InsecureRegistries, []string{"-insecure-registry"}, usageFn("Enable insecure registry communication"))
-	cmd.BoolVar(&V2Only, []string{"-disable-legacy-registry"}, false, "Do not contact legacy registries")
+func (options *ServiceOptions) InstallCliFlags(flags *pflag.FlagSet) {
+	mirrors := opts.NewNamedListOptsRef("registry-mirrors", &options.Mirrors, ValidateMirror)
+	insecureRegistries := opts.NewNamedListOptsRef("insecure-registries", &options.InsecureRegistries, ValidateIndexName)
+
+	flags.Var(mirrors, "registry-mirror", "Preferred Docker registry mirror")
+	flags.Var(insecureRegistries, "insecure-registry", "Enable insecure registry communication")
+
+	options.installCliPlatformFlags(flags)
 }
 
-type netIPNet net.IPNet
-
-func (ipnet *netIPNet) MarshalJSON() ([]byte, error) {
-	return json.Marshal((*net.IPNet)(ipnet).String())
-}
-
-func (ipnet *netIPNet) UnmarshalJSON(b []byte) (err error) {
-	var ipnetStr string
-	if err = json.Unmarshal(b, &ipnetStr); err == nil {
-		var cidr *net.IPNet
-		if _, cidr, err = net.ParseCIDR(ipnetStr); err == nil {
-			*ipnet = netIPNet(*cidr)
-		}
-	}
-	return
-}
-
-// ServiceConfig stores daemon registry services configuration.
-type ServiceConfig struct {
-	InsecureRegistryCIDRs []*netIPNet           `json:"InsecureRegistryCIDRs"`
-	IndexConfigs          map[string]*IndexInfo `json:"IndexConfigs"`
-	Mirrors               []string
-}
-
-// NewServiceConfig returns a new instance of ServiceConfig
-func NewServiceConfig(options *Options) *ServiceConfig {
-	if options == nil {
-		options = &Options{
-			Mirrors:            opts.NewListOpts(nil),
-			InsecureRegistries: opts.NewListOpts(nil),
-		}
+// newServiceConfig returns a new instance of ServiceConfig
+func newServiceConfig(options ServiceOptions) *serviceConfig {
+	config := &serviceConfig{
+		ServiceConfig: registrytypes.ServiceConfig{
+			InsecureRegistryCIDRs: make([]*registrytypes.NetIPNet, 0),
+			IndexConfigs:          make(map[string]*registrytypes.IndexInfo, 0),
+			// Hack: Bypass setting the mirrors to IndexConfigs since they are going away
+			// and Mirrors are only for the official registry anyways.
+		},
+		V2Only: options.V2Only,
 	}
 
+	config.LoadMirrors(options.Mirrors)
+	config.LoadInsecureRegistries(options.InsecureRegistries)
+
+	return config
+}
+
+// LoadMirrors loads mirrors to config, after removing duplicates.
+// Returns an error if mirrors contains an invalid mirror.
+func (config *serviceConfig) LoadMirrors(mirrors []string) error {
+	mMap := map[string]struct{}{}
+	unique := []string{}
+
+	for _, mirror := range mirrors {
+		m, err := ValidateMirror(mirror)
+		if err != nil {
+			return err
+		}
+		if _, exist := mMap[m]; !exist {
+			mMap[m] = struct{}{}
+			unique = append(unique, m)
+		}
+	}
+
+	config.Mirrors = unique
+
+	// Configure public registry since mirrors may have changed.
+	config.IndexConfigs[IndexName] = &registrytypes.IndexInfo{
+		Name:     IndexName,
+		Mirrors:  config.Mirrors,
+		Secure:   true,
+		Official: true,
+	}
+
+	return nil
+}
+
+// LoadInsecureRegistries loads insecure registries to config
+func (config *serviceConfig) LoadInsecureRegistries(registries []string) error {
 	// Localhost is by default considered as an insecure registry
 	// This is a stop-gap for people who are running a private registry on localhost (especially on Boot2docker).
 	//
 	// TODO: should we deprecate this once it is easier for people to set up a TLS registry or change
 	// daemon flags on boot2docker?
-	options.InsecureRegistries.Set("127.0.0.0/8")
+	registries = append(registries, "127.0.0.0/8")
 
-	config := &ServiceConfig{
-		InsecureRegistryCIDRs: make([]*netIPNet, 0),
-		IndexConfigs:          make(map[string]*IndexInfo, 0),
-		// Hack: Bypass setting the mirrors to IndexConfigs since they are going away
-		// and Mirrors are only for the official registry anyways.
-		Mirrors: options.Mirrors.GetAll(),
-	}
-	// Split --insecure-registry into CIDR and registry-specific settings.
-	for _, r := range options.InsecureRegistries.GetAll() {
+	// Store original InsecureRegistryCIDRs and IndexConfigs
+	// Clean InsecureRegistryCIDRs and IndexConfigs in config, as passed registries has all insecure registry info.
+	originalCIDRs := config.ServiceConfig.InsecureRegistryCIDRs
+	originalIndexInfos := config.ServiceConfig.IndexConfigs
+
+	config.ServiceConfig.InsecureRegistryCIDRs = make([]*registrytypes.NetIPNet, 0)
+	config.ServiceConfig.IndexConfigs = make(map[string]*registrytypes.IndexInfo, 0)
+
+skip:
+	for _, r := range registries {
+		// validate insecure registry
+		if _, err := ValidateIndexName(r); err != nil {
+			// before returning err, roll back to original data
+			config.ServiceConfig.InsecureRegistryCIDRs = originalCIDRs
+			config.ServiceConfig.IndexConfigs = originalIndexInfos
+			return err
+		}
+		if strings.HasPrefix(strings.ToLower(r), "http://") {
+			logrus.Warnf("insecure registry %s should not contain 'http://' and 'http://' has been removed from the insecure registry config", r)
+			r = r[7:]
+		} else if strings.HasPrefix(strings.ToLower(r), "https://") {
+			logrus.Warnf("insecure registry %s should not contain 'https://' and 'https://' has been removed from the insecure registry config", r)
+			r = r[8:]
+		} else if validateNoScheme(r) != nil {
+			// Insecure registry should not contain '://'
+			// before returning err, roll back to original data
+			config.ServiceConfig.InsecureRegistryCIDRs = originalCIDRs
+			config.ServiceConfig.IndexConfigs = originalIndexInfos
+			return fmt.Errorf("insecure registry %s should not contain '://'", r)
+		}
 		// Check if CIDR was passed to --insecure-registry
 		_, ipnet, err := net.ParseCIDR(r)
 		if err == nil {
-			// Valid CIDR.
-			config.InsecureRegistryCIDRs = append(config.InsecureRegistryCIDRs, (*netIPNet)(ipnet))
+			// Valid CIDR. If ipnet is already in config.InsecureRegistryCIDRs, skip.
+			data := (*registrytypes.NetIPNet)(ipnet)
+			for _, value := range config.InsecureRegistryCIDRs {
+				if value.IP.String() == data.IP.String() && value.Mask.String() == data.Mask.String() {
+					continue skip
+				}
+			}
+			// ipnet is not found, add it in config.InsecureRegistryCIDRs
+			config.InsecureRegistryCIDRs = append(config.InsecureRegistryCIDRs, data)
+
 		} else {
+			if err := validateHostPort(r); err != nil {
+				config.ServiceConfig.InsecureRegistryCIDRs = originalCIDRs
+				config.ServiceConfig.IndexConfigs = originalIndexInfos
+				return fmt.Errorf("insecure registry %s is not valid: %v", r, err)
+
+			}
 			// Assume `host:port` if not CIDR.
-			config.IndexConfigs[r] = &IndexInfo{
+			config.IndexConfigs[r] = &registrytypes.IndexInfo{
 				Name:     r,
 				Mirrors:  make([]string, 0),
 				Secure:   false,
@@ -126,14 +201,14 @@ func NewServiceConfig(options *Options) *ServiceConfig {
 	}
 
 	// Configure public registry.
-	config.IndexConfigs[IndexName] = &IndexInfo{
+	config.IndexConfigs[IndexName] = &registrytypes.IndexInfo{
 		Name:     IndexName,
 		Mirrors:  config.Mirrors,
 		Secure:   true,
 		Official: true,
 	}
 
-	return config
+	return nil
 }
 
 // isSecureIndex returns false if the provided indexName is part of the list of insecure registries
@@ -147,9 +222,9 @@ func NewServiceConfig(options *Options) *ServiceConfig {
 // or an IP address. If it is a domain name, then it will be resolved in order to check if the IP is contained
 // in a subnet. If the resolving is not successful, isSecureIndex will only try to match hostname to any element
 // of insecureRegistries.
-func (config *ServiceConfig) isSecureIndex(indexName string) bool {
+func isSecureIndex(config *serviceConfig, indexName string) bool {
 	// Check for configured index, first.  This is needed in case isSecureIndex
-	// is called from anything besides NewIndexInfo, in order to honor per-index configurations.
+	// is called from anything besides newIndexInfo, in order to honor per-index configurations.
 	if index, ok := config.IndexConfigs[indexName]; ok {
 		return index.Secure
 	}
@@ -189,48 +264,35 @@ func (config *ServiceConfig) isSecureIndex(indexName string) bool {
 func ValidateMirror(val string) (string, error) {
 	uri, err := url.Parse(val)
 	if err != nil {
-		return "", fmt.Errorf("%s is not a valid URI", val)
+		return "", fmt.Errorf("invalid mirror: %q is not a valid URI", val)
 	}
-
 	if uri.Scheme != "http" && uri.Scheme != "https" {
-		return "", fmt.Errorf("Unsupported scheme %s", uri.Scheme)
+		return "", fmt.Errorf("invalid mirror: unsupported scheme %q in %q", uri.Scheme, uri)
 	}
-
-	if uri.Path != "" || uri.RawQuery != "" || uri.Fragment != "" {
-		return "", fmt.Errorf("Unsupported path/query/fragment at end of the URI")
+	if (uri.Path != "" && uri.Path != "/") || uri.RawQuery != "" || uri.Fragment != "" {
+		return "", fmt.Errorf("invalid mirror: path, query, or fragment at end of the URI %q", uri)
 	}
-
-	return fmt.Sprintf("%s://%s/", uri.Scheme, uri.Host), nil
+	if uri.User != nil {
+		// strip password from output
+		uri.User = url.UserPassword(uri.User.Username(), "xxxxx")
+		return "", fmt.Errorf("invalid mirror: username/password not allowed in URI %q", uri)
+	}
+	return strings.TrimSuffix(val, "/") + "/", nil
 }
 
 // ValidateIndexName validates an index name.
 func ValidateIndexName(val string) (string, error) {
-	// 'index.docker.io' => 'docker.io'
-	if val == "index."+IndexName {
-		val = IndexName
+	// TODO: upstream this to check to reference package
+	if val == "index.docker.io" {
+		val = "docker.io"
 	}
 	if strings.HasPrefix(val, "-") || strings.HasSuffix(val, "-") {
 		return "", fmt.Errorf("Invalid index name (%s). Cannot begin or end with a hyphen.", val)
 	}
-	// *TODO: Check if valid hostname[:port]/ip[:port]?
 	return val, nil
 }
 
-func validateRemoteName(remoteName string) error {
-
-	if !strings.Contains(remoteName, "/") {
-
-		// the repository name must not be a valid image ID
-		if err := image.ValidateID(remoteName); err == nil {
-			return fmt.Errorf("Invalid repository name (%s), cannot specify 64-byte hexadecimal strings", remoteName)
-		}
-	}
-
-	_, err := reference.WithName(remoteName)
-	return err
-}
-
-func validateNoSchema(reposName string) error {
+func validateNoScheme(reposName string) error {
 	if strings.Contains(reposName, "://") {
 		// It cannot contain a scheme!
 		return ErrInvalidRepositoryName
@@ -238,21 +300,32 @@ func validateNoSchema(reposName string) error {
 	return nil
 }
 
-// ValidateRepositoryName validates a repository name
-func ValidateRepositoryName(reposName string) error {
-	var err error
-	if err = validateNoSchema(reposName); err != nil {
-		return err
+func validateHostPort(s string) error {
+	// Split host and port, and in case s can not be splitted, assume host only
+	host, port, err := net.SplitHostPort(s)
+	if err != nil {
+		host = s
+		port = ""
 	}
-	indexName, remoteName := splitReposName(reposName)
-	if _, err = ValidateIndexName(indexName); err != nil {
-		return err
+	// If match against the `host:port` pattern fails,
+	// it might be `IPv6:port`, which will be captured by net.ParseIP(host)
+	if !validHostPortRegex.MatchString(s) && net.ParseIP(host) == nil {
+		return fmt.Errorf("invalid host %q", host)
 	}
-	return validateRemoteName(remoteName)
+	if port != "" {
+		v, err := strconv.Atoi(port)
+		if err != nil {
+			return err
+		}
+		if v < 0 || v > 65535 {
+			return fmt.Errorf("invalid port %q", port)
+		}
+	}
+	return nil
 }
 
-// NewIndexInfo returns IndexInfo configuration from indexName
-func (config *ServiceConfig) NewIndexInfo(indexName string) (*IndexInfo, error) {
+// newIndexInfo returns IndexInfo configuration from indexName
+func newIndexInfo(config *serviceConfig, indexName string) (*registrytypes.IndexInfo, error) {
 	var err error
 	indexName, err = ValidateIndexName(indexName)
 	if err != nil {
@@ -265,124 +338,52 @@ func (config *ServiceConfig) NewIndexInfo(indexName string) (*IndexInfo, error) 
 	}
 
 	// Construct a non-configured index info.
-	index := &IndexInfo{
+	index := &registrytypes.IndexInfo{
 		Name:     indexName,
 		Mirrors:  make([]string, 0),
 		Official: false,
 	}
-	index.Secure = config.isSecureIndex(indexName)
+	index.Secure = isSecureIndex(config, indexName)
 	return index, nil
 }
 
 // GetAuthConfigKey special-cases using the full index address of the official
 // index as the AuthConfig key, and uses the (host)name[:port] for private indexes.
-func (index *IndexInfo) GetAuthConfigKey() string {
+func GetAuthConfigKey(index *registrytypes.IndexInfo) string {
 	if index.Official {
 		return IndexServer
 	}
 	return index.Name
 }
 
-// splitReposName breaks a reposName into an index name and remote name
-func splitReposName(reposName string) (string, string) {
-	nameParts := strings.SplitN(reposName, "/", 2)
-	var indexName, remoteName string
-	if len(nameParts) == 1 || (!strings.Contains(nameParts[0], ".") &&
-		!strings.Contains(nameParts[0], ":") && nameParts[0] != "localhost") {
-		// This is a Docker Index repos (ex: samalba/hipache or ubuntu)
-		// 'docker.io'
-		indexName = IndexName
-		remoteName = reposName
-	} else {
-		indexName = nameParts[0]
-		remoteName = nameParts[1]
-	}
-	return indexName, remoteName
-}
-
-// NewRepositoryInfo validates and breaks down a repository name into a RepositoryInfo
-func (config *ServiceConfig) NewRepositoryInfo(reposName string, bySearch bool) (*RepositoryInfo, error) {
-	if err := validateNoSchema(reposName); err != nil {
-		return nil, err
-	}
-
-	indexName, remoteName := splitReposName(reposName)
-
-	if !bySearch {
-		if err := validateRemoteName(remoteName); err != nil {
-			return nil, err
-		}
-	}
-
-	repoInfo := &RepositoryInfo{
-		RemoteName: remoteName,
-	}
-
-	var err error
-	repoInfo.Index, err = config.NewIndexInfo(indexName)
+// newRepositoryInfo validates and breaks down a repository name into a RepositoryInfo
+func newRepositoryInfo(config *serviceConfig, name reference.Named) (*RepositoryInfo, error) {
+	index, err := newIndexInfo(config, reference.Domain(name))
 	if err != nil {
 		return nil, err
 	}
+	official := !strings.ContainsRune(reference.FamiliarName(name), '/')
 
-	if repoInfo.Index.Official {
-		normalizedName := repoInfo.RemoteName
-		if strings.HasPrefix(normalizedName, "library/") {
-			// If pull "library/foo", it's stored locally under "foo"
-			normalizedName = strings.SplitN(normalizedName, "/", 2)[1]
-		}
-
-		repoInfo.LocalName = normalizedName
-		repoInfo.RemoteName = normalizedName
-		// If the normalized name does not contain a '/' (e.g. "foo")
-		// then it is an official repo.
-		if strings.IndexRune(normalizedName, '/') == -1 {
-			repoInfo.Official = true
-			// Fix up remote name for official repos.
-			repoInfo.RemoteName = "library/" + normalizedName
-		}
-
-		repoInfo.CanonicalName = "docker.io/" + repoInfo.RemoteName
-	} else {
-		repoInfo.LocalName = repoInfo.Index.Name + "/" + repoInfo.RemoteName
-		repoInfo.CanonicalName = repoInfo.LocalName
-
-	}
-
-	return repoInfo, nil
-}
-
-// GetSearchTerm special-cases using local name for official index, and
-// remote name for private indexes.
-func (repoInfo *RepositoryInfo) GetSearchTerm() string {
-	if repoInfo.Index.Official {
-		return repoInfo.LocalName
-	}
-	return repoInfo.RemoteName
+	return &RepositoryInfo{
+		Name:     reference.TrimNamed(name),
+		Index:    index,
+		Official: official,
+	}, nil
 }
 
 // ParseRepositoryInfo performs the breakdown of a repository name into a RepositoryInfo, but
 // lacks registry configuration.
-func ParseRepositoryInfo(reposName string) (*RepositoryInfo, error) {
-	return emptyServiceConfig.NewRepositoryInfo(reposName, false)
+func ParseRepositoryInfo(reposName reference.Named) (*RepositoryInfo, error) {
+	return newRepositoryInfo(emptyServiceConfig, reposName)
 }
 
-// ParseIndexInfo will use repository name to get back an indexInfo.
-func ParseIndexInfo(reposName string) (*IndexInfo, error) {
-	indexName, _ := splitReposName(reposName)
+// ParseSearchIndexInfo will use repository name to get back an indexInfo.
+func ParseSearchIndexInfo(reposName string) (*registrytypes.IndexInfo, error) {
+	indexName, _ := splitReposSearchTerm(reposName)
 
-	indexInfo, err := emptyServiceConfig.NewIndexInfo(indexName)
+	indexInfo, err := newIndexInfo(emptyServiceConfig, indexName)
 	if err != nil {
 		return nil, err
 	}
 	return indexInfo, nil
-}
-
-// NormalizeLocalName transforms a repository name into a normalize LocalName
-// Passes through the name without transformation on error (image id, etc)
-func NormalizeLocalName(name string) string {
-	repoInfo, err := ParseRepositoryInfo(name)
-	if err != nil {
-		return name
-	}
-	return repoInfo.LocalName
 }

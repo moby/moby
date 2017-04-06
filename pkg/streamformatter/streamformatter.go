@@ -7,6 +7,7 @@ import (
 	"io"
 
 	"github.com/docker/docker/pkg/jsonmessage"
+	"github.com/docker/docker/pkg/progress"
 )
 
 // StreamFormatter formats a stream, optionally using JSON.
@@ -53,7 +54,7 @@ func (sf *StreamFormatter) FormatStatus(id, format string, a ...interface{}) []b
 	return []byte(str + streamNewline)
 }
 
-// FormatError formats the specifed error.
+// FormatError formats the specified error.
 func (sf *StreamFormatter) FormatError(err error) []byte {
 	if sf.json {
 		jsonError, ok := err.(*jsonmessage.JSONError)
@@ -69,27 +70,75 @@ func (sf *StreamFormatter) FormatError(err error) []byte {
 }
 
 // FormatProgress formats the progress information for a specified action.
-func (sf *StreamFormatter) FormatProgress(id, action string, progress *jsonmessage.JSONProgress) []byte {
+func (sf *StreamFormatter) FormatProgress(id, action string, progress *jsonmessage.JSONProgress, aux interface{}) []byte {
 	if progress == nil {
 		progress = &jsonmessage.JSONProgress{}
 	}
 	if sf.json {
+		var auxJSON *json.RawMessage
+		if aux != nil {
+			auxJSONBytes, err := json.Marshal(aux)
+			if err != nil {
+				return nil
+			}
+			auxJSON = new(json.RawMessage)
+			*auxJSON = auxJSONBytes
+		}
 		b, err := json.Marshal(&jsonmessage.JSONMessage{
 			Status:          action,
 			ProgressMessage: progress.String(),
 			Progress:        progress,
 			ID:              id,
+			Aux:             auxJSON,
 		})
 		if err != nil {
 			return nil
 		}
-		return b
+		return append(b, streamNewlineBytes...)
 	}
 	endl := "\r"
 	if progress.String() == "" {
 		endl += "\n"
 	}
 	return []byte(action + " " + progress.String() + endl)
+}
+
+// NewProgressOutput returns a progress.Output object that can be passed to
+// progress.NewProgressReader.
+func (sf *StreamFormatter) NewProgressOutput(out io.Writer, newLines bool) progress.Output {
+	return &progressOutput{
+		sf:       sf,
+		out:      out,
+		newLines: newLines,
+	}
+}
+
+type progressOutput struct {
+	sf       *StreamFormatter
+	out      io.Writer
+	newLines bool
+}
+
+// WriteProgress formats progress information from a ProgressReader.
+func (out *progressOutput) WriteProgress(prog progress.Progress) error {
+	var formatted []byte
+	if prog.Message != "" {
+		formatted = out.sf.FormatStatus(prog.ID, prog.Message)
+	} else {
+		jsonProgress := jsonmessage.JSONProgress{Current: prog.Current, Total: prog.Total, HideCounts: prog.HideCounts}
+		formatted = out.sf.FormatProgress(prog.ID, prog.Action, &jsonProgress, prog.Aux)
+	}
+	_, err := out.out.Write(formatted)
+	if err != nil {
+		return err
+	}
+
+	if out.newLines && prog.LastUpdate {
+		_, err = out.out.Write(out.sf.FormatStatus("", ""))
+		return err
+	}
+
+	return nil
 }
 
 // StdoutFormatter is a streamFormatter that writes to the standard output.

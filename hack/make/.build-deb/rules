@@ -1,6 +1,8 @@
 #!/usr/bin/make -f
 
 VERSION = $(shell cat VERSION)
+SYSTEMD_VERSION := $(shell dpkg-query -W -f='$${Version}\n' systemd | cut -d- -f1)
+SYSTEMD_GT_227 := $(shell [ '$(SYSTEMD_VERSION)' ] && [ '$(SYSTEMD_VERSION)' -gt 227 ] && echo true )
 
 override_dh_gencontrol:
 	# if we're on Ubuntu, we need to Recommends: apparmor
@@ -12,21 +14,31 @@ override_dh_auto_build:
 	# ./man/md2man-all.sh runs outside the build container (if at all), since we don't have go-md2man here
 
 override_dh_auto_test:
-	./bundles/$(VERSION)/dynbinary/docker -v
+	./bundles/$(VERSION)/dynbinary-daemon/dockerd -v
+	./bundles/$(VERSION)/dynbinary-client/docker -v
 
 override_dh_strip:
-	# the SHA1 of dockerinit is important: don't strip it
-	# also, Go has lots of problems with stripping, so just don't
+	# Go has lots of problems with stripping, so just don't
 
 override_dh_auto_install:
 	mkdir -p debian/docker-engine/usr/bin
-	cp -aT "$$(readlink -f bundles/$(VERSION)/dynbinary/docker)" debian/docker-engine/usr/bin/docker
+	cp -aT "$$(readlink -f bundles/$(VERSION)/dynbinary-client/docker)" debian/docker-engine/usr/bin/docker
+	cp -aT "$$(readlink -f bundles/$(VERSION)/dynbinary-daemon/dockerd)" debian/docker-engine/usr/bin/dockerd
+	cp -aT /usr/local/bin/docker-proxy debian/docker-engine/usr/bin/docker-proxy
+	cp -aT /usr/local/bin/docker-containerd debian/docker-engine/usr/bin/docker-containerd
+	cp -aT /usr/local/bin/docker-containerd-shim debian/docker-engine/usr/bin/docker-containerd-shim
+	cp -aT /usr/local/bin/docker-containerd-ctr debian/docker-engine/usr/bin/docker-containerd-ctr
+	cp -aT /usr/local/bin/docker-runc debian/docker-engine/usr/bin/docker-runc
+	cp -aT /usr/local/bin/docker-init debian/docker-engine/usr/bin/docker-init
 	mkdir -p debian/docker-engine/usr/lib/docker
-	cp -aT "$$(readlink -f bundles/$(VERSION)/dynbinary/dockerinit)" debian/docker-engine/usr/lib/docker/dockerinit
 
 override_dh_installinit:
 	# use "docker" as our service name, not "docker-engine"
 	dh_installinit --name=docker
+ifeq (true, $(SYSTEMD_GT_227))
+	$(warning "Setting TasksMax=infinity")
+	sed -i -- 's/#TasksMax=infinity/TasksMax=infinity/' debian/docker-engine/lib/systemd/system/docker.service
+endif
 
 override_dh_installudev:
 	# match our existing priority
@@ -35,6 +47,9 @@ override_dh_installudev:
 override_dh_install:
 	dh_install
 	dh_apparmor --profile-name=docker-engine -pdocker-engine
+
+override_dh_shlibdeps:
+	dh_shlibdeps --dpkg-shlibdeps-params=--ignore-missing-info
 
 %:
 	dh $@ --with=bash-completion $(shell command -v dh_systemd_enable > /dev/null 2>&1 && echo --with=systemd)

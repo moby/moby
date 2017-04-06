@@ -8,7 +8,9 @@ import (
 	"io/ioutil"
 	"regexp"
 
+	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/httputils"
+	"github.com/docker/docker/pkg/urlutil"
 )
 
 // When downloading remote contexts, limit the amount (in bytes)
@@ -31,7 +33,7 @@ var mimeRe = regexp.MustCompile(acceptableRemoteMIME)
 func MakeRemoteContext(remoteURL string, contentTypeHandlers map[string]func(io.ReadCloser) (io.ReadCloser, error)) (ModifiableContext, error) {
 	f, err := httputils.Download(remoteURL)
 	if err != nil {
-		return nil, fmt.Errorf("Error downloading remote context %s: %v", remoteURL, err)
+		return nil, fmt.Errorf("error downloading remote context %s: %v", remoteURL, err)
 	}
 	defer f.Body.Close()
 
@@ -42,7 +44,7 @@ func MakeRemoteContext(remoteURL string, contentTypeHandlers map[string]func(io.
 
 		contentType, contextReader, err = inspectResponse(contentType, f.Body, clen)
 		if err != nil {
-			return nil, fmt.Errorf("Error detecting content type for remote %s: %v", remoteURL, err)
+			return nil, fmt.Errorf("error detecting content type for remote %s: %v", remoteURL, err)
 		}
 		defer contextReader.Close()
 
@@ -65,6 +67,46 @@ func MakeRemoteContext(remoteURL string, contentTypeHandlers map[string]func(io.
 	return MakeTarSumContext(contextReader)
 }
 
+// DetectContextFromRemoteURL returns a context and in certain cases the name of the dockerfile to be used
+// irrespective of user input.
+// progressReader is only used if remoteURL is actually a URL (not empty, and not a Git endpoint).
+func DetectContextFromRemoteURL(r io.ReadCloser, remoteURL string, createProgressReader func(in io.ReadCloser) io.ReadCloser) (context ModifiableContext, dockerfileName string, err error) {
+	switch {
+	case remoteURL == "":
+		context, err = MakeTarSumContext(r)
+	case urlutil.IsGitURL(remoteURL):
+		context, err = MakeGitContext(remoteURL)
+	case urlutil.IsURL(remoteURL):
+		context, err = MakeRemoteContext(remoteURL, map[string]func(io.ReadCloser) (io.ReadCloser, error){
+			httputils.MimeTypes.TextPlain: func(rc io.ReadCloser) (io.ReadCloser, error) {
+				dockerfile, err := ioutil.ReadAll(rc)
+				if err != nil {
+					return nil, err
+				}
+
+				// dockerfileName is set to signal that the remote was interpreted as a single Dockerfile, in which case the caller
+				// should use dockerfileName as the new name for the Dockerfile, irrespective of any other user input.
+				dockerfileName = DefaultDockerfileName
+
+				// TODO: return a context without tarsum
+				r, err := archive.Generate(dockerfileName, string(dockerfile))
+				if err != nil {
+					return nil, err
+				}
+
+				return ioutil.NopCloser(r), nil
+			},
+			// fallback handler (tar context)
+			"": func(rc io.ReadCloser) (io.ReadCloser, error) {
+				return createProgressReader(rc), nil
+			},
+		})
+	default:
+		err = fmt.Errorf("remoteURL (%s) could not be recognized as URL", remoteURL)
+	}
+	return
+}
+
 // inspectResponse looks into the http response data at r to determine whether its
 // content-type is on the list of acceptable content types for remote build contexts.
 // This function returns:
@@ -81,13 +123,13 @@ func inspectResponse(ct string, r io.ReadCloser, clen int64) (string, io.ReadClo
 	preamble := make([]byte, plen, plen)
 	rlen, err := r.Read(preamble)
 	if rlen == 0 {
-		return ct, r, errors.New("Empty response")
+		return ct, r, errors.New("empty response")
 	}
 	if err != nil && err != io.EOF {
 		return ct, r, err
 	}
 
-	preambleR := bytes.NewReader(preamble)
+	preambleR := bytes.NewReader(preamble[:rlen])
 	bodyReader := ioutil.NopCloser(io.MultiReader(preambleR, r))
 	// Some web servers will use application/octet-stream as the default
 	// content type for files without an extension (e.g. 'Dockerfile')

@@ -1,5 +1,7 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -e
 
-bundle .ensure-emptyfs
-bundle .ensure-frozen-images
-bundle .ensure-httpserver
+bundle .detect-daemon-osarch
+if [ $DOCKER_ENGINE_GOOS != "windows" ]; then
+	bundle .ensure-emptyfs
+fi

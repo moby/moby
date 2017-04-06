@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+set -e
+rm -rf "$DEST"
+
+(
+	DEST="$(dirname $DEST)/binary-client"
+	source "${MAKEDIR}/.binary-setup"
+	install_binary "${DEST}/${DOCKER_CLIENT_BINARY_NAME}"
+)

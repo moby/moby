@@ -2,9 +2,9 @@
 
 Want to hack on Docker? Awesome!  We have a contributor's guide that explains
 [setting up a Docker development environment and the contribution
-process](https://docs.docker.com/project/who-written-for/). 
+process](https://docs.docker.com/opensource/project/who-written-for/). 
 
-![Contributors guide](docs/static_files/contributors.png)
+[![Contributors guide](docs/static_files/contributors.png)](https://docs.docker.com/opensource/project/who-written-for/)
 
 This page contains information about reporting issues as well as some tips and
 guidelines useful to experienced open source contributors. Finally, make sure
@@ -41,67 +41,28 @@ and will thank you for it!
 
 Check that [our issue database](https://github.com/docker/docker/issues)
 doesn't already include that problem or suggestion before submitting an issue.
-If you find a match, add a quick "+1" or "I have this problem too." Doing this
-helps prioritize the most common problems and requests. **DO NOT DO THAT** to
-subscribe to the issue unless you have something meaningful to add to the
-conversation. The best way to subscribe the issue is by clicking Subscribe
-button in top right of the page.
+If you find a match, you can use the "subscribe" button to get notified on
+updates. Do *not* leave random "+1" or "I have this too" comments, as they
+only clutter the discussion, and don't help resolving it. However, if you
+have ways to reproduce the issue or have additional information that may help
+resolving the issue, please leave a comment.
 
-When reporting issues, please include your host OS (Ubuntu 12.04, Fedora 19,
-etc). Please include:
+When reporting issues, always include:
 
-* The output of `uname -a`.
 * The output of `docker version`.
 * The output of `docker info`.
 
-Please also include the steps required to reproduce the problem if possible and
+Also include the steps required to reproduce the problem if possible and
 applicable. This information will help us review and fix your issue faster.
+When sending lengthy log-files, consider posting them as a gist (https://gist.github.com).
+Don't forget to remove sensitive data from your logfiles before posting (you can
+replace those parts with "REDACTED").
 
-**Issue Report Template**:
-
-```
-Description of problem:
-
-
-`docker version`:
-
-
-`docker info`:
-
-
-`uname -a`:
-
-
-Environment details (AWS, VirtualBox, physical, etc.):
-
-
-How reproducible:
-
-
-Steps to Reproduce:
-1.
-2.
-3.
-
-
-Actual Results:
-
-
-Expected Results:
-
-
-Additional info:
-
-
-
-```
-
-
-##Quick contribution tips and guidelines
+## Quick contribution tips and guidelines
 
 This section gives the experienced contributor some tips and guidelines.
 
-###Pull requests are always welcome
+### Pull requests are always welcome
 
 Not sure if that typo is worth a pull request? Found a bug and know how to fix
 it? Do it! We will appreciate it. Any significant improvement should be
@@ -111,7 +72,7 @@ anybody starts working on it.
 We are always thrilled to receive pull requests. We do our best to process them
 quickly. If your pull request is not accepted on the first try,
 don't get discouraged! Our contributor's guide explains [the review process we
-use for simple changes](https://docs.docker.com/project/make-a-contribution/).
+use for simple changes](https://docs.docker.com/opensource/workflow/make-a-contribution/).
 
 ### Design and cleanup proposals
 
@@ -119,8 +80,8 @@ You can propose new designs for existing Docker features. You can also design
 entirely new features. We really appreciate contributors who want to refactor or
 otherwise cleanup our project. For information on making these types of
 contributions, see [the advanced contribution
-section](https://docs.docker.com/project/advanced-contributing/) in the
-contributors guide.
+section](https://docs.docker.com/opensource/workflow/advanced-contributing/) in
+the contributors guide.
 
 We try hard to keep Docker lean and focused. Docker can't do everything for
 everybody. This means that we might decide against incorporating a new feature.
@@ -132,6 +93,14 @@ However, there might be a way to implement that feature *on top of* Docker.
   <col width="45%">
   <col width="65%">
   <tr>
+    <td>Forums</td>
+    <td>
+      A public forum for users to discuss questions and explore current design patterns and
+      best practices about Docker and related projects in the Docker Ecosystem. To participate,
+      just log in with your Docker Hub account on <a href="https://forums.docker.com" target="_blank">https://forums.docker.com</a>.
+    </td>
+  </tr>
+  <tr>
     <td>Internet&nbsp;Relay&nbsp;Chat&nbsp;(IRC)</td>
     <td>
       <p>
@@ -141,18 +110,20 @@ However, there might be a way to implement that feature *on top of* Docker.
         IRC is a rich chat protocol but it can overwhelm new users. You can search
         <a href="https://botbot.me/freenode/docker/#" target="_blank">our chat archives</a>.
       </p>
-      Read our <a href="https://docs.docker.com/project/get-help/#irc-quickstart" target="_blank">IRC quickstart guide</a> for an easy way to get started.
+      <p>
+        Read our <a href="https://docs.docker.com/opensource/get-help/#irc-quickstart" target="_blank">IRC quickstart guide</a>
+        for an easy way to get started.
+      </p>
     </td>
   </tr>
   <tr>
-    <td>Google Groups</td>
+    <td>Google Group</td>
     <td>
-      There are two groups.
-      <a href="https://groups.google.com/forum/#!forum/docker-user" target="_blank">Docker-user</a>
-      is for people using Docker containers.
       The <a href="https://groups.google.com/forum/#!forum/docker-dev" target="_blank">docker-dev</a>
-      group is for contributors and other people contributing to the Docker
-      project.
+      group is for contributors and other people contributing to the Docker project.
+      You can join them without a google account by sending an email to 
+      <a href="mailto:docker-dev+subscribe@googlegroups.com">docker-dev+subscribe@googlegroups.com</a>.
+      After receiving the join-request message, you can simply reply to that to confirm the subscription.
     </td>
   </tr>
   <tr>
@@ -186,14 +157,14 @@ Fork the repository and make changes on your fork in a feature branch:
 
 Submit unit tests for your changes. Go has a great test framework built in; use
 it! Take a look at existing tests for inspiration. [Run the full test
-suite](https://docs.docker.com/project/test-and-docs/) on your branch before
+suite](https://docs.docker.com/opensource/project/test-and-docs/) on your branch before
 submitting a pull request.
 
 Update the documentation when creating or modifying features. Test your
 documentation changes for clarity, concision, and correctness, as well as a
 clean documentation build. See our contributors guide for [our style
-guide](https://docs.docker.com/project/doc-style) and instructions on [building
-the documentation](https://docs.docker.com/project/test-and-docs/#build-and-test-the-documentation).
+guide](https://docs.docker.com/opensource/doc-style) and instructions on [building
+the documentation](https://docs.docker.com/opensource/project/test-and-docs/#build-and-test-the-documentation).
 
 Write clean code. Universally formatted code promotes ease of writing, reading,
 and maintenance. Always run `gofmt -s -w file.go` on each changed file before
@@ -202,9 +173,63 @@ committing your changes. Most editors have plug-ins that do this automatically.
 Pull request descriptions should be as clear as possible and include a reference
 to all the issues that they address.
 
+### Successful Changes
+
+Before contributing large or high impact changes, make the effort to coordinate
+with the maintainers of the project before submitting a pull request. This
+prevents you from doing extra work that may or may not be merged.
+
+Large PRs that are just submitted without any prior communication are unlikely
+to be successful.
+
+While pull requests are the methodology for submitting changes to code, changes
+are much more likely to be accepted if they are accompanied by additional
+engineering work. While we don't define this explicitly, most of these goals
+are accomplished through communication of the design goals and subsequent
+solutions. Often times, it helps to first state the problem before presenting
+solutions.
+
+Typically, the best methods of accomplishing this are to submit an issue,
+stating the problem. This issue can include a problem statement and a
+checklist with requirements. If solutions are proposed, alternatives should be
+listed and eliminated. Even if the criteria for elimination of a solution is
+frivolous, say so.
+
+Larger changes typically work best with design documents. These are focused on
+providing context to the design at the time the feature was conceived and can
+inform future documentation contributions.
+
+### Commit Messages
+
 Commit messages must start with a capitalized and short summary (max. 50 chars)
 written in the imperative, followed by an optional, more detailed explanatory
 text which is separated from the summary by an empty line.
+
+Commit messages should follow best practices, including explaining the context
+of the problem and how it was solved, including in caveats or follow up changes
+required. They should tell the story of the change and provide readers
+understanding of what led to it.
+
+If you're lost about what this even means, please see [How to Write a Git
+Commit Message](http://chris.beams.io/posts/git-commit/) for a start.
+
+In practice, the best approach to maintaining a nice commit message is to
+leverage a `git add -p` and `git commit --amend` to formulate a solid
+changeset. This allows one to piece together a change, as information becomes
+available.
+
+If you squash a series of commits, don't just submit that. Re-write the commit
+message, as if the series of commits was a single stroke of brilliance.
+
+That said, there is no requirement to have a single commit for a PR, as long as
+each commit tells the story. For example, if there is a feature that requires a
+package, it might make sense to have the package in a separate commit then have
+a subsequent commit that uses it.
+
+Remember, you're telling part of the story with the commit message. Don't make
+your chapter weird.
+
+### Review
 
 Code review comments may be added to your pull request. Discuss, then make the
 suggested modifications and push additional commits to your feature branch. Post
@@ -227,7 +252,7 @@ high majority of submissions should have a single commit, so if in doubt: squash
 down to one.
 
 After every commit, [make sure the test suite passes]
-(https://docs.docker.com/project/test-and-docs/). Include documentation
+(https://docs.docker.com/opensource/project/test-and-docs/). Include documentation
 changes in the same pull request so that a revert would remove all traces of
 the feature or fix.
 
@@ -263,8 +288,9 @@ Developer Certificate of Origin
 Version 1.1
 
 Copyright (C) 2004, 2006 The Linux Foundation and its contributors.
-660 York Street, Suite 102,
-San Francisco, CA 94110 USA
+1 Letterman Drive
+Suite D4700
+San Francisco, CA, 94129
 
 Everyone is permitted to copy and distribute verbatim copies of this
 license document, but changing it is not allowed.
@@ -305,31 +331,16 @@ Use your real name (sorry, no pseudonyms or anonymous contributions.)
 If you set your `user.name` and `user.email` git configs, you can sign your
 commit automatically with `git commit -s`.
 
-Note that the old-style `Docker-DCO-1.1-Signed-off-by: ...` format is still
-accepted, so there is no need to update outstanding pull requests to the new
-format right away, but please do adjust your processes for future contributions.
-
 ### How can I become a maintainer?
 
-* Step 1: Learn the component inside out
-* Step 2: Make yourself useful by contributing code, bug fixes, support etc.
-* Step 3: Volunteer on the IRC channel (#docker at Freenode)
-* Step 4: Propose yourself at a scheduled docker meeting in #docker-dev
+The procedures for adding new maintainers are explained in the 
+global [MAINTAINERS](https://github.com/docker/opensource/blob/master/MAINTAINERS)
+file in the [https://github.com/docker/opensource/](https://github.com/docker/opensource/)
+repository.
 
 Don't forget: being a maintainer is a time investment. Make sure you
 will have time to make yourself available. You don't have to be a
 maintainer to make a difference on the project!
-
-### IRC meetings
-
-There are two monthly meetings taking place on #docker-dev IRC to accommodate all
-timezones. Anybody can propose a topic for discussion prior to the meeting.
-
-If you feel the conversation is going off-topic, feel free to point it out.
-
-For the exact dates and times, have a look at [the irc-minutes
-repo](https://github.com/docker/irc-minutes). The minutes also contain all the
-notes from previous meetings.
 
 ## Docker community guidelines
 
@@ -354,6 +365,12 @@ guidelines for the community as a whole:
   avoid off-topic discussions. Remember when you update an issue or respond
   to an email you are potentially sending to a large number of people. Please
   consider this before you update. Also remember that nobody likes spam.
+
+* Don't send email to the maintainers: There's no need to send email to the
+  maintainers to ask them to investigate an issue or to take a look at a
+  pull request. Instead of sending an email, GitHub mentions should be
+  used to ping maintainers to review a pull request, a proposal or an
+  issue.
 
 ### Guideline violations — 3 strikes method
 
@@ -416,7 +433,7 @@ The rules:
 5. Document _all_ declarations and methods, even private ones. Declare
    expectations, caveats and anything else that may be important. If a type
    gets exported, having the comments already there will ensure it's ready.
-6. Variable name length should be proportional to it's context and no longer.
+6. Variable name length should be proportional to its context and no longer.
    `noCommaALongVariableNameLikeThisIsNotMoreClearWhenASimpleCommentWouldDo`.
    In practice, short methods will have short variable names and globals will
    have longer names.
@@ -424,7 +441,7 @@ The rules:
    and re-examine why you need a compound name. If you still think you need a
    compound name, lose the underscore.
 8. No utils or helpers packages. If a function is not general enough to
-   warrant it's own package, it has not been written generally enough to be a
+   warrant its own package, it has not been written generally enough to be a
    part of a util package. Just leave it unexported and well-documented.
 9. All tests should run with `go test` and outside tooling should not be
    required. No, we don't need another unit testing framework. Assertion
@@ -433,6 +450,6 @@ The rules:
     guidelines. Since you've read all the rules, you now know that.
 
 If you are having trouble getting into the mood of idiomatic Go, we recommend
-reading through [Effective Go](http://golang.org/doc/effective_go.html). The
-[Go Blog](http://blog.golang.org/) is also a great resource. Drinking the
+reading through [Effective Go](https://golang.org/doc/effective_go.html). The
+[Go Blog](https://blog.golang.org) is also a great resource. Drinking the
 kool-aid is a lot easier than going thirsty.

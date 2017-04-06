@@ -2,18 +2,24 @@
 
 package runconfig
 
-// ContainerConfigWrapper is a Config wrapper that hold the container Config (portable)
+import (
+	"github.com/docker/docker/api/types/container"
+	networktypes "github.com/docker/docker/api/types/network"
+)
+
+// ContainerConfigWrapper is a Config wrapper that holds the container Config (portable)
 // and the corresponding HostConfig (non-portable).
 type ContainerConfigWrapper struct {
-	*Config
-	InnerHostConfig *HostConfig `json:"HostConfig,omitempty"`
-	Cpuset          string      `json:",omitempty"` // Deprecated. Exported for backwards compatibility.
-	*HostConfig                 // Deprecated. Exported to read attributes from json that are not in the inner host config structure.
+	*container.Config
+	InnerHostConfig       *container.HostConfig          `json:"HostConfig,omitempty"`
+	Cpuset                string                         `json:",omitempty"` // Deprecated. Exported for backwards compatibility.
+	NetworkingConfig      *networktypes.NetworkingConfig `json:"NetworkingConfig,omitempty"`
+	*container.HostConfig                                // Deprecated. Exported to read attributes from json that are not in the inner host config structure.
 }
 
 // getHostConfig gets the HostConfig of the Config.
 // It's mostly there to handle Deprecated fields of the ContainerConfigWrapper
-func (w *ContainerConfigWrapper) getHostConfig() *HostConfig {
+func (w *ContainerConfigWrapper) getHostConfig() *container.HostConfig {
 	hc := w.HostConfig
 
 	if hc == nil && w.InnerHostConfig != nil {
@@ -46,8 +52,8 @@ func (w *ContainerConfigWrapper) getHostConfig() *HostConfig {
 	}
 
 	// Make sure NetworkMode has an acceptable value. We do this to ensure
-	// backwards compatible API behaviour.
-	hc = SetDefaultNetModeIfBlank(hc)
+	// backwards compatible API behavior.
+	SetDefaultNetModeIfBlank(hc)
 
 	return hc
 }

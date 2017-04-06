@@ -5,13 +5,14 @@ import (
 	"net/http"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/autogen/dockerversion"
-	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/request"
 	"github.com/go-check/check"
 )
 
 func (s *DockerSuite) TestGetVersion(c *check.C) {
-	status, body, err := sockRequest("GET", "/version", nil)
+	status, body, err := request.SockRequest("GET", "/version", nil, daemonHost())
 	c.Assert(status, checker.Equals, http.StatusOK)
 	c.Assert(err, checker.IsNil)
 
@@ -19,5 +20,5 @@ func (s *DockerSuite) TestGetVersion(c *check.C) {
 
 	c.Assert(json.Unmarshal(body, &v), checker.IsNil)
 
-	c.Assert(v.Version, checker.Equals, dockerversion.VERSION, check.Commentf("Version mismatch"))
+	c.Assert(v.Version, checker.Equals, dockerversion.Version, check.Commentf("Version mismatch"))
 }

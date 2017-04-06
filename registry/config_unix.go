@@ -2,13 +2,11 @@
 
 package registry
 
-const (
-	// DefaultV1Registry is the URI of the default v1 registry
-	DefaultV1Registry = "https://index.docker.io"
+import (
+	"github.com/spf13/pflag"
+)
 
-	// DefaultV2Registry is the URI of the default v2 registry
-	DefaultV2Registry = "https://registry-1.docker.io"
-
+var (
 	// CertsDir is the directory where certificates are stored
 	CertsDir = "/etc/docker/certs.d"
 )
@@ -19,4 +17,9 @@ const (
 // which contain those characters (such as : on Windows)
 func cleanPath(s string) string {
 	return s
+}
+
+// installCliPlatformFlags handles any platform specific flags for the service.
+func (options *ServiceOptions) installCliPlatformFlags(flags *pflag.FlagSet) {
+	flags.BoolVar(&options.V2Only, "disable-legacy-registry", false, "Disable contacting legacy registries")
 }

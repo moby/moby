@@ -5,18 +5,20 @@ package directory
 import (
 	"os"
 	"path/filepath"
-
-	"github.com/docker/docker/pkg/longpath"
 )
 
 // Size walks a directory tree and returns its total size in bytes.
 func Size(dir string) (size int64, err error) {
-	fixedPath, err := filepath.Abs(dir)
-	if err != nil {
-		return
-	}
-	fixedPath = longpath.AddPrefix(fixedPath)
-	err = filepath.Walk(dir, func(d string, fileInfo os.FileInfo, e error) error {
+	err = filepath.Walk(dir, func(d string, fileInfo os.FileInfo, err error) error {
+		if err != nil {
+			// if dir does not exist, Size() returns the error.
+			// if dir/x disappeared while walking, Size() ignores dir/x.
+			if os.IsNotExist(err) && d != dir {
+				return nil
+			}
+			return err
+		}
+
 		// Ignore directory sizes
 		if fileInfo == nil {
 			return nil

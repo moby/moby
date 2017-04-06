@@ -1,10 +1,11 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 # subshell so that we can export PATH and TZ without breaking other things
 (
 	export TZ=UTC # make sure our "date" variables are UTC-based
 	bundle .integration-daemon-start
+	bundle .detect-daemon-osarch
 
 	# TODO consider using frozen images for the dockercore/builder-deb tags
 
@@ -34,17 +35,31 @@ set -e
 	debDate="$(date --rfc-2822)"
 
 	# if go-md2man is available, pre-generate the man pages
-	./man/md2man-all.sh -q || true
-	# TODO decide if it's worth getting go-md2man in _each_ builder environment to avoid this
+	make manpages
 
-	# TODO add a configurable knob for _which_ debs to build so we don't have to modify the file or build all of them every time we need to test
-	for dir in contrib/builder/deb/*/; do
+	builderDir="contrib/builder/deb/${PACKAGE_ARCH}"
+	pkgs=( $(find "${builderDir}/"*/ -type d) )
+	if [ ! -z "$DOCKER_BUILD_PKGS" ]; then
+		pkgs=()
+		for p in $DOCKER_BUILD_PKGS; do
+			pkgs+=( "$builderDir/$p" )
+		done
+	fi
+	for dir in "${pkgs[@]}"; do
+		[ -d "$dir" ] || { echo >&2 "skipping nonexistent $dir"; continue; }
 		version="$(basename "$dir")"
 		suite="${version##*-}"
 
 		image="dockercore/builder-deb:$version"
 		if ! docker inspect "$image" &> /dev/null; then
-			( set -x && docker build -t "$image" "$dir" )
+			(
+				# Add the APT_MIRROR args only if the consuming Dockerfile uses it
+				# Otherwise this will cause the build to fail
+				if [ "$(grep 'ARG APT_MIRROR=' $dir/Dockerfile)" ] && [ "$BUILD_APT_MIRROR" ]; then
+					DOCKER_BUILD_ARGS="$DOCKER_BUILD_ARGS $BUILD_APT_MIRROR"
+				fi
+				set -x && docker build ${DOCKER_BUILD_ARGS} -t "$image" "$dir"
+			)
 		fi
 
 		mkdir -p "$DEST/$version"
@@ -52,19 +67,22 @@ set -e
 			FROM $image
 			WORKDIR /usr/src/docker
 			COPY . /usr/src/docker
+			ENV DOCKER_GITCOMMIT $GITCOMMIT
+			RUN mkdir -p /go/src/github.com/docker && mkdir -p /go/src/github.com/opencontainers \
+				&& ln -snf /usr/src/docker /go/src/github.com/docker/docker
 		EOF
-		if [ "$DOCKER_EXPERIMENTAL" ]; then
-			echo 'ENV DOCKER_EXPERIMENTAL 1' >> "$DEST/$version/Dockerfile.build"
-		fi
+
 		cat >> "$DEST/$version/Dockerfile.build" <<-EOF
-			RUN go build -o aagen contrib/apparmor/*.go \
-				&& ./aagen contrib/apparmor/docker-engine
-			RUN ln -sfv hack/make/.build-deb debian
-			RUN { echo '$debSource (${debVersion}-0~${suite}) $suite; urgency=low'; echo; echo '  * Version: $VERSION'; echo; echo " -- $debMaintainer  $debDate"; } > debian/changelog && cat >&2 debian/changelog
-			RUN dpkg-buildpackage -uc -us
+			# Install runc, containerd, proxy and tini
+			RUN ./hack/dockerfile/install-binaries.sh runc-dynamic containerd-dynamic proxy-dynamic tini
+		EOF
+		cat >> "$DEST/$version/Dockerfile.build" <<-EOF
+			RUN cp -aL hack/make/.build-deb debian
+			RUN { echo '$debSource (${debVersion}-0~${version}) $suite; urgency=low'; echo; echo '  * Version: $VERSION'; echo; echo " -- $debMaintainer  $debDate"; } > debian/changelog && cat >&2 debian/changelog
+			RUN dpkg-buildpackage -uc -us -I.git
 		EOF
 		tempImage="docker-temp/build-deb:$version"
-		( set -x && docker build -t "$tempImage" -f "$DEST/$version/Dockerfile.build" . )
+		( set -x && docker build ${DOCKER_BUILD_ARGS} -t "$tempImage" -f "$DEST/$version/Dockerfile.build" . )
 		docker run --rm "$tempImage" bash -c 'cd .. && tar -c *_*' | tar -xvC "$DEST/$version"
 		docker rmi "$tempImage"
 	done

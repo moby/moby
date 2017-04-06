@@ -7,11 +7,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/pkg/units"
+	"github.com/docker/go-units"
 )
 
 // ReadMemInfo retrieves memory statistics of the host system and returns a
-//  MemInfo type.
+// MemInfo type.
 func ReadMemInfo() (*MemInfo, error) {
 	file, err := os.Open("/proc/meminfo")
 	if err != nil {
@@ -22,8 +22,7 @@ func ReadMemInfo() (*MemInfo, error) {
 }
 
 // parseMemInfo parses the /proc/meminfo file into
-// a MemInfo object given a io.Reader to the file.
-//
+// a MemInfo object given an io.Reader to the file.
 // Throws error if there are problems reading from the file
 func parseMemInfo(reader io.Reader) (*MemInfo, error) {
 	meminfo := &MemInfo{}

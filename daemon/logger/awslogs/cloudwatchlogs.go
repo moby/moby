@@ -2,11 +2,13 @@
 package awslogs
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -14,12 +16,14 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/defaults"
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
-	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/daemon/logger/loggerutils"
+	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/pkg/templates"
 )
 
 const (
@@ -28,6 +32,8 @@ const (
 	regionEnvKey          = "AWS_REGION"
 	logGroupKey           = "awslogs-group"
 	logStreamKey          = "awslogs-stream"
+	logCreateGroupKey     = "awslogs-create-group"
+	tagKey                = "tag"
 	batchPublishFrequency = 5 * time.Second
 
 	// See: http://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutLogEvents.html
@@ -41,21 +47,24 @@ const (
 	resourceAlreadyExistsCode = "ResourceAlreadyExistsException"
 	dataAlreadyAcceptedCode   = "DataAlreadyAcceptedException"
 	invalidSequenceTokenCode  = "InvalidSequenceTokenException"
+	resourceNotFoundCode      = "ResourceNotFoundException"
 
 	userAgentHeader = "User-Agent"
 )
 
 type logStream struct {
-	logStreamName string
-	logGroupName  string
-	client        api
-	messages      chan *logger.Message
-	lock          sync.RWMutex
-	closed        bool
-	sequenceToken *string
+	logStreamName  string
+	logGroupName   string
+	logCreateGroup bool
+	client         api
+	messages       chan *logger.Message
+	lock           sync.RWMutex
+	closed         bool
+	sequenceToken  *string
 }
 
 type api interface {
+	CreateLogGroup(*cloudwatchlogs.CreateLogGroupInput) (*cloudwatchlogs.CreateLogGroupOutput, error)
 	CreateLogStream(*cloudwatchlogs.CreateLogStreamInput) (*cloudwatchlogs.CreateLogStreamOutput, error)
 	PutLogEvents(*cloudwatchlogs.PutLogEventsInput) (*cloudwatchlogs.PutLogEventsOutput, error)
 }
@@ -64,13 +73,14 @@ type regionFinder interface {
 	Region() (string, error)
 }
 
-type byTimestamp []*cloudwatchlogs.InputLogEvent
+type wrappedEvent struct {
+	inputLogEvent *cloudwatchlogs.InputLogEvent
+	insertOrder   int
+}
+type byTimestamp []wrappedEvent
 
-// init registers the awslogs driver and sets the default region, if provided
+// init registers the awslogs driver
 func init() {
-	if os.Getenv(regionEnvKey) != "" {
-		defaults.DefaultConfig.Region = aws.String(os.Getenv(regionEnvKey))
-	}
 	if err := logger.RegisterLogDriver(name, New); err != nil {
 		logrus.Fatal(err)
 	}
@@ -81,25 +91,37 @@ func init() {
 
 // New creates an awslogs logger using the configuration passed in on the
 // context.  Supported context configuration variables are awslogs-region,
-// awslogs-group, and awslogs-stream.  When available, configuration is
+// awslogs-group, awslogs-stream, and awslogs-create-group.  When available, configuration is
 // also taken from environment variables AWS_REGION, AWS_ACCESS_KEY_ID,
 // AWS_SECRET_ACCESS_KEY, the shared credentials file (~/.aws/credentials), and
 // the EC2 Instance Metadata Service.
-func New(ctx logger.Context) (logger.Logger, error) {
-	logGroupName := ctx.Config[logGroupKey]
-	logStreamName := ctx.ContainerID
-	if ctx.Config[logStreamKey] != "" {
-		logStreamName = ctx.Config[logStreamKey]
+func New(info logger.Info) (logger.Logger, error) {
+	logGroupName := info.Config[logGroupKey]
+	logStreamName, err := loggerutils.ParseLogTag(info, "{{.FullID}}")
+	if err != nil {
+		return nil, err
 	}
-	client, err := newAWSLogsClient(ctx)
+	logCreateGroup := false
+	if info.Config[logCreateGroupKey] != "" {
+		logCreateGroup, err = strconv.ParseBool(info.Config[logCreateGroupKey])
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if info.Config[logStreamKey] != "" {
+		logStreamName = info.Config[logStreamKey]
+	}
+	client, err := newAWSLogsClient(info)
 	if err != nil {
 		return nil, err
 	}
 	containerStream := &logStream{
-		logStreamName: logStreamName,
-		logGroupName:  logGroupName,
-		client:        client,
-		messages:      make(chan *logger.Message, 4096),
+		logStreamName:  logStreamName,
+		logGroupName:   logGroupName,
+		logCreateGroup: logCreateGroup,
+		client:         client,
+		messages:       make(chan *logger.Message, 4096),
 	}
 	err = containerStream.create()
 	if err != nil {
@@ -110,39 +132,54 @@ func New(ctx logger.Context) (logger.Logger, error) {
 	return containerStream, nil
 }
 
+func parseLogGroup(info logger.Info, groupTemplate string) (string, error) {
+	tmpl, err := templates.NewParse("log-group", groupTemplate)
+	if err != nil {
+		return "", err
+	}
+	buf := new(bytes.Buffer)
+	if err := tmpl.Execute(buf, &info); err != nil {
+		return "", err
+	}
+
+	return buf.String(), nil
+}
+
 // newRegionFinder is a variable such that the implementation
 // can be swapped out for unit tests.
 var newRegionFinder = func() regionFinder {
-	return ec2metadata.New(nil)
+	return ec2metadata.New(session.New())
 }
 
 // newAWSLogsClient creates the service client for Amazon CloudWatch Logs.
 // Customizations to the default client from the SDK include a Docker-specific
 // User-Agent string and automatic region detection using the EC2 Instance
 // Metadata Service when region is otherwise unspecified.
-func newAWSLogsClient(ctx logger.Context) (api, error) {
-	config := defaults.DefaultConfig
-	if ctx.Config[regionKey] != "" {
-		config = defaults.DefaultConfig.Merge(&aws.Config{
-			Region: aws.String(ctx.Config[regionKey]),
-		})
+func newAWSLogsClient(info logger.Info) (api, error) {
+	var region *string
+	if os.Getenv(regionEnvKey) != "" {
+		region = aws.String(os.Getenv(regionEnvKey))
 	}
-	if config.Region == nil || *config.Region == "" {
+	if info.Config[regionKey] != "" {
+		region = aws.String(info.Config[regionKey])
+	}
+	if region == nil || *region == "" {
 		logrus.Info("Trying to get region from EC2 Metadata")
 		ec2MetadataClient := newRegionFinder()
-		region, err := ec2MetadataClient.Region()
+		r, err := ec2MetadataClient.Region()
 		if err != nil {
 			logrus.WithFields(logrus.Fields{
 				"error": err,
 			}).Error("Could not get region from EC2 metadata, environment, or log option")
 			return nil, errors.New("Cannot determine region for awslogs driver")
 		}
-		config.Region = &region
+		region = &r
 	}
 	logrus.WithFields(logrus.Fields{
-		"region": *config.Region,
+		"region": *region,
 	}).Debug("Created awslogs client")
-	client := cloudwatchlogs.New(config)
+
+	client := cloudwatchlogs.New(session.New(), aws.NewConfig().WithRegion(*region))
 
 	client.Handlers.Build.PushBackNamed(request.NamedHandler{
 		Name: "DockerUserAgentHandler",
@@ -150,7 +187,7 @@ func newAWSLogsClient(ctx logger.Context) (api, error) {
 			currentAgent := r.HTTPRequest.Header.Get(userAgentHeader)
 			r.HTTPRequest.Header.Set(userAgentHeader,
 				fmt.Sprintf("Docker %s (%s) %s",
-					dockerversion.VERSION, runtime.GOOS, currentAgent))
+					dockerversion.Version, runtime.GOOS, currentAgent))
 		},
 	})
 	return client, nil
@@ -182,8 +219,50 @@ func (l *logStream) Close() error {
 	return nil
 }
 
-// create creates a log stream for the instance of the awslogs logging driver
+// create creates log group and log stream for the instance of the awslogs logging driver
 func (l *logStream) create() error {
+	if err := l.createLogStream(); err != nil {
+		if l.logCreateGroup {
+			if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == resourceNotFoundCode {
+				if err := l.createLogGroup(); err != nil {
+					return err
+				}
+				return l.createLogStream()
+			}
+		}
+		return err
+	}
+
+	return nil
+}
+
+// createLogGroup creates a log group for the instance of the awslogs logging driver
+func (l *logStream) createLogGroup() error {
+	if _, err := l.client.CreateLogGroup(&cloudwatchlogs.CreateLogGroupInput{
+		LogGroupName: aws.String(l.logGroupName),
+	}); err != nil {
+		if awsErr, ok := err.(awserr.Error); ok {
+			fields := logrus.Fields{
+				"errorCode":      awsErr.Code(),
+				"message":        awsErr.Message(),
+				"origError":      awsErr.OrigErr(),
+				"logGroupName":   l.logGroupName,
+				"logCreateGroup": l.logCreateGroup,
+			}
+			if awsErr.Code() == resourceAlreadyExistsCode {
+				// Allow creation to succeed
+				logrus.WithFields(fields).Info("Log group already exists")
+				return nil
+			}
+			logrus.WithFields(fields).Error("Failed to create log group")
+		}
+		return err
+	}
+	return nil
+}
+
+// createLogStream creates a log stream for the instance of the awslogs logging driver
+func (l *logStream) createLogStream() error {
 	input := &cloudwatchlogs.CreateLogStreamInput{
 		LogGroupName:  aws.String(l.logGroupName),
 		LogStreamName: aws.String(l.logStreamName),
@@ -229,7 +308,7 @@ var newTicker = func(freq time.Duration) *time.Ticker {
 // calculations.
 func (l *logStream) collectBatch() {
 	timer := newTicker(batchPublishFrequency)
-	var events []*cloudwatchlogs.InputLogEvent
+	var events []wrappedEvent
 	bytes := 0
 	for {
 		select {
@@ -258,12 +337,16 @@ func (l *logStream) collectBatch() {
 					events = events[:0]
 					bytes = 0
 				}
-				events = append(events, &cloudwatchlogs.InputLogEvent{
-					Message:   aws.String(string(line)),
-					Timestamp: aws.Int64(msg.Timestamp.UnixNano() / int64(time.Millisecond)),
+				events = append(events, wrappedEvent{
+					inputLogEvent: &cloudwatchlogs.InputLogEvent{
+						Message:   aws.String(string(line)),
+						Timestamp: aws.Int64(msg.Timestamp.UnixNano() / int64(time.Millisecond)),
+					},
+					insertOrder: len(events),
 				})
 				bytes += (lineBytes + perEventBytes)
 			}
+			logger.PutMessage(msg)
 		}
 	}
 }
@@ -271,14 +354,17 @@ func (l *logStream) collectBatch() {
 // publishBatch calls PutLogEvents for a given set of InputLogEvents,
 // accounting for sequencing requirements (each request must reference the
 // sequence token returned by the previous request).
-func (l *logStream) publishBatch(events []*cloudwatchlogs.InputLogEvent) {
+func (l *logStream) publishBatch(events []wrappedEvent) {
 	if len(events) == 0 {
 		return
 	}
 
+	// events in a batch must be sorted by timestamp
+	// see http://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutLogEvents.html
 	sort.Sort(byTimestamp(events))
+	cwEvents := unwrapEvents(events)
 
-	nextSequenceToken, err := l.putLogEvents(events, l.sequenceToken)
+	nextSequenceToken, err := l.putLogEvents(cwEvents, l.sequenceToken)
 
 	if err != nil {
 		if awsErr, ok := err.(awserr.Error); ok {
@@ -297,7 +383,7 @@ func (l *logStream) publishBatch(events []*cloudwatchlogs.InputLogEvent) {
 				// sequence code is bad, grab the correct one and retry
 				parts := strings.Split(awsErr.Message(), " ")
 				token := parts[len(parts)-1]
-				nextSequenceToken, err = l.putLogEvents(events, &token)
+				nextSequenceToken, err = l.putLogEvents(cwEvents, &token)
 			}
 		}
 	}
@@ -333,19 +419,26 @@ func (l *logStream) putLogEvents(events []*cloudwatchlogs.InputLogEvent, sequenc
 }
 
 // ValidateLogOpt looks for awslogs-specific log options awslogs-region,
-// awslogs-group, and awslogs-stream
+// awslogs-group, awslogs-stream, awslogs-create-group
 func ValidateLogOpt(cfg map[string]string) error {
 	for key := range cfg {
 		switch key {
 		case logGroupKey:
 		case logStreamKey:
+		case logCreateGroupKey:
 		case regionKey:
+		case tagKey:
 		default:
 			return fmt.Errorf("unknown log opt '%s' for %s log driver", key, name)
 		}
 	}
 	if cfg[logGroupKey] == "" {
 		return fmt.Errorf("must specify a value for log opt '%s'", logGroupKey)
+	}
+	if cfg[logCreateGroupKey] != "" {
+		if _, err := strconv.ParseBool(cfg[logCreateGroupKey]); err != nil {
+			return fmt.Errorf("must specify valid value for log opt '%s': %v", logCreateGroupKey, err)
+		}
 	}
 	return nil
 }
@@ -360,11 +453,14 @@ func (slice byTimestamp) Len() int {
 // required by the sort.Interface interface.
 func (slice byTimestamp) Less(i, j int) bool {
 	iTimestamp, jTimestamp := int64(0), int64(0)
-	if slice != nil && slice[i].Timestamp != nil {
-		iTimestamp = *slice[i].Timestamp
+	if slice != nil && slice[i].inputLogEvent.Timestamp != nil {
+		iTimestamp = *slice[i].inputLogEvent.Timestamp
 	}
-	if slice != nil && slice[j].Timestamp != nil {
-		jTimestamp = *slice[j].Timestamp
+	if slice != nil && slice[j].inputLogEvent.Timestamp != nil {
+		jTimestamp = *slice[j].inputLogEvent.Timestamp
+	}
+	if iTimestamp == jTimestamp {
+		return slice[i].insertOrder < slice[j].insertOrder
 	}
 	return iTimestamp < jTimestamp
 }
@@ -373,4 +469,12 @@ func (slice byTimestamp) Less(i, j int) bool {
 // required by the sort.Interface interface.
 func (slice byTimestamp) Swap(i, j int) {
 	slice[i], slice[j] = slice[j], slice[i]
+}
+
+func unwrapEvents(events []wrappedEvent) []*cloudwatchlogs.InputLogEvent {
+	cwEvents := []*cloudwatchlogs.InputLogEvent{}
+	for _, input := range events {
+		cwEvents = append(cwEvents, input.inputLogEvent)
+	}
+	return cwEvents
 }

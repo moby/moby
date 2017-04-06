@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # This script signs the deliverables from release-deb and release-rpm
 # with a designated GPG key.
@@ -28,9 +28,18 @@ sign_packages(){
 		for F in $(find $APTDIR -name Release); do
 			if test "$F" -nt "$F.gpg" ; then
 				gpg -u "$GPG_KEYID" --passphrase "$GPG_PASSPHRASE" \
+					--digest-algo "sha512" \
 					--armor --sign --detach-sign \
 					--batch --yes \
 					--output "$F.gpg" "$F"
+			fi
+			inRelease="$(dirname "$F")/InRelease"
+			if test "$F" -nt "$inRelease" ; then
+				gpg -u "$GPG_KEYID" --passphrase "$GPG_PASSPHRASE" \
+					--digest-algo "sha512" \
+					--clearsign \
+					--batch --yes \
+					--output "$inRelease" "$F"
 			fi
 		done
 	fi
@@ -44,6 +53,7 @@ sign_packages(){
 		for F in $(find $YUMDIR -name repomd.xml); do
 			if test "$F" -nt "$F.asc" ; then
 				gpg -u "$GPG_KEYID" --passphrase "$GPG_PASSPHRASE" \
+					--digest-algo "sha512" \
 					--armor --sign --detach-sign \
 					--batch --yes \
 					--output "$F.asc" "$F"

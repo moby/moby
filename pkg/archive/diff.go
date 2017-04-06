@@ -19,12 +19,13 @@ import (
 // UnpackLayer unpack `layer` to a `dest`. The stream `layer` can be
 // compressed or uncompressed.
 // Returns the size in bytes of the contents of the layer.
-func UnpackLayer(dest string, layer Reader, options *TarOptions) (size int64, err error) {
+func UnpackLayer(dest string, layer io.Reader, options *TarOptions) (size int64, err error) {
 	tr := tar.NewReader(layer)
 	trBuf := pools.BufioReader32KPool.Get(tr)
 	defer pools.BufioReader32KPool.Put(trBuf)
 
 	var dirs []*tar.Header
+	unpackedPaths := make(map[string]struct{})
 
 	if options == nil {
 		options = &TarOptions{}
@@ -40,9 +41,6 @@ func UnpackLayer(dest string, layer Reader, options *TarOptions) (size int64, er
 	aufsTempdir := ""
 	aufsHardlinks := make(map[string]*tar.Header)
 
-	if options == nil {
-		options = &TarOptions{}
-	}
 	// Iterate through the files in the archive.
 	for {
 		hdr, err := tr.Next()
@@ -110,7 +108,7 @@ func UnpackLayer(dest string, layer Reader, options *TarOptions) (size int64, er
 					}
 					defer os.RemoveAll(aufsTempdir)
 				}
-				if err := createTarFile(filepath.Join(aufsTempdir, basename), dest, hdr, tr, true, nil); err != nil {
+				if err := createTarFile(filepath.Join(aufsTempdir, basename), dest, hdr, tr, true, nil, options.InUserNS); err != nil {
 					return 0, err
 				}
 			}
@@ -134,14 +132,27 @@ func UnpackLayer(dest string, layer Reader, options *TarOptions) (size int64, er
 		if strings.HasPrefix(base, WhiteoutPrefix) {
 			dir := filepath.Dir(path)
 			if base == WhiteoutOpaqueDir {
-				fi, err := os.Lstat(dir)
-				if err != nil && !os.IsNotExist(err) {
+				_, err := os.Lstat(dir)
+				if err != nil {
 					return 0, err
 				}
-				if err := os.RemoveAll(dir); err != nil {
-					return 0, err
-				}
-				if err := os.Mkdir(dir, fi.Mode()&os.ModePerm); err != nil {
+				err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+					if err != nil {
+						if os.IsNotExist(err) {
+							err = nil // parent was deleted
+						}
+						return err
+					}
+					if path == dir {
+						return nil
+					}
+					if _, exists := unpackedPaths[path]; !exists {
+						err := os.RemoveAll(path)
+						return err
+					}
+					return nil
+				})
+				if err != nil {
 					return 0, err
 				}
 			} else {
@@ -205,7 +216,7 @@ func UnpackLayer(dest string, layer Reader, options *TarOptions) (size int64, er
 				}
 				srcHdr.Gid = xGID
 			}
-			if err := createTarFile(path, dest, srcHdr, srcData, true, nil); err != nil {
+			if err := createTarFile(path, dest, srcHdr, srcData, true, nil, options.InUserNS); err != nil {
 				return 0, err
 			}
 
@@ -214,6 +225,7 @@ func UnpackLayer(dest string, layer Reader, options *TarOptions) (size int64, er
 			if hdr.Typeflag == tar.TypeDir {
 				dirs = append(dirs, hdr)
 			}
+			unpackedPaths[path] = struct{}{}
 		}
 	}
 
@@ -231,7 +243,7 @@ func UnpackLayer(dest string, layer Reader, options *TarOptions) (size int64, er
 // and applies it to the directory `dest`. The stream `layer` can be
 // compressed or uncompressed.
 // Returns the size in bytes of the contents of the layer.
-func ApplyLayer(dest string, layer Reader) (int64, error) {
+func ApplyLayer(dest string, layer io.Reader) (int64, error) {
 	return applyLayerHandler(dest, layer, &TarOptions{}, true)
 }
 
@@ -239,12 +251,12 @@ func ApplyLayer(dest string, layer Reader) (int64, error) {
 // `layer`, and applies it to the directory `dest`. The stream `layer`
 // can only be uncompressed.
 // Returns the size in bytes of the contents of the layer.
-func ApplyUncompressedLayer(dest string, layer Reader, options *TarOptions) (int64, error) {
+func ApplyUncompressedLayer(dest string, layer io.Reader, options *TarOptions) (int64, error) {
 	return applyLayerHandler(dest, layer, options, false)
 }
 
 // do the bulk load of ApplyLayer, but allow for not calling DecompressStream
-func applyLayerHandler(dest string, layer Reader, options *TarOptions, decompress bool) (int64, error) {
+func applyLayerHandler(dest string, layer io.Reader, options *TarOptions, decompress bool) (int64, error) {
 	dest = filepath.Clean(dest)
 
 	// We need to be able to set any perms

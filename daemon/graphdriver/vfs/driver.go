@@ -1,5 +1,3 @@
-// +build daemon
-
 package vfs
 
 import (
@@ -12,6 +10,11 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 
 	"github.com/opencontainers/runc/libcontainer/label"
+)
+
+var (
+	// CopyWithTar defines the copy method to use.
+	CopyWithTar = chrootarchive.CopyWithTar
 )
 
 func init() {
@@ -65,8 +68,18 @@ func (d *Driver) Cleanup() error {
 	return nil
 }
 
+// CreateReadWrite creates a layer that is writable for use as a container
+// file system.
+func (d *Driver) CreateReadWrite(id, parent string, opts *graphdriver.CreateOpts) error {
+	return d.Create(id, parent, opts)
+}
+
 // Create prepares the filesystem for the VFS driver and copies the directory for the given id under the parent.
-func (d *Driver) Create(id, parent string) error {
+func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
+	if opts != nil && len(opts.StorageOpt) != 0 {
+		return fmt.Errorf("--storage-opt is not supported for vfs")
+	}
+
 	dir := d.dir(id)
 	rootUID, rootGID, err := idtools.GetRootUIDGID(d.uidMaps, d.gidMaps)
 	if err != nil {
@@ -78,8 +91,8 @@ func (d *Driver) Create(id, parent string) error {
 	if err := idtools.MkdirAs(dir, 0755, rootUID, rootGID); err != nil {
 		return err
 	}
-	opts := []string{"level:s0"}
-	if _, mountLabel, err := label.InitLabels(opts); err == nil {
+	labelOpts := []string{"level:s0"}
+	if _, mountLabel, err := label.InitLabels(labelOpts); err == nil {
 		label.SetFileLabel(dir, mountLabel)
 	}
 	if parent == "" {
@@ -89,7 +102,7 @@ func (d *Driver) Create(id, parent string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %s", parent, err)
 	}
-	if err := chrootarchive.CopyWithTar(parentDir, dir); err != nil {
+	if err := CopyWithTar(parentDir, dir); err != nil {
 		return err
 	}
 	return nil
@@ -101,10 +114,10 @@ func (d *Driver) dir(id string) string {
 
 // Remove deletes the content from the directory for a given id.
 func (d *Driver) Remove(id string) error {
-	if _, err := os.Stat(d.dir(id)); err != nil {
+	if err := os.RemoveAll(d.dir(id)); err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	return os.RemoveAll(d.dir(id))
+	return nil
 }
 
 // Get returns the directory for the given id.

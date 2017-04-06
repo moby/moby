@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
 )
 
@@ -223,7 +223,7 @@ func (s *DockerSuite) TestUnpublishedPortsInPsOutput(c *check.C) {
 	// Cannot find expected port binding (expBnd2) in docker ps output
 	c.Assert(out, checker.Contains, expBnd2)
 
-	// Remove container now otherwise it will interfeer with next test
+	// Remove container now otherwise it will interfere with next test
 	stopRemoveContainer(id, c)
 
 	// Run the container with explicit port bindings and no exposed ports
@@ -236,7 +236,7 @@ func (s *DockerSuite) TestUnpublishedPortsInPsOutput(c *check.C) {
 	c.Assert(out, checker.Contains, expBnd1)
 	// Cannot find expected port binding (expBnd2) in docker ps output
 	c.Assert(out, checker.Contains, expBnd2)
-	// Remove container now otherwise it will interfeer with next test
+	// Remove container now otherwise it will interfere with next test
 	stopRemoveContainer(id, c)
 
 	// Run the container with one unpublished exposed port and one explicit port binding
@@ -292,4 +292,28 @@ func (s *DockerSuite) TestPortExposeHostBinding(c *check.C) {
 		"nc", "localhost", strings.TrimSpace(exposedPort))
 	// Port is still bound after the Container is removed
 	c.Assert(err, checker.NotNil, check.Commentf("out: %s", out))
+}
+
+func (s *DockerSuite) TestPortBindingOnSandbox(c *check.C) {
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
+	dockerCmd(c, "network", "create", "--internal", "-d", "bridge", "internal-net")
+	nr := getNetworkResource(c, "internal-net")
+	c.Assert(nr.Internal, checker.Equals, true)
+
+	dockerCmd(c, "run", "--net", "internal-net", "-d", "--name", "c1",
+		"-p", "8080:8080", "busybox", "nc", "-l", "-p", "8080")
+	c.Assert(waitRun("c1"), check.IsNil)
+
+	_, _, err := dockerCmdWithError("run", "--net=host", "busybox", "nc", "localhost", "8080")
+	c.Assert(err, check.NotNil,
+		check.Commentf("Port mapping on internal network is expected to fail"))
+
+	// Connect container to another normal bridge network
+	dockerCmd(c, "network", "create", "-d", "bridge", "foo-net")
+	dockerCmd(c, "network", "connect", "foo-net", "c1")
+
+	_, _, err = dockerCmdWithError("run", "--net=host", "busybox", "nc", "localhost", "8080")
+	c.Assert(err, check.IsNil,
+		check.Commentf("Port mapping on the new network is expected to succeed"))
+
 }

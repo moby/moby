@@ -6,7 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/integration-cli/checker"
+	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
 )
 
@@ -35,10 +36,12 @@ func (s *DockerSuite) TestWaitBlockedExitZero(c *check.C) {
 
 	chWait := make(chan string)
 	go func() {
-		out, _, _ := runCommandWithOutput(exec.Command(dockerBinary, "wait", containerID))
+		chWait <- ""
+		out := icmd.RunCommand(dockerBinary, "wait", containerID).Combined()
 		chWait <- out
 	}()
 
+	<-chWait // make sure the goroutine is started
 	time.Sleep(100 * time.Millisecond)
 	dockerCmd(c, "stop", containerID)
 
@@ -84,7 +87,7 @@ func (s *DockerSuite) TestWaitBlockedExitRandom(c *check.C) {
 
 	select {
 	case err := <-chWait:
-		c.Assert(err, checker.IsNil)
+		c.Assert(err, checker.IsNil, check.Commentf(waitCmdOut.String()))
 		status, err := waitCmdOut.ReadString('\n')
 		c.Assert(err, checker.IsNil)
 		c.Assert(strings.TrimSpace(status), checker.Equals, "99", check.Commentf("expected exit 99, got %s", status))

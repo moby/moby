@@ -1,6 +1,6 @@
-## devicemapper - a storage backend based on Device Mapper
+# devicemapper - a storage backend based on Device Mapper
 
-### Theory of operation
+## Theory of operation
 
 The device mapper graphdriver uses the device mapper thin provisioning
 module (dm-thinp) to implement CoW snapshots. The preferred model is
@@ -9,21 +9,21 @@ daemon via the `--storage-opt dm.thinpooldev` option.
 
 As a fallback if no thin pool is provided, loopback files will be
 created.  Loopback is very slow, but can be used without any
-pre-configuration of storage.  It is strongly recommended that you do 
+pre-configuration of storage.  It is strongly recommended that you do
 not use loopback in production.  Ensure your Docker daemon has a
 `--storage-opt dm.thinpooldev` argument provided.
 
 In loopback, a thin pool is created at `/var/lib/docker/devicemapper`
-(devicemapper graph location) based on two block devices, one for 
-data and one for metadata. By default these block devices are created 
-automatically by using loopback mounts of automatically created sparse 
+(devicemapper graph location) based on two block devices, one for
+data and one for metadata. By default these block devices are created
+automatically by using loopback mounts of automatically created sparse
 files.
 
-The default loopback files used are 
-`/var/lib/docker/devicemapper/devicemapper/data` and 
-`/var/lib/docker/devicemapper/devicemapper/metadata`. Additional metadata 
-required to map from docker entities to the corresponding devicemapper 
-volumes is stored in the `/var/lib/docker/devicemapper/devicemapper/json` 
+The default loopback files used are
+`/var/lib/docker/devicemapper/devicemapper/data` and
+`/var/lib/docker/devicemapper/devicemapper/metadata`. Additional metadata
+required to map from docker entities to the corresponding devicemapper
+volumes is stored in the `/var/lib/docker/devicemapper/devicemapper/json`
 file (encoded as Json).
 
 In order to support multiple devicemapper graphs on a system, the thin
@@ -39,7 +39,7 @@ containers. All base images are snapshots of this device and those
 images are then in turn used as snapshots for other images and
 eventually containers.
 
-### Information on `docker info`
+## Information on `docker info`
 
 As of docker-1.4.1, `docker info` when using the `devicemapper` storage driver
 will display something like:
@@ -64,7 +64,7 @@ will display something like:
 	 Library Version: 1.02.82-git (2013-10-04)
 	[...]
 
-#### status items
+### status items
 
 Each item in the indented section under `Storage Driver: devicemapper` are
 status information about the driver.
@@ -84,14 +84,13 @@ status information about the driver.
  *  `Metadata loop file` file attached to `Metadata file`, if loopback device is used
  *  `Library Version` from the libdevmapper used
 
-### About the devicemapper options
+## About the devicemapper options
 
 The devicemapper backend supports some options that you can specify
 when starting the docker daemon using the `--storage-opt` flags.
-This uses the `dm` prefix and would be used something like `docker daemon --storage-opt dm.foo=bar`.
+This uses the `dm` prefix and would be used something like `dockerd --storage-opt dm.foo=bar`.
 
 These options are currently documented both in [the man
 page](../../../man/docker.1.md) and in [the online
-documentation](https://docs.docker.com/reference/commandline/daemon/#docker-
-execdriver-option).  If you add an options, update both the `man` page and the
-documentation.
+documentation](https://docs.docker.com/engine/reference/commandline/dockerd/#/storage-driver-options).
+If you add an options, update both the `man` page and the documentation.

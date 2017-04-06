@@ -2,7 +2,7 @@
 syntax "Dockerfile" "Dockerfile[^/]*$"
 
 ## Keywords
-icolor red "^(FROM|MAINTAINER|RUN|CMD|LABEL|EXPOSE|ENV|ADD|COPY|ENTRYPOINT|VOLUME|USER|WORKDIR|ONBUILD)[[:space:]]"
+icolor red "^(ONBUILD\s+)?(ADD|ARG|CMD|COPY|ENTRYPOINT|ENV|EXPOSE|FROM|HEALTHCHECK|LABEL|MAINTAINER|RUN|SHELL|STOPSIGNAL|USER|VOLUME|WORKDIR)[[:space:]]"
 
 ## Brackets & parenthesis
 color brightgreen "(\(|\)|\[|\])"

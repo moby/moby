@@ -1,55 +1,52 @@
 package image
 
 import (
-	"bytes"
-	"io/ioutil"
+	"encoding/json"
+	"sort"
+	"strings"
 	"testing"
 
-	"github.com/docker/distribution/digest"
+	"github.com/docker/docker/pkg/testutil/assert"
 )
 
-var fixtures = []string{
-	"fixtures/pre1.9",
-	"fixtures/post1.9",
+const sampleImageJSON = `{
+	"architecture": "amd64",
+	"os": "linux",
+	"config": {},
+	"rootfs": {
+		"type": "layers",
+		"diff_ids": []
+	}
+}`
+
+func TestNewFromJSON(t *testing.T) {
+	img, err := NewFromJSON([]byte(sampleImageJSON))
+	assert.NilError(t, err)
+	assert.Equal(t, string(img.RawJSON()), sampleImageJSON)
 }
 
-func loadFixtureFile(t *testing.T, path string) []byte {
-	fileData, err := ioutil.ReadFile(path)
-	if err != nil {
-		t.Fatalf("error opening %s: %v", path, err)
+func TestNewFromJSONWithInvalidJSON(t *testing.T) {
+	_, err := NewFromJSON([]byte("{}"))
+	assert.Error(t, err, "invalid image JSON, no RootFS key")
+}
+
+func TestMarshalKeyOrder(t *testing.T) {
+	b, err := json.Marshal(&Image{
+		V1Image: V1Image{
+			Comment:      "a",
+			Author:       "b",
+			Architecture: "c",
+		},
+	})
+	assert.NilError(t, err)
+
+	expectedOrder := []string{"architecture", "author", "comment"}
+	var indexes []int
+	for _, k := range expectedOrder {
+		indexes = append(indexes, strings.Index(string(b), k))
 	}
 
-	return bytes.TrimSpace(fileData)
-}
-
-// TestMakeImageConfig makes sure that MakeImageConfig returns the expected
-// canonical JSON for a reference Image.
-func TestMakeImageConfig(t *testing.T) {
-	for _, fixture := range fixtures {
-		v1Compatibility := loadFixtureFile(t, fixture+"/v1compatibility")
-		expectedConfig := loadFixtureFile(t, fixture+"/expected_config")
-		layerID := digest.Digest(loadFixtureFile(t, fixture+"/layer_id"))
-		parentID := digest.Digest(loadFixtureFile(t, fixture+"/parent_id"))
-
-		json, err := MakeImageConfig(v1Compatibility, layerID, parentID)
-		if err != nil {
-			t.Fatalf("MakeImageConfig on %s returned error: %v", fixture, err)
-		}
-		if !bytes.Equal(json, expectedConfig) {
-			t.Fatalf("did not get expected JSON for %s\nexpected: %s\ngot: %s", fixture, expectedConfig, json)
-		}
-	}
-}
-
-// TestGetStrongID makes sure that GetConfigJSON returns the expected
-// hash for a reference Image.
-func TestGetStrongID(t *testing.T) {
-	for _, fixture := range fixtures {
-		expectedConfig := loadFixtureFile(t, fixture+"/expected_config")
-		expectedComputedID := digest.Digest(loadFixtureFile(t, fixture+"/expected_computed_id"))
-
-		if id, err := StrongID(expectedConfig); err != nil || id != expectedComputedID {
-			t.Fatalf("did not get expected ID for %s\nexpected: %s\ngot: %s\nerror: %v", fixture, expectedComputedID, id, err)
-		}
+	if !sort.IntsAreSorted(indexes) {
+		t.Fatal("invalid key order in JSON: ", string(b))
 	}
 }

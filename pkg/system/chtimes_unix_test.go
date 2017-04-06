@@ -1,4 +1,4 @@
-// +build linux freebsd
+// +build !windows
 
 package system
 
@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// TestChtimes tests Chtimes access time on a tempfile on Linux
+// TestChtimesLinux tests Chtimes access time on a tempfile on Linux
 func TestChtimesLinux(t *testing.T) {
 	file, dir := prepareTempFile(t)
 	defer os.RemoveAll(dir)
@@ -17,9 +17,7 @@ func TestChtimesLinux(t *testing.T) {
 	beforeUnixEpochTime := time.Unix(0, 0).Add(-100 * time.Second)
 	unixEpochTime := time.Unix(0, 0)
 	afterUnixEpochTime := time.Unix(100, 0)
-	// The max Unix time is 33 bits set
-	unixMaxTime := unixEpochTime.Add((1<<33 - 1) * time.Second)
-	afterUnixMaxTime := unixMaxTime.Add(100 * time.Second)
+	unixMaxTime := maxTime
 
 	// Test both aTime and mTime set to Unix Epoch
 	Chtimes(file, unixEpochTime, unixEpochTime)
@@ -87,35 +85,7 @@ func TestChtimesLinux(t *testing.T) {
 
 	stat = f.Sys().(*syscall.Stat_t)
 	aTime = time.Unix(int64(stat.Atim.Sec), int64(stat.Atim.Nsec))
-	if aTime != unixMaxTime {
-		t.Fatalf("Expected: %s, got: %s", unixMaxTime, aTime)
-	}
-
-	// Test aTime after Unix max time and mTime set to Unix max time
-	Chtimes(file, afterUnixMaxTime, unixMaxTime)
-
-	f, err = os.Stat(file)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	stat = f.Sys().(*syscall.Stat_t)
-	aTime = time.Unix(int64(stat.Atim.Sec), int64(stat.Atim.Nsec))
-	if aTime != unixEpochTime {
-		t.Fatalf("Expected: %s, got: %s", unixEpochTime, aTime)
-	}
-
-	// Test aTime set to Unix Epoch and mTime before Unix Epoch
-	Chtimes(file, unixMaxTime, afterUnixMaxTime)
-
-	f, err = os.Stat(file)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	stat = f.Sys().(*syscall.Stat_t)
-	aTime = time.Unix(int64(stat.Atim.Sec), int64(stat.Atim.Nsec))
-	if aTime != unixMaxTime {
-		t.Fatalf("Expected: %s, got: %s", unixMaxTime, aTime)
+	if aTime.Truncate(time.Second) != unixMaxTime.Truncate(time.Second) {
+		t.Fatalf("Expected: %s, got: %s", unixMaxTime.Truncate(time.Second), aTime.Truncate(time.Second))
 	}
 }

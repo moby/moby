@@ -3,13 +3,12 @@
 package term
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"os/signal"
+	"syscall"
 
 	"github.com/Azure/go-ansiterm/winterm"
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/term/windows"
 )
 
@@ -22,22 +21,82 @@ type State struct {
 type Winsize struct {
 	Height uint16
 	Width  uint16
-	x      uint16
-	y      uint16
 }
 
-// StdStreams returns the standard streams (stdin, stdout, stedrr).
+const (
+	// https://msdn.microsoft.com/en-us/library/windows/desktop/ms683167(v=vs.85).aspx
+	enableVirtualTerminalInput      = 0x0200
+	enableVirtualTerminalProcessing = 0x0004
+	disableNewlineAutoReturn        = 0x0008
+)
+
+// vtInputSupported is true if enableVirtualTerminalInput is supported by the console
+var vtInputSupported bool
+
+// StdStreams returns the standard streams (stdin, stdout, stderr).
 func StdStreams() (stdIn io.ReadCloser, stdOut, stdErr io.Writer) {
-	switch {
-	case os.Getenv("ConEmuANSI") == "ON":
-		// The ConEmu shell emulates ANSI well by default.
-		return os.Stdin, os.Stdout, os.Stderr
-	case os.Getenv("MSYSTEM") != "":
-		// MSYS (mingw) does not emulate ANSI well.
-		return windows.ConsoleStreams()
-	default:
-		return windows.ConsoleStreams()
+	// Turn on VT handling on all std handles, if possible. This might
+	// fail, in which case we will fall back to terminal emulation.
+	var emulateStdin, emulateStdout, emulateStderr bool
+	fd := os.Stdin.Fd()
+	if mode, err := winterm.GetConsoleMode(fd); err == nil {
+		// Validate that enableVirtualTerminalInput is supported, but do not set it.
+		if err = winterm.SetConsoleMode(fd, mode|enableVirtualTerminalInput); err != nil {
+			emulateStdin = true
+		} else {
+			vtInputSupported = true
+		}
+		// Unconditionally set the console mode back even on failure because SetConsoleMode
+		// remembers invalid bits on input handles.
+		winterm.SetConsoleMode(fd, mode)
 	}
+
+	fd = os.Stdout.Fd()
+	if mode, err := winterm.GetConsoleMode(fd); err == nil {
+		// Validate disableNewlineAutoReturn is supported, but do not set it.
+		if err = winterm.SetConsoleMode(fd, mode|enableVirtualTerminalProcessing|disableNewlineAutoReturn); err != nil {
+			emulateStdout = true
+		} else {
+			winterm.SetConsoleMode(fd, mode|enableVirtualTerminalProcessing)
+		}
+	}
+
+	fd = os.Stderr.Fd()
+	if mode, err := winterm.GetConsoleMode(fd); err == nil {
+		// Validate disableNewlineAutoReturn is supported, but do not set it.
+		if err = winterm.SetConsoleMode(fd, mode|enableVirtualTerminalProcessing|disableNewlineAutoReturn); err != nil {
+			emulateStderr = true
+		} else {
+			winterm.SetConsoleMode(fd, mode|enableVirtualTerminalProcessing)
+		}
+	}
+
+	if os.Getenv("ConEmuANSI") == "ON" || os.Getenv("ConsoleZVersion") != "" {
+		// The ConEmu and ConsoleZ terminals emulate ANSI on output streams well.
+		emulateStdin = true
+		emulateStdout = false
+		emulateStderr = false
+	}
+
+	if emulateStdin {
+		stdIn = windows.NewAnsiReader(syscall.STD_INPUT_HANDLE)
+	} else {
+		stdIn = os.Stdin
+	}
+
+	if emulateStdout {
+		stdOut = windows.NewAnsiWriter(syscall.STD_OUTPUT_HANDLE)
+	} else {
+		stdOut = os.Stdout
+	}
+
+	if emulateStderr {
+		stdErr = windows.NewAnsiWriter(syscall.STD_ERROR_HANDLE)
+	} else {
+		stdErr = os.Stderr
+	}
+
+	return
 }
 
 // GetFdInfo returns the file descriptor for an os.File and indicates whether the file represents a terminal.
@@ -47,7 +106,6 @@ func GetFdInfo(in interface{}) (uintptr, bool) {
 
 // GetWinsize returns the window size based on the specified file descriptor.
 func GetWinsize(fd uintptr) (*Winsize, error) {
-
 	info, err := winterm.GetConsoleScreenBufferInfo(fd)
 	if err != nil {
 		return nil, err
@@ -56,59 +114,9 @@ func GetWinsize(fd uintptr) (*Winsize, error) {
 	winsize := &Winsize{
 		Width:  uint16(info.Window.Right - info.Window.Left + 1),
 		Height: uint16(info.Window.Bottom - info.Window.Top + 1),
-		x:      0,
-		y:      0}
+	}
 
-	// Note: GetWinsize is called frequently -- uncomment only for excessive details
-	// logrus.Debugf("[windows] GetWinsize: Console(%v)", info.String())
-	// logrus.Debugf("[windows] GetWinsize: Width(%v), Height(%v), x(%v), y(%v)", winsize.Width, winsize.Height, winsize.x, winsize.y)
 	return winsize, nil
-}
-
-// SetWinsize tries to set the specified window size for the specified file descriptor.
-func SetWinsize(fd uintptr, ws *Winsize) error {
-
-	// Ensure the requested dimensions are no larger than the maximum window size
-	info, err := winterm.GetConsoleScreenBufferInfo(fd)
-	if err != nil {
-		return err
-	}
-
-	if ws.Width == 0 || ws.Height == 0 || ws.Width > uint16(info.MaximumWindowSize.X) || ws.Height > uint16(info.MaximumWindowSize.Y) {
-		return fmt.Errorf("Illegal window size: (%v,%v) -- Maximum allow: (%v,%v)",
-			ws.Width, ws.Height, info.MaximumWindowSize.X, info.MaximumWindowSize.Y)
-	}
-
-	// Narrow the sizes to that used by Windows
-	width := winterm.SHORT(ws.Width)
-	height := winterm.SHORT(ws.Height)
-
-	// Set the dimensions while ensuring they remain within the bounds of the backing console buffer
-	// -- Shrinking will always succeed. Growing may push the edges past the buffer boundary. When that occurs,
-	//    shift the upper left just enough to keep the new window within the buffer.
-	rect := info.Window
-	if width < rect.Right-rect.Left+1 {
-		rect.Right = rect.Left + width - 1
-	} else if width > rect.Right-rect.Left+1 {
-		rect.Right = rect.Left + width - 1
-		if rect.Right >= info.Size.X {
-			rect.Left = info.Size.X - width
-			rect.Right = info.Size.X - 1
-		}
-	}
-
-	if height < rect.Bottom-rect.Top+1 {
-		rect.Bottom = rect.Top + height - 1
-	} else if height > rect.Bottom-rect.Top+1 {
-		rect.Bottom = rect.Top + height - 1
-		if rect.Bottom >= info.Size.Y {
-			rect.Top = info.Size.Y - height
-			rect.Bottom = info.Size.Y - 1
-		}
-	}
-	logrus.Debugf("[windows] SetWinsize: Requested((%v,%v)) Actual(%v)", ws.Width, ws.Height, rect)
-
-	return winterm.SetConsoleWindowInfo(fd, true, rect)
 }
 
 // IsTerminal returns true if the given file descriptor is a terminal.
@@ -128,7 +136,8 @@ func SaveState(fd uintptr) (*State, error) {
 	if e != nil {
 		return nil, e
 	}
-	return &State{mode}, nil
+
+	return &State{mode: mode}, nil
 }
 
 // DisableEcho disables echo for the terminal connected to the given file descriptor.
@@ -137,7 +146,6 @@ func DisableEcho(fd uintptr, state *State) error {
 	mode := state.mode
 	mode &^= winterm.ENABLE_ECHO_INPUT
 	mode |= winterm.ENABLE_PROCESSED_INPUT | winterm.ENABLE_LINE_INPUT
-
 	err := winterm.SetConsoleMode(fd, mode)
 	if err != nil {
 		return err
@@ -148,8 +156,9 @@ func DisableEcho(fd uintptr, state *State) error {
 	return nil
 }
 
-// SetRawTerminal puts the terminal connected to the given file descriptor into raw
-// mode and returns the previous state.
+// SetRawTerminal puts the terminal connected to the given file descriptor into
+// raw mode and returns the previous state. On UNIX, this puts both the input
+// and output into raw mode. On Windows, it only puts the input into raw mode.
 func SetRawTerminal(fd uintptr) (*State, error) {
 	state, err := MakeRaw(fd)
 	if err != nil {
@@ -161,6 +170,21 @@ func SetRawTerminal(fd uintptr) (*State, error) {
 	return state, err
 }
 
+// SetRawTerminalOutput puts the output of terminal connected to the given file
+// descriptor into raw mode. On UNIX, this does nothing and returns nil for the
+// state. On Windows, it disables LF -> CRLF translation.
+func SetRawTerminalOutput(fd uintptr) (*State, error) {
+	state, err := SaveState(fd)
+	if err != nil {
+		return nil, err
+	}
+
+	// Ignore failures, since disableNewlineAutoReturn might not be supported on this
+	// version of Windows.
+	winterm.SetConsoleMode(fd, state.mode|disableNewlineAutoReturn)
+	return state, err
+}
+
 // MakeRaw puts the terminal (Windows Console) connected to the given file descriptor into raw
 // mode and returns the previous state of the terminal so that it can be restored.
 func MakeRaw(fd uintptr) (*State, error) {
@@ -169,10 +193,11 @@ func MakeRaw(fd uintptr) (*State, error) {
 		return nil, err
 	}
 
+	mode := state.mode
+
 	// See
 	// -- https://msdn.microsoft.com/en-us/library/windows/desktop/ms686033(v=vs.85).aspx
 	// -- https://msdn.microsoft.com/en-us/library/windows/desktop/ms683462(v=vs.85).aspx
-	mode := state.mode
 
 	// Disable these modes
 	mode &^= winterm.ENABLE_ECHO_INPUT
@@ -185,6 +210,9 @@ func MakeRaw(fd uintptr) (*State, error) {
 	mode |= winterm.ENABLE_EXTENDED_FLAGS
 	mode |= winterm.ENABLE_INSERT_MODE
 	mode |= winterm.ENABLE_QUICK_EDIT_MODE
+	if vtInputSupported {
+		mode |= enableVirtualTerminalInput
+	}
 
 	err = winterm.SetConsoleMode(fd, mode)
 	if err != nil {

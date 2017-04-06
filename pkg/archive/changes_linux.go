@@ -65,7 +65,7 @@ func walkchunk(path string, fi os.FileInfo, dir string, root *FileInfo) error {
 	}
 	parent := root.LookUp(filepath.Dir(path))
 	if parent == nil {
-		return fmt.Errorf("collectFileInfoForChanges: Unexpectedly no parent for %s", path)
+		return fmt.Errorf("walkchunk: Unexpectedly no parent for %s", path)
 	}
 	info := &FileInfo{
 		name:     filepath.Base(path),
@@ -282,4 +282,31 @@ func clen(n []byte) int {
 		}
 	}
 	return len(n)
+}
+
+// OverlayChanges walks the path rw and determines changes for the files in the path,
+// with respect to the parent layers
+func OverlayChanges(layers []string, rw string) ([]Change, error) {
+	return changes(layers, rw, overlayDeletedFile, nil)
+}
+
+func overlayDeletedFile(root, path string, fi os.FileInfo) (string, error) {
+	if fi.Mode()&os.ModeCharDevice != 0 {
+		s := fi.Sys().(*syscall.Stat_t)
+		if major(uint64(s.Rdev)) == 0 && minor(uint64(s.Rdev)) == 0 {
+			return path, nil
+		}
+	}
+	if fi.Mode()&os.ModeDir != 0 {
+		opaque, err := system.Lgetxattr(filepath.Join(root, path), "trusted.overlay.opaque")
+		if err != nil {
+			return "", err
+		}
+		if len(opaque) == 1 && opaque[0] == 'y' {
+			return path, nil
+		}
+	}
+
+	return "", nil
+
 }

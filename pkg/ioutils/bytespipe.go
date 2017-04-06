@@ -1,42 +1,80 @@
 package ioutils
 
+import (
+	"errors"
+	"io"
+	"sync"
+)
+
+// maxCap is the highest capacity to use in byte slices that buffer data.
 const maxCap = 1e6
 
-// BytesPipe is io.ReadWriter which works similarly to pipe(queue).
-// All written data could be read only once. Also BytesPipe is allocating
-// and releasing new byte slices to adjust to current needs, so there won't be
-// overgrown buffer after high load peak.
-// BytesPipe isn't goroutine-safe, caller must synchronize it if needed.
+// minCap is the lowest capacity to use in byte slices that buffer data
+const minCap = 64
+
+// blockThreshold is the minimum number of bytes in the buffer which will cause
+// a write to BytesPipe to block when allocating a new slice.
+const blockThreshold = 1e6
+
+var (
+	// ErrClosed is returned when Write is called on a closed BytesPipe.
+	ErrClosed = errors.New("write to closed BytesPipe")
+
+	bufPools     = make(map[int]*sync.Pool)
+	bufPoolsLock sync.Mutex
+)
+
+// BytesPipe is io.ReadWriteCloser which works similarly to pipe(queue).
+// All written data may be read at most once. Also, BytesPipe allocates
+// and releases new byte slices to adjust to current needs, so the buffer
+// won't be overgrown after peak loads.
 type BytesPipe struct {
-	buf      [][]byte // slice of byte-slices of buffered data
-	lastRead int      // index in the first slice to a read point
-	bufLen   int      // length of data buffered over the slices
+	mu       sync.Mutex
+	wait     *sync.Cond
+	buf      []*fixedBuffer
+	bufLen   int
+	closeErr error // error to return from next Read. set to nil if not closed.
 }
 
 // NewBytesPipe creates new BytesPipe, initialized by specified slice.
 // If buf is nil, then it will be initialized with slice which cap is 64.
 // buf will be adjusted in a way that len(buf) == 0, cap(buf) == cap(buf).
-func NewBytesPipe(buf []byte) *BytesPipe {
-	if cap(buf) == 0 {
-		buf = make([]byte, 0, 64)
-	}
-	return &BytesPipe{
-		buf: [][]byte{buf[:0]},
-	}
+func NewBytesPipe() *BytesPipe {
+	bp := &BytesPipe{}
+	bp.buf = append(bp.buf, getBuffer(minCap))
+	bp.wait = sync.NewCond(&bp.mu)
+	return bp
 }
 
 // Write writes p to BytesPipe.
 // It can allocate new []byte slices in a process of writing.
-func (bp *BytesPipe) Write(p []byte) (n int, err error) {
+func (bp *BytesPipe) Write(p []byte) (int, error) {
+	bp.mu.Lock()
+
+	written := 0
+loop0:
 	for {
-		// write data to the last buffer
+		if bp.closeErr != nil {
+			bp.mu.Unlock()
+			return written, ErrClosed
+		}
+
+		if len(bp.buf) == 0 {
+			bp.buf = append(bp.buf, getBuffer(64))
+		}
+		// get the last buffer
 		b := bp.buf[len(bp.buf)-1]
-		// copy data to the current empty allocated area
-		n := copy(b[len(b):cap(b)], p)
-		// increment buffered data length
+
+		n, err := b.Write(p)
+		written += n
 		bp.bufLen += n
-		// include written data in last buffer
-		bp.buf[len(bp.buf)-1] = b[:len(b)+n]
+
+		// errBufferFull is an error we expect to get if the buffer is full
+		if err != nil && err != errBufferFull {
+			bp.wait.Broadcast()
+			bp.mu.Unlock()
+			return written, err
+		}
 
 		// if there was enough room to write all then break
 		if len(p) == n {
@@ -45,45 +83,104 @@ func (bp *BytesPipe) Write(p []byte) (n int, err error) {
 
 		// more data: write to the next slice
 		p = p[n:]
-		// allocate slice that has twice the size of the last unless maximum reached
-		nextCap := 2 * cap(bp.buf[len(bp.buf)-1])
-		if maxCap < nextCap {
+
+		// make sure the buffer doesn't grow too big from this write
+		for bp.bufLen >= blockThreshold {
+			bp.wait.Wait()
+			if bp.closeErr != nil {
+				continue loop0
+			}
+		}
+
+		// add new byte slice to the buffers slice and continue writing
+		nextCap := b.Cap() * 2
+		if nextCap > maxCap {
 			nextCap = maxCap
 		}
-		// add new byte slice to the buffers slice and continue writing
-		bp.buf = append(bp.buf, make([]byte, 0, nextCap))
+		bp.buf = append(bp.buf, getBuffer(nextCap))
 	}
-	return
+	bp.wait.Broadcast()
+	bp.mu.Unlock()
+	return written, nil
 }
 
-func (bp *BytesPipe) len() int {
-	return bp.bufLen - bp.lastRead
+// CloseWithError causes further reads from a BytesPipe to return immediately.
+func (bp *BytesPipe) CloseWithError(err error) error {
+	bp.mu.Lock()
+	if err != nil {
+		bp.closeErr = err
+	} else {
+		bp.closeErr = io.EOF
+	}
+	bp.wait.Broadcast()
+	bp.mu.Unlock()
+	return nil
+}
+
+// Close causes further reads from a BytesPipe to return immediately.
+func (bp *BytesPipe) Close() error {
+	return bp.CloseWithError(nil)
 }
 
 // Read reads bytes from BytesPipe.
 // Data could be read only once.
 func (bp *BytesPipe) Read(p []byte) (n int, err error) {
-	for {
-		read := copy(p, bp.buf[0][bp.lastRead:])
-		n += read
-		bp.lastRead += read
-		if bp.len() == 0 {
-			// we have read everything. reset to the beginning.
-			bp.lastRead = 0
-			bp.bufLen -= len(bp.buf[0])
-			bp.buf[0] = bp.buf[0][:0]
-			break
+	bp.mu.Lock()
+	if bp.bufLen == 0 {
+		if bp.closeErr != nil {
+			bp.mu.Unlock()
+			return 0, bp.closeErr
 		}
-		// break if everything was read
+		bp.wait.Wait()
+		if bp.bufLen == 0 && bp.closeErr != nil {
+			err := bp.closeErr
+			bp.mu.Unlock()
+			return 0, err
+		}
+	}
+
+	for bp.bufLen > 0 {
+		b := bp.buf[0]
+		read, _ := b.Read(p) // ignore error since fixedBuffer doesn't really return an error
+		n += read
+		bp.bufLen -= read
+
+		if b.Len() == 0 {
+			// it's empty so return it to the pool and move to the next one
+			returnBuffer(b)
+			bp.buf[0] = nil
+			bp.buf = bp.buf[1:]
+		}
+
 		if len(p) == read {
 			break
 		}
-		// more buffered data and more asked. read from next slice.
+
 		p = p[read:]
-		bp.lastRead = 0
-		bp.bufLen -= len(bp.buf[0])
-		bp.buf[0] = nil     // throw away old slice
-		bp.buf = bp.buf[1:] // switch to next
 	}
+
+	bp.wait.Broadcast()
+	bp.mu.Unlock()
 	return
+}
+
+func returnBuffer(b *fixedBuffer) {
+	b.Reset()
+	bufPoolsLock.Lock()
+	pool := bufPools[b.Cap()]
+	bufPoolsLock.Unlock()
+	if pool != nil {
+		pool.Put(b)
+	}
+}
+
+func getBuffer(size int) *fixedBuffer {
+	bufPoolsLock.Lock()
+	pool, ok := bufPools[size]
+	if !ok {
+		pool = &sync.Pool{New: func() interface{} { return &fixedBuffer{buf: make([]byte, 0, size)} }}
+		bufPools[size] = pool
+	}
+	bufPoolsLock.Unlock()
+	return pool.Get().(*fixedBuffer)
 }

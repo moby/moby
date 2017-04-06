@@ -7,44 +7,33 @@ import (
 )
 
 func TestParseLogTagDefaultTag(t *testing.T) {
-	ctx := buildContext(map[string]string{})
-	tag, e := ParseLogTag(ctx, "{{.ID}}")
-	assertTag(t, e, tag, ctx.ID())
+	info := buildContext(map[string]string{})
+	tag, e := ParseLogTag(info, "{{.ID}}")
+	assertTag(t, e, tag, info.ID())
 }
 
 func TestParseLogTag(t *testing.T) {
-	ctx := buildContext(map[string]string{"tag": "{{.ImageName}}/{{.Name}}/{{.ID}}"})
-	tag, e := ParseLogTag(ctx, "{{.ID}}")
+	info := buildContext(map[string]string{"tag": "{{.ImageName}}/{{.Name}}/{{.ID}}"})
+	tag, e := ParseLogTag(info, "{{.ID}}")
 	assertTag(t, e, tag, "test-image/test-container/container-ab")
 }
 
-func TestParseLogTagSyslogTag(t *testing.T) {
-	ctx := buildContext(map[string]string{"syslog-tag": "{{.ImageName}}/{{.Name}}/{{.ID}}"})
-	tag, e := ParseLogTag(ctx, "{{.ID}}")
-	assertTag(t, e, tag, "test-image/test-container/container-ab")
-}
-
-func TestParseLogTagGelfTag(t *testing.T) {
-	ctx := buildContext(map[string]string{"gelf-tag": "{{.ImageName}}/{{.Name}}/{{.ID}}"})
-	tag, e := ParseLogTag(ctx, "{{.ID}}")
-	assertTag(t, e, tag, "test-image/test-container/container-ab")
-}
-
-func TestParseLogTagFluentdTag(t *testing.T) {
-	ctx := buildContext(map[string]string{"fluentd-tag": "{{.ImageName}}/{{.Name}}/{{.ID}}"})
-	tag, e := ParseLogTag(ctx, "{{.ID}}")
-	assertTag(t, e, tag, "test-image/test-container/container-ab")
+func TestParseLogTagEmptyTag(t *testing.T) {
+	info := buildContext(map[string]string{})
+	tag, e := ParseLogTag(info, "{{.DaemonName}}/{{.ID}}")
+	assertTag(t, e, tag, "test-dockerd/container-ab")
 }
 
 // Helpers
 
-func buildContext(cfg map[string]string) logger.Context {
-	return logger.Context{
+func buildContext(cfg map[string]string) logger.Info {
+	return logger.Info{
 		ContainerID:        "container-abcdefghijklmnopqrstuvwxyz01234567890",
 		ContainerName:      "/test-container",
 		ContainerImageID:   "image-abcdefghijklmnopqrstuvwxyz01234567890",
 		ContainerImageName: "test-image",
 		Config:             cfg,
+		DaemonName:         "test-dockerd",
 	}
 }
 

@@ -5,8 +5,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"os"
+
+	"github.com/docker/docker/api/types"
 )
 
 type ports struct {
@@ -285,7 +286,7 @@ func TestLoadOrCreateTrustKeyInvalidKeyFile(t *testing.T) {
 	}
 
 	if _, err := LoadOrCreateTrustKey(tmpKeyFile.Name()); err == nil {
-		t.Fatalf("expected an error, got nothing.")
+		t.Fatal("expected an error, got nothing.")
 	}
 
 }
@@ -309,7 +310,7 @@ func TestLoadOrCreateTrustKeyCreateKey(t *testing.T) {
 	}
 
 	// With the need to create the folder hierarchy as tmpKeyFie is in a path
-	// where some folder do not exists.
+	// where some folders do not exist.
 	tmpKeyFile = filepath.Join(tmpKeyFolderPath, "folder/hierarchy/keyfile")
 
 	if key, err := LoadOrCreateTrustKey(tmpKeyFile); err != nil || key == nil {

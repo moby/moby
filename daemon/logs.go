@@ -1,54 +1,43 @@
 package daemon
 
 import (
+	"errors"
 	"io"
 	"strconv"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/types/backend"
+	containertypes "github.com/docker/docker/api/types/container"
+	timetypes "github.com/docker/docker/api/types/time"
+	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/logger"
-	derr "github.com/docker/docker/errors"
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/stdcopy"
 )
 
-// ContainerLogsConfig holds configs for logging operations. Exists
-// for users of the daemon to to pass it a logging configuration.
-type ContainerLogsConfig struct {
-	// if true stream log output
-	Follow bool
-	// if true include timestamps for each line of log output
-	Timestamps bool
-	// return that many lines of log output from the end
-	Tail string
-	// filter logs by returning on those entries after this time
-	Since time.Time
-	// whether or not to show stdout and stderr as well as log entries.
-	UseStdout, UseStderr bool
-	OutStream            io.Writer
-	Stop                 <-chan bool
-}
-
 // ContainerLogs hooks up a container's stdout and stderr streams
 // configured with the given struct.
-func (daemon *Daemon) ContainerLogs(containerName string, config *ContainerLogsConfig) error {
-	container, err := daemon.Get(containerName)
+func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, config *backend.ContainerLogsConfig, started chan struct{}) error {
+	if !(config.ShowStdout || config.ShowStderr) {
+		return errors.New("You must choose at least one stream")
+	}
+	container, err := daemon.GetContainer(containerName)
 	if err != nil {
-		return derr.ErrorCodeNoSuchContainer.WithArgs(containerName)
+		return err
 	}
 
-	if !(config.UseStdout || config.UseStderr) {
-		return derr.ErrorCodeNeedStream
+	if container.RemovalInProgress || container.Dead {
+		return errors.New("can not get logs from container which is dead or marked for removal")
 	}
 
-	outStream := config.OutStream
-	errStream := outStream
-	if !container.Config.Tty {
-		errStream = stdcopy.NewStdWriter(outStream, stdcopy.Stderr)
-		outStream = stdcopy.NewStdWriter(outStream, stdcopy.Stdout)
+	if container.HostConfig.LogConfig.Type == "none" {
+		return logger.ErrReadLogsNotSupported
 	}
-	config.OutStream = outStream
 
-	cLog, err := container.getLogger()
+	cLog, err := daemon.getLogger(container)
 	if err != nil {
 		return err
 	}
@@ -64,36 +53,101 @@ func (daemon *Daemon) ContainerLogs(containerName string, config *ContainerLogsC
 	}
 
 	logrus.Debug("logs: begin stream")
+
+	var since time.Time
+	if config.Since != "" {
+		s, n, err := timetypes.ParseTimestamps(config.Since, 0)
+		if err != nil {
+			return err
+		}
+		since = time.Unix(s, n)
+	}
 	readConfig := logger.ReadConfig{
-		Since:  config.Since,
+		Since:  since,
 		Tail:   tailLines,
 		Follow: follow,
 	}
 	logs := logReader.ReadLogs(readConfig)
+	// Close logWatcher on exit
+	defer func() {
+		logs.Close()
+		if cLog != container.LogDriver {
+			// Since the logger isn't cached in the container, which
+			// occurs if it is running, it must get explicitly closed
+			// here to avoid leaking it and any file handles it has.
+			if err := cLog.Close(); err != nil {
+				logrus.Errorf("Error closing logger: %v", err)
+			}
+		}
+	}()
+
+	wf := ioutils.NewWriteFlusher(config.OutStream)
+	defer wf.Close()
+	close(started)
+	wf.Flush()
+
+	var outStream io.Writer
+	outStream = wf
+	errStream := outStream
+	if !container.Config.Tty {
+		errStream = stdcopy.NewStdWriter(outStream, stdcopy.Stderr)
+		outStream = stdcopy.NewStdWriter(outStream, stdcopy.Stdout)
+	}
 
 	for {
 		select {
 		case err := <-logs.Err:
 			logrus.Errorf("Error streaming logs: %v", err)
 			return nil
-		case <-config.Stop:
-			logs.Close()
+		case <-ctx.Done():
+			logrus.Debugf("logs: end stream, ctx is done: %v", ctx.Err())
 			return nil
 		case msg, ok := <-logs.Msg:
 			if !ok {
-				logrus.Debugf("logs: end stream")
+				logrus.Debug("logs: end stream")
 				return nil
 			}
 			logLine := msg.Line
+			if config.Details {
+				logLine = append([]byte(msg.Attrs.String()+" "), logLine...)
+			}
 			if config.Timestamps {
 				logLine = append([]byte(msg.Timestamp.Format(logger.TimeFormat)+" "), logLine...)
 			}
-			if msg.Source == "stdout" && config.UseStdout {
+			if msg.Source == "stdout" && config.ShowStdout {
 				outStream.Write(logLine)
 			}
-			if msg.Source == "stderr" && config.UseStderr {
+			if msg.Source == "stderr" && config.ShowStderr {
 				errStream.Write(logLine)
 			}
 		}
 	}
+}
+
+func (daemon *Daemon) getLogger(container *container.Container) (logger.Logger, error) {
+	if container.LogDriver != nil && container.IsRunning() {
+		return container.LogDriver, nil
+	}
+	return container.StartLogger()
+}
+
+// mergeLogConfig merges the daemon log config to the container's log config if the container's log driver is not specified.
+func (daemon *Daemon) mergeAndVerifyLogConfig(cfg *containertypes.LogConfig) error {
+	if cfg.Type == "" {
+		cfg.Type = daemon.defaultLogConfig.Type
+	}
+
+	if cfg.Config == nil {
+		cfg.Config = make(map[string]string)
+	}
+
+	if cfg.Type == daemon.defaultLogConfig.Type {
+		for k, v := range daemon.defaultLogConfig.Config {
+			if _, ok := cfg.Config[k]; !ok {
+				cfg.Config[k] = v
+			}
+		}
+	}
+
+	return logger.ValidateLogOpts(cfg.Type, cfg.Config)
 }

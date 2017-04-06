@@ -21,37 +21,36 @@ To run, I need:
 - to be provided with the location of an S3 bucket and path, in
   environment variables AWS_S3_BUCKET and AWS_S3_BUCKET_PATH (default: '');
 - to be provided with AWS credentials for this S3 bucket, in environment
-  variables AWS_ACCESS_KEY and AWS_SECRET_KEY;
-- the passphrase to unlock the GPG key specified by the optional environment
-  variable GPG_KEYID (default: releasedocker) which will sign the deb
-  packages (passed as environment variable GPG_PASSPHRASE);
+  variables AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY;
 - a generous amount of good will and nice manners.
 The canonical way to run me is to run the image produced by the Dockerfile: e.g.:"
 
 docker run -e AWS_S3_BUCKET=test.docker.com \
-           -e AWS_ACCESS_KEY=... \
-           -e AWS_SECRET_KEY=... \
-           -e GPG_PASSPHRASE=... \
-           -i -t --privileged \
+           -e AWS_ACCESS_KEY_ID     \
+           -e AWS_SECRET_ACCESS_KEY \
+           -e AWS_DEFAULT_REGION    \
+           -it --privileged         \
            docker ./hack/release.sh
 EOF
 	exit 1
 }
 
 [ "$AWS_S3_BUCKET" ] || usage
-[ "$AWS_ACCESS_KEY" ] || usage
-[ "$AWS_SECRET_KEY" ] || usage
-[ "$GPG_PASSPHRASE" ] || usage
-: ${GPG_KEYID:=releasedocker}
+[ "$AWS_ACCESS_KEY_ID" ] || usage
+[ "$AWS_SECRET_ACCESS_KEY" ] || usage
 [ -d /go/src/github.com/docker/docker ] || usage
 cd /go/src/github.com/docker/docker
 [ -x hack/make.sh ] || usage
+
+export AWS_DEFAULT_REGION
+: ${AWS_DEFAULT_REGION:=us-west-1}
+
+AWS_CLI=${AWS_CLI:-'aws'}
 
 RELEASE_BUNDLES=(
 	binary
 	cross
 	tgz
-	ubuntu
 )
 
 if [ "$1" != '--release-regardless-of-test-failure' ]; then
@@ -83,14 +82,11 @@ fi
 setup_s3() {
 	echo "Setting up S3"
 	# Try creating the bucket. Ignore errors (it might already exist).
-	s3cmd mb "s3://$BUCKET" 2>/dev/null || true
+	$AWS_CLI s3 mb "s3://$BUCKET" 2>/dev/null || true
 	# Check access to the bucket.
-	# s3cmd has no useful exit status, so we cannot check that.
-	# Instead, we check if it outputs anything on standard output.
-	# (When there are problems, it uses standard error instead.)
-	s3cmd info "s3://$BUCKET" | grep -q .
+	$AWS_CLI s3 ls "s3://$BUCKET" >/dev/null
 	# Make the bucket accessible through website endpoints.
-	s3cmd ws-create --ws-index index --ws-error error "s3://$BUCKET"
+	$AWS_CLI s3 website --index-document index --error-document error "s3://$BUCKET"
 }
 
 # write_to_s3 uploads the contents of standard input to the specified S3 url.
@@ -98,7 +94,7 @@ write_to_s3() {
 	DEST=$1
 	F=`mktemp`
 	cat > "$F"
-	s3cmd --acl-public --mime-type='text/plain' put "$F" "$DEST"
+	$AWS_CLI s3 cp --acl public-read --content-type 'text/plain' "$F" "$DEST"
 	rm -f "$F"
 }
 
@@ -108,7 +104,7 @@ s3_url() {
 			echo "https://$BUCKET_PATH"
 			;;
 		*)
-			BASE_URL=$( s3cmd ws-info s3://$BUCKET | awk -v 'FS=: +' '/http:\/\/'$BUCKET'/ { gsub(/\/+$/, "", $2); print $2 }' )
+			BASE_URL="http://${BUCKET}.s3-website-${AWS_DEFAULT_REGION}.amazonaws.com"
 			if [[ -n "$AWS_S3_BUCKET_PATH" ]] ; then
 				echo "$BASE_URL/$AWS_S3_BUCKET_PATH"
 			else
@@ -153,12 +149,12 @@ upload_release_build() {
 	echo "Uploading $src"
 	echo "  to $dst"
 	echo
-	s3cmd --follow-symlinks --preserve --acl-public put "$src" "$dst"
+	$AWS_CLI s3 cp --follow-symlinks --acl public-read "$src" "$dst"
 	if [ "$latest" ]; then
 		echo
 		echo "Copying to $latest"
 		echo
-		s3cmd --acl-public cp "$dst" "$latest"
+		$AWS_CLI s3 cp --acl public-read "$dst" "$latest"
 	fi
 
 	# get hash files too (see hash_files() in hack/make.sh)
@@ -168,12 +164,12 @@ upload_release_build() {
 			echo "Uploading $src.$hashAlgo"
 			echo "  to $dst.$hashAlgo"
 			echo
-			s3cmd --follow-symlinks --preserve --acl-public --mime-type='text/plain' put "$src.$hashAlgo" "$dst.$hashAlgo"
+			$AWS_CLI s3 cp --follow-symlinks --acl public-read --content-type='text/plain' "$src.$hashAlgo" "$dst.$hashAlgo"
 			if [ "$latest" ]; then
 				echo
 				echo "Copying to $latest.$hashAlgo"
 				echo
-				s3cmd --acl-public cp "$dst.$hashAlgo" "$latest.$hashAlgo"
+				$AWS_CLI s3 cp --acl public-read "$dst.$hashAlgo" "$latest.$hashAlgo"
 			fi
 		fi
 	done
@@ -187,7 +183,9 @@ release_build() {
 	binDir=bundles/$VERSION/cross/$GOOS/$GOARCH
 	tgzDir=bundles/$VERSION/tgz/$GOOS/$GOARCH
 	binary=docker-$VERSION
-	tgz=docker-$VERSION.tgz
+	zipExt=".tgz"
+	binaryExt=""
+	tgz=$binary$zipExt
 
 	latestBase=
 	if [ -z "$NOLATEST" ]; then
@@ -209,12 +207,17 @@ release_build() {
 		linux)
 			s3Os=Linux
 			;;
+		solaris)
+			echo skipping solaris release
+			return 0
+			;;
 		windows)
+			# this is windows use the .zip and .exe extensions for the files.
 			s3Os=Windows
-			binary+='.exe'
-			if [ "$latestBase" ]; then
-				latestBase+='.exe'
-			fi
+			zipExt=".zip"
+			binaryExt=".exe"
+			tgz=$binary$zipExt
+			binary+=$binaryExt
 			;;
 		*)
 			echo >&2 "error: can't convert $s3Os to an appropriate value for 'uname -s'"
@@ -232,7 +235,7 @@ release_build() {
 			;;
 		arm)
 			s3Arch=armel
-			# someday, we might potentially support mutliple GOARM values, in which case we might get armhf here too
+			# someday, we might potentially support multiple GOARM values, in which case we might get armhf here too
 			;;
 		*)
 			echo >&2 "error: can't convert $s3Arch to an appropriate value for 'uname -m'"
@@ -241,92 +244,27 @@ release_build() {
 	esac
 
 	s3Dir="s3://$BUCKET_PATH/builds/$s3Os/$s3Arch"
-	latest=
+	# latest=
 	latestTgz=
 	if [ "$latestBase" ]; then
-		latest="$s3Dir/$latestBase"
-		latestTgz="$s3Dir/$latestBase.tgz"
+		# commented out since we aren't uploading binaries right now.
+		# latest="$s3Dir/$latestBase$binaryExt"
+		# we don't include the $binaryExt because we don't want docker.exe.zip
+		latestTgz="$s3Dir/$latestBase$zipExt"
 	fi
 
-	if [ ! -x "$binDir/$binary" ]; then
-		echo >&2 "error: can't find $binDir/$binary - was it compiled properly?"
-		exit 1
-	fi
 	if [ ! -f "$tgzDir/$tgz" ]; then
 		echo >&2 "error: can't find $tgzDir/$tgz - was it packaged properly?"
 		exit 1
 	fi
-
-	upload_release_build "$binDir/$binary" "$s3Dir/$binary" "$latest"
+	# disable binary uploads for now. Only providing tgz downloads
+	# upload_release_build "$binDir/$binary" "$s3Dir/$binary" "$latest"
 	upload_release_build "$tgzDir/$tgz" "$s3Dir/$tgz" "$latestTgz"
-}
-
-# Upload the 'ubuntu' bundle to S3:
-# 1. A full APT repository is published at $BUCKET/ubuntu/
-# 2. Instructions for using the APT repository are uploaded at $BUCKET/ubuntu/index
-release_ubuntu() {
-	echo "Releasing ubuntu"
-	[ -e "bundles/$VERSION/ubuntu" ] || {
-		echo >&2 './hack/make.sh must be run before release_ubuntu'
-		exit 1
-	}
-
-	local debfiles=( "bundles/$VERSION/ubuntu/"*.deb )
-
-	# Sign our packages
-	dpkg-sig -g "--passphrase $GPG_PASSPHRASE" -k "$GPG_KEYID" --sign builder "${debfiles[@]}"
-
-	# Setup the APT repo
-	APTDIR=bundles/$VERSION/ubuntu/apt
-	mkdir -p "$APTDIR/conf" "$APTDIR/db"
-	s3cmd sync "s3://$BUCKET/ubuntu/db/" "$APTDIR/db/" || true
-	cat > "$APTDIR/conf/distributions" <<EOF
-Codename: docker
-Components: main
-Architectures: amd64 i386
-EOF
-
-	# Add the DEB package to the APT repo
-	reprepro -b "$APTDIR" includedeb docker "${debfiles[@]}"
-
-	# Sign
-	for F in $(find $APTDIR -name Release); do
-		gpg -u "$GPG_KEYID" --passphrase "$GPG_PASSPHRASE" \
-			--armor --sign --detach-sign \
-			--output "$F.gpg" "$F"
-	done
-
-	# Upload keys
-	s3cmd sync "$HOME/.gnupg/" "s3://$BUCKET/ubuntu/.gnupg/"
-	gpg --armor --export "$GPG_KEYID" > "bundles/$VERSION/ubuntu/gpg"
-	s3cmd --acl-public put "bundles/$VERSION/ubuntu/gpg" "s3://$BUCKET/gpg"
-
-	local gpgFingerprint=36A1D7869245C8950F966E92D8576A8BA88D21E9
-	local s3Headers=
-	if [[ $BUCKET == test* ]]; then
-		gpgFingerprint=740B314AE3941731B942C66ADF4FD13717AAD7D6
-	elif [[ $BUCKET == experimental* ]]; then
-		gpgFingerprint=E33FF7BF5C91D50A6F91FFFD4CC38D40F9A96B49
-		s3Headers='--add-header=Cache-Control:no-cache'
-	fi
-
-	# Upload repo
-	s3cmd --acl-public $s3Headers sync "$APTDIR/" "s3://$BUCKET/ubuntu/"
-	cat <<EOF | write_to_s3 s3://$BUCKET/ubuntu/index
-echo "# WARNING! This script is deprecated. Please use the script"
-echo "# at https://get.docker.com/"
-EOF
-
-	# Add redirect at /ubuntu/info for URL-backwards-compatibility
-	rm -rf /tmp/emptyfile && touch /tmp/emptyfile
-	s3cmd --acl-public --add-header='x-amz-website-redirect-location:/ubuntu/' --mime-type='text/plain' put /tmp/emptyfile "s3://$BUCKET/ubuntu/info"
-
-	echo "APT repository uploaded. Instructions available at $(s3_url)/ubuntu"
 }
 
 # Upload binaries and tgz files to S3
 release_binaries() {
-	[ -e "bundles/$VERSION/cross/linux/amd64/docker-$VERSION" ] || {
+	[ "$(find bundles/$VERSION -path "bundles/$VERSION/cross/*/*/docker-$VERSION")" != "" ] || {
 		echo >&2 './hack/make.sh must be run before release_binaries'
 		exit 1
 	}
@@ -340,15 +278,16 @@ release_binaries() {
 	# TODO create redirect from builds/*/i686 to builds/*/i386
 
 	cat <<EOF | write_to_s3 s3://$BUCKET_PATH/builds/index
-# To install, run the following command as root:
-curl -sSL -O $(s3_url)/builds/Linux/x86_64/docker-$VERSION && chmod +x docker-$VERSION && sudo mv docker-$VERSION /usr/local/bin/docker
+# To install, run the following commands as root:
+curl -fsSLO $(s3_url)/builds/Linux/x86_64/docker-$VERSION.tgz && tar --strip-components=1 -xvzf docker-$VERSION.tgz -C /usr/local/bin
+
 # Then start docker in daemon mode:
-sudo /usr/local/bin/docker daemon
+/usr/local/bin/dockerd
 EOF
 
 	# Add redirect at /builds/info for URL-backwards-compatibility
 	rm -rf /tmp/emptyfile && touch /tmp/emptyfile
-	s3cmd --acl-public --add-header='x-amz-website-redirect-location:/builds/' --mime-type='text/plain' put /tmp/emptyfile "s3://$BUCKET_PATH/builds/info"
+	$AWS_CLI s3 cp --acl public-read --website-redirect '/builds/' --content-type='text/plain' /tmp/emptyfile "s3://$BUCKET_PATH/builds/info"
 
 	if [ -z "$NOLATEST" ]; then
 		echo "Advertising $VERSION on $BUCKET_PATH as most recent version"
@@ -359,43 +298,15 @@ EOF
 # Upload the index script
 release_index() {
 	echo "Releasing index"
-	sed "s,url='https://get.docker.com/',url='$(s3_url)/'," hack/install.sh | write_to_s3 "s3://$BUCKET_PATH/index"
-}
-
-release_test() {
-	echo "Releasing tests"
-	if [ -e "bundles/$VERSION/test" ]; then
-		s3cmd --acl-public sync "bundles/$VERSION/test/" "s3://$BUCKET_PATH/test/"
-	fi
-}
-
-setup_gpg() {
-	echo "Setting up GPG"
-	# Make sure that we have our keys
-	mkdir -p "$HOME/.gnupg/"
-	s3cmd sync "s3://$BUCKET/ubuntu/.gnupg/" "$HOME/.gnupg/" || true
-	gpg --list-keys "$GPG_KEYID" >/dev/null || {
-		gpg --gen-key --batch <<EOF
-Key-Type: RSA
-Key-Length: 4096
-Passphrase: $GPG_PASSPHRASE
-Name-Real: Docker Release Tool
-Name-Email: docker@docker.com
-Name-Comment: $GPG_KEYID
-Expire-Date: 0
-%commit
-EOF
-	}
+	url="$(s3_url)/" hack/make.sh install-script
+	write_to_s3 "s3://$BUCKET_PATH/index" < "bundles/$VERSION/install-script/install.sh"
 }
 
 main() {
-	build_all
+	[ "$SKIP_RELEASE_BUILD" -eq 1 ] || build_all
 	setup_s3
-	setup_gpg
 	release_binaries
-	release_ubuntu
 	release_index
-	release_test
 }
 
 main
@@ -407,11 +318,8 @@ echo "Use the following text to announce the release:"
 echo
 echo "We have just pushed $VERSION to $(s3_url). You can download it with the following:"
 echo
-echo "Ubuntu/Debian: curl -sSL $(s3_url) | sh"
-echo "Linux 64bit binary: $(s3_url)/builds/Linux/x86_64/docker-$VERSION"
-echo "Darwin/OSX 64bit client binary: $(s3_url)/builds/Darwin/x86_64/docker-$VERSION"
-echo "Darwin/OSX 32bit client binary: $(s3_url)/builds/Darwin/i386/docker-$VERSION"
 echo "Linux 64bit tgz: $(s3_url)/builds/Linux/x86_64/docker-$VERSION.tgz"
-echo "Windows 64bit client binary: $(s3_url)/builds/Windows/x86_64/docker-$VERSION.exe"
-echo "Windows 32bit client binary: $(s3_url)/builds/Windows/i386/docker-$VERSION.exe"
+echo "Darwin/OSX 64bit client tgz: $(s3_url)/builds/Darwin/x86_64/docker-$VERSION.tgz"
+echo "Windows 64bit zip: $(s3_url)/builds/Windows/x86_64/docker-$VERSION.zip"
+echo "Windows 32bit client zip: $(s3_url)/builds/Windows/i386/docker-$VERSION.zip"
 echo

@@ -30,7 +30,7 @@ Where:
 - `--type` is the name of the interface to use
 - `--name` is the subsystem that the plugin "Implements"
 - `-i` is the input file containing the interface definition
-- `-o` is the output file where the the generated code should go
+- `-o` is the output file where the generated code should go
 
 **Note**: The generated code will use the same package name as the one defined in the input file
 
@@ -42,16 +42,6 @@ You can also add build tags that should be prepended to the generated code by
 supplying `--tag`. This flag can be specified multiple times.
 
 ## Known issues
-
-The parser can currently only handle types which are not specifically a map or
-a slice.  
-You can, however, create a type that uses a map or a slice internally, for instance:
-
-```go
-type opts map[string]string
-```
-
-This `opts` type will work, whreas using a `map[string]string` directly will not.
 
 ## go-generate
 

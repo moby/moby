@@ -10,67 +10,97 @@ var (
 	left = [...]string{
 		"admiring",
 		"adoring",
+		"affectionate",
 		"agitated",
 		"amazing",
 		"angry",
 		"awesome",
-		"backstabbing",
-		"berserk",
-		"big",
+		"blissful",
 		"boring",
+		"brave",
 		"clever",
 		"cocky",
 		"compassionate",
+		"competent",
 		"condescending",
+		"confident",
 		"cranky",
-		"desperate",
+		"dazzling",
 		"determined",
 		"distracted",
 		"dreamy",
-		"drunk",
+		"eager",
 		"ecstatic",
+		"elastic",
 		"elated",
 		"elegant",
-		"evil",
+		"eloquent",
+		"epic",
 		"fervent",
+		"festive",
+		"flamboyant",
 		"focused",
-		"furious",
-		"gigantic",
-		"gloomy",
+		"friendly",
+		"frosty",
+		"gallant",
+		"gifted",
 		"goofy",
-		"grave",
+		"gracious",
 		"happy",
-		"high",
+		"hardcore",
+		"heuristic",
 		"hopeful",
 		"hungry",
-		"insane",
+		"infallible",
+		"inspiring",
 		"jolly",
 		"jovial",
-		"kickass",
-		"lonely",
+		"keen",
+		"kind",
+		"laughing",
 		"loving",
-		"mad",
+		"lucid",
+		"mystifying",
 		"modest",
+		"musing",
 		"naughty",
+		"nervous",
+		"nifty",
 		"nostalgic",
+		"objective",
+		"optimistic",
+		"peaceful",
+		"pedantic",
 		"pensive",
-		"prickly",
+		"practical",
+		"priceless",
+		"quirky",
+		"quizzical",
+		"relaxed",
 		"reverent",
 		"romantic",
 		"sad",
 		"serene",
 		"sharp",
-		"sick",
 		"silly",
 		"sleepy",
-		"small",
 		"stoic",
 		"stupefied",
 		"suspicious",
 		"tender",
 		"thirsty",
-		"tiny",
 		"trusting",
+		"unruffled",
+		"upbeat",
+		"vibrant",
+		"vigilant",
+		"vigorous",
+		"wizardly",
+		"wonderful",
+		"xenodochial",
+		"youthful",
+		"zealous",
+		"zen",
 	}
 
 	// Docker, starting from 0.7.x, generates names from notable scientists and hackers.
@@ -84,6 +114,9 @@ var (
 
 		// June Almeida - Scottish virologist who took the first pictures of the rubella virus - https://en.wikipedia.org/wiki/June_Almeida
 		"almeida",
+
+		// Maria Gaetana Agnesi - Italian mathematician, philosopher, theologian and humanitarian. She was the first woman to write a mathematics handbook and the first woman appointed as a Mathematics Professor at a University. https://en.wikipedia.org/wiki/Maria_Gaetana_Agnesi
+		"agnesi",
 
 		// Archimedes was a physicist, engineer and mathematician who invented too many things to list them here. https://en.wikipedia.org/wiki/Archimedes
 		"archimedes",
@@ -112,8 +145,14 @@ var (
 		// Laura Bassi, the world's first female professor https://en.wikipedia.org/wiki/Laura_Bassi
 		"bassi",
 
+		// Hugh Beaver, British engineer, founder of the Guinness Book of World Records https://en.wikipedia.org/wiki/Hugh_Beaver
+		"beaver",
+
 		// Alexander Graham Bell - an eminent Scottish-born scientist, inventor, engineer and innovator who is credited with inventing the first practical telephone - https://en.wikipedia.org/wiki/Alexander_Graham_Bell
 		"bell",
+
+		// Karl Friedrich Benz - a German automobile engineer. Inventor of the first practical motorcar. https://en.wikipedia.org/wiki/Karl_Benz
+		"benz",
 
 		// Homi J Bhabha - was an Indian nuclear physicist, founding director, and professor of physics at the Tata Institute of Fundamental Research. Colloquially known as "father of Indian nuclear programme"- https://en.wikipedia.org/wiki/Homi_J._Bhabha
 		"bhabha",
@@ -154,6 +193,12 @@ var (
 		// Subrahmanyan Chandrasekhar - Astrophysicist known for his mathematical theory on different stages and evolution in structures of the stars. He has won nobel prize for physics - https://en.wikipedia.org/wiki/Subrahmanyan_Chandrasekhar
 		"chandrasekhar",
 
+		//Claude Shannon - The father of information theory and founder of digital circuit design theory. (https://en.wikipedia.org/wiki/Claude_Shannon)
+		"shannon",
+
+		// Joan Clarke - Bletchley Park code breaker during the Second World War who pioneered techniques that remained top secret for decades. Also an accomplished numismatist https://en.wikipedia.org/wiki/Joan_Clarke
+		"clarke",
+
 		// Jane Colden - American botanist widely considered the first female American botanist - https://en.wikipedia.org/wiki/Jane_Colden
 		"colden",
 
@@ -162,6 +207,11 @@ var (
 
 		// Seymour Roger Cray was an American electrical engineer and supercomputer architect who designed a series of computers that were the fastest in the world for decades. https://en.wikipedia.org/wiki/Seymour_Cray
 		"cray",
+
+		// This entry reflects a husband and wife team who worked together:
+		// Joan Curran was a Welsh scientist who developed radar and invented chaff, a radar countermeasure. https://en.wikipedia.org/wiki/Joan_Curran
+		// Samuel Curran was an Irish physicist who worked alongside his wife during WWII and invented the proximity fuse. https://en.wikipedia.org/wiki/Samuel_Curran
+		"curran",
 
 		// Marie Curie discovered radioactivity. https://en.wikipedia.org/wiki/Marie_Curie.
 		"curie",
@@ -180,6 +230,9 @@ var (
 
 		// Annie Easley - She was a leading member of the team which developed software for the Centaur rocket stage and one of the first African-Americans in her field. https://en.wikipedia.org/wiki/Annie_Easley
 		"easley",
+
+		// Thomas Alva Edison, prolific inventor https://en.wikipedia.org/wiki/Thomas_Edison
+		"edison",
 
 		// Albert Einstein invented the general theory of relativity. https://en.wikipedia.org/wiki/Albert_Einstein
 		"einstein",
@@ -220,8 +273,17 @@ var (
 		// Adele Goldstine, born Adele Katz, wrote the complete technical description for the first electronic digital computer, ENIAC. https://en.wikipedia.org/wiki/Adele_Goldstine
 		"goldstine",
 
+		// Shafi Goldwasser is a computer scientist known for creating theoretical foundations of modern cryptography. Winner of 2012 ACM Turing Award. https://en.wikipedia.org/wiki/Shafi_Goldwasser
+		"goldwasser",
+
+		// James Golick, all around gangster.
+		"golick",
+
 		// Jane Goodall - British primatologist, ethologist, and anthropologist who is considered to be the world's foremost expert on chimpanzees - https://en.wikipedia.org/wiki/Jane_Goodall
 		"goodall",
+
+		// Lois Haibt - American computer scientist, part of the team at IBM that developed FORTRAN - https://en.wikipedia.org/wiki/Lois_Haibt
+		"haibt",
 
 		// Margaret Hamilton - Director of the Software Engineering Division of the MIT Instrumentation Laboratory, which developed on-board flight software for the Apollo space program. https://en.wikipedia.org/wiki/Margaret_Hamilton_(scientist)
 		"hamilton",
@@ -232,13 +294,16 @@ var (
 		// Werner Heisenberg was a founding father of quantum mechanics. https://en.wikipedia.org/wiki/Werner_Heisenberg
 		"heisenberg",
 
+		// Grete Hermann was a German philosopher noted for her philosophical work on the foundations of quantum mechanics. https://en.wikipedia.org/wiki/Grete_Hermann
+		"hermann",
+
 		// Jaroslav Heyrovský was the inventor of the polarographic method, father of the electroanalytical method, and recipient of the Nobel Prize in 1959. His main field of work was polarography. https://en.wikipedia.org/wiki/Jaroslav_Heyrovsk%C3%BD
 		"heyrovsky",
 
 		// Dorothy Hodgkin was a British biochemist, credited with the development of protein crystallography. She was awarded the Nobel Prize in Chemistry in 1964. https://en.wikipedia.org/wiki/Dorothy_Hodgkin
 		"hodgkin",
 
-		// Erna Schneider Hoover revolutionized modern communication by inventing a computerized telephon switching method. https://en.wikipedia.org/wiki/Erna_Schneider_Hoover
+		// Erna Schneider Hoover revolutionized modern communication by inventing a computerized telephone switching method. https://en.wikipedia.org/wiki/Erna_Schneider_Hoover
 		"hoover",
 
 		// Grace Hopper developed the first compiler for a computer programming language and  is credited with popularizing the term "debugging" for fixing computer glitches. https://en.wikipedia.org/wiki/Grace_Hopper
@@ -250,6 +315,9 @@ var (
 		// Hypatia - Greek Alexandrine Neoplatonist philosopher in Egypt who was one of the earliest mothers of mathematics - https://en.wikipedia.org/wiki/Hypatia
 		"hypatia",
 
+		// Mary Jackson, American mathematician and aerospace engineer who earned the highest title within NASA's engineering department - https://en.wikipedia.org/wiki/Mary_Jackson_(engineer)
+		"jackson",
+
 		// Yeong-Sil Jang was a Korean scientist and astronomer during the Joseon Dynasty; he invented the first metal printing press and water gauge. https://en.wikipedia.org/wiki/Jang_Yeong-sil
 		"jang",
 
@@ -258,6 +326,9 @@ var (
 
 		// Mary Lou Jepsen, was the founder and chief technology officer of One Laptop Per Child (OLPC), and the founder of Pixel Qi. https://en.wikipedia.org/wiki/Mary_Lou_Jepsen
 		"jepsen",
+
+		// Katherine Coleman Goble Johnson - American physicist and mathematician contributed to the NASA. https://en.wikipedia.org/wiki/Katherine_Johnson
+		"johnson",
 
 		// Irène Joliot-Curie - French scientist who was awarded the Nobel Prize for Chemistry in 1935. Daughter of Marie and Pierre Curie. https://en.wikipedia.org/wiki/Ir%C3%A8ne_Joliot-Curie
 		"joliot",
@@ -273,6 +344,9 @@ var (
 
 		// Mary Kenneth Keller, Sister Mary Kenneth Keller became the first American woman to earn a PhD in Computer Science in 1965. https://en.wikipedia.org/wiki/Mary_Kenneth_Keller
 		"keller",
+
+		// Johannes Kepler, German astronomer known for his three laws of planetary motion - https://en.wikipedia.org/wiki/Johannes_Kepler
+		"kepler",
 
 		// Har Gobind Khorana - Indian-American biochemist who shared the 1968 Nobel Prize for Physiology - https://en.wikipedia.org/wiki/Har_Gobind_Khorana
 		"khorana",
@@ -295,11 +369,17 @@ var (
 		// Hedy Lamarr - Actress and inventor. The principles of her work are now incorporated into modern Wi-Fi, CDMA and Bluetooth technology. https://en.wikipedia.org/wiki/Hedy_Lamarr
 		"lamarr",
 
+		// Leslie B. Lamport - American computer scientist. Lamport is best known for his seminal work in distributed systems and was the winner of the 2013 Turing Award. https://en.wikipedia.org/wiki/Leslie_Lamport
+		"lamport",
+
 		// Mary Leakey - British paleoanthropologist who discovered the first fossilized Proconsul skull - https://en.wikipedia.org/wiki/Mary_Leakey
 		"leakey",
 
 		// Henrietta Swan Leavitt - she was an American astronomer who discovered the relation between the luminosity and the period of Cepheid variable stars. https://en.wikipedia.org/wiki/Henrietta_Swan_Leavitt
 		"leavitt",
+
+		//Daniel Lewin -  Mathematician, Akamai co-founder, soldier, 9/11 victim-- Developed optimization techniques for routing traffic on the internet. Died attempting to stop the 9-11 hijackers. https://en.wikipedia.org/wiki/Daniel_Lewin
+		"lewin",
 
 		// Ruth Lichterman - one of the original programmers of the ENIAC. https://en.wikipedia.org/wiki/ENIAC - https://en.wikipedia.org/wiki/Ruth_Teitelbaum
 		"lichterman",
@@ -340,14 +420,26 @@ var (
 		// Johanna Mestorf - German prehistoric archaeologist and first female museum director in Germany - https://en.wikipedia.org/wiki/Johanna_Mestorf
 		"mestorf",
 
+		// Marvin Minsky - Pioneer in Artificial Intelligence, co-founder of the MIT's AI Lab, won the Turing Award in 1969. https://en.wikipedia.org/wiki/Marvin_Minsky
+		"minsky",
+
 		// Maryam Mirzakhani - an Iranian mathematician and the first woman to win the Fields Medal. https://en.wikipedia.org/wiki/Maryam_Mirzakhani
 		"mirzakhani",
 
 		// Samuel Morse - contributed to the invention of a single-wire telegraph system based on European telegraphs and was a co-developer of the Morse code - https://en.wikipedia.org/wiki/Samuel_Morse
 		"morse",
 
+		// Ian Murdock - founder of the Debian project - https://en.wikipedia.org/wiki/Ian_Murdock
+		"murdock",
+
+		// John von Neumann - todays computer architectures are based on the von Neumann architecture. https://en.wikipedia.org/wiki/Von_Neumann_architecture
+		"neumann",
+
 		// Isaac Newton invented classic mechanics and modern optics. https://en.wikipedia.org/wiki/Isaac_Newton
 		"newton",
+
+		// Florence Nightingale, more prominently known as a nurse, was also the first female member of the Royal Statistical Society and a pioneer in statistical graphics https://en.wikipedia.org/wiki/Florence_Nightingale#Statistics_and_sanitary_reform
+		"nightingale",
 
 		// Alfred Nobel - a Swedish chemist, engineer, innovator, and armaments manufacturer (inventor of dynamite) - https://en.wikipedia.org/wiki/Alfred_Nobel
 		"nobel",
@@ -397,6 +489,9 @@ var (
 		// Sally Kristen Ride was an American physicist and astronaut. She was the first American woman in space, and the youngest American astronaut. https://en.wikipedia.org/wiki/Sally_Ride
 		"ride",
 
+		// Rita Levi-Montalcini - Won Nobel Prize in Physiology or Medicine jointly with colleague Stanley Cohen for the discovery of nerve growth factor (https://en.wikipedia.org/wiki/Rita_Levi-Montalcini)
+		"montalcini",
+
 		// Dennis Ritchie - co-creator of UNIX and the C programming language. - https://en.wikipedia.org/wiki/Dennis_Ritchie
 		"ritchie",
 
@@ -415,6 +510,9 @@ var (
 		// Carol Shaw - Originally an Atari employee, Carol Shaw is said to be the first female video game designer. https://en.wikipedia.org/wiki/Carol_Shaw_(video_game_designer)
 		"shaw",
 
+		// Dame Stephanie "Steve" Shirley - Founded a software company in 1962 employing women working from home. https://en.wikipedia.org/wiki/Steve_Shirley
+		"shirley",
+
 		// William Shockley co-invented the transistor - https://en.wikipedia.org/wiki/William_Shockley
 		"shockley",
 
@@ -429,6 +527,9 @@ var (
 
 		// Richard Matthew Stallman - the founder of the Free Software movement, the GNU project, the Free Software Foundation, and the League for Programming Freedom. He also invented the concept of copyleft to protect the ideals of this movement, and enshrined this concept in the widely-used GPL (General Public License) for software. https://en.wikiquote.org/wiki/Richard_Stallman
 		"stallman",
+
+		// Michael Stonebraker is a database research pioneer and architect of Ingres, Postgres, VoltDB and SciDB. Winner of 2014 ACM Turing Award. https://en.wikipedia.org/wiki/Michael_Stonebraker
+		"stonebraker",
 
 		// Janese Swanson (with others) developed the first of the Carmen Sandiego games. She went on to found Girl Tech. https://en.wikipedia.org/wiki/Janese_Swanson
 		"swanson",
@@ -457,8 +558,14 @@ var (
 		// Sir Mokshagundam Visvesvaraya - is a notable Indian engineer.  He is a recipient of the Indian Republic's highest honour, the Bharat Ratna, in 1955. On his birthday, 15 September is celebrated as Engineer's Day in India in his memory - https://en.wikipedia.org/wiki/Visvesvaraya
 		"visvesvaraya",
 
+		// Christiane Nüsslein-Volhard - German biologist, won Nobel Prize in Physiology or Medicine in 1995 for research on the genetic control of embryonic development. https://en.wikipedia.org/wiki/Christiane_N%C3%BCsslein-Volhard
+		"volhard",
+
 		// Marlyn Wescoff - one of the original programmers of the ENIAC. https://en.wikipedia.org/wiki/ENIAC - https://en.wikipedia.org/wiki/Marlyn_Meltzer
 		"wescoff",
+
+		// Andrew Wiles - Notable British mathematician who proved the enigmatic Fermat's Last Theorem - https://en.wikipedia.org/wiki/Andrew_Wiles
+		"wiles",
 
 		// Roberta Williams, did pioneering work in graphical adventure games for personal computers, particularly the King's Quest series. https://en.wikipedia.org/wiki/Roberta_Williams
 		"williams",

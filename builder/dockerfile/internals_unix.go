@@ -5,36 +5,34 @@ package dockerfile
 import (
 	"os"
 	"path/filepath"
+	"strings"
+
+	"github.com/docker/docker/pkg/system"
 )
 
-func fixPermissions(source, destination string, uid, gid int, destExisted bool) error {
-	// If the destination didn't already exist, or the destination isn't a
-	// directory, then we should Lchown the destination. Otherwise, we shouldn't
-	// Lchown the destination.
-	destStat, err := os.Stat(destination)
-	if err != nil {
-		// This should *never* be reached, because the destination must've already
-		// been created while untar-ing the context.
-		return err
+// normaliseDest normalises the destination of a COPY/ADD command in a
+// platform semantically consistent way.
+func normaliseDest(cmdName, workingDir, requested string) (string, error) {
+	dest := filepath.FromSlash(requested)
+	endsInSlash := strings.HasSuffix(requested, string(os.PathSeparator))
+	if !system.IsAbs(requested) {
+		dest = filepath.Join(string(os.PathSeparator), filepath.FromSlash(workingDir), dest)
+		// Make sure we preserve any trailing slash
+		if endsInSlash {
+			dest += string(os.PathSeparator)
+		}
 	}
-	doChownDestination := !destExisted || !destStat.IsDir()
+	return dest, nil
+}
 
-	// We Walk on the source rather than on the destination because we don't
-	// want to change permissions on things we haven't created or modified.
-	return filepath.Walk(source, func(fullpath string, info os.FileInfo, err error) error {
-		// Do not alter the walk root iff. it existed before, as it doesn't fall under
-		// the domain of "things we should chown".
-		if !doChownDestination && (source == fullpath) {
-			return nil
+func containsWildcards(name string) bool {
+	for i := 0; i < len(name); i++ {
+		ch := name[i]
+		if ch == '\\' {
+			i++
+		} else if ch == '*' || ch == '?' || ch == '[' {
+			return true
 		}
-
-		// Path is prefixed by source: substitute with destination instead.
-		cleaned, err := filepath.Rel(source, fullpath)
-		if err != nil {
-			return err
-		}
-
-		fullpath = filepath.Join(destination, cleaned)
-		return os.Lchown(fullpath, uid, gid)
-	})
+	}
+	return false
 }

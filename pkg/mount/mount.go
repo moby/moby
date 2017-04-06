@@ -9,8 +9,8 @@ func GetMounts() ([]*Info, error) {
 	return parseMountTable()
 }
 
-// Mounted looks at /proc/self/mountinfo to determine of the specified
-// mountpoint has been mounted
+// Mounted determines if a specified mountpoint has been mounted.
+// On Linux it looks at /proc/self/mountinfo and on Solaris at mnttab.
 func Mounted(mountpoint string) (bool, error) {
 	entries, err := parseMountTable()
 	if err != nil {
@@ -46,10 +46,7 @@ func Mount(device, target, mType, options string) error {
 // flags.go for supported option flags.
 func ForceMount(device, target, mType, options string) error {
 	flag, data := parseOptions(options)
-	if err := mount(device, target, mType, uintptr(flag), data); err != nil {
-		return err
-	}
-	return nil
+	return mount(device, target, mType, uintptr(flag), data)
 }
 
 // Unmount will unmount the target filesystem, so long as it is mounted.

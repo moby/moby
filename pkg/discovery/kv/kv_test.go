@@ -33,7 +33,7 @@ func (ds *DiscoverySuite) TestInitialize(c *check.C) {
 	s := d.store.(*FakeStore)
 	c.Assert(s.Endpoints, check.HasLen, 1)
 	c.Assert(s.Endpoints[0], check.Equals, "127.0.0.1")
-	c.Assert(d.path, check.Equals, discoveryPath)
+	c.Assert(d.path, check.Equals, defaultDiscoveryPath)
 
 	storeMock = &FakeStore{
 		Endpoints: []string{"127.0.0.1:1234"},
@@ -45,7 +45,7 @@ func (ds *DiscoverySuite) TestInitialize(c *check.C) {
 	s = d.store.(*FakeStore)
 	c.Assert(s.Endpoints, check.HasLen, 1)
 	c.Assert(s.Endpoints[0], check.Equals, "127.0.0.1:1234")
-	c.Assert(d.path, check.Equals, "path/"+discoveryPath)
+	c.Assert(d.path, check.Equals, "path/"+defaultDiscoveryPath)
 
 	storeMock = &FakeStore{
 		Endpoints: []string{"127.0.0.1:1234", "127.0.0.2:1234", "127.0.0.3:1234"},
@@ -60,7 +60,7 @@ func (ds *DiscoverySuite) TestInitialize(c *check.C) {
 	c.Assert(s.Endpoints[1], check.Equals, "127.0.0.2:1234")
 	c.Assert(s.Endpoints[2], check.Equals, "127.0.0.3:1234")
 
-	c.Assert(d.path, check.Equals, "path/"+discoveryPath)
+	c.Assert(d.path, check.Equals, "path/"+defaultDiscoveryPath)
 }
 
 // Extremely limited mock store so we can test initialization
@@ -224,8 +224,8 @@ func (ds *DiscoverySuite) TestWatch(c *check.C) {
 		&discovery.Entry{Host: "2.2.2.2", Port: "2222"},
 	}
 	kvs := []*store.KVPair{
-		{Key: path.Join("path", discoveryPath, "1.1.1.1"), Value: []byte("1.1.1.1:1111")},
-		{Key: path.Join("path", discoveryPath, "2.2.2.2"), Value: []byte("2.2.2.2:2222")},
+		{Key: path.Join("path", defaultDiscoveryPath, "1.1.1.1"), Value: []byte("1.1.1.1:1111")},
+		{Key: path.Join("path", defaultDiscoveryPath, "2.2.2.2"), Value: []byte("2.2.2.2:2222")},
 	}
 
 	stopCh := make(chan struct{})
@@ -245,13 +245,13 @@ func (ds *DiscoverySuite) TestWatch(c *check.C) {
 
 	// Add a new entry.
 	expected = append(expected, &discovery.Entry{Host: "3.3.3.3", Port: "3333"})
-	kvs = append(kvs, &store.KVPair{Key: path.Join("path", discoveryPath, "3.3.3.3"), Value: []byte("3.3.3.3:3333")})
+	kvs = append(kvs, &store.KVPair{Key: path.Join("path", defaultDiscoveryPath, "3.3.3.3"), Value: []byte("3.3.3.3:3333")})
 	mockCh <- kvs
 	c.Assert(<-ch, check.DeepEquals, expected)
 
 	close(mockCh)
 	// Give it enough time to call WatchTree.
-	time.Sleep(3)
+	time.Sleep(3 * time.Second)
 
 	// Stop and make sure it closes all channels.
 	close(stopCh)
@@ -290,7 +290,7 @@ func (s *FakeStore) Watch(key string, stopCh <-chan struct{}) (<-chan *store.KVP
 }
 
 // WatchTree will fail the first time, and return the mockKVchan afterwards.
-// This is the behaviour we need for testing.. If we need 'moar', should update this.
+// This is the behavior we need for testing.. If we need 'moar', should update this.
 func (s *FakeStore) WatchTree(directory string, stopCh <-chan struct{}) (<-chan []*store.KVPair, error) {
 	if s.watchTreeCallCount == 0 {
 		s.watchTreeCallCount = 1

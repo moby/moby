@@ -6,52 +6,49 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/go-check/check"
 )
 
 // This is a heisen-test.  Because the created timestamp of images and the behavior of
 // sort is not predictable it doesn't always fail.
 func (s *DockerSuite) TestBuildHistory(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildhistory"
-	_, err := buildImage(name, `FROM busybox
-RUN echo "A"
-RUN echo "B"
-RUN echo "C"
-RUN echo "D"
-RUN echo "E"
-RUN echo "F"
-RUN echo "G"
-RUN echo "H"
-RUN echo "I"
-RUN echo "J"
-RUN echo "K"
-RUN echo "L"
-RUN echo "M"
-RUN echo "N"
-RUN echo "O"
-RUN echo "P"
-RUN echo "Q"
-RUN echo "R"
-RUN echo "S"
-RUN echo "T"
-RUN echo "U"
-RUN echo "V"
-RUN echo "W"
-RUN echo "X"
-RUN echo "Y"
-RUN echo "Z"`,
-		true)
+	buildImageSuccessfully(c, name, build.WithDockerfile(`FROM `+minimalBaseImage()+`
+LABEL label.A="A"
+LABEL label.B="B"
+LABEL label.C="C"
+LABEL label.D="D"
+LABEL label.E="E"
+LABEL label.F="F"
+LABEL label.G="G"
+LABEL label.H="H"
+LABEL label.I="I"
+LABEL label.J="J"
+LABEL label.K="K"
+LABEL label.L="L"
+LABEL label.M="M"
+LABEL label.N="N"
+LABEL label.O="O"
+LABEL label.P="P"
+LABEL label.Q="Q"
+LABEL label.R="R"
+LABEL label.S="S"
+LABEL label.T="T"
+LABEL label.U="U"
+LABEL label.V="V"
+LABEL label.W="W"
+LABEL label.X="X"
+LABEL label.Y="Y"
+LABEL label.Z="Z"`))
 
-	c.Assert(err, checker.IsNil)
-
-	out, _ := dockerCmd(c, "history", "testbuildhistory")
+	out, _ := dockerCmd(c, "history", name)
 	actualValues := strings.Split(out, "\n")[1:27]
 	expectedValues := [26]string{"Z", "Y", "X", "W", "V", "U", "T", "S", "R", "Q", "P", "O", "N", "M", "L", "K", "J", "I", "H", "G", "F", "E", "D", "C", "B", "A"}
 
 	for i := 0; i < 26; i++ {
-		echoValue := fmt.Sprintf("echo \"%s\"", expectedValues[i])
+		echoValue := fmt.Sprintf("LABEL label.%s=%s", expectedValues[i], expectedValues[i])
 		actualValue := actualValues[i]
 		c.Assert(actualValue, checker.Contains, echoValue)
 	}
@@ -59,7 +56,6 @@ RUN echo "Z"`,
 }
 
 func (s *DockerSuite) TestHistoryExistentImage(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "history", "busybox")
 }
 
@@ -69,10 +65,9 @@ func (s *DockerSuite) TestHistoryNonExistentImage(c *check.C) {
 }
 
 func (s *DockerSuite) TestHistoryImageWithComment(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testhistoryimagewithcomment"
 
-	// make a image through docker commit <container id> [ -m messages ]
+	// make an image through docker commit <container id> [ -m messages ]
 
 	dockerCmd(c, "run", "--name", name, "busybox", "true")
 	dockerCmd(c, "wait", name)
@@ -89,7 +84,6 @@ func (s *DockerSuite) TestHistoryImageWithComment(c *check.C) {
 }
 
 func (s *DockerSuite) TestHistoryHumanOptionFalse(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "history", "--human=false", "busybox")
 	lines := strings.Split(out, "\n")
 	sizeColumnRegex, _ := regexp.Compile("SIZE +")
@@ -108,7 +102,6 @@ func (s *DockerSuite) TestHistoryHumanOptionFalse(c *check.C) {
 }
 
 func (s *DockerSuite) TestHistoryHumanOptionTrue(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "history", "--human=true", "busybox")
 	lines := strings.Split(out, "\n")
 	sizeColumnRegex, _ := regexp.Compile("SIZE +")

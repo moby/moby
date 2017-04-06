@@ -7,23 +7,20 @@ package builder
 import (
 	"io"
 	"os"
+	"time"
 
-	// TODO: remove dependency on daemon
-	"github.com/docker/docker/daemon"
+	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/runconfig"
+	"golang.org/x/net/context"
 )
 
-// Builder abstracts a Docker builder whose only purpose is to build a Docker image referenced by an imageID.
-type Builder interface {
-	// Build builds a Docker image referenced by an imageID string.
-	//
-	// Note: Tagging an image should not be done by a Builder, it should instead be done
-	// by the caller.
-	//
-	// TODO: make this return a reference instead of string
-	Build() (imageID string)
-}
+const (
+	// DefaultDockerfileName is the Default filename with Docker commands, read by docker build
+	DefaultDockerfileName string = "Dockerfile"
+)
 
 // Context represents a file system tree.
 type Context interface {
@@ -33,7 +30,8 @@ type Context interface {
 	Close() error
 	// Stat returns an entry corresponding to path if any.
 	// It is recommended to return an error if path was not found.
-	Stat(path string) (FileInfo, error)
+	// If path is a symlink it also returns the path to the target file.
+	Stat(path string) (string, FileInfo, error)
 	// Open opens path from the context and returns a readable stream of it.
 	Open(path string) (io.ReadCloser, error)
 	// Walk walks the tree of the context with the function passed to it.
@@ -64,11 +62,21 @@ type PathFileInfo struct {
 	os.FileInfo
 	// FilePath holds the absolute path to the file.
 	FilePath string
+	// FileName holds the basename for the file.
+	FileName string
 }
 
 // Path returns the absolute path to the file.
 func (fi PathFileInfo) Path() string {
 	return fi.FilePath
+}
+
+// Name returns the basename of the file.
+func (fi PathFileInfo) Name() string {
+	if fi.FileName != "" {
+		return fi.FileName
+	}
+	return fi.FileInfo.Name()
 }
 
 // Hashed defines an extra method intended for implementations of os.FileInfo.
@@ -95,45 +103,70 @@ func (fi *HashedFileInfo) SetHash(h string) {
 	fi.FileHash = h
 }
 
-// Docker abstracts calls to a Docker Daemon.
-type Docker interface {
+// Backend abstracts calls to a Docker Daemon.
+type Backend interface {
 	// TODO: use digest reference instead of name
 
-	// LookupImage looks up a Docker image referenced by `name`.
-	LookupImage(name string) (*image.Image, error)
-	// Pull tells Docker to pull image referenced by `name`.
-	Pull(name string) (*image.Image, error)
-
-	// TODO: move daemon.Container to its own package
-
-	// Container looks up a Docker container referenced by `id`.
-	Container(id string) (*daemon.Container, error)
-	// Create creates a new Docker container and returns potential warnings
-	// TODO: put warnings in the error
-	Create(*runconfig.Config, *runconfig.HostConfig) (*daemon.Container, []string, error)
-	// Remove removes a container specified by `id`.
-	Remove(id string, cfg *daemon.ContainerRmConfig) error
+	// GetImageOnBuild looks up a Docker image referenced by `name`.
+	GetImageOnBuild(name string) (Image, error)
+	// TagImageWithReference tags an image with newTag
+	TagImageWithReference(image.ID, reference.Named) error
+	// PullOnBuild tells Docker to pull image referenced by `name`.
+	PullOnBuild(ctx context.Context, name string, authConfigs map[string]types.AuthConfig, output io.Writer) (Image, error)
+	// ContainerAttachRaw attaches to container.
+	ContainerAttachRaw(cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool) error
+	// ContainerCreate creates a new Docker container and returns potential warnings
+	ContainerCreate(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error)
+	// ContainerRm removes a container specified by `id`.
+	ContainerRm(name string, config *types.ContainerRmConfig) error
 	// Commit creates a new Docker image from an existing Docker container.
-	Commit(*daemon.Container, *daemon.ContainerCommitConfig) (*image.Image, error)
-	// Copy copies/extracts a source FileInfo to a destination path inside a container
+	Commit(string, *backend.ContainerCommitConfig) (string, error)
+	// ContainerKill stops the container execution abruptly.
+	ContainerKill(containerID string, sig uint64) error
+	// ContainerStart starts a new container
+	ContainerStart(containerID string, hostConfig *container.HostConfig, checkpoint string, checkpointDir string) error
+	// ContainerWait stops processing until the given container is stopped.
+	ContainerWait(containerID string, timeout time.Duration) (int, error)
+	// ContainerUpdateCmdOnBuild updates container.Path and container.Args
+	ContainerUpdateCmdOnBuild(containerID string, cmd []string) error
+	// ContainerCreateWorkdir creates the workdir
+	ContainerCreateWorkdir(containerID string) error
+
+	// ContainerCopy copies/extracts a source FileInfo to a destination path inside a container
 	// specified by a container object.
 	// TODO: make an Extract method instead of passing `decompress`
 	// TODO: do not pass a FileInfo, instead refactor the archive package to export a Walk function that can be used
 	// with Context.Walk
-	Copy(c *daemon.Container, destPath string, src FileInfo, decompress bool) error
+	// ContainerCopy(name string, res string) (io.ReadCloser, error)
+	// TODO: use copyBackend api
+	CopyOnBuild(containerID string, destPath string, src FileInfo, decompress bool) error
 
-	// Retain retains an image avoiding it to be removed or overwritten until a corresponding Release() call.
-	// TODO: remove
-	Retain(sessionID, imgID string)
-	// Release releases a list of images that were retained for the time of a build.
-	// TODO: remove
-	Release(sessionID string, activeImages []string)
+	// HasExperimental checks if the backend supports experimental features
+	HasExperimental() bool
+
+	// SquashImage squashes the fs layers from the provided image down to the specified `to` image
+	SquashImage(from string, to string) (string, error)
+
+	// MountImage returns mounted path with rootfs of an image.
+	MountImage(name string) (string, func() error, error)
 }
 
-// ImageCache abstracts an image cache store.
+// Image represents a Docker image used by the builder.
+type Image interface {
+	ImageID() string
+	RunConfig() *container.Config
+}
+
+// ImageCacheBuilder represents a generator for stateful image cache.
+type ImageCacheBuilder interface {
+	// MakeImageCache creates a stateful image cache.
+	MakeImageCache(cacheFrom []string) ImageCache
+}
+
+// ImageCache abstracts an image cache.
 // (parent image, child runconfig) -> child image
 type ImageCache interface {
-	// GetCachedImage returns a reference to a cached image whose parent equals `parent`
+	// GetCache returns a reference to a cached image whose parent equals `parent`
 	// and runconfig equals `cfg`. A cache miss is expected to return an empty ID and a nil error.
-	GetCachedImage(parentID string, cfg *runconfig.Config) (imageID string, err error)
+	GetCache(parentID string, cfg *container.Config) (imageID string, err error)
 }

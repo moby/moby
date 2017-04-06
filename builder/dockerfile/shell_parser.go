@@ -8,38 +8,107 @@ package dockerfile
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
 	"text/scanner"
 	"unicode"
 )
 
 type shellWord struct {
-	word    string
-	scanner scanner.Scanner
-	envs    []string
-	pos     int
+	word        string
+	scanner     scanner.Scanner
+	envs        []string
+	pos         int
+	escapeToken rune
 }
 
 // ProcessWord will use the 'env' list of environment variables,
 // and replace any env var references in 'word'.
-func ProcessWord(word string, env []string) (string, error) {
+func ProcessWord(word string, env []string, escapeToken rune) ([]string, error) {
+	word, _, err := process(word, env, escapeToken)
+	return []string{word}, err
+}
+
+// ProcessWords will use the 'env' list of environment variables,
+// and replace any env var references in 'word' then it will also
+// return a slice of strings which represents the 'word'
+// split up based on spaces - taking into account quotes.  Note that
+// this splitting is done **after** the env var substitutions are done.
+// Note, each one is trimmed to remove leading and trailing spaces (unless
+// they are quoted", but ProcessWord retains spaces between words.
+func ProcessWords(word string, env []string, escapeToken rune) ([]string, error) {
+	_, words, err := process(word, env, escapeToken)
+	return words, err
+}
+
+func process(word string, env []string, escapeToken rune) (string, []string, error) {
 	sw := &shellWord{
-		word: word,
-		envs: env,
-		pos:  0,
+		word:        word,
+		envs:        env,
+		pos:         0,
+		escapeToken: escapeToken,
 	}
 	sw.scanner.Init(strings.NewReader(word))
 	return sw.process()
 }
 
-func (sw *shellWord) process() (string, error) {
+func (sw *shellWord) process() (string, []string, error) {
 	return sw.processStopOn(scanner.EOF)
+}
+
+type wordsStruct struct {
+	word   string
+	words  []string
+	inWord bool
+}
+
+func (w *wordsStruct) addChar(ch rune) {
+	if unicode.IsSpace(ch) && w.inWord {
+		if len(w.word) != 0 {
+			w.words = append(w.words, w.word)
+			w.word = ""
+			w.inWord = false
+		}
+	} else if !unicode.IsSpace(ch) {
+		w.addRawChar(ch)
+	}
+}
+
+func (w *wordsStruct) addRawChar(ch rune) {
+	w.word += string(ch)
+	w.inWord = true
+}
+
+func (w *wordsStruct) addString(str string) {
+	var scan scanner.Scanner
+	scan.Init(strings.NewReader(str))
+	for scan.Peek() != scanner.EOF {
+		w.addChar(scan.Next())
+	}
+}
+
+func (w *wordsStruct) addRawString(str string) {
+	w.word += str
+	w.inWord = true
+}
+
+func (w *wordsStruct) getWords() []string {
+	if len(w.word) > 0 {
+		w.words = append(w.words, w.word)
+
+		// Just in case we're called again by mistake
+		w.word = ""
+		w.inWord = false
+	}
+	return w.words
 }
 
 // Process the word, starting at 'pos', and stop when we get to the
 // end of the word or the 'stopChar' character
-func (sw *shellWord) processStopOn(stopChar rune) (string, error) {
+func (sw *shellWord) processStopOn(stopChar rune) (string, []string, error) {
 	var result string
+	var words wordsStruct
+
 	var charFuncMapping = map[rune]func() (string, error){
 		'\'': sw.processSingleQuote,
 		'"':  sw.processDoubleQuote,
@@ -57,15 +126,21 @@ func (sw *shellWord) processStopOn(stopChar rune) (string, error) {
 			// Call special processing func for certain chars
 			tmp, err := fn()
 			if err != nil {
-				return "", err
+				return "", []string{}, err
 			}
 			result += tmp
+
+			if ch == rune('$') {
+				words.addString(tmp)
+			} else {
+				words.addRawString(tmp)
+			}
 		} else {
 			// Not special, just add it to the result
 			ch = sw.scanner.Next()
 
-			if ch == '\\' {
-				// '\' escapes, except end of line
+			if ch == sw.escapeToken {
+				// '\' (default escape token, but ` allowed) escapes, except end of line
 
 				ch = sw.scanner.Next()
 
@@ -73,13 +148,16 @@ func (sw *shellWord) processStopOn(stopChar rune) (string, error) {
 					break
 				}
 
+				words.addRawChar(ch)
+			} else {
+				words.addChar(ch)
 			}
 
 			result += string(ch)
 		}
 	}
 
-	return result, nil
+	return result, words.getWords(), nil
 }
 
 func (sw *shellWord) processSingleQuote() (string, error) {
@@ -102,7 +180,7 @@ func (sw *shellWord) processSingleQuote() (string, error) {
 
 func (sw *shellWord) processDoubleQuote() (string, error) {
 	// All chars up to the next " are taken as-is, even ', except any $ chars
-	// But you can escape " with a \
+	// But you can escape " with a \ (or ` if escape token set accordingly)
 	var result string
 
 	sw.scanner.Next()
@@ -121,7 +199,7 @@ func (sw *shellWord) processDoubleQuote() (string, error) {
 			result += tmp
 		} else {
 			ch = sw.scanner.Next()
-			if ch == '\\' {
+			if ch == sw.escapeToken {
 				chNext := sw.scanner.Peek()
 
 				if chNext == scanner.EOF {
@@ -160,7 +238,7 @@ func (sw *shellWord) processDollar() (string, error) {
 			sw.scanner.Next() // skip over :
 			modifier := sw.scanner.Next()
 
-			word, err := sw.processStopOn('}')
+			word, _, err := sw.processStopOn('}')
 			if err != nil {
 				return "", err
 			}
@@ -218,9 +296,16 @@ func (sw *shellWord) processName() string {
 }
 
 func (sw *shellWord) getEnv(name string) string {
+	if runtime.GOOS == "windows" {
+		// Case-insensitive environment variables on Windows
+		name = strings.ToUpper(name)
+	}
 	for _, env := range sw.envs {
 		i := strings.Index(env, "=")
 		if i < 0 {
+			if runtime.GOOS == "windows" {
+				env = strings.ToUpper(env)
+			}
 			if name == env {
 				// Should probably never get here, but just in case treat
 				// it like "var" and "var=" are the same
@@ -228,7 +313,11 @@ func (sw *shellWord) getEnv(name string) string {
 			}
 			continue
 		}
-		if name != env[:i] {
+		compareName := env[:i]
+		if runtime.GOOS == "windows" {
+			compareName = strings.ToUpper(compareName)
+		}
+		if name != compareName {
 			continue
 		}
 		return env[i+1:]

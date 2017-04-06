@@ -13,20 +13,10 @@ URL: https://dockerproject.org
 Vendor: Docker
 Packager: Docker <support@docker.com>
 
-# Version of SELinux we were using
-%if 0%{?fedora} == 20
-%global selinux_policyver 3.12.1-197
-%endif # fedora 20
-%if 0%{?fedora} == 21
-%global selinux_policyver 3.13.1-105
-%endif # fedora 21
-%if 0%{?fedora} >= 22
-%global selinux_policyver 3.13.1-128
-%endif # fedora 22
-%if 0%{?centos} >= 7 || 0%{?rhel} >= 7 || 0%{?oraclelinux} >= 7
-%global selinux_policyver 3.13.1-23
-%endif # centos,rhel,oraclelinux 7
-
+%global selinux_policyver 3.13.1-102
+%if 0%{?oraclelinux} >= 7
+%global selinux_policyver 3.13.1-102.0.3.el7_3.15
+%endif # oraclelinux 7
 %global selinuxtype targeted
 %global moduletype  services
 %global modulenames docker
@@ -44,7 +34,7 @@ Conflicts: docker-selinux
 
 # Relabel files
 %global relabel_files() \
-    /sbin/restorecon -R %{_bindir}/docker %{_localstatedir}/run/docker.sock %{_localstatedir}/run/docker.pid %{_sharedstatedir}/docker %{_sysconfdir}/docker %{_localstatedir}/log/docker %{_localstatedir}/log/lxc %{_localstatedir}/lock/lxc %{_usr}/lib/systemd/system/docker.service /root/.docker &> /dev/null || : \
+    /sbin/restorecon -R %{_bindir}/docker %{_localstatedir}/run/docker.sock %{_localstatedir}/run/docker.pid %{_sysconfdir}/docker %{_localstatedir}/log/docker %{_localstatedir}/log/lxc %{_localstatedir}/lock/lxc %{_usr}/lib/systemd/system/docker.service /root/.docker &> /dev/null || : \
 
 %description
 SELinux policy modules for use with Docker
@@ -83,6 +73,9 @@ fi
 if %{_sbindir}/selinuxenabled ; then
     %{_sbindir}/load_policy
     %relabel_files
+    if [ $1 -eq 1 ]; then
+      restorecon -R %{_sharedstatedir}/docker
+    fi
 fi
 
 %postun
@@ -95,8 +88,12 @@ if [ $1 -eq 0 ]; then
 fi
 
 %files
+%doc LICENSE
 %defattr(-,root,root,0755)
 %attr(0644,root,root) %{_datadir}/selinux/packages/*.pp.bz2
 %attr(0644,root,root) %{_datadir}/selinux/devel/include/%{moduletype}/*.if
 
 %changelog
+* Tue Dec 1 2015 Jessica Frazelle <acidburn@docker.com> 1.9.1-1
+- add licence to rpm
+- add selinux-policy and docker-engine-selinux rpm

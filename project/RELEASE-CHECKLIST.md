@@ -71,20 +71,30 @@ We cherry-pick only the commits we want into the bump branch:
 # get the commits ids we want to cherry-pick
 git log
 # cherry-pick the commits starting from the oldest one, without including merge commits
-git cherry-pick <commit-id>
-git cherry-pick <commit-id>
+git cherry-pick -s -x <commit-id>
+git cherry-pick -s -x <commit-id>
 ...
 ```
 
-### 2. Bump the API version on master
+### 2. Update the VERSION files and API version on master
 
-We don't want to stop contributions to master just because we are releasing. At
-the same time, now that the release branch exists, we don't want API changes to
-go to the now frozen API version.
+We don't want to stop contributions to master just because we are releasing.
+So, after the release branch is up, we bump the VERSION and API version to mark
+the start of the "next" release.
 
-Create a new entry in `docs/reference/api/` by copying the latest and
-bumping the version number (in both the file's name and content), and submit
-this in a PR against master.
+#### 2.1 Update the VERSION files
+
+Update the content of the `VERSION` file to be the next minor (incrementing Y)
+and add the `-dev` suffix. For example, after the release branch for 1.5.0 is
+created, the `VERSION` file gets updated to `1.6.0-dev` (as in "1.6.0 in the
+making").
+
+#### 2.2 Update API version on master
+
+We don't want API changes to go to the now frozen API version. Create a new
+entry in `docs/reference/api/` by copying the latest and bumping the version
+number (in both the file's name and content), and submit this in a PR against
+master.
 
 ### 3. Update CHANGELOG.md
 
@@ -107,7 +117,7 @@ If releasing a major version (X or Y increased in vX.Y.Z), simply listing notabl
 ```markdown
 #### Notable features since <last major version>
 * New docker command to do something useful
-* Remote API change (deprecating old version)
+* Engine API change (deprecating old version)
 * Performance improvements in some usecases
 * ...
 ```
@@ -121,7 +131,7 @@ Each change should be listed under a category heading formatted as `#### CATEGOR
   * Documentation
   * Hack
   * Packaging
-  * Remote API
+  * Engine API
   * Runtime
   * Other (please use this category sparingly)
 
@@ -144,7 +154,7 @@ EXAMPLES:
 
 + 'docker build -t FOO .' applies the tag FOO to the newly built image
 
-#### Remote API
+#### Engine API
 
 - Fix a bug in the optional unix socket transport
 
@@ -203,31 +213,84 @@ That last command will give you the proper link to visit to ensure that you
 open the PR against the "release" branch instead of accidentally against
 "master" (like so many brave souls before you already have).
 
-### 7. Publish release candidate binaries
+### 7. Create a PR to update the AUTHORS file for the release
+
+Update the AUTHORS file, by running the `hack/generate-authors.sh` on the
+release branch. To prevent duplicate entries, you may need to update the
+`.mailmap` file accordingly.
+
+### 8. Build release candidate rpms and debs
+
+**NOTE**: It will be a lot faster if you pass a different graphdriver with
+`DOCKER_GRAPHDRIVER` than `vfs`.
+
+```bash
+docker build -t docker .
+docker run \
+    --rm -t --privileged \
+    -e DOCKER_GRAPHDRIVER=aufs \
+    -v $(pwd)/bundles:/go/src/github.com/docker/docker/bundles \
+    docker \
+    hack/make.sh binary build-deb build-rpm
+```
+
+### 9. Publish release candidate rpms and debs
+
+With the rpms and debs you built from the last step you can release them on the
+same server, or ideally, move them to a dedicated release box via scp into
+another docker/docker directory in bundles. This next step assumes you have
+a checkout of the docker source code at the same commit you used to build, with
+the artifacts from the last step in `bundles`.
+
+**NOTE:** If you put a space before the command your `.bash_history` will not
+save it. (for the `GPG_PASSPHRASE`).
+
+```bash
+docker build -t docker .
+docker run --rm -it --privileged \
+    -v /volumes/repos:/volumes/repos \
+    -v $(pwd)/bundles:/go/src/github.com/docker/docker/bundles \
+    -v $HOME/.gnupg:/root/.gnupg \
+    -e DOCKER_RELEASE_DIR=/volumes/repos \
+    -e GPG_PASSPHRASE \
+    -e KEEPBUNDLE=1 \
+    docker \
+    hack/make.sh release-deb release-rpm sign-repos generate-index-listing
+```
+
+### 10. Upload the changed repos to wherever you host
+
+For example, above we bind mounted `/volumes/repos` as the storage for
+`DOCKER_RELEASE_DIR`. In this case `/volumes/repos/apt` can be synced with
+a specific s3 bucket for the apt repo and `/volumes/repos/yum` can be synced with
+a s3 bucket for the yum repo.
+
+### 11. Publish release candidate binaries
 
 To run this you will need access to the release credentials. Get them from the
 Core maintainers.
 
-Replace "..." with the respective credentials:
-
 ```bash
 docker build -t docker .
 
+# static binaries are still pushed to s3
 docker run \
-       -e AWS_S3_BUCKET=test.docker.com \
-       -e AWS_ACCESS_KEY="..." \
-       -e AWS_SECRET_KEY="..." \
-       -e GPG_PASSPHRASE="..." \
-       -i -t --privileged \
-       docker \
-       hack/release.sh
+    -e AWS_S3_BUCKET=test.docker.com \
+    -e AWS_ACCESS_KEY_ID \
+    -e AWS_SECRET_ACCESS_KEY \
+    -e AWS_DEFAULT_REGION \
+    -i -t --privileged \
+    docker \
+    hack/release.sh
 ```
 
-It will run the test suite, build the binaries and packages, and upload to the
-specified bucket, so this is a good time to verify that you're running against
-**test**.docker.com.
+It will run the test suite, build the binaries and upload to the specified bucket,
+so this is a good time to verify that you're running against **test**.docker.com.
 
-After the binaries and packages are uploaded to test.docker.com, make sure
+### 12. Purge the cache!
+
+After the binaries are uploaded to test.docker.com and the packages are on
+apt.dockerproject.org and yum.dockerproject.org, make sure
 they get tested in both Ubuntu and Debian for any obvious installation
 issues or runtime issues.
 
@@ -242,11 +305,12 @@ Announcing on multiple medias is the best way to get some help testing! An easy
 way to get some useful links for sharing:
 
 ```bash
-echo "Ubuntu/Debian: https://test.docker.com/ubuntu or curl -sSL https://test.docker.com/ | sh"
+echo "Ubuntu/Debian: curl -sSL https://test.docker.com/ | sh"
 echo "Linux 64bit binary: https://test.docker.com/builds/Linux/x86_64/docker-${VERSION#v}"
 echo "Darwin/OSX 64bit client binary: https://test.docker.com/builds/Darwin/x86_64/docker-${VERSION#v}"
-echo "Darwin/OSX 32bit client binary: https://test.docker.com/builds/Darwin/i386/docker-${VERSION#v}"
 echo "Linux 64bit tgz: https://test.docker.com/builds/Linux/x86_64/docker-${VERSION#v}.tgz"
+echo "Windows 64bit client binary: https://test.docker.com/builds/Windows/x86_64/docker-${VERSION#v}.exe"
+echo "Windows 32bit client binary: https://test.docker.com/builds/Windows/i386/docker-${VERSION#v}.exe"
 ```
 
 We recommend announcing the release candidate on:
@@ -257,7 +321,7 @@ We recommend announcing the release candidate on:
 - The [docker-maintainers](https://groups.google.com/a/dockerproject.org/forum/#!forum/maintainers) group
 - Any social media that can bring some attention to the release candidate
 
-### 8. Iterate on successive release candidates
+### 13. Iterate on successive release candidates
 
 Spend several days along with the community explicitly investing time and
 resources to try and break Docker in every possible way, documenting any
@@ -282,7 +346,7 @@ Each time you'll want to produce a new release candidate, you will start by
 adding commits to the branch, usually by cherry-picking from master:
 
 ```bash
-git cherry-pick -x -m0 <commit_id>
+git cherry-pick -s -x -m0 <commit_id>
 ```
 
 You want your "bump commit" (the one that updates the CHANGELOG and VERSION
@@ -307,7 +371,7 @@ git push -f $GITHUBUSER bump_$VERSION
 Repeat step 6 to tag the code, publish new binaries, announce availability, and
 get help testing.
 
-### 9. Finalize the bump branch
+### 14. Finalize the bump branch
 
 When you're happy with the quality of a release candidate, you can move on and
 create the real thing.
@@ -323,25 +387,71 @@ git commit --amend
 
 You will then repeat step 6 to publish the binaries to test
 
-### 10. Get 2 other maintainers to validate the pull request
+### 15. Get 2 other maintainers to validate the pull request
 
-### 11. Publish final binaries
+### 16. Build final rpms and debs
+
+```bash
+docker build -t docker .
+docker run \
+    --rm -t --privileged \
+    -v $(pwd)/bundles:/go/src/github.com/docker/docker/bundles \
+    docker \
+    hack/make.sh binary build-deb build-rpm
+```
+
+### 17. Publish final rpms and debs
+
+With the rpms and debs you built from the last step you can release them on the
+same server, or ideally, move them to a dedicated release box via scp into
+another docker/docker directory in bundles. This next step assumes you have
+a checkout of the docker source code at the same commit you used to build, with
+the artifacts from the last step in `bundles`.
+
+**NOTE:** If you put a space before the command your `.bash_history` will not
+save it. (for the `GPG_PASSPHRASE`).
+
+```bash
+docker build -t docker .
+docker run --rm -it --privileged \
+    -v /volumes/repos:/volumes/repos \
+    -v $(pwd)/bundles:/go/src/github.com/docker/docker/bundles \
+    -v $HOME/.gnupg:/root/.gnupg \
+    -e DOCKER_RELEASE_DIR=/volumes/repos \
+    -e GPG_PASSPHRASE \
+    -e KEEPBUNDLE=1 \
+    docker \
+    hack/make.sh release-deb release-rpm sign-repos generate-index-listing
+```
+
+### 18. Upload the changed repos to wherever you host
+
+For example, above we bind mounted `/volumes/repos` as the storage for
+`DOCKER_RELEASE_DIR`. In this case `/volumes/repos/apt` can be synced with
+a specific s3 bucket for the apt repo and `/volumes/repos/yum` can be synced with
+a s3 bucket for the yum repo.
+
+### 19. Publish final binaries
 
 Once they're tested and reasonably believed to be working, run against
 get.docker.com:
 
 ```bash
+docker build -t docker .
+# static binaries are still pushed to s3
 docker run \
-       -e AWS_S3_BUCKET=get.docker.com \
-       -e AWS_ACCESS_KEY="..." \
-       -e AWS_SECRET_KEY="..." \
-       -e GPG_PASSPHRASE="..." \
-       -i -t --privileged \
-       docker \
-       hack/release.sh
+    -e AWS_S3_BUCKET=get.docker.com \
+    -e AWS_ACCESS_KEY_ID \
+    -e AWS_SECRET_ACCESS_KEY \
+    -e AWS_DEFAULT_REGION \
+    -i -t --privileged \
+    docker \
+    hack/release.sh
 ```
 
-### 12. Apply tag and create release
+### 20. Purge the cache!
+
+### 21. Apply tag and create release
 
 It's very important that we don't make the tag until after the official
 release is uploaded to get.docker.com!
@@ -360,12 +470,12 @@ You can see examples in this two links:
 https://github.com/docker/docker/releases/tag/v1.8.0
 https://github.com/docker/docker/releases/tag/v1.8.0-rc3
 
-### 13. Go to github to merge the `bump_$VERSION` branch into release
+### 22. Go to github to merge the `bump_$VERSION` branch into release
 
 Don't forget to push that pretty blue button to delete the leftover
 branch afterwards!
 
-### 14. Update the docs branch
+### 23. Update the docs branch
 
 You will need to point the docs branch to the newly created release tag:
 
@@ -384,13 +494,13 @@ distributed CDN system) is flushed. The `make docs-release` command will do this
 _if_ the `DISTRIBUTION_ID` is set correctly - this will take at least 15 minutes to run
 and you can check its progress with the CDN Cloudfront Chrome addon.
 
-### 15. Create a new pull request to merge your bump commit back into master
+### 24. Create a new pull request to merge your bump commit back into master
 
 ```bash
 git checkout master
 git fetch
 git reset --hard origin/master
-git cherry-pick $VERSION
+git cherry-pick -s -x $VERSION
 git push $GITHUBUSER merge_release_$VERSION
 echo "https://github.com/$GITHUBUSER/docker/compare/docker:master...$GITHUBUSER:merge_release_$VERSION?expand=1"
 ```
@@ -398,14 +508,7 @@ echo "https://github.com/$GITHUBUSER/docker/compare/docker:master...$GITHUBUSER:
 Again, get two maintainers to validate, then merge, then push that pretty
 blue button to delete your branch.
 
-### 16. Update the VERSION files
-
-Now that version X.Y.Z is out, time to start working on the next! Update the
-content of the `VERSION` file to be the next minor (incrementing Y) and add the
-`-dev` suffix. For example, after 1.5.0 release, the `VERSION` file gets
-updated to `1.6.0-dev` (as in "1.6.0 in the making").
-
-### 17. Rejoice and Evangelize!
+### 25. Rejoice and Evangelize!
 
 Congratulations! You're done.
 

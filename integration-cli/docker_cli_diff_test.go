@@ -2,23 +2,35 @@ package main
 
 import (
 	"strings"
+	"time"
 
-	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
 )
 
 // ensure that an added file shows up in docker diff
 func (s *DockerSuite) TestDiffFilenameShownInOutput(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-	containerCmd := `echo foo > /root/bar`
+	containerCmd := `mkdir /foo; echo xyzzy > /foo/bar`
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", containerCmd)
+
+	// Wait for it to exit as cannot diff a running container on Windows, and
+	// it will take a few seconds to exit. Also there's no way in Windows to
+	// differentiate between an Add or a Modify, and all files are under
+	// a "Files/" prefix.
+	containerID := strings.TrimSpace(out)
+	lookingFor := "A /foo/bar"
+	if testEnv.DaemonPlatform() == "windows" {
+		err := waitExited(containerID, 60*time.Second)
+		c.Assert(err, check.IsNil)
+		lookingFor = "C Files/foo/bar"
+	}
 
 	cleanCID := strings.TrimSpace(out)
 	out, _ = dockerCmd(c, "diff", cleanCID)
 
 	found := false
 	for _, line := range strings.Split(out, "\n") {
-		if strings.Contains("A /root/bar", line) {
+		if strings.Contains(line, lookingFor) {
 			found = true
 			break
 		}
@@ -27,10 +39,10 @@ func (s *DockerSuite) TestDiffFilenameShownInOutput(c *check.C) {
 }
 
 // test to ensure GH #3840 doesn't occur any more
-func (s *DockerSuite) TestDiffEnsureDockerinitFilesAreIgnored(c *check.C) {
+func (s *DockerSuite) TestDiffEnsureInitLayerFilesAreIgnored(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	// this is a list of files which shouldn't show up in `docker diff`
-	dockerinitFiles := []string{"/etc/resolv.conf", "/etc/hostname", "/etc/hosts", "/.dockerinit", "/.dockerenv"}
+	initLayerFiles := []string{"/etc/resolv.conf", "/etc/hostname", "/etc/hosts", "/.dockerenv"}
 	containerCount := 5
 
 	// we might not run into this problem from the first run, so start a few containers
@@ -41,13 +53,13 @@ func (s *DockerSuite) TestDiffEnsureDockerinitFilesAreIgnored(c *check.C) {
 		cleanCID := strings.TrimSpace(out)
 		out, _ = dockerCmd(c, "diff", cleanCID)
 
-		for _, filename := range dockerinitFiles {
+		for _, filename := range initLayerFiles {
 			c.Assert(out, checker.Not(checker.Contains), filename)
 		}
 	}
 }
 
-func (s *DockerSuite) TestDiffEnsureOnlyKmsgAndPtmx(c *check.C) {
+func (s *DockerSuite) TestDiffEnsureDefaultDevs(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "sleep", "0")
 
@@ -58,10 +70,9 @@ func (s *DockerSuite) TestDiffEnsureOnlyKmsgAndPtmx(c *check.C) {
 		"C /dev":         true,
 		"A /dev/full":    true, // busybox
 		"C /dev/ptmx":    true, // libcontainer
-		"A /dev/mqueue":  true, // lxc
-		"A /dev/kmsg":    true, // lxc
+		"A /dev/mqueue":  true,
+		"A /dev/kmsg":    true,
 		"A /dev/fd":      true,
-		"A /dev/fuse":    true,
 		"A /dev/ptmx":    true,
 		"A /dev/null":    true,
 		"A /dev/random":  true,
@@ -75,7 +86,7 @@ func (s *DockerSuite) TestDiffEnsureOnlyKmsgAndPtmx(c *check.C) {
 	}
 
 	for _, line := range strings.Split(out, "\n") {
-		c.Assert(line == "" || expected[line], checker.True)
+		c.Assert(line == "" || expected[line], checker.True, check.Commentf(line))
 	}
 }
 
@@ -83,5 +94,5 @@ func (s *DockerSuite) TestDiffEnsureOnlyKmsgAndPtmx(c *check.C) {
 func (s *DockerSuite) TestDiffEmptyArgClientError(c *check.C) {
 	out, _, err := dockerCmdWithError("diff", "")
 	c.Assert(err, checker.NotNil)
-	c.Assert(strings.TrimSpace(out), checker.Equals, "Container name cannot be empty")
+	c.Assert(strings.TrimSpace(out), checker.Contains, "Container name cannot be empty")
 }

@@ -16,13 +16,22 @@ var (
 	// ErrEmptyPrefix is an error returned if the prefix was empty.
 	ErrEmptyPrefix = errors.New("Prefix can't be empty")
 
-	// ErrAmbiguousPrefix is returned if the prefix was ambiguous
-	// (multiple ids for the prefix).
-	ErrAmbiguousPrefix = errors.New("Multiple IDs found with provided prefix")
-
 	// ErrIllegalChar is returned when a space is in the ID
 	ErrIllegalChar = errors.New("illegal character: ' '")
+
+	// ErrNotExist is returned when ID or its prefix not found in index.
+	ErrNotExist = errors.New("ID does not exist")
 )
+
+// ErrAmbiguousPrefix is returned if the prefix was ambiguous
+// (multiple ids for the prefix).
+type ErrAmbiguousPrefix struct {
+	prefix string
+}
+
+func (e ErrAmbiguousPrefix) Error() string {
+	return fmt.Sprintf("Multiple IDs found with provided prefix: %s", e.prefix)
+}
 
 // TruncIndex allows the retrieval of string identifiers by any of their unique prefixes.
 // This is used to retrieve image and container IDs by more convenient shorthand prefixes.
@@ -68,10 +77,7 @@ func (idx *TruncIndex) addID(id string) error {
 func (idx *TruncIndex) Add(id string) error {
 	idx.Lock()
 	defer idx.Unlock()
-	if err := idx.addID(id); err != nil {
-		return err
-	}
-	return nil
+	return idx.addID(id)
 }
 
 // Delete removes an ID from the TruncIndex. If there are multiple IDs
@@ -102,7 +108,7 @@ func (idx *TruncIndex) Get(s string) (string, error) {
 		if id != "" {
 			// we haven't found the ID if there are two or more IDs
 			id = ""
-			return ErrAmbiguousPrefix
+			return ErrAmbiguousPrefix{prefix: string(prefix)}
 		}
 		id = string(prefix)
 		return nil
@@ -116,11 +122,16 @@ func (idx *TruncIndex) Get(s string) (string, error) {
 	if id != "" {
 		return id, nil
 	}
-	return "", fmt.Errorf("no such id: %s", s)
+	return "", ErrNotExist
 }
 
-// Iterate iterates over all stored IDs, and passes each of them to the given handler.
+// Iterate iterates over all stored IDs and passes each of them to the given
+// handler. Take care that the handler method does not call any public
+// method on truncindex as the internal locking is not reentrant/recursive
+// and will result in deadlock.
 func (idx *TruncIndex) Iterate(handler func(id string)) {
+	idx.Lock()
+	defer idx.Unlock()
 	idx.trie.Visit(func(prefix patricia.Prefix, item patricia.Item) error {
 		handler(string(prefix))
 		return nil

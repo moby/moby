@@ -44,7 +44,7 @@ need to package Docker your way, without denaturing it in the process.
 To build Docker, you will need the following:
 
 * A recent version of Git and Mercurial
-* Go version 1.4 or later
+* Go version 1.6 or later
 * A clean checkout of the source added to a valid [Go
   workspace](https://golang.org/doc/code.html#Workspaces) under the path
   *src/github.com/docker/docker* (unless you plan to use `AUTO_GOPATH`,
@@ -58,6 +58,7 @@ To build the Docker daemon, you will additionally need:
   2.02.89 or later
 * btrfs-progs version 3.16.1 or later (unless using an older version is
   absolutely necessary, in which case 3.8 is the minimum)
+* libseccomp version 2.2.1 or later (for build tag seccomp)
 
 Be sure to also check out Docker's Dockerfile for the most up-to-date list of
 these build-time dependencies.
@@ -72,7 +73,7 @@ To use the vendored dependencies, simply make sure the path to "./vendor" is
 included in `GOPATH` (or use `AUTO_GOPATH`, as explained below).
 
 If you would rather (or must, due to distro policy) package these dependencies
-yourself, take a look at "./hack/vendor.sh" for an easy-to-parse list of the
+yourself, take a look at "vendor.conf" for an easy-to-parse list of the
 exact version for each.
 
 NOTE: if you're not able to package the exact version (to the exact commit) of a
@@ -161,6 +162,12 @@ SELinux, you will need to use the `selinux` build tag:
 export DOCKER_BUILDTAGS='selinux'
 ```
 
+If you're building a binary that may need to be used on platforms that include
+seccomp, you will need to use the `seccomp` build tag:
+```bash
+export DOCKER_BUILDTAGS='seccomp'
+```
+
 There are build tags for disabling graphdrivers as well. By default, support
 for all graphdrivers are built in.
 
@@ -208,10 +215,10 @@ the file "./VERSION". This binary is usually installed somewhere like
 
 ### Dynamic Daemon / Client-only Binary
 
-If you are only interested in a Docker client binary, set `DOCKER_CLIENTONLY` to a non-empty value using something similar to the following: (which will prevent the extra step of compiling dockerinit)
+If you are only interested in a Docker client binary, you can build using:
 
 ```bash
-export DOCKER_CLIENTONLY=1
+./hack/make.sh binary-client
 ```
 
 If you need to (due to distro policy, distro library availability, or for other
@@ -220,42 +227,11 @@ interested in creating a client binary for Docker, use something similar to the
 following:
 
 ```bash
-./hack/make.sh dynbinary
+./hack/make.sh dynbinary-client
 ```
 
-This will create "./bundles/$VERSION/dynbinary/docker-$VERSION", which for
+This will create "./bundles/$VERSION/dynbinary-client/docker-$VERSION", which for
 client-only builds is the important file to grab and install as appropriate.
-
-For daemon builds, you will also need to grab and install
-"./bundles/$VERSION/dynbinary/dockerinit-$VERSION", which is created from the
-minimal set of Docker's codebase that _must_ be compiled statically (and is thus
-a pure static binary). The acceptable locations Docker will search for this file
-are as follows (in order):
-
-* as "dockerinit" in the same directory as the daemon binary (ie, if docker is
-  installed at "/usr/bin/docker", then "/usr/bin/dockerinit" will be the first
-  place this file is searched for)
-* "/usr/libexec/docker/dockerinit" or "/usr/local/libexec/docker/dockerinit"
-  ([FHS 3.0 Draft](https://www.linuxbase.org/betaspecs/fhs/fhs.html#usrlibexec))
-* "/usr/lib/docker/dockerinit" or "/usr/local/lib/docker/dockerinit" ([FHS
-  2.3](https://refspecs.linuxfoundation.org/FHS_2.3/fhs-2.3.html#USRLIBLIBRARIESFORPROGRAMMINGANDPA))
-
-If (and please, only if) one of the paths above is insufficient due to distro
-policy or similar issues, you may use the `DOCKER_INITPATH` environment variable
-at compile-time as follows to set a different path for Docker to search:
-
-```bash
-export DOCKER_INITPATH=/usr/lib/docker.io/dockerinit
-```
-
-If you find yourself needing this, please don't hesitate to reach out to Tianon
-to see if it would be reasonable or helpful to add more paths to Docker's list,
-especially if there's a relevant standard worth referencing (such as the FHS).
-
-Also, it goes without saying, but for the purposes of the daemon please consider
-these two binaries ("docker" and "dockerinit") as if they were a single unit.
-Mixing and matching can cause undesired consequences, and will fail to run
-properly.
 
 ## System Dependencies
 
@@ -266,7 +242,8 @@ installed and available at runtime:
 
 * iptables version 1.4 or later
 * procps (or similar provider of a "ps" executable)
-* e2fsprogs version 1.4.12 or later (in use: mkfs.ext4, mkfs.xfs, tune2fs)
+* e2fsprogs version 1.4.12 or later (in use: mkfs.ext4, tune2fs)
+* xfsprogs (in use: mkfs.xfs)
 * XZ Utils version 4.9 or later
 * a [properly
   mounted](https://github.com/tianon/cgroupfs-mount/blob/master/cgroupfs-mount)
@@ -298,11 +275,11 @@ the client will even run on alternative platforms such as Mac OS X / Darwin.
 Some of Docker's features are activated by using optional command-line flags or
 by having support for them in the kernel or userspace. A few examples include:
 
-* LXC execution driver (requires version 1.0.7 or later of lxc and the lxc-libs)
 * AUFS graph driver (requires AUFS patches/support enabled in the kernel, and at
   least the "auplink" utility from aufs-tools)
 * BTRFS graph driver (requires BTRFS support enabled in the kernel)
 * ZFS graph driver (requires userspace zfs-utils and a corresponding kernel module)
+* Libseccomp to allow running seccomp profiles with containers
 
 ## Daemon Init Script
 
@@ -315,7 +292,7 @@ appropriate for your distro's init script to live there too!).
 In general, Docker should be run as root, similar to the following:
 
 ```bash
-docker daemon
+dockerd
 ```
 
 Generally, a `DOCKER_OPTS` variable of some kind is available for adding more

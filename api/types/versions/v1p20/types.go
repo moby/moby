@@ -3,8 +3,8 @@ package v1p20
 
 import (
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/pkg/nat"
-	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/go-connections/nat"
 )
 
 // ContainerJSON is a backcompatibility struct for the API 1.20
@@ -17,7 +17,7 @@ type ContainerJSON struct {
 
 // ContainerConfig is a backcompatibility struct used in ContainerJSON for the API 1.20
 type ContainerConfig struct {
-	*runconfig.Config
+	*container.Config
 
 	MacAddress      string
 	NetworkDisabled bool
@@ -27,7 +27,7 @@ type ContainerConfig struct {
 	VolumeDriver string
 }
 
-// StatsJSON is a backcompatibility struct used in Stats for API prior to 1.21
+// StatsJSON is a backcompatibility struct used in Stats for APIs prior to 1.21
 type StatsJSON struct {
 	types.Stats
 	Network types.NetworkStats `json:"network,omitempty"`

@@ -3,7 +3,7 @@ package main
 import (
 	"strings"
 
-	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
 )
 
@@ -35,7 +35,7 @@ func (s *DockerSuite) TestVersionPlatform_w(c *check.C) {
 // ensure the Linux daemon return the correct platform string
 func (s *DockerSuite) TestVersionPlatform_l(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	testVersionPlatform(c, "linux/amd64")
+	testVersionPlatform(c, "linux")
 }
 
 func testVersionPlatform(c *check.C, platform string) {

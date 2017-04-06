@@ -1,16 +1,13 @@
 package plugins
 
 import (
-	"fmt"
 	"io/ioutil"
-	"net"
 	"os"
 	"path/filepath"
-	"reflect"
 	"testing"
 )
 
-func setup(t *testing.T) (string, func()) {
+func Setup(t *testing.T) (string, func()) {
 	tmpdir, err := ioutil.TempDir("", "docker-test")
 	if err != nil {
 		t.Fatal(err)
@@ -25,56 +22,8 @@ func setup(t *testing.T) (string, func()) {
 	}
 }
 
-func TestLocalSocket(t *testing.T) {
-	tmpdir, unregister := setup(t)
-	defer unregister()
-
-	cases := []string{
-		filepath.Join(tmpdir, "echo.sock"),
-		filepath.Join(tmpdir, "echo", "echo.sock"),
-	}
-
-	for _, c := range cases {
-		if err := os.MkdirAll(filepath.Dir(c), 0755); err != nil {
-			t.Fatal(err)
-		}
-
-		l, err := net.Listen("unix", c)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		r := newLocalRegistry()
-		p, err := r.Plugin("echo")
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		pp, err := r.Plugin("echo")
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !reflect.DeepEqual(p, pp) {
-			t.Fatalf("Expected %v, was %v\n", p, pp)
-		}
-
-		if p.Name != "echo" {
-			t.Fatalf("Expected plugin `echo`, got %s\n", p.Name)
-		}
-
-		addr := fmt.Sprintf("unix://%s", c)
-		if p.Addr != addr {
-			t.Fatalf("Expected plugin addr `%s`, got %s\n", addr, p.Addr)
-		}
-		if p.TLSConfig.InsecureSkipVerify != true {
-			t.Fatalf("Expected TLS verification to be skipped")
-		}
-		l.Close()
-	}
-}
-
 func TestFileSpecPlugin(t *testing.T) {
-	tmpdir, unregister := setup(t)
+	tmpdir, unregister := Setup(t)
 	defer unregister()
 
 	cases := []struct {
@@ -83,6 +32,7 @@ func TestFileSpecPlugin(t *testing.T) {
 		addr string
 		fail bool
 	}{
+		// TODO Windows: Factor out the unix:// variants.
 		{filepath.Join(tmpdir, "echo.spec"), "echo", "unix://var/lib/docker/plugins/echo.sock", false},
 		{filepath.Join(tmpdir, "echo", "echo.spec"), "echo", "unix://var/lib/docker/plugins/echo.sock", false},
 		{filepath.Join(tmpdir, "foo.spec"), "foo", "tcp://localhost:8080", false},
@@ -108,22 +58,22 @@ func TestFileSpecPlugin(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if p.Name != c.name {
-			t.Fatalf("Expected plugin `%s`, got %s\n", c.name, p.Name)
+		if p.name != c.name {
+			t.Fatalf("Expected plugin `%s`, got %s\n", c.name, p.name)
 		}
 
 		if p.Addr != c.addr {
 			t.Fatalf("Expected plugin addr `%s`, got %s\n", c.addr, p.Addr)
 		}
 
-		if p.TLSConfig.InsecureSkipVerify != true {
+		if !p.TLSConfig.InsecureSkipVerify {
 			t.Fatalf("Expected TLS verification to be skipped")
 		}
 	}
 }
 
 func TestFileJSONSpecPlugin(t *testing.T) {
-	tmpdir, unregister := setup(t)
+	tmpdir, unregister := Setup(t)
 	defer unregister()
 
 	p := filepath.Join(tmpdir, "example.json")
@@ -147,8 +97,8 @@ func TestFileJSONSpecPlugin(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if plugin.Name != "example" {
-		t.Fatalf("Expected plugin `plugin-example`, got %s\n", plugin.Name)
+	if expected, actual := "example", plugin.name; expected != actual {
+		t.Fatalf("Expected plugin %q, got %s\n", expected, actual)
 	}
 
 	if plugin.Addr != "https://example.com/docker/plugin" {
@@ -165,5 +115,38 @@ func TestFileJSONSpecPlugin(t *testing.T) {
 
 	if plugin.TLSConfig.KeyFile != "/usr/shared/docker/certs/example-key.pem" {
 		t.Fatalf("Expected plugin Key `/usr/shared/docker/certs/example-key.pem`, got %s\n", plugin.TLSConfig.KeyFile)
+	}
+}
+
+func TestFileJSONSpecPluginWithoutTLSConfig(t *testing.T) {
+	tmpdir, unregister := Setup(t)
+	defer unregister()
+
+	p := filepath.Join(tmpdir, "example.json")
+	spec := `{
+  "Name": "plugin-example",
+  "Addr": "https://example.com/docker/plugin"
+}`
+
+	if err := ioutil.WriteFile(p, []byte(spec), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	r := newLocalRegistry()
+	plugin, err := r.Plugin("example")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if expected, actual := "example", plugin.name; expected != actual {
+		t.Fatalf("Expected plugin %q, got %s\n", expected, actual)
+	}
+
+	if plugin.Addr != "https://example.com/docker/plugin" {
+		t.Fatalf("Expected plugin addr `https://example.com/docker/plugin`, got %s\n", plugin.Addr)
+	}
+
+	if plugin.TLSConfig != nil {
+		t.Fatalf("Expected plugin TLSConfig nil, got %v\n", plugin.TLSConfig)
 	}
 }

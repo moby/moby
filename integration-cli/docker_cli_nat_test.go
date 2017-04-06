@@ -6,7 +6,7 @@ import (
 	"net"
 	"strings"
 
-	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
 )
 
@@ -38,20 +38,8 @@ func getExternalAddress(c *check.C) net.IP {
 	return ifaceIP
 }
 
-func getContainerLogs(c *check.C, containerID string) string {
-	out, _ := dockerCmd(c, "logs", containerID)
-	return strings.Trim(out, "\r\n")
-}
-
-func getContainerStatus(c *check.C, containerID string) string {
-	out, err := inspectField(containerID, "State.Running")
-	c.Assert(err, check.IsNil)
-	return out
-}
-
 func (s *DockerSuite) TestNetworkNat(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-	testRequires(c, SameHostDaemon, NativeExecDriver)
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
 	msg := "it works"
 	startServerContainer(c, msg, 8080)
 	endpoint := getExternalAddress(c)
@@ -67,8 +55,7 @@ func (s *DockerSuite) TestNetworkNat(c *check.C) {
 }
 
 func (s *DockerSuite) TestNetworkLocalhostTCPNat(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-	testRequires(c, SameHostDaemon, NativeExecDriver)
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
 	var (
 		msg = "hi yall"
 	)
@@ -85,8 +72,7 @@ func (s *DockerSuite) TestNetworkLocalhostTCPNat(c *check.C) {
 }
 
 func (s *DockerSuite) TestNetworkLoopbackNat(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-	testRequires(c, SameHostDaemon, NativeExecDriver, NotUserNamespace)
+	testRequires(c, DaemonIsLinux, SameHostDaemon, NotUserNamespace)
 	msg := "it works"
 	startServerContainer(c, msg, 8080)
 	endpoint := getExternalAddress(c)
