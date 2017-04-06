@@ -2,9 +2,7 @@
 
 package system
 
-import (
-	"syscall"
-)
+import "syscall"
 
 // Lstat takes a path to a file and returns
 // a system.StatT type pertaining to that file.
