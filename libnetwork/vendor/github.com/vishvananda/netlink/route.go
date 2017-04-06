@@ -3,12 +3,27 @@ package netlink
 import (
 	"fmt"
 	"net"
+	"strings"
 )
 
 // Scope is an enum representing a route scope.
 type Scope uint8
 
 type NextHopFlag int
+
+type Destination interface {
+	Family() int
+	Decode([]byte) error
+	Encode() ([]byte, error)
+	String() string
+}
+
+type Encap interface {
+	Type() int
+	Decode([]byte) error
+	Encode() ([]byte, error)
+	String() string
+}
 
 // Route represents a netlink route.
 type Route struct {
@@ -25,15 +40,36 @@ type Route struct {
 	Type       int
 	Tos        int
 	Flags      int
+	MPLSDst    *int
+	NewDst     Destination
+	Encap      Encap
 }
 
 func (r Route) String() string {
-	if len(r.MultiPath) > 0 {
-		return fmt.Sprintf("{Dst: %s Src: %s Gw: %s Flags: %s Table: %d}", r.Dst,
-			r.Src, r.MultiPath, r.ListFlags(), r.Table)
+	elems := []string{}
+	if len(r.MultiPath) == 0 {
+		elems = append(elems, fmt.Sprintf("Ifindex: %d", r.LinkIndex))
 	}
-	return fmt.Sprintf("{Ifindex: %d Dst: %s Src: %s Gw: %s Flags: %s Table: %d}", r.LinkIndex, r.Dst,
-		r.Src, r.Gw, r.ListFlags(), r.Table)
+	if r.MPLSDst != nil {
+		elems = append(elems, fmt.Sprintf("Dst: %d", r.MPLSDst))
+	} else {
+		elems = append(elems, fmt.Sprintf("Dst: %s", r.Dst))
+	}
+	if r.NewDst != nil {
+		elems = append(elems, fmt.Sprintf("NewDst: %s", r.NewDst))
+	}
+	if r.Encap != nil {
+		elems = append(elems, fmt.Sprintf("Encap: %s", r.Encap))
+	}
+	elems = append(elems, fmt.Sprintf("Src: %s", r.Src))
+	if len(r.MultiPath) > 0 {
+		elems = append(elems, fmt.Sprintf("Gw: %s", r.MultiPath))
+	} else {
+		elems = append(elems, fmt.Sprintf("Gw: %s", r.Gw))
+	}
+	elems = append(elems, fmt.Sprintf("Flags: %s", r.ListFlags()))
+	elems = append(elems, fmt.Sprintf("Table: %d", r.Table))
+	return fmt.Sprintf("{%s}", strings.Join(elems, " "))
 }
 
 func (r *Route) SetFlag(flag NextHopFlag) {
@@ -59,8 +95,22 @@ type NexthopInfo struct {
 	LinkIndex int
 	Hops      int
 	Gw        net.IP
+	Flags     int
+	NewDst    Destination
+	Encap     Encap
 }
 
 func (n *NexthopInfo) String() string {
-	return fmt.Sprintf("{Ifindex: %d Weight: %d, Gw: %s}", n.LinkIndex, n.Hops+1, n.Gw)
+	elems := []string{}
+	elems = append(elems, fmt.Sprintf("Ifindex: %d", n.LinkIndex))
+	if n.NewDst != nil {
+		elems = append(elems, fmt.Sprintf("NewDst: %s", n.NewDst))
+	}
+	if n.Encap != nil {
+		elems = append(elems, fmt.Sprintf("Encap: %s", n.Encap))
+	}
+	elems = append(elems, fmt.Sprintf("Weight: %d", n.Hops+1))
+	elems = append(elems, fmt.Sprintf("Gw: %d", n.Gw))
+	elems = append(elems, fmt.Sprintf("Flags: %s", n.ListFlags()))
+	return fmt.Sprintf("{%s}", strings.Join(elems, " "))
 }
