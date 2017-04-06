@@ -367,6 +367,13 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 		}
 	}
 
+	// Cache manifests, so integrity can be verified when executed canonically.
+	if p.config.ManifestStore != nil {
+		if _, err2 := p.config.ManifestStore.Set(ref.Name(), manifest); err2 != nil {
+			return false, err2
+		}
+	}
+
 	// If manSvc.Get succeeded, we can be confident that the registry on
 	// the other side speaks the v2 protocol.
 	p.confirmedV2 = true
@@ -699,6 +706,13 @@ func (p *v2Puller) pullManifestList(ctx context.Context, ref reference.Named, mf
 	manifest, err := manSvc.Get(ctx, manifestDigest)
 	if err != nil {
 		return "", "", err
+	}
+
+	// Cache manifests, so integrity can be verified when executed canonically.
+	if p.config.ManifestStore != nil {
+		if _, err2 := p.config.ManifestStore.Set(ref.Name(), manifest); err2 != nil {
+			return "", "", err2
+		}
 	}
 
 	manifestRef, err := reference.WithDigest(reference.TrimNamed(ref), manifestDigest)

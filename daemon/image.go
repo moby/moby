@@ -42,6 +42,15 @@ func (daemon *Daemon) GetImageID(refOrID string) (image.ID, error) {
 		return id, nil
 	}
 
+	// For a canonical reference, use the manifest store to ensure integrity.
+	if canonical, ok := ref.(reference.Canonical); ok {
+		id, err := daemon.manifestStore.GetImageID(canonical)
+		if err != nil {
+			return "", ErrImageDoesNotExist{ref}
+		}
+		return id, nil
+	}
+
 	if id, err := daemon.referenceStore.Get(namedRef); err == nil {
 		return image.IDFromDigest(id), nil
 	}

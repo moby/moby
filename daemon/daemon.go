@@ -38,6 +38,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/libcontainerd"
+	"github.com/docker/docker/manifest"
 	"github.com/docker/docker/migrate/v1"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/idtools"
@@ -76,6 +77,7 @@ type Daemon struct {
 	containers                container.Store
 	execCommands              *exec.Store
 	referenceStore            refstore.Store
+	manifestStore             manifest.Store
 	downloadManager           *xfer.LayerDownloadManager
 	uploadManager             *xfer.LayerUploadManager
 	distributionMetadataStore dmetadata.Store
@@ -637,6 +639,11 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	}
 
 	d.imageStore, err = image.NewImageStore(ifs, d.layerStore)
+	if err != nil {
+		return nil, err
+	}
+
+	d.manifestStore, err = manifest.NewManifestStore(filepath.Join(imageRoot, "manifestdb"))
 	if err != nil {
 		return nil, err
 	}

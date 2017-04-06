@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
+	"github.com/docker/docker/manifest"
 	"github.com/docker/docker/pkg/progress"
 	refstore "github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
@@ -47,6 +48,9 @@ type Config struct {
 	ReferenceStore refstore.Store
 	// RequireSchema2 ensures that only schema2 manifests are used.
 	RequireSchema2 bool
+	// ManifestStore caches manifests and ensures integrity of the data
+	// when requested canonically.
+	ManifestStore manifest.Store
 }
 
 // ImagePullConfig stores pull configuration.
