@@ -126,6 +126,9 @@ message SessionMessage {
 	// Symmetric encryption key distributed by the lead manager. Used by agents
 	// for securing network bootstrapping and communication.
 	repeated EncryptionKey network_bootstrap_keys = 4;
+
+	// Which root certificates to trust
+	bytes RootCA = 5;
 }
 
 // HeartbeatRequest provides identifying properties for a single heartbeat.
@@ -174,6 +177,7 @@ message Assignment {
 	oneof item {
 		Task task = 1;
 		Secret secret = 2;
+		Config config = 3;
 	}
 }
 

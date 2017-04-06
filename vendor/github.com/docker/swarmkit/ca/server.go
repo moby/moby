@@ -60,6 +60,9 @@ type Server struct {
 	lastSeenClusterRootCA *api.RootCA
 	lastSeenExternalCAs   []*api.ExternalCA
 	secConfigMu           sync.Mutex
+
+	// before we update the security config with the new root CA, we need to be able to save the root certs
+	rootPaths CertPaths
 }
 
 // DefaultCAConfig returns the default CA Config, with a default expiration.
@@ -70,13 +73,14 @@ func DefaultCAConfig() api.CAConfig {
 }
 
 // NewServer creates a CA API server.
-func NewServer(store *store.MemoryStore, securityConfig *SecurityConfig) *Server {
+func NewServer(store *store.MemoryStore, securityConfig *SecurityConfig, rootCAPaths CertPaths) *Server {
 	return &Server{
 		store:                       store,
 		securityConfig:              securityConfig,
 		pending:                     make(map[string]*api.Node),
 		started:                     make(chan struct{}),
 		reconciliationRetryInterval: defaultReconciliationRetryInterval,
+		rootPaths:                   rootCAPaths,
 	}
 }
 
@@ -582,6 +586,9 @@ func (s *Server) UpdateRootCA(ctx context.Context, cluster *api.Cluster) error {
 		if err != nil {
 			return errors.Wrap(err, "invalid Root CA object in cluster")
 		}
+		if err := SaveRootCA(updatedRootCA, s.rootPaths); err != nil {
+			return errors.Wrap(err, "unable to save new root CA certificates")
+		}
 
 		externalCARootPool := updatedRootCA.Pool
 		if rCA.RootRotation != nil {
@@ -609,6 +616,7 @@ func (s *Server) UpdateRootCA(ctx context.Context, cluster *api.Cluster) error {
 			// we're rotating to a new root, so we only want external CAs with the new root cert
 			wantedExternalCACert = rCA.RootRotation.CACert
 		}
+		wantedExternalCACert = NormalizePEMs(wantedExternalCACert)
 		// Update our security config with the list of External CA URLs
 		// from the new cluster state.
 
@@ -623,6 +631,7 @@ func (s *Server) UpdateRootCA(ctx context.Context, cluster *api.Cluster) error {
 			if len(certForExtCA) == 0 {
 				certForExtCA = rCA.CACert
 			}
+			certForExtCA = NormalizePEMs(certForExtCA)
 			if extCA.Protocol != api.ExternalCA_CAProtocolCFSSL {
 				logger.Debugf("skipping external CA %d (url: %s) due to unknown protocol type", i, extCA.URL)
 				continue

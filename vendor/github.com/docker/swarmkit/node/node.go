@@ -1,6 +1,7 @@
 package node
 
 import (
+	"bytes"
 	"crypto/tls"
 	"encoding/json"
 	"io/ioutil"
@@ -25,6 +26,7 @@ import (
 	"github.com/docker/swarmkit/manager"
 	"github.com/docker/swarmkit/manager/encryption"
 	"github.com/docker/swarmkit/remotes"
+	"github.com/docker/swarmkit/watch"
 	"github.com/docker/swarmkit/xnet"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/pkg/errors"
@@ -129,7 +131,7 @@ type Node struct {
 	err              error
 	agent            *agent.Agent
 	manager          *manager.Manager
-	notifyNodeChange chan *api.Node // used to send role updates from the dispatcher api on promotion/demotion
+	notifyNodeChange chan *agent.NodeChanges // used by the agent to relay node updates from the dispatcher Session stream to (*Node).run
 	unlockKey        []byte
 }
 
@@ -172,7 +174,7 @@ func New(c *Config) (*Node, error) {
 		stopped:          make(chan struct{}),
 		closed:           make(chan struct{}),
 		ready:            make(chan struct{}),
-		notifyNodeChange: make(chan *api.Node, 1),
+		notifyNodeChange: make(chan *agent.NodeChanges, 1),
 		unlockKey:        c.UnlockKey,
 	}
 
@@ -235,7 +237,8 @@ func (n *Node) run(ctx context.Context) (err error) {
 		}
 	}(ctx)
 
-	securityConfig, err := n.loadSecurityConfig(ctx)
+	paths := ca.NewConfigPaths(filepath.Join(n.config.StateDir, certDirectory))
+	securityConfig, err := n.loadSecurityConfig(ctx, paths)
 	if err != nil {
 		return err
 	}
@@ -274,24 +277,44 @@ func (n *Node) run(ctx context.Context) (err error) {
 			select {
 			case <-agentDone:
 				return
-			case node := <-n.notifyNodeChange:
-				// If the server is sending us a ForceRenewal State, renew
-				if node.Certificate.Status.State == api.IssuanceStateRotate {
-					renewCert()
-					continue
-				}
+			case nodeChanges := <-n.notifyNodeChange:
 				n.Lock()
-				// If we got a role change, renew
-				role := ca.WorkerRole
-				if node.Role == api.NodeRoleManager {
-					role = ca.ManagerRole
-				}
-				if n.role == role {
-					n.Unlock()
-					continue
-				}
+				currentRole := n.role
 				n.Unlock()
-				renewCert()
+
+				if nodeChanges.Node != nil {
+					role := ca.WorkerRole
+					if nodeChanges.Node.Role == api.NodeRoleManager {
+						role = ca.ManagerRole
+					}
+
+					// If the server is sending us a ForceRenewal State, or if the new node role doesn't match our current role, renew
+					if currentRole != role || nodeChanges.Node.Certificate.Status.State == api.IssuanceStateRotate {
+						renewCert()
+					}
+				}
+
+				if nodeChanges.RootCert != nil {
+					// We only want to update the root CA if this is a worker node.  Manager nodes directly watch the raft
+					// store and update the root CA, with the necessary signer, from the raft store (since the managers
+					// need the CA key as well to potentially issue new TLS certificates).
+					if currentRole == ca.ManagerRole || bytes.Equal(nodeChanges.RootCert, securityConfig.RootCA().Certs) {
+						continue
+					}
+					newRootCA, err := ca.NewRootCA(nodeChanges.RootCert, nil, nil, ca.DefaultNodeCertExpiration, nil)
+					if err != nil {
+						log.G(ctx).WithError(err).Error("invalid new root certificate from the dispatcher")
+						continue
+					}
+					if err := ca.SaveRootCA(newRootCA, paths.RootCA); err != nil {
+						log.G(ctx).WithError(err).Error("could not save new root certificate from the dispatcher")
+						continue
+					}
+					if err := securityConfig.UpdateRootCA(&newRootCA, newRootCA.Pool); err != nil {
+						log.G(ctx).WithError(err).Error("could not use new root CA from dispatcher")
+						continue
+					}
+				}
 			}
 		}
 	}()
@@ -322,12 +345,12 @@ func (n *Node) run(ctx context.Context) (err error) {
 	var managerErr error
 	var agentErr error
 	go func() {
-		managerErr = n.superviseManager(ctx, securityConfig, managerReady, forceCertRenewal) // store err and loop
+		managerErr = n.superviseManager(ctx, securityConfig, paths.RootCA, managerReady, forceCertRenewal) // store err and loop
 		wg.Done()
 		cancel()
 	}()
 	go func() {
-		agentErr = n.runAgent(ctx, db, securityConfig.ClientTLSCreds, agentReady)
+		agentErr = n.runAgent(ctx, db, securityConfig, agentReady)
 		wg.Done()
 		cancel()
 		close(agentDone)
@@ -401,7 +424,7 @@ func (n *Node) Err(ctx context.Context) error {
 	}
 }
 
-func (n *Node) runAgent(ctx context.Context, db *bolt.DB, creds credentials.TransportCredentials, ready chan<- struct{}) error {
+func (n *Node) runAgent(ctx context.Context, db *bolt.DB, securityConfig *ca.SecurityConfig, ready chan<- struct{}) error {
 	waitCtx, waitCancel := context.WithCancel(ctx)
 	remotesCh := n.remotes.WaitSelect(ctx)
 	controlCh := n.ListenControlSocket(waitCtx)
@@ -428,13 +451,28 @@ waitPeer:
 	default:
 	}
 
+	secChangeQueue := watch.NewQueue()
+	defer secChangeQueue.Close()
+	secChangesCh, secChangesCancel := secChangeQueue.Watch()
+	defer secChangesCancel()
+	securityConfig.SetWatch(secChangeQueue)
+
+	rootCA := securityConfig.RootCA()
+	issuer := securityConfig.IssuerInfo()
+
 	a, err := agent.New(&agent.Config{
 		Hostname:         n.config.Hostname,
 		ConnBroker:       n.connBroker,
 		Executor:         n.config.Executor,
 		DB:               db,
 		NotifyNodeChange: n.notifyNodeChange,
-		Credentials:      creds,
+		NotifyTLSChange:  secChangesCh,
+		Credentials:      securityConfig.ClientTLSCreds,
+		NodeTLSInfo: &api.NodeTLSInfo{
+			TrustRoot:           rootCA.Certs,
+			CertIssuerPublicKey: issuer.PublicKey,
+			CertIssuerSubject:   issuer.Subject,
+		},
 	})
 	if err != nil {
 		return err
@@ -565,8 +603,7 @@ func (n *Node) Remotes() []api.Peer {
 	return remotes
 }
 
-func (n *Node) loadSecurityConfig(ctx context.Context) (*ca.SecurityConfig, error) {
-	paths := ca.NewConfigPaths(filepath.Join(n.config.StateDir, certDirectory))
+func (n *Node) loadSecurityConfig(ctx context.Context, paths *ca.SecurityConfigPaths) (*ca.SecurityConfig, error) {
 	var securityConfig *ca.SecurityConfig
 
 	krw := ca.NewKeyReadWriter(paths.Node, n.unlockKey, &manager.RaftDEKData{})
@@ -717,7 +754,7 @@ func (n *Node) waitRole(ctx context.Context, role string) error {
 	return nil
 }
 
-func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig, ready chan struct{}, workerRole <-chan struct{}) (bool, error) {
+func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig, rootPaths ca.CertPaths, ready chan struct{}, workerRole <-chan struct{}) (bool, error) {
 	var remoteAPI *manager.RemoteAddrs
 	if n.config.ListenRemoteAPI != "" {
 		remoteAPI = &manager.RemoteAddrs{
@@ -741,6 +778,7 @@ func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig
 		UnlockKey:        n.unlockKey,
 		Availability:     n.config.Availability,
 		PluginGetter:     n.config.PluginGetter,
+		RootCAPaths:      rootPaths,
 	})
 	if err != nil {
 		return false, err
@@ -789,7 +827,7 @@ func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig
 	return clearData, nil
 }
 
-func (n *Node) superviseManager(ctx context.Context, securityConfig *ca.SecurityConfig, ready chan struct{}, forceCertRenewal chan struct{}) error {
+func (n *Node) superviseManager(ctx context.Context, securityConfig *ca.SecurityConfig, rootPaths ca.CertPaths, ready chan struct{}, forceCertRenewal chan struct{}) error {
 	for {
 		if err := n.waitRole(ctx, ca.ManagerRole); err != nil {
 			return err
@@ -803,7 +841,7 @@ func (n *Node) superviseManager(ctx context.Context, securityConfig *ca.Security
 			}
 		}()
 
-		wasRemoved, err := n.runManager(ctx, securityConfig, ready, workerRole)
+		wasRemoved, err := n.runManager(ctx, securityConfig, rootPaths, ready, workerRole)
 		if err != nil {
 			waitRoleCancel()
 			return errors.Wrap(err, "manager stopped")

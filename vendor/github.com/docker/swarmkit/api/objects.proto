@@ -328,9 +328,7 @@ message Cluster {
 }
 
 // Secret represents a secret that should be passed to a container or a node,
-// and is immutable. It wraps the `spec` provided by the user with useful
-// information that is generated from the secret data in the `spec`, such as
-// the digest and size of the secret data.
+// and is immutable.
 message Secret {
 	option (docker.protobuf.plugin.store_object) = {
 		watch_selectors: {
@@ -353,6 +351,29 @@ message Secret {
 
 	// Whether the secret is an internal secret (not set by a user) or not.
 	bool internal = 4;
+}
+
+// Config represents a set of configuration files that should be passed to a
+// container.
+message Config {
+	option (docker.protobuf.plugin.store_object) = {
+		watch_selectors: {
+			id: true
+			id_prefix: true
+			name: true
+			name_prefix: true
+			custom: true
+			custom_prefix: true
+		}
+	};
+
+	string id = 1;
+
+	Meta meta = 2 [(gogoproto.nullable) = false];
+
+	// Spec contains the actual config data, as well as any context around the
+	// config data that the user provides.
+	ConfigSpec spec = 3  [(gogoproto.nullable) = false];
 }
 
 // Resource is a top-level object with externally defined content and indexing.

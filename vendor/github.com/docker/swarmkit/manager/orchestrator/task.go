@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/docker/swarmkit/api"
+	"github.com/docker/swarmkit/api/defaults"
 	"github.com/docker/swarmkit/identity"
 	"github.com/docker/swarmkit/protobuf/ptypes"
 )
@@ -50,7 +51,7 @@ func NewTask(cluster *api.Cluster, service *api.Service, slot uint64, nodeID str
 
 // RestartCondition returns the restart condition to apply to this task.
 func RestartCondition(task *api.Task) api.RestartPolicy_RestartCondition {
-	restartCondition := api.RestartOnAny
+	restartCondition := defaults.Service.Task.Restart.Condition
 	if task.Spec.Restart != nil {
 		restartCondition = task.Spec.Restart.Condition
 	}

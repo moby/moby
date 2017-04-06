@@ -18,6 +18,7 @@ message Object {
 		Secret secret = 6;
 		Resource resource = 7;
 		Extension extension = 8;
+		Config config = 9;
 	}
 }
 
@@ -60,6 +61,7 @@ message SelectBy {
 		// supported by: service, task
 		string referenced_network_id = 13 [(gogoproto.customname) = "ReferencedNetworkID"];
 		string referenced_secret_id = 14 [(gogoproto.customname) = "ReferencedSecretID"];
+		string referenced_config_id = 16 [(gogoproto.customname) = "ReferencedConfigID"];
 
 		// supported by: resource
 		string kind = 15;

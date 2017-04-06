@@ -24,28 +24,28 @@ var minRootExpiration = 1 * helpers.OneYear
 // determines whether an api.RootCA, api.RootRotation, or api.CAConfig has a signing key (local signer)
 func hasSigningKey(a interface{}) bool {
 	switch b := a.(type) {
-	case api.RootCA:
+	case *api.RootCA:
 		return len(b.CAKey) > 0
 	case *api.RootRotation:
 		return b != nil && len(b.CAKey) > 0
-	case api.CAConfig:
+	case *api.CAConfig:
 		return len(b.SigningCACert) > 0 && len(b.SigningCAKey) > 0
 	default:
-		panic("needsExternalCAs should be called something of type api.RootCA, *api.RootRotation, or api.CAConfig")
+		panic("needsExternalCAs should be called something of type *api.RootCA, *api.RootRotation, or *api.CAConfig")
 	}
 }
 
 // Creates a cross-signed intermediate and new api.RootRotation object.
 // This function assumes that the root cert and key and the external CAs have already been validated.
-func newRootRotationObject(ctx context.Context, securityConfig *ca.SecurityConfig, cluster *api.Cluster, newRootCA ca.RootCA, version uint64) (*api.RootCA, error) {
+func newRootRotationObject(ctx context.Context, securityConfig *ca.SecurityConfig, apiRootCA *api.RootCA, newCARootCA ca.RootCA, extCAs []*api.ExternalCA, version uint64) (*api.RootCA, error) {
 	var (
 		rootCert, rootKey, crossSignedCert []byte
 		newRootHasSigner                   bool
 		err                                error
 	)
 
-	rootCert = newRootCA.Certs
-	if s, err := newRootCA.Signer(); err == nil {
+	rootCert = newCARootCA.Certs
+	if s, err := newCARootCA.Signer(); err == nil {
 		rootCert, rootKey = s.Cert, s.Key
 		newRootHasSigner = true
 	}
@@ -53,9 +53,9 @@ func newRootRotationObject(ctx context.Context, securityConfig *ca.SecurityConfi
 	// we have to sign with the original signer, not whatever is in the SecurityConfig's RootCA (which may have an intermediate signer, if
 	// a root rotation is already in progress)
 	switch {
-	case hasSigningKey(cluster.RootCA):
+	case hasSigningKey(apiRootCA):
 		var oldRootCA ca.RootCA
-		oldRootCA, err = ca.NewRootCA(cluster.RootCA.CACert, cluster.RootCA.CACert, cluster.RootCA.CAKey, ca.DefaultNodeCertExpiration, nil)
+		oldRootCA, err = ca.NewRootCA(apiRootCA.CACert, apiRootCA.CACert, apiRootCA.CAKey, ca.DefaultNodeCertExpiration, nil)
 		if err == nil {
 			crossSignedCert, err = oldRootCA.CrossSignCACertificate(rootCert)
 		}
@@ -65,8 +65,8 @@ func newRootRotationObject(ctx context.Context, securityConfig *ca.SecurityConfi
 		// We need the same credentials but to connect to the original URLs (in case we are in the middle of a root rotation already)
 		externalCA := securityConfig.ExternalCA().Copy()
 		var urls []string
-		for _, c := range cluster.Spec.CAConfig.ExternalCAs {
-			if c.Protocol == api.ExternalCA_CAProtocolCFSSL && bytes.Equal(c.CACert, cluster.RootCA.CACert) {
+		for _, c := range extCAs {
+			if c.Protocol == api.ExternalCA_CAProtocolCFSSL {
 				urls = append(urls, c.URL)
 			}
 		}
@@ -75,7 +75,7 @@ func newRootRotationObject(ctx context.Context, securityConfig *ca.SecurityConfi
 				"must provide an external CA for the current external root CA to generate a cross-signed certificate")
 		}
 		externalCA.UpdateURLs(urls...)
-		crossSignedCert, err = externalCA.CrossSignRootCA(ctx, newRootCA)
+		crossSignedCert, err = externalCA.CrossSignRootCA(ctx, newCARootCA)
 	}
 
 	if err != nil {
@@ -83,11 +83,11 @@ func newRootRotationObject(ctx context.Context, securityConfig *ca.SecurityConfi
 		return nil, grpc.Errorf(codes.Internal, "unable to generate a cross-signed certificate for root rotation")
 	}
 
-	copied := cluster.RootCA.Copy()
+	copied := apiRootCA.Copy()
 	copied.RootRotation = &api.RootRotation{
 		CACert:            rootCert,
 		CAKey:             rootKey,
-		CrossSignedCACert: crossSignedCert,
+		CrossSignedCACert: ca.NormalizePEMs(crossSignedCert),
 	}
 	copied.LastForcedRotation = version
 	return copied, nil
@@ -120,58 +120,46 @@ func validateExternalCAURL(dialer *net.Dialer, tlsOpts *tls.Config, caURL string
 	return err
 }
 
-// Iterates over all the external CAs, and validates that there is at least 1 reachable, valid external CA for the
-// given CA certificate.  Returns true if there is, false otherwise.
-func hasAtLeastOneExternalCA(ctx context.Context, externalCAs []*api.ExternalCA, securityConfig *ca.SecurityConfig, wantedCert []byte) bool {
-	pool := x509.NewCertPool()
-	pool.AppendCertsFromPEM(wantedCert)
-	dialer := net.Dialer{Timeout: 5 * time.Second}
-	opts := tls.Config{
-		RootCAs:      pool,
-		Certificates: securityConfig.ClientTLSCreds.Config().Certificates,
-	}
-	for i, ca := range externalCAs {
-		if ca.Protocol == api.ExternalCA_CAProtocolCFSSL && bytes.Equal(wantedCert, ca.CACert) {
-			err := validateExternalCAURL(&dialer, &opts, ca.URL)
-			if err == nil {
-				return true
+// Validates that there is at least 1 reachable, valid external CA for the given CA certificate.  Returns true if there is, false otherwise.
+// Requires that the wanted cert is already normalized.
+func validateHasAtLeastOneExternalCA(ctx context.Context, externalCAs map[string][]*api.ExternalCA, securityConfig *ca.SecurityConfig,
+	wantedCert []byte, desc string) ([]*api.ExternalCA, error) {
+	specific, ok := externalCAs[string(wantedCert)]
+	if ok {
+		pool := x509.NewCertPool()
+		pool.AppendCertsFromPEM(wantedCert)
+		dialer := net.Dialer{Timeout: 5 * time.Second}
+		opts := tls.Config{
+			RootCAs:      pool,
+			Certificates: securityConfig.ClientTLSCreds.Config().Certificates,
+		}
+		for i, ca := range specific {
+			if ca.Protocol == api.ExternalCA_CAProtocolCFSSL {
+				if err := validateExternalCAURL(&dialer, &opts, ca.URL); err != nil {
+					log.G(ctx).WithError(err).Warnf("external CA # %d is unreachable or invalid", i+1)
+				} else {
+					return specific, nil
+				}
 			}
-			log.G(ctx).WithError(err).Warnf("external CA # %d is unreachable or invalid", i+1)
 		}
 	}
-	return false
+	return nil, grpc.Errorf(codes.InvalidArgument, "there must be at least one valid, reachable external CA corresponding to the %s CA certificate", desc)
 }
 
-// All new external CA definitions must include the CA cert associated with the external CA.
-// If the current root CA requires an external CA, then at least one, reachable valid external CA must be provided that
-// corresponds with the current RootCA's certificate.
-//
-// Similarly for the desired CA certificate, if one is specified.  Similarly for the current outstanding root CA rotation,
-// if one is specified and will not be replaced with the desired CA.
-func validateHasRequiredExternalCAs(ctx context.Context, securityConfig *ca.SecurityConfig, cluster *api.Cluster) error {
-	config := cluster.Spec.CAConfig
-	for _, ca := range config.ExternalCAs {
-		if len(ca.CACert) == 0 {
-			return grpc.Errorf(codes.InvalidArgument, "must specify CA certificate for each external CA")
+// validates that the list of external CAs have valid certs associated with them, and produce a mapping of subject/pubkey:external
+// for later validation of required external CAs
+func getNormalizedExtCAs(caConfig *api.CAConfig) (map[string][]*api.ExternalCA, error) {
+	extCAs := make(map[string][]*api.ExternalCA)
+
+	for _, extCA := range caConfig.ExternalCAs {
+		if len(extCA.CACert) == 0 {
+			return nil, grpc.Errorf(codes.InvalidArgument, "must specify CA certificate for each external CA")
 		}
+		certKey := string(ca.NormalizePEMs(extCA.CACert))
+		extCAs[certKey] = append(extCAs[certKey], extCA)
 	}
 
-	if !hasSigningKey(cluster.RootCA) && !hasAtLeastOneExternalCA(ctx, config.ExternalCAs, securityConfig, cluster.RootCA.CACert) {
-		return grpc.Errorf(codes.InvalidArgument, "there must be at least one valid, reachable external CA corresponding to the current CA certificate")
-	}
-
-	if len(config.SigningCACert) > 0 { // a signing cert is specified
-		if !hasSigningKey(config) && !hasAtLeastOneExternalCA(ctx, config.ExternalCAs, securityConfig, config.SigningCACert) {
-			return grpc.Errorf(codes.InvalidArgument, "there must be at least one valid, reachable external CA corresponding to the desired CA certificate")
-		}
-	} else if config.ForceRotate == cluster.RootCA.LastForcedRotation && cluster.RootCA.RootRotation != nil {
-		// no cert is specified but force rotation hasn't changed (so we are happy with the current configuration) and there's an outstanding root rotation
-		if !hasSigningKey(cluster.RootCA.RootRotation) && !hasAtLeastOneExternalCA(ctx, config.ExternalCAs, securityConfig, cluster.RootCA.RootRotation.CACert) {
-			return grpc.Errorf(codes.InvalidArgument, "there must be at least one valid, reachable external CA corresponding to the next CA certificate")
-		}
-	}
-
-	return nil
+	return extCAs, nil
 }
 
 // validateAndUpdateCA validates a cluster's desired CA configuration spec, and returns a RootCA value on success representing
@@ -196,14 +184,25 @@ func validateHasRequiredExternalCAs(ctx context.Context, securityConfig *ca.Secu
 //    - Otherwise, start a new root rotation using the desired signing cert and desired signing key as the root rotation
 //      signing cert and key.  If a root rotation is already in progress, just replace it and start over.
 func validateCAConfig(ctx context.Context, securityConfig *ca.SecurityConfig, cluster *api.Cluster) (*api.RootCA, error) {
-	newConfig := cluster.Spec.CAConfig
+	newConfig := cluster.Spec.CAConfig.Copy()
+	newConfig.SigningCACert = ca.NormalizePEMs(newConfig.SigningCACert) // ensure this is normalized before we use it
 
 	if len(newConfig.SigningCAKey) > 0 && len(newConfig.SigningCACert) == 0 {
 		return nil, grpc.Errorf(codes.InvalidArgument, "if a signing CA key is provided, the signing CA cert must also be provided")
 	}
 
-	if err := validateHasRequiredExternalCAs(ctx, securityConfig, cluster); err != nil {
+	extCAs, err := getNormalizedExtCAs(newConfig) // validate that the list of external CAs is not malformed
+	if err != nil {
 		return nil, err
+	}
+
+	normalizedRootCA := ca.NormalizePEMs(cluster.RootCA.CACert)
+	var oldCertExtCAs []*api.ExternalCA
+	if !hasSigningKey(&cluster.RootCA) {
+		oldCertExtCAs, err = validateHasAtLeastOneExternalCA(ctx, extCAs, securityConfig, normalizedRootCA, "current")
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// if the desired CA cert and key are not set, then we are happy with the current root CA configuration, unless
@@ -214,8 +213,18 @@ func validateCAConfig(ctx context.Context, securityConfig *ca.SecurityConfig, cl
 			if err != nil {
 				return nil, grpc.Errorf(codes.Internal, err.Error())
 			}
-			return newRootRotationObject(ctx, securityConfig, cluster, newRootCA, newConfig.ForceRotate)
+			return newRootRotationObject(ctx, securityConfig, &cluster.RootCA, newRootCA, oldCertExtCAs, newConfig.ForceRotate)
 		}
+
+		// we also need to make sure that if the current root rotation requires an external CA, those external CAs are
+		// still valid
+		if cluster.RootCA.RootRotation != nil && !hasSigningKey(cluster.RootCA.RootRotation) {
+			_, err := validateHasAtLeastOneExternalCA(ctx, extCAs, securityConfig, ca.NormalizePEMs(cluster.RootCA.RootRotation.CACert), "next")
+			if err != nil {
+				return nil, err
+			}
+		}
+
 		return &cluster.RootCA, nil // no change, return as is
 	}
 
@@ -243,8 +252,14 @@ func validateCAConfig(ctx context.Context, securityConfig *ca.SecurityConfig, cl
 		return nil, grpc.Errorf(codes.InvalidArgument, "CA certificate expires too soon")
 	}
 
+	if !hasSigningKey(newConfig) {
+		if _, err := validateHasAtLeastOneExternalCA(ctx, extCAs, securityConfig, newConfig.SigningCACert, "desired"); err != nil {
+			return nil, err
+		}
+	}
+
 	// check if we can abort any existing root rotations
-	if bytes.Equal(cluster.RootCA.CACert, cluster.Spec.CAConfig.SigningCACert) {
+	if bytes.Equal(normalizedRootCA, newConfig.SigningCACert) {
 		copied := cluster.RootCA.Copy()
 		copied.CAKey = newConfig.SigningCAKey
 		copied.RootRotation = nil
@@ -253,7 +268,7 @@ func validateCAConfig(ctx context.Context, securityConfig *ca.SecurityConfig, cl
 	}
 
 	// check if this is the same desired cert as an existing root rotation
-	if r := cluster.RootCA.RootRotation; r != nil && bytes.Equal(r.CACert, cluster.Spec.CAConfig.SigningCACert) {
+	if r := cluster.RootCA.RootRotation; r != nil && bytes.Equal(ca.NormalizePEMs(r.CACert), newConfig.SigningCACert) {
 		copied := cluster.RootCA.Copy()
 		copied.RootRotation.CAKey = newConfig.SigningCAKey
 		copied.LastForcedRotation = newConfig.ForceRotate
@@ -261,5 +276,5 @@ func validateCAConfig(ctx context.Context, securityConfig *ca.SecurityConfig, cl
 	}
 
 	// ok, everything's different; we have to begin a new root rotation which means generating a new cross-signed cert
-	return newRootRotationObject(ctx, securityConfig, cluster, newRootCA, newConfig.ForceRotate)
+	return newRootRotationObject(ctx, securityConfig, &cluster.RootCA, newRootCA, oldCertExtCAs, newConfig.ForceRotate)
 }
