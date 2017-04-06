@@ -88,9 +88,18 @@ func (pm *Manager) pluginPostStart(p *v2.Plugin, c *controller) error {
 
 	p.SetPClient(client)
 
+	// Initial sleep before net Dial to allow plugin to listen on socket.
+	time.Sleep(500 * time.Millisecond)
 	maxRetries := 3
 	var retries int
 	for {
+		// net dial into the unix socket to see if someone's listening.
+		conn, err := net.Dial("unix", sockAddr)
+		if err == nil {
+			conn.Close()
+			break
+		}
+
 		time.Sleep(3 * time.Second)
 		retries++
 
@@ -103,12 +112,6 @@ func (pm *Manager) pluginPostStart(p *v2.Plugin, c *controller) error {
 			return err
 		}
 
-		// net dial into the unix socket to see if someone's listening.
-		conn, err := net.Dial("unix", sockAddr)
-		if err == nil {
-			conn.Close()
-			break
-		}
 	}
 	pm.config.Store.SetState(p, true)
 	pm.config.Store.CallHandler(p)
