@@ -28,6 +28,7 @@ import (
 	"github.com/docker/docker/pkg/testutil"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
+	"github.com/opencontainers/go-digest"
 )
 
 func (s *DockerSuite) TestBuildJSONEmptyRun(c *check.C) {
@@ -6397,4 +6398,50 @@ CMD echo foo
 
 	out, _ := dockerCmd(c, "inspect", "--format", "{{ json .Config.Cmd }}", "build2")
 	c.Assert(strings.TrimSpace(out), checker.Equals, `["/bin/sh","-c","echo foo"]`)
+}
+
+func (s *DockerSuite) TestBuildIidFile(c *check.C) {
+	tmpDir, err := ioutil.TempDir("", "TestBuildIidFile")
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+	tmpIidFile := filepath.Join(tmpDir, "iid")
+
+	name := "testbuildiidfile"
+	// Use a Dockerfile with multiple stages to ensure we get the last one
+	cli.BuildCmd(c, name,
+		build.WithDockerfile(`FROM `+minimalBaseImage()+` AS stage1
+ENV FOO FOO
+FROM `+minimalBaseImage()+`
+ENV BAR BAZ`),
+		cli.WithFlags("--iidfile", tmpIidFile))
+
+	id, err := ioutil.ReadFile(tmpIidFile)
+	c.Assert(err, check.IsNil)
+	d, err := digest.Parse(string(id))
+	c.Assert(err, check.IsNil)
+	c.Assert(d.String(), checker.Equals, getIDByName(c, name))
+}
+
+func (s *DockerSuite) TestBuildIidFileCleanupOnFail(c *check.C) {
+	tmpDir, err := ioutil.TempDir("", "TestBuildIidFileCleanupOnFail")
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+	tmpIidFile := filepath.Join(tmpDir, "iid")
+
+	err = ioutil.WriteFile(tmpIidFile, []byte("Dummy"), 0666)
+	c.Assert(err, check.IsNil)
+
+	cli.Docker(cli.Build("testbuildiidfilecleanuponfail"),
+		build.WithDockerfile(`FROM `+minimalBaseImage()+`
+	RUN /non/existing/command`),
+		cli.WithFlags("--iidfile", tmpIidFile)).Assert(c, icmd.Expected{
+		ExitCode: 1,
+	})
+	_, err = os.Stat(tmpIidFile)
+	c.Assert(err, check.NotNil)
+	c.Assert(os.IsNotExist(err), check.Equals, true)
 }
