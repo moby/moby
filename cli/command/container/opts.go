@@ -113,6 +113,7 @@ type containerOptions struct {
 	healthCmd          string
 	healthInterval     time.Duration
 	healthTimeout      time.Duration
+	healthStartPeriod  time.Duration
 	healthRetries      int
 	runtime            string
 	autoRemove         bool
@@ -232,6 +233,8 @@ func addFlags(flags *pflag.FlagSet) *containerOptions {
 	flags.DurationVar(&copts.healthInterval, "health-interval", 0, "Time between running the check (ns|us|ms|s|m|h) (default 0s)")
 	flags.IntVar(&copts.healthRetries, "health-retries", 0, "Consecutive failures needed to report unhealthy")
 	flags.DurationVar(&copts.healthTimeout, "health-timeout", 0, "Maximum time to allow one check to run (ns|us|ms|s|m|h) (default 0s)")
+	flags.DurationVar(&copts.healthStartPeriod, "health-start-period", 0, "Start period for the container to initialize before starting health-retries countdown (ns|us|ms|s|m|h) (default 0s)")
+	flags.SetAnnotation("health-start-period", "version", []string{"1.29"})
 	flags.BoolVar(&copts.noHealthcheck, "no-healthcheck", false, "Disable any container-specified HEALTHCHECK")
 
 	// Resource management
@@ -464,6 +467,7 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*containerConfig, err
 	haveHealthSettings := copts.healthCmd != "" ||
 		copts.healthInterval != 0 ||
 		copts.healthTimeout != 0 ||
+		copts.healthStartPeriod != 0 ||
 		copts.healthRetries != 0
 	if copts.noHealthcheck {
 		if haveHealthSettings {
@@ -486,12 +490,16 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*containerConfig, err
 		if copts.healthRetries < 0 {
 			return nil, errors.Errorf("--health-retries cannot be negative")
 		}
+		if copts.healthStartPeriod < 0 {
+			return nil, fmt.Errorf("--health-start-period cannot be negative")
+		}
 
 		healthConfig = &container.HealthConfig{
-			Test:     probe,
-			Interval: copts.healthInterval,
-			Timeout:  copts.healthTimeout,
-			Retries:  copts.healthRetries,
+			Test:        probe,
+			Interval:    copts.healthInterval,
+			Timeout:     copts.healthTimeout,
+			StartPeriod: copts.healthStartPeriod,
+			Retries:     copts.healthRetries,
 		}
 	}
 

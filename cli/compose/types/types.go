@@ -163,11 +163,12 @@ type DeployConfig struct {
 
 // HealthCheckConfig the healthcheck configuration for a service
 type HealthCheckConfig struct {
-	Test     HealthCheckTest
-	Timeout  string
-	Interval string
-	Retries  *uint64
-	Disable  bool
+	Test        HealthCheckTest
+	Timeout     string
+	Interval    string
+	Retries     *uint64
+	StartPeriod string
+	Disable     bool
 }
 
 // HealthCheckTest is the command run to test the health of a service

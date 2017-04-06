@@ -312,6 +312,11 @@ func TestUpdateHealthcheckTable(t *testing.T) {
 			expected: &container.HealthConfig{Test: []string{"CMD", "cmd1"}},
 		},
 		{
+			flags:    [][2]string{{"health-start-period", "1m"}},
+			initial:  &container.HealthConfig{Test: []string{"CMD", "cmd1"}},
+			expected: &container.HealthConfig{Test: []string{"CMD", "cmd1"}, StartPeriod: time.Minute},
+		},
+		{
 			flags: [][2]string{{"health-cmd", "cmd1"}, {"no-healthcheck", "true"}},
 			err:   "--no-healthcheck conflicts with --health-* options",
 		},
