@@ -58,6 +58,8 @@ type MobyImage struct {
 	Ipc               string
 	Uts               string
 	Readonly          bool
+	MaskedPaths       []string `yaml:"maskedPaths"`
+	ReadonlyPaths     []string `yaml:"readonlyPaths"`
 	UID               uint32   `yaml:"uid"`
 	GID               uint32   `yaml:"gid"`
 	AdditionalGids    []uint32 `yaml:"additionalGids"`
@@ -238,33 +240,24 @@ func ConfigInspectToOCI(image *MobyImage, inspect types.ImageInspect) ([]byte, e
 		mountList = append(mountList, m)
 	}
 	sort.Sort(mountList)
+
 	namespaces := []specs.LinuxNamespace{}
-	if image.Net != "" && image.Net != "host" {
-		return []byte{}, fmt.Errorf("invalid net namespace: %s", image.Net)
+	// to attach to an existing namespace, easiest to bind mount with nsfs in a system container
+	if image.Net != "host" {
+		namespaces = append(namespaces, specs.LinuxNamespace{Type: specs.NetworkNamespace, Path: image.Net})
 	}
-	if image.Net == "" {
-		namespaces = append(namespaces, specs.LinuxNamespace{Type: specs.NetworkNamespace})
+	if image.Pid != "host" {
+		namespaces = append(namespaces, specs.LinuxNamespace{Type: specs.PIDNamespace, Path: image.Pid})
 	}
-	if image.Pid != "" && image.Pid != "host" {
-		return []byte{}, fmt.Errorf("invalid pid namespace: %s", image.Pid)
+	if image.Ipc != "host" {
+		namespaces = append(namespaces, specs.LinuxNamespace{Type: specs.IPCNamespace, Path: image.Ipc})
 	}
-	if image.Pid == "" {
-		namespaces = append(namespaces, specs.LinuxNamespace{Type: specs.PIDNamespace})
-	}
-	if image.Ipc != "" && image.Ipc != "host" {
-		return []byte{}, fmt.Errorf("invalid ipc namespace: %s", image.Ipc)
-	}
-	if image.Ipc == "" {
-		namespaces = append(namespaces, specs.LinuxNamespace{Type: specs.IPCNamespace})
-	}
-	if image.Uts != "" && image.Uts != "host" {
-		return []byte{}, fmt.Errorf("invalid uts namespace: %s", image.Uts)
-	}
-	if image.Uts == "" {
-		namespaces = append(namespaces, specs.LinuxNamespace{Type: specs.UTSNamespace})
+	if image.Uts != "host" {
+		namespaces = append(namespaces, specs.LinuxNamespace{Type: specs.UTSNamespace, Path: image.Uts})
 	}
 	// TODO user, cgroup namespaces, maybe mount=host if useful
 	namespaces = append(namespaces, specs.LinuxNamespace{Type: specs.MountNamespace})
+
 	caps := image.Capabilities
 	if len(caps) == 1 && strings.ToLower(caps[0]) == "all" {
 		caps = []string{
@@ -368,8 +361,8 @@ func ConfigInspectToOCI(image *MobyImage, inspect types.ImageInspect) ([]byte, e
 		// Devices
 		// Seccomp
 		RootfsPropagation: image.RootfsPropagation,
-		// MaskedPaths
-		// ReadonlyPaths
+		MaskedPaths:       image.MaskedPaths,
+		ReadonlyPaths:     image.ReadonlyPaths,
 		// MountLabel
 		// IntelRdt
 	}
