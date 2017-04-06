@@ -189,7 +189,7 @@ func (b *Builder) buildArgsWithoutConfigEnv() []string {
 	envs := []string{}
 	configEnv := runconfigopts.ConvertKVStringsToMap(b.runConfig.Env)
 
-	for key, val := range b.getBuildArgs() {
+	for key, val := range b.buildArgs.GetAllAllowed() {
 		if _, ok := configEnv[key]; !ok {
 			envs = append(envs, fmt.Sprintf("%s=%s", key, val))
 		}

@@ -218,7 +218,11 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 		return err
 	}
 
-	substituionArgs := b.buildArgsWithoutConfigEnv()
+	substituionArgs := []string{}
+	for key, value := range b.buildArgs.GetAllMeta() {
+		substituionArgs = append(substituionArgs, key+"="+value)
+	}
+
 	name, err := ProcessWord(args[0], substituionArgs, b.directive.EscapeToken)
 	if err != nil {
 		return err
@@ -256,8 +260,7 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 	}
 	b.from = image
 
-	b.allowedBuildArgs = make(map[string]*string)
-
+	b.buildArgs.ResetAllowed()
 	return b.processImageFrom(image)
 }
 
@@ -442,7 +445,7 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	// properly match it.
 	b.runConfig.Env = env
 
-	// remove BuiltinAllowedBuildArgs (see: builder.go)  from the saveCmd
+	// remove builtinAllowedBuildArgs (see: builder.go)  from the saveCmd
 	// these args are transparent so resulting image should be the same regardless of the value
 	if len(cmdBuildEnv) > 0 {
 		saveCmd = config.Cmd
@@ -450,11 +453,8 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 		copy(tmpBuildEnv, cmdBuildEnv)
 		for i, env := range tmpBuildEnv {
 			key := strings.SplitN(env, "=", 2)[0]
-			if _, ok := BuiltinAllowedBuildArgs[key]; ok {
-				// If an built-in arg is explicitly added in the Dockerfile, don't prune it
-				if _, ok := b.allowedBuildArgs[key]; !ok {
-					tmpBuildEnv = append(tmpBuildEnv[:i], tmpBuildEnv[i+1:]...)
-				}
+			if b.buildArgs.IsUnreferencedBuiltin(key) {
+				tmpBuildEnv = append(tmpBuildEnv[:i], tmpBuildEnv[i+1:]...)
 			}
 		}
 		sort.Strings(tmpBuildEnv)
@@ -785,17 +785,16 @@ func arg(b *Builder, args []string, attributes map[string]bool, original string)
 		name = arg
 		hasDefault = false
 	}
-	// add the arg to allowed list of build-time args from this step on.
-	b.allBuildArgs[name] = struct{}{}
 
 	var value *string
 	if hasDefault {
 		value = &newValue
 	}
-	b.allowedBuildArgs[name] = value
+	b.buildArgs.AddArg(name, value)
 
 	// Arg before FROM doesn't add a layer
 	if !b.hasFromImage() {
+		b.buildArgs.AddMetaArg(name, value)
 		return nil
 	}
 	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("ARG %s", arg))

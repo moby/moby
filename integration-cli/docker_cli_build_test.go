@@ -4728,7 +4728,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgDefintionWithNoEnvInjection(c *check.
 		ARG %s
 		RUN env`, envKey)
 
-	result := buildImage(imgName, build.WithDockerfile(dockerfile))
+	result := cli.BuildCmd(c, imgName, build.WithDockerfile(dockerfile))
 	result.Assert(c, icmd.Success)
 	if strings.Count(result.Combined(), envKey) != 1 {
 		c.Fatalf("unexpected number of occurrences of the arg in output: %q expected: 1", result.Combined())
@@ -4745,27 +4745,43 @@ func (s *DockerSuite) TestBuildBuildTimeArgMultipleFrom(c *check.C) {
     ARG bar=def
     RUN env > /out`
 
-	result := buildImage(imgName, build.WithDockerfile(dockerfile))
+	result := cli.BuildCmd(c, imgName, build.WithDockerfile(dockerfile))
 	result.Assert(c, icmd.Success)
 
-	result = icmd.RunCmd(icmd.Cmd{
-		Command: []string{dockerBinary, "images", "-q", "-f", "label=multifromtest=1"},
-	})
-	result.Assert(c, icmd.Success)
+	result = cli.DockerCmd(c, "images", "-q", "-f", "label=multifromtest=1")
 	parentID := strings.TrimSpace(result.Stdout())
 
-	result = icmd.RunCmd(icmd.Cmd{
-		Command: []string{dockerBinary, "run", "--rm", parentID, "cat", "/out"},
-	})
-	result.Assert(c, icmd.Success)
+	result = cli.DockerCmd(c, "run", "--rm", parentID, "cat", "/out")
 	c.Assert(result.Stdout(), checker.Contains, "foo=abc")
 
-	result = icmd.RunCmd(icmd.Cmd{
-		Command: []string{dockerBinary, "run", "--rm", imgName, "cat", "/out"},
-	})
-	result.Assert(c, icmd.Success)
+	result = cli.DockerCmd(c, "run", "--rm", imgName, "cat", "/out")
 	c.Assert(result.Stdout(), checker.Not(checker.Contains), "foo")
 	c.Assert(result.Stdout(), checker.Contains, "bar=def")
+}
+
+func (s *DockerSuite) TestBuildBuildTimeFromArgMultipleFrom(c *check.C) {
+	imgName := "multifrombldargtest"
+	dockerfile := `ARG tag=nosuchtag
+     FROM busybox:${tag}
+     LABEL multifromtest=1
+     RUN env > /out
+     FROM busybox:${tag}
+     ARG tag
+     RUN env > /out`
+
+	result := cli.BuildCmd(c, imgName,
+		build.WithDockerfile(dockerfile),
+		cli.WithFlags("--build-arg", fmt.Sprintf("tag=latest")))
+	result.Assert(c, icmd.Success)
+
+	result = cli.DockerCmd(c, "images", "-q", "-f", "label=multifromtest=1")
+	parentID := strings.TrimSpace(result.Stdout())
+
+	result = cli.DockerCmd(c, "run", "--rm", parentID, "cat", "/out")
+	c.Assert(result.Stdout(), checker.Not(checker.Contains), "tag")
+
+	result = cli.DockerCmd(c, "run", "--rm", imgName, "cat", "/out")
+	c.Assert(result.Stdout(), checker.Contains, "tag=latest")
 }
 
 func (s *DockerSuite) TestBuildBuildTimeUnusedArgMultipleFrom(c *check.C) {
@@ -4776,16 +4792,14 @@ func (s *DockerSuite) TestBuildBuildTimeUnusedArgMultipleFrom(c *check.C) {
     ARG bar
     RUN env > /out`
 
-	result := buildImage(imgName, build.WithDockerfile(dockerfile), cli.WithFlags(
-		"--build-arg", fmt.Sprintf("baz=abc")))
+	result := cli.BuildCmd(c, imgName,
+		build.WithDockerfile(dockerfile),
+		cli.WithFlags("--build-arg", fmt.Sprintf("baz=abc")))
 	result.Assert(c, icmd.Success)
 	c.Assert(result.Combined(), checker.Contains, "[Warning]")
 	c.Assert(result.Combined(), checker.Contains, "[baz] were not consumed")
 
-	result = icmd.RunCmd(icmd.Cmd{
-		Command: []string{dockerBinary, "run", "--rm", imgName, "cat", "/out"},
-	})
-	result.Assert(c, icmd.Success)
+	result = cli.DockerCmd(c, "run", "--rm", imgName, "cat", "/out")
 	c.Assert(result.Stdout(), checker.Not(checker.Contains), "bar")
 	c.Assert(result.Stdout(), checker.Not(checker.Contains), "baz")
 }

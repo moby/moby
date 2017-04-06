@@ -193,12 +193,11 @@ func TestLabel(t *testing.T) {
 
 func newBuilderWithMockBackend() *Builder {
 	b := &Builder{
-		flags:            &BFlags{},
-		runConfig:        &container.Config{},
-		options:          &types.ImageBuildOptions{},
-		docker:           &MockBackend{},
-		allowedBuildArgs: make(map[string]*string),
-		allBuildArgs:     make(map[string]struct{}),
+		flags:     &BFlags{},
+		runConfig: &container.Config{},
+		options:   &types.ImageBuildOptions{},
+		docker:    &MockBackend{},
+		buildArgs: newBuildArgs(make(map[string]*string)),
 	}
 	b.imageContexts = &imageContexts{b: b}
 	return b
@@ -235,8 +234,8 @@ func TestFromWithArg(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, b.image, expected)
 	assert.Equal(t, b.from.ImageID(), expected)
-	assert.NotNil(t, b.allowedBuildArgs)
-	assert.Equal(t, len(b.allowedBuildArgs), 0)
+	assert.Equal(t, len(b.buildArgs.GetAllAllowed()), 0)
+	assert.Equal(t, len(b.buildArgs.GetAllMeta()), 1)
 }
 
 func TestFromWithUndefinedArg(t *testing.T) {
@@ -496,29 +495,18 @@ func TestStopSignal(t *testing.T) {
 }
 
 func TestArg(t *testing.T) {
-	// This is a bad test that tests implementation details and not at
-	// any features of the builder. Replace or remove.
-	buildOptions := &types.ImageBuildOptions{BuildArgs: make(map[string]*string)}
-
-	b := &Builder{flags: &BFlags{}, runConfig: &container.Config{}, disableCommit: true, allowedBuildArgs: make(map[string]*string), allBuildArgs: make(map[string]struct{}), options: buildOptions}
+	b := newBuilderWithMockBackend()
 
 	argName := "foo"
 	argVal := "bar"
 	argDef := fmt.Sprintf("%s=%s", argName, argVal)
 
-	if err := arg(b, []string{argDef}, nil, ""); err != nil {
-		t.Fatalf("Error should be empty, got: %s", err.Error())
-	}
+	err := arg(b, []string{argDef}, nil, "")
+	assert.NilError(t, err)
 
-	value, ok := b.getBuildArg(argName)
-
-	if !ok {
-		t.Fatalf("%s argument should be a build arg", argName)
-	}
-
-	if value != "bar" {
-		t.Fatalf("%s argument should have default value 'bar', got %s", argName, value)
-	}
+	expected := map[string]string{argName: argVal}
+	allowed := b.buildArgs.GetAllAllowed()
+	assert.DeepEqual(t, allowed, expected)
 }
 
 func TestShell(t *testing.T) {
