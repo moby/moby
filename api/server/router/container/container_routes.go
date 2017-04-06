@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"golang.org/x/net/websocket"
 )
@@ -382,6 +384,18 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		HostConfig:       hostConfig,
 		NetworkingConfig: networkingConfig,
 		AdjustCPUShares:  adjustCPUShares,
+	}, func(config *container.Config, hostConfig *container.HostConfig) error {
+		if versions.GreaterThanOrEqualTo(version, "1.27") {
+			for _, opt := range hostConfig.SecurityOpt {
+				if opt == "no-new-privileges" {
+					continue
+				}
+				if !strings.Contains(opt, "=") {
+					return errors.Errorf("Invalid security option: %s", opt)
+				}
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		return err

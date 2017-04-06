@@ -134,7 +134,7 @@ The docker login command is removing the ability to automatically register for a
 ### Separator (`:`) of `--security-opt` flag on `docker run`
 **Deprecated In Release: [v1.11.0](https://github.com/docker/docker/releases/tag/v1.11.0)**
 
-**Target For Removal In Release: v17.06**
+**Removed In Release: [v17.06](https://github.com/docker/docker/releases/)**
 
 The flag `--security-opt` doesn't use the colon separator(`:`) anymore to divide keys and values, it uses the equal symbol(`=`) for consistency with other similar flags, like `--storage-opt`.
 
