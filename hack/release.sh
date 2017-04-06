@@ -114,6 +114,85 @@ s3_url() {
 	esac
 }
 
+map_goos_to_uname() {
+	# we need to map our GOOS to uname values
+	# see https://en.wikipedia.org/wiki/Uname
+	# ie, GOOS=linux -> "uname -s"=Linux
+	case "$1" in
+		darwin)
+			echo "Darwin"
+			;;
+		freebsd)
+			echo "FreeBSD"
+			;;
+		linux)
+			echo "Linux"
+			;;
+		windows)
+			# this is windows use the .zip and .exe extensions for the files.
+			echo "Windows"
+			;;
+		*)
+			echo >&2 "error: can't convert $1 to an appropriate value for 'uname -s'"
+			exit 1
+			;;
+	esac
+}
+
+map_goarch_to_uname() {
+	# we need to map our GOARCH to uname values
+	# see https://en.wikipedia.org/wiki/Uname
+	# ie, GOARCH=amd64 -> "uname -m"=x86_64
+	case "$1" in
+		amd64)
+			echo "x86_64"
+			;;
+		386)
+			echo "i386"
+			;;
+		arm)
+			echo "armel"
+			# someday, we might potentially support multiple GOARM values, in which case we might get armhf here too
+			;;
+		*)
+			echo >&2 "error: can't convert $1 to an appropriate value for 'uname -m'"
+			exit 1
+			;;
+	esac
+}
+
+get_release_entry() {
+	local GOOS=$1
+	local GOARCH=$2
+	local s3Os=$(map_goos_to_uname $GOOS)
+	local s3Arch=$(map_goarch_to_uname $GOARCH)
+	local zipExt=".tgz"
+
+	case "$GOOS" in
+		windows)
+			zipExt=".zip"
+			;;
+	esac
+
+	local DOWNLOAD_LINK="$(s3_url)/builds/$s3Os/$s3Arch/docker-$VERSION$zipExt"
+	local LOCAL_LINK="bundles/$VERSION/tgz/$GOOS/$GOARCH/docker-$VERSION$zipExt"
+	local CHECKSUM_SHA256=$(cat $LOCAL_LINK.sha256 | cut -d' ' -f1)
+
+	echo "$DOWNLOAD_LINK (sha256sum: $CHECKSUM_SHA256)"
+}
+
+get_release_list() {
+	echo "Linux 64bit tgz: $(get_release_entry linux amd64)"
+	echo
+	echo "Linux 32bits arm tgz: $(get_release_entry linux arm)"
+	echo
+	echo "Darwin/OSX 64bit client tgz: $(get_release_entry darwin amd64)"
+	echo
+	echo "Windows 64bit zip: $(get_release_entry windows amd64)"
+	echo
+	echo "Windows 32bit client zip: $(get_release_entry windows 386)"
+}
+
 build_all() {
 	echo "Building release"
 	if ! ./hack/make.sh "${RELEASE_BUNDLES[@]}"; then
@@ -192,56 +271,26 @@ release_build() {
 		latestBase=docker-latest
 	fi
 
-	# we need to map our GOOS and GOARCH to uname values
-	# see https://en.wikipedia.org/wiki/Uname
-	# ie, GOOS=linux -> "uname -s"=Linux
-
-	s3Os=$GOOS
-	case "$s3Os" in
-		darwin)
-			s3Os=Darwin
-			;;
-		freebsd)
-			s3Os=FreeBSD
-			;;
-		linux)
-			s3Os=Linux
-			;;
+	case "$GOOS" in
 		solaris)
 			echo skipping solaris release
 			return 0
 			;;
 		windows)
 			# this is windows use the .zip and .exe extensions for the files.
-			s3Os=Windows
 			zipExt=".zip"
 			binaryExt=".exe"
 			tgz=$binary$zipExt
 			binary+=$binaryExt
 			;;
-		*)
-			echo >&2 "error: can't convert $s3Os to an appropriate value for 'uname -s'"
-			exit 1
-			;;
 	esac
 
-	s3Arch=$GOARCH
-	case "$s3Arch" in
-		amd64)
-			s3Arch=x86_64
-			;;
-		386)
-			s3Arch=i386
-			;;
-		arm)
-			s3Arch=armel
-			# someday, we might potentially support multiple GOARM values, in which case we might get armhf here too
-			;;
-		*)
-			echo >&2 "error: can't convert $s3Arch to an appropriate value for 'uname -m'"
-			exit 1
-			;;
-	esac
+	# we need to map our GOOS and GOARCH to uname values
+	# see https://en.wikipedia.org/wiki/Uname
+	# ie, GOOS=linux -> "uname -s"=Linux
+
+	s3Os=$(map_goos_to_uname $GOOS)
+	s3Arch=$(map_goarch_to_uname $GOARCH)
 
 	s3Dir="s3://$BUCKET_PATH/builds/$s3Os/$s3Arch"
 	# latest=
@@ -304,6 +353,8 @@ release_index() {
 
 main() {
 	[ "$SKIP_RELEASE_BUILD" -eq 1 ] || build_all
+	RELEASE_FILE_LIST="$(get_release_list)"
+	export RELEASE_FILE_LIST
 	setup_s3
 	release_binaries
 	release_index
@@ -318,8 +369,5 @@ echo "Use the following text to announce the release:"
 echo
 echo "We have just pushed $VERSION to $(s3_url). You can download it with the following:"
 echo
-echo "Linux 64bit tgz: $(s3_url)/builds/Linux/x86_64/docker-$VERSION.tgz"
-echo "Darwin/OSX 64bit client tgz: $(s3_url)/builds/Darwin/x86_64/docker-$VERSION.tgz"
-echo "Windows 64bit zip: $(s3_url)/builds/Windows/x86_64/docker-$VERSION.zip"
-echo "Windows 32bit client zip: $(s3_url)/builds/Windows/i386/docker-$VERSION.zip"
+echo "$RELEASE_FILE_LIST"
 echo
