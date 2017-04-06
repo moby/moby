@@ -122,7 +122,7 @@ func (g GCPClient) UploadFile(filename, bucketName string, public bool) error {
 	return nil
 }
 
-// CreateImage creates a GCE image using the a source from Google Storage
+// CreateImage creates a GCP image using the a source from Google Storage
 func (g GCPClient) CreateImage(filename, storageURL, family string, replace bool) error {
 	if replace {
 		if err := g.DeleteImage(filename); err != nil {
@@ -174,7 +174,7 @@ func (g GCPClient) DeleteImage(filename string) error {
 	return nil
 }
 
-// CreateInstance creates and starts an instance on GCE
+// CreateInstance creates and starts an instance on GCP
 func (g GCPClient) CreateInstance(image, zone, machineType string, replace bool) error {
 	if replace {
 		if err := g.DeleteInstance(image, zone, true); err != nil {

@@ -15,18 +15,18 @@ func runGcp(args []string) {
 	gcpCmd.Usage = func() {
 		fmt.Printf("USAGE: %s run gcp [options] [name]\n\n", os.Args[0])
 		fmt.Printf("'name' specifies either the name of an already uploaded\n")
-		fmt.Printf("GCE image or the full path to a image file which will be\n")
+		fmt.Printf("GCP image or the full path to a image file which will be\n")
 		fmt.Printf("uploaded before it is run.\n\n")
 		fmt.Printf("Options:\n\n")
 		gcpCmd.PrintDefaults()
 	}
 	zone := gcpCmd.String("zone", "europe-west1-d", "GCP Zone")
-	machine := gcpCmd.String("machine", "g1-small", "GCE Machine Type")
+	machine := gcpCmd.String("machine", "g1-small", "GCP Machine Type")
 	keys := gcpCmd.String("keys", "", "Path to Service Account JSON key file")
 	project := gcpCmd.String("project", "", "GCP Project Name")
 	bucket := gcpCmd.String("bucket", "", "GS Bucket to upload to. *Required* when 'prefix' is a filename")
 	public := gcpCmd.Bool("public", false, "Select if file on GS should be public. *Optional* when 'prefix' is a filename")
-	family := gcpCmd.String("family", "", "GCE Image Family. A group of images where the family name points to the most recent image. *Optional* when 'prefix' is a filename")
+	family := gcpCmd.String("family", "", "GCP Image Family. A group of images where the family name points to the most recent image. *Optional* when 'prefix' is a filename")
 
 	gcpCmd.Parse(args)
 	remArgs := gcpCmd.Args()
