@@ -132,3 +132,17 @@ func TestParseVolumeWithReadOnly(t *testing.T) {
 		assert.DeepEqual(t, volume, expected)
 	}
 }
+
+func TestParseVolumeWithRW(t *testing.T) {
+	for _, path := range []string{"./foo", "/home/user"} {
+		volume, err := parseVolume(path + ":/target:rw")
+		expected := types.ServiceVolumeConfig{
+			Type:     "bind",
+			Source:   path,
+			Target:   "/target",
+			ReadOnly: false,
+		}
+		assert.NilError(t, err)
+		assert.DeepEqual(t, volume, expected)
+	}
+}
