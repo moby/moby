@@ -1,0 +1,175 @@
+{
+	"swagger": "2.0",
+	"info": {
+		"version": "3.0.0",
+		"title": "Docker registry API",
+		"description": "Publish and fetch Docker images",
+		"contact": {
+			"name": "Docker Support",
+			"email": "support@docker.com",
+			"url": "http://support.docker.com/"
+		},
+		"license": {
+			"name": "Apache 2.0",
+			"url": "http://www.apache.org/licenses/LICENSE-2.0"
+		},
+		"termsOfService": "https://www.docker.com/legal/terms_of_service/"
+	},
+	"host": "index.docker.io",
+	"basePath": "/v3",
+	"schemes": [
+		"https"
+	],
+	"consumes": [
+		"application/json"
+	],
+	"produces": [
+		"application/json"
+	],
+	"paths": {
+		"/": {
+			"get": {
+				"summary": "Check that the registry implements this API",
+				"operationId": "versionCheck",
+				"tags": [
+					"meta"
+				],
+				"parameters": [],
+				"responses": {
+					"200": {
+						"description": "Registry does implement this API, and may supply information about supported endpoints",
+						"schema": {}
+					},
+					"204": {
+						"description": "Registry does implement this API, but does not specify supported endpoints"
+					},
+					"default": {
+						"description": "Client should proceed with the assumption that the registry does not implement this API."
+					}
+				}
+			}
+		}
+	},
+	"definitions": {
+		"error": {
+			"description": "Actionable failure conditions",
+			"type": "object",
+			"properties": {
+				"errors": {
+					"description": "Actionable failure conditions",
+					"type": "array",
+					"items": {
+						"description": "An error",
+						"type": "object",
+						"properties": {
+							"code": {
+								"description": "Stable identifier for this error type",
+								"type": "string",
+								"enum": [
+									"BLOB_UNKNOWN",
+									"BLOB_UPLOAD_UNKNOWN",
+									"DIGEST_INVALID",
+									"MANIFEST_INVALID",
+									"MANIFEST_UNKNOWN",
+									"MANIFEST_UNVERIFIED",
+									"NAME_INVALID",
+									"NAME_UNKNOWN",
+									"SIZE_INVALID",
+									"TAG_INVALID",
+									"UNKNOWN"
+								]
+							},
+							"message": {
+								"description": "Brief description of the error",
+								"type": "string"
+							},
+							"detail": {
+								"description": "Additional details about the error",
+								"type": "object",
+								"additionalProperies": true
+							}
+						},
+						"required": [
+							"code",
+							"message"
+						]
+					}
+				}
+			},
+			"required": [
+				"errors"
+			]
+		},
+		"manifest": {
+			"description": "Description of a Docker image",
+			"type": "object",
+			"properties": {
+				"name": {
+					"description": "Name of the image.",
+					"type": "string"
+				},
+				"tag": {
+					"description": "Tag for this version of the image",
+					"type": "string"
+				},
+				"fsLayers": {
+					"description": "List of filesystem layers with tarsums",
+					"type": "array",
+					"items": {
+						"#ref": "#/definitions/layerMetadata"
+					}
+				},
+				"signatures": {
+					"description": "List of signatures signing the signable manifest",
+					"type": "array",
+					"items": {
+						"#ref": "#/definitions/signature"
+					}
+				}
+			},
+			"required": [
+				"name",
+				"tag",
+				"fsLayers",
+				"signatures"
+			]
+		},
+		"layerMetadata": {
+			"description": "Metadata for a filesystem layer",
+			"type": "object",
+			"properties": {
+				"blobSum": {
+					"description": "Layer tarsum",
+					"type": "string",
+					"format": "tarsum"
+				}
+			},
+			"required": [
+				"blobSum"
+			]
+		},
+		"signature": {
+			"description": "[JSON Web Signature](http://tools.ietf.org/html/draft-ietf-jose-json-web-signature-31#section-7.2)",
+			"type": "object",
+			"properties": {
+				"header": {
+					"description": "JWS Unprotected Header",
+					"type": "object",
+					"properties": {
+					}
+				},
+				"protected": {
+					"description": "BASE64URL(UTF8(JWS Protected Header))",
+					"type": "string"
+				},
+				"signature": {
+					"description": "BASE64URL(JWS Signature)",
+					"type": "string"
+				}
+			},
+			"required": [
+				"signature"
+			]
+		}
+	}
+}
