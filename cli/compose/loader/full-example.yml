@@ -220,6 +220,10 @@ services:
       - ~/configs:/etc/configs/:ro
       # Named volume
       - datavolume:/var/lib/mysql
+      - type: bind
+        source: ./opt
+        target: /opt
+        consistency: cached
 
     working_dir: /code
 

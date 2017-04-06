@@ -28,10 +28,11 @@ func convertVolumeToMount(
 	namespace Namespace,
 ) (mount.Mount, error) {
 	result := mount.Mount{
-		Type:     mount.Type(volume.Type),
-		Source:   volume.Source,
-		Target:   volume.Target,
-		ReadOnly: volume.ReadOnly,
+		Type:        mount.Type(volume.Type),
+		Source:      volume.Source,
+		Target:      volume.Target,
+		ReadOnly:    volume.ReadOnly,
+		Consistency: mount.Consistency(volume.Consistency),
 	}
 
 	// Anonymous volumes

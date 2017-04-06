@@ -249,6 +249,7 @@
                   "source": {"type": "string"},
                   "target": {"type": "string"},
                   "read_only": {"type": "boolean"},
+                  "consistency": {"type": "string"},
                   "bind": {
                     "type": "object",
                     "properties": {
