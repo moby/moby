@@ -67,6 +67,18 @@ type buildOptions struct {
 	target         string
 }
 
+// dockerfileFromStdin returns true when the user specified that the Dockerfile
+// should be read from stdin instead of a file
+func (o buildOptions) dockerfileFromStdin() bool {
+	return o.dockerfileName == "-"
+}
+
+// contextFromStdin returns true when the user specified that the build context
+// should be read from stdin
+func (o buildOptions) contextFromStdin() bool {
+	return o.context == "-"
+}
+
 // NewBuildCommand creates a new `docker build` command
 func NewBuildCommand(dockerCli *command.DockerCli) *cobra.Command {
 	ulimits := make(map[string]*units.Ulimit)
@@ -155,6 +167,13 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		buildBuff     io.Writer
 	)
 
+	if options.dockerfileFromStdin() {
+		if options.contextFromStdin() {
+			return errors.New("invalid argument: can't use stdin for both build context and dockerfile")
+		}
+		dockerfileCtx = dockerCli.In()
+	}
+
 	specifiedContext := options.context
 	progBuff = dockerCli.Out()
 	buildBuff = dockerCli.Out()
@@ -163,15 +182,8 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		buildBuff = bytes.NewBuffer(nil)
 	}
 
-	if options.dockerfileName == "-" {
-		if specifiedContext == "-" {
-			return errors.New("invalid argument: can't use stdin for both build context and dockerfile")
-		}
-		dockerfileCtx = dockerCli.In()
-	}
-
 	switch {
-	case specifiedContext == "-":
+	case options.contextFromStdin():
 		buildCtx, relDockerfile, err = build.GetContextFromReader(dockerCli.In(), options.dockerfileName)
 	case isLocalDir(specifiedContext):
 		contextDir, relDockerfile, err = build.GetContextFromLocalDir(specifiedContext, options.dockerfileName)
@@ -196,12 +208,6 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 	}
 
 	if buildCtx == nil {
-		// And canonicalize dockerfile name to a platform-independent one
-		relDockerfile, err = archive.CanonicalTarNameForPath(relDockerfile)
-		if err != nil {
-			return errors.Errorf("cannot canonicalize dockerfile path %s: %v", relDockerfile, err)
-		}
-
 		f, err := os.Open(filepath.Join(contextDir, ".dockerignore"))
 		if err != nil && !os.IsNotExist(err) {
 			return err
@@ -220,6 +226,12 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 			return errors.Errorf("Error checking context: '%s'.", err)
 		}
 
+		// And canonicalize dockerfile name to a platform-independent one
+		relDockerfile, err = archive.CanonicalTarNameForPath(relDockerfile)
+		if err != nil {
+			return errors.Errorf("cannot canonicalize dockerfile path %s: %v", relDockerfile, err)
+		}
+
 		// If .dockerignore mentions .dockerignore or the Dockerfile then make
 		// sure we send both files over to the daemon because Dockerfile is,
 		// obviously, needed no matter what, and .dockerignore is needed to know
@@ -231,7 +243,7 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		if keep, _ := fileutils.Matches(".dockerignore", excludes); keep {
 			excludes = append(excludes, "!.dockerignore")
 		}
-		if keep, _ := fileutils.Matches(relDockerfile, excludes); keep && dockerfileCtx == nil {
+		if keep, _ := fileutils.Matches(relDockerfile, excludes); keep && !options.dockerfileFromStdin() {
 			excludes = append(excludes, "!"+relDockerfile)
 		}
 

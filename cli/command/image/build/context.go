@@ -134,15 +134,21 @@ func GetContextFromReader(r io.ReadCloser, dockerfileName string) (out io.ReadCl
 // Returns the absolute path to the temporary context directory, the relative
 // path of the dockerfile in that context directory, and a non-nil error on
 // success.
-func GetContextFromGitURL(gitURL, dockerfileName string) (absContextDir, relDockerfile string, err error) {
+func GetContextFromGitURL(gitURL, dockerfileName string) (string, string, error) {
 	if _, err := exec.LookPath("git"); err != nil {
-		return "", "", errors.Errorf("unable to find 'git': %v", err)
+		return "", "", errors.Wrapf(err, "unable to find 'git'")
 	}
-	if absContextDir, err = gitutils.Clone(gitURL); err != nil {
-		return "", "", errors.Errorf("unable to 'git clone' to temporary context directory: %v", err)
+	absContextDir, err := gitutils.Clone(gitURL)
+	if err != nil {
+		return "", "", errors.Wrapf(err, "unable to 'git clone' to temporary context directory")
 	}
 
-	return getDockerfileRelPath(absContextDir, dockerfileName)
+	absContextDir, err = resolveAndValidateContextPath(absContextDir)
+	if err != nil {
+		return "", "", err
+	}
+	relDockerfile, err := getDockerfileRelPath(absContextDir, dockerfileName)
+	return absContextDir, relDockerfile, err
 }
 
 // GetContextFromURL uses a remote URL as context for a `docker build`. The
@@ -166,8 +172,13 @@ func GetContextFromURL(out io.Writer, remoteURL, dockerfileName string) (io.Read
 // `docker build`. Returns the absolute path to the local context directory,
 // the relative path of the dockerfile in that context directory, and a non-nil
 // error on success.
-func GetContextFromLocalDir(localDir, dockerfileName string) (absContextDir, relDockerfile string, err error) {
-	// When using a local context directory, when the Dockerfile is specified
+func GetContextFromLocalDir(localDir, dockerfileName string) (string, string, error) {
+	localDir, err := resolveAndValidateContextPath(localDir)
+	if err != nil {
+		return "", "", err
+	}
+
+	// When using a local context directory, and the Dockerfile is specified
 	// with the `-f/--file` option then it is considered relative to the
 	// current directory and not the context directory.
 	if dockerfileName != "" && dockerfileName != "-" {
@@ -176,15 +187,16 @@ func GetContextFromLocalDir(localDir, dockerfileName string) (absContextDir, rel
 		}
 	}
 
-	return getDockerfileRelPath(localDir, dockerfileName)
+	relDockerfile, err := getDockerfileRelPath(localDir, dockerfileName)
+	return localDir, relDockerfile, err
 }
 
-// getDockerfileRelPath uses the given context directory for a `docker build`
-// and returns the absolute path to the context directory, the relative path of
-// the dockerfile in that context directory, and a non-nil error on success.
-func getDockerfileRelPath(givenContextDir, givenDockerfile string) (absContextDir, relDockerfile string, err error) {
-	if absContextDir, err = filepath.Abs(givenContextDir); err != nil {
-		return "", "", errors.Errorf("unable to get absolute context directory of given context directory %q: %v", givenContextDir, err)
+// resolveAndValidateContextPath uses the given context directory for a `docker build`
+// and returns the absolute path to the context directory.
+func resolveAndValidateContextPath(givenContextDir string) (string, error) {
+	absContextDir, err := filepath.Abs(givenContextDir)
+	if err != nil {
+		return "", errors.Errorf("unable to get absolute context directory of given context directory %q: %v", givenContextDir, err)
 	}
 
 	// The context dir might be a symbolic link, so follow it to the actual
@@ -197,17 +209,28 @@ func getDockerfileRelPath(givenContextDir, givenDockerfile string) (absContextDi
 	if !isUNC(absContextDir) {
 		absContextDir, err = filepath.EvalSymlinks(absContextDir)
 		if err != nil {
-			return "", "", errors.Errorf("unable to evaluate symlinks in context path: %v", err)
+			return "", errors.Errorf("unable to evaluate symlinks in context path: %v", err)
 		}
 	}
 
 	stat, err := os.Lstat(absContextDir)
 	if err != nil {
-		return "", "", errors.Errorf("unable to stat context directory %q: %v", absContextDir, err)
+		return "", errors.Errorf("unable to stat context directory %q: %v", absContextDir, err)
 	}
 
 	if !stat.IsDir() {
-		return "", "", errors.Errorf("context must be a directory: %s", absContextDir)
+		return "", errors.Errorf("context must be a directory: %s", absContextDir)
+	}
+	return absContextDir, err
+}
+
+// getDockerfileRelPath returns the dockerfile path relative to the context
+// directory
+func getDockerfileRelPath(absContextDir, givenDockerfile string) (string, error) {
+	var err error
+
+	if givenDockerfile == "-" {
+		return givenDockerfile, nil
 	}
 
 	absDockerfile := givenDockerfile
@@ -224,8 +247,6 @@ func getDockerfileRelPath(givenContextDir, givenDockerfile string) (absContextDi
 				absDockerfile = altPath
 			}
 		}
-	} else if absDockerfile == "-" {
-		absDockerfile = filepath.Join(absContextDir, DefaultDockerfileName)
 	}
 
 	// If not already an absolute path, the Dockerfile path should be joined to
@@ -240,32 +261,31 @@ func getDockerfileRelPath(givenContextDir, givenDockerfile string) (absContextDi
 	// an issue in golang. On Windows, EvalSymLinks does not work on UNC file
 	// paths (those starting with \\). This hack means that when using links
 	// on UNC paths, they will not be followed.
-	if givenDockerfile != "-" {
-		if !isUNC(absDockerfile) {
-			absDockerfile, err = filepath.EvalSymlinks(absDockerfile)
-			if err != nil {
-				return "", "", errors.Errorf("unable to evaluate symlinks in Dockerfile path: %v", err)
+	if !isUNC(absDockerfile) {
+		absDockerfile, err = filepath.EvalSymlinks(absDockerfile)
+		if err != nil {
+			return "", errors.Errorf("unable to evaluate symlinks in Dockerfile path: %v", err)
 
-			}
-		}
-
-		if _, err := os.Lstat(absDockerfile); err != nil {
-			if os.IsNotExist(err) {
-				return "", "", errors.Errorf("Cannot locate Dockerfile: %q", absDockerfile)
-			}
-			return "", "", errors.Errorf("unable to stat Dockerfile: %v", err)
 		}
 	}
 
-	if relDockerfile, err = filepath.Rel(absContextDir, absDockerfile); err != nil {
-		return "", "", errors.Errorf("unable to get relative Dockerfile path: %v", err)
+	if _, err := os.Lstat(absDockerfile); err != nil {
+		if os.IsNotExist(err) {
+			return "", errors.Errorf("Cannot locate Dockerfile: %q", absDockerfile)
+		}
+		return "", errors.Errorf("unable to stat Dockerfile: %v", err)
+	}
+
+	relDockerfile, err := filepath.Rel(absContextDir, absDockerfile)
+	if err != nil {
+		return "", errors.Errorf("unable to get relative Dockerfile path: %v", err)
 	}
 
 	if strings.HasPrefix(relDockerfile, ".."+string(filepath.Separator)) {
-		return "", "", errors.Errorf("The Dockerfile (%s) must be within the build context (%s)", givenDockerfile, givenContextDir)
+		return "", errors.Errorf("the Dockerfile (%s) must be within the build context", givenDockerfile)
 	}
 
-	return absContextDir, relDockerfile, nil
+	return relDockerfile, nil
 }
 
 // isUNC returns true if the path is UNC (one starting \\). It always returns
