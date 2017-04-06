@@ -9,9 +9,10 @@ import (
 
 func (s *DefaultService) lookupV2Endpoints(hostname string) (endpoints []APIEndpoint, err error) {
 	tlsConfig := tlsconfig.ServerDefault()
-	if hostname == DefaultNamespace || hostname == IndexHostname {
-		// v2 mirrors
-		for _, mirror := range s.config.Mirrors {
+
+	// v2 mirrors
+	if _, ok := s.config.IndexConfigs[hostname]; ok {
+		for _, mirror := range s.config.IndexConfigs[hostname].Mirrors {
 			if !strings.HasPrefix(mirror, "http://") && !strings.HasPrefix(mirror, "https://") {
 				mirror = "https://" + mirror
 			}
@@ -33,14 +34,16 @@ func (s *DefaultService) lookupV2Endpoints(hostname string) (endpoints []APIEndp
 			})
 		}
 		// v2 registry
-		endpoints = append(endpoints, APIEndpoint{
-			URL:          DefaultV2Registry,
-			Version:      APIVersion2,
-			Official:     true,
-			TrimHostname: true,
-			TLSConfig:    tlsConfig,
-		})
-
+		// TODO(amidlash): confirm if needed
+		if hostname == IndexName {
+			endpoints = append(endpoints, APIEndpoint{
+				URL:          DefaultV2Registry,
+				Version:      APIVersion2,
+				Official:     true,
+				TrimHostname: true,
+				TLSConfig:    tlsConfig,
+			})
+		}
 		return endpoints, nil
 	}
 

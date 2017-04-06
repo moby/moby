@@ -524,6 +524,58 @@ func TestParseRepositoryInfo(t *testing.T) {
 	}
 }
 
+func TestNewMirroring(t *testing.T) {
+	testIndexInfo := func(config *serviceConfig, expectedIndexInfos map[string]*registrytypes.IndexInfo) {
+		for indexName, expectedIndexInfo := range expectedIndexInfos {
+			index, err := newIndexInfo(config, indexName)
+			if err != nil {
+				t.Fatal(err)
+			} else {
+				checkEqual(t, index.Name, expectedIndexInfo.Name, indexName+" name")
+				checkEqual(t, index.Official, expectedIndexInfo.Official, indexName+" is official")
+				checkEqual(t, index.Secure, expectedIndexInfo.Secure, indexName+" is secure")
+				checkEqual(t, len(index.Mirrors), len(expectedIndexInfo.Mirrors),
+					fmt.Sprintf("%s mirrors: have=%v, expected=%v", indexName, index.Mirrors, expectedIndexInfo.Mirrors))
+			}
+		}
+	}
+
+	mirrors := []string{
+		"http://mirror1.local",
+		"docker.io->http://mirror2.local",
+		"example.com->http://mirror3.local",
+	}
+	dockerMirrors := []string{"http://mirror1.local", "http://mirror2.local"}
+	expectedIndexInfos := map[string]*registrytypes.IndexInfo{
+		"docker.io": {
+			Name:     IndexName,
+			Official: true,
+			Secure:   true,
+			Mirrors:  dockerMirrors,
+		},
+		"index.docker.io": {
+			Name:     IndexName,
+			Official: true,
+			Secure:   true,
+			Mirrors:  dockerMirrors,
+		},
+		"example.com": {
+			Name:     "example.com",
+			Official: false,
+			Secure:   true,
+			Mirrors:  []string{"http://mirror3.local"},
+		},
+		"127.0.0.1:5000": {
+			Name:     "127.0.0.1:5000",
+			Official: false,
+			Secure:   false,
+			Mirrors:  []string{},
+		},
+	}
+	config := makeServiceConfig(mirrors, []string{})
+	testIndexInfo(config, expectedIndexInfos)
+}
+
 func TestNewIndexInfo(t *testing.T) {
 	testIndexInfo := func(config *serviceConfig, expectedIndexInfos map[string]*registrytypes.IndexInfo) {
 		for indexName, expectedIndexInfo := range expectedIndexInfos {
@@ -534,7 +586,8 @@ func TestNewIndexInfo(t *testing.T) {
 				checkEqual(t, index.Name, expectedIndexInfo.Name, indexName+" name")
 				checkEqual(t, index.Official, expectedIndexInfo.Official, indexName+" is official")
 				checkEqual(t, index.Secure, expectedIndexInfo.Secure, indexName+" is secure")
-				checkEqual(t, len(index.Mirrors), len(expectedIndexInfo.Mirrors), indexName+" mirrors")
+				checkEqual(t, len(index.Mirrors), len(expectedIndexInfo.Mirrors),
+					fmt.Sprintf("%s mirrors: have=%v, expected=%v", indexName, index.Mirrors, expectedIndexInfo.Mirrors))
 			}
 		}
 	}
@@ -833,6 +886,7 @@ func TestIsSecureIndex(t *testing.T) {
 		{"example.com", []string{"example.com"}, false},
 		{"127.0.0.1", []string{"example.com"}, false},
 		{"127.0.0.1:5000", []string{"example.com"}, false},
+
 		{"example.com:5000", []string{"42.42.0.0/16"}, false},
 		{"example.com", []string{"42.42.0.0/16"}, false},
 		{"example.com:5000", []string{"42.42.42.42/8"}, false},
