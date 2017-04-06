@@ -22,8 +22,6 @@ type logMessage struct {
 }
 
 func (s *DockerSwarmSuite) TestServiceLogs(c *check.C) {
-	testRequires(c, ExperimentalDaemon)
-
 	d := s.AddDaemon(c, true, true)
 
 	// we have multiple services here for detecting the goroutine issue #28915
@@ -65,7 +63,6 @@ func countLogLines(d *daemon.Swarm, name string) func(*check.C) (interface{}, ch
 }
 
 func (s *DockerSwarmSuite) TestServiceLogsCompleteness(c *check.C) {
-	testRequires(c, ExperimentalDaemon)
 	d := s.AddDaemon(c, true, true)
 
 	name := "TestServiceLogsCompleteness"
@@ -93,7 +90,6 @@ func (s *DockerSwarmSuite) TestServiceLogsCompleteness(c *check.C) {
 }
 
 func (s *DockerSwarmSuite) TestServiceLogsTail(c *check.C) {
-	testRequires(c, ExperimentalDaemon)
 	d := s.AddDaemon(c, true, true)
 
 	name := "TestServiceLogsTail"
@@ -119,7 +115,6 @@ func (s *DockerSwarmSuite) TestServiceLogsTail(c *check.C) {
 
 func (s *DockerSwarmSuite) TestServiceLogsSince(c *check.C) {
 	// See DockerSuite.TestLogsSince, which is where this comes from
-	testRequires(c, ExperimentalDaemon)
 	d := s.AddDaemon(c, true, true)
 
 	name := "TestServiceLogsSince"
@@ -154,8 +149,6 @@ func (s *DockerSwarmSuite) TestServiceLogsSince(c *check.C) {
 }
 
 func (s *DockerSwarmSuite) TestServiceLogsFollow(c *check.C) {
-	testRequires(c, ExperimentalDaemon)
-
 	d := s.AddDaemon(c, true, true)
 
 	name := "TestServiceLogsFollow"
@@ -201,8 +194,6 @@ func (s *DockerSwarmSuite) TestServiceLogsFollow(c *check.C) {
 }
 
 func (s *DockerSwarmSuite) TestServiceLogsTaskLogs(c *check.C) {
-	testRequires(c, ExperimentalDaemon)
-
 	d := s.AddDaemon(c, true, true)
 
 	name := "TestServicelogsTaskLogs"
@@ -256,8 +247,6 @@ func (s *DockerSwarmSuite) TestServiceLogsTaskLogs(c *check.C) {
 }
 
 func (s *DockerSwarmSuite) TestServiceLogsTTY(c *check.C) {
-	testRequires(c, ExperimentalDaemon)
-
 	d := s.AddDaemon(c, true, true)
 
 	name := "TestServiceLogsTTY"
