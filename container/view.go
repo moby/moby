@@ -90,16 +90,12 @@ func (db *memDB) Snapshot(index *registrar.Registrar) View {
 	}
 }
 
-// Save atomically updates the in-memory store from the current on-disk state of a Container.
+// Save atomically updates the in-memory store state for a Container.
+// Only read only (deep) copies of containers may be passed in.
 func (db *memDB) Save(c *Container) error {
 	txn := db.store.Txn(true)
 	defer txn.Commit()
-	deepCopy := NewBaseContainer(c.ID, c.Root)
-	err := deepCopy.FromDisk()
-	if err != nil {
-		return err
-	}
-	return txn.Insert(memdbTable, deepCopy)
+	return txn.Insert(memdbTable, c)
 }
 
 // Delete removes an item by ID
