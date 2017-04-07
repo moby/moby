@@ -151,7 +151,6 @@ func checkRunning() bool {
 
 	if connection != nil {
 		err = connection.sysobj.Call(dbusInterface+".getDefaultZone", 0).Store(&zone)
-		logrus.Infof("Firewalld running: %t", err == nil)
 		return err == nil
 	}
 	return false
