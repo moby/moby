@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 
 	log "github.com/Sirupsen/logrus"
@@ -27,6 +28,7 @@ func runHyperKit(args []string) {
 	diskSz := hyperkitCmd.Int("disk-size", 0, "Size of Disk in MB")
 	disk := hyperkitCmd.String("disk", "", "Path to disk image to used")
 	data := hyperkitCmd.String("data", "", "Metadata to pass to VM (either a path to a file or a string)")
+	ipStr := hyperkitCmd.String("ip", "", "IP address for the VM")
 
 	hyperkitCmd.Parse(args)
 	remArgs := hyperkitCmd.Args()
@@ -60,6 +62,20 @@ func runHyperKit(args []string) {
 		outfh.Close()
 	}
 
+	uuidStr := ""
+	if *ipStr != "" {
+		// If an IP address was requested construct a "special" UUID
+		// for the VM.
+		if ip := net.ParseIP(*ipStr); len(ip) > 0 {
+			uuid := make([]byte, 16)
+			uuid[12] = ip.To4()[0]
+			uuid[13] = ip.To4()[1]
+			uuid[14] = ip.To4()[2]
+			uuid[15] = ip.To4()[3]
+			uuidStr = fmt.Sprintf("%x-%x-%x-%x-%x", uuid[0:4], uuid[4:6], uuid[6:8], uuid[8:10], uuid[10:])
+		}
+	}
+
 	// Run
 	cmdline, err := ioutil.ReadFile(prefix + "-cmdline")
 	if err != nil {
@@ -81,6 +97,7 @@ func runHyperKit(args []string) {
 	h.CPUs = *cpus
 	h.Memory = *mem
 	h.DiskSize = *diskSz
+	h.UUID = uuidStr
 
 	err = h.Run(string(cmdline))
 	if err != nil {
