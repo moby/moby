@@ -41,6 +41,23 @@ func fieldsASCII(s string) []string {
 	return strings.FieldsFunc(s, fn)
 }
 
+func appendProcess2ProcList(procList *container.ContainerTopOKBody, fields []string) {
+	// Make sure number of fields equals number of header titles
+	// merging "overhanging" fields
+	process := fields[:len(procList.Titles)-1]
+	process = append(process, strings.Join(fields[len(procList.Titles)-1:], " "))
+	procList.Processes = append(procList.Processes, process)
+}
+
+func hasPid(pids []int, pid int) bool {
+	for _, i := range pids {
+		if i == pid {
+			return true
+		}
+	}
+	return false
+}
+
 func parsePSOutput(output []byte, pids []int) (*container.ContainerTopOKBody, error) {
 	procList := &container.ContainerTopOKBody{}
 
@@ -58,25 +75,37 @@ func parsePSOutput(output []byte, pids []int) (*container.ContainerTopOKBody, er
 	}
 
 	// loop through the output and extract the PID from each line
+	// fixing #30580, be able to display thread line also when "m" option used
+	// in "docker top" client command
+	preContainedPidFlag := false
 	for _, line := range lines[1:] {
 		if len(line) == 0 {
 			continue
 		}
 		fields := fieldsASCII(line)
-		p, err := strconv.Atoi(fields[pidIndex])
+
+		var (
+			p   int
+			err error
+		)
+
+		if fields[pidIndex] == "-" {
+			if preContainedPidFlag {
+				appendProcess2ProcList(procList, fields)
+			}
+			continue
+		}
+		p, err = strconv.Atoi(fields[pidIndex])
 		if err != nil {
 			return nil, fmt.Errorf("Unexpected pid '%s': %s", fields[pidIndex], err)
 		}
 
-		for _, pid := range pids {
-			if pid == p {
-				// Make sure number of fields equals number of header titles
-				// merging "overhanging" fields
-				process := fields[:len(procList.Titles)-1]
-				process = append(process, strings.Join(fields[len(procList.Titles)-1:], " "))
-				procList.Processes = append(procList.Processes, process)
-			}
+		if hasPid(pids, p) {
+			preContainedPidFlag = true
+			appendProcess2ProcList(procList, fields)
+			continue
 		}
+		preContainedPidFlag = false
 	}
 	return procList, nil
 }
