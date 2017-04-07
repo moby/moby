@@ -75,6 +75,15 @@ set as the **URL**, the repository is cloned locally and then sent as the contex
    storing two copies of the image, one for the build cache with all the cache
    layers in tact, and one for the squashed version.
 
+**--checksumfs**=*true*|*false*
+   **Experimental Only**
+   Once an image is built, hash and checksum the combined layers. The checksum is
+   recorded in the manifest. If present, a checksum in the manifest will trigger
+   verification at run-time, causing failure if there are any modifications.
+
+   **Note**: using this option means the image cannot be modified and must be
+   rebuilt to make changes.
+
 **--add-host**=[]
    Add a custom host-to-IP mapping (host:ip)
 

@@ -607,9 +607,14 @@ func rootFSToAPIType(rootfs *image.RootFS) types.RootFS {
 	for _, l := range rootfs.DiffIDs {
 		layers = append(layers, l.String())
 	}
+	var checksum string
+	if rootfs.Checksum != "" {
+		checksum = rootfs.Checksum.Hex()
+	}
 	return types.RootFS{
-		Type:   rootfs.Type,
-		Layers: layers,
+		Type:     rootfs.Type,
+		Layers:   layers,
+		Checksum: checksum,
 	}
 }
 

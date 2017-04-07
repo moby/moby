@@ -64,6 +64,7 @@ type buildOptions struct {
 	securityOpt    []string
 	networkMode    string
 	squash         bool
+	checksumFS     bool
 	target         string
 }
 
@@ -123,6 +124,9 @@ func NewBuildCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.BoolVar(&options.squash, "squash", false, "Squash newly built layers into a single new layer")
 	flags.SetAnnotation("squash", "experimental", nil)
 	flags.SetAnnotation("squash", "version", []string{"1.25"})
+
+	flags.BoolVar(&options.checksumFS, "checksumfs", false, "Checksum layers for run-time verification")
+	flags.SetAnnotation("checksumfs", "experimental", nil)
 
 	return cmd
 }
@@ -303,6 +307,7 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		SecurityOpt:    options.securityOpt,
 		NetworkMode:    options.networkMode,
 		Squash:         options.squash,
+		ChecksumFS:     options.checksumFS,
 		ExtraHosts:     options.extraHosts.GetAll(),
 		Target:         options.target,
 	}

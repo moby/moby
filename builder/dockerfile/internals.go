@@ -66,9 +66,10 @@ func (b *Builder) commitContainer(id string, runConfig *container.Config) error 
 
 	commitCfg := &backend.ContainerCommitConfig{
 		ContainerCommitConfig: types.ContainerCommitConfig{
-			Author: b.maintainer,
-			Pause:  true,
-			Config: runConfig,
+			Author:     b.maintainer,
+			Pause:      true,
+			Config:     runConfig,
+			ChecksumFS: b.options.ChecksumFS,
 		},
 	}
 

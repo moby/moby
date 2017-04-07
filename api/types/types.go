@@ -22,6 +22,7 @@ type RootFS struct {
 	Type      string
 	Layers    []string `json:",omitempty"`
 	BaseLayer string   `json:",omitempty"`
+	Checksum  string   `json:",omitempty"`
 }
 
 // ImageInspect contains response of Engine API:

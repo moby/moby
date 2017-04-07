@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
+	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/selinux/go-selinux/label"
 )
 
@@ -216,12 +217,26 @@ func (daemon *Daemon) generateSecurityOpt(hostConfig *containertypes.HostConfig)
 
 func (daemon *Daemon) setRWLayer(container *container.Container) error {
 	var layerID layer.ChainID
+	var expectedChecksum digest.Digest
 	if container.ImageID != "" {
 		img, err := daemon.imageStore.Get(container.ImageID)
 		if err != nil {
 			return err
 		}
 		layerID = img.RootFS.ChainID()
+		expectedChecksum = img.RootFS.Checksum
+	}
+
+	if expectedChecksum != "" {
+		computedChecksum, err := daemon.checksumFilesystem(container.ID, layerID)
+		if err != nil {
+			return errors.WithMessage(err, "error computing checksum on container filesystem")
+		}
+		if computedChecksum != expectedChecksum {
+			return fmt.Errorf("computed RootFS checksum does not match manifest (%s != %s)",
+				computedChecksum, expectedChecksum)
+		}
+		logrus.Info("verified RootFS checksum against image manifest")
 	}
 
 	rwLayerOpts := &layer.CreateRWLayerOpts{

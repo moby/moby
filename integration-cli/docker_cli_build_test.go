@@ -5842,6 +5842,22 @@ func (s *DockerSuite) TestBuildSquashParent(c *check.C) {
 	c.Assert(strings.TrimSpace(out), checker.Equals, "2")
 }
 
+func (s *DockerSuite) TestBuildChecksumFS(c *check.C) {
+	name := "testbuildchecksumfs"
+	testRequires(c, ExperimentalDaemon)
+	dockerFile := `
+		FROM busybox
+		RUN echo Yo
+		`
+
+	// build with checksumfs
+	buildImageSuccessfully(c, name, cli.WithFlags("--checksumfs"), build.WithDockerfile(dockerFile))
+
+	// check that ChecksumFS is present in image
+	out := inspectImage(c, name, ".RootFS.Checksum")
+	c.Assert(out, checker.NotNil)
+}
+
 func (s *DockerSuite) TestBuildContChar(c *check.C) {
 	name := "testbuildcontchar"
 
