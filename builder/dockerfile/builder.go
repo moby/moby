@@ -196,14 +196,18 @@ func (b *Builder) build(source builder.Source, dockerfile *parser.Result) (*buil
 		if err != nil {
 			return nil, err
 		}
+
 		ctx, err := b.fsCache.SyncFrom(context.Background(), csi)
 		if err != nil {
 			return nil, err
 		}
+		b.auth = NewAuthConfigProvider(b.options.AuthConfigs, csi.caller)
 
 		b.source = ctx
 		defer ctx.Close()
 		logrus.Debugf("sync-time: %v", time.Since(st))
+	} else {
+		b.auth = NewAuthConfigProvider(b.options.AuthConfigs, nil)
 	}
 
 	addNodesForLabelOption(dockerfile.AST, b.options.Labels)

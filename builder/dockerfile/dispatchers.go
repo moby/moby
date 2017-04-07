@@ -18,12 +18,14 @@ import (
 
 	"bytes"
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/pkg/signal"
+	"github.com/docker/docker/registry"
 	"github.com/docker/go-connections/nat"
 	"github.com/pkg/errors"
 )
@@ -838,7 +840,21 @@ func pullOrGetImage(b *Builder, name string) (builder.Image, error) {
 	}
 	if image == nil {
 		var err error
-		image, err = b.docker.PullOnBuild(b.clientCtx, name, b.options.AuthConfigs, b.Output)
+		named, err := reference.ParseNormalizedNamed(name)
+		if err != nil {
+			return nil, err
+		}
+		named = reference.TagNameOnly(named)
+		repoInfo, err := registry.ParseRepositoryInfo(named)
+		if err != nil {
+			return nil, err
+		}
+		registryKey := registry.GetAuthConfigKey(repoInfo.Index)
+		auths, err := b.auth.GetAuthConfig(registryKey)
+		if err != nil {
+			return nil, err
+		}
+		image, err = b.docker.PullOnBuild(b.clientCtx, name, auths, b.Output)
 		if err != nil {
 			return nil, err
 		}
