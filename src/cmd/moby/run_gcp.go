@@ -9,6 +9,18 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
+const (
+	defaultZone    = "europe-west1-d"
+	defaultMachine = "g1-small"
+	zoneVar        = "MOBY_GCP_ZONE"
+	machineVar     = "MOBY_GCP_MACHINE"
+	keysVar        = "MOBY_GCP_KEYS"
+	projectVar     = "MOBY_GCP_PROJECT"
+	bucketVar      = "MOBY_GCP_BUCKET"
+	familyVar      = "MOBY_GCP_FAMILY"
+	publicVar      = "MOBY_GCP_PUBLIC"
+)
+
 // Process the run arguments and execute run
 func runGcp(args []string) {
 	gcpCmd := flag.NewFlagSet("gcp", flag.ExitOnError)
@@ -20,14 +32,13 @@ func runGcp(args []string) {
 		fmt.Printf("Options:\n\n")
 		gcpCmd.PrintDefaults()
 	}
-	zone := gcpCmd.String("zone", "europe-west1-d", "GCP Zone")
-	machine := gcpCmd.String("machine", "g1-small", "GCP Machine Type")
-	keys := gcpCmd.String("keys", "", "Path to Service Account JSON key file")
-	project := gcpCmd.String("project", "", "GCP Project Name")
-	bucket := gcpCmd.String("bucket", "", "GS Bucket to upload to. *Required* when 'prefix' is a filename")
-	public := gcpCmd.Bool("public", false, "Select if file on GS should be public. *Optional* when 'prefix' is a filename")
-	family := gcpCmd.String("family", "", "GCP Image Family. A group of images where the family name points to the most recent image. *Optional* when 'prefix' is a filename")
-
+	zoneFlag := gcpCmd.String("zone", defaultZone, "GCP Zone")
+	machineFlag := gcpCmd.String("machine", defaultMachine, "GCP Machine Type")
+	keysFlag := gcpCmd.String("keys", "", "Path to Service Account JSON key file")
+	projectFlag := gcpCmd.String("project", "", "GCP Project Name")
+	bucketFlag := gcpCmd.String("bucket", "", "GS Bucket to upload to. *Required* when 'prefix' is a filename")
+	publicFlag := gcpCmd.Bool("public", false, "Select if file on GS should be public. *Optional* when 'prefix' is a filename")
+	familyFlag := gcpCmd.String("family", "", "GCP Image Family. A group of images where the family name points to the most recent image. *Optional* when 'prefix' is a filename")
 	gcpCmd.Parse(args)
 	remArgs := gcpCmd.Args()
 	if len(remArgs) == 0 {
@@ -37,7 +48,15 @@ func runGcp(args []string) {
 	}
 	prefix := remArgs[0]
 
-	client, err := NewGCPClient(*keys, *project)
+	zone := getStringValue(zoneVar, *zoneFlag, defaultZone)
+	machine := getStringValue(machineVar, *machineFlag, defaultMachine)
+	keys := getStringValue(keysVar, *keysFlag, "")
+	project := getStringValue(projectVar, *projectFlag, "")
+	bucket := getStringValue(bucketVar, *bucketFlag, "")
+	public := getBoolValue(publicVar, *publicFlag)
+	family := getStringValue(familyVar, *familyFlag, "")
+
+	client, err := NewGCPClient(keys, project)
 	if err != nil {
 		log.Fatalf("Unable to connect to GCP")
 	}
@@ -46,28 +65,28 @@ func runGcp(args []string) {
 	if strings.HasSuffix(prefix, suffix) {
 		filename := prefix
 		prefix = prefix[:len(prefix)-len(suffix)]
-		if *bucket == "" {
+		if bucket == "" {
 			log.Fatalf("No bucket specified. Please provide one using the -bucket flag")
 		}
-		err = client.UploadFile(filename, *bucket, *public)
+		err = client.UploadFile(filename, bucket, public)
 		if err != nil {
 			log.Fatalf("Error copying to Google Storage: %v", err)
 		}
-		err = client.CreateImage(prefix, "https://storage.googleapis.com/"+*bucket+"/"+prefix+".img.tar.gz", *family, true)
+		err = client.CreateImage(prefix, "https://storage.googleapis.com/"+bucket+"/"+prefix+".img.tar.gz", family, true)
 		if err != nil {
 			log.Fatalf("Error creating Google Compute Image: %v", err)
 		}
 	}
 
-	if err = client.CreateInstance(prefix, *zone, *machine, true); err != nil {
+	if err = client.CreateInstance(prefix, zone, machine, true); err != nil {
 		log.Fatal(err)
 	}
 
-	if err = client.ConnectToInstanceSerialPort(prefix, *zone); err != nil {
+	if err = client.ConnectToInstanceSerialPort(prefix, zone); err != nil {
 		log.Fatal(err)
 	}
 
-	if err = client.DeleteInstance(prefix, *zone, true); err != nil {
+	if err = client.DeleteInstance(prefix, zone, true); err != nil {
 		log.Fatal(err)
 	}
 }
