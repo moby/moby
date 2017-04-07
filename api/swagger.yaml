@@ -2296,6 +2296,12 @@ definitions:
             description: "The fraction of tasks that may fail during an update before the failure action is invoked, specified as a floating point number between 0 and 1."
             type: "number"
             default: 0
+          Order:
+            description: "The order of operations when rolling out an updated task. Either the old task is shut down before the new task is started, or the new task is started before the old task is shut down."
+            type: "string"
+            enum:
+              - "stop-first"
+              - "start-first"
       RollbackConfig:
         description: "Specification for the rollback strategy of the service."
         type: "object"
@@ -2322,6 +2328,12 @@ definitions:
             description: "The fraction of tasks that may fail during a rollback before the failure action is invoked, specified as a floating point number between 0 and 1."
             type: "number"
             default: 0
+          Order:
+            description: "The order of operations when rolling back a task. Either the old task is shut down before the new task is started, or the new task is started before the old task is shut down."
+            type: "string"
+            enum:
+              - "stop-first"
+              - "start-first"
       Networks:
         description: "Array of network names or IDs to attach the service to."
         type: "array"

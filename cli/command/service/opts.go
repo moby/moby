@@ -188,6 +188,7 @@ type updateOptions struct {
 	monitor         time.Duration
 	onFailure       string
 	maxFailureRatio floatValue
+	order           string
 }
 
 func (opts updateOptions) config() *swarm.UpdateConfig {
@@ -197,6 +198,7 @@ func (opts updateOptions) config() *swarm.UpdateConfig {
 		Monitor:         opts.monitor,
 		FailureAction:   opts.onFailure,
 		MaxFailureRatio: opts.maxFailureRatio.Value(),
+		Order:           opts.order,
 	}
 }
 
@@ -533,6 +535,8 @@ func addServiceFlags(flags *pflag.FlagSet, opts *serviceOptions) {
 	flags.StringVar(&opts.update.onFailure, flagUpdateFailureAction, "pause", `Action on update failure ("pause"|"continue"|"rollback")`)
 	flags.Var(&opts.update.maxFailureRatio, flagUpdateMaxFailureRatio, "Failure rate to tolerate during an update")
 	flags.SetAnnotation(flagUpdateMaxFailureRatio, "version", []string{"1.25"})
+	flags.StringVar(&opts.update.order, flagUpdateOrder, "stop-first", `Update order ("start-first"|"stop-first")`)
+	flags.SetAnnotation(flagUpdateOrder, "version", []string{"1.29"})
 
 	flags.Uint64Var(&opts.rollback.parallelism, flagRollbackParallelism, 1, "Maximum number of tasks rolled back simultaneously (0 to roll back all at once)")
 	flags.SetAnnotation(flagRollbackParallelism, "version", []string{"1.28"})
@@ -544,6 +548,8 @@ func addServiceFlags(flags *pflag.FlagSet, opts *serviceOptions) {
 	flags.SetAnnotation(flagRollbackFailureAction, "version", []string{"1.28"})
 	flags.Var(&opts.rollback.maxFailureRatio, flagRollbackMaxFailureRatio, "Failure rate to tolerate during a rollback")
 	flags.SetAnnotation(flagRollbackMaxFailureRatio, "version", []string{"1.28"})
+	flags.StringVar(&opts.rollback.order, flagRollbackOrder, "stop-first", `Rollback order ("start-first"|"stop-first")`)
+	flags.SetAnnotation(flagRollbackOrder, "version", []string{"1.29"})
 
 	flags.StringVar(&opts.endpoint.mode, flagEndpointMode, "vip", "Endpoint mode (vip or dnsrr)")
 
@@ -633,6 +639,7 @@ const (
 	flagRollbackFailureAction   = "rollback-failure-action"
 	flagRollbackMaxFailureRatio = "rollback-max-failure-ratio"
 	flagRollbackMonitor         = "rollback-monitor"
+	flagRollbackOrder           = "rollback-order"
 	flagRollbackParallelism     = "rollback-parallelism"
 	flagStopGracePeriod         = "stop-grace-period"
 	flagStopSignal              = "stop-signal"
@@ -641,6 +648,7 @@ const (
 	flagUpdateFailureAction     = "update-failure-action"
 	flagUpdateMaxFailureRatio   = "update-max-failure-ratio"
 	flagUpdateMonitor           = "update-monitor"
+	flagUpdateOrder             = "update-order"
 	flagUpdateParallelism       = "update-parallelism"
 	flagUser                    = "user"
 	flagWorkdir                 = "workdir"
