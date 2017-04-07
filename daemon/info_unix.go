@@ -69,7 +69,7 @@ func (daemon *Daemon) FillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 				v.InitCommit.Expected = dockerversion.InitCommitID[0:len(v.InitCommit.ID)]
 			}
 		}
-		if v.InitCommit.ID == "" && len(parts) >= 1 {
+		if v.InitCommit.ID == "" && strings.HasPrefix(parts[0], "tini version") {
 			vs := strings.TrimPrefix(parts[0], "tini version ")
 			v.InitCommit.ID = "v" + vs
 		}
