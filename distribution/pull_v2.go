@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"runtime"
+	 
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution"
@@ -32,6 +33,10 @@ import (
 	"github.com/opencontainers/go-digest"
 	"golang.org/x/net/context"
 )
+
+
+ 
+
 
 var (
 	errRootFSMismatch = errors.New("layers from manifest don't match image configuration")
@@ -61,8 +66,13 @@ type v2Puller struct {
 }
 
 func (p *v2Puller) Pull(ctx context.Context, ref reference.Named) (err error) {
+
+	//fmt.Println("*************Inside the method: pull_v2.go/Pull() ")
+
 	// TODO(tiborvass): was ReceiveTimeout
 	p.repo, p.confirmedV2, err = NewV2Repository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
+	
+	//fmt.Println("Here, Distribution Repository: ", p.repo, " and confirmation of V 2 registry: ", p.confirmedV2)
 	if err != nil {
 		logrus.Warnf("Error getting v2 registry: %v", err)
 		return err
@@ -81,17 +91,28 @@ func (p *v2Puller) Pull(ctx context.Context, ref reference.Named) (err error) {
 			}
 		}
 	}
+     //   fmt.Println("*************End of  the method: pull_v2.go/Pull() ")
+
 	return err
 }
 
 func (p *v2Puller) pullV2Repository(ctx context.Context, ref reference.Named) (err error) {
+
+
+      //  fmt.Println("*************Inside the method: pull_v2.go/pullV2Repository() ")
+       
 	var layersDownloaded bool
 	if !reference.IsNameOnly(ref) {
+
+             //   fmt.Println("Without tags")
 		layersDownloaded, err = p.pullV2Tag(ctx, ref)
 		if err != nil {
 			return err
 		}
 	} else {
+
+            //    fmt.Println("With tags")
+
 		tags, err := p.repo.Tags(ctx).All(ctx)
 		if err != nil {
 			// If this repository doesn't exist on V2, we should
@@ -124,6 +145,7 @@ func (p *v2Puller) pullV2Repository(ctx context.Context, ref reference.Named) (e
 			layersDownloaded = layersDownloaded || pulledNew
 		}
 	}
+      //  fmt.Println("*************End of the method: pull_v2.go/pullV2Repository() ")
 
 	writeStatus(reference.FamiliarString(ref), p.config.ProgressOutput, layersDownloaded)
 
@@ -138,6 +160,7 @@ type v2LayerDescriptor struct {
 	tmpFile           *os.File
 	verifier          digest.Verifier
 	src               distribution.Descriptor
+	dowonloadedChan chan struct{}
 }
 
 func (ld *v2LayerDescriptor) Key() string {
@@ -153,8 +176,11 @@ func (ld *v2LayerDescriptor) DiffID() (layer.DiffID, error) {
 }
 
 func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progress.Output) (io.ReadCloser, int64, error) {
-	logrus.Debugf("pulling blob %q", ld.digest)
 
+	 
+	logrus.Debugf("pulling blob %q", ld.digest)
+      //  fmt.Println("*************Inside the method: pull_v2.go/Download(a,b) ")
+	//fmt.Println("Pulling layer ", ld.digest, " starts here")
 	var (
 		err    error
 		offset int64
@@ -162,6 +188,8 @@ func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progre
 
 	if ld.tmpFile == nil {
 		ld.tmpFile, err = createDownloadFile()
+
+		//fmt.Println("New temp file created")
 		if err != nil {
 			return nil, 0, xfer.DoNotRetry{Err: err}
 		}
@@ -202,6 +230,9 @@ func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progre
 		}
 	}
 	size, err := layerDownload.Seek(0, os.SEEK_END)
+
+	//fmt.Println(size)
+
 	if err != nil {
 		// Seek failed, perhaps because there was no Content-Length
 		// header. This shouldn't fail the download, because we can
@@ -224,9 +255,10 @@ func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progre
 			return nil, 0, err
 		}
 	}
-
+	
 	reader := progress.NewProgressReader(ioutils.NewCancelReadCloser(ctx, layerDownload), progressOutput, size-offset, ld.ID(), "Downloading")
 	defer reader.Close()
+	//dowonloadedChan : <- done
 
 	if ld.verifier == nil {
 		ld.verifier = ld.digest.Verifier()
@@ -260,7 +292,7 @@ func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progre
 		}
 		return nil, 0, xfer.DoNotRetry{Err: err}
 	}
-
+	//fmt.Println("Pulling layer ", ld.digest, " ends here")
 	progress.Update(progressOutput, ld.ID(), "Download complete")
 
 	logrus.Debugf("Downloaded %s to tempfile %s", ld.ID(), tmpFile.Name())
@@ -279,7 +311,7 @@ func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progre
 	// hand off the temporary file to the download manager, so it will only
 	// be closed once
 	ld.tmpFile = nil
-
+	 
 	return ioutils.NewReadCloserWrapper(tmpFile, func() error {
 		tmpFile.Close()
 		err := os.RemoveAll(tmpFile.Name())
@@ -287,7 +319,8 @@ func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progre
 			logrus.Errorf("Failed to remove temp file: %s", tmpFile.Name())
 		}
 		return err
-	}), size, nil
+	}), size, nil 
+	
 }
 
 func (ld *v2LayerDescriptor) Close() {
@@ -322,7 +355,12 @@ func (ld *v2LayerDescriptor) Registered(diffID layer.DiffID) {
 }
 
 func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdated bool, err error) {
+       
+
+     //   fmt.Println("*************Inside the method: pull_v2.go/pullV2Tag() ")
+
 	manSvc, err := p.repo.Manifests(ctx)
+	// fmt.Println("Manifest of the image is :", manSvc)
 	if err != nil {
 		return false, err
 	}
@@ -333,11 +371,14 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 	)
 	if tagged, isTagged := ref.(reference.NamedTagged); isTagged {
 		manifest, err = manSvc.Get(ctx, "", distribution.WithTag(tagged.Tag()))
+		//fmt.Println("Manifest of the image:", manifest)
 		if err != nil {
 			return false, allowV1Fallback(err)
 		}
 		tagOrDigest = tagged.Tag()
 	} else if digested, isDigested := ref.(reference.Canonical); isDigested {
+                //fmt.Println("Manifest of the iamge:", manifest)
+
 		manifest, err = manSvc.Get(ctx, digested.Digest())
 		if err != nil {
 			return false, err
@@ -385,16 +426,27 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 		if p.config.RequireSchema2 {
 			return false, fmt.Errorf("invalid manifest: not schema2")
 		}
+		
+	    //   fmt.Println("Manifest Schema 1")
+
 		id, manifestDigest, err = p.pullSchema1(ctx, ref, v)
 		if err != nil {
 			return false, err
 		}
 	case *schema2.DeserializedManifest:
+
+		//fmt.Println("Image is Manifest Schema 2")
+              //  fmt.Println("Before pullSchema2() call")
+
 		id, manifestDigest, err = p.pullSchema2(ctx, ref, v)
+
+              //  fmt.Println("After  pullSchema2() function call")
+
 		if err != nil {
 			return false, err
 		}
 	case *manifestlist.DeserializedManifestList:
+		//fmt.Println("PullManifestlist")
 		id, manifestDigest, err = p.pullManifestList(ctx, ref, v)
 		if err != nil {
 			return false, err
@@ -428,6 +480,9 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 			}
 		}
 	}
+
+     //  fmt.Println("*************End of the method: pull_v2.go/pullV2Tag() ")
+
 	return true, nil
 }
 
@@ -505,23 +560,59 @@ func (p *v2Puller) pullSchema1(ctx context.Context, ref reference.Named, unverif
 }
 
 func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *schema2.DeserializedManifest) (id digest.Digest, manifestDigest digest.Digest, err error) {
+	
+	//fmt.Println("*************Inside the method: pull_v2.go/pullSchema2() ")
+       // fmt.Println("Deserialized Manifest:", mfst)
+         // ref name is the URL 
+         // mfst containers about image information sha256 for the image, including all the layers, size of the layers
 	manifestDigest, err = schema2ManifestDigest(ref, mfst)
+	
+	//fmt.Println("Manifest Digest:", manifestDigest)
+        
+
+
 	if err != nil {
 		return "", "", err
 	}
 
 	target := mfst.Target()
+	//fmt.Println("Target from the manifest is", target)
 	if _, err := p.config.ImageStore.Get(target.Digest); err == nil {
 		// If the image already exists locally, no need to pull
 		// anything.
+	
 		return target.Digest, manifestDigest, nil
 	}
 
+
+        // Now ready to download the layers
 	var descriptors []xfer.DownloadDescriptor
+
+       /*
+
+      type DownloadDescriptor interface {
+	// Key returns the key used to deduplicate downloads.
+	Key() string
+	// ID returns the ID for display purposes.
+	ID() string
+	// DiffID should return the DiffID for this layer, or an error
+	// if it is unknown (for example, if it has not been downloaded
+	// before).
+	DiffID() (layer.DiffID, error)
+	// Download is called to perform the download.
+	Download(ctx context.Context, progressOutput progress.Output) (io.ReadCloser, int64, error)
+	// Close is called when the download manager is finished with this
+	// descriptor and will not call Download again or read from the reader
+	// that Download returned.
+	Close()
+}
+
+       */
 
 	// Note that the order of this loop is in the direction of bottom-most
 	// to top-most, so that the downloads slice gets ordered correctly.
-	for _, d := range mfst.Layers {
+	// Adding all the fs.layers[] descriptions
+       for _, d := range mfst.Layers {
 		layerDescriptor := &v2LayerDescriptor{
 			digest:            d.Digest,
 			repo:              p.repo,
@@ -532,11 +623,19 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 
 		descriptors = append(descriptors, layerDescriptor)
 	}
-
-	configChan := make(chan []byte, 1)
+       
+    //   fmt.Println("Layer description in the manifest are:", descriptors)
+       
+       // Channel configChan is decleared here
+       configChan := make(chan []byte, 1)
+       // Channel errChan is decleared here
 	errChan := make(chan error, 1)
+
+        
 	var cancel func()
-	ctx, cancel = context.WithCancel(ctx)
+	
+        //  WithCancel returns a copy of parent with a new Done channel
+         ctx, cancel = context.WithCancel(ctx)
 
 	// Pull the image config
 	go func() {
@@ -546,6 +645,7 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 			cancel()
 			return
 		}
+               // fmt.Println("JSON Configuration is :", configJSON)
 		configChan <- configJSON
 	}()
 
@@ -576,7 +676,13 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 
 	if p.config.DownloadManager != nil {
 		downloadRootFS := *image.NewRootFS()
+		//fmt.Println("Download Rootfs:", downloadRootFS)
+	      // fmt.Println("Inside pull_v2.go/pullV2Tag method() Before download() function call")
+
 		rootFS, release, err := p.config.DownloadManager.Download(ctx, downloadRootFS, descriptors, p.config.ProgressOutput)
+		
+
+		// fmt.Println("Inside pull_v2.go/pullV2Tag method() after download() function call")
 		if err != nil {
 			if configJSON != nil {
 				// Already received the config
@@ -597,12 +703,14 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 		if release != nil {
 			defer release()
 		}
+		//fmt.Println("After downloaded  Rootfs and downloaded rootFS:", rootFS , ",,,,,,,,,,,,,,,,,", downloadedRootFS)
 
 		downloadedRootFS = &rootFS
 	}
-
+	
 	if configJSON == nil {
 		configJSON, configRootFS, err = receiveConfig(p.config.ImageStore, configChan, errChan)
+		//fmt.Println("JSON Configuration and ConfigRootFS is :", configJSON, configRootFS)
 		if err != nil {
 			return "", "", err
 		}
@@ -626,19 +734,26 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 			}
 		}
 	}
-
+	// Getting image id
 	imageID, err := p.config.ImageStore.Put(configJSON)
 	if err != nil {
 		return "", "", err
 	}
-
+       // fmt.Println("Image id : ", imageID, " and ManifestDigest is : ", manifestDigest)
+	//fmt.Println("*************End of the method: pull_v2.go/pull_v2.go/pullSchema2() ")
 	return imageID, manifestDigest, nil
+
+       
+
 }
 
+
+// After recieving image configuration, image configuration of rootfile is assigned
 func receiveConfig(s ImageConfigStore, configChan <-chan []byte, errChan <-chan error) ([]byte, *image.RootFS, error) {
 	select {
 	case configJSON := <-configChan:
 		rootfs, err := s.RootFSFromConfig(configJSON)
+		 
 		if err != nil {
 			return nil, nil, err
 		}
@@ -706,6 +821,8 @@ func (p *v2Puller) pullManifestList(ctx context.Context, ref reference.Named, mf
 	return id, manifestListDigest, err
 }
 
+
+// (Arif) Pulling Schema configuration for the manifest of type 2
 func (p *v2Puller) pullSchema2Config(ctx context.Context, dgst digest.Digest) (configJSON []byte, err error) {
 	blobs := p.repo.Blobs(ctx)
 	configJSON, err = blobs.Get(ctx, dgst)

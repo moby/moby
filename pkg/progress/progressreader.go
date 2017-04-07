@@ -3,7 +3,7 @@ package progress
 import (
 	"io"
 	"time"
-
+	//"fmt"
 	"golang.org/x/time/rate"
 )
 
@@ -21,6 +21,7 @@ type Reader struct {
 
 // NewProgressReader creates a new ProgressReader.
 func NewProgressReader(in io.ReadCloser, out Output, size int64, id, action string) *Reader {
+	
 	return &Reader{
 		in:          in,
 		out:         out,
@@ -55,6 +56,9 @@ func (p *Reader) Close() error {
 		// print a full progress bar when closing prematurely
 		p.current = p.size
 		p.updateProgress(false)
+	}
+	if p.action == "Downloading" {
+	   //fmt.Println("Progress reader is closed")
 	}
 	return p.in.Close()
 }

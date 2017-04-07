@@ -3,11 +3,13 @@ package xfer
 import (
 	"runtime"
 	"sync"
-
+	//"fmt"
 	"github.com/docker/docker/pkg/progress"
 	"golang.org/x/net/context"
 )
 
+
+var pre_progress string
 // DoNotRetry is an error wrapper indicating that the error cannot be resolved
 // with a retry.
 type DoNotRetry struct {
@@ -32,6 +34,8 @@ type Watcher struct {
 	// transfer. It gets closed if the transfer finishes or the
 	// watcher is detached.
 	running chan struct{}
+
+	
 }
 
 // Transfer represents an in-progress transfer.
@@ -41,6 +45,9 @@ type Transfer interface {
 	Context() context.Context
 	Close()
 	Done() <-chan struct{}
+
+	Download_complete() <-chan struct{}  //function that returns a channel indicating current layer file being downloaded (Arif'code)
+
 	Released() <-chan struct{}
 	Broadcast(masterProgressChan <-chan progress.Progress)
 }
@@ -75,6 +82,11 @@ type transfer struct {
 	// a detaching watcher won't miss an event that was sent before it
 	// started detaching.
 	broadcastSyncChan chan struct{}
+
+
+
+	// Downloading remains open as long as the download is in progress.
+ 	downloadedChan chan struct{} // a channel indicating current layer file being downloaded (Arif'code) (Arif's code) 
 }
 
 // NewTransfer creates a new transfer.
@@ -84,6 +96,7 @@ func NewTransfer() Transfer {
 		running:           make(chan struct{}),
 		released:          make(chan struct{}),
 		broadcastSyncChan: make(chan struct{}),
+		downloadedChan: make(chan struct{}), // Arif's code
 	}
 
 	// This uses context.Background instead of a caller-supplied context
@@ -95,14 +108,19 @@ func NewTransfer() Transfer {
 }
 
 // Broadcast copies the progress and error output to all viewers.
+// Recieving the progress channel send from progress detailed??
 func (t *transfer) Broadcast(masterProgressChan <-chan progress.Progress) {
 	for {
+		  //fmt.Println("Inside the Broadcast message :", masterProgressChan )
+		
 		var (
 			p  progress.Progress
 			ok bool
 		)
+		
 		select {
 		case p, ok = <-masterProgressChan:
+			
 		default:
 			// We've depleted the channel, so now we can handle
 			// reads on broadcastSyncChan to let detaching watchers
@@ -116,6 +134,31 @@ func (t *transfer) Broadcast(masterProgressChan <-chan progress.Progress) {
 
 		t.mu.Lock()
 		if ok {
+			if p.Current == p.Total && p.Action== "Downloading" && pre_progress==""  {
+				pre_progress=p.ID
+				//fmt.Println("Progress id:", p.ID , " and Message is :", p.Message ," and action is :", p.Action ,"and Current is :", p.Current, " and  total is :", p.Total )
+				//close(t.downloadedChan)
+				/*var i struct {}
+				var ok1 bool			
+				i, ok1 = <- t.downloadedChan   
+				if ok1 {
+					close(t.downloadedChan)
+			   	}
+				*/
+				//_, ok1 := <- t.downloadedChan
+				//fmt.Println("Ok1 is:", ok1)
+				close(t.downloadedChan)
+			} else if p.Current == p.Total && p.Action== "Downloading" && pre_progress==p.ID {
+			   // For duplication entry
+				 
+			} else if p.Current == p.Total && p.Action== "Downloading" && pre_progress!=p.ID {
+				pre_progress=p.ID
+				
+				close(t.downloadedChan)
+			} else {
+			}
+				
+
 			t.lastProgress = p
 			t.hasLastProgress = true
 			for _, w := range t.watchers {
@@ -145,6 +188,7 @@ func (t *transfer) Watch(progressOutput progress.Output) *Watcher {
 		releaseChan: make(chan struct{}),
 		signalChan:  make(chan struct{}),
 		running:     make(chan struct{}),
+//		dowonloadedCha: make(chan struct{}), // Arif's code
 	}
 
 	t.watchers[w.releaseChan] = w
@@ -175,15 +219,20 @@ func (t *transfer) Watch(progressOutput progress.Output) *Watcher {
 				progressOutput.WriteProgress(lastProgress)
 				lastWritten = lastProgress
 				hasLastWritten = true
+				
 			}
 
 			if done {
+
+				 
 				return
 			}
 
 			select {
 			case <-w.signalChan:
+
 			case <-w.releaseChan:
+				//fmt.Println("Transfer has been finished, releaseChan is set")
 				done = true
 				// Since the watcher is going to detach, make
 				// sure the broadcaster is caught up so we
@@ -193,6 +242,7 @@ func (t *transfer) Watch(progressOutput progress.Output) *Watcher {
 				case <-t.running:
 				}
 			case <-t.running:
+
 				done = true
 			}
 		}
@@ -238,8 +288,17 @@ func (t *transfer) Done() <-chan struct{} {
 	// be closed the moment Cancel is called, and we need to return a
 	// channel that blocks until a cancellation is actually acknowledged by
 	// the transfer function.
+	 
 	return t.running
 }
+
+// Arif's code
+//  Code for sending channel that layer file is downloaded
+func (t *transfer) Download_complete() <-chan struct{} {
+	
+	return t.downloadedChan
+}
+
 
 // Released returns a channel which is closed once all watchers release the
 // transfer AND the transfer is no longer tracked by the transfer manager.

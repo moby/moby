@@ -34,13 +34,18 @@ type Output interface {
 type chanOutput chan<- Progress
 
 func (out chanOutput) WriteProgress(p Progress) error {
-	out <- p
+	/*if p.Current == p.Total && p.Action== "Downloading" {
+	fmt.Println("Progress id:", p.ID , " and Message is :", p.Message ," and action is :", p.Action ,"and Current is :", p.Current, " and  total is :", p.Total )
+	}
+*/
+	out <- p  // Channel is returning Progress i.e. progress.Progress 
 	return nil
 }
 
 // ChanOutput returns an Output that writes progress updates to the
 // supplied channel.
 func ChanOutput(progressChan chan<- Progress) Output {
+
 	return chanOutput(progressChan)
 }
 
@@ -57,6 +62,7 @@ func DiscardOutput() Output {
 
 // Update is a convenience function to write a progress update to the channel.
 func Update(out Output, id, action string) {
+
 	out.WriteProgress(Progress{ID: id, Action: action})
 }
 

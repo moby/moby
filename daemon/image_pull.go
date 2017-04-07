@@ -3,7 +3,9 @@ package daemon
 import (
 	"io"
 	"strings"
+        //"fmt"
 
+	"github.com/Sirupsen/logrus"
 	dist "github.com/docker/distribution"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
@@ -23,12 +25,13 @@ func (daemon *Daemon) PullImage(ctx context.Context, image, tag string, metaHead
 	// trailing :. This is ugly, but let's not break API
 	// compatibility.
 	image = strings.TrimSuffix(image, ":")
-
+        
+      //  fmt.Println("*************Inside the method: image_pull.go/pullImage()")
 	ref, err := reference.ParseNormalizedNamed(image)
 	if err != nil {
 		return err
 	}
-
+	//fmt.Println(ref, tag)
 	if tag != "" {
 		// The "tag" could actually be a digest.
 		var dgst digest.Digest
@@ -42,6 +45,7 @@ func (daemon *Daemon) PullImage(ctx context.Context, image, tag string, metaHead
 			return err
 		}
 	}
+       // fmt.Println("Context", ctx, "Reference:",ref, "Tag", tag,"Metaheaders", metaHeaders,"Authentication Configuration", authConfig,"Outstream", outStream)
 
 	return daemon.pullImageWithReference(ctx, ref, metaHeaders, authConfig, outStream)
 }
@@ -79,14 +83,18 @@ func (daemon *Daemon) pullImageWithReference(ctx context.Context, ref reference.
 	// Include a buffer so that slow client connections don't affect
 	// transfer performance.
 	progressChan := make(chan progress.Progress, 100)
-
+	//fmt.Println("**************Inside the method: image_pull.go/pullImageWithReference()")
 	writesDone := make(chan struct{})
 
 	ctx, cancelFunc := context.WithCancel(ctx)
-
+	
+	//fmt.Println("Context:", ctx)
 	go func() {
+		//fmt.Println("Progess writing thread starts here")
 		progressutils.WriteDistributionProgress(cancelFunc, outStream, progressChan)
 		close(writesDone)
+               // fmt.Println("Progess writing thread ends here")
+
 	}()
 
 	imagePullConfig := &distribution.ImagePullConfig{
@@ -104,6 +112,7 @@ func (daemon *Daemon) pullImageWithReference(ctx context.Context, ref reference.
 		Schema2Types:    distribution.ImageTypes,
 	}
 
+
 	err := distribution.Pull(ctx, ref, imagePullConfig)
 	close(progressChan)
 	<-writesDone
@@ -113,6 +122,8 @@ func (daemon *Daemon) pullImageWithReference(ctx context.Context, ref reference.
 // GetRepository returns a repository from the registry.
 func (daemon *Daemon) GetRepository(ctx context.Context, ref reference.NamedTagged, authConfig *types.AuthConfig) (dist.Repository, bool, error) {
 	// get repository info
+
+         logrus.Debugf("Insoide getrepository")
 	repoInfo, err := daemon.RegistryService.ResolveRepository(ref)
 	if err != nil {
 		return nil, false, err

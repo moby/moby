@@ -28,8 +28,12 @@ type Puller interface {
 // through to the underlying puller implementation for use during the actual
 // pull operation.
 func newPuller(endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo, imagePullConfig *ImagePullConfig) (Puller, error) {
+
+    //    fmt.Println("*************Inside the method: pull.go/newPull() ")
+
 	switch endpoint.Version {
 	case registry.APIVersion2:
+		//fmt.Println("Inside newPuller function: APIversion 2 ")
 		return &v2Puller{
 			V2MetadataService: metadata.NewV2MetadataService(imagePullConfig.MetadataStore),
 			endpoint:          endpoint,
@@ -37,6 +41,7 @@ func newPuller(endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo,
 			repoInfo:          repoInfo,
 		}, nil
 	case registry.APIVersion1:
+		logrus.Debugf("Inside newPuller function :APIversion 1 ")
 		return &v1Puller{
 			v1IDService: metadata.NewV1IDService(imagePullConfig.MetadataStore),
 			endpoint:    endpoint,
@@ -44,6 +49,8 @@ func newPuller(endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo,
 			repoInfo:    repoInfo,
 		}, nil
 	}
+       // fmt.Println("************* End of the method: pull.go/newPull() ")
+
 	return nil, fmt.Errorf("unknown version %d for registry %s", endpoint.Version, endpoint.URL)
 }
 
@@ -51,7 +58,10 @@ func newPuller(endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo,
 // tag may be either empty, or indicate a specific tag to pull.
 func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullConfig) error {
 	// Resolve the Repository name from fqn to RepositoryInfo
+	//fmt.Println("*************Inside the method: pull.go/pull() ")
 	repoInfo, err := imagePullConfig.RegistryService.ResolveRepository(ref)
+	
+	//fmt.Println("Repository Information:", repoInfo)
 	if err != nil {
 		return err
 	}
@@ -62,6 +72,7 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 	}
 
 	endpoints, err := imagePullConfig.RegistryService.LookupPullEndpoints(reference.Domain(repoInfo.Name))
+	//fmt.Println("Endpoints:", endpoints)
 	if err != nil {
 		return err
 	}
@@ -106,18 +117,21 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 		}
 
 		logrus.Debugf("Trying to pull %s from %s %s", reference.FamiliarName(repoInfo.Name), endpoint.URL, endpoint.Version)
-
+		//fmt.Println("Before the newPuller function call")
 		puller, err := newPuller(endpoint, repoInfo, imagePullConfig)
+		//fmt.Println("After the newPuller function call. Puller is:", puller)
 		if err != nil {
 			lastErr = err
 			continue
 		}
+	     //  fmt.Println("Before the Pull_v2 function call. Puller :", puller, "  ctx:", ctx, " ref :", ref)
 		if err := puller.Pull(ctx, ref); err != nil {
 			// Was this pull cancelled? If so, don't try to fall
 			// back.
 			fallback := false
 			select {
 			case <-ctx.Done():
+			//fmt.Println("Puller.pull(ctx,ref) is coompleted ")
 			default:
 				if fallbackErr, ok := err.(fallbackError); ok {
 					fallback = true
@@ -146,6 +160,8 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 			logrus.Errorf("Not continuing with pull after error: %v", err)
 			return TranslatePullError(err, ref)
 		}
+	      //  fmt.Println("*************End of  the method: pull.go/pull() ")
+
 
 		imagePullConfig.ImageEventLogger(reference.FamiliarString(ref), reference.FamiliarName(repoInfo.Name), "pull")
 		return nil
@@ -164,9 +180,9 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 // will refer to.
 func writeStatus(requestedTag string, out progress.Output, layersDownloaded bool) {
 	if layersDownloaded {
-		progress.Message(out, "", "Status: Downloaded newer image for "+requestedTag)
+		progress.Message(out, "", "Status:(encoded by arif) Downloaded newer image for "+requestedTag)
 	} else {
-		progress.Message(out, "", "Status: Image is up to date for "+requestedTag)
+		progress.Message(out, "", "Status:(encoded by arif) Image is up to date for "+requestedTag)
 	}
 }
 
