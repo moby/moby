@@ -315,6 +315,9 @@ func (daemon *Daemon) localNetworksPrune(ctx context.Context, pruneFilters filte
 			return true
 		default:
 		}
+		if nw.Info().ConfigOnly() {
+			return false
+		}
 		if !until.IsZero() && nw.Info().Created().After(until) {
 			return false
 		}

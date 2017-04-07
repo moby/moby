@@ -299,6 +299,11 @@ func (n *networkRouter) buildNetworkResource(nw libnetwork.Network) *types.Netwo
 	r.Containers = make(map[string]types.EndpointResource)
 	buildIpamResources(r, info)
 	r.Labels = info.Labels()
+	r.ConfigOnly = info.ConfigOnly()
+
+	if cn := info.ConfigFrom(); cn != "" {
+		r.ConfigFrom = network.ConfigReference{Network: cn}
+	}
 
 	peers := info.Peers()
 	if len(peers) != 0 {

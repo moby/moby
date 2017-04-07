@@ -320,6 +320,10 @@ func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string
 		libnetwork.NetworkOptionIngress(create.Ingress),
 	}
 
+	if create.ConfigOnly {
+		nwOptions = append(nwOptions, libnetwork.NetworkOptionConfigOnly())
+	}
+
 	if create.IPAM != nil {
 		ipam := create.IPAM
 		v4Conf, v6Conf, err := getIpamConfig(ipam.Config)
@@ -335,6 +339,10 @@ func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string
 	if agent {
 		nwOptions = append(nwOptions, libnetwork.NetworkOptionDynamic())
 		nwOptions = append(nwOptions, libnetwork.NetworkOptionPersist(false))
+	}
+
+	if create.ConfigFrom != nil {
+		nwOptions = append(nwOptions, libnetwork.NetworkOptionConfigFrom(create.ConfigFrom.Network))
 	}
 
 	n, err := c.NewNetwork(driver, create.Name, id, nwOptions...)
@@ -501,10 +509,16 @@ func (daemon *Daemon) deleteNetwork(networkID string, dynamic bool) error {
 	if err := nw.Delete(); err != nil {
 		return err
 	}
-	daemon.pluginRefCount(nw.Type(), driverapi.NetworkPluginEndpointType, plugingetter.Release)
-	ipamType, _, _, _ := nw.Info().IpamConfig()
-	daemon.pluginRefCount(ipamType, ipamapi.PluginEndpointType, plugingetter.Release)
-	daemon.LogNetworkEvent(nw, "destroy")
+
+	// If this is not a configuration only network, we need to
+	// update the corresponding remote drivers' reference counts
+	if !nw.Info().ConfigOnly() {
+		daemon.pluginRefCount(nw.Type(), driverapi.NetworkPluginEndpointType, plugingetter.Release)
+		ipamType, _, _, _ := nw.Info().IpamConfig()
+		daemon.pluginRefCount(ipamType, ipamapi.PluginEndpointType, plugingetter.Release)
+		daemon.LogNetworkEvent(nw, "destroy")
+	}
+
 	return nil
 }
 
