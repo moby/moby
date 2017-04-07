@@ -25,6 +25,8 @@ func TestNetworkMarshalling(t *testing.T) {
 		networkType: "bridge",
 		enableIPv6:  true,
 		persist:     true,
+		configOnly:  true,
+		configFrom:  "configOnlyX",
 		ipamOptions: map[string]string{
 			netlabel.MacAddress: "a:b:c:d:e:f",
 			"primary":           "",
@@ -136,7 +138,8 @@ func TestNetworkMarshalling(t *testing.T) {
 		!compareIpamInfoList(n.ipamV6Info, nn.ipamV6Info) ||
 		!compareStringMaps(n.ipamOptions, nn.ipamOptions) ||
 		!compareStringMaps(n.labels, nn.labels) ||
-		!n.created.Equal(nn.created) {
+		!n.created.Equal(nn.created) ||
+		n.configOnly != nn.configOnly || n.configFrom != nn.configFrom {
 		t.Fatalf("JSON marsh/unmarsh failed."+
 			"\nOriginal:\n%#v\nDecoded:\n%#v"+
 			"\nOriginal ipamV4Conf: %#v\n\nDecoded ipamV4Conf: %#v"+

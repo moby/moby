@@ -478,7 +478,7 @@ func (c *controller) networkCleanup() {
 }
 
 var populateSpecial NetworkWalker = func(nw Network) bool {
-	if n := nw.(*network); n.hasSpecialDriver() {
+	if n := nw.(*network); n.hasSpecialDriver() && !n.ConfigOnly() {
 		if err := n.getController().addNetwork(n); err != nil {
 			logrus.Warnf("Failed to populate network %q with driver %q", nw.Name(), nw.Type())
 		}

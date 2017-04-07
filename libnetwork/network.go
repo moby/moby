@@ -67,6 +67,8 @@ type NetworkInfo interface {
 	Internal() bool
 	Attachable() bool
 	Ingress() bool
+	ConfigFrom() string
+	ConfigOnly() bool
 	Labels() map[string]string
 	Dynamic() bool
 	Created() time.Time
@@ -219,6 +221,8 @@ type network struct {
 	ingress      bool
 	driverTables []networkDBTable
 	dynamic      bool
+	configOnly   bool
+	configFrom   string
 	sync.Mutex
 }
 
@@ -348,6 +352,95 @@ func (i *IpamInfo) CopyTo(dstI *IpamInfo) error {
 	return nil
 }
 
+func (n *network) validateConfiguration() error {
+	if n.configOnly {
+		// Only supports network specific configurations.
+		// Network operator configurations are not supported.
+		if n.ingress || n.internal || n.attachable {
+			return types.ForbiddenErrorf("configuration network can only contain network " +
+				"specific fields. Network operator fields like " +
+				"[ ingress | internal | attachable ] are not supported.")
+		}
+	}
+	if n.configFrom != "" {
+		if n.configOnly {
+			return types.ForbiddenErrorf("a configuration network cannot depend on another configuration network")
+		}
+		if n.ipamType != "" &&
+			n.ipamType != defaultIpamForNetworkType(n.networkType) ||
+			n.enableIPv6 ||
+			len(n.labels) > 0 || len(n.ipamOptions) > 0 ||
+			len(n.ipamV4Config) > 0 || len(n.ipamV6Config) > 0 {
+			return types.ForbiddenErrorf("user specified configurations are not supported if the network depends on a configuration network")
+		}
+		if len(n.generic) > 0 {
+			if data, ok := n.generic[netlabel.GenericData]; ok {
+				var (
+					driverOptions map[string]string
+					opts          interface{}
+				)
+				switch data.(type) {
+				case map[string]interface{}:
+					opts = data.(map[string]interface{})
+				case map[string]string:
+					opts = data.(map[string]string)
+				}
+				ba, err := json.Marshal(opts)
+				if err != nil {
+					return fmt.Errorf("failed to validate network configuration: %v", err)
+				}
+				if err := json.Unmarshal(ba, &driverOptions); err != nil {
+					return fmt.Errorf("failed to validate network configuration: %v", err)
+				}
+				if len(driverOptions) > 0 {
+					return types.ForbiddenErrorf("network driver options are not supported if the network depends on a configuration network")
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// Applies network specific configurations
+func (n *network) applyConfigurationTo(to *network) error {
+	to.enableIPv6 = n.enableIPv6
+	if len(n.labels) > 0 {
+		to.labels = make(map[string]string, len(n.labels))
+		for k, v := range n.labels {
+			if _, ok := to.labels[k]; !ok {
+				to.labels[k] = v
+			}
+		}
+	}
+	if len(n.ipamOptions) > 0 {
+		to.ipamOptions = make(map[string]string, len(n.ipamOptions))
+		for k, v := range n.ipamOptions {
+			if _, ok := to.ipamOptions[k]; !ok {
+				to.ipamOptions[k] = v
+			}
+		}
+	}
+	if len(n.ipamV4Config) > 0 {
+		to.ipamV4Config = make([]*IpamConf, 0, len(n.ipamV4Config))
+		for _, v4conf := range n.ipamV4Config {
+			to.ipamV4Config = append(to.ipamV4Config, v4conf)
+		}
+	}
+	if len(n.ipamV6Config) > 0 {
+		to.ipamV6Config = make([]*IpamConf, 0, len(n.ipamV6Config))
+		for _, v6conf := range n.ipamV6Config {
+			to.ipamV6Config = append(to.ipamV6Config, v6conf)
+		}
+	}
+	if len(n.generic) > 0 {
+		to.generic = options.Generic{}
+		for k, v := range n.generic {
+			to.generic[k] = v
+		}
+	}
+	return nil
+}
+
 func (n *network) CopyTo(o datastore.KVObject) error {
 	n.Lock()
 	defer n.Unlock()
@@ -370,6 +463,8 @@ func (n *network) CopyTo(o datastore.KVObject) error {
 	dstN.attachable = n.attachable
 	dstN.inDelete = n.inDelete
 	dstN.ingress = n.ingress
+	dstN.configOnly = n.configOnly
+	dstN.configFrom = n.configFrom
 
 	// copy labels
 	if dstN.labels == nil {
@@ -479,6 +574,8 @@ func (n *network) MarshalJSON() ([]byte, error) {
 	netMap["attachable"] = n.attachable
 	netMap["inDelete"] = n.inDelete
 	netMap["ingress"] = n.ingress
+	netMap["configOnly"] = n.configOnly
+	netMap["configFrom"] = n.configFrom
 	return json.Marshal(netMap)
 }
 
@@ -582,6 +679,12 @@ func (n *network) UnmarshalJSON(b []byte) (err error) {
 	}
 	if v, ok := netMap["ingress"]; ok {
 		n.ingress = v.(bool)
+	}
+	if v, ok := netMap["configOnly"]; ok {
+		n.configOnly = v.(bool)
+	}
+	if v, ok := netMap["configFrom"]; ok {
+		n.configFrom = v.(string)
 	}
 	// Reconcile old networks with the recently added `--ipv6` flag
 	if !n.enableIPv6 {
@@ -713,6 +816,23 @@ func NetworkOptionDeferIPv6Alloc(enable bool) NetworkOption {
 	}
 }
 
+// NetworkOptionConfigOnly tells controller this network is
+// a configuration only network. It serves as a configuration
+// for other networks.
+func NetworkOptionConfigOnly() NetworkOption {
+	return func(n *network) {
+		n.configOnly = true
+	}
+}
+
+// NetworkOptionConfigFrom tells controller to pick the
+// network configuration from a configuration only network
+func NetworkOptionConfigFrom(name string) NetworkOption {
+	return func(n *network) {
+		n.configFrom = name
+	}
+}
+
 func (n *network) processOptions(options ...NetworkOption) {
 	for _, opt := range options {
 		if opt != nil {
@@ -797,6 +917,9 @@ func (n *network) delete(force bool) error {
 	}
 
 	if !force && n.getEpCnt().EndpointCnt() != 0 {
+		if n.configOnly {
+			return types.ForbiddenErrorf("configuration network %q is in use", n.Name())
+		}
 		return &ActiveEndpointsError{name: n.name, id: n.id}
 	}
 
@@ -804,6 +927,21 @@ func (n *network) delete(force bool) error {
 	n.inDelete = true
 	if err = c.updateToStore(n); err != nil {
 		return fmt.Errorf("error marking network %s (%s) for deletion: %v", n.Name(), n.ID(), err)
+	}
+
+	if n.ConfigFrom() != "" {
+		if t, err := c.getConfigNetwork(n.ConfigFrom()); err == nil {
+			if err := t.getEpCnt().DecEndpointCnt(); err != nil {
+				logrus.Warnf("Failed to update reference count for configuration network %q on removal of network %q: %v",
+					t.Name(), n.Name(), err)
+			}
+		} else {
+			logrus.Warnf("Could not find configuration network %q during removal of network %q", n.configOnly, n.Name())
+		}
+	}
+
+	if n.configOnly {
+		goto removeFromStore
 	}
 
 	if err = n.deleteNetwork(); err != nil {
@@ -831,6 +969,7 @@ func (n *network) delete(force bool) error {
 
 	c.cleanupServiceBindings(n.ID())
 
+removeFromStore:
 	// deleteFromStore performs an atomic delete operation and the
 	// network.epCnt will help prevent any possible
 	// race between endpoint join and network delete
@@ -890,6 +1029,10 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 	var err error
 	if !config.IsValidName(name) {
 		return nil, ErrInvalidName(name)
+	}
+
+	if n.ConfigOnly() {
+		return nil, types.ForbiddenErrorf("cannot create endpoint on configuration-only network")
 	}
 
 	if _, err = n.EndpointByName(name); err == nil {
@@ -1611,6 +1754,20 @@ func (n *network) IPv6Enabled() bool {
 	return n.enableIPv6
 }
 
+func (n *network) ConfigFrom() string {
+	n.Lock()
+	defer n.Unlock()
+
+	return n.configFrom
+}
+
+func (n *network) ConfigOnly() bool {
+	n.Lock()
+	defer n.Unlock()
+
+	return n.configOnly
+}
+
 func (n *network) Labels() map[string]string {
 	n.Lock()
 	defer n.Unlock()
@@ -1777,4 +1934,25 @@ func (n *network) ExecFunc(f func()) error {
 
 func (n *network) NdotsSet() bool {
 	return false
+}
+
+// config-only network is looked up by name
+func (c *controller) getConfigNetwork(name string) (*network, error) {
+	var n Network
+
+	s := func(current Network) bool {
+		if current.Info().ConfigOnly() && current.Name() == name {
+			n = current
+			return true
+		}
+		return false
+	}
+
+	c.WalkNetworks(s)
+
+	if n == nil {
+		return nil, types.NotFoundErrorf("configuration network %q not found", name)
+	}
+
+	return n.(*network), nil
 }
