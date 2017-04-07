@@ -89,6 +89,9 @@ func (bm *BuildManager) BuildFromContext(ctx context.Context, src io.ReadCloser,
 	if buildOptions.Squash && !bm.backend.HasExperimental() {
 		return "", apierrors.NewBadRequestError(errors.New("squash is only supported with experimental mode"))
 	}
+	if buildOptions.ChecksumFS && !bm.backend.HasExperimental() {
+		return "", apierrors.NewBadRequestError(errors.New("checksumfs is only supported with experimental mode"))
+	}
 	buildContext, dockerfileName, err := builder.DetectContextFromRemoteURL(src, remote, pg.ProgressReaderFunc)
 	if err != nil {
 		return "", err

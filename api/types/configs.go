@@ -35,6 +35,8 @@ type ContainerCommitConfig struct {
 	Comment string
 	// merge container config into commit config before commit
 	MergeConfigs bool
+	// checksum layers for run-time verification
+	ChecksumFS bool
 	Config       *container.Config
 }
 

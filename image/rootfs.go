@@ -5,6 +5,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/layer"
+	"github.com/opencontainers/go-digest"
 )
 
 // TypeLayers is used for RootFS.Type for filesystems organized into layers.
@@ -22,6 +23,7 @@ const typeLayersWithBase = "layers+base"
 type RootFS struct {
 	Type    string         `json:"type"`
 	DiffIDs []layer.DiffID `json:"diff_ids,omitempty"`
+	Checksum digest.Digest  `json:"checksum,omitempty"`
 }
 
 // NewRootFS returns empty RootFS struct

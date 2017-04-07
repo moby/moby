@@ -56,6 +56,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	options.ExtraHosts = r.Form["extrahosts"]
 	options.SecurityOpt = r.Form["securityopt"]
 	options.Squash = httputils.BoolValue(r, "squash")
+	options.ChecksumFS = httputils.BoolValue(r, "checksumfs")
 	options.Target = r.FormValue("target")
 
 	if r.Form.Get("shmsize") != "" {

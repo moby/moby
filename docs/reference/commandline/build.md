@@ -55,6 +55,7 @@ Options:
                                 Unit is optional and can be `b` (bytes), `k` (kilobytes), `m` (megabytes),
                                 or `g` (gigabytes). If you omit the unit, the system uses bytes.
       --squash                  Squash newly built layers into a single new layer (**Experimental Only**)
+      --checksumfs              Checksum layers for run-time verification (**Experimental Only**)
   -t, --tag value               Name and optionally a tag in the 'name:tag' format (default [])
       --ulimit value            Ulimit options (default [])
 ```
@@ -548,3 +549,9 @@ IMAGE               CREATED             CREATED BY                              
 We could find that all layer's name is `<missing>`, and there is a new layer with COMMENT `merge`.
 
 Test the image, check for `/remove_me` being gone, make sure `hello\nworld` is in `/hello`, make sure the `HELLO` envvar's value is `world`.
+
+### Checksum layers for run-time verification (--checksumfs) **Experimental Only**
+
+Once an image is built, hash and checksum the combined layers. The checksum is
+recorded in the manifest. If present, a checksum in the manifest will trigger
+verification at run-time, causing failure if there are any modifications.

@@ -74,6 +74,7 @@ func (b *Builder) commit(id string, autoCmd strslice.StrSlice, comment string) e
 			Author: b.maintainer,
 			Pause:  true,
 			Config: &autoConfig,
+			ChecksumFS: b.options.ChecksumFS,
 		},
 	}
 
