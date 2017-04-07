@@ -621,7 +621,7 @@ func (c *controller) pushNodeDiscovery(d driverapi.Driver, cap driverapi.Capabil
 		}
 	}
 
-	if d == nil || cap.DataScope != datastore.GlobalScope || nodes == nil {
+	if d == nil || cap.ConnectivityScope != datastore.GlobalScope || nodes == nil {
 		return
 	}
 
@@ -747,11 +747,17 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 		return nil, err
 	}
 
+	if network.scope == datastore.LocalScope && cap.DataScope == datastore.GlobalScope {
+		return nil, types.ForbiddenErrorf("cannot downgrade network scope for %s networks", networkType)
+
+	}
 	if network.ingress && cap.DataScope != datastore.GlobalScope {
 		return nil, types.ForbiddenErrorf("Ingress network can only be global scope network")
 	}
 
-	if cap.DataScope == datastore.GlobalScope && !c.isDistributedControl() && !network.dynamic {
+	// At this point the network scope is still unknown if not set by user
+	if (cap.DataScope == datastore.GlobalScope || network.scope == datastore.SwarmScope) &&
+		!c.isDistributedControl() && !network.dynamic {
 		if c.isManager() {
 			// For non-distributed controlled environment, globalscoped non-dynamic networks are redirected to Manager
 			return nil, ManagerRedirectError(name)

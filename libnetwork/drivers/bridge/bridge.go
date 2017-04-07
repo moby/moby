@@ -153,7 +153,8 @@ func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 	}
 
 	c := driverapi.Capability{
-		DataScope: datastore.LocalScope,
+		DataScope:         datastore.LocalScope,
+		ConnectivityScope: datastore.LocalScope,
 	}
 	return dc.RegisterDriver(networkType, d, c)
 }

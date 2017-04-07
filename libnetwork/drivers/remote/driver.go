@@ -74,6 +74,17 @@ func (d *driver) getCapabilities() (*driverapi.Capability, error) {
 		return nil, fmt.Errorf("invalid capability: expecting 'local' or 'global', got %s", capResp.Scope)
 	}
 
+	switch capResp.ConnectivityScope {
+	case "global":
+		c.ConnectivityScope = datastore.GlobalScope
+	case "local":
+		c.ConnectivityScope = datastore.LocalScope
+	case "":
+		c.ConnectivityScope = c.DataScope
+	default:
+		return nil, fmt.Errorf("invalid capability: expecting 'local' or 'global', got %s", capResp.Scope)
+	}
+
 	return c, nil
 }
 

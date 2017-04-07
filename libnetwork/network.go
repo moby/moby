@@ -195,7 +195,7 @@ type network struct {
 	networkType  string
 	id           string
 	created      time.Time
-	scope        string
+	scope        string // network data scope
 	labels       map[string]string
 	ipamType     string
 	ipamOptions  map[string]string
@@ -514,7 +514,12 @@ func (n *network) CopyTo(o datastore.KVObject) error {
 }
 
 func (n *network) DataScope() string {
-	return n.Scope()
+	s := n.Scope()
+	// All swarm scope networks have local datascope
+	if s == datastore.SwarmScope {
+		s = datastore.LocalScope
+	}
+	return s
 }
 
 func (n *network) getEpCnt() *endpointCnt {
@@ -762,6 +767,14 @@ func NetworkOptionAttachable(attachable bool) NetworkOption {
 	}
 }
 
+// NetworkOptionScope returns an option setter to overwrite the network's scope.
+// By default the network's scope is set to the network driver's datascope.
+func NetworkOptionScope(scope string) NetworkOption {
+	return func(n *network) {
+		n.scope = scope
+	}
+}
+
 // NetworkOptionIpam function returns an option setter for the ipam configuration for this network
 func NetworkOptionIpam(ipamDriver string, addrSpace string, ipV4 []*IpamConf, ipV6 []*IpamConf, opts map[string]string) NetworkOption {
 	return func(n *network) {
@@ -877,6 +890,14 @@ func (n *network) driverScope() string {
 	return cap.DataScope
 }
 
+func (n *network) driverIsMultihost() bool {
+	_, cap, err := n.resolveDriver(n.networkType, true)
+	if err != nil {
+		return false
+	}
+	return cap.ConnectivityScope == datastore.GlobalScope
+}
+
 func (n *network) driver(load bool) (driverapi.Driver, error) {
 	d, cap, err := n.resolveDriver(n.networkType, load)
 	if err != nil {
@@ -887,14 +908,14 @@ func (n *network) driver(load bool) (driverapi.Driver, error) {
 	isAgent := c.isAgent()
 	n.Lock()
 	// If load is not required, driver, cap and err may all be nil
-	if cap != nil {
+	if n.scope == "" && cap != nil {
 		n.scope = cap.DataScope
 	}
-	if isAgent || n.dynamic {
-		// If we are running in agent mode then all networks
-		// in libnetwork are local scope regardless of the
-		// backing driver.
-		n.scope = datastore.LocalScope
+	if isAgent && n.dynamic {
+		// If we are running in agent mode and the network
+		// is dynamic, then the networks are swarm scoped
+		// regardless of the backing driver.
+		n.scope = datastore.SwarmScope
 	}
 	n.Unlock()
 	return d, nil
