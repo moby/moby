@@ -42,6 +42,13 @@ func build(args []string) {
 	buildInternal(*buildName, *buildPull, conf)
 }
 
+func initrdAppend(iw *initrd.Writer, r io.Reader) {
+	_, err := initrd.Copy(iw, r)
+	if err != nil {
+		log.Fatalf("initrd write error: %v", err)
+	}
+}
+
 // Perform the actual build process
 func buildInternal(name string, pull bool, conf string) {
 	if name == "" {
@@ -62,7 +69,8 @@ func buildInternal(name string, pull bool, conf string) {
 		log.Fatalf("Invalid config: %v", err)
 	}
 
-	containers := []*bytes.Buffer{}
+	w := new(bytes.Buffer)
+	iw := initrd.NewWriter(w)
 
 	if pull {
 		log.Infof("Pull kernel image: %s", m.Kernel.Image)
@@ -87,7 +95,7 @@ func buildInternal(name string, pull bool, conf string) {
 	if err != nil {
 		log.Fatalf("Could not extract bzImage and kernel filesystem from tarball. %v", err)
 	}
-	containers = append(containers, ktar)
+	initrdAppend(iw, ktar)
 
 	// convert init image to tarball
 	if pull {
@@ -103,7 +111,7 @@ func buildInternal(name string, pull bool, conf string) {
 		log.Fatalf("Failed to build init tarball: %v", err)
 	}
 	buffer := bytes.NewBuffer(init)
-	containers = append(containers, buffer)
+	initrdAppend(iw, buffer)
 
 	log.Infof("Add system containers:")
 	for i, image := range m.System {
@@ -126,7 +134,7 @@ func buildInternal(name string, pull bool, conf string) {
 			log.Fatalf("Failed to extract root filesystem for %s: %v", image.Image, err)
 		}
 		buffer := bytes.NewBuffer(out)
-		containers = append(containers, buffer)
+		initrdAppend(iw, buffer)
 	}
 
 	log.Infof("Add daemon containers:")
@@ -149,7 +157,7 @@ func buildInternal(name string, pull bool, conf string) {
 			log.Fatalf("Failed to extract root filesystem for %s: %v", image.Image, err)
 		}
 		buffer := bytes.NewBuffer(out)
-		containers = append(containers, buffer)
+		initrdAppend(iw, buffer)
 	}
 
 	// add files
@@ -157,16 +165,14 @@ func buildInternal(name string, pull bool, conf string) {
 	if err != nil {
 		log.Fatalf("failed to add filesystem parts: %v", err)
 	}
-	containers = append(containers, buffer)
-
-	log.Infof("Create initial ram disk")
-	initrd, err := containersInitrd(containers)
+	initrdAppend(iw, buffer)
+	err = iw.Close()
 	if err != nil {
-		log.Fatalf("Failed to make initrd %v", err)
+		log.Fatalf("initrd close error: %v", err)
 	}
 
 	log.Infof("Create outputs:")
-	err = outputs(m, name, bzimage.Bytes(), initrd.Bytes())
+	err = outputs(m, name, bzimage.Bytes(), w.Bytes())
 	if err != nil {
 		log.Fatalf("Error writing outputs: %v", err)
 	}
@@ -208,18 +214,4 @@ func untarKernel(buf *bytes.Buffer, bzimageName, ktarName string) (*bytes.Buffer
 	}
 
 	return bzimage, ktar, nil
-}
-
-func containersInitrd(containers []*bytes.Buffer) (*bytes.Buffer, error) {
-	w := new(bytes.Buffer)
-	iw := initrd.NewWriter(w)
-	defer iw.Close()
-	for _, file := range containers {
-		_, err := initrd.Copy(iw, file)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return w, nil
 }
