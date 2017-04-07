@@ -16,7 +16,7 @@ type listOptions struct {
 	filter opts.FilterOpt
 }
 
-func newSecretListCommand(dockerCli *command.DockerCli) *cobra.Command {
+func newSecretListCommand(dockerCli command.Cli) *cobra.Command {
 	opts := listOptions{filter: opts.NewFilterOpt()}
 
 	cmd := &cobra.Command{
@@ -37,7 +37,7 @@ func newSecretListCommand(dockerCli *command.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func runSecretList(dockerCli *command.DockerCli, opts listOptions) error {
+func runSecretList(dockerCli command.Cli, opts listOptions) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 

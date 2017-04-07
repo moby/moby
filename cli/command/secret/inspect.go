@@ -13,7 +13,7 @@ type inspectOptions struct {
 	format string
 }
 
-func newSecretInspectCommand(dockerCli *command.DockerCli) *cobra.Command {
+func newSecretInspectCommand(dockerCli command.Cli) *cobra.Command {
 	opts := inspectOptions{}
 	cmd := &cobra.Command{
 		Use:   "inspect [OPTIONS] SECRET [SECRET...]",
@@ -29,7 +29,7 @@ func newSecretInspectCommand(dockerCli *command.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func runSecretInspect(dockerCli *command.DockerCli, opts inspectOptions) error {
+func runSecretInspect(dockerCli command.Cli, opts inspectOptions) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 

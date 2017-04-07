@@ -22,7 +22,7 @@ type createOptions struct {
 	labels opts.ListOpts
 }
 
-func newSecretCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
+func newSecretCreateCommand(dockerCli command.Cli) *cobra.Command {
 	createOpts := createOptions{
 		labels: opts.NewListOpts(opts.ValidateEnv),
 	}
@@ -43,7 +43,7 @@ func newSecretCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func runSecretCreate(dockerCli *command.DockerCli, options createOptions) error {
+func runSecretCreate(dockerCli command.Cli, options createOptions) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 
