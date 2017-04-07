@@ -236,13 +236,18 @@ func dockerRm(container string) error {
 	return nil
 }
 
-func dockerPull(image string) error {
+func dockerPull(image string, trustedPull bool) error {
 	log.Debugf("docker pull: %s", image)
 	docker, err := exec.LookPath("docker")
 	if err != nil {
 		return errors.New("Docker does not seem to be installed")
 	}
-	args := []string{"pull", image}
+	var args = []string{"pull"}
+	if trustedPull {
+		log.Debugf("pulling %s with content trust", image)
+		args = append(args, "--disable-content-trust=false")
+	}
+	args = append(args, image)
 	cmd := exec.Command(docker, args...)
 
 	stderrPipe, err := cmd.StderrPipe()
@@ -294,7 +299,7 @@ func dockerInspectImage(cli *client.Client, image string) (types.ImageInspect, e
 	inspect, _, err := cli.ImageInspectWithRaw(context.Background(), image, false)
 	if err != nil {
 		if client.IsErrImageNotFound(err) {
-			pullErr := dockerPull(image)
+			pullErr := dockerPull(image, false)
 			if pullErr != nil {
 				return types.ImageInspect{}, pullErr
 			}

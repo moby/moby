@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/moby/src/initrd"
@@ -49,6 +50,26 @@ func initrdAppend(iw *initrd.Writer, r io.Reader) {
 	}
 }
 
+func enforceContentTrust(fullImageName string, config *TrustConfig) bool {
+	for _, img := range config.Image {
+		// First check for an exact tag match
+		if img == fullImageName {
+			return true
+		}
+		// Also check for an image name only match:
+		if img == strings.TrimSuffix(fullImageName, ":") {
+			return true
+		}
+	}
+
+	for _, org := range config.Org {
+		if strings.HasPrefix(fullImageName, org+"/") {
+		}
+		return true
+	}
+	return false
+}
+
 // Perform the actual build process
 func buildInternal(name string, pull bool, conf string) {
 	if name == "" {
@@ -72,9 +93,9 @@ func buildInternal(name string, pull bool, conf string) {
 	w := new(bytes.Buffer)
 	iw := initrd.NewWriter(w)
 
-	if pull {
+	if pull || enforceContentTrust(m.Kernel.Image, &m.Trust) {
 		log.Infof("Pull kernel image: %s", m.Kernel.Image)
-		err := dockerPull(m.Kernel.Image)
+		err := dockerPull(m.Kernel.Image, enforceContentTrust(m.Kernel.Image, &m.Trust))
 		if err != nil {
 			log.Fatalf("Could not pull image %s: %v", m.Kernel.Image, err)
 		}
@@ -100,9 +121,9 @@ func buildInternal(name string, pull bool, conf string) {
 	// convert init images to tarballs
 	log.Infof("Add init containers:")
 	for _, ii := range m.Init {
-		if pull {
+		if pull || enforceContentTrust(ii, &m.Trust) {
 			log.Infof("Pull init image: %s", ii)
-			err := dockerPull(ii)
+			err := dockerPull(ii, enforceContentTrust(ii, &m.Trust))
 			if err != nil {
 				log.Fatalf("Could not pull image %s: %v", ii, err)
 			}
@@ -118,9 +139,9 @@ func buildInternal(name string, pull bool, conf string) {
 
 	log.Infof("Add system containers:")
 	for i, image := range m.System {
-		if pull {
+		if pull || enforceContentTrust(image.Image, &m.Trust) {
 			log.Infof("  Pull: %s", image.Image)
-			err := dockerPull(image.Image)
+			err := dockerPull(image.Image, enforceContentTrust(image.Image, &m.Trust))
 			if err != nil {
 				log.Fatalf("Could not pull image %s: %v", image.Image, err)
 			}
@@ -142,9 +163,9 @@ func buildInternal(name string, pull bool, conf string) {
 
 	log.Infof("Add daemon containers:")
 	for _, image := range m.Daemon {
-		if pull {
+		if pull || enforceContentTrust(image.Image, &m.Trust) {
 			log.Infof("  Pull: %s", image.Image)
-			err := dockerPull(image.Image)
+			err := dockerPull(image.Image, enforceContentTrust(image.Image, &m.Trust))
 			if err != nil {
 				log.Fatalf("Could not pull image %s: %v", image.Image, err)
 			}

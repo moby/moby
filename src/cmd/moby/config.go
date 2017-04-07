@@ -27,6 +27,7 @@ type Moby struct {
 	Init   []string
 	System []MobyImage
 	Daemon []MobyImage
+	Trust  TrustConfig
 	Files  []struct {
 		Path      string
 		Directory bool
@@ -41,6 +42,12 @@ type Moby struct {
 		Public  bool
 		Replace bool
 	}
+}
+
+// TrustConfig is the type of a content trust config
+type TrustConfig struct {
+	Image []string
+	Org   []string
 }
 
 // MobyImage is the type of an image config
