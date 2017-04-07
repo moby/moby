@@ -55,7 +55,7 @@ func outputs(m *Moby, base string, bzimage []byte, initrd []byte) error {
 			if err != nil {
 				return fmt.Errorf("Unable to connect to GCP")
 			}
-			err = gClient.UploadFile(base+".img.tar.gz", o.Bucket, o.Public)
+			err = gClient.UploadFile(base+".img.tar.gz", base+".img.tar.gz", o.Bucket, o.Public)
 			if err != nil {
 				return fmt.Errorf("Error copying to Google Storage: %v", err)
 			}
@@ -71,7 +71,7 @@ func outputs(m *Moby, base string, bzimage []byte, initrd []byte) error {
 			if err != nil {
 				return fmt.Errorf("Unable to connect to GCP")
 			}
-			err = gClient.UploadFile(base+".img.tar.gz", o.Bucket, o.Public)
+			err = gClient.UploadFile(base+".img.tar.gz", base+".img.tar.gz", o.Bucket, o.Public)
 			if err != nil {
 				return fmt.Errorf("Error copying to Google Storage: %v", err)
 			}

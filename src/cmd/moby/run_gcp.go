@@ -19,6 +19,7 @@ const (
 	bucketVar      = "MOBY_GCP_BUCKET"
 	familyVar      = "MOBY_GCP_FAMILY"
 	publicVar      = "MOBY_GCP_PUBLIC"
+	nameVar        = "MOBY_GCP_IMAGE_NAME"
 )
 
 // Process the run arguments and execute run
@@ -39,7 +40,9 @@ func runGcp(args []string) {
 	bucketFlag := gcpCmd.String("bucket", "", "GS Bucket to upload to. *Required* when 'prefix' is a filename")
 	publicFlag := gcpCmd.Bool("public", false, "Select if file on GS should be public. *Optional* when 'prefix' is a filename")
 	familyFlag := gcpCmd.String("family", "", "GCP Image Family. A group of images where the family name points to the most recent image. *Optional* when 'prefix' is a filename")
+	nameFlag := gcpCmd.String("img-name", "", "Overrides the Name used to identify the file in Google Storage, Image and Instance. Defaults to [name]")
 	gcpCmd.Parse(args)
+
 	remArgs := gcpCmd.Args()
 	if len(remArgs) == 0 {
 		fmt.Printf("Please specify the prefix to the image to boot\n")
@@ -55,6 +58,7 @@ func runGcp(args []string) {
 	bucket := getStringValue(bucketVar, *bucketFlag, "")
 	public := getBoolValue(publicVar, *publicFlag)
 	family := getStringValue(familyVar, *familyFlag, "")
+	name := getStringValue(nameVar, *nameFlag, "")
 
 	client, err := NewGCPClient(keys, project)
 	if err != nil {
@@ -63,12 +67,16 @@ func runGcp(args []string) {
 
 	suffix := ".img.tar.gz"
 	if strings.HasSuffix(prefix, suffix) {
-		filename := prefix
-		prefix = prefix[:len(prefix)-len(suffix)]
+		src := prefix
+		if name != "" {
+			prefix = name
+		} else {
+			prefix = prefix[:len(prefix)-len(suffix)]
+		}
 		if bucket == "" {
 			log.Fatalf("No bucket specified. Please provide one using the -bucket flag")
 		}
-		err = client.UploadFile(filename, bucket, public)
+		err = client.UploadFile(src, prefix+suffix, bucket, public)
 		if err != nil {
 			log.Fatalf("Error copying to Google Storage: %v", err)
 		}
@@ -78,15 +86,20 @@ func runGcp(args []string) {
 		}
 	}
 
-	if err = client.CreateInstance(prefix, zone, machine, true); err != nil {
+	// If no name was supplied, use the prefix
+	if name == "" {
+		name = prefix
+	}
+
+	if err = client.CreateInstance(name, prefix, zone, machine, true); err != nil {
 		log.Fatal(err)
 	}
 
-	if err = client.ConnectToInstanceSerialPort(prefix, zone); err != nil {
+	if err = client.ConnectToInstanceSerialPort(name, zone); err != nil {
 		log.Fatal(err)
 	}
 
-	if err = client.DeleteInstance(prefix, zone, true); err != nil {
+	if err = client.DeleteInstance(name, zone, true); err != nil {
 		log.Fatal(err)
 	}
 }

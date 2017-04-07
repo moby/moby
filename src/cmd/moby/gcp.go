@@ -99,15 +99,15 @@ func NewGCPClient(keys, projectName string) (*GCPClient, error) {
 }
 
 // UploadFile uploads a file to Google Storage
-func (g GCPClient) UploadFile(filename, bucketName string, public bool) error {
-	log.Infof("Uploading file %s to Google Storage", filename)
-	f, err := os.Open(filename)
+func (g GCPClient) UploadFile(src, dst, bucketName string, public bool) error {
+	log.Infof("Uploading file %s to Google Storage as %s", src, dst)
+	f, err := os.Open(src)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	objectCall := g.storage.Objects.Insert(bucketName, &storage.Object{Name: filename}).Media(f)
+	objectCall := g.storage.Objects.Insert(bucketName, &storage.Object{Name: dst}).Media(f)
 
 	if public {
 		objectCall.PredefinedAcl("publicRead")
@@ -118,24 +118,24 @@ func (g GCPClient) UploadFile(filename, bucketName string, public bool) error {
 		return err
 	}
 	log.Infof("Upload Complete!")
-	fmt.Println("gs://" + bucketName + "/" + filename)
+	fmt.Println("gs://" + bucketName + "/" + dst)
 	return nil
 }
 
 // CreateImage creates a GCP image using the a source from Google Storage
-func (g GCPClient) CreateImage(filename, storageURL, family string, replace bool) error {
+func (g GCPClient) CreateImage(name, storageURL, family string, replace bool) error {
 	if replace {
-		if err := g.DeleteImage(filename); err != nil {
+		if err := g.DeleteImage(name); err != nil {
 			return err
 		}
 	}
 
-	log.Infof("Creating image: %s", filename)
+	log.Infof("Creating image: %s", name)
 	imgObj := &compute.Image{
 		RawDisk: &compute.ImageRawDisk{
 			Source: storageURL,
 		},
-		Name: filename,
+		Name: name,
 	}
 
 	if family != "" {
@@ -150,14 +150,14 @@ func (g GCPClient) CreateImage(filename, storageURL, family string, replace bool
 	if err := g.pollOperationStatus(op.Name); err != nil {
 		return err
 	}
-	log.Infof("Image %s created", filename)
+	log.Infof("Image %s created", name)
 	return nil
 }
 
 // DeleteImage deletes and image
-func (g GCPClient) DeleteImage(filename string) error {
+func (g GCPClient) DeleteImage(name string) error {
 	var notFound bool
-	op, err := g.compute.Images.Delete(g.projectName, filename).Do()
+	op, err := g.compute.Images.Delete(g.projectName, name).Do()
 	if err != nil {
 		if err.(*googleapi.Error).Code != 404 {
 			return err
@@ -169,20 +169,20 @@ func (g GCPClient) DeleteImage(filename string) error {
 		if err := g.pollOperationStatus(op.Name); err != nil {
 			return err
 		}
-		log.Infof("Image %s deleted", filename)
+		log.Infof("Image %s deleted", name)
 	}
 	return nil
 }
 
 // CreateInstance creates and starts an instance on GCP
-func (g GCPClient) CreateInstance(image, zone, machineType string, replace bool) error {
+func (g GCPClient) CreateInstance(name, image, zone, machineType string, replace bool) error {
 	if replace {
-		if err := g.DeleteInstance(image, zone, true); err != nil {
+		if err := g.DeleteInstance(name, zone, true); err != nil {
 			return err
 		}
 	}
 
-	log.Infof("Creating instance %s", image)
+	log.Infof("Creating instance %s from image %s", name, image)
 	enabled := new(string)
 	*enabled = "1"
 
@@ -195,7 +195,7 @@ func (g GCPClient) CreateInstance(image, zone, machineType string, replace bool)
 
 	instanceObj := &compute.Instance{
 		MachineType: fmt.Sprintf("zones/%s/machineTypes/%s", zone, machineType),
-		Name:        image,
+		Name:        name,
 		Disks: []*compute.AttachedDisk{
 			{
 				AutoDelete: true,
