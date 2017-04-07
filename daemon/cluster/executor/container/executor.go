@@ -139,13 +139,15 @@ func (e *executor) Configure(ctx context.Context, node *api.Node) error {
 		options.IPAM.Config = append(options.IPAM.Config, c)
 	}
 
-	return e.backend.SetupIngress(clustertypes.NetworkCreateRequest{
+	_, err := e.backend.SetupIngress(clustertypes.NetworkCreateRequest{
 		ID: na.Network.ID,
 		NetworkCreateRequest: types.NetworkCreateRequest{
 			Name:          na.Network.Spec.Annotations.Name,
 			NetworkCreate: options,
 		},
 	}, na.Addresses[0])
+
+	return err
 }
 
 // Controller returns a docker container runner.

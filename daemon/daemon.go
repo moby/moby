@@ -445,7 +445,25 @@ func (daemon *Daemon) DaemonLeavesCluster() {
 	// Daemon is in charge of removing the attachable networks with
 	// connected containers when the node leaves the swarm
 	daemon.clearAttachableNetworks()
+	// We no longer need the cluster provider, stop it now so that
+	// the network agent will stop listening to cluster events.
 	daemon.setClusterProvider(nil)
+	// Wait for the networking cluster agent to stop
+	daemon.netController.AgentStopWait()
+	// Daemon is in charge of removing the ingress network when the
+	// node leaves the swarm. Wait for job to be done or timeout.
+	// This is called also on graceful daemon shutdown. We need to
+	// wait, because the ingress release has to happen before the
+	// network controller is stopped.
+	if done, err := daemon.ReleaseIngress(); err == nil {
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			logrus.Warnf("timeout while waiting for ingress network removal")
+		}
+	} else {
+		logrus.Warnf("failed to initiate ingress network removal: %v", err)
+	}
 }
 
 // setClusterProvider sets a component for querying the current cluster state.
@@ -830,6 +848,12 @@ func (daemon *Daemon) Shutdown() error {
 		if err := daemon.layerStore.Cleanup(); err != nil {
 			logrus.Errorf("Error during layer Store.Cleanup(): %v", err)
 		}
+	}
+
+	// If we are part of a cluster, clean up cluster's stuff
+	if daemon.clusterProvider != nil {
+		logrus.Debugf("start clean shutdown of cluster resources...")
+		daemon.DaemonLeavesCluster()
 	}
 
 	// Shutdown plugins after containers and layerstore. Don't change the order.

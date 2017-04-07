@@ -39,7 +39,7 @@ type Sandbox interface {
 	RemoveStaticRoute(*types.StaticRoute) error
 
 	// AddNeighbor adds a neighbor entry into the sandbox.
-	AddNeighbor(dstIP net.IP, dstMac net.HardwareAddr, option ...NeighOption) error
+	AddNeighbor(dstIP net.IP, dstMac net.HardwareAddr, force bool, option ...NeighOption) error
 
 	// DeleteNeighbor deletes neighbor entry from the sandbox.
 	DeleteNeighbor(dstIP net.IP, dstMac net.HardwareAddr, osDelete bool) error
