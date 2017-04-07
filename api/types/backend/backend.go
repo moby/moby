@@ -3,6 +3,7 @@ package backend
 
 import (
 	"io"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/streamformatter"
@@ -25,12 +26,27 @@ type ContainerAttachConfig struct {
 	MuxStreams bool
 }
 
-// ContainerLogsConfig holds configs for logging operations. Exists
-// for users of the backend to to pass it a logging configuration.
-type ContainerLogsConfig struct {
-	types.ContainerLogsOptions
-	OutStream io.Writer
+// LogMessage is datastructure that represents piece of output produced by some
+// container.  The Line member is a slice of an array whose contents can be
+// changed after a log driver's Log() method returns.
+// changes to this struct need to be reflect in the reset method in
+// daemon/logger/logger.go
+type LogMessage struct {
+	Line      []byte
+	Source    string
+	Timestamp time.Time
+	Attrs     LogAttributes
+	Partial   bool
+
+	// Err is an error associated with a message. Completeness of a message
+	// with Err is not expected, tho it may be partially complete (fields may
+	// be missing, gibberish, or nil)
+	Err error
 }
+
+// LogAttributes is used to hold the extra attributes available in the log message
+// Primarily used for converting the map type to string and sorting.
+type LogAttributes map[string]string
 
 // LogSelector is a list of services and tasks that should be returned as part
 // of a log stream. It is similar to swarmapi.LogSelector, with the difference

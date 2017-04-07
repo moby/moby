@@ -9,11 +9,10 @@ package logger
 
 import (
 	"errors"
-	"sort"
-	"strings"
 	"sync"
 	"time"
 
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/pkg/jsonlog"
 )
 
@@ -43,14 +42,13 @@ func PutMessage(msg *Message) {
 // Message is datastructure that represents piece of output produced by some
 // container.  The Line member is a slice of an array whose contents can be
 // changed after a log driver's Log() method returns.
+//
+// Message is subtyped from backend.LogMessage because there is a lot of
+// internal complexity around the Message type that should not be exposed
+// to any package not explicitly importing the logger type.
+//
 // Any changes made to this struct must also be updated in the `reset` function
-type Message struct {
-	Line      []byte
-	Source    string
-	Timestamp time.Time
-	Attrs     LogAttributes
-	Partial   bool
-}
+type Message backend.LogMessage
 
 // reset sets the message back to default values
 // This is used when putting a message back into the message pool.
@@ -60,31 +58,20 @@ func (m *Message) reset() {
 	m.Source = ""
 	m.Attrs = nil
 	m.Partial = false
+
+	m.Err = nil
+}
+
+// AsLogMessage returns a pointer to the message as a pointer to
+// backend.LogMessage, which is an identical type with a different purpose
+func (m *Message) AsLogMessage() *backend.LogMessage {
+	return (*backend.LogMessage)(m)
 }
 
 // LogAttributes is used to hold the extra attributes available in the log message
 // Primarily used for converting the map type to string and sorting.
-type LogAttributes map[string]string
-type byKey []string
-
-func (s byKey) Len() int { return len(s) }
-func (s byKey) Less(i, j int) bool {
-	keyI := strings.Split(s[i], "=")
-	keyJ := strings.Split(s[j], "=")
-	return keyI[0] < keyJ[0]
-}
-func (s byKey) Swap(i, j int) {
-	s[i], s[j] = s[j], s[i]
-}
-
-func (a LogAttributes) String() string {
-	var ss byKey
-	for k, v := range a {
-		ss = append(ss, k+"="+v)
-	}
-	sort.Sort(ss)
-	return strings.Join(ss, ",")
-}
+// Imported here so it can be used internally with less refactoring
+type LogAttributes backend.LogAttributes
 
 // Logger is the interface for docker logging drivers.
 type Logger interface {

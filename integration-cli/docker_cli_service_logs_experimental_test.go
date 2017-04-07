@@ -254,3 +254,43 @@ func (s *DockerSwarmSuite) TestServiceLogsTaskLogs(c *check.C) {
 		}
 	}
 }
+
+func (s *DockerSwarmSuite) TestServiceLogsTTY(c *check.C) {
+	testRequires(c, ExperimentalDaemon)
+
+	d := s.AddDaemon(c, true, true)
+
+	name := "TestServiceLogsTTY"
+
+	result := icmd.RunCmd(d.Command(
+		// create a service
+		"service", "create",
+		// name it $name
+		"--name", name,
+		// use a TTY
+		"-t",
+		// busybox image, shell string
+		"busybox", "sh", "-c",
+		// echo to stdout and stderr
+		"echo out; (echo err 1>&2); sleep 10000",
+	))
+
+	result.Assert(c, icmd.Expected{})
+	id := strings.TrimSpace(result.Stdout())
+	c.Assert(id, checker.Not(checker.Equals), "")
+	// so, right here, we're basically inspecting by id and returning only
+	// the ID. if they don't match, the service doesn't exist.
+	result = icmd.RunCmd(d.Command("service", "inspect", "--format=\"{{.ID}}\"", id))
+	result.Assert(c, icmd.Expected{Out: id})
+
+	// make sure task has been deployed.
+	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
+	// and make sure we have all the log lines
+	waitAndAssert(c, defaultReconciliationTimeout, countLogLines(d, name), checker.Equals, 2)
+
+	cmd := d.Command("service", "logs", name)
+	result = icmd.RunCmd(cmd)
+	// for some reason there is carriage return in the output. i think this is
+	// just expected.
+	c.Assert(result, icmd.Matches, icmd.Expected{Out: "out\r\nerr\r\n"})
+}

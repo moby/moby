@@ -73,6 +73,7 @@ func runLogs(dockerCli *command.DockerCli, opts *logsOptions) error {
 		Timestamps: opts.timestamps,
 		Follow:     opts.follow,
 		Tail:       opts.tail,
+		Details:    true,
 	}
 
 	cli := dockerCli.Client()
@@ -80,6 +81,7 @@ func runLogs(dockerCli *command.DockerCli, opts *logsOptions) error {
 	var (
 		maxLength    = 1
 		responseBody io.ReadCloser
+		tty          bool
 	)
 
 	service, _, err := cli.ServiceInspectWithRaw(ctx, opts.target)
@@ -89,6 +91,14 @@ func runLogs(dockerCli *command.DockerCli, opts *logsOptions) error {
 			return err
 		}
 		task, _, err := cli.TaskInspectWithRaw(ctx, opts.target)
+		tty = task.Spec.ContainerSpec.TTY
+		// TODO(dperny) hot fix until we get a nice details system squared away,
+		// ignores details (including task context) if we have a TTY log
+		if tty {
+			options.Details = false
+		}
+
+		responseBody, err = cli.TaskLogs(ctx, opts.target, options)
 		if err != nil {
 			if client.IsErrTaskNotFound(err) {
 				// if the task ALSO isn't found, rewrite the error to be clear
@@ -100,6 +110,13 @@ func runLogs(dockerCli *command.DockerCli, opts *logsOptions) error {
 		maxLength = getMaxLength(task.Slot)
 		responseBody, err = cli.TaskLogs(ctx, opts.target, options)
 	} else {
+		tty = service.Spec.TaskTemplate.ContainerSpec.TTY
+		// TODO(dperny) hot fix until we get a nice details system squared away,
+		// ignores details (including task context) if we have a TTY log
+		if tty {
+			options.Details = false
+		}
+
 		responseBody, err = cli.ServiceLogs(ctx, opts.target, options)
 		if err != nil {
 			return err
@@ -111,6 +128,11 @@ func runLogs(dockerCli *command.DockerCli, opts *logsOptions) error {
 		}
 	}
 	defer responseBody.Close()
+
+	if tty {
+		_, err = io.Copy(dockerCli.Out(), responseBody)
+		return err
+	}
 
 	taskFormatter := newTaskFormatter(cli, opts, maxLength)
 

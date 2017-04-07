@@ -396,26 +396,15 @@ func (c *containerAdapter) deactivateServiceBinding() error {
 	return c.backend.DeactivateContainerServiceBinding(c.container.name())
 }
 
-func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscriptionOptions) (io.ReadCloser, error) {
-	// we can't handle the peculiarities of a TTY-attached container yet
-	conf := c.container.config()
-	if conf != nil && conf.Tty {
-		return nil, errors.New("logs not supported on containers with a TTY attached")
-	}
+func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscriptionOptions) (<-chan *backend.LogMessage, error) {
+	apiOptions := &types.ContainerLogsOptions{
+		Follow: options.Follow,
 
-	reader, writer := io.Pipe()
-
-	apiOptions := &backend.ContainerLogsConfig{
-		ContainerLogsOptions: types.ContainerLogsOptions{
-			Follow: options.Follow,
-
-			// TODO(stevvooe): Parse timestamp out of message. This
-			// absolutely needs to be done before going to production with
-			// this, at it is completely redundant.
-			Timestamps: true,
-			Details:    false, // no clue what to do with this, let's just deprecate it.
-		},
-		OutStream: writer,
+		// TODO(stevvooe): Parse timestamp out of message. This
+		// absolutely needs to be done before going to production with
+		// this, at it is completely redundant.
+		Timestamps: true,
+		Details:    false, // no clue what to do with this, let's just deprecate it.
 	}
 
 	if options.Since != nil {
@@ -449,14 +438,11 @@ func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscription
 			}
 		}
 	}
-
-	chStarted := make(chan struct{})
-	go func() {
-		defer writer.Close()
-		c.backend.ContainerLogs(ctx, c.container.name(), apiOptions, chStarted)
-	}()
-
-	return reader, nil
+	msgs, err := c.backend.ContainerLogs(ctx, c.container.name(), apiOptions)
+	if err != nil {
+		return nil, err
+	}
+	return msgs, nil
 }
 
 // todo: typed/wrapped errors
