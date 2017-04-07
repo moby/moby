@@ -7509,6 +7509,7 @@ paths:
                             DriverConfig: {}
                             Labels:
                               com.example.something: "something-value"
+                      Hosts: ["10.10.10.10 host1", "ABCD:EF01:2345:6789:ABCD:EF01:2345:6789 host2"]
                       User: "33"
                       DNSConfig:
                         Nameservers: ["8.8.8.8"]
