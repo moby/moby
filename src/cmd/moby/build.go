@@ -97,21 +97,24 @@ func buildInternal(name string, pull bool, conf string) {
 	}
 	initrdAppend(iw, ktar)
 
-	// convert init image to tarball
-	if pull {
-		log.Infof("Pull init: %s", m.Init)
-		err := dockerPull(m.Init)
-		if err != nil {
-			log.Fatalf("Could not pull image %s: %v", m.Init, err)
+	// convert init images to tarballs
+	log.Infof("Add init containers:")
+	for _, ii := range m.Init {
+		if pull {
+			log.Infof("Pull init image: %s", ii)
+			err := dockerPull(ii)
+			if err != nil {
+				log.Fatalf("Could not pull image %s: %v", ii, err)
+			}
 		}
+		log.Infof("Process init image: %s", ii)
+		init, err := ImageExtract(ii, "")
+		if err != nil {
+			log.Fatalf("Failed to build init tarball from %s: %v", ii, err)
+		}
+		buffer := bytes.NewBuffer(init)
+		initrdAppend(iw, buffer)
 	}
-	log.Infof("Process init: %s", m.Init)
-	init, err := ImageExtract(m.Init, "")
-	if err != nil {
-		log.Fatalf("Failed to build init tarball: %v", err)
-	}
-	buffer := bytes.NewBuffer(init)
-	initrdAppend(iw, buffer)
 
 	log.Infof("Add system containers:")
 	for i, image := range m.System {
@@ -161,7 +164,7 @@ func buildInternal(name string, pull bool, conf string) {
 	}
 
 	// add files
-	buffer, err = filesystem(m)
+	buffer, err := filesystem(m)
 	if err != nil {
 		log.Fatalf("failed to add filesystem parts: %v", err)
 	}

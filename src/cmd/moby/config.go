@@ -24,7 +24,7 @@ type Moby struct {
 		Image   string
 		Cmdline string
 	}
-	Init   string
+	Init   []string
 	System []MobyImage
 	Daemon []MobyImage
 	Files  []struct {
