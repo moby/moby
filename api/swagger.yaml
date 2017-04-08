@@ -1939,6 +1939,39 @@ definitions:
             description: "A list of additional groups that the container process will run as."
             items:
               type: "string"
+          Privileges:
+            type: "object"
+            description: "Security options for the container"
+            properties:
+              CredentialSpec:
+                type: "object"
+                description: "CredentialSpec for managed service account (Windows only)"
+                properties:
+                  File:
+                    type: "string"
+                    description: "Load credential spec from this file"
+                  Registry:
+                    type: "string"
+                    description: "Load credential spec from this registry key"
+              SELinuxContext:
+                type: "object"
+                description: "SELinux labels of the container"
+                properties:
+                  Disable:
+                    type: "boolean"
+                    description: "Disable SELinux"
+                  User:
+                    type: "string"
+                    description: "SELinux user label"
+                  Role:
+                    type: "string"
+                    description: "SELinux role label"
+                  Type:
+                    type: "string"
+                    description: "SELinux type label"
+                  Level:
+                    type: "string"
+                    description: "SELinux level label"
           TTY:
             description: "Whether a pseudo-TTY should be allocated."
             type: "boolean"

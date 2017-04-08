@@ -28,6 +28,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `POST /containers/create`, `POST /service/create` and `POST /services/(id or name)/update` now takes the field `StartPeriod` as a part of the `HealthConfig` allowing for specification of a period during which the container should not be considered unhealthy even if health checks do not pass.
 * `GET /services/(id)` now accepts an `insertDefaults` query-parameter to merge default values into the service inspect output. 
 * `POST /containers/prune`, `POST /images/prune`, `POST /volumes/prune`, and `POST /networks/prune` now support a `label` filter to filter containers, images, volumes, or networks based on the label. The format of the label filter could be `label=<key>`/`label=<key>=<value>` to remove those with the specified labels, or `label!=<key>`/`label!=<key>=<value>` to remove those without the specified labels.
+* `POST /services/create` now accepts `Privileges` as part of `ContainerSpec`. Privileges currently include `CredentialSpec` and `SELinuxContext`.
 
 ## v1.28 API changes
 
