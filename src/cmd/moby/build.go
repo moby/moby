@@ -137,8 +137,8 @@ func buildInternal(name string, pull bool, conf string) {
 		initrdAppend(iw, buffer)
 	}
 
-	log.Infof("Add system containers:")
-	for i, image := range m.System {
+	log.Infof("Add onboot containers:")
+	for i, image := range m.Onboot {
 		if pull || enforceContentTrust(image.Image, &m.Trust) {
 			log.Infof("  Pull: %s", image.Image)
 			err := dockerPull(image.Image, enforceContentTrust(image.Image, &m.Trust))
@@ -152,7 +152,7 @@ func buildInternal(name string, pull bool, conf string) {
 			log.Fatalf("Failed to create config.json for %s: %v", image.Image, err)
 		}
 		so := fmt.Sprintf("%03d", i)
-		path := "containers/system/" + so + "-" + image.Name
+		path := "containers/onboot/" + so + "-" + image.Name
 		out, err := ImageBundle(path, image.Image, config)
 		if err != nil {
 			log.Fatalf("Failed to extract root filesystem for %s: %v", image.Image, err)
@@ -161,8 +161,8 @@ func buildInternal(name string, pull bool, conf string) {
 		initrdAppend(iw, buffer)
 	}
 
-	log.Infof("Add daemon containers:")
-	for _, image := range m.Daemon {
+	log.Infof("Add service containers:")
+	for _, image := range m.Services {
 		if pull || enforceContentTrust(image.Image, &m.Trust) {
 			log.Infof("  Pull: %s", image.Image)
 			err := dockerPull(image.Image, enforceContentTrust(image.Image, &m.Trust))
@@ -175,7 +175,7 @@ func buildInternal(name string, pull bool, conf string) {
 		if err != nil {
 			log.Fatalf("Failed to create config.json for %s: %v", image.Image, err)
 		}
-		path := "containers/daemon/" + image.Name
+		path := "containers/services/" + image.Name
 		out, err := ImageBundle(path, image.Image, config)
 		if err != nil {
 			log.Fatalf("Failed to extract root filesystem for %s: %v", image.Image, err)

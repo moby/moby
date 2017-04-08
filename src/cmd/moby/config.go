@@ -24,11 +24,11 @@ type Moby struct {
 		Image   string
 		Cmdline string
 	}
-	Init   []string
-	System []MobyImage
-	Daemon []MobyImage
-	Trust  TrustConfig
-	Files  []struct {
+	Init     []string
+	Onboot   []MobyImage
+	Services []MobyImage
+	Trust    TrustConfig
+	Files    []struct {
 		Path      string
 		Directory bool
 		Contents  string
