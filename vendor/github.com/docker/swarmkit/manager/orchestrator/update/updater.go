@@ -155,18 +155,23 @@ func (u *Updater) Run(ctx context.Context, slots []orchestrator.Slot) {
 		u.startUpdate(ctx, service.ID)
 	}
 
-	var monitoringPeriod time.Duration
+	var (
+		monitoringPeriod time.Duration
+		updateConfig     *api.UpdateConfig
+	)
 
-	updateConfig := service.Spec.Update
 	if service.UpdateStatus != nil && service.UpdateStatus.State == api.UpdateStatus_ROLLBACK_STARTED {
 		monitoringPeriod, _ = gogotypes.DurationFromProto(defaults.Service.Rollback.Monitor)
 		updateConfig = service.Spec.Rollback
 		if updateConfig == nil {
 			updateConfig = defaults.Service.Rollback
 		}
-	} else if updateConfig == nil {
+	} else {
 		monitoringPeriod, _ = gogotypes.DurationFromProto(defaults.Service.Update.Monitor)
-		updateConfig = defaults.Service.Update
+		updateConfig = service.Spec.Update
+		if updateConfig == nil {
+			updateConfig = defaults.Service.Update
+		}
 	}
 
 	parallelism := int(updateConfig.Parallelism)
