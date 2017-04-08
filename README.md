@@ -5,8 +5,8 @@ Docker is an open source project to pack, ship and run any application
 as a lightweight container.
 
 Docker containers are both *hardware-agnostic* and *platform-agnostic*.
-This means they can run anywhere, from your laptop to the largest
-cloud compute instance and everything in between - and they don't require
+They can run anywhere, from your laptop to the largest
+cloud compute instance and everything in between. They don't require
 you to use a particular language, framework or packaging system. That
 makes them great building blocks for deploying and scaling web apps,
 databases, and backend services without depending on a particular stack
@@ -23,7 +23,7 @@ of thousands of applications and databases.
 ## Security Disclosure
 
 Security is very important to us. If you have any issue regarding security,
-please disclose the information responsibly by sending an email to
+please disclose the information by sending an email to
 security@docker.com and not by creating a GitHub issue.
 
 ## Better than VMs
@@ -33,18 +33,18 @@ execution is to use virtual machines, or VMs. Typical VM formats are
 VMware's vmdk, Oracle VirtualBox's vdi, and Amazon EC2's ami. In theory
 these formats should allow every developer to automatically package
 their application into a "machine" for easy distribution and deployment.
-In practice, that almost never happens, for a few reasons:
+In practice, that almost never happens, due to blow reasons:
 
   * *Size*: VMs are very large which makes them impractical to store
      and transfer.
-  * *Performance*: running VMs consumes significant CPU and memory,
-    which makes them impractical in many scenarios, for example local
+  * *Performance*: Running VMs consumes significant CPU and memory
+    which makes them impractical in many scenarios. For example local
     development of multi-tier applications, and large-scale deployment
     of cpu and memory-intensive applications on large numbers of
     machines.
-  * *Portability*: competing VM environments don't play well with each
+  * *Portability*: Competing VM environments don't play well with each
      other. Although conversion tools do exist, they are limited and
-     add even more overhead.
+     add more overhead.
   * *Hardware-centric*: VMs were designed with machine operators in
     mind, not software developers. As a result, they offer very
     limited tooling for what developers need most: building, testing
@@ -66,8 +66,8 @@ and FreeBSD with
 Docker builds on top of these low-level primitives to offer developers a
 portable format and runtime environment that solves all four problems.
 Docker containers are small (and their transfer can be optimized with
-layers), they have basically zero memory and cpu overhead, they are
-completely portable, and are designed from the ground up with an
+layers). They have basically zero memory and cpu overhead. They are
+completely portable and are designed from the ground up with an
 application-centric design.
 
 Perhaps best of all, because Docker operates at the OS level, it can still be
