@@ -148,8 +148,6 @@ func New(cluster Cluster, c *Config) *Dispatcher {
 		downNodes:             newNodeStore(defaultNodeDownPeriod, 0, 1, 0),
 		store:                 cluster.MemoryStore(),
 		cluster:               cluster,
-		taskUpdates:           make(map[string]*api.TaskStatus),
-		nodeUpdates:           make(map[string]nodeUpdate),
 		processUpdatesTrigger: make(chan struct{}, 1),
 		config:                c,
 	}
@@ -181,6 +179,14 @@ func getWeightedPeers(cluster Cluster) []*api.WeightedPeer {
 // Run runs dispatcher tasks which should be run on leader dispatcher.
 // Dispatcher can be stopped with cancelling ctx or calling Stop().
 func (d *Dispatcher) Run(ctx context.Context) error {
+	d.taskUpdatesLock.Lock()
+	d.taskUpdates = make(map[string]*api.TaskStatus)
+	d.taskUpdatesLock.Unlock()
+
+	d.nodeUpdatesLock.Lock()
+	d.nodeUpdates = make(map[string]nodeUpdate)
+	d.nodeUpdatesLock.Unlock()
+
 	d.mu.Lock()
 	if d.isRunning() {
 		d.mu.Unlock()
