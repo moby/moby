@@ -383,10 +383,8 @@ func (cli *DaemonCli) reloadConfig() {
 			switch {
 			case debugEnabled && !config.Debug: // disable debug
 				debug.Disable()
-				cli.api.DisableProfiler()
 			case config.Debug && !debugEnabled: // enable debug
 				debug.Enable()
-				cli.api.EnableProfiler()
 			}
 
 		}
@@ -536,7 +534,7 @@ func initRouter(opts routerOptions) {
 		}
 	}
 
-	opts.api.InitRouter(debug.IsEnabled(), routers...)
+	opts.api.InitRouter(routers...)
 }
 
 // TODO: remove this from cli and return the authzMiddleware
