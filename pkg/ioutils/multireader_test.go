@@ -55,6 +55,20 @@ func TestMultiReadSeekerReadAll(t *testing.T) {
 	if string(b) != expected {
 		t.Fatalf("ReadAll failed, got: %q, expected %q", string(b), expected)
 	}
+
+	// The positions of some readers are not 0
+	s1.Seek(0, os.SEEK_SET)
+	s2.Seek(0, os.SEEK_END)
+	s3.Seek(0, os.SEEK_SET)
+	mr = MultiReadSeeker(s1, s2, s3)
+	b, err = ioutil.ReadAll(mr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if string(b) != expected {
+		t.Fatalf("ReadAll failed, got: %q, expected %q", string(b), expected)
+	}
 }
 
 func TestMultiReadSeekerReadEach(t *testing.T) {
