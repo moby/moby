@@ -52,20 +52,25 @@ func initrdAppend(iw *initrd.Writer, r io.Reader) {
 
 func enforceContentTrust(fullImageName string, config *TrustConfig) bool {
 	for _, img := range config.Image {
-		// First check for an exact tag match
+		// First check for an exact name match
 		if img == fullImageName {
 			return true
 		}
-		// Also check for an image name only match:
+		// Also check for an image name only match
+		// by removing a possible tag (with possibly added digest):
 		if img == strings.TrimSuffix(fullImageName, ":") {
+			return true
+		}
+		// and by removing a possible digest:
+		if img == strings.TrimSuffix(fullImageName, "@sha256:") {
 			return true
 		}
 	}
 
 	for _, org := range config.Org {
 		if strings.HasPrefix(fullImageName, org+"/") {
+			return true
 		}
-		return true
 	}
 	return false
 }
