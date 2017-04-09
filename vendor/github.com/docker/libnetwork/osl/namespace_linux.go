@@ -222,9 +222,11 @@ func NewSandbox(key string, osCreate, isRestore bool) (Sandbox, error) {
 	}
 
 	// As starting point, disable IPv6 on all interfaces
-	err = setIPv6(n.path, "all", false)
-	if err != nil {
-		logrus.Warnf("Failed to disable IPv6 on all interfaces on network namespace %q: %v", n.path, err)
+	if !n.isDefault {
+		err = setIPv6(n.path, "all", false)
+		if err != nil {
+			logrus.Warnf("Failed to disable IPv6 on all interfaces on network namespace %q: %v", n.path, err)
+		}
 	}
 
 	if err = n.loopbackUp(); err != nil {
