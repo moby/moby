@@ -18,7 +18,8 @@ keywords: "tarred, repository, backup"
 ```markdown
 Usage:  docker save [OPTIONS] IMAGE [IMAGE...]
 
-Save one or more images to a tar archive (streamed to STDOUT by default)
+Save one or more images to a tar archive (streamed to STDOUT by default).
+Note: the image must be pulled beforehand.
 
 Options:
       --help            Print usage
