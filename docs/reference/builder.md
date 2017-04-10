@@ -480,30 +480,36 @@ the first pattern, followed by one or more `!` exception patterns.
 
 ## FROM
 
-    FROM <image>
+    FROM <image> [AS <name>]
 
 Or
 
-    FROM <image>:<tag>
+    FROM <image>[:<tag>] [AS <name>]
 
 Or
 
-    FROM <image>@<digest>
+    FROM <image>[@<digest>] [AS <name>]
 
-The `FROM` instruction sets the [*Base Image*](glossary.md#base-image)
-for subsequent instructions. As such, a valid `Dockerfile` must have `FROM` as
-its first instruction. The image can be any valid image – it is especially easy
-to start by **pulling an image** from the [*Public Repositories*](https://docs.docker.com/engine/tutorials/dockerrepos/).
+The `FROM` instruction initializes a new build stage and sets the 
+[*Base Image*](glossary.md#base-image) for subsequent instructions. As such, a 
+valid `Dockerfile` must have `FROM` as its first instruction. The image can be
+any valid image – it is especially easy to start by **pulling an image** from 
+the [*Public Repositories*](https://docs.docker.com/engine/tutorials/dockerrepos/).
 
 - `FROM` must be the first non-comment instruction in the `Dockerfile`.
 
-- `FROM` can appear multiple times within a single `Dockerfile` in order to create
-multiple images. Simply make a note of the last image ID output by the commit
-before each new `FROM` command.
+- `FROM` can appear multiple times within a single `Dockerfile` in order to 
+create multiple images or use one build stage as a dependency for another. 
+Simply make a note of the last image ID output by the commit before each new 
+`FROM` command. Each `FROM` command resets all the previous commands.
 
-- The `tag` or `digest` values are optional. If you omit either of them, the builder
-assumes a `latest` by default. The builder returns an error if it cannot match
-the `tag` value.
+- Optionally a name can be given to a new build stage. That name can be then
+used in subsequent `FROM` and `COPY --from=<name|index>` commands to refer back
+to the image built in this stage.
+
+- The `tag` or `digest` values are optional. If you omit either of them, the 
+builder assumes a `latest` tag by default. The builder returns an error if it
+cannot match the `tag` value.
 
 ## RUN
 
@@ -936,6 +942,13 @@ All new files and directories are created with a UID and GID of 0.
 > **Note**:
 > If you build using STDIN (`docker build - < somefile`), there is no
 > build context, so `COPY` can't be used.
+
+Optionally `COPY` accepts a flag `--from=<name|index>` that can be used to set
+the source location to a previous build stage (created with `FROM .. AS <name>`)
+that will be used instead of a build context sent by the user. The flag also 
+accepts a numeric index assigned for all previous build stages started with 
+`FROM` command. In case a build stage with a specified name can't be found an 
+image with the same name is attempted to be used instead.
 
 `COPY` obeys the following rules:
 
