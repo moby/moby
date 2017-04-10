@@ -37,7 +37,7 @@ func RunContainerPrune(dockerCli *command.DockerCli, filter opts.FilterOpt) (uin
 
 // RunVolumePrune executes a prune command for volumes
 func RunVolumePrune(dockerCli *command.DockerCli, filter opts.FilterOpt) (uint64, string, error) {
-	return volume.RunPrune(dockerCli)
+	return volume.RunPrune(dockerCli, filter)
 }
 
 // RunImagePrune executes a prune command for images
