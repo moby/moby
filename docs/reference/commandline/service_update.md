@@ -41,10 +41,10 @@ Options:
       --group-add list                     Add an additional supplementary user group to the container
       --group-rm list                      Remove a previously added supplementary user group from the container
       --health-cmd string                  Command to run to check health
-      --health-interval duration           Time between running the check (ns|us|ms|s|m|h)
+      --health-interval duration           Time between running the check (ms|s|m|h)
       --health-retries int                 Consecutive failures needed to report unhealthy
-      --health-start-period duration       Start period for the container to initialize before counting retries towards unstable (ns|us|ms|s|m|h)
-      --health-timeout duration            Maximum time to allow one check to run (ns|us|ms|s|m|h)
+      --health-start-period duration       Start period for the container to initialize before counting retries towards unstable (ms|s|m|h)
+      --health-timeout duration            Maximum time to allow one check to run (ms|s|m|h)
       --help                               Print usage
       --host-add list                      Add or update a custom host-to-IP mapping (host:ip)
       --host-rm list                       Remove a custom host-to-IP mapping (host:ip)
