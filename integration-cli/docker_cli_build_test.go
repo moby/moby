@@ -4247,8 +4247,39 @@ func (s *DockerSuite) TestBuildBuildTimeArgHistory(c *check.C) {
 
 	out, _ := dockerCmd(c, "history", "--no-trunc", imgName)
 	outputTabs := strings.Split(out, "\n")[1]
-	if !strings.Contains(outputTabs, envDef) {
-		c.Fatalf("failed to find arg default in image history output: %q expected: %q", outputTabs, envDef)
+	// Should not see foo in history
+	if strings.Contains(outputTabs, envKey) {
+		c.Fatalf("found arg in image history output: %q", outputTabs)
+	}
+}
+
+func (s *DockerSuite) TestBuildBuildTimeArgIDs(c *check.C) {
+	imgName := "bldargtest"
+
+	dockerfile1 := "FROM busybox"
+	dockerfile2 := "FROM busybox\nARG foo=bar"
+	dockerfile3 := "FROM busybox\nARG foo=bar\nARG foo=car"
+
+	var id1, id2, id3, id4 string
+	var out string
+	var err error
+
+	// All of these builds should return busybox's image ID
+	if id1, out, err = buildImageWithOut(imgName, dockerfile1, false); err != nil {
+		c.Fatalf("build 1 failed to complete: %q %q", out, err)
+	}
+	if id2, out, err = buildImageWithOut(imgName, dockerfile2, false); err != nil {
+		c.Fatalf("build 2 failed to complete: %q %q", out, err)
+	}
+	if id3, out, err = buildImageWithOut(imgName, dockerfile2, false, "--build-arg", "foo=zoo"); err != nil {
+		c.Fatalf("build 3 failed to complete: %q %q", out, err)
+	}
+	if id4, out, err = buildImageWithOut(imgName, dockerfile3, false, "--build-arg", "foo=zoo"); err != nil {
+		c.Fatalf("build 4 failed to complete: %q %q", out, err)
+	}
+
+	if id1 != id2 || id2 != id3 || id3 != id4 {
+		c.Fatalf("All build IDs should be the same, but got: %q, %q, %q, %q", id1, id2, id3, id4)
 	}
 }
 
