@@ -82,7 +82,9 @@ func runQemu(args []string) {
 				log.Fatalf("Unable to find %s within the $PATH", qemuImgPath)
 			}
 			cmd := exec.Command(fullQemuImgPath, "create", "-f", "qcow2", *qemuDiskPath, *qemuDiskSize)
-			cmd.Run()
+			if err = cmd.Run(); err != nil {
+				log.Fatalf("Error creating disk [%s]:  %s", *qemuDiskPath, err.Error())
+			}
 		} else {
 			log.Infof("Using existing disk [%s]", *qemuDiskPath)
 		}
@@ -145,10 +147,8 @@ func runQemu(args []string) {
 		cmd.Stderr = os.Stderr
 	}
 
-	err = cmd.Run()
-
-	if err != nil {
-		log.Fatalf("Error starting %s\nError: %s", fullQemuPath, err.Error())
+	if err = cmd.Run(); err != nil {
+		log.Fatalf("Error starting %s: %s", fullQemuPath, err.Error())
 	}
 }
 
