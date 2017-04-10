@@ -372,6 +372,37 @@ func (nDB *NetworkDB) deleteNetworkEntriesForNode(deletedNode string) {
 	nDB.Unlock()
 }
 
+func (nDB *NetworkDB) deleteNodeNetworkEntries(nid, node string) {
+	nDB.Lock()
+	nDB.indexes[byNetwork].WalkPrefix(fmt.Sprintf("/%s", nid),
+		func(path string, v interface{}) bool {
+			oldEntry := v.(*entry)
+			params := strings.Split(path[1:], "/")
+			nid := params[0]
+			tname := params[1]
+			key := params[2]
+
+			if oldEntry.node != node {
+				return false
+			}
+
+			entry := &entry{
+				ltime:    oldEntry.ltime,
+				node:     node,
+				value:    oldEntry.value,
+				deleting: true,
+				reapTime: reapInterval,
+			}
+
+			nDB.indexes[byTable].Insert(fmt.Sprintf("/%s/%s/%s", tname, nid, key), entry)
+			nDB.indexes[byNetwork].Insert(fmt.Sprintf("/%s/%s/%s", nid, tname, key), entry)
+
+			nDB.broadcaster.Write(makeEvent(opDelete, tname, nid, key, entry.value))
+			return false
+		})
+	nDB.Unlock()
+}
+
 func (nDB *NetworkDB) deleteNodeTableEntries(node string) {
 	nDB.Lock()
 	nDB.indexes[byTable].Walk(func(path string, v interface{}) bool {

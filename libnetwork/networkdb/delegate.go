@@ -88,12 +88,25 @@ func (nDB *NetworkDB) handleNodeEvent(nEvent *NodeEvent) bool {
 }
 
 func (nDB *NetworkDB) handleNetworkEvent(nEvent *NetworkEvent) bool {
+	var flushEntries bool
 	// Update our local clock if the received messages has newer
 	// time.
 	nDB.networkClock.Witness(nEvent.LTime)
 
 	nDB.Lock()
-	defer nDB.Unlock()
+	defer func() {
+		nDB.Unlock()
+		// When a node leaves a network on the last task removal cleanup the
+		// local entries for this network & node combination. When the tasks
+		// on a network are removed we could have missed the gossip updates.
+		// Not doing this cleanup can leave stale entries because bulksyncs
+		// from the node will no longer include this network state.
+		//
+		// deleteNodeNetworkEntries takes nDB lock.
+		if flushEntries {
+			nDB.deleteNodeNetworkEntries(nEvent.NetworkID, nEvent.NodeName)
+		}
+	}()
 
 	if nEvent.NodeName == nDB.config.NodeName {
 		return false
@@ -121,6 +134,7 @@ func (nDB *NetworkDB) handleNetworkEvent(nEvent *NetworkEvent) bool {
 		n.leaving = nEvent.Type == NetworkEventTypeLeave
 		if n.leaving {
 			n.reapTime = reapInterval
+			flushEntries = true
 		}
 
 		nDB.addNetworkNode(nEvent.NetworkID, nEvent.NodeName)
