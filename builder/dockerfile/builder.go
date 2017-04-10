@@ -86,6 +86,7 @@ type Builder struct {
 
 	imageCache builder.ImageCache
 	from       builder.Image
+	bindMounts []string
 }
 
 // BuildManager implements builder.Backend and is shared across all Builder objects.

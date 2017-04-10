@@ -23,6 +23,7 @@ Build an image from a Dockerfile
 Options:
       --add-host value          Add a custom host-to-IP mapping (host:ip) (default [])
       --build-arg value         Set build-time variables (default [])
+      --build-secret secret     Set build secrets
       --cache-from value        Images to consider as cache sources (default [])
       --cgroup-parent string    Optional parent cgroup for the container
       --compress                Compress the build context using gzip
@@ -374,8 +375,22 @@ the command line.
 > repeatable builds on remote Docker hosts. This is also the reason why
 > `ADD ../file` will not work.
 
-### Use a custom parent cgroup (--cgroup-parent)
+### Build with Secrets
 
+Build Secrets can be specified to provide private data such as keys or
+passwords.
+
+Build an image using secrets:
+
+```bash
+docker build -t app \
+    --build-secret source=/path/to/github-key,target=git.key .
+```
+
+This will expose the contents of `github-key` in the container during build
+as `/run/secrets/git.key`.
+
+### Use a custom parent cgroup (--cgroup-parent)
 When `docker build` is run with the `--cgroup-parent` option the containers
 used in the build will be run with the [corresponding `docker run`
 flag](../run.md#specifying-custom-cgroups).

@@ -9,6 +9,7 @@ package dockerfile
 
 import (
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"sort"
@@ -22,6 +23,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/builder"
+	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/go-connections/nat"
 	"github.com/pkg/errors"
@@ -421,6 +423,59 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	b.runConfig.Env = append(b.runConfig.Env, cmdBuildEnv...)
 	// set config as already being escaped, this prevents double escaping on windows
 	b.runConfig.ArgsEscaped = true
+
+	if len(b.options.BuildSecrets) > 0 {
+		// secrets
+		m, err := setupSecretMount()
+		if err != nil {
+			return errors.Wrap(err, "unable to setup secret mount")
+		}
+
+		// inject secrets from context
+		for _, secret := range b.options.BuildSecrets {
+			baseName := filepath.Base(secret.Source)
+			logrus.WithFields(logrus.Fields{
+				"name":   baseName,
+				"source": secret.Source,
+			}).Debug("[BUILDER] setting up secret")
+
+			fi, err := b.context.Open(filepath.Join(".secrets", baseName))
+			if err != nil {
+				logrus.Warnf("[BUILDER] build context did not contain secret %s", baseName)
+				continue
+			}
+			// we build the path here so the file ends up
+			// in /run/secret/xx
+			// the actual mount in the container for the tmpfs
+			// is in /run to prevent /run/secrets from being
+			// committed to the layer
+			secretPath := filepath.Join(m.Source, "secrets")
+			if err := injectSecret(secretPath, fi, secret.Target, secret.Mode); err != nil {
+				return err
+			}
+		}
+
+		if err := mount.Mount("tmpfs", m.Source, "tmpfs", "remount,ro"); err != nil {
+			return errors.Wrap(err, "unable to remount secret dir as readonly")
+		}
+
+		defer func() {
+			if err := cleanupSecretMount(m.Source); err != nil {
+				logrus.Errorf("[BUILDER] %s", err)
+			}
+
+			// reset bind mounts
+			b.bindMounts = []string{}
+		}()
+
+		// create mount for containers
+		if m != nil {
+			bind := fmt.Sprintf("%s:%s", m.Source, m.Target)
+			b.bindMounts = append(b.bindMounts, bind)
+		}
+
+		logrus.Debugf("[BUILDER] host binds: %+v", b.bindMounts)
+	}
 
 	logrus.Debugf("[BUILDER] Command to be executed: %v", b.runConfig.Cmd)
 

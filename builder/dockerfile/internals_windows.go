@@ -6,7 +6,13 @@ import (
 	"path/filepath"
 	"strings"
 
+	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/pkg/system"
+)
+
+const (
+	// TODO (ehazlett): need to figure this out for windows
+	secretContainerPath = ""
 )
 
 // normaliseDest normalises the destination of a COPY/ADD command in a
@@ -63,4 +69,20 @@ func containsWildcards(name string) bool {
 		}
 	}
 	return false
+}
+
+// setupSecretMount is used to setup a tmpfs filesystem as a host mount
+func setupSecretMount() (*mounttypes.Mount, error) {
+	// TODO (ehazlett): find a way to use tmpfs on windows
+	return nil, fmt.Errorf("secret mount not supported on windows")
+
+}
+
+// cleanupSecretMount unmounts the secret mount and removes the directory
+func cleanupSecretMount(dir string) error {
+	if err := os.RemoveAll(dir); err != nil {
+		return err
+	}
+
+	return nil
 }
