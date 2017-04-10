@@ -89,6 +89,10 @@ func GetContextFromReader(r io.ReadCloser, dockerfileName string) (out io.ReadCl
 		return ioutils.NewReadCloserWrapper(buf, func() error { return r.Close() }), dockerfileName, nil
 	}
 
+	if dockerfileName == "-" {
+		return nil, "", errors.New("build context is not an archive")
+	}
+
 	// Input should be read as a Dockerfile.
 	tmpDir, err := ioutil.TempDir("", "docker-build-context-")
 	if err != nil {
@@ -166,7 +170,7 @@ func GetContextFromLocalDir(localDir, dockerfileName string) (absContextDir, rel
 	// When using a local context directory, when the Dockerfile is specified
 	// with the `-f/--file` option then it is considered relative to the
 	// current directory and not the context directory.
-	if dockerfileName != "" {
+	if dockerfileName != "" && dockerfileName != "-" {
 		if dockerfileName, err = filepath.Abs(dockerfileName); err != nil {
 			return "", "", errors.Errorf("unable to get absolute path to Dockerfile: %v", err)
 		}
@@ -220,6 +224,8 @@ func getDockerfileRelPath(givenContextDir, givenDockerfile string) (absContextDi
 				absDockerfile = altPath
 			}
 		}
+	} else if absDockerfile == "-" {
+		absDockerfile = filepath.Join(absContextDir, DefaultDockerfileName)
 	}
 
 	// If not already an absolute path, the Dockerfile path should be joined to
@@ -234,18 +240,21 @@ func getDockerfileRelPath(givenContextDir, givenDockerfile string) (absContextDi
 	// an issue in golang. On Windows, EvalSymLinks does not work on UNC file
 	// paths (those starting with \\). This hack means that when using links
 	// on UNC paths, they will not be followed.
-	if !isUNC(absDockerfile) {
-		absDockerfile, err = filepath.EvalSymlinks(absDockerfile)
-		if err != nil {
-			return "", "", errors.Errorf("unable to evaluate symlinks in Dockerfile path: %v", err)
-		}
-	}
+	if givenDockerfile != "-" {
+		if !isUNC(absDockerfile) {
+			absDockerfile, err = filepath.EvalSymlinks(absDockerfile)
+			if err != nil {
+				return "", "", errors.Errorf("unable to evaluate symlinks in Dockerfile path: %v", err)
 
-	if _, err := os.Lstat(absDockerfile); err != nil {
-		if os.IsNotExist(err) {
-			return "", "", errors.Errorf("Cannot locate Dockerfile: %q", absDockerfile)
+			}
 		}
-		return "", "", errors.Errorf("unable to stat Dockerfile: %v", err)
+
+		if _, err := os.Lstat(absDockerfile); err != nil {
+			if os.IsNotExist(err) {
+				return "", "", errors.Errorf("Cannot locate Dockerfile: %q", absDockerfile)
+			}
+			return "", "", errors.Errorf("unable to stat Dockerfile: %v", err)
+		}
 	}
 
 	if relDockerfile, err = filepath.Rel(absContextDir, absDockerfile); err != nil {
