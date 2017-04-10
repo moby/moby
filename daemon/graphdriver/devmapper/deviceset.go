@@ -1686,7 +1686,7 @@ func (devices *DeviceSet) enableDeferredRemovalDeletion() error {
 	return nil
 }
 
-func (devices *DeviceSet) initDevmapper(doInit bool) error {
+func (devices *DeviceSet) initDevmapper(doInit bool) (retErr error) {
 	// give ourselves to libdm as a log handler
 	devicemapper.LogInit(devices)
 
@@ -1840,6 +1840,14 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 		if err := devicemapper.CreatePool(devices.getPoolName(), dataFile, metadataFile, devices.thinpBlockSize); err != nil {
 			return err
 		}
+		defer func() {
+			if retErr != nil {
+				err = devices.deactivatePool()
+				if err != nil {
+					logrus.Warnf("devmapper: Failed to deactivatePool: %v", err)
+				}
+			}
+		}()
 	}
 
 	// Pool already exists and caller did not pass us a pool. That means
