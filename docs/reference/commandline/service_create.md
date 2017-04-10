@@ -33,10 +33,10 @@ Options:
       --env-file list                      Read in a file of environment variables
       --group list                         Set one or more supplementary user groups for the container
       --health-cmd string                  Command to run to check health
-      --health-interval duration           Time between running the check (ns|us|ms|s|m|h)
+      --health-interval duration           Time between running the check (ms|s|m|h)
       --health-retries int                 Consecutive failures needed to report unhealthy
-      --health-start-period duration       Start period for the container to initialize before counting retries towards unstable (ns|us|ms|s|m|h)
-      --health-timeout duration            Maximum time to allow one check to run (ns|us|ms|s|m|h)
+      --health-start-period duration       Start period for the container to initialize before counting retries towards unstable (ms|s|m|h)
+      --health-timeout duration            Maximum time to allow one check to run (ms|s|m|h)
       --help                               Print usage
       --host list                          Set one or more custom host-to-IP mappings (host:ip)
       --hostname string                    Container hostname
