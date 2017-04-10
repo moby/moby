@@ -58,6 +58,14 @@ func runInspect(dockerCli *command.DockerCli, opts inspectOptions) error {
 		return nil, nil, errors.Errorf("Error: no such service: %s", ref)
 	}
 
+	getNetwork := func(ref string) (interface{}, []byte, error) {
+		network, _, err := client.NetworkInspectWithRaw(ctx, ref, false)
+		if err == nil || !apiclient.IsErrNetworkNotFound(err) {
+			return network, nil, err
+		}
+		return nil, nil, errors.Errorf("Error: no such network: %s", ref)
+	}
+
 	f := opts.format
 	if len(f) == 0 {
 		f = "raw"
@@ -77,7 +85,7 @@ func runInspect(dockerCli *command.DockerCli, opts inspectOptions) error {
 		Format: formatter.NewServiceFormat(f),
 	}
 
-	if err := formatter.ServiceInspectWrite(serviceCtx, opts.refs, getRef); err != nil {
+	if err := formatter.ServiceInspectWrite(serviceCtx, opts.refs, getRef, getNetwork); err != nil {
 		return cli.StatusError{StatusCode: 1, Status: err.Error()}
 	}
 	return nil

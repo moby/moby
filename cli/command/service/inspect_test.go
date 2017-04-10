@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli/command/formatter"
 	"github.com/docker/docker/pkg/testutil/assert"
@@ -43,16 +44,16 @@ func formatServiceInspect(t *testing.T, format formatter.Format, now time.Time) 
 				ContainerSpec: swarm.ContainerSpec{
 					Image: "foo/bar@sha256:this_is_a_test",
 				},
+				Networks: []swarm.NetworkAttachmentConfig{
+					{
+						Target:  "5vpyomhb6ievnk0i0o60gcnei",
+						Aliases: []string{"web"},
+					},
+				},
 			},
 			Mode: swarm.ServiceMode{
 				Replicated: &swarm.ReplicatedService{
 					Replicas: &two,
-				},
-			},
-			Networks: []swarm.NetworkAttachmentConfig{
-				{
-					Target:  "5vpyomhb6ievnk0i0o60gcnei",
-					Aliases: []string{"web"},
 				},
 			},
 			EndpointSpec: endpointSpec,
@@ -84,9 +85,17 @@ func formatServiceInspect(t *testing.T, format formatter.Format, now time.Time) 
 		Format: format,
 	}
 
-	err := formatter.ServiceInspectWrite(ctx, []string{"de179gar9d0o7ltdybungplod"}, func(ref string) (interface{}, []byte, error) {
-		return s, nil, nil
-	})
+	err := formatter.ServiceInspectWrite(ctx, []string{"de179gar9d0o7ltdybungplod"},
+		func(ref string) (interface{}, []byte, error) {
+			return s, nil, nil
+		},
+		func(ref string) (interface{}, []byte, error) {
+			return types.NetworkResource{
+				ID:   "5vpyomhb6ievnk0i0o60gcnei",
+				Name: "mynetwork",
+			}, nil, nil
+		},
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,6 +106,9 @@ func TestPrettyPrintWithNoUpdateConfig(t *testing.T) {
 	s := formatServiceInspect(t, formatter.NewServiceFormat("pretty"), time.Now())
 	if strings.Contains(s, "UpdateStatus") {
 		t.Fatal("Pretty print failed before parsing UpdateStatus")
+	}
+	if !strings.Contains(s, "mynetwork") {
+		t.Fatal("network name not found in inspect output")
 	}
 }
 

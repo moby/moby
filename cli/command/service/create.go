@@ -63,7 +63,9 @@ func runCreate(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *service
 	apiClient := dockerCli.Client()
 	createOpts := types.ServiceCreateOptions{}
 
-	service, err := opts.ToService()
+	ctx := context.Background()
+
+	service, err := opts.ToService(ctx, apiClient)
 	if err != nil {
 		return err
 	}
@@ -78,8 +80,6 @@ func runCreate(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *service
 		service.TaskTemplate.ContainerSpec.Secrets = secrets
 
 	}
-
-	ctx := context.Background()
 
 	if err := resolveServiceImageDigest(dockerCli, &service); err != nil {
 		return err

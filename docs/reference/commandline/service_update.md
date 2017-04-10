@@ -58,6 +58,8 @@ Options:
       --log-opt list                       Logging driver options (default [])
       --mount-add mount                    Add or update a mount on a service
       --mount-rm list                      Remove a mount by its target path (default [])
+      --network-add list                   Add a network
+      --network-rm list                    Remove a network
       --no-healthcheck                     Disable any container-specified HEALTHCHECK
       --placement-pref-add pref            Add a placement preference
       --placement-pref-rm pref             Remove a placement preference

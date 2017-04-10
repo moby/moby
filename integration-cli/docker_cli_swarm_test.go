@@ -855,6 +855,45 @@ func (s *DockerSwarmSuite) TestSwarmServiceTTYUpdate(c *check.C) {
 	c.Assert(strings.TrimSpace(out), checker.Equals, "true")
 }
 
+func (s *DockerSwarmSuite) TestSwarmServiceNetworkUpdate(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	result := icmd.RunCmd(d.Command("network", "create", "-d", "overlay", "foo"))
+	result.Assert(c, icmd.Success)
+	fooNetwork := strings.TrimSpace(string(result.Combined()))
+
+	result = icmd.RunCmd(d.Command("network", "create", "-d", "overlay", "bar"))
+	result.Assert(c, icmd.Success)
+	barNetwork := strings.TrimSpace(string(result.Combined()))
+
+	result = icmd.RunCmd(d.Command("network", "create", "-d", "overlay", "baz"))
+	result.Assert(c, icmd.Success)
+	bazNetwork := strings.TrimSpace(string(result.Combined()))
+
+	// Create a service
+	name := "top"
+	result = icmd.RunCmd(d.Command("service", "create", "--network", "foo", "--network", "bar", "--name", name, "busybox", "top"))
+	result.Assert(c, icmd.Success)
+
+	// Make sure task has been deployed.
+	waitAndAssert(c, defaultReconciliationTimeout, d.CheckRunningTaskNetworks, checker.DeepEquals,
+		map[string]int{fooNetwork: 1, barNetwork: 1})
+
+	// Remove a network
+	result = icmd.RunCmd(d.Command("service", "update", "--network-rm", "foo", name))
+	result.Assert(c, icmd.Success)
+
+	waitAndAssert(c, defaultReconciliationTimeout, d.CheckRunningTaskNetworks, checker.DeepEquals,
+		map[string]int{barNetwork: 1})
+
+	// Add a network
+	result = icmd.RunCmd(d.Command("service", "update", "--network-add", "baz", name))
+	result.Assert(c, icmd.Success)
+
+	waitAndAssert(c, defaultReconciliationTimeout, d.CheckRunningTaskNetworks, checker.DeepEquals,
+		map[string]int{barNetwork: 1, bazNetwork: 1})
+}
+
 func (s *DockerSwarmSuite) TestDNSConfig(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
