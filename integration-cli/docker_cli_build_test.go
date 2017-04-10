@@ -6024,6 +6024,97 @@ func (s *DockerTrustSuite) TestCopyFromTrustedBuild(c *check.C) {
 	dockerCmdWithResult("run", name, "cat", "bar").Assert(c, icmd.Expected{Out: "ok"})
 }
 
+func (s *DockerSuite) TestBuildCopyFromPreviousFromWindows(c *check.C) {
+	testRequires(c, DaemonIsWindows)
+	dockerfile := `
+		FROM ` + testEnv.MinimalBaseImage() + `
+		COPY foo c:\\bar`
+	ctx := fakeContext(c, dockerfile, map[string]string{
+		"Dockerfile": dockerfile,
+		"foo":        "abc",
+	})
+	defer ctx.Close()
+
+	result := buildImage("build1", withExternalBuildContext(ctx))
+	result.Assert(c, icmd.Success)
+
+	dockerfile = `
+		FROM build1:latest
+    	FROM ` + testEnv.MinimalBaseImage() + `
+		COPY --from=0 c:\\bar /
+		COPY foo /`
+	ctx = fakeContext(c, dockerfile, map[string]string{
+		"Dockerfile": dockerfile,
+		"foo":        "def",
+	})
+	defer ctx.Close()
+
+	result = buildImage("build2", withExternalBuildContext(ctx))
+	result.Assert(c, icmd.Success)
+
+	out, _ := dockerCmd(c, "run", "build2", "cmd.exe", "/s", "/c", "type", "c:\\bar")
+	c.Assert(strings.TrimSpace(out), check.Equals, "abc")
+	out, _ = dockerCmd(c, "run", "build2", "cmd.exe", "/s", "/c", "type", "c:\\foo")
+	c.Assert(strings.TrimSpace(out), check.Equals, "def")
+}
+
+func (s *DockerSuite) TestBuildCopyFromForbidWindowsSystemPaths(c *check.C) {
+	testRequires(c, DaemonIsWindows)
+	dockerfile := `
+		FROM ` + testEnv.MinimalBaseImage() + `		
+		FROM ` + testEnv.MinimalBaseImage() + `
+		COPY --from=0 %s c:\\oscopy
+		`
+	exp := icmd.Expected{
+		ExitCode: 1,
+		Err:      "copy from c:\\ or c:\\windows is not allowed on windows",
+	}
+	buildImage("testforbidsystempaths1", build.WithDockerfile(fmt.Sprintf(dockerfile, "c:\\\\"))).Assert(c, exp)
+	buildImage("testforbidsystempaths2", build.WithDockerfile(fmt.Sprintf(dockerfile, "C:\\\\"))).Assert(c, exp)
+	buildImage("testforbidsystempaths3", build.WithDockerfile(fmt.Sprintf(dockerfile, "c:\\\\windows"))).Assert(c, exp)
+	buildImage("testforbidsystempaths4", build.WithDockerfile(fmt.Sprintf(dockerfile, "c:\\\\wInDows"))).Assert(c, exp)
+}
+
+func (s *DockerSuite) TestBuildCopyFromForbidWindowsRelativePaths(c *check.C) {
+	testRequires(c, DaemonIsWindows)
+	dockerfile := `
+		FROM ` + testEnv.MinimalBaseImage() + `		
+		FROM ` + testEnv.MinimalBaseImage() + `
+		COPY --from=0 %s c:\\oscopy
+		`
+	exp := icmd.Expected{
+		ExitCode: 1,
+		Err:      "copy from c:\\ or c:\\windows is not allowed on windows",
+	}
+	buildImage("testforbidsystempaths1", build.WithDockerfile(fmt.Sprintf(dockerfile, "c:"))).Assert(c, exp)
+	buildImage("testforbidsystempaths2", build.WithDockerfile(fmt.Sprintf(dockerfile, "."))).Assert(c, exp)
+	buildImage("testforbidsystempaths3", build.WithDockerfile(fmt.Sprintf(dockerfile, "..\\\\"))).Assert(c, exp)
+	buildImage("testforbidsystempaths4", build.WithDockerfile(fmt.Sprintf(dockerfile, ".\\\\windows"))).Assert(c, exp)
+	buildImage("testforbidsystempaths5", build.WithDockerfile(fmt.Sprintf(dockerfile, "\\\\windows"))).Assert(c, exp)
+}
+
+func (s *DockerSuite) TestBuildCopyFromWindowsIsCaseInsensitive(c *check.C) {
+	testRequires(c, DaemonIsWindows)
+	dockerfile := `
+		FROM ` + testEnv.MinimalBaseImage() + `
+		COPY foo /	
+		FROM ` + testEnv.MinimalBaseImage() + `
+		COPY --from=0 c:\\fOo c:\\copied
+		RUN type c:\\copied
+		`
+	ctx := fakeContext(c, dockerfile, map[string]string{
+		"Dockerfile": dockerfile,
+		"foo":        "hello world",
+	})
+	defer ctx.Close()
+	exp := icmd.Expected{
+		ExitCode: 0,
+		Out:      "hello world",
+	}
+	result := buildImage("copyfrom-windows-insensitive", withExternalBuildContext(ctx))
+	result.Assert(c, exp)
+}
+
 // TestBuildOpaqueDirectory tests that a build succeeds which
 // creates opaque directories.
 // See https://github.com/docker/docker/issues/25244
