@@ -2684,7 +2684,7 @@ func (s *DockerDaemonSuite) TestDaemonBackcompatPre17Volumes(c *check.C) {
 	`)
 
 	configPath := filepath.Join(d.Root, "containers", id, "config.v2.json")
-	err = ioutil.WriteFile(configPath, config, 600)
+	c.Assert(ioutil.WriteFile(configPath, config, 600), checker.IsNil)
 	d.Start(c)
 
 	out, err = d.Cmd("inspect", "--type=container", "--format={{ json .Mounts }}", id)

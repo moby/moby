@@ -180,7 +180,6 @@ func (daemon *Daemon) verifyVolumesInfo(container *container.Container) error {
 				container.MountPoints[destination] = &m
 			}
 		}
-		return container.CheckpointTo(daemon.containersReplica)
 	}
 	return nil
 }
