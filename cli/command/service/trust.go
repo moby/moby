@@ -15,42 +15,6 @@ import (
 	"golang.org/x/net/context"
 )
 
-func resolveServiceImageDigest(dockerCli *command.DockerCli, service *swarm.ServiceSpec) error {
-	if !command.IsTrusted() {
-		// Digests are resolved by the daemon when not using content
-		// trust.
-		return nil
-	}
-
-	ref, err := reference.ParseAnyReference(service.TaskTemplate.ContainerSpec.Image)
-	if err != nil {
-		return errors.Wrapf(err, "invalid reference %s", service.TaskTemplate.ContainerSpec.Image)
-	}
-
-	// If reference does not have digest (is not canonical nor image id)
-	if _, ok := ref.(reference.Digested); !ok {
-		namedRef, ok := ref.(reference.Named)
-		if !ok {
-			return errors.New("failed to resolve image digest using content trust: reference is not named")
-		}
-		namedRef = reference.TagNameOnly(namedRef)
-		taggedRef, ok := namedRef.(reference.NamedTagged)
-		if !ok {
-			return errors.New("failed to resolve image digest using content trust: reference is not tagged")
-		}
-
-		resolvedImage, err := trustedResolveDigest(context.Background(), dockerCli, taggedRef)
-		if err != nil {
-			return errors.Wrap(err, "failed to resolve image digest using content trust")
-		}
-		resolvedFamiliar := reference.FamiliarString(resolvedImage)
-		logrus.Debugf("resolved image tag to %s using content trust", resolvedFamiliar)
-		service.TaskTemplate.ContainerSpec.Image = resolvedFamiliar
-	}
-
-	return nil
-}
-
 func trustedResolveDigest(ctx context.Context, cli *command.DockerCli, ref reference.NamedTagged) (reference.Canonical, error) {
 	repoInfo, err := registry.ParseRepositoryInfo(ref)
 	if err != nil {
