@@ -10,7 +10,9 @@ import (
 	"time"
 
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
+	"github.com/docker/docker/integration-cli/cli/build/fakecontext"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/testutil"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
@@ -438,19 +440,21 @@ RUN chmod 755 /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
 CMD echo foobar`
 
-	ctx := fakeContext(c, dockerfile, map[string]string{
-		"entrypoint.sh": `#!/bin/sh
+	ctx := fakecontext.New(c, "",
+		fakecontext.WithDockerfile(dockerfile),
+		fakecontext.WithFiles(map[string]string{
+			"entrypoint.sh": `#!/bin/sh
 echo "I am an entrypoint"
 exec "$@"`,
-	})
+		}))
 	defer ctx.Close()
 
-	buildImageSuccessfully(c, name, withExternalBuildContext(ctx))
+	cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 
-	out, _ := dockerCmd(c, "create", "--entrypoint=", name, "echo", "foo")
+	out := cli.DockerCmd(c, "create", "--entrypoint=", name, "echo", "foo").Combined()
 	id := strings.TrimSpace(out)
 	c.Assert(id, check.Not(check.Equals), "")
-	out, _ = dockerCmd(c, "start", "-a", id)
+	out = cli.DockerCmd(c, "start", "-a", id).Combined()
 	c.Assert(strings.TrimSpace(out), check.Equals, "foo")
 }
 
