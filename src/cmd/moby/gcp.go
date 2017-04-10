@@ -159,6 +159,9 @@ func (g GCPClient) DeleteImage(name string) error {
 	var notFound bool
 	op, err := g.compute.Images.Delete(g.projectName, name).Do()
 	if err != nil {
+		if _, ok := err.(*googleapi.Error); !ok {
+			return err
+		}
 		if err.(*googleapi.Error).Code != 404 {
 			return err
 		}
@@ -240,6 +243,9 @@ func (g GCPClient) DeleteInstance(instance, zone string, wait bool) error {
 	var notFound bool
 	op, err := g.compute.Instances.Delete(g.projectName, zone, instance).Do()
 	if err != nil {
+		if _, ok := err.(*googleapi.Error); !ok {
+			return err
+		}
 		if err.(*googleapi.Error).Code != 404 {
 			return err
 		}
