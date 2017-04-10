@@ -15,10 +15,11 @@ import (
 // imageContexts is a helper for stacking up built image rootfs and reusing
 // them as contexts
 type imageContexts struct {
-	b      *Builder
-	list   []*imageMount
-	byName map[string]*imageMount
-	cache  *pathCache
+	b           *Builder
+	list        []*imageMount
+	byName      map[string]*imageMount
+	cache       *pathCache
+	currentName string
 }
 
 func (ic *imageContexts) new(name string, increment bool) (*imageMount, error) {
@@ -35,6 +36,7 @@ func (ic *imageContexts) new(name string, increment bool) (*imageMount, error) {
 	if increment {
 		ic.list = append(ic.list, im)
 	}
+	ic.currentName = name
 	return im, nil
 }
 
@@ -86,6 +88,13 @@ func (ic *imageContexts) unmount() (retErr error) {
 		}
 	}
 	return
+}
+
+func (ic *imageContexts) isCurrentTarget(target string) bool {
+	if target == "" {
+		return false
+	}
+	return strings.EqualFold(ic.currentName, target)
 }
 
 func (ic *imageContexts) getCache(id, path string) (interface{}, bool) {

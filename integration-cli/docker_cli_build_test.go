@@ -6210,6 +6210,33 @@ func (s *DockerSuite) TestBuildCopyFromWindowsIsCaseInsensitive(c *check.C) {
 	result.Assert(c, exp)
 }
 
+func (s *DockerSuite) TestBuildIntermediateTarget(c *check.C) {
+	dockerfile := `
+		FROM busybox AS build-env
+		CMD ["/dev"]
+		FROM busybox
+		CMD ["/dist"]
+		`
+	ctx := fakeContext(c, dockerfile, map[string]string{
+		"Dockerfile": dockerfile,
+	})
+	defer ctx.Close()
+
+	result := buildImage("build1", withExternalBuildContext(ctx),
+		cli.WithFlags("--target", "build-env"))
+	result.Assert(c, icmd.Success)
+
+	res := inspectFieldJSON(c, "build1", "Config.Cmd")
+	c.Assert(res, checker.Equals, `["/dev"]`)
+
+	result = buildImage("build1", withExternalBuildContext(ctx),
+		cli.WithFlags("--target", "nosuchtarget"))
+	result.Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Err:      "failed to reach build target",
+	})
+}
+
 // TestBuildOpaqueDirectory tests that a build succeeds which
 // creates opaque directories.
 // See https://github.com/docker/docker/issues/25244
