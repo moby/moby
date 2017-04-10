@@ -91,10 +91,14 @@ func (daemon *Daemon) SystemDiskUsage() (*types.DiskUsage, error) {
 
 	}
 
+	// Calculate download cache usage
+	downloadCacheUsage := daemon.downloadManager.CacheUsage()
+
 	return &types.DiskUsage{
-		LayersSize: allLayersSize,
-		Containers: allContainers,
-		Volumes:    allVolumes,
-		Images:     allImages,
+		LayersSize:         allLayersSize,
+		Containers:         allContainers,
+		Volumes:            allVolumes,
+		Images:             allImages,
+		DownloadCacheUsage: downloadCacheUsage,
 	}, nil
 }

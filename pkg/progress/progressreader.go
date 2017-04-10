@@ -31,6 +31,13 @@ func NewProgressReader(in io.ReadCloser, out Output, size int64, id, action stri
 	}
 }
 
+// SetOffset should be called before using the reader in order to set offset to
+// start displaying progress from. This is useful for showing the progress of
+// resumed operations such as resumed pulls.
+func (p *Reader) SetOffset(offset int64) {
+	p.current = offset
+}
+
 func (p *Reader) Read(buf []byte) (n int, err error) {
 	read, err := p.in.Read(buf)
 	p.current += int64(read)

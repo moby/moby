@@ -8,6 +8,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/distribution/cachedir"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
@@ -22,14 +24,21 @@ const maxDownloadAttempts = 5
 // registers and downloads those, taking into account dependencies between
 // layers.
 type LayerDownloadManager struct {
-	layerStore   layer.Store
-	tm           TransferManager
-	waitDuration time.Duration
+	layerStore      layer.Store
+	tm              TransferManager
+	waitDuration    time.Duration
+	cacheDirManager *cachedir.Manager
 }
 
 // SetConcurrency sets the max concurrent downloads for each pull
 func (ldm *LayerDownloadManager) SetConcurrency(concurrency int) {
 	ldm.tm.SetConcurrency(concurrency)
+}
+
+// SetCacheDirManager sets the cache directory manager to a new one, based on
+// the path specified by cacheRoot.
+func (ldm *LayerDownloadManager) SetCacheDirManager(cacheRoot string) {
+	ldm.cacheDirManager = cachedir.NewManager(cacheRoot)
 }
 
 // NewLayerDownloadManager returns a new LayerDownloadManager.
@@ -42,6 +51,9 @@ func NewLayerDownloadManager(layerStore layer.Store, concurrencyLimit int, optio
 	for _, option := range options {
 		option(&manager)
 	}
+	if manager.cacheDirManager == nil {
+		manager.SetCacheDirManager("")
+	}
 	return &manager
 }
 
@@ -51,6 +63,18 @@ type downloadTransfer struct {
 	layerStore layer.Store
 	layer      layer.Layer
 	err        error
+}
+
+// CollectGarbage removes download cache directories that are not currently used
+// by an in-progress download
+func (ldm *LayerDownloadManager) CollectGarbage() (uint64, error) {
+	return ldm.cacheDirManager.CollectGarbage()
+}
+
+// CacheUsage returns a summary of the amount of data stored in the download
+// cache
+func (ldm *LayerDownloadManager) CacheUsage() types.DownloadCacheUsage {
+	return ldm.cacheDirManager.Usage()
 }
 
 // result returns the layer resulting from the download, if the download
@@ -70,7 +94,7 @@ type DownloadDescriptor interface {
 	// before).
 	DiffID() (layer.DiffID, error)
 	// Download is called to perform the download.
-	Download(ctx context.Context, progressOutput progress.Output) (io.ReadCloser, int64, error)
+	Download(ctx context.Context, progressOutput progress.Output, cacheDir string) (io.ReadCloser, int64, error)
 	// Close is called when the download manager is finished with this
 	// descriptor and will not call Download again or read from the reader
 	// that Download returned.
@@ -94,47 +118,75 @@ type DownloadDescriptorWithRegistered interface {
 // Download method is called to get the layer tar data. Layers are then
 // registered in the appropriate order.  The caller must call the returned
 // release function once it is done with the returned RootFS object.
-func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS image.RootFS, layers []DownloadDescriptor, progressOutput progress.Output) (image.RootFS, func(), error) {
+func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS image.RootFS, layers []DownloadDescriptor, progressOutput progress.Output) (rootFS image.RootFS, f func(), err error) {
 	var (
 		topLayer       layer.Layer
 		topDownload    *downloadTransfer
 		watcher        *Watcher
-		missingLayer   bool
 		transferKey    = ""
 		downloadsByKey = make(map[string]*downloadTransfer)
+		cacheDirs      = map[string]struct{}{}
 	)
 
-	rootFS := initialRootFS
-	for _, descriptor := range layers {
-		key := descriptor.Key()
-		transferKey += key
-
-		if !missingLayer {
-			missingLayer = true
-			diffID, err := descriptor.DiffID()
-			if err == nil {
-				getRootFS := rootFS
-				getRootFS.Append(diffID)
-				l, err := ldm.layerStore.Get(getRootFS.ChainID())
-				if err == nil {
-					// Layer already exists.
-					logrus.Debugf("Layer already exists: %s", descriptor.ID())
-					progress.Update(progressOutput, descriptor.ID(), "Already exists")
-					if topLayer != nil {
-						layer.ReleaseAndLog(ldm.layerStore, topLayer)
-					}
-					topLayer = l
-					missingLayer = false
-					rootFS.Append(diffID)
-					// Register this repository as a source of this layer.
-					withRegistered, hasRegistered := descriptor.(DownloadDescriptorWithRegistered)
-					if hasRegistered {
-						withRegistered.Registered(diffID)
-					}
-					continue
+	defer func() {
+		if err != nil {
+			for key := range cacheDirs {
+				ldm.cacheDirManager.ReleaseDir(key)
+			}
+		} else {
+			for key := range cacheDirs {
+				// We don't modify the function's return value here because this
+				// is not a fatal error, just a warning.
+				err := ldm.cacheDirManager.DeleteDir(key)
+				if err != nil {
+					logrus.WithError(err).WithField("key", key).Warn("failed to delete cache dir")
 				}
 			}
 		}
+	}()
+
+	// Look for a rootFS/layer we can resume from before trying to download layers.
+	// This loop goes up to resumeLevel layers
+	rootFS = initialRootFS
+	resumeLevel := 0
+	transferKey = ""
+	for _, descriptor := range layers {
+		diffID, err := descriptor.DiffID()
+		if err != nil {
+			break
+		}
+		// getRootFS is a temporary rootfs we create to check whether or
+		// not we'll be able to find an instance of it in the layer store
+		getRootFS := rootFS
+		getRootFS.Append(diffID)
+		l, err := ldm.layerStore.Get(getRootFS.ChainID())
+		if err != nil {
+			// if we failed to get the layer for this level for any
+			// reason, we give up and start downloading it instead
+			break
+		}
+		// Layer already exists.
+		logrus.Debugf("Layer already exists: %s", descriptor.ID())
+		progress.Update(progressOutput, descriptor.ID(), "Already exists")
+		if topLayer != nil {
+			layer.ReleaseAndLog(ldm.layerStore, topLayer)
+		}
+		topLayer = l
+		rootFS.Append(diffID)
+		// Register this repository as a source of this layer.
+		withRegistered, hasRegistered := descriptor.(DownloadDescriptorWithRegistered)
+		if hasRegistered {
+			withRegistered.Registered(diffID)
+		}
+		resumeLevel++
+		key := descriptor.Key()
+		transferKey += key
+	}
+
+	// This loop starts at resumeLevel and continues for the rest of the layers
+	for _, descriptor := range layers[resumeLevel:] {
+		key := descriptor.Key()
+		transferKey += key
 
 		// Does this layer have the same data as a previous layer in
 		// the stack? If so, avoid downloading it more than once.
@@ -152,12 +204,15 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 
 		var xferFunc DoFunc
 		if topDownload != nil {
-			xferFunc = ldm.makeDownloadFunc(descriptor, "", topDownload)
+			xferFunc = ldm.makeDownloadFunc(descriptor, "", topDownload, transferKey)
 			defer topDownload.Transfer.Release(watcher)
 		} else {
-			xferFunc = ldm.makeDownloadFunc(descriptor, rootFS.ChainID(), nil)
+			xferFunc = ldm.makeDownloadFunc(descriptor, rootFS.ChainID(), nil, transferKey)
 		}
 		topDownloadUncasted, watcher = ldm.tm.Transfer(transferKey, xferFunc, progressOutput)
+		if watcher.IsOriginal() {
+			cacheDirs[transferKey] = struct{}{}
+		}
 		topDownload = topDownloadUncasted.(*downloadTransfer)
 		downloadsByKey[key] = topDownload
 	}
@@ -212,8 +267,10 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 // complete before the registration step, and registers the downloaded data
 // on top of parentDownload's resulting layer. Otherwise, it registers the
 // layer on top of the ChainID given by parentLayer.
-func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor, parentLayer layer.ChainID, parentDownload *downloadTransfer) DoFunc {
+func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor, parentLayer layer.ChainID, parentDownload *downloadTransfer, transferKey string) DoFunc {
 	return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) Transfer {
+		cacheDir := ldm.cacheDirManager.GetDir(transferKey)
+
 		d := &downloadTransfer{
 			Transfer:   NewTransfer(),
 			layerStore: ldm.layerStore,
@@ -257,7 +314,7 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 			defer descriptor.Close()
 
 			for {
-				downloadReader, size, err = descriptor.Download(d.Transfer.Context(), progressOutput)
+				downloadReader, size, err = descriptor.Download(d.Transfer.Context(), progressOutput, cacheDir)
 				if err == nil {
 					break
 				}

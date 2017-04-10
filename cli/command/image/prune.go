@@ -13,9 +13,10 @@ import (
 )
 
 type pruneOptions struct {
-	force  bool
-	all    bool
-	filter opts.FilterOpt
+	force             bool
+	all               bool
+	filter            opts.FilterOpt
+	keepDownloadCache bool
 }
 
 // NewPruneCommand returns a new cobra prune command for images
@@ -44,6 +45,7 @@ func NewPruneCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.BoolVarP(&opts.force, "force", "f", false, "Do not prompt for confirmation")
 	flags.BoolVarP(&opts.all, "all", "a", false, "Remove all unused images, not just dangling ones")
 	flags.Var(&opts.filter, "filter", "Provide filter values (e.g. 'until=<timestamp>')")
+	flags.BoolVarP(&opts.keepDownloadCache, "keep-download-cache", "k", false, "Don't clean out the download cache")
 
 	return cmd
 }
@@ -58,6 +60,9 @@ Are you sure you want to continue?`
 func runPrune(dockerCli *command.DockerCli, opts pruneOptions) (spaceReclaimed uint64, output string, err error) {
 	pruneFilters := opts.filter.Value()
 	pruneFilters.Add("dangling", fmt.Sprintf("%v", !opts.all))
+	if opts.keepDownloadCache {
+		pruneFilters.Add("keep-download-cache", fmt.Sprintf("%v", opts.keepDownloadCache))
+	}
 
 	warning := danglingWarning
 	if opts.all {
@@ -81,14 +86,17 @@ func runPrune(dockerCli *command.DockerCli, opts pruneOptions) (spaceReclaimed u
 				output += fmt.Sprintln("deleted:", st.Deleted)
 			}
 		}
-		spaceReclaimed = report.SpaceReclaimed
+	}
+	if report.CacheSpaceReclaimed > 0 {
+		output += fmt.Sprintln("Size of caches deleted:", units.HumanSize(float64(report.CacheSpaceReclaimed)))
 	}
 
+	spaceReclaimed = report.SpaceReclaimed
 	return
 }
 
 // RunPrune calls the Image Prune API
 // This returns the amount of space reclaimed and a detailed output string
 func RunPrune(dockerCli *command.DockerCli, all bool, filter opts.FilterOpt) (uint64, string, error) {
-	return runPrune(dockerCli, pruneOptions{force: true, all: all, filter: filter})
+	return runPrune(dockerCli, pruneOptions{force: true, all: all, filter: filter, keepDownloadCache: false})
 }

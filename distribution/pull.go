@@ -115,40 +115,38 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 		if err := puller.Pull(ctx, ref); err != nil {
 			// Was this pull cancelled? If so, don't try to fall
 			// back.
-			fallback := false
 			select {
 			case <-ctx.Done():
+				logrus.Errorf("Not continuing with pull after error: %v", err)
+				return TranslatePullError(err, ref)
 			default:
 				if fallbackErr, ok := err.(fallbackError); ok {
-					fallback = true
 					confirmedV2 = confirmedV2 || fallbackErr.confirmedV2
 					if fallbackErr.transportOK && endpoint.URL.Scheme == "https" {
 						confirmedTLSRegistries[endpoint.URL.Host] = struct{}{}
 					}
 					err = fallbackErr.err
+				} else {
+					logrus.Errorf("Not continuing with pull after error: %v", err)
+					return TranslatePullError(err, ref)
 				}
 			}
-			if fallback {
-				if _, ok := err.(ErrNoSupport); !ok {
-					// Because we found an error that's not ErrNoSupport, discard all subsequent ErrNoSupport errors.
-					discardNoSupportErrors = true
-					// append subsequent errors
-					lastErr = err
-				} else if !discardNoSupportErrors {
-					// Save the ErrNoSupport error, because it's either the first error or all encountered errors
-					// were also ErrNoSupport errors.
-					// append subsequent errors
-					lastErr = err
-				}
-				logrus.Infof("Attempting next endpoint for pull after error: %v", err)
-				continue
+			if _, ok := err.(ErrNoSupport); !ok {
+				// Because we found an error that's not ErrNoSupport, discard all subsequent ErrNoSupport errors.
+				discardNoSupportErrors = true
+				// append subsequent errors
+				lastErr = err
+			} else if !discardNoSupportErrors {
+				// Save the ErrNoSupport error, because it's either the first error or all encountered errors
+				// were also ErrNoSupport errors.
+				// append subsequent errors
+				lastErr = err
 			}
-			logrus.Errorf("Not continuing with pull after error: %v", err)
-			return TranslatePullError(err, ref)
+			logrus.Infof("Attempting next endpoint for pull after error: %v", err)
+		} else {
+			imagePullConfig.ImageEventLogger(reference.FamiliarString(ref), reference.FamiliarName(repoInfo.Name), "pull")
+			return nil
 		}
-
-		imagePullConfig.ImageEventLogger(reference.FamiliarString(ref), reference.FamiliarName(repoInfo.Name), "pull")
-		return nil
 	}
 
 	if lastErr == nil {

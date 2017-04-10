@@ -43,11 +43,12 @@ func runDiskUsage(dockerCli *command.DockerCli, opts diskUsageOptions) error {
 		Context: formatter.Context{
 			Output: dockerCli.Out(),
 		},
-		LayersSize: du.LayersSize,
-		Images:     du.Images,
-		Containers: du.Containers,
-		Volumes:    du.Volumes,
-		Verbose:    opts.verbose,
+		LayersSize:         du.LayersSize,
+		Images:             du.Images,
+		DownloadCacheUsage: du.DownloadCacheUsage,
+		Containers:         du.Containers,
+		Volumes:            du.Volumes,
+		Verbose:            opts.verbose,
 	}
 
 	duCtx.Write()

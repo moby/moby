@@ -85,18 +85,28 @@ func (daemon *Daemon) VolumesPrune(pruneFilters filters.Args) (*types.VolumesPru
 func (daemon *Daemon) ImagesPrune(pruneFilters filters.Args) (*types.ImagesPruneReport, error) {
 	rep := &types.ImagesPruneReport{}
 
-	danglingOnly := true
-	if pruneFilters.Include("dangling") {
-		if pruneFilters.ExactMatch("dangling", "false") || pruneFilters.ExactMatch("dangling", "0") {
-			danglingOnly = false
-		} else if !pruneFilters.ExactMatch("dangling", "true") && !pruneFilters.ExactMatch("dangling", "1") {
-			return nil, fmt.Errorf("Invalid filter 'dangling=%s'", pruneFilters.Get("dangling"))
-		}
+	danglingOnly, err := getBoolFilterValue(pruneFilters, "dangling", true)
+	if err != nil {
+		return nil, err
 	}
 
 	until, err := getUntilFromPruneFilters(pruneFilters)
 	if err != nil {
 		return nil, err
+	}
+
+	keepDownloadCache, err := getBoolFilterValue(pruneFilters, "keep-download-cache", false)
+	if err != nil {
+		return nil, err
+	}
+
+	if !keepDownloadCache {
+		reclaimed, err := daemon.downloadManager.CollectGarbage()
+		if err != nil {
+			logrus.WithError(err).Warn("failed to clean up cache fully")
+		}
+		rep.CacheSpaceReclaimed = reclaimed
+		rep.SpaceReclaimed += reclaimed
 	}
 
 	var allImages map[image.ID]*image.Image
@@ -297,4 +307,18 @@ func getUntilFromPruneFilters(pruneFilters filters.Args) (time.Time, error) {
 	}
 	until = time.Unix(seconds, nanoseconds)
 	return until, nil
+}
+
+func getBoolFilterValue(pruneFilters filters.Args, name string, defaultValue bool) (bool, error) {
+	value := defaultValue
+	if pruneFilters.Include(name) {
+		if pruneFilters.ExactMatch(name, "false") || pruneFilters.ExactMatch(name, "0") {
+			value = false
+		} else if pruneFilters.ExactMatch(name, "true") || pruneFilters.ExactMatch(name, "1") {
+			value = true
+		} else {
+			return false, fmt.Errorf("invalid filter '%s=%s'", name, pruneFilters.Get(name))
+		}
+	}
+	return value, nil
 }

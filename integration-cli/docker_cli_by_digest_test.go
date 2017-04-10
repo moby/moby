@@ -639,6 +639,9 @@ func (s *DockerRegistrySuite) TestPullFailsWithAlteredLayer(c *check.C) {
 	if err := os.RemoveAll(filepath.Join(testEnv.DockerBasePath(), "image", s.d.StorageDriver(), "distribution")); err != nil {
 		c.Fatalf("error clearing distribution cache: %v", err)
 	}
+	if err := os.RemoveAll(filepath.Join(testEnv.DockerBasePath(), "incomplete_downloads")); err != nil {
+		c.Fatalf("error clearing incomplete_downloads: %v", err)
+	}
 
 	// Pull from the registry using the <name>@<digest> reference.
 	imageReference := fmt.Sprintf("%s@%s", repoName, manifestDigest)
@@ -681,6 +684,9 @@ func (s *DockerSchema1RegistrySuite) TestPullFailsWithAlteredLayer(c *check.C) {
 	// Remove distribution cache to force a re-pull of the blobs
 	if err := os.RemoveAll(filepath.Join(testEnv.DockerBasePath(), "image", s.d.StorageDriver(), "distribution")); err != nil {
 		c.Fatalf("error clearing distribution cache: %v", err)
+	}
+	if err := os.RemoveAll(filepath.Join(testEnv.DockerBasePath(), "incomplete_downloads")); err != nil {
+		c.Fatalf("error clearing incomplete_downloads: %v", err)
 	}
 
 	// Pull from the registry using the <name>@<digest> reference.
