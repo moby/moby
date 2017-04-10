@@ -1072,7 +1072,9 @@ func (daemon *Daemon) DeactivateContainerServiceBinding(containerName string) er
 	}
 	sb := daemon.getNetworkSandbox(container)
 	if sb == nil {
-		return fmt.Errorf("network sandbox does not exist for container %s", containerName)
+		// If the network sandbox is not found, then there is nothing to deactivate
+		logrus.Debugf("Could not find network sandbox for container %s on service binding deactivation request", containerName)
+		return nil
 	}
 	return sb.DisableService()
 }
