@@ -86,18 +86,19 @@ func runHyperKit(args []string) {
 		*disk = prefix + "-disk.img"
 	}
 
-	h, err := hyperkit.New(*hyperkitPath, "", "auto", *disk)
+	h, err := hyperkit.New(*hyperkitPath, "auto", "")
 	if err != nil {
 		log.Fatalln("Error creating hyperkit: ", err)
 	}
 
 	h.Kernel = prefix + "-bzImage"
 	h.Initrd = prefix + "-initrd.img"
+	h.UUID = uuidStr
+	h.DiskImage = *disk
 	h.ISOImage = isoPath
 	h.CPUs = *cpus
 	h.Memory = *mem
 	h.DiskSize = *diskSz
-	h.UUID = uuidStr
 
 	err = h.Run(string(cmdline))
 	if err != nil {
