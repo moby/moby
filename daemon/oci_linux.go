@@ -624,7 +624,7 @@ func (daemon *Daemon) populateCommonSpec(s *specs.Spec, c *container.Container) 
 			(c.HostConfig.Init == nil && daemon.configStore.Init) {
 			s.Process.Args = append([]string{"/dev/init", "--", c.Path}, c.Args...)
 			var path string
-			if daemon.configStore.InitPath == "" && c.HostConfig.InitPath == "" {
+			if daemon.configStore.InitPath == "" {
 				path, err = exec.LookPath(daemonconfig.DefaultInitBinary)
 				if err != nil {
 					return err
@@ -632,9 +632,6 @@ func (daemon *Daemon) populateCommonSpec(s *specs.Spec, c *container.Container) 
 			}
 			if daemon.configStore.InitPath != "" {
 				path = daemon.configStore.InitPath
-			}
-			if c.HostConfig.InitPath != "" {
-				path = c.HostConfig.InitPath
 			}
 			s.Mounts = append(s.Mounts, specs.Mount{
 				Destination: "/dev/init",
