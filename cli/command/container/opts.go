@@ -118,7 +118,6 @@ type containerOptions struct {
 	runtime            string
 	autoRemove         bool
 	init               bool
-	initPath           string
 
 	Image string
 	Args  []string
@@ -284,8 +283,6 @@ func addFlags(flags *pflag.FlagSet) *containerOptions {
 
 	flags.BoolVar(&copts.init, "init", false, "Run an init inside the container that forwards signals and reaps processes")
 	flags.SetAnnotation("init", "version", []string{"1.25"})
-	flags.StringVar(&copts.initPath, "init-path", "", "Path to the docker-init binary")
-	flags.SetAnnotation("init-path", "version", []string{"1.25"})
 	return copts
 }
 
