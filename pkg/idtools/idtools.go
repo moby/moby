@@ -32,6 +32,10 @@ func (e ranges) Less(i, j int) bool { return e[i].Start < e[j].Start }
 const (
 	subuidFileName string = "/etc/subuid"
 	subgidFileName string = "/etc/subgid"
+
+	subuidFallback int = 100000
+	subgidFallback int = 100000
+	lengthFallback int = 65536
 )
 
 // MkdirAllAs creates a directory (include any along the path) and then modifies
@@ -148,11 +152,21 @@ func createIDMap(subidRanges ranges) []IDMap {
 }
 
 func parseSubuid(username string) (ranges, error) {
-	return parseSubidFile(subuidFileName, username)
+	rangeList, err := parseSubidFile(subuidFileName, username)
+	if os.IsNotExist(err) {
+		rangeList = append(rangeList, subIDRange{subuidFallback, lengthFallback})
+		return rangeList, nil
+	}
+	return rangeList, err
 }
 
 func parseSubgid(username string) (ranges, error) {
-	return parseSubidFile(subgidFileName, username)
+	rangeList, err := parseSubidFile(subgidFileName, username)
+	if os.IsNotExist(err) {
+		rangeList = append(rangeList, subIDRange{subgidFallback, lengthFallback})
+		return rangeList, nil
+	}
+	return rangeList, err
 }
 
 // parseSubidFile will read the appropriate file (/etc/subuid or /etc/subgid)
