@@ -401,10 +401,15 @@ func (g GCPClient) ConnectToInstanceSerialPort(instance, zone string) error {
 		}
 	}
 
-	session.RequestPty("xterm", termHeight, termWidth, ssh.TerminalModes{
+	if err = session.RequestPty("xterm", termHeight, termWidth, ssh.TerminalModes{
 		ssh.ECHO: 1,
-	})
-	session.Shell()
+	}); err != nil {
+		return err
+	}
+
+	if err = session.Shell(); err != nil {
+		return err
+	}
 
 	err = session.Wait()
 	//exit <- true

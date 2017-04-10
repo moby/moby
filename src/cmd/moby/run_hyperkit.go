@@ -30,7 +30,9 @@ func runHyperKit(args []string) {
 	data := hyperkitCmd.String("data", "", "Metadata to pass to VM (either a path to a file or a string)")
 	ipStr := hyperkitCmd.String("ip", "", "IP address for the VM")
 
-	hyperkitCmd.Parse(args)
+	if err := hyperkitCmd.Parse(args); err != nil {
+		log.Fatal("Unable to parse args")
+	}
 	remArgs := hyperkitCmd.Args()
 	if len(remArgs) == 0 {
 		fmt.Println("Please specify the prefix to the image to boot\n")
@@ -59,7 +61,9 @@ func runHyperKit(args []string) {
 		if err != nil {
 			log.Fatalf("Cannot write user data ISO: %v", err)
 		}
-		outfh.Close()
+		if err = outfh.Close(); err != nil {
+			log.Fatalf("Cannot close output ISO: %v", err)
+		}
 	}
 
 	uuidStr := ""

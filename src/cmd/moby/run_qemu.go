@@ -36,7 +36,9 @@ func runQemu(args []string) {
 	qemuCPUs := qemuFlags.String("cpus", "1", "Number of CPUs")
 	qemuMem := qemuFlags.String("mem", "1024", "Amount of memory in MB")
 
-	qemuFlags.Parse(args)
+	if err := qemuFlags.Parse(args); err != nil {
+		log.Fatal("Unable to parse args")
+	}
 	remArgs := qemuFlags.Args()
 
 	if len(remArgs) == 0 {

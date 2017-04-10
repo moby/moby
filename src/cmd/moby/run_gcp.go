@@ -41,7 +41,9 @@ func runGcp(args []string) {
 	publicFlag := gcpCmd.Bool("public", false, "Select if file on GS should be public. *Optional* when 'prefix' is a filename")
 	familyFlag := gcpCmd.String("family", "", "GCP Image Family. A group of images where the family name points to the most recent image. *Optional* when 'prefix' is a filename")
 	nameFlag := gcpCmd.String("img-name", "", "Overrides the Name used to identify the file in Google Storage, Image and Instance. Defaults to [name]")
-	gcpCmd.Parse(args)
+	if err := gcpCmd.Parse(args); err != nil {
+		log.Fatal("Unable to parse args")
+	}
 
 	remArgs := gcpCmd.Args()
 	if len(remArgs) == 0 {

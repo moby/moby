@@ -70,7 +70,9 @@ func runVMware(args []string) {
 	runMem := vmwareArgs.Int("mem", 1024, "Amount of memory in MB")
 	runDisk := vmwareArgs.String("disk", "", "Path to disk image to use")
 
-	vmwareArgs.Parse(args)
+	if err := vmwareArgs.Parse(args); err != nil {
+		log.Fatal("Unable to parse args")
+	}
 	remArgs := vmwareArgs.Args()
 
 	if len(remArgs) == 0 {

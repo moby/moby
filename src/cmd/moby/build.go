@@ -27,7 +27,9 @@ func build(args []string) {
 	buildName := buildCmd.String("name", "", "Name to use for output files")
 	buildPull := buildCmd.Bool("pull", false, "Always pull images")
 
-	buildCmd.Parse(args)
+	if err := buildCmd.Parse(args); err != nil {
+		log.Fatal("Unable to parse args")
+	}
 	remArgs := buildCmd.Args()
 
 	if len(remArgs) == 0 {
