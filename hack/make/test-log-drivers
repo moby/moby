@@ -1,0 +1,28 @@
+#!/bin/bash
+set -e
+
+bundle_test_splunk_logger() {
+	TESTFLAGS="$TESTFLAGS -check.v -check.timeout=${TIMEOUT} -test.timeout=360m"
+	go_test_dir ./contrib/loggers/splunk
+}
+
+# subshell so that we can export PATH without breaking other things
+(
+	# Set directory
+	splunkloggerdir='contrib/loggers/splunk'
+	
+	bundle .integration-daemon-start
+	
+	# Install test dependencies
+	pip install -r $splunkloggerdir/requirements.txt
+	# Pull Splunk image and build from Dockerfile
+	docker build -t splunk:new $splunkloggerdir
+	# Pull images used for testing
+	docker pull hello-world
+	docker pull nginx
+	docker pull tutum/curl
+
+	py.test "$splunkloggerdir/test_logging_driver.py"
+
+	bundle .integration-daemon-stop
+) 2>&1 | tee -a "$DEST/test.log"
