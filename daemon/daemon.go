@@ -27,6 +27,7 @@ import (
 	"github.com/docker/docker/daemon/discovery"
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/daemon/exec"
+	"github.com/docker/docker/daemon/logger"
 	// register graph drivers
 	_ "github.com/docker/docker/daemon/graphdriver/register"
 	"github.com/docker/docker/daemon/initlayer"
@@ -586,6 +587,7 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 
 	d.RegistryService = registryService
 	d.PluginStore = pluginStore
+	logger.RegisterPluginGetter(d.PluginStore)
 
 	// Plugin system initialization should happen before restore. Do not change order.
 	d.pluginManager, err = plugin.NewManager(plugin.ManagerConfig{
