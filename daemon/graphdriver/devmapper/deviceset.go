@@ -257,6 +257,17 @@ func (devices *DeviceSet) hasImage(name string) bool {
 	return err == nil
 }
 
+func (devices *DeviceSet) checkImage(name string) (exists, isblk bool, filename string) {
+	dirname := devices.loopbackDir()
+	filename = path.Join(dirname, name)
+	fi, err := os.Stat(filename)
+	if err != nil {
+		return false, false, ""
+	}
+	isblk = fi.Sys().(*syscall.Stat_t).Mode&syscall.S_IFBLK == syscall.S_IFBLK
+	return
+}
+
 // ensureImage creates a sparse file of <size> bytes at the path
 // <root>/devicemapper/<name>.
 // If the file already exists and new size is larger than its current size, it grows to the new size.
@@ -1771,10 +1782,13 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 			metadataFile *os.File
 		)
 
+		hasData, isBlk, filename := devices.checkImage("data")
+		if devices.dataDevice == "" && isBlk {
+			devices.dataDevice = filename
+		}
+
 		if devices.dataDevice == "" {
 			// Make sure the sparse images exist in <root>/devicemapper/data
-
-			hasData := devices.hasImage("data")
 
 			if !doInit && !hasData {
 				return errors.New("loopback data file not found")
@@ -1804,10 +1818,13 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 		}
 		defer dataFile.Close()
 
+		hasMetadata, isBlk, filename := devices.checkImage("metadata")
+		if devices.metadataDevice == "" && isBlk {
+			devices.metadataDevice = filename
+		}
+
 		if devices.metadataDevice == "" {
 			// Make sure the sparse images exist in <root>/devicemapper/metadata
-
-			hasMetadata := devices.hasImage("metadata")
 
 			if !doInit && !hasMetadata {
 				return errors.New("loopback metadata file not found")
