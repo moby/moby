@@ -54,7 +54,7 @@ func TestShellParser4EnvVars(t *testing.T) {
 				assert.Error(t, err, "")
 			} else {
 				assert.NilError(t, err)
-				assert.DeepEqual(t, newWord, []string{expected})
+				assert.Equal(t, newWord, expected)
 			}
 		}
 	}

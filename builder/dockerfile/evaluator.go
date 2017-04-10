@@ -175,7 +175,10 @@ func (b *Builder) evaluateEnv(cmd string, str string, envs []string) ([]string, 
 	if allowWordExpansion[cmd] {
 		processFunc = ProcessWords
 	} else {
-		processFunc = ProcessWord
+		processFunc = func(word string, envs []string, escape rune) ([]string, error) {
+			word, err := ProcessWord(word, envs, escape)
+			return []string{word}, err
+		}
 	}
 	return processFunc(str, envs, b.directive.EscapeToken)
 }
@@ -186,7 +189,7 @@ func (b *Builder) buildArgsWithoutConfigEnv() []string {
 	envs := []string{}
 	configEnv := runconfigopts.ConvertKVStringsToMap(b.runConfig.Env)
 
-	for key, val := range b.getBuildArgs() {
+	for key, val := range b.buildArgs.GetAllAllowed() {
 		if _, ok := configEnv[key]; !ok {
 			envs = append(envs, fmt.Sprintf("%s=%s", key, val))
 		}

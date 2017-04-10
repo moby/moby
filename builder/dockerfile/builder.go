@@ -36,20 +36,6 @@ var validCommitCommands = map[string]bool{
 	"workdir":     true,
 }
 
-// BuiltinAllowedBuildArgs is list of built-in allowed build args
-// these args are considered transparent and are excluded from the image history.
-// Filtering from history is implemented in dispatchers.go
-var BuiltinAllowedBuildArgs = map[string]bool{
-	"HTTP_PROXY":  true,
-	"http_proxy":  true,
-	"HTTPS_PROXY": true,
-	"https_proxy": true,
-	"FTP_PROXY":   true,
-	"ftp_proxy":   true,
-	"NO_PROXY":    true,
-	"no_proxy":    true,
-}
-
 var defaultLogConfig = container.LogConfig{Type: "none"}
 
 // Builder is a Dockerfile builder
@@ -66,20 +52,19 @@ type Builder struct {
 	clientCtx context.Context
 	cancel    context.CancelFunc
 
-	dockerfile       *parser.Node
-	runConfig        *container.Config // runconfig for cmd, run, entrypoint etc.
-	flags            *BFlags
-	tmpContainers    map[string]struct{}
-	image            string         // imageID
-	imageContexts    *imageContexts // helper for storing contexts from builds
-	noBaseImage      bool
-	maintainer       string
-	cmdSet           bool
-	disableCommit    bool
-	cacheBusted      bool
-	allowedBuildArgs map[string]*string  // list of build-time args that are allowed for expansion/substitution and passing to commands in 'run'.
-	allBuildArgs     map[string]struct{} // list of all build-time args found during parsing of the Dockerfile
-	directive        parser.Directive
+	dockerfile    *parser.Node
+	runConfig     *container.Config // runconfig for cmd, run, entrypoint etc.
+	flags         *BFlags
+	tmpContainers map[string]struct{}
+	image         string         // imageID
+	imageContexts *imageContexts // helper for storing contexts from builds
+	noBaseImage   bool           // A flag to track the use of `scratch` as the base image
+	maintainer    string
+	cmdSet        bool
+	disableCommit bool
+	cacheBusted   bool
+	buildArgs     *buildArgs
+	directive     parser.Directive
 
 	// TODO: remove once docker.Commit can receive a tag
 	id string
@@ -134,18 +119,17 @@ func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, back
 	}
 	ctx, cancel := context.WithCancel(clientCtx)
 	b = &Builder{
-		clientCtx:        ctx,
-		cancel:           cancel,
-		options:          config,
-		Stdout:           os.Stdout,
-		Stderr:           os.Stderr,
-		docker:           backend,
-		context:          buildContext,
-		runConfig:        new(container.Config),
-		tmpContainers:    map[string]struct{}{},
-		id:               stringid.GenerateNonCryptoID(),
-		allowedBuildArgs: make(map[string]*string),
-		allBuildArgs:     make(map[string]struct{}),
+		clientCtx:     ctx,
+		cancel:        cancel,
+		options:       config,
+		Stdout:        os.Stdout,
+		Stderr:        os.Stderr,
+		docker:        backend,
+		context:       buildContext,
+		runConfig:     new(container.Config),
+		tmpContainers: map[string]struct{}{},
+		id:            stringid.GenerateNonCryptoID(),
+		buildArgs:     newBuildArgs(config.BuildArgs),
 		directive: parser.Directive{
 			EscapeSeen:           false,
 			LookingForDirectives: true,
@@ -316,16 +300,15 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 // check if there are any leftover build-args that were passed but not
 // consumed during build. Print a warning, if there are any.
 func (b *Builder) warnOnUnusedBuildArgs() {
-	leftoverArgs := []string{}
-	for arg := range b.options.BuildArgs {
-		if _, ok := b.allBuildArgs[arg]; !ok {
-			leftoverArgs = append(leftoverArgs, arg)
-		}
-	}
-
+	leftoverArgs := b.buildArgs.UnreferencedOptionArgs()
 	if len(leftoverArgs) > 0 {
 		fmt.Fprintf(b.Stderr, "[Warning] One or more build-args %v were not consumed\n", leftoverArgs)
 	}
+}
+
+// hasFromImage returns true if the builder has processed a `FROM <image>` line
+func (b *Builder) hasFromImage() bool {
+	return b.image != "" || b.noBaseImage
 }
 
 // Cancel cancels an ongoing Dockerfile build.

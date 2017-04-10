@@ -9,6 +9,8 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
+	"github.com/docker/docker/builder"
+	"github.com/docker/docker/pkg/testutil/assert"
 	"github.com/docker/go-connections/nat"
 )
 
@@ -189,35 +191,67 @@ func TestLabel(t *testing.T) {
 	}
 }
 
-func TestFrom(t *testing.T) {
-	b := &Builder{flags: &BFlags{}, runConfig: &container.Config{}, disableCommit: true}
+func newBuilderWithMockBackend() *Builder {
+	b := &Builder{
+		flags:     &BFlags{},
+		runConfig: &container.Config{},
+		options:   &types.ImageBuildOptions{},
+		docker:    &MockBackend{},
+		buildArgs: newBuildArgs(make(map[string]*string)),
+	}
 	b.imageContexts = &imageContexts{b: b}
+	return b
+}
+
+func TestFromScratch(t *testing.T) {
+	b := newBuilderWithMockBackend()
 
 	err := from(b, []string{"scratch"}, nil, "")
 
 	if runtime.GOOS == "windows" {
-		if err == nil {
-			t.Fatal("Error not set on Windows")
-		}
-
-		expectedError := "Windows does not support FROM scratch"
-
-		if !strings.Contains(err.Error(), expectedError) {
-			t.Fatalf("Error message not correct on Windows. Should be: %s, got: %s", expectedError, err.Error())
-		}
-	} else {
-		if err != nil {
-			t.Fatalf("Error when executing from: %s", err.Error())
-		}
-
-		if b.image != "" {
-			t.Fatalf("Image should be empty, got: %s", b.image)
-		}
-
-		if b.noBaseImage != true {
-			t.Fatalf("Image should not have any base image, got: %v", b.noBaseImage)
-		}
+		assert.Error(t, err, "Windows does not support FROM scratch")
+		return
 	}
+
+	assert.NilError(t, err)
+	assert.Equal(t, b.image, "")
+	assert.Equal(t, b.noBaseImage, true)
+}
+
+func TestFromWithArg(t *testing.T) {
+	tag, expected := ":sometag", "expectedthisid"
+
+	getImage := func(name string) (builder.Image, error) {
+		assert.Equal(t, name, "alpine"+tag)
+		return &mockImage{id: "expectedthisid"}, nil
+	}
+	b := newBuilderWithMockBackend()
+	b.docker.(*MockBackend).getImageOnBuildFunc = getImage
+
+	assert.NilError(t, arg(b, []string{"THETAG=" + tag}, nil, ""))
+	err := from(b, []string{"alpine${THETAG}"}, nil, "")
+
+	assert.NilError(t, err)
+	assert.Equal(t, b.image, expected)
+	assert.Equal(t, b.from.ImageID(), expected)
+	assert.Equal(t, len(b.buildArgs.GetAllAllowed()), 0)
+	assert.Equal(t, len(b.buildArgs.GetAllMeta()), 1)
+}
+
+func TestFromWithUndefinedArg(t *testing.T) {
+	tag, expected := "sometag", "expectedthisid"
+
+	getImage := func(name string) (builder.Image, error) {
+		assert.Equal(t, name, "alpine")
+		return &mockImage{id: "expectedthisid"}, nil
+	}
+	b := newBuilderWithMockBackend()
+	b.docker.(*MockBackend).getImageOnBuildFunc = getImage
+	b.options.BuildArgs = map[string]*string{"THETAG": &tag}
+
+	err := from(b, []string{"alpine${THETAG}"}, nil, "")
+	assert.NilError(t, err)
+	assert.Equal(t, b.image, expected)
 }
 
 func TestOnbuildIllegalTriggers(t *testing.T) {
@@ -461,29 +495,18 @@ func TestStopSignal(t *testing.T) {
 }
 
 func TestArg(t *testing.T) {
-	// This is a bad test that tests implementation details and not at
-	// any features of the builder. Replace or remove.
-	buildOptions := &types.ImageBuildOptions{BuildArgs: make(map[string]*string)}
-
-	b := &Builder{flags: &BFlags{}, runConfig: &container.Config{}, disableCommit: true, allowedBuildArgs: make(map[string]*string), allBuildArgs: make(map[string]struct{}), options: buildOptions}
+	b := newBuilderWithMockBackend()
 
 	argName := "foo"
 	argVal := "bar"
 	argDef := fmt.Sprintf("%s=%s", argName, argVal)
 
-	if err := arg(b, []string{argDef}, nil, ""); err != nil {
-		t.Fatalf("Error should be empty, got: %s", err.Error())
-	}
+	err := arg(b, []string{argDef}, nil, "")
+	assert.NilError(t, err)
 
-	value, ok := b.getBuildArg(argName)
-
-	if !ok {
-		t.Fatalf("%s argument should be a build arg", argName)
-	}
-
-	if value != "bar" {
-		t.Fatalf("%s argument should have default value 'bar', got %s", argName, value)
-	}
+	expected := map[string]string{argName: argVal}
+	allowed := b.buildArgs.GetAllAllowed()
+	assert.DeepEqual(t, allowed, expected)
 }
 
 func TestShell(t *testing.T) {
