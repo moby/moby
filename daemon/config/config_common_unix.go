@@ -66,5 +66,8 @@ func (conf *Config) GetInitPath() string {
 	if conf.InitPath != "" {
 		return conf.InitPath
 	}
-	return conf.DefaultInitBinary
+	if conf.DefaultInitBinary != "" {
+		return conf.DefaultInitBinary
+	}
+	return DefaultInitBinary
 }
