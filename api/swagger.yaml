@@ -4393,6 +4393,7 @@ paths:
 
             Available filters:
             - `until=<timestamp>` Prune containers created before this timestamp. The `<timestamp>` can be Unix timestamps, date formatted timestamps, or Go duration strings (e.g. `10m`, `1h30m`) computed relative to the daemon machine’s time.
+            - `label` (`label=<key>`, `label=<key>=<value>`, `label!=<key>`, or `label!=<key>=<value>`) Prune containers with (or without, in case `label!=...` is used) the specified labels.
           type: "string"
       responses:
         200:
@@ -5083,6 +5084,7 @@ paths:
                unused *and* untagged images. When set to `false`
                (or `0`), all unused images are pruned.
             - `until=<string>` Prune images created before this timestamp. The `<timestamp>` can be Unix timestamps, date formatted timestamps, or Go duration strings (e.g. `10m`, `1h30m`) computed relative to the daemon machine’s time.
+            - `label` (`label=<key>`, `label=<key>=<value>`, `label!=<key>`, or `label!=<key>=<value>`) Prune images with (or without, in case `label!=...` is used) the specified labels.
           type: "string"
       responses:
         200:
@@ -6186,6 +6188,7 @@ paths:
             Filters to process on the prune list, encoded as JSON (a `map[string][]string`).
 
             Available filters:
+            - `label` (`label=<key>`, `label=<key>=<value>`, `label!=<key>`, or `label!=<key>=<value>`) Prune volumes with (or without, in case `label!=...` is used) the specified labels.
           type: "string"
       responses:
         200:
@@ -6554,6 +6557,7 @@ paths:
 
             Available filters:
             - `until=<timestamp>` Prune networks created before this timestamp. The `<timestamp>` can be Unix timestamps, date formatted timestamps, or Go duration strings (e.g. `10m`, `1h30m`) computed relative to the daemon machine’s time.
+            - `label` (`label=<key>`, `label=<key>=<value>`, `label!=<key>`, or `label!=<key>=<value>`) Prune networks with (or without, in case `label!=...` is used) the specified labels.
           type: "string"
       responses:
         200:
