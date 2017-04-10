@@ -1873,6 +1873,7 @@ _docker_container_update() {
 		--cpu-quota
 		--cpu-rt-period
 		--cpu-rt-runtime
+		--cpus
 		--cpuset-cpus
 		--cpuset-mems
 		--cpu-shares -c
