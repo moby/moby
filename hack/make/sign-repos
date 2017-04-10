@@ -8,7 +8,7 @@
 APTDIR=$DOCKER_RELEASE_DIR/apt/repo
 YUMDIR=$DOCKER_RELEASE_DIR/yum/repo
 
-if [ -z "$GPG_PASSPHRASE" ]; then
+if [ -z "${GPG_PASSPHRASE+x}" ]; then
 	echo >&2 'you need to set GPG_PASSPHRASE in order to sign artifacts'
 	exit 1
 fi

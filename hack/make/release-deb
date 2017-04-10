@@ -100,16 +100,18 @@ for dir in bundles/$VERSION/build-deb/*/; do
 	codename="${version//debootstrap-}"
 
 	tempdir="$(mktemp -d /tmp/tmp-docker-release-deb.XXXXXXXX)"
-	DEBFILE=( "$dir/docker-engine"*.deb )
+	DEBFILE=( "$dir/"*.deb )
 
 	# add the deb for each component for the distro version into the
 	# pool (if it is not there already)
-	mkdir -p "$APTDIR/pool/$component/d/docker-engine/"
  	for deb in ${DEBFILE[@]}; do
 		d=$(basename "$deb")
+		PACKAGE_NAME="${d%%_*}"  # Take everything before the first underscore
+		FIRST_LETTER="${PACKAGE_NAME:0:1}"
 		# We do not want to generate a new deb if it has already been
 		# copied into the APTDIR
-		if [ ! -f "$APTDIR/pool/$component/d/docker-engine/$d" ]; then
+		mkdir -p "$APTDIR/pool/$component/${FIRST_LETTER}/${PACKAGE_NAME}/"
+		if [ ! -f "$APTDIR/pool/$component/${FIRST_LETTER}/${PACKAGE_NAME}/$d" ]; then
 			cp "$deb" "$tempdir/"
 			# if we have a $GPG_PASSPHRASE we may as well
 			# dpkg-sign before copying the deb into the pool
@@ -117,7 +119,7 @@ for dir in bundles/$VERSION/build-deb/*/; do
 				dpkg-sig -g "--no-tty  --digest-algo 'sha512' --passphrase '$GPG_PASSPHRASE'" \
 					-k "$GPG_KEYID" --sign builder "$tempdir/$d"
 			fi
-			mv "$tempdir/$d" "$APTDIR/pool/$component/d/docker-engine/"
+			mv "$tempdir/$d" "$APTDIR/pool/$component/${FIRST_LETTER}/${PACKAGE_NAME}/"
 		fi
 	done
 
