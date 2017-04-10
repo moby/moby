@@ -8,7 +8,15 @@
 // interface that is loosly modeled on the iproute2 cli.
 package netlink
 
-import "net"
+import (
+	"errors"
+	"net"
+)
+
+var (
+	// ErrNotImplemented is returned when a requested feature is not implemented.
+	ErrNotImplemented = errors.New("not implemented")
+)
 
 // ParseIPNet parses a string in ip/net format and returns a net.IPNet.
 // This is valuable because addresses in netlink are often IPNets and

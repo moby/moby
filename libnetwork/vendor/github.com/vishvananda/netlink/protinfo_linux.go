@@ -40,25 +40,31 @@ func (h *Handle) LinkGetProtinfo(link Link) (Protinfo, error) {
 			if err != nil {
 				return pi, err
 			}
-			var pi Protinfo
-			for _, info := range infos {
-				switch info.Attr.Type {
-				case nl.IFLA_BRPORT_MODE:
-					pi.Hairpin = byteToBool(info.Value[0])
-				case nl.IFLA_BRPORT_GUARD:
-					pi.Guard = byteToBool(info.Value[0])
-				case nl.IFLA_BRPORT_FAST_LEAVE:
-					pi.FastLeave = byteToBool(info.Value[0])
-				case nl.IFLA_BRPORT_PROTECT:
-					pi.RootBlock = byteToBool(info.Value[0])
-				case nl.IFLA_BRPORT_LEARNING:
-					pi.Learning = byteToBool(info.Value[0])
-				case nl.IFLA_BRPORT_UNICAST_FLOOD:
-					pi.Flood = byteToBool(info.Value[0])
-				}
-			}
+			pi = *parseProtinfo(infos)
+
 			return pi, nil
 		}
 	}
 	return pi, fmt.Errorf("Device with index %d not found", base.Index)
+}
+
+func parseProtinfo(infos []syscall.NetlinkRouteAttr) *Protinfo {
+	var pi Protinfo
+	for _, info := range infos {
+		switch info.Attr.Type {
+		case nl.IFLA_BRPORT_MODE:
+			pi.Hairpin = byteToBool(info.Value[0])
+		case nl.IFLA_BRPORT_GUARD:
+			pi.Guard = byteToBool(info.Value[0])
+		case nl.IFLA_BRPORT_FAST_LEAVE:
+			pi.FastLeave = byteToBool(info.Value[0])
+		case nl.IFLA_BRPORT_PROTECT:
+			pi.RootBlock = byteToBool(info.Value[0])
+		case nl.IFLA_BRPORT_LEARNING:
+			pi.Learning = byteToBool(info.Value[0])
+		case nl.IFLA_BRPORT_UNICAST_FLOOD:
+			pi.Flood = byteToBool(info.Value[0])
+		}
+	}
+	return &pi
 }
