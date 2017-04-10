@@ -86,11 +86,6 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 	return daemon.containerStart(container, checkpoint, checkpointDir, true)
 }
 
-// Start starts a container
-func (daemon *Daemon) Start(container *container.Container) error {
-	return daemon.containerStart(container, "", "", true)
-}
-
 // containerStart prepares the container to run by setting up everything the
 // container needs, such as storage and networking, as well as links
 // between containers. The container is left waiting for a signal to
