@@ -93,6 +93,11 @@ func convertService(
 		return swarm.ServiceSpec{}, err
 	}
 
+	dnsConfig, err := convertDNSConfig(service.DNS, service.DNSSearch)
+	if err != nil {
+		return swarm.ServiceSpec{}, err
+	}
+
 	var logDriver *swarm.Driver
 	if service.Logging != nil {
 		logDriver = &swarm.Driver{
@@ -113,6 +118,7 @@ func convertService(
 				Args:            service.Command,
 				Hostname:        service.Hostname,
 				Hosts:           sortStrings(convertExtraHosts(service.ExtraHosts)),
+				DNSConfig:       dnsConfig,
 				Healthcheck:     healthcheck,
 				Env:             sortStrings(convertEnvironment(service.Environment)),
 				Labels:          AddStackLabel(namespace, service.Labels),
@@ -445,4 +451,14 @@ func convertDeployMode(mode string, replicas *uint64) (swarm.ServiceMode, error)
 		return serviceMode, errors.Errorf("Unknown mode: %s", mode)
 	}
 	return serviceMode, nil
+}
+
+func convertDNSConfig(DNS []string, DNSSearch []string) (*swarm.DNSConfig, error) {
+	if DNS != nil || DNSSearch != nil {
+		return &swarm.DNSConfig{
+			Nameservers: DNS,
+			Search:      DNSSearch,
+		}, nil
+	}
+	return nil, nil
 }
