@@ -58,7 +58,7 @@ guestOS = "other3xlinux-64"
 `
 
 func runVMware(args []string) {
-	vmwareArgs := flag.NewFlagSet("hyperkit", flag.ExitOnError)
+	vmwareArgs := flag.NewFlagSet("vmware", flag.ExitOnError)
 	vmwareArgs.Usage = func() {
 		fmt.Printf("USAGE: %s run vmware [options] prefix\n\n", os.Args[0])
 		fmt.Printf("'prefix' specifies the path to the VM image.\n")
@@ -100,6 +100,16 @@ func runVMware(args []string) {
 	if runtime.GOOS == "darwin" {
 		path = "/Applications/VMware Fusion.app/Contents/Library/vmrun"
 		vmrunArgs = []string{"-T", "fusion", "start", prefix + ".vmx"}
+	}
+
+	if runtime.GOOS == "linux" {
+		path = "vmrun"
+		fullVMrunPath, err := exec.LookPath(path)
+		if err != nil {
+			log.Fatalf("Unable to find %s within the $PATH", path)
+		}
+		path = fullVMrunPath
+		vmrunArgs = []string{"-T", "ws", "start", prefix + ".vmx"}
 	}
 
 	// Check executables exist before attempting to execute
