@@ -61,8 +61,11 @@ func TestListContainers(t *testing.T) {
 	if len(list) != 2 {
 		t.Fatalf("expected list size 2, got %v", len(list))
 	}
-	if list[0].ID != "id2" {
-		t.Fatalf("expected id2, got %v", list[0].ID)
+	if list[0].ID != "id" {
+		t.Fatalf("expected id, got %v", list[0].ID)
+	}
+	if list[1].ID != "id2" {
+		t.Fatalf("expected id2, got %v", list[1].ID)
 	}
 }
 
