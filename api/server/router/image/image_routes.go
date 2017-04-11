@@ -336,7 +336,7 @@ func (s *imageRouter) postImagesPrune(ctx context.Context, w http.ResponseWriter
 		return err
 	}
 
-	pruneReport, err := s.backend.ImagesPrune(pruneFilters)
+	pruneReport, err := s.backend.ImagesPrune(ctx, pruneFilters)
 	if err != nil {
 		return err
 	}

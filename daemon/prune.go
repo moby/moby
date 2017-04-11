@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
@@ -20,7 +22,7 @@ import (
 )
 
 // ContainersPrune removes unused containers
-func (daemon *Daemon) ContainersPrune(pruneFilters filters.Args) (*types.ContainersPruneReport, error) {
+func (daemon *Daemon) ContainersPrune(ctx context.Context, pruneFilters filters.Args) (*types.ContainersPruneReport, error) {
 	rep := &types.ContainersPruneReport{}
 
 	until, err := getUntilFromPruneFilters(pruneFilters)
@@ -30,6 +32,13 @@ func (daemon *Daemon) ContainersPrune(pruneFilters filters.Args) (*types.Contain
 
 	allContainers := daemon.List()
 	for _, c := range allContainers {
+		select {
+		case <-ctx.Done():
+			logrus.Warnf("ContainersPrune operation cancelled: %#v", *rep)
+			return rep, ctx.Err()
+		default:
+		}
+
 		if !c.IsRunning() {
 			if !until.IsZero() && c.Created.After(until) {
 				continue
@@ -55,10 +64,17 @@ func (daemon *Daemon) ContainersPrune(pruneFilters filters.Args) (*types.Contain
 }
 
 // VolumesPrune removes unused local volumes
-func (daemon *Daemon) VolumesPrune(pruneFilters filters.Args) (*types.VolumesPruneReport, error) {
+func (daemon *Daemon) VolumesPrune(ctx context.Context, pruneFilters filters.Args) (*types.VolumesPruneReport, error) {
 	rep := &types.VolumesPruneReport{}
 
 	pruneVols := func(v volume.Volume) error {
+		select {
+		case <-ctx.Done():
+			logrus.Warnf("VolumesPrune operation cancelled: %#v", *rep)
+			return ctx.Err()
+		default:
+		}
+
 		name := v.Name()
 		refs := daemon.volumes.Refs(v)
 
@@ -91,7 +107,7 @@ func (daemon *Daemon) VolumesPrune(pruneFilters filters.Args) (*types.VolumesPru
 }
 
 // ImagesPrune removes unused images
-func (daemon *Daemon) ImagesPrune(pruneFilters filters.Args) (*types.ImagesPruneReport, error) {
+func (daemon *Daemon) ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*types.ImagesPruneReport, error) {
 	rep := &types.ImagesPruneReport{}
 
 	danglingOnly := true
@@ -117,27 +133,47 @@ func (daemon *Daemon) ImagesPrune(pruneFilters filters.Args) (*types.ImagesPrune
 	allContainers := daemon.List()
 	imageRefs := map[string]bool{}
 	for _, c := range allContainers {
-		imageRefs[c.ID] = true
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+			imageRefs[c.ID] = true
+		}
 	}
 
 	// Filter intermediary images and get their unique size
 	allLayers := daemon.layerStore.Map()
 	topImages := map[image.ID]*image.Image{}
 	for id, img := range allImages {
-		dgst := digest.Digest(id)
-		if len(daemon.referenceStore.References(dgst)) == 0 && len(daemon.imageStore.Children(id)) != 0 {
-			continue
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+			dgst := digest.Digest(id)
+			if len(daemon.referenceStore.References(dgst)) == 0 && len(daemon.imageStore.Children(id)) != 0 {
+				continue
+			}
+			if !until.IsZero() && img.Created.After(until) {
+				continue
+			}
+			if !matchLabels(pruneFilters, img.Config.Labels) {
+				continue
+			}
+			topImages[id] = img
 		}
-		if !until.IsZero() && img.Created.After(until) {
-			continue
-		}
-		if !matchLabels(pruneFilters, img.Config.Labels) {
-			continue
-		}
-		topImages[id] = img
 	}
 
+	canceled := false
+deleteImagesLoop:
 	for id := range topImages {
+		select {
+		case <-ctx.Done():
+			// we still want to calculate freed size and return the data
+			canceled = true
+			break deleteImagesLoop
+		default:
+		}
+
 		dgst := digest.Digest(id)
 		hex := dgst.Hex()
 		if _, ok := imageRefs[hex]; ok {
@@ -198,17 +234,27 @@ func (daemon *Daemon) ImagesPrune(pruneFilters filters.Args) (*types.ImagesPrune
 		}
 	}
 
+	if canceled {
+		logrus.Warnf("ImagesPrune operation cancelled: %#v", *rep)
+		return nil, ctx.Err()
+	}
+
 	return rep, nil
 }
 
 // localNetworksPrune removes unused local networks
-func (daemon *Daemon) localNetworksPrune(pruneFilters filters.Args) *types.NetworksPruneReport {
+func (daemon *Daemon) localNetworksPrune(ctx context.Context, pruneFilters filters.Args) *types.NetworksPruneReport {
 	rep := &types.NetworksPruneReport{}
 
 	until, _ := getUntilFromPruneFilters(pruneFilters)
 
 	// When the function returns true, the walk will stop.
 	l := func(nw libnetwork.Network) bool {
+		select {
+		case <-ctx.Done():
+			return true
+		default:
+		}
 		if !until.IsZero() && nw.Info().Created().After(until) {
 			return false
 		}
@@ -234,7 +280,7 @@ func (daemon *Daemon) localNetworksPrune(pruneFilters filters.Args) *types.Netwo
 }
 
 // clusterNetworksPrune removes unused cluster networks
-func (daemon *Daemon) clusterNetworksPrune(pruneFilters filters.Args) (*types.NetworksPruneReport, error) {
+func (daemon *Daemon) clusterNetworksPrune(ctx context.Context, pruneFilters filters.Args) (*types.NetworksPruneReport, error) {
 	rep := &types.NetworksPruneReport{}
 
 	until, _ := getUntilFromPruneFilters(pruneFilters)
@@ -251,46 +297,59 @@ func (daemon *Daemon) clusterNetworksPrune(pruneFilters filters.Args) (*types.Ne
 	}
 	networkIsInUse := regexp.MustCompile(`network ([[:alnum:]]+) is in use`)
 	for _, nw := range networks {
-		if nw.Ingress {
-			// Routing-mesh network removal has to be explicitly invoked by user
-			continue
-		}
-		if !until.IsZero() && nw.Created.After(until) {
-			continue
-		}
-		if !matchLabels(pruneFilters, nw.Labels) {
-			continue
-		}
-		// https://github.com/docker/docker/issues/24186
-		// `docker network inspect` unfortunately displays ONLY those containers that are local to that node.
-		// So we try to remove it anyway and check the error
-		err = cluster.RemoveNetwork(nw.ID)
-		if err != nil {
-			// we can safely ignore the "network .. is in use" error
-			match := networkIsInUse.FindStringSubmatch(err.Error())
-			if len(match) != 2 || match[1] != nw.ID {
-				logrus.Warnf("could not remove cluster network %s: %v", nw.Name, err)
+		select {
+		case <-ctx.Done():
+			return rep, ctx.Err()
+		default:
+			if nw.Ingress {
+				// Routing-mesh network removal has to be explicitly invoked by user
+				continue
 			}
-			continue
+			if !until.IsZero() && nw.Created.After(until) {
+				continue
+			}
+			if !matchLabels(pruneFilters, nw.Labels) {
+				continue
+			}
+			// https://github.com/docker/docker/issues/24186
+			// `docker network inspect` unfortunately displays ONLY those containers that are local to that node.
+			// So we try to remove it anyway and check the error
+			err = cluster.RemoveNetwork(nw.ID)
+			if err != nil {
+				// we can safely ignore the "network .. is in use" error
+				match := networkIsInUse.FindStringSubmatch(err.Error())
+				if len(match) != 2 || match[1] != nw.ID {
+					logrus.Warnf("could not remove cluster network %s: %v", nw.Name, err)
+				}
+				continue
+			}
+			rep.NetworksDeleted = append(rep.NetworksDeleted, nw.Name)
 		}
-		rep.NetworksDeleted = append(rep.NetworksDeleted, nw.Name)
 	}
 	return rep, nil
 }
 
 // NetworksPrune removes unused networks
-func (daemon *Daemon) NetworksPrune(pruneFilters filters.Args) (*types.NetworksPruneReport, error) {
+func (daemon *Daemon) NetworksPrune(ctx context.Context, pruneFilters filters.Args) (*types.NetworksPruneReport, error) {
 	if _, err := getUntilFromPruneFilters(pruneFilters); err != nil {
 		return nil, err
 	}
 
 	rep := &types.NetworksPruneReport{}
-	if clusterRep, err := daemon.clusterNetworksPrune(pruneFilters); err == nil {
+	if clusterRep, err := daemon.clusterNetworksPrune(ctx, pruneFilters); err == nil {
 		rep.NetworksDeleted = append(rep.NetworksDeleted, clusterRep.NetworksDeleted...)
 	}
 
-	localRep := daemon.localNetworksPrune(pruneFilters)
+	localRep := daemon.localNetworksPrune(ctx, pruneFilters)
 	rep.NetworksDeleted = append(rep.NetworksDeleted, localRep.NetworksDeleted...)
+
+	select {
+	case <-ctx.Done():
+		logrus.Warnf("NetworksPrune operation cancelled: %#v", *rep)
+		return nil, ctx.Err()
+	default:
+	}
+
 	return rep, nil
 }
 
