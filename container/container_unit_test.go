@@ -1,9 +1,11 @@
 package container
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/docker/docker/api/types/container"
+	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/pkg/signal"
 )
 
@@ -56,5 +58,19 @@ func TestContainerStopTimeout(t *testing.T) {
 	s = c.StopSignal()
 	if s != 15 {
 		t.Fatalf("Expected 15, got %v", s)
+	}
+}
+
+func TestContainerSecretReferenceDestTarget(t *testing.T) {
+	ref := &swarmtypes.SecretReference{
+		File: &swarmtypes.SecretReferenceFileTarget{
+			Name: "app",
+		},
+	}
+
+	d := getSecretTargetPath(ref)
+	expected := filepath.Join(containerSecretMountPath, "app")
+	if d != expected {
+		t.Fatalf("expected secret dest %q; received %q", expected, d)
 	}
 }

@@ -750,8 +750,8 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	}
 	ms = append(ms, tmpfsMounts...)
 
-	if m := c.SecretMount(); m != nil {
-		ms = append(ms, *m)
+	if m := c.SecretMounts(); m != nil {
+		ms = append(ms, m...)
 	}
 
 	sort.Sort(mounts(ms))
