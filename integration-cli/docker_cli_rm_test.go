@@ -22,9 +22,6 @@ func (s *DockerSuite) TestRmContainerWithRemovedVolume(c *check.C) {
 
 	dockerCmd(c, "run", "--name", "losemyvolumes", "-v", tempDir+":"+prefix+slash+"test", "busybox", "true")
 
-	err = os.RemoveAll(tempDir)
-	c.Assert(err, check.IsNil)
-
 	dockerCmd(c, "rm", "-v", "losemyvolumes")
 }
 
