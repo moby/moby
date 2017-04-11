@@ -52,6 +52,7 @@ func (e *executor) Describe(ctx context.Context) (*api.NodeDescription, error) {
 	// the plugin list by default.
 	addPlugins("Network", append([]string{"overlay"}, info.Plugins.Network...))
 	addPlugins("Authorization", info.Plugins.Authorization)
+	addPlugins("Log", info.Plugins.Log)
 
 	// add v2 plugins
 	v2Plugins, err := e.backend.PluginManager().List(filters.NewArgs())
@@ -62,11 +63,15 @@ func (e *executor) Describe(ctx context.Context) (*api.NodeDescription, error) {
 					continue
 				}
 				plgnTyp := typ.Capability
-				if typ.Capability == "volumedriver" {
+				switch typ.Capability {
+				case "volumedriver":
 					plgnTyp = "Volume"
-				} else if typ.Capability == "networkdriver" {
+				case "networkdriver":
 					plgnTyp = "Network"
+				case "logdriver":
+					plgnTyp = "Log"
 				}
+
 				plugins[api.PluginDescription{
 					Type: plgnTyp,
 					Name: plgn.Name,
