@@ -15,6 +15,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/engine-api/types"
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/xeipuuv/gojsonschema"
 	"gopkg.in/yaml.v2"
 )
 
@@ -80,11 +81,56 @@ type MobyImage struct {
 	Sysctl            map[string]string
 }
 
+// recursively convert the map keys from `interface{}` to `string`
+// this is needed to convert "yaml" interfaces to "JSON" interfaces
+// see http://stackoverflow.com/questions/40737122/convert-yaml-to-json-without-struct-golang#answer-40737676
+func convert(i interface{}) interface{} {
+	switch x := i.(type) {
+	case map[interface{}]interface{}:
+		m2 := map[string]interface{}{}
+		for k, v := range x {
+			m2[k.(string)] = convert(v)
+		}
+		return m2
+	case []interface{}:
+		for i, v := range x {
+			x[i] = convert(v)
+		}
+	}
+	return i
+}
+
 // NewConfig parses a config file
 func NewConfig(config []byte) (*Moby, error) {
 	m := Moby{}
 
-	err := yaml.Unmarshal(config, &m)
+	// Parse raw yaml
+	var rawYaml interface{}
+	err := yaml.Unmarshal(config, &rawYaml)
+	if err != nil {
+		return &m, err
+	}
+
+	// Convert to raw JSON
+	rawJSON := convert(rawYaml)
+
+	// Validate raw yaml with JSON schema
+	schemaLoader := gojsonschema.NewStringLoader(schema)
+	documentLoader := gojsonschema.NewGoLoader(rawJSON)
+	result, err := gojsonschema.Validate(schemaLoader, documentLoader)
+	if err != nil {
+		return &m, err
+	}
+	if !result.Valid() {
+		fmt.Printf("The configuration file is invalid:\n")
+		for _, desc := range result.Errors() {
+			fmt.Printf("- %s\n", desc)
+		}
+		return &m, fmt.Errorf("invalid configuration file")
+	}
+
+	// Parse yaml
+	err = yaml.Unmarshal(config, &m)
 	if err != nil {
 		return &m, err
 	}
