@@ -4598,6 +4598,19 @@ paths:
         `container:<name|id>`. Any other value is taken as a custom network's
         name to which this container should connect to."
           type: "string"
+        - name: "mounts"
+          in: "query"
+          description: |
+            This is a JSON array of mounts to be used during build-time only. For example:
+
+            ```
+            [{
+              type: "bind",
+              source: "/path/to/host/folder",
+              target: "/path/to/container/folder"
+            }]
+            ```
+          type: "string"
         - name: "Content-type"
           in: "header"
           type: "string"

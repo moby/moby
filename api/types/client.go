@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/go-units"
 )
 
@@ -175,7 +176,8 @@ type ImageBuildOptions struct {
 	// specified here do not need to have a valid parent chain to match cache.
 	CacheFrom   []string
 	SecurityOpt []string
-	ExtraHosts  []string // List of extra hosts
+	ExtraHosts  []string      // List of extra hosts
+	Mounts      []mount.Mount // List of build-time mounts
 }
 
 // ImageBuildResponse holds information

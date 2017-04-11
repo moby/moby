@@ -543,6 +543,7 @@ func (b *Builder) create() (string, error) {
 		// Set a log config to override any default value set on the daemon
 		LogConfig:  defaultLogConfig,
 		ExtraHosts: b.options.ExtraHosts,
+		Mounts:     b.options.Mounts,
 	}
 
 	config := *b.runConfig
