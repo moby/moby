@@ -314,7 +314,6 @@ func workdir(req dispatchRequest) error {
 		// We've already updated the runConfig and that's enough.
 		return nil
 	}
-	req.runConfig.Image = req.builder.image
 
 	cmd := req.runConfig.Cmd
 	comment := "WORKDIR " + req.runConfig.WorkingDir
