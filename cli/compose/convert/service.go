@@ -93,6 +93,17 @@ func convertService(
 		return swarm.ServiceSpec{}, err
 	}
 
+	credentialSpec, err := convertCredentialSpec(service.CredentialSpec)
+	if err != nil {
+		return swarm.ServiceSpec{}, err
+	}
+	var privileges *swarm.Privileges
+	if credentialSpec != nil {
+		privileges = &swarm.Privileges{
+			CredentialSpec: credentialSpec,
+		}
+	}
+
 	var logDriver *swarm.Driver
 	if service.Logging != nil {
 		logDriver = &swarm.Driver{
@@ -123,6 +134,7 @@ func convertService(
 				TTY:             service.Tty,
 				OpenStdin:       service.StdinOpen,
 				Secrets:         secrets,
+				Privileges:      privileges,
 			},
 			LogDriver:     logDriver,
 			Resources:     resources,
@@ -445,4 +457,21 @@ func convertDeployMode(mode string, replicas *uint64) (swarm.ServiceMode, error)
 		return serviceMode, errors.Errorf("Unknown mode: %s", mode)
 	}
 	return serviceMode, nil
+}
+
+func convertCredentialSpec(source string) (*swarm.CredentialSpec, error) {
+	if source == "" {
+		return nil, nil
+	}
+
+	credentialSpec := swarm.CredentialSpec{}
+	switch {
+	case strings.HasPrefix(source, "file://"):
+		credentialSpec.File = strings.TrimPrefix(source, "file://")
+	case strings.HasPrefix(source, "registry://"):
+		credentialSpec.Registry = strings.TrimPrefix(source, "registry://")
+	default:
+		return &credentialSpec, errors.New("Invalid credential spec - value must be prefixed file:// or registry:// followed by a value")
+	}
+	return &credentialSpec, nil
 }

@@ -80,6 +80,7 @@ type ServiceConfig struct {
 	CgroupParent    string   `mapstructure:"cgroup_parent"`
 	Command         ShellCommand
 	ContainerName   string   `mapstructure:"container_name"`
+	CredentialSpec  string   `mapstructure:"credential_spec"`
 	DependsOn       []string `mapstructure:"depends_on"`
 	Deploy          DeployConfig
 	Devices         []string
