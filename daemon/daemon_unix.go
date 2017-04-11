@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/api/types/blkiodev"
 	pblkiodev "github.com/docker/docker/api/types/blkiodev"
 	containertypes "github.com/docker/docker/api/types/container"
+	runtimetypes "github.com/docker/docker/api/types/runtime"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/image"
@@ -585,7 +586,7 @@ func (daemon *Daemon) reloadPlatform(conf *config.Config, attributes map[string]
 	if conf.IsValueSet("runtimes") {
 		daemon.configStore.Runtimes = conf.Runtimes
 		// Always set the default one
-		daemon.configStore.Runtimes[config.StockRuntimeName] = types.Runtime{Path: DefaultRuntimeBinary}
+		daemon.configStore.Runtimes[config.StockRuntimeName] = runtimetypes.Runtime{Path: DefaultRuntimeBinary}
 	}
 
 	if conf.DefaultRuntime != "" {
@@ -635,9 +636,9 @@ func verifyDaemonSettings(conf *config.Config) error {
 		conf.DefaultRuntime = config.StockRuntimeName
 	}
 	if conf.Runtimes == nil {
-		conf.Runtimes = make(map[string]types.Runtime)
+		conf.Runtimes = make(map[string]runtimetypes.Runtime)
 	}
-	conf.Runtimes[config.StockRuntimeName] = types.Runtime{Path: DefaultRuntimeBinary}
+	conf.Runtimes[config.StockRuntimeName] = runtimetypes.Runtime{Path: DefaultRuntimeBinary}
 
 	return nil
 }
