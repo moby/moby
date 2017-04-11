@@ -96,6 +96,14 @@ func (cli *Client) imageBuildOptionsToQuery(options types.ImageBuildOptions) (ur
 	query.Set("shmsize", strconv.FormatInt(options.ShmSize, 10))
 	query.Set("dockerfile", options.Dockerfile)
 
+	if options.Parallel {
+		if err := cli.NewVersionError("1.29", "parallel"); err != nil {
+			return query, err
+		}
+		query.Set("parallel", "1")
+		query.Set("parallelism", strconv.FormatInt(options.Parallelism, 10))
+	}
+
 	ulimitsJSON, err := json.Marshal(options.Ulimits)
 	if err != nil {
 		return query, err
