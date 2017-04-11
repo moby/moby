@@ -650,7 +650,7 @@ func (b *Builder) clearTmp() {
 }
 
 // readDockerfile reads a Dockerfile from the current context.
-func (b *Builder) readDockerfile() error {
+func (b *Builder) readDockerfile() (*parser.Node, error) {
 	// If no -f was specified then look for 'Dockerfile'. If we can't find
 	// that then look for 'dockerfile'.  If neither are found then default
 	// back to 'Dockerfile' and use that in the error message.
@@ -664,10 +664,9 @@ func (b *Builder) readDockerfile() error {
 		}
 	}
 
-	err := b.parseDockerfile()
-
+	nodes, err := b.parseDockerfile()
 	if err != nil {
-		return err
+		return nodes, err
 	}
 
 	// After the Dockerfile has been parsed, we need to check the .dockerignore
@@ -681,32 +680,27 @@ func (b *Builder) readDockerfile() error {
 	if dockerIgnore, ok := b.context.(builder.DockerIgnoreContext); ok {
 		dockerIgnore.Process([]string{b.options.Dockerfile})
 	}
-	return nil
+	return nodes, nil
 }
 
-func (b *Builder) parseDockerfile() error {
+func (b *Builder) parseDockerfile() (*parser.Node, error) {
 	f, err := b.context.Open(b.options.Dockerfile)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return fmt.Errorf("Cannot locate specified Dockerfile: %s", b.options.Dockerfile)
+			return nil, fmt.Errorf("Cannot locate specified Dockerfile: %s", b.options.Dockerfile)
 		}
-		return err
+		return nil, err
 	}
 	defer f.Close()
 	if f, ok := f.(*os.File); ok {
 		// ignoring error because Open already succeeded
 		fi, err := f.Stat()
 		if err != nil {
-			return fmt.Errorf("Unexpected error reading Dockerfile: %v", err)
+			return nil, fmt.Errorf("Unexpected error reading Dockerfile: %v", err)
 		}
 		if fi.Size() == 0 {
-			return fmt.Errorf("The Dockerfile (%s) cannot be empty", b.options.Dockerfile)
+			return nil, fmt.Errorf("The Dockerfile (%s) cannot be empty", b.options.Dockerfile)
 		}
 	}
-	b.dockerfile, err = parser.Parse(f, &b.directive)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return parser.Parse(f, &b.directive)
 }
