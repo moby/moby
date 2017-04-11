@@ -23,6 +23,7 @@ Create a new service
 Options:
       --constraint list                    Placement constraints
       --container-label list               Container labels
+      --credential-spec                    Credential spec for managed service account (Windows only)
   -d, --detach                             Exit immediately instead of waiting for the service to converge (default true)
       --dns list                           Set custom DNS servers
       --dns-option list                    Set DNS options
@@ -760,6 +761,18 @@ $ docker service create --name dns-cache -p 53:53/tcp -p 53:53/udp dns-cache
 ```bash
 $ docker service create --name dns-cache -p 53:53/udp dns-cache
 ```
+
+### Provide credential specs for managed service accounts (Windows only)
+
+This option is only used for services using Windows containers. The
+`--credential-spec` must be in the format `file://spec.txt` or
+`registry://keyname`.
+
+When using the `file://` format, the referenced file must be present on the
+daemon host in the `C:\programfiles\docker\credentialspecs\` directory. When
+using the `registry://keyname` format, the credential spec is read from
+`HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Virtualization\Containers\CredentialSpecs`
+in the host's registry.
 
 ### Create services using templates
 
