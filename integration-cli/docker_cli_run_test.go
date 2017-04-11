@@ -2025,18 +2025,16 @@ func (s *DockerSuite) TestRunDeallocatePortOnMissingIptablesRule(c *check.C) {
 	// TODO Windows. Network settings are not propagated back to inspect.
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
-	out, _ := dockerCmd(c, "run", "-d", "-p", "23:23", "busybox", "top")
+	out := cli.DockerCmd(c, "run", "-d", "-p", "23:23", "busybox", "top").Combined()
 
 	id := strings.TrimSpace(out)
 	ip := inspectField(c, id, "NetworkSettings.Networks.bridge.IPAddress")
 	icmd.RunCommand("iptables", "-D", "DOCKER", "-d", fmt.Sprintf("%s/32", ip),
 		"!", "-i", "docker0", "-o", "docker0", "-p", "tcp", "-m", "tcp", "--dport", "23", "-j", "ACCEPT").Assert(c, icmd.Success)
 
-	if err := deleteContainer(id); err != nil {
-		c.Fatal(err)
-	}
+	cli.DockerCmd(c, "rm", "-fv", id)
 
-	dockerCmd(c, "run", "-d", "-p", "23:23", "busybox", "top")
+	cli.DockerCmd(c, "run", "-d", "-p", "23:23", "busybox", "top")
 }
 
 func (s *DockerSuite) TestRunPortInUse(c *check.C) {
@@ -2817,12 +2815,11 @@ func (s *DockerSuite) TestRunVolumesFromRestartAfterRemoved(c *check.C) {
 // run container with --rm should remove container if exit code != 0
 func (s *DockerSuite) TestRunContainerWithRmFlagExitCodeNotEqualToZero(c *check.C) {
 	name := "flowers"
-	out, _, err := dockerCmdWithError("run", "--name", name, "--rm", "busybox", "ls", "/notexists")
-	if err == nil {
-		c.Fatal("Expected docker run to fail", out, err)
-	}
+	cli.Docker(cli.Args("run", "--name", name, "--rm", "busybox", "ls", "/notexists")).Assert(c, icmd.Expected{
+		ExitCode: 1,
+	})
 
-	out = getAllContainers(c)
+	out := cli.DockerCmd(c, "ps", "-q", "-a").Combined()
 	if out != "" {
 		c.Fatal("Expected not to have containers", out)
 	}
@@ -2830,12 +2827,10 @@ func (s *DockerSuite) TestRunContainerWithRmFlagExitCodeNotEqualToZero(c *check.
 
 func (s *DockerSuite) TestRunContainerWithRmFlagCannotStartContainer(c *check.C) {
 	name := "sparkles"
-	out, _, err := dockerCmdWithError("run", "--name", name, "--rm", "busybox", "commandNotFound")
-	if err == nil {
-		c.Fatal("Expected docker run to fail", out, err)
-	}
-
-	out = getAllContainers(c)
+	cli.Docker(cli.Args("run", "--name", name, "--rm", "busybox", "commandNotFound")).Assert(c, icmd.Expected{
+		ExitCode: 127,
+	})
+	out := cli.DockerCmd(c, "ps", "-q", "-a").Combined()
 	if out != "" {
 		c.Fatal("Expected not to have containers", out)
 	}

@@ -94,7 +94,6 @@ func (s *DockerSuite) TestStartRecordError(c *check.C) {
 func (s *DockerSuite) TestStartPausedContainer(c *check.C) {
 	// Windows does not support pausing containers
 	testRequires(c, IsPausable)
-	defer unpauseAllContainers(c)
 
 	runSleepingContainer(c, "-d", "--name", "testing")
 

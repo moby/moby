@@ -53,9 +53,6 @@ func (s *DockerSuite) TestInspectDefault(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectStatus(c *check.C) {
-	if testEnv.DaemonPlatform() != "windows" {
-		defer unpauseAllContainers(c)
-	}
 	out, _ := runSleepingContainer(c, "-d")
 	out = strings.TrimSpace(out)
 

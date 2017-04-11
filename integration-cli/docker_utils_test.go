@@ -33,44 +33,6 @@ func daemonHost() string {
 	return request.DaemonHost()
 }
 
-// FIXME(vdemeester) move this away are remove ignoreNoSuchContainer bool
-func deleteContainer(container ...string) error {
-	return icmd.RunCommand(dockerBinary, append([]string{"rm", "-fv"}, container...)...).Compare(icmd.Success)
-}
-
-func getAllContainers(c *check.C) string {
-	result := icmd.RunCommand(dockerBinary, "ps", "-q", "-a")
-	result.Assert(c, icmd.Success)
-	return result.Combined()
-}
-
-// Deprecated
-func deleteAllContainers(c *check.C) {
-	containers := getAllContainers(c)
-	if containers != "" {
-		err := deleteContainer(strings.Split(strings.TrimSpace(containers), "\n")...)
-		c.Assert(err, checker.IsNil)
-	}
-}
-
-func getPausedContainers(c *check.C) []string {
-	result := icmd.RunCommand(dockerBinary, "ps", "-f", "status=paused", "-q", "-a")
-	result.Assert(c, icmd.Success)
-	return strings.Fields(result.Combined())
-}
-
-func unpauseContainer(c *check.C, container string) {
-	dockerCmd(c, "unpause", container)
-}
-
-// Deprecated
-func unpauseAllContainers(c *check.C) {
-	containers := getPausedContainers(c)
-	for _, value := range containers {
-		unpauseContainer(c, value)
-	}
-}
-
 func deleteImages(images ...string) error {
 	args := []string{dockerBinary, "rmi", "-f"}
 	return icmd.RunCmd(icmd.Cmd{Command: append(args, images...)}).Error
