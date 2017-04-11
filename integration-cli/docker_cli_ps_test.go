@@ -231,9 +231,9 @@ func (s *DockerSuite) TestPsListContainersFilterHealth(c *check.C) {
 	out, _ := runSleepingContainer(c, "--name=none_legacy")
 	containerID := strings.TrimSpace(out)
 
-	waitForContainer(containerID)
+	cli.WaitRun(c, containerID)
 
-	out, _ = dockerCmd(c, "ps", "-q", "-l", "--no-trunc", "--filter=health=none")
+	out = cli.DockerCmd(c, "ps", "-q", "-l", "--no-trunc", "--filter=health=none").Combined()
 	containerOut := strings.TrimSpace(out)
 	c.Assert(containerOut, checker.Equals, containerID, check.Commentf("Expected id %s, got %s for legacy none filter, output: %q", containerID, containerOut, out))
 
@@ -241,9 +241,9 @@ func (s *DockerSuite) TestPsListContainersFilterHealth(c *check.C) {
 	out, _ = runSleepingContainer(c, "--name=none", "--no-healthcheck")
 	containerID = strings.TrimSpace(out)
 
-	waitForContainer(containerID)
+	cli.WaitRun(c, containerID)
 
-	out, _ = dockerCmd(c, "ps", "-q", "-l", "--no-trunc", "--filter=health=none")
+	out = cli.DockerCmd(c, "ps", "-q", "-l", "--no-trunc", "--filter=health=none").Combined()
 	containerOut = strings.TrimSpace(out)
 	c.Assert(containerOut, checker.Equals, containerID, check.Commentf("Expected id %s, got %s for none filter, output: %q", containerID, containerOut, out))
 
@@ -253,7 +253,7 @@ func (s *DockerSuite) TestPsListContainersFilterHealth(c *check.C) {
 
 	waitForHealthStatus(c, "failing_container", "starting", "unhealthy")
 
-	out, _ = dockerCmd(c, "ps", "-q", "--no-trunc", "--filter=health=unhealthy")
+	out = cli.DockerCmd(c, "ps", "-q", "--no-trunc", "--filter=health=unhealthy").Combined()
 	containerOut = strings.TrimSpace(out)
 	c.Assert(containerOut, checker.Equals, containerID, check.Commentf("Expected containerID %s, got %s for unhealthy filter, output: %q", containerID, containerOut, out))
 
@@ -263,7 +263,7 @@ func (s *DockerSuite) TestPsListContainersFilterHealth(c *check.C) {
 
 	waitForHealthStatus(c, "passing_container", "starting", "healthy")
 
-	out, _ = dockerCmd(c, "ps", "-q", "--no-trunc", "--filter=health=healthy")
+	out = cli.DockerCmd(c, "ps", "-q", "--no-trunc", "--filter=health=healthy").Combined()
 	containerOut = strings.TrimSpace(out)
 	c.Assert(containerOut, checker.Equals, containerID, check.Commentf("Expected containerID %s, got %s for healthy filter, output: %q", containerID, containerOut, out))
 }

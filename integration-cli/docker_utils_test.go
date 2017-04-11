@@ -458,38 +458,21 @@ func createTmpFile(c *check.C, content string) string {
 	return filename
 }
 
-func waitForContainer(contID string, args ...string) error {
-	args = append([]string{dockerBinary, "run", "--name", contID}, args...)
-	result := icmd.RunCmd(icmd.Cmd{Command: args})
-	if result.Error != nil {
-		return result.Error
-	}
-	return waitRun(contID)
-}
-
-// waitRestart will wait for the specified container to restart once
-func waitRestart(contID string, duration time.Duration) error {
-	return waitInspect(contID, "{{.RestartCount}}", "1", duration)
-}
-
 // waitRun will wait for the specified container to be running, maximum 5 seconds.
+// Deprecated: use cli.WaitFor
 func waitRun(contID string) error {
 	return waitInspect(contID, "{{.State.Running}}", "true", 5*time.Second)
-}
-
-// waitExited will wait for the specified container to state exit, subject
-// to a maximum time limit in seconds supplied by the caller
-func waitExited(contID string, duration time.Duration) error {
-	return waitInspect(contID, "{{.State.Status}}", "exited", duration)
 }
 
 // waitInspect will wait for the specified container to have the specified string
 // in the inspect output. It will wait until the specified timeout (in seconds)
 // is reached.
+// Deprecated: use cli.WaitFor
 func waitInspect(name, expr, expected string, timeout time.Duration) error {
 	return waitInspectWithArgs(name, expr, expected, timeout)
 }
 
+// Deprecated: use cli.WaitFor
 func waitInspectWithArgs(name, expr, expected string, timeout time.Duration, arg ...string) error {
 	return daemon.WaitInspectWithArgs(dockerBinary, name, expr, expected, timeout, arg...)
 }
