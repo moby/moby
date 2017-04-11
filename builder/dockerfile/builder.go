@@ -52,20 +52,20 @@ type Builder struct {
 	clientCtx context.Context
 
 	runConfig     *container.Config // runconfig for cmd, run, entrypoint etc.
-	flags         *BFlags
 	tmpContainers map[string]struct{}
-	image         string         // imageID
 	imageContexts *imageContexts // helper for storing contexts from builds
-	noBaseImage   bool           // A flag to track the use of `scratch` as the base image
-	maintainer    string
-	cmdSet        bool
 	disableCommit bool
 	cacheBusted   bool
 	buildArgs     *buildArgs
-	escapeToken   rune
+	imageCache    builder.ImageCache
 
-	imageCache builder.ImageCache
-	from       builder.Image
+	// TODO: these move to DispatchState
+	escapeToken rune
+	maintainer  string
+	cmdSet      bool
+	noBaseImage bool   // A flag to track the use of `scratch` as the base image
+	image       string // imageID
+	from        builder.Image
 }
 
 // BuildManager implements builder.Backend and is shared across all Builder objects.
@@ -304,6 +304,7 @@ func (b *Builder) tagImages(repoAndTags []reference.Named) error {
 }
 
 // hasFromImage returns true if the builder has processed a `FROM <image>` line
+// TODO: move to DispatchState
 func (b *Builder) hasFromImage() bool {
 	return b.image != "" || b.noBaseImage
 }
