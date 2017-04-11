@@ -135,9 +135,11 @@ The instruction is not case-sensitive. However, convention is for them to
 be UPPERCASE to distinguish them from arguments more easily.
 
 
-Docker runs instructions in a `Dockerfile` in order. **The first
-instruction must be \`FROM\`** in order to specify the [*Base
-Image*](glossary.md#base-image) from which you are building.
+Docker runs instructions in a `Dockerfile` in order. A `Dockerfile` **must
+start with a \`FROM\` instruction**. The `FROM` instruction specifies the [*Base
+Image*](glossary.md#base-image) from which you are building. `FROM` may only be
+proceeded by one or more `ARG` instructions, which declare arguments that are used
+in `FROM` lines in the `Dockerfile`.
 
 Docker treats lines that *begin* with `#` as a comment, unless the line is
 a valid [parser directive](#parser-directives). A `#` marker anywhere
@@ -356,11 +358,12 @@ the `Dockerfile`:
 * `COPY`
 * `ENV`
 * `EXPOSE`
+* `FROM`
 * `LABEL`
-* `USER`
-* `WORKDIR`
-* `VOLUME`
 * `STOPSIGNAL`
+* `USER`
+* `VOLUME`
+* `WORKDIR`
 
 as well as:
 
@@ -371,14 +374,14 @@ as well as:
 > variable, even when combined with any of the instructions listed above.
 
 Environment variable substitution will use the same value for each variable
-throughout the entire command. In other words, in this example:
+throughout the entire instruction. In other words, in this example:
 
     ENV abc=hello
     ENV abc=bye def=$abc
     ENV ghi=$abc
 
 will result in `def` having a value of `hello`, not `bye`. However,
-`ghi` will have a value of `bye` because it is not part of the same command
+`ghi` will have a value of `bye` because it is not part of the same instruction 
 that set `abc` to `bye`.
 
 ## .dockerignore file
@@ -469,7 +472,7 @@ All of the README files are included.  The middle line has no effect because
 
 You can even use the `.dockerignore` file to exclude the `Dockerfile`
 and `.dockerignore` files.  These files are still sent to the daemon
-because it needs them to do its job.  But the `ADD` and `COPY` commands
+because it needs them to do its job.  But the `ADD` and `COPY` instructions
 do not copy them to the image.
 
 Finally, you may want to specify which files to include in the
@@ -492,24 +495,40 @@ Or
 
 The `FROM` instruction initializes a new build stage and sets the 
 [*Base Image*](glossary.md#base-image) for subsequent instructions. As such, a 
-valid `Dockerfile` must have `FROM` as its first instruction. The image can be
+valid `Dockerfile` must start with a `FROM` instruction. The image can be
 any valid image – it is especially easy to start by **pulling an image** from 
 the [*Public Repositories*](https://docs.docker.com/engine/tutorials/dockerrepos/).
 
-- `FROM` must be the first non-comment instruction in the `Dockerfile`.
+- `ARG` is the only instruction that may proceed `FROM` in the `Dockerfile`. 
+  See [Understand how ARG and FROM interact](#understand-how-arg-and-from-interact).
 
-- `FROM` can appear multiple times within a single `Dockerfile` in order to 
-create multiple images or use one build stage as a dependency for another. 
-Simply make a note of the last image ID output by the commit before each new 
-`FROM` command. Each `FROM` command resets all the previous commands.
+- `FROM` can appear multiple times within a single `Dockerfile` to 
+  create multiple images or use one build stage as a dependency for another.
+  Simply make a note of the last image ID output by the commit before each new 
+  `FROM` instruction. Each `FROM` instruction clears any state created by previous
+  instructions.
 
-- Optionally a name can be given to a new build stage. That name can be then
-used in subsequent `FROM` and `COPY --from=<name|index>` commands to refer back
-to the image built in this stage.
+- Optionally a name can be given to a new build stage by adding `AS name` to the 
+  `FROM` instruction. The name can be used in subsequent `FROM` and
+  `COPY --from=<name|index>` instructions to refer to the image built in this stage.
 
 - The `tag` or `digest` values are optional. If you omit either of them, the 
-builder assumes a `latest` tag by default. The builder returns an error if it
-cannot match the `tag` value.
+  builder assumes a `latest` tag by default. The builder returns an error if it
+  cannot find the `tag` value.
+
+### Understand how ARG and FROM interact
+
+`FROM` instructions support variables that are declared by any `ARG` 
+instructions that occur before the first `FROM`.
+
+```Dockerfile
+ARG  CODE_VERSION=latest
+FROM base:${CODE_VERSION}
+CMD  /code/run-app
+
+FROM extras:${CODE_VERSION}
+CMD  /code/run-extras
+```
 
 ## RUN
 
@@ -947,7 +966,7 @@ Optionally `COPY` accepts a flag `--from=<name|index>` that can be used to set
 the source location to a previous build stage (created with `FROM .. AS <name>`)
 that will be used instead of a build context sent by the user. The flag also 
 accepts a numeric index assigned for all previous build stages started with 
-`FROM` command. In case a build stage with a specified name can't be found an 
+`FROM` instruction. In case a build stage with a specified name can't be found an 
 image with the same name is attempted to be used instead.
 
 `COPY` obeys the following rules:
@@ -1353,7 +1372,7 @@ elsewhere.  For example, consider this Dockerfile:
 A user builds this file by calling:
 
 ```
-$ docker build --build-arg user=what_user Dockerfile
+$ docker build --build-arg user=what_user .
 ```
 
 The `USER` at line 2 evaluates to `some_user` as the `user` variable is defined on the
@@ -1379,7 +1398,7 @@ this Dockerfile with an `ENV` and `ARG` instruction.
 Then, assume this image is built with this command:
 
 ```
-$ docker build --build-arg CONT_IMG_VER=v2.0.1 Dockerfile
+$ docker build --build-arg CONT_IMG_VER=v2.0.1 .
 ```
 
 In this case, the `RUN` instruction uses `v1.0.0` instead of the `ARG` setting
@@ -1401,7 +1420,7 @@ Unlike an `ARG` instruction, `ENV` values are always persisted in the built
 image. Consider a docker build without the `--build-arg` flag:
 
 ```
-$ docker build Dockerfile
+$ docker build .
 ```
 
 Using this Dockerfile example, `CONT_IMG_VER` is still persisted in the image but
