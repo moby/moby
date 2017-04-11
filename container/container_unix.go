@@ -342,6 +342,9 @@ func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfi
 	if resources.CPURealtimeRuntime != 0 {
 		cResources.CPURealtimeRuntime = resources.CPURealtimeRuntime
 	}
+	if resources.PidsLimit != nil {
+		cResources.PidsLimit = resources.PidsLimit
+	}
 
 	// update HostConfig of container
 	if hostConfig.RestartPolicy.Name != "" {
