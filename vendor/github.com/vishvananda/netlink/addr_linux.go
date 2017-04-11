@@ -27,6 +27,19 @@ func (h *Handle) AddrAdd(link Link, addr *Addr) error {
 	return h.addrHandle(link, addr, req)
 }
 
+// AddrReplace will replace (or, if not present, add) an IP address on a link device.
+// Equivalent to: `ip addr replace $addr dev $link`
+func AddrReplace(link Link, addr *Addr) error {
+	return pkgHandle.AddrReplace(link, addr)
+}
+
+// AddrReplace will replace (or, if not present, add) an IP address on a link device.
+// Equivalent to: `ip addr replace $addr dev $link`
+func (h *Handle) AddrReplace(link Link, addr *Addr) error {
+	req := h.newNetlinkRequest(syscall.RTM_NEWADDR, syscall.NLM_F_CREATE|syscall.NLM_F_REPLACE|syscall.NLM_F_ACK)
+	return h.addrHandle(link, addr, req)
+}
+
 // AddrDel will delete an IP address from a link device.
 // Equivalent to: `ip addr del $addr dev $link`
 func AddrDel(link Link, addr *Addr) error {
