@@ -530,3 +530,21 @@ func TestShell(t *testing.T) {
 		t.Fatalf("Shell should be set to %s, got %s", expectedShell, b.runConfig.Shell)
 	}
 }
+
+func TestParseOptInterval(t *testing.T) {
+	flInterval := &Flag{
+		name:     "interval",
+		flagType: stringType,
+		Value:    "50ns",
+	}
+	_, err := parseOptInterval(flInterval)
+	if err == nil {
+		t.Fatalf("Error should be presented for interval %s", flInterval.Value)
+	}
+
+	flInterval.Value = "1ms"
+	_, err = parseOptInterval(flInterval)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err.Error())
+	}
+}
