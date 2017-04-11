@@ -575,7 +575,7 @@ func (pm *Manager) Remove(name string, config *types.PluginRmConfig) error {
 func getMounts(root string) ([]string, error) {
 	infos, err := mount.GetMounts()
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to read mount table while performing recursive unmount")
+		return nil, errors.Wrap(err, "failed to read mount table")
 	}
 
 	var mounts []string

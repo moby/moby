@@ -171,9 +171,17 @@ func (pm *Manager) upgradePlugin(p *v2.Plugin, configDigest digest.Digest, blobs
 
 	pdir := filepath.Join(pm.config.Root, p.PluginObj.ID)
 	orig := filepath.Join(pdir, "rootfs")
+
+	// Make sure nothing is mounted
+	// This could happen if the plugin was disabled with `-f` with active mounts.
+	// If there is anything in `orig` is still mounted, this should error out.
+	if err := recursiveUnmount(orig); err != nil {
+		return err
+	}
+
 	backup := orig + "-old"
 	if err := os.Rename(orig, backup); err != nil {
-		return err
+		return errors.Wrap(err, "error backing up plugin data before upgrade")
 	}
 
 	defer func() {
