@@ -460,9 +460,10 @@ definitions:
         type: "boolean"
         x-nullable: true
       PidsLimit:
-        description: "Tune a container's pids limit. Set -1 for unlimited."
+        description: "Tune a container's pids limit. Set 0 or -1 for unlimited. Leave null to not change"
         type: "integer"
         format: "int64"
+        x-nullable: true
       Ulimits:
         description: |
           A list of resource limits to set in the container. For example: `{"Name": "nofile", "Soft": 1024, "Hard": 2048}`"
@@ -3689,6 +3690,10 @@ definitions:
           See [cpuset(7)](https://www.kernel.org/doc/Documentation/cgroup-v1/cpusets.txt)
         type: "boolean"
         example: true
+      PidsLimit:
+        description: "Indicates if the host kernel has PID limit support enabled."
+        type: "boolean"
+        example: true
       OomKillDisable:
         description: "Indicates if OOM killer disable is supported on the host."
         type: "boolean"
@@ -4625,7 +4630,7 @@ paths:
                 OomKillDisable: false
                 OomScoreAdj: 500
                 PidMode: ""
-                PidsLimit: -1
+                PidsLimit: 0
                 PortBindings:
                   22/tcp:
                     - HostPort: "11022"

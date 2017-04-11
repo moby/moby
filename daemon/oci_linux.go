@@ -72,9 +72,7 @@ func setResources(s *specs.Spec, r containertypes.Resources) error {
 			ThrottleReadIOPSDevice:  readIOpsDevice,
 			ThrottleWriteIOPSDevice: writeIOpsDevice,
 		},
-		Pids: &specs.LinuxPids{
-			Limit: r.PidsLimit,
-		},
+		Pids: getPidsLimit(r),
 	}
 
 	if s.Linux.Resources != nil && len(s.Linux.Resources.Devices) > 0 {

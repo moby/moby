@@ -181,7 +181,7 @@ func verifyPlatformContainerResources(resources *containertypes.Resources, isHyp
 	if resources.OomKillDisable != nil && *resources.OomKillDisable {
 		return warnings, fmt.Errorf("invalid option: Windows does not support OomKillDisable")
 	}
-	if resources.PidsLimit != 0 {
+	if resources.PidsLimit != nil && *resources.PidsLimit != 0 {
 		return warnings, fmt.Errorf("invalid option: Windows does not support PidsLimit")
 	}
 	if len(resources.Ulimits) != 0 {
