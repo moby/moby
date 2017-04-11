@@ -64,6 +64,7 @@ type buildOptions struct {
 	securityOpt    []string
 	networkMode    string
 	squash         bool
+	target         string
 }
 
 // NewBuildCommand creates a new `docker build` command
@@ -115,6 +116,7 @@ func NewBuildCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.StringVar(&options.networkMode, "network", "default", "Set the networking mode for the RUN instructions during build")
 	flags.SetAnnotation("network", "version", []string{"1.25"})
 	flags.Var(&options.extraHosts, "add-host", "Add a custom host-to-IP mapping (host:ip)")
+	flags.StringVar(&options.target, "target", "", "Set the target build stage to build.")
 
 	command.AddTrustVerificationFlags(flags)
 
@@ -302,6 +304,7 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		NetworkMode:    options.networkMode,
 		Squash:         options.squash,
 		ExtraHosts:     options.extraHosts.GetAll(),
+		Target:         options.target,
 	}
 
 	response, err := dockerCli.Client().ImageBuild(ctx, body, buildOptions)

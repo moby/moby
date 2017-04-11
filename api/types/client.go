@@ -176,6 +176,7 @@ type ImageBuildOptions struct {
 	CacheFrom   []string
 	SecurityOpt []string
 	ExtraHosts  []string // List of extra hosts
+	Target      string
 }
 
 // ImageBuildResponse holds information
