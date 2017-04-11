@@ -22,7 +22,9 @@ package dockerfile
 import (
 	"fmt"
 	"strings"
+	"bytes"
 
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder/dockerfile/command"
 	"github.com/docker/docker/builder/dockerfile/parser"
 	"github.com/docker/docker/runconfig/opts"
@@ -56,10 +58,32 @@ var allowWordExpansion = map[string]bool{
 	command.Expose: true,
 }
 
-var evaluateTable map[string]func(*Builder, []string, map[string]bool, string) error
+type dispatchRequest struct {
+	builder    *Builder // TODO: replace this with a smaller interface
+	args       []string
+	attributes map[string]bool
+	flags      *BFlags
+	original   string
+	runConfig  *container.Config
+}
+
+func newDispatchRequestFromNode(node *parser.Node, builder *Builder, args []string) dispatchRequest {
+	return dispatchRequest{
+		builder:    builder,
+		args:       args,
+		attributes: node.Attributes,
+		original:   node.Original,
+		flags:      NewBFlagsWithArgs(node.Flags),
+		runConfig:  builder.runConfig,
+	}
+}
+
+type dispatcher func(dispatchRequest) error
+
+var evaluateTable map[string]dispatcher
 
 func init() {
-	evaluateTable = map[string]func(*Builder, []string, map[string]bool, string) error{
+	evaluateTable = map[string]dispatcher{
 		command.Add:         add,
 		command.Arg:         arg,
 		command.Cmd:         cmd,
@@ -95,8 +119,8 @@ func init() {
 // such as `RUN` in ONBUILD RUN foo. There is special case logic in here to
 // deal with that, at least until it becomes more of a general concern with new
 // features.
-func (b *Builder) dispatch(stepN int, stepTotal int, ast *parser.Node) error {
-	cmd := ast.Value
+func (b *Builder) dispatch(stepN int, stepTotal int, node *parser.Node) error {
+	cmd := node.Value
 	upperCasedCmd := strings.ToUpper(cmd)
 
 	// To ensure the user is given a decent error message if the platform
@@ -105,28 +129,25 @@ func (b *Builder) dispatch(stepN int, stepTotal int, ast *parser.Node) error {
 		return err
 	}
 
-	attrs := ast.Attributes
-	original := ast.Original
-	flags := ast.Flags
 	strList := []string{}
-	msg := fmt.Sprintf("Step %d/%d : %s", stepN+1, stepTotal, upperCasedCmd)
+	msg := bytes.NewBufferString(fmt.Sprintf("Step %d/%d : %s", stepN+1, stepTotal, upperCasedCmd))
 
-	if len(ast.Flags) > 0 {
-		msg += " " + strings.Join(ast.Flags, " ")
+	if len(node.Flags) > 0 {
+		msg.WriteString(strings.Join(node.Flags, " "))
 	}
 
+	ast := node
 	if cmd == "onbuild" {
 		if ast.Next == nil {
 			return errors.New("ONBUILD requires at least one argument")
 		}
 		ast = ast.Next.Children[0]
 		strList = append(strList, ast.Value)
-		msg += " " + ast.Value
+		msg.WriteString(" " + ast.Value)
 
 		if len(ast.Flags) > 0 {
-			msg += " " + strings.Join(ast.Flags, " ")
+			msg.WriteString(" " + strings.Join(ast.Flags, " "))
 		}
-
 	}
 
 	msgList := initMsgList(ast)
@@ -143,15 +164,13 @@ func (b *Builder) dispatch(stepN int, stepTotal int, ast *parser.Node) error {
 		msgList[i] = ast.Value
 	}
 
-	msg += " " + strings.Join(msgList, " ")
-	fmt.Fprintln(b.Stdout, msg)
+	msg.WriteString(" " + strings.Join(msgList, " "))
+	fmt.Fprintln(b.Stdout, msg.String())
 
 	// XXX yes, we skip any cmds that are not valid; the parser should have
 	// picked these out already.
 	if f, ok := evaluateTable[cmd]; ok {
-		b.flags = NewBFlags()
-		b.flags.Args = flags
-		return f(b, strList, attrs, original)
+		return f(newDispatchRequestFromNode(node, b, strList))
 	}
 
 	return fmt.Errorf("Unknown instruction: %s", upperCasedCmd)
