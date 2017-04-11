@@ -345,6 +345,13 @@ This will use a file called `Dockerfile.debug` for the build instructions
 instead of `Dockerfile`.
 
 ```bash
+$ curl example.com/remote/Dockerfile | docker build -f - .
+```
+
+The above command will use the current directory as the build context and read
+a Dockerfile from stdin.
+
+```bash
 $ docker build -f dockerfiles/Dockerfile.debug -t myapp_debug .
 $ docker build -f dockerfiles/Dockerfile.prod  -t myapp_prod .
 ```
