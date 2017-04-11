@@ -4,7 +4,6 @@ import (
 	"errors"
 	"os"
 	"regexp"
-	"strings"
 )
 
 var (
@@ -35,21 +34,24 @@ func replaceEnv(s string) string {
 type Parser struct {
 	ParseEnv      bool
 	ParseBacktick bool
+	Position      int
 }
 
 func NewParser() *Parser {
-	return &Parser{ParseEnv, ParseBacktick}
+	return &Parser{ParseEnv, ParseBacktick, 0}
 }
 
 func (p *Parser) Parse(line string) ([]string, error) {
-	line = strings.TrimSpace(line)
-
 	args := []string{}
 	buf := ""
 	var escaped, doubleQuoted, singleQuoted, backQuote bool
 	backtick := ""
 
-	for _, r := range line {
+	pos := -1
+	got := false
+
+loop:
+	for i, r := range line {
 		if escaped {
 			buf += string(r)
 			escaped = false
@@ -69,12 +71,13 @@ func (p *Parser) Parse(line string) ([]string, error) {
 			if singleQuoted || doubleQuoted || backQuote {
 				buf += string(r)
 				backtick += string(r)
-			} else if buf != "" {
+			} else if got {
 				if p.ParseEnv {
 					buf = replaceEnv(buf)
 				}
 				args = append(args, buf)
 				buf = ""
+				got = false
 			}
 			continue
 		}
@@ -107,15 +110,21 @@ func (p *Parser) Parse(line string) ([]string, error) {
 				singleQuoted = !singleQuoted
 				continue
 			}
+		case ';', '&', '|', '<', '>':
+			if !(escaped || singleQuoted || doubleQuoted || backQuote) {
+				pos = i
+				break loop
+			}
 		}
 
+		got = true
 		buf += string(r)
 		if backQuote {
 			backtick += string(r)
 		}
 	}
 
-	if buf != "" {
+	if got {
 		if p.ParseEnv {
 			buf = replaceEnv(buf)
 		}
@@ -125,6 +134,8 @@ func (p *Parser) Parse(line string) ([]string, error) {
 	if escaped || singleQuoted || doubleQuoted || backQuote {
 		return nil, errors.New("invalid command line string")
 	}
+
+	p.Position = pos
 
 	return args, nil
 }
