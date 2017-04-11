@@ -100,8 +100,7 @@ type ContainerCommitConfig struct {
 	Changes []string
 }
 
-// ProgressWriter is an interface
-// to transport progress streams.
+// ProgressWriter is a data object to transport progress streams to the client
 type ProgressWriter struct {
 	Output             io.Writer
 	StdoutFormatter    *streamformatter.StdoutFormatter

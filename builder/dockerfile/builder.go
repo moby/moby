@@ -65,9 +65,6 @@ type Builder struct {
 	buildArgs     *buildArgs
 	directive     parser.Directive
 
-	// TODO: remove once docker.Commit can receive a tag
-	id string
-
 	imageCache builder.ImageCache
 	from       builder.Image
 }
@@ -127,7 +124,6 @@ func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, back
 		context:       buildContext,
 		runConfig:     new(container.Config),
 		tmpContainers: map[string]struct{}{},
-		id:            stringid.GenerateNonCryptoID(),
 		buildArgs:     newBuildArgs(config.BuildArgs),
 		directive: parser.Directive{
 			EscapeSeen:           false,
