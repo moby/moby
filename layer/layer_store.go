@@ -551,6 +551,9 @@ func (ls *layerStore) GetMountID(id string) (string, error) {
 }
 
 func (ls *layerStore) ReleaseRWLayer(l RWLayer) ([]Metadata, error) {
+	if l == nil {
+		return []Metadata{}, nil
+	}
 	ls.mountL.Lock()
 	defer ls.mountL.Unlock()
 	m, ok := ls.mounts[l.Name()]
