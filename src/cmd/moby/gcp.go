@@ -211,6 +211,11 @@ func (g GCPClient) CreateInstance(name, image, zone, machineType string, replace
 		NetworkInterfaces: []*compute.NetworkInterface{
 			{
 				Network: "global/networks/default",
+				AccessConfigs: []*compute.AccessConfig{
+					{
+						Type: "ONE_TO_ONE_NAT",
+					},
+				},
 			},
 		},
 		Metadata: &compute.Metadata{
