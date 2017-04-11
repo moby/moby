@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/command/inspect"
@@ -79,7 +80,8 @@ func inspectNode(ctx context.Context, dockerCli *command.DockerCli) inspect.GetR
 
 func inspectService(ctx context.Context, dockerCli *command.DockerCli) inspect.GetRefFunc {
 	return func(ref string) (interface{}, []byte, error) {
-		return dockerCli.Client().ServiceInspectWithRaw(ctx, ref)
+		// Service inspect shows defaults values in empty fields.
+		return dockerCli.Client().ServiceInspectWithRaw(ctx, ref, types.ServiceInspectOptions{InsertDefaults: true})
 	}
 }
 

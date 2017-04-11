@@ -1,6 +1,7 @@
 package idresolver
 
 import (
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
 	"golang.org/x/net/context"
@@ -19,7 +20,7 @@ func (cli *fakeClient) NodeInspectWithRaw(ctx context.Context, nodeID string) (s
 	return swarm.Node{}, []byte{}, nil
 }
 
-func (cli *fakeClient) ServiceInspectWithRaw(ctx context.Context, serviceID string) (swarm.Service, []byte, error) {
+func (cli *fakeClient) ServiceInspectWithRaw(ctx context.Context, serviceID string, options types.ServiceInspectOptions) (swarm.Service, []byte, error) {
 	if cli.serviceInspectFunc != nil {
 		return cli.serviceInspectFunc(serviceID)
 	}

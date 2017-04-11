@@ -39,7 +39,7 @@ func (sr *swarmRouter) swarmLogs(ctx context.Context, w http.ResponseWriter, r *
 	// checking for whether logs are TTY involves iterating over every service
 	// and task. idk if there is a better way
 	for _, service := range selector.Services {
-		s, err := sr.backend.GetService(service)
+		s, err := sr.backend.GetService(service, false)
 		if err != nil {
 			// maybe should return some context with this error?
 			return err
