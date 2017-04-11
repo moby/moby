@@ -200,7 +200,7 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 		substituionArgs = append(substituionArgs, key+"="+value)
 	}
 
-	name, err := ProcessWord(args[0], substituionArgs, b.directive.EscapeToken)
+	name, err := ProcessWord(args[0], substituionArgs, b.directive.EscapeToken())
 	if err != nil {
 		return err
 	}

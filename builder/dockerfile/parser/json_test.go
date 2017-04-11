@@ -29,7 +29,7 @@ var validJSONArraysOfStrings = map[string][]string{
 func TestJSONArraysOfStrings(t *testing.T) {
 	for json, expected := range validJSONArraysOfStrings {
 		d := Directive{}
-		SetEscapeToken(DefaultEscapeToken, &d)
+		d.SetEscapeToken(DefaultEscapeToken)
 
 		if node, _, err := parseJSON(json, &d); err != nil {
 			t.Fatalf("%q should be a valid JSON array of strings, but wasn't! (err: %q)", json, err)
@@ -52,7 +52,7 @@ func TestJSONArraysOfStrings(t *testing.T) {
 	}
 	for _, json := range invalidJSONArraysOfStrings {
 		d := Directive{}
-		SetEscapeToken(DefaultEscapeToken, &d)
+		d.SetEscapeToken(DefaultEscapeToken)
 
 		if _, _, err := parseJSON(json, &d); err != errDockerfileNotStringArray {
 			t.Fatalf("%q should be an invalid JSON array of strings, but wasn't!", json)

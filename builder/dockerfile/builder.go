@@ -62,7 +62,7 @@ type Builder struct {
 	disableCommit bool
 	cacheBusted   bool
 	buildArgs     *buildArgs
-	directive     parser.Directive
+	directive     *parser.Directive
 
 	imageCache builder.ImageCache
 	from       builder.Image
@@ -122,14 +122,9 @@ func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, back
 		runConfig:     new(container.Config),
 		tmpContainers: map[string]struct{}{},
 		buildArgs:     newBuildArgs(config.BuildArgs),
-		directive: parser.Directive{
-			EscapeSeen:           false,
-			LookingForDirectives: true,
-		},
+		directive:     parser.NewDefaultDirective(),
 	}
 	b.imageContexts = &imageContexts{b: b}
-
-	parser.SetEscapeToken(parser.DefaultEscapeToken, &b.directive) // Assume the default token for escape
 	return b, nil
 }
 
@@ -325,7 +320,7 @@ func BuildFromConfig(config *container.Config, changes []string) (*container.Con
 		return nil, err
 	}
 
-	ast, err := parser.Parse(bytes.NewBufferString(strings.Join(changes, "\n")), &b.directive)
+	ast, err := parser.Parse(bytes.NewBufferString(strings.Join(changes, "\n")), b.directive)
 	if err != nil {
 		return nil, err
 	}

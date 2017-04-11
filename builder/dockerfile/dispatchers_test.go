@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/builder"
+	"github.com/docker/docker/builder/dockerfile/parser"
 	"github.com/docker/docker/pkg/testutil/assert"
 	"github.com/docker/go-connections/nat"
 )
@@ -204,6 +205,7 @@ func newBuilderWithMockBackend() *Builder {
 		options:   &types.ImageBuildOptions{},
 		docker:    &MockBackend{},
 		buildArgs: newBuildArgs(make(map[string]*string)),
+		directive: parser.NewDefaultDirective(),
 	}
 	b.imageContexts = &imageContexts{b: b}
 	return b

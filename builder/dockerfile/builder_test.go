@@ -10,9 +10,8 @@ import (
 
 func TestAddNodesForLabelOption(t *testing.T) {
 	dockerfile := "FROM scratch"
-	d := parser.Directive{}
-	parser.SetEscapeToken(parser.DefaultEscapeToken, &d)
-	nodes, err := parser.Parse(strings.NewReader(dockerfile), &d)
+	d := parser.NewDefaultDirective()
+	nodes, err := parser.Parse(strings.NewReader(dockerfile), d)
 	assert.NilError(t, err)
 
 	labels := map[string]string{

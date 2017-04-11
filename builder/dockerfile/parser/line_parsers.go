@@ -103,7 +103,7 @@ func parseWords(rest string, d *Directive) []string {
 				blankOK = true
 				phase = inQuote
 			}
-			if ch == d.EscapeToken {
+			if ch == d.escapeToken {
 				if pos+chWidth == len(rest) {
 					continue // just skip an escape token at end of line
 				}
@@ -122,7 +122,7 @@ func parseWords(rest string, d *Directive) []string {
 				phase = inWord
 			}
 			// The escape token is special except for ' quotes - can't escape anything for '
-			if ch == d.EscapeToken && quote != '\'' {
+			if ch == d.escapeToken && quote != '\'' {
 				if pos+chWidth == len(rest) {
 					phase = inWord
 					continue // just skip the escape token at end

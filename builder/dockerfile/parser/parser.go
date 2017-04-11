@@ -62,15 +62,6 @@ func (node *Node) Dump() string {
 	return strings.TrimSpace(str)
 }
 
-// Directive is the structure used during a build run to hold the state of
-// parsing directives.
-type Directive struct {
-	EscapeToken           rune           // Current escape token
-	LineContinuationRegex *regexp.Regexp // Current line continuation regex
-	LookingForDirectives  bool           // Whether we are currently looking for directives
-	EscapeSeen            bool           // Whether the escape directive has been seen
-}
-
 var (
 	dispatch           map[string]func(string, *Directive) (*Node, map[string]bool, error)
 	tokenWhitespace    = regexp.MustCompile(`[\t\v\f\r ]+`)
@@ -81,14 +72,38 @@ var (
 // DefaultEscapeToken is the default escape token
 const DefaultEscapeToken = "\\"
 
+// Directive is the structure used during a build run to hold the state of
+// parsing directives.
+type Directive struct {
+	escapeToken           rune           // Current escape token
+	lineContinuationRegex *regexp.Regexp // Current line continuation regex
+	lookingForDirectives  bool           // Whether we are currently looking for directives
+	escapeSeen            bool           // Whether the escape directive has been seen
+}
+
 // SetEscapeToken sets the default token for escaping characters in a Dockerfile.
-func SetEscapeToken(s string, d *Directive) error {
+func (d *Directive) SetEscapeToken(s string) error {
 	if s != "`" && s != "\\" {
 		return fmt.Errorf("invalid ESCAPE '%s'. Must be ` or \\", s)
 	}
-	d.EscapeToken = rune(s[0])
-	d.LineContinuationRegex = regexp.MustCompile(`\` + s + `[ \t]*$`)
+	d.escapeToken = rune(s[0])
+	d.lineContinuationRegex = regexp.MustCompile(`\` + s + `[ \t]*$`)
 	return nil
+}
+
+// EscapeToken returns the escape token
+func (d *Directive) EscapeToken() rune {
+	return d.escapeToken
+}
+
+// NewDefaultDirective returns a new Directive with the default escapeToken token
+func NewDefaultDirective() *Directive {
+	directive := Directive{
+		escapeSeen:           false,
+		lookingForDirectives: true,
+	}
+	directive.SetEscapeToken(DefaultEscapeToken)
+	return &directive
 }
 
 func init() {
@@ -123,18 +138,18 @@ func init() {
 // ParseLine parses a line and returns the remainder.
 func ParseLine(line string, d *Directive, ignoreCont bool) (string, *Node, error) {
 	if escapeFound, err := handleParserDirective(line, d); err != nil || escapeFound {
-		d.EscapeSeen = escapeFound
+		d.escapeSeen = escapeFound
 		return "", nil, err
 	}
 
-	d.LookingForDirectives = false
+	d.lookingForDirectives = false
 
 	if line = stripComments(line); line == "" {
 		return "", nil, nil
 	}
 
-	if !ignoreCont && d.LineContinuationRegex.MatchString(line) {
-		line = d.LineContinuationRegex.ReplaceAllString(line, "")
+	if !ignoreCont && d.lineContinuationRegex.MatchString(line) {
+		line = d.lineContinuationRegex.ReplaceAllString(line, "")
 		return line, nil, nil
 	}
 
@@ -170,22 +185,22 @@ func newNodeFromLine(line string, directive *Directive) (*Node, error) {
 	}, nil
 }
 
-// Handle the parser directive '# escape=<char>. Parser directives must precede
+// Handle the parser directive '# escapeToken=<char>. Parser directives must precede
 // any builder instruction or other comments, and cannot be repeated.
 func handleParserDirective(line string, d *Directive) (bool, error) {
-	if !d.LookingForDirectives {
+	if !d.lookingForDirectives {
 		return false, nil
 	}
 	tecMatch := tokenEscapeCommand.FindStringSubmatch(strings.ToLower(line))
 	if len(tecMatch) == 0 {
 		return false, nil
 	}
-	if d.EscapeSeen == true {
+	if d.escapeSeen == true {
 		return false, fmt.Errorf("only one escape parser directive can be used")
 	}
 	for i, n := range tokenEscapeCommand.SubexpNames() {
 		if n == "escapechar" {
-			if err := SetEscapeToken(tecMatch[i], d); err != nil {
+			if err := d.SetEscapeToken(tecMatch[i]); err != nil {
 				return false, err
 			}
 			return true, nil
