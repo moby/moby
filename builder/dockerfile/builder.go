@@ -50,7 +50,6 @@ type Builder struct {
 	docker    builder.Backend
 	context   builder.Context
 	clientCtx context.Context
-	cancel    context.CancelFunc
 
 	runConfig     *container.Config // runconfig for cmd, run, entrypoint etc.
 	flags         *BFlags
@@ -113,10 +112,8 @@ func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, back
 	if config == nil {
 		config = new(types.ImageBuildOptions)
 	}
-	ctx, cancel := context.WithCancel(clientCtx)
 	b = &Builder{
-		clientCtx:     ctx,
-		cancel:        cancel,
+		clientCtx:     clientCtx,
 		options:       config,
 		Stdout:        os.Stdout,
 		Stderr:        os.Stderr,
@@ -311,11 +308,6 @@ func (b *Builder) tagImages(repoAndTags []reference.Named) error {
 // hasFromImage returns true if the builder has processed a `FROM <image>` line
 func (b *Builder) hasFromImage() bool {
 	return b.image != "" || b.noBaseImage
-}
-
-// Cancel cancels an ongoing Dockerfile build.
-func (b *Builder) Cancel() {
-	b.cancel()
 }
 
 // BuildFromConfig builds directly from `changes`, treating it as if it were the contents of a Dockerfile
