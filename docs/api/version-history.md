@@ -13,16 +13,20 @@ keywords: "API, Docker, rcli, REST, documentation"
      will be rejected.
 -->
 
+## v1.30 API changes
+
+[Docker Engine API v1.30](https://docs.docker.com/engine/api/v1.30/) documentation
+
 ## v1.29 API changes
 
 [Docker Engine API v1.29](https://docs.docker.com/engine/api/v1.29/) documentation
-
 
 * `DELETE /networks/(name)` now allows to remove the ingress network, the one used to provide the routing-mesh.
 * `POST /networks/create` now supports creating the ingress network, by specifying an `Ingress` boolean field. As of now this is supported only when using the overlay network driver.
 * `GET /networks/(name)` now returns an `Ingress` field showing whether the network is the ingress one.
 * `GET /networks/` now supports a `scope` filter to filter networks based on the network mode (`swarm`, `global`, or `local`).
 * `POST /containers/create`, `POST /service/create` and `POST /services/(id or name)/update` now takes the field `StartPeriod` as a part of the `HealthConfig` allowing for specification of a period during which the container should not be considered unhealthy even if health checks do not pass.
+* `GET /services/(id)` now accepts an `insertDefaults` query-parameter to merge default values into the service inspect output. 
 
 ## v1.28 API changes
 
