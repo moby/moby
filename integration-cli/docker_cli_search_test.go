@@ -17,6 +17,7 @@ func (s *DockerSuite) TestSearchOnCentralRegistry(c *check.C) {
 }
 
 func (s *DockerSuite) TestSearchStarsOptionWithWrongParameter(c *check.C) {
+	testRequires(c, Network)
 	out, _, err := dockerCmdWithError("search", "--filter", "stars=a", "busybox")
 	c.Assert(err, check.NotNil, check.Commentf(out))
 	c.Assert(out, checker.Contains, "Invalid filter", check.Commentf("couldn't find the invalid filter warning"))
