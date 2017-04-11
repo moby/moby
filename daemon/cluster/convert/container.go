@@ -281,7 +281,7 @@ func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 func healthConfigFromGRPC(h *swarmapi.HealthConfig) *container.HealthConfig {
 	interval, _ := gogotypes.DurationFromProto(h.Interval)
 	timeout, _ := gogotypes.DurationFromProto(h.Timeout)
-	startPeriod, _ := gogotypes.DurationFromProto(h.Timeout)
+	startPeriod, _ := gogotypes.DurationFromProto(h.StartPeriod)
 	return &container.HealthConfig{
 		Test:        h.Test,
 		Interval:    interval,
