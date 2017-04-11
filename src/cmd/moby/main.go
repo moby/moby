@@ -42,7 +42,7 @@ func main() {
 		fmt.Printf("USAGE: %s [options] COMMAND\n\n", filepath.Base(os.Args[0]))
 		fmt.Printf("Commands:\n")
 		fmt.Printf("  build       Build a Moby image from a YAML file\n")
-		fmt.Printf("  run         Run a Moby image on a local hypervisor\n")
+		fmt.Printf("  run         Run a Moby image on a local hypervisor or remote cloud\n")
 		fmt.Printf("  version     Print version information\n")
 		fmt.Printf("  help        Print this message\n")
 		fmt.Printf("\n")
