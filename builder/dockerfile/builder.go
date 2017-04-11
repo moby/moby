@@ -196,28 +196,28 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 		return "", err
 	}
 
-	shortImageID, err := b.dispatchDockerfileWithCancellation(dockerfile)
+	imageID, err := b.dispatchDockerfileWithCancellation(dockerfile)
 	if err != nil {
 		return "", err
 	}
 
 	b.warnOnUnusedBuildArgs()
 
-	if b.image == "" {
+	if imageID == "" {
 		return "", errors.New("No image was generated. Is your Dockerfile empty?")
 	}
 
 	if b.options.Squash {
-		if err := b.squashBuild(); err != nil {
+		if imageID, err = b.squashBuild(imageID); err != nil {
 			return "", err
 		}
 	}
 
-	fmt.Fprintf(b.Stdout, "Successfully built %s\n", shortImageID)
-	if err := b.tagImages(repoAndTags); err != nil {
+	fmt.Fprintf(b.Stdout, "Successfully built %s\n", stringid.TruncateID(imageID))
+	if err := b.tagImages(imageID, repoAndTags); err != nil {
 		return "", err
 	}
-	return b.image, nil
+	return imageID, nil
 }
 
 func (b *Builder) dispatchDockerfileWithCancellation(dockerfile *parser.Result) (string, error) {
@@ -225,7 +225,7 @@ func (b *Builder) dispatchDockerfileWithCancellation(dockerfile *parser.Result) 
 	b.escapeToken = dockerfile.EscapeToken
 
 	total := len(dockerfile.AST.Children)
-	var shortImgID string
+	var imageID string
 	for i, n := range dockerfile.AST.Children {
 		select {
 		case <-b.clientCtx.Done():
@@ -247,8 +247,10 @@ func (b *Builder) dispatchDockerfileWithCancellation(dockerfile *parser.Result) 
 			return "", err
 		}
 
-		shortImgID = stringid.TruncateID(b.image)
-		fmt.Fprintf(b.Stdout, " ---> %s\n", shortImgID)
+		// TODO: get this from dispatch
+		imageID = b.image
+
+		fmt.Fprintf(b.Stdout, " ---> %s\n", stringid.TruncateID(imageID))
 		if b.options.Remove {
 			b.clearTmp()
 		}
@@ -258,20 +260,20 @@ func (b *Builder) dispatchDockerfileWithCancellation(dockerfile *parser.Result) 
 		return "", errors.Errorf("failed to reach build target %s in Dockerfile", b.options.Target)
 	}
 
-	return shortImgID, nil
+	return imageID, nil
 }
 
-func (b *Builder) squashBuild() error {
+func (b *Builder) squashBuild(imageID string) (string, error) {
 	var fromID string
 	var err error
 	if b.from != nil {
 		fromID = b.from.ImageID()
 	}
-	b.image, err = b.docker.SquashImage(b.image, fromID)
+	imageID, err = b.docker.SquashImage(imageID, fromID)
 	if err != nil {
-		return errors.Wrap(err, "error squashing image")
+		return "", errors.Wrap(err, "error squashing image")
 	}
-	return nil
+	return imageID, nil
 }
 
 func addNodesForLabelOption(dockerfile *parser.Node, labels map[string]string) {
@@ -292,8 +294,8 @@ func (b *Builder) warnOnUnusedBuildArgs() {
 	}
 }
 
-func (b *Builder) tagImages(repoAndTags []reference.Named) error {
-	imageID := image.ID(b.image)
+func (b *Builder) tagImages(id string, repoAndTags []reference.Named) error {
+	imageID := image.ID(id)
 	for _, rt := range repoAndTags {
 		if err := b.docker.TagImageWithReference(imageID, rt); err != nil {
 			return err
