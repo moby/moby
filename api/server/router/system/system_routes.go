@@ -71,7 +71,7 @@ func (s *systemRouter) getVersion(ctx context.Context, w http.ResponseWriter, r 
 }
 
 func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	du, err := s.backend.SystemDiskUsage()
+	du, err := s.backend.SystemDiskUsage(ctx)
 	if err != nil {
 		return err
 	}

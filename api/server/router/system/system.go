@@ -26,7 +26,7 @@ func NewRouter(b Backend, c *cluster.Cluster) router.Router {
 		router.NewGetRoute("/events", r.getEvents, router.WithCancel),
 		router.NewGetRoute("/info", r.getInfo),
 		router.NewGetRoute("/version", r.getVersion),
-		router.NewGetRoute("/system/df", r.getDiskUsage),
+		router.NewGetRoute("/system/df", r.getDiskUsage, router.WithCancel),
 		router.NewPostRoute("/auth", r.postAuth),
 	}
 
