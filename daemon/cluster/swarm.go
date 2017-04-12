@@ -212,7 +212,7 @@ func (c *Cluster) Update(version uint64, spec types.Spec, flags types.UpdateFlag
 		// In update, client should provide the complete spec of the swarm, including
 		// Name and Labels. If a field is specified with 0 or nil, then the default value
 		// will be used to swarmkit.
-		clusterSpec, err := convert.SwarmSpecToGRPC(spec)
+		clusterSpec, err := convert.SwarmSpecToGRPC(spec, swarm.RootCA.CACert)
 		if err != nil {
 			return apierrors.NewBadRequestError(err)
 		}
@@ -506,7 +506,7 @@ func initClusterSpec(node *swarmnode.Node, spec types.Spec) error {
 			// Note that this is different from Update(), as in Update() we expect
 			// user to specify the complete spec of the cluster (as they already know
 			// the existing one and knows which field to update)
-			clusterSpec, err := convert.MergeSwarmSpecToGRPC(spec, cluster.Spec)
+			clusterSpec, err := convert.MergeSwarmSpecToGRPC(spec, cluster.RootCA.CACert, cluster.Spec)
 			if err != nil {
 				return fmt.Errorf("error updating cluster settings: %v", err)
 			}

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	types "github.com/docker/docker/api/types/swarm"
 	swarmapi "github.com/docker/swarmkit/api"
 	gogotypes "github.com/gogo/protobuf/types"
@@ -47,6 +48,7 @@ func SwarmFromGRPC(c swarmapi.Cluster) types.Swarm {
 			Protocol: types.ExternalCAProtocol(strings.ToLower(ca.Protocol.String())),
 			URL:      ca.URL,
 			Options:  ca.Options,
+			CACert:   ca.CACert,
 		})
 	}
 
@@ -62,12 +64,12 @@ func SwarmFromGRPC(c swarmapi.Cluster) types.Swarm {
 }
 
 // SwarmSpecToGRPC converts a Spec to a grpc ClusterSpec.
-func SwarmSpecToGRPC(s types.Spec) (swarmapi.ClusterSpec, error) {
-	return MergeSwarmSpecToGRPC(s, swarmapi.ClusterSpec{})
+func SwarmSpecToGRPC(s types.Spec, defaultRootCA []byte) (swarmapi.ClusterSpec, error) {
+	return MergeSwarmSpecToGRPC(s, defaultRootCA, swarmapi.ClusterSpec{})
 }
 
 // MergeSwarmSpecToGRPC merges a Spec with an initial grpc ClusterSpec
-func MergeSwarmSpecToGRPC(s types.Spec, spec swarmapi.ClusterSpec) (swarmapi.ClusterSpec, error) {
+func MergeSwarmSpecToGRPC(s types.Spec, defaultRootCA []byte, spec swarmapi.ClusterSpec) (swarmapi.ClusterSpec, error) {
 	// We take the initSpec (either created from scratch, or returned by swarmkit),
 	// and will only change the value if the one taken from types.Spec is not nil or 0.
 	// In other words, if the value taken from types.Spec is nil or 0, we will maintain the status quo.
@@ -103,15 +105,21 @@ func MergeSwarmSpecToGRPC(s types.Spec, spec swarmapi.ClusterSpec) (swarmapi.Clu
 		spec.CAConfig.NodeCertExpiry = gogotypes.DurationProto(s.CAConfig.NodeCertExpiry)
 	}
 
+	logrus.Debugf("**** MergeSwarmSpecToGRPC called with a root CA with len %d and %d external CAs", len(defaultRootCA), len(s.CAConfig.ExternalCAs))
 	for _, ca := range s.CAConfig.ExternalCAs {
 		protocol, ok := swarmapi.ExternalCA_CAProtocol_value[strings.ToUpper(string(ca.Protocol))]
 		if !ok {
 			return swarmapi.ClusterSpec{}, fmt.Errorf("invalid protocol: %q", ca.Protocol)
 		}
+		caCert := ca.CACert
+		if len(caCert) == 0 {
+			caCert = defaultRootCA
+		}
 		spec.CAConfig.ExternalCAs = append(spec.CAConfig.ExternalCAs, &swarmapi.ExternalCA{
 			Protocol: swarmapi.ExternalCA_CAProtocol(protocol),
 			URL:      ca.URL,
 			Options:  ca.Options,
+			CACert:   caCert,
 		})
 	}
 
