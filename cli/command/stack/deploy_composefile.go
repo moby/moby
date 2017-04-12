@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -20,7 +21,7 @@ import (
 )
 
 func deployCompose(ctx context.Context, dockerCli *command.DockerCli, opts deployOptions) error {
-	configDetails, err := getConfigDetails(opts)
+	configDetails, err := getConfigDetails(opts.composefile)
 	if err != nil {
 		return err
 	}
@@ -108,16 +109,16 @@ func propertyWarnings(properties map[string]string) string {
 	return strings.Join(msgs, "\n\n")
 }
 
-func getConfigDetails(opts deployOptions) (composetypes.ConfigDetails, error) {
+func getConfigDetails(composefile string) (composetypes.ConfigDetails, error) {
 	var details composetypes.ConfigDetails
-	var err error
 
-	details.WorkingDir, err = os.Getwd()
+	absPath, err := filepath.Abs(composefile)
 	if err != nil {
 		return details, err
 	}
+	details.WorkingDir = filepath.Dir(absPath)
 
-	configFile, err := getConfigFile(opts.composefile)
+	configFile, err := getConfigFile(composefile)
 	if err != nil {
 		return details, err
 	}
