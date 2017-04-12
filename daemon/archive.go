@@ -83,7 +83,7 @@ func (daemon *Daemon) ContainerArchivePath(name string, path string) (content io
 // be ErrExtractPointNotDirectory. If noOverwriteDirNonDir is true then it will
 // be an error if unpacking the given content would cause an existing directory
 // to be replaced with a non-directory and vice versa.
-func (daemon *Daemon) ContainerExtractToDir(name, path string, noOverwriteDirNonDir bool, content io.Reader) error {
+func (daemon *Daemon) ContainerExtractToDir(name, path string, copyUIDGID, noOverwriteDirNonDir bool, content io.Reader) error {
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
@@ -94,7 +94,7 @@ func (daemon *Daemon) ContainerExtractToDir(name, path string, noOverwriteDirNon
 		return err
 	}
 
-	return daemon.containerExtractToDir(container, path, noOverwriteDirNonDir, content)
+	return daemon.containerExtractToDir(container, path, copyUIDGID, noOverwriteDirNonDir, content)
 }
 
 // containerStatPath stats the filesystem resource at the specified path in this
@@ -196,7 +196,7 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 // noOverwriteDirNonDir is true then it will be an error if unpacking the
 // given content would cause an existing directory to be replaced with a non-
 // directory and vice versa.
-func (daemon *Daemon) containerExtractToDir(container *container.Container, path string, noOverwriteDirNonDir bool, content io.Reader) (err error) {
+func (daemon *Daemon) containerExtractToDir(container *container.Container, path string, copyUIDGID, noOverwriteDirNonDir bool, content io.Reader) (err error) {
 	container.Lock()
 	defer container.Unlock()
 
@@ -279,13 +279,18 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 		return ErrRootFSReadOnly
 	}
 
-	uid, gid := daemon.GetRemappedUIDGID()
-	options := &archive.TarOptions{
-		NoOverwriteDirNonDir: noOverwriteDirNonDir,
-		ChownOpts: &archive.TarChownOptions{
-			UID: uid, GID: gid, // TODO: should all ownership be set to root (either real or remapped)?
-		},
+	options := daemon.defaultTarCopyOptions(noOverwriteDirNonDir)
+
+	if copyUIDGID {
+		var err error
+		// tarCopyOptions will appropriately pull in the right uid/gid for the
+		// user/group and will set the options.
+		options, err = daemon.tarCopyOptions(container, noOverwriteDirNonDir)
+		if err != nil {
+			return err
+		}
 	}
+
 	if err := chrootarchive.Untar(content, resolvedPath, options); err != nil {
 		return err
 	}

@@ -38,6 +38,10 @@ func (cli *Client) CopyToContainer(ctx context.Context, container, path string, 
 		query.Set("noOverwriteDirNonDir", "true")
 	}
 
+	if options.CopyUIDGID {
+		query.Set("copyUIDGID", "true")
+	}
+
 	apiPath := fmt.Sprintf("/containers/%s/archive", container)
 
 	response, err := cli.putRaw(ctx, apiPath, query, content, nil)
