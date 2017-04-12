@@ -10,6 +10,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/hyperkit/go"
 	"github.com/rneugeba/iso9660wrap"
+	"github.com/satori/go.uuid"
 )
 
 // Process the run arguments and execute run
@@ -66,7 +67,7 @@ func runHyperKit(args []string) {
 		}
 	}
 
-	uuidStr := ""
+	vpnKitKey := ""
 	if *ipStr != "" {
 		// If an IP address was requested construct a "special" UUID
 		// for the VM.
@@ -76,9 +77,12 @@ func runHyperKit(args []string) {
 			uuid[13] = ip.To4()[1]
 			uuid[14] = ip.To4()[2]
 			uuid[15] = ip.To4()[3]
-			uuidStr = fmt.Sprintf("%x-%x-%x-%x-%x", uuid[0:4], uuid[4:6], uuid[6:8], uuid[8:10], uuid[10:])
+			vpnKitKey = fmt.Sprintf("%x-%x-%x-%x-%x", uuid[0:4], uuid[4:6], uuid[6:8], uuid[8:10], uuid[10:])
 		}
 	}
+
+	// Generate new UUID, otherwise /sys/class/dmi/id/product_uuid is identical on all VMs
+	vmUUID := uuid.NewV4().String()
 
 	// Run
 	cmdline, err := ioutil.ReadFile(prefix + "-cmdline")
@@ -97,7 +101,8 @@ func runHyperKit(args []string) {
 
 	h.Kernel = prefix + "-bzImage"
 	h.Initrd = prefix + "-initrd.img"
-	h.UUID = uuidStr
+	h.VPNKitKey = vpnKitKey
+	h.UUID = vmUUID
 	h.DiskImage = *disk
 	h.ISOImage = isoPath
 	h.CPUs = *cpus
