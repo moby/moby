@@ -54,6 +54,7 @@ import (
 	volumedrivers "github.com/docker/docker/volume/drivers"
 	"github.com/docker/docker/volume/local"
 	"github.com/docker/docker/volume/store"
+	runtimemgr "github.com/docker/docker/runtime"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/cluster"
 	nwconfig "github.com/docker/libnetwork/config"
@@ -78,6 +79,7 @@ type Daemon struct {
 	referenceStore            refstore.Store
 	downloadManager           *xfer.LayerDownloadManager
 	uploadManager             *xfer.LayerUploadManager
+	runtimeManager            *runtimemgr.RuntimeManager
 	distributionMetadataStore dmetadata.Store
 	trustKey                  libtrust.PrivateKey
 	idIndex                   *truncindex.TruncIndex
@@ -641,6 +643,11 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 		return nil, err
 	}
 
+	// Initialize the runtimes
+	if err = d.initializeRuntimes(); err != nil {
+		return nil, err
+	}
+
 	// Configure the volumes driver
 	volStore, err := d.configureVolumes(rootUID, rootGID)
 	if err != nil {
@@ -998,6 +1005,22 @@ func (daemon *Daemon) configureVolumes(rootUID, rootGID int) (*store.VolumeStore
 		return nil, errors.New("local volume driver could not be registered")
 	}
 	return store.New(daemon.configStore.Root)
+}
+
+func (daemon *Daemon) initializeRuntimes() error {
+	daemon.runtimeManager = runtimemgr.NewRuntimeManager()
+
+	daemon.runtimeManager.RegisterPluginGetter(daemon.PluginStore)
+
+	runtimes := daemon.configStore.GetAllRuntimes()
+	for name, r := range runtimes {
+		daemon.runtimeManager.RegisterConfiguredRuntime(name, r)
+	}
+
+	defaultRuntime := daemon.configStore.GetDefaultRuntimeName()
+	daemon.runtimeManager.SetDefaultRuntime(defaultRuntime)
+
+	return daemon.runtimeManager.FillCache()
 }
 
 // IsShuttingDown tells whether the daemon is shutting down or not
