@@ -132,27 +132,34 @@ func TestCommandseBlankNames(t *testing.T) {
 }
 
 func TestEnv2Variables(t *testing.T) {
-	variables := []string{"var1", "val1", "var2", "val2"}
+	b := newBuilderWithMockBackend()
+	b.disableCommit = true
 
-	bflags := &BFlags{}
-	config := &container.Config{}
+	args := []string{"var1", "val1", "var2", "val2"}
+	err := env(b, args, nil, "")
+	assert.NilError(t, err)
 
-	b := &Builder{flags: bflags, runConfig: config, disableCommit: true}
-
-	if err := env(b, variables, nil, ""); err != nil {
-		t.Fatalf("Error when executing env: %s", err.Error())
+	expected := []string{
+		fmt.Sprintf("%s=%s", args[0], args[1]),
+		fmt.Sprintf("%s=%s", args[2], args[3]),
 	}
+	assert.DeepEqual(t, b.runConfig.Env, expected)
+}
 
-	expectedVar1 := fmt.Sprintf("%s=%s", variables[0], variables[1])
-	expectedVar2 := fmt.Sprintf("%s=%s", variables[2], variables[3])
+func TestEnvValueWithExistingRunConfigEnv(t *testing.T) {
+	b := newBuilderWithMockBackend()
+	b.disableCommit = true
+	b.runConfig.Env = []string{"var1=old", "var2=fromenv"}
 
-	if b.runConfig.Env[0] != expectedVar1 {
-		t.Fatalf("Wrong env output for first variable. Got: %s. Should be: %s", b.runConfig.Env[0], expectedVar1)
+	args := []string{"var1", "val1"}
+	err := env(b, args, nil, "")
+	assert.NilError(t, err)
+
+	expected := []string{
+		fmt.Sprintf("%s=%s", args[0], args[1]),
+		"var2=fromenv",
 	}
-
-	if b.runConfig.Env[1] != expectedVar2 {
-		t.Fatalf("Wrong env output for second variable. Got: %s, Should be: %s", b.runConfig.Env[1], expectedVar2)
-	}
+	assert.DeepEqual(t, b.runConfig.Env, expected)
 }
 
 func TestMaintainer(t *testing.T) {

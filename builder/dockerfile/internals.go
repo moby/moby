@@ -35,7 +35,6 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/pkg/urlutil"
-	"github.com/docker/docker/runconfig/opts"
 	"github.com/pkg/errors"
 )
 
@@ -433,11 +432,7 @@ func (b *Builder) processImageFrom(img builder.Image) error {
 	// Check to see if we have a default PATH, note that windows won't
 	// have one as it's set by HCS
 	if system.DefaultPathEnv != "" {
-		// Convert the slice of strings that represent the current list
-		// of env vars into a map so we can see if PATH is already set.
-		// If it's not set then go ahead and give it our default value
-		configEnv := opts.ConvertKVStringsToMap(b.runConfig.Env)
-		if _, ok := configEnv["PATH"]; !ok {
+		if _, ok := b.runConfigEnvMapping()["PATH"]; !ok {
 			b.runConfig.Env = append(b.runConfig.Env,
 				"PATH="+system.DefaultPathEnv)
 		}
@@ -472,19 +467,24 @@ func (b *Builder) processImageFrom(img builder.Image) error {
 			return err
 		}
 
-		total := len(ast.Children)
 		for _, n := range ast.Children {
-			if err := b.checkDispatch(n, true); err != nil {
+			if err := checkDispatch(n); err != nil {
 				return err
+			}
+
+			upperCasedCmd := strings.ToUpper(n.Value)
+			switch upperCasedCmd {
+			case "ONBUILD":
+				return errors.New("Chaining ONBUILD via `ONBUILD ONBUILD` isn't allowed")
+			case "MAINTAINER", "FROM":
+				return errors.Errorf("%s isn't allowed as an ONBUILD trigger", upperCasedCmd)
 			}
 		}
-		for i, n := range ast.Children {
-			if err := b.dispatch(i, total, n); err != nil {
-				return err
-			}
+
+		if err := dispatchFromDockerfile(b, ast); err != nil {
+			return err
 		}
 	}
-
 	return nil
 }
 
@@ -649,8 +649,8 @@ func (b *Builder) clearTmp() {
 	}
 }
 
-// readDockerfile reads a Dockerfile from the current context.
-func (b *Builder) readDockerfile() (*parser.Node, error) {
+// readAndParseDockerfile reads a Dockerfile from the current context.
+func (b *Builder) readAndParseDockerfile() (*parser.Node, error) {
 	// If no -f was specified then look for 'Dockerfile'. If we can't find
 	// that then look for 'dockerfile'.  If neither are found then default
 	// back to 'Dockerfile' and use that in the error message.
