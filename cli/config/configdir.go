@@ -13,7 +13,7 @@ var (
 )
 
 // Dir returns the path to the configuration directory as specified by the DOCKER_CONFIG environment variable.
-// TODO: this was copied from cli/config/configfile and should be removed once cmd/dockerd moves
+// TODO: this was copied from cli/config/configfile and should be removed once cmd/server moves
 func Dir() string {
 	return configDir
 }

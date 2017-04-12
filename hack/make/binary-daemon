@@ -24,6 +24,6 @@ copy_binaries() {
 
 [ -z "$KEEPDEST" ] && rm -rf "$DEST"
 export BINARY_SHORT_NAME="$DAEMON_BINARY_NAME"
-export GO_PACKAGE='github.com/docker/docker/cmd/dockerd'
+export GO_PACKAGE='github.com/docker/docker/cmd/server'
 source "${MAKEDIR}/.binary"
 copy_binaries "$DEST" 'hash'

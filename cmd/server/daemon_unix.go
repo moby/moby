@@ -11,7 +11,7 @@ import (
 	"strconv"
 
 	"github.com/containerd/containerd/linux"
-	"github.com/docker/docker/cmd/dockerd/hack"
+	"github.com/docker/docker/cmd/server/hack"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/pkg/parsers/kernel"

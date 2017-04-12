@@ -21,7 +21,7 @@ func TestParseLogTag(t *testing.T) {
 func TestParseLogTagEmptyTag(t *testing.T) {
 	info := buildContext(map[string]string{})
 	tag, e := ParseLogTag(info, "{{.DaemonName}}/{{.ID}}")
-	assertTag(t, e, tag, "test-dockerd/container-ab")
+	assertTag(t, e, tag, "test-server/container-ab")
 }
 
 // Helpers
@@ -33,7 +33,7 @@ func buildContext(cfg map[string]string) logger.Info {
 		ContainerImageID:   "image-abcdefghijklmnopqrstuvwxyz01234567890",
 		ContainerImageName: "test-image",
 		Config:             cfg,
-		DaemonName:         "test-dockerd",
+		DaemonName:         "test-server",
 	}
 }
 

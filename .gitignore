@@ -14,7 +14,7 @@ test.main
 .go-pkg-cache/
 autogen/
 bundles/
-cmd/dockerd/dockerd
+cmd/server/server
 contrib/builder/rpm/*/changelog
 dockerversion/version_autogen.go
 dockerversion/version_autogen_unix.go

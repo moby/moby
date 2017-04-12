@@ -126,7 +126,7 @@ type Version struct {
 // in the version-string of external tools, such as containerd, or runC.
 type Commit struct {
 	ID       string // ID is the actual commit ID of external tool.
-	Expected string // Expected is the commit ID of external tool expected by dockerd as set at build time.
+	Expected string // Expected is the commit ID of external tool expected by cmd/server as set at build time.
 }
 
 // Info contains response of Engine API:
