@@ -16,8 +16,8 @@ autogen/
 bundles/
 cmd/server/server
 contrib/builder/rpm/*/changelog
-dockerversion/version_autogen.go
-dockerversion/version_autogen_unix.go
+autoversion/version_autogen.go
+autoversion/version_autogen_unix.go
 daemon/runtime_autogen.go
 libcontainerd/binaries_autogen_unix.go
 vendor/pkg/

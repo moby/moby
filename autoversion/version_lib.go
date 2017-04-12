@@ -1,7 +1,7 @@
 // +build !autogen
 
-// Package dockerversion is auto-generated at build-time
-package dockerversion
+// Package autoversion is auto-generated at build-time
+package autoversion
 
 // Default build-time variable for library-import.
 // This file is overridden on build with build-time informations.

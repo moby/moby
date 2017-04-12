@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/autoversion"
 	"github.com/docker/docker/layer"
 	"github.com/opencontainers/go-digest"
 )
@@ -155,7 +155,7 @@ func NewChildImage(img *Image, child ChildConfig, platform string) *Image {
 
 	return &Image{
 		V1Image: V1Image{
-			DockerVersion:   dockerversion.Version,
+			DockerVersion:   autoversion.Version,
 			Config:          child.Config,
 			Architecture:    runtime.GOARCH,
 			OS:              platform,

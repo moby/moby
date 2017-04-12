@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/autoversion"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -28,7 +28,7 @@ func (daemon *Daemon) FillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 	v.DefaultRuntime = daemon.configStore.GetDefaultRuntimeName()
 	v.InitBinary = daemon.configStore.GetInitPath()
 
-	v.RuncCommit.Expected = dockerversion.RuncCommitID
+	v.RuncCommit.Expected = autoversion.RuncCommitID
 	defaultRuntimeBinary := daemon.configStore.GetRuntime(v.DefaultRuntime).Path
 	if rv, err := exec.Command(defaultRuntimeBinary, "--version").Output(); err == nil {
 		parts := strings.Split(strings.TrimSpace(string(rv)), "\n")
@@ -72,14 +72,14 @@ func (daemon *Daemon) FillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 
 // parseInitVersion parses a Tini version string, and extracts the version.
 func parseInitVersion(v string) (types.Commit, error) {
-	version := types.Commit{ID: "", Expected: dockerversion.InitCommitID}
+	version := types.Commit{ID: "", Expected: autoversion.InitCommitID}
 	parts := strings.Split(strings.TrimSpace(v), " - ")
 
 	if len(parts) >= 2 {
 		gitParts := strings.Split(parts[1], ".")
 		if len(gitParts) == 2 && gitParts[0] == "git" {
 			version.ID = gitParts[1]
-			version.Expected = dockerversion.InitCommitID[0:len(version.ID)]
+			version.Expected = autoversion.InitCommitID[0:len(version.ID)]
 		}
 	}
 	if version.ID == "" && strings.HasPrefix(parts[0], "tini version ") {

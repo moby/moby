@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/autoversion"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/pkg/errors"
@@ -116,7 +116,7 @@ func (ic *ImageCache) restoreCachedImage(parent, target *image.Image, cfg *conta
 
 	config, err := json.Marshal(&image.Image{
 		V1Image: image.V1Image{
-			DockerVersion: dockerversion.Version,
+			DockerVersion: autoversion.Version,
 			Config:        cfg,
 			Architecture:  target.Architecture,
 			OS:            target.OS,

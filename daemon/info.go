@@ -9,9 +9,9 @@ import (
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/autoversion"
 	"github.com/docker/docker/cli/debug"
 	"github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/parsers/operatingsystem"
@@ -127,7 +127,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		DockerRootDir:      daemon.configStore.Root,
 		Labels:             daemon.configStore.Labels,
 		ExperimentalBuild:  daemon.configStore.Experimental,
-		ServerVersion:      dockerversion.Version,
+		ServerVersion:      autoversion.Version,
 		ClusterStore:       daemon.configStore.ClusterStore,
 		ClusterAdvertise:   daemon.configStore.ClusterAdvertise,
 		HTTPProxy:          sockets.GetProxyEnv("http_proxy"),
@@ -155,13 +155,13 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 // SystemVersion returns version information about the daemon.
 func (daemon *Daemon) SystemVersion() types.Version {
 	v := types.Version{
-		Version:       dockerversion.Version,
-		GitCommit:     dockerversion.GitCommit,
+		Version:       autoversion.Version,
+		GitCommit:     autoversion.GitCommit,
 		MinAPIVersion: api.MinVersion,
 		GoVersion:     runtime.Version(),
 		Os:            runtime.GOOS,
 		Arch:          runtime.GOARCH,
-		BuildTime:     dockerversion.BuildTime,
+		BuildTime:     autoversion.BuildTime,
 		Experimental:  daemon.configStore.Experimental,
 	}
 

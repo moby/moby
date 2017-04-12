@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/docker/docker/autoversion"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/term"
 	"github.com/sirupsen/logrus"
@@ -81,7 +81,7 @@ func runDaemon(opts *daemonOptions) error {
 }
 
 func showVersion() {
-	fmt.Printf("Docker version %s, build %s\n", dockerversion.Version, dockerversion.GitCommit)
+	fmt.Printf("Docker version %s, build %s\n", autoversion.Version, autoversion.GitCommit)
 }
 
 func main() {

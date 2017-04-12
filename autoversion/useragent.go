@@ -1,4 +1,4 @@
-package dockerversion
+package autoversion
 
 import (
 	"fmt"

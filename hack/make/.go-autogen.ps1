@@ -34,8 +34,8 @@ try {
     $fileContents = '
 // +build autogen
 
-// Package dockerversion is auto-generated at build-time
-package dockerversion
+// Package autoversion is auto-generated at build-time
+package autoversion
 
 // Default build-time variable for library-import.
 // This file is overridden on build with build-time informations.
@@ -49,7 +49,7 @@ const (
 '
 
     # Write the file without BOM
-    $outputFile="$(pwd)\dockerversion\version_autogen.go"
+    $outputFile="$(pwd)\autoversion\version_autogen.go"
     if (Test-Path $outputFile) { Remove-Item $outputFile }
     [System.IO.File]::WriteAllText($outputFile, $fileContents, (New-Object System.Text.UTF8Encoding($False)))
 

@@ -8,7 +8,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	registrytypes "github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/autoversion"
 )
 
 var acceptedSearchFilterTags = map[string]bool{
@@ -60,7 +60,7 @@ func (daemon *Daemon) SearchRegistryForImages(ctx context.Context, filtersArgs s
 		}
 	}
 
-	unfilteredResult, err := daemon.RegistryService.Search(ctx, term, limit, authConfig, dockerversion.DockerUserAgent(ctx), headers)
+	unfilteredResult, err := daemon.RegistryService.Search(ctx, term, limit, authConfig, autoversion.DockerUserAgent(ctx), headers)
 	if err != nil {
 		return nil, err
 	}

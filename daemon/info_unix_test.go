@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/autoversion"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -18,24 +18,24 @@ func TestParseInitVersion(t *testing.T) {
 	}{
 		{
 			version: "tini version 0.13.0 - git.949e6fa",
-			result:  types.Commit{ID: "949e6fa", Expected: dockerversion.InitCommitID[0:7]},
+			result:  types.Commit{ID: "949e6fa", Expected: autoversion.InitCommitID[0:7]},
 		}, {
 			version: "tini version 0.13.0\n",
-			result:  types.Commit{ID: "v0.13.0", Expected: dockerversion.InitCommitID},
+			result:  types.Commit{ID: "v0.13.0", Expected: autoversion.InitCommitID},
 		}, {
 			version: "tini version 0.13.2",
-			result:  types.Commit{ID: "v0.13.2", Expected: dockerversion.InitCommitID},
+			result:  types.Commit{ID: "v0.13.2", Expected: autoversion.InitCommitID},
 		}, {
 			version: "tini version0.13.2",
-			result:  types.Commit{ID: "N/A", Expected: dockerversion.InitCommitID},
+			result:  types.Commit{ID: "N/A", Expected: autoversion.InitCommitID},
 			invalid: true,
 		}, {
 			version: "",
-			result:  types.Commit{ID: "N/A", Expected: dockerversion.InitCommitID},
+			result:  types.Commit{ID: "N/A", Expected: autoversion.InitCommitID},
 			invalid: true,
 		}, {
 			version: "hello world",
-			result:  types.Commit{ID: "N/A", Expected: dockerversion.InitCommitID},
+			result:  types.Commit{ID: "N/A", Expected: autoversion.InitCommitID},
 			invalid: true,
 		},
 	}

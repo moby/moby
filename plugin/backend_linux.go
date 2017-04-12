@@ -18,10 +18,10 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/autoversion"
 	"github.com/docker/docker/distribution"
 	progressutils "github.com/docker/docker/distribution/utils"
 	"github.com/docker/docker/distribution/xfer"
-	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/authorization"
@@ -743,7 +743,7 @@ func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, 
 		DiffIds: []string{layerDigester.Digest().String()},
 	}
 
-	config.DockerVersion = dockerversion.Version
+	config.DockerVersion = autoversion.Version
 
 	configBlob, err := pm.blobStore.New()
 	if err != nil {

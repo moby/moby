@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/autoversion"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/discovery"
@@ -36,7 +37,6 @@ import (
 	"github.com/docker/docker/daemon/stats"
 	dmetadata "github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
-	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/libcontainerd"
@@ -902,8 +902,8 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	info, _ := d.SystemInfo()
 
 	engineInfo.WithValues(
-		dockerversion.Version,
-		dockerversion.GitCommit,
+		autoversion.Version,
+		autoversion.GitCommit,
 		info.Architecture,
 		info.Driver,
 		info.KernelVersion,
@@ -925,8 +925,8 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 		}
 	}
 	logrus.WithFields(logrus.Fields{
-		"version":        dockerversion.Version,
-		"commit":         dockerversion.GitCommit,
+		"version":        autoversion.Version,
+		"commit":         autoversion.GitCommit,
 		"graphdriver(s)": gd,
 	}).Info("Docker daemon")
 
