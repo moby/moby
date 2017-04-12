@@ -18,6 +18,7 @@ func runUsage() {
 	fmt.Printf("  hyperkit [macOS]\n")
 	fmt.Printf("  qemu [linux]\n")
 	fmt.Printf("  vmware\n")
+	fmt.Printf("  packet\n")
 	fmt.Printf("\n")
 	fmt.Printf("'options' are the backend specific options.\n")
 	fmt.Printf("See 'moby run [backend] --help' for details.\n\n")
@@ -43,6 +44,8 @@ func run(args []string) {
 		runGcp(args[1:])
 	case "qemu":
 		runQemu(args[1:])
+	case "packet":
+		runPacket(args[1:])
 	default:
 		switch runtime.GOOS {
 		case "darwin":
