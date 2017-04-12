@@ -56,6 +56,20 @@ var schema = string(`
         "type": "array", 
         "items": {"type": "string"}
     },
+    "mount": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "destination": { "type": "string" },
+        "type": { "type": "string" },
+        "source": { "type": "string" },
+        "options": { "$ref": "#/definitions/strings" }
+      }
+    },
+    "mounts": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/mount" }
+    },
     "image": {
       "type": "object",
       "additionalProperties": false,
@@ -64,7 +78,7 @@ var schema = string(`
         "name": {"type": "string"},
         "image": {"type": "string"},
         "capabilities": { "$ref": "#/definitions/strings" },
-        "mounts": { "$ref": "#/definitions/strings" },
+        "mounts": { "$ref": "#/definitions/mounts" },
         "binds": { "$ref": "#/definitions/strings" },
         "tmpfs": { "$ref": "#/definitions/strings" },
         "command": { "$ref": "#/definitions/strings" },
