@@ -62,7 +62,7 @@ type Builder struct {
 	disableCommit bool
 	cacheBusted   bool
 	buildArgs     *buildArgs
-	directive     *parser.Directive
+	escapeToken   rune
 
 	imageCache builder.ImageCache
 	from       builder.Image
@@ -122,7 +122,7 @@ func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, back
 		runConfig:     new(container.Config),
 		tmpContainers: map[string]struct{}{},
 		buildArgs:     newBuildArgs(config.BuildArgs),
-		directive:     parser.NewDefaultDirective(),
+		escapeToken:   parser.DefaultEscapeToken,
 	}
 	b.imageContexts = &imageContexts{b: b}
 	return b, nil
@@ -190,9 +190,9 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 		return "", err
 	}
 
-	addNodesForLabelOption(dockerfile, b.options.Labels)
+	addNodesForLabelOption(dockerfile.AST, b.options.Labels)
 
-	if err := checkDispatchDockerfile(dockerfile); err != nil {
+	if err := checkDispatchDockerfile(dockerfile.AST); err != nil {
 		return "", err
 	}
 
@@ -220,10 +220,13 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 	return b.image, nil
 }
 
-func (b *Builder) dispatchDockerfileWithCancellation(dockerfile *parser.Node) (string, error) {
-	total := len(dockerfile.Children)
+func (b *Builder) dispatchDockerfileWithCancellation(dockerfile *parser.Result) (string, error) {
+	// TODO: pass this to dispatchRequest instead
+	b.escapeToken = dockerfile.EscapeToken
+
+	total := len(dockerfile.AST.Children)
 	var shortImgID string
-	for i, n := range dockerfile.Children {
+	for i, n := range dockerfile.AST.Children {
 		select {
 		case <-b.clientCtx.Done():
 			logrus.Debug("Builder: build cancelled!")
@@ -320,13 +323,13 @@ func BuildFromConfig(config *container.Config, changes []string) (*container.Con
 		return nil, err
 	}
 
-	ast, err := parser.Parse(bytes.NewBufferString(strings.Join(changes, "\n")), b.directive)
+	result, err := parser.Parse(bytes.NewBufferString(strings.Join(changes, "\n")))
 	if err != nil {
 		return nil, err
 	}
 
 	// ensure that the commands are valid
-	for _, n := range ast.Children {
+	for _, n := range result.AST.Children {
 		if !validCommitCommands[n.Value] {
 			return nil, fmt.Errorf("%s is not a valid change command", n.Value)
 		}
@@ -337,11 +340,11 @@ func BuildFromConfig(config *container.Config, changes []string) (*container.Con
 	b.Stderr = ioutil.Discard
 	b.disableCommit = true
 
-	if err := checkDispatchDockerfile(ast); err != nil {
+	if err := checkDispatchDockerfile(result.AST); err != nil {
 		return nil, err
 	}
 
-	if err := dispatchFromDockerfile(b, ast); err != nil {
+	if err := dispatchFromDockerfile(b, result); err != nil {
 		return nil, err
 	}
 	return b.runConfig, nil
@@ -356,8 +359,12 @@ func checkDispatchDockerfile(dockerfile *parser.Node) error {
 	return nil
 }
 
-func dispatchFromDockerfile(b *Builder, ast *parser.Node) error {
+func dispatchFromDockerfile(b *Builder, result *parser.Result) error {
+	// TODO: pass this to dispatchRequest instead
+	b.escapeToken = result.EscapeToken
+	ast := result.AST
 	total := len(ast.Children)
+
 	for i, n := range ast.Children {
 		if err := b.dispatch(i, total, n); err != nil {
 			return err

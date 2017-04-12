@@ -34,7 +34,7 @@ type Node struct {
 	Original   string          // original line used before parsing
 	Flags      []string        // only top Node should have this set
 	StartLine  int             // the line in the original dockerfile where the node begins
-	EndLine    int             // the line in the original dockerfile where the node ends
+	endLine    int             // the line in the original dockerfile where the node ends
 }
 
 // Dump dumps the AST defined by `node` as a list of sexps.
@@ -70,7 +70,7 @@ var (
 )
 
 // DefaultEscapeToken is the default escape token
-const DefaultEscapeToken = "\\"
+const DefaultEscapeToken = '\\'
 
 // Directive is the structure used during a build run to hold the state of
 // parsing directives.
@@ -81,8 +81,8 @@ type Directive struct {
 	escapeSeen            bool           // Whether the escape directive has been seen
 }
 
-// SetEscapeToken sets the default token for escaping characters in a Dockerfile.
-func (d *Directive) SetEscapeToken(s string) error {
+// setEscapeToken sets the default token for escaping characters in a Dockerfile.
+func (d *Directive) setEscapeToken(s string) error {
 	if s != "`" && s != "\\" {
 		return fmt.Errorf("invalid ESCAPE '%s'. Must be ` or \\", s)
 	}
@@ -91,18 +91,13 @@ func (d *Directive) SetEscapeToken(s string) error {
 	return nil
 }
 
-// EscapeToken returns the escape token
-func (d *Directive) EscapeToken() rune {
-	return d.escapeToken
-}
-
 // NewDefaultDirective returns a new Directive with the default escapeToken token
 func NewDefaultDirective() *Directive {
 	directive := Directive{
 		escapeSeen:           false,
 		lookingForDirectives: true,
 	}
-	directive.SetEscapeToken(DefaultEscapeToken)
+	directive.setEscapeToken(string(DefaultEscapeToken))
 	return &directive
 }
 
@@ -200,7 +195,7 @@ func handleParserDirective(line string, d *Directive) (bool, error) {
 	}
 	for i, n := range tokenEscapeCommand.SubexpNames() {
 		if n == "escapechar" {
-			if err := d.SetEscapeToken(tecMatch[i]); err != nil {
+			if err := d.setEscapeToken(tecMatch[i]); err != nil {
 				return false, err
 			}
 			return true, nil
@@ -209,9 +204,16 @@ func handleParserDirective(line string, d *Directive) (bool, error) {
 	return false, nil
 }
 
-// Parse is the main parse routine.
-// It handles an io.ReadWriteCloser and returns the root of the AST.
-func Parse(rwc io.Reader, d *Directive) (*Node, error) {
+// Result is the result of parsing a Dockerfile
+type Result struct {
+	AST         *Node
+	EscapeToken rune
+}
+
+// Parse reads lines from a Reader, parses the lines into an AST and returns
+// the AST and escape token
+func Parse(rwc io.Reader) (*Result, error) {
+	d := NewDefaultDirective()
 	currentLine := 0
 	root := &Node{}
 	root.StartLine = -1
@@ -267,18 +269,18 @@ func Parse(rwc io.Reader, d *Directive) (*Node, error) {
 		if child != nil {
 			// Update the line information for the current child.
 			child.StartLine = startLine
-			child.EndLine = currentLine
+			child.endLine = currentLine
 			// Update the line information for the root. The starting line of the root is always the
 			// starting line of the first child and the ending line is the ending line of the last child.
 			if root.StartLine < 0 {
 				root.StartLine = currentLine
 			}
-			root.EndLine = currentLine
+			root.endLine = currentLine
 			root.Children = append(root.Children, child)
 		}
 	}
 
-	return root, nil
+	return &Result{AST: root, EscapeToken: d.escapeToken}, nil
 }
 
 // covers comments and empty lines. Lines should be trimmed before passing to

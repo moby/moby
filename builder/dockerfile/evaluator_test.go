@@ -171,7 +171,7 @@ func executeTestCase(t *testing.T, testCase dispatchTestCase) {
 	}()
 
 	r := strings.NewReader(testCase.dockerfile)
-	n, err := parser.Parse(r, parser.NewDefaultDirective())
+	result, err := parser.Parse(r)
 
 	if err != nil {
 		t.Fatalf("Error when parsing Dockerfile: %s", err)
@@ -188,9 +188,9 @@ func executeTestCase(t *testing.T, testCase dispatchTestCase) {
 		Stdout:    ioutil.Discard,
 		context:   context,
 		buildArgs: newBuildArgs(options.BuildArgs),
-		directive: parser.NewDefaultDirective(),
 	}
 
+	n := result.AST
 	err = b.dispatch(0, len(n.Children), n.Children[0])
 
 	if err == nil {

@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/docker/docker/builder/dockerfile/parser"
+	"go/ast"
 )
 
 func main() {
@@ -23,12 +24,10 @@ func main() {
 		}
 		defer f.Close()
 
-		d := parser.NewDefaultDirective()
-		ast, err := parser.Parse(f, d)
+		result, err := parser.Parse(f)
 		if err != nil {
 			panic(err)
-		} else {
-			fmt.Println(ast.Dump())
 		}
+		fmt.Println(result.AST.Dump())
 	}
 }

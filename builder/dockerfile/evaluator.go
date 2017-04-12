@@ -180,7 +180,7 @@ func (b *Builder) evaluateEnv(cmd string, str string, envs []string) ([]string, 
 			return []string{word}, err
 		}
 	}
-	return processFunc(str, envs, b.directive.EscapeToken())
+	return processFunc(str, envs, b.escapeToken)
 }
 
 // buildArgsWithoutConfigEnv returns a list of key=value pairs for all the build

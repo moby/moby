@@ -462,12 +462,12 @@ func (b *Builder) processImageFrom(img builder.Image) error {
 
 	// parse the ONBUILD triggers by invoking the parser
 	for _, step := range onBuildTriggers {
-		ast, err := parser.Parse(strings.NewReader(step), b.directive)
+		result, err := parser.Parse(strings.NewReader(step))
 		if err != nil {
 			return err
 		}
 
-		for _, n := range ast.Children {
+		for _, n := range result.AST.Children {
 			if err := checkDispatch(n); err != nil {
 				return err
 			}
@@ -481,7 +481,7 @@ func (b *Builder) processImageFrom(img builder.Image) error {
 			}
 		}
 
-		if err := dispatchFromDockerfile(b, ast); err != nil {
+		if err := dispatchFromDockerfile(b, result); err != nil {
 			return err
 		}
 	}
@@ -650,7 +650,7 @@ func (b *Builder) clearTmp() {
 }
 
 // readAndParseDockerfile reads a Dockerfile from the current context.
-func (b *Builder) readAndParseDockerfile() (*parser.Node, error) {
+func (b *Builder) readAndParseDockerfile() (*parser.Result, error) {
 	// If no -f was specified then look for 'Dockerfile'. If we can't find
 	// that then look for 'dockerfile'.  If neither are found then default
 	// back to 'Dockerfile' and use that in the error message.
@@ -664,9 +664,9 @@ func (b *Builder) readAndParseDockerfile() (*parser.Node, error) {
 		}
 	}
 
-	nodes, err := b.parseDockerfile()
+	result, err := b.parseDockerfile()
 	if err != nil {
-		return nodes, err
+		return nil, err
 	}
 
 	// After the Dockerfile has been parsed, we need to check the .dockerignore
@@ -680,10 +680,10 @@ func (b *Builder) readAndParseDockerfile() (*parser.Node, error) {
 	if dockerIgnore, ok := b.context.(builder.DockerIgnoreContext); ok {
 		dockerIgnore.Process([]string{b.options.Dockerfile})
 	}
-	return nodes, nil
+	return result, nil
 }
 
-func (b *Builder) parseDockerfile() (*parser.Node, error) {
+func (b *Builder) parseDockerfile() (*parser.Result, error) {
 	f, err := b.context.Open(b.options.Dockerfile)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -702,5 +702,5 @@ func (b *Builder) parseDockerfile() (*parser.Node, error) {
 			return nil, fmt.Errorf("The Dockerfile (%s) cannot be empty", b.options.Dockerfile)
 		}
 	}
-	return parser.Parse(f, b.directive)
+	return parser.Parse(f)
 }

@@ -10,8 +10,7 @@ import (
 
 func TestAddNodesForLabelOption(t *testing.T) {
 	dockerfile := "FROM scratch"
-	d := parser.NewDefaultDirective()
-	nodes, err := parser.Parse(strings.NewReader(dockerfile), d)
+	result, err := parser.Parse(strings.NewReader(dockerfile))
 	assert.NilError(t, err)
 
 	labels := map[string]string{
@@ -21,6 +20,7 @@ func TestAddNodesForLabelOption(t *testing.T) {
 		"org.b": "cli-b",
 		"org.a": "cli-a",
 	}
+	nodes := result.AST
 	addNodesForLabelOption(nodes, labels)
 
 	expected := []string{
