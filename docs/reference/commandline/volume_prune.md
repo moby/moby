@@ -21,8 +21,9 @@ Usage:	docker volume prune [OPTIONS]
 Remove all unused volumes
 
 Options:
-  -f, --force   Do not prompt for confirmation
-      --help    Print usage
+      --filter filter   Provide filter values (e.g. 'label=<label>')
+  -f, --force           Do not prompt for confirmation
+      --help            Print usage
 ```
 
 ## Description
@@ -42,6 +43,21 @@ my-named-vol
 
 Total reclaimed space: 36 B
 ```
+
+## Filtering
+
+The filtering flag (`-f` or `--filter`) format is of "key=value". If there is more
+than one filter, then pass multiple flags (e.g., `--filter "foo=bar" --filter "bif=baz"`)
+
+The currently supported filters are:
+
+* label (`label=<key>`, `label=<key>=<value>`, `label!=<key>`, or `label!=<key>=<value>`) - only remove volumes with (or without, in case `label!=...` is used) the specified labels.
+
+The `label` filter accepts two formats. One is the `label=...` (`label=<key>` or `label=<key>=<value>`),
+which removes volumes with the specified labels. The other
+format is the `label!=...` (`label!=<key>` or `label!=<key>=<value>`), which removes
+volumes without the specified labels.
+
 
 ## Related commands
 
