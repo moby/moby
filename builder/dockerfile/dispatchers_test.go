@@ -22,7 +22,6 @@ type commandWithFunction struct {
 func TestCommandsExactlyOneArgument(t *testing.T) {
 	commands := []commandWithFunction{
 		{"MAINTAINER", func(args []string) error { return maintainer(nil, args, nil, "") }},
-		{"FROM", func(args []string) error { return from(nil, args, nil, "") }},
 		{"WORKDIR", func(args []string) error { return workdir(nil, args, nil, "") }},
 		{"USER", func(args []string) error { return user(nil, args, nil, "") }},
 		{"STOPSIGNAL", func(args []string) error { return stopSignal(nil, args, nil, "") }}}
