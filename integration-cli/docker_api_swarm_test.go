@@ -145,6 +145,26 @@ func (s *DockerSwarmSuite) TestAPISwarmJoinToken(c *check.C) {
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateInactive)
 }
 
+func (s *DockerSwarmSuite) TestUpdateSwarmAddExternalCA(c *check.C) {
+	// TODO: when root rotation is in, convert to a series of root rotation tests instead
+	// current just makes sure that we can provide a CA certificate when providing an external CA
+	d1 := s.AddDaemon(c, false, false)
+	c.Assert(d1.Init(swarm.InitRequest{}), checker.IsNil)
+	d1.UpdateSwarm(c, func(s *swarm.Spec) {
+		s.CAConfig.ExternalCAs = []*swarm.ExternalCA{
+			{
+				Protocol: swarm.ExternalCAProtocolCFSSL,
+				URL:      "https://thisisfine.org",
+				CACert:   []byte("this doesnt have to be valid"),
+			},
+		}
+	})
+	info, err := d1.SwarmInfo()
+	c.Assert(err, checker.IsNil)
+	c.Assert(info.Cluster.Spec.CAConfig.ExternalCAs, checker.HasLen, 1)
+	c.Assert(info.Cluster.Spec.CAConfig.ExternalCAs[0].CACert, checker.NotNil)
+}
+
 func (s *DockerSwarmSuite) TestAPISwarmCAHash(c *check.C) {
 	d1 := s.AddDaemon(c, true, true)
 	d2 := s.AddDaemon(c, false, false)

@@ -126,6 +126,9 @@ type ExternalCA struct {
 	// Options is a set of additional key/value pairs whose interpretation
 	// depends on the specified CA type.
 	Options map[string]string `json:",omitempty"`
+
+	// CACert specifies which root CA is used by this external CA
+	CACert []byte
 }
 
 // InitRequest is the request used to init a swarm.
