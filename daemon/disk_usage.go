@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"fmt"
+	"sync/atomic"
 
 	"golang.org/x/net/context"
 
@@ -37,6 +38,11 @@ func (daemon *Daemon) getLayerRefs() map[layer.ChainID]int {
 
 // SystemDiskUsage returns information about the daemon data disk usage
 func (daemon *Daemon) SystemDiskUsage(ctx context.Context) (*types.DiskUsage, error) {
+	if !atomic.CompareAndSwapInt32(&daemon.diskUsageRunning, 0, 1) {
+		return nil, fmt.Errorf("a disk usage operation is already running")
+	}
+	defer atomic.StoreInt32(&daemon.diskUsageRunning, 0)
+
 	// Retrieve container list
 	allContainers, err := daemon.Containers(&types.ContainerListOptions{
 		Size: true,
