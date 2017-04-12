@@ -111,6 +111,12 @@ type Daemon struct {
 
 	seccompProfile     []byte
 	seccompProfilePath string
+
+	diskUsageRunning       int32
+	containersPruneRunning int32
+	volumesPruneRunning    int32
+	imagesPruneRunning     int32
+	networksPruneRunning   int32
 }
 
 // HasExperimental returns whether the experimental features of the daemon are enabled or not
