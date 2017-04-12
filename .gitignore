@@ -18,5 +18,7 @@ cmd/dockerd/dockerd
 contrib/builder/rpm/*/changelog
 dockerversion/version_autogen.go
 dockerversion/version_autogen_unix.go
+daemon/runtime_autogen.go
+libcontainerd/binaries_autogen_unix.go
 vendor/pkg/
 hack/integration-cli-on-swarm/integration-cli-on-swarm

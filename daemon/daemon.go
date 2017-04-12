@@ -65,9 +65,7 @@ import (
 // MainNamespace is the name of the namespace used for users containers
 const MainNamespace = "moby"
 
-var (
-	errSystemNotSupported = errors.New("the Docker daemon is not supported on this platform")
-)
+var errSystemNotSupported = errors.New("the Docker daemon is not supported on this platform")
 
 type daemonStore struct {
 	graphDriver               string

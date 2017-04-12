@@ -34,7 +34,7 @@ if [ -z "$DOCKER_TEST_HOST" ]; then
 	fi
 fi
 
-if ! command -v "${DOCKER_DAEMON_BINARY_NAME}" &> /dev/null; then
+if ! command -v "${DAEMON_BINARY_NAME}" &> /dev/null; then
 	echo >&2 'error: binary-daemon or dynbinary-daemon must be run before .integration-daemon-start'
 	false
 fi
@@ -85,7 +85,7 @@ if [ -z "$DOCKER_TEST_HOST" ]; then
 		echo "Starting dockerd"
 		[ -n "$TESTDEBUG" ] && set -x
 		exec \
-			${DOCKER_DAEMON_BINARY_NAME} --debug \
+			${DAEMON_BINARY_NAME} --debug \
 			--host "$DOCKER_HOST" \
 			--storage-driver "$DOCKER_GRAPHDRIVER" \
 			--pidfile "$DEST/docker.pid" \
