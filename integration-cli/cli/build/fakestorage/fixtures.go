@@ -1,4 +1,4 @@
-package main
+package fakestorage
 
 import (
 	"io/ioutil"
@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sync"
+
+	"github.com/docker/docker/integration-cli/cli"
 )
 
 var ensureHTTPServerOnce sync.Once
@@ -61,7 +63,5 @@ func ensureHTTPServerImage(t testingT) {
 		t.Fatalf("could not build http server: %v", string(out))
 	}
 
-	if out, err = exec.Command(dockerBinary, "build", "-q", "-t", "httpserver", tmp).CombinedOutput(); err != nil {
-		t.Fatalf("could not build http server: %v", string(out))
-	}
+	cli.DockerCmd(t, "build", "-q", "-t", "httpserver", tmp)
 }
