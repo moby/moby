@@ -192,9 +192,7 @@ Want to run Docker from a master build? You can download
 master builds at [master.dockerproject.org](https://master.dockerproject.org).
 They are updated with each commit merged into the master branch.
 
-Don't know how to use that super cool new feature in the master build? Check
-out the master docs at
-[docs.master.dockerproject.org](http://docs.master.dockerproject.org).
+Don't know how to use that super cool new feature in the master build? Check out the master docs at [docker.github.io](https://github.com/docker/docker.github.io) or its [vnext-engine branch](https://github.com/docker/docker.github.io/tree/vnext-engine).
 
 How the project is run
 ======================
