@@ -81,8 +81,10 @@ type MobyImage struct {
 	Sysctl            map[string]string
 }
 
-// recursively convert the map keys from `interface{}` to `string`
-// this is needed to convert "yaml" interfaces to "JSON" interfaces
+// github.com/go-yaml/yaml treats map keys as interface{} while encoding/json
+// requires them to be strings, integers or to implement encoding.TextMarshaler.
+// Fix this up by recursively mapping all map[interface{}]interface{} types into
+// map[string]interface{}.
 // see http://stackoverflow.com/questions/40737122/convert-yaml-to-json-without-struct-golang#answer-40737676
 func convert(i interface{}) interface{} {
 	switch x := i.(type) {
