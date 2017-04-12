@@ -3,9 +3,8 @@ package daemon
 import (
 	"fmt"
 	"regexp"
+	"sync/atomic"
 	"time"
-
-	"golang.org/x/net/context"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
@@ -19,10 +18,22 @@ import (
 	"github.com/docker/docker/volume"
 	"github.com/docker/libnetwork"
 	digest "github.com/opencontainers/go-digest"
+	"golang.org/x/net/context"
+)
+
+var (
+	// ErrPruneRunning is returned when a prune request is received while
+	// one is in progress
+	ErrPruneRunning = fmt.Errorf("a prune operation is already running")
 )
 
 // ContainersPrune removes unused containers
 func (daemon *Daemon) ContainersPrune(ctx context.Context, pruneFilters filters.Args) (*types.ContainersPruneReport, error) {
+	if !atomic.CompareAndSwapInt32(&daemon.pruneRunning, 0, 1) {
+		return nil, ErrPruneRunning
+	}
+	defer atomic.StoreInt32(&daemon.pruneRunning, 0)
+
 	rep := &types.ContainersPruneReport{}
 
 	until, err := getUntilFromPruneFilters(pruneFilters)
@@ -65,6 +76,11 @@ func (daemon *Daemon) ContainersPrune(ctx context.Context, pruneFilters filters.
 
 // VolumesPrune removes unused local volumes
 func (daemon *Daemon) VolumesPrune(ctx context.Context, pruneFilters filters.Args) (*types.VolumesPruneReport, error) {
+	if !atomic.CompareAndSwapInt32(&daemon.pruneRunning, 0, 1) {
+		return nil, ErrPruneRunning
+	}
+	defer atomic.StoreInt32(&daemon.pruneRunning, 0)
+
 	rep := &types.VolumesPruneReport{}
 
 	pruneVols := func(v volume.Volume) error {
@@ -108,6 +124,11 @@ func (daemon *Daemon) VolumesPrune(ctx context.Context, pruneFilters filters.Arg
 
 // ImagesPrune removes unused images
 func (daemon *Daemon) ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*types.ImagesPruneReport, error) {
+	if !atomic.CompareAndSwapInt32(&daemon.pruneRunning, 0, 1) {
+		return nil, ErrPruneRunning
+	}
+	defer atomic.StoreInt32(&daemon.pruneRunning, 0)
+
 	rep := &types.ImagesPruneReport{}
 
 	danglingOnly := true
@@ -331,6 +352,11 @@ func (daemon *Daemon) clusterNetworksPrune(ctx context.Context, pruneFilters fil
 
 // NetworksPrune removes unused networks
 func (daemon *Daemon) NetworksPrune(ctx context.Context, pruneFilters filters.Args) (*types.NetworksPruneReport, error) {
+	if !atomic.CompareAndSwapInt32(&daemon.pruneRunning, 0, 1) {
+		return nil, ErrPruneRunning
+	}
+	defer atomic.StoreInt32(&daemon.pruneRunning, 0)
+
 	if _, err := getUntilFromPruneFilters(pruneFilters); err != nil {
 		return nil, err
 	}
