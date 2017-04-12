@@ -46,8 +46,10 @@ var (
 	// messages by default.
 	logLevel                            = devicemapper.LogLevelFatal
 	driverDeferredRemovalSupport        = false
-	enableDeferredRemoval               = false
-	enableDeferredDeletion              = false
+	enableDeferredRemoval               = true
+	enableDeferredDeletion              = true
+	userEnableDeferredRemoval           = false
+	userEnableDeferredDeletion          = false
 	userBaseSize                        = false
 	defaultMinFreeSpacePercent   uint32 = 10
 )
@@ -1661,27 +1663,44 @@ func (devices *DeviceSet) loadThinPoolLoopBackInfo() error {
 	return nil
 }
 
+func handleError(msg string, choice bool) error {
+	if choice {
+		return fmt.Errorf(msg)
+	}
+	logrus.Warnf(msg)
+	return nil
+}
+
 func (devices *DeviceSet) enableDeferredRemovalDeletion() error {
 
 	// If user asked for deferred removal then check both libdm library
 	// and kernel driver support deferred removal otherwise error out.
 	if enableDeferredRemoval {
 		if !driverDeferredRemovalSupport {
-			return fmt.Errorf("devmapper: Deferred removal can not be enabled as kernel does not support it")
+			if err := handleError("devmapper: Deferred removal can not be enabled as kernel does not support it", userEnableDeferredRemoval); err != nil {
+				return err
+			}
 		}
 		if !devicemapper.LibraryDeferredRemovalSupport {
-			return fmt.Errorf("devmapper: Deferred removal can not be enabled as libdm does not support it")
+			if err := handleError("devmapper: Deferred removal can not be enabled as libdm does not support it", userEnableDeferredRemoval); err != nil {
+				return err
+			}
 		}
-		logrus.Debug("devmapper: Deferred removal support enabled.")
-		devices.deferredRemove = true
+		if driverDeferredRemovalSupport && devicemapper.LibraryDeferredRemovalSupport {
+			logrus.Debug("devmapper: Deferred removal support enabled.")
+			devices.deferredRemove = true
+		}
 	}
 
 	if enableDeferredDeletion {
 		if !devices.deferredRemove {
-			return fmt.Errorf("devmapper: Deferred deletion can not be enabled as deferred removal is not enabled. Enable deferred removal using --storage-opt dm.use_deferred_removal=true parameter")
+			if err := handleError("devmapper: Deferred deletion can not be enabled as deferred removal is not enabled. Enable deferred removal using --storage-opt dm.use_deferred_removal=true parameter", userEnableDeferredDeletion); err != nil {
+				return err
+			}
+		} else {
+			logrus.Debug("devmapper: Deferred deletion support enabled.")
+			devices.deferredDelete = true
 		}
-		logrus.Debug("devmapper: Deferred deletion support enabled.")
-		devices.deferredDelete = true
 	}
 	return nil
 }
@@ -2670,12 +2689,14 @@ func NewDeviceSet(root string, doInit bool, options []string, uidMaps, gidMaps [
 			if err != nil {
 				return nil, err
 			}
+			userEnableDeferredRemoval = true
 
 		case "dm.use_deferred_deletion":
 			enableDeferredDeletion, err = strconv.ParseBool(val)
 			if err != nil {
 				return nil, err
 			}
+			userEnableDeferredDeletion = true
 
 		case "dm.min_free_space":
 			if !strings.HasSuffix(val, "%") {
