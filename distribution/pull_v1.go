@@ -314,11 +314,11 @@ func (ld *v1LayerDescriptor) Download(ctx context.Context, progressOutput progre
 		}
 		return nil, 0, xfer.DoNotRetry{Err: err}
 	}
+	defer layerReader.Close()
 	*ld.layersDownloaded = true
 
 	ld.tmpFile, err = ioutil.TempFile("", "GetImageBlob")
 	if err != nil {
-		layerReader.Close()
 		return nil, 0, err
 	}
 
