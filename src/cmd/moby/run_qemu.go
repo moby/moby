@@ -90,7 +90,7 @@ func runQemu(args []string) {
 		} else {
 			log.Infof("Using existing disk [%s]", *qemuDiskPath)
 		}
-		qemuArgs = append(qemuArgs, "-disk", "file="+*qemuDiskPath+",format=raw")
+		qemuArgs = append(qemuArgs, "-drive", "file="+*qemuDiskPath+",format=qcow2")
 	}
 
 	// Check flags for iso/uefi boot and if so disable kernel boot
