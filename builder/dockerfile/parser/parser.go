@@ -63,6 +63,21 @@ func (node *Node) Dump() string {
 	return strings.TrimSpace(str)
 }
 
+func (node *Node) lines(start, end int) {
+	node.StartLine = start
+	node.endLine = end
+}
+
+// AddChild adds a new child node, and updates line information
+func (node *Node) AddChild(child *Node, startLine, endLine int) {
+	child.lines(startLine, endLine)
+	if node.StartLine < 0 {
+		node.StartLine = startLine
+	}
+	node.endLine = endLine
+	node.Children = append(node.Children, child)
+}
+
 var (
 	dispatch           map[string]func(string, *Directive) (*Node, map[string]bool, error)
 	tokenWhitespace    = regexp.MustCompile(`[\t\v\f\r ]+`)
@@ -154,25 +169,6 @@ func init() {
 	}
 }
 
-// ParseLine parses a line and returns the remainder.
-func ParseLine(line string, d *Directive, ignoreCont bool) (string, *Node, error) {
-	if err := d.processLine(line); err != nil {
-		return "", nil, err
-	}
-
-	if line = stripComments(line); line == "" {
-		return "", nil, nil
-	}
-
-	if !ignoreCont && d.lineContinuationRegex.MatchString(line) {
-		line = d.lineContinuationRegex.ReplaceAllString(line, "")
-		return line, nil, nil
-	}
-
-	node, err := newNodeFromLine(line, d)
-	return "", node, err
-}
-
 // newNodeFromLine splits the line into parts, and dispatches to a function
 // based on the command and command arguments. A Node is created from the
 // result of the dispatch.
@@ -207,13 +203,6 @@ type Result struct {
 	EscapeToken rune
 }
 
-// scanLines is a split function for bufio.Scanner. that augments the default
-// line scanner by supporting newline escapes.
-func scanLines(data []byte, atEOF bool) (int, []byte, error) {
-	advance, token, err := bufio.ScanLines(data, atEOF)
-	return advance, token, err
-}
-
 // Parse reads lines from a Reader, parses the lines into an AST and returns
 // the AST and escape token
 func Parse(rwc io.Reader) (*Result, error) {
@@ -221,80 +210,85 @@ func Parse(rwc io.Reader) (*Result, error) {
 	currentLine := 0
 	root := &Node{StartLine: -1}
 	scanner := bufio.NewScanner(rwc)
-	scanner.Split(scanLines)
 
-	utf8bom := []byte{0xEF, 0xBB, 0xBF}
+	var err error
 	for scanner.Scan() {
-		scannedBytes := scanner.Bytes()
-		// We trim UTF8 BOM
-		if currentLine == 0 {
-			scannedBytes = bytes.TrimPrefix(scannedBytes, utf8bom)
+		bytes := scanner.Bytes()
+		switch currentLine {
+		case 0:
+			bytes, err = processFirstLine(d, bytes)
+			if err != nil {
+				return nil, err
+			}
+		default:
+			bytes = processLine(bytes, true)
+		}
+		currentLine++
+
+		startLine := currentLine
+		line, isEndOfLine := trimContinuationCharacter(string(bytes), d)
+		if isEndOfLine && line == "" {
+			continue
 		}
 
-		scannedLine := strings.TrimLeftFunc(string(scannedBytes), unicode.IsSpace)
-		currentLine++
-		line, child, err := ParseLine(scannedLine, d, false)
+		for !isEndOfLine && scanner.Scan() {
+			bytes := processLine(scanner.Bytes(), false)
+			currentLine++
+
+			// TODO: warn this is being deprecated/removed
+			if isEmptyContinuationLine(bytes) {
+				continue
+			}
+
+			continuationLine := string(bytes)
+			continuationLine, isEndOfLine = trimContinuationCharacter(continuationLine, d)
+			line += continuationLine
+		}
+
+		child, err := newNodeFromLine(line, d)
 		if err != nil {
 			return nil, err
 		}
-		startLine := currentLine
-
-		if line != "" && child == nil {
-			for scanner.Scan() {
-				newline := scanner.Text()
-				currentLine++
-
-				if stripComments(strings.TrimSpace(newline)) == "" {
-					continue
-				}
-
-				line, child, err = ParseLine(line+newline, d, false)
-				if err != nil {
-					return nil, err
-				}
-
-				if child != nil {
-					break
-				}
-			}
-			if child == nil && line != "" {
-				// When we call ParseLine we'll pass in 'true' for
-				// the ignoreCont param if we're at the EOF. This will
-				// prevent the func from returning immediately w/o
-				// parsing the line thinking that there's more input
-				// to come.
-
-				_, child, err = ParseLine(line, d, scanner.Err() == nil)
-				if err != nil {
-					return nil, err
-				}
-			}
-		}
-
-		if child != nil {
-			// Update the line information for the current child.
-			child.StartLine = startLine
-			child.endLine = currentLine
-			// Update the line information for the root. The starting line of the root is always the
-			// starting line of the first child and the ending line is the ending line of the last child.
-			if root.StartLine < 0 {
-				root.StartLine = currentLine
-			}
-			root.endLine = currentLine
-			root.Children = append(root.Children, child)
-		}
+		root.AddChild(child, startLine, currentLine)
 	}
 
 	return &Result{AST: root, EscapeToken: d.escapeToken}, nil
 }
 
-// covers comments and empty lines. Lines should be trimmed before passing to
-// this function.
-func stripComments(line string) string {
-	// string is already trimmed at this point
-	if tokenComment.MatchString(line) {
-		return tokenComment.ReplaceAllString(line, "")
-	}
+func trimComments(src []byte) []byte {
+	return tokenComment.ReplaceAll(src, []byte{})
+}
 
-	return line
+func trimWhitespace(src []byte) []byte {
+	return bytes.TrimLeftFunc(src, unicode.IsSpace)
+}
+
+func isEmptyContinuationLine(line []byte) bool {
+	return len(trimComments(trimWhitespace(line))) == 0
+}
+
+var utf8bom = []byte{0xEF, 0xBB, 0xBF}
+
+func trimContinuationCharacter(line string, d *Directive) (string, bool) {
+	if d.lineContinuationRegex.MatchString(line) {
+		line = d.lineContinuationRegex.ReplaceAllString(line, "")
+		return line, false
+	}
+	return line, true
+}
+
+// TODO: remove stripLeftWhitespace after deprecation period. It seems silly
+// to preserve whitespace on continuation lines. Why is that done?
+func processLine(token []byte, stripLeftWhitespace bool) []byte {
+	if stripLeftWhitespace {
+		token = trimWhitespace(token)
+	}
+	return trimComments(token)
+}
+
+func processFirstLine(d *Directive, token []byte) ([]byte, error) {
+	token = bytes.TrimPrefix(token, utf8bom)
+	token = trimWhitespace(token)
+	err := d.processLine(string(token))
+	return trimComments(token), err
 }
