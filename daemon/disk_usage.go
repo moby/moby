@@ -3,6 +3,8 @@ package daemon
 import (
 	"fmt"
 
+	"golang.org/x/net/context"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -34,7 +36,7 @@ func (daemon *Daemon) getLayerRefs() map[layer.ChainID]int {
 }
 
 // SystemDiskUsage returns information about the daemon data disk usage
-func (daemon *Daemon) SystemDiskUsage() (*types.DiskUsage, error) {
+func (daemon *Daemon) SystemDiskUsage(ctx context.Context) (*types.DiskUsage, error) {
 	// Retrieve container list
 	allContainers, err := daemon.Containers(&types.ContainerListOptions{
 		Size: true,
@@ -53,17 +55,22 @@ func (daemon *Daemon) SystemDiskUsage() (*types.DiskUsage, error) {
 	// Get all local volumes
 	allVolumes := []*types.Volume{}
 	getLocalVols := func(v volume.Volume) error {
-		name := v.Name()
-		refs := daemon.volumes.Refs(v)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			name := v.Name()
+			refs := daemon.volumes.Refs(v)
 
-		tv := volumeToAPIType(v)
-		sz, err := directory.Size(v.Path())
-		if err != nil {
-			logrus.Warnf("failed to determine size of volume %v", name)
-			sz = -1
+			tv := volumeToAPIType(v)
+			sz, err := directory.Size(v.Path())
+			if err != nil {
+				logrus.Warnf("failed to determine size of volume %v", name)
+				sz = -1
+			}
+			tv.UsageData = &types.VolumeUsageData{Size: sz, RefCount: int64(len(refs))}
+			allVolumes = append(allVolumes, tv)
 		}
-		tv.UsageData = &types.VolumeUsageData{Size: sz, RefCount: int64(len(refs))}
-		allVolumes = append(allVolumes, tv)
 
 		return nil
 	}
@@ -78,17 +85,21 @@ func (daemon *Daemon) SystemDiskUsage() (*types.DiskUsage, error) {
 	allLayers := daemon.layerStore.Map()
 	var allLayersSize int64
 	for _, l := range allLayers {
-		size, err := l.DiffSize()
-		if err == nil {
-			if _, ok := layerRefs[l.ChainID()]; ok {
-				allLayersSize += size
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+			size, err := l.DiffSize()
+			if err == nil {
+				if _, ok := layerRefs[l.ChainID()]; ok {
+					allLayersSize += size
+				} else {
+					logrus.Warnf("found leaked image layer %v", l.ChainID())
+				}
 			} else {
-				logrus.Warnf("found leaked image layer %v", l.ChainID())
+				logrus.Warnf("failed to get diff size for layer %v", l.ChainID())
 			}
-		} else {
-			logrus.Warnf("failed to get diff size for layer %v", l.ChainID())
 		}
-
 	}
 
 	return &types.DiskUsage{
