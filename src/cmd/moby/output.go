@@ -11,12 +11,12 @@ import (
 )
 
 const (
-	bios = "mobylinux/mkimage-iso-bios:489b1f054a77a8f379d0bfc6cd91639b4db6b67c@sha256:0f058951aac4367d132682aa19eeb5cdcb05600a5d51fe5d0fcbd97b03ae4f87"
-	efi  = "mobylinux/mkimage-iso-efi:1b0ea6b8a7956e67e903876be5baf476e9a5cc40@sha256:a026cd9e9d0146503274e575a165039c67b853bde0013ade78df80d9280ffa7c"
-	gcp  = "mobylinux/mkimage-gcp:bd1197356ca69a4b79999cc56cb6d7dbac96723c@sha256:2a8c90214318f8da7f02066cc142add279a2e4772b26023961991d5fae3155ec"
-	qcow = "mobylinux/mkimage-qcow:9b3632f111675898ed3a22ac71897e735b5a8364@sha256:2132cf3fb593d65f09c8d109d40e1fad138d81485d4750fc29a7f54611d78d35"
-	vhd  = "mobylinux/mkimage-vhd:73c80e433bf717578c507621a84fd58cec27fe95@sha256:0ae1eda2d6592f309977dc4b25cca120cc4e2ee2cc786e88fdc2761c0d49cb14"
-	vmdk = "mobylinux/mkimage-vmdk:1de360a30f3ac6a91d4eae1ae4611cea4b82f22a@sha256:d7e65edc6dd88f6e12dcb0d749d4c7e5793d1250e548b58c105dbfd082940787"
+	bios = "linuxkit/mkimage-iso-bios:6ebdce90f63991eb1d5a578e6570dc1e5781e9fe@sha256:0c6116d4c069d17ebdaa86737841b3be6ae84f6c69a5e79fe59cd8310156aa96"
+	efi  = "linuxkit/mkimage-iso-efi:008fac48c41ec38b36ce1ae62f93a69ee9328569@sha256:35282010b95680fe754e557bc65f0b2ffd85e925bd62f427fb77bf494145083b"
+	gcp  = "linuxkit/mkimage-gcp:a8b909202c0a0ed2ac31b5c21f6701d3253ff29a@sha256:2ba307e537d6fae37115848c8a0f5a9b3ed578e102c93c5d2578ece4a91cb828"
+	qcow = "linuxkit/mkimage-qcow:a1053b5dc80834adcba2e5f49354f62797e35f84@sha256:3312d523a67e7c7efb3c3eaa5a4dfbd46659549681d6d62cdeb02bd475b3a22c"
+	vhd  = "linuxkit/mkimage-vhd:98d6c879a52cb85b87269bc6ecf9df7dd134427a@sha256:0ca6f46690c7890c77295cc6c531f95fc8bb41df42c237ae4b32eea338cec4e7"
+	vmdk = "linuxkit/mkimage-vmdk:10b8717b6a2099741b702c31af2d9a42ce50425e@sha256:bf7cf6029e61685e9085a1883b1be1167a7f06199f3b76a944ea87b6f23f60d8"
 )
 
 func outputs(m *Moby, base string, bzimage []byte, initrd []byte) error {
