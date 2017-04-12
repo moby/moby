@@ -827,6 +827,7 @@ wo41w8hg8qan  hosttempl.1  busybox:latest@sha256:29f5d56d12684887bdfa50dcd29fc31
 $ docker inspect --format="{{.Config.Hostname}}" hosttempl.1.wo41w8hg8qanxwjwsg4kxpprj
 
 x3ti0erg11rjpg64m75kej2mz-hosttempl
+{% endraw %}
 ```
 
 ## Related commands
