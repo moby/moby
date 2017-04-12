@@ -12,6 +12,7 @@ import (
 	"unicode"
 
 	"github.com/docker/docker/builder/dockerfile/command"
+	"github.com/pkg/errors"
 )
 
 // Node is a structure used to represent a parse tree.
@@ -77,7 +78,7 @@ const DefaultEscapeToken = '\\'
 type Directive struct {
 	escapeToken           rune           // Current escape token
 	lineContinuationRegex *regexp.Regexp // Current line continuation regex
-	lookingForDirectives  bool           // Whether we are currently looking for directives
+	processingComplete    bool           // Whether we are done looking for directives
 	escapeSeen            bool           // Whether the escape directive has been seen
 }
 
@@ -91,12 +92,35 @@ func (d *Directive) setEscapeToken(s string) error {
 	return nil
 }
 
+// processLine looks for a parser directive '# escapeToken=<char>. Parser
+// directives must precede any builder instruction or other comments, and cannot
+// be repeated.
+func (d *Directive) processLine(line string) error {
+	if d.processingComplete {
+		return nil
+	}
+	// Processing is finished after the first call
+	defer func() { d.processingComplete = true }()
+
+	tecMatch := tokenEscapeCommand.FindStringSubmatch(strings.ToLower(line))
+	if len(tecMatch) == 0 {
+		return nil
+	}
+	if d.escapeSeen == true {
+		return errors.New("only one escape parser directive can be used")
+	}
+	for i, n := range tokenEscapeCommand.SubexpNames() {
+		if n == "escapechar" {
+			d.escapeSeen = true
+			return d.setEscapeToken(tecMatch[i])
+		}
+	}
+	return nil
+}
+
 // NewDefaultDirective returns a new Directive with the default escapeToken token
 func NewDefaultDirective() *Directive {
-	directive := Directive{
-		escapeSeen:           false,
-		lookingForDirectives: true,
-	}
+	directive := Directive{}
 	directive.setEscapeToken(string(DefaultEscapeToken))
 	return &directive
 }
@@ -132,12 +156,9 @@ func init() {
 
 // ParseLine parses a line and returns the remainder.
 func ParseLine(line string, d *Directive, ignoreCont bool) (string, *Node, error) {
-	if escapeFound, err := handleParserDirective(line, d); err != nil || escapeFound {
-		d.escapeSeen = escapeFound
+	if err := d.processLine(line); err != nil {
 		return "", nil, err
 	}
-
-	d.lookingForDirectives = false
 
 	if line = stripComments(line); line == "" {
 		return "", nil, nil
@@ -180,34 +201,17 @@ func newNodeFromLine(line string, directive *Directive) (*Node, error) {
 	}, nil
 }
 
-// Handle the parser directive '# escapeToken=<char>. Parser directives must precede
-// any builder instruction or other comments, and cannot be repeated.
-func handleParserDirective(line string, d *Directive) (bool, error) {
-	if !d.lookingForDirectives {
-		return false, nil
-	}
-	tecMatch := tokenEscapeCommand.FindStringSubmatch(strings.ToLower(line))
-	if len(tecMatch) == 0 {
-		return false, nil
-	}
-	if d.escapeSeen == true {
-		return false, fmt.Errorf("only one escape parser directive can be used")
-	}
-	for i, n := range tokenEscapeCommand.SubexpNames() {
-		if n == "escapechar" {
-			if err := d.setEscapeToken(tecMatch[i]); err != nil {
-				return false, err
-			}
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
 // Result is the result of parsing a Dockerfile
 type Result struct {
 	AST         *Node
 	EscapeToken rune
+}
+
+// scanLines is a split function for bufio.Scanner. that augments the default
+// line scanner by supporting newline escapes.
+func scanLines(data []byte, atEOF bool) (int, []byte, error) {
+	advance, token, err := bufio.ScanLines(data, atEOF)
+	return advance, token, err
 }
 
 // Parse reads lines from a Reader, parses the lines into an AST and returns
@@ -215,9 +219,9 @@ type Result struct {
 func Parse(rwc io.Reader) (*Result, error) {
 	d := NewDefaultDirective()
 	currentLine := 0
-	root := &Node{}
-	root.StartLine = -1
+	root := &Node{StartLine: -1}
 	scanner := bufio.NewScanner(rwc)
+	scanner.Split(scanLines)
 
 	utf8bom := []byte{0xEF, 0xBB, 0xBF}
 	for scanner.Scan() {
@@ -226,6 +230,7 @@ func Parse(rwc io.Reader) (*Result, error) {
 		if currentLine == 0 {
 			scannedBytes = bytes.TrimPrefix(scannedBytes, utf8bom)
 		}
+
 		scannedLine := strings.TrimLeftFunc(string(scannedBytes), unicode.IsSpace)
 		currentLine++
 		line, child, err := ParseLine(scannedLine, d, false)

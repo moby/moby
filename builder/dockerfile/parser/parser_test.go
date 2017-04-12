@@ -59,7 +59,7 @@ func TestTestData(t *testing.T) {
 			content = bytes.Replace(content, []byte{'\x0d', '\x0a'}, []byte{'\x0a'}, -1)
 		}
 
-		assert.Equal(t, result.AST.Dump()+"\n", string(content))
+		assert.Equal(t, result.AST.Dump()+"\n", string(content), "In "+dockerfile)
 	}
 }
 

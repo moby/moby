@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/docker/docker/builder/dockerfile/parser"
-	"go/ast"
 )
 
 func main() {
