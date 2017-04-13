@@ -571,6 +571,13 @@ RUN /bin/bash -c 'source $HOME/.bashrc; echo $HOME'
 > `RUN ["/bin/bash", "-c", "echo hello"]`
 
 > **Note**:
+> '/bin/sh' in Debian family(such as Ubuntu) point to `dash` instead of `bash`,
+> in which would lead a lot of troubles. Often you have to write `RUN command args` 
+> into `RUN ["/bin/bash", "-c", "command args"]` . But you still can simply add
+> `RUN rm /bin/sh && ln -s /bin/bash /bin/sh` under `FROM some_image`, 
+> to ensure `RUN` work as other images.
+
+> **Note**:
 > The *exec* form is parsed as a JSON array, which means that
 > you must use double-quotes (") around words not single-quotes (').
 
