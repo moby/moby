@@ -376,7 +376,9 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		}
 
 		workdirProvider := fssession.NewFSSendProvider("_main", contextDir, excludes)
-		authHandler := authsession.NewAuthconfigHandler("_main", &authCfgProvider{dockerCli})
+		authHandler := authsession.NewAuthconfigHandler("_main", &authCfgProvider{dockerCli}, func(registry string) {
+			progressOutput.WriteProgress(progress.Progress{Action: "Authenticating to " + registry, LastUpdate: true})
+		})
 		s.Allow(workdirProvider)
 		s.Allow(authHandler)
 

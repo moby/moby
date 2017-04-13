@@ -12,14 +12,16 @@ type AuthConfigProvider interface {
 	GetAuthConfig(registry string) types.AuthConfig
 }
 type authConfigHandler struct {
-	name     string
-	provider AuthConfigProvider
+	name            string
+	provider        AuthConfigProvider
+	registryAuthLog func(string)
 }
 
-func NewAuthconfigHandler(name string, provider AuthConfigProvider) session.Attachment {
+func NewAuthconfigHandler(name string, provider AuthConfigProvider, registryAuthLog func(string)) session.Attachment {
 	h := &authConfigHandler{
-		name:     name,
-		provider: provider,
+		name:            name,
+		provider:        provider,
+		registryAuthLog: registryAuthLog,
 	}
 	return h
 }
@@ -38,6 +40,9 @@ func (h *authConfigHandler) Handle(ctx context.Context, id, method string, opts 
 	auths := new(AuthConfigs)
 	auths.Auths = make(map[string]*AuthConfig)
 	for _, registry := range registries {
+		if h.registryAuthLog != nil {
+			h.registryAuthLog(registry)
+		}
 		c := h.provider.GetAuthConfig(registry)
 		auths.Auths[registry] = &AuthConfig{
 			Auth:          c.Auth,
