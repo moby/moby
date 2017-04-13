@@ -7,10 +7,12 @@ package dockerfile
 // be added by adding code to the "special ${} format processing" section
 
 import (
-	"fmt"
+	"bytes"
 	"strings"
 	"text/scanner"
 	"unicode"
+
+	"github.com/pkg/errors"
 )
 
 type shellWord struct {
@@ -105,7 +107,7 @@ func (w *wordsStruct) getWords() []string {
 // Process the word, starting at 'pos', and stop when we get to the
 // end of the word or the 'stopChar' character
 func (sw *shellWord) processStopOn(stopChar rune) (string, []string, error) {
-	var result string
+	var result bytes.Buffer
 	var words wordsStruct
 
 	var charFuncMapping = map[rune]func() (string, error){
@@ -127,7 +129,7 @@ func (sw *shellWord) processStopOn(stopChar rune) (string, []string, error) {
 			if err != nil {
 				return "", []string{}, err
 			}
-			result += tmp
+			result.WriteString(tmp)
 
 			if ch == rune('$') {
 				words.addString(tmp)
@@ -140,7 +142,6 @@ func (sw *shellWord) processStopOn(stopChar rune) (string, []string, error) {
 
 			if ch == sw.escapeToken {
 				// '\' (default escape token, but ` allowed) escapes, except end of line
-
 				ch = sw.scanner.Next()
 
 				if ch == scanner.EOF {
@@ -152,11 +153,11 @@ func (sw *shellWord) processStopOn(stopChar rune) (string, []string, error) {
 				words.addChar(ch)
 			}
 
-			result += string(ch)
+			result.WriteRune(ch)
 		}
 	}
 
-	return result, words.getWords(), nil
+	return result.String(), words.getWords(), nil
 }
 
 func (sw *shellWord) processSingleQuote() (string, error) {
@@ -169,25 +170,20 @@ func (sw *shellWord) processSingleQuote() (string, error) {
 	//   all the characters (except single quotes, making it impossible to put
 	//   single-quotes in a single-quoted string).
 
-	var result string
+	var result bytes.Buffer
 
 	sw.scanner.Next()
 
 	for {
 		ch := sw.scanner.Next()
-
-		if ch == scanner.EOF {
-			return "", fmt.Errorf("unexpected end of statement while looking for matching single-quote")
+		switch ch {
+		case scanner.EOF:
+			return "", errors.New("unexpected end of statement while looking for matching single-quote")
+		case '\'':
+			return result.String(), nil
 		}
-
-		if ch == '\'' {
-			break
-		}
-
-		result += string(ch)
+		result.WriteRune(ch)
 	}
-
-	return result, nil
 }
 
 func (sw *shellWord) processDoubleQuote() (string, error) {
@@ -203,116 +199,107 @@ func (sw *shellWord) processDoubleQuote() (string, error) {
 	//    $ ` " \ <newline>.
 	//  Otherwise it remains literal.
 
-	var result string
+	var result bytes.Buffer
 
 	sw.scanner.Next()
 
 	for {
-		ch := sw.scanner.Peek()
-
-		if ch == scanner.EOF {
-			return "", fmt.Errorf("unexpected end of statement while looking for matching double-quote")
-		}
-
-		if ch == '"' {
+		switch sw.scanner.Peek() {
+		case scanner.EOF:
+			return "", errors.New("unexpected end of statement while looking for matching double-quote")
+		case '"':
 			sw.scanner.Next()
-			break
-		}
-
-		if ch == '$' {
-			tmp, err := sw.processDollar()
+			return result.String(), nil
+		case '$':
+			value, err := sw.processDollar()
 			if err != nil {
 				return "", err
 			}
-			result += tmp
-		} else {
-			ch = sw.scanner.Next()
+			result.WriteString(value)
+		default:
+			ch := sw.scanner.Next()
 			if ch == sw.escapeToken {
-				chNext := sw.scanner.Peek()
-
-				if chNext == scanner.EOF {
+				switch sw.scanner.Peek() {
+				case scanner.EOF:
 					// Ignore \ at end of word
 					continue
-				}
-
-				// Note: for now don't do anything special with ` chars.
-				// Not sure what to do with them anyway since we're not going
-				// to execute the text in there (not now anyway).
-				if chNext == '"' || chNext == '$' || chNext == sw.escapeToken {
+				case '"', '$', sw.escapeToken:
 					// These chars can be escaped, all other \'s are left as-is
+					// Note: for now don't do anything special with ` chars.
+					// Not sure what to do with them anyway since we're not going
+					// to execute the text in there (not now anyway).
 					ch = sw.scanner.Next()
 				}
 			}
-			result += string(ch)
+			result.WriteRune(ch)
 		}
 	}
-
-	return result, nil
 }
 
 func (sw *shellWord) processDollar() (string, error) {
 	sw.scanner.Next()
-	ch := sw.scanner.Peek()
-	if ch == '{' {
-		sw.scanner.Next()
-		name := sw.processName()
-		ch = sw.scanner.Peek()
-		if ch == '}' {
-			// Normal ${xx} case
-			sw.scanner.Next()
-			return sw.getEnv(name), nil
-		}
-		if ch == ':' {
-			// Special ${xx:...} format processing
-			// Yes it allows for recursive $'s in the ... spot
 
-			sw.scanner.Next() // skip over :
-			modifier := sw.scanner.Next()
-
-			word, _, err := sw.processStopOn('}')
-			if err != nil {
-				return "", err
-			}
-
-			// Grab the current value of the variable in question so we
-			// can use to to determine what to do based on the modifier
-			newValue := sw.getEnv(name)
-
-			switch modifier {
-			case '+':
-				if newValue != "" {
-					newValue = word
-				}
-				return newValue, nil
-
-			case '-':
-				if newValue == "" {
-					newValue = word
-				}
-				return newValue, nil
-
-			default:
-				return "", fmt.Errorf("Unsupported modifier (%c) in substitution: %s", modifier, sw.word)
-			}
-		}
-		return "", fmt.Errorf("Missing ':' in substitution: %s", sw.word)
-	}
 	// $xxx case
-	name := sw.processName()
-	if name == "" {
-		return "$", nil
+	if sw.scanner.Peek() != '{' {
+		name := sw.processName()
+		if name == "" {
+			return "$", nil
+		}
+		return sw.getEnv(name), nil
 	}
-	return sw.getEnv(name), nil
+
+	sw.scanner.Next()
+	name := sw.processName()
+	ch := sw.scanner.Peek()
+	if ch == '}' {
+		// Normal ${xx} case
+		sw.scanner.Next()
+		return sw.getEnv(name), nil
+	}
+	if ch == ':' {
+		// Special ${xx:...} format processing
+		// Yes it allows for recursive $'s in the ... spot
+
+		sw.scanner.Next() // skip over :
+		modifier := sw.scanner.Next()
+
+		word, _, err := sw.processStopOn('}')
+		if err != nil {
+			return "", err
+		}
+
+		// Grab the current value of the variable in question so we
+		// can use to to determine what to do based on the modifier
+		newValue := sw.getEnv(name)
+
+		switch modifier {
+		case '+':
+			if newValue != "" {
+				newValue = word
+			}
+			return newValue, nil
+
+		case '-':
+			if newValue == "" {
+				newValue = word
+			}
+			return newValue, nil
+
+		default:
+			return "", errors.Errorf("unsupported modifier (%c) in substitution: %s", modifier, sw.word)
+		}
+	}
+	return "", errors.Errorf("missing ':' in substitution: %s", sw.word)
 }
 
 func (sw *shellWord) processName() string {
 	// Read in a name (alphanumeric or _)
 	// If it starts with a numeric then just return $#
-	var name string
+	var name bytes.Buffer
 
 	for sw.scanner.Peek() != scanner.EOF {
 		ch := sw.scanner.Peek()
-		if len(name) == 0 && unicode.IsDigit(ch) {
+		if name.Len() == 0 && unicode.IsDigit(ch) {
 			ch = sw.scanner.Next()
 			return string(ch)
 		}
@@ -320,10 +307,10 @@ func (sw *shellWord) processName() string {
 			break
 		}
 		ch = sw.scanner.Next()
-		name += string(ch)
+		name.WriteRune(ch)
 	}
 
-	return name
+	return name.String()
 }
 
 func (sw *shellWord) getEnv(name string) string {
