@@ -182,11 +182,11 @@ RUN ln -sv $PWD/contrib/completion/bash/docker /etc/bash_completion.d/docker
 # Get useful and necessary Hub images so we can "docker load" locally instead of pulling
 COPY contrib/download-frozen-image-v2.sh /go/src/github.com/docker/docker/contrib/
 RUN ./contrib/download-frozen-image-v2.sh /docker-frozen-images \
-	aarch64/buildpack-deps:jessie@sha256:6aa1d6910791b7ac78265fd0798e5abd6cb3f27ae992f6f960f6c303ec9535f2 \
-	aarch64/busybox:latest@sha256:b23a6a37cf269dff6e46d2473b6e227afa42b037e6d23435f1d2bc40fc8c2828 \
-	aarch64/debian:jessie@sha256:4be74a41a7c70ebe887b634b11ffe516cf4fcd56864a54941e56bb49883c3170 \
-	aarch64/hello-world:latest@sha256:65a4a158587b307bb02db4de41b836addb0c35175bdc801367b1ac1ddeb9afda
-# See also "hack/make/.ensure-frozen-images" (which needs to be updated any time this list is)
+	aarch64/buildpack-deps:jessie@sha256:107f4a96837ed89c493fc205cd28508ed0b6b680b4bf3e514e9f0fa0f6667b77 \
+	aarch64/busybox:latest@sha256:5a06b8b2fdf22dd1f4085c6c3efd23ee99af01b2d668d286bc4be6d8baa10efb \
+	aarch64/debian:jessie@sha256:e6f90b568631705bd5cb27490977378ba762792b38d47c91c4da7a539f63079a \
+	aarch64/hello-world:latest@sha256:bd1722550b97668b23ede297abf824d4855f4d9f600dab7b4db1a963dae7ec9e
+# See also ensureFrozenImagesLinux() in "integration-cli/fixtures_linux_daemon_test.go" (which needs to be updated when adding images to this list)
 
 # Install tomlv, vndr, runc, containerd, tini, docker-proxy
 # Please edit hack/dockerfile/install-binaries.sh to update them.

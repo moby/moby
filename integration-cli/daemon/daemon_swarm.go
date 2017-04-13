@@ -205,7 +205,30 @@ func (d *Swarm) CheckServiceTasks(service string) func(*check.C) (interface{}, c
 	}
 }
 
-// CheckRunningTaskImages returns the number of different images attached to a running task
+// CheckRunningTaskNetworks returns the number of times each network is referenced from a task.
+func (d *Swarm) CheckRunningTaskNetworks(c *check.C) (interface{}, check.CommentInterface) {
+	var tasks []swarm.Task
+
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("desired-state", "running")
+	filters, err := filters.ToParam(filterArgs)
+	c.Assert(err, checker.IsNil)
+
+	status, out, err := d.SockRequest("GET", "/tasks?filters="+filters, nil)
+	c.Assert(err, checker.IsNil, check.Commentf(string(out)))
+	c.Assert(status, checker.Equals, http.StatusOK, check.Commentf("output: %q", string(out)))
+	c.Assert(json.Unmarshal(out, &tasks), checker.IsNil)
+
+	result := make(map[string]int)
+	for _, task := range tasks {
+		for _, network := range task.Spec.Networks {
+			result[network.Target]++
+		}
+	}
+	return result, nil
+}
+
+// CheckRunningTaskImages returns the times each image is running as a task.
 func (d *Swarm) CheckRunningTaskImages(c *check.C) (interface{}, check.CommentInterface) {
 	var tasks []swarm.Task
 

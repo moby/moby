@@ -567,7 +567,7 @@ func (m *CreateSecretRequest) Reset()                    { *m = CreateSecretRequ
 func (*CreateSecretRequest) ProtoMessage()               {}
 func (*CreateSecretRequest) Descriptor() ([]byte, []int) { return fileDescriptorControl, []int{45} }
 
-// CreateSecretResponse contains the newly created `Secret`` corresponding to the
+// CreateSecretResponse contains the newly created `Secret` corresponding to the
 // name in `CreateSecretRequest`.  The `Secret.Spec.Data` field should be nil instead
 // of actually containing the secret bytes.
 type CreateSecretResponse struct {
@@ -596,6 +596,119 @@ type RemoveSecretResponse struct {
 func (m *RemoveSecretResponse) Reset()                    { *m = RemoveSecretResponse{} }
 func (*RemoveSecretResponse) ProtoMessage()               {}
 func (*RemoveSecretResponse) Descriptor() ([]byte, []int) { return fileDescriptorControl, []int{48} }
+
+// GetConfigRequest is the request to get a `Config` object given a config id.
+type GetConfigRequest struct {
+	ConfigID string `protobuf:"bytes,1,opt,name=config_id,json=configId,proto3" json:"config_id,omitempty"`
+}
+
+func (m *GetConfigRequest) Reset()                    { *m = GetConfigRequest{} }
+func (*GetConfigRequest) ProtoMessage()               {}
+func (*GetConfigRequest) Descriptor() ([]byte, []int) { return fileDescriptorControl, []int{49} }
+
+// GetConfigResponse contains the Config corresponding to the id in
+// `GetConfigRequest`.
+type GetConfigResponse struct {
+	Config *Config `protobuf:"bytes,1,opt,name=config" json:"config,omitempty"`
+}
+
+func (m *GetConfigResponse) Reset()                    { *m = GetConfigResponse{} }
+func (*GetConfigResponse) ProtoMessage()               {}
+func (*GetConfigResponse) Descriptor() ([]byte, []int) { return fileDescriptorControl, []int{50} }
+
+type UpdateConfigRequest struct {
+	// ConfigID is the config ID to update.
+	ConfigID string `protobuf:"bytes,1,opt,name=config_id,json=configId,proto3" json:"config_id,omitempty"`
+	// ConfigVersion is the version of the config being updated.
+	ConfigVersion *Version `protobuf:"bytes,2,opt,name=config_version,json=configVersion" json:"config_version,omitempty"`
+	// Spec is the new spec to apply to the Config
+	// Only some fields are allowed to be updated.
+	Spec *ConfigSpec `protobuf:"bytes,3,opt,name=spec" json:"spec,omitempty"`
+}
+
+func (m *UpdateConfigRequest) Reset()                    { *m = UpdateConfigRequest{} }
+func (*UpdateConfigRequest) ProtoMessage()               {}
+func (*UpdateConfigRequest) Descriptor() ([]byte, []int) { return fileDescriptorControl, []int{51} }
+
+type UpdateConfigResponse struct {
+	Config *Config `protobuf:"bytes,1,opt,name=config" json:"config,omitempty"`
+}
+
+func (m *UpdateConfigResponse) Reset()                    { *m = UpdateConfigResponse{} }
+func (*UpdateConfigResponse) ProtoMessage()               {}
+func (*UpdateConfigResponse) Descriptor() ([]byte, []int) { return fileDescriptorControl, []int{52} }
+
+// ListConfigRequest is the request to list all configs in the config store,
+// or all configs filtered by (name or name prefix or id prefix) and labels.
+type ListConfigsRequest struct {
+	Filters *ListConfigsRequest_Filters `protobuf:"bytes,1,opt,name=filters" json:"filters,omitempty"`
+}
+
+func (m *ListConfigsRequest) Reset()                    { *m = ListConfigsRequest{} }
+func (*ListConfigsRequest) ProtoMessage()               {}
+func (*ListConfigsRequest) Descriptor() ([]byte, []int) { return fileDescriptorControl, []int{53} }
+
+type ListConfigsRequest_Filters struct {
+	Names        []string          `protobuf:"bytes,1,rep,name=names" json:"names,omitempty"`
+	IDPrefixes   []string          `protobuf:"bytes,2,rep,name=id_prefixes,json=idPrefixes" json:"id_prefixes,omitempty"`
+	Labels       map[string]string `protobuf:"bytes,3,rep,name=labels" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	NamePrefixes []string          `protobuf:"bytes,4,rep,name=name_prefixes,json=namePrefixes" json:"name_prefixes,omitempty"`
+}
+
+func (m *ListConfigsRequest_Filters) Reset()      { *m = ListConfigsRequest_Filters{} }
+func (*ListConfigsRequest_Filters) ProtoMessage() {}
+func (*ListConfigsRequest_Filters) Descriptor() ([]byte, []int) {
+	return fileDescriptorControl, []int{53, 0}
+}
+
+// ListConfigResponse contains a list of all the configs that match the name or
+// name prefix filters provided in `ListConfigRequest`.
+type ListConfigsResponse struct {
+	Configs []*Config `protobuf:"bytes,1,rep,name=configs" json:"configs,omitempty"`
+}
+
+func (m *ListConfigsResponse) Reset()                    { *m = ListConfigsResponse{} }
+func (*ListConfigsResponse) ProtoMessage()               {}
+func (*ListConfigsResponse) Descriptor() ([]byte, []int) { return fileDescriptorControl, []int{54} }
+
+// CreateConfigRequest specifies a new config (it will not update an existing
+// config) to create.
+type CreateConfigRequest struct {
+	Spec *ConfigSpec `protobuf:"bytes,1,opt,name=spec" json:"spec,omitempty"`
+}
+
+func (m *CreateConfigRequest) Reset()                    { *m = CreateConfigRequest{} }
+func (*CreateConfigRequest) ProtoMessage()               {}
+func (*CreateConfigRequest) Descriptor() ([]byte, []int) { return fileDescriptorControl, []int{55} }
+
+// CreateConfigResponse contains the newly created `Config` corresponding to the
+// name in `CreateConfigRequest`.
+type CreateConfigResponse struct {
+	Config *Config `protobuf:"bytes,1,opt,name=config" json:"config,omitempty"`
+}
+
+func (m *CreateConfigResponse) Reset()                    { *m = CreateConfigResponse{} }
+func (*CreateConfigResponse) ProtoMessage()               {}
+func (*CreateConfigResponse) Descriptor() ([]byte, []int) { return fileDescriptorControl, []int{56} }
+
+// RemoveConfigRequest contains the ID of the config that should be removed.  This
+// removes all versions of the config.
+type RemoveConfigRequest struct {
+	ConfigID string `protobuf:"bytes,1,opt,name=config_id,json=configId,proto3" json:"config_id,omitempty"`
+}
+
+func (m *RemoveConfigRequest) Reset()                    { *m = RemoveConfigRequest{} }
+func (*RemoveConfigRequest) ProtoMessage()               {}
+func (*RemoveConfigRequest) Descriptor() ([]byte, []int) { return fileDescriptorControl, []int{57} }
+
+// RemoveConfigResponse is an empty object indicating the successful removal of
+// a config.
+type RemoveConfigResponse struct {
+}
+
+func (m *RemoveConfigResponse) Reset()                    { *m = RemoveConfigResponse{} }
+func (*RemoveConfigResponse) ProtoMessage()               {}
+func (*RemoveConfigResponse) Descriptor() ([]byte, []int) { return fileDescriptorControl, []int{58} }
 
 func init() {
 	proto.RegisterType((*GetNodeRequest)(nil), "docker.swarmkit.v1.GetNodeRequest")
@@ -653,6 +766,17 @@ func init() {
 	proto.RegisterType((*CreateSecretResponse)(nil), "docker.swarmkit.v1.CreateSecretResponse")
 	proto.RegisterType((*RemoveSecretRequest)(nil), "docker.swarmkit.v1.RemoveSecretRequest")
 	proto.RegisterType((*RemoveSecretResponse)(nil), "docker.swarmkit.v1.RemoveSecretResponse")
+	proto.RegisterType((*GetConfigRequest)(nil), "docker.swarmkit.v1.GetConfigRequest")
+	proto.RegisterType((*GetConfigResponse)(nil), "docker.swarmkit.v1.GetConfigResponse")
+	proto.RegisterType((*UpdateConfigRequest)(nil), "docker.swarmkit.v1.UpdateConfigRequest")
+	proto.RegisterType((*UpdateConfigResponse)(nil), "docker.swarmkit.v1.UpdateConfigResponse")
+	proto.RegisterType((*ListConfigsRequest)(nil), "docker.swarmkit.v1.ListConfigsRequest")
+	proto.RegisterType((*ListConfigsRequest_Filters)(nil), "docker.swarmkit.v1.ListConfigsRequest.Filters")
+	proto.RegisterType((*ListConfigsResponse)(nil), "docker.swarmkit.v1.ListConfigsResponse")
+	proto.RegisterType((*CreateConfigRequest)(nil), "docker.swarmkit.v1.CreateConfigRequest")
+	proto.RegisterType((*CreateConfigResponse)(nil), "docker.swarmkit.v1.CreateConfigResponse")
+	proto.RegisterType((*RemoveConfigRequest)(nil), "docker.swarmkit.v1.RemoveConfigRequest")
+	proto.RegisterType((*RemoveConfigResponse)(nil), "docker.swarmkit.v1.RemoveConfigResponse")
 	proto.RegisterEnum("docker.swarmkit.v1.UpdateServiceRequest_Rollback", UpdateServiceRequest_Rollback_name, UpdateServiceRequest_Rollback_value)
 }
 
@@ -858,6 +982,46 @@ func (p *authenticatedWrapperControlServer) RemoveSecret(ctx context.Context, r 
 		return nil, err
 	}
 	return p.local.RemoveSecret(ctx, r)
+}
+
+func (p *authenticatedWrapperControlServer) GetConfig(ctx context.Context, r *GetConfigRequest) (*GetConfigResponse, error) {
+
+	if err := p.authorize(ctx, []string{"swarm-manager"}); err != nil {
+		return nil, err
+	}
+	return p.local.GetConfig(ctx, r)
+}
+
+func (p *authenticatedWrapperControlServer) UpdateConfig(ctx context.Context, r *UpdateConfigRequest) (*UpdateConfigResponse, error) {
+
+	if err := p.authorize(ctx, []string{"swarm-manager"}); err != nil {
+		return nil, err
+	}
+	return p.local.UpdateConfig(ctx, r)
+}
+
+func (p *authenticatedWrapperControlServer) ListConfigs(ctx context.Context, r *ListConfigsRequest) (*ListConfigsResponse, error) {
+
+	if err := p.authorize(ctx, []string{"swarm-manager"}); err != nil {
+		return nil, err
+	}
+	return p.local.ListConfigs(ctx, r)
+}
+
+func (p *authenticatedWrapperControlServer) CreateConfig(ctx context.Context, r *CreateConfigRequest) (*CreateConfigResponse, error) {
+
+	if err := p.authorize(ctx, []string{"swarm-manager"}); err != nil {
+		return nil, err
+	}
+	return p.local.CreateConfig(ctx, r)
+}
+
+func (p *authenticatedWrapperControlServer) RemoveConfig(ctx context.Context, r *RemoveConfigRequest) (*RemoveConfigResponse, error) {
+
+	if err := p.authorize(ctx, []string{"swarm-manager"}); err != nil {
+		return nil, err
+	}
+	return p.local.RemoveConfig(ctx, r)
 }
 
 func (m *GetNodeRequest) Copy() *GetNodeRequest {
@@ -1996,6 +2160,224 @@ func (m *RemoveSecretResponse) Copy() *RemoveSecretResponse {
 }
 
 func (m *RemoveSecretResponse) CopyFrom(src interface{}) {}
+func (m *GetConfigRequest) Copy() *GetConfigRequest {
+	if m == nil {
+		return nil
+	}
+	o := &GetConfigRequest{}
+	o.CopyFrom(m)
+	return o
+}
+
+func (m *GetConfigRequest) CopyFrom(src interface{}) {
+
+	o := src.(*GetConfigRequest)
+	*m = *o
+}
+
+func (m *GetConfigResponse) Copy() *GetConfigResponse {
+	if m == nil {
+		return nil
+	}
+	o := &GetConfigResponse{}
+	o.CopyFrom(m)
+	return o
+}
+
+func (m *GetConfigResponse) CopyFrom(src interface{}) {
+
+	o := src.(*GetConfigResponse)
+	*m = *o
+	if o.Config != nil {
+		m.Config = &Config{}
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.Config, o.Config)
+	}
+}
+
+func (m *UpdateConfigRequest) Copy() *UpdateConfigRequest {
+	if m == nil {
+		return nil
+	}
+	o := &UpdateConfigRequest{}
+	o.CopyFrom(m)
+	return o
+}
+
+func (m *UpdateConfigRequest) CopyFrom(src interface{}) {
+
+	o := src.(*UpdateConfigRequest)
+	*m = *o
+	if o.ConfigVersion != nil {
+		m.ConfigVersion = &Version{}
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.ConfigVersion, o.ConfigVersion)
+	}
+	if o.Spec != nil {
+		m.Spec = &ConfigSpec{}
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.Spec, o.Spec)
+	}
+}
+
+func (m *UpdateConfigResponse) Copy() *UpdateConfigResponse {
+	if m == nil {
+		return nil
+	}
+	o := &UpdateConfigResponse{}
+	o.CopyFrom(m)
+	return o
+}
+
+func (m *UpdateConfigResponse) CopyFrom(src interface{}) {
+
+	o := src.(*UpdateConfigResponse)
+	*m = *o
+	if o.Config != nil {
+		m.Config = &Config{}
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.Config, o.Config)
+	}
+}
+
+func (m *ListConfigsRequest) Copy() *ListConfigsRequest {
+	if m == nil {
+		return nil
+	}
+	o := &ListConfigsRequest{}
+	o.CopyFrom(m)
+	return o
+}
+
+func (m *ListConfigsRequest) CopyFrom(src interface{}) {
+
+	o := src.(*ListConfigsRequest)
+	*m = *o
+	if o.Filters != nil {
+		m.Filters = &ListConfigsRequest_Filters{}
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.Filters, o.Filters)
+	}
+}
+
+func (m *ListConfigsRequest_Filters) Copy() *ListConfigsRequest_Filters {
+	if m == nil {
+		return nil
+	}
+	o := &ListConfigsRequest_Filters{}
+	o.CopyFrom(m)
+	return o
+}
+
+func (m *ListConfigsRequest_Filters) CopyFrom(src interface{}) {
+
+	o := src.(*ListConfigsRequest_Filters)
+	*m = *o
+	if o.Names != nil {
+		m.Names = make([]string, len(o.Names))
+		copy(m.Names, o.Names)
+	}
+
+	if o.IDPrefixes != nil {
+		m.IDPrefixes = make([]string, len(o.IDPrefixes))
+		copy(m.IDPrefixes, o.IDPrefixes)
+	}
+
+	if o.Labels != nil {
+		m.Labels = make(map[string]string, len(o.Labels))
+		for k, v := range o.Labels {
+			m.Labels[k] = v
+		}
+	}
+
+	if o.NamePrefixes != nil {
+		m.NamePrefixes = make([]string, len(o.NamePrefixes))
+		copy(m.NamePrefixes, o.NamePrefixes)
+	}
+
+}
+
+func (m *ListConfigsResponse) Copy() *ListConfigsResponse {
+	if m == nil {
+		return nil
+	}
+	o := &ListConfigsResponse{}
+	o.CopyFrom(m)
+	return o
+}
+
+func (m *ListConfigsResponse) CopyFrom(src interface{}) {
+
+	o := src.(*ListConfigsResponse)
+	*m = *o
+	if o.Configs != nil {
+		m.Configs = make([]*Config, len(o.Configs))
+		for i := range m.Configs {
+			m.Configs[i] = &Config{}
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.Configs[i], o.Configs[i])
+		}
+	}
+
+}
+
+func (m *CreateConfigRequest) Copy() *CreateConfigRequest {
+	if m == nil {
+		return nil
+	}
+	o := &CreateConfigRequest{}
+	o.CopyFrom(m)
+	return o
+}
+
+func (m *CreateConfigRequest) CopyFrom(src interface{}) {
+
+	o := src.(*CreateConfigRequest)
+	*m = *o
+	if o.Spec != nil {
+		m.Spec = &ConfigSpec{}
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.Spec, o.Spec)
+	}
+}
+
+func (m *CreateConfigResponse) Copy() *CreateConfigResponse {
+	if m == nil {
+		return nil
+	}
+	o := &CreateConfigResponse{}
+	o.CopyFrom(m)
+	return o
+}
+
+func (m *CreateConfigResponse) CopyFrom(src interface{}) {
+
+	o := src.(*CreateConfigResponse)
+	*m = *o
+	if o.Config != nil {
+		m.Config = &Config{}
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.Config, o.Config)
+	}
+}
+
+func (m *RemoveConfigRequest) Copy() *RemoveConfigRequest {
+	if m == nil {
+		return nil
+	}
+	o := &RemoveConfigRequest{}
+	o.CopyFrom(m)
+	return o
+}
+
+func (m *RemoveConfigRequest) CopyFrom(src interface{}) {
+
+	o := src.(*RemoveConfigRequest)
+	*m = *o
+}
+
+func (m *RemoveConfigResponse) Copy() *RemoveConfigResponse {
+	if m == nil {
+		return nil
+	}
+	o := &RemoveConfigResponse{}
+	o.CopyFrom(m)
+	return o
+}
+
+func (m *RemoveConfigResponse) CopyFrom(src interface{}) {}
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ context.Context
@@ -2039,7 +2421,7 @@ type ControlClient interface {
 	// - Returns `InvalidArgument` if the `GetSecretRequest.SecretID` is empty.
 	// - Returns an error if updating fails.
 	UpdateSecret(ctx context.Context, in *UpdateSecretRequest, opts ...grpc.CallOption) (*UpdateSecretResponse, error)
-	// ListSecrets returns a `ListSecretResponse` with a list all non-internal `Secret`s being
+	// ListSecrets returns a `ListSecretResponse` with a list of all non-internal `Secret`s being
 	// managed, or all secrets matching any name in `ListSecretsRequest.Names`, any
 	// name prefix in `ListSecretsRequest.NamePrefixes`, any id in
 	// `ListSecretsRequest.SecretIDs`, or any id prefix in `ListSecretsRequest.IDPrefixes`.
@@ -2056,6 +2438,35 @@ type ControlClient interface {
 	// - Returns `NotFound` if the a secret named `RemoveSecretRequest.ID` is not found.
 	// - Returns an error if the deletion fails.
 	RemoveSecret(ctx context.Context, in *RemoveSecretRequest, opts ...grpc.CallOption) (*RemoveSecretResponse, error)
+	// GetConfig returns a `GetConfigResponse` with a `Config` with the same
+	// id as `GetConfigRequest.ConfigID`
+	// - Returns `NotFound` if the Config with the given id is not found.
+	// - Returns `InvalidArgument` if the `GetConfigRequest.ConfigID` is empty.
+	// - Returns an error if getting fails.
+	GetConfig(ctx context.Context, in *GetConfigRequest, opts ...grpc.CallOption) (*GetConfigResponse, error)
+	// UpdateConfig returns a `UpdateConfigResponse` with a `Config` with the same
+	// id as `GetConfigRequest.ConfigID`
+	// - Returns `NotFound` if the Config with the given id is not found.
+	// - Returns `InvalidArgument` if the `GetConfigRequest.ConfigID` is empty.
+	// - Returns an error if updating fails.
+	UpdateConfig(ctx context.Context, in *UpdateConfigRequest, opts ...grpc.CallOption) (*UpdateConfigResponse, error)
+	// ListConfigs returns a `ListConfigResponse` with a list of `Config`s being
+	// managed, or all configs matching any name in `ListConfigsRequest.Names`, any
+	// name prefix in `ListConfigsRequest.NamePrefixes`, any id in
+	// `ListConfigsRequest.ConfigIDs`, or any id prefix in `ListConfigsRequest.IDPrefixes`.
+	// - Returns an error if listing fails.
+	ListConfigs(ctx context.Context, in *ListConfigsRequest, opts ...grpc.CallOption) (*ListConfigsResponse, error)
+	// CreateConfig creates and return a `CreateConfigResponse` with a `Config` based
+	// on the provided `CreateConfigRequest.ConfigSpec`.
+	// - Returns `InvalidArgument` if the `CreateConfigRequest.ConfigSpec` is malformed,
+	//   or if the config data is too long or contains invalid characters.
+	// - Returns an error if the creation fails.
+	CreateConfig(ctx context.Context, in *CreateConfigRequest, opts ...grpc.CallOption) (*CreateConfigResponse, error)
+	// RemoveConfig removes the config referenced by `RemoveConfigRequest.ID`.
+	// - Returns `InvalidArgument` if `RemoveConfigRequest.ID` is empty.
+	// - Returns `NotFound` if the a config named `RemoveConfigRequest.ID` is not found.
+	// - Returns an error if the deletion fails.
+	RemoveConfig(ctx context.Context, in *RemoveConfigRequest, opts ...grpc.CallOption) (*RemoveConfigResponse, error)
 }
 
 type controlClient struct {
@@ -2282,6 +2693,51 @@ func (c *controlClient) RemoveSecret(ctx context.Context, in *RemoveSecretReques
 	return out, nil
 }
 
+func (c *controlClient) GetConfig(ctx context.Context, in *GetConfigRequest, opts ...grpc.CallOption) (*GetConfigResponse, error) {
+	out := new(GetConfigResponse)
+	err := grpc.Invoke(ctx, "/docker.swarmkit.v1.Control/GetConfig", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlClient) UpdateConfig(ctx context.Context, in *UpdateConfigRequest, opts ...grpc.CallOption) (*UpdateConfigResponse, error) {
+	out := new(UpdateConfigResponse)
+	err := grpc.Invoke(ctx, "/docker.swarmkit.v1.Control/UpdateConfig", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlClient) ListConfigs(ctx context.Context, in *ListConfigsRequest, opts ...grpc.CallOption) (*ListConfigsResponse, error) {
+	out := new(ListConfigsResponse)
+	err := grpc.Invoke(ctx, "/docker.swarmkit.v1.Control/ListConfigs", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlClient) CreateConfig(ctx context.Context, in *CreateConfigRequest, opts ...grpc.CallOption) (*CreateConfigResponse, error) {
+	out := new(CreateConfigResponse)
+	err := grpc.Invoke(ctx, "/docker.swarmkit.v1.Control/CreateConfig", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlClient) RemoveConfig(ctx context.Context, in *RemoveConfigRequest, opts ...grpc.CallOption) (*RemoveConfigResponse, error) {
+	out := new(RemoveConfigResponse)
+	err := grpc.Invoke(ctx, "/docker.swarmkit.v1.Control/RemoveConfig", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // Server API for Control service
 
 type ControlServer interface {
@@ -2316,7 +2772,7 @@ type ControlServer interface {
 	// - Returns `InvalidArgument` if the `GetSecretRequest.SecretID` is empty.
 	// - Returns an error if updating fails.
 	UpdateSecret(context.Context, *UpdateSecretRequest) (*UpdateSecretResponse, error)
-	// ListSecrets returns a `ListSecretResponse` with a list all non-internal `Secret`s being
+	// ListSecrets returns a `ListSecretResponse` with a list of all non-internal `Secret`s being
 	// managed, or all secrets matching any name in `ListSecretsRequest.Names`, any
 	// name prefix in `ListSecretsRequest.NamePrefixes`, any id in
 	// `ListSecretsRequest.SecretIDs`, or any id prefix in `ListSecretsRequest.IDPrefixes`.
@@ -2333,6 +2789,35 @@ type ControlServer interface {
 	// - Returns `NotFound` if the a secret named `RemoveSecretRequest.ID` is not found.
 	// - Returns an error if the deletion fails.
 	RemoveSecret(context.Context, *RemoveSecretRequest) (*RemoveSecretResponse, error)
+	// GetConfig returns a `GetConfigResponse` with a `Config` with the same
+	// id as `GetConfigRequest.ConfigID`
+	// - Returns `NotFound` if the Config with the given id is not found.
+	// - Returns `InvalidArgument` if the `GetConfigRequest.ConfigID` is empty.
+	// - Returns an error if getting fails.
+	GetConfig(context.Context, *GetConfigRequest) (*GetConfigResponse, error)
+	// UpdateConfig returns a `UpdateConfigResponse` with a `Config` with the same
+	// id as `GetConfigRequest.ConfigID`
+	// - Returns `NotFound` if the Config with the given id is not found.
+	// - Returns `InvalidArgument` if the `GetConfigRequest.ConfigID` is empty.
+	// - Returns an error if updating fails.
+	UpdateConfig(context.Context, *UpdateConfigRequest) (*UpdateConfigResponse, error)
+	// ListConfigs returns a `ListConfigResponse` with a list of `Config`s being
+	// managed, or all configs matching any name in `ListConfigsRequest.Names`, any
+	// name prefix in `ListConfigsRequest.NamePrefixes`, any id in
+	// `ListConfigsRequest.ConfigIDs`, or any id prefix in `ListConfigsRequest.IDPrefixes`.
+	// - Returns an error if listing fails.
+	ListConfigs(context.Context, *ListConfigsRequest) (*ListConfigsResponse, error)
+	// CreateConfig creates and return a `CreateConfigResponse` with a `Config` based
+	// on the provided `CreateConfigRequest.ConfigSpec`.
+	// - Returns `InvalidArgument` if the `CreateConfigRequest.ConfigSpec` is malformed,
+	//   or if the config data is too long or contains invalid characters.
+	// - Returns an error if the creation fails.
+	CreateConfig(context.Context, *CreateConfigRequest) (*CreateConfigResponse, error)
+	// RemoveConfig removes the config referenced by `RemoveConfigRequest.ID`.
+	// - Returns `InvalidArgument` if `RemoveConfigRequest.ID` is empty.
+	// - Returns `NotFound` if the a config named `RemoveConfigRequest.ID` is not found.
+	// - Returns an error if the deletion fails.
+	RemoveConfig(context.Context, *RemoveConfigRequest) (*RemoveConfigResponse, error)
 }
 
 func RegisterControlServer(s *grpc.Server, srv ControlServer) {
@@ -2771,6 +3256,96 @@ func _Control_RemoveSecret_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Control_GetConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetConfigRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServer).GetConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/docker.swarmkit.v1.Control/GetConfig",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServer).GetConfig(ctx, req.(*GetConfigRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Control_UpdateConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateConfigRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServer).UpdateConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/docker.swarmkit.v1.Control/UpdateConfig",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServer).UpdateConfig(ctx, req.(*UpdateConfigRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Control_ListConfigs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListConfigsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServer).ListConfigs(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/docker.swarmkit.v1.Control/ListConfigs",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServer).ListConfigs(ctx, req.(*ListConfigsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Control_CreateConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateConfigRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServer).CreateConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/docker.swarmkit.v1.Control/CreateConfig",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServer).CreateConfig(ctx, req.(*CreateConfigRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Control_RemoveConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemoveConfigRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServer).RemoveConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/docker.swarmkit.v1.Control/RemoveConfig",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServer).RemoveConfig(ctx, req.(*RemoveConfigRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _Control_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "docker.swarmkit.v1.Control",
 	HandlerType: (*ControlServer)(nil),
@@ -2870,6 +3445,26 @@ var _Control_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RemoveSecret",
 			Handler:    _Control_RemoveSecret_Handler,
+		},
+		{
+			MethodName: "GetConfig",
+			Handler:    _Control_GetConfig_Handler,
+		},
+		{
+			MethodName: "UpdateConfig",
+			Handler:    _Control_UpdateConfig_Handler,
+		},
+		{
+			MethodName: "ListConfigs",
+			Handler:    _Control_ListConfigs_Handler,
+		},
+		{
+			MethodName: "CreateConfig",
+			Handler:    _Control_CreateConfig_Handler,
+		},
+		{
+			MethodName: "RemoveConfig",
+			Handler:    _Control_RemoveConfig_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -4896,6 +5491,366 @@ func (m *RemoveSecretResponse) MarshalTo(dAtA []byte) (int, error) {
 	return i, nil
 }
 
+func (m *GetConfigRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *GetConfigRequest) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if len(m.ConfigID) > 0 {
+		dAtA[i] = 0xa
+		i++
+		i = encodeVarintControl(dAtA, i, uint64(len(m.ConfigID)))
+		i += copy(dAtA[i:], m.ConfigID)
+	}
+	return i, nil
+}
+
+func (m *GetConfigResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *GetConfigResponse) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.Config != nil {
+		dAtA[i] = 0xa
+		i++
+		i = encodeVarintControl(dAtA, i, uint64(m.Config.Size()))
+		n38, err := m.Config.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n38
+	}
+	return i, nil
+}
+
+func (m *UpdateConfigRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *UpdateConfigRequest) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if len(m.ConfigID) > 0 {
+		dAtA[i] = 0xa
+		i++
+		i = encodeVarintControl(dAtA, i, uint64(len(m.ConfigID)))
+		i += copy(dAtA[i:], m.ConfigID)
+	}
+	if m.ConfigVersion != nil {
+		dAtA[i] = 0x12
+		i++
+		i = encodeVarintControl(dAtA, i, uint64(m.ConfigVersion.Size()))
+		n39, err := m.ConfigVersion.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n39
+	}
+	if m.Spec != nil {
+		dAtA[i] = 0x1a
+		i++
+		i = encodeVarintControl(dAtA, i, uint64(m.Spec.Size()))
+		n40, err := m.Spec.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n40
+	}
+	return i, nil
+}
+
+func (m *UpdateConfigResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *UpdateConfigResponse) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.Config != nil {
+		dAtA[i] = 0xa
+		i++
+		i = encodeVarintControl(dAtA, i, uint64(m.Config.Size()))
+		n41, err := m.Config.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n41
+	}
+	return i, nil
+}
+
+func (m *ListConfigsRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ListConfigsRequest) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.Filters != nil {
+		dAtA[i] = 0xa
+		i++
+		i = encodeVarintControl(dAtA, i, uint64(m.Filters.Size()))
+		n42, err := m.Filters.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n42
+	}
+	return i, nil
+}
+
+func (m *ListConfigsRequest_Filters) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ListConfigsRequest_Filters) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if len(m.Names) > 0 {
+		for _, s := range m.Names {
+			dAtA[i] = 0xa
+			i++
+			l = len(s)
+			for l >= 1<<7 {
+				dAtA[i] = uint8(uint64(l)&0x7f | 0x80)
+				l >>= 7
+				i++
+			}
+			dAtA[i] = uint8(l)
+			i++
+			i += copy(dAtA[i:], s)
+		}
+	}
+	if len(m.IDPrefixes) > 0 {
+		for _, s := range m.IDPrefixes {
+			dAtA[i] = 0x12
+			i++
+			l = len(s)
+			for l >= 1<<7 {
+				dAtA[i] = uint8(uint64(l)&0x7f | 0x80)
+				l >>= 7
+				i++
+			}
+			dAtA[i] = uint8(l)
+			i++
+			i += copy(dAtA[i:], s)
+		}
+	}
+	if len(m.Labels) > 0 {
+		for k, _ := range m.Labels {
+			dAtA[i] = 0x1a
+			i++
+			v := m.Labels[k]
+			mapSize := 1 + len(k) + sovControl(uint64(len(k))) + 1 + len(v) + sovControl(uint64(len(v)))
+			i = encodeVarintControl(dAtA, i, uint64(mapSize))
+			dAtA[i] = 0xa
+			i++
+			i = encodeVarintControl(dAtA, i, uint64(len(k)))
+			i += copy(dAtA[i:], k)
+			dAtA[i] = 0x12
+			i++
+			i = encodeVarintControl(dAtA, i, uint64(len(v)))
+			i += copy(dAtA[i:], v)
+		}
+	}
+	if len(m.NamePrefixes) > 0 {
+		for _, s := range m.NamePrefixes {
+			dAtA[i] = 0x22
+			i++
+			l = len(s)
+			for l >= 1<<7 {
+				dAtA[i] = uint8(uint64(l)&0x7f | 0x80)
+				l >>= 7
+				i++
+			}
+			dAtA[i] = uint8(l)
+			i++
+			i += copy(dAtA[i:], s)
+		}
+	}
+	return i, nil
+}
+
+func (m *ListConfigsResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ListConfigsResponse) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if len(m.Configs) > 0 {
+		for _, msg := range m.Configs {
+			dAtA[i] = 0xa
+			i++
+			i = encodeVarintControl(dAtA, i, uint64(msg.Size()))
+			n, err := msg.MarshalTo(dAtA[i:])
+			if err != nil {
+				return 0, err
+			}
+			i += n
+		}
+	}
+	return i, nil
+}
+
+func (m *CreateConfigRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *CreateConfigRequest) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.Spec != nil {
+		dAtA[i] = 0xa
+		i++
+		i = encodeVarintControl(dAtA, i, uint64(m.Spec.Size()))
+		n43, err := m.Spec.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n43
+	}
+	return i, nil
+}
+
+func (m *CreateConfigResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *CreateConfigResponse) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.Config != nil {
+		dAtA[i] = 0xa
+		i++
+		i = encodeVarintControl(dAtA, i, uint64(m.Config.Size()))
+		n44, err := m.Config.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n44
+	}
+	return i, nil
+}
+
+func (m *RemoveConfigRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *RemoveConfigRequest) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if len(m.ConfigID) > 0 {
+		dAtA[i] = 0xa
+		i++
+		i = encodeVarintControl(dAtA, i, uint64(len(m.ConfigID)))
+		i += copy(dAtA[i:], m.ConfigID)
+	}
+	return i, nil
+}
+
+func (m *RemoveConfigResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *RemoveConfigResponse) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	return i, nil
+}
+
 func encodeFixed64Control(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	dAtA[offset+1] = uint8(v >> 8)
@@ -5836,6 +6791,181 @@ func (p *raftProxyControlServer) RemoveSecret(ctx context.Context, r *RemoveSecr
 	return resp, err
 }
 
+func (p *raftProxyControlServer) GetConfig(ctx context.Context, r *GetConfigRequest) (*GetConfigResponse, error) {
+
+	conn, err := p.connSelector.LeaderConn(ctx)
+	if err != nil {
+		if err == raftselector.ErrIsLeader {
+			ctx, err = p.runCtxMods(ctx, p.localCtxMods)
+			if err != nil {
+				return nil, err
+			}
+			return p.local.GetConfig(ctx, r)
+		}
+		return nil, err
+	}
+	modCtx, err := p.runCtxMods(ctx, p.remoteCtxMods)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := NewControlClient(conn).GetConfig(modCtx, r)
+	if err != nil {
+		if !strings.Contains(err.Error(), "is closing") && !strings.Contains(err.Error(), "the connection is unavailable") && !strings.Contains(err.Error(), "connection error") {
+			return resp, err
+		}
+		conn, err := p.pollNewLeaderConn(ctx)
+		if err != nil {
+			if err == raftselector.ErrIsLeader {
+				return p.local.GetConfig(ctx, r)
+			}
+			return nil, err
+		}
+		return NewControlClient(conn).GetConfig(modCtx, r)
+	}
+	return resp, err
+}
+
+func (p *raftProxyControlServer) UpdateConfig(ctx context.Context, r *UpdateConfigRequest) (*UpdateConfigResponse, error) {
+
+	conn, err := p.connSelector.LeaderConn(ctx)
+	if err != nil {
+		if err == raftselector.ErrIsLeader {
+			ctx, err = p.runCtxMods(ctx, p.localCtxMods)
+			if err != nil {
+				return nil, err
+			}
+			return p.local.UpdateConfig(ctx, r)
+		}
+		return nil, err
+	}
+	modCtx, err := p.runCtxMods(ctx, p.remoteCtxMods)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := NewControlClient(conn).UpdateConfig(modCtx, r)
+	if err != nil {
+		if !strings.Contains(err.Error(), "is closing") && !strings.Contains(err.Error(), "the connection is unavailable") && !strings.Contains(err.Error(), "connection error") {
+			return resp, err
+		}
+		conn, err := p.pollNewLeaderConn(ctx)
+		if err != nil {
+			if err == raftselector.ErrIsLeader {
+				return p.local.UpdateConfig(ctx, r)
+			}
+			return nil, err
+		}
+		return NewControlClient(conn).UpdateConfig(modCtx, r)
+	}
+	return resp, err
+}
+
+func (p *raftProxyControlServer) ListConfigs(ctx context.Context, r *ListConfigsRequest) (*ListConfigsResponse, error) {
+
+	conn, err := p.connSelector.LeaderConn(ctx)
+	if err != nil {
+		if err == raftselector.ErrIsLeader {
+			ctx, err = p.runCtxMods(ctx, p.localCtxMods)
+			if err != nil {
+				return nil, err
+			}
+			return p.local.ListConfigs(ctx, r)
+		}
+		return nil, err
+	}
+	modCtx, err := p.runCtxMods(ctx, p.remoteCtxMods)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := NewControlClient(conn).ListConfigs(modCtx, r)
+	if err != nil {
+		if !strings.Contains(err.Error(), "is closing") && !strings.Contains(err.Error(), "the connection is unavailable") && !strings.Contains(err.Error(), "connection error") {
+			return resp, err
+		}
+		conn, err := p.pollNewLeaderConn(ctx)
+		if err != nil {
+			if err == raftselector.ErrIsLeader {
+				return p.local.ListConfigs(ctx, r)
+			}
+			return nil, err
+		}
+		return NewControlClient(conn).ListConfigs(modCtx, r)
+	}
+	return resp, err
+}
+
+func (p *raftProxyControlServer) CreateConfig(ctx context.Context, r *CreateConfigRequest) (*CreateConfigResponse, error) {
+
+	conn, err := p.connSelector.LeaderConn(ctx)
+	if err != nil {
+		if err == raftselector.ErrIsLeader {
+			ctx, err = p.runCtxMods(ctx, p.localCtxMods)
+			if err != nil {
+				return nil, err
+			}
+			return p.local.CreateConfig(ctx, r)
+		}
+		return nil, err
+	}
+	modCtx, err := p.runCtxMods(ctx, p.remoteCtxMods)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := NewControlClient(conn).CreateConfig(modCtx, r)
+	if err != nil {
+		if !strings.Contains(err.Error(), "is closing") && !strings.Contains(err.Error(), "the connection is unavailable") && !strings.Contains(err.Error(), "connection error") {
+			return resp, err
+		}
+		conn, err := p.pollNewLeaderConn(ctx)
+		if err != nil {
+			if err == raftselector.ErrIsLeader {
+				return p.local.CreateConfig(ctx, r)
+			}
+			return nil, err
+		}
+		return NewControlClient(conn).CreateConfig(modCtx, r)
+	}
+	return resp, err
+}
+
+func (p *raftProxyControlServer) RemoveConfig(ctx context.Context, r *RemoveConfigRequest) (*RemoveConfigResponse, error) {
+
+	conn, err := p.connSelector.LeaderConn(ctx)
+	if err != nil {
+		if err == raftselector.ErrIsLeader {
+			ctx, err = p.runCtxMods(ctx, p.localCtxMods)
+			if err != nil {
+				return nil, err
+			}
+			return p.local.RemoveConfig(ctx, r)
+		}
+		return nil, err
+	}
+	modCtx, err := p.runCtxMods(ctx, p.remoteCtxMods)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := NewControlClient(conn).RemoveConfig(modCtx, r)
+	if err != nil {
+		if !strings.Contains(err.Error(), "is closing") && !strings.Contains(err.Error(), "the connection is unavailable") && !strings.Contains(err.Error(), "connection error") {
+			return resp, err
+		}
+		conn, err := p.pollNewLeaderConn(ctx)
+		if err != nil {
+			if err == raftselector.ErrIsLeader {
+				return p.local.RemoveConfig(ctx, r)
+			}
+			return nil, err
+		}
+		return NewControlClient(conn).RemoveConfig(modCtx, r)
+	}
+	return resp, err
+}
+
 func (m *GetNodeRequest) Size() (n int) {
 	var l int
 	_ = l
@@ -6614,6 +7744,144 @@ func (m *RemoveSecretResponse) Size() (n int) {
 	return n
 }
 
+func (m *GetConfigRequest) Size() (n int) {
+	var l int
+	_ = l
+	l = len(m.ConfigID)
+	if l > 0 {
+		n += 1 + l + sovControl(uint64(l))
+	}
+	return n
+}
+
+func (m *GetConfigResponse) Size() (n int) {
+	var l int
+	_ = l
+	if m.Config != nil {
+		l = m.Config.Size()
+		n += 1 + l + sovControl(uint64(l))
+	}
+	return n
+}
+
+func (m *UpdateConfigRequest) Size() (n int) {
+	var l int
+	_ = l
+	l = len(m.ConfigID)
+	if l > 0 {
+		n += 1 + l + sovControl(uint64(l))
+	}
+	if m.ConfigVersion != nil {
+		l = m.ConfigVersion.Size()
+		n += 1 + l + sovControl(uint64(l))
+	}
+	if m.Spec != nil {
+		l = m.Spec.Size()
+		n += 1 + l + sovControl(uint64(l))
+	}
+	return n
+}
+
+func (m *UpdateConfigResponse) Size() (n int) {
+	var l int
+	_ = l
+	if m.Config != nil {
+		l = m.Config.Size()
+		n += 1 + l + sovControl(uint64(l))
+	}
+	return n
+}
+
+func (m *ListConfigsRequest) Size() (n int) {
+	var l int
+	_ = l
+	if m.Filters != nil {
+		l = m.Filters.Size()
+		n += 1 + l + sovControl(uint64(l))
+	}
+	return n
+}
+
+func (m *ListConfigsRequest_Filters) Size() (n int) {
+	var l int
+	_ = l
+	if len(m.Names) > 0 {
+		for _, s := range m.Names {
+			l = len(s)
+			n += 1 + l + sovControl(uint64(l))
+		}
+	}
+	if len(m.IDPrefixes) > 0 {
+		for _, s := range m.IDPrefixes {
+			l = len(s)
+			n += 1 + l + sovControl(uint64(l))
+		}
+	}
+	if len(m.Labels) > 0 {
+		for k, v := range m.Labels {
+			_ = k
+			_ = v
+			mapEntrySize := 1 + len(k) + sovControl(uint64(len(k))) + 1 + len(v) + sovControl(uint64(len(v)))
+			n += mapEntrySize + 1 + sovControl(uint64(mapEntrySize))
+		}
+	}
+	if len(m.NamePrefixes) > 0 {
+		for _, s := range m.NamePrefixes {
+			l = len(s)
+			n += 1 + l + sovControl(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *ListConfigsResponse) Size() (n int) {
+	var l int
+	_ = l
+	if len(m.Configs) > 0 {
+		for _, e := range m.Configs {
+			l = e.Size()
+			n += 1 + l + sovControl(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *CreateConfigRequest) Size() (n int) {
+	var l int
+	_ = l
+	if m.Spec != nil {
+		l = m.Spec.Size()
+		n += 1 + l + sovControl(uint64(l))
+	}
+	return n
+}
+
+func (m *CreateConfigResponse) Size() (n int) {
+	var l int
+	_ = l
+	if m.Config != nil {
+		l = m.Config.Size()
+		n += 1 + l + sovControl(uint64(l))
+	}
+	return n
+}
+
+func (m *RemoveConfigRequest) Size() (n int) {
+	var l int
+	_ = l
+	l = len(m.ConfigID)
+	if l > 0 {
+		n += 1 + l + sovControl(uint64(l))
+	}
+	return n
+}
+
+func (m *RemoveConfigResponse) Size() (n int) {
+	var l int
+	_ = l
+	return n
+}
+
 func sovControl(x uint64) (n int) {
 	for {
 		n++
@@ -7270,6 +8538,130 @@ func (this *RemoveSecretResponse) String() string {
 		return "nil"
 	}
 	s := strings.Join([]string{`&RemoveSecretResponse{`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *GetConfigRequest) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&GetConfigRequest{`,
+		`ConfigID:` + fmt.Sprintf("%v", this.ConfigID) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *GetConfigResponse) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&GetConfigResponse{`,
+		`Config:` + strings.Replace(fmt.Sprintf("%v", this.Config), "Config", "Config", 1) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *UpdateConfigRequest) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&UpdateConfigRequest{`,
+		`ConfigID:` + fmt.Sprintf("%v", this.ConfigID) + `,`,
+		`ConfigVersion:` + strings.Replace(fmt.Sprintf("%v", this.ConfigVersion), "Version", "Version", 1) + `,`,
+		`Spec:` + strings.Replace(fmt.Sprintf("%v", this.Spec), "ConfigSpec", "ConfigSpec", 1) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *UpdateConfigResponse) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&UpdateConfigResponse{`,
+		`Config:` + strings.Replace(fmt.Sprintf("%v", this.Config), "Config", "Config", 1) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *ListConfigsRequest) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&ListConfigsRequest{`,
+		`Filters:` + strings.Replace(fmt.Sprintf("%v", this.Filters), "ListConfigsRequest_Filters", "ListConfigsRequest_Filters", 1) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *ListConfigsRequest_Filters) String() string {
+	if this == nil {
+		return "nil"
+	}
+	keysForLabels := make([]string, 0, len(this.Labels))
+	for k, _ := range this.Labels {
+		keysForLabels = append(keysForLabels, k)
+	}
+	github_com_gogo_protobuf_sortkeys.Strings(keysForLabels)
+	mapStringForLabels := "map[string]string{"
+	for _, k := range keysForLabels {
+		mapStringForLabels += fmt.Sprintf("%v: %v,", k, this.Labels[k])
+	}
+	mapStringForLabels += "}"
+	s := strings.Join([]string{`&ListConfigsRequest_Filters{`,
+		`Names:` + fmt.Sprintf("%v", this.Names) + `,`,
+		`IDPrefixes:` + fmt.Sprintf("%v", this.IDPrefixes) + `,`,
+		`Labels:` + mapStringForLabels + `,`,
+		`NamePrefixes:` + fmt.Sprintf("%v", this.NamePrefixes) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *ListConfigsResponse) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&ListConfigsResponse{`,
+		`Configs:` + strings.Replace(fmt.Sprintf("%v", this.Configs), "Config", "Config", 1) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *CreateConfigRequest) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&CreateConfigRequest{`,
+		`Spec:` + strings.Replace(fmt.Sprintf("%v", this.Spec), "ConfigSpec", "ConfigSpec", 1) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *CreateConfigResponse) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&CreateConfigResponse{`,
+		`Config:` + strings.Replace(fmt.Sprintf("%v", this.Config), "Config", "Config", 1) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *RemoveConfigRequest) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&RemoveConfigRequest{`,
+		`ConfigID:` + fmt.Sprintf("%v", this.ConfigID) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *RemoveConfigResponse) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&RemoveConfigResponse{`,
 		`}`,
 	}, "")
 	return s
@@ -13390,6 +14782,1108 @@ func (m *RemoveSecretResponse) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
+func (m *GetConfigRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowControl
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: GetConfigRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: GetConfigRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ConfigID", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowControl
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthControl
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ConfigID = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipControl(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthControl
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *GetConfigResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowControl
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: GetConfigResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: GetConfigResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Config", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowControl
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthControl
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Config == nil {
+				m.Config = &Config{}
+			}
+			if err := m.Config.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipControl(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthControl
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *UpdateConfigRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowControl
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: UpdateConfigRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: UpdateConfigRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ConfigID", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowControl
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthControl
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ConfigID = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ConfigVersion", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowControl
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthControl
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.ConfigVersion == nil {
+				m.ConfigVersion = &Version{}
+			}
+			if err := m.ConfigVersion.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Spec", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowControl
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthControl
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Spec == nil {
+				m.Spec = &ConfigSpec{}
+			}
+			if err := m.Spec.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipControl(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthControl
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *UpdateConfigResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowControl
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: UpdateConfigResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: UpdateConfigResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Config", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowControl
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthControl
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Config == nil {
+				m.Config = &Config{}
+			}
+			if err := m.Config.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipControl(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthControl
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ListConfigsRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowControl
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ListConfigsRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ListConfigsRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Filters", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowControl
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthControl
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Filters == nil {
+				m.Filters = &ListConfigsRequest_Filters{}
+			}
+			if err := m.Filters.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipControl(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthControl
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ListConfigsRequest_Filters) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowControl
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: Filters: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: Filters: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Names", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowControl
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthControl
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Names = append(m.Names, string(dAtA[iNdEx:postIndex]))
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field IDPrefixes", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowControl
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthControl
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.IDPrefixes = append(m.IDPrefixes, string(dAtA[iNdEx:postIndex]))
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Labels", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowControl
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthControl
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			var keykey uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowControl
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				keykey |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			var stringLenmapkey uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowControl
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLenmapkey |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLenmapkey := int(stringLenmapkey)
+			if intStringLenmapkey < 0 {
+				return ErrInvalidLengthControl
+			}
+			postStringIndexmapkey := iNdEx + intStringLenmapkey
+			if postStringIndexmapkey > l {
+				return io.ErrUnexpectedEOF
+			}
+			mapkey := string(dAtA[iNdEx:postStringIndexmapkey])
+			iNdEx = postStringIndexmapkey
+			if m.Labels == nil {
+				m.Labels = make(map[string]string)
+			}
+			if iNdEx < postIndex {
+				var valuekey uint64
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowControl
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := dAtA[iNdEx]
+					iNdEx++
+					valuekey |= (uint64(b) & 0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				var stringLenmapvalue uint64
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowControl
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := dAtA[iNdEx]
+					iNdEx++
+					stringLenmapvalue |= (uint64(b) & 0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				intStringLenmapvalue := int(stringLenmapvalue)
+				if intStringLenmapvalue < 0 {
+					return ErrInvalidLengthControl
+				}
+				postStringIndexmapvalue := iNdEx + intStringLenmapvalue
+				if postStringIndexmapvalue > l {
+					return io.ErrUnexpectedEOF
+				}
+				mapvalue := string(dAtA[iNdEx:postStringIndexmapvalue])
+				iNdEx = postStringIndexmapvalue
+				m.Labels[mapkey] = mapvalue
+			} else {
+				var mapvalue string
+				m.Labels[mapkey] = mapvalue
+			}
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field NamePrefixes", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowControl
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthControl
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.NamePrefixes = append(m.NamePrefixes, string(dAtA[iNdEx:postIndex]))
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipControl(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthControl
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ListConfigsResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowControl
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ListConfigsResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ListConfigsResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Configs", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowControl
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthControl
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Configs = append(m.Configs, &Config{})
+			if err := m.Configs[len(m.Configs)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipControl(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthControl
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *CreateConfigRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowControl
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: CreateConfigRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: CreateConfigRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Spec", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowControl
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthControl
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Spec == nil {
+				m.Spec = &ConfigSpec{}
+			}
+			if err := m.Spec.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipControl(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthControl
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *CreateConfigResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowControl
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: CreateConfigResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: CreateConfigResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Config", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowControl
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthControl
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Config == nil {
+				m.Config = &Config{}
+			}
+			if err := m.Config.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipControl(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthControl
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *RemoveConfigRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowControl
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: RemoveConfigRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: RemoveConfigRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ConfigID", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowControl
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthControl
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ConfigID = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipControl(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthControl
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *RemoveConfigResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowControl
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: RemoveConfigResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: RemoveConfigResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipControl(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthControl
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
 func skipControl(dAtA []byte) (n int, err error) {
 	l := len(dAtA)
 	iNdEx := 0
@@ -13498,125 +15992,136 @@ var (
 func init() { proto.RegisterFile("control.proto", fileDescriptorControl) }
 
 var fileDescriptorControl = []byte{
-	// 1917 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0xcc, 0x5a, 0x4f, 0x6f, 0x1b, 0x41,
-	0x15, 0x8f, 0xff, 0x24, 0xb6, 0x9f, 0x63, 0x27, 0x99, 0xb8, 0xc5, 0x72, 0x4b, 0x12, 0x6d, 0x69,
-	0xe2, 0xa0, 0xe0, 0x50, 0x97, 0x8a, 0x52, 0xc4, 0x9f, 0x26, 0x6e, 0x8b, 0x9b, 0x36, 0xad, 0x36,
-	0x49, 0xc5, 0xcd, 0xda, 0xd8, 0x93, 0xb0, 0xb5, 0xe3, 0x35, 0xbb, 0xeb, 0xb4, 0x11, 0x17, 0x40,
-	0xe5, 0x23, 0x20, 0x71, 0xe5, 0x0a, 0x12, 0x07, 0x4e, 0xfd, 0x08, 0x15, 0x27, 0x8e, 0x48, 0x48,
-	0x11, 0xb5, 0x84, 0xc4, 0x89, 0xcf, 0x80, 0xe6, 0xdf, 0xee, 0x7a, 0x3d, 0xbb, 0x6b, 0x27, 0x96,
-	0xc2, 0xa9, 0xde, 0xd9, 0xdf, 0x9b, 0xf7, 0x66, 0xde, 0x6f, 0x7e, 0xfb, 0xe6, 0xa5, 0x90, 0x6b,
-	0x1a, 0x5d, 0xdb, 0x34, 0x3a, 0x95, 0x9e, 0x69, 0xd8, 0x06, 0x42, 0x2d, 0xa3, 0xd9, 0xc6, 0x66,
-	0xc5, 0xfa, 0xa0, 0x99, 0x67, 0x6d, 0xdd, 0xae, 0x9c, 0x3f, 0x28, 0x65, 0xad, 0x1e, 0x6e, 0x5a,
-	0x0c, 0x50, 0xca, 0x19, 0xc7, 0xef, 0x71, 0xd3, 0x16, 0x8f, 0x59, 0xfb, 0xa2, 0x87, 0xc5, 0x43,
-	0xe1, 0xd4, 0x38, 0x35, 0xe8, 0xcf, 0x6d, 0xf2, 0x8b, 0x8f, 0x2e, 0xf7, 0x3a, 0xfd, 0x53, 0xbd,
-	0xbb, 0xcd, 0xfe, 0x61, 0x83, 0xca, 0x23, 0xc8, 0xbf, 0xc0, 0xf6, 0xbe, 0xd1, 0xc2, 0x2a, 0xfe,
-	0x65, 0x1f, 0x5b, 0x36, 0xba, 0x07, 0xa9, 0xae, 0xd1, 0xc2, 0x0d, 0xbd, 0x55, 0x8c, 0xad, 0xc5,
-	0xca, 0x99, 0x1d, 0x18, 0x5c, 0xae, 0xce, 0x11, 0x44, 0xbd, 0xa6, 0xce, 0x91, 0x57, 0xf5, 0x96,
-	0xf2, 0x13, 0x58, 0x70, 0xcc, 0xac, 0x9e, 0xd1, 0xb5, 0x30, 0xda, 0x82, 0x24, 0x79, 0x49, 0x8d,
-	0xb2, 0xd5, 0x62, 0x65, 0x74, 0x01, 0x15, 0x8a, 0xa7, 0x28, 0xe5, 0x32, 0x01, 0x8b, 0xaf, 0x74,
-	0x8b, 0x4e, 0x61, 0x09, 0xd7, 0xcf, 0x21, 0x75, 0xa2, 0x77, 0x6c, 0x6c, 0x5a, 0x7c, 0x96, 0x2d,
-	0xd9, 0x2c, 0x7e, 0xb3, 0xca, 0x73, 0x66, 0xa3, 0x0a, 0xe3, 0xd2, 0x6f, 0x12, 0x90, 0xe2, 0x83,
-	0xa8, 0x00, 0xb3, 0x5d, 0xed, 0x0c, 0x93, 0x19, 0x13, 0xe5, 0x8c, 0xca, 0x1e, 0xd0, 0x36, 0x64,
-	0xf5, 0x56, 0xa3, 0x67, 0xe2, 0x13, 0xfd, 0x23, 0xb6, 0x8a, 0x71, 0xf2, 0x6e, 0x27, 0x3f, 0xb8,
-	0x5c, 0x85, 0x7a, 0xed, 0x2d, 0x1f, 0x55, 0x41, 0x6f, 0x89, 0xdf, 0xe8, 0x2d, 0xcc, 0x75, 0xb4,
-	0x63, 0xdc, 0xb1, 0x8a, 0x89, 0xb5, 0x44, 0x39, 0x5b, 0x7d, 0x3c, 0x49, 0x64, 0x95, 0x57, 0xd4,
-	0xf4, 0x59, 0xd7, 0x36, 0x2f, 0x54, 0x3e, 0x0f, 0xaa, 0x43, 0xf6, 0x0c, 0x9f, 0x1d, 0x63, 0xd3,
-	0xfa, 0x85, 0xde, 0xb3, 0x8a, 0xc9, 0xb5, 0x44, 0x39, 0x5f, 0xdd, 0x08, 0xda, 0xb6, 0x83, 0x1e,
-	0x6e, 0x56, 0x5e, 0x3b, 0x78, 0xd5, 0x6b, 0x8b, 0xaa, 0x30, 0x6b, 0x1a, 0x1d, 0x6c, 0x15, 0x67,
-	0xe9, 0x24, 0x77, 0x03, 0xf7, 0xde, 0xe8, 0x60, 0x95, 0x41, 0xd1, 0x3d, 0xc8, 0x91, 0xad, 0x70,
-	0xf7, 0x60, 0x8e, 0xee, 0xcf, 0x3c, 0x19, 0x14, 0xab, 0x2e, 0xfd, 0x00, 0xb2, 0x9e, 0xd0, 0xd1,
-	0x22, 0x24, 0xda, 0xf8, 0x82, 0xd1, 0x42, 0x25, 0x3f, 0xc9, 0xee, 0x9e, 0x6b, 0x9d, 0x3e, 0x2e,
-	0xc6, 0xe9, 0x18, 0x7b, 0x78, 0x12, 0x7f, 0x1c, 0x53, 0x76, 0x61, 0xc9, 0xb3, 0x1d, 0x9c, 0x23,
-	0x15, 0x98, 0x25, 0xd9, 0x67, 0xc9, 0x08, 0x23, 0x09, 0x83, 0x29, 0x7f, 0x8a, 0xc1, 0xd2, 0x51,
-	0xaf, 0xa5, 0xd9, 0x78, 0x52, 0x86, 0xa2, 0x1f, 0xc3, 0x3c, 0x05, 0x9d, 0x63, 0xd3, 0xd2, 0x8d,
-	0x2e, 0x0d, 0x30, 0x5b, 0xbd, 0x23, 0xf3, 0xf8, 0x8e, 0x41, 0xd4, 0x2c, 0x31, 0xe0, 0x0f, 0xe8,
-	0xbb, 0x90, 0x24, 0xc7, 0xad, 0x98, 0xa0, 0x76, 0x77, 0xc3, 0xf2, 0xa2, 0x52, 0xa4, 0xb2, 0x03,
-	0xc8, 0x1b, 0xeb, 0x95, 0x8e, 0xc5, 0x3e, 0x2c, 0xa9, 0xf8, 0xcc, 0x38, 0x9f, 0x7c, 0xbd, 0x05,
-	0x98, 0x3d, 0x31, 0xcc, 0x26, 0xcb, 0x44, 0x5a, 0x65, 0x0f, 0x4a, 0x01, 0x90, 0x77, 0x3e, 0x16,
-	0x13, 0x3f, 0xf4, 0x87, 0x9a, 0xd5, 0xf6, 0xb8, 0xb0, 0x35, 0xab, 0xed, 0x73, 0x41, 0x10, 0xc4,
-	0x05, 0x79, 0xe5, 0x1c, 0x7a, 0x66, 0xe6, 0xae, 0x8e, 0xbc, 0x0c, 0x5b, 0x1d, 0xc5, 0x53, 0x94,
-	0xf2, 0x58, 0xac, 0x6e, 0x62, 0xd7, 0xce, 0x3a, 0xbc, 0xde, 0x95, 0xcf, 0x49, 0x26, 0x22, 0x64,
-	0xf0, 0x0a, 0x22, 0xe2, 0x35, 0x1b, 0x15, 0x91, 0x7f, 0xde, 0xa0, 0x88, 0xc8, 0x22, 0x93, 0x8a,
-	0xc8, 0x36, 0x64, 0x2d, 0x6c, 0x9e, 0xeb, 0x4d, 0xc2, 0x0e, 0x26, 0x22, 0x3c, 0x84, 0x03, 0x36,
-	0x5c, 0xaf, 0x59, 0x2a, 0x70, 0x48, 0xbd, 0x65, 0xa1, 0x75, 0x48, 0x73, 0x2e, 0x31, 0xb5, 0xc8,
-	0xec, 0x64, 0x07, 0x97, 0xab, 0x29, 0x46, 0x26, 0x4b, 0x4d, 0x31, 0x36, 0x59, 0xa8, 0x06, 0xf9,
-	0x16, 0xb6, 0x74, 0x13, 0xb7, 0x1a, 0x96, 0xad, 0xd9, 0x5c, 0x1f, 0xf2, 0xd5, 0x6f, 0x06, 0xa5,
-	0xf8, 0x80, 0xa0, 0xd4, 0x1c, 0x37, 0xa2, 0x4f, 0x12, 0x91, 0x49, 0x8d, 0x8a, 0x0c, 0xba, 0x0b,
-	0xd0, 0xef, 0x35, 0x6c, 0xa3, 0x41, 0xce, 0x4e, 0x31, 0x4d, 0xe9, 0x9b, 0xee, 0xf7, 0x0e, 0x8d,
-	0x9a, 0x66, 0x63, 0x54, 0x82, 0xb4, 0xd9, 0xef, 0xda, 0x3a, 0xd9, 0xfd, 0x0c, 0xb5, 0x76, 0x9e,
-	0xa7, 0x20, 0x4f, 0x7c, 0xa3, 0x5d, 0x79, 0x22, 0x7c, 0x0b, 0x95, 0x27, 0x4a, 0x40, 0x06, 0x53,
-	0xf6, 0xa0, 0xb0, 0x6b, 0x62, 0xcd, 0xc6, 0x7c, 0xb3, 0x05, 0x05, 0x1f, 0x72, 0xed, 0x60, 0xfc,
-	0x5b, 0x95, 0x4d, 0xc3, 0x2d, 0x3c, 0xf2, 0xb1, 0x0f, 0xb7, 0x7c, 0x93, 0xf1, 0xa8, 0x1e, 0x41,
-	0x8a, 0x27, 0x90, 0x4f, 0x78, 0x27, 0x64, 0x42, 0x55, 0x60, 0x95, 0xf7, 0xb0, 0xf4, 0x02, 0xdb,
-	0xbe, 0xc8, 0xb6, 0x00, 0x5c, 0xbe, 0xf0, 0xf3, 0x96, 0x1b, 0x5c, 0xae, 0x66, 0x1c, 0xba, 0xa8,
-	0x19, 0x87, 0x2d, 0x68, 0x03, 0x16, 0xf4, 0xae, 0x85, 0x4d, 0xbb, 0xd1, 0xc2, 0x27, 0x5a, 0xbf,
-	0x63, 0x5b, 0x5c, 0x5d, 0xf2, 0x6c, 0xb8, 0xc6, 0x47, 0x95, 0x3d, 0x40, 0x5e, 0x5f, 0xd7, 0x0b,
-	0xfc, 0xaf, 0x71, 0x28, 0x30, 0x21, 0xbd, 0x56, 0xf0, 0x35, 0x58, 0x10, 0xe8, 0x09, 0xbe, 0x01,
-	0x79, 0x6e, 0x23, 0x3e, 0x03, 0x0f, 0x87, 0x3e, 0x03, 0xe3, 0xa5, 0x12, 0xbd, 0x86, 0xb4, 0x69,
-	0x74, 0x3a, 0xc7, 0x5a, 0xb3, 0x5d, 0x4c, 0xae, 0xc5, 0xca, 0xf9, 0xea, 0x03, 0x99, 0xa1, 0x6c,
-	0x91, 0x15, 0x95, 0x1b, 0xaa, 0xce, 0x14, 0x8a, 0x02, 0x69, 0x31, 0x8a, 0xd2, 0x90, 0xdc, 0x7f,
-	0xb3, 0xff, 0x6c, 0x71, 0x06, 0xcd, 0x43, 0xfa, 0xad, 0xfa, 0xec, 0x5d, 0xfd, 0xcd, 0xd1, 0xc1,
-	0x62, 0x8c, 0xb0, 0xc7, 0x37, 0xdd, 0xf5, 0x92, 0x50, 0x83, 0x02, 0x13, 0xdc, 0xeb, 0xe4, 0x40,
-	0xf9, 0x06, 0xdc, 0xf2, 0xcd, 0xc2, 0x95, 0xfb, 0x53, 0x02, 0x96, 0xc9, 0xf9, 0xe3, 0xe3, 0x8e,
-	0x78, 0xd7, 0xfd, 0xe2, 0xbd, 0x1d, 0x24, 0x91, 0x3e, 0xcb, 0x51, 0xfd, 0xfe, 0x63, 0x7c, 0xea,
-	0xfa, 0x7d, 0xe0, 0xd3, 0xef, 0x1f, 0x4e, 0x18, 0x9c, 0x54, 0xc2, 0x47, 0x34, 0x32, 0x29, 0xd1,
-	0x48, 0xaf, 0x0a, 0xce, 0x4e, 0x4f, 0x05, 0xdf, 0x40, 0x61, 0x38, 0x5c, 0x4e, 0x9a, 0xef, 0x43,
-	0x9a, 0x27, 0x51, 0x68, 0x61, 0x28, 0x6b, 0x1c, 0xb0, 0xab, 0x88, 0xfb, 0xd8, 0xfe, 0x60, 0x98,
-	0xed, 0x09, 0x14, 0x91, 0x5b, 0xc8, 0x14, 0xd1, 0x99, 0xcc, 0xe5, 0x74, 0x97, 0x0d, 0x85, 0x71,
-	0x5a, 0x58, 0x09, 0xac, 0x72, 0x44, 0x15, 0xd1, 0x17, 0x19, 0x82, 0x24, 0xd9, 0x69, 0xbe, 0x5f,
-	0xf4, 0x37, 0x21, 0x39, 0xb7, 0x21, 0x24, 0x8f, 0xbb, 0x24, 0xe7, 0xb6, 0x84, 0xe4, 0x1c, 0x50,
-	0x6f, 0x71, 0xf1, 0x9b, 0x52, 0x8c, 0x3f, 0x17, 0xe7, 0x6e, 0xea, 0x61, 0x3a, 0x67, 0xd1, 0x17,
-	0xa9, 0xf2, 0x9f, 0x38, 0x3b, 0x8b, 0x7c, 0xfc, 0x0a, 0x67, 0xd1, 0x67, 0x39, 0x7a, 0x16, 0x7f,
-	0x77, 0x83, 0x67, 0x31, 0x20, 0xb8, 0x2b, 0x9f, 0xc5, 0x29, 0x9c, 0x37, 0x37, 0x24, 0xf7, 0xbc,
-	0xf1, 0x44, 0x85, 0x9e, 0x37, 0x91, 0x39, 0x07, 0xac, 0x3c, 0xa5, 0x94, 0xde, 0xed, 0xf4, 0x2d,
-	0x1b, 0x9b, 0x1e, 0x8d, 0x6e, 0xb2, 0x11, 0x9f, 0x46, 0x73, 0x1c, 0xe1, 0x05, 0x07, 0x38, 0xf4,
-	0x75, 0xa6, 0x70, 0xe9, 0xcb, 0x21, 0x61, 0xf4, 0x15, 0x56, 0x02, 0xeb, 0x70, 0x89, 0xbf, 0xb8,
-	0x02, 0x97, 0x7c, 0x96, 0xff, 0x5f, 0x5c, 0x0a, 0x08, 0xee, 0x26, 0xb9, 0xe4, 0x86, 0xe4, 0x72,
-	0x89, 0x67, 0x23, 0x94, 0x4b, 0x22, 0x75, 0x0e, 0x58, 0xf9, 0x7d, 0x0c, 0xb2, 0x7b, 0xf8, 0x42,
-	0x35, 0x6c, 0xcd, 0x26, 0xa5, 0xcf, 0xb7, 0x61, 0x89, 0x90, 0x0c, 0x9b, 0x8d, 0xf7, 0x86, 0xde,
-	0x6d, 0xd8, 0x46, 0x1b, 0x77, 0x69, 0x68, 0x69, 0x75, 0x81, 0xbd, 0x78, 0x69, 0xe8, 0xdd, 0x43,
-	0x32, 0x8c, 0xb6, 0x00, 0x9d, 0x69, 0x5d, 0xed, 0x74, 0x18, 0xcc, 0x8a, 0xc5, 0x45, 0xfe, 0x46,
-	0x8a, 0xee, 0x77, 0x3b, 0x46, 0xb3, 0xdd, 0x20, 0xab, 0x4e, 0x0c, 0xa1, 0x8f, 0xe8, 0x8b, 0x3d,
-	0x7c, 0xa1, 0xfc, 0xd6, 0xa9, 0x07, 0xaf, 0xc3, 0x73, 0x52, 0x0f, 0x0a, 0xf4, 0x24, 0xf5, 0x20,
-	0xb7, 0x99, 0xa0, 0x1e, 0xe4, 0xde, 0x3d, 0xf5, 0xe0, 0x53, 0x52, 0x0f, 0xb2, 0x5d, 0xa5, 0xf5,
-	0x60, 0x80, 0xa1, 0x67, 0xf3, 0x77, 0x92, 0x5f, 0x2e, 0x57, 0x67, 0x54, 0xc7, 0xcc, 0xad, 0xef,
-	0xa6, 0x74, 0x50, 0x7f, 0x04, 0x8b, 0xb4, 0x62, 0x6f, 0x9a, 0xd8, 0x16, 0xfb, 0xb9, 0x09, 0x19,
-	0x8b, 0x0e, 0xb8, 0xdb, 0x39, 0x3f, 0xb8, 0x5c, 0x4d, 0x33, 0x54, 0xbd, 0x46, 0xbe, 0xf3, 0xf4,
-	0x57, 0x4b, 0x79, 0xc1, 0x2f, 0x17, 0xcc, 0x9c, 0x87, 0x52, 0x85, 0x39, 0x06, 0xe0, 0x91, 0x94,
-	0xe4, 0x35, 0x03, 0xb5, 0xe1, 0x48, 0xe5, 0x73, 0x0c, 0x96, 0x45, 0xe1, 0x7a, 0xb5, 0x58, 0xd0,
-	0x0e, 0xe4, 0x39, 0x74, 0x82, 0xbc, 0xe6, 0x98, 0x89, 0x48, 0x6b, 0x75, 0x28, 0xad, 0x2b, 0xc1,
-	0x81, 0x7b, 0xca, 0x93, 0x97, 0xee, 0x35, 0xe5, 0xda, 0xdb, 0xf0, 0xef, 0x38, 0x20, 0x56, 0x89,
-	0x91, 0x47, 0x47, 0x36, 0x7f, 0xe6, 0x97, 0xcd, 0x4a, 0x70, 0xc5, 0xe9, 0x35, 0x1c, 0x55, 0xcd,
-	0x4f, 0xd3, 0x57, 0x4d, 0xd5, 0xa7, 0x9a, 0x4f, 0x26, 0x8b, 0xed, 0x46, 0x44, 0x73, 0x4f, 0x5c,
-	0x3b, 0x78, 0x44, 0x3c, 0x65, 0xdf, 0x23, 0x97, 0x24, 0x3a, 0xc4, 0x25, 0x33, 0x2c, 0x67, 0x02,
-	0xaa, 0xd4, 0x61, 0x59, 0xdc, 0xd8, 0xbd, 0xd4, 0xad, 0x0e, 0xd5, 0xba, 0x63, 0x73, 0x69, 0x78,
-	0xaa, 0x6b, 0x70, 0xe9, 0xa7, 0xb0, 0x2c, 0x2e, 0x5d, 0x57, 0x3c, 0xdd, 0xb7, 0xdd, 0xcb, 0x9f,
-	0x37, 0x9a, 0xea, 0x9f, 0x6f, 0x43, 0x6a, 0x97, 0xfd, 0x99, 0x02, 0xe9, 0x90, 0xe2, 0x7f, 0x01,
-	0x40, 0x8a, 0x2c, 0xa8, 0xe1, 0xbf, 0x2a, 0x94, 0xee, 0x85, 0x62, 0x78, 0x25, 0x7a, 0xeb, 0x6f,
-	0x7f, 0xf9, 0xef, 0x1f, 0xe2, 0x0b, 0x90, 0xa3, 0xa0, 0xef, 0xf0, 0x2f, 0x01, 0x32, 0x20, 0xe3,
-	0xb4, 0x92, 0xd1, 0xb7, 0xc6, 0x69, 0xbc, 0x97, 0xee, 0x47, 0xa0, 0xc2, 0x1d, 0x9a, 0x00, 0x6e,
-	0x27, 0x17, 0xdd, 0x0f, 0xbe, 0xbb, 0x7b, 0x57, 0xb8, 0x1e, 0x05, 0x8b, 0xf4, 0xe9, 0x76, 0x6a,
-	0xe5, 0x3e, 0x47, 0x3a, 0xc3, 0x72, 0x9f, 0x92, 0x86, 0x6f, 0x80, 0x4f, 0x96, 0xc3, 0x43, 0xcd,
-	0x6a, 0x07, 0xe6, 0xd0, 0xd3, 0xa9, 0x0d, 0xcc, 0xe1, 0x50, 0x4f, 0x36, 0x3c, 0x87, 0xb4, 0xdf,
-	0x16, 0x9c, 0x43, 0x6f, 0xdf, 0x33, 0x38, 0x87, 0x43, 0x4d, 0xbb, 0xc8, 0xfd, 0xa4, 0xcb, 0x0b,
-	0xd9, 0x4f, 0xef, 0x0a, 0xd7, 0xa3, 0x60, 0x91, 0x3e, 0xdd, 0x36, 0x98, 0xdc, 0xe7, 0x48, 0x4b,
-	0x4e, 0xee, 0x73, 0xb4, 0x9b, 0x16, 0xe4, 0xf3, 0x23, 0xcc, 0x7b, 0xaf, 0xf0, 0x68, 0x63, 0xcc,
-	0x9e, 0x44, 0xa9, 0x1c, 0x0d, 0x0c, 0xf7, 0xfc, 0x2b, 0xc8, 0x0d, 0x35, 0x2c, 0x91, 0x74, 0x46,
-	0x59, 0x83, 0xb4, 0xb4, 0x39, 0x06, 0x32, 0xd2, 0xf9, 0x50, 0xbf, 0x4b, 0xee, 0x5c, 0xd6, 0x61,
-	0x93, 0x3b, 0x97, 0x36, 0xcf, 0x42, 0x9c, 0x0f, 0xb5, 0xb5, 0xe4, 0xce, 0x65, 0xfd, 0x33, 0xb9,
-	0x73, 0x79, 0x8f, 0x2c, 0x94, 0x64, 0xfc, 0x2a, 0x18, 0x48, 0xb2, 0xe1, 0xf6, 0x41, 0x20, 0xc9,
-	0xfc, 0xbd, 0x80, 0x70, 0x92, 0x89, 0x7b, 0x6b, 0x30, 0xc9, 0x7c, 0x97, 0xed, 0x60, 0x92, 0xf9,
-	0xaf, 0xc0, 0x91, 0x24, 0x13, 0x0b, 0x0e, 0x21, 0x99, 0x6f, 0xcd, 0x9b, 0x63, 0x20, 0xc7, 0xcc,
-	0x73, 0xa8, 0x73, 0x59, 0xbf, 0x26, 0x2c, 0xcf, 0x63, 0x3a, 0x67, 0x79, 0xe6, 0x85, 0x7b, 0x60,
-	0x9e, 0x87, 0xaf, 0x44, 0x81, 0x79, 0xf6, 0xdd, 0x1a, 0x22, 0xf2, 0x2c, 0xee, 0x94, 0xc1, 0x79,
-	0xf6, 0x5d, 0x84, 0x83, 0xf3, 0xec, 0xbf, 0x9e, 0x46, 0x9e, 0x67, 0xb1, 0xe0, 0x90, 0xf3, 0xec,
-	0x5b, 0xf3, 0xe6, 0x18, 0xc8, 0xc8, 0x8f, 0x93, 0x73, 0x9b, 0x91, 0x7f, 0x9c, 0xfc, 0x77, 0xa5,
-	0xd2, 0xfd, 0x08, 0x54, 0xe4, 0x3e, 0x7b, 0xaf, 0x0e, 0xf2, 0x7d, 0x96, 0x5c, 0x8b, 0x4a, 0xe5,
-	0x68, 0x60, 0xb8, 0xe7, 0x3e, 0x64, 0x3d, 0x05, 0x30, 0x5a, 0x1f, 0xaf, 0x66, 0x2f, 0x6d, 0x44,
-	0xe2, 0x22, 0x17, 0xec, 0xad, 0x6f, 0xe5, 0x0b, 0x96, 0x14, 0xd3, 0xa5, 0x72, 0x34, 0x30, 0xd2,
-	0xb3, 0xb7, 0x96, 0x95, 0x7b, 0x96, 0xd4, 0xcb, 0xa5, 0x72, 0x34, 0x30, 0xd4, 0xf3, 0x4e, 0xf1,
-	0xcb, 0xd7, 0x95, 0x99, 0x7f, 0x7c, 0x5d, 0x99, 0xf9, 0xf5, 0x60, 0x25, 0xf6, 0x65, 0xb0, 0x12,
-	0xfb, 0xfb, 0x60, 0x25, 0xf6, 0xaf, 0xc1, 0x4a, 0xec, 0x78, 0x8e, 0xfe, 0xdf, 0x9b, 0x87, 0xff,
-	0x0b, 0x00, 0x00, 0xff, 0xff, 0x3b, 0x09, 0x33, 0xa6, 0xf4, 0x23, 0x00, 0x00,
+	// 2096 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0xcc, 0x5a, 0x4b, 0x6f, 0x1b, 0xc9,
+	0x11, 0x36, 0x1f, 0x12, 0xa9, 0xa2, 0x44, 0x49, 0x2d, 0x39, 0x21, 0x68, 0x47, 0x32, 0xc6, 0xb1,
+	0x4d, 0x07, 0x0e, 0x95, 0xa5, 0xb3, 0x88, 0xb3, 0x41, 0x1e, 0x2b, 0xd1, 0xeb, 0x70, 0xb5, 0x2b,
+	0x1b, 0x23, 0x6b, 0x91, 0x1b, 0x41, 0x91, 0x2d, 0x65, 0x4c, 0x8a, 0xc3, 0xcc, 0x0c, 0xb5, 0x2b,
+	0xe4, 0x92, 0x0d, 0x36, 0x3f, 0x21, 0x40, 0xae, 0xb9, 0xe6, 0x90, 0x43, 0x4e, 0xfb, 0x13, 0x8c,
+	0x9c, 0x72, 0x0c, 0x10, 0x40, 0xc8, 0x12, 0x08, 0x90, 0x53, 0x7e, 0x43, 0xd0, 0xdd, 0xd5, 0xf3,
+	0x62, 0xcf, 0x0c, 0x5f, 0x80, 0x7c, 0x12, 0xa7, 0xe7, 0xab, 0xae, 0xea, 0xae, 0xaf, 0xbf, 0xe9,
+	0xae, 0x16, 0xac, 0xb5, 0xcd, 0xbe, 0x63, 0x99, 0xbd, 0xea, 0xc0, 0x32, 0x1d, 0x93, 0x90, 0x8e,
+	0xd9, 0xee, 0x52, 0xab, 0x6a, 0x7f, 0xde, 0xb2, 0x2e, 0xba, 0x86, 0x53, 0xbd, 0x7c, 0xaf, 0x5c,
+	0xb0, 0x07, 0xb4, 0x6d, 0x0b, 0x40, 0x79, 0xcd, 0x3c, 0x7d, 0x43, 0xdb, 0x8e, 0x7c, 0x2c, 0x38,
+	0x57, 0x03, 0x2a, 0x1f, 0xb6, 0xcf, 0xcd, 0x73, 0x93, 0xff, 0xdc, 0x63, 0xbf, 0xb0, 0x75, 0x6b,
+	0xd0, 0x1b, 0x9e, 0x1b, 0xfd, 0x3d, 0xf1, 0x47, 0x34, 0x6a, 0xef, 0x43, 0xf1, 0x05, 0x75, 0x8e,
+	0xcc, 0x0e, 0xd5, 0xe9, 0x6f, 0x86, 0xd4, 0x76, 0xc8, 0x7d, 0xc8, 0xf5, 0xcd, 0x0e, 0x6d, 0x1a,
+	0x9d, 0x52, 0xea, 0x5e, 0xaa, 0xb2, 0xb2, 0x0f, 0xa3, 0xeb, 0xdd, 0x65, 0x86, 0x68, 0xd4, 0xf5,
+	0x65, 0xf6, 0xaa, 0xd1, 0xd1, 0x7e, 0x0e, 0xeb, 0xae, 0x99, 0x3d, 0x30, 0xfb, 0x36, 0x25, 0x4f,
+	0x20, 0xcb, 0x5e, 0x72, 0xa3, 0x42, 0xad, 0x54, 0x1d, 0x1f, 0x40, 0x95, 0xe3, 0x39, 0x4a, 0xbb,
+	0xce, 0xc0, 0xc6, 0x27, 0x86, 0xcd, 0xbb, 0xb0, 0xa5, 0xeb, 0x8f, 0x20, 0x77, 0x66, 0xf4, 0x1c,
+	0x6a, 0xd9, 0xd8, 0xcb, 0x13, 0x55, 0x2f, 0x61, 0xb3, 0xea, 0x47, 0xc2, 0x46, 0x97, 0xc6, 0xe5,
+	0x2f, 0x33, 0x90, 0xc3, 0x46, 0xb2, 0x0d, 0x4b, 0xfd, 0xd6, 0x05, 0x65, 0x3d, 0x66, 0x2a, 0x2b,
+	0xba, 0x78, 0x20, 0x7b, 0x50, 0x30, 0x3a, 0xcd, 0x81, 0x45, 0xcf, 0x8c, 0x2f, 0xa8, 0x5d, 0x4a,
+	0xb3, 0x77, 0xfb, 0xc5, 0xd1, 0xf5, 0x2e, 0x34, 0xea, 0xaf, 0xb0, 0x55, 0x07, 0xa3, 0x23, 0x7f,
+	0x93, 0x57, 0xb0, 0xdc, 0x6b, 0x9d, 0xd2, 0x9e, 0x5d, 0xca, 0xdc, 0xcb, 0x54, 0x0a, 0xb5, 0x67,
+	0xd3, 0x44, 0x56, 0xfd, 0x84, 0x9b, 0x3e, 0xef, 0x3b, 0xd6, 0x95, 0x8e, 0xfd, 0x90, 0x06, 0x14,
+	0x2e, 0xe8, 0xc5, 0x29, 0xb5, 0xec, 0x5f, 0x1b, 0x03, 0xbb, 0x94, 0xbd, 0x97, 0xa9, 0x14, 0x6b,
+	0x8f, 0xa2, 0xa6, 0xed, 0x78, 0x40, 0xdb, 0xd5, 0x4f, 0x5d, 0xbc, 0xee, 0xb7, 0x25, 0x35, 0x58,
+	0xb2, 0xcc, 0x1e, 0xb5, 0x4b, 0x4b, 0xbc, 0x93, 0xbb, 0x91, 0x73, 0x6f, 0xf6, 0xa8, 0x2e, 0xa0,
+	0xe4, 0x3e, 0xac, 0xb1, 0xa9, 0xf0, 0xe6, 0x60, 0x99, 0xcf, 0xcf, 0x2a, 0x6b, 0x94, 0xa3, 0x2e,
+	0xff, 0x18, 0x0a, 0xbe, 0xd0, 0xc9, 0x06, 0x64, 0xba, 0xf4, 0x4a, 0xd0, 0x42, 0x67, 0x3f, 0xd9,
+	0xec, 0x5e, 0xb6, 0x7a, 0x43, 0x5a, 0x4a, 0xf3, 0x36, 0xf1, 0xf0, 0x41, 0xfa, 0x59, 0x4a, 0x3b,
+	0x80, 0x4d, 0xdf, 0x74, 0x20, 0x47, 0xaa, 0xb0, 0xc4, 0xb2, 0x2f, 0x92, 0x11, 0x47, 0x12, 0x01,
+	0xd3, 0xfe, 0x92, 0x82, 0xcd, 0x93, 0x41, 0xa7, 0xe5, 0xd0, 0x69, 0x19, 0x4a, 0x7e, 0x06, 0xab,
+	0x1c, 0x74, 0x49, 0x2d, 0xdb, 0x30, 0xfb, 0x3c, 0xc0, 0x42, 0xed, 0x8e, 0xca, 0xe3, 0x67, 0x02,
+	0xa2, 0x17, 0x98, 0x01, 0x3e, 0x90, 0x1f, 0x40, 0x96, 0x2d, 0xb7, 0x52, 0x86, 0xdb, 0xdd, 0x8d,
+	0xcb, 0x8b, 0xce, 0x91, 0xda, 0x3e, 0x10, 0x7f, 0xac, 0x33, 0x2d, 0x8b, 0x23, 0xd8, 0xd4, 0xe9,
+	0x85, 0x79, 0x39, 0xfd, 0x78, 0xb7, 0x61, 0xe9, 0xcc, 0xb4, 0xda, 0x22, 0x13, 0x79, 0x5d, 0x3c,
+	0x68, 0xdb, 0x40, 0xfc, 0xfd, 0x89, 0x98, 0x70, 0xd1, 0xbf, 0x6e, 0xd9, 0x5d, 0x9f, 0x0b, 0xa7,
+	0x65, 0x77, 0x43, 0x2e, 0x18, 0x82, 0xb9, 0x60, 0xaf, 0xdc, 0x45, 0x2f, 0xcc, 0xbc, 0xd1, 0xb1,
+	0x97, 0x71, 0xa3, 0xe3, 0x78, 0x8e, 0xd2, 0x9e, 0xc9, 0xd1, 0x4d, 0xed, 0xda, 0x1d, 0x87, 0xdf,
+	0xbb, 0xf6, 0x75, 0x56, 0x88, 0x08, 0x6b, 0x9c, 0x41, 0x44, 0xfc, 0x66, 0xe3, 0x22, 0xf2, 0xaf,
+	0x1b, 0x14, 0x11, 0x55, 0x64, 0x4a, 0x11, 0xd9, 0x83, 0x82, 0x4d, 0xad, 0x4b, 0xa3, 0xcd, 0xd8,
+	0x21, 0x44, 0x04, 0x43, 0x38, 0x16, 0xcd, 0x8d, 0xba, 0xad, 0x03, 0x42, 0x1a, 0x1d, 0x9b, 0x3c,
+	0x84, 0x3c, 0x72, 0x49, 0xa8, 0xc5, 0xca, 0x7e, 0x61, 0x74, 0xbd, 0x9b, 0x13, 0x64, 0xb2, 0xf5,
+	0x9c, 0x60, 0x93, 0x4d, 0xea, 0x50, 0xec, 0x50, 0xdb, 0xb0, 0x68, 0xa7, 0x69, 0x3b, 0x2d, 0x07,
+	0xf5, 0xa1, 0x58, 0xfb, 0x4e, 0x54, 0x8a, 0x8f, 0x19, 0x4a, 0x5f, 0x43, 0x23, 0xfe, 0xa4, 0x10,
+	0x99, 0xdc, 0xb8, 0xc8, 0x90, 0xbb, 0x00, 0xc3, 0x41, 0xd3, 0x31, 0x9b, 0x6c, 0xed, 0x94, 0xf2,
+	0x9c, 0xbe, 0xf9, 0xe1, 0xe0, 0xb5, 0x59, 0x6f, 0x39, 0x94, 0x94, 0x21, 0x6f, 0x0d, 0xfb, 0x8e,
+	0xc1, 0x66, 0x7f, 0x85, 0x5b, 0xbb, 0xcf, 0x0b, 0x90, 0x27, 0x9c, 0x68, 0x4f, 0x9e, 0x18, 0xdf,
+	0x62, 0xe5, 0x89, 0x13, 0x50, 0xc0, 0xb4, 0x43, 0xd8, 0x3e, 0xb0, 0x68, 0xcb, 0xa1, 0x38, 0xd9,
+	0x92, 0x82, 0x4f, 0x51, 0x3b, 0x04, 0xff, 0x76, 0x55, 0xdd, 0xa0, 0x85, 0x4f, 0x3e, 0x8e, 0xe0,
+	0x76, 0xa8, 0x33, 0x8c, 0xea, 0x7d, 0xc8, 0x61, 0x02, 0xb1, 0xc3, 0x3b, 0x31, 0x1d, 0xea, 0x12,
+	0xab, 0xbd, 0x81, 0xcd, 0x17, 0xd4, 0x09, 0x45, 0xf6, 0x04, 0xc0, 0xe3, 0x0b, 0xae, 0xb7, 0xb5,
+	0xd1, 0xf5, 0xee, 0x8a, 0x4b, 0x17, 0x7d, 0xc5, 0x65, 0x0b, 0x79, 0x04, 0xeb, 0x46, 0xdf, 0xa6,
+	0x96, 0xd3, 0xec, 0xd0, 0xb3, 0xd6, 0xb0, 0xe7, 0xd8, 0xa8, 0x2e, 0x45, 0xd1, 0x5c, 0xc7, 0x56,
+	0xed, 0x10, 0x88, 0xdf, 0xd7, 0x7c, 0x81, 0xff, 0x2d, 0x0d, 0xdb, 0x42, 0x48, 0xe7, 0x0a, 0xbe,
+	0x0e, 0xeb, 0x12, 0x3d, 0xc5, 0x37, 0xa0, 0x88, 0x36, 0xf2, 0x33, 0xf0, 0x34, 0xf0, 0x19, 0x98,
+	0x2c, 0x95, 0xe4, 0x53, 0xc8, 0x5b, 0x66, 0xaf, 0x77, 0xda, 0x6a, 0x77, 0x4b, 0xd9, 0x7b, 0xa9,
+	0x4a, 0xb1, 0xf6, 0x9e, 0xca, 0x50, 0x35, 0xc8, 0xaa, 0x8e, 0x86, 0xba, 0xdb, 0x85, 0xa6, 0x41,
+	0x5e, 0xb6, 0x92, 0x3c, 0x64, 0x8f, 0x5e, 0x1e, 0x3d, 0xdf, 0xb8, 0x45, 0x56, 0x21, 0xff, 0x4a,
+	0x7f, 0xfe, 0x59, 0xe3, 0xe5, 0xc9, 0xf1, 0x46, 0x8a, 0xb1, 0x27, 0xd4, 0xdd, 0x7c, 0x49, 0xa8,
+	0xc3, 0xb6, 0x10, 0xdc, 0x79, 0x72, 0xa0, 0x7d, 0x1b, 0x6e, 0x87, 0x7a, 0x41, 0xe5, 0xfe, 0x2a,
+	0x03, 0x5b, 0x6c, 0xfd, 0x61, 0xbb, 0x2b, 0xde, 0x8d, 0xb0, 0x78, 0xef, 0x45, 0x49, 0x64, 0xc8,
+	0x72, 0x5c, 0xbf, 0xff, 0x9c, 0x5e, 0xb8, 0x7e, 0x1f, 0x87, 0xf4, 0xfb, 0x27, 0x53, 0x06, 0xa7,
+	0x94, 0xf0, 0x31, 0x8d, 0xcc, 0x2a, 0x34, 0xd2, 0xaf, 0x82, 0x4b, 0x8b, 0x53, 0xc1, 0x97, 0xb0,
+	0x1d, 0x0c, 0x17, 0x49, 0xf3, 0x23, 0xc8, 0x63, 0x12, 0xa5, 0x16, 0xc6, 0xb2, 0xc6, 0x05, 0x7b,
+	0x8a, 0x78, 0x44, 0x9d, 0xcf, 0x4d, 0xab, 0x3b, 0x85, 0x22, 0xa2, 0x85, 0x4a, 0x11, 0xdd, 0xce,
+	0x3c, 0x4e, 0xf7, 0x45, 0x53, 0x1c, 0xa7, 0xa5, 0x95, 0xc4, 0x6a, 0x27, 0x5c, 0x11, 0x43, 0x91,
+	0x11, 0xc8, 0xb2, 0x99, 0xc6, 0xf9, 0xe2, 0xbf, 0x19, 0xc9, 0xd1, 0x86, 0x91, 0x3c, 0xed, 0x91,
+	0x1c, 0x6d, 0x19, 0xc9, 0x11, 0xd0, 0xe8, 0xa0, 0xf8, 0x2d, 0x28, 0xc6, 0x5f, 0xc9, 0x75, 0xb7,
+	0xf0, 0x30, 0xdd, 0xb5, 0x18, 0x8a, 0x54, 0xfb, 0x6f, 0x5a, 0xac, 0x45, 0x6c, 0x9f, 0x61, 0x2d,
+	0x86, 0x2c, 0xc7, 0xd7, 0xe2, 0x1f, 0x6e, 0x70, 0x2d, 0x46, 0x04, 0x37, 0xf3, 0x5a, 0x5c, 0xc0,
+	0x7a, 0xf3, 0x42, 0xf2, 0xd6, 0x1b, 0x26, 0x2a, 0x76, 0xbd, 0xc9, 0xcc, 0xb9, 0x60, 0xed, 0x43,
+	0x4e, 0xe9, 0x83, 0xde, 0xd0, 0x76, 0xa8, 0xe5, 0xd3, 0xe8, 0xb6, 0x68, 0x09, 0x69, 0x34, 0xe2,
+	0x18, 0x2f, 0x10, 0xe0, 0xd2, 0xd7, 0xed, 0xc2, 0xa3, 0x2f, 0x42, 0xe2, 0xe8, 0x2b, 0xad, 0x24,
+	0xd6, 0xe5, 0x12, 0xbe, 0x98, 0x81, 0x4b, 0x21, 0xcb, 0x77, 0x8b, 0x4b, 0x11, 0xc1, 0xdd, 0x24,
+	0x97, 0xbc, 0x90, 0x3c, 0x2e, 0x61, 0x36, 0x62, 0xb9, 0x24, 0x53, 0xe7, 0x82, 0xb5, 0x3f, 0xa6,
+	0xa0, 0x70, 0x48, 0xaf, 0x74, 0xd3, 0x69, 0x39, 0x6c, 0xeb, 0xf3, 0x3d, 0xd8, 0x64, 0x24, 0xa3,
+	0x56, 0xf3, 0x8d, 0x69, 0xf4, 0x9b, 0x8e, 0xd9, 0xa5, 0x7d, 0x1e, 0x5a, 0x5e, 0x5f, 0x17, 0x2f,
+	0x3e, 0x36, 0x8d, 0xfe, 0x6b, 0xd6, 0x4c, 0x9e, 0x00, 0xb9, 0x68, 0xf5, 0x5b, 0xe7, 0x41, 0xb0,
+	0xd8, 0x2c, 0x6e, 0xe0, 0x1b, 0x25, 0x7a, 0xd8, 0xef, 0x99, 0xed, 0x6e, 0x93, 0x8d, 0x3a, 0x13,
+	0x40, 0x9f, 0xf0, 0x17, 0x87, 0xf4, 0x4a, 0xfb, 0xbd, 0xbb, 0x1f, 0x9c, 0x87, 0xe7, 0x6c, 0x3f,
+	0x28, 0xd1, 0xd3, 0xec, 0x07, 0xd1, 0x66, 0x8a, 0xfd, 0x20, 0x7a, 0xf7, 0xed, 0x07, 0x3f, 0x64,
+	0xfb, 0x41, 0x31, 0xab, 0x7c, 0x3f, 0x18, 0x61, 0xe8, 0x9b, 0xfc, 0xfd, 0xec, 0xdb, 0xeb, 0xdd,
+	0x5b, 0xba, 0x6b, 0xe6, 0xed, 0xef, 0x16, 0xb4, 0x50, 0x7f, 0x0a, 0x1b, 0x7c, 0xc7, 0xde, 0xb6,
+	0xa8, 0x23, 0xe7, 0xf3, 0x31, 0xac, 0xd8, 0xbc, 0xc1, 0x9b, 0xce, 0xd5, 0xd1, 0xf5, 0x6e, 0x5e,
+	0xa0, 0x1a, 0x75, 0xf6, 0x9d, 0xe7, 0xbf, 0x3a, 0xda, 0x0b, 0x3c, 0x5c, 0x08, 0x73, 0x0c, 0xa5,
+	0x06, 0xcb, 0x02, 0x80, 0x91, 0x94, 0xd5, 0x7b, 0x06, 0x6e, 0x83, 0x48, 0xed, 0xeb, 0x14, 0x6c,
+	0xc9, 0x8d, 0xeb, 0x6c, 0xb1, 0x90, 0x7d, 0x28, 0x22, 0x74, 0x8a, 0xbc, 0xae, 0x09, 0x13, 0x99,
+	0xd6, 0x5a, 0x20, 0xad, 0x3b, 0xd1, 0x81, 0xfb, 0xb6, 0x27, 0x1f, 0x7b, 0xc7, 0x94, 0xb9, 0xa7,
+	0xe1, 0x3f, 0x69, 0x20, 0x62, 0x27, 0xc6, 0x1e, 0x5d, 0xd9, 0xfc, 0x65, 0x58, 0x36, 0xab, 0xd1,
+	0x3b, 0x4e, 0xbf, 0xe1, 0xb8, 0x6a, 0x7e, 0xb5, 0x78, 0xd5, 0xd4, 0x43, 0xaa, 0xf9, 0xc1, 0x74,
+	0xb1, 0xdd, 0x88, 0x68, 0x1e, 0xca, 0x63, 0x07, 0x46, 0x84, 0x29, 0xfb, 0x21, 0x3b, 0x24, 0xf1,
+	0x26, 0x94, 0xcc, 0xb8, 0x9c, 0x49, 0xa8, 0xd6, 0x80, 0x2d, 0x79, 0x62, 0xf7, 0x53, 0xb7, 0x16,
+	0xd8, 0xeb, 0x4e, 0xcc, 0xa5, 0x60, 0x57, 0x73, 0x70, 0xe9, 0x17, 0xb0, 0x25, 0x0f, 0x5d, 0x33,
+	0xae, 0xee, 0x6f, 0x79, 0x87, 0x3f, 0x7f, 0x34, 0x28, 0x1a, 0x07, 0x66, 0xff, 0xcc, 0x38, 0xf7,
+	0x75, 0xdb, 0xe6, 0x0d, 0xa1, 0x6e, 0x05, 0x8a, 0x75, 0x2b, 0x5e, 0xbb, 0xa2, 0x21, 0xcd, 0xbd,
+	0x11, 0x0a, 0x40, 0xdc, 0x08, 0xd1, 0x06, 0x91, 0x3e, 0xd1, 0x98, 0x35, 0x16, 0x26, 0x1a, 0x08,
+	0x9d, 0x46, 0x34, 0x84, 0xc9, 0x14, 0xa2, 0x21, 0x3c, 0xab, 0x44, 0x63, 0x01, 0xd3, 0x20, 0x45,
+	0x43, 0x34, 0xcf, 0x20, 0x1a, 0x41, 0xc3, 0x77, 0x4b, 0x34, 0xd4, 0xb1, 0xdd, 0xa4, 0x68, 0xb8,
+	0x11, 0x79, 0xa2, 0x21, 0x12, 0x11, 0x2b, 0x1a, 0x98, 0x33, 0x09, 0xf5, 0x44, 0x23, 0x48, 0xdd,
+	0x09, 0x44, 0x43, 0xc5, 0xa5, 0x60, 0x57, 0x73, 0x70, 0xc9, 0x15, 0x8d, 0x99, 0x57, 0xb7, 0x2b,
+	0x1a, 0xc1, 0x68, 0x6a, 0x5f, 0xde, 0x81, 0xdc, 0x81, 0xb8, 0xdb, 0x24, 0x06, 0xe4, 0xf0, 0xda,
+	0x90, 0x68, 0xaa, 0xa0, 0x82, 0x57, 0x91, 0xe5, 0xfb, 0xb1, 0x18, 0x14, 0xa5, 0xdb, 0x7f, 0xff,
+	0xeb, 0xff, 0xfe, 0x94, 0x5e, 0x87, 0x35, 0x0e, 0xfa, 0x3e, 0x6e, 0x1f, 0x89, 0x09, 0x2b, 0xee,
+	0xfd, 0x13, 0xf9, 0xee, 0x24, 0xb7, 0x75, 0xe5, 0x07, 0x09, 0xa8, 0x78, 0x87, 0x16, 0x80, 0x77,
+	0xfd, 0x43, 0x1e, 0x44, 0x17, 0xfc, 0xfc, 0x23, 0x7c, 0x98, 0x04, 0x4b, 0xf4, 0xe9, 0x5d, 0xef,
+	0xa8, 0x7d, 0x8e, 0x5d, 0x27, 0xa9, 0x7d, 0x2a, 0x6e, 0x89, 0x22, 0x7c, 0x8a, 0x1c, 0xbe, 0x6e,
+	0xd9, 0xdd, 0xc8, 0x1c, 0xfa, 0xae, 0x77, 0x22, 0x73, 0x18, 0xb8, 0xc8, 0x89, 0xcf, 0x21, 0x2f,
+	0xd2, 0x47, 0xe7, 0xd0, 0x7f, 0x59, 0x12, 0x9d, 0xc3, 0x40, 0xa5, 0x3f, 0x71, 0x3e, 0xf9, 0xf0,
+	0x62, 0xe6, 0xd3, 0x3f, 0xc2, 0x87, 0x49, 0xb0, 0x44, 0x9f, 0x5e, 0xed, 0x5c, 0xed, 0x73, 0xac,
+	0x8e, 0xaf, 0xf6, 0x39, 0x5e, 0x82, 0x8f, 0xf2, 0xf9, 0x05, 0xac, 0xfa, 0xeb, 0x7e, 0xe4, 0xd1,
+	0x84, 0x85, 0xcc, 0x72, 0x25, 0x19, 0x18, 0xef, 0xf9, 0xb7, 0xb0, 0x16, 0xb8, 0xe5, 0x20, 0xca,
+	0x1e, 0x55, 0xb7, 0x2a, 0xe5, 0xc7, 0x13, 0x20, 0x13, 0x9d, 0x07, 0x8a, 0xe4, 0x6a, 0xe7, 0xaa,
+	0xb2, 0xbc, 0xda, 0xb9, 0xb2, 0xe2, 0x1e, 0xe3, 0x3c, 0x50, 0x0b, 0x57, 0x3b, 0x57, 0x15, 0xdd,
+	0xd5, 0xce, 0xd5, 0x85, 0xf5, 0x58, 0x92, 0x61, 0xfd, 0x28, 0x92, 0x64, 0xc1, 0x9a, 0x63, 0x24,
+	0xc9, 0xc2, 0x05, 0xc4, 0x78, 0x92, 0xc9, 0x62, 0x57, 0x34, 0xc9, 0x42, 0x15, 0xba, 0x68, 0x92,
+	0x85, 0xeb, 0x66, 0x89, 0x24, 0x93, 0x03, 0x8e, 0x21, 0x59, 0x68, 0xcc, 0x8f, 0x27, 0x40, 0x4e,
+	0x98, 0xe7, 0x58, 0xe7, 0xaa, 0x22, 0x6f, 0x5c, 0x9e, 0x27, 0x74, 0x2e, 0xf2, 0x8c, 0xa7, 0xfd,
+	0xc8, 0x3c, 0x07, 0xeb, 0x28, 0x91, 0x79, 0x0e, 0x95, 0x1a, 0x12, 0xf2, 0x2c, 0x0b, 0x51, 0xd1,
+	0x79, 0x0e, 0x55, 0xcf, 0xa2, 0xf3, 0x1c, 0xae, 0x69, 0x25, 0xae, 0x67, 0x39, 0xe0, 0x98, 0xf5,
+	0x1c, 0x1a, 0xf3, 0xe3, 0x09, 0x90, 0x89, 0x1f, 0x27, 0xb7, 0x04, 0xa2, 0xfe, 0x38, 0x85, 0x0b,
+	0x2c, 0xe5, 0x07, 0x09, 0xa8, 0xc4, 0x79, 0xf6, 0xd7, 0x1b, 0xd4, 0xf3, 0xac, 0xa8, 0xa5, 0x94,
+	0x2b, 0xc9, 0xc0, 0x78, 0xcf, 0x43, 0x28, 0xf8, 0x4e, 0xcd, 0xe4, 0xe1, 0x64, 0x07, 0xfd, 0xf2,
+	0xa3, 0x44, 0x5c, 0xe2, 0x80, 0xfd, 0x87, 0x62, 0xf5, 0x80, 0x15, 0x27, 0xf0, 0x72, 0x25, 0x19,
+	0x98, 0xe8, 0xd9, 0x7f, 0x00, 0x56, 0x7b, 0x56, 0x1c, 0xb2, 0xcb, 0x95, 0x64, 0xe0, 0x24, 0xac,
+	0x12, 0x5b, 0xe8, 0x48, 0x56, 0x05, 0xf6, 0xe8, 0x91, 0xac, 0x0a, 0xee, 0xc3, 0x13, 0x59, 0x85,
+	0x3e, 0x63, 0x58, 0x15, 0x74, 0x5b, 0x49, 0x06, 0x4e, 0xc4, 0x2a, 0x3c, 0x56, 0x45, 0xb3, 0x2a,
+	0x78, 0x12, 0x8c, 0x66, 0x55, 0xe8, 0x7c, 0x96, 0xc8, 0xaa, 0xb8, 0x01, 0x2b, 0x8e, 0x68, 0x71,
+	0xac, 0x9a, 0x78, 0xaa, 0xfd, 0x27, 0xa4, 0x38, 0x56, 0x4d, 0xe0, 0x59, 0x75, 0xd8, 0x8a, 0xf0,
+	0xbc, 0x5f, 0x7a, 0xfb, 0xcd, 0xce, 0xad, 0x7f, 0x7e, 0xb3, 0x73, 0xeb, 0x77, 0xa3, 0x9d, 0xd4,
+	0xdb, 0xd1, 0x4e, 0xea, 0x1f, 0xa3, 0x9d, 0xd4, 0xbf, 0x47, 0x3b, 0xa9, 0xd3, 0x65, 0xfe, 0x6f,
+	0xa0, 0x4f, 0xff, 0x1f, 0x00, 0x00, 0xff, 0xff, 0x16, 0x80, 0xb3, 0xa3, 0x7f, 0x2a, 0x00, 0x00,
 }

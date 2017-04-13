@@ -1873,6 +1873,7 @@ _docker_container_update() {
 		--cpu-quota
 		--cpu-rt-period
 		--cpu-rt-runtime
+		--cpus
 		--cpuset-cpus
 		--cpuset-mems
 		--cpu-shares -c
@@ -3471,11 +3472,14 @@ _docker_node_ls() {
 			__docker_nospace
 			return
 			;;
+		--format)
+			return
+			;;
 	esac
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--filter -f --help --quiet -q" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--filter -f --format --help --quiet -q" -- "$cur" ) )
 			;;
 	esac
 }
@@ -4074,11 +4078,7 @@ _docker_stack_rm() {
 			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
 			;;
 		*)
-			local counter=$(__docker_pos_first_nonflag)
-			if [ $cword -eq $counter ]; then
-				__docker_complete_stacks
-			fi
-			;;
+			__docker_complete_stacks
 	esac
 }
 

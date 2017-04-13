@@ -71,18 +71,20 @@ func TestUint64OptSetAndValue(t *testing.T) {
 func TestHealthCheckOptionsToHealthConfig(t *testing.T) {
 	dur := time.Second
 	opt := healthCheckOptions{
-		cmd:      "curl",
-		interval: PositiveDurationOpt{DurationOpt{value: &dur}},
-		timeout:  PositiveDurationOpt{DurationOpt{value: &dur}},
-		retries:  10,
+		cmd:         "curl",
+		interval:    PositiveDurationOpt{DurationOpt{value: &dur}},
+		timeout:     PositiveDurationOpt{DurationOpt{value: &dur}},
+		startPeriod: PositiveDurationOpt{DurationOpt{value: &dur}},
+		retries:     10,
 	}
 	config, err := opt.toHealthConfig()
 	assert.NilError(t, err)
 	assert.Equal(t, reflect.DeepEqual(config, &container.HealthConfig{
-		Test:     []string{"CMD-SHELL", "curl"},
-		Interval: time.Second,
-		Timeout:  time.Second,
-		Retries:  10,
+		Test:        []string{"CMD-SHELL", "curl"},
+		Interval:    time.Second,
+		Timeout:     time.Second,
+		StartPeriod: time.Second,
+		Retries:     10,
 	}), true)
 }
 

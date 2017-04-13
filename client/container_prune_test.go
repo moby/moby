@@ -40,6 +40,11 @@ func TestContainersPrune(t *testing.T) {
 	danglingUntilFilters.Add("dangling", "true")
 	danglingUntilFilters.Add("until", "2016-12-15T14:00")
 
+	labelFilters := filters.NewArgs()
+	labelFilters.Add("dangling", "true")
+	labelFilters.Add("label", "label1=foo")
+	labelFilters.Add("label", "label2!=bar")
+
 	listCases := []struct {
 		filters             filters.Args
 		expectedQueryParams map[string]string
@@ -74,6 +79,14 @@ func TestContainersPrune(t *testing.T) {
 				"until":   "",
 				"filter":  "",
 				"filters": `{"dangling":{"false":true}}`,
+			},
+		},
+		{
+			filters: labelFilters,
+			expectedQueryParams: map[string]string{
+				"until":   "",
+				"filter":  "",
+				"filters": `{"dangling":{"true":true},"label":{"label1=foo":true,"label2!=bar":true}}`,
 			},
 		},
 	}

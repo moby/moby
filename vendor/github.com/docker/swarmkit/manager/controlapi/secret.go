@@ -2,7 +2,6 @@ package controlapi
 
 import (
 	"crypto/subtle"
-	"regexp"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -15,12 +14,8 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
-// Currently this is contains the unimplemented secret functions in order to satisfy the interface
-
 // MaxSecretSize is the maximum byte length of the `Secret.Spec.Data` field.
 const MaxSecretSize = 500 * 1024 // 500KB
-
-var validSecretNameRegexp = regexp.MustCompile(`^[a-zA-Z0-9]+(?:[a-zA-Z0-9-_.]*[a-zA-Z0-9])?$`)
 
 // assumes spec is not nil
 func secretFromSecretSpec(spec *api.SecretSpec) *api.Secret {
@@ -247,23 +242,12 @@ func validateSecretSpec(spec *api.SecretSpec) error {
 	if spec == nil {
 		return grpc.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
 	}
-	if err := validateSecretAnnotations(spec.Annotations); err != nil {
+	if err := validateConfigOrSecretAnnotations(spec.Annotations); err != nil {
 		return err
 	}
 
 	if len(spec.Data) >= MaxSecretSize || len(spec.Data) < 1 {
 		return grpc.Errorf(codes.InvalidArgument, "secret data must be larger than 0 and less than %d bytes", MaxSecretSize)
-	}
-	return nil
-}
-
-func validateSecretAnnotations(m api.Annotations) error {
-	if m.Name == "" {
-		return grpc.Errorf(codes.InvalidArgument, "name must be provided")
-	} else if len(m.Name) > 64 || !validSecretNameRegexp.MatchString(m.Name) {
-		// if the name doesn't match the regex
-		return grpc.Errorf(codes.InvalidArgument,
-			"invalid name, only 64 [a-zA-Z0-9-_.] characters allowed, and the start and end character must be [a-zA-Z0-9]")
 	}
 	return nil
 }

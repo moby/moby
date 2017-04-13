@@ -13,7 +13,10 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
-var isValidName = regexp.MustCompile(`^[a-zA-Z0-9](?:[-_]*[A-Za-z0-9]+)*$`)
+var isValidDNSName = regexp.MustCompile(`^[a-zA-Z0-9](?:[-_]*[A-Za-z0-9]+)*$`)
+
+// configs and secrets have different naming requirements from tasks and services
+var isValidConfigOrSecretName = regexp.MustCompile(`^[a-zA-Z0-9]+(?:[a-zA-Z0-9-_.]*[a-zA-Z0-9])?$`)
 
 func buildFilters(by func(string) store.By, values []string) store.By {
 	filters := make([]store.By, 0, len(values))
@@ -68,13 +71,24 @@ func validateAnnotations(m api.Annotations) error {
 	if m.Name == "" {
 		return grpc.Errorf(codes.InvalidArgument, "meta: name must be provided")
 	}
-	if !isValidName.MatchString(m.Name) {
+	if !isValidDNSName.MatchString(m.Name) {
 		// if the name doesn't match the regex
 		return grpc.Errorf(codes.InvalidArgument, "name must be valid as a DNS name component")
 	}
 	if len(m.Name) > 63 {
 		// DNS labels are limited to 63 characters
 		return grpc.Errorf(codes.InvalidArgument, "name must be 63 characters or fewer")
+	}
+	return nil
+}
+
+func validateConfigOrSecretAnnotations(m api.Annotations) error {
+	if m.Name == "" {
+		return grpc.Errorf(codes.InvalidArgument, "name must be provided")
+	} else if len(m.Name) > 64 || !isValidConfigOrSecretName.MatchString(m.Name) {
+		// if the name doesn't match the regex
+		return grpc.Errorf(codes.InvalidArgument,
+			"invalid name, only 64 [a-zA-Z0-9-_.] characters allowed, and the start and end character must be [a-zA-Z0-9]")
 	}
 	return nil
 }

@@ -86,6 +86,18 @@ message NodeDescription {
 
 	// Information about the Docker Engine on the node.
 	EngineDescription engine = 4;
+
+	// Information on the node's TLS setup
+	NodeTLSInfo tls_info = 5 [(gogoproto.customname) = "TLSInfo"];
+}
+
+message NodeTLSInfo {
+	// Information about which root certs the node trusts
+	bytes trust_root = 1;
+
+	// Information about the node's current TLS certificate
+	bytes cert_issuer_subject = 2;
+	bytes cert_issuer_public_key = 3;
 }
 
 message RaftMemberStatus {
@@ -853,6 +865,20 @@ message ManagerStatus {
 	RaftMemberStatus.Reachability reachability = 4;
 }
 
+// FileTarget represents a specific target that is backed by a file
+message FileTarget {
+	// Name represents the final filename in the filesystem
+	string name = 1;
+
+	// UID represents the file UID
+	string uid = 2 [(gogoproto.customname) = "UID"];
+
+	// GID represents the file GID
+	string gid = 3 [(gogoproto.customname) = "GID"];
+
+	// Mode represents the FileMode of the file
+	uint32 mode = 4 [(gogoproto.customtype) = "os.FileMode", (gogoproto.nullable) = false];
+}
 
 // SecretReference is the linkage between a service and a secret that it uses.
 message SecretReference {
@@ -865,20 +891,21 @@ message SecretReference {
 	// lookup/display purposes.  The secret in the reference will be identified by its ID.
 	string secret_name = 2;
 
-	// FileTarget represents a specific target that is backed by a file
-	message FileTarget {
-		// Name represents the final filename in the filesystem
-		string name = 1;
-
-		// UID represents the file UID
-		string uid = 2 [(gogoproto.customname) = "UID"];
-
-		// GID represents the file GID
-		string gid = 3 [(gogoproto.customname) = "GID"];
-
-		// Mode represents the FileMode of the file
-		uint32 mode = 4 [(gogoproto.customtype) = "os.FileMode", (gogoproto.nullable) = false];
+	// Target specifies how this secret should be exposed to the task.
+	oneof target {
+		FileTarget file = 3;
 	}
+}
+
+// ConfigReference is the linkage between a service and a config that it uses.
+message ConfigReference {
+	// ConfigID represents the ID of the specific Config that we're
+	// referencing.
+	string config_id = 1;
+
+	// ConfigName is the name of the config that this references, but this is just provided for
+	// lookup/display purposes. The config in the reference will be identified by its ID.
+	string config_name = 2;
 
 	// Target specifies how this secret should be exposed to the task.
 	oneof target {
@@ -942,4 +969,27 @@ message RootRotation {
 	bytes ca_key = 2 [(gogoproto.customname) = "CAKey"];
 	// cross-signed CA cert is the CACert that has been cross-signed by the previous root
 	bytes cross_signed_ca_cert = 3 [(gogoproto.customname) = "CrossSignedCACert"];
+}
+
+// Privileges specifies security configuration/permissions.
+message Privileges {
+	// CredentialSpec for managed service account (Windows only).
+	message CredentialSpec {
+		oneof source {
+			string file = 1;
+			string registry = 2;
+		}
+	}
+	CredentialSpec credential_spec = 1;
+
+	// SELinuxContext contains the SELinux labels for the container.
+	message SELinuxContext {
+		bool disable = 1;
+
+		string user = 2;
+		string role = 3;
+		string type = 4;
+		string level = 5;
+	}
+	SELinuxContext selinux_context = 2 [(gogoproto.customname) = "SELinuxContext"];
 }

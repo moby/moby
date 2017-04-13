@@ -428,6 +428,22 @@ func (s *DockerDaemonSuite) TestDaemonIPv6FixedCIDRAndMac(c *check.C) {
 	c.Assert(strings.Trim(out, " \r\n'"), checker.Equals, "2001:db8:1::aabb:ccdd:eeff")
 }
 
+// TestDaemonIPv6HostMode checks that when the running a container with
+// network=host the host ipv6 addresses are not removed
+func (s *DockerDaemonSuite) TestDaemonIPv6HostMode(c *check.C) {
+	testRequires(c, SameHostDaemon)
+	deleteInterface(c, "docker0")
+
+	s.d.StartWithBusybox(c, "--ipv6", "--fixed-cidr-v6=2001:db8:2::/64")
+	out, err := s.d.Cmd("run", "-itd", "--name=hostcnt", "--network=host", "busybox:latest")
+	c.Assert(err, checker.IsNil, check.Commentf("Could not run container: %s, %v", out, err))
+
+	out, err = s.d.Cmd("exec", "hostcnt", "ip", "-6", "addr", "show", "docker0")
+	out = strings.Trim(out, " \r\n'")
+
+	c.Assert(out, checker.Contains, "2001:db8:2::1")
+}
+
 func (s *DockerDaemonSuite) TestDaemonLogLevelWrong(c *check.C) {
 	c.Assert(s.d.StartWithError("--log-level=bogus"), check.NotNil, check.Commentf("Daemon shouldn't start with wrong log level"))
 }
@@ -2788,10 +2804,14 @@ func (s *DockerDaemonSuite) TestExecWithUserAfterLiveRestore(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	s.d.StartWithBusybox(c, "--live-restore")
 
-	out, err := s.d.Cmd("run", "-d", "--name=top", "busybox", "sh", "-c", "addgroup -S test && adduser -S -G test test -D -s /bin/sh && top")
+	out, err := s.d.Cmd("run", "-d", "--name=top", "busybox", "sh", "-c", "addgroup -S test && adduser -S -G test test -D -s /bin/sh && touch /adduser_end && top")
 	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
 
 	s.d.WaitRun("top")
+
+	// Wait for shell command to be completed
+	_, err = s.d.Cmd("exec", "top", "sh", "-c", `for i in $(seq 1 5); do if [ -e /adduser_end ]; then rm -f /adduser_end && break; else sleep 1 && false; fi; done`)
+	c.Assert(err, check.IsNil, check.Commentf("Timeout waiting for shell command to be completed"))
 
 	out1, err := s.d.Cmd("exec", "-u", "test", "top", "id")
 	// uid=100(test) gid=101(test) groups=101(test)

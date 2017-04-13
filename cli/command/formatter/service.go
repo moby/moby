@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/api/types"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli/command/inspect"
@@ -57,6 +58,7 @@ UpdateConfig:
  Monitoring Period: {{ .UpdateMonitor }}
 {{- end }}
  Max failure ratio: {{ .UpdateMaxFailureRatio }}
+ Update order:      {{ .UpdateOrder }}
 {{- end }}
 {{- if .HasRollbackConfig }}
 RollbackConfig:
@@ -69,6 +71,7 @@ RollbackConfig:
  Monitoring Period: {{ .RollbackMonitor }}
 {{- end }}
  Max failure ratio: {{ .RollbackMaxFailureRatio }}
+ Rollback order:    {{ .RollbackOrder }}
 {{- end }}
 ContainerSpec:
  Image:		{{ .ContainerImage }}
@@ -135,8 +138,20 @@ func NewServiceFormat(source string) Format {
 	}
 }
 
+func resolveNetworks(service swarm.Service, getNetwork inspect.GetRefFunc) map[string]string {
+	networkNames := make(map[string]string)
+	for _, network := range service.Spec.TaskTemplate.Networks {
+		if resolved, _, err := getNetwork(network.Target); err == nil {
+			if resolvedNetwork, ok := resolved.(types.NetworkResource); ok {
+				networkNames[resolvedNetwork.ID] = resolvedNetwork.Name
+			}
+		}
+	}
+	return networkNames
+}
+
 // ServiceInspectWrite renders the context for a list of services
-func ServiceInspectWrite(ctx Context, refs []string, getRef inspect.GetRefFunc) error {
+func ServiceInspectWrite(ctx Context, refs []string, getRef, getNetwork inspect.GetRefFunc) error {
 	if ctx.Format != serviceInspectPrettyTemplate {
 		return inspect.Inspect(ctx.Output, refs, string(ctx.Format), getRef)
 	}
@@ -150,7 +165,7 @@ func ServiceInspectWrite(ctx Context, refs []string, getRef inspect.GetRefFunc) 
 			if !ok {
 				return errors.Errorf("got wrong object to inspect")
 			}
-			if err := format(&serviceInspectContext{Service: service}); err != nil {
+			if err := format(&serviceInspectContext{Service: service, networkNames: resolveNetworks(service, getNetwork)}); err != nil {
 				return err
 			}
 		}
@@ -162,6 +177,10 @@ func ServiceInspectWrite(ctx Context, refs []string, getRef inspect.GetRefFunc) 
 type serviceInspectContext struct {
 	swarm.Service
 	subContext
+
+	// networkNames is a map from network IDs (as found in
+	// Networks[x].Target) to network names.
+	networkNames map[string]string
 }
 
 func (ctx *serviceInspectContext) MarshalJSON() ([]byte, error) {
@@ -260,6 +279,10 @@ func (ctx *serviceInspectContext) UpdateOnFailure() string {
 	return ctx.Service.Spec.UpdateConfig.FailureAction
 }
 
+func (ctx *serviceInspectContext) UpdateOrder() string {
+	return ctx.Service.Spec.UpdateConfig.Order
+}
+
 func (ctx *serviceInspectContext) HasUpdateMonitor() bool {
 	return ctx.Service.Spec.UpdateConfig.Monitor.Nanoseconds() > 0
 }
@@ -302,6 +325,10 @@ func (ctx *serviceInspectContext) RollbackMonitor() time.Duration {
 
 func (ctx *serviceInspectContext) RollbackMaxFailureRatio() float32 {
 	return ctx.Service.Spec.RollbackConfig.MaxFailureRatio
+}
+
+func (ctx *serviceInspectContext) RollbackOrder() string {
+	return ctx.Service.Spec.RollbackConfig.Order
 }
 
 func (ctx *serviceInspectContext) ContainerImage() string {
@@ -373,8 +400,12 @@ func (ctx *serviceInspectContext) ResourceLimitMemory() string {
 
 func (ctx *serviceInspectContext) Networks() []string {
 	var out []string
-	for _, n := range ctx.Service.Spec.Networks {
-		out = append(out, n.Target)
+	for _, n := range ctx.Service.Spec.TaskTemplate.Networks {
+		if name, ok := ctx.networkNames[n.Target]; ok {
+			out = append(out, name)
+		} else {
+			out = append(out, n.Target)
+		}
 	}
 	return out
 }

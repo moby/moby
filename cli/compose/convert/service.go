@@ -9,6 +9,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/api/types/versions"
 	servicecli "github.com/docker/docker/cli/command/service"
 	composetypes "github.com/docker/docker/cli/compose/types"
 	"github.com/docker/docker/client"
@@ -20,11 +21,10 @@ import (
 const defaultNetwork = "default"
 
 // Services from compose-file types to engine API types
-// TODO: fix secrets API so that SecretAPIClient is not required here
 func Services(
 	namespace Namespace,
 	config *composetypes.Config,
-	client client.SecretAPIClient,
+	client client.CommonAPIClient,
 ) (map[string]swarm.ServiceSpec, error) {
 	result := make(map[string]swarm.ServiceSpec)
 
@@ -33,12 +33,11 @@ func Services(
 	networks := config.Networks
 
 	for _, service := range services {
-
 		secrets, err := convertServiceSecrets(client, namespace, service.Secrets, config.Secrets)
 		if err != nil {
 			return nil, errors.Wrapf(err, "service %s", service.Name)
 		}
-		serviceSpec, err := convertService(namespace, service, networks, volumes, secrets)
+		serviceSpec, err := convertService(client.ClientVersion(), namespace, service, networks, volumes, secrets)
 		if err != nil {
 			return nil, errors.Wrapf(err, "service %s", service.Name)
 		}
@@ -49,6 +48,7 @@ func Services(
 }
 
 func convertService(
+	apiVersion string,
 	namespace Namespace,
 	service composetypes.ServiceConfig,
 	networkConfigs map[string]composetypes.NetworkConfig,
@@ -93,6 +93,11 @@ func convertService(
 		return swarm.ServiceSpec{}, err
 	}
 
+	dnsConfig, err := convertDNSConfig(service.DNS, service.DNSSearch)
+	if err != nil {
+		return swarm.ServiceSpec{}, err
+	}
+
 	var logDriver *swarm.Driver
 	if service.Logging != nil {
 		logDriver = &swarm.Driver{
@@ -113,6 +118,7 @@ func convertService(
 				Args:            service.Command,
 				Hostname:        service.Hostname,
 				Hosts:           sortStrings(convertExtraHosts(service.ExtraHosts)),
+				DNSConfig:       dnsConfig,
 				Healthcheck:     healthcheck,
 				Env:             sortStrings(convertEnvironment(service.Environment)),
 				Labels:          AddStackLabel(namespace, service.Labels),
@@ -133,10 +139,21 @@ func convertService(
 		},
 		EndpointSpec: endpoint,
 		Mode:         mode,
-		Networks:     networks,
 		UpdateConfig: convertUpdateConfig(service.Deploy.UpdateConfig),
 	}
 
+	// ServiceSpec.Networks is deprecated and should not have been used by
+	// this package. It is possible to update TaskTemplate.Networks, but it
+	// is not possible to update ServiceSpec.Networks. Unfortunately, we
+	// can't unconditionally start using TaskTemplate.Networks, because that
+	// will break with older daemons that don't support migrating from
+	// ServiceSpec.Networks to TaskTemplate.Networks. So which field to use
+	// is conditional on daemon version.
+	if versions.LessThan(apiVersion, "1.29") {
+		serviceSpec.Networks = networks
+	} else {
+		serviceSpec.TaskTemplate.Networks = networks
+	}
 	return serviceSpec, nil
 }
 
@@ -255,9 +272,9 @@ func convertHealthcheck(healthcheck *composetypes.HealthCheckConfig) (*container
 		return nil, nil
 	}
 	var (
-		err               error
-		timeout, interval time.Duration
-		retries           int
+		err                            error
+		timeout, interval, startPeriod time.Duration
+		retries                        int
 	)
 	if healthcheck.Disable {
 		if len(healthcheck.Test) != 0 {
@@ -280,14 +297,21 @@ func convertHealthcheck(healthcheck *composetypes.HealthCheckConfig) (*container
 			return nil, err
 		}
 	}
+	if healthcheck.StartPeriod != "" {
+		startPeriod, err = time.ParseDuration(healthcheck.StartPeriod)
+		if err != nil {
+			return nil, err
+		}
+	}
 	if healthcheck.Retries != nil {
 		retries = int(*healthcheck.Retries)
 	}
 	return &container.HealthConfig{
-		Test:     healthcheck.Test,
-		Timeout:  timeout,
-		Interval: interval,
-		Retries:  retries,
+		Test:        healthcheck.Test,
+		Timeout:     timeout,
+		Interval:    interval,
+		Retries:     retries,
+		StartPeriod: startPeriod,
 	}, nil
 }
 
@@ -427,4 +451,14 @@ func convertDeployMode(mode string, replicas *uint64) (swarm.ServiceMode, error)
 		return serviceMode, errors.Errorf("Unknown mode: %s", mode)
 	}
 	return serviceMode, nil
+}
+
+func convertDNSConfig(DNS []string, DNSSearch []string) (*swarm.DNSConfig, error) {
+	if DNS != nil || DNSSearch != nil {
+		return &swarm.DNSConfig{
+			Nameservers: DNS,
+			Search:      DNSSearch,
+		}, nil
+	}
+	return nil, nil
 }

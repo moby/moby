@@ -15,7 +15,7 @@ type removeOptions struct {
 	names []string
 }
 
-func newSecretRemoveCommand(dockerCli *command.DockerCli) *cobra.Command {
+func newSecretRemoveCommand(dockerCli command.Cli) *cobra.Command {
 	return &cobra.Command{
 		Use:     "rm SECRET [SECRET...]",
 		Aliases: []string{"remove"},
@@ -30,7 +30,7 @@ func newSecretRemoveCommand(dockerCli *command.DockerCli) *cobra.Command {
 	}
 }
 
-func runSecretRemove(dockerCli *command.DockerCli, opts removeOptions) error {
+func runSecretRemove(dockerCli command.Cli, opts removeOptions) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 

@@ -42,20 +42,22 @@ func newLogsCommand(dockerCli *command.DockerCli) *cobra.Command {
 	var opts logsOptions
 
 	cmd := &cobra.Command{
-		Use:   "logs [OPTIONS] SERVICE",
-		Short: "Fetch the logs of a service",
+		Use:   "logs [OPTIONS] SERVICE|TASK",
+		Short: "Fetch the logs of a service or task",
 		Args:  cli.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts.target = args[0]
 			return runLogs(dockerCli, &opts)
 		},
-		Tags: map[string]string{"experimental": ""},
+		Tags: map[string]string{"version": "1.29"},
 	}
 
 	flags := cmd.Flags()
+	// options specific to service logs
 	flags.BoolVar(&opts.noResolve, "no-resolve", false, "Do not map IDs to Names in output")
 	flags.BoolVar(&opts.noTrunc, "no-trunc", false, "Do not truncate output")
 	flags.BoolVar(&opts.noTaskIDs, "no-task-ids", false, "Do not include task IDs in output")
+	// options identical to container logs
 	flags.BoolVarP(&opts.follow, "follow", "f", false, "Follow log output")
 	flags.StringVar(&opts.since, "since", "", "Show logs since timestamp (e.g. 2013-01-02T13:23:37) or relative (e.g. 42m for 42 minutes)")
 	flags.BoolVarP(&opts.timestamps, "timestamps", "t", false, "Show timestamps")
@@ -73,6 +75,7 @@ func runLogs(dockerCli *command.DockerCli, opts *logsOptions) error {
 		Timestamps: opts.timestamps,
 		Follow:     opts.follow,
 		Tail:       opts.tail,
+		Details:    true,
 	}
 
 	cli := dockerCli.Client()
@@ -80,15 +83,26 @@ func runLogs(dockerCli *command.DockerCli, opts *logsOptions) error {
 	var (
 		maxLength    = 1
 		responseBody io.ReadCloser
+		tty          bool
 	)
 
-	service, _, err := cli.ServiceInspectWithRaw(ctx, opts.target)
+	service, _, err := cli.ServiceInspectWithRaw(ctx, opts.target, types.ServiceInspectOptions{})
 	if err != nil {
 		// if it's any error other than service not found, it's Real
 		if !client.IsErrServiceNotFound(err) {
 			return err
 		}
 		task, _, err := cli.TaskInspectWithRaw(ctx, opts.target)
+		tty = task.Spec.ContainerSpec.TTY
+		// TODO(dperny) hot fix until we get a nice details system squared away,
+		// ignores details (including task context) if we have a TTY log
+		// if we don't do this, we'll vomit the huge context verbatim into the
+		// TTY log lines and that's Undesirable.
+		if tty {
+			options.Details = false
+		}
+
+		responseBody, err = cli.TaskLogs(ctx, opts.target, options)
 		if err != nil {
 			if client.IsErrTaskNotFound(err) {
 				// if the task ALSO isn't found, rewrite the error to be clear
@@ -100,6 +114,13 @@ func runLogs(dockerCli *command.DockerCli, opts *logsOptions) error {
 		maxLength = getMaxLength(task.Slot)
 		responseBody, err = cli.TaskLogs(ctx, opts.target, options)
 	} else {
+		tty = service.Spec.TaskTemplate.ContainerSpec.TTY
+		// TODO(dperny) hot fix until we get a nice details system squared away,
+		// ignores details (including task context) if we have a TTY log
+		if tty {
+			options.Details = false
+		}
+
 		responseBody, err = cli.ServiceLogs(ctx, opts.target, options)
 		if err != nil {
 			return err
@@ -111,6 +132,11 @@ func runLogs(dockerCli *command.DockerCli, opts *logsOptions) error {
 		}
 	}
 	defer responseBody.Close()
+
+	if tty {
+		_, err = io.Copy(dockerCli.Out(), responseBody)
+		return err
+	}
 
 	taskFormatter := newTaskFormatter(cli, opts, maxLength)
 

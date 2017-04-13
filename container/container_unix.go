@@ -286,11 +286,32 @@ func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfi
 	// update resources of container
 	resources := hostConfig.Resources
 	cResources := &container.HostConfig.Resources
+
+	// validate NanoCPUs, CPUPeriod, and CPUQuota
+	// Becuase NanoCPU effectively updates CPUPeriod/CPUQuota,
+	// once NanoCPU is already set, updating CPUPeriod/CPUQuota will be blocked, and vice versa.
+	// In the following we make sure the intended update (resources) does not conflict with the existing (cResource).
+	if resources.NanoCPUs > 0 && cResources.CPUPeriod > 0 {
+		return fmt.Errorf("Conflicting options: Nano CPUs cannot be updated as CPU Period has already been set")
+	}
+	if resources.NanoCPUs > 0 && cResources.CPUQuota > 0 {
+		return fmt.Errorf("Conflicting options: Nano CPUs cannot be updated as CPU Quota has already been set")
+	}
+	if resources.CPUPeriod > 0 && cResources.NanoCPUs > 0 {
+		return fmt.Errorf("Conflicting options: CPU Period cannot be updated as NanoCPUs has already been set")
+	}
+	if resources.CPUQuota > 0 && cResources.NanoCPUs > 0 {
+		return fmt.Errorf("Conflicting options: CPU Quota cannot be updated as NanoCPUs has already been set")
+	}
+
 	if resources.BlkioWeight != 0 {
 		cResources.BlkioWeight = resources.BlkioWeight
 	}
 	if resources.CPUShares != 0 {
 		cResources.CPUShares = resources.CPUShares
+	}
+	if resources.NanoCPUs != 0 {
+		cResources.NanoCPUs = resources.NanoCPUs
 	}
 	if resources.CPUPeriod != 0 {
 		cResources.CPUPeriod = resources.CPUPeriod

@@ -40,6 +40,11 @@ func init() {
 					AllowMissing: true,
 					Indexer:      serviceIndexerBySecret{},
 				},
+				indexConfig: {
+					Name:         indexConfig,
+					AllowMissing: true,
+					Indexer:      serviceIndexerByConfig{},
+				},
 				indexCustom: {
 					Name:         indexCustom,
 					Indexer:      api.ServiceCustomIndexer{},
@@ -131,7 +136,7 @@ func GetService(tx ReadTx, id string) *api.Service {
 func FindServices(tx ReadTx, by By) ([]*api.Service, error) {
 	checkType := func(by By) error {
 		switch by.(type) {
-		case byName, byNamePrefix, byIDPrefix, byRuntime, byReferencedNetworkID, byReferencedSecretID, byCustom, byCustomPrefix:
+		case byName, byNamePrefix, byIDPrefix, byRuntime, byReferencedNetworkID, byReferencedSecretID, byReferencedConfigID, byCustom, byCustomPrefix:
 			return nil
 		default:
 			return ErrInvalidFindBy
@@ -213,4 +218,31 @@ func (si serviceIndexerBySecret) FromObject(obj interface{}) (bool, [][]byte, er
 	}
 
 	return len(secretIDs) != 0, secretIDs, nil
+}
+
+type serviceIndexerByConfig struct{}
+
+func (si serviceIndexerByConfig) FromArgs(args ...interface{}) ([]byte, error) {
+	return fromArgs(args...)
+}
+
+func (si serviceIndexerByConfig) FromObject(obj interface{}) (bool, [][]byte, error) {
+	s, ok := obj.(*api.Service)
+	if !ok {
+		panic("unexpected type passed to FromObject")
+	}
+
+	container := s.Spec.Task.GetContainer()
+	if container == nil {
+		return false, nil, nil
+	}
+
+	var configIDs [][]byte
+
+	for _, configRef := range container.Configs {
+		// Add the null character as a terminator
+		configIDs = append(configIDs, []byte(configRef.ConfigID+"\x00"))
+	}
+
+	return len(configIDs) != 0, configIDs, nil
 }

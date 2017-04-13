@@ -70,6 +70,8 @@ func populateFieldFromBuffer(char rune, buffer []rune, volume *types.ServiceVolu
 		switch option {
 		case "ro":
 			volume.ReadOnly = true
+		case "rw":
+			volume.ReadOnly = false
 		case "nocopy":
 			volume.Volume = &types.ServiceVolumeVolume{NoCopy: true}
 		default:

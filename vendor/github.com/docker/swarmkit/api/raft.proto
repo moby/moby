@@ -127,5 +127,6 @@ message StoreAction {
 		Secret secret = 7;
 		Resource resource = 8;
 		Extension extension = 9;
+		Config config = 10;
 	}
 }

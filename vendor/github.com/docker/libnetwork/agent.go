@@ -218,6 +218,7 @@ func (c *controller) agentSetup() error {
 	if c.agent != nil && c.agentInitDone != nil {
 		close(c.agentInitDone)
 		c.agentInitDone = nil
+		c.agentStopDone = make(chan struct{})
 	}
 	c.Unlock()
 

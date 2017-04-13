@@ -303,7 +303,7 @@ release_index() {
 }
 
 main() {
-	[ "$SKIP_RELEASE_BUILD" -eq 1 ] || build_all
+	[ "$SKIP_RELEASE_BUILD" = '1' ] || build_all
 	setup_s3
 	release_binaries
 	release_index

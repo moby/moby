@@ -22,7 +22,7 @@ func TestUpdateServiceArgs(t *testing.T) {
 	cspec := &spec.TaskTemplate.ContainerSpec
 	cspec.Args = []string{"old", "args"}
 
-	updateService(flags, spec)
+	updateService(nil, nil, flags, spec)
 	assert.EqualStringSlice(t, cspec.Args, []string{"the", "new args"})
 }
 
@@ -312,6 +312,11 @@ func TestUpdateHealthcheckTable(t *testing.T) {
 			expected: &container.HealthConfig{Test: []string{"CMD", "cmd1"}},
 		},
 		{
+			flags:    [][2]string{{"health-start-period", "1m"}},
+			initial:  &container.HealthConfig{Test: []string{"CMD", "cmd1"}},
+			expected: &container.HealthConfig{Test: []string{"CMD", "cmd1"}, StartPeriod: time.Minute},
+		},
+		{
 			flags: [][2]string{{"health-cmd", "cmd1"}, {"no-healthcheck", "true"}},
 			err:   "--no-healthcheck conflicts with --health-* options",
 		},
@@ -453,18 +458,18 @@ func TestUpdateReadOnly(t *testing.T) {
 	// Update with --read-only=true, changed to true
 	flags := newUpdateCommand(nil).Flags()
 	flags.Set("read-only", "true")
-	updateService(flags, spec)
+	updateService(nil, nil, flags, spec)
 	assert.Equal(t, cspec.ReadOnly, true)
 
 	// Update without --read-only, no change
 	flags = newUpdateCommand(nil).Flags()
-	updateService(flags, spec)
+	updateService(nil, nil, flags, spec)
 	assert.Equal(t, cspec.ReadOnly, true)
 
 	// Update with --read-only=false, changed to false
 	flags = newUpdateCommand(nil).Flags()
 	flags.Set("read-only", "false")
-	updateService(flags, spec)
+	updateService(nil, nil, flags, spec)
 	assert.Equal(t, cspec.ReadOnly, false)
 }
 
@@ -475,17 +480,17 @@ func TestUpdateStopSignal(t *testing.T) {
 	// Update with --stop-signal=SIGUSR1
 	flags := newUpdateCommand(nil).Flags()
 	flags.Set("stop-signal", "SIGUSR1")
-	updateService(flags, spec)
+	updateService(nil, nil, flags, spec)
 	assert.Equal(t, cspec.StopSignal, "SIGUSR1")
 
 	// Update without --stop-signal, no change
 	flags = newUpdateCommand(nil).Flags()
-	updateService(flags, spec)
+	updateService(nil, nil, flags, spec)
 	assert.Equal(t, cspec.StopSignal, "SIGUSR1")
 
 	// Update with --stop-signal=SIGWINCH
 	flags = newUpdateCommand(nil).Flags()
 	flags.Set("stop-signal", "SIGWINCH")
-	updateService(flags, spec)
+	updateService(nil, nil, flags, spec)
 	assert.Equal(t, cspec.StopSignal, "SIGWINCH")
 }

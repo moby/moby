@@ -255,6 +255,10 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *containertypes.HostCon
 			if config.Healthcheck.Retries < 0 {
 				return nil, fmt.Errorf("Retries in Healthcheck cannot be negative")
 			}
+
+			if config.Healthcheck.StartPeriod < 0 {
+				return nil, fmt.Errorf("StartPeriod in Healthcheck cannot be negative")
+			}
 		}
 	}
 

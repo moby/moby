@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"bytes"
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
@@ -46,45 +47,22 @@ func env(b *Builder, args []string, attributes map[string]bool, original string)
 		return err
 	}
 
-	// TODO/FIXME/NOT USED
-	// Just here to show how to use the builder flags stuff within the
-	// context of a builder command. Will remove once we actually add
-	// a builder command to something!
-	/*
-		flBool1 := b.flags.AddBool("bool1", false)
-		flStr1 := b.flags.AddString("str1", "HI")
+	commitMessage := bytes.NewBufferString("ENV")
 
-		if err := b.flags.Parse(); err != nil {
-			return err
-		}
-
-		fmt.Printf("Bool1:%v\n", flBool1)
-		fmt.Printf("Str1:%v\n", flStr1)
-	*/
-
-	commitStr := "ENV"
-
-	for j := 0; j < len(args); j++ {
-		// name  ==> args[j]
-		// value ==> args[j+1]
-
+	for j := 0; j < len(args); j += 2 {
 		if len(args[j]) == 0 {
 			return errBlankCommandNames("ENV")
 		}
-		newVar := args[j] + "=" + args[j+1] + ""
-		commitStr += " " + newVar
+		name := args[j]
+		value := args[j+1]
+		newVar := name + "=" + value
+		commitMessage.WriteString(" " + newVar)
 
 		gotOne := false
 		for i, envVar := range b.runConfig.Env {
 			envParts := strings.SplitN(envVar, "=", 2)
 			compareFrom := envParts[0]
-			compareTo := args[j]
-			if runtime.GOOS == "windows" {
-				// Case insensitive environment variables on Windows
-				compareFrom = strings.ToUpper(compareFrom)
-				compareTo = strings.ToUpper(compareTo)
-			}
-			if compareFrom == compareTo {
+			if equalEnvKeys(compareFrom, name) {
 				b.runConfig.Env[i] = newVar
 				gotOne = true
 				break
@@ -93,10 +71,9 @@ func env(b *Builder, args []string, attributes map[string]bool, original string)
 		if !gotOne {
 			b.runConfig.Env = append(b.runConfig.Env, newVar)
 		}
-		j++
 	}
 
-	return b.commit("", b.runConfig.Cmd, commitStr)
+	return b.commit("", b.runConfig.Cmd, commitMessage.String())
 }
 
 // MAINTAINER some text <maybe@an.email.address>
@@ -211,14 +188,22 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 			return errors.Errorf("invalid name for build stage: %q, name can't start with a number or contain symbols", ctxName)
 		}
 	} else if len(args) != 1 {
-		return errExactlyOneArgument("FROM")
+		return errors.New("FROM requires either one or three arguments")
 	}
 
 	if err := b.flags.Parse(); err != nil {
 		return err
 	}
 
-	name := args[0]
+	substituionArgs := []string{}
+	for key, value := range b.buildArgs.GetAllMeta() {
+		substituionArgs = append(substituionArgs, key+"="+value)
+	}
+
+	name, err := ProcessWord(args[0], substituionArgs, b.directive.EscapeToken)
+	if err != nil {
+		return err
+	}
 
 	var image builder.Image
 
@@ -252,8 +237,7 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 	}
 	b.from = image
 
-	b.allowedBuildArgs = make(map[string]*string)
-
+	b.buildArgs.ResetAllowed()
 	return b.processImageFrom(image)
 }
 
@@ -360,7 +344,7 @@ func workdir(b *Builder, args []string, attributes map[string]bool, original str
 // RUN [ "echo", "hi" ] # echo hi
 //
 func run(b *Builder, args []string, attributes map[string]bool, original string) error {
-	if b.image == "" && !b.noBaseImage {
+	if !b.hasFromImage() {
 		return errors.New("Please provide a source image with `from` prior to run")
 	}
 
@@ -433,12 +417,13 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 		return err
 	}
 
+	// FIXME: this is duplicated with the defer above in this function (i think?)
 	// revert to original config environment and set the command string to
 	// have the build-time env vars in it (if any) so that future cache look-ups
 	// properly match it.
 	b.runConfig.Env = env
 
-	// remove BuiltinAllowedBuildArgs (see: builder.go)  from the saveCmd
+	// remove builtinAllowedBuildArgs (see: builder.go)  from the saveCmd
 	// these args are transparent so resulting image should be the same regardless of the value
 	if len(cmdBuildEnv) > 0 {
 		saveCmd = config.Cmd
@@ -446,11 +431,8 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 		copy(tmpBuildEnv, cmdBuildEnv)
 		for i, env := range tmpBuildEnv {
 			key := strings.SplitN(env, "=", 2)[0]
-			if _, ok := BuiltinAllowedBuildArgs[key]; ok {
-				// If an built-in arg is explicitly added in the Dockerfile, don't prune it
-				if _, ok := b.allowedBuildArgs[key]; !ok {
-					tmpBuildEnv = append(tmpBuildEnv[:i], tmpBuildEnv[i+1:]...)
-				}
+			if b.buildArgs.IsUnreferencedBuiltin(key) {
+				tmpBuildEnv = append(tmpBuildEnv[:i], tmpBuildEnv[i+1:]...)
 			}
 		}
 		sort.Strings(tmpBuildEnv)
@@ -540,6 +522,7 @@ func healthcheck(b *Builder, args []string, attributes map[string]bool, original
 
 		flInterval := b.flags.AddString("interval", "")
 		flTimeout := b.flags.AddString("timeout", "")
+		flStartPeriod := b.flags.AddString("start-period", "")
 		flRetries := b.flags.AddString("retries", "")
 
 		if err := b.flags.Parse(); err != nil {
@@ -573,6 +556,12 @@ func healthcheck(b *Builder, args []string, attributes map[string]bool, original
 			return err
 		}
 		healthcheck.Timeout = timeout
+
+		startPeriod, err := parseOptInterval(flStartPeriod)
+		if err != nil {
+			return err
+		}
+		healthcheck.StartPeriod = startPeriod
 
 		if flRetries.Value != "" {
 			retries, err := strconv.ParseInt(flRetries.Value, 10, 32)
@@ -774,15 +763,18 @@ func arg(b *Builder, args []string, attributes map[string]bool, original string)
 		name = arg
 		hasDefault = false
 	}
-	// add the arg to allowed list of build-time args from this step on.
-	b.allBuildArgs[name] = struct{}{}
 
 	var value *string
 	if hasDefault {
 		value = &newValue
 	}
-	b.allowedBuildArgs[name] = value
+	b.buildArgs.AddArg(name, value)
 
+	// Arg before FROM doesn't add a layer
+	if !b.hasFromImage() {
+		b.buildArgs.AddMetaArg(name, value)
+		return nil
+	}
 	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("ARG %s", arg))
 }
 

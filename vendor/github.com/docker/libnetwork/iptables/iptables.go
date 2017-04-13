@@ -100,14 +100,14 @@ func detectIptables() {
 	supportsCOpt = supportsCOption(mj, mn, mc)
 }
 
-func initIptables() {
+func initDependencies() {
 	probe()
 	initFirewalld()
 	detectIptables()
 }
 
 func initCheck() error {
-	initOnce.Do(initIptables)
+	initOnce.Do(initDependencies)
 
 	if iptablesPath == "" {
 		return ErrIptablesNotFound

@@ -60,6 +60,16 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesCreate(c *check.C) {
 	id := d.CreateService(c, simpleTestService, setInstances(instances))
 	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, instances)
 
+	// insertDefaults inserts UpdateConfig when service is fetched by ID
+	_, out, err := d.SockRequest("GET", "/services/"+id+"?insertDefaults=true", nil)
+	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
+	c.Assert(string(out), checker.Contains, "UpdateConfig")
+
+	// insertDefaults inserts UpdateConfig when service is fetched by ID
+	_, out, err = d.SockRequest("GET", "/services/top?insertDefaults=true", nil)
+	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
+	c.Assert(string(out), checker.Contains, "UpdateConfig")
+
 	service := d.GetService(c, id)
 	instances = 5
 	d.UpdateService(c, service, setInstances(instances))
@@ -172,6 +182,115 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesUpdate(c *check.C) {
 
 	// 2nd batch
 	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].CheckRunningTaskImages, checker.DeepEquals,
+		map[string]int{image1: instances})
+}
+
+func (s *DockerSwarmSuite) TestAPISwarmServicesUpdateStartFirst(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	// service image at start
+	image1 := "busybox:latest"
+	// target image in update
+	image2 := "testhealth"
+
+	// service started from this image won't pass health check
+	_, _, err := d.BuildImageWithOut(image2,
+		`FROM busybox
+		HEALTHCHECK --interval=1s --timeout=1s --retries=1024\
+		  CMD cat /status`,
+		true)
+	c.Check(err, check.IsNil)
+
+	// create service
+	instances := 5
+	parallelism := 2
+	rollbackParallelism := 3
+	id := d.CreateService(c, serviceForUpdate, setInstances(instances), setUpdateOrder(swarm.UpdateOrderStartFirst), setRollbackOrder(swarm.UpdateOrderStartFirst))
+
+	checkStartingTasks := func(expected int) []swarm.Task {
+		var startingTasks []swarm.Task
+		waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
+			tasks := d.GetServiceTasks(c, id)
+			startingTasks = nil
+			for _, t := range tasks {
+				if t.Status.State == swarm.TaskStateStarting {
+					startingTasks = append(startingTasks, t)
+				}
+			}
+			return startingTasks, nil
+		}, checker.HasLen, expected)
+
+		return startingTasks
+	}
+
+	makeTasksHealthy := func(tasks []swarm.Task) {
+		for _, t := range tasks {
+			containerID := t.Status.ContainerStatus.ContainerID
+			d.Cmd("exec", containerID, "touch", "/status")
+		}
+	}
+
+	// wait for tasks ready
+	waitAndAssert(c, defaultReconciliationTimeout, d.CheckRunningTaskImages, checker.DeepEquals,
+		map[string]int{image1: instances})
+
+	// issue service update
+	service := d.GetService(c, id)
+	d.UpdateService(c, service, setImage(image2))
+
+	// first batch
+
+	// The old tasks should be running, and the new ones should be starting.
+	startingTasks := checkStartingTasks(parallelism)
+
+	waitAndAssert(c, defaultReconciliationTimeout, d.CheckRunningTaskImages, checker.DeepEquals,
+		map[string]int{image1: instances})
+
+	// make it healthy
+	makeTasksHealthy(startingTasks)
+
+	waitAndAssert(c, defaultReconciliationTimeout, d.CheckRunningTaskImages, checker.DeepEquals,
+		map[string]int{image1: instances - parallelism, image2: parallelism})
+
+	// 2nd batch
+
+	// The old tasks should be running, and the new ones should be starting.
+	startingTasks = checkStartingTasks(parallelism)
+
+	waitAndAssert(c, defaultReconciliationTimeout, d.CheckRunningTaskImages, checker.DeepEquals,
+		map[string]int{image1: instances - parallelism, image2: parallelism})
+
+	// make it healthy
+	makeTasksHealthy(startingTasks)
+
+	waitAndAssert(c, defaultReconciliationTimeout, d.CheckRunningTaskImages, checker.DeepEquals,
+		map[string]int{image1: instances - 2*parallelism, image2: 2 * parallelism})
+
+	// 3nd batch
+
+	// The old tasks should be running, and the new ones should be starting.
+	startingTasks = checkStartingTasks(1)
+
+	waitAndAssert(c, defaultReconciliationTimeout, d.CheckRunningTaskImages, checker.DeepEquals,
+		map[string]int{image1: instances - 2*parallelism, image2: 2 * parallelism})
+
+	// make it healthy
+	makeTasksHealthy(startingTasks)
+
+	waitAndAssert(c, defaultReconciliationTimeout, d.CheckRunningTaskImages, checker.DeepEquals,
+		map[string]int{image2: instances})
+
+	// Roll back to the previous version. This uses the CLI because
+	// rollback is a client-side operation.
+	out, err := d.Cmd("service", "update", "--rollback", id)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	// first batch
+	waitAndAssert(c, defaultReconciliationTimeout, d.CheckRunningTaskImages, checker.DeepEquals,
+		map[string]int{image2: instances - rollbackParallelism, image1: rollbackParallelism})
+
+	// 2nd batch
+	waitAndAssert(c, defaultReconciliationTimeout, d.CheckRunningTaskImages, checker.DeepEquals,
 		map[string]int{image1: instances})
 }
 

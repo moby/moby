@@ -34,6 +34,9 @@ func (daemon *Daemon) ContainersPrune(pruneFilters filters.Args) (*types.Contain
 			if !until.IsZero() && c.Created.After(until) {
 				continue
 			}
+			if !matchLabels(pruneFilters, c.Config.Labels) {
+				continue
+			}
 			cSize, _ := daemon.getSize(c.ID)
 			// TODO: sets RmLink to true?
 			err := daemon.ContainerRm(c.ID, &types.ContainerRmConfig{})
@@ -60,6 +63,12 @@ func (daemon *Daemon) VolumesPrune(pruneFilters filters.Args) (*types.VolumesPru
 		refs := daemon.volumes.Refs(v)
 
 		if len(refs) == 0 {
+			detailedVolume, ok := v.(volume.DetailedVolume)
+			if ok {
+				if !matchLabels(pruneFilters, detailedVolume.Labels()) {
+					return nil
+				}
+			}
 			vSize, err := directory.Size(v.Path())
 			if err != nil {
 				logrus.Warnf("could not determine size of volume %s: %v", name, err)
@@ -120,6 +129,9 @@ func (daemon *Daemon) ImagesPrune(pruneFilters filters.Args) (*types.ImagesPrune
 			continue
 		}
 		if !until.IsZero() && img.Created.After(until) {
+			continue
+		}
+		if !matchLabels(pruneFilters, img.Config.Labels) {
 			continue
 		}
 		topImages[id] = img
@@ -200,6 +212,9 @@ func (daemon *Daemon) localNetworksPrune(pruneFilters filters.Args) *types.Netwo
 		if !until.IsZero() && nw.Info().Created().After(until) {
 			return false
 		}
+		if !matchLabels(pruneFilters, nw.Info().Labels()) {
+			return false
+		}
 		nwName := nw.Name()
 		if runconfig.IsPreDefinedNetwork(nwName) {
 			return false
@@ -243,6 +258,9 @@ func (daemon *Daemon) clusterNetworksPrune(pruneFilters filters.Args) (*types.Ne
 		if !until.IsZero() && nw.Created.After(until) {
 			continue
 		}
+		if !matchLabels(pruneFilters, nw.Labels) {
+			continue
+		}
 		// https://github.com/docker/docker/issues/24186
 		// `docker network inspect` unfortunately displays ONLY those containers that are local to that node.
 		// So we try to remove it anyway and check the error
@@ -266,12 +284,10 @@ func (daemon *Daemon) NetworksPrune(pruneFilters filters.Args) (*types.NetworksP
 		return nil, err
 	}
 
-	clusterRep, err := daemon.clusterNetworksPrune(pruneFilters)
-	if err != nil {
-		return nil, fmt.Errorf("could not remove cluster networks: %s", err)
-	}
 	rep := &types.NetworksPruneReport{}
-	rep.NetworksDeleted = append(rep.NetworksDeleted, clusterRep.NetworksDeleted...)
+	if clusterRep, err := daemon.clusterNetworksPrune(pruneFilters); err == nil {
+		rep.NetworksDeleted = append(rep.NetworksDeleted, clusterRep.NetworksDeleted...)
+	}
 
 	localRep := daemon.localNetworksPrune(pruneFilters)
 	rep.NetworksDeleted = append(rep.NetworksDeleted, localRep.NetworksDeleted...)
@@ -297,4 +313,18 @@ func getUntilFromPruneFilters(pruneFilters filters.Args) (time.Time, error) {
 	}
 	until = time.Unix(seconds, nanoseconds)
 	return until, nil
+}
+
+func matchLabels(pruneFilters filters.Args, labels map[string]string) bool {
+	if !pruneFilters.MatchKVList("label", labels) {
+		return false
+	}
+	// By default MatchKVList will return true if field (like 'label!') does not exist
+	// So we have to add additional Include("label!") check
+	if pruneFilters.Include("label!") {
+		if pruneFilters.MatchKVList("label!", labels) {
+			return false
+		}
+	}
+	return true
 }

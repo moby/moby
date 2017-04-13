@@ -16,9 +16,9 @@ keywords: "stack, rm, remove, down"
 # stack rm
 
 ```markdown
-Usage:  docker stack rm STACK
+Usage:  docker stack rm STACK [STACK...]
 
-Remove the stack
+Remove one or more stacks
 
 Aliases:
   rm, remove, down
@@ -31,6 +31,44 @@ Options:
 
 Remove the stack from the swarm. This command has to be run targeting
 a manager node.
+
+## Examples
+
+### Remove a stack
+
+This will remove the stack with the name `myapp`. Services, networks, and secrets associated with the stack will be removed.
+
+```bash
+$ docker stack rm myapp
+
+Removing service myapp_redis
+Removing service myapp_web
+Removing service myapp_lb
+Removing network myapp_default
+Removing network myapp_frontend
+```
+
+### Remove multiple stacks
+
+This will remove all the specified stacks, `myapp` and `vossibility`. Services, networks, and secrets associated with all the specified stacks will be removed.
+
+```bash
+$ docker stack rm myapp vossibility
+
+Removing service myapp_redis
+Removing service myapp_web
+Removing service myapp_lb
+Removing network myapp_default
+Removing network myapp_frontend
+Removing service vossibility_nsqd
+Removing service vossibility_logstash
+Removing service vossibility_elasticsearch
+Removing service vossibility_kibana
+Removing service vossibility_ghollector
+Removing service vossibility_lookupd
+Removing network vossibility_default
+Removing network vossibility_vossibility
+```
 
 ## Related commands
 

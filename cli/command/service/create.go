@@ -30,7 +30,7 @@ func newCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.StringVar(&opts.mode, flagMode, "replicated", "Service mode (replicated or global)")
 	flags.StringVar(&opts.name, flagName, "", "Service name")
 
-	addServiceFlags(flags, opts)
+	addServiceFlags(flags, opts, buildServiceDefaultFlagMapping())
 
 	flags.VarP(&opts.labels, flagLabel, "l", "Service labels")
 	flags.Var(&opts.containerLabels, flagContainerLabel, "Container labels")
@@ -63,7 +63,9 @@ func runCreate(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *service
 	apiClient := dockerCli.Client()
 	createOpts := types.ServiceCreateOptions{}
 
-	service, err := opts.ToService()
+	ctx := context.Background()
+
+	service, err := opts.ToService(ctx, apiClient, flags)
 	if err != nil {
 		return err
 	}
@@ -78,8 +80,6 @@ func runCreate(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *service
 		service.TaskTemplate.ContainerSpec.Secrets = secrets
 
 	}
-
-	ctx := context.Background()
 
 	if err := resolveServiceImageDigest(dockerCli, &service); err != nil {
 		return err

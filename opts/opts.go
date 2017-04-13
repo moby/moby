@@ -38,7 +38,10 @@ func NewListOptsRef(values *[]string, validator ValidatorFctType) *ListOpts {
 }
 
 func (opts *ListOpts) String() string {
-	return fmt.Sprintf("%v", []string((*opts.values)))
+	if len(*opts.values) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("%v", *opts.values)
 }
 
 // Set validates if needed the input value and adds it to the
@@ -343,6 +346,9 @@ type NanoCPUs int64
 
 // String returns the string format of the number
 func (c *NanoCPUs) String() string {
+	if *c == 0 {
+		return ""
+	}
 	return big.NewRat(c.Value(), 1e9).FloatString(3)
 }
 

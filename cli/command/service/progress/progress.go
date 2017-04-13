@@ -85,7 +85,7 @@ func ServiceProgress(ctx context.Context, client client.APIClient, serviceID str
 	)
 
 	for {
-		service, _, err := client.ServiceInspectWithRaw(ctx, serviceID)
+		service, _, err := client.ServiceInspectWithRaw(ctx, serviceID, types.ServiceInspectOptions{})
 		if err != nil {
 			return err
 		}
