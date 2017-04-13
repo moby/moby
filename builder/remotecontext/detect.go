@@ -2,7 +2,6 @@ package remotecontext
 
 import (
 	"bufio"
-	"context"
 	"fmt"
 	"io"
 	"os"
@@ -10,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/parser"
 	"github.com/docker/docker/builder/dockerignore"
@@ -23,14 +23,17 @@ import (
 // Detect returns a context and dockerfile from remote location or local
 // archive. progressReader is only used if remoteURL is actually a URL
 // (not empty, and not a Git endpoint).
-func Detect(ctx context.Context, remoteURL string, dockerfilePath string, r io.ReadCloser, progressReader func(in io.ReadCloser) io.ReadCloser) (remote builder.Source, dockerfile *parser.Result, err error) {
+func Detect(config backend.BuildConfig) (remote builder.Source, dockerfile *parser.Result, err error) {
+	remoteURL := config.Options.RemoteContext
+	dockerfilePath := config.Options.Dockerfile
+
 	switch {
 	case remoteURL == "":
-		remote, dockerfile, err = newArchiveRemote(r, dockerfilePath)
+		remote, dockerfile, err = newArchiveRemote(config.Source, dockerfilePath)
 	case urlutil.IsGitURL(remoteURL):
 		remote, dockerfile, err = newGitRemote(remoteURL, dockerfilePath)
 	case urlutil.IsURL(remoteURL):
-		remote, dockerfile, err = newURLRemote(remoteURL, dockerfilePath, progressReader)
+		remote, dockerfile, err = newURLRemote(remoteURL, dockerfilePath, config.ProgressWriter.ProgressReaderFunc)
 	default:
 		err = fmt.Errorf("remoteURL (%s) could not be recognized as URL", remoteURL)
 	}

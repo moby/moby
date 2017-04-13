@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/pkg/streamformatter"
 )
 
 // ContainerAttachConfig holds the streams to use when connecting to a container to view logs.
@@ -98,12 +97,4 @@ type ExecProcessConfig struct {
 type ContainerCommitConfig struct {
 	types.ContainerCommitConfig
 	Changes []string
-}
-
-// ProgressWriter is a data object to transport progress streams to the client
-type ProgressWriter struct {
-	Output             io.Writer
-	StdoutFormatter    *streamformatter.StdoutFormatter
-	StderrFormatter    *streamformatter.StderrFormatter
-	ProgressReaderFunc func(io.ReadCloser) io.ReadCloser
 }

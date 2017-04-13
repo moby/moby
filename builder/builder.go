@@ -8,11 +8,9 @@ import (
 	"io"
 	"time"
 
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/image"
 	"golang.org/x/net/context"
 )
 
@@ -40,8 +38,6 @@ type Backend interface {
 
 	// GetImageOnBuild looks up a Docker image referenced by `name`.
 	GetImageOnBuild(name string) (Image, error)
-	// TagImageWithReference tags an image with newTag
-	TagImageWithReference(image.ID, reference.Named) error
 	// PullOnBuild tells Docker to pull image referenced by `name`.
 	PullOnBuild(ctx context.Context, name string, authConfigs map[string]types.AuthConfig, output io.Writer) (Image, error)
 	// ContainerAttachRaw attaches to container.
@@ -69,12 +65,6 @@ type Backend interface {
 	// TODO: use containerd/fs.changestream instead as a source
 	CopyOnBuild(containerID string, destPath string, srcRoot string, srcPath string, decompress bool) error
 
-	// HasExperimental checks if the backend supports experimental features
-	HasExperimental() bool
-
-	// SquashImage squashes the fs layers from the provided image down to the specified `to` image
-	SquashImage(from string, to string) (string, error)
-
 	// MountImage returns mounted path with rootfs of an image.
 	MountImage(name string) (string, func() error, error)
 }
@@ -83,6 +73,12 @@ type Backend interface {
 type Image interface {
 	ImageID() string
 	RunConfig() *container.Config
+}
+
+// Result is the output produced by a Builder
+type Result struct {
+	ImageID   string
+	FromImage Image
 }
 
 // ImageCacheBuilder represents a generator for stateful image cache.

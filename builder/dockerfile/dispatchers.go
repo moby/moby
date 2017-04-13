@@ -595,7 +595,7 @@ func healthcheck(req dispatchRequest) error {
 // to /usr/sbin/nginx. Uses the default shell if not in JSON format.
 //
 // Handles command processing similar to CMD and RUN, only req.runConfig.Entrypoint
-// is initialized at NewBuilder time instead of through argument parsing.
+// is initialized at newBuilder time instead of through argument parsing.
 //
 func entrypoint(req dispatchRequest) error {
 	if err := req.flags.Parse(); err != nil {

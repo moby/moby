@@ -3,7 +3,6 @@ package dockerfile
 import (
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types/container"
@@ -12,13 +11,18 @@ import (
 	"github.com/pkg/errors"
 )
 
+type pathCache interface {
+	Load(key interface{}) (value interface{}, ok bool)
+	Store(key, value interface{})
+}
+
 // imageContexts is a helper for stacking up built image rootfs and reusing
 // them as contexts
 type imageContexts struct {
 	b           *Builder
 	list        []*imageMount
 	byName      map[string]*imageMount
-	cache       *pathCache
+	cache       pathCache
 	currentName string
 }
 
@@ -104,14 +108,14 @@ func (ic *imageContexts) getCache(id, path string) (interface{}, bool) {
 		if id == "" {
 			return nil, false
 		}
-		return ic.cache.get(id + path)
+		return ic.cache.Load(id + path)
 	}
 	return nil, false
 }
 
 func (ic *imageContexts) setCache(id, path string, v interface{}) {
 	if ic.cache != nil {
-		ic.cache.set(id+path, v)
+		ic.cache.Store(id+path, v)
 	}
 }
 
@@ -159,29 +163,4 @@ func (im *imageMount) ImageID() string {
 }
 func (im *imageMount) RunConfig() *container.Config {
 	return im.runConfig
-}
-
-type pathCache struct {
-	mu    sync.Mutex
-	items map[string]interface{}
-}
-
-func (c *pathCache) set(k string, v interface{}) {
-	c.mu.Lock()
-	if c.items == nil {
-		c.items = make(map[string]interface{})
-	}
-	c.items[k] = v
-	c.mu.Unlock()
-}
-
-func (c *pathCache) get(k string) (interface{}, bool) {
-	c.mu.Lock()
-	if c.items == nil {
-		c.mu.Unlock()
-		return nil, false
-	}
-	v, ok := c.items[k]
-	c.mu.Unlock()
-	return v, ok
 }
