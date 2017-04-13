@@ -35,8 +35,6 @@ var validCommitCommands = map[string]bool{
 	"workdir":     true,
 }
 
-var defaultLogConfig = container.LogConfig{Type: "none"}
-
 // BuildManager is shared across all Builder objects
 type BuildManager struct {
 	backend   builder.Backend
@@ -100,14 +98,13 @@ type Builder struct {
 	docker    builder.Backend
 	clientCtx context.Context
 
-	tmpContainers map[string]struct{}
-	buildStages   *buildStages
-	disableCommit bool
-	cacheBusted   bool
-	buildArgs     *buildArgs
-	imageCache    builder.ImageCache
-	imageSources  *imageSources
-	pathCache     pathCache
+	buildStages      *buildStages
+	disableCommit    bool
+	buildArgs        *buildArgs
+	imageSources     *imageSources
+	pathCache        pathCache
+	containerManager *containerManager
+	imageProber      ImageProber
 }
 
 // newBuilder creates a new Dockerfile builder from an optional dockerfile and a Options.
@@ -117,27 +114,21 @@ func newBuilder(clientCtx context.Context, options builderOptions) *Builder {
 		config = new(types.ImageBuildOptions)
 	}
 	b := &Builder{
-		clientCtx:     clientCtx,
-		options:       config,
-		Stdout:        options.ProgressWriter.StdoutFormatter,
-		Stderr:        options.ProgressWriter.StderrFormatter,
-		Aux:           options.ProgressWriter.AuxFormatter,
-		Output:        options.ProgressWriter.Output,
-		docker:        options.Backend,
-		tmpContainers: map[string]struct{}{},
-		buildArgs:     newBuildArgs(config.BuildArgs),
-		buildStages:   newBuildStages(),
-		imageSources:  newImageSources(clientCtx, options),
-		pathCache:     options.PathCache,
+		clientCtx:        clientCtx,
+		options:          config,
+		Stdout:           options.ProgressWriter.StdoutFormatter,
+		Stderr:           options.ProgressWriter.StderrFormatter,
+		Aux:              options.ProgressWriter.AuxFormatter,
+		Output:           options.ProgressWriter.Output,
+		docker:           options.Backend,
+		buildArgs:        newBuildArgs(config.BuildArgs),
+		buildStages:      newBuildStages(),
+		imageSources:     newImageSources(clientCtx, options),
+		pathCache:        options.PathCache,
+		imageProber:      newImageProber(options.Backend, config.CacheFrom, config.NoCache),
+		containerManager: newContainerManager(options.Backend),
 	}
 	return b
-}
-
-func (b *Builder) resetImageCache() {
-	if icb, ok := b.docker.(builder.ImageCacheBuilder); ok {
-		b.imageCache = icb.MakeImageCache(b.options.CacheFrom)
-	}
-	b.cacheBusted = false
 }
 
 // Build runs the Dockerfile builder by parsing the Dockerfile and executing
@@ -216,14 +207,14 @@ func (b *Builder) dispatchDockerfileWithCancellation(dockerfile *parser.Result, 
 		}
 		if state, err = b.dispatch(opts); err != nil {
 			if b.options.ForceRemove {
-				b.clearTmp()
+				b.containerManager.RemoveAll(b.Stdout)
 			}
 			return nil, err
 		}
 
 		fmt.Fprintf(b.Stdout, " ---> %s\n", stringid.TruncateID(state.imageID))
 		if b.options.Remove {
-			b.clearTmp()
+			b.containerManager.RemoveAll(b.Stdout)
 		}
 	}
 
@@ -258,7 +249,9 @@ func BuildFromConfig(config *container.Config, changes []string) (*container.Con
 		return config, nil
 	}
 
-	b := newBuilder(context.Background(), builderOptions{})
+	b := newBuilder(context.Background(), builderOptions{
+		Options: &types.ImageBuildOptions{NoCache: true},
+	})
 
 	dockerfile, err := parser.Parse(bytes.NewBufferString(strings.Join(changes, "\n")))
 	if err != nil {

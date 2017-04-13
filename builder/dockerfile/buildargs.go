@@ -2,8 +2,9 @@ package dockerfile
 
 import (
 	"fmt"
-	"github.com/docker/docker/runconfig/opts"
 	"io"
+
+	"github.com/docker/docker/runconfig/opts"
 )
 
 // builtinAllowedBuildArgs is list of built-in allowed build args
