@@ -1,0 +1,392 @@
+{
+    "swagger": 2,
+    "info": {
+        "title": "Docker Remote API",
+        "description": "The API exposed by the Docker daemon",
+        "version": "1.14"
+    },
+    "host": "localhost:8003",
+    "schemes": [
+        "http"
+    ],
+    "basePath": "/docker/v1.14",
+    "produces": [
+        "application/json"
+    ],
+    "paths": {
+        "/containers/json": {
+            "get": {
+                "summary": "List containers",
+                "description": "List docker containers",
+                "parameters": [
+                    {
+                        "name": "all",
+                        "in": "query",
+                        "description": "If True show all containers. Only running containers are shown by default.",
+                        "required": false,
+                        "type": "boolean"
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "Limit the length of the response to this number of containers, include non-running containers.",
+                        "required": false,
+                        "type": "boolean"
+                    },
+                    {
+                        "name": "since",
+                        "in": "query",
+                        "description": "Show only containers created after the container with this Id, include non-running containers.",
+                        "required": false,
+                        "type": "string"
+                    },
+                    {
+                        "name": "before",
+                        "in": "query",
+                        "description": "Show only containers created before the container with this Id, include non-running containers.",
+                        "required": false,
+                        "type": "string"
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "description": "Include the size of the container in the response",
+                        "required": false,
+                        "type": "boolean"
+                    },
+                    {
+                        "name": "trunc_cmd",
+                        "in": "query",
+                        "description": "If True truncate the command string in the response to a fixed length",
+                        "type": "boolean"
+                    }
+                ],
+                "tags": [
+                    "Containers"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "An array of summary imformation about all the containers",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "ContainerSummary"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad parameter"
+                    },
+                    "500": {
+                        "description": "Server error"
+                    }
+                }
+            }
+        },
+        "/containers/{id}/start": {
+            "post": {
+                "summary": "Start a container",
+                "description": "Start the container `id`",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of a container to start",
+                        "type": "string",
+                        "format": "uuid",
+                        "required": true
+                    },
+                    {
+                        "name": "hostConfig",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "HostConfig"
+                        }
+                    }
+                ],
+                "tags": [
+                    "Containers"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No error"
+                    },
+                    "304": {
+                        "description": "Container already started"
+                    },
+                    "404": {
+                        "description": "No such container"
+                    },
+                    "500": {
+                        "description": "Server error"
+                    }
+                }
+            }
+        },
+        "/containers/{id}/stop": {
+            "post": {
+                "summary": "Stop a container",
+                "description": "Stop the container `id`",
+                "tags": [
+                    "Containers"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of a container to stop",
+                        "type": "string",
+                        "format": "uuid",
+                        "required": true
+                    },
+                    {
+                        "name": "t",
+                        "in": "query",
+                        "description": "Number of seconds to wait before killing the container",
+                        "type": "integer"
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No error"
+                    },
+                    "304": {
+                        "description": "Container already stopped"
+                    },
+                    "404": {
+                        "description": "No such container"
+                    },
+                    "500": {
+                        "description": "Server error"
+                    }
+                }
+            }
+        },
+        "/images/{name}/tag": {
+            "post": {
+                "summary": "Tag an image into a repository",
+                "description": "Tag the image `name` into a repository",
+                "tags": [
+                    "Images"
+                ],
+                "parameters": [
+                    {
+                        "name": "name",
+                        "description": "The name or uuid of the image to tag",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "repo",
+                        "description": "The repository to tag in",
+                        "in": "query",
+                        "type": "string"
+                    },
+                    {
+                        "name": "force",
+                        "description": "unknown",
+                        "in": "query",
+                        "type": "boolean"
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "No error"
+                    },
+                    "400": {
+                        "description": "Bad parameters"
+                    },
+                    "404": {
+                        "description": "No such image"
+                    },
+                    "409": {
+                        "description": "Conflict"
+                    },
+                    "500": {
+                        "description": "Server Error"
+                    }
+                }
+            }
+        },
+        "/images/{name}": {
+            "delete": {
+                "summary": "Remove an image",
+                "description": "Remote the image `name` from the filesystem",
+                "tags": [
+                    "Images"
+                ],
+                "parameters": [
+                    {
+                        "name": "name",
+                        "description": "The name or uuid of the image to remove",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "force",
+                        "type": "boolean",
+                        "in": "query",
+                        "description": "unknown"
+                    },
+                    {
+                        "name": "noprune",
+                        "type": "boolean",
+                        "in": "query",
+                        "description": "unknown"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "No error"
+                    },
+                    "404": {
+                        "description": "No such image"
+                    },
+                    "409": {
+                        "description": "Conflict"
+                    },
+                    "500": {
+                        "description": "Server Error"
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "HostConfig": {
+            "properties": {
+                "Binds": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "volume-binds"
+                    }
+                },
+                "Links": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "links"
+                    }
+                },
+                "LxcConf": {
+                    "type": "object"
+                },
+                "PortBindings": {
+                    "type": "object"
+                },
+                "PublishAllPorts": {
+                    "type": "boolean"
+                },
+                "Priviledged": {
+                    "type": "boolean"
+                },
+                "Dns": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "ip"
+                    }
+                },
+                "VolumesFrom": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "CapAdd": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "CapDrop": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "ContainerSummary": {
+            "properties": {
+                "Id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "22c27d1b92f1b3437f687cf394af0c380d7c74237419d37a1087e11541f95cb3",
+                    "description": "The unique container id"
+                },
+                "Image": {
+                    "type": "string",
+                    "format": "short-id",
+                    "example": "f400ecd5746b",
+                    "description": "The short id of the image"
+                },
+                "Command": {
+                    "type": "string",
+                    "description": "The command line of the container"
+                },
+                "Created": {
+                    "type": "integer",
+                    "format": "timestamp",
+                    "description": "Timestamp of when the container was created"
+                },
+                "Status": {
+                    "type": "string",
+                    "description": "Human readable status of the container (Ex: \"Up 33 minutes)"
+                },
+                "Ports": {
+                    "type": "array",
+                    "description": "An array of ports exposed by the container",
+                    "items": {
+                        "$ref": "PortMapping"
+                    }
+                },
+                "Names": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "An array of names for the container"
+                },
+                "SizeRootFs": {
+                    "type": "integer",
+                    "required": false
+                },
+                "SizeRw": {
+                    "type": "integer",
+                    "required": false
+                }
+            }
+        },
+        "PortMapping": {
+            "properties": {
+                "PrivatePort": {
+                    "type": "integer",
+                    "description": "The port number inside the docker container",
+                    "required": true
+                },
+                "Type": {
+                    "type": "string",
+                    "description": "Protocol name",
+                    "example": "tcp",
+                    "required": true
+                },
+                "PublicPort": {
+                    "type": "integer",
+                    "description": "The port number on the host",
+                    "required": false
+                },
+                "IP": {
+                    "type": "string",
+                    "format": "ip-address",
+                    "description": "Ip address on the host",
+                    "example": "0.0.0.0",
+                    "required": false
+                }
+            }
+        }
+    }
+}

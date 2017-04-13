@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Docker Remote API - Swagger UI</title>
+  <link href='//fonts.googleapis.com/css?family=Droid+Sans:400,700' rel='stylesheet' type='text/css'/>
+  <link href='static/css/reset.css' media='screen' rel='stylesheet' type='text/css'/>
+  <link href='static/css/screen.css' media='screen' rel='stylesheet' type='text/css'/>
+  <link href='static/css/reset.css' media='print' rel='stylesheet' type='text/css'/>
+  <link href='static/css/screen.css' media='print' rel='stylesheet' type='text/css'/>
+  <script type="text/javascript" src="static/lib/shred.bundle.js"></script>
+  <script src='static/lib/jquery-1.8.0.min.js' type='text/javascript'></script>
+  <script src='static/lib/jquery.slideto.min.js' type='text/javascript'></script>
+  <script src='static/lib/jquery.wiggle.min.js' type='text/javascript'></script>
+  <script src='static/lib/jquery.ba-bbq.min.js' type='text/javascript'></script>
+  <script src='static/lib/handlebars-1.0.0.js' type='text/javascript'></script>
+  <script src='static/lib/underscore-min.js' type='text/javascript'></script>
+  <script src='static/lib/backbone-min.js' type='text/javascript'></script>
+  <script src='static/lib/swagger.js' type='text/javascript'></script>
+  <script src='static/lib/swagger-client.js' type='text/javascript'></script>
+  <script src='static/swagger-ui.min.js' type='text/javascript'></script>
+  <script src='static/lib/highlight.7.3.pack.js' type='text/javascript'></script>
+
+  <script type="text/javascript">
+    $(function () {
+      var url = "http://" + location.host + "/specs/docker-v1.14.json";
+      window.swaggerUi = new SwaggerUi({
+        url: url,
+        dom_id: "swagger-ui-container",
+        docExpansion: "list",
+        supportedSubmitMethods: ['get', 'post', 'put', 'delete'],
+        onComplete: function(swaggerApi, swaggerUi){
+          log("Loaded SwaggerUI");
+          $('pre code').each(function(i, e) {
+            hljs.highlightBlock(e)
+          });
+        },
+        onFailure: function(data) {
+          log("Unable to Load SwaggerUI");
+        },
+        sorter : "alpha"
+      });
+
+      window.swaggerUi.load();
+  });
+  </script>
+</head>
+
+<body class="swagger-section">
+
+<div id="message-bar" class="swagger-ui-wrap">&nbsp;</div>
+<div id="swagger-ui-container" class="swagger-ui-wrap"></div>
+</body>
+</html>
