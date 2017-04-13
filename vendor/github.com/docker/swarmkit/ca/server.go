@@ -22,6 +22,7 @@ import (
 
 const (
 	defaultReconciliationRetryInterval = 10 * time.Second
+	defaultRootReconciliationInterval  = 3 * time.Second
 )
 
 // APISecurityConfigUpdater knows how to update a SecurityConfig from an api.Cluster object
@@ -63,6 +64,10 @@ type Server struct {
 
 	// before we update the security config with the new root CA, we need to be able to save the root certs
 	rootPaths CertPaths
+
+	// lets us monitor and finish root rotations
+	rootReconciler                  *rootRotationReconciler
+	rootReconciliationRetryInterval time.Duration
 }
 
 // DefaultCAConfig returns the default CA Config, with a default expiration.
@@ -75,12 +80,13 @@ func DefaultCAConfig() api.CAConfig {
 // NewServer creates a CA API server.
 func NewServer(store *store.MemoryStore, securityConfig *SecurityConfig, rootCAPaths CertPaths) *Server {
 	return &Server{
-		store:                       store,
-		securityConfig:              securityConfig,
-		pending:                     make(map[string]*api.Node),
-		started:                     make(chan struct{}),
-		reconciliationRetryInterval: defaultReconciliationRetryInterval,
-		rootPaths:                   rootCAPaths,
+		store:                           store,
+		securityConfig:                  securityConfig,
+		pending:                         make(map[string]*api.Node),
+		started:                         make(chan struct{}),
+		reconciliationRetryInterval:     defaultReconciliationRetryInterval,
+		rootReconciliationRetryInterval: defaultRootReconciliationInterval,
+		rootPaths:                       rootCAPaths,
 	}
 }
 
@@ -88,6 +94,12 @@ func NewServer(store *store.MemoryStore, securityConfig *SecurityConfig, rootCAP
 // reconciliation attempts. This function must be called before Run.
 func (s *Server) SetReconciliationRetryInterval(reconciliationRetryInterval time.Duration) {
 	s.reconciliationRetryInterval = reconciliationRetryInterval
+}
+
+// SetRootReconciliationInterval changes the time interval between root rotation
+// reconciliation attempts.  This function must be called before Run.
+func (s *Server) SetRootReconciliationInterval(interval time.Duration) {
+	s.rootReconciliationRetryInterval = interval
 }
 
 // GetUnlockKey is responsible for returning the current unlock key used for encrypting TLS private keys and
@@ -395,14 +407,28 @@ func (s *Server) Run(ctx context.Context) error {
 		return errors.New("CA signer is already running")
 	}
 	s.wg.Add(1)
+	s.ctx, s.cancel = context.WithCancel(log.WithModule(ctx, "ca"))
+	ctx = s.ctx
+	// we need to set it on the server, because `Server.UpdateRootCA` can be called from outside the Run function
+	s.rootReconciler = &rootRotationReconciler{
+		ctx:                 log.WithField(ctx, "method", "(*Server).rootRotationReconciler"),
+		clusterID:           s.securityConfig.ClientTLSCreds.Organization(),
+		store:               s.store,
+		batchUpdateInterval: s.rootReconciliationRetryInterval,
+	}
+	rootReconciler := s.rootReconciler
 	s.mu.Unlock()
-
 	defer s.wg.Done()
-	ctx = log.WithModule(ctx, "ca")
+	defer func() {
+		s.mu.Lock()
+		s.rootReconciler = nil
+		s.mu.Unlock()
+	}()
 
 	// Retrieve the channels to keep track of changes in the cluster
 	// Retrieve all the currently registered nodes
 	var nodes []*api.Node
+
 	updates, cancel, err := store.ViewAndWatch(
 		s.store,
 		func(readTx store.ReadTx) error {
@@ -419,13 +445,12 @@ func (s *Server) Run(ctx context.Context) error {
 		},
 		api.EventCreateNode{},
 		api.EventUpdateNode{},
+		api.EventDeleteNode{},
 	)
 
 	// Do this after updateCluster has been called, so isRunning never
 	// returns true without joinTokens being set correctly.
 	s.mu.Lock()
-	s.ctx, s.cancel = context.WithCancel(ctx)
-	ctx = s.ctx
 	close(s.started)
 	s.mu.Unlock()
 
@@ -464,13 +489,18 @@ func (s *Server) Run(ctx context.Context) error {
 			switch v := event.(type) {
 			case api.EventCreateNode:
 				s.evaluateAndSignNodeCert(ctx, v.Node)
+				rootReconciler.UpdateNode(v.Node)
 			case api.EventUpdateNode:
 				// If this certificate is already at a final state
 				// no need to evaluate and sign it.
 				if !isFinalState(v.Node.Certificate.Status) {
 					s.evaluateAndSignNodeCert(ctx, v.Node)
 				}
+				rootReconciler.UpdateNode(v.Node)
+			case api.EventDeleteNode:
+				rootReconciler.DeleteNode(v.Node)
 			}
+
 		case <-ticker.C:
 			for _, node := range s.pending {
 				if err := s.evaluateAndSignNodeCert(ctx, node); err != nil {
@@ -541,12 +571,16 @@ func (s *Server) isRunning() bool {
 func (s *Server) UpdateRootCA(ctx context.Context, cluster *api.Cluster) error {
 	s.mu.Lock()
 	s.joinTokens = cluster.RootCA.JoinTokens.Copy()
+	reconciler := s.rootReconciler
 	s.mu.Unlock()
+	rCA := cluster.RootCA.Copy()
+	if reconciler != nil {
+		reconciler.UpdateRootCA(rCA)
+	}
 
 	s.secConfigMu.Lock()
 	defer s.secConfigMu.Unlock()
-	rCA := cluster.RootCA
-	rootCAChanged := len(rCA.CACert) != 0 && !equality.RootCAEqualStable(s.lastSeenClusterRootCA, &cluster.RootCA)
+	rootCAChanged := len(rCA.CACert) != 0 && !equality.RootCAEqualStable(s.lastSeenClusterRootCA, rCA)
 	externalCAChanged := !equality.ExternalCAsEqualStable(s.lastSeenExternalCAs, cluster.Spec.CAConfig.ExternalCAs)
 	logger := log.G(ctx).WithFields(logrus.Fields{
 		"cluster.id": cluster.ID,
@@ -581,7 +615,6 @@ func (s *Server) UpdateRootCA(ctx context.Context, cluster *api.Cluster) error {
 		if signingKey == nil {
 			signingCert = nil
 		}
-
 		updatedRootCA, err := NewRootCA(rCA.CACert, signingCert, signingKey, expiry, intermediates)
 		if err != nil {
 			return errors.Wrap(err, "invalid Root CA object in cluster")
@@ -604,7 +637,7 @@ func (s *Server) UpdateRootCA(ctx context.Context, cluster *api.Cluster) error {
 		}
 		// only update the server cache if we've successfully updated the root CA
 		logger.Debug("Root CA updated successfully")
-		s.lastSeenClusterRootCA = cluster.RootCA.Copy()
+		s.lastSeenClusterRootCA = rCA
 	}
 
 	// we want to update if the external CA changed, or if the root CA changed because the root CA could affect what

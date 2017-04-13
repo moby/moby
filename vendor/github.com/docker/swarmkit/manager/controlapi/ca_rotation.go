@@ -148,14 +148,16 @@ func validateHasAtLeastOneExternalCA(ctx context.Context, externalCAs map[string
 
 // validates that the list of external CAs have valid certs associated with them, and produce a mapping of subject/pubkey:external
 // for later validation of required external CAs
-func getNormalizedExtCAs(caConfig *api.CAConfig) (map[string][]*api.ExternalCA, error) {
+func getNormalizedExtCAs(caConfig *api.CAConfig, normalizedCurrentRootCACert []byte) (map[string][]*api.ExternalCA, error) {
 	extCAs := make(map[string][]*api.ExternalCA)
 
 	for _, extCA := range caConfig.ExternalCAs {
-		if len(extCA.CACert) == 0 {
-			return nil, grpc.Errorf(codes.InvalidArgument, "must specify CA certificate for each external CA")
+		associatedCert := normalizedCurrentRootCACert
+		// if no associated cert is provided, assume it's the current root cert
+		if len(extCA.CACert) > 0 {
+			associatedCert = ca.NormalizePEMs(extCA.CACert)
 		}
-		certKey := string(ca.NormalizePEMs(extCA.CACert))
+		certKey := string(associatedCert)
 		extCAs[certKey] = append(extCAs[certKey], extCA)
 	}
 
@@ -191,12 +193,12 @@ func validateCAConfig(ctx context.Context, securityConfig *ca.SecurityConfig, cl
 		return nil, grpc.Errorf(codes.InvalidArgument, "if a signing CA key is provided, the signing CA cert must also be provided")
 	}
 
-	extCAs, err := getNormalizedExtCAs(newConfig) // validate that the list of external CAs is not malformed
+	normalizedRootCA := ca.NormalizePEMs(cluster.RootCA.CACert)
+	extCAs, err := getNormalizedExtCAs(newConfig, normalizedRootCA) // validate that the list of external CAs is not malformed
 	if err != nil {
 		return nil, err
 	}
 
-	normalizedRootCA := ca.NormalizePEMs(cluster.RootCA.CACert)
 	var oldCertExtCAs []*api.ExternalCA
 	if !hasSigningKey(&cluster.RootCA) {
 		oldCertExtCAs, err = validateHasAtLeastOneExternalCA(ctx, extCAs, securityConfig, normalizedRootCA, "current")
