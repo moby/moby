@@ -1,26 +1,27 @@
 package parser
 
 import (
-	"github.com/docker/docker/pkg/testutil/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestParseNameValOldFormat(t *testing.T) {
 	directive := Directive{}
 	node, err := parseNameVal("foo bar", "LABEL", &directive)
-	assert.NilError(t, err)
+	assert.NoError(t, err)
 
 	expected := &Node{
 		Value: "foo",
 		Next:  &Node{Value: "bar"},
 	}
-	assert.DeepEqual(t, node, expected)
+	assert.Equal(t, expected, node)
 }
 
 func TestParseNameValNewFormat(t *testing.T) {
 	directive := Directive{}
 	node, err := parseNameVal("foo=bar thing=star", "LABEL", &directive)
-	assert.NilError(t, err)
+	assert.NoError(t, err)
 
 	expected := &Node{
 		Value: "foo",
@@ -34,7 +35,7 @@ func TestParseNameValNewFormat(t *testing.T) {
 			},
 		},
 	}
-	assert.DeepEqual(t, node, expected)
+	assert.Equal(t, expected, node)
 }
 
 func TestNodeFromLabels(t *testing.T) {
@@ -60,6 +61,6 @@ func TestNodeFromLabels(t *testing.T) {
 	}
 
 	node := NodeFromLabels(labels)
-	assert.DeepEqual(t, node, expected)
+	assert.Equal(t, expected, node)
 
 }

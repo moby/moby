@@ -4,15 +4,16 @@ import (
 	"testing"
 
 	"github.com/docker/docker/cli/compose/types"
-	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/docker/docker/pkg/testutil"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestParseVolumeAnonymousVolume(t *testing.T) {
 	for _, path := range []string{"/path", "/path/foo"} {
 		volume, err := parseVolume(path)
 		expected := types.ServiceVolumeConfig{Type: "volume", Target: path}
-		assert.NilError(t, err)
-		assert.DeepEqual(t, volume, expected)
+		assert.NoError(t, err)
+		assert.Equal(t, expected, volume)
 	}
 }
 
@@ -20,29 +21,29 @@ func TestParseVolumeAnonymousVolumeWindows(t *testing.T) {
 	for _, path := range []string{"C:\\path", "Z:\\path\\foo"} {
 		volume, err := parseVolume(path)
 		expected := types.ServiceVolumeConfig{Type: "volume", Target: path}
-		assert.NilError(t, err)
-		assert.DeepEqual(t, volume, expected)
+		assert.NoError(t, err)
+		assert.Equal(t, expected, volume)
 	}
 }
 
 func TestParseVolumeTooManyColons(t *testing.T) {
 	_, err := parseVolume("/foo:/foo:ro:foo")
-	assert.Error(t, err, "too many colons")
+	assert.EqualError(t, err, "invalid spec: /foo:/foo:ro:foo: too many colons")
 }
 
 func TestParseVolumeShortVolumes(t *testing.T) {
 	for _, path := range []string{".", "/a"} {
 		volume, err := parseVolume(path)
 		expected := types.ServiceVolumeConfig{Type: "volume", Target: path}
-		assert.NilError(t, err)
-		assert.DeepEqual(t, volume, expected)
+		assert.NoError(t, err)
+		assert.Equal(t, expected, volume)
 	}
 }
 
 func TestParseVolumeMissingSource(t *testing.T) {
 	for _, spec := range []string{":foo", "/foo::ro"} {
 		_, err := parseVolume(spec)
-		assert.Error(t, err, "empty section between colons")
+		testutil.ErrorContains(t, err, "empty section between colons")
 	}
 }
 
@@ -54,8 +55,8 @@ func TestParseVolumeBindMount(t *testing.T) {
 			Source: path,
 			Target: "/target",
 		}
-		assert.NilError(t, err)
-		assert.DeepEqual(t, volume, expected)
+		assert.NoError(t, err)
+		assert.Equal(t, expected, volume)
 	}
 }
 
@@ -72,8 +73,8 @@ func TestParseVolumeRelativeBindMountWindows(t *testing.T) {
 			Source: path,
 			Target: "d:\\target",
 		}
-		assert.NilError(t, err)
-		assert.DeepEqual(t, volume, expected)
+		assert.NoError(t, err)
+		assert.Equal(t, expected, volume)
 	}
 }
 
@@ -85,8 +86,8 @@ func TestParseVolumeWithBindOptions(t *testing.T) {
 		Target: "/target",
 		Bind:   &types.ServiceVolumeBind{Propagation: "slave"},
 	}
-	assert.NilError(t, err)
-	assert.DeepEqual(t, volume, expected)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, volume)
 }
 
 func TestParseVolumeWithBindOptionsWindows(t *testing.T) {
@@ -98,13 +99,13 @@ func TestParseVolumeWithBindOptionsWindows(t *testing.T) {
 		ReadOnly: true,
 		Bind:     &types.ServiceVolumeBind{Propagation: "rprivate"},
 	}
-	assert.NilError(t, err)
-	assert.DeepEqual(t, volume, expected)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, volume)
 }
 
 func TestParseVolumeWithInvalidVolumeOptions(t *testing.T) {
 	_, err := parseVolume("name:/target:bogus")
-	assert.Error(t, err, "invalid spec: name:/target:bogus: unknown option: bogus")
+	assert.EqualError(t, err, "invalid spec: name:/target:bogus: unknown option: bogus")
 }
 
 func TestParseVolumeWithVolumeOptions(t *testing.T) {
@@ -115,8 +116,8 @@ func TestParseVolumeWithVolumeOptions(t *testing.T) {
 		Target: "/target",
 		Volume: &types.ServiceVolumeVolume{NoCopy: true},
 	}
-	assert.NilError(t, err)
-	assert.DeepEqual(t, volume, expected)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, volume)
 }
 
 func TestParseVolumeWithReadOnly(t *testing.T) {
@@ -128,8 +129,8 @@ func TestParseVolumeWithReadOnly(t *testing.T) {
 			Target:   "/target",
 			ReadOnly: true,
 		}
-		assert.NilError(t, err)
-		assert.DeepEqual(t, volume, expected)
+		assert.NoError(t, err)
+		assert.Equal(t, expected, volume)
 	}
 }
 
@@ -142,7 +143,7 @@ func TestParseVolumeWithRW(t *testing.T) {
 			Target:   "/target",
 			ReadOnly: false,
 		}
-		assert.NilError(t, err)
-		assert.DeepEqual(t, volume, expected)
+		assert.NoError(t, err)
+		assert.Equal(t, expected, volume)
 	}
 }

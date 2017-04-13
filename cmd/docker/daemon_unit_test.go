@@ -5,8 +5,8 @@ package main
 import (
 	"testing"
 
-	"github.com/docker/docker/pkg/testutil/assert"
 	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
 )
 
 func stubRun(cmd *cobra.Command, args []string) error {
@@ -18,7 +18,7 @@ func TestDaemonCommandHelp(t *testing.T) {
 	cmd.RunE = stubRun
 	cmd.SetArgs([]string{"--help"})
 	err := cmd.Execute()
-	assert.NilError(t, err)
+	assert.NoError(t, err)
 }
 
 func TestDaemonCommand(t *testing.T) {
@@ -26,5 +26,5 @@ func TestDaemonCommand(t *testing.T) {
 	cmd.RunE = stubRun
 	cmd.SetArgs([]string{"--containerd", "/foo"})
 	err := cmd.Execute()
-	assert.NilError(t, err)
+	assert.NoError(t, err)
 }

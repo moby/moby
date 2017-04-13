@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	cliconfig "github.com/docker/docker/cli/config"
-	"github.com/docker/docker/pkg/testutil/assert"
 	"github.com/spf13/pflag"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestCommonOptionsInstallFlags(t *testing.T) {
@@ -19,9 +19,9 @@ func TestCommonOptionsInstallFlags(t *testing.T) {
 		"--tlscert=\"/foo/cert\"",
 		"--tlskey=\"/foo/key\"",
 	})
-	assert.NilError(t, err)
-	assert.Equal(t, opts.TLSOptions.CAFile, "/foo/cafile")
-	assert.Equal(t, opts.TLSOptions.CertFile, "/foo/cert")
+	assert.NoError(t, err)
+	assert.Equal(t, "/foo/cafile", opts.TLSOptions.CAFile)
+	assert.Equal(t, "/foo/cert", opts.TLSOptions.CertFile)
 	assert.Equal(t, opts.TLSOptions.KeyFile, "/foo/key")
 }
 
@@ -35,8 +35,8 @@ func TestCommonOptionsInstallFlagsWithDefaults(t *testing.T) {
 	opts.InstallFlags(flags)
 
 	err := flags.Parse([]string{})
-	assert.NilError(t, err)
-	assert.Equal(t, opts.TLSOptions.CAFile, defaultPath("ca.pem"))
-	assert.Equal(t, opts.TLSOptions.CertFile, defaultPath("cert.pem"))
-	assert.Equal(t, opts.TLSOptions.KeyFile, defaultPath("key.pem"))
+	assert.NoError(t, err)
+	assert.Equal(t, defaultPath("ca.pem"), opts.TLSOptions.CAFile)
+	assert.Equal(t, defaultPath("cert.pem"), opts.TLSOptions.CertFile)
+	assert.Equal(t, defaultPath("key.pem"), opts.TLSOptions.KeyFile)
 }

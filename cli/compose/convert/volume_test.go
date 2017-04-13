@@ -5,7 +5,7 @@ import (
 
 	"github.com/docker/docker/api/types/mount"
 	composetypes "github.com/docker/docker/cli/compose/types"
-	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestConvertVolumeToMountAnonymousVolume(t *testing.T) {
@@ -18,8 +18,8 @@ func TestConvertVolumeToMountAnonymousVolume(t *testing.T) {
 		Target: "/foo/bar",
 	}
 	mount, err := convertVolumeToMount(config, volumes{}, NewNamespace("foo"))
-	assert.NilError(t, err)
-	assert.DeepEqual(t, mount, expected)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, mount)
 }
 
 func TestConvertVolumeToMountConflictingOptionsBind(t *testing.T) {
@@ -34,7 +34,7 @@ func TestConvertVolumeToMountConflictingOptionsBind(t *testing.T) {
 		},
 	}
 	_, err := convertVolumeToMount(config, volumes{}, namespace)
-	assert.Error(t, err, "bind options are incompatible")
+	assert.EqualError(t, err, "bind options are incompatible with type volume")
 }
 
 func TestConvertVolumeToMountConflictingOptionsVolume(t *testing.T) {
@@ -49,7 +49,7 @@ func TestConvertVolumeToMountConflictingOptionsVolume(t *testing.T) {
 		},
 	}
 	_, err := convertVolumeToMount(config, volumes{}, namespace)
-	assert.Error(t, err, "volume options are incompatible")
+	assert.EqualError(t, err, "volume options are incompatible with type bind")
 }
 
 func TestConvertVolumeToMountNamedVolume(t *testing.T) {
@@ -94,8 +94,8 @@ func TestConvertVolumeToMountNamedVolume(t *testing.T) {
 		},
 	}
 	mount, err := convertVolumeToMount(config, stackVolumes, namespace)
-	assert.NilError(t, err)
-	assert.DeepEqual(t, mount, expected)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, mount)
 }
 
 func TestConvertVolumeToMountNamedVolumeExternal(t *testing.T) {
@@ -122,8 +122,8 @@ func TestConvertVolumeToMountNamedVolumeExternal(t *testing.T) {
 		Target: "/foo",
 	}
 	mount, err := convertVolumeToMount(config, stackVolumes, namespace)
-	assert.NilError(t, err)
-	assert.DeepEqual(t, mount, expected)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, mount)
 }
 
 func TestConvertVolumeToMountNamedVolumeExternalNoCopy(t *testing.T) {
@@ -153,8 +153,8 @@ func TestConvertVolumeToMountNamedVolumeExternalNoCopy(t *testing.T) {
 		},
 	}
 	mount, err := convertVolumeToMount(config, stackVolumes, namespace)
-	assert.NilError(t, err)
-	assert.DeepEqual(t, mount, expected)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, mount)
 }
 
 func TestConvertVolumeToMountBind(t *testing.T) {
@@ -175,8 +175,8 @@ func TestConvertVolumeToMountBind(t *testing.T) {
 		Bind:     &composetypes.ServiceVolumeBind{Propagation: "shared"},
 	}
 	mount, err := convertVolumeToMount(config, stackVolumes, namespace)
-	assert.NilError(t, err)
-	assert.DeepEqual(t, mount, expected)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, mount)
 }
 
 func TestConvertVolumeToMountVolumeDoesNotExist(t *testing.T) {
@@ -188,5 +188,5 @@ func TestConvertVolumeToMountVolumeDoesNotExist(t *testing.T) {
 		ReadOnly: true,
 	}
 	_, err := convertVolumeToMount(config, volumes{}, namespace)
-	assert.Error(t, err, "undefined volume \"unknown\"")
+	assert.EqualError(t, err, "undefined volume \"unknown\"")
 }
