@@ -1,4 +1,4 @@
-Docker: the container engine [![Release](https://img.shields.io/github/release/docker/docker.svg)](https://github.com/docker/docker/releases/latest)
+Docker: the container engine [![Release](https://img.shields.io/github/release/docker/docker.svg)](https://github.com/docker/docker/releases/latest) [![codebeat](https://codebeat.co/badges/c669f110-285d-40c1-aa37-e4e52efc75b6)](https://codebeat.co/projects/github-com-docker-docker)
 ============================
 
 Docker is an open source project to pack, ship and run any application
