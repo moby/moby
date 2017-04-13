@@ -4,7 +4,6 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/builder/dockerfile/api"
 	"github.com/docker/docker/client/session"
 	"github.com/pkg/errors"
 )
@@ -36,11 +35,11 @@ func (h *authConfigHandler) Handle(ctx context.Context, id, method string, opts 
 		return errors.Errorf("unknown method %s", method)
 	}
 	registries := opts["registries"]
-	auths := new(api.AuthConfigs)
-	auths.Auths = make(map[string]*api.AuthConfig)
+	auths := new(AuthConfigs)
+	auths.Auths = make(map[string]*AuthConfig)
 	for _, registry := range registries {
 		c := h.provider.GetAuthConfig(registry)
-		auths.Auths[registry] = &api.AuthConfig{
+		auths.Auths[registry] = &AuthConfig{
 			Auth:          c.Auth,
 			Email:         c.Email,
 			IdentityToken: c.IdentityToken,

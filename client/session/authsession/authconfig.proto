@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package authsession;
+
+message TarContent{
+	bytes content = 1;
+}
+
+message AuthConfig {
+	string Username 	 = 1;
+	string Password 	 = 2;
+	string Auth    		 = 3;
+	string Email 		 = 4;
+	string ServerAddress = 5;
+	string IdentityToken = 6;
+	string RegistryToken = 7;
+}
+
+message AuthConfigs {
+	map<string, AuthConfig> Auths = 1;
+}

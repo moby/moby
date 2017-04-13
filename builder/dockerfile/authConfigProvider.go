@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/builder/dockerfile/api"
 	"github.com/docker/docker/client/session"
+	"github.com/docker/docker/client/session/authsession"
 )
 
 type AuthConfigProvider interface {
@@ -40,7 +40,7 @@ func (a *authConfigProvider) GetAuthConfig(includingRegistries ...string) (map[s
 		if err != nil {
 			return nil, err
 		}
-		results := new(api.AuthConfigs)
+		results := new(authsession.AuthConfigs)
 		if err = s.RecvMsg(results); err != nil {
 			return nil, err
 		}

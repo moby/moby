@@ -140,6 +140,7 @@ type Builder struct {
 	cacheBusted   bool
 	buildArgs     *buildArgs
 	imageCache    builder.ImageCache
+	auth          AuthConfigProvider
 
 	// TODO: these move to DispatchState
 	maintainer  string
