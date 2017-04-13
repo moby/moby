@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/api/types/runtime"
 	"github.com/docker/docker/api/types/swarm"
 	volumetypes "github.com/docker/docker/api/types/volume"
 	"golang.org/x/net/context"
@@ -23,6 +24,7 @@ type CommonAPIClient interface {
 	NodeAPIClient
 	NetworkAPIClient
 	PluginAPIClient
+	RuntimeAPIClient
 	ServiceAPIClient
 	SwarmAPIClient
 	SecretAPIClient
@@ -161,6 +163,12 @@ type VolumeAPIClient interface {
 	VolumeList(ctx context.Context, filter filters.Args) (volumetypes.VolumesListOKBody, error)
 	VolumeRemove(ctx context.Context, volumeID string, force bool) error
 	VolumesPrune(ctx context.Context, pruneFilter filters.Args) (types.VolumesPruneReport, error)
+}
+
+// RuntimeAPIClient defines API client methods for runtimes
+type RuntimeAPIClient interface {
+	RuntimeList(ctx context.Context, filter filters.Args) ([]runtime.Info, error)
+	RuntimeDefault(ctx context.Context, runtime string) error
 }
 
 // SecretAPIClient defines API client methods for secrets
