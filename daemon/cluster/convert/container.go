@@ -1,6 +1,7 @@
 package convert
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -36,6 +37,31 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) types.ContainerSpec {
 			Nameservers: c.DNSConfig.Nameservers,
 			Search:      c.DNSConfig.Search,
 			Options:     c.DNSConfig.Options,
+		}
+	}
+
+	// Privileges
+	if c.Privileges != nil {
+		containerSpec.Privileges = &types.Privileges{}
+
+		if c.Privileges.CredentialSpec != nil {
+			containerSpec.Privileges.CredentialSpec = &types.CredentialSpec{}
+			switch c.Privileges.CredentialSpec.Source.(type) {
+			case *swarmapi.Privileges_CredentialSpec_File:
+				containerSpec.Privileges.CredentialSpec.File = c.Privileges.CredentialSpec.GetFile()
+			case *swarmapi.Privileges_CredentialSpec_Registry:
+				containerSpec.Privileges.CredentialSpec.Registry = c.Privileges.CredentialSpec.GetRegistry()
+			}
+		}
+
+		if c.Privileges.SELinuxContext != nil {
+			containerSpec.Privileges.SELinuxContext = &types.SELinuxContext{
+				Disable: c.Privileges.SELinuxContext.Disable,
+				User:    c.Privileges.SELinuxContext.User,
+				Type:    c.Privileges.SELinuxContext.Type,
+				Role:    c.Privileges.SELinuxContext.Role,
+				Level:   c.Privileges.SELinuxContext.Level,
+			}
 		}
 	}
 
@@ -166,6 +192,40 @@ func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 		containerSpec.StopGracePeriod = gogotypes.DurationProto(*c.StopGracePeriod)
 	}
 
+	// Privileges
+	if c.Privileges != nil {
+		containerSpec.Privileges = &swarmapi.Privileges{}
+
+		if c.Privileges.CredentialSpec != nil {
+			containerSpec.Privileges.CredentialSpec = &swarmapi.Privileges_CredentialSpec{}
+
+			if c.Privileges.CredentialSpec.File != "" && c.Privileges.CredentialSpec.Registry != "" {
+				return nil, errors.New("cannot specify both \"file\" and \"registry\" credential specs")
+			}
+			if c.Privileges.CredentialSpec.File != "" {
+				containerSpec.Privileges.CredentialSpec.Source = &swarmapi.Privileges_CredentialSpec_File{
+					File: c.Privileges.CredentialSpec.File,
+				}
+			} else if c.Privileges.CredentialSpec.Registry != "" {
+				containerSpec.Privileges.CredentialSpec.Source = &swarmapi.Privileges_CredentialSpec_Registry{
+					Registry: c.Privileges.CredentialSpec.Registry,
+				}
+			} else {
+				return nil, errors.New("must either provide \"file\" or \"registry\" for credential spec")
+			}
+		}
+
+		if c.Privileges.SELinuxContext != nil {
+			containerSpec.Privileges.SELinuxContext = &swarmapi.Privileges_SELinuxContext{
+				Disable: c.Privileges.SELinuxContext.Disable,
+				User:    c.Privileges.SELinuxContext.User,
+				Type:    c.Privileges.SELinuxContext.Type,
+				Role:    c.Privileges.SELinuxContext.Role,
+				Level:   c.Privileges.SELinuxContext.Level,
+			}
+		}
+	}
+
 	// Mounts
 	for _, m := range c.Mounts {
 		mount := swarmapi.Mount{
@@ -221,7 +281,7 @@ func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 func healthConfigFromGRPC(h *swarmapi.HealthConfig) *container.HealthConfig {
 	interval, _ := gogotypes.DurationFromProto(h.Interval)
 	timeout, _ := gogotypes.DurationFromProto(h.Timeout)
-	startPeriod, _ := gogotypes.DurationFromProto(h.Timeout)
+	startPeriod, _ := gogotypes.DurationFromProto(h.StartPeriod)
 	return &container.HealthConfig{
 		Test:        h.Test,
 		Interval:    interval,

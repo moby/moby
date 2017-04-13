@@ -129,7 +129,7 @@ type ActiveEndpointsError struct {
 }
 
 func (aee *ActiveEndpointsError) Error() string {
-	return fmt.Sprintf("network %s has active endpoints", aee.name)
+	return fmt.Sprintf("network %s id %s has active endpoints", aee.name, aee.id)
 }
 
 // Forbidden denotes the type of this error
@@ -183,3 +183,11 @@ func (mr ManagerRedirectError) Error() string {
 
 // Maskable denotes the type of this error
 func (mr ManagerRedirectError) Maskable() {}
+
+// ErrDataStoreNotInitialized is returned if an invalid data scope is passed
+// for getting data store
+type ErrDataStoreNotInitialized string
+
+func (dsni ErrDataStoreNotInitialized) Error() string {
+	return fmt.Sprintf("datastore for scope %q is not initialized", string(dsni))
+}

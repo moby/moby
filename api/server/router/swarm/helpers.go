@@ -7,7 +7,6 @@ import (
 	"github.com/docker/docker/api/server/httputils"
 	basictypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
-	"github.com/docker/docker/pkg/stdcopy"
 	"golang.org/x/net/context"
 )
 
@@ -24,32 +23,43 @@ func (sr *swarmRouter) swarmLogs(ctx context.Context, w http.ResponseWriter, r *
 		return fmt.Errorf("Bad parameters: you must choose at least one stream")
 	}
 
-	logsConfig := &backend.ContainerLogsConfig{
-		ContainerLogsOptions: basictypes.ContainerLogsOptions{
-			Follow:     httputils.BoolValue(r, "follow"),
-			Timestamps: httputils.BoolValue(r, "timestamps"),
-			Since:      r.Form.Get("since"),
-			Tail:       r.Form.Get("tail"),
-			ShowStdout: stdout,
-			ShowStderr: stderr,
-			Details:    httputils.BoolValue(r, "details"),
-		},
-		OutStream: w,
+	// there is probably a neater way to manufacture the ContainerLogsOptions
+	// struct, probably in the caller, to eliminate the dependency on net/http
+	logsConfig := &basictypes.ContainerLogsOptions{
+		Follow:     httputils.BoolValue(r, "follow"),
+		Timestamps: httputils.BoolValue(r, "timestamps"),
+		Since:      r.Form.Get("since"),
+		Tail:       r.Form.Get("tail"),
+		ShowStdout: stdout,
+		ShowStderr: stderr,
+		Details:    httputils.BoolValue(r, "details"),
 	}
 
-	chStarted := make(chan struct{})
-	if err := sr.backend.ServiceLogs(ctx, selector, logsConfig, chStarted); err != nil {
-		select {
-		case <-chStarted:
-			// The client may be expecting all of the data we're sending to
-			// be multiplexed, so send it through OutStream, which will
-			// have been set up to handle that if needed.
-			stdwriter := stdcopy.NewStdWriter(w, stdcopy.Systemerr)
-			fmt.Fprintf(stdwriter, "Error grabbing service logs: %v\n", err)
-		default:
+	tty := false
+	// checking for whether logs are TTY involves iterating over every service
+	// and task. idk if there is a better way
+	for _, service := range selector.Services {
+		s, err := sr.backend.GetService(service, false)
+		if err != nil {
+			// maybe should return some context with this error?
 			return err
 		}
+		tty = s.Spec.TaskTemplate.ContainerSpec.TTY || tty
+	}
+	for _, task := range selector.Tasks {
+		t, err := sr.backend.GetTask(task)
+		if err != nil {
+			// as above
+			return err
+		}
+		tty = t.Spec.ContainerSpec.TTY || tty
 	}
 
+	msgs, err := sr.backend.ServiceLogs(ctx, selector, logsConfig)
+	if err != nil {
+		return err
+	}
+
+	httputils.WriteLogStream(ctx, w, msgs, logsConfig, !tty)
 	return nil
 }

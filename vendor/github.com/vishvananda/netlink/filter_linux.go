@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"syscall"
+	"unsafe"
 
 	"github.com/vishvananda/netlink/nl"
 )
@@ -128,12 +129,34 @@ func (h *Handle) FilterAdd(filter Filter) error {
 
 	options := nl.NewRtAttr(nl.TCA_OPTIONS, nil)
 	if u32, ok := filter.(*U32); ok {
-		// match all
-		sel := nl.TcU32Sel{
-			Nkeys: 1,
-			Flags: nl.TC_U32_TERMINAL,
+		// Convert TcU32Sel into nl.TcU32Sel as it is without copy.
+		sel := (*nl.TcU32Sel)(unsafe.Pointer(u32.Sel))
+		if sel == nil {
+			// match all
+			sel = &nl.TcU32Sel{
+				Nkeys: 1,
+				Flags: nl.TC_U32_TERMINAL,
+			}
+			sel.Keys = append(sel.Keys, nl.TcU32Key{})
 		}
-		sel.Keys = append(sel.Keys, nl.TcU32Key{})
+
+		if native != networkOrder {
+			// Copy Tcu32Sel.
+			cSel := sel
+			keys := make([]nl.TcU32Key, cap(sel.Keys))
+			copy(keys, sel.Keys)
+			cSel.Keys = keys
+			sel = cSel
+
+			// Handle the endianness of attributes
+			sel.Offmask = native.Uint16(htons(sel.Offmask))
+			sel.Hmask = native.Uint32(htonl(sel.Hmask))
+			for _, key := range sel.Keys {
+				key.Mask = native.Uint32(htonl(key.Mask))
+				key.Val = native.Uint32(htonl(key.Val))
+			}
+		}
+		sel.Nkeys = uint8(len(sel.Keys))
 		nl.NewRtAttrChild(options, nl.TCA_U32_SEL, sel.Serialize())
 		if u32.ClassId != 0 {
 			nl.NewRtAttrChild(options, nl.TCA_U32_CLASSID, nl.Uint32Attr(u32.ClassId))
@@ -425,6 +448,16 @@ func parseU32Data(filter Filter, data []syscall.NetlinkRouteAttr) (bool, error) 
 		case nl.TCA_U32_SEL:
 			detailed = true
 			sel := nl.DeserializeTcU32Sel(datum.Value)
+			u32.Sel = (*TcU32Sel)(unsafe.Pointer(sel))
+			if native != networkOrder {
+				// Handle the endianness of attributes
+				u32.Sel.Offmask = native.Uint16(htons(sel.Offmask))
+				u32.Sel.Hmask = native.Uint32(htonl(sel.Hmask))
+				for _, key := range u32.Sel.Keys {
+					key.Mask = native.Uint32(htonl(key.Mask))
+					key.Val = native.Uint32(htonl(key.Val))
+				}
+			}
 			// only parse if we have a very basic redirect
 			if sel.Flags&nl.TC_U32_TERMINAL == 0 || sel.Nkeys != 1 {
 				return detailed, nil
@@ -443,6 +476,8 @@ func parseU32Data(filter Filter, data []syscall.NetlinkRouteAttr) (bool, error) 
 					u32.RedirIndex = int(action.Ifindex)
 				}
 			}
+		case nl.TCA_U32_CLASSID:
+			u32.ClassId = native.Uint32(datum.Value)
 		}
 	}
 	return detailed, nil

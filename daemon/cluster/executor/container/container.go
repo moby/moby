@@ -351,6 +351,8 @@ func (c *containerConfig) hostConfig() *enginecontainer.HostConfig {
 		hc.DNSOptions = c.spec().DNSConfig.Options
 	}
 
+	c.applyPrivileges(hc)
+
 	// The format of extra hosts on swarmkit is specified in:
 	// http://man7.org/linux/man-pages/man5/hosts.5.html
 	//    IP_address canonical_hostname [aliases...]
@@ -598,6 +600,42 @@ func (c *containerConfig) networkCreateRequest(name string) (clustertypes.Networ
 			NetworkCreate: options,
 		},
 	}, nil
+}
+
+func (c *containerConfig) applyPrivileges(hc *enginecontainer.HostConfig) {
+	privileges := c.spec().Privileges
+	if privileges == nil {
+		return
+	}
+
+	credentials := privileges.CredentialSpec
+	if credentials != nil {
+		switch credentials.Source.(type) {
+		case *api.Privileges_CredentialSpec_File:
+			hc.SecurityOpt = append(hc.SecurityOpt, "credentialspec=file://"+credentials.GetFile())
+		case *api.Privileges_CredentialSpec_Registry:
+			hc.SecurityOpt = append(hc.SecurityOpt, "credentialspec=registry://"+credentials.GetRegistry())
+		}
+	}
+
+	selinux := privileges.SELinuxContext
+	if selinux != nil {
+		if selinux.Disable {
+			hc.SecurityOpt = append(hc.SecurityOpt, "label=disable")
+		}
+		if selinux.User != "" {
+			hc.SecurityOpt = append(hc.SecurityOpt, "label=user:"+selinux.User)
+		}
+		if selinux.Role != "" {
+			hc.SecurityOpt = append(hc.SecurityOpt, "label=role:"+selinux.Role)
+		}
+		if selinux.Level != "" {
+			hc.SecurityOpt = append(hc.SecurityOpt, "label=level:"+selinux.Level)
+		}
+		if selinux.Type != "" {
+			hc.SecurityOpt = append(hc.SecurityOpt, "label=type:"+selinux.Type)
+		}
+	}
 }
 
 func (c containerConfig) eventFilter() filters.Args {

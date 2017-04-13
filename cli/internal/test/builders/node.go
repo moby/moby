@@ -76,6 +76,13 @@ func NodeID(id string) func(*swarm.Node) {
 	}
 }
 
+// NodeName sets the node name
+func NodeName(name string) func(*swarm.Node) {
+	return func(node *swarm.Node) {
+		node.Spec.Annotations.Name = name
+	}
+}
+
 // NodeLabels sets the node labels
 func NodeLabels(labels map[string]string) func(*swarm.Node) {
 	return func(node *swarm.Node) {

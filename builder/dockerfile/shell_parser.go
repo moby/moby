@@ -8,7 +8,6 @@ package dockerfile
 
 import (
 	"fmt"
-	"runtime"
 	"strings"
 	"text/scanner"
 	"unicode"
@@ -24,9 +23,9 @@ type shellWord struct {
 
 // ProcessWord will use the 'env' list of environment variables,
 // and replace any env var references in 'word'.
-func ProcessWord(word string, env []string, escapeToken rune) ([]string, error) {
+func ProcessWord(word string, env []string, escapeToken rune) (string, error) {
 	word, _, err := process(word, env, escapeToken)
-	return []string{word}, err
+	return word, err
 }
 
 // ProcessWords will use the 'env' list of environment variables,
@@ -163,15 +162,28 @@ func (sw *shellWord) processStopOn(stopChar rune) (string, []string, error) {
 func (sw *shellWord) processSingleQuote() (string, error) {
 	// All chars between single quotes are taken as-is
 	// Note, you can't escape '
+	//
+	// From the "sh" man page:
+	// Single Quotes
+	//   Enclosing characters in single quotes preserves the literal meaning of
+	//   all the characters (except single quotes, making it impossible to put
+	//   single-quotes in a single-quoted string).
+
 	var result string
 
 	sw.scanner.Next()
 
 	for {
 		ch := sw.scanner.Next()
-		if ch == '\'' || ch == scanner.EOF {
+
+		if ch == scanner.EOF {
+			return "", fmt.Errorf("unexpected end of statement while looking for matching single-quote")
+		}
+
+		if ch == '\'' {
 			break
 		}
+
 		result += string(ch)
 	}
 
@@ -181,16 +193,32 @@ func (sw *shellWord) processSingleQuote() (string, error) {
 func (sw *shellWord) processDoubleQuote() (string, error) {
 	// All chars up to the next " are taken as-is, even ', except any $ chars
 	// But you can escape " with a \ (or ` if escape token set accordingly)
+	//
+	// From the "sh" man page:
+	// Double Quotes
+	//  Enclosing characters within double quotes preserves the literal meaning
+	//  of all characters except dollarsign ($), backquote (`), and backslash
+	//  (\).  The backslash inside double quotes is historically weird, and
+	//  serves to quote only the following characters:
+	//    $ ` " \ <newline>.
+	//  Otherwise it remains literal.
+
 	var result string
 
 	sw.scanner.Next()
 
-	for sw.scanner.Peek() != scanner.EOF {
+	for {
 		ch := sw.scanner.Peek()
+
+		if ch == scanner.EOF {
+			return "", fmt.Errorf("unexpected end of statement while looking for matching double-quote")
+		}
+
 		if ch == '"' {
 			sw.scanner.Next()
 			break
 		}
+
 		if ch == '$' {
 			tmp, err := sw.processDollar()
 			if err != nil {
@@ -207,8 +235,11 @@ func (sw *shellWord) processDoubleQuote() (string, error) {
 					continue
 				}
 
-				if chNext == '"' || chNext == '$' {
-					// \" and \$ can be escaped, all other \'s are left as-is
+				// Note: for now don't do anything special with ` chars.
+				// Not sure what to do with them anyway since we're not going
+				// to execute the text in there (not now anyway).
+				if chNext == '"' || chNext == '$' || chNext == sw.escapeToken {
+					// These chars can be escaped, all other \'s are left as-is
 					ch = sw.scanner.Next()
 				}
 			}
@@ -296,17 +327,10 @@ func (sw *shellWord) processName() string {
 }
 
 func (sw *shellWord) getEnv(name string) string {
-	if runtime.GOOS == "windows" {
-		// Case-insensitive environment variables on Windows
-		name = strings.ToUpper(name)
-	}
 	for _, env := range sw.envs {
 		i := strings.Index(env, "=")
 		if i < 0 {
-			if runtime.GOOS == "windows" {
-				env = strings.ToUpper(env)
-			}
-			if name == env {
+			if equalEnvKeys(name, env) {
 				// Should probably never get here, but just in case treat
 				// it like "var" and "var=" are the same
 				return ""
@@ -314,10 +338,7 @@ func (sw *shellWord) getEnv(name string) string {
 			continue
 		}
 		compareName := env[:i]
-		if runtime.GOOS == "windows" {
-			compareName = strings.ToUpper(compareName)
-		}
-		if name != compareName {
+		if !equalEnvKeys(name, compareName) {
 			continue
 		}
 		return env[i+1:]

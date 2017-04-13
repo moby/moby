@@ -26,3 +26,9 @@ func normaliseWorkdir(current string, requested string) (string, error) {
 func errNotJSON(command, _ string) error {
 	return fmt.Errorf("%s requires the arguments to be in JSON form", command)
 }
+
+// equalEnvKeys compare two strings and returns true if they are equal. On
+// Windows this comparison is case insensitive.
+func equalEnvKeys(from, to string) bool {
+	return from == to
+}

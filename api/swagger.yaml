@@ -19,10 +19,10 @@ produces:
 consumes:
   - "application/json"
   - "text/plain"
-basePath: "/v1.29"
+basePath: "/v1.30"
 info:
   title: "Docker Engine API"
-  version: "1.29"
+  version: "1.30"
   x-logo:
     url: "https://docs.docker.com/images/logo-docker-main.png"
   description: |
@@ -44,7 +44,7 @@ info:
 
     The API is usually changed in each release of Docker, so API calls are versioned to ensure that clients don't break.
 
-    For Docker Engine 17.05, the API version is 1.29. To lock to this version, you prefix the URL with `/v1.29`. For example, calling `/info` is the same as calling `/v1.29/info`.
+    For Docker Engine 17.06, the API version is 1.30. To lock to this version, you prefix the URL with `/v1.30`. For example, calling `/info` is the same as calling `/v1.30/info`.
 
     Engine releases in the near future should support this version of the API, so your client will continue to work even if it is talking to a newer Engine.
 
@@ -52,10 +52,11 @@ info:
 
     The API uses an open schema model, which means server may add extra properties to responses. Likewise, the server will ignore any extra query parameters and request body properties. When you write clients, you need to ignore additional properties in responses to ensure they do not break when talking to newer Docker daemons.
 
-    This documentation is for version 1.29 of the API, which was introduced with Docker 17.05. Use this table to find documentation for previous versions of the API:
+    This documentation is for version 1.30 of the API, which was introduced with Docker 17.06. Use this table to find documentation for previous versions of the API:
 
     Docker version  | API version | Changes
     ----------------|-------------|---------
+    17.05.x | [1.29](https://docs.docker.com/engine/api/v1.29/) | [API changes](https://docs.docker.com/engine/api/version-history/#v1-29-api-changes)
     17.04.x | [1.28](https://docs.docker.com/engine/api/v1.28/) | [API changes](https://docs.docker.com/engine/api/version-history/#v1-28-api-changes)
     17.03.1 | [1.27](https://docs.docker.com/engine/api/v1.27/) | [API changes](https://docs.docker.com/engine/api/version-history/#v1-27-api-changes)
     1.13.1 & 17.03.0 | [1.26](https://docs.docker.com/engine/api/v1.26/) | [API changes](https://docs.docker.com/engine/api/version-history/#v1-26-api-changes)
@@ -2096,6 +2097,12 @@ definitions:
       ForceUpdate:
         description: "A counter that triggers an update even if no relevant parameters have been changed."
         type: "integer"
+      Runtime:
+        description: "Runtime is the type of runtime specified for the task executor."
+        type: "string"
+      RuntimeData:
+        description: "RuntimeData is the payload sent to be used with the runtime for the executor."
+        type: "array"
       Networks:
         type: "array"
         items:
@@ -4392,6 +4399,7 @@ paths:
 
             Available filters:
             - `until=<timestamp>` Prune containers created before this timestamp. The `<timestamp>` can be Unix timestamps, date formatted timestamps, or Go duration strings (e.g. `10m`, `1h30m`) computed relative to the daemon machine’s time.
+            - `label` (`label=<key>`, `label=<key>=<value>`, `label!=<key>`, or `label!=<key>=<value>`) Prune containers with (or without, in case `label!=...` is used) the specified labels.
           type: "string"
       responses:
         200:
@@ -5082,6 +5090,7 @@ paths:
                unused *and* untagged images. When set to `false`
                (or `0`), all unused images are pruned.
             - `until=<string>` Prune images created before this timestamp. The `<timestamp>` can be Unix timestamps, date formatted timestamps, or Go duration strings (e.g. `10m`, `1h30m`) computed relative to the daemon machine’s time.
+            - `label` (`label=<key>`, `label=<key>=<value>`, `label!=<key>`, or `label!=<key>=<value>`) Prune images with (or without, in case `label!=...` is used) the specified labels.
           type: "string"
       responses:
         200:
@@ -6185,6 +6194,7 @@ paths:
             Filters to process on the prune list, encoded as JSON (a `map[string][]string`).
 
             Available filters:
+            - `label` (`label=<key>`, `label=<key>=<value>`, `label!=<key>`, or `label!=<key>=<value>`) Prune volumes with (or without, in case `label!=...` is used) the specified labels.
           type: "string"
       responses:
         200:
@@ -6553,6 +6563,7 @@ paths:
 
             Available filters:
             - `until=<timestamp>` Prune networks created before this timestamp. The `<timestamp>` can be Unix timestamps, date formatted timestamps, or Go duration strings (e.g. `10m`, `1h30m`) computed relative to the daemon machine’s time.
+            - `label` (`label=<key>`, `label=<key>=<value>`, `label!=<key>`, or `label!=<key>=<value>`) Prune networks with (or without, in case `label!=...` is used) the specified labels.
           type: "string"
       responses:
         200:
@@ -7095,6 +7106,10 @@ paths:
       responses:
         200:
           description: "no error"
+        400:
+          description: "bad parameter"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         404:
           description: "no such node"
           schema:
@@ -7584,6 +7599,11 @@ paths:
           description: "ID or name of service."
           required: true
           type: "string"
+        - name: "insertDefaults"
+          in: "query"
+          description: "Fill empty fields with default values."
+          type: "boolean"
+          default: false
       tags: ["Service"]
     delete:
       summary: "Delete a service"
@@ -7729,12 +7749,12 @@ paths:
           schema:
             type: "string"
         404:
-          description: "no such container"
+          description: "no such service"
           schema:
             $ref: "#/definitions/ErrorResponse"
           examples:
             application/json:
-              message: "No such container: c2ada9df5af8"
+              message: "No such service: c2ada9df5af8"
         500:
           description: "server error"
           schema:
@@ -7747,11 +7767,11 @@ paths:
         - name: "id"
           in: "path"
           required: true
-          description: "ID or name of the container"
+          description: "ID or name of the service"
           type: "string"
         - name: "details"
           in: "query"
-          description: "Show extra details provided to logs."
+          description: "Show service context and extra details provided to logs."
           type: "boolean"
           default: false
         - name: "follow"
@@ -8008,7 +8028,7 @@ paths:
           type: "string"
         - name: "details"
           in: "query"
-          description: "Show extra details provided to logs."
+          description: "Show task context and extra details provided to logs."
           type: "boolean"
           default: false
         - name: "follow"
@@ -8201,6 +8221,10 @@ paths:
       responses:
         200:
           description: "no error"
+        400:
+          description: "bad parameter"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         404:
           description: "no such secret"
           schema:

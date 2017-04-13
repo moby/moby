@@ -152,7 +152,8 @@ func (r *multiReadSeeker) getOffsetToReader(rdr io.ReadSeeker) (int64, error) {
 
 func (r *multiReadSeeker) Read(b []byte) (int, error) {
 	if r.pos == nil {
-		r.pos = &pos{0, 0}
+		// make sure all readers are at 0
+		r.Seek(0, os.SEEK_SET)
 	}
 
 	bLen := int64(len(b))

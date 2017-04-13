@@ -2,12 +2,12 @@ package dockerfile
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/testutil/assert"
 )
 
 func TestEmptyDockerfile(t *testing.T) {
@@ -54,10 +54,7 @@ func TestNonExistingDockerfile(t *testing.T) {
 
 func readAndCheckDockerfile(t *testing.T, testName, contextDir, dockerfilePath, expectedError string) {
 	tarStream, err := archive.Tar(contextDir, archive.Uncompressed)
-
-	if err != nil {
-		t.Fatalf("Error when creating tar stream: %s", err)
-	}
+	assert.NilError(t, err)
 
 	defer func() {
 		if err = tarStream.Close(); err != nil {
@@ -66,10 +63,7 @@ func readAndCheckDockerfile(t *testing.T, testName, contextDir, dockerfilePath, 
 	}()
 
 	context, err := builder.MakeTarSumContext(tarStream)
-
-	if err != nil {
-		t.Fatalf("Error when creating tar context: %s", err)
-	}
+	assert.NilError(t, err)
 
 	defer func() {
 		if err = context.Close(); err != nil {
@@ -83,13 +77,6 @@ func readAndCheckDockerfile(t *testing.T, testName, contextDir, dockerfilePath, 
 
 	b := &Builder{options: options, context: context}
 
-	err = b.readDockerfile()
-
-	if err == nil {
-		t.Fatalf("No error when executing test: %s", testName)
-	}
-
-	if !strings.Contains(err.Error(), expectedError) {
-		t.Fatalf("Wrong error message. Should be \"%s\". Got \"%s\"", expectedError, err.Error())
-	}
+	_, err = b.readAndParseDockerfile()
+	assert.Error(t, err, expectedError)
 }

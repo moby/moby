@@ -42,6 +42,7 @@ than one filter, then pass multiple flags (e.g., `--filter "foo=bar" --filter "b
 The currently supported filters are:
 
 * until (`<timestamp>`) - only remove networks created before given timestamp
+* label (`label=<key>`, `label=<key>=<value>`, `label!=<key>`, or `label!=<key>=<value>`) - only remove networks with (or without, in case `label!=...` is used) the specified labels.
 
 The `until` filter can be Unix timestamps, date formatted
 timestamps, or Go duration strings (e.g. `10m`, `1h30m`) computed
@@ -54,6 +55,11 @@ timestamps enter seconds[.nanoseconds], where seconds is the number of seconds
 that have elapsed since January 1, 1970 (midnight UTC/GMT), not counting leap
 seconds (aka Unix epoch or Unix time), and the optional .nanoseconds field is a
 fraction of a second no more than nine digits long.
+
+The `label` filter accepts two formats. One is the `label=...` (`label=<key>` or `label=<key>=<value>`),
+which removes networks with the specified labels. The other
+format is the `label!=...` (`label!=<key>` or `label!=<key>=<value>`), which removes
+networks without the specified labels.
 
 The following removes networks created more than 5 minutes ago. Note that
 system networks such as `bridge`, `host`, and `none` will never be pruned:

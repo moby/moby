@@ -47,6 +47,7 @@ import (
 	"container/heap"
 	"fmt"
 	"net"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -127,6 +128,9 @@ type NetworkController interface {
 	// Wait for agent initialization complete in libnetwork controller
 	AgentInitWait()
 
+	// Wait for agent to stop if running
+	AgentStopWait()
+
 	// SetKeys configures the encryption key for gossip and overlay data path
 	SetKeys(keys []*types.EncryptionKey) error
 }
@@ -160,6 +164,7 @@ type controller struct {
 	agent                  *agent
 	networkLocker          *locker.Locker
 	agentInitDone          chan struct{}
+	agentStopDone          chan struct{}
 	keys                   []*types.EncryptionKey
 	clusterConfigAvailable bool
 	sync.Mutex
@@ -338,7 +343,12 @@ func (c *controller) clusterAgentInit() {
 			c.agentClose()
 			c.cleanupServiceBindings("")
 
-			c.clearIngress(true)
+			c.Lock()
+			if c.agentStopDone != nil {
+				close(c.agentStopDone)
+				c.agentStopDone = nil
+			}
+			c.Unlock()
 
 			return
 		}
@@ -354,6 +364,15 @@ func (c *controller) AgentInitWait() {
 
 	if agentInitDone != nil {
 		<-agentInitDone
+	}
+}
+
+func (c *controller) AgentStopWait() {
+	c.Lock()
+	agentStopDone := c.agentStopDone
+	c.Unlock()
+	if agentStopDone != nil {
+		<-agentStopDone
 	}
 }
 
@@ -961,6 +980,8 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (s
 
 	if sb.ingress {
 		c.ingressSandbox = sb
+		sb.config.hostsPath = filepath.Join(c.cfg.Daemon.DataDir, "/network/files/hosts")
+		sb.config.resolvConfPath = filepath.Join(c.cfg.Daemon.DataDir, "/network/files/resolv.conf")
 		sb.id = "ingress_sbox"
 	}
 	c.Unlock()
@@ -1153,46 +1174,7 @@ func (c *controller) getIPAMDriver(name string) (ipamapi.Ipam, *ipamapi.Capabili
 }
 
 func (c *controller) Stop() {
-	c.clearIngress(false)
 	c.closeStores()
 	c.stopExternalKeyListener()
 	osl.GC()
-}
-
-func (c *controller) clearIngress(clusterLeave bool) {
-	c.Lock()
-	ingressSandbox := c.ingressSandbox
-	c.ingressSandbox = nil
-	c.Unlock()
-
-	var n *network
-	if ingressSandbox != nil {
-		for _, ep := range ingressSandbox.getConnectedEndpoints() {
-			if nw := ep.getNetwork(); nw.ingress {
-				n = nw
-				break
-			}
-		}
-		if err := ingressSandbox.Delete(); err != nil {
-			logrus.Warnf("Could not delete ingress sandbox while leaving: %v", err)
-		}
-	}
-
-	if n == nil {
-		for _, nw := range c.Networks() {
-			if nw.Info().Ingress() {
-				n = nw.(*network)
-				break
-			}
-		}
-	}
-	if n == nil && clusterLeave {
-		logrus.Warnf("Could not find ingress network while leaving")
-	}
-
-	if n != nil {
-		if err := n.Delete(); err != nil {
-			logrus.Warnf("Could not delete ingress network while leaving: %v", err)
-		}
-	}
 }

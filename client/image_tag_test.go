@@ -46,6 +46,17 @@ func TestImageTagInvalidSourceImageName(t *testing.T) {
 	}
 }
 
+func TestImageTagHexSource(t *testing.T) {
+	client := &Client{
+		client: newMockClient(errorMock(http.StatusOK, "OK")),
+	}
+
+	err := client.ImageTag(context.Background(), "0d409d33b27e47423b049f7f863faa08655a8c901749c2b25b93ca67d01a470d", "repo:tag")
+	if err != nil {
+		t.Fatalf("got error: %v", err)
+	}
+}
+
 func TestImageTag(t *testing.T) {
 	expectedURL := "/images/image_id/tag"
 	tagCases := []struct {

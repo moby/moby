@@ -1927,7 +1927,7 @@ __docker_service_commands() {
     _docker_service_subcommands=(
         "create:Create a new service"
         "inspect:Display detailed information on one or more services"
-        "logs:Fetch the logs of a service"
+        "logs:Fetch the logs of a service or task"
         "ls:List services"
         "rm:Remove one or more services"
         "scale:Scale one or multiple replicated services"

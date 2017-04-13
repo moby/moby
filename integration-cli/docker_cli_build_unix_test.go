@@ -16,6 +16,8 @@ import (
 
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
+	"github.com/docker/docker/integration-cli/cli/build"
+	"github.com/docker/docker/integration-cli/cli/build/fakecontext"
 	"github.com/docker/docker/pkg/testutil"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/docker/go-units"
@@ -26,10 +28,10 @@ func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *check.C) {
 	testRequires(c, cpuCfsQuota)
 	name := "testbuildresourceconstraints"
 
-	ctx := fakeContext(c, `
+	ctx := fakecontext.New(c, "", fakecontext.WithDockerfile(`
 	FROM hello-world:frozen
 	RUN ["/hello"]
-	`, map[string]string{})
+	`))
 	cli.Docker(
 		cli.Args("build", "--no-cache", "--rm=false", "--memory=64m", "--memory-swap=-1", "--cpuset-cpus=0", "--cpuset-mems=0", "--cpu-shares=100", "--cpu-quota=8000", "--ulimit", "nofile=42", "-t", name, "."),
 		cli.InDir(ctx.Dir),
@@ -85,7 +87,7 @@ func (s *DockerSuite) TestBuildAddChangeOwnership(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	name := "testbuildaddown"
 
-	ctx := func() *FakeContext {
+	ctx := func() *fakecontext.Fake {
 		dockerfile := `
 			FROM busybox
 			ADD foo /bar/
@@ -108,12 +110,12 @@ func (s *DockerSuite) TestBuildAddChangeOwnership(c *check.C) {
 		if err := ioutil.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(dockerfile), 0644); err != nil {
 			c.Fatalf("failed to open destination dockerfile: %v", err)
 		}
-		return fakeContextFromDir(tmpDir)
+		return fakecontext.New(c, tmpDir)
 	}()
 
 	defer ctx.Close()
 
-	buildImageSuccessfully(c, name, withExternalBuildContext(ctx))
+	buildImageSuccessfully(c, name, build.WithExternalBuildContext(ctx))
 }
 
 // Test that an infinite sleep during a build is killed if the client disconnects.
@@ -134,7 +136,7 @@ func (s *DockerSuite) TestBuildCancellationKillsSleep(c *check.C) {
 	defer observer.Stop()
 
 	// (Note: one year, will never finish)
-	ctx := fakeContext(c, "FROM busybox\nRUN sleep 31536000", nil)
+	ctx := fakecontext.New(c, "", fakecontext.WithDockerfile("FROM busybox\nRUN sleep 31536000"))
 	defer ctx.Close()
 
 	buildCmd := exec.Command(dockerBinary, "build", "-t", name, ".")

@@ -151,7 +151,17 @@ func (sr *swarmRouter) getServices(ctx context.Context, w http.ResponseWriter, r
 }
 
 func (sr *swarmRouter) getService(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	service, err := sr.backend.GetService(vars["id"])
+	var insertDefaults bool
+	if value := r.URL.Query().Get("insertDefaults"); value != "" {
+		var err error
+		insertDefaults, err = strconv.ParseBool(value)
+		if err != nil {
+			err := fmt.Errorf("invalid value for insertDefaults: %s", value)
+			return errors.NewBadRequestError(err)
+		}
+	}
+
+	service, err := sr.backend.GetService(vars["id"], insertDefaults)
 	if err != nil {
 		logrus.Errorf("Error getting service %s: %v", vars["id"], err)
 		return err

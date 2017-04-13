@@ -5,6 +5,7 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/command/formatter"
@@ -51,11 +52,20 @@ func runInspect(dockerCli *command.DockerCli, opts inspectOptions) error {
 	}
 
 	getRef := func(ref string) (interface{}, []byte, error) {
-		service, _, err := client.ServiceInspectWithRaw(ctx, ref)
+		// Service inspect shows defaults values in empty fields.
+		service, _, err := client.ServiceInspectWithRaw(ctx, ref, types.ServiceInspectOptions{InsertDefaults: true})
 		if err == nil || !apiclient.IsErrServiceNotFound(err) {
 			return service, nil, err
 		}
 		return nil, nil, errors.Errorf("Error: no such service: %s", ref)
+	}
+
+	getNetwork := func(ref string) (interface{}, []byte, error) {
+		network, _, err := client.NetworkInspectWithRaw(ctx, ref, false)
+		if err == nil || !apiclient.IsErrNetworkNotFound(err) {
+			return network, nil, err
+		}
+		return nil, nil, errors.Errorf("Error: no such network: %s", ref)
 	}
 
 	f := opts.format
@@ -77,7 +87,7 @@ func runInspect(dockerCli *command.DockerCli, opts inspectOptions) error {
 		Format: formatter.NewServiceFormat(f),
 	}
 
-	if err := formatter.ServiceInspectWrite(serviceCtx, opts.refs, getRef); err != nil {
+	if err := formatter.ServiceInspectWrite(serviceCtx, opts.refs, getRef, getNetwork); err != nil {
 		return cli.StatusError{StatusCode: 1, Status: err.Error()}
 	}
 	return nil

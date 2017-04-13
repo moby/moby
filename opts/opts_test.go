@@ -93,12 +93,12 @@ func TestListOptsWithValidator(t *testing.T) {
 	// Re-using logOptsvalidator (used by MapOpts)
 	o := NewListOpts(logOptsValidator)
 	o.Set("foo")
-	if o.String() != "[]" {
-		t.Errorf("%s != []", o.String())
+	if o.String() != "" {
+		t.Errorf(`%s != ""`, o.String())
 	}
 	o.Set("foo=bar")
-	if o.String() != "[]" {
-		t.Errorf("%s != []", o.String())
+	if o.String() != "" {
+		t.Errorf(`%s != ""`, o.String())
 	}
 	o.Set("max-file=2")
 	if o.Len() != 1 {
@@ -111,8 +111,8 @@ func TestListOptsWithValidator(t *testing.T) {
 		t.Error("o.Get(\"baz\") == true")
 	}
 	o.Delete("max-file=2")
-	if o.String() != "[]" {
-		t.Errorf("%s != []", o.String())
+	if o.String() != "" {
+		t.Errorf(`%s != ""`, o.String())
 	}
 }
 

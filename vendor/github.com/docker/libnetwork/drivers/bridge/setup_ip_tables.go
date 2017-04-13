@@ -7,6 +7,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/iptables"
+	"github.com/vishvananda/netlink"
 )
 
 // DockerChain: DOCKER iptable chain name
@@ -347,4 +348,16 @@ func setupInternalNetworkRules(bridgeIface string, addr net.Addr, icc, insert bo
 		return err
 	}
 	return nil
+}
+
+func clearEndpointConnections(nlh *netlink.Handle, ep *bridgeEndpoint) {
+	var ipv4List []net.IP
+	var ipv6List []net.IP
+	if ep.addr != nil {
+		ipv4List = append(ipv4List, ep.addr.IP)
+	}
+	if ep.addrv6 != nil {
+		ipv6List = append(ipv6List, ep.addrv6.IP)
+	}
+	iptables.DeleteConntrackEntries(nlh, ipv4List, ipv6List)
 }

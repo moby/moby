@@ -50,6 +50,13 @@ func (s *DockerSwarmSuite) TestSwarmUpdate(c *check.C) {
 	c.Assert(out, checker.Contains, "minimum certificate expiry time")
 	spec = getSpec()
 	c.Assert(spec.CAConfig.NodeCertExpiry, checker.Equals, 30*time.Hour)
+
+	// passing an external CA (this is without starting a root rotation) does not fail
+	out, err = d.Cmd("swarm", "update", "--external-ca", "protocol=cfssl,url=https://something.org")
+	c.Assert(err, checker.IsNil, check.Commentf("out: %v", out))
+
+	spec = getSpec()
+	c.Assert(spec.CAConfig.ExternalCAs, checker.HasLen, 1)
 }
 
 func (s *DockerSwarmSuite) TestSwarmInit(c *check.C) {
@@ -60,12 +67,14 @@ func (s *DockerSwarmSuite) TestSwarmInit(c *check.C) {
 		return sw.Spec
 	}
 
-	cli.Docker(cli.Args("swarm", "init", "--cert-expiry", "30h", "--dispatcher-heartbeat", "11s"),
+	cli.Docker(cli.Args("swarm", "init", "--cert-expiry", "30h", "--dispatcher-heartbeat", "11s",
+		"--external-ca", "protocol=cfssl,url=https://something.org"),
 		cli.Daemon(d.Daemon)).Assert(c, icmd.Success)
 
 	spec := getSpec()
 	c.Assert(spec.CAConfig.NodeCertExpiry, checker.Equals, 30*time.Hour)
 	c.Assert(spec.Dispatcher.HeartbeatPeriod, checker.Equals, 11*time.Second)
+	c.Assert(spec.CAConfig.ExternalCAs, checker.HasLen, 1)
 
 	c.Assert(d.Leave(true), checker.IsNil)
 	time.Sleep(500 * time.Millisecond) // https://github.com/docker/swarmkit/issues/1421
@@ -853,6 +862,45 @@ func (s *DockerSwarmSuite) TestSwarmServiceTTYUpdate(c *check.C) {
 	out, err = d.Cmd("service", "inspect", "--format", "{{ .Spec.TaskTemplate.ContainerSpec.TTY }}", name)
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.TrimSpace(out), checker.Equals, "true")
+}
+
+func (s *DockerSwarmSuite) TestSwarmServiceNetworkUpdate(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	result := icmd.RunCmd(d.Command("network", "create", "-d", "overlay", "foo"))
+	result.Assert(c, icmd.Success)
+	fooNetwork := strings.TrimSpace(string(result.Combined()))
+
+	result = icmd.RunCmd(d.Command("network", "create", "-d", "overlay", "bar"))
+	result.Assert(c, icmd.Success)
+	barNetwork := strings.TrimSpace(string(result.Combined()))
+
+	result = icmd.RunCmd(d.Command("network", "create", "-d", "overlay", "baz"))
+	result.Assert(c, icmd.Success)
+	bazNetwork := strings.TrimSpace(string(result.Combined()))
+
+	// Create a service
+	name := "top"
+	result = icmd.RunCmd(d.Command("service", "create", "--network", "foo", "--network", "bar", "--name", name, "busybox", "top"))
+	result.Assert(c, icmd.Success)
+
+	// Make sure task has been deployed.
+	waitAndAssert(c, defaultReconciliationTimeout, d.CheckRunningTaskNetworks, checker.DeepEquals,
+		map[string]int{fooNetwork: 1, barNetwork: 1})
+
+	// Remove a network
+	result = icmd.RunCmd(d.Command("service", "update", "--network-rm", "foo", name))
+	result.Assert(c, icmd.Success)
+
+	waitAndAssert(c, defaultReconciliationTimeout, d.CheckRunningTaskNetworks, checker.DeepEquals,
+		map[string]int{barNetwork: 1})
+
+	// Add a network
+	result = icmd.RunCmd(d.Command("service", "update", "--network-add", "baz", name))
+	result.Assert(c, icmd.Success)
+
+	waitAndAssert(c, defaultReconciliationTimeout, d.CheckRunningTaskNetworks, checker.DeepEquals,
+		map[string]int{barNetwork: 1, bazNetwork: 1})
 }
 
 func (s *DockerSwarmSuite) TestDNSConfig(c *check.C) {
