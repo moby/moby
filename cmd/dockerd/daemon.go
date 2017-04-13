@@ -24,6 +24,7 @@ import (
 	pluginrouter "github.com/docker/docker/api/server/router/plugin"
 	swarmrouter "github.com/docker/docker/api/server/router/swarm"
 	systemrouter "github.com/docker/docker/api/server/router/system"
+	runtimerouter "github.com/docker/docker/api/server/router/runtime"
 	"github.com/docker/docker/api/server/router/volume"
 	"github.com/docker/docker/builder/dockerfile"
 	cliconfig "github.com/docker/docker/cli/config"
@@ -487,6 +488,7 @@ func initRouter(s *apiserver.Server, d *daemon.Daemon, c *cluster.Cluster) {
 		build.NewRouter(dockerfile.NewBuildManager(d)),
 		swarmrouter.NewRouter(c),
 		pluginrouter.NewRouter(d.PluginManager()),
+		runtimerouter.NewRouter(d),
 	}
 
 	if d.NetworkControllerEnabled() {
