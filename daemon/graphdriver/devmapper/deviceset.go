@@ -1271,7 +1271,7 @@ func setCloseOnExec(name string) {
 }
 
 // DMLog implements logging using DevMapperLogger interface.
-func (devices *DeviceSet) DMLog(level int, file string, line int, dmError int, message string) {
+func (devices *DeviceSet) DMLog(level devicemapper.LogLevel, file string, line int, dmError int, message string) {
 	// By default libdm sends us all the messages including debug ones.
 	// We need to filter out messages here and figure out which one
 	// should be printed.
@@ -1279,15 +1279,7 @@ func (devices *DeviceSet) DMLog(level int, file string, line int, dmError int, m
 		return
 	}
 
-	// FIXME(vbatts) push this back into ./pkg/devicemapper/
-	if level <= devicemapper.LogLevelErr {
-		logrus.Errorf("libdevmapper(%d): %s:%d (%d) %s", level, file, line, dmError, message)
-	} else if level <= devicemapper.LogLevelInfo {
-		logrus.Infof("libdevmapper(%d): %s:%d (%d) %s", level, file, line, dmError, message)
-	} else {
-		// FIXME(vbatts) push this back into ./pkg/devicemapper/
-		logrus.Debugf("libdevmapper(%d): %s:%d (%d) %s", level, file, line, dmError, message)
-	}
+	devicemapper.Logf(level, file, line, dmError, message)
 }
 
 func major(device uint64) uint64 {
@@ -2603,6 +2595,8 @@ func NewDeviceSet(root string, doInit bool, options []string, uidMaps, gidMaps [
 		gidMaps:               gidMaps,
 		minFreeSpacePercent:   defaultMinFreeSpacePercent,
 	}
+
+	logLevel, _ = devicemapper.LogLevelValue(logrus.GetLevel())
 
 	foundBlkDiscard := false
 	for _, option := range options {

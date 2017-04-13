@@ -15,7 +15,7 @@ import (
 
 // DevmapperLogger defines methods for logging with devicemapper.
 type DevmapperLogger interface {
-	DMLog(level int, file string, line int, dmError int, message string)
+	DMLog(level LogLevel, file string, line int, dmError int, message string)
 }
 
 const (
@@ -264,8 +264,8 @@ func UdevWait(cookie *uint) error {
 }
 
 // LogInitVerbose is an interface to initialize the verbose logger for the device mapper library.
-func LogInitVerbose(level int) {
-	DmLogInitVerbose(level)
+func LogInitVerbose(level LogLevel) {
+	DmLogInitVerbose(int(level))
 }
 
 var dmLogger DevmapperLogger
