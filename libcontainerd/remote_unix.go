@@ -169,6 +169,19 @@ func (r *remote) handleConnectionChange() {
 				<-r.daemonWaitCh
 				if err := r.runContainerdDaemon(); err != nil { //FIXME: Handle error
 					logrus.Errorf("libcontainerd: error restarting containerd: %v", err)
+				} else {
+					// will give containerd 15s to be ready, otherwise will try again
+					for i := 0; i < 15; i++ {
+						time.Sleep(1 * time.Second)
+						ctx, cancel := context.WithTimeout(context.Background(), containerdHealthCheckTimeout)
+						_, err := healthClient.Check(ctx, &grpc_health_v1.HealthCheckRequest{})
+						cancel()
+						if err == nil {
+							break
+						}
+						logrus.Warnf("Containerd not ready yet, keep trying")
+					}
+
 				}
 				continue
 			}
