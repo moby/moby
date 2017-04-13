@@ -143,6 +143,14 @@ containerID1        ubuntu              ""                  24 hours ago        
 containerID2        ubuntu              ""                  24 hours ago                                                foobar_bar          0B
 `,
 		},
+		// Table key with space
+		{
+			Context{Format: NewContainerFormat(" table ", false, true)},
+			`CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS               NAMES               SIZE
+containerID1        ubuntu              ""                  24 hours ago                                                foobar_baz          0 B
+containerID2        ubuntu              ""                  24 hours ago                                                foobar_bar          0 B
+`,
+		},
 		{
 			Context{Format: NewContainerFormat("table", false, false)},
 			`CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS               NAMES
@@ -160,6 +168,11 @@ containerID2        ubuntu              ""                  24 hours ago        
 		},
 		{
 			Context{Format: NewContainerFormat("table {{.Image}}", true, false)},
+			"IMAGE\nubuntu\nubuntu\n",
+		},
+		// Table key with space
+		{
+			Context{Format: NewContainerFormat(" table {{.Image}} ", true, false)},
 			"IMAGE\nubuntu\nubuntu\n",
 		},
 		{
@@ -210,6 +223,31 @@ names: foobar_bar
 labels:
 ports:
 size: 0B
+
+`, expectedTime, expectedTime),
+		},
+		// Raw key with space
+		{
+			Context{Format: NewContainerFormat(" raw ", false, true)},
+			fmt.Sprintf(`container_id: containerID1
+image: ubuntu
+command: ""
+created_at: %s
+status:
+names: foobar_baz
+labels:
+ports:
+size: 0 B
+
+container_id: containerID2
+image: ubuntu
+command: ""
+created_at: %s
+status:
+names: foobar_bar
+labels:
+ports:
+size: 0 B
 
 `, expectedTime, expectedTime),
 		},

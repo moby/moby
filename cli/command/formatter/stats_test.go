@@ -67,6 +67,14 @@ func TestContainerStatsContextWrite(t *testing.T) {
 -- / --
 `,
 		},
+		// Table format with spaces
+		{
+			Context{Format: "   table   {{.MemUsage}}"},
+			`MEM USAGE / LIMIT
+20 B / 20 B
+-- / --
+`,
+		},
 		{
 			Context{Format: "{{.Container}}  {{.ID}}  {{.Name}}"},
 			`container1  abcdef  foo

@@ -18,7 +18,7 @@ const (
 
 // NewPluginFormat returns a Format for rendering using a plugin Context
 func NewPluginFormat(source string, quiet bool) Format {
-	switch source {
+	switch strings.TrimSpace(source) {
 	case TableFormatKey:
 		if quiet {
 			return defaultQuietFormat

@@ -25,7 +25,7 @@ type Format string
 
 // IsTable returns true if the format is a table-type format
 func (f Format) IsTable() bool {
-	return strings.HasPrefix(string(f), TableFormatKey)
+	return strings.HasPrefix(strings.TrimSpace(string(f)), TableFormatKey)
 }
 
 // Contains returns true if the format contains the substring
@@ -53,7 +53,7 @@ func (c *Context) preFormat() {
 
 	// TODO: handle this in the Format type
 	if c.Format.IsTable() {
-		c.finalFormat = c.finalFormat[len(TableFormatKey):]
+		c.finalFormat = strings.Replace(c.finalFormat, TableFormatKey, "", 1)
 	}
 
 	c.finalFormat = strings.Trim(c.finalFormat, " ")

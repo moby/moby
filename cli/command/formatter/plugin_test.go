@@ -72,6 +72,14 @@ pluginID1           foobar_baz          description 1       true
 pluginID2           foobar_bar          description 2       false
 `,
 		},
+		// Table format with spaces
+		{
+			Context{Format: NewPluginFormat("   table  ", false)},
+			`ID                  NAME                DESCRIPTION         ENABLED
+pluginID1           foobar_baz          description 1       true
+pluginID2           foobar_bar          description 2       false
+`,
+		},
 		{
 			Context{Format: NewPluginFormat("table", true)},
 			`pluginID1
@@ -87,6 +95,14 @@ foobar_bar
 		},
 		{
 			Context{Format: NewPluginFormat("table {{.Name}}", true)},
+			`NAME
+foobar_baz
+foobar_bar
+`,
+		},
+		// Table format with spaces
+		{
+			Context{Format: NewPluginFormat("  table  {{.Name}}  ", true)},
 			`NAME
 foobar_baz
 foobar_bar
@@ -109,6 +125,13 @@ enabled: false
 		},
 		{
 			Context{Format: NewPluginFormat("raw", true)},
+			`plugin_id: pluginID1
+plugin_id: pluginID2
+`,
+		},
+		// Raw format with spaces
+		{
+			Context{Format: NewPluginFormat("  raw   ", true)},
 			`plugin_id: pluginID1
 plugin_id: pluginID2
 `,

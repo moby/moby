@@ -2,6 +2,7 @@ package formatter
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/docker/distribution/reference"
@@ -32,7 +33,7 @@ func isDangling(image types.ImageSummary) bool {
 
 // NewImageFormat returns a format for rendering an ImageContext
 func NewImageFormat(source string, quiet bool, digest bool) Format {
-	switch source {
+	switch strings.TrimSpace(source) {
 	case TableFormatKey:
 		switch {
 		case quiet:

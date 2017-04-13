@@ -30,7 +30,7 @@ const (
 
 // NewContainerFormat returns a Format for rendering using a Context
 func NewContainerFormat(source string, quiet bool, size bool) Format {
-	switch source {
+	switch strings.TrimSpace(source) {
 	case TableFormatKey:
 		if quiet {
 			return defaultQuietFormat

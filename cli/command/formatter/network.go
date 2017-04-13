@@ -18,7 +18,7 @@ const (
 
 // NewNetworkFormat returns a Format for rendering using a network Context
 func NewNetworkFormat(source string, quiet bool) Format {
-	switch source {
+	switch strings.TrimSpace(source) {
 	case TableFormatKey:
 		if quiet {
 			return defaultQuietFormat
