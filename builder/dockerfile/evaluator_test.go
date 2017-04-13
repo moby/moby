@@ -171,9 +171,7 @@ func executeTestCase(t *testing.T, testCase dispatchTestCase) {
 	}()
 
 	r := strings.NewReader(testCase.dockerfile)
-	d := parser.Directive{}
-	parser.SetEscapeToken(parser.DefaultEscapeToken, &d)
-	n, err := parser.Parse(r, &d)
+	result, err := parser.Parse(r)
 
 	if err != nil {
 		t.Fatalf("Error when parsing Dockerfile: %s", err)
@@ -192,6 +190,7 @@ func executeTestCase(t *testing.T, testCase dispatchTestCase) {
 		buildArgs: newBuildArgs(options.BuildArgs),
 	}
 
+	n := result.AST
 	err = b.dispatch(0, len(n.Children), n.Children[0])
 
 	if err == nil {
