@@ -7106,6 +7106,10 @@ paths:
       responses:
         200:
           description: "no error"
+        400:
+          description: "bad parameter"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         404:
           description: "no such node"
           schema:
@@ -8217,6 +8221,10 @@ paths:
       responses:
         200:
           description: "no error"
+        400:
+          description: "bad parameter"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         404:
           description: "no such secret"
           schema:
