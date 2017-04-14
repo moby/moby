@@ -39,9 +39,19 @@ type agent struct {
 	networkDB         *networkdb.NetworkDB
 	bindAddr          string
 	advertiseAddr     string
+	dataPathAddr      string
 	epTblCancel       func()
 	driverCancelFuncs map[string][]func()
 	sync.Mutex
+}
+
+func (a *agent) dataPathAddress() string {
+	a.Lock()
+	defer a.Unlock()
+	if a.dataPathAddr != "" {
+		return a.dataPathAddr
+	}
+	return a.advertiseAddr
 }
 
 const libnetworkEPTable = "endpoint_table"
@@ -187,16 +197,25 @@ func (c *controller) agentSetup() error {
 	clusterProvider := c.cfg.Daemon.ClusterProvider
 	agent := c.agent
 	c.Unlock()
+
+	if clusterProvider == nil {
+		msg := "Aborting initialization of Libnetwork Agent because cluster provider is now unset"
+		logrus.Errorf(msg)
+		return fmt.Errorf(msg)
+	}
+
 	bindAddr := clusterProvider.GetLocalAddress()
 	advAddr := clusterProvider.GetAdvertiseAddress()
+	dataAddr := clusterProvider.GetDataPathAddress()
 	remote := clusterProvider.GetRemoteAddress()
 	remoteAddr, _, _ := net.SplitHostPort(remote)
 	listen := clusterProvider.GetListenAddress()
 	listenAddr, _, _ := net.SplitHostPort(listen)
 
-	logrus.Infof("Initializing Libnetwork Agent Listen-Addr=%s Local-addr=%s Adv-addr=%s Remote-addr =%s", listenAddr, bindAddr, advAddr, remoteAddr)
+	logrus.Infof("Initializing Libnetwork Agent Listen-Addr=%s Local-addr=%s Adv-addr=%s Data-addr=%s Remote-addr=%s",
+		listenAddr, bindAddr, advAddr, dataAddr, remoteAddr)
 	if advAddr != "" && agent == nil {
-		if err := c.agentInit(listenAddr, bindAddr, advAddr); err != nil {
+		if err := c.agentInit(listenAddr, bindAddr, advAddr, dataAddr); err != nil {
 			logrus.Errorf("Error in agentInit : %v", err)
 		} else {
 			c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
@@ -262,7 +281,7 @@ func (c *controller) getPrimaryKeyTag(subsys string) ([]byte, uint64, error) {
 	return keys[1].Key, keys[1].LamportTime, nil
 }
 
-func (c *controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr string) error {
+func (c *controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, dataPathAddr string) error {
 	if !c.isAgent() {
 		return nil
 	}
@@ -296,6 +315,7 @@ func (c *controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr st
 		networkDB:         nDB,
 		bindAddr:          bindAddr,
 		advertiseAddr:     advertiseAddr,
+		dataPathAddr:      dataPathAddr,
 		epTblCancel:       cancel,
 		driverCancelFuncs: make(map[string][]func()),
 	}
@@ -336,25 +356,22 @@ func (c *controller) agentDriverNotify(d driverapi.Driver) {
 		return
 	}
 
-	d.DiscoverNew(discoverapi.NodeDiscovery, discoverapi.NodeDiscoveryData{
-		Address:     agent.advertiseAddr,
+	if err := d.DiscoverNew(discoverapi.NodeDiscovery, discoverapi.NodeDiscoveryData{
+		Address:     agent.dataPathAddress(),
 		BindAddress: agent.bindAddr,
 		Self:        true,
-	})
+	}); err != nil {
+		logrus.Warnf("Failed the node discovery in driver: %v", err)
+	}
 
 	drvEnc := discoverapi.DriverEncryptionConfig{}
 	keys, tags := c.getKeys(subsysIPSec)
 	drvEnc.Keys = keys
 	drvEnc.Tags = tags
 
-	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
-		err := driver.DiscoverNew(discoverapi.EncryptionKeysConfig, drvEnc)
-		if err != nil {
-			logrus.Warnf("Failed to set datapath keys in driver %s: %v", name, err)
-		}
-		return false
-	})
-
+	if err := d.DiscoverNew(discoverapi.EncryptionKeysConfig, drvEnc); err != nil {
+		logrus.Warnf("Failed to set datapath keys in driver: %v", err)
+	}
 }
 
 func (c *controller) agentClose() {
