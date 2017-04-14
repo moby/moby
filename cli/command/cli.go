@@ -181,7 +181,7 @@ func (cli *DockerCli) Initialize(opts *cliflags.ClientOptions) error {
 	cli.defaultVersion = cli.client.ClientVersion()
 
 	if opts.Common.TrustKey == "" {
-		cli.keyFile = filepath.Join(cliconfig.Dir(), cliflags.DefaultTrustKeyFile)
+		cli.keyFile = filepath.Join(cliconfig.GetDir(""), cliflags.DefaultTrustKeyFile)
 	} else {
 		cli.keyFile = opts.Common.TrustKey
 	}
@@ -221,9 +221,9 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer) *DockerCli {
 // LoadDefaultConfigFile attempts to load the default config file and returns
 // an initialized ConfigFile struct if none is found.
 func LoadDefaultConfigFile(err io.Writer) *configfile.ConfigFile {
-	configFile, e := cliconfig.Load(cliconfig.Dir())
+	configFile, e := cliconfig.Load()
 	if e != nil {
-		fmt.Fprintf(err, "WARNING: Error loading config file:%v\n", e)
+		fmt.Fprintf(err, "WARNING: %v\n", e)
 	}
 	if !configFile.ContainsAuth() {
 		credentials.DetectDefaultStore(configFile)

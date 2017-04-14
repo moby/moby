@@ -115,7 +115,7 @@ func newTestNotary(c *check.C) (*testNotary, error) {
 		"skipTLSVerify": true
 	}
 }`
-	if _, err = fmt.Fprintf(clientConfig, template, filepath.Join(cliconfig.Dir(), "trust"), notaryURL); err != nil {
+	if _, err = fmt.Fprintf(clientConfig, template, filepath.Join(cliconfig.GetDir("trust")), notaryURL); err != nil {
 		os.RemoveAll(tmp)
 		return nil, err
 	}

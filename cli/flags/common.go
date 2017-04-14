@@ -49,7 +49,7 @@ func NewCommonOptions() *CommonOptions {
 // InstallFlags adds flags for the common options on the FlagSet
 func (commonOpts *CommonOptions) InstallFlags(flags *pflag.FlagSet) {
 	if dockerCertPath == "" {
-		dockerCertPath = cliconfig.Dir()
+		dockerCertPath = cliconfig.GetDir("")
 	}
 
 	flags.BoolVarP(&commonOpts.Debug, "debug", "D", false, "Enable debug mode")

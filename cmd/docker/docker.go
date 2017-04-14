@@ -57,7 +57,7 @@ func newDockerCommand(dockerCli *command.DockerCli) *cobra.Command {
 
 	flags = cmd.Flags()
 	flags.BoolVarP(&opts.Version, "version", "v", false, "Print version information and quit")
-	flags.StringVar(&opts.ConfigDir, "config", cliconfig.Dir(), "Location of client config files")
+	flags.StringVar(&opts.ConfigDir, "config", cliconfig.GetDir(""), "Location of client config files")
 	opts.Common.InstallFlags(flags)
 
 	setFlagErrorFunc(dockerCli, cmd, flags, opts)
@@ -190,7 +190,7 @@ func showVersion() {
 func dockerPreRun(opts *cliflags.ClientOptions) {
 	cliflags.SetLogLevel(opts.Common.LogLevel)
 
-	if opts.ConfigDir != "" {
+	if opts.ConfigDir != "" && opts.ConfigDir != cliconfig.GetDir("") {
 		cliconfig.SetDir(opts.ConfigDir)
 	}
 

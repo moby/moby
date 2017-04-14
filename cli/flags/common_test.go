@@ -26,7 +26,7 @@ func TestCommonOptionsInstallFlags(t *testing.T) {
 }
 
 func defaultPath(filename string) string {
-	return filepath.Join(cliconfig.Dir(), filename)
+	return filepath.Join(cliconfig.GetDir(""), filename)
 }
 
 func TestCommonOptionsInstallFlagsWithDefaults(t *testing.T) {

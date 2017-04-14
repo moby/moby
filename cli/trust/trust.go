@@ -37,7 +37,7 @@ var (
 )
 
 func trustDirectory() string {
-	return filepath.Join(cliconfig.Dir(), "trust")
+	return cliconfig.GetDir("trust")
 }
 
 // certificateDirectory returns the directory containing
@@ -49,7 +49,7 @@ func certificateDirectory(server string) (string, error) {
 		return "", err
 	}
 
-	return filepath.Join(cliconfig.Dir(), "tls", u.Host), nil
+	return filepath.Join(cliconfig.GetDir("tls"), u.Host), nil
 }
 
 // Server returns the base URL for the trust server.
