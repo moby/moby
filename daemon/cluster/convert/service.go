@@ -58,12 +58,12 @@ func ServiceFromGRPC(s swarmapi.Service) (types.Service, error) {
 		}
 
 		startedAt, _ := gogotypes.TimestampFromProto(s.UpdateStatus.StartedAt)
-		if !startedAt.IsZero() {
+		if !startedAt.IsZero() && startedAt.Unix() != 0 {
 			service.UpdateStatus.StartedAt = &startedAt
 		}
 
 		completedAt, _ := gogotypes.TimestampFromProto(s.UpdateStatus.CompletedAt)
-		if !completedAt.IsZero() {
+		if !completedAt.IsZero() && completedAt.Unix() != 0 {
 			service.UpdateStatus.CompletedAt = &completedAt
 		}
 
