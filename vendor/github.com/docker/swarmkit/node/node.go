@@ -133,6 +133,30 @@ type Node struct {
 	manager          *manager.Manager
 	notifyNodeChange chan *agent.NodeChanges // used by the agent to relay node updates from the dispatcher Session stream to (*Node).run
 	unlockKey        []byte
+
+	// lastNodeRole is the last-seen value of Node.Role, used to make role
+	// changes "edge triggered" and avoid renewal loops.
+	lastNodeRole lastSeenRole
+	// lastNodeDesiredRole is the last-seen value of Node.Spec.DesiredRole,
+	// used to make role changes "edge triggered" and avoid renewal loops.
+	// This exists in addition to lastNodeRole to support older CAs that
+	// only fill in the DesiredRole field.
+	lastNodeDesiredRole lastSeenRole
+}
+
+type lastSeenRole struct {
+	role *api.NodeRole
+}
+
+// observe notes the latest value of this node role, and returns true if it
+// is the first seen value, or is different from the most recently seen value.
+func (l *lastSeenRole) observe(newRole api.NodeRole) bool {
+	changed := l.role == nil || *l.role != newRole
+	if l.role == nil {
+		l.role = new(api.NodeRole)
+	}
+	*l.role = newRole
+	return changed
 }
 
 // RemoteAPIAddr returns address on which remote manager api listens.
@@ -279,17 +303,35 @@ func (n *Node) run(ctx context.Context) (err error) {
 				return
 			case nodeChanges := <-n.notifyNodeChange:
 				n.Lock()
-				currentRole := n.role
+				currentRole := api.NodeRoleWorker
+				if n.role == ca.ManagerRole {
+					currentRole = api.NodeRoleManager
+				}
 				n.Unlock()
 
 				if nodeChanges.Node != nil {
-					role := ca.WorkerRole
-					if nodeChanges.Node.Role == api.NodeRoleManager {
-						role = ca.ManagerRole
-					}
-
-					// If the server is sending us a ForceRenewal State, or if the new node role doesn't match our current role, renew
-					if currentRole != role || nodeChanges.Node.Certificate.Status.State == api.IssuanceStateRotate {
+					// This is a bit complex to be backward compatible with older CAs that
+					// don't support the Node.Role field. They only use what's presently
+					// called DesiredRole.
+					// 1) If we haven't seen the node object before, and the desired role
+					//    is different from our current role, renew the cert. This covers
+					//    the case of starting up after a role change.
+					// 2) If we have seen the node before, the desired role is
+					//    different from our current role, and either the actual role or
+					//    desired role has changed relative to the last values we saw in
+					//    those fields, renew the cert. This covers the case of the role
+					//    changing while this node is running, but prevents getting into a
+					//    rotation loop if Node.Role isn't what we expect (because it's
+					//    unset). We may renew the certificate an extra time (first when
+					//    DesiredRole changes, and then again when Role changes).
+					// 3) If the server is sending us IssuanceStateRotate, renew the cert as
+					//    requested by the CA.
+					roleChanged := n.lastNodeRole.observe(nodeChanges.Node.Role)
+					desiredRoleChanged := n.lastNodeDesiredRole.observe(nodeChanges.Node.Spec.DesiredRole)
+					if (currentRole != nodeChanges.Node.Spec.DesiredRole &&
+						((roleChanged && currentRole != nodeChanges.Node.Role) ||
+							desiredRoleChanged)) ||
+						nodeChanges.Node.Certificate.Status.State == api.IssuanceStateRotate {
 						renewCert()
 					}
 				}
@@ -298,7 +340,7 @@ func (n *Node) run(ctx context.Context) (err error) {
 					// We only want to update the root CA if this is a worker node.  Manager nodes directly watch the raft
 					// store and update the root CA, with the necessary signer, from the raft store (since the managers
 					// need the CA key as well to potentially issue new TLS certificates).
-					if currentRole == ca.ManagerRole || bytes.Equal(nodeChanges.RootCert, securityConfig.RootCA().Certs) {
+					if currentRole == api.NodeRoleManager || bytes.Equal(nodeChanges.RootCert, securityConfig.RootCA().Certs) {
 						continue
 					}
 					newRootCA, err := ca.NewRootCA(nodeChanges.RootCert, nil, nil, ca.DefaultNodeCertExpiration, nil)
