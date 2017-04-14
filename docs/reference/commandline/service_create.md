@@ -678,6 +678,41 @@ appends a new placement preference after all existing placement preferences.
 `--placement-pref-rm` removes an existing placement preference that matches the
 argument.
 
+### Specify memory requirements and constraints for a service (--reserve-memory and --limit-memory)
+
+If your service needs a minimum amount of memory in order to run correctly,
+you can use `--reserve-memory` to specify that the service should only be
+scheduled on a node with this much memory available to reserve. If no node is
+available that meets the criteria, the service is not scheduled, but remains in
+a pending state.
+
+The following example requires that 4GB of memory be available and reservable
+on a given node before scheduling the service to run on that node.
+
+```bash
+$ docker service create --reserve-memory=4GB --name=too-big nginx:alpine
+```
+
+The managers won't schedule a set of containers on a single node whose combined
+reservations exceed the memory available on that node.
+
+After a task is scheduled and running, `--reserve-memory` does not enforce a
+memory limit. Use `--limit-memory` to ensure that a task uses no more than a
+given amount of memory on a node. This example limits the amount of memory used
+by the task to 4GB. The task will be scheduled even if each of your nodes has
+only 2GB of memory, because `--limit-memory` is an upper limit.
+
+```bash
+$ docker service create --limit-memory=4GB --name=too-big nginx:alpine
+```
+
+Using `--reserve-memory` and `--limit-memory` does not guarantee that Docker
+will not use more memory on your host than you want. For instance, you could
+create many services, the sum of whose memory usage could exhaust the available
+memory. In order to limit a service's overall memory footprint on a given host,
+you need to use `cgroups` or other mechanisms at the level of the operating
+system.
+
 ### Attach a service to an existing network (--network)
 
 You can use overlay networks to connect one or more services within the swarm.
