@@ -46,7 +46,10 @@ type nodeStartConfig struct {
 	ListenAddr string
 	// AdvertiseAddr is the address other nodes should connect to,
 	// including a port.
-	AdvertiseAddr   string
+	AdvertiseAddr string
+	// DataPathAddr is the address that has to be used for the data path
+	DataPathAddr string
+
 	joinAddr        string
 	forceNewCluster bool
 	joinToken       string
