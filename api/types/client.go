@@ -178,6 +178,8 @@ type ImageBuildOptions struct {
 	SecurityOpt []string
 	ExtraHosts  []string // List of extra hosts
 	Target      string
+	// grpc session id
+	SessionId string
 }
 
 // ImageBuildResponse holds information

@@ -30,7 +30,7 @@ func Detect(config backend.BuildConfig) (remote builder.Source, dockerfile *pars
 	switch {
 	case remoteURL == "":
 		remote, dockerfile, err = newArchiveRemote(config.Source, dockerfilePath)
-	case strings.HasPrefix(remoteURL, "session:"):
+	case remoteURL == "client-session":
 		res, err := parser.Parse(config.Source)
 		if err != nil {
 			return nil, nil, err

@@ -24,6 +24,7 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/builder/dockerignore"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
@@ -170,6 +171,10 @@ func (p *authCfgProvider) GetAuthConfig(registry string) types.AuthConfig {
 		return types.AuthConfig{}
 	}
 	return res
+}
+
+func isGrpcSessionSupported(dockerCli *command.DockerCli) bool {
+	return dockerCli.ServerInfo().HasExperimental && versions.GreaterThanOrEqualTo(dockerCli.Client().ClientVersion(), "1.26")
 }
 
 func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
@@ -327,6 +332,19 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		buildCtx = dockerfileCtx
 	}
 
+	var grpcSession *session.Session
+	if isGrpcSessionSupported(dockerCli) {
+		sharedKey, err := getBuildSharedKey(contextDir)
+		if err != nil {
+			return errors.Wrap(err, "failed to get build shared key")
+		}
+
+		grpcSession, err = session.NewSession(filepath.Base(contextDir), sharedKey)
+		if err != nil {
+			return errors.Wrap(err, "failed to create session")
+		}
+	}
+
 	var body io.Reader
 	if buildCtx != nil && !options.stream {
 		body = progress.NewProgressReader(buildCtx, progressOutput, 0, "", "Sending build context to Docker daemon")
@@ -363,24 +381,11 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 			rewrites[relDockerfile] = relDockerfile
 		}
 
-		sharedKey, err := getBuildSharedKey(contextDir)
-		if err != nil {
-			return errors.Wrap(err, "failed to get build shared key")
-		}
-
 		p := &sizeProgress{out: progressOutput, action: "Streaming build context to Docker daemon"}
 
-		s, err := session.NewSession(filepath.Base(contextDir), sharedKey)
-		if err != nil {
-			return errors.Wrap(err, "failed to create session")
-		}
-
 		workdirProvider := fssession.NewFSSendProvider("_main", contextDir, excludes)
-		authHandler := authsession.NewAuthconfigHandler("_main", &authCfgProvider{dockerCli}, func(registry string) {
-			progressOutput.WriteProgress(progress.Progress{Action: "Authenticating to " + registry, LastUpdate: true})
-		})
-		s.Allow(workdirProvider)
-		s.Allow(authHandler)
+
+		grpcSession.Allow(workdirProvider)
 
 		syncDone := make(chan error)
 
@@ -398,22 +403,28 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		}()
 		buildBuff = buf
 
-		go func() {
-			if err := s.Run(ctx, dockerCli.Client().DialSession, grpctransport.New()); err != nil {
-				logrus.Error(err)
-				cancel()
-			}
-		}()
-
-		remote = "session:" + s.UUID()
+		remote = "client-session"
 		body = buildCtx
 	}
 
 	var authConfigs map[string]types.AuthConfig
-	if !options.stream {
+	if grpcSession == nil {
 		authConfigs, _ = dockerCli.GetAllCredentials()
+	} else {
+		authHandler := authsession.NewAuthconfigHandler("_main", &authCfgProvider{dockerCli}, func(registry string) {
+			progressOutput.WriteProgress(progress.Progress{Action: "Authenticating to " + registry, LastUpdate: true})
+		})
+		grpcSession.Allow(authHandler)
 	}
 
+	if grpcSession != nil {
+		go func() {
+			if err := grpcSession.Run(ctx, dockerCli.Client().DialSession, grpctransport.New()); err != nil {
+				logrus.Error(err)
+				cancel()
+			}
+		}()
+	}
 	buildOptions := types.ImageBuildOptions{
 		Memory:         options.memory.Value(),
 		MemorySwap:     options.memorySwap.Value(),
@@ -443,6 +454,10 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		ExtraHosts:     options.extraHosts.GetAll(),
 		Target:         options.target,
 		RemoteContext:  remote,
+	}
+
+	if grpcSession != nil {
+		buildOptions.SessionId = grpcSession.UUID()
 	}
 
 	response, err := dockerCli.Client().ImageBuild(ctx, body, buildOptions)

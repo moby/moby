@@ -20,6 +20,9 @@ func NewAuthConfigProvider(originalConfig map[string]types.AuthConfig, caller se
 	if originalConfig == nil {
 		originalConfig = make(map[string]types.AuthConfig)
 	}
+	if caller != nil && !caller.Supports("_main", "GetAuth") {
+		caller = nil
+	}
 	return &authConfigProvider{
 		config: originalConfig,
 		caller: caller,

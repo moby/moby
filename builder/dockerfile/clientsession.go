@@ -47,20 +47,14 @@ type ClientSessionIdentifier struct {
 }
 
 // NewClientSessionIdentifier returns new ClientSessionIdentifier instance
-func NewClientSessionIdentifier(sg SessionGetter, name, uuid string, sources []string) (*ClientSessionIdentifier, error) {
+func NewClientSessionIdentifier(session session.Caller, name, uuid string, sources []string) (*ClientSessionIdentifier, error) {
 	csi := &ClientSessionIdentifier{
 		name:     name,
 		uuid:     uuid,
 		srcPaths: sources,
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), sessionConnectTimeout)
-	defer cancel()
-	_, caller, err := sg.GetSession(ctx, uuid)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get session for %s", uuid)
-	}
 
-	csi.caller = caller
+	csi.caller = session
 	return csi, nil
 }
 
