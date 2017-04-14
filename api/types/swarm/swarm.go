@@ -136,6 +136,7 @@ type ExternalCA struct {
 type InitRequest struct {
 	ListenAddr       string
 	AdvertiseAddr    string
+	DataPathAddr     string
 	ForceNewCluster  bool
 	Spec             Spec
 	AutoLockManagers bool
@@ -146,6 +147,7 @@ type InitRequest struct {
 type JoinRequest struct {
 	ListenAddr    string
 	AdvertiseAddr string
+	DataPathAddr  string
 	RemoteAddrs   []string
 	JoinToken     string // accept by secret
 	Availability  NodeAvailability

@@ -54,6 +54,11 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 		return "", err
 	}
 
+	dataPathAddr, err := resolveDataPathAddr(req.DataPathAddr)
+	if err != nil {
+		return "", err
+	}
+
 	localAddr := listenHost
 
 	// If the local address is undetermined, the advertise address
@@ -93,6 +98,7 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 		LocalAddr:       localAddr,
 		ListenAddr:      net.JoinHostPort(listenHost, listenPort),
 		AdvertiseAddr:   net.JoinHostPort(advertiseHost, advertisePort),
+		DataPathAddr:    dataPathAddr,
 		availability:    req.Availability,
 	})
 	if err != nil {
@@ -155,12 +161,18 @@ func (c *Cluster) Join(req types.JoinRequest) error {
 		}
 	}
 
+	dataPathAddr, err := resolveDataPathAddr(req.DataPathAddr)
+	if err != nil {
+		return err
+	}
+
 	clearPersistentState(c.root)
 
 	nr, err := c.newNodeRunner(nodeStartConfig{
 		RemoteAddr:    req.RemoteAddrs[0],
 		ListenAddr:    net.JoinHostPort(listenHost, listenPort),
 		AdvertiseAddr: advertiseAddr,
+		DataPathAddr:  dataPathAddr,
 		joinAddr:      req.RemoteAddrs[0],
 		joinToken:     req.JoinToken,
 		availability:  req.Availability,
