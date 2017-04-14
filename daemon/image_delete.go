@@ -20,8 +20,9 @@ const (
 	conflictRunningContainer
 	conflictActiveReference
 	conflictStoppedContainer
-	conflictHard = conflictDependentChild | conflictRunningContainer
-	conflictSoft = conflictActiveReference | conflictStoppedContainer
+	conflictImageSavingInProcess
+	conflictHard = conflictDependentChild | conflictRunningContainer | conflictImageSavingInProcess
+	conflictSoft = conflictActiveReference | conflictStoppedContainer | conflictImageSavingInProcess
 )
 
 // ImageDelete deletes the image referenced by the given imageRef from this
@@ -399,6 +400,14 @@ func (daemon *Daemon) checkImageDeleteConflict(imgID image.ID, mask conflictType
 				used:    true,
 				message: fmt.Sprintf("image is being used by stopped container %s", stringid.TruncateID(container.ID)),
 			}
+		}
+	}
+	if mask&conflictImageSavingInProcess != 0 && image.IsImageInSavingInProcess(imgID) {
+		return &imageDeleteConflict{
+			imgID:   imgID,
+			hard:    true,
+			used:    true,
+			message: fmt.Sprintf("image is being saved in progress, try deleting it later"),
 		}
 	}
 

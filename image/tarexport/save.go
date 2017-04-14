@@ -38,6 +38,11 @@ func (l *tarexporter) Save(names []string, outStream io.Writer) error {
 	if err != nil {
 		return err
 	}
+	defer func() {
+		for id, _ := range images {
+			image.UpdateImageIDSavingStatus(id, false)
+		}
+	}()
 
 	return (&saveSession{tarexporter: l, images: images}).save(outStream)
 }
@@ -49,6 +54,7 @@ func (l *tarexporter) parseNames(names []string) (map[image.ID]*imageDescriptor,
 		if _, ok := imgDescr[id]; !ok {
 			imgDescr[id] = &imageDescriptor{}
 		}
+		defer image.UpdateImageIDSavingStatus(id, true)
 
 		if ref != nil {
 			if _, ok := ref.(reference.Canonical); ok {
