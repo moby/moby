@@ -25,6 +25,7 @@ Options:
       --autolock                        Enable manager autolocking (requiring an unlock key to start a stopped manager)
       --availability string             Availability of the node ("active"|"pause"|"drain") (default "active")
       --cert-expiry duration            Validity period for node certificates (ns|us|ms|s|m|h) (default 2160h0m0s)
+      --data-path-addr string           Address or interface to use for data path traffic (format: <ip|interface>)
       --dispatcher-heartbeat duration   Dispatcher heartbeat period (ns|us|ms|s|m|h) (default 5s)
       --external-ca external-ca         Specifications of one or more certificate signing endpoints
       --force-new-cluster               Force create a new cluster from current state
@@ -117,6 +118,15 @@ for example `--advertise-addr eth0:2377`.
 
 Specifying a port is optional. If the value is a bare IP address or interface
 name, the default port 2377 will be used.
+
+### `--data-path-addr`
+
+This flag specifies the address that global scope drivers are going to publish towards
+other workers in order to reach the containers running on this worker node.
+Using this parameter it is then possible to separate the container's data traffic from the
+management traffic of the cluster.
+If unspecified, Docker will use the same IP address or interface that is used for the
+advertise address.
 
 ### `--task-history-limit`
 

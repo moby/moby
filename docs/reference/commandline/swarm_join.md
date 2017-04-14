@@ -23,6 +23,7 @@ Join a swarm as a node and/or manager
 Options:
       --advertise-addr string   Advertised address (format: <ip|interface>[:port])
       --availability string     Availability of the node ("active"|"pause"|"drain") (default "active")
+      --data-path-addr string   Address or interface to use for data path traffic (format: <ip|interface>)
       --help                    Print usage
       --listen-addr node-addr   Listen address (format: <ip|interface>[:port]) (default 0.0.0.0:2377)
       --token string            Token for entry into the swarm
@@ -94,6 +95,15 @@ Specifying a port is optional. If the value is a bare IP address, or interface
 name, the default port 2377 will be used.
 
 This flag is generally not necessary when joining an existing swarm.
+
+### `--data-path-addr`
+
+This flag specifies the address that global scope drivers are going to publish towards
+other workers in order to reach the containers running on this worker node.
+Using this parameter it is then possible to separate the container's data traffic from the
+management traffic of the cluster.
+If unspecified, Docker will use the same IP address or interface that is used for the
+advertise address.
 
 ### `--token string`
 

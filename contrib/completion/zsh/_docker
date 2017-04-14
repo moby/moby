@@ -2267,6 +2267,7 @@ __docker_swarm_subcommand() {
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help)--advertise-addr=[Advertised address]:ip\:port: " \
+                "($help)--data-path-addr=[Data path IP or interface]:ip " \
                 "($help)--autolock[Enable manager autolocking]" \
                 "($help)--availability=[Availability of the node]:availability:(active drain pause)" \
                 "($help)--cert-expiry=[Validity period for node certificates]:duration: " \
@@ -2282,6 +2283,7 @@ __docker_swarm_subcommand() {
             _arguments $(__docker_arguments) -A '-*' \
                 $opts_help \
                 "($help)--advertise-addr=[Advertised address]:ip\:port: " \
+                "($help)--data-path-addr=[Data path IP or interface]:ip " \
                 "($help)--availability=[Availability of the node]:availability:(active drain pause)" \
                 "($help)--listen-addr=[Listen address]:ip\:port: " \
                 "($help)--token=[Token for entry into the swarm]:secret: " \

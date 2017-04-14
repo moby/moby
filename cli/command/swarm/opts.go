@@ -19,6 +19,7 @@ const (
 	flagDispatcherHeartbeat = "dispatcher-heartbeat"
 	flagListenAddr          = "listen-addr"
 	flagAdvertiseAddr       = "advertise-addr"
+	flagDataPathAddr        = "data-path-addr"
 	flagQuiet               = "quiet"
 	flagRotate              = "rotate"
 	flagToken               = "token"
