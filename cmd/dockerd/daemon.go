@@ -271,7 +271,7 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 		logrus.Fatalf("Error creating middlewares: %v", err)
 	}
 
-	sm, err := session.NewSessionManager(grpctransport.New())
+	sm, err := session.NewManager(grpctransport.New())
 	if err != nil {
 		return errors.Wrap(err, "failed to create sessionmanager")
 	}
@@ -309,7 +309,7 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 		logrus.Fatalf("Error creating cluster component: %v", err)
 	}
 
-	bm, err := dockerfile.NewBuildManager(d, sm)
+	bb, err := buildbackend.NewBackend(d, d, sm)
 	if err != nil {
 		return errors.Wrap(err, "failed to create buildmanager")
 	}
@@ -331,7 +331,7 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 
 	d.SetCluster(c)
 
-	initRouter(api, d, c, sm, bm)
+	initRouter(api, d, c, sm, bb)
 
 	cli.setupConfigReloadTrap()
 
@@ -489,7 +489,7 @@ func loadDaemonCliConfig(opts daemonOptions) (*config.Config, error) {
 	return conf, nil
 }
 
-func initRouter(s *apiserver.Server, d *daemon.Daemon, c *cluster.Cluster, sm *session.SessionManager, bm *dockerfile.BuildManager) {
+func initRouter(s *apiserver.Server, d *daemon.Daemon, c *cluster.Cluster, sm *session.Manager, bb *buildbackend.Backend) {
 	decoder := runconfig.ContainerDecoder{}
 
 	routers := []router.Router{
@@ -499,7 +499,7 @@ func initRouter(s *apiserver.Server, d *daemon.Daemon, c *cluster.Cluster, sm *s
 		image.NewRouter(d, decoder),
 		systemrouter.NewRouter(d, c),
 		volume.NewRouter(d),
-		build.NewRouter(buildbackend.NewBackend(d, d), d),
+		build.NewRouter(bb, d),
 		sessionrouter.NewRouter(sm),
 		swarmrouter.NewRouter(c),
 		pluginrouter.NewRouter(d.PluginManager()),

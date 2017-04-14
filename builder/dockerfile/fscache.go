@@ -17,44 +17,50 @@ import (
 
 // TODO: move to separate package
 
+// FSCacheBackend is a backing implementation for FSCache
 type FSCacheBackend interface {
 	Get(id string) (string, error)
 	Remove(id string) error
 }
 
+// FSCache allows syncing remote resources to cached snapshots
 type FSCache struct {
 	opt        FSCacheOpt
-	contexts   map[string]*RemoteContext
+	contexts   map[string]*remoteContext
 	transports map[string]Transport
 	mu         sync.Mutex
 	g          singleflight.Group
 }
 
+// FSCacheOpt defines options for initializing FSCache
 type FSCacheOpt struct {
 	Backend  FSCacheBackend
 	Root     string // for storing local metadata
 	MaxUsage int64
 }
 
+// NewFSCache returns new FSCache object
 func NewFSCache(opt FSCacheOpt) (*FSCache, error) {
 	return &FSCache{
 		opt:        opt,
-		contexts:   make(map[string]*RemoteContext),
+		contexts:   make(map[string]*remoteContext),
 		transports: make(map[string]Transport),
 	}, nil
 }
 
+// Transport defines a method for syncing remote data to FSCache
 type Transport interface {
 	Copy(ctx context.Context, id RemoteIdentifier, dest string, cs fssession.CacheUpdater) error
 }
 
+// RemoteIdentifier identifies a transfer request
 type RemoteIdentifier interface {
 	Key() string
 	SharedKey() string
 	Transport() string
 }
 
-type RemoteContext struct {
+type remoteContext struct {
 	backend    FSCacheBackend
 	references map[*wrappedContext]struct{}
 	sharedKey  string
@@ -65,9 +71,9 @@ type RemoteContext struct {
 	tarsum     *fsutil.Tarsum
 }
 
-func newRemoteContext(sharedKey string, b FSCacheBackend) (*RemoteContext, error) {
+func newRemoteContext(sharedKey string, b FSCacheBackend) (*remoteContext, error) {
 	backendID := stringid.GenerateRandomID()
-	return &RemoteContext{
+	return &remoteContext{
 		backendID:  backendID,
 		backend:    b,
 		sharedKey:  sharedKey,
@@ -75,7 +81,7 @@ func newRemoteContext(sharedKey string, b FSCacheBackend) (*RemoteContext, error
 	}, nil
 }
 
-func (rc *RemoteContext) syncFrom(ctx context.Context, transport Transport, id RemoteIdentifier) error {
+func (rc *remoteContext) syncFrom(ctx context.Context, transport Transport, id RemoteIdentifier) error {
 	rc.mu.Lock()
 	if rc.path == "" {
 		p, err := rc.backend.Get(rc.backendID)
@@ -134,7 +140,7 @@ func (dc *detectChanges) MarkSupported(v bool) {
 	dc.supported = v
 }
 
-func (rc *RemoteContext) context() (builder.Source, error) {
+func (rc *remoteContext) context() (builder.Source, error) {
 	rc.mu.Lock()
 	defer rc.mu.Unlock()
 	wc := &wrappedContext{Source: rc.ctx}
@@ -148,13 +154,13 @@ func (rc *RemoteContext) context() (builder.Source, error) {
 	return wc, nil
 }
 
-func (rc *RemoteContext) unused() bool {
+func (rc *remoteContext) unused() bool {
 	rc.mu.Lock()
 	defer rc.mu.Unlock()
 	return len(rc.references) == 0
 }
 
-func (rc *RemoteContext) cleanup() error {
+func (rc *remoteContext) cleanup() error {
 	rc.mu.Lock()
 	if len(rc.references) == 0 {
 		rc.backend.Remove(rc.backendID)
@@ -164,20 +170,22 @@ func (rc *RemoteContext) cleanup() error {
 	return nil
 }
 
-func (rc *RemoteContext) clone() *RemoteContext {
+func (rc *remoteContext) clone() *remoteContext {
 	return rc
 }
 
+// RegisterTransport registers a new transport method
 func (fsc *FSCache) RegisterTransport(id string, transport Transport) error {
 	fsc.mu.Lock()
 	defer fsc.mu.Unlock()
 	if _, ok := fsc.transports[id]; ok {
-		return errors.Errorf("transport %v already exists")
+		return errors.Errorf("transport %v already exists", id)
 	}
 	fsc.transports[id] = transport
 	return nil
 }
 
+// SyncFrom returns a source based on a remote identifier
 func (fsc *FSCache) SyncFrom(ctx context.Context, id RemoteIdentifier) (builder.Source, error) { // cacheOpt
 	trasportID := id.Transport()
 	fsc.mu.Lock()
@@ -190,7 +198,7 @@ func (fsc *FSCache) SyncFrom(ctx context.Context, id RemoteIdentifier) (builder.
 	logrus.Debugf("SyncFrom %s %s", id.Key(), id.SharedKey())
 	fsc.mu.Unlock()
 	rc, err, _ := fsc.g.Do(id.Key(), func() (interface{}, error) {
-		var rc *RemoteContext
+		var rc *remoteContext
 		fsc.mu.Lock()
 		rc, ok := fsc.contexts[id.Key()]
 		if ok {
@@ -232,7 +240,7 @@ func (fsc *FSCache) SyncFrom(ctx context.Context, id RemoteIdentifier) (builder.
 	if err != nil {
 		return nil, err
 	}
-	remoteContext := rc.(*RemoteContext)
+	remoteContext := rc.(*remoteContext)
 
 	r, err := remoteContext.context()
 	if err == nil {
@@ -241,14 +249,17 @@ func (fsc *FSCache) SyncFrom(ctx context.Context, id RemoteIdentifier) (builder.
 	return r, err
 }
 
+// DiskUsage reports how much data is allocated by the cache
 func (fsc *FSCache) DiskUsage() (int64, int64, error) {
 	return -1, -1, errors.New("not implemented")
 }
 
+// Purge allows manually cleaning up the cache
 func (fsc *FSCache) Purge() error {
 	return errors.New("not implemented")
 }
 
+// GC runs a garbage collector on FSCache
 func (fsc *FSCache) GC() error {
 	return errors.New("not implemented")
 }

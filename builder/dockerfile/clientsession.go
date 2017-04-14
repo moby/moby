@@ -9,6 +9,7 @@ import (
 	"golang.org/x/net/context"
 )
 
+// ClientSessionTransportName is identifier for client-session transport
 const ClientSessionTransportName = "client-session"
 const sessionConnectTimeout = 7 * time.Second
 

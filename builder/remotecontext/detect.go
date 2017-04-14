@@ -31,7 +31,11 @@ func Detect(config backend.BuildConfig) (remote builder.Source, dockerfile *pars
 	case remoteURL == "":
 		remote, dockerfile, err = newArchiveRemote(config.Source, dockerfilePath)
 	case strings.HasPrefix(remoteURL, "session:"):
-		return nil, r, nil
+		res, err := parser.Parse(config.Source)
+		if err != nil {
+			return nil, nil, err
+		}
+		return nil, res, nil
 	case urlutil.IsGitURL(remoteURL):
 		remote, dockerfile, err = newGitRemote(remoteURL, dockerfilePath)
 	case urlutil.IsURL(remoteURL):

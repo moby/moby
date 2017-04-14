@@ -41,6 +41,7 @@ var validCommitCommands = map[string]bool{
 
 var defaultLogConfig = container.LogConfig{Type: "none"}
 
+// SessionGetter is object used to get access to a session by uuid
 type SessionGetter interface {
 	GetSession(ctx context.Context, uuid string) (context.Context, session.Caller, error)
 }
@@ -95,7 +96,7 @@ func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (
 			}
 		}()
 	}
-
+	// TODO: don't pass fscache/sm here
 	builderOptions := builderOptions{
 		Options:        config.Options,
 		ProgressWriter: config.ProgressWriter,
@@ -106,10 +107,6 @@ func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (
 	}
 	return newBuilder(ctx, builderOptions).build(source, dockerfile)
 }
-
-// func (bm *BuildManager) SyncFrom(ctx context.Context, id RemoteIdentifier) (builder.Source, error) {
-// 	return bm.fsCache.SyncFrom(ctx, id)
-// }
 
 // builderOptions are the dependencies required by the builder
 type builderOptions struct {
@@ -168,6 +165,8 @@ func newBuilder(clientCtx context.Context, options builderOptions) *Builder {
 		runConfig:     new(container.Config),
 		tmpContainers: map[string]struct{}{},
 		buildArgs:     newBuildArgs(config.BuildArgs),
+		sessionGetter: options.SessionGetter,
+		fsCache:       options.FSCache,
 	}
 	b.imageContexts = &imageContexts{b: b, cache: options.PathCache}
 	return b
@@ -195,11 +194,11 @@ func (b *Builder) build(source builder.Source, dockerfile *parser.Result) (*buil
 		csi, err := NewClientSessionIdentifier(b.sessionGetter, "_main",
 			b.options.RemoteContext[len("session:"):], []string{"/"})
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		ctx, err := b.fsCache.SyncFrom(context.Background(), csi)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
 		b.source = ctx
