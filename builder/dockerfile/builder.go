@@ -6,7 +6,10 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
@@ -18,6 +21,7 @@ import (
 	"github.com/docker/docker/builder/dockerfile/command"
 	"github.com/docker/docker/builder/dockerfile/parser"
 	"github.com/docker/docker/builder/remotecontext"
+	"github.com/docker/docker/client/session"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
@@ -48,9 +52,11 @@ type Builder struct {
 	Stderr io.Writer
 	Output io.Writer
 
-	docker    builder.Backend
-	source    builder.Source
-	clientCtx context.Context
+	docker        builder.Backend
+	source        builder.Source
+	clientCtx     context.Context
+	fsCache       *FSCache
+	sessionGetter SessionGetter
 
 	runConfig     *container.Config // runconfig for cmd, run, entrypoint etc.
 	flags         *BFlags
@@ -70,25 +76,60 @@ type Builder struct {
 	from       builder.Image
 }
 
+type SessionGetter interface {
+	GetSession(ctx context.Context, uuid string) (context.Context, session.Caller, error)
+}
+
 // BuildManager implements builder.Backend and is shared across all Builder objects.
 type BuildManager struct {
-	backend   builder.Backend
-	pathCache *pathCache // TODO: make this persistent
+	backend          builder.Backend
+	pathCache        *pathCache // TODO: make this persistent
+	fsCache          *FSCache
+	sessionTransport *ClientSessionTransport
+	once             sync.Once
+	sg               SessionGetter
 }
 
 // NewBuildManager creates a BuildManager.
-func NewBuildManager(b builder.Backend) (bm *BuildManager) {
-	return &BuildManager{backend: b, pathCache: &pathCache{}}
+func NewBuildManager(b builder.Backend, sg SessionGetter) (*BuildManager, error) {
+	bm := &BuildManager{
+		backend:   b,
+		pathCache: &pathCache{},
+		sg:        sg,
+	}
+
+	tmpdir, err := ioutil.TempDir("", "fscache")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create tmp directory")
+	}
+
+	fsCache, err := NewFSCache(FSCacheOpt{
+		Backend: &tmpCacheBackend{tmpdir},
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create fscache")
+	}
+	bm.fsCache = fsCache
+	fsCache.RegisterTransport(ClientSessionTransportName, NewClientSessionTransport())
+	return bm, nil
+}
+
+func (bm *BuildManager) SyncFrom(ctx context.Context, id RemoteIdentifier) (builder.Source, error) {
+	return bm.fsCache.SyncFrom(ctx, id)
 }
 
 // BuildFromContext builds a new image from a given context.
-func (bm *BuildManager) BuildFromContext(ctx context.Context, src io.ReadCloser, buildOptions *types.ImageBuildOptions, pg backend.ProgressWriter) (string, error) {
+func (bm *BuildManager) BuildFromContext(ctx context.Context, src io.ReadCloser, buildOptions *types.ImageBuildOptions, pg backend.ProgressWriter) (s string, retErr error) {
 	if buildOptions.Squash && !bm.backend.HasExperimental() {
 		return "", apierrors.NewBadRequestError(errors.New("squash is only supported with experimental mode"))
 	}
 	if buildOptions.Dockerfile == "" {
 		buildOptions.Dockerfile = builder.DefaultDockerfileName
 	}
+	logrus.Debugf("> BuildFromContext")
+	defer func() {
+		logrus.Debugf("< BuildFromContext %s %v", s, retErr)
+	}()
 
 	source, dockerfile, err := remotecontext.Detect(ctx, buildOptions.RemoteContext, buildOptions.Dockerfile, src, pg.ProgressReaderFunc)
 	if err != nil {
@@ -106,6 +147,8 @@ func (bm *BuildManager) BuildFromContext(ctx context.Context, src io.ReadCloser,
 		return "", err
 	}
 	b.imageContexts.cache = bm.pathCache
+	b.sessionGetter = bm.sg
+	b.fsCache = bm.fsCache
 	return b.build(pg.StdoutFormatter, pg.StderrFormatter, pg.Output)
 }
 
@@ -190,6 +233,24 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 	b.Stdout = stdout
 	b.Stderr = stderr
 	b.Output = out
+
+	// TODO: remove this: read dockerfile from request, mode to detect
+	if b.sessionGetter != nil && strings.HasPrefix(b.options.RemoteContext, "session:") {
+		st := time.Now()
+		csi, err := NewClientSessionIdentifier(b.sessionGetter, "_main",
+			b.options.RemoteContext[len("session:"):], []string{"/"})
+		if err != nil {
+			return "", err
+		}
+		ctx, err := b.fsCache.SyncFrom(context.Background(), csi)
+		if err != nil {
+			return "", err
+		}
+
+		b.source = ctx
+		defer ctx.Close()
+		logrus.Debugf("sync-time: %v", time.Since(st))
+	}
 
 	repoAndTags, err := sanitizeRepoAndTags(b.options.Tags)
 	if err != nil {
@@ -377,4 +438,19 @@ func dispatchFromDockerfile(b *Builder, result *parser.Result) error {
 		}
 	}
 	return nil
+}
+
+type tmpCacheBackend struct {
+	root string
+}
+
+func (tcb *tmpCacheBackend) Get(id string) (string, error) {
+	d := filepath.Join(tcb.root, id)
+	if err := os.MkdirAll(d, 0700); err != nil {
+		return "", errors.Wrapf(err, "failed to create tmp dir for %s", d)
+	}
+	return d, nil
+}
+func (tcb *tmpCacheBackend) Remove(id string) error {
+	return os.RemoveAll(filepath.Join(tcb.root, id))
 }

@@ -25,6 +25,8 @@ func Detect(ctx context.Context, remoteURL string, dockerfilePath string, r io.R
 	switch {
 	case remoteURL == "":
 		remote, dockerfile, err = newArchiveRemote(r, dockerfilePath)
+	case strings.HasPrefix(remoteURL, "session:"):
+		return nil, r, nil
 	case urlutil.IsGitURL(remoteURL):
 		remote, dockerfile, err = newGitRemote(remoteURL, dockerfilePath)
 	case urlutil.IsURL(remoteURL):
