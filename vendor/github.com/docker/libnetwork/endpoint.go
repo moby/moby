@@ -528,7 +528,8 @@ func (ep *endpoint) sbJoin(sb *sandbox, options ...EndpointOption) error {
 	}()
 
 	if sb.needDefaultGW() && sb.getEndpointInGWNetwork() == nil {
-		return sb.setupDefaultGW()
+		err = sb.setupDefaultGW()
+		return err
 	}
 
 	moveExtConn := sb.getGatewayEndpoint() != extEp
