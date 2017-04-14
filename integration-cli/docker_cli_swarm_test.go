@@ -1760,6 +1760,7 @@ func (s *DockerSwarmSuite) TestSwarmJoinWithDrain(c *check.C) {
 	d1 := s.AddDaemon(c, false, false)
 
 	out, err = d1.Cmd("swarm", "join", "--availability=drain", "--token", token, d.ListenAddr)
+	fmt.Printf("** token:%s, listen:%s\n", token, d.ListenAddr)
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
 
@@ -1935,4 +1936,16 @@ func (s *DockerSwarmSuite) TestSwarmServiceLsFilterMode(c *check.C) {
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	c.Assert(out, checker.Contains, "top1")
 	c.Assert(out, checker.Not(checker.Contains), "top2")
+}
+
+func (s *DockerSwarmSuite) TestSwarmInitUnspecifiedDataPathAddr(c *check.C) {
+	d := s.AddDaemon(c, false, false)
+
+	out, err := d.Cmd("swarm", "init", "--data-path-addr", "0.0.0.0")
+	c.Assert(err, checker.NotNil)
+	c.Assert(out, checker.Contains, "data path address must be a non-zero IP")
+
+	out, err = d.Cmd("swarm", "init", "--data-path-addr", "0.0.0.0:2000")
+	c.Assert(err, checker.NotNil)
+	c.Assert(out, checker.Contains, "data path address must be a non-zero IP")
 }
