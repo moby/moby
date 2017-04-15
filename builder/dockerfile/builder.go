@@ -76,6 +76,7 @@ type Builder struct {
 	from       builder.Image
 }
 
+// SessionGetter is object used to get access to a session by uuid
 type SessionGetter interface {
 	GetSession(ctx context.Context, uuid string) (context.Context, session.Caller, error)
 }
@@ -114,6 +115,7 @@ func NewBuildManager(b builder.Backend, sg SessionGetter) (*BuildManager, error)
 	return bm, nil
 }
 
+// SyncFrom makes a remote source available
 func (bm *BuildManager) SyncFrom(ctx context.Context, id RemoteIdentifier) (builder.Source, error) {
 	return bm.fsCache.SyncFrom(ctx, id)
 }

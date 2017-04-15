@@ -35,6 +35,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
 
+// TarContent contains a chunk of tar data
 type TarContent struct {
 	Content []byte `protobuf:"bytes,1,opt,name=content,proto3" json:"content,omitempty"`
 }

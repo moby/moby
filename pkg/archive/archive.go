@@ -346,6 +346,8 @@ func FileInfoHeader(name string, fi os.FileInfo, link string) (*tar.Header, erro
 	return hdr, nil
 }
 
+// ReadSecurityXattrToTarHeader reads security.capability xattr from filesystem
+// to a tar header
 func ReadSecurityXattrToTarHeader(path string, hdr *tar.Header) error {
 	capability, _ := system.Lgetxattr(path, "security.capability")
 	if capability != nil {

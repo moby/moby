@@ -17,6 +17,7 @@ type fsSendProvider struct {
 	doneCh   chan error
 }
 
+// NewFSSendProvider creates a new provider for sending files from client
 func NewFSSendProvider(name, root string, excludes []string) session.Attachment {
 	p := &fsSendProvider{
 		name: name,
@@ -112,6 +113,7 @@ var supportedProtocols = []protocol{
 	},
 }
 
+// FSSendRequestOpt defines options for FSSend request
 type FSSendRequestOpt struct {
 	SrcPaths         []string
 	OverrideExcludes bool
@@ -119,11 +121,13 @@ type FSSendRequestOpt struct {
 	CacheUpdater     CacheUpdater
 }
 
+// CacheUpdater is an object capable of sending notifications for the cache hash changes
 type CacheUpdater interface {
 	MarkSupported(bool)
 	HandleChange(fsutil.ChangeKind, string, os.FileInfo, error) error
 }
 
+// FSSend initializes a transfer of files
 func FSSend(ctx context.Context, name string, c session.Caller, opt FSSendRequestOpt) error {
 	var pr *protocol
 	for _, p := range supportedProtocols {

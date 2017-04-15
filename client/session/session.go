@@ -13,6 +13,7 @@ import (
 	"golang.org/x/net/context"
 )
 
+// Stream allows moving messages between endpoints
 type Stream interface {
 	RecvMsg(interface{}) error
 	SendMsg(interface{}) error
@@ -20,15 +21,19 @@ type Stream interface {
 	// CloseSend() error
 }
 
+// HandleFunc is a handler for a request
 type HandleFunc func(ctx context.Context, opts map[string][]string, stream *Stream) error
 
-type SessionDialer func(ctx context.Context, proto string, meta map[string][]string) (net.Conn, error)
+// Dialer returns a connection that can be used by the session
+type Dialer func(ctx context.Context, proto string, meta map[string][]string) (net.Conn, error)
 
+// Attachment is a feature exposed to the session
 type Attachment interface {
 	RegisterHandlers(func(id, method string) error) error
 	Handle(ctx context.Context, id, method string, opts map[string][]string, stream Stream) error
 }
 
+// Caller can invoke requests on the session
 type Caller interface {
 	Supports(id, method string) bool
 	Call(ctx context.Context, id, method string, opts map[string][]string) (Stream, error)
@@ -36,11 +41,13 @@ type Caller interface {
 	SharedKey() string
 }
 
+// Handler can respond to requests on the session
 type Handler interface {
 	RegisterHandlers(func(id, method string)) error
 	Handle(id, method string, opts map[string][]string, stream Stream) error
 }
 
+// TransportFactory returns a new transport used by the session
 type TransportFactory interface {
 	NewHandler(ctx context.Context, conn net.Conn) (TransportHandler, error)
 	NewCaller(ctx context.Context, conn net.Conn) (TransportCaller, error)
@@ -50,11 +57,13 @@ type TransportFactory interface {
 	FromMethodName(method string) (string, string, error)
 }
 
+// TransportHandler is handler definition that transport needs to support
 type TransportHandler interface {
 	Register(id, method string, f HandleFunc) error
 	Serve(ctx context.Context) error
 }
 
+// TransportCaller is a caller definition that transport needs to support
 type TransportCaller interface {
 	Call(ctx context.Context, id, method string, opts map[string][]string) (Stream, error)
 }
@@ -64,6 +73,7 @@ type callbackSelector struct {
 	method string
 }
 
+// Session is a long running connection between client and a daemon
 type Session struct {
 	uuid      string
 	name      string
@@ -74,6 +84,7 @@ type Session struct {
 	done      chan struct{}
 }
 
+// NewSession returns a new long running session
 func NewSession(name, sharedKey string) (*Session, error) {
 	uuid := stringid.GenerateRandomID()
 	s := &Session{
@@ -85,10 +96,12 @@ func NewSession(name, sharedKey string) (*Session, error) {
 	return s, nil
 }
 
+// UUID returns unique identifier for the session
 func (s *Session) UUID() string {
 	return s.uuid
 }
 
+// Allow allows a new feature on the session
 func (s *Session) Allow(a Attachment) error {
 	return a.RegisterHandlers(func(id, method string) error {
 		handler := func(ctx context.Context, opts map[string][]string, stream *Stream) error {
@@ -103,7 +116,8 @@ func (s *Session) Allow(a Attachment) error {
 	})
 }
 
-func (s *Session) Run(ctx context.Context, dialer SessionDialer, tf TransportFactory) error {
+// Run activates the session
+func (s *Session) Run(ctx context.Context, dialer Dialer, tf TransportFactory) error {
 	if len(s.handlers) == 0 {
 		return errors.New("no handlers registered for session")
 	}
@@ -141,6 +155,7 @@ func (s *Session) Run(ctx context.Context, dialer SessionDialer, tf TransportFac
 	return h.Serve(ctx)
 }
 
+// Close closes the session
 func (s *Session) Close() error {
 	if s.cancelCtx != nil && s.done != nil {
 		s.cancelCtx()
@@ -162,15 +177,17 @@ func (s *Session) closed() bool {
 	}
 }
 
-type SessionManager struct {
+// Manager is a controller for accessing currently active sessions
+type Manager struct {
 	tfs      []TransportFactory
 	sessions map[string]*Session
 	mu       sync.Mutex
 	c        *sync.Cond
 }
 
-func NewSessionManager(tfs ...TransportFactory) (*SessionManager, error) {
-	sm := &SessionManager{
+// NewManager returns a new Manager
+func NewManager(tfs ...TransportFactory) (*Manager, error) {
+	sm := &Manager{
 		tfs:      tfs,
 		sessions: make(map[string]*Session),
 	}
@@ -178,7 +195,8 @@ func NewSessionManager(tfs ...TransportFactory) (*SessionManager, error) {
 	return sm, nil
 }
 
-func (sm *SessionManager) HandleHTTPRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+// HandleHTTPRequest handles an incoming HTTP request
+func (sm *Manager) HandleHTTPRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	hijacker, ok := w.(http.Hijacker)
 	if !ok {
 		return errors.New("handler does not support hijack")
@@ -197,7 +215,7 @@ func (sm *SessionManager) HandleHTTPRequest(ctx context.Context, w http.Response
 
 	sm.mu.Lock()
 	if _, ok := sm.sessions[uuid]; ok {
-		return errors.Errorf("session %s already exists")
+		return errors.Errorf("session %s already exists", uuid)
 	}
 
 	if proto == "" {
@@ -282,7 +300,8 @@ func (sm *SessionManager) HandleHTTPRequest(ctx context.Context, w http.Response
 	return nil
 }
 
-func (sm *SessionManager) GetSession(ctx context.Context, uuid string) (context.Context, Caller, error) {
+// GetSession returns a session by UUID
+func (sm *Manager) GetSession(ctx context.Context, uuid string) (context.Context, Caller, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 

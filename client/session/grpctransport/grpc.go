@@ -27,6 +27,7 @@ func getMethodRe() *regexp.Regexp {
 
 type grpcTransportFactory struct{}
 
+// New returns new gRPC transport
 func New() session.TransportFactory {
 	return &grpcTransportFactory{}
 }
@@ -103,9 +104,10 @@ func (gh *grpcHandler) Serve(ctx context.Context) error {
 					StreamName: streamName(sel.id, sel.method),
 					Handler: func(srv interface{}, stream grpc.ServerStream) error {
 						logrus.Debugf("handling %v", sel)
+						var s session.Stream
 						ctx := stream.Context()
 						md, _ := metadata.FromContext(ctx)
-						var s session.Stream = stream
+						s = stream
 						return gh.handlers[sel](ctx, md, &s)
 					},
 					ServerStreams: true,

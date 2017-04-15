@@ -271,7 +271,7 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 		logrus.Fatalf("Error creating middlewares: %v", err)
 	}
 
-	sm, err := session.NewSessionManager(grpctransport.New())
+	sm, err := session.NewManager(grpctransport.New())
 	if err != nil {
 		return errors.Wrap(err, "failed to create sessionmanager")
 	}
@@ -489,7 +489,7 @@ func loadDaemonCliConfig(opts daemonOptions) (*config.Config, error) {
 	return conf, nil
 }
 
-func initRouter(s *apiserver.Server, d *daemon.Daemon, c *cluster.Cluster, sm *session.SessionManager, bm *dockerfile.BuildManager) {
+func initRouter(s *apiserver.Server, d *daemon.Daemon, c *cluster.Cluster, sm *session.Manager, bm *dockerfile.BuildManager) {
 	decoder := runconfig.ContainerDecoder{}
 
 	routers := []router.Router{
