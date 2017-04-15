@@ -68,6 +68,29 @@ func setOpts(v *localVolume, opts map[string]string) error {
 	return nil
 }
 
+func mergeOpts(v *localVolume, newOpts map[string]string) (map[string]string, error) {
+	if len(newOpts) == 0 {
+		return nil, nil
+	}
+	if v.opts == nil {
+		return newOpts, nil
+	}
+
+	oldOpts := make(map[string]string)
+	oldOpts["type"] = v.opts.MountType
+	oldOpts["o"] = v.opts.MountOpts
+	oldOpts["device"] = v.opts.MountDevice
+
+	mergedOpts := MergeOpsMaps(oldOpts, newOpts)
+	if len(mergedOpts) > 0 {
+		if err := validateOpts(mergedOpts); err != nil {
+			return nil, err
+		}
+	}
+
+	return mergedOpts, nil
+}
+
 func (v *localVolume) mount() error {
 	if v.opts.MountDevice == "" {
 		return fmt.Errorf("missing device in volume options")

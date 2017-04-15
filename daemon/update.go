@@ -3,6 +3,7 @@ package daemon
 import (
 	"fmt"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 )
 
@@ -85,6 +86,23 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 	daemon.LogContainerEvent(container, "update")
 
 	return nil
+}
+
+// VolumeUpdate updates the driver specific options of a Volume
+func (daemon *Daemon) VolumeUpdate(name string, opts map[string]string, labels map[string]string) (*types.Volume, error) {
+	if name == "" {
+		return nil, fmt.Errorf("No volume named %s exists.", name)
+	}
+
+	v, err := daemon.volumes.Update(name, opts, labels)
+	if err != nil {
+		return nil, err
+	}
+
+	daemon.LogVolumeEvent(v.Name(), "update", map[string]string{"driver": v.DriverName()})
+	apiV := volumeToAPIType(v)
+	apiV.Mountpoint = v.Path()
+	return apiV, nil
 }
 
 func errCannotUpdate(containerID string, err error) error {

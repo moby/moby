@@ -238,6 +238,95 @@ func (r *Root) Remove(v volume.Volume) error {
 	return removePath(filepath.Dir(lv.path))
 }
 
+// Update looks up a volume.Volume with the provided name, tests the new options,
+// cleans up the test, and returns the modified volume.Volume
+func (r *Root) Update(name string, opts map[string]string) (volume.Volume, map[string]string, error) {
+	if len(opts) == 0 {
+		return nil, nil, fmt.Errorf("unable to update volume with empty options")
+	}
+
+	r.m.Lock()
+	defer r.m.Unlock()
+
+	// make sure the volume exists
+	v, exists := r.volumes[name]
+	if !exists {
+		return nil, nil, ErrNotFound
+	}
+
+	// don't allow update on mounted volume
+	// todo: we could issue a remount in the future
+	if v.active.mounted {
+		return nil, nil, fmt.Errorf("unable to update volume while its mounted")
+	}
+
+	// merge opts
+	mergedOpts, err := mergeOpts(v, opts)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// create a temp volume and test mounting it
+	tempVol := &localVolume{
+		driverName: r.Name(),
+		name:       name,
+		path:       v.path,
+	}
+	if len(mergedOpts) > 0 {
+		if err = setOpts(tempVol, mergedOpts); err != nil {
+			return nil, nil, err
+		}
+	} else {
+		tempVol.opts = &optsConfig{}
+	}
+	// if the mount fails, its probably whatever we were asked to change
+	// for example; changing the type isn't likely to work without changing the device
+	if err = tempVol.mount(); err != nil {
+		return nil, nil, err
+	}
+	// if the umount fails we fail the update as well since we're likely to have the same issue next time
+	if err := mount.Unmount(tempVol.path); err != nil {
+		return nil, nil, errors.Wrapf(err, "error while un-mounting volume path '%s' durning update.  update failed", tempVol.path)
+	}
+
+	v.opts = tempVol.opts
+	var b []byte
+	b, err = json.Marshal(v.opts)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := ioutil.WriteFile(filepath.Join(filepath.Dir(v.path), "opts.json"), b, 600); err != nil {
+		return nil, nil, errors.Wrap(err, "error while persisting volume options.  update failed")
+	}
+
+	r.volumes[name] = v
+	return v, mergedOpts, nil
+}
+
+// MergeOpsMaps merges new driver options with old driver options
+// new options take precedence
+// new key with value "" indicates delete key
+func MergeOpsMaps(oldOpts map[string]string, newOpts map[string]string) map[string]string {
+	mergedOpts := make(map[string]string)
+	for oldOpt := range oldOpts {
+		if value, found := newOpts[oldOpt]; found {
+			if value != "" {
+				mergedOpts[oldOpt] = newOpts[oldOpt]
+			}
+		} else {
+			mergedOpts[oldOpt] = oldOpts[oldOpt]
+		}
+	}
+	for newOpt := range newOpts {
+		if _, found := mergedOpts[newOpt]; !found {
+			if newOpts[newOpt] != "" {
+				mergedOpts[newOpt] = newOpts[newOpt]
+			}
+		}
+	}
+	return mergedOpts
+}
+
 func removePath(path string) error {
 	if err := os.RemoveAll(path); err != nil {
 		if os.IsNotExist(err) {

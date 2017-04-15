@@ -6149,6 +6149,54 @@ paths:
           description: "Volume name or ID"
           type: "string"
       tags: ["Volume"]
+    put:
+      summary: "Update a volume"
+      operationId: "VolumeUpdate"
+      consumes: ["application/json"]
+      produces: ["application/json"]
+      responses:
+        200:
+          description: "The volume was updated successfully"
+          schema:
+            $ref: "#/definitions/Volume"
+        404:
+          description: "No such volume"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500:
+          description: "Server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      parameters:
+        - name: "name"
+          in: "path"
+          required: true
+          description: "Volume name or ID"
+          type: "string"
+        - name: "volumeConfigUpdate"
+          in: "body"
+          required: true
+          description: "Volume configuration update"
+          schema:
+            type: "object"
+            properties:
+              DriverOpts:
+                description: "A mapping of driver options and values to change. These options are passed directly to the driver and are driver specific."
+                type: "object"
+                additionalProperties:
+                  type: "string"
+              Labels:
+                description: "A mapping of user-defined key/value metadata to update."
+                type: "object"
+                additionalProperties:
+                  type: "string"
+            example:
+              Name: "tardis"
+              Labels:
+                com.example.some-label: "some-new-value"
+                com.example.some-other-label: "some-other-new-value"
+              Driver: "custom"
+      tags: ["Volume"]
 
     delete:
       summary: "Remove a volume"

@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/docker/docker/volume"
+	local "github.com/docker/docker/volume/local"
 )
 
 // NoopVolume is a volume that doesn't perform any operation
@@ -31,11 +32,12 @@ func (NoopVolume) Status() map[string]interface{} { return nil }
 type FakeVolume struct {
 	name       string
 	driverName string
+	opts       map[string]string
 }
 
 // NewFakeVolume creates a new fake volume for testing
-func NewFakeVolume(name string, driverName string) volume.Volume {
-	return FakeVolume{name: name, driverName: driverName}
+func NewFakeVolume(name string, driverName string, driverOpts map[string]string) volume.Volume {
+	return FakeVolume{name: name, driverName: driverName, opts: driverOpts}
 }
 
 // Name is the name of the volume
@@ -55,6 +57,9 @@ func (FakeVolume) Unmount(_ string) error { return nil }
 
 // Status proivdes low-level details about the volume
 func (FakeVolume) Status() map[string]interface{} { return nil }
+
+// Opts provides access to low-level driver opts
+func (f FakeVolume) Opts() map[string]string { return f.opts }
 
 // FakeDriver is a driver that generates fake volumes
 type FakeDriver struct {
@@ -79,7 +84,7 @@ func (d *FakeDriver) Create(name string, opts map[string]string) (volume.Volume,
 	if opts != nil && opts["error"] != "" {
 		return nil, fmt.Errorf(opts["error"])
 	}
-	v := NewFakeVolume(name, d.name)
+	v := NewFakeVolume(name, d.name, opts)
 	d.vols[name] = v
 	return v, nil
 }
@@ -91,6 +96,24 @@ func (d *FakeDriver) Remove(v volume.Volume) error {
 	}
 	delete(d.vols, v.Name())
 	return nil
+}
+
+// Update updates the volume by merging opts
+func (d *FakeDriver) Update(name string, opts map[string]string) (volume.Volume, map[string]string, error) {
+	v, exists := d.vols[name]
+	if !exists {
+		return nil, nil, fmt.Errorf("no such volume")
+	}
+
+	fakeV, isFake := v.(FakeVolume)
+	if !isFake {
+		return nil, nil, fmt.Errorf("Unexpected type")
+	}
+
+	mergedOpts := local.MergeOpsMaps(fakeV.opts, opts)
+	fakeV.opts = mergedOpts
+	d.vols[name] = fakeV
+	return fakeV, mergedOpts, nil
 }
 
 // List lists the volumes

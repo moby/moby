@@ -40,6 +40,19 @@ func (a *volumeDriverAdapter) Remove(v volume.Volume) error {
 	return a.proxy.Remove(v.Name())
 }
 
+func (a *volumeDriverAdapter) Update(name string, opts map[string]string) (volume.Volume, map[string]string, error) {
+	if err := a.proxy.Update(name, opts); err != nil {
+		return nil, nil, err
+	}
+
+	return &volumeAdapter{
+		proxy:        a.proxy,
+		name:         name,
+		driverName:   a.name,
+		baseHostPath: a.baseHostPath,
+	}, nil, nil
+}
+
 func hostPath(baseHostPath, path string) string {
 	if baseHostPath != "" {
 		path = filepath.Join(baseHostPath, path)

@@ -2,11 +2,14 @@ package store
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/volume"
 	"github.com/docker/docker/volume/drivers"
 	volumetestutils "github.com/docker/docker/volume/testutils"
 )
@@ -82,6 +85,112 @@ func TestRemove(t *testing.T) {
 	if l, _, _ := s.List(); len(l) != 0 {
 		t.Fatalf("Expected 0 volumes in the store, got %v, %v", len(l), l)
 	}
+}
+
+func TestUpdate(t *testing.T) {
+	volumedrivers.Register(volumetestutils.NewFakeDriver("fake"), "fake")
+	volumedrivers.Register(volumetestutils.NewFakeDriver("noop"), "noop")
+	defer volumedrivers.Unregister("fake")
+	defer volumedrivers.Unregister("noop")
+	dir, err := ioutil.TempDir("", "test-update")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+	s, err := New(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// doing string compare here since this error comes directly from the driver
+	expected := "no such volume"
+	if _, err := s.Update("something unique", nil, nil); err == nil || !strings.Contains(err.Error(), expected) {
+		t.Fatalf("Expected error %q, got %v", expected, err)
+	}
+
+	v, err := s.Create("fake vol", "fake", map[string]string{"type": "blue"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// ensure sane starting volume
+	if err := validateVolumeOpts(v, map[string]string{"type": "blue"}); err != nil {
+		t.Fatal(err)
+	}
+	fmt.Printf("Finished create test (blue)\n")
+
+	v, err = s.Update("fake vol", map[string]string{"type": "red"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// verify value overwrite
+	if err := validateVolumeOpts(v, map[string]string{"type": "red"}); err != nil {
+		t.Fatal(err)
+	}
+
+	v, err = s.Update("fake vol", map[string]string{"o": "fish"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// verify single value addition
+	if err := validateVolumeOpts(v, map[string]string{"type": "red", "o": "fish"}); err != nil {
+		t.Fatal(err)
+	}
+
+	v, err = s.Update("fake vol", map[string]string{"device": "green", "fun": "one"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// verify multiple value addition
+	if err := validateVolumeOpts(v, map[string]string{"type": "red", "o": "fish", "device": "green", "fun": "one"}); err != nil {
+		t.Fatal(err)
+	}
+
+	v, err = s.Update("fake vol", map[string]string{"o": "dog", "device": "yellow"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// verify multiple value overwrite
+	if err := validateVolumeOpts(v, map[string]string{"type": "red", "o": "dog", "device": "yellow", "fun": "one"}); err != nil {
+		t.Fatal(err)
+	}
+
+	v, err = s.Update("fake vol", map[string]string{"o": "", "device": ""}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// verify multiple delete
+	if err := validateVolumeOpts(v, map[string]string{"type": "red", "fun": "one"}); err != nil {
+		t.Fatal(err)
+	}
+
+	v, err = s.Update("fake vol", map[string]string{"type": "", "fun": "two", "new": "fun"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// verify delete, change, and add
+	if err := validateVolumeOpts(v, map[string]string{"fun": "two", "new": "fun"}); err != nil {
+		t.Fatal(err)
+	}
+
+}
+
+func validateVolumeOpts(v volume.Volume, expectedOpts map[string]string) error {
+	wrapperV, isWrapper := v.(volumeWrapper)
+	if !isWrapper {
+		return fmt.Errorf("Unexpected type of %v", reflect.TypeOf(v))
+	}
+	deepEqual := reflect.DeepEqual(wrapperV.Options(), expectedOpts)
+	if deepEqual {
+		return nil
+	}
+	return fmt.Errorf("Not Equal: expected opts:%q actual opts on %q:%q", expectedOpts, wrapperV.Name(), wrapperV.Options())
 }
 
 func TestList(t *testing.T) {
