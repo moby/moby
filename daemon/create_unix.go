@@ -29,6 +29,9 @@ func (daemon *Daemon) createContainerPlatformSpecificSettings(container *contain
 
 	for spec := range config.Volumes {
 		name := stringid.GenerateNonCryptoID()
+		if serviceName, ok := config.Labels["com.docker.swarm.service.name"]; ok {
+			name = fmt.Sprintf("%s.%x.%s", serviceName, spec, name)
+		}
 		destination := filepath.Clean(spec)
 
 		// Skip volumes for which we already have something mounted on that
