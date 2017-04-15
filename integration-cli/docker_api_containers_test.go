@@ -21,6 +21,7 @@ import (
 	mounttypes "github.com/docker/docker/api/types/mount"
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/integration-cli/request"
 	"github.com/docker/docker/pkg/ioutils"
@@ -347,25 +348,29 @@ func (s *DockerSuite) TestGetStoppedContainerStats(c *check.C) {
 func (s *DockerSuite) TestContainerAPIPause(c *check.C) {
 	// Problematic on Windows as Windows does not support pause
 	testRequires(c, DaemonIsLinux)
-	defer unpauseAllContainers(c)
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "sleep", "30")
+
+	getPaused := func(c *check.C) []string {
+		return strings.Fields(cli.DockerCmd(c, "ps", "-f", "status=paused", "-q", "-a").Combined())
+	}
+
+	out := cli.DockerCmd(c, "run", "-d", "busybox", "sleep", "30").Combined()
 	ContainerID := strings.TrimSpace(out)
 
-	status, _, err := request.SockRequest("POST", "/containers/"+ContainerID+"/pause", nil, daemonHost())
+	resp, _, err := request.Post("/containers/" + ContainerID + "/pause")
 	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusNoContent)
+	c.Assert(resp.StatusCode, checker.Equals, http.StatusNoContent)
 
-	pausedContainers := getPausedContainers(c)
+	pausedContainers := getPaused(c)
 
 	if len(pausedContainers) != 1 || stringid.TruncateID(ContainerID) != pausedContainers[0] {
 		c.Fatalf("there should be one paused container and not %d", len(pausedContainers))
 	}
 
-	status, _, err = request.SockRequest("POST", "/containers/"+ContainerID+"/unpause", nil, daemonHost())
+	resp, _, err = request.Post("/containers/" + ContainerID + "/unpause")
 	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusNoContent)
+	c.Assert(resp.StatusCode, checker.Equals, http.StatusNoContent)
 
-	pausedContainers = getPausedContainers(c)
+	pausedContainers = getPaused(c)
 	c.Assert(pausedContainers, checker.HasLen, 0, check.Commentf("There should be no paused container."))
 }
 
@@ -1262,7 +1267,6 @@ func (s *DockerSuite) TestPutContainerArchiveErrSymlinkInVolumeToReadOnlyRootfs(
 		readOnly: true,
 		volumes:  defaultVolumes(testVol), // Our bind mount is at /vol2
 	})
-	defer deleteContainer(cID)
 
 	// Attempt to extract to a symlink in the volume which points to a
 	// directory outside the volume. This should cause an error because the

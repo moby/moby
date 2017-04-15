@@ -94,7 +94,6 @@ func (s *DockerSuite) TestStartRecordError(c *check.C) {
 func (s *DockerSuite) TestStartPausedContainer(c *check.C) {
 	// Windows does not support pausing containers
 	testRequires(c, IsPausable)
-	defer unpauseAllContainers(c)
 
 	runSleepingContainer(c, "-d", "--name", "testing")
 
@@ -174,17 +173,15 @@ func (s *DockerSuite) TestStartAttachMultipleContainers(c *check.C) {
 // Test case for #23716
 func (s *DockerSuite) TestStartAttachWithRename(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	dockerCmd(c, "create", "-t", "--name", "before", "busybox")
+	cli.DockerCmd(c, "create", "-t", "--name", "before", "busybox")
 	go func() {
-		c.Assert(waitRun("before"), checker.IsNil)
-		dockerCmd(c, "rename", "before", "after")
-		dockerCmd(c, "stop", "--time=2", "after")
+		cli.WaitRun(c, "before")
+		cli.DockerCmd(c, "rename", "before", "after")
+		cli.DockerCmd(c, "stop", "--time=2", "after")
 	}()
 	// FIXME(vdemeester) the intent is not clear and potentially racey
-	result := icmd.RunCommand(dockerBinary, "start", "-a", "before")
-	result.Assert(c, icmd.Expected{
+	result := cli.Docker(cli.Args("start", "-a", "before")).Assert(c, icmd.Expected{
 		ExitCode: 137,
-		Error:    "exit status 137",
 	})
 	c.Assert(result.Stderr(), checker.Not(checker.Contains), "No such container")
 }
