@@ -26,6 +26,9 @@ func (daemon *Daemon) createContainerPlatformSpecificSettings(container *contain
 		// If the mountpoint doesn't have a name, generate one.
 		if len(mp.Name) == 0 {
 			mp.Name = stringid.GenerateNonCryptoID()
+			if serviceName, ok := config.Labels["com.docker.swarm.service.name"]; ok {
+				mp.Name = fmt.Sprintf("%s.%s", serviceName, mp.Name)
+			}
 		}
 
 		// Skip volumes for which we already have something mounted on that
