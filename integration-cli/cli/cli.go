@@ -39,6 +39,7 @@ func EnsureTestEnvIsLoaded(t testingT) {
 type CmdOperator func(*icmd.Cmd) func()
 
 type testingT interface {
+	Fatal(args ...interface{})
 	Fatalf(string, ...interface{})
 }
 

@@ -1,16 +1,13 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
 	"os/exec"
 	"path"
@@ -22,11 +19,11 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/integration-cli/cli/build"
+	"github.com/docker/docker/integration-cli/cli/build/fakecontext"
+	"github.com/docker/docker/integration-cli/cli/build/fakestorage"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/integration-cli/registry"
 	"github.com/docker/docker/integration-cli/request"
-	"github.com/docker/docker/pkg/stringutils"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
 )
@@ -122,212 +119,6 @@ func getContainerCount(c *check.C) int {
 		}
 	}
 	return 0
-}
-
-// FakeContext creates directories that can be used as a build context
-type FakeContext struct {
-	Dir string
-}
-
-// Add a file at a path, creating directories where necessary
-func (f *FakeContext) Add(file, content string) error {
-	return f.addFile(file, []byte(content))
-}
-
-func (f *FakeContext) addFile(file string, content []byte) error {
-	fp := filepath.Join(f.Dir, filepath.FromSlash(file))
-	dirpath := filepath.Dir(fp)
-	if dirpath != "." {
-		if err := os.MkdirAll(dirpath, 0755); err != nil {
-			return err
-		}
-	}
-	return ioutil.WriteFile(fp, content, 0644)
-
-}
-
-// Delete a file at a path
-func (f *FakeContext) Delete(file string) error {
-	fp := filepath.Join(f.Dir, filepath.FromSlash(file))
-	return os.RemoveAll(fp)
-}
-
-// Close deletes the context
-func (f *FakeContext) Close() error {
-	return os.RemoveAll(f.Dir)
-}
-
-func fakeContextFromNewTempDir(c *check.C) *FakeContext {
-	tmp, err := ioutil.TempDir("", "fake-context")
-	c.Assert(err, checker.IsNil)
-	if err := os.Chmod(tmp, 0755); err != nil {
-		c.Fatal(err)
-	}
-	return fakeContextFromDir(tmp)
-}
-
-func fakeContextFromDir(dir string) *FakeContext {
-	return &FakeContext{dir}
-}
-
-func fakeContextWithFiles(c *check.C, files map[string]string) *FakeContext {
-	ctx := fakeContextFromNewTempDir(c)
-	for file, content := range files {
-		if err := ctx.Add(file, content); err != nil {
-			ctx.Close()
-			c.Fatal(err)
-		}
-	}
-	return ctx
-}
-
-func fakeContextAddDockerfile(c *check.C, ctx *FakeContext, dockerfile string) {
-	if err := ctx.Add("Dockerfile", dockerfile); err != nil {
-		ctx.Close()
-		c.Fatal(err)
-	}
-}
-
-func fakeContext(c *check.C, dockerfile string, files map[string]string) *FakeContext {
-	ctx := fakeContextWithFiles(c, files)
-	fakeContextAddDockerfile(c, ctx, dockerfile)
-	return ctx
-}
-
-// FakeStorage is a static file server. It might be running locally or remotely
-// on test host.
-type FakeStorage interface {
-	Close() error
-	URL() string
-	CtxDir() string
-}
-
-func fakeBinaryStorage(c *check.C, archives map[string]*bytes.Buffer) FakeStorage {
-	ctx := fakeContextFromNewTempDir(c)
-	for name, content := range archives {
-		if err := ctx.addFile(name, content.Bytes()); err != nil {
-			c.Fatal(err)
-		}
-	}
-	return fakeStorageWithContext(c, ctx)
-}
-
-// fakeStorage returns either a local or remote (at daemon machine) file server
-func fakeStorage(c *check.C, files map[string]string) FakeStorage {
-	ctx := fakeContextWithFiles(c, files)
-	return fakeStorageWithContext(c, ctx)
-}
-
-// fakeStorageWithContext returns either a local or remote (at daemon machine) file server
-func fakeStorageWithContext(c *check.C, ctx *FakeContext) FakeStorage {
-	if testEnv.LocalDaemon() {
-		return newLocalFakeStorage(c, ctx)
-	}
-	return newRemoteFileServer(c, ctx)
-}
-
-// localFileStorage is a file storage on the running machine
-type localFileStorage struct {
-	*FakeContext
-	*httptest.Server
-}
-
-func (s *localFileStorage) URL() string {
-	return s.Server.URL
-}
-
-func (s *localFileStorage) CtxDir() string {
-	return s.FakeContext.Dir
-}
-
-func (s *localFileStorage) Close() error {
-	defer s.Server.Close()
-	return s.FakeContext.Close()
-}
-
-func newLocalFakeStorage(c *check.C, ctx *FakeContext) *localFileStorage {
-	handler := http.FileServer(http.Dir(ctx.Dir))
-	server := httptest.NewServer(handler)
-	return &localFileStorage{
-		FakeContext: ctx,
-		Server:      server,
-	}
-}
-
-// remoteFileServer is a containerized static file server started on the remote
-// testing machine to be used in URL-accepting docker build functionality.
-type remoteFileServer struct {
-	host      string // hostname/port web server is listening to on docker host e.g. 0.0.0.0:43712
-	container string
-	image     string
-	ctx       *FakeContext
-}
-
-func (f *remoteFileServer) URL() string {
-	u := url.URL{
-		Scheme: "http",
-		Host:   f.host}
-	return u.String()
-}
-
-func (f *remoteFileServer) CtxDir() string {
-	return f.ctx.Dir
-}
-
-func (f *remoteFileServer) Close() error {
-	defer func() {
-		if f.ctx != nil {
-			f.ctx.Close()
-		}
-		if f.image != "" {
-			deleteImages(f.image)
-		}
-	}()
-	if f.container == "" {
-		return nil
-	}
-	return deleteContainer(f.container)
-}
-
-func newRemoteFileServer(c *check.C, ctx *FakeContext) *remoteFileServer {
-	var (
-		image     = fmt.Sprintf("fileserver-img-%s", strings.ToLower(stringutils.GenerateRandomAlphaOnlyString(10)))
-		container = fmt.Sprintf("fileserver-cnt-%s", strings.ToLower(stringutils.GenerateRandomAlphaOnlyString(10)))
-	)
-
-	ensureHTTPServerImage(c)
-
-	// Build the image
-	fakeContextAddDockerfile(c, ctx, `FROM httpserver
-COPY . /static`)
-	buildImageSuccessfully(c, image, build.WithoutCache, withExternalBuildContext(ctx))
-
-	// Start the container
-	dockerCmd(c, "run", "-d", "-P", "--name", container, image)
-
-	// Find out the system assigned port
-	out, _ := dockerCmd(c, "port", container, "80/tcp")
-	fileserverHostPort := strings.Trim(out, "\n")
-	_, port, err := net.SplitHostPort(fileserverHostPort)
-	if err != nil {
-		c.Fatalf("unable to parse file server host:port: %v", err)
-	}
-
-	dockerHostURL, err := url.Parse(daemonHost())
-	if err != nil {
-		c.Fatalf("unable to parse daemon host URL: %v", err)
-	}
-
-	host, _, err := net.SplitHostPort(dockerHostURL.Host)
-	if err != nil {
-		c.Fatalf("unable to parse docker daemon host:port: %v", err)
-	}
-
-	return &remoteFileServer{
-		container: container,
-		image:     image,
-		host:      fmt.Sprintf("%s:%s", host, port),
-		ctx:       ctx}
 }
 
 func inspectFieldAndUnmarshall(c *check.C, name, field string, output interface{}) {
@@ -452,42 +243,7 @@ func buildImage(name string, cmdOperators ...cli.CmdOperator) *icmd.Result {
 	return cli.Docker(cli.Build(name), cmdOperators...)
 }
 
-func withExternalBuildContext(ctx *FakeContext) func(*icmd.Cmd) func() {
-	return func(cmd *icmd.Cmd) func() {
-		cmd.Dir = ctx.Dir
-		cmd.Command = append(cmd.Command, ".")
-		return nil
-	}
-}
-
-func withBuildContext(c *check.C, contextOperators ...func(*FakeContext) error) func(*icmd.Cmd) func() {
-	ctx := fakeContextFromNewTempDir(c)
-	for _, op := range contextOperators {
-		if err := op(ctx); err != nil {
-			c.Fatal(err)
-		}
-	}
-	return func(cmd *icmd.Cmd) func() {
-		cmd.Dir = ctx.Dir
-		cmd.Command = append(cmd.Command, ".")
-		return closeBuildContext(c, ctx)
-	}
-}
-
-func withFile(name, content string) func(*FakeContext) error {
-	return func(ctx *FakeContext) error {
-		return ctx.Add(name, content)
-	}
-}
-
-func closeBuildContext(c *check.C, ctx *FakeContext) func() {
-	return func() {
-		if err := ctx.Close(); err != nil {
-			c.Fatal(err)
-		}
-	}
-}
-
+// Deprecated: use trustedcmd
 func trustedBuild(cmd *icmd.Cmd) func() {
 	trustedCmd(cmd)
 	return nil
@@ -523,7 +279,7 @@ func (g *fakeGit) Close() {
 }
 
 func newFakeGit(c *check.C, name string, files map[string]string, enforceLocalServer bool) *fakeGit {
-	ctx := fakeContextWithFiles(c, files)
+	ctx := fakecontext.New(c, "", fakecontext.WithFiles(files))
 	defer ctx.Close()
 	curdir, err := os.Getwd()
 	if err != nil {
@@ -578,7 +334,7 @@ func newFakeGit(c *check.C, name string, files map[string]string, enforceLocalSe
 	var server gitServer
 	if !enforceLocalServer {
 		// use fakeStorage server, which might be local or remote (at test daemon)
-		server = fakeStorageWithContext(c, fakeContextFromDir(root))
+		server = fakestorage.New(c, root)
 	} else {
 		// always start a local http server on CLI test machine
 		httpServer := httptest.NewServer(http.FileServer(http.Dir(root)))

@@ -86,6 +86,51 @@ volumes or in systems where some images, containers, or volumes have very large
 filesystems with many files. You should also be careful not to run this command
 in systems where performance is critical.
 
+## Format the output
+
+The formatting option (`--format`) pretty prints the disk usage output
+using a Go template.
+
+Valid placeholders for the Go template are listed below:
+
+| Placeholder    | Description                                |
+| -------------- | ------------------------------------------ |
+| `.Type`        | `Images`, `Containers` and `Local Volumes` |
+| `.TotalCount`  | Total number of items                      |
+| `.Active`      | Number of active items                     |
+| `.Size`        | Available size                             |
+| `.Reclaimable` | Reclaimable size                           |
+
+When using the `--format` option, the `system df` command outputs
+the data exactly as the template declares or, when using the
+`table` directive, will include column headers as well.
+
+The following example uses a template without headers and outputs the
+`Type` and `TotalCount` entries separated by a colon:
+
+```bash
+$ docker system df --format "{{.Type}}: {{.TotalCount}}"
+
+Images: 2
+Containers: 4
+Local Volumes: 1
+```
+
+To list the disk usage with size and reclaimable size in a table format you
+can use:
+
+```bash
+$ docker system df --format "table {{.Type}}\t{{.Size}}\t{{.Reclaimable}}"
+
+TYPE                SIZE                RECLAIMABLE
+Images              2.547 GB            2.342 GB (91%)
+Containers          0 B                 0 B
+Local Volumes       150.3 MB            150.3 MB (100%)
+<Paste>
+```
+
+**Note** the format option is meaningless when verbose is true.
+
 ## Related commands
 * [system prune](system_prune.md)
 * [container prune](container_prune.md)

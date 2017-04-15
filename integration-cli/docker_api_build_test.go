@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli/build/fakecontext"
+	"github.com/docker/docker/integration-cli/cli/build/fakestorage"
 	"github.com/docker/docker/integration-cli/request"
 	"github.com/docker/docker/pkg/testutil"
 	"github.com/go-check/check"
@@ -29,7 +31,7 @@ COPY * /tmp/
 RUN find / -xdev -name ba*
 RUN find /tmp/`
 	}
-	server := fakeStorage(c, map[string]string{"testD": testD})
+	server := fakestorage.New(c, "", fakecontext.WithFiles(map[string]string{"testD": testD}))
 	defer server.Close()
 
 	res, body, err := request.Post("/build?dockerfile=baz&remote="+server.URL()+"/testD", request.JSON)
@@ -66,9 +68,9 @@ func (s *DockerSuite) TestBuildAPIRemoteTarballContext(c *check.C) {
 	// failed to close tar archive
 	c.Assert(tw.Close(), checker.IsNil)
 
-	server := fakeBinaryStorage(c, map[string]*bytes.Buffer{
+	server := fakestorage.New(c, "", fakecontext.WithBinaryFiles(map[string]*bytes.Buffer{
 		"testT.tar": buffer,
-	})
+	}))
 	defer server.Close()
 
 	res, b, err := request.Post("/build?remote="+server.URL()+"/testT.tar", request.ContentType("application/tar"))
@@ -113,9 +115,9 @@ RUN echo 'right'
 	// failed to close tar archive
 	c.Assert(tw.Close(), checker.IsNil)
 
-	server := fakeBinaryStorage(c, map[string]*bytes.Buffer{
+	server := fakestorage.New(c, "", fakecontext.WithBinaryFiles(map[string]*bytes.Buffer{
 		"testT.tar": buffer,
-	})
+	}))
 	defer server.Close()
 
 	url := "/build?dockerfile=custom&remote=" + server.URL() + "/testT.tar"

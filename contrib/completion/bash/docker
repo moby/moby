@@ -463,6 +463,16 @@ __docker_complete_services() {
 	COMPREPLY=( $(compgen -W "$(__docker_services "$@")" -- "$current") )
 }
 
+# __docker_tasks returns a list of all task IDs.
+__docker_tasks() {
+	__docker_q service ps --format '{{.ID}}' ""
+}
+
+# __docker_complete_services_and_tasks applies completion of services and task IDs.
+__docker_complete_services_and_tasks() {
+	COMPREPLY=( $(compgen -W "$(__docker_services "$@") $(__docker_tasks)" -- "$cur") )
+}
+
 # __docker_append_to_completions appends the word passed as an argument to every
 # word in `$COMPREPLY`.
 # Normally you do this with `compgen -S` while generating the completions.
@@ -2258,7 +2268,7 @@ _docker_image_build() {
 					__docker_complete_containers_all --cur "${cur#*:}"
 					;;
 				*)
-					COMPREPLY=( $( compgen -W "$(__docker_plugins --type Network) $(__docker_networks) container:" -- "$cur") )
+					COMPREPLY=( $( compgen -W "$(__docker_plugins_bundled --type Network) $(__docker_networks) container:" -- "$cur") )
 					if [ "${COMPREPLY[*]}" = "container:" ] ; then
 						__docker_nospace
 					fi
@@ -2830,13 +2840,13 @@ _docker_service() {
 	local subcommands="
 		create
 		inspect
+		logs
 		ls
 		rm
 		scale
 		ps
 		update
 	"
-	__docker_daemon_is_experimental && subcommands+="logs"
 
 	local aliases="
 		list
@@ -2888,7 +2898,7 @@ _docker_service_logs() {
 		*)
 			local counter=$(__docker_pos_first_nonflag '--since|--tail')
 			if [ $cword -eq $counter ]; then
-				__docker_complete_services
+				__docker_complete_services_and_tasks
 			fi
 			;;
 	esac

@@ -1,6 +1,7 @@
 package convert
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -10,12 +11,25 @@ import (
 	gogotypes "github.com/gogo/protobuf/types"
 )
 
+var (
+	// ErrUnsupportedRuntime returns an error if the runtime is not supported by the daemon
+	ErrUnsupportedRuntime = errors.New("unsupported runtime")
+)
+
 // ServiceFromGRPC converts a grpc Service to a Service.
-func ServiceFromGRPC(s swarmapi.Service) types.Service {
+func ServiceFromGRPC(s swarmapi.Service) (types.Service, error) {
+	curSpec, err := serviceSpecFromGRPC(&s.Spec)
+	if err != nil {
+		return types.Service{}, err
+	}
+	prevSpec, err := serviceSpecFromGRPC(s.PreviousSpec)
+	if err != nil {
+		return types.Service{}, err
+	}
 	service := types.Service{
 		ID:           s.ID,
-		Spec:         *serviceSpecFromGRPC(&s.Spec),
-		PreviousSpec: serviceSpecFromGRPC(s.PreviousSpec),
+		Spec:         *curSpec,
+		PreviousSpec: prevSpec,
 
 		Endpoint: endpointFromGRPC(s.Endpoint),
 	}
@@ -56,12 +70,12 @@ func ServiceFromGRPC(s swarmapi.Service) types.Service {
 		service.UpdateStatus.Message = s.UpdateStatus.Message
 	}
 
-	return service
+	return service, nil
 }
 
-func serviceSpecFromGRPC(spec *swarmapi.ServiceSpec) *types.ServiceSpec {
+func serviceSpecFromGRPC(spec *swarmapi.ServiceSpec) (*types.ServiceSpec, error) {
 	if spec == nil {
-		return nil
+		return nil, nil
 	}
 
 	serviceNetworks := make([]types.NetworkAttachmentConfig, 0, len(spec.Networks))
@@ -69,9 +83,29 @@ func serviceSpecFromGRPC(spec *swarmapi.ServiceSpec) *types.ServiceSpec {
 		serviceNetworks = append(serviceNetworks, types.NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases})
 	}
 
+	taskTemplate := taskSpecFromGRPC(spec.Task)
+
+	switch t := spec.Task.GetRuntime().(type) {
+	case *swarmapi.TaskSpec_Container:
+		containerConfig := t.Container
+		taskTemplate.ContainerSpec = containerSpecFromGRPC(containerConfig)
+		taskTemplate.Runtime = types.RuntimeContainer
+	case *swarmapi.TaskSpec_Generic:
+		switch t.Generic.Kind {
+		case string(types.RuntimePlugin):
+			taskTemplate.Runtime = types.RuntimePlugin
+		default:
+			return nil, fmt.Errorf("unknown task runtime type: %s", t.Generic.Payload.TypeUrl)
+		}
+
+		taskTemplate.RuntimeData = t.Generic.Payload.Value
+	default:
+		return nil, fmt.Errorf("error creating service; unsupported runtime %T", t)
+	}
+
 	convertedSpec := &types.ServiceSpec{
 		Annotations:  annotationsFromGRPC(spec.Annotations),
-		TaskTemplate: taskSpecFromGRPC(spec.Task),
+		TaskTemplate: taskTemplate,
 		Networks:     serviceNetworks,
 		EndpointSpec: endpointSpecFromGRPC(spec.Endpoint),
 	}
@@ -90,7 +124,7 @@ func serviceSpecFromGRPC(spec *swarmapi.ServiceSpec) *types.ServiceSpec {
 		}
 	}
 
-	return convertedSpec
+	return convertedSpec, nil
 }
 
 // ServiceSpecToGRPC converts a ServiceSpec to a grpc ServiceSpec.
@@ -124,11 +158,26 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 		Networks: serviceNetworks,
 	}
 
-	containerSpec, err := containerToGRPC(s.TaskTemplate.ContainerSpec)
-	if err != nil {
-		return swarmapi.ServiceSpec{}, err
+	switch s.TaskTemplate.Runtime {
+	case types.RuntimeContainer, "": // if empty runtime default to container
+		containerSpec, err := containerToGRPC(s.TaskTemplate.ContainerSpec)
+		if err != nil {
+			return swarmapi.ServiceSpec{}, err
+		}
+		spec.Task.Runtime = &swarmapi.TaskSpec_Container{Container: containerSpec}
+	case types.RuntimePlugin:
+		spec.Task.Runtime = &swarmapi.TaskSpec_Generic{
+			Generic: &swarmapi.GenericRuntimeSpec{
+				Kind: string(types.RuntimePlugin),
+				Payload: &gogotypes.Any{
+					TypeUrl: string(types.RuntimeURLPlugin),
+					Value:   s.TaskTemplate.RuntimeData,
+				},
+			},
+		}
+	default:
+		return swarmapi.ServiceSpec{}, ErrUnsupportedRuntime
 	}
-	spec.Task.Runtime = &swarmapi.TaskSpec_Container{Container: containerSpec}
 
 	restartPolicy, err := restartPolicyToGRPC(s.TaskTemplate.RestartPolicy)
 	if err != nil {
@@ -446,8 +495,14 @@ func taskSpecFromGRPC(taskSpec swarmapi.TaskSpec) types.TaskSpec {
 		taskNetworks = append(taskNetworks, types.NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases})
 	}
 
+	c := taskSpec.GetContainer()
+	cSpec := types.ContainerSpec{}
+	if c != nil {
+		cSpec = containerSpecFromGRPC(c)
+	}
+
 	return types.TaskSpec{
-		ContainerSpec: containerSpecFromGRPC(taskSpec.GetContainer()),
+		ContainerSpec: cSpec,
 		Resources:     resourcesFromGRPC(taskSpec.Resources),
 		RestartPolicy: restartPolicyFromGRPC(taskSpec.Restart),
 		Placement:     placementFromGRPC(taskSpec.Placement),

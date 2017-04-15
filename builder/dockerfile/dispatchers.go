@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"bytes"
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
@@ -46,45 +47,22 @@ func env(b *Builder, args []string, attributes map[string]bool, original string)
 		return err
 	}
 
-	// TODO/FIXME/NOT USED
-	// Just here to show how to use the builder flags stuff within the
-	// context of a builder command. Will remove once we actually add
-	// a builder command to something!
-	/*
-		flBool1 := b.flags.AddBool("bool1", false)
-		flStr1 := b.flags.AddString("str1", "HI")
+	commitMessage := bytes.NewBufferString("ENV")
 
-		if err := b.flags.Parse(); err != nil {
-			return err
-		}
-
-		fmt.Printf("Bool1:%v\n", flBool1)
-		fmt.Printf("Str1:%v\n", flStr1)
-	*/
-
-	commitStr := "ENV"
-
-	for j := 0; j < len(args); j++ {
-		// name  ==> args[j]
-		// value ==> args[j+1]
-
+	for j := 0; j < len(args); j += 2 {
 		if len(args[j]) == 0 {
 			return errBlankCommandNames("ENV")
 		}
-		newVar := args[j] + "=" + args[j+1] + ""
-		commitStr += " " + newVar
+		name := args[j]
+		value := args[j+1]
+		newVar := name + "=" + value
+		commitMessage.WriteString(" " + newVar)
 
 		gotOne := false
 		for i, envVar := range b.runConfig.Env {
 			envParts := strings.SplitN(envVar, "=", 2)
 			compareFrom := envParts[0]
-			compareTo := args[j]
-			if runtime.GOOS == "windows" {
-				// Case insensitive environment variables on Windows
-				compareFrom = strings.ToUpper(compareFrom)
-				compareTo = strings.ToUpper(compareTo)
-			}
-			if compareFrom == compareTo {
+			if equalEnvKeys(compareFrom, name) {
 				b.runConfig.Env[i] = newVar
 				gotOne = true
 				break
@@ -93,10 +71,9 @@ func env(b *Builder, args []string, attributes map[string]bool, original string)
 		if !gotOne {
 			b.runConfig.Env = append(b.runConfig.Env, newVar)
 		}
-		j++
 	}
 
-	return b.commit("", b.runConfig.Cmd, commitStr)
+	return b.commit("", b.runConfig.Cmd, commitMessage.String())
 }
 
 // MAINTAINER some text <maybe@an.email.address>
@@ -211,7 +188,7 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 			return errors.Errorf("invalid name for build stage: %q, name can't start with a number or contain symbols", ctxName)
 		}
 	} else if len(args) != 1 {
-		return errExactlyOneArgument("FROM")
+		return errors.New("FROM requires either one or three arguments")
 	}
 
 	if err := b.flags.Parse(); err != nil {
@@ -223,7 +200,7 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 		substituionArgs = append(substituionArgs, key+"="+value)
 	}
 
-	name, err := ProcessWord(args[0], substituionArgs, b.directive.EscapeToken)
+	name, err := ProcessWord(args[0], substituionArgs, b.escapeToken)
 	if err != nil {
 		return err
 	}
@@ -440,6 +417,7 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 		return err
 	}
 
+	// FIXME: this is duplicated with the defer above in this function (i think?)
 	// revert to original config environment and set the command string to
 	// have the build-time env vars in it (if any) so that future cache look-ups
 	// properly match it.

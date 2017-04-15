@@ -23,7 +23,7 @@ func NewRouter(b Backend, c *cluster.Cluster) router.Router {
 	r.routes = []router.Route{
 		router.NewOptionsRoute("/{anyroute:.*}", optionsHandler),
 		router.NewGetRoute("/_ping", pingHandler),
-		router.Cancellable(router.NewGetRoute("/events", r.getEvents)),
+		router.NewGetRoute("/events", r.getEvents, router.WithCancel),
 		router.NewGetRoute("/info", r.getInfo),
 		router.NewGetRoute("/version", r.getVersion),
 		router.NewGetRoute("/system/df", r.getDiskUsage),

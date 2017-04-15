@@ -77,6 +77,6 @@ func readAndCheckDockerfile(t *testing.T, testName, contextDir, dockerfilePath, 
 
 	b := &Builder{options: options, context: context}
 
-	_, err = b.readDockerfile()
+	_, err = b.readAndParseDockerfile()
 	assert.Error(t, err, expectedError)
 }

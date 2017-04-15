@@ -97,6 +97,7 @@ type ContainerStartOptions struct {
 // about files to copy into a container
 type CopyToContainerOptions struct {
 	AllowOverwriteDirWithFile bool
+	CopyUIDGID                bool
 }
 
 // EventsOptions holds parameters to filter events with.

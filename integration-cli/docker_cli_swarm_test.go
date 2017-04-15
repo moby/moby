@@ -50,6 +50,13 @@ func (s *DockerSwarmSuite) TestSwarmUpdate(c *check.C) {
 	c.Assert(out, checker.Contains, "minimum certificate expiry time")
 	spec = getSpec()
 	c.Assert(spec.CAConfig.NodeCertExpiry, checker.Equals, 30*time.Hour)
+
+	// passing an external CA (this is without starting a root rotation) does not fail
+	out, err = d.Cmd("swarm", "update", "--external-ca", "protocol=cfssl,url=https://something.org")
+	c.Assert(err, checker.IsNil, check.Commentf("out: %v", out))
+
+	spec = getSpec()
+	c.Assert(spec.CAConfig.ExternalCAs, checker.HasLen, 1)
 }
 
 func (s *DockerSwarmSuite) TestSwarmInit(c *check.C) {
@@ -60,12 +67,14 @@ func (s *DockerSwarmSuite) TestSwarmInit(c *check.C) {
 		return sw.Spec
 	}
 
-	cli.Docker(cli.Args("swarm", "init", "--cert-expiry", "30h", "--dispatcher-heartbeat", "11s"),
+	cli.Docker(cli.Args("swarm", "init", "--cert-expiry", "30h", "--dispatcher-heartbeat", "11s",
+		"--external-ca", "protocol=cfssl,url=https://something.org"),
 		cli.Daemon(d.Daemon)).Assert(c, icmd.Success)
 
 	spec := getSpec()
 	c.Assert(spec.CAConfig.NodeCertExpiry, checker.Equals, 30*time.Hour)
 	c.Assert(spec.Dispatcher.HeartbeatPeriod, checker.Equals, 11*time.Second)
+	c.Assert(spec.CAConfig.ExternalCAs, checker.HasLen, 1)
 
 	c.Assert(d.Leave(true), checker.IsNil)
 	time.Sleep(500 * time.Millisecond) // https://github.com/docker/swarmkit/issues/1421
