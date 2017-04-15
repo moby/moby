@@ -26,7 +26,7 @@ func (daemon *Daemon) FillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 	v.CPUShares = sysInfo.CPUShares
 	v.CPUSet = sysInfo.Cpuset
 	v.Runtimes = daemon.configStore.GetAllRuntimes()
-	v.DefaultRuntime = daemon.configStore.GetDefaultRuntimeName()
+	v.DefaultRuntime = daemon.runtimeManager.GetDefaultRuntimeName()
 	v.InitBinary = daemon.configStore.GetInitPath()
 
 	v.ContainerdCommit.Expected = dockerversion.ContainerdCommitID
