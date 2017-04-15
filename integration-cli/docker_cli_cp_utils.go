@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/docker/docker/integration-cli/checker"
@@ -26,6 +27,9 @@ type fileData struct {
 	filetype fileType
 	path     string
 	contents string
+	uid      int
+	gid      int
+	mode     int
 }
 
 func (fd fileData) creationCommand() string {
@@ -55,31 +59,33 @@ func mkFilesCommand(fds []fileData) string {
 }
 
 var defaultFileData = []fileData{
-	{ftRegular, "file1", "file1"},
-	{ftRegular, "file2", "file2"},
-	{ftRegular, "file3", "file3"},
-	{ftRegular, "file4", "file4"},
-	{ftRegular, "file5", "file5"},
-	{ftRegular, "file6", "file6"},
-	{ftRegular, "file7", "file7"},
-	{ftDir, "dir1", ""},
-	{ftRegular, "dir1/file1-1", "file1-1"},
-	{ftRegular, "dir1/file1-2", "file1-2"},
-	{ftDir, "dir2", ""},
-	{ftRegular, "dir2/file2-1", "file2-1"},
-	{ftRegular, "dir2/file2-2", "file2-2"},
-	{ftDir, "dir3", ""},
-	{ftRegular, "dir3/file3-1", "file3-1"},
-	{ftRegular, "dir3/file3-2", "file3-2"},
-	{ftDir, "dir4", ""},
-	{ftRegular, "dir4/file3-1", "file4-1"},
-	{ftRegular, "dir4/file3-2", "file4-2"},
-	{ftDir, "dir5", ""},
-	{ftSymlink, "symlinkToFile1", "file1"},
-	{ftSymlink, "symlinkToDir1", "dir1"},
-	{ftSymlink, "brokenSymlinkToFileX", "fileX"},
-	{ftSymlink, "brokenSymlinkToDirX", "dirX"},
-	{ftSymlink, "symlinkToAbsDir", "/root"},
+	{ftRegular, "file1", "file1", 0, 0, 0666},
+	{ftRegular, "file2", "file2", 0, 0, 0666},
+	{ftRegular, "file3", "file3", 0, 0, 0666},
+	{ftRegular, "file4", "file4", 0, 0, 0666},
+	{ftRegular, "file5", "file5", 0, 0, 0666},
+	{ftRegular, "file6", "file6", 0, 0, 0666},
+	{ftRegular, "file7", "file7", 0, 0, 0666},
+	{ftDir, "dir1", "", 0, 0, 0777},
+	{ftRegular, "dir1/file1-1", "file1-1", 0, 0, 0666},
+	{ftRegular, "dir1/file1-2", "file1-2", 0, 0, 0666},
+	{ftDir, "dir2", "", 0, 0, 0666},
+	{ftRegular, "dir2/file2-1", "file2-1", 0, 0, 0666},
+	{ftRegular, "dir2/file2-2", "file2-2", 0, 0, 0666},
+	{ftDir, "dir3", "", 0, 0, 0666},
+	{ftRegular, "dir3/file3-1", "file3-1", 0, 0, 0666},
+	{ftRegular, "dir3/file3-2", "file3-2", 0, 0, 0666},
+	{ftDir, "dir4", "", 0, 0, 0666},
+	{ftRegular, "dir4/file3-1", "file4-1", 0, 0, 0666},
+	{ftRegular, "dir4/file3-2", "file4-2", 0, 0, 0666},
+	{ftDir, "dir5", "", 0, 0, 0666},
+	{ftSymlink, "symlinkToFile1", "file1", 0, 0, 0666},
+	{ftSymlink, "symlinkToDir1", "dir1", 0, 0, 0666},
+	{ftSymlink, "brokenSymlinkToFileX", "fileX", 0, 0, 0666},
+	{ftSymlink, "brokenSymlinkToDirX", "dirX", 0, 0, 0666},
+	{ftSymlink, "symlinkToAbsDir", "/root", 0, 0, 0666},
+	{ftDir, "permdirtest", "", 2, 2, 0700},
+	{ftRegular, "permdirtest/permtest", "perm_test", 65534, 65534, 0400},
 }
 
 func defaultMkContentCommand() string {
@@ -91,11 +97,15 @@ func makeTestContentInDir(c *check.C, dir string) {
 		path := filepath.Join(dir, filepath.FromSlash(fd.path))
 		switch fd.filetype {
 		case ftRegular:
-			c.Assert(ioutil.WriteFile(path, []byte(fd.contents+"\n"), os.FileMode(0666)), checker.IsNil)
+			c.Assert(ioutil.WriteFile(path, []byte(fd.contents+"\n"), os.FileMode(fd.mode)), checker.IsNil)
 		case ftDir:
-			c.Assert(os.Mkdir(path, os.FileMode(0777)), checker.IsNil)
+			c.Assert(os.Mkdir(path, os.FileMode(fd.mode)), checker.IsNil)
 		case ftSymlink:
 			c.Assert(os.Symlink(fd.contents, path), checker.IsNil)
+		}
+
+		if fd.filetype != ftSymlink && runtime.GOOS != "windows" {
+			c.Assert(os.Chown(path, fd.uid, fd.gid), checker.IsNil)
 		}
 	}
 }
@@ -178,10 +188,16 @@ func containerCpPathTrailingSep(containerID string, pathElements ...string) stri
 	return fmt.Sprintf("%s/", containerCpPath(containerID, pathElements...))
 }
 
-func runDockerCp(c *check.C, src, dst string) (err error) {
-	c.Logf("running `docker cp %s %s`", src, dst)
+func runDockerCp(c *check.C, src, dst string, params []string) (err error) {
+	c.Logf("running `docker cp %s %s %s`", strings.Join(params, " "), src, dst)
 
-	args := []string{"cp", src, dst}
+	args := []string{"cp"}
+
+	for _, param := range params {
+		args = append(args, param)
+	}
+
+	args = append(args, src, dst)
 
 	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, args...))
 	if err != nil {

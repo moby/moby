@@ -25,19 +25,20 @@ import (
 func (c *Cluster) Init(req types.InitRequest) (string, error) {
 	c.controlMutex.Lock()
 	defer c.controlMutex.Unlock()
-	c.mu.Lock()
 	if c.nr != nil {
 		if req.ForceNewCluster {
+			// Take c.mu temporarily to wait for presently running
+			// API handlers to finish before shutting down the node.
+			c.mu.Lock()
+			c.mu.Unlock()
+
 			if err := c.nr.Stop(); err != nil {
-				c.mu.Unlock()
 				return "", err
 			}
 		} else {
-			c.mu.Unlock()
 			return "", errSwarmExists
 		}
 	}
-	c.mu.Unlock()
 
 	if err := validateAndSanitizeInitRequest(&req); err != nil {
 		return "", apierrors.NewBadRequestError(err)
@@ -325,9 +326,10 @@ func (c *Cluster) Leave(force bool) error {
 
 	state := c.currentNodeState()
 
+	c.mu.Unlock()
+
 	if errors.Cause(state.err) == errSwarmLocked && !force {
 		// leave a locked swarm without --force is not allowed
-		c.mu.Unlock()
 		return errors.New("Swarm is encrypted and locked. Please unlock it first or use `--force` to ignore this message.")
 	}
 
@@ -339,7 +341,6 @@ func (c *Cluster) Leave(force bool) error {
 				if active && removingManagerCausesLossOfQuorum(reachable, unreachable) {
 					if isLastManager(reachable, unreachable) {
 						msg += "Removing the last manager erases all current state of the swarm. Use `--force` to ignore this message. "
-						c.mu.Unlock()
 						return errors.New(msg)
 					}
 					msg += fmt.Sprintf("Removing this node leaves %v managers out of %v. Without a Raft quorum your swarm will be inaccessible. ", reachable-1, reachable+unreachable)
@@ -350,18 +351,19 @@ func (c *Cluster) Leave(force bool) error {
 		}
 
 		msg += "The only way to restore a swarm that has lost consensus is to reinitialize it with `--force-new-cluster`. Use `--force` to suppress this message."
-		c.mu.Unlock()
 		return errors.New(msg)
 	}
 	// release readers in here
 	if err := nr.Stop(); err != nil {
 		logrus.Errorf("failed to shut down cluster node: %v", err)
 		signal.DumpStacks("")
-		c.mu.Unlock()
 		return err
 	}
+
+	c.mu.Lock()
 	c.nr = nil
 	c.mu.Unlock()
+
 	if nodeID := state.NodeID(); nodeID != "" {
 		nodeContainers, err := c.listContainerForNode(nodeID)
 		if err != nil {

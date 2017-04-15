@@ -7,6 +7,10 @@ import (
 	"golang.org/x/net/context"
 )
 
+// RouteWrapper wraps a route with extra functionality.
+// It is passed in when creating a new route.
+type RouteWrapper func(r Route) Route
+
 // localRoute defines an individual API route to connect
 // with the docker daemon. It implements Route.
 type localRoute struct {
@@ -31,38 +35,42 @@ func (l localRoute) Path() string {
 }
 
 // NewRoute initializes a new local route for the router.
-func NewRoute(method, path string, handler httputils.APIFunc) Route {
-	return localRoute{method, path, handler}
+func NewRoute(method, path string, handler httputils.APIFunc, opts ...RouteWrapper) Route {
+	var r Route = localRoute{method, path, handler}
+	for _, o := range opts {
+		r = o(r)
+	}
+	return r
 }
 
 // NewGetRoute initializes a new route with the http method GET.
-func NewGetRoute(path string, handler httputils.APIFunc) Route {
-	return NewRoute("GET", path, handler)
+func NewGetRoute(path string, handler httputils.APIFunc, opts ...RouteWrapper) Route {
+	return NewRoute("GET", path, handler, opts...)
 }
 
 // NewPostRoute initializes a new route with the http method POST.
-func NewPostRoute(path string, handler httputils.APIFunc) Route {
-	return NewRoute("POST", path, handler)
+func NewPostRoute(path string, handler httputils.APIFunc, opts ...RouteWrapper) Route {
+	return NewRoute("POST", path, handler, opts...)
 }
 
 // NewPutRoute initializes a new route with the http method PUT.
-func NewPutRoute(path string, handler httputils.APIFunc) Route {
-	return NewRoute("PUT", path, handler)
+func NewPutRoute(path string, handler httputils.APIFunc, opts ...RouteWrapper) Route {
+	return NewRoute("PUT", path, handler, opts...)
 }
 
 // NewDeleteRoute initializes a new route with the http method DELETE.
-func NewDeleteRoute(path string, handler httputils.APIFunc) Route {
-	return NewRoute("DELETE", path, handler)
+func NewDeleteRoute(path string, handler httputils.APIFunc, opts ...RouteWrapper) Route {
+	return NewRoute("DELETE", path, handler, opts...)
 }
 
 // NewOptionsRoute initializes a new route with the http method OPTIONS.
-func NewOptionsRoute(path string, handler httputils.APIFunc) Route {
-	return NewRoute("OPTIONS", path, handler)
+func NewOptionsRoute(path string, handler httputils.APIFunc, opts ...RouteWrapper) Route {
+	return NewRoute("OPTIONS", path, handler, opts...)
 }
 
 // NewHeadRoute initializes a new route with the http method HEAD.
-func NewHeadRoute(path string, handler httputils.APIFunc) Route {
-	return NewRoute("HEAD", path, handler)
+func NewHeadRoute(path string, handler httputils.APIFunc, opts ...RouteWrapper) Route {
+	return NewRoute("HEAD", path, handler, opts...)
 }
 
 func cancellableHandler(h httputils.APIFunc) httputils.APIFunc {
@@ -85,9 +93,9 @@ func cancellableHandler(h httputils.APIFunc) httputils.APIFunc {
 	}
 }
 
-// Cancellable makes new route which embeds http.CloseNotifier feature to
+// WithCancel makes new route which embeds http.CloseNotifier feature to
 // context.Context of handler.
-func Cancellable(r Route) Route {
+func WithCancel(r Route) Route {
 	return localRoute{
 		method:  r.Method(),
 		path:    r.Path(),

@@ -8,13 +8,17 @@ import (
 )
 
 func TestDiskUsageContextFormatWrite(t *testing.T) {
-	// Check default output format (verbose and non-verbose mode) for table headers
 	cases := []struct {
 		context  DiskUsageContext
 		expected string
 	}{
+		// Check default output format (verbose and non-verbose mode) for table headers
 		{
-			DiskUsageContext{Verbose: false},
+			DiskUsageContext{
+				Context: Context{
+					Format: NewDiskUsageFormat("table"),
+				},
+				Verbose: false},
 			`TYPE                TOTAL               ACTIVE              SIZE                RECLAIMABLE
 Images              0                   0                   0B                  0B
 Containers          0                   0                   0B                  0B
@@ -36,12 +40,86 @@ Local Volumes space usage:
 VOLUME NAME         LINKS               SIZE
 `,
 		},
+		// Errors
+		{
+			DiskUsageContext{
+				Context: Context{
+					Format: "{{InvalidFunction}}",
+				},
+			},
+			`Template parsing error: template: :1: function "InvalidFunction" not defined
+`,
+		},
+		{
+			DiskUsageContext{
+				Context: Context{
+					Format: "{{nil}}",
+				},
+			},
+			`Template parsing error: template: :1:2: executing "" at <nil>: nil is not a command
+`,
+		},
+		// Table Format
+		{
+			DiskUsageContext{
+				Context: Context{
+					Format: NewDiskUsageFormat("table"),
+				},
+			},
+			`TYPE                TOTAL               ACTIVE              SIZE                RECLAIMABLE
+Images              0                   0                   0B                  0B
+Containers          0                   0                   0B                  0B
+Local Volumes       0                   0                   0B                  0B
+`,
+		},
+		{
+			DiskUsageContext{
+				Context: Context{
+					Format: NewDiskUsageFormat("table {{.Type}}\t{{.Active}}"),
+				},
+			},
+			`TYPE                ACTIVE
+Images              0
+Containers          0
+Local Volumes       0
+`,
+		},
+		// Raw Format
+		{
+			DiskUsageContext{
+				Context: Context{
+					Format: NewDiskUsageFormat("raw"),
+				},
+			},
+			`type: Images
+total: 0
+active: 0
+size: 0B
+reclaimable: 0B
+
+type: Containers
+total: 0
+active: 0
+size: 0B
+reclaimable: 0B
+
+type: Local Volumes
+total: 0
+active: 0
+size: 0B
+reclaimable: 0B
+
+`,
+		},
 	}
 
 	for _, testcase := range cases {
 		out := bytes.NewBufferString("")
 		testcase.context.Output = out
-		testcase.context.Write()
-		assert.Equal(t, out.String(), testcase.expected)
+		if err := testcase.context.Write(); err != nil {
+			assert.Equal(t, err.Error(), testcase.expected)
+		} else {
+			assert.Equal(t, out.String(), testcase.expected)
+		}
 	}
 }

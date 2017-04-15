@@ -190,12 +190,6 @@ func (t *testNotary) Close() {
 	os.RemoveAll(t.dir)
 }
 
-// Deprecated: used trustedCmd instead
-func trustedExecCmd(cmd *exec.Cmd) {
-	pwd := "12345678"
-	cmd.Env = append(cmd.Env, trustEnv(notaryURL, pwd, pwd)...)
-}
-
 func trustedCmd(cmd *icmd.Cmd) {
 	pwd := "12345678"
 	cmd.Env = append(cmd.Env, trustEnv(notaryURL, pwd, pwd)...)

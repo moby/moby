@@ -45,15 +45,33 @@ func (ctx *DiskUsageContext) startSubsection(format string) (*template.Template,
 	return ctx.parseFormat()
 }
 
-func (ctx *DiskUsageContext) Write() {
+//
+// NewDiskUsageFormat returns a format for rendering an DiskUsageContext
+func NewDiskUsageFormat(source string) Format {
+	switch source {
+	case TableFormatKey:
+		format := defaultDiskUsageTableFormat
+		return Format(format)
+	case RawFormatKey:
+		format := `type: {{.Type}}
+total: {{.TotalCount}}
+active: {{.Active}}
+size: {{.Size}}
+reclaimable: {{.Reclaimable}}
+`
+		return Format(format)
+	}
+	return Format(source)
+}
+
+func (ctx *DiskUsageContext) Write() (err error) {
 	if ctx.Verbose == false {
 		ctx.buffer = bytes.NewBufferString("")
-		ctx.Format = defaultDiskUsageTableFormat
 		ctx.preFormat()
 
 		tmpl, err := ctx.parseFormat()
 		if err != nil {
-			return
+			return err
 		}
 
 		err = ctx.contextFormat(tmpl, &diskUsageImagesContext{
@@ -61,20 +79,20 @@ func (ctx *DiskUsageContext) Write() {
 			images:    ctx.Images,
 		})
 		if err != nil {
-			return
+			return err
 		}
 		err = ctx.contextFormat(tmpl, &diskUsageContainersContext{
 			containers: ctx.Containers,
 		})
 		if err != nil {
-			return
+			return err
 		}
 
 		err = ctx.contextFormat(tmpl, &diskUsageVolumesContext{
 			volumes: ctx.Volumes,
 		})
 		if err != nil {
-			return
+			return err
 		}
 
 		diskUsageContainersCtx := diskUsageContainersContext{containers: []*types.Container{}}
@@ -87,7 +105,7 @@ func (ctx *DiskUsageContext) Write() {
 		}
 		ctx.postFormat(tmpl, &diskUsageContainersCtx)
 
-		return
+		return err
 	}
 
 	// First images
@@ -158,6 +176,7 @@ func (ctx *DiskUsageContext) Write() {
 		}
 	}
 	ctx.postFormat(tmpl, newVolumeContext())
+	return
 }
 
 type diskUsageImagesContext struct {

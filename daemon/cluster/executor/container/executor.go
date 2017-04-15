@@ -1,18 +1,23 @@
 package container
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
+	swarmtypes "github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/daemon/cluster/controllers/plugin"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
 	networktypes "github.com/docker/libnetwork/types"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/agent/secrets"
 	"github.com/docker/swarmkit/api"
+	"github.com/docker/swarmkit/api/naming"
 	"golang.org/x/net/context"
 )
 
@@ -156,9 +161,35 @@ func (e *executor) Controller(t *api.Task) (exec.Controller, error) {
 		return newNetworkAttacherController(e.backend, t, e.secrets)
 	}
 
-	ctlr, err := newController(e.backend, t, secrets.Restrict(e.secrets, t))
-	if err != nil {
-		return nil, err
+	var ctlr exec.Controller
+	switch r := t.Spec.GetRuntime().(type) {
+	case *api.TaskSpec_Generic:
+		logrus.WithFields(logrus.Fields{
+			"kind":     r.Generic.Kind,
+			"type_url": r.Generic.Payload.TypeUrl,
+		}).Debug("custom runtime requested")
+		runtimeKind, err := naming.Runtime(t.Spec)
+		if err != nil {
+			return ctlr, err
+		}
+		switch runtimeKind {
+		case string(swarmtypes.RuntimePlugin):
+			c, err := plugin.NewController()
+			if err != nil {
+				return ctlr, err
+			}
+			ctlr = c
+		default:
+			return ctlr, fmt.Errorf("unsupported runtime type: %q", r.Generic.Kind)
+		}
+	case *api.TaskSpec_Container:
+		c, err := newController(e.backend, t, secrets.Restrict(e.secrets, t))
+		if err != nil {
+			return ctlr, err
+		}
+		ctlr = c
+	default:
+		return ctlr, fmt.Errorf("unsupported runtime: %q", r)
 	}
 
 	return ctlr, nil

@@ -26,7 +26,7 @@ Options:
 Commands:
   create      Create a new service
   inspect     Display detailed information on one or more services
-  logs        Fetch the logs of a service
+  logs        Fetch the logs of a service or task
   ls          List services
   ps          List the tasks of one or more services
   rm          Remove one or more services

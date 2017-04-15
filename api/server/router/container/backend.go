@@ -27,7 +27,7 @@ type copyBackend interface {
 	ContainerArchivePath(name string, path string) (content io.ReadCloser, stat *types.ContainerPathStat, err error)
 	ContainerCopy(name string, res string) (io.ReadCloser, error)
 	ContainerExport(name string, out io.Writer) error
-	ContainerExtractToDir(name, path string, noOverwriteDirNonDir bool, content io.Reader) error
+	ContainerExtractToDir(name, path string, copyUIDGID, noOverwriteDirNonDir bool, content io.Reader) error
 	ContainerStatPath(name string, path string) (stat *types.ContainerPathStat, err error)
 }
 
