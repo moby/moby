@@ -13,15 +13,16 @@ const (
 	defaultZone     = "europe-west1-d"
 	defaultMachine  = "g1-small"
 	defaultDiskSize = 1
-	zoneVar         = "MOBY_GCP_ZONE"
-	machineVar      = "MOBY_GCP_MACHINE"
-	keysVar         = "MOBY_GCP_KEYS"
-	projectVar      = "MOBY_GCP_PROJECT"
-	bucketVar       = "MOBY_GCP_BUCKET"
-	familyVar       = "MOBY_GCP_FAMILY"
-	publicVar       = "MOBY_GCP_PUBLIC"
-	nameVar         = "MOBY_GCP_IMAGE_NAME"
-	diskSizeVar     = "MOBY_GCP_DISK_SIZE"
+	// Environment variables. Some are non-standard
+	zoneVar     = "CLOUDSDK_COMPUTE_ZONE"
+	machineVar  = "CLOUDSDK_COMPUTE_MACHINE" // non-standard
+	keysVar     = "CLOUDSDK_COMPUTE_KEYS"    // non-standard
+	projectVar  = "CLOUDSDK_CORE_PROJECT"
+	bucketVar   = "CLOUDSDK_IMAGE_BUCKET" // non-standard
+	familyVar   = "CLOUDSDK_IMAGE_FAMILY" // non-standard
+	publicVar   = "CLOUDSDK_IMAGE_PUBLIC" // non-standard
+	nameVar     = "CLOUDSDK_IMAGE_NAME"   // non-standard
+	diskSizeVar = "CLOUDSDK_DISK_SIZE"    // non-standard
 )
 
 // Process the run arguments and execute run

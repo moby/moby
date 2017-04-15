@@ -185,7 +185,8 @@ func (g GCPClient) CreateInstance(name, image, zone, machineType string, diskSiz
 		}
 	}
 
-	log.Infof("Creating instance %s from image %s", name, image)
+	log.Infof("Creating instance %s from image %s (type: %s in %s)", name, image, machineType, zone)
+
 	enabled := new(string)
 	*enabled = "1"
 
