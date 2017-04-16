@@ -99,6 +99,12 @@ elif sudo docker version > /dev/null 2>&1; then
 	docker='sudo docker'
 elif command -v docker > /dev/null 2>&1; then
 	docker='docker'
+elif docker.io version > /dev/null 2>&1; then
+	docker='docker.io'
+elif sudo docker.io version > /dev/null 2>&1; then
+	docker='sudo docker.io'
+elif command -v docker.io > /dev/null 2>&1; then
+	docker='docker.io'
 else
 	echo >&2 "warning: either docker isn't installed, or your current user cannot run it;"
 	echo >&2 "         this script is not likely to work as expected"
