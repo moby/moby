@@ -73,6 +73,10 @@ application-centric design.
 Perhaps best of all, because Docker operates at the OS level, it can still be
 run inside a VM!
 
+## Docker is stable
+
+As of Docker 1.0 Docker is stable and production ready.
+
 ## Plays well with others
 
 Docker does not require you to buy into a particular programming
