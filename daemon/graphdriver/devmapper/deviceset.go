@@ -606,6 +606,9 @@ func (devices *DeviceSet) createFilesystem(info *devInfo) (err error) {
 		err = exec.Command("mkfs.ext4", append([]string{"-E", "nodiscard,lazy_itable_init=0,lazy_journal_init=0"}, args...)...).Run()
 		if err != nil {
 			err = exec.Command("mkfs.ext4", append([]string{"-E", "nodiscard,lazy_itable_init=0"}, args...)...).Run()
+			// platforms that lack lazy_journal_init typically also have the old defaults
+			// for max mount count and mount interval
+			err = exec.Command("tune2fs", append([]string{"-c", "-1", "-i", "0"}, args...)...).Run()
 		}
 		if err != nil {
 			return err
