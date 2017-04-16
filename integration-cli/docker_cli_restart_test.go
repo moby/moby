@@ -52,7 +52,7 @@ func (s *DockerSuite) TestRestartRunningContainer(c *check.C) {
 // Test that restarting a container with a volume does not create a new volume on restart. Regression test for #819.
 func (s *DockerSuite) TestRestartWithVolumes(c *check.C) {
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
-	out, _ := runSleepingContainer(c, "-d", "-v", prefix+slash+"test")
+	out := runSleepingContainer(c, "-d", "-v", prefix+slash+"test")
 
 	cleanedContainerID := strings.TrimSpace(out)
 	out, err := inspectFilter(cleanedContainerID, "len .Mounts")
@@ -166,7 +166,7 @@ func (s *DockerSuite) TestRestartContainerwithGoodContainer(c *check.C) {
 func (s *DockerSuite) TestRestartContainerSuccess(c *check.C) {
 	testRequires(c, SameHostDaemon)
 
-	out, _ := runSleepingContainer(c, "-d", "--restart=always")
+	out := runSleepingContainer(c, "-d", "--restart=always")
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), check.IsNil)
 
@@ -235,7 +235,7 @@ func (s *DockerSuite) TestRestartWithPolicyUserDefinedNetwork(c *check.C) {
 func (s *DockerSuite) TestRestartPolicyAfterRestart(c *check.C) {
 	testRequires(c, SameHostDaemon)
 
-	out, _ := runSleepingContainer(c, "-d", "--restart=always")
+	out := runSleepingContainer(c, "-d", "--restart=always")
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), check.IsNil)
 
@@ -294,7 +294,7 @@ func (s *DockerSuite) TestRestartContainerwithRestartPolicy(c *check.C) {
 }
 
 func (s *DockerSuite) TestRestartAutoRemoveContainer(c *check.C) {
-	out, _ := runSleepingContainer(c, "--rm")
+	out := runSleepingContainer(c, "--rm")
 
 	id := strings.TrimSpace(string(out))
 	dockerCmd(c, "restart", id)

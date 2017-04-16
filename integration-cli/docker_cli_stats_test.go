@@ -147,7 +147,7 @@ func (s *DockerSuite) TestStatsAllNewContainersAdded(c *check.C) {
 		}
 	}()
 
-	out, _ := runSleepingContainer(c, "-d")
+	out := runSleepingContainer(c, "-d")
 	c.Assert(waitRun(strings.TrimSpace(out)), check.IsNil)
 	id <- strings.TrimSpace(out)[:12]
 

@@ -14,7 +14,7 @@ import (
 )
 
 func (s *DockerSuite) TestKillContainer(c *check.C) {
-	out, _ := runSleepingContainer(c, "-d")
+	out := runSleepingContainer(c, "-d")
 	cleanedContainerID := strings.TrimSpace(out)
 	cli.WaitRun(c, cleanedContainerID)
 
@@ -27,7 +27,7 @@ func (s *DockerSuite) TestKillContainer(c *check.C) {
 }
 
 func (s *DockerSuite) TestKillOffStoppedContainer(c *check.C) {
-	out, _ := runSleepingContainer(c, "-d")
+	out := runSleepingContainer(c, "-d")
 	cleanedContainerID := strings.TrimSpace(out)
 
 	cli.DockerCmd(c, "stop", cleanedContainerID)
@@ -103,7 +103,7 @@ func (s *DockerSuite) TestKillWithStopSignalWithDifferentSignalShouldKeepRestart
 
 // FIXME(vdemeester) should be a unit test
 func (s *DockerSuite) TestKillWithInvalidSignal(c *check.C) {
-	out, _ := runSleepingContainer(c, "-d")
+	out := runSleepingContainer(c, "-d")
 	cid := strings.TrimSpace(out)
 	c.Assert(waitRun(cid), check.IsNil)
 
@@ -114,7 +114,7 @@ func (s *DockerSuite) TestKillWithInvalidSignal(c *check.C) {
 	running := inspectField(c, cid, "State.Running")
 	c.Assert(running, checker.Equals, "true", check.Commentf("Container should be in running state after an invalid signal"))
 
-	out, _ = runSleepingContainer(c, "-d")
+	out = runSleepingContainer(c, "-d")
 	cid = strings.TrimSpace(out)
 	c.Assert(waitRun(cid), check.IsNil)
 

@@ -9,7 +9,7 @@ import (
 )
 
 func (s *DockerSuite) TestTopMultipleArgs(c *check.C) {
-	out, _ := runSleepingContainer(c, "-d")
+	out := runSleepingContainer(c, "-d")
 	cleanedContainerID := strings.TrimSpace(out)
 
 	var expected icmd.Expected
@@ -24,7 +24,7 @@ func (s *DockerSuite) TestTopMultipleArgs(c *check.C) {
 }
 
 func (s *DockerSuite) TestTopNonPrivileged(c *check.C) {
-	out, _ := runSleepingContainer(c, "-d")
+	out := runSleepingContainer(c, "-d")
 	cleanedContainerID := strings.TrimSpace(out)
 
 	out1, _ := dockerCmd(c, "top", cleanedContainerID)
@@ -49,7 +49,7 @@ func (s *DockerSuite) TestTopNonPrivileged(c *check.C) {
 // very different to Linux in this regard.
 func (s *DockerSuite) TestTopWindowsCoreProcesses(c *check.C) {
 	testRequires(c, DaemonIsWindows)
-	out, _ := runSleepingContainer(c, "-d")
+	out := runSleepingContainer(c, "-d")
 	cleanedContainerID := strings.TrimSpace(out)
 	out1, _ := dockerCmd(c, "top", cleanedContainerID)
 	lookingFor := []string{"smss.exe", "csrss.exe", "wininit.exe", "services.exe", "lsass.exe", "CExecSvc.exe"}
