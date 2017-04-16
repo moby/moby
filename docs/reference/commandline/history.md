@@ -58,19 +58,19 @@ c69cab00d6ef        5 months ago        /bin/sh -c #(nop) MAINTAINER Lokesh Mand
 
 ### Format the output
 
-The formatting option (`--format`) will pretty print history output
+The formatting option (`--format`) will pretty-prints history output
 using a Go template.
 
 Valid placeholders for the Go template are listed below:
 
-| Placeholder | Description|
-| ---- | ---- |
-| `.ID` | Image ID |
-| `.CreatedSince` | Elapsed time since the image was created if --human=true, otherwise timestamp of when image was created |
-| `.CreatedAt` | Timestamp of when image was created |
-| `.CreatedBy` | Command that was used to create the image |
-| `.Size` | Image disk size |
-| `.Comment` | Comment for image |
+| Placeholder     | Description |
+| --------------- | ----------- |
+| `.ID`           | Image ID    |
+| `.CreatedSince` | Elapsed time since the image was created if `--human=true`, otherwise timestamp of when image was created |
+| `.CreatedAt`    | Timestamp of when image was created |
+| `.CreatedBy`    | Command that was used to create the image |
+| `.Size`         | Image disk size |
+| `.Comment`      | Comment for image |
 
 When using the `--format` option, the `history` command will either
 output the data exactly as the template declares or, when using the
@@ -80,7 +80,6 @@ The following example uses a template without headers and outputs the
 `ID` and `CreatedSince` entries separated by a colon for all images:
 
 ```bash
-{% raw %}
 $ docker images --format "{{.ID}}: {{.Created}} ago"
 
 cc1b61406712: 2 weeks ago
@@ -91,6 +90,4 @@ cc1b61406712: 2 weeks ago
 <missing>: 3 weeks ago
 <missing>: 3 weeks ago
 <missing>: 3 weeks ago
-
-{% endraw %}
 ```
