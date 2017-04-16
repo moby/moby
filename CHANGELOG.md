@@ -2008,6 +2008,7 @@ by another client (#15489)
 + Use /var/lib/docker/tmp for large temporary files
 + `--cap-add` and `--cap-drop` to tweak what linux capability you want
 + `--device` to use devices in containers
++ Breaking: Disallow using both BTRFS graph driver and SELinux
 
 #### Client
 + `docker search` on private registries
