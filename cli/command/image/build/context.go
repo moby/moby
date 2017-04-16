@@ -143,7 +143,7 @@ func GetContextFromGitURL(gitURL, dockerfileName string) (string, string, error)
 		return "", "", errors.Wrapf(err, "unable to 'git clone' to temporary context directory")
 	}
 
-	absContextDir, err = resolveAndValidateContextPath(absContextDir)
+	absContextDir, err = ResolveAndValidateContextPath(absContextDir)
 	if err != nil {
 		return "", "", err
 	}
@@ -173,7 +173,7 @@ func GetContextFromURL(out io.Writer, remoteURL, dockerfileName string) (io.Read
 // the relative path of the dockerfile in that context directory, and a non-nil
 // error on success.
 func GetContextFromLocalDir(localDir, dockerfileName string) (string, string, error) {
-	localDir, err := resolveAndValidateContextPath(localDir)
+	localDir, err := ResolveAndValidateContextPath(localDir)
 	if err != nil {
 		return "", "", err
 	}
@@ -191,9 +191,9 @@ func GetContextFromLocalDir(localDir, dockerfileName string) (string, string, er
 	return localDir, relDockerfile, err
 }
 
-// resolveAndValidateContextPath uses the given context directory for a `docker build`
+// ResolveAndValidateContextPath uses the given context directory for a `docker build`
 // and returns the absolute path to the context directory.
-func resolveAndValidateContextPath(givenContextDir string) (string, error) {
+func ResolveAndValidateContextPath(givenContextDir string) (string, error) {
 	absContextDir, err := filepath.Abs(givenContextDir)
 	if err != nil {
 		return "", errors.Errorf("unable to get absolute context directory of given context directory %q: %v", givenContextDir, err)

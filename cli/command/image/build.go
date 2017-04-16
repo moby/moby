@@ -8,7 +8,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"regexp"
 	"runtime"
 	"time"
@@ -17,13 +16,11 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/builder/dockerignore"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/command/image/build"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
@@ -208,22 +205,13 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 	}
 
 	if buildCtx == nil {
-		f, err := os.Open(filepath.Join(contextDir, ".dockerignore"))
-		if err != nil && !os.IsNotExist(err) {
+		excludes, err := build.ReadDockerignore(contextDir)
+		if err != nil {
 			return err
-		}
-		defer f.Close()
-
-		var excludes []string
-		if err == nil {
-			excludes, err = dockerignore.ReadAll(f)
-			if err != nil {
-				return err
-			}
 		}
 
 		if err := build.ValidateContextDirectory(contextDir, excludes); err != nil {
-			return errors.Errorf("Error checking context: '%s'.", err)
+			return errors.Errorf("error checking context: '%s'.", err)
 		}
 
 		// And canonicalize dockerfile name to a platform-independent one
@@ -232,20 +220,7 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 			return errors.Errorf("cannot canonicalize dockerfile path %s: %v", relDockerfile, err)
 		}
 
-		// If .dockerignore mentions .dockerignore or the Dockerfile then make
-		// sure we send both files over to the daemon because Dockerfile is,
-		// obviously, needed no matter what, and .dockerignore is needed to know
-		// if either one needs to be removed. The daemon will remove them
-		// if necessary, after it parses the Dockerfile. Ignore errors here, as
-		// they will have been caught by validateContextDirectory above.
-		// Excludes are used instead of includes to maintain the order of files
-		// in the archive.
-		if keep, _ := fileutils.Matches(".dockerignore", excludes); keep {
-			excludes = append(excludes, "!.dockerignore")
-		}
-		if keep, _ := fileutils.Matches(relDockerfile, excludes); keep && !options.dockerfileFromStdin() {
-			excludes = append(excludes, "!"+relDockerfile)
-		}
+		excludes = build.TrimBuildFilesFromExcludes(excludes, relDockerfile, options.dockerfileFromStdin())
 
 		compression := archive.Uncompressed
 		if options.compress {
