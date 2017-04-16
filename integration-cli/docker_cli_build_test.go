@@ -28,6 +28,7 @@ import (
 	"github.com/docker/docker/pkg/testutil"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
+	"github.com/stretchr/testify/require"
 )
 
 func (s *DockerSuite) TestBuildJSONEmptyRun(c *check.C) {
@@ -1064,28 +1065,20 @@ func (s *DockerSuite) TestBuildWithInaccessibleFilesInContext(c *check.C) {
 		// This is used to ensure we detect inaccessible files early during build in the cli client
 		pathToFileWithoutReadAccess := filepath.Join(ctx.Dir, "fileWithoutReadAccess")
 
-		if err := os.Chown(pathToFileWithoutReadAccess, 0, 0); err != nil {
-			c.Fatalf("failed to chown file to root: %s", err)
-		}
-		if err := os.Chmod(pathToFileWithoutReadAccess, 0700); err != nil {
-			c.Fatalf("failed to chmod file to 700: %s", err)
-		}
+		err := os.Chown(pathToFileWithoutReadAccess, 0, 0)
+		require.NoError(c, err)
+
+		err = os.Chmod(pathToFileWithoutReadAccess, 0700)
+		require.NoError(c, err)
+
 		result := icmd.RunCmd(icmd.Cmd{
 			Command: []string{"su", "unprivilegeduser", "-c", fmt.Sprintf("%s build -t %s .", dockerBinary, name)},
 			Dir:     ctx.Dir,
 		})
-		if result.Error == nil {
-			c.Fatalf("build should have failed: %s %s", result.Error, result.Combined())
-		}
-
-		// check if we've detected the failure before we started building
-		if !strings.Contains(result.Combined(), "no permission to read from ") {
-			c.Fatalf("output should've contained the string: no permission to read from but contained: %s", result.Combined())
-		}
-
-		if !strings.Contains(result.Combined(), "Error checking context") {
-			c.Fatalf("output should've contained the string: Error checking context")
-		}
+		result.Assert(c, icmd.Expected{
+			ExitCode: 1,
+			Err:      "error checking context: 'no permission to read from ",
+		})
 	}
 	{
 		name := "testbuildinaccessibledirectory"
@@ -1112,19 +1105,10 @@ func (s *DockerSuite) TestBuildWithInaccessibleFilesInContext(c *check.C) {
 			Command: []string{"su", "unprivilegeduser", "-c", fmt.Sprintf("%s build -t %s .", dockerBinary, name)},
 			Dir:     ctx.Dir,
 		})
-		if result.Error == nil {
-			c.Fatalf("build should have failed: %s %s", result.Error, result.Combined())
-		}
-
-		// check if we've detected the failure before we started building
-		if !strings.Contains(result.Combined(), "can't stat") {
-			c.Fatalf("output should've contained the string: can't access %s", result.Combined())
-		}
-
-		if !strings.Contains(result.Combined(), "Error checking context") {
-			c.Fatalf("output should've contained the string: Error checking context\ngot:%s", result.Combined())
-		}
-
+		result.Assert(c, icmd.Expected{
+			ExitCode: 1,
+			Err:      "error checking context: 'can't stat ",
+		})
 	}
 	{
 		name := "testlinksok"
@@ -1138,7 +1122,7 @@ func (s *DockerSuite) TestBuildWithInaccessibleFilesInContext(c *check.C) {
 		defer os.Remove(target)
 		// This is used to ensure we don't follow links when checking if everything in the context is accessible
 		// This test doesn't require that we run commands as an unprivileged user
-		buildImageSuccessfully(c, name, build.WithExternalBuildContext(ctx))
+		cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 	}
 	{
 		name := "testbuildignoredinaccessible"
@@ -1168,7 +1152,7 @@ func (s *DockerSuite) TestBuildWithInaccessibleFilesInContext(c *check.C) {
 			Command: []string{"su", "unprivilegeduser", "-c",
 				fmt.Sprintf("%s build -t %s .", dockerBinary, name)},
 		})
-		result.Assert(c, icmd.Expected{})
+		result.Assert(c, icmd.Success)
 	}
 }
 
@@ -2494,7 +2478,7 @@ func (s *DockerSuite) TestBuildDockerignoringOnlyDotfiles(c *check.C) {
 
 func (s *DockerSuite) TestBuildDockerignoringBadExclusion(c *check.C) {
 	name := "testbuilddockerignorebadexclusion"
-	buildImage(name, build.WithBuildContext(c,
+	cli.Docker(cli.Build(name), build.WithBuildContext(c,
 		build.WithFile("Dockerfile", `
 		FROM busybox
 		COPY . /
@@ -2505,7 +2489,7 @@ func (s *DockerSuite) TestBuildDockerignoringBadExclusion(c *check.C) {
 		build.WithFile(".dockerignore", "!\n"),
 	)).Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err:      "Error checking context: 'illegal exclusion pattern: \"!\"",
+		Err:      "error checking context: 'illegal exclusion pattern: \"!\"",
 	})
 }
 

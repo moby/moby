@@ -12,7 +12,9 @@ import (
 	"testing"
 
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/docker/docker/pkg/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const dockerfileContents = "FROM busybox"
@@ -36,10 +38,7 @@ func testValidateContextDirectory(t *testing.T, prepare func(t *testing.T) (stri
 	defer cleanup()
 
 	err := ValidateContextDirectory(contextDir, excludes)
-
-	if err != nil {
-		t.Fatalf("Error should be nil, got: %s", err)
-	}
+	require.NoError(t, err)
 }
 
 func TestGetContextFromLocalDirNoDockerfile(t *testing.T) {
@@ -47,7 +46,7 @@ func TestGetContextFromLocalDirNoDockerfile(t *testing.T) {
 	defer cleanup()
 
 	_, _, err := GetContextFromLocalDir(contextDir, "")
-	assert.Error(t, err, "Dockerfile")
+	testutil.ErrorContains(t, err, "Dockerfile")
 }
 
 func TestGetContextFromLocalDirNotExistingDir(t *testing.T) {
@@ -56,19 +55,8 @@ func TestGetContextFromLocalDirNotExistingDir(t *testing.T) {
 
 	fakePath := filepath.Join(contextDir, "fake")
 
-	absContextDir, relDockerfile, err := GetContextFromLocalDir(fakePath, "")
-
-	if err == nil {
-		t.Fatalf("Error should not be nil")
-	}
-
-	if absContextDir != "" {
-		t.Fatalf("Absolute directory path should be empty, got: %s", absContextDir)
-	}
-
-	if relDockerfile != "" {
-		t.Fatalf("Relative path to Dockerfile should be empty, got: %s", relDockerfile)
-	}
+	_, _, err := GetContextFromLocalDir(fakePath, "")
+	testutil.ErrorContains(t, err, "fake")
 }
 
 func TestGetContextFromLocalDirNotExistingDockerfile(t *testing.T) {
@@ -78,7 +66,7 @@ func TestGetContextFromLocalDirNotExistingDockerfile(t *testing.T) {
 	fakePath := filepath.Join(contextDir, "fake")
 
 	_, _, err := GetContextFromLocalDir(contextDir, fakePath)
-	assert.Error(t, err, "fake")
+	testutil.ErrorContains(t, err, "fake")
 }
 
 func TestGetContextFromLocalDirWithNoDirectory(t *testing.T) {
@@ -91,18 +79,10 @@ func TestGetContextFromLocalDirWithNoDirectory(t *testing.T) {
 	defer chdirCleanup()
 
 	absContextDir, relDockerfile, err := GetContextFromLocalDir(contextDir, "")
+	require.NoError(t, err)
 
-	if err != nil {
-		t.Fatalf("Error when getting context from local dir: %s", err)
-	}
-
-	if absContextDir != contextDir {
-		t.Fatalf("Absolute directory path should be equal to %s, got: %s", contextDir, absContextDir)
-	}
-
-	if relDockerfile != DefaultDockerfileName {
-		t.Fatalf("Relative path to dockerfile should be equal to %s, got: %s", DefaultDockerfileName, relDockerfile)
-	}
+	assert.Equal(t, contextDir, absContextDir)
+	assert.Equal(t, DefaultDockerfileName, relDockerfile)
 }
 
 func TestGetContextFromLocalDirWithDockerfile(t *testing.T) {
@@ -112,18 +92,10 @@ func TestGetContextFromLocalDirWithDockerfile(t *testing.T) {
 	createTestTempFile(t, contextDir, DefaultDockerfileName, dockerfileContents, 0777)
 
 	absContextDir, relDockerfile, err := GetContextFromLocalDir(contextDir, "")
+	require.NoError(t, err)
 
-	if err != nil {
-		t.Fatalf("Error when getting context from local dir: %s", err)
-	}
-
-	if absContextDir != contextDir {
-		t.Fatalf("Absolute directory path should be equal to %s, got: %s", contextDir, absContextDir)
-	}
-
-	if relDockerfile != DefaultDockerfileName {
-		t.Fatalf("Relative path to dockerfile should be equal to %s, got: %s", DefaultDockerfileName, relDockerfile)
-	}
+	assert.Equal(t, contextDir, absContextDir)
+	assert.Equal(t, DefaultDockerfileName, relDockerfile)
 }
 
 func TestGetContextFromLocalDirLocalFile(t *testing.T) {
@@ -158,19 +130,10 @@ func TestGetContextFromLocalDirWithCustomDockerfile(t *testing.T) {
 	createTestTempFile(t, contextDir, DefaultDockerfileName, dockerfileContents, 0777)
 
 	absContextDir, relDockerfile, err := GetContextFromLocalDir(contextDir, DefaultDockerfileName)
+	require.NoError(t, err)
 
-	if err != nil {
-		t.Fatalf("Error when getting context from local dir: %s", err)
-	}
-
-	if absContextDir != contextDir {
-		t.Fatalf("Absolute directory path should be equal to %s, got: %s", contextDir, absContextDir)
-	}
-
-	if relDockerfile != DefaultDockerfileName {
-		t.Fatalf("Relative path to dockerfile should be equal to %s, got: %s", DefaultDockerfileName, relDockerfile)
-	}
-
+	assert.Equal(t, contextDir, absContextDir)
+	assert.Equal(t, DefaultDockerfileName, relDockerfile)
 }
 
 func TestGetContextFromReaderString(t *testing.T) {
@@ -198,9 +161,7 @@ func TestGetContextFromReaderString(t *testing.T) {
 		t.Fatalf("Tar stream too long: %s", err)
 	}
 
-	if err = tarArchive.Close(); err != nil {
-		t.Fatalf("Error when closing tar stream: %s", err)
-	}
+	require.NoError(t, tarArchive.Close())
 
 	if dockerfileContents != contents {
 		t.Fatalf("Uncompressed tar archive does not equal: %s, got: %s", dockerfileContents, contents)
@@ -218,24 +179,15 @@ func TestGetContextFromReaderTar(t *testing.T) {
 	createTestTempFile(t, contextDir, DefaultDockerfileName, dockerfileContents, 0777)
 
 	tarStream, err := archive.Tar(contextDir, archive.Uncompressed)
-
-	if err != nil {
-		t.Fatalf("Error when creating tar: %s", err)
-	}
+	require.NoError(t, err)
 
 	tarArchive, relDockerfile, err := GetContextFromReader(tarStream, DefaultDockerfileName)
-
-	if err != nil {
-		t.Fatalf("Error when executing GetContextFromReader: %s", err)
-	}
+	require.NoError(t, err)
 
 	tarReader := tar.NewReader(tarArchive)
 
 	header, err := tarReader.Next()
-
-	if err != nil {
-		t.Fatalf("Error when reading tar archive: %s", err)
-	}
+	require.NoError(t, err)
 
 	if header.Name != DefaultDockerfileName {
 		t.Fatalf("Dockerfile name should be: %s, got: %s", DefaultDockerfileName, header.Name)
@@ -251,9 +203,7 @@ func TestGetContextFromReaderTar(t *testing.T) {
 		t.Fatalf("Tar stream too long: %s", err)
 	}
 
-	if err = tarArchive.Close(); err != nil {
-		t.Fatalf("Error when closing tar stream: %s", err)
-	}
+	require.NoError(t, tarArchive.Close())
 
 	if dockerfileContents != contents {
 		t.Fatalf("Uncompressed tar archive does not equal: %s, got: %s", dockerfileContents, contents)
@@ -293,11 +243,8 @@ func TestValidateContextDirectoryWithOneFileExcludes(t *testing.T) {
 // When an error occurs, it terminates the test.
 func createTestTempDir(t *testing.T, dir, prefix string) (string, func()) {
 	path, err := ioutil.TempDir(dir, prefix)
-	assert.NilError(t, err)
-
-	return path, func() {
-		assert.NilError(t, os.RemoveAll(path))
-	}
+	require.NoError(t, err)
+	return path, func() { require.NoError(t, os.RemoveAll(path)) }
 }
 
 // createTestTempFile creates a temporary file within dir with specific contents and permissions.
@@ -305,11 +252,7 @@ func createTestTempDir(t *testing.T, dir, prefix string) (string, func()) {
 func createTestTempFile(t *testing.T, dir, filename, contents string, perm os.FileMode) string {
 	filePath := filepath.Join(dir, filename)
 	err := ioutil.WriteFile(filePath, []byte(contents), perm)
-
-	if err != nil {
-		t.Fatalf("Error when creating %s file: %s", filename, err)
-	}
-
+	require.NoError(t, err)
 	return filePath
 }
 
@@ -319,22 +262,7 @@ func createTestTempFile(t *testing.T, dir, filename, contents string, perm os.Fi
 // When an error occurs, it terminates the test.
 func chdir(t *testing.T, dir string) func() {
 	workingDirectory, err := os.Getwd()
-
-	if err != nil {
-		t.Fatalf("Error when retrieving working directory: %s", err)
-	}
-
-	err = os.Chdir(dir)
-
-	if err != nil {
-		t.Fatalf("Error when changing directory to %s: %s", dir, err)
-	}
-
-	return func() {
-		err = os.Chdir(workingDirectory)
-
-		if err != nil {
-			t.Fatalf("Error when changing back to working directory (%s): %s", workingDirectory, err)
-		}
-	}
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(dir))
+	return func() { require.NoError(t, os.Chdir(workingDirectory)) }
 }
