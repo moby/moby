@@ -30,7 +30,7 @@ A Sandbox may contain *many* endpoints from *multiple* networks.
 
 An Endpoint joins a Sandbox to a Network.
 An implementation of an Endpoint could be a `veth` pair, an Open vSwitch internal port or similar.
-An Endpoint can belong to *only one* network but may only belong to *one* Sandbox.
+An Endpoint can belong to *only one* network and *one* Sandbox.
 
 **Network**
 
