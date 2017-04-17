@@ -135,7 +135,7 @@ func (daemon *Daemon) newContainer(name string, config *containertypes.Config, h
 	entrypoint, args := daemon.getEntrypointAndArgs(config.Entrypoint, config.Cmd)
 
 	base := daemon.newBaseContainer(id)
-	base.Created = time.Now().UTC()
+	base.Created = time.Time{}
 	base.Managed = managed
 	base.Path = entrypoint
 	base.Args = args //FIXME: de-duplicate from config
