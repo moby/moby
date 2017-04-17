@@ -317,6 +317,9 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 
 	d.SetCluster(c)
 	initRouter(api, d, c)
+	if cli.Config.EnableProfilerEndpoints || debug.IsEnabled() {
+		api.EnableProfiler()
+	}
 
 	cli.setupConfigReloadTrap()
 
@@ -362,12 +365,15 @@ func (cli *DaemonCli) reloadConfig() {
 			switch {
 			case debugEnabled && !config.Debug: // disable debug
 				debug.Disable()
-				cli.api.DisableProfiler()
 			case config.Debug && !debugEnabled: // enable debug
 				debug.Enable()
-				cli.api.EnableProfiler()
 			}
+		}
 
+		if config.EnableProfilerEndpoints || debug.IsEnabled() {
+			cli.api.EnableProfiler()
+		} else {
+			cli.api.DisableProfiler()
 		}
 	}
 
@@ -503,7 +509,7 @@ func initRouter(s *apiserver.Server, d *daemon.Daemon, c *cluster.Cluster) {
 		}
 	}
 
-	s.InitRouter(debug.IsEnabled(), routers...)
+	s.InitRouter(routers...)
 }
 
 func (cli *DaemonCli) initMiddlewares(s *apiserver.Server, cfg *apiserver.Config, pluginStore *plugin.Store) error {
