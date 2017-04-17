@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"fmt"
+	"strings"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
@@ -16,6 +17,23 @@ func (daemon *Daemon) createContainerPlatformSpecificSettings(container *contain
 		hostConfig.Isolation = daemon.defaultIsolation
 	}
 
+	var defaultDriver = hostConfig.VolumeDriver
+	if driver, ok := config.Labels["com.docker.swarm.volume.default.driver"]; ok {
+		defaultDriver = driver
+	}
+	var defaultOpts map[string]string
+	if opts, ok := config.Labels["com.docker.swarm.volume.default.opts"]; ok {
+		defaultOpts = make(map[string]string)
+		rawOpts := strings.Split(opts, ",")
+		for id := range rawOpts {
+			pair := strings.SplitN(rawOpts[id], "=", 2)
+			if len(pair) != 2 {
+				return fmt.Errorf("Unrecognised default opts: %s", rawOpts[id])
+			}
+			defaultOpts[pair[0]] = pair[1]
+		}
+	}
+
 	for spec := range config.Volumes {
 
 		mp, err := volume.ParseMountRaw(spec, hostConfig.VolumeDriver)
@@ -26,6 +44,12 @@ func (daemon *Daemon) createContainerPlatformSpecificSettings(container *contain
 		// If the mountpoint doesn't have a name, generate one.
 		if len(mp.Name) == 0 {
 			mp.Name = stringid.GenerateNonCryptoID()
+
+			if defaultName, ok := config.Labels["com.docker.swarm.volume.default.name"]; ok {
+				mp.Name = defaultName
+			} else if serviceName, ok := config.Labels["com.docker.swarm.task.name"]; ok {
+				mp.Name = fmt.Sprintf("%s.%x", serviceName, spec)
+			}
 		}
 
 		// Skip volumes for which we already have something mounted on that
@@ -34,11 +58,9 @@ func (daemon *Daemon) createContainerPlatformSpecificSettings(container *contain
 			continue
 		}
 
-		volumeDriver := hostConfig.VolumeDriver
-
 		// Create the volume in the volume driver. If it doesn't exist,
 		// a new one will be created.
-		v, err := daemon.volumes.CreateWithRef(mp.Name, volumeDriver, container.ID, nil, nil)
+		v, err := daemon.volumes.CreateWithRef(mp.Name, defaultDriver, container.ID, defaultOpts, nil)
 		if err != nil {
 			return err
 		}
