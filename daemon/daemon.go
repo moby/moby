@@ -955,7 +955,7 @@ func prepareTempDir(rootDir string, rootUID, rootGID int) (string, error) {
 	if tmpDir = os.Getenv("DOCKER_TMPDIR"); tmpDir == "" {
 		tmpDir = filepath.Join(rootDir, "tmp")
 		newName := tmpDir + "-old"
-		if err := os.Rename(tmpDir, newName); err != nil {
+		if err := os.Rename(tmpDir, newName); err == nil {
 			go func() {
 				if err := os.RemoveAll(newName); err != nil {
 					logrus.Warnf("failed to delete old tmp directory: %s", newName)
