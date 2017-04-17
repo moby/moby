@@ -1,10 +1,12 @@
 go-spew
 =======
 
-[![Build Status](https://travis-ci.org/davecgh/go-spew.png?branch=master)]
-(https://travis-ci.org/davecgh/go-spew) [![Coverage Status]
-(https://coveralls.io/repos/davecgh/go-spew/badge.png?branch=master)]
+[![Build Status](https://img.shields.io/travis/davecgh/go-spew.svg)]
+(https://travis-ci.org/davecgh/go-spew) [![ISC License]
+(http://img.shields.io/badge/license-ISC-blue.svg)](http://copyfree.org) [![Coverage Status]
+(https://img.shields.io/coveralls/davecgh/go-spew.svg)]
 (https://coveralls.io/r/davecgh/go-spew?branch=master)
+
 
 Go-spew implements a deep pretty printer for Go data structures to aid in
 debugging.  A comprehensive suite of tests with 100% test coverage is provided
@@ -19,7 +21,7 @@ post about it
 
 ## Documentation
 
-[![GoDoc](https://godoc.org/github.com/davecgh/go-spew/spew?status.png)]
+[![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg)]
 (http://godoc.org/github.com/davecgh/go-spew/spew)
 
 Full `go doc` style documentation for the project can be viewed online without
@@ -160,6 +162,15 @@ options. See the ConfigState documentation for more details.
 	App Engine or with the "safe" build tag specified.
 	Pointer method invocation is enabled by default.
 
+* DisablePointerAddresses
+	DisablePointerAddresses specifies whether to disable the printing of
+	pointer addresses. This is useful when diffing data structures in tests.
+
+* DisableCapacities
+	DisableCapacities specifies whether to disable the printing of capacities
+	for arrays, slices, maps and channels. This is useful when diffing data
+	structures in tests.
+
 * ContinueOnMethod
 	Enables recursion into types after invoking error and Stringer interface
 	methods. Recursion after method invocation is disabled by default.
@@ -191,4 +202,4 @@ using the unsafe package.
 
 ## License
 
-Go-spew is licensed under the liberal ISC License.
+Go-spew is licensed under the [copyfree](http://copyfree.org) ISC License.

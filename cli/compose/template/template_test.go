@@ -18,7 +18,7 @@ func defaultMapping(name string) (string, bool) {
 
 func TestEscaped(t *testing.T) {
 	result, err := Substitute("$${foo}", defaultMapping)
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 	assert.Equal(t, "${foo}", result)
 }
 
@@ -43,7 +43,7 @@ func TestInvalid(t *testing.T) {
 func TestNoValueNoDefault(t *testing.T) {
 	for _, template := range []string{"This ${missing} var", "This ${BAR} var"} {
 		result, err := Substitute(template, defaultMapping)
-		assert.NoError(t, err)
+		assert.Nil(t, err)
 		assert.Equal(t, "This  var", result)
 	}
 }
@@ -51,7 +51,7 @@ func TestNoValueNoDefault(t *testing.T) {
 func TestValueNoDefault(t *testing.T) {
 	for _, template := range []string{"This $FOO var", "This ${FOO} var"} {
 		result, err := Substitute(template, defaultMapping)
-		assert.NoError(t, err)
+		assert.Nil(t, err)
 		assert.Equal(t, "This first var", result)
 	}
 }
@@ -59,25 +59,25 @@ func TestValueNoDefault(t *testing.T) {
 func TestNoValueWithDefault(t *testing.T) {
 	for _, template := range []string{"ok ${missing:-def}", "ok ${missing-def}"} {
 		result, err := Substitute(template, defaultMapping)
-		assert.NoError(t, err)
+		assert.Nil(t, err)
 		assert.Equal(t, "ok def", result)
 	}
 }
 
 func TestEmptyValueWithSoftDefault(t *testing.T) {
 	result, err := Substitute("ok ${BAR:-def}", defaultMapping)
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 	assert.Equal(t, "ok def", result)
 }
 
 func TestEmptyValueWithHardDefault(t *testing.T) {
 	result, err := Substitute("ok ${BAR-def}", defaultMapping)
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 	assert.Equal(t, "ok ", result)
 }
 
 func TestNonAlphanumericDefault(t *testing.T) {
 	result, err := Substitute("ok ${BAR:-/non:-alphanumeric}", defaultMapping)
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 	assert.Equal(t, "ok /non:-alphanumeric", result)
 }
