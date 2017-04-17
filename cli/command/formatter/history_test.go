@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/stringutils"
-	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 type historyCase struct {
@@ -206,7 +206,7 @@ imageID4            24 hours ago        /bin/bash grep                          
 
 	for _, context := range contexts {
 		HistoryWrite(context.context, true, histories)
-		assert.Equal(t, out.String(), context.expected)
+		assert.Equal(t, context.expected, out.String())
 		// Clean buffer
 		out.Reset()
 	}
