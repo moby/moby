@@ -3,6 +3,7 @@ package opts
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 )
@@ -27,6 +28,27 @@ func ValidateEnv(val string) (string, error) {
 		return val, nil
 	}
 	return fmt.Sprintf("%s=%s", val, os.Getenv(val)), nil
+}
+
+// ExpandEnvWildcard takes a glob pattern and then returns a slice of strings
+// of the form KEY=VALUE with environment variables where KEY matches the glob
+// pattern.
+func ExpandEnvWildcard(pattern string) []string {
+	var opts []string
+
+	for _, entry := range os.Environ() {
+		parts := strings.SplitN(entry, "=", 2)
+		name := parts[0]
+		matched, err := filepath.Match(pattern, name)
+		if err != nil {
+			break
+		}
+		if matched {
+			opts = append(opts, entry)
+		}
+	}
+
+	return opts
 }
 
 func doesEnvExist(name string) bool {

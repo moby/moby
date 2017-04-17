@@ -55,6 +55,7 @@ type containerOptions struct {
 	extraHosts         opts.ListOpts
 	volumesFrom        opts.ListOpts
 	envFile            opts.ListOpts
+	envWildcard        opts.ListOpts
 	capAdd             opts.ListOpts
 	capDrop            opts.ListOpts
 	groupAdd           opts.ListOpts
@@ -143,6 +144,7 @@ func addFlags(flags *pflag.FlagSet) *containerOptions {
 		devices:           opts.NewListOpts(validateDevice),
 		env:               opts.NewListOpts(opts.ValidateEnv),
 		envFile:           opts.NewListOpts(nil),
+		envWildcard:       opts.NewListOpts(nil),
 		expose:            opts.NewListOpts(nil),
 		extraHosts:        opts.NewListOpts(opts.ValidateExtraHost),
 		groupAdd:          opts.NewListOpts(nil),
@@ -167,6 +169,7 @@ func addFlags(flags *pflag.FlagSet) *containerOptions {
 	flags.Var(&copts.devices, "device", "Add a host device to the container")
 	flags.VarP(&copts.env, "env", "e", "Set environment variables")
 	flags.Var(&copts.envFile, "env-file", "Read in a file of environment variables")
+	flags.Var(&copts.envWildcard, "env-wildcard", "Pass through environment variables that match a wildcard (glob) pattern")
 	flags.StringVar(&copts.entrypoint, "entrypoint", "", "Overwrite the default ENTRYPOINT of the image")
 	flags.Var(&copts.groupAdd, "group-add", "Add additional groups to join")
 	flags.StringVarP(&copts.hostname, "hostname", "h", "", "Container host name")
@@ -410,8 +413,17 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*containerConfig, err
 		deviceMappings = append(deviceMappings, deviceMapping)
 	}
 
+	// Handle the --env-wildcard option
+	envOpts := copts.env.GetAll()
+
+	for _, envOpt := range copts.envWildcard.GetAll() {
+		for _, newEnvOpt := range opts.ExpandEnvWildcard(envOpt) {
+			envOpts = append(envOpts, newEnvOpt)
+		}
+	}
+
 	// collect all the environment variables for the container
-	envVariables, err := runconfigopts.ReadKVStrings(copts.envFile.GetAll(), copts.env.GetAll())
+	envVariables, err := runconfigopts.ReadKVStrings(copts.envFile.GetAll(), envOpts)
 	if err != nil {
 		return nil, err
 	}
