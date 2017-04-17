@@ -87,6 +87,10 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 		imgID = img.ID()
 	}
 
+	if err := daemon.normalizeStandaloneAndClusterSettings(container, params.Config, params.HostConfig); err != nil {
+		return nil, err
+	}
+
 	if err := daemon.mergeAndVerifyConfig(params.Config, img); err != nil {
 		return nil, err
 	}
