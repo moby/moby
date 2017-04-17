@@ -347,8 +347,14 @@ do_install() {
 	if [ -z "$lsb_dist" ] && [ -r /etc/os-release ]; then
 		lsb_dist="$(. /etc/os-release && echo "$ID")"
 	fi
+	
+	if [ -z "$lsb_dist" ] && [ -r /etc/system-release ];then
+			lsb_dist="$( cat /etc/system-release|cut -d " " -f1,2|tr -d " ")"
+			
+	fi
 
 	lsb_dist="$(echo "$lsb_dist" | tr '[:upper:]' '[:lower:]')"
+	
 
 	# Special case redhatenterpriseserver
 	if [ "${lsb_dist}" = "redhatenterpriseserver" ]; then
@@ -521,6 +527,10 @@ do_install() {
 				)
 			fi
 			echo_docker_as_nonroot
+			exit 0
+			;;
+		amazonlinux)
+			$sh_c 'sleep 3; yum -y -q install docker'
 			exit 0
 			;;
 	esac
