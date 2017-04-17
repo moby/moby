@@ -145,6 +145,10 @@ type PluginConfigLinux struct {
 	// devices
 	// Required: true
 	Devices []PluginDevice `json:"Devices"`
+
+	// ipc
+	// Required: true
+	Ipc string `json:"Ipc"`
 }
 
 // PluginConfigNetwork plugin config network

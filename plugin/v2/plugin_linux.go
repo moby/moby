@@ -22,6 +22,10 @@ func (p *Plugin) InitSpec(execRoot string) (*specs.Spec, error) {
 		Readonly: false, // TODO: all plugins should be readonly? settable in config?
 	}
 
+	if p.PluginObj.Config.Linux.Ipc == "host" {
+		oci.RemoveNamespace(&s, specs.NamespaceType("ipc"))
+	}
+
 	userMounts := make(map[string]struct{}, len(p.PluginObj.Settings.Mounts))
 	for _, m := range p.PluginObj.Settings.Mounts {
 		userMounts[m.Destination] = struct{}{}

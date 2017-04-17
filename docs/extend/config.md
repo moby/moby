@@ -170,6 +170,10 @@ Config provides the base accessible fields for working with V0 plugin format
 
 	If `/dev` is bind mounted from the host, and allowAllDevices is set to true, the plugin will have `rwm` access to all devices on the host.
 
+    - **`ipc`** *string*
+
+	If `ipc` is `host`, the plugin will use the host's IPC namespace.
+
     - **`devices`** *PluginDevice array*
 
           device of the plugin, (*Linux only*), struct consisting of the following fields, see [`DEVICES`](https://github.com/opencontainers/runtime-spec/blob/master/config-linux.md#devices)

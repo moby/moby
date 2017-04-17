@@ -1513,8 +1513,11 @@ definitions:
           Linux:
             type: "object"
             x-nullable: false
-            required: [Capabilities, AllowAllDevices, Devices]
+            required: [Capabilities, AllowAllDevices, Devices, Ipc]
             properties:
+              Ipc:
+                type: "string"
+                x-nullable: false
               Capabilities:
                 type: "array"
                 items:
