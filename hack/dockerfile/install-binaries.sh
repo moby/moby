@@ -54,6 +54,14 @@ install_bindata() {
 	go build -o /usr/local/bin/go-bindata github.com/jteeuwen/go-bindata/go-bindata
 }
 
+install_dockercli() {
+	echo "Install docker/cli version $DOCKERCLI_COMMIT"
+	git clone "$DOCKERCLI_REPO" "$GOPATH/src/github.com/docker/cli"
+	cd "$GOPATH/src/github.com/docker/cli"
+	git checkout -q "$DOCKERCLI_COMMIT"
+	go build -o /usr/local/bin/docker github.com/docker/cli/cmd/docker
+}
+
 for prog in "$@"
 do
 	case $prog in
@@ -107,12 +115,16 @@ do
 			go build -v -o /usr/local/bin/vndr .
 			;;
 
-        bindata)
-            install_bindata
-            ;;
+		bindata)
+			install_bindata
+			;;
+
+		dockercli)
+			install_dockercli
+			;;
 
 		*)
-			echo echo "Usage: $0 [tomlv|runc|containerd|tini|proxy]"
+			echo echo "Usage: $0 [tomlv|runc|runc-dynamic|containerd|containerd-dynamic|tini|proxy|proxy-dynamic|bindata|vndr|dockercli]"
 			exit 1
 
 	esac
