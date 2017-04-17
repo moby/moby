@@ -38,6 +38,7 @@ func NewImagesCommand(dockerCli *command.DockerCli) *cobra.Command {
 		},
 	}
 
+	cmd.Aliases = []string{"docker image ls", "docker image list"}
 	flags := cmd.Flags()
 
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "Only show numeric IDs")
