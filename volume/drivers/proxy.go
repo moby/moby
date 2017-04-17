@@ -4,6 +4,7 @@ package volumedrivers
 
 import (
 	"errors"
+	"sync"
 
 	"github.com/docker/docker/volume"
 )
@@ -14,6 +15,8 @@ type client interface {
 
 type volumeDriverProxy struct {
 	client
+	Refs map[string]int
+	Mu   sync.Mutex
 }
 
 type volumeDriverProxyCreateRequest struct {
@@ -100,8 +103,9 @@ func (pp *volumeDriverProxy) Path(name string) (mountpoint string, err error) {
 }
 
 type volumeDriverProxyMountRequest struct {
-	Name string
-	ID   string
+	Name       string
+	ID         string
+	FirstMount bool
 }
 
 type volumeDriverProxyMountResponse struct {
@@ -117,6 +121,12 @@ func (pp *volumeDriverProxy) Mount(name string, id string) (mountpoint string, e
 
 	req.Name = name
 	req.ID = id
+
+	pp.Mu.Lock()
+	defer pp.Mu.Unlock()
+
+	req.FirstMount = (pp.Refs[name] == 0)
+
 	if err = pp.Call("VolumeDriver.Mount", req, &ret); err != nil {
 		return
 	}
@@ -127,12 +137,14 @@ func (pp *volumeDriverProxy) Mount(name string, id string) (mountpoint string, e
 		err = errors.New(ret.Err)
 	}
 
+	pp.Refs[name]++
 	return
 }
 
 type volumeDriverProxyUnmountRequest struct {
-	Name string
-	ID   string
+	Name      string
+	ID        string
+	LastMount bool
 }
 
 type volumeDriverProxyUnmountResponse struct {
@@ -147,6 +159,12 @@ func (pp *volumeDriverProxy) Unmount(name string, id string) (err error) {
 
 	req.Name = name
 	req.ID = id
+
+	pp.Mu.Lock()
+	defer pp.Mu.Unlock()
+
+	req.LastMount = (pp.Refs[name] == 1)
+
 	if err = pp.Call("VolumeDriver.Unmount", req, &ret); err != nil {
 		return
 	}
@@ -155,6 +173,11 @@ func (pp *volumeDriverProxy) Unmount(name string, id string) (err error) {
 		err = errors.New(ret.Err)
 	}
 
+	if pp.Refs[name] == 1 {
+		delete(pp.Refs, name)
+	} else {
+		pp.Refs[name]--
+	}
 	return
 }
 

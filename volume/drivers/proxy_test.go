@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/docker/docker/pkg/plugins"
@@ -63,7 +64,7 @@ func TestVolumeRequestError(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	driver := volumeDriverProxy{client}
+	driver := volumeDriverProxy{client, make(map[string]int), sync.Mutex{}}
 
 	if err = driver.Create("volume", nil); err == nil {
 		t.Fatal("Expected error, was nil")
