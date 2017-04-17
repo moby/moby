@@ -2,6 +2,7 @@
 
 rm -rf autogen
 
+# shellcheck disable=1091
 source hack/dockerfile/binaries-commits
 
 cat > dockerversion/version_autogen.go <<DVEOF
@@ -55,22 +56,22 @@ if [ "$(go env GOOS)" = "windows" ]; then
 	fi
 
 	# Generate a Windows file version of the form major,minor,patch,build (with any part optional)
-	VERSION_QUAD=$(echo -n $VERSION | sed -re 's/^([0-9.]*).*$/\1/' | tr . ,)
+	VERSION_QUAD="$(echo -n "$VERSION" | sed -re 's/^([0-9.]*).*$/\1/' | tr . ,)"
 
 	# Pass version and commit information into the resource compiler
 	defs=
-	[ ! -z $VERSION ]      && defs="$defs -D DOCKER_VERSION=\"$VERSION\""
-	[ ! -z $VERSION_QUAD ] && defs="$defs -D DOCKER_VERSION_QUAD=$VERSION_QUAD"
-	[ ! -z $GITCOMMIT ]    && defs="$defs -D DOCKER_COMMIT=\"$GITCOMMIT\""
+	[ ! -z "$VERSION" ]      && defs="$defs -D DOCKER_VERSION=\"$VERSION\""
+	[ ! -z "$VERSION_QUAD" ] && defs="$defs -D DOCKER_VERSION_QUAD=$VERSION_QUAD"
+	[ ! -z "$GITCOMMIT" ]    && defs="$defs -D DOCKER_COMMIT=\"$GITCOMMIT\""
 
 	function makeres {
 		$WINDRES \
-			-i hack/make/.resources-windows/$1 \
-			-o $3 \
-			-F $2 \
+			-i hack/make/.resources-windows/"$1" \
+			-o "$3" \
+			-F "$2" \
 			--use-temp-file \
 			-I autogen/winresources/tmp \
-			$defs
+			"$defs"
 	}
 
 	$WINDMC \

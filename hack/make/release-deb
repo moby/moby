@@ -14,8 +14,8 @@ set -e
 #
 # ... and so on and so forth for the builds created by hack/make/build-deb
 
-: ${DOCKER_RELEASE_DIR:=$DEST}
-: ${GPG_KEYID:=releasedocker}
+: "${DOCKER_RELEASE_DIR:=$DEST}"
+: "${GPG_KEYID:=releasedocker}"
 APTDIR=$DOCKER_RELEASE_DIR/apt/repo
 
 # setup the apt repo (if it does not exist)
@@ -35,6 +35,7 @@ done
 # set the component for the version being released
 component="main"
 
+# shellcheck disable=SC2153
 if [[ "$VERSION" == *-rc* ]]; then
 	component="testing"
 fi
@@ -105,7 +106,7 @@ for dir in bundles/$VERSION/build-deb/*/; do
 	# add the deb for each component for the distro version into the
 	# pool (if it is not there already)
 	mkdir -p "$APTDIR/pool/$component/d/docker-engine/"
- 	for deb in ${DEBFILE[@]}; do
+ 	for deb in "${DEBFILE[@]}"; do
 		d=$(basename "$deb")
 		# We do not want to generate a new deb if it has already been
 		# copied into the APTDIR
@@ -131,9 +132,10 @@ for dir in bundles/$VERSION/build-deb/*/; do
 	done
 
 	# update the filelist for this codename/component
+	# shellcheck disable=SC2035,2061
 	find "$APTDIR/pool/$component" \
-		-name *~${codename}*.deb -o \
-		-name *~${codename#*-}*.deb > "$APTDIR/dists/$codename/$component/filelist"
+		-name *~"${codename}"*.deb -o \
+		-name *~"${codename#*-}"*.deb > "$APTDIR/dists/$codename/$component/filelist"
 done
 
 # run the apt-ftparchive commands so we can have pinning

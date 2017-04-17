@@ -8,7 +8,8 @@
 #  $> ./generate_aliases <mailmap_file> > aliases
 #
 
-cat $1 | \
+# shellcheck disable=SC2002
+cat "$1" | \
     grep -v '^#' | \
     sed 's/^[^<]*<\([^>]*\)>/\1/' | \
     grep '<.*>' | sed -e 's/[<>]/ /g' | \

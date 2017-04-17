@@ -3,8 +3,9 @@
 set -e
 rm -rf "$DEST"
 
+# shellcheck disable=SC1090
 (
-	DEST="$(dirname $DEST)/binary-daemon"
+	DEST="$(dirname "$DEST")/binary-daemon"
 	source "${MAKEDIR}/.binary-setup"
 	install_binary "${DEST}/${DOCKER_DAEMON_BINARY_NAME}"
 	install_binary "${DEST}/${DOCKER_RUNC_BINARY_NAME}"

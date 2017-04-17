@@ -19,7 +19,7 @@ source hack/make/.integration-test-helpers
 		if [ -n "$leftovers" ]
 		then
 			ps aux
-			kill -9 $leftovers 2> /dev/null
+			kill -9 "$leftovers" 2> /dev/null
 			echo "!!!! WARNING you have left over shim(s), Cleanup your test !!!!"
 			exit 1
 		fi

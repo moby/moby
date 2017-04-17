@@ -43,7 +43,7 @@ cd /go/src/github.com/docker/docker
 [ -x hack/make.sh ] || usage
 
 export AWS_DEFAULT_REGION
-: ${AWS_DEFAULT_REGION:=us-west-1}
+: "${AWS_DEFAULT_REGION:=us-west-1}"
 
 AWS_CLI=${AWS_CLI:-'aws'}
 
@@ -92,7 +92,7 @@ setup_s3() {
 # write_to_s3 uploads the contents of standard input to the specified S3 url.
 write_to_s3() {
 	DEST=$1
-	F=`mktemp`
+	F=$(mktemp)
 	cat > "$F"
 	$AWS_CLI s3 cp --acl public-read --content-type 'text/plain' "$F" "$DEST"
 	rm -f "$F"
@@ -180,6 +180,7 @@ release_build() {
 	GOOS=$1
 	GOARCH=$2
 
+	# shellcheck disable=SC2034
 	binDir=bundles/$VERSION/cross/$GOOS/$GOARCH
 	tgzDir=bundles/$VERSION/tgz/$GOOS/$GOARCH
 	binary=docker-$VERSION
@@ -264,7 +265,7 @@ release_build() {
 
 # Upload binaries and tgz files to S3
 release_binaries() {
-	[ "$(find bundles/$VERSION -path "bundles/$VERSION/cross/*/*/docker-$VERSION")" != "" ] || {
+	[ "$(find "bundles/$VERSION" -path "bundles/$VERSION/cross/*/*/docker-$VERSION")" != "" ] || {
 		echo >&2 './hack/make.sh must be run before release_binaries'
 		exit 1
 	}
@@ -277,7 +278,7 @@ release_binaries() {
 
 	# TODO create redirect from builds/*/i686 to builds/*/i386
 
-	cat <<EOF | write_to_s3 s3://$BUCKET_PATH/builds/index
+	cat <<EOF | write_to_s3 s3://"$BUCKET_PATH/builds/index"
 # To install, run the following commands as root:
 curl -fsSLO $(s3_url)/builds/Linux/x86_64/docker-$VERSION.tgz && tar --strip-components=1 -xvzf docker-$VERSION.tgz -C /usr/local/bin
 

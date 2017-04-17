@@ -19,8 +19,6 @@ if [ "$#" -lt 2 ]; then
   exit 1
 fi
 
-CURDIR=$(pwd)
-
 image_name="${1%:*}"
 image_tag="${1#*:}"
 if [ "$image_tag" == "$1" ]; then
@@ -38,7 +36,7 @@ cleanup() {
   umount "$builddir/disk_image" || true
   umount "$builddir/workdir" || true
   qemu-nbd -d $block_device &> /dev/null || true
-  rm -rf $builddir
+  rm -rf "$builddir"
 }
 trap cleanup EXIT
 
@@ -73,7 +71,8 @@ fi
 mount -t aufs -o "br=$builddir/diff=rw${base_image_mounts},dio,xino=/dev/shm/aufs.xino" none "$builddir/workdir"
 
 # Update files
-cd $builddir
+cd "$builddir"
+# shellcheck disable=SC2162
 LC_ALL=C diff -rq disk_image workdir \
   | sed -re "s|Only in workdir(.*?): |DEL \1/|g;s|Only in disk_image(.*?): |ADD \1/|g;s|Files disk_image/(.+) and workdir/(.+) differ|UPDATE /\1|g" \
   | while read action entry; do
@@ -91,12 +90,13 @@ LC_ALL=C diff -rq disk_image workdir \
     done
 
 # Pack new image
-new_image_id="$(for i in $(seq 1 32); do printf "%02x" $(($RANDOM % 256)); done)"
-mkdir -p $builddir/result/$new_image_id
+# shellcheck disable=SC2034
+new_image_id="$(for i in $(seq 1 32); do printf "%02x" "$($RANDOM % 256)"; done)"
+mkdir -p "$builddir/result/$new_image_id"
 cd diff
-tar -cf $builddir/result/$new_image_id/layer.tar *
-echo "1.0" > $builddir/result/$new_image_id/VERSION
-cat > $builddir/result/$new_image_id/json <<-EOS
+tar -cf "$builddir/result/$new_image_id/layer.tar" "*"
+echo "1.0" > "$builddir/result/$new_image_id/VERSION"
+cat > "$builddir/result/$new_image_id/json" <<-EOS
 { "docker_version": "1.4.1"
 , "id": "$new_image_id"
 , "created": "$(date -u +%Y-%m-%dT%H:%M:%S.%NZ)"
@@ -104,15 +104,13 @@ EOS
 
 if [ -n "$docker_base_image" ]; then
   image_id=$(docker inspect -f "{{.Id}}" "$docker_base_image")
-  echo ", \"parent\": \"$image_id\"" >> $builddir/result/$new_image_id/json
+  echo ", \"parent\": \"$image_id\"" >> "$builddir/result/$new_image_id/json"
 fi
 
-echo "}" >> $builddir/result/$new_image_id/json
+echo "}" >> "$builddir/result/$new_image_id/json"
 
-echo "{\"$image_name\":{\"$image_tag\":\"$new_image_id\"}}" > $builddir/result/repositories
+echo "{\"$image_name\":{\"$image_tag\":\"$new_image_id\"}}" > "$builddir/result/repositories"
 
-cd $builddir/result
+cd "$builddir/result"
 
-# mkdir -p $CURDIR/$image_name
-# cp -r * $CURDIR/$image_name
-tar -c * | docker load
+tar -c "*" | docker load

@@ -68,7 +68,9 @@ if [ -z "$DOCKER_TEST_HOST" ]; then
 		)
 	fi
 
+	# shellcheck disable=2155
 	export DOCKER_HOST="unix://$(cd "$DEST" && pwd)/docker.sock" # "pwd" tricks to make sure $DEST is an absolute path, not a relative one
+	# shellcheck disable=2086
 	( set -x; exec \
 		dockerd --debug \
 		--host "$DOCKER_HOST" \
@@ -105,7 +107,7 @@ while ! docker version &> /dev/null; do
 				echo >&2 "---"
 				# Important - use the docker on the CI host, not the one built locally
 				# which is currently in our path.
-				! /c/bin/docker -H=$MAIN_DOCKER_HOST logs docker-$COMMITHASH
+				! /c/bin/docker "-H=$MAIN_DOCKER_HOST" logs "docker-$COMMITHASH"
 				echo >&2 "---"
 			fi
 		fi

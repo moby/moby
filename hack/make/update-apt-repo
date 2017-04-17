@@ -10,7 +10,7 @@ set -e
 # NOTE: Always be sure to re-sign the repo with hack/make/sign-repos after running
 # this script.
 
-: ${DOCKER_RELEASE_DIR:=$DEST}
+: "${DOCKER_RELEASE_DIR:=$DEST}"
 APTDIR=$DOCKER_RELEASE_DIR/apt/repo
 
 # supported arches/sections
@@ -26,6 +26,7 @@ done
 dists=( $(find "${APTDIR}/dists" -maxdepth 1 -mindepth 1 -type d) )
 
 # override component if it is set
+# shellcheck disable=SC2153
 if [ "$COMPONENT" ]; then
 	components=( $COMPONENT )
 fi
@@ -36,8 +37,9 @@ for version in "${dists[@]}"; do
 		codename="${version//debootstrap-}"
 
 		# update the filelist for this codename/component
+		# shellcheck disable=SC2035,2061
 		find "$APTDIR/pool/$component" \
-			-name *~${codename#*-}*.deb > "$APTDIR/dists/$codename/$component/filelist"
+			-name *~"${codename#*-}"*.deb > "$APTDIR/dists/$codename/$component/filelist"
 	done
 done
 

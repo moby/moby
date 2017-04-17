@@ -169,7 +169,9 @@ check_forked() {
 			EOF
 
 			# Get the upstream release info
+			# shellcheck disable=SC2021
 			lsb_dist=$(lsb_release -a -u 2>&1 | tr '[:upper:]' '[:lower:]' | grep -E 'id' | cut -d ':' -f 2 | tr -d '[[:space:]]')
+			# shellcheck disable=SC2021
 			dist_version=$(lsb_release -a -u 2>&1 | tr '[:upper:]' '[:lower:]' | grep -E 'codename' | cut -d ':' -f 2 | tr -d '[[:space:]]')
 
 			# Print info about upstream distro
@@ -180,6 +182,7 @@ check_forked() {
 			if [ -r /etc/debian_version ] && [ "$lsb_dist" != "ubuntu" ] && [ "$lsb_dist" != "raspbian" ]; then
 				# We're Debian and don't even know it!
 				lsb_dist=debian
+				# shellcheck disable=SC2002
 				dist_version="$(cat /etc/debian_version | sed 's/\/.*//' | sed 's/\..*//')"
 				case "$dist_version" in
 					9)
@@ -239,14 +242,14 @@ do_install() {
 		MAJOR_W=1
 		MINOR_W=10
 
-		semverParse $version
+		semverParse "$version"
 
 		shouldWarn=0
-		if [ $major -lt $MAJOR_W ]; then
+		if [ "$major" -lt "$MAJOR_W" ]; then
 			shouldWarn=1
 		fi
 
-		if [ $major -le $MAJOR_W ] && [ $minor -lt $MINOR_W ]; then
+		if [ "$major" -le "$MAJOR_W" ] && [ "$minor" -lt "$MINOR_W" ]; then
 			shouldWarn=1
 		fi
 
@@ -324,6 +327,7 @@ do_install() {
 		lsb_dist="$(lsb_release -si)"
 	fi
 	if [ -z "$lsb_dist" ] && [ -r /etc/lsb-release ]; then
+		# shellcheck disable=SC1091
 		lsb_dist="$(. /etc/lsb-release && echo "$DISTRIB_ID")"
 	fi
 	if [ -z "$lsb_dist" ] && [ -r /etc/debian_version ]; then
@@ -345,6 +349,7 @@ do_install() {
 		lsb_dist='photon'
 	fi
 	if [ -z "$lsb_dist" ] && [ -r /etc/os-release ]; then
+		# shellcheck disable=SC1091
 		lsb_dist="$(. /etc/os-release && echo "$ID")"
 	fi
 
@@ -363,11 +368,13 @@ do_install() {
 				dist_version="$(lsb_release --codename | cut -f2)"
 			fi
 			if [ -z "$dist_version" ] && [ -r /etc/lsb-release ]; then
+				# shellcheck disable=SC1091
 				dist_version="$(. /etc/lsb-release && echo "$DISTRIB_CODENAME")"
 			fi
 		;;
 
 		debian|raspbian)
+			# shellcheck disable=SC2002
 			dist_version="$(cat /etc/debian_version | sed 's/\/.*//' | sed 's/\..*//')"
 			case "$dist_version" in
 				9)
@@ -394,6 +401,7 @@ do_install() {
 
 		"vmware photon")
 			lsb_dist="photon"
+			# shellcheck disable=SC1091
 			dist_version="$(. /etc/os-release && echo "$VERSION_ID")"
 		;;
 
@@ -402,6 +410,7 @@ do_install() {
 				dist_version="$(lsb_release --codename | cut -f2)"
 			fi
 			if [ -z "$dist_version" ] && [ -r /etc/os-release ]; then
+				# shellcheck disable=SC1091
 				dist_version="$(. /etc/os-release && echo "$VERSION_ID")"
 			fi
 		;;

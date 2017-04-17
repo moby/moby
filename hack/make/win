@@ -10,6 +10,7 @@ daemonSupporting=(
 platform="windows/amd64"
 export DEST="$DEST/$platform" # bundles/VERSION/cross/GOOS/GOARCH/docker-VERSION
 mkdir -p "$DEST"
+# shellcheck disable=2034
 ABS_DEST="$(cd "$DEST" && pwd -P)"
 export GOOS=${platform%/*}
 export GOARCH=${platform##*/}
@@ -17,4 +18,5 @@ if [ -z "${daemonSupporting[$platform]}" ]; then
 	export LDFLAGS_STATIC_DOCKER="" # we just need a simple client for these platforms
 	export BUILDFLAGS=( "${ORIG_BUILDFLAGS[@]/ daemon/}" ) # remove the "daemon" build tag from platforms that aren't supported
 fi
+# shellcheck disable=1090
 source "${MAKEDIR}/binary"

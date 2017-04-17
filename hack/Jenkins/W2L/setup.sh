@@ -1,3 +1,4 @@
+# shellcheck disable=SC2148
 # Jenkins CI script for Windows to Linux CI.
 # Heavily modified by John Howard (@jhowardmsft) December 2015 to try to make it more reliable.
 set +xe
@@ -20,7 +21,7 @@ SCRIPT_VER="Wed Apr 20 18:30:19 UTC 2016"
 
 ec=0
 uniques=1
-echo INFO: Started at `date`. Script version $SCRIPT_VER
+echo INFO: Started at "$(date)". Script version "$SCRIPT_VER"
 
 
 # !README!
@@ -47,7 +48,7 @@ if [ -n "$DOCKER_TLS_VERIFY" ]; then
 		ec=1
 		echo "ERROR: DOCKER_MACHINE_NAME is undefined"
 	fi
-	certs=$(echo ~/.docker/machine/machines/$DOCKER_MACHINE_NAME)
+	certs=$("$HOME/.docker/machine/machines/$DOCKER_MACHINE_NAME")
 	curlopts="--cacert $certs/ca.pem --cert $certs/cert.pem --key $certs/key.pem"
 	run_extra_args="-v tlscerts:/etc/docker"
 	daemon_extra_args="--tlsverify --tlscacert /etc/docker/ca.pem --tlscert /etc/docker/server.pem --tlskey /etc/docker/server-key.pem"
@@ -60,7 +61,7 @@ export MAIN_DOCKER_HOST="tcp://$ip:$port_inner"
 
 # Verify we can get the remote node to respond to _ping
 if [ $ec -eq 0 ]; then
-	reply=`curl -s $curlopts $protocol://$ip:$port_outer/_ping`
+	reply=$(curl -s "$curlopts" "$protocol://$ip:$port_outer/_ping")
 	if [ "$reply" != "OK" ]; then
 		ec=1
 		echo "ERROR: Failed to get an 'OK' response from the docker daemon on the Linux node"
@@ -75,7 +76,7 @@ if [ $ec -eq 0 ]; then
 		echo "       Try re-running this CI job, or ask on #docker-dev or #docker-maintainers"
 		echo "       for someone to perform further diagnostics, or take this node out of rotation."
 		echo
-		ping $ip
+		ping "$ip"
 	else
 		echo "INFO: The Linux nodes outer daemon replied to a ping. Good!"
 	fi 
@@ -84,13 +85,13 @@ fi
 # Get the version from the remote node. Note this may fail if jq is not installed.
 # That's probably worth checking to make sure, just in case.
 if [ $ec -eq 0 ]; then
-	remoteVersion=`curl -s $curlopts $protocol://$ip:$port_outer/version | jq -c '.Version'`
+	remoteVersion=$(curl -s "$curlopts" "$protocol://$ip:$port_outer/version" | jq -c '.Version')
 	echo "INFO: Remote daemon is running docker version $remoteVersion"
 fi
 
 # Compare versions. We should really fail if result is no 1. Output at end of script.
 if [ $ec -eq 0 ]; then
-	uniques=`docker version | grep Version | /usr/bin/sort -u | wc -l`
+	uniques=$(docker version | grep Version | /usr/bin/sort -u | wc -l)
 fi
 
 # Make sure we are in repo
@@ -98,13 +99,14 @@ if [ $ec -eq 0 ]; then
 	if [ ! -d hack ]; then
 		echo "ERROR: Are you sure this is being launched from a the root of docker repository?"
 		echo "       If this is a Windows CI machine, it should be c:\jenkins\gopath\src\github.com\docker\docker."
-                echo "       Current directory is `pwd`"
+                echo "       Current directory is $(pwd)"
 		ec=1
 	fi
 fi
 
 # Are we in split binary mode?
-if [ `grep DOCKER_CLIENTONLY Makefile | wc -l` -gt 0 ]; then
+# shellcheck disable=SC2126
+if [ "$(grep DOCKER_CLIENTONLY Makefile | wc -l)" -gt 0 ]; then
     splitBinary=0
 	echo "INFO: Running in single binary mode"
 else
@@ -115,9 +117,10 @@ fi
 
 # Get the commit has and verify we have something
 if [ $ec -eq 0 ]; then
+	# shellcheck disable=SC2155
 	export COMMITHASH=$(git rev-parse --short HEAD)
-	echo INFO: Commmit hash is $COMMITHASH
-	if [ -z $COMMITHASH ]; then
+	echo "INFO: Commmit hash is $COMMITHASH"
+	if [ -z "$COMMITHASH" ]; then
 		echo "ERROR: Failed to get commit hash. Are you sure this is a docker repository?"
 		ec=1
 	fi
@@ -130,7 +133,7 @@ fi
 if [ $ec -eq 0 ]; then
 	export TEMP=/c/CI/CI-$COMMITHASH
 	export TMP=$TEMP
-	/usr/bin/mkdir -p $TEMP  # Make sure Linux mkdir for -p
+	/usr/bin/mkdir -p "$TEMP"  # Make sure Linux mkdir for -p
 fi
 
 # Tidy up time
@@ -138,16 +141,16 @@ if [ $ec -eq 0 ]; then
 	echo INFO: Deleting pre-existing containers and images...
     
 	# Force remove all containers based on a previously built image with this commit
-	! docker rm -f $(docker ps -aq --filter "ancestor=docker:$COMMITHASH") &>/dev/null
+	! docker rm -f "$(docker ps -aq --filter "ancestor=docker:$COMMITHASH")" &>/dev/null
     
 	# Force remove any container with this commithash as a name
-	! docker rm -f $(docker ps -aq --filter "name=docker-$COMMITHASH") &>/dev/null
+	! docker rm -f "$(docker ps -aq --filter "name=docker-$COMMITHASH")" &>/dev/null
 
 	# This SHOULD never happen, but just in case, also blow away any containers
 	# that might be around.
-	! if [ ! $(docker ps -aq | wc -l) -eq 0 ]; then
+	! if [ ! "$(docker ps -aq | wc -l)" -eq 0 ]; then
 		echo WARN: There were some leftover containers. Cleaning them up.
-		! docker rm -f $(docker ps -aq)
+		! docker rm -f "$(docker ps -aq)"
 	fi
 	
     # Force remove the image if it exists
@@ -213,7 +216,7 @@ if [ $ec -eq 0 ]; then
 	echo "INFO: Starting build of a Linux daemon to test against, and starting it..."
 	set -x
 	# aufs in aufs is faster than vfs in aufs
-	docker run -d $run_extra_args -e DOCKER_GRAPHDRIVER=aufs --pid host --privileged --name "docker-$COMMITHASH" --net host "docker:$COMMITHASH"
+	docker run -d "$run_extra_args" -e DOCKER_GRAPHDRIVER=aufs --pid host --privileged --name "docker-$COMMITHASH" --net host "docker:$COMMITHASH"
 	ec=$?
 	set +x
 	if [ 0 -ne $ec ]; then
@@ -243,9 +246,9 @@ fi
 if [ $ec -eq 0 ]; then
 	VERSION=$(< ./VERSION)
 	if [ $splitBinary -eq 0 ]; then
-		cp bundles/$VERSION/binary/docker.exe $TEMP
+		cp "bundles/$VERSION/binary/docker.exe" "$TEMP"
 	else
-		cp bundles/$VERSION/binary-client/docker.exe $TEMP
+		cp "bundles/$VERSION/binary-client/docker.exe" "$TEMP"
 	fi
 	ec=$?
 	if [ 0 -ne $ec ]; then
@@ -267,18 +270,18 @@ if [ $ec -eq 0 ]; then
 	if [ 0 -ne $ec ]; then
 		echo "ERROR: CLI test failed."
 		# Next line is useful, but very long winded if included
-		docker -H=$MAIN_DOCKER_HOST logs --tail 100 "docker-$COMMITHASH"
+		docker -H="$MAIN_DOCKER_HOST" logs --tail 100 "docker-$COMMITHASH"
     fi
 fi
 
 # Tidy up any temporary files from the CI run
-if [ ! -z $COMMITHASH ]; then
-	rm -rf $TEMP
+if [ ! -z "$COMMITHASH" ]; then
+	rm -rf "$TEMP"
 fi
 
 # CI Integrity check - ensure we are using the same version of go as present in the Dockerfile
-GOVER_DOCKERFILE=`grep 'ENV GO_VERSION' Dockerfile | awk '{print $3}'`
-GOVER_INSTALLED=`go version | awk '{print $3}'`
+GOVER_DOCKERFILE=$(grep 'ENV GO_VERSION' Dockerfile | awk '{print $3}')
+GOVER_INSTALLED=$(go version | awk '{print $3}')
 if [ "${GOVER_INSTALLED:2}" != "$GOVER_DOCKERFILE" ]; then
 	#ec=1  # Uncomment to make CI fail once all nodes are updated.
 	echo
@@ -302,8 +305,8 @@ fi
 
 # Tell the user how we did.
 if [ $ec -eq 0 ]; then
-	echo INFO: Completed successfully at `date`. 
+	echo INFO: Completed successfully at "$(date)". 
 else
-	echo ERROR: Failed with exitcode $ec at `date`.
+	echo ERROR: Failed with exitcode $ec at "$(date)".
 fi
 exit $ec

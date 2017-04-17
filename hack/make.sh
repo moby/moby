@@ -24,6 +24,7 @@ set -e
 set -o pipefail
 
 export DOCKER_PKG='github.com/docker/docker'
+# shellcheck disable=SC2155
 export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export MAKEDIR="$SCRIPTDIR/make"
 export PKG_CONFIG=${PKG_CONFIG:-pkg-config}
@@ -69,6 +70,7 @@ DEFAULT_BUNDLES=(
 )
 
 VERSION=$(< ./VERSION)
+# shellcheck disable=SC2034
 ! BUILDTIME=$(date --rfc-3339 ns 2> /dev/null | sed -e 's/ /T/')
 if [ "$DOCKER_GITCOMMIT" ]; then
 	GITCOMMIT="$DOCKER_GITCOMMIT"
@@ -139,7 +141,9 @@ fi
 
 # Use these flags when compiling the tests and final binary
 
+# shellcheck disable=SC2034
 IAMSTATIC='true'
+# shellcheck disable=SC1090
 source "$SCRIPTDIR/make/.go-autogen"
 if [ -z "$DOCKER_DEBUG" ]; then
 	LDFLAGS='-w'
@@ -164,13 +168,14 @@ BUILDFLAGS=( $BUILDFLAGS "${ORIG_BUILDFLAGS[@]}" )
 # Test timeout.
 
 if [ "${DOCKER_ENGINE_GOARCH}" == "arm" ]; then
-	: ${TIMEOUT:=10m}
+	: "${TIMEOUT:=10m}"
 elif [ "${DOCKER_ENGINE_GOARCH}" == "windows" ]; then
-	: ${TIMEOUT:=8m}
+	: "${TIMEOUT:=8m}"
 else
-	: ${TIMEOUT:=5m}
+	: "${TIMEOUT:=5m}"
 fi
 
+# shellcheck disable=SC2034
 LDFLAGS_STATIC_DOCKER="
 	$LDFLAGS_STATIC
 	-extldflags \"$EXTLDFLAGS_STATIC\"
@@ -191,6 +196,7 @@ if \
 	go help testflag | grep -- -cover > /dev/null \
 	&& go tool -n cover > /dev/null 2>&1 \
 ; then
+	# shellcheck disable=SC2034
 	HAVE_GO_TEST_COVER=1
 fi
 
@@ -225,6 +231,7 @@ hash_files() {
 bundle() {
 	local bundle="$1"; shift
 	echo "---> Making bundle: $(basename "$bundle") (in $DEST)"
+	# shellcheck disable=SC1090
 	source "$SCRIPTDIR/make/$bundle" "$@"
 }
 
@@ -237,7 +244,7 @@ copy_binaries() {
 		if [ -x /usr/local/bin/docker-runc ]; then
 			echo "Copying nested executables into $dir"
 			for file in containerd containerd-shim containerd-ctr runc init proxy; do
-				cp -f `which "docker-$file"` "$dir/"
+				cp -f "$(which "docker-$file")" "$dir/"
 				if [ "$2" == "hash" ]; then
 					hash_files "$dir/docker-$file"
 				fi
@@ -250,7 +257,7 @@ install_binary() {
 	file="$1"
 	target="${DOCKER_MAKE_INSTALL_PREFIX:=/usr/local}/bin/"
 	if [ "$(go env GOOS)" == "linux" ]; then
-		echo "Installing $(basename $file) to ${target}"
+		echo "Installing $(basename "$file") to ${target}"
 		mkdir -p "$target"
 		cp -f -L "$file" "$target"
 	else
@@ -281,13 +288,16 @@ main() {
 	else
 		bundles=($@)
 	fi
-	for bundle in ${bundles[@]}; do
+	for bundle in "${bundles[@]}"; do
+		# shellcheck disable=SC2155
 		export DEST="bundles/$VERSION/$(basename "$bundle")"
 		# Cygdrive paths don't play well with go build -o.
 		if [[ "$(uname -s)" == CYGWIN* ]]; then
+			# shellcheck disable=2155
 			export DEST="$(cygpath -mw "$DEST")"
 		fi
 		mkdir -p "$DEST"
+		# shellcheck disable=2034		
 		ABS_DEST="$(cd "$DEST" && pwd -P)"
 		bundle "$bundle"
 		echo

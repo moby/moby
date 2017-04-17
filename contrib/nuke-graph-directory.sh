@@ -42,6 +42,7 @@ dir_in_dir() {
 
 # let's start by unmounting any submounts in $dir
 #   (like -v /home:... for example - DON'T DELETE MY HOME DIRECTORY BRU!)
+# shellcheck disable=SC2013
 for mount in $(awk '{ print $5 }' /proc/self/mountinfo); do
 	mount="$(readlink -f "$mount" || true)"
 	if [ "$dir" != "$mount" ] && dir_in_dir "$mount" "$dir"; then
@@ -61,4 +62,4 @@ if command -v btrfs > /dev/null 2>&1; then
 fi
 
 # finally, DESTROY ALL THINGS
-( shopt -s dotglob; set -x; rm -rf "$dir"/* )
+( shopt -s dotglob; set -x; rm -rf "${dir:?}"/* )

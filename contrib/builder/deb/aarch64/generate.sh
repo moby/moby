@@ -13,7 +13,7 @@ set -e
 #
 # Note: non-LTS versions are not guaranteed to work.
 
-cd "$(dirname "$(readlink -f "$BASH_SOURCE")")"
+cd "$(dirname "${BASH_SOURCE[0]}")"
 
 versions=( "$@" )
 if [ ${#versions[@]} -eq 0 ]; then
@@ -88,7 +88,7 @@ for version in "${versions[@]}"; do
 			runcBuildTags="$runcBuildTags seccomp"
 			;;
 		*)
-			echo "Unsupported distro:" $distro:$suite
+			echo "Unsupported distro:" "$distro:$suite"
 			rm -fr "$version"
 			exit 1
 			;;
@@ -115,16 +115,20 @@ for version in "${versions[@]}"; do
 			;;
 	esac
 
+	# shellcheck disable=SC2129
 	echo "# Install Go" >> "$version/Dockerfile"
 	echo "# aarch64 doesn't have official go binaries, so use the version of go installed from" >> "$version/Dockerfile"
 	echo "# the image to build go from source." >> "$version/Dockerfile"
 
 	awk '$1 == "ENV" && $2 == "GO_VERSION" { print; exit }' ../../../../Dockerfile.aarch64 >> "$version/Dockerfile"
+	# shellcheck disable=SC1003,SC2016
 	echo 'RUN mkdir /usr/src/go && curl -fsSL https://golang.org/dl/go${GO_VERSION}.src.tar.gz | tar -v -C /usr/src/go -xz --strip-components=1 \' >> "$version/Dockerfile"
-	echo '	&& cd /usr/src/go/src \' >> "$version/Dockerfile"
+	echo '	&& cd /usr/src/go/src \ ' >> "$version/Dockerfile"
+	# shellcheck disable=SC2016
 	echo '	&& GOOS=linux GOARCH=arm64 GOROOT_BOOTSTRAP="$(go env GOROOT)" ./make.bash' >> "$version/Dockerfile"
 	echo >> "$version/Dockerfile"
 
+	# shellcheck disable=SC2016
 	echo 'ENV PATH /usr/src/go/bin:$PATH' >> "$version/Dockerfile"
 	echo >> "$version/Dockerfile"
 

@@ -3,10 +3,12 @@
 set -e
 rm -rf "$DEST"
 
+# shellcheck disable=SC1090
 (
 	source "${MAKEDIR}/install-binary-client"
 )
 
+# shellcheck disable=SC1090
 (
 	source "${MAKEDIR}/install-binary-daemon"
 )

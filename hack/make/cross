@@ -25,6 +25,7 @@ for platform in $DOCKER_CROSSPLATFORMS; do
 		export KEEPDEST=1
 		export DEST="$DEST/$platform" # bundles/VERSION/cross/GOOS/GOARCH/docker-VERSION
 		mkdir -p "$DEST"
+		# shellcheck disable=2034
 		ABS_DEST="$(cd "$DEST" && pwd -P)"
 		export GOOS=${platform%/*}
 		export GOARCH=${platform##*/}
@@ -41,9 +42,12 @@ for platform in $DOCKER_CROSSPLATFORMS; do
 				export LDFLAGS_STATIC_DOCKER=""
 				# remove the "daemon" build tag from platforms that aren't supported
 				export BUILDFLAGS=( "${ORIG_BUILDFLAGS[@]/ daemon/}" )
+				# shellcheck disable=1090
 				source "${MAKEDIR}/binary-client"
 			else
+				# shellcheck disable=1090
 				source "${MAKEDIR}/binary-client"
+				# shellcheck disable=1090
 				source "${MAKEDIR}/binary-daemon"
 			fi
 		fi

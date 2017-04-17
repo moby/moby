@@ -17,7 +17,7 @@ distro="$2"
 mirror="$3"
 
 if [ ! "$repo" ] || [ ! "$distro" ]; then
-	self="$(basename $0)"
+	self="$(basename "$0")"
 	echo >&2 "usage: $self repo distro [mirror]"
 	echo >&2
 	echo >&2 "   ie: $self username/centos centos-5"
@@ -41,7 +41,7 @@ fi
 
 target="${TMPDIR:-/var/tmp}/docker-rootfs-rinse-$distro-$$-$RANDOM"
 
-cd "$(dirname "$(readlink -f "$BASH_SOURCE")")"
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 returnTo="$(pwd -P)"
 
 rinseArgs=( --arch amd64 --distribution "$distro" --directory "$target" )
@@ -115,9 +115,9 @@ if [ -z "$version" ]; then
 	version="$distro"
 fi
 
-sudo tar --numeric-owner -c . | docker import - $repo:$version
+sudo tar --numeric-owner -c . | docker import - "$repo:$version"
 
-docker run -i -t $repo:$version echo success
+docker run -i -t "$repo:$version" echo success
 
 cd "$returnTo"
 sudo rm -rf "$target"

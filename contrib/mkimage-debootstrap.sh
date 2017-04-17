@@ -80,7 +80,7 @@ while getopts v:i:a:p:dst name; do
 			;;
 	esac
 done
-shift $(($OPTIND - 1))
+shift "$($OPTIND - 1)"
 
 repo="$1"
 suite="$2"
@@ -120,7 +120,7 @@ lsbDist=''
 
 target="${TMPDIR:-/var/tmp}/docker-rootfs-debootstrap-$suite-$$-$RANDOM"
 
-cd "$(dirname "$(readlink -f "$BASH_SOURCE")")"
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 returnTo="$(pwd -P)"
 
 if [ "$suite" = 'lucid' ]; then
@@ -132,7 +132,7 @@ set -x
 
 # bootstrap
 mkdir -p "$target"
-sudo http_proxy=$http_proxy debootstrap --verbose --variant="$variant" --include="$include" --arch="$arch" "$suite" "$target" "$mirror"
+sudo http_proxy="$http_proxy" debootstrap --verbose --variant="$variant" --include="$include" --arch="$arch" "$suite" "$target" "$mirror"
 
 cd "$target"
 
@@ -182,6 +182,7 @@ if [ -z "$strictDebootstrap" ]; then
 		# see also rudimentary platform detection in hack/install.sh
 		lsbDist=''
 		if [ -r etc/lsb-release ]; then
+			# shellcheck disable=SC1091
 			lsbDist="$(. etc/lsb-release && echo "$DISTRIB_ID")"
 		fi
 		if [ -z "$lsbDist" ] && [ -r etc/debian_version ]; then
@@ -191,7 +192,7 @@ if [ -z "$strictDebootstrap" ]; then
 		case "$lsbDist" in
 			Debian)
 				# add the updates and security repositories
-				if [ "$suite" != "$debianUnstable" -a "$suite" != 'unstable' ]; then
+				if [ "$suite" != "$debianUnstable" ] && [ "$suite" != 'unstable' ]; then
 					# ${suite}-updates only applies to non-unstable
 					sudo sed -i "p; s/ $suite main$/ ${suite}-updates main/" etc/apt/sources.list
 
@@ -234,57 +235,60 @@ if [ "$justTar" ]; then
 	sudo tar --numeric-owner -caf "$repo" .
 else
 	# create the image (and tag $repo:$suite)
-	sudo tar --numeric-owner -c . | $docker import - $repo:$suite
+	sudo tar --numeric-owner -c . | $docker import - "$repo:$suite"
 
 	# test the image
-	$docker run -i -t $repo:$suite echo success
+	$docker run -i -t "$repo:$suite" echo success
 
 	if [ -z "$skipDetection" ]; then
 		case "$lsbDist" in
 			Debian)
-				if [ "$suite" = "$debianStable" -o "$suite" = 'stable' ] && [ -r etc/debian_version ]; then
+				if ([ "$suite" = "$debianStable" ] || [ "$suite" = 'stable' ]) && [ -r etc/debian_version ]; then
 					# tag latest
-					$docker tag $repo:$suite $repo:latest
+					$docker tag "$repo:$suite" "$repo:latest"
 
 					if [ -r etc/debian_version ]; then
 						# tag the specific debian release version (which is only reasonable to tag on debian stable)
 						ver=$(cat etc/debian_version)
-						$docker tag $repo:$suite $repo:$ver
+						$docker tag "$repo:$suite" "$repo:$ver"
 					fi
 				fi
 				;;
 			Ubuntu)
 				if [ "$suite" = "$ubuntuLatestLTS" ]; then
 					# tag latest
-					$docker tag $repo:$suite $repo:latest
+					$docker tag "$repo:$suite" "$repo:latest"
 				fi
 				if [ -r etc/lsb-release ]; then
+					# shellcheck disable=SC1091
 					lsbRelease="$(. etc/lsb-release && echo "$DISTRIB_RELEASE")"
 					if [ "$lsbRelease" ]; then
 						# tag specific Ubuntu version number, if available (12.04, etc.)
-						$docker tag $repo:$suite $repo:$lsbRelease
+						$docker tag "$repo:$suite" "$repo:$lsbRelease"
 					fi
 				fi
 				;;
 			Tanglu)
 				if [ "$suite" = "$tangluLatest" ]; then
 					# tag latest
-					$docker tag $repo:$suite $repo:latest
+					$docker tag "$repo:$suite" "$repo:latest"
 				fi
 				if [ -r etc/lsb-release ]; then
+					# shellcheck disable=SC1091
 					lsbRelease="$(. etc/lsb-release && echo "$DISTRIB_RELEASE")"
 					if [ "$lsbRelease" ]; then
 						# tag specific Tanglu version number, if available (1.0, 2.0, etc.)
-						$docker tag $repo:$suite $repo:$lsbRelease
+						$docker tag "$repo:$suite" "$repo:$lsbRelease"
 					fi
 				fi
 				;;
 			SteamOS)
 				if [ -r etc/lsb-release ]; then
+					# shellcheck disable=SC1091
 					lsbRelease="$(. etc/lsb-release && echo "$DISTRIB_RELEASE")"
 					if [ "$lsbRelease" ]; then
 						# tag specific SteamOS version number, if available (1.0, 2.0, etc.)
-						$docker tag $repo:$suite $repo:$lsbRelease
+						$docker tag "$repo:$suite" "$repo:$lsbRelease"
 					fi
 				fi
 				;;

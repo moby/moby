@@ -4,6 +4,7 @@ set -e
 [ -z "$KEEPDEST" ] && \
 	rm -rf "$DEST"
 
+# shellcheck disable=SC1090
 (
 	source "${MAKEDIR}/.binary-setup"
 	export BINARY_SHORT_NAME="yaml-docs-generator"

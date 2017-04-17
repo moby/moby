@@ -15,8 +15,8 @@ BUSYBOX=$(which busybox)
 
 set -e
 ROOTFS=${TMPDIR:-/var/tmp}/rootfs-busybox-$$-$RANDOM
-mkdir $ROOTFS
-cd $ROOTFS
+mkdir "$ROOTFS"
+cd "$ROOTFS"
 
 mkdir bin etc dev dev/pts lib proc sys tmp
 touch etc/resolv.conf
@@ -25,10 +25,10 @@ echo root:x:0:0:root:/:/bin/sh > etc/passwd
 echo root:x:0: > etc/group
 ln -s lib lib64
 ln -s bin sbin
-cp $BUSYBOX bin
+cp "$BUSYBOX" bin
 for X in $(busybox --list)
 do
-    ln -s busybox bin/$X
+    ln -s busybox "bin/$X"
 done
 rm bin/init
 ln bin/busybox bin/init

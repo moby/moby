@@ -27,19 +27,19 @@ set -e
 # "$IMAGE_DOCKER" \
 # hack/make.sh install-script
 
-: ${DOCKER_RELEASE_DIR:=$DEST}
-: ${GPG_KEYID:=releasedocker}
+: "${DOCKER_RELEASE_DIR:=$DEST}"
+: "${GPG_KEYID:=releasedocker}"
 
 DEFAULT_URL="https://get.docker.com/"
 DEFAULT_APT_URL="https://apt.dockerproject.org"
 DEFAULT_YUM_URL="https://yum.dockerproject.org"
 DEFAULT_GPG_FINGERPRINT="58118E89F3A912897C070ADBF76221572C52609D"
 
-: ${url:=$DEFAULT_URL}
-: ${apt_url:=$DEFAULT_APT_URL}
-: ${yum_url:=$DEFAULT_YUM_URL}
+: "${url:=$DEFAULT_URL}"
+: "${apt_url:=$DEFAULT_APT_URL}"
+: "${yum_url:=$DEFAULT_YUM_URL}"
 if [[ "$GPG_KEYID" == "releasedocker" ]] ; then
-	: ${gpg_fingerprint:=$DEFAULT_GPG_FINGERPRINT}
+	: "${gpg_fingerprint:=$DEFAULT_GPG_FINGERPRINT}"
 fi
 
 DEST_FILE="$DOCKER_RELEASE_DIR/install.sh"

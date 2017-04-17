@@ -25,7 +25,7 @@ usage() {
 dir="$1" # dir for building tar in
 shift || usage 1 >&2
 
-[ $# -gt 0 -a "$dir" ] || usage 2 >&2
+([ $# -gt 0 ] && [ "$dir" ]) || usage 2 >&2
 mkdir -p "$dir"
 
 # hacky workarounds for Bash 3 support (no associative arrays)
@@ -38,7 +38,7 @@ doNotGenerateManifestJson=
 # bash v4 on Windows CI requires CRLF separator
 newlineIFS=$'\n'
 if [ "$(go env GOHOSTOS)" = 'windows' ]; then
-	major=$(echo ${BASH_VERSION%%[^0.9]} | cut -d. -f1)
+	major=$(echo "${BASH_VERSION%%[^0.9]}" | cut -d. -f1)
 	if [ "$major" -ge 4 ]; then
 		newlineIFS=$'\r\n'
 	fi

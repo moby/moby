@@ -14,13 +14,14 @@ set -e
 #
 # ... and so on and so forth for the builds created by hack/make/build-rpm
 
-: ${DOCKER_RELEASE_DIR:=$DEST}
+: "${DOCKER_RELEASE_DIR:=$DEST}"
 YUMDIR=$DOCKER_RELEASE_DIR/yum/repo
-: ${GPG_KEYID:=releasedocker}
+: "${GPG_KEYID:=releasedocker}"
 
 # get the release
 release="main"
 
+# shellcheck disable=SC2153
 if [[ "$VERSION" == *-rc* ]]; then
 	release="testing"
 fi
@@ -49,7 +50,7 @@ for dir in bundles/$VERSION/build-rpm/*/; do
 
 	# if we have a $GPG_PASSPHRASE we may as well
 	# sign the rpms before adding to repo
-	if [ ! -z $GPG_PASSPHRASE ]; then
+	if [ ! -z "$GPG_PASSPHRASE" ]; then
 		# export our key to rpm import
 		gpg --armor --export "$GPG_KEYID" > /tmp/gpg
 		rpm --import /tmp/gpg

@@ -5,6 +5,7 @@ BINARY_NAME="$BINARY_SHORT_NAME-$VERSION"
 BINARY_EXTENSION="$(binary_extension)"
 BINARY_FULLNAME="$BINARY_NAME$BINARY_EXTENSION"
 
+# shellcheck disable=1090
 source "${MAKEDIR}/.go-autogen"
 
 (
@@ -39,7 +40,7 @@ go build \
 		$LDFLAGS
 		$LDFLAGS_STATIC_DOCKER
 	" \
-	$GO_PACKAGE
+	"$GO_PACKAGE"
 )
 
 echo "Created binary: $DEST/$BINARY_FULLNAME"
