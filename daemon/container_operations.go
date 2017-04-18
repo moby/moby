@@ -790,6 +790,10 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 
 	container.NetworkSettings.Ports = getPortMapInfo(sb)
 
+	if err := container.ToDisk(); err != nil {
+		return fmt.Errorf("Error saving container to disk: %v", err)
+	}
+
 	daemon.LogNetworkEventWithAttributes(n, "connect", map[string]string{"container": container.ID})
 	networkActions.WithValues("connect").UpdateSince(start)
 	return nil
@@ -997,15 +1001,9 @@ func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName 
 		}
 	} else if !daemon.isNetworkHotPluggable() {
 		return fmt.Errorf(runtime.GOOS + " does not support connecting a running container to a network")
-	} else {
-		if err := daemon.connectToNetwork(container, idOrName, endpointConfig, true); err != nil {
-			return err
-		}
 	}
-	if err := container.ToDiskLocking(); err != nil {
-		return fmt.Errorf("Error saving container to disk: %v", err)
-	}
-	return nil
+
+	return daemon.connectToNetwork(container, idOrName, endpointConfig, true)
 }
 
 // DisconnectFromNetwork disconnects container from network n.
