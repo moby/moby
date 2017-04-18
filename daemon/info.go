@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli/debug"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/parsers/kernel"
@@ -89,6 +90,8 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		securityOptions = append(securityOptions, "name=userns")
 	}
 
+	loggingConfig, _ := logger.OutputLogOpts(daemon.defaultLogConfig.Type, daemon.defaultLogConfig.Config)
+
 	v := &types.Info{
 		ID:                 daemon.ID,
 		Containers:         int(cRunning + cPaused + cStopped),
@@ -107,6 +110,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		NGoroutines:        runtime.NumGoroutine(),
 		SystemTime:         time.Now().Format(time.RFC3339Nano),
 		LoggingDriver:      daemon.defaultLogConfig.Type,
+		LoggingConfig:      loggingConfig,
 		CgroupDriver:       daemon.getCgroupDriver(),
 		NEventsListener:    daemon.EventsService.SubscribersCount(),
 		KernelVersion:      kernelVersion,

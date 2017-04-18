@@ -152,6 +152,7 @@ type Info struct {
 	NGoroutines        int
 	SystemTime         string
 	LoggingDriver      string
+	LoggingConfig      map[string]string
 	CgroupDriver       string
 	NEventsListener    int
 	KernelVersion      string

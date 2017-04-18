@@ -138,6 +138,9 @@ func init() {
 	if err := logger.RegisterLogOptValidator(driverName, ValidateLogOpt); err != nil {
 		logrus.Fatal(err)
 	}
+	if err := logger.RegisterLogOptOutput(driverName, OutputLogOpt); err != nil {
+		logrus.Fatal(err)
+	}
 }
 
 // New creates splunk logger driver using configuration passed in context
@@ -550,6 +553,36 @@ func ValidateLogOpt(cfg map[string]string) error {
 		}
 	}
 	return nil
+}
+
+// OutputLogOpt output the splunk driver options that are only suitable
+// for `docker info` (No Token Key)
+func OutputLogOpt(cfg map[string]string) (map[string]string, error) {
+	output := map[string]string{}
+	for key, value := range cfg {
+		switch key {
+		case splunkURLKey:
+		case splunkTokenKey:
+			continue
+		case splunkSourceKey:
+		case splunkSourceTypeKey:
+		case splunkIndexKey:
+		case splunkCAPathKey:
+		case splunkCANameKey:
+		case splunkInsecureSkipVerifyKey:
+		case splunkFormatKey:
+		case splunkVerifyConnectionKey:
+		case splunkGzipCompressionKey:
+		case splunkGzipCompressionLevelKey:
+		case envKey:
+		case labelsKey:
+		case tagKey:
+		default:
+			return nil, fmt.Errorf("unknown log opt '%s' for %s log driver", key, driverName)
+		}
+		output[key] = value
+	}
+	return output, nil
 }
 
 func parseURL(info logger.Info) (*url.URL, error) {
