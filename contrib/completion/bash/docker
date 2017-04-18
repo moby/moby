@@ -3071,7 +3071,8 @@ _docker_service_update_and_create() {
 
 	if [ "$subcommand" = "create" ] ; then
 		options_with_args="$options_with_args
-			--constraint
+			--constraint-add
+			--constraint-rm
 			--container-label
 			--dns
 			--dns-option
