@@ -1054,7 +1054,7 @@ func (s *DockerSwarmSuite) TestSwarmInitLocked(c *check.C) {
 
 	outs, err = d.Cmd("node", "ls")
 	c.Assert(err, checker.IsNil)
-	c.Assert(outs, checker.Not(checker.Contains), "Swarm is encrypted and needs to be unlocked")
+	c.Assert(outs, checker.Not(checker.Contains), "This node is encrypted and needs to be unlocked")
 
 	outs, err = d.Cmd("swarm", "update", "--autolock=false")
 	c.Assert(err, checker.IsNil, check.Commentf("out: %v", outs))
@@ -1063,7 +1063,7 @@ func (s *DockerSwarmSuite) TestSwarmInitLocked(c *check.C) {
 
 	outs, err = d.Cmd("node", "ls")
 	c.Assert(err, checker.IsNil)
-	c.Assert(outs, checker.Not(checker.Contains), "Swarm is encrypted and needs to be unlocked")
+	c.Assert(outs, checker.Not(checker.Contains), "This node is encrypted and needs to be unlocked")
 }
 
 func (s *DockerSwarmSuite) TestSwarmLeaveLocked(c *check.C) {
@@ -1080,7 +1080,7 @@ func (s *DockerSwarmSuite) TestSwarmLeaveLocked(c *check.C) {
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateLocked)
 
 	outs, _ = d.Cmd("node", "ls")
-	c.Assert(outs, checker.Contains, "Swarm is encrypted and needs to be unlocked")
+	c.Assert(outs, checker.Contains, "This node is encrypted and needs to be unlocked")
 
 	// `docker swarm leave` a locked swarm without --force will return an error
 	outs, _ = d.Cmd("swarm", "leave")
@@ -1284,7 +1284,7 @@ func (s *DockerSwarmSuite) TestSwarmRotateUnlockKey(c *check.C) {
 		c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateLocked)
 
 		outs, _ = d.Cmd("node", "ls")
-		c.Assert(outs, checker.Contains, "Swarm is encrypted and needs to be unlocked")
+		c.Assert(outs, checker.Contains, "This node is encrypted and needs to be unlocked")
 
 		cmd := d.Command("swarm", "unlock")
 		cmd.Stdin = bytes.NewBufferString(unlockKey)
@@ -1313,7 +1313,7 @@ func (s *DockerSwarmSuite) TestSwarmRotateUnlockKey(c *check.C) {
 		})
 
 		outs, _ = d.Cmd("node", "ls")
-		c.Assert(outs, checker.Contains, "Swarm is encrypted and needs to be unlocked")
+		c.Assert(outs, checker.Contains, "This node is encrypted and needs to be unlocked")
 
 		cmd = d.Command("swarm", "unlock")
 		cmd.Stdin = bytes.NewBufferString(newUnlockKey)
@@ -1323,7 +1323,7 @@ func (s *DockerSwarmSuite) TestSwarmRotateUnlockKey(c *check.C) {
 
 		outs, err = d.Cmd("node", "ls")
 		c.Assert(err, checker.IsNil)
-		c.Assert(outs, checker.Not(checker.Contains), "Swarm is encrypted and needs to be unlocked")
+		c.Assert(outs, checker.Not(checker.Contains), "This node is encrypted and needs to be unlocked")
 
 		unlockKey = newUnlockKey
 	}
@@ -1371,7 +1371,7 @@ func (s *DockerSwarmSuite) TestSwarmClusterRotateUnlockKey(c *check.C) {
 			c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateLocked)
 
 			outs, _ := d.Cmd("node", "ls")
-			c.Assert(outs, checker.Contains, "Swarm is encrypted and needs to be unlocked")
+			c.Assert(outs, checker.Contains, "This node is encrypted and needs to be unlocked")
 
 			cmd := d.Command("swarm", "unlock")
 			cmd.Stdin = bytes.NewBufferString(unlockKey)
@@ -1400,7 +1400,7 @@ func (s *DockerSwarmSuite) TestSwarmClusterRotateUnlockKey(c *check.C) {
 			})
 
 			outs, _ = d.Cmd("node", "ls")
-			c.Assert(outs, checker.Contains, "Swarm is encrypted and needs to be unlocked")
+			c.Assert(outs, checker.Contains, "This node is encrypted and needs to be unlocked")
 
 			cmd = d.Command("swarm", "unlock")
 			cmd.Stdin = bytes.NewBufferString(newUnlockKey)
@@ -1410,7 +1410,7 @@ func (s *DockerSwarmSuite) TestSwarmClusterRotateUnlockKey(c *check.C) {
 
 			outs, err = d.Cmd("node", "ls")
 			c.Assert(err, checker.IsNil)
-			c.Assert(outs, checker.Not(checker.Contains), "Swarm is encrypted and needs to be unlocked")
+			c.Assert(outs, checker.Not(checker.Contains), "This node is encrypted and needs to be unlocked")
 		}
 
 		unlockKey = newUnlockKey
