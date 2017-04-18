@@ -33,7 +33,7 @@ func CopyOf(src interface{}) (dst interface{}) {
 // rcopy performs a recursive copy of values from the source to destination.
 //
 // root is used to skip certain aspects of the copy which are not valid
-// for the root node of a object.
+// for the root node of an object.
 func rcopy(dst, src reflect.Value, root bool) {
 	if !src.IsValid() {
 		return

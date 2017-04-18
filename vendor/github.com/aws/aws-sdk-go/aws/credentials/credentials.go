@@ -2,7 +2,7 @@
 //
 // The Credentials is the primary method of getting access to and managing
 // credentials Values. Using dependency injection retrieval of the credential
-// values is handled by a object which satisfies the Provider interface.
+// values is handled by an object which satisfies the Provider interface.
 //
 // By default the Credentials.Get() will cache the successful result of a
 // Provider's Retrieve() until Provider.IsExpired() returns true. At which
