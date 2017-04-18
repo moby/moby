@@ -158,7 +158,7 @@ previous changes intact using `docker start`. See `docker ps -a` to view a list
 of all containers.
 
 The `docker run` command can be used in combination with `docker commit` to
-[*change the command that a container runs*](commit.md). There is additional detailed information about `docker run` in the [Docker run reference](../run.md).
+[*change the command that a container runs*](commit.md). 
 
 For information on connecting a container to a network, see the ["*Docker network overview*"](https://docs.docker.com/engine/userguide/networking/).
 
