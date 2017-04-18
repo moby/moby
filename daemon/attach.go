@@ -68,6 +68,7 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, c *backend.ContainerA
 
 	if err := daemon.containerAttach(container, &cfg, c.Logs, c.Stream); err != nil {
 		fmt.Fprintf(outStream, "Error attaching: %s\n", err)
+		return err
 	}
 	return nil
 }
