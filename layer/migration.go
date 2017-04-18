@@ -164,6 +164,10 @@ func (ls *layerStore) RegisterByGraphID(graphID string, parent ChainID, diffID D
 				ls.layerL.Unlock()
 			}
 		}()
+		if p.depth() >= maxLayerDepth {
+			err = ErrMaxDepthExceeded
+			return nil, err
+		}
 	}
 
 	// Create new roLayer
