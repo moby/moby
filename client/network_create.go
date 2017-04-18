@@ -16,10 +16,10 @@ func (cli *Client) NetworkCreate(ctx context.Context, name string, options types
 	var response types.NetworkCreateResponse
 	serverResp, err := cli.post(ctx, "/networks/create", nil, networkCreateRequest, nil)
 	if err != nil {
-		return response, err
+		return nil, err
 	}
 
 	json.NewDecoder(serverResp.body).Decode(&response)
 	ensureReaderClosed(serverResp)
-	return response, err
+	return response, nil
 }
