@@ -243,6 +243,8 @@ installed and available at runtime:
 * iptables version 1.4 or later
 * procps (or similar provider of a "ps" executable)
 * e2fsprogs version 1.4.12 or later (in use: mkfs.ext4, tune2fs)
+* git version 1.7 or later (and ssh client this needs)
+* modprobe
 * xfsprogs (in use: mkfs.xfs)
 * XZ Utils version 4.9 or later
 * a [properly
