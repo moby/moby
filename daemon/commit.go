@@ -134,6 +134,10 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		return "", errors.Errorf("%+v does not support commit of a running container", runtime.GOOS)
 	}
 
+	if container.IsRemovalInProgress() {
+		return "", fmt.Errorf("can't commit a container in removal progress")
+	}
+
 	if c.Pause && !container.IsPaused() {
 		daemon.containerPause(container)
 		defer daemon.containerUnpause(container)

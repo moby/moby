@@ -328,6 +328,13 @@ func (s *State) ResetRemovalInProgress() {
 	s.Unlock()
 }
 
+// IsRemovalInProgress returns whether the container is in removing progress
+func (s *State) IsRemovalInProgress() bool {
+	s.Lock()
+	defer s.Unlock()
+	return s.RemovalInProgress
+}
+
 // SetDead sets the container state to "dead"
 func (s *State) SetDead() {
 	s.Lock()
