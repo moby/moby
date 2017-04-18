@@ -487,18 +487,18 @@ func getInspectBody(c *check.C, version, id string) []byte {
 
 // Run a long running idle task in a background container using the
 // system-specific default image and command.
-func runSleepingContainer(c *check.C, extraArgs ...string) (string, int) {
+func runSleepingContainer(c *check.C, extraArgs ...string) string {
 	return runSleepingContainerInImage(c, defaultSleepImage, extraArgs...)
 }
 
 // Run a long running idle task in a background container using the specified
 // image and the system-specific command.
-func runSleepingContainerInImage(c *check.C, image string, extraArgs ...string) (string, int) {
+func runSleepingContainerInImage(c *check.C, image string, extraArgs ...string) string {
 	args := []string{"run", "-d"}
 	args = append(args, extraArgs...)
 	args = append(args, image)
 	args = append(args, sleepCommandForDaemonPlatform()...)
-	return dockerCmd(c, args...)
+	return cli.DockerCmd(c, args...).Combined()
 }
 
 // minimalBaseImage returns the name of the minimal base image for the current

@@ -19,17 +19,17 @@ import (
 )
 
 func (s *DockerSuite) TestPsListContainersBase(c *check.C) {
-	out, _ := runSleepingContainer(c, "-d")
+	out := runSleepingContainer(c, "-d")
 	firstID := strings.TrimSpace(out)
 
-	out, _ = runSleepingContainer(c, "-d")
+	out = runSleepingContainer(c, "-d")
 	secondID := strings.TrimSpace(out)
 
 	// not long running
 	out, _ = dockerCmd(c, "run", "-d", "busybox", "true")
 	thirdID := strings.TrimSpace(out)
 
-	out, _ = runSleepingContainer(c, "-d")
+	out = runSleepingContainer(c, "-d")
 	fourthID := strings.TrimSpace(out)
 
 	// make sure the second is running
@@ -228,7 +228,7 @@ func (s *DockerSuite) TestPsListContainersFilterStatus(c *check.C) {
 
 func (s *DockerSuite) TestPsListContainersFilterHealth(c *check.C) {
 	// Test legacy no health check
-	out, _ := runSleepingContainer(c, "--name=none_legacy")
+	out := runSleepingContainer(c, "--name=none_legacy")
 	containerID := strings.TrimSpace(out)
 
 	cli.WaitRun(c, containerID)
@@ -238,7 +238,7 @@ func (s *DockerSuite) TestPsListContainersFilterHealth(c *check.C) {
 	c.Assert(containerOut, checker.Equals, containerID, check.Commentf("Expected id %s, got %s for legacy none filter, output: %q", containerID, containerOut, out))
 
 	// Test no health check specified explicitly
-	out, _ = runSleepingContainer(c, "--name=none", "--no-healthcheck")
+	out = runSleepingContainer(c, "--name=none", "--no-healthcheck")
 	containerID = strings.TrimSpace(out)
 
 	cli.WaitRun(c, containerID)
@@ -248,7 +248,7 @@ func (s *DockerSuite) TestPsListContainersFilterHealth(c *check.C) {
 	c.Assert(containerOut, checker.Equals, containerID, check.Commentf("Expected id %s, got %s for none filter, output: %q", containerID, containerOut, out))
 
 	// Test failing health check
-	out, _ = runSleepingContainer(c, "--name=failing_container", "--health-cmd=exit 1", "--health-interval=1s")
+	out = runSleepingContainer(c, "--name=failing_container", "--health-cmd=exit 1", "--health-interval=1s")
 	containerID = strings.TrimSpace(out)
 
 	waitForHealthStatus(c, "failing_container", "starting", "unhealthy")
@@ -258,7 +258,7 @@ func (s *DockerSuite) TestPsListContainersFilterHealth(c *check.C) {
 	c.Assert(containerOut, checker.Equals, containerID, check.Commentf("Expected containerID %s, got %s for unhealthy filter, output: %q", containerID, containerOut, out))
 
 	// Check passing healthcheck
-	out, _ = runSleepingContainer(c, "--name=passing_container", "--health-cmd=exit 0", "--health-interval=1s")
+	out = runSleepingContainer(c, "--name=passing_container", "--health-cmd=exit 0", "--health-interval=1s")
 	containerID = strings.TrimSpace(out)
 
 	waitForHealthStatus(c, "passing_container", "starting", "healthy")
@@ -473,11 +473,11 @@ func (s *DockerSuite) TestPsRightTagName(c *check.C) {
 	dockerCmd(c, "tag", "busybox", tag)
 
 	var id1 string
-	out, _ := runSleepingContainer(c)
+	out := runSleepingContainer(c)
 	id1 = strings.TrimSpace(string(out))
 
 	var id2 string
-	out, _ = runSleepingContainerInImage(c, tag)
+	out = runSleepingContainerInImage(c, tag)
 	id2 = strings.TrimSpace(string(out))
 
 	var imageID string
@@ -485,7 +485,7 @@ func (s *DockerSuite) TestPsRightTagName(c *check.C) {
 	imageID = strings.TrimSpace(string(out))
 
 	var id3 string
-	out, _ = runSleepingContainerInImage(c, imageID)
+	out = runSleepingContainerInImage(c, imageID)
 	id3 = strings.TrimSpace(string(out))
 
 	out, _ = dockerCmd(c, "ps", "--no-trunc")
@@ -638,7 +638,7 @@ func (s *DockerSuite) TestPsDefaultFormatAndQuiet(c *check.C) {
 	err = ioutil.WriteFile(filepath.Join(d, "config.json"), []byte(config), 0644)
 	c.Assert(err, checker.IsNil)
 
-	out, _ := runSleepingContainer(c, "--name=test")
+	out := runSleepingContainer(c, "--name=test")
 	id := strings.TrimSpace(out)
 
 	out, _ = dockerCmd(c, "--config", d, "ps", "-q")
@@ -898,35 +898,25 @@ func (s *DockerSuite) TestPsListContainersFilterNetwork(c *check.C) {
 
 func (s *DockerSuite) TestPsByOrder(c *check.C) {
 	name1 := "xyz-abc"
-	out, err := runSleepingContainer(c, "--name", name1)
-	c.Assert(err, checker.NotNil)
-	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+	out := runSleepingContainer(c, "--name", name1)
 	container1 := strings.TrimSpace(out)
 
 	name2 := "xyz-123"
-	out, err = runSleepingContainer(c, "--name", name2)
-	c.Assert(err, checker.NotNil)
-	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+	out = runSleepingContainer(c, "--name", name2)
 	container2 := strings.TrimSpace(out)
 
 	name3 := "789-abc"
-	out, err = runSleepingContainer(c, "--name", name3)
-	c.Assert(err, checker.NotNil)
-	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+	out = runSleepingContainer(c, "--name", name3)
 
 	name4 := "789-123"
-	out, err = runSleepingContainer(c, "--name", name4)
-	c.Assert(err, checker.NotNil)
-	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+	out = runSleepingContainer(c, "--name", name4)
 
 	// Run multiple time should have the same result
-	out, err = dockerCmd(c, "ps", "--no-trunc", "-q", "-f", "name=xyz")
-	c.Assert(err, checker.NotNil)
+	out = cli.DockerCmd(c, "ps", "--no-trunc", "-q", "-f", "name=xyz").Combined()
 	c.Assert(strings.TrimSpace(out), checker.Equals, fmt.Sprintf("%s\n%s", container2, container1))
 
 	// Run multiple time should have the same result
-	out, err = dockerCmd(c, "ps", "--no-trunc", "-q", "-f", "name=xyz")
-	c.Assert(err, checker.NotNil)
+	out = cli.DockerCmd(c, "ps", "--no-trunc", "-q", "-f", "name=xyz").Combined()
 	c.Assert(strings.TrimSpace(out), checker.Equals, fmt.Sprintf("%s\n%s", container2, container1))
 }
 

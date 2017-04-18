@@ -32,7 +32,7 @@ func (s *DockerSuite) TestUpdateRestartPolicy(c *check.C) {
 }
 
 func (s *DockerSuite) TestUpdateRestartWithAutoRemoveFlag(c *check.C) {
-	out, _ := runSleepingContainer(c, "--rm")
+	out := runSleepingContainer(c, "--rm")
 	id := strings.TrimSpace(out)
 
 	// update restart policy for an AutoRemove container

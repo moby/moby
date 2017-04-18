@@ -334,7 +334,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkCreateHostBind(c *check.C) {
 	dockerCmd(c, "network", "create", "--subnet=192.168.10.0/24", "--gateway=192.168.10.1", "-o", "com.docker.network.bridge.host_binding_ipv4=192.168.10.1", "testbind")
 	assertNwIsAvailable(c, "testbind")
 
-	out, _ := runSleepingContainer(c, "--net=testbind", "-p", "5000:5000")
+	out := runSleepingContainer(c, "--net=testbind", "-p", "5000:5000")
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), checker.IsNil)
 	out, _ = dockerCmd(c, "ps")
