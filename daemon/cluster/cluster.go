@@ -270,6 +270,16 @@ func (c *Cluster) GetAdvertiseAddress() string {
 	return c.currentNodeState().actualLocalAddr
 }
 
+// GetDataPathAddress returns the address to be used for the data path traffic.
+func (c *Cluster) GetDataPathAddress() string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if c.nr != nil {
+		return c.nr.config.DataPathAddr
+	}
+	return ""
+}
+
 // GetRemoteAddress returns a known advertise address of a remote manager if
 // available.
 // todo: change to array/connect with info
