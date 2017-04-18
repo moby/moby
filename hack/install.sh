@@ -23,6 +23,27 @@ set -e
 #     aws s3 cp --acl public-read hack/install.sh s3://get.docker.com/index
 #
 
+function update_daemon_config() {
+	[ $? = 0 ] || return
+
+	config="/etc/docker/daemon.json"
+	if [ ! -f $config ]
+	then
+		cat > $config <<EOF
+{
+  "experimental": true
+}
+EOF
+	else
+			cat <<EOF
+
+WARNING: You already have a $config defined, its content won't be
+altered. Please add '"experimental": true' to it for experimental feature to
+be accessible, then restart the daemon.
+EOF
+	fi
+}
+
 url="https://get.docker.com/"
 apt_url="https://apt.dockerproject.org"
 yum_url="https://yum.dockerproject.org"
@@ -315,6 +336,11 @@ do_install() {
 		elif [ "https://experimental.docker.com/" = "$url" ]; then
 			repo='experimental'
 		fi
+	fi
+
+	if [ $repo = "experimental" ]
+	then
+		trap update_daemon_config EXIT
 	fi
 
 	# perform some very rudimentary platform detection
