@@ -87,6 +87,32 @@ func New(rootPath string) (*VolumeStore, error) {
 		}); err != nil {
 			return nil, err
 		}
+
+		// retrive volume labels stored in bucket
+		if err := vs.db.Update(func(tx *bolt.Tx) error {
+			b := tx.Bucket([]byte(volumeBucketName))
+			if err := b.ForEach(func(k, v []byte) error {
+				name := string(k)
+				if name == "" || string(v) == "" {
+					return nil
+				}
+
+				var meta volumeMetadata
+				buf := bytes.NewBuffer(v)
+
+				if err := json.NewDecoder(buf).Decode(&meta); err != nil {
+					return err
+				}
+				vs.labels[name] = meta.Labels
+
+				return nil
+			}); err != nil {
+				return err
+			}
+			return nil
+		}); err != nil {
+			return nil, err
+		}
 	}
 
 	vs.restore()
