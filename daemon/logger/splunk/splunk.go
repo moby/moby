@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/docker/pkg/urlutil"
+	//"github.com/Polarishq/bouncer/client"
 )
 
 const (
@@ -42,13 +43,16 @@ const (
 	envRegexKey                   = "env-regex"
 	labelsKey                     = "labels"
 	tagKey                        = "tag"
+	uname			      = "username"
+	pass    		      = "password"
 )
 
 const (
 	// How often do we send messages (if we are not reaching batch size)
-	defaultPostMessagesFrequency = 5 * time.Second
+	defaultPostMessagesFrequency = 1 //5 * time.Second
 	// How big can be batch of messages
-	defaultPostMessagesBatchSize = 1000
+	//defaultPostMessagesBatchSize = 1000
+	defaultPostMessagesBatchSize = 1
 	// Maximum number of messages we can store in buffer
 	defaultBufferMaximum = 10 * defaultPostMessagesBatchSize
 	// Number of messages allowed to be queued in the channel
@@ -73,6 +77,8 @@ type splunkLogger struct {
 
 	url         string
 	auth        string
+	username    string
+	password    string
 	nullMessage *splunkMessage
 
 	// http compression
@@ -110,13 +116,15 @@ type splunkLoggerRaw struct {
 }
 
 type splunkMessage struct {
-	Event      interface{} `json:"event"`
+	Raw      interface{} `json:"raw"`
 	Time       string      `json:"time"`
-	Host       string      `json:"host"`
+	Entity       string      `json:"entity"`
 	Source     string      `json:"source,omitempty"`
-	SourceType string      `json:"sourcetype,omitempty"`
-	Index      string      `json:"index,omitempty"`
+	//SourceType string      `json:"sourcetype,omitempty"`
+	//Index      string      `json:"index,omitempty"`
 }
+
+type splunkEvents []splunkMessage
 
 type splunkMessageEvent struct {
 	Line   interface{}       `json:"line"`
@@ -146,7 +154,7 @@ func New(info logger.Info) (logger.Logger, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s: cannot access hostname to set source field", driverName)
 	}
-
+	//fmt.Println("Creating splunk new object")
 	// Parse and validate Splunk URL
 	splunkURL, err := parseURL(info)
 	if err != nil {
@@ -155,8 +163,17 @@ func New(info logger.Info) (logger.Logger, error) {
 
 	// Splunk Token is required parameter
 	splunkToken, ok := info.Config[splunkTokenKey]
+	//if !ok {
+	//	return nil, fmt.Errorf("%s: %s is expected", driverName, splunkTokenKey)
+	//}
+
+	username, ok := info.Config[uname]
 	if !ok {
-		return nil, fmt.Errorf("%s: %s is expected", driverName, splunkTokenKey)
+		return nil, fmt.Errorf("%s: %s is expected", driverName, uname)
+	}
+	password, ok := info.Config[pass]
+	if !ok {
+		return nil, fmt.Errorf("%s: %s is expected", driverName, pass)
 	}
 
 	tlsConfig := &tls.Config{}
@@ -217,14 +234,14 @@ func New(info logger.Info) (logger.Logger, error) {
 	}
 
 	source := info.Config[splunkSourceKey]
-	sourceType := info.Config[splunkSourceTypeKey]
-	index := info.Config[splunkIndexKey]
+	//sourceType := info.Config[splunkSourceTypeKey]
+	//index := info.Config[splunkIndexKey]
 
 	var nullMessage = &splunkMessage{
-		Host:       hostname,
+		Entity:     hostname,
 		Source:     source,
-		SourceType: sourceType,
-		Index:      index,
+		//SourceType: sourceType,
+		//Index:      index,
 	}
 
 	// Allow user to remove tag from the messages by setting tag to empty string
@@ -253,6 +270,8 @@ func New(info logger.Info) (logger.Logger, error) {
 		transport:             transport,
 		url:                   splunkURL.String(),
 		auth:                  "Splunk " + splunkToken,
+		username:		username,
+		password: 		password,
 		nullMessage:           nullMessage,
 		gzipCompression:       gzipCompression,
 		gzipCompressionLevel:  gzipCompressionLevel,
@@ -263,20 +282,20 @@ func New(info logger.Info) (logger.Logger, error) {
 	}
 
 	// By default we verify connection, but we allow use to skip that
-	verifyConnection := true
-	if verifyConnectionStr, ok := info.Config[splunkVerifyConnectionKey]; ok {
-		var err error
-		verifyConnection, err = strconv.ParseBool(verifyConnectionStr)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if verifyConnection {
-		err = verifySplunkConnection(logger)
-		if err != nil {
-			return nil, err
-		}
-	}
+	//verifyConnection := true
+	//if verifyConnectionStr, ok := info.Config[splunkVerifyConnectionKey]; ok {
+	//	var err error
+	//	verifyConnection, err = strconv.ParseBool(verifyConnectionStr)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//}
+	//if verifyConnection {
+	//	err = verifySplunkConnection(logger)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//}
 
 	var splunkFormat string
 	if splunkFormatParsed, ok := info.Config[splunkFormatKey]; ok {
@@ -333,18 +352,27 @@ func New(info logger.Info) (logger.Logger, error) {
 }
 
 func (l *splunkLoggerInline) Log(msg *logger.Message) error {
+	//fmt.Println("In splunkLoggerInline")
 	message := l.createSplunkMessage(msg)
 
 	event := *l.nullEvent
-	event.Line = string(msg.Line)
-	event.Source = msg.Source
-
-	message.Event = &event
+	//fmt.Println(msg.Line)
+	event.Line = string(msg.Line[:])
+	//fmt.Printf("line:%s\n", event.Line)
+	//event.Source = msg.Source
+	jsonEvent, err := json.Marshal(event)
+	if err != nil {
+		logrus.Error(err)
+	}
+	message.Source = msg.Source
+	//message.Raw = string(msg.Line)
+	message.Raw = string(jsonEvent)
 	logger.PutMessage(msg)
 	return l.queueMessageAsync(message)
 }
 
 func (l *splunkLoggerJSON) Log(msg *logger.Message) error {
+	//fmt.Println("In splunkLoggerJSON")
 	message := l.createSplunkMessage(msg)
 	event := *l.nullEvent
 
@@ -357,20 +385,22 @@ func (l *splunkLoggerJSON) Log(msg *logger.Message) error {
 
 	event.Source = msg.Source
 
-	message.Event = &event
+	message.Raw = &event
 	logger.PutMessage(msg)
 	return l.queueMessageAsync(message)
 }
 
 func (l *splunkLoggerRaw) Log(msg *logger.Message) error {
+	//fmt.Println("In splunkLoggerRaw")
 	message := l.createSplunkMessage(msg)
 
-	message.Event = string(append(l.prefix, msg.Line...))
+	message.Raw = string(append(l.prefix, msg.Line...))
 	logger.PutMessage(msg)
 	return l.queueMessageAsync(message)
 }
 
 func (l *splunkLogger) queueMessageAsync(message *splunkMessage) error {
+	//fmt.Println("In queue Message async")
 	l.lock.RLock()
 	defer l.lock.RUnlock()
 	if l.closedCond != nil {
@@ -384,8 +414,10 @@ func (l *splunkLogger) worker() {
 	timer := time.NewTicker(l.postMessagesFrequency)
 	var messages []*splunkMessage
 	for {
+
 		select {
 		case message, open := <-l.stream:
+			//fmt.Println("Appending message: %s", message)
 			if !open {
 				l.postMessages(messages, true)
 				l.lock.Lock()
@@ -400,9 +432,11 @@ func (l *splunkLogger) worker() {
 			// This also helps not to fire postMessages on every new message,
 			// when previous try failed.
 			if len(messages)%l.postMessagesBatchSize == 0 {
+				//fmt.Println("Posting messages")
 				messages = l.postMessages(messages, false)
 			}
 		case <-timer.C:
+			//fmt.Println("Appending message:%v", messages)
 			messages = l.postMessages(messages, false)
 		}
 	}
@@ -452,23 +486,29 @@ func (l *splunkLogger) tryPostMessages(messages []*splunkMessage) error {
 	// If gzip compression is enabled - create gzip writer with specified compression
 	// level. If gzip compression is disabled, use standard buffer as a writer
 	if l.gzipCompression {
+		//fmt.Println("Using gzip")
 		gzipWriter, err = gzip.NewWriterLevel(&buffer, l.gzipCompressionLevel)
 		if err != nil {
 			return err
 		}
 		writer = gzipWriter
 	} else {
+		//fmt.Println("No gzip")
 		writer = &buffer
 	}
+	//messageEvents := make(splunkEvents, len(messages))
+	messageEvents := splunkEvents{}
 	for _, message := range messages {
-		jsonEvent, err := json.Marshal(message)
-		if err != nil {
-			return err
-		}
-		if _, err := writer.Write(jsonEvent); err != nil {
-			return err
-		}
+		messageEvents = append(messageEvents, *message)
 	}
+	jsonEvent, err := json.Marshal(messageEvents)
+	if err != nil {
+		return err
+	}
+	if _, err := writer.Write(jsonEvent); err != nil {
+		return err
+	}
+	//fmt.Printf("%s",jsonEvent)
 	// If gzip compression is enabled, tell it, that we are done
 	if l.gzipCompression {
 		err = gzipWriter.Close()
@@ -476,11 +516,18 @@ func (l *splunkLogger) tryPostMessages(messages []*splunkMessage) error {
 			return err
 		}
 	}
+	//fmt.Println("Firefawkes: " + l.url)
 	req, err := http.NewRequest("POST", l.url, bytes.NewBuffer(buffer.Bytes()))
+
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Authorization", l.auth)
+	//req.Header.Set("Authorization", l.auth)
+	req.Header.Set("Content-Type", "application/json")
+	//req.SetBasicAuth("LBGQMAWYDZI4L6AYMDJJE0BZX","yZW1NUs1ZxRR/HIXKiXUgurP+TnWGCVNC+JQd0Ou/RQ")
+	//fmt.Printf("Username: %s", l.username)
+	//fmt.Printf("Password: %s", l.password)
+	req.SetBasicAuth(l.username, l.password)
 	// Tell if we are sending gzip compressed body
 	if l.gzipCompression {
 		req.Header.Set("Content-Encoding", "gzip")
@@ -496,6 +543,7 @@ func (l *splunkLogger) tryPostMessages(messages []*splunkMessage) error {
 		if err != nil {
 			return err
 		}
+		//TODO close the connection on unauthorized error
 		return fmt.Errorf("%s: failed to send event - %s - %s", driverName, res.Status, body)
 	}
 	io.Copy(ioutil.Discard, res.Body)
@@ -545,6 +593,8 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case envRegexKey:
 		case labelsKey:
 		case tagKey:
+		case uname:
+		case pass:
 		default:
 			return fmt.Errorf("unknown log opt '%s' for %s log driver", key, driverName)
 		}
@@ -562,6 +612,7 @@ func parseURL(info logger.Info) (*url.URL, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s: failed to parse %s as url value in %s", driverName, splunkURLStr, splunkURLKey)
 	}
+	//fmt.Println("Splunk URL String" + splunkURLStr)
 
 	if !urlutil.IsURL(splunkURLStr) ||
 		!splunkURL.IsAbs() ||
@@ -571,8 +622,8 @@ func parseURL(info logger.Info) (*url.URL, error) {
 		return nil, fmt.Errorf("%s: expected format scheme://dns_name_or_ip:port for %s", driverName, splunkURLKey)
 	}
 
-	splunkURL.Path = "/services/collector/event/1.0"
-
+	//splunkURL.Path = "/services/collector/event/1.0"
+	splunkURL.Path = "v1/events"
 	return splunkURL, nil
 }
 
@@ -581,6 +632,7 @@ func verifySplunkConnection(l *splunkLogger) error {
 	if err != nil {
 		return err
 	}
+	req.SetBasicAuth(l.username, l.password)
 	res, err := l.client.Do(req)
 	if err != nil {
 		return err
