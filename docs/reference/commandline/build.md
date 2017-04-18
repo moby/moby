@@ -236,7 +236,7 @@ you must use `--rm=false`. This does not affect the build cache.
 ### Build with URL
 
 ```bash
-$ docker build github.com/creack/docker-firefox
+$ docker build https://github.com/creack/docker-firefox
 ```
 
 This will clone the GitHub repository and use the cloned repository as context.
