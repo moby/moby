@@ -57,10 +57,11 @@ func runLogs(dockerCli *command.DockerCli, opts *logsOptions) error {
 		Details:    opts.details,
 	}
 	responseBody, err := dockerCli.Client().ContainerLogs(ctx, opts.container, options)
+	defer responseBody.Close()
+
 	if err != nil {
 		return err
 	}
-	defer responseBody.Close()
 
 	c, err := dockerCli.Client().ContainerInspect(ctx, opts.container)
 	if err != nil {
