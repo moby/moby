@@ -80,6 +80,10 @@ func (cli *Client) imageBuildOptionsToQuery(options types.ImageBuildOptions) (ur
 		query.Set("squash", "1")
 	}
 
+	if options.ChecksumFS {
+		query.Set("checksumfs", "1")
+	}
+
 	if !container.Isolation.IsDefault(options.Isolation) {
 		query.Set("isolation", string(options.Isolation))
 	}

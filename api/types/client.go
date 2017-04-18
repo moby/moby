@@ -172,6 +172,8 @@ type ImageBuildOptions struct {
 	// preserves the original image and creates a new one from the parent with all
 	// the changes applied to a single layer
 	Squash bool
+	// ChecksumFS hashes and checksums an image's layers for run-time verification.
+	ChecksumFS bool
 	// CacheFrom specifies images that are used for matching cache. Images
 	// specified here do not need to have a valid parent chain to match cache.
 	CacheFrom   []string
