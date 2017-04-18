@@ -2,13 +2,17 @@ package trust
 
 import (
 	"encoding/json"
+	"fmt"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"time"
+
+	"github.com/docker/distribution/reference"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/registry/client/auth"
@@ -171,6 +175,66 @@ func GetNotaryRepository(streams command.Streams, repoInfo *registry.RepositoryI
 		tr,
 		getPassphraseRetriever(streams),
 		trustpinning.TrustPinConfig{})
+}
+
+// TODO(amidlash): find a more standard way of replacing
+type ConcreteName struct {
+	reference.Named
+	InnerName string
+}
+
+func (c *ConcreteName) Name() string {
+	return c.InnerName
+}
+
+// Determines whether or not input claims to mirror another repository.
+// If it does, RepositoryInfo of source
+// Otherwise, nil
+func FindUpstream(input *registry.RepositoryInfo) *registry.RepositoryInfo {
+	// TODO(amidlash): This is a temporary proof of concept for mirroring. Ideally, distribution has some way
+	// of declaring itself a mirror, so docker would learn of these urls by reading an endpoint on the mirror.
+	mirrorUrl := "some-mirror.mydomain.com"
+	upstreamUrl := "docker.io"
+	if strings.HasPrefix(input.Name.Name(), mirrorUrl) {
+		return &registry.RepositoryInfo{
+			Name: &ConcreteName{
+				InnerName: strings.Replace(input.Name.Name(), mirrorUrl, upstreamUrl, 1),
+			},
+			Official: true,
+			Class:    input.Class,
+			Index: &registrytypes.IndexInfo{
+				Name:     input.Index.Name,
+				Mirrors:  []string{},
+				Secure:   true,
+				Official: true,
+			},
+		}
+	} else {
+		return nil
+	}
+}
+
+func GetMirroredNotaryRepository(streams command.Streams, repoInfo *registry.RepositoryInfo, authConfig types.AuthConfig, actions ...string) (*client.NotaryRepository, error) {
+	acceptMirror := func(mirror, upstream *registry.RepositoryInfo) bool {
+		fmt.Printf("The repository %s claims to be a mirror of %s Do you trust %s to validate this data? [Y/n]",
+			mirror.Name.Name(),
+			upstream.Name.Name(),
+			upstream.Name.Name())
+		var result string
+		fmt.Scanf("%2s", &result)
+		if result == "Y" {
+			fmt.Printf("\nUsing upstream %s to validate mirror data\n", upstream.Name.Name())
+			return true
+		} else {
+			fmt.Printf("\nUsing mirror %s as notary repository\n", mirror.Name.Name())
+			return false
+		}
+	}
+	newRepoInfo := FindUpstream(repoInfo)
+	if newRepoInfo != nil && acceptMirror(repoInfo, newRepoInfo) {
+		repoInfo = newRepoInfo
+	}
+	return GetNotaryRepository(streams, repoInfo, authConfig, actions...)
 }
 
 func getPassphraseRetriever(streams command.Streams) notary.PassRetriever {
