@@ -455,14 +455,14 @@ When you start a container use the `--network` flag to connect it to a network.
 This adds the `busybox` container to the `my-net` network.
 
 ```bash
-$ docker run -itd --network=my-net busybox
+$ docker run -it --network=my-net busybox
 ```
 
 You can also choose the IP addresses for the container with `--ip` and `--ip6`
 flags when you start the container on a user-defined network.
 
 ```bash
-$ docker run -itd --network=my-net --ip=10.10.9.75 busybox
+$ docker run -it --network=my-net --ip=10.10.9.75 busybox
 ```
 
 If you want to add a running container to a network use the `docker network connect` subcommand.
