@@ -44,7 +44,7 @@ func Scan() ([]string, error) {
 
 	for _, path := range specsPaths {
 		if err := filepath.Walk(path, func(p string, fi os.FileInfo, err error) error {
-			if err != nil || fi.IsDir() {
+			if err != nil || (fi != nil && fi.IsDir()) {
 				return nil
 			}
 			name := strings.TrimSuffix(fi.Name(), filepath.Ext(fi.Name()))
