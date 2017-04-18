@@ -116,7 +116,7 @@ A Docker container consists of
 - Execution environment
 - A standard set of instructions
 
-The concept is borrowed from Shipping Containers, which define a standard to ship
+The concept is borrowed from Shipping Containers, which defines a standard to ship
 goods globally. Docker defines a standard to ship software.
 
 ## data volume
