@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/docker/docker/pkg/homedir"
 )
 
 var (
@@ -18,6 +20,8 @@ var (
 	// DefaultUnixSocket Path for the unix socket.
 	// Docker daemon by default always listens on the default unix socket
 	DefaultUnixSocket = "/var/run/docker.sock"
+	// AltUnixSocket Alternate unprivileged Unix socket
+	AltUnixSocket = fmt.Sprintf("%s/.docker/docker.sock", homedir.Get())
 	// DefaultTCPHost constant defines the default host string used by docker on Windows
 	DefaultTCPHost = fmt.Sprintf("tcp://%s:%d", DefaultHTTPHost, DefaultHTTPPort)
 	// DefaultTLSHost constant defines the default host string used by docker for TLS sockets
@@ -48,7 +52,7 @@ func ParseHost(defaultToTLS bool, val string) (string, error) {
 		if defaultToTLS {
 			host = DefaultTLSHost
 		} else {
-			host = DefaultHost
+			host = DefaultOrAltHost()
 		}
 	} else {
 		var err error
