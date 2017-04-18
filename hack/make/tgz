@@ -10,6 +10,11 @@ if [ ! -d "$CROSS/linux/${arch}" ]; then
 	false
 fi
 
+bundle .integration-daemon-start
+bundle .detect-daemon-osarch
+
+make manpages
+
 (
 for d in "$CROSS/"*/*; do
 	export GOARCH="$(basename "$d")"
@@ -46,6 +51,18 @@ for d in "$CROSS/"*/*; do
 
 	# $DEST/build/docker
 	TAR_PATH="$BUILD_PATH/$TAR_BASE_DIRECTORY"
+
+	# Include man pages
+	manRoot="$TAR_PATH/man"
+	mkdir -p "$manRoot"
+	for manDir in man/man?; do
+		manBase="$(basename "$manDir")" # "man1"
+		for manFile in "$manDir"/*; do
+			manName="$(basename "$manFile")" # "docker-build.1"
+			mkdir -p "$manRoot/$manBase"
+			gzip -c "$manFile" > "$manRoot/$manBase/$manName.gz"
+		done
+	done
 
 	# Copy the correct docker binary
 	mkdir -p $TAR_PATH
@@ -90,3 +107,5 @@ for d in "$CROSS/"*/*; do
 	echo "Created tgz: $TGZ"
 done
 )
+
+bundle .integration-daemon-stop
