@@ -117,6 +117,9 @@ deb: build  ## build the deb packages
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary build-deb
 
 
+echo-docker-run: ## echo DOCKER_RUN_DOCKER
+	@echo $(DOCKER_RUN_DOCKER)
+
 help: ## this help
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {sub("\\\\n",sprintf("\n%22c"," "), $$2);printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
@@ -152,6 +155,10 @@ test-docker-py: build ## run the docker-py tests
 
 test-integration-cli: build ## run the integration tests
 	$(DOCKER_RUN_DOCKER) hack/make.sh build-integration-test-binary dynbinary test-integration-cli
+
+test-integration-cli-parallel: build ## run the integration tests in parallel (EXPERIMENTAL)
+	$(DOCKER_RUN_DOCKER) hack/make.sh build-integration-test-binary dynbinary
+	contrib/test-integration-cli-parallel.sh
 
 test-unit: build ## run the unit tests
 	$(DOCKER_RUN_DOCKER) hack/make.sh test-unit
