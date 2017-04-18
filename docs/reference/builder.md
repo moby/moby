@@ -94,8 +94,8 @@ instructions.
 Whenever possible, Docker will re-use the intermediate images (cache),
 to accelerate the `docker build` process significantly. This is indicated by
 the `Using cache` message in the console output.
-(For more information, see the [Build cache section](https://docs.docker.com/engine/userguide/eng-image/dockerfile_best-practices/#/build-cache)) in the
-`Dockerfile` best practices guide:
+(For more information, see the [Build cache section](https://docs.docker.com/engine/userguide/eng-image/dockerfile_best-practices/#build-cache) in the
+`Dockerfile` best practices guide):
 
     $ docker build -t svendowideit/ambassador .
     Sending build context to Docker daemon 15.36 kB
