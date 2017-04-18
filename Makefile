@@ -44,6 +44,8 @@ DOCKER_ENVS := \
 	-e no_proxy
 # note: we _cannot_ add "-e DOCKER_BUILDTAGS" here because even if it's unset in the shell, that would shadow the "ENV DOCKER_BUILDTAGS" set in our Dockerfile, which is very important for our official builds
 
+SEND_CONTEXT := $(if $(BIND_DIR),,$(if $(BINDDIR),,1))
+SEND_CONTEXT := $(if $(DOCKER_HOST),1,$(SEND_CONTEXT))
 # to allow `make BIND_DIR=. shell` or `make BIND_DIR= test`
 # (default to no bind mount if DOCKER_HOST is set)
 # note: BINDDIR is supported for backwards-compatibility here
@@ -98,7 +100,21 @@ binary: build ## build the linux binaries
 	$(DOCKER_RUN_DOCKER) hack/make.sh binary
 
 build: bundles init-go-pkg-cache
+ifdef SEND_CONTEXT
 	docker build ${BUILD_APT_MIRROR} ${DOCKER_BUILD_ARGS} -t "$(DOCKER_IMAGE)" -f "$(DOCKERFILE)" .
+else
+	# BIND_DIR is used, and source code is bind-mounted in the container so there's
+	# no need to send it as build context. Only send what's used during build
+	cp "$(DOCKERFILE)" "$(DOCKERFILE).tmp"
+	sed -e 's/COPY \./\# COPY \./g' "$(DOCKERFILE)" > "$(DOCKERFILE).tmp"
+	cp .dockerignore .dockerignore.orig && echo "*\n!contrib/download-frozen-image-v2.sh\n!hack/dockerfile" >> .dockerignore
+	cat .dockerignore
+
+	docker build ${BUILD_APT_MIRROR} ${DOCKER_BUILD_ARGS} -t "$(DOCKER_IMAGE)" -f "$(DOCKERFILE).tmp" .
+
+	mv .dockerignore.orig .dockerignore
+	rm "$(DOCKERFILE).tmp"
+endif
 
 bundles:
 	mkdir bundles
