@@ -89,6 +89,9 @@ endif
 
 DOCKER_RUN_DOCKER := $(DOCKER_FLAGS) "$(DOCKER_IMAGE)"
 
+# shell command used for `make shell`
+SH := $(if $(SH),$(SH),bash)
+
 default: binary
 
 all: build ## validate all checks, build linux binaries, run all tests\ncross build non-linux binaries and generate archives
@@ -139,7 +142,7 @@ run: build ## run the docker daemon in a container
 	$(DOCKER_RUN_DOCKER) sh -c "KEEPBUNDLE=1 hack/make.sh install-binary run"
 
 shell: build ## start a shell inside the build env
-	$(DOCKER_RUN_DOCKER) bash
+	$(DOCKER_RUN_DOCKER) $(SH)
 
 yaml-docs-gen: build ## generate documentation YAML files consumed by docs repo
 	$(DOCKER_RUN_DOCKER) sh -c 'hack/make.sh yaml-docs-generator && ( root=$$(pwd); cd bundles/latest/yaml-docs-generator; mkdir docs; ./yaml-docs-generator --root $${root} --target $$(pwd)/docs )'
