@@ -113,6 +113,20 @@ read the [`dockerd`](dockerd.md) reference page.
 | [volume prune](volume_prune.md) | Remove all unused volumes                  |
 | [volume rm](volume_rm.md) | Remove one or more volumes                       |
 
+### Plugin Management commands
+
+| Command | Description                                                        |
+|:--------|:-------------------------------------------------------------------|
+| [plugin create](plugin_create.md) | Create a plugin from a rootfs and config |
+| [plugin disable](plugin_disable.md) | Disable a plugin                       |
+| [plugin enable](plugin_enable.md) | Enable a plugin                          |
+| [plugin inspect](plugin_inspect.md) | Display detailed information on one or more plugins |
+| [plugin install](plugin_install.md) | Install a plugin                       |
+| [plugin ls](plugin_ls.md) | List all plugins                                 |
+| [plugin push](plugin_push.md) | Push a plugin to a registry                  |
+| [plugin rm](plugin_rm.md) | Remove one or more plugins                       |
+| [plugin set](plugin_set.md) | Change settings for a plugin                   |
+
 ### Swarm node commands
 
 | Command | Description                                                        |
