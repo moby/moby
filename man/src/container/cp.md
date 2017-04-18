@@ -1,25 +1,25 @@
-The `docker container cp` utility copies the contents of `SRC_PATH` to the `DEST_PATH`.
+The `docker cp` utility copies the contents of `SRC_PATH` to the `DEST_PATH`.
 You can copy from the container's file system to the local machine or the
 reverse, from the local filesystem to the container. If `-` is specified for
 either the `SRC_PATH` or `DEST_PATH`, you can also stream a tar archive from
 `STDIN` or to `STDOUT`. The `CONTAINER` can be a running or stopped container.
 The `SRC_PATH` or `DEST_PATH` can be a file or directory.
 
-The `docker container cp` command assumes container paths are relative to the container's 
+The `docker cp` command assumes container paths are relative to the container's 
 `/` (root) directory. This means supplying the initial forward slash is optional; 
 The command sees `compassionate_darwin:/tmp/foo/myfile.txt` and
 `compassionate_darwin:tmp/foo/myfile.txt` as identical. Local machine paths can
 be an absolute or relative value. The command interprets a local machine's
-relative paths as relative to the current working directory where `docker container cp` is
+relative paths as relative to the current working directory where `docker cp` is
 run.
 
 The `cp` command behaves like the Unix `cp -a` command in that directories are
 copied recursively with permissions preserved if possible. Ownership is set to
 the user and primary group at the destination. For example, files copied to a
 container are created with `UID:GID` of the root user. Files copied to the local
-machine are created with the `UID:GID` of the user which invoked the `docker container cp`
-command.  If you specify the `-L` option, `docker container cp` follows any symbolic link
-in the `SRC_PATH`. `docker container cp` does *not* create parent directories for
+machine are created with the `UID:GID` of the user which invoked the `docker cp`
+command.  If you specify the `-L` option, `docker cp` follows any symbolic link
+in the `SRC_PATH`. `docker cp` does *not* create parent directories for
 `DEST_PATH` if they do not exist.
 
 Assuming a path separator of `/`, a first argument of `SRC_PATH` and second
@@ -85,28 +85,28 @@ some other computation. You can copy these outputs from the container to a
 location on your local host.
 
 If you want to copy the `/tmp/foo` directory from a container to the
-existing `/tmp` directory on your host. If you run `docker container cp` in your `~`
+existing `/tmp` directory on your host. If you run `docker cp` in your `~`
 (home) directory on the local host:
 
-    $ docker container cp compassionate_darwin:tmp/foo /tmp
+    $ docker cp compassionate_darwin:tmp/foo /tmp
 
 Docker creates a `/tmp/foo` directory on your host. Alternatively, you can omit
 the leading slash in the command. If you execute this command from your home
 directory:
 
-    $ docker container cp compassionate_darwin:tmp/foo tmp
+    $ docker cp compassionate_darwin:tmp/foo tmp
 
 If `~/tmp` does not exist, Docker will create it and copy the contents of
 `/tmp/foo` from the container into this new directory. If `~/tmp` already
 exists as a directory, then Docker will copy the contents of `/tmp/foo` from
 the container into a directory at `~/tmp/foo`.
 
-When copying a single file to an existing `LOCALPATH`, the `docker container cp` command
+When copying a single file to an existing `LOCALPATH`, the `docker cp` command
 will either overwrite the contents of `LOCALPATH` if it is a file or place it
 into `LOCALPATH` if it is a directory, overwriting an existing file of the same
 name if one exists. For example, this command:
 
-    $ docker container cp sharp_ptolemy:/tmp/foo/myfile.txt /test
+    $ docker cp sharp_ptolemy:/tmp/foo/myfile.txt /test
 
 If `/test` does not exist on the local machine, it will be created as a file
 with the contents of `/tmp/foo/myfile.txt` from the container. If `/test`
@@ -123,12 +123,12 @@ If you have a file, `config.yml`, in the current directory on your local host
 and wish to copy it to an existing directory at `/etc/my-app.d` in a container,
 this command can be used:
 
-    $ docker container cp config.yml myappcontainer:/etc/my-app.d
+    $ docker cp config.yml myappcontainer:/etc/my-app.d
 
 If you have several files in a local directory `/config` which you need to copy
 to a directory `/etc/my-app.d` in a container:
 
-    $ docker container cp /config/. myappcontainer:/etc/my-app.d
+    $ docker cp /config/. myappcontainer:/etc/my-app.d
 
 The above command will copy the contents of the local `/config` directory into
 the directory `/etc/my-app.d` in the container.
@@ -138,7 +138,7 @@ want to  copy the linked target and not the link itself. To copy the target, use
 the `-L` option, for example:
 
     $ ln -s /tmp/somefile /tmp/somefile.ln
-    $ docker container cp -L /tmp/somefile.ln myappcontainer:/tmp/
+    $ docker cp -L /tmp/somefile.ln myappcontainer:/tmp/
 
 This command copies content of the local `/tmp/somefile` into the file
 `/tmp/somefile.ln` in the container. Without `-L` option, the `/tmp/somefile.ln`

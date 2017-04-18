@@ -1,1 +1,1 @@
-Alias for `docker container cp`.
+Alias for `docker cp`.
