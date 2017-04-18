@@ -31,8 +31,7 @@ func (r *networkRouter) initRoutes() {
 	r.routes = []router.Route{
 		// GET
 		router.NewGetRoute("/networks", r.getNetworksList),
-		router.NewGetRoute("/networks/", r.getNetworksList),
-		router.NewGetRoute("/networks/{id:.+}", r.getNetwork),
+		router.NewGetRoute("/networks/{id:.*}", r.getNetwork),
 		// POST
 		router.NewPostRoute("/networks/create", r.postNetworkCreate),
 		router.NewPostRoute("/networks/{id:.*}/connect", r.postNetworkConnect),
