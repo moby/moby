@@ -135,3 +135,51 @@ func AttachLoopDevice(sparseName string) (loop *os.File, err error) {
 
 	return loopFile, nil
 }
+
+// AttachROLoopDevice attaches the given sparse file to the next
+// available loopback device. It only tests for the ability ro read
+// the sparse file, so by explicity calling this function, caller
+// expects that RW operations may fail. It returns an opened *os.File.
+func AttachROLoopDevice(sparseName string) (loop *os.File, err error) {
+
+	// Try to retrieve the next available loopback device via syscall.
+	// If it fails, we discard error and start looping for a
+	// loopback from index 0.
+	startIndex, err := getNextFreeLoopbackIndex()
+	if err != nil {
+		logrus.Debugf("Error retrieving the next available loopback: %s", err)
+	}
+
+	// OpenFile adds O_CLOEXEC
+	sparseFile, err := os.OpenFile(sparseName, os.O_RDONLY, 0644)
+	if err != nil {
+		logrus.Errorf("Error opening sparse file %s: %s", sparseName, err)
+		return nil, ErrAttachLoopbackDevice
+	}
+	defer sparseFile.Close()
+
+	loopFile, err := openNextAvailableLoopback(startIndex, sparseFile)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set the status of the loopback device
+	loopInfo := &loopInfo64{
+		loFileName: stringToLoopName(loopFile.Name()),
+		loOffset:   0,
+		loFlags:    LoFlagsAutoClear,
+	}
+
+	if err := ioctlLoopSetStatus64(loopFile.Fd(), loopInfo); err != nil {
+		logrus.Errorf("Cannot set up loopback device info: %s", err)
+
+		// If the call failed, then free the loopback device
+		if err := ioctlLoopClrFd(loopFile.Fd()); err != nil {
+			logrus.Error("Error while cleaning up the loopback device")
+		}
+		loopFile.Close()
+		return nil, ErrAttachLoopbackDevice
+	}
+
+	return loopFile, nil
+}
