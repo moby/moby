@@ -541,8 +541,11 @@ func healthcheck(b *Builder, args []string, attributes map[string]bool, original
 			}
 
 			healthcheck.Test = strslice.StrSlice(append([]string{typ}, cmdSlice...))
+		case "HTTP":
+			httpSlice := handleJSONArgs(args, attributes)
+			healthcheck.Test = strslice.StrSlice(append([]string{typ}, httpSlice...))
 		default:
-			return fmt.Errorf("Unknown type %#v in HEALTHCHECK (try CMD)", typ)
+			return fmt.Errorf("Unknown type %#v in HEALTHCHECK (try CMD or HTTP)", typ)
 		}
 
 		interval, err := parseOptInterval(flInterval)

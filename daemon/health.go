@@ -3,6 +3,8 @@ package daemon
 import (
 	"bytes"
 	"fmt"
+	"io"
+	"net/http"
 	"runtime"
 	"strings"
 	"sync"
@@ -54,6 +56,37 @@ type probe interface {
 	// Perform one run of the check. Returns the exit code and an optional
 	// short diagnostic string.
 	run(context.Context, *Daemon, *container.Container) (*types.HealthcheckResult, error)
+}
+
+// httpProbe implements the "HTTP" probe type.
+type httpProbe struct {
+}
+
+func httpHealthcheck(address, endpoint string, timeout time.Duration) (*types.HealthcheckResult, error) {
+	client := http.Client{
+		Timeout: timeoutWithDefault(timeout, defaultProbeTimeout),
+	}
+	resp, err := client.Get(fmt.Sprintf("http://%s%s", address, endpoint))
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	output := &limitedBuffer{}
+	if _, err := io.Copy(output, resp.Body); err != nil {
+		return nil, err
+	}
+
+	exitCode := 1
+	if 200 <= resp.StatusCode && resp.StatusCode < 300 {
+		exitCode = 0
+	}
+
+	return &types.HealthcheckResult{
+		End:      time.Now(),
+		ExitCode: exitCode,
+		Output:   output.String(),
+	}, nil
 }
 
 // cmdProbe implements the "CMD" probe type.
@@ -241,8 +274,10 @@ func getProbe(c *container.Container) probe {
 		return &cmdProbe{shell: false}
 	case "CMD-SHELL":
 		return &cmdProbe{shell: true}
+	case "HTTP":
+		return &httpProbe{}
 	default:
-		logrus.Warnf("Unknown healthcheck type '%s' (expected 'CMD') in container %s", config.Test[0], c.ID)
+		logrus.Warnf("Unknown healthcheck type '%s' (expected 'CMD' or HTTP) in container %s", config.Test[0], c.ID)
 		return nil
 	}
 }

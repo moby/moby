@@ -111,6 +111,7 @@ type containerOptions struct {
 	shmSize            opts.MemBytes
 	noHealthcheck      bool
 	healthCmd          string
+	healthHTTP         string
 	healthInterval     time.Duration
 	healthTimeout      time.Duration
 	healthStartPeriod  time.Duration
@@ -230,6 +231,7 @@ func addFlags(flags *pflag.FlagSet) *containerOptions {
 
 	// Health-checking
 	flags.StringVar(&copts.healthCmd, "health-cmd", "", "Command to run to check health")
+	flags.StringVar(&copts.healthHTTP, "health-http", "", "Http address to to check health")
 	flags.DurationVar(&copts.healthInterval, "health-interval", 0, "Time between running the check (ns|us|ms|s|m|h) (default 0s)")
 	flags.IntVar(&copts.healthRetries, "health-retries", 0, "Consecutive failures needed to report unhealthy")
 	flags.DurationVar(&copts.healthTimeout, "health-timeout", 0, "Maximum time to allow one check to run (ns|us|ms|s|m|h) (default 0s)")
@@ -464,7 +466,7 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*containerConfig, err
 
 	// Healthcheck
 	var healthConfig *container.HealthConfig
-	haveHealthSettings := copts.healthCmd != "" ||
+	haveHealthSettings := copts.healthCmd != "" || copts.healthHTTP != "" ||
 		copts.healthInterval != 0 ||
 		copts.healthTimeout != 0 ||
 		copts.healthStartPeriod != 0 ||
@@ -479,6 +481,9 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*containerConfig, err
 		var probe strslice.StrSlice
 		if copts.healthCmd != "" {
 			args := []string{"CMD-SHELL", copts.healthCmd}
+			probe = strslice.StrSlice(args)
+		} else if copts.healthHTTP != "" {
+			args := []string{"HTTP", copts.healthHTTP}
 			probe = strslice.StrSlice(args)
 		}
 		if copts.healthInterval < 0 {
