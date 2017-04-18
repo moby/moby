@@ -13,6 +13,8 @@ keywords: "plugin, push"
      will be rejected.
 -->
 
+# plugin push
+
 ```markdown
 Usage:	docker plugin push [OPTIONS] PLUGIN[:TAG]
 
