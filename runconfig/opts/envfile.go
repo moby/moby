@@ -58,6 +58,9 @@ func ParseEnvFile(filename string) ([]string, error) {
 
 			if len(data) > 1 {
 
+				// Trim any leading or trailing double or single quotes in variable
+				data[1] = strings.Trim(data[1], "\"\\'")
+
 				// pass the value through, no trimming
 				lines = append(lines, fmt.Sprintf("%s=%s", variable, data[1]))
 			} else {
