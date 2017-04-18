@@ -9,7 +9,7 @@ Vcs-Git: git://github.com/docker/docker.git
 
 Package: docker-engine
 Architecture: linux-any
-Depends: iptables, ${misc:Depends}, ${perl:Depends}, ${shlibs:Depends}
+Depends: iptables, linux-image-extra-virtual | dmsetup, ${misc:Depends}, ${perl:Depends}, ${shlibs:Depends}
 Recommends: aufs-tools,
             ca-certificates,
             cgroupfs-mount | cgroup-lite,
