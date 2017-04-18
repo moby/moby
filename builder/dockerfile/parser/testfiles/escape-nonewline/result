@@ -1,3 +1,3 @@
 (from "image")
-(maintainer "foo@bar.com")
+(label "maintainer" "foo@bar.com")
 (env "GOPATH" "\\go")

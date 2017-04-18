@@ -24,7 +24,7 @@
 #
 
 FROM	ubuntu:14.04
-MAINTAINER	Tianon Gravi <admwiggin@gmail.com> (@tianon)
+LABEL	maintainer	Tianon Gravi <admwiggin@gmail.com> (@tianon)
 
 # Packaged dependencies
 RUN	apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -yq \
