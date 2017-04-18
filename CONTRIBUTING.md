@@ -15,7 +15,7 @@ start participating.
 
 * [Reporting Security Issues](#reporting-security-issues)
 * [Design and Cleanup Proposals](#design-and-cleanup-proposals)
-* [Reporting Issues](#reporting-other-issues)
+* [Reporting Other Issues](#reporting-other-issues)
 * [Quick Contribution Tips and Guidelines](#quick-contribution-tips-and-guidelines)
 * [Community Guidelines](#docker-community-guidelines)
 
@@ -106,7 +106,7 @@ However, there might be a way to implement that feature *on top of* Docker.
       <p>
         IRC a direct line to our most knowledgeable Docker users; we have
         both the  <code>#docker</code> and <code>#docker-dev</code> group on
-        <strong>irc.freenode.net</strong>.
+        <strong>webchat.freenode.net</strong>.
         IRC is a rich chat protocol but it can overwhelm new users. You can search
         <a href="https://botbot.me/freenode/docker/#" target="_blank">our chat archives</a>.
       </p>
