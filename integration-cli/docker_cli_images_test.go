@@ -364,3 +364,20 @@ func (s *DockerSuite) TestImagesFormatDefaultFormat(c *check.C) {
 	out, _ = dockerCmd(c, "--config", d, "images", "-q", "myimage")
 	c.Assert(out, checker.Equals, imageID+"\n", check.Commentf("Expected to print only the image id, got %v\n", out))
 }
+
+func (s *DockerSuite) TestImageSortBy(c *check.C) {
+	dockerCmd(c, "tag", "busybox", "name1:v1")
+	dockerCmd(c, "tag", "busybox", "name1:v2")
+	dockerCmd(c, "tag", "busybox", "name0:v2")
+
+	imagesOut, _ := dockerCmd(c, "images", "--sort-by", "Repository:asc,tag:desc", "name*")
+	imgs := strings.Split(imagesOut, "\n")
+	c.Assert(imgs[1], checker.Contains, "name0               v2", check.Commentf("First image must be %s, got %s", "name0:v2", imgs[1]))
+	c.Assert(imgs[2], checker.Contains, "name1               v2", check.Commentf("First image must be %s, got %s", "name1:v2", imgs[2]))
+	c.Assert(imgs[3], checker.Contains, "name1               v1", check.Commentf("First image must be %s, got %s", "name1:v1", imgs[3]))
+
+	// test unsupported --sort-by value
+	_, _, err := dockerCmdWithError("images", "--sort-by", "repo:asc,tag:desc", "name*")
+	c.Assert(err, checker.NotNil)
+	c.Assert(err.Error(), checker.Contains, "unknown sort field: \"repo\"")
+}

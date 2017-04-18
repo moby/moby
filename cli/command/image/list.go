@@ -20,6 +20,7 @@ type imagesOptions struct {
 	showDigests bool
 	format      string
 	filter      opts.FilterOpt
+	sortby      string
 }
 
 // NewImagesCommand creates a new `docker images` command
@@ -46,6 +47,7 @@ func NewImagesCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.BoolVar(&opts.showDigests, "digests", false, "Show digests")
 	flags.StringVar(&opts.format, "format", "", "Pretty-print images using a Go template")
 	flags.VarP(&opts.filter, "filter", "f", "Filter output based on conditions provided")
+	flags.StringVar(&opts.sortby, "sort-by", "", "Customize list order, sort by field[:order]. For example, \"id:asc,createdat:desc\"")
 
 	return cmd
 }
@@ -91,6 +93,7 @@ func runImages(dockerCli *command.DockerCli, opts imagesOptions) error {
 			Trunc:  !opts.noTrunc,
 		},
 		Digest: opts.showDigests,
+		Sortby: opts.sortby,
 	}
 	return formatter.ImageWrite(imageCtx, images)
 }

@@ -116,3 +116,26 @@ Listing just the shortened image IDs. This can be useful for some automated
 tools.
 
     docker image ls -q
+
+## Custome sort order
+
+To customize list orders, you can use `--sort-by` option, which takes the format
+of `field[:order]`. `field` is one or more of: "repository",
+"tag", "digest", "createdat", "id" and "size". `order` is either `asc`(ascending)
+or `desc`(descending).
+
+If you specify an invalid `field` or `order` string, a hint will be printed, such as the following:
+
+    docker images --sort-by invalid
+    unknown sort field: "invalid". Valid options are "repository, tag, digest, createdat, id, size"
+
+To sort images by repository name in ascendant order, then by tags in descendant order
+if some have same repository names, run this command:
+
+    docker images --sort-by "repository:asc,tag:desc"
+    REPOSITORY                  TAG                 IMAGE ID            CREATED             SIZE
+    alpine                      3.4                 baa5d63471ea        4 months ago        4.8MB
+    golang                      latest              a1b716bca9ae        17 months ago       585MB
+    golang                      1.6.2               8ecba0e9bd48        7 months ago        754MB
+    golang                      1.4                 41dd037540dd        12 months ago       563MB
+    hello                       latest              1832e715399b        9 months ago        1.11MB
