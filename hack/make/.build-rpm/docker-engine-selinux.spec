@@ -24,8 +24,8 @@ Packager: Docker <support@docker.com>
 Requires(post): selinux-policy-base >= %{selinux_policyver}, selinux-policy-targeted >= %{selinux_policyver}, policycoreutils, policycoreutils-python libselinux-utils
 BuildRequires: selinux-policy selinux-policy-devel
 
-# conflicting packages
-Conflicts: docker-selinux
+# be compatible with distro packages
+Provides: docker-selinux = %{version}-%{release}
 
 # Usage: _format var format
 #   Expand 'modulenames' into various formats as needed

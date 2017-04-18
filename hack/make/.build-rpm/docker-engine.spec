@@ -98,8 +98,12 @@ Requires: selinux-policy >= %{selinux_policyver}
 Requires(pre): %{name}-selinux >= %{version}-%{release}
 %endif # with_selinux
 
+# be compatible with downstream packages
+Provides: docker = %{version}-%{release}
+Conflicts: docker-common
+Conflicts: docker-latest
+
 # conflicting packages
-Conflicts: docker
 Conflicts: docker-io
 Conflicts: docker-engine-cs
 
