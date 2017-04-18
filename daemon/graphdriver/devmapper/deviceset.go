@@ -30,7 +30,7 @@ import (
 	"github.com/docker/docker/pkg/parsers"
 	units "github.com/docker/go-units"
 
-	"github.com/opencontainers/runc/libcontainer/label"
+	"github.com/opencontainers/selinux/go-selinux/label"
 )
 
 var (
