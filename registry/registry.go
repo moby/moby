@@ -15,6 +15,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/registry/client/transport"
+	"github.com/docker/distribution/uuid"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
 )
@@ -23,6 +24,9 @@ var (
 	// ErrAlreadyExists is an error returned if an image being pushed
 	// already exists on the remote side
 	ErrAlreadyExists = errors.New("Image already exists")
+	// SessionID is a UUID that identifies the current execution context
+	// and is added to the docker headers in all requests against a registry
+	SessionID = uuid.Generate().String()
 )
 
 func newTLSConfig(hostname string, isSecure bool) (*tls.Config, error) {
@@ -107,7 +111,8 @@ func DockerHeaders(userAgent string, metaHeaders http.Header) []transport.Reques
 	modifiers := []transport.RequestModifier{}
 	if userAgent != "" {
 		modifiers = append(modifiers, transport.NewHeaderRequestModifier(http.Header{
-			"User-Agent": []string{userAgent},
+			"User-Agent":        []string{userAgent},
+			"Docker-Session-ID": []string{SessionID},
 		}))
 	}
 	if metaHeaders != nil {
