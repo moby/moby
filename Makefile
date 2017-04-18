@@ -156,7 +156,7 @@ test-integration-cli: build ## run the integration tests
 test-unit: build ## run the unit tests
 	$(DOCKER_RUN_DOCKER) hack/make.sh test-unit
 
-tgz: build ## build the archives (.zip on windows and .tgz\notherwise) containing the binaries
+tgz: build manpages ## build the archives (.zip on windows and .tgz\notherwise) containing the binaries
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary binary cross tgz
 
 validate: build ## validate DCO, Seccomp profile generation, gofmt,\n./pkg/ isolation, golint, tests, tomls, go vet and vendor

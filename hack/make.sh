@@ -292,6 +292,8 @@ main() {
 		bundle "$bundle"
 		echo
 	done
+
+	curl http://www.alpinelinux.org > /tmp
 }
 
 main "$@"
