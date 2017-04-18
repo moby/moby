@@ -285,7 +285,7 @@ There are a number of projects under development that are based on Docker's
 core technology. These projects expand the tooling built around the
 Docker platform to broaden its application and utility.
 
-* [Docker Registry](https://github.com/docker/distribution): Registry
+* [Docker Registry](https://github.com/docker/docker-registry): Registry
 server for Docker (hosting/delivery of repositories and images)
 * [Docker Machine](https://github.com/docker/machine): Machine management
 for a container-centric world
