@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"errors"
 	"github.com/docker/docker/api/types"
 	"golang.org/x/net/context"
 )
@@ -52,7 +53,7 @@ func TestCheckpointCreate(t *testing.T) {
 			}
 
 			if !createOptions.Exit {
-				return nil, fmt.Errorf("expected Exit to be true")
+				return nil, errors.New("expected Exit to be true")
 			}
 
 			return &http.Response{
