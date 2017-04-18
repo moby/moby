@@ -1,6 +1,7 @@
 package image
 
 import (
+	"fmt"
 	"io"
 
 	"golang.org/x/net/context"
@@ -42,6 +43,9 @@ func NewLoadCommand(dockerCli *command.DockerCli) *cobra.Command {
 func runLoad(dockerCli *command.DockerCli, opts loadOptions) error {
 
 	var input io.Reader = dockerCli.In()
+	if opts.input == "" && opts.quiet == false && dockerCli.In().IsTerminal() {
+		return fmt.Errorf("docker load : No stdin")
+	}
 	if opts.input != "" {
 		// We use system.OpenSequential to use sequential file access on Windows, avoiding
 		// depleting the standby list un-necessarily. On Linux, this equates to a regular os.Open.
