@@ -79,6 +79,13 @@ func (o listOptionsProcessor) Label(name string) string {
 	return ""
 }
 
+// CreatedAt does nothing but return true.
+// It is needed to avoid the template check to fail as this field
+// doesn't exist in `types.Container` (only `Created` in `types.Container`)
+func (p *preProcessor) CreatedAt() bool {
+	return true
+}
+
 func buildContainerListOptions(opts *psOptions) (*types.ContainerListOptions, error) {
 	options := &types.ContainerListOptions{
 		All:     opts.all,
