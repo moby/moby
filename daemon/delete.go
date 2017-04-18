@@ -78,6 +78,22 @@ func (daemon *Daemon) rmLink(container *container.Container, name string) error 
 // cleanupContainer unregisters a container from the daemon, stops stats
 // collection and cleanly removes contents and metadata from the filesystem.
 func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemove, removeVolume bool) (err error) {
+	// If force removal is required, delete container from various
+	// indexes even if removal failed.
+	defer func() {
+		if err == nil || forceRemove {
+			daemon.nameIndex.Delete(container.ID)
+			daemon.linkIndex.delete(container)
+			selinuxFreeLxcContexts(container.ProcessLabel)
+			daemon.idIndex.Delete(container.ID)
+			daemon.containers.Delete(container.ID)
+			if e := daemon.removeMountPoints(container, removeVolume); e != nil {
+				logrus.Error(e)
+			}
+			daemon.LogContainerEvent(container, "destroy")
+		}
+	}()
+
 	if container.IsRunning() {
 		if !forceRemove {
 			state := container.StateString()
@@ -110,22 +126,6 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 	if err := container.ToDiskLocking(); err != nil && !os.IsNotExist(err) {
 		logrus.Errorf("Error saving dying container to disk: %v", err)
 	}
-
-	// If force removal is required, delete container from various
-	// indexes even if removal failed.
-	defer func() {
-		if err == nil || forceRemove {
-			daemon.nameIndex.Delete(container.ID)
-			daemon.linkIndex.delete(container)
-			selinuxFreeLxcContexts(container.ProcessLabel)
-			daemon.idIndex.Delete(container.ID)
-			daemon.containers.Delete(container.ID)
-			if e := daemon.removeMountPoints(container, removeVolume); e != nil {
-				logrus.Error(e)
-			}
-			daemon.LogContainerEvent(container, "destroy")
-		}
-	}()
 
 	if err = os.RemoveAll(container.Root); err != nil {
 		return fmt.Errorf("Unable to remove filesystem for %v: %v", container.ID, err)
