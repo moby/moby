@@ -1,0 +1,68 @@
+#
+# Docker project tasks
+#
+# Config reference: http://dnephin.github.io/dobi/config.html
+#
+meta:
+    project: docker
+    default: all
+
+mount=source:
+    bind: .
+    path: /go/src/github.com/docker/docker
+
+
+image=builder:
+    image: docker-dev
+    dockerfile: Dockerfile.build
+    context: dockerfiles
+    args:
+      APT_MIRROR: '{env.APT_MIRROR:httpredir.debian.org}'
+
+image=validator:
+    image: docker-validator
+    dockerfile: Dockerfile.validate
+    context: dockerfiles
+
+
+job=validate-vendor:
+    use: validator
+    mounts: [source]
+    command: hack/validate/vendor
+    description: "Perform a vendor and validate that no files changed"
+
+job=validate:
+    use: validator
+    mounts: [source]
+    command: hack/validate/default
+    description: "Run default validation checks"
+
+job=test-unit:
+    use: builder
+    mounts: [source]
+    privileged: true
+    command: "hack/make.sh test-unit"
+    description: "Run the unit test suite"
+
+job=binary-client:
+    use: builder
+    mounts: [source]
+    command: "hack/make.sh binary-client"
+    description: "Build the linux client binary"
+    artifact: bundles/latest/binary-client/docker
+
+job=shell:
+    use: builder
+    mounts: [source]
+    interactive: true
+    provide-docker: true
+    command: bash
+    description: "Start an interactive dev environment"
+
+
+alias=test:
+    tasks: [test-unit]
+
+alias=all:
+    tasks: [validate, validate-vendor, test]
+    description: "Run every project task"

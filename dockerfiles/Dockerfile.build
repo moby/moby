@@ -1,0 +1,58 @@
+#
+# Build environment for linux docker
+#
+FROM debian:jessie
+
+# add zfs ppa
+RUN apt-key adv \
+        --keyserver hkp://p80.pool.sks-keyservers.net:80 \
+        --recv-keys E871F18B51E0147C77796AC81196BA81F6B0FC61 \
+                    93763AC528C8C52568951BE0D5495F657635B973 || \
+    apt-key adv \
+        --keyserver hkp://pgp.mit.edu:80 \
+        --recv-keys E871F18B51E0147C77796AC81196BA81F6B0FC61 \
+                    93763AC528C8C52568951BE0D5495F657635B973
+RUN echo deb http://ppa.launchpad.net/zfs-native/stable/ubuntu trusty main > \
+        /etc/apt/sources.list.d/zfs.list && \
+    echo deb http://ppa.launchpad.net/ubuntu-lxc/lxd-stable/ubuntu trusty main > \
+        /etc/apt/sources.list.d/seccond.list
+
+# allow replacing httpredir mirror
+ARG APT_MIRROR=httpredir.debian.org
+RUN sed -i s/httpredir.debian.org/$APT_MIRROR/g /etc/apt/sources.list
+
+# Packaged dependencies
+RUN apt-get update && apt-get install -y \
+    btrfs-tools \
+    build-essential \
+    ca-certificates \
+    curl \
+    git \
+    libapparmor-dev \
+    libcap-dev \
+    libdevmapper-dev \
+    libltdl-dev \
+    libseccomp-dev \
+    libsqlite3-dev \
+    libzfs-dev \
+    pkg-config \
+    tar \
+    --no-install-recommends
+
+# Install Go
+# IMPORTANT: If the version of Go is updated, the Windows to Linux CI machines
+#            will need updating, to avoid errors. Ping #docker-maintainers on IRC
+#            with a heads-up.
+ENV GO_VERSION 1.7.1
+RUN curl -fsSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" \
+    | tar -xzC /usr/local
+
+ENV PATH /go/bin:/usr/local/go/bin:$PATH
+ENV GOPATH /go:/go/src/github.com/docker/docker/vendor
+
+WORKDIR /go/src/github.com/docker/docker
+# Used to detect running from within a container
+ENV FROM_DOCKERFILE=1
+ENV DOCKER_BUILDTAGS apparmor pkcs11 seccomp selinux
+# Used to inform hack/make.sh that this is running in a container
+ENV DOCKER_CROSSPLATFORMS=stub
