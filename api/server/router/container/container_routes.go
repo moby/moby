@@ -360,6 +360,8 @@ func (s *containerRouter) postContainerUpdate(ctx context.Context, w http.Respon
 }
 
 func (s *containerRouter) postContainersCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	defer r.Body.Close()
+
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
