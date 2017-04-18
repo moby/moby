@@ -673,8 +673,9 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	migrationStart := time.Now()
 	if err := v1.Migrate(config.Root, graphDriver, d.layerStore, d.imageStore, referenceStore, distributionMetadataStore); err != nil {
 		logrus.Errorf("Graph migration failed: %q. Your old graph data was found to be too inconsistent for upgrading to content-addressable storage. Some of the old data was probably not upgraded. We recommend starting over with a clean storage directory if possible.", err)
+	} else {
+		logrus.Infof("Graph migration to content-addressability took %.2f seconds", time.Since(migrationStart).Seconds())
 	}
-	logrus.Infof("Graph migration to content-addressability took %.2f seconds", time.Since(migrationStart).Seconds())
 
 	// Discovery is only enabled when the daemon is launched with an address to advertise.  When
 	// initialized, the daemon is registered and we can store the discovery backend as it's read-only
