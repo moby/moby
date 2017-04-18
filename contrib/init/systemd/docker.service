@@ -12,6 +12,7 @@ Type=notify
 # for containers run by docker
 ExecStart=/usr/bin/dockerd -H fd://
 ExecReload=/bin/kill -s HUP $MAINPID
+MountFlags=shared
 LimitNOFILE=1048576
 # Having non-zero Limit*s causes performance problems due to accounting overhead
 # in the kernel. We recommend using cgroups to do container-local accounting.
