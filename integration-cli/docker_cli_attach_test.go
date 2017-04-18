@@ -125,8 +125,14 @@ func (s *DockerSuite) TestAttachTTYWithoutStdin(c *check.C) {
 }
 
 func (s *DockerSuite) TestAttachDisconnect(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "run", "-di", "busybox", "/bin/cat")
+	var out string
+	if daemonPlatform == "windows" {
+		// Windows busybox doesn't work interactively in a container as it relies on
+		// conhost support. Instead, use a poor mans `cat` implemented in PowerShell.
+		out, _ = dockerCmd(c, "run", "-di", WindowsBaseImage, "powershell", "while(1){write-host(read-host)}")
+	} else {
+		out, _ = dockerCmd(c, "run", "-di", "busybox", "/bin/cat")
+	}
 	id := strings.TrimSpace(out)
 
 	cmd := exec.Command(dockerBinary, "attach", id)
