@@ -190,9 +190,16 @@ func (s *DockerSwarmSuite) TestSwarmServiceListFilter(c *check.C) {
 func (s *DockerSwarmSuite) TestSwarmNodeListFilter(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
-	out, err := d.Cmd("node", "inspect", "--format", "{{ .Description.Hostname }}", "self")
-	c.Assert(err, checker.IsNil)
-	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+	var (
+		out string
+		err error
+	)
+	checkHostname := func(c *check.C) (interface{}, check.CommentInterface) {
+		out, err = d.Cmd("node", "inspect", "--format", "{{ .Description.Hostname }}", "self")
+		c.Assert(err, checker.IsNil)
+		return strings.TrimSpace(out), check.Commentf("output: %q", string(out))
+	}
+	waitAndAssert(c, defaultReconciliationTimeout, checkHostname, checker.Not(checker.Equals), "")
 	name := strings.TrimSpace(out)
 
 	filter := "name=" + name[:4]
