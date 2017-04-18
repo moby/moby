@@ -58,26 +58,58 @@ func (c *nativeStore) Get(serverAddress string) (types.AuthConfig, error) {
 
 // GetAll retrieves all the credentials from the native store.
 func (c *nativeStore) GetAll() (map[string]types.AuthConfig, error) {
-	auths, err := c.listCredentialsInStore()
+
+	// first we list auths from the config file
+	fileConfigs, err := c.fileStore.GetAll()
 	if err != nil {
 		return nil, err
 	}
 
-	// Emails are only stored in the file store.
-	// This call can be safely eliminated when emails are removed.
-	fileConfigs, _ := c.fileStore.GetAll()
-
 	authConfigs := make(map[string]types.AuthConfig)
-	for registry := range auths {
+	for registry, ac := range fileConfigs {
 		creds, err := c.getCredentialsFromStore(registry)
 		if err != nil {
 			return nil, err
 		}
-		ac, _ := fileConfigs[registry] // might contain Email
-		ac.Username = creds.Username
-		ac.Password = creds.Password
-		ac.IdentityToken = creds.IdentityToken
+		if creds.Username == "" &&
+			creds.Password == "" &&
+			creds.IdentityToken == "" {
+			if ac.Username == "" &&
+				ac.Password == "" &&
+				ac.IdentityToken == "" {
+				// when both credential helper and config file do not contains credentials,
+				// skip the entry
+				continue
+			}
+		} else {
+			// overrides config file data with credentials from the credential helper if not empty
+			ac.Username = creds.Username
+			ac.Password = creds.Password
+			ac.IdentityToken = creds.IdentityToken
+		}
 		authConfigs[registry] = ac
+	}
+
+	// then we list implicitly authenticated registries (provided by the credential helper, instead of stored via docker login)
+	additionalAuths, err := c.listImplicitCredentials()
+	if err != nil {
+		return nil, err
+	}
+
+	for registry := range additionalAuths {
+		if _, ok := authConfigs[registry]; ok {
+			// already retrieved
+			continue
+		}
+		creds, err := c.getCredentialsFromStore(registry)
+		if err != nil {
+			return nil, err
+		}
+		if creds.Username != "" ||
+			creds.Password != "" ||
+			creds.IdentityToken != "" {
+			authConfigs[registry] = creds
+		}
 	}
 
 	return authConfigs, nil
@@ -137,8 +169,8 @@ func (c *nativeStore) getCredentialsFromStore(serverAddress string) (types.AuthC
 	return ret, nil
 }
 
-// listCredentialsInStore returns a listing of stored credentials as a map of
+// listImplicitCredentials returns a listing of available credentials not initialized via `docker login` as a map of
 // URL -> username.
-func (c *nativeStore) listCredentialsInStore() (map[string]string, error) {
+func (c *nativeStore) listImplicitCredentials() (map[string]string, error) {
 	return client.List(c.programFunc)
 }

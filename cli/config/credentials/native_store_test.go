@@ -83,8 +83,73 @@ func (m *mockCommand) Input(in io.Reader) {
 	m.input = in
 }
 
+// desktopMockCommand simulates interactions between the docker client and a desktop
+// credentials helper.
+// Unit tests inject this mocked command into the remote to control execution.
+type desktopMockCommand struct {
+	arg   string
+	input io.Reader
+}
+
+// Output returns responses from the desktop credentials helper.
+// It mocks those responses based in the input in the mock.
+func (m *desktopMockCommand) Output() ([]byte, error) {
+	in, err := ioutil.ReadAll(m.input)
+	if err != nil {
+		return nil, err
+	}
+	inS := string(in)
+
+	switch m.arg {
+	case "erase":
+		switch inS {
+		case validServerAddress:
+			return nil, nil
+		default:
+			return []byte("program failed"), errCommandExited
+		}
+	case "get":
+		switch inS {
+		case validServerAddress:
+			return []byte(`{"Username": "foo", "Secret": "bar"}`), nil
+		case validServerAddress2:
+			return []byte(`{"Username": "<token>", "Secret": "abcd1234"}`), nil
+		case missingCredsAddress:
+			return []byte(credentials.NewErrCredentialsNotFound().Error()), errCommandExited
+		case invalidServerAddress:
+			return []byte("program failed"), errCommandExited
+		}
+	case "store":
+		var c credentials.Credentials
+		err := json.NewDecoder(strings.NewReader(inS)).Decode(&c)
+		if err != nil {
+			return []byte("program failed"), errCommandExited
+		}
+		switch c.ServerURL {
+		case validServerAddress:
+			return nil, nil
+		default:
+			return []byte("program failed"), errCommandExited
+		}
+	case "list":
+		return []byte("{}"), nil
+	}
+
+	return []byte(fmt.Sprintf("unknown argument %q with %q", m.arg, inS)), errCommandExited
+}
+
+// Input sets the input to send to a desktop credentials helper.
+func (m *desktopMockCommand) Input(in io.Reader) {
+	m.input = in
+}
+
 func mockCommandFn(args ...string) client.Program {
 	return &mockCommand{
+		arg: args[0],
+	}
+}
+func desktopMockCommandFn(args ...string) client.Program {
+	return &desktopMockCommand{
 		arg: args[0],
 	}
 }
@@ -267,6 +332,35 @@ func TestNativeStoreGetAll(t *testing.T) {
 	}
 	if as[validServerAddress2].Email != "" {
 		t.Fatalf("expected no email for %s, got %s", validServerAddress2, as[validServerAddress2].Email)
+	}
+}
+
+func TestNativeStoreGetAllDesktopByConfigFile(t *testing.T) {
+	f := newConfigFile(map[string]types.AuthConfig{
+		validServerAddress2: {},
+	})
+	f.CredentialsStore = "mock"
+
+	s := &nativeStore{
+		programFunc: desktopMockCommandFn,
+		fileStore:   NewFileStore(f),
+	}
+	as, err := s.GetAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(as) != 1 {
+		t.Fatalf("wanted 1, got %d", len(as))
+	}
+
+	_, ok := as[validServerAddress]
+	if ok {
+		t.Fatalf("should not get credentials for %s", validServerAddress)
+	}
+	_, ok = as[validServerAddress2]
+	if !ok {
+		t.Fatalf("should get credentials for %s", validServerAddress2)
 	}
 }
 
