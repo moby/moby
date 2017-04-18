@@ -112,7 +112,7 @@ are persisted as files, the file extension is `.dab` (Docker 1.12RC2 tools use
 A bundle has two top-level fields: `version` and `services`. The version used
 by Docker 1.12 and later tools is `0.1`.
 
-`services` in the bundle are the services that comprise the app. They
+`services` in the bundle is the services that comprise the app. They
 correspond to the new `Service` object introduced in the 1.12 Docker Engine API.
 
 A service has the following fields:
