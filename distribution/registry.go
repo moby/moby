@@ -74,7 +74,8 @@ func NewV2Repository(ctx context.Context, repoInfo *registry.RepositoryInfo, end
 		TLSHandshakeTimeout: 10 * time.Second,
 		TLSClientConfig:     endpoint.TLSConfig,
 		// TODO(dmcgowan): Call close idle connections when complete and use keep alive
-		DisableKeepAlives: true,
+		DisableKeepAlives:  true,
+		DisableCompression: true,
 	}
 
 	proxyDialer, err := sockets.DialerFromEnvironment(direct)
