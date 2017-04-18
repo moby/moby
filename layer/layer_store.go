@@ -1,7 +1,6 @@
 package layer
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -254,9 +253,9 @@ func (ls *layerStore) Register(ts io.Reader, parent ChainID) (Layer, error) {
 
 func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, descriptor distribution.Descriptor) (Layer, error) {
 	// err is used to hold the error which will always trigger
-	// cleanup of creates sources but may not be an error returned
-	// to the caller (already exists).
+	// cleanup of creates sources
 	var err error
+	var exist = false
 	var pid string
 	var p *roLayer
 	if string(parent) != "" {
@@ -267,7 +266,7 @@ func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, descr
 		pid = p.cacheID
 		// Release parent chain if error
 		defer func() {
-			if err != nil {
+			if err != nil || exist {
 				ls.layerL.Lock()
 				ls.releaseLayer(p)
 				ls.layerL.Unlock()
@@ -328,8 +327,9 @@ func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, descr
 	defer ls.layerL.Unlock()
 
 	if existingLayer := ls.getWithoutLock(layer.chainID); existingLayer != nil {
-		// Set error for cleanup, but do not return the error
-		err = errors.New("layer already exists")
+		// Set "exist" for cleanup
+		exist = true
+		logrus.Warnf("Layer %q already exists", layer.chainID)
 		return existingLayer.getReference(), nil
 	}
 
