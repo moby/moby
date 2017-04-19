@@ -13,6 +13,7 @@ import (
 
 	cliconfig "github.com/docker/docker/cli/config"
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/go-check/check"
@@ -45,14 +46,6 @@ var SuccessSigningAndPushing = icmd.Expected{
 
 var SuccessDownloaded = icmd.Expected{
 	Out: "Status: Downloaded",
-}
-
-var SuccessTaggingOnStderr = icmd.Expected{
-	Err: "Tagging",
-}
-
-var SuccessSigningAndPushingOnStderr = icmd.Expected{
-	Err: "Signing and pushing trust metadata",
 }
 
 var SuccessDownloadedOnStderr = icmd.Expected{
@@ -190,21 +183,24 @@ func (t *testNotary) Close() {
 	os.RemoveAll(t.dir)
 }
 
-func trustedCmd(cmd *icmd.Cmd) {
+func trustedCmd(cmd *icmd.Cmd) func() {
 	pwd := "12345678"
 	cmd.Env = append(cmd.Env, trustEnv(notaryURL, pwd, pwd)...)
+	return nil
 }
 
-func trustedCmdWithServer(server string) func(*icmd.Cmd) {
-	return func(cmd *icmd.Cmd) {
+func trustedCmdWithServer(server string) func(*icmd.Cmd) func() {
+	return func(cmd *icmd.Cmd) func() {
 		pwd := "12345678"
 		cmd.Env = append(cmd.Env, trustEnv(server, pwd, pwd)...)
+		return nil
 	}
 }
 
-func trustedCmdWithPassphrases(rootPwd, repositoryPwd string) func(*icmd.Cmd) {
-	return func(cmd *icmd.Cmd) {
+func trustedCmdWithPassphrases(rootPwd, repositoryPwd string) func(*icmd.Cmd) func() {
+	return func(cmd *icmd.Cmd) func() {
 		cmd.Env = append(cmd.Env, trustEnv(notaryURL, rootPwd, repositoryPwd)...)
+		return nil
 	}
 }
 
@@ -221,28 +217,18 @@ func trustEnv(server, rootPwd, repositoryPwd string) []string {
 func (s *DockerTrustSuite) setupTrustedImage(c *check.C, name string) string {
 	repoName := fmt.Sprintf("%v/dockercli/%s:latest", privateRegistryURL, name)
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
-
-	icmd.RunCmd(icmd.Command(dockerBinary, "push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
-
-	if out, status := dockerCmd(c, "rmi", repoName); status != 0 {
-		c.Fatalf("Error removing image %q\n%s", repoName, out)
-	}
-
+	cli.DockerCmd(c, "tag", "busybox", repoName)
+	cli.Docker(cli.Args("push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
+	cli.DockerCmd(c, "rmi", repoName)
 	return repoName
 }
 
 func (s *DockerTrustSuite) setupTrustedplugin(c *check.C, source, name string) string {
 	repoName := fmt.Sprintf("%v/dockercli/%s:latest", privateRegistryURL, name)
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "plugin", "install", "--grant-all-permissions", "--alias", repoName, source)
-
-	icmd.RunCmd(icmd.Command(dockerBinary, "plugin", "push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
-
-	if out, status := dockerCmd(c, "plugin", "rm", "-f", repoName); status != 0 {
-		c.Fatalf("Error removing plugin %q\n%s", repoName, out)
-	}
-
+	cli.DockerCmd(c, "plugin", "install", "--grant-all-permissions", "--alias", repoName, source)
+	cli.Docker(cli.Args("plugin", "push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
+	cli.DockerCmd(c, "plugin", "rm", "-f", repoName)
 	return repoName
 }
 

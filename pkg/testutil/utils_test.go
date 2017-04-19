@@ -339,25 +339,3 @@ func TestChannelBuffer(t *testing.T) {
 		t.Fatalf("Expected '%s', got '%s'", expected, string(b))
 	}
 }
-
-// FIXME doesn't work
-// func TestRunAtDifferentDate(t *testing.T) {
-// 	var date string
-
-// 	// Layout for date. MMDDhhmmYYYY
-// 	const timeLayout = "20060102"
-// 	expectedDate := "20100201"
-// 	theDate, err := time.Parse(timeLayout, expectedDate)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-
-// 	RunAtDifferentDate(theDate, func() {
-// 		cmd := exec.Command("date", "+%Y%M%d")
-// 		out, err := cmd.Output()
-// 		if err != nil {
-// 			t.Fatal(err)
-// 		}
-// 		date = string(out)
-// 	})
-// }
