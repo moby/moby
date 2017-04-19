@@ -142,7 +142,7 @@ $ docker service create --name redis --secret secret.json redis:3.0.6
 4cdgfyky7ozwh3htjfw0d12qv
 ```
 
-Create a service specifying the secret, target, user/group ID and mode:
+Create a service specifying the secret, target, user/group ID, and mode:
 
 ```bash
 $ docker service create --name redis \
@@ -352,7 +352,7 @@ For more information about bind propagation, see the
 
 #### Options for Named Volumes
 
-The following options can only be used for named volumes (`type=volume`);
+The following options can only be used for named volumes (`type=volume`):
 
 
 <table>
@@ -373,7 +373,7 @@ The following options can only be used for named volumes (`type=volume`);
     <td>
       One or more custom metadata ("labels") to apply to the volume upon
       creation. For example,
-      `volume-label=mylabel=hello-world,my-other-label=hello-mars`. For more
+      <code>volume-label=mylabel=hello-world,my-other-label=hello-mars</code>. For more
       information about labels, refer to
       <a href="https://docs.docker.com/engine/userguide/labels-custom-metadata/">apply custom metadata</a>.
     </td>
@@ -384,7 +384,7 @@ The following options can only be used for named volumes (`type=volume`);
       By default, if you attach an empty volume to a container, and files or
       directories already existed at the mount-path in the container (<tt>dst</tt>),
       the Engine copies those files and directories into the volume, allowing
-      the host to access them. Set `volume-nocopy` to disables copying files
+      the host to access them. Set <code>volume-nocopy</code> to disable copying files
       from the container's filesystem to the volume and mount the empty volume.
 
       A value is optional:
