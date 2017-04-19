@@ -6,8 +6,8 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	// Import builders to get the builder function as package function
 	. "github.com/docker/docker/cli/internal/test/builders"
-	"github.com/docker/docker/pkg/testutil/assert"
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )
 
@@ -21,7 +21,7 @@ func TestResolveError(t *testing.T) {
 	idResolver := New(cli, false)
 	_, err := idResolver.Resolve(context.Background(), struct{}{}, "nodeID")
 
-	assert.Error(t, err, "unsupported type")
+	assert.EqualError(t, err, "unsupported type")
 }
 
 func TestResolveWithNoResolveOption(t *testing.T) {
@@ -40,9 +40,9 @@ func TestResolveWithNoResolveOption(t *testing.T) {
 	idResolver := New(cli, true)
 	id, err := idResolver.Resolve(context.Background(), swarm.Node{}, "nodeID")
 
-	assert.NilError(t, err)
-	assert.Equal(t, id, "nodeID")
-	assert.Equal(t, resolved, false)
+	assert.NoError(t, err)
+	assert.Equal(t, "nodeID", id)
+	assert.False(t, resolved)
 }
 
 func TestResolveWithCache(t *testing.T) {
@@ -59,11 +59,11 @@ func TestResolveWithCache(t *testing.T) {
 	ctx := context.Background()
 	for i := 0; i < 2; i++ {
 		id, err := idResolver.Resolve(ctx, swarm.Node{}, "nodeID")
-		assert.NilError(t, err)
-		assert.Equal(t, id, "node-foo")
+		assert.NoError(t, err)
+		assert.Equal(t, "node-foo", id)
 	}
 
-	assert.Equal(t, inspectCounter, 1)
+	assert.Equal(t, 1, inspectCounter)
 }
 
 func TestResolveNode(t *testing.T) {
@@ -103,8 +103,8 @@ func TestResolveNode(t *testing.T) {
 		idResolver := New(cli, false)
 		id, err := idResolver.Resolve(ctx, swarm.Node{}, tc.nodeID)
 
-		assert.NilError(t, err)
-		assert.Equal(t, id, tc.expectedID)
+		assert.NoError(t, err)
+		assert.Equal(t, tc.expectedID, id)
 	}
 }
 
@@ -138,7 +138,7 @@ func TestResolveService(t *testing.T) {
 		idResolver := New(cli, false)
 		id, err := idResolver.Resolve(ctx, swarm.Service{}, tc.serviceID)
 
-		assert.NilError(t, err)
-		assert.Equal(t, id, tc.expectedID)
+		assert.NoError(t, err)
+		assert.Equal(t, tc.expectedID, id)
 	}
 }

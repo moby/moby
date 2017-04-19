@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/pkg/stringid"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
@@ -62,84 +63,78 @@ func (s *DockerSuite) TestRmiTag(c *check.C) {
 }
 
 func (s *DockerSuite) TestRmiImgIDMultipleTag(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir '/busybox-one'")
-
+	out := cli.DockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir '/busybox-one'").Combined()
 	containerID := strings.TrimSpace(out)
 
 	// Wait for it to exit as cannot commit a running container on Windows, and
 	// it will take a few seconds to exit
 	if testEnv.DaemonPlatform() == "windows" {
-		err := waitExited(containerID, 60*time.Second)
-		c.Assert(err, check.IsNil)
+		cli.WaitExited(c, containerID, 60*time.Second)
 	}
 
-	dockerCmd(c, "commit", containerID, "busybox-one")
+	cli.DockerCmd(c, "commit", containerID, "busybox-one")
 
-	imagesBefore, _ := dockerCmd(c, "images", "-a")
-	dockerCmd(c, "tag", "busybox-one", "busybox-one:tag1")
-	dockerCmd(c, "tag", "busybox-one", "busybox-one:tag2")
+	imagesBefore := cli.DockerCmd(c, "images", "-a").Combined()
+	cli.DockerCmd(c, "tag", "busybox-one", "busybox-one:tag1")
+	cli.DockerCmd(c, "tag", "busybox-one", "busybox-one:tag2")
 
-	imagesAfter, _ := dockerCmd(c, "images", "-a")
+	imagesAfter := cli.DockerCmd(c, "images", "-a").Combined()
 	// tag busybox to create 2 more images with same imageID
 	c.Assert(strings.Count(imagesAfter, "\n"), checker.Equals, strings.Count(imagesBefore, "\n")+2, check.Commentf("docker images shows: %q\n", imagesAfter))
 
 	imgID := inspectField(c, "busybox-one:tag1", "Id")
 
 	// run a container with the image
-	out, _ = runSleepingContainerInImage(c, "busybox-one")
-
+	out = runSleepingContainerInImage(c, "busybox-one")
 	containerID = strings.TrimSpace(out)
 
 	// first checkout without force it fails
-	out, _, err := dockerCmdWithError("rmi", imgID)
-	expected := fmt.Sprintf("conflict: unable to delete %s (cannot be forced) - image is being used by running container %s", stringid.TruncateID(imgID), stringid.TruncateID(containerID))
 	// rmi tagged in multiple repos should have failed without force
-	c.Assert(err, checker.NotNil)
-	c.Assert(out, checker.Contains, expected)
+	cli.Docker(cli.Args("rmi", imgID)).Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Err:      fmt.Sprintf("conflict: unable to delete %s (cannot be forced) - image is being used by running container %s", stringid.TruncateID(imgID), stringid.TruncateID(containerID)),
+	})
 
-	dockerCmd(c, "stop", containerID)
-	dockerCmd(c, "rmi", "-f", imgID)
+	cli.DockerCmd(c, "stop", containerID)
+	cli.DockerCmd(c, "rmi", "-f", imgID)
 
-	imagesAfter, _ = dockerCmd(c, "images", "-a")
+	imagesAfter = cli.DockerCmd(c, "images", "-a").Combined()
 	// rmi -f failed, image still exists
 	c.Assert(imagesAfter, checker.Not(checker.Contains), imgID[:12], check.Commentf("ImageID:%q; ImagesAfter: %q", imgID, imagesAfter))
 }
 
 func (s *DockerSuite) TestRmiImgIDForce(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir '/busybox-test'")
-
+	out := cli.DockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir '/busybox-test'").Combined()
 	containerID := strings.TrimSpace(out)
 
 	// Wait for it to exit as cannot commit a running container on Windows, and
 	// it will take a few seconds to exit
 	if testEnv.DaemonPlatform() == "windows" {
-		err := waitExited(containerID, 60*time.Second)
-		c.Assert(err, check.IsNil)
+		cli.WaitExited(c, containerID, 60*time.Second)
 	}
 
-	dockerCmd(c, "commit", containerID, "busybox-test")
+	cli.DockerCmd(c, "commit", containerID, "busybox-test")
 
-	imagesBefore, _ := dockerCmd(c, "images", "-a")
-	dockerCmd(c, "tag", "busybox-test", "utest:tag1")
-	dockerCmd(c, "tag", "busybox-test", "utest:tag2")
-	dockerCmd(c, "tag", "busybox-test", "utest/docker:tag3")
-	dockerCmd(c, "tag", "busybox-test", "utest:5000/docker:tag4")
+	imagesBefore := cli.DockerCmd(c, "images", "-a").Combined()
+	cli.DockerCmd(c, "tag", "busybox-test", "utest:tag1")
+	cli.DockerCmd(c, "tag", "busybox-test", "utest:tag2")
+	cli.DockerCmd(c, "tag", "busybox-test", "utest/docker:tag3")
+	cli.DockerCmd(c, "tag", "busybox-test", "utest:5000/docker:tag4")
 	{
-		imagesAfter, _ := dockerCmd(c, "images", "-a")
+		imagesAfter := cli.DockerCmd(c, "images", "-a").Combined()
 		c.Assert(strings.Count(imagesAfter, "\n"), checker.Equals, strings.Count(imagesBefore, "\n")+4, check.Commentf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter))
 	}
 	imgID := inspectField(c, "busybox-test", "Id")
 
 	// first checkout without force it fails
-	out, _, err := dockerCmdWithError("rmi", imgID)
-	// rmi tagged in multiple repos should have failed without force
-	c.Assert(err, checker.NotNil)
-	// rmi tagged in multiple repos should have failed without force
-	c.Assert(out, checker.Contains, "(must be forced) - image is referenced in multiple repositories", check.Commentf("out: %s; err: %v;", out, err))
+	cli.Docker(cli.Args("rmi", imgID)).Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Err:      "(must be forced) - image is referenced in multiple repositories",
+	})
 
-	dockerCmd(c, "rmi", "-f", imgID)
+	cli.DockerCmd(c, "rmi", "-f", imgID)
 	{
-		imagesAfter, _ := dockerCmd(c, "images", "-a")
+		imagesAfter := cli.DockerCmd(c, "images", "-a").Combined()
 		// rmi failed, image still exists
 		c.Assert(imagesAfter, checker.Not(checker.Contains), imgID[:12])
 	}

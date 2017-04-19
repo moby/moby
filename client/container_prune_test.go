@@ -11,7 +11,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )
 
@@ -24,7 +24,7 @@ func TestContainersPruneError(t *testing.T) {
 	filters := filters.NewArgs()
 
 	_, err := client.ContainersPrune(context.Background(), filters)
-	assert.Error(t, err, "Error response from daemon: Server error")
+	assert.EqualError(t, err, "Error response from daemon: Server error")
 }
 
 func TestContainersPrune(t *testing.T) {
@@ -99,7 +99,7 @@ func TestContainersPrune(t *testing.T) {
 				query := req.URL.Query()
 				for key, expected := range listCase.expectedQueryParams {
 					actual := query.Get(key)
-					assert.Equal(t, actual, expected)
+					assert.Equal(t, expected, actual)
 				}
 				content, err := json.Marshal(types.ContainersPruneReport{
 					ContainersDeleted: []string{"container_id1", "container_id2"},
@@ -117,8 +117,8 @@ func TestContainersPrune(t *testing.T) {
 		}
 
 		report, err := client.ContainersPrune(context.Background(), listCase.filters)
-		assert.NilError(t, err)
-		assert.Equal(t, len(report.ContainersDeleted), 2)
-		assert.Equal(t, report.SpaceReclaimed, uint64(9999))
+		assert.NoError(t, err)
+		assert.Len(t, report.ContainersDeleted, 2)
+		assert.Equal(t, uint64(9999), report.SpaceReclaimed)
 	}
 }

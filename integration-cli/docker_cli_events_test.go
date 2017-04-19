@@ -15,6 +15,7 @@ import (
 	eventtypes "github.com/docker/docker/api/types/events"
 	eventstestutils "github.com/docker/docker/daemon/events/testutils"
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/integration-cli/request"
 	"github.com/docker/docker/pkg/testutil"
@@ -451,16 +452,16 @@ func (s *DockerSuite) TestEventsCommit(c *check.C) {
 	// Problematic on Windows as cannot commit a running container
 	testRequires(c, DaemonIsLinux)
 
-	out, _ := runSleepingContainer(c)
+	out := runSleepingContainer(c)
 	cID := strings.TrimSpace(out)
-	c.Assert(waitRun(cID), checker.IsNil)
+	cli.WaitRun(c, cID)
 
-	dockerCmd(c, "commit", "-m", "test", cID)
-	dockerCmd(c, "stop", cID)
-	c.Assert(waitExited(cID, 5*time.Second), checker.IsNil)
+	cli.DockerCmd(c, "commit", "-m", "test", cID)
+	cli.DockerCmd(c, "stop", cID)
+	cli.WaitExited(c, cID, 5*time.Second)
 
 	until := daemonUnixTime(c)
-	out, _ = dockerCmd(c, "events", "-f", "container="+cID, "--until="+until)
+	out = cli.DockerCmd(c, "events", "-f", "container="+cID, "--until="+until).Combined()
 	c.Assert(out, checker.Contains, "commit", check.Commentf("Missing 'commit' log event"))
 }
 
@@ -494,7 +495,7 @@ func (s *DockerSuite) TestEventsCopy(c *check.C) {
 }
 
 func (s *DockerSuite) TestEventsResize(c *check.C) {
-	out, _ := runSleepingContainer(c, "-d")
+	out := runSleepingContainer(c, "-d")
 	cID := strings.TrimSpace(out)
 	c.Assert(waitRun(cID), checker.IsNil)
 
@@ -514,9 +515,9 @@ func (s *DockerSuite) TestEventsAttach(c *check.C) {
 	// TODO Windows CI: Figure out why this test fails intermittently (TP5).
 	testRequires(c, DaemonIsLinux)
 
-	out, _ := dockerCmd(c, "run", "-di", "busybox", "cat")
+	out := cli.DockerCmd(c, "run", "-di", "busybox", "cat").Combined()
 	cID := strings.TrimSpace(out)
-	c.Assert(waitRun(cID), checker.IsNil)
+	cli.WaitRun(c, cID)
 
 	cmd := exec.Command(dockerBinary, "attach", cID)
 	stdin, err := cmd.StdinPipe()
@@ -537,11 +538,11 @@ func (s *DockerSuite) TestEventsAttach(c *check.C) {
 
 	c.Assert(stdin.Close(), checker.IsNil)
 
-	dockerCmd(c, "kill", cID)
-	c.Assert(waitExited(cID, 5*time.Second), checker.IsNil)
+	cli.DockerCmd(c, "kill", cID)
+	cli.WaitExited(c, cID, 5*time.Second)
 
 	until := daemonUnixTime(c)
-	out, _ = dockerCmd(c, "events", "-f", "container="+cID, "--until="+until)
+	out = cli.DockerCmd(c, "events", "-f", "container="+cID, "--until="+until).Combined()
 	c.Assert(out, checker.Contains, "attach", check.Commentf("Missing 'attach' log event"))
 }
 
@@ -560,7 +561,7 @@ func (s *DockerSuite) TestEventsTop(c *check.C) {
 	// Problematic on Windows as Windows does not support top
 	testRequires(c, DaemonIsLinux)
 
-	out, _ := runSleepingContainer(c, "-d")
+	out := runSleepingContainer(c, "-d")
 	cID := strings.TrimSpace(out)
 	c.Assert(waitRun(cID), checker.IsNil)
 

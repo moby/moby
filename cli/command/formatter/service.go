@@ -224,7 +224,7 @@ func (ctx *serviceInspectContext) HasUpdateStatusStarted() bool {
 }
 
 func (ctx *serviceInspectContext) UpdateStatusStarted() string {
-	return units.HumanDuration(time.Since(*ctx.Service.UpdateStatus.StartedAt))
+	return units.HumanDuration(time.Since(*ctx.Service.UpdateStatus.StartedAt)) + " ago"
 }
 
 func (ctx *serviceInspectContext) UpdateIsCompleted() bool {
@@ -232,7 +232,7 @@ func (ctx *serviceInspectContext) UpdateIsCompleted() bool {
 }
 
 func (ctx *serviceInspectContext) UpdateStatusCompleted() string {
-	return units.HumanDuration(time.Since(*ctx.Service.UpdateStatus.CompletedAt))
+	return units.HumanDuration(time.Since(*ctx.Service.UpdateStatus.CompletedAt)) + " ago"
 }
 
 func (ctx *serviceInspectContext) UpdateStatusMessage() string {

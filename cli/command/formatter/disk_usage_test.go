@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestDiskUsageContextFormatWrite(t *testing.T) {
@@ -117,9 +117,9 @@ reclaimable: 0B
 		out := bytes.NewBufferString("")
 		testcase.context.Output = out
 		if err := testcase.context.Write(); err != nil {
-			assert.Equal(t, err.Error(), testcase.expected)
+			assert.Equal(t, testcase.expected, err.Error())
 		} else {
-			assert.Equal(t, out.String(), testcase.expected)
+			assert.Equal(t, testcase.expected, out.String())
 		}
 	}
 }

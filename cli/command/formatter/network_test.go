@@ -9,7 +9,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNetworkContext(t *testing.T) {
@@ -160,9 +160,9 @@ foobar_bar 2017-01-01 00:00:00 +0000 UTC
 		testcase.context.Output = out
 		err := NetworkWrite(testcase.context, networks)
 		if err != nil {
-			assert.Error(t, err, testcase.expected)
+			assert.EqualError(t, err, testcase.expected)
 		} else {
-			assert.Equal(t, out.String(), testcase.expected)
+			assert.Equal(t, testcase.expected, out.String())
 		}
 	}
 }
@@ -188,7 +188,7 @@ func TestNetworkContextWriteJSON(t *testing.T) {
 		if err := json.Unmarshal([]byte(line), &m); err != nil {
 			t.Fatal(err)
 		}
-		assert.DeepEqual(t, m, expectedJSONs[i])
+		assert.Equal(t, expectedJSONs[i], m)
 	}
 }
 
@@ -208,6 +208,6 @@ func TestNetworkContextWriteJSONField(t *testing.T) {
 		if err := json.Unmarshal([]byte(line), &s); err != nil {
 			t.Fatal(err)
 		}
-		assert.Equal(t, s, networks[i].ID)
+		assert.Equal(t, networks[i].ID, s)
 	}
 }

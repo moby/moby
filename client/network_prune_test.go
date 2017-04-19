@@ -11,7 +11,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )
 
@@ -89,7 +89,7 @@ func TestNetworksPrune(t *testing.T) {
 				query := req.URL.Query()
 				for key, expected := range listCase.expectedQueryParams {
 					actual := query.Get(key)
-					assert.Equal(t, actual, expected)
+					assert.Equal(t, expected, actual)
 				}
 				content, err := json.Marshal(types.NetworksPruneReport{
 					NetworksDeleted: []string{"network_id1", "network_id2"},
@@ -106,7 +106,7 @@ func TestNetworksPrune(t *testing.T) {
 		}
 
 		report, err := client.NetworksPrune(context.Background(), listCase.filters)
-		assert.NilError(t, err)
-		assert.Equal(t, len(report.NetworksDeleted), 2)
+		assert.NoError(t, err)
+		assert.Len(t, report.NetworksDeleted, 2)
 	}
 }

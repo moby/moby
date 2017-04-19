@@ -10,7 +10,7 @@ import (
 )
 
 func (s *DockerSuite) TestResizeAPIResponse(c *check.C) {
-	out, _ := runSleepingContainer(c, "-d")
+	out := runSleepingContainer(c, "-d")
 	cleanedContainerID := strings.TrimSpace(out)
 
 	endpoint := "/containers/" + cleanedContainerID + "/resize?h=40&w=40"
@@ -20,7 +20,7 @@ func (s *DockerSuite) TestResizeAPIResponse(c *check.C) {
 }
 
 func (s *DockerSuite) TestResizeAPIHeightWidthNoInt(c *check.C) {
-	out, _ := runSleepingContainer(c, "-d")
+	out := runSleepingContainer(c, "-d")
 	cleanedContainerID := strings.TrimSpace(out)
 
 	endpoint := "/containers/" + cleanedContainerID + "/resize?h=foo&w=bar"
