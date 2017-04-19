@@ -21,6 +21,7 @@ import (
 	mounttypes "github.com/docker/docker/api/types/mount"
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/integration-cli/request"
 	"github.com/docker/docker/pkg/ioutils"
@@ -211,7 +212,7 @@ func (s *DockerSuite) TestGetContainerStats(c *check.C) {
 }
 
 func (s *DockerSuite) TestGetContainerStatsRmRunning(c *check.C) {
-	out, _ := runSleepingContainer(c)
+	out := runSleepingContainer(c)
 	id := strings.TrimSpace(out)
 
 	buf := &testutil.ChannelBuffer{C: make(chan []byte, 1)}
@@ -347,25 +348,29 @@ func (s *DockerSuite) TestGetStoppedContainerStats(c *check.C) {
 func (s *DockerSuite) TestContainerAPIPause(c *check.C) {
 	// Problematic on Windows as Windows does not support pause
 	testRequires(c, DaemonIsLinux)
-	defer unpauseAllContainers(c)
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "sleep", "30")
+
+	getPaused := func(c *check.C) []string {
+		return strings.Fields(cli.DockerCmd(c, "ps", "-f", "status=paused", "-q", "-a").Combined())
+	}
+
+	out := cli.DockerCmd(c, "run", "-d", "busybox", "sleep", "30").Combined()
 	ContainerID := strings.TrimSpace(out)
 
-	status, _, err := request.SockRequest("POST", "/containers/"+ContainerID+"/pause", nil, daemonHost())
+	resp, _, err := request.Post("/containers/" + ContainerID + "/pause")
 	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusNoContent)
+	c.Assert(resp.StatusCode, checker.Equals, http.StatusNoContent)
 
-	pausedContainers := getPausedContainers(c)
+	pausedContainers := getPaused(c)
 
 	if len(pausedContainers) != 1 || stringid.TruncateID(ContainerID) != pausedContainers[0] {
 		c.Fatalf("there should be one paused container and not %d", len(pausedContainers))
 	}
 
-	status, _, err = request.SockRequest("POST", "/containers/"+ContainerID+"/unpause", nil, daemonHost())
+	resp, _, err = request.Post("/containers/" + ContainerID + "/unpause")
 	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusNoContent)
+	c.Assert(resp.StatusCode, checker.Equals, http.StatusNoContent)
 
-	pausedContainers = getPausedContainers(c)
+	pausedContainers = getPaused(c)
 	c.Assert(pausedContainers, checker.HasLen, 0, check.Commentf("There should be no paused container."))
 }
 
@@ -396,7 +401,7 @@ func (s *DockerSuite) TestContainerAPITop(c *check.C) {
 
 func (s *DockerSuite) TestContainerAPITopWindows(c *check.C) {
 	testRequires(c, DaemonIsWindows)
-	out, _ := runSleepingContainer(c, "-d")
+	out := runSleepingContainer(c, "-d")
 	id := strings.TrimSpace(string(out))
 	c.Assert(waitRun(id), checker.IsNil)
 
@@ -887,7 +892,7 @@ func (s *DockerSuite) TestContainerAPIRestart(c *check.C) {
 
 func (s *DockerSuite) TestContainerAPIRestartNotimeoutParam(c *check.C) {
 	name := "test-api-restart-no-timeout-param"
-	out, _ := runSleepingContainer(c, "-di", "--name", name)
+	out := runSleepingContainer(c, "-di", "--name", name)
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), checker.IsNil)
 
@@ -1042,7 +1047,7 @@ func (s *DockerSuite) TestContainerAPICopyContainerNotFoundPr124(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerAPIDelete(c *check.C) {
-	out, _ := runSleepingContainer(c)
+	out := runSleepingContainer(c)
 
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), checker.IsNil)
@@ -1062,7 +1067,7 @@ func (s *DockerSuite) TestContainerAPIDeleteNotExist(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerAPIDeleteForce(c *check.C) {
-	out, _ := runSleepingContainer(c)
+	out := runSleepingContainer(c)
 
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), checker.IsNil)
@@ -1097,7 +1102,7 @@ func (s *DockerSuite) TestContainerAPIDeleteRemoveLinks(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerAPIDeleteConflict(c *check.C) {
-	out, _ := runSleepingContainer(c)
+	out := runSleepingContainer(c)
 
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), checker.IsNil)
@@ -1115,7 +1120,7 @@ func (s *DockerSuite) TestContainerAPIDeleteRemoveVolume(c *check.C) {
 		vol = `c:\testvolume`
 	}
 
-	out, _ := runSleepingContainer(c, "-v", vol)
+	out := runSleepingContainer(c, "-v", vol)
 
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), checker.IsNil)
@@ -1153,7 +1158,7 @@ func (s *DockerSuite) TestContainerAPIChunkedEncoding(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerAPIPostContainerStop(c *check.C) {
-	out, _ := runSleepingContainer(c)
+	out := runSleepingContainer(c)
 
 	containerID := strings.TrimSpace(out)
 	c.Assert(waitRun(containerID), checker.IsNil)
@@ -1262,7 +1267,6 @@ func (s *DockerSuite) TestPutContainerArchiveErrSymlinkInVolumeToReadOnlyRootfs(
 		readOnly: true,
 		volumes:  defaultVolumes(testVol), // Our bind mount is at /vol2
 	})
-	defer deleteContainer(cID)
 
 	// Attempt to extract to a symlink in the volume which points to a
 	// directory outside the volume. This should cause an error because the

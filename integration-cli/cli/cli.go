@@ -58,6 +58,58 @@ func InspectCmd(t testingT, name string, cmdOperators ...CmdOperator) *icmd.Resu
 	return Docker(Inspect(name), cmdOperators...).Assert(t, icmd.Success)
 }
 
+// WaitRun will wait for the specified container to be running, maximum 5 seconds.
+func WaitRun(t testingT, name string, cmdOperators ...CmdOperator) {
+	WaitForInspectResult(t, name, "{{.State.Running}}", "true", 5*time.Second, cmdOperators...)
+}
+
+// WaitExited will wait for the specified container to state exit, subject
+// to a maximum time limit in seconds supplied by the caller
+func WaitExited(t testingT, name string, timeout time.Duration, cmdOperators ...CmdOperator) {
+	WaitForInspectResult(t, name, "{{.State.Status}}", "exited", timeout, cmdOperators...)
+}
+
+// WaitRestart will wait for the specified container to restart once
+func WaitRestart(t testingT, name string, timeout time.Duration, cmdOperators ...CmdOperator) {
+	WaitForInspectResult(t, name, "{{.RestartCount}}", "1", timeout, cmdOperators...)
+}
+
+// WaitForInspectResult waits for the specified expression to be equals to the specified expected string in the given time.
+func WaitForInspectResult(t testingT, name, expr, expected string, timeout time.Duration, cmdOperators ...CmdOperator) {
+	after := time.After(timeout)
+
+	args := []string{"inspect", "-f", expr, name}
+	for {
+		result := Docker(Args(args...), cmdOperators...)
+		if result.Error != nil {
+			if !strings.Contains(strings.ToLower(result.Stderr()), "no such") {
+				t.Fatalf("error executing docker inspect: %v\n%s",
+					result.Stderr(), result.Stdout())
+			}
+			select {
+			case <-after:
+				t.Fatal(result.Error)
+			default:
+				time.Sleep(10 * time.Millisecond)
+				continue
+			}
+		}
+
+		out := strings.TrimSpace(result.Stdout())
+		if out == expected {
+			break
+		}
+
+		select {
+		case <-after:
+			t.Fatalf("condition \"%q == %q\" not true in time (%v)", out, expected, timeout)
+		default:
+		}
+
+		time.Sleep(100 * time.Millisecond)
+	}
+}
+
 // Docker executes the specified docker command
 func Docker(cmd icmd.Cmd, cmdOperators ...CmdOperator) *icmd.Result {
 	for _, op := range cmdOperators {

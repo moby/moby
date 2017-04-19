@@ -7,18 +7,23 @@ import (
 	"strings"
 
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/go-check/check"
 )
 
 func startServerContainer(c *check.C, msg string, port int) string {
 	name := "server"
 	cmd := []string{
+		"run",
+		"--name",
+		name,
 		"-d",
 		"-p", fmt.Sprintf("%d:%d", port, port),
 		"busybox",
 		"sh", "-c", fmt.Sprintf("echo %q | nc -lp %d", msg, port),
 	}
-	c.Assert(waitForContainer(name, cmd...), check.IsNil)
+	cli.DockerCmd(c, cmd...)
+	cli.WaitRun(c, name)
 	return name
 }
 

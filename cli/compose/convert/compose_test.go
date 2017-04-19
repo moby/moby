@@ -6,13 +6,14 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
 	composetypes "github.com/docker/docker/cli/compose/types"
-	"github.com/docker/docker/pkg/testutil/assert"
 	"github.com/docker/docker/pkg/testutil/tempfile"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNamespaceScope(t *testing.T) {
 	scoped := Namespace{name: "foo"}.Scope("bar")
-	assert.Equal(t, scoped, "foo_bar")
+	assert.Equal(t, "foo_bar", scoped)
 }
 
 func TestAddStackLabel(t *testing.T) {
@@ -24,7 +25,7 @@ func TestAddStackLabel(t *testing.T) {
 		"something":    "labeled",
 		LabelNamespace: "foo",
 	}
-	assert.DeepEqual(t, actual, expected)
+	assert.Equal(t, expected, actual)
 }
 
 func TestNetworks(t *testing.T) {
@@ -98,8 +99,8 @@ func TestNetworks(t *testing.T) {
 	}
 
 	networks, externals := Networks(namespace, source, serviceNetworks)
-	assert.DeepEqual(t, networks, expected)
-	assert.DeepEqual(t, externals, []string{"special"})
+	assert.Equal(t, expected, networks)
+	assert.Equal(t, []string{"special"}, externals)
 }
 
 func TestSecrets(t *testing.T) {
@@ -122,13 +123,13 @@ func TestSecrets(t *testing.T) {
 	}
 
 	specs, err := Secrets(namespace, source)
-	assert.NilError(t, err)
-	assert.Equal(t, len(specs), 1)
+	assert.NoError(t, err)
+	require.Len(t, specs, 1)
 	secret := specs[0]
-	assert.Equal(t, secret.Name, "foo_one")
-	assert.DeepEqual(t, secret.Labels, map[string]string{
+	assert.Equal(t, "foo_one", secret.Name)
+	assert.Equal(t, map[string]string{
 		"monster":      "mash",
 		LabelNamespace: "foo",
-	})
-	assert.DeepEqual(t, secret.Data, []byte(secretText))
+	}, secret.Labels)
+	assert.Equal(t, []byte(secretText), secret.Data)
 }

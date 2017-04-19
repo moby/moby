@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestLoadFileV01Success(t *testing.T) {
@@ -25,9 +25,9 @@ func TestLoadFileV01Success(t *testing.T) {
 	}`)
 
 	bundle, err := LoadFile(reader)
-	assert.NilError(t, err)
-	assert.Equal(t, bundle.Version, "0.1")
-	assert.Equal(t, len(bundle.Services), 2)
+	assert.NoError(t, err)
+	assert.Equal(t, "0.1", bundle.Version)
+	assert.Len(t, bundle.Services, 2)
 }
 
 func TestLoadFileSyntaxError(t *testing.T) {
@@ -37,7 +37,7 @@ func TestLoadFileSyntaxError(t *testing.T) {
 	}`)
 
 	_, err := LoadFile(reader)
-	assert.Error(t, err, "syntax error at byte 37: invalid character 'u'")
+	assert.EqualError(t, err, "JSON syntax error at byte 37: invalid character 'u' looking for beginning of value")
 }
 
 func TestLoadFileTypeError(t *testing.T) {
@@ -52,7 +52,7 @@ func TestLoadFileTypeError(t *testing.T) {
 	}`)
 
 	_, err := LoadFile(reader)
-	assert.Error(t, err, "Unexpected type at byte 94. Expected []string but received string")
+	assert.EqualError(t, err, "Unexpected type at byte 94. Expected []string but received string.")
 }
 
 func TestPrint(t *testing.T) {
@@ -66,7 +66,7 @@ func TestPrint(t *testing.T) {
 			},
 		},
 	}
-	assert.NilError(t, Print(&buffer, bundle))
+	assert.NoError(t, Print(&buffer, bundle))
 	output := buffer.String()
 	assert.Contains(t, output, "\"Image\": \"image\"")
 	assert.Contains(t, output,

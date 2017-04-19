@@ -10,9 +10,10 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli/internal/test"
-	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/docker/docker/pkg/testutil"
 	"github.com/docker/docker/pkg/testutil/golden"
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 )
 
 const secretDataFile = "secret-create-with-name.golden"
@@ -47,7 +48,7 @@ func TestSecretCreateErrors(t *testing.T) {
 		)
 		cmd.SetArgs(tc.args)
 		cmd.SetOutput(ioutil.Discard)
-		assert.Error(t, cmd.Execute(), tc.expectedError)
+		testutil.ErrorContains(t, cmd.Execute(), tc.expectedError)
 	}
 }
 
@@ -71,10 +72,10 @@ func TestSecretCreateWithName(t *testing.T) {
 
 	cmd := newSecretCreateCommand(cli)
 	cmd.SetArgs([]string{name, filepath.Join("testdata", secretDataFile)})
-	assert.NilError(t, cmd.Execute())
+	assert.NoError(t, cmd.Execute())
 	expected := golden.Get(t, actual, secretDataFile)
-	assert.Equal(t, string(actual), string(expected))
-	assert.Equal(t, strings.TrimSpace(buf.String()), "ID-"+name)
+	assert.Equal(t, expected, actual)
+	assert.Equal(t, "ID-"+name, strings.TrimSpace(buf.String()))
 }
 
 func TestSecretCreateWithLabels(t *testing.T) {
@@ -105,8 +106,8 @@ func TestSecretCreateWithLabels(t *testing.T) {
 	cmd.SetArgs([]string{name, filepath.Join("testdata", secretDataFile)})
 	cmd.Flags().Set("label", "lbl1=Label-foo")
 	cmd.Flags().Set("label", "lbl2=Label-bar")
-	assert.NilError(t, cmd.Execute())
-	assert.Equal(t, strings.TrimSpace(buf.String()), "ID-"+name)
+	assert.NoError(t, cmd.Execute())
+	assert.Equal(t, "ID-"+name, strings.TrimSpace(buf.String()))
 }
 
 func compareMap(actual map[string]string, expected map[string]string) bool {

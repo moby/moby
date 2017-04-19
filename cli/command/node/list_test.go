@@ -12,7 +12,7 @@ import (
 	"github.com/pkg/errors"
 	// Import builders to get the builder function as package function
 	. "github.com/docker/docker/cli/internal/test/builders"
-	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNodeListErrorOnAPIFailure(t *testing.T) {
@@ -50,7 +50,7 @@ func TestNodeListErrorOnAPIFailure(t *testing.T) {
 		cli.SetConfigfile(&configfile.ConfigFile{})
 		cmd := newListCommand(cli)
 		cmd.SetOutput(ioutil.Discard)
-		assert.Error(t, cmd.Execute(), tc.expectedError)
+		assert.EqualError(t, cmd.Execute(), tc.expectedError)
 	}
 }
 
@@ -74,7 +74,7 @@ func TestNodeList(t *testing.T) {
 	}, buf)
 	cli.SetConfigfile(&configfile.ConfigFile{})
 	cmd := newListCommand(cli)
-	assert.NilError(t, cmd.Execute())
+	assert.NoError(t, cmd.Execute())
 	assert.Contains(t, buf.String(), `nodeID1 *           nodeHostname1       Ready               Active              Leader`)
 	assert.Contains(t, buf.String(), `nodeID2             nodeHostname2       Ready               Active              Reachable`)
 	assert.Contains(t, buf.String(), `nodeID3             nodeHostname3       Ready               Active`)
@@ -92,7 +92,7 @@ func TestNodeListQuietShouldOnlyPrintIDs(t *testing.T) {
 	cli.SetConfigfile(&configfile.ConfigFile{})
 	cmd := newListCommand(cli)
 	cmd.Flags().Set("quiet", "true")
-	assert.NilError(t, cmd.Execute())
+	assert.NoError(t, cmd.Execute())
 	assert.Contains(t, buf.String(), "nodeID")
 }
 
@@ -102,7 +102,7 @@ func TestNodeListContainsHostname(t *testing.T) {
 	cli := test.NewFakeCli(&fakeClient{}, buf)
 	cli.SetConfigfile(&configfile.ConfigFile{})
 	cmd := newListCommand(cli)
-	assert.NilError(t, cmd.Execute())
+	assert.NoError(t, cmd.Execute())
 	assert.Contains(t, buf.String(), "HOSTNAME")
 }
 
@@ -128,7 +128,7 @@ func TestNodeListDefaultFormat(t *testing.T) {
 		NodesFormat: "{{.ID}}: {{.Hostname}} {{.Status}}/{{.ManagerStatus}}",
 	})
 	cmd := newListCommand(cli)
-	assert.NilError(t, cmd.Execute())
+	assert.NoError(t, cmd.Execute())
 	assert.Contains(t, buf.String(), `nodeID1: nodeHostname1 Ready/Leader`)
 	assert.Contains(t, buf.String(), `nodeID2: nodeHostname2 Ready/Reachable`)
 	assert.Contains(t, buf.String(), `nodeID3: nodeHostname3 Ready`)
@@ -156,7 +156,7 @@ func TestNodeListFormat(t *testing.T) {
 	})
 	cmd := newListCommand(cli)
 	cmd.Flags().Set("format", "{{.Hostname}}: {{.ManagerStatus}}")
-	assert.NilError(t, cmd.Execute())
+	assert.NoError(t, cmd.Execute())
 	assert.Contains(t, buf.String(), `nodeHostname1: Leader`)
 	assert.Contains(t, buf.String(), `nodeHostname2: Reachable`)
 }
