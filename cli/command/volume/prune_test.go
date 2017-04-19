@@ -11,9 +11,10 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/cli/internal/test"
-	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/docker/docker/pkg/testutil"
 	"github.com/docker/docker/pkg/testutil/golden"
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestVolumePruneErrors(t *testing.T) {
@@ -48,7 +49,7 @@ func TestVolumePruneErrors(t *testing.T) {
 			cmd.Flags().Set(key, value)
 		}
 		cmd.SetOutput(ioutil.Discard)
-		assert.Error(t, cmd.Execute(), tc.expectedError)
+		testutil.ErrorContains(t, cmd.Execute(), tc.expectedError)
 	}
 }
 
@@ -73,10 +74,10 @@ func TestVolumePruneForce(t *testing.T) {
 			}, buf),
 		)
 		cmd.Flags().Set("force", "true")
-		assert.NilError(t, cmd.Execute())
+		assert.NoError(t, cmd.Execute())
 		actual := buf.String()
 		expected := golden.Get(t, []byte(actual), fmt.Sprintf("volume-prune.%s.golden", tc.name))
-		assert.EqualNormalizedString(t, assert.RemoveSpace, actual, string(expected))
+		testutil.EqualNormalizedString(t, testutil.RemoveSpace, actual, string(expected))
 	}
 }
 func TestVolumePrunePromptYes(t *testing.T) {
@@ -94,10 +95,10 @@ func TestVolumePrunePromptYes(t *testing.T) {
 		cmd := NewPruneCommand(
 			cli,
 		)
-		assert.NilError(t, cmd.Execute())
+		assert.NoError(t, cmd.Execute())
 		actual := buf.String()
 		expected := golden.Get(t, []byte(actual), "volume-prune-yes.golden")
-		assert.EqualNormalizedString(t, assert.RemoveSpace, actual, string(expected))
+		testutil.EqualNormalizedString(t, testutil.RemoveSpace, actual, string(expected))
 	}
 }
 
@@ -116,10 +117,10 @@ func TestVolumePrunePromptNo(t *testing.T) {
 		cmd := NewPruneCommand(
 			cli,
 		)
-		assert.NilError(t, cmd.Execute())
+		assert.NoError(t, cmd.Execute())
 		actual := buf.String()
 		expected := golden.Get(t, []byte(actual), "volume-prune-no.golden")
-		assert.EqualNormalizedString(t, assert.RemoveSpace, actual, string(expected))
+		testutil.EqualNormalizedString(t, testutil.RemoveSpace, actual, string(expected))
 	}
 }
 

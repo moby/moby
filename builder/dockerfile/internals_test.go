@@ -7,7 +7,8 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestEmptyDockerfile(t *testing.T) {
@@ -38,7 +39,7 @@ func TestDockerfileOutsideTheBuildContext(t *testing.T) {
 	contextDir, cleanup := createTestTempDir(t, "", "builder-dockerfile-test")
 	defer cleanup()
 
-	expectedError := "Forbidden path outside the build context"
+	expectedError := "Forbidden path outside the build context: ../../Dockerfile ()"
 
 	readAndCheckDockerfile(t, "DockerfileOutsideTheBuildContext", contextDir, "../../Dockerfile", expectedError)
 }
@@ -54,7 +55,7 @@ func TestNonExistingDockerfile(t *testing.T) {
 
 func readAndCheckDockerfile(t *testing.T, testName, contextDir, dockerfilePath, expectedError string) {
 	tarStream, err := archive.Tar(contextDir, archive.Uncompressed)
-	assert.NilError(t, err)
+	require.NoError(t, err)
 
 	defer func() {
 		if err = tarStream.Close(); err != nil {
@@ -63,7 +64,7 @@ func readAndCheckDockerfile(t *testing.T, testName, contextDir, dockerfilePath, 
 	}()
 
 	context, err := builder.MakeTarSumContext(tarStream)
-	assert.NilError(t, err)
+	require.NoError(t, err)
 
 	defer func() {
 		if err = context.Close(); err != nil {
@@ -78,5 +79,5 @@ func readAndCheckDockerfile(t *testing.T, testName, contextDir, dockerfilePath, 
 	b := &Builder{options: options, context: context}
 
 	_, err = b.readAndParseDockerfile()
-	assert.Error(t, err, expectedError)
+	assert.EqualError(t, err, expectedError)
 }

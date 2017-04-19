@@ -758,7 +758,7 @@ func (d *Daemon) ReloadConfig() error {
 }
 
 // WaitInspectWithArgs waits for the specified expression to be equals to the specified expected string in the given time.
-// FIXME(vdemeester) Attach this to the Daemon struct
+// Deprecated: use cli.WaitCmd instead
 func WaitInspectWithArgs(dockerBinary, name, expr, expected string, timeout time.Duration, arg ...string) error {
 	after := time.After(timeout)
 

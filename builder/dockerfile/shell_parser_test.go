@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestShellParser4EnvVars(t *testing.T) {
@@ -15,7 +15,7 @@ func TestShellParser4EnvVars(t *testing.T) {
 	lineCount := 0
 
 	file, err := os.Open(fn)
-	assert.NilError(t, err)
+	assert.NoError(t, err)
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
@@ -36,7 +36,7 @@ func TestShellParser4EnvVars(t *testing.T) {
 		}
 
 		words := strings.Split(line, "|")
-		assert.Equal(t, len(words), 3)
+		assert.Len(t, words, 3)
 
 		platform := strings.TrimSpace(words[0])
 		source := strings.TrimSpace(words[1])
@@ -51,9 +51,9 @@ func TestShellParser4EnvVars(t *testing.T) {
 			((platform == "U" || platform == "A") && runtime.GOOS != "windows") {
 			newWord, err := ProcessWord(source, envs, '\\')
 			if expected == "error" {
-				assert.Error(t, err, "")
+				assert.Error(t, err)
 			} else {
-				assert.NilError(t, err)
+				assert.NoError(t, err)
 				assert.Equal(t, newWord, expected)
 			}
 		}

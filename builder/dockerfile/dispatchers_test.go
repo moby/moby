@@ -10,8 +10,8 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/builder"
-	"github.com/docker/docker/pkg/testutil/assert"
 	"github.com/docker/go-connections/nat"
+	"github.com/stretchr/testify/assert"
 )
 
 type commandWithFunction struct {
@@ -137,13 +137,13 @@ func TestEnv2Variables(t *testing.T) {
 
 	args := []string{"var1", "val1", "var2", "val2"}
 	err := env(b, args, nil, "")
-	assert.NilError(t, err)
+	assert.NoError(t, err)
 
 	expected := []string{
 		fmt.Sprintf("%s=%s", args[0], args[1]),
 		fmt.Sprintf("%s=%s", args[2], args[3]),
 	}
-	assert.DeepEqual(t, b.runConfig.Env, expected)
+	assert.Equal(t, expected, b.runConfig.Env)
 }
 
 func TestEnvValueWithExistingRunConfigEnv(t *testing.T) {
@@ -153,13 +153,13 @@ func TestEnvValueWithExistingRunConfigEnv(t *testing.T) {
 
 	args := []string{"var1", "val1"}
 	err := env(b, args, nil, "")
-	assert.NilError(t, err)
+	assert.NoError(t, err)
 
 	expected := []string{
 		fmt.Sprintf("%s=%s", args[0], args[1]),
 		"var2=fromenv",
 	}
-	assert.DeepEqual(t, b.runConfig.Env, expected)
+	assert.Equal(t, expected, b.runConfig.Env)
 }
 
 func TestMaintainer(t *testing.T) {
@@ -215,40 +215,40 @@ func TestFromScratch(t *testing.T) {
 	err := from(b, []string{"scratch"}, nil, "")
 
 	if runtime.GOOS == "windows" {
-		assert.Error(t, err, "Windows does not support FROM scratch")
+		assert.EqualError(t, err, "Windows does not support FROM scratch")
 		return
 	}
 
-	assert.NilError(t, err)
-	assert.Equal(t, b.image, "")
-	assert.Equal(t, b.noBaseImage, true)
+	assert.NoError(t, err)
+	assert.Equal(t, "", b.image)
+	assert.Equal(t, true, b.noBaseImage)
 }
 
 func TestFromWithArg(t *testing.T) {
 	tag, expected := ":sometag", "expectedthisid"
 
 	getImage := func(name string) (builder.Image, error) {
-		assert.Equal(t, name, "alpine"+tag)
+		assert.Equal(t, "alpine"+tag, name)
 		return &mockImage{id: "expectedthisid"}, nil
 	}
 	b := newBuilderWithMockBackend()
 	b.docker.(*MockBackend).getImageOnBuildFunc = getImage
 
-	assert.NilError(t, arg(b, []string{"THETAG=" + tag}, nil, ""))
+	assert.NoError(t, arg(b, []string{"THETAG=" + tag}, nil, ""))
 	err := from(b, []string{"alpine${THETAG}"}, nil, "")
 
-	assert.NilError(t, err)
-	assert.Equal(t, b.image, expected)
-	assert.Equal(t, b.from.ImageID(), expected)
-	assert.Equal(t, len(b.buildArgs.GetAllAllowed()), 0)
-	assert.Equal(t, len(b.buildArgs.GetAllMeta()), 1)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, b.image)
+	assert.Equal(t, expected, b.from.ImageID())
+	assert.Len(t, b.buildArgs.GetAllAllowed(), 0)
+	assert.Len(t, b.buildArgs.GetAllMeta(), 1)
 }
 
 func TestFromWithUndefinedArg(t *testing.T) {
 	tag, expected := "sometag", "expectedthisid"
 
 	getImage := func(name string) (builder.Image, error) {
-		assert.Equal(t, name, "alpine")
+		assert.Equal(t, "alpine", name)
 		return &mockImage{id: "expectedthisid"}, nil
 	}
 	b := newBuilderWithMockBackend()
@@ -256,8 +256,8 @@ func TestFromWithUndefinedArg(t *testing.T) {
 	b.options.BuildArgs = map[string]*string{"THETAG": &tag}
 
 	err := from(b, []string{"alpine${THETAG}"}, nil, "")
-	assert.NilError(t, err)
-	assert.Equal(t, b.image, expected)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, b.image)
 }
 
 func TestOnbuildIllegalTriggers(t *testing.T) {
@@ -508,11 +508,11 @@ func TestArg(t *testing.T) {
 	argDef := fmt.Sprintf("%s=%s", argName, argVal)
 
 	err := arg(b, []string{argDef}, nil, "")
-	assert.NilError(t, err)
+	assert.NoError(t, err)
 
 	expected := map[string]string{argName: argVal}
 	allowed := b.buildArgs.GetAllAllowed()
-	assert.DeepEqual(t, allowed, expected)
+	assert.Equal(t, expected, allowed)
 }
 
 func TestShell(t *testing.T) {

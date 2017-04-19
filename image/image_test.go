@@ -6,7 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const sampleImageJSON = `{
@@ -21,13 +22,13 @@ const sampleImageJSON = `{
 
 func TestNewFromJSON(t *testing.T) {
 	img, err := NewFromJSON([]byte(sampleImageJSON))
-	assert.NilError(t, err)
-	assert.Equal(t, string(img.RawJSON()), sampleImageJSON)
+	require.NoError(t, err)
+	assert.Equal(t, sampleImageJSON, string(img.RawJSON()))
 }
 
 func TestNewFromJSONWithInvalidJSON(t *testing.T) {
 	_, err := NewFromJSON([]byte("{}"))
-	assert.Error(t, err, "invalid image JSON, no RootFS key")
+	assert.EqualError(t, err, "invalid image JSON, no RootFS key")
 }
 
 func TestMarshalKeyOrder(t *testing.T) {
@@ -38,7 +39,7 @@ func TestMarshalKeyOrder(t *testing.T) {
 			Architecture: "c",
 		},
 	})
-	assert.NilError(t, err)
+	assert.NoError(t, err)
 
 	expectedOrder := []string{"architecture", "author", "comment"}
 	var indexes []int
