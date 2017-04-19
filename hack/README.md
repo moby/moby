@@ -9,6 +9,10 @@ README! If there are any issues regarding the intention of a particular script
 either refine our current scripts, or add on new ones that are appropriate for
 a given use case.
 
+**Note** None of these files are intended for manual execution. Please refer to
+https://docs.docker.com/opensource/project/test-and-docs/ which covers scripts
+in this folder running via `make`
+
 ## DinD (dind.sh)
 
 DinD is a wrapper script which allows Docker to be run inside a Docker
