@@ -11,7 +11,7 @@ a given use case.
 
 **Note** None of these files are intended for manual execution. Please refer to
 https://docs.docker.com/opensource/project/test-and-docs/ which covers scripts
-in this folder running via `make`
+in this folder running via `make`.
 
 ## DinD (dind.sh)
 
