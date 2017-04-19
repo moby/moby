@@ -1221,6 +1221,8 @@ This is a full example of the allowed configuration options on Linux:
 > See https://docs.docker.com/engine/admin/systemd/#custom-docker-daemon-options for how
 > to accomplish this task with a systemd drop-in file.
 
+> **Note:** The default location of the configuration file on **Mac** is `~/Library/Containers/com.docker.docker/Data/database/com.docker.driver.amd64-linux/etc/docker/daemon.json`
+
 ##### On Windows
 
 The default location of the configuration file on Windows is
