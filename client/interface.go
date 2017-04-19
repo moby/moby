@@ -18,6 +18,7 @@ import (
 
 // CommonAPIClient is the common methods between stable and experimental versions of APIClient.
 type CommonAPIClient interface {
+	CheckpointAPIClient
 	ContainerAPIClient
 	ImageAPIClient
 	NodeAPIClient
@@ -31,6 +32,13 @@ type CommonAPIClient interface {
 	ClientVersion() string
 	ServerVersion(ctx context.Context) (types.Version, error)
 	UpdateClientVersion(v string)
+}
+
+// CheckpointAPIClient defines API client methods for the checkpoints
+type CheckpointAPIClient interface {
+	CheckpointCreate(ctx context.Context, container string, options types.CheckpointCreateOptions) error
+	CheckpointDelete(ctx context.Context, container string, options types.CheckpointDeleteOptions) error
+	CheckpointList(ctx context.Context, container string, options types.CheckpointListOptions) ([]types.Checkpoint, error)
 }
 
 // ContainerAPIClient defines API client methods for the containers
