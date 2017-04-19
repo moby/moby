@@ -1222,6 +1222,12 @@ This Dockerfile results in an image that causes `docker run`, to
 create a new mount point at `/myvol` and copy the  `greeting` file
 into the newly created volume.
 
+>**Note**: The host directory is, by its nature, host-dependent. For this
+>reason, you can't mount a host directory from `Dockerfile`, the `VOLUME`
+instruction does not support passing a `host-dir`, because built images
+>should be portable. A host directory wouldn't be available on all potential
+>hosts.
+
 > **Note**:
 > When using Windows-based containers, the destination of a volume inside the
 > container must be one of: a non-existing or empty directory; or a drive other
