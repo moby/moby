@@ -10,6 +10,7 @@ import (
 
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli/build/fakecontext"
+	"github.com/docker/docker/integration-cli/cli/build/fakegit"
 	"github.com/docker/docker/integration-cli/cli/build/fakestorage"
 	"github.com/docker/docker/integration-cli/request"
 	"github.com/docker/docker/pkg/testutil"
@@ -134,7 +135,7 @@ RUN echo 'right'
 }
 
 func (s *DockerSuite) TestBuildAPILowerDockerfile(c *check.C) {
-	git := newFakeGit(c, "repo", map[string]string{
+	git := fakegit.New(c, "repo", map[string]string{
 		"dockerfile": `FROM busybox
 RUN echo from dockerfile`,
 	}, false)
@@ -152,7 +153,7 @@ RUN echo from dockerfile`,
 }
 
 func (s *DockerSuite) TestBuildAPIBuildGitWithF(c *check.C) {
-	git := newFakeGit(c, "repo", map[string]string{
+	git := fakegit.New(c, "repo", map[string]string{
 		"baz": `FROM busybox
 RUN echo from baz`,
 		"Dockerfile": `FROM busybox
@@ -174,7 +175,7 @@ RUN echo from Dockerfile`,
 
 func (s *DockerSuite) TestBuildAPIDoubleDockerfile(c *check.C) {
 	testRequires(c, UnixCli) // dockerfile overwrites Dockerfile on Windows
-	git := newFakeGit(c, "repo", map[string]string{
+	git := fakegit.New(c, "repo", map[string]string{
 		"Dockerfile": `FROM busybox
 RUN echo from Dockerfile`,
 		"dockerfile": `FROM busybox
