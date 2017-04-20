@@ -3,13 +3,18 @@ package dockerfile
 import (
 	"context"
 
+	"strings"
+	"time"
+
+	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client/session"
 	"github.com/docker/docker/client/session/authsession"
+	"github.com/docker/docker/registry"
 )
 
 type AuthConfigProvider interface {
-	GetAuthConfig(includingRegistries ...string) (map[string]types.AuthConfig, error)
+	GetAuthenticatorForRegistry(registry string) auth.Authenticator
 }
 type authConfigProvider struct {
 	config map[string]types.AuthConfig
@@ -29,7 +34,7 @@ func NewAuthConfigProvider(originalConfig map[string]types.AuthConfig, caller se
 	}
 }
 
-func (a *authConfigProvider) GetAuthConfig(includingRegistries ...string) (map[string]types.AuthConfig, error) {
+func (a *authConfigProvider) getAuthConfig(includingRegistries ...string) (map[string]types.AuthConfig, error) {
 	var missingRegistries []string
 	for _, registry := range includingRegistries {
 		if _, ok := a.config[registry]; !ok {
@@ -60,4 +65,99 @@ func (a *authConfigProvider) GetAuthConfig(includingRegistries ...string) (map[s
 		}
 	}
 	return a.config, nil
+}
+func (a *authConfigProvider) GetAuthenticatorForRegistry(r string) auth.Authenticator {
+	if a.caller == nil {
+		conf := a.config[r]
+		return registry.NewAuthConfigAuthenticator(&conf)
+	}
+	return &remoteAuthenticator{a, r, make(map[string]*authsession.GetTokenResponse)}
+}
+
+type remoteAuthenticator struct {
+	provider   *authConfigProvider
+	registry   string
+	tokenCache map[string]*authsession.GetTokenResponse
+}
+
+func (a *remoteAuthenticator) getRemoteAuthConfig() types.AuthConfig {
+	cs, err := a.provider.getAuthConfig(a.registry)
+	if err != nil {
+		return types.AuthConfig{}
+	}
+	return cs[a.registry]
+}
+func (a *remoteAuthenticator) GetBasicAuthInfo() (username, password string) {
+	c := a.getRemoteAuthConfig()
+	return c.Username, c.Password
+}
+func (a *remoteAuthenticator) HasBasicAuthInfo() bool {
+	u, p := a.GetBasicAuthInfo()
+	return u != "" && p != ""
+}
+func (a *remoteAuthenticator) HasUsername() bool {
+	c := a.getRemoteAuthConfig()
+	return c.Username != ""
+}
+func (a *remoteAuthenticator) GetUsername() string {
+	c := a.getRemoteAuthConfig()
+	return c.Username
+}
+func (a *remoteAuthenticator) HasIdentityTokenInfo() bool {
+	u, i := a.GetIdentityTokenInfo()
+	return u != "" && i != ""
+}
+func (a *remoteAuthenticator) GetIdentityTokenInfo() (username, identityToken string) {
+	c := a.getRemoteAuthConfig()
+	return c.Username, c.IdentityToken
+}
+func (a *remoteAuthenticator) HasPassthroughToken() bool {
+	return false
+}
+func (a *remoteAuthenticator) GetPassthroughToken() string {
+	return ""
+}
+func (a *remoteAuthenticator) GetAccessToken(realm, service, clientID string, scopes []string, skipCache, offlineAccess, forceOAuth bool) (token string, err error) {
+
+	cacheKeyParts := []string{realm, service, clientID}
+	cacheKeyParts = append(cacheKeyParts, scopes...)
+	cacheKey := strings.Join(cacheKeyParts, "|")
+	if !skipCache {
+		if cache, ok := a.tokenCache[cacheKey]; ok {
+			if time.Unix(cache.IssuedAt, 0).Add(time.Duration(cache.ExpiresIn) * time.Second).After(time.Now()) {
+				return cache.AccessToken, nil
+			}
+		}
+	}
+	s, err := a.provider.caller.Call(context.Background(), "_main", "GetAccessToken", make(map[string][]string))
+	if err != nil {
+		return "", err
+	}
+	tokenRequest := authsession.GetTokenRequest{
+		ClientID:      clientID,
+		ForceOAuth:    forceOAuth,
+		OfflineAccess: offlineAccess,
+		Realm:         realm,
+		Registry:      a.registry,
+		Scopes:        scopes,
+		Service:       service,
+		SkipCache:     skipCache,
+	}
+
+	err = s.SendMsg(&tokenRequest)
+	if err != nil {
+		return "", err
+	}
+	tokenResponse := new(authsession.GetTokenResponse)
+
+	err = s.RecvMsg(tokenResponse)
+
+	if err != nil {
+		return "", err
+	}
+
+	if !skipCache {
+		a.tokenCache[cacheKey] = tokenResponse
+	}
+	return tokenResponse.AccessToken, nil
 }

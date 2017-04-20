@@ -8,7 +8,7 @@ import (
 
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/schema2"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/image"
@@ -25,10 +25,8 @@ import (
 // with a registry.
 type Config struct {
 	// MetaHeaders stores HTTP headers with metadata about the image
-	MetaHeaders map[string][]string
-	// AuthConfig holds authentication credentials for authenticating with
-	// the registry.
-	AuthConfig *types.AuthConfig
+	MetaHeaders   map[string][]string
+	Authenticator auth.Authenticator
 	// ProgressOutput is the interface for showing the status of the pull
 	// operation.
 	ProgressOutput progress.Output

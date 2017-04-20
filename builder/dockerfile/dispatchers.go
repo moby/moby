@@ -850,10 +850,7 @@ func pullOrGetImage(b *Builder, name string) (builder.Image, error) {
 			return nil, err
 		}
 		registryKey := registry.GetAuthConfigKey(repoInfo.Index)
-		auths, err := b.auth.GetAuthConfig(registryKey)
-		if err != nil {
-			return nil, err
-		}
+		auths := b.auth.GetAuthenticatorForRegistry(registryKey)
 		image, err = b.docker.PullOnBuild(b.clientCtx, name, auths, b.Output)
 		if err != nil {
 			return nil, err

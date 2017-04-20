@@ -13,7 +13,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client/auth"
-	"github.com/docker/docker/api/types"
 	registrytypes "github.com/docker/docker/api/types/registry"
 )
 
@@ -24,11 +23,11 @@ const (
 
 // Service is the interface defining what a registry service should implement.
 type Service interface {
-	Auth(ctx context.Context, authConfig *types.AuthConfig, userAgent string) (status, token string, err error)
+	Auth(ctx context.Context, serverAddress string, authenticator auth.Authenticator, userAgent string) (status, token string, err error)
 	LookupPullEndpoints(hostname string) (endpoints []APIEndpoint, err error)
 	LookupPushEndpoints(hostname string) (endpoints []APIEndpoint, err error)
 	ResolveRepository(name reference.Named) (*RepositoryInfo, error)
-	Search(ctx context.Context, term string, limit int, authConfig *types.AuthConfig, userAgent string, headers map[string][]string) (*registrytypes.SearchResults, error)
+	Search(ctx context.Context, term string, limit int, authenticator auth.Authenticator, userAgent string, headers map[string][]string) (*registrytypes.SearchResults, error)
 	ServiceConfig() *registrytypes.ServiceConfig
 	TLSConfig(hostname string) (*tls.Config, error)
 	LoadMirrors([]string) error
@@ -93,9 +92,9 @@ func (s *DefaultService) LoadInsecureRegistries(registries []string) error {
 // Auth contacts the public registry with the provided credentials,
 // and returns OK if authentication was successful.
 // It can be used to verify the validity of a client's credentials.
-func (s *DefaultService) Auth(ctx context.Context, authConfig *types.AuthConfig, userAgent string) (status, token string, err error) {
+func (s *DefaultService) Auth(ctx context.Context, serverAddress string, authenticator auth.Authenticator, userAgent string) (status, token string, err error) {
 	// TODO Use ctx when searching for repositories
-	serverAddress := authConfig.ServerAddress
+
 	if serverAddress == "" {
 		serverAddress = IndexServer
 	}
@@ -118,7 +117,7 @@ func (s *DefaultService) Auth(ctx context.Context, authConfig *types.AuthConfig,
 			login = loginV1
 		}
 
-		status, token, err = login(authConfig, endpoint, userAgent)
+		status, token, err = login(authenticator, endpoint, userAgent)
 		if err == nil {
 			return
 		}
@@ -152,7 +151,7 @@ func splitReposSearchTerm(reposName string) (string, string) {
 
 // Search queries the public registry for images matching the specified
 // search terms, and returns the results.
-func (s *DefaultService) Search(ctx context.Context, term string, limit int, authConfig *types.AuthConfig, userAgent string, headers map[string][]string) (*registrytypes.SearchResults, error) {
+func (s *DefaultService) Search(ctx context.Context, term string, limit int, authenticator auth.Authenticator, userAgent string, headers map[string][]string) (*registrytypes.SearchResults, error) {
 	// TODO Use ctx when searching for repositories
 	if err := validateNoScheme(term); err != nil {
 		return nil, err
@@ -176,8 +175,7 @@ func (s *DefaultService) Search(ctx context.Context, term string, limit int, aut
 	}
 
 	var client *http.Client
-	if authConfig != nil && authConfig.IdentityToken != "" && authConfig.Username != "" {
-		creds := NewStaticCredentialStore(authConfig)
+	if authenticator != nil && authenticator.HasIdentityTokenInfo() {
 		scopes := []auth.Scope{
 			auth.RegistryScope{
 				Name:    "catalog",
@@ -186,7 +184,7 @@ func (s *DefaultService) Search(ctx context.Context, term string, limit int, aut
 		}
 
 		modifiers := DockerHeaders(userAgent, nil)
-		v2Client, foundV2, err := v2AuthHTTPClient(endpoint.URL, endpoint.client.Transport, modifiers, creds, scopes)
+		v2Client, foundV2, err := v2AuthHTTPClient(endpoint.URL, endpoint.client.Transport, modifiers, authenticator, scopes)
 		if err != nil {
 			if fErr, ok := err.(fallbackError); ok {
 				logrus.Errorf("Cannot use identity token for search, v2 auth not supported: %v", fErr.err)
@@ -206,12 +204,12 @@ func (s *DefaultService) Search(ctx context.Context, term string, limit int, aut
 
 	if client == nil {
 		client = endpoint.client
-		if err := authorizeClient(client, authConfig, endpoint); err != nil {
+		if err := authorizeClient(client, authenticator, endpoint); err != nil {
 			return nil, err
 		}
 	}
 
-	r := newSession(client, authConfig, endpoint)
+	r := newSession(client, authenticator, endpoint)
 
 	if index.Official {
 		localName := remoteName

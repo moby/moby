@@ -57,7 +57,7 @@ func (p *v1Puller) Pull(ctx context.Context, ref reference.Named) error {
 		logrus.Debugf("Could not get v1 endpoint: %v", err)
 		return fallbackError{err: err}
 	}
-	p.session, err = registry.NewSession(client, p.config.AuthConfig, v1Endpoint)
+	p.session, err = registry.NewSession(client, p.config.Authenticator, v1Endpoint)
 	if err != nil {
 		// TODO(dmcgowan): Check if should fallback
 		logrus.Debugf("Fallback from error: %s", err)

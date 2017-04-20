@@ -68,21 +68,6 @@ func Server(index *registrytypes.IndexInfo) (string, error) {
 	return "https://" + index.Name, nil
 }
 
-type simpleCredentialStore struct {
-	auth types.AuthConfig
-}
-
-func (scs simpleCredentialStore) Basic(u *url.URL) (string, string) {
-	return scs.auth.Username, scs.auth.Password
-}
-
-func (scs simpleCredentialStore) RefreshToken(u *url.URL, service string) string {
-	return scs.auth.IdentityToken
-}
-
-func (scs simpleCredentialStore) SetRefreshToken(*url.URL, string, string) {
-}
-
 // GetNotaryRepository returns a NotaryRepository which stores all the
 // information needed to operate on a notary repository.
 // It creates an HTTP transport providing authentication support.
@@ -152,15 +137,15 @@ func GetNotaryRepository(streams command.Streams, repoInfo *registry.RepositoryI
 		Actions:    actions,
 		Class:      repoInfo.Class,
 	}
-	creds := simpleCredentialStore{auth: authConfig}
+	authenticator := registry.NewAuthConfigAuthenticator(&authConfig)
 	tokenHandlerOptions := auth.TokenHandlerOptions{
-		Transport:   authTransport,
-		Credentials: creds,
-		Scopes:      []auth.Scope{scope},
-		ClientID:    registry.AuthClientID,
+		Transport:     authTransport,
+		Authenticator: authenticator,
+		Scopes:        []auth.Scope{scope},
+		ClientID:      registry.AuthClientID,
 	}
 	tokenHandler := auth.NewTokenHandlerWithOptions(tokenHandlerOptions)
-	basicHandler := auth.NewBasicHandler(creds)
+	basicHandler := auth.NewBasicHandler(authenticator)
 	modifiers = append(modifiers, transport.RequestModifier(auth.NewAuthorizer(challengeManager, tokenHandler, basicHandler)))
 	tr := transport.NewTransport(base, modifiers...)
 

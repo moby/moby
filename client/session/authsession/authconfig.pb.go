@@ -9,17 +9,16 @@
 		authconfig.proto
 
 	It has these top-level messages:
-		TarContent
 		AuthConfig
 		AuthConfigs
+		GetTokenResponse
+		GetTokenRequest
 */
 package authsession
 
 import proto "github.com/gogo/protobuf/proto"
 import fmt "fmt"
 import math "math"
-
-import bytes "bytes"
 
 import strings "strings"
 import reflect "reflect"
@@ -38,21 +37,6 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
 
-type TarContent struct {
-	Content []byte `protobuf:"bytes,1,opt,name=content,proto3" json:"content,omitempty"`
-}
-
-func (m *TarContent) Reset()                    { *m = TarContent{} }
-func (*TarContent) ProtoMessage()               {}
-func (*TarContent) Descriptor() ([]byte, []int) { return fileDescriptorAuthconfig, []int{0} }
-
-func (m *TarContent) GetContent() []byte {
-	if m != nil {
-		return m.Content
-	}
-	return nil
-}
-
 type AuthConfig struct {
 	Username      string `protobuf:"bytes,1,opt,name=Username,proto3" json:"Username,omitempty"`
 	Password      string `protobuf:"bytes,2,opt,name=Password,proto3" json:"Password,omitempty"`
@@ -65,7 +49,7 @@ type AuthConfig struct {
 
 func (m *AuthConfig) Reset()                    { *m = AuthConfig{} }
 func (*AuthConfig) ProtoMessage()               {}
-func (*AuthConfig) Descriptor() ([]byte, []int) { return fileDescriptorAuthconfig, []int{1} }
+func (*AuthConfig) Descriptor() ([]byte, []int) { return fileDescriptorAuthconfig, []int{0} }
 
 func (m *AuthConfig) GetUsername() string {
 	if m != nil {
@@ -122,7 +106,7 @@ type AuthConfigs struct {
 
 func (m *AuthConfigs) Reset()                    { *m = AuthConfigs{} }
 func (*AuthConfigs) ProtoMessage()               {}
-func (*AuthConfigs) Descriptor() ([]byte, []int) { return fileDescriptorAuthconfig, []int{2} }
+func (*AuthConfigs) Descriptor() ([]byte, []int) { return fileDescriptorAuthconfig, []int{1} }
 
 func (m *AuthConfigs) GetAuths() map[string]*AuthConfig {
 	if m != nil {
@@ -131,40 +115,113 @@ func (m *AuthConfigs) GetAuths() map[string]*AuthConfig {
 	return nil
 }
 
+type GetTokenResponse struct {
+	AccessToken string `protobuf:"bytes,1,opt,name=AccessToken,proto3" json:"AccessToken,omitempty"`
+	ExpiresIn   int32  `protobuf:"varint,2,opt,name=ExpiresIn,proto3" json:"ExpiresIn,omitempty"`
+	IssuedAt    int64  `protobuf:"varint,3,opt,name=IssuedAt,proto3" json:"IssuedAt,omitempty"`
+}
+
+func (m *GetTokenResponse) Reset()                    { *m = GetTokenResponse{} }
+func (*GetTokenResponse) ProtoMessage()               {}
+func (*GetTokenResponse) Descriptor() ([]byte, []int) { return fileDescriptorAuthconfig, []int{2} }
+
+func (m *GetTokenResponse) GetAccessToken() string {
+	if m != nil {
+		return m.AccessToken
+	}
+	return ""
+}
+
+func (m *GetTokenResponse) GetExpiresIn() int32 {
+	if m != nil {
+		return m.ExpiresIn
+	}
+	return 0
+}
+
+func (m *GetTokenResponse) GetIssuedAt() int64 {
+	if m != nil {
+		return m.IssuedAt
+	}
+	return 0
+}
+
+type GetTokenRequest struct {
+	Registry      string   `protobuf:"bytes,1,opt,name=Registry,proto3" json:"Registry,omitempty"`
+	Realm         string   `protobuf:"bytes,2,opt,name=Realm,proto3" json:"Realm,omitempty"`
+	Service       string   `protobuf:"bytes,3,opt,name=Service,proto3" json:"Service,omitempty"`
+	ClientID      string   `protobuf:"bytes,4,opt,name=ClientID,proto3" json:"ClientID,omitempty"`
+	Scopes        []string `protobuf:"bytes,5,rep,name=Scopes" json:"Scopes,omitempty"`
+	SkipCache     bool     `protobuf:"varint,6,opt,name=SkipCache,proto3" json:"SkipCache,omitempty"`
+	OfflineAccess bool     `protobuf:"varint,7,opt,name=OfflineAccess,proto3" json:"OfflineAccess,omitempty"`
+	ForceOAuth    bool     `protobuf:"varint,8,opt,name=ForceOAuth,proto3" json:"ForceOAuth,omitempty"`
+}
+
+func (m *GetTokenRequest) Reset()                    { *m = GetTokenRequest{} }
+func (*GetTokenRequest) ProtoMessage()               {}
+func (*GetTokenRequest) Descriptor() ([]byte, []int) { return fileDescriptorAuthconfig, []int{3} }
+
+func (m *GetTokenRequest) GetRegistry() string {
+	if m != nil {
+		return m.Registry
+	}
+	return ""
+}
+
+func (m *GetTokenRequest) GetRealm() string {
+	if m != nil {
+		return m.Realm
+	}
+	return ""
+}
+
+func (m *GetTokenRequest) GetService() string {
+	if m != nil {
+		return m.Service
+	}
+	return ""
+}
+
+func (m *GetTokenRequest) GetClientID() string {
+	if m != nil {
+		return m.ClientID
+	}
+	return ""
+}
+
+func (m *GetTokenRequest) GetScopes() []string {
+	if m != nil {
+		return m.Scopes
+	}
+	return nil
+}
+
+func (m *GetTokenRequest) GetSkipCache() bool {
+	if m != nil {
+		return m.SkipCache
+	}
+	return false
+}
+
+func (m *GetTokenRequest) GetOfflineAccess() bool {
+	if m != nil {
+		return m.OfflineAccess
+	}
+	return false
+}
+
+func (m *GetTokenRequest) GetForceOAuth() bool {
+	if m != nil {
+		return m.ForceOAuth
+	}
+	return false
+}
+
 func init() {
-	proto.RegisterType((*TarContent)(nil), "authsession.TarContent")
 	proto.RegisterType((*AuthConfig)(nil), "authsession.AuthConfig")
 	proto.RegisterType((*AuthConfigs)(nil), "authsession.AuthConfigs")
-}
-func (this *TarContent) Equal(that interface{}) bool {
-	if that == nil {
-		if this == nil {
-			return true
-		}
-		return false
-	}
-
-	that1, ok := that.(*TarContent)
-	if !ok {
-		that2, ok := that.(TarContent)
-		if ok {
-			that1 = &that2
-		} else {
-			return false
-		}
-	}
-	if that1 == nil {
-		if this == nil {
-			return true
-		}
-		return false
-	} else if this == nil {
-		return false
-	}
-	if !bytes.Equal(this.Content, that1.Content) {
-		return false
-	}
-	return true
+	proto.RegisterType((*GetTokenResponse)(nil), "authsession.GetTokenResponse")
+	proto.RegisterType((*GetTokenRequest)(nil), "authsession.GetTokenRequest")
 }
 func (this *AuthConfig) Equal(that interface{}) bool {
 	if that == nil {
@@ -249,15 +306,97 @@ func (this *AuthConfigs) Equal(that interface{}) bool {
 	}
 	return true
 }
-func (this *TarContent) GoString() string {
-	if this == nil {
-		return "nil"
+func (this *GetTokenResponse) Equal(that interface{}) bool {
+	if that == nil {
+		if this == nil {
+			return true
+		}
+		return false
 	}
-	s := make([]string, 0, 5)
-	s = append(s, "&authsession.TarContent{")
-	s = append(s, "Content: "+fmt.Sprintf("%#v", this.Content)+",\n")
-	s = append(s, "}")
-	return strings.Join(s, "")
+
+	that1, ok := that.(*GetTokenResponse)
+	if !ok {
+		that2, ok := that.(GetTokenResponse)
+		if ok {
+			that1 = &that2
+		} else {
+			return false
+		}
+	}
+	if that1 == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	} else if this == nil {
+		return false
+	}
+	if this.AccessToken != that1.AccessToken {
+		return false
+	}
+	if this.ExpiresIn != that1.ExpiresIn {
+		return false
+	}
+	if this.IssuedAt != that1.IssuedAt {
+		return false
+	}
+	return true
+}
+func (this *GetTokenRequest) Equal(that interface{}) bool {
+	if that == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	}
+
+	that1, ok := that.(*GetTokenRequest)
+	if !ok {
+		that2, ok := that.(GetTokenRequest)
+		if ok {
+			that1 = &that2
+		} else {
+			return false
+		}
+	}
+	if that1 == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	} else if this == nil {
+		return false
+	}
+	if this.Registry != that1.Registry {
+		return false
+	}
+	if this.Realm != that1.Realm {
+		return false
+	}
+	if this.Service != that1.Service {
+		return false
+	}
+	if this.ClientID != that1.ClientID {
+		return false
+	}
+	if len(this.Scopes) != len(that1.Scopes) {
+		return false
+	}
+	for i := range this.Scopes {
+		if this.Scopes[i] != that1.Scopes[i] {
+			return false
+		}
+	}
+	if this.SkipCache != that1.SkipCache {
+		return false
+	}
+	if this.OfflineAccess != that1.OfflineAccess {
+		return false
+	}
+	if this.ForceOAuth != that1.ForceOAuth {
+		return false
+	}
+	return true
 }
 func (this *AuthConfig) GoString() string {
 	if this == nil {
@@ -297,6 +436,35 @@ func (this *AuthConfigs) GoString() string {
 	s = append(s, "}")
 	return strings.Join(s, "")
 }
+func (this *GetTokenResponse) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := make([]string, 0, 7)
+	s = append(s, "&authsession.GetTokenResponse{")
+	s = append(s, "AccessToken: "+fmt.Sprintf("%#v", this.AccessToken)+",\n")
+	s = append(s, "ExpiresIn: "+fmt.Sprintf("%#v", this.ExpiresIn)+",\n")
+	s = append(s, "IssuedAt: "+fmt.Sprintf("%#v", this.IssuedAt)+",\n")
+	s = append(s, "}")
+	return strings.Join(s, "")
+}
+func (this *GetTokenRequest) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := make([]string, 0, 12)
+	s = append(s, "&authsession.GetTokenRequest{")
+	s = append(s, "Registry: "+fmt.Sprintf("%#v", this.Registry)+",\n")
+	s = append(s, "Realm: "+fmt.Sprintf("%#v", this.Realm)+",\n")
+	s = append(s, "Service: "+fmt.Sprintf("%#v", this.Service)+",\n")
+	s = append(s, "ClientID: "+fmt.Sprintf("%#v", this.ClientID)+",\n")
+	s = append(s, "Scopes: "+fmt.Sprintf("%#v", this.Scopes)+",\n")
+	s = append(s, "SkipCache: "+fmt.Sprintf("%#v", this.SkipCache)+",\n")
+	s = append(s, "OfflineAccess: "+fmt.Sprintf("%#v", this.OfflineAccess)+",\n")
+	s = append(s, "ForceOAuth: "+fmt.Sprintf("%#v", this.ForceOAuth)+",\n")
+	s = append(s, "}")
+	return strings.Join(s, "")
+}
 func valueToGoStringAuthconfig(v interface{}, typ string) string {
 	rv := reflect.ValueOf(v)
 	if rv.IsNil() {
@@ -305,30 +473,6 @@ func valueToGoStringAuthconfig(v interface{}, typ string) string {
 	pv := reflect.Indirect(rv).Interface()
 	return fmt.Sprintf("func(v %v) *%v { return &v } ( %#v )", typ, typ, pv)
 }
-func (m *TarContent) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *TarContent) MarshalTo(dAtA []byte) (int, error) {
-	var i int
-	_ = i
-	var l int
-	_ = l
-	if len(m.Content) > 0 {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintAuthconfig(dAtA, i, uint64(len(m.Content)))
-		i += copy(dAtA[i:], m.Content)
-	}
-	return i, nil
-}
-
 func (m *AuthConfig) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -435,6 +579,127 @@ func (m *AuthConfigs) MarshalTo(dAtA []byte) (int, error) {
 	return i, nil
 }
 
+func (m *GetTokenResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *GetTokenResponse) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if len(m.AccessToken) > 0 {
+		dAtA[i] = 0xa
+		i++
+		i = encodeVarintAuthconfig(dAtA, i, uint64(len(m.AccessToken)))
+		i += copy(dAtA[i:], m.AccessToken)
+	}
+	if m.ExpiresIn != 0 {
+		dAtA[i] = 0x10
+		i++
+		i = encodeVarintAuthconfig(dAtA, i, uint64(m.ExpiresIn))
+	}
+	if m.IssuedAt != 0 {
+		dAtA[i] = 0x18
+		i++
+		i = encodeVarintAuthconfig(dAtA, i, uint64(m.IssuedAt))
+	}
+	return i, nil
+}
+
+func (m *GetTokenRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *GetTokenRequest) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if len(m.Registry) > 0 {
+		dAtA[i] = 0xa
+		i++
+		i = encodeVarintAuthconfig(dAtA, i, uint64(len(m.Registry)))
+		i += copy(dAtA[i:], m.Registry)
+	}
+	if len(m.Realm) > 0 {
+		dAtA[i] = 0x12
+		i++
+		i = encodeVarintAuthconfig(dAtA, i, uint64(len(m.Realm)))
+		i += copy(dAtA[i:], m.Realm)
+	}
+	if len(m.Service) > 0 {
+		dAtA[i] = 0x1a
+		i++
+		i = encodeVarintAuthconfig(dAtA, i, uint64(len(m.Service)))
+		i += copy(dAtA[i:], m.Service)
+	}
+	if len(m.ClientID) > 0 {
+		dAtA[i] = 0x22
+		i++
+		i = encodeVarintAuthconfig(dAtA, i, uint64(len(m.ClientID)))
+		i += copy(dAtA[i:], m.ClientID)
+	}
+	if len(m.Scopes) > 0 {
+		for _, s := range m.Scopes {
+			dAtA[i] = 0x2a
+			i++
+			l = len(s)
+			for l >= 1<<7 {
+				dAtA[i] = uint8(uint64(l)&0x7f | 0x80)
+				l >>= 7
+				i++
+			}
+			dAtA[i] = uint8(l)
+			i++
+			i += copy(dAtA[i:], s)
+		}
+	}
+	if m.SkipCache {
+		dAtA[i] = 0x30
+		i++
+		if m.SkipCache {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i++
+	}
+	if m.OfflineAccess {
+		dAtA[i] = 0x38
+		i++
+		if m.OfflineAccess {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i++
+	}
+	if m.ForceOAuth {
+		dAtA[i] = 0x40
+		i++
+		if m.ForceOAuth {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i++
+	}
+	return i, nil
+}
+
 func encodeFixed64Authconfig(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	dAtA[offset+1] = uint8(v >> 8)
@@ -462,16 +727,6 @@ func encodeVarintAuthconfig(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return offset + 1
 }
-func (m *TarContent) Size() (n int) {
-	var l int
-	_ = l
-	l = len(m.Content)
-	if l > 0 {
-		n += 1 + l + sovAuthconfig(uint64(l))
-	}
-	return n
-}
-
 func (m *AuthConfig) Size() (n int) {
 	var l int
 	_ = l
@@ -525,6 +780,59 @@ func (m *AuthConfigs) Size() (n int) {
 	return n
 }
 
+func (m *GetTokenResponse) Size() (n int) {
+	var l int
+	_ = l
+	l = len(m.AccessToken)
+	if l > 0 {
+		n += 1 + l + sovAuthconfig(uint64(l))
+	}
+	if m.ExpiresIn != 0 {
+		n += 1 + sovAuthconfig(uint64(m.ExpiresIn))
+	}
+	if m.IssuedAt != 0 {
+		n += 1 + sovAuthconfig(uint64(m.IssuedAt))
+	}
+	return n
+}
+
+func (m *GetTokenRequest) Size() (n int) {
+	var l int
+	_ = l
+	l = len(m.Registry)
+	if l > 0 {
+		n += 1 + l + sovAuthconfig(uint64(l))
+	}
+	l = len(m.Realm)
+	if l > 0 {
+		n += 1 + l + sovAuthconfig(uint64(l))
+	}
+	l = len(m.Service)
+	if l > 0 {
+		n += 1 + l + sovAuthconfig(uint64(l))
+	}
+	l = len(m.ClientID)
+	if l > 0 {
+		n += 1 + l + sovAuthconfig(uint64(l))
+	}
+	if len(m.Scopes) > 0 {
+		for _, s := range m.Scopes {
+			l = len(s)
+			n += 1 + l + sovAuthconfig(uint64(l))
+		}
+	}
+	if m.SkipCache {
+		n += 2
+	}
+	if m.OfflineAccess {
+		n += 2
+	}
+	if m.ForceOAuth {
+		n += 2
+	}
+	return n
+}
+
 func sovAuthconfig(x uint64) (n int) {
 	for {
 		n++
@@ -537,16 +845,6 @@ func sovAuthconfig(x uint64) (n int) {
 }
 func sozAuthconfig(x uint64) (n int) {
 	return sovAuthconfig(uint64((x << 1) ^ uint64((int64(x) >> 63))))
-}
-func (this *TarContent) String() string {
-	if this == nil {
-		return "nil"
-	}
-	s := strings.Join([]string{`&TarContent{`,
-		`Content:` + fmt.Sprintf("%v", this.Content) + `,`,
-		`}`,
-	}, "")
-	return s
 }
 func (this *AuthConfig) String() string {
 	if this == nil {
@@ -584,6 +882,35 @@ func (this *AuthConfigs) String() string {
 	}, "")
 	return s
 }
+func (this *GetTokenResponse) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&GetTokenResponse{`,
+		`AccessToken:` + fmt.Sprintf("%v", this.AccessToken) + `,`,
+		`ExpiresIn:` + fmt.Sprintf("%v", this.ExpiresIn) + `,`,
+		`IssuedAt:` + fmt.Sprintf("%v", this.IssuedAt) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *GetTokenRequest) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&GetTokenRequest{`,
+		`Registry:` + fmt.Sprintf("%v", this.Registry) + `,`,
+		`Realm:` + fmt.Sprintf("%v", this.Realm) + `,`,
+		`Service:` + fmt.Sprintf("%v", this.Service) + `,`,
+		`ClientID:` + fmt.Sprintf("%v", this.ClientID) + `,`,
+		`Scopes:` + fmt.Sprintf("%v", this.Scopes) + `,`,
+		`SkipCache:` + fmt.Sprintf("%v", this.SkipCache) + `,`,
+		`OfflineAccess:` + fmt.Sprintf("%v", this.OfflineAccess) + `,`,
+		`ForceOAuth:` + fmt.Sprintf("%v", this.ForceOAuth) + `,`,
+		`}`,
+	}, "")
+	return s
+}
 func valueToStringAuthconfig(v interface{}) string {
 	rv := reflect.ValueOf(v)
 	if rv.IsNil() {
@@ -591,87 +918,6 @@ func valueToStringAuthconfig(v interface{}) string {
 	}
 	pv := reflect.Indirect(rv).Interface()
 	return fmt.Sprintf("*%v", pv)
-}
-func (m *TarContent) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowAuthconfig
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: TarContent: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: TarContent: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Content", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowAuthconfig
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= (int(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthAuthconfig
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Content = append(m.Content[:0], dAtA[iNdEx:postIndex]...)
-			if m.Content == nil {
-				m.Content = []byte{}
-			}
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipAuthconfig(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if skippy < 0 {
-				return ErrInvalidLengthAuthconfig
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
 }
 func (m *AuthConfig) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
@@ -1097,6 +1343,378 @@ func (m *AuthConfigs) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
+func (m *GetTokenResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowAuthconfig
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: GetTokenResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: GetTokenResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AccessToken", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAuthconfig
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthAuthconfig
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AccessToken = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ExpiresIn", wireType)
+			}
+			m.ExpiresIn = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAuthconfig
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.ExpiresIn |= (int32(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field IssuedAt", wireType)
+			}
+			m.IssuedAt = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAuthconfig
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.IssuedAt |= (int64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipAuthconfig(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthAuthconfig
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *GetTokenRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowAuthconfig
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: GetTokenRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: GetTokenRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Registry", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAuthconfig
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthAuthconfig
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Registry = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Realm", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAuthconfig
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthAuthconfig
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Realm = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Service", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAuthconfig
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthAuthconfig
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Service = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ClientID", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAuthconfig
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthAuthconfig
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ClientID = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Scopes", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAuthconfig
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthAuthconfig
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Scopes = append(m.Scopes, string(dAtA[iNdEx:postIndex]))
+			iNdEx = postIndex
+		case 6:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SkipCache", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAuthconfig
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.SkipCache = bool(v != 0)
+		case 7:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field OfflineAccess", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAuthconfig
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.OfflineAccess = bool(v != 0)
+		case 8:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ForceOAuth", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAuthconfig
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.ForceOAuth = bool(v != 0)
+		default:
+			iNdEx = preIndex
+			skippy, err := skipAuthconfig(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthAuthconfig
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
 func skipAuthconfig(dAtA []byte) (n int, err error) {
 	l := len(dAtA)
 	iNdEx := 0
@@ -1205,27 +1823,36 @@ var (
 func init() { proto.RegisterFile("authconfig.proto", fileDescriptorAuthconfig) }
 
 var fileDescriptorAuthconfig = []byte{
-	// 342 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0x74, 0x91, 0xb1, 0x4e, 0x2a, 0x41,
-	0x14, 0x86, 0x77, 0x80, 0x85, 0x7b, 0xcf, 0xde, 0x9b, 0x90, 0xc9, 0x4d, 0xee, 0x84, 0x62, 0x42,
-	0xd0, 0x18, 0x0a, 0xa5, 0xc0, 0x46, 0xed, 0x90, 0x50, 0xd8, 0xe9, 0x8a, 0x0f, 0xb0, 0xb2, 0x23,
-	0x6c, 0x80, 0x19, 0x33, 0x33, 0x60, 0xe8, 0x7c, 0x04, 0x7b, 0x5f, 0xc0, 0x47, 0xb1, 0xa4, 0xb4,
-	0x84, 0xb1, 0xb1, 0xe4, 0x11, 0xcc, 0xcc, 0x80, 0x42, 0x61, 0x77, 0xfe, 0xef, 0x7c, 0x7b, 0x92,
-	0xfd, 0x07, 0xca, 0xc9, 0x44, 0x0f, 0x7a, 0x82, 0xdf, 0x65, 0xfd, 0xc6, 0xbd, 0x14, 0x5a, 0xe0,
-	0xc8, 0x12, 0xc5, 0x94, 0xca, 0x04, 0xaf, 0x1d, 0x00, 0x74, 0x13, 0xd9, 0x16, 0x5c, 0x33, 0xae,
-	0x31, 0x81, 0x52, 0xcf, 0x8f, 0x04, 0x55, 0x51, 0xfd, 0x4f, 0xbc, 0x89, 0xb5, 0x05, 0x02, 0x68,
-	0x4d, 0xf4, 0xa0, 0xed, 0x2e, 0xe1, 0x0a, 0xfc, 0xba, 0x51, 0x4c, 0xf2, 0x64, 0xcc, 0x9c, 0xf9,
-	0x3b, 0xfe, 0xca, 0x76, 0x77, 0x99, 0x28, 0xf5, 0x20, 0x64, 0x4a, 0x72, 0x7e, 0xb7, 0xc9, 0x18,
-	0x43, 0xc1, 0x5e, 0x21, 0x79, 0xc7, 0xdd, 0x8c, 0xff, 0x41, 0xd8, 0x19, 0x27, 0xd9, 0x88, 0x14,
-	0x1c, 0xf4, 0x01, 0xef, 0xc3, 0xdf, 0x6b, 0x26, 0xa7, 0x4c, 0xb6, 0xd2, 0x54, 0x32, 0xa5, 0x48,
-	0xe8, 0xb6, 0xbb, 0xd0, 0x5a, 0x17, 0x29, 0xe3, 0x3a, 0xd3, 0xb3, 0xae, 0x18, 0x32, 0x4e, 0x8a,
-	0xde, 0xda, 0x81, 0xd6, 0x8a, 0x59, 0x3f, 0x53, 0x5a, 0xae, 0xad, 0x92, 0xb7, 0x76, 0x60, 0xed,
-	0x19, 0x41, 0xf4, 0xfd, 0x8b, 0x0a, 0x9f, 0x42, 0x68, 0xa3, 0x22, 0xa8, 0x9a, 0xaf, 0x47, 0xcd,
-	0xbd, 0xc6, 0x56, 0x6f, 0x8d, 0x2d, 0xd1, 0xcd, 0xaa, 0xc3, 0xb5, 0x9c, 0xc5, 0xfe, 0x8b, 0xca,
-	0x95, 0x2f, 0xcb, 0x43, 0x5c, 0x86, 0xfc, 0x90, 0xcd, 0xd6, 0x3d, 0xd9, 0x11, 0x1f, 0x41, 0x38,
-	0x4d, 0x46, 0x13, 0xe6, 0xfa, 0x89, 0x9a, 0xff, 0x7f, 0x38, 0x1d, 0x7b, 0xeb, 0x2c, 0x77, 0x82,
-	0xce, 0x0f, 0xe7, 0x4b, 0x1a, 0xbc, 0x2d, 0x69, 0xb0, 0x5a, 0x52, 0xf4, 0x68, 0x28, 0x7a, 0x31,
-	0x14, 0xbd, 0x1a, 0x8a, 0xe6, 0x86, 0xa2, 0x85, 0xa1, 0xe8, 0xc3, 0xd0, 0x60, 0x65, 0x28, 0x7a,
-	0x7a, 0xa7, 0xc1, 0x6d, 0xd1, 0x3d, 0xf5, 0xf1, 0x67, 0x00, 0x00, 0x00, 0xff, 0xff, 0x98, 0x27,
-	0xa4, 0xc3, 0xfe, 0x01, 0x00, 0x00,
+	// 484 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0x74, 0x93, 0x3f, 0x8f, 0xd3, 0x30,
+	0x18, 0xc6, 0xeb, 0xeb, 0xb5, 0xd7, 0xba, 0x42, 0x54, 0x16, 0x82, 0xe8, 0x84, 0xac, 0xaa, 0x30,
+	0x74, 0x80, 0x0e, 0xc7, 0x02, 0x6c, 0xa5, 0x14, 0xd4, 0xe9, 0xc0, 0x85, 0x0f, 0x10, 0x92, 0xb7,
+	0x57, 0xab, 0xa9, 0x13, 0xfc, 0x3a, 0x07, 0xdd, 0xf8, 0x08, 0xec, 0x7c, 0x01, 0x3e, 0x0a, 0xe3,
+	0x8d, 0x8c, 0xd7, 0xb0, 0x30, 0xde, 0xc2, 0x8e, 0x6c, 0x27, 0xfd, 0x33, 0xdc, 0xe6, 0xe7, 0xf1,
+	0x13, 0x3b, 0xef, 0xf3, 0x4b, 0x68, 0x37, 0xcc, 0xcd, 0x22, 0x4a, 0xd5, 0x5c, 0x5e, 0x0c, 0x33,
+	0x9d, 0x9a, 0x94, 0x75, 0xac, 0x83, 0x80, 0x28, 0x53, 0xd5, 0xbf, 0x26, 0x94, 0x8e, 0x72, 0xb3,
+	0x18, 0xbb, 0x04, 0x3b, 0xa5, 0xad, 0x8f, 0x08, 0x5a, 0x85, 0x2b, 0x08, 0x48, 0x8f, 0x0c, 0xda,
+	0x62, 0xab, 0xed, 0xde, 0xbb, 0x10, 0xf1, 0x4b, 0xaa, 0xe3, 0xe0, 0xc8, 0xef, 0x55, 0x9a, 0x31,
+	0x7a, 0x6c, 0x4f, 0x09, 0xea, 0xce, 0x77, 0x6b, 0x76, 0x8f, 0x36, 0x26, 0xab, 0x50, 0x26, 0xc1,
+	0xb1, 0x33, 0xbd, 0x60, 0x8f, 0xe9, 0x9d, 0x19, 0xe8, 0x4b, 0xd0, 0xa3, 0x38, 0xd6, 0x80, 0x18,
+	0x34, 0xdc, 0xee, 0xa1, 0x69, 0x53, 0xd3, 0x18, 0x94, 0x91, 0x66, 0xfd, 0x21, 0x5d, 0x82, 0x0a,
+	0x9a, 0x3e, 0x75, 0x60, 0xda, 0x94, 0x80, 0x0b, 0x89, 0x46, 0x97, 0xa9, 0x13, 0x9f, 0x3a, 0x30,
+	0xfb, 0x3f, 0x08, 0xed, 0xec, 0x46, 0x44, 0xf6, 0x82, 0x36, 0xac, 0xc4, 0x80, 0xf4, 0xea, 0x83,
+	0xce, 0xd9, 0xa3, 0xe1, 0x5e, 0x1f, 0xc3, 0xbd, 0xa0, 0x5b, 0xe3, 0x44, 0x19, 0xbd, 0x16, 0xfe,
+	0x89, 0xd3, 0xf7, 0xbe, 0x2c, 0x6f, 0xb2, 0x2e, 0xad, 0x2f, 0x61, 0x5d, 0xf6, 0x64, 0x97, 0xec,
+	0x29, 0x6d, 0x5c, 0x86, 0x49, 0x0e, 0xae, 0x9f, 0xce, 0xd9, 0x83, 0x5b, 0x8e, 0x16, 0x3e, 0xf5,
+	0xf2, 0xe8, 0x39, 0xe9, 0x2b, 0xda, 0x7d, 0x0b, 0xc6, 0xbd, 0xa9, 0x00, 0xcc, 0x52, 0x85, 0xc0,
+	0x7a, 0xb4, 0x33, 0x8a, 0x22, 0x40, 0xf4, 0x53, 0xf9, 0x0b, 0xf6, 0x2d, 0xf6, 0x90, 0xb6, 0x27,
+	0x5f, 0x33, 0xa9, 0x01, 0xa7, 0xca, 0x5d, 0xd6, 0x10, 0x3b, 0xc3, 0x92, 0x9a, 0x22, 0xe6, 0x10,
+	0x8f, 0x8c, 0x23, 0x52, 0x17, 0x5b, 0xdd, 0xff, 0x47, 0xe8, 0xdd, 0xdd, 0x85, 0x9f, 0x73, 0x40,
+	0x63, 0xf3, 0x55, 0x65, 0x15, 0xf5, 0x4a, 0x5b, 0x8a, 0x02, 0xc2, 0x64, 0x55, 0x22, 0xf7, 0x82,
+	0x05, 0xf4, 0xc4, 0x02, 0x93, 0x11, 0x94, 0xc8, 0x2b, 0x69, 0xcf, 0x1a, 0x27, 0x12, 0x94, 0x99,
+	0xbe, 0x2e, 0xc1, 0x6f, 0x35, 0xbb, 0x4f, 0x9b, 0xb3, 0x28, 0xcd, 0xc0, 0x42, 0xaf, 0x0f, 0xda,
+	0xa2, 0x54, 0x76, 0x9a, 0xd9, 0x52, 0x66, 0xe3, 0x30, 0x5a, 0x80, 0x23, 0xdd, 0x12, 0x3b, 0xc3,
+	0x52, 0x3e, 0x9f, 0xcf, 0x13, 0xa9, 0xc0, 0x37, 0xe0, 0x28, 0xb7, 0xc4, 0xa1, 0xc9, 0x38, 0xa5,
+	0x6f, 0x52, 0x1d, 0xc1, 0xb9, 0xfb, 0x0e, 0x5b, 0x2e, 0xb2, 0xe7, 0xbc, 0x7a, 0x72, 0xb5, 0xe1,
+	0xb5, 0xdf, 0x1b, 0x5e, 0xbb, 0xd9, 0x70, 0xf2, 0xad, 0xe0, 0xe4, 0x67, 0xc1, 0xc9, 0xaf, 0x82,
+	0x93, 0xab, 0x82, 0x93, 0xeb, 0x82, 0x93, 0xbf, 0x05, 0xaf, 0xdd, 0x14, 0x9c, 0x7c, 0xff, 0xc3,
+	0x6b, 0x9f, 0x9a, 0xee, 0x57, 0x79, 0xf6, 0x3f, 0x00, 0x00, 0xff, 0xff, 0x38, 0x2f, 0x13, 0x21,
+	0x3e, 0x03, 0x00, 0x00,
 }

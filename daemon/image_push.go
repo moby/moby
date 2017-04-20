@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/distribution"
 	progressutils "github.com/docker/docker/distribution/utils"
 	"github.com/docker/docker/pkg/progress"
+	"github.com/docker/docker/registry"
 	"golang.org/x/net/context"
 )
 
@@ -42,7 +43,7 @@ func (daemon *Daemon) PushImage(ctx context.Context, image, tag string, metaHead
 	imagePushConfig := &distribution.ImagePushConfig{
 		Config: distribution.Config{
 			MetaHeaders:      metaHeaders,
-			AuthConfig:       authConfig,
+			Authenticator:    registry.NewAuthConfigAuthenticator(authConfig),
 			ProgressOutput:   progress.ChanOutput(progressChan),
 			RegistryService:  daemon.RegistryService,
 			ImageEventLogger: daemon.LogImageEvent,

@@ -2,10 +2,6 @@ syntax = "proto3";
 
 package authsession;
 
-message TarContent{
-	bytes content = 1;
-}
-
 message AuthConfig {
 	string Username 	 = 1;
 	string Password 	 = 2;
@@ -18,4 +14,21 @@ message AuthConfig {
 
 message AuthConfigs {
 	map<string, AuthConfig> Auths = 1;
+}
+
+message GetTokenResponse{
+	string     	AccessToken  = 1;
+	int32       ExpiresIn    = 2;
+	int64  		IssuedAt     = 3;
+}
+
+message GetTokenRequest{
+	string	Registry	= 1;
+	string	Realm		= 2;
+	string	Service		= 3;
+	string	ClientID	= 4;
+	repeated string Scopes	=5;
+	bool 	SkipCache	=6;
+	bool	OfflineAccess	=7;
+	bool	ForceOAuth		=8;
 }

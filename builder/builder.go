@@ -8,6 +8,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
@@ -39,7 +40,7 @@ type Backend interface {
 	// GetImageOnBuild looks up a Docker image referenced by `name`.
 	GetImageOnBuild(name string) (Image, error)
 	// PullOnBuild tells Docker to pull image referenced by `name`.
-	PullOnBuild(ctx context.Context, name string, authConfigs map[string]types.AuthConfig, output io.Writer) (Image, error)
+	PullOnBuild(ctx context.Context, name string, authenticator auth.Authenticator, output io.Writer) (Image, error)
 	// ContainerAttachRaw attaches to container.
 	ContainerAttachRaw(cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool, attached chan struct{}) error
 	// ContainerCreate creates a new Docker container and returns potential warnings

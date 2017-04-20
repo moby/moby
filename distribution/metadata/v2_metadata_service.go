@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/docker/layer"
 	"github.com/opencontainers/go-digest"
 )
@@ -69,22 +69,22 @@ func ComputeV2MetadataHMAC(key []byte, meta *V2Metadata) string {
 
 // ComputeV2MetadataHMACKey returns a key for the given "authConfig" that can be used to hash v2 metadata
 // entries.
-func ComputeV2MetadataHMACKey(authConfig *types.AuthConfig) ([]byte, error) {
-	if authConfig == nil {
+func ComputeV2MetadataHMACKey(authenticator auth.Authenticator) ([]byte, error) {
+	if authenticator == nil {
 		return nil, nil
 	}
-	key := authConfigKeyInput{
-		Username:      authConfig.Username,
-		Password:      authConfig.Password,
-		Auth:          authConfig.Auth,
-		IdentityToken: authConfig.IdentityToken,
-		RegistryToken: authConfig.RegistryToken,
-	}
-	buf, err := json.Marshal(&key)
-	if err != nil {
-		return nil, err
-	}
-	return []byte(digest.FromBytes([]byte(buf))), nil
+	// key := authConfigKeyInput{
+	// 	Username:      authConfig.Username,
+	// 	Password:      authConfig.Password,
+	// 	Auth:          authConfig.Auth,
+	// 	IdentityToken: authConfig.IdentityToken,
+	// 	RegistryToken: authConfig.RegistryToken,
+	// }
+	// buf, err := json.Marshal(&key)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	return []byte(digest.FromBytes([]byte(authenticator.GetUsername()))), nil
 }
 
 // authConfigKeyInput is a reduced AuthConfig structure holding just relevant credential data eligible for
