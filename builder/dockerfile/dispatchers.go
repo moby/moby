@@ -383,6 +383,11 @@ func run(req dispatchRequest) error {
 
 	logrus.Debugf("[BUILDER] Command to be executed: %v", runConfig.Cmd)
 
+	// Set blank entrypoint to cancel the entrypoint from the parent image
+	if len(runConfig.Cmd) > 0 {
+		runConfig.Entrypoint = strslice.StrSlice{""}
+	}
+
 	cID, err := req.builder.create(runConfig)
 	if err != nil {
 		return err

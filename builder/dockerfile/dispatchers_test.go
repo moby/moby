@@ -448,6 +448,7 @@ func TestRunWithBuildArgs(t *testing.T) {
 		getCacheFunc: func(parentID string, cfg *container.Config) (string, error) {
 			// Check the runConfig.Cmd sent to probeCache()
 			assert.Equal(t, cachedCmd, cfg.Cmd)
+			assert.Equal(t, strslice.StrSlice(nil), cfg.Entrypoint)
 			return "", nil
 		},
 	}
@@ -462,12 +463,14 @@ func TestRunWithBuildArgs(t *testing.T) {
 		// Check the runConfig.Cmd sent to create()
 		assert.Equal(t, cmdWithShell, config.Config.Cmd)
 		assert.Contains(t, config.Config.Env, "one=two")
+		assert.Equal(t, strslice.StrSlice{""}, config.Config.Entrypoint)
 		return container.ContainerCreateCreatedBody{ID: "12345"}, nil
 	}
 	mockBackend.commitFunc = func(cID string, cfg *backend.ContainerCommitConfig) (string, error) {
 		// Check the runConfig.Cmd sent to commit()
 		assert.Equal(t, origCmd, cfg.Config.Cmd)
 		assert.Equal(t, cachedCmd, cfg.ContainerConfig.Cmd)
+		assert.Equal(t, strslice.StrSlice(nil), cfg.Config.Entrypoint)
 		return "", nil
 	}
 

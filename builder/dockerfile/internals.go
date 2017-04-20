@@ -601,12 +601,6 @@ func (b *Builder) create(runConfig *container.Config) (string, error) {
 
 	b.tmpContainers[c.ID] = struct{}{}
 	fmt.Fprintf(b.Stdout, " ---> Running in %s\n", stringid.TruncateID(c.ID))
-
-	// override the entry point that may have been picked up from the base image
-	if err := b.docker.ContainerUpdateCmdOnBuild(c.ID, runConfig.Cmd); err != nil {
-		return "", err
-	}
-
 	return c.ID, nil
 }
 

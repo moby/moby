@@ -337,13 +337,13 @@ func (s *DockerSuite) TestBuildOnBuildCmdEntrypointJSON(c *check.C) {
 	name1 := "onbuildcmd"
 	name2 := "onbuildgenerated"
 
-	buildImageSuccessfully(c, name1, build.WithDockerfile(`
+	cli.BuildCmd(c, name1, build.WithDockerfile(`
 FROM busybox
 ONBUILD CMD ["hello world"]
 ONBUILD ENTRYPOINT ["echo"]
 ONBUILD RUN ["true"]`))
 
-	buildImageSuccessfully(c, name2, build.WithDockerfile(fmt.Sprintf(`FROM %s`, name1)))
+	cli.BuildCmd(c, name2, build.WithDockerfile(fmt.Sprintf(`FROM %s`, name1)))
 
 	result := cli.DockerCmd(c, "run", name2)
 	result.Assert(c, icmd.Expected{Out: "hello world"})
