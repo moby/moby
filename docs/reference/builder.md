@@ -1235,6 +1235,12 @@ into the newly created volume.
 > The list is parsed as a JSON array, which means that
 > you must use double-quotes (") around words not single-quotes (').
 
+>**Note**: The host directory is, by its nature, host-dependent. For this
+>reason, you can't mount a host directory from `Dockerfile`, the `VOLUME`
+instruction does not support passing a `host-dir`, because built images
+>should be portable. A host directory wouldn't be available on all potential
+>hosts.
+
 ## USER
 
     USER daemon
