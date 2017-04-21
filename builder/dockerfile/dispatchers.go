@@ -438,12 +438,11 @@ func run(req dispatchRequest) error {
 	// these args are transparent so resulting image should be the same regardless of the value
 	if len(cmdBuildEnv) > 0 {
 		saveCmd = config.Cmd
-		tmpBuildEnv := make([]string, len(cmdBuildEnv))
-		copy(tmpBuildEnv, cmdBuildEnv)
-		for i, env := range tmpBuildEnv {
+		var tmpBuildEnv []string
+		for _, env := range cmdBuildEnv {
 			key := strings.SplitN(env, "=", 2)[0]
-			if req.builder.buildArgs.IsUnreferencedBuiltin(key) {
-				tmpBuildEnv = append(tmpBuildEnv[:i], tmpBuildEnv[i+1:]...)
+			if !req.builder.buildArgs.IsUnreferencedBuiltin(key) {
+				tmpBuildEnv = append(tmpBuildEnv, env)
 			}
 		}
 		sort.Strings(tmpBuildEnv)
