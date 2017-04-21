@@ -1,3 +1,5 @@
+### Docker users, see [Moby and Docker](https://mobyproject.org/#moby-and-docker) to clarify the relationship between the projects
+
 ### Docker maintainers and contributors, see [Transitioning to Moby](#transitioning-to-moby) for more details
 
 The Moby Project
