@@ -5,7 +5,10 @@ import (
 	"runtime"
 	"testing"
 
+	"bytes"
+	"context"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/builder"
@@ -49,6 +52,9 @@ func newBuilderWithMockBackend() *Builder {
 		options:       &types.ImageBuildOptions{},
 		docker:        &MockBackend{},
 		buildArgs:     newBuildArgs(make(map[string]*string)),
+		tmpContainers: make(map[string]struct{}),
+		Stdout:        new(bytes.Buffer),
+		clientCtx:     context.Background(),
 		disableCommit: true,
 	}
 	b.imageContexts = &imageContexts{b: b}
@@ -409,13 +415,71 @@ func TestParseOptInterval(t *testing.T) {
 		Value:    "50ns",
 	}
 	_, err := parseOptInterval(flInterval)
-	if err == nil {
-		t.Fatalf("Error should be presented for interval %s", flInterval.Value)
-	}
+	testutil.ErrorContains(t, err, "cannot be less than 1ms")
 
 	flInterval.Value = "1ms"
 	_, err = parseOptInterval(flInterval)
-	if err != nil {
-		t.Fatalf("Unexpected error: %s", err.Error())
+	require.NoError(t, err)
+}
+
+func TestPrependEnvOnCmd(t *testing.T) {
+	buildArgs := newBuildArgs(nil)
+	buildArgs.AddArg("NO_PROXY", nil)
+
+	args := []string{"sorted=nope", "args=not", "http_proxy=foo", "NO_PROXY=YA"}
+	cmd := []string{"foo", "bar"}
+	cmdWithEnv := prependEnvOnCmd(buildArgs, args, cmd)
+	expected := strslice.StrSlice([]string{
+		"|3", "NO_PROXY=YA", "args=not", "sorted=nope", "foo", "bar"})
+	assert.Equal(t, expected, cmdWithEnv)
+}
+
+func TestRunWithBuildArgs(t *testing.T) {
+	b := newBuilderWithMockBackend()
+	b.buildArgs.argsFromOptions["HTTP_PROXY"] = strPtr("FOO")
+	b.disableCommit = false
+
+	origCmd := strslice.StrSlice([]string{"cmd", "in", "from", "image"})
+	cmdWithShell := strslice.StrSlice(append(getShell(b.runConfig), "echo foo"))
+	envVars := []string{"|1", "one=two"}
+	cachedCmd := strslice.StrSlice(append(envVars, cmdWithShell...))
+
+	imageCache := &mockImageCache{
+		getCacheFunc: func(parentID string, cfg *container.Config) (string, error) {
+			// Check the runConfig.Cmd sent to probeCache()
+			assert.Equal(t, cachedCmd, cfg.Cmd)
+			return "", nil
+		},
 	}
+	b.imageCache = imageCache
+
+	mockBackend := b.docker.(*MockBackend)
+	mockBackend.getImageOnBuildImage = &mockImage{
+		id:     "abcdef",
+		config: &container.Config{Cmd: origCmd},
+	}
+	mockBackend.containerCreateFunc = func(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error) {
+		// Check the runConfig.Cmd sent to create()
+		assert.Equal(t, cmdWithShell, config.Config.Cmd)
+		assert.Contains(t, config.Config.Env, "one=two")
+		return container.ContainerCreateCreatedBody{ID: "12345"}, nil
+	}
+	mockBackend.commitFunc = func(cID string, cfg *backend.ContainerCommitConfig) (string, error) {
+		// Check the runConfig.Cmd sent to commit()
+		assert.Equal(t, origCmd, cfg.Config.Cmd)
+		assert.Equal(t, cachedCmd, cfg.ContainerConfig.Cmd)
+		return "", nil
+	}
+
+	req := defaultDispatchReq(b, "abcdef")
+	require.NoError(t, from(req))
+	b.buildArgs.AddArg("one", strPtr("two"))
+	// TODO: this can be removed with b.runConfig
+	req.runConfig.Cmd = origCmd
+
+	req.args = []string{"echo foo"}
+	require.NoError(t, run(req))
+
+	// Check that runConfig.Cmd has not been modified by run
+	assert.Equal(t, origCmd, b.runConfig.Cmd)
 }

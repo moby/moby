@@ -315,20 +315,18 @@ func workdir(req dispatchRequest) error {
 		return nil
 	}
 
-	cmd := req.runConfig.Cmd
-	comment := "WORKDIR " + req.runConfig.WorkingDir
-	// reset the command for cache detection
-	req.runConfig.Cmd = strslice.StrSlice(append(getShell(req.runConfig), "#(nop) "+comment))
-	defer func(cmd strslice.StrSlice) { req.runConfig.Cmd = cmd }(cmd)
+	// TODO: why is this done here. This seems to be done at random places all over
+	// the builder
+	req.runConfig.Image = req.builder.image
 
-	// TODO: this should pass a copy of runConfig
-	if hit, err := req.builder.probeCache(req.builder.image, req.runConfig); err != nil || hit {
+	comment := "WORKDIR " + req.runConfig.WorkingDir
+	runConfigWithCommentCmd := copyRunConfig(req.runConfig, withCmdCommentString(comment))
+	if hit, err := req.builder.probeCache(req.builder.image, runConfigWithCommentCmd); err != nil || hit {
 		return err
 	}
 
-	req.runConfig.Image = req.builder.image
 	container, err := req.builder.docker.ContainerCreate(types.ContainerCreateConfig{
-		Config: req.runConfig,
+		Config: runConfigWithCommentCmd,
 		// Set a log config to override any default value set on the daemon
 		HostConfig: &container.HostConfig{LogConfig: defaultLogConfig},
 	})
@@ -340,7 +338,7 @@ func workdir(req dispatchRequest) error {
 		return err
 	}
 
-	return req.builder.commitContainer(container.ID, copyRunConfig(req.runConfig, withCmd(cmd)))
+	return req.builder.commitContainer(container.ID, runConfigWithCommentCmd)
 }
 
 // RUN some command yo
@@ -363,79 +361,57 @@ func run(req dispatchRequest) error {
 	}
 
 	args := handleJSONArgs(req.args, req.attributes)
-
 	if !req.attributes["json"] {
 		args = append(getShell(req.runConfig), args...)
 	}
-	config := &container.Config{
-		Cmd:   strslice.StrSlice(args),
-		Image: req.builder.image,
+	cmdFromArgs := strslice.StrSlice(args)
+	buildArgs := req.builder.buildArgsWithoutConfigEnv()
+
+	saveCmd := cmdFromArgs
+	if len(buildArgs) > 0 {
+		saveCmd = prependEnvOnCmd(req.builder.buildArgs, buildArgs, cmdFromArgs)
 	}
 
-	// stash the cmd
-	cmd := req.runConfig.Cmd
-	if len(req.runConfig.Entrypoint) == 0 && len(req.runConfig.Cmd) == 0 {
-		req.runConfig.Cmd = config.Cmd
-	}
+	// TODO: this was previously in b.create(), why is it necessary?
+	req.runConfig.Image = req.builder.image
 
-	// stash the config environment
-	env := req.runConfig.Env
-
-	defer func(cmd strslice.StrSlice) { req.runConfig.Cmd = cmd }(cmd)
-	defer func(env []string) { req.runConfig.Env = env }(env)
-
-	cmdBuildEnv := req.builder.buildArgsWithoutConfigEnv()
-
-	// derive the command to use for probeCache() and to commit in this container.
-	// Note that we only do this if there are any build-time env vars.  Also, we
-	// use the special argument "|#" at the start of the args array. This will
-	// avoid conflicts with any RUN command since commands can not
-	// start with | (vertical bar). The "#" (number of build envs) is there to
-	// help ensure proper cache matches. We don't want a RUN command
-	// that starts with "foo=abc" to be considered part of a build-time env var.
-	saveCmd := config.Cmd
-	if len(cmdBuildEnv) > 0 {
-		saveCmd = prependEnvOnCmd(req.builder.buildArgs, cmdBuildEnv, saveCmd)
-	}
-
-	req.runConfig.Cmd = saveCmd
-	hit, err := req.builder.probeCache(req.builder.image, req.runConfig)
+	runConfigForCacheProbe := copyRunConfig(req.runConfig, withCmd(saveCmd))
+	hit, err := req.builder.probeCache(req.builder.image, runConfigForCacheProbe)
 	if err != nil || hit {
 		return err
 	}
 
-	// set Cmd manually, this is special case only for Dockerfiles
-	req.runConfig.Cmd = config.Cmd
-	// set build-time environment for 'run'.
-	req.runConfig.Env = append(req.runConfig.Env, cmdBuildEnv...)
+	runConfig := copyRunConfig(req.runConfig,
+		withCmd(cmdFromArgs),
+		withEnv(append(req.runConfig.Env, buildArgs...)))
+
 	// set config as already being escaped, this prevents double escaping on windows
-	req.runConfig.ArgsEscaped = true
+	runConfig.ArgsEscaped = true
 
-	logrus.Debugf("[BUILDER] Command to be executed: %v", req.runConfig.Cmd)
+	logrus.Debugf("[BUILDER] Command to be executed: %v", runConfig.Cmd)
 
-	// TODO: this was previously in b.create(), why is it necessary?
-	req.builder.runConfig.Image = req.builder.image
-
-	// TODO: should pass a copy of runConfig
-	cID, err := req.builder.create(req.runConfig)
+	cID, err := req.builder.create(runConfig)
 	if err != nil {
 		return err
 	}
-
-	if err := req.builder.run(cID); err != nil {
+	if err := req.builder.run(cID, runConfig.Cmd); err != nil {
 		return err
 	}
 
-	// FIXME: this is duplicated with the defer above in this function (i think?)
-	// revert to original config environment and set the command string to
-	// have the build-time env vars in it (if any) so that future cache look-ups
-	// properly match it.
-	req.runConfig.Env = env
-
-	req.runConfig.Cmd = saveCmd
-	return req.builder.commitContainer(cID, copyRunConfig(req.runConfig, withCmd(cmd)))
+	return req.builder.commitContainer(cID, runConfigForCacheProbe)
 }
 
+// Derive the command to use for probeCache() and to commit in this container.
+// Note that we only do this if there are any build-time env vars.  Also, we
+// use the special argument "|#" at the start of the args array. This will
+// avoid conflicts with any RUN command since commands can not
+// start with | (vertical bar). The "#" (number of build envs) is there to
+// help ensure proper cache matches. We don't want a RUN command
+// that starts with "foo=abc" to be considered part of a build-time env var.
+//
+// remove any unreferenced built-in args from the environment variables.
+// These args are transparent so resulting image should be the same regardless
+// of the value.
 func prependEnvOnCmd(buildArgs *buildArgs, buildArgVars []string, cmd strslice.StrSlice) strslice.StrSlice {
 	var tmpBuildEnv []string
 	for _, env := range buildArgVars {

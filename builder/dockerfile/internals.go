@@ -21,7 +21,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/parser"
 	"github.com/docker/docker/builder/remotecontext"
@@ -56,10 +55,10 @@ func (b *Builder) commit(comment string) error {
 		return err
 	}
 
-	return b.commitContainer(id, b.runConfig)
+	return b.commitContainer(id, runConfigWithCommentCmd)
 }
 
-func (b *Builder) commitContainer(id string, runConfig *container.Config) error {
+func (b *Builder) commitContainer(id string, containerConfig *container.Config) error {
 	if b.disableCommit {
 		return nil
 	}
@@ -68,8 +67,9 @@ func (b *Builder) commitContainer(id string, runConfig *container.Config) error 
 		ContainerCommitConfig: types.ContainerCommitConfig{
 			Author: b.maintainer,
 			Pause:  true,
-			Config: runConfig,
+			Config: b.runConfig,
 		},
+		ContainerConfig: containerConfig,
 	}
 
 	// Commit the container
@@ -81,7 +81,7 @@ func (b *Builder) commitContainer(id string, runConfig *container.Config) error 
 	// TODO: this function should return imageID and runConfig instead of setting
 	// then on the builder
 	b.image = imageID
-	b.imageContexts.update(imageID, runConfig)
+	b.imageContexts.update(imageID, b.runConfig)
 	return nil
 }
 
@@ -100,6 +100,8 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalD
 	// Work in daemon-specific filepath semantics
 	dest := filepath.FromSlash(args[len(args)-1]) // last one is always the dest
 
+	// TODO: why is this done here. This seems to be done at random places all over
+	// the builder
 	b.runConfig.Image = b.image
 
 	var infos []copyInfo
@@ -164,18 +166,16 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalD
 		srcHash = "multi:" + hex.EncodeToString(hasher.Sum(nil))
 	}
 
-	cmd := b.runConfig.Cmd
 	// TODO: should this have been using origPaths instead of srcHash in the comment?
-	b.runConfig.Cmd = strslice.StrSlice(append(getShell(b.runConfig), fmt.Sprintf("#(nop) %s %s in %s ", cmdName, srcHash, dest)))
-	defer func(cmd strslice.StrSlice) { b.runConfig.Cmd = cmd }(cmd)
-
-	// TODO: this should pass a copy of runConfig
-	if hit, err := b.probeCache(b.image, b.runConfig); err != nil || hit {
+	runConfigWithCommentCmd := copyRunConfig(
+		b.runConfig,
+		withCmdCommentString(fmt.Sprintf("%s %s in %s ", cmdName, srcHash, dest)))
+	if hit, err := b.probeCache(b.image, runConfigWithCommentCmd); err != nil || hit {
 		return err
 	}
 
 	container, err := b.docker.ContainerCreate(types.ContainerCreateConfig{
-		Config: b.runConfig,
+		Config: runConfigWithCommentCmd,
 		// Set a log config to override any default value set on the daemon
 		HostConfig: &container.HostConfig{LogConfig: defaultLogConfig},
 	})
@@ -196,7 +196,7 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalD
 		}
 	}
 
-	return b.commitContainer(container.ID, copyRunConfig(b.runConfig, withCmd(cmd)))
+	return b.commitContainer(container.ID, runConfigWithCommentCmd)
 }
 
 type runConfigModifier func(*container.Config)
@@ -215,9 +215,21 @@ func withCmd(cmd []string) runConfigModifier {
 	}
 }
 
+// withCmdComment sets Cmd to a nop comment string. See withCmdCommentString for
+// why there are two almost identical versions of this.
 func withCmdComment(comment string) runConfigModifier {
 	return func(runConfig *container.Config) {
 		runConfig.Cmd = append(getShell(runConfig), "#(nop) ", comment)
+	}
+}
+
+// withCmdCommentString exists to maintain compatibility with older versions.
+// A few instructions (workdir, copy, add) used a nop comment that is a single arg
+// where as all the other instructions used a two arg comment string. This
+// function implements the single arg version.
+func withCmdCommentString(comment string) runConfigModifier {
+	return func(runConfig *container.Config) {
+		runConfig.Cmd = append(getShell(runConfig), "#(nop) "+comment)
 	}
 }
 
@@ -606,7 +618,7 @@ func (b *Builder) create(runConfig *container.Config) (string, error) {
 
 var errCancelled = errors.New("build cancelled")
 
-func (b *Builder) run(cID string) (err error) {
+func (b *Builder) run(cID string, cmd []string) (err error) {
 	attached := make(chan struct{})
 	errCh := make(chan error)
 	go func() {
@@ -660,7 +672,7 @@ func (b *Builder) run(cID string) (err error) {
 		}
 		// TODO: change error type, because jsonmessage.JSONError assumes HTTP
 		return &jsonmessage.JSONError{
-			Message: fmt.Sprintf("The command '%s' returned a non-zero code: %d", strings.Join(b.runConfig.Cmd, " "), ret),
+			Message: fmt.Sprintf("The command '%s' returned a non-zero code: %d", strings.Join(cmd, " "), ret),
 			Code:    ret,
 		}
 	}

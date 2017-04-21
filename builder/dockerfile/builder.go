@@ -243,6 +243,10 @@ func (b *Builder) hasFromImage() bool {
 //
 // TODO: Remove?
 func BuildFromConfig(config *container.Config, changes []string) (*container.Config, error) {
+	if len(changes) == 0 {
+		return config, nil
+	}
+
 	b := newBuilder(context.Background(), builderOptions{})
 
 	result, err := parser.Parse(bytes.NewBufferString(strings.Join(changes, "\n")))
