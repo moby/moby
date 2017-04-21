@@ -73,7 +73,7 @@ func env(req dispatchRequest) error {
 		}
 	}
 
-	return req.builder.commit("", req.runConfig.Cmd, commitMessage.String())
+	return req.builder.commit(commitMessage.String())
 }
 
 // MAINTAINER some text <maybe@an.email.address>
@@ -90,7 +90,7 @@ func maintainer(req dispatchRequest) error {
 
 	maintainer := req.args[0]
 	req.builder.maintainer = maintainer
-	return req.builder.commit("", req.runConfig.Cmd, "MAINTAINER "+maintainer)
+	return req.builder.commit("MAINTAINER " + maintainer)
 }
 
 // LABEL some json data describing the image
@@ -130,7 +130,7 @@ func label(req dispatchRequest) error {
 		req.runConfig.Labels[req.args[j]] = req.args[j+1]
 		j++
 	}
-	return req.builder.commit("", req.runConfig.Cmd, commitStr)
+	return req.builder.commit(commitStr)
 }
 
 // ADD foo /path
@@ -281,7 +281,7 @@ func onbuild(req dispatchRequest) error {
 
 	original := regexp.MustCompile(`(?i)^\s*ONBUILD\s*`).ReplaceAllString(req.original, "")
 	req.runConfig.OnBuild = append(req.runConfig.OnBuild, original)
-	return req.builder.commit("", req.runConfig.Cmd, fmt.Sprintf("ONBUILD %s", original))
+	return req.builder.commit("ONBUILD " + original)
 }
 
 // WORKDIR /tmp
@@ -321,10 +321,9 @@ func workdir(req dispatchRequest) error {
 	req.runConfig.Cmd = strslice.StrSlice(append(getShell(req.runConfig), "#(nop) "+comment))
 	defer func(cmd strslice.StrSlice) { req.runConfig.Cmd = cmd }(cmd)
 
-	if hit, err := req.builder.probeCache(); err != nil {
+	// TODO: this should pass a copy of runConfig
+	if hit, err := req.builder.probeCache(req.builder.image, req.runConfig); err != nil || hit {
 		return err
-	} else if hit {
-		return nil
 	}
 
 	req.runConfig.Image = req.builder.image
@@ -341,7 +340,7 @@ func workdir(req dispatchRequest) error {
 		return err
 	}
 
-	return req.builder.commit(container.ID, cmd, comment)
+	return req.builder.commitContainer(container.ID, copyRunConfig(req.runConfig, withCmd(cmd)))
 }
 
 // RUN some command yo
@@ -402,12 +401,9 @@ func run(req dispatchRequest) error {
 	}
 
 	req.runConfig.Cmd = saveCmd
-	hit, err := req.builder.probeCache()
-	if err != nil {
+	hit, err := req.builder.probeCache(req.builder.image, req.runConfig)
+	if err != nil || hit {
 		return err
-	}
-	if hit {
-		return nil
 	}
 
 	// set Cmd manually, this is special case only for Dockerfiles
@@ -419,7 +415,11 @@ func run(req dispatchRequest) error {
 
 	logrus.Debugf("[BUILDER] Command to be executed: %v", req.runConfig.Cmd)
 
-	cID, err := req.builder.create()
+	// TODO: this was previously in b.create(), why is it necessary?
+	req.builder.runConfig.Image = req.builder.image
+
+	// TODO: should pass a copy of runConfig
+	cID, err := req.builder.create(req.runConfig)
 	if err != nil {
 		return err
 	}
@@ -450,7 +450,7 @@ func run(req dispatchRequest) error {
 		saveCmd = strslice.StrSlice(append(tmpEnv, saveCmd...))
 	}
 	req.runConfig.Cmd = saveCmd
-	return req.builder.commit(cID, cmd, "run")
+	return req.builder.commitContainer(cID, copyRunConfig(req.runConfig, withCmd(cmd)))
 }
 
 // CMD foo
@@ -473,7 +473,7 @@ func cmd(req dispatchRequest) error {
 	// set config as already being escaped, this prevents double escaping on windows
 	req.runConfig.ArgsEscaped = true
 
-	if err := req.builder.commit("", req.runConfig.Cmd, fmt.Sprintf("CMD %q", cmdSlice)); err != nil {
+	if err := req.builder.commit(fmt.Sprintf("CMD %q", cmdSlice)); err != nil {
 		return err
 	}
 
@@ -589,7 +589,7 @@ func healthcheck(req dispatchRequest) error {
 		req.runConfig.Healthcheck = &healthcheck
 	}
 
-	return req.builder.commit("", req.runConfig.Cmd, fmt.Sprintf("HEALTHCHECK %q", req.runConfig.Healthcheck))
+	return req.builder.commit(fmt.Sprintf("HEALTHCHECK %q", req.runConfig.Healthcheck))
 }
 
 // ENTRYPOINT /usr/sbin/nginx
@@ -625,11 +625,7 @@ func entrypoint(req dispatchRequest) error {
 		req.runConfig.Cmd = nil
 	}
 
-	if err := req.builder.commit("", req.runConfig.Cmd, fmt.Sprintf("ENTRYPOINT %q", req.runConfig.Entrypoint)); err != nil {
-		return err
-	}
-
-	return nil
+	return req.builder.commit(fmt.Sprintf("ENTRYPOINT %q", req.runConfig.Entrypoint))
 }
 
 // EXPOSE 6667/tcp 7000/tcp
@@ -670,7 +666,7 @@ func expose(req dispatchRequest) error {
 		i++
 	}
 	sort.Strings(portList)
-	return req.builder.commit("", req.runConfig.Cmd, fmt.Sprintf("EXPOSE %s", strings.Join(portList, " ")))
+	return req.builder.commit("EXPOSE " + strings.Join(portList, " "))
 }
 
 // USER foo
@@ -688,7 +684,7 @@ func user(req dispatchRequest) error {
 	}
 
 	req.runConfig.User = req.args[0]
-	return req.builder.commit("", req.runConfig.Cmd, fmt.Sprintf("USER %v", req.args))
+	return req.builder.commit(fmt.Sprintf("USER %v", req.args))
 }
 
 // VOLUME /foo
@@ -714,10 +710,7 @@ func volume(req dispatchRequest) error {
 		}
 		req.runConfig.Volumes[v] = struct{}{}
 	}
-	if err := req.builder.commit("", req.runConfig.Cmd, fmt.Sprintf("VOLUME %v", req.args)); err != nil {
-		return err
-	}
-	return nil
+	return req.builder.commit(fmt.Sprintf("VOLUME %v", req.args))
 }
 
 // STOPSIGNAL signal
@@ -735,7 +728,7 @@ func stopSignal(req dispatchRequest) error {
 	}
 
 	req.runConfig.StopSignal = sig
-	return req.builder.commit("", req.runConfig.Cmd, fmt.Sprintf("STOPSIGNAL %v", req.args))
+	return req.builder.commit(fmt.Sprintf("STOPSIGNAL %v", req.args))
 }
 
 // ARG name[=value]
@@ -785,7 +778,7 @@ func arg(req dispatchRequest) error {
 		req.builder.buildArgs.AddMetaArg(name, value)
 		return nil
 	}
-	return req.builder.commit("", req.runConfig.Cmd, fmt.Sprintf("ARG %s", arg))
+	return req.builder.commit("ARG " + arg)
 }
 
 // SHELL powershell -command
@@ -807,7 +800,7 @@ func shell(req dispatchRequest) error {
 		// SHELL powershell -command - not JSON
 		return errNotJSON("SHELL", req.original)
 	}
-	return req.builder.commit("", req.runConfig.Cmd, fmt.Sprintf("SHELL %v", shellSlice))
+	return req.builder.commit(fmt.Sprintf("SHELL %v", shellSlice))
 }
 
 func errAtLeastOneArgument(command string) error {
@@ -828,15 +821,6 @@ func errBlankCommandNames(command string) error {
 
 func errTooManyArguments(command string) error {
 	return fmt.Errorf("Bad input to %s, too many arguments", command)
-}
-
-// getShell is a helper function which gets the right shell for prefixing the
-// shell-form of RUN, ENTRYPOINT and CMD instructions
-func getShell(c *container.Config) []string {
-	if 0 == len(c.Shell) {
-		return append([]string{}, defaultShell[:]...)
-	}
-	return append([]string{}, c.Shell[:]...)
 }
 
 // mountByRef creates an imageMount from a reference. pulling the image if needed.

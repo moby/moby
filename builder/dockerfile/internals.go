@@ -36,41 +36,39 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (b *Builder) commit(id string, autoCmd strslice.StrSlice, comment string) error {
+func (b *Builder) commit(comment string) error {
 	if b.disableCommit {
 		return nil
 	}
 	if !b.hasFromImage() {
 		return errors.New("Please provide a source image with `from` prior to commit")
 	}
+	// TODO: why is this set here?
 	b.runConfig.Image = b.image
 
-	if id == "" {
-		cmd := b.runConfig.Cmd
-		b.runConfig.Cmd = strslice.StrSlice(append(getShell(b.runConfig), "#(nop) ", comment))
-		defer func(cmd strslice.StrSlice) { b.runConfig.Cmd = cmd }(cmd)
-
-		hit, err := b.probeCache()
-		if err != nil {
-			return err
-		} else if hit {
-			return nil
-		}
-		id, err = b.create()
-		if err != nil {
-			return err
-		}
+	runConfigWithCommentCmd := copyRunConfig(b.runConfig, withCmdComment(comment))
+	hit, err := b.probeCache(b.image, runConfigWithCommentCmd)
+	if err != nil || hit {
+		return err
+	}
+	id, err := b.create(runConfigWithCommentCmd)
+	if err != nil {
+		return err
 	}
 
-	// Note: Actually copy the struct
-	autoConfig := *b.runConfig
-	autoConfig.Cmd = autoCmd
+	return b.commitContainer(id, b.runConfig)
+}
+
+func (b *Builder) commitContainer(id string, runConfig *container.Config) error {
+	if b.disableCommit {
+		return nil
+	}
 
 	commitCfg := &backend.ContainerCommitConfig{
 		ContainerCommitConfig: types.ContainerCommitConfig{
 			Author: b.maintainer,
 			Pause:  true,
-			Config: &autoConfig,
+			Config: runConfig,
 		},
 	}
 
@@ -80,8 +78,10 @@ func (b *Builder) commit(id string, autoCmd strslice.StrSlice, comment string) e
 		return err
 	}
 
+	// TODO: this function should return imageID and runConfig instead of setting
+	// then on the builder
 	b.image = imageID
-	b.imageContexts.update(imageID, &autoConfig)
+	b.imageContexts.update(imageID, runConfig)
 	return nil
 }
 
@@ -148,11 +148,9 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalD
 	// For backwards compat, if there's just one info then use it as the
 	// cache look-up string, otherwise hash 'em all into one
 	var srcHash string
-	var origPaths string
 
 	if len(infos) == 1 {
 		info := infos[0]
-		origPaths = info.path
 		srcHash = info.hash
 	} else {
 		var hashs []string
@@ -164,17 +162,16 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalD
 		hasher := sha256.New()
 		hasher.Write([]byte(strings.Join(hashs, ",")))
 		srcHash = "multi:" + hex.EncodeToString(hasher.Sum(nil))
-		origPaths = strings.Join(origs, " ")
 	}
 
 	cmd := b.runConfig.Cmd
+	// TODO: should this have been using origPaths instead of srcHash in the comment?
 	b.runConfig.Cmd = strslice.StrSlice(append(getShell(b.runConfig), fmt.Sprintf("#(nop) %s %s in %s ", cmdName, srcHash, dest)))
 	defer func(cmd strslice.StrSlice) { b.runConfig.Cmd = cmd }(cmd)
 
-	if hit, err := b.probeCache(); err != nil {
+	// TODO: this should pass a copy of runConfig
+	if hit, err := b.probeCache(b.image, b.runConfig); err != nil || hit {
 		return err
-	} else if hit {
-		return nil
 	}
 
 	container, err := b.docker.ContainerCreate(types.ContainerCreateConfig{
@@ -186,8 +183,6 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalD
 		return err
 	}
 	b.tmpContainers[container.ID] = struct{}{}
-
-	comment := fmt.Sprintf("%s %s in %s", cmdName, origPaths, dest)
 
 	// Twiddle the destination when it's a relative path - meaning, make it
 	// relative to the WORKINGDIR
@@ -201,7 +196,44 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalD
 		}
 	}
 
-	return b.commit(container.ID, cmd, comment)
+	return b.commitContainer(container.ID, copyRunConfig(b.runConfig, withCmd(cmd)))
+}
+
+type runConfigModifier func(*container.Config)
+
+func copyRunConfig(runConfig *container.Config, modifiers ...runConfigModifier) *container.Config {
+	copy := *runConfig
+	for _, modifier := range modifiers {
+		modifier(&copy)
+	}
+	return &copy
+}
+
+func withCmd(cmd []string) runConfigModifier {
+	return func(runConfig *container.Config) {
+		runConfig.Cmd = cmd
+	}
+}
+
+func withCmdComment(comment string) runConfigModifier {
+	return func(runConfig *container.Config) {
+		runConfig.Cmd = append(getShell(runConfig), "#(nop) ", comment)
+	}
+}
+
+func withEnv(env []string) runConfigModifier {
+	return func(runConfig *container.Config) {
+		runConfig.Env = env
+	}
+}
+
+// getShell is a helper function which gets the right shell for prefixing the
+// shell-form of RUN, ENTRYPOINT and CMD instructions
+func getShell(c *container.Config) []string {
+	if 0 == len(c.Shell) {
+		return append([]string{}, defaultShell[:]...)
+	}
+	return append([]string{}, c.Shell[:]...)
 }
 
 func (b *Builder) download(srcURL string) (remote builder.Source, p string, err error) {
@@ -498,35 +530,33 @@ func (b *Builder) processImageFrom(img builder.Image) error {
 // If an image is found, probeCache returns `(true, nil)`.
 // If no image is found, it returns `(false, nil)`.
 // If there is any error, it returns `(false, err)`.
-func (b *Builder) probeCache() (bool, error) {
+func (b *Builder) probeCache(imageID string, runConfig *container.Config) (bool, error) {
 	c := b.imageCache
 	if c == nil || b.options.NoCache || b.cacheBusted {
 		return false, nil
 	}
-	cache, err := c.GetCache(b.image, b.runConfig)
+	cache, err := c.GetCache(imageID, runConfig)
 	if err != nil {
 		return false, err
 	}
 	if len(cache) == 0 {
-		logrus.Debugf("[BUILDER] Cache miss: %s", b.runConfig.Cmd)
+		logrus.Debugf("[BUILDER] Cache miss: %s", runConfig.Cmd)
 		b.cacheBusted = true
 		return false, nil
 	}
 
 	fmt.Fprint(b.Stdout, " ---> Using cache\n")
-	logrus.Debugf("[BUILDER] Use cached version: %s", b.runConfig.Cmd)
+	logrus.Debugf("[BUILDER] Use cached version: %s", runConfig.Cmd)
 	b.image = string(cache)
-	b.imageContexts.update(b.image, b.runConfig)
+	b.imageContexts.update(b.image, runConfig)
 
 	return true, nil
 }
 
-func (b *Builder) create() (string, error) {
+func (b *Builder) create(runConfig *container.Config) (string, error) {
 	if !b.hasFromImage() {
 		return "", errors.New("Please provide a source image with `from` prior to run")
 	}
-	b.runConfig.Image = b.image
-
 	resources := container.Resources{
 		CgroupParent: b.options.CgroupParent,
 		CPUShares:    b.options.CPUShares,
@@ -551,11 +581,9 @@ func (b *Builder) create() (string, error) {
 		ExtraHosts: b.options.ExtraHosts,
 	}
 
-	config := *b.runConfig
-
 	// Create the container
 	c, err := b.docker.ContainerCreate(types.ContainerCreateConfig{
-		Config:     b.runConfig,
+		Config:     runConfig,
 		HostConfig: hostConfig,
 	})
 	if err != nil {
@@ -569,7 +597,7 @@ func (b *Builder) create() (string, error) {
 	fmt.Fprintf(b.Stdout, " ---> Running in %s\n", stringid.TruncateID(c.ID))
 
 	// override the entry point that may have been picked up from the base image
-	if err := b.docker.ContainerUpdateCmdOnBuild(c.ID, config.Cmd); err != nil {
+	if err := b.docker.ContainerUpdateCmdOnBuild(c.ID, runConfig.Cmd); err != nil {
 		return "", err
 	}
 
