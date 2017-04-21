@@ -114,7 +114,7 @@ func (s *sender) send() error {
 			return errors.Wrapf(err, "invalid fileinfo without stat info: %s", path)
 		}
 		if runtime.GOOS == "windows" {
-			stat.Mode &= 0755
+			stat.Mode &= (0755 | uint32(os.ModeDir))
 			// Add the x bit: make everything +x from windows
 			stat.Mode |= 0111
 		}

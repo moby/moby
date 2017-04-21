@@ -47,7 +47,7 @@ func TestHashFile(t *testing.T) {
 	contextDir, cleanup := createTestTempDir(t, "", "builder-tarsum-test")
 	defer cleanup()
 
-	createTestTempFile(t, contextDir, filename, contents, 0777)
+	createTestTempFile(t, contextDir, filename, contents, 0755)
 
 	tarSum := makeTestTarsumContext(t, contextDir)
 
@@ -61,7 +61,7 @@ func TestHashFile(t *testing.T) {
 		t.Fatalf("Hash returned empty sum")
 	}
 
-	if expected, actual := "1149ab94af7be6cc1da1335e398f24ee1cf4926b720044d229969dfc248ae7ec", sum; expected != actual {
+	if expected, actual := "55dfeb344351ab27f59aa60ebb0ed12025a2f2f4677bf77d26ea7a671274a9ca", sum; expected != actual {
 		t.Fatalf("invalid checksum. expected %s, got %s", expected, actual)
 	}
 }
@@ -71,12 +71,12 @@ func TestHashSubdir(t *testing.T) {
 	defer cleanup()
 
 	contextSubdir := filepath.Join(contextDir, "builder-tarsum-test-subdir")
-	err := os.Mkdir(contextSubdir, 0700)
+	err := os.Mkdir(contextSubdir, 0755)
 	if err != nil {
 		t.Fatalf("Failed to make directory: %s", contextSubdir)
 	}
 
-	testFilename := createTestTempFile(t, contextSubdir, filename, contents, 0777)
+	testFilename := createTestTempFile(t, contextSubdir, filename, contents, 0755)
 
 	tarSum := makeTestTarsumContext(t, contextDir)
 
@@ -96,7 +96,7 @@ func TestHashSubdir(t *testing.T) {
 		t.Fatalf("Hash returned empty sum")
 	}
 
-	if expected, actual := "d7f8d6353dee4816f9134f4156bf6a9d470fdadfb5d89213721f7e86744a4e69", sum; expected != actual {
+	if expected, actual := "74a3326b8e766ce63a8e5232f22e9dd895be647fb3ca7d337e5e0a9b3da8ef28", sum; expected != actual {
 		t.Fatalf("invalid checksum. expected %s, got %s", expected, actual)
 	}
 }
