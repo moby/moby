@@ -8,6 +8,10 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"fmt"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // CopyFile with invalid src
@@ -299,17 +303,14 @@ func TestMatchesWithMalformedPatterns(t *testing.T) {
 	}
 }
 
-// Test lots of variants of patterns & strings
+type matchesTestCase struct {
+	pattern string
+	text    string
+	pass    bool
+}
+
 func TestMatches(t *testing.T) {
-	// TODO Windows: Port this test
-	if runtime.GOOS == "windows" {
-		t.Skip("Needs porting to Windows")
-	}
-	tests := []struct {
-		pattern string
-		text    string
-		pass    bool
-	}{
+	tests := []matchesTestCase{
 		{"**", "file", true},
 		{"**", "file/", true},
 		{"**/", "file", true}, // weird one
@@ -361,9 +362,6 @@ func TestMatches(t *testing.T) {
 		{"abc.def", "abcZdef", false},
 		{"abc?def", "abcZdef", true},
 		{"abc?def", "abcdef", false},
-		{"a\\*b", "a*b", true},
-		{"a\\", "a", false},
-		{"a\\", "a\\", false},
 		{"a\\\\", "a\\", true},
 		{"**/foo/bar", "foo/bar", true},
 		{"**/foo/bar", "dir/foo/bar", true},
@@ -375,15 +373,20 @@ func TestMatches(t *testing.T) {
 		{"**/.foo", "bar.foo", false},
 	}
 
+	if runtime.GOOS != "windows" {
+		tests = append(tests, []matchesTestCase{
+			{"a\\*b", "a*b", true},
+			{"a\\", "a", false},
+			{"a\\", "a\\", false},
+		}...)
+	}
+
 	for _, test := range tests {
+		desc := fmt.Sprintf("pattern=%q text=%q", test.pattern, test.text)
 		pm, err := NewPatternMatcher([]string{test.pattern})
-		if err != nil {
-			t.Fatalf("invalid pattern %s", test.pattern)
-		}
+		require.NoError(t, err, desc)
 		res, _ := pm.Matches(test.text)
-		if res != test.pass {
-			t.Fatalf("Failed: %v - res:%v", test, res)
-		}
+		assert.Equal(t, test.pass, res, desc)
 	}
 }
 
