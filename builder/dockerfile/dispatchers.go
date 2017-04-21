@@ -449,12 +449,11 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	// these args are transparent so resulting image should be the same regardless of the value
 	if len(cmdBuildEnv) > 0 {
 		saveCmd = config.Cmd
-		tmpBuildEnv := make([]string, len(cmdBuildEnv))
-		copy(tmpBuildEnv, cmdBuildEnv)
-		for i, env := range tmpBuildEnv {
+		var tmpBuildEnv []string
+		for _, env := range cmdBuildEnv {
 			key := strings.SplitN(env, "=", 2)[0]
-			if b.buildArgs.IsUnreferencedBuiltin(key) {
-				tmpBuildEnv = append(tmpBuildEnv[:i], tmpBuildEnv[i+1:]...)
+			if !b.buildArgs.IsUnreferencedBuiltin(key) {
+				tmpBuildEnv = append(tmpBuildEnv, env)
 			}
 		}
 		sort.Strings(tmpBuildEnv)

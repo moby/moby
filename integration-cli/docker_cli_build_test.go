@@ -4345,7 +4345,8 @@ func (s *DockerSuite) TestBuildTimeArgHistoryExclusions(c *check.C) {
 		ARG %s
 		RUN echo "Testing Build Args!"`, envKey, explicitProxyKey)
 	buildImage(imgName,
-		cli.WithFlags("--build-arg", fmt.Sprintf("%s=%s", envKey, envVal),
+		cli.WithFlags("--build-arg", "https_proxy=https://proxy.example.com",
+			"--build-arg", fmt.Sprintf("%s=%s", envKey, envVal),
 			"--build-arg", fmt.Sprintf("%s=%s", explicitProxyKey, explicitProxyVal),
 			"--build-arg", proxy),
 		build.WithDockerfile(dockerfile),
@@ -4353,6 +4354,9 @@ func (s *DockerSuite) TestBuildTimeArgHistoryExclusions(c *check.C) {
 
 	out, _ := dockerCmd(c, "history", "--no-trunc", imgName)
 	if strings.Contains(out, proxy) {
+		c.Fatalf("failed to exclude proxy settings from history!")
+	}
+	if strings.Contains(out, "https_proxy") {
 		c.Fatalf("failed to exclude proxy settings from history!")
 	}
 	if !strings.Contains(out, fmt.Sprintf("%s=%s", envKey, envVal)) {
@@ -6156,7 +6160,7 @@ func (s *DockerSuite) TestBuildCopyFromPreviousFromWindows(c *check.C) {
 func (s *DockerSuite) TestBuildCopyFromForbidWindowsSystemPaths(c *check.C) {
 	testRequires(c, DaemonIsWindows)
 	dockerfile := `
-		FROM ` + testEnv.MinimalBaseImage() + `		
+		FROM ` + testEnv.MinimalBaseImage() + `
 		FROM ` + testEnv.MinimalBaseImage() + `
 		COPY --from=0 %s c:\\oscopy
 		`
@@ -6173,7 +6177,7 @@ func (s *DockerSuite) TestBuildCopyFromForbidWindowsSystemPaths(c *check.C) {
 func (s *DockerSuite) TestBuildCopyFromForbidWindowsRelativePaths(c *check.C) {
 	testRequires(c, DaemonIsWindows)
 	dockerfile := `
-		FROM ` + testEnv.MinimalBaseImage() + `		
+		FROM ` + testEnv.MinimalBaseImage() + `
 		FROM ` + testEnv.MinimalBaseImage() + `
 		COPY --from=0 %s c:\\oscopy
 		`
@@ -6192,7 +6196,7 @@ func (s *DockerSuite) TestBuildCopyFromWindowsIsCaseInsensitive(c *check.C) {
 	testRequires(c, DaemonIsWindows)
 	dockerfile := `
 		FROM ` + testEnv.MinimalBaseImage() + `
-		COPY foo /	
+		COPY foo /
 		FROM ` + testEnv.MinimalBaseImage() + `
 		COPY --from=0 c:\\fOo c:\\copied
 		RUN type c:\\copied
