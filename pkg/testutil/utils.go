@@ -16,7 +16,6 @@ import (
 
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/pkg/system"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
 )
 
 // IsKilled process the specified error and returns whether the process was killed or not.
@@ -210,20 +209,6 @@ func (c *ChannelBuffer) ReadTimeout(p []byte, n time.Duration) (int, error) {
 	case <-time.After(n):
 		return -1, fmt.Errorf("timeout reading from channel")
 	}
-}
-
-// RunAtDifferentDate runs the specified function with the given time.
-// It changes the date of the system, which can led to weird behaviors.
-func RunAtDifferentDate(date time.Time, block func()) {
-	// Layout for date. MMDDhhmmYYYY
-	const timeLayout = "010203042006"
-	// Ensure we bring time back to now
-	now := time.Now().Format(timeLayout)
-	defer icmd.RunCommand("date", now)
-
-	icmd.RunCommand("date", date.Format(timeLayout))
-	block()
-	return
 }
 
 // ReadBody read the specified ReadCloser content and returns it
