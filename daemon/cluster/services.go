@@ -67,7 +67,7 @@ func (c *Cluster) GetServices(options apitypes.ServiceListOptions) ([]types.Serv
 		return nil, err
 	}
 
-	services := []types.Service{}
+	services := make([]types.Service, 0, len(r.Services))
 
 	for _, service := range r.Services {
 		if options.Filters.Include("mode") {
