@@ -42,8 +42,6 @@ func (b *Builder) commit(comment string) error {
 	if !b.hasFromImage() {
 		return errors.New("Please provide a source image with `from` prior to commit")
 	}
-	// TODO: why is this set here?
-	b.runConfig.Image = b.image
 
 	runConfigWithCommentCmd := copyRunConfig(b.runConfig, withCmdComment(comment))
 	hit, err := b.probeCache(b.image, runConfigWithCommentCmd)
@@ -99,10 +97,6 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalD
 
 	// Work in daemon-specific filepath semantics
 	dest := filepath.FromSlash(args[len(args)-1]) // last one is always the dest
-
-	// TODO: why is this done here. This seems to be done at random places all over
-	// the builder
-	b.runConfig.Image = b.image
 
 	var infos []copyInfo
 
@@ -542,12 +536,12 @@ func (b *Builder) processImageFrom(img builder.Image) error {
 // If an image is found, probeCache returns `(true, nil)`.
 // If no image is found, it returns `(false, nil)`.
 // If there is any error, it returns `(false, err)`.
-func (b *Builder) probeCache(imageID string, runConfig *container.Config) (bool, error) {
+func (b *Builder) probeCache(parentID string, runConfig *container.Config) (bool, error) {
 	c := b.imageCache
 	if c == nil || b.options.NoCache || b.cacheBusted {
 		return false, nil
 	}
-	cache, err := c.GetCache(imageID, runConfig)
+	cache, err := c.GetCache(parentID, runConfig)
 	if err != nil {
 		return false, err
 	}

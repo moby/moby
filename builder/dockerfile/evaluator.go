@@ -173,7 +173,14 @@ func (b *Builder) dispatch(stepN int, stepTotal int, node *parser.Node, shlex *S
 	// XXX yes, we skip any cmds that are not valid; the parser should have
 	// picked these out already.
 	if f, ok := evaluateTable[cmd]; ok {
-		return f(newDispatchRequestFromNode(node, b, strList, shlex))
+		if err := f(newDispatchRequestFromNode(node, b, strList, shlex)); err != nil {
+			return err
+		}
+		// TODO: return an object instead of setting things on builder
+		// If the step created a new image set it as the imageID for the
+		// current runConfig
+		b.runConfig.Image = b.image
+		return nil
 	}
 
 	return fmt.Errorf("Unknown instruction: %s", upperCasedCmd)
