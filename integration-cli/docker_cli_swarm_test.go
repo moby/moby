@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloudflare/cfssl/helpers"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/integration-cli/checker"
@@ -1221,10 +1222,6 @@ func (s *DockerSwarmSuite) TestSwarmJoinPromoteLocked(c *check.C) {
 		c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateActive)
 	}
 
-	// get d3's cert
-	d3cert, err := ioutil.ReadFile(filepath.Join(d3.Folder, "root", "swarm", "certificates", "swarm-node.crt"))
-	c.Assert(err, checker.IsNil)
-
 	// demote manager back to worker - workers are not locked
 	outs, err = d1.Cmd("node", "demote", d3.Info.NodeID)
 	c.Assert(err, checker.IsNil)
@@ -1237,12 +1234,16 @@ func (s *DockerSwarmSuite) TestSwarmJoinPromoteLocked(c *check.C) {
 	// is set to autolock)
 	waitAndAssert(c, defaultReconciliationTimeout, d3.CheckControlAvailable, checker.False)
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
-		cert, err := ioutil.ReadFile(filepath.Join(d3.Folder, "root", "swarm", "certificates", "swarm-node.crt"))
+		certBytes, err := ioutil.ReadFile(filepath.Join(d3.Folder, "root", "swarm", "certificates", "swarm-node.crt"))
 		if err != nil {
 			return "", check.Commentf("error: %v", err)
 		}
-		return string(cert), check.Commentf("cert: %v", string(cert))
-	}, checker.Not(checker.Equals), string(d3cert))
+		certs, err := helpers.ParseCertificatesPEM(certBytes)
+		if err == nil && len(certs) > 0 && len(certs[0].Subject.OrganizationalUnit) > 0 {
+			return certs[0].Subject.OrganizationalUnit[0], nil
+		}
+		return "", check.Commentf("could not get organizational unit from certificate")
+	}, checker.Equals, "swarm-worker")
 
 	// by now, it should *never* be locked on restart
 	d3.Restart(c)
@@ -1538,8 +1539,7 @@ func (s *DockerTrustedSwarmSuite) TestTrustedServiceCreate(c *check.C) {
 	repoName := s.trustSuite.setupTrustedImage(c, "trusted-pull")
 
 	name := "trusted"
-	serviceCmd := d.Command("-D", "service", "create", "--name", name, repoName, "top")
-	icmd.RunCmd(serviceCmd, trustedCmd).Assert(c, icmd.Expected{
+	cli.Docker(cli.Args("-D", "service", "create", "--name", name, repoName, "top"), trustedCmd, cli.Daemon(d.Daemon)).Assert(c, icmd.Expected{
 		Err: "resolved image tag to",
 	})
 
@@ -1551,13 +1551,12 @@ func (s *DockerTrustedSwarmSuite) TestTrustedServiceCreate(c *check.C) {
 
 	repoName = fmt.Sprintf("%v/untrustedservicecreate/createtest:latest", privateRegistryURL)
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
-	dockerCmd(c, "push", repoName)
-	dockerCmd(c, "rmi", repoName)
+	cli.DockerCmd(c, "tag", "busybox", repoName)
+	cli.DockerCmd(c, "push", repoName)
+	cli.DockerCmd(c, "rmi", repoName)
 
 	name = "untrusted"
-	serviceCmd = d.Command("service", "create", "--name", name, repoName, "top")
-	icmd.RunCmd(serviceCmd, trustedCmd).Assert(c, icmd.Expected{
+	cli.Docker(cli.Args("service", "create", "--name", name, repoName, "top"), trustedCmd, cli.Daemon(d.Daemon)).Assert(c, icmd.Expected{
 		ExitCode: 1,
 		Err:      "Error: remote trust data does not exist",
 	})
@@ -1575,34 +1574,31 @@ func (s *DockerTrustedSwarmSuite) TestTrustedServiceUpdate(c *check.C) {
 	name := "myservice"
 
 	// Create a service without content trust
-	_, err := d.Cmd("service", "create", "--name", name, repoName, "top")
-	c.Assert(err, checker.IsNil)
+	cli.Docker(cli.Args("service", "create", "--name", name, repoName, "top"), cli.Daemon(d.Daemon)).Assert(c, icmd.Success)
 
-	out, err := d.Cmd("service", "inspect", "--pretty", name)
-	c.Assert(err, checker.IsNil, check.Commentf(out))
+	result := cli.Docker(cli.Args("service", "inspect", "--pretty", name), cli.Daemon(d.Daemon))
+	c.Assert(result.Error, checker.IsNil, check.Commentf(result.Combined()))
 	// Daemon won't insert the digest because this is disabled by
 	// DOCKER_SERVICE_PREFER_OFFLINE_IMAGE.
-	c.Assert(out, check.Not(checker.Contains), repoName+"@", check.Commentf(out))
+	c.Assert(result.Combined(), check.Not(checker.Contains), repoName+"@", check.Commentf(result.Combined()))
 
-	serviceCmd := d.Command("-D", "service", "update", "--image", repoName, name)
-	icmd.RunCmd(serviceCmd, trustedCmd).Assert(c, icmd.Expected{
+	cli.Docker(cli.Args("-D", "service", "update", "--image", repoName, name), trustedCmd, cli.Daemon(d.Daemon)).Assert(c, icmd.Expected{
 		Err: "resolved image tag to",
 	})
 
-	out, err = d.Cmd("service", "inspect", "--pretty", name)
-	c.Assert(err, checker.IsNil, check.Commentf(out))
-	c.Assert(out, checker.Contains, repoName+"@", check.Commentf(out))
+	cli.Docker(cli.Args("service", "inspect", "--pretty", name), cli.Daemon(d.Daemon)).Assert(c, icmd.Expected{
+		Out: repoName + "@",
+	})
 
 	// Try trusted service update on an untrusted tag.
 
 	repoName = fmt.Sprintf("%v/untrustedservicecreate/createtest:latest", privateRegistryURL)
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
-	dockerCmd(c, "push", repoName)
-	dockerCmd(c, "rmi", repoName)
+	cli.DockerCmd(c, "tag", "busybox", repoName)
+	cli.DockerCmd(c, "push", repoName)
+	cli.DockerCmd(c, "rmi", repoName)
 
-	serviceCmd = d.Command("service", "update", "--image", repoName, name)
-	icmd.RunCmd(serviceCmd, trustedCmd).Assert(c, icmd.Expected{
+	cli.Docker(cli.Args("service", "update", "--image", repoName, name), trustedCmd, cli.Daemon(d.Daemon)).Assert(c, icmd.Expected{
 		ExitCode: 1,
 		Err:      "Error: remote trust data does not exist",
 	})

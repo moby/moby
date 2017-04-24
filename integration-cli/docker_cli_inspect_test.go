@@ -53,7 +53,7 @@ func (s *DockerSuite) TestInspectDefault(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectStatus(c *check.C) {
-	out, _ := runSleepingContainer(c, "-d")
+	out := runSleepingContainer(c, "-d")
 	out = strings.TrimSpace(out)
 
 	inspectOut := inspectField(c, out, "State.Status")

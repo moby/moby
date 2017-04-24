@@ -452,7 +452,7 @@ func (s *DockerSuite) TestEventsCommit(c *check.C) {
 	// Problematic on Windows as cannot commit a running container
 	testRequires(c, DaemonIsLinux)
 
-	out, _ := runSleepingContainer(c)
+	out := runSleepingContainer(c)
 	cID := strings.TrimSpace(out)
 	cli.WaitRun(c, cID)
 
@@ -495,7 +495,7 @@ func (s *DockerSuite) TestEventsCopy(c *check.C) {
 }
 
 func (s *DockerSuite) TestEventsResize(c *check.C) {
-	out, _ := runSleepingContainer(c, "-d")
+	out := runSleepingContainer(c, "-d")
 	cID := strings.TrimSpace(out)
 	c.Assert(waitRun(cID), checker.IsNil)
 
@@ -561,7 +561,7 @@ func (s *DockerSuite) TestEventsTop(c *check.C) {
 	// Problematic on Windows as Windows does not support top
 	testRequires(c, DaemonIsLinux)
 
-	out, _ := runSleepingContainer(c, "-d")
+	out := runSleepingContainer(c, "-d")
 	cID := strings.TrimSpace(out)
 	c.Assert(waitRun(cID), checker.IsNil)
 

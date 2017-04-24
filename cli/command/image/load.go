@@ -19,7 +19,7 @@ type loadOptions struct {
 }
 
 // NewLoadCommand creates a new `docker load` command
-func NewLoadCommand(dockerCli *command.DockerCli) *cobra.Command {
+func NewLoadCommand(dockerCli command.Cli) *cobra.Command {
 	var opts loadOptions
 
 	cmd := &cobra.Command{
@@ -39,7 +39,7 @@ func NewLoadCommand(dockerCli *command.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func runLoad(dockerCli *command.DockerCli, opts loadOptions) error {
+func runLoad(dockerCli command.Cli, opts loadOptions) error {
 
 	var input io.Reader = dockerCli.In()
 	if opts.input != "" {

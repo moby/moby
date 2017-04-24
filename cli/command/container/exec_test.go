@@ -13,21 +13,21 @@ type arguments struct {
 
 func TestParseExec(t *testing.T) {
 	valids := map[*arguments]*types.ExecConfig{
-		&arguments{
+		{
 			execCmd: []string{"command"},
 		}: {
 			Cmd:          []string{"command"},
 			AttachStdout: true,
 			AttachStderr: true,
 		},
-		&arguments{
+		{
 			execCmd: []string{"command1", "command2"},
 		}: {
 			Cmd:          []string{"command1", "command2"},
 			AttachStdout: true,
 			AttachStderr: true,
 		},
-		&arguments{
+		{
 			options: execOptions{
 				interactive: true,
 				tty:         true,
@@ -42,7 +42,7 @@ func TestParseExec(t *testing.T) {
 			Tty:          true,
 			Cmd:          []string{"command"},
 		},
-		&arguments{
+		{
 			options: execOptions{
 				detach: true,
 			},
@@ -54,7 +54,7 @@ func TestParseExec(t *testing.T) {
 			Detach:       true,
 			Cmd:          []string{"command"},
 		},
-		&arguments{
+		{
 			options: execOptions{
 				tty:         true,
 				interactive: true,

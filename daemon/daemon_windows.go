@@ -146,6 +146,17 @@ func verifyContainerResources(resources *containertypes.Resources, isHyperv bool
 		return warnings, fmt.Errorf("range of CPUs is from 0.01 to %d.00, as there are only %d CPUs available", sysinfo.NumCPU(), sysinfo.NumCPU())
 	}
 
+	osv := system.GetOSVersion()
+	if resources.NanoCPUs > 0 && isHyperv && osv.Build < 16175 {
+		leftoverNanoCPUs := resources.NanoCPUs % 1e9
+		if leftoverNanoCPUs != 0 && resources.NanoCPUs > 1e9 {
+			resources.NanoCPUs = ((resources.NanoCPUs + 1e9/2) / 1e9) * 1e9
+			warningString := fmt.Sprintf("Your current OS version does not support Hyper-V containers with NanoCPUs greater than 1000000000 but not divisible by 1000000000. NanoCPUs rounded to %d", resources.NanoCPUs)
+			warnings = append(warnings, warningString)
+			logrus.Warn(warningString)
+		}
+	}
+
 	if len(resources.BlkioDeviceReadBps) > 0 {
 		return warnings, fmt.Errorf("invalid option: Windows does not support BlkioDeviceReadBps")
 	}

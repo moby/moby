@@ -21,6 +21,7 @@ import (
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/integration-cli/cli/build/fakecontext"
+	"github.com/docker/docker/integration-cli/cli/build/fakegit"
 	"github.com/docker/docker/integration-cli/cli/build/fakestorage"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/stringutils"
@@ -3022,7 +3023,7 @@ func (s *DockerSuite) TestBuildAddTarXzGz(c *check.C) {
 
 func (s *DockerSuite) TestBuildFromGit(c *check.C) {
 	name := "testbuildfromgit"
-	git := newFakeGit(c, "repo", map[string]string{
+	git := fakegit.New(c, "repo", map[string]string{
 		"Dockerfile": `FROM busybox
 		ADD first /first
 		RUN [ -f /first ]
@@ -3041,7 +3042,7 @@ func (s *DockerSuite) TestBuildFromGit(c *check.C) {
 
 func (s *DockerSuite) TestBuildFromGitWithContext(c *check.C) {
 	name := "testbuildfromgit"
-	git := newFakeGit(c, "repo", map[string]string{
+	git := fakegit.New(c, "repo", map[string]string{
 		"docker/Dockerfile": `FROM busybox
 					ADD first /first
 					RUN [ -f /first ]
@@ -3060,7 +3061,7 @@ func (s *DockerSuite) TestBuildFromGitWithContext(c *check.C) {
 
 func (s *DockerSuite) TestBuildFromGitwithF(c *check.C) {
 	name := "testbuildfromgitwithf"
-	git := newFakeGit(c, "repo", map[string]string{
+	git := fakegit.New(c, "repo", map[string]string{
 		"myApp/myDockerfile": `FROM busybox
 					RUN echo hi from Dockerfile`,
 	}, true)
@@ -3425,7 +3426,7 @@ func (s *DockerSuite) TestBuildNotVerboseSuccess(c *check.C) {
 		{
 			Name: "quiet_build_git_success",
 			BuildFunc: func(name string) *icmd.Result {
-				git := newFakeGit(c, "repo", map[string]string{
+				git := fakegit.New(c, "repo", map[string]string{
 					"Dockerfile": "FROM busybox",
 				}, true)
 				return buildImage(name, buildFlags, build.WithContextPath(git.RepoURL))
@@ -4199,21 +4200,20 @@ func (s *DockerTrustSuite) TestTrustedBuildTagFromReleasesRole(c *check.C) {
 
 	// push a different tag to the releases role
 	otherTag := fmt.Sprintf("%s:other", repoName)
-	dockerCmd(c, "tag", "busybox", otherTag)
+	cli.DockerCmd(c, "tag", "busybox", otherTag)
 
-	icmd.RunCmd(icmd.Command(dockerBinary, "push", otherTag), trustedCmd).Assert(c, icmd.Success)
+	cli.Docker(cli.Args("push", otherTag), trustedCmd).Assert(c, icmd.Success)
 	s.assertTargetInRoles(c, repoName, "other", "targets/releases")
 	s.assertTargetNotInRoles(c, repoName, "other", "targets")
 
-	out, status := dockerCmd(c, "rmi", otherTag)
-	c.Assert(status, check.Equals, 0, check.Commentf("docker rmi failed: %s", out))
+	cli.DockerCmd(c, "rmi", otherTag)
 
 	dockerFile := fmt.Sprintf(`
   FROM %s
   RUN []
     `, otherTag)
 	name := "testtrustedbuildreleasesrole"
-	buildImage(name, trustedBuild, build.WithDockerfile(dockerFile)).Assert(c, icmd.Expected{
+	cli.BuildCmd(c, name, trustedCmd, build.WithDockerfile(dockerFile)).Assert(c, icmd.Expected{
 		Out: fmt.Sprintf("FROM %s@sha", repoName),
 	})
 }
@@ -4231,14 +4231,13 @@ func (s *DockerTrustSuite) TestTrustedBuildTagIgnoresOtherDelegationRoles(c *che
 
 	// push a different tag to the other role
 	otherTag := fmt.Sprintf("%s:other", repoName)
-	dockerCmd(c, "tag", "busybox", otherTag)
+	cli.DockerCmd(c, "tag", "busybox", otherTag)
 
-	icmd.RunCmd(icmd.Command(dockerBinary, "push", otherTag), trustedCmd).Assert(c, icmd.Success)
+	cli.Docker(cli.Args("push", otherTag), trustedCmd).Assert(c, icmd.Success)
 	s.assertTargetInRoles(c, repoName, "other", "targets/other")
 	s.assertTargetNotInRoles(c, repoName, "other", "targets")
 
-	out, status := dockerCmd(c, "rmi", otherTag)
-	c.Assert(status, check.Equals, 0, check.Commentf("docker rmi failed: %s", out))
+	cli.DockerCmd(c, "rmi", otherTag)
 
 	dockerFile := fmt.Sprintf(`
   FROM %s
@@ -4246,7 +4245,7 @@ func (s *DockerTrustSuite) TestTrustedBuildTagIgnoresOtherDelegationRoles(c *che
     `, otherTag)
 
 	name := "testtrustedbuildotherrole"
-	buildImage(name, trustedBuild, build.WithDockerfile(dockerFile)).Assert(c, icmd.Expected{
+	cli.Docker(cli.Build(name), trustedCmd, build.WithDockerfile(dockerFile)).Assert(c, icmd.Expected{
 		ExitCode: 1,
 	})
 }

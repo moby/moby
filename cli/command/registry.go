@@ -21,7 +21,7 @@ import (
 )
 
 // ElectAuthServer returns the default registry to use (by asking the daemon)
-func ElectAuthServer(ctx context.Context, cli *DockerCli) string {
+func ElectAuthServer(ctx context.Context, cli Cli) string {
 	// The daemon `/info` endpoint informs us of the default registry being
 	// used. This is essential in cross-platforms environment, where for
 	// example a Linux client might be interacting with a Windows daemon, hence
@@ -46,7 +46,7 @@ func EncodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
 
 // RegistryAuthenticationPrivilegedFunc returns a RequestPrivilegeFunc from the specified registry index info
 // for the given command.
-func RegistryAuthenticationPrivilegedFunc(cli *DockerCli, index *registrytypes.IndexInfo, cmdName string) types.RequestPrivilegeFunc {
+func RegistryAuthenticationPrivilegedFunc(cli Cli, index *registrytypes.IndexInfo, cmdName string) types.RequestPrivilegeFunc {
 	return func() (string, error) {
 		fmt.Fprintf(cli.Out(), "\nPlease login prior to %s:\n", cmdName)
 		indexServer := registry.GetAuthConfigKey(index)
@@ -62,7 +62,7 @@ func RegistryAuthenticationPrivilegedFunc(cli *DockerCli, index *registrytypes.I
 // ResolveAuthConfig is like registry.ResolveAuthConfig, but if using the
 // default index, it uses the default index name for the daemon's platform,
 // not the client's platform.
-func ResolveAuthConfig(ctx context.Context, cli *DockerCli, index *registrytypes.IndexInfo) types.AuthConfig {
+func ResolveAuthConfig(ctx context.Context, cli Cli, index *registrytypes.IndexInfo) types.AuthConfig {
 	configKey := index.Name
 	if index.Official {
 		configKey = ElectAuthServer(ctx, cli)
@@ -73,10 +73,10 @@ func ResolveAuthConfig(ctx context.Context, cli *DockerCli, index *registrytypes
 }
 
 // ConfigureAuth returns an AuthConfig from the specified user, password and server.
-func ConfigureAuth(cli *DockerCli, flUser, flPassword, serverAddress string, isDefaultRegistry bool) (types.AuthConfig, error) {
+func ConfigureAuth(cli Cli, flUser, flPassword, serverAddress string, isDefaultRegistry bool) (types.AuthConfig, error) {
 	// On Windows, force the use of the regular OS stdin stream. Fixes #14336/#14210
 	if runtime.GOOS == "windows" {
-		cli.in = NewInStream(os.Stdin)
+		cli.SetIn(NewInStream(os.Stdin))
 	}
 
 	if !isDefaultRegistry {
@@ -160,7 +160,7 @@ func promptWithDefault(out io.Writer, prompt string, configDefault string) {
 }
 
 // RetrieveAuthTokenFromImage retrieves an encoded auth token given a complete image
-func RetrieveAuthTokenFromImage(ctx context.Context, cli *DockerCli, image string) (string, error) {
+func RetrieveAuthTokenFromImage(ctx context.Context, cli Cli, image string) (string, error) {
 	// Retrieve encoded auth token from the image reference
 	authConfig, err := resolveAuthConfigFromImage(ctx, cli, image)
 	if err != nil {
@@ -174,7 +174,7 @@ func RetrieveAuthTokenFromImage(ctx context.Context, cli *DockerCli, image strin
 }
 
 // resolveAuthConfigFromImage retrieves that AuthConfig using the image string
-func resolveAuthConfigFromImage(ctx context.Context, cli *DockerCli, image string) (types.AuthConfig, error) {
+func resolveAuthConfigFromImage(ctx context.Context, cli Cli, image string) (types.AuthConfig, error) {
 	registryRef, err := reference.ParseNormalizedNamed(image)
 	if err != nil {
 		return types.AuthConfig{}, err

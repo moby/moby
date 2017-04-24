@@ -37,7 +37,7 @@ func (c *Cluster) getNetworks(filters *swarmapi.ListNetworksRequest_Filters) ([]
 		return nil, err
 	}
 
-	var networks []apitypes.NetworkResource
+	networks := make([]apitypes.NetworkResource, 0, len(r.Networks))
 
 	for _, network := range r.Networks {
 		networks = append(networks, convert.BasicNetworkFromGRPC(*network))

@@ -427,6 +427,9 @@ func (d *Driver) Cleanup() error {
 
 	items, err := ioutil.ReadDir(d.info.HomeDir)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
 		return err
 	}
 

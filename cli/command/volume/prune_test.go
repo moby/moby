@@ -10,6 +10,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/internal/test"
 	"github.com/docker/docker/pkg/testutil"
 	"github.com/docker/docker/pkg/testutil/golden"
@@ -91,7 +92,7 @@ func TestVolumePrunePromptYes(t *testing.T) {
 			volumePruneFunc: simplePruneFunc,
 		}, buf)
 
-		cli.SetIn(ioutil.NopCloser(strings.NewReader(input)))
+		cli.SetIn(command.NewInStream(ioutil.NopCloser(strings.NewReader(input))))
 		cmd := NewPruneCommand(
 			cli,
 		)
@@ -113,7 +114,7 @@ func TestVolumePrunePromptNo(t *testing.T) {
 			volumePruneFunc: simplePruneFunc,
 		}, buf)
 
-		cli.SetIn(ioutil.NopCloser(strings.NewReader(input)))
+		cli.SetIn(command.NewInStream(ioutil.NopCloser(strings.NewReader(input))))
 		cmd := NewPruneCommand(
 			cli,
 		)

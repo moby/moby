@@ -48,7 +48,7 @@ func (c *Cluster) GetSecrets(options apitypes.SecretListOptions) ([]types.Secret
 		return nil, err
 	}
 
-	secrets := []types.Secret{}
+	secrets := make([]types.Secret, 0, len(r.Secrets))
 
 	for _, secret := range r.Secrets {
 		secrets = append(secrets, convert.SecretFromGRPC(secret))

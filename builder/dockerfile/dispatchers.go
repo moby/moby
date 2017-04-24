@@ -176,61 +176,26 @@ func dispatchCopy(b *Builder, args []string, attributes map[string]bool, origina
 	return b.runContextCommand(args, false, false, "COPY", im)
 }
 
-// FROM imagename
+// FROM imagename[:tag | @digest] [AS build-stage-name]
 //
-// This sets the image the dockerfile will build on top of.
-//
+// from sets the base image
 func from(b *Builder, args []string, attributes map[string]bool, original string) error {
-	ctxName := ""
-	if len(args) == 3 && strings.EqualFold(args[1], "as") {
-		ctxName = strings.ToLower(args[2])
-		if ok, _ := regexp.MatchString("^[a-z][a-z0-9-_\\.]*$", ctxName); !ok {
-			return errors.Errorf("invalid name for build stage: %q, name can't start with a number or contain symbols", ctxName)
-		}
-	} else if len(args) != 1 {
-		return errors.New("FROM requires either one or three arguments")
+	ctxName, err := parseBuildStageName(args)
+	if err != nil {
+		return err
 	}
 
 	if err := b.flags.Parse(); err != nil {
 		return err
 	}
-
-	substituionArgs := []string{}
-	for key, value := range b.buildArgs.GetAllMeta() {
-		substituionArgs = append(substituionArgs, key+"="+value)
+	b.resetImageCache()
+	if _, err := b.imageContexts.add(ctxName); err != nil {
+		return err
 	}
 
-	name, err := ProcessWord(args[0], substituionArgs, b.escapeToken)
+	image, err := b.getFromImage(args[0])
 	if err != nil {
 		return err
-	}
-
-	var image builder.Image
-
-	b.resetImageCache()
-	if _, err := b.imageContexts.new(ctxName, true); err != nil {
-		return err
-	}
-
-	if im, ok := b.imageContexts.byName[name]; ok {
-		if len(im.ImageID()) > 0 {
-			image = im
-		}
-	} else {
-		// Windows cannot support a container with no base image.
-		if name == api.NoBaseImageSpecifier {
-			if runtime.GOOS == "windows" {
-				return errors.New("Windows does not support FROM scratch")
-			}
-			b.image = ""
-			b.noBaseImage = true
-		} else {
-			var err error
-			image, err = pullOrGetImage(b, name)
-			if err != nil {
-				return err
-			}
-		}
 	}
 	if image != nil {
 		b.imageContexts.update(image.ImageID(), image.RunConfig())
@@ -239,6 +204,52 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 
 	b.buildArgs.ResetAllowed()
 	return b.processImageFrom(image)
+}
+
+func parseBuildStageName(args []string) (string, error) {
+	stageName := ""
+	switch {
+	case len(args) == 3 && strings.EqualFold(args[1], "as"):
+		stageName = strings.ToLower(args[2])
+		if ok, _ := regexp.MatchString("^[a-z][a-z0-9-_\\.]*$", stageName); !ok {
+			return "", errors.Errorf("invalid name for build stage: %q, name can't start with a number or contain symbols", stageName)
+		}
+	case len(args) != 1:
+		return "", errors.New("FROM requires either one or three arguments")
+	}
+
+	return stageName, nil
+}
+
+func (b *Builder) getFromImage(name string) (builder.Image, error) {
+	substitutionArgs := []string{}
+	for key, value := range b.buildArgs.GetAllMeta() {
+		substitutionArgs = append(substitutionArgs, key+"="+value)
+	}
+
+	name, err := ProcessWord(name, substitutionArgs, b.escapeToken)
+	if err != nil {
+		return nil, err
+	}
+
+	if im, ok := b.imageContexts.byName[name]; ok {
+		if len(im.ImageID()) > 0 {
+			return im, nil
+		}
+		// FROM scratch does not have an ImageID
+		return nil, nil
+	}
+
+	// Windows cannot support a container with no base image.
+	if name == api.NoBaseImageSpecifier {
+		if runtime.GOOS == "windows" {
+			return nil, errors.New("Windows does not support FROM scratch")
+		}
+		b.image = ""
+		b.noBaseImage = true
+		return nil, nil
+	}
+	return pullOrGetImage(b, name)
 }
 
 // ONBUILD RUN echo yo
@@ -835,11 +846,7 @@ func mountByRef(b *Builder, name string) (*imageMount, error) {
 	if err != nil {
 		return nil, err
 	}
-	im, err := b.imageContexts.new("", false)
-	if err != nil {
-		return nil, err
-	}
-	im.id = image.ImageID()
+	im := b.imageContexts.newImageMount(image.ImageID())
 	return im, nil
 }
 

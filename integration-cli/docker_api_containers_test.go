@@ -212,7 +212,7 @@ func (s *DockerSuite) TestGetContainerStats(c *check.C) {
 }
 
 func (s *DockerSuite) TestGetContainerStatsRmRunning(c *check.C) {
-	out, _ := runSleepingContainer(c)
+	out := runSleepingContainer(c)
 	id := strings.TrimSpace(out)
 
 	buf := &testutil.ChannelBuffer{C: make(chan []byte, 1)}
@@ -401,7 +401,7 @@ func (s *DockerSuite) TestContainerAPITop(c *check.C) {
 
 func (s *DockerSuite) TestContainerAPITopWindows(c *check.C) {
 	testRequires(c, DaemonIsWindows)
-	out, _ := runSleepingContainer(c, "-d")
+	out := runSleepingContainer(c, "-d")
 	id := strings.TrimSpace(string(out))
 	c.Assert(waitRun(id), checker.IsNil)
 
@@ -892,7 +892,7 @@ func (s *DockerSuite) TestContainerAPIRestart(c *check.C) {
 
 func (s *DockerSuite) TestContainerAPIRestartNotimeoutParam(c *check.C) {
 	name := "test-api-restart-no-timeout-param"
-	out, _ := runSleepingContainer(c, "-di", "--name", name)
+	out := runSleepingContainer(c, "-di", "--name", name)
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), checker.IsNil)
 
@@ -1047,7 +1047,7 @@ func (s *DockerSuite) TestContainerAPICopyContainerNotFoundPr124(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerAPIDelete(c *check.C) {
-	out, _ := runSleepingContainer(c)
+	out := runSleepingContainer(c)
 
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), checker.IsNil)
@@ -1067,7 +1067,7 @@ func (s *DockerSuite) TestContainerAPIDeleteNotExist(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerAPIDeleteForce(c *check.C) {
-	out, _ := runSleepingContainer(c)
+	out := runSleepingContainer(c)
 
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), checker.IsNil)
@@ -1102,7 +1102,7 @@ func (s *DockerSuite) TestContainerAPIDeleteRemoveLinks(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerAPIDeleteConflict(c *check.C) {
-	out, _ := runSleepingContainer(c)
+	out := runSleepingContainer(c)
 
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), checker.IsNil)
@@ -1120,7 +1120,7 @@ func (s *DockerSuite) TestContainerAPIDeleteRemoveVolume(c *check.C) {
 		vol = `c:\testvolume`
 	}
 
-	out, _ := runSleepingContainer(c, "-v", vol)
+	out := runSleepingContainer(c, "-v", vol)
 
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), checker.IsNil)
@@ -1158,7 +1158,7 @@ func (s *DockerSuite) TestContainerAPIChunkedEncoding(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerAPIPostContainerStop(c *check.C) {
-	out, _ := runSleepingContainer(c)
+	out := runSleepingContainer(c)
 
 	containerID := strings.TrimSpace(out)
 	c.Assert(waitRun(containerID), checker.IsNil)

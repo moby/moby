@@ -85,7 +85,7 @@ func (s *DockerSuite) TestRmiImgIDMultipleTag(c *check.C) {
 	imgID := inspectField(c, "busybox-one:tag1", "Id")
 
 	// run a container with the image
-	out, _ = runSleepingContainerInImage(c, "busybox-one")
+	out = runSleepingContainerInImage(c, "busybox-one")
 	containerID = strings.TrimSpace(out)
 
 	// first checkout without force it fails
