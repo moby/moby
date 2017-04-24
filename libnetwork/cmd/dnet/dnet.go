@@ -312,6 +312,10 @@ func (d *dnetConnection) GetAdvertiseAddress() string {
 	return d.Orchestration.Bind
 }
 
+func (d *dnetConnection) GetDataPathAddress() string {
+	return d.Orchestration.Bind
+}
+
 func (d *dnetConnection) GetLocalAddress() string {
 	return d.Orchestration.Bind
 }
