@@ -19,7 +19,7 @@ type historyOptions struct {
 }
 
 // NewHistoryCommand creates a new `docker history` command
-func NewHistoryCommand(dockerCli *command.DockerCli) *cobra.Command {
+func NewHistoryCommand(dockerCli command.Cli) *cobra.Command {
 	var opts historyOptions
 
 	cmd := &cobra.Command{
@@ -42,7 +42,7 @@ func NewHistoryCommand(dockerCli *command.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func runHistory(dockerCli *command.DockerCli, opts historyOptions) error {
+func runHistory(dockerCli command.Cli, opts historyOptions) error {
 	ctx := context.Background()
 
 	history, err := dockerCli.Client().ImageHistory(ctx, opts.image)

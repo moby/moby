@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/config/configfile"
+	"github.com/docker/docker/cli/config/credentials"
 	"github.com/docker/docker/client"
 )
 
@@ -15,23 +16,24 @@ type FakeCli struct {
 	command.DockerCli
 	client     client.APIClient
 	configfile *configfile.ConfigFile
-	out        io.Writer
+	out        *command.OutStream
 	err        io.Writer
-	in         io.ReadCloser
+	in         *command.InStream
+	store      credentials.Store
 }
 
 // NewFakeCli returns a Cli backed by the fakeCli
 func NewFakeCli(client client.APIClient, out io.Writer) *FakeCli {
 	return &FakeCli{
 		client: client,
-		out:    out,
+		out:    command.NewOutStream(out),
 		err:    ioutil.Discard,
-		in:     ioutil.NopCloser(strings.NewReader("")),
+		in:     command.NewInStream(ioutil.NopCloser(strings.NewReader(""))),
 	}
 }
 
 // SetIn sets the input of the cli to the specified ReadCloser
-func (c *FakeCli) SetIn(in io.ReadCloser) {
+func (c *FakeCli) SetIn(in *command.InStream) {
 	c.in = in
 }
 
@@ -52,7 +54,7 @@ func (c *FakeCli) Client() client.APIClient {
 
 // Out returns the output stream (stdout) the cli should write on
 func (c *FakeCli) Out() *command.OutStream {
-	return command.NewOutStream(c.out)
+	return c.out
 }
 
 // Err returns the output stream (stderr) the cli should write on
@@ -62,10 +64,18 @@ func (c *FakeCli) Err() io.Writer {
 
 // In returns the input stream the cli will use
 func (c *FakeCli) In() *command.InStream {
-	return command.NewInStream(c.in)
+	return c.in
 }
 
 // ConfigFile returns the cli configfile object (to get client configuration)
 func (c *FakeCli) ConfigFile() *configfile.ConfigFile {
 	return c.configfile
+}
+
+// CredentialsStore returns the fake store the cli will use
+func (c *FakeCli) CredentialsStore(serverAddress string) credentials.Store {
+	if c.store == nil {
+		c.store = NewFakeStore()
+	}
+	return c.store
 }
