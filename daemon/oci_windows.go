@@ -81,10 +81,19 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	// @darrenstahlmsft implement these resources
 	cpuShares := uint16(c.HostConfig.CPUShares)
 	cpuPercent := uint8(c.HostConfig.CPUPercent)
-	if c.HostConfig.NanoCPUs > 0 {
-		cpuPercent = uint8(c.HostConfig.NanoCPUs * 100 / int64(sysinfo.NumCPU()) / 1e9)
-	}
 	cpuCount := uint64(c.HostConfig.CPUCount)
+	if c.HostConfig.NanoCPUs > 0 {
+		if isHyperV {
+			cpuCount = uint64(c.HostConfig.NanoCPUs / 1e9)
+			leftoverNanoCPUs := c.HostConfig.NanoCPUs % 1e9
+			if leftoverNanoCPUs != 0 {
+				cpuCount++
+				cpuPercent = uint8(c.HostConfig.NanoCPUs * 100 / int64(cpuCount) / 1e9)
+			}
+		} else {
+			cpuPercent = uint8(c.HostConfig.NanoCPUs * 100 / int64(sysinfo.NumCPU()) / 1e9)
+		}
+	}
 	memoryLimit := uint64(c.HostConfig.Memory)
 	s.Windows.Resources = &specs.WindowsResources{
 		CPU: &specs.WindowsCPUResources{
