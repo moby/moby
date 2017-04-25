@@ -9,9 +9,7 @@ import (
 
 func TestContainerStopSignal(t *testing.T) {
 	c := &Container{
-		CommonContainer: CommonContainer{
-			Config: &container.Config{},
-		},
+		Config: &container.Config{},
 	}
 
 	def, err := signal.ParseSignal(signal.DefaultStopSignal)
@@ -25,9 +23,7 @@ func TestContainerStopSignal(t *testing.T) {
 	}
 
 	c = &Container{
-		CommonContainer: CommonContainer{
-			Config: &container.Config{StopSignal: "SIGKILL"},
-		},
+		Config: &container.Config{StopSignal: "SIGKILL"},
 	}
 	s = c.StopSignal()
 	if s != 9 {
@@ -37,9 +33,7 @@ func TestContainerStopSignal(t *testing.T) {
 
 func TestContainerStopTimeout(t *testing.T) {
 	c := &Container{
-		CommonContainer: CommonContainer{
-			Config: &container.Config{},
-		},
+		Config: &container.Config{},
 	}
 
 	s := c.StopTimeout()
@@ -49,9 +43,7 @@ func TestContainerStopTimeout(t *testing.T) {
 
 	stopTimeout := 15
 	c = &Container{
-		CommonContainer: CommonContainer{
-			Config: &container.Config{StopTimeout: &stopTimeout},
-		},
+		Config: &container.Config{StopTimeout: &stopTimeout},
 	}
 	s = c.StopSignal()
 	if s != 15 {

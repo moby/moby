@@ -25,21 +25,6 @@ const (
 	containerSecretMountPath = "/run/secrets"
 )
 
-// Container holds the fields specific to unixen implementations.
-// See CommonContainer for standard fields common to all containers.
-type Container struct {
-	CommonContainer
-
-	// Fields below here are platform specific.
-	AppArmorProfile string
-	HostnamePath    string
-	HostsPath       string
-	ShmPath         string
-	ResolvConfPath  string
-	SeccompProfile  string
-	NoNewPrivileges bool
-}
-
 // ExitStatus provides exit reasons for a container.
 type ExitStatus struct {
 	// The exit code with which the container exited.

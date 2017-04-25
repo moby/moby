@@ -38,14 +38,12 @@ func TestHealthStates(t *testing.T) {
 	}
 
 	c := &container.Container{
-		CommonContainer: container.CommonContainer{
-			ID:   "id",
-			Name: "name",
-			Config: &containertypes.Config{
-				Image: "image_name",
-				Labels: map[string]string{
-					"com.docker.swarm.task.id": "id",
-				},
+		ID:   "id",
+		Name: "name",
+		Config: &containertypes.Config{
+			Image: "image_name",
+			Labels: map[string]string{
+				"com.docker.swarm.task.id": "id",
 			},
 		},
 	}

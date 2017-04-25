@@ -58,9 +58,8 @@ var (
 	errInvalidNetwork  = fmt.Errorf("invalid network settings while building port map info")
 )
 
-// CommonContainer holds the fields for a container which are
-// applicable across all platforms supported by the daemon.
-type CommonContainer struct {
+// Container holds the structure defining a container object.
+type Container struct {
 	StreamConfig *stream.Config
 	// embed for Container to support states directly.
 	*State          `json:"State"` // Needed for Engine API version <= 1.11
@@ -94,21 +93,31 @@ type CommonContainer struct {
 	LogCopier      *logger.Copier `json:"-"`
 	restartManager restartmanager.RestartManager
 	attachContext  *attachContext
+
+	// Fields here are specific to Unix platforms
+	AppArmorProfile string
+	HostnamePath    string
+	HostsPath       string
+	ShmPath         string
+	ResolvConfPath  string
+	SeccompProfile  string
+	NoNewPrivileges bool
+
+	// Fields here are specific to Windows
+	NetworkSharedContainerID string
 }
 
 // NewBaseContainer creates a new container with its
 // basic configuration.
 func NewBaseContainer(id, root string) *Container {
 	return &Container{
-		CommonContainer: CommonContainer{
-			ID:            id,
-			State:         NewState(),
-			ExecCommands:  exec.NewStore(),
-			Root:          root,
-			MountPoints:   make(map[string]*volume.MountPoint),
-			StreamConfig:  stream.NewConfig(),
-			attachContext: &attachContext{},
-		},
+		ID:            id,
+		State:         NewState(),
+		ExecCommands:  exec.NewStore(),
+		Root:          root,
+		MountPoints:   make(map[string]*volume.MountPoint),
+		StreamConfig:  stream.NewConfig(),
+		attachContext: &attachContext{},
 	}
 }
 

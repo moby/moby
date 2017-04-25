@@ -19,17 +19,15 @@ func reset(c *container.Container) {
 
 func TestNoneHealthcheck(t *testing.T) {
 	c := &container.Container{
-		CommonContainer: container.CommonContainer{
-			ID:   "container_id",
-			Name: "container_name",
-			Config: &containertypes.Config{
-				Image: "image_name",
-				Healthcheck: &containertypes.HealthConfig{
-					Test: []string{"NONE"},
-				},
+		ID:   "container_id",
+		Name: "container_name",
+		Config: &containertypes.Config{
+			Image: "image_name",
+			Healthcheck: &containertypes.HealthConfig{
+				Test: []string{"NONE"},
 			},
-			State: &container.State{},
 		},
+		State: &container.State{},
 	}
 	daemon := &Daemon{}
 
@@ -58,12 +56,10 @@ func TestHealthStates(t *testing.T) {
 	}
 
 	c := &container.Container{
-		CommonContainer: container.CommonContainer{
-			ID:   "container_id",
-			Name: "container_name",
-			Config: &containertypes.Config{
-				Image: "image_name",
-			},
+		ID:   "container_id",
+		Name: "container_name",
+		Config: &containertypes.Config{
+			Image: "image_name",
 		},
 	}
 	daemon := &Daemon{
