@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -26,6 +27,8 @@ import (
 // Most operations against docker's API are done through the container name,
 // which is unique to the task.
 type controller struct {
+	// mutex guards the task object
+	taskMu  sync.RWMutex
 	task    *api.Task
 	adapter *containerAdapter
 	closed  chan struct{}
@@ -52,8 +55,13 @@ func newController(b executorpkg.Backend, task *api.Task, secrets exec.SecretGet
 	}, nil
 }
 
+// Task returns the controller's task.
 func (r *controller) Task() (*api.Task, error) {
-	return r.task, nil
+	// concurrency safe
+	r.taskMu.RLock()
+	defer r.taskMu.RUnlock()
+	// Copy the task, so it's actually concurrency safe
+	return r.task.Copy(), nil
 }
 
 // ContainerStatus returns the container-specific status for the task.
@@ -86,6 +94,11 @@ func (r *controller) Update(ctx context.Context, t *api.Task) error {
 	// TODO(stevvooe): While assignment of tasks is idempotent, we do allow
 	// updates of metadata, such as labelling, as well as any other properties
 	// that make sense.
+
+	// concurrency safe
+	r.taskMu.Lock()
+	defer r.taskMu.Unlock()
+	r.task = t
 	return nil
 }
 
@@ -403,8 +416,22 @@ func (r *controller) waitReady(pctx context.Context) error {
 
 	ctnr, err := r.adapter.inspect(ctx)
 	if err != nil {
+		// if we have unknown container, it might just not be started yet and
+		// we should probably wait for it to come online, so pass it
+		//
+		// If we're RUNNING or greater and we get UnknownContainer, it probably
+		// means the container has been deleted from docker. This is an actual
+		// real error and we should return it as such
 		if !isUnknownContainer(err) {
 			return errors.Wrap(err, "inspect container failed")
+		}
+		// access task object through r.Task(), which is concurrency-safe
+		t, tErr := r.Task()
+		if tErr != nil {
+			return errors.Wrap(tErr, "error getting controller task")
+		}
+		if t.Status.State >= api.TaskStateRunning {
+			return errors.Wrap(err, "could not get container, probably deleted")
 		}
 	} else {
 		switch ctnr.State.Status {
@@ -448,14 +475,19 @@ func (r *controller) Logs(ctx context.Context, publisher exec.LogPublisher, opti
 		return errors.Wrap(err, "failed getting container logs")
 	}
 
+	// use r.Task which is concurrency safe
+	task, err := r.Task()
+	if err != nil {
+		return errors.Wrap(err, "error getting controller task")
+	}
 	var (
 		// use a rate limiter to keep things under control but also provides some
 		// ability coalesce messages.
 		limiter = rate.NewLimiter(rate.Every(time.Second), 10<<20) // 10 MB/s
 		msgctx  = api.LogContext{
-			NodeID:    r.task.NodeID,
-			ServiceID: r.task.ServiceID,
-			TaskID:    r.task.ID,
+			NodeID:    task.NodeID,
+			ServiceID: task.ServiceID,
+			TaskID:    task.ID,
 		}
 	)
 
