@@ -54,7 +54,10 @@ func (c *Cluster) GetServices(options apitypes.ServiceListOptions) ([]types.Serv
 		NamePrefixes: options.Filters.Get("name"),
 		IDPrefixes:   options.Filters.Get("id"),
 		Labels:       runconfigopts.ConvertKVStringsToMap(options.Filters.Get("label")),
-		Runtimes:     options.Filters.Get("runtime"),
+		// (ehazlett): hardcode runtime for now. eventually we will
+		// be able to filter for the desired runtimes once more
+		// are supported.
+		Runtimes: []string{string(types.RuntimeContainer)},
 	}
 
 	ctx, cancel := c.getRequestContext()
