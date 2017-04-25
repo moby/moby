@@ -6,7 +6,10 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
@@ -17,6 +20,8 @@ import (
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/command"
 	"github.com/docker/docker/builder/dockerfile/parser"
+	"github.com/docker/docker/builder/remotecontext"
+	"github.com/docker/docker/client/session"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
@@ -47,9 +52,11 @@ type Builder struct {
 	Stderr io.Writer
 	Output io.Writer
 
-	docker    builder.Backend
-	context   builder.Context
-	clientCtx context.Context
+	docker        builder.Backend
+	source        builder.Source
+	clientCtx     context.Context
+	fsCache       *FSCache
+	sessionGetter SessionGetter
 
 	runConfig     *container.Config // runconfig for cmd, run, entrypoint etc.
 	flags         *BFlags
@@ -63,52 +70,94 @@ type Builder struct {
 	cacheBusted   bool
 	buildArgs     *buildArgs
 	escapeToken   rune
+	dockerfile    *parser.Result
 
 	imageCache builder.ImageCache
 	from       builder.Image
 }
 
+// SessionGetter is object used to get access to a session by uuid
+type SessionGetter interface {
+	GetSession(ctx context.Context, uuid string) (context.Context, session.Caller, error)
+}
+
 // BuildManager implements builder.Backend and is shared across all Builder objects.
 type BuildManager struct {
-	backend   builder.Backend
-	pathCache *pathCache // TODO: make this persistent
+	backend          builder.Backend
+	pathCache        *pathCache // TODO: make this persistent
+	fsCache          *FSCache
+	sessionTransport *ClientSessionTransport
+	once             sync.Once
+	sg               SessionGetter
 }
 
 // NewBuildManager creates a BuildManager.
-func NewBuildManager(b builder.Backend) (bm *BuildManager) {
-	return &BuildManager{backend: b, pathCache: &pathCache{}}
+func NewBuildManager(b builder.Backend, sg SessionGetter) (*BuildManager, error) {
+	bm := &BuildManager{
+		backend:   b,
+		pathCache: &pathCache{},
+		sg:        sg,
+	}
+
+	tmpdir, err := ioutil.TempDir("", "fscache")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create tmp directory")
+	}
+
+	fsCache, err := NewFSCache(FSCacheOpt{
+		Backend: &tmpCacheBackend{tmpdir},
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create fscache")
+	}
+	bm.fsCache = fsCache
+	fsCache.RegisterTransport(ClientSessionTransportName, NewClientSessionTransport())
+	return bm, nil
+}
+
+// SyncFrom makes a remote source available
+func (bm *BuildManager) SyncFrom(ctx context.Context, id RemoteIdentifier) (builder.Source, error) {
+	return bm.fsCache.SyncFrom(ctx, id)
 }
 
 // BuildFromContext builds a new image from a given context.
-func (bm *BuildManager) BuildFromContext(ctx context.Context, src io.ReadCloser, remote string, buildOptions *types.ImageBuildOptions, pg backend.ProgressWriter) (string, error) {
+func (bm *BuildManager) BuildFromContext(ctx context.Context, src io.ReadCloser, buildOptions *types.ImageBuildOptions, pg backend.ProgressWriter) (s string, retErr error) {
 	if buildOptions.Squash && !bm.backend.HasExperimental() {
 		return "", apierrors.NewBadRequestError(errors.New("squash is only supported with experimental mode"))
 	}
-	buildContext, dockerfileName, err := builder.DetectContextFromRemoteURL(src, remote, pg.ProgressReaderFunc)
+	if buildOptions.Dockerfile == "" {
+		buildOptions.Dockerfile = builder.DefaultDockerfileName
+	}
+	logrus.Debugf("> BuildFromContext")
+	defer func() {
+		logrus.Debugf("< BuildFromContext %s %v", s, retErr)
+	}()
+
+	source, dockerfile, err := remotecontext.Detect(ctx, buildOptions.RemoteContext, buildOptions.Dockerfile, src, pg.ProgressReaderFunc)
 	if err != nil {
 		return "", err
 	}
-	defer func() {
-		if err := buildContext.Close(); err != nil {
-			logrus.Debugf("[BUILDER] failed to remove temporary context: %v", err)
-		}
-	}()
-
-	if len(dockerfileName) > 0 {
-		buildOptions.Dockerfile = dockerfileName
+	if source != nil {
+		defer func() {
+			if err := source.Close(); err != nil {
+				logrus.Debugf("[BUILDER] failed to remove temporary context: %v", err)
+			}
+		}()
 	}
-	b, err := NewBuilder(ctx, buildOptions, bm.backend, builder.DockerIgnoreContext{ModifiableContext: buildContext})
+	b, err := NewBuilder(ctx, buildOptions, bm.backend, source, dockerfile)
 	if err != nil {
 		return "", err
 	}
 	b.imageContexts.cache = bm.pathCache
+	b.sessionGetter = bm.sg
+	b.fsCache = bm.fsCache
 	return b.build(pg.StdoutFormatter, pg.StderrFormatter, pg.Output)
 }
 
 // NewBuilder creates a new Dockerfile builder from an optional dockerfile and a Config.
 // If dockerfile is nil, the Dockerfile specified by Config.DockerfileName,
 // will be read from the Context passed to Build().
-func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, backend builder.Backend, buildContext builder.Context) (b *Builder, err error) {
+func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, backend builder.Backend, source builder.Source, dockerfile io.ReadCloser) (b *Builder, err error) {
 	if config == nil {
 		config = new(types.ImageBuildOptions)
 	}
@@ -118,13 +167,20 @@ func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, back
 		Stdout:        os.Stdout,
 		Stderr:        os.Stderr,
 		docker:        backend,
-		context:       buildContext,
+		source:        source,
 		runConfig:     new(container.Config),
 		tmpContainers: map[string]struct{}{},
 		buildArgs:     newBuildArgs(config.BuildArgs),
 		escapeToken:   parser.DefaultEscapeToken,
 	}
 	b.imageContexts = &imageContexts{b: b}
+	if dockerfile != nil {
+		res, err := b.readAndParseDockerfile(dockerfile)
+		if err != nil {
+			return nil, err
+		}
+		b.dockerfile = res
+	}
 	return b, nil
 }
 
@@ -180,9 +236,22 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 	b.Stderr = stderr
 	b.Output = out
 
-	dockerfile, err := b.readAndParseDockerfile()
-	if err != nil {
-		return "", err
+	// TODO: remove this: read dockerfile from request, mode to detect
+	if b.sessionGetter != nil && strings.HasPrefix(b.options.RemoteContext, "session:") {
+		st := time.Now()
+		csi, err := NewClientSessionIdentifier(b.sessionGetter, "_main",
+			b.options.RemoteContext[len("session:"):], []string{"/"})
+		if err != nil {
+			return "", err
+		}
+		ctx, err := b.fsCache.SyncFrom(context.Background(), csi)
+		if err != nil {
+			return "", err
+		}
+
+		b.source = ctx
+		defer ctx.Close()
+		logrus.Debugf("sync-time: %v", time.Since(st))
 	}
 
 	repoAndTags, err := sanitizeRepoAndTags(b.options.Tags)
@@ -190,13 +259,13 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 		return "", err
 	}
 
-	addNodesForLabelOption(dockerfile.AST, b.options.Labels)
+	addNodesForLabelOption(b.dockerfile.AST, b.options.Labels)
 
-	if err := checkDispatchDockerfile(dockerfile.AST); err != nil {
+	if err := checkDispatchDockerfile(b.dockerfile.AST); err != nil {
 		return "", err
 	}
 
-	shortImageID, err := b.dispatchDockerfileWithCancellation(dockerfile)
+	shortImageID, err := b.dispatchDockerfileWithCancellation(b.dockerfile)
 	if err != nil {
 		return "", err
 	}
@@ -318,7 +387,7 @@ func (b *Builder) hasFromImage() bool {
 //
 // TODO: Remove?
 func BuildFromConfig(config *container.Config, changes []string) (*container.Config, error) {
-	b, err := NewBuilder(context.Background(), nil, nil, nil)
+	b, err := NewBuilder(context.Background(), nil, nil, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -371,4 +440,19 @@ func dispatchFromDockerfile(b *Builder, result *parser.Result) error {
 		}
 	}
 	return nil
+}
+
+type tmpCacheBackend struct {
+	root string
+}
+
+func (tcb *tmpCacheBackend) Get(id string) (string, error) {
+	d := filepath.Join(tcb.root, id)
+	if err := os.MkdirAll(d, 0700); err != nil {
+		return "", errors.Wrapf(err, "failed to create tmp dir for %s", d)
+	}
+	return d, nil
+}
+func (tcb *tmpCacheBackend) Remove(id string) error {
+	return os.RemoveAll(filepath.Join(tcb.root, id))
 }

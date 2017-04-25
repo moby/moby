@@ -69,7 +69,7 @@ func (m *MockBackend) ContainerCreateWorkdir(containerID string) error {
 	return nil
 }
 
-func (m *MockBackend) CopyOnBuild(containerID string, destPath string, src builder.FileInfo, decompress bool) error {
+func (m *MockBackend) CopyOnBuild(containerID string, destPath string, srcRoot string, srcPath string, decompress bool) error {
 	return nil
 }
 
