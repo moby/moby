@@ -48,7 +48,7 @@ func TestNewInspectCommandSuccess(t *testing.T) {
 			imageCount: 1,
 			imageInspectFunc: func(image string) (types.ImageInspect, []byte, error) {
 				imageInspectInvocationCount++
-				assert.Equal(t, image, "image")
+				assert.Equal(t, "image", image)
 				return types.ImageInspect{}, nil, nil
 			},
 		},
@@ -68,9 +68,9 @@ func TestNewInspectCommandSuccess(t *testing.T) {
 			imageInspectFunc: func(image string) (types.ImageInspect, []byte, error) {
 				imageInspectInvocationCount++
 				if imageInspectInvocationCount == 1 {
-					assert.Equal(t, image, "image1")
+					assert.Equal(t, "image1", image)
 				} else {
-					assert.Equal(t, image, "image2")
+					assert.Equal(t, "image2", image)
 				}
 				return types.ImageInspect{}, nil, nil
 			},
@@ -87,6 +87,6 @@ func TestNewInspectCommandSuccess(t *testing.T) {
 		actual := buf.String()
 		expected := string(golden.Get(t, []byte(actual), fmt.Sprintf("inspect-command-success.%s.golden", tc.name))[:])
 		testutil.EqualNormalizedString(t, testutil.RemoveSpace, actual, expected)
-		assert.Equal(t, tc.imageCount, imageInspectInvocationCount)
+		assert.Equal(t, imageInspectInvocationCount, tc.imageCount)
 	}
 }

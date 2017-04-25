@@ -51,7 +51,7 @@ func TestNewPullCommandErrors(t *testing.T) {
 		cmd := NewPullCommand(test.NewFakeCli(&fakeClient{}, buf))
 		cmd.SetOutput(ioutil.Discard)
 		cmd.SetArgs(tc.args)
-		assert.Error(t, cmd.Execute(), tc.expectedError)
+		testutil.ErrorContains(t, cmd.Execute(), tc.expectedError)
 	}
 }
 
