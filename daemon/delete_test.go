@@ -26,11 +26,9 @@ func newDaemonWithTmpRoot(t *testing.T) (*Daemon, func()) {
 
 func newContainerWithState(state *container.State) *container.Container {
 	return &container.Container{
-		CommonContainer: container.CommonContainer{
-			ID:     "test",
-			State:  state,
-			Config: &containertypes.Config{},
-		},
+		ID:     "test",
+		State:  state,
+		Config: &containertypes.Config{},
 	}
 
 }

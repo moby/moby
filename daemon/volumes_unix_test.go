@@ -18,70 +18,67 @@ func TestBackportMountSpec(t *testing.T) {
 	d := Daemon{containers: container.NewMemoryStore()}
 
 	c := &container.Container{
-		CommonContainer: container.CommonContainer{
-			State: &container.State{},
-			MountPoints: map[string]*volume.MountPoint{
-				"/apple":      {Destination: "/apple", Source: "/var/lib/docker/volumes/12345678", Name: "12345678", RW: true, CopyData: true}, // anonymous volume
-				"/banana":     {Destination: "/banana", Source: "/var/lib/docker/volumes/data", Name: "data", RW: true, CopyData: true},        // named volume
-				"/cherry":     {Destination: "/cherry", Source: "/var/lib/docker/volumes/data", Name: "data", CopyData: true},                  // RO named volume
-				"/dates":      {Destination: "/dates", Source: "/var/lib/docker/volumes/data", Name: "data"},                                   // named volume nocopy
-				"/elderberry": {Destination: "/elderberry", Source: "/var/lib/docker/volumes/data", Name: "data"},                              // masks anon vol
-				"/fig":        {Destination: "/fig", Source: "/data", RW: true},                                                                // RW bind
-				"/guava":      {Destination: "/guava", Source: "/data", RW: false, Propagation: "shared"},                                      // RO bind + propagation
-				"/kumquat":    {Destination: "/kumquat", Name: "data", RW: false, CopyData: true},                                              // volumes-from
+		State: &container.State{},
+		MountPoints: map[string]*volume.MountPoint{
+			"/apple":      {Destination: "/apple", Source: "/var/lib/docker/volumes/12345678", Name: "12345678", RW: true, CopyData: true}, // anonymous volume
+			"/banana":     {Destination: "/banana", Source: "/var/lib/docker/volumes/data", Name: "data", RW: true, CopyData: true},        // named volume
+			"/cherry":     {Destination: "/cherry", Source: "/var/lib/docker/volumes/data", Name: "data", CopyData: true},                  // RO named volume
+			"/dates":      {Destination: "/dates", Source: "/var/lib/docker/volumes/data", Name: "data"},                                   // named volume nocopy
+			"/elderberry": {Destination: "/elderberry", Source: "/var/lib/docker/volumes/data", Name: "data"},                              // masks anon vol
+			"/fig":        {Destination: "/fig", Source: "/data", RW: true},                                                                // RW bind
+			"/guava":      {Destination: "/guava", Source: "/data", RW: false, Propagation: "shared"},                                      // RO bind + propagation
+			"/kumquat":    {Destination: "/kumquat", Name: "data", RW: false, CopyData: true},                                              // volumes-from
 
-				// partially configured mountpoint due to #32613
-				// specifically, `mp.Spec.Source` is not set
-				"/honeydew": {
-					Type:        mounttypes.TypeVolume,
-					Destination: "/honeydew",
-					Name:        "data",
-					Source:      "/var/lib/docker/volumes/data",
-					Spec:        mounttypes.Mount{Type: mounttypes.TypeVolume, Target: "/honeydew", VolumeOptions: &mounttypes.VolumeOptions{NoCopy: true}},
-				},
+			// partially configured mountpoint due to #32613
+			// specifically, `mp.Spec.Source` is not set
+			"/honeydew": {
+				Type:        mounttypes.TypeVolume,
+				Destination: "/honeydew",
+				Name:        "data",
+				Source:      "/var/lib/docker/volumes/data",
+				Spec:        mounttypes.Mount{Type: mounttypes.TypeVolume, Target: "/honeydew", VolumeOptions: &mounttypes.VolumeOptions{NoCopy: true}},
+			},
 
-				// from hostconfig.Mounts
-				"/jambolan": {
-					Type:        mounttypes.TypeVolume,
-					Destination: "/jambolan",
-					Source:      "/var/lib/docker/volumes/data",
-					RW:          true,
-					Name:        "data",
-					Spec:        mounttypes.Mount{Type: mounttypes.TypeVolume, Target: "/jambolan", Source: "data"},
-				},
+			// from hostconfig.Mounts
+			"/jambolan": {
+				Type:        mounttypes.TypeVolume,
+				Destination: "/jambolan",
+				Source:      "/var/lib/docker/volumes/data",
+				RW:          true,
+				Name:        "data",
+				Spec:        mounttypes.Mount{Type: mounttypes.TypeVolume, Target: "/jambolan", Source: "data"},
 			},
-			HostConfig: &containertypes.HostConfig{
-				Binds: []string{
-					"data:/banana",
-					"data:/cherry:ro",
-					"data:/dates:ro,nocopy",
-					"data:/elderberry:ro,nocopy",
-					"/data:/fig",
-					"/data:/guava:ro,shared",
-					"data:/honeydew:nocopy",
-				},
-				VolumesFrom: []string{"1:ro"},
-				Mounts: []mounttypes.Mount{
-					{Type: mounttypes.TypeVolume, Target: "/jambolan"},
-				},
+		},
+		HostConfig: &containertypes.HostConfig{
+			Binds: []string{
+				"data:/banana",
+				"data:/cherry:ro",
+				"data:/dates:ro,nocopy",
+				"data:/elderberry:ro,nocopy",
+				"/data:/fig",
+				"/data:/guava:ro,shared",
+				"data:/honeydew:nocopy",
 			},
-			Config: &containertypes.Config{Volumes: map[string]struct{}{
-				"/apple":      {},
-				"/elderberry": {},
-			}},
-		}}
+			VolumesFrom: []string{"1:ro"},
+			Mounts: []mounttypes.Mount{
+				{Type: mounttypes.TypeVolume, Target: "/jambolan"},
+			},
+		},
+		Config: &containertypes.Config{Volumes: map[string]struct{}{
+			"/apple":      {},
+			"/elderberry": {},
+		}},
+	}
 
 	d.containers.Add("1", &container.Container{
-		CommonContainer: container.CommonContainer{
-			State: &container.State{},
-			ID:    "1",
-			MountPoints: map[string]*volume.MountPoint{
-				"/kumquat": {Destination: "/kumquat", Name: "data", RW: false, CopyData: true},
-			},
-			HostConfig: &containertypes.HostConfig{
-				Binds: []string{
-					"data:/kumquat:ro",
-				},
+		State: &container.State{},
+		ID:    "1",
+		MountPoints: map[string]*volume.MountPoint{
+			"/kumquat": {Destination: "/kumquat", Name: "data", RW: false, CopyData: true},
+		},
+		HostConfig: &containertypes.HostConfig{
+			Binds: []string{
+				"data:/kumquat:ro",
 			},
 		},
 	})
