@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	reapInterval     = 60 * time.Second
+	reapInterval     = 30 * time.Minute
 	reapPeriod       = 5 * time.Second
 	retryInterval    = 1 * time.Second
 	nodeReapInterval = 24 * time.Hour
