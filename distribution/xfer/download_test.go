@@ -26,6 +26,7 @@ type mockLayer struct {
 	diffID    layer.DiffID
 	chainID   layer.ChainID
 	parent    layer.Layer
+	platform  layer.Platform
 }
 
 func (ml *mockLayer) TarStream() (io.ReadCloser, error) {
@@ -54,6 +55,10 @@ func (ml *mockLayer) Size() (size int64, err error) {
 
 func (ml *mockLayer) DiffSize() (size int64, err error) {
 	return 0, nil
+}
+
+func (ml *mockLayer) Platform() layer.Platform {
+	return ml.platform
 }
 
 func (ml *mockLayer) Metadata() (map[string]string, error) {

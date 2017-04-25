@@ -144,6 +144,11 @@ func (ls *layerStore) loadLayer(layer ChainID) (*roLayer, error) {
 		return nil, fmt.Errorf("failed to get descriptor for %s: %s", layer, err)
 	}
 
+	platform, err := ls.store.GetPlatform(layer)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get platform for %s: %s", layer, err)
+	}
+
 	cl = &roLayer{
 		chainID:    layer,
 		diffID:     diff,
@@ -152,6 +157,7 @@ func (ls *layerStore) loadLayer(layer ChainID) (*roLayer, error) {
 		layerStore: ls,
 		references: map[Layer]struct{}{},
 		descriptor: descriptor,
+		platform:   platform,
 	}
 
 	if parent != "" {
