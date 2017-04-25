@@ -46,7 +46,6 @@ func runList(dockerCli *command.DockerCli, opts listOptions) error {
 	client := dockerCli.Client()
 
 	serviceFilters := opts.filter.Value()
-	serviceFilters.Add("runtime", string(swarm.RuntimeContainer))
 	services, err := client.ServiceList(ctx, types.ServiceListOptions{Filters: serviceFilters})
 	if err != nil {
 		return err
