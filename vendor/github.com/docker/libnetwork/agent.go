@@ -187,6 +187,13 @@ func (c *controller) agentSetup() error {
 	clusterProvider := c.cfg.Daemon.ClusterProvider
 	agent := c.agent
 	c.Unlock()
+
+	if clusterProvider == nil {
+		msg := "Aborting initialization of Libnetwork Agent because cluster provider is now unset"
+		logrus.Errorf(msg)
+		return fmt.Errorf(msg)
+	}
+
 	bindAddr := clusterProvider.GetLocalAddress()
 	advAddr := clusterProvider.GetAdvertiseAddress()
 	remote := clusterProvider.GetRemoteAddress()
