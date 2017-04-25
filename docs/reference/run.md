@@ -1123,7 +1123,7 @@ by default a container is not allowed to access any devices, but a
 the documentation on [cgroups devices](https://www.kernel.org/doc/Documentation/cgroup-v1/devices.txt)).
 
 When the operator executes `docker run --privileged`, Docker will enable
-to access to all devices on the host as well as set some configuration
+access to all devices on the host as well as set some configuration
 in AppArmor or SELinux to allow the container nearly all the same access to the
 host as processes running outside containers on the host. Additional
 information about running with `--privileged` is available on the
