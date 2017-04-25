@@ -368,7 +368,9 @@ func run(req dispatchRequest) error {
 		saveCmd = prependEnvOnCmd(req.builder.buildArgs, buildArgs, cmdFromArgs)
 	}
 
-	runConfigForCacheProbe := copyRunConfig(req.runConfig, withCmd(saveCmd))
+	runConfigForCacheProbe := copyRunConfig(req.runConfig,
+		withCmd(saveCmd),
+		withEntrypointOverride(saveCmd, nil))
 	hit, err := req.builder.probeCache(req.builder.image, runConfigForCacheProbe)
 	if err != nil || hit {
 		return err
@@ -376,18 +378,13 @@ func run(req dispatchRequest) error {
 
 	runConfig := copyRunConfig(req.runConfig,
 		withCmd(cmdFromArgs),
-		withEnv(append(req.runConfig.Env, buildArgs...)))
+		withEnv(append(req.runConfig.Env, buildArgs...)),
+		withEntrypointOverride(saveCmd, strslice.StrSlice{""}))
 
 	// set config as already being escaped, this prevents double escaping on windows
 	runConfig.ArgsEscaped = true
 
 	logrus.Debugf("[BUILDER] Command to be executed: %v", runConfig.Cmd)
-
-	// Set blank entrypoint to cancel the entrypoint from the parent image
-	if len(runConfig.Cmd) > 0 {
-		runConfig.Entrypoint = strslice.StrSlice{""}
-	}
-
 	cID, err := req.builder.create(runConfig)
 	if err != nil {
 		return err

@@ -65,7 +65,8 @@ func (b *Builder) commitContainer(id string, containerConfig *container.Config) 
 		ContainerCommitConfig: types.ContainerCommitConfig{
 			Author: b.maintainer,
 			Pause:  true,
-			Config: b.runConfig,
+			// TODO: this should be done by Commit()
+			Config: copyRunConfig(b.runConfig),
 		},
 		ContainerConfig: containerConfig,
 	}
@@ -230,6 +231,21 @@ func withCmdCommentString(comment string) runConfigModifier {
 func withEnv(env []string) runConfigModifier {
 	return func(runConfig *container.Config) {
 		runConfig.Env = env
+	}
+}
+
+// withEntrypointOverride sets an entrypoint on runConfig if the command is
+// not empty. The entrypoint is left unmodified if command is empty.
+//
+// The dockerfile RUN instruction expect to run without an entrypoint
+// so the runConfig entrypoint needs to be modified accordingly. ContainerCreate
+// will change a []string{""} entrypoint to nil, so we probe the cache with the
+// nil entrypoint.
+func withEntrypointOverride(cmd []string, entrypoint []string) runConfigModifier {
+	return func(runConfig *container.Config) {
+		if len(cmd) > 0 {
+			runConfig.Entrypoint = entrypoint
+		}
 	}
 }
 

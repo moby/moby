@@ -1785,11 +1785,17 @@ func (s *DockerSuite) TestBuildConditionalCache(c *check.C) {
 	}
 }
 
-// FIXME(vdemeester) this really seems to test the same thing as before
 func (s *DockerSuite) TestBuildAddMultipleLocalFileWithAndWithoutCache(c *check.C) {
 	name := "testbuildaddmultiplelocalfilewithcache"
-	dockerfile := `
+	baseName := name + "-base"
+
+	cli.BuildCmd(c, baseName, build.WithDockerfile(`
 		FROM busybox
+		ENTRYPOINT ["/bin/sh"]
+	`))
+
+	dockerfile := `
+		FROM testbuildaddmultiplelocalfilewithcache-base
         MAINTAINER dockerio
         ADD foo Dockerfile /usr/lib/bla/
 		RUN sh -c "[ $(cat /usr/lib/bla/foo) = "hello" ]"`
@@ -1799,15 +1805,15 @@ func (s *DockerSuite) TestBuildAddMultipleLocalFileWithAndWithoutCache(c *check.
 	defer ctx.Close()
 	cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 	id1 := getIDByName(c, name)
-	cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
+	result2 := cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 	id2 := getIDByName(c, name)
-	cli.BuildCmd(c, name, build.WithoutCache, build.WithExternalBuildContext(ctx))
+	result3 := cli.BuildCmd(c, name, build.WithoutCache, build.WithExternalBuildContext(ctx))
 	id3 := getIDByName(c, name)
 	if id1 != id2 {
-		c.Fatal("The cache should have been used but hasn't.")
+		c.Fatalf("The cache should have been used but hasn't: %s", result2.Stdout())
 	}
 	if id1 == id3 {
-		c.Fatal("The cache should have been invalided but hasn't.")
+		c.Fatalf("The cache should have been invalided but hasn't: %s", result3.Stdout())
 	}
 }
 
