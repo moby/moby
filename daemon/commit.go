@@ -168,6 +168,7 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 	var history []image.History
 	rootFS := image.NewRootFS()
 	osVersion := ""
+	os := ""
 	var osFeatures []string
 
 	if container.ImageID != "" {
@@ -179,9 +180,13 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		rootFS = img.RootFS
 		osVersion = img.OSVersion
 		osFeatures = img.OSFeatures
+		// To support LCOW, Windows needs to pass the platform in when registering the layer in the store
+		if runtime.GOOS == "windows" {
+			os = img.OS
+		}
 	}
 
-	l, err := daemon.layerStore.Register(rwTar, rootFS.ChainID())
+	l, err := daemon.layerStore.Register(rwTar, rootFS.ChainID(), layer.Platform(os))
 	if err != nil {
 		return "", err
 	}
