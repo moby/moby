@@ -350,9 +350,6 @@ func (s *DockerSwarmSuite) TestAPISwarmRaftQuorum(c *check.C) {
 
 	d3.Stop(c)
 
-	// make sure there is a leader
-	waitAndAssert(c, defaultReconciliationTimeout, d1.CheckLeader, checker.IsNil)
-
 	var service swarm.Service
 	simpleTestService(&service)
 	service.Spec.Name = "top2"
