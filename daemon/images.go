@@ -3,6 +3,7 @@ package daemon
 import (
 	"encoding/json"
 	"fmt"
+	"runtime"
 	"sort"
 	"time"
 
@@ -272,7 +273,13 @@ func (daemon *Daemon) SquashImage(id, parent string) (string, error) {
 	}
 	defer ts.Close()
 
-	newL, err := daemon.layerStore.Register(ts, parentChainID)
+	// To support LCOW, Windows needs to pass the platform into the store when registering the layer.
+	platform := layer.Platform("")
+	if runtime.GOOS == "windows" {
+		platform = l.Platform()
+	}
+
+	newL, err := daemon.layerStore.Register(ts, parentChainID, platform)
 	if err != nil {
 		return "", errors.Wrap(err, "error registering layer")
 	}

@@ -145,7 +145,7 @@ func (s *tempConfigStore) Get(d digest.Digest) ([]byte, error) {
 	return s.config, nil
 }
 
-func (s *tempConfigStore) RootFSFromConfig(c []byte) (*image.RootFS, error) {
+func (s *tempConfigStore) RootFSAndPlatformFromConfig(c []byte) (*image.RootFS, layer.Platform, error) {
 	return configToRootFS(c)
 }
 
@@ -525,7 +525,7 @@ func (s *pluginConfigStore) Get(d digest.Digest) ([]byte, error) {
 	return ioutil.ReadAll(rwc)
 }
 
-func (s *pluginConfigStore) RootFSFromConfig(c []byte) (*image.RootFS, error) {
+func (s *pluginConfigStore) RootFSAndPlatformFromConfig(c []byte) (*image.RootFS, layer.Platform, error) {
 	return configToRootFS(c)
 }
 

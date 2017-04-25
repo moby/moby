@@ -86,7 +86,12 @@ func (daemon *Daemon) ImportImage(src string, repository, tag string, msg string
 		return err
 	}
 	// TODO: support windows baselayer?
-	l, err := daemon.layerStore.Register(inflatedLayerData, "")
+	// TODO: LCOW support @jhowardmsft. For now, pass in a null platform when
+	//       registering the layer. Windows doesn't currently support import,
+	//       but for Linux images, there's no reason it couldn't. However it
+	//       would need another CLI flag as there's no meta-data indicating
+	//       the OS of the thing being imported.
+	l, err := daemon.layerStore.Register(inflatedLayerData, "", "")
 	if err != nil {
 		return err
 	}

@@ -160,6 +160,7 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 	}()
 
 	var parent *image.Image
+	os := runtime.GOOS
 	if container.ImageID == "" {
 		parent = new(image.Image)
 		parent.RootFS = image.NewRootFS()
@@ -168,9 +169,13 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		if err != nil {
 			return "", err
 		}
+		// To support LCOW, Windows needs to pass the platform in when registering the layer in the store
+		if runtime.GOOS == "windows" {
+			os = parent.OS
+		}
 	}
 
-	l, err := daemon.layerStore.Register(rwTar, parent.RootFS.ChainID())
+	l, err := daemon.layerStore.Register(rwTar, parent.RootFS.ChainID(), layer.Platform(os))
 	if err != nil {
 		return "", err
 	}
