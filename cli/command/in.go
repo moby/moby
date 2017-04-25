@@ -2,9 +2,11 @@ package command
 
 import (
 	"errors"
-	"github.com/docker/docker/pkg/term"
 	"io"
+	"os"
 	"runtime"
+
+	"github.com/docker/docker/pkg/term"
 )
 
 // InStream is an input stream used by the DockerCli to read user input
@@ -20,6 +22,15 @@ func (i *InStream) Read(p []byte) (int, error) {
 // Close implements the Closer interface
 func (i *InStream) Close() error {
 	return i.in.Close()
+}
+
+// SetRawTerminal sets raw mode on the input terminal
+func (i *InStream) SetRawTerminal() (err error) {
+	if os.Getenv("NORAW") != "" || !i.CommonStream.isTerminal {
+		return nil
+	}
+	i.CommonStream.state, err = term.SetRawTerminal(i.CommonStream.fd)
+	return err
 }
 
 // CheckTty checks if we are trying to attach to a container tty
