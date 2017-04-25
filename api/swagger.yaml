@@ -1837,6 +1837,9 @@ definitions:
                   type: "object"
                   additionalProperties:
                     type: "string"
+                CACert:
+                  description: "The root CA certificate (in PEM format) this external CA uses to issue TLS certificates (assumed to be to the current swarm root CA certificate if not provided)."
+                  type: "string"
       EncryptionConfig:
         description: "Parameters related to encryption-at-rest."
         type: "object"
