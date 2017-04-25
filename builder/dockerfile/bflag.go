@@ -37,6 +37,13 @@ func NewBFlags() *BFlags {
 	}
 }
 
+// NewBFlagsWithArgs returns the new BFlags struct with Args set to args
+func NewBFlagsWithArgs(args []string) *BFlags {
+	flags := NewBFlags()
+	flags.Args = args
+	return flags
+}
+
 // AddBool adds a bool flag to BFlags
 // Note, any error will be generated when Parse() is called (see Parse).
 func (bf *BFlags) AddBool(name string, def bool) *Flag {
