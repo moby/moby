@@ -64,6 +64,14 @@ func (id ChainID) String() string {
 	return string(id)
 }
 
+// Platform is the platform of a layer
+type Platform string
+
+// String returns a string rendition of layers target platform
+func (id Platform) String() string {
+	return string(id)
+}
+
 // DiffID is the hash of an individual layer tar.
 type DiffID digest.Digest
 
@@ -98,6 +106,9 @@ type Layer interface {
 
 	// Parent returns the next layer in the layer chain.
 	Parent() Layer
+
+	// Platform returns the platform of the layer
+	Platform() Platform
 
 	// Size returns the size of the entire layer chain. The size
 	// is calculated from the total size of all files in the layers.
@@ -208,6 +219,7 @@ type MetadataTransaction interface {
 	SetDiffID(DiffID) error
 	SetCacheID(string) error
 	SetDescriptor(distribution.Descriptor) error
+	SetPlatform(Platform) error
 	TarSplitWriter(compressInput bool) (io.WriteCloser, error)
 
 	Commit(ChainID) error
@@ -228,6 +240,7 @@ type MetadataStore interface {
 	GetDiffID(ChainID) (DiffID, error)
 	GetCacheID(ChainID) (string, error)
 	GetDescriptor(ChainID) (distribution.Descriptor, error)
+	GetPlatform(ChainID) (Platform, error)
 	TarSplitReader(ChainID) (io.ReadCloser, error)
 
 	SetMountID(string, string) error
