@@ -27,7 +27,7 @@ Options:
 
 ## Description
 
-The main process inside the container will be sent `SIGKILL`, or any
+You can kill a container using the conatiner's ID or name. The main process inside the container will be sent `SIGKILL`, or any
 signal specified with option `--signal`.
 
 > **Note**: `ENTRYPOINT` and `CMD` in the *shell* form run as a subcommand of
