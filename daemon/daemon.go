@@ -194,8 +194,9 @@ func (daemon *Daemon) restore() error {
 		wg.Add(1)
 		go func(c *container.Container) {
 			defer wg.Done()
-			if err := backportMountSpec(c); err != nil {
-				logrus.Error("Failed to migrate old mounts to use new spec format")
+			daemon.backportMountSpec(c)
+			if err := c.ToDiskLocking(); err != nil {
+				logrus.WithError(err).WithField("container", c.ID).Error("error saving backported mountspec to disk")
 			}
 
 			if c.IsRunning() || c.IsPaused() {
@@ -215,7 +216,6 @@ func (daemon *Daemon) restore() error {
 					// The error is only logged here.
 					logrus.Warnf("Failed to mount container on getting BaseFs path %v: %v", c.ID, err)
 				} else {
-					// if mount success, then unmount it
 					if err := daemon.Unmount(c); err != nil {
 						logrus.Warnf("Failed to umount container on getting BaseFs path %v: %v", c.ID, err)
 					}
