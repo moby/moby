@@ -102,7 +102,7 @@ func TestNewHistoryCommandSuccess(t *testing.T) {
 			testutil.EqualNormalizedString(t, testutil.RemoveSpace, actual, expected)
 		} else {
 			match, _ := regexp.MatchString(tc.outputRegex, actual)
-			assert.Equal(t, match, true)
+			assert.True(t, match)
 		}
 	}
 }

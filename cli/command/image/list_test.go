@@ -39,7 +39,7 @@ func TestNewImagesCommandErrors(t *testing.T) {
 		cmd := NewImagesCommand(test.NewFakeCli(&fakeClient{imageListFunc: tc.imageListFunc}, new(bytes.Buffer)))
 		cmd.SetOutput(ioutil.Discard)
 		cmd.SetArgs(tc.args)
-		assert.Error(t, cmd.Execute(), tc.expectedError)
+		testutil.ErrorContains(t, cmd.Execute(), tc.expectedError)
 	}
 }
 
@@ -66,7 +66,7 @@ func TestNewImagesCommandSuccess(t *testing.T) {
 			name: "match-name",
 			args: []string{"image"},
 			imageListFunc: func(options types.ImageListOptions) ([]types.ImageSummary, error) {
-				assert.Equal(t, options.Filters.Get("reference")[0], "image")
+				assert.Equal(t, "image", options.Filters.Get("reference")[0])
 				return []types.ImageSummary{{}}, nil
 			},
 		},
@@ -74,7 +74,7 @@ func TestNewImagesCommandSuccess(t *testing.T) {
 			name: "filters",
 			args: []string{"--filter", "name=value"},
 			imageListFunc: func(options types.ImageListOptions) ([]types.ImageSummary, error) {
-				assert.Equal(t, options.Filters.Get("name")[0], "value")
+				assert.Equal(t, "value", options.Filters.Get("name")[0])
 				return []types.ImageSummary{{}}, nil
 			},
 		},
@@ -96,7 +96,7 @@ func TestNewImagesCommandSuccess(t *testing.T) {
 
 func TestNewListCommandAlias(t *testing.T) {
 	cmd := newListCommand(test.NewFakeCli(&fakeClient{}, new(bytes.Buffer)))
-	assert.Equal(t, cmd.HasAlias("images"), true)
-	assert.Equal(t, cmd.HasAlias("list"), true)
-	assert.Equal(t, cmd.HasAlias("other"), false)
+	assert.True(t, cmd.HasAlias("images"))
+	assert.True(t, cmd.HasAlias("list"))
+	assert.False(t, cmd.HasAlias("other"))
 }

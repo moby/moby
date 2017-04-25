@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/internal/test"
+	"github.com/docker/docker/pkg/testutil"
 	"github.com/docker/docker/registry"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
@@ -53,7 +54,7 @@ func TestNewPushCommandErrors(t *testing.T) {
 		cmd := NewPushCommand(test.NewFakeCli(&fakeClient{imagePushFunc: tc.imagePushFunc}, buf))
 		cmd.SetOutput(ioutil.Discard)
 		cmd.SetArgs(tc.args)
-		assert.Error(t, cmd.Execute(), tc.expectedError)
+		testutil.ErrorContains(t, cmd.Execute(), tc.expectedError)
 	}
 }
 

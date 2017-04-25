@@ -48,7 +48,7 @@ func TestNewLoadCommandErrors(t *testing.T) {
 		cmd := NewLoadCommand(cli)
 		cmd.SetOutput(ioutil.Discard)
 		cmd.SetArgs(tc.args)
-		assert.Error(t, cmd.Execute(), tc.expectedError)
+		testutil.ErrorContains(t, cmd.Execute(), tc.expectedError)
 	}
 }
 
@@ -58,8 +58,7 @@ func TestNewLoadCommandInvalidInput(t *testing.T) {
 	cmd.SetOutput(ioutil.Discard)
 	cmd.SetArgs([]string{"--input", "*"})
 	err := cmd.Execute()
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), expectedError)
+	testutil.ErrorContains(t, err, expectedError)
 }
 
 func TestNewLoadCommandSuccess(t *testing.T) {

@@ -16,9 +16,9 @@ import (
 
 func TestNewRemoveCommandAlias(t *testing.T) {
 	cmd := newRemoveCommand(test.NewFakeCli(&fakeClient{}, new(bytes.Buffer)))
-	assert.Equal(t, cmd.HasAlias("rmi"), true)
-	assert.Equal(t, cmd.HasAlias("remove"), true)
-	assert.Equal(t, cmd.HasAlias("other"), false)
+	assert.True(t, cmd.HasAlias("rmi"))
+	assert.True(t, cmd.HasAlias("remove"))
+	assert.False(t, cmd.HasAlias("other"))
 }
 
 func TestNewRemoveCommandErrors(t *testing.T) {
@@ -37,8 +37,8 @@ func TestNewRemoveCommandErrors(t *testing.T) {
 			args:          []string{"arg1"},
 			expectedError: "error removing image",
 			imageRemoveFunc: func(image string, options types.ImageRemoveOptions) ([]types.ImageDeleteResponseItem, error) {
-				assert.Equal(t, options.Force, false)
-				assert.Equal(t, options.PruneChildren, true)
+				assert.False(t, options.Force)
+				assert.True(t, options.PruneChildren)
 				return []types.ImageDeleteResponseItem{}, errors.Errorf("error removing image")
 			},
 		},
@@ -49,7 +49,7 @@ func TestNewRemoveCommandErrors(t *testing.T) {
 		}, new(bytes.Buffer)))
 		cmd.SetOutput(ioutil.Discard)
 		cmd.SetArgs(tc.args)
-		assert.Error(t, cmd.Execute(), tc.expectedError)
+		testutil.ErrorContains(t, cmd.Execute(), tc.expectedError)
 	}
 }
 
@@ -63,7 +63,7 @@ func TestNewRemoveCommandSuccess(t *testing.T) {
 			name: "Image Deleted",
 			args: []string{"image1"},
 			imageRemoveFunc: func(image string, options types.ImageRemoveOptions) ([]types.ImageDeleteResponseItem, error) {
-				assert.Equal(t, image, "image1")
+				assert.Equal(t, "image1", image)
 				return []types.ImageDeleteResponseItem{{Deleted: image}}, nil
 			},
 		},
@@ -71,7 +71,7 @@ func TestNewRemoveCommandSuccess(t *testing.T) {
 			name: "Image Untagged",
 			args: []string{"image1"},
 			imageRemoveFunc: func(image string, options types.ImageRemoveOptions) ([]types.ImageDeleteResponseItem, error) {
-				assert.Equal(t, image, "image1")
+				assert.Equal(t, "image1", image)
 				return []types.ImageDeleteResponseItem{{Untagged: image}}, nil
 			},
 		},
