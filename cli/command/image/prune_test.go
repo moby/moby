@@ -43,7 +43,7 @@ func TestNewPruneCommandErrors(t *testing.T) {
 		}, buf))
 		cmd.SetOutput(ioutil.Discard)
 		cmd.SetArgs(tc.args)
-		assert.Error(t, cmd.Execute(), tc.expectedError)
+		testutil.ErrorContains(t, cmd.Execute(), tc.expectedError)
 	}
 }
 
@@ -57,7 +57,7 @@ func TestNewPruneCommandSuccess(t *testing.T) {
 			name: "all",
 			args: []string{"--all"},
 			imagesPruneFunc: func(pruneFilter filters.Args) (types.ImagesPruneReport, error) {
-				assert.Equal(t, pruneFilter.Get("dangling")[0], "false")
+				assert.Equal(t, "false", pruneFilter.Get("dangling")[0])
 				return types.ImagesPruneReport{}, nil
 			},
 		},
@@ -65,7 +65,7 @@ func TestNewPruneCommandSuccess(t *testing.T) {
 			name: "force-deleted",
 			args: []string{"--force"},
 			imagesPruneFunc: func(pruneFilter filters.Args) (types.ImagesPruneReport, error) {
-				assert.Equal(t, pruneFilter.Get("dangling")[0], "true")
+				assert.Equal(t, "true", pruneFilter.Get("dangling")[0])
 				return types.ImagesPruneReport{
 					ImagesDeleted:  []types.ImageDeleteResponseItem{{Deleted: "image1"}},
 					SpaceReclaimed: 1,
@@ -76,7 +76,7 @@ func TestNewPruneCommandSuccess(t *testing.T) {
 			name: "force-untagged",
 			args: []string{"--force"},
 			imagesPruneFunc: func(pruneFilter filters.Args) (types.ImagesPruneReport, error) {
-				assert.Equal(t, pruneFilter.Get("dangling")[0], "true")
+				assert.Equal(t, "true", pruneFilter.Get("dangling")[0])
 				return types.ImagesPruneReport{
 					ImagesDeleted:  []types.ImageDeleteResponseItem{{Untagged: "image1"}},
 					SpaceReclaimed: 2,

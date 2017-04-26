@@ -69,7 +69,7 @@ func TestNewImportCommandSuccess(t *testing.T) {
 			name: "double",
 			args: []string{"-", "image:local"},
 			imageImportFunc: func(source types.ImageImportSource, ref string, options types.ImageImportOptions) (io.ReadCloser, error) {
-				assert.Equal(t, ref, "image:local")
+				assert.Equal(t, "image:local", ref)
 				return ioutil.NopCloser(strings.NewReader("")), nil
 			},
 		},
@@ -77,7 +77,7 @@ func TestNewImportCommandSuccess(t *testing.T) {
 			name: "message",
 			args: []string{"--message", "test message", "-"},
 			imageImportFunc: func(source types.ImageImportSource, ref string, options types.ImageImportOptions) (io.ReadCloser, error) {
-				assert.Equal(t, options.Message, "test message")
+				assert.Equal(t, "test message", options.Message)
 				return ioutil.NopCloser(strings.NewReader("")), nil
 			},
 		},
@@ -85,7 +85,7 @@ func TestNewImportCommandSuccess(t *testing.T) {
 			name: "change",
 			args: []string{"--change", "ENV DEBUG true", "-"},
 			imageImportFunc: func(source types.ImageImportSource, ref string, options types.ImageImportOptions) (io.ReadCloser, error) {
-				assert.Equal(t, options.Changes[0], "ENV DEBUG true")
+				assert.Equal(t, "ENV DEBUG true", options.Changes[0])
 				return ioutil.NopCloser(strings.NewReader("")), nil
 			},
 		},

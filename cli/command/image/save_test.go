@@ -9,8 +9,10 @@ import (
 	"testing"
 
 	"github.com/docker/docker/cli/internal/test"
+	"github.com/docker/docker/pkg/testutil"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewSaveCommandErrors(t *testing.T) {
@@ -48,7 +50,7 @@ func TestNewSaveCommandErrors(t *testing.T) {
 		cmd := NewSaveCommand(cli)
 		cmd.SetOutput(ioutil.Discard)
 		cmd.SetArgs(tc.args)
-		assert.Error(t, cmd.Execute(), tc.expectedError)
+		testutil.ErrorContains(t, cmd.Execute(), tc.expectedError)
 	}
 }
 
@@ -63,8 +65,8 @@ func TestNewSaveCommandSuccess(t *testing.T) {
 			args:       []string{"-o", "save_tmp_file", "arg1"},
 			isTerminal: true,
 			imageSaveFunc: func(images []string) (io.ReadCloser, error) {
-				assert.Equal(t, len(images), 1)
-				assert.Equal(t, images[0], "arg1")
+				require.Len(t, images, 1)
+				assert.Equal(t, "arg1", images[0])
 				return ioutil.NopCloser(strings.NewReader("")), nil
 			},
 			deferredFunc: func() {
@@ -75,9 +77,9 @@ func TestNewSaveCommandSuccess(t *testing.T) {
 			args:       []string{"arg1", "arg2"},
 			isTerminal: false,
 			imageSaveFunc: func(images []string) (io.ReadCloser, error) {
-				assert.Equal(t, len(images), 2)
-				assert.Equal(t, images[0], "arg1")
-				assert.Equal(t, images[1], "arg2")
+				require.Len(t, images, 2)
+				assert.Equal(t, "arg1", images[0])
+				assert.Equal(t, "arg2", images[1])
 				return ioutil.NopCloser(strings.NewReader("")), nil
 			},
 		},
