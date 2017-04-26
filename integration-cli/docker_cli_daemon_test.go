@@ -535,32 +535,6 @@ func (s *DockerDaemonSuite) TestDaemonKeyGeneration(c *check.C) {
 	}
 }
 
-func (s *DockerDaemonSuite) TestDaemonKeyMigration(c *check.C) {
-	// TODO: skip or update for Windows daemon
-	os.Remove("/etc/docker/key.json")
-	k1, err := libtrust.GenerateECP256PrivateKey()
-	if err != nil {
-		c.Fatalf("Error generating private key: %s", err)
-	}
-	if err := os.MkdirAll(filepath.Join(os.Getenv("HOME"), ".docker"), 0755); err != nil {
-		c.Fatalf("Error creating .docker directory: %s", err)
-	}
-	if err := libtrust.SaveKey(filepath.Join(os.Getenv("HOME"), ".docker", "key.json"), k1); err != nil {
-		c.Fatalf("Error saving private key: %s", err)
-	}
-
-	s.d.Start(c)
-	s.d.Stop(c)
-
-	k2, err := libtrust.LoadKeyFile("/etc/docker/key.json")
-	if err != nil {
-		c.Fatalf("Error opening key file")
-	}
-	if k1.KeyID() != k2.KeyID() {
-		c.Fatalf("Key not migrated")
-	}
-}
-
 // GH#11320 - verify that the daemon exits on failure properly
 // Note that this explicitly tests the conflict of {-b,--bridge} and {--bip} options as the means
 // to get a daemon init failure; no other tests for -b/--bip conflict are therefore required

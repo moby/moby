@@ -3,10 +3,8 @@ package main
 import (
 	"crypto/tls"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
@@ -26,7 +24,6 @@ import (
 	swarmrouter "github.com/docker/docker/api/server/router/swarm"
 	systemrouter "github.com/docker/docker/api/server/router/system"
 	"github.com/docker/docker/api/server/router/volume"
-	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/debug"
 	cliflags "github.com/docker/docker/cli/flags"
 	"github.com/docker/docker/daemon"
@@ -42,7 +39,6 @@ import (
 	"github.com/docker/docker/pkg/pidfile"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/signal"
-	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/plugin"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
@@ -66,52 +62,6 @@ func NewDaemonCli() *DaemonCli {
 	return &DaemonCli{}
 }
 
-func migrateKey(config *config.Config) (err error) {
-	// No migration necessary on Windows
-	if runtime.GOOS == "windows" {
-		return nil
-	}
-
-	// Migrate trust key if exists at ~/.docker/key.json and owned by current user
-	oldPath := filepath.Join(cli.ConfigurationDir(), cliflags.DefaultTrustKeyFile)
-	newPath := filepath.Join(getDaemonConfDir(config.Root), cliflags.DefaultTrustKeyFile)
-	if _, statErr := os.Stat(newPath); os.IsNotExist(statErr) && currentUserIsOwner(oldPath) {
-		defer func() {
-			// Ensure old path is removed if no error occurred
-			if err == nil {
-				err = os.Remove(oldPath)
-			} else {
-				logrus.Warnf("Key migration failed, key file not removed at %s", oldPath)
-				os.Remove(newPath)
-			}
-		}()
-
-		if err := system.MkdirAll(getDaemonConfDir(config.Root), os.FileMode(0644)); err != nil {
-			return fmt.Errorf("Unable to create daemon configuration directory: %s", err)
-		}
-
-		newFile, err := os.OpenFile(newPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
-		if err != nil {
-			return fmt.Errorf("error creating key file %q: %s", newPath, err)
-		}
-		defer newFile.Close()
-
-		oldFile, err := os.Open(oldPath)
-		if err != nil {
-			return fmt.Errorf("error opening key file %q: %s", oldPath, err)
-		}
-		defer oldFile.Close()
-
-		if _, err := io.Copy(newFile, oldFile); err != nil {
-			return fmt.Errorf("error copying key: %s", err)
-		}
-
-		logrus.Infof("Migrated key from %s to %s", oldPath, newPath)
-	}
-
-	return nil
-}
-
 func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 	stopc := make(chan bool)
 	defer close(stopc)
@@ -126,12 +76,6 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 	}
 	cli.configFile = &opts.configFile
 	cli.flags = opts.flags
-
-	if opts.common.TrustKey == "" {
-		opts.common.TrustKey = filepath.Join(
-			getDaemonConfDir(cli.Config.Root),
-			cliflags.DefaultTrustKeyFile)
-	}
 
 	if cli.Config.Debug {
 		debug.Enable()
@@ -240,13 +184,6 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 		logrus.Debugf("Listener created for HTTP on %s (%s)", proto, addr)
 		api.Accept(addr, ls...)
 	}
-
-	if err := migrateKey(cli.Config); err != nil {
-		return err
-	}
-
-	// FIXME: why is this down here instead of with the other TrustKey logic above?
-	cli.TrustKeyPath = opts.common.TrustKey
 
 	registryService := registry.NewService(cli.Config.ServiceOptions)
 	containerdRemote, err := libcontainerd.New(cli.getLibcontainerdRoot(), cli.getPlatformRemoteOptions()...)
@@ -417,6 +354,12 @@ func loadDaemonCliConfig(opts daemonOptions) (*config.Config, error) {
 		conf.CommonTLSOptions.CAFile = opts.common.TLSOptions.CAFile
 		conf.CommonTLSOptions.CertFile = opts.common.TLSOptions.CertFile
 		conf.CommonTLSOptions.KeyFile = opts.common.TLSOptions.KeyFile
+	}
+
+	if conf.TrustKeyPath == "" {
+		conf.TrustKeyPath = filepath.Join(
+			getDaemonConfDir(conf.Root),
+			defaultTrustKeyFile)
 	}
 
 	if flags.Changed("graph") && flags.Changed("data-root") {
