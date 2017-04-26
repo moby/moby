@@ -63,7 +63,7 @@ func TestValidatePlacement(t *testing.T) {
 					"placement": dict{
 						"preferences": array{
 							dict{
-								"spread": "node.labels.aliyun.zone",
+								"spread": "node.labels.az",
 							},
 						},
 					},

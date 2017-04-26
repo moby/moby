@@ -673,6 +673,11 @@ func TestFullExample(t *testing.T) {
 			},
 			Placement: types.Placement{
 				Constraints: []string{"node=foo"},
+				Preferences: []types.PlacementPreferences{
+					types.PlacementPreferences{
+						Spread: "node.labels.az",
+					},
+				},
 			},
 			EndpointMode: "dnsrr",
 		},
