@@ -78,7 +78,6 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	s.Root.Readonly = false // Windows does not support a read-only root filesystem
 
 	// In s.Windows.Resources
-	// @darrenstahlmsft implement these resources
 	cpuShares := uint16(c.HostConfig.CPUShares)
 	cpuPercent := uint8(c.HostConfig.CPUPercent)
 	cpuCount := uint64(c.HostConfig.CPUCount)
@@ -103,10 +102,6 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 		},
 		Memory: &specs.WindowsMemoryResources{
 			Limit: &memoryLimit,
-			//TODO Reservation: ...,
-		},
-		Network: &specs.WindowsNetworkResources{
-		//TODO Bandwidth: ...,
 		},
 		Storage: &specs.WindowsStorageResources{
 			Bps:  &c.HostConfig.IOMaximumBandwidth,
