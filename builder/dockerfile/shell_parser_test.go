@@ -18,6 +18,7 @@ func TestShellParser4EnvVars(t *testing.T) {
 	assert.NoError(t, err)
 	defer file.Close()
 
+	shlex := NewShellLex('\\')
 	scanner := bufio.NewScanner(file)
 	envs := []string{"PWD=/home", "SHELL=bash", "KOREAN=한국어"}
 	for scanner.Scan() {
@@ -49,7 +50,7 @@ func TestShellParser4EnvVars(t *testing.T) {
 
 		if ((platform == "W" || platform == "A") && runtime.GOOS == "windows") ||
 			((platform == "U" || platform == "A") && runtime.GOOS != "windows") {
-			newWord, err := ProcessWord(source, envs, '\\')
+			newWord, err := shlex.ProcessWord(source, envs)
 			if expected == "error" {
 				assert.Error(t, err)
 			} else {
@@ -69,6 +70,7 @@ func TestShellParser4Words(t *testing.T) {
 	}
 	defer file.Close()
 
+	shlex := NewShellLex('\\')
 	envs := []string{}
 	scanner := bufio.NewScanner(file)
 	lineNum := 0
@@ -93,7 +95,7 @@ func TestShellParser4Words(t *testing.T) {
 		test := strings.TrimSpace(words[0])
 		expected := strings.Split(strings.TrimLeft(words[1], " "), ",")
 
-		result, err := ProcessWords(test, envs, '\\')
+		result, err := shlex.ProcessWords(test, envs)
 
 		if err != nil {
 			result = []string{"error"}
@@ -111,11 +113,7 @@ func TestShellParser4Words(t *testing.T) {
 }
 
 func TestGetEnv(t *testing.T) {
-	sw := &shellWord{
-		word: "",
-		envs: nil,
-		pos:  0,
-	}
+	sw := &shellWord{envs: nil}
 
 	sw.envs = []string{}
 	if sw.getEnv("foo") != "" {

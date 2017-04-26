@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/builder"
+	"github.com/docker/docker/builder/dockerfile/parser"
 	"github.com/docker/docker/pkg/testutil"
 	"github.com/docker/go-connections/nat"
 	"github.com/stretchr/testify/assert"
@@ -38,6 +39,7 @@ func defaultDispatchReq(builder *Builder, args ...string) dispatchRequest {
 		args:      args,
 		flags:     NewBFlags(),
 		runConfig: &container.Config{},
+		shlex:     NewShellLex(parser.DefaultEscapeToken),
 	}
 }
 

@@ -190,8 +190,9 @@ func executeTestCase(t *testing.T, testCase dispatchTestCase) {
 		buildArgs: newBuildArgs(options.BuildArgs),
 	}
 
+	shlex := NewShellLex(parser.DefaultEscapeToken)
 	n := result.AST
-	err = b.dispatch(0, len(n.Children), n.Children[0])
+	err = b.dispatch(0, len(n.Children), n.Children[0], shlex)
 
 	if err == nil {
 		t.Fatalf("No error when executing test %s", testCase.name)
