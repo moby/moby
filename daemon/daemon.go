@@ -114,6 +114,10 @@ type Daemon struct {
 
 	diskUsageRunning int32
 	pruneRunning     int32
+
+	// ready signals that the daemon is ready to process events
+	// this is used for async handling of containerd events during startup
+	ready chan struct{}
 }
 
 // HasExperimental returns whether the experimental features of the daemon are enabled or not
@@ -271,6 +275,7 @@ func (daemon *Daemon) restore() error {
 		}(c)
 	}
 	wg.Wait()
+
 	daemon.netController, err = daemon.initNetworkController(daemon.configStore, activeSandboxes)
 	if err != nil {
 		return fmt.Errorf("Error initializing network controller: %v", err)
@@ -282,6 +287,9 @@ func (daemon *Daemon) restore() error {
 			logrus.Errorf("failed to register link for container %s: %v", c.ID, err)
 		}
 	}
+
+	// the daemon will now start processing container events
+	close(daemon.ready)
 
 	group := sync.WaitGroup{}
 	for c, notifier := range restartContainers {
@@ -716,6 +724,7 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	d.nameIndex = registrar.NewRegistrar()
 	d.linkIndex = newLinkIndex()
 	d.containerdRemote = containerdRemote
+	d.ready = make(chan struct{})
 
 	go d.execCommandGC()
 

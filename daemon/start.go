@@ -96,6 +96,8 @@ func (daemon *Daemon) Start(container *container.Container) error {
 // between containers. The container is left waiting for a signal to
 // begin running.
 func (daemon *Daemon) containerStart(container *container.Container, checkpoint string, checkpointDir string, resetRestartManager bool) (err error) {
+	<-daemon.ready
+
 	start := time.Now()
 	container.Lock()
 	defer container.Unlock()
