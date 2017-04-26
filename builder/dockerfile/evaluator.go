@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/command"
 	"github.com/docker/docker/builder/dockerfile/parser"
 	"github.com/docker/docker/runconfig/opts"
@@ -64,19 +65,19 @@ type dispatchRequest struct {
 	attributes map[string]bool
 	flags      *BFlags
 	original   string
-	runConfig  *container.Config
 	shlex      *ShellLex
+	state      *dispatchState
 }
 
-func newDispatchRequestFromNode(node *parser.Node, builder *Builder, args []string, shlex *ShellLex) dispatchRequest {
+func newDispatchRequestFromOptions(options dispatchOptions, builder *Builder, args []string) dispatchRequest {
 	return dispatchRequest{
 		builder:    builder,
 		args:       args,
-		attributes: node.Attributes,
-		original:   node.Original,
-		flags:      NewBFlagsWithArgs(node.Flags),
-		runConfig:  builder.runConfig,
-		shlex:      shlex,
+		attributes: options.node.Attributes,
+		original:   options.node.Original,
+		flags:      NewBFlagsWithArgs(options.node.Flags),
+		shlex:      options.shlex,
+		state:      options.state,
 	}
 }
 
@@ -107,6 +108,10 @@ func init() {
 	}
 }
 
+func formatStep(stepN int, stepTotal int) string {
+	return fmt.Sprintf("%d/%d", stepN+1, stepTotal)
+}
+
 // This method is the entrypoint to all statement handling routines.
 //
 // Almost all nodes will have this structure:
@@ -121,115 +126,142 @@ func init() {
 // such as `RUN` in ONBUILD RUN foo. There is special case logic in here to
 // deal with that, at least until it becomes more of a general concern with new
 // features.
-func (b *Builder) dispatch(stepN int, stepTotal int, node *parser.Node, shlex *ShellLex) error {
+func (b *Builder) dispatch(options dispatchOptions) (*dispatchState, error) {
+	node := options.node
 	cmd := node.Value
 	upperCasedCmd := strings.ToUpper(cmd)
 
 	// To ensure the user is given a decent error message if the platform
 	// on which the daemon is running does not support a builder command.
 	if err := platformSupports(strings.ToLower(cmd)); err != nil {
-		return err
+		return nil, err
 	}
 
-	strList := []string{}
-	msg := bytes.NewBufferString(fmt.Sprintf("Step %d/%d : %s", stepN+1, stepTotal, upperCasedCmd))
+	msg := bytes.NewBufferString(fmt.Sprintf("Step %s : %s%s",
+		options.stepMsg, upperCasedCmd, formatFlags(node.Flags)))
 
-	if len(node.Flags) > 0 {
-		msg.WriteString(strings.Join(node.Flags, " "))
-	}
-
+	args := []string{}
 	ast := node
-	if cmd == "onbuild" {
-		if ast.Next == nil {
-			return errors.New("ONBUILD requires at least one argument")
-		}
-		ast = ast.Next.Children[0]
-		strList = append(strList, ast.Value)
-		msg.WriteString(" " + ast.Value)
-
-		if len(ast.Flags) > 0 {
-			msg.WriteString(" " + strings.Join(ast.Flags, " "))
-		}
-	}
-
-	msgList := initMsgList(ast)
-	// Append build args to runConfig environment variables
-	envs := append(b.runConfig.Env, b.buildArgsWithoutConfigEnv()...)
-
-	processFunc := getProcessFunc(shlex, cmd)
-	for i := 0; ast.Next != nil; i++ {
-		ast = ast.Next
-		words, err := processFunc(ast.Value, envs)
+	if cmd == command.Onbuild {
+		var err error
+		ast, args, err = handleOnBuildNode(node, msg)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		strList = append(strList, words...)
-		msgList[i] = ast.Value
 	}
 
-	msg.WriteString(" " + strings.Join(msgList, " "))
+	runConfigEnv := options.state.runConfig.Env
+	envs := append(runConfigEnv, b.buildArgs.FilterAllowed(runConfigEnv)...)
+	processFunc := createProcessWordFunc(options.shlex, cmd, envs)
+	words, err := getDispatchArgsFromNode(ast, processFunc, msg)
+	if err != nil {
+		return nil, err
+	}
+	args = append(args, words...)
+
 	fmt.Fprintln(b.Stdout, msg.String())
 
-	// XXX yes, we skip any cmds that are not valid; the parser should have
-	// picked these out already.
-	if f, ok := evaluateTable[cmd]; ok {
-		if err := f(newDispatchRequestFromNode(node, b, strList, shlex)); err != nil {
-			return err
+	f, ok := evaluateTable[cmd]
+	if !ok {
+		return nil, fmt.Errorf("unknown instruction: %s", upperCasedCmd)
+	}
+	if err := f(newDispatchRequestFromOptions(options, b, args)); err != nil {
+		return nil, err
+	}
+	options.state.updateRunConfig()
+	return options.state, nil
+}
+
+type dispatchOptions struct {
+	state   *dispatchState
+	stepMsg string
+	node    *parser.Node
+	shlex   *ShellLex
+}
+
+// dispatchState is a data object which is modified by dispatchers
+type dispatchState struct {
+	runConfig   *container.Config
+	maintainer  string
+	cmdSet      bool
+	noBaseImage bool
+	imageID     string
+	baseImage   builder.Image
+	stageName   string
+}
+
+func newDispatchState() *dispatchState {
+	return &dispatchState{runConfig: &container.Config{}}
+}
+
+func (r *dispatchState) updateRunConfig() {
+	r.runConfig.Image = r.imageID
+}
+
+// hasFromImage returns true if the builder has processed a `FROM <image>` line
+func (r *dispatchState) hasFromImage() bool {
+	return r.imageID != "" || r.noBaseImage
+}
+
+func (r *dispatchState) runConfigEnvMapping() map[string]string {
+	return opts.ConvertKVStringsToMap(r.runConfig.Env)
+}
+
+func (r *dispatchState) isCurrentStage(target string) bool {
+	if target == "" {
+		return false
+	}
+	return strings.EqualFold(r.stageName, target)
+}
+
+func handleOnBuildNode(ast *parser.Node, msg *bytes.Buffer) (*parser.Node, []string, error) {
+	if ast.Next == nil {
+		return nil, nil, errors.New("ONBUILD requires at least one argument")
+	}
+	ast = ast.Next.Children[0]
+	msg.WriteString(" " + ast.Value + formatFlags(ast.Flags))
+	return ast, []string{ast.Value}, nil
+}
+
+func formatFlags(flags []string) string {
+	if len(flags) > 0 {
+		return " " + strings.Join(flags, " ")
+	}
+	return ""
+}
+
+func getDispatchArgsFromNode(ast *parser.Node, processFunc processWordFunc, msg *bytes.Buffer) ([]string, error) {
+	args := []string{}
+	for i := 0; ast.Next != nil; i++ {
+		ast = ast.Next
+		words, err := processFunc(ast.Value)
+		if err != nil {
+			return nil, err
 		}
-		// TODO: return an object instead of setting things on builder
-		// If the step created a new image set it as the imageID for the
-		// current runConfig
-		b.runConfig.Image = b.image
-		return nil
+		args = append(args, words...)
+		msg.WriteString(" " + ast.Value)
 	}
-
-	return fmt.Errorf("Unknown instruction: %s", upperCasedCmd)
+	return args, nil
 }
 
-// count the number of nodes that we are going to traverse first
-// allocation of those list a lot when they have a lot of arguments
-func initMsgList(cursor *parser.Node) []string {
-	var n int
-	for ; cursor.Next != nil; n++ {
-		cursor = cursor.Next
-	}
-	return make([]string, n)
-}
+type processWordFunc func(string) ([]string, error)
 
-type processFunc func(string, []string) ([]string, error)
-
-func getProcessFunc(shlex *ShellLex, cmd string) processFunc {
+func createProcessWordFunc(shlex *ShellLex, cmd string, envs []string) processWordFunc {
 	switch {
 	case !replaceEnvAllowed[cmd]:
-		return func(word string, _ []string) ([]string, error) {
+		return func(word string) ([]string, error) {
 			return []string{word}, nil
 		}
 	case allowWordExpansion[cmd]:
-		return shlex.ProcessWords
+		return func(word string) ([]string, error) {
+			return shlex.ProcessWords(word, envs)
+		}
 	default:
-		return func(word string, envs []string) ([]string, error) {
+		return func(word string) ([]string, error) {
 			word, err := shlex.ProcessWord(word, envs)
 			return []string{word}, err
 		}
 	}
-}
-
-// buildArgsWithoutConfigEnv returns a list of key=value pairs for all the build
-// args that are not overriden by runConfig environment variables.
-func (b *Builder) buildArgsWithoutConfigEnv() []string {
-	envs := []string{}
-	configEnv := b.runConfigEnvMapping()
-
-	for key, val := range b.buildArgs.GetAllAllowed() {
-		if _, ok := configEnv[key]; !ok {
-			envs = append(envs, fmt.Sprintf("%s=%s", key, val))
-		}
-	}
-	return envs
-}
-
-func (b *Builder) runConfigEnvMapping() map[string]string {
-	return opts.ConvertKVStringsToMap(b.runConfig.Env)
 }
 
 // checkDispatch does a simple check for syntax errors of the Dockerfile.

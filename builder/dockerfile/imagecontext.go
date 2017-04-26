@@ -19,11 +19,10 @@ type pathCache interface {
 // imageContexts is a helper for stacking up built image rootfs and reusing
 // them as contexts
 type imageContexts struct {
-	b           *Builder
-	list        []*imageMount
-	byName      map[string]*imageMount
-	cache       pathCache
-	currentName string
+	b      *Builder
+	list   []*imageMount
+	byName map[string]*imageMount
+	cache  pathCache
 }
 
 func (ic *imageContexts) newImageMount(id string) *imageMount {
@@ -41,7 +40,6 @@ func (ic *imageContexts) add(name string) (*imageMount, error) {
 		}
 		ic.byName[name] = im
 	}
-	ic.currentName = name
 	ic.list = append(ic.list, im)
 	return im, nil
 }
@@ -94,13 +92,6 @@ func (ic *imageContexts) unmount() (retErr error) {
 		}
 	}
 	return
-}
-
-func (ic *imageContexts) isCurrentTarget(target string) bool {
-	if target == "" {
-		return false
-	}
-	return strings.EqualFold(ic.currentName, target)
 }
 
 func (ic *imageContexts) getCache(id, path string) (interface{}, bool) {
