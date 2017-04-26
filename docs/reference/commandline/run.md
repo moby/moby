@@ -738,6 +738,41 @@ $ docker run -d --isolation default busybox top
 $ docker run -d --isolation hyperv busybox top
 ```
 
+### Specify hard limits on memory available to containers (-m, --memory)
+
+These parameters always set an upper limit on the memory available to the container. On Linux, this
+is set on the cgroup and applications in a container can query it at `/sys/fs/cgroup/memory/memory.limit_in_bytes`.
+
+On Windows, this will affect containers differently depending on what type of isolation is used.
+
+- With `process` isolation, Windows will report the full memory of the host system, not the limit to applications running inside the container
+    ```powershell
+    docker run -it -m 2GB --isolation=process microsoft/nanoserver powershell Get-ComputerInfo *memory*
+
+    CsTotalPhysicalMemory      : 17064509440
+    CsPhyicallyInstalledMemory : 16777216
+    OsTotalVisibleMemorySize   : 16664560
+    OsFreePhysicalMemory       : 14646720
+    OsTotalVirtualMemorySize   : 19154928
+    OsFreeVirtualMemory        : 17197440
+    OsInUseVirtualMemory       : 1957488
+    OsMaxProcessMemorySize     : 137438953344
+    ```
+- With `hyperv` isolation, Windows will create a utility VM that is big enough to hold the memory limit, plus the minimal OS needed to host the container. That size is reported as "Total Physical Memory."
+    ```powershell
+    docker run -it -m 2GB --isolation=hyperv microsoft/nanoserver powershell Get-ComputerInfo *memory*
+
+    CsTotalPhysicalMemory      : 2683355136
+    CsPhyicallyInstalledMemory :
+    OsTotalVisibleMemorySize   : 2620464
+    OsFreePhysicalMemory       : 2306552
+    OsTotalVirtualMemorySize   : 2620464
+    OsFreeVirtualMemory        : 2356692
+    OsInUseVirtualMemory       : 263772
+    OsMaxProcessMemorySize     : 137438953344
+    ```
+
+
 ### Configure namespaced kernel parameters (sysctls) at runtime
 
 The `--sysctl` sets namespaced kernel parameters (sysctls) in the
