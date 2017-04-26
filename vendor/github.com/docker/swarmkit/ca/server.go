@@ -580,6 +580,7 @@ func (s *Server) UpdateRootCA(ctx context.Context, cluster *api.Cluster) error {
 
 	s.secConfigMu.Lock()
 	defer s.secConfigMu.Unlock()
+	firstSeenCluster := s.lastSeenClusterRootCA == nil && s.lastSeenExternalCAs == nil
 	rootCAChanged := len(rCA.CACert) != 0 && !equality.RootCAEqualStable(s.lastSeenClusterRootCA, rCA)
 	externalCAChanged := !equality.ExternalCAsEqualStable(s.lastSeenExternalCAs, cluster.Spec.CAConfig.ExternalCAs)
 	logger := log.G(ctx).WithFields(logrus.Fields{
@@ -588,7 +589,11 @@ func (s *Server) UpdateRootCA(ctx context.Context, cluster *api.Cluster) error {
 	})
 
 	if rootCAChanged {
-		logger.Debug("Updating security config due to change in cluster Root CA")
+		setOrUpdate := "set"
+		if !firstSeenCluster {
+			logger.Debug("Updating security config due to change in cluster Root CA")
+			setOrUpdate = "updated"
+		}
 		expiry := DefaultNodeCertExpiration
 		if cluster.Spec.CAConfig.NodeCertExpiry != nil {
 			// NodeCertExpiry exists, let's try to parse the duration out of it
@@ -636,14 +641,16 @@ func (s *Server) UpdateRootCA(ctx context.Context, cluster *api.Cluster) error {
 			return errors.Wrap(err, "updating Root CA failed")
 		}
 		// only update the server cache if we've successfully updated the root CA
-		logger.Debug("Root CA updated successfully")
+		logger.Debugf("Root CA %s successfully", setOrUpdate)
 		s.lastSeenClusterRootCA = rCA
 	}
 
 	// we want to update if the external CA changed, or if the root CA changed because the root CA could affect what
 	// certificate for external CAs we want to filter by
 	if rootCAChanged || externalCAChanged {
-		logger.Debug("Updating security config due to change in cluster Root CA or cluster spec")
+		if !firstSeenCluster {
+			logger.Debug("Updating security config external CA URLs due to change in cluster Root CA or cluster spec")
+		}
 		wantedExternalCACert := rCA.CACert // we want to only add external CA URLs that use this cert
 		if rCA.RootRotation != nil {
 			// we're rotating to a new root, so we only want external CAs with the new root cert

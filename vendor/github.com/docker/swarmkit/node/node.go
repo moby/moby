@@ -133,29 +133,17 @@ type Node struct {
 	manager          *manager.Manager
 	notifyNodeChange chan *agent.NodeChanges // used by the agent to relay node updates from the dispatcher Session stream to (*Node).run
 	unlockKey        []byte
-
-	// lastNodeRole is the last-seen value of Node.Role, used to make role
-	// changes "edge triggered" and avoid renewal loops.
-	lastNodeRole lastSeenRole
-	// lastNodeDesiredRole is the last-seen value of Node.Spec.DesiredRole,
-	// used to make role changes "edge triggered" and avoid renewal loops.
-	// This exists in addition to lastNodeRole to support older CAs that
-	// only fill in the DesiredRole field.
-	lastNodeDesiredRole lastSeenRole
 }
 
 type lastSeenRole struct {
-	role *api.NodeRole
+	role api.NodeRole
 }
 
 // observe notes the latest value of this node role, and returns true if it
 // is the first seen value, or is different from the most recently seen value.
 func (l *lastSeenRole) observe(newRole api.NodeRole) bool {
-	changed := l.role == nil || *l.role != newRole
-	if l.role == nil {
-		l.role = new(api.NodeRole)
-	}
-	*l.role = newRole
+	changed := l.role != newRole
+	l.role = newRole
 	return changed
 }
 
@@ -244,6 +232,16 @@ func (n *Node) Start(ctx context.Context) error {
 	return err
 }
 
+func (n *Node) currentRole() api.NodeRole {
+	n.Lock()
+	currentRole := api.NodeRoleWorker
+	if n.role == ca.ManagerRole {
+		currentRole = api.NodeRoleManager
+	}
+	n.Unlock()
+	return currentRole
+}
+
 func (n *Node) run(ctx context.Context) (err error) {
 	defer func() {
 		n.err = err
@@ -267,9 +265,11 @@ func (n *Node) run(ctx context.Context) (err error) {
 		return err
 	}
 
+	renewer := ca.NewTLSRenewer(securityConfig, n.connBroker)
+
 	ctx = log.WithLogger(ctx, log.G(ctx).WithField("node.id", n.NodeID()))
 
-	taskDBPath := filepath.Join(n.config.StateDir, "worker/tasks.db")
+	taskDBPath := filepath.Join(n.config.StateDir, "worker", "tasks.db")
 	if err := os.MkdirAll(filepath.Dir(taskDBPath), 0777); err != nil {
 		return err
 	}
@@ -282,57 +282,39 @@ func (n *Node) run(ctx context.Context) (err error) {
 
 	agentDone := make(chan struct{})
 
-	forceCertRenewal := make(chan struct{})
-	renewCert := func() {
-		for {
-			select {
-			case forceCertRenewal <- struct{}{}:
-				return
-			case <-agentDone:
-				return
-			case <-n.notifyNodeChange:
-				// consume from the channel to avoid blocking the writer
-			}
-		}
-	}
-
 	go func() {
+		// lastNodeDesiredRole is the last-seen value of Node.Spec.DesiredRole,
+		// used to make role changes "edge triggered" and avoid renewal loops.
+		lastNodeDesiredRole := lastSeenRole{role: n.currentRole()}
+
 		for {
 			select {
 			case <-agentDone:
 				return
 			case nodeChanges := <-n.notifyNodeChange:
-				n.Lock()
-				currentRole := api.NodeRoleWorker
-				if n.role == ca.ManagerRole {
-					currentRole = api.NodeRoleManager
-				}
-				n.Unlock()
+				currentRole := n.currentRole()
 
 				if nodeChanges.Node != nil {
 					// This is a bit complex to be backward compatible with older CAs that
 					// don't support the Node.Role field. They only use what's presently
 					// called DesiredRole.
-					// 1) If we haven't seen the node object before, and the desired role
-					//    is different from our current role, renew the cert. This covers
-					//    the case of starting up after a role change.
-					// 2) If we have seen the node before, the desired role is
-					//    different from our current role, and either the actual role or
-					//    desired role has changed relative to the last values we saw in
-					//    those fields, renew the cert. This covers the case of the role
-					//    changing while this node is running, but prevents getting into a
-					//    rotation loop if Node.Role isn't what we expect (because it's
-					//    unset). We may renew the certificate an extra time (first when
-					//    DesiredRole changes, and then again when Role changes).
-					// 3) If the server is sending us IssuanceStateRotate, renew the cert as
+					// 1) If DesiredRole changes, kick off a certificate renewal. The renewal
+					//    is delayed slightly to give Role time to change as well if this is
+					//    a newer CA. If the certificate we get back doesn't have the expected
+					//    role, we continue renewing with exponential backoff.
+					// 2) If the server is sending us IssuanceStateRotate, renew the cert as
 					//    requested by the CA.
-					roleChanged := n.lastNodeRole.observe(nodeChanges.Node.Role)
-					desiredRoleChanged := n.lastNodeDesiredRole.observe(nodeChanges.Node.Spec.DesiredRole)
-					if (currentRole != nodeChanges.Node.Spec.DesiredRole &&
-						((roleChanged && currentRole != nodeChanges.Node.Role) ||
-							desiredRoleChanged)) ||
-						nodeChanges.Node.Certificate.Status.State == api.IssuanceStateRotate {
-						renewCert()
+					desiredRoleChanged := lastNodeDesiredRole.observe(nodeChanges.Node.Spec.DesiredRole)
+					if desiredRoleChanged {
+						switch nodeChanges.Node.Spec.DesiredRole {
+						case api.NodeRoleManager:
+							renewer.SetExpectedRole(ca.ManagerRole)
+						case api.NodeRoleWorker:
+							renewer.SetExpectedRole(ca.WorkerRole)
+						}
+					}
+					if desiredRoleChanged || nodeChanges.Node.Certificate.Status.State == api.IssuanceStateRotate {
+						renewer.Renew()
 					}
 				}
 
@@ -364,7 +346,7 @@ func (n *Node) run(ctx context.Context) (err error) {
 	var wg sync.WaitGroup
 	wg.Add(3)
 
-	updates := ca.RenewTLSConfig(ctx, securityConfig, n.connBroker, forceCertRenewal)
+	updates := renewer.Start(ctx)
 	go func() {
 		for certUpdate := range updates {
 			if certUpdate.Err != nil {
@@ -387,7 +369,7 @@ func (n *Node) run(ctx context.Context) (err error) {
 	var managerErr error
 	var agentErr error
 	go func() {
-		managerErr = n.superviseManager(ctx, securityConfig, paths.RootCA, managerReady, forceCertRenewal) // store err and loop
+		managerErr = n.superviseManager(ctx, securityConfig, paths.RootCA, managerReady, renewer) // store err and loop
 		wg.Done()
 		cancel()
 	}()
@@ -869,7 +851,7 @@ func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig
 	return clearData, nil
 }
 
-func (n *Node) superviseManager(ctx context.Context, securityConfig *ca.SecurityConfig, rootPaths ca.CertPaths, ready chan struct{}, forceCertRenewal chan struct{}) error {
+func (n *Node) superviseManager(ctx context.Context, securityConfig *ca.SecurityConfig, rootPaths ca.CertPaths, ready chan struct{}, renewer *ca.TLSRenewer) error {
 	for {
 		if err := n.waitRole(ctx, ca.ManagerRole); err != nil {
 			return err
@@ -924,14 +906,7 @@ func (n *Node) superviseManager(ctx context.Context, securityConfig *ca.Security
 			log.G(ctx).Warn("failed to get worker role after manager stop, forcing certificate renewal")
 			timer.Reset(roleChangeTimeout)
 
-			select {
-			case forceCertRenewal <- struct{}{}:
-			case <-timer.C:
-				log.G(ctx).Warn("failed to trigger certificate renewal after manager stop, restarting manager")
-				return nil
-			case <-ctx.Done():
-				return ctx.Err()
-			}
+			renewer.Renew()
 
 			// Now that the renewal request has been sent to the
 			// renewal goroutine, wait for a change in role.

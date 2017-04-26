@@ -1,6 +1,6 @@
 # [SwarmKit](https://github.com/docker/swarmkit)
 
-[![GoDoc](https://godoc.org/github.com/docker/swarmkit?status.png)](https://godoc.org/github.com/docker/swarmkit)
+[![GoDoc](https://godoc.org/github.com/docker/swarmkit?status.svg)](https://godoc.org/github.com/docker/swarmkit)
 [![Circle CI](https://circleci.com/gh/docker/swarmkit.svg?style=shield&circle-token=a7bf494e28963703a59de71cf19b73ad546058a7)](https://circleci.com/gh/docker/swarmkit)
 [![codecov.io](https://codecov.io/github/docker/swarmkit/coverage.svg?branch=master&token=LqD1dzTjsN)](https://codecov.io/github/docker/swarmkit?branch=master)
 [![Badge Badge](http://doyouevenbadge.com/github.com/docker/swarmkit)](http://doyouevenbadge.com/report/github.com/docker/swarmkit)
@@ -83,7 +83,7 @@ Requirements:
 
 -   Go 1.6 or higher
 -   A [working golang](https://golang.org/doc/code.html) environment
--   [Protobuf 3.x or higher] (https://developers.google.com/protocol-buffers/docs/downloads) to regenerate protocol buffer files (e.g. using `make generate`)
+-   [Protobuf 3.x or higher](https://developers.google.com/protocol-buffers/docs/downloads) to regenerate protocol buffer files (e.g. using `make generate`)
 
 *SwarmKit* is built in Go and leverages a standard project structure to work well with Go tooling.
 If you are new to Go, please see [BUILDING.md](BUILDING.md) for a more detailed guide.

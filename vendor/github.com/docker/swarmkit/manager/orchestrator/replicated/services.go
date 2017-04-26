@@ -108,7 +108,7 @@ func (r *Orchestrator) reconcile(ctx context.Context, service *api.Service) {
 		log.G(ctx).Debugf("Service %s was scaled up from %d to %d instances", service.ID, numSlots, specifiedSlots)
 		// Update all current tasks then add missing tasks
 		r.updater.Update(ctx, r.cluster, service, slotsSlice)
-		_, err = r.store.Batch(func(batch *store.Batch) error {
+		err = r.store.Batch(func(batch *store.Batch) error {
 			r.addTasks(ctx, batch, service, runningSlots, deadSlots, specifiedSlots-uint64(numSlots))
 			r.deleteTasksMap(ctx, batch, deadSlots)
 			return nil
@@ -155,7 +155,7 @@ func (r *Orchestrator) reconcile(ctx context.Context, service *api.Service) {
 		}
 
 		r.updater.Update(ctx, r.cluster, service, sortedSlots[:specifiedSlots])
-		_, err = r.store.Batch(func(batch *store.Batch) error {
+		err = r.store.Batch(func(batch *store.Batch) error {
 			r.deleteTasksMap(ctx, batch, deadSlots)
 			r.deleteTasks(ctx, batch, sortedSlots[specifiedSlots:])
 			return nil
@@ -165,7 +165,7 @@ func (r *Orchestrator) reconcile(ctx context.Context, service *api.Service) {
 		}
 
 	case specifiedSlots == uint64(numSlots):
-		_, err = r.store.Batch(func(batch *store.Batch) error {
+		err = r.store.Batch(func(batch *store.Batch) error {
 			r.deleteTasksMap(ctx, batch, deadSlots)
 			return nil
 		})
