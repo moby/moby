@@ -311,10 +311,12 @@ func ParseMountSpec(cfg mounttypes.Mount, options ...func(*validateOpts)) (*Moun
 		}
 	case mounttypes.TypeBind:
 		mp.Source = clean(convertSlash(cfg.Source))
-		if cfg.BindOptions != nil {
-			if len(cfg.BindOptions.Propagation) > 0 {
-				mp.Propagation = cfg.BindOptions.Propagation
-			}
+		if cfg.BindOptions != nil && len(cfg.BindOptions.Propagation) > 0 {
+			mp.Propagation = cfg.BindOptions.Propagation
+		} else {
+			// If user did not specify a propagation mode, get
+			// default propagation mode.
+			mp.Propagation = DefaultPropagationMode
 		}
 	case mounttypes.TypeTmpfs:
 		// NOP
