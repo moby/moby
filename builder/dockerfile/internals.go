@@ -573,10 +573,17 @@ func (b *Builder) create() (string, error) {
 var errCancelled = errors.New("build cancelled")
 
 func (b *Builder) run(cID string) (err error) {
+	attached := make(chan struct{})
 	errCh := make(chan error)
 	go func() {
-		errCh <- b.docker.ContainerAttachRaw(cID, nil, b.Stdout, b.Stderr, true)
+		errCh <- b.docker.ContainerAttachRaw(cID, nil, b.Stdout, b.Stderr, true, attached)
 	}()
+
+	select {
+	case err := <-errCh:
+		return err
+	case <-attached:
+	}
 
 	finished := make(chan struct{})
 	cancelErrCh := make(chan error, 1)

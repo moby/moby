@@ -73,7 +73,7 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, c *backend.ContainerA
 }
 
 // ContainerAttachRaw attaches the provided streams to the container's stdio
-func (daemon *Daemon) ContainerAttachRaw(prefixOrName string, stdin io.ReadCloser, stdout, stderr io.Writer, doStream bool) error {
+func (daemon *Daemon) ContainerAttachRaw(prefixOrName string, stdin io.ReadCloser, stdout, stderr io.Writer, doStream bool, attached chan struct{}) error {
 	container, err := daemon.GetContainer(prefixOrName)
 	if err != nil {
 		return err
@@ -86,6 +86,7 @@ func (daemon *Daemon) ContainerAttachRaw(prefixOrName string, stdin io.ReadClose
 		CloseStdin: container.Config.StdinOnce,
 	}
 	container.StreamConfig.AttachStreams(&cfg)
+	close(attached)
 	if cfg.UseStdin {
 		cfg.Stdin = stdin
 	}
@@ -101,15 +102,23 @@ func (daemon *Daemon) ContainerAttachRaw(prefixOrName string, stdin io.ReadClose
 
 func (daemon *Daemon) containerAttach(c *container.Container, cfg *stream.AttachConfig, logs, doStream bool) error {
 	if logs {
-		logDriver, err := daemon.getLogger(c)
+		logDriver, logCreated, err := daemon.getLogger(c)
 		if err != nil {
 			return err
+		}
+		if logCreated {
+			defer func() {
+				if err = logDriver.Close(); err != nil {
+					logrus.Errorf("Error closing logger: %v", err)
+				}
+			}()
 		}
 		cLog, ok := logDriver.(logger.LogReader)
 		if !ok {
 			return logger.ErrReadLogsNotSupported
 		}
 		logs := cLog.ReadLogs(logger.ReadConfig{Tail: -1})
+		defer logs.Close()
 
 	LogLoop:
 		for {
