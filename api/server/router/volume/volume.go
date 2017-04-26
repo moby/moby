@@ -29,7 +29,7 @@ func (r *volumeRouter) initRoutes() {
 		router.NewGetRoute("/volumes/{name:.*}", r.getVolumeByName),
 		// POST
 		router.NewPostRoute("/volumes/create", r.postVolumesCreate),
-		router.NewPostRoute("/volumes/prune", r.postVolumesPrune),
+		router.NewPostRoute("/volumes/prune", r.postVolumesPrune, router.WithCancel),
 		// DELETE
 		router.NewDeleteRoute("/volumes/{name:.*}", r.deleteVolumes),
 	}
