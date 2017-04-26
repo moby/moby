@@ -186,18 +186,33 @@ func (na *NetworkAllocator) ServiceAllocate(s *api.Service) (err error) {
 		return
 	}
 
-	// First allocate VIPs for all the pre-populated endpoint attachments
-	for _, eAttach := range s.Endpoint.VirtualIPs {
-		if err = na.allocateVIP(eAttach); err != nil {
-			return
-		}
-	}
-
 	// Always prefer NetworkAttachmentConfig in the TaskSpec
 	specNetworks := s.Spec.Task.Networks
 	if len(specNetworks) == 0 && s != nil && len(s.Spec.Networks) != 0 {
 		specNetworks = s.Spec.Networks
 	}
+
+	// Allocate VIPs for all the pre-populated endpoint attachments
+	eVIPs := s.Endpoint.VirtualIPs[:0]
+	for _, eAttach := range s.Endpoint.VirtualIPs {
+		match := false
+		for _, nAttach := range specNetworks {
+			if nAttach.Target == eAttach.NetworkID {
+				match = true
+				if err = na.allocateVIP(eAttach); err != nil {
+					return
+				}
+				eVIPs = append(eVIPs, eAttach)
+				break
+			}
+		}
+		//If the network of the VIP is not part of the service spec,
+		//deallocate the vip
+		if !match {
+			na.deallocateVIP(eAttach)
+		}
+	}
+	s.Endpoint.VirtualIPs = eVIPs
 
 outer:
 	for _, nAttach := range specNetworks {
@@ -215,7 +230,11 @@ outer:
 		s.Endpoint.VirtualIPs = append(s.Endpoint.VirtualIPs, vip)
 	}
 
-	na.services[s.ID] = struct{}{}
+	if len(s.Endpoint.VirtualIPs) > 0 {
+		na.services[s.ID] = struct{}{}
+	} else {
+		delete(na.services, s.ID)
+	}
 	return
 }
 
@@ -300,41 +319,79 @@ func OnInit(options *ServiceAllocationOpts) {
 	options.OnInit = true
 }
 
-// IsServiceAllocated returns if the passed service has its network resources allocated or not.
-// init bool indicates if the func is called during allocator initialization stage.
-func (na *NetworkAllocator) IsServiceAllocated(s *api.Service, flags ...func(*ServiceAllocationOpts)) bool {
+// ServiceNeedsAllocation returns true if the passed service needs to have network resources allocated/updated.
+func (na *NetworkAllocator) ServiceNeedsAllocation(s *api.Service, flags ...func(*ServiceAllocationOpts)) bool {
 	var options ServiceAllocationOpts
-
 	for _, flag := range flags {
 		flag(&options)
 	}
 
+	// Always prefer NetworkAttachmentConfig in the TaskSpec
+	specNetworks := s.Spec.Task.Networks
+	if len(specNetworks) == 0 && len(s.Spec.Networks) != 0 {
+		specNetworks = s.Spec.Networks
+	}
+
 	// If endpoint mode is VIP and allocator does not have the
-	// service in VIP allocated set then it is not allocated.
-	if (len(s.Spec.Task.Networks) != 0 || len(s.Spec.Networks) != 0) &&
+	// service in VIP allocated set then it needs to be allocated.
+	if len(specNetworks) != 0 &&
 		(s.Spec.Endpoint == nil ||
 			s.Spec.Endpoint.Mode == api.ResolutionModeVirtualIP) {
+
 		if _, ok := na.services[s.ID]; !ok {
-			return false
+			return true
+		}
+
+		if s.Endpoint == nil || len(s.Endpoint.VirtualIPs) == 0 {
+			return true
+		}
+
+		for _, net := range specNetworks {
+			match := false
+			for _, vip := range s.Endpoint.VirtualIPs {
+				if vip.NetworkID == net.Target {
+					match = true
+					break
+				}
+			}
+			if !match {
+				return true
+			}
+		}
+	}
+
+	//If the spec no longer has networks attached and has a vip allocated
+	//from previous spec the service needs to updated
+	if s.Endpoint != nil {
+		for _, vip := range s.Endpoint.VirtualIPs {
+			match := false
+			for _, net := range specNetworks {
+				if vip.NetworkID == net.Target {
+					match = true
+					break
+				}
+			}
+			if !match {
+				return true
+			}
 		}
 	}
 
 	// If the endpoint mode is DNSRR and allocator has the service
-	// in VIP allocated set then we return not allocated to make
+	// in VIP allocated set then we return to be allocated to make
 	// sure the allocator triggers networkallocator to free up the
 	// resources if any.
 	if s.Spec.Endpoint != nil && s.Spec.Endpoint.Mode == api.ResolutionModeDNSRoundRobin {
 		if _, ok := na.services[s.ID]; ok {
-			return false
+			return true
 		}
 	}
 
 	if (s.Spec.Endpoint != nil && len(s.Spec.Endpoint.Ports) != 0) ||
 		(s.Endpoint != nil && len(s.Endpoint.Ports) != 0) {
-		return na.portAllocator.isPortsAllocatedOnInit(s, options.OnInit)
+		return !na.portAllocator.isPortsAllocatedOnInit(s, options.OnInit)
 	}
-
-	return true
+	return false
 }
 
 // IsNodeAllocated returns if the passed node has its network resources allocated or not.
