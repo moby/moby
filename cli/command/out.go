@@ -1,9 +1,11 @@
 package command
 
 import (
+	"io"
+	"os"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/term"
-	"io"
 )
 
 // OutStream is an output stream used by the DockerCli to write normal program
@@ -15,6 +17,15 @@ type OutStream struct {
 
 func (o *OutStream) Write(p []byte) (int, error) {
 	return o.out.Write(p)
+}
+
+// SetRawTerminal sets raw mode on the input terminal
+func (o *OutStream) SetRawTerminal() (err error) {
+	if os.Getenv("NORAW") != "" || !o.CommonStream.isTerminal {
+		return nil
+	}
+	o.CommonStream.state, err = term.SetRawTerminalOutput(o.CommonStream.fd)
+	return err
 }
 
 // GetTtySize returns the height and width in characters of the tty

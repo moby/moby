@@ -2,7 +2,6 @@ package command
 
 import (
 	"github.com/docker/docker/pkg/term"
-	"os"
 )
 
 // CommonStream is an input stream used by the DockerCli to read user input
@@ -20,15 +19,6 @@ func (s *CommonStream) FD() uintptr {
 // IsTerminal returns true if this stream is connected to a terminal
 func (s *CommonStream) IsTerminal() bool {
 	return s.isTerminal
-}
-
-// SetRawTerminal sets raw mode on the input terminal
-func (s *CommonStream) SetRawTerminal() (err error) {
-	if os.Getenv("NORAW") != "" || !s.isTerminal {
-		return nil
-	}
-	s.state, err = term.SetRawTerminal(s.fd)
-	return err
 }
 
 // RestoreTerminal restores normal mode to the terminal
