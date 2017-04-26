@@ -30,6 +30,7 @@ be found.
 * Improve `docker version --format` option when the client has downgraded the API version [#31022](https://github.com/docker/docker/pull/31022)
 * Prompt when using an encrypted client certificate to connect to a docker daemon [#31364](https://github.com/docker/docker/pull/31364)
 * Display created tags on successful `docker build` [#32077](https://github.com/docker/docker/pull/32077)
+* Cleanup compose convert error messages [#32087](https://github.com/moby/moby/pull/32087)
 
 ### Contrib
 
