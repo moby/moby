@@ -1,11 +1,5 @@
 package dockerfile
 
-// This will take a single word and an array of env variables and
-// process all quotes (" and ') as well as $xxx and ${xxx} env variable
-// tokens.  Tries to mimic bash shell process.
-// It doesn't support all flavors of ${xx:...} formats but new ones can
-// be added by adding code to the "special ${} format processing" section
-
 import (
 	"bytes"
 	"strings"
@@ -15,18 +9,26 @@ import (
 	"github.com/pkg/errors"
 )
 
-type shellWord struct {
-	word        string
-	scanner     scanner.Scanner
-	envs        []string
-	pos         int
+// ShellLex performs shell word splitting and variable expansion.
+//
+// ShellLex takes a string and an array of env variables and
+// process all quotes (" and ') as well as $xxx and ${xxx} env variable
+// tokens.  Tries to mimic bash shell process.
+// It doesn't support all flavors of ${xx:...} formats but new ones can
+// be added by adding code to the "special ${} format processing" section
+type ShellLex struct {
 	escapeToken rune
+}
+
+// NewShellLex creates a new ShellLex which uses escapeToken to escape quotes.
+func NewShellLex(escapeToken rune) *ShellLex {
+	return &ShellLex{escapeToken: escapeToken}
 }
 
 // ProcessWord will use the 'env' list of environment variables,
 // and replace any env var references in 'word'.
-func ProcessWord(word string, env []string, escapeToken rune) (string, error) {
-	word, _, err := process(word, env, escapeToken)
+func (s *ShellLex) ProcessWord(word string, env []string) (string, error) {
+	word, _, err := s.process(word, env)
 	return word, err
 }
 
@@ -37,24 +39,32 @@ func ProcessWord(word string, env []string, escapeToken rune) (string, error) {
 // this splitting is done **after** the env var substitutions are done.
 // Note, each one is trimmed to remove leading and trailing spaces (unless
 // they are quoted", but ProcessWord retains spaces between words.
-func ProcessWords(word string, env []string, escapeToken rune) ([]string, error) {
-	_, words, err := process(word, env, escapeToken)
+func (s *ShellLex) ProcessWords(word string, env []string) ([]string, error) {
+	_, words, err := s.process(word, env)
 	return words, err
 }
 
-func process(word string, env []string, escapeToken rune) (string, []string, error) {
+func (s *ShellLex) process(word string, env []string) (string, []string, error) {
 	sw := &shellWord{
-		word:        word,
 		envs:        env,
-		pos:         0,
-		escapeToken: escapeToken,
+		escapeToken: s.escapeToken,
 	}
 	sw.scanner.Init(strings.NewReader(word))
-	return sw.process()
+	return sw.process(word)
 }
 
-func (sw *shellWord) process() (string, []string, error) {
-	return sw.processStopOn(scanner.EOF)
+type shellWord struct {
+	scanner     scanner.Scanner
+	envs        []string
+	escapeToken rune
+}
+
+func (sw *shellWord) process(source string) (string, []string, error) {
+	word, words, err := sw.processStopOn(scanner.EOF)
+	if err != nil {
+		err = errors.Wrapf(err, "failed to process %q", source)
+	}
+	return word, words, err
 }
 
 type wordsStruct struct {
@@ -286,10 +296,10 @@ func (sw *shellWord) processDollar() (string, error) {
 			return newValue, nil
 
 		default:
-			return "", errors.Errorf("unsupported modifier (%c) in substitution: %s", modifier, sw.word)
+			return "", errors.Errorf("unsupported modifier (%c) in substitution", modifier)
 		}
 	}
-	return "", errors.Errorf("missing ':' in substitution: %s", sw.word)
+	return "", errors.Errorf("missing ':' in substitution")
 }
 
 func (sw *shellWord) processName() string {

@@ -194,7 +194,7 @@ func from(req dispatchRequest) error {
 		return err
 	}
 
-	image, err := req.builder.getFromImage(req.args[0])
+	image, err := req.builder.getFromImage(req.shlex, req.args[0])
 	if err != nil {
 		return err
 	}
@@ -222,13 +222,13 @@ func parseBuildStageName(args []string) (string, error) {
 	return stageName, nil
 }
 
-func (b *Builder) getFromImage(name string) (builder.Image, error) {
+func (b *Builder) getFromImage(shlex *ShellLex, name string) (builder.Image, error) {
 	substitutionArgs := []string{}
 	for key, value := range b.buildArgs.GetAllMeta() {
 		substitutionArgs = append(substitutionArgs, key+"="+value)
 	}
 
-	name, err := ProcessWord(name, substitutionArgs, b.escapeToken)
+	name, err := shlex.ProcessWord(name, substitutionArgs)
 	if err != nil {
 		return nil, err
 	}

@@ -65,9 +65,10 @@ type dispatchRequest struct {
 	flags      *BFlags
 	original   string
 	runConfig  *container.Config
+	shlex      *ShellLex
 }
 
-func newDispatchRequestFromNode(node *parser.Node, builder *Builder, args []string) dispatchRequest {
+func newDispatchRequestFromNode(node *parser.Node, builder *Builder, args []string, shlex *ShellLex) dispatchRequest {
 	return dispatchRequest{
 		builder:    builder,
 		args:       args,
@@ -75,6 +76,7 @@ func newDispatchRequestFromNode(node *parser.Node, builder *Builder, args []stri
 		original:   node.Original,
 		flags:      NewBFlagsWithArgs(node.Flags),
 		runConfig:  builder.runConfig,
+		shlex:      shlex,
 	}
 }
 
@@ -119,7 +121,7 @@ func init() {
 // such as `RUN` in ONBUILD RUN foo. There is special case logic in here to
 // deal with that, at least until it becomes more of a general concern with new
 // features.
-func (b *Builder) dispatch(stepN int, stepTotal int, node *parser.Node) error {
+func (b *Builder) dispatch(stepN int, stepTotal int, node *parser.Node, shlex *ShellLex) error {
 	cmd := node.Value
 	upperCasedCmd := strings.ToUpper(cmd)
 
@@ -154,9 +156,10 @@ func (b *Builder) dispatch(stepN int, stepTotal int, node *parser.Node) error {
 	// Append build args to runConfig environment variables
 	envs := append(b.runConfig.Env, b.buildArgsWithoutConfigEnv()...)
 
+	processFunc := getProcessFunc(shlex, cmd)
 	for i := 0; ast.Next != nil; i++ {
 		ast = ast.Next
-		words, err := b.evaluateEnv(cmd, ast.Value, envs)
+		words, err := processFunc(ast.Value, envs)
 		if err != nil {
 			return err
 		}
@@ -170,7 +173,7 @@ func (b *Builder) dispatch(stepN int, stepTotal int, node *parser.Node) error {
 	// XXX yes, we skip any cmds that are not valid; the parser should have
 	// picked these out already.
 	if f, ok := evaluateTable[cmd]; ok {
-		return f(newDispatchRequestFromNode(node, b, strList))
+		return f(newDispatchRequestFromNode(node, b, strList, shlex))
 	}
 
 	return fmt.Errorf("Unknown instruction: %s", upperCasedCmd)
@@ -186,20 +189,22 @@ func initMsgList(cursor *parser.Node) []string {
 	return make([]string, n)
 }
 
-func (b *Builder) evaluateEnv(cmd string, str string, envs []string) ([]string, error) {
-	if !replaceEnvAllowed[cmd] {
-		return []string{str}, nil
-	}
-	var processFunc func(string, []string, rune) ([]string, error)
-	if allowWordExpansion[cmd] {
-		processFunc = ProcessWords
-	} else {
-		processFunc = func(word string, envs []string, escape rune) ([]string, error) {
-			word, err := ProcessWord(word, envs, escape)
+type processFunc func(string, []string) ([]string, error)
+
+func getProcessFunc(shlex *ShellLex, cmd string) processFunc {
+	switch {
+	case !replaceEnvAllowed[cmd]:
+		return func(word string, _ []string) ([]string, error) {
+			return []string{word}, nil
+		}
+	case allowWordExpansion[cmd]:
+		return shlex.ProcessWords
+	default:
+		return func(word string, envs []string) ([]string, error) {
+			word, err := shlex.ProcessWord(word, envs)
 			return []string{word}, err
 		}
 	}
-	return processFunc(str, envs, b.escapeToken)
 }
 
 // buildArgsWithoutConfigEnv returns a list of key=value pairs for all the build
