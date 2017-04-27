@@ -1,4 +1,4 @@
-package builder
+package remotecontext
 
 import (
 	"bytes"
@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/docker/docker/builder"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/httputils"
 )
@@ -175,13 +176,13 @@ func TestMakeRemoteContext(t *testing.T) {
 	contextDir, cleanup := createTestTempDir(t, "", "builder-tarsum-test")
 	defer cleanup()
 
-	createTestTempFile(t, contextDir, DefaultDockerfileName, dockerfileContents, 0777)
+	createTestTempFile(t, contextDir, builder.DefaultDockerfileName, dockerfileContents, 0777)
 
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	serverURL, _ := url.Parse(server.URL)
 
-	serverURL.Path = "/" + DefaultDockerfileName
+	serverURL.Path = "/" + builder.DefaultDockerfileName
 	remoteURL := serverURL.String()
 
 	mux.Handle("/", http.FileServer(http.Dir(contextDir)))
@@ -193,7 +194,7 @@ func TestMakeRemoteContext(t *testing.T) {
 				return nil, err
 			}
 
-			r, err := archive.Generate(DefaultDockerfileName, string(dockerfile))
+			r, err := archive.Generate(builder.DefaultDockerfileName, string(dockerfile))
 			if err != nil {
 				return nil, err
 			}
@@ -221,13 +222,13 @@ func TestMakeRemoteContext(t *testing.T) {
 		t.Fatalf("Size of file info sums should be 1, got: %d", fileInfoSums.Len())
 	}
 
-	fileInfo := fileInfoSums.GetFile(DefaultDockerfileName)
+	fileInfo := fileInfoSums.GetFile(builder.DefaultDockerfileName)
 
 	if fileInfo == nil {
-		t.Fatalf("There should be file named %s in fileInfoSums", DefaultDockerfileName)
+		t.Fatalf("There should be file named %s in fileInfoSums", builder.DefaultDockerfileName)
 	}
 
 	if fileInfo.Pos() != 0 {
-		t.Fatalf("File %s should have position 0, got %d", DefaultDockerfileName, fileInfo.Pos())
+		t.Fatalf("File %s should have position 0, got %d", builder.DefaultDockerfileName, fileInfo.Pos())
 	}
 }
