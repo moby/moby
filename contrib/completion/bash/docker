@@ -2299,9 +2299,15 @@ _docker_image_build() {
 }
 
 _docker_image_history() {
+	case "$prev" in
+		--format)
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help --human=false -H=false --no-trunc --quiet -q" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--format --help --human=false -H=false --no-trunc --quiet -q" -- "$cur" ) )
 			;;
 		*)
 			local counter=$(__docker_pos_first_nonflag)
