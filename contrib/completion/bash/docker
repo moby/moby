@@ -4495,6 +4495,7 @@ _docker() {
 	)
 
 	local legacy_commands=(
+		attach
 		commit
 		cp
 		create
