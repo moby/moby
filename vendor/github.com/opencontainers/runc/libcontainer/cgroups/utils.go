@@ -23,36 +23,14 @@ const (
 
 // https://www.kernel.org/doc/Documentation/cgroup-v1/cgroups.txt
 func FindCgroupMountpoint(subsystem string) (string, error) {
-	// We are not using mount.GetMounts() because it's super-inefficient,
-	// parsing it directly sped up x10 times because of not using Sscanf.
-	// It was one of two major performance drawbacks in container start.
-	if !isSubsystemAvailable(subsystem) {
-		return "", NewNotFoundError(subsystem)
-	}
-	f, err := os.Open("/proc/self/mountinfo")
-	if err != nil {
-		return "", err
-	}
-	defer f.Close()
-
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		txt := scanner.Text()
-		fields := strings.Split(txt, " ")
-		for _, opt := range strings.Split(fields[len(fields)-1], ",") {
-			if opt == subsystem {
-				return fields[4], nil
-			}
-		}
-	}
-	if err := scanner.Err(); err != nil {
-		return "", err
-	}
-
-	return "", NewNotFoundError(subsystem)
+	mnt, _, err := FindCgroupMountpointAndRoot(subsystem)
+	return mnt, err
 }
 
 func FindCgroupMountpointAndRoot(subsystem string) (string, string, error) {
+	// We are not using mount.GetMounts() because it's super-inefficient,
+	// parsing it directly sped up x10 times because of not using Sscanf.
+	// It was one of two major performance drawbacks in container start.
 	if !isSubsystemAvailable(subsystem) {
 		return "", "", NewNotFoundError(subsystem)
 	}
@@ -131,7 +109,7 @@ type Mount struct {
 	Subsystems []string
 }
 
-func (m Mount) GetThisCgroupDir(cgroups map[string]string) (string, error) {
+func (m Mount) GetOwnCgroup(cgroups map[string]string) (string, error) {
 	if len(m.Subsystems) == 0 {
 		return "", fmt.Errorf("no subsystem for mount")
 	}
@@ -211,9 +189,6 @@ func GetAllSubsystems() ([]string, error) {
 
 	s := bufio.NewScanner(f)
 	for s.Scan() {
-		if err := s.Err(); err != nil {
-			return nil, err
-		}
 		text := s.Text()
 		if text[0] != '#' {
 			parts := strings.Fields(text)
@@ -222,11 +197,14 @@ func GetAllSubsystems() ([]string, error) {
 			}
 		}
 	}
+	if err := s.Err(); err != nil {
+		return nil, err
+	}
 	return subsystems, nil
 }
 
-// GetThisCgroupDir returns the relative path to the cgroup docker is running in.
-func GetThisCgroupDir(subsystem string) (string, error) {
+// GetOwnCgroup returns the relative path to the cgroup docker is running in.
+func GetOwnCgroup(subsystem string) (string, error) {
 	cgroups, err := ParseCgroupFile("/proc/self/cgroup")
 	if err != nil {
 		return "", err
@@ -235,14 +213,47 @@ func GetThisCgroupDir(subsystem string) (string, error) {
 	return getControllerPath(subsystem, cgroups)
 }
 
-func GetInitCgroupDir(subsystem string) (string, error) {
+func GetOwnCgroupPath(subsystem string) (string, error) {
+	cgroup, err := GetOwnCgroup(subsystem)
+	if err != nil {
+		return "", err
+	}
 
+	return getCgroupPathHelper(subsystem, cgroup)
+}
+
+func GetInitCgroup(subsystem string) (string, error) {
 	cgroups, err := ParseCgroupFile("/proc/1/cgroup")
 	if err != nil {
 		return "", err
 	}
 
 	return getControllerPath(subsystem, cgroups)
+}
+
+func GetInitCgroupPath(subsystem string) (string, error) {
+	cgroup, err := GetInitCgroup(subsystem)
+	if err != nil {
+		return "", err
+	}
+
+	return getCgroupPathHelper(subsystem, cgroup)
+}
+
+func getCgroupPathHelper(subsystem, cgroup string) (string, error) {
+	mnt, root, err := FindCgroupMountpointAndRoot(subsystem)
+	if err != nil {
+		return "", err
+	}
+
+	// This is needed for nested containers, because in /proc/self/cgroup we
+	// see pathes from host, which don't exist in container.
+	relCgroup, err := filepath.Rel(root, cgroup)
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(mnt, relCgroup), nil
 }
 
 func readProcsFile(dir string) ([]int, error) {
@@ -287,10 +298,6 @@ func parseCgroupFromReader(r io.Reader) (map[string]string, error) {
 	cgroups := make(map[string]string)
 
 	for s.Scan() {
-		if err := s.Err(); err != nil {
-			return nil, err
-		}
-
 		text := s.Text()
 		// from cgroups(7):
 		// /proc/[pid]/cgroup
@@ -307,6 +314,10 @@ func parseCgroupFromReader(r io.Reader) (map[string]string, error) {
 			cgroups[subs] = parts[2]
 		}
 	}
+	if err := s.Err(); err != nil {
+		return nil, err
+	}
+
 	return cgroups, nil
 }
 

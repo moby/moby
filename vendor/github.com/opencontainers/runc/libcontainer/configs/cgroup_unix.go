@@ -45,34 +45,34 @@ type Resources struct {
 	Devices []*Device `json:"devices"`
 
 	// Memory limit (in bytes)
-	Memory int64 `json:"memory"`
+	Memory uint64 `json:"memory"`
 
 	// Memory reservation or soft_limit (in bytes)
-	MemoryReservation int64 `json:"memory_reservation"`
+	MemoryReservation uint64 `json:"memory_reservation"`
 
 	// Total memory usage (memory + swap); set `-1` to enable unlimited swap
-	MemorySwap int64 `json:"memory_swap"`
+	MemorySwap uint64 `json:"memory_swap"`
 
 	// Kernel memory limit (in bytes)
-	KernelMemory int64 `json:"kernel_memory"`
+	KernelMemory uint64 `json:"kernel_memory"`
 
 	// Kernel memory limit for TCP use (in bytes)
-	KernelMemoryTCP int64 `json:"kernel_memory_tcp"`
+	KernelMemoryTCP uint64 `json:"kernel_memory_tcp"`
 
 	// CPU shares (relative weight vs. other containers)
-	CpuShares int64 `json:"cpu_shares"`
+	CpuShares uint64 `json:"cpu_shares"`
 
 	// CPU hardcap limit (in usecs). Allowed cpu time in a given period.
 	CpuQuota int64 `json:"cpu_quota"`
 
 	// CPU period to be used for hardcapping (in usecs). 0 to use system default.
-	CpuPeriod int64 `json:"cpu_period"`
+	CpuPeriod uint64 `json:"cpu_period"`
 
 	// How many time CPU will use in realtime scheduling (in usecs).
 	CpuRtRuntime int64 `json:"cpu_rt_quota"`
 
 	// CPU period to be used for realtime scheduling (in usecs).
-	CpuRtPeriod int64 `json:"cpu_rt_period"`
+	CpuRtPeriod uint64 `json:"cpu_rt_period"`
 
 	// CPU to use
 	CpusetCpus string `json:"cpuset_cpus"`
@@ -114,7 +114,7 @@ type Resources struct {
 	OomKillDisable bool `json:"oom_kill_disable"`
 
 	// Tuning swappiness behaviour per cgroup
-	MemorySwappiness *int64 `json:"memory_swappiness"`
+	MemorySwappiness *uint64 `json:"memory_swappiness"`
 
 	// Set priority of network traffic for container
 	NetPrioIfpriomap []*IfPrioMap `json:"net_prio_ifpriomap"`

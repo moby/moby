@@ -56,13 +56,16 @@ func setResources(s *specs.Spec, r containertypes.Resources) error {
 	}
 
 	memoryRes := getMemoryResources(r)
-	cpuRes := getCPUResources(r)
+	cpuRes, err := getCPUResources(r)
+	if err != nil {
+		return err
+	}
 	blkioWeight := r.BlkioWeight
 
-	specResources := &specs.Resources{
+	specResources := &specs.LinuxResources{
 		Memory: memoryRes,
 		CPU:    cpuRes,
-		BlockIO: &specs.BlockIO{
+		BlockIO: &specs.LinuxBlockIO{
 			Weight:                  &blkioWeight,
 			WeightDevice:            weightDevices,
 			ThrottleReadBpsDevice:   readBpsDevice,
@@ -71,8 +74,8 @@ func setResources(s *specs.Spec, r containertypes.Resources) error {
 			ThrottleWriteIOPSDevice: writeIOpsDevice,
 		},
 		DisableOOMKiller: r.OomKillDisable,
-		Pids: &specs.Pids{
-			Limit: &r.PidsLimit,
+		Pids: &specs.LinuxPids{
+			Limit: r.PidsLimit,
 		},
 	}
 
@@ -86,7 +89,7 @@ func setResources(s *specs.Spec, r containertypes.Resources) error {
 
 func setDevices(s *specs.Spec, c *container.Container) error {
 	// Build lists of devices allowed and created within the container.
-	var devs []specs.Device
+	var devs []specs.LinuxDevice
 	devPermissions := s.Linux.Resources.Devices
 	if c.HostConfig.Privileged {
 		hostDevices, err := devices.HostDevices()
@@ -96,11 +99,10 @@ func setDevices(s *specs.Spec, c *container.Container) error {
 		for _, d := range hostDevices {
 			devs = append(devs, oci.Device(d))
 		}
-		rwm := "rwm"
-		devPermissions = []specs.DeviceCgroup{
+		devPermissions = []specs.LinuxDeviceCgroup{
 			{
 				Allow:  true,
-				Access: &rwm,
+				Access: "rwm",
 			},
 		}
 	} else {
@@ -120,10 +122,10 @@ func setDevices(s *specs.Spec, c *container.Container) error {
 			}
 			matches := ss[0]
 
-			dPermissions := specs.DeviceCgroup{
+			dPermissions := specs.LinuxDeviceCgroup{
 				Allow:  true,
-				Type:   &matches[1],
-				Access: &matches[4],
+				Type:   matches[1],
+				Access: matches[4],
 			}
 			if matches[2] == "*" {
 				major := int64(-1)
@@ -155,14 +157,14 @@ func setDevices(s *specs.Spec, c *container.Container) error {
 }
 
 func setRlimits(daemon *Daemon, s *specs.Spec, c *container.Container) error {
-	var rlimits []specs.Rlimit
+	var rlimits []specs.LinuxRlimit
 
 	// We want to leave the original HostConfig alone so make a copy here
 	hostConfig := *c.HostConfig
 	// Merge with the daemon defaults
 	daemon.mergeUlimits(&hostConfig)
 	for _, ul := range hostConfig.Ulimits {
-		rlimits = append(rlimits, specs.Rlimit{
+		rlimits = append(rlimits, specs.LinuxRlimit{
 			Type: "RLIMIT_" + strings.ToUpper(ul.Name),
 			Soft: uint64(ul.Soft),
 			Hard: uint64(ul.Hard),
@@ -237,7 +239,7 @@ func getUser(c *container.Container, username string) (uint32, uint32, []uint32,
 	return uid, gid, additionalGids, nil
 }
 
-func setNamespace(s *specs.Spec, ns specs.Namespace) {
+func setNamespace(s *specs.Spec, ns specs.LinuxNamespace) {
 	for i, n := range s.Linux.Namespaces {
 		if n.Type == ns.Type {
 			s.Linux.Namespaces[i] = ns
@@ -253,12 +255,15 @@ func setCapabilities(s *specs.Spec, c *container.Container) error {
 	if c.HostConfig.Privileged {
 		caplist = caps.GetAllCapabilities()
 	} else {
-		caplist, err = caps.TweakCapabilities(s.Process.Capabilities, c.HostConfig.CapAdd, c.HostConfig.CapDrop)
+		caplist, err = caps.TweakCapabilities(s.Process.Capabilities.Effective, c.HostConfig.CapAdd, c.HostConfig.CapDrop)
 		if err != nil {
 			return err
 		}
 	}
-	s.Process.Capabilities = caplist
+	s.Process.Capabilities.Effective = caplist
+	s.Process.Capabilities.Bounding = caplist
+	s.Process.Capabilities.Permitted = caplist
+	s.Process.Capabilities.Inheritable = caplist
 	return nil
 }
 
@@ -269,7 +274,7 @@ func setNamespaces(daemon *Daemon, s *specs.Spec, c *container.Container) error 
 		uidMap, gidMap := daemon.GetUIDGIDMaps()
 		if uidMap != nil {
 			userNS = true
-			ns := specs.Namespace{Type: "user"}
+			ns := specs.LinuxNamespace{Type: "user"}
 			setNamespace(s, ns)
 			s.Linux.UIDMappings = specMapping(uidMap)
 			s.Linux.GIDMappings = specMapping(gidMap)
@@ -277,7 +282,7 @@ func setNamespaces(daemon *Daemon, s *specs.Spec, c *container.Container) error 
 	}
 	// network
 	if !c.Config.NetworkDisabled {
-		ns := specs.Namespace{Type: "network"}
+		ns := specs.LinuxNamespace{Type: "network"}
 		parts := strings.SplitN(string(c.HostConfig.NetworkMode), ":", 2)
 		if parts[0] == "container" {
 			nc, err := daemon.getNetworkedContainer(c.ID, c.HostConfig.NetworkMode.ConnectedContainer())
@@ -287,7 +292,7 @@ func setNamespaces(daemon *Daemon, s *specs.Spec, c *container.Container) error 
 			ns.Path = fmt.Sprintf("/proc/%d/ns/net", nc.State.GetPID())
 			if userNS {
 				// to share a net namespace, they must also share a user namespace
-				nsUser := specs.Namespace{Type: "user"}
+				nsUser := specs.LinuxNamespace{Type: "user"}
 				nsUser.Path = fmt.Sprintf("/proc/%d/ns/user", nc.State.GetPID())
 				setNamespace(s, nsUser)
 			}
@@ -298,7 +303,7 @@ func setNamespaces(daemon *Daemon, s *specs.Spec, c *container.Container) error 
 	}
 	// ipc
 	if c.HostConfig.IpcMode.IsContainer() {
-		ns := specs.Namespace{Type: "ipc"}
+		ns := specs.LinuxNamespace{Type: "ipc"}
 		ic, err := daemon.getIpcContainer(c)
 		if err != nil {
 			return err
@@ -307,19 +312,19 @@ func setNamespaces(daemon *Daemon, s *specs.Spec, c *container.Container) error 
 		setNamespace(s, ns)
 		if userNS {
 			// to share an IPC namespace, they must also share a user namespace
-			nsUser := specs.Namespace{Type: "user"}
+			nsUser := specs.LinuxNamespace{Type: "user"}
 			nsUser.Path = fmt.Sprintf("/proc/%d/ns/user", ic.State.GetPID())
 			setNamespace(s, nsUser)
 		}
 	} else if c.HostConfig.IpcMode.IsHost() {
-		oci.RemoveNamespace(s, specs.NamespaceType("ipc"))
+		oci.RemoveNamespace(s, specs.LinuxNamespaceType("ipc"))
 	} else {
-		ns := specs.Namespace{Type: "ipc"}
+		ns := specs.LinuxNamespace{Type: "ipc"}
 		setNamespace(s, ns)
 	}
 	// pid
 	if c.HostConfig.PidMode.IsContainer() {
-		ns := specs.Namespace{Type: "pid"}
+		ns := specs.LinuxNamespace{Type: "pid"}
 		pc, err := daemon.getPidContainer(c)
 		if err != nil {
 			return err
@@ -328,29 +333,29 @@ func setNamespaces(daemon *Daemon, s *specs.Spec, c *container.Container) error 
 		setNamespace(s, ns)
 		if userNS {
 			// to share a PID namespace, they must also share a user namespace
-			nsUser := specs.Namespace{Type: "user"}
+			nsUser := specs.LinuxNamespace{Type: "user"}
 			nsUser.Path = fmt.Sprintf("/proc/%d/ns/user", pc.State.GetPID())
 			setNamespace(s, nsUser)
 		}
 	} else if c.HostConfig.PidMode.IsHost() {
-		oci.RemoveNamespace(s, specs.NamespaceType("pid"))
+		oci.RemoveNamespace(s, specs.LinuxNamespaceType("pid"))
 	} else {
-		ns := specs.Namespace{Type: "pid"}
+		ns := specs.LinuxNamespace{Type: "pid"}
 		setNamespace(s, ns)
 	}
 	// uts
 	if c.HostConfig.UTSMode.IsHost() {
-		oci.RemoveNamespace(s, specs.NamespaceType("uts"))
+		oci.RemoveNamespace(s, specs.LinuxNamespaceType("uts"))
 		s.Hostname = ""
 	}
 
 	return nil
 }
 
-func specMapping(s []idtools.IDMap) []specs.IDMapping {
-	var ids []specs.IDMapping
+func specMapping(s []idtools.IDMap) []specs.LinuxIDMapping {
+	var ids []specs.LinuxIDMapping
 	for _, item := range s {
-		ids = append(ids, specs.IDMapping{
+		ids = append(ids, specs.LinuxIDMapping{
 			HostID:      uint32(item.HostID),
 			ContainerID: uint32(item.ContainerID),
 			Size:        uint32(item.Size),
@@ -675,7 +680,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	} else {
 		cgroupsPath = filepath.Join(parent, c.ID)
 	}
-	s.Linux.CgroupsPath = &cgroupsPath
+	s.Linux.CgroupsPath = cgroupsPath
 
 	if err := setResources(&s, c.HostConfig.Resources); err != nil {
 		return nil, fmt.Errorf("linux runtime spec resources: %v", err)
@@ -683,13 +688,13 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	s.Linux.Resources.OOMScoreAdj = &c.HostConfig.OomScoreAdj
 	s.Linux.Sysctl = c.HostConfig.Sysctls
 
-	p := *s.Linux.CgroupsPath
+	p := s.Linux.CgroupsPath
 	if useSystemd {
-		initPath, err := cgroups.GetInitCgroupDir("cpu")
+		initPath, err := cgroups.GetInitCgroup("cpu")
 		if err != nil {
 			return nil, err
 		}
-		p, _ = cgroups.GetThisCgroupDir("cpu")
+		p, _ = cgroups.GetOwnCgroup("cpu")
 		if err != nil {
 			return nil, err
 		}
@@ -761,7 +766,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 				return nil, err
 			}
 
-			s.Hooks = specs.Hooks{
+			s.Hooks = &specs.Hooks{
 				Prestart: []specs.Hook{{
 					Path: target, // FIXME: cross-platform
 					Args: []string{"libnetwork-setkey", c.ID, daemon.netController.ID()},

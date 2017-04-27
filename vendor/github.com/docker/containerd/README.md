@@ -6,7 +6,7 @@ as checkpoint and restore for cloning and live migration of containers.
 
 ## Getting started
 
-The easiest way to start using containerd is to download binaries from the [releases page](https://github.com/docker/containerd/releases).
+The easiest way to start using containerd is to download binaries from the [releases page](https://github.com/containerd/containerd/releases).
 
 The included `ctr` command-line tool allows you interact with the containerd daemon:
 
