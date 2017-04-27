@@ -1193,6 +1193,8 @@ definitions:
   NetworkContainer:
     type: "object"
     properties:
+      Name:
+        type: "string"
       EndpointID:
         type: "string"
       MacAddress:
