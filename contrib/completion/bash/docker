@@ -4028,9 +4028,15 @@ _docker_stack_list() {
 }
 
 _docker_stack_ls() {
+	case "$prev" in
+		--format)
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--format --help" -- "$cur" ) )
 			;;
 	esac
 }
