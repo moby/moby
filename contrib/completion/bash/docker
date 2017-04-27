@@ -1512,7 +1512,6 @@ _docker_container_run_and_create() {
 		--expose
 		--group-add
 		--hostname -h
-		--init-path
 		--ip
 		--ip6
 		--ipc
@@ -1636,7 +1635,7 @@ _docker_container_run_and_create() {
 			__docker_complete_capabilities_droppable
 			return
 			;;
-		--cidfile|--env-file|--init-path|--label-file)
+		--cidfile|--env-file|--label-file)
 			_filedir
 			return
 			;;
