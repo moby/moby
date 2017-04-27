@@ -1716,6 +1716,8 @@ definitions:
                       type: "string"
                     Name:
                       type: "string"
+          TLSInfo:
+            $ref: "#/definitions/SwarmSpec"
     example:
       ID: "24ifsmvkjbyhk"
       Version:
@@ -1756,6 +1758,47 @@ definitions:
         Leader: true
         Reachability: "reachable"
         Addr: "172.17.0.2:2377"
+      TLSInfo:
+        TrustRoot: |
+          -----BEGIN CERTIFICATE-----
+          MIIBajCCARCgAwIBAgIUbYqrLSOSQHoxD8CwG6Bi2PJi9c8wCgYIKoZIzj0EAwIw
+          EzERMA8GA1UEAxMIc3dhcm0tY2EwHhcNMTcwNDI0MjE0MzAwWhcNMzcwNDE5MjE0
+          MzAwWjATMREwDwYDVQQDEwhzd2FybS1jYTBZMBMGByqGSM49AgEGCCqGSM49AwEH
+          A0IABJk/VyMPYdaqDXJb/VXh5n/1Yuv7iNrxV3Qb3l06XD46seovcDWs3IZNV1lf
+          3Skyr0ofcchipoiHkXBODojJydSjQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNVHRMB
+          Af8EBTADAQH/MB0GA1UdDgQWBBRUXxuRcnFjDfR/RIAUQab8ZV/n4jAKBggqhkjO
+          PQQDAgNIADBFAiAy+JTe6Uc3KyLCMiqGl2GyWGQqQDEcO3/YG36x7om65AIhAJvz
+          pxv6zFeVEkAEEkqIYi0omA9+CjanB/6Bz4n1uw8H
+          -----END CERTIFICATE-----
+        CertIssuerSubject: "MBMxETAPBgNVBAMTCHN3YXJtLWNh"
+        CertIssuerPublicKey: "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEmT9XIw9h1qoNclv9VeHmf/Vi6/uI2vFXdBveXTpcPjqx6i9wNazchk1XWV/dKTKvSh9xyGKmiIeRcE4OiMnJ1A=="
+  TLSInfo:
+    description: "Information about the issuer of leaf TLS certificates and the trusted root CA certificate"
+    type: "object"
+    properties:
+      TrustRoot:
+        description: "The root CA certificate(s) that are used to validate leaf TLS certificates"
+        type: "string"
+      CertIssuerSubject:
+        description: "The base64-url-safe-encoded raw subject bytes of the issuer"
+        type: "string"
+      CertIssuerPublicKey:
+        description: "The base64-url-safe-encoded raw public key bytes of the issuer"
+        type: "string"
+    example:
+      TrustRoot: |
+        -----BEGIN CERTIFICATE-----
+        MIIBajCCARCgAwIBAgIUbYqrLSOSQHoxD8CwG6Bi2PJi9c8wCgYIKoZIzj0EAwIw
+        EzERMA8GA1UEAxMIc3dhcm0tY2EwHhcNMTcwNDI0MjE0MzAwWhcNMzcwNDE5MjE0
+        MzAwWjATMREwDwYDVQQDEwhzd2FybS1jYTBZMBMGByqGSM49AgEGCCqGSM49AwEH
+        A0IABJk/VyMPYdaqDXJb/VXh5n/1Yuv7iNrxV3Qb3l06XD46seovcDWs3IZNV1lf
+        3Skyr0ofcchipoiHkXBODojJydSjQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNVHRMB
+        Af8EBTADAQH/MB0GA1UdDgQWBBRUXxuRcnFjDfR/RIAUQab8ZV/n4jAKBggqhkjO
+        PQQDAgNIADBFAiAy+JTe6Uc3KyLCMiqGl2GyWGQqQDEcO3/YG36x7om65AIhAJvz
+        pxv6zFeVEkAEEkqIYi0omA9+CjanB/6Bz4n1uw8H
+        -----END CERTIFICATE-----
+      CertIssuerSubject: "MBMxETAPBgNVBAMTCHN3YXJtLWNh"
+      CertIssuerPublicKey: "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEmT9XIw9h1qoNclv9VeHmf/Vi6/uI2vFXdBveXTpcPjqx6i9wNazchk1XWV/dKTKvSh9xyGKmiIeRcE4OiMnJ1A=="
   SwarmSpec:
     description: "User modifiable swarm configuration."
     type: "object"
@@ -1903,6 +1946,11 @@ definitions:
         format: "dateTime"
       Spec:
         $ref: "#/definitions/SwarmSpec"
+      TLSInfo:
+        $ref: "#/definitions/TLSInfo"
+      RootRotationInProgress:
+        description: "Whether there is currently a root CA rotation in progress for the swarm"
+        type: "boolean"
   TaskSpec:
     description: "User modifiable task configuration."
     type: "object"
@@ -7205,6 +7253,21 @@ paths:
               UpdatedAt: "2016-08-15T16:32:09.623207604Z"
               Version:
                 Index: 51
+              RootRotationInProgress: false
+              TLSInfo:
+                TrustRoot: |
+                  -----BEGIN CERTIFICATE-----
+                  MIIBajCCARCgAwIBAgIUbYqrLSOSQHoxD8CwG6Bi2PJi9c8wCgYIKoZIzj0EAwIw
+                  EzERMA8GA1UEAxMIc3dhcm0tY2EwHhcNMTcwNDI0MjE0MzAwWhcNMzcwNDE5MjE0
+                  MzAwWjATMREwDwYDVQQDEwhzd2FybS1jYTBZMBMGByqGSM49AgEGCCqGSM49AwEH
+                  A0IABJk/VyMPYdaqDXJb/VXh5n/1Yuv7iNrxV3Qb3l06XD46seovcDWs3IZNV1lf
+                  3Skyr0ofcchipoiHkXBODojJydSjQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNVHRMB
+                  Af8EBTADAQH/MB0GA1UdDgQWBBRUXxuRcnFjDfR/RIAUQab8ZV/n4jAKBggqhkjO
+                  PQQDAgNIADBFAiAy+JTe6Uc3KyLCMiqGl2GyWGQqQDEcO3/YG36x7om65AIhAJvz
+                  pxv6zFeVEkAEEkqIYi0omA9+CjanB/6Bz4n1uw8H
+                  -----END CERTIFICATE-----
+                CertIssuerSubject: "MBMxETAPBgNVBAMTCHN3YXJtLWNh"
+                CertIssuerPublicKey: "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEmT9XIw9h1qoNclv9VeHmf/Vi6/uI2vFXdBveXTpcPjqx6i9wNazchk1XWV/dKTKvSh9xyGKmiIeRcE4OiMnJ1A=="
         404:
           description: "no such swarm"
           schema:
