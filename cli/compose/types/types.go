@@ -211,6 +211,7 @@ type Placement struct {
 	Preferences []PlacementPreferences
 }
 
+// PlacementPreferences is the preferences for a service placement
 type PlacementPreferences struct {
 	Spread string
 }
