@@ -208,7 +208,7 @@ func (c *controller) agentSetup() error {
 	advAddr := clusterProvider.GetAdvertiseAddress()
 	dataAddr := clusterProvider.GetDataPathAddress()
 	remoteList := clusterProvider.GetRemoteAddressList()
-	remoteAddrList := make([]string, len(remoteList))
+	remoteAddrList := make([]string, 0, len(remoteList))
 	for _, remote := range remoteList {
 		addr, _, _ := net.SplitHostPort(remote)
 		remoteAddrList = append(remoteAddrList, addr)
