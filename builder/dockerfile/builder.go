@@ -61,7 +61,6 @@ type Builder struct {
 	imageCache    builder.ImageCache
 
 	// TODO: these move to DispatchState
-	escapeToken rune
 	maintainer  string
 	cmdSet      bool
 	noBaseImage bool   // A flag to track the use of `scratch` as the base image
@@ -125,7 +124,6 @@ func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, back
 		runConfig:     new(container.Config),
 		tmpContainers: map[string]struct{}{},
 		buildArgs:     newBuildArgs(config.BuildArgs),
-		escapeToken:   parser.DefaultEscapeToken,
 	}
 	b.imageContexts = &imageContexts{b: b}
 	return b, nil
@@ -219,8 +217,7 @@ func (b *Builder) build(dockerfile *parser.Result, stdout io.Writer, stderr io.W
 }
 
 func (b *Builder) dispatchDockerfileWithCancellation(dockerfile *parser.Result) (string, error) {
-	// TODO: pass this to dispatchRequest instead
-	b.escapeToken = dockerfile.EscapeToken
+	shlex := NewShellLex(dockerfile.EscapeToken)
 
 	total := len(dockerfile.AST.Children)
 	var imageID string
@@ -238,7 +235,7 @@ func (b *Builder) dispatchDockerfileWithCancellation(dockerfile *parser.Result) 
 			break
 		}
 
-		if err := b.dispatch(i, total, n); err != nil {
+		if err := b.dispatch(i, total, n, shlex); err != nil {
 			if b.options.ForceRemove {
 				b.clearTmp()
 			}
@@ -361,13 +358,12 @@ func checkDispatchDockerfile(dockerfile *parser.Node) error {
 }
 
 func dispatchFromDockerfile(b *Builder, result *parser.Result) error {
-	// TODO: pass this to dispatchRequest instead
-	b.escapeToken = result.EscapeToken
+	shlex := NewShellLex(result.EscapeToken)
 	ast := result.AST
 	total := len(ast.Children)
 
 	for i, n := range ast.Children {
-		if err := b.dispatch(i, total, n); err != nil {
+		if err := b.dispatch(i, total, n, shlex); err != nil {
 			return err
 		}
 	}
