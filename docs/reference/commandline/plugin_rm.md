@@ -42,9 +42,11 @@ plugin:
 
 ```bash
 $ docker plugin disable tiborvass/sample-volume-plugin
+
 tiborvass/sample-volume-plugin
 
 $ docker plugin rm tiborvass/sample-volume-plugin:latest
+
 tiborvass/sample-volume-plugin
 ```
 

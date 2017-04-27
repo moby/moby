@@ -40,6 +40,7 @@ $ docker plugin ls
 
 ID                  NAME                  TAG                 DESCRIPTION                ENABLED
 69553ca1d456        user/plugin           latest              A sample plugin for Docker false
+
 $ docker plugin push user/plugin
 ```
 

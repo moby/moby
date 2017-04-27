@@ -77,7 +77,6 @@ $ docker plugin ls --filter enabled=true
 NAME                  TAG                 DESCRIPTION                ENABLED
 ```
 
-
 ### Formatting
 
 The formatting options (`--format`) pretty-prints plugins output
@@ -105,7 +104,6 @@ $ docker plugin ls --format "{{.ID}}: {{.Name}}"
 
 4be01827a72e: tiborvass/no-remove
 ```
-
 
 ## Related commands
 
