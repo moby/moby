@@ -324,8 +324,8 @@ func (d *dnetConnection) GetListenAddress() string {
 	return d.Orchestration.Bind
 }
 
-func (d *dnetConnection) GetRemoteAddress() string {
-	return d.Orchestration.Peer
+func (d *dnetConnection) GetRemoteAddressList() []string {
+	return []string{d.Orchestration.Peer}
 }
 
 func (d *dnetConnection) GetNetworkKeys() []*types.EncryptionKey {
