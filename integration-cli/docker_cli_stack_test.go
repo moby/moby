@@ -15,6 +15,17 @@ import (
 	"github.com/go-check/check"
 )
 
+var cleanSpaces = func(s string) string {
+	lines := strings.Split(s, "\n")
+	for i, line := range lines {
+		spaceIx := strings.Index(line, " ")
+		if spaceIx > 0 {
+			lines[i] = line[:spaceIx+1] + strings.TrimLeft(line[spaceIx:], " ")
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
 func (s *DockerSwarmSuite) TestStackRemoveUnknown(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
@@ -59,13 +70,13 @@ func (s *DockerSwarmSuite) TestStackDeployComposeFile(c *check.C) {
 
 	out, err = d.Cmd("stack", "ls")
 	c.Assert(err, checker.IsNil)
-	c.Assert(out, check.Equals, "NAME        SERVICES\n"+"testdeploy  2\n")
+	c.Assert(cleanSpaces(out), check.Equals, "NAME SERVICES\n"+"testdeploy 2\n")
 
 	out, err = d.Cmd("stack", "rm", testStackName)
 	c.Assert(err, checker.IsNil)
 	out, err = d.Cmd("stack", "ls")
 	c.Assert(err, checker.IsNil)
-	c.Assert(out, check.Equals, "NAME  SERVICES\n")
+	c.Assert(cleanSpaces(out), check.Equals, "NAME SERVICES\n")
 }
 
 func (s *DockerSwarmSuite) TestStackDeployWithSecretsTwice(c *check.C) {
@@ -180,7 +191,7 @@ func (s *DockerSwarmSuite) TestStackDeployWithDAB(c *check.C) {
 	stackArgs = []string{"stack", "ls"}
 	out, err = d.Cmd(stackArgs...)
 	c.Assert(err, checker.IsNil)
-	c.Assert(out, check.Equals, "NAME  SERVICES\n"+"test  2\n")
+	c.Assert(cleanSpaces(out), check.Equals, "NAME SERVICES\n"+"test 2\n")
 	// rm
 	stackArgs = []string{"stack", "rm", testStackName}
 	out, err = d.Cmd(stackArgs...)
@@ -191,5 +202,5 @@ func (s *DockerSwarmSuite) TestStackDeployWithDAB(c *check.C) {
 	stackArgs = []string{"stack", "ls"}
 	out, err = d.Cmd(stackArgs...)
 	c.Assert(err, checker.IsNil)
-	c.Assert(out, check.Equals, "NAME  SERVICES\n")
+	c.Assert(cleanSpaces(out), check.Equals, "NAME SERVICES\n")
 }
