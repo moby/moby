@@ -86,6 +86,15 @@ func (nDB *NetworkDB) sendNodeEvent(event NodeEvent_Type) error {
 		notify: notifyCh,
 	})
 
+	nDB.RLock()
+	noPeers := len(nDB.nodes) <= 1
+	nDB.RUnlock()
+
+	// Message enqueued, do not wait for a send if no peer is present
+	if noPeers {
+		return nil
+	}
+
 	// Wait for the broadcast
 	select {
 	case <-notifyCh:
