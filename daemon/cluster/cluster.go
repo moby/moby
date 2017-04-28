@@ -280,27 +280,29 @@ func (c *Cluster) GetDataPathAddress() string {
 	return ""
 }
 
-// GetRemoteAddress returns a known advertise address of a remote manager if
+// GetRemoteAddressList returns the advertise address for each of the remote managers if
 // available.
-// todo: change to array/connect with info
-func (c *Cluster) GetRemoteAddress() string {
+func (c *Cluster) GetRemoteAddressList() []string {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	return c.getRemoteAddress()
+	return c.getRemoteAddressList()
 }
 
-func (c *Cluster) getRemoteAddress() string {
+func (c *Cluster) getRemoteAddressList() []string {
 	state := c.currentNodeState()
 	if state.swarmNode == nil {
-		return ""
+		return []string{}
 	}
+
 	nodeID := state.swarmNode.NodeID()
-	for _, r := range state.swarmNode.Remotes() {
+	remotes := state.swarmNode.Remotes()
+	addressList := make([]string, 0, len(remotes))
+	for _, r := range remotes {
 		if r.NodeID != nodeID {
-			return r.Addr
+			addressList = append(addressList, r.Addr)
 		}
 	}
-	return ""
+	return addressList
 }
 
 // ListenClusterEvents returns a channel that receives messages on cluster
