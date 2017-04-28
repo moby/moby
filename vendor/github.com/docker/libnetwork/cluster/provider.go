@@ -13,7 +13,7 @@ type Provider interface {
 	GetListenAddress() string
 	GetAdvertiseAddress() string
 	GetDataPathAddress() string
-	GetRemoteAddress() string
+	GetRemoteAddressList() []string
 	ListenClusterEvents() <-chan struct{}
 	AttachNetwork(string, string, []string) (*network.NetworkingConfig, error)
 	DetachNetwork(string, string) error
