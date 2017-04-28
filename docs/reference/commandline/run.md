@@ -393,17 +393,20 @@ If no `=` is provided and that variable is not exported in your local
 environment, the variable won't be set in the container.
 
 You can also load the environment variables from a file. This file should use
-the syntax `<variable>= value`, and `#` for comments.
+the syntax `<variable>=value` (which sets the variable to the given value) or
+`<variable>` (which takes the value from the local environment), and `#` for comments.
 
 ```bash
 $ cat env.list
 # This is a comment
 VAR1=value1
 VAR2=value2
+USER
 
 $ docker run --env-file env.list ubuntu env | grep VAR
 VAR1=value1
 VAR2=value2
+USER=denis
 ```
 
 ### Set metadata on container (-l, --label, --label-file)
