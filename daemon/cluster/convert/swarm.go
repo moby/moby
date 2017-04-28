@@ -47,6 +47,7 @@ func SwarmFromGRPC(c swarmapi.Cluster) types.Swarm {
 			Protocol: types.ExternalCAProtocol(strings.ToLower(ca.Protocol.String())),
 			URL:      ca.URL,
 			Options:  ca.Options,
+			CACert:   string(ca.CACert),
 		})
 	}
 
@@ -112,6 +113,7 @@ func MergeSwarmSpecToGRPC(s types.Spec, spec swarmapi.ClusterSpec) (swarmapi.Clu
 			Protocol: swarmapi.ExternalCA_CAProtocol(protocol),
 			URL:      ca.URL,
 			Options:  ca.Options,
+			CACert:   []byte(ca.CACert),
 		})
 	}
 
