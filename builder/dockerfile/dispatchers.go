@@ -395,9 +395,7 @@ func run(req dispatchRequest) error {
 	// that starts with "foo=abc" to be considered part of a build-time env var.
 	saveCmd := config.Cmd
 	if len(cmdBuildEnv) > 0 {
-		sort.Strings(cmdBuildEnv)
-		tmpEnv := append([]string{fmt.Sprintf("|%d", len(cmdBuildEnv))}, cmdBuildEnv...)
-		saveCmd = strslice.StrSlice(append(tmpEnv, saveCmd...))
+		saveCmd = prependEnvOnCmd(req.builder.buildArgs, cmdBuildEnv, saveCmd)
 	}
 
 	req.runConfig.Cmd = saveCmd
@@ -434,23 +432,22 @@ func run(req dispatchRequest) error {
 	// properly match it.
 	req.runConfig.Env = env
 
-	// remove builtinAllowedBuildArgs (see: builder.go)  from the saveCmd
-	// these args are transparent so resulting image should be the same regardless of the value
-	if len(cmdBuildEnv) > 0 {
-		saveCmd = config.Cmd
-		var tmpBuildEnv []string
-		for _, env := range cmdBuildEnv {
-			key := strings.SplitN(env, "=", 2)[0]
-			if !req.builder.buildArgs.IsUnreferencedBuiltin(key) {
-				tmpBuildEnv = append(tmpBuildEnv, env)
-			}
-		}
-		sort.Strings(tmpBuildEnv)
-		tmpEnv := append([]string{fmt.Sprintf("|%d", len(tmpBuildEnv))}, tmpBuildEnv...)
-		saveCmd = strslice.StrSlice(append(tmpEnv, saveCmd...))
-	}
 	req.runConfig.Cmd = saveCmd
 	return req.builder.commitContainer(cID, copyRunConfig(req.runConfig, withCmd(cmd)))
+}
+
+func prependEnvOnCmd(buildArgs *buildArgs, buildArgVars []string, cmd strslice.StrSlice) strslice.StrSlice {
+	var tmpBuildEnv []string
+	for _, env := range buildArgVars {
+		key := strings.SplitN(env, "=", 2)[0]
+		if !buildArgs.IsUnreferencedBuiltin(key) {
+			tmpBuildEnv = append(tmpBuildEnv, env)
+		}
+	}
+
+	sort.Strings(tmpBuildEnv)
+	tmpEnv := append([]string{fmt.Sprintf("|%d", len(tmpBuildEnv))}, tmpBuildEnv...)
+	return strslice.StrSlice(append(tmpEnv, cmd...))
 }
 
 // CMD foo
