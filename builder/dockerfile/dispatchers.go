@@ -486,7 +486,7 @@ func cmd(req dispatchRequest) error {
 }
 
 // parseOptInterval(flag) is the duration of flag.Value, or 0 if
-// empty. An error is reported if the value is given and less than 1 second.
+// empty. An error is reported if the value is given and less than minimum duration.
 func parseOptInterval(f *Flag) (time.Duration, error) {
 	s := f.Value
 	if s == "" {
@@ -496,8 +496,8 @@ func parseOptInterval(f *Flag) (time.Duration, error) {
 	if err != nil {
 		return 0, err
 	}
-	if d < time.Duration(time.Second) {
-		return 0, fmt.Errorf("Interval %#v cannot be less than 1 second", f.name)
+	if d < time.Duration(container.MinimumDuration) {
+		return 0, fmt.Errorf("Interval %#v cannot be less than %s", f.name, container.MinimumDuration)
 	}
 	return d, nil
 }

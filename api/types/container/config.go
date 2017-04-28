@@ -7,6 +7,12 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
+// MinimumDuration puts a minimum on user configured duration.
+// This is to prevent API error on time unit. For example, API may
+// set 3 as healthcheck interval with intention of 3 seconds, but
+// Docker interprets it as 3 nanoseconds.
+const MinimumDuration = 1 * time.Millisecond
+
 // HealthConfig holds configuration settings for the HEALTHCHECK feature.
 type HealthConfig struct {
 	// Test is the test to perform to check that the container is healthy.

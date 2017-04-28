@@ -401,3 +401,21 @@ func TestShell(t *testing.T) {
 	expectedShell := strslice.StrSlice([]string{shellCmd})
 	assert.Equal(t, expectedShell, req.runConfig.Shell)
 }
+
+func TestParseOptInterval(t *testing.T) {
+	flInterval := &Flag{
+		name:     "interval",
+		flagType: stringType,
+		Value:    "50ns",
+	}
+	_, err := parseOptInterval(flInterval)
+	if err == nil {
+		t.Fatalf("Error should be presented for interval %s", flInterval.Value)
+	}
+
+	flInterval.Value = "1ms"
+	_, err = parseOptInterval(flInterval)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err.Error())
+	}
+}
