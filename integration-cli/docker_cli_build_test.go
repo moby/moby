@@ -4344,15 +4344,22 @@ func (s *DockerSuite) TestBuildTimeArgHistoryExclusions(c *check.C) {
 		ARG %s
 		ARG %s
 		RUN echo "Testing Build Args!"`, envKey, explicitProxyKey)
-	buildImage(imgName,
-		cli.WithFlags("--build-arg", "https_proxy=https://proxy.example.com",
-			"--build-arg", fmt.Sprintf("%s=%s", envKey, envVal),
-			"--build-arg", fmt.Sprintf("%s=%s", explicitProxyKey, explicitProxyVal),
-			"--build-arg", proxy),
-		build.WithDockerfile(dockerfile),
-	).Assert(c, icmd.Success)
 
-	out, _ := dockerCmd(c, "history", "--no-trunc", imgName)
+	buildImage := func(imgName string) string {
+		cli.BuildCmd(c, imgName,
+			cli.WithFlags("--build-arg", "https_proxy=https://proxy.example.com",
+				"--build-arg", fmt.Sprintf("%s=%s", envKey, envVal),
+				"--build-arg", fmt.Sprintf("%s=%s", explicitProxyKey, explicitProxyVal),
+				"--build-arg", proxy),
+			build.WithDockerfile(dockerfile),
+		)
+		return getIDByName(c, imgName)
+	}
+
+	origID := buildImage(imgName)
+	result := cli.DockerCmd(c, "history", "--no-trunc", imgName)
+	out := result.Stdout()
+
 	if strings.Contains(out, proxy) {
 		c.Fatalf("failed to exclude proxy settings from history!")
 	}
@@ -4365,6 +4372,9 @@ func (s *DockerSuite) TestBuildTimeArgHistoryExclusions(c *check.C) {
 	if !strings.Contains(out, fmt.Sprintf("%s=%s", envKey, envVal)) {
 		c.Fatalf("missing build arguments from output")
 	}
+
+	cacheID := buildImage(imgName + "-two")
+	c.Assert(origID, checker.Equals, cacheID)
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgCacheHit(c *check.C) {
