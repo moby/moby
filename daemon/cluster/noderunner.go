@@ -271,7 +271,13 @@ func (n *nodeRunner) enableReconnectWatcher() {
 		if n.stopping {
 			return
 		}
-		config.RemoteAddr = n.cluster.getRemoteAddress()
+		remotes := n.cluster.getRemoteAddressList()
+		if len(remotes) > 0 {
+			config.RemoteAddr = remotes[0]
+		} else {
+			config.RemoteAddr = ""
+		}
+
 		config.joinAddr = config.RemoteAddr
 		if err := n.start(config); err != nil {
 			n.err = err
