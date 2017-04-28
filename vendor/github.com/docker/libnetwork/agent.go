@@ -207,13 +207,18 @@ func (c *controller) agentSetup() error {
 	bindAddr := clusterProvider.GetLocalAddress()
 	advAddr := clusterProvider.GetAdvertiseAddress()
 	dataAddr := clusterProvider.GetDataPathAddress()
-	remote := clusterProvider.GetRemoteAddress()
-	remoteAddr, _, _ := net.SplitHostPort(remote)
+	remoteList := clusterProvider.GetRemoteAddressList()
+	remoteAddrList := make([]string, 0, len(remoteList))
+	for _, remote := range remoteList {
+		addr, _, _ := net.SplitHostPort(remote)
+		remoteAddrList = append(remoteAddrList, addr)
+	}
+
 	listen := clusterProvider.GetListenAddress()
 	listenAddr, _, _ := net.SplitHostPort(listen)
 
-	logrus.Infof("Initializing Libnetwork Agent Listen-Addr=%s Local-addr=%s Adv-addr=%s Data-addr=%s Remote-addr=%s",
-		listenAddr, bindAddr, advAddr, dataAddr, remoteAddr)
+	logrus.Infof("Initializing Libnetwork Agent Listen-Addr=%s Local-addr=%s Adv-addr=%s Data-addr=%s Remote-addr-list=%v",
+		listenAddr, bindAddr, advAddr, dataAddr, remoteAddrList)
 	if advAddr != "" && agent == nil {
 		if err := c.agentInit(listenAddr, bindAddr, advAddr, dataAddr); err != nil {
 			logrus.Errorf("Error in agentInit : %v", err)
@@ -227,8 +232,8 @@ func (c *controller) agentSetup() error {
 		}
 	}
 
-	if remoteAddr != "" {
-		if err := c.agentJoin(remoteAddr); err != nil {
+	if len(remoteAddrList) > 0 {
+		if err := c.agentJoin(remoteAddrList); err != nil {
 			logrus.Errorf("Error in joining gossip cluster : %v(join will be retried in background)", err)
 		}
 	}
@@ -342,12 +347,12 @@ func (c *controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, d
 	return nil
 }
 
-func (c *controller) agentJoin(remote string) error {
+func (c *controller) agentJoin(remoteAddrList []string) error {
 	agent := c.getAgent()
 	if agent == nil {
 		return nil
 	}
-	return agent.networkDB.Join([]string{remote})
+	return agent.networkDB.Join(remoteAddrList)
 }
 
 func (c *controller) agentDriverNotify(d driverapi.Driver) {
