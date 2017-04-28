@@ -177,9 +177,9 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 			return fmt.Errorf("secret target type is not a file target")
 		}
 
-		// secrets are created in the SecretMountPath at a single level
-		// i.e. /var/run/secrets/foo
-		fPath := filepath.Join(localMountPath, filepath.Base(s.File.Name))
+		// secrets are created in the SecretMountPath on the host, at a
+		// single level
+		fPath := c.SecretFilePath(*s)
 		if err := idtools.MkdirAllAs(filepath.Dir(fPath), 0700, rootUID, rootGID); err != nil {
 			return errors.Wrap(err, "error creating secret mount path")
 		}

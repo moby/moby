@@ -47,7 +47,7 @@ func (container *Container) IpcMounts() []Mount {
 	return nil
 }
 
-// SecretMounts returns the mount for the secret path
+// SecretMounts returns the mounts for the secret path
 func (container *Container) SecretMounts() []Mount {
 	return nil
 }

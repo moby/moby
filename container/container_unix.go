@@ -248,15 +248,15 @@ func (container *Container) IpcMounts() []Mount {
 	return mounts
 }
 
-// SecretMounts returns the mount for the secret path
+// SecretMounts returns the mounts for the secret path.
 func (container *Container) SecretMounts() []Mount {
 	var mounts []Mount
 	for _, r := range container.SecretReferences {
-		// secrets are created in the SecretMountPath at a single level
-		// i.e. /var/run/secrets/foo
-		srcPath := container.getLocalSecretPath(r)
+		if r.File == nil {
+			continue
+		}
 		mounts = append(mounts, Mount{
-			Source:      srcPath,
+			Source:      container.SecretFilePath(*r),
 			Destination: getSecretTargetPath(r),
 			Writable:    false,
 		})

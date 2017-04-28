@@ -954,8 +954,9 @@ func (container *Container) SecretMountPath() string {
 	return filepath.Join(container.Root, "secrets")
 }
 
-func (container *Container) getLocalSecretPath(r *swarmtypes.SecretReference) string {
-	return filepath.Join(container.SecretMountPath(), filepath.Base(r.File.Name))
+// SecretFilePath returns the path to the location of a secret on the host.
+func (container *Container) SecretFilePath(secretRef swarmtypes.SecretReference) string {
+	return filepath.Join(container.SecretMountPath(), secretRef.SecretID)
 }
 
 func getSecretTargetPath(r *swarmtypes.SecretReference) string {
