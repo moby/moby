@@ -98,7 +98,7 @@ func (l *JSONFileLogger) readLogs(logWatcher *logger.LogWatcher, config logger.R
 
 	if config.Tail != 0 {
 		tailer := multireader.MultiReadSeeker(append(files, latestChunk)...)
-		tailFile(tailer, logWatcher, config.Tail, config.Since)
+		tailFile(tailer, logWatcher, config.Tail, config.Since, config.Until)
 	}
 
 	// close all the rotated files
@@ -119,7 +119,7 @@ func (l *JSONFileLogger) readLogs(logWatcher *logger.LogWatcher, config logger.R
 	l.readers[logWatcher] = struct{}{}
 	l.mu.Unlock()
 
-	followLogs(latestFile, logWatcher, notifyRotate, config.Since)
+	followLogs(latestFile, logWatcher, notifyRotate, config)
 
 	l.mu.Lock()
 	delete(l.readers, logWatcher)
@@ -136,7 +136,7 @@ func newSectionReader(f *os.File) (*io.SectionReader, error) {
 	return io.NewSectionReader(f, 0, size), nil
 }
 
-func tailFile(f io.ReadSeeker, logWatcher *logger.LogWatcher, tail int, since time.Time) {
+func tailFile(f io.ReadSeeker, logWatcher *logger.LogWatcher, tail int, since, until time.Time) {
 	rdr := io.Reader(f)
 	if tail > 0 {
 		ls, err := tailfile.TailFile(f, tail)
@@ -157,6 +157,9 @@ func tailFile(f io.ReadSeeker, logWatcher *logger.LogWatcher, tail int, since ti
 		}
 		if !since.IsZero() && msg.Timestamp.Before(since) {
 			continue
+		}
+		if !until.IsZero() && msg.Timestamp.After(until) {
+			return
 		}
 		select {
 		case <-logWatcher.WatchClose():
@@ -186,7 +189,7 @@ func watchFile(name string) (filenotify.FileWatcher, error) {
 	return fileWatcher, nil
 }
 
-func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan interface{}, since time.Time) {
+func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan interface{}, config logger.ReadConfig) {
 	dec := json.NewDecoder(f)
 	l := &jsonlog.JSONLog{}
 
@@ -324,14 +327,22 @@ func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan int
 			continue
 		}
 
+		since := config.Since
+		until := config.Until
+
 		retries = 0 // reset retries since we've succeeded
 		if !since.IsZero() && msg.Timestamp.Before(since) {
 			continue
+		}
+		if !until.IsZero() && msg.Timestamp.After(until) {
+			return
 		}
 		select {
 		case logWatcher.Msg <- msg:
 		case <-ctx.Done():
 			logWatcher.Msg <- msg
+			// This for loop is used when the logger is closed (ie, container
+			// stopped) but the consumer is still waiting for logs.
 			for {
 				msg, err := decodeLogLine(dec, l)
 				if err != nil {
@@ -339,6 +350,9 @@ func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan int
 				}
 				if !since.IsZero() && msg.Timestamp.Before(since) {
 					continue
+				}
+				if !until.IsZero() && msg.Timestamp.After(until) {
+					return
 				}
 				logWatcher.Msg <- msg
 			}

@@ -122,6 +122,9 @@ func (a *pluginAdapterWithRead) ReadLogs(config ReadConfig) *LogWatcher {
 			if !config.Since.IsZero() && msg.Timestamp.Before(config.Since) {
 				continue
 			}
+			if !config.Until.IsZero() && msg.Timestamp.After(config.Until) {
+				return
+			}
 
 			select {
 			case watcher.Msg <- msg:
