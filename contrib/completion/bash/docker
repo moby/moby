@@ -746,7 +746,7 @@ __docker_complete_log_drivers() {
 
 __docker_complete_log_options() {
 	# see repository docker/docker.github.io/engine/admin/logging/
-	local common_options="max-buffer-size mode"
+	local common_options="max-buffer-size mode max-log-size"
 
 	local awslogs_options="$common_options awslogs-create-group awslogs-group awslogs-region awslogs-stream"
 	local fluentd_options="$common_options env fluentd-address fluentd-async-connect fluentd-buffer-limit fluentd-retry-wait fluentd-max-retries labels tag"

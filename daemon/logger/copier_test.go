@@ -12,6 +12,10 @@ import (
 	"time"
 )
 
+const (
+	bufSize = 16 * 1024
+)
+
 type TestLoggerJSON struct {
 	*json.Encoder
 	mu    sync.Mutex
@@ -65,7 +69,8 @@ func TestCopier(t *testing.T) {
 			"stdout": &stdout,
 			"stderr": &stderr,
 		},
-		jsonLog)
+		jsonLog,
+		bufSize)
 	c.Run()
 	wait := make(chan struct{})
 	go func() {
@@ -139,7 +144,8 @@ func TestCopierLongLines(t *testing.T) {
 			"stdout": &stdout,
 			"stderr": &stderr,
 		},
-		jsonLog)
+		jsonLog,
+		bufSize)
 	c.Run()
 	wait := make(chan struct{})
 	go func() {
@@ -189,7 +195,7 @@ func TestCopierSlow(t *testing.T) {
 	//encoder := &encodeCloser{Encoder: json.NewEncoder(&jsonBuf)}
 	jsonLog := &TestLoggerJSON{Encoder: json.NewEncoder(&jsonBuf), delay: 100 * time.Millisecond}
 
-	c := NewCopier(map[string]io.Reader{"stdout": &stdout}, jsonLog)
+	c := NewCopier(map[string]io.Reader{"stdout": &stdout}, jsonLog, bufSize)
 	c.Run()
 	wait := make(chan struct{})
 	go func() {
@@ -288,7 +294,8 @@ func benchmarkCopier(b *testing.B, length int) {
 			map[string]io.Reader{
 				"buffer": piped(b, 10, time.Nanosecond, buf),
 			},
-			&BenchmarkLoggerDummy{})
+			&BenchmarkLoggerDummy{},
+			bufSize)
 		c.Run()
 		c.Wait()
 		c.Close()
