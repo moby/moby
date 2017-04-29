@@ -242,5 +242,3 @@ func (l *gcplogs) Close() error {
 func (l *gcplogs) Name() string {
 	return name
 }
-
-
