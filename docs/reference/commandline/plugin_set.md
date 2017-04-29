@@ -130,11 +130,13 @@ the `myplugin` plugin.
 
 ```bash
 $ docker plugin inspect -f '{{with $device := index .Settings.Devices 0}}{{$device.Path}}{{end}}' myplugin
+
 /dev/foo
 
 $ docker plugins set myplugin mydevice.path=/dev/bar
 
 $ docker plugin inspect -f '{{with $device := index .Settings.Devices 0}}{{$device.Path}}{{end}}' myplugin
+
 /dev/bar
 ```
 
@@ -147,11 +149,13 @@ The following example change the value of the args on the `myplugin` plugin.
 
 ```bash
 $ docker plugin inspect -f '{{.Settings.Args}}' myplugin
+
 ["foo", "bar"]
 
 $ docker plugins set myplugin myargs="foo bar baz"
 
 $ docker plugin inspect -f '{{.Settings.Args}}' myplugin
+
 ["foo", "bar", "baz"]
 ```
 
@@ -165,3 +169,4 @@ $ docker plugin inspect -f '{{.Settings.Args}}' myplugin
 * [plugin ls](plugin_ls.md)
 * [plugin push](plugin_push.md)
 * [plugin rm](plugin_rm.md)
+* [plugin upgrade](plugin_upgrade.md)

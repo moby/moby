@@ -50,28 +50,40 @@ Do you grant the above permissions? [y/N] y
 vieux/sshfs:next
 
 $ docker volume create -d vieux/sshfs:next -o sshcmd=root@1.2.3.4:/tmp/shared -o password=XXX sshvolume
+
 sshvolume
+
 $ docker run -it -v sshvolume:/data alpine sh -c "touch /data/hello"
+
 $ docker plugin disable -f vieux/sshfs:next
+
 viex/sshfs:next
 
 # Here docker volume ls doesn't show 'sshfsvolume', since the plugin is disabled
 $ docker volume ls
+
 DRIVER              VOLUME NAME
 
 $ docker plugin upgrade vieux/sshfs:next vieux/sshfs:next
+
 Plugin "vieux/sshfs:next" is requesting the following privileges:
  - network: [host]
  - device: [/dev/fuse]
  - capabilities: [CAP_SYS_ADMIN]
 Do you grant the above permissions? [y/N] y
 Upgrade plugin vieux/sshfs:next to vieux/sshfs:next
+
 $ docker plugin enable vieux/sshfs:next
+
 viex/sshfs:next
+
 $ docker volume ls
+
 DRIVER              VOLUME NAME
 viuex/sshfs:next    sshvolume
+
 $ docker run -it -v sshvolume:/data alpine sh -c "ls /data"
+
 hello
 ```
 
