@@ -47,8 +47,8 @@ import (
 	"github.com/docker/docker/pkg/locker"
 	mountpk "github.com/docker/docker/pkg/mount"
 
-	"github.com/opencontainers/runc/libcontainer/label"
 	rsystem "github.com/opencontainers/runc/libcontainer/system"
+	"github.com/opencontainers/selinux/go-selinux/label"
 )
 
 var (

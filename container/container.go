@@ -43,7 +43,7 @@ import (
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/types"
 	agentexec "github.com/docker/swarmkit/agent/exec"
-	"github.com/opencontainers/runc/libcontainer/label"
+	"github.com/opencontainers/selinux/go-selinux/label"
 )
 
 const configFileName = "config.v2.json"
