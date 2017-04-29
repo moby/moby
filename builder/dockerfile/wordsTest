@@ -21,5 +21,10 @@ hel"lo${trailing}" | helloab c
 hello" there  " | hello there  
 hello there     | hello,there
 hello\ there | hello there
-hello" there | hello there
+hello" there | error
 hello\" there | hello",there
+hello"\\there" | hello\there
+hello"\there" | hello\there
+hello'\\there' | hello\\there
+hello'\there' | hello\there
+hello'$there' | hello$there

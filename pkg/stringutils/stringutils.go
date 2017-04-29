@@ -77,7 +77,7 @@ func quote(word string, buf *bytes.Buffer) {
 	for i := 0; i < len(word); i++ {
 		b := word[i]
 		if b == '\'' {
-			// Replace literal ' with a close ', a \', and a open '
+			// Replace literal ' with a close ', a \', and an open '
 			buf.WriteString("'\\''")
 		} else {
 			buf.WriteByte(b)

@@ -35,12 +35,12 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
   deny /sys/fs/[^c]*/** wklx,
   deny /sys/fs/c[^g]*/** wklx,
   deny /sys/fs/cg[^r]*/** wklx,
-  deny /sys/firmware/efi/efivars/** rwklx,
+  deny /sys/firmware/** rwklx,
   deny /sys/kernel/security/** rwklx,
 
 {{if ge .Version 208095}}
   # suppress ptrace denials when using 'docker ps' or using 'ps' inside a container
-  ptrace (trace,read) peer=docker-default,
+  ptrace (trace,read) peer={{.Name}},
 {{end}}
 }
 `

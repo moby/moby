@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 # subshell so that we can export PATH and TZ without breaking other things
@@ -54,6 +54,7 @@ set -e
 	make manpages
 
 	# Convert the CHANGELOG.md file into RPM changelog format
+	rm -f contrib/builder/rpm/${PACKAGE_ARCH}/changelog
 	VERSION_REGEX="^\W\W (.*) \((.*)\)$"
 	ENTRY_REGEX="^[-+*] (.*)$"
 	while read -r line || [[ -n "$line" ]]; do
@@ -89,28 +90,15 @@ set -e
 		cat > "$DEST/$version/Dockerfile.build" <<-EOF
 			FROM $image
 			COPY . /usr/src/${rpmName}
+			WORKDIR /usr/src/${rpmName}
 			RUN mkdir -p /go/src/github.com/docker && mkdir -p /go/src/github.com/opencontainers
 		EOF
 
-		# get the RUNC and CONTAINERD commit from the root Dockerfile, this keeps the commits in sync
-		awk '$1 == "ENV" && $2 == "RUNC_COMMIT" { print; exit }' Dockerfile >> "$DEST/$version/Dockerfile.build"
-		awk '$1 == "ENV" && $2 == "CONTAINERD_COMMIT" { print; exit }' Dockerfile >> "$DEST/$version/Dockerfile.build"
-
-		# add runc and containerd compile and install
 		cat >> "$DEST/$version/Dockerfile.build" <<-EOF
-			# Install runc
-			RUN git clone https://github.com/opencontainers/runc.git "/go/src/github.com/opencontainers/runc" \
-					&& cd "/go/src/github.com/opencontainers/runc" \
-					&& git checkout -q "\$RUNC_COMMIT"
-			RUN set -x && export GOPATH="/go" && cd "/go/src/github.com/opencontainers/runc" \
-					&& make BUILDTAGS="\$RUNC_BUILDTAGS" && make install
-			# Install containerd
-			RUN git clone https://github.com/docker/containerd.git "/go/src/github.com/docker/containerd" \
-					&& cd "/go/src/github.com/docker/containerd" \
-					&& git checkout -q "\$CONTAINERD_COMMIT"
-			RUN set -x && export GOPATH="/go" && cd "/go/src/github.com/docker/containerd" && make && make install
+			# Install runc, containerd, proxy and tini
+			RUN TMP_GOPATH="/go" ./hack/dockerfile/install-binaries.sh runc-dynamic containerd-dynamic proxy-dynamic tini
 		EOF
-		if [ "$DOCKER_EXPERIMENTAL" ]; then
+		if [[ "$VERSION" == *-dev ]] || [ -n "$(git status --porcelain)" ]; then
 			echo 'ENV DOCKER_EXPERIMENTAL 1' >> "$DEST/$version/Dockerfile.build"
 		fi
 		cat >> "$DEST/$version/Dockerfile.build" <<-EOF
@@ -121,7 +109,9 @@ set -e
 			WORKDIR /root/rpmbuild/SPECS
 			RUN tar --exclude .git -r -C /usr/src -f /root/rpmbuild/SOURCES/${rpmName}.tar ${rpmName}
 			RUN tar --exclude .git -r -C /go/src/github.com/docker -f /root/rpmbuild/SOURCES/${rpmName}.tar containerd
+			RUN tar --exclude .git -r -C /go/src/github.com/docker/libnetwork/cmd -f /root/rpmbuild/SOURCES/${rpmName}.tar proxy
 			RUN tar --exclude .git -r -C /go/src/github.com/opencontainers -f /root/rpmbuild/SOURCES/${rpmName}.tar runc
+			RUN tar --exclude .git -r -C /go/ -f /root/rpmbuild/SOURCES/${rpmName}.tar tini
 			RUN gzip /root/rpmbuild/SOURCES/${rpmName}.tar
 			RUN { cat /usr/src/${rpmName}/contrib/builder/rpm/${PACKAGE_ARCH}/changelog; } >> ${rpmName}.spec && tail >&2 ${rpmName}.spec
 			RUN rpmbuild -ba \
@@ -150,7 +140,7 @@ set -e
 			EOF
 		fi
 		tempImage="docker-temp/build-rpm:$version"
-		( set -x && docker build -t "$tempImage" -f $DEST/$version/Dockerfile.build . )
+		( set -x && docker build ${DOCKER_BUILD_ARGS} -t "$tempImage" -f $DEST/$version/Dockerfile.build . )
 		docker run --rm "$tempImage" bash -c 'cd /root/rpmbuild && tar -c *RPMS' | tar -xvC "$DEST/$version"
 		docker rmi "$tempImage"
 	done

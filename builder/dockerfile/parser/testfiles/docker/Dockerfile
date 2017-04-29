@@ -39,7 +39,6 @@ RUN	apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -yq \
 	iptables \
 	libapparmor-dev \
 	libcap-dev \
-	libsqlite3-dev \
 	mercurial \
 	pandoc \
 	parallel \

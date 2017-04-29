@@ -4,31 +4,32 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/docker/docker/pkg/integration/checker"
-	icmd "github.com/docker/docker/pkg/integration/cmd"
+	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli"
+	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/pkg/stringid"
+	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
 )
 
 func (s *DockerSuite) TestPsListContainersBase(c *check.C) {
-	out, _ := runSleepingContainer(c, "-d")
+	out := runSleepingContainer(c, "-d")
 	firstID := strings.TrimSpace(out)
 
-	out, _ = runSleepingContainer(c, "-d")
+	out = runSleepingContainer(c, "-d")
 	secondID := strings.TrimSpace(out)
 
 	// not long running
 	out, _ = dockerCmd(c, "run", "-d", "busybox", "true")
 	thirdID := strings.TrimSpace(out)
 
-	out, _ = runSleepingContainer(c, "-d")
+	out = runSleepingContainer(c, "-d")
 	fourthID := strings.TrimSpace(out)
 
 	// make sure the second is running
@@ -136,6 +137,7 @@ func assertContainerList(out string, expected []string) bool {
 	return true
 }
 
+// FIXME(vdemeester) Move this into a unit test in daemon package
 func (s *DockerSuite) TestPsListContainersInvalidFilterName(c *check.C) {
 	out, _, err := dockerCmdWithError("ps", "-f", "invalidFilter=test")
 	c.Assert(err, checker.NotNil)
@@ -151,20 +153,18 @@ func (s *DockerSuite) TestPsListContainersSize(c *check.C) {
 	baseLines := strings.Split(strings.Trim(baseOut, "\n "), "\n")
 	baseSizeIndex := strings.Index(baseLines[0], "SIZE")
 	baseFoundsize := baseLines[1][baseSizeIndex:]
-	baseBytes, err := strconv.Atoi(strings.Split(baseFoundsize, " ")[0])
+	baseBytes, err := strconv.Atoi(strings.Split(baseFoundsize, "B")[0])
 	c.Assert(err, checker.IsNil)
 
 	name := "test_size"
 	dockerCmd(c, "run", "--name", name, "busybox", "sh", "-c", "echo 1 > test")
-	id, err := getIDByName(name)
-	c.Assert(err, checker.IsNil)
+	id := getIDByName(c, name)
 
-	runCmd := exec.Command(dockerBinary, "ps", "-s", "-n=1")
-	var out string
+	var result *icmd.Result
 
 	wait := make(chan struct{})
 	go func() {
-		out, _, err = runCommandWithOutput(runCmd)
+		result = icmd.RunCommand(dockerBinary, "ps", "-s", "-n=1")
 		close(wait)
 	}()
 	select {
@@ -172,58 +172,100 @@ func (s *DockerSuite) TestPsListContainersSize(c *check.C) {
 	case <-time.After(3 * time.Second):
 		c.Fatalf("Calling \"docker ps -s\" timed out!")
 	}
-	c.Assert(err, checker.IsNil)
-	lines := strings.Split(strings.Trim(out, "\n "), "\n")
+	result.Assert(c, icmd.Success)
+	lines := strings.Split(strings.Trim(result.Combined(), "\n "), "\n")
 	c.Assert(lines, checker.HasLen, 2, check.Commentf("Expected 2 lines for 'ps -s -n=1' output, got %d", len(lines)))
 	sizeIndex := strings.Index(lines[0], "SIZE")
 	idIndex := strings.Index(lines[0], "CONTAINER ID")
 	foundID := lines[1][idIndex : idIndex+12]
 	c.Assert(foundID, checker.Equals, id[:12], check.Commentf("Expected id %s, got %s", id[:12], foundID))
-	expectedSize := fmt.Sprintf("%d B", (2 + baseBytes))
+	expectedSize := fmt.Sprintf("%dB", (2 + baseBytes))
 	foundSize := lines[1][sizeIndex:]
 	c.Assert(foundSize, checker.Contains, expectedSize, check.Commentf("Expected size %q, got %q", expectedSize, foundSize))
 }
 
 func (s *DockerSuite) TestPsListContainersFilterStatus(c *check.C) {
 	// start exited container
-	out, _ := dockerCmd(c, "run", "-d", "busybox")
+	out := cli.DockerCmd(c, "run", "-d", "busybox").Combined()
 	firstID := strings.TrimSpace(out)
 
 	// make sure the exited container is not running
-	dockerCmd(c, "wait", firstID)
+	cli.DockerCmd(c, "wait", firstID)
 
 	// start running container
-	out, _ = dockerCmd(c, "run", "-itd", "busybox")
+	out = cli.DockerCmd(c, "run", "-itd", "busybox").Combined()
 	secondID := strings.TrimSpace(out)
 
 	// filter containers by exited
-	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter=status=exited")
+	out = cli.DockerCmd(c, "ps", "--no-trunc", "-q", "--filter=status=exited").Combined()
 	containerOut := strings.TrimSpace(out)
 	c.Assert(containerOut, checker.Equals, firstID)
 
-	out, _ = dockerCmd(c, "ps", "-a", "--no-trunc", "-q", "--filter=status=running")
+	out = cli.DockerCmd(c, "ps", "-a", "--no-trunc", "-q", "--filter=status=running").Combined()
 	containerOut = strings.TrimSpace(out)
 	c.Assert(containerOut, checker.Equals, secondID)
 
-	result := dockerCmdWithTimeout(time.Second*60, "ps", "-a", "-q", "--filter=status=rubbish")
+	result := cli.Docker(cli.Args("ps", "-a", "-q", "--filter=status=rubbish"), cli.WithTimeout(time.Second*60))
 	c.Assert(result, icmd.Matches, icmd.Expected{
 		ExitCode: 1,
 		Err:      "Unrecognised filter value for status",
 	})
 
 	// Windows doesn't support pausing of containers
-	if daemonPlatform != "windows" {
+	if testEnv.DaemonPlatform() != "windows" {
 		// pause running container
-		out, _ = dockerCmd(c, "run", "-itd", "busybox")
+		out = cli.DockerCmd(c, "run", "-itd", "busybox").Combined()
 		pausedID := strings.TrimSpace(out)
-		dockerCmd(c, "pause", pausedID)
+		cli.DockerCmd(c, "pause", pausedID)
 		// make sure the container is unpaused to let the daemon stop it properly
-		defer func() { dockerCmd(c, "unpause", pausedID) }()
+		defer func() { cli.DockerCmd(c, "unpause", pausedID) }()
 
-		out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter=status=paused")
+		out = cli.DockerCmd(c, "ps", "--no-trunc", "-q", "--filter=status=paused").Combined()
 		containerOut = strings.TrimSpace(out)
 		c.Assert(containerOut, checker.Equals, pausedID)
 	}
+}
+
+func (s *DockerSuite) TestPsListContainersFilterHealth(c *check.C) {
+	// Test legacy no health check
+	out := runSleepingContainer(c, "--name=none_legacy")
+	containerID := strings.TrimSpace(out)
+
+	cli.WaitRun(c, containerID)
+
+	out = cli.DockerCmd(c, "ps", "-q", "-l", "--no-trunc", "--filter=health=none").Combined()
+	containerOut := strings.TrimSpace(out)
+	c.Assert(containerOut, checker.Equals, containerID, check.Commentf("Expected id %s, got %s for legacy none filter, output: %q", containerID, containerOut, out))
+
+	// Test no health check specified explicitly
+	out = runSleepingContainer(c, "--name=none", "--no-healthcheck")
+	containerID = strings.TrimSpace(out)
+
+	cli.WaitRun(c, containerID)
+
+	out = cli.DockerCmd(c, "ps", "-q", "-l", "--no-trunc", "--filter=health=none").Combined()
+	containerOut = strings.TrimSpace(out)
+	c.Assert(containerOut, checker.Equals, containerID, check.Commentf("Expected id %s, got %s for none filter, output: %q", containerID, containerOut, out))
+
+	// Test failing health check
+	out = runSleepingContainer(c, "--name=failing_container", "--health-cmd=exit 1", "--health-interval=1s")
+	containerID = strings.TrimSpace(out)
+
+	waitForHealthStatus(c, "failing_container", "starting", "unhealthy")
+
+	out = cli.DockerCmd(c, "ps", "-q", "--no-trunc", "--filter=health=unhealthy").Combined()
+	containerOut = strings.TrimSpace(out)
+	c.Assert(containerOut, checker.Equals, containerID, check.Commentf("Expected containerID %s, got %s for unhealthy filter, output: %q", containerID, containerOut, out))
+
+	// Check passing healthcheck
+	out = runSleepingContainer(c, "--name=passing_container", "--health-cmd=exit 0", "--health-interval=1s")
+	containerID = strings.TrimSpace(out)
+
+	waitForHealthStatus(c, "passing_container", "starting", "healthy")
+
+	out = cli.DockerCmd(c, "ps", "-q", "--no-trunc", "--filter=health=healthy").Combined()
+	containerOut = strings.TrimSpace(out)
+	c.Assert(containerOut, checker.Equals, containerID, check.Commentf("Expected containerID %s, got %s for healthy filter, output: %q", containerID, containerOut, out))
 }
 
 func (s *DockerSuite) TestPsListContainersFilterID(c *check.C) {
@@ -238,14 +280,12 @@ func (s *DockerSuite) TestPsListContainersFilterID(c *check.C) {
 	out, _ = dockerCmd(c, "ps", "-a", "-q", "--filter=id="+firstID)
 	containerOut := strings.TrimSpace(out)
 	c.Assert(containerOut, checker.Equals, firstID[:12], check.Commentf("Expected id %s, got %s for exited filter, output: %q", firstID[:12], containerOut, out))
-
 }
 
 func (s *DockerSuite) TestPsListContainersFilterName(c *check.C) {
 	// start container
 	dockerCmd(c, "run", "--name=a_name_to_match", "busybox")
-	id, err := getIDByName("a_name_to_match")
-	c.Assert(err, check.IsNil)
+	id := getIDByName(c, "a_name_to_match")
 
 	// start another container
 	runSleepingContainer(c, "--name=b_name_to_match")
@@ -267,47 +307,39 @@ func (s *DockerSuite) TestPsListContainersFilterName(c *check.C) {
 func (s *DockerSuite) TestPsListContainersFilterAncestorImage(c *check.C) {
 	// Build images
 	imageName1 := "images_ps_filter_test1"
-	imageID1, err := buildImage(imageName1,
-		`FROM busybox
-		 LABEL match me 1`, true)
-	c.Assert(err, checker.IsNil)
+	buildImageSuccessfully(c, imageName1, build.WithDockerfile(`FROM busybox
+		 LABEL match me 1`))
+	imageID1 := getIDByName(c, imageName1)
 
 	imageName1Tagged := "images_ps_filter_test1:tag"
-	imageID1Tagged, err := buildImage(imageName1Tagged,
-		`FROM busybox
-		 LABEL match me 1 tagged`, true)
-	c.Assert(err, checker.IsNil)
+	buildImageSuccessfully(c, imageName1Tagged, build.WithDockerfile(`FROM busybox
+		 LABEL match me 1 tagged`))
+	imageID1Tagged := getIDByName(c, imageName1Tagged)
 
 	imageName2 := "images_ps_filter_test2"
-	imageID2, err := buildImage(imageName2,
-		fmt.Sprintf(`FROM %s
-		 LABEL match me 2`, imageName1), true)
-	c.Assert(err, checker.IsNil)
+	buildImageSuccessfully(c, imageName2, build.WithDockerfile(fmt.Sprintf(`FROM %s
+		 LABEL match me 2`, imageName1)))
+	imageID2 := getIDByName(c, imageName2)
 
 	// start containers
 	dockerCmd(c, "run", "--name=first", "busybox", "echo", "hello")
-	firstID, err := getIDByName("first")
-	c.Assert(err, check.IsNil)
+	firstID := getIDByName(c, "first")
 
 	// start another container
 	dockerCmd(c, "run", "--name=second", "busybox", "echo", "hello")
-	secondID, err := getIDByName("second")
-	c.Assert(err, check.IsNil)
+	secondID := getIDByName(c, "second")
 
 	// start third container
 	dockerCmd(c, "run", "--name=third", imageName1, "echo", "hello")
-	thirdID, err := getIDByName("third")
-	c.Assert(err, check.IsNil)
+	thirdID := getIDByName(c, "third")
 
 	// start fourth container
 	dockerCmd(c, "run", "--name=fourth", imageName1Tagged, "echo", "hello")
-	fourthID, err := getIDByName("fourth")
-	c.Assert(err, check.IsNil)
+	fourthID := getIDByName(c, "fourth")
 
 	// start fifth container
 	dockerCmd(c, "run", "--name=fifth", imageName2, "echo", "hello")
-	fifthID, err := getIDByName("fifth")
-	c.Assert(err, check.IsNil)
+	fifthID := getIDByName(c, "fifth")
 
 	var filterTestSuite = []struct {
 		filterName  string
@@ -368,18 +400,15 @@ func checkPsAncestorFilterOutput(c *check.C, out string, filterName string, expe
 func (s *DockerSuite) TestPsListContainersFilterLabel(c *check.C) {
 	// start container
 	dockerCmd(c, "run", "--name=first", "-l", "match=me", "-l", "second=tag", "busybox")
-	firstID, err := getIDByName("first")
-	c.Assert(err, check.IsNil)
+	firstID := getIDByName(c, "first")
 
 	// start another container
 	dockerCmd(c, "run", "--name=second", "-l", "match=me too", "busybox")
-	secondID, err := getIDByName("second")
-	c.Assert(err, check.IsNil)
+	secondID := getIDByName(c, "second")
 
 	// start third container
 	dockerCmd(c, "run", "--name=third", "-l", "nomatch=me", "busybox")
-	thirdID, err := getIDByName("third")
-	c.Assert(err, check.IsNil)
+	thirdID := getIDByName(c, "third")
 
 	// filter containers by exact match
 	out, _ := dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=label=match=me")
@@ -408,23 +437,19 @@ func (s *DockerSuite) TestPsListContainersFilterExited(c *check.C) {
 	runSleepingContainer(c, "--name=sleep")
 
 	dockerCmd(c, "run", "--name", "zero1", "busybox", "true")
-	firstZero, err := getIDByName("zero1")
-	c.Assert(err, checker.IsNil)
+	firstZero := getIDByName(c, "zero1")
 
 	dockerCmd(c, "run", "--name", "zero2", "busybox", "true")
-	secondZero, err := getIDByName("zero2")
-	c.Assert(err, checker.IsNil)
+	secondZero := getIDByName(c, "zero2")
 
 	out, _, err := dockerCmdWithError("run", "--name", "nonzero1", "busybox", "false")
 	c.Assert(err, checker.NotNil, check.Commentf("Should fail.", out, err))
 
-	firstNonZero, err := getIDByName("nonzero1")
-	c.Assert(err, checker.IsNil)
+	firstNonZero := getIDByName(c, "nonzero1")
 
 	out, _, err = dockerCmdWithError("run", "--name", "nonzero2", "busybox", "false")
 	c.Assert(err, checker.NotNil, check.Commentf("Should fail.", out, err))
-	secondNonZero, err := getIDByName("nonzero2")
-	c.Assert(err, checker.IsNil)
+	secondNonZero := getIDByName(c, "nonzero2")
 
 	// filter containers by exited=0
 	out, _ = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=exited=0")
@@ -448,11 +473,11 @@ func (s *DockerSuite) TestPsRightTagName(c *check.C) {
 	dockerCmd(c, "tag", "busybox", tag)
 
 	var id1 string
-	out, _ := runSleepingContainer(c)
+	out := runSleepingContainer(c)
 	id1 = strings.TrimSpace(string(out))
 
 	var id2 string
-	out, _ = runSleepingContainerInImage(c, tag)
+	out = runSleepingContainerInImage(c, tag)
 	id2 = strings.TrimSpace(string(out))
 
 	var imageID string
@@ -460,7 +485,7 @@ func (s *DockerSuite) TestPsRightTagName(c *check.C) {
 	imageID = strings.TrimSpace(string(out))
 
 	var id3 string
-	out, _ = runSleepingContainerInImage(c, imageID)
+	out = runSleepingContainerInImage(c, imageID)
 	id3 = strings.TrimSpace(string(out))
 
 	out, _ = dockerCmd(c, "ps", "--no-trunc")
@@ -565,9 +590,7 @@ func (s *DockerSuite) TestPsFormatMultiNames(c *check.C) {
 	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
 	expected := []string{"parent", "child,parent/linkedone"}
 	var names []string
-	for _, l := range lines {
-		names = append(names, l)
-	}
+	names = append(names, lines...)
 	c.Assert(expected, checker.DeepEquals, names, check.Commentf("Expected array with non-truncated names: %v, got: %v", expected, names))
 
 	//now list without turning off truncation and make sure we only get the non-link names
@@ -575,9 +598,7 @@ func (s *DockerSuite) TestPsFormatMultiNames(c *check.C) {
 	lines = strings.Split(strings.TrimSpace(string(out)), "\n")
 	expected = []string{"parent", "child"}
 	var truncNames []string
-	for _, l := range lines {
-		truncNames = append(truncNames, l)
-	}
+	truncNames = append(truncNames, lines...)
 	c.Assert(expected, checker.DeepEquals, truncNames, check.Commentf("Expected array with truncated names: %v, got: %v", expected, truncNames))
 }
 
@@ -591,9 +612,7 @@ func (s *DockerSuite) TestPsNamesMultipleTime(c *check.C) {
 	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
 	expected := []string{"test2 test2", "test1 test1"}
 	var names []string
-	for _, l := range lines {
-		names = append(names, l)
-	}
+	names = append(names, lines...)
 	c.Assert(expected, checker.DeepEquals, names, check.Commentf("Expected array with names displayed twice: %v, got: %v", expected, names))
 }
 
@@ -619,7 +638,7 @@ func (s *DockerSuite) TestPsDefaultFormatAndQuiet(c *check.C) {
 	err = ioutil.WriteFile(filepath.Join(d, "config.json"), []byte(config), 0644)
 	c.Assert(err, checker.IsNil)
 
-	out, _ := runSleepingContainer(c, "--name=test")
+	out := runSleepingContainer(c, "--name=test")
 	id := strings.TrimSpace(out)
 
 	out, _ = dockerCmd(c, "--config", d, "ps", "-q")
@@ -633,22 +652,18 @@ func (s *DockerSuite) TestPsImageIDAfterUpdate(c *check.C) {
 	originalImageName := "busybox:TestPsImageIDAfterUpdate-original"
 	updatedImageName := "busybox:TestPsImageIDAfterUpdate-updated"
 
-	runCmd := exec.Command(dockerBinary, "tag", "busybox:latest", originalImageName)
-	out, _, err := runCommandWithOutput(runCmd)
-	c.Assert(err, checker.IsNil)
+	icmd.RunCommand(dockerBinary, "tag", "busybox:latest", originalImageName).Assert(c, icmd.Success)
 
-	originalImageID, err := getIDByName(originalImageName)
-	c.Assert(err, checker.IsNil)
+	originalImageID := getIDByName(c, originalImageName)
 
-	runCmd = exec.Command(dockerBinary, append([]string{"run", "-d", originalImageName}, defaultSleepCommand...)...)
-	out, _, err = runCommandWithOutput(runCmd)
-	c.Assert(err, checker.IsNil)
-	containerID := strings.TrimSpace(out)
+	result := icmd.RunCommand(dockerBinary, append([]string{"run", "-d", originalImageName}, sleepCommandForDaemonPlatform()...)...)
+	result.Assert(c, icmd.Success)
+	containerID := strings.TrimSpace(result.Combined())
 
-	linesOut, err := exec.Command(dockerBinary, "ps", "--no-trunc").CombinedOutput()
-	c.Assert(err, checker.IsNil)
+	result = icmd.RunCommand(dockerBinary, "ps", "--no-trunc")
+	result.Assert(c, icmd.Success)
 
-	lines := strings.Split(strings.TrimSpace(string(linesOut)), "\n")
+	lines := strings.Split(strings.TrimSpace(string(result.Combined())), "\n")
 	// skip header
 	lines = lines[1:]
 	c.Assert(len(lines), checker.Equals, 1)
@@ -658,18 +673,13 @@ func (s *DockerSuite) TestPsImageIDAfterUpdate(c *check.C) {
 		c.Assert(f[1], checker.Equals, originalImageName)
 	}
 
-	runCmd = exec.Command(dockerBinary, "commit", containerID, updatedImageName)
-	out, _, err = runCommandWithOutput(runCmd)
-	c.Assert(err, checker.IsNil)
+	icmd.RunCommand(dockerBinary, "commit", containerID, updatedImageName).Assert(c, icmd.Success)
+	icmd.RunCommand(dockerBinary, "tag", updatedImageName, originalImageName).Assert(c, icmd.Success)
 
-	runCmd = exec.Command(dockerBinary, "tag", updatedImageName, originalImageName)
-	out, _, err = runCommandWithOutput(runCmd)
-	c.Assert(err, checker.IsNil)
+	result = icmd.RunCommand(dockerBinary, "ps", "--no-trunc")
+	result.Assert(c, icmd.Success)
 
-	linesOut, err = exec.Command(dockerBinary, "ps", "--no-trunc").CombinedOutput()
-	c.Assert(err, checker.IsNil)
-
-	lines = strings.Split(strings.TrimSpace(string(linesOut)), "\n")
+	lines = strings.Split(strings.TrimSpace(string(result.Combined())), "\n")
 	// skip header
 	lines = lines[1:]
 	c.Assert(len(lines), checker.Equals, 1)
@@ -713,7 +723,7 @@ func (s *DockerSuite) TestPsShowMounts(c *check.C) {
 	// bind mount container
 	var bindMountSource string
 	var bindMountDestination string
-	if DaemonIsWindows.Condition() {
+	if DaemonIsWindows() {
 		bindMountSource = "c:\\"
 		bindMountDestination = "c:\\t"
 	} else {
@@ -867,38 +877,91 @@ func (s *DockerSuite) TestPsListContainersFilterNetwork(c *check.C) {
 	containerOut = strings.TrimSpace(string(out))
 
 	c.Assert(containerOut, checker.Contains, "onbridgenetwork")
+
+	// Filter by partial network ID
+	partialnwID := string(nwID[0:4])
+
+	out, _ = dockerCmd(c, "ps", "--filter", "network="+partialnwID)
+	containerOut = strings.TrimSpace(string(out))
+
+	lines = strings.Split(containerOut, "\n")
+	// skip header
+	lines = lines[1:]
+
+	// ps output should have only one container
+	c.Assert(lines, checker.HasLen, 1)
+
+	// Making sure onbridgenetwork is on the output
+	c.Assert(containerOut, checker.Contains, "onbridgenetwork", check.Commentf("Missing the container on network\n"))
+
 }
 
 func (s *DockerSuite) TestPsByOrder(c *check.C) {
 	name1 := "xyz-abc"
-	out, err := runSleepingContainer(c, "--name", name1)
-	c.Assert(err, checker.NotNil)
-	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+	out := runSleepingContainer(c, "--name", name1)
 	container1 := strings.TrimSpace(out)
 
 	name2 := "xyz-123"
-	out, err = runSleepingContainer(c, "--name", name2)
-	c.Assert(err, checker.NotNil)
-	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+	out = runSleepingContainer(c, "--name", name2)
 	container2 := strings.TrimSpace(out)
 
 	name3 := "789-abc"
-	out, err = runSleepingContainer(c, "--name", name3)
-	c.Assert(err, checker.NotNil)
-	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+	out = runSleepingContainer(c, "--name", name3)
 
 	name4 := "789-123"
-	out, err = runSleepingContainer(c, "--name", name4)
-	c.Assert(err, checker.NotNil)
-	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+	out = runSleepingContainer(c, "--name", name4)
 
 	// Run multiple time should have the same result
-	out, err = dockerCmd(c, "ps", "--no-trunc", "-q", "-f", "name=xyz")
-	c.Assert(err, checker.NotNil)
+	out = cli.DockerCmd(c, "ps", "--no-trunc", "-q", "-f", "name=xyz").Combined()
 	c.Assert(strings.TrimSpace(out), checker.Equals, fmt.Sprintf("%s\n%s", container2, container1))
 
 	// Run multiple time should have the same result
-	out, err = dockerCmd(c, "ps", "--no-trunc", "-q", "-f", "name=xyz")
-	c.Assert(err, checker.NotNil)
+	out = cli.DockerCmd(c, "ps", "--no-trunc", "-q", "-f", "name=xyz").Combined()
 	c.Assert(strings.TrimSpace(out), checker.Equals, fmt.Sprintf("%s\n%s", container2, container1))
+}
+
+func (s *DockerSuite) TestPsFilterMissingArgErrorCode(c *check.C) {
+	_, errCode, _ := dockerCmdWithError("ps", "--filter")
+	c.Assert(errCode, checker.Equals, 125)
+}
+
+// Test case for 30291
+func (s *DockerSuite) TestPsFormatTemplateWithArg(c *check.C) {
+	runSleepingContainer(c, "-d", "--name", "top", "--label", "some.label=label.foo-bar")
+	out, _ := dockerCmd(c, "ps", "--format", `{{.Names}} {{.Label "some.label"}}`)
+	c.Assert(strings.TrimSpace(out), checker.Equals, "top label.foo-bar")
+}
+
+func (s *DockerSuite) TestPsListContainersFilterPorts(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	out, _ := dockerCmd(c, "run", "-d", "--publish=80", "busybox", "top")
+	id1 := strings.TrimSpace(out)
+
+	out, _ = dockerCmd(c, "run", "-d", "--expose=8080", "busybox", "top")
+	id2 := strings.TrimSpace(out)
+
+	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q")
+	c.Assert(strings.TrimSpace(out), checker.Contains, id1)
+	c.Assert(strings.TrimSpace(out), checker.Contains, id2)
+
+	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "publish=80-8080/udp")
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), id1)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), id2)
+
+	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "expose=8081")
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), id1)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), id2)
+
+	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "publish=80-81")
+	c.Assert(strings.TrimSpace(out), checker.Equals, id1)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), id2)
+
+	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "expose=80/tcp")
+	c.Assert(strings.TrimSpace(out), checker.Equals, id1)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), id2)
+
+	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "expose=8080/tcp")
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), id1)
+	c.Assert(strings.TrimSpace(out), checker.Equals, id2)
 }

@@ -2,10 +2,10 @@ package main
 
 import (
 	"os"
-	"os/exec"
 	"strings"
 
-	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/integration-cli/checker"
+	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
 )
 
@@ -18,12 +18,13 @@ func (s *DockerSuite) TestExportContainerAndImportImage(c *check.C) {
 
 	out, _ := dockerCmd(c, "export", containerID)
 
-	importCmd := exec.Command(dockerBinary, "import", "-", "repo/testexp:v1")
-	importCmd.Stdin = strings.NewReader(out)
-	out, _, err := runCommandWithOutput(importCmd)
-	c.Assert(err, checker.IsNil, check.Commentf("failed to import image repo/testexp:v1: %s", out))
+	result := icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "import", "-", "repo/testexp:v1"},
+		Stdin:   strings.NewReader(out),
+	})
+	result.Assert(c, icmd.Success)
 
-	cleanedImageID := strings.TrimSpace(out)
+	cleanedImageID := strings.TrimSpace(result.Combined())
 	c.Assert(cleanedImageID, checker.Not(checker.Equals), "", check.Commentf("output should have been an image id"))
 }
 
@@ -36,14 +37,15 @@ func (s *DockerSuite) TestExportContainerWithOutputAndImportImage(c *check.C) {
 	dockerCmd(c, "export", "--output=testexp.tar", containerID)
 	defer os.Remove("testexp.tar")
 
-	out, _, err := runCommandWithOutput(exec.Command("cat", "testexp.tar"))
-	c.Assert(err, checker.IsNil, check.Commentf(out))
+	resultCat := icmd.RunCommand("cat", "testexp.tar")
+	resultCat.Assert(c, icmd.Success)
 
-	importCmd := exec.Command(dockerBinary, "import", "-", "repo/testexp:v1")
-	importCmd.Stdin = strings.NewReader(out)
-	out, _, err = runCommandWithOutput(importCmd)
-	c.Assert(err, checker.IsNil, check.Commentf("failed to import image repo/testexp:v1: %s", out))
+	result := icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "import", "-", "repo/testexp:v1"},
+		Stdin:   strings.NewReader(resultCat.Combined()),
+	})
+	result.Assert(c, icmd.Success)
 
-	cleanedImageID := strings.TrimSpace(out)
+	cleanedImageID := strings.TrimSpace(result.Combined())
 	c.Assert(cleanedImageID, checker.Not(checker.Equals), "", check.Commentf("output should have been an image id"))
 }

@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestParseMountSpecPropagation(t *testing.T) {
+func TestParseMountRawPropagation(t *testing.T) {
 	var (
 		valid   []string
 		invalid map[string]string
@@ -34,31 +34,31 @@ func TestParseMountSpecPropagation(t *testing.T) {
 		"/hostPath:/containerPath:ro,Z,rprivate",
 	}
 	invalid = map[string]string{
-		"/path:/path:ro,rshared,rslave":   `invalid mode: ro,rshared,rslave`,
-		"/path:/path:ro,z,rshared,rslave": `invalid mode: ro,z,rshared,rslave`,
-		"/path:shared":                    "Invalid volume specification",
-		"/path:slave":                     "Invalid volume specification",
-		"/path:private":                   "Invalid volume specification",
-		"name:/absolute-path:shared":      "Invalid volume specification",
-		"name:/absolute-path:rshared":     "Invalid volume specification",
-		"name:/absolute-path:slave":       "Invalid volume specification",
-		"name:/absolute-path:rslave":      "Invalid volume specification",
-		"name:/absolute-path:private":     "Invalid volume specification",
-		"name:/absolute-path:rprivate":    "Invalid volume specification",
+		"/path:/path:ro,rshared,rslave":   `invalid mode`,
+		"/path:/path:ro,z,rshared,rslave": `invalid mode`,
+		"/path:shared":                    "invalid volume specification",
+		"/path:slave":                     "invalid volume specification",
+		"/path:private":                   "invalid volume specification",
+		"name:/absolute-path:shared":      "invalid volume specification",
+		"name:/absolute-path:rshared":     "invalid volume specification",
+		"name:/absolute-path:slave":       "invalid volume specification",
+		"name:/absolute-path:rslave":      "invalid volume specification",
+		"name:/absolute-path:private":     "invalid volume specification",
+		"name:/absolute-path:rprivate":    "invalid volume specification",
 	}
 
 	for _, path := range valid {
-		if _, err := ParseMountSpec(path, "local"); err != nil {
-			t.Fatalf("ParseMountSpec(`%q`) should succeed: error %q", path, err)
+		if _, err := ParseMountRaw(path, "local"); err != nil {
+			t.Fatalf("ParseMountRaw(`%q`) should succeed: error %q", path, err)
 		}
 	}
 
 	for path, expectedError := range invalid {
-		if _, err := ParseMountSpec(path, "local"); err == nil {
-			t.Fatalf("ParseMountSpec(`%q`) should have failed validation. Err %v", path, err)
+		if _, err := ParseMountRaw(path, "local"); err == nil {
+			t.Fatalf("ParseMountRaw(`%q`) should have failed validation. Err %v", path, err)
 		} else {
 			if !strings.Contains(err.Error(), expectedError) {
-				t.Fatalf("ParseMountSpec(`%q`) error should contain %q, got %v", path, expectedError, err.Error())
+				t.Fatalf("ParseMountRaw(`%q`) error should contain %q, got %v", path, expectedError, err.Error())
 			}
 		}
 	}

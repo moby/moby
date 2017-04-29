@@ -3,6 +3,7 @@ package authorization
 import (
 	"sync"
 
+	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
 )
 
@@ -33,6 +34,18 @@ func newPlugins(names []string) []Plugin {
 	return plugins
 }
 
+var getter plugingetter.PluginGetter
+
+// SetPluginGetter sets the plugingetter
+func SetPluginGetter(pg plugingetter.PluginGetter) {
+	getter = pg
+}
+
+// GetPluginGetter gets the plugingetter
+func GetPluginGetter() plugingetter.PluginGetter {
+	return getter
+}
+
 // authorizationPlugin is an internal adapter to docker plugin system
 type authorizationPlugin struct {
 	plugin *plugins.Client
@@ -46,6 +59,11 @@ func newAuthorizationPlugin(name string) Plugin {
 
 func (a *authorizationPlugin) Name() string {
 	return a.name
+}
+
+// Set the remote for an authz pluginv2
+func (a *authorizationPlugin) SetName(remote string) {
+	a.name = remote
 }
 
 func (a *authorizationPlugin) AuthZRequest(authReq *Request) (*Response, error) {
@@ -80,7 +98,15 @@ func (a *authorizationPlugin) initPlugin() error {
 	var err error
 	a.once.Do(func() {
 		if a.plugin == nil {
-			plugin, e := plugins.Get(a.name, AuthZApiImplements)
+			var plugin plugingetter.CompatPlugin
+			var e error
+
+			if pg := GetPluginGetter(); pg != nil {
+				plugin, e = pg.Get(a.name, AuthZApiImplements, plugingetter.Lookup)
+				a.SetName(plugin.Name())
+			} else {
+				plugin, e = plugins.Get(a.name, AuthZApiImplements)
+			}
 			if e != nil {
 				err = e
 				return

@@ -15,17 +15,22 @@
 # the case. Therefore, you don't have to disable it anymore.
 #
 
-# ppc64le/golang is a debian:jessie based image with golang installed
-FROM ppc64le/golang:1.6.3
+FROM ppc64le/debian:jessie
+
+# allow replacing httpredir or deb mirror
+ARG APT_MIRROR=deb.debian.org
+RUN sed -ri "s/(httpredir|deb).debian.org/$APT_MIRROR/g" /etc/apt/sources.list
 
 # Packaged dependencies
 RUN apt-get update && apt-get install -y \
 	apparmor \
+	apt-utils \
 	aufs-tools \
 	automake \
 	bash-completion \
 	btrfs-tools \
 	build-essential \
+	cmake \
 	createrepo \
 	curl \
 	dpkg-sig \
@@ -36,7 +41,6 @@ RUN apt-get update && apt-get install -y \
 	libapparmor-dev \
 	libcap-dev \
 	libltdl-dev \
-	libsqlite3-dev \
 	libsystemd-journal-dev \
 	libtool \
 	mercurial \
@@ -47,6 +51,7 @@ RUN apt-get update && apt-get install -y \
 	python-websocket \
 	xfsprogs \
 	tar \
+	vim-common \
 	--no-install-recommends
 
 # Get lvm2 source for compiling statically
@@ -54,9 +59,9 @@ ENV LVM2_VERSION 2.02.103
 RUN mkdir -p /usr/local/lvm2 \
 	&& curl -fsSL "https://mirrors.kernel.org/sourceware/lvm2/LVM2.${LVM2_VERSION}.tgz" \
 		| tar -xzC /usr/local/lvm2 --strip-components=1
-# see https://git.fedorahosted.org/cgit/lvm2.git/refs/tags for release tags
+# See https://git.fedorahosted.org/cgit/lvm2.git/refs/tags for release tags
 
-# fix platform enablement in lvm2 to support ppc64le properly
+# Fix platform enablement in lvm2 to support ppc64le properly
 RUN set -e \
 	&& for f in config.guess config.sub; do \
 		curl -fsSL -o "/usr/local/lvm2/autoconf/$f" "http://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=$f;hb=HEAD"; \
@@ -70,10 +75,10 @@ RUN cd /usr/local/lvm2 \
 		--enable-static_link \
 	&& make device-mapper \
 	&& make install_device-mapper
-# see https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
+# See https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
 
-# install seccomp: the version shipped in jessie is too old
-ENV SECCOMP_VERSION 2.3.1
+# Install seccomp: the version shipped upstream is too old
+ENV SECCOMP_VERSION 2.3.2
 RUN set -x \
         && export SECCOMP_PATH="$(mktemp -d)" \
         && curl -fsSL "https://github.com/seccomp/libseccomp/releases/download/v${SECCOMP_VERSION}/libseccomp-${SECCOMP_VERSION}.tar.gz" \
@@ -89,26 +94,13 @@ RUN set -x \
 
 
 # Install Go
-# ppc64le doesn't have official go binaries, so use the version of go installed from the image
-# to build go from source.
-# NOTE: ppc64le has compatibility issues with older versions of go, so make sure the version >= 1.6
-ENV GO_VERSION 1.7
-ENV GO_DOWNLOAD_URL https://golang.org/dl/go${GO_VERSION}.src.tar.gz
+# NOTE: official ppc64le go binaries weren't available until go 1.6.4 and 1.7.4
+ENV GO_VERSION 1.7.5
+RUN curl -fsSL "https://golang.org/dl/go${GO_VERSION}.linux-ppc64le.tar.gz" \
+	| tar -xzC /usr/local
 
-RUN set -x \
-	&& TEMPDIR="$(mktemp -d)" \
-	&& mv /usr/local/go $TEMPDIR \
-	&& GOROOT_BOOTSTRAP=$TEMPDIR/go \
-	&& cd /usr/local \
-	&& curl -fsSL "$GO_DOWNLOAD_URL" -o golang.tar.gz \
-	&& tar -C /usr/local -xzf golang.tar.gz \
-	&& rm golang.tar.gz \
-	&& cd go/src && ./make.bash 2>&1 \
-	&& rm -rf $TEMPDIR 
-
-ENV GOROOT_BOOTSTRAP /usr/local/go
-ENV PATH /usr/local/go/bin/:$PATH
-ENV GOPATH /go:/go/src/github.com/docker/docker/vendor
+ENV PATH /go/bin:/usr/local/go/bin:$PATH
+ENV GOPATH /go
 
 # Dependency for golint
 ENV GO_TOOLS_COMMIT 823804e1ae08dbb14eb807afc7db9993bc9e3cc3
@@ -139,14 +131,14 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Install notary and notary-server
-ENV NOTARY_VERSION v0.3.0
+ENV NOTARY_VERSION v0.5.0
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/docker/notary.git "$GOPATH/src/github.com/docker/notary" \
 	&& (cd "$GOPATH/src/github.com/docker/notary" && git checkout -q "$NOTARY_VERSION") \
-	&& GOPATH="$GOPATH/src/github.com/docker/notary/Godeps/_workspace:$GOPATH" \
+	&& GOPATH="$GOPATH/src/github.com/docker/notary/vendor:$GOPATH" \
 		go build -o /usr/local/bin/notary-server github.com/docker/notary/cmd/notary-server \
-	&& GOPATH="$GOPATH/src/github.com/docker/notary/Godeps/_workspace:$GOPATH" \
+	&& GOPATH="$GOPATH/src/github.com/docker/notary/vendor:$GOPATH" \
 		go build -o /usr/local/bin/notary github.com/docker/notary/cmd/notary \
 	&& rm -rf "$GOPATH"
 
@@ -177,53 +169,17 @@ RUN ln -sv $PWD/contrib/completion/bash/docker /etc/bash_completion.d/docker
 # Get useful and necessary Hub images so we can "docker load" locally instead of pulling
 COPY contrib/download-frozen-image-v2.sh /go/src/github.com/docker/docker/contrib/
 RUN ./contrib/download-frozen-image-v2.sh /docker-frozen-images \
-	ppc64le/buildpack-deps:jessie@sha256:902bfe4ef1389f94d143d64516dd50a2de75bca2e66d4a44b1d73f63ddf05dda \
-	ppc64le/busybox:latest@sha256:38bb82085248d5a3c24bd7a5dc146f2f2c191e189da0441f1c2ca560e3fc6f1b \
-	ppc64le/debian:jessie@sha256:412845f51b6ab662afba71bc7a716e20fdb9b84f185d180d4c7504f8a75c4f91 \
-	ppc64le/hello-world:latest@sha256:186a40a9a02ca26df0b6c8acdfb8ac2f3ae6678996a838f977e57fac9d963974
-# see also "hack/make/.ensure-frozen-images" (which needs to be updated any time this list is)
+	ppc64le/buildpack-deps:jessie@sha256:1a2f2d2cc8738f14b336aeffc3503b5c9dedf9e1f26c7313cb4999534ad4716f \
+	ppc64le/busybox:latest@sha256:54f34c83adfab20cf0e630d879e210f07b0062cd6caaf16346a61396d50e7584 \
+	ppc64le/debian:jessie@sha256:ea8c5b105e3790f075145b40e4be1e4488c9f33f55e6cc45182047b80a68f892 \
+	ppc64le/hello-world:latest@sha256:7d57adf137665f748956c86089320710b66d08584db3500ed98f4bb3da637c2d
+# See also ensureFrozenImagesLinux() in "integration-cli/fixtures_linux_daemon_test.go" (which needs to be updated when adding images to this list)
 
-# Download man page generator
-RUN set -x \
-	&& export GOPATH="$(mktemp -d)" \
-	&& git clone --depth 1 -b v1.0.5 https://github.com/cpuguy83/go-md2man.git "$GOPATH/src/github.com/cpuguy83/go-md2man" \
-	&& git clone --depth 1 -b v1.4 https://github.com/russross/blackfriday.git "$GOPATH/src/github.com/russross/blackfriday" \
-	&& go get -v -d github.com/cpuguy83/go-md2man \
-	&& go build -v -o /usr/local/bin/go-md2man github.com/cpuguy83/go-md2man \
-	&& rm -rf "$GOPATH"
-
-# Download toml validator
-ENV TOMLV_COMMIT 9baf8a8a9f2ed20a8e54160840c492f937eeaf9a
-RUN set -x \
-	&& export GOPATH="$(mktemp -d)" \
-	&& git clone https://github.com/BurntSushi/toml.git "$GOPATH/src/github.com/BurntSushi/toml" \
-	&& (cd "$GOPATH/src/github.com/BurntSushi/toml" && git checkout -q "$TOMLV_COMMIT") \
-	&& go build -v -o /usr/local/bin/tomlv github.com/BurntSushi/toml/cmd/tomlv \
-	&& rm -rf "$GOPATH"
-
-# Install runc
-ENV RUNC_COMMIT cc29e3dded8e27ba8f65738f40d251c885030a28
-RUN set -x \
-	&& export GOPATH="$(mktemp -d)" \
-	&& git clone https://github.com/opencontainers/runc.git "$GOPATH/src/github.com/opencontainers/runc" \
-	&& cd "$GOPATH/src/github.com/opencontainers/runc" \
-	&& git checkout -q "$RUNC_COMMIT" \
-	&& make static BUILDTAGS="apparmor seccomp selinux" \
-	&& cp runc /usr/local/bin/docker-runc \
-	&& rm -rf "$GOPATH"
-
-# Install containerd
-ENV CONTAINERD_COMMIT 8508d2bec90b96403143a1104cdcbd56f6aeb361
-RUN set -x \
-	&& export GOPATH="$(mktemp -d)" \
-	&& git clone https://github.com/docker/containerd.git "$GOPATH/src/github.com/docker/containerd" \
-	&& cd "$GOPATH/src/github.com/docker/containerd" \
-	&& git checkout -q "$CONTAINERD_COMMIT" \
-	&& make static \
-	&& cp bin/containerd /usr/local/bin/docker-containerd \
-	&& cp bin/containerd-shim /usr/local/bin/docker-containerd-shim \
-	&& cp bin/ctr /usr/local/bin/docker-containerd-ctr \
-	&& rm -rf "$GOPATH"
+# Install tomlv, vndr, runc, containerd, tini, docker-proxy
+# Please edit hack/dockerfile/install-binaries.sh to update them.
+COPY hack/dockerfile/binaries-commits /tmp/binaries-commits
+COPY hack/dockerfile/install-binaries.sh /tmp/install-binaries.sh
+RUN /tmp/install-binaries.sh tomlv vndr runc containerd tini proxy
 
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 ENTRYPOINT ["hack/dind"]

@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -e
+
+[ -z "$KEEPDEST" ] && \
+	rm -rf "$DEST"
+
+(
+	source "${MAKEDIR}/.binary-setup"
+	export BINARY_SHORT_NAME="yaml-docs-generator"
+	export GO_PACKAGE='github.com/docker/docker/docs/yaml'
+	source "${MAKEDIR}/.binary"
+)

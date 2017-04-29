@@ -15,8 +15,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/pkg/integration/checker"
-	icmd "github.com/docker/docker/pkg/integration/cmd"
+	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli"
+	"github.com/docker/docker/integration-cli/cli/build"
+	"github.com/docker/docker/integration-cli/request"
+	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
 )
 
@@ -68,7 +71,7 @@ func (s *DockerSuite) TestExecInteractive(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecAfterContainerRestart(c *check.C) {
-	out, _ := runSleepingContainer(c)
+	out := runSleepingContainer(c)
 	cleanedContainerID := strings.TrimSpace(out)
 	c.Assert(waitRun(cleanedContainerID), check.IsNil)
 	dockerCmd(c, "restart", cleanedContainerID)
@@ -81,17 +84,13 @@ func (s *DockerSuite) TestExecAfterContainerRestart(c *check.C) {
 
 func (s *DockerDaemonSuite) TestExecAfterDaemonRestart(c *check.C) {
 	// TODO Windows CI: Requires a little work to get this ported.
-	testRequires(c, DaemonIsLinux)
-	testRequires(c, SameHostDaemon)
-
-	err := s.d.StartWithBusybox()
-	c.Assert(err, checker.IsNil)
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
+	s.d.StartWithBusybox(c)
 
 	out, err := s.d.Cmd("run", "-d", "--name", "top", "-p", "80", "busybox:latest", "top")
 	c.Assert(err, checker.IsNil, check.Commentf("Could not run top: %s", out))
 
-	err = s.d.Restart()
-	c.Assert(err, checker.IsNil, check.Commentf("Could not restart daemon"))
+	s.d.Restart(c)
 
 	out, err = s.d.Cmd("start", "top")
 	c.Assert(err, checker.IsNil, check.Commentf("Could not start top after daemon restart: %s", out))
@@ -119,6 +118,17 @@ func (s *DockerSuite) TestExecEnv(c *check.C) {
 	c.Assert(out, checker.Contains, "HOME=/root")
 }
 
+func (s *DockerSuite) TestExecSetEnv(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	runSleepingContainer(c, "-e", "HOME=/root", "-d", "--name", "testing")
+	c.Assert(waitRun("testing"), check.IsNil)
+
+	out, _ := dockerCmd(c, "exec", "-e", "HOME=/another", "-e", "ABC=xyz", "testing", "env")
+	c.Assert(out, checker.Not(checker.Contains), "HOME=/root")
+	c.Assert(out, checker.Contains, "HOME=/another")
+	c.Assert(out, checker.Contains, "ABC=xyz")
+}
+
 func (s *DockerSuite) TestExecExitStatus(c *check.C) {
 	runSleepingContainer(c, "-d", "--name", "top")
 
@@ -127,16 +137,14 @@ func (s *DockerSuite) TestExecExitStatus(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecPausedContainer(c *check.C) {
-	// Windows does not support pause
-	testRequires(c, DaemonIsLinux)
-	defer unpauseAllContainers()
+	testRequires(c, IsPausable)
 
-	out, _ := dockerCmd(c, "run", "-d", "--name", "testing", "busybox", "top")
+	out := runSleepingContainer(c, "-d", "--name", "testing")
 	ContainerID := strings.TrimSpace(out)
 
 	dockerCmd(c, "pause", "testing")
 	out, _, err := dockerCmdWithError("exec", "-i", "-t", ContainerID, "echo", "hello")
-	c.Assert(err, checker.NotNil, check.Commentf("container should fail to exec new conmmand if it is paused"))
+	c.Assert(err, checker.NotNil, check.Commentf("container should fail to exec new command if it is paused"))
 
 	expected := ContainerID + " is paused, unpause the container before exec"
 	c.Assert(out, checker.Contains, expected, check.Commentf("container should not exec new command if it is paused"))
@@ -200,6 +208,7 @@ func (s *DockerSuite) TestExecTTYWithoutStdin(c *check.C) {
 	}
 }
 
+// FIXME(vdemeester) this should be a unit tests on cli/command/container package
 func (s *DockerSuite) TestExecParseError(c *check.C) {
 	// TODO Windows CI: Requires some extra work. Consider copying the
 	// runSleepingContainer helper to have an exec version.
@@ -207,10 +216,11 @@ func (s *DockerSuite) TestExecParseError(c *check.C) {
 	dockerCmd(c, "run", "-d", "--name", "top", "busybox", "top")
 
 	// Test normal (non-detached) case first
-	cmd := exec.Command(dockerBinary, "exec", "top")
-	_, stderr, _, err := runCommandWithStdoutStderr(cmd)
-	c.Assert(err, checker.NotNil)
-	c.Assert(stderr, checker.Contains, "See 'docker exec --help'")
+	icmd.RunCommand(dockerBinary, "exec", "top").Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Error:    "exit status 1",
+		Err:      "See 'docker exec --help'",
+	})
 }
 
 func (s *DockerSuite) TestExecStopNotHanging(c *check.C) {
@@ -295,7 +305,7 @@ func (s *DockerSuite) TestExecCgroup(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecInspectID(c *check.C) {
-	out, _ := runSleepingContainer(c, "-d")
+	out := runSleepingContainer(c, "-d")
 	id := strings.TrimSuffix(out, "\n")
 
 	out = inspectField(c, id, "ExecIDs")
@@ -347,14 +357,15 @@ func (s *DockerSuite) TestExecInspectID(c *check.C) {
 	}
 
 	// But we should still be able to query the execID
-	sc, body, err := sockRequest("GET", "/exec/"+execID+"/json", nil)
+	sc, body, _ := request.SockRequest("GET", "/exec/"+execID+"/json", nil, daemonHost())
+
 	c.Assert(sc, checker.Equals, http.StatusOK, check.Commentf("received status != 200 OK: %d\n%s", sc, body))
 
 	// Now delete the container and then an 'inspect' on the exec should
 	// result in a 404 (not 'container not running')
 	out, ec := dockerCmd(c, "rm", "-f", id)
 	c.Assert(ec, checker.Equals, 0, check.Commentf("error removing container: %s", out))
-	sc, body, err = sockRequest("GET", "/exec/"+execID+"/json", nil)
+	sc, body, _ = request.SockRequest("GET", "/exec/"+execID+"/json", nil, daemonHost())
 	c.Assert(sc, checker.Equals, http.StatusNotFound, check.Commentf("received status != 404: %d\n%s", sc, body))
 }
 
@@ -378,10 +389,12 @@ func (s *DockerSuite) TestRunMutableNetworkFiles(c *check.C) {
 	// Not applicable on Windows to Windows CI.
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 	for _, fn := range []string{"resolv.conf", "hosts"} {
-		deleteAllContainers()
+		containers := cli.DockerCmd(c, "ps", "-q", "-a").Combined()
+		if containers != "" {
+			cli.DockerCmd(c, append([]string{"rm", "-fv"}, strings.Split(strings.TrimSpace(containers), "\n")...)...)
+		}
 
-		content, err := runCommandAndReadContainerFile(fn, exec.Command(dockerBinary, "run", "-d", "--name", "c1", "busybox", "sh", "-c", fmt.Sprintf("echo success >/etc/%s && top", fn)))
-		c.Assert(err, checker.IsNil)
+		content := runCommandAndReadContainerFile(c, fn, dockerBinary, "run", "-d", "--name", "c1", "busybox", "sh", "-c", fmt.Sprintf("echo success >/etc/%s && top", fn))
 
 		c.Assert(strings.TrimSpace(string(content)), checker.Equals, "success", check.Commentf("Content was not what was modified in the container", string(content)))
 
@@ -433,30 +446,27 @@ func (s *DockerSuite) TestExecWithPrivileged(c *check.C) {
 	dockerCmd(c, "run", "-d", "--name", "parent", "--cap-drop=ALL", "busybox", "sh", "-c", `while (true); do if [ -e /exec_priv ]; then cat /exec_priv && mknod /tmp/sda b 8 0 && echo "Success"; else echo "Privileged exec has not run yet"; fi; usleep 10000; done`)
 
 	// Check exec mknod doesn't work
-	cmd := exec.Command(dockerBinary, "exec", "parent", "sh", "-c", "mknod /tmp/sdb b 8 16")
-	out, _, err := runCommandWithOutput(cmd)
-	c.Assert(err, checker.NotNil, check.Commentf("exec mknod in --cap-drop=ALL container without --privileged should fail"))
-	c.Assert(out, checker.Contains, "Operation not permitted", check.Commentf("exec mknod in --cap-drop=ALL container without --privileged should fail"))
+	icmd.RunCommand(dockerBinary, "exec", "parent", "sh", "-c", "mknod /tmp/sdb b 8 16").Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Err:      "Operation not permitted",
+	})
 
 	// Check exec mknod does work with --privileged
-	cmd = exec.Command(dockerBinary, "exec", "--privileged", "parent", "sh", "-c", `echo "Running exec --privileged" > /exec_priv && mknod /tmp/sdb b 8 16 && usleep 50000 && echo "Finished exec --privileged" > /exec_priv && echo ok`)
-	out, _, err = runCommandWithOutput(cmd)
-	c.Assert(err, checker.IsNil)
+	result := icmd.RunCommand(dockerBinary, "exec", "--privileged", "parent", "sh", "-c", `echo "Running exec --privileged" > /exec_priv && mknod /tmp/sdb b 8 16 && usleep 50000 && echo "Finished exec --privileged" > /exec_priv && echo ok`)
+	result.Assert(c, icmd.Success)
 
-	actual := strings.TrimSpace(out)
-	c.Assert(actual, checker.Equals, "ok", check.Commentf("exec mknod in --cap-drop=ALL container with --privileged failed, output: %q", out))
+	actual := strings.TrimSpace(result.Combined())
+	c.Assert(actual, checker.Equals, "ok", check.Commentf("exec mknod in --cap-drop=ALL container with --privileged failed, output: %q", result.Combined()))
 
 	// Check subsequent unprivileged exec cannot mknod
-	cmd = exec.Command(dockerBinary, "exec", "parent", "sh", "-c", "mknod /tmp/sdc b 8 32")
-	out, _, err = runCommandWithOutput(cmd)
-	c.Assert(err, checker.NotNil, check.Commentf("repeating exec mknod in --cap-drop=ALL container after --privileged without --privileged should fail"))
-	c.Assert(out, checker.Contains, "Operation not permitted", check.Commentf("repeating exec mknod in --cap-drop=ALL container after --privileged without --privileged should fail"))
-
+	icmd.RunCommand(dockerBinary, "exec", "parent", "sh", "-c", "mknod /tmp/sdc b 8 32").Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Err:      "Operation not permitted",
+	})
 	// Confirm at no point was mknod allowed
-	logCmd := exec.Command(dockerBinary, "logs", "parent")
-	out, _, err = runCommandWithOutput(logCmd)
-	c.Assert(err, checker.IsNil)
-	c.Assert(out, checker.Not(checker.Contains), "Success")
+	result = icmd.RunCommand(dockerBinary, "logs", "parent")
+	result.Assert(c, icmd.Success)
+	c.Assert(result.Combined(), checker.Not(checker.Contains), "Success")
 
 }
 
@@ -464,13 +474,9 @@ func (s *DockerSuite) TestExecWithImageUser(c *check.C) {
 	// Not applicable on Windows
 	testRequires(c, DaemonIsLinux)
 	name := "testbuilduser"
-	_, err := buildImage(name,
-		`FROM busybox
+	buildImageSuccessfully(c, name, build.WithDockerfile(`FROM busybox
 		RUN echo 'dockerio:x:1001:1001::/bin:/bin/false' >> /etc/passwd
-		USER dockerio`,
-		true)
-	c.Assert(err, checker.IsNil)
-
+		USER dockerio`))
 	dockerCmd(c, "run", "-d", "--name", "dockerioexec", name, "top")
 
 	out, _ := dockerCmd(c, "exec", "dockerioexec", "whoami")
@@ -488,12 +494,12 @@ func (s *DockerSuite) TestExecOnReadonlyContainer(c *check.C) {
 func (s *DockerSuite) TestExecUlimits(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	name := "testexeculimits"
-	runSleepingContainer(c, "-d", "--ulimit", "nproc=21", "--name", name)
+	runSleepingContainer(c, "-d", "--ulimit", "nofile=511:511", "--name", name)
 	c.Assert(waitRun(name), checker.IsNil)
 
-	out, _, err := dockerCmdWithError("exec", name, "sh", "-c", "ulimit -p")
+	out, _, err := dockerCmdWithError("exec", name, "sh", "-c", "ulimit -n")
 	c.Assert(err, checker.IsNil)
-	c.Assert(strings.TrimSpace(out), checker.Equals, "21")
+	c.Assert(strings.TrimSpace(out), checker.Equals, "511")
 }
 
 // #15750
@@ -508,4 +514,89 @@ func (s *DockerSuite) TestExecStartFails(c *check.C) {
 	out, _, err := dockerCmdWithError("exec", name, "no-such-cmd")
 	c.Assert(err, checker.NotNil, check.Commentf(out))
 	c.Assert(out, checker.Contains, "executable file not found")
+}
+
+// Fix regression in https://github.com/docker/docker/pull/26461#issuecomment-250287297
+func (s *DockerSuite) TestExecWindowsPathNotWiped(c *check.C) {
+	testRequires(c, DaemonIsWindows)
+	out, _ := dockerCmd(c, "run", "-d", "--name", "testing", minimalBaseImage(), "powershell", "start-sleep", "60")
+	c.Assert(waitRun(strings.TrimSpace(out)), check.IsNil)
+
+	out, _ = dockerCmd(c, "exec", "testing", "powershell", "write-host", "$env:PATH")
+	out = strings.ToLower(strings.Trim(out, "\r\n"))
+	c.Assert(out, checker.Contains, `windowspowershell\v1.0`)
+}
+
+func (s *DockerSuite) TestExecEnvLinksHost(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	runSleepingContainer(c, "-d", "--name", "foo")
+	runSleepingContainer(c, "-d", "--link", "foo:db", "--hostname", "myhost", "--name", "bar")
+	out, _ := dockerCmd(c, "exec", "bar", "env")
+	c.Assert(out, checker.Contains, "HOSTNAME=myhost")
+	c.Assert(out, checker.Contains, "DB_NAME=/bar/db")
+}
+
+func (s *DockerSuite) TestExecWindowsOpenHandles(c *check.C) {
+	testRequires(c, DaemonIsWindows)
+	runSleepingContainer(c, "-d", "--name", "test")
+	exec := make(chan bool)
+	go func() {
+		dockerCmd(c, "exec", "test", "cmd", "/c", "start sleep 10")
+		exec <- true
+	}()
+
+	count := 0
+	for {
+		top := make(chan string)
+		var out string
+		go func() {
+			out, _ := dockerCmd(c, "top", "test")
+			top <- out
+		}()
+
+		select {
+		case <-time.After(time.Second * 5):
+			c.Fatal("timed out waiting for top while exec is exiting")
+		case out = <-top:
+			break
+		}
+
+		if strings.Count(out, "busybox.exe") == 2 && !strings.Contains(out, "cmd.exe") {
+			// The initial exec process (cmd.exe) has exited, and both sleeps are currently running
+			break
+		}
+		count++
+		if count >= 30 {
+			c.Fatal("too many retries")
+		}
+		time.Sleep(1 * time.Second)
+	}
+
+	inspect := make(chan bool)
+	go func() {
+		dockerCmd(c, "inspect", "test")
+		inspect <- true
+	}()
+
+	select {
+	case <-time.After(time.Second * 5):
+		c.Fatal("timed out waiting for inspect while exec is exiting")
+	case <-inspect:
+		break
+	}
+
+	// Ensure the background sleep is still running
+	out, _ := dockerCmd(c, "top", "test")
+	c.Assert(strings.Count(out, "busybox.exe"), checker.Equals, 2)
+
+	// The exec should exit when the background sleep exits
+	select {
+	case <-time.After(time.Second * 15):
+		c.Fatal("timed out waiting for async exec to exit")
+	case <-exec:
+		// Ensure the background sleep has actually exited
+		out, _ := dockerCmd(c, "top", "test")
+		c.Assert(strings.Count(out, "busybox.exe"), checker.Equals, 1)
+		break
+	}
 }

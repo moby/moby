@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/executor/container"
-	"github.com/docker/docker/pkg/integration/checker"
-	"github.com/docker/engine-api/types/swarm"
+	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
 )
 
@@ -22,7 +22,7 @@ func (s *DockerSwarmSuite) TestServiceHealthRun(c *check.C) {
 	// build image with health-check
 	// note: use `daemon.buildImageWithOut` to build, do not use `buildImage` to build
 	imageName := "testhealth"
-	_, _, err := d.buildImageWithOut(imageName,
+	_, _, err := d.BuildImageWithOut(imageName,
 		`FROM busybox
 		RUN touch /status
 		HEALTHCHECK --interval=1s --timeout=1s --retries=1\
@@ -31,13 +31,13 @@ func (s *DockerSwarmSuite) TestServiceHealthRun(c *check.C) {
 	c.Check(err, check.IsNil)
 
 	serviceName := "healthServiceRun"
-	out, err := d.Cmd("service", "create", "--name", serviceName, imageName, "top")
+	out, err := d.Cmd("service", "create", "--detach=true", "--name", serviceName, imageName, "top")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	id := strings.TrimSpace(out)
 
 	var tasks []swarm.Task
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
-		tasks = d.getServiceTasks(c, id)
+		tasks = d.GetServiceTasks(c, id)
 		return tasks, nil
 	}, checker.HasLen, 1)
 
@@ -45,9 +45,9 @@ func (s *DockerSwarmSuite) TestServiceHealthRun(c *check.C) {
 
 	// wait for task to start
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
-		task = d.getTask(c, task.ID)
+		task = d.GetTask(c, task.ID)
 		return task.Status.State, nil
-	}, checker.Equals, swarm.TaskStateStarting)
+	}, checker.Equals, swarm.TaskStateRunning)
 	containerID := task.Status.ContainerStatus.ContainerID
 
 	// wait for container to be healthy
@@ -66,7 +66,7 @@ func (s *DockerSwarmSuite) TestServiceHealthRun(c *check.C) {
 
 	// Task should be terminated
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
-		task = d.getTask(c, task.ID)
+		task = d.GetTask(c, task.ID)
 		return task.Status.State, nil
 	}, checker.Equals, swarm.TaskStateFailed)
 
@@ -84,7 +84,7 @@ func (s *DockerSwarmSuite) TestServiceHealthStart(c *check.C) {
 
 	// service started from this image won't pass health check
 	imageName := "testhealth"
-	_, _, err := d.buildImageWithOut(imageName,
+	_, _, err := d.BuildImageWithOut(imageName,
 		`FROM busybox
 		HEALTHCHECK --interval=1s --timeout=1s --retries=1024\
 		  CMD cat /status`,
@@ -92,13 +92,13 @@ func (s *DockerSwarmSuite) TestServiceHealthStart(c *check.C) {
 	c.Check(err, check.IsNil)
 
 	serviceName := "healthServiceStart"
-	out, err := d.Cmd("service", "create", "--name", serviceName, imageName, "top")
+	out, err := d.Cmd("service", "create", "--detach=true", "--name", serviceName, imageName, "top")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	id := strings.TrimSpace(out)
 
 	var tasks []swarm.Task
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
-		tasks = d.getServiceTasks(c, id)
+		tasks = d.GetServiceTasks(c, id)
 		return tasks, nil
 	}, checker.HasLen, 1)
 
@@ -106,7 +106,7 @@ func (s *DockerSwarmSuite) TestServiceHealthStart(c *check.C) {
 
 	// wait for task to start
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
-		task = d.getTask(c, task.ID)
+		task = d.GetTask(c, task.ID)
 		return task.Status.State, nil
 	}, checker.Equals, swarm.TaskStateStarting)
 
@@ -120,7 +120,7 @@ func (s *DockerSwarmSuite) TestServiceHealthStart(c *check.C) {
 	}, checker.GreaterThan, 0)
 
 	// task should be blocked at starting status
-	task = d.getTask(c, task.ID)
+	task = d.GetTask(c, task.ID)
 	c.Assert(task.Status.State, check.Equals, swarm.TaskStateStarting)
 
 	// make it healthy
@@ -128,64 +128,7 @@ func (s *DockerSwarmSuite) TestServiceHealthStart(c *check.C) {
 
 	// Task should be at running status
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
-		task = d.getTask(c, task.ID)
-		return task.Status.State, nil
-	}, checker.Equals, swarm.TaskStateRunning)
-}
-
-// start a service whose task is unhealthy at beginning
-// its tasks should be blocked in starting stage, until health check is passed
-func (s *DockerSwarmSuite) TestServiceHealthUpdate(c *check.C) {
-	testRequires(c, DaemonIsLinux) // busybox doesn't work on Windows
-
-	d := s.AddDaemon(c, true, true)
-
-	// service started from this image won't pass health check
-	imageName := "testhealth"
-	_, _, err := d.buildImageWithOut(imageName,
-		`FROM busybox
-		HEALTHCHECK --interval=1s --timeout=1s --retries=1024\
-		  CMD cat /status`,
-		true)
-	c.Check(err, check.IsNil)
-
-	serviceName := "healthServiceStart"
-	out, err := d.Cmd("service", "create", "--name", serviceName, imageName, "top")
-	c.Assert(err, checker.IsNil, check.Commentf(out))
-	id := strings.TrimSpace(out)
-
-	var tasks []swarm.Task
-	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
-		tasks = d.getServiceTasks(c, id)
-		return tasks, nil
-	}, checker.HasLen, 1)
-
-	task := tasks[0]
-
-	// wait for task to start
-	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
-		task = d.getTask(c, task.ID)
-		return task.Status.State, nil
-	}, checker.Equals, swarm.TaskStateStarting)
-
-	containerID := task.Status.ContainerStatus.ContainerID
-
-	// wait for health check to work
-	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
-		out, _ := d.Cmd("inspect", "--format={{.State.Health.FailingStreak}}", containerID)
-		failingStreak, _ := strconv.Atoi(strings.TrimSpace(out))
-		return failingStreak, nil
-	}, checker.GreaterThan, 0)
-
-	// task should be blocked at starting status
-	task = d.getTask(c, task.ID)
-	c.Assert(task.Status.State, check.Equals, swarm.TaskStateStarting)
-
-	// make it healthy
-	d.Cmd("exec", containerID, "touch", "/status")
-	// Task should be at running status
-	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
-		task = d.getTask(c, task.ID)
+		task = d.GetTask(c, task.ID)
 		return task.Status.State, nil
 	}, checker.Equals, swarm.TaskStateRunning)
 }

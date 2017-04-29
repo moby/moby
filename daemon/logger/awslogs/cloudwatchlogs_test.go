@@ -15,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
 	"github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/docker/dockerversion"
 )
 
@@ -27,13 +28,13 @@ const (
 )
 
 func TestNewAWSLogsClientUserAgentHandler(t *testing.T) {
-	ctx := logger.Context{
+	info := logger.Info{
 		Config: map[string]string{
 			regionKey: "us-east-1",
 		},
 	}
 
-	client, err := newAWSLogsClient(ctx)
+	client, err := newAWSLogsClient(info)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +59,7 @@ func TestNewAWSLogsClientUserAgentHandler(t *testing.T) {
 }
 
 func TestNewAWSLogsClientRegionDetect(t *testing.T) {
-	ctx := logger.Context{
+	info := logger.Info{
 		Config: map[string]string{},
 	}
 
@@ -70,7 +71,7 @@ func TestNewAWSLogsClientRegionDetect(t *testing.T) {
 		successResult: "us-east-1",
 	}
 
-	_, err := newAWSLogsClient(ctx)
+	_, err := newAWSLogsClient(info)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +99,38 @@ func TestCreateSuccess(t *testing.T) {
 		t.Errorf("Expected LogGroupName to be %s", groupName)
 	}
 	if argument.LogStreamName == nil {
+		t.Fatal("Expected non-nil LogStreamName")
+	}
+	if *argument.LogStreamName != streamName {
+		t.Errorf("Expected LogStreamName to be %s", streamName)
+	}
+}
+
+func TestCreateLogGroupSuccess(t *testing.T) {
+	mockClient := newMockClient()
+	stream := &logStream{
+		client:         mockClient,
+		logGroupName:   groupName,
+		logStreamName:  streamName,
+		logCreateGroup: true,
+	}
+	mockClient.createLogGroupResult <- &createLogGroupResult{}
+	mockClient.createLogStreamResult <- &createLogStreamResult{}
+
+	err := stream.create()
+
+	if err != nil {
+		t.Errorf("Received unexpected err: %v\n", err)
+	}
+	argument := <-mockClient.createLogStreamArgument
+	if argument.LogGroupName == nil {
 		t.Fatal("Expected non-nil LogGroupName")
+	}
+	if *argument.LogGroupName != groupName {
+		t.Errorf("Expected LogGroupName to be %s", groupName)
+	}
+	if argument.LogStreamName == nil {
+		t.Fatal("Expected non-nil LogStreamName")
 	}
 	if *argument.LogStreamName != streamName {
 		t.Errorf("Expected LogStreamName to be %s", streamName)
@@ -689,5 +721,35 @@ func TestCollectBatchWithDuplicateTimestamps(t *testing.T) {
 		if !reflect.DeepEqual(*argument.LogEvents[i], *expectedEvents[i]) {
 			t.Errorf("Expected event to be %v but was %v", *expectedEvents[i], *argument.LogEvents[i])
 		}
+	}
+}
+
+func TestCreateTagSuccess(t *testing.T) {
+	mockClient := newMockClient()
+	info := logger.Info{
+		ContainerName: "/test-container",
+		ContainerID:   "container-abcdefghijklmnopqrstuvwxyz01234567890",
+		Config:        map[string]string{"tag": "{{.Name}}/{{.FullID}}"},
+	}
+	logStreamName, e := loggerutils.ParseLogTag(info, loggerutils.DefaultTemplate)
+	if e != nil {
+		t.Errorf("Error generating tag: %q", e)
+	}
+	stream := &logStream{
+		client:        mockClient,
+		logGroupName:  groupName,
+		logStreamName: logStreamName,
+	}
+	mockClient.createLogStreamResult <- &createLogStreamResult{}
+
+	err := stream.create()
+
+	if err != nil {
+		t.Errorf("Received unexpected err: %v\n", err)
+	}
+	argument := <-mockClient.createLogStreamArgument
+
+	if *argument.LogStreamName != "test-container/container-abcdefghijklmnopqrstuvwxyz01234567890" {
+		t.Errorf("Expected LogStreamName to be %s", "test-container/container-abcdefghijklmnopqrstuvwxyz01234567890")
 	}
 }

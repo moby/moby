@@ -2,11 +2,17 @@ package logger
 
 import (
 	"fmt"
+	"sort"
 	"sync"
+
+	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/pkg/plugingetter"
+	units "github.com/docker/go-units"
+	"github.com/pkg/errors"
 )
 
 // Creator builds a logging driver instance with given context.
-type Creator func(Context) (Logger, error)
+type Creator func(Info) (Logger, error)
 
 // LogOptValidator checks the options specific to the underlying
 // logging implementation.
@@ -16,6 +22,22 @@ type logdriverFactory struct {
 	registry     map[string]Creator
 	optValidator map[string]LogOptValidator
 	m            sync.Mutex
+}
+
+func (lf *logdriverFactory) list() []string {
+	ls := make([]string, 0, len(lf.registry))
+	lf.m.Lock()
+	for name := range lf.registry {
+		ls = append(ls, name)
+	}
+	lf.m.Unlock()
+	sort.Strings(ls)
+	return ls
+}
+
+// ListDrivers gets the list of registered log driver names
+func ListDrivers() []string {
+	return factory.list()
 }
 
 func (lf *logdriverFactory) register(name string, c Creator) error {
@@ -33,6 +55,13 @@ func (lf *logdriverFactory) driverRegistered(name string) bool {
 	lf.m.Lock()
 	_, ok := lf.registry[name]
 	lf.m.Unlock()
+	if !ok {
+		if pluginGetter != nil { // this can be nil when the init functions are running
+			if l, _ := getPlugin(name, plugingetter.Lookup); l != nil {
+				return true
+			}
+		}
+	}
 	return ok
 }
 
@@ -52,10 +81,12 @@ func (lf *logdriverFactory) get(name string) (Creator, error) {
 	defer lf.m.Unlock()
 
 	c, ok := lf.registry[name]
-	if !ok {
-		return c, fmt.Errorf("logger: no log driver named '%s' is registered", name)
+	if ok {
+		return c, nil
 	}
-	return c, nil
+
+	c, err := getPlugin(name, plugingetter.Acquire)
+	return c, errors.Wrapf(err, "logger: no log driver named '%s' is registered", name)
 }
 
 func (lf *logdriverFactory) getLogOptValidator(name string) LogOptValidator {
@@ -85,6 +116,11 @@ func GetLogDriver(name string) (Creator, error) {
 	return factory.get(name)
 }
 
+var builtInLogOpts = map[string]bool{
+	"mode":            true,
+	"max-buffer-size": true,
+}
+
 // ValidateLogOpts checks the options for the given log driver. The
 // options supported are specific to the LogDriver implementation.
 func ValidateLogOpts(name string, cfg map[string]string) error {
@@ -92,13 +128,35 @@ func ValidateLogOpts(name string, cfg map[string]string) error {
 		return nil
 	}
 
+	switch containertypes.LogMode(cfg["mode"]) {
+	case containertypes.LogModeBlocking, containertypes.LogModeNonBlock, containertypes.LogModeUnset:
+	default:
+		return fmt.Errorf("logger: logging mode not supported: %s", cfg["mode"])
+	}
+
+	if s, ok := cfg["max-buffer-size"]; ok {
+		if containertypes.LogMode(cfg["mode"]) != containertypes.LogModeNonBlock {
+			return fmt.Errorf("logger: max-buffer-size option is only supported with 'mode=%s'", containertypes.LogModeNonBlock)
+		}
+		if _, err := units.RAMInBytes(s); err != nil {
+			return errors.Wrap(err, "error parsing option max-buffer-size")
+		}
+	}
+
 	if !factory.driverRegistered(name) {
 		return fmt.Errorf("logger: no log driver named '%s' is registered", name)
 	}
 
+	filteredOpts := make(map[string]string, len(builtInLogOpts))
+	for k, v := range cfg {
+		if !builtInLogOpts[k] {
+			filteredOpts[k] = v
+		}
+	}
+
 	validator := factory.getLogOptValidator(name)
 	if validator != nil {
-		return validator(cfg)
+		return validator(filteredOpts)
 	}
 	return nil
 }

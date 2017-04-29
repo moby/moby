@@ -15,8 +15,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution"
-	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/opencontainers/go-digest"
 )
 
 var (
@@ -83,6 +83,10 @@ type TarStreamer interface {
 // Layer represents a read-only layer
 type Layer interface {
 	TarStreamer
+
+	// TarStreamFrom returns a tar archive stream for all the layer chain with
+	// arbitrary depth.
+	TarStreamFrom(ChainID) (io.ReadCloser, error)
 
 	// ChainID returns the content hash of the entire layer chain. The hash
 	// chain is made up of DiffID of top layer and all of its parents.
@@ -165,14 +169,22 @@ type Metadata struct {
 // RWLayer.
 type MountInit func(root string) error
 
+// CreateRWLayerOpts contains optional arguments to be passed to CreateRWLayer
+type CreateRWLayerOpts struct {
+	MountLabel string
+	InitFunc   MountInit
+	StorageOpt map[string]string
+}
+
 // Store represents a backend for managing both
 // read-only and read-write layers.
 type Store interface {
 	Register(io.Reader, ChainID) (Layer, error)
 	Get(ChainID) (Layer, error)
+	Map() map[ChainID]Layer
 	Release(Layer) ([]Metadata, error)
 
-	CreateRWLayer(id string, parent ChainID, mountLabel string, initFunc MountInit, storageOpt map[string]string) (RWLayer, error)
+	CreateRWLayer(id string, parent ChainID, opts *CreateRWLayerOpts) (RWLayer, error)
 	GetRWLayer(id string) (RWLayer, error)
 	GetMountID(id string) (string, error)
 	ReleaseRWLayer(RWLayer) ([]Metadata, error)

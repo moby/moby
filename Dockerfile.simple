@@ -7,19 +7,22 @@
 
 FROM debian:jessie
 
-# compile and runtime deps
+# allow replacing httpredir or deb mirror
+ARG APT_MIRROR=deb.debian.org
+RUN sed -ri "s/(httpredir|deb).debian.org/$APT_MIRROR/g" /etc/apt/sources.list
+
+# Compile and runtime deps
 # https://github.com/docker/docker/blob/master/project/PACKAGERS.md#build-dependencies
 # https://github.com/docker/docker/blob/master/project/PACKAGERS.md#runtime-dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
 		btrfs-tools \
 		build-essential \
 		curl \
+		cmake \
 		gcc \
 		git \
 		libapparmor-dev \
 		libdevmapper-dev \
-		libsqlite3-dev \
-		\
 		ca-certificates \
 		e2fsprogs \
 		iptables \
@@ -28,10 +31,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 		xz-utils \
 		\
 		aufs-tools \
+		vim-common \
 	&& rm -rf /var/lib/apt/lists/*
 
-# install seccomp: the version shipped in trusty is too old
-ENV SECCOMP_VERSION 2.3.1
+# Install seccomp: the version shipped upstream is too old
+ENV SECCOMP_VERSION 2.3.2
 RUN set -x \
 	&& export SECCOMP_PATH="$(mktemp -d)" \
 	&& curl -fsSL "https://github.com/seccomp/libseccomp/releases/download/v${SECCOMP_VERSION}/libseccomp-${SECCOMP_VERSION}.tar.gz" \
@@ -49,36 +53,18 @@ RUN set -x \
 # IMPORTANT: If the version of Go is updated, the Windows to Linux CI machines
 #            will need updating, to avoid errors. Ping #docker-maintainers on IRC
 #            with a heads-up.
-ENV GO_VERSION 1.7
-RUN curl -fsSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" \
+ENV GO_VERSION 1.7.5
+RUN curl -fsSL "https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz" \
 	| tar -xzC /usr/local
 ENV PATH /go/bin:/usr/local/go/bin:$PATH
-ENV GOPATH /go:/go/src/github.com/docker/docker/vendor
+ENV GOPATH /go
 ENV CGO_LDFLAGS -L/lib
 
-# Install runc
-ENV RUNC_COMMIT cc29e3dded8e27ba8f65738f40d251c885030a28
-RUN set -x \
-	&& export GOPATH="$(mktemp -d)" \
-	&& git clone https://github.com/opencontainers/runc.git "$GOPATH/src/github.com/opencontainers/runc" \
-	&& cd "$GOPATH/src/github.com/opencontainers/runc" \
-	&& git checkout -q "$RUNC_COMMIT" \
-	&& make static BUILDTAGS="seccomp apparmor selinux" \
-	&& cp runc /usr/local/bin/docker-runc \
-	&& rm -rf "$GOPATH"
-
-# Install containerd
-ENV CONTAINERD_COMMIT 8508d2bec90b96403143a1104cdcbd56f6aeb361
-RUN set -x \
-	&& export GOPATH="$(mktemp -d)" \
-	&& git clone https://github.com/docker/containerd.git "$GOPATH/src/github.com/docker/containerd" \
-	&& cd "$GOPATH/src/github.com/docker/containerd" \
-	&& git checkout -q "$CONTAINERD_COMMIT" \
-	&& make static \
-	&& cp bin/containerd /usr/local/bin/docker-containerd \
-	&& cp bin/containerd-shim /usr/local/bin/docker-containerd-shim \
-	&& cp bin/ctr /usr/local/bin/docker-containerd-ctr \
-	&& rm -rf "$GOPATH"
+# Install runc, containerd, tini and docker-proxy
+# Please edit hack/dockerfile/install-binaries.sh to update them.
+COPY hack/dockerfile/binaries-commits /tmp/binaries-commits
+COPY hack/dockerfile/install-binaries.sh /tmp/install-binaries.sh
+RUN /tmp/install-binaries.sh runc containerd tini proxy
 
 ENV AUTO_GOPATH 1
 WORKDIR /usr/src/docker

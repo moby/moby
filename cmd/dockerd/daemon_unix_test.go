@@ -1,13 +1,17 @@
-// +build !windows
+// +build !windows,!solaris
+
+// TODO: Create new file for Solaris which tests config parameters
+// as described in daemon/config_solaris.go
 
 package main
 
 import (
 	"testing"
 
-	"github.com/docker/docker/daemon"
-	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/pkg/testutil/tempfile"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestLoadDaemonCliConfigWithDaemonFlags(t *testing.T) {
@@ -18,17 +22,17 @@ func TestLoadDaemonCliConfigWithDaemonFlags(t *testing.T) {
 	opts := defaultOptions(tempFile.Name())
 	opts.common.Debug = true
 	opts.common.LogLevel = "info"
-	assert.NilError(t, opts.flags.Set("selinux-enabled", "true"))
+	assert.NoError(t, opts.flags.Set("selinux-enabled", "true"))
 
 	loadedConfig, err := loadDaemonCliConfig(opts)
-	assert.NilError(t, err)
-	assert.NotNil(t, loadedConfig)
+	require.NoError(t, err)
+	require.NotNil(t, loadedConfig)
 
-	assert.Equal(t, loadedConfig.Debug, true)
-	assert.Equal(t, loadedConfig.LogLevel, "info")
-	assert.Equal(t, loadedConfig.EnableSelinuxSupport, true)
-	assert.Equal(t, loadedConfig.LogConfig.Type, "json-file")
-	assert.Equal(t, loadedConfig.LogConfig.Config["max-size"], "1k")
+	assert.True(t, loadedConfig.Debug)
+	assert.Equal(t, "info", loadedConfig.LogLevel)
+	assert.True(t, loadedConfig.EnableSelinuxSupport)
+	assert.Equal(t, "json-file", loadedConfig.LogConfig.Type)
+	assert.Equal(t, "1k", loadedConfig.LogConfig.Config["max-size"])
 }
 
 func TestLoadDaemonConfigWithNetwork(t *testing.T) {
@@ -38,11 +42,11 @@ func TestLoadDaemonConfigWithNetwork(t *testing.T) {
 
 	opts := defaultOptions(tempFile.Name())
 	loadedConfig, err := loadDaemonCliConfig(opts)
-	assert.NilError(t, err)
-	assert.NotNil(t, loadedConfig)
+	require.NoError(t, err)
+	require.NotNil(t, loadedConfig)
 
-	assert.Equal(t, loadedConfig.IP, "127.0.0.2")
-	assert.Equal(t, loadedConfig.DefaultIP.String(), "127.0.0.1")
+	assert.Equal(t, "127.0.0.2", loadedConfig.IP)
+	assert.Equal(t, "127.0.0.1", loadedConfig.DefaultIP.String())
 }
 
 func TestLoadDaemonConfigWithMapOptions(t *testing.T) {
@@ -55,14 +59,14 @@ func TestLoadDaemonConfigWithMapOptions(t *testing.T) {
 
 	opts := defaultOptions(tempFile.Name())
 	loadedConfig, err := loadDaemonCliConfig(opts)
-	assert.NilError(t, err)
-	assert.NotNil(t, loadedConfig)
+	require.NoError(t, err)
+	require.NotNil(t, loadedConfig)
 	assert.NotNil(t, loadedConfig.ClusterOpts)
 
 	expectedPath := "/var/lib/docker/discovery_certs/ca.pem"
-	assert.Equal(t, loadedConfig.ClusterOpts["kv.cacertfile"], expectedPath)
+	assert.Equal(t, expectedPath, loadedConfig.ClusterOpts["kv.cacertfile"])
 	assert.NotNil(t, loadedConfig.LogConfig.Config)
-	assert.Equal(t, loadedConfig.LogConfig.Config["tag"], "test")
+	assert.Equal(t, "test", loadedConfig.LogConfig.Config["tag"])
 }
 
 func TestLoadDaemonConfigWithTrueDefaultValues(t *testing.T) {
@@ -72,18 +76,17 @@ func TestLoadDaemonConfigWithTrueDefaultValues(t *testing.T) {
 
 	opts := defaultOptions(tempFile.Name())
 	loadedConfig, err := loadDaemonCliConfig(opts)
-	assert.NilError(t, err)
-	assert.NotNil(t, loadedConfig)
-	assert.NotNil(t, loadedConfig.ClusterOpts)
+	require.NoError(t, err)
+	require.NotNil(t, loadedConfig)
 
-	assert.Equal(t, loadedConfig.EnableUserlandProxy, false)
+	assert.False(t, loadedConfig.EnableUserlandProxy)
 
 	// make sure reloading doesn't generate configuration
 	// conflicts after normalizing boolean values.
-	reload := func(reloadedConfig *daemon.Config) {
-		assert.Equal(t, reloadedConfig.EnableUserlandProxy, false)
+	reload := func(reloadedConfig *config.Config) {
+		assert.False(t, reloadedConfig.EnableUserlandProxy)
 	}
-	assert.NilError(t, daemon.ReloadConfiguration(opts.configFile, opts.flags, reload))
+	assert.NoError(t, config.Reload(opts.configFile, opts.flags, reload))
 }
 
 func TestLoadDaemonConfigWithTrueDefaultValuesLeaveDefaults(t *testing.T) {
@@ -92,11 +95,10 @@ func TestLoadDaemonConfigWithTrueDefaultValuesLeaveDefaults(t *testing.T) {
 
 	opts := defaultOptions(tempFile.Name())
 	loadedConfig, err := loadDaemonCliConfig(opts)
-	assert.NilError(t, err)
-	assert.NotNil(t, loadedConfig)
-	assert.NotNil(t, loadedConfig.ClusterOpts)
+	require.NoError(t, err)
+	require.NotNil(t, loadedConfig)
 
-	assert.Equal(t, loadedConfig.EnableUserlandProxy, true)
+	assert.True(t, loadedConfig.EnableUserlandProxy)
 }
 
 func TestLoadDaemonConfigWithLegacyRegistryOptions(t *testing.T) {
@@ -106,7 +108,7 @@ func TestLoadDaemonConfigWithLegacyRegistryOptions(t *testing.T) {
 
 	opts := defaultOptions(tempFile.Name())
 	loadedConfig, err := loadDaemonCliConfig(opts)
-	assert.NilError(t, err)
-	assert.NotNil(t, loadedConfig)
-	assert.Equal(t, loadedConfig.V2Only, true)
+	require.NoError(t, err)
+	require.NotNil(t, loadedConfig)
+	assert.True(t, loadedConfig.V2Only)
 }

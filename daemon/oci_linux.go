@@ -4,26 +4,33 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/caps"
-	"github.com/docker/docker/libcontainerd"
+	daemonconfig "github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/volume"
-	containertypes "github.com/docker/engine-api/types/container"
 	"github.com/opencontainers/runc/libcontainer/apparmor"
+	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/opencontainers/runc/libcontainer/user"
-	"github.com/opencontainers/runtime-spec/specs-go"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
+)
+
+var (
+	deviceCgroupRuleRegex = regexp.MustCompile("^([acb]) ([0-9]+|\\*):([0-9]+|\\*) ([rwm]{1,3})$")
 )
 
 func setResources(s *specs.Spec, r containertypes.Resources) error {
@@ -87,7 +94,7 @@ func setDevices(s *specs.Spec, c *container.Container) error {
 			return err
 		}
 		for _, d := range hostDevices {
-			devs = append(devs, specDevice(d))
+			devs = append(devs, oci.Device(d))
 		}
 		rwm := "rwm"
 		devPermissions = []specs.DeviceCgroup{
@@ -98,12 +105,47 @@ func setDevices(s *specs.Spec, c *container.Container) error {
 		}
 	} else {
 		for _, deviceMapping := range c.HostConfig.Devices {
-			d, dPermissions, err := getDevicesFromPath(deviceMapping)
+			d, dPermissions, err := oci.DevicesFromPath(deviceMapping.PathOnHost, deviceMapping.PathInContainer, deviceMapping.CgroupPermissions)
 			if err != nil {
 				return err
 			}
 			devs = append(devs, d...)
 			devPermissions = append(devPermissions, dPermissions...)
+		}
+
+		for _, deviceCgroupRule := range c.HostConfig.DeviceCgroupRules {
+			ss := deviceCgroupRuleRegex.FindAllStringSubmatch(deviceCgroupRule, -1)
+			if len(ss[0]) != 5 {
+				return fmt.Errorf("invalid device cgroup rule format: '%s'", deviceCgroupRule)
+			}
+			matches := ss[0]
+
+			dPermissions := specs.DeviceCgroup{
+				Allow:  true,
+				Type:   &matches[1],
+				Access: &matches[4],
+			}
+			if matches[2] == "*" {
+				major := int64(-1)
+				dPermissions.Major = &major
+			} else {
+				major, err := strconv.ParseInt(matches[2], 10, 64)
+				if err != nil {
+					return fmt.Errorf("invalid major value in device cgroup rule format: '%s'", deviceCgroupRule)
+				}
+				dPermissions.Major = &major
+			}
+			if matches[3] == "*" {
+				minor := int64(-1)
+				dPermissions.Minor = &minor
+			} else {
+				minor, err := strconv.ParseInt(matches[3], 10, 64)
+				if err != nil {
+					return fmt.Errorf("invalid minor value in device cgroup rule format: '%s'", deviceCgroupRule)
+				}
+				dPermissions.Minor = &minor
+			}
+			devPermissions = append(devPermissions, dPermissions)
 		}
 	}
 
@@ -115,19 +157,11 @@ func setDevices(s *specs.Spec, c *container.Container) error {
 func setRlimits(daemon *Daemon, s *specs.Spec, c *container.Container) error {
 	var rlimits []specs.Rlimit
 
-	ulimits := c.HostConfig.Ulimits
-	// Merge ulimits with daemon defaults
-	ulIdx := make(map[string]struct{})
-	for _, ul := range ulimits {
-		ulIdx[ul.Name] = struct{}{}
-	}
-	for name, ul := range daemon.configStore.Ulimits {
-		if _, exists := ulIdx[name]; !exists {
-			ulimits = append(ulimits, ul)
-		}
-	}
-
-	for _, ul := range ulimits {
+	// We want to leave the original HostConfig alone so make a copy here
+	hostConfig := *c.HostConfig
+	// Merge with the daemon defaults
+	daemon.mergeUlimits(&hostConfig)
+	for _, ul := range hostConfig.Ulimits {
 		rlimits = append(rlimits, specs.Rlimit{
 			Type: "RLIMIT_" + strings.ToUpper(ul.Name),
 			Soft: uint64(ul.Soft),
@@ -228,18 +262,6 @@ func setCapabilities(s *specs.Spec, c *container.Container) error {
 	return nil
 }
 
-func delNamespace(s *specs.Spec, nsType specs.NamespaceType) {
-	idx := -1
-	for i, n := range s.Linux.Namespaces {
-		if n.Type == nsType {
-			idx = i
-		}
-	}
-	if idx >= 0 {
-		s.Linux.Namespaces = append(s.Linux.Namespaces[:idx], s.Linux.Namespaces[idx+1:]...)
-	}
-}
-
 func setNamespaces(daemon *Daemon, s *specs.Spec, c *container.Container) error {
 	userNS := false
 	// user
@@ -290,7 +312,7 @@ func setNamespaces(daemon *Daemon, s *specs.Spec, c *container.Container) error 
 			setNamespace(s, nsUser)
 		}
 	} else if c.HostConfig.IpcMode.IsHost() {
-		delNamespace(s, specs.NamespaceType("ipc"))
+		oci.RemoveNamespace(s, specs.NamespaceType("ipc"))
 	} else {
 		ns := specs.Namespace{Type: "ipc"}
 		setNamespace(s, ns)
@@ -311,14 +333,14 @@ func setNamespaces(daemon *Daemon, s *specs.Spec, c *container.Container) error 
 			setNamespace(s, nsUser)
 		}
 	} else if c.HostConfig.PidMode.IsHost() {
-		delNamespace(s, specs.NamespaceType("pid"))
+		oci.RemoveNamespace(s, specs.NamespaceType("pid"))
 	} else {
 		ns := specs.Namespace{Type: "pid"}
 		setNamespace(s, ns)
 	}
 	// uts
 	if c.HostConfig.UTSMode.IsHost() {
-		delNamespace(s, specs.NamespaceType("uts"))
+		oci.RemoveNamespace(s, specs.NamespaceType("uts"))
 		s.Hostname = ""
 	}
 
@@ -480,7 +502,7 @@ func setMounts(daemon *Daemon, s *specs.Spec, c *container.Container, mounts []c
 		}
 
 		if m.Source == "tmpfs" {
-			data := c.HostConfig.Tmpfs[m.Destination]
+			data := m.Data
 			options := []string{"noexec", "nosuid", "nodev", string(volume.DefaultPropagationMode)}
 			if data != "" {
 				options = append(options, strings.Split(data, ",")...)
@@ -593,15 +615,41 @@ func (daemon *Daemon) populateCommonSpec(s *specs.Spec, c *container.Container) 
 		cwd = "/"
 	}
 	s.Process.Args = append([]string{c.Path}, c.Args...)
+
+	// only add the custom init if it is specified and the container is running in its
+	// own private pid namespace.  It does not make sense to add if it is running in the
+	// host namespace or another container's pid namespace where we already have an init
+	if c.HostConfig.PidMode.IsPrivate() {
+		if (c.HostConfig.Init != nil && *c.HostConfig.Init) ||
+			(c.HostConfig.Init == nil && daemon.configStore.Init) {
+			s.Process.Args = append([]string{"/dev/init", "--", c.Path}, c.Args...)
+			var path string
+			if daemon.configStore.InitPath == "" {
+				path, err = exec.LookPath(daemonconfig.DefaultInitBinary)
+				if err != nil {
+					return err
+				}
+			}
+			if daemon.configStore.InitPath != "" {
+				path = daemon.configStore.InitPath
+			}
+			s.Mounts = append(s.Mounts, specs.Mount{
+				Destination: "/dev/init",
+				Type:        "bind",
+				Source:      path,
+				Options:     []string{"bind", "ro"},
+			})
+		}
+	}
 	s.Process.Cwd = cwd
-	s.Process.Env = c.CreateDaemonEnvironment(linkedEnv)
+	s.Process.Env = c.CreateDaemonEnvironment(c.Config.Tty, linkedEnv)
 	s.Process.Terminal = c.Config.Tty
 	s.Hostname = c.FullHostname()
 
 	return nil
 }
 
-func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, error) {
+func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	s := oci.DefaultSpec()
 	if err := daemon.populateCommonSpec(&s, c); err != nil {
 		return nil, err
@@ -634,6 +682,29 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 	}
 	s.Linux.Resources.OOMScoreAdj = &c.HostConfig.OomScoreAdj
 	s.Linux.Sysctl = c.HostConfig.Sysctls
+
+	p := *s.Linux.CgroupsPath
+	if useSystemd {
+		initPath, err := cgroups.GetInitCgroupDir("cpu")
+		if err != nil {
+			return nil, err
+		}
+		p, _ = cgroups.GetThisCgroupDir("cpu")
+		if err != nil {
+			return nil, err
+		}
+		p = filepath.Join(initPath, p)
+	}
+
+	// Clean path to guard against things like ../../../BAD
+	parentPath := filepath.Dir(p)
+	if !filepath.IsAbs(parentPath) {
+		parentPath = filepath.Clean("/" + parentPath)
+	}
+
+	if err := daemon.initCgroupsPath(parentPath); err != nil {
+		return nil, fmt.Errorf("linux init cgroups path: %v", err)
+	}
 	if err := setDevices(&s, c); err != nil {
 		return nil, fmt.Errorf("linux runtime spec devices: %v", err)
 	}
@@ -657,12 +728,27 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 		return nil, err
 	}
 
+	if err := daemon.setupSecretDir(c); err != nil {
+		return nil, err
+	}
+
 	ms, err := daemon.setupMounts(c)
 	if err != nil {
 		return nil, err
 	}
+
 	ms = append(ms, c.IpcMounts()...)
-	ms = append(ms, c.TmpfsMounts()...)
+
+	tmpfsMounts, err := c.TmpfsMounts()
+	if err != nil {
+		return nil, err
+	}
+	ms = append(ms, tmpfsMounts...)
+
+	if m := c.SecretMount(); m != nil {
+		ms = append(ms, *m)
+	}
+
 	sort.Sort(mounts(ms))
 	if err := setMounts(daemon, &s, c, ms); err != nil {
 		return nil, fmt.Errorf("linux mounts: %v", err)
@@ -685,19 +771,34 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 	}
 
 	if apparmor.IsEnabled() {
-		appArmorProfile := "docker-default"
-		if len(c.AppArmorProfile) > 0 {
+		var appArmorProfile string
+		if c.AppArmorProfile != "" {
 			appArmorProfile = c.AppArmorProfile
 		} else if c.HostConfig.Privileged {
 			appArmorProfile = "unconfined"
+		} else {
+			appArmorProfile = "docker-default"
 		}
+
+		if appArmorProfile == "docker-default" {
+			// Unattended upgrades and other fun services can unload AppArmor
+			// profiles inadvertently. Since we cannot store our profile in
+			// /etc/apparmor.d, nor can we practically add other ways of
+			// telling the system to keep our profile loaded, in order to make
+			// sure that we keep the default profile enabled we dynamically
+			// reload it if necessary.
+			if err := ensureDefaultAppArmorProfile(); err != nil {
+				return nil, err
+			}
+		}
+
 		s.Process.ApparmorProfile = appArmorProfile
 	}
 	s.Process.SelinuxLabel = c.GetProcessLabel()
 	s.Process.NoNewPrivileges = c.NoNewPrivileges
 	s.Linux.MountLabel = c.MountLabel
 
-	return (*libcontainerd.Spec)(&s), nil
+	return (*specs.Spec)(&s), nil
 }
 
 func clearReadOnly(m *specs.Mount) {
@@ -708,4 +809,20 @@ func clearReadOnly(m *specs.Mount) {
 		}
 	}
 	m.Options = opt
+}
+
+// mergeUlimits merge the Ulimits from HostConfig with daemon defaults, and update HostConfig
+func (daemon *Daemon) mergeUlimits(c *containertypes.HostConfig) {
+	ulimits := c.Ulimits
+	// Merge ulimits with daemon defaults
+	ulIdx := make(map[string]struct{})
+	for _, ul := range ulimits {
+		ulIdx[ul.Name] = struct{}{}
+	}
+	for name, ul := range daemon.configStore.Ulimits {
+		if _, exists := ulIdx[name]; !exists {
+			ulimits = append(ulimits, ul)
+		}
+	}
+	c.Ulimits = ulimits
 }

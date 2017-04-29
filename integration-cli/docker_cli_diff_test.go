@@ -2,23 +2,35 @@ package main
 
 import (
 	"strings"
+	"time"
 
-	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/go-check/check"
 )
 
 // ensure that an added file shows up in docker diff
 func (s *DockerSuite) TestDiffFilenameShownInOutput(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-	containerCmd := `echo foo > /root/bar`
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", containerCmd)
+	containerCmd := `mkdir /foo; echo xyzzy > /foo/bar`
+	out := cli.DockerCmd(c, "run", "-d", "busybox", "sh", "-c", containerCmd).Combined()
+
+	// Wait for it to exit as cannot diff a running container on Windows, and
+	// it will take a few seconds to exit. Also there's no way in Windows to
+	// differentiate between an Add or a Modify, and all files are under
+	// a "Files/" prefix.
+	containerID := strings.TrimSpace(out)
+	lookingFor := "A /foo/bar"
+	if testEnv.DaemonPlatform() == "windows" {
+		cli.WaitExited(c, containerID, 60*time.Second)
+		lookingFor = "C Files/foo/bar"
+	}
 
 	cleanCID := strings.TrimSpace(out)
-	out, _ = dockerCmd(c, "diff", cleanCID)
+	out = cli.DockerCmd(c, "diff", cleanCID).Combined()
 
 	found := false
 	for _, line := range strings.Split(out, "\n") {
-		if strings.Contains("A /root/bar", line) {
+		if strings.Contains(line, lookingFor) {
 			found = true
 			break
 		}

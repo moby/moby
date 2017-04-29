@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"io"
 	"sync"
-
-	"github.com/Sirupsen/logrus"
 )
 
 // StdType is the type of standard stream
@@ -22,6 +20,9 @@ const (
 	Stdout
 	// Stderr represents standard error steam type.
 	Stderr
+	// Systemerr represents errors originating from the system that make it
+	// into the the multiplexed stream.
+	Systemerr
 
 	stdWriterPrefixLen = 8
 	stdWriterFdIndex   = 0
@@ -108,19 +109,18 @@ func StdCopy(dstout, dsterr io.Writer, src io.Reader) (written int64, err error)
 			nr += nr2
 			if er == io.EOF {
 				if nr < stdWriterPrefixLen {
-					logrus.Debugf("Corrupted prefix: %v", buf[:nr])
 					return written, nil
 				}
 				break
 			}
 			if er != nil {
-				logrus.Debugf("Error reading header: %s", er)
 				return 0, er
 			}
 		}
 
+		stream := StdType(buf[stdWriterFdIndex])
 		// Check the first byte to know where to write
-		switch StdType(buf[stdWriterFdIndex]) {
+		switch stream {
 		case Stdin:
 			fallthrough
 		case Stdout:
@@ -129,19 +129,21 @@ func StdCopy(dstout, dsterr io.Writer, src io.Reader) (written int64, err error)
 		case Stderr:
 			// Write on stderr
 			out = dsterr
+		case Systemerr:
+			// If we're on Systemerr, we won't write anywhere.
+			// NB: if this code changes later, make sure you don't try to write
+			// to outstream if Systemerr is the stream
+			out = nil
 		default:
-			logrus.Debugf("Error selecting output fd: (%d)", buf[stdWriterFdIndex])
 			return 0, fmt.Errorf("Unrecognized input header: %d", buf[stdWriterFdIndex])
 		}
 
 		// Retrieve the size of the frame
 		frameSize = int(binary.BigEndian.Uint32(buf[stdWriterSizeIndex : stdWriterSizeIndex+4]))
-		logrus.Debugf("framesize: %d", frameSize)
 
 		// Check if the buffer is big enough to read the frame.
 		// Extend it if necessary.
 		if frameSize+stdWriterPrefixLen > bufLen {
-			logrus.Debugf("Extending buffer cap by %d (was %d)", frameSize+stdWriterPrefixLen-bufLen+1, len(buf))
 			buf = append(buf, make([]byte, frameSize+stdWriterPrefixLen-bufLen+1)...)
 			bufLen = len(buf)
 		}
@@ -153,26 +155,29 @@ func StdCopy(dstout, dsterr io.Writer, src io.Reader) (written int64, err error)
 			nr += nr2
 			if er == io.EOF {
 				if nr < frameSize+stdWriterPrefixLen {
-					logrus.Debugf("Corrupted frame: %v", buf[stdWriterPrefixLen:nr])
 					return written, nil
 				}
 				break
 			}
 			if er != nil {
-				logrus.Debugf("Error reading frame: %s", er)
 				return 0, er
 			}
+		}
+
+		// we might have an error from the source mixed up in our multiplexed
+		// stream. if we do, return it.
+		if stream == Systemerr {
+			return written, fmt.Errorf("error from daemon in stream: %s", string(buf[stdWriterPrefixLen:frameSize+stdWriterPrefixLen]))
 		}
 
 		// Write the retrieved frame (without header)
 		nw, ew = out.Write(buf[stdWriterPrefixLen : frameSize+stdWriterPrefixLen])
 		if ew != nil {
-			logrus.Debugf("Error writing frame: %s", ew)
 			return 0, ew
 		}
+
 		// If the frame has not been fully written: error
 		if nw != frameSize {
-			logrus.Debugf("Error Short Write: (%d on %d)", nw, frameSize)
 			return 0, io.ErrShortWrite
 		}
 		written += int64(nw)

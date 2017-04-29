@@ -5,14 +5,14 @@ package volume
 import (
 	"strings"
 
-	mounttypes "github.com/docker/engine-api/types/mount"
+	mounttypes "github.com/docker/docker/api/types/mount"
 )
 
 // DefaultPropagationMode defines what propagation mode should be used by
 // default if user has not specified one explicitly.
-const DefaultPropagationMode mounttypes.Propagation = "rprivate"
-
 // propagation modes
+const DefaultPropagationMode = mounttypes.PropagationRPrivate
+
 var propagationModes = map[mounttypes.Propagation]bool{
 	mounttypes.PropagationPrivate:  true,
 	mounttypes.PropagationRPrivate: true,

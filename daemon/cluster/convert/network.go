@@ -3,14 +3,14 @@ package convert
 import (
 	"strings"
 
-	basictypes "github.com/docker/engine-api/types"
-	networktypes "github.com/docker/engine-api/types/network"
-	types "github.com/docker/engine-api/types/swarm"
+	basictypes "github.com/docker/docker/api/types"
+	networktypes "github.com/docker/docker/api/types/network"
+	types "github.com/docker/docker/api/types/swarm"
 	swarmapi "github.com/docker/swarmkit/api"
-	"github.com/docker/swarmkit/protobuf/ptypes"
+	gogotypes "github.com/gogo/protobuf/types"
 )
 
-func networkAttachementFromGRPC(na *swarmapi.NetworkAttachment) types.NetworkAttachment {
+func networkAttachmentFromGRPC(na *swarmapi.NetworkAttachment) types.NetworkAttachment {
 	if na != nil {
 		return types.NetworkAttachment{
 			Network:   networkFromGRPC(na.Network),
@@ -27,6 +27,8 @@ func networkFromGRPC(n *swarmapi.Network) types.Network {
 			Spec: types.NetworkSpec{
 				IPv6Enabled: n.Spec.Ipv6Enabled,
 				Internal:    n.Spec.Internal,
+				Attachable:  n.Spec.Attachable,
+				Ingress:     n.Spec.Ingress,
 				IPAMOptions: ipamFromGRPC(n.Spec.IPAM),
 			},
 			IPAMOptions: ipamFromGRPC(n.IPAM),
@@ -34,12 +36,11 @@ func networkFromGRPC(n *swarmapi.Network) types.Network {
 
 		// Meta
 		network.Version.Index = n.Meta.Version.Index
-		network.CreatedAt, _ = ptypes.Timestamp(n.Meta.CreatedAt)
-		network.UpdatedAt, _ = ptypes.Timestamp(n.Meta.UpdatedAt)
+		network.CreatedAt, _ = gogotypes.TimestampFromProto(n.Meta.CreatedAt)
+		network.UpdatedAt, _ = gogotypes.TimestampFromProto(n.Meta.UpdatedAt)
 
 		//Annotations
-		network.Spec.Name = n.Spec.Annotations.Name
-		network.Spec.Labels = n.Spec.Annotations.Labels
+		network.Spec.Annotations = annotationsFromGRPC(n.Spec.Annotations)
 
 		//DriverConfiguration
 		if n.Spec.DriverConfig != nil {
@@ -89,12 +90,7 @@ func endpointSpecFromGRPC(es *swarmapi.EndpointSpec) *types.EndpointSpec {
 		endpointSpec.Mode = types.ResolutionMode(strings.ToLower(es.Mode.String()))
 
 		for _, portState := range es.Ports {
-			endpointSpec.Ports = append(endpointSpec.Ports, types.PortConfig{
-				Name:          portState.Name,
-				Protocol:      types.PortConfigProtocol(strings.ToLower(swarmapi.PortConfig_Protocol_name[int32(portState.Protocol)])),
-				TargetPort:    portState.TargetPort,
-				PublishedPort: portState.PublishedPort,
-			})
+			endpointSpec.Ports = append(endpointSpec.Ports, swarmPortConfigToAPIPortConfig(portState))
 		}
 	}
 	return endpointSpec
@@ -108,12 +104,7 @@ func endpointFromGRPC(e *swarmapi.Endpoint) types.Endpoint {
 		}
 
 		for _, portState := range e.Ports {
-			endpoint.Ports = append(endpoint.Ports, types.PortConfig{
-				Name:          portState.Name,
-				Protocol:      types.PortConfigProtocol(strings.ToLower(swarmapi.PortConfig_Protocol_name[int32(portState.Protocol)])),
-				TargetPort:    portState.TargetPort,
-				PublishedPort: portState.PublishedPort,
-			})
+			endpoint.Ports = append(endpoint.Ports, swarmPortConfigToAPIPortConfig(portState))
 		}
 
 		for _, v := range e.VirtualIPs {
@@ -125,6 +116,16 @@ func endpointFromGRPC(e *swarmapi.Endpoint) types.Endpoint {
 	}
 
 	return endpoint
+}
+
+func swarmPortConfigToAPIPortConfig(portConfig *swarmapi.PortConfig) types.PortConfig {
+	return types.PortConfig{
+		Name:          portConfig.Name,
+		Protocol:      types.PortConfigProtocol(strings.ToLower(swarmapi.PortConfig_Protocol_name[int32(portConfig.Protocol)])),
+		PublishMode:   types.PortConfigPublishMode(strings.ToLower(swarmapi.PortConfig_PublishMode_name[int32(portConfig.PublishMode)])),
+		TargetPort:    portConfig.TargetPort,
+		PublishedPort: portConfig.PublishedPort,
+	}
 }
 
 // BasicNetworkFromGRPC converts a grpc Network to a NetworkResource.
@@ -155,6 +156,8 @@ func BasicNetworkFromGRPC(n swarmapi.Network) basictypes.NetworkResource {
 		EnableIPv6: spec.Ipv6Enabled,
 		IPAM:       ipam,
 		Internal:   spec.Internal,
+		Attachable: spec.Attachable,
+		Ingress:    spec.Ingress,
 		Labels:     n.Spec.Annotations.Labels,
 	}
 
@@ -179,11 +182,17 @@ func BasicNetworkCreateToGRPC(create basictypes.NetworkCreateRequest) swarmapi.N
 		},
 		Ipv6Enabled: create.EnableIPv6,
 		Internal:    create.Internal,
+		Attachable:  create.Attachable,
+		Ingress:     create.Ingress,
 	}
 	if create.IPAM != nil {
+		driver := create.IPAM.Driver
+		if driver == "" {
+			driver = "default"
+		}
 		ns.IPAM = &swarmapi.IPAMOptions{
 			Driver: &swarmapi.Driver{
-				Name:    create.IPAM.Driver,
+				Name:    driver,
 				Options: create.IPAM.Options,
 			},
 		}

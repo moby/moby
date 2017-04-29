@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
+EXITCODE=0
+
 # bits of this were adapted from lxc-checkconfig
 # see also https://github.com/lxc/lxc/blob/lxc-1.0.2/src/lxc/lxc-checkconfig.in
 
@@ -90,12 +92,13 @@ check_flag() {
 		wrap_good "CONFIG_$1" 'enabled (as module)'
 	else
 		wrap_bad "CONFIG_$1" 'missing'
+		EXITCODE=1
 	fi
 }
 
 check_flags() {
 	for flag in "$@"; do
-		echo "- $(check_flag "$flag")"
+		echo -n "- "; check_flag "$flag"
 	done
 }
 
@@ -104,6 +107,7 @@ check_command() {
 		wrap_good "$1 command" 'available'
 	else
 		wrap_bad "$1 command" 'missing'
+		EXITCODE=1
 	fi
 }
 
@@ -112,6 +116,7 @@ check_device() {
 		wrap_good "$1" 'present'
 	else
 		wrap_bad "$1" 'missing'
+		EXITCODE=1
 	fi
 }
 
@@ -122,6 +127,7 @@ check_distro_userns() {
 		grep -q "user_namespace.enable=1" /proc/cmdline || {
 			# no user namespace support enabled
 			wrap_bad "  (RHEL7/CentOS7" "User namespaces disabled; add 'user_namespace.enable=1' to boot command line)"
+			EXITCODE=1
 		}
 	fi
 }
@@ -158,6 +164,7 @@ else
 	else
 		echo "$(wrap_bad 'cgroup hierarchy' 'nonexistent??')"
 	fi
+	EXITCODE=1
 	echo "    $(wrap_color '(see https://github.com/tianon/cgroupfs-mount)' yellow)"
 fi
 
@@ -175,23 +182,27 @@ if [ "$(cat /sys/module/apparmor/parameters/enabled 2>/dev/null)" = 'Y' ]; then
 		else
 			echo "$(wrap_color '(look for an "apparmor" package for your distribution)')"
 		fi
+		EXITCODE=1
 	fi
 fi
 
 flags=(
 	NAMESPACES {NET,PID,IPC,UTS}_NS
-	DEVPTS_MULTIPLE_INSTANCES
 	CGROUPS CGROUP_CPUACCT CGROUP_DEVICE CGROUP_FREEZER CGROUP_SCHED CPUSETS MEMCG
 	KEYS
 	VETH BRIDGE BRIDGE_NETFILTER
 	NF_NAT_IPV4 IP_NF_FILTER IP_NF_TARGET_MASQUERADE
-	NETFILTER_XT_MATCH_{ADDRTYPE,CONNTRACK}
-	NF_NAT NF_NAT_NEEDED
+	NETFILTER_XT_MATCH_{ADDRTYPE,CONNTRACK,IPVS}
+	IP_NF_NAT NF_NAT NF_NAT_NEEDED
 
 	# required for bind-mounting /dev/mqueue into containers
 	POSIX_MQUEUE
 )
 check_flags "${flags[@]}"
+if [ "$kernelMajor" -lt 4 ] || [ "$kernelMajor" -eq 4 -a "$kernelMinor" -lt 8 ]; then
+        check_flags DEVPTS_MULTIPLE_INSTANCES
+fi
+
 echo
 
 echo 'Optional Features:'
@@ -206,9 +217,31 @@ echo 'Optional Features:'
 	check_flags CGROUP_PIDS
 }
 {
+	CODE=${EXITCODE}
 	check_flags MEMCG_SWAP MEMCG_SWAP_ENABLED
-	if  is_set MEMCG_SWAP && ! is_set MEMCG_SWAP_ENABLED; then
-		echo "    $(wrap_color '(note that cgroup swap accounting is not enabled in your kernel config, you can enable it by setting boot option "swapaccount=1")' bold black)"
+	if [ -e /sys/fs/cgroup/memory/memory.memsw.limit_in_bytes ]; then
+		echo "    $(wrap_color '(cgroup swap accounting is currently enabled)' bold black)"
+		EXITCODE=${CODE}
+	elif is_set MEMCG_SWAP && ! is_set MEMCG_SWAP_ENABLED; then
+		echo "    $(wrap_color '(cgroup swap accounting is currently not enabled, you can enable it by setting boot option "swapaccount=1")' bold black)"
+	fi
+}
+{
+	if is_set LEGACY_VSYSCALL_NATIVE; then
+		echo -n "- "; wrap_bad "CONFIG_LEGACY_VSYSCALL_NATIVE" 'enabled'
+		echo "    $(wrap_color '(dangerous, provides an ASLR-bypassing target with usable ROP gadgets.)' bold black)"
+	elif is_set LEGACY_VSYSCALL_EMULATE; then
+		echo -n "- "; wrap_good "CONFIG_LEGACY_VSYSCALL_EMULATE" 'enabled'
+	elif is_set LEGACY_VSYSCALL_NONE; then
+		echo -n "- "; wrap_bad "CONFIG_LEGACY_VSYSCALL_NONE" 'enabled'
+		echo "    $(wrap_color '(containers using eglibc <= 2.13 will not work. Switch to' bold black)"
+		echo "    $(wrap_color ' "CONFIG_VSYSCALL_[NATIVE|EMULATE]" or use "vsyscall=[native|emulate]"' bold black)"
+		echo "    $(wrap_color ' on kernel command line. Note that this will disable ASLR for the,' bold black)"
+		echo "    $(wrap_color ' VDSO which may assist in exploiting security vulnerabilities.)' bold black)"
+	# else Older kernels (prior to 3dc33bd30f3e, released in v4.40-rc1) do
+	#      not have these LEGACY_VSYSCALL options and are effectively
+	#      LEGACY_VSYSCALL_EMULATE. Even older kernels are presumably
+	#      effectively LEGACY_VSYSCALL_NATIVE.
 	fi
 }
 
@@ -233,54 +266,80 @@ flags=(
 	NET_CLS_CGROUP $netprio
 	CFS_BANDWIDTH FAIR_GROUP_SCHED RT_GROUP_SCHED
 	IP_VS
+	IP_VS_NFCT
+ 	IP_VS_RR
 )
 check_flags "${flags[@]}"
 
-check_flags EXT3_FS EXT3_FS_XATTR EXT3_FS_POSIX_ACL EXT3_FS_SECURITY
-if ! is_set EXT3_FS || ! is_set EXT3_FS_XATTR || ! is_set EXT3_FS_POSIX_ACL || ! is_set EXT3_FS_SECURITY; then
-	echo "    $(wrap_color '(enable these ext3 configs if you are using ext3 as backing filesystem)' bold black)"
+if ! is_set EXT4_USE_FOR_EXT2; then
+	check_flags EXT3_FS EXT3_FS_XATTR EXT3_FS_POSIX_ACL EXT3_FS_SECURITY
+	if ! is_set EXT3_FS || ! is_set EXT3_FS_XATTR || ! is_set EXT3_FS_POSIX_ACL || ! is_set EXT3_FS_SECURITY; then
+		echo "    $(wrap_color '(enable these ext3 configs if you are using ext3 as backing filesystem)' bold black)"
+	fi
 fi
 
 check_flags EXT4_FS EXT4_FS_POSIX_ACL EXT4_FS_SECURITY
 if ! is_set EXT4_FS || ! is_set EXT4_FS_POSIX_ACL || ! is_set EXT4_FS_SECURITY; then
-	echo "    $(wrap_color 'enable these ext4 configs if you are using ext4 as backing filesystem' bold black)"
+	if is_set EXT4_USE_FOR_EXT2; then
+		echo "    $(wrap_color 'enable these ext4 configs if you are using ext3 or ext4 as backing filesystem' bold black)"
+	else
+		echo "    $(wrap_color 'enable these ext4 configs if you are using ext4 as backing filesystem' bold black)"
+	fi
 fi
 
 echo '- Network Drivers:'
-{
-	echo '- "'$(wrap_color 'overlay' blue)'":'
-	check_flags VXLAN | sed 's/^/  /'
-	echo '  Optional (for secure networks):'
-	check_flags XFRM_ALGO XFRM_USER | sed 's/^/  /'
-	echo '- "'$(wrap_color 'ipvlan' blue)'":'
-	check_flags IPVLAN | sed 's/^/  /'
-	echo '- "'$(wrap_color 'macvlan' blue)'":'
-	check_flags MACVLAN DUMMY | sed 's/^/  /'
-} | sed 's/^/  /'
+echo '  - "'$(wrap_color 'overlay' blue)'":'
+check_flags VXLAN | sed 's/^/    /'
+echo '      Optional (for encrypted networks):'
+check_flags CRYPTO CRYPTO_AEAD CRYPTO_GCM CRYPTO_SEQIV CRYPTO_GHASH \
+            XFRM XFRM_USER XFRM_ALGO INET_ESP INET_XFRM_MODE_TRANSPORT | sed 's/^/      /'
+echo '  - "'$(wrap_color 'ipvlan' blue)'":'
+check_flags IPVLAN | sed 's/^/    /'
+echo '  - "'$(wrap_color 'macvlan' blue)'":'
+check_flags MACVLAN DUMMY | sed 's/^/    /'
+echo '  - "'$(wrap_color 'ftp,tftp client in container' blue)'":'
+check_flags NF_NAT_FTP NF_CONNTRACK_FTP NF_NAT_TFTP NF_CONNTRACK_TFTP | sed 's/^/    /'
+
+# only fail if no storage drivers available
+CODE=${EXITCODE}
+EXITCODE=0
+STORAGE=1
 
 echo '- Storage Drivers:'
-{
-	echo '- "'$(wrap_color 'aufs' blue)'":'
-	check_flags AUFS_FS | sed 's/^/  /'
-	if ! is_set AUFS_FS && grep -q aufs /proc/filesystems; then
-		echo "    $(wrap_color '(note that some kernels include AUFS patches but not the AUFS_FS flag)' bold black)"
-	fi
+echo '  - "'$(wrap_color 'aufs' blue)'":'
+check_flags AUFS_FS | sed 's/^/    /'
+if ! is_set AUFS_FS && grep -q aufs /proc/filesystems; then
+	echo "      $(wrap_color '(note that some kernels include AUFS patches but not the AUFS_FS flag)' bold black)"
+fi
+[ "$EXITCODE" = 0 ] && STORAGE=0
+EXITCODE=0
 
-	echo '- "'$(wrap_color 'btrfs' blue)'":'
-	check_flags BTRFS_FS | sed 's/^/  /'
-	check_flags BTRFS_FS_POSIX_ACL | sed 's/^/  /'
+echo '  - "'$(wrap_color 'btrfs' blue)'":'
+check_flags BTRFS_FS | sed 's/^/    /'
+check_flags BTRFS_FS_POSIX_ACL | sed 's/^/    /'
+[ "$EXITCODE" = 0 ] && STORAGE=0
+EXITCODE=0
 
-	echo '- "'$(wrap_color 'devicemapper' blue)'":'
-	check_flags BLK_DEV_DM DM_THIN_PROVISIONING | sed 's/^/  /'
+echo '  - "'$(wrap_color 'devicemapper' blue)'":'
+check_flags BLK_DEV_DM DM_THIN_PROVISIONING | sed 's/^/    /'
+[ "$EXITCODE" = 0 ] && STORAGE=0
+EXITCODE=0
 
-	echo '- "'$(wrap_color 'overlay' blue)'":'
-	check_flags OVERLAY_FS | sed 's/^/  /'
+echo '  - "'$(wrap_color 'overlay' blue)'":'
+check_flags OVERLAY_FS | sed 's/^/    /'
+[ "$EXITCODE" = 0 ] && STORAGE=0
+EXITCODE=0
 
-	echo '- "'$(wrap_color 'zfs' blue)'":'
-	echo "  - $(check_device /dev/zfs)"
-	echo "  - $(check_command zfs)"
-	echo "  - $(check_command zpool)"
-} | sed 's/^/  /'
+echo '  - "'$(wrap_color 'zfs' blue)'":'
+echo -n "    - "; check_device /dev/zfs
+echo -n "    - "; check_command zfs
+echo -n "    - "; check_command zpool
+[ "$EXITCODE" = 0 ] && STORAGE=0
+EXITCODE=0
+
+EXITCODE=$CODE
+[ "$STORAGE" = 1 ] && EXITCODE=1
+
 echo
 
 check_limit_over()
@@ -288,6 +347,7 @@ check_limit_over()
 	if [ $(cat "$1") -le "$2" ]; then
 		wrap_bad "- $1" "$(cat $1)"
 		wrap_color "    This should be set to at least $2, for example set: sysctl -w kernel/keys/root_maxkeys=1000000" bold black
+		EXITCODE=1
 	else
 		wrap_good "- $1" "$(cat $1)"
 	fi
@@ -296,3 +356,5 @@ check_limit_over()
 echo 'Limits:'
 check_limit_over /proc/sys/kernel/keys/root_maxkeys 10000
 echo
+
+exit $EXITCODE

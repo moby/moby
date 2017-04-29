@@ -6,9 +6,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-
-	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/pkg/system"
 )
 
 // read-write modes
@@ -19,6 +16,15 @@ var rwModes = map[string]bool{
 // read-only modes
 var roModes = map[string]bool{
 	"ro": true,
+}
+
+var platformRawValidationOpts = []func(*validateOpts){
+	// filepath.IsAbs is weird on Windows:
+	//	`c:` is not considered an absolute path
+	//	`c:\` is considered an absolute path
+	// In any case, the regex matching below ensures absolute paths
+	// TODO: consider this a bug with filepath.IsAbs (?)
+	func(o *validateOpts) { o.skipAbsolutePathCheck = true },
 }
 
 const (
@@ -69,23 +75,13 @@ const (
 	//    -  Variation on hostdir but can be a drive followed by colon as well
 	//    -  If a path, must be absolute. Can include spaces
 	//    -  Drive cannot be c: (explicitly checked in code, not RegEx)
-)
 
-// RXMode is the regex expression for the mode of the mount
-var RXMode string
-
-func init() {
-	osv := system.GetOSVersion()
-	// Read-only volumes supported from 14350 onwards (post Windows Server 2016 TP5)
+	// RXMode is the regex expression for the mode of the mount
 	// Mode (optional):
 	//    -  Hopefully self explanatory in comparison to above regex's.
 	//    -  Colon is not in the capture group
-	if osv.Build >= 14350 {
-		RXMode = `(:(?P<mode>(?i)ro|rw))?`
-	} else {
-		RXMode = `(:(?P<mode>(?i)rw))?`
-	}
-}
+	RXMode = `(:(?P<mode>(?i)ro|rw))?`
+)
 
 // BackwardsCompatible decides whether this mount point can be
 // used in old versions of Docker or not.
@@ -94,91 +90,54 @@ func (m *MountPoint) BackwardsCompatible() bool {
 	return false
 }
 
-// ParseMountSpec validates the configuration of mount information is valid.
-func ParseMountSpec(spec string, volumeDriver string) (*MountPoint, error) {
-	var specExp = regexp.MustCompile(`^` + RXSource + RXDestination + RXMode + `$`)
-
-	// Ensure in platform semantics for matching. The CLI will send in Unix semantics.
-	match := specExp.FindStringSubmatch(filepath.FromSlash(strings.ToLower(spec)))
+func splitRawSpec(raw string) ([]string, error) {
+	specExp := regexp.MustCompile(`^` + RXSource + RXDestination + RXMode + `$`)
+	match := specExp.FindStringSubmatch(strings.ToLower(raw))
 
 	// Must have something back
 	if len(match) == 0 {
-		return nil, errInvalidSpec(spec)
+		return nil, errInvalidSpec(raw)
 	}
 
-	// Pull out the sub expressions from the named capture groups
+	var split []string
 	matchgroups := make(map[string]string)
+	// Pull out the sub expressions from the named capture groups
 	for i, name := range specExp.SubexpNames() {
 		matchgroups[name] = strings.ToLower(match[i])
 	}
-
-	mp := &MountPoint{
-		Source:      matchgroups["source"],
-		Destination: matchgroups["destination"],
-		RW:          true,
-	}
-	if strings.ToLower(matchgroups["mode"]) == "ro" {
-		mp.RW = false
-	}
-
-	// Volumes cannot include an explicitly supplied mode eg c:\path:rw
-	if mp.Source == "" && mp.Destination != "" && matchgroups["mode"] != "" {
-		return nil, errInvalidSpec(spec)
-	}
-
-	// Note: No need to check if destination is absolute as it must be by
-	// definition of matching the regex.
-
-	if filepath.VolumeName(mp.Destination) == mp.Destination {
-		// Ensure the destination path, if a drive letter, is not the c drive
-		if strings.ToLower(mp.Destination) == "c:" {
-			return nil, fmt.Errorf("Destination drive letter in '%s' cannot be c:", spec)
-		}
-	} else {
-		// So we know the destination is a path, not drive letter. Clean it up.
-		mp.Destination = filepath.Clean(mp.Destination)
-		// Ensure the destination path, if a path, is not the c root directory
-		if strings.ToLower(mp.Destination) == `c:\` {
-			return nil, fmt.Errorf(`Destination path in '%s' cannot be c:\`, spec)
+	if source, exists := matchgroups["source"]; exists {
+		if source != "" {
+			split = append(split, source)
 		}
 	}
-
-	// See if the source is a name instead of a host directory
-	if len(mp.Source) > 0 {
-		validName, err := IsVolumeNameValid(mp.Source)
+	if destination, exists := matchgroups["destination"]; exists {
+		if destination != "" {
+			split = append(split, destination)
+		}
+	}
+	if mode, exists := matchgroups["mode"]; exists {
+		if mode != "" {
+			split = append(split, mode)
+		}
+	}
+	// Fix #26329. If the destination appears to be a file, and the source is null,
+	// it may be because we've fallen through the possible naming regex and hit a
+	// situation where the user intention was to map a file into a container through
+	// a local volume, but this is not supported by the platform.
+	if matchgroups["source"] == "" && matchgroups["destination"] != "" {
+		validName, err := IsVolumeNameValid(matchgroups["destination"])
 		if err != nil {
 			return nil, err
 		}
-		if validName {
-			// OK, so the source is a name.
-			mp.Name = mp.Source
-			mp.Source = ""
-
-			// Set the driver accordingly
-			mp.Driver = volumeDriver
-			if len(mp.Driver) == 0 {
-				mp.Driver = DefaultDriverName
+		if !validName {
+			if fi, err := os.Stat(matchgroups["destination"]); err == nil {
+				if !fi.IsDir() {
+					return nil, fmt.Errorf("file '%s' cannot be mapped. Only directories can be mapped on this platform", matchgroups["destination"])
+				}
 			}
-		} else {
-			// OK, so the source must be a host directory. Make sure it's clean.
-			mp.Source = filepath.Clean(mp.Source)
 		}
 	}
-
-	// Ensure the host path source, if supplied, exists and is a directory
-	if len(mp.Source) > 0 {
-		var fi os.FileInfo
-		var err error
-		if fi, err = os.Stat(mp.Source); err != nil {
-			return nil, fmt.Errorf("Source directory '%s' could not be found: %s", mp.Source, err)
-		}
-		if !fi.IsDir() {
-			return nil, fmt.Errorf("Source '%s' is not a directory", mp.Source)
-		}
-	}
-
-	logrus.Debugf("MP: Source '%s', Dest '%s', RW %t, Name '%s', Driver '%s'", mp.Source, mp.Destination, mp.RW, mp.Name, mp.Driver)
-	return mp, nil
+	return split, nil
 }
 
 // IsVolumeNameValid checks a volume name in a platform specific manner.
@@ -189,7 +148,7 @@ func IsVolumeNameValid(name string) (bool, error) {
 	}
 	nameExp = regexp.MustCompile(`^` + RXReservedNames + `$`)
 	if nameExp.MatchString(name) {
-		return false, fmt.Errorf("Volume name %q cannot be a reserved word for Windows filenames", name)
+		return false, fmt.Errorf("volume name %q cannot be a reserved word for Windows filenames", name)
 	}
 	return true, nil
 }
@@ -197,10 +156,46 @@ func IsVolumeNameValid(name string) (bool, error) {
 // ValidMountMode will make sure the mount mode is valid.
 // returns if it's a valid mount mode or not.
 func ValidMountMode(mode string) bool {
+	if mode == "" {
+		return true
+	}
 	return roModes[strings.ToLower(mode)] || rwModes[strings.ToLower(mode)]
 }
 
 // ReadWrite tells you if a mode string is a valid read-write mode or not.
 func ReadWrite(mode string) bool {
-	return rwModes[strings.ToLower(mode)]
+	return rwModes[strings.ToLower(mode)] || mode == ""
+}
+
+func validateNotRoot(p string) error {
+	p = strings.ToLower(convertSlash(p))
+	if p == "c:" || p == `c:\` {
+		return fmt.Errorf("destination path cannot be `c:` or `c:\\`: %v", p)
+	}
+	return nil
+}
+
+func validateCopyMode(mode bool) error {
+	if mode {
+		return fmt.Errorf("Windows does not support copying image path content")
+	}
+	return nil
+}
+
+func convertSlash(p string) string {
+	return filepath.FromSlash(p)
+}
+
+func clean(p string) string {
+	if match, _ := regexp.MatchString("^[a-z]:$", p); match {
+		return p
+	}
+	return filepath.Clean(p)
+}
+
+func validateStat(fi os.FileInfo) error {
+	if !fi.IsDir() {
+		return fmt.Errorf("source path must be a directory")
+	}
+	return nil
 }

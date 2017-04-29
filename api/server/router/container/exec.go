@@ -9,9 +9,9 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/server/httputils"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/pkg/stdcopy"
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/versions"
 	"golang.org/x/net/context"
 )
 
@@ -49,7 +49,7 @@ func (s *containerRouter) postContainerExecCreate(ctx context.Context, w http.Re
 		return err
 	}
 
-	return httputils.WriteJSON(w, http.StatusCreated, &types.ContainerExecCreateResponse{
+	return httputils.WriteJSON(w, http.StatusCreated, &types.IDResponse{
 		ID: id,
 	})
 }
@@ -92,10 +92,16 @@ func (s *containerRouter) postContainerExecStart(ctx context.Context, w http.Res
 		defer httputils.CloseStreams(inStream, outStream)
 
 		if _, ok := r.Header["Upgrade"]; ok {
-			fmt.Fprintf(outStream, "HTTP/1.1 101 UPGRADED\r\nContent-Type: application/vnd.docker.raw-stream\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n")
+			fmt.Fprint(outStream, "HTTP/1.1 101 UPGRADED\r\nContent-Type: application/vnd.docker.raw-stream\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n")
 		} else {
-			fmt.Fprintf(outStream, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
+			fmt.Fprint(outStream, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n")
 		}
+
+		// copy headers that were removed as part of hijack
+		if err := w.Header().WriteSubset(outStream, nil); err != nil {
+			return err
+		}
+		fmt.Fprint(outStream, "\r\n")
 
 		stdin = inStream
 		stdout = outStream

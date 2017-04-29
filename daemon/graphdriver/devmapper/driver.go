@@ -14,8 +14,9 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/devicemapper"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/locker"
 	"github.com/docker/docker/pkg/mount"
-	"github.com/docker/go-units"
+	units "github.com/docker/go-units"
 )
 
 func init() {
@@ -29,6 +30,7 @@ type Driver struct {
 	uidMaps []idtools.IDMap
 	gidMaps []idtools.IDMap
 	ctr     *graphdriver.RefCounter
+	locker  *locker.Locker
 }
 
 // Init creates a driver with the given home and the set of options.
@@ -48,6 +50,7 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		uidMaps:   uidMaps,
 		gidMaps:   gidMaps,
 		ctr:       graphdriver.NewRefCounter(graphdriver.NewDefaultChecker()),
+		locker:    locker.New(),
 	}
 
 	return graphdriver.NewNaiveDiffDriver(d, uidMaps, gidMaps), nil
@@ -122,12 +125,17 @@ func (d *Driver) Cleanup() error {
 
 // CreateReadWrite creates a layer that is writable for use as a container
 // file system.
-func (d *Driver) CreateReadWrite(id, parent, mountLabel string, storageOpt map[string]string) error {
-	return d.Create(id, parent, mountLabel, storageOpt)
+func (d *Driver) CreateReadWrite(id, parent string, opts *graphdriver.CreateOpts) error {
+	return d.Create(id, parent, opts)
 }
 
 // Create adds a device with a given id and the parent.
-func (d *Driver) Create(id, parent, mountLabel string, storageOpt map[string]string) error {
+func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
+	var storageOpt map[string]string
+	if opts != nil {
+		storageOpt = opts.StorageOpt
+	}
+
 	if err := d.DeviceSet.AddDevice(id, parent, storageOpt); err != nil {
 		return err
 	}
@@ -137,6 +145,8 @@ func (d *Driver) Create(id, parent, mountLabel string, storageOpt map[string]str
 
 // Remove removes a device with a given id, unmounts the filesystem.
 func (d *Driver) Remove(id string) error {
+	d.locker.Lock(id)
+	defer d.locker.Unlock(id)
 	if !d.DeviceSet.HasDevice(id) {
 		// Consider removing a non-existing device a no-op
 		// This is useful to be able to progress on container removal
@@ -146,7 +156,7 @@ func (d *Driver) Remove(id string) error {
 
 	// This assumes the device has been properly Get/Put:ed and thus is unmounted
 	if err := d.DeviceSet.DeleteDevice(id, false); err != nil {
-		return err
+		return fmt.Errorf("failed to remove device %s: %v", id, err)
 	}
 
 	mp := path.Join(d.home, "mnt", id)
@@ -159,6 +169,8 @@ func (d *Driver) Remove(id string) error {
 
 // Get mounts a device with given id into the root filesystem
 func (d *Driver) Get(id, mountLabel string) (string, error) {
+	d.locker.Lock(id)
+	defer d.locker.Unlock(id)
 	mp := path.Join(d.home, "mnt", id)
 	rootFs := path.Join(mp, "rootfs")
 	if count := d.ctr.Increment(mp); count > 1 {
@@ -209,6 +221,8 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 
 // Put unmounts a device and removes it.
 func (d *Driver) Put(id string) error {
+	d.locker.Lock(id)
+	defer d.locker.Unlock(id)
 	mp := path.Join(d.home, "mnt", id)
 	if count := d.ctr.Decrement(mp); count > 0 {
 		return nil

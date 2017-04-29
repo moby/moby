@@ -6,7 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/go-check/check"
 )
 
@@ -14,7 +15,7 @@ import (
 // sort is not predictable it doesn't always fail.
 func (s *DockerSuite) TestBuildHistory(c *check.C) {
 	name := "testbuildhistory"
-	_, err := buildImage(name, `FROM `+minimalBaseImage()+`
+	buildImageSuccessfully(c, name, build.WithDockerfile(`FROM `+minimalBaseImage()+`
 LABEL label.A="A"
 LABEL label.B="B"
 LABEL label.C="C"
@@ -40,12 +41,9 @@ LABEL label.V="V"
 LABEL label.W="W"
 LABEL label.X="X"
 LABEL label.Y="Y"
-LABEL label.Z="Z"`,
-		true)
+LABEL label.Z="Z"`))
 
-	c.Assert(err, checker.IsNil)
-
-	out, _ := dockerCmd(c, "history", "testbuildhistory")
+	out, _ := dockerCmd(c, "history", name)
 	actualValues := strings.Split(out, "\n")[1:27]
 	expectedValues := [26]string{"Z", "Y", "X", "W", "V", "U", "T", "S", "R", "Q", "P", "O", "N", "M", "L", "K", "J", "I", "H", "G", "F", "E", "D", "C", "B", "A"}
 

@@ -267,7 +267,7 @@ func (info *FileInfo) addChanges(oldInfo *FileInfo, changes *[]Change) {
 	}
 
 	for name, newChild := range info.children {
-		oldChild, _ := oldChildren[name]
+		oldChild := oldChildren[name]
 		if oldChild != nil {
 			// change?
 			oldStat := oldChild.stat
@@ -279,7 +279,7 @@ func (info *FileInfo) addChanges(oldInfo *FileInfo, changes *[]Change) {
 			// breaks down is if some code intentionally hides a change by setting
 			// back mtime
 			if statDifferent(oldStat, newStat) ||
-				bytes.Compare(oldChild.capability, newChild.capability) != 0 {
+				!bytes.Equal(oldChild.capability, newChild.capability) {
 				change := Change{
 					Path: newChild.path(),
 					Kind: ChangeModify,
@@ -391,7 +391,7 @@ func ChangesSize(newDir string, changes []Change) int64 {
 }
 
 // ExportChanges produces an Archive from the provided changes, relative to dir.
-func ExportChanges(dir string, changes []Change, uidMaps, gidMaps []idtools.IDMap) (Archive, error) {
+func ExportChanges(dir string, changes []Change, uidMaps, gidMaps []idtools.IDMap) (io.ReadCloser, error) {
 	reader, writer := io.Pipe()
 	go func() {
 		ta := &tarAppender{

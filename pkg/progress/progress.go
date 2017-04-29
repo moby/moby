@@ -16,6 +16,9 @@ type Progress struct {
 	Current int64
 	Total   int64
 
+	// If true, don't show xB/yB
+	HideCounts bool
+
 	// Aux contains extra information not presented to the user, such as
 	// digests for push signing.
 	Aux interface{}
@@ -42,6 +45,17 @@ func (out chanOutput) WriteProgress(p Progress) error {
 // supplied channel.
 func ChanOutput(progressChan chan<- Progress) Output {
 	return chanOutput(progressChan)
+}
+
+type discardOutput struct{}
+
+func (discardOutput) WriteProgress(Progress) error {
+	return nil
+}
+
+// DiscardOutput returns an Output that discards progress
+func DiscardOutput() Output {
+	return discardOutput{}
 }
 
 // Update is a convenience function to write a progress update to the channel.

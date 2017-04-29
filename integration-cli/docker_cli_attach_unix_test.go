@@ -4,11 +4,12 @@ package main
 
 import (
 	"bufio"
+	"io/ioutil"
 	"os/exec"
 	"strings"
 	"time"
 
-	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/go-check/check"
 	"github.com/kr/pty"
@@ -23,7 +24,7 @@ func (s *DockerSuite) TestAttachClosedOnContainerStop(c *check.C) {
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), check.IsNil)
 
-	_, tty, err := pty.Open()
+	pty, tty, err := pty.Open()
 	c.Assert(err, check.IsNil)
 
 	attachCmd := exec.Command(dockerBinary, "attach", id)
@@ -35,6 +36,7 @@ func (s *DockerSuite) TestAttachClosedOnContainerStop(c *check.C) {
 
 	errChan := make(chan error)
 	go func() {
+		time.Sleep(300 * time.Millisecond)
 		defer close(errChan)
 		// Container is waiting for us to signal it to stop
 		dockerCmd(c, "stop", id)
@@ -48,7 +50,9 @@ func (s *DockerSuite) TestAttachClosedOnContainerStop(c *check.C) {
 
 	select {
 	case err := <-errChan:
-		c.Assert(err, check.IsNil)
+		tty.Close()
+		out, _ := ioutil.ReadAll(pty)
+		c.Assert(err, check.IsNil, check.Commentf("out: %v", string(out)))
 	case <-time.After(attachWait):
 		c.Fatal("timed out without attach returning")
 	}

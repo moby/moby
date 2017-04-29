@@ -65,7 +65,7 @@ func walkchunk(path string, fi os.FileInfo, dir string, root *FileInfo) error {
 	}
 	parent := root.LookUp(filepath.Dir(path))
 	if parent == nil {
-		return fmt.Errorf("collectFileInfoForChanges: Unexpectedly no parent for %s", path)
+		return fmt.Errorf("walkchunk: Unexpectedly no parent for %s", path)
 	}
 	info := &FileInfo{
 		name:     filepath.Base(path),
@@ -302,7 +302,7 @@ func overlayDeletedFile(root, path string, fi os.FileInfo) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		if opaque != nil && len(opaque) == 1 && opaque[0] == 'y' {
+		if len(opaque) == 1 && opaque[0] == 'y' {
 			return path, nil
 		}
 	}

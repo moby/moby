@@ -12,7 +12,7 @@ type clientCommon struct {
 	backend    Backend
 	containers map[string]*container
 	locker     *locker.Locker
-	mapMutex   sync.RWMutex // protects read/write oprations from containers map
+	mapMutex   sync.RWMutex // protects read/write operations from containers map
 }
 
 func (clnt *client) lock(containerID string) {
@@ -29,9 +29,9 @@ func (clnt *client) appendContainer(cont *container) {
 	clnt.containers[cont.containerID] = cont
 	clnt.mapMutex.Unlock()
 }
-func (clnt *client) deleteContainer(friendlyName string) {
+func (clnt *client) deleteContainer(containerID string) {
 	clnt.mapMutex.Lock()
-	delete(clnt.containers, friendlyName)
+	delete(clnt.containers, containerID)
 	clnt.mapMutex.Unlock()
 }
 

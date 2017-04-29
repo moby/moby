@@ -1,0 +1,4 @@
+Swarm initialized: current node (nodeID) is now a manager.
+
+To add a manager to this swarm, run 'docker swarm join-token manager' and follow the instructions.
+

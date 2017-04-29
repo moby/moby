@@ -27,6 +27,7 @@ type JSONFileLogger struct {
 	mu      sync.Mutex
 	readers map[*logger.LogWatcher]struct{} // stores the active log followers
 	extra   []byte                          // json-encoded extra attributes
+	closed  bool
 }
 
 func init() {
@@ -40,9 +41,9 @@ func init() {
 
 // New creates new JSONFileLogger which writes to filename passed in
 // on given context.
-func New(ctx logger.Context) (logger.Logger, error) {
+func New(info logger.Info) (logger.Logger, error) {
 	var capval int64 = -1
-	if capacity, ok := ctx.Config["max-size"]; ok {
+	if capacity, ok := info.Config["max-size"]; ok {
 		var err error
 		capval, err = units.FromHumanSize(capacity)
 		if err != nil {
@@ -50,7 +51,7 @@ func New(ctx logger.Context) (logger.Logger, error) {
 		}
 	}
 	var maxFiles = 1
-	if maxFileString, ok := ctx.Config["max-file"]; ok {
+	if maxFileString, ok := info.Config["max-file"]; ok {
 		var err error
 		maxFiles, err = strconv.Atoi(maxFileString)
 		if err != nil {
@@ -61,13 +62,17 @@ func New(ctx logger.Context) (logger.Logger, error) {
 		}
 	}
 
-	writer, err := loggerutils.NewRotateFileWriter(ctx.LogPath, capval, maxFiles)
+	writer, err := loggerutils.NewRotateFileWriter(info.LogPath, capval, maxFiles)
 	if err != nil {
 		return nil, err
 	}
 
 	var extra []byte
-	if attrs := ctx.ExtraAttributes(nil); len(attrs) > 0 {
+	attrs, err := info.ExtraAttributes(nil)
+	if err != nil {
+		return nil, err
+	}
+	if len(attrs) > 0 {
 		var err error
 		extra, err = json.Marshal(attrs)
 		if err != nil {
@@ -100,6 +105,7 @@ func (l *JSONFileLogger) Log(msg *logger.Message) error {
 		Created:  timestamp,
 		RawAttrs: l.extra,
 	}).MarshalJSONBuf(l.buf)
+	logger.PutMessage(msg)
 	if err != nil {
 		l.mu.Unlock()
 		return err
@@ -121,6 +127,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case "max-size":
 		case "labels":
 		case "env":
+		case "env-regex":
 		default:
 			return fmt.Errorf("unknown log opt '%s' for json-file log driver", key)
 		}
@@ -136,6 +143,7 @@ func (l *JSONFileLogger) LogPath() string {
 // Close closes underlying file and signals all readers to stop.
 func (l *JSONFileLogger) Close() error {
 	l.mu.Lock()
+	l.closed = true
 	err := l.writer.Close()
 	for r := range l.readers {
 		r.Close()

@@ -7,7 +7,7 @@ import (
 
 	"os"
 
-	"github.com/docker/engine-api/types"
+	"github.com/docker/docker/api/types"
 )
 
 type ports struct {
@@ -286,7 +286,7 @@ func TestLoadOrCreateTrustKeyInvalidKeyFile(t *testing.T) {
 	}
 
 	if _, err := LoadOrCreateTrustKey(tmpKeyFile.Name()); err == nil {
-		t.Fatalf("expected an error, got nothing.")
+		t.Fatal("expected an error, got nothing.")
 	}
 
 }

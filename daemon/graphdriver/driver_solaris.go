@@ -20,6 +20,7 @@ import (
 	"unsafe"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/mount"
 )
 
 const (
@@ -42,6 +43,37 @@ var (
 // GetFSMagic returns the filesystem id given the path.
 func GetFSMagic(rootpath string) (FsMagic, error) {
 	return 0, nil
+}
+
+type fsChecker struct {
+	t FsMagic
+}
+
+func (c *fsChecker) IsMounted(path string) bool {
+	m, _ := Mounted(c.t, path)
+	return m
+}
+
+// NewFsChecker returns a checker configured for the provied FsMagic
+func NewFsChecker(t FsMagic) Checker {
+	return &fsChecker{
+		t: t,
+	}
+}
+
+// NewDefaultChecker returns a check that parses /proc/mountinfo to check
+// if the specified path is mounted.
+// No-op on Solaris.
+func NewDefaultChecker() Checker {
+	return &defaultChecker{}
+}
+
+type defaultChecker struct {
+}
+
+func (c *defaultChecker) IsMounted(path string) bool {
+	m, _ := mount.Mounted(path)
+	return m
 }
 
 // Mounted checks if the given path is mounted as the fs type

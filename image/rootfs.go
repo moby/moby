@@ -1,9 +1,20 @@
 package image
 
-import "github.com/docker/docker/layer"
+import (
+	"runtime"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/layer"
+)
 
 // TypeLayers is used for RootFS.Type for filesystems organized into layers.
 const TypeLayers = "layers"
+
+// typeLayersWithBase is an older format used by Windows up to v1.12. We
+// explicitly handle this as an error case to ensure that a daemon which still
+// has an older image like this on disk can still start, even though the
+// image itself is not usable. See https://github.com/docker/docker/pull/25806.
+const typeLayersWithBase = "layers+base"
 
 // RootFS describes images root filesystem
 // This is currently a placeholder that only supports layers. In the future
@@ -25,5 +36,9 @@ func (r *RootFS) Append(id layer.DiffID) {
 
 // ChainID returns the ChainID for the top layer in RootFS.
 func (r *RootFS) ChainID() layer.ChainID {
+	if runtime.GOOS == "windows" && r.Type == typeLayersWithBase {
+		logrus.Warnf("Layer type is unsupported on this platform. DiffIDs: '%v'", r.DiffIDs)
+		return ""
+	}
 	return layer.CreateChainID(r.DiffIDs)
 }

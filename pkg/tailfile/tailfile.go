@@ -44,7 +44,7 @@ func TailFile(f io.ReadSeeker, n int) ([][]byte, error) {
 			break
 		} else {
 			b = make([]byte, blockSize)
-			if _, err := f.Seek(step, os.SEEK_END); err != nil {
+			if _, err := f.Seek(left, os.SEEK_SET); err != nil {
 				return nil, err
 			}
 			if _, err := f.Read(b); err != nil {

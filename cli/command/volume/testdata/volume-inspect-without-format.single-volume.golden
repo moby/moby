@@ -1,0 +1,10 @@
+[
+    {
+        "Driver": "local",
+        "Labels": null,
+        "Mountpoint": "/data/volume",
+        "Name": "volume",
+        "Options": null,
+        "Scope": "local"
+    }
+]

@@ -9,11 +9,11 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution"
-	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/opencontainers/go-digest"
 	"github.com/vbatts/tar-split/tar/asm"
 	"github.com/vbatts/tar-split/tar/storage"
 )
@@ -34,6 +34,8 @@ type layerStore struct {
 
 	mounts map[string]*mountedLayer
 	mountL sync.Mutex
+
+	useTarSplit bool
 }
 
 // StoreOptions are the options used to create a new Store instance
@@ -44,16 +46,19 @@ type StoreOptions struct {
 	GraphDriverOptions        []string
 	UIDMaps                   []idtools.IDMap
 	GIDMaps                   []idtools.IDMap
+	PluginGetter              plugingetter.PluginGetter
+	ExperimentalEnabled       bool
 }
 
 // NewStoreFromOptions creates a new Store instance
 func NewStoreFromOptions(options StoreOptions) (Store, error) {
-	driver, err := graphdriver.New(
-		options.StorePath,
-		options.GraphDriver,
-		options.GraphDriverOptions,
-		options.UIDMaps,
-		options.GIDMaps)
+	driver, err := graphdriver.New(options.GraphDriver, options.PluginGetter, graphdriver.Options{
+		Root:                options.StorePath,
+		DriverOptions:       options.GraphDriverOptions,
+		UIDMaps:             options.UIDMaps,
+		GIDMaps:             options.GIDMaps,
+		ExperimentalEnabled: options.ExperimentalEnabled,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("error initializing graphdriver: %v", err)
 	}
@@ -71,11 +76,17 @@ func NewStoreFromOptions(options StoreOptions) (Store, error) {
 // metadata store and graph driver. The metadata store will be used to restore
 // the Store.
 func NewStoreFromGraphDriver(store MetadataStore, driver graphdriver.Driver) (Store, error) {
+	caps := graphdriver.Capabilities{}
+	if capDriver, ok := driver.(graphdriver.CapabilityDriver); ok {
+		caps = capDriver.Capabilities()
+	}
+
 	ls := &layerStore{
-		store:    store,
-		driver:   driver,
-		layerMap: map[ChainID]*roLayer{},
-		mounts:   map[string]*mountedLayer{},
+		store:       store,
+		driver:      driver,
+		layerMap:    map[ChainID]*roLayer{},
+		mounts:      map[string]*mountedLayer{},
+		useTarSplit: !caps.ReproducesExactDiffs,
 	}
 
 	ids, mounts, err := store.List()
@@ -201,24 +212,27 @@ func (ls *layerStore) loadMount(mount string) error {
 }
 
 func (ls *layerStore) applyTar(tx MetadataTransaction, ts io.Reader, parent string, layer *roLayer) error {
-	digester := digest.Canonical.New()
+	digester := digest.Canonical.Digester()
 	tr := io.TeeReader(ts, digester.Hash())
 
-	tsw, err := tx.TarSplitWriter(true)
-	if err != nil {
-		return err
-	}
-	metaPacker := storage.NewJSONPacker(tsw)
-	defer tsw.Close()
+	rdr := tr
+	if ls.useTarSplit {
+		tsw, err := tx.TarSplitWriter(true)
+		if err != nil {
+			return err
+		}
+		metaPacker := storage.NewJSONPacker(tsw)
+		defer tsw.Close()
 
-	// we're passing nil here for the file putter, because the ApplyDiff will
-	// handle the extraction of the archive
-	rdr, err := asm.NewInputTarStream(tr, metaPacker, nil)
-	if err != nil {
-		return err
+		// we're passing nil here for the file putter, because the ApplyDiff will
+		// handle the extraction of the archive
+		rdr, err = asm.NewInputTarStream(tr, metaPacker, nil)
+		if err != nil {
+			return err
+		}
 	}
 
-	applySize, err := ls.driver.ApplyDiff(layer.cacheID, parent, archive.Reader(rdr))
+	applySize, err := ls.driver.ApplyDiff(layer.cacheID, parent, rdr)
 	if err != nil {
 		return err
 	}
@@ -275,7 +289,7 @@ func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, descr
 		descriptor:     descriptor,
 	}
 
-	if err = ls.driver.Create(layer.cacheID, pid, "", nil); err != nil {
+	if err = ls.driver.Create(layer.cacheID, pid, nil); err != nil {
 		return nil, err
 	}
 
@@ -357,6 +371,19 @@ func (ls *layerStore) Get(l ChainID) (Layer, error) {
 	return layer.getReference(), nil
 }
 
+func (ls *layerStore) Map() map[ChainID]Layer {
+	ls.layerL.Lock()
+	defer ls.layerL.Unlock()
+
+	layers := map[ChainID]Layer{}
+
+	for k, v := range ls.layerMap {
+		layers[k] = v
+	}
+
+	return layers
+}
+
 func (ls *layerStore) deleteLayer(layer *roLayer, metadata *Metadata) error {
 	err := ls.driver.Remove(layer.cacheID)
 	if err != nil {
@@ -429,7 +456,19 @@ func (ls *layerStore) Release(l Layer) ([]Metadata, error) {
 	return ls.releaseLayer(layer)
 }
 
-func (ls *layerStore) CreateRWLayer(name string, parent ChainID, mountLabel string, initFunc MountInit, storageOpt map[string]string) (RWLayer, error) {
+func (ls *layerStore) CreateRWLayer(name string, parent ChainID, opts *CreateRWLayerOpts) (RWLayer, error) {
+	var (
+		storageOpt map[string]string
+		initFunc   MountInit
+		mountLabel string
+	)
+
+	if opts != nil {
+		mountLabel = opts.MountLabel
+		storageOpt = opts.StorageOpt
+		initFunc = opts.InitFunc
+	}
+
 	ls.mountL.Lock()
 	defer ls.mountL.Unlock()
 	m, ok := ls.mounts[name]
@@ -473,7 +512,11 @@ func (ls *layerStore) CreateRWLayer(name string, parent ChainID, mountLabel stri
 		m.initID = pid
 	}
 
-	if err = ls.driver.CreateReadWrite(m.mountID, pid, "", storageOpt); err != nil {
+	createOpts := &graphdriver.CreateOpts{
+		StorageOpt: storageOpt,
+	}
+
+	if err = ls.driver.CreateReadWrite(m.mountID, pid, createOpts); err != nil {
 		return nil, err
 	}
 
@@ -583,7 +626,12 @@ func (ls *layerStore) initMount(graphID, parent, mountLabel string, initFunc Mou
 	// then the initID should be randomly generated.
 	initID := fmt.Sprintf("%s-init", graphID)
 
-	if err := ls.driver.Create(initID, parent, mountLabel, storageOpt); err != nil {
+	createOpts := &graphdriver.CreateOpts{
+		MountLabel: mountLabel,
+		StorageOpt: storageOpt,
+	}
+
+	if err := ls.driver.CreateReadWrite(initID, parent, createOpts); err != nil {
 		return "", err
 	}
 	p, err := ls.driver.Get(initID, "")
@@ -601,6 +649,34 @@ func (ls *layerStore) initMount(graphID, parent, mountLabel string, initFunc Mou
 	}
 
 	return initID, nil
+}
+
+func (ls *layerStore) getTarStream(rl *roLayer) (io.ReadCloser, error) {
+	if !ls.useTarSplit {
+		var parentCacheID string
+		if rl.parent != nil {
+			parentCacheID = rl.parent.cacheID
+		}
+
+		return ls.driver.Diff(rl.cacheID, parentCacheID)
+	}
+
+	r, err := ls.store.TarSplitReader(rl.chainID)
+	if err != nil {
+		return nil, err
+	}
+
+	pr, pw := io.Pipe()
+	go func() {
+		err := ls.assembleTarTo(rl.cacheID, r, nil, pw)
+		if err != nil {
+			pw.CloseWithError(err)
+		} else {
+			pw.Close()
+		}
+	}()
+
+	return pr, nil
 }
 
 func (ls *layerStore) assembleTarTo(graphID string, metadata io.ReadCloser, size *int64, w io.Writer) error {
