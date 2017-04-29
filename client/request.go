@@ -97,14 +97,8 @@ func (cli *Client) buildRequest(method, path string, body io.Reader, headers hea
 		return nil, err
 	}
 	req = cli.addHeaders(req, headers)
-
-	if cli.proto == "unix" || cli.proto == "npipe" {
-		// For local communications, it doesn't matter what the host is. We just
-		// need a valid and meaningful host name. (See #189)
-		req.Host = "docker"
-	}
-
-	req.URL.Host = cli.addr
+	req.Host = cli.httpRequestHost()
+	req.URL.Host = cli.httpRequestURLHost()
 	req.URL.Scheme = cli.scheme
 
 	if expectedPayload && req.Header.Get("Content-Type") == "" {

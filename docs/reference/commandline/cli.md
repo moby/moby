@@ -238,6 +238,29 @@ Certificate Authority, you need to place the certificate at
 Alternatively you can trust the certificate globally by adding it to your system's
 list of root Certificate Authorities.
 
+## Daemon socket option
+
+The Docker client supports the following socket types:
+`unix`, `npipe`, `tcp`, and `ssh`.
+
+For `unix`, `npipe`, and `tcp` socket types, please refer to the corresponding section of
+[the documentation of Docker daemon](dockerd.md).
+
+The `ssh` socket type allows connecting to the Unix domain socket listening on a remote daemon
+via an OpenSSH connection.
+
+Currently, the `ssh` socket type supports the following authentication methods:
+
+ - SSH Agent (on Unix)
+ - pageant   (on Windows)
+ - Private key file, e.g. `~/.ssh/id_rsa`. (specifying `IdentityFile` in `ssh_config` is currently unsupported)
+
+To use the `ssh` socket type, append `-H ssh://<user>@<host>:<port><socketpath>` to the `docker` command line, or set the value of `DOCKER_HOST` to `ssh://<user>@<host>:<port><socketpath>`.
+e.g. `ssh://me@example.com:22/var/run/docker.sock`.
+
+You can also use the abbreviated forms as in `-H ssh://<host>`, `-H ssh://<user>@<host>`, or so on.
+In the abbreviated form, the user name defaults to the name of the current user on the client side, the port defaults to 22, and the socket path defaults to `/var/run/docker.sock`.
+
 ## Examples
 
 ### Display help text

@@ -66,6 +66,7 @@ RUN apt-get update && apt-get install -y \
 	libzfs-dev \
 	mercurial \
 	net-tools \
+	openssh-server \
 	pkg-config \
 	protobuf-compiler \
 	protobuf-c-compiler \

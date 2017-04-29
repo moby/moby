@@ -297,7 +297,9 @@ func newHTTPClient(host string, tlsOptions *tlsconfig.Options) (*http.Client, er
 		return nil, err
 	}
 
-	sockets.ConfigureTransport(tr, proto, addr)
+	if err := sockets.ConfigureTransport(tr, proto, addr); err != nil {
+		return nil, err
+	}
 
 	return &http.Client{
 		Transport: tr,
