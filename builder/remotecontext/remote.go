@@ -1,4 +1,4 @@
-package builder
+package remotecontext
 
 import (
 	"bytes"
@@ -8,9 +8,8 @@ import (
 	"io/ioutil"
 	"regexp"
 
-	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/builder"
 	"github.com/docker/docker/pkg/httputils"
-	"github.com/docker/docker/pkg/urlutil"
 )
 
 // When downloading remote contexts, limit the amount (in bytes)
@@ -30,7 +29,7 @@ var mimeRe = regexp.MustCompile(acceptableRemoteMIME)
 // If a match is found, then the body is sent to the contentType handler and a (potentially compressed) tar stream is expected
 // to be returned. If no match is found, it is assumed the body is a tar stream (compressed or not).
 // In either case, an (assumed) tar stream is passed to MakeTarSumContext whose result is returned.
-func MakeRemoteContext(remoteURL string, contentTypeHandlers map[string]func(io.ReadCloser) (io.ReadCloser, error)) (ModifiableContext, error) {
+func MakeRemoteContext(remoteURL string, contentTypeHandlers map[string]func(io.ReadCloser) (io.ReadCloser, error)) (builder.Source, error) {
 	f, err := httputils.Download(remoteURL)
 	if err != nil {
 		return nil, fmt.Errorf("error downloading remote context %s: %v", remoteURL, err)
@@ -65,46 +64,6 @@ func MakeRemoteContext(remoteURL string, contentTypeHandlers map[string]func(io.
 	// Pass through - this is a pre-packaged context, presumably
 	// with a Dockerfile with the right name inside it.
 	return MakeTarSumContext(contextReader)
-}
-
-// DetectContextFromRemoteURL returns a context and in certain cases the name of the dockerfile to be used
-// irrespective of user input.
-// progressReader is only used if remoteURL is actually a URL (not empty, and not a Git endpoint).
-func DetectContextFromRemoteURL(r io.ReadCloser, remoteURL string, createProgressReader func(in io.ReadCloser) io.ReadCloser) (context ModifiableContext, dockerfileName string, err error) {
-	switch {
-	case remoteURL == "":
-		context, err = MakeTarSumContext(r)
-	case urlutil.IsGitURL(remoteURL):
-		context, err = MakeGitContext(remoteURL)
-	case urlutil.IsURL(remoteURL):
-		context, err = MakeRemoteContext(remoteURL, map[string]func(io.ReadCloser) (io.ReadCloser, error){
-			httputils.MimeTypes.TextPlain: func(rc io.ReadCloser) (io.ReadCloser, error) {
-				dockerfile, err := ioutil.ReadAll(rc)
-				if err != nil {
-					return nil, err
-				}
-
-				// dockerfileName is set to signal that the remote was interpreted as a single Dockerfile, in which case the caller
-				// should use dockerfileName as the new name for the Dockerfile, irrespective of any other user input.
-				dockerfileName = DefaultDockerfileName
-
-				// TODO: return a context without tarsum
-				r, err := archive.Generate(dockerfileName, string(dockerfile))
-				if err != nil {
-					return nil, err
-				}
-
-				return ioutil.NopCloser(r), nil
-			},
-			// fallback handler (tar context)
-			"": func(rc io.ReadCloser) (io.ReadCloser, error) {
-				return createProgressReader(rc), nil
-			},
-		})
-	default:
-		err = fmt.Errorf("remoteURL (%s) could not be recognized as URL", remoteURL)
-	}
-	return
 }
 
 // inspectResponse looks into the http response data at r to determine whether its

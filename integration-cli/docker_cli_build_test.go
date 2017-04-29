@@ -505,7 +505,7 @@ func (s *DockerSuite) TestBuildAddSingleFileToWorkdir(c *check.C) {
 
 func (s *DockerSuite) TestBuildAddSingleFileToExistDir(c *check.C) {
 	testRequires(c, DaemonIsLinux) // Linux specific test
-	buildImageSuccessfully(c, "testaddsinglefiletoexistdir", build.WithBuildContext(c,
+	cli.BuildCmd(c, "testaddsinglefiletoexistdir", build.WithBuildContext(c,
 		build.WithFile("Dockerfile", `FROM busybox
 RUN echo 'dockerio:x:1001:1001::/bin:/bin/false' >> /etc/passwd
 RUN echo 'dockerio:x:1001:' >> /etc/group
@@ -561,13 +561,13 @@ func (s *DockerSuite) TestBuildUsernamespaceValidateRemappedRoot(c *check.C) {
 	}
 	name := "testbuildusernamespacevalidateremappedroot"
 	for _, tc := range testCases {
-		buildImageSuccessfully(c, name, build.WithBuildContext(c,
+		cli.BuildCmd(c, name, build.WithBuildContext(c,
 			build.WithFile("Dockerfile", fmt.Sprintf(`FROM busybox
 %s
 RUN [ $(ls -l / | grep new_dir | awk '{print $3":"$4}') = 'root:root' ]`, tc)),
 			build.WithFile("test_dir/test_file", "test file")))
 
-		dockerCmd(c, "rmi", name)
+		cli.DockerCmd(c, "rmi", name)
 	}
 }
 
@@ -576,7 +576,7 @@ func (s *DockerSuite) TestBuildAddAndCopyFileWithWhitespace(c *check.C) {
 	name := "testaddfilewithwhitespace"
 
 	for _, command := range []string{"ADD", "COPY"} {
-		buildImageSuccessfully(c, name, build.WithBuildContext(c,
+		cli.BuildCmd(c, name, build.WithBuildContext(c,
 			build.WithFile("Dockerfile", fmt.Sprintf(`FROM busybox
 RUN mkdir "/test dir"
 RUN mkdir "/test_dir"
@@ -600,7 +600,7 @@ RUN [ $(cat "/test dir/test_file6") = 'test6' ]`, command, command, command, com
 			build.WithFile("test dir/test_file6", "test6"),
 		))
 
-		dockerCmd(c, "rmi", name)
+		cli.DockerCmd(c, "rmi", name)
 	}
 }
 
@@ -623,7 +623,7 @@ RUN find "test5" "C:/test dir/test_file5"
 RUN find "test6" "C:/test dir/test_file6"`
 
 	name := "testcopyfilewithwhitespace"
-	buildImageSuccessfully(c, name, build.WithBuildContext(c,
+	cli.BuildCmd(c, name, build.WithBuildContext(c,
 		build.WithFile("Dockerfile", dockerfile),
 		build.WithFile("test file1", "test1"),
 		build.WithFile("test_file2", "test2"),
@@ -4354,15 +4354,26 @@ func (s *DockerSuite) TestBuildTimeArgHistoryExclusions(c *check.C) {
 		ARG %s
 		ARG %s
 		RUN echo "Testing Build Args!"`, envKey, explicitProxyKey)
-	buildImage(imgName,
-		cli.WithFlags("--build-arg", fmt.Sprintf("%s=%s", envKey, envVal),
-			"--build-arg", fmt.Sprintf("%s=%s", explicitProxyKey, explicitProxyVal),
-			"--build-arg", proxy),
-		build.WithDockerfile(dockerfile),
-	).Assert(c, icmd.Success)
 
-	out, _ := dockerCmd(c, "history", "--no-trunc", imgName)
+	buildImage := func(imgName string) string {
+		cli.BuildCmd(c, imgName,
+			cli.WithFlags("--build-arg", "https_proxy=https://proxy.example.com",
+				"--build-arg", fmt.Sprintf("%s=%s", envKey, envVal),
+				"--build-arg", fmt.Sprintf("%s=%s", explicitProxyKey, explicitProxyVal),
+				"--build-arg", proxy),
+			build.WithDockerfile(dockerfile),
+		)
+		return getIDByName(c, imgName)
+	}
+
+	origID := buildImage(imgName)
+	result := cli.DockerCmd(c, "history", "--no-trunc", imgName)
+	out := result.Stdout()
+
 	if strings.Contains(out, proxy) {
+		c.Fatalf("failed to exclude proxy settings from history!")
+	}
+	if strings.Contains(out, "https_proxy") {
 		c.Fatalf("failed to exclude proxy settings from history!")
 	}
 	if !strings.Contains(out, fmt.Sprintf("%s=%s", envKey, envVal)) {
@@ -4371,6 +4382,9 @@ func (s *DockerSuite) TestBuildTimeArgHistoryExclusions(c *check.C) {
 	if !strings.Contains(out, fmt.Sprintf("%s=%s", envKey, envVal)) {
 		c.Fatalf("missing build arguments from output")
 	}
+
+	cacheID := buildImage(imgName + "-two")
+	c.Assert(origID, checker.Equals, cacheID)
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgCacheHit(c *check.C) {

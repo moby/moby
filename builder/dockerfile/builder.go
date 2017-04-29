@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/command"
 	"github.com/docker/docker/builder/dockerfile/parser"
+	"github.com/docker/docker/builder/remotecontext"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
@@ -48,24 +49,23 @@ type Builder struct {
 	Output io.Writer
 
 	docker    builder.Backend
-	context   builder.Context
+	source    builder.Source
 	clientCtx context.Context
 
 	runConfig     *container.Config // runconfig for cmd, run, entrypoint etc.
-	flags         *BFlags
 	tmpContainers map[string]struct{}
-	image         string         // imageID
 	imageContexts *imageContexts // helper for storing contexts from builds
-	noBaseImage   bool           // A flag to track the use of `scratch` as the base image
-	maintainer    string
-	cmdSet        bool
 	disableCommit bool
 	cacheBusted   bool
 	buildArgs     *buildArgs
-	escapeToken   rune
+	imageCache    builder.ImageCache
 
-	imageCache builder.ImageCache
-	from       builder.Image
+	// TODO: these move to DispatchState
+	maintainer  string
+	cmdSet      bool
+	noBaseImage bool   // A flag to track the use of `scratch` as the base image
+	image       string // imageID
+	from        builder.Image
 }
 
 // BuildManager implements builder.Backend and is shared across all Builder objects.
@@ -80,35 +80,37 @@ func NewBuildManager(b builder.Backend) (bm *BuildManager) {
 }
 
 // BuildFromContext builds a new image from a given context.
-func (bm *BuildManager) BuildFromContext(ctx context.Context, src io.ReadCloser, remote string, buildOptions *types.ImageBuildOptions, pg backend.ProgressWriter) (string, error) {
+func (bm *BuildManager) BuildFromContext(ctx context.Context, src io.ReadCloser, buildOptions *types.ImageBuildOptions, pg backend.ProgressWriter) (string, error) {
 	if buildOptions.Squash && !bm.backend.HasExperimental() {
 		return "", apierrors.NewBadRequestError(errors.New("squash is only supported with experimental mode"))
 	}
-	buildContext, dockerfileName, err := builder.DetectContextFromRemoteURL(src, remote, pg.ProgressReaderFunc)
+	if buildOptions.Dockerfile == "" {
+		buildOptions.Dockerfile = builder.DefaultDockerfileName
+	}
+
+	source, dockerfile, err := remotecontext.Detect(ctx, buildOptions.RemoteContext, buildOptions.Dockerfile, src, pg.ProgressReaderFunc)
 	if err != nil {
 		return "", err
 	}
-	defer func() {
-		if err := buildContext.Close(); err != nil {
-			logrus.Debugf("[BUILDER] failed to remove temporary context: %v", err)
-		}
-	}()
-
-	if len(dockerfileName) > 0 {
-		buildOptions.Dockerfile = dockerfileName
+	if source != nil {
+		defer func() {
+			if err := source.Close(); err != nil {
+				logrus.Debugf("[BUILDER] failed to remove temporary context: %v", err)
+			}
+		}()
 	}
-	b, err := NewBuilder(ctx, buildOptions, bm.backend, builder.DockerIgnoreContext{ModifiableContext: buildContext})
+	b, err := NewBuilder(ctx, buildOptions, bm.backend, source)
 	if err != nil {
 		return "", err
 	}
 	b.imageContexts.cache = bm.pathCache
-	return b.build(pg.StdoutFormatter, pg.StderrFormatter, pg.Output)
+	return b.build(dockerfile, pg.StdoutFormatter, pg.StderrFormatter, pg.Output)
 }
 
 // NewBuilder creates a new Dockerfile builder from an optional dockerfile and a Config.
 // If dockerfile is nil, the Dockerfile specified by Config.DockerfileName,
 // will be read from the Context passed to Build().
-func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, backend builder.Backend, buildContext builder.Context) (b *Builder, err error) {
+func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, backend builder.Backend, source builder.Source) (b *Builder, err error) {
 	if config == nil {
 		config = new(types.ImageBuildOptions)
 	}
@@ -118,11 +120,10 @@ func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, back
 		Stdout:        os.Stdout,
 		Stderr:        os.Stderr,
 		docker:        backend,
-		context:       buildContext,
+		source:        source,
 		runConfig:     new(container.Config),
 		tmpContainers: map[string]struct{}{},
 		buildArgs:     newBuildArgs(config.BuildArgs),
-		escapeToken:   parser.DefaultEscapeToken,
 	}
 	b.imageContexts = &imageContexts{b: b}
 	return b, nil
@@ -173,17 +174,12 @@ func sanitizeRepoAndTags(names []string) ([]reference.Named, error) {
 
 // build runs the Dockerfile builder from a context and a docker object that allows to make calls
 // to Docker.
-func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (string, error) {
+func (b *Builder) build(dockerfile *parser.Result, stdout io.Writer, stderr io.Writer, out io.Writer) (string, error) {
 	defer b.imageContexts.unmount()
 
 	b.Stdout = stdout
 	b.Stderr = stderr
 	b.Output = out
-
-	dockerfile, err := b.readAndParseDockerfile()
-	if err != nil {
-		return "", err
-	}
 
 	repoAndTags, err := sanitizeRepoAndTags(b.options.Tags)
 	if err != nil {
@@ -196,36 +192,35 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 		return "", err
 	}
 
-	shortImageID, err := b.dispatchDockerfileWithCancellation(dockerfile)
+	imageID, err := b.dispatchDockerfileWithCancellation(dockerfile)
 	if err != nil {
 		return "", err
 	}
 
 	b.warnOnUnusedBuildArgs()
 
-	if b.image == "" {
+	if imageID == "" {
 		return "", errors.New("No image was generated. Is your Dockerfile empty?")
 	}
 
 	if b.options.Squash {
-		if err := b.squashBuild(); err != nil {
+		if imageID, err = b.squashBuild(imageID); err != nil {
 			return "", err
 		}
 	}
 
-	fmt.Fprintf(b.Stdout, "Successfully built %s\n", shortImageID)
-	if err := b.tagImages(repoAndTags); err != nil {
+	fmt.Fprintf(b.Stdout, "Successfully built %s\n", stringid.TruncateID(imageID))
+	if err := b.tagImages(imageID, repoAndTags); err != nil {
 		return "", err
 	}
-	return b.image, nil
+	return imageID, nil
 }
 
 func (b *Builder) dispatchDockerfileWithCancellation(dockerfile *parser.Result) (string, error) {
-	// TODO: pass this to dispatchRequest instead
-	b.escapeToken = dockerfile.EscapeToken
+	shlex := NewShellLex(dockerfile.EscapeToken)
 
 	total := len(dockerfile.AST.Children)
-	var shortImgID string
+	var imageID string
 	for i, n := range dockerfile.AST.Children {
 		select {
 		case <-b.clientCtx.Done():
@@ -240,15 +235,17 @@ func (b *Builder) dispatchDockerfileWithCancellation(dockerfile *parser.Result) 
 			break
 		}
 
-		if err := b.dispatch(i, total, n); err != nil {
+		if err := b.dispatch(i, total, n, shlex); err != nil {
 			if b.options.ForceRemove {
 				b.clearTmp()
 			}
 			return "", err
 		}
 
-		shortImgID = stringid.TruncateID(b.image)
-		fmt.Fprintf(b.Stdout, " ---> %s\n", shortImgID)
+		// TODO: get this from dispatch
+		imageID = b.image
+
+		fmt.Fprintf(b.Stdout, " ---> %s\n", stringid.TruncateID(imageID))
 		if b.options.Remove {
 			b.clearTmp()
 		}
@@ -258,20 +255,20 @@ func (b *Builder) dispatchDockerfileWithCancellation(dockerfile *parser.Result) 
 		return "", errors.Errorf("failed to reach build target %s in Dockerfile", b.options.Target)
 	}
 
-	return shortImgID, nil
+	return imageID, nil
 }
 
-func (b *Builder) squashBuild() error {
+func (b *Builder) squashBuild(imageID string) (string, error) {
 	var fromID string
 	var err error
 	if b.from != nil {
 		fromID = b.from.ImageID()
 	}
-	b.image, err = b.docker.SquashImage(b.image, fromID)
+	imageID, err = b.docker.SquashImage(imageID, fromID)
 	if err != nil {
-		return errors.Wrap(err, "error squashing image")
+		return "", errors.Wrap(err, "error squashing image")
 	}
-	return nil
+	return imageID, nil
 }
 
 func addNodesForLabelOption(dockerfile *parser.Node, labels map[string]string) {
@@ -292,8 +289,8 @@ func (b *Builder) warnOnUnusedBuildArgs() {
 	}
 }
 
-func (b *Builder) tagImages(repoAndTags []reference.Named) error {
-	imageID := image.ID(b.image)
+func (b *Builder) tagImages(id string, repoAndTags []reference.Named) error {
+	imageID := image.ID(id)
 	for _, rt := range repoAndTags {
 		if err := b.docker.TagImageWithReference(imageID, rt); err != nil {
 			return err
@@ -304,6 +301,7 @@ func (b *Builder) tagImages(repoAndTags []reference.Named) error {
 }
 
 // hasFromImage returns true if the builder has processed a `FROM <image>` line
+// TODO: move to DispatchState
 func (b *Builder) hasFromImage() bool {
 	return b.image != "" || b.noBaseImage
 }
@@ -360,13 +358,12 @@ func checkDispatchDockerfile(dockerfile *parser.Node) error {
 }
 
 func dispatchFromDockerfile(b *Builder, result *parser.Result) error {
-	// TODO: pass this to dispatchRequest instead
-	b.escapeToken = result.EscapeToken
+	shlex := NewShellLex(result.EscapeToken)
 	ast := result.AST
 	total := len(ast.Children)
 
 	for i, n := range ast.Children {
-		if err := b.dispatch(i, total, n); err != nil {
+		if err := b.dispatch(i, total, n, shlex); err != nil {
 			return err
 		}
 	}

@@ -108,10 +108,10 @@ func printJoinCommand(ctx context.Context, dockerCli command.Cli, nodeID string,
 
 	if node.ManagerStatus != nil {
 		if worker {
-			fmt.Fprintf(dockerCli.Out(), "To add a worker to this swarm, run the following command:\n\n    docker swarm join \\\n    --token %s \\\n    %s\n\n", sw.JoinTokens.Worker, node.ManagerStatus.Addr)
+			fmt.Fprintf(dockerCli.Out(), "To add a worker to this swarm, run the following command:\n\n    docker swarm join --token %s %s\n\n", sw.JoinTokens.Worker, node.ManagerStatus.Addr)
 		}
 		if manager {
-			fmt.Fprintf(dockerCli.Out(), "To add a manager to this swarm, run the following command:\n\n    docker swarm join \\\n    --token %s \\\n    %s\n\n", sw.JoinTokens.Manager, node.ManagerStatus.Addr)
+			fmt.Fprintf(dockerCli.Out(), "To add a manager to this swarm, run the following command:\n\n    docker swarm join --token %s %s\n\n", sw.JoinTokens.Manager, node.ManagerStatus.Addr)
 		}
 	}
 

@@ -308,10 +308,12 @@ definitions:
       Name:
         type: "string"
         description: |
+          - Empty string means not to restart
           - `always` Always restart
           - `unless-stopped` Restart always except when the user has manually stopped the container
           - `on-failure` Restart only when the container exit code is non-zero
         enum:
+          - ""
           - "always"
           - "unless-stopped"
           - "on-failure"
@@ -499,16 +501,16 @@ definitions:
         items:
           type: "string"
       Interval:
-        description: "The time to wait between checks in nanoseconds. It should be 0 or not less than 1000000000(1s). 0 means inherit."
+        description: "The time to wait between checks in nanoseconds. It should be 0 or at least 1000000 (1 ms). 0 means inherit."
         type: "integer"
       Timeout:
-        description: "The time to wait before considering the check to have hung. It should be 0 or not less than 1000000000(1s). 0 means inherit."
+        description: "The time to wait before considering the check to have hung. It should be 0 or at least 1000000 (1 ms). 0 means inherit."
         type: "integer"
       Retries:
         description: "The number of consecutive failures needed to consider a container as unhealthy. 0 means inherit."
         type: "integer"
       StartPeriod:
-        description: "Start period for the container to initialize before starting health-retries countdown in nanoseconds. 0 means inherit."
+        description: "Start period for the container to initialize before starting health-retries countdown in nanoseconds. It should be 0 or at least 1000000 (1 ms). 0 means inherit."
         type: "integer"
 
   HostConfig:
@@ -1835,6 +1837,9 @@ definitions:
                   type: "object"
                   additionalProperties:
                     type: "string"
+                CACert:
+                  description: "The root CA certificate (in PEM format) this external CA uses to issue TLS certificates (assumed to be to the current swarm root CA certificate if not provided)."
+                  type: "string"
       EncryptionConfig:
         description: "Parameters related to encryption-at-rest."
         type: "object"

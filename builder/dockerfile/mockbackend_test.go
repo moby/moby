@@ -33,7 +33,7 @@ func (m *MockBackend) PullOnBuild(ctx context.Context, name string, authConfigs 
 	return nil, nil
 }
 
-func (m *MockBackend) ContainerAttachRaw(cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool) error {
+func (m *MockBackend) ContainerAttachRaw(cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool, attached chan struct{}) error {
 	return nil
 }
 
@@ -69,7 +69,7 @@ func (m *MockBackend) ContainerCreateWorkdir(containerID string) error {
 	return nil
 }
 
-func (m *MockBackend) CopyOnBuild(containerID string, destPath string, src builder.FileInfo, decompress bool) error {
+func (m *MockBackend) CopyOnBuild(containerID string, destPath string, srcRoot string, srcPath string, decompress bool) error {
 	return nil
 }
 

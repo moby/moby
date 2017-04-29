@@ -1,11 +1,21 @@
-package builder
+package remotecontext
 
 import (
+	"errors"
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"sort"
 	"testing"
+
+	"github.com/docker/docker/builder"
+)
+
+const (
+	dockerfileContents   = "FROM busybox"
+	dockerignoreFilename = ".dockerignore"
+	testfileContents     = "test"
 )
 
 const shouldStayFilename = "should_stay"
@@ -43,10 +53,9 @@ func checkDirectory(t *testing.T, dir string, expectedFiles []string) {
 }
 
 func executeProcess(t *testing.T, contextDir string) {
-	modifiableCtx := &tarSumContext{root: contextDir}
-	ctx := DockerIgnoreContext{ModifiableContext: modifiableCtx}
+	modifiableCtx := &stubRemote{root: contextDir}
 
-	err := ctx.Process([]string{DefaultDockerfileName})
+	err := removeDockerfile(modifiableCtx, builder.DefaultDockerfileName)
 
 	if err != nil {
 		t.Fatalf("Error when executing Process: %s", err)
@@ -59,7 +68,7 @@ func TestProcessShouldRemoveDockerfileDockerignore(t *testing.T) {
 
 	createTestTempFile(t, contextDir, shouldStayFilename, testfileContents, 0777)
 	createTestTempFile(t, contextDir, dockerignoreFilename, "Dockerfile\n.dockerignore", 0777)
-	createTestTempFile(t, contextDir, DefaultDockerfileName, dockerfileContents, 0777)
+	createTestTempFile(t, contextDir, builder.DefaultDockerfileName, dockerfileContents, 0777)
 
 	executeProcess(t, contextDir)
 
@@ -72,11 +81,11 @@ func TestProcessNoDockerignore(t *testing.T) {
 	defer cleanup()
 
 	createTestTempFile(t, contextDir, shouldStayFilename, testfileContents, 0777)
-	createTestTempFile(t, contextDir, DefaultDockerfileName, dockerfileContents, 0777)
+	createTestTempFile(t, contextDir, builder.DefaultDockerfileName, dockerfileContents, 0777)
 
 	executeProcess(t, contextDir)
 
-	checkDirectory(t, contextDir, []string{shouldStayFilename, DefaultDockerfileName})
+	checkDirectory(t, contextDir, []string{shouldStayFilename, builder.DefaultDockerfileName})
 
 }
 
@@ -85,11 +94,30 @@ func TestProcessShouldLeaveAllFiles(t *testing.T) {
 	defer cleanup()
 
 	createTestTempFile(t, contextDir, shouldStayFilename, testfileContents, 0777)
-	createTestTempFile(t, contextDir, DefaultDockerfileName, dockerfileContents, 0777)
+	createTestTempFile(t, contextDir, builder.DefaultDockerfileName, dockerfileContents, 0777)
 	createTestTempFile(t, contextDir, dockerignoreFilename, "input1\ninput2", 0777)
 
 	executeProcess(t, contextDir)
 
-	checkDirectory(t, contextDir, []string{shouldStayFilename, DefaultDockerfileName, dockerignoreFilename})
+	checkDirectory(t, contextDir, []string{shouldStayFilename, builder.DefaultDockerfileName, dockerignoreFilename})
 
+}
+
+// TODO: remove after moving to a separate pkg
+type stubRemote struct {
+	root string
+}
+
+func (r *stubRemote) Hash(path string) (string, error) {
+	return "", errors.New("not implemented")
+}
+
+func (r *stubRemote) Root() string {
+	return r.root
+}
+func (r *stubRemote) Close() error {
+	return errors.New("not implemented")
+}
+func (r *stubRemote) Remove(p string) error {
+	return os.Remove(filepath.Join(r.root, p))
 }

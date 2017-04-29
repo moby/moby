@@ -19,7 +19,7 @@ type removeOptions struct {
 }
 
 // NewRemoveCommand creates a new `docker remove` command
-func NewRemoveCommand(dockerCli *command.DockerCli) *cobra.Command {
+func NewRemoveCommand(dockerCli command.Cli) *cobra.Command {
 	var opts removeOptions
 
 	cmd := &cobra.Command{
@@ -39,14 +39,14 @@ func NewRemoveCommand(dockerCli *command.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func newRemoveCommand(dockerCli *command.DockerCli) *cobra.Command {
+func newRemoveCommand(dockerCli command.Cli) *cobra.Command {
 	cmd := *NewRemoveCommand(dockerCli)
 	cmd.Aliases = []string{"rmi", "remove"}
 	cmd.Use = "rm [OPTIONS] IMAGE [IMAGE...]"
 	return &cmd
 }
 
-func runRemove(dockerCli *command.DockerCli, opts removeOptions, images []string) error {
+func runRemove(dockerCli command.Cli, opts removeOptions, images []string) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 

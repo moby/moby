@@ -1,11 +1,13 @@
 package dockerfile
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
+	"github.com/docker/docker/builder/remotecontext"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,7 +19,7 @@ func TestEmptyDockerfile(t *testing.T) {
 
 	createTestTempFile(t, contextDir, builder.DefaultDockerfileName, "", 0777)
 
-	readAndCheckDockerfile(t, "emptyDockerfile", contextDir, "", "The Dockerfile (Dockerfile) cannot be empty")
+	readAndCheckDockerfile(t, "emptyDockerfile", contextDir, "", "the Dockerfile (Dockerfile) cannot be empty")
 }
 
 func TestSymlinkDockerfile(t *testing.T) {
@@ -63,21 +65,61 @@ func readAndCheckDockerfile(t *testing.T, testName, contextDir, dockerfilePath, 
 		}
 	}()
 
-	context, err := builder.MakeTarSumContext(tarStream)
-	require.NoError(t, err)
-
-	defer func() {
-		if err = context.Close(); err != nil {
-			t.Fatalf("Error when closing tar context: %s", err)
-		}
-	}()
-
-	options := &types.ImageBuildOptions{
-		Dockerfile: dockerfilePath,
+	if dockerfilePath == "" { // handled in BuildWithContext
+		dockerfilePath = builder.DefaultDockerfileName
 	}
 
-	b := &Builder{options: options, context: context}
-
-	_, err = b.readAndParseDockerfile()
+	_, _, err = remotecontext.Detect(context.Background(), "", dockerfilePath, tarStream, nil)
 	assert.EqualError(t, err, expectedError)
+}
+
+func TestCopyRunConfig(t *testing.T) {
+	defaultEnv := []string{"foo=1"}
+	defaultCmd := []string{"old"}
+
+	var testcases = []struct {
+		doc       string
+		modifiers []runConfigModifier
+		expected  *container.Config
+	}{
+		{
+			doc:       "Set the command",
+			modifiers: []runConfigModifier{withCmd([]string{"new"})},
+			expected: &container.Config{
+				Cmd: []string{"new"},
+				Env: defaultEnv,
+			},
+		},
+		{
+			doc:       "Set the command to a comment",
+			modifiers: []runConfigModifier{withCmdComment("comment")},
+			expected: &container.Config{
+				Cmd: append(defaultShell, "#(nop) ", "comment"),
+				Env: defaultEnv,
+			},
+		},
+		{
+			doc: "Set the command and env",
+			modifiers: []runConfigModifier{
+				withCmd([]string{"new"}),
+				withEnv([]string{"one", "two"}),
+			},
+			expected: &container.Config{
+				Cmd: []string{"new"},
+				Env: []string{"one", "two"},
+			},
+		},
+	}
+
+	for _, testcase := range testcases {
+		runConfig := &container.Config{
+			Cmd: defaultCmd,
+			Env: defaultEnv,
+		}
+		runConfigCopy := copyRunConfig(runConfig, testcase.modifiers...)
+		assert.Equal(t, testcase.expected, runConfigCopy, testcase.doc)
+		// Assert the original was not modified
+		assert.NotEqual(t, runConfig, runConfigCopy, testcase.doc)
+	}
+
 }

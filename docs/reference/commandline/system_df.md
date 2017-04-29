@@ -21,8 +21,9 @@ Usage:	docker system df [OPTIONS]
 Show docker filesystem usage
 
 Options:
-      --help      Print usage
-  -v, --verbose   Show detailed information on space usage
+      --format string   Pretty-print images using a Go template
+      --help            Print usage
+  -v, --verbose         Show detailed information on space usage
 ```
 
 ## Description

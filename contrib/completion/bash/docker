@@ -1512,7 +1512,6 @@ _docker_container_run_and_create() {
 		--expose
 		--group-add
 		--hostname -h
-		--init-path
 		--ip
 		--ip6
 		--ipc
@@ -1636,7 +1635,7 @@ _docker_container_run_and_create() {
 			__docker_complete_capabilities_droppable
 			return
 			;;
-		--cidfile|--env-file|--init-path|--label-file)
+		--cidfile|--env-file|--label-file)
 			_filedir
 			return
 			;;
@@ -2299,9 +2298,15 @@ _docker_image_build() {
 }
 
 _docker_image_history() {
+	case "$prev" in
+		--format)
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help --human=false -H=false --no-trunc --quiet -q" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--format --help --human=false -H=false --no-trunc --quiet -q" -- "$cur" ) )
 			;;
 		*)
 			local counter=$(__docker_pos_first_nonflag)
@@ -3018,8 +3023,6 @@ _docker_service_update() {
 # _docker_service_update_and_create is the combined completion for `docker service create`
 # and `docker service update`
 _docker_service_update_and_create() {
-	local $subcommand="${words[$subcommand_pos]}"
-
 	local options_with_args="
 		--endpoint-mode
 		--env -e
@@ -3303,7 +3306,7 @@ _docker_swarm_init() {
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--advertise-addr --autolock --availability --cert-expiry --dispatcher-heartbeat --external-ca --force-new-cluster --help --listen-addr --max-snapshots --snapshot-interval --task-history-limit" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--advertise-addr --data-path-addr --autolock --availability --cert-expiry --dispatcher-heartbeat --external-ca --force-new-cluster --help --listen-addr --max-snapshots --snapshot-interval --task-history-limit" -- "$cur" ) )
 			;;
 	esac
 }
@@ -3339,7 +3342,7 @@ _docker_swarm_join() {
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--advertise-addr --availability --help --listen-addr --token" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--advertise-addr --data-path-addr --availability --help --listen-addr --token" -- "$cur" ) )
 			;;
 		*:)
 			COMPREPLY=( $( compgen -W "2377" -- "${cur##*:}" ) )
@@ -4030,9 +4033,15 @@ _docker_stack_list() {
 }
 
 _docker_stack_ls() {
+	case "$prev" in
+		--format)
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--format --help" -- "$cur" ) )
 			;;
 	esac
 }
@@ -4170,9 +4179,15 @@ _docker_system() {
 }
 
 _docker_system_df() {
+	case "$prev" in
+		--format)
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help --verbose -v" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--format --help --verbose -v" -- "$cur" ) )
 			;;
 	esac
 }
@@ -4480,6 +4495,7 @@ _docker() {
 	)
 
 	local legacy_commands=(
+		attach
 		commit
 		cp
 		create

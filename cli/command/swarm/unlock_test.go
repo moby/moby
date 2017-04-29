@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/internal/test"
 	"github.com/docker/docker/pkg/testutil"
 	"github.com/pkg/errors"
@@ -96,7 +97,7 @@ func TestSwarmUnlock(t *testing.T) {
 			return nil
 		},
 	}, buf)
-	dockerCli.SetIn(ioutil.NopCloser(strings.NewReader(input)))
+	dockerCli.SetIn(command.NewInStream(ioutil.NopCloser(strings.NewReader(input))))
 	cmd := newUnlockCommand(dockerCli)
 	assert.NoError(t, cmd.Execute())
 }
