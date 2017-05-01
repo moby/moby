@@ -111,7 +111,7 @@ func (daemon *Daemon) pullImageWithReference(ctx context.Context, ref reference.
 }
 
 // GetRepository returns a repository from the registry.
-func (daemon *Daemon) GetRepository(ctx context.Context, ref reference.NamedTagged, authConfig *types.AuthConfig) (dist.Repository, bool, error) {
+func (daemon *Daemon) GetRepository(ctx context.Context, ref reference.Named, authConfig *types.AuthConfig) (dist.Repository, bool, error) {
 	// get repository info
 	repoInfo, err := daemon.RegistryService.ResolveRepository(ref)
 	if err != nil {
