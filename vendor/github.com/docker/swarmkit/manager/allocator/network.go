@@ -1089,12 +1089,7 @@ func updateTaskStatus(t *api.Task, newStatus api.TaskState, message string) {
 
 // IsIngressNetwork returns whether the passed network is an ingress network.
 func IsIngressNetwork(nw *api.Network) bool {
-	if nw.Spec.Ingress {
-		return true
-	}
-	// Check if legacy defined ingress network
-	_, ok := nw.Spec.Annotations.Labels["com.docker.swarm.internal"]
-	return ok && nw.Spec.Annotations.Name == "ingress"
+	return networkallocator.IsIngressNetwork(nw)
 }
 
 // GetIngressNetwork fetches the ingress network from store.
