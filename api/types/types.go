@@ -396,7 +396,7 @@ type NetworkResource struct {
 	Name       string                         // Name is the requested name of the network
 	ID         string                         `json:"Id"` // ID uniquely identifies a network on a single machine
 	Created    time.Time                      // Created is the time the network created
-	Scope      string                         // Scope describes the level at which the network exists (e.g. `global` for cluster-wide or `local` for machine level)
+	Scope      string                         // Scope describes the level at which the network exists (e.g. `swarm` for cluster-wide or `local` for machine level)
 	Driver     string                         // Driver is the Driver name used to create the network (e.g. `bridge`, `overlay`)
 	EnableIPv6 bool                           // EnableIPv6 represents whether to enable IPv6
 	IPAM       network.IPAM                   // IPAM is the network's IP Address Management
@@ -432,6 +432,7 @@ type NetworkCreate struct {
 	// which has the same name but it is not guaranteed to catch all name collisions.
 	CheckDuplicate bool
 	Driver         string
+	Scope          string
 	EnableIPv6     bool
 	IPAM           *network.IPAM
 	Internal       bool
