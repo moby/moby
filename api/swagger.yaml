@@ -5215,6 +5215,10 @@ paths:
                     type: "array"
                     items:
                       type: "string"
+                  Log:
+                    type: "array"
+                    items:
+                      type: "string"
               ExperimentalBuild:
                 type: "boolean"
               HttpProxy:
