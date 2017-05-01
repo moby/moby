@@ -13,6 +13,7 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
+	apierrors "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
@@ -22,6 +23,7 @@ import (
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	units "github.com/docker/go-units"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
 
@@ -87,9 +89,6 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 		options.Ulimits = buildUlimits
 	}
 
-	var buildArgs = map[string]*string{}
-	buildArgsJSON := r.FormValue("buildargs")
-
 	// Note that there are two ways a --build-arg might appear in the
 	// json of the query param:
 	//     "foo":"bar"
@@ -102,25 +101,27 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	// the fact they mentioned it, we need to pass that along to the builder
 	// so that it can print a warning about "foo" being unused if there is
 	// no "ARG foo" in the Dockerfile.
+	buildArgsJSON := r.FormValue("buildargs")
 	if buildArgsJSON != "" {
+		var buildArgs = map[string]*string{}
 		if err := json.Unmarshal([]byte(buildArgsJSON), &buildArgs); err != nil {
 			return nil, err
 		}
 		options.BuildArgs = buildArgs
 	}
 
-	var labels = map[string]string{}
 	labelsJSON := r.FormValue("labels")
 	if labelsJSON != "" {
+		var labels = map[string]string{}
 		if err := json.Unmarshal([]byte(labelsJSON), &labels); err != nil {
 			return nil, err
 		}
 		options.Labels = labels
 	}
 
-	var cacheFrom = []string{}
 	cacheFromJSON := r.FormValue("cachefrom")
 	if cacheFromJSON != "" {
+		var cacheFrom = []string{}
 		if err := json.Unmarshal([]byte(cacheFromJSON), &cacheFrom); err != nil {
 			return nil, err
 		}
@@ -130,33 +131,8 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	return options, nil
 }
 
-type syncWriter struct {
-	w  io.Writer
-	mu sync.Mutex
-}
-
-func (s *syncWriter) Write(b []byte) (count int, err error) {
-	s.mu.Lock()
-	count, err = s.w.Write(b)
-	s.mu.Unlock()
-	return
-}
-
 func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	var (
-		authConfigs        = map[string]types.AuthConfig{}
-		authConfigsEncoded = r.Header.Get("X-Registry-Config")
-		notVerboseBuffer   = bytes.NewBuffer(nil)
-	)
-
-	if authConfigsEncoded != "" {
-		authConfigsJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authConfigsEncoded))
-		if err := json.NewDecoder(authConfigsJSON).Decode(&authConfigs); err != nil {
-			// for a pull it is not an error if no auth was given
-			// to increase compatibility with the existing api it is defaulting
-			// to be empty.
-		}
-	}
+	var notVerboseBuffer = bytes.NewBuffer(nil)
 
 	w.Header().Set("Content-Type", "application/json")
 
@@ -183,7 +159,12 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 	if err != nil {
 		return errf(err)
 	}
-	buildOptions.AuthConfigs = authConfigs
+	buildOptions.AuthConfigs = getAuthConfigs(r.Header)
+
+	if buildOptions.Squash && !br.daemon.HasExperimental() {
+		return apierrors.NewBadRequestError(
+			errors.New("squash is only supported with experimental mode"))
+	}
 
 	// Currently, only used if context is from a remote url.
 	// Look at code in DetectContextFromRemoteURL for more information.
@@ -199,18 +180,12 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 	if buildOptions.SuppressOutput {
 		out = notVerboseBuffer
 	}
-	out = &syncWriter{w: out}
-	stdout := &streamformatter.StdoutFormatter{Writer: out, StreamFormatter: sf}
-	stderr := &streamformatter.StderrFormatter{Writer: out, StreamFormatter: sf}
 
-	pg := backend.ProgressWriter{
-		Output:             out,
-		StdoutFormatter:    stdout,
-		StderrFormatter:    stderr,
-		ProgressReaderFunc: createProgressReader,
-	}
-
-	imgID, err := br.backend.BuildFromContext(ctx, r.Body, buildOptions, pg)
+	imgID, err := br.backend.Build(ctx, backend.BuildConfig{
+		Source:         r.Body,
+		Options:        buildOptions,
+		ProgressWriter: buildProgressWriter(out, sf, createProgressReader),
+	})
 	if err != nil {
 		return errf(err)
 	}
@@ -219,8 +194,47 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 	// should be just the image ID and we'll print that to stdout.
 	if buildOptions.SuppressOutput {
 		stdout := &streamformatter.StdoutFormatter{Writer: output, StreamFormatter: sf}
-		fmt.Fprintf(stdout, "%s\n", string(imgID))
+		fmt.Fprintln(stdout, imgID)
+	}
+	return nil
+}
+
+func getAuthConfigs(header http.Header) map[string]types.AuthConfig {
+	authConfigs := map[string]types.AuthConfig{}
+	authConfigsEncoded := header.Get("X-Registry-Config")
+
+	if authConfigsEncoded == "" {
+		return authConfigs
 	}
 
-	return nil
+	authConfigsJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authConfigsEncoded))
+	// Pulling an image does not error when no auth is provided so to remain
+	// consistent with the existing api decode errors are ignored
+	json.NewDecoder(authConfigsJSON).Decode(&authConfigs)
+	return authConfigs
+}
+
+type syncWriter struct {
+	w  io.Writer
+	mu sync.Mutex
+}
+
+func (s *syncWriter) Write(b []byte) (count int, err error) {
+	s.mu.Lock()
+	count, err = s.w.Write(b)
+	s.mu.Unlock()
+	return
+}
+
+func buildProgressWriter(out io.Writer, sf *streamformatter.StreamFormatter, createProgressReader func(io.ReadCloser) io.ReadCloser) backend.ProgressWriter {
+	out = &syncWriter{w: out}
+	stdout := &streamformatter.StdoutFormatter{Writer: out, StreamFormatter: sf}
+	stderr := &streamformatter.StderrFormatter{Writer: out, StreamFormatter: sf}
+
+	return backend.ProgressWriter{
+		Output:             out,
+		StdoutFormatter:    stdout,
+		StderrFormatter:    stderr,
+		ProgressReaderFunc: createProgressReader,
+	}
 }
