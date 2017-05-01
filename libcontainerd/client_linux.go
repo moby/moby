@@ -74,7 +74,10 @@ func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendly
 		}
 	}
 	if specp.Capabilities != nil {
-		sp.Capabilities = specp.Capabilities
+		sp.Capabilities.Bounding = specp.Capabilities
+		sp.Capabilities.Effective = specp.Capabilities
+		sp.Capabilities.Inheritable = specp.Capabilities
+		sp.Capabilities.Permitted = specp.Capabilities
 	}
 
 	p := container.newProcess(processFriendlyName)
@@ -94,7 +97,7 @@ func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendly
 		Stdin:           p.fifo(syscall.Stdin),
 		Stdout:          p.fifo(syscall.Stdout),
 		Stderr:          p.fifo(syscall.Stderr),
-		Capabilities:    sp.Capabilities,
+		Capabilities:    sp.Capabilities.Effective,
 		ApparmorProfile: sp.ApparmorProfile,
 		SelinuxLabel:    sp.SelinuxLabel,
 		NoNewPrivileges: sp.NoNewPrivileges,

@@ -23,7 +23,7 @@ func getRootIDs(s specs.Spec) (int, int, error) {
 	return uid, gid, nil
 }
 
-func hostIDFromMap(id uint32, mp []specs.IDMapping) int {
+func hostIDFromMap(id uint32, mp []specs.LinuxIDMapping) int {
 	for _, m := range mp {
 		if id >= m.ContainerID && id <= m.ContainerID+m.Size-1 {
 			return int(m.HostID + id - m.ContainerID)
@@ -42,7 +42,7 @@ func systemPid(ctr *containerd.Container) uint32 {
 	return pid
 }
 
-func convertRlimits(sr []specs.Rlimit) (cr []*containerd.Rlimit) {
+func convertRlimits(sr []specs.LinuxRlimit) (cr []*containerd.Rlimit) {
 	for _, r := range sr {
 		cr = append(cr, &containerd.Rlimit{
 			Type: r.Type,

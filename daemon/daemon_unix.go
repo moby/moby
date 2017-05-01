@@ -41,9 +41,9 @@ import (
 	lntypes "github.com/docker/libnetwork/types"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
-	"github.com/opencontainers/runc/libcontainer/label"
 	rsystem "github.com/opencontainers/runc/libcontainer/system"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
 )
@@ -64,8 +64,8 @@ const (
 	cgroupSystemdDriver = "systemd"
 )
 
-func getMemoryResources(config containertypes.Resources) *specs.Memory {
-	memory := specs.Memory{}
+func getMemoryResources(config containertypes.Resources) *specs.LinuxMemory {
+	memory := specs.LinuxMemory{}
 
 	if config.Memory > 0 {
 		limit := uint64(config.Memory)
@@ -95,8 +95,8 @@ func getMemoryResources(config containertypes.Resources) *specs.Memory {
 	return &memory
 }
 
-func getCPUResources(config containertypes.Resources) *specs.CPU {
-	cpu := specs.CPU{}
+func getCPUResources(config containertypes.Resources) *specs.LinuxCPU {
+	cpu := specs.LinuxCPU{}
 
 	if config.CPUShares != 0 {
 		shares := uint64(config.CPUShares)
@@ -104,19 +104,17 @@ func getCPUResources(config containertypes.Resources) *specs.CPU {
 	}
 
 	if config.CpusetCpus != "" {
-		cpuset := config.CpusetCpus
-		cpu.Cpus = &cpuset
+		cpu.Cpus = config.CpusetCpus
 	}
 
 	if config.CpusetMems != "" {
-		cpuset := config.CpusetMems
-		cpu.Mems = &cpuset
+		cpu.Mems = config.CpusetMems
 	}
 
 	if config.NanoCPUs > 0 {
 		// https://www.kernel.org/doc/Documentation/scheduler/sched-bwc.txt
 		period := uint64(100 * time.Millisecond / time.Microsecond)
-		quota := uint64(config.NanoCPUs) * period / 1e9
+		quota := config.NanoCPUs * int64(period) / 1e9
 		cpu.Period = &period
 		cpu.Quota = &quota
 	}
@@ -127,8 +125,8 @@ func getCPUResources(config containertypes.Resources) *specs.CPU {
 	}
 
 	if config.CPUQuota != 0 {
-		quota := uint64(config.CPUQuota)
-		cpu.Quota = &quota
+		q := config.CPUQuota
+		cpu.Quota = &q
 	}
 
 	if config.CPURealtimePeriod != 0 {
@@ -137,23 +135,23 @@ func getCPUResources(config containertypes.Resources) *specs.CPU {
 	}
 
 	if config.CPURealtimeRuntime != 0 {
-		runtime := uint64(config.CPURealtimeRuntime)
-		cpu.RealtimeRuntime = &runtime
+		c := config.CPURealtimeRuntime
+		cpu.RealtimeRuntime = &c
 	}
 
 	return &cpu
 }
 
-func getBlkioWeightDevices(config containertypes.Resources) ([]specs.WeightDevice, error) {
+func getBlkioWeightDevices(config containertypes.Resources) ([]specs.LinuxWeightDevice, error) {
 	var stat syscall.Stat_t
-	var blkioWeightDevices []specs.WeightDevice
+	var blkioWeightDevices []specs.LinuxWeightDevice
 
 	for _, weightDevice := range config.BlkioWeightDevice {
 		if err := syscall.Stat(weightDevice.Path, &stat); err != nil {
 			return nil, err
 		}
 		weight := weightDevice.Weight
-		d := specs.WeightDevice{Weight: &weight}
+		d := specs.LinuxWeightDevice{Weight: &weight}
 		d.Major = int64(stat.Rdev / 256)
 		d.Minor = int64(stat.Rdev % 256)
 		blkioWeightDevices = append(blkioWeightDevices, d)
@@ -213,16 +211,15 @@ func parseSecurityOpt(container *container.Container, config *containertypes.Hos
 	return err
 }
 
-func getBlkioThrottleDevices(devs []*blkiodev.ThrottleDevice) ([]specs.ThrottleDevice, error) {
-	var throttleDevices []specs.ThrottleDevice
+func getBlkioThrottleDevices(devs []*blkiodev.ThrottleDevice) ([]specs.LinuxThrottleDevice, error) {
+	var throttleDevices []specs.LinuxThrottleDevice
 	var stat syscall.Stat_t
 
 	for _, d := range devs {
 		if err := syscall.Stat(d.Path, &stat); err != nil {
 			return nil, err
 		}
-		rate := d.Rate
-		d := specs.ThrottleDevice{Rate: &rate}
+		d := specs.LinuxThrottleDevice{Rate: d.Rate}
 		d.Major = int64(stat.Rdev / 256)
 		d.Minor = int64(stat.Rdev % 256)
 		throttleDevices = append(throttleDevices, d)
