@@ -28,7 +28,6 @@ import (
 // the repo and tag arguments, respectively.
 func (daemon *Daemon) ImportImage(src string, repository, tag string, msg string, inConfig io.ReadCloser, outStream io.Writer, changes []string) error {
 	var (
-		sf     = streamformatter.NewJSONStreamFormatter()
 		rc     io.ReadCloser
 		resp   *http.Response
 		newRef reference.Named
@@ -72,8 +71,8 @@ func (daemon *Daemon) ImportImage(src string, repository, tag string, msg string
 		if err != nil {
 			return err
 		}
-		outStream.Write(sf.FormatStatus("", "Downloading from %s", u))
-		progressOutput := sf.NewProgressOutput(outStream, true)
+		outStream.Write(streamformatter.FormatStatus("", "Downloading from %s", u))
+		progressOutput := streamformatter.NewJSONProgressOutput(outStream, true)
 		rc = progress.NewProgressReader(resp.Body, progressOutput, resp.ContentLength, "", "Importing")
 	}
 
@@ -129,6 +128,6 @@ func (daemon *Daemon) ImportImage(src string, repository, tag string, msg string
 	}
 
 	daemon.LogImageEvent(id.String(), id.String(), "import")
-	outStream.Write(sf.FormatStatus("", id.String()))
+	outStream.Write(streamformatter.FormatStatus("", id.String()))
 	return nil
 }

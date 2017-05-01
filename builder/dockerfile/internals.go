@@ -275,8 +275,7 @@ func (b *Builder) download(srcURL string) (remote builder.Source, p string, err 
 		return
 	}
 
-	stdoutFormatter := b.Stdout.(*streamformatter.StdoutFormatter)
-	progressOutput := stdoutFormatter.StreamFormatter.NewProgressOutput(stdoutFormatter.Writer, true)
+	progressOutput := streamformatter.NewJSONProgressOutput(b.Output, true)
 	progressReader := progress.NewProgressReader(resp.Body, progressOutput, resp.ContentLength, "", "Downloading")
 	// Download and dump result to tmp file
 	// TODO: add filehash directly
