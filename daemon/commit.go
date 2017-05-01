@@ -195,6 +195,15 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		rootFS.Append(diffID)
 	}
 
+	if c.ChecksumFS {
+		// Compute checksum on rootFS after it is done being modified.
+		checksum, err := daemon.checksumFilesystem(container.ID, rootFS.ChainID())
+		if err != nil {
+			return "", err
+		}
+		rootFS.Checksum = checksum
+	}
+
 	history = append(history, h)
 
 	config, err := json.Marshal(&image.Image{

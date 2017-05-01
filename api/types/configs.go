@@ -35,7 +35,9 @@ type ContainerCommitConfig struct {
 	Comment string
 	// merge container config into commit config before commit
 	MergeConfigs bool
-	Config       *container.Config
+	// checksum layers for run-time verification
+	ChecksumFS bool
+	Config     *container.Config
 }
 
 // ExecConfig is a small subset of the Config struct that holds the configuration
