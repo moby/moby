@@ -507,6 +507,16 @@ func (daemon *Daemon) deleteNetwork(networkID string, dynamic bool) error {
 		return apierrors.NewRequestForbiddenError(err)
 	}
 
+	if dynamic && !nw.Info().Dynamic() {
+		if runconfig.IsPreDefinedNetwork(nw.Name()) {
+			// Predefined networks now support swarm services. Make this
+			// a no-op when cluster requests to remove the predefined network.
+			return nil
+		}
+		err := fmt.Errorf("%s is not a dynamic network", nw.Name())
+		return apierrors.NewRequestForbiddenError(err)
+	}
+
 	if err := nw.Delete(); err != nil {
 		return err
 	}

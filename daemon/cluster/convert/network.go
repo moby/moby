@@ -6,6 +6,7 @@ import (
 	basictypes "github.com/docker/docker/api/types"
 	networktypes "github.com/docker/docker/api/types/network"
 	types "github.com/docker/docker/api/types/swarm"
+	netconst "github.com/docker/libnetwork/datastore"
 	swarmapi "github.com/docker/swarmkit/api"
 	gogotypes "github.com/gogo/protobuf/types"
 )
@@ -30,8 +31,15 @@ func networkFromGRPC(n *swarmapi.Network) types.Network {
 				Attachable:  n.Spec.Attachable,
 				Ingress:     n.Spec.Ingress,
 				IPAMOptions: ipamFromGRPC(n.Spec.IPAM),
+				Scope:       netconst.SwarmScope,
 			},
 			IPAMOptions: ipamFromGRPC(n.IPAM),
+		}
+
+		if n.Spec.ConfigFrom != "" {
+			network.Spec.ConfigFrom = &networktypes.ConfigReference{
+				Network: n.Spec.ConfigFrom,
+			}
 		}
 
 		// Meta
@@ -152,13 +160,19 @@ func BasicNetworkFromGRPC(n swarmapi.Network) basictypes.NetworkResource {
 	nr := basictypes.NetworkResource{
 		ID:         n.ID,
 		Name:       n.Spec.Annotations.Name,
-		Scope:      "swarm",
+		Scope:      netconst.SwarmScope,
 		EnableIPv6: spec.Ipv6Enabled,
 		IPAM:       ipam,
 		Internal:   spec.Internal,
 		Attachable: spec.Attachable,
 		Ingress:    spec.Ingress,
 		Labels:     n.Spec.Annotations.Labels,
+	}
+
+	if n.Spec.ConfigFrom != "" {
+		nr.ConfigFrom = networktypes.ConfigReference{
+			Network: n.Spec.ConfigFrom,
+		}
 	}
 
 	if n.DriverState != nil {
@@ -205,6 +219,9 @@ func BasicNetworkCreateToGRPC(create basictypes.NetworkCreateRequest) swarmapi.N
 			})
 		}
 		ns.IPAM.Configs = ipamSpec
+	}
+	if create.ConfigFrom != nil {
+		ns.ConfigFrom = create.ConfigFrom.Network
 	}
 	return ns
 }
