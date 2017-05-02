@@ -16,6 +16,7 @@ import (
 
 func TestJSONFileLogger(t *testing.T) {
 	cid := "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"
+	cname := "json-file-logger-test"
 	tmp, err := ioutil.TempDir("", "docker-logger-")
 	if err != nil {
 		t.Fatal(err)
@@ -23,8 +24,9 @@ func TestJSONFileLogger(t *testing.T) {
 	defer os.RemoveAll(tmp)
 	filename := filepath.Join(tmp, "container.log")
 	l, err := New(logger.Context{
-		ContainerID: cid,
-		LogPath:     filename,
+		ContainerID:   cid,
+		ContainerName: cname,
+		LogPath:       filename,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -44,9 +46,9 @@ func TestJSONFileLogger(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expected := `{"log":"line1\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
-{"log":"line2\n","stream":"src2","time":"0001-01-01T00:00:00Z"}
-{"log":"line3\n","stream":"src3","time":"0001-01-01T00:00:00Z"}
+	expected := `{"log":"line1\n","stream":"src1","attrs":{"_container_id":"a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657","_container_name":"json-file-logger-test"},"time":"0001-01-01T00:00:00Z"}
+{"log":"line2\n","stream":"src2","attrs":{"_container_id":"a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657","_container_name":"json-file-logger-test"},"time":"0001-01-01T00:00:00Z"}
+{"log":"line3\n","stream":"src3","attrs":{"_container_id":"a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657","_container_name":"json-file-logger-test"},"time":"0001-01-01T00:00:00Z"}
 `
 
 	if string(res) != expected {
@@ -96,7 +98,7 @@ func TestJSONFileLoggerWithOpts(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 	filename := filepath.Join(tmp, "container.log")
-	config := map[string]string{"max-file": "2", "max-size": "1k"}
+	config := map[string]string{"max-file": "2", "max-size": "2k"}
 	l, err := New(logger.Context{
 		ContainerID: cid,
 		LogPath:     filename,
@@ -120,27 +122,27 @@ func TestJSONFileLoggerWithOpts(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expectedPenultimate := `{"log":"line0\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
-{"log":"line1\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
-{"log":"line2\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
-{"log":"line3\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
-{"log":"line4\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
-{"log":"line5\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
-{"log":"line6\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
-{"log":"line7\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
-{"log":"line8\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
-{"log":"line9\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
-{"log":"line10\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
-{"log":"line11\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
-{"log":"line12\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
-{"log":"line13\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
-{"log":"line14\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
-{"log":"line15\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
+	expectedPenultimate := `{"log":"line0\n","stream":"src1","attrs":{"_container_id":"a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"},"time":"0001-01-01T00:00:00Z"}
+{"log":"line1\n","stream":"src1","attrs":{"_container_id":"a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"},"time":"0001-01-01T00:00:00Z"}
+{"log":"line2\n","stream":"src1","attrs":{"_container_id":"a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"},"time":"0001-01-01T00:00:00Z"}
+{"log":"line3\n","stream":"src1","attrs":{"_container_id":"a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"},"time":"0001-01-01T00:00:00Z"}
+{"log":"line4\n","stream":"src1","attrs":{"_container_id":"a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"},"time":"0001-01-01T00:00:00Z"}
+{"log":"line5\n","stream":"src1","attrs":{"_container_id":"a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"},"time":"0001-01-01T00:00:00Z"}
+{"log":"line6\n","stream":"src1","attrs":{"_container_id":"a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"},"time":"0001-01-01T00:00:00Z"}
+{"log":"line7\n","stream":"src1","attrs":{"_container_id":"a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"},"time":"0001-01-01T00:00:00Z"}
+{"log":"line8\n","stream":"src1","attrs":{"_container_id":"a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"},"time":"0001-01-01T00:00:00Z"}
+{"log":"line9\n","stream":"src1","attrs":{"_container_id":"a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"},"time":"0001-01-01T00:00:00Z"}
+{"log":"line10\n","stream":"src1","attrs":{"_container_id":"a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"},"time":"0001-01-01T00:00:00Z"}
+{"log":"line11\n","stream":"src1","attrs":{"_container_id":"a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"},"time":"0001-01-01T00:00:00Z"}
+{"log":"line12\n","stream":"src1","attrs":{"_container_id":"a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"},"time":"0001-01-01T00:00:00Z"}
 `
-	expected := `{"log":"line16\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
-{"log":"line17\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
-{"log":"line18\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
-{"log":"line19\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
+	expected := `{"log":"line13\n","stream":"src1","attrs":{"_container_id":"a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"},"time":"0001-01-01T00:00:00Z"}
+{"log":"line14\n","stream":"src1","attrs":{"_container_id":"a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"},"time":"0001-01-01T00:00:00Z"}
+{"log":"line15\n","stream":"src1","attrs":{"_container_id":"a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"},"time":"0001-01-01T00:00:00Z"}
+{"log":"line16\n","stream":"src1","attrs":{"_container_id":"a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"},"time":"0001-01-01T00:00:00Z"}
+{"log":"line17\n","stream":"src1","attrs":{"_container_id":"a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"},"time":"0001-01-01T00:00:00Z"}
+{"log":"line18\n","stream":"src1","attrs":{"_container_id":"a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"},"time":"0001-01-01T00:00:00Z"}
+{"log":"line19\n","stream":"src1","attrs":{"_container_id":"a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"},"time":"0001-01-01T00:00:00Z"}
 `
 
 	if string(res) != expected {
@@ -189,11 +191,12 @@ func TestJSONFileLoggerWithLabelsEnv(t *testing.T) {
 		t.Fatal(err)
 	}
 	expected := map[string]string{
-		"rack":    "101",
-		"dc":      "lhr",
-		"environ": "production",
-		"debug":   "false",
-		"ssl":     "true",
+		"rack":          "101",
+		"dc":            "lhr",
+		"environ":       "production",
+		"debug":         "false",
+		"ssl":           "true",
+		"_container_id": "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657",
 	}
 	if !reflect.DeepEqual(extra, expected) {
 		t.Fatalf("Wrong log attrs: %q, expected %q", extra, expected)

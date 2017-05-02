@@ -66,8 +66,26 @@ func New(ctx logger.Context) (logger.Logger, error) {
 		return nil, err
 	}
 
+	extraAttrs := map[string]string{
+		"_container_id":   ctx.ContainerID,
+		"_container_name": ctx.ContainerName,
+		"_image_id":       ctx.ContainerImageID,
+		"_image_name":     ctx.ContainerImageName,
+	}
+
+	var attrs map[string]string
+	if attrs = ctx.ExtraAttributes(nil); len(attrs) <= 0 {
+		attrs = make(map[string]string)
+	}
+
+	for k, v := range extraAttrs {
+		if len(v) > 0 {
+			attrs[k] = v
+		}
+	}
+
 	var extra []byte
-	if attrs := ctx.ExtraAttributes(nil); len(attrs) > 0 {
+	if len(attrs) > 0 {
 		var err error
 		extra, err = json.Marshal(attrs)
 		if err != nil {

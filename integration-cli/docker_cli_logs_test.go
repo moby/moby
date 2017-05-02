@@ -316,7 +316,17 @@ func (s *DockerSuite) TestLogsWithDetails(c *check.C) {
 	c.Assert(len(logFields), checker.Equals, 3, check.Commentf(out))
 
 	details := strings.Split(logFields[1], ",")
-	c.Assert(details, checker.HasLen, 2)
-	c.Assert(details[0], checker.Equals, "baz=qux")
-	c.Assert(details[1], checker.Equals, "foo=bar")
+	c.Assert(details, checker.HasLen, 6)
+	c.Assert(SliceContains(details, "baz=qux"), checker.True)
+	c.Assert(SliceContains(details, "foo=bar"), checker.True)
+}
+
+func SliceContains(arr []string, target string) bool {
+	for _, v := range arr {
+		if v == target {
+			return true
+		}
+	}
+
+	return false
 }
