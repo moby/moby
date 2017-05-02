@@ -18,9 +18,7 @@ func getStackFilter(namespace string) filters.Args {
 }
 
 func getServiceFilter(namespace string) filters.Args {
-	filter := getStackFilter(namespace)
-	filter.Add("runtime", string(swarm.RuntimeContainer))
-	return filter
+	return getStackFilter(namespace)
 }
 
 func getStackFilterFromOpt(namespace string, opt opts.FilterOpt) filters.Args {
