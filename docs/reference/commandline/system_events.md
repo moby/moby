@@ -1,10 +1,10 @@
 ---
-title: "events"
-description: "The events command description and usage"
-keywords: "events, container, report"
+title: "system events"
+description: "The system events command description and usage"
+keywords: "system, events, container, report"
 ---
 
-<!-- This file is maintained within the docker/docker Github
+<!-- This file is maintained within the moby/moby Github
      repository at https://github.com/moby/moby/. Make all
      pull requests against that repo. If you see this file in
      another repository, consider it read-only there, as it will
@@ -13,10 +13,10 @@ keywords: "events, container, report"
      will be rejected.
 -->
 
-# events
+# system events
 
 ```markdown
-Usage:  docker events [OPTIONS]
+Usage:  docker system events [OPTIONS]
 
 Get real time events from the server
 
@@ -30,8 +30,8 @@ Options:
 
 ## Description
 
-Use `docker events` to get real-time events from the server. These events differ
-per Docker object type.
+Use `docker system events` to get real-time events from the server. These
+events differ per Docker object type.
 
 ### Object types
 
@@ -171,7 +171,7 @@ You'll need two shells for this example.
 **Shell 1: Listening for events:**
 
 ```bash
-$ docker events
+$ docker system events
 ```
 
 **Shell 2: Start and Stop containers:**
@@ -194,7 +194,7 @@ $ docker stop test
 2017-01-05T00:36:09.890214053+08:00 container stop 0fdb...ff37 (image=alpine:latest, name=test)
 ```
 
-To exit the `docker events` command, use `CTRL+C`.
+To exit the `docker system events` command, use `CTRL+C`.
 
 ### Filter events by time
 
@@ -202,7 +202,7 @@ You can filter the output by an absolute timestamp or relative time on the host
 machine, using the following different time syntaxes:
 
 ```bash
-$ docker events --since 1483283804
+$ docker system events --since 1483283804
 2017-01-05T00:35:41.241772953+08:00 volume create testVol (driver=local)
 2017-01-05T00:35:58.859401177+08:00 container create d9cd...4d70 (image=alpine:latest, name=test)
 2017-01-05T00:36:04.703631903+08:00 network connect e2e1...29e2 (container=0fdb...ff37, name=bridge, type=bridge)
@@ -212,7 +212,7 @@ $ docker events --since 1483283804
 2017-01-05T00:36:09.880113663+08:00 network disconnect e2e...29e2 (container=0fdb...ff37, name=bridge, type=bridge)
 2017-01-05T00:36:09.890214053+08:00 container stop 0fdb...ff37 (image=alpine:latest, name=test)
 
-$ docker events --since '2017-01-05'
+$ docker system events --since '2017-01-05'
 2017-01-05T00:35:41.241772953+08:00 volume create testVol (driver=local)
 2017-01-05T00:35:58.859401177+08:00 container create d9cd...4d70 (image=alpine:latest, name=test)
 2017-01-05T00:36:04.703631903+08:00 network connect e2e1...29e2 (container=0fdb...ff37, name=bridge, type=bridge)
@@ -222,7 +222,7 @@ $ docker events --since '2017-01-05'
 2017-01-05T00:36:09.880113663+08:00 network disconnect e2e...29e2 (container=0fdb...ff37, name=bridge, type=bridge)
 2017-01-05T00:36:09.890214053+08:00 container stop 0fdb...ff37 (image=alpine:latest, name=test)
 
-$ docker events --since '2013-09-03T15:49:29'
+$ docker system events --since '2013-09-03T15:49:29'
 2017-01-05T00:35:41.241772953+08:00 volume create testVol (driver=local)
 2017-01-05T00:35:58.859401177+08:00 container create d9cd...4d70 (image=alpine:latest, name=test)
 2017-01-05T00:36:04.703631903+08:00 network connect e2e1...29e2 (container=0fdb...ff37, name=bridge, type=bridge)
@@ -232,7 +232,7 @@ $ docker events --since '2013-09-03T15:49:29'
 2017-01-05T00:36:09.880113663+08:00 network disconnect e2e...29e2 (container=0fdb...ff37, name=bridge, type=bridge)
 2017-01-05T00:36:09.890214053+08:00 container stop 0fdb...ff37 (image=alpine:latest, name=test)
 
-$ docker events --since '10m'
+$ docker system events --since '10m'
 2017-01-05T00:35:41.241772953+08:00 volume create testVol (driver=local)
 2017-01-05T00:35:58.859401177+08:00 container create d9cd...4d70 (image=alpine:latest, name=test)
 2017-01-05T00:36:04.703631903+08:00 network connect e2e1...29e2 (container=0fdb...ff37, name=bridge, type=bridge)
@@ -249,12 +249,12 @@ The following commands show several different ways to filter the `docker event`
 output.
 
 ```bash
-$ docker events --filter 'event=stop'
+$ docker system events --filter 'event=stop'
 
 2017-01-05T00:40:22.880175420+08:00 container stop 0fdb...ff37 (image=alpine:latest, name=test)
 2017-01-05T00:41:17.888104182+08:00 container stop 2a8f...4e78 (image=alpine, name=kickass_brattain)
 
-$ docker events --filter 'image=alpine'
+$ docker system events --filter 'image=alpine'
 
 2017-01-05T00:41:55.784240236+08:00 container create d9cd...4d70 (image=alpine, name=happy_meitner)
 2017-01-05T00:41:55.913156783+08:00 container start d9cd...4d70 (image=alpine, name=happy_meitner)
@@ -263,14 +263,14 @@ $ docker events --filter 'image=alpine'
 2017-01-05T00:42:11.119578204+08:00 container die d9cd...4d70 (exitCode=137, image=alpine, name=happy_meitner)
 2017-01-05T00:42:11.173276611+08:00 container stop d9cd...4d70 (image=alpine, name=happy_meitner)
 
-$ docker events --filter 'container=test'
+$ docker system events --filter 'container=test'
 
 2017-01-05T00:43:00.139719934+08:00 container start 0fdb...ff37 (image=alpine:latest, name=test)
 2017-01-05T00:43:09.259951086+08:00 container kill 0fdb...ff37 (image=alpine:latest, name=test, signal=15)
 2017-01-05T00:43:09.270102715+08:00 container die 0fdb...ff37 (exitCode=143, image=alpine:latest, name=test)
 2017-01-05T00:43:09.312556440+08:00 container stop 0fdb...ff37 (image=alpine:latest, name=test)
 
-$ docker events --filter 'container=test' --filter 'container=d9cdb1525ea8'
+$ docker system events --filter 'container=test' --filter 'container=d9cdb1525ea8'
 
 2017-01-05T00:44:11.517071981+08:00 container start 0fdb...ff37 (image=alpine:latest, name=test)
 2017-01-05T00:44:17.685870901+08:00 container start d9cd...4d70 (image=alpine, name=happy_meitner)
@@ -278,42 +278,42 @@ $ docker events --filter 'container=test' --filter 'container=d9cdb1525ea8'
 2017-01-05T00:44:29.767718510+08:00 container die 0fdb...ff37 (exitCode=137, image=alpine:latest, name=test)
 2017-01-05T00:44:29.815798344+08:00 container destroy 0fdb...ff37 (image=alpine:latest, name=test)
 
-$ docker events --filter 'container=test' --filter 'event=stop'
+$ docker system events --filter 'container=test' --filter 'event=stop'
 
 2017-01-05T00:46:13.664099505+08:00 container stop a9d1...e130 (image=alpine, name=test)
 
-$ docker events --filter 'type=volume'
+$ docker system events --filter 'type=volume'
 
 2015-12-23T21:05:28.136212689Z volume create test-event-volume-local (driver=local)
 2015-12-23T21:05:28.383462717Z volume mount test-event-volume-local (read/write=true, container=562f...5025, destination=/foo, driver=local, propagation=rprivate)
 2015-12-23T21:05:28.650314265Z volume unmount test-event-volume-local (container=562f...5025, driver=local)
 2015-12-23T21:05:28.716218405Z volume destroy test-event-volume-local (driver=local)
 
-$ docker events --filter 'type=network'
+$ docker system events --filter 'type=network'
 
 2015-12-23T21:38:24.705709133Z network create 8b11...2c5b (name=test-event-network-local, type=bridge)
 2015-12-23T21:38:25.119625123Z network connect 8b11...2c5b (name=test-event-network-local, container=b4be...c54e, type=bridge)
 
-$ docker events --filter 'container=container_1' --filter 'container=container_2'
+$ docker system events --filter 'container=container_1' --filter 'container=container_2'
 
 2014-09-03T15:49:29.999999999Z07:00 container die 4386fb97867d (image=ubuntu-1:14.04)
 2014-05-10T17:42:14.999999999Z07:00 container stop 4386fb97867d (image=ubuntu-1:14.04)
 2014-05-10T17:42:14.999999999Z07:00 container die 7805c1d35632 (imager=redis:2.8)
 2014-09-03T15:49:29.999999999Z07:00 container stop 7805c1d35632 (image=redis:2.8)
 
-$ docker events --filter 'type=volume'
+$ docker system events --filter 'type=volume'
 
 2015-12-23T21:05:28.136212689Z volume create test-event-volume-local (driver=local)
 2015-12-23T21:05:28.383462717Z volume mount test-event-volume-local (read/write=true, container=562fe10671e9273da25eed36cdce26159085ac7ee6707105fd534866340a5025, destination=/foo, driver=local, propagation=rprivate)
 2015-12-23T21:05:28.650314265Z volume unmount test-event-volume-local (container=562fe10671e9273da25eed36cdce26159085ac7ee6707105fd534866340a5025, driver=local)
 2015-12-23T21:05:28.716218405Z volume destroy test-event-volume-local (driver=local)
 
-$ docker events --filter 'type=network'
+$ docker system events --filter 'type=network'
 
 2015-12-23T21:38:24.705709133Z network create 8b111217944ba0ba844a65b13efcd57dc494932ee2527577758f939315ba2c5b (name=test-event-network-local, type=bridge)
 2015-12-23T21:38:25.119625123Z network connect 8b111217944ba0ba844a65b13efcd57dc494932ee2527577758f939315ba2c5b (name=test-event-network-local, container=b4be644031a3d90b400f88ab3d4bdf4dc23adb250e696b6328b85441abe2c54e, type=bridge)
 
-$ docker events --filter 'type=plugin'
+$ docker system events --filter 'type=plugin'
 
 2016-07-25T17:30:14.825557616Z plugin pull ec7b87f2ce84330fe076e666f17dfc049d2d7ae0b8190763de94e1f2d105993f (name=tiborvass/sample-volume-plugin:latest)
 2016-07-25T17:30:14.888127370Z plugin enable ec7b87f2ce84330fe076e666f17dfc049d2d7ae0b8190763de94e1f2d105993f (name=tiborvass/sample-volume-plugin:latest)
@@ -322,7 +322,7 @@ $ docker events --filter 'type=plugin'
 ### Format the output
 
 ```bash
-$ docker events --filter 'type=container' --format 'Type={{.Type}}  Status={{.Status}}  ID={{.ID}}'
+$ docker system events --filter 'type=container' --format 'Type={{.Type}}  Status={{.Status}}  ID={{.ID}}'
 
 Type=container  Status=create  ID=2ee349dac409e97974ce8d01b70d250b85e0ba8189299c126a87812311951e26
 Type=container  Status=attach  ID=2ee349dac409e97974ce8d01b70d250b85e0ba8189299c126a87812311951e26
@@ -335,7 +335,7 @@ Type=container  Status=destroy  ID=2ee349dac409e97974ce8d01b70d250b85e0ba8189299
 #### Format as JSON
 
 ```none
-    $ docker events --format '{{json .}}'
+    $ docker system events --format '{{json .}}'
 
     {"status":"create","id":"196016a57679bf42424484918746a9474cd905dd993c4d0f4..
     {"status":"attach","id":"196016a57679bf42424484918746a9474cd905dd993c4d0f4..
