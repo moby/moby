@@ -9,7 +9,6 @@ import (
 	"io/ioutil"
 	"reflect"
 	"runtime"
-	"sort"
 	"strings"
 	"sync"
 
@@ -501,19 +500,6 @@ func Validate(config *Config) error {
 	}
 
 	return nil
-}
-
-// GetAuthorizationPlugins returns daemon's sorted authorization plugins
-func (conf *Config) GetAuthorizationPlugins() []string {
-	conf.Lock()
-	defer conf.Unlock()
-
-	authPlugins := make([]string, 0, len(conf.AuthorizationPlugins))
-	for _, p := range conf.AuthorizationPlugins {
-		authPlugins = append(authPlugins, p)
-	}
-	sort.Strings(authPlugins)
-	return authPlugins
 }
 
 // ModifiedDiscoverySettings returns whether the discovery configuration has been modified or not.
