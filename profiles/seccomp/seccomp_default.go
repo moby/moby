@@ -383,6 +383,28 @@ func DefaultProfile() *types.Seccomp {
 			Args: []*types.Arg{
 				{
 					Index: 0,
+					Value: 0x20000,
+					Op:    types.OpEqualTo,
+				},
+			},
+		},
+		{
+			Names:  []string{"personality"},
+			Action: types.ActAllow,
+			Args: []*types.Arg{
+				{
+					Index: 0,
+					Value: 0x20008,
+					Op:    types.OpEqualTo,
+				},
+			},
+		},
+		{
+			Names:  []string{"personality"},
+			Action: types.ActAllow,
+			Args: []*types.Arg{
+				{
+					Index: 0,
 					Value: 0xffffffff,
 					Op:    types.OpEqualTo,
 				},
