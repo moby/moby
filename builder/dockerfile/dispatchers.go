@@ -408,9 +408,7 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	// that starts with "foo=abc" to be considered part of a build-time env var.
 	saveCmd := config.Cmd
 	if len(cmdBuildEnv) > 0 {
-		sort.Strings(cmdBuildEnv)
-		tmpEnv := append([]string{fmt.Sprintf("|%d", len(cmdBuildEnv))}, cmdBuildEnv...)
-		saveCmd = strslice.StrSlice(append(tmpEnv, saveCmd...))
+		saveCmd = prependEnvOnCmd(b.buildArgs, cmdBuildEnv, saveCmd)
 	}
 
 	b.runConfig.Cmd = saveCmd
@@ -445,24 +443,22 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	// properly match it.
 	b.runConfig.Env = env
 
-	// remove builtinAllowedBuildArgs (see: builder.go)  from the saveCmd
-	// these args are transparent so resulting image should be the same regardless of the value
-	if len(cmdBuildEnv) > 0 {
-		saveCmd = config.Cmd
-		tmpBuildEnv := make([]string, len(cmdBuildEnv))
-		copy(tmpBuildEnv, cmdBuildEnv)
-		for i, env := range tmpBuildEnv {
-			key := strings.SplitN(env, "=", 2)[0]
-			if b.buildArgs.IsUnreferencedBuiltin(key) {
-				tmpBuildEnv = append(tmpBuildEnv[:i], tmpBuildEnv[i+1:]...)
-			}
-		}
-		sort.Strings(tmpBuildEnv)
-		tmpEnv := append([]string{fmt.Sprintf("|%d", len(tmpBuildEnv))}, tmpBuildEnv...)
-		saveCmd = strslice.StrSlice(append(tmpEnv, saveCmd...))
-	}
 	b.runConfig.Cmd = saveCmd
 	return b.commit(cID, cmd, "run")
+}
+
+func prependEnvOnCmd(buildArgs *buildArgs, buildArgVars []string, cmd strslice.StrSlice) strslice.StrSlice {
+	var tmpBuildEnv []string
+	for _, env := range buildArgVars {
+		key := strings.SplitN(env, "=", 2)[0]
+		if !buildArgs.IsUnreferencedBuiltin(key) {
+			tmpBuildEnv = append(tmpBuildEnv, env)
+		}
+	}
+
+	sort.Strings(tmpBuildEnv)
+	tmpEnv := append([]string{fmt.Sprintf("|%d", len(tmpBuildEnv))}, tmpBuildEnv...)
+	return strslice.StrSlice(append(tmpEnv, cmd...))
 }
 
 // CMD foo
