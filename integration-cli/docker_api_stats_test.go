@@ -175,14 +175,14 @@ func (s *DockerSuite) TestAPIStatsNetworkStatsVersioning(c *check.C) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			apiVersion := fmt.Sprintf("v1.%d", i)
+			apiVersion := fmt.Sprintf("1.%d", i)
 			statsJSONBlob := getVersionedStats(c, id, apiVersion)
-			if versions.LessThan(apiVersion, "v1.21") {
+			if versions.LessThan(apiVersion, "1.21") {
 				c.Assert(jsonBlobHasLTv121NetworkStats(statsJSONBlob), checker.Equals, true,
-					check.Commentf("Stats JSON blob from API %s %#v does not look like a <v1.21 API stats structure", apiVersion, statsJSONBlob))
+					check.Commentf("Stats JSON blob from API %s %#v does not look like a < 1.21 API stats structure", apiVersion, statsJSONBlob))
 			} else {
 				c.Assert(jsonBlobHasGTE121NetworkStats(statsJSONBlob), checker.Equals, true,
-					check.Commentf("Stats JSON blob from API %s %#v does not look like a >=v1.21 API stats structure", apiVersion, statsJSONBlob))
+					check.Commentf("Stats JSON blob from API %s %#v does not look like a >= 1.21 API stats structure", apiVersion, statsJSONBlob))
 			}
 		}(i)
 	}
