@@ -138,7 +138,6 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 
 	output := ioutils.NewWriteFlusher(w)
 	defer output.Close()
-	sf := streamformatter.NewJSONStreamFormatter()
 	errf := func(err error) error {
 		if httputils.BoolValue(r, "q") && notVerboseBuffer.Len() > 0 {
 			output.Write(notVerboseBuffer.Bytes())
@@ -148,7 +147,7 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 		if !output.Flushed() {
 			return err
 		}
-		_, err = w.Write(sf.FormatError(err))
+		_, err = w.Write(streamformatter.FormatError(err))
 		if err != nil {
 			logrus.Warnf("could not write error response: %v", err)
 		}
@@ -166,25 +165,22 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 			errors.New("squash is only supported with experimental mode"))
 	}
 
-	// Currently, only used if context is from a remote url.
-	// Look at code in DetectContextFromRemoteURL for more information.
-	createProgressReader := func(in io.ReadCloser) io.ReadCloser {
-		progressOutput := sf.NewProgressOutput(output, true)
-		if buildOptions.SuppressOutput {
-			progressOutput = sf.NewProgressOutput(notVerboseBuffer, true)
-		}
-		return progress.NewProgressReader(in, progressOutput, r.ContentLength, "Downloading context", buildOptions.RemoteContext)
-	}
-
 	out := io.Writer(output)
 	if buildOptions.SuppressOutput {
 		out = notVerboseBuffer
 	}
 
+	// Currently, only used if context is from a remote url.
+	// Look at code in DetectContextFromRemoteURL for more information.
+	createProgressReader := func(in io.ReadCloser) io.ReadCloser {
+		progressOutput := streamformatter.NewJSONProgressOutput(out, true)
+		return progress.NewProgressReader(in, progressOutput, r.ContentLength, "Downloading context", buildOptions.RemoteContext)
+	}
+
 	imgID, err := br.backend.Build(ctx, backend.BuildConfig{
 		Source:         r.Body,
 		Options:        buildOptions,
-		ProgressWriter: buildProgressWriter(out, sf, createProgressReader),
+		ProgressWriter: buildProgressWriter(out, createProgressReader),
 	})
 	if err != nil {
 		return errf(err)
@@ -193,8 +189,7 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 	// Everything worked so if -q was provided the output from the daemon
 	// should be just the image ID and we'll print that to stdout.
 	if buildOptions.SuppressOutput {
-		stdout := &streamformatter.StdoutFormatter{Writer: output, StreamFormatter: sf}
-		fmt.Fprintln(stdout, imgID)
+		fmt.Fprintln(streamformatter.NewStdoutWriter(output), imgID)
 	}
 	return nil
 }
@@ -226,15 +221,13 @@ func (s *syncWriter) Write(b []byte) (count int, err error) {
 	return
 }
 
-func buildProgressWriter(out io.Writer, sf *streamformatter.StreamFormatter, createProgressReader func(io.ReadCloser) io.ReadCloser) backend.ProgressWriter {
+func buildProgressWriter(out io.Writer, createProgressReader func(io.ReadCloser) io.ReadCloser) backend.ProgressWriter {
 	out = &syncWriter{w: out}
-	stdout := &streamformatter.StdoutFormatter{Writer: out, StreamFormatter: sf}
-	stderr := &streamformatter.StderrFormatter{Writer: out, StreamFormatter: sf}
 
 	return backend.ProgressWriter{
 		Output:             out,
-		StdoutFormatter:    stdout,
-		StderrFormatter:    stderr,
+		StdoutFormatter:    streamformatter.NewStdoutWriter(out),
+		StderrFormatter:    streamformatter.NewStderrWriter(out),
 		ProgressReaderFunc: createProgressReader,
 	}
 }

@@ -26,14 +26,11 @@ import (
 )
 
 func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool) error {
-	var (
-		sf             = streamformatter.NewJSONStreamFormatter()
-		progressOutput progress.Output
-	)
+	var progressOutput progress.Output
 	if !quiet {
-		progressOutput = sf.NewProgressOutput(outStream, false)
+		progressOutput = streamformatter.NewJSONProgressOutput(outStream, false)
 	}
-	outStream = &streamformatter.StdoutFormatter{Writer: outStream, StreamFormatter: streamformatter.NewJSONStreamFormatter()}
+	outStream = streamformatter.NewStdoutWriter(outStream)
 
 	tmpDir, err := ioutil.TempDir("", "docker-import-")
 	if err != nil {
