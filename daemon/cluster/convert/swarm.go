@@ -123,7 +123,7 @@ func MergeSwarmSpecToGRPC(s types.Spec, spec swarmapi.ClusterSpec) (swarmapi.Clu
 		spec.CAConfig.SigningCACert = []byte(s.CAConfig.SigningCACert)
 	}
 	if s.CAConfig.SigningCAKey != "" {
-		// do prpagate the signing CA key here because we want to provide it TO the swarm APIs
+		// do propagate the signing CA key here because we want to provide it TO the swarm APIs
 		spec.CAConfig.SigningCAKey = []byte(s.CAConfig.SigningCAKey)
 	}
 	spec.CAConfig.ForceRotate = s.CAConfig.ForceRotate
