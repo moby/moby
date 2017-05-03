@@ -178,6 +178,7 @@ type ImageBuildOptions struct {
 	SecurityOpt []string
 	ExtraHosts  []string // List of extra hosts
 	Target      string
+	SessionID   string
 }
 
 // ImageBuildResponse holds information

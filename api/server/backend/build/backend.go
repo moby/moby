@@ -26,9 +26,12 @@ type Backend struct {
 }
 
 // NewBackend creates a new build backend from components
-func NewBackend(components ImageComponent, builderBackend builder.Backend) *Backend {
-	manager := dockerfile.NewBuildManager(builderBackend)
-	return &Backend{imageComponent: components, manager: manager}
+func NewBackend(components ImageComponent, builderBackend builder.Backend, sg dockerfile.SessionGetter) (*Backend, error) {
+	manager, err := dockerfile.NewBuildManager(builderBackend, sg)
+	if err != nil {
+		return nil, err
+	}
+	return &Backend{imageComponent: components, manager: manager}, nil
 }
 
 // Build builds an image from a Source

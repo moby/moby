@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -15,6 +17,7 @@ import (
 	"github.com/docker/docker/builder/dockerfile/command"
 	"github.com/docker/docker/builder/dockerfile/parser"
 	"github.com/docker/docker/builder/remotecontext"
+	"github.com/docker/docker/client/session"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
@@ -36,15 +39,26 @@ var validCommitCommands = map[string]bool{
 
 var defaultLogConfig = container.LogConfig{Type: "none"}
 
+// SessionGetter is object used to get access to a session by uuid
+type SessionGetter interface {
+	GetSession(ctx context.Context, uuid string) (context.Context, session.Caller, error)
+}
+
 // BuildManager is shared across all Builder objects
 type BuildManager struct {
 	backend   builder.Backend
 	pathCache pathCache // TODO: make this persistent
+	sg        SessionGetter
 }
 
 // NewBuildManager creates a BuildManager
-func NewBuildManager(b builder.Backend) *BuildManager {
-	return &BuildManager{backend: b, pathCache: &syncmap.Map{}}
+func NewBuildManager(b builder.Backend, sg SessionGetter) (*BuildManager, error) {
+	bm := &BuildManager{
+		backend:   b,
+		pathCache: &syncmap.Map{},
+		sg:        sg,
+	}
+	return bm, nil
 }
 
 // Build starts a new build from a BuildConfig
@@ -62,6 +76,22 @@ func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (
 			if err := source.Close(); err != nil {
 				logrus.Debugf("[BUILDER] failed to remove temporary context: %v", err)
 			}
+		}()
+	}
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	if config.Options.SessionID != "" && bm.sg != nil {
+		logrus.Debug("client is session enabled")
+		sessionCtx, c, err := bm.sg.GetSession(ctx, config.Options.SessionID)
+		if err != nil {
+			return nil, err
+		}
+		defer c.Close()
+		go func() {
+			<-sessionCtx.Done()
+			cancel()
 		}()
 	}
 
@@ -91,9 +121,10 @@ type Builder struct {
 	Stderr io.Writer
 	Output io.Writer
 
-	docker    builder.Backend
-	source    builder.Source
-	clientCtx context.Context
+	docker        builder.Backend
+	source        builder.Source
+	clientCtx     context.Context
+	sessionGetter SessionGetter
 
 	tmpContainers map[string]struct{}
 	imageContexts *imageContexts // helper for storing contexts from builds
@@ -134,7 +165,6 @@ func (b *Builder) resetImageCache() {
 // the instructions from the file.
 func (b *Builder) build(source builder.Source, dockerfile *parser.Result) (*builder.Result, error) {
 	defer b.imageContexts.unmount()
-
 	// TODO: Remove source field from Builder
 	b.source = source
 
@@ -285,4 +315,19 @@ func dispatchFromDockerfile(b *Builder, result *parser.Result, dispatchState *di
 		}
 	}
 	return dispatchState.runConfig, nil
+}
+
+type tmpCacheBackend struct {
+	root string
+}
+
+func (tcb *tmpCacheBackend) Get(id string) (string, error) {
+	d := filepath.Join(tcb.root, id)
+	if err := os.MkdirAll(d, 0700); err != nil {
+		return "", errors.Wrapf(err, "failed to create tmp dir for %s", d)
+	}
+	return d, nil
+}
+func (tcb *tmpCacheBackend) Remove(id string) error {
+	return os.RemoveAll(filepath.Join(tcb.root, id))
 }
