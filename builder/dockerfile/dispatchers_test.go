@@ -233,6 +233,21 @@ func TestFromWithUndefinedArg(t *testing.T) {
 	assert.Equal(t, expected, req.state.imageID)
 }
 
+func TestFromMultiStageWithScratchNamedStage(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows does not support scratch")
+	}
+	b := newBuilderWithMockBackend()
+	req := defaultDispatchReq(b, "scratch", "AS", "base")
+
+	require.NoError(t, from(req))
+	assert.True(t, req.state.hasFromImage())
+
+	req.args = []string{"base"}
+	require.NoError(t, from(req))
+	assert.True(t, req.state.hasFromImage())
+}
+
 func TestOnbuildIllegalTriggers(t *testing.T) {
 	triggers := []struct{ command, expectedError string }{
 		{"ONBUILD", "Chaining ONBUILD via `ONBUILD ONBUILD` isn't allowed"},

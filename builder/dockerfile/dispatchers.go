@@ -200,7 +200,11 @@ func from(req dispatchRequest) error {
 	if err != nil {
 		return err
 	}
-	if image != nil {
+	switch image {
+	case nil:
+		req.state.imageID = ""
+		req.state.noBaseImage = true
+	default:
 		req.builder.imageContexts.update(image.ImageID(), image.RunConfig())
 	}
 	req.state.baseImage = image
@@ -248,8 +252,6 @@ func (b *Builder) getFromImage(dispatchState *dispatchState, shlex *ShellLex, na
 		if runtime.GOOS == "windows" {
 			return nil, errors.New("Windows does not support FROM scratch")
 		}
-		dispatchState.imageID = ""
-		dispatchState.noBaseImage = true
 		return nil, nil
 	}
 	return pullOrGetImage(b, name)
