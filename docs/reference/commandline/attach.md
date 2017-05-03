@@ -34,6 +34,11 @@ Use `docker attach` to attach your terminal's standard input, output, and error
 ID or name. This allows you to view its ongoing output or to control it
 interactively, as though the commands were running directly in your terminal.
 
+> **Note:**
+> The `attach` command will display the output of the `ENTRYPOINT/CMD` process.  This
+> can appear as if the attach command is hung when in fact the process may simply
+> not be interacting with the terminal at that time.
+
 You can attach to the same contained process multiple times simultaneously,
 even as a different user with the appropriate permissions.
 

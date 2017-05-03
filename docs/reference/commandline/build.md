@@ -80,6 +80,10 @@ the command succeeds, the directory is sent to the Docker daemon as the
 context. Local clones give you the ability to access private repositories using
 local user credentials, VPN's, and so forth.
 
+> **Note:**
+> If the `URL` parameter contains a fragment the system will recursively clone
+> the repository and its submodules using a `git clone --recursive` command.
+
 Git URLs accept context configuration in their fragment section, separated by a
 colon `:`.  The first part represents the reference that Git will check out,
 this can be either a branch, a tag, or a commit SHA. The second part represents
