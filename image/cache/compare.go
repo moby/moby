@@ -1,6 +1,8 @@
 package cache
 
-import "github.com/docker/docker/api/types/container"
+import (
+	"github.com/docker/docker/api/types/container"
+)
 
 // compare two Config struct. Do not compare the "Image" nor "Hostname" fields
 // If OpenStdin is set, then it differs

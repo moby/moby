@@ -345,11 +345,8 @@ ONBUILD RUN ["true"]`))
 
 	buildImageSuccessfully(c, name2, build.WithDockerfile(fmt.Sprintf(`FROM %s`, name1)))
 
-	out, _ := dockerCmd(c, "run", name2)
-	if !regexp.MustCompile(`(?m)^hello world`).MatchString(out) {
-		c.Fatalf("did not get echo output from onbuild. Got: %q", out)
-	}
-
+	result := cli.DockerCmd(c, "run", name2)
+	result.Assert(c, icmd.Expected{Out: "hello world"})
 }
 
 // FIXME(vdemeester) why we disabled cache here ?
@@ -4376,12 +4373,8 @@ func (s *DockerSuite) TestBuildTimeArgHistoryExclusions(c *check.C) {
 	if strings.Contains(out, "https_proxy") {
 		c.Fatalf("failed to exclude proxy settings from history!")
 	}
-	if !strings.Contains(out, fmt.Sprintf("%s=%s", envKey, envVal)) {
-		c.Fatalf("explicitly defined ARG %s is not in output", explicitProxyKey)
-	}
-	if !strings.Contains(out, fmt.Sprintf("%s=%s", envKey, envVal)) {
-		c.Fatalf("missing build arguments from output")
-	}
+	result.Assert(c, icmd.Expected{Out: fmt.Sprintf("%s=%s", envKey, envVal)})
+	result.Assert(c, icmd.Expected{Out: fmt.Sprintf("%s=%s", explicitProxyKey, explicitProxyVal)})
 
 	cacheID := buildImage(imgName + "-two")
 	c.Assert(origID, checker.Equals, cacheID)
@@ -4576,9 +4569,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgExpansion(c *check.C) {
 	)
 
 	res := inspectField(c, imgName, "Config.WorkingDir")
-	if res != filepath.ToSlash(filepath.Clean(wdVal)) {
-		c.Fatalf("Config.WorkingDir value mismatch. Expected: %s, got: %s", filepath.ToSlash(filepath.Clean(wdVal)), res)
-	}
+	c.Check(res, check.Equals, filepath.ToSlash(wdVal))
 
 	var resArr []string
 	inspectFieldAndUnmarshall(c, imgName, "Config.Env", &resArr)

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 )
 
 // ContainerAttachConfig holds the streams to use when connecting to a container to view logs.
@@ -97,4 +98,7 @@ type ExecProcessConfig struct {
 type ContainerCommitConfig struct {
 	types.ContainerCommitConfig
 	Changes []string
+	// TODO: ContainerConfig is only used by the dockerfile Builder, so remove it
+	// once the Builder has been updated to use a different interface
+	ContainerConfig *container.Config
 }

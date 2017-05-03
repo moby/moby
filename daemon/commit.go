@@ -129,6 +129,11 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		return "", err
 	}
 
+	containerConfig := c.ContainerConfig
+	if containerConfig == nil {
+		containerConfig = container.Config
+	}
+
 	// It is not possible to commit a running container on Windows and on Solaris.
 	if (runtime.GOOS == "windows" || runtime.GOOS == "solaris") && container.IsRunning() {
 		return "", errors.Errorf("%+v does not support commit of a running container", runtime.GOOS)
@@ -185,7 +190,7 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 	h := image.History{
 		Author:     c.Author,
 		Created:    time.Now().UTC(),
-		CreatedBy:  strings.Join(container.Config.Cmd, " "),
+		CreatedBy:  strings.Join(containerConfig.Cmd, " "),
 		Comment:    c.Comment,
 		EmptyLayer: true,
 	}
@@ -204,7 +209,7 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 			Architecture:    runtime.GOARCH,
 			OS:              runtime.GOOS,
 			Container:       container.ID,
-			ContainerConfig: *container.Config,
+			ContainerConfig: *containerConfig,
 			Author:          c.Author,
 			Created:         h.Created,
 		},
