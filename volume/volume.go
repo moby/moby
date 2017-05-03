@@ -149,7 +149,8 @@ func (m *MountPoint) Cleanup() error {
 // configured, or creating the source directory if supplied.
 // The, optional, checkFun parameter allows doing additional checking
 // before creating the source directory on the host.
-func (m *MountPoint) Setup(mountLabel string, rootIDs idtools.IDPair, checkFun func(m *MountPoint) error) (path string, err error) {
+// Postcondition: after a successful call, m.Source will contain the path of the mount point
+func (m *MountPoint) Setup(mountLabel string, rootIDs idtools.IDPair, checkFun func(m *MountPoint) error) (err error) {
 	defer func() {
 		if err != nil || !label.RelabelNeeded(m.Mode) {
 			return
@@ -160,7 +161,6 @@ func (m *MountPoint) Setup(mountLabel string, rootIDs idtools.IDPair, checkFun f
 			err = nil
 		}
 		if err != nil {
-			path = ""
 			err = errors.Wrapf(err, "error setting label on mount source '%s'", m.Source)
 		}
 	}()
@@ -172,26 +172,25 @@ func (m *MountPoint) Setup(mountLabel string, rootIDs idtools.IDPair, checkFun f
 		}
 		path, err := m.Volume.Mount(id)
 		if err != nil {
-			return "", errors.Wrapf(err, "error while mounting volume '%s'", m.Source)
+			return errors.Wrapf(err, "error while mounting volume '%s'", m.Source)
 		}
 
 		m.ID = id
 		m.active++
-		return path, nil
+		m.Source = path
+		return nil
 	}
 
 	if len(m.Source) == 0 {
-		return "", fmt.Errorf("Unable to setup mount point, neither source nor volume defined")
+		return fmt.Errorf("Unable to setup mount point, neither source nor volume defined")
 	}
-
-	// system.MkdirAll() produces an error if m.Source exists and is a file (not a directory),
 	if m.Type == mounttypes.TypeBind {
 		// Before creating the source directory on the host, invoke checkFun if it's not nil. One of
 		// the use case is to forbid creating the daemon socket as a directory if the daemon is in
 		// the process of shutting down.
 		if checkFun != nil {
 			if err := checkFun(m); err != nil {
-				return "", err
+				return err
 			}
 		}
 		// idtools.MkdirAllNewAs() produces an error if m.Source exists and is a file (not a directory)
@@ -199,12 +198,12 @@ func (m *MountPoint) Setup(mountLabel string, rootIDs idtools.IDPair, checkFun f
 		if err := idtools.MkdirAllAndChownNew(m.Source, 0755, rootIDs); err != nil {
 			if perr, ok := err.(*os.PathError); ok {
 				if perr.Err != syscall.ENOTDIR {
-					return "", errors.Wrapf(err, "error while creating mount source path '%s'", m.Source)
+					return errors.Wrapf(err, "error while creating mount source path '%s'", m.Source)
 				}
 			}
 		}
 	}
-	return m.Source, nil
+	return nil
 }
 
 // Path returns the path of a volume in a mount point.
