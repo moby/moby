@@ -6231,6 +6231,11 @@ paths:
   /networks:
     get:
       summary: "List networks"
+      description: |
+        Returns a list of networks. For details on the format, see [the network inspect endpoint](#operation/NetworkInspect).
+
+        Note that it uses a different, smaller representation of a network than inspecting a single network. For example,
+        the list of containers attached to the network is not propagated in API versions 1.28 and up.
       operationId: "NetworkList"
       produces:
         - "application/json"
@@ -6257,12 +6262,6 @@ paths:
                   Config:
                     -
                       Subnet: "172.17.0.0/16"
-                Containers:
-                  39b69226f9d79f5634485fb236a23b2fe4e96a0a94128390a7fbbcc167065867:
-                    EndpointID: "ed2419a97c1d9954d05b46e462e7002ea552f216e9b136b80a7db8d98b442eda"
-                    MacAddress: "02:42:ac:11:00:02"
-                    IPv4Address: "172.17.0.2/16"
-                    IPv6Address: ""
                 Options:
                   com.docker.network.bridge.default_bridge: "true"
                   com.docker.network.bridge.enable_icc: "true"
