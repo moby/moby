@@ -73,6 +73,7 @@ func GetHTTPErrorStatusCode(err error) int {
 			{"this node", http.StatusServiceUnavailable},
 			{"needs to be unlocked", http.StatusServiceUnavailable},
 			{"certificates have expired", http.StatusServiceUnavailable},
+			{"repository does not exist", http.StatusNotFound},
 		} {
 			if strings.Contains(errStr, status.keyword) {
 				statusCode = status.code
