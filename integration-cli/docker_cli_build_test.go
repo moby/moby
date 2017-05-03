@@ -337,13 +337,13 @@ func (s *DockerSuite) TestBuildOnBuildCmdEntrypointJSON(c *check.C) {
 	name1 := "onbuildcmd"
 	name2 := "onbuildgenerated"
 
-	buildImageSuccessfully(c, name1, build.WithDockerfile(`
+	cli.BuildCmd(c, name1, build.WithDockerfile(`
 FROM busybox
 ONBUILD CMD ["hello world"]
 ONBUILD ENTRYPOINT ["echo"]
 ONBUILD RUN ["true"]`))
 
-	buildImageSuccessfully(c, name2, build.WithDockerfile(fmt.Sprintf(`FROM %s`, name1)))
+	cli.BuildCmd(c, name2, build.WithDockerfile(fmt.Sprintf(`FROM %s`, name1)))
 
 	result := cli.DockerCmd(c, "run", name2)
 	result.Assert(c, icmd.Expected{Out: "hello world"})
@@ -1785,11 +1785,17 @@ func (s *DockerSuite) TestBuildConditionalCache(c *check.C) {
 	}
 }
 
-// FIXME(vdemeester) this really seems to test the same thing as before
 func (s *DockerSuite) TestBuildAddMultipleLocalFileWithAndWithoutCache(c *check.C) {
 	name := "testbuildaddmultiplelocalfilewithcache"
-	dockerfile := `
+	baseName := name + "-base"
+
+	cli.BuildCmd(c, baseName, build.WithDockerfile(`
 		FROM busybox
+		ENTRYPOINT ["/bin/sh"]
+	`))
+
+	dockerfile := `
+		FROM testbuildaddmultiplelocalfilewithcache-base
         MAINTAINER dockerio
         ADD foo Dockerfile /usr/lib/bla/
 		RUN sh -c "[ $(cat /usr/lib/bla/foo) = "hello" ]"`
@@ -1799,15 +1805,15 @@ func (s *DockerSuite) TestBuildAddMultipleLocalFileWithAndWithoutCache(c *check.
 	defer ctx.Close()
 	cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 	id1 := getIDByName(c, name)
-	cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
+	result2 := cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 	id2 := getIDByName(c, name)
-	cli.BuildCmd(c, name, build.WithoutCache, build.WithExternalBuildContext(ctx))
+	result3 := cli.BuildCmd(c, name, build.WithoutCache, build.WithExternalBuildContext(ctx))
 	id3 := getIDByName(c, name)
 	if id1 != id2 {
-		c.Fatal("The cache should have been used but hasn't.")
+		c.Fatalf("The cache should have been used but hasn't: %s", result2.Stdout())
 	}
 	if id1 == id3 {
-		c.Fatal("The cache should have been invalided but hasn't.")
+		c.Fatalf("The cache should have been invalided but hasn't: %s", result3.Stdout())
 	}
 }
 

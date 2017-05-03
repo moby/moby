@@ -315,10 +315,6 @@ func workdir(req dispatchRequest) error {
 		return nil
 	}
 
-	// TODO: why is this done here. This seems to be done at random places all over
-	// the builder
-	req.runConfig.Image = req.builder.image
-
 	comment := "WORKDIR " + req.runConfig.WorkingDir
 	runConfigWithCommentCmd := copyRunConfig(req.runConfig, withCmdCommentString(comment))
 	if hit, err := req.builder.probeCache(req.builder.image, runConfigWithCommentCmd); err != nil || hit {
@@ -372,10 +368,9 @@ func run(req dispatchRequest) error {
 		saveCmd = prependEnvOnCmd(req.builder.buildArgs, buildArgs, cmdFromArgs)
 	}
 
-	// TODO: this was previously in b.create(), why is it necessary?
-	req.runConfig.Image = req.builder.image
-
-	runConfigForCacheProbe := copyRunConfig(req.runConfig, withCmd(saveCmd))
+	runConfigForCacheProbe := copyRunConfig(req.runConfig,
+		withCmd(saveCmd),
+		withEntrypointOverride(saveCmd, nil))
 	hit, err := req.builder.probeCache(req.builder.image, runConfigForCacheProbe)
 	if err != nil || hit {
 		return err
@@ -383,13 +378,13 @@ func run(req dispatchRequest) error {
 
 	runConfig := copyRunConfig(req.runConfig,
 		withCmd(cmdFromArgs),
-		withEnv(append(req.runConfig.Env, buildArgs...)))
+		withEnv(append(req.runConfig.Env, buildArgs...)),
+		withEntrypointOverride(saveCmd, strslice.StrSlice{""}))
 
 	// set config as already being escaped, this prevents double escaping on windows
 	runConfig.ArgsEscaped = true
 
 	logrus.Debugf("[BUILDER] Command to be executed: %v", runConfig.Cmd)
-
 	cID, err := req.builder.create(runConfig)
 	if err != nil {
 		return err

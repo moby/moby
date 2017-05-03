@@ -73,10 +73,6 @@ func (m *MockBackend) ContainerWait(containerID string, timeout time.Duration) (
 	return 0, nil
 }
 
-func (m *MockBackend) ContainerUpdateCmdOnBuild(containerID string, cmd []string) error {
-	return nil
-}
-
 func (m *MockBackend) ContainerCreateWorkdir(containerID string) error {
 	return nil
 }

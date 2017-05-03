@@ -42,8 +42,6 @@ func (b *Builder) commit(comment string) error {
 	if !b.hasFromImage() {
 		return errors.New("Please provide a source image with `from` prior to commit")
 	}
-	// TODO: why is this set here?
-	b.runConfig.Image = b.image
 
 	runConfigWithCommentCmd := copyRunConfig(b.runConfig, withCmdComment(comment))
 	hit, err := b.probeCache(b.image, runConfigWithCommentCmd)
@@ -67,7 +65,8 @@ func (b *Builder) commitContainer(id string, containerConfig *container.Config) 
 		ContainerCommitConfig: types.ContainerCommitConfig{
 			Author: b.maintainer,
 			Pause:  true,
-			Config: b.runConfig,
+			// TODO: this should be done by Commit()
+			Config: copyRunConfig(b.runConfig),
 		},
 		ContainerConfig: containerConfig,
 	}
@@ -99,10 +98,6 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalD
 
 	// Work in daemon-specific filepath semantics
 	dest := filepath.FromSlash(args[len(args)-1]) // last one is always the dest
-
-	// TODO: why is this done here. This seems to be done at random places all over
-	// the builder
-	b.runConfig.Image = b.image
 
 	var infos []copyInfo
 
@@ -236,6 +231,21 @@ func withCmdCommentString(comment string) runConfigModifier {
 func withEnv(env []string) runConfigModifier {
 	return func(runConfig *container.Config) {
 		runConfig.Env = env
+	}
+}
+
+// withEntrypointOverride sets an entrypoint on runConfig if the command is
+// not empty. The entrypoint is left unmodified if command is empty.
+//
+// The dockerfile RUN instruction expect to run without an entrypoint
+// so the runConfig entrypoint needs to be modified accordingly. ContainerCreate
+// will change a []string{""} entrypoint to nil, so we probe the cache with the
+// nil entrypoint.
+func withEntrypointOverride(cmd []string, entrypoint []string) runConfigModifier {
+	return func(runConfig *container.Config) {
+		if len(cmd) > 0 {
+			runConfig.Entrypoint = entrypoint
+		}
 	}
 }
 
@@ -541,12 +551,12 @@ func (b *Builder) processImageFrom(img builder.Image) error {
 // If an image is found, probeCache returns `(true, nil)`.
 // If no image is found, it returns `(false, nil)`.
 // If there is any error, it returns `(false, err)`.
-func (b *Builder) probeCache(imageID string, runConfig *container.Config) (bool, error) {
+func (b *Builder) probeCache(parentID string, runConfig *container.Config) (bool, error) {
 	c := b.imageCache
 	if c == nil || b.options.NoCache || b.cacheBusted {
 		return false, nil
 	}
-	cache, err := c.GetCache(imageID, runConfig)
+	cache, err := c.GetCache(parentID, runConfig)
 	if err != nil {
 		return false, err
 	}
@@ -606,12 +616,6 @@ func (b *Builder) create(runConfig *container.Config) (string, error) {
 
 	b.tmpContainers[c.ID] = struct{}{}
 	fmt.Fprintf(b.Stdout, " ---> Running in %s\n", stringid.TruncateID(c.ID))
-
-	// override the entry point that may have been picked up from the base image
-	if err := b.docker.ContainerUpdateCmdOnBuild(c.ID, runConfig.Cmd); err != nil {
-		return "", err
-	}
-
 	return c.ID, nil
 }
 

@@ -54,8 +54,6 @@ type Backend interface {
 	ContainerStart(containerID string, hostConfig *container.HostConfig, checkpoint string, checkpointDir string) error
 	// ContainerWait stops processing until the given container is stopped.
 	ContainerWait(containerID string, timeout time.Duration) (int, error)
-	// ContainerUpdateCmdOnBuild updates container.Path and container.Args
-	ContainerUpdateCmdOnBuild(containerID string, cmd []string) error
 	// ContainerCreateWorkdir creates the workdir
 	ContainerCreateWorkdir(containerID string) error
 
