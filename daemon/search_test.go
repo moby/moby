@@ -7,7 +7,7 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/distribution/registry/client/auth"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/registry"
 )
@@ -21,7 +21,7 @@ type FakeService struct {
 	results []registrytypes.SearchResult
 }
 
-func (s *FakeService) Search(ctx context.Context, term string, limit int, authConfig *types.AuthConfig, userAgent string, headers map[string][]string) (*registrytypes.SearchResults, error) {
+func (s *FakeService) Search(ctx context.Context, term string, limit int, authConfig auth.Authenticator, userAgent string, headers map[string][]string) (*registrytypes.SearchResults, error) {
 	if s.shouldReturnError {
 		return nil, errors.New("Search unknown error")
 	}

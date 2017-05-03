@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/docker/distribution/reference"
+	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
@@ -29,7 +30,7 @@ func (m *MockBackend) TagImageWithReference(image.ID, reference.Named) error {
 	return nil
 }
 
-func (m *MockBackend) PullOnBuild(ctx context.Context, name string, authConfigs map[string]types.AuthConfig, output io.Writer) (builder.Image, error) {
+func (m *MockBackend) PullOnBuild(ctx context.Context, name string, authConfigs auth.Authenticator, output io.Writer) (builder.Image, error) {
 	return nil, nil
 }
 
