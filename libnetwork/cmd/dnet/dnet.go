@@ -27,6 +27,7 @@ import (
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/api"
+	"github.com/docker/libnetwork/cluster"
 	"github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
@@ -234,7 +235,7 @@ type dnetConnection struct {
 	// addr holds the client address.
 	addr          string
 	Orchestration *NetworkOrchestration
-	configEvent   chan struct{}
+	configEvent   chan cluster.ConfigEventType
 }
 
 // NetworkOrchestration exported
@@ -275,7 +276,7 @@ func (d *dnetConnection) dnetDaemon(cfgFile string) error {
 	controller.SetClusterProvider(d)
 
 	if d.Orchestration.Agent || d.Orchestration.Manager {
-		d.configEvent <- struct{}{}
+		d.configEvent <- cluster.EventNodeReady
 	}
 
 	createDefaultNetwork(controller)
@@ -335,7 +336,7 @@ func (d *dnetConnection) GetNetworkKeys() []*types.EncryptionKey {
 func (d *dnetConnection) SetNetworkKeys([]*types.EncryptionKey) {
 }
 
-func (d *dnetConnection) ListenClusterEvents() <-chan struct{} {
+func (d *dnetConnection) ListenClusterEvents() <-chan cluster.ConfigEventType {
 	return d.configEvent
 }
 
@@ -438,7 +439,7 @@ func newDnetConnection(val string) (*dnetConnection, error) {
 		return nil, errors.New("dnet currently only supports tcp transport")
 	}
 
-	return &dnetConnection{protoAddrParts[0], protoAddrParts[1], &NetworkOrchestration{}, make(chan struct{}, 10)}, nil
+	return &dnetConnection{protoAddrParts[0], protoAddrParts[1], &NetworkOrchestration{}, make(chan cluster.ConfigEventType, 10)}, nil
 }
 
 func (d *dnetConnection) httpCall(method, path string, data interface{}, headers map[string][]string) (io.ReadCloser, http.Header, int, error) {
