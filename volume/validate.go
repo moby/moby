@@ -52,6 +52,9 @@ func validateMountConfig(mnt *mount.Mount, options ...func(*validateOpts)) error
 		if mnt.VolumeOptions != nil {
 			return &errMountConfig{mnt, errExtraField("VolumeOptions")}
 		}
+		if mnt.IntrospectionOptions != nil {
+			return &errMountConfig{mnt, errExtraField("IntrospectionOptions")}
+		}
 
 		if err := validateAbsolute(mnt.Source); err != nil {
 			return &errMountConfig{mnt, err}
@@ -74,6 +77,9 @@ func validateMountConfig(mnt *mount.Mount, options ...func(*validateOpts)) error
 		if mnt.BindOptions != nil {
 			return &errMountConfig{mnt, errExtraField("BindOptions")}
 		}
+		if mnt.IntrospectionOptions != nil {
+			return &errMountConfig{mnt, errExtraField("IntrospectionOptions")}
+		}
 
 		if len(mnt.Source) == 0 && mnt.ReadOnly {
 			return &errMountConfig{mnt, fmt.Errorf("must not set ReadOnly mode when using anonymous volumes")}
@@ -88,6 +94,9 @@ func validateMountConfig(mnt *mount.Mount, options ...func(*validateOpts)) error
 			}
 		}
 	case mount.TypeTmpfs:
+		if mnt.IntrospectionOptions != nil {
+			return &errMountConfig{mnt, errExtraField("IntrospectionOptions")}
+		}
 		if len(mnt.Source) != 0 {
 			return &errMountConfig{mnt, errExtraField("Source")}
 		}
@@ -96,6 +105,25 @@ func validateMountConfig(mnt *mount.Mount, options ...func(*validateOpts)) error
 		}
 		if _, err := ConvertTmpfsOptions(mnt.TmpfsOptions, mnt.ReadOnly); err != nil {
 			return &errMountConfig{mnt, err}
+		}
+	case mount.TypeIntrospection:
+		if mnt.BindOptions != nil {
+			return &errMountConfig{mnt, errExtraField("BindOptions")}
+		}
+		if mnt.VolumeOptions != nil {
+			return &errMountConfig{mnt, errExtraField("VolumeOptions")}
+		}
+		if mnt.TmpfsOptions != nil {
+			return &errMountConfig{mnt, errExtraField("TmpfsOptions")}
+		}
+		if mnt.IntrospectionOptions == nil || len(mnt.IntrospectionOptions.Scopes) == 0 {
+			return &errMountConfig{mnt, errExtraField("IntrospectionOptions.Scopes")}
+		}
+		if mnt.Source != "" {
+			return &errMountConfig{mnt, errExtraField("Source")}
+		}
+		if !mnt.ReadOnly {
+			return &errMountConfig{mnt, errMissingField("ReadOnly")}
 		}
 	default:
 		return &errMountConfig{mnt, errors.New("mount type unknown")}

@@ -15,6 +15,8 @@ const (
 	TypeVolume Type = "volume"
 	// TypeTmpfs is the type for mounting tmpfs
 	TypeTmpfs Type = "tmpfs"
+	// TypeIntrospection is the type for introspection
+	TypeIntrospection Type = "introspection"
 )
 
 // Mount represents a mount (volume).
@@ -28,9 +30,10 @@ type Mount struct {
 	ReadOnly    bool        `json:",omitempty"`
 	Consistency Consistency `json:",omitempty"`
 
-	BindOptions   *BindOptions   `json:",omitempty"`
-	VolumeOptions *VolumeOptions `json:",omitempty"`
-	TmpfsOptions  *TmpfsOptions  `json:",omitempty"`
+	BindOptions          *BindOptions          `json:",omitempty"`
+	VolumeOptions        *VolumeOptions        `json:",omitempty"`
+	TmpfsOptions         *TmpfsOptions         `json:",omitempty"`
+	IntrospectionOptions *IntrospectionOptions `json:",omitempty"`
 }
 
 // Propagation represents the propagation of a mount.
@@ -125,4 +128,10 @@ type TmpfsOptions struct {
 	//
 	// Some of these may be straightforward to add, but others, such as
 	// uid/gid have implications in a clustered system.
+}
+
+// IntrospectionOptions defines options specific to mounts of type "introspection".
+type IntrospectionOptions struct {
+	//scopes defines the available elements of introspection. e.g. ".container.labels"
+	Scopes []string `json:",omitempty"`
 }

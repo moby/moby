@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 
+	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/mount"
@@ -35,8 +36,32 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 	for _, m := range tmpfsMountInfo {
 		tmpfsMounts[m.Destination] = true
 	}
+	foundIntrospection := false
 	for _, m := range c.MountPoints {
 		if tmpfsMounts[m.Destination] {
+			continue
+		}
+		if m.Type == mounttypes.TypeIntrospection {
+			if !daemon.HasExperimental() {
+				return nil, errors.New("introspection mount is only supported in experimental mode")
+			}
+			if foundIntrospection {
+				return nil, errors.Errorf("too many introspection mounts: %+v", m)
+			}
+			if m.RW {
+				return nil, errors.Errorf("introspection mount must be read-only: %+v", m)
+			}
+			opts := &introspectionOptions{scopes: m.Spec.IntrospectionOptions.Scopes}
+			if err := daemon.updateIntrospection(c, opts); err != nil {
+				return nil, err
+			}
+			mnt := container.Mount{
+				Source:      c.IntrospectionDir(),
+				Destination: m.Destination,
+				Writable:    false,
+			}
+			mounts = append(mounts, mnt)
+			foundIntrospection = true
 			continue
 		}
 		if err := daemon.lazyInitializeVolume(c.ID, m); err != nil {

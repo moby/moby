@@ -150,8 +150,10 @@ func (m *MountPoint) Setup(mountLabel string, rootUID, rootGID int) (path string
 		m.ID = id
 		return path, nil
 	}
-	if len(m.Source) == 0 {
-		return "", fmt.Errorf("Unable to setup mount point, neither source nor volume defined")
+	if m.Type == mounttypes.TypeBind || m.Type == mounttypes.TypeVolume {
+		if len(m.Source) == 0 {
+			return "", fmt.Errorf("Unable to setup mount point, neither source nor volume defined")
+		}
 	}
 	// system.MkdirAll() produces an error if m.Source exists and is a file (not a directory),
 	if m.Type == mounttypes.TypeBind {

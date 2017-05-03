@@ -266,6 +266,8 @@ func convertMount(m api.Mount) enginemount.Mount {
 		mount.Type = enginemount.TypeVolume
 	case api.MountTypeTmpfs:
 		mount.Type = enginemount.TypeTmpfs
+	case api.MountTypeIntrospection:
+		mount.Type = enginemount.TypeIntrospection
 	}
 
 	if m.BindOptions != nil {
@@ -313,6 +315,12 @@ func convertMount(m api.Mount) enginemount.Mount {
 		mount.TmpfsOptions = &enginemount.TmpfsOptions{
 			SizeBytes: m.TmpfsOptions.SizeBytes,
 			Mode:      m.TmpfsOptions.Mode,
+		}
+	}
+
+	if m.IntrospectionOptions != nil {
+		mount.IntrospectionOptions = &enginemount.IntrospectionOptions{
+			Scopes: m.IntrospectionOptions.Scopes,
 		}
 	}
 

@@ -52,6 +52,13 @@ func (m *MountOpt) Set(value string) error {
 		return mount.TmpfsOptions
 	}
 
+	introspectionOptions := func() *mounttypes.IntrospectionOptions {
+		if mount.IntrospectionOptions == nil {
+			mount.IntrospectionOptions = new(mounttypes.IntrospectionOptions)
+		}
+		return mount.IntrospectionOptions
+	}
+
 	setValueOnMap := func(target map[string]string, value string) {
 		parts := strings.SplitN(value, "=", 2)
 		if len(parts) == 1 {
@@ -60,6 +67,8 @@ func (m *MountOpt) Set(value string) error {
 			target[parts[0]] = parts[1]
 		}
 	}
+
+	writableExplicit := false
 
 	mount.Type = mounttypes.TypeVolume // default to volume mounts
 	// Set writable as the default
@@ -95,6 +104,9 @@ func (m *MountOpt) Set(value string) error {
 			if err != nil {
 				return fmt.Errorf("invalid value for %s: %s", key, value)
 			}
+			if !mount.ReadOnly {
+				writableExplicit = true
+			}
 		case "consistency":
 			mount.Consistency = mounttypes.Consistency(strings.ToLower(value))
 		case "bind-propagation":
@@ -125,8 +137,22 @@ func (m *MountOpt) Set(value string) error {
 				return fmt.Errorf("invalid value for %s: %s", key, value)
 			}
 			tmpfsOptions().Mode = os.FileMode(ui64)
+		case "introspection-scope":
+			// we support unquoted form (`introspection-scope=.container.labels,introspection-scope=.tasks`)
+			// TODO: support quoted form? (`introspection-scope=".container.labels,.tasks"`)
+			introspectionOptions().Scopes = append(introspectionOptions().Scopes, value)
 		default:
 			return fmt.Errorf("unexpected key '%s' in '%s'", key, field)
+		}
+	}
+
+	if mount.Type == mounttypes.TypeIntrospection {
+		if writableExplicit {
+			return fmt.Errorf("cannot set readonly=false explicitly for mount type '%s'", mount.Type)
+		}
+		mount.ReadOnly = true
+		if mount.IntrospectionOptions == nil || len(mount.IntrospectionOptions.Scopes) == 0 {
+			return fmt.Errorf("at least one 'introspection-scope' is required. e.g. '.' (denotes all), '.containers.labels', '.task'")
 		}
 	}
 
@@ -146,6 +172,9 @@ func (m *MountOpt) Set(value string) error {
 	}
 	if mount.TmpfsOptions != nil && mount.Type != mounttypes.TypeTmpfs {
 		return fmt.Errorf("cannot mix 'tmpfs-*' options with mount type '%s'", mount.Type)
+	}
+	if mount.IntrospectionOptions != nil && mount.Type != mounttypes.TypeIntrospection {
+		return fmt.Errorf("cannot mix 'introspection-*' options with mount type '%s'", mount.Type)
 	}
 
 	m.values = append(m.values, mount)
