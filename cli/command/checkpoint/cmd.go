@@ -13,7 +13,7 @@ func NewCheckpointCommand(dockerCli *command.DockerCli) *cobra.Command {
 		Short: "Manage checkpoints",
 		Args:  cli.NoArgs,
 		RunE:  dockerCli.ShowHelp,
-		Tags:  map[string]string{"experimental": "", "version": "1.25"},
+		Tags:  map[string]string{"version": "1.25"},
 	}
 	cmd.AddCommand(
 		newCreateCommand(dockerCli),

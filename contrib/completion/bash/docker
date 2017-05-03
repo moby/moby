@@ -1787,24 +1787,9 @@ _docker_container_run_and_create() {
 _docker_container_start() {
 	__docker_complete_detach_keys && return
 
-	case "$prev" in
-		--checkpoint)
-			if [ __docker_daemon_is_experimental ] ; then
-				return
-			fi
-			;;
-		--checkpoint-dir)
-			if [ __docker_daemon_is_experimental ] ; then
-				_filedir -d
-				return
-			fi
-			;;
-	esac
-
 	case "$cur" in
 		-*)
-			local options="--attach -a --detach-keys --help --interactive -i"
-			__docker_daemon_is_experimental && options+=" --checkpoint --checkpoint-dir"
+			local options="--attach -a --detach-keys --help --interactive -i --checkpoint --checkpoint-dir"
 			COMPREPLY=( $( compgen -W "$options" -- "$cur" ) )
 			;;
 		*)
@@ -4533,7 +4518,6 @@ _docker() {
 	)
 
 	local experimental_commands=(
-		checkpoint
 		deploy
 	)
 
