@@ -119,7 +119,7 @@ type MountPoint struct {
 	// This should be set by calls to `Mount` and unset by calls to `Unmount`
 	ID string `json:",omitempty"`
 
-	// Sepc is a copy of the API request that created this mount.
+	// Spec is a copy of the API request that created this mount.
 	Spec mounttypes.Mount
 
 	// Track usage of this mountpoint
