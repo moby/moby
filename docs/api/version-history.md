@@ -17,6 +17,8 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.30](https://docs.docker.com/engine/api/v1.30/) documentation
 
+* `GET /info` now returns the list of supported logging drivers, including plugins.
+
 ## v1.29 API changes
 
 [Docker Engine API v1.29](https://docs.docker.com/engine/api/v1.29/) documentation
