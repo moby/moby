@@ -31,7 +31,6 @@ import (
 	"github.com/docker/docker/cli/debug"
 	cliflags "github.com/docker/docker/cli/flags"
 	"github.com/docker/docker/client/session"
-	"github.com/docker/docker/client/session/grpctransport"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/cluster"
 	"github.com/docker/docker/daemon/config"
@@ -271,7 +270,7 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 		logrus.Fatalf("Error creating middlewares: %v", err)
 	}
 
-	sm, err := session.NewManager(grpctransport.New())
+	sm, err := session.NewManager()
 	if err != nil {
 		return errors.Wrap(err, "failed to create sessionmanager")
 	}

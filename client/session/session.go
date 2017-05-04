@@ -4,74 +4,25 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"regexp"
-	"strings"
 	"sync"
+
+	"google.golang.org/grpc"
 
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
 
-// Stream allows moving messages between endpoints
-type Stream interface {
-	RecvMsg(interface{}) error
-	SendMsg(interface{}) error
-	Context() context.Context
-	// CloseSend() error
-}
-
-// HandleFunc is a handler for a request
-type HandleFunc func(ctx context.Context, opts map[string][]string, stream *Stream) error
-
 // Dialer returns a connection that can be used by the session
 type Dialer func(ctx context.Context, proto string, meta map[string][]string) (net.Conn, error)
 
-// Attachment is a feature exposed to the session
-type Attachment interface {
-	RegisterHandlers(func(id, method string) error) error
-	Handle(ctx context.Context, id, method string, opts map[string][]string, stream Stream) error
-}
-
 // Caller can invoke requests on the session
 type Caller interface {
-	Supports(id, method string) bool
-	Call(ctx context.Context, id, method string, opts map[string][]string) (Stream, error)
+	Supports(serviceName string) bool
+	GetGrpcConn() *grpc.ClientConn
 	Name() string
 	SharedKey() string
 	Close() error
-}
-
-// Handler can respond to requests on the session
-type Handler interface {
-	RegisterHandlers(func(id, method string)) error
-	Handle(id, method string, opts map[string][]string, stream Stream) error
-}
-
-// TransportFactory returns a new transport used by the session
-type TransportFactory interface {
-	NewHandler(ctx context.Context, conn net.Conn) (TransportHandler, error)
-	NewCaller(ctx context.Context, conn net.Conn) (TransportCaller, error)
-	Name() string
-	ProtoName() string
-	ToMethodName(id, method string) string
-	FromMethodName(method string) (string, string, error)
-}
-
-// TransportHandler is handler definition that transport needs to support
-type TransportHandler interface {
-	Register(id, method string, f HandleFunc) error
-	Serve(ctx context.Context) error
-}
-
-// TransportCaller is a caller definition that transport needs to support
-type TransportCaller interface {
-	Call(ctx context.Context, id, method string, opts map[string][]string) (Stream, error)
-}
-
-type callbackSelector struct {
-	id     string
-	method string
 }
 
 // Session is a long running connection between client and a daemon
@@ -79,22 +30,37 @@ type Session struct {
 	uuid      string
 	name      string
 	sharedKey string
-	handlers  map[callbackSelector]HandleFunc
 	ctx       context.Context
 	cancelCtx func()
 	done      chan struct{}
 }
+type ClientSession struct {
+	Session
+	caller            *grpcCaller
+	supportedServices map[string]struct{}
+}
+type ServerSession struct {
+	Session
+	grpcServer *grpc.Server
+}
 
 // NewSession returns a new long running session
-func NewSession(name, sharedKey string) (*Session, error) {
+func NewServerSession(name, sharedKey string) (*ServerSession, error) {
 	uuid := stringid.GenerateRandomID()
-	s := &Session{
-		uuid:      uuid,
-		name:      name,
-		sharedKey: sharedKey,
-		handlers:  make(map[callbackSelector]HandleFunc),
+	s := &ServerSession{
+		Session: Session{
+			uuid:      uuid,
+			name:      name,
+			sharedKey: sharedKey,
+		},
+		grpcServer: grpc.NewServer(),
 	}
 	return s, nil
+}
+
+// Allow enable a given service to be reachable trough the grpc session
+func (s *ServerSession) Allow(serviceDesc *grpc.ServiceDesc, serviceImpl interface{}) {
+	s.grpcServer.RegisterService(serviceDesc, serviceImpl)
 }
 
 // UUID returns unique identifier for the session
@@ -102,23 +68,8 @@ func (s *Session) UUID() string {
 	return s.uuid
 }
 
-// Allow allows a new feature on the session
-func (s *Session) Allow(a Attachment) error {
-	return a.RegisterHandlers(func(id, method string) error {
-		handler := func(ctx context.Context, opts map[string][]string, stream *Stream) error {
-			return a.Handle(ctx, id, method, opts, *stream)
-		}
-		cbs := callbackSelector{id: id, method: method}
-		if _, ok := s.handlers[cbs]; ok {
-			return errors.Errorf("handler for %s %s already exists", id, method)
-		}
-		s.handlers[cbs] = handler
-		return nil
-	})
-}
-
 // Run activates the session
-func (s *Session) Run(ctx context.Context, dialer Dialer, tf TransportFactory) error {
+func (s *ServerSession) Run(ctx context.Context, dialer Dialer) error {
 	ctx, cancel := context.WithCancel(ctx)
 	s.cancelCtx = cancel
 	s.done = make(chan struct{})
@@ -131,26 +82,18 @@ func (s *Session) Run(ctx context.Context, dialer Dialer, tf TransportFactory) e
 	meta["X-Docker-Expose-Session-Name"] = []string{s.name}
 	meta["X-Docker-Expose-Session-SharedKey"] = []string{s.sharedKey}
 
-	for s := range s.handlers {
-		k := fmt.Sprintf("X-Docker-Expose-Session-%s-Method", tf.Name())
-		meta[k] = append(meta[k], tf.ToMethodName(s.id, s.method))
+	serviceNames := []string{}
+	for svc := range s.grpcServer.GetServiceInfo() {
+		serviceNames = append(serviceNames, svc)
 	}
+	meta["X-Docker-Expose-Session-Services"] = serviceNames
 
-	conn, err := dialer(ctx, tf.ProtoName(), meta)
+	conn, err := dialer(ctx, "gRPC", meta)
 	if err != nil {
-		return errors.Wrapf(err, "failed to dial %s", tf.ProtoName())
+		return errors.Wrap(err, "failed to dial gRPC")
 	}
-
-	h, err := tf.NewHandler(ctx, conn)
-	if err != nil {
-		return err
-	}
-	for s, f := range s.handlers {
-		if err := h.Register(s.id, s.method, f); err != nil {
-			return err
-		}
-	}
-	return h.Serve(ctx)
+	serve(ctx, s.grpcServer, conn)
+	return nil
 }
 
 // Close closes the session
@@ -177,17 +120,15 @@ func (s *Session) closed() bool {
 
 // Manager is a controller for accessing currently active sessions
 type Manager struct {
-	tfs      []TransportFactory
-	sessions map[string]*Session
+	sessions map[string]*ClientSession
 	mu       sync.Mutex
 	c        *sync.Cond
 }
 
 // NewManager returns a new Manager
-func NewManager(tfs ...TransportFactory) (*Manager, error) {
+func NewManager() (*Manager, error) {
 	sm := &Manager{
-		tfs:      tfs,
-		sessions: make(map[string]*Session),
+		sessions: make(map[string]*ClientSession),
 	}
 	sm.c = sync.NewCond(&sm.mu)
 	return sm, nil
@@ -215,16 +156,8 @@ func (sm *Manager) HandleHTTPRequest(ctx context.Context, w http.ResponseWriter,
 		return errors.New("no upgrade proto in request")
 	}
 
-	var t TransportFactory
-	for _, tf := range sm.tfs {
-		if tf.ProtoName() == proto {
-			t = tf
-			continue
-		}
-	}
-
-	if t == nil {
-		return errors.Errorf("no transport for protocol %s", proto)
+	if proto != "gRPC" {
+		return errors.Errorf("protocol %s not supported", proto)
 	}
 
 	conn, _, err := hijacker.Hijack()
@@ -239,44 +172,27 @@ func (sm *Manager) HandleHTTPRequest(ctx context.Context, w http.ResponseWriter,
 
 	ctx, cancel := context.WithCancel(ctx)
 
-	caller, err := t.NewCaller(ctx, conn)
+	caller, err := newCaller(ctx, conn)
 	if err != nil {
 		return errors.Wrap(err, "failed to create new caller")
 	}
 
-	s := &Session{
-		uuid:      uuid,
-		name:      name,
-		sharedKey: sharedKey,
-		handlers:  make(map[callbackSelector]HandleFunc),
-		ctx:       ctx,
-		cancelCtx: cancel,
-		done:      make(chan struct{}),
+	s := &ClientSession{
+		Session: Session{
+			uuid:      uuid,
+			name:      name,
+			sharedKey: sharedKey,
+			ctx:       ctx,
+			cancelCtx: cancel,
+			done:      make(chan struct{}),
+		},
+		caller:            caller,
+		supportedServices: make(map[string]struct{}),
 	}
 
-	re := regexp.MustCompile("^X-Docker-Expose-Session-((?i)[a-z0-9_\\.]+)-Method$")
-
-	for k, allv := range r.Header {
-		matches := re.FindAllStringSubmatch(k, -1)
-		if len(matches) == 1 && len(matches[0]) == 2 {
-			if strings.EqualFold(matches[0][1], t.Name()) {
-				for _, v := range allv {
-					id, method, err := t.FromMethodName(v)
-					if err != nil {
-						return err
-					}
-					sel := callbackSelector{id: id, method: method}
-					s.handlers[sel] = func(ctx context.Context, opts map[string][]string, stream *Stream) error {
-						s, err := caller.Call(ctx, id, method, opts)
-						if err != nil {
-							return err
-						}
-						*stream = s
-						return nil
-					}
-				}
-			}
-		}
+	serviceNames := r.Header["X-Docker-Expose-Session-Services"]
+	for _, svcName := range serviceNames {
+		s.supportedServices[svcName] = struct{}{}
 	}
 
 	sm.sessions[uuid] = s
@@ -309,7 +225,7 @@ func (sm *Manager) GetSession(ctx context.Context, uuid string) (context.Context
 		}
 	}()
 
-	var session *Session
+	var session *ClientSession
 
 	sm.mu.Lock()
 	for {
@@ -334,7 +250,7 @@ func (sm *Manager) GetSession(ctx context.Context, uuid string) (context.Context
 }
 
 type sessionCaller struct {
-	s *Session
+	s *ClientSession
 }
 
 func (sc *sessionCaller) Name() string {
@@ -345,37 +261,15 @@ func (sc *sessionCaller) SharedKey() string {
 	return sc.s.sharedKey
 }
 
-func (sc *sessionCaller) Supports(id, method string) bool {
-	if sc.s.closed() {
-		return false
-	}
-	_, ok := sc.s.handlers[callbackSelector{id: id, method: method}]
-	return ok
-}
-
-func (sc *sessionCaller) Call(ctx context.Context, id, method string, opts map[string][]string) (Stream, error) {
-	if !sc.Supports(id, method) {
-		return nil, errors.Errorf("method %s not supported on %s", method, id)
-	}
-
-	ctx, cancel := context.WithCancel(ctx)
-	go func() {
-		<-sc.s.context().Done()
-		cancel()
-	}()
-
-	var stream Stream
-	err := sc.s.handlers[callbackSelector{id: id, method: method}](ctx, opts, &stream)
-	if err != nil {
-		return nil, err
-	}
-	if stream == nil {
-		return nil, errors.Errorf("invalid stream response")
-	}
-	return stream, nil
-}
-
 func (sc *sessionCaller) Close() error {
 	// TODO: test this
 	return sc.s.Close()
+}
+
+func (sc *sessionCaller) Supports(serviceName string) bool {
+	_, ok := sc.s.supportedServices[serviceName]
+	return ok
+}
+func (sc *sessionCaller) GetGrpcConn() *grpc.ClientConn {
+	return sc.s.caller.cc
 }

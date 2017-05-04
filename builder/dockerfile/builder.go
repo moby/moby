@@ -100,6 +100,7 @@ func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (
 		ProgressWriter: config.ProgressWriter,
 		Backend:        bm.backend,
 		PathCache:      bm.pathCache,
+		sessionGetter:  bm.sg,
 	}
 	return newBuilder(ctx, builderOptions).build(source, dockerfile)
 }
@@ -110,6 +111,7 @@ type builderOptions struct {
 	Backend        builder.Backend
 	ProgressWriter backend.ProgressWriter
 	PathCache      pathCache
+	sessionGetter  SessionGetter
 }
 
 // Builder is a Dockerfile builder
@@ -149,6 +151,7 @@ func newBuilder(clientCtx context.Context, options builderOptions) *Builder {
 		docker:        options.Backend,
 		tmpContainers: map[string]struct{}{},
 		buildArgs:     newBuildArgs(config.BuildArgs),
+		sessionGetter: options.sessionGetter,
 	}
 	b.imageContexts = &imageContexts{b: b, cache: options.PathCache}
 	return b

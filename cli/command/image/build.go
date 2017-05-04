@@ -28,7 +28,6 @@ import (
 	"github.com/docker/docker/cli/command/image/build"
 	cliconfig "github.com/docker/docker/cli/config"
 	"github.com/docker/docker/client/session"
-	"github.com/docker/docker/client/session/grpctransport"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/fileutils"
@@ -291,13 +290,13 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 	if dockerfileCtx != nil && buildCtx == nil {
 		buildCtx = dockerfileCtx
 	}
-	var s *session.Session
+	var s *session.ServerSession
 	if isSessionSupported(dockerCli) {
 		sharedKey, err := getBuildSharedKey(contextDir)
 		if err != nil {
 			return errors.Wrap(err, "failed to get build shared key")
 		}
-		s, err = session.NewSession(filepath.Base(contextDir), sharedKey)
+		s, err = session.NewServerSession(filepath.Base(contextDir), sharedKey)
 		if err != nil {
 			return errors.Wrap(err, "failed to create session")
 		}
@@ -340,7 +339,7 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 	if s != nil {
 		go func() {
 			logrus.Debugf("running session: %v", s.UUID())
-			if err := s.Run(ctx, dockerCli.Client().DialSession, grpctransport.New()); err != nil {
+			if err := s.Run(ctx, dockerCli.Client().DialSession); err != nil {
 				logrus.Error(err)
 				cancel()
 			}
