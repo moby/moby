@@ -6147,14 +6147,6 @@ paths:
       produces:
         - "application/json"
       operationId: "VolumePrune"
-      parameters:
-        - name: "filters"
-          in: "query"
-          description: |
-            Filters to process on the prune list, encoded as JSON (a `map[string][]string`).
-
-            Available filters:
-          type: "string"
       responses:
         200:
           description: "No error"
