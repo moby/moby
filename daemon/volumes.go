@@ -2,8 +2,6 @@ package daemon
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"reflect"
 	"strings"
 	"time"
@@ -24,8 +22,6 @@ var (
 	ErrVolumeReadonly = errors.New("mounted volume is marked read-only")
 )
 
-type mounts []container.Mount
-
 // volumeToAPIType converts a volume.Volume to the type used by the Engine API
 func volumeToAPIType(v volume.Volume) *types.Volume {
 	createdAt, _ := v.CreatedAt()
@@ -41,28 +37,6 @@ func volumeToAPIType(v volume.Volume) *types.Volume {
 	}
 
 	return tv
-}
-
-// Len returns the number of mounts. Used in sorting.
-func (m mounts) Len() int {
-	return len(m)
-}
-
-// Less returns true if the number of parts (a/b/c would be 3 parts) in the
-// mount indexed by parameter 1 is less than that of the mount indexed by
-// parameter 2. Used in sorting.
-func (m mounts) Less(i, j int) bool {
-	return m.parts(i) < m.parts(j)
-}
-
-// Swap swaps two items in an array of mounts. Used in sorting
-func (m mounts) Swap(i, j int) {
-	m[i], m[j] = m[j], m[i]
-}
-
-// parts returns the number of parts in the destination of a mount. Used in sorting.
-func (m mounts) parts(i int) int {
-	return strings.Count(filepath.Clean(m[i].Destination), string(os.PathSeparator))
 }
 
 // registerMountPoints initializes the container mount points with the configured volumes and bind mounts.

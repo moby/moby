@@ -3,8 +3,6 @@
 package daemon
 
 import (
-	"sort"
-
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/volume"
@@ -37,7 +35,7 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 		})
 	}
 
-	sort.Sort(mounts(mnts))
+	mnts = container.SortMounts(mnts)
 	return mnts, nil
 }
 
