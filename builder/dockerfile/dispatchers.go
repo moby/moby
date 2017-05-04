@@ -17,13 +17,16 @@ import (
 	"time"
 
 	"bytes"
+
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/pkg/signal"
+	"github.com/docker/docker/registry"
 	"github.com/docker/go-connections/nat"
 	"github.com/pkg/errors"
 )
@@ -817,8 +820,23 @@ func pullOrGetImage(b *Builder, name string) (builder.Image, error) {
 		// TODO: shouldn't we error out if error is different from "not found" ?
 	}
 	if image == nil {
-		var err error
-		image, err = b.docker.PullOnBuild(b.clientCtx, name, b.options.AuthConfigs, b.Output)
+		ref, err := reference.ParseNormalizedNamed(name)
+		if err != nil {
+			return nil, err
+		}
+		ref = reference.TagNameOnly(ref)
+		repoInfo, err := registry.ParseRepositoryInfo(ref)
+		if err != nil {
+			return nil, err
+		}
+		reg := registry.GetAuthConfigKey(repoInfo.Index)
+		authConf, err := b.authProvider.GetAuthConfig(reg)
+		if err != nil {
+			return nil, err
+		}
+		authConfs := make(map[string]types.AuthConfig)
+		authConfs[reg] = *authConf
+		image, err = b.docker.PullOnBuild(b.clientCtx, name, authConfs, b.Output)
 		if err != nil {
 			return nil, err
 		}

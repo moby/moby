@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/builder/dockerfile/parser"
 	"github.com/docker/docker/builder/remotecontext"
 	"github.com/docker/docker/client/session"
+	"github.com/docker/docker/client/session/auth"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
@@ -134,6 +135,7 @@ type Builder struct {
 	cacheBusted   bool
 	buildArgs     *buildArgs
 	imageCache    builder.ImageCache
+	authProvider AuthConfigProvider
 }
 
 // newBuilder creates a new Dockerfile builder from an optional dockerfile and a Options.
@@ -142,6 +144,7 @@ func newBuilder(clientCtx context.Context, options builderOptions) *Builder {
 	if config == nil {
 		config = new(types.ImageBuildOptions)
 	}
+
 	b := &Builder{
 		clientCtx:     clientCtx,
 		options:       config,
@@ -152,6 +155,17 @@ func newBuilder(clientCtx context.Context, options builderOptions) *Builder {
 		tmpContainers: map[string]struct{}{},
 		buildArgs:     newBuildArgs(config.BuildArgs),
 		sessionGetter: options.sessionGetter,
+	}
+	sg := options.sessionGetter
+	if sg != nil && options.Options.SessionID != "" {
+		_, c, _ := sg.GetSession(clientCtx, options.Options.SessionID)
+		if c != nil && c.Supports(auth.AuthProviderServiceName()) {
+			client := auth.NewAuthConfigProviderClient(c.GetGrpcConn())
+			b.authProvider = &streamingAuthConfigProvider{client: client}
+		}
+	}
+	if b.authProvider == nil {
+		b.authProvider = &staticAuthConfigProvider{auths: options.Options.AuthConfigs}
 	}
 	b.imageContexts = &imageContexts{b: b, cache: options.PathCache}
 	return b

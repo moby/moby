@@ -28,6 +28,7 @@ import (
 	"github.com/docker/docker/cli/command/image/build"
 	cliconfig "github.com/docker/docker/cli/config"
 	"github.com/docker/docker/client/session"
+	"github.com/docker/docker/client/session/auth"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/fileutils"
@@ -152,6 +153,31 @@ func (out *lastProgressOutput) WriteProgress(prog progress.Progress) error {
 
 func isSessionSupported(dockerCli *command.DockerCli) bool {
 	return dockerCli.ServerInfo().HasExperimental && versions.GreaterThanOrEqualTo(dockerCli.Client().ClientVersion(), "1.26")
+}
+
+type authProvider struct {
+	dockerCli      *command.DockerCli
+	progressOutput progress.Output
+}
+
+func (p *authProvider) GetRegistryAuth(ctx context.Context, req *auth.RegistryAuthRequest) (*auth.AuthConfig, error) {
+	if req == nil || req.Registry == "" {
+		return nil, errors.New("No registry specified")
+	}
+	progress.Messagef(p.progressOutput, "registry-auth", "Streaming credentials for registry %s", req.Registry)
+	conf, err := p.dockerCli.CredentialsStore(req.Registry).Get(req.Registry)
+	if err != nil {
+		return nil, nil // ignore error: just returning no auth config
+	}
+	return &auth.AuthConfig{
+		Auth:          conf.Auth,
+		Email:         conf.Email,
+		IdentityToken: conf.IdentityToken,
+		Password:      conf.Password,
+		RegistryToken: conf.RegistryToken,
+		ServerAddress: conf.ServerAddress,
+		Username:      conf.Username,
+	}, nil
 }
 
 func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
@@ -290,6 +316,7 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 	if dockerfileCtx != nil && buildCtx == nil {
 		buildCtx = dockerfileCtx
 	}
+	var authConfigs map[string]types.AuthConfig
 	var s *session.ServerSession
 	if isSessionSupported(dockerCli) {
 		sharedKey, err := getBuildSharedKey(contextDir)
@@ -300,11 +327,14 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to create session")
 		}
+		authConfigs = make(map[string]types.AuthConfig)
+		auth.AttachAuthConfigProviderToSession(&authProvider{dockerCli, progressOutput}, s)
+	} else {
+		authConfigs, _ = dockerCli.GetAllCredentials()
 	}
 
 	var body io.Reader = progress.NewProgressReader(buildCtx, progressOutput, 0, "", "Sending build context to Docker daemon")
 
-	authConfigs, _ := dockerCli.GetAllCredentials()
 	buildOptions := types.ImageBuildOptions{
 		Memory:         options.memory.Value(),
 		MemorySwap:     options.memorySwap.Value(),
