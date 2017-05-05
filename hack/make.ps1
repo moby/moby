@@ -396,7 +396,17 @@ Try {
 
         # Perform the actual build
         if ($Daemon) { Execute-Build "daemon" "daemon" "dockerd" }
-        if ($Client) { Execute-Build "client" "" "docker" }
+        if ($Client) {
+            $dockerCliCommit=$(findstr DOCKERCLI_COMMIT hack\dockerfile\binaries-commits)
+            Push-Location ..
+            # TODO: check if cli folder exists already
+            git clone https://github.com/docker/cli
+            cd cli
+            git checkout $dockerCliCommit.split("=")[1]
+            # TODO: update CI script to not assume binary is in docker/docker
+            go build -o ..\docker\bundles\docker.exe github.com/docker/cli/cmd/docker
+            Pop-Location
+        }
     }
 
     # Run unit tests

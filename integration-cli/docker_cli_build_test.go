@@ -1081,8 +1081,8 @@ func (s *DockerSuite) TestBuildWithInaccessibleFilesInContext(c *check.C) {
 			c.Fatalf("output should've contained the string: no permission to read from but contained: %s", result.Combined())
 		}
 
-		if !strings.Contains(result.Combined(), "Error checking context") {
-			c.Fatalf("output should've contained the string: Error checking context")
+		if !strings.Contains(result.Combined(), "error checking context") {
+			c.Fatalf("output should've contained the string: error checking context")
 		}
 	}
 	{
@@ -1119,8 +1119,8 @@ func (s *DockerSuite) TestBuildWithInaccessibleFilesInContext(c *check.C) {
 			c.Fatalf("output should've contained the string: can't access %s", result.Combined())
 		}
 
-		if !strings.Contains(result.Combined(), "Error checking context") {
-			c.Fatalf("output should've contained the string: Error checking context\ngot:%s", result.Combined())
+		if !strings.Contains(result.Combined(), "error checking context") {
+			c.Fatalf("output should've contained the string: error checking context\ngot:%s", result.Combined())
 		}
 
 	}
@@ -2509,7 +2509,7 @@ func (s *DockerSuite) TestBuildDockerignoringBadExclusion(c *check.C) {
 		build.WithFile(".dockerignore", "!\n"),
 	)).Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err:      "Error checking context: 'illegal exclusion pattern: \"!\"",
+		Err:      "error checking context: 'illegal exclusion pattern: \"!\"",
 	})
 }
 
@@ -3693,7 +3693,7 @@ func (s *DockerSuite) TestBuildRenamedDockerfile(c *check.C) {
 	}
 	cli.Docker(cli.Args("build", fmt.Sprintf("--file=%s", nonDockerfileFile), "-t", "test5", "."), cli.InDir(ctx.Dir)).Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err:      fmt.Sprintf("The Dockerfile (%s) must be within the build context (.)", nonDockerfileFile),
+		Err:      fmt.Sprintf("unable to prepare context: the Dockerfile (%s) must be within the build context", nonDockerfileFile),
 	})
 
 	cli.Docker(cli.Args("build", "-f", filepath.Join("..", "Dockerfile"), "-t", "test6", ".."), cli.InDir(filepath.Join(ctx.Dir, "files"))).Assert(c, icmd.Expected{

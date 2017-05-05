@@ -7,7 +7,7 @@ DOCKER_INCREMENTAL_BINARY := $(if $(DOCKER_INCREMENTAL_BINARY),$(DOCKER_INCREMEN
 export DOCKER_INCREMENTAL_BINARY
 
 # get OS/Arch of docker engine
-DOCKER_OSARCH := $(shell bash -c 'source hack/make/.detect-daemon-osarch && echo $${DOCKER_ENGINE_OSARCH:-$$DOCKER_CLIENT_OSARCH}')
+DOCKER_OSARCH := $(shell bash -c 'source hack/make/.detect-daemon-osarch && echo $${DOCKER_ENGINE_OSARCH}')
 DOCKERFILE := $(shell bash -c 'source hack/make/.detect-daemon-osarch && echo $${DOCKERFILE}')
 
 DOCKER_GITCOMMIT := $(shell git rev-parse --short HEAD || echo unsupported)
@@ -24,6 +24,7 @@ DOCKER_ENVS := \
 	-e DOCKER_BUILD_ARGS \
 	-e DOCKER_BUILD_GOGC \
 	-e DOCKER_BUILD_PKGS \
+	-e DOCKER_CLI_PATH \
 	-e DOCKER_DEBUG \
 	-e DOCKER_EXPERIMENTAL \
 	-e DOCKER_GITCOMMIT \
@@ -63,7 +64,8 @@ PKGCACHE_MAP := gopath:/go/pkg goroot-linux_amd64:/usr/local/go/pkg/linux_amd64 
 PKGCACHE_VOLROOT := dockerdev-go-pkg-cache
 PKGCACHE_VOL := $(if $(PKGCACHE_DIR),$(CURDIR)/$(PKGCACHE_DIR)/,$(PKGCACHE_VOLROOT)-)
 DOCKER_MOUNT_PKGCACHE := $(if $(DOCKER_INCREMENTAL_BINARY),$(shell echo $(PKGCACHE_MAP) | sed -E 's@([^ ]*)@-v "$(PKGCACHE_VOL)\1"@g'),)
-DOCKER_MOUNT := $(DOCKER_MOUNT) $(DOCKER_MOUNT_PKGCACHE)
+DOCKER_MOUNT_CLI := $(if $(DOCKER_CLI_PATH),-v $(shell dirname $(DOCKER_CLI_PATH)):/usr/local/cli,)
+DOCKER_MOUNT := $(DOCKER_MOUNT) $(DOCKER_MOUNT_PKGCACHE) $(DOCKER_MOUNT_CLI)
 
 GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
 GIT_BRANCH_CLEAN := $(shell echo $(GIT_BRANCH) | sed -e "s/[^[:alnum:]]/-/g")
@@ -78,6 +80,11 @@ SWAGGER_DOCS_PORT ?= 9000
 
 INTEGRATION_CLI_MASTER_IMAGE := $(if $(INTEGRATION_CLI_MASTER_IMAGE), $(INTEGRATION_CLI_MASTER_IMAGE), integration-cli-master)
 INTEGRATION_CLI_WORKER_IMAGE := $(if $(INTEGRATION_CLI_WORKER_IMAGE), $(INTEGRATION_CLI_WORKER_IMAGE), integration-cli-worker)
+
+define \n
+
+
+endef
 
 # if this session isn't interactive, then we don't want to allocate a
 # TTY, which would fail, but if it is interactive, we do want to attach
@@ -98,6 +105,7 @@ binary: build ## build the linux binaries
 	$(DOCKER_RUN_DOCKER) hack/make.sh binary
 
 build: bundles init-go-pkg-cache
+	$(warning The docker client CLI has moved to github.com/docker/cli. By default, it is built from the git sha specified in hack/dockerfile/binaries-commits. For a dev-test cycle involving the CLI, run:${\n} DOCKER_CLI_PATH=/host/path/to/cli/binary make shell ${\n} then change the cli and compile into a binary at the same location.${\n})
 	docker build ${BUILD_APT_MIRROR} ${DOCKER_BUILD_ARGS} -t "$(DOCKER_IMAGE)" -f "$(DOCKERFILE)" .
 
 bundles:

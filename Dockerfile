@@ -241,11 +241,12 @@ RUN ./contrib/download-frozen-image-v2.sh /docker-frozen-images \
 	hello-world:latest@sha256:c5515758d4c5e1e838e9cd307f6c6a0d620b5e07e6f927b07d05f6d12a1ac8d7
 # See also ensureFrozenImagesLinux() in "integration-cli/fixtures_linux_daemon_test.go" (which needs to be updated when adding images to this list)
 
-# Install tomlv, vndr, runc, containerd, tini, docker-proxy
+# Install tomlv, vndr, runc, containerd, tini, docker-proxy dockercli
 # Please edit hack/dockerfile/install-binaries.sh to update them.
 COPY hack/dockerfile/binaries-commits /tmp/binaries-commits
 COPY hack/dockerfile/install-binaries.sh /tmp/install-binaries.sh
-RUN /tmp/install-binaries.sh tomlv vndr runc containerd tini proxy bindata
+RUN /tmp/install-binaries.sh tomlv vndr runc containerd tini proxy bindata dockercli
+ENV PATH=/usr/local/cli:$PATH
 
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 ENTRYPOINT ["hack/dind"]

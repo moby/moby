@@ -159,7 +159,7 @@ func (s *DockerSuite) TestStartAttachMultipleContainers(c *check.C) {
 		// err shouldn't be nil because start will fail
 		c.Assert(err, checker.NotNil, check.Commentf("out: %s", out))
 		// output does not correspond to what was expected
-		c.Assert(out, checker.Contains, "You cannot start and attach multiple containers at once.")
+		c.Assert(out, checker.Contains, "you cannot start and attach multiple containers at once")
 	}
 
 	// confirm the state of all the containers be stopped
