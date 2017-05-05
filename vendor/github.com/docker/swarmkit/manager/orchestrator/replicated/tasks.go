@@ -45,7 +45,7 @@ func (r *Orchestrator) handleTaskEvent(ctx context.Context, event events.Event) 
 
 func (r *Orchestrator) tickTasks(ctx context.Context) {
 	if len(r.restartTasks) > 0 {
-		_, err := r.store.Batch(func(batch *store.Batch) error {
+		err := r.store.Batch(func(batch *store.Batch) error {
 			for taskID := range r.restartTasks {
 				err := batch.Update(func(tx store.Tx) error {
 					// TODO(aaronl): optimistic update?
