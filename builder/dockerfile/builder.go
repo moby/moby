@@ -101,8 +101,20 @@ func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (
 		ProgressWriter: config.ProgressWriter,
 		Backend:        bm.backend,
 		PathCache:      bm.pathCache,
-		sessionGetter:  bm.sg,
 	}
+
+	if bm.sg != nil && config.Options.SessionID != "" {
+		_, c, _ := bm.sg.GetSession(ctx, config.Options.SessionID)
+		if c != nil {
+			if p, ok := auth.TryGetAuthConfigProviderClient(c); ok {
+				builderOptions.authProvider = p
+			}
+		}
+	}
+	if builderOptions.authProvider == nil {
+		builderOptions.authProvider = &staticAuthConfigProvider{auths: config.Options.AuthConfigs}
+	}
+
 	return newBuilder(ctx, builderOptions).build(source, dockerfile)
 }
 
@@ -112,7 +124,7 @@ type builderOptions struct {
 	Backend        builder.Backend
 	ProgressWriter backend.ProgressWriter
 	PathCache      pathCache
-	sessionGetter  SessionGetter
+	authProvider   auth.AuthConfigProvider
 }
 
 // Builder is a Dockerfile builder
@@ -124,10 +136,9 @@ type Builder struct {
 	Stderr io.Writer
 	Output io.Writer
 
-	docker        builder.Backend
-	source        builder.Source
-	clientCtx     context.Context
-	sessionGetter SessionGetter
+	docker    builder.Backend
+	source    builder.Source
+	clientCtx context.Context
 
 	tmpContainers map[string]struct{}
 	imageContexts *imageContexts // helper for storing contexts from builds
@@ -135,7 +146,7 @@ type Builder struct {
 	cacheBusted   bool
 	buildArgs     *buildArgs
 	imageCache    builder.ImageCache
-	authProvider AuthConfigProvider
+	authProvider auth.AuthConfigProvider
 }
 
 // newBuilder creates a new Dockerfile builder from an optional dockerfile and a Options.
@@ -154,19 +165,9 @@ func newBuilder(clientCtx context.Context, options builderOptions) *Builder {
 		docker:        options.Backend,
 		tmpContainers: map[string]struct{}{},
 		buildArgs:     newBuildArgs(config.BuildArgs),
-		sessionGetter: options.sessionGetter,
+		authProvider:  options.authProvider,
 	}
-	sg := options.sessionGetter
-	if sg != nil && options.Options.SessionID != "" {
-		_, c, _ := sg.GetSession(clientCtx, options.Options.SessionID)
-		if c != nil && c.Supports(auth.AuthProviderServiceName()) {
-			client := auth.NewAuthConfigProviderClient(c.GetGrpcConn())
-			b.authProvider = &streamingAuthConfigProvider{client: client}
-		}
-	}
-	if b.authProvider == nil {
-		b.authProvider = &staticAuthConfigProvider{auths: options.Options.AuthConfigs}
-	}
+
 	b.imageContexts = &imageContexts{b: b, cache: options.PathCache}
 	return b
 }
@@ -280,7 +281,7 @@ func BuildFromConfig(config *container.Config, changes []string) (*container.Con
 		return config, nil
 	}
 
-	b := newBuilder(context.Background(), builderOptions{})
+	b := newBuilder(context.Background(), builderOptions{authProvider: &nilAuthConfigProvider{}})
 
 	dockerfile, err := parser.Parse(bytes.NewBufferString(strings.Join(changes, "\n")))
 	if err != nil {

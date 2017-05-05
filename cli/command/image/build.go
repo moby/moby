@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
@@ -41,7 +42,6 @@ import (
 	units "github.com/docker/go-units"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"golang.org/x/net/context"
 )
 
 type buildOptions struct {
@@ -160,24 +160,16 @@ type authProvider struct {
 	progressOutput progress.Output
 }
 
-func (p *authProvider) GetRegistryAuth(ctx context.Context, req *auth.RegistryAuthRequest) (*auth.AuthConfig, error) {
-	if req == nil || req.Registry == "" {
+func (p *authProvider) GetRegistryAuth(ctx context.Context, reg string) (*types.AuthConfig, error) {
+	if reg == "" {
 		return nil, errors.New("No registry specified")
 	}
-	progress.Messagef(p.progressOutput, "registry-auth", "Streaming credentials for registry %s", req.Registry)
-	conf, err := p.dockerCli.CredentialsStore(req.Registry).Get(req.Registry)
+	progress.Messagef(p.progressOutput, "registry-auth", "Streaming credentials for registry %s", reg)
+	conf, err := p.dockerCli.CredentialsStore(reg).Get(reg)
 	if err != nil {
 		return nil, nil // ignore error: just returning no auth config
 	}
-	return &auth.AuthConfig{
-		Auth:          conf.Auth,
-		Email:         conf.Email,
-		IdentityToken: conf.IdentityToken,
-		Password:      conf.Password,
-		RegistryToken: conf.RegistryToken,
-		ServerAddress: conf.ServerAddress,
-		Username:      conf.Username,
-	}, nil
+	return &conf, nil
 }
 
 func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
