@@ -123,7 +123,7 @@ func initDispatchTestCases() []dispatchTestCase {
 		{
 			name:          "Invalid instruction",
 			dockerfile:    `foo bar`,
-			expectedError: "Unknown instruction: FOO",
+			expectedError: "unknown instruction: FOO",
 			files:         nil,
 		}}
 
@@ -177,13 +177,11 @@ func executeTestCase(t *testing.T, testCase dispatchTestCase) {
 		t.Fatalf("Error when parsing Dockerfile: %s", err)
 	}
 
-	config := &container.Config{}
 	options := &types.ImageBuildOptions{
 		BuildArgs: make(map[string]*string),
 	}
 
 	b := &Builder{
-		runConfig: config,
 		options:   options,
 		Stdout:    ioutil.Discard,
 		source:    context,
@@ -192,7 +190,14 @@ func executeTestCase(t *testing.T, testCase dispatchTestCase) {
 
 	shlex := NewShellLex(parser.DefaultEscapeToken)
 	n := result.AST
-	err = b.dispatch(0, len(n.Children), n.Children[0], shlex)
+	state := &dispatchState{runConfig: &container.Config{}}
+	opts := dispatchOptions{
+		state:   state,
+		stepMsg: formatStep(0, len(n.Children)),
+		node:    n.Children[0],
+		shlex:   shlex,
+	}
+	state, err = b.dispatch(opts)
 
 	if err == nil {
 		t.Fatalf("No error when executing test %s", testCase.name)

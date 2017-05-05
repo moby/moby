@@ -95,20 +95,12 @@ type Builder struct {
 	source    builder.Source
 	clientCtx context.Context
 
-	runConfig     *container.Config // runconfig for cmd, run, entrypoint etc.
 	tmpContainers map[string]struct{}
 	imageContexts *imageContexts // helper for storing contexts from builds
 	disableCommit bool
 	cacheBusted   bool
 	buildArgs     *buildArgs
 	imageCache    builder.ImageCache
-
-	// TODO: these move to DispatchState
-	maintainer  string
-	cmdSet      bool
-	noBaseImage bool   // A flag to track the use of `scratch` as the base image
-	image       string // imageID
-	from        builder.Image
 }
 
 // newBuilder creates a new Dockerfile builder from an optional dockerfile and a Options.
@@ -124,7 +116,6 @@ func newBuilder(clientCtx context.Context, options builderOptions) *Builder {
 		Stderr:        options.ProgressWriter.StderrFormatter,
 		Output:        options.ProgressWriter.Output,
 		docker:        options.Backend,
-		runConfig:     new(container.Config),
 		tmpContainers: map[string]struct{}{},
 		buildArgs:     newBuildArgs(config.BuildArgs),
 	}
@@ -136,7 +127,6 @@ func (b *Builder) resetImageCache() {
 	if icb, ok := b.docker.(builder.ImageCacheBuilder); ok {
 		b.imageCache = icb.MakeImageCache(b.options.CacheFrom)
 	}
-	b.noBaseImage = false
 	b.cacheBusted = false
 }
 
@@ -154,59 +144,61 @@ func (b *Builder) build(source builder.Source, dockerfile *parser.Result) (*buil
 		return nil, err
 	}
 
-	imageID, err := b.dispatchDockerfileWithCancellation(dockerfile)
+	dispatchState, err := b.dispatchDockerfileWithCancellation(dockerfile)
 	if err != nil {
 		return nil, err
 	}
 
+	if b.options.Target != "" && !dispatchState.isCurrentStage(b.options.Target) {
+		return nil, errors.Errorf("failed to reach build target %s in Dockerfile", b.options.Target)
+	}
+
 	b.warnOnUnusedBuildArgs()
 
-	if imageID == "" {
+	if dispatchState.imageID == "" {
 		return nil, errors.New("No image was generated. Is your Dockerfile empty?")
 	}
-	return &builder.Result{ImageID: imageID, FromImage: b.from}, nil
+	return &builder.Result{ImageID: dispatchState.imageID, FromImage: dispatchState.baseImage}, nil
 }
 
-func (b *Builder) dispatchDockerfileWithCancellation(dockerfile *parser.Result) (string, error) {
+func (b *Builder) dispatchDockerfileWithCancellation(dockerfile *parser.Result) (*dispatchState, error) {
 	shlex := NewShellLex(dockerfile.EscapeToken)
-
+	state := newDispatchState()
 	total := len(dockerfile.AST.Children)
-	var imageID string
+	var err error
 	for i, n := range dockerfile.AST.Children {
 		select {
 		case <-b.clientCtx.Done():
 			logrus.Debug("Builder: build cancelled!")
 			fmt.Fprint(b.Stdout, "Build cancelled")
-			return "", errors.New("Build cancelled")
+			return nil, errors.New("Build cancelled")
 		default:
 			// Not cancelled yet, keep going...
 		}
 
-		if command.From == n.Value && b.imageContexts.isCurrentTarget(b.options.Target) {
+		if n.Value == command.From && state.isCurrentStage(b.options.Target) {
 			break
 		}
 
-		if err := b.dispatch(i, total, n, shlex); err != nil {
+		opts := dispatchOptions{
+			state:   state,
+			stepMsg: formatStep(i, total),
+			node:    n,
+			shlex:   shlex,
+		}
+		if state, err = b.dispatch(opts); err != nil {
 			if b.options.ForceRemove {
 				b.clearTmp()
 			}
-			return "", err
+			return nil, err
 		}
 
-		// TODO: get this from dispatch
-		imageID = b.image
-
-		fmt.Fprintf(b.Stdout, " ---> %s\n", stringid.TruncateID(imageID))
+		fmt.Fprintf(b.Stdout, " ---> %s\n", stringid.TruncateID(state.imageID))
 		if b.options.Remove {
 			b.clearTmp()
 		}
 	}
-
-	if b.options.Target != "" && !b.imageContexts.isCurrentTarget(b.options.Target) {
-		return "", errors.Errorf("failed to reach build target %s in Dockerfile", b.options.Target)
-	}
-
-	return imageID, nil
+	return state, nil
 }
 
 func addNodesForLabelOption(dockerfile *parser.Node, labels map[string]string) {
@@ -227,12 +219,6 @@ func (b *Builder) warnOnUnusedBuildArgs() {
 	}
 }
 
-// hasFromImage returns true if the builder has processed a `FROM <image>` line
-// TODO: move to DispatchState
-func (b *Builder) hasFromImage() bool {
-	return b.image != "" || b.noBaseImage
-}
-
 // BuildFromConfig builds directly from `changes`, treating it as if it were the contents of a Dockerfile
 // It will:
 // - Call parse.Parse() to get an AST root for the concatenated Dockerfile entries.
@@ -249,31 +235,28 @@ func BuildFromConfig(config *container.Config, changes []string) (*container.Con
 
 	b := newBuilder(context.Background(), builderOptions{})
 
-	result, err := parser.Parse(bytes.NewBufferString(strings.Join(changes, "\n")))
+	dockerfile, err := parser.Parse(bytes.NewBufferString(strings.Join(changes, "\n")))
 	if err != nil {
 		return nil, err
 	}
 
 	// ensure that the commands are valid
-	for _, n := range result.AST.Children {
+	for _, n := range dockerfile.AST.Children {
 		if !validCommitCommands[n.Value] {
 			return nil, fmt.Errorf("%s is not a valid change command", n.Value)
 		}
 	}
 
-	b.runConfig = config
 	b.Stdout = ioutil.Discard
 	b.Stderr = ioutil.Discard
 	b.disableCommit = true
 
-	if err := checkDispatchDockerfile(result.AST); err != nil {
+	if err := checkDispatchDockerfile(dockerfile.AST); err != nil {
 		return nil, err
 	}
-
-	if err := dispatchFromDockerfile(b, result); err != nil {
-		return nil, err
-	}
-	return b.runConfig, nil
+	dispatchState := newDispatchState()
+	dispatchState.runConfig = config
+	return dispatchFromDockerfile(b, dockerfile, dispatchState)
 }
 
 func checkDispatchDockerfile(dockerfile *parser.Node) error {
@@ -285,15 +268,21 @@ func checkDispatchDockerfile(dockerfile *parser.Node) error {
 	return nil
 }
 
-func dispatchFromDockerfile(b *Builder, result *parser.Result) error {
+func dispatchFromDockerfile(b *Builder, result *parser.Result, dispatchState *dispatchState) (*container.Config, error) {
 	shlex := NewShellLex(result.EscapeToken)
 	ast := result.AST
 	total := len(ast.Children)
 
 	for i, n := range ast.Children {
-		if err := b.dispatch(i, total, n, shlex); err != nil {
-			return err
+		opts := dispatchOptions{
+			state:   dispatchState,
+			stepMsg: formatStep(i, total),
+			node:    n,
+			shlex:   shlex,
+		}
+		if _, err := b.dispatch(opts); err != nil {
+			return nil, err
 		}
 	}
-	return nil
+	return dispatchState.runConfig, nil
 }

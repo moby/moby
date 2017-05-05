@@ -1,5 +1,10 @@
 package dockerfile
 
+import (
+	"fmt"
+	"github.com/docker/docker/runconfig/opts"
+)
+
 // builtinAllowedBuildArgs is list of built-in allowed build args
 // these args are considered transparent and are excluded from the image history.
 // Filtering from history is implemented in dispatchers.go
@@ -94,6 +99,19 @@ func (b *buildArgs) getAllFromMapping(source map[string]*string) map[string]stri
 		}
 	}
 	return m
+}
+
+// FilterAllowed returns all allowed args without the filtered args
+func (b *buildArgs) FilterAllowed(filter []string) []string {
+	envs := []string{}
+	configEnv := opts.ConvertKVStringsToMap(filter)
+
+	for key, val := range b.GetAllAllowed() {
+		if _, ok := configEnv[key]; !ok {
+			envs = append(envs, fmt.Sprintf("%s=%s", key, val))
+		}
+	}
+	return envs
 }
 
 func (b *buildArgs) getBuildArg(key string, mapping map[string]*string) (string, bool) {
