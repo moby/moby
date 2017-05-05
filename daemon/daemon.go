@@ -34,7 +34,6 @@ import (
 	"github.com/docker/docker/daemon/stats"
 	dmetadata "github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
-	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/libcontainerd"
@@ -728,19 +727,7 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 		return nil, err
 	}
 
-	// FIXME: this method never returns an error
-	info, _ := d.SystemInfo()
-
-	engineVersion.WithValues(
-		dockerversion.Version,
-		dockerversion.GitCommit,
-		info.Architecture,
-		info.Driver,
-		info.KernelVersion,
-		info.OperatingSystem,
-	).Set(1)
-	engineCpus.Set(float64(info.NCPU))
-	engineMemory.Set(float64(info.MemTotal))
+	d.setupMetrics()
 
 	return d, nil
 }
