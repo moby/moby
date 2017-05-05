@@ -34,7 +34,7 @@ type Source interface {
 
 // Backend abstracts calls to a Docker Daemon.
 type Backend interface {
-	GetImageAndLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (Image, ReleaseableLayer, error)
+	ImageBackend
 
 	// ContainerAttachRaw attaches to container.
 	ContainerAttachRaw(cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool, attached chan struct{}) error
@@ -58,6 +58,11 @@ type Backend interface {
 	// TODO: extract in the builder instead of passing `decompress`
 	// TODO: use containerd/fs.changestream instead as a source
 	CopyOnBuild(containerID string, destPath string, srcRoot string, srcPath string, decompress bool) error
+}
+
+// ImageBackend are the interface methods required from an image component
+type ImageBackend interface {
+	GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (Image, ReleaseableLayer, error)
 }
 
 // Result is the output produced by a Builder
@@ -89,5 +94,5 @@ type Image interface {
 // ReleaseableLayer is an image layer that can be mounted and released
 type ReleaseableLayer interface {
 	Release() error
-	Mount(string) (string, error)
+	Mount() (string, error)
 }

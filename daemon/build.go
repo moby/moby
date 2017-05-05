@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
@@ -15,54 +16,62 @@ import (
 )
 
 type releaseableLayer struct {
-	rwLayer layer.RWLayer
-	release func(layer.RWLayer) error
-	mount   func(string) (layer.RWLayer, error)
+	layerStore layer.Store
+	roLayer    layer.Layer
+	rwLayer    layer.RWLayer
 }
 
-func (rl *releaseableLayer) Release() error {
-	if rl.rwLayer == nil {
-		return nil
+func (rl *releaseableLayer) Mount() (string, error) {
+	if rl.roLayer == nil {
+		return "", errors.New("can not mount an image with no root FS")
 	}
-	rl.rwLayer.Unmount()
-	return rl.release(rl.rwLayer)
-}
-
-func (rl *releaseableLayer) Mount(imageID string) (string, error) {
 	var err error
-	rl.rwLayer, err = rl.mount(imageID)
+	mountID := stringid.GenerateRandomID()
+	rl.rwLayer, err = rl.layerStore.CreateRWLayer(mountID, rl.roLayer.ChainID(), nil)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to create rwlayer")
 	}
 
-	mountPath, err := rl.rwLayer.Mount("")
-	if err != nil {
-		releaseErr := rl.release(rl.rwLayer)
-		if releaseErr != nil {
-			err = errors.Wrapf(err, "failed to release rwlayer: %s", releaseErr.Error())
-		}
-		return "", errors.Wrap(err, "failed to mount rwlayer")
-	}
-	return mountPath, err
+	return rl.rwLayer.Mount("")
 }
 
-func (daemon *Daemon) getReleasableLayerForImage() *releaseableLayer {
-	mountFunc := func(imageID string) (layer.RWLayer, error) {
-		img, err := daemon.GetImage(imageID)
-		if err != nil {
-			return nil, err
-		}
-		mountID := stringid.GenerateRandomID()
-		return daemon.layerStore.CreateRWLayer(mountID, img.RootFS.ChainID(), nil)
-	}
+func (rl *releaseableLayer) Release() error {
+	rl.releaseRWLayer()
+	return rl.releaseROLayer()
+}
 
-	releaseFunc := func(rwLayer layer.RWLayer) error {
-		metadata, err := daemon.layerStore.ReleaseRWLayer(rwLayer)
-		layer.LogReleaseMetadata(metadata)
-		return err
+func (rl *releaseableLayer) releaseRWLayer() error {
+	if rl.rwLayer == nil {
+		return nil
 	}
+	metadata, err := rl.layerStore.ReleaseRWLayer(rl.rwLayer)
+	layer.LogReleaseMetadata(metadata)
+	if err != nil {
+		logrus.Errorf("Failed to release RWLayer: %s", err)
+	}
+	return err
+}
 
-	return &releaseableLayer{mount: mountFunc, release: releaseFunc}
+func (rl *releaseableLayer) releaseROLayer() error {
+	if rl.roLayer == nil {
+		return nil
+	}
+	metadata, err := rl.layerStore.Release(rl.roLayer)
+	layer.LogReleaseMetadata(metadata)
+	return err
+}
+
+func newReleasableLayerForImage(img *image.Image, layerStore layer.Store) (builder.ReleaseableLayer, error) {
+	if img.RootFS.ChainID() == "" {
+		return nil, nil
+	}
+	// Hold a reference to the image layer so that it can't be removed before
+	// it is released
+	roLayer, err := layerStore.Get(img.RootFS.ChainID())
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get layer for image %s", img.ImageID())
+	}
+	return &releaseableLayer{layerStore: layerStore, roLayer: roLayer}, nil
 }
 
 // TODO: could this use the regular daemon PullImage ?
@@ -75,7 +84,7 @@ func (daemon *Daemon) pullForBuilder(ctx context.Context, name string, authConfi
 
 	pullRegistryAuth := &types.AuthConfig{}
 	if len(authConfigs) > 0 {
-		// The request came with a full auth config file, we prefer to use that
+		// The request came with a full auth config, use it
 		repoInfo, err := daemon.RegistryService.ResolveRepository(ref)
 		if err != nil {
 			return nil, err
@@ -91,16 +100,23 @@ func (daemon *Daemon) pullForBuilder(ctx context.Context, name string, authConfi
 	return daemon.GetImage(name)
 }
 
-// GetImageAndLayer returns an image and releaseable layer for a reference or ID
-func (daemon *Daemon) GetImageAndLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ReleaseableLayer, error) {
+// GetImageAndReleasableLayer returns an image and releaseable layer for a reference or ID.
+// Every call to GetImageAndReleasableLayer MUST call releasableLayer.Release() to prevent
+// leaking of layers.
+func (daemon *Daemon) GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ReleaseableLayer, error) {
 	if !opts.ForcePull {
 		image, _ := daemon.GetImage(refOrID)
 		// TODO: shouldn't we error out if error is different from "not found" ?
 		if image != nil {
-			return image, daemon.getReleasableLayerForImage(), nil
+			layer, err := newReleasableLayerForImage(image, daemon.layerStore)
+			return image, layer, err
 		}
 	}
 
 	image, err := daemon.pullForBuilder(ctx, refOrID, opts.AuthConfig, opts.Output)
-	return image, daemon.getReleasableLayerForImage(), err
+	if err != nil {
+		return nil, nil, err
+	}
+	layer, err := newReleasableLayerForImage(image, daemon.layerStore)
+	return image, layer, err
 }

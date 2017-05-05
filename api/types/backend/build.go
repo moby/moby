@@ -23,7 +23,7 @@ type BuildConfig struct {
 	Options        *types.ImageBuildOptions
 }
 
-// GetImageAndLayerOptions are the options supported by GetImageAndLayer
+// GetImageAndLayerOptions are the options supported by GetImageAndReleasableLayer
 type GetImageAndLayerOptions struct {
 	ForcePull  bool
 	AuthConfig map[string]types.AuthConfig

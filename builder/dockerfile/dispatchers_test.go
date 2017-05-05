@@ -49,15 +49,20 @@ func defaultDispatchReq(builder *Builder, args ...string) dispatchRequest {
 
 func newBuilderWithMockBackend() *Builder {
 	mockBackend := &MockBackend{}
+	ctx := context.Background()
 	b := &Builder{
 		options:       &types.ImageBuildOptions{},
 		docker:        mockBackend,
 		buildArgs:     newBuildArgs(make(map[string]*string)),
 		tmpContainers: make(map[string]struct{}),
 		Stdout:        new(bytes.Buffer),
-		clientCtx:     context.Background(),
+		clientCtx:     ctx,
 		disableCommit: true,
-		imageContexts: &imageContexts{},
+		imageSources: newImageSources(ctx, builderOptions{
+			Options: &types.ImageBuildOptions{},
+			Backend: mockBackend,
+		}),
+		buildStages: newBuildStages(),
 	}
 	return b
 }

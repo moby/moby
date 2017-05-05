@@ -78,7 +78,7 @@ func (b *Builder) commitContainer(dispatchState *dispatchState, id string, conta
 	}
 
 	dispatchState.imageID = imageID
-	b.imageContexts.update(imageID, dispatchState.runConfig)
+	b.buildStages.update(imageID, dispatchState.runConfig)
 	return nil
 }
 
@@ -369,7 +369,7 @@ func (b *Builder) calcCopyInfo(cmdName, origPath string, allowLocalDecompression
 	source := b.source
 	var err error
 	if imageSource != nil {
-		source, err = imageSource.context()
+		source, err = imageSource.Source()
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to copy")
 		}
@@ -427,7 +427,7 @@ func (b *Builder) calcCopyInfo(cmdName, origPath string, allowLocalDecompression
 
 	if imageSource != nil {
 		// fast-cache based on imageID
-		if h, ok := b.imageContexts.getCache(imageSource.id, origPath); ok {
+		if h, ok := b.imageSources.getCache(imageSource.Image().ImageID(), origPath); ok {
 			copyInfos[0].hash = h.(string)
 			return copyInfos, nil
 		}
@@ -473,7 +473,7 @@ func (b *Builder) calcCopyInfo(cmdName, origPath string, allowLocalDecompression
 	hasher.Write([]byte(strings.Join(subfiles, ",")))
 	copyInfos[0].hash = "dir:" + hex.EncodeToString(hasher.Sum(nil))
 	if imageSource != nil {
-		b.imageContexts.setCache(imageSource.id, origPath, copyInfos[0].hash)
+		b.imageSources.setCache(imageSource.Image().ImageID(), origPath, copyInfos[0].hash)
 	}
 
 	return copyInfos, nil
@@ -501,7 +501,7 @@ func (b *Builder) probeCache(dispatchState *dispatchState, runConfig *container.
 	fmt.Fprint(b.Stdout, " ---> Using cache\n")
 	logrus.Debugf("[BUILDER] Use cached version: %s", runConfig.Cmd)
 	dispatchState.imageID = string(cache)
-	b.imageContexts.update(dispatchState.imageID, runConfig)
+	b.buildStages.update(dispatchState.imageID, runConfig)
 
 	return true, nil
 }

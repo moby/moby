@@ -66,15 +66,7 @@ func (m *MockBackend) CopyOnBuild(containerID string, destPath string, srcRoot s
 	return nil
 }
 
-func (m *MockBackend) HasExperimental() bool {
-	return false
-}
-
-func (m *MockBackend) SquashImage(from string, to string) (string, error) {
-	return "", nil
-}
-
-func (m *MockBackend) GetImageAndLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ReleaseableLayer, error) {
+func (m *MockBackend) GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ReleaseableLayer, error) {
 	if m.getImageFunc != nil {
 		return m.getImageFunc(refOrID)
 	}
@@ -112,6 +104,6 @@ func (l *mockLayer) Release() error {
 	return nil
 }
 
-func (l *mockLayer) Mount(_ string) (string, error) {
+func (l *mockLayer) Mount() (string, error) {
 	return "mountPath", nil
 }

@@ -20,9 +20,9 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
+	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/parser"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/go-connections/nat"
@@ -174,14 +174,19 @@ func dispatchCopy(req dispatchRequest) error {
 
 func (b *Builder) getImageMount(fromFlag *Flag) (*imageMount, error) {
 	if !fromFlag.IsUsed() {
-		// TODO: this could return the mount in the default case as well
+		// TODO: this could return the source in the default case as well?
 		return nil, nil
 	}
-	im, err := b.imageContexts.getMount(fromFlag.Value)
-	if err != nil || im != nil {
-		return im, err
+
+	imageRefOrID := fromFlag.Value
+	stage, err := b.buildStages.get(fromFlag.Value)
+	if err != nil {
+		return nil, err
 	}
-	return b.getImage(fromFlag.Value)
+	if stage != nil {
+		imageRefOrID = stage.ImageID()
+	}
+	return b.imageSources.Get(imageRefOrID)
 }
 
 // FROM imagename[:tag | @digest] [AS build-stage-name]
@@ -201,7 +206,7 @@ func from(req dispatchRequest) error {
 	if err != nil {
 		return err
 	}
-	if err := req.builder.imageContexts.add(stageName, image); err != nil {
+	if err := req.builder.buildStages.add(stageName, image); err != nil {
 		return err
 	}
 	req.state.beginStage(stageName, image)
@@ -229,7 +234,12 @@ func parseBuildStageName(args []string) (string, error) {
 	return stageName, nil
 }
 
-func (b *Builder) getFromImage(shlex *ShellLex, name string) (*imageMount, error) {
+// scratchImage is used as a token for the empty base image. It uses buildStage
+// as a convenient implementation of builder.Image, but is not actually a
+// buildStage.
+var scratchImage builder.Image = &buildStage{}
+
+func (b *Builder) getFromImage(shlex *ShellLex, name string) (builder.Image, error) {
 	substitutionArgs := []string{}
 	for key, value := range b.buildArgs.GetAllMeta() {
 		substitutionArgs = append(substitutionArgs, key+"="+value)
@@ -240,7 +250,7 @@ func (b *Builder) getFromImage(shlex *ShellLex, name string) (*imageMount, error
 		return nil, err
 	}
 
-	if im, ok := b.imageContexts.byName[name]; ok {
+	if im, ok := b.buildStages.getByName(name); ok {
 		return im, nil
 	}
 
@@ -249,21 +259,13 @@ func (b *Builder) getFromImage(shlex *ShellLex, name string) (*imageMount, error
 		if runtime.GOOS == "windows" {
 			return nil, errors.New("Windows does not support FROM scratch")
 		}
-		return newImageMount(nil, nil), nil
+		return scratchImage, nil
 	}
-	return b.getImage(name)
-}
-
-func (b *Builder) getImage(name string) (*imageMount, error) {
-	image, layer, err := b.docker.GetImageAndLayer(b.clientCtx, name, backend.GetImageAndLayerOptions{
-		ForcePull:  b.options.PullParent,
-		AuthConfig: b.options.AuthConfigs,
-		Output:     b.Output,
-	})
+	imageMount, err := b.imageSources.Get(name)
 	if err != nil {
 		return nil, err
 	}
-	return newImageMount(image, layer), nil
+	return imageMount.Image(), nil
 }
 
 func processOnBuild(req dispatchRequest) error {
