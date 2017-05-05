@@ -8,6 +8,7 @@ package dockerfile
 // package.
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"runtime"
@@ -830,7 +831,7 @@ func pullOrGetImage(b *Builder, name string) (builder.Image, error) {
 			return nil, err
 		}
 		reg := registry.GetAuthConfigKey(repoInfo.Index)
-		authConf, err := b.authProvider.GetAuthConfig(reg)
+		authConf, err := b.authProvider.GetRegistryAuth(context.Background(), reg)
 		if err != nil {
 			return nil, err
 		}

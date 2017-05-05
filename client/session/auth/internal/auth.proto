@@ -1,5 +1,5 @@
 syntax = "proto3";
-package auth;
+package internal;
 
 message RegistryAuthRequest{
     string Registry = 1;
