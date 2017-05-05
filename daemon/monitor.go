@@ -9,9 +9,21 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/container"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/restartmanager"
 )
+
+func (daemon *Daemon) setStateCounter(c *container.Container) {
+	switch c.StateString() {
+	case "paused":
+		stateCtr.set(c.ID, "paused")
+	case "running":
+		stateCtr.set(c.ID, "running")
+	default:
+		stateCtr.set(c.ID, "stopped")
+	}
+}
 
 // StateChanged updates daemon state changes from containerd
 func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
@@ -81,6 +93,8 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 			}()
 		}
 
+		daemon.setStateCounter(c)
+
 		defer c.Unlock()
 		if err := c.ToDisk(); err != nil {
 			return err
@@ -109,15 +123,19 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 		c.SetRunning(int(e.Pid), e.State == libcontainerd.StateStart)
 		c.HasBeenManuallyStopped = false
 		c.HasBeenStartedBefore = true
+		daemon.setStateCounter(c)
+
 		if err := c.ToDisk(); err != nil {
 			c.Reset(false)
 			return err
 		}
 		daemon.initHealthMonitor(c)
+
 		daemon.LogContainerEvent(c, "start")
 	case libcontainerd.StatePause:
 		// Container is already locked in this case
 		c.Paused = true
+		daemon.setStateCounter(c)
 		if err := c.ToDisk(); err != nil {
 			return err
 		}
@@ -126,12 +144,12 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 	case libcontainerd.StateResume:
 		// Container is already locked in this case
 		c.Paused = false
+		daemon.setStateCounter(c)
 		if err := c.ToDisk(); err != nil {
 			return err
 		}
 		daemon.updateHealthMonitor(c)
 		daemon.LogContainerEvent(c, "unpause")
 	}
-
 	return nil
 }
