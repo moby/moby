@@ -112,6 +112,6 @@ func (l *mockLayer) Release() error {
 	return nil
 }
 
-func (l *mockLayer) Mount() (string, error) {
+func (l *mockLayer) Mount(_ string) (string, error) {
 	return "mountPath", nil
 }

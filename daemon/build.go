@@ -17,7 +17,7 @@ import (
 type releaseableLayer struct {
 	rwLayer layer.RWLayer
 	release func(layer.RWLayer) error
-	mount   func() (layer.RWLayer, error)
+	mount   func(string) (layer.RWLayer, error)
 }
 
 func (rl *releaseableLayer) Release() error {
@@ -28,10 +28,9 @@ func (rl *releaseableLayer) Release() error {
 	return rl.release(rl.rwLayer)
 }
 
-func (rl *releaseableLayer) Mount() (string, error) {
+func (rl *releaseableLayer) Mount(imageID string) (string, error) {
 	var err error
-	// daemon.layerStore.CreateRWLayer(mountID, img.RootFS.ChainID(), nil)
-	rl.rwLayer, err = rl.mount()
+	rl.rwLayer, err = rl.mount(imageID)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to create rwlayer")
 	}
@@ -47,8 +46,12 @@ func (rl *releaseableLayer) Mount() (string, error) {
 	return mountPath, err
 }
 
-func (daemon *Daemon) getReleasableLayerForImage(img *image.Image) (*releaseableLayer, error) {
-	mountFunc := func() (layer.RWLayer, error) {
+func (daemon *Daemon) getReleasableLayerForImage() *releaseableLayer {
+	mountFunc := func(imageID string) (layer.RWLayer, error) {
+		img, err := daemon.GetImage(imageID)
+		if err != nil {
+			return nil, err
+		}
 		mountID := stringid.GenerateRandomID()
 		return daemon.layerStore.CreateRWLayer(mountID, img.RootFS.ChainID(), nil)
 	}
@@ -59,7 +62,7 @@ func (daemon *Daemon) getReleasableLayerForImage(img *image.Image) (*releaseable
 		return err
 	}
 
-	return &releaseableLayer{mount: mountFunc, release: releaseFunc}, nil
+	return &releaseableLayer{mount: mountFunc, release: releaseFunc}
 }
 
 // TODO: could this use the regular daemon PullImage ?
@@ -94,15 +97,10 @@ func (daemon *Daemon) GetImageAndLayer(ctx context.Context, refOrID string, opts
 		image, _ := daemon.GetImage(refOrID)
 		// TODO: shouldn't we error out if error is different from "not found" ?
 		if image != nil {
-			layer, err := daemon.getReleasableLayerForImage(image)
-			return image, layer, err
+			return image, daemon.getReleasableLayerForImage(), nil
 		}
 	}
 
 	image, err := daemon.pullForBuilder(ctx, refOrID, opts.AuthConfig, opts.Output)
-	if err != nil {
-		return nil, nil, err
-	}
-	layer, err := daemon.getReleasableLayerForImage(image)
-	return image, layer, err
+	return image, daemon.getReleasableLayerForImage(), err
 }

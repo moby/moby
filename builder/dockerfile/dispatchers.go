@@ -23,6 +23,7 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
+	"github.com/docker/docker/builder/dockerfile/parser"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/go-connections/nat"
 	"github.com/pkg/errors"
@@ -196,24 +197,21 @@ func from(req dispatchRequest) error {
 	}
 
 	req.builder.resetImageCache()
-	req.state.noBaseImage = false
-	req.state.stageName = stageName
 	image, err := req.builder.getFromImage(req.shlex, req.args[0])
 	if err != nil {
 		return err
 	}
-	if image == nil {
-		req.state.imageID = ""
-		req.state.noBaseImage = true
-		image = newImageMount(nil, nil)
-	}
 	if err := req.builder.imageContexts.add(stageName, image); err != nil {
 		return err
 	}
-	req.state.baseImage = image
-
+	req.state.beginStage(stageName, image)
 	req.builder.buildArgs.ResetAllowed()
-	return req.builder.processImageFrom(req.state, image)
+	if image.ImageID() == "" {
+		// Typically this means they used "FROM scratch"
+		return nil
+	}
+
+	return processOnBuild(req)
 }
 
 func parseBuildStageName(args []string) (string, error) {
@@ -243,11 +241,7 @@ func (b *Builder) getFromImage(shlex *ShellLex, name string) (*imageMount, error
 	}
 
 	if im, ok := b.imageContexts.byName[name]; ok {
-		if len(im.ImageID()) > 0 {
-			return im, nil
-		}
-		// FROM scratch does not have an ImageID
-		return nil, nil
+		return im, nil
 	}
 
 	// Windows cannot support a container with no base image.
@@ -255,7 +249,7 @@ func (b *Builder) getFromImage(shlex *ShellLex, name string) (*imageMount, error
 		if runtime.GOOS == "windows" {
 			return nil, errors.New("Windows does not support FROM scratch")
 		}
-		return nil, nil
+		return newImageMount(nil, nil), nil
 	}
 	return b.getImage(name)
 }
@@ -270,6 +264,53 @@ func (b *Builder) getImage(name string) (*imageMount, error) {
 		return nil, err
 	}
 	return newImageMount(image, layer), nil
+}
+
+func processOnBuild(req dispatchRequest) error {
+	dispatchState := req.state
+	// Process ONBUILD triggers if they exist
+	if nTriggers := len(dispatchState.runConfig.OnBuild); nTriggers != 0 {
+		word := "trigger"
+		if nTriggers > 1 {
+			word = "triggers"
+		}
+		fmt.Fprintf(req.builder.Stderr, "# Executing %d build %s...\n", nTriggers, word)
+	}
+
+	// Copy the ONBUILD triggers, and remove them from the config, since the config will be committed.
+	onBuildTriggers := dispatchState.runConfig.OnBuild
+	dispatchState.runConfig.OnBuild = []string{}
+
+	// Reset stdin settings as all build actions run without stdin
+	dispatchState.runConfig.OpenStdin = false
+	dispatchState.runConfig.StdinOnce = false
+
+	// parse the ONBUILD triggers by invoking the parser
+	for _, step := range onBuildTriggers {
+		dockerfile, err := parser.Parse(strings.NewReader(step))
+		if err != nil {
+			return err
+		}
+
+		for _, n := range dockerfile.AST.Children {
+			if err := checkDispatch(n); err != nil {
+				return err
+			}
+
+			upperCasedCmd := strings.ToUpper(n.Value)
+			switch upperCasedCmd {
+			case "ONBUILD":
+				return errors.New("Chaining ONBUILD via `ONBUILD ONBUILD` isn't allowed")
+			case "MAINTAINER", "FROM":
+				return errors.Errorf("%s isn't allowed as an ONBUILD trigger", upperCasedCmd)
+			}
+		}
+
+		if _, err := dispatchFromDockerfile(req.builder, dockerfile, dispatchState); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // ONBUILD RUN echo yo

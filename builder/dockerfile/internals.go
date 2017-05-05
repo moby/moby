@@ -22,7 +22,6 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
-	"github.com/docker/docker/builder/dockerfile/parser"
 	"github.com/docker/docker/builder/remotecontext"
 	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/ioutils"
@@ -478,74 +477,6 @@ func (b *Builder) calcCopyInfo(cmdName, origPath string, allowLocalDecompression
 	}
 
 	return copyInfos, nil
-}
-
-func (b *Builder) processImageFrom(dispatchState *dispatchState, img builder.Image) error {
-	if img != nil {
-		dispatchState.imageID = img.ImageID()
-
-		if img.RunConfig() != nil {
-			dispatchState.runConfig = img.RunConfig()
-		}
-	}
-
-	// Check to see if we have a default PATH, note that windows won't
-	// have one as it's set by HCS
-	if system.DefaultPathEnv != "" {
-		if _, ok := dispatchState.runConfigEnvMapping()["PATH"]; !ok {
-			dispatchState.runConfig.Env = append(dispatchState.runConfig.Env,
-				"PATH="+system.DefaultPathEnv)
-		}
-	}
-
-	if img == nil {
-		// Typically this means they used "FROM scratch"
-		return nil
-	}
-
-	// Process ONBUILD triggers if they exist
-	if nTriggers := len(dispatchState.runConfig.OnBuild); nTriggers != 0 {
-		word := "trigger"
-		if nTriggers > 1 {
-			word = "triggers"
-		}
-		fmt.Fprintf(b.Stderr, "# Executing %d build %s...\n", nTriggers, word)
-	}
-
-	// Copy the ONBUILD triggers, and remove them from the config, since the config will be committed.
-	onBuildTriggers := dispatchState.runConfig.OnBuild
-	dispatchState.runConfig.OnBuild = []string{}
-
-	// Reset stdin settings as all build actions run without stdin
-	dispatchState.runConfig.OpenStdin = false
-	dispatchState.runConfig.StdinOnce = false
-
-	// parse the ONBUILD triggers by invoking the parser
-	for _, step := range onBuildTriggers {
-		dockerfile, err := parser.Parse(strings.NewReader(step))
-		if err != nil {
-			return err
-		}
-
-		for _, n := range dockerfile.AST.Children {
-			if err := checkDispatch(n); err != nil {
-				return err
-			}
-
-			upperCasedCmd := strings.ToUpper(n.Value)
-			switch upperCasedCmd {
-			case "ONBUILD":
-				return errors.New("Chaining ONBUILD via `ONBUILD ONBUILD` isn't allowed")
-			case "MAINTAINER", "FROM":
-				return errors.Errorf("%s isn't allowed as an ONBUILD trigger", upperCasedCmd)
-			}
-		}
-
-		if _, err := dispatchFromDockerfile(b, dockerfile, dispatchState); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // probeCache checks if cache match can be found for current build instruction.

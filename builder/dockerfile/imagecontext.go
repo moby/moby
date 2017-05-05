@@ -45,9 +45,9 @@ func (ic *imageContexts) update(imageID string, runConfig *container.Config) {
 func (ic *imageContexts) validate(i int) error {
 	if i < 0 || i >= len(ic.list)-1 {
 		if i == len(ic.list)-1 {
-			return errors.Errorf("%d refers to current build stage", i)
+			return errors.New("refers to current build stage")
 		}
-		return errors.Errorf("index out of bounds")
+		return errors.New("index out of bounds")
 	}
 	return nil
 }
@@ -122,7 +122,7 @@ func (im *imageMount) context() (builder.Source, error) {
 		if im.id == "" || im.layer == nil {
 			return nil, errors.Errorf("empty context")
 		}
-		mountPath, err := im.layer.Mount()
+		mountPath, err := im.layer.Mount(im.id)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to mount %s", im.id)
 		}
@@ -136,6 +136,9 @@ func (im *imageMount) context() (builder.Source, error) {
 }
 
 func (im *imageMount) unmount() error {
+	if im.layer == nil {
+		return nil
+	}
 	if err := im.layer.Release(); err != nil {
 		return errors.Wrapf(err, "failed to unmount previous build image %s", im.id)
 	}
