@@ -1,4 +1,4 @@
-version: "3.2"
+version: "3.3"
 
 services:
   foo:
@@ -45,6 +45,8 @@ services:
         window: 120s
       placement:
         constraints: [node=foo]
+        preferences:
+          - spread: node.labels.az
       endpoint_mode: dnsrr
 
     devices:

@@ -208,6 +208,12 @@ type RestartPolicy struct {
 // Placement constraints for the service
 type Placement struct {
 	Constraints []string
+	Preferences []PlacementPreferences
+}
+
+// PlacementPreferences is the preferences for a service placement
+type PlacementPreferences struct {
+	Spread string
 }
 
 // ServiceNetworkConfig is the network configuration for a service

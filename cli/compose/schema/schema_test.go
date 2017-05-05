@@ -50,3 +50,27 @@ func TestValidateInvalidVersion(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "unsupported Compose file version: 2.1")
 }
+
+type array []interface{}
+
+func TestValidatePlacement(t *testing.T) {
+	config := dict{
+		"version": "3.3",
+		"services": dict{
+			"foo": dict{
+				"image": "busybox",
+				"deploy": dict{
+					"placement": dict{
+						"preferences": array{
+							dict{
+								"spread": "node.labels.az",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	assert.NoError(t, Validate(config, "3.3"))
+}
