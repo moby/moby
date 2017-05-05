@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+# shellcheck disable=2034
 DOCKER_CLIENT_BINARY_NAME='docker'
 DOCKER_DAEMON_BINARY_NAME='dockerd'
 DOCKER_RUNC_BINARY_NAME='docker-runc'

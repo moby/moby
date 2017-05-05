@@ -16,7 +16,7 @@ bundle_test_unit() {
 			unset BUILDFLAGS[${count}]
 			break
 		fi
-		count=$[ ${count} + 1 ]
+		count=$((count + 1))
 	done
 
 	date
@@ -31,7 +31,7 @@ bundle_test_unit() {
 			-f '{{if ne .Name "github.com/docker/docker"}}
 				{{.ImportPath}}
 			    {{end}}' \
-			"${BUILDFLAGS[@]}" $TEST_PATH \
+			"${BUILDFLAGS[@]}" "$TEST_PATH" \
 			| grep github.com/docker/docker \
 			| grep -v github.com/docker/docker/vendor \
 			| grep -v github.com/docker/docker/daemon/graphdriver \
@@ -42,13 +42,13 @@ bundle_test_unit() {
 			-f '{{if ne .Name "github.com/docker/docker"}}
 				{{.ImportPath}}
 			    {{end}}' \
-			"${BUILDFLAGS[@]}" $TEST_PATH \
+			"${BUILDFLAGS[@]}" "$TEST_PATH" \
 			| grep github.com/docker/docker \
 			| grep -v github.com/docker/docker/vendor \
 			| grep -v github.com/docker/docker/man \
 			| grep -v github.com/docker/docker/integration-cli)
 	fi
-
+	# shellcheck disable=SC2086
 	go test -cover -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" $TESTFLAGS $pkg_list
 }
 

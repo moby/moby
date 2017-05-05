@@ -2,7 +2,10 @@
 #
 # Run all validation
 
+# shellcheck disable=SC2155
 export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-. $SCRIPTDIR/default
-. $SCRIPTDIR/vendor
+# shellcheck disable=SC1090
+. "$SCRIPTDIR/default"
+# shellcheck disable=SC1090
+. "$SCRIPTDIR/vendor"

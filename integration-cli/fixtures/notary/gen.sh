@@ -1,3 +1,4 @@
+# shellcheck disable=SC2148
 for selfsigned in delgkey1 delgkey2 delgkey3 delgkey4; do
         subj='/C=US/ST=CA/L=SanFrancisco/O=Docker/CN=delegation'
 

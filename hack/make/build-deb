@@ -10,6 +10,7 @@ set -e
 	# TODO consider using frozen images for the dockercore/builder-deb tags
 
 	tilde='~' # ouch Bash 4.2 vs 4.3, you keel me
+	# shellcheck disable=2153
 	debVersion="${VERSION//-/$tilde}" # using \~ or '~' here works in 4.3, but not 4.2; just ~ causes $HOME to be inserted, hence the $tilde
 	# if we have a "-dev" suffix or have change in Git, let's make this package version more complex so it works better
 	if [[ "$VERSION" == *-dev ]] || [ -n "$(git status --porcelain)" ]; then
@@ -39,6 +40,7 @@ set -e
 
 	builderDir="contrib/builder/deb/${PACKAGE_ARCH}"
 	pkgs=( $(find "${builderDir}/"*/ -type d) )
+	# shellcheck disable=2153
 	if [ ! -z "$DOCKER_BUILD_PKGS" ]; then
 		pkgs=()
 		for p in $DOCKER_BUILD_PKGS; do
@@ -55,14 +57,16 @@ set -e
 			(
 				# Add the APT_MIRROR args only if the consuming Dockerfile uses it
 				# Otherwise this will cause the build to fail
-				if [ "$(grep 'ARG APT_MIRROR=' $dir/Dockerfile)" ] && [ "$BUILD_APT_MIRROR" ]; then
+				# shellcheck disable=2030,2143
+				if [ "$(grep 'ARG APT_MIRROR=' "$dir/Dockerfile")" ] && [ "$BUILD_APT_MIRROR" ]; then
 					DOCKER_BUILD_ARGS="$DOCKER_BUILD_ARGS $BUILD_APT_MIRROR"
 				fi
-				set -x && docker build ${DOCKER_BUILD_ARGS} -t "$image" "$dir"
+				set -x && docker build "${DOCKER_BUILD_ARGS}" -t "$image" "$dir"
 			)
 		fi
 
 		mkdir -p "$DEST/$version"
+		# shellcheck disable=2153
 		cat > "$DEST/$version/Dockerfile.build" <<-EOF
 			FROM $image
 			WORKDIR /usr/src/docker
@@ -82,7 +86,7 @@ set -e
 			RUN dpkg-buildpackage -uc -us -I.git
 		EOF
 		tempImage="docker-temp/build-deb:$version"
-		( set -x && docker build ${DOCKER_BUILD_ARGS} -t "$tempImage" -f "$DEST/$version/Dockerfile.build" . )
+		( set -x && docker build "${DOCKER_BUILD_ARGS}" -t "$tempImage" -f "$DEST/$version/Dockerfile.build" . )
 		docker run --rm "$tempImage" bash -c 'cd .. && tar -c *_*' | tar -xvC "$DEST/$version"
 		docker rmi "$tempImage"
 	done

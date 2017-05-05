@@ -5,12 +5,15 @@ set -e
 (
 	export TZ=UTC # make sure our "date" variables are UTC-based
 
-	source "$(dirname "$BASH_SOURCE")/.integration-daemon-start"
-	source "$(dirname "$BASH_SOURCE")/.detect-daemon-osarch"
+	# shellcheck disable=1090
+	source "$(dirname "${BASH_SOURCE[0]}")/.integration-daemon-start"
+	# shellcheck disable=1090
+	source "$(dirname "${BASH_SOURCE[0]}")/.detect-daemon-osarch"
 
 	# TODO consider using frozen images for the dockercore/builder-rpm tags
 
 	rpmName=docker-engine
+	# shellcheck disable=2153
 	rpmVersion="$VERSION"
 	rpmRelease=1
 
@@ -48,23 +51,24 @@ set -e
 	rpmVersion="${rpmVersion/-/.}"
 
 	rpmPackager="$(awk -F ': ' '$1 == "Packager" { print $2; exit }' hack/make/.build-rpm/${rpmName}.spec)"
+	# shellcheck disable=2034
 	rpmDate="$(date +'%a %b %d %Y')"
 
 	# if go-md2man is available, pre-generate the man pages
 	make manpages
 
 	# Convert the CHANGELOG.md file into RPM changelog format
-	rm -f contrib/builder/rpm/${PACKAGE_ARCH}/changelog
+	rm -f "contrib/builder/rpm/${PACKAGE_ARCH}/changelog"
 	VERSION_REGEX="^\W\W (.*) \((.*)\)$"
 	ENTRY_REGEX="^[-+*] (.*)$"
 	while read -r line || [[ -n "$line" ]]; do
 		if [ -z "$line" ]; then continue; fi
 		if [[ "$line" =~ $VERSION_REGEX ]]; then
-			echo >> contrib/builder/rpm/${PACKAGE_ARCH}/changelog
-			echo "* `date -d ${BASH_REMATCH[2]} '+%a %b %d %Y'` ${rpmPackager} - ${BASH_REMATCH[1]}" >> contrib/builder/rpm/${PACKAGE_ARCH}/changelog
+			echo >> "contrib/builder/rpm/${PACKAGE_ARCH}/changelog"
+			echo "* $(date -d "${BASH_REMATCH[2]}" '+%a %b %d %Y') ${rpmPackager} - ${BASH_REMATCH[1]}" >> "contrib/builder/rpm/${PACKAGE_ARCH}/changelog"
 		fi
 		if [[ "$line" =~ $ENTRY_REGEX ]]; then
-			echo "- ${BASH_REMATCH[1]//\`}" >> contrib/builder/rpm/${PACKAGE_ARCH}/changelog
+			echo "- ${BASH_REMATCH[1]//\`}" >> "contrib/builder/rpm/${PACKAGE_ARCH}/changelog"
 		fi
 	done < CHANGELOG.md
 
@@ -83,7 +87,7 @@ set -e
 
 		image="dockercore/builder-rpm:$version"
 		if ! docker inspect "$image" &> /dev/null; then
-			( set -x && docker build ${DOCKER_BUILD_ARGS} -t "$image" "$dir" )
+			( set -x && docker build "${DOCKER_BUILD_ARGS}" -t "$image" "$dir" )
 		fi
 
 		mkdir -p "$DEST/$version"
@@ -140,10 +144,10 @@ set -e
 			EOF
 		fi
 		tempImage="docker-temp/build-rpm:$version"
-		( set -x && docker build ${DOCKER_BUILD_ARGS} -t "$tempImage" -f $DEST/$version/Dockerfile.build . )
+		( set -x && docker build "${DOCKER_BUILD_ARGS}" -t "$tempImage" -f "$DEST/$version/Dockerfile.build" . )
 		docker run --rm "$tempImage" bash -c 'cd /root/rpmbuild && tar -c *RPMS' | tar -xvC "$DEST/$version"
 		docker rmi "$tempImage"
 	done
-
-	source "$(dirname "$BASH_SOURCE")/.integration-daemon-stop"
-) 2>&1 | tee -a $DEST/test.log
+	# shellcheck disable=1090
+	source "$(dirname "${BASH_SOURCE[0]}")/.integration-daemon-stop"
+) 2>&1 | tee -a "$DEST/test.log"

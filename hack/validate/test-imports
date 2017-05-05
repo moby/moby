@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Make sure we're not using gos' Testing package any more in integration-cli
 
+# shellcheck disable=SC2155
 export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# shellcheck disable=SC1090
 source "${SCRIPTDIR}/.validate"
 
 IFS=$'\n'
@@ -17,7 +19,8 @@ for f in "${files[@]}"; do
 
 	# we use "git show" here to validate that what's committed doesn't contain golang built-in testing
 	if git show "$VALIDATE_HEAD:$f" | grep -q testing.T; then
-		if [ "$(echo $f | grep '_test')" ]; then
+		# shellcheck disable=SC2143
+		if [ "$(echo "$f" | grep '_test')" ]; then
 			# allow testing.T for non- _test files
 			badFiles+=( "$f" )
 		fi

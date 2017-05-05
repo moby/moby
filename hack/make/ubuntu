@@ -133,7 +133,7 @@ EOF
 
 	(
 		# switch directories so we create *.deb in the right folder
-		cd "$DEST"
+		cd "$DEST" || exit
 
 		# create lxc-docker-VERSION package
 		fpm -s dir -C "$DIR" \
@@ -173,7 +173,7 @@ EOF
 		fpm -s empty \
 			--name lxc-docker --version "$PKGVERSION" \
 			--architecture "$PACKAGE_ARCHITECTURE" \
-			--depends lxc-docker-$VERSION \
+			--depends lxc-docker-"$VERSION" \
 			--description "$PACKAGE_DESCRIPTION" \
 			--maintainer "$PACKAGE_MAINTAINER" \
 			--url "$PACKAGE_URL" \

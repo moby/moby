@@ -3,6 +3,7 @@
 if [ ! "$(go env GOOS)" = 'windows' ]; then
 	trap - EXIT # reset EXIT trap applied in .integration-daemon-start
 
+	# shellcheck disable=2044
 	for pidFile in $(find "$DEST" -name docker.pid); do
 		pid=$(set -x; cat "$pidFile")
 		( set -x; kill "$pid" )

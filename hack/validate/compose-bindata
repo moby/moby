@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
+# shellcheck disable=SC2155
 export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# shellcheck disable=SC1090
 source "${SCRIPTDIR}/.validate"
 
 IFS=$'\n'
@@ -13,10 +15,12 @@ if [ ${#files[@]} -gt 0 ]; then
 	diffs="$(git status --porcelain -- cli/compose/schema 2>/dev/null)"
 	if [ "$diffs" ]; then
 		{
+			# shellcheck disable=SC2016
 			echo 'The result of `go generate github.com/docker/docker/cli/compose/schema` differs'
 			echo
 			echo "$diffs"
 			echo
+			# shellcheck disable=SC2016
 			echo 'Please run `go generate github.com/docker/docker/cli/compose/schema`'
 		} >&2
 		false

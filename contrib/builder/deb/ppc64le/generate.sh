@@ -11,7 +11,7 @@ set -e
 #    or: ./generate.sh ubuntu-newversion
 #        to create a new folder and a Dockerfile within it
 
-cd "$(dirname "$(readlink -f "$BASH_SOURCE")")"
+cd "$(dirname "${BASH_SOURCE[0]}")"
 
 versions=( "$@" )
 if [ ${#versions[@]} -eq 0 ]; then
@@ -84,11 +84,14 @@ for version in "${versions[@]}"; do
 	esac
 	
 	# update and install packages
+	# shellcheck disable=SC2129
 	echo "RUN apt-get update && apt-get install -y ${packages[*]} --no-install-recommends && rm -rf /var/lib/apt/lists/*" >> "$version/Dockerfile"
 	echo >> "$version/Dockerfile"
 
 	awk '$1 == "ENV" && $2 == "GO_VERSION" { print; exit }' ../../../../Dockerfile.ppc64le >> "$version/Dockerfile"
+	# shellcheck disable=SC2016
 	echo 'RUN curl -fsSL "https://golang.org/dl/go${GO_VERSION}.linux-ppc64le.tar.gz" | tar xzC /usr/local' >> "$version/Dockerfile"
+	# shellcheck disable=SC2016
 	echo 'ENV PATH $PATH:/usr/local/go/bin' >> "$version/Dockerfile"
 	echo >> "$version/Dockerfile"
 

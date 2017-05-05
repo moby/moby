@@ -3,11 +3,13 @@ set -e
 rm -rf "$DEST"
 
 # This script exists as backwards compatibility for CI
+# shellcheck disable=1091,2030
 (
 	DEST="${DEST}-client"
 	ABS_DEST="${ABS_DEST}-client"
 	. hack/make/binary-client
 )
+# shellcheck disable=1091,2030,2031
 (
 	DEST="${DEST}-daemon"
 	ABS_DEST="${ABS_DEST}-daemon"

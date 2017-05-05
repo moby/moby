@@ -9,7 +9,7 @@ set -e
 #    or: ./generate.sh fedora-newversion
 #        to create a new folder and a Dockerfile within it
 
-cd "$(dirname "$(readlink -f "$BASH_SOURCE")")"
+cd "$(dirname "${BASH_SOURCE[0]}")"
 
 versions=( "$@" )
 if [ ${#versions[@]} -eq 0 ]; then
@@ -82,10 +82,13 @@ for version in "${versions[@]}"; do
 			;;
 	esac
 
+	# shellcheck disable=SC2129
 	echo >> "$version/Dockerfile"
 
 	awk '$1 == "ENV" && $2 == "GO_VERSION" { print; exit }' ../../../../Dockerfile.ppc64le >> "$version/Dockerfile"
+	# shellcheck disable=SC2016
 	echo 'RUN curl -fsSL "https://golang.org/dl/go${GO_VERSION}.linux-ppc64le.tar.gz" | tar xzC /usr/local' >> "$version/Dockerfile"
+	# shellcheck disable=SC2016
 	echo 'ENV PATH $PATH:/usr/local/go/bin' >> "$version/Dockerfile"
 	echo >> "$version/Dockerfile"	
 
@@ -95,6 +98,7 @@ for version in "${versions[@]}"; do
 	# print build tags in alphabetical order
 	buildTags=$( echo "selinux $extraBuildTags" | xargs -n1 | sort -n | tr '\n' ' ' | sed -e 's/[[:space:]]*$//' )
 
+	# shellcheck disable=SC2129
 	echo "ENV DOCKER_BUILDTAGS $buildTags" >> "$version/Dockerfile"
 	echo "ENV RUNC_BUILDTAGS $runcBuildTags" >> "$version/Dockerfile"
 	echo >> "$version/Dockerfile"

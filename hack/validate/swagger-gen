@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
+# shellcheck disable=SC2155
 export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# shellcheck disable=SC1090
 source "${SCRIPTDIR}/.validate"
 
 IFS=$'\n'
@@ -8,7 +10,7 @@ files=( $(validate_diff --diff-filter=ACMR --name-only -- 'api/types/' 'api/swag
 unset IFS
 
 if [ ${#files[@]} -gt 0 ]; then
-	${SCRIPTDIR}/../generate-swagger-api.sh 2> /dev/null
+	"${SCRIPTDIR}/../generate-swagger-api.sh" 2> /dev/null
 	# Let see if the working directory is clean
 	diffs="$(git status --porcelain -- api/types/ 2>/dev/null)"
 	if [ "$diffs" ]; then
@@ -18,6 +20,7 @@ if [ ${#files[@]} -gt 0 ]; then
 			echo "$diffs"
 			echo
 			echo 'Please update api/swagger.yaml with any api changes, then '
+			# shellcheck disable=SC2016
 			echo 'run `hack/generate-swagger-api.sh`.'
 		} >&2
 		false

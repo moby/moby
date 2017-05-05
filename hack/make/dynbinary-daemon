@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
+# shellcheck disable=1090
 (
 	export BINARY_SHORT_NAME='dockerd'
 	export GO_PACKAGE='github.com/docker/docker/cmd/dockerd'

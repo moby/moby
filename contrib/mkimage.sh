@@ -15,7 +15,7 @@ usage() {
 	exit 1
 }
 
-scriptDir="$(dirname "$(readlink -f "$BASH_SOURCE")")/mkimage"
+scriptDir="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/mkimage"
 
 os=
 os=$(uname -o)
@@ -71,7 +71,7 @@ fi
 
 delDir=
 if [ -z "$dir" ]; then
-	dir="$(mktemp -d ${TMPDIR:-/var/tmp}/docker-mkimage.XXXXXXXXXX)"
+	dir="$(mktemp -d "${TMPDIR:-/var/tmp}/docker-mkimage.XXXXXXXXXX")"
 	delDir=1
 fi
 

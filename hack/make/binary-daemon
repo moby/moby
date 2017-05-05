@@ -4,6 +4,7 @@ set -e
 [ -z "$KEEPDEST" ] && \
 	rm -rf "$DEST"
 
+# shellcheck disable=1090
 (
 	source "${MAKEDIR}/.binary-setup"
 	export BINARY_SHORT_NAME="$DOCKER_DAEMON_BINARY_NAME"

@@ -5,6 +5,7 @@ versions=( 1.3.3 1.4.1 1.5.0 1.6.2 )
 
 install() {
 	local version=$1
+	# shellcheck disable=SC2155
 	local tmpdir=$(mktemp -d /tmp/XXXXXXXXXX)
 	local dockerfile="${tmpdir}/Dockerfile"
 	cat <<-EOF > "$dockerfile"

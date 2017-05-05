@@ -2,13 +2,15 @@
 set -e
 set -x
 
-. $(dirname "$0")/binaries-commits
+# shellcheck disable=SC1090
+. "$(dirname "$0")/binaries-commits"
 
 RM_GOPATH=0
 
 TMP_GOPATH=${TMP_GOPATH:-""}
 
 if [ -z "$TMP_GOPATH" ]; then
+	# shellcheck disable=SC2155
 	export GOPATH="$(mktemp -d)"
 	RM_GOPATH=1
 else
@@ -23,7 +25,7 @@ install_runc() {
 	git clone https://github.com/docker/runc.git "$GOPATH/src/github.com/opencontainers/runc"
 	cd "$GOPATH/src/github.com/opencontainers/runc"
 	git checkout -q "$RUNC_COMMIT"
-	make BUILDTAGS="$RUNC_BUILDTAGS" $1
+	make BUILDTAGS="$RUNC_BUILDTAGS" "$1"
 	cp runc /usr/local/bin/docker-runc
 }
 
@@ -32,7 +34,7 @@ install_containerd() {
 	git clone https://github.com/docker/containerd.git "$GOPATH/src/github.com/docker/containerd"
 	cd "$GOPATH/src/github.com/docker/containerd"
 	git checkout -q "$CONTAINERD_COMMIT"
-	make $1
+	make "$1"
 	cp bin/containerd /usr/local/bin/docker-containerd
 	cp bin/containerd-shim /usr/local/bin/docker-containerd-shim
 	cp bin/ctr /usr/local/bin/docker-containerd-ctr
@@ -49,7 +51,7 @@ install_proxy() {
 install_bindata() {
     echo "Install go-bindata version $BINDATA_COMMIT"
     git clone https://github.com/jteeuwen/go-bindata "$GOPATH/src/github.com/jteeuwen/go-bindata"
-    cd $GOPATH/src/github.com/jteeuwen/go-bindata
+    cd "$GOPATH/src/github.com/jteeuwen/go-bindata"
     git checkout -q "$BINDATA_COMMIT"
 	go build -o /usr/local/bin/go-bindata github.com/jteeuwen/go-bindata/go-bindata
 }

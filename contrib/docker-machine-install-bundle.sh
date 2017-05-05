@@ -25,19 +25,19 @@ BUNDLE="bundles/$(cat VERSION)"
 bundle_files(){
     # prefer dynbinary if exists
     for f in dockerd docker-proxy; do
-	if [ -d $BUNDLE/dynbinary-daemon ]; then
-	    echo $BUNDLE/dynbinary-daemon/$f
+	if [ -d "$BUNDLE/dynbinary-daemon" ]; then
+	    echo "$BUNDLE/dynbinary-daemon/$f"
 	else
-	    echo $BUNDLE/binary-daemon/$f
+	    echo "$BUNDLE/binary-daemon/$f"
 	fi
     done
     for f in docker-containerd docker-containerd-ctr docker-containerd-shim docker-init docker-runc; do
-	echo $BUNDLE/binary-daemon/$f
+	echo "$BUNDLE/binary-daemon/$f"
     done
-    if [ -d $BUNDLE/dynbinary-client ]; then
-	echo $BUNDLE/dynbinary-client/docker
+    if [ -d "$BUNDLE/dynbinary-client" ]; then
+	echo "$BUNDLE/dynbinary-client/docker"
     else
-	echo $BUNDLE/binary-client/docker
+	echo "$BUNDLE/binary-client/docker"
     fi
 }
 
@@ -46,7 +46,7 @@ control_docker(){
     # NOTE: `docker-machine ssh $m sh -c "foo bar"` does not work
     #       (but `docker-machine ssh $m sh -c "foo\ bar"` works)
     #       Anyway we avoid using `sh -c` here for avoiding confusion
-    cat <<EOF | docker-machine ssh $m sudo sh
+    cat <<EOF | docker-machine ssh "$m" sudo sh
 if command -v systemctl > /dev/null; then
   systemctl $op docker
 elif command -v service > /dev/null; then
@@ -62,23 +62,25 @@ EOF
 
 detect_prefix(){
     m=$1
-    script='dirname $(dirname $(which dockerd))'
-    echo $script | docker-machine ssh $m sh
+    script="dirname $(dirname "$(which dockerd)")"
+    echo "$script" | docker-machine ssh "$m" sh
 }
 
 install_to(){
-    m=$1; shift; files=$@
+    m=$1; shift;
+    # shellcheck disable=SC2124
+    files=$@
     echo "$m: detecting docker"
-    prefix=$(detect_prefix $m)
+    prefix="$(detect_prefix "$m")"
     echo "$m: detected docker on $prefix"
     echo "$m: stopping docker"
-    control_docker $m stop
+    control_docker "$m" stop
     echo "$m: installing docker"
     # NOTE: GNU tar is required because we use --transform here
     # TODO: compression (should not be default)
-    tar ch --transform 's/.*\///' $files | docker-machine ssh $m sudo tar Cx $prefix/bin
+    tar ch --transform 's/.*\///' "$files" | docker-machine ssh "$m" sudo tar Cx "$prefix/bin"
     echo "$m: starting docker"
-    control_docker $m start
+    control_docker "$m" start
     echo "$m: done"
 }
 
@@ -89,19 +91,21 @@ check_prereq(){
 
 case "$1" in
     "install")
-	shift; machines=$@
+	shift;
+    # shellcheck disable=SC2124
+    machines=$@
 	check_prereq
 	files=$(bundle_files)
 	echo "Files to be installed:"
-	for f in $files; do echo $f; done
+	for f in $files; do echo "$f"; done
 	pids=()
 	for m in $machines; do
-	    install_to $m $files &
+	    install_to "$m" "$files" &
 	    pids+=($!)
 	done
 	status=0
-	for pid in ${pids[@]}; do
-	    wait $pid || { status=$?; echo "background process $pid failed with exit status $status"; }
+	for pid in "${pids[@]}"; do
+	    wait "$pid" || { status=$?; echo "background process $pid failed with exit status $status"; }
 	done
 	exit $status
 	;;

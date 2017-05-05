@@ -5,7 +5,7 @@ set -e
 # This is useful when there are a lot of old experimental rpms and you only want to keep the most recent.
 #
 
-: ${DOCKER_RELEASE_DIR:=$DEST}
+: "${DOCKER_RELEASE_DIR:=$DEST}"
 YUMDIR=$DOCKER_RELEASE_DIR/yum/repo/experimental
 
 suites=( $(find "$YUMDIR" -mindepth 1 -maxdepth 1 -type d) )

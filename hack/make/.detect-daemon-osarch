@@ -29,6 +29,7 @@ export DOCKER_ENGINE_GOARCH="${DOCKER_ENGINE_OSARCH##*/}"
 DOCKER_ENGINE_GOARCH=${DOCKER_ENGINE_GOARCH:=amd64}
 
 # and the client, just in case
+# shellcheck disable=2155
 export DOCKER_CLIENT_OSARCH="$(docker-version-osarch 'Client')"
 export DOCKER_CLIENT_GOOS="${DOCKER_CLIENT_OSARCH%/*}"
 export DOCKER_CLIENT_GOARCH="${DOCKER_CLIENT_OSARCH##*/}"

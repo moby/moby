@@ -9,7 +9,7 @@ set -e
 #    or: ./generate.sh debian-newversion
 #        to create a new folder and a Dockerfile within it
 
-cd "$(dirname "$(readlink -f "$BASH_SOURCE")")"
+cd "$(dirname "${BASH_SOURCE[0]}")"
 
 versions=( "$@" )
 if [ ${#versions[@]} -eq 0 ]; then
@@ -109,12 +109,15 @@ for version in "${versions[@]}"; do
 		echo "RUN apt-get update && apt-get install -y -t $suite-backports ${backportsPackages[*]} --no-install-recommends && rm -rf /var/lib/apt/lists/*" >> "$version/Dockerfile"
 	fi
 
+	# shellcheck disable=SC2129
 	echo "RUN apt-get update && apt-get install -y ${packages[*]} --no-install-recommends && rm -rf /var/lib/apt/lists/*" >> "$version/Dockerfile"
 
 	echo >> "$version/Dockerfile"
 
 	awk '$1 == "ENV" && $2 == "GO_VERSION" { print; exit }' ../../../../Dockerfile >> "$version/Dockerfile"
+	# shellcheck disable=SC2016
 	echo 'RUN curl -fSL "https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz" | tar xzC /usr/local' >> "$version/Dockerfile"
+	# shellcheck disable=SC2016
 	echo 'ENV PATH $PATH:/usr/local/go/bin' >> "$version/Dockerfile"
 
 	echo >> "$version/Dockerfile"

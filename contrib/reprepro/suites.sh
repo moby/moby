@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-cd "$(dirname "$BASH_SOURCE")/../.."
+cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 
 targets_from() {
        git fetch -q https://github.com/docker/docker.git "$1"

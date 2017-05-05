@@ -10,7 +10,7 @@ set -e
 
 usage() {
     cat <<EOOPTS
-$(basename $0) [OPTIONS] <name>
+"$(basename "$0")" [OPTIONS] <name>
 OPTIONS:
   -p "<packages>"  The list of packages to install in the container.
                    The default is blank.
@@ -56,7 +56,7 @@ if [[ -z $name ]]; then
     usage
 fi
 
-target=$(mktemp -d --tmpdir $(basename $0).XXXXXX)
+target=$(mktemp -d --tmpdir "$(basename "$0").XXXXXX")
 
 set -x
 
@@ -74,6 +74,7 @@ mknod -m 666 "$target"/dev/zero c 1 5
 
 # amazon linux yum will fail without vars set
 if [ -d /etc/yum/vars ]; then
+    # shellcheck disable=SC2174
 	mkdir -p -m 755 "$target"/etc/yum
 	cp -a /etc/yum/vars "$target"/etc/yum/
 fi
@@ -81,13 +82,13 @@ fi
 if [[ -n "$install_groups" ]];
 then
     yum -c "$yum_config" --installroot="$target" --releasever=/ --setopt=tsflags=nodocs \
-        --setopt=group_package_types=mandatory -y groupinstall $install_groups
+        --setopt=group_package_types=mandatory -y groupinstall "$install_groups"
 fi
 
 if [[ -n "$install_packages" ]];
 then
     yum -c "$yum_config" --installroot="$target" --releasever=/ --setopt=tsflags=nodocs \
-        --setopt=group_package_types=mandatory -y install $install_packages
+        --setopt=group_package_types=mandatory -y install "$install_packages"
 fi
 
 yum -c "$yum_config" --installroot="$target" -y clean all
@@ -108,11 +109,13 @@ rm -rf "$target"/usr/share/cracklib
 rm -rf "$target"/usr/share/i18n
 #  yum cache
 rm -rf "$target"/var/cache/yum
+# shellcheck disable=SC2174
 mkdir -p --mode=0755 "$target"/var/cache/yum
 #  sln
 rm -rf "$target"/sbin/sln
 #  ldconfig
 rm -rf "$target"/etc/ld.so.cache "$target"/var/cache/ldconfig
+# shellcheck disable=SC2174
 mkdir -p --mode=0755 "$target"/var/cache/ldconfig
 
 version=
@@ -129,8 +132,8 @@ if [ -z "$version" ]; then
     version=$name
 fi
 
-tar --numeric-owner -c -C "$target" . | docker import - $name:$version
+tar --numeric-owner -c -C "$target" . | docker import - "$name:$version"
 
-docker run -i -t --rm $name:$version /bin/bash -c 'echo success'
+docker run -i -t --rm "$name:$version" /bin/bash -c 'echo success'
 
 rm -rf "$target"

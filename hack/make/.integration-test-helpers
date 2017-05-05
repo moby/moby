@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
-: ${TEST_REPEAT:=0}
+: "${TEST_REPEAT:=0}"
 
 bundle_test_integration_cli() {
 	TESTFLAGS="$TESTFLAGS -check.v -check.timeout=${TIMEOUT} -test.timeout=360m"
-	go_test_dir integration-cli $DOCKER_INTEGRATION_TESTS_VERIFIED
+	go_test_dir integration-cli "$DOCKER_INTEGRATION_TESTS_VERIFIED"
 }
 
 # If $TESTFLAGS is set in the environment, it is passed as extra arguments to 'go test'.
@@ -21,19 +21,22 @@ go_test_dir() {
 	dir=$1
 	precompiled=$2
 	testbinary="$ABS_DEST/test.main"
+	# shellcheck disable=2034
 	testcover=()
+	# shellcheck disable=2034
 	testcoverprofile=()
 	(
 		set -e
 		mkdir -p "$DEST/coverprofiles"
+		# shellcheck disable=2030
 		export DEST="$ABS_DEST" # in a subshell this is safe -- our integration-cli tests need DEST, and "cd" screws it up
-		if [ -z $precompiled ]; then
-			ensure_test_dir $1 $testbinary
+		if [ -z "$precompiled" ]; then
+			ensure_test_dir "$1" "$testbinary"
 		fi
 		cd "$dir"
 		i=0
 		while ((++i)); do
-			test_env "$testbinary" $TESTFLAGS
+			test_env "$testbinary" "$TESTFLAGS"
 			if [ $i -gt "$TEST_REPEAT" ]; then
 				break
 			fi
@@ -58,6 +61,7 @@ test_env() {
 	(
 		set -xe
 		# use "env -i" to tightly control the environment variables that bleed into the tests
+		# shellcheck disable=2031
 		env -i \
 			DEST="$DEST" \
 			DOCKER_INTEGRATION_DAEMON_DEST="$DOCKER_INTEGRATION_DAEMON_DEST" \

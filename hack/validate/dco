@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 
+# shellcheck disable=SC2155
 export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# shellcheck disable=SC1090
 source "${SCRIPTDIR}/.validate"
 
 adds=$(validate_diff --numstat | awk '{ s += $1 } END { print s }')
 dels=$(validate_diff --numstat | awk '{ s += $2 } END { print s }')
 #notDocs="$(validate_diff --numstat | awk '$3 !~ /^docs\// { print $3 }')"
 
-: ${adds:=0}
-: ${dels:=0}
+: "${adds:=0}"
+: "${dels:=0}"
 
 # "Username may only contain alphanumeric characters or dashes and cannot begin with a dash"
 githubUsernameRegex='[a-zA-Z0-9][a-zA-Z0-9-]+'
@@ -21,7 +23,7 @@ check_dco() {
 	grep -qE "$dcoRegex"
 }
 
-if [ $adds -eq 0 -a $dels -eq 0 ]; then
+if [ "$adds" -eq 0 ] && [ "$dels" -eq 0 ]; then
 	echo '0 adds, 0 deletions; nothing to validate! :)'
 else
 	commits=( $(validate_log --format='format:%H%n') )
