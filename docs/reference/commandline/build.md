@@ -35,6 +35,7 @@ Options:
   -f, --file string             Name of the Dockerfile (Default is 'PATH/Dockerfile')
       --force-rm                Always remove intermediate containers
       --help                    Print usage
+      --iidfile string          Write the image ID to the file
       --isolation string        Container isolation technology
       --label value             Set metadata for an image (default [])
   -m, --memory string           Memory limit

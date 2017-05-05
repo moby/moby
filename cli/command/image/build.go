@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -65,6 +66,7 @@ type buildOptions struct {
 	networkMode    string
 	squash         bool
 	target         string
+	imageIDFile    string
 }
 
 // NewBuildCommand creates a new `docker build` command
@@ -117,6 +119,7 @@ func NewBuildCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.SetAnnotation("network", "version", []string{"1.25"})
 	flags.Var(&options.extraHosts, "add-host", "Add a custom host-to-IP mapping (host:ip)")
 	flags.StringVar(&options.target, "target", "", "Set the target build stage to build.")
+	flags.StringVar(&options.imageIDFile, "iidfile", "", "Write the image ID to the file")
 
 	command.AddTrustVerificationFlags(flags)
 
@@ -161,6 +164,12 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 	if options.quiet {
 		progBuff = bytes.NewBuffer(nil)
 		buildBuff = bytes.NewBuffer(nil)
+	}
+	if options.imageIDFile != "" {
+		// Avoid leaving a stale file if we eventually fail
+		if err := os.Remove(options.imageIDFile); err != nil && !os.IsNotExist(err) {
+			return errors.Wrap(err, "Removing image ID file")
+		}
 	}
 
 	if options.dockerfileName == "-" {
@@ -316,7 +325,17 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 	}
 	defer response.Body.Close()
 
-	err = jsonmessage.DisplayJSONMessagesStream(response.Body, buildBuff, dockerCli.Out().FD(), dockerCli.Out().IsTerminal(), nil)
+	imageID := ""
+	aux := func(auxJSON *json.RawMessage) {
+		var result types.BuildResult
+		if err := json.Unmarshal(*auxJSON, &result); err != nil {
+			fmt.Fprintf(dockerCli.Err(), "Failed to parse aux message: %s", err)
+		} else {
+			imageID = result.ID
+		}
+	}
+
+	err = jsonmessage.DisplayJSONMessagesStream(response.Body, buildBuff, dockerCli.Out().FD(), dockerCli.Out().IsTerminal(), aux)
 	if err != nil {
 		if jerr, ok := err.(*jsonmessage.JSONError); ok {
 			// If no error code is set, default to 1
@@ -344,9 +363,18 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 	// Everything worked so if -q was provided the output from the daemon
 	// should be just the image ID and we'll print that to stdout.
 	if options.quiet {
-		fmt.Fprintf(dockerCli.Out(), "%s", buildBuff)
+		imageID = fmt.Sprintf("%s", buildBuff)
+		fmt.Fprintf(dockerCli.Out(), imageID)
 	}
 
+	if options.imageIDFile != "" {
+		if imageID == "" {
+			return errors.Errorf("Server did not provide an image ID. Cannot write %s", options.imageIDFile)
+		}
+		if err := ioutil.WriteFile(options.imageIDFile, []byte(imageID), 0666); err != nil {
+			return err
+		}
+	}
 	if command.IsTrusted() {
 		// Since the build was successful, now we must tag any of the resolved
 		// images from the above Dockerfile rewrite.

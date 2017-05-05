@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/builder/dockerfile/command"
 	"github.com/docker/docker/builder/dockerfile/parser"
 	"github.com/docker/docker/builder/remotecontext"
+	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
@@ -89,6 +90,7 @@ type Builder struct {
 
 	Stdout io.Writer
 	Stderr io.Writer
+	Aux    *streamformatter.AuxFormatter
 	Output io.Writer
 
 	docker    builder.Backend
@@ -114,6 +116,7 @@ func newBuilder(clientCtx context.Context, options builderOptions) *Builder {
 		options:       config,
 		Stdout:        options.ProgressWriter.StdoutFormatter,
 		Stderr:        options.ProgressWriter.StderrFormatter,
+		Aux:           options.ProgressWriter.AuxFormatter,
 		Output:        options.ProgressWriter.Output,
 		docker:        options.Backend,
 		tmpContainers: map[string]struct{}{},
@@ -161,6 +164,13 @@ func (b *Builder) build(source builder.Source, dockerfile *parser.Result) (*buil
 	return &builder.Result{ImageID: dispatchState.imageID, FromImage: dispatchState.baseImage}, nil
 }
 
+func emitImageID(aux *streamformatter.AuxFormatter, state *dispatchState) error {
+	if aux == nil || state.imageID == "" {
+		return nil
+	}
+	return aux.Emit(types.BuildResult{ID: state.imageID})
+}
+
 func (b *Builder) dispatchDockerfileWithCancellation(dockerfile *parser.Result) (*dispatchState, error) {
 	shlex := NewShellLex(dockerfile.EscapeToken)
 	state := newDispatchState()
@@ -174,6 +184,15 @@ func (b *Builder) dispatchDockerfileWithCancellation(dockerfile *parser.Result) 
 			return nil, errors.New("Build cancelled")
 		default:
 			// Not cancelled yet, keep going...
+		}
+
+		// If this is a FROM and we have a previous image then
+		// emit an aux message for that image since it is the
+		// end of the previous stage
+		if n.Value == command.From {
+			if err := emitImageID(b.Aux, state); err != nil {
+				return nil, err
+			}
 		}
 
 		if n.Value == command.From && state.isCurrentStage(b.options.Target) {
@@ -198,6 +217,12 @@ func (b *Builder) dispatchDockerfileWithCancellation(dockerfile *parser.Result) 
 			b.clearTmp()
 		}
 	}
+
+	// Emit a final aux message for the final image
+	if err := emitImageID(b.Aux, state); err != nil {
+		return nil, err
+	}
+
 	return state, nil
 }
 
