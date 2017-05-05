@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestServiceContextWrite(t *testing.T) {
@@ -137,9 +137,9 @@ bar
 		testcase.context.Output = out
 		err := ServiceListWrite(testcase.context, services, info)
 		if err != nil {
-			assert.Error(t, err, testcase.expected)
+			assert.EqualError(t, err, testcase.expected)
 		} else {
-			assert.Equal(t, out.String(), testcase.expected)
+			assert.Equal(t, testcase.expected, out.String())
 		}
 	}
 }
@@ -205,7 +205,7 @@ func TestServiceContextWriteJSON(t *testing.T) {
 		if err := json.Unmarshal([]byte(line), &m); err != nil {
 			t.Fatal(err)
 		}
-		assert.DeepEqual(t, m, expectedJSONs[i])
+		assert.Equal(t, expectedJSONs[i], m)
 	}
 }
 func TestServiceContextWriteJSONField(t *testing.T) {
@@ -234,6 +234,6 @@ func TestServiceContextWriteJSONField(t *testing.T) {
 		if err := json.Unmarshal([]byte(line), &s); err != nil {
 			t.Fatal(err)
 		}
-		assert.Equal(t, s, services[i].Spec.Name)
+		assert.Equal(t, services[i].Spec.Name, s)
 	}
 }

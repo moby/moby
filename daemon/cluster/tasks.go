@@ -60,7 +60,7 @@ func (c *Cluster) GetTasks(options apitypes.TaskListOptions) ([]types.Task, erro
 		return nil, err
 	}
 
-	tasks := []types.Task{}
+	tasks := make([]types.Task, 0, len(r.Tasks))
 
 	for _, task := range r.Tasks {
 		if task.Spec.GetContainer() != nil {

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"path"
 	"reflect"
-	"regexp"
 	"sort"
 	"strings"
 
@@ -21,10 +20,6 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	yaml "gopkg.in/yaml.v2"
-)
-
-var (
-	fieldNameRegexp = regexp.MustCompile("[A-Z][a-z0-9]+")
 )
 
 // ParseYAML reads the bytes from a file, parses the bytes into a mapping

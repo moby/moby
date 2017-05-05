@@ -3,7 +3,6 @@ package dockerfile
 import (
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types/container"
@@ -12,17 +11,26 @@ import (
 	"github.com/pkg/errors"
 )
 
+type pathCache interface {
+	Load(key interface{}) (value interface{}, ok bool)
+	Store(key, value interface{})
+}
+
 // imageContexts is a helper for stacking up built image rootfs and reusing
 // them as contexts
 type imageContexts struct {
 	b           *Builder
 	list        []*imageMount
 	byName      map[string]*imageMount
-	cache       *pathCache
+	cache       pathCache
 	currentName string
 }
 
-func (ic *imageContexts) new(name string, increment bool) (*imageMount, error) {
+func (ic *imageContexts) newImageMount(id string) *imageMount {
+	return &imageMount{ic: ic, id: id}
+}
+
+func (ic *imageContexts) add(name string) (*imageMount, error) {
 	im := &imageMount{ic: ic}
 	if len(name) > 0 {
 		if ic.byName == nil {
@@ -33,10 +41,8 @@ func (ic *imageContexts) new(name string, increment bool) (*imageMount, error) {
 		}
 		ic.byName[name] = im
 	}
-	if increment {
-		ic.list = append(ic.list, im)
-	}
 	ic.currentName = name
+	ic.list = append(ic.list, im)
 	return im, nil
 }
 
@@ -102,14 +108,14 @@ func (ic *imageContexts) getCache(id, path string) (interface{}, bool) {
 		if id == "" {
 			return nil, false
 		}
-		return ic.cache.get(id + path)
+		return ic.cache.Load(id + path)
 	}
 	return nil, false
 }
 
 func (ic *imageContexts) setCache(id, path string, v interface{}) {
 	if ic.cache != nil {
-		ic.cache.set(id+path, v)
+		ic.cache.Store(id+path, v)
 	}
 }
 
@@ -117,14 +123,14 @@ func (ic *imageContexts) setCache(id, path string, v interface{}) {
 // by an existing image
 type imageMount struct {
 	id        string
-	ctx       builder.Context
+	source    builder.Source
 	release   func() error
 	ic        *imageContexts
 	runConfig *container.Config
 }
 
-func (im *imageMount) context() (builder.Context, error) {
-	if im.ctx == nil {
+func (im *imageMount) context() (builder.Source, error) {
+	if im.source == nil {
 		if im.id == "" {
 			return nil, errors.Errorf("could not copy from empty context")
 		}
@@ -132,14 +138,14 @@ func (im *imageMount) context() (builder.Context, error) {
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to mount %s", im.id)
 		}
-		ctx, err := remotecontext.NewLazyContext(p)
+		source, err := remotecontext.NewLazyContext(p)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to create lazycontext for %s", p)
 		}
 		im.release = release
-		im.ctx = ctx
+		im.source = source
 	}
-	return im.ctx, nil
+	return im.source, nil
 }
 
 func (im *imageMount) unmount() error {
@@ -157,29 +163,4 @@ func (im *imageMount) ImageID() string {
 }
 func (im *imageMount) RunConfig() *container.Config {
 	return im.runConfig
-}
-
-type pathCache struct {
-	mu    sync.Mutex
-	items map[string]interface{}
-}
-
-func (c *pathCache) set(k string, v interface{}) {
-	c.mu.Lock()
-	if c.items == nil {
-		c.items = make(map[string]interface{})
-	}
-	c.items[k] = v
-	c.mu.Unlock()
-}
-
-func (c *pathCache) get(k string) (interface{}, bool) {
-	c.mu.Lock()
-	if c.items == nil {
-		c.mu.Unlock()
-		return nil, false
-	}
-	v, ok := c.items[k]
-	c.mu.Unlock()
-	return v, ok
 }

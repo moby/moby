@@ -29,7 +29,7 @@ Options:
 
 Disables a plugin. The plugin must be installed before it can be disabled,
 see [`docker plugin install`](plugin_install.md). Without the `-f` option,
-a plugin that has references (eg, volumes, networks) cannot be disabled.
+a plugin that has references (e.g., volumes, networks) cannot be disabled.
 
 ## Examples
 

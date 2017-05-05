@@ -2,7 +2,9 @@ package swarm
 
 import (
 	"encoding/csv"
+	"encoding/pem"
 	"fmt"
+	"io/ioutil"
 	"strings"
 	"time"
 
@@ -19,6 +21,7 @@ const (
 	flagDispatcherHeartbeat = "dispatcher-heartbeat"
 	flagListenAddr          = "listen-addr"
 	flagAdvertiseAddr       = "advertise-addr"
+	flagDataPathAddr        = "data-path-addr"
 	flagQuiet               = "quiet"
 	flagRotate              = "rotate"
 	flagToken               = "token"
@@ -155,6 +158,15 @@ func parseExternalCA(caSpec string) (*swarm.ExternalCA, error) {
 		case "url":
 			hasURL = true
 			externalCA.URL = value
+		case "cacert":
+			cacontents, err := ioutil.ReadFile(value)
+			if err != nil {
+				return nil, errors.Wrap(err, "unable to read CA cert for external CA")
+			}
+			if pemBlock, _ := pem.Decode(cacontents); pemBlock == nil {
+				return nil, errors.New("CA cert for external CA must be in PEM format")
+			}
+			externalCA.CACert = string(cacontents)
 		default:
 			externalCA.Options[key] = value
 		}

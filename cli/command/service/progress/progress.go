@@ -62,7 +62,7 @@ func stateToProgress(state swarm.TaskState, rollback bool) int64 {
 func ServiceProgress(ctx context.Context, client client.APIClient, serviceID string, progressWriter io.WriteCloser) error {
 	defer progressWriter.Close()
 
-	progressOut := streamformatter.NewJSONStreamFormatter().NewProgressOutput(progressWriter, false)
+	progressOut := streamformatter.NewJSONProgressOutput(progressWriter, false)
 
 	sigint := make(chan os.Signal, 1)
 	signal.Notify(sigint, os.Interrupt)

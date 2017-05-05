@@ -7,8 +7,8 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/parser"
+	"github.com/docker/docker/builder/remotecontext"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/reexec"
 )
@@ -158,7 +158,7 @@ func executeTestCase(t *testing.T, testCase dispatchTestCase) {
 		}
 	}()
 
-	context, err := builder.MakeTarSumContext(tarStream)
+	context, err := remotecontext.MakeTarSumContext(tarStream)
 
 	if err != nil {
 		t.Fatalf("Error when creating tar context: %s", err)
@@ -171,9 +171,7 @@ func executeTestCase(t *testing.T, testCase dispatchTestCase) {
 	}()
 
 	r := strings.NewReader(testCase.dockerfile)
-	d := parser.Directive{}
-	parser.SetEscapeToken(parser.DefaultEscapeToken, &d)
-	n, err := parser.Parse(r, &d)
+	result, err := parser.Parse(r)
 
 	if err != nil {
 		t.Fatalf("Error when parsing Dockerfile: %s", err)
@@ -188,11 +186,13 @@ func executeTestCase(t *testing.T, testCase dispatchTestCase) {
 		runConfig: config,
 		options:   options,
 		Stdout:    ioutil.Discard,
-		context:   context,
+		source:    context,
 		buildArgs: newBuildArgs(options.BuildArgs),
 	}
 
-	err = b.dispatch(0, len(n.Children), n.Children[0])
+	shlex := NewShellLex(parser.DefaultEscapeToken)
+	n := result.AST
+	err = b.dispatch(0, len(n.Children), n.Children[0], shlex)
 
 	if err == nil {
 		t.Fatalf("No error when executing test %s", testCase.name)

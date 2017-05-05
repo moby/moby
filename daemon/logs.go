@@ -45,9 +45,16 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 		return nil, logger.ErrReadLogsNotSupported
 	}
 
-	cLog, err := daemon.getLogger(container)
+	cLog, cLogCreated, err := daemon.getLogger(container)
 	if err != nil {
 		return nil, err
+	}
+	if cLogCreated {
+		defer func() {
+			if err = cLog.Close(); err != nil {
+				logrus.Errorf("Error closing logger: %v", err)
+			}
+		}()
 	}
 
 	logReader, ok := cLog.(logger.LogReader)
@@ -55,7 +62,7 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 		return nil, logger.ErrReadLogsNotSupported
 	}
 
-	follow := config.Follow && container.IsRunning()
+	follow := config.Follow && !cLogCreated
 	tailLines, err := strconv.Atoi(config.Tail)
 	if err != nil {
 		tailLines = -1
@@ -85,23 +92,8 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 	messageChan := make(chan *backend.LogMessage, 1)
 	go func() {
 		// set up some defers
-		defer func() {
-			// ok so this function, originally, was placed right after that
-			// logger.ReadLogs call above. I THINK that means it sets off the
-			// chain of events that results in the logger needing to be closed.
-			// i do not know if an error in time parsing above causing an early
-			// return will result in leaking the logger. if that is the case,
-			// it would also have been a bug in the original code
-			logs.Close()
-			if cLog != container.LogDriver {
-				// Since the logger isn't cached in the container, which
-				// occurs if it is running, it must get explicitly closed
-				// here to avoid leaking it and any file handles it has.
-				if err := cLog.Close(); err != nil {
-					logrus.Errorf("Error closing logger: %v", err)
-				}
-			}
-		}()
+		defer logs.Close()
+
 		// close the messages channel. closing is the only way to signal above
 		// that we're doing with logs (other than context cancel i guess).
 		defer close(messageChan)
@@ -148,11 +140,17 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 	return messageChan, nil
 }
 
-func (daemon *Daemon) getLogger(container *container.Container) (logger.Logger, error) {
-	if container.LogDriver != nil && container.IsRunning() {
-		return container.LogDriver, nil
+func (daemon *Daemon) getLogger(container *container.Container) (l logger.Logger, created bool, err error) {
+	container.Lock()
+	if container.State.Running {
+		l = container.LogDriver
 	}
-	return container.StartLogger()
+	container.Unlock()
+	if l == nil {
+		created = true
+		l, err = container.StartLogger()
+	}
+	return
 }
 
 // mergeLogConfig merges the daemon log config to the container's log config if the container's log driver is not specified.

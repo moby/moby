@@ -5,7 +5,7 @@ keywords: "events, container, report"
 ---
 
 <!-- This file is maintained within the docker/docker Github
-     repository at https://github.com/docker/docker/. Make all
+     repository at https://github.com/moby/moby/. Make all
      pull requests against that repo. If you see this file in
      another repository, consider it read-only there, as it will
      periodically be overwritten by the definitive file. Pull
@@ -149,7 +149,7 @@ The currently supported filters are:
 * label (`label=<key>` or `label=<key>=<value>`)
 * network (`network=<name or id>`)
 * plugin (`plugin=<name or id>`)
-* type (`type=<container or image or volume or network or daemon>`)
+* type (`type=<container or image or volume or network or daemon or plugin>`)
 * volume (`volume=<name or id>`)
 
 #### Format
@@ -312,11 +312,7 @@ $ docker events --filter 'type=network'
 
 2015-12-23T21:38:24.705709133Z network create 8b111217944ba0ba844a65b13efcd57dc494932ee2527577758f939315ba2c5b (name=test-event-network-local, type=bridge)
 2015-12-23T21:38:25.119625123Z network connect 8b111217944ba0ba844a65b13efcd57dc494932ee2527577758f939315ba2c5b (name=test-event-network-local, container=b4be644031a3d90b400f88ab3d4bdf4dc23adb250e696b6328b85441abe2c54e, type=bridge)
-```
 
-The `type=plugin` filter is experimental.
-
-```bash
 $ docker events --filter 'type=plugin'
 
 2016-07-25T17:30:14.825557616Z plugin pull ec7b87f2ce84330fe076e666f17dfc049d2d7ae0b8190763de94e1f2d105993f (name=tiborvass/sample-volume-plugin:latest)

@@ -455,7 +455,7 @@ func (n *networkRouter) postNetworksPrune(ctx context.Context, w http.ResponseWr
 		return err
 	}
 
-	pruneReport, err := n.backend.NetworksPrune(pruneFilters)
+	pruneReport, err := n.backend.NetworksPrune(ctx, pruneFilters)
 	if err != nil {
 		return err
 	}

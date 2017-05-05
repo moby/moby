@@ -16,7 +16,7 @@ type saveOptions struct {
 }
 
 // NewSaveCommand creates a new `docker save` command
-func NewSaveCommand(dockerCli *command.DockerCli) *cobra.Command {
+func NewSaveCommand(dockerCli command.Cli) *cobra.Command {
 	var opts saveOptions
 
 	cmd := &cobra.Command{
@@ -36,7 +36,7 @@ func NewSaveCommand(dockerCli *command.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func runSave(dockerCli *command.DockerCli, opts saveOptions) error {
+func runSave(dockerCli command.Cli, opts saveOptions) error {
 	if opts.output == "" && dockerCli.Out().IsTerminal() {
 		return errors.New("Cowardly refusing to save to a terminal. Use the -o flag or redirect.")
 	}

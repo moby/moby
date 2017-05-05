@@ -4,23 +4,25 @@ import (
 	"strings"
 
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/go-check/check"
 )
 
 func (s *DockerSuite) TestPause(c *check.C) {
 	testRequires(c, IsPausable)
-	defer unpauseAllContainers(c)
 
 	name := "testeventpause"
 	runSleepingContainer(c, "-d", "--name", name)
 
-	dockerCmd(c, "pause", name)
-	pausedContainers := getPausedContainers(c)
+	cli.DockerCmd(c, "pause", name)
+	pausedContainers := strings.Fields(
+		cli.DockerCmd(c, "ps", "-f", "status=paused", "-q", "-a").Combined(),
+	)
 	c.Assert(len(pausedContainers), checker.Equals, 1)
 
-	dockerCmd(c, "unpause", name)
+	cli.DockerCmd(c, "unpause", name)
 
-	out, _ := dockerCmd(c, "events", "--since=0", "--until", daemonUnixTime(c))
+	out := cli.DockerCmd(c, "events", "--since=0", "--until", daemonUnixTime(c)).Combined()
 	events := strings.Split(strings.TrimSpace(out), "\n")
 	actions := eventActionsByIDAndType(c, events, name, "container")
 
@@ -30,7 +32,6 @@ func (s *DockerSuite) TestPause(c *check.C) {
 
 func (s *DockerSuite) TestPauseMultipleContainers(c *check.C) {
 	testRequires(c, IsPausable)
-	defer unpauseAllContainers(c)
 
 	containers := []string{
 		"testpausewithmorecontainers1",
@@ -39,13 +40,15 @@ func (s *DockerSuite) TestPauseMultipleContainers(c *check.C) {
 	for _, name := range containers {
 		runSleepingContainer(c, "-d", "--name", name)
 	}
-	dockerCmd(c, append([]string{"pause"}, containers...)...)
-	pausedContainers := getPausedContainers(c)
+	cli.DockerCmd(c, append([]string{"pause"}, containers...)...)
+	pausedContainers := strings.Fields(
+		cli.DockerCmd(c, "ps", "-f", "status=paused", "-q", "-a").Combined(),
+	)
 	c.Assert(len(pausedContainers), checker.Equals, len(containers))
 
-	dockerCmd(c, append([]string{"unpause"}, containers...)...)
+	cli.DockerCmd(c, append([]string{"unpause"}, containers...)...)
 
-	out, _ := dockerCmd(c, "events", "--since=0", "--until", daemonUnixTime(c))
+	out := cli.DockerCmd(c, "events", "--since=0", "--until", daemonUnixTime(c)).Combined()
 	events := strings.Split(strings.TrimSpace(out), "\n")
 
 	for _, name := range containers {

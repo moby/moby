@@ -37,6 +37,7 @@ The following example shows how to create a sample `plugin`.
 ```bash
 $ ls -ls /home/pluginDir
 
+total 4
 4 -rw-r--r--  1 root root 431 Nov  7 01:40 config.json
 0 drwxr-xr-x 19 root root 420 Nov  7 01:40 rootfs
 

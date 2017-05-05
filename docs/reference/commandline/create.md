@@ -66,7 +66,6 @@ Options:
       --help                          Print usage
   -h, --hostname string               Container host name
       --init                          Run an init inside the container that forwards signals and reaps processes
-      --init-path string              Path to the docker-init binary
   -i, --interactive                   Keep STDIN open even if not attached
       --io-maxbandwidth string        Maximum IO bandwidth limit for the system drive (Windows only)
       --io-maxiops uint               Maximum IOps limit for the system drive (Windows only)

@@ -9,18 +9,18 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/swarm"
 	composetypes "github.com/docker/docker/cli/compose/types"
-	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestConvertRestartPolicyFromNone(t *testing.T) {
 	policy, err := convertRestartPolicy("no", nil)
-	assert.NilError(t, err)
-	assert.Equal(t, policy, (*swarm.RestartPolicy)(nil))
+	assert.NoError(t, err)
+	assert.Equal(t, (*swarm.RestartPolicy)(nil), policy)
 }
 
 func TestConvertRestartPolicyFromUnknown(t *testing.T) {
 	_, err := convertRestartPolicy("unknown", nil)
-	assert.Error(t, err, "unknown restart policy: unknown")
+	assert.EqualError(t, err, "unknown restart policy: unknown")
 }
 
 func TestConvertRestartPolicyFromAlways(t *testing.T) {
@@ -28,8 +28,8 @@ func TestConvertRestartPolicyFromAlways(t *testing.T) {
 	expected := &swarm.RestartPolicy{
 		Condition: swarm.RestartPolicyConditionAny,
 	}
-	assert.NilError(t, err)
-	assert.DeepEqual(t, policy, expected)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, policy)
 }
 
 func TestConvertRestartPolicyFromFailure(t *testing.T) {
@@ -39,8 +39,8 @@ func TestConvertRestartPolicyFromFailure(t *testing.T) {
 		Condition:   swarm.RestartPolicyConditionOnFailure,
 		MaxAttempts: &attempts,
 	}
-	assert.NilError(t, err)
-	assert.DeepEqual(t, policy, expected)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, policy)
 }
 
 func strPtr(val string) *string {
@@ -54,7 +54,7 @@ func TestConvertEnvironment(t *testing.T) {
 	}
 	env := convertEnvironment(source)
 	sort.Strings(env)
-	assert.DeepEqual(t, env, []string{"foo=bar", "key=value"})
+	assert.Equal(t, []string{"foo=bar", "key=value"}, env)
 }
 
 func TestConvertResourcesFull(t *testing.T) {
@@ -69,7 +69,7 @@ func TestConvertResourcesFull(t *testing.T) {
 		},
 	}
 	resources, err := convertResources(source)
-	assert.NilError(t, err)
+	assert.NoError(t, err)
 
 	expected := &swarm.ResourceRequirements{
 		Limits: &swarm.Resources{
@@ -81,7 +81,7 @@ func TestConvertResourcesFull(t *testing.T) {
 			MemoryBytes: 200000000,
 		},
 	}
-	assert.DeepEqual(t, resources, expected)
+	assert.Equal(t, expected, resources)
 }
 
 func TestConvertResourcesOnlyMemory(t *testing.T) {
@@ -94,7 +94,7 @@ func TestConvertResourcesOnlyMemory(t *testing.T) {
 		},
 	}
 	resources, err := convertResources(source)
-	assert.NilError(t, err)
+	assert.NoError(t, err)
 
 	expected := &swarm.ResourceRequirements{
 		Limits: &swarm.Resources{
@@ -104,7 +104,7 @@ func TestConvertResourcesOnlyMemory(t *testing.T) {
 			MemoryBytes: 200000000,
 		},
 	}
-	assert.DeepEqual(t, resources, expected)
+	assert.Equal(t, expected, resources)
 }
 
 func TestConvertHealthcheck(t *testing.T) {
@@ -123,8 +123,8 @@ func TestConvertHealthcheck(t *testing.T) {
 	}
 
 	healthcheck, err := convertHealthcheck(source)
-	assert.NilError(t, err)
-	assert.DeepEqual(t, healthcheck, expected)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, healthcheck)
 }
 
 func TestConvertHealthcheckDisable(t *testing.T) {
@@ -134,8 +134,8 @@ func TestConvertHealthcheckDisable(t *testing.T) {
 	}
 
 	healthcheck, err := convertHealthcheck(source)
-	assert.NilError(t, err)
-	assert.DeepEqual(t, healthcheck, expected)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, healthcheck)
 }
 
 func TestConvertHealthcheckDisableWithTest(t *testing.T) {
@@ -144,7 +144,7 @@ func TestConvertHealthcheckDisableWithTest(t *testing.T) {
 		Test:    []string{"EXEC", "touch"},
 	}
 	_, err := convertHealthcheck(source)
-	assert.Error(t, err, "test and disable can't be set")
+	assert.EqualError(t, err, "test and disable can't be set at the same time")
 }
 
 func TestConvertEndpointSpec(t *testing.T) {
@@ -178,8 +178,8 @@ func TestConvertEndpointSpec(t *testing.T) {
 		},
 	}
 
-	assert.NilError(t, err)
-	assert.DeepEqual(t, *endpoint, expected)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, *endpoint)
 }
 
 func TestConvertServiceNetworksOnlyDefault(t *testing.T) {
@@ -195,8 +195,8 @@ func TestConvertServiceNetworksOnlyDefault(t *testing.T) {
 		},
 	}
 
-	assert.NilError(t, err)
-	assert.DeepEqual(t, configs, expected)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, configs)
 }
 
 func TestConvertServiceNetworks(t *testing.T) {
@@ -235,8 +235,8 @@ func TestConvertServiceNetworks(t *testing.T) {
 	sortedConfigs := byTargetSort(configs)
 	sort.Sort(&sortedConfigs)
 
-	assert.NilError(t, err)
-	assert.DeepEqual(t, []swarm.NetworkAttachmentConfig(sortedConfigs), expected)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, []swarm.NetworkAttachmentConfig(sortedConfigs))
 }
 
 func TestConvertServiceNetworksCustomDefault(t *testing.T) {
@@ -260,8 +260,8 @@ func TestConvertServiceNetworksCustomDefault(t *testing.T) {
 		},
 	}
 
-	assert.NilError(t, err)
-	assert.DeepEqual(t, []swarm.NetworkAttachmentConfig(configs), expected)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, []swarm.NetworkAttachmentConfig(configs))
 }
 
 type byTargetSort []swarm.NetworkAttachmentConfig
@@ -281,8 +281,8 @@ func (s byTargetSort) Swap(i, j int) {
 func TestConvertDNSConfigEmpty(t *testing.T) {
 	dnsConfig, err := convertDNSConfig(nil, nil)
 
-	assert.NilError(t, err)
-	assert.Equal(t, dnsConfig, (*swarm.DNSConfig)(nil))
+	assert.NoError(t, err)
+	assert.Equal(t, (*swarm.DNSConfig)(nil), dnsConfig)
 }
 
 var (
@@ -292,27 +292,27 @@ var (
 
 func TestConvertDNSConfigAll(t *testing.T) {
 	dnsConfig, err := convertDNSConfig(nameservers, search)
-	assert.NilError(t, err)
-	assert.DeepEqual(t, dnsConfig, &swarm.DNSConfig{
+	assert.NoError(t, err)
+	assert.Equal(t, &swarm.DNSConfig{
 		Nameservers: nameservers,
 		Search:      search,
-	})
+	}, dnsConfig)
 }
 
 func TestConvertDNSConfigNameservers(t *testing.T) {
 	dnsConfig, err := convertDNSConfig(nameservers, nil)
-	assert.NilError(t, err)
-	assert.DeepEqual(t, dnsConfig, &swarm.DNSConfig{
+	assert.NoError(t, err)
+	assert.Equal(t, &swarm.DNSConfig{
 		Nameservers: nameservers,
 		Search:      nil,
-	})
+	}, dnsConfig)
 }
 
 func TestConvertDNSConfigSearch(t *testing.T) {
 	dnsConfig, err := convertDNSConfig(nil, search)
-	assert.NilError(t, err)
-	assert.DeepEqual(t, dnsConfig, &swarm.DNSConfig{
+	assert.NoError(t, err)
+	assert.Equal(t, &swarm.DNSConfig{
 		Nameservers: nil,
 		Search:      search,
-	})
+	}, dnsConfig)
 }

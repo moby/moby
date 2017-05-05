@@ -297,8 +297,9 @@ func (g *Orchestrator) reconcileServices(ctx context.Context, serviceIDs []strin
 	updates := make(map[*api.Service][]orchestrator.Slot)
 
 	_, err := g.store.Batch(func(batch *store.Batch) error {
-		var updateTasks []orchestrator.Slot
 		for _, serviceID := range serviceIDs {
+			var updateTasks []orchestrator.Slot
+
 			if _, exists := nodeTasks[serviceID]; !exists {
 				continue
 			}
@@ -352,7 +353,6 @@ func (g *Orchestrator) reconcileServices(ctx context.Context, serviceIDs []strin
 	for service, updateTasks := range updates {
 		g.updater.Update(ctx, g.cluster, service, updateTasks)
 	}
-
 }
 
 // updateNode updates g.nodes based on the current node value

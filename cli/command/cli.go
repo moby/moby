@@ -39,7 +39,9 @@ type Cli interface {
 	Out() *OutStream
 	Err() io.Writer
 	In() *InStream
+	SetIn(in *InStream)
 	ConfigFile() *configfile.ConfigFile
+	CredentialsStore(serverAddress string) credentials.Store
 }
 
 // DockerCli is an instance the docker command line client.
@@ -73,6 +75,11 @@ func (cli *DockerCli) Out() *OutStream {
 // Err returns the writer used for stderr
 func (cli *DockerCli) Err() io.Writer {
 	return cli.err
+}
+
+// SetIn sets the reader used for stdin
+func (cli *DockerCli) SetIn(in *InStream) {
+	cli.in = in
 }
 
 // In returns the reader used for stdin

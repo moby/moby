@@ -19,7 +19,7 @@ type pullOptions struct {
 }
 
 // NewPullCommand creates a new `docker pull` command
-func NewPullCommand(dockerCli *command.DockerCli) *cobra.Command {
+func NewPullCommand(dockerCli command.Cli) *cobra.Command {
 	var opts pullOptions
 
 	cmd := &cobra.Command{
@@ -40,7 +40,7 @@ func NewPullCommand(dockerCli *command.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func runPull(dockerCli *command.DockerCli, opts pullOptions) error {
+func runPull(dockerCli command.Cli, opts pullOptions) error {
 	distributionRef, err := reference.ParseNormalizedNamed(opts.remote)
 	if err != nil {
 		return err

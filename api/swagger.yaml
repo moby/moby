@@ -231,6 +231,7 @@ definitions:
         type: "string"
       Source:
         description: "Mount source (e.g. a volume name, a host path)."
+        type: "string"
       Type:
         description: |
           The mount type. Available types:
@@ -308,10 +309,12 @@ definitions:
       Name:
         type: "string"
         description: |
+          - Empty string means not to restart
           - `always` Always restart
           - `unless-stopped` Restart always except when the user has manually stopped the container
           - `on-failure` Restart only when the container exit code is non-zero
         enum:
+          - ""
           - "always"
           - "unless-stopped"
           - "on-failure"
@@ -499,16 +502,16 @@ definitions:
         items:
           type: "string"
       Interval:
-        description: "The time to wait between checks in nanoseconds. It should be 0 or not less than 1000000000(1s). 0 means inherit."
+        description: "The time to wait between checks in nanoseconds. It should be 0 or at least 1000000 (1 ms). 0 means inherit."
         type: "integer"
       Timeout:
-        description: "The time to wait before considering the check to have hung. It should be 0 or not less than 1000000000(1s). 0 means inherit."
+        description: "The time to wait before considering the check to have hung. It should be 0 or at least 1000000 (1 ms). 0 means inherit."
         type: "integer"
       Retries:
         description: "The number of consecutive failures needed to consider a container as unhealthy. 0 means inherit."
         type: "integer"
       StartPeriod:
-        description: "Start period for the container to initialize before starting health-retries countdown in nanoseconds. 0 means inherit."
+        description: "Start period for the container to initialize before starting health-retries countdown in nanoseconds. It should be 0 or at least 1000000 (1 ms). 0 means inherit."
         type: "integer"
 
   HostConfig:
@@ -1193,6 +1196,8 @@ definitions:
   NetworkContainer:
     type: "object"
     properties:
+      Name:
+        type: "string"
       EndpointID:
         type: "string"
       MacAddress:
@@ -1835,6 +1840,9 @@ definitions:
                   type: "object"
                   additionalProperties:
                     type: "string"
+                CACert:
+                  description: "The root CA certificate (in PEM format) this external CA uses to issue TLS certificates (assumed to be to the current swarm root CA certificate if not provided)."
+                  type: "string"
       EncryptionConfig:
         description: "Parameters related to encryption-at-rest."
         type: "object"
@@ -5208,6 +5216,10 @@ paths:
                     type: "array"
                     items:
                       type: "string"
+                  Log:
+                    type: "array"
+                    items:
+                      type: "string"
               ExperimentalBuild:
                 type: "boolean"
               HttpProxy:
@@ -6320,6 +6332,10 @@ paths:
           description: "Network not found"
           schema:
             $ref: "#/definitions/ErrorResponse"
+        500:
+          description: "Server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
       parameters:
         - name: "id"
           in: "path"
@@ -6339,6 +6355,10 @@ paths:
       responses:
         204:
           description: "No error"
+        403:
+          description: "operation not supported for pre-defined networks"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         404:
           description: "no such network"
           schema:
@@ -7106,6 +7126,10 @@ paths:
       responses:
         200:
           description: "no error"
+        400:
+          description: "bad parameter"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         404:
           description: "no such node"
           schema:
@@ -8217,6 +8241,10 @@ paths:
       responses:
         200:
           description: "no error"
+        400:
+          description: "bad parameter"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         404:
           description: "no such secret"
           schema:

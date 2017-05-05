@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli/debug"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/parsers/kernel"
@@ -174,7 +175,10 @@ func (daemon *Daemon) showPluginsInfo() types.PluginsInfo {
 
 	pluginsInfo.Volume = volumedrivers.GetDriverList()
 	pluginsInfo.Network = daemon.GetNetworkDriverList()
-	pluginsInfo.Authorization = daemon.configStore.GetAuthorizationPlugins()
+	// The authorization plugins are returned in the order they are
+	// used as they constitute a request/response modification chain.
+	pluginsInfo.Authorization = daemon.configStore.AuthorizationPlugins
+	pluginsInfo.Log = logger.ListDrivers()
 
 	return pluginsInfo
 }

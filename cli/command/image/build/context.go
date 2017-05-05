@@ -154,7 +154,7 @@ func GetContextFromURL(out io.Writer, remoteURL, dockerfileName string) (io.Read
 	if err != nil {
 		return nil, "", errors.Errorf("unable to download remote context %s: %v", remoteURL, err)
 	}
-	progressOutput := streamformatter.NewStreamFormatter().NewProgressOutput(out, true)
+	progressOutput := streamformatter.NewProgressOutput(out)
 
 	// Pass the response body through a progress reader.
 	progReader := progress.NewProgressReader(response.Body, progressOutput, response.ContentLength, "", fmt.Sprintf("Downloading build context from remote url: %s", remoteURL))

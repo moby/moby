@@ -29,7 +29,7 @@ type target struct {
 }
 
 // trustedPush handles content trust pushing of an image
-func trustedPush(ctx context.Context, cli *command.DockerCli, repoInfo *registry.RepositoryInfo, ref reference.Named, authConfig types.AuthConfig, requestPrivilege types.RequestPrivilegeFunc) error {
+func trustedPush(ctx context.Context, cli command.Cli, repoInfo *registry.RepositoryInfo, ref reference.Named, authConfig types.AuthConfig, requestPrivilege types.RequestPrivilegeFunc) error {
 	responseBody, err := imagePushPrivileged(ctx, cli, authConfig, ref, requestPrivilege)
 	if err != nil {
 		return err
@@ -41,7 +41,7 @@ func trustedPush(ctx context.Context, cli *command.DockerCli, repoInfo *registry
 }
 
 // PushTrustedReference pushes a canonical reference to the trust server.
-func PushTrustedReference(cli *command.DockerCli, repoInfo *registry.RepositoryInfo, ref reference.Named, authConfig types.AuthConfig, in io.Reader) error {
+func PushTrustedReference(cli command.Cli, repoInfo *registry.RepositoryInfo, ref reference.Named, authConfig types.AuthConfig, in io.Reader) error {
 	// If it is a trusted push we would like to find the target entry which match the
 	// tag provided in the function and then do an AddTarget later.
 	target := &client.Target{}
@@ -202,7 +202,7 @@ func addTargetToAllSignableRoles(repo *client.NotaryRepository, target *client.T
 }
 
 // imagePushPrivileged push the image
-func imagePushPrivileged(ctx context.Context, cli *command.DockerCli, authConfig types.AuthConfig, ref reference.Named, requestPrivilege types.RequestPrivilegeFunc) (io.ReadCloser, error) {
+func imagePushPrivileged(ctx context.Context, cli command.Cli, authConfig types.AuthConfig, ref reference.Named, requestPrivilege types.RequestPrivilegeFunc) (io.ReadCloser, error) {
 	encodedAuth, err := command.EncodeAuthToBase64(authConfig)
 	if err != nil {
 		return nil, err
@@ -216,7 +216,7 @@ func imagePushPrivileged(ctx context.Context, cli *command.DockerCli, authConfig
 }
 
 // trustedPull handles content trust pulling of an image
-func trustedPull(ctx context.Context, cli *command.DockerCli, repoInfo *registry.RepositoryInfo, ref reference.Named, authConfig types.AuthConfig, requestPrivilege types.RequestPrivilegeFunc) error {
+func trustedPull(ctx context.Context, cli command.Cli, repoInfo *registry.RepositoryInfo, ref reference.Named, authConfig types.AuthConfig, requestPrivilege types.RequestPrivilegeFunc) error {
 	var refs []target
 
 	notaryRepo, err := trust.GetNotaryRepository(cli, repoInfo, authConfig, "pull")
@@ -295,7 +295,7 @@ func trustedPull(ctx context.Context, cli *command.DockerCli, repoInfo *registry
 }
 
 // imagePullPrivileged pulls the image and displays it to the output
-func imagePullPrivileged(ctx context.Context, cli *command.DockerCli, authConfig types.AuthConfig, ref string, requestPrivilege types.RequestPrivilegeFunc, all bool) error {
+func imagePullPrivileged(ctx context.Context, cli command.Cli, authConfig types.AuthConfig, ref string, requestPrivilege types.RequestPrivilegeFunc, all bool) error {
 
 	encodedAuth, err := command.EncodeAuthToBase64(authConfig)
 	if err != nil {
@@ -317,7 +317,7 @@ func imagePullPrivileged(ctx context.Context, cli *command.DockerCli, authConfig
 }
 
 // TrustedReference returns the canonical trusted reference for an image reference
-func TrustedReference(ctx context.Context, cli *command.DockerCli, ref reference.NamedTagged, rs registry.Service) (reference.Canonical, error) {
+func TrustedReference(ctx context.Context, cli command.Cli, ref reference.NamedTagged, rs registry.Service) (reference.Canonical, error) {
 	var (
 		repoInfo *registry.RepositoryInfo
 		err      error
@@ -371,7 +371,7 @@ func convertTarget(t client.Target) (target, error) {
 }
 
 // TagTrusted tags a trusted ref
-func TagTrusted(ctx context.Context, cli *command.DockerCli, trustedRef reference.Canonical, ref reference.NamedTagged) error {
+func TagTrusted(ctx context.Context, cli command.Cli, trustedRef reference.Canonical, ref reference.NamedTagged) error {
 	// Use familiar references when interacting with client and output
 	familiarRef := reference.FamiliarString(ref)
 	trustedFamiliarRef := reference.FamiliarString(trustedRef)

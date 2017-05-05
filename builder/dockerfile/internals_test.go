@@ -5,9 +5,13 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
+	"github.com/docker/docker/builder/remotecontext"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestEmptyDockerfile(t *testing.T) {
@@ -16,7 +20,7 @@ func TestEmptyDockerfile(t *testing.T) {
 
 	createTestTempFile(t, contextDir, builder.DefaultDockerfileName, "", 0777)
 
-	readAndCheckDockerfile(t, "emptyDockerfile", contextDir, "", "The Dockerfile (Dockerfile) cannot be empty")
+	readAndCheckDockerfile(t, "emptyDockerfile", contextDir, "", "the Dockerfile (Dockerfile) cannot be empty")
 }
 
 func TestSymlinkDockerfile(t *testing.T) {
@@ -38,7 +42,7 @@ func TestDockerfileOutsideTheBuildContext(t *testing.T) {
 	contextDir, cleanup := createTestTempDir(t, "", "builder-dockerfile-test")
 	defer cleanup()
 
-	expectedError := "Forbidden path outside the build context"
+	expectedError := "Forbidden path outside the build context: ../../Dockerfile ()"
 
 	readAndCheckDockerfile(t, "DockerfileOutsideTheBuildContext", contextDir, "../../Dockerfile", expectedError)
 }
@@ -54,7 +58,7 @@ func TestNonExistingDockerfile(t *testing.T) {
 
 func readAndCheckDockerfile(t *testing.T, testName, contextDir, dockerfilePath, expectedError string) {
 	tarStream, err := archive.Tar(contextDir, archive.Uncompressed)
-	assert.NilError(t, err)
+	require.NoError(t, err)
 
 	defer func() {
 		if err = tarStream.Close(); err != nil {
@@ -62,21 +66,65 @@ func readAndCheckDockerfile(t *testing.T, testName, contextDir, dockerfilePath, 
 		}
 	}()
 
-	context, err := builder.MakeTarSumContext(tarStream)
-	assert.NilError(t, err)
-
-	defer func() {
-		if err = context.Close(); err != nil {
-			t.Fatalf("Error when closing tar context: %s", err)
-		}
-	}()
-
-	options := &types.ImageBuildOptions{
-		Dockerfile: dockerfilePath,
+	if dockerfilePath == "" { // handled in BuildWithContext
+		dockerfilePath = builder.DefaultDockerfileName
 	}
 
-	b := &Builder{options: options, context: context}
+	config := backend.BuildConfig{
+		Options: &types.ImageBuildOptions{Dockerfile: dockerfilePath},
+		Source:  tarStream,
+	}
+	_, _, err = remotecontext.Detect(config)
+	assert.EqualError(t, err, expectedError)
+}
 
-	_, err = b.readAndParseDockerfile()
-	assert.Error(t, err, expectedError)
+func TestCopyRunConfig(t *testing.T) {
+	defaultEnv := []string{"foo=1"}
+	defaultCmd := []string{"old"}
+
+	var testcases = []struct {
+		doc       string
+		modifiers []runConfigModifier
+		expected  *container.Config
+	}{
+		{
+			doc:       "Set the command",
+			modifiers: []runConfigModifier{withCmd([]string{"new"})},
+			expected: &container.Config{
+				Cmd: []string{"new"},
+				Env: defaultEnv,
+			},
+		},
+		{
+			doc:       "Set the command to a comment",
+			modifiers: []runConfigModifier{withCmdComment("comment")},
+			expected: &container.Config{
+				Cmd: append(defaultShell, "#(nop) ", "comment"),
+				Env: defaultEnv,
+			},
+		},
+		{
+			doc: "Set the command and env",
+			modifiers: []runConfigModifier{
+				withCmd([]string{"new"}),
+				withEnv([]string{"one", "two"}),
+			},
+			expected: &container.Config{
+				Cmd: []string{"new"},
+				Env: []string{"one", "two"},
+			},
+		},
+	}
+
+	for _, testcase := range testcases {
+		runConfig := &container.Config{
+			Cmd: defaultCmd,
+			Env: defaultEnv,
+		}
+		runConfigCopy := copyRunConfig(runConfig, testcase.modifiers...)
+		assert.Equal(t, testcase.expected, runConfigCopy, testcase.doc)
+		// Assert the original was not modified
+		assert.NotEqual(t, runConfig, runConfigCopy, testcase.doc)
+	}
+
 }

@@ -23,7 +23,7 @@ type imagesOptions struct {
 }
 
 // NewImagesCommand creates a new `docker images` command
-func NewImagesCommand(dockerCli *command.DockerCli) *cobra.Command {
+func NewImagesCommand(dockerCli command.Cli) *cobra.Command {
 	opts := imagesOptions{filter: opts.NewFilterOpt()}
 
 	cmd := &cobra.Command{
@@ -50,14 +50,14 @@ func NewImagesCommand(dockerCli *command.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func newListCommand(dockerCli *command.DockerCli) *cobra.Command {
+func newListCommand(dockerCli command.Cli) *cobra.Command {
 	cmd := *NewImagesCommand(dockerCli)
 	cmd.Aliases = []string{"images", "list"}
 	cmd.Use = "ls [OPTIONS] [REPOSITORY[:TAG]]"
 	return &cmd
 }
 
-func runImages(dockerCli *command.DockerCli, opts imagesOptions) error {
+func runImages(dockerCli command.Cli, opts imagesOptions) error {
 	ctx := context.Background()
 
 	filters := opts.filter.Value()

@@ -11,10 +11,15 @@ type Config struct {
 	// The name of this node. This must be unique in the cluster.
 	Name string
 
+	// Transport is a hook for providing custom code to communicate with
+	// other nodes. If this is left nil, then memberlist will by default
+	// make a NetTransport using BindAddr and BindPort from this structure.
+	Transport Transport
+
 	// Configuration related to what address to bind to and ports to
-	// listen on. The port is used for both UDP and TCP gossip.
-	// It is assumed other nodes are running on this port, but they
-	// do not need to.
+	// listen on. The port is used for both UDP and TCP gossip. It is
+	// assumed other nodes are running on this port, but they do not need
+	// to.
 	BindAddr string
 	BindPort int
 
@@ -28,8 +33,11 @@ type Config struct {
 	// ProtocolVersionMax.
 	ProtocolVersion uint8
 
-	// TCPTimeout is the timeout for establishing a TCP connection with
-	// a remote node for a full state sync.
+	// TCPTimeout is the timeout for establishing a stream connection with
+	// a remote node for a full state sync, and for stream read and write
+	// operations. This is a legacy name for backwards compatibility, but
+	// should really be called StreamTimeout now that we have generalized
+	// the transport.
 	TCPTimeout time.Duration
 
 	// IndirectChecks is the number of nodes that will be asked to perform
@@ -63,6 +71,23 @@ type Config struct {
 	// still alive.
 	SuspicionMult int
 
+	// SuspicionMaxTimeoutMult is the multiplier applied to the
+	// SuspicionTimeout used as an upper bound on detection time. This max
+	// timeout is calculated using the formula:
+	//
+	// SuspicionMaxTimeout = SuspicionMaxTimeoutMult * SuspicionTimeout
+	//
+	// If everything is working properly, confirmations from other nodes will
+	// accelerate suspicion timers in a manner which will cause the timeout
+	// to reach the base SuspicionTimeout before that elapses, so this value
+	// will typically only come into play if a node is experiencing issues
+	// communicating with other nodes. It should be set to a something fairly
+	// large so that a node having problems will have a lot of chances to
+	// recover before falsely declaring other nodes as failed, but short
+	// enough for a legitimately isolated node to still make progress marking
+	// nodes failed in a reasonable amount of time.
+	SuspicionMaxTimeoutMult int
+
 	// PushPullInterval is the interval between complete state syncs.
 	// Complete state syncs are done with a single node over TCP and are
 	// quite expensive relative to standard gossiped messages. Setting this
@@ -91,6 +116,11 @@ type Config struct {
 	// indirect UDP pings.
 	DisableTcpPings bool
 
+	// AwarenessMaxMultiplier will increase the probe interval if the node
+	// becomes aware that it might be degraded and not meeting the soft real
+	// time requirements to reliably probe other nodes.
+	AwarenessMaxMultiplier int
+
 	// GossipInterval and GossipNodes are used to configure the gossip
 	// behavior of memberlist.
 	//
@@ -104,8 +134,12 @@ type Config struct {
 	// per GossipInterval. Increasing this number causes the gossip messages
 	// to propagate across the cluster more quickly at the expense of
 	// increased bandwidth.
-	GossipInterval time.Duration
-	GossipNodes    int
+	//
+	// GossipToTheDeadTime is the interval after which a node has died that
+	// we will still try to gossip to it. This gives it a chance to refute.
+	GossipInterval      time.Duration
+	GossipNodes         int
+	GossipToTheDeadTime time.Duration
 
 	// EnableCompression is used to control message compression. This can
 	// be used to reduce bandwidth usage at the cost of slightly more CPU
@@ -157,6 +191,20 @@ type Config struct {
 	// behavior for using LogOutput. You cannot specify both LogOutput and Logger
 	// at the same time.
 	Logger *log.Logger
+
+	// Size of Memberlist's internal channel which handles UDP messages. The
+	// size of this determines the size of the queue which Memberlist will keep
+	// while UDP messages are handled.
+	HandoffQueueDepth int
+
+	// Maximum number of bytes that memberlist will put in a packet (this
+	// will be for UDP packets by default with a NetTransport). A safe value
+	// for this is typically 1400 bytes (which is the default). However,
+	// depending on your network's MTU (Maximum Transmission Unit) you may
+	// be able to increase this to get more content into each gossip packet.
+	// This is a legacy name for backward compatibility but should really be
+	// called PacketBufferSize now that we have generalized the transport.
+	UDPBufferSize int
 }
 
 // DefaultLANConfig returns a sane set of configurations for Memberlist.
@@ -168,23 +216,26 @@ type Config struct {
 func DefaultLANConfig() *Config {
 	hostname, _ := os.Hostname()
 	return &Config{
-		Name:             hostname,
-		BindAddr:         "0.0.0.0",
-		BindPort:         7946,
-		AdvertiseAddr:    "",
-		AdvertisePort:    7946,
-		ProtocolVersion:  ProtocolVersion2Compatible,
-		TCPTimeout:       10 * time.Second,       // Timeout after 10 seconds
-		IndirectChecks:   3,                      // Use 3 nodes for the indirect ping
-		RetransmitMult:   4,                      // Retransmit a message 4 * log(N+1) nodes
-		SuspicionMult:    5,                      // Suspect a node for 5 * log(N+1) * Interval
-		PushPullInterval: 30 * time.Second,       // Low frequency
-		ProbeTimeout:     500 * time.Millisecond, // Reasonable RTT time for LAN
-		ProbeInterval:    1 * time.Second,        // Failure check every second
-		DisableTcpPings:  false,                  // TCP pings are safe, even with mixed versions
+		Name:                    hostname,
+		BindAddr:                "0.0.0.0",
+		BindPort:                7946,
+		AdvertiseAddr:           "",
+		AdvertisePort:           7946,
+		ProtocolVersion:         ProtocolVersion2Compatible,
+		TCPTimeout:              10 * time.Second,       // Timeout after 10 seconds
+		IndirectChecks:          3,                      // Use 3 nodes for the indirect ping
+		RetransmitMult:          4,                      // Retransmit a message 4 * log(N+1) nodes
+		SuspicionMult:           5,                      // Suspect a node for 5 * log(N+1) * Interval
+		SuspicionMaxTimeoutMult: 6,                      // For 10k nodes this will give a max timeout of 120 seconds
+		PushPullInterval:        30 * time.Second,       // Low frequency
+		ProbeTimeout:            500 * time.Millisecond, // Reasonable RTT time for LAN
+		ProbeInterval:           1 * time.Second,        // Failure check every second
+		DisableTcpPings:         false,                  // TCP pings are safe, even with mixed versions
+		AwarenessMaxMultiplier:  8,                      // Probe interval backs off to 8 seconds
 
-		GossipNodes:    3,                      // Gossip to 3 nodes
-		GossipInterval: 200 * time.Millisecond, // Gossip more rapidly
+		GossipNodes:         3,                      // Gossip to 3 nodes
+		GossipInterval:      200 * time.Millisecond, // Gossip more rapidly
+		GossipToTheDeadTime: 30 * time.Second,       // Same as push/pull
 
 		EnableCompression: true, // Enable compression by default
 
@@ -192,6 +243,9 @@ func DefaultLANConfig() *Config {
 		Keyring:   nil,
 
 		DNSConfigPath: "/etc/resolv.conf",
+
+		HandoffQueueDepth: 1024,
+		UDPBufferSize:     1400,
 	}
 }
 
@@ -207,6 +261,7 @@ func DefaultWANConfig() *Config {
 	conf.ProbeInterval = 5 * time.Second
 	conf.GossipNodes = 4 // Gossip less frequently, but to an additional node
 	conf.GossipInterval = 500 * time.Millisecond
+	conf.GossipToTheDeadTime = 60 * time.Second
 	return conf
 }
 
@@ -223,6 +278,7 @@ func DefaultLocalConfig() *Config {
 	conf.ProbeTimeout = 200 * time.Millisecond
 	conf.ProbeInterval = time.Second
 	conf.GossipInterval = 100 * time.Millisecond
+	conf.GossipToTheDeadTime = 15 * time.Second
 	return conf
 }
 

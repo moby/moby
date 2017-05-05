@@ -175,7 +175,7 @@ read the [`dockerd`](dockerd.md) reference page.
 |:--------|:-------------------------------------------------------------------|
 | [plugin create](plugin_create.md) | Create a plugin from a rootfs and configuration |
 | [plugin disable](plugin_disable.md) | Disable a plugin                       |
-| [plugin enbale](plugin_enable.md)  | Enable a plugin                         |
+| [plugin enable](plugin_enable.md)  | Enable a plugin                         |
 | [plugin inspect](plugin_inspect.md) | Display detailed information on a plugin |
 | [plugin install](plugin_install.md) | Install a plugin                       |
 | [plugin ls](plugin_ls.md) | List plugins                                     |

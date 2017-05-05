@@ -14,7 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var tmp string
@@ -1211,19 +1212,19 @@ func TestReplaceFileTarWrapper(t *testing.T) {
 			map[string]TarModifierFunc{testcase.filename: testcase.modifier})
 
 		actual := readFileFromArchive(t, resultArchive, testcase.filename, testcase.fileCount, testcase.doc)
-		assert.Equal(t, actual, testcase.expected, testcase.doc)
+		assert.Equal(t, testcase.expected, actual, testcase.doc)
 	}
 }
 
 func buildSourceArchive(t *testing.T, numberOfFiles int) (io.ReadCloser, func()) {
 	srcDir, err := ioutil.TempDir("", "docker-test-srcDir")
-	assert.NilError(t, err)
+	require.NoError(t, err)
 
 	_, err = prepareUntarSourceDirectory(numberOfFiles, srcDir, false)
-	assert.NilError(t, err)
+	require.NoError(t, err)
 
 	sourceArchive, err := TarWithOptions(srcDir, &TarOptions{})
-	assert.NilError(t, err)
+	require.NoError(t, err)
 	return sourceArchive, func() {
 		os.RemoveAll(srcDir)
 		sourceArchive.Close()
@@ -1257,16 +1258,16 @@ func appendModifier(path string, header *tar.Header, content io.Reader) (*tar.He
 
 func readFileFromArchive(t *testing.T, archive io.ReadCloser, name string, expectedCount int, doc string) string {
 	destDir, err := ioutil.TempDir("", "docker-test-destDir")
-	assert.NilError(t, err)
+	require.NoError(t, err)
 	defer os.RemoveAll(destDir)
 
 	err = Untar(archive, destDir, nil)
-	assert.NilError(t, err)
+	require.NoError(t, err)
 
 	files, _ := ioutil.ReadDir(destDir)
-	assert.Equal(t, len(files), expectedCount, doc)
+	assert.Len(t, files, expectedCount, doc)
 
 	content, err := ioutil.ReadFile(filepath.Join(destDir, name))
-	assert.NilError(t, err)
+	assert.NoError(t, err)
 	return string(content)
 }

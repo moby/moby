@@ -71,6 +71,7 @@ Options:
       --max-concurrent-uploads int            Set the max concurrent uploads for each push (default 5)
       --metrics-addr string                   Set default address and port to serve the metrics api on
       --mtu int                               Set the containers network MTU
+      --no-new-privileges                     Set no-new-privileges by default for new containers
       --oom-score-adjust int                  Set the oom_score_adj for the daemon (default -500)
   -p, --pidfile string                        Path to use for daemon PID file (default "/var/run/docker.pid")
       --raw-logs                              Full timestamps without ANSI coloring
@@ -301,6 +302,19 @@ Particular storage-driver can be configured with options specified with
 options for `zfs` start with `zfs` and options for `btrfs` start with `btrfs`.
 
 #### Devicemapper options
+
+This is an example of the configuration file for devicemapper on Linux:
+
+```json
+{
+  "storage-driver": "devicemapper",
+  "storage-opts": [
+    "dm.thinpooldev=/dev/mapper/thin-pool",
+    "dm.use_deferred_deletion=true",
+    "dm.use_deferred_removal=true"
+  ]
+}
+```
 
 ##### `dm.thinpooldev`
 
@@ -888,10 +902,10 @@ file. The plugin's implementation determines whether you can specify a name or
 path. Consult with your Docker administrator to get information about the
 plugins available to you.
 
-Once a plugin is installed, requests made to the `daemon` through the command
-line or Docker's Engine API are allowed or denied by the plugin.  If you have
-multiple plugins installed, at least one must allow the request for it to
-complete.
+Once a plugin is installed, requests made to the `daemon` through the
+command line or Docker's Engine API are allowed or denied by the plugin.
+If you have multiple plugins installed, each plugin, in order, must
+allow the request for it to complete.
 
 For information about how to create an authorization plugin, see [authorization
 plugin](../../extend/plugins_authorization.md) section in the Docker extend section of this documentation.

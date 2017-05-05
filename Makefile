@@ -17,13 +17,13 @@ export DOCKER_GITCOMMIT
 # to allow things like `make KEEPBUNDLE=1 binary` easily
 # `project/PACKAGERS.md` have some limited documentation of some of these
 DOCKER_ENVS := \
+	$(if $(DOCKER_CROSSPLATFORMS), -e DOCKER_CROSSPLATFORMS) \
 	-e BUILD_APT_MIRROR \
 	-e BUILDFLAGS \
 	-e KEEPBUNDLE \
 	-e DOCKER_BUILD_ARGS \
 	-e DOCKER_BUILD_GOGC \
 	-e DOCKER_BUILD_PKGS \
-	-e DOCKER_CROSSPLATFORMS \
 	-e DOCKER_DEBUG \
 	-e DOCKER_EXPERIMENTAL \
 	-e DOCKER_GITCOMMIT \

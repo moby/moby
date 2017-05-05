@@ -7,9 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"net/http/httptest"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -19,8 +17,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/integration-cli/cli/build/fakecontext"
-	"github.com/docker/docker/integration-cli/cli/build/fakestorage"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/integration-cli/registry"
 	"github.com/docker/docker/integration-cli/request"
@@ -31,44 +27,6 @@ import (
 // Deprecated
 func daemonHost() string {
 	return request.DaemonHost()
-}
-
-// FIXME(vdemeester) move this away are remove ignoreNoSuchContainer bool
-func deleteContainer(container ...string) error {
-	return icmd.RunCommand(dockerBinary, append([]string{"rm", "-fv"}, container...)...).Compare(icmd.Success)
-}
-
-func getAllContainers(c *check.C) string {
-	result := icmd.RunCommand(dockerBinary, "ps", "-q", "-a")
-	result.Assert(c, icmd.Success)
-	return result.Combined()
-}
-
-// Deprecated
-func deleteAllContainers(c *check.C) {
-	containers := getAllContainers(c)
-	if containers != "" {
-		err := deleteContainer(strings.Split(strings.TrimSpace(containers), "\n")...)
-		c.Assert(err, checker.IsNil)
-	}
-}
-
-func getPausedContainers(c *check.C) []string {
-	result := icmd.RunCommand(dockerBinary, "ps", "-f", "status=paused", "-q", "-a")
-	result.Assert(c, icmd.Success)
-	return strings.Fields(result.Combined())
-}
-
-func unpauseContainer(c *check.C, container string) {
-	dockerCmd(c, "unpause", container)
-}
-
-// Deprecated
-func unpauseAllContainers(c *check.C) {
-	containers := getPausedContainers(c)
-	for _, value := range containers {
-		unpauseContainer(c, value)
-	}
 }
 
 func deleteImages(images ...string) error {
@@ -249,104 +207,6 @@ func trustedBuild(cmd *icmd.Cmd) func() {
 	return nil
 }
 
-type gitServer interface {
-	URL() string
-	Close() error
-}
-
-type localGitServer struct {
-	*httptest.Server
-}
-
-func (r *localGitServer) Close() error {
-	r.Server.Close()
-	return nil
-}
-
-func (r *localGitServer) URL() string {
-	return r.Server.URL
-}
-
-type fakeGit struct {
-	root    string
-	server  gitServer
-	RepoURL string
-}
-
-func (g *fakeGit) Close() {
-	g.server.Close()
-	os.RemoveAll(g.root)
-}
-
-func newFakeGit(c *check.C, name string, files map[string]string, enforceLocalServer bool) *fakeGit {
-	ctx := fakecontext.New(c, "", fakecontext.WithFiles(files))
-	defer ctx.Close()
-	curdir, err := os.Getwd()
-	if err != nil {
-		c.Fatal(err)
-	}
-	defer os.Chdir(curdir)
-
-	if output, err := exec.Command("git", "init", ctx.Dir).CombinedOutput(); err != nil {
-		c.Fatalf("error trying to init repo: %s (%s)", err, output)
-	}
-	err = os.Chdir(ctx.Dir)
-	if err != nil {
-		c.Fatal(err)
-	}
-	if output, err := exec.Command("git", "config", "user.name", "Fake User").CombinedOutput(); err != nil {
-		c.Fatalf("error trying to set 'user.name': %s (%s)", err, output)
-	}
-	if output, err := exec.Command("git", "config", "user.email", "fake.user@example.com").CombinedOutput(); err != nil {
-		c.Fatalf("error trying to set 'user.email': %s (%s)", err, output)
-	}
-	if output, err := exec.Command("git", "add", "*").CombinedOutput(); err != nil {
-		c.Fatalf("error trying to add files to repo: %s (%s)", err, output)
-	}
-	if output, err := exec.Command("git", "commit", "-a", "-m", "Initial commit").CombinedOutput(); err != nil {
-		c.Fatalf("error trying to commit to repo: %s (%s)", err, output)
-	}
-
-	root, err := ioutil.TempDir("", "docker-test-git-repo")
-	if err != nil {
-		c.Fatal(err)
-	}
-	repoPath := filepath.Join(root, name+".git")
-	if output, err := exec.Command("git", "clone", "--bare", ctx.Dir, repoPath).CombinedOutput(); err != nil {
-		os.RemoveAll(root)
-		c.Fatalf("error trying to clone --bare: %s (%s)", err, output)
-	}
-	err = os.Chdir(repoPath)
-	if err != nil {
-		os.RemoveAll(root)
-		c.Fatal(err)
-	}
-	if output, err := exec.Command("git", "update-server-info").CombinedOutput(); err != nil {
-		os.RemoveAll(root)
-		c.Fatalf("error trying to git update-server-info: %s (%s)", err, output)
-	}
-	err = os.Chdir(curdir)
-	if err != nil {
-		os.RemoveAll(root)
-		c.Fatal(err)
-	}
-
-	var server gitServer
-	if !enforceLocalServer {
-		// use fakeStorage server, which might be local or remote (at test daemon)
-		server = fakestorage.New(c, root)
-	} else {
-		// always start a local http server on CLI test machine
-		httpServer := httptest.NewServer(http.FileServer(http.Dir(root)))
-		server = &localGitServer{httpServer}
-	}
-	return &fakeGit{
-		root:    root,
-		server:  server,
-		RepoURL: fmt.Sprintf("%s/%s.git", server.URL(), name),
-	}
-}
-
 // Write `content` to the file at path `dst`, creating it if necessary,
 // as well as any missing directories.
 // The file is truncated if it already exists.
@@ -496,38 +356,21 @@ func createTmpFile(c *check.C, content string) string {
 	return filename
 }
 
-func waitForContainer(contID string, args ...string) error {
-	args = append([]string{dockerBinary, "run", "--name", contID}, args...)
-	result := icmd.RunCmd(icmd.Cmd{Command: args})
-	if result.Error != nil {
-		return result.Error
-	}
-	return waitRun(contID)
-}
-
-// waitRestart will wait for the specified container to restart once
-func waitRestart(contID string, duration time.Duration) error {
-	return waitInspect(contID, "{{.RestartCount}}", "1", duration)
-}
-
 // waitRun will wait for the specified container to be running, maximum 5 seconds.
+// Deprecated: use cli.WaitFor
 func waitRun(contID string) error {
 	return waitInspect(contID, "{{.State.Running}}", "true", 5*time.Second)
-}
-
-// waitExited will wait for the specified container to state exit, subject
-// to a maximum time limit in seconds supplied by the caller
-func waitExited(contID string, duration time.Duration) error {
-	return waitInspect(contID, "{{.State.Status}}", "exited", duration)
 }
 
 // waitInspect will wait for the specified container to have the specified string
 // in the inspect output. It will wait until the specified timeout (in seconds)
 // is reached.
+// Deprecated: use cli.WaitFor
 func waitInspect(name, expr, expected string, timeout time.Duration) error {
 	return waitInspectWithArgs(name, expr, expected, timeout)
 }
 
+// Deprecated: use cli.WaitFor
 func waitInspectWithArgs(name, expr, expected string, timeout time.Duration, arg ...string) error {
 	return daemon.WaitInspectWithArgs(dockerBinary, name, expr, expected, timeout, arg...)
 }
@@ -542,18 +385,18 @@ func getInspectBody(c *check.C, version, id string) []byte {
 
 // Run a long running idle task in a background container using the
 // system-specific default image and command.
-func runSleepingContainer(c *check.C, extraArgs ...string) (string, int) {
+func runSleepingContainer(c *check.C, extraArgs ...string) string {
 	return runSleepingContainerInImage(c, defaultSleepImage, extraArgs...)
 }
 
 // Run a long running idle task in a background container using the specified
 // image and the system-specific command.
-func runSleepingContainerInImage(c *check.C, image string, extraArgs ...string) (string, int) {
+func runSleepingContainerInImage(c *check.C, image string, extraArgs ...string) string {
 	args := []string{"run", "-d"}
 	args = append(args, extraArgs...)
 	args = append(args, image)
 	args = append(args, sleepCommandForDaemonPlatform()...)
-	return dockerCmd(c, args...)
+	return cli.DockerCmd(c, args...).Combined()
 }
 
 // minimalBaseImage returns the name of the minimal base image for the current

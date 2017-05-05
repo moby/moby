@@ -5,11 +5,13 @@ import (
 	"time"
 
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli"
+	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
 )
 
 func (s *DockerSuite) TestUpdateRestartPolicy(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "--restart=on-failure:3", "busybox", "sh", "-c", "sleep 1 && false")
+	out := cli.DockerCmd(c, "run", "-d", "--restart=on-failure:3", "busybox", "sh", "-c", "sleep 1 && false").Combined()
 	timeout := 60 * time.Second
 	if testEnv.DaemonPlatform() == "windows" {
 		timeout = 180 * time.Second
@@ -18,10 +20,9 @@ func (s *DockerSuite) TestUpdateRestartPolicy(c *check.C) {
 	id := strings.TrimSpace(string(out))
 
 	// update restart policy to on-failure:5
-	dockerCmd(c, "update", "--restart=on-failure:5", id)
+	cli.DockerCmd(c, "update", "--restart=on-failure:5", id)
 
-	err := waitExited(id, timeout)
-	c.Assert(err, checker.IsNil)
+	cli.WaitExited(c, id, timeout)
 
 	count := inspectField(c, id, "RestartCount")
 	c.Assert(count, checker.Equals, "5")
@@ -31,11 +32,12 @@ func (s *DockerSuite) TestUpdateRestartPolicy(c *check.C) {
 }
 
 func (s *DockerSuite) TestUpdateRestartWithAutoRemoveFlag(c *check.C) {
-	out, _ := runSleepingContainer(c, "--rm")
+	out := runSleepingContainer(c, "--rm")
 	id := strings.TrimSpace(out)
 
 	// update restart policy for an AutoRemove container
-	out, _, err := dockerCmdWithError("update", "--restart=always", id)
-	c.Assert(err, checker.NotNil)
-	c.Assert(out, checker.Contains, "Restart policy cannot be updated because AutoRemove is enabled for the container")
+	cli.Docker(cli.Args("update", "--restart=always", id)).Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Err:      "Restart policy cannot be updated because AutoRemove is enabled for the container",
+	})
 }

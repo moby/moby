@@ -65,7 +65,7 @@ type attachBackend interface {
 
 // systemBackend includes functions to implement to provide system wide containers functionality
 type systemBackend interface {
-	ContainersPrune(pruneFilters filters.Args) (*types.ContainersPruneReport, error)
+	ContainersPrune(ctx context.Context, pruneFilters filters.Args) (*types.ContainersPruneReport, error)
 }
 
 // Backend is all the methods that need to be implemented to provide container specific functionality.

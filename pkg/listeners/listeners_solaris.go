@@ -22,10 +22,12 @@ func Init(proto, addr, socketGroup string, tlsConfig *tls.Config) (ls []net.List
 	case "unix":
 		gid, err := lookupGID(socketGroup)
 		if err != nil {
-			if socketGroup != defaultSocketGroup {
-				return nil, err
+			if socketGroup != "" {
+				if socketGroup != defaultSocketGroup {
+					return nil, err
+				}
+				logrus.Warnf("could not change group %s to %s: %v", addr, defaultSocketGroup, err)
 			}
-			logrus.Warnf("could not change group %s to %s: %v", addr, defaultSocketGroup, err)
 			gid = os.Getgid()
 		}
 		l, err := sockets.NewUnixSocket(addr, gid)

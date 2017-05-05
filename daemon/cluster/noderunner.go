@@ -46,7 +46,10 @@ type nodeStartConfig struct {
 	ListenAddr string
 	// AdvertiseAddr is the address other nodes should connect to,
 	// including a port.
-	AdvertiseAddr   string
+	AdvertiseAddr string
+	// DataPathAddr is the address that has to be used for the data path
+	DataPathAddr string
+
 	joinAddr        string
 	forceNewCluster bool
 	joinToken       string
@@ -268,7 +271,13 @@ func (n *nodeRunner) enableReconnectWatcher() {
 		if n.stopping {
 			return
 		}
-		config.RemoteAddr = n.cluster.getRemoteAddress()
+		remotes := n.cluster.getRemoteAddressList()
+		if len(remotes) > 0 {
+			config.RemoteAddr = remotes[0]
+		} else {
+			config.RemoteAddr = ""
+		}
+
 		config.joinAddr = config.RemoteAddr
 		if err := n.start(config); err != nil {
 			n.err = err

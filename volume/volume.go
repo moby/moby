@@ -10,7 +10,7 @@ import (
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/opencontainers/runc/libcontainer/label"
+	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 )
 
@@ -311,10 +311,12 @@ func ParseMountSpec(cfg mounttypes.Mount, options ...func(*validateOpts)) (*Moun
 		}
 	case mounttypes.TypeBind:
 		mp.Source = clean(convertSlash(cfg.Source))
-		if cfg.BindOptions != nil {
-			if len(cfg.BindOptions.Propagation) > 0 {
-				mp.Propagation = cfg.BindOptions.Propagation
-			}
+		if cfg.BindOptions != nil && len(cfg.BindOptions.Propagation) > 0 {
+			mp.Propagation = cfg.BindOptions.Propagation
+		} else {
+			// If user did not specify a propagation mode, get
+			// default propagation mode.
+			mp.Propagation = DefaultPropagationMode
 		}
 	case mounttypes.TypeTmpfs:
 		// NOP

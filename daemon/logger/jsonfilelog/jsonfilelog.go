@@ -27,6 +27,7 @@ type JSONFileLogger struct {
 	mu      sync.Mutex
 	readers map[*logger.LogWatcher]struct{} // stores the active log followers
 	extra   []byte                          // json-encoded extra attributes
+	closed  bool
 }
 
 func init() {
@@ -142,6 +143,7 @@ func (l *JSONFileLogger) LogPath() string {
 // Close closes underlying file and signals all readers to stop.
 func (l *JSONFileLogger) Close() error {
 	l.mu.Lock()
+	l.closed = true
 	err := l.writer.Close()
 	for r := range l.readers {
 		r.Close()

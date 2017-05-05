@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestShellParser4EnvVars(t *testing.T) {
@@ -15,9 +15,10 @@ func TestShellParser4EnvVars(t *testing.T) {
 	lineCount := 0
 
 	file, err := os.Open(fn)
-	assert.NilError(t, err)
+	assert.NoError(t, err)
 	defer file.Close()
 
+	shlex := NewShellLex('\\')
 	scanner := bufio.NewScanner(file)
 	envs := []string{"PWD=/home", "SHELL=bash", "KOREAN=한국어"}
 	for scanner.Scan() {
@@ -36,7 +37,7 @@ func TestShellParser4EnvVars(t *testing.T) {
 		}
 
 		words := strings.Split(line, "|")
-		assert.Equal(t, len(words), 3)
+		assert.Len(t, words, 3)
 
 		platform := strings.TrimSpace(words[0])
 		source := strings.TrimSpace(words[1])
@@ -49,11 +50,11 @@ func TestShellParser4EnvVars(t *testing.T) {
 
 		if ((platform == "W" || platform == "A") && runtime.GOOS == "windows") ||
 			((platform == "U" || platform == "A") && runtime.GOOS != "windows") {
-			newWord, err := ProcessWord(source, envs, '\\')
+			newWord, err := shlex.ProcessWord(source, envs)
 			if expected == "error" {
-				assert.Error(t, err, "")
+				assert.Error(t, err)
 			} else {
-				assert.NilError(t, err)
+				assert.NoError(t, err)
 				assert.Equal(t, newWord, expected)
 			}
 		}
@@ -69,10 +70,13 @@ func TestShellParser4Words(t *testing.T) {
 	}
 	defer file.Close()
 
+	shlex := NewShellLex('\\')
 	envs := []string{}
 	scanner := bufio.NewScanner(file)
+	lineNum := 0
 	for scanner.Scan() {
 		line := scanner.Text()
+		lineNum = lineNum + 1
 
 		if strings.HasPrefix(line, "#") {
 			continue
@@ -86,34 +90,30 @@ func TestShellParser4Words(t *testing.T) {
 
 		words := strings.Split(line, "|")
 		if len(words) != 2 {
-			t.Fatalf("Error in '%s' - should be exactly one | in: %q", fn, line)
+			t.Fatalf("Error in '%s'(line %d) - should be exactly one | in: %q", fn, lineNum, line)
 		}
 		test := strings.TrimSpace(words[0])
 		expected := strings.Split(strings.TrimLeft(words[1], " "), ",")
 
-		result, err := ProcessWords(test, envs, '\\')
+		result, err := shlex.ProcessWords(test, envs)
 
 		if err != nil {
 			result = []string{"error"}
 		}
 
 		if len(result) != len(expected) {
-			t.Fatalf("Error. %q was suppose to result in %q, but got %q instead", test, expected, result)
+			t.Fatalf("Error on line %d. %q was suppose to result in %q, but got %q instead", lineNum, test, expected, result)
 		}
 		for i, w := range expected {
 			if w != result[i] {
-				t.Fatalf("Error. %q was suppose to result in %q, but got %q instead", test, expected, result)
+				t.Fatalf("Error on line %d. %q was suppose to result in %q, but got %q instead", lineNum, test, expected, result)
 			}
 		}
 	}
 }
 
 func TestGetEnv(t *testing.T) {
-	sw := &shellWord{
-		word: "",
-		envs: nil,
-		pos:  0,
-	}
+	sw := &shellWord{envs: nil}
 
 	sw.envs = []string{}
 	if sw.getEnv("foo") != "" {

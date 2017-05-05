@@ -10,6 +10,7 @@ import (
 
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli/build/fakecontext"
+	"github.com/docker/docker/integration-cli/cli/build/fakegit"
 	"github.com/docker/docker/integration-cli/cli/build/fakestorage"
 	"github.com/docker/docker/integration-cli/request"
 	"github.com/docker/docker/pkg/testutil"
@@ -21,13 +22,11 @@ func (s *DockerSuite) TestBuildAPIDockerFileRemote(c *check.C) {
 	var testD string
 	if testEnv.DaemonPlatform() == "windows" {
 		testD = `FROM busybox
-COPY * /tmp/
 RUN find / -name ba*
 RUN find /tmp/`
 	} else {
 		// -xdev is required because sysfs can cause EPERM
 		testD = `FROM busybox
-COPY * /tmp/
 RUN find / -xdev -name ba*
 RUN find /tmp/`
 	}
@@ -44,7 +43,7 @@ RUN find /tmp/`
 	// Make sure Dockerfile exists.
 	// Make sure 'baz' doesn't exist ANYWHERE despite being mentioned in the URL
 	out := string(buf)
-	c.Assert(out, checker.Contains, "/tmp/Dockerfile")
+	c.Assert(out, checker.Contains, "RUN find /tmp")
 	c.Assert(out, checker.Not(checker.Contains), "baz")
 }
 
@@ -134,7 +133,7 @@ RUN echo 'right'
 }
 
 func (s *DockerSuite) TestBuildAPILowerDockerfile(c *check.C) {
-	git := newFakeGit(c, "repo", map[string]string{
+	git := fakegit.New(c, "repo", map[string]string{
 		"dockerfile": `FROM busybox
 RUN echo from dockerfile`,
 	}, false)
@@ -152,7 +151,7 @@ RUN echo from dockerfile`,
 }
 
 func (s *DockerSuite) TestBuildAPIBuildGitWithF(c *check.C) {
-	git := newFakeGit(c, "repo", map[string]string{
+	git := fakegit.New(c, "repo", map[string]string{
 		"baz": `FROM busybox
 RUN echo from baz`,
 		"Dockerfile": `FROM busybox
@@ -174,7 +173,7 @@ RUN echo from Dockerfile`,
 
 func (s *DockerSuite) TestBuildAPIDoubleDockerfile(c *check.C) {
 	testRequires(c, UnixCli) // dockerfile overwrites Dockerfile on Windows
-	git := newFakeGit(c, "repo", map[string]string{
+	git := fakegit.New(c, "repo", map[string]string{
 		"Dockerfile": `FROM busybox
 RUN echo from Dockerfile`,
 		"dockerfile": `FROM busybox
