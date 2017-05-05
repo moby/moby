@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/debug"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/templates"
 	"github.com/docker/go-units"
 	"github.com/spf13/cobra"
@@ -284,6 +285,9 @@ func prettyPrintInfo(dockerCli *command.DockerCli, info types.Info) error {
 	if info.OSType != "windows" {
 		printStorageDriverWarnings(dockerCli, info)
 
+		if kernel.CheckKernelVersionNproc() {
+			fmt.Fprintln(dockerCli.Err(), "WARNING: nproc is only available in Linux kernel 4.3+")
+		}
 		if !info.MemoryLimit {
 			fmt.Fprintln(dockerCli.Err(), "WARNING: No memory limit support")
 		}

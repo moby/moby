@@ -7,6 +7,8 @@ package kernel
 import (
 	"errors"
 	"fmt"
+
+	"github.com/Sirupsen/logrus"
 )
 
 // VersionInfo holds information about the kernel.
@@ -43,6 +45,24 @@ func CompareKernelVersion(a, b VersionInfo) int {
 	}
 
 	return 0
+}
+
+// CompareKernelVersionNproc checks if current is 4.10+ to check nproc feature
+func CompareKernelVersionNproc(a VersionInfo) bool {
+	if a.Kernel <= 3 || (a.Kernel >= 4 && a.Major < 3) {
+		return true
+	}
+	return false
+}
+
+// CheckKernelVersionNproc checks if current kernel is 4.10+.
+func CheckKernelVersionNproc() bool {
+	if v, err := GetKernelVersion(); err != nil {
+		logrus.Warnf("error getting kernel version: %s", err)
+	} else if CompareKernelVersionNproc(*v) {
+		return true
+	}
+	return false
 }
 
 // ParseRelease parses a string and creates a VersionInfo based on it.
