@@ -437,9 +437,20 @@ func (r *controller) Logs(ctx context.Context, publisher exec.LogPublisher, opti
 		return err
 	}
 
-	if err := r.waitReady(ctx); err != nil {
-		return errors.Wrap(err, "container not ready for logs")
+	// if we're following, wait for this container to be ready. there is a
+	// problem here: if the container will never be ready (for example, it has
+	// been totally deleted) then this will wait forever. however, this doesn't
+	// actually cause any UI issues, and shouldn't be a problem. the stuck wait
+	// will go away when the follow (context) is canceled.
+	if options.Follow {
+		if err := r.waitReady(ctx); err != nil {
+			return errors.Wrap(err, "container not ready for logs")
+		}
 	}
+	// if we're not following, we're not gonna wait for the container to be
+	// ready. just call logs. if the container isn't ready, the call will fail
+	// and return an error. no big deal, we don't care, we only want the logs
+	// we can get RIGHT NOW with no follow
 
 	logsContext, cancel := context.WithCancel(ctx)
 	msgs, err := r.adapter.logs(logsContext, options)
