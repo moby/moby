@@ -14,18 +14,19 @@ func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Contain
 
 	// Ensure a runtime has been assigned to this container
 	if container.HostConfig.Runtime == "" {
-		container.HostConfig.Runtime = daemon.configStore.GetDefaultRuntimeName()
+		container.HostConfig.Runtime = daemon.runtimeManager.GetDefaultRuntimeName()
 		container.ToDisk()
 	}
 
-	rt := daemon.configStore.GetRuntime(container.HostConfig.Runtime)
-	if rt == nil {
+	path, args, err := daemon.runtimeManager.GetRuntimePathAndArgs(container.HostConfig.Runtime)
+	if err != nil {
 		return nil, fmt.Errorf("no such runtime '%s'", container.HostConfig.Runtime)
 	}
 	if UsingSystemd(daemon.configStore) {
-		rt.Args = append(rt.Args, "--systemd-cgroup=true")
+		args = append(args, "--systemd-cgroup=true")
 	}
-	createOptions = append(createOptions, libcontainerd.WithRuntime(rt.Path, rt.Args))
+
+	createOptions = append(createOptions, libcontainerd.WithRuntime(path, args))
 
 	return createOptions, nil
 }

@@ -3,7 +3,7 @@
 package main
 
 import (
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/runtime"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/opts"
 	"github.com/spf13/pflag"
@@ -18,7 +18,7 @@ var (
 // installUnixConfigFlags adds command-line options to the top-level flag parser for
 // the current process that are common across Unix platforms.
 func installUnixConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
-	conf.Runtimes = make(map[string]types.Runtime)
+	conf.Runtimes = make(map[string]runtime.Runtime)
 
 	flags.StringVarP(&conf.SocketGroup, "group", "G", "docker", "Group for the unix socket")
 	flags.StringVar(&conf.BridgeConfig.IP, "bip", "", "Specify network bridge IP")

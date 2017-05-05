@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/api/types/runtime"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/go-connections/nat"
 )
@@ -172,7 +173,7 @@ type Info struct {
 	ServerVersion      string
 	ClusterStore       string
 	ClusterAdvertise   string
-	Runtimes           map[string]Runtime
+	Runtimes           map[string]runtime.Runtime
 	DefaultRuntime     string
 	Swarm              swarm.Info
 	// LiveRestoreEnabled determines whether containers should be kept
@@ -466,12 +467,6 @@ type NetworkDisconnect struct {
 // Checkpoint represents the details of a checkpoint
 type Checkpoint struct {
 	Name string // Name is the name of the checkpoint
-}
-
-// Runtime describes an OCI runtime
-type Runtime struct {
-	Path string   `json:"path"`
-	Args []string `json:"runtimeArgs,omitempty"`
 }
 
 // DiskUsage contains response of Engine API:

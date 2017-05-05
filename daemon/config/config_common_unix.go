@@ -5,17 +5,17 @@ package config
 import (
 	"net"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/runtime"
 )
 
 // CommonUnixConfig defines configuration of a docker daemon that is
 // common across Unix platforms.
 type CommonUnixConfig struct {
-	ExecRoot          string                   `json:"exec-root,omitempty"`
-	ContainerdAddr    string                   `json:"containerd,omitempty"`
-	Runtimes          map[string]types.Runtime `json:"runtimes,omitempty"`
-	DefaultRuntime    string                   `json:"default-runtime,omitempty"`
-	DefaultInitBinary string                   `json:"default-init,omitempty"`
+	ExecRoot          string                     `json:"exec-root,omitempty"`
+	ContainerdAddr    string                     `json:"containerd,omitempty"`
+	Runtimes          map[string]runtime.Runtime `json:"runtimes,omitempty"`
+	DefaultRuntime    string                     `json:"default-runtime,omitempty"`
+	DefaultInitBinary string                     `json:"default-init,omitempty"`
 }
 
 type commonUnixBridgeConfig struct {
@@ -28,7 +28,7 @@ type commonUnixBridgeConfig struct {
 
 // GetRuntime returns the runtime path and arguments for a given
 // runtime name
-func (conf *Config) GetRuntime(name string) *types.Runtime {
+func (conf *Config) GetRuntime(name string) *runtime.Runtime {
 	conf.Lock()
 	defer conf.Unlock()
 	if rt, ok := conf.Runtimes[name]; ok {
@@ -47,7 +47,7 @@ func (conf *Config) GetDefaultRuntimeName() string {
 }
 
 // GetAllRuntimes returns a copy of the runtimes map
-func (conf *Config) GetAllRuntimes() map[string]types.Runtime {
+func (conf *Config) GetAllRuntimes() map[string]runtime.Runtime {
 	conf.Lock()
 	rts := conf.Runtimes
 	conf.Unlock()
