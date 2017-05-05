@@ -105,7 +105,7 @@ Placeholder  | Description
 `.Name`      | Container name
 `.ID`        | Container ID
 `.CPUPerc`   | CPU percentage
-`.MemUsage`  | Memory usage
+`.MemUsage`  | Memory usage (page cache is excluded)
 `.NetIO`     | Network IO
 `.BlockIO`   | Block IO
 `.MemPerc`   | Memory percentage (Not available on Windows)
