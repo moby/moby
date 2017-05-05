@@ -16,42 +16,46 @@ keywords: "plugin, enable"
 # plugin enable
 
 ```markdown
-Usage:  docker plugin enable PLUGIN
+Usage:  docker plugin enable [OPTIONS] PLUGIN
 
 Enable a plugin
 
 Options:
-      --help   Print usage
+      --help          Print usage
+      --timeout int   HTTP client timeout (in seconds)
 ```
+
+## Description
 
 Enables a plugin. The plugin must be installed before it can be enabled,
 see [`docker plugin install`](plugin_install.md).
 
+## Examples
 
-The following example shows that the `no-remove` plugin is installed,
+The following example shows that the `sample-volume-plugin` plugin is installed,
 but disabled:
 
 ```bash
 $ docker plugin ls
 
-NAME                  TAG                 DESCRIPTION                ENABLED
-tiborvass/no-remove   latest              A test plugin for Docker   false
+ID                  NAME                             TAG                 DESCRIPTION                ENABLED
+69553ca1d123        tiborvass/sample-volume-plugin   latest              A test plugin for Docker   false
 ```
 
 To enable the plugin, use the following command:
 
 ```bash
-$ docker plugin enable tiborvass/no-remove
+$ docker plugin enable tiborvass/sample-volume-plugin
 
-tiborvass/no-remove
+tiborvass/sample-volume-plugin
 
 $ docker plugin ls
 
-NAME                  TAG                 DESCRIPTION                ENABLED
-tiborvass/no-remove   latest              A test plugin for Docker   true
+ID                  NAME                             TAG                 DESCRIPTION                ENABLED
+69553ca1d123        tiborvass/sample-volume-plugin   latest              A test plugin for Docker   true
 ```
 
-## Related information
+## Related commands
 
 * [plugin create](plugin_create.md)
 * [plugin disable](plugin_disable.md)
@@ -61,3 +65,4 @@ tiborvass/no-remove   latest              A test plugin for Docker   true
 * [plugin push](plugin_push.md)
 * [plugin rm](plugin_rm.md)
 * [plugin set](plugin_set.md)
+* [plugin upgrade](plugin_upgrade.md)

@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
-	"os/exec"
 	"strings"
 	"time"
 
-	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli"
+	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
 )
 
@@ -42,18 +43,15 @@ func (s *DockerSuite) TestStartAttachReturnsOnError(c *check.C) {
 // gh#8555: Exit code should be passed through when using start -a
 func (s *DockerSuite) TestStartAttachCorrectExitCode(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	out, _, _ := dockerCmdWithStdoutStderr(c, "run", "-d", "busybox", "sh", "-c", "sleep 2; exit 1")
+	out := cli.DockerCmd(c, "run", "-d", "busybox", "sh", "-c", "sleep 2; exit 1").Stdout()
 	out = strings.TrimSpace(out)
 
 	// make sure the container has exited before trying the "start -a"
-	dockerCmd(c, "wait", out)
+	cli.DockerCmd(c, "wait", out)
 
-	startOut, exitCode, err := dockerCmdWithError("start", "-a", out)
-	// start command should fail
-	c.Assert(err, checker.NotNil, check.Commentf("startOut: %s", startOut))
-	// start -a did not respond with proper exit code
-	c.Assert(exitCode, checker.Equals, 1, check.Commentf("startOut: %s", startOut))
-
+	cli.Docker(cli.Args("start", "-a", out)).Assert(c, icmd.Expected{
+		ExitCode: 1,
+	})
 }
 
 func (s *DockerSuite) TestStartAttachSilent(c *check.C) {
@@ -96,7 +94,6 @@ func (s *DockerSuite) TestStartRecordError(c *check.C) {
 func (s *DockerSuite) TestStartPausedContainer(c *check.C) {
 	// Windows does not support pausing containers
 	testRequires(c, IsPausable)
-	defer unpauseAllContainers()
 
 	runSleepingContainer(c, "-d", "--name", "testing")
 
@@ -176,14 +173,17 @@ func (s *DockerSuite) TestStartAttachMultipleContainers(c *check.C) {
 // Test case for #23716
 func (s *DockerSuite) TestStartAttachWithRename(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	dockerCmd(c, "create", "-t", "--name", "before", "busybox")
+	cli.DockerCmd(c, "create", "-t", "--name", "before", "busybox")
 	go func() {
-		c.Assert(waitRun("before"), checker.IsNil)
-		dockerCmd(c, "rename", "before", "after")
-		dockerCmd(c, "stop", "--time=2", "after")
+		cli.WaitRun(c, "before")
+		cli.DockerCmd(c, "rename", "before", "after")
+		cli.DockerCmd(c, "stop", "--time=2", "after")
 	}()
-	_, stderr, _, _ := runCommandWithStdoutStderr(exec.Command(dockerBinary, "start", "-a", "before"))
-	c.Assert(stderr, checker.Not(checker.Contains), "No such container")
+	// FIXME(vdemeester) the intent is not clear and potentially racey
+	result := cli.Docker(cli.Args("start", "-a", "before")).Assert(c, icmd.Expected{
+		ExitCode: 137,
+	})
+	c.Assert(result.Stderr(), checker.Not(checker.Contains), "No such container")
 }
 
 func (s *DockerSuite) TestStartReturnCorrectExitCode(c *check.C) {

@@ -16,65 +16,84 @@ keywords: ["secret, create"]
 # secret create
 
 ```Markdown
-Usage:  docker secret create [NAME]
+Usage:	docker secret create [OPTIONS] SECRET file|-
 
-Create a secret using stdin as content
+Create a secret from a file or STDIN as content
+
 Options:
-      --help         Print usage
-  -l, --label list   Secret labels (default [])
+      --help          Print usage
+  -l, --label list    Secret labels (default [])
 ```
 
-Creates a secret using standard input for the secret content. You must run this
-command on a manager node.
+## Description
+
+Creates a secret using standard input or from a file for the secret content. You must run this command on a manager node. 
+
+For detailed information about using secrets, refer to [manage sensitive data with Docker secrets](https://docs.docker.com/engine/swarm/secrets/).
 
 ## Examples
 
 ### Create a secret
 
 ```bash
-$ cat secret.json | docker secret create secret.json
-mhv17xfe3gh6xc4rij5orpfds
+$ echo <secret> | docker secret create my_secret -
+
+onakdyv307se2tl7nl20anokv
 
 $ docker secret ls
-ID                          NAME                    CREATED                                   UPDATED                                   SIZE
-mhv17xfe3gh6xc4rij5orpfds   secret.json             2016-10-27 23:25:43.909181089 +0000 UTC   2016-10-27 23:25:43.909181089 +0000 UTC   1679
+
+ID                          NAME                CREATED             UPDATED
+onakdyv307se2tl7nl20anokv   my_secret           6 seconds ago       6 seconds ago
+```
+
+### Create a secret with a file
+
+```bash
+$ docker secret create my_secret ./secret.json
+
+dg426haahpi5ezmkkj5kyl3sn
+
+$ docker secret ls
+
+ID                          NAME                CREATED             UPDATED
+dg426haahpi5ezmkkj5kyl3sn   my_secret           7 seconds ago       7 seconds ago
 ```
 
 ### Create a secret with labels
 
 ```bash
-$ cat secret.json | docker secret create secret.json --label env=dev --label rev=20161102
-jtn7g6aukl5ky7nr9gvwafoxh
+$ docker secret create --label env=dev \
+                       --label rev=20170324 \
+                       my_secret ./secret.json
 
-$ docker secret inspect secret.json
+eo7jnzguqgtpdah3cm5srfb97
+```
+
+```none
+$ docker secret inspect my_secret
+
 [
     {
-        "ID": "jtn7g6aukl5ky7nr9gvwafoxh",
+        "ID": "eo7jnzguqgtpdah3cm5srfb97",
         "Version": {
-            "Index": 541
+            "Index": 17
         },
-        "CreatedAt": "2016-11-03T20:54:12.924766548Z",
-        "UpdatedAt": "2016-11-03T20:54:12.924766548Z",
+        "CreatedAt": "2017-03-24T08:15:09.735271783Z",
+        "UpdatedAt": "2017-03-24T08:15:09.735271783Z",
         "Spec": {
-            "Name": "secret.json",
+            "Name": "my_secret",
             "Labels": {
                 "env": "dev",
-                "rev": "20161102"
-            },
-            "Data": null
-        },
-        "Digest": "sha256:4212a44b14e94154359569333d3fc6a80f6b9959dfdaff26412f4b2796b1f387",
-        "SecretSize": 1679
+                "rev": "20170324"
+            }
+        }
     }
 ]
-
 ```
 
 
-## Related information
+## Related commands
 
 * [secret inspect](secret_inspect.md)
 * [secret ls](secret_ls.md)
 * [secret rm](secret_rm.md)
-
-<style>table tr > td:first-child { white-space: nowrap;}</style>

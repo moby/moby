@@ -9,75 +9,45 @@ issues associated with it. If necessary, links are provided to additional
 documentation on an issue.  As an active Docker user and community member,
 please feel free to provide any feedback on these features you wish.
 
-## Install Docker experimental
+## Use Docker experimental
 
-Unlike the regular Docker binary, the experimental channels is built and
-updated nightly on https://experimental.docker.com. From one day to the
-next, new features may appear, while existing experimental features may be
-refined or entirely removed.
+Experimental features are now included in the standard Docker binaries as of
+version 1.13.0.
+To enable experimental features, start the Docker daemon with the
+`--experimental` flag or enable the daemon flag in the
+`/etc/docker/daemon.json` configuration file:
 
-1. Verify that you have `curl` installed.
+```json
+{
+    "experimental": true
+}
+```
 
-        $ which curl
+You can check to see if experimental features are enabled on a running daemon
+using the following command:
 
-    If `curl` isn't installed, install it after updating your manager:
-
-        $ sudo apt-get update
-        $ sudo apt-get install curl
-
-2. Get the latest Docker package.
-
-        $ curl -sSL https://experimental.docker.com/ | sh
-
-    The system prompts you for your `sudo` password. Then, it downloads and
-    installs Docker and its dependencies.
-
-	>**Note**: If your company is behind a filtering proxy, you may find that the
-	>`apt-key`
-	>command fails for the Docker repo during installation. To work around this,
-	>add the key directly using the following:
-	>
-	>       $ curl -sSL https://experimental.docker.com/gpg | sudo apt-key add -
-
-3. Verify `docker` is installed correctly.
-
-        $ sudo docker run hello-world
-
-    This command downloads a test image and runs it in a container.
-
-### Get the Linux binary
-To download the latest experimental `docker` binary for Linux,
-use the following URLs:
-
-    https://experimental.docker.com/builds/Linux/i386/docker-latest.tgz
-
-    https://experimental.docker.com/builds/Linux/x86_64/docker-latest.tgz
-
-After downloading the appropriate binary, you can follow the instructions
-[here](https://docs.docker.com/engine/installation/binaries/#/get-the-docker-engine-binaries) to run the `docker` daemon.
-
-> **Note**
->
-> 1) You can get the MD5 and SHA256 hashes by appending .md5 and .sha256 to the URLs respectively
->
-> 2) You can get the compressed binaries by appending .tgz to the URLs
-
-### Build an experimental binary
-You can also build the experimental binary from the standard development environment by adding
-`DOCKER_EXPERIMENTAL=1` to the environment where you run `make` to build Docker binaries. For example,
-to build a Docker binary with the experimental features enabled:
-
-        $ DOCKER_EXPERIMENTAL=1 make binary
+```bash
+$ docker version -f '{{.Server.Experimental}}'
+true
+```
 
 ## Current experimental features
 
- * [External graphdriver plugins](plugins_graphdriver.md)
+Docker service logs command to view logs for a Docker service. This is needed in Swarm mode.
+Option to squash image layers to the base image after successful builds.
+Checkpoint and restore support for Containers.
+Metrics (Prometheus) output for basic container, image, and daemon operations.
+
+ * The top-level [docker deploy](../docs/reference/commandline/deploy.md) command. The
+   `docker stack deploy` command is **not** experimental.
+ * [External graphdriver plugins](../docs/extend/plugins_graphdriver.md)
  * [Ipvlan Network Drivers](vlan-networks.md)
- * [Docker Stacks and Distributed Application Bundles](docker-stacks-and-bundles.md)
+ * [Distributed Application Bundles](docker-stacks-and-bundles.md)
  * [Checkpoint & Restore](checkpoint-restore.md)
+ * [Docker build with --squash argument](../docs/reference/commandline/build.md#squash-an-images-layers---squash-experimental-only)
 
 ## How to comment on an experimental feature
 
 Each feature's documentation includes a list of proposal pull requests or PRs associated with the feature. If you want to comment on or suggest a change to a feature, please add it to the existing feature PR.
 
-Issues or problems with a feature? Inquire for help on the `#docker` IRC channel or in on the [Docker Google group](https://groups.google.com/forum/#!forum/docker-user).
+Issues or problems with a feature? Inquire for help on the `#docker` IRC channel or on the [Docker Google group](https://groups.google.com/forum/#!forum/docker-user).

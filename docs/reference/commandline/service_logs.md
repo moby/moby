@@ -1,8 +1,7 @@
 ---
-title: "service logs (experimental)"
+title: "service logs"
 description: "The service logs command description and usage"
-keywords: "service, logs"
-advisory: "experimental"
+keywords: "service, task, logs"
 ---
 
 <!-- This file is maintained within the docker/docker Github
@@ -17,25 +16,34 @@ advisory: "experimental"
 # service logs
 
 ```Markdown
-Usage:  docker service logs [OPTIONS] SERVICE
+Usage:  docker service logs [OPTIONS] SERVICE|TASK
 
-Fetch the logs of a service
+Fetch the logs of a service or task
 
 Options:
-      --details        Show extra details provided to logs
   -f, --follow         Follow log output
       --help           Print usage
+      --no-resolve     Do not map IDs to Names in output
+      --no-task-ids    Do not include task IDs in output
+      --no-trunc        Do not truncate output
       --since string   Show logs since timestamp
       --tail string    Number of lines to show from the end of the logs (default "all")
   -t, --timestamps     Show timestamps
 ```
 
+## Description
+
 The `docker service logs` command batch-retrieves logs present at the time of execution.
 
-> **Note**: this command is only functional for services that are started with
+The `docker service logs` command can be used with either the name or ID of a
+service, or with the ID of a task. If a service is passed, it will display logs
+for all of the containers in that service. If a task is passed, it will only
+display logs from that particular task.
+
+> **Note**: This command is only functional for services that are started with
 > the `json-file` or `journald` logging driver.
 
-For more information about selecting and configuring login-drivers, refer to
+For more information about selecting and configuring logging drivers, refer to
 [Configure logging drivers](https://docs.docker.com/engine/admin/logging/overview/).
 
 The `docker service logs --follow` command will continue streaming the new output from
@@ -65,3 +73,13 @@ that have elapsed since January 1, 1970 (midnight UTC/GMT), not counting leap
 seconds (aka Unix epoch or Unix time), and the optional .nanoseconds field is a
 fraction of a second no more than nine digits long. You can combine the
 `--since` option with either or both of the `--follow` or `--tail` options.
+
+## Related commands
+
+* [service create](service_create.md)
+* [service inspect](service_inspect.md)
+* [service ls](service_ls.md)
+* [service rm](service_rm.md)
+* [service scale](service_scale.md)
+* [service ps](service_ps.md)
+* [service update](service_update.md)

@@ -100,7 +100,7 @@ func (o originalSnap) New(dirpath string) Snapshotter {
 	return snap.New(dirpath)
 }
 
-// OriginalSnap is the original `snap` package as an implemntation of the SnapFactory interface
+// OriginalSnap is the original `snap` package as an implementation of the SnapFactory interface
 var OriginalSnap SnapFactory = originalSnap{}
 
 // MigrateSnapshot reads the latest existing snapshot from one directory, encoded one way, and writes

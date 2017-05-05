@@ -13,6 +13,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var tmp string
@@ -142,7 +145,7 @@ func TestDecompressStreamXz(t *testing.T) {
 	testDecompressStream(t, "xz", "xz -f")
 }
 
-func TestCompressStreamXzUnsuported(t *testing.T) {
+func TestCompressStreamXzUnsupported(t *testing.T) {
 	dest, err := os.Create(tmp + "dest")
 	if err != nil {
 		t.Fatalf("Fail to create the destination file")
@@ -1159,4 +1162,112 @@ func TestTempArchiveCloseMultipleTimes(t *testing.T) {
 			t.Fatalf("i=%d. Unexpected error closing temp archive: %v", i, err)
 		}
 	}
+}
+
+func TestReplaceFileTarWrapper(t *testing.T) {
+	filesInArchive := 20
+	testcases := []struct {
+		doc       string
+		filename  string
+		modifier  TarModifierFunc
+		expected  string
+		fileCount int
+	}{
+		{
+			doc:       "Modifier creates a new file",
+			filename:  "newfile",
+			modifier:  createModifier(t),
+			expected:  "the new content",
+			fileCount: filesInArchive + 1,
+		},
+		{
+			doc:       "Modifier replaces a file",
+			filename:  "file-2",
+			modifier:  createOrReplaceModifier,
+			expected:  "the new content",
+			fileCount: filesInArchive,
+		},
+		{
+			doc:       "Modifier replaces the last file",
+			filename:  fmt.Sprintf("file-%d", filesInArchive-1),
+			modifier:  createOrReplaceModifier,
+			expected:  "the new content",
+			fileCount: filesInArchive,
+		},
+		{
+			doc:       "Modifier appends to a file",
+			filename:  "file-3",
+			modifier:  appendModifier,
+			expected:  "fooo\nnext line",
+			fileCount: filesInArchive,
+		},
+	}
+
+	for _, testcase := range testcases {
+		sourceArchive, cleanup := buildSourceArchive(t, filesInArchive)
+		defer cleanup()
+
+		resultArchive := ReplaceFileTarWrapper(
+			sourceArchive,
+			map[string]TarModifierFunc{testcase.filename: testcase.modifier})
+
+		actual := readFileFromArchive(t, resultArchive, testcase.filename, testcase.fileCount, testcase.doc)
+		assert.Equal(t, testcase.expected, actual, testcase.doc)
+	}
+}
+
+func buildSourceArchive(t *testing.T, numberOfFiles int) (io.ReadCloser, func()) {
+	srcDir, err := ioutil.TempDir("", "docker-test-srcDir")
+	require.NoError(t, err)
+
+	_, err = prepareUntarSourceDirectory(numberOfFiles, srcDir, false)
+	require.NoError(t, err)
+
+	sourceArchive, err := TarWithOptions(srcDir, &TarOptions{})
+	require.NoError(t, err)
+	return sourceArchive, func() {
+		os.RemoveAll(srcDir)
+		sourceArchive.Close()
+	}
+}
+
+func createOrReplaceModifier(path string, header *tar.Header, content io.Reader) (*tar.Header, []byte, error) {
+	return &tar.Header{
+		Mode:     0600,
+		Typeflag: tar.TypeReg,
+	}, []byte("the new content"), nil
+}
+
+func createModifier(t *testing.T) TarModifierFunc {
+	return func(path string, header *tar.Header, content io.Reader) (*tar.Header, []byte, error) {
+		assert.Nil(t, content)
+		return createOrReplaceModifier(path, header, content)
+	}
+}
+
+func appendModifier(path string, header *tar.Header, content io.Reader) (*tar.Header, []byte, error) {
+	buffer := bytes.Buffer{}
+	if content != nil {
+		if _, err := buffer.ReadFrom(content); err != nil {
+			return nil, nil, err
+		}
+	}
+	buffer.WriteString("\nnext line")
+	return &tar.Header{Mode: 0600, Typeflag: tar.TypeReg}, buffer.Bytes(), nil
+}
+
+func readFileFromArchive(t *testing.T, archive io.ReadCloser, name string, expectedCount int, doc string) string {
+	destDir, err := ioutil.TempDir("", "docker-test-destDir")
+	require.NoError(t, err)
+	defer os.RemoveAll(destDir)
+
+	err = Untar(archive, destDir, nil)
+	require.NoError(t, err)
+
+	files, _ := ioutil.ReadDir(destDir)
+	assert.Len(t, files, expectedCount, doc)
+
+	content, err := ioutil.ReadFile(filepath.Join(destDir, name))
+	assert.NoError(t, err)
+	return string(content)
 }

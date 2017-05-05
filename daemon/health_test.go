@@ -39,6 +39,7 @@ func TestNoneHealthcheck(t *testing.T) {
 	}
 }
 
+// FIXME(vdemeester) This takes around 3s… This is *way* too long
 func TestHealthStates(t *testing.T) {
 	e := events.New()
 	_, l, _ := e.Subscribe()
@@ -80,7 +81,7 @@ func TestHealthStates(t *testing.T) {
 			Start:    startTime,
 			End:      startTime,
 			ExitCode: exitCode,
-		})
+		}, nil)
 	}
 
 	// starting -> failed -> success -> failed
@@ -110,6 +111,32 @@ func TestHealthStates(t *testing.T) {
 	handleResult(c.State.StartedAt.Add(60*time.Second), 1)
 	expect("health_status: unhealthy")
 
+	handleResult(c.State.StartedAt.Add(80*time.Second), 0)
+	expect("health_status: healthy")
+	if c.State.Health.FailingStreak != 0 {
+		t.Errorf("Expecting FailingStreak=0, but got %d\n", c.State.Health.FailingStreak)
+	}
+
+	// Test start period
+
+	reset(c)
+	c.Config.Healthcheck.Retries = 2
+	c.Config.Healthcheck.StartPeriod = 30 * time.Second
+
+	handleResult(c.State.StartedAt.Add(20*time.Second), 1)
+	if c.State.Health.Status != types.Starting {
+		t.Errorf("Expecting starting, but got %#v\n", c.State.Health.Status)
+	}
+	if c.State.Health.FailingStreak != 0 {
+		t.Errorf("Expecting FailingStreak=0, but got %d\n", c.State.Health.FailingStreak)
+	}
+	handleResult(c.State.StartedAt.Add(50*time.Second), 1)
+	if c.State.Health.Status != types.Starting {
+		t.Errorf("Expecting starting, but got %#v\n", c.State.Health.Status)
+	}
+	if c.State.Health.FailingStreak != 1 {
+		t.Errorf("Expecting FailingStreak=1, but got %d\n", c.State.Health.FailingStreak)
+	}
 	handleResult(c.State.StartedAt.Add(80*time.Second), 0)
 	expect("health_status: healthy")
 	if c.State.Health.FailingStreak != 0 {

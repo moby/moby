@@ -30,7 +30,7 @@ var (
 
 	// ErrNotSupported returned when driver is not supported.
 	ErrNotSupported = errors.New("driver not supported")
-	// ErrPrerequisites retuned when driver does not meet prerequisites.
+	// ErrPrerequisites returned when driver does not meet prerequisites.
 	ErrPrerequisites = errors.New("prerequisites for driver not satisfied (wrong filesystem?)")
 	// ErrIncompatibleFS returned when file system is not supported.
 	ErrIncompatibleFS = fmt.Errorf("backing file system is unsupported for this graph driver")
@@ -112,6 +112,23 @@ type Driver interface {
 	DiffDriver
 }
 
+// Capabilities defines a list of capabilities a driver may implement.
+// These capabilities are not required; however, they do determine how a
+// graphdriver can be used.
+type Capabilities struct {
+	// Flags that this driver is capable of reproducing exactly equivalent
+	// diffs for read-only layers. If set, clients can rely on the driver
+	// for consistent tar streams, and avoid extra processing to account
+	// for potential differences (eg: the layer store's use of tar-split).
+	ReproducesExactDiffs bool
+}
+
+// CapabilityDriver is the interface for layered file system drivers that
+// can report on their Capabilities.
+type CapabilityDriver interface {
+	Capabilities() Capabilities
+}
+
 // DiffGetterDriver is the interface for layered file system drivers that
 // provide a specialized function for getting file contents for tar-split.
 type DiffGetterDriver interface {
@@ -150,14 +167,16 @@ func Register(name string, initFunc InitFunc) error {
 }
 
 // GetDriver initializes and returns the registered driver
-func GetDriver(name, home string, options []string, uidMaps, gidMaps []idtools.IDMap, pg plugingetter.PluginGetter) (Driver, error) {
+func GetDriver(name string, pg plugingetter.PluginGetter, config Options) (Driver, error) {
 	if initFunc, exists := drivers[name]; exists {
-		return initFunc(filepath.Join(home, name), options, uidMaps, gidMaps)
+		return initFunc(filepath.Join(config.Root, name), config.DriverOptions, config.UIDMaps, config.GIDMaps)
 	}
-	if pluginDriver, err := lookupPlugin(name, home, options, pg); err == nil {
+
+	pluginDriver, err := lookupPlugin(name, pg, config)
+	if err == nil {
 		return pluginDriver, nil
 	}
-	logrus.Errorf("Failed to GetDriver graph %s %s", name, home)
+	logrus.WithError(err).WithField("driver", name).WithField("home-dir", config.Root).Error("Failed to GetDriver graph")
 	return nil, ErrNotSupported
 }
 
@@ -170,15 +189,24 @@ func getBuiltinDriver(name, home string, options []string, uidMaps, gidMaps []id
 	return nil, ErrNotSupported
 }
 
+// Options is used to initialize a graphdriver
+type Options struct {
+	Root                string
+	DriverOptions       []string
+	UIDMaps             []idtools.IDMap
+	GIDMaps             []idtools.IDMap
+	ExperimentalEnabled bool
+}
+
 // New creates the driver and initializes it at the specified root.
-func New(root, name string, options []string, uidMaps, gidMaps []idtools.IDMap, pg plugingetter.PluginGetter) (Driver, error) {
+func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, error) {
 	if name != "" {
 		logrus.Debugf("[graphdriver] trying provided driver: %s", name) // so the logs show specified driver
-		return GetDriver(name, root, options, uidMaps, gidMaps, pg)
+		return GetDriver(name, pg, config)
 	}
 
 	// Guess for prior driver
-	driversMap := scanPriorDrivers(root)
+	driversMap := scanPriorDrivers(config.Root)
 	for _, name := range priority {
 		if name == "vfs" {
 			// don't use vfs even if there is state present.
@@ -187,7 +215,7 @@ func New(root, name string, options []string, uidMaps, gidMaps []idtools.IDMap, 
 		if _, prior := driversMap[name]; prior {
 			// of the state found from prior drivers, check in order of our priority
 			// which we would prefer
-			driver, err := getBuiltinDriver(name, root, options, uidMaps, gidMaps)
+			driver, err := getBuiltinDriver(name, config.Root, config.DriverOptions, config.UIDMaps, config.GIDMaps)
 			if err != nil {
 				// unlike below, we will return error here, because there is prior
 				// state, and now it is no longer supported/prereq/compatible, so
@@ -205,7 +233,7 @@ func New(root, name string, options []string, uidMaps, gidMaps []idtools.IDMap, 
 					driversSlice = append(driversSlice, name)
 				}
 
-				return nil, fmt.Errorf("%s contains several valid graphdrivers: %s; Please cleanup or explicitly choose storage driver (-s <DRIVER>)", root, strings.Join(driversSlice, ", "))
+				return nil, fmt.Errorf("%s contains several valid graphdrivers: %s; Please cleanup or explicitly choose storage driver (-s <DRIVER>)", config.Root, strings.Join(driversSlice, ", "))
 			}
 
 			logrus.Infof("[graphdriver] using prior storage driver: %s", name)
@@ -215,7 +243,7 @@ func New(root, name string, options []string, uidMaps, gidMaps []idtools.IDMap, 
 
 	// Check for priority drivers first
 	for _, name := range priority {
-		driver, err := getBuiltinDriver(name, root, options, uidMaps, gidMaps)
+		driver, err := getBuiltinDriver(name, config.Root, config.DriverOptions, config.UIDMaps, config.GIDMaps)
 		if err != nil {
 			if isDriverNotSupported(err) {
 				continue
@@ -227,7 +255,7 @@ func New(root, name string, options []string, uidMaps, gidMaps []idtools.IDMap, 
 
 	// Check all registered drivers if no priority driver is found
 	for name, initFunc := range drivers {
-		driver, err := initFunc(filepath.Join(root, name), options, uidMaps, gidMaps)
+		driver, err := initFunc(filepath.Join(config.Root, name), config.DriverOptions, config.UIDMaps, config.GIDMaps)
 		if err != nil {
 			if isDriverNotSupported(err) {
 				continue

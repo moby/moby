@@ -88,10 +88,7 @@ func (l *JSONFileLogger) readLogs(logWatcher *logger.LogWatcher, config logger.R
 		}
 	}
 
-	if !config.Follow {
-		if err := latestFile.Close(); err != nil {
-			logrus.Errorf("Error closing file: %v", err)
-		}
+	if !config.Follow || l.closed {
 		l.mu.Unlock()
 		return
 	}
@@ -100,17 +97,18 @@ func (l *JSONFileLogger) readLogs(logWatcher *logger.LogWatcher, config logger.R
 		latestFile.Seek(0, os.SEEK_END)
 	}
 
+	notifyRotate := l.writer.NotifyRotate()
+	defer l.writer.NotifyRotateEvict(notifyRotate)
+
 	l.readers[logWatcher] = struct{}{}
+
 	l.mu.Unlock()
 
-	notifyRotate := l.writer.NotifyRotate()
 	followLogs(latestFile, logWatcher, notifyRotate, config.Since)
 
 	l.mu.Lock()
 	delete(l.readers, logWatcher)
 	l.mu.Unlock()
-
-	l.writer.NotifyRotateEvict(notifyRotate)
 }
 
 func tailFile(f io.ReadSeeker, logWatcher *logger.LogWatcher, tail int, since time.Time) {
@@ -137,7 +135,11 @@ func tailFile(f io.ReadSeeker, logWatcher *logger.LogWatcher, tail int, since ti
 		if !since.IsZero() && msg.Timestamp.Before(since) {
 			continue
 		}
-		logWatcher.Msg <- msg
+		select {
+		case <-logWatcher.WatchClose():
+			return
+		case logWatcher.Msg <- msg:
+		}
 	}
 }
 
@@ -252,9 +254,12 @@ func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan int
 
 	handleDecodeErr := func(err error) error {
 		if err == io.EOF {
-			for err := waitRead(); err != nil; {
+			for {
+				err := waitRead()
+				if err == nil {
+					break
+				}
 				if err == errRetry {
-					// retry the waitRead
 					continue
 				}
 				return err

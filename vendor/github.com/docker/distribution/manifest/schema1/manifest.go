@@ -5,9 +5,9 @@ import (
 	"fmt"
 
 	"github.com/docker/distribution"
-	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest"
 	"github.com/docker/libtrust"
+	"github.com/opencontainers/go-digest"
 )
 
 const (

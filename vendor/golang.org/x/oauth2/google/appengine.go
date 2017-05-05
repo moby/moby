@@ -20,6 +20,9 @@ var appengineVM bool
 // Set at init time by appengine_hook.go. If nil, we're not on App Engine.
 var appengineTokenFunc func(c context.Context, scopes ...string) (token string, expiry time.Time, err error)
 
+// Set at init time by appengine_hook.go. If nil, we're not on App Engine.
+var appengineAppIDFunc func(c context.Context) string
+
 // AppEngineTokenSource returns a token source that fetches tokens
 // issued to the current App Engine application's service account.
 // If you are implementing a 3-legged OAuth 2.0 flow on App Engine

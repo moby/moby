@@ -1,14 +1,12 @@
 package container
 
 import (
-	"fmt"
-
-	"golang.org/x/net/context"
-
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
-	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/cli/command/formatter"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 type diffOptions struct {
@@ -21,7 +19,7 @@ func NewDiffCommand(dockerCli *command.DockerCli) *cobra.Command {
 
 	return &cobra.Command{
 		Use:   "diff CONTAINER",
-		Short: "Inspect changes on a container's filesystem",
+		Short: "Inspect changes to files or directories on a container's filesystem",
 		Args:  cli.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts.container = args[0]
@@ -32,7 +30,7 @@ func NewDiffCommand(dockerCli *command.DockerCli) *cobra.Command {
 
 func runDiff(dockerCli *command.DockerCli, opts *diffOptions) error {
 	if opts.container == "" {
-		return fmt.Errorf("Container name cannot be empty")
+		return errors.New("Container name cannot be empty")
 	}
 	ctx := context.Background()
 
@@ -40,19 +38,9 @@ func runDiff(dockerCli *command.DockerCli, opts *diffOptions) error {
 	if err != nil {
 		return err
 	}
-
-	for _, change := range changes {
-		var kind string
-		switch change.Kind {
-		case archive.ChangeModify:
-			kind = "C"
-		case archive.ChangeAdd:
-			kind = "A"
-		case archive.ChangeDelete:
-			kind = "D"
-		}
-		fmt.Fprintf(dockerCli.Out(), "%s %s\n", kind, change.Path)
+	diffCtx := formatter.Context{
+		Output: dockerCli.Out(),
+		Format: formatter.NewDiffFormat("{{.Type}} {{.Path}}"),
 	}
-
-	return nil
+	return formatter.DiffWrite(diffCtx, changes)
 }

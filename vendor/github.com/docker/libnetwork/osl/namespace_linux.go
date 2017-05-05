@@ -24,6 +24,10 @@ import (
 
 const defaultPrefix = "/var/run/docker"
 
+func init() {
+	reexec.Register("set-ipv6", reexecSetIPv6)
+}
+
 var (
 	once             sync.Once
 	garbagePathMap   = make(map[string]bool)
@@ -44,9 +48,10 @@ type networkNamespace struct {
 	gwv6         net.IP
 	staticRoutes []*types.StaticRoute
 	neighbors    []*neigh
-	nextIfIndex  int
+	nextIfIndex  map[string]int
 	isDefault    bool
 	nlHandle     *netlink.Handle
+	loV6Enabled  bool
 	sync.Mutex
 }
 
@@ -198,7 +203,7 @@ func NewSandbox(key string, osCreate, isRestore bool) (Sandbox, error) {
 		once.Do(createBasePath)
 	}
 
-	n := &networkNamespace{path: key, isDefault: !osCreate}
+	n := &networkNamespace{path: key, isDefault: !osCreate, nextIfIndex: make(map[string]int)}
 
 	sboxNs, err := netns.GetFromPath(n.path)
 	if err != nil {
@@ -209,6 +214,19 @@ func NewSandbox(key string, osCreate, isRestore bool) (Sandbox, error) {
 	n.nlHandle, err = netlink.NewHandleAt(sboxNs, syscall.NETLINK_ROUTE)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create a netlink handle: %v", err)
+	}
+
+	err = n.nlHandle.SetSocketTimeout(ns.NetlinkSocketsTimeout)
+	if err != nil {
+		logrus.Warnf("Failed to set the timeout on the sandbox netlink handle sockets: %v", err)
+	}
+
+	// As starting point, disable IPv6 on all interfaces
+	if !n.isDefault {
+		err = setIPv6(n.path, "all", false)
+		if err != nil {
+			logrus.Warnf("Failed to disable IPv6 on all interfaces on network namespace %q: %v", n.path, err)
+		}
 	}
 
 	if err = n.loopbackUp(); err != nil {
@@ -240,7 +258,7 @@ func GetSandboxForExternalKey(basePath string, key string) (Sandbox, error) {
 	if err := mountNetworkNamespace(basePath, key); err != nil {
 		return nil, err
 	}
-	n := &networkNamespace{path: key}
+	n := &networkNamespace{path: key, nextIfIndex: make(map[string]int)}
 
 	sboxNs, err := netns.GetFromPath(n.path)
 	if err != nil {
@@ -251,6 +269,17 @@ func GetSandboxForExternalKey(basePath string, key string) (Sandbox, error) {
 	n.nlHandle, err = netlink.NewHandleAt(sboxNs, syscall.NETLINK_ROUTE)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create a netlink handle: %v", err)
+	}
+
+	err = n.nlHandle.SetSocketTimeout(ns.NetlinkSocketsTimeout)
+	if err != nil {
+		logrus.Warnf("Failed to set the timeout on the sandbox netlink handle sockets: %v", err)
+	}
+
+	// As starting point, disable IPv6 on all interfaces
+	err = setIPv6(n.path, "all", false)
+	if err != nil {
+		logrus.Warnf("Failed to disable IPv6 on all interfaces on network namespace %q: %v", n.path, err)
 	}
 
 	if err = n.loopbackUp(); err != nil {
@@ -468,8 +497,8 @@ func (n *networkNamespace) Restore(ifsopt map[string][]IfaceOption, routes []*ty
 			}
 			index++
 			n.Lock()
-			if index > n.nextIfIndex {
-				n.nextIfIndex = index
+			if index > n.nextIfIndex[dstPrefix] {
+				n.nextIfIndex[dstPrefix] = index
 			}
 			n.iFaces = append(n.iFaces, i)
 			n.Unlock()
@@ -496,5 +525,86 @@ func (n *networkNamespace) Restore(ifsopt map[string][]IfaceOption, routes []*ty
 		n.Unlock()
 	}
 
+	return nil
+}
+
+// Checks whether IPv6 needs to be enabled/disabled on the loopback interface
+func (n *networkNamespace) checkLoV6() {
+	var (
+		enable = false
+		action = "disable"
+	)
+
+	n.Lock()
+	for _, iface := range n.iFaces {
+		if iface.AddressIPv6() != nil {
+			enable = true
+			action = "enable"
+			break
+		}
+	}
+	n.Unlock()
+
+	if n.loV6Enabled == enable {
+		return
+	}
+
+	if err := setIPv6(n.path, "lo", enable); err != nil {
+		logrus.Warnf("Failed to %s IPv6 on loopback interface on network namespace %q: %v", action, n.path, err)
+	}
+
+	n.loV6Enabled = enable
+}
+
+func reexecSetIPv6() {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	if len(os.Args) < 3 {
+		logrus.Errorf("invalid number of arguments for %s", os.Args[0])
+		os.Exit(1)
+	}
+
+	ns, err := netns.GetFromPath(os.Args[1])
+	if err != nil {
+		logrus.Errorf("failed get network namespace %q: %v", os.Args[1], err)
+		os.Exit(2)
+	}
+	defer ns.Close()
+
+	if err = netns.Set(ns); err != nil {
+		logrus.Errorf("setting into container netns %q failed: %v", os.Args[1], err)
+		os.Exit(3)
+	}
+
+	var (
+		action = "disable"
+		value  = byte('1')
+		path   = fmt.Sprintf("/proc/sys/net/ipv6/conf/%s/disable_ipv6", os.Args[2])
+	)
+
+	if os.Args[3] == "true" {
+		action = "enable"
+		value = byte('0')
+	}
+
+	if err = ioutil.WriteFile(path, []byte{value, '\n'}, 0644); err != nil {
+		logrus.Errorf("failed to %s IPv6 forwarding for container's interface %s: %v", action, os.Args[2], err)
+		os.Exit(4)
+	}
+
+	os.Exit(0)
+}
+
+func setIPv6(path, iface string, enable bool) error {
+	cmd := &exec.Cmd{
+		Path:   reexec.Self(),
+		Args:   append([]string{"set-ipv6"}, path, iface, strconv.FormatBool(enable)),
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
+	}
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("reexec to set IPv6 failed: %v", err)
+	}
 	return nil
 }

@@ -13,7 +13,7 @@ keywords: "resources, update, dynamically"
      will be rejected.
 -->
 
-## update
+# update
 
 ```markdown
 Usage:  docker node update [OPTIONS] NODE
@@ -21,12 +21,18 @@ Usage:  docker node update [OPTIONS] NODE
 Update a node
 
 Options:
-      --availability string   Availability of the node (active/pause/drain)
+      --availability string   Availability of the node ("active"|"pause"|"drain")
       --help                  Print usage
       --label-add value       Add or update a node label (key=value) (default [])
       --label-rm value        Remove a node label if exists (default [])
-      --role string           Role of the node (worker/manager)
+      --role string           Role of the node ("worker"|"manager")
 ```
+
+## Description
+
+Update metadata about a node, such as its availability, labels, or roles.
+
+## Examples
 
 ### Add label metadata to a node
 
@@ -39,7 +45,7 @@ $ docker node update --label-add foo worker1
 
 To add multiple labels to a node, pass the `--label-add` flag for each label:
 
-``` bash
+```bash
 $ docker node update --label-add foo --label-add bar worker1
 ```
 
@@ -61,9 +67,11 @@ entity within the swarm. Do not confuse them with the docker daemon labels for
 For more information about labels, refer to [apply custom
 metadata](https://docs.docker.com/engine/userguide/labels-custom-metadata/).
 
-## Related information
+## Related commands
 
+* [node demote](node_demote.md)
 * [node inspect](node_inspect.md)
-* [node ps](node_ps.md)
 * [node ls](node_ls.md)
+* [node promote](node_promote.md)
+* [node ps](node_ps.md)
 * [node rm](node_rm.md)

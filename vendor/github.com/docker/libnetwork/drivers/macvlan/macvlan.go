@@ -86,6 +86,10 @@ func (d *driver) Type() string {
 	return macvlanType
 }
 
+func (d *driver) IsBuiltIn() bool {
+	return true
+}
+
 func (d *driver) ProgramExternalConnectivity(nid, eid string, options map[string]interface{}) error {
 	return nil
 }
@@ -105,4 +109,8 @@ func (d *driver) DiscoverDelete(dType discoverapi.DiscoveryType, data interface{
 }
 
 func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key string, value []byte) {
+}
+
+func (d *driver) DecodeTableEntry(tablename string, key string, value []byte) (string, map[string]string) {
+	return "", nil
 }

@@ -8,18 +8,19 @@ import (
 	"path/filepath"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/reference"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )
 
 // validateTag checks if the given repoName can be resolved.
 func validateTag(rawRepo string) error {
-	_, err := reference.ParseNamed(rawRepo)
+	_, err := reference.ParseNormalizedNamed(rawRepo)
 
 	return err
 }
@@ -41,14 +42,16 @@ func validateConfig(path string) error {
 // validateContextDir validates the given dir and returns abs path on success.
 func validateContextDir(contextDir string) (string, error) {
 	absContextDir, err := filepath.Abs(contextDir)
-
+	if err != nil {
+		return "", err
+	}
 	stat, err := os.Lstat(absContextDir)
 	if err != nil {
 		return "", err
 	}
 
 	if !stat.IsDir() {
-		return "", fmt.Errorf("context must be a directory")
+		return "", errors.Errorf("context must be a directory")
 	}
 
 	return absContextDir, nil
@@ -64,8 +67,8 @@ func newCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	options := pluginCreateOptions{}
 
 	cmd := &cobra.Command{
-		Use:   "create [OPTIONS] reponame[:tag] PATH-TO-ROOTFS (rootfs + config.json)",
-		Short: "Create a plugin from a rootfs and config",
+		Use:   "create [OPTIONS] PLUGIN PLUGIN-DATA-DIR",
+		Short: "Create a plugin from a rootfs and configuration. Plugin data directory must contain config.json and rootfs directory.",
 		Args:  cli.RequiresMinArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			options.repoName = args[0]

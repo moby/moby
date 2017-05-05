@@ -15,12 +15,12 @@ import (
 
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/context"
-	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/api/v2"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/distribution/registry/storage/cache"
 	"github.com/docker/distribution/registry/storage/cache/memory"
+	"github.com/opencontainers/go-digest"
 )
 
 // Registry provides an interface for calling Repositories, which returns a catalog of repositories.
@@ -268,7 +268,7 @@ func descriptorFromResponse(response *http.Response) (distribution.Descriptor, e
 		return desc, nil
 	}
 
-	dgst, err := digest.ParseDigest(digestHeader)
+	dgst, err := digest.Parse(digestHeader)
 	if err != nil {
 		return distribution.Descriptor{}, err
 	}
@@ -475,7 +475,7 @@ func (ms *manifests) Get(ctx context.Context, dgst digest.Digest, options ...dis
 		return nil, distribution.ErrManifestNotModified
 	} else if SuccessStatus(resp.StatusCode) {
 		if contentDgst != nil {
-			dgst, err := digest.ParseDigest(resp.Header.Get("Docker-Content-Digest"))
+			dgst, err := digest.Parse(resp.Header.Get("Docker-Content-Digest"))
 			if err == nil {
 				*contentDgst = dgst
 			}
@@ -553,7 +553,7 @@ func (ms *manifests) Put(ctx context.Context, m distribution.Manifest, options .
 
 	if SuccessStatus(resp.StatusCode) {
 		dgstHeader := resp.Header.Get("Docker-Content-Digest")
-		dgst, err := digest.ParseDigest(dgstHeader)
+		dgst, err := digest.Parse(dgstHeader)
 		if err != nil {
 			return "", err
 		}
@@ -661,7 +661,7 @@ func (bs *blobs) Put(ctx context.Context, mediaType string, p []byte) (distribut
 	if err != nil {
 		return distribution.Descriptor{}, err
 	}
-	dgstr := digest.Canonical.New()
+	dgstr := digest.Canonical.Digester()
 	n, err := io.Copy(writer, io.TeeReader(bytes.NewReader(p), dgstr.Hash()))
 	if err != nil {
 		return distribution.Descriptor{}, err

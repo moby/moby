@@ -14,7 +14,7 @@ import (
 func SystemCertPool() (*x509.CertPool, error) {
 	certpool, err := x509.SystemCertPool()
 	if err != nil && runtime.GOOS == "windows" {
-		logrus.Warnf("Unable to use system certificate pool: %v", err)
+		logrus.Infof("Unable to use system certificate pool: %v", err)
 		return x509.NewCertPool(), nil
 	}
 	return certpool, err

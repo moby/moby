@@ -67,12 +67,9 @@ func (overlayWhiteoutConverter) ConvertRead(hdr *tar.Header, path string) (bool,
 
 	// if a directory is marked as opaque by the AUFS special file, we need to translate that to overlay
 	if base == WhiteoutOpaqueDir {
-		if err := syscall.Setxattr(dir, "trusted.overlay.opaque", []byte{'y'}, 0); err != nil {
-			return false, err
-		}
-
+		err := syscall.Setxattr(dir, "trusted.overlay.opaque", []byte{'y'}, 0)
 		// don't write the file itself
-		return false, nil
+		return false, err
 	}
 
 	// if a file was deleted and we are using overlay, we need to create a character device

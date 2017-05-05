@@ -29,7 +29,7 @@ type Resolver interface {
 	NameServer() string
 	// SetExtServers configures the external nameservers the resolver
 	// should use to forward queries
-	SetExtServers([]string)
+	SetExtServers([]extDNSEntry)
 	// ResolverOptions returns resolv.conf options that should be set
 	ResolverOptions() []string
 }
@@ -54,6 +54,9 @@ type DNSBackend interface {
 	ExecFunc(f func()) error
 	//NdotsSet queries the backends ndots dns option settings
 	NdotsSet() bool
+	// HandleQueryResp passes the name & IP from a response to the backend. backend
+	// can use it to maintain any required state about the resolution
+	HandleQueryResp(name string, ip net.IP)
 }
 
 const (
@@ -69,7 +72,8 @@ const (
 )
 
 type extDNSEntry struct {
-	ipStr string
+	IPStr        string
+	HostLoopback bool
 }
 
 // resolver implements the Resolver interface
@@ -87,6 +91,7 @@ type resolver struct {
 	listenAddress string
 	proxyDNS      bool
 	resolverKey   string
+	startCh       chan struct{}
 }
 
 func init() {
@@ -101,6 +106,7 @@ func NewResolver(address string, proxyDNS bool, resolverKey string, backend DNSB
 		listenAddress: address,
 		resolverKey:   resolverKey,
 		err:           fmt.Errorf("setup not done yet"),
+		startCh:       make(chan struct{}, 1),
 	}
 }
 
@@ -136,6 +142,9 @@ func (r *resolver) SetupFunc(port int) func() {
 }
 
 func (r *resolver) Start() error {
+	r.startCh <- struct{}{}
+	defer func() { <-r.startCh }()
+
 	// make sure the resolver has been setup before starting
 	if r.err != nil {
 		return r.err
@@ -160,6 +169,9 @@ func (r *resolver) Start() error {
 }
 
 func (r *resolver) Stop() {
+	r.startCh <- struct{}{}
+	defer func() { <-r.startCh }()
+
 	if r.server != nil {
 		r.server.Shutdown()
 	}
@@ -174,13 +186,13 @@ func (r *resolver) Stop() {
 	r.queryLock = sync.Mutex{}
 }
 
-func (r *resolver) SetExtServers(dns []string) {
-	l := len(dns)
+func (r *resolver) SetExtServers(extDNS []extDNSEntry) {
+	l := len(extDNS)
 	if l > maxExtDNS {
 		l = maxExtDNS
 	}
 	for i := 0; i < l; i++ {
-		r.extDNSList[i].ipStr = dns[i]
+		r.extDNSList[i] = extDNS[i]
 	}
 }
 
@@ -401,21 +413,29 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 	} else {
 		for i := 0; i < maxExtDNS; i++ {
 			extDNS := &r.extDNSList[i]
-			if extDNS.ipStr == "" {
+			if extDNS.IPStr == "" {
 				break
 			}
 			extConnect := func() {
-				addr := fmt.Sprintf("%s:%d", extDNS.ipStr, 53)
+				addr := fmt.Sprintf("%s:%d", extDNS.IPStr, 53)
 				extConn, err = net.DialTimeout(proto, addr, extIOTimeout)
 			}
 
-			execErr := r.backend.ExecFunc(extConnect)
-			if execErr != nil || err != nil {
-				logrus.Debugf("Connect failed, %s", err)
+			if extDNS.HostLoopback {
+				extConnect()
+			} else {
+				execErr := r.backend.ExecFunc(extConnect)
+				if execErr != nil {
+					logrus.Warn(execErr)
+					continue
+				}
+			}
+			if err != nil {
+				logrus.Warnf("Connect failed: %s", err)
 				continue
 			}
 			logrus.Debugf("Query %s[%d] from %s, forwarding to %s:%s", name, query.Question[0].Qtype,
-				extConn.LocalAddr().String(), proto, extDNS.ipStr)
+				extConn.LocalAddr().String(), proto, extDNS.IPStr)
 
 			// Timeout has to be set for every IO operation.
 			extConn.SetDeadline(time.Now().Add(extIOTimeout))
@@ -450,9 +470,20 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 				logrus.Debugf("Read from DNS server failed, %s", err)
 				continue
 			}
-
 			r.forwardQueryEnd()
-
+			if resp != nil {
+				for _, rr := range resp.Answer {
+					h := rr.Header()
+					switch h.Rrtype {
+					case dns.TypeA:
+						ip := rr.(*dns.A).A
+						r.backend.HandleQueryResp(h.Name, ip)
+					case dns.TypeAAAA:
+						ip := rr.(*dns.AAAA).AAAA
+						r.backend.HandleQueryResp(h.Name, ip)
+					}
+				}
+			}
 			resp.Compress = true
 			break
 		}

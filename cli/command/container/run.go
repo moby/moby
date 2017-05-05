@@ -9,19 +9,18 @@ import (
 	"strings"
 	"syscall"
 
-	"golang.org/x/net/context"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
-	opttypes "github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/signal"
-	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/libnetwork/resolvconf/dns"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"golang.org/x/net/context"
 )
 
 type runOptions struct {
@@ -34,7 +33,7 @@ type runOptions struct {
 // NewRunCommand create a new `docker run` command
 func NewRunCommand(dockerCli *command.DockerCli) *cobra.Command {
 	var opts runOptions
-	var copts *runconfigopts.ContainerOptions
+	var copts *containerOptions
 
 	cmd := &cobra.Command{
 		Use:   "run [OPTIONS] IMAGE [COMMAND] [ARG...]",
@@ -62,49 +61,49 @@ func NewRunCommand(dockerCli *command.DockerCli) *cobra.Command {
 	// with hostname
 	flags.Bool("help", false, "Print usage")
 
-	command.AddTrustedFlags(flags, true)
-	copts = runconfigopts.AddFlags(flags)
+	command.AddTrustVerificationFlags(flags)
+	copts = addFlags(flags)
 	return cmd
 }
 
-func runRun(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *runOptions, copts *runconfigopts.ContainerOptions) error {
-	stdout, stderr, stdin := dockerCli.Out(), dockerCli.Err(), dockerCli.In()
+func warnOnOomKillDisable(hostConfig container.HostConfig, stderr io.Writer) {
+	if hostConfig.OomKillDisable != nil && *hostConfig.OomKillDisable && hostConfig.Memory == 0 {
+		fmt.Fprintln(stderr, "WARNING: Disabling the OOM killer on containers without setting a '-m/--memory' limit may be dangerous.")
+	}
+}
+
+// check the DNS settings passed via --dns against localhost regexp to warn if
+// they are trying to set a DNS to a localhost address
+func warnOnLocalhostDNS(hostConfig container.HostConfig, stderr io.Writer) {
+	for _, dnsIP := range hostConfig.DNS {
+		if dns.IsLocalhost(dnsIP) {
+			fmt.Fprintf(stderr, "WARNING: Localhost DNS setting (--dns=%s) may fail in containers.\n", dnsIP)
+			return
+		}
+	}
+}
+
+func runRun(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *runOptions, copts *containerOptions) error {
+	containerConfig, err := parse(flags, copts)
+	// just in case the parse does not exit
+	if err != nil {
+		reportError(dockerCli.Err(), "run", err.Error(), true)
+		return cli.StatusError{StatusCode: 125}
+	}
+	return runContainer(dockerCli, opts, copts, containerConfig)
+}
+
+func runContainer(dockerCli *command.DockerCli, opts *runOptions, copts *containerOptions, containerConfig *containerConfig) error {
+	config := containerConfig.Config
+	hostConfig := containerConfig.HostConfig
+	stdout, stderr := dockerCli.Out(), dockerCli.Err()
 	client := dockerCli.Client()
+
 	// TODO: pass this as an argument
 	cmdPath := "run"
 
-	var (
-		flAttach                              *opttypes.ListOpts
-		ErrConflictAttachDetach               = fmt.Errorf("Conflicting options: -a and -d")
-		ErrConflictRestartPolicyAndAutoRemove = fmt.Errorf("Conflicting options: --restart and --rm")
-	)
-
-	config, hostConfig, networkingConfig, err := runconfigopts.Parse(flags, copts)
-
-	// just in case the Parse does not exit
-	if err != nil {
-		reportError(stderr, cmdPath, err.Error(), true)
-		return cli.StatusError{StatusCode: 125}
-	}
-
-	if hostConfig.AutoRemove && !hostConfig.RestartPolicy.IsNone() {
-		return ErrConflictRestartPolicyAndAutoRemove
-	}
-	if hostConfig.OomKillDisable != nil && *hostConfig.OomKillDisable && hostConfig.Memory == 0 {
-		fmt.Fprintf(stderr, "WARNING: Disabling the OOM killer on containers without setting a '-m/--memory' limit may be dangerous.\n")
-	}
-
-	if len(hostConfig.DNS) > 0 {
-		// check the DNS settings passed via --dns against
-		// localhost regexp to warn if they are trying to
-		// set a DNS to a localhost address
-		for _, dnsIP := range hostConfig.DNS {
-			if dns.IsLocalhost(dnsIP) {
-				fmt.Fprintf(stderr, "WARNING: Localhost DNS setting (--dns=%s) may fail in containers.\n", dnsIP)
-				break
-			}
-		}
-	}
+	warnOnOomKillDisable(*hostConfig, stderr)
+	warnOnLocalhostDNS(*hostConfig, stderr)
 
 	config.ArgsEscaped = false
 
@@ -113,11 +112,8 @@ func runRun(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *runOptions
 			return err
 		}
 	} else {
-		if fl := flags.Lookup("attach"); fl != nil {
-			flAttach = fl.Value.(*opttypes.ListOpts)
-			if flAttach.Len() != 0 {
-				return ErrConflictAttachDetach
-			}
+		if copts.attach.Len() != 0 {
+			return errors.New("Conflicting options: -a and -d")
 		}
 
 		config.AttachStdin = false
@@ -140,7 +136,7 @@ func runRun(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *runOptions
 
 	ctx, cancelFun := context.WithCancel(context.Background())
 
-	createResponse, err := createContainer(ctx, dockerCli, config, hostConfig, networkingConfig, hostConfig.ContainerIDFile, opts.name)
+	createResponse, err := createContainer(ctx, dockerCli, containerConfig, opts.name)
 	if err != nil {
 		reportError(stderr, cmdPath, err.Error(), true)
 		return runStartContainerErr(err)
@@ -158,60 +154,23 @@ func runRun(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *runOptions
 		waitDisplayID = make(chan struct{})
 		go func() {
 			defer close(waitDisplayID)
-			fmt.Fprintf(stdout, "%s\n", createResponse.ID)
+			fmt.Fprintln(stdout, createResponse.ID)
 		}()
 	}
 	attach := config.AttachStdin || config.AttachStdout || config.AttachStderr
 	if attach {
-		var (
-			out, cerr io.Writer
-			in        io.ReadCloser
-		)
-		if config.AttachStdin {
-			in = stdin
-		}
-		if config.AttachStdout {
-			out = stdout
-		}
-		if config.AttachStderr {
-			if config.Tty {
-				cerr = stdout
-			} else {
-				cerr = stderr
-			}
-		}
-
 		if opts.detachKeys != "" {
 			dockerCli.ConfigFile().DetachKeys = opts.detachKeys
 		}
 
-		options := types.ContainerAttachOptions{
-			Stream:     true,
-			Stdin:      config.AttachStdin,
-			Stdout:     config.AttachStdout,
-			Stderr:     config.AttachStderr,
-			DetachKeys: dockerCli.ConfigFile().DetachKeys,
+		close, err := attachContainer(ctx, dockerCli, &errCh, config, createResponse.ID)
+		defer close()
+		if err != nil {
+			return err
 		}
-
-		resp, errAttach := client.ContainerAttach(ctx, createResponse.ID, options)
-		if errAttach != nil && errAttach != httputil.ErrPersistEOF {
-			// ContainerAttach returns an ErrPersistEOF (connection closed)
-			// means server met an error and put it in Hijacked connection
-			// keep the error and read detailed error message from hijacked connection later
-			return errAttach
-		}
-		defer resp.Close()
-
-		errCh = promise.Go(func() error {
-			errHijack := holdHijackedConnection(ctx, dockerCli, config.Tty, in, out, cerr, resp)
-			if errHijack == nil {
-				return errAttach
-			}
-			return errHijack
-		})
 	}
 
-	statusChan := waitExitOrRemoved(ctx, dockerCli, createResponse.ID, hostConfig.AutoRemove)
+	statusChan := waitExitOrRemoved(ctx, dockerCli, createResponse.ID, copts.autoRemove)
 
 	//start the container
 	if err := client.ContainerStart(ctx, createResponse.ID, types.ContainerStartOptions{}); err != nil {
@@ -224,7 +183,7 @@ func runRun(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *runOptions
 		}
 
 		reportError(stderr, cmdPath, err.Error(), false)
-		if hostConfig.AutoRemove {
+		if copts.autoRemove {
 			// wait container to be removed
 			<-statusChan
 		}
@@ -233,7 +192,7 @@ func runRun(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *runOptions
 
 	if (config.AttachStdin || config.AttachStdout || config.AttachStderr) && config.Tty && dockerCli.Out().IsTerminal() {
 		if err := MonitorTtySize(ctx, dockerCli, createResponse.ID, false); err != nil {
-			fmt.Fprintf(stderr, "Error monitoring TTY size: %s\n", err)
+			fmt.Fprintln(stderr, "Error monitoring TTY size:", err)
 		}
 	}
 
@@ -258,13 +217,65 @@ func runRun(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *runOptions
 	return nil
 }
 
+func attachContainer(
+	ctx context.Context,
+	dockerCli *command.DockerCli,
+	errCh *chan error,
+	config *container.Config,
+	containerID string,
+) (func(), error) {
+	stdout, stderr := dockerCli.Out(), dockerCli.Err()
+	var (
+		out, cerr io.Writer
+		in        io.ReadCloser
+	)
+	if config.AttachStdin {
+		in = dockerCli.In()
+	}
+	if config.AttachStdout {
+		out = stdout
+	}
+	if config.AttachStderr {
+		if config.Tty {
+			cerr = stdout
+		} else {
+			cerr = stderr
+		}
+	}
+
+	options := types.ContainerAttachOptions{
+		Stream:     true,
+		Stdin:      config.AttachStdin,
+		Stdout:     config.AttachStdout,
+		Stderr:     config.AttachStderr,
+		DetachKeys: dockerCli.ConfigFile().DetachKeys,
+	}
+
+	resp, errAttach := dockerCli.Client().ContainerAttach(ctx, containerID, options)
+	if errAttach != nil && errAttach != httputil.ErrPersistEOF {
+		// ContainerAttach returns an ErrPersistEOF (connection closed)
+		// means server met an error and put it in Hijacked connection
+		// keep the error and read detailed error message from hijacked connection later
+		return nil, errAttach
+	}
+
+	*errCh = promise.Go(func() error {
+		if errHijack := holdHijackedConnection(ctx, dockerCli, config.Tty, in, out, cerr, resp); errHijack != nil {
+			return errHijack
+		}
+		return errAttach
+	})
+	return resp.Close, nil
+}
+
 // reportError is a utility method that prints a user-friendly message
 // containing the error that occurred during parsing and a suggestion to get help
 func reportError(stderr io.Writer, name string, str string, withHelp bool) {
+	str = strings.TrimSuffix(str, ".") + "."
 	if withHelp {
-		str += ".\nSee '" + os.Args[0] + " " + name + " --help'"
+		str += "\nSee '" + os.Args[0] + " " + name + " --help'."
 	}
-	fmt.Fprintf(stderr, "%s: %s.\n", os.Args[0], str)
+	fmt.Fprintf(stderr, "%s: %s\n", os.Args[0], str)
 }
 
 // if container start fails with 'not found'/'no such' error, return 127

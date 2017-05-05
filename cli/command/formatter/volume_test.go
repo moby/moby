@@ -8,7 +8,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestVolumeContext(t *testing.T) {
@@ -18,27 +18,26 @@ func TestVolumeContext(t *testing.T) {
 	cases := []struct {
 		volumeCtx volumeContext
 		expValue  string
-		expHeader string
 		call      func() string
 	}{
 		{volumeContext{
 			v: types.Volume{Name: volumeName},
-		}, volumeName, volumeNameHeader, ctx.Name},
+		}, volumeName, ctx.Name},
 		{volumeContext{
 			v: types.Volume{Driver: "driver_name"},
-		}, "driver_name", driverHeader, ctx.Driver},
+		}, "driver_name", ctx.Driver},
 		{volumeContext{
 			v: types.Volume{Scope: "local"},
-		}, "local", scopeHeader, ctx.Scope},
+		}, "local", ctx.Scope},
 		{volumeContext{
 			v: types.Volume{Mountpoint: "mountpoint"},
-		}, "mountpoint", mountpointHeader, ctx.Mountpoint},
+		}, "mountpoint", ctx.Mountpoint},
 		{volumeContext{
 			v: types.Volume{},
-		}, "", labelsHeader, ctx.Labels},
+		}, "", ctx.Labels},
 		{volumeContext{
 			v: types.Volume{Labels: map[string]string{"label1": "value1", "label2": "value2"}},
-		}, "label1=value1,label2=value2", labelsHeader, ctx.Labels},
+		}, "label1=value1,label2=value2", ctx.Labels},
 	}
 
 	for _, c := range cases {
@@ -48,11 +47,6 @@ func TestVolumeContext(t *testing.T) {
 			compareMultipleValues(t, v, c.expValue)
 		} else if v != c.expValue {
 			t.Fatalf("Expected %s, was %s\n", c.expValue, v)
-		}
-
-		h := ctx.FullHeader()
-		if h != c.expHeader {
-			t.Fatalf("Expected %s, was %s\n", c.expHeader, h)
 		}
 	}
 }
@@ -137,9 +131,9 @@ foobar_bar
 		testcase.context.Output = out
 		err := VolumeWrite(testcase.context, volumes)
 		if err != nil {
-			assert.Error(t, err, testcase.expected)
+			assert.EqualError(t, err, testcase.expected)
 		} else {
-			assert.Equal(t, out.String(), testcase.expected)
+			assert.Equal(t, testcase.expected, out.String())
 		}
 	}
 }
@@ -164,7 +158,7 @@ func TestVolumeContextWriteJSON(t *testing.T) {
 		if err := json.Unmarshal([]byte(line), &m); err != nil {
 			t.Fatal(err)
 		}
-		assert.DeepEqual(t, m, expectedJSONs[i])
+		assert.Equal(t, expectedJSONs[i], m)
 	}
 }
 
@@ -184,6 +178,6 @@ func TestVolumeContextWriteJSONField(t *testing.T) {
 		if err := json.Unmarshal([]byte(line), &s); err != nil {
 			t.Fatal(err)
 		}
-		assert.Equal(t, s, volumes[i].Name)
+		assert.Equal(t, volumes[i].Name, s)
 	}
 }

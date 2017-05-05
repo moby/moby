@@ -16,15 +16,15 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/sysinfo"
-	"github.com/docker/docker/reference"
+	refstore "github.com/docker/docker/reference"
 	"github.com/docker/libnetwork"
 	nwconfig "github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/drivers/solaris/bridge"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/netutils"
 	lntypes "github.com/docker/libnetwork/types"
-	"github.com/opencontainers/runc/libcontainer/label"
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 )
 
@@ -66,6 +66,10 @@ func (daemon *Daemon) cleanupMountsByID(id string) error {
 	return nil
 }
 
+func (daemon *Daemon) parseSecurityOpt(container *container.Container, hostConfig *containertypes.HostConfig) error {
+	return parseSecurityOpt(container, hostConfig)
+}
+
 func parseSecurityOpt(container *container.Container, config *containertypes.HostConfig) error {
 	//Since config.SecurityOpt is specifically defined as a "List of string values to
 	//customize labels for MLs systems, such as SELinux"
@@ -93,16 +97,6 @@ func setupDaemonRoot(config *Config, rootDir string, rootUID, rootGID int) error
 }
 
 func (daemon *Daemon) getLayerInit() func(string) error {
-	return nil
-}
-
-// setupInitLayer populates a directory with mountpoints suitable
-// for bind-mounting dockerinit into the container. The mountpoint is simply an
-// empty file at /.dockerinit
-//
-// This extra layer is used by all containers as the top-most ro layer. It protects
-// the container from unwanted side-effects on the rw layer.
-func setupInitLayer(initLayer string, rootUID, rootGID int) error {
 	return nil
 }
 
@@ -311,9 +305,9 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 	return warnings, nil
 }
 
-// platformReload update configuration with platform specific options
-func (daemon *Daemon) platformReload(config *Config) map[string]string {
-	return map[string]string{}
+// reloadPlatform updates configuration with platform specific options
+// and updates the passed attributes
+func (daemon *Daemon) reloadPlatform(config *Config, attributes map[string]string) {
 }
 
 // verifyDaemonSettings performs validation of daemon config struct
@@ -501,7 +495,7 @@ func (daemon *Daemon) conditionalUnmountOnCleanup(container *container.Container
 	return daemon.Unmount(container)
 }
 
-func restoreCustomImage(is image.Store, ls layer.Store, rs reference.Store) error {
+func restoreCustomImage(is image.Store, ls layer.Store, rs refstore.Store) error {
 	// Solaris has no custom images to register
 	return nil
 }

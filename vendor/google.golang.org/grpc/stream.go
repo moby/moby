@@ -410,9 +410,16 @@ func (cs *clientStream) finish(err error) {
 
 // ServerStream defines the interface a server stream has to satisfy.
 type ServerStream interface {
-	// SendHeader sends the header metadata. It should not be called
-	// after SendProto. It fails if called multiple times or if
-	// called after SendProto.
+	// SetHeader sets the header metadata. It may be called multiple times.
+	// When call multiple times, all the provided metadata will be merged.
+	// All the metadata will be sent out when one of the following happens:
+	//  - ServerStream.SendHeader() is called;
+	//  - The first response is sent out;
+	//  - An RPC status is sent out (error or success).
+	SetHeader(metadata.MD) error
+	// SendHeader sends the header metadata.
+	// The provided md and headers set by SetHeader() will be sent.
+	// It fails if called multiple times.
 	SendHeader(metadata.MD) error
 	// SetTrailer sets the trailer metadata which will be sent with the RPC status.
 	// When called more than once, all the provided metadata will be merged.
@@ -439,6 +446,13 @@ type serverStream struct {
 
 func (ss *serverStream) Context() context.Context {
 	return ss.s.Context()
+}
+
+func (ss *serverStream) SetHeader(md metadata.MD) error {
+	if md.Len() == 0 {
+		return nil
+	}
+	return ss.s.SetHeader(md)
 }
 
 func (ss *serverStream) SendHeader(md metadata.MD) error {

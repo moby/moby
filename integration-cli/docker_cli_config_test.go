@@ -5,14 +5,14 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/pkg/homedir"
-	"github.com/docker/docker/pkg/integration/checker"
+	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
 )
 
@@ -51,15 +51,18 @@ func (s *DockerSuite) TestConfigHTTPHeader(c *check.C) {
 	err = ioutil.WriteFile(tmpCfg, []byte(data), 0600)
 	c.Assert(err, checker.IsNil)
 
-	cmd := exec.Command(dockerBinary, "-H="+server.URL[7:], "ps")
-	out, _, _ := runCommandWithOutput(cmd)
+	result := icmd.RunCommand(dockerBinary, "-H="+server.URL[7:], "ps")
+	result.Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Error:    "exit status 1",
+	})
 
 	c.Assert(headers["User-Agent"], checker.NotNil, check.Commentf("Missing User-Agent"))
 
-	c.Assert(headers["User-Agent"][0], checker.Equals, "Docker-Client/"+dockerversion.Version+" ("+runtime.GOOS+")", check.Commentf("Badly formatted User-Agent,out:%v", out))
+	c.Assert(headers["User-Agent"][0], checker.Equals, "Docker-Client/"+dockerversion.Version+" ("+runtime.GOOS+")", check.Commentf("Badly formatted User-Agent,out:%v", result.Combined()))
 
 	c.Assert(headers["Myheader"], checker.NotNil)
-	c.Assert(headers["Myheader"][0], checker.Equals, "MyValue", check.Commentf("Missing/bad header,out:%v", out))
+	c.Assert(headers["Myheader"][0], checker.Equals, "MyValue", check.Commentf("Missing/bad header,out:%v", result.Combined()))
 
 }
 
@@ -72,11 +75,10 @@ func (s *DockerSuite) TestConfigDir(c *check.C) {
 	dockerCmd(c, "--config", cDir, "ps")
 
 	// Test with env var too
-	cmd := exec.Command(dockerBinary, "ps")
-	cmd.Env = appendBaseEnv(true, "DOCKER_CONFIG="+cDir)
-	out, _, err := runCommandWithOutput(cmd)
-
-	c.Assert(err, checker.IsNil, check.Commentf("ps2 didn't work,out:%v", out))
+	icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "ps"},
+		Env:     appendBaseEnv(true, "DOCKER_CONFIG="+cDir),
+	}).Assert(c, icmd.Success)
 
 	// Start a server so we can check to see if the config file was
 	// loaded properly
@@ -99,42 +101,51 @@ func (s *DockerSuite) TestConfigDir(c *check.C) {
 
 	env := appendBaseEnv(false)
 
-	cmd = exec.Command(dockerBinary, "--config", cDir, "-H="+server.URL[7:], "ps")
-	cmd.Env = env
-	out, _, err = runCommandWithOutput(cmd)
-
-	c.Assert(err, checker.NotNil, check.Commentf("out:%v", out))
+	icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "--config", cDir, "-H=" + server.URL[7:], "ps"},
+		Env:     env,
+	}).Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Error:    "exit status 1",
+	})
 	c.Assert(headers["Myheader"], checker.NotNil)
-	c.Assert(headers["Myheader"][0], checker.Equals, "MyValue", check.Commentf("ps3 - Missing header,out:%v", out))
+	c.Assert(headers["Myheader"][0], checker.Equals, "MyValue", check.Commentf("ps3 - Missing header"))
 
 	// Reset headers and try again using env var this time
 	headers = map[string][]string{}
-	cmd = exec.Command(dockerBinary, "-H="+server.URL[7:], "ps")
-	cmd.Env = append(env, "DOCKER_CONFIG="+cDir)
-	out, _, err = runCommandWithOutput(cmd)
-
-	c.Assert(err, checker.NotNil, check.Commentf("%v", out))
+	icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "--config", cDir, "-H=" + server.URL[7:], "ps"},
+		Env:     append(env, "DOCKER_CONFIG="+cDir),
+	}).Assert(c, icmd.Expected{
+		ExitCode: 1,
+	})
 	c.Assert(headers["Myheader"], checker.NotNil)
-	c.Assert(headers["Myheader"][0], checker.Equals, "MyValue", check.Commentf("ps4 - Missing header,out:%v", out))
+	c.Assert(headers["Myheader"][0], checker.Equals, "MyValue", check.Commentf("ps4 - Missing header"))
 
+	// FIXME(vdemeester) should be a unit test
 	// Reset headers and make sure flag overrides the env var
 	headers = map[string][]string{}
-	cmd = exec.Command(dockerBinary, "--config", cDir, "-H="+server.URL[7:], "ps")
-	cmd.Env = append(env, "DOCKER_CONFIG=MissingDir")
-	out, _, err = runCommandWithOutput(cmd)
-
-	c.Assert(err, checker.NotNil, check.Commentf("out:%v", out))
+	icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "--config", cDir, "-H=" + server.URL[7:], "ps"},
+		Env:     append(env, "DOCKER_CONFIG=MissingDir"),
+	}).Assert(c, icmd.Expected{
+		ExitCode: 1,
+	})
 	c.Assert(headers["Myheader"], checker.NotNil)
-	c.Assert(headers["Myheader"][0], checker.Equals, "MyValue", check.Commentf("ps5 - Missing header,out:%v", out))
+	c.Assert(headers["Myheader"][0], checker.Equals, "MyValue", check.Commentf("ps5 - Missing header"))
 
+	// FIXME(vdemeester) should be a unit test
 	// Reset headers and make sure flag overrides the env var.
 	// Almost same as previous but make sure the "MissingDir" isn't
 	// ignore - we don't want to default back to the env var.
 	headers = map[string][]string{}
-	cmd = exec.Command(dockerBinary, "--config", "MissingDir", "-H="+server.URL[7:], "ps")
-	cmd.Env = append(env, "DOCKER_CONFIG="+cDir)
-	out, _, err = runCommandWithOutput(cmd)
+	icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "--config", "MissingDir", "-H=" + server.URL[7:], "ps"},
+		Env:     append(env, "DOCKER_CONFIG="+cDir),
+	}).Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Error:    "exit status 1",
+	})
 
-	c.Assert(err, checker.NotNil, check.Commentf("out:%v", out))
-	c.Assert(headers["Myheader"], checker.IsNil, check.Commentf("ps6 - Headers shouldn't be the expected value,out:%v", out))
+	c.Assert(headers["Myheader"], checker.IsNil, check.Commentf("ps6 - Headers shouldn't be the expected value"))
 }

@@ -29,8 +29,8 @@ func (r *checkpointRouter) Routes() []router.Route {
 
 func (r *checkpointRouter) initRoutes() {
 	r.routes = []router.Route{
-		router.NewGetRoute("/containers/{name:.*}/checkpoints", r.getContainerCheckpoints),
-		router.NewPostRoute("/containers/{name:.*}/checkpoints", r.postContainerCheckpoint),
-		router.NewDeleteRoute("/containers/{name}/checkpoints/{checkpoint}", r.deleteContainerCheckpoint),
+		router.NewGetRoute("/containers/{name:.*}/checkpoints", r.getContainerCheckpoints, router.Experimental),
+		router.NewPostRoute("/containers/{name:.*}/checkpoints", r.postContainerCheckpoint, router.Experimental),
+		router.NewDeleteRoute("/containers/{name}/checkpoints/{checkpoint}", r.deleteContainerCheckpoint, router.Experimental),
 	}
 }

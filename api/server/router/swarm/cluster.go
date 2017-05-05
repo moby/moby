@@ -1,9 +1,6 @@
 package swarm
 
-import (
-	"github.com/docker/docker/api/server/router"
-	"github.com/docker/docker/daemon"
-)
+import "github.com/docker/docker/api/server/router"
 
 // swarmRouter is a router to talk with the build controller
 type swarmRouter struct {
@@ -12,26 +9,17 @@ type swarmRouter struct {
 }
 
 // NewRouter initializes a new build router
-func NewRouter(d *daemon.Daemon, b Backend) router.Router {
+func NewRouter(b Backend) router.Router {
 	r := &swarmRouter{
 		backend: b,
 	}
 	r.initRoutes()
-	if d.HasExperimental() {
-		r.addExperimentalRoutes()
-	}
 	return r
 }
 
 // Routes returns the available routers to the swarm controller
 func (sr *swarmRouter) Routes() []router.Route {
 	return sr.routes
-}
-
-func (sr *swarmRouter) addExperimentalRoutes() {
-	sr.routes = append(sr.routes,
-		router.Cancellable(router.NewGetRoute("/services/{id}/logs", sr.getServiceLogs)),
-	)
 }
 
 func (sr *swarmRouter) initRoutes() {
@@ -48,14 +36,16 @@ func (sr *swarmRouter) initRoutes() {
 		router.NewPostRoute("/services/create", sr.createService),
 		router.NewPostRoute("/services/{id}/update", sr.updateService),
 		router.NewDeleteRoute("/services/{id}", sr.removeService),
+		router.NewGetRoute("/services/{id}/logs", sr.getServiceLogs, router.WithCancel),
 		router.NewGetRoute("/nodes", sr.getNodes),
 		router.NewGetRoute("/nodes/{id}", sr.getNode),
 		router.NewDeleteRoute("/nodes/{id}", sr.removeNode),
 		router.NewPostRoute("/nodes/{id}/update", sr.updateNode),
 		router.NewGetRoute("/tasks", sr.getTasks),
 		router.NewGetRoute("/tasks/{id}", sr.getTask),
+		router.NewGetRoute("/tasks/{id}/logs", sr.getTaskLogs, router.WithCancel),
 		router.NewGetRoute("/secrets", sr.getSecrets),
-		router.NewPostRoute("/secrets", sr.createSecret),
+		router.NewPostRoute("/secrets/create", sr.createSecret),
 		router.NewDeleteRoute("/secrets/{id}", sr.removeSecret),
 		router.NewGetRoute("/secrets/{id}", sr.getSecret),
 		router.NewPostRoute("/secrets/{id}/update", sr.updateSecret),

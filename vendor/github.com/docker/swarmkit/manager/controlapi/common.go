@@ -4,13 +4,19 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/docker/docker/pkg/plugingetter"
+	"github.com/docker/libnetwork/ipamapi"
 	"github.com/docker/swarmkit/api"
+	"github.com/docker/swarmkit/manager/allocator/networkallocator"
 	"github.com/docker/swarmkit/manager/state/store"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
 
-var isValidName = regexp.MustCompile(`^[a-zA-Z0-9](?:[-_]*[A-Za-z0-9]+)*$`)
+var isValidDNSName = regexp.MustCompile(`^[a-zA-Z0-9](?:[-_]*[A-Za-z0-9]+)*$`)
+
+// configs and secrets have different naming requirements from tasks and services
+var isValidConfigOrSecretName = regexp.MustCompile(`^[a-zA-Z0-9]+(?:[a-zA-Z0-9-_.]*[a-zA-Z0-9])?$`)
 
 func buildFilters(by func(string) store.By, values []string) store.By {
 	filters := make([]store.By, 0, len(values))
@@ -65,7 +71,7 @@ func validateAnnotations(m api.Annotations) error {
 	if m.Name == "" {
 		return grpc.Errorf(codes.InvalidArgument, "meta: name must be provided")
 	}
-	if !isValidName.MatchString(m.Name) {
+	if !isValidDNSName.MatchString(m.Name) {
 		// if the name doesn't match the regex
 		return grpc.Errorf(codes.InvalidArgument, "name must be valid as a DNS name component")
 	}
@@ -76,7 +82,18 @@ func validateAnnotations(m api.Annotations) error {
 	return nil
 }
 
-func validateDriver(driver *api.Driver) error {
+func validateConfigOrSecretAnnotations(m api.Annotations) error {
+	if m.Name == "" {
+		return grpc.Errorf(codes.InvalidArgument, "name must be provided")
+	} else if len(m.Name) > 64 || !isValidConfigOrSecretName.MatchString(m.Name) {
+		// if the name doesn't match the regex
+		return grpc.Errorf(codes.InvalidArgument,
+			"invalid name, only 64 [a-zA-Z0-9-_.] characters allowed, and the start and end character must be [a-zA-Z0-9]")
+	}
+	return nil
+}
+
+func validateDriver(driver *api.Driver, pg plugingetter.PluginGetter, pluginType string) error {
 	if driver == nil {
 		// It is ok to not specify the driver. We will choose
 		// a default driver.
@@ -85,6 +102,23 @@ func validateDriver(driver *api.Driver) error {
 
 	if driver.Name == "" {
 		return grpc.Errorf(codes.InvalidArgument, "driver name: if driver is specified name is required")
+	}
+
+	if strings.ToLower(driver.Name) == networkallocator.DefaultDriver || strings.ToLower(driver.Name) == ipamapi.DefaultIPAM {
+		return nil
+	}
+
+	if pg == nil {
+		return grpc.Errorf(codes.InvalidArgument, "plugin %s not supported", driver.Name)
+	}
+
+	p, err := pg.Get(driver.Name, pluginType, plugingetter.Lookup)
+	if err != nil {
+		return grpc.Errorf(codes.InvalidArgument, "error during lookup of plugin %s", driver.Name)
+	}
+
+	if p.IsV1() {
+		return grpc.Errorf(codes.InvalidArgument, "legacy plugin %s of type %s is not supported in swarm mode", driver.Name, pluginType)
 	}
 
 	return nil

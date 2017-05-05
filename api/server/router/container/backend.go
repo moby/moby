@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/pkg/archive"
 )
 
@@ -26,23 +27,23 @@ type copyBackend interface {
 	ContainerArchivePath(name string, path string) (content io.ReadCloser, stat *types.ContainerPathStat, err error)
 	ContainerCopy(name string, res string) (io.ReadCloser, error)
 	ContainerExport(name string, out io.Writer) error
-	ContainerExtractToDir(name, path string, noOverwriteDirNonDir bool, content io.Reader) error
+	ContainerExtractToDir(name, path string, copyUIDGID, noOverwriteDirNonDir bool, content io.Reader) error
 	ContainerStatPath(name string, path string) (stat *types.ContainerPathStat, err error)
 }
 
 // stateBackend includes functions to implement to provide container state lifecycle functionality.
 type stateBackend interface {
-	ContainerCreate(config types.ContainerCreateConfig, validateHostname bool) (container.ContainerCreateCreatedBody, error)
+	ContainerCreate(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error)
 	ContainerKill(name string, sig uint64) error
 	ContainerPause(name string) error
 	ContainerRename(oldName, newName string) error
 	ContainerResize(name string, height, width int) error
 	ContainerRestart(name string, seconds *int) error
 	ContainerRm(name string, config *types.ContainerRmConfig) error
-	ContainerStart(name string, hostConfig *container.HostConfig, validateHostname bool, checkpoint string, checkpointDir string) error
+	ContainerStart(name string, hostConfig *container.HostConfig, checkpoint string, checkpointDir string) error
 	ContainerStop(name string, seconds *int) error
 	ContainerUnpause(name string) error
-	ContainerUpdate(name string, hostConfig *container.HostConfig, validateHostname bool) (container.ContainerUpdateOKBody, error)
+	ContainerUpdate(name string, hostConfig *container.HostConfig) (container.ContainerUpdateOKBody, error)
 	ContainerWait(name string, timeout time.Duration) (int, error)
 }
 
@@ -50,9 +51,9 @@ type stateBackend interface {
 type monitorBackend interface {
 	ContainerChanges(name string) ([]archive.Change, error)
 	ContainerInspect(name string, size bool, version string) (interface{}, error)
-	ContainerLogs(ctx context.Context, name string, config *backend.ContainerLogsConfig, started chan struct{}) error
+	ContainerLogs(ctx context.Context, name string, config *types.ContainerLogsOptions) (<-chan *backend.LogMessage, error)
 	ContainerStats(ctx context.Context, name string, config *backend.ContainerStatsConfig) error
-	ContainerTop(name string, psArgs string) (*types.ContainerProcessList, error)
+	ContainerTop(name string, psArgs string) (*container.ContainerTopOKBody, error)
 
 	Containers(config *types.ContainerListOptions) ([]*types.Container, error)
 }
@@ -64,7 +65,7 @@ type attachBackend interface {
 
 // systemBackend includes functions to implement to provide system wide containers functionality
 type systemBackend interface {
-	ContainersPrune(config *types.ContainersPruneConfig) (*types.ContainersPruneReport, error)
+	ContainersPrune(ctx context.Context, pruneFilters filters.Args) (*types.ContainersPruneReport, error)
 }
 
 // Backend is all the methods that need to be implemented to provide container specific functionality.

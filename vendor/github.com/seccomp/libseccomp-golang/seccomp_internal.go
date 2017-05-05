@@ -7,7 +7,6 @@ package seccomp
 
 import (
 	"fmt"
-	"os"
 	"syscall"
 )
 
@@ -192,12 +191,12 @@ func checkVersionAbove(major, minor, micro int) bool {
 		(verMajor == major && verMinor == minor && verMicro >= micro)
 }
 
-// Init function: Verify library version is appropriate
-func init() {
+// Ensure that the library is supported, i.e. >= 2.1.0.
+func ensureSupportedVersion() error {
 	if !checkVersionAbove(2, 1, 0) {
-		fmt.Fprintf(os.Stderr, "Libseccomp version too low: minimum supported is 2.1.0, detected %d.%d.%d", C.C_VERSION_MAJOR, C.C_VERSION_MINOR, C.C_VERSION_MICRO)
-		os.Exit(-1)
+		return VersionError{}
 	}
+	return nil
 }
 
 // Filter helpers
@@ -217,7 +216,10 @@ func (f *ScmpFilter) getFilterAttr(attr scmpFilterAttr) (C.uint32_t, error) {
 	}
 
 	if !checkVersionAbove(2, 2, 0) && attr == filterAttrTsync {
-		return 0x0, fmt.Errorf("the thread synchronization attribute is not supported in this version of the library")
+		return 0x0, VersionError{
+			message: "thread synchronization attribute is not supported",
+			minimum: "2.2.0",
+		}
 	}
 
 	var attribute C.uint32_t
@@ -240,7 +242,10 @@ func (f *ScmpFilter) setFilterAttr(attr scmpFilterAttr, value C.uint32_t) error 
 	}
 
 	if !checkVersionAbove(2, 2, 0) && attr == filterAttrTsync {
-		return fmt.Errorf("the thread synchronization attribute is not supported in this version of the library")
+		return VersionError{
+			message: "thread synchronization attribute is not supported",
+			minimum: "2.2.0",
+		}
 	}
 
 	retCode := C.seccomp_attr_set(f.filterCtx, attr.toNative(), value)
@@ -296,7 +301,10 @@ func (f *ScmpFilter) addRuleGeneric(call ScmpSyscall, action ScmpAction, exact b
 	} else {
 		// We don't support conditional filtering in library version v2.1
 		if !checkVersionAbove(2, 2, 1) {
-			return fmt.Errorf("conditional filtering requires libseccomp version >= 2.2.1")
+			return VersionError{
+				message: "conditional filtering is not supported",
+				minimum: "2.2.1",
+			}
 		}
 
 		for _, cond := range conds {

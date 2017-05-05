@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -16,7 +17,7 @@ type removeOptions struct {
 	force bool
 }
 
-func newRemoveCommand(dockerCli *command.DockerCli) *cobra.Command {
+func newRemoveCommand(dockerCli command.Cli) *cobra.Command {
 	opts := removeOptions{}
 
 	cmd := &cobra.Command{
@@ -33,7 +34,7 @@ func newRemoveCommand(dockerCli *command.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func runRemove(dockerCli *command.DockerCli, args []string, opts removeOptions) error {
+func runRemove(dockerCli command.Cli, args []string, opts removeOptions) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 
@@ -49,7 +50,7 @@ func runRemove(dockerCli *command.DockerCli, args []string, opts removeOptions) 
 	}
 
 	if len(errs) > 0 {
-		return fmt.Errorf("%s", strings.Join(errs, "\n"))
+		return errors.Errorf("%s", strings.Join(errs, "\n"))
 	}
 
 	return nil

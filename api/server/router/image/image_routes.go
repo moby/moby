@@ -118,8 +118,7 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 		if !output.Flushed() {
 			return err
 		}
-		sf := streamformatter.NewJSONStreamFormatter()
-		output.Write(sf.FormatError(err))
+		output.Write(streamformatter.FormatError(err))
 	}
 
 	return nil
@@ -164,8 +163,7 @@ func (s *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter,
 		if !output.Flushed() {
 			return err
 		}
-		sf := streamformatter.NewJSONStreamFormatter()
-		output.Write(sf.FormatError(err))
+		output.Write(streamformatter.FormatError(err))
 	}
 	return nil
 }
@@ -190,8 +188,7 @@ func (s *imageRouter) getImagesGet(ctx context.Context, w http.ResponseWriter, r
 		if !output.Flushed() {
 			return err
 		}
-		sf := streamformatter.NewJSONStreamFormatter()
-		output.Write(sf.FormatError(err))
+		output.Write(streamformatter.FormatError(err))
 	}
 	return nil
 }
@@ -207,7 +204,7 @@ func (s *imageRouter) postImagesLoad(ctx context.Context, w http.ResponseWriter,
 	output := ioutils.NewWriteFlusher(w)
 	defer output.Close()
 	if err := s.backend.LoadImage(r.Body, output, quiet); err != nil {
-		output.Write(streamformatter.NewJSONStreamFormatter().FormatError(err))
+		output.Write(streamformatter.FormatError(err))
 	}
 	return nil
 }
@@ -253,9 +250,9 @@ func (s *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter, 
 		return err
 	}
 
-	version := httputils.VersionFromContext(ctx)
 	filterParam := r.Form.Get("filter")
-	if versions.LessThan(version, "1.28") && filterParam != "" {
+	// FIXME(vdemeester) This has been deprecated in 1.13, and is target for removal for v17.12
+	if filterParam != "" {
 		imageFilters.Add("reference", filterParam)
 	}
 
@@ -331,16 +328,12 @@ func (s *imageRouter) postImagesPrune(ctx context.Context, w http.ResponseWriter
 		return err
 	}
 
-	if err := httputils.CheckForJSON(r); err != nil {
+	pruneFilters, err := filters.FromParam(r.Form.Get("filters"))
+	if err != nil {
 		return err
 	}
 
-	var cfg types.ImagesPruneConfig
-	if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
-		return err
-	}
-
-	pruneReport, err := s.backend.ImagesPrune(&cfg)
+	pruneReport, err := s.backend.ImagesPrune(ctx, pruneFilters)
 	if err != nil {
 		return err
 	}

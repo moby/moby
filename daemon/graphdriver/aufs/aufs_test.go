@@ -56,7 +56,7 @@ func TestNewDriver(t *testing.T) {
 	d := testInit(tmp, t)
 	defer os.RemoveAll(tmp)
 	if d == nil {
-		t.Fatalf("Driver should not be nil")
+		t.Fatal("Driver should not be nil")
 	}
 }
 
@@ -206,11 +206,11 @@ func TestMountedFalseResponse(t *testing.T) {
 	}
 
 	if response != false {
-		t.Fatalf("Response if dir id 1 is mounted should be false")
+		t.Fatal("Response if dir id 1 is mounted should be false")
 	}
 }
 
-func TestMountedTrueReponse(t *testing.T) {
+func TestMountedTrueResponse(t *testing.T) {
 	d := newDriver(t)
 	defer os.RemoveAll(tmp)
 	defer d.Cleanup()
@@ -233,7 +233,7 @@ func TestMountedTrueReponse(t *testing.T) {
 	}
 
 	if response != true {
-		t.Fatalf("Response if dir id 2 is mounted should be true")
+		t.Fatal("Response if dir id 2 is mounted should be true")
 	}
 }
 
@@ -299,7 +299,7 @@ func TestRemoveMountedDir(t *testing.T) {
 	}
 
 	if !mounted {
-		t.Fatalf("Dir id 2 should be mounted")
+		t.Fatal("Dir id 2 should be mounted")
 	}
 
 	if err := d.Remove("2"); err != nil {
@@ -312,7 +312,7 @@ func TestCreateWithInvalidParent(t *testing.T) {
 	defer os.RemoveAll(tmp)
 
 	if err := d.Create("1", "docker", nil); err == nil {
-		t.Fatalf("Error should not be nil with parent does not exist")
+		t.Fatal("Error should not be nil with parent does not exist")
 	}
 }
 
@@ -346,7 +346,7 @@ func TestGetDiff(t *testing.T) {
 		t.Fatal(err)
 	}
 	if a == nil {
-		t.Fatalf("Archive should not be nil")
+		t.Fatal("Archive should not be nil")
 	}
 }
 
@@ -744,10 +744,10 @@ func BenchmarkConcurrentAccess(b *testing.B) {
 	defer os.RemoveAll(tmp)
 	defer d.Cleanup()
 
-	numConcurent := 256
+	numConcurrent := 256
 	// create a bunch of ids
 	var ids []string
-	for i := 0; i < numConcurent; i++ {
+	for i := 0; i < numConcurrent; i++ {
 		ids = append(ids, stringid.GenerateNonCryptoID())
 	}
 
@@ -762,7 +762,7 @@ func BenchmarkConcurrentAccess(b *testing.B) {
 	parent := ids[1]
 	ids = append(ids[2:])
 
-	chErr := make(chan error, numConcurent)
+	chErr := make(chan error, numConcurrent)
 	var outerGroup sync.WaitGroup
 	outerGroup.Add(len(ids))
 	b.StartTimer()

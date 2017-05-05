@@ -1,7 +1,7 @@
 package filters
 
 import (
-	"fmt"
+	"errors"
 	"testing"
 )
 
@@ -284,18 +284,18 @@ func TestDel(t *testing.T) {
 	f.Del("status", "running")
 	v := f.fields["status"]
 	if v["running"] {
-		t.Fatalf("Expected to not include a running status filter, got true")
+		t.Fatal("Expected to not include a running status filter, got true")
 	}
 }
 
 func TestLen(t *testing.T) {
 	f := NewArgs()
 	if f.Len() != 0 {
-		t.Fatalf("Expected to not include any field")
+		t.Fatal("Expected to not include any field")
 	}
 	f.Add("status", "running")
 	if f.Len() != 1 {
-		t.Fatalf("Expected to include one field")
+		t.Fatal("Expected to include one field")
 	}
 }
 
@@ -303,18 +303,18 @@ func TestExactMatch(t *testing.T) {
 	f := NewArgs()
 
 	if !f.ExactMatch("status", "running") {
-		t.Fatalf("Expected to match `running` when there are no filters, got false")
+		t.Fatal("Expected to match `running` when there are no filters, got false")
 	}
 
 	f.Add("status", "running")
 	f.Add("status", "pause*")
 
 	if !f.ExactMatch("status", "running") {
-		t.Fatalf("Expected to match `running` with one of the filters, got false")
+		t.Fatal("Expected to match `running` with one of the filters, got false")
 	}
 
 	if f.ExactMatch("status", "paused") {
-		t.Fatalf("Expected to not match `paused` with one of the filters, got true")
+		t.Fatal("Expected to not match `paused` with one of the filters, got true")
 	}
 }
 
@@ -322,33 +322,33 @@ func TestOnlyOneExactMatch(t *testing.T) {
 	f := NewArgs()
 
 	if !f.UniqueExactMatch("status", "running") {
-		t.Fatalf("Expected to match `running` when there are no filters, got false")
+		t.Fatal("Expected to match `running` when there are no filters, got false")
 	}
 
 	f.Add("status", "running")
 
 	if !f.UniqueExactMatch("status", "running") {
-		t.Fatalf("Expected to match `running` with one of the filters, got false")
+		t.Fatal("Expected to match `running` with one of the filters, got false")
 	}
 
 	if f.UniqueExactMatch("status", "paused") {
-		t.Fatalf("Expected to not match `paused` with one of the filters, got true")
+		t.Fatal("Expected to not match `paused` with one of the filters, got true")
 	}
 
 	f.Add("status", "pause")
 	if f.UniqueExactMatch("status", "running") {
-		t.Fatalf("Expected to not match only `running` with two filters, got true")
+		t.Fatal("Expected to not match only `running` with two filters, got true")
 	}
 }
 
 func TestInclude(t *testing.T) {
 	f := NewArgs()
 	if f.Include("status") {
-		t.Fatalf("Expected to not include a status key, got true")
+		t.Fatal("Expected to not include a status key, got true")
 	}
 	f.Add("status", "running")
 	if !f.Include("status") {
-		t.Fatalf("Expected to include a status key, got false")
+		t.Fatal("Expected to include a status key, got false")
 	}
 }
 
@@ -367,7 +367,7 @@ func TestValidate(t *testing.T) {
 
 	f.Add("bogus", "running")
 	if err := f.Validate(valid); err == nil {
-		t.Fatalf("Expected to return an error, got nil")
+		t.Fatal("Expected to return an error, got nil")
 	}
 }
 
@@ -384,14 +384,14 @@ func TestWalkValues(t *testing.T) {
 	})
 
 	err := f.WalkValues("status", func(value string) error {
-		return fmt.Errorf("return")
+		return errors.New("return")
 	})
 	if err == nil {
-		t.Fatalf("Expected to get an error, got nil")
+		t.Fatal("Expected to get an error, got nil")
 	}
 
 	err = f.WalkValues("foo", func(value string) error {
-		return fmt.Errorf("return")
+		return errors.New("return")
 	})
 	if err != nil {
 		t.Fatalf("Expected to not iterate when the field doesn't exist, got %v", err)

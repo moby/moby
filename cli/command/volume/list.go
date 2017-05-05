@@ -3,14 +3,13 @@ package volume
 import (
 	"sort"
 
-	"golang.org/x/net/context"
-
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/command/formatter"
 	"github.com/docker/docker/opts"
 	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 type byVolumeName []*types.Volume
@@ -27,14 +26,13 @@ type listOptions struct {
 	filter opts.FilterOpt
 }
 
-func newListCommand(dockerCli *command.DockerCli) *cobra.Command {
+func newListCommand(dockerCli command.Cli) *cobra.Command {
 	opts := listOptions{filter: opts.NewFilterOpt()}
 
 	cmd := &cobra.Command{
 		Use:     "ls [OPTIONS]",
 		Aliases: []string{"list"},
 		Short:   "List volumes",
-		Long:    listDescription,
 		Args:    cli.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runList(dockerCli, opts)
@@ -49,7 +47,7 @@ func newListCommand(dockerCli *command.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func runList(dockerCli *command.DockerCli, opts listOptions) error {
+func runList(dockerCli command.Cli, opts listOptions) error {
 	client := dockerCli.Client()
 	volumes, err := client.VolumeList(context.Background(), opts.filter.Value())
 	if err != nil {
@@ -73,19 +71,3 @@ func runList(dockerCli *command.DockerCli, opts listOptions) error {
 	}
 	return formatter.VolumeWrite(volumeCtx, volumes.Volumes)
 }
-
-var listDescription = `
-
-Lists all the volumes Docker manages. You can filter using the **-f** or
-**--filter** flag. The filtering format is a **key=value** pair. To specify
-more than one filter,  pass multiple flags (for example,
-**--filter "foo=bar" --filter "bif=baz"**)
-
-The currently supported filters are:
-
-* **dangling** (boolean - **true** or **false**, **1** or **0**)
-* **driver** (a volume driver's name)
-* **label** (**label=<key>** or **label=<key>=<value>**)
-* **name** (a volume's name)
-
-`

@@ -6,28 +6,41 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/cli/compose/convert"
 )
 
-func deployBundle(dockerCli *command.DockerCli, opts deployOptions) error {
+func deployBundle(ctx context.Context, dockerCli *command.DockerCli, opts deployOptions) error {
 	bundle, err := loadBundlefile(dockerCli.Err(), opts.namespace, opts.bundlefile)
 	if err != nil {
 		return err
 	}
 
-	namespace := namespace{name: opts.namespace}
+	if err := checkDaemonIsSwarmManager(ctx, dockerCli); err != nil {
+		return err
+	}
+
+	namespace := convert.NewNamespace(opts.namespace)
+
+	if opts.prune {
+		services := map[string]struct{}{}
+		for service := range bundle.Services {
+			services[service] = struct{}{}
+		}
+		pruneServices(ctx, dockerCli, namespace, services)
+	}
 
 	networks := make(map[string]types.NetworkCreate)
 	for _, service := range bundle.Services {
 		for _, networkName := range service.Networks {
 			networks[networkName] = types.NetworkCreate{
-				Labels: getStackLabels(namespace.name, nil),
+				Labels: convert.AddStackLabel(namespace, nil),
 			}
 		}
 	}
 
 	services := make(map[string]swarm.ServiceSpec)
 	for internalName, service := range bundle.Services {
-		name := namespace.scope(internalName)
+		name := namespace.Scope(internalName)
 
 		var ports []swarm.PortConfig
 		for _, portSpec := range service.Ports {
@@ -40,15 +53,15 @@ func deployBundle(dockerCli *command.DockerCli, opts deployOptions) error {
 		nets := []swarm.NetworkAttachmentConfig{}
 		for _, networkName := range service.Networks {
 			nets = append(nets, swarm.NetworkAttachmentConfig{
-				Target:  namespace.scope(networkName),
-				Aliases: []string{networkName},
+				Target:  namespace.Scope(networkName),
+				Aliases: []string{internalName},
 			})
 		}
 
 		serviceSpec := swarm.ServiceSpec{
 			Annotations: swarm.Annotations{
 				Name:   name,
-				Labels: getStackLabels(namespace.name, service.Labels),
+				Labels: convert.AddStackLabel(namespace, service.Labels),
 			},
 			TaskTemplate: swarm.TaskSpec{
 				ContainerSpec: swarm.ContainerSpec{
@@ -59,7 +72,7 @@ func deployBundle(dockerCli *command.DockerCli, opts deployOptions) error {
 					// Service Labels will not be copied to Containers
 					// automatically during the deployment so we apply
 					// it here.
-					Labels: getStackLabels(namespace.name, nil),
+					Labels: convert.AddStackLabel(namespace, nil),
 				},
 			},
 			EndpointSpec: &swarm.EndpointSpec{
@@ -70,8 +83,6 @@ func deployBundle(dockerCli *command.DockerCli, opts deployOptions) error {
 
 		services[internalName] = serviceSpec
 	}
-
-	ctx := context.Background()
 
 	if err := createNetworks(ctx, dockerCli, namespace, networks); err != nil {
 		return err

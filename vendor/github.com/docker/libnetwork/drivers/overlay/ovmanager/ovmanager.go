@@ -57,7 +57,7 @@ func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 		config:   config,
 	}
 
-	d.vxlanIdm, err = idm.New(nil, "vxlan-id", 1, vxlanIDEnd)
+	d.vxlanIdm, err = idm.New(nil, "vxlan-id", 0, vxlanIDEnd)
 	if err != nil {
 		return fmt.Errorf("failed to initialize vxlan id manager: %v", err)
 	}
@@ -199,6 +199,10 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key string, value []byte) {
 }
 
+func (d *driver) DecodeTableEntry(tablename string, key string, value []byte) (string, map[string]string) {
+	return "", nil
+}
+
 func (d *driver) DeleteNetwork(nid string) error {
 	return types.NotImplementedErrorf("not implemented")
 }
@@ -227,6 +231,10 @@ func (d *driver) Leave(nid, eid string) error {
 
 func (d *driver) Type() string {
 	return networkType
+}
+
+func (d *driver) IsBuiltIn() bool {
+	return true
 }
 
 // DiscoverNew is a notification for a new discovery event, such as a new node joining a cluster

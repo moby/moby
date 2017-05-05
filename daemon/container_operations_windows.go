@@ -12,7 +12,7 @@ func (daemon *Daemon) setupLinkedContainers(container *container.Container) ([]s
 }
 
 // getSize returns real size & virtual size
-func (daemon *Daemon) getSize(container *container.Container) (int64, int64) {
+func (daemon *Daemon) getSize(containerID string) (int64, int64) {
 	// TODO Windows
 	return 0, 0
 }
@@ -56,4 +56,5 @@ func setupPathsAndSandboxOptions(container *container.Container, sboxOptions *[]
 }
 
 func initializeNetworkingPaths(container *container.Container, nc *container.Container) {
+	container.NetworkSharedContainerID = nc.ID
 }

@@ -10,7 +10,7 @@ import (
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/opencontainers/runc/libcontainer/label"
+	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 )
 
@@ -29,7 +29,7 @@ const (
 type Driver interface {
 	// Name returns the name of the volume driver.
 	Name() string
-	// Create makes a new volume with the given id.
+	// Create makes a new volume with the given name.
 	Create(name string, opts map[string]string) (Volume, error)
 	// Remove deletes the volume.
 	Remove(vol Volume) (err error)
@@ -124,7 +124,20 @@ type MountPoint struct {
 
 // Setup sets up a mount point by either mounting the volume if it is
 // configured, or creating the source directory if supplied.
-func (m *MountPoint) Setup(mountLabel string, rootUID, rootGID int) (string, error) {
+func (m *MountPoint) Setup(mountLabel string, rootUID, rootGID int) (path string, err error) {
+	defer func() {
+		if err == nil {
+			if label.RelabelNeeded(m.Mode) {
+				if err = label.Relabel(m.Source, mountLabel, label.IsShared(m.Mode)); err != nil {
+					path = ""
+					err = errors.Wrapf(err, "error setting label on mount source '%s'", m.Source)
+					return
+				}
+			}
+		}
+		return
+	}()
+
 	if m.Volume != nil {
 		id := m.ID
 		if id == "" {
@@ -150,11 +163,6 @@ func (m *MountPoint) Setup(mountLabel string, rootUID, rootGID int) (string, err
 					return "", errors.Wrapf(err, "error while creating mount source path '%s'", m.Source)
 				}
 			}
-		}
-	}
-	if label.RelabelNeeded(m.Mode) {
-		if err := label.Relabel(m.Source, mountLabel, label.IsShared(m.Mode)); err != nil {
-			return "", errors.Wrapf(err, "error setting label on mount source '%s'", m.Source)
 		}
 	}
 	return m.Source, nil
@@ -216,7 +224,7 @@ func ParseMountRaw(raw, volumeDriver string) (*MountPoint, error) {
 	case 2:
 		if ValidMountMode(arr[1]) {
 			// Destination + Mode is not a valid volume - volumes
-			// cannot include a mode. eg /foo:rw
+			// cannot include a mode. e.g. /foo:rw
 			return nil, errInvalidSpec(raw)
 		}
 		// Host Source Path or Name + Destination
@@ -303,10 +311,12 @@ func ParseMountSpec(cfg mounttypes.Mount, options ...func(*validateOpts)) (*Moun
 		}
 	case mounttypes.TypeBind:
 		mp.Source = clean(convertSlash(cfg.Source))
-		if cfg.BindOptions != nil {
-			if len(cfg.BindOptions.Propagation) > 0 {
-				mp.Propagation = cfg.BindOptions.Propagation
-			}
+		if cfg.BindOptions != nil && len(cfg.BindOptions.Propagation) > 0 {
+			mp.Propagation = cfg.BindOptions.Propagation
+		} else {
+			// If user did not specify a propagation mode, get
+			// default propagation mode.
+			mp.Propagation = DefaultPropagationMode
 		}
 	case mounttypes.TypeTmpfs:
 		// NOP

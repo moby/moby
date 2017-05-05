@@ -16,16 +16,13 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/system"
-	"github.com/docker/docker/utils"
 	"github.com/docker/docker/volume"
-	"github.com/opencontainers/runc/libcontainer/label"
+	"github.com/opencontainers/selinux/go-selinux/label"
 	"golang.org/x/sys/unix"
 )
 
 const (
-	// DefaultSHMSize is the default size (64MB) of the SHM which will be mounted in the container
-	DefaultSHMSize           int64 = 67108864
-	containerSecretMountPath       = "/run/secrets"
+	containerSecretMountPath = "/run/secrets"
 )
 
 // Container holds the fields specific to unixen implementations.
@@ -69,7 +66,7 @@ func (container *Container) CreateDaemonEnvironment(tty bool, linkedEnv []string
 	// because the env on the container can override certain default values
 	// we need to replace the 'env' keys where they match and append anything
 	// else.
-	env = utils.ReplaceOrAppendEnvValues(env, container.Config.Env)
+	env = ReplaceOrAppendEnvValues(env, container.Config.Env)
 	return env
 }
 
@@ -258,7 +255,7 @@ func (container *Container) IpcMounts() []Mount {
 
 // SecretMount returns the mount for the secret path
 func (container *Container) SecretMount() *Mount {
-	if len(container.Secrets) > 0 {
+	if len(container.SecretReferences) > 0 {
 		return &Mount{
 			Source:      container.SecretMountPath(),
 			Destination: containerSecretMountPath,
@@ -289,11 +286,32 @@ func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfi
 	// update resources of container
 	resources := hostConfig.Resources
 	cResources := &container.HostConfig.Resources
+
+	// validate NanoCPUs, CPUPeriod, and CPUQuota
+	// Becuase NanoCPU effectively updates CPUPeriod/CPUQuota,
+	// once NanoCPU is already set, updating CPUPeriod/CPUQuota will be blocked, and vice versa.
+	// In the following we make sure the intended update (resources) does not conflict with the existing (cResource).
+	if resources.NanoCPUs > 0 && cResources.CPUPeriod > 0 {
+		return fmt.Errorf("Conflicting options: Nano CPUs cannot be updated as CPU Period has already been set")
+	}
+	if resources.NanoCPUs > 0 && cResources.CPUQuota > 0 {
+		return fmt.Errorf("Conflicting options: Nano CPUs cannot be updated as CPU Quota has already been set")
+	}
+	if resources.CPUPeriod > 0 && cResources.NanoCPUs > 0 {
+		return fmt.Errorf("Conflicting options: CPU Period cannot be updated as NanoCPUs has already been set")
+	}
+	if resources.CPUQuota > 0 && cResources.NanoCPUs > 0 {
+		return fmt.Errorf("Conflicting options: CPU Quota cannot be updated as NanoCPUs has already been set")
+	}
+
 	if resources.BlkioWeight != 0 {
 		cResources.BlkioWeight = resources.BlkioWeight
 	}
 	if resources.CPUShares != 0 {
 		cResources.CPUShares = resources.CPUShares
+	}
+	if resources.NanoCPUs != 0 {
+		cResources.NanoCPUs = resources.NanoCPUs
 	}
 	if resources.CPUPeriod != 0 {
 		cResources.CPUPeriod = resources.CPUPeriod
@@ -440,12 +458,6 @@ func (container *Container) TmpfsMounts() ([]Mount, error) {
 // cleanResourcePath cleans a resource path and prepares to combine with mnt path
 func cleanResourcePath(path string) string {
 	return filepath.Join(string(os.PathSeparator), path)
-}
-
-// canMountFS determines if the file system for the container
-// can be mounted locally. A no-op on non-Windows platforms
-func (container *Container) canMountFS() bool {
-	return true
 }
 
 // EnableServiceDiscoveryOnDefaultNetwork Enable service discovery on default network

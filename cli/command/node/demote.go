@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newDemoteCommand(dockerCli *command.DockerCli) *cobra.Command {
+func newDemoteCommand(dockerCli command.Cli) *cobra.Command {
 	return &cobra.Command{
 		Use:   "demote NODE [NODE...]",
 		Short: "Demote one or more nodes from manager in the swarm",
@@ -20,7 +20,7 @@ func newDemoteCommand(dockerCli *command.DockerCli) *cobra.Command {
 	}
 }
 
-func runDemote(dockerCli *command.DockerCli, nodes []string) error {
+func runDemote(dockerCli command.Cli, nodes []string) error {
 	demote := func(node *swarm.Node) error {
 		if node.Spec.Role == swarm.NodeRoleWorker {
 			fmt.Fprintf(dockerCli.Out(), "Node %s is already a worker.\n", node.ID)

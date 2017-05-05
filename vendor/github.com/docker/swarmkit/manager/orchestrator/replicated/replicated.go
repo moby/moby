@@ -83,7 +83,7 @@ func (r *Orchestrator) Run(ctx context.Context) error {
 			switch v := event.(type) {
 			case state.EventCommit:
 				r.tick(ctx)
-			case state.EventUpdateCluster:
+			case api.EventUpdateCluster:
 				r.cluster = v.Cluster
 			}
 		case <-r.stopChan:
@@ -102,7 +102,7 @@ func (r *Orchestrator) Stop() {
 
 func (r *Orchestrator) tick(ctx context.Context) {
 	// tickTasks must be called first, so we respond to task-level changes
-	// before performing service reconcillation.
+	// before performing service reconciliation.
 	r.tickTasks(ctx)
 	r.tickServices(ctx)
 }

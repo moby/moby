@@ -2,14 +2,20 @@
 package naming
 
 import (
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/docker/swarmkit/api"
 )
 
+var (
+	errUnknownRuntime = errors.New("unrecognized runtime")
+)
+
 // Task returns the task name from Annotations.Name,
 // and, in case Annotations.Name is missing, fallback
-// to construct the name from othere information.
+// to construct the name from other information.
 func Task(t *api.Task) string {
 	if t.Annotations.Name != "" {
 		// if set, use the container Annotations.Name field, set in the orchestrator.
@@ -27,3 +33,17 @@ func Task(t *api.Task) string {
 }
 
 // TODO(stevvooe): Consolidate "Hostname" style validation here.
+
+// Runtime returns the runtime name from a given spec.
+func Runtime(t api.TaskSpec) (string, error) {
+	switch r := t.GetRuntime().(type) {
+	case *api.TaskSpec_Attachment:
+		return "attachment", nil
+	case *api.TaskSpec_Container:
+		return "container", nil
+	case *api.TaskSpec_Generic:
+		return strings.ToLower(r.Generic.Kind), nil
+	default:
+		return "", errUnknownRuntime
+	}
+}

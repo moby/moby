@@ -9,11 +9,14 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
+	daemonconfig "github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/sysinfo"
+	"github.com/pkg/errors"
 )
 
-func (daemon *Daemon) FillPlatformInfo(v *types.InfoBase, sysInfo *sysinfo.SysInfo) {
+// FillPlatformInfo fills the platform related info.
+func (daemon *Daemon) FillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) {
 	v.MemoryLimit = sysInfo.MemoryLimit
 	v.SwapLimit = sysInfo.SwapLimit
 	v.KernelMemory = sysInfo.KernelMemory
@@ -53,29 +56,37 @@ func (daemon *Daemon) FillPlatformInfo(v *types.InfoBase, sysInfo *sysinfo.SysIn
 		v.RuncCommit.ID = "N/A"
 	}
 
-	v.InitCommit.Expected = dockerversion.InitCommitID
-	if rv, err := exec.Command(DefaultInitBinary, "--version").Output(); err == nil {
-		parts := strings.Split(strings.TrimSpace(string(rv)), " - ")
-		if len(parts) == 2 {
-			if dockerversion.InitCommitID[0] == 'v' {
-				vs := strings.TrimPrefix(parts[0], "tini version ")
-				v.InitCommit.ID = "v" + vs
-			} else {
-				// Get the sha1
-				gitParts := strings.Split(parts[1], ".")
-				if len(gitParts) == 2 && gitParts[0] == "git" {
-					v.InitCommit.ID = gitParts[1]
-					v.InitCommit.Expected = dockerversion.InitCommitID[0:len(gitParts[1])]
-				}
-			}
-		}
+	if rv, err := exec.Command(daemonconfig.DefaultInitBinary, "--version").Output(); err == nil {
+		ver, err := parseInitVersion(string(rv))
 
-		if v.InitCommit.ID == "" {
-			logrus.Warnf("failed to retrieve %s version: unknown output format: %s", DefaultInitBinary, string(rv))
-			v.InitCommit.ID = "N/A"
+		if err != nil {
+			logrus.Warnf("failed to retrieve %s version: %s", daemonconfig.DefaultInitBinary, err)
 		}
+		v.InitCommit = ver
 	} else {
-		logrus.Warnf("failed to retrieve %s version", DefaultInitBinary)
+		logrus.Warnf("failed to retrieve %s version: %s", daemonconfig.DefaultInitBinary, err)
 		v.InitCommit.ID = "N/A"
 	}
+}
+
+// parseInitVersion parses a Tini version string, and extracts the version.
+func parseInitVersion(v string) (types.Commit, error) {
+	version := types.Commit{ID: "", Expected: dockerversion.InitCommitID}
+	parts := strings.Split(strings.TrimSpace(v), " - ")
+
+	if len(parts) >= 2 {
+		gitParts := strings.Split(parts[1], ".")
+		if len(gitParts) == 2 && gitParts[0] == "git" {
+			version.ID = gitParts[1]
+			version.Expected = dockerversion.InitCommitID[0:len(version.ID)]
+		}
+	}
+	if version.ID == "" && strings.HasPrefix(parts[0], "tini version ") {
+		version.ID = "v" + strings.TrimPrefix(parts[0], "tini version ")
+	}
+	if version.ID == "" {
+		version.ID = "N/A"
+		return version, errors.Errorf("unknown output format: %s", v)
+	}
+	return version, nil
 }

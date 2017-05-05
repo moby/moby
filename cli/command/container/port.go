@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"strings"
 
-	"golang.org/x/net/context"
-
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/go-connections/nat"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 type portOptions struct {
@@ -65,7 +65,7 @@ func runPort(dockerCli *command.DockerCli, opts *portOptions) error {
 			}
 			return nil
 		}
-		return fmt.Errorf("Error: No public port '%s' published for %s", natPort, opts.container)
+		return errors.Errorf("Error: No public port '%s' published for %s", natPort, opts.container)
 	}
 
 	for from, frontends := range c.NetworkSettings.Ports {

@@ -4,22 +4,10 @@
 
 FROM ppc64le/ubuntu:yakkety
 
-RUN apt-get update && apt-get install -y apparmor bash-completion btrfs-tools build-essential cmake curl ca-certificates debhelper dh-apparmor dh-systemd git libapparmor-dev libdevmapper-dev libltdl-dev libsqlite3-dev pkg-config vim-common golang-go libseccomp-dev libsystemd-dev --no-install-recommends && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y apparmor bash-completion btrfs-tools build-essential cmake curl ca-certificates debhelper dh-apparmor dh-systemd git libapparmor-dev libdevmapper-dev libltdl-dev pkg-config vim-common libseccomp-dev libsystemd-dev --no-install-recommends && rm -rf /var/lib/apt/lists/*
 
-# Install Go
-# ppc64le doesn't have official go binaries, so use a distro packaged version of go
-# to build go from source.
-# NOTE: ppc64le has compatibility issues with older versions of go, so make sure the version >= 1.6
-ENV GO_VERSION 1.7.3
-ENV GO_DOWNLOAD_URL https://golang.org/dl/go${GO_VERSION}.src.tar.gz
-ENV GOROOT_BOOTSTRAP /usr/lib/go-1.6
-
-RUN curl -fsSL "$GO_DOWNLOAD_URL" -o golang.tar.gz \
-	&& tar -C /usr/local -xzf golang.tar.gz \
-	&& rm golang.tar.gz \
-	&& cd /usr/local/go/src && ./make.bash 2>&1 \
-	&& apt-get purge -y golang-go && apt-get autoremove -y
-
+ENV GO_VERSION 1.7.5
+RUN curl -fsSL "https://golang.org/dl/go${GO_VERSION}.linux-ppc64le.tar.gz" | tar xzC /usr/local
 ENV PATH $PATH:/usr/local/go/bin
 
 ENV AUTO_GOPATH 1

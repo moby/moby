@@ -114,12 +114,12 @@ func (epi *endpointInterface) UnmarshalJSON(b []byte) error {
 		}
 	}
 	if v, ok := epMap["llAddrs"]; ok {
-		list := v.([]string)
+		list := v.([]interface{})
 		epi.llAddrs = make([]*net.IPNet, 0, len(list))
 		for _, llS := range list {
-			ll, err := types.ParseCIDR(llS)
+			ll, err := types.ParseCIDR(llS.(string))
 			if err != nil {
-				return types.InternalErrorf("failed to decode endpoint interface link-local address (%s) after json unmarshal: %v", llS, err)
+				return types.InternalErrorf("failed to decode endpoint interface link-local address (%v) after json unmarshal: %v", llS, err)
 			}
 			epi.llAddrs = append(epi.llAddrs, ll)
 		}
@@ -181,6 +181,9 @@ type tableEntry struct {
 }
 
 func (ep *endpoint) Info() EndpointInfo {
+	if ep.sandboxID != "" {
+		return ep
+	}
 	n, err := ep.getNetworkFromStore()
 	if err != nil {
 		return nil

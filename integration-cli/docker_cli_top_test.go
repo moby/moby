@@ -3,17 +3,17 @@ package main
 import (
 	"strings"
 
-	"github.com/docker/docker/pkg/integration/checker"
-	icmd "github.com/docker/docker/pkg/integration/cmd"
+	"github.com/docker/docker/integration-cli/checker"
+	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
 )
 
 func (s *DockerSuite) TestTopMultipleArgs(c *check.C) {
-	out, _ := runSleepingContainer(c, "-d")
+	out := runSleepingContainer(c, "-d")
 	cleanedContainerID := strings.TrimSpace(out)
 
 	var expected icmd.Expected
-	switch daemonPlatform {
+	switch testEnv.DaemonPlatform() {
 	case "windows":
 		expected = icmd.Expected{ExitCode: 1, Err: "Windows does not support arguments to top"}
 	default:
@@ -24,7 +24,7 @@ func (s *DockerSuite) TestTopMultipleArgs(c *check.C) {
 }
 
 func (s *DockerSuite) TestTopNonPrivileged(c *check.C) {
-	out, _ := runSleepingContainer(c, "-d")
+	out := runSleepingContainer(c, "-d")
 	cleanedContainerID := strings.TrimSpace(out)
 
 	out1, _ := dockerCmd(c, "top", cleanedContainerID)
@@ -34,7 +34,7 @@ func (s *DockerSuite) TestTopNonPrivileged(c *check.C) {
 	// Windows will list the name of the launched executable which in this case is busybox.exe, without the parameters.
 	// Linux will display the command executed in the container
 	var lookingFor string
-	if daemonPlatform == "windows" {
+	if testEnv.DaemonPlatform() == "windows" {
 		lookingFor = "busybox.exe"
 	} else {
 		lookingFor = "top"
@@ -49,7 +49,7 @@ func (s *DockerSuite) TestTopNonPrivileged(c *check.C) {
 // very different to Linux in this regard.
 func (s *DockerSuite) TestTopWindowsCoreProcesses(c *check.C) {
 	testRequires(c, DaemonIsWindows)
-	out, _ := runSleepingContainer(c, "-d")
+	out := runSleepingContainer(c, "-d")
 	cleanedContainerID := strings.TrimSpace(out)
 	out1, _ := dockerCmd(c, "top", cleanedContainerID)
 	lookingFor := []string{"smss.exe", "csrss.exe", "wininit.exe", "services.exe", "lsass.exe", "CExecSvc.exe"}

@@ -413,7 +413,7 @@ func (a *Allocator) getPredefinedPool(as string, ipV6 bool) (*net.IPNet, error) 
 		}
 	}
 
-	return nil, types.NotFoundErrorf("could not find an available non-overlapping address pool among the defaults to auto assign to the network")
+	return nil, types.NotFoundErrorf("could not find an available, non-overlapping IPv%d address pool among the defaults to assign to the network", v)
 }
 
 // RequestAddress returns an address from the specified pool ID
@@ -593,4 +593,9 @@ func (a *Allocator) DumpDatabase() string {
 	}
 
 	return s
+}
+
+// IsBuiltIn returns true for builtin drivers
+func (a *Allocator) IsBuiltIn() bool {
+	return true
 }

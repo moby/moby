@@ -6,9 +6,10 @@ import (
 
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/ca"
+	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/encryption"
 	"github.com/docker/swarmkit/manager/state/store"
-	"github.com/docker/swarmkit/protobuf/ptypes"
+	gogotypes "github.com/gogo/protobuf/types"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -27,7 +28,7 @@ func validateClusterSpec(spec *api.ClusterSpec) error {
 
 	// Validate that expiry time being provided is valid, and over our minimum
 	if spec.CAConfig.NodeCertExpiry != nil {
-		expiry, err := ptypes.Duration(spec.CAConfig.NodeCertExpiry)
+		expiry, err := gogotypes.DurationFromProto(spec.CAConfig.NodeCertExpiry)
 		if err != nil {
 			return grpc.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
 		}
@@ -37,7 +38,7 @@ func validateClusterSpec(spec *api.ClusterSpec) error {
 	}
 
 	// Validate that AcceptancePolicies only include Secrets that are bcrypted
-	// TODO(diogo): Add a global list of acceptace algorithms. We only support bcrypt for now.
+	// TODO(diogo): Add a global list of acceptance algorithms. We only support bcrypt for now.
 	if len(spec.AcceptancePolicy.Policies) > 0 {
 		for _, policy := range spec.AcceptancePolicy.Policies {
 			if policy.Secret != nil && strings.ToLower(policy.Secret.Alg) != "bcrypt" {
@@ -48,7 +49,7 @@ func validateClusterSpec(spec *api.ClusterSpec) error {
 
 	// Validate that heartbeatPeriod time being provided is valid
 	if spec.Dispatcher.HeartbeatPeriod != nil {
-		heartbeatPeriod, err := ptypes.Duration(spec.Dispatcher.HeartbeatPeriod)
+		heartbeatPeriod, err := gogotypes.DurationFromProto(spec.Dispatcher.HeartbeatPeriod)
 		if err != nil {
 			return grpc.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
 		}
@@ -101,19 +102,37 @@ func (s *Server) UpdateCluster(ctx context.Context, request *api.UpdateClusterRe
 	err := s.store.Update(func(tx store.Tx) error {
 		cluster = store.GetCluster(tx, request.ClusterID)
 		if cluster == nil {
-			return nil
+			return grpc.Errorf(codes.NotFound, "cluster %s not found", request.ClusterID)
 		}
+		// This ensures that we always have the latest security config, so our ca.SecurityConfig.RootCA and
+		// ca.SecurityConfig.externalCA objects are up-to-date with the current api.Cluster.RootCA and
+		// api.Cluster.Spec.ExternalCA objects, respectively.  Note that if, during this update, the cluster gets
+		// updated again with different CA info and the security config gets changed under us, that's still fine because
+		// this cluster update would fail anyway due to its version being too low on write.
+		if err := s.scu.UpdateRootCA(ctx, cluster); err != nil {
+			log.G(ctx).WithField(
+				"method", "(*controlapi.Server).UpdateCluster").WithError(err).Error("could not update security config")
+			return grpc.Errorf(codes.Internal, "could not update security config")
+		}
+		rootCA := s.securityConfig.RootCA()
+
 		cluster.Meta.Version = *request.ClusterVersion
 		cluster.Spec = *request.Spec.Copy()
 
 		expireBlacklistedCerts(cluster)
 
 		if request.Rotation.WorkerJoinToken {
-			cluster.RootCA.JoinTokens.Worker = ca.GenerateJoinToken(s.rootCA)
+			cluster.RootCA.JoinTokens.Worker = ca.GenerateJoinToken(rootCA)
 		}
 		if request.Rotation.ManagerJoinToken {
-			cluster.RootCA.JoinTokens.Manager = ca.GenerateJoinToken(s.rootCA)
+			cluster.RootCA.JoinTokens.Manager = ca.GenerateJoinToken(rootCA)
 		}
+
+		updatedRootCA, err := validateCAConfig(ctx, s.securityConfig, cluster)
+		if err != nil {
+			return err
+		}
+		cluster.RootCA = *updatedRootCA
 
 		var unlockKeys []*api.EncryptionKey
 		var managerKey *api.EncryptionKey
@@ -144,9 +163,6 @@ func (s *Server) UpdateCluster(ctx context.Context, request *api.UpdateClusterRe
 	})
 	if err != nil {
 		return nil, err
-	}
-	if cluster == nil {
-		return nil, grpc.Errorf(codes.NotFound, "cluster %s not found", request.ClusterID)
 	}
 
 	redactedClusters := redactClusters([]*api.Cluster{cluster})
@@ -228,19 +244,22 @@ func redactClusters(clusters []*api.Cluster) []*api.Cluster {
 	// Only add public fields to the new clusters
 	for _, cluster := range clusters {
 		// Copy all the mandatory fields
-		// Do not copy secret key
+		// Do not copy secret keys
+		redactedSpec := cluster.Spec.Copy()
+		redactedSpec.CAConfig.SigningCAKey = nil
+
+		redactedRootCA := cluster.RootCA.Copy()
+		redactedRootCA.CAKey = nil
+		if r := redactedRootCA.RootRotation; r != nil {
+			r.CAKey = nil
+		}
 		newCluster := &api.Cluster{
-			ID:   cluster.ID,
-			Meta: cluster.Meta,
-			Spec: cluster.Spec,
-			RootCA: api.RootCA{
-				CACert:     cluster.RootCA.CACert,
-				CACertHash: cluster.RootCA.CACertHash,
-				JoinTokens: cluster.RootCA.JoinTokens,
-			},
+			ID:                      cluster.ID,
+			Meta:                    cluster.Meta,
+			Spec:                    *redactedSpec,
+			RootCA:                  *redactedRootCA,
 			BlacklistedCertificates: cluster.BlacklistedCertificates,
 		}
-
 		redactedClusters = append(redactedClusters, newCluster)
 	}
 
@@ -255,7 +274,7 @@ func expireBlacklistedCerts(cluster *api.Cluster) {
 			continue
 		}
 
-		expiry, err := ptypes.Timestamp(blacklistedCert.Expiry)
+		expiry, err := gogotypes.TimestampFromProto(blacklistedCert.Expiry)
 		if err == nil && nowMinusGrace.After(expiry) {
 			delete(cluster.BlacklistedCertificates, cn)
 		}

@@ -12,7 +12,7 @@ import (
 // setupMounts configures the mount points for a container by appending each
 // of the configured mounts on the container to the OCI mount structure
 // which will ultimately be passed into the oci runtime during container creation.
-// It also ensures each of the mounts are lexographically sorted.
+// It also ensures each of the mounts are lexicographically sorted.
 
 // BUGBUG TODO Windows containerd. This would be much better if it returned
 // an array of runtime spec mounts, not container mounts. Then no need to

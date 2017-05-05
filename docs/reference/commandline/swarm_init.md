@@ -21,22 +21,27 @@ Usage:  docker swarm init [OPTIONS]
 Initialize a swarm
 
 Options:
-      --advertise-addr value            Advertised address (format: <ip|interface>[:port])
+      --advertise-addr string           Advertised address (format: <ip|interface>[:port])
       --autolock                        Enable manager autolocking (requiring an unlock key to start a stopped manager)
+      --availability string             Availability of the node ("active"|"pause"|"drain") (default "active")
       --cert-expiry duration            Validity period for node certificates (ns|us|ms|s|m|h) (default 2160h0m0s)
+      --data-path-addr string           Address or interface to use for data path traffic (format: <ip|interface>)
       --dispatcher-heartbeat duration   Dispatcher heartbeat period (ns|us|ms|s|m|h) (default 5s)
-      --external-ca value               Specifications of one or more certificate signing endpoints
+      --external-ca external-ca         Specifications of one or more certificate signing endpoints
       --force-new-cluster               Force create a new cluster from current state
       --help                            Print usage
-      --listen-addr value               Listen address (format: <ip|interface>[:port])
-      --max-snapshots int               Number of additional Raft snapshots to retain
-      --snapshot-interval int           Number of log entries between Raft snapshots
+      --listen-addr node-addr           Listen address (format: <ip|interface>[:port]) (default 0.0.0.0:2377)
+      --max-snapshots uint              Number of additional Raft snapshots to retain
+      --snapshot-interval uint          Number of log entries between Raft snapshots (default 10000)
       --task-history-limit int          Task history retention limit (default 5)
 ```
+
+## Description
 
 Initialize a swarm. The docker engine targeted by this command becomes a manager
 in the newly created single-node swarm.
 
+## Examples
 
 ```bash
 $ docker swarm init --advertise-addr 192.168.99.121
@@ -76,7 +81,7 @@ This flag sets the validity period for node certificates.
 
 ### `--dispatcher-heartbeat`
 
-This flags sets the frequency with which nodes are told to use as a
+This flag sets the frequency with which nodes are told to use as a
 period to report their health.
 
 ### `--external-ca`
@@ -103,7 +108,7 @@ name, the default port 2377 will be used.
 
 This flag specifies the address that will be advertised to other members of the
 swarm for API access and overlay networking. If unspecified, Docker will check
-if the system has a single IP address, and use that IP address with with the
+if the system has a single IP address, and use that IP address with the
 listening port (see `--listen-addr`). If the system has multiple IP addresses,
 `--advertise-addr` must be specified so that the correct address is chosen for
 inter-manager communication and overlay networking.
@@ -113,6 +118,15 @@ for example `--advertise-addr eth0:2377`.
 
 Specifying a port is optional. If the value is a bare IP address or interface
 name, the default port 2377 will be used.
+
+### `--data-path-addr`
+
+This flag specifies the address that global scope network drivers will publish towards
+other nodes in order to reach the containers running on this node.
+Using this parameter it is then possible to separate the container's data traffic from the
+management traffic of the cluster.
+If unspecified, Docker will use the same IP address or interface that is used for the
+advertise address.
 
 ### `--task-history-limit`
 
@@ -133,10 +147,21 @@ Snapshots compact the Raft log and allow for more efficient transfer of the
 state to new managers. However, there is a performance cost to taking snapshots
 frequently.
 
-## Related information
+### `--availability`
+
+This flag specifies the availability of the node at the time the node joins a master.
+Possible availability values are `active`, `pause`, or `drain`.
+
+This flag is useful in certain situations. For example, a cluster may want to have
+dedicated manager nodes that are not served as worker nodes. This could be achieved
+by passing `--availability=drain` to `docker swarm init`.
+
+
+## Related commands
 
 * [swarm join](swarm_join.md)
-* [swarm leave](swarm_leave.md)
-* [swarm update](swarm_update.md)
 * [swarm join-token](swarm_join_token.md)
-* [node rm](node_rm.md)
+* [swarm leave](swarm_leave.md)
+* [swarm unlock](swarm_unlock.md)
+* [swarm unlock-key](swarm_unlock_key.md)
+* [swarm update](swarm_update.md)

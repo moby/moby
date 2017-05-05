@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/docker/docker/pkg/plugins"
+	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/drvregistry"
 	"github.com/docker/libnetwork/ipamapi"
+	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
 	"github.com/pkg/errors"
@@ -49,7 +50,7 @@ type NetworkAllocator struct {
 	nodes map[string]struct{}
 }
 
-// Local in-memory state related to netwok that need to be tracked by NetworkAllocator
+// Local in-memory state related to network that need to be tracked by NetworkAllocator
 type network struct {
 	// A local cache of the store object.
 	nw *api.Network
@@ -69,7 +70,7 @@ type initializer struct {
 }
 
 // New returns a new NetworkAllocator handle
-func New() (*NetworkAllocator, error) {
+func New(pg plugingetter.PluginGetter) (*NetworkAllocator, error) {
 	na := &NetworkAllocator{
 		networks: make(map[string]*network),
 		services: make(map[string]struct{}),
@@ -79,7 +80,7 @@ func New() (*NetworkAllocator, error) {
 
 	// There are no driver configurations and notification
 	// functions as of now.
-	reg, err := drvregistry.New(nil, nil, nil, nil, nil)
+	reg, err := drvregistry.New(nil, nil, nil, nil, pg)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +134,7 @@ func (na *NetworkAllocator) getNetwork(id string) *network {
 }
 
 // Deallocate frees all the general and driver specific resources
-// whichs were assigned to the passed network.
+// which were assigned to the passed network.
 func (na *NetworkAllocator) Deallocate(n *api.Network) error {
 	localNet := na.getNetwork(n.ID)
 	if localNet == nil {
@@ -283,8 +284,31 @@ func (na *NetworkAllocator) IsTaskAllocated(t *api.Task) bool {
 	return true
 }
 
+// PortsAllocatedInHostPublishMode returns if the passed service has its published ports in
+// host (non ingress) mode allocated
+func (na *NetworkAllocator) PortsAllocatedInHostPublishMode(s *api.Service) bool {
+	return na.portAllocator.portsAllocatedInHostPublishMode(s)
+}
+
+// ServiceAllocationOpts is struct used for functional options in IsServiceAllocated
+type ServiceAllocationOpts struct {
+	OnInit bool
+}
+
+// OnInit is called for allocator initialization stage
+func OnInit(options *ServiceAllocationOpts) {
+	options.OnInit = true
+}
+
 // IsServiceAllocated returns if the passed service has its network resources allocated or not.
-func (na *NetworkAllocator) IsServiceAllocated(s *api.Service) bool {
+// init bool indicates if the func is called during allocator initialization stage.
+func (na *NetworkAllocator) IsServiceAllocated(s *api.Service, flags ...func(*ServiceAllocationOpts)) bool {
+	var options ServiceAllocationOpts
+
+	for _, flag := range flags {
+		flag(&options)
+	}
+
 	// If endpoint mode is VIP and allocator does not have the
 	// service in VIP allocated set then it is not allocated.
 	if (len(s.Spec.Task.Networks) != 0 || len(s.Spec.Networks) != 0) &&
@@ -307,7 +331,7 @@ func (na *NetworkAllocator) IsServiceAllocated(s *api.Service) bool {
 
 	if (s.Spec.Endpoint != nil && len(s.Spec.Endpoint.Ports) != 0) ||
 		(s.Endpoint != nil && len(s.Endpoint.Ports) != 0) {
-		return na.portAllocator.isPortsAllocated(s)
+		return na.portAllocator.isPortsAllocatedOnInit(s, options.OnInit)
 	}
 
 	return true
@@ -389,14 +413,14 @@ func (na *NetworkAllocator) DeallocateTask(t *api.Task) error {
 
 func (na *NetworkAllocator) releaseEndpoints(networks []*api.NetworkAttachment) error {
 	for _, nAttach := range networks {
-		ipam, _, err := na.resolveIPAM(nAttach.Network)
+		ipam, _, _, err := na.resolveIPAM(nAttach.Network)
 		if err != nil {
 			return errors.Wrapf(err, "failed to resolve IPAM while allocating")
 		}
 
 		localNet := na.getNetwork(nAttach.Network.ID)
 		if localNet == nil {
-			return fmt.Errorf("could not find network allocater state for network %s", nAttach.Network.ID)
+			return fmt.Errorf("could not find network allocator state for network %s", nAttach.Network.ID)
 		}
 
 		// Do not fail and bail out if we fail to release IP
@@ -431,7 +455,7 @@ func (na *NetworkAllocator) releaseEndpoints(networks []*api.NetworkAttachment) 
 func (na *NetworkAllocator) allocateVIP(vip *api.Endpoint_VirtualIP) error {
 	localNet := na.getNetwork(vip.NetworkID)
 	if localNet == nil {
-		return fmt.Errorf("networkallocator: could not find local network state")
+		return errors.New("networkallocator: could not find local network state")
 	}
 
 	// If this IP is already allocated in memory we don't need to
@@ -440,7 +464,7 @@ func (na *NetworkAllocator) allocateVIP(vip *api.Endpoint_VirtualIP) error {
 		return nil
 	}
 
-	ipam, _, err := na.resolveIPAM(localNet.nw)
+	ipam, _, _, err := na.resolveIPAM(localNet.nw)
 	if err != nil {
 		return errors.Wrap(err, "failed to resolve IPAM while allocating")
 	}
@@ -479,7 +503,7 @@ func (na *NetworkAllocator) deallocateVIP(vip *api.Endpoint_VirtualIP) error {
 		return errors.New("networkallocator: could not find local network state")
 	}
 
-	ipam, _, err := na.resolveIPAM(localNet.nw)
+	ipam, _, _, err := na.resolveIPAM(localNet.nw)
 	if err != nil {
 		return errors.Wrap(err, "failed to resolve IPAM while allocating")
 	}
@@ -507,7 +531,7 @@ func (na *NetworkAllocator) deallocateVIP(vip *api.Endpoint_VirtualIP) error {
 func (na *NetworkAllocator) allocateNetworkIPs(nAttach *api.NetworkAttachment) error {
 	var ip *net.IPNet
 
-	ipam, _, err := na.resolveIPAM(nAttach.Network)
+	ipam, _, _, err := na.resolveIPAM(nAttach.Network)
 	if err != nil {
 		return errors.Wrap(err, "failed to resolve IPAM while allocating")
 	}
@@ -573,9 +597,18 @@ func (na *NetworkAllocator) allocateDriverState(n *api.Network) error {
 		return err
 	}
 
-	var options map[string]string
+	options := make(map[string]string)
+	// reconcile the driver specific options from the network spec
+	// and from the operational state retrieved from the store
 	if n.Spec.DriverConfig != nil {
-		options = n.Spec.DriverConfig.Options
+		for k, v := range n.Spec.DriverConfig.Options {
+			options[k] = v
+		}
+	}
+	if n.DriverState != nil {
+		for k, v := range n.DriverState.Options {
+			options[k] = v
+		}
 	}
 
 	// Construct IPAM data for driver consumption.
@@ -648,27 +681,36 @@ func (na *NetworkAllocator) resolveDriver(n *api.Network) (driverapi.Driver, str
 }
 
 func (na *NetworkAllocator) loadDriver(name string) error {
-	_, err := plugins.Get(name, driverapi.NetworkPluginEndpointType)
+	pg := na.drvRegistry.GetPluginGetter()
+	if pg == nil {
+		return errors.New("plugin store is uninitialized")
+	}
+	_, err := pg.Get(name, driverapi.NetworkPluginEndpointType, plugingetter.Lookup)
 	return err
 }
 
 // Resolve the IPAM driver
-func (na *NetworkAllocator) resolveIPAM(n *api.Network) (ipamapi.Ipam, string, error) {
+func (na *NetworkAllocator) resolveIPAM(n *api.Network) (ipamapi.Ipam, string, map[string]string, error) {
 	dName := ipamapi.DefaultIPAM
 	if n.Spec.IPAM != nil && n.Spec.IPAM.Driver != nil && n.Spec.IPAM.Driver.Name != "" {
 		dName = n.Spec.IPAM.Driver.Name
 	}
 
-	ipam, _ := na.drvRegistry.IPAM(dName)
-	if ipam == nil {
-		return nil, "", fmt.Errorf("could not resolve IPAM driver %s", dName)
+	var dOptions map[string]string
+	if n.Spec.IPAM != nil && n.Spec.IPAM.Driver != nil && len(n.Spec.IPAM.Driver.Options) != 0 {
+		dOptions = n.Spec.IPAM.Driver.Options
 	}
 
-	return ipam, dName, nil
+	ipam, _ := na.drvRegistry.IPAM(dName)
+	if ipam == nil {
+		return nil, "", nil, fmt.Errorf("could not resolve IPAM driver %s", dName)
+	}
+
+	return ipam, dName, dOptions, nil
 }
 
 func (na *NetworkAllocator) freePools(n *api.Network, pools map[string]string) error {
-	ipam, _, err := na.resolveIPAM(n)
+	ipam, _, _, err := na.resolveIPAM(n)
 	if err != nil {
 		return errors.Wrapf(err, "failed to resolve IPAM while freeing pools for network %s", n.ID)
 	}
@@ -692,13 +734,13 @@ func releasePools(ipam ipamapi.Ipam, icList []*api.IPAMConfig, pools map[string]
 }
 
 func (na *NetworkAllocator) allocatePools(n *api.Network) (map[string]string, error) {
-	ipam, dName, err := na.resolveIPAM(n)
+	ipam, dName, dOptions, err := na.resolveIPAM(n)
 	if err != nil {
 		return nil, err
 	}
 
 	// We don't support user defined address spaces yet so just
-	// retrive default address space names for the driver.
+	// retrieve default address space names for the driver.
 	_, asName, err := na.drvRegistry.IPAMDefaultAddressSpaces(dName)
 	if err != nil {
 		return nil, err
@@ -727,12 +769,12 @@ func (na *NetworkAllocator) allocatePools(n *api.Network) (map[string]string, er
 
 	// Update the runtime IPAM configurations with initial state
 	n.IPAM = &api.IPAMOptions{
-		Driver:  &api.Driver{Name: dName},
+		Driver:  &api.Driver{Name: dName, Options: dOptions},
 		Configs: ipamConfigs,
 	}
 
 	for i, ic := range ipamConfigs {
-		poolID, poolIP, _, err := ipam.RequestPool(asName, ic.Subnet, ic.Range, nil, false)
+		poolID, poolIP, meta, err := ipam.RequestPool(asName, ic.Subnet, ic.Range, dOptions, false)
 		if err != nil {
 			// Rollback by releasing all the resources allocated so far.
 			releasePools(ipam, ipamConfigs[:i], pools)
@@ -740,11 +782,29 @@ func (na *NetworkAllocator) allocatePools(n *api.Network) (map[string]string, er
 		}
 		pools[poolIP.String()] = poolID
 
-		gwIP, _, err := ipam.RequestAddress(poolID, net.ParseIP(ic.Gateway), nil)
-		if err != nil {
-			// Rollback by releasing all the resources allocated so far.
-			releasePools(ipam, ipamConfigs[:i], pools)
-			return nil, err
+		// The IPAM contract allows the IPAM driver to autonomously
+		// provide a network gateway in response to the pool request.
+		// But if the network spec contains a gateway, we will allocate
+		// it irrespective of whether the ipam driver returned one already.
+		// If none of the above is true, we need to allocate one now, and
+		// let the driver know this request is for the network gateway.
+		var (
+			gwIP *net.IPNet
+			ip   net.IP
+		)
+		if gws, ok := meta[netlabel.Gateway]; ok {
+			if ip, gwIP, err = net.ParseCIDR(gws); err != nil {
+				return nil, fmt.Errorf("failed to parse gateway address (%v) returned by ipam driver: %v", gws, err)
+			}
+			gwIP.IP = ip
+		}
+		if ic.Gateway != "" || gwIP == nil {
+			gwIP, _, err = ipam.RequestAddress(poolID, net.ParseIP(ic.Gateway), map[string]string{ipamapi.RequestAddressType: netlabel.Gateway})
+			if err != nil {
+				// Rollback by releasing all the resources allocated so far.
+				releasePools(ipam, ipamConfigs[:i], pools)
+				return nil, err
+			}
 		}
 
 		if ic.Subnet == "" {

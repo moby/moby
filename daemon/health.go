@@ -12,6 +12,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/exec"
@@ -28,6 +29,10 @@ const (
 	// The maximum length of time a single probe run should take. If the probe takes longer
 	// than this, the check is considered to have failed.
 	defaultProbeTimeout = 30 * time.Second
+
+	// The time given for the container to start before the health check starts considering
+	// the container unstable. Defaults to none.
+	defaultStartPeriod = 0 * time.Second
 
 	// Default number of consecutive failures of the health check
 	// for the container to be considered unhealthy.
@@ -63,11 +68,7 @@ func (p *cmdProbe) run(ctx context.Context, d *Daemon, container *container.Cont
 
 	cmdSlice := strslice.StrSlice(container.Config.Healthcheck.Test)[1:]
 	if p.shell {
-		if runtime.GOOS != "windows" {
-			cmdSlice = append([]string{"/bin/sh", "-c"}, cmdSlice...)
-		} else {
-			cmdSlice = append([]string{"cmd", "/S", "/C"}, cmdSlice...)
-		}
+		cmdSlice = append(getShell(container.Config), cmdSlice...)
 	}
 	entrypoint, args := d.getEntrypointAndArgs(strslice.StrSlice{}, cmdSlice)
 	execConfig := exec.NewConfig()
@@ -81,6 +82,7 @@ func (p *cmdProbe) run(ctx context.Context, d *Daemon, container *container.Cont
 	execConfig.Tty = false
 	execConfig.Privileged = false
 	execConfig.User = container.Config.User
+	execConfig.Env = container.Config.Env
 
 	d.registerExecCommand(container, execConfig)
 	d.LogContainerEvent(container, "exec_create: "+execConfig.Entrypoint+" "+strings.Join(execConfig.Args, " "))
@@ -107,9 +109,16 @@ func (p *cmdProbe) run(ctx context.Context, d *Daemon, container *container.Cont
 }
 
 // Update the container's Status.Health struct based on the latest probe's result.
-func handleProbeResult(d *Daemon, c *container.Container, result *types.HealthcheckResult) {
+func handleProbeResult(d *Daemon, c *container.Container, result *types.HealthcheckResult, done chan struct{}) {
 	c.Lock()
 	defer c.Unlock()
+
+	// probe may have been cancelled while waiting on lock. Ignore result then
+	select {
+	case <-done:
+		return
+	default:
+	}
 
 	retries := c.Config.Healthcheck.Retries
 	if retries <= 0 {
@@ -128,11 +137,28 @@ func handleProbeResult(d *Daemon, c *container.Container, result *types.Healthch
 	if result.ExitCode == exitStatusHealthy {
 		h.FailingStreak = 0
 		h.Status = types.Healthy
-	} else {
-		// Failure (including invalid exit code)
-		h.FailingStreak++
-		if h.FailingStreak >= retries {
-			h.Status = types.Unhealthy
+	} else { // Failure (including invalid exit code)
+		shouldIncrementStreak := true
+
+		// If the container is starting (i.e. we never had a successful health check)
+		// then we check if we are within the start period of the container in which
+		// case we do not increment the failure streak.
+		if h.Status == types.Starting {
+			startPeriod := timeoutWithDefault(c.Config.Healthcheck.StartPeriod, defaultStartPeriod)
+			timeSinceStart := result.Start.Sub(c.State.StartedAt)
+
+			// If still within the start period, then don't increment failing streak.
+			if timeSinceStart < startPeriod {
+				shouldIncrementStreak = false
+			}
+		}
+
+		if shouldIncrementStreak {
+			h.FailingStreak++
+
+			if h.FailingStreak >= retries {
+				h.Status = types.Unhealthy
+			}
 		}
 		// Else we're starting or healthy. Stay in that state.
 	}
@@ -183,7 +209,7 @@ func monitor(d *Daemon, c *container.Container, stop chan struct{}, probe probe)
 				cancelProbe()
 				return
 			case result := <-results:
-				handleProbeResult(d, c, result)
+				handleProbeResult(d, c, result, stop)
 				// Stop timeout
 				cancelProbe()
 			case <-ctx.Done():
@@ -193,7 +219,7 @@ func monitor(d *Daemon, c *container.Container, stop chan struct{}, probe probe)
 					Output:   fmt.Sprintf("Health check exceeded timeout (%v)", probeTimeout),
 					Start:    startTime,
 					End:      time.Now(),
-				})
+				}, stop)
 				cancelProbe()
 				// Wait for probe to exit (it might take a while to respond to the TERM
 				// signal and we don't want dying probes to pile up).
@@ -324,4 +350,14 @@ func min(x, y int) int {
 		return x
 	}
 	return y
+}
+
+func getShell(config *containertypes.Config) []string {
+	if len(config.Shell) != 0 {
+		return config.Shell
+	}
+	if runtime.GOOS != "windows" {
+		return []string{"/bin/sh", "-c"}
+	}
+	return []string{"cmd", "/S", "/C"}
 }

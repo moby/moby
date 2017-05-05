@@ -4,13 +4,13 @@ import (
 	"testing"
 
 	"github.com/docker/docker/opts"
-	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestBuildContainerListOptions(t *testing.T) {
 	filters := opts.NewFilterOpt()
-	assert.NilError(t, filters.Set("foo=bar"))
-	assert.NilError(t, filters.Set("baz=foo"))
+	assert.NoError(t, filters.Set("foo=bar"))
+	assert.NoError(t, filters.Set("baz=foo"))
 
 	contexts := []struct {
 		psOpts          *psOptions
@@ -46,16 +46,67 @@ func TestBuildContainerListOptions(t *testing.T) {
 			expectedLimit:   1,
 			expectedFilters: make(map[string]string),
 		},
+		{
+			psOpts: &psOptions{
+				all:    true,
+				size:   false,
+				last:   5,
+				filter: filters,
+				// With .Size, size should be true
+				format: "{{.Size}}",
+			},
+			expectedAll:   true,
+			expectedSize:  true,
+			expectedLimit: 5,
+			expectedFilters: map[string]string{
+				"foo": "bar",
+				"baz": "foo",
+			},
+		},
+		{
+			psOpts: &psOptions{
+				all:    true,
+				size:   false,
+				last:   5,
+				filter: filters,
+				// With .Size, size should be true
+				format: "{{.Size}} {{.CreatedAt}} {{.Networks}}",
+			},
+			expectedAll:   true,
+			expectedSize:  true,
+			expectedLimit: 5,
+			expectedFilters: map[string]string{
+				"foo": "bar",
+				"baz": "foo",
+			},
+		},
+		{
+			psOpts: &psOptions{
+				all:    true,
+				size:   false,
+				last:   5,
+				filter: filters,
+				// Without .Size, size should be false
+				format: "{{.CreatedAt}} {{.Networks}}",
+			},
+			expectedAll:   true,
+			expectedSize:  false,
+			expectedLimit: 5,
+			expectedFilters: map[string]string{
+				"foo": "bar",
+				"baz": "foo",
+			},
+		},
 	}
 
 	for _, c := range contexts {
 		options, err := buildContainerListOptions(c.psOpts)
-		assert.NilError(t, err)
+		assert.NoError(t, err)
 
 		assert.Equal(t, c.expectedAll, options.All)
 		assert.Equal(t, c.expectedSize, options.Size)
 		assert.Equal(t, c.expectedLimit, options.Limit)
-		assert.Equal(t, options.Filters.Len(), len(c.expectedFilters))
+		assert.Equal(t, len(c.expectedFilters), options.Filters.Len())
 
 		for k, v := range c.expectedFilters {
 			f := options.Filters

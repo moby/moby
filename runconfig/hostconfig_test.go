@@ -167,11 +167,11 @@ func TestPidModeTest(t *testing.T) {
 func TestRestartPolicy(t *testing.T) {
 	restartPolicies := map[container.RestartPolicy][]bool{
 		// none, always, failure
-		container.RestartPolicy{}:                {true, false, false},
-		container.RestartPolicy{"something", 0}:  {false, false, false},
-		container.RestartPolicy{"no", 0}:         {true, false, false},
-		container.RestartPolicy{"always", 0}:     {false, true, false},
-		container.RestartPolicy{"on-failure", 0}: {false, false, true},
+		container.RestartPolicy{}:                                         {true, false, false},
+		container.RestartPolicy{Name: "something", MaximumRetryCount: 0}:  {false, false, false},
+		container.RestartPolicy{Name: "no", MaximumRetryCount: 0}:         {true, false, false},
+		container.RestartPolicy{Name: "always", MaximumRetryCount: 0}:     {false, true, false},
+		container.RestartPolicy{Name: "on-failure", MaximumRetryCount: 0}: {false, false, true},
 	}
 	for restartPolicy, state := range restartPolicies {
 		if restartPolicy.IsNone() != state[0] {
@@ -217,7 +217,7 @@ func TestDecodeHostConfig(t *testing.T) {
 		}
 
 		if len(c.CapDrop) != 1 && c.CapDrop[0] != "NET_ADMIN" {
-			t.Fatalf("Expected CapDrop MKNOD, got %v", c.CapDrop)
+			t.Fatalf("Expected CapDrop NET_ADMIN, got %v", c.CapDrop)
 		}
 	}
 }
@@ -276,7 +276,7 @@ func TestValidateResources(t *testing.T) {
 		si.CPURealtimePeriod = rt.SysInfoCPURealtimePeriod
 		si.CPURealtimeRuntime = rt.SysInfoCPURealtimeRuntime
 
-		if err := ValidateResources(&hc, &si); (err != nil) != rt.ErrorExpected {
+		if err := validateResources(&hc, &si); (err != nil) != rt.ErrorExpected {
 			t.Fatal(rt.FailureMsg, err)
 		}
 	}

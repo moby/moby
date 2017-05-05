@@ -28,11 +28,11 @@ import (
 )
 
 const (
-	networkType             = "bridge"
-	vethPrefix              = "veth"
-	vethLen                 = 7
-	containerVethPrefix     = "eth"
-	maxAllocatePortAttempts = 10
+	networkType                = "bridge"
+	vethPrefix                 = "veth"
+	vethLen                    = 7
+	defaultContainerVethPrefix = "eth"
+	maxAllocatePortAttempts    = 10
 )
 
 const (
@@ -55,14 +55,15 @@ type configuration struct {
 
 // networkConfiguration for network specific configuration
 type networkConfiguration struct {
-	ID                 string
-	BridgeName         string
-	EnableIPv6         bool
-	EnableIPMasquerade bool
-	EnableICC          bool
-	Mtu                int
-	DefaultBindingIP   net.IP
-	DefaultBridge      bool
+	ID                   string
+	BridgeName           string
+	EnableIPv6           bool
+	EnableIPMasquerade   bool
+	EnableICC            bool
+	Mtu                  int
+	DefaultBindingIP     net.IP
+	DefaultBridge        bool
+	ContainerIfacePrefix string
 	// Internal fields set after ipam data parsing
 	AddressIPv4        *net.IPNet
 	AddressIPv6        *net.IPNet
@@ -186,24 +187,24 @@ func (c *networkConfiguration) Validate() error {
 // Conflicts check if two NetworkConfiguration objects overlap
 func (c *networkConfiguration) Conflicts(o *networkConfiguration) error {
 	if o == nil {
-		return fmt.Errorf("same configuration")
+		return errors.New("same configuration")
 	}
 
 	// Also empty, because only one network with empty name is allowed
 	if c.BridgeName == o.BridgeName {
-		return fmt.Errorf("networks have same bridge name")
+		return errors.New("networks have same bridge name")
 	}
 
 	// They must be in different subnets
 	if (c.AddressIPv4 != nil && o.AddressIPv4 != nil) &&
 		(c.AddressIPv4.Contains(o.AddressIPv4.IP) || o.AddressIPv4.Contains(c.AddressIPv4.IP)) {
-		return fmt.Errorf("networks have overlapping IPv4")
+		return errors.New("networks have overlapping IPv4")
 	}
 
 	// They must be in different v6 subnets
 	if (c.AddressIPv6 != nil && o.AddressIPv6 != nil) &&
 		(c.AddressIPv6.Contains(o.AddressIPv6.IP) || o.AddressIPv6.Contains(c.AddressIPv6.IP)) {
-		return fmt.Errorf("networks have overlapping IPv6")
+		return errors.New("networks have overlapping IPv6")
 	}
 
 	return nil
@@ -239,6 +240,8 @@ func (c *networkConfiguration) fromLabels(labels map[string]string) error {
 			if c.DefaultBindingIP = net.ParseIP(value); c.DefaultBindingIP == nil {
 				return parseErr(label, value, "nil ip")
 			}
+		case netlabel.ContainerIfacePrefix:
+			c.ContainerIfacePrefix = value
 		}
 	}
 
@@ -573,6 +576,10 @@ func (d *driver) NetworkFree(id string) error {
 }
 
 func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key string, value []byte) {
+}
+
+func (d *driver) DecodeTableEntry(tablename string, key string, value []byte) (string, map[string]string) {
+	return "", nil
 }
 
 // Create a new network using bridge plugin
@@ -1217,6 +1224,10 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 	}
 
 	iNames := jinfo.InterfaceName()
+	containerVethPrefix := defaultContainerVethPrefix
+	if network.config.ContainerIfacePrefix != "" {
+		containerVethPrefix = network.config.ContainerIfacePrefix
+	}
 	err = iNames.SetNames(endpoint.srcName, containerVethPrefix)
 	if err != nil {
 		return err
@@ -1335,6 +1346,13 @@ func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
 
 	endpoint.portMapping = nil
 
+	// Clean the connection tracker state of the host for the specific endpoint
+	// The host kernel keeps track of the connections (TCP and UDP), so if a new endpoint gets the same IP of
+	// this one (that is going down), is possible that some of the packets would not be routed correctly inside
+	// the new endpoint
+	// Deeper details: https://github.com/docker/docker/issues/8795
+	clearEndpointConnections(d.nlh, endpoint)
+
 	if err = d.storeUpdate(endpoint); err != nil {
 		return fmt.Errorf("failed to update bridge endpoint %s to store: %v", endpoint.id[0:7], err)
 	}
@@ -1422,6 +1440,10 @@ func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, enable b
 
 func (d *driver) Type() string {
 	return networkType
+}
+
+func (d *driver) IsBuiltIn() bool {
+	return true
 }
 
 // DiscoverNew is a notification for a new discovery event, such as a new node joining a cluster

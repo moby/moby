@@ -31,12 +31,12 @@ func (cli *Client) head(ctx context.Context, path string, query url.Values, head
 	return cli.sendRequest(ctx, "HEAD", path, query, nil, headers)
 }
 
-// getWithContext sends an http request to the docker API using the method GET with a specific go context.
+// get sends an http request to the docker API using the method GET with a specific Go context.
 func (cli *Client) get(ctx context.Context, path string, query url.Values, headers map[string][]string) (serverResponse, error) {
 	return cli.sendRequest(ctx, "GET", path, query, nil, headers)
 }
 
-// postWithContext sends an http request to the docker API using the method POST with a specific go context.
+// post sends an http request to the docker API using the method POST with a specific Go context.
 func (cli *Client) post(ctx context.Context, path string, query url.Values, obj interface{}, headers map[string][]string) (serverResponse, error) {
 	body, headers, err := encodeBody(obj, headers)
 	if err != nil {
@@ -58,7 +58,7 @@ func (cli *Client) put(ctx context.Context, path string, query url.Values, obj i
 	return cli.sendRequest(ctx, "PUT", path, query, body, headers)
 }
 
-// put sends an http request to the docker API using the method PUT.
+// putRaw sends an http request to the docker API using the method PUT.
 func (cli *Client) putRaw(ctx context.Context, path string, query url.Values, body io.Reader, headers map[string][]string) (serverResponse, error) {
 	return cli.sendRequest(ctx, "PUT", path, query, body, headers)
 }
@@ -165,7 +165,7 @@ func (cli *Client) doRequest(ctx context.Context, req *http.Request) (serverResp
 		// daemon on Windows where the daemon is listening on a named pipe
 		// `//./pipe/docker_engine, and the client must be running elevated.
 		// Give users a clue rather than the not-overly useful message
-		// such as `error during connect: Get http://%2F%2F.%2Fpipe%2Fdocker_engine/v1.25/info:
+		// such as `error during connect: Get http://%2F%2F.%2Fpipe%2Fdocker_engine/v1.26/info:
 		// open //./pipe/docker_engine: The system cannot find the file specified.`.
 		// Note we can't string compare "The system cannot find the file specified" as
 		// this is localised - for example in French the error would be

@@ -6,9 +6,7 @@ import "os"
 type Secret struct {
 	ID string
 	Meta
-	Spec       SecretSpec
-	Digest     string
-	SecretSize int64
+	Spec SecretSpec
 }
 
 // SecretSpec represents a secret specification from a secret in swarm
@@ -27,7 +25,7 @@ type SecretReferenceFileTarget struct {
 
 // SecretReference is a reference to a secret in swarm
 type SecretReference struct {
+	File       *SecretReferenceFileTarget
 	SecretID   string
 	SecretName string
-	Target     *SecretReferenceFileTarget
 }

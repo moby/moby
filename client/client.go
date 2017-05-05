@@ -1,12 +1,12 @@
 /*
-Package client is a Go client for the Docker Remote API.
+Package client is a Go client for the Docker Engine API.
 
 The "docker" command uses this package to communicate with the daemon. It can also
 be used by your own Go applications to do anything the command-line interface does
-– running containers, pulling images, managing swarms, etc.
+- running containers, pulling images, managing swarms, etc.
 
-For more information about the Remote API, see the documentation:
-https://docs.docker.com/engine/reference/api/docker_remote_api/
+For more information about the Engine API, see the documentation:
+https://docs.docker.com/engine/reference/api/
 
 Usage
 
@@ -53,12 +53,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
 )
-
-// DefaultVersion is the version of the current stable API
-const DefaultVersion string = "1.25"
 
 // Client is the API client that performs all operations
 // against a docker server.
@@ -86,7 +84,7 @@ type Client struct {
 // NewEnvClient initializes a new API client based on environment variables.
 // Use DOCKER_HOST to set the url to the docker server.
 // Use DOCKER_API_VERSION to set the version of the API to reach, leave empty for latest.
-// Use DOCKER_CERT_PATH to load the tls certificates from.
+// Use DOCKER_CERT_PATH to load the TLS certificates from.
 // Use DOCKER_TLS_VERIFY to enable or disable TLS verification, off by default.
 func NewEnvClient() (*Client, error) {
 	var client *http.Client
@@ -115,14 +113,14 @@ func NewEnvClient() (*Client, error) {
 	}
 	version := os.Getenv("DOCKER_API_VERSION")
 	if version == "" {
-		version = DefaultVersion
+		version = api.DefaultVersion
 	}
 
 	cli, err := NewClient(host, version, client, nil)
 	if err != nil {
 		return cli, err
 	}
-	if version != "" {
+	if os.Getenv("DOCKER_API_VERSION") != "" {
 		cli.manualOverride = true
 	}
 	return cli, nil
@@ -212,12 +210,13 @@ func (cli *Client) getAPIPath(p string, query url.Values) string {
 // ClientVersion returns the version string associated with this
 // instance of the Client. Note that this value can be changed
 // via the DOCKER_API_VERSION env var.
+// This operation doesn't acquire a mutex.
 func (cli *Client) ClientVersion() string {
 	return cli.version
 }
 
 // UpdateClientVersion updates the version string associated with this
-// instance of the Client.
+// instance of the Client. This operation doesn't acquire a mutex.
 func (cli *Client) UpdateClientVersion(v string) {
 	if !cli.manualOverride {
 		cli.version = v
@@ -243,4 +242,20 @@ func ParseHost(host string) (string, string, string, error) {
 		basePath = parsed.Path
 	}
 	return proto, addr, basePath, nil
+}
+
+// CustomHTTPHeaders returns the custom http headers associated with this
+// instance of the Client. This operation doesn't acquire a mutex.
+func (cli *Client) CustomHTTPHeaders() map[string]string {
+	m := make(map[string]string)
+	for k, v := range cli.customHTTPHeaders {
+		m[k] = v
+	}
+	return m
+}
+
+// SetCustomHTTPHeaders updates the custom http headers associated with this
+// instance of the Client. This operation doesn't acquire a mutex.
+func (cli *Client) SetCustomHTTPHeaders(headers map[string]string) {
+	cli.customHTTPHeaders = headers
 }

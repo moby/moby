@@ -1,17 +1,23 @@
 package container
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
+	swarmtypes "github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/daemon/cluster/controllers/plugin"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
 	networktypes "github.com/docker/libnetwork/types"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/agent/secrets"
 	"github.com/docker/swarmkit/api"
+	"github.com/docker/swarmkit/api/naming"
 	"golang.org/x/net/context"
 )
 
@@ -45,11 +51,39 @@ func (e *executor) Describe(ctx context.Context) (*api.NodeDescription, error) {
 		}
 	}
 
+	// add v1 plugins
 	addPlugins("Volume", info.Plugins.Volume)
 	// Add builtin driver "overlay" (the only builtin multi-host driver) to
 	// the plugin list by default.
 	addPlugins("Network", append([]string{"overlay"}, info.Plugins.Network...))
 	addPlugins("Authorization", info.Plugins.Authorization)
+	addPlugins("Log", info.Plugins.Log)
+
+	// add v2 plugins
+	v2Plugins, err := e.backend.PluginManager().List(filters.NewArgs())
+	if err == nil {
+		for _, plgn := range v2Plugins {
+			for _, typ := range plgn.Config.Interface.Types {
+				if typ.Prefix != "docker" || !plgn.Enabled {
+					continue
+				}
+				plgnTyp := typ.Capability
+				switch typ.Capability {
+				case "volumedriver":
+					plgnTyp = "Volume"
+				case "networkdriver":
+					plgnTyp = "Network"
+				case "logdriver":
+					plgnTyp = "Log"
+				}
+
+				plugins[api.PluginDescription{
+					Type: plgnTyp,
+					Name: plgn.Name,
+				}] = struct{}{}
+			}
+		}
+	}
 
 	pluginFields := make([]api.PluginDescription, 0, len(plugins))
 	for k := range plugins {
@@ -92,6 +126,7 @@ func (e *executor) Describe(ctx context.Context) (*api.NodeDescription, error) {
 func (e *executor) Configure(ctx context.Context, node *api.Node) error {
 	na := node.Attachment
 	if na == nil {
+		e.backend.ReleaseIngress()
 		return nil
 	}
 
@@ -101,6 +136,7 @@ func (e *executor) Configure(ctx context.Context, node *api.Node) error {
 			Driver: na.Network.IPAM.Driver.Name,
 		},
 		Options:        na.Network.DriverState.Options,
+		Ingress:        true,
 		CheckDuplicate: true,
 	}
 
@@ -113,13 +149,15 @@ func (e *executor) Configure(ctx context.Context, node *api.Node) error {
 		options.IPAM.Config = append(options.IPAM.Config, c)
 	}
 
-	return e.backend.SetupIngress(clustertypes.NetworkCreateRequest{
-		na.Network.ID,
-		types.NetworkCreateRequest{
+	_, err := e.backend.SetupIngress(clustertypes.NetworkCreateRequest{
+		ID: na.Network.ID,
+		NetworkCreateRequest: types.NetworkCreateRequest{
 			Name:          na.Network.Spec.Annotations.Name,
 			NetworkCreate: options,
 		},
 	}, na.Addresses[0])
+
+	return err
 }
 
 // Controller returns a docker container runner.
@@ -128,9 +166,35 @@ func (e *executor) Controller(t *api.Task) (exec.Controller, error) {
 		return newNetworkAttacherController(e.backend, t, e.secrets)
 	}
 
-	ctlr, err := newController(e.backend, t, e.secrets)
-	if err != nil {
-		return nil, err
+	var ctlr exec.Controller
+	switch r := t.Spec.GetRuntime().(type) {
+	case *api.TaskSpec_Generic:
+		logrus.WithFields(logrus.Fields{
+			"kind":     r.Generic.Kind,
+			"type_url": r.Generic.Payload.TypeUrl,
+		}).Debug("custom runtime requested")
+		runtimeKind, err := naming.Runtime(t.Spec)
+		if err != nil {
+			return ctlr, err
+		}
+		switch runtimeKind {
+		case string(swarmtypes.RuntimePlugin):
+			c, err := plugin.NewController()
+			if err != nil {
+				return ctlr, err
+			}
+			ctlr = c
+		default:
+			return ctlr, fmt.Errorf("unsupported runtime type: %q", r.Generic.Kind)
+		}
+	case *api.TaskSpec_Container:
+		c, err := newController(e.backend, t, secrets.Restrict(e.secrets, t))
+		if err != nil {
+			return ctlr, err
+		}
+		ctlr = c
+	default:
+		return ctlr, fmt.Errorf("unsupported runtime: %q", r)
 	}
 
 	return ctlr, nil

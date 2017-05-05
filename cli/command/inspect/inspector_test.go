@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/utils/templates"
+	"github.com/docker/docker/pkg/templates"
 )
 
 type testElement struct {

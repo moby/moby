@@ -1,18 +1,34 @@
 package client
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/docker/docker/api/types/versions"
+	"github.com/pkg/errors"
 )
 
-// ErrConnectionFailed is an error raised when the connection between the client and the server failed.
-var ErrConnectionFailed = errors.New("Cannot connect to the Docker daemon. Is the docker daemon running on this host?")
+// errConnectionFailed implements an error returned when connection failed.
+type errConnectionFailed struct {
+	host string
+}
+
+// Error returns a string representation of an errConnectionFailed
+func (err errConnectionFailed) Error() string {
+	if err.host == "" {
+		return "Cannot connect to the Docker daemon. Is the docker daemon running on this host?"
+	}
+	return fmt.Sprintf("Cannot connect to the Docker daemon at %s. Is the docker daemon running?", err.host)
+}
+
+// IsErrConnectionFailed returns true if the error is caused by connection failed.
+func IsErrConnectionFailed(err error) bool {
+	_, ok := errors.Cause(err).(errConnectionFailed)
+	return ok
+}
 
 // ErrorConnectionFailed returns an error with host in the error message when connection to docker daemon failed.
 func ErrorConnectionFailed(host string) error {
-	return fmt.Errorf("Cannot connect to the Docker daemon at %s. Is the docker daemon running?", host)
+	return errConnectionFailed{host: host}
 }
 
 type notFound interface {
@@ -213,7 +229,7 @@ func IsErrPluginPermissionDenied(err error) bool {
 // if less than the current supported version
 func (cli *Client) NewVersionError(APIrequired, feature string) error {
 	if versions.LessThan(cli.version, APIrequired) {
-		return fmt.Errorf("%q requires API version %s, but the Docker server is version %s", feature, APIrequired, cli.version)
+		return fmt.Errorf("%q requires API version %s, but the Docker daemon API version is %s", feature, APIrequired, cli.version)
 	}
 	return nil
 }
@@ -228,7 +244,7 @@ func (e secretNotFoundError) Error() string {
 	return fmt.Sprintf("Error: no such secret: %s", e.name)
 }
 
-// NoFound indicates that this error type is of NotFound
+// NotFound indicates that this error type is of NotFound
 func (e secretNotFoundError) NotFound() bool {
 	return true
 }
@@ -238,4 +254,25 @@ func (e secretNotFoundError) NotFound() bool {
 func IsErrSecretNotFound(err error) bool {
 	_, ok := err.(secretNotFoundError)
 	return ok
+}
+
+// pluginNotFoundError implements an error returned when a plugin is not in the docker host.
+type pluginNotFoundError struct {
+	name string
+}
+
+// NotFound indicates that this error type is of NotFound
+func (e pluginNotFoundError) NotFound() bool {
+	return true
+}
+
+// Error returns a string representation of a pluginNotFoundError
+func (e pluginNotFoundError) Error() string {
+	return fmt.Sprintf("Error: No such plugin: %s", e.name)
+}
+
+// IsErrPluginNotFound returns true if the error is caused
+// when a plugin is not found in the docker host.
+func IsErrPluginNotFound(err error) bool {
+	return IsErrNotFound(err)
 }

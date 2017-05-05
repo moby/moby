@@ -405,6 +405,9 @@ func (t *http2Server) handleSettings(f *http2.SettingsFrame) {
 }
 
 func (t *http2Server) handlePing(f *http2.PingFrame) {
+	if f.IsAck() { // Do nothing.
+		return
+	}
 	pingAck := &ping{ack: true}
 	copy(pingAck.data[:], f.Data[:])
 	t.controlBuf.put(pingAck)
@@ -462,6 +465,14 @@ func (t *http2Server) WriteHeader(s *Stream, md metadata.MD) error {
 		return ErrIllegalHeaderWrite
 	}
 	s.headerOk = true
+	if md.Len() > 0 {
+		if s.header.Len() > 0 {
+			s.header = metadata.Join(s.header, md)
+		} else {
+			s.header = md
+		}
+	}
+	md = s.header
 	s.mu.Unlock()
 	if _, err := wait(s.ctx, nil, nil, t.shutdownChan, t.writableChan); err != nil {
 		return err
@@ -493,7 +504,7 @@ func (t *http2Server) WriteHeader(s *Stream, md metadata.MD) error {
 // TODO(zhaoq): Now it indicates the end of entire stream. Revisit if early
 // OK is adopted.
 func (t *http2Server) WriteStatus(s *Stream, statusCode codes.Code, statusDesc string) error {
-	var headersSent bool
+	var headersSent, hasHeader bool
 	s.mu.Lock()
 	if s.state == streamDone {
 		s.mu.Unlock()
@@ -502,7 +513,16 @@ func (t *http2Server) WriteStatus(s *Stream, statusCode codes.Code, statusDesc s
 	if s.headerOk {
 		headersSent = true
 	}
+	if s.header.Len() > 0 {
+		hasHeader = true
+	}
 	s.mu.Unlock()
+
+	if !headersSent && hasHeader {
+		t.WriteHeader(s, nil)
+		headersSent = true
+	}
+
 	if _, err := wait(s.ctx, nil, nil, t.shutdownChan, t.writableChan); err != nil {
 		return err
 	}
@@ -548,29 +568,10 @@ func (t *http2Server) Write(s *Stream, data []byte, opts *Options) error {
 	}
 	if !s.headerOk {
 		writeHeaderFrame = true
-		s.headerOk = true
 	}
 	s.mu.Unlock()
 	if writeHeaderFrame {
-		if _, err := wait(s.ctx, nil, nil, t.shutdownChan, t.writableChan); err != nil {
-			return err
-		}
-		t.hBuf.Reset()
-		t.hEnc.WriteField(hpack.HeaderField{Name: ":status", Value: "200"})
-		t.hEnc.WriteField(hpack.HeaderField{Name: "content-type", Value: "application/grpc"})
-		if s.sendCompress != "" {
-			t.hEnc.WriteField(hpack.HeaderField{Name: "grpc-encoding", Value: s.sendCompress})
-		}
-		p := http2.HeadersFrameParam{
-			StreamID:      s.id,
-			BlockFragment: t.hBuf.Bytes(),
-			EndHeaders:    true,
-		}
-		if err := t.framer.writeHeaders(false, p); err != nil {
-			t.Close()
-			return connectionErrorf(true, err, "transport: %v", err)
-		}
-		t.writableChan <- 0
+		t.WriteHeader(s, nil)
 	}
 	r := bytes.NewBuffer(data)
 	for {

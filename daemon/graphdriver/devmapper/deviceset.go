@@ -28,9 +28,9 @@ import (
 	"github.com/docker/docker/pkg/loopback"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
-	"github.com/docker/go-units"
+	units "github.com/docker/go-units"
 
-	"github.com/opencontainers/runc/libcontainer/label"
+	"github.com/opencontainers/selinux/go-selinux/label"
 )
 
 var (
@@ -380,10 +380,7 @@ func (devices *DeviceSet) isDeviceIDFree(deviceID int) bool {
 	var mask byte
 	i := deviceID % 8
 	mask = (1 << uint(i))
-	if (devices.deviceIDMap[deviceID/8] & mask) != 0 {
-		return false
-	}
-	return true
+	return (devices.deviceIDMap[deviceID/8] & mask) == 0
 }
 
 // Should be called with devices.Lock() held.
@@ -480,11 +477,10 @@ func (devices *DeviceSet) loadDeviceFilesOnStart() error {
 }
 
 // Should be called with devices.Lock() held.
-func (devices *DeviceSet) unregisterDevice(id int, hash string) error {
-	logrus.Debugf("devmapper: unregisterDevice(%v, %v)", id, hash)
+func (devices *DeviceSet) unregisterDevice(hash string) error {
+	logrus.Debugf("devmapper: unregisterDevice(%v)", hash)
 	info := &devInfo{
-		Hash:     hash,
-		DeviceID: id,
+		Hash: hash,
 	}
 
 	delete(devices.Devices, hash)
@@ -832,7 +828,7 @@ func (devices *DeviceSet) createRegisterDevice(hash string) (*devInfo, error) {
 	}
 
 	if err := devices.closeTransaction(); err != nil {
-		devices.unregisterDevice(deviceID, hash)
+		devices.unregisterDevice(hash)
 		devicemapper.DeleteDevice(devices.getPoolDevName(), deviceID)
 		devices.markDeviceIDFree(deviceID)
 		return nil, err
@@ -862,6 +858,7 @@ func (devices *DeviceSet) takeSnapshot(hash string, baseInfo *devInfo, size uint
 				if err != devicemapper.ErrEnxio {
 					return err
 				}
+				devinfo = nil
 			} else {
 				defer devices.deactivateDevice(baseInfo)
 			}
@@ -932,7 +929,7 @@ func (devices *DeviceSet) createRegisterSnapDevice(hash string, baseInfo *devInf
 	}
 
 	if err := devices.closeTransaction(); err != nil {
-		devices.unregisterDevice(deviceID, hash)
+		devices.unregisterDevice(hash)
 		devicemapper.DeleteDevice(devices.getPoolDevName(), deviceID)
 		devices.markDeviceIDFree(deviceID)
 		return err
@@ -1400,10 +1397,7 @@ func (devices *DeviceSet) saveTransactionMetaData() error {
 }
 
 func (devices *DeviceSet) removeTransactionMetaData() error {
-	if err := os.RemoveAll(devices.transactionMetaFile()); err != nil {
-		return err
-	}
-	return nil
+	return os.RemoveAll(devices.transactionMetaFile())
 }
 
 func (devices *DeviceSet) rollbackTransaction() error {
@@ -1713,9 +1707,9 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	// https://github.com/docker/docker/issues/4036
 	if supported := devicemapper.UdevSetSyncSupport(true); !supported {
 		if dockerversion.IAmStatic == "true" {
-			logrus.Error("devmapper: Udev sync is not supported. This will lead to data loss and unexpected behavior. Install a dynamic binary to use devicemapper or select a different storage driver. For more information, see https://docs.docker.com/engine/reference/commandline/daemon/#daemon-storage-driver-option")
+			logrus.Error("devmapper: Udev sync is not supported. This will lead to data loss and unexpected behavior. Install a dynamic binary to use devicemapper or select a different storage driver. For more information, see https://docs.docker.com/engine/reference/commandline/dockerd/#storage-driver-options")
 		} else {
-			logrus.Error("devmapper: Udev sync is not supported. This will lead to data loss and unexpected behavior. Install a more recent version of libdevmapper or select a different storage driver. For more information, see https://docs.docker.com/engine/reference/commandline/daemon/#daemon-storage-driver-option")
+			logrus.Error("devmapper: Udev sync is not supported. This will lead to data loss and unexpected behavior. Install a more recent version of libdevmapper or select a different storage driver. For more information, see https://docs.docker.com/engine/reference/commandline/dockerd/#storage-driver-options")
 		}
 
 		if !devices.overrideUdevSyncCheck {
@@ -2010,7 +2004,7 @@ func (devices *DeviceSet) deleteTransaction(info *devInfo, syncDelete bool) erro
 	}
 
 	if err == nil {
-		if err := devices.unregisterDevice(info.DeviceID, info.Hash); err != nil {
+		if err := devices.unregisterDevice(info.Hash); err != nil {
 			return err
 		}
 		// If device was already in deferred delete state that means
@@ -2408,11 +2402,7 @@ func (devices *DeviceSet) UnmountDevice(hash, mountPath string) error {
 	}
 	logrus.Debug("devmapper: Unmount done")
 
-	if err := devices.deactivateDevice(info); err != nil {
-		return err
-	}
-
-	return nil
+	return devices.deactivateDevice(info)
 }
 
 // HasDevice returns true if the device metadata exists.

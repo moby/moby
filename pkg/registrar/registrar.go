@@ -98,7 +98,10 @@ func (r *Registrar) GetNames(key string) ([]string, error) {
 	if !exists {
 		return nil, ErrNoSuchKey
 	}
-	return names, nil
+
+	ls := make([]string, 0, len(names))
+	ls = append(ls, names...)
+	return ls, nil
 }
 
 // Get returns the key that the passed in name is reserved to

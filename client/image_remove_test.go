@@ -63,7 +63,7 @@ func TestImageRemove(t *testing.T) {
 						return nil, fmt.Errorf("%s not set in URL query properly. Expected '%s', got %s", key, expected, actual)
 					}
 				}
-				b, err := json.Marshal([]types.ImageDelete{
+				b, err := json.Marshal([]types.ImageDeleteResponseItem{
 					{
 						Untagged: "image_id1",
 					},

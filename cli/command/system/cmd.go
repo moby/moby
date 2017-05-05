@@ -13,10 +13,7 @@ func NewSystemCommand(dockerCli *command.DockerCli) *cobra.Command {
 		Use:   "system",
 		Short: "Manage Docker",
 		Args:  cli.NoArgs,
-		Run: func(cmd *cobra.Command, args []string) {
-			cmd.SetOutput(dockerCli.Err())
-			cmd.HelpFunc()(cmd, args)
-		},
+		RunE:  dockerCli.ShowHelp,
 	}
 	cmd.AddCommand(
 		NewEventsCommand(dockerCli),

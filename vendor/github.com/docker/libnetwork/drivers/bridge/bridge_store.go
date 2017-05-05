@@ -143,6 +143,7 @@ func (ncfg *networkConfiguration) MarshalJSON() ([]byte, error) {
 	nMap["DefaultBindingIP"] = ncfg.DefaultBindingIP.String()
 	nMap["DefaultGatewayIPv4"] = ncfg.DefaultGatewayIPv4.String()
 	nMap["DefaultGatewayIPv6"] = ncfg.DefaultGatewayIPv6.String()
+	nMap["ContainerIfacePrefix"] = ncfg.ContainerIfacePrefix
 	nMap["BridgeIfaceCreator"] = ncfg.BridgeIfaceCreator
 
 	if ncfg.AddressIPv4 != nil {
@@ -176,6 +177,10 @@ func (ncfg *networkConfiguration) UnmarshalJSON(b []byte) error {
 		if ncfg.AddressIPv6, err = types.ParseCIDR(v.(string)); err != nil {
 			return types.InternalErrorf("failed to decode bridge network address IPv6 after json unmarshal: %s", v.(string))
 		}
+	}
+
+	if v, ok := nMap["ContainerIfacePrefix"]; ok {
+		ncfg.ContainerIfacePrefix = v.(string)
 	}
 
 	ncfg.DefaultBridge = nMap["DefaultBridge"].(bool)

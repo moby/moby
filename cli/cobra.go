@@ -2,7 +2,10 @@ package cli
 
 import (
 	"fmt"
+	"strings"
 
+	"github.com/docker/docker/pkg/term"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -13,10 +16,12 @@ func SetupRootCommand(rootCmd *cobra.Command) {
 	cobra.AddTemplateFunc("hasManagementSubCommands", hasManagementSubCommands)
 	cobra.AddTemplateFunc("operationSubCommands", operationSubCommands)
 	cobra.AddTemplateFunc("managementSubCommands", managementSubCommands)
+	cobra.AddTemplateFunc("wrappedFlagUsages", wrappedFlagUsages)
 
 	rootCmd.SetUsageTemplate(usageTemplate)
 	rootCmd.SetHelpTemplate(helpTemplate)
 	rootCmd.SetFlagErrorFunc(FlagErrorFunc)
+	rootCmd.SetHelpCommand(helpCommand)
 
 	rootCmd.PersistentFlags().BoolP("help", "h", false, "Print usage")
 	rootCmd.PersistentFlags().MarkShorthandDeprecated("help", "please use --help")
@@ -26,7 +31,7 @@ func SetupRootCommand(rootCmd *cobra.Command) {
 // docker/docker/cli error messages
 func FlagErrorFunc(cmd *cobra.Command, err error) error {
 	if err == nil {
-		return err
+		return nil
 	}
 
 	usage := ""
@@ -37,6 +42,23 @@ func FlagErrorFunc(cmd *cobra.Command, err error) error {
 		Status:     fmt.Sprintf("%s\nSee '%s --help'.%s", err, cmd.CommandPath(), usage),
 		StatusCode: 125,
 	}
+}
+
+var helpCommand = &cobra.Command{
+	Use:               "help [command]",
+	Short:             "Help about the command",
+	PersistentPreRun:  func(cmd *cobra.Command, args []string) {},
+	PersistentPostRun: func(cmd *cobra.Command, args []string) {},
+	RunE: func(c *cobra.Command, args []string) error {
+		cmd, args, e := c.Root().Find(args)
+		if cmd == nil || e != nil || len(args) > 0 {
+			return errors.Errorf("unknown help topic: %v", strings.Join(args, " "))
+		}
+
+		helpFunc := cmd.HelpFunc()
+		helpFunc(cmd, args)
+		return nil
+	},
 }
 
 func hasSubCommands(cmd *cobra.Command) bool {
@@ -55,6 +77,14 @@ func operationSubCommands(cmd *cobra.Command) []*cobra.Command {
 		}
 	}
 	return cmds
+}
+
+func wrappedFlagUsages(cmd *cobra.Command) string {
+	width := 80
+	if ws, err := term.GetWinsize(0); err == nil {
+		width = int(ws.Width)
+	}
+	return cmd.Flags().FlagUsagesWrapped(width - 1)
 }
 
 func managementSubCommands(cmd *cobra.Command) []*cobra.Command {
@@ -89,7 +119,7 @@ Examples:
 {{- if .HasFlags}}
 
 Options:
-{{.Flags.FlagUsages | trimRightSpace}}
+{{ wrappedFlagUsages . | trimRightSpace}}
 
 {{- end}}
 {{- if hasManagementSubCommands . }}

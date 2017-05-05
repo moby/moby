@@ -2,6 +2,7 @@ package ioutils
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -46,6 +47,20 @@ func TestMultiReadSeekerReadAll(t *testing.T) {
 		t.Fatalf("expected position to be set to 0, got %d", pos)
 	}
 
+	b, err = ioutil.ReadAll(mr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if string(b) != expected {
+		t.Fatalf("ReadAll failed, got: %q, expected %q", string(b), expected)
+	}
+
+	// The positions of some readers are not 0
+	s1.Seek(0, os.SEEK_SET)
+	s2.Seek(0, os.SEEK_END)
+	s3.Seek(0, os.SEEK_SET)
+	mr = MultiReadSeeker(s1, s2, s3)
 	b, err = ioutil.ReadAll(mr)
 	if err != nil {
 		t.Fatal(err)
@@ -186,5 +201,25 @@ func TestMultiReadSeekerCurAfterSet(t *testing.T) {
 	}
 	if size != mid+18 {
 		t.Fatalf("reader size does not match, got %d, expected %d", size, mid+18)
+	}
+}
+
+func TestMultiReadSeekerSmallReads(t *testing.T) {
+	readers := []io.ReadSeeker{}
+	for i := 0; i < 10; i++ {
+		integer := make([]byte, 4)
+		binary.BigEndian.PutUint32(integer, uint32(i))
+		readers = append(readers, bytes.NewReader(integer))
+	}
+
+	reader := MultiReadSeeker(readers...)
+	for i := 0; i < 10; i++ {
+		var integer uint32
+		if err := binary.Read(reader, binary.BigEndian, &integer); err != nil {
+			t.Fatalf("Read from NewMultiReadSeeker failed: %v", err)
+		}
+		if uint32(i) != integer {
+			t.Fatalf("Read wrong value from NewMultiReadSeeker: %d != %d", i, integer)
+		}
 	}
 }

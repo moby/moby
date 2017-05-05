@@ -8,11 +8,12 @@ import (
 
 	"github.com/docker/go-events"
 	"github.com/docker/swarmkit/api"
+	"github.com/docker/swarmkit/api/defaults"
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/orchestrator"
 	"github.com/docker/swarmkit/manager/state"
 	"github.com/docker/swarmkit/manager/state/store"
-	"github.com/docker/swarmkit/protobuf/ptypes"
+	gogotypes "github.com/gogo/protobuf/types"
 	"golang.org/x/net/context"
 )
 
@@ -156,13 +157,13 @@ func (r *Supervisor) Restart(ctx context.Context, tx store.Tx, cluster *api.Clus
 	if n == nil || n.Spec.Availability != api.NodeAvailabilityDrain {
 		if t.Spec.Restart != nil && t.Spec.Restart.Delay != nil {
 			var err error
-			restartDelay, err = ptypes.Duration(t.Spec.Restart.Delay)
+			restartDelay, err = gogotypes.DurationFromProto(t.Spec.Restart.Delay)
 			if err != nil {
 				log.G(ctx).WithError(err).Error("invalid restart delay; using default")
-				restartDelay = orchestrator.DefaultRestartDelay
+				restartDelay, _ = gogotypes.DurationFromProto(defaults.Service.Task.Restart.Delay)
 			}
 		} else {
-			restartDelay = orchestrator.DefaultRestartDelay
+			restartDelay, _ = gogotypes.DurationFromProto(defaults.Service.Task.Restart.Delay)
 		}
 	}
 
@@ -226,7 +227,7 @@ func (r *Supervisor) shouldRestart(ctx context.Context, t *api.Task, service *ap
 		return true
 	}
 
-	window, err := ptypes.Duration(t.Spec.Restart.Window)
+	window, err := gogotypes.DurationFromProto(t.Spec.Restart.Window)
 	if err != nil {
 		log.G(ctx).WithError(err).Error("invalid restart lookback window")
 		return restartInfo.totalRestarts < t.Spec.Restart.MaxAttempts
@@ -327,17 +328,17 @@ func (r *Supervisor) DelayStart(ctx context.Context, _ store.Tx, oldTask *api.Ta
 		// node to become unavailable.
 		watch, cancelWatch = state.Watch(
 			r.store.WatchQueue(),
-			state.EventUpdateTask{
+			api.EventUpdateTask{
 				Task:   &api.Task{ID: oldTask.ID, Status: api.TaskStatus{State: api.TaskStateRunning}},
-				Checks: []state.TaskCheckFunc{state.TaskCheckID, state.TaskCheckStateGreaterThan},
+				Checks: []api.TaskCheckFunc{api.TaskCheckID, state.TaskCheckStateGreaterThan},
 			},
-			state.EventUpdateNode{
+			api.EventUpdateNode{
 				Node:   &api.Node{ID: oldTask.NodeID, Status: api.NodeStatus{State: api.NodeStatus_DOWN}},
-				Checks: []state.NodeCheckFunc{state.NodeCheckID, state.NodeCheckState},
+				Checks: []api.NodeCheckFunc{api.NodeCheckID, state.NodeCheckState},
 			},
-			state.EventDeleteNode{
+			api.EventDeleteNode{
 				Node:   &api.Node{ID: oldTask.NodeID},
-				Checks: []state.NodeCheckFunc{state.NodeCheckID},
+				Checks: []api.NodeCheckFunc{api.NodeCheckID},
 			},
 		)
 	}

@@ -9,7 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/request"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/go-check/check"
 )
@@ -21,7 +22,7 @@ func (s *DockerSuite) TestEventsAPIEmptyOutput(c *check.C) {
 	}
 	chResp := make(chan *apiResp)
 	go func() {
-		resp, body, err := sockRequestRaw("GET", "/events", nil, "")
+		resp, body, err := request.Get("/events")
 		body.Close()
 		chResp <- &apiResp{resp, err}
 	}()
@@ -39,14 +40,14 @@ func (s *DockerSuite) TestEventsAPIBackwardsCompatible(c *check.C) {
 	since := daemonTime(c).Unix()
 	ts := strconv.FormatInt(since, 10)
 
-	out, _ := runSleepingContainer(c, "--name=foo", "-d")
+	out := runSleepingContainer(c, "--name=foo", "-d")
 	containerID := strings.TrimSpace(out)
 	c.Assert(waitRun(containerID), checker.IsNil)
 
 	q := url.Values{}
 	q.Set("since", ts)
 
-	_, body, err := sockRequestRaw("GET", "/events?"+q.Encode(), nil, "")
+	_, body, err := request.Get("/events?" + q.Encode())
 	c.Assert(err, checker.IsNil)
 	defer body.Close()
 

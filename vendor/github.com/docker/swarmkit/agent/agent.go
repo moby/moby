@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"bytes"
 	"fmt"
 	"math/rand"
 	"reflect"
@@ -37,10 +38,15 @@ type Agent struct {
 	started   chan struct{}
 	startOnce sync.Once // start only once
 	ready     chan struct{}
+	leaving   chan struct{}
+	leaveOnce sync.Once
+	left      chan struct{} // closed after "run" processes "leaving" and will no longer accept new assignments
 	stopped   chan struct{} // requests shutdown
 	stopOnce  sync.Once     // only allow stop to be called once
 	closed    chan struct{} // only closed in run
 	err       error         // read only after closed is closed
+
+	nodeUpdatePeriod time.Duration
 }
 
 // New returns a new agent, ready for task dispatch.
@@ -50,12 +56,15 @@ func New(config *Config) (*Agent, error) {
 	}
 
 	a := &Agent{
-		config:   config,
-		sessionq: make(chan sessionOperation),
-		started:  make(chan struct{}),
-		stopped:  make(chan struct{}),
-		closed:   make(chan struct{}),
-		ready:    make(chan struct{}),
+		config:           config,
+		sessionq:         make(chan sessionOperation),
+		started:          make(chan struct{}),
+		leaving:          make(chan struct{}),
+		left:             make(chan struct{}),
+		stopped:          make(chan struct{}),
+		closed:           make(chan struct{}),
+		ready:            make(chan struct{}),
+		nodeUpdatePeriod: nodeUpdatePeriod,
 	}
 
 	a.worker = newWorker(config.DB, config.Executor, a)
@@ -76,6 +85,47 @@ func (a *Agent) Start(ctx context.Context) error {
 	})
 
 	return err
+}
+
+// Leave instructs the agent to leave the cluster. This method will shutdown
+// assignment processing and remove all assignments from the node.
+// Leave blocks until worker has finished closing all task managers or agent
+// is closed.
+func (a *Agent) Leave(ctx context.Context) error {
+	select {
+	case <-a.started:
+	default:
+		return errAgentNotStarted
+	}
+
+	a.leaveOnce.Do(func() {
+		close(a.leaving)
+	})
+
+	// Do not call Wait until we have confirmed that the agent is no longer
+	// accepting assignments. Starting a worker might race with Wait.
+	select {
+	case <-a.left:
+	case <-a.closed:
+		return ErrClosed
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+
+	// agent could be closed while Leave is in progress
+	var err error
+	ch := make(chan struct{})
+	go func() {
+		err = a.worker.Wait(ctx)
+		close(ch)
+	}()
+
+	select {
+	case <-ch:
+		return err
+	case <-a.closed:
+		return ErrClosed
+	}
 }
 
 // Stop shuts down the agent, blocking until full shutdown. If the agent is not
@@ -133,16 +183,18 @@ func (a *Agent) run(ctx context.Context) {
 
 	ctx = log.WithModule(ctx, "agent")
 
-	log.G(ctx).Debugf("(*Agent).run")
-	defer log.G(ctx).Debugf("(*Agent).run exited")
+	log.G(ctx).Debug("(*Agent).run")
+	defer log.G(ctx).Debug("(*Agent).run exited")
+
+	nodeTLSInfo := a.config.NodeTLSInfo
 
 	// get the node description
-	nodeDescription, err := a.nodeDescriptionWithHostname(ctx)
+	nodeDescription, err := a.nodeDescriptionWithHostname(ctx, nodeTLSInfo)
 	if err != nil {
-		log.G(ctx).WithError(err).WithField("agent", a.config.Executor).Errorf("agent: node description unavailable")
+		log.G(ctx).WithError(err).WithField("agent", a.config.Executor).Error("agent: node description unavailable")
 	}
 	// nodeUpdateTicker is used to periodically check for updates to node description
-	nodeUpdateTicker := time.NewTicker(nodeUpdatePeriod)
+	nodeUpdateTicker := time.NewTicker(a.nodeUpdatePeriod)
 	defer nodeUpdateTicker.Stop()
 
 	var (
@@ -151,6 +203,7 @@ func (a *Agent) run(ctx context.Context) {
 		registered    = session.registered
 		ready         = a.ready // first session ready
 		sessionq      chan sessionOperation
+		leaving       = a.leaving
 		subscriptions = map[string]context.CancelFunc{}
 	)
 
@@ -167,14 +220,60 @@ func (a *Agent) run(ctx context.Context) {
 
 	a.worker.Listen(ctx, reporter)
 
+	updateNode := func() {
+		// skip updating if the registration isn't finished
+		if registered != nil {
+			return
+		}
+		// get the current node description
+		newNodeDescription, err := a.nodeDescriptionWithHostname(ctx, nodeTLSInfo)
+		if err != nil {
+			log.G(ctx).WithError(err).WithField("agent", a.config.Executor).Error("agent: updated node description unavailable")
+		}
+
+		// if newNodeDescription is nil, it will cause a panic when
+		// trying to create a session. Typically this can happen
+		// if the engine goes down
+		if newNodeDescription == nil {
+			return
+		}
+
+		// if the node description has changed, update it to the new one
+		// and close the session. The old session will be stopped and a
+		// new one will be created with the updated description
+		if !reflect.DeepEqual(nodeDescription, newNodeDescription) {
+			nodeDescription = newNodeDescription
+			// close the session
+			log.G(ctx).Info("agent: found node update")
+			session.sendError(nil)
+		}
+	}
+
 	for {
 		select {
 		case operation := <-sessionq:
 			operation.response <- operation.fn(session)
+		case <-leaving:
+			leaving = nil
+
+			// TODO(stevvooe): Signal to the manager that the node is leaving.
+
+			// when leaving we remove all assignments.
+			if err := a.worker.Assign(ctx, nil); err != nil {
+				log.G(ctx).WithError(err).Error("failed removing all assignments")
+			}
+
+			close(a.left)
 		case msg := <-session.assignments:
+			// if we have left, accept no more assignments
+			if leaving == nil {
+				continue
+			}
+
 			switch msg.Type {
 			case api.AssignmentsMessage_COMPLETE:
-				// Need to assign secrets before tasks, because tasks might depend on new secrets
+				// Need to assign secrets and configs before tasks,
+				// because tasks might depend on new secrets or configs
 				if err := a.worker.Assign(ctx, msg.Changes); err != nil {
 					log.G(ctx).WithError(err).Error("failed to synchronize worker assignments")
 				}
@@ -184,7 +283,7 @@ func (a *Agent) run(ctx context.Context) {
 				}
 			}
 		case msg := <-session.messages:
-			if err := a.handleSessionMessage(ctx, msg); err != nil {
+			if err := a.handleSessionMessage(ctx, msg, nodeTLSInfo); err != nil {
 				log.G(ctx).WithError(err).Error("session message handler failed")
 			}
 		case sub := <-session.subscriptions:
@@ -203,6 +302,7 @@ func (a *Agent) run(ctx context.Context) {
 
 			subCtx, subCancel := context.WithCancel(ctx)
 			subscriptions[sub.ID] = subCancel
+			// TODO(dperny) we're tossing the error here, that seems wrong
 			go a.worker.Subscribe(subCtx, sub)
 		case <-registered:
 			log.G(ctx).Debugln("agent: registered")
@@ -241,33 +341,17 @@ func (a *Agent) run(ctx context.Context) {
 			}
 			session = newSession(ctx, a, delay, session.sessionID, nodeDescription)
 			registered = session.registered
+		case ev := <-a.config.NotifyTLSChange:
+			// the TLS info has changed, so force a check to see if we need to restart the session
+			if tlsInfo, ok := ev.(*api.NodeTLSInfo); ok {
+				nodeTLSInfo = tlsInfo
+				updateNode()
+				nodeUpdateTicker.Stop()
+				nodeUpdateTicker = time.NewTicker(a.nodeUpdatePeriod)
+			}
 		case <-nodeUpdateTicker.C:
-			// skip this case if the registration isn't finished
-			if registered != nil {
-				continue
-			}
-			// get the current node description
-			newNodeDescription, err := a.nodeDescriptionWithHostname(ctx)
-			if err != nil {
-				log.G(ctx).WithError(err).WithField("agent", a.config.Executor).Errorf("agent: updated node description unavailable")
-			}
-
-			// if newNodeDescription is nil, it will cause a panic when
-			// trying to create a session. Typically this can happen
-			// if the engine goes down
-			if newNodeDescription == nil {
-				continue
-			}
-
-			// if the node description has changed, update it to the new one
-			// and close the session. The old session will be stopped and a
-			// new one will be created with the updated description
-			if !reflect.DeepEqual(nodeDescription, newNodeDescription) {
-				nodeDescription = newNodeDescription
-				// close the session
-				log.G(ctx).Info("agent: found node update")
-				session.sendError(nil)
-			}
+			// periodically check to see whether the node information has changed, and if so, restart the session
+			updateNode()
 		case <-a.stopped:
 			// TODO(stevvooe): Wait on shutdown and cleanup. May need to pump
 			// this loop a few times.
@@ -283,35 +367,43 @@ func (a *Agent) run(ctx context.Context) {
 	}
 }
 
-func (a *Agent) handleSessionMessage(ctx context.Context, message *api.SessionMessage) error {
+func (a *Agent) handleSessionMessage(ctx context.Context, message *api.SessionMessage, nti *api.NodeTLSInfo) error {
 	seen := map[api.Peer]struct{}{}
 	for _, manager := range message.Managers {
 		if manager.Peer.Addr == "" {
-			log.G(ctx).WithField("manager.addr", manager.Peer.Addr).
-				Warnf("skipping bad manager address")
 			continue
 		}
 
-		a.config.Managers.Observe(*manager.Peer, int(manager.Weight))
+		a.config.ConnBroker.Remotes().Observe(*manager.Peer, int(manager.Weight))
 		seen[*manager.Peer] = struct{}{}
 	}
 
-	if message.Node != nil {
-		if a.node == nil || !nodesEqual(a.node, message.Node) {
-			if a.config.NotifyNodeChange != nil {
-				a.config.NotifyNodeChange <- message.Node.Copy()
-			}
-			a.node = message.Node.Copy()
-			if err := a.config.Executor.Configure(ctx, a.node); err != nil {
-				log.G(ctx).WithError(err).Error("node configure failed")
-			}
+	var changes *NodeChanges
+	if message.Node != nil && (a.node == nil || !nodesEqual(a.node, message.Node)) {
+		if a.config.NotifyNodeChange != nil {
+			changes = &NodeChanges{Node: message.Node.Copy()}
+		}
+		a.node = message.Node.Copy()
+		if err := a.config.Executor.Configure(ctx, a.node); err != nil {
+			log.G(ctx).WithError(err).Error("node configure failed")
+		}
+	}
+	if len(message.RootCA) > 0 && !bytes.Equal(message.RootCA, nti.TrustRoot) {
+		if changes == nil {
+			changes = &NodeChanges{RootCert: message.RootCA}
+		} else {
+			changes.RootCert = message.RootCA
 		}
 	}
 
+	if changes != nil {
+		a.config.NotifyNodeChange <- changes
+	}
+
 	// prune managers not in list.
-	for peer := range a.config.Managers.Weights() {
+	for peer := range a.config.ConnBroker.Remotes().Weights() {
 		if _, ok := seen[peer]; !ok {
-			a.config.Managers.Remove(peer)
+			a.config.ConnBroker.Remotes().Remove(peer)
 		}
 	}
 
@@ -370,7 +462,7 @@ func (a *Agent) withSession(ctx context.Context, fn func(session *session) error
 //
 // If an error is returned, the operation should be retried.
 func (a *Agent) UpdateTaskStatus(ctx context.Context, taskID string, status *api.TaskStatus) error {
-	log.G(ctx).WithField("task.id", taskID).Debugf("(*Agent).UpdateTaskStatus")
+	log.G(ctx).WithField("task.id", taskID).Debug("(*Agent).UpdateTaskStatus")
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -406,51 +498,69 @@ func (a *Agent) UpdateTaskStatus(ctx context.Context, taskID string, status *api
 }
 
 // Publisher returns a LogPublisher for the given subscription
-func (a *Agent) Publisher(ctx context.Context, subscriptionID string) (exec.LogPublisher, error) {
+// as well as a cancel function that should be called when the log stream
+// is completed.
+func (a *Agent) Publisher(ctx context.Context, subscriptionID string) (exec.LogPublisher, func(), error) {
 	// TODO(stevvooe): The level of coordination here is WAY too much for logs.
 	// These should only be best effort and really just buffer until a session is
 	// ready. Ideally, they would use a separate connection completely.
 
 	var (
-		err    error
-		client api.LogBroker_PublishLogsClient
+		err       error
+		publisher api.LogBroker_PublishLogsClient
 	)
 
 	err = a.withSession(ctx, func(session *session) error {
-		client, err = api.NewLogBrokerClient(session.conn).PublishLogs(ctx)
+		publisher, err = api.NewLogBrokerClient(session.conn.ClientConn).PublishLogs(ctx)
 		return err
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
+	}
+
+	// make little closure for ending the log stream
+	sendCloseMsg := func() {
+		// send a close message, to tell the manager our logs are done
+		publisher.Send(&api.PublishLogsMessage{
+			SubscriptionID: subscriptionID,
+			Close:          true,
+		})
+		// close the stream forreal
+		publisher.CloseSend()
 	}
 
 	return exec.LogPublisherFunc(func(ctx context.Context, message api.LogMessage) error {
-		select {
-		case <-ctx.Done():
-			client.CloseSend()
-			return ctx.Err()
-		default:
-		}
+			select {
+			case <-ctx.Done():
+				sendCloseMsg()
+				return ctx.Err()
+			default:
+			}
 
-		return client.Send(&api.PublishLogsMessage{
-			SubscriptionID: subscriptionID,
-			Messages:       []api.LogMessage{message},
-		})
-	}), nil
+			return publisher.Send(&api.PublishLogsMessage{
+				SubscriptionID: subscriptionID,
+				Messages:       []api.LogMessage{message},
+			})
+		}), func() {
+			sendCloseMsg()
+		}, nil
 }
 
 // nodeDescriptionWithHostname retrieves node description, and overrides hostname if available
-func (a *Agent) nodeDescriptionWithHostname(ctx context.Context) (*api.NodeDescription, error) {
+func (a *Agent) nodeDescriptionWithHostname(ctx context.Context, tlsInfo *api.NodeTLSInfo) (*api.NodeDescription, error) {
 	desc, err := a.config.Executor.Describe(ctx)
 
-	// Override hostname
-	if a.config.Hostname != "" && desc != nil {
-		desc.Hostname = a.config.Hostname
+	// Override hostname and TLS info
+	if desc != nil {
+		if a.config.Hostname != "" && desc != nil {
+			desc.Hostname = a.config.Hostname
+		}
+		desc.TLSInfo = tlsInfo
 	}
 	return desc, err
 }
 
-// nodesEqual returns true if the node states are functionaly equal, ignoring status,
+// nodesEqual returns true if the node states are functionally equal, ignoring status,
 // version and other superfluous fields.
 //
 // This used to decide whether or not to propagate a node update to executor.

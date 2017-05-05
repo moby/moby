@@ -15,7 +15,6 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/volume"
 	"github.com/docker/docker/volume/drivers"
-	"github.com/opencontainers/runc/libcontainer/label"
 )
 
 var (
@@ -26,7 +25,7 @@ var (
 
 type mounts []container.Mount
 
-// volumeToAPIType converts a volume.Volume to the type used by the remote API
+// volumeToAPIType converts a volume.Volume to the type used by the Engine API
 func volumeToAPIType(v volume.Volume) *types.Volume {
 	tv := &types.Volume{
 		Name:   v.Name(),
@@ -85,6 +84,15 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 		}
 	}()
 
+	dereferenceIfExists := func(destination string) {
+		if v, ok := mountPoints[destination]; ok {
+			logrus.Debugf("Duplicate mount point '%s'", destination)
+			if v.Volume != nil {
+				daemon.volumes.Dereference(v.Volume, container.ID)
+			}
+		}
+	}
+
 	// 1. Read already configured mount points.
 	for destination, point := range container.MountPoints {
 		mountPoints[destination] = point
@@ -121,7 +129,7 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 				}
 				cp.Volume = v
 			}
-
+			dereferenceIfExists(cp.Destination)
 			mountPoints[cp.Destination] = cp
 		}
 	}
@@ -155,6 +163,7 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 		}
 
 		binds[bind.Destination] = true
+		dereferenceIfExists(bind.Destination)
 		mountPoints[bind.Destination] = bind
 	}
 
@@ -183,9 +192,6 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 				return err
 			}
 
-			if err := label.Relabel(mp.Source, container.MountLabel, false); err != nil {
-				return err
-			}
 			mp.Volume = v
 			mp.Name = v.Name()
 			mp.Driver = v.DriverName()
@@ -199,6 +205,7 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 		}
 
 		binds[mp.Destination] = true
+		dereferenceIfExists(mp.Destination)
 		mountPoints[mp.Destination] = mp
 	}
 
@@ -242,7 +249,7 @@ func backportMountSpec(container *container.Container) error {
 			m.Type = mounttypes.TypeVolume
 			m.Spec.Type = mounttypes.TypeVolume
 
-			// make sure this is not an anyonmous volume before setting the spec source
+			// make sure this is not an anonymous volume before setting the spec source
 			if _, exists := container.Config.Volumes[target]; !exists {
 				m.Spec.Source = m.Name
 			}
@@ -288,9 +295,12 @@ func (daemon *Daemon) traverseLocalVolumes(fn func(volume.Volume) error) error {
 
 	for _, v := range vols {
 		name := v.Name()
-		_, err := daemon.volumes.Get(name)
+		vol, err := daemon.volumes.Get(name)
 		if err != nil {
 			logrus.Warnf("failed to retrieve volume %s from store: %v", name, err)
+		} else {
+			// daemon.volumes.Get will return DetailedVolume
+			v = vol
 		}
 
 		err = fn(v)

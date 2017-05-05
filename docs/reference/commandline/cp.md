@@ -31,6 +31,8 @@ Options:
       --help          Print usage
 ```
 
+## Description
+
 The `docker cp` utility copies the contents of `SRC_PATH` to the `DEST_PATH`.
 You can copy from the container's file system to the local machine or the
 reverse, from the local filesystem to the container. If `-` is specified for
@@ -75,9 +77,9 @@ argument of `DEST_PATH`, the behavior is as follows:
     - `DEST_PATH` exists and is a file
         - Error condition: cannot copy a directory to a file
     - `DEST_PATH` exists and is a directory
-        - `SRC_PATH` does not end with `/.`
+        - `SRC_PATH` does not end with `/.` (that is: _slash_ followed by _dot_)
             - the source directory is copied into this directory
-        - `SRC_PATH` does end with `/.`
+        - `SRC_PATH` does end with `/.` (that is: _slash_ followed by _dot_)
             - the *content* of the source directory is copied into this
               directory
 
@@ -96,15 +98,16 @@ you must be explicit with a relative or absolute path, for example:
 It is not possible to copy certain system files such as resources under
 `/proc`, `/sys`, `/dev`, [tmpfs](run.md#mount-tmpfs-tmpfs), and mounts created by
 the user in the container. However, you can still copy such files by manually
-running `tar` in `docker exec`. For example (consider `SRC_PATH` and `DEST_PATH`
-are directories):
+running `tar` in `docker exec`. Both of the following examples do the same thing
+in different ways (consider `SRC_PATH` and `DEST_PATH` are directories):
 
-    $ docker exec foo tar Ccf $(dirname SRC_PATH) - $(basename SRC_PATH) | tar Cxf DEST_PATH -
+```bash
+$ docker exec foo tar Ccf $(dirname SRC_PATH) - $(basename SRC_PATH) | tar Cxf DEST_PATH -
+```
 
-or
-
-    $ tar Ccf $(dirname SRC_PATH) - $(basename SRC_PATH) | docker exec -i foo tar Cxf DEST_PATH -
-
+```bash
+$ tar Ccf $(dirname SRC_PATH) - $(basename SRC_PATH) | docker exec -i foo tar Cxf DEST_PATH -
+```
 
 Using `-` as the `SRC_PATH` streams the contents of `STDIN` as a tar archive.
 The command extracts the content of the tar to the `DEST_PATH` in container's

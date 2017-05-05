@@ -3,14 +3,15 @@ package main
 import (
 	"net/http"
 
-	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/request"
 	"github.com/go-check/check"
 )
 
 func (s *DockerSuite) TestInfoAPI(c *check.C) {
 	endpoint := "/info"
 
-	status, body, err := sockRequest("GET", endpoint, nil)
+	status, body, err := request.SockRequest("GET", endpoint, nil, daemonHost())
 	c.Assert(status, checker.Equals, http.StatusOK)
 	c.Assert(err, checker.IsNil)
 
@@ -43,7 +44,7 @@ func (s *DockerSuite) TestInfoAPIVersioned(c *check.C) {
 	testRequires(c, DaemonIsLinux) // Windows only supports 1.25 or later
 	endpoint := "/v1.20/info"
 
-	status, body, err := sockRequest("GET", endpoint, nil)
+	status, body, err := request.SockRequest("GET", endpoint, nil, daemonHost())
 	c.Assert(status, checker.Equals, http.StatusOK)
 	c.Assert(err, checker.IsNil)
 

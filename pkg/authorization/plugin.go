@@ -61,6 +61,11 @@ func (a *authorizationPlugin) Name() string {
 	return a.name
 }
 
+// Set the remote for an authz pluginv2
+func (a *authorizationPlugin) SetName(remote string) {
+	a.name = remote
+}
+
 func (a *authorizationPlugin) AuthZRequest(authReq *Request) (*Response, error) {
 	if err := a.initPlugin(); err != nil {
 		return nil, err
@@ -97,7 +102,8 @@ func (a *authorizationPlugin) initPlugin() error {
 			var e error
 
 			if pg := GetPluginGetter(); pg != nil {
-				plugin, e = pg.Get(a.name, AuthZApiImplements, plugingetter.LOOKUP)
+				plugin, e = pg.Get(a.name, AuthZApiImplements, plugingetter.Lookup)
+				a.SetName(plugin.Name())
 			} else {
 				plugin, e = plugins.Get(a.name, AuthZApiImplements)
 			}

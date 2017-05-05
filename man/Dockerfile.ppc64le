@@ -1,9 +1,19 @@
 FROM    ppc64le/ubuntu:xenial
 
-RUN     apt-get update && apt-get install -y git golang-go
+RUN     apt-get update && apt-get install -y \
+        curl \
+        gcc \
+        git \
+        make \
+        tar
+
+ENV     GO_VERSION 1.7.5
+RUN     curl -fsSL "https://golang.org/dl/go${GO_VERSION}.linux-ppc64le.tar.gz" \
+        | tar -xzC /usr/local
+ENV     PATH /usr/local/go/bin:$PATH
+ENV     GOPATH=/go
 
 RUN     mkdir -p /go/src /go/bin /go/pkg
-ENV     GOPATH=/go:/usr/lib/go-1.6
 RUN     export GLIDE=v0.11.1; \
         export TARGET=/go/src/github.com/Masterminds; \
         mkdir -p ${TARGET} && \

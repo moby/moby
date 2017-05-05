@@ -82,6 +82,7 @@ type NetworkSpec struct {
 	IPv6Enabled         bool         `json:",omitempty"`
 	Internal            bool         `json:",omitempty"`
 	Attachable          bool         `json:",omitempty"`
+	Ingress             bool         `json:",omitempty"`
 	IPAMOptions         *IPAMOptions `json:",omitempty"`
 }
 
@@ -108,10 +109,4 @@ type IPAMConfig struct {
 	Subnet  string `json:",omitempty"`
 	Range   string `json:",omitempty"`
 	Gateway string `json:",omitempty"`
-}
-
-// Driver represents a network driver.
-type Driver struct {
-	Name    string            `json:",omitempty"`
-	Options map[string]string `json:",omitempty"`
 }

@@ -2,7 +2,6 @@ package container
 
 import (
 	"encoding/json"
-	"errors"
 	"io"
 	"strings"
 	"sync"
@@ -12,6 +11,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli/command/formatter"
 	"github.com/docker/docker/client"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
 
@@ -81,14 +81,11 @@ func collect(ctx context.Context, s *formatter.ContainerStats, cli client.APICli
 	go func() {
 		for {
 			var (
-				v                 *types.StatsJSON
-				memPercent        = 0.0
-				cpuPercent        = 0.0
-				blkRead, blkWrite uint64 // Only used on Linux
-				mem               = 0.0
-				memLimit          = 0.0
-				memPerc           = 0.0
-				pidsStatsCurrent  uint64
+				v                      *types.StatsJSON
+				memPercent, cpuPercent float64
+				blkRead, blkWrite      uint64 // Only used on Linux
+				mem, memLimit, memPerc float64
+				pidsStatsCurrent       uint64
 			)
 
 			if err := dec.Decode(&v); err != nil {
@@ -155,11 +152,13 @@ func collect(ctx context.Context, s *formatter.ContainerStats, cli client.APICli
 				waitFirst.Done()
 			}
 		case err := <-u:
+			s.SetError(err)
+			if err == io.EOF {
+				break
+			}
 			if err != nil {
-				s.SetError(err)
 				continue
 			}
-			s.SetError(nil)
 			// if this is the first stat you get, release WaitGroup
 			if !getFirst {
 				getFirst = true
@@ -179,10 +178,14 @@ func calculateCPUPercentUnix(previousCPU, previousSystem uint64, v *types.StatsJ
 		cpuDelta = float64(v.CPUStats.CPUUsage.TotalUsage) - float64(previousCPU)
 		// calculate the change for the entire system between readings
 		systemDelta = float64(v.CPUStats.SystemUsage) - float64(previousSystem)
+		onlineCPUs  = float64(v.CPUStats.OnlineCPUs)
 	)
 
+	if onlineCPUs == 0.0 {
+		onlineCPUs = float64(len(v.CPUStats.CPUUsage.PercpuUsage))
+	}
 	if systemDelta > 0.0 && cpuDelta > 0.0 {
-		cpuPercent = (cpuDelta / systemDelta) * float64(len(v.CPUStats.CPUUsage.PercpuUsage)) * 100.0
+		cpuPercent = (cpuDelta / systemDelta) * onlineCPUs * 100.0
 	}
 	return cpuPercent
 }

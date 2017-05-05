@@ -8,8 +8,9 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/opencontainers/go-digest"
+	"github.com/pkg/errors"
 )
 
 // DigestWalkFunc is function called by StoreBackend.Walk
@@ -47,10 +48,10 @@ func newFSStore(root string) (*fs, error) {
 		root: root,
 	}
 	if err := os.MkdirAll(filepath.Join(root, contentDirName, string(digest.Canonical)), 0700); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to create storage backend")
 	}
 	if err := os.MkdirAll(filepath.Join(root, metadataDirName, string(digest.Canonical)), 0700); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to create storage backend")
 	}
 	return s, nil
 }
@@ -75,7 +76,7 @@ func (s *fs) Walk(f DigestWalkFunc) error {
 	for _, v := range dir {
 		dgst := digest.NewDigestFromHex(string(digest.Canonical), v.Name())
 		if err := dgst.Validate(); err != nil {
-			logrus.Debugf("Skipping invalid digest %s: %s", dgst, err)
+			logrus.Debugf("skipping invalid digest %s: %s", dgst, err)
 			continue
 		}
 		if err := f(dgst); err != nil {
@@ -96,7 +97,7 @@ func (s *fs) Get(dgst digest.Digest) ([]byte, error) {
 func (s *fs) get(dgst digest.Digest) ([]byte, error) {
 	content, err := ioutil.ReadFile(s.contentFile(dgst))
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "failed to get digest %s", dgst)
 	}
 
 	// todo: maybe optional
@@ -113,12 +114,12 @@ func (s *fs) Set(data []byte) (digest.Digest, error) {
 	defer s.Unlock()
 
 	if len(data) == 0 {
-		return "", fmt.Errorf("Invalid empty data")
+		return "", fmt.Errorf("invalid empty data")
 	}
 
 	dgst := digest.FromBytes(data)
 	if err := ioutils.AtomicWriteFile(s.contentFile(dgst), data, 0600); err != nil {
-		return "", err
+		return "", errors.Wrap(err, "failed to write digest data")
 	}
 
 	return dgst, nil
@@ -161,7 +162,11 @@ func (s *fs) GetMetadata(dgst digest.Digest, key string) ([]byte, error) {
 	if _, err := s.get(dgst); err != nil {
 		return nil, err
 	}
-	return ioutil.ReadFile(filepath.Join(s.metadataDir(dgst), key))
+	bytes, err := ioutil.ReadFile(filepath.Join(s.metadataDir(dgst), key))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read metadata")
+	}
+	return bytes, nil
 }
 
 // DeleteMetadata removes the metadata associated with a digest.

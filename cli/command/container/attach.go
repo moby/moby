@@ -1,18 +1,17 @@
 package container
 
 import (
-	"fmt"
 	"io"
 	"net/http/httputil"
-
-	"golang.org/x/net/context"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/pkg/signal"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 type attachOptions struct {
@@ -29,7 +28,7 @@ func NewAttachCommand(dockerCli *command.DockerCli) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "attach [OPTIONS] CONTAINER",
-		Short: "Attach to a running container",
+		Short: "Attach local standard input, output, and error streams to a running container",
 		Args:  cli.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts.container = args[0]
@@ -54,11 +53,11 @@ func runAttach(dockerCli *command.DockerCli, opts *attachOptions) error {
 	}
 
 	if !c.State.Running {
-		return fmt.Errorf("You cannot attach to a stopped container, start it first")
+		return errors.New("You cannot attach to a stopped container, start it first")
 	}
 
 	if c.State.Paused {
-		return fmt.Errorf("You cannot attach to a paused container, unpause it first")
+		return errors.New("You cannot attach to a paused container, unpause it first")
 	}
 
 	if err := dockerCli.In().CheckTty(!opts.noStdin, c.Config.Tty); err != nil {

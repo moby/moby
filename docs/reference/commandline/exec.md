@@ -31,35 +31,69 @@ Options:
   -u, --user           Username or UID (format: <name|uid>[:<group|gid>])
 ```
 
+## Description
+
 The `docker exec` command runs a new command in a running container.
 
 The command started using `docker exec` only runs while the container's primary
 process (`PID 1`) is running, and it is not restarted if the container is
 restarted.
 
-If the container is paused, then the `docker exec` command will fail with an error:
+COMMAND will run in the default directory of the container. It the
+underlying image has a custom directory specified with the WORKDIR directive
+in its Dockerfile, this will be used instead.
 
-    $ docker pause test
-    test
-    $ docker ps
-    CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS                   PORTS               NAMES
-    1ae3b36715d2        ubuntu:latest       "bash"              17 seconds ago      Up 16 seconds (Paused)                       test
-    $ docker exec test ls
-    FATA[0000] Error response from daemon: Container test is paused, unpause the container before exec
-    $ echo $?
-    1
+COMMAND should be an executable, a chained or a quoted command
+will not work. Example: `docker exec -ti my_container "echo a && echo b"` will
+not work, but `docker exec -ti my_container sh -c "echo a && echo b"` will.
 
 ## Examples
 
-    $ docker run --name ubuntu_bash --rm -i -t ubuntu bash
+### Run `docker exec` on a running container
+
+First, start a container.
+
+```bash
+$ docker run --name ubuntu_bash --rm -i -t ubuntu bash
+```
 
 This will create a container named `ubuntu_bash` and start a Bash session.
 
-    $ docker exec -d ubuntu_bash touch /tmp/execWorks
+Next, execute a command on the container.
+
+```bash
+$ docker exec -d ubuntu_bash touch /tmp/execWorks
+```
 
 This will create a new file `/tmp/execWorks` inside the running container
 `ubuntu_bash`, in the background.
 
-    $ docker exec -it ubuntu_bash bash
+Next, execute an interactive `bash` shell on the container.
+
+```bash
+$ docker exec -it ubuntu_bash bash
+```
 
 This will create a new Bash session in the container `ubuntu_bash`.
+
+### Try to run `docker exec` on a paused container
+
+If the container is paused, then the `docker exec` command will fail with an error:
+
+```bash
+$ docker pause test
+
+test
+
+$ docker ps
+
+CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS                   PORTS               NAMES
+1ae3b36715d2        ubuntu:latest       "bash"              17 seconds ago      Up 16 seconds (Paused)                       test
+
+$ docker exec test ls
+
+FATA[0000] Error response from daemon: Container test is paused, unpause the container before exec
+
+$ echo $?
+1
+```

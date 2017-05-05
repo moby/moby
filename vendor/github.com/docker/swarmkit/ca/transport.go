@@ -120,8 +120,8 @@ func (c *MutableTLSCreds) ServerHandshake(rawConn net.Conn) (net.Conn, credentia
 	return conn, credentials.TLSInfo{State: conn.ConnectionState()}, nil
 }
 
-// LoadNewTLSConfig replaces the currently loaded TLS config with a new one
-func (c *MutableTLSCreds) LoadNewTLSConfig(newConfig *tls.Config) error {
+// loadNewTLSConfig replaces the currently loaded TLS config with a new one
+func (c *MutableTLSCreds) loadNewTLSConfig(newConfig *tls.Config) error {
 	newSubject, err := GetAndValidateCertificateSubject(newConfig.Certificates)
 	if err != nil {
 		return err

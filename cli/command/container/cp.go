@@ -1,26 +1,26 @@
 package container
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
-
-	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/system"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 type copyOptions struct {
 	source      string
 	destination string
 	followLink  bool
+	copyUIDGID  bool
 }
 
 type copyDirection int
@@ -53,10 +53,10 @@ func NewCopyCommand(dockerCli *command.DockerCli) *cobra.Command {
 		Args: cli.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if args[0] == "" {
-				return fmt.Errorf("source can not be empty")
+				return errors.New("source can not be empty")
 			}
 			if args[1] == "" {
-				return fmt.Errorf("destination can not be empty")
+				return errors.New("destination can not be empty")
 			}
 			opts.source = args[0]
 			opts.destination = args[1]
@@ -67,6 +67,7 @@ func NewCopyCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags := cmd.Flags()
 
 	flags.BoolVarP(&opts.followLink, "follow-link", "L", false, "Always follow symbol link in SRC_PATH")
+	flags.BoolVarP(&opts.copyUIDGID, "archive", "a", false, "Archive mode (copy all uid/gid information)")
 
 	return cmd
 }
@@ -93,13 +94,13 @@ func runCopy(dockerCli *command.DockerCli, opts copyOptions) error {
 	case fromContainer:
 		return copyFromContainer(ctx, dockerCli, srcContainer, srcPath, dstPath, cpParam)
 	case toContainer:
-		return copyToContainer(ctx, dockerCli, srcPath, dstContainer, dstPath, cpParam)
+		return copyToContainer(ctx, dockerCli, srcPath, dstContainer, dstPath, cpParam, opts.copyUIDGID)
 	case acrossContainers:
 		// Copying between containers isn't supported.
-		return fmt.Errorf("copying between containers is not supported")
+		return errors.New("copying between containers is not supported")
 	default:
 		// User didn't specify any container.
-		return fmt.Errorf("must specify at least one container source")
+		return errors.New("must specify at least one container source")
 	}
 }
 
@@ -176,7 +177,7 @@ func copyFromContainer(ctx context.Context, dockerCli *command.DockerCli, srcCon
 	return archive.CopyTo(preArchive, srcInfo, dstPath)
 }
 
-func copyToContainer(ctx context.Context, dockerCli *command.DockerCli, srcPath, dstContainer, dstPath string, cpParam *cpConfig) (err error) {
+func copyToContainer(ctx context.Context, dockerCli *command.DockerCli, srcPath, dstContainer, dstPath string, cpParam *cpConfig, copyUIDGID bool) (err error) {
 	if srcPath != "-" {
 		// Get an absolute source path.
 		srcPath, err = resolveLocalPath(srcPath)
@@ -227,7 +228,7 @@ func copyToContainer(ctx context.Context, dockerCli *command.DockerCli, srcPath,
 		content = os.Stdin
 		resolvedDstPath = dstInfo.Path
 		if !dstInfo.IsDir {
-			return fmt.Errorf("destination %q must be a directory", fmt.Sprintf("%s:%s", dstContainer, dstPath))
+			return errors.Errorf("destination \"%s:%s\" must be a directory", dstContainer, dstPath)
 		}
 	} else {
 		// Prepare source copy info.
@@ -266,6 +267,7 @@ func copyToContainer(ctx context.Context, dockerCli *command.DockerCli, srcPath,
 
 	options := types.CopyToContainerOptions{
 		AllowOverwriteDirWithFile: false,
+		CopyUIDGID:                copyUIDGID,
 	}
 
 	return dockerCli.Client().CopyToContainer(ctx, dstContainer, resolvedDstPath, content, options)

@@ -1,3 +1,5 @@
+// +build windows
+
 package winio
 
 import (
@@ -216,4 +218,8 @@ func (f *win32File) SetReadDeadline(t time.Time) error {
 func (f *win32File) SetWriteDeadline(t time.Time) error {
 	f.writeDeadline = t
 	return nil
+}
+
+func (f *win32File) Flush() error {
+	return syscall.FlushFileBuffers(f.handle)
 }

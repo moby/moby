@@ -22,7 +22,7 @@
 // stream implements it. `(*fwd.Reader).Next` returns a slice pointing
 // to the next `n` bytes in the read buffer (like `Peek`), but also
 // increments the read position. This allows users to process streams
-// in aribtrary block sizes without having to manage appropriately-sized
+// in arbitrary block sizes without having to manage appropriately-sized
 // slices. Additionally, obviating the need to copy the data from the
 // buffer to another location in memory can improve performance dramatically
 // in CPU-bound applications.
@@ -97,7 +97,11 @@ func (r *Reader) more() {
 	// we can supply the maximum number of
 	// bytes to the reader
 	if r.n != 0 {
-		r.data = r.data[:copy(r.data[0:], r.data[r.n:])]
+		if r.n < len(r.data) {
+			r.data = r.data[:copy(r.data[0:], r.data[r.n:])]
+		} else {
+			r.data = r.data[:0]
+		}
 		r.n = 0
 	}
 	var a int
@@ -148,6 +152,7 @@ func (r *Reader) Peek(n int) ([]byte, error) {
 		old := r.data[r.n:]
 		r.data = make([]byte, n+r.buffered())
 		r.data = r.data[:copy(r.data, old)]
+		r.n = 0
 	}
 
 	// keep filling until
@@ -167,7 +172,7 @@ func (r *Reader) Peek(n int) ([]byte, error) {
 
 // Skip moves the reader forward 'n' bytes.
 // Returns the number of bytes skipped and any
-// errors encountered. It is analagous to Seek(n, 1).
+// errors encountered. It is analogous to Seek(n, 1).
 // If the underlying reader implements io.Seeker, then
 // that method will be used to skip forward.
 //
@@ -224,6 +229,7 @@ func (r *Reader) Next(n int) ([]byte, error) {
 		old := r.data[r.n:]
 		r.data = make([]byte, n+r.buffered())
 		r.data = r.data[:copy(r.data, old)]
+		r.n = 0
 	}
 
 	// fill at least 'n' bytes
@@ -255,21 +261,28 @@ func (r *Reader) skipSeek(n int) (int, error) {
 
 // Read implements `io.Reader`
 func (r *Reader) Read(b []byte) (int, error) {
-	if len(b) <= r.buffered() {
+	// if we have data in the buffer, just
+	// return that.
+	if r.buffered() != 0 {
 		x := copy(b, r.data[r.n:])
 		r.n += x
 		return x, nil
 	}
-	r.more()
-	if r.buffered() > 0 {
-		x := copy(b, r.data[r.n:])
-		r.n += x
-		return x, nil
+	var n int
+	// we have no buffered data; determine
+	// whether or not to buffer or call
+	// the underlying reader directly
+	if len(b) >= cap(r.data) {
+		n, r.state = r.r.Read(b)
+	} else {
+		r.more()
+		n = copy(b, r.data)
+		r.n = n
 	}
-
-	// io.Reader is supposed to return
-	// 0 read bytes on error
-	return 0, r.err()
+	if n == 0 {
+		return 0, r.err()
+	}
+	return n, nil
 }
 
 // ReadFull attempts to read len(b) bytes into
@@ -277,20 +290,28 @@ func (r *Reader) Read(b []byte) (int, error) {
 // 'b', and an error if it does not return len(b).
 // EOF is considered an unexpected error.
 func (r *Reader) ReadFull(b []byte) (int, error) {
-	var x int
+	var n int  // read into b
+	var nn int // scratch
 	l := len(b)
-	for x < l {
-		if r.buffered() == 0 {
+	// either read buffered data,
+	// or read directly for the underlying
+	// buffer, or fetch more buffered data.
+	for n < l && r.state == nil {
+		if r.buffered() != 0 {
+			nn = copy(b[n:], r.data[r.n:])
+			n += nn
+			r.n += nn
+		} else if l-n > cap(r.data) {
+			nn, r.state = r.r.Read(b[n:])
+			n += nn
+		} else {
 			r.more()
 		}
-		c := copy(b[x:], r.data[r.n:])
-		x += c
-		r.n += c
-		if r.state != nil {
-			return x, r.noEOF()
-		}
 	}
-	return x, nil
+	if n < l {
+		return n, r.noEOF()
+	}
+	return n, nil
 }
 
 // ReadByte implements `io.ByteReader`

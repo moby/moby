@@ -16,6 +16,7 @@ autogen/
 bundles/
 cmd/dockerd/dockerd
 cmd/docker/docker
+contrib/builder/rpm/*/changelog
 dockerversion/version_autogen.go
 dockerversion/version_autogen_unix.go
 docs/AWS_S3_BUCKET
@@ -31,3 +32,4 @@ man/man1
 man/man5
 man/man8
 vendor/pkg/
+hack/integration-cli-on-swarm/integration-cli-on-swarm

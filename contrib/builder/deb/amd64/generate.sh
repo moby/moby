@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 # usage: ./generate.sh [versions]
@@ -76,21 +76,20 @@ for version in "${versions[@]}"; do
 		libdevmapper-dev # for "libdevmapper.h"
 		libltdl-dev # for pkcs11 "ltdl.h"
 		libseccomp-dev  # for "seccomp.h" & "libseccomp.so"
-		libsqlite3-dev # for "sqlite3.h"
 		pkg-config # for detecting things like libsystemd-journal dynamically
 		vim-common # tini dep
 	)
 	# packaging for "sd-journal.h" and libraries varies
 	case "$suite" in
-		precise|wheezy) ;;
-		jessie|trusty) packages+=( libsystemd-journal-dev );;
-		*) packages+=( libsystemd-dev );;
+		wheezy) ;;
+		jessie|trusty) packages+=( libsystemd-journal-dev ) ;;
+		*) packages+=( libsystemd-dev ) ;;
 	esac
 
-	# debian wheezy & ubuntu precise do not have the right libseccomp libs
+	# debian wheezy does not have the right libseccomp libs
 	# debian jessie & ubuntu trusty have a libseccomp < 2.2.1 :(
 	case "$suite" in
-		precise|wheezy|jessie|trusty)
+		wheezy|jessie|trusty)
 			packages=( "${packages[@]/libseccomp-dev}" )
 			runcBuildTags="apparmor selinux"
 			;;
@@ -99,23 +98,6 @@ for version in "${versions[@]}"; do
 			runcBuildTags="apparmor seccomp selinux"
 			;;
 	esac
-
-
-	if [ "$suite" = 'precise' ]; then
-		# precise has a few package issues
-
-		# - dh-systemd doesn't exist at all
-		packages=( "${packages[@]/dh-systemd}" )
-
-		# - libdevmapper-dev is missing critical structs (too old)
-		packages=( "${packages[@]/libdevmapper-dev}" )
-		extraBuildTags+=' exclude_graphdriver_devicemapper'
-
-		# - btrfs-tools is missing "ioctl.h" (too old), so it's useless
-		#   (since kernels on precise are old too, just skip btrfs entirely)
-		packages=( "${packages[@]/btrfs-tools}" )
-		extraBuildTags+=' exclude_graphdriver_btrfs'
-	fi
 
 	if [ "$suite" = 'wheezy' ]; then
 		# pull a couple packages from backports explicitly

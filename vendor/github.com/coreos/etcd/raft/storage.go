@@ -98,6 +98,8 @@ func (ms *MemoryStorage) InitialState() (pb.HardState, pb.ConfState, error) {
 
 // SetHardState saves the current HardState.
 func (ms *MemoryStorage) SetHardState(st pb.HardState) error {
+	ms.Lock()
+	defer ms.Unlock()
 	ms.hardState = st
 	return nil
 }

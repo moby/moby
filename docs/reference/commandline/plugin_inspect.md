@@ -16,28 +16,30 @@ keywords: "plugin, inspect"
 # plugin inspect
 
 ```markdown
-Usage:  docker plugin inspect [OPTIONS] PLUGIN [PLUGIN...]
+Usage:	docker plugin inspect [OPTIONS] PLUGIN [PLUGIN...]
 
 Display detailed information on one or more plugins
 
 Options:
-      -f, --format string   Format the output using the given Go template
-          --help            Print usage
+  -f, --format string   Format the output using the given Go template
+      --help            Print usage
 ```
+
+## Description
 
 Returns information about a plugin. By default, this command renders all results
 in a JSON array.
 
-Example output:
+## Examples
 
-```bash
-$ docker plugin inspect tiborvass/no-remove:latest
-```
-```JSON
+
+```none
+$ docker plugin inspect tiborvass/sample-volume-plugin:latest
+
 {
   "Id": "8c74c978c434745c3ade82f1bc0acf38d04990eaf494fa507c16d9f1daa99c21",
-  "Name": "tiborvass/no-remove",
-  "Tag": "latest",
+  "Name": "tiborvass/sample-volume-plugin:latest",
+  "PluginReference": "tiborvas/sample-volume-plugin:latest",
   "Enabled": true,
   "Config": {
     "Mounts": [
@@ -80,7 +82,7 @@ $ docker plugin inspect tiborvass/no-remove:latest
       "Socket": "plugins.sock"
     },
     "Entrypoint": [
-      "plugin-no-remove",
+      "plugin-sample-volume-plugin",
       "/data"
     ],
     "Workdir": "",
@@ -140,18 +142,18 @@ $ docker plugin inspect tiborvass/no-remove:latest
   }
 }
 ```
+
 (output formatted for readability)
 
+### Formatting the output
 
 ```bash
-$ docker plugin inspect -f '{{.Id}}' tiborvass/no-remove:latest
-```
-```
+$ docker plugin inspect -f '{{.Id}}' tiborvass/sample-volume-plugin:latest
+
 8c74c978c434745c3ade82f1bc0acf38d04990eaf494fa507c16d9f1daa99c21
 ```
 
-
-## Related information
+## Related commands
 
 * [plugin create](plugin_create.md)
 * [plugin enable](plugin_enable.md)
@@ -161,3 +163,4 @@ $ docker plugin inspect -f '{{.Id}}' tiborvass/no-remove:latest
 * [plugin push](plugin_push.md)
 * [plugin rm](plugin_rm.md)
 * [plugin set](plugin_set.md)
+* [plugin upgrade](plugin_upgrade.md)

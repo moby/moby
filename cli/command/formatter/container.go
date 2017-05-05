@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/stringid"
@@ -14,7 +15,7 @@ import (
 )
 
 const (
-	defaultContainerTableFormat = "table {{.ID}}\t{{.Image}}\t{{.Command}}\t{{.RunningFor}} ago\t{{.Status}}\t{{.Ports}}\t{{.Names}}"
+	defaultContainerTableFormat = "table {{.ID}}\t{{.Image}}\t{{.Command}}\t{{.RunningFor}}\t{{.Status}}\t{{.Ports}}\t{{.Names}}"
 
 	containerIDHeader = "CONTAINER ID"
 	namesHeader       = "NAMES"
@@ -71,7 +72,17 @@ func ContainerWrite(ctx Context, containers []types.Container) error {
 		}
 		return nil
 	}
-	return ctx.Write(&containerContext{}, render)
+	return ctx.Write(newContainerContext(), render)
+}
+
+type containerHeaderContext map[string]string
+
+func (c containerHeaderContext) Label(name string) string {
+	n := strings.Split(name, ".")
+	r := strings.NewReplacer("-", " ", "_", " ")
+	h := r.Replace(n[len(n)-1])
+
+	return h
 }
 
 type containerContext struct {
@@ -80,12 +91,31 @@ type containerContext struct {
 	c     types.Container
 }
 
+func newContainerContext() *containerContext {
+	containerCtx := containerContext{}
+	containerCtx.header = containerHeaderContext{
+		"ID":           containerIDHeader,
+		"Names":        namesHeader,
+		"Image":        imageHeader,
+		"Command":      commandHeader,
+		"CreatedAt":    createdAtHeader,
+		"RunningFor":   runningForHeader,
+		"Ports":        portsHeader,
+		"Status":       statusHeader,
+		"Size":         sizeHeader,
+		"Labels":       labelsHeader,
+		"Mounts":       mountsHeader,
+		"LocalVolumes": localVolumes,
+		"Networks":     networksHeader,
+	}
+	return &containerCtx
+}
+
 func (c *containerContext) MarshalJSON() ([]byte, error) {
 	return marshalJSON(c)
 }
 
 func (c *containerContext) ID() string {
-	c.AddHeader(containerIDHeader)
 	if c.trunc {
 		return stringid.TruncateID(c.c.ID)
 	}
@@ -93,7 +123,6 @@ func (c *containerContext) ID() string {
 }
 
 func (c *containerContext) Names() string {
-	c.AddHeader(namesHeader)
 	names := stripNamePrefix(c.c.Names)
 	if c.trunc {
 		for _, name := range names {
@@ -107,7 +136,6 @@ func (c *containerContext) Names() string {
 }
 
 func (c *containerContext) Image() string {
-	c.AddHeader(imageHeader)
 	if c.c.Image == "" {
 		return "<no image>"
 	}
@@ -115,12 +143,26 @@ func (c *containerContext) Image() string {
 		if trunc := stringid.TruncateID(c.c.ImageID); trunc == stringid.TruncateID(c.c.Image) {
 			return trunc
 		}
+		// truncate digest if no-trunc option was not selected
+		ref, err := reference.ParseNormalizedNamed(c.c.Image)
+		if err == nil {
+			if nt, ok := ref.(reference.NamedTagged); ok {
+				// case for when a tag is provided
+				if namedTagged, err := reference.WithTag(reference.TrimNamed(nt), nt.Tag()); err == nil {
+					return reference.FamiliarString(namedTagged)
+				}
+			} else {
+				// case for when a tag is not provided
+				named := reference.TrimNamed(ref)
+				return reference.FamiliarString(named)
+			}
+		}
 	}
+
 	return c.c.Image
 }
 
 func (c *containerContext) Command() string {
-	c.AddHeader(commandHeader)
 	command := c.c.Command
 	if c.trunc {
 		command = stringutils.Ellipsis(command, 20)
@@ -129,28 +171,23 @@ func (c *containerContext) Command() string {
 }
 
 func (c *containerContext) CreatedAt() string {
-	c.AddHeader(createdAtHeader)
 	return time.Unix(int64(c.c.Created), 0).String()
 }
 
 func (c *containerContext) RunningFor() string {
-	c.AddHeader(runningForHeader)
 	createdAt := time.Unix(int64(c.c.Created), 0)
-	return units.HumanDuration(time.Now().UTC().Sub(createdAt))
+	return units.HumanDuration(time.Now().UTC().Sub(createdAt)) + " ago"
 }
 
 func (c *containerContext) Ports() string {
-	c.AddHeader(portsHeader)
 	return api.DisplayablePorts(c.c.Ports)
 }
 
 func (c *containerContext) Status() string {
-	c.AddHeader(statusHeader)
 	return c.c.Status
 }
 
 func (c *containerContext) Size() string {
-	c.AddHeader(sizeHeader)
 	srw := units.HumanSizeWithPrecision(float64(c.c.SizeRw), 3)
 	sv := units.HumanSizeWithPrecision(float64(c.c.SizeRootFs), 3)
 
@@ -162,7 +199,6 @@ func (c *containerContext) Size() string {
 }
 
 func (c *containerContext) Labels() string {
-	c.AddHeader(labelsHeader)
 	if c.c.Labels == nil {
 		return ""
 	}
@@ -175,12 +211,6 @@ func (c *containerContext) Labels() string {
 }
 
 func (c *containerContext) Label(name string) string {
-	n := strings.Split(name, ".")
-	r := strings.NewReplacer("-", " ", "_", " ")
-	h := r.Replace(n[len(n)-1])
-
-	c.AddHeader(h)
-
 	if c.c.Labels == nil {
 		return ""
 	}
@@ -188,8 +218,6 @@ func (c *containerContext) Label(name string) string {
 }
 
 func (c *containerContext) Mounts() string {
-	c.AddHeader(mountsHeader)
-
 	var name string
 	var mounts []string
 	for _, m := range c.c.Mounts {
@@ -207,8 +235,6 @@ func (c *containerContext) Mounts() string {
 }
 
 func (c *containerContext) LocalVolumes() string {
-	c.AddHeader(localVolumes)
-
 	count := 0
 	for _, m := range c.c.Mounts {
 		if m.Driver == "local" {
@@ -220,8 +246,6 @@ func (c *containerContext) LocalVolumes() string {
 }
 
 func (c *containerContext) Networks() string {
-	c.AddHeader(networksHeader)
-
 	if c.c.NetworkSettings == nil {
 		return ""
 	}

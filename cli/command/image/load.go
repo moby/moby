@@ -1,7 +1,6 @@
 package image
 
 import (
-	"fmt"
 	"io"
 
 	"golang.org/x/net/context"
@@ -10,6 +9,7 @@ import (
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/system"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -19,7 +19,7 @@ type loadOptions struct {
 }
 
 // NewLoadCommand creates a new `docker load` command
-func NewLoadCommand(dockerCli *command.DockerCli) *cobra.Command {
+func NewLoadCommand(dockerCli command.Cli) *cobra.Command {
 	var opts loadOptions
 
 	cmd := &cobra.Command{
@@ -39,7 +39,7 @@ func NewLoadCommand(dockerCli *command.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func runLoad(dockerCli *command.DockerCli, opts loadOptions) error {
+func runLoad(dockerCli command.Cli, opts loadOptions) error {
 
 	var input io.Reader = dockerCli.In()
 	if opts.input != "" {
@@ -56,7 +56,7 @@ func runLoad(dockerCli *command.DockerCli, opts loadOptions) error {
 	// To avoid getting stuck, verify that a tar file is given either in
 	// the input flag or through stdin and if not display an error message and exit.
 	if opts.input == "" && dockerCli.In().IsTerminal() {
-		return fmt.Errorf("requested load from stdin, but stdin is empty")
+		return errors.Errorf("requested load from stdin, but stdin is empty")
 	}
 
 	if !dockerCli.Out().IsTerminal() {

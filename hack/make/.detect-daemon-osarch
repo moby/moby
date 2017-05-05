@@ -1,7 +1,11 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 docker-version-osarch() {
+	if ! type docker &>/dev/null; then
+		# docker is not installed
+		return
+	fi
 	local target="$1" # "Client" or "Server"
 	local fmtStr="{{.${target}.Os}}/{{.${target}.Arch}}"
 	if docker version -f "$fmtStr" 2>/dev/null; then
@@ -19,7 +23,7 @@ docker-version-osarch() {
 }
 
 # Retrieve OS/ARCH of docker daemon, e.g. linux/amd64
-export DOCKER_ENGINE_OSARCH="$(docker-version-osarch 'Server')"
+export DOCKER_ENGINE_OSARCH="${DOCKER_ENGINE_OSARCH:=$(docker-version-osarch 'Server')}"
 export DOCKER_ENGINE_GOOS="${DOCKER_ENGINE_OSARCH%/*}"
 export DOCKER_ENGINE_GOARCH="${DOCKER_ENGINE_OSARCH##*/}"
 DOCKER_ENGINE_GOARCH=${DOCKER_ENGINE_GOARCH:=amd64}

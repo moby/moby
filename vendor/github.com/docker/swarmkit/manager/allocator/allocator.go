@@ -3,7 +3,9 @@ package allocator
 import (
 	"sync"
 
+	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/go-events"
+	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/manager/state"
 	"github.com/docker/swarmkit/manager/state/store"
 	"golang.org/x/net/context"
@@ -27,6 +29,9 @@ type Allocator struct {
 	stopChan chan struct{}
 	// doneChan is closed when the allocator is finished running.
 	doneChan chan struct{}
+
+	// pluginGetter provides access to docker's plugin inventory.
+	pluginGetter plugingetter.PluginGetter
 }
 
 // taskBallot controls how the voting for task allocation is
@@ -67,14 +72,15 @@ type allocActor struct {
 
 // New returns a new instance of Allocator for use during allocation
 // stage of the manager.
-func New(store *store.MemoryStore) (*Allocator, error) {
+func New(store *store.MemoryStore, pg plugingetter.PluginGetter) (*Allocator, error) {
 	a := &Allocator{
 		store: store,
 		taskBallot: &taskBallot{
 			votes: make(map[string][]string),
 		},
-		stopChan: make(chan struct{}),
-		doneChan: make(chan struct{}),
+		stopChan:     make(chan struct{}),
+		doneChan:     make(chan struct{}),
+		pluginGetter: pg,
 	}
 
 	return a, nil
@@ -94,17 +100,17 @@ func (a *Allocator) Run(ctx context.Context) error {
 
 	var actors []func() error
 	watch, watchCancel := state.Watch(a.store.WatchQueue(),
-		state.EventCreateNetwork{},
-		state.EventDeleteNetwork{},
-		state.EventCreateService{},
-		state.EventUpdateService{},
-		state.EventDeleteService{},
-		state.EventCreateTask{},
-		state.EventUpdateTask{},
-		state.EventDeleteTask{},
-		state.EventCreateNode{},
-		state.EventUpdateNode{},
-		state.EventDeleteNode{},
+		api.EventCreateNetwork{},
+		api.EventDeleteNetwork{},
+		api.EventCreateService{},
+		api.EventUpdateService{},
+		api.EventDeleteService{},
+		api.EventCreateTask{},
+		api.EventUpdateTask{},
+		api.EventDeleteTask{},
+		api.EventCreateNode{},
+		api.EventUpdateNode{},
+		api.EventDeleteNode{},
 		state.EventCommit{},
 	)
 

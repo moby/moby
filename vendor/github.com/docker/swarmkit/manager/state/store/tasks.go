@@ -6,7 +6,6 @@ import (
 
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/api/naming"
-	"github.com/docker/swarmkit/manager/state"
 	memdb "github.com/hashicorp/go-memdb"
 )
 
@@ -14,19 +13,23 @@ const tableTask = "task"
 
 func init() {
 	register(ObjectStoreConfig{
-		Name: tableTask,
 		Table: &memdb.TableSchema{
 			Name: tableTask,
 			Indexes: map[string]*memdb.IndexSchema{
 				indexID: {
 					Name:    indexID,
 					Unique:  true,
-					Indexer: taskIndexerByID{},
+					Indexer: api.TaskIndexerByID{},
 				},
 				indexName: {
 					Name:         indexName,
 					AllowMissing: true,
 					Indexer:      taskIndexerByName{},
+				},
+				indexRuntime: {
+					Name:         indexRuntime,
+					AllowMissing: true,
+					Indexer:      taskIndexerByRuntime{},
 				},
 				indexServiceID: {
 					Name:         indexServiceID,
@@ -61,6 +64,16 @@ func init() {
 					AllowMissing: true,
 					Indexer:      taskIndexerBySecret{},
 				},
+				indexConfig: {
+					Name:         indexConfig,
+					AllowMissing: true,
+					Indexer:      taskIndexerByConfig{},
+				},
+				indexCustom: {
+					Name:         indexCustom,
+					Indexer:      api.TaskCustomIndexer{},
+					AllowMissing: true,
+				},
 			},
 		},
 		Save: func(tx ReadTx, snapshot *api.StoreSnapshot) error {
@@ -85,7 +98,7 @@ func init() {
 			}
 			return nil
 		},
-		ApplyStoreAction: func(tx Tx, sa *api.StoreAction) error {
+		ApplyStoreAction: func(tx Tx, sa api.StoreAction) error {
 			switch v := sa.Target.(type) {
 			case *api.StoreAction_Task:
 				obj := v.Task
@@ -100,74 +113,19 @@ func init() {
 			}
 			return errUnknownStoreAction
 		},
-		NewStoreAction: func(c state.Event) (api.StoreAction, error) {
-			var sa api.StoreAction
-			switch v := c.(type) {
-			case state.EventCreateTask:
-				sa.Action = api.StoreActionKindCreate
-				sa.Target = &api.StoreAction_Task{
-					Task: v.Task,
-				}
-			case state.EventUpdateTask:
-				sa.Action = api.StoreActionKindUpdate
-				sa.Target = &api.StoreAction_Task{
-					Task: v.Task,
-				}
-			case state.EventDeleteTask:
-				sa.Action = api.StoreActionKindRemove
-				sa.Target = &api.StoreAction_Task{
-					Task: v.Task,
-				}
-			default:
-				return api.StoreAction{}, errUnknownStoreAction
-			}
-			return sa, nil
-		},
 	})
-}
-
-type taskEntry struct {
-	*api.Task
-}
-
-func (t taskEntry) ID() string {
-	return t.Task.ID
-}
-
-func (t taskEntry) Meta() api.Meta {
-	return t.Task.Meta
-}
-
-func (t taskEntry) SetMeta(meta api.Meta) {
-	t.Task.Meta = meta
-}
-
-func (t taskEntry) Copy() Object {
-	return taskEntry{t.Task.Copy()}
-}
-
-func (t taskEntry) EventCreate() state.Event {
-	return state.EventCreateTask{Task: t.Task}
-}
-
-func (t taskEntry) EventUpdate() state.Event {
-	return state.EventUpdateTask{Task: t.Task}
-}
-
-func (t taskEntry) EventDelete() state.Event {
-	return state.EventDeleteTask{Task: t.Task}
 }
 
 // CreateTask adds a new task to the store.
 // Returns ErrExist if the ID is already taken.
 func CreateTask(tx Tx, t *api.Task) error {
-	return tx.create(tableTask, taskEntry{t})
+	return tx.create(tableTask, t)
 }
 
 // UpdateTask updates an existing task in the store.
 // Returns ErrNotExist if the node doesn't exist.
 func UpdateTask(tx Tx, t *api.Task) error {
-	return tx.update(tableTask, taskEntry{t})
+	return tx.update(tableTask, t)
 }
 
 // DeleteTask removes a task from the store.
@@ -183,14 +141,14 @@ func GetTask(tx ReadTx, id string) *api.Task {
 	if t == nil {
 		return nil
 	}
-	return t.(taskEntry).Task
+	return t.(*api.Task)
 }
 
 // FindTasks selects a set of tasks and returns them.
 func FindTasks(tx ReadTx, by By) ([]*api.Task, error) {
 	checkType := func(by By) error {
 		switch by.(type) {
-		case byName, byNamePrefix, byIDPrefix, byDesiredState, byTaskState, byNode, byService, bySlot, byReferencedNetworkID, byReferencedSecretID:
+		case byName, byNamePrefix, byIDPrefix, byRuntime, byDesiredState, byTaskState, byNode, byService, bySlot, byReferencedNetworkID, byReferencedSecretID, byReferencedConfigID, byCustom, byCustomPrefix:
 			return nil
 		default:
 			return ErrInvalidFindBy
@@ -198,33 +156,12 @@ func FindTasks(tx ReadTx, by By) ([]*api.Task, error) {
 	}
 
 	taskList := []*api.Task{}
-	appendResult := func(o Object) {
-		taskList = append(taskList, o.(taskEntry).Task)
+	appendResult := func(o api.StoreObject) {
+		taskList = append(taskList, o.(*api.Task))
 	}
 
 	err := tx.find(tableTask, by, checkType, appendResult)
 	return taskList, err
-}
-
-type taskIndexerByID struct{}
-
-func (ti taskIndexerByID) FromArgs(args ...interface{}) ([]byte, error) {
-	return fromArgs(args...)
-}
-
-func (ti taskIndexerByID) FromObject(obj interface{}) (bool, []byte, error) {
-	t, ok := obj.(taskEntry)
-	if !ok {
-		panic("unexpected type passed to FromObject")
-	}
-
-	// Add the null character as a terminator
-	val := t.Task.ID + "\x00"
-	return true, []byte(val), nil
-}
-
-func (ti taskIndexerByID) PrefixFromArgs(args ...interface{}) ([]byte, error) {
-	return prefixFromArgs(args...)
 }
 
 type taskIndexerByName struct{}
@@ -234,18 +171,34 @@ func (ti taskIndexerByName) FromArgs(args ...interface{}) ([]byte, error) {
 }
 
 func (ti taskIndexerByName) FromObject(obj interface{}) (bool, []byte, error) {
-	t, ok := obj.(taskEntry)
-	if !ok {
-		panic("unexpected type passed to FromObject")
-	}
+	t := obj.(*api.Task)
 
-	name := naming.Task(t.Task)
+	name := naming.Task(t)
 
 	// Add the null character as a terminator
 	return true, []byte(strings.ToLower(name) + "\x00"), nil
 }
 
 func (ti taskIndexerByName) PrefixFromArgs(args ...interface{}) ([]byte, error) {
+	return prefixFromArgs(args...)
+}
+
+type taskIndexerByRuntime struct{}
+
+func (ti taskIndexerByRuntime) FromArgs(args ...interface{}) ([]byte, error) {
+	return fromArgs(args...)
+}
+
+func (ti taskIndexerByRuntime) FromObject(obj interface{}) (bool, []byte, error) {
+	t := obj.(*api.Task)
+	r, err := naming.Runtime(t.Spec)
+	if err != nil {
+		return false, nil, nil
+	}
+	return true, []byte(r + "\x00"), nil
+}
+
+func (ti taskIndexerByRuntime) PrefixFromArgs(args ...interface{}) ([]byte, error) {
 	return prefixFromArgs(args...)
 }
 
@@ -256,10 +209,7 @@ func (ti taskIndexerByServiceID) FromArgs(args ...interface{}) ([]byte, error) {
 }
 
 func (ti taskIndexerByServiceID) FromObject(obj interface{}) (bool, []byte, error) {
-	t, ok := obj.(taskEntry)
-	if !ok {
-		panic("unexpected type passed to FromObject")
-	}
+	t := obj.(*api.Task)
 
 	// Add the null character as a terminator
 	val := t.ServiceID + "\x00"
@@ -273,10 +223,7 @@ func (ti taskIndexerByNodeID) FromArgs(args ...interface{}) ([]byte, error) {
 }
 
 func (ti taskIndexerByNodeID) FromObject(obj interface{}) (bool, []byte, error) {
-	t, ok := obj.(taskEntry)
-	if !ok {
-		panic("unexpected type passed to FromObject")
-	}
+	t := obj.(*api.Task)
 
 	// Add the null character as a terminator
 	val := t.NodeID + "\x00"
@@ -290,10 +237,7 @@ func (ti taskIndexerBySlot) FromArgs(args ...interface{}) ([]byte, error) {
 }
 
 func (ti taskIndexerBySlot) FromObject(obj interface{}) (bool, []byte, error) {
-	t, ok := obj.(taskEntry)
-	if !ok {
-		panic("unexpected type passed to FromObject")
-	}
+	t := obj.(*api.Task)
 
 	// Add the null character as a terminator
 	val := t.ServiceID + "\x00" + strconv.FormatUint(t.Slot, 10) + "\x00"
@@ -307,10 +251,7 @@ func (ti taskIndexerByDesiredState) FromArgs(args ...interface{}) ([]byte, error
 }
 
 func (ti taskIndexerByDesiredState) FromObject(obj interface{}) (bool, []byte, error) {
-	t, ok := obj.(taskEntry)
-	if !ok {
-		panic("unexpected type passed to FromObject")
-	}
+	t := obj.(*api.Task)
 
 	// Add the null character as a terminator
 	return true, []byte(strconv.FormatInt(int64(t.DesiredState), 10) + "\x00"), nil
@@ -323,10 +264,7 @@ func (ti taskIndexerByNetwork) FromArgs(args ...interface{}) ([]byte, error) {
 }
 
 func (ti taskIndexerByNetwork) FromObject(obj interface{}) (bool, [][]byte, error) {
-	t, ok := obj.(taskEntry)
-	if !ok {
-		panic("unexpected type passed to FromObject")
-	}
+	t := obj.(*api.Task)
 
 	var networkIDs [][]byte
 
@@ -345,10 +283,7 @@ func (ti taskIndexerBySecret) FromArgs(args ...interface{}) ([]byte, error) {
 }
 
 func (ti taskIndexerBySecret) FromObject(obj interface{}) (bool, [][]byte, error) {
-	t, ok := obj.(taskEntry)
-	if !ok {
-		panic("unexpected type passed to FromObject")
-	}
+	t := obj.(*api.Task)
 
 	container := t.Spec.GetContainer()
 	if container == nil {
@@ -365,6 +300,33 @@ func (ti taskIndexerBySecret) FromObject(obj interface{}) (bool, [][]byte, error
 	return len(secretIDs) != 0, secretIDs, nil
 }
 
+type taskIndexerByConfig struct{}
+
+func (ti taskIndexerByConfig) FromArgs(args ...interface{}) ([]byte, error) {
+	return fromArgs(args...)
+}
+
+func (ti taskIndexerByConfig) FromObject(obj interface{}) (bool, [][]byte, error) {
+	t, ok := obj.(*api.Task)
+	if !ok {
+		panic("unexpected type passed to FromObject")
+	}
+
+	container := t.Spec.GetContainer()
+	if container == nil {
+		return false, nil, nil
+	}
+
+	var configIDs [][]byte
+
+	for _, configRef := range container.Configs {
+		// Add the null character as a terminator
+		configIDs = append(configIDs, []byte(configRef.ConfigID+"\x00"))
+	}
+
+	return len(configIDs) != 0, configIDs, nil
+}
+
 type taskIndexerByTaskState struct{}
 
 func (ts taskIndexerByTaskState) FromArgs(args ...interface{}) ([]byte, error) {
@@ -372,10 +334,7 @@ func (ts taskIndexerByTaskState) FromArgs(args ...interface{}) ([]byte, error) {
 }
 
 func (ts taskIndexerByTaskState) FromObject(obj interface{}) (bool, []byte, error) {
-	t, ok := obj.(taskEntry)
-	if !ok {
-		panic("unexpected type passed to FromObject")
-	}
+	t := obj.(*api.Task)
 
 	// Add the null character as a terminator
 	return true, []byte(strconv.FormatInt(int64(t.Status.State), 10) + "\x00"), nil

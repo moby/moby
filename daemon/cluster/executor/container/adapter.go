@@ -3,26 +3,28 @@ package container
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/server/httputils"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/daemon/cluster/convert"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
-	"github.com/docker/docker/reference"
 	"github.com/docker/libnetwork"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
-	"github.com/docker/swarmkit/protobuf/ptypes"
+	gogotypes "github.com/gogo/protobuf/types"
+	"github.com/opencontainers/go-digest"
 	"golang.org/x/net/context"
 	"golang.org/x/time/rate"
 )
@@ -52,9 +54,14 @@ func newContainerAdapter(b executorpkg.Backend, task *api.Task, secrets exec.Sec
 func (c *containerAdapter) pullImage(ctx context.Context) error {
 	spec := c.container.spec()
 
+	// Skip pulling if the image is referenced by image ID.
+	if _, err := digest.Parse(spec.Image); err == nil {
+		return nil
+	}
+
 	// Skip pulling if the image is referenced by digest and already
 	// exists locally.
-	named, err := reference.ParseNamed(spec.Image)
+	named, err := reference.ParseNormalizedNamed(spec.Image)
 	if err == nil {
 		if _, ok := named.(reference.Canonical); ok {
 			_, err := c.backend.LookupImage(spec.Image)
@@ -208,8 +215,6 @@ func (c *containerAdapter) waitForDetach(ctx context.Context) error {
 func (c *containerAdapter) create(ctx context.Context) error {
 	var cr containertypes.ContainerCreateCreatedBody
 	var err error
-	version := httputils.VersionFromContext(ctx)
-	validateHostname := versions.GreaterThanOrEqualTo(version, "1.24")
 
 	if cr, err = c.backend.CreateManagedContainer(types.ContainerCreateConfig{
 		Name:       c.container.name(),
@@ -217,7 +222,7 @@ func (c *containerAdapter) create(ctx context.Context) error {
 		HostConfig: c.container.hostConfig(),
 		// Use the first network in container create
 		NetworkingConfig: c.container.createNetworkingConfig(),
-	}, validateHostname); err != nil {
+	}); err != nil {
 		return err
 	}
 
@@ -235,35 +240,16 @@ func (c *containerAdapter) create(ctx context.Context) error {
 
 	container := c.container.task.Spec.GetContainer()
 	if container == nil {
-		return fmt.Errorf("unable to get container from task spec")
-	}
-	secrets := make([]*containertypes.ContainerSecret, 0, len(container.Secrets))
-	for _, s := range container.Secrets {
-		sec := c.secrets.Get(s.SecretID)
-		if sec == nil {
-			logrus.Warnf("unable to get secret %s from provider", s.SecretID)
-			continue
-		}
-
-		name := sec.Spec.Annotations.Name
-		target := s.GetFile()
-		if target == nil {
-			logrus.Warnf("secret target was not a file: secret=%s", s.SecretID)
-			continue
-		}
-
-		secrets = append(secrets, &containertypes.ContainerSecret{
-			Name:   name,
-			Target: target.Name,
-			Data:   sec.Spec.Data,
-			UID:    target.UID,
-			GID:    target.GID,
-			Mode:   target.Mode,
-		})
+		return errors.New("unable to get container from task spec")
 	}
 
 	// configure secrets
-	if err := c.backend.SetContainerSecrets(cr.ID, secrets); err != nil {
+	if err := c.backend.SetContainerSecretStore(cr.ID, c.secrets); err != nil {
+		return err
+	}
+
+	refs := convert.SecretReferencesFromGRPC(container.Secrets)
+	if err := c.backend.SetContainerSecretReferences(cr.ID, refs); err != nil {
 		return err
 	}
 
@@ -274,10 +260,29 @@ func (c *containerAdapter) create(ctx context.Context) error {
 	return nil
 }
 
+// checkMounts ensures that the provided mounts won't have any host-specific
+// problems at start up. For example, we disallow bind mounts without an
+// existing path, which slightly different from the container API.
+func (c *containerAdapter) checkMounts() error {
+	spec := c.container.spec()
+	for _, mount := range spec.Mounts {
+		switch mount.Type {
+		case api.MountTypeBind:
+			if _, err := os.Stat(mount.Source); os.IsNotExist(err) {
+				return fmt.Errorf("invalid bind mount source, source path not found: %s", mount.Source)
+			}
+		}
+	}
+
+	return nil
+}
+
 func (c *containerAdapter) start(ctx context.Context) error {
-	version := httputils.VersionFromContext(ctx)
-	validateHostname := versions.GreaterThanOrEqualTo(version, "1.24")
-	return c.backend.ContainerStart(c.container.name(), nil, validateHostname, "", "")
+	if err := c.checkMounts(); err != nil {
+		return err
+	}
+
+	return c.backend.ContainerStart(c.container.name(), nil, "", "")
 }
 
 func (c *containerAdapter) inspect(ctx context.Context) (types.ContainerJSON, error) {
@@ -391,35 +396,33 @@ func (c *containerAdapter) deactivateServiceBinding() error {
 	return c.backend.DeactivateContainerServiceBinding(c.container.name())
 }
 
-func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscriptionOptions) (io.ReadCloser, error) {
-	reader, writer := io.Pipe()
+func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscriptionOptions) (<-chan *backend.LogMessage, error) {
+	apiOptions := &types.ContainerLogsOptions{
+		Follow: options.Follow,
 
-	apiOptions := &backend.ContainerLogsConfig{
-		ContainerLogsOptions: types.ContainerLogsOptions{
-			Follow: options.Follow,
-
-			// TODO(stevvooe): Parse timestamp out of message. This
-			// absolutely needs to be done before going to production with
-			// this, at it is completely redundant.
-			Timestamps: true,
-			Details:    false, // no clue what to do with this, let's just deprecate it.
-		},
-		OutStream: writer,
+		// TODO(stevvooe): Parse timestamp out of message. This
+		// absolutely needs to be done before going to production with
+		// this, at it is completely redundant.
+		Timestamps: true,
+		Details:    false, // no clue what to do with this, let's just deprecate it.
 	}
 
 	if options.Since != nil {
-		since, err := ptypes.Timestamp(options.Since)
+		since, err := gogotypes.TimestampFromProto(options.Since)
 		if err != nil {
 			return nil, err
 		}
-		apiOptions.Since = since.Format(time.RFC3339Nano)
+		// print since as this formatted string because the docker container
+		// logs interface expects it like this.
+		// see github.com/docker/docker/api/types/time.ParseTimestamps
+		apiOptions.Since = fmt.Sprintf("%d.%09d", since.Unix(), int64(since.Nanosecond()))
 	}
 
 	if options.Tail < 0 {
 		// See protobuf documentation for details of how this works.
 		apiOptions.Tail = fmt.Sprint(-options.Tail - 1)
 	} else if options.Tail > 0 {
-		return nil, fmt.Errorf("tail relative to start of logs not supported via docker API")
+		return nil, errors.New("tail relative to start of logs not supported via docker API")
 	}
 
 	if len(options.Streams) == 0 {
@@ -435,10 +438,11 @@ func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscription
 			}
 		}
 	}
-
-	chStarted := make(chan struct{})
-	go c.backend.ContainerLogs(ctx, c.container.name(), apiOptions, chStarted)
-	return reader, nil
+	msgs, err := c.backend.ContainerLogs(ctx, c.container.name(), apiOptions)
+	if err != nil {
+		return nil, err
+	}
+	return msgs, nil
 }
 
 // todo: typed/wrapped errors

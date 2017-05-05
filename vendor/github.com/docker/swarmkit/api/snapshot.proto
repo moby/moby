@@ -20,6 +20,9 @@ message StoreSnapshot {
 	repeated Task tasks = 4;
 	repeated Cluster clusters = 5;
 	repeated Secret secrets = 6;
+	repeated Resource resources = 7;
+	repeated Extension extensions = 8;
+	repeated Config configs = 9;
 }
 
 // ClusterSnapshot stores cluster membership information in snapshots.

@@ -11,10 +11,8 @@ import (
 
 // InStream is an input stream used by the DockerCli to read user input
 type InStream struct {
-	in         io.ReadCloser
-	fd         uintptr
-	isTerminal bool
-	state      *term.State
+	CommonStream
+	in io.ReadCloser
 }
 
 func (i *InStream) Read(p []byte) (int, error) {
@@ -26,30 +24,13 @@ func (i *InStream) Close() error {
 	return i.in.Close()
 }
 
-// FD returns the file descriptor number for this stream
-func (i *InStream) FD() uintptr {
-	return i.fd
-}
-
-// IsTerminal returns true if this stream is connected to a terminal
-func (i *InStream) IsTerminal() bool {
-	return i.isTerminal
-}
-
 // SetRawTerminal sets raw mode on the input terminal
 func (i *InStream) SetRawTerminal() (err error) {
-	if os.Getenv("NORAW") != "" || !i.isTerminal {
+	if os.Getenv("NORAW") != "" || !i.CommonStream.isTerminal {
 		return nil
 	}
-	i.state, err = term.SetRawTerminal(i.fd)
+	i.CommonStream.state, err = term.SetRawTerminal(i.CommonStream.fd)
 	return err
-}
-
-// RestoreTerminal restores normal mode to the terminal
-func (i *InStream) RestoreTerminal() {
-	if i.state != nil {
-		term.RestoreTerminal(i.fd, i.state)
-	}
 }
 
 // CheckTty checks if we are trying to attach to a container tty
@@ -71,5 +52,5 @@ func (i *InStream) CheckTty(attachStdin, ttyMode bool) error {
 // NewInStream returns a new InStream object from a ReadCloser
 func NewInStream(in io.ReadCloser) *InStream {
 	fd, isTerminal := term.GetFdInfo(in)
-	return &InStream{in: in, fd: fd, isTerminal: isTerminal}
+	return &InStream{CommonStream: CommonStream{fd: fd, isTerminal: isTerminal}, in: in}
 }

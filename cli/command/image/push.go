@@ -3,16 +3,16 @@ package image
 import (
 	"golang.org/x/net/context"
 
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/pkg/jsonmessage"
-	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/spf13/cobra"
 )
 
 // NewPushCommand creates a new `docker push` command
-func NewPushCommand(dockerCli *command.DockerCli) *cobra.Command {
+func NewPushCommand(dockerCli command.Cli) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "push [OPTIONS] NAME[:TAG]",
 		Short: "Push an image or a repository to a registry",
@@ -24,13 +24,13 @@ func NewPushCommand(dockerCli *command.DockerCli) *cobra.Command {
 
 	flags := cmd.Flags()
 
-	command.AddTrustedFlags(flags, true)
+	command.AddTrustSigningFlags(flags)
 
 	return cmd
 }
 
-func runPush(dockerCli *command.DockerCli, remote string) error {
-	ref, err := reference.ParseNamed(remote)
+func runPush(dockerCli command.Cli, remote string) error {
+	ref, err := reference.ParseNormalizedNamed(remote)
 	if err != nil {
 		return err
 	}
@@ -51,7 +51,7 @@ func runPush(dockerCli *command.DockerCli, remote string) error {
 		return trustedPush(ctx, dockerCli, repoInfo, ref, authConfig, requestPrivilege)
 	}
 
-	responseBody, err := imagePushPrivileged(ctx, dockerCli, authConfig, ref.String(), requestPrivilege)
+	responseBody, err := imagePushPrivileged(ctx, dockerCli, authConfig, ref, requestPrivilege)
 	if err != nil {
 		return err
 	}

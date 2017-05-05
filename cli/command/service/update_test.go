@@ -6,10 +6,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/net/context"
 )
 
 func TestUpdateServiceArgs(t *testing.T) {
@@ -20,8 +23,8 @@ func TestUpdateServiceArgs(t *testing.T) {
 	cspec := &spec.TaskTemplate.ContainerSpec
 	cspec.Args = []string{"old", "args"}
 
-	updateService(flags, spec)
-	assert.EqualStringSlice(t, cspec.Args, []string{"the", "new args"})
+	updateService(nil, nil, flags, spec)
+	assert.Equal(t, []string{"the", "new args"}, cspec.Args)
 }
 
 func TestUpdateLabels(t *testing.T) {
@@ -35,9 +38,9 @@ func TestUpdateLabels(t *testing.T) {
 	}
 
 	updateLabels(flags, &labels)
-	assert.Equal(t, len(labels), 2)
-	assert.Equal(t, labels["tokeep"], "value")
-	assert.Equal(t, labels["toadd"], "newlabel")
+	assert.Len(t, labels, 2)
+	assert.Equal(t, "value", labels["tokeep"])
+	assert.Equal(t, "newlabel", labels["toadd"])
 }
 
 func TestUpdateLabelsRemoveALabelThatDoesNotExist(t *testing.T) {
@@ -46,10 +49,10 @@ func TestUpdateLabelsRemoveALabelThatDoesNotExist(t *testing.T) {
 
 	labels := map[string]string{"foo": "theoldlabel"}
 	updateLabels(flags, &labels)
-	assert.Equal(t, len(labels), 1)
+	assert.Len(t, labels, 1)
 }
 
-func TestUpdatePlacement(t *testing.T) {
+func TestUpdatePlacementConstraints(t *testing.T) {
 	flags := newUpdateCommand(nil).Flags()
 	flags.Set("constraint-add", "node=toadd")
 	flags.Set("constraint-rm", "node!=toremove")
@@ -58,10 +61,36 @@ func TestUpdatePlacement(t *testing.T) {
 		Constraints: []string{"node!=toremove", "container=tokeep"},
 	}
 
-	updatePlacement(flags, placement)
-	assert.Equal(t, len(placement.Constraints), 2)
-	assert.Equal(t, placement.Constraints[0], "container=tokeep")
-	assert.Equal(t, placement.Constraints[1], "node=toadd")
+	updatePlacementConstraints(flags, placement)
+	require.Len(t, placement.Constraints, 2)
+	assert.Equal(t, "container=tokeep", placement.Constraints[0])
+	assert.Equal(t, "node=toadd", placement.Constraints[1])
+}
+
+func TestUpdatePlacementPrefs(t *testing.T) {
+	flags := newUpdateCommand(nil).Flags()
+	flags.Set("placement-pref-add", "spread=node.labels.dc")
+	flags.Set("placement-pref-rm", "spread=node.labels.rack")
+
+	placement := &swarm.Placement{
+		Preferences: []swarm.PlacementPreference{
+			{
+				Spread: &swarm.SpreadOver{
+					SpreadDescriptor: "node.labels.rack",
+				},
+			},
+			{
+				Spread: &swarm.SpreadOver{
+					SpreadDescriptor: "node.labels.row",
+				},
+			},
+		},
+	}
+
+	updatePlacementPreferences(flags, placement)
+	require.Len(t, placement.Preferences, 2)
+	assert.Equal(t, "node.labels.row", placement.Preferences[0].Spread.SpreadDescriptor)
+	assert.Equal(t, "node.labels.dc", placement.Preferences[1].Spread.SpreadDescriptor)
 }
 
 func TestUpdateEnvironment(t *testing.T) {
@@ -72,11 +101,11 @@ func TestUpdateEnvironment(t *testing.T) {
 	envs := []string{"toremove=theenvtoremove", "tokeep=value"}
 
 	updateEnvironment(flags, &envs)
-	assert.Equal(t, len(envs), 2)
+	require.Len(t, envs, 2)
 	// Order has been removed in updateEnvironment (map)
 	sort.Strings(envs)
-	assert.Equal(t, envs[0], "toadd=newenv")
-	assert.Equal(t, envs[1], "tokeep=value")
+	assert.Equal(t, "toadd=newenv", envs[0])
+	assert.Equal(t, "tokeep=value", envs[1])
 }
 
 func TestUpdateEnvironmentWithDuplicateValues(t *testing.T) {
@@ -88,7 +117,7 @@ func TestUpdateEnvironmentWithDuplicateValues(t *testing.T) {
 	envs := []string{"foo=value"}
 
 	updateEnvironment(flags, &envs)
-	assert.Equal(t, len(envs), 0)
+	assert.Len(t, envs, 0)
 }
 
 func TestUpdateEnvironmentWithDuplicateKeys(t *testing.T) {
@@ -99,8 +128,8 @@ func TestUpdateEnvironmentWithDuplicateKeys(t *testing.T) {
 	envs := []string{"A=c"}
 
 	updateEnvironment(flags, &envs)
-	assert.Equal(t, len(envs), 1)
-	assert.Equal(t, envs[0], "A=b")
+	require.Len(t, envs, 1)
+	assert.Equal(t, "A=b", envs[0])
 }
 
 func TestUpdateGroups(t *testing.T) {
@@ -114,10 +143,10 @@ func TestUpdateGroups(t *testing.T) {
 	groups := []string{"bar", "root"}
 
 	updateGroups(flags, &groups)
-	assert.Equal(t, len(groups), 3)
-	assert.Equal(t, groups[0], "bar")
-	assert.Equal(t, groups[1], "foo")
-	assert.Equal(t, groups[2], "wheel")
+	require.Len(t, groups, 3)
+	assert.Equal(t, "bar", groups[0])
+	assert.Equal(t, "foo", groups[1])
+	assert.Equal(t, "wheel", groups[2])
 }
 
 func TestUpdateDNSConfig(t *testing.T) {
@@ -132,7 +161,7 @@ func TestUpdateDNSConfig(t *testing.T) {
 	// IPv6
 	flags.Set("dns-add", "2001:db8:abc8::1")
 	// Invalid dns record
-	assert.Error(t, flags.Set("dns-add", "x.y.z.w"), "x.y.z.w is not an ip address")
+	assert.EqualError(t, flags.Set("dns-add", "x.y.z.w"), "x.y.z.w is not an ip address")
 
 	// domains with duplicates
 	flags.Set("dns-search-add", "example.com")
@@ -140,7 +169,7 @@ func TestUpdateDNSConfig(t *testing.T) {
 	flags.Set("dns-search-add", "example.org")
 	flags.Set("dns-search-rm", "example.org")
 	// Invalid dns search domain
-	assert.Error(t, flags.Set("dns-search-add", "example$com"), "example$com is not a valid domain")
+	assert.EqualError(t, flags.Set("dns-search-add", "example$com"), "example$com is not a valid domain")
 
 	flags.Set("dns-option-add", "ndots:9")
 	flags.Set("dns-option-rm", "timeout:3")
@@ -153,16 +182,16 @@ func TestUpdateDNSConfig(t *testing.T) {
 
 	updateDNSConfig(flags, &config)
 
-	assert.Equal(t, len(config.Nameservers), 3)
-	assert.Equal(t, config.Nameservers[0], "1.1.1.1")
-	assert.Equal(t, config.Nameservers[1], "2001:db8:abc8::1")
-	assert.Equal(t, config.Nameservers[2], "5.5.5.5")
+	require.Len(t, config.Nameservers, 3)
+	assert.Equal(t, "1.1.1.1", config.Nameservers[0])
+	assert.Equal(t, "2001:db8:abc8::1", config.Nameservers[1])
+	assert.Equal(t, "5.5.5.5", config.Nameservers[2])
 
-	assert.Equal(t, len(config.Search), 2)
-	assert.Equal(t, config.Search[0], "example.com")
-	assert.Equal(t, config.Search[1], "localdomain")
+	require.Len(t, config.Search, 2)
+	assert.Equal(t, "example.com", config.Search[0])
+	assert.Equal(t, "localdomain", config.Search[1])
 
-	assert.Equal(t, len(config.Options), 1)
+	require.Len(t, config.Options, 1)
 	assert.Equal(t, config.Options[0], "ndots:9")
 }
 
@@ -177,10 +206,9 @@ func TestUpdateMounts(t *testing.T) {
 	}
 
 	updateMounts(flags, &mounts)
-	assert.Equal(t, len(mounts), 2)
-	assert.Equal(t, mounts[0].Target, "/toadd")
-	assert.Equal(t, mounts[1].Target, "/tokeep")
-
+	require.Len(t, mounts, 2)
+	assert.Equal(t, "/toadd", mounts[0].Target)
+	assert.Equal(t, "/tokeep", mounts[1].Target)
 }
 
 func TestUpdateMountsWithDuplicateMounts(t *testing.T) {
@@ -194,10 +222,10 @@ func TestUpdateMountsWithDuplicateMounts(t *testing.T) {
 	}
 
 	updateMounts(flags, &mounts)
-	assert.Equal(t, len(mounts), 3)
-	assert.Equal(t, mounts[0].Target, "/tokeep1")
-	assert.Equal(t, mounts[1].Target, "/tokeep2")
-	assert.Equal(t, mounts[2].Target, "/toadd")
+	require.Len(t, mounts, 3)
+	assert.Equal(t, "/tokeep1", mounts[0].Target)
+	assert.Equal(t, "/tokeep2", mounts[1].Target)
+	assert.Equal(t, "/toadd", mounts[2].Target)
 }
 
 func TestUpdatePorts(t *testing.T) {
@@ -211,43 +239,33 @@ func TestUpdatePorts(t *testing.T) {
 	}
 
 	err := updatePorts(flags, &portConfigs)
-	assert.Equal(t, err, nil)
-	assert.Equal(t, len(portConfigs), 2)
+	assert.NoError(t, err)
+	require.Len(t, portConfigs, 2)
 	// Do a sort to have the order (might have changed by map)
 	targetPorts := []int{int(portConfigs[0].TargetPort), int(portConfigs[1].TargetPort)}
 	sort.Ints(targetPorts)
-	assert.Equal(t, targetPorts[0], 555)
-	assert.Equal(t, targetPorts[1], 1000)
+	assert.Equal(t, 555, targetPorts[0])
+	assert.Equal(t, 1000, targetPorts[1])
 }
 
-func TestUpdatePortsDuplicateEntries(t *testing.T) {
+func TestUpdatePortsDuplicate(t *testing.T) {
 	// Test case for #25375
 	flags := newUpdateCommand(nil).Flags()
 	flags.Set("publish-add", "80:80")
 
 	portConfigs := []swarm.PortConfig{
-		{TargetPort: 80, PublishedPort: 80},
+		{
+			TargetPort:    80,
+			PublishedPort: 80,
+			Protocol:      swarm.PortConfigProtocolTCP,
+			PublishMode:   swarm.PortConfigPublishModeIngress,
+		},
 	}
 
 	err := updatePorts(flags, &portConfigs)
-	assert.Equal(t, err, nil)
-	assert.Equal(t, len(portConfigs), 1)
-	assert.Equal(t, portConfigs[0].TargetPort, uint32(80))
-}
-
-func TestUpdatePortsDuplicateKeys(t *testing.T) {
-	// Test case for #25375
-	flags := newUpdateCommand(nil).Flags()
-	flags.Set("publish-add", "80:80")
-
-	portConfigs := []swarm.PortConfig{
-		{TargetPort: 80, PublishedPort: 80},
-	}
-
-	err := updatePorts(flags, &portConfigs)
-	assert.Equal(t, err, nil)
-	assert.Equal(t, len(portConfigs), 1)
-	assert.Equal(t, portConfigs[0].TargetPort, uint32(80))
+	assert.NoError(t, err)
+	require.Len(t, portConfigs, 1)
+	assert.Equal(t, uint32(80), portConfigs[0].TargetPort)
 }
 
 func TestUpdateHealthcheckTable(t *testing.T) {
@@ -294,6 +312,11 @@ func TestUpdateHealthcheckTable(t *testing.T) {
 			expected: &container.HealthConfig{Test: []string{"CMD", "cmd1"}},
 		},
 		{
+			flags:    [][2]string{{"health-start-period", "1m"}},
+			initial:  &container.HealthConfig{Test: []string{"CMD", "cmd1"}},
+			expected: &container.HealthConfig{Test: []string{"CMD", "cmd1"}, StartPeriod: time.Minute},
+		},
+		{
 			flags: [][2]string{{"health-cmd", "cmd1"}, {"no-healthcheck", "true"}},
 			err:   "--no-healthcheck conflicts with --health-* options",
 		},
@@ -316,9 +339,9 @@ func TestUpdateHealthcheckTable(t *testing.T) {
 		}
 		err := updateHealthcheck(flags, cspec)
 		if c.err != "" {
-			assert.Error(t, err, c.err)
+			assert.EqualError(t, err, c.err)
 		} else {
-			assert.NilError(t, err)
+			assert.NoError(t, err)
 			if !reflect.DeepEqual(cspec.Healthcheck, c.expected) {
 				t.Errorf("incorrect result for test %d, expected health config:\n\t%#v\ngot:\n\t%#v", i, c.expected, cspec.Healthcheck)
 			}
@@ -335,13 +358,139 @@ func TestUpdateHosts(t *testing.T) {
 	// just hostname should work as well
 	flags.Set("host-rm", "example.net")
 	// bad format error
-	assert.Error(t, flags.Set("host-add", "$example.com$"), "bad format for add-host:")
+	assert.EqualError(t, flags.Set("host-add", "$example.com$"), `bad format for add-host: "$example.com$"`)
 
 	hosts := []string{"1.2.3.4 example.com", "4.3.2.1 example.org", "2001:db8:abc8::1 example.net"}
 
 	updateHosts(flags, &hosts)
-	assert.Equal(t, len(hosts), 3)
-	assert.Equal(t, hosts[0], "1.2.3.4 example.com")
-	assert.Equal(t, hosts[1], "2001:db8:abc8::1 ipv6.net")
-	assert.Equal(t, hosts[2], "4.3.2.1 example.org")
+	require.Len(t, hosts, 3)
+	assert.Equal(t, "1.2.3.4 example.com", hosts[0])
+	assert.Equal(t, "2001:db8:abc8::1 ipv6.net", hosts[1])
+	assert.Equal(t, "4.3.2.1 example.org", hosts[2])
+}
+
+func TestUpdatePortsRmWithProtocol(t *testing.T) {
+	flags := newUpdateCommand(nil).Flags()
+	flags.Set("publish-add", "8081:81")
+	flags.Set("publish-add", "8082:82")
+	flags.Set("publish-rm", "80")
+	flags.Set("publish-rm", "81/tcp")
+	flags.Set("publish-rm", "82/udp")
+
+	portConfigs := []swarm.PortConfig{
+		{
+			TargetPort:    80,
+			PublishedPort: 8080,
+			Protocol:      swarm.PortConfigProtocolTCP,
+			PublishMode:   swarm.PortConfigPublishModeIngress,
+		},
+	}
+
+	err := updatePorts(flags, &portConfigs)
+	assert.NoError(t, err)
+	require.Len(t, portConfigs, 2)
+	assert.Equal(t, uint32(81), portConfigs[0].TargetPort)
+	assert.Equal(t, uint32(82), portConfigs[1].TargetPort)
+}
+
+type secretAPIClientMock struct {
+	listResult []swarm.Secret
+}
+
+func (s secretAPIClientMock) SecretList(ctx context.Context, options types.SecretListOptions) ([]swarm.Secret, error) {
+	return s.listResult, nil
+}
+func (s secretAPIClientMock) SecretCreate(ctx context.Context, secret swarm.SecretSpec) (types.SecretCreateResponse, error) {
+	return types.SecretCreateResponse{}, nil
+}
+func (s secretAPIClientMock) SecretRemove(ctx context.Context, id string) error {
+	return nil
+}
+func (s secretAPIClientMock) SecretInspectWithRaw(ctx context.Context, name string) (swarm.Secret, []byte, error) {
+	return swarm.Secret{}, []byte{}, nil
+}
+func (s secretAPIClientMock) SecretUpdate(ctx context.Context, id string, version swarm.Version, secret swarm.SecretSpec) error {
+	return nil
+}
+
+// TestUpdateSecretUpdateInPlace tests the ability to update the "target" of an secret with "docker service update"
+// by combining "--secret-rm" and "--secret-add" for the same secret.
+func TestUpdateSecretUpdateInPlace(t *testing.T) {
+	apiClient := secretAPIClientMock{
+		listResult: []swarm.Secret{
+			{
+				ID:   "tn9qiblgnuuut11eufquw5dev",
+				Spec: swarm.SecretSpec{Annotations: swarm.Annotations{Name: "foo"}},
+			},
+		},
+	}
+
+	flags := newUpdateCommand(nil).Flags()
+	flags.Set("secret-add", "source=foo,target=foo2")
+	flags.Set("secret-rm", "foo")
+
+	secrets := []*swarm.SecretReference{
+		{
+			File: &swarm.SecretReferenceFileTarget{
+				Name: "foo",
+				UID:  "0",
+				GID:  "0",
+				Mode: 292,
+			},
+			SecretID:   "tn9qiblgnuuut11eufquw5dev",
+			SecretName: "foo",
+		},
+	}
+
+	updatedSecrets, err := getUpdatedSecrets(apiClient, flags, secrets)
+
+	assert.NoError(t, err)
+	require.Len(t, updatedSecrets, 1)
+	assert.Equal(t, "tn9qiblgnuuut11eufquw5dev", updatedSecrets[0].SecretID)
+	assert.Equal(t, "foo", updatedSecrets[0].SecretName)
+	assert.Equal(t, "foo2", updatedSecrets[0].File.Name)
+}
+
+func TestUpdateReadOnly(t *testing.T) {
+	spec := &swarm.ServiceSpec{}
+	cspec := &spec.TaskTemplate.ContainerSpec
+
+	// Update with --read-only=true, changed to true
+	flags := newUpdateCommand(nil).Flags()
+	flags.Set("read-only", "true")
+	updateService(nil, nil, flags, spec)
+	assert.True(t, cspec.ReadOnly)
+
+	// Update without --read-only, no change
+	flags = newUpdateCommand(nil).Flags()
+	updateService(nil, nil, flags, spec)
+	assert.True(t, cspec.ReadOnly)
+
+	// Update with --read-only=false, changed to false
+	flags = newUpdateCommand(nil).Flags()
+	flags.Set("read-only", "false")
+	updateService(nil, nil, flags, spec)
+	assert.False(t, cspec.ReadOnly)
+}
+
+func TestUpdateStopSignal(t *testing.T) {
+	spec := &swarm.ServiceSpec{}
+	cspec := &spec.TaskTemplate.ContainerSpec
+
+	// Update with --stop-signal=SIGUSR1
+	flags := newUpdateCommand(nil).Flags()
+	flags.Set("stop-signal", "SIGUSR1")
+	updateService(nil, nil, flags, spec)
+	assert.Equal(t, "SIGUSR1", cspec.StopSignal)
+
+	// Update without --stop-signal, no change
+	flags = newUpdateCommand(nil).Flags()
+	updateService(nil, nil, flags, spec)
+	assert.Equal(t, "SIGUSR1", cspec.StopSignal)
+
+	// Update with --stop-signal=SIGWINCH
+	flags = newUpdateCommand(nil).Flags()
+	flags.Set("stop-signal", "SIGWINCH")
+	updateService(nil, nil, flags, spec)
+	assert.Equal(t, "SIGWINCH", cspec.StopSignal)
 }

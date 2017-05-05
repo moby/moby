@@ -45,6 +45,7 @@ option java_package = "com.google.protobuf";
 option java_outer_classname = "DescriptorProtos";
 option csharp_namespace = "Google.Protobuf.Reflection";
 option objc_class_prefix = "GPB";
+option java_generate_equals_and_hash = true;
 
 // descriptor.proto must be optimized for speed because reflection-based
 // algorithms don't work during bootstrapping.
@@ -202,6 +203,7 @@ message FieldDescriptorProto {
 // Describes a oneof.
 message OneofDescriptorProto {
   optional string name = 1;
+  optional OneofOptions options = 2;
 }
 
 // Describes an enum type.
@@ -377,15 +379,13 @@ message FileOptions {
   // Namespace for generated classes; defaults to the package.
   optional string csharp_namespace = 37;
 
-  // Whether the nano proto compiler should generate in the deprecated non-nano
-  // suffixed package.
-  optional bool javanano_use_deprecated_package = 38;
-
   // The parser stores options it doesn't recognize here. See above.
   repeated UninterpretedOption uninterpreted_option = 999;
 
   // Clients can define custom options in extensions of this message. See above.
   extensions 1000 to max;
+
+  //reserved 38;
 }
 
 message MessageOptions {
@@ -533,6 +533,14 @@ message FieldOptions {
   optional bool weak = 10 [default=false];
 
 
+  // The parser stores options it doesn't recognize here. See above.
+  repeated UninterpretedOption uninterpreted_option = 999;
+
+  // Clients can define custom options in extensions of this message. See above.
+  extensions 1000 to max;
+}
+
+message OneofOptions {
   // The parser stores options it doesn't recognize here. See above.
   repeated UninterpretedOption uninterpreted_option = 999;
 
@@ -775,5 +783,31 @@ message SourceCodeInfo {
     optional string leading_comments = 3;
     optional string trailing_comments = 4;
     repeated string leading_detached_comments = 6;
+  }
+}
+
+// Describes the relationship between generated code and its original source
+// file. A GeneratedCodeInfo message is associated with only one generated
+// source file, but may contain references to different source .proto files.
+message GeneratedCodeInfo {
+  // An Annotation connects some span of text in generated code to an element
+  // of its generating .proto file.
+  repeated Annotation annotation = 1;
+  message Annotation {
+    // Identifies the element in the original source .proto file. This field
+    // is formatted the same as SourceCodeInfo.Location.path.
+    repeated int32 path = 1 [packed=true];
+
+    // Identifies the filesystem path to the original source .proto.
+    optional string source_file = 2;
+
+    // Identifies the starting offset in bytes in the generated code
+    // that relates to the identified object.
+    optional int32 begin = 3;
+
+    // Identifies the ending offset in bytes in the generated code that
+    // relates to the identified offset. The end offset should be one past
+    // the last relevant byte (so the length of the text = end - begin).
+    optional int32 end = 4;
   }
 }

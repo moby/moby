@@ -4,32 +4,32 @@ package daemon
 
 import (
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/container"
 )
 
 // getSize returns the real size & virtual size of the container.
-func (daemon *Daemon) getSize(container *container.Container) (int64, int64) {
+func (daemon *Daemon) getSize(containerID string) (int64, int64) {
 	var (
 		sizeRw, sizeRootfs int64
 		err                error
 	)
 
-	if err := daemon.Mount(container); err != nil {
-		logrus.Errorf("Failed to compute size of container rootfs %s: %s", container.ID, err)
+	rwlayer, err := daemon.layerStore.GetRWLayer(containerID)
+	if err != nil {
+		logrus.Errorf("Failed to compute size of container rootfs %v: %v", containerID, err)
 		return sizeRw, sizeRootfs
 	}
-	defer daemon.Unmount(container)
+	defer daemon.layerStore.ReleaseRWLayer(rwlayer)
 
-	sizeRw, err = container.RWLayer.Size()
+	sizeRw, err = rwlayer.Size()
 	if err != nil {
 		logrus.Errorf("Driver %s couldn't return diff size of container %s: %s",
-			daemon.GraphDriverName(), container.ID, err)
+			daemon.GraphDriverName(), containerID, err)
 		// FIXME: GetSize should return an error. Not changing it now in case
 		// there is a side-effect.
 		sizeRw = -1
 	}
 
-	if parent := container.RWLayer.Parent(); parent != nil {
+	if parent := rwlayer.Parent(); parent != nil {
 		sizeRootfs, err = parent.Size()
 		if err != nil {
 			sizeRootfs = -1

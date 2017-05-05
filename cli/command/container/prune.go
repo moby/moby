@@ -3,22 +3,22 @@ package container
 import (
 	"fmt"
 
-	"golang.org/x/net/context"
-
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/opts"
 	units "github.com/docker/go-units"
 	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 type pruneOptions struct {
-	force bool
+	force  bool
+	filter opts.FilterOpt
 }
 
 // NewPruneCommand returns a new cobra prune command for containers
 func NewPruneCommand(dockerCli *command.DockerCli) *cobra.Command {
-	var opts pruneOptions
+	opts := pruneOptions{filter: opts.NewFilterOpt()}
 
 	cmd := &cobra.Command{
 		Use:   "prune [OPTIONS]",
@@ -40,6 +40,7 @@ func NewPruneCommand(dockerCli *command.DockerCli) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.BoolVarP(&opts.force, "force", "f", false, "Do not prompt for confirmation")
+	flags.Var(&opts.filter, "filter", "Provide filter values (e.g. 'until=<timestamp>')")
 
 	return cmd
 }
@@ -48,11 +49,13 @@ const warning = `WARNING! This will remove all stopped containers.
 Are you sure you want to continue?`
 
 func runPrune(dockerCli *command.DockerCli, opts pruneOptions) (spaceReclaimed uint64, output string, err error) {
+	pruneFilters := command.PruneFilters(dockerCli, opts.filter.Value())
+
 	if !opts.force && !command.PromptForConfirmation(dockerCli.In(), dockerCli.Out(), warning) {
 		return
 	}
 
-	report, err := dockerCli.Client().ContainersPrune(context.Background(), types.ContainersPruneConfig{})
+	report, err := dockerCli.Client().ContainersPrune(context.Background(), pruneFilters)
 	if err != nil {
 		return
 	}
@@ -70,6 +73,6 @@ func runPrune(dockerCli *command.DockerCli, opts pruneOptions) (spaceReclaimed u
 
 // RunPrune calls the Container Prune API
 // This returns the amount of space reclaimed and a detailed output string
-func RunPrune(dockerCli *command.DockerCli) (uint64, string, error) {
-	return runPrune(dockerCli, pruneOptions{force: true})
+func RunPrune(dockerCli *command.DockerCli, filter opts.FilterOpt) (uint64, string, error) {
+	return runPrune(dockerCli, pruneOptions{force: true, filter: filter})
 }

@@ -5,21 +5,22 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/opts"
 	units "github.com/docker/go-units"
 	"github.com/spf13/cobra"
 )
 
 type pruneOptions struct {
-	force bool
-	all   bool
+	force  bool
+	all    bool
+	filter opts.FilterOpt
 }
 
 // NewPruneCommand returns a new cobra prune command for images
-func NewPruneCommand(dockerCli *command.DockerCli) *cobra.Command {
-	var opts pruneOptions
+func NewPruneCommand(dockerCli command.Cli) *cobra.Command {
+	opts := pruneOptions{filter: opts.NewFilterOpt()}
 
 	cmd := &cobra.Command{
 		Use:   "prune [OPTIONS]",
@@ -42,6 +43,7 @@ func NewPruneCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags := cmd.Flags()
 	flags.BoolVarP(&opts.force, "force", "f", false, "Do not prompt for confirmation")
 	flags.BoolVarP(&opts.all, "all", "a", false, "Remove all unused images, not just dangling ones")
+	flags.Var(&opts.filter, "filter", "Provide filter values (e.g. 'until=<timestamp>')")
 
 	return cmd
 }
@@ -53,7 +55,11 @@ Are you sure you want to continue?`
 Are you sure you want to continue?`
 )
 
-func runPrune(dockerCli *command.DockerCli, opts pruneOptions) (spaceReclaimed uint64, output string, err error) {
+func runPrune(dockerCli command.Cli, opts pruneOptions) (spaceReclaimed uint64, output string, err error) {
+	pruneFilters := opts.filter.Value()
+	pruneFilters.Add("dangling", fmt.Sprintf("%v", !opts.all))
+	pruneFilters = command.PruneFilters(dockerCli, pruneFilters)
+
 	warning := danglingWarning
 	if opts.all {
 		warning = allImageWarning
@@ -62,9 +68,7 @@ func runPrune(dockerCli *command.DockerCli, opts pruneOptions) (spaceReclaimed u
 		return
 	}
 
-	report, err := dockerCli.Client().ImagesPrune(context.Background(), types.ImagesPruneConfig{
-		DanglingOnly: !opts.all,
-	})
+	report, err := dockerCli.Client().ImagesPrune(context.Background(), pruneFilters)
 	if err != nil {
 		return
 	}
@@ -86,6 +90,6 @@ func runPrune(dockerCli *command.DockerCli, opts pruneOptions) (spaceReclaimed u
 
 // RunPrune calls the Image Prune API
 // This returns the amount of space reclaimed and a detailed output string
-func RunPrune(dockerCli *command.DockerCli, all bool) (uint64, string, error) {
-	return runPrune(dockerCli, pruneOptions{force: true, all: all})
+func RunPrune(dockerCli command.Cli, all bool, filter opts.FilterOpt) (uint64, string, error) {
+	return runPrune(dockerCli, pruneOptions{force: true, all: all, filter: filter})
 }

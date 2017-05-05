@@ -13,7 +13,8 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/request"
 	"github.com/go-check/check"
 )
 
@@ -25,7 +26,7 @@ func (s *DockerSuite) TestAPIStatsNoStreamGetCpu(c *check.C) {
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), checker.IsNil)
 
-	resp, body, err := sockRequestRaw("GET", fmt.Sprintf("/containers/%s/stats?stream=false", id), nil, "")
+	resp, body, err := request.Get(fmt.Sprintf("/containers/%s/stats?stream=false", id))
 	c.Assert(err, checker.IsNil)
 	c.Assert(resp.StatusCode, checker.Equals, http.StatusOK)
 	c.Assert(resp.Header.Get("Content-Type"), checker.Equals, "application/json")
@@ -37,7 +38,7 @@ func (s *DockerSuite) TestAPIStatsNoStreamGetCpu(c *check.C) {
 
 	var cpuPercent = 0.0
 
-	if daemonPlatform != "windows" {
+	if testEnv.DaemonPlatform() != "windows" {
 		cpuDelta := float64(v.CPUStats.CPUUsage.TotalUsage - v.PreCPUStats.CPUUsage.TotalUsage)
 		systemDelta := float64(v.CPUStats.SystemUsage - v.PreCPUStats.SystemUsage)
 		cpuPercent = (cpuDelta / systemDelta) * float64(len(v.CPUStats.CPUUsage.PercpuUsage)) * 100.0
@@ -64,7 +65,7 @@ func (s *DockerSuite) TestAPIStatsStoppedContainerInGoroutines(c *check.C) {
 	id := strings.TrimSpace(out)
 
 	getGoRoutines := func() int {
-		_, body, err := sockRequestRaw("GET", fmt.Sprintf("/info"), nil, "")
+		_, body, err := request.Get(fmt.Sprintf("/info"))
 		c.Assert(err, checker.IsNil)
 		info := types.Info{}
 		err = json.NewDecoder(body).Decode(&info)
@@ -75,7 +76,7 @@ func (s *DockerSuite) TestAPIStatsStoppedContainerInGoroutines(c *check.C) {
 
 	// When the HTTP connection is closed, the number of goroutines should not increase.
 	routines := getGoRoutines()
-	_, body, err := sockRequestRaw("GET", fmt.Sprintf("/containers/%s/stats", id), nil, "")
+	_, body, err := request.Get(fmt.Sprintf("/containers/%s/stats", id))
 	c.Assert(err, checker.IsNil)
 	body.Close()
 
@@ -97,13 +98,13 @@ func (s *DockerSuite) TestAPIStatsStoppedContainerInGoroutines(c *check.C) {
 func (s *DockerSuite) TestAPIStatsNetworkStats(c *check.C) {
 	testRequires(c, SameHostDaemon)
 
-	out, _ := runSleepingContainer(c)
+	out := runSleepingContainer(c)
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), checker.IsNil)
 
 	// Retrieve the container address
 	net := "bridge"
-	if daemonPlatform == "windows" {
+	if testEnv.DaemonPlatform() == "windows" {
 		net = "nat"
 	}
 	contIP := findContainerIP(c, id, net)
@@ -151,21 +152,21 @@ func (s *DockerSuite) TestAPIStatsNetworkStats(c *check.C) {
 	// On Linux, account for ARP.
 	expRxPkts := preRxPackets + uint64(numPings)
 	expTxPkts := preTxPackets + uint64(numPings)
-	if daemonPlatform != "windows" {
+	if testEnv.DaemonPlatform() != "windows" {
 		expRxPkts++
 		expTxPkts++
 	}
 	c.Assert(postTxPackets, checker.GreaterOrEqualThan, expTxPkts,
 		check.Commentf("Reported less TxPackets than expected. Expected >= %d. Found %d. %s", expTxPkts, postTxPackets, pingouts))
 	c.Assert(postRxPackets, checker.GreaterOrEqualThan, expRxPkts,
-		check.Commentf("Reported less Txbytes than expected. Expected >= %d. Found %d. %s", expRxPkts, postRxPackets, pingouts))
+		check.Commentf("Reported less RxPackets than expected. Expected >= %d. Found %d. %s", expRxPkts, postRxPackets, pingouts))
 }
 
 func (s *DockerSuite) TestAPIStatsNetworkStatsVersioning(c *check.C) {
 	// Windows doesn't support API versions less than 1.25, so no point testing 1.17 .. 1.21
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
-	out, _ := runSleepingContainer(c)
+	out := runSleepingContainer(c)
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), checker.IsNil)
 	wg := sync.WaitGroup{}
@@ -191,7 +192,7 @@ func (s *DockerSuite) TestAPIStatsNetworkStatsVersioning(c *check.C) {
 func getNetworkStats(c *check.C, id string) map[string]types.NetworkStats {
 	var st *types.StatsJSON
 
-	_, body, err := sockRequestRaw("GET", fmt.Sprintf("/containers/%s/stats?stream=false", id), nil, "")
+	_, body, err := request.Get(fmt.Sprintf("/containers/%s/stats?stream=false", id))
 	c.Assert(err, checker.IsNil)
 
 	err = json.NewDecoder(body).Decode(&st)
@@ -208,7 +209,7 @@ func getNetworkStats(c *check.C, id string) map[string]types.NetworkStats {
 func getVersionedStats(c *check.C, id string, apiVersion string) map[string]interface{} {
 	stats := make(map[string]interface{})
 
-	_, body, err := sockRequestRaw("GET", fmt.Sprintf("/%s/containers/%s/stats?stream=false", apiVersion, id), nil, "")
+	_, body, err := request.Get(fmt.Sprintf("/%s/containers/%s/stats?stream=false", apiVersion, id))
 	c.Assert(err, checker.IsNil)
 	defer body.Close()
 
@@ -261,11 +262,11 @@ func jsonBlobHasGTE121NetworkStats(blob map[string]interface{}) bool {
 func (s *DockerSuite) TestAPIStatsContainerNotFound(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 
-	status, _, err := sockRequest("GET", "/containers/nonexistent/stats", nil)
+	status, _, err := request.SockRequest("GET", "/containers/nonexistent/stats", nil, daemonHost())
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusNotFound)
 
-	status, _, err = sockRequest("GET", "/containers/nonexistent/stats?stream=0", nil)
+	status, _, err = request.SockRequest("GET", "/containers/nonexistent/stats?stream=0", nil, daemonHost())
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusNotFound)
 }
@@ -273,17 +274,17 @@ func (s *DockerSuite) TestAPIStatsContainerNotFound(c *check.C) {
 func (s *DockerSuite) TestAPIStatsNoStreamConnectedContainers(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 
-	out1, _ := runSleepingContainer(c)
+	out1 := runSleepingContainer(c)
 	id1 := strings.TrimSpace(out1)
 	c.Assert(waitRun(id1), checker.IsNil)
 
-	out2, _ := runSleepingContainer(c, "--net", "container:"+id1)
+	out2 := runSleepingContainer(c, "--net", "container:"+id1)
 	id2 := strings.TrimSpace(out2)
 	c.Assert(waitRun(id2), checker.IsNil)
 
 	ch := make(chan error)
 	go func() {
-		resp, body, err := sockRequestRaw("GET", fmt.Sprintf("/containers/%s/stats?stream=false", id2), nil, "")
+		resp, body, err := request.Get(fmt.Sprintf("/containers/%s/stats?stream=false", id2))
 		defer body.Close()
 		if err != nil {
 			ch <- err
@@ -303,7 +304,7 @@ func (s *DockerSuite) TestAPIStatsNoStreamConnectedContainers(c *check.C) {
 
 	select {
 	case err := <-ch:
-		c.Assert(err, checker.IsNil, check.Commentf("Error in stats remote API: %v", err))
+		c.Assert(err, checker.IsNil, check.Commentf("Error in stats Engine API: %v", err))
 	case <-time.After(15 * time.Second):
 		c.Fatalf("Stats did not return after timeout")
 	}

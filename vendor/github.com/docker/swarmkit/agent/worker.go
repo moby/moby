@@ -23,12 +23,13 @@ type Worker interface {
 	// It is not safe to call any worker function after that.
 	Close()
 
-	// Assign assigns a complete set of tasks and secrets to a worker. Any task or secrets not included in
-	// this set will be removed.
+	// Assign assigns a complete set of tasks and configs/secrets to a
+	// worker. Any items not included in this set will be removed.
 	Assign(ctx context.Context, assignments []*api.AssignmentChange) error
 
-	// Updates updates an incremental set of tasks or secrets of the worker. Any task/secret not included
-	// either in added or removed will remain untouched.
+	// Updates updates an incremental set of tasks or configs/secrets of
+	// the worker. Any items not included either in added or removed will
+	// remain untouched.
 	Update(ctx context.Context, assignments []*api.AssignmentChange) error
 
 	// Listen to updates about tasks controlled by the worker. When first
@@ -40,6 +41,9 @@ type Worker interface {
 
 	// Subscribe to log messages matching the subscription.
 	Subscribe(ctx context.Context, subscription *api.SubscriptionMessage) error
+
+	// Wait blocks until all task managers have closed
+	Wait(ctx context.Context) error
 }
 
 // statusReporterKey protects removal map from panic.
@@ -57,6 +61,9 @@ type worker struct {
 
 	taskManagers map[string]*taskManager
 	mu           sync.RWMutex
+
+	closed  bool
+	closers sync.WaitGroup // keeps track of active closers
 }
 
 func newWorker(db *bolt.DB, executor exec.Executor, publisherProvider exec.LogPublisherProvider) *worker {
@@ -106,24 +113,38 @@ func (w *worker) Init(ctx context.Context) error {
 
 // Close performs worker cleanup when no longer needed.
 func (w *worker) Close() {
+	w.mu.Lock()
+	w.closed = true
+	w.mu.Unlock()
+
 	w.taskevents.Close()
 }
 
-// Assign assigns a full set of tasks and secrets to the worker.
+// Assign assigns a full set of tasks, configs, and secrets to the worker.
 // Any tasks not previously known will be started. Any tasks that are in the task set
 // and already running will be updated, if possible. Any tasks currently running on
 // the worker outside the task set will be terminated.
-// Any secrets not in the set of assignments will be removed.
+// Anything not in the set of assignments will be removed.
 func (w *worker) Assign(ctx context.Context, assignments []*api.AssignmentChange) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
+
+	if w.closed {
+		return ErrClosed
+	}
 
 	log.G(ctx).WithFields(logrus.Fields{
 		"len(assignments)": len(assignments),
 	}).Debug("(*worker).Assign")
 
-	// Need to update secrets before tasks, because tasks might depend on new secrets
+	// Need to update dependencies before tasks
+
 	err := reconcileSecrets(ctx, w, assignments, true)
+	if err != nil {
+		return err
+	}
+
+	err = reconcileConfigs(ctx, w, assignments, true)
 	if err != nil {
 		return err
 	}
@@ -131,20 +152,31 @@ func (w *worker) Assign(ctx context.Context, assignments []*api.AssignmentChange
 	return reconcileTaskState(ctx, w, assignments, true)
 }
 
-// Update updates the set of tasks and secret for the worker.
+// Update updates the set of tasks, configs, and secrets for the worker.
 // Tasks in the added set will be added to the worker, and tasks in the removed set
 // will be removed from the worker
-// Serets in the added set will be added to the worker, and secrets in the removed set
+// Secrets in the added set will be added to the worker, and secrets in the removed set
+// will be removed from the worker.
+// Configs in the added set will be added to the worker, and configs in the removed set
 // will be removed from the worker.
 func (w *worker) Update(ctx context.Context, assignments []*api.AssignmentChange) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
+
+	if w.closed {
+		return ErrClosed
+	}
 
 	log.G(ctx).WithFields(logrus.Fields{
 		"len(assignments)": len(assignments),
 	}).Debug("(*worker).Update")
 
 	err := reconcileSecrets(ctx, w, assignments, false)
+	if err != nil {
+		return err
+	}
+
+	err = reconcileConfigs(ctx, w, assignments, false)
 	if err != nil {
 		return err
 	}
@@ -222,10 +254,22 @@ func reconcileTaskState(ctx context.Context, w *worker, assignments []*api.Assig
 	}
 
 	closeManager := func(tm *taskManager) {
-		// when a task is no longer assigned, we shutdown the task manager for
-		// it and leave cleanup to the sweeper.
-		if err := tm.Close(); err != nil {
-			log.G(ctx).WithError(err).Error("error closing task manager")
+		go func(tm *taskManager) {
+			defer w.closers.Done()
+			// when a task is no longer assigned, we shutdown the task manager
+			if err := tm.Close(); err != nil {
+				log.G(ctx).WithError(err).Error("error closing task manager")
+			}
+		}(tm)
+
+		// make an attempt at removing. this is best effort. any errors will be
+		// retried by the reaper later.
+		if err := tm.ctlr.Remove(ctx); err != nil {
+			log.G(ctx).WithError(err).WithField("task.id", tm.task.ID).Error("remove task failed")
+		}
+
+		if err := tm.ctlr.Close(); err != nil {
+			log.G(ctx).WithError(err).Error("error closing controller")
 		}
 	}
 
@@ -272,15 +316,6 @@ func reconcileTaskState(ctx context.Context, w *worker, assignments []*api.Assig
 }
 
 func reconcileSecrets(ctx context.Context, w *worker, assignments []*api.AssignmentChange, fullSnapshot bool) error {
-	var secrets exec.SecretsManager
-	provider, ok := w.executor.(exec.SecretsProvider)
-	if !ok {
-		log.G(ctx).Warn("secrets update ignored; executor does not support secrets")
-		return nil
-	}
-
-	secrets = provider.Secrets()
-
 	var (
 		updatedSecrets []api.Secret
 		removedSecrets []string
@@ -297,6 +332,16 @@ func reconcileSecrets(ctx context.Context, w *worker, assignments []*api.Assignm
 		}
 	}
 
+	secretsProvider, ok := w.executor.(exec.SecretsProvider)
+	if !ok {
+		if len(updatedSecrets) != 0 || len(removedSecrets) != 0 {
+			log.G(ctx).Warn("secrets update ignored; executor does not support secrets")
+		}
+		return nil
+	}
+
+	secrets := secretsProvider.Secrets()
+
 	log.G(ctx).WithFields(logrus.Fields{
 		"len(updatedSecrets)": len(updatedSecrets),
 		"len(removedSecrets)": len(removedSecrets),
@@ -309,6 +354,49 @@ func reconcileSecrets(ctx context.Context, w *worker, assignments []*api.Assignm
 		secrets.Remove(removedSecrets)
 	}
 	secrets.Add(updatedSecrets...)
+
+	return nil
+}
+
+func reconcileConfigs(ctx context.Context, w *worker, assignments []*api.AssignmentChange, fullSnapshot bool) error {
+	var (
+		updatedConfigs []api.Config
+		removedConfigs []string
+	)
+	for _, a := range assignments {
+		if r := a.Assignment.GetConfig(); r != nil {
+			switch a.Action {
+			case api.AssignmentChange_AssignmentActionUpdate:
+				updatedConfigs = append(updatedConfigs, *r)
+			case api.AssignmentChange_AssignmentActionRemove:
+				removedConfigs = append(removedConfigs, r.ID)
+			}
+
+		}
+	}
+
+	configsProvider, ok := w.executor.(exec.ConfigsProvider)
+	if !ok {
+		if len(updatedConfigs) != 0 || len(removedConfigs) != 0 {
+			log.G(ctx).Warn("configs update ignored; executor does not support configs")
+		}
+		return nil
+	}
+
+	configs := configsProvider.Configs()
+
+	log.G(ctx).WithFields(logrus.Fields{
+		"len(updatedConfigs)": len(updatedConfigs),
+		"len(removedConfigs)": len(removedConfigs),
+	}).Debug("(*worker).reconcileConfigs")
+
+	// If this was a complete set of configs, we're going to clear the configs map and add all of them
+	if fullSnapshot {
+		configs.Reset()
+	} else {
+		configs.Remove(removedConfigs)
+	}
+	configs.Add(updatedConfigs...)
 
 	return nil
 }
@@ -359,11 +447,16 @@ func (w *worker) taskManager(ctx context.Context, tx *bolt.Tx, task *api.Task) (
 		return nil, err
 	}
 	w.taskManagers[task.ID] = tm
+	// keep track of active tasks
+	w.closers.Add(1)
 	return tm, nil
 }
 
 func (w *worker) newTaskManager(ctx context.Context, tx *bolt.Tx, task *api.Task) (*taskManager, error) {
-	ctx = log.WithLogger(ctx, log.G(ctx).WithField("task.id", task.ID))
+	ctx = log.WithLogger(ctx, log.G(ctx).WithFields(logrus.Fields{
+		"task.id":    task.ID,
+		"service.id": task.ServiceID,
+	}))
 
 	ctlr, status, err := exec.Resolve(ctx, task, w.executor)
 	if err := w.updateTaskStatus(ctx, tx, task.ID, status); err != nil {
@@ -406,12 +499,12 @@ func (w *worker) updateTaskStatus(ctx context.Context, tx *bolt.Tx, taskID strin
 func (w *worker) Subscribe(ctx context.Context, subscription *api.SubscriptionMessage) error {
 	log.G(ctx).Debugf("Received subscription %s (selector: %v)", subscription.ID, subscription.Selector)
 
-	publisher, err := w.publisherProvider.Publisher(ctx, subscription.ID)
+	publisher, cancel, err := w.publisherProvider.Publisher(ctx, subscription.ID)
 	if err != nil {
 		return err
 	}
 	// Send a close once we're done
-	defer publisher.Publish(ctx, api.LogMessage{})
+	defer cancel()
 
 	match := func(t *api.Task) bool {
 		// TODO(aluzzardi): Consider using maps to limit the iterations.
@@ -436,28 +529,66 @@ func (w *worker) Subscribe(ctx context.Context, subscription *api.SubscriptionMe
 		return false
 	}
 
-	ch, cancel := w.taskevents.Watch()
-	defer cancel()
-
+	wg := sync.WaitGroup{}
 	w.mu.Lock()
 	for _, tm := range w.taskManagers {
 		if match(tm.task) {
-			go tm.Logs(ctx, *subscription.Options, publisher)
+			wg.Add(1)
+			go func(tm *taskManager) {
+				defer wg.Done()
+				tm.Logs(ctx, *subscription.Options, publisher)
+			}(tm)
 		}
 	}
 	w.mu.Unlock()
 
+	// If follow mode is disabled, wait for the current set of matched tasks
+	// to finish publishing logs, then close the subscription by returning.
+	if subscription.Options == nil || !subscription.Options.Follow {
+		waitCh := make(chan struct{})
+		go func() {
+			defer close(waitCh)
+			wg.Wait()
+		}()
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-waitCh:
+			return nil
+		}
+	}
+
+	// In follow mode, watch for new tasks. Don't close the subscription
+	// until it's cancelled.
+	ch, cancel := w.taskevents.Watch()
+	defer cancel()
 	for {
 		select {
 		case v := <-ch:
-			w.mu.Lock()
 			task := v.(*api.Task)
 			if match(task) {
+				w.mu.Lock()
 				go w.taskManagers[task.ID].Logs(ctx, *subscription.Options, publisher)
+				w.mu.Unlock()
 			}
-			w.mu.Unlock()
 		case <-ctx.Done():
 			return ctx.Err()
 		}
+	}
+}
+
+func (w *worker) Wait(ctx context.Context) error {
+	ch := make(chan struct{})
+	go func() {
+		w.closers.Wait()
+		close(ch)
+	}()
+
+	select {
+	case <-ch:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
 	}
 }

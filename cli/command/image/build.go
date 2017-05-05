@@ -6,31 +6,34 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"time"
 
-	"golang.org/x/net/context"
-
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerignore"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/cli/command/image/build"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/urlutil"
-	"github.com/docker/docker/reference"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
-	"github.com/docker/go-units"
+	units "github.com/docker/go-units"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 type buildOptions struct {
@@ -39,10 +42,11 @@ type buildOptions struct {
 	tags           opts.ListOpts
 	labels         opts.ListOpts
 	buildArgs      opts.ListOpts
-	ulimits        *runconfigopts.UlimitOpt
-	memory         string
-	memorySwap     string
-	shmSize        string
+	extraHosts     opts.ListOpts
+	ulimits        *opts.UlimitOpt
+	memory         opts.MemBytes
+	memorySwap     opts.MemSwapBytes
+	shmSize        opts.MemBytes
 	cpuShares      int64
 	cpuPeriod      int64
 	cpuQuota       int64
@@ -60,16 +64,18 @@ type buildOptions struct {
 	securityOpt    []string
 	networkMode    string
 	squash         bool
+	target         string
 }
 
 // NewBuildCommand creates a new `docker build` command
 func NewBuildCommand(dockerCli *command.DockerCli) *cobra.Command {
 	ulimits := make(map[string]*units.Ulimit)
 	options := buildOptions{
-		tags:      opts.NewListOpts(validateTag),
-		buildArgs: opts.NewListOpts(runconfigopts.ValidateArg),
-		ulimits:   runconfigopts.NewUlimitOpt(&ulimits),
-		labels:    opts.NewListOpts(runconfigopts.ValidateEnv),
+		tags:       opts.NewListOpts(validateTag),
+		buildArgs:  opts.NewListOpts(opts.ValidateEnv),
+		ulimits:    opts.NewUlimitOpt(&ulimits),
+		labels:     opts.NewListOpts(opts.ValidateEnv),
+		extraHosts: opts.NewListOpts(opts.ValidateExtraHost),
 	}
 
 	cmd := &cobra.Command{
@@ -88,9 +94,9 @@ func NewBuildCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.Var(&options.buildArgs, "build-arg", "Set build-time variables")
 	flags.Var(options.ulimits, "ulimit", "Ulimit options")
 	flags.StringVarP(&options.dockerfileName, "file", "f", "", "Name of the Dockerfile (Default is 'PATH/Dockerfile')")
-	flags.StringVarP(&options.memory, "memory", "m", "", "Memory limit")
-	flags.StringVar(&options.memorySwap, "memory-swap", "", "Swap limit equal to memory plus swap: '-1' to enable unlimited swap")
-	flags.StringVar(&options.shmSize, "shm-size", "", "Size of /dev/shm, default value is 64MB")
+	flags.VarP(&options.memory, "memory", "m", "Memory limit")
+	flags.Var(&options.memorySwap, "memory-swap", "Swap limit equal to memory plus swap: '-1' to enable unlimited swap")
+	flags.Var(&options.shmSize, "shm-size", "Size of /dev/shm")
 	flags.Int64VarP(&options.cpuShares, "cpu-shares", "c", 0, "CPU shares (relative weight)")
 	flags.Int64Var(&options.cpuPeriod, "cpu-period", 0, "Limit the CPU CFS (Completely Fair Scheduler) period")
 	flags.Int64Var(&options.cpuQuota, "cpu-quota", 0, "Limit the CPU CFS (Completely Fair Scheduler) quota")
@@ -107,9 +113,12 @@ func NewBuildCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.StringSliceVar(&options.cacheFrom, "cache-from", []string{}, "Images to consider as cache sources")
 	flags.BoolVar(&options.compress, "compress", false, "Compress the build context using gzip")
 	flags.StringSliceVar(&options.securityOpt, "security-opt", []string{}, "Security options")
-	flags.StringVar(&options.networkMode, "network", "default", "Connect a container to a network")
+	flags.StringVar(&options.networkMode, "network", "default", "Set the networking mode for the RUN instructions during build")
+	flags.SetAnnotation("network", "version", []string{"1.25"})
+	flags.Var(&options.extraHosts, "add-host", "Add a custom host-to-IP mapping (host:ip)")
+	flags.StringVar(&options.target, "target", "", "Set the target build stage to build.")
 
-	command.AddTrustedFlags(flags, true)
+	command.AddTrustVerificationFlags(flags)
 
 	flags.BoolVar(&options.squash, "squash", false, "Squash newly built layers into a single new layer")
 	flags.SetAnnotation("squash", "experimental", nil)
@@ -120,7 +129,7 @@ func NewBuildCommand(dockerCli *command.DockerCli) *cobra.Command {
 
 // lastProgressOutput is the same as progress.Output except
 // that it only output with the last update. It is used in
-// non terminal scenarios to depresss verbose messages
+// non terminal scenarios to suppress verbose messages
 type lastProgressOutput struct {
 	output progress.Output
 }
@@ -135,9 +144,9 @@ func (out *lastProgressOutput) WriteProgress(prog progress.Progress) error {
 }
 
 func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
-
 	var (
 		buildCtx      io.ReadCloser
+		dockerfileCtx io.ReadCloser
 		err           error
 		contextDir    string
 		tempDir       string
@@ -154,22 +163,31 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		buildBuff = bytes.NewBuffer(nil)
 	}
 
+	if options.dockerfileName == "-" {
+		if specifiedContext == "-" {
+			return errors.New("invalid argument: can't use stdin for both build context and dockerfile")
+		}
+		dockerfileCtx = dockerCli.In()
+	}
+
 	switch {
 	case specifiedContext == "-":
-		buildCtx, relDockerfile, err = builder.GetContextFromReader(dockerCli.In(), options.dockerfileName)
+		buildCtx, relDockerfile, err = build.GetContextFromReader(dockerCli.In(), options.dockerfileName)
+	case isLocalDir(specifiedContext):
+		contextDir, relDockerfile, err = build.GetContextFromLocalDir(specifiedContext, options.dockerfileName)
 	case urlutil.IsGitURL(specifiedContext):
-		tempDir, relDockerfile, err = builder.GetContextFromGitURL(specifiedContext, options.dockerfileName)
+		tempDir, relDockerfile, err = build.GetContextFromGitURL(specifiedContext, options.dockerfileName)
 	case urlutil.IsURL(specifiedContext):
-		buildCtx, relDockerfile, err = builder.GetContextFromURL(progBuff, specifiedContext, options.dockerfileName)
+		buildCtx, relDockerfile, err = build.GetContextFromURL(progBuff, specifiedContext, options.dockerfileName)
 	default:
-		contextDir, relDockerfile, err = builder.GetContextFromLocalDir(specifiedContext, options.dockerfileName)
+		return errors.Errorf("unable to prepare context: path %q not found", specifiedContext)
 	}
 
 	if err != nil {
 		if options.quiet && urlutil.IsURL(specifiedContext) {
 			fmt.Fprintln(dockerCli.Err(), progBuff)
 		}
-		return fmt.Errorf("unable to prepare context: %s", err)
+		return errors.Errorf("unable to prepare context: %s", err)
 	}
 
 	if tempDir != "" {
@@ -181,7 +199,7 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		// And canonicalize dockerfile name to a platform-independent one
 		relDockerfile, err = archive.CanonicalTarNameForPath(relDockerfile)
 		if err != nil {
-			return fmt.Errorf("cannot canonicalize dockerfile path %s: %v", relDockerfile, err)
+			return errors.Errorf("cannot canonicalize dockerfile path %s: %v", relDockerfile, err)
 		}
 
 		f, err := os.Open(filepath.Join(contextDir, ".dockerignore"))
@@ -198,22 +216,23 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 			}
 		}
 
-		if err := builder.ValidateContextDirectory(contextDir, excludes); err != nil {
-			return fmt.Errorf("Error checking context: '%s'.", err)
+		if err := build.ValidateContextDirectory(contextDir, excludes); err != nil {
+			return errors.Errorf("Error checking context: '%s'.", err)
 		}
 
-		// If .dockerignore mentions .dockerignore or the Dockerfile
-		// then make sure we send both files over to the daemon
-		// because Dockerfile is, obviously, needed no matter what, and
-		// .dockerignore is needed to know if either one needs to be
-		// removed. The daemon will remove them for us, if needed, after it
-		// parses the Dockerfile. Ignore errors here, as they will have been
-		// caught by validateContextDirectory above.
-		var includes = []string{"."}
-		keepThem1, _ := fileutils.Matches(".dockerignore", excludes)
-		keepThem2, _ := fileutils.Matches(relDockerfile, excludes)
-		if keepThem1 || keepThem2 {
-			includes = append(includes, ".dockerignore", relDockerfile)
+		// If .dockerignore mentions .dockerignore or the Dockerfile then make
+		// sure we send both files over to the daemon because Dockerfile is,
+		// obviously, needed no matter what, and .dockerignore is needed to know
+		// if either one needs to be removed. The daemon will remove them
+		// if necessary, after it parses the Dockerfile. Ignore errors here, as
+		// they will have been caught by validateContextDirectory above.
+		// Excludes are used instead of includes to maintain the order of files
+		// in the archive.
+		if keep, _ := fileutils.Matches(".dockerignore", excludes); keep {
+			excludes = append(excludes, "!.dockerignore")
+		}
+		if keep, _ := fileutils.Matches(relDockerfile, excludes); keep && dockerfileCtx == nil {
+			excludes = append(excludes, "!"+relDockerfile)
 		}
 
 		compression := archive.Uncompressed
@@ -223,8 +242,15 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		buildCtx, err = archive.TarWithOptions(contextDir, &archive.TarOptions{
 			Compression:     compression,
 			ExcludePatterns: excludes,
-			IncludeFiles:    includes,
 		})
+		if err != nil {
+			return err
+		}
+	}
+
+	// replace Dockerfile if added dynamically
+	if dockerfileCtx != nil {
+		buildCtx, relDockerfile, err = addDockerfileToBuildContext(dockerfileCtx, buildCtx)
 		if err != nil {
 			return err
 		}
@@ -235,7 +261,7 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 	var resolvedTags []*resolvedTag
 	if command.IsTrusted() {
 		translator := func(ctx context.Context, ref reference.NamedTagged) (reference.Canonical, error) {
-			return TrustedReference(ctx, dockerCli, ref)
+			return TrustedReference(ctx, dockerCli, ref, nil)
 		}
 		// Wrap the tar archive to replace the Dockerfile entry with the rewritten
 		// Dockerfile which uses trusted pulls.
@@ -243,47 +269,17 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 	}
 
 	// Setup an upload progress bar
-	progressOutput := streamformatter.NewStreamFormatter().NewProgressOutput(progBuff, true)
+	progressOutput := streamformatter.NewProgressOutput(progBuff)
 	if !dockerCli.Out().IsTerminal() {
 		progressOutput = &lastProgressOutput{output: progressOutput}
 	}
 
 	var body io.Reader = progress.NewProgressReader(buildCtx, progressOutput, 0, "", "Sending build context to Docker daemon")
 
-	var memory int64
-	if options.memory != "" {
-		parsedMemory, err := units.RAMInBytes(options.memory)
-		if err != nil {
-			return err
-		}
-		memory = parsedMemory
-	}
-
-	var memorySwap int64
-	if options.memorySwap != "" {
-		if options.memorySwap == "-1" {
-			memorySwap = -1
-		} else {
-			parsedMemorySwap, err := units.RAMInBytes(options.memorySwap)
-			if err != nil {
-				return err
-			}
-			memorySwap = parsedMemorySwap
-		}
-	}
-
-	var shmSize int64
-	if options.shmSize != "" {
-		shmSize, err = units.RAMInBytes(options.shmSize)
-		if err != nil {
-			return err
-		}
-	}
-
-	authConfig, _ := dockerCli.CredentialsStore().GetAll()
+	authConfigs, _ := dockerCli.GetAllCredentials()
 	buildOptions := types.ImageBuildOptions{
-		Memory:         memory,
-		MemorySwap:     memorySwap,
+		Memory:         options.memory.Value(),
+		MemorySwap:     options.memorySwap.Value(),
 		Tags:           options.tags.GetAll(),
 		SuppressOutput: options.quiet,
 		NoCache:        options.noCache,
@@ -298,15 +294,17 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		CPUPeriod:      options.cpuPeriod,
 		CgroupParent:   options.cgroupParent,
 		Dockerfile:     relDockerfile,
-		ShmSize:        shmSize,
+		ShmSize:        options.shmSize.Value(),
 		Ulimits:        options.ulimits.GetList(),
-		BuildArgs:      runconfigopts.ConvertKVStringsToMap(options.buildArgs.GetAll()),
-		AuthConfigs:    authConfig,
+		BuildArgs:      runconfigopts.ConvertKVStringsToMapWithNil(options.buildArgs.GetAll()),
+		AuthConfigs:    authConfigs,
 		Labels:         runconfigopts.ConvertKVStringsToMap(options.labels.GetAll()),
 		CacheFrom:      options.cacheFrom,
 		SecurityOpt:    options.securityOpt,
 		NetworkMode:    options.networkMode,
 		Squash:         options.squash,
+		ExtraHosts:     options.extraHosts.GetAll(),
+		Target:         options.target,
 	}
 
 	response, err := dockerCli.Client().ImageBuild(ctx, body, buildOptions)
@@ -330,12 +328,17 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 			}
 			return cli.StatusError{Status: jerr.Message, StatusCode: jerr.Code}
 		}
+		return err
 	}
 
 	// Windows: show error message about modified file permissions if the
 	// daemon isn't running Windows.
 	if response.OSType != "windows" && runtime.GOOS == "windows" && !options.quiet {
-		fmt.Fprintln(dockerCli.Err(), `SECURITY WARNING: You are building a Docker image from Windows against a non-Windows Docker host. All files and directories added to build context will have '-rwxr-xr-x' permissions. It is recommended to double check and reset permissions for sensitive files and directories.`)
+		fmt.Fprintln(dockerCli.Out(), "SECURITY WARNING: You are building a Docker "+
+			"image from Windows against a non-Windows Docker host. All files and "+
+			"directories added to build context will have '-rwxr-xr-x' permissions. "+
+			"It is recommended to double check and reset permissions for sensitive "+
+			"files and directories.")
 	}
 
 	// Everything worked so if -q was provided the output from the daemon
@@ -357,11 +360,60 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 	return nil
 }
 
+func addDockerfileToBuildContext(dockerfileCtx io.ReadCloser, buildCtx io.ReadCloser) (io.ReadCloser, string, error) {
+	file, err := ioutil.ReadAll(dockerfileCtx)
+	dockerfileCtx.Close()
+	if err != nil {
+		return nil, "", err
+	}
+	now := time.Now()
+	hdrTmpl := &tar.Header{
+		Mode:       0600,
+		Uid:        0,
+		Gid:        0,
+		ModTime:    now,
+		Typeflag:   tar.TypeReg,
+		AccessTime: now,
+		ChangeTime: now,
+	}
+	randomName := ".dockerfile." + stringid.GenerateRandomID()[:20]
+
+	buildCtx = archive.ReplaceFileTarWrapper(buildCtx, map[string]archive.TarModifierFunc{
+		// Add the dockerfile with a random filename
+		randomName: func(_ string, h *tar.Header, content io.Reader) (*tar.Header, []byte, error) {
+			return hdrTmpl, file, nil
+		},
+		// Update .dockerignore to include the random filename
+		".dockerignore": func(_ string, h *tar.Header, content io.Reader) (*tar.Header, []byte, error) {
+			if h == nil {
+				h = hdrTmpl
+			}
+
+			b := &bytes.Buffer{}
+			if content != nil {
+				if _, err := b.ReadFrom(content); err != nil {
+					return nil, nil, err
+				}
+			} else {
+				b.WriteString(".dockerignore")
+			}
+			b.WriteString("\n" + randomName + "\n")
+			return h, b.Bytes(), nil
+		},
+	})
+	return buildCtx, randomName, nil
+}
+
+func isLocalDir(c string) bool {
+	_, err := os.Stat(c)
+	return err == nil
+}
+
 type translatorFunc func(context.Context, reference.NamedTagged) (reference.Canonical, error)
 
 // validateTag checks if the given image name can be resolved.
 func validateTag(rawRepo string) (string, error) {
-	_, err := reference.ParseNamed(rawRepo)
+	_, err := reference.ParseNormalizedNamed(rawRepo)
 	if err != nil {
 		return "", err
 	}
@@ -393,18 +445,19 @@ func rewriteDockerfileFrom(ctx context.Context, dockerfile io.Reader, translator
 		matches := dockerfileFromLinePattern.FindStringSubmatch(line)
 		if matches != nil && matches[1] != api.NoBaseImageSpecifier {
 			// Replace the line with a resolved "FROM repo@digest"
-			ref, err := reference.ParseNamed(matches[1])
+			var ref reference.Named
+			ref, err = reference.ParseNormalizedNamed(matches[1])
 			if err != nil {
 				return nil, nil, err
 			}
-			ref = reference.WithDefaultTag(ref)
+			ref = reference.TagNameOnly(ref)
 			if ref, ok := ref.(reference.NamedTagged); ok && command.IsTrusted() {
 				trustedRef, err := translator(ctx, ref)
 				if err != nil {
 					return nil, nil, err
 				}
 
-				line = dockerfileFromLinePattern.ReplaceAllLiteralString(line, fmt.Sprintf("FROM %s", trustedRef.String()))
+				line = dockerfileFromLinePattern.ReplaceAllLiteralString(line, fmt.Sprintf("FROM %s", reference.FamiliarString(trustedRef)))
 				resolvedTags = append(resolvedTags, &resolvedTag{
 					digestRef: trustedRef,
 					tagRef:    ref,

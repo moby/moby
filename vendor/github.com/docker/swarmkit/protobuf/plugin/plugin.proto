@@ -4,8 +4,36 @@ package docker.protobuf.plugin;
 
 import "google/protobuf/descriptor.proto";
 
+message WatchSelectors {
+	// supported by all object types
+	optional bool id = 1;
+	optional bool id_prefix = 2;
+	optional bool name = 3;
+	optional bool name_prefix = 4;
+	optional bool custom = 5;
+	optional bool custom_prefix = 6;
+
+	// supported by tasks only
+	optional bool service_id = 7;
+	optional bool node_id = 8;
+	optional bool slot = 9;
+	optional bool desired_state = 10;
+
+	// supported by nodes only
+	optional bool role = 11;
+	optional bool membership = 12;
+
+	// supported by: resource
+	optional bool kind = 13;
+}
+
+message StoreObject {
+	required WatchSelectors watch_selectors = 1;
+}
+
 extend google.protobuf.MessageOptions {
 	optional bool deepcopy = 70000 [default=true];
+	optional StoreObject store_object = 70001;
 }
 
 message TLSAuthorization {

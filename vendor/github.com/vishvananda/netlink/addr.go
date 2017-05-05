@@ -10,9 +10,11 @@ import (
 // include a mask, so it stores the address as a net.IPNet.
 type Addr struct {
 	*net.IPNet
-	Label string
-	Flags int
-	Scope int
+	Label     string
+	Flags     int
+	Scope     int
+	Peer      *net.IPNet
+	Broadcast net.IP
 }
 
 // String returns $ip/$netmask $label
@@ -42,4 +44,11 @@ func (a Addr) Equal(x Addr) bool {
 	sizeb, _ := x.Mask.Size()
 	// ignore label for comparison
 	return a.IP.Equal(x.IP) && sizea == sizeb
+}
+
+func (a Addr) PeerEqual(x Addr) bool {
+	sizea, _ := a.Peer.Mask.Size()
+	sizeb, _ := x.Peer.Mask.Size()
+	// ignore label for comparison
+	return a.Peer.IP.Equal(x.Peer.IP) && sizea == sizeb
 }

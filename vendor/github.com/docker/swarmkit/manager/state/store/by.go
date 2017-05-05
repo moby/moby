@@ -49,19 +49,19 @@ func ByName(name string) By {
 	return byName(name)
 }
 
-type byCN string
-
-func (b byCN) isBy() {
-}
-
-// ByCN creates an object to pass to Find to select by CN.
-func ByCN(name string) By {
-	return byCN(name)
-}
-
 type byService string
 
 func (b byService) isBy() {
+}
+
+type byRuntime string
+
+func (b byRuntime) isBy() {
+}
+
+// ByRuntime creates an object to pass to Find to select by runtime.
+func ByRuntime(runtime string) By {
+	return byRuntime(runtime)
 }
 
 // ByServiceID creates an object to pass to Find to select by service.
@@ -152,4 +152,63 @@ func (b byReferencedSecretID) isBy() {
 // service or task that references a secret with the given ID.
 func ByReferencedSecretID(secretID string) By {
 	return byReferencedSecretID(secretID)
+}
+
+type byReferencedConfigID string
+
+func (b byReferencedConfigID) isBy() {
+}
+
+// ByReferencedConfigID creates an object to pass to Find to search for a
+// service or task that references a config with the given ID.
+func ByReferencedConfigID(configID string) By {
+	return byReferencedConfigID(configID)
+}
+
+type byKind string
+
+func (b byKind) isBy() {
+}
+
+// ByKind creates an object to pass to Find to search for a Resource of a
+// particular kind.
+func ByKind(kind string) By {
+	return byKind(kind)
+}
+
+type byCustom struct {
+	objType string
+	index   string
+	value   string
+}
+
+func (b byCustom) isBy() {
+}
+
+// ByCustom creates an object to pass to Find to search a custom index.
+func ByCustom(objType, index, value string) By {
+	return byCustom{
+		objType: objType,
+		index:   index,
+		value:   value,
+	}
+}
+
+type byCustomPrefix struct {
+	objType string
+	index   string
+	value   string
+}
+
+func (b byCustomPrefix) isBy() {
+}
+
+// ByCustomPrefix creates an object to pass to Find to search a custom index by
+// a value prefix.
+func ByCustomPrefix(objType, index, value string) By {
+	return byCustomPrefix{
+		objType: objType,
+		index:   index,
+		value:   value,
+	}
 }

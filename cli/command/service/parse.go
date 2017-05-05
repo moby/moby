@@ -1,41 +1,32 @@
 package service
 
 import (
-	"fmt"
-
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
 
-// parseSecrets retrieves the secrets from the requested names and converts
-// them to secret references to use with the spec
-func parseSecrets(client client.APIClient, requestedSecrets []*types.SecretRequestOption) ([]*swarmtypes.SecretReference, error) {
+// ParseSecrets retrieves the secrets with the requested names and fills
+// secret IDs into the secret references.
+func ParseSecrets(client client.SecretAPIClient, requestedSecrets []*swarmtypes.SecretReference) ([]*swarmtypes.SecretReference, error) {
 	secretRefs := make(map[string]*swarmtypes.SecretReference)
 	ctx := context.Background()
 
 	for _, secret := range requestedSecrets {
-		secretRef := &swarmtypes.SecretReference{
-			SecretName: secret.Source,
-			Target: &swarmtypes.SecretReferenceFileTarget{
-				Name: secret.Target,
-				UID:  secret.UID,
-				GID:  secret.GID,
-				Mode: secret.Mode,
-			},
+		if _, exists := secretRefs[secret.File.Name]; exists {
+			return nil, errors.Errorf("duplicate secret target for %s not allowed", secret.SecretName)
 		}
-
-		if _, exists := secretRefs[secret.Target]; exists {
-			return nil, fmt.Errorf("duplicate secret target for %s not allowed", secret.Source)
-		}
-		secretRefs[secret.Target] = secretRef
+		secretRef := new(swarmtypes.SecretReference)
+		*secretRef = *secret
+		secretRefs[secret.File.Name] = secretRef
 	}
 
 	args := filters.NewArgs()
 	for _, s := range secretRefs {
-		args.Add("names", s.SecretName)
+		args.Add("name", s.SecretName)
 	}
 
 	secrets, err := client.SecretList(ctx, types.SecretListOptions{
@@ -55,7 +46,7 @@ func parseSecrets(client client.APIClient, requestedSecrets []*types.SecretReque
 	for _, ref := range secretRefs {
 		id, ok := foundSecrets[ref.SecretName]
 		if !ok {
-			return nil, fmt.Errorf("secret not found: %s", ref.SecretName)
+			return nil, errors.Errorf("secret not found: %s", ref.SecretName)
 		}
 
 		// set the id for the ref to properly assign in swarm

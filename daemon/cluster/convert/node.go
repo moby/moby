@@ -6,7 +6,7 @@ import (
 
 	types "github.com/docker/docker/api/types/swarm"
 	swarmapi "github.com/docker/swarmkit/api"
-	"github.com/docker/swarmkit/protobuf/ptypes"
+	gogotypes "github.com/gogo/protobuf/types"
 )
 
 // NodeFromGRPC converts a grpc Node to a Node.
@@ -14,7 +14,7 @@ func NodeFromGRPC(n swarmapi.Node) types.Node {
 	node := types.Node{
 		ID: n.ID,
 		Spec: types.NodeSpec{
-			Role:         types.NodeRole(strings.ToLower(n.Spec.Role.String())),
+			Role:         types.NodeRole(strings.ToLower(n.Spec.DesiredRole.String())),
 			Availability: types.NodeAvailability(strings.ToLower(n.Spec.Availability.String())),
 		},
 		Status: types.NodeStatus{
@@ -26,12 +26,11 @@ func NodeFromGRPC(n swarmapi.Node) types.Node {
 
 	// Meta
 	node.Version.Index = n.Meta.Version.Index
-	node.CreatedAt, _ = ptypes.Timestamp(n.Meta.CreatedAt)
-	node.UpdatedAt, _ = ptypes.Timestamp(n.Meta.UpdatedAt)
+	node.CreatedAt, _ = gogotypes.TimestampFromProto(n.Meta.CreatedAt)
+	node.UpdatedAt, _ = gogotypes.TimestampFromProto(n.Meta.UpdatedAt)
 
 	//Annotations
-	node.Spec.Name = n.Spec.Annotations.Name
-	node.Spec.Labels = n.Spec.Annotations.Labels
+	node.Spec.Annotations = annotationsFromGRPC(n.Spec.Annotations)
 
 	//Description
 	if n.Description != nil {
@@ -74,7 +73,7 @@ func NodeSpecToGRPC(s types.NodeSpec) (swarmapi.NodeSpec, error) {
 		},
 	}
 	if role, ok := swarmapi.NodeRole_value[strings.ToUpper(string(s.Role))]; ok {
-		spec.Role = swarmapi.NodeRole(role)
+		spec.DesiredRole = swarmapi.NodeRole(role)
 	} else {
 		return swarmapi.NodeSpec{}, fmt.Errorf("invalid Role: %q", s.Role)
 	}

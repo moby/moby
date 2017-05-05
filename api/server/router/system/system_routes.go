@@ -16,7 +16,6 @@ import (
 	"github.com/docker/docker/api/types/registry"
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/api/types/versions/v1p24"
 	"github.com/docker/docker/pkg/ioutils"
 	"golang.org/x/net/context"
 )
@@ -36,22 +35,30 @@ func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *ht
 	if err != nil {
 		return err
 	}
-	if s.clusterProvider != nil {
-		info.Swarm = s.clusterProvider.Info()
+	if s.cluster != nil {
+		info.Swarm = s.cluster.Info()
 	}
 
 	if versions.LessThan(httputils.VersionFromContext(ctx), "1.25") {
 		// TODO: handle this conversion in engine-api
-		oldInfo := &v1p24.Info{
-			InfoBase:        info.InfoBase,
+		type oldInfo struct {
+			*types.Info
+			ExecutionDriver string
+		}
+		old := &oldInfo{
+			Info:            info,
 			ExecutionDriver: "<not supported>",
 		}
-		for _, s := range info.SecurityOptions {
-			if s.Key == "Name" {
-				oldInfo.SecurityOptions = append(oldInfo.SecurityOptions, s.Value)
-			}
+		nameOnlySecurityOptions := []string{}
+		kvSecOpts, err := types.DecodeSecurityOptions(old.SecurityOptions)
+		if err != nil {
+			return err
 		}
-		return httputils.WriteJSON(w, http.StatusOK, oldInfo)
+		for _, s := range kvSecOpts {
+			nameOnlySecurityOptions = append(nameOnlySecurityOptions, s.Name)
+		}
+		old.SecurityOptions = nameOnlySecurityOptions
+		return httputils.WriteJSON(w, http.StatusOK, old)
 	}
 	return httputils.WriteJSON(w, http.StatusOK, info)
 }
@@ -64,7 +71,7 @@ func (s *systemRouter) getVersion(ctx context.Context, w http.ResponseWriter, r 
 }
 
 func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	du, err := s.backend.SystemDiskUsage()
+	du, err := s.backend.SystemDiskUsage(ctx)
 	if err != nil {
 		return err
 	}

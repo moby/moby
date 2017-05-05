@@ -5,21 +5,23 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	cliflags "github.com/docker/docker/cli/flags"
-	"github.com/docker/docker/daemon"
-	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/pkg/testutil"
 	"github.com/docker/docker/pkg/testutil/tempfile"
 	"github.com/spf13/pflag"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func defaultOptions(configFile string) daemonOptions {
 	opts := daemonOptions{
-		daemonConfig: &daemon.Config{},
+		daemonConfig: &config.Config{},
 		flags:        &pflag.FlagSet{},
 		common:       cliflags.NewCommonOptions(),
 	}
 	opts.common.InstallFlags(opts.flags)
-	opts.daemonConfig.InstallFlags(opts.flags)
-	opts.flags.StringVar(&opts.configFile, flagDaemonConfigFile, defaultDaemonConfigFile, "")
+	installConfigFlags(opts.daemonConfig, opts.flags)
+	opts.flags.StringVar(&opts.configFile, "config-file", defaultDaemonConfigFile, "")
 	opts.configFile = configFile
 	return opts
 }
@@ -29,8 +31,8 @@ func TestLoadDaemonCliConfigWithoutOverriding(t *testing.T) {
 	opts.common.Debug = true
 
 	loadedConfig, err := loadDaemonCliConfig(opts)
-	assert.NilError(t, err)
-	assert.NotNil(t, loadedConfig)
+	require.NoError(t, err)
+	require.NotNil(t, loadedConfig)
 	if !loadedConfig.Debug {
 		t.Fatalf("expected debug to be copied from the common flags, got false")
 	}
@@ -42,9 +44,9 @@ func TestLoadDaemonCliConfigWithTLS(t *testing.T) {
 	opts.common.TLS = true
 
 	loadedConfig, err := loadDaemonCliConfig(opts)
-	assert.NilError(t, err)
-	assert.NotNil(t, loadedConfig)
-	assert.Equal(t, loadedConfig.CommonTLSOptions.CAFile, "/tmp/ca.pem")
+	require.NoError(t, err)
+	require.NotNil(t, loadedConfig)
+	assert.Equal(t, "/tmp/ca.pem", loadedConfig.CommonTLSOptions.CAFile)
 }
 
 func TestLoadDaemonCliConfigWithConflicts(t *testing.T) {
@@ -55,12 +57,12 @@ func TestLoadDaemonCliConfigWithConflicts(t *testing.T) {
 	opts := defaultOptions(configFile)
 	flags := opts.flags
 
-	assert.NilError(t, flags.Set(flagDaemonConfigFile, configFile))
-	assert.NilError(t, flags.Set("label", "l1=bar"))
-	assert.NilError(t, flags.Set("label", "l2=baz"))
+	assert.NoError(t, flags.Set("config-file", configFile))
+	assert.NoError(t, flags.Set("label", "l1=bar"))
+	assert.NoError(t, flags.Set("label", "l2=baz"))
 
 	_, err := loadDaemonCliConfig(opts)
-	assert.Error(t, err, "as a flag and in the configuration file: labels")
+	testutil.ErrorContains(t, err, "as a flag and in the configuration file: labels")
 }
 
 func TestLoadDaemonCliConfigWithTLSVerify(t *testing.T) {
@@ -71,8 +73,8 @@ func TestLoadDaemonCliConfigWithTLSVerify(t *testing.T) {
 	opts.common.TLSOptions.CAFile = "/tmp/ca.pem"
 
 	loadedConfig, err := loadDaemonCliConfig(opts)
-	assert.NilError(t, err)
-	assert.NotNil(t, loadedConfig)
+	require.NoError(t, err)
+	require.NotNil(t, loadedConfig)
 	assert.Equal(t, loadedConfig.TLS, true)
 }
 
@@ -84,9 +86,9 @@ func TestLoadDaemonCliConfigWithExplicitTLSVerifyFalse(t *testing.T) {
 	opts.common.TLSOptions.CAFile = "/tmp/ca.pem"
 
 	loadedConfig, err := loadDaemonCliConfig(opts)
-	assert.NilError(t, err)
-	assert.NotNil(t, loadedConfig)
-	assert.Equal(t, loadedConfig.TLS, true)
+	require.NoError(t, err)
+	require.NotNil(t, loadedConfig)
+	assert.True(t, loadedConfig.TLS)
 }
 
 func TestLoadDaemonCliConfigWithoutTLSVerify(t *testing.T) {
@@ -97,9 +99,9 @@ func TestLoadDaemonCliConfigWithoutTLSVerify(t *testing.T) {
 	opts.common.TLSOptions.CAFile = "/tmp/ca.pem"
 
 	loadedConfig, err := loadDaemonCliConfig(opts)
-	assert.NilError(t, err)
-	assert.NotNil(t, loadedConfig)
-	assert.Equal(t, loadedConfig.TLS, false)
+	require.NoError(t, err)
+	require.NotNil(t, loadedConfig)
+	assert.False(t, loadedConfig.TLS)
 }
 
 func TestLoadDaemonCliConfigWithLogLevel(t *testing.T) {
@@ -108,10 +110,10 @@ func TestLoadDaemonCliConfigWithLogLevel(t *testing.T) {
 
 	opts := defaultOptions(tempFile.Name())
 	loadedConfig, err := loadDaemonCliConfig(opts)
-	assert.NilError(t, err)
-	assert.NotNil(t, loadedConfig)
-	assert.Equal(t, loadedConfig.LogLevel, "warn")
-	assert.Equal(t, logrus.GetLevel(), logrus.WarnLevel)
+	require.NoError(t, err)
+	require.NotNil(t, loadedConfig)
+	assert.Equal(t, "warn", loadedConfig.LogLevel)
+	assert.Equal(t, logrus.WarnLevel, logrus.GetLevel())
 }
 
 func TestLoadDaemonConfigWithEmbeddedOptions(t *testing.T) {
@@ -121,10 +123,10 @@ func TestLoadDaemonConfigWithEmbeddedOptions(t *testing.T) {
 
 	opts := defaultOptions(tempFile.Name())
 	loadedConfig, err := loadDaemonCliConfig(opts)
-	assert.NilError(t, err)
-	assert.NotNil(t, loadedConfig)
-	assert.Equal(t, loadedConfig.CommonTLSOptions.CAFile, "/etc/certs/ca.pem")
-	assert.Equal(t, loadedConfig.LogConfig.Type, "syslog")
+	require.NoError(t, err)
+	require.NotNil(t, loadedConfig)
+	assert.Equal(t, "/etc/certs/ca.pem", loadedConfig.CommonTLSOptions.CAFile)
+	assert.Equal(t, "syslog", loadedConfig.LogConfig.Type)
 }
 
 func TestLoadDaemonConfigWithRegistryOptions(t *testing.T) {
@@ -137,9 +139,9 @@ func TestLoadDaemonConfigWithRegistryOptions(t *testing.T) {
 
 	opts := defaultOptions(tempFile.Name())
 	loadedConfig, err := loadDaemonCliConfig(opts)
-	assert.NilError(t, err)
-	assert.NotNil(t, loadedConfig)
+	require.NoError(t, err)
+	require.NotNil(t, loadedConfig)
 
-	assert.Equal(t, len(loadedConfig.Mirrors), 1)
-	assert.Equal(t, len(loadedConfig.InsecureRegistries), 1)
+	assert.Len(t, loadedConfig.Mirrors, 1)
+	assert.Len(t, loadedConfig.InsecureRegistries, 1)
 }

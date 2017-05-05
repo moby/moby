@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"strings"
 
-	"golang.org/x/net/context"
-
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
-	"github.com/docker/go-units"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 type updateOptions struct {
@@ -23,11 +23,12 @@ type updateOptions struct {
 	cpusetCpus         string
 	cpusetMems         string
 	cpuShares          int64
-	memoryString       string
-	memoryReservation  string
-	memorySwap         string
-	kernelMemory       string
+	memory             opts.MemBytes
+	memoryReservation  opts.MemBytes
+	memorySwap         opts.MemSwapBytes
+	kernelMemory       opts.MemBytes
 	restartPolicy      string
+	cpus               opts.NanoCPUs
 
 	nFlag int
 
@@ -54,15 +55,20 @@ func NewUpdateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.Int64Var(&opts.cpuPeriod, "cpu-period", 0, "Limit CPU CFS (Completely Fair Scheduler) period")
 	flags.Int64Var(&opts.cpuQuota, "cpu-quota", 0, "Limit CPU CFS (Completely Fair Scheduler) quota")
 	flags.Int64Var(&opts.cpuRealtimePeriod, "cpu-rt-period", 0, "Limit the CPU real-time period in microseconds")
+	flags.SetAnnotation("cpu-rt-period", "version", []string{"1.25"})
 	flags.Int64Var(&opts.cpuRealtimeRuntime, "cpu-rt-runtime", 0, "Limit the CPU real-time runtime in microseconds")
+	flags.SetAnnotation("cpu-rt-runtime", "version", []string{"1.25"})
 	flags.StringVar(&opts.cpusetCpus, "cpuset-cpus", "", "CPUs in which to allow execution (0-3, 0,1)")
 	flags.StringVar(&opts.cpusetMems, "cpuset-mems", "", "MEMs in which to allow execution (0-3, 0,1)")
 	flags.Int64VarP(&opts.cpuShares, "cpu-shares", "c", 0, "CPU shares (relative weight)")
-	flags.StringVarP(&opts.memoryString, "memory", "m", "", "Memory limit")
-	flags.StringVar(&opts.memoryReservation, "memory-reservation", "", "Memory soft limit")
-	flags.StringVar(&opts.memorySwap, "memory-swap", "", "Swap limit equal to memory plus swap: '-1' to enable unlimited swap")
-	flags.StringVar(&opts.kernelMemory, "kernel-memory", "", "Kernel memory limit")
+	flags.VarP(&opts.memory, "memory", "m", "Memory limit")
+	flags.Var(&opts.memoryReservation, "memory-reservation", "Memory soft limit")
+	flags.Var(&opts.memorySwap, "memory-swap", "Swap limit equal to memory plus swap: '-1' to enable unlimited swap")
+	flags.Var(&opts.kernelMemory, "kernel-memory", "Kernel memory limit")
 	flags.StringVar(&opts.restartPolicy, "restart", "", "Restart policy to apply when a container exits")
+
+	flags.Var(&opts.cpus, "cpus", "Number of CPUs")
+	flags.SetAnnotation("cpus", "version", []string{"1.29"})
 
 	return cmd
 }
@@ -71,43 +77,7 @@ func runUpdate(dockerCli *command.DockerCli, opts *updateOptions) error {
 	var err error
 
 	if opts.nFlag == 0 {
-		return fmt.Errorf("You must provide one or more flags when using this command.")
-	}
-
-	var memory int64
-	if opts.memoryString != "" {
-		memory, err = units.RAMInBytes(opts.memoryString)
-		if err != nil {
-			return err
-		}
-	}
-
-	var memoryReservation int64
-	if opts.memoryReservation != "" {
-		memoryReservation, err = units.RAMInBytes(opts.memoryReservation)
-		if err != nil {
-			return err
-		}
-	}
-
-	var memorySwap int64
-	if opts.memorySwap != "" {
-		if opts.memorySwap == "-1" {
-			memorySwap = -1
-		} else {
-			memorySwap, err = units.RAMInBytes(opts.memorySwap)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	var kernelMemory int64
-	if opts.kernelMemory != "" {
-		kernelMemory, err = units.RAMInBytes(opts.kernelMemory)
-		if err != nil {
-			return err
-		}
+		return errors.New("You must provide one or more flags when using this command.")
 	}
 
 	var restartPolicy containertypes.RestartPolicy
@@ -123,14 +93,15 @@ func runUpdate(dockerCli *command.DockerCli, opts *updateOptions) error {
 		CpusetCpus:         opts.cpusetCpus,
 		CpusetMems:         opts.cpusetMems,
 		CPUShares:          opts.cpuShares,
-		Memory:             memory,
-		MemoryReservation:  memoryReservation,
-		MemorySwap:         memorySwap,
-		KernelMemory:       kernelMemory,
+		Memory:             opts.memory.Value(),
+		MemoryReservation:  opts.memoryReservation.Value(),
+		MemorySwap:         opts.memorySwap.Value(),
+		KernelMemory:       opts.kernelMemory.Value(),
 		CPUPeriod:          opts.cpuPeriod,
 		CPUQuota:           opts.cpuQuota,
 		CPURealtimePeriod:  opts.cpuRealtimePeriod,
 		CPURealtimeRuntime: opts.cpuRealtimeRuntime,
+		NanoCPUs:           opts.cpus.Value(),
 	}
 
 	updateConfig := containertypes.UpdateConfig{
@@ -149,15 +120,15 @@ func runUpdate(dockerCli *command.DockerCli, opts *updateOptions) error {
 		if err != nil {
 			errs = append(errs, err.Error())
 		} else {
-			fmt.Fprintf(dockerCli.Out(), "%s\n", container)
+			fmt.Fprintln(dockerCli.Out(), container)
 		}
 		warns = append(warns, r.Warnings...)
 	}
 	if len(warns) > 0 {
-		fmt.Fprintf(dockerCli.Out(), "%s", strings.Join(warns, "\n"))
+		fmt.Fprintln(dockerCli.Out(), strings.Join(warns, "\n"))
 	}
 	if len(errs) > 0 {
-		return fmt.Errorf("%s", strings.Join(errs, "\n"))
+		return errors.New(strings.Join(errs, "\n"))
 	}
 	return nil
 }

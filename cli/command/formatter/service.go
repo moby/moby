@@ -5,10 +5,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/api/types"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli/command/inspect"
+	"github.com/docker/docker/pkg/stringid"
 	units "github.com/docker/go-units"
+	"github.com/pkg/errors"
 )
 
 const serviceInspectPrettyTemplate Format = `
@@ -28,15 +32,20 @@ Service Mode:
 {{- if .HasUpdateStatus }}
 UpdateStatus:
  State:		{{ .UpdateStatusState }}
+{{- if .HasUpdateStatusStarted }}
  Started:	{{ .UpdateStatusStarted }}
+{{- end }}
 {{- if .UpdateIsCompleted }}
  Completed:	{{ .UpdateStatusCompleted }}
 {{- end }}
  Message:	{{ .UpdateStatusMessage }}
 {{- end }}
 Placement:
-{{- if .TaskPlacementConstraints -}}
- Contraints:	{{ .TaskPlacementConstraints }}
+{{- if .TaskPlacementConstraints }}
+ Constraints:	{{ .TaskPlacementConstraints }}
+{{- end }}
+{{- if .TaskPlacementPreferences }}
+ Preferences:   {{ .TaskPlacementPreferences }}
 {{- end }}
 {{- if .HasUpdateConfig }}
 UpdateConfig:
@@ -49,6 +58,20 @@ UpdateConfig:
  Monitoring Period: {{ .UpdateMonitor }}
 {{- end }}
  Max failure ratio: {{ .UpdateMaxFailureRatio }}
+ Update order:      {{ .UpdateOrder }}
+{{- end }}
+{{- if .HasRollbackConfig }}
+RollbackConfig:
+ Parallelism:	{{ .RollbackParallelism }}
+{{- if .HasRollbackDelay}}
+ Delay:		{{ .RollbackDelay }}
+{{- end }}
+ On failure:	{{ .RollbackOnFailure }}
+{{- if .HasRollbackMonitor}}
+ Monitoring Period: {{ .RollbackMonitor }}
+{{- end }}
+ Max failure ratio: {{ .RollbackMaxFailureRatio }}
+ Rollback order:    {{ .RollbackOrder }}
 {{- end }}
 ContainerSpec:
  Image:		{{ .ContainerImage }}
@@ -98,9 +121,10 @@ Endpoint Mode:	{{ .EndpointMode }}
 {{- if .Ports }}
 Ports:
 {{- range $port := .Ports }}
- PublishedPort {{ $port.PublishedPort }}
+ PublishedPort = {{ $port.PublishedPort }}
   Protocol = {{ $port.Protocol }}
   TargetPort = {{ $port.TargetPort }}
+  PublishMode = {{ $port.PublishMode }}
 {{- end }} {{ end -}}
 `
 
@@ -114,8 +138,20 @@ func NewServiceFormat(source string) Format {
 	}
 }
 
+func resolveNetworks(service swarm.Service, getNetwork inspect.GetRefFunc) map[string]string {
+	networkNames := make(map[string]string)
+	for _, network := range service.Spec.TaskTemplate.Networks {
+		if resolved, _, err := getNetwork(network.Target); err == nil {
+			if resolvedNetwork, ok := resolved.(types.NetworkResource); ok {
+				networkNames[resolvedNetwork.ID] = resolvedNetwork.Name
+			}
+		}
+	}
+	return networkNames
+}
+
 // ServiceInspectWrite renders the context for a list of services
-func ServiceInspectWrite(ctx Context, refs []string, getRef inspect.GetRefFunc) error {
+func ServiceInspectWrite(ctx Context, refs []string, getRef, getNetwork inspect.GetRefFunc) error {
 	if ctx.Format != serviceInspectPrettyTemplate {
 		return inspect.Inspect(ctx.Output, refs, string(ctx.Format), getRef)
 	}
@@ -127,9 +163,9 @@ func ServiceInspectWrite(ctx Context, refs []string, getRef inspect.GetRefFunc) 
 			}
 			service, ok := serviceI.(swarm.Service)
 			if !ok {
-				return fmt.Errorf("got wrong object to inspect")
+				return errors.Errorf("got wrong object to inspect")
 			}
-			if err := format(&serviceInspectContext{Service: service}); err != nil {
+			if err := format(&serviceInspectContext{Service: service, networkNames: resolveNetworks(service, getNetwork)}); err != nil {
 				return err
 			}
 		}
@@ -141,6 +177,10 @@ func ServiceInspectWrite(ctx Context, refs []string, getRef inspect.GetRefFunc) 
 type serviceInspectContext struct {
 	swarm.Service
 	subContext
+
+	// networkNames is a map from network IDs (as found in
+	// Networks[x].Target) to network names.
+	networkNames map[string]string
 }
 
 func (ctx *serviceInspectContext) MarshalJSON() ([]byte, error) {
@@ -172,23 +212,27 @@ func (ctx *serviceInspectContext) ModeReplicatedReplicas() *uint64 {
 }
 
 func (ctx *serviceInspectContext) HasUpdateStatus() bool {
-	return ctx.Service.UpdateStatus.State != ""
+	return ctx.Service.UpdateStatus != nil && ctx.Service.UpdateStatus.State != ""
 }
 
 func (ctx *serviceInspectContext) UpdateStatusState() swarm.UpdateState {
 	return ctx.Service.UpdateStatus.State
 }
 
+func (ctx *serviceInspectContext) HasUpdateStatusStarted() bool {
+	return ctx.Service.UpdateStatus.StartedAt != nil
+}
+
 func (ctx *serviceInspectContext) UpdateStatusStarted() string {
-	return units.HumanDuration(time.Since(ctx.Service.UpdateStatus.StartedAt))
+	return units.HumanDuration(time.Since(*ctx.Service.UpdateStatus.StartedAt)) + " ago"
 }
 
 func (ctx *serviceInspectContext) UpdateIsCompleted() bool {
-	return ctx.Service.UpdateStatus.State == swarm.UpdateStateCompleted
+	return ctx.Service.UpdateStatus.State == swarm.UpdateStateCompleted && ctx.Service.UpdateStatus.CompletedAt != nil
 }
 
 func (ctx *serviceInspectContext) UpdateStatusCompleted() string {
-	return units.HumanDuration(time.Since(ctx.Service.UpdateStatus.CompletedAt))
+	return units.HumanDuration(time.Since(*ctx.Service.UpdateStatus.CompletedAt)) + " ago"
 }
 
 func (ctx *serviceInspectContext) UpdateStatusMessage() string {
@@ -200,6 +244,19 @@ func (ctx *serviceInspectContext) TaskPlacementConstraints() []string {
 		return ctx.Service.Spec.TaskTemplate.Placement.Constraints
 	}
 	return nil
+}
+
+func (ctx *serviceInspectContext) TaskPlacementPreferences() []string {
+	if ctx.Service.Spec.TaskTemplate.Placement == nil {
+		return nil
+	}
+	var strings []string
+	for _, pref := range ctx.Service.Spec.TaskTemplate.Placement.Preferences {
+		if pref.Spread != nil {
+			strings = append(strings, "spread="+pref.Spread.SpreadDescriptor)
+		}
+	}
+	return strings
 }
 
 func (ctx *serviceInspectContext) HasUpdateConfig() bool {
@@ -222,6 +279,10 @@ func (ctx *serviceInspectContext) UpdateOnFailure() string {
 	return ctx.Service.Spec.UpdateConfig.FailureAction
 }
 
+func (ctx *serviceInspectContext) UpdateOrder() string {
+	return ctx.Service.Spec.UpdateConfig.Order
+}
+
 func (ctx *serviceInspectContext) HasUpdateMonitor() bool {
 	return ctx.Service.Spec.UpdateConfig.Monitor.Nanoseconds() > 0
 }
@@ -232,6 +293,42 @@ func (ctx *serviceInspectContext) UpdateMonitor() time.Duration {
 
 func (ctx *serviceInspectContext) UpdateMaxFailureRatio() float32 {
 	return ctx.Service.Spec.UpdateConfig.MaxFailureRatio
+}
+
+func (ctx *serviceInspectContext) HasRollbackConfig() bool {
+	return ctx.Service.Spec.RollbackConfig != nil
+}
+
+func (ctx *serviceInspectContext) RollbackParallelism() uint64 {
+	return ctx.Service.Spec.RollbackConfig.Parallelism
+}
+
+func (ctx *serviceInspectContext) HasRollbackDelay() bool {
+	return ctx.Service.Spec.RollbackConfig.Delay.Nanoseconds() > 0
+}
+
+func (ctx *serviceInspectContext) RollbackDelay() time.Duration {
+	return ctx.Service.Spec.RollbackConfig.Delay
+}
+
+func (ctx *serviceInspectContext) RollbackOnFailure() string {
+	return ctx.Service.Spec.RollbackConfig.FailureAction
+}
+
+func (ctx *serviceInspectContext) HasRollbackMonitor() bool {
+	return ctx.Service.Spec.RollbackConfig.Monitor.Nanoseconds() > 0
+}
+
+func (ctx *serviceInspectContext) RollbackMonitor() time.Duration {
+	return ctx.Service.Spec.RollbackConfig.Monitor
+}
+
+func (ctx *serviceInspectContext) RollbackMaxFailureRatio() float32 {
+	return ctx.Service.Spec.RollbackConfig.MaxFailureRatio
+}
+
+func (ctx *serviceInspectContext) RollbackOrder() string {
+	return ctx.Service.Spec.RollbackConfig.Order
 }
 
 func (ctx *serviceInspectContext) ContainerImage() string {
@@ -263,6 +360,9 @@ func (ctx *serviceInspectContext) HasResources() bool {
 }
 
 func (ctx *serviceInspectContext) HasResourceReservations() bool {
+	if ctx.Service.Spec.TaskTemplate.Resources == nil || ctx.Service.Spec.TaskTemplate.Resources.Reservations == nil {
+		return false
+	}
 	return ctx.Service.Spec.TaskTemplate.Resources.Reservations.NanoCPUs > 0 || ctx.Service.Spec.TaskTemplate.Resources.Reservations.MemoryBytes > 0
 }
 
@@ -281,6 +381,9 @@ func (ctx *serviceInspectContext) ResourceReservationMemory() string {
 }
 
 func (ctx *serviceInspectContext) HasResourceLimits() bool {
+	if ctx.Service.Spec.TaskTemplate.Resources == nil || ctx.Service.Spec.TaskTemplate.Resources.Limits == nil {
+		return false
+	}
 	return ctx.Service.Spec.TaskTemplate.Resources.Limits.NanoCPUs > 0 || ctx.Service.Spec.TaskTemplate.Resources.Limits.MemoryBytes > 0
 }
 
@@ -297,8 +400,12 @@ func (ctx *serviceInspectContext) ResourceLimitMemory() string {
 
 func (ctx *serviceInspectContext) Networks() []string {
 	var out []string
-	for _, n := range ctx.Service.Spec.Networks {
-		out = append(out, n.Target)
+	for _, n := range ctx.Service.Spec.TaskTemplate.Networks {
+		if name, ok := ctx.networkNames[n.Target]; ok {
+			out = append(out, name)
+		} else {
+			out = append(out, n.Target)
+		}
 	}
 	return out
 }
@@ -313,4 +420,116 @@ func (ctx *serviceInspectContext) EndpointMode() string {
 
 func (ctx *serviceInspectContext) Ports() []swarm.PortConfig {
 	return ctx.Service.Endpoint.Ports
+}
+
+const (
+	defaultServiceTableFormat = "table {{.ID}}\t{{.Name}}\t{{.Mode}}\t{{.Replicas}}\t{{.Image}}\t{{.Ports}}"
+
+	serviceIDHeader = "ID"
+	modeHeader      = "MODE"
+	replicasHeader  = "REPLICAS"
+)
+
+// NewServiceListFormat returns a Format for rendering using a service Context
+func NewServiceListFormat(source string, quiet bool) Format {
+	switch source {
+	case TableFormatKey:
+		if quiet {
+			return defaultQuietFormat
+		}
+		return defaultServiceTableFormat
+	case RawFormatKey:
+		if quiet {
+			return `id: {{.ID}}`
+		}
+		return `id: {{.ID}}\nname: {{.Name}}\nmode: {{.Mode}}\nreplicas: {{.Replicas}}\nimage: {{.Image}}\nports: {{.Ports}}\n`
+	}
+	return Format(source)
+}
+
+// ServiceListInfo stores the information about mode and replicas to be used by template
+type ServiceListInfo struct {
+	Mode     string
+	Replicas string
+}
+
+// ServiceListWrite writes the context
+func ServiceListWrite(ctx Context, services []swarm.Service, info map[string]ServiceListInfo) error {
+	render := func(format func(subContext subContext) error) error {
+		for _, service := range services {
+			serviceCtx := &serviceContext{service: service, mode: info[service.ID].Mode, replicas: info[service.ID].Replicas}
+			if err := format(serviceCtx); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	serviceCtx := serviceContext{}
+	serviceCtx.header = map[string]string{
+		"ID":       serviceIDHeader,
+		"Name":     nameHeader,
+		"Mode":     modeHeader,
+		"Replicas": replicasHeader,
+		"Image":    imageHeader,
+		"Ports":    portsHeader,
+	}
+	return ctx.Write(&serviceCtx, render)
+}
+
+type serviceContext struct {
+	HeaderContext
+	service  swarm.Service
+	mode     string
+	replicas string
+}
+
+func (c *serviceContext) MarshalJSON() ([]byte, error) {
+	return marshalJSON(c)
+}
+
+func (c *serviceContext) ID() string {
+	return stringid.TruncateID(c.service.ID)
+}
+
+func (c *serviceContext) Name() string {
+	return c.service.Spec.Name
+}
+
+func (c *serviceContext) Mode() string {
+	return c.mode
+}
+
+func (c *serviceContext) Replicas() string {
+	return c.replicas
+}
+
+func (c *serviceContext) Image() string {
+	image := c.service.Spec.TaskTemplate.ContainerSpec.Image
+	if ref, err := reference.ParseNormalizedNamed(image); err == nil {
+		// update image string for display, (strips any digest)
+		if nt, ok := ref.(reference.NamedTagged); ok {
+			if namedTagged, err := reference.WithTag(reference.TrimNamed(nt), nt.Tag()); err == nil {
+				image = reference.FamiliarString(namedTagged)
+			}
+		}
+	}
+
+	return image
+}
+
+func (c *serviceContext) Ports() string {
+	if c.service.Spec.EndpointSpec == nil || c.service.Spec.EndpointSpec.Ports == nil {
+		return ""
+	}
+	ports := []string{}
+	for _, pConfig := range c.service.Spec.EndpointSpec.Ports {
+		if pConfig.PublishMode == swarm.PortConfigPublishModeIngress {
+			ports = append(ports, fmt.Sprintf("*:%d->%d/%s",
+				pConfig.PublishedPort,
+				pConfig.TargetPort,
+				pConfig.Protocol,
+			))
+		}
+	}
+	return strings.Join(ports, ",")
 }

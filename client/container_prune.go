@@ -5,18 +5,24 @@ import (
 	"fmt"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	"golang.org/x/net/context"
 )
 
 // ContainersPrune requests the daemon to delete unused data
-func (cli *Client) ContainersPrune(ctx context.Context, cfg types.ContainersPruneConfig) (types.ContainersPruneReport, error) {
+func (cli *Client) ContainersPrune(ctx context.Context, pruneFilters filters.Args) (types.ContainersPruneReport, error) {
 	var report types.ContainersPruneReport
 
 	if err := cli.NewVersionError("1.25", "container prune"); err != nil {
 		return report, err
 	}
 
-	serverResp, err := cli.post(ctx, "/containers/prune", nil, cfg, nil)
+	query, err := getFiltersQuery(pruneFilters)
+	if err != nil {
+		return report, err
+	}
+
+	serverResp, err := cli.post(ctx, "/containers/prune", query, nil, nil)
 	if err != nil {
 		return report, err
 	}

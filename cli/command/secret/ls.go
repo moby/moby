@@ -1,29 +1,29 @@
 package secret
 
 import (
-	"fmt"
-	"text/tabwriter"
-	"time"
-
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
-	"github.com/docker/go-units"
+	"github.com/docker/docker/cli/command/formatter"
+	"github.com/docker/docker/opts"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )
 
 type listOptions struct {
-	quiet bool
+	quiet  bool
+	format string
+	filter opts.FilterOpt
 }
 
-func newSecretListCommand(dockerCli *command.DockerCli) *cobra.Command {
-	opts := listOptions{}
+func newSecretListCommand(dockerCli command.Cli) *cobra.Command {
+	opts := listOptions{filter: opts.NewFilterOpt()}
 
 	cmd := &cobra.Command{
-		Use:   "ls",
-		Short: "List secrets",
-		Args:  cli.NoArgs,
+		Use:     "ls [OPTIONS]",
+		Aliases: []string{"list"},
+		Short:   "List secrets",
+		Args:    cli.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runSecretList(dockerCli, opts)
 		},
@@ -31,38 +31,31 @@ func newSecretListCommand(dockerCli *command.DockerCli) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "Only display IDs")
+	flags.StringVarP(&opts.format, "format", "", "", "Pretty-print secrets using a Go template")
+	flags.VarP(&opts.filter, "filter", "f", "Filter output based on conditions provided")
 
 	return cmd
 }
 
-func runSecretList(dockerCli *command.DockerCli, opts listOptions) error {
+func runSecretList(dockerCli command.Cli, opts listOptions) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 
-	secrets, err := client.SecretList(ctx, types.SecretListOptions{})
+	secrets, err := client.SecretList(ctx, types.SecretListOptions{Filters: opts.filter.Value()})
 	if err != nil {
 		return err
 	}
-
-	w := tabwriter.NewWriter(dockerCli.Out(), 20, 1, 3, ' ', 0)
-	if opts.quiet {
-		for _, s := range secrets {
-			fmt.Fprintf(w, "%s\n", s.ID)
-		}
-	} else {
-		fmt.Fprintf(w, "ID\tNAME\tCREATED\tUPDATED\tSIZE")
-		fmt.Fprintf(w, "\n")
-
-		for _, s := range secrets {
-			created := units.HumanDuration(time.Now().UTC().Sub(s.Meta.CreatedAt)) + " ago"
-			updated := units.HumanDuration(time.Now().UTC().Sub(s.Meta.UpdatedAt)) + " ago"
-			size := units.HumanSizeWithPrecision(float64(s.SecretSize), 3)
-
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", s.ID, s.Spec.Annotations.Name, created, updated, size)
+	format := opts.format
+	if len(format) == 0 {
+		if len(dockerCli.ConfigFile().SecretFormat) > 0 && !opts.quiet {
+			format = dockerCli.ConfigFile().SecretFormat
+		} else {
+			format = formatter.TableFormatKey
 		}
 	}
-
-	w.Flush()
-
-	return nil
+	secretCtx := formatter.Context{
+		Output: dockerCli.Out(),
+		Format: formatter.NewSecretFormat(format, opts.quiet),
+	}
+	return formatter.SecretWrite(secretCtx, secrets)
 }

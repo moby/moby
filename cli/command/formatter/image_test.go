@@ -9,7 +9,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestImageContext(t *testing.T) {
@@ -18,27 +18,26 @@ func TestImageContext(t *testing.T) {
 
 	var ctx imageContext
 	cases := []struct {
-		imageCtx  imageContext
-		expValue  string
-		expHeader string
-		call      func() string
+		imageCtx imageContext
+		expValue string
+		call     func() string
 	}{
 		{imageContext{
 			i:     types.ImageSummary{ID: imageID},
 			trunc: true,
-		}, stringid.TruncateID(imageID), imageIDHeader, ctx.ID},
+		}, stringid.TruncateID(imageID), ctx.ID},
 		{imageContext{
 			i:     types.ImageSummary{ID: imageID},
 			trunc: false,
-		}, imageID, imageIDHeader, ctx.ID},
+		}, imageID, ctx.ID},
 		{imageContext{
 			i:     types.ImageSummary{Size: 10, VirtualSize: 10},
 			trunc: true,
-		}, "10 B", sizeHeader, ctx.Size},
+		}, "10B", ctx.Size},
 		{imageContext{
 			i:     types.ImageSummary{Created: unix},
 			trunc: true,
-		}, time.Unix(unix, 0).String(), createdAtHeader, ctx.CreatedAt},
+		}, time.Unix(unix, 0).String(), ctx.CreatedAt},
 		// FIXME
 		// {imageContext{
 		// 	i:     types.ImageSummary{Created: unix},
@@ -47,15 +46,15 @@ func TestImageContext(t *testing.T) {
 		{imageContext{
 			i:    types.ImageSummary{},
 			repo: "busybox",
-		}, "busybox", repositoryHeader, ctx.Repository},
+		}, "busybox", ctx.Repository},
 		{imageContext{
 			i:   types.ImageSummary{},
 			tag: "latest",
-		}, "latest", tagHeader, ctx.Tag},
+		}, "latest", ctx.Tag},
 		{imageContext{
 			i:      types.ImageSummary{},
 			digest: "sha256:d149ab53f8718e987c3a3024bb8aa0e2caadf6c0328f1d9d850b2a2a67f2819a",
-		}, "sha256:d149ab53f8718e987c3a3024bb8aa0e2caadf6c0328f1d9d850b2a2a67f2819a", digestHeader, ctx.Digest},
+		}, "sha256:d149ab53f8718e987c3a3024bb8aa0e2caadf6c0328f1d9d850b2a2a67f2819a", ctx.Digest},
 	}
 
 	for _, c := range cases {
@@ -65,11 +64,6 @@ func TestImageContext(t *testing.T) {
 			compareMultipleValues(t, v, c.expValue)
 		} else if v != c.expValue {
 			t.Fatalf("Expected %s, was %s\n", c.expValue, v)
-		}
-
-		h := ctx.FullHeader()
-		if h != c.expHeader {
-			t.Fatalf("Expected %s, was %s\n", c.expHeader, h)
 		}
 	}
 }
@@ -109,9 +103,9 @@ func TestImageContextWrite(t *testing.T) {
 				},
 			},
 			`REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
-image               tag1                imageID1            24 hours ago        0 B
-image               tag2                imageID2            24 hours ago        0 B
-<none>              <none>              imageID3            24 hours ago        0 B
+image               tag1                imageID1            24 hours ago        0B
+image               tag2                imageID2            24 hours ago        0B
+<none>              <none>              imageID3            24 hours ago        0B
 `,
 		},
 		{
@@ -159,9 +153,9 @@ image               <none>
 				Digest: true,
 			},
 			`REPOSITORY          TAG                 DIGEST                                                                    IMAGE ID            CREATED             SIZE
-image               tag1                sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf   imageID1            24 hours ago        0 B
-image               tag2                <none>                                                                    imageID2            24 hours ago        0 B
-<none>              <none>              <none>                                                                    imageID3            24 hours ago        0 B
+image               tag1                sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf   imageID1            24 hours ago        0B
+image               tag2                <none>                                                                    imageID2            24 hours ago        0B
+<none>              <none>              <none>                                                                    imageID3            24 hours ago        0B
 `,
 		},
 		{
@@ -184,19 +178,19 @@ image               tag2                <none>                                  
 tag: tag1
 image_id: imageID1
 created_at: %s
-virtual_size: 0 B
+virtual_size: 0B
 
 repository: image
 tag: tag2
 image_id: imageID2
 created_at: %s
-virtual_size: 0 B
+virtual_size: 0B
 
 repository: <none>
 tag: <none>
 image_id: imageID3
 created_at: %s
-virtual_size: 0 B
+virtual_size: 0B
 
 `, expectedTime, expectedTime, expectedTime),
 		},
@@ -212,21 +206,21 @@ tag: tag1
 digest: sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf
 image_id: imageID1
 created_at: %s
-virtual_size: 0 B
+virtual_size: 0B
 
 repository: image
 tag: tag2
 digest: <none>
 image_id: imageID2
 created_at: %s
-virtual_size: 0 B
+virtual_size: 0B
 
 repository: <none>
 tag: <none>
 digest: <none>
 image_id: imageID3
 created_at: %s
-virtual_size: 0 B
+virtual_size: 0B
 
 `, expectedTime, expectedTime, expectedTime),
 		},
@@ -271,9 +265,9 @@ image_id: imageID3
 		testcase.context.Output = out
 		err := ImageWrite(testcase.context, images)
 		if err != nil {
-			assert.Error(t, err, testcase.expected)
+			assert.EqualError(t, err, testcase.expected)
 		} else {
-			assert.Equal(t, out.String(), testcase.expected)
+			assert.Equal(t, testcase.expected, out.String())
 		}
 	}
 }
@@ -326,7 +320,7 @@ func TestImageContextWriteWithNoImage(t *testing.T) {
 
 	for _, context := range contexts {
 		ImageWrite(context.context, images)
-		assert.Equal(t, out.String(), context.expected)
+		assert.Equal(t, context.expected, out.String())
 		// Clean buffer
 		out.Reset()
 	}

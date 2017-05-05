@@ -4,7 +4,8 @@ package docker.swarmkit.v1;
 
 import "types.proto";
 import "gogoproto/gogo.proto";
-import "duration/duration.proto"; // TODO(stevvooe): use our own until we fix gogoproto/deepcopy
+import "google/protobuf/duration.proto";
+import "google/protobuf/any.proto";
 
 // Specs are container objects for user provided input. All creations and
 // updates are done through spec types. As a convention, user input from a spec
@@ -41,8 +42,8 @@ message NodeSpec {
 		DRAIN = 2 [(gogoproto.enumvalue_customname) = "NodeAvailabilityDrain"];
 	}
 
-	// Role defines the role the node should have.
-	NodeRole role = 2;
+	// DesiredRole defines the role the node should have.
+	NodeRole desired_role = 2;
 
 	// Membership controls the admission of the node into the cluster.
 	Membership membership = 3;
@@ -69,9 +70,17 @@ message ServiceSpec {
 		GlobalService global = 4;
 	}
 
-	// UpdateConfig controls the rate and policy of updates.
+	// Update contains settings which affect updates.
 	UpdateConfig update = 6;
 
+	// Rollback contains settings which affect rollbacks of updates.
+	UpdateConfig rollback = 9;
+
+	// ServiceSpec.Networks has been deprecated and is replaced by
+	// Networks field in Task (TaskSpec.Networks).
+	// This field (ServiceSpec.Networks) is kept for compatibility.
+	// In case TaskSpec.Networks does not exist, ServiceSpec.Networks
+	// is still honored if it exists.
 	repeated NetworkAttachmentConfig networks = 7 [deprecated=true];
 
 	// Service endpoint specifies the user provided configuration
@@ -93,6 +102,7 @@ message TaskSpec {
 	oneof runtime {
 		NetworkAttachmentSpec attachment = 8;
 		ContainerSpec container = 1;
+		GenericRuntimeSpec generic = 10;
 	}
 
 	// Resource requirements for the container.
@@ -115,17 +125,22 @@ message TaskSpec {
 
 	// ForceUpdate is a counter that triggers an update even if no relevant
 	// parameters have been changed. We do this to allow forced restarts
-	// using the same reconcilation-based mechanism that performs rolling
+	// using the same reconciliation-based mechanism that performs rolling
 	// updates.
 	uint64 force_update = 9;
+}
+
+message GenericRuntimeSpec {
+	string kind = 1;
+	google.protobuf.Any payload = 2;
 }
 
 // NetworkAttachmentSpec specifies runtime parameters required to attach
 // a container to a network.
 message NetworkAttachmentSpec {
-	// ContainerID spcifies a unique ID of the container for which
+	// ContainerID specifies a unique ID of the container for which
 	// this attachment is for.
-	string container_id = 1 [(gogoproto.customname) = "ContainerID"];
+	string container_id = 1;
 }
 
 
@@ -182,6 +197,9 @@ message ContainerSpec {
 	// Groups specifies supplementary groups available to the user.
 	repeated string groups = 11;
 
+	// Privileges specifies security configuration/permissions.
+	Privileges privileges = 22;
+
 	// TTY declares that a TTY should be attached to the standard streams,
 	// including stdin if it is still open.
 	bool tty = 13 [(gogoproto.customname) = "TTY"];
@@ -189,11 +207,21 @@ message ContainerSpec {
 	// OpenStdin declares that the standard input (stdin) should be open.
 	bool open_stdin = 18;
 
+	// ReadOnly declares that the container root filesystem is read-only.
+	// This only impacts the root filesystem, not additional mounts (including
+	// tmpfs). For additional mounts that are not part of the initial rootfs,
+	// they will be decided by the modes passed in the mount definition.
+	bool read_only = 19;
+
+	// StopSignal defines the signal to stop the container.
+	string stop_signal = 20;
+
 	repeated Mount mounts = 8 [(gogoproto.nullable) = false];
 
 	// StopGracePeriod the grace period for stopping the container before
 	// forcefully killing the container.
-	Duration stop_grace_period = 9;
+	// Note: Can't use stdduration here because this needs to be nullable.
+	google.protobuf.Duration stop_grace_period = 9;
 
 	// PullOptions allows one to parameterize an image pull.
 	message PullOptions {
@@ -210,6 +238,10 @@ message ContainerSpec {
 	// SecretReference contains references to zero or more secrets that
 	// will be exposed to the container.
 	repeated SecretReference secrets = 12;
+
+	// ConfigReference contains references to zero or more configs that
+	// will be exposed to the container.
+	repeated ConfigReference configs = 21;
 
 	// Hosts allow additional entries to be specified in /etc/hosts
 	// that associates IP addresses with hostnames.
@@ -253,7 +285,7 @@ message ContainerSpec {
 message EndpointSpec {
 	// ResolutionMode specifies the mode of resolution to use for
 	// internal loadbalancing between tasks which are all within
-	// the cluster. This is sometimes calles east-west data path.
+	// the cluster. This is sometimes calls east-west data path.
 	enum ResolutionMode {
 		option (gogoproto.goproto_enum_prefix) = false;
 
@@ -303,6 +335,12 @@ message NetworkSpec {
 	// enabled(default case) no manual attachment to this network
 	// can happen.
 	bool attachable = 6;
+
+	// Ingress indicates this network will provide the routing-mesh.
+	// In older versions, the network providing the routing mesh was
+	// swarm internally created only and it was identified by the name
+	// "ingress" and the label "com.docker.swarm.internal": "true".
+	bool ingress = 7;
 }
 
 // ClusterSpec specifies global cluster settings.
@@ -338,5 +376,15 @@ message SecretSpec {
 	Annotations annotations = 1 [(gogoproto.nullable) = false];
 
 	// Data is the secret payload - the maximum size is 500KB (that is, 500*1024 bytes)
+	bytes data = 2;
+}
+
+// ConfigSpec specifies user-provided configuration files.
+message ConfigSpec {
+	Annotations annotations = 1 [(gogoproto.nullable) = false];
+
+	// Data is the config payload - the maximum size is 500KB (that is, 500*1024 bytes)
+	// TODO(aaronl): Do we want to revise this to include multiple payloads in a single
+	// ConfigSpec? Define this to be a tar? etc...
 	bytes data = 2;
 }

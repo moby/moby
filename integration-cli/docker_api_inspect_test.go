@@ -7,7 +7,8 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions/v1p20"
-	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/request"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/go-check/check"
 )
@@ -26,7 +27,7 @@ func (s *DockerSuite) TestInspectAPIContainerResponse(c *check.C) {
 
 	var cases []acase
 
-	if daemonPlatform == "windows" {
+	if testEnv.DaemonPlatform() == "windows" {
 		cases = []acase{
 			{"v1.25", append(keysBase, "Mounts")},
 		}
@@ -107,7 +108,7 @@ func (s *DockerSuite) TestInspectAPIImageResponse(c *check.C) {
 	dockerCmd(c, "tag", "busybox:latest", "busybox:mytag")
 
 	endpoint := "/images/busybox/json"
-	status, body, err := sockRequest("GET", endpoint, nil)
+	status, body, err := request.SockRequest("GET", endpoint, nil, daemonHost())
 
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusOK)

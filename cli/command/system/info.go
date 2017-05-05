@@ -6,17 +6,16 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/net/context"
-
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/cli/debug"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/utils"
-	"github.com/docker/docker/utils/templates"
+	"github.com/docker/docker/pkg/templates"
 	"github.com/docker/go-units"
 	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 type infoOptions struct {
@@ -66,11 +65,6 @@ func prettyPrintInfo(dockerCli *command.DockerCli, info types.Info) error {
 	if info.DriverStatus != nil {
 		for _, pair := range info.DriverStatus {
 			fmt.Fprintf(dockerCli.Out(), " %s: %s\n", pair[0], pair[1])
-
-			// print a warning if devicemapper is using a loopback file
-			if pair[0] == "Data loop file" {
-				fmt.Fprintln(dockerCli.Err(), " WARNING: Usage of loopback devices is strongly discouraged for production use. Use `--storage-opt dm.thinpooldev` to specify a custom block storage device.")
-			}
 		}
 
 	}
@@ -96,6 +90,10 @@ func prettyPrintInfo(dockerCli *command.DockerCli, info types.Info) error {
 		fmt.Fprintf(dockerCli.Out(), "\n")
 	}
 
+	fmt.Fprintf(dockerCli.Out(), " Log:")
+	fmt.Fprintf(dockerCli.Out(), " %s", strings.Join(info.Plugins.Log, " "))
+	fmt.Fprintf(dockerCli.Out(), "\n")
+
 	fmt.Fprintf(dockerCli.Out(), "Swarm: %v\n", info.Swarm.LocalNodeState)
 	if info.Swarm.LocalNodeState != swarm.LocalNodeStateInactive && info.Swarm.LocalNodeState != swarm.LocalNodeStateLocked {
 		fmt.Fprintf(dockerCli.Out(), " NodeID: %s\n", info.Swarm.NodeID)
@@ -103,7 +101,7 @@ func prettyPrintInfo(dockerCli *command.DockerCli, info types.Info) error {
 			fmt.Fprintf(dockerCli.Out(), " Error: %v\n", info.Swarm.Error)
 		}
 		fmt.Fprintf(dockerCli.Out(), " Is Manager: %v\n", info.Swarm.ControlAvailable)
-		if info.Swarm.ControlAvailable {
+		if info.Swarm.Cluster != nil && info.Swarm.ControlAvailable && info.Swarm.Error == "" && info.Swarm.LocalNodeState != swarm.LocalNodeStateError {
 			fmt.Fprintf(dockerCli.Out(), " ClusterID: %s\n", info.Swarm.Cluster.ID)
 			fmt.Fprintf(dockerCli.Out(), " Managers: %d\n", info.Swarm.Managers)
 			fmt.Fprintf(dockerCli.Out(), " Nodes: %d\n", info.Swarm.Nodes)
@@ -172,16 +170,21 @@ func prettyPrintInfo(dockerCli *command.DockerCli, info types.Info) error {
 			fmt.Fprintf(dockerCli.Out(), "\n")
 		}
 		if len(info.SecurityOptions) != 0 {
+			kvs, err := types.DecodeSecurityOptions(info.SecurityOptions)
+			if err != nil {
+				return err
+			}
 			fmt.Fprintf(dockerCli.Out(), "Security Options:\n")
-			for _, o := range info.SecurityOptions {
-				switch o.Key {
-				case "Name":
-					fmt.Fprintf(dockerCli.Out(), " %s\n", o.Value)
-				case "Profile":
-					if o.Value != "default" {
-						fmt.Fprintf(dockerCli.Err(), "  WARNING: You're not using the default seccomp profile\n")
+			for _, so := range kvs {
+				fmt.Fprintf(dockerCli.Out(), " %s\n", so.Name)
+				for _, o := range so.Options {
+					switch o.Key {
+					case "profile":
+						if o.Value != "default" {
+							fmt.Fprintf(dockerCli.Err(), "  WARNING: You're not using the default seccomp profile\n")
+						}
+						fmt.Fprintf(dockerCli.Out(), "  Profile: %s\n", o.Value)
 					}
-					fmt.Fprintf(dockerCli.Out(), "  %s: %s\n", o.Key, o.Value)
 				}
 			}
 		}
@@ -201,7 +204,7 @@ func prettyPrintInfo(dockerCli *command.DockerCli, info types.Info) error {
 	ioutils.FprintfIfNotEmpty(dockerCli.Out(), "Name: %s\n", info.Name)
 	ioutils.FprintfIfNotEmpty(dockerCli.Out(), "ID: %s\n", info.ID)
 	fmt.Fprintf(dockerCli.Out(), "Docker Root Dir: %s\n", info.DockerRootDir)
-	fmt.Fprintf(dockerCli.Out(), "Debug Mode (client): %v\n", utils.IsDebugEnabled())
+	fmt.Fprintf(dockerCli.Out(), "Debug Mode (client): %v\n", debug.IsEnabled())
 	fmt.Fprintf(dockerCli.Out(), "Debug Mode (server): %v\n", info.Debug)
 
 	if info.Debug {
@@ -223,56 +226,19 @@ func prettyPrintInfo(dockerCli *command.DockerCli, info types.Info) error {
 		fmt.Fprintf(dockerCli.Out(), "Registry: %v\n", info.IndexServerAddress)
 	}
 
-	// Only output these warnings if the server does not support these features
-	if info.OSType != "windows" {
-		if !info.MemoryLimit {
-			fmt.Fprintln(dockerCli.Err(), "WARNING: No memory limit support")
-		}
-		if !info.SwapLimit {
-			fmt.Fprintln(dockerCli.Err(), "WARNING: No swap limit support")
-		}
-		if !info.KernelMemory {
-			fmt.Fprintln(dockerCli.Err(), "WARNING: No kernel memory limit support")
-		}
-		if !info.OomKillDisable {
-			fmt.Fprintln(dockerCli.Err(), "WARNING: No oom kill disable support")
-		}
-		if !info.CPUCfsQuota {
-			fmt.Fprintln(dockerCli.Err(), "WARNING: No cpu cfs quota support")
-		}
-		if !info.CPUCfsPeriod {
-			fmt.Fprintln(dockerCli.Err(), "WARNING: No cpu cfs period support")
-		}
-		if !info.CPUShares {
-			fmt.Fprintln(dockerCli.Err(), "WARNING: No cpu shares support")
-		}
-		if !info.CPUSet {
-			fmt.Fprintln(dockerCli.Err(), "WARNING: No cpuset support")
-		}
-		if !info.IPv4Forwarding {
-			fmt.Fprintln(dockerCli.Err(), "WARNING: IPv4 forwarding is disabled")
-		}
-		if !info.BridgeNfIptables {
-			fmt.Fprintln(dockerCli.Err(), "WARNING: bridge-nf-call-iptables is disabled")
-		}
-		if !info.BridgeNfIP6tables {
-			fmt.Fprintln(dockerCli.Err(), "WARNING: bridge-nf-call-ip6tables is disabled")
-		}
-	}
-
 	if info.Labels != nil {
 		fmt.Fprintln(dockerCli.Out(), "Labels:")
 		for _, attribute := range info.Labels {
 			fmt.Fprintf(dockerCli.Out(), " %s\n", attribute)
 		}
 		// TODO: Engine labels with duplicate keys has been deprecated in 1.13 and will be error out
-		// after 3 release cycles (1.16). For now, a WARNING will be generated. The following will
+		// after 3 release cycles (17.12). For now, a WARNING will be generated. The following will
 		// be removed eventually.
 		labelMap := map[string]string{}
 		for _, label := range info.Labels {
 			stringSlice := strings.SplitN(label, "=", 2)
 			if len(stringSlice) > 1 {
-				// If there is a conflict we will throw out an warning
+				// If there is a conflict we will throw out a warning
 				if v, ok := labelMap[stringSlice[0]]; ok && v != stringSlice[1] {
 					fmt.Fprintln(dockerCli.Err(), "WARNING: labels with duplicate keys and conflicting values have been deprecated")
 					break
@@ -312,9 +278,83 @@ func prettyPrintInfo(dockerCli *command.DockerCli, info types.Info) error {
 		}
 	}
 
-	fmt.Fprintf(dockerCli.Out(), "Live Restore Enabled: %v\n", info.LiveRestoreEnabled)
+	fmt.Fprintf(dockerCli.Out(), "Live Restore Enabled: %v\n\n", info.LiveRestoreEnabled)
+
+	// Only output these warnings if the server does not support these features
+	if info.OSType != "windows" {
+		printStorageDriverWarnings(dockerCli, info)
+
+		if !info.MemoryLimit {
+			fmt.Fprintln(dockerCli.Err(), "WARNING: No memory limit support")
+		}
+		if !info.SwapLimit {
+			fmt.Fprintln(dockerCli.Err(), "WARNING: No swap limit support")
+		}
+		if !info.KernelMemory {
+			fmt.Fprintln(dockerCli.Err(), "WARNING: No kernel memory limit support")
+		}
+		if !info.OomKillDisable {
+			fmt.Fprintln(dockerCli.Err(), "WARNING: No oom kill disable support")
+		}
+		if !info.CPUCfsQuota {
+			fmt.Fprintln(dockerCli.Err(), "WARNING: No cpu cfs quota support")
+		}
+		if !info.CPUCfsPeriod {
+			fmt.Fprintln(dockerCli.Err(), "WARNING: No cpu cfs period support")
+		}
+		if !info.CPUShares {
+			fmt.Fprintln(dockerCli.Err(), "WARNING: No cpu shares support")
+		}
+		if !info.CPUSet {
+			fmt.Fprintln(dockerCli.Err(), "WARNING: No cpuset support")
+		}
+		if !info.IPv4Forwarding {
+			fmt.Fprintln(dockerCli.Err(), "WARNING: IPv4 forwarding is disabled")
+		}
+		if !info.BridgeNfIptables {
+			fmt.Fprintln(dockerCli.Err(), "WARNING: bridge-nf-call-iptables is disabled")
+		}
+		if !info.BridgeNfIP6tables {
+			fmt.Fprintln(dockerCli.Err(), "WARNING: bridge-nf-call-ip6tables is disabled")
+		}
+	}
 
 	return nil
+}
+
+func printStorageDriverWarnings(dockerCli *command.DockerCli, info types.Info) {
+	if info.DriverStatus == nil {
+		return
+	}
+
+	for _, pair := range info.DriverStatus {
+		if pair[0] == "Data loop file" {
+			fmt.Fprintf(dockerCli.Err(), "WARNING: %s: usage of loopback devices is strongly discouraged for production use.\n         Use `--storage-opt dm.thinpooldev` to specify a custom block storage device.\n", info.Driver)
+		}
+		if pair[0] == "Supports d_type" && pair[1] == "false" {
+			backingFs := getBackingFs(info)
+
+			msg := fmt.Sprintf("WARNING: %s: the backing %s filesystem is formatted without d_type support, which leads to incorrect behavior.\n", info.Driver, backingFs)
+			if backingFs == "xfs" {
+				msg += "         Reformat the filesystem with ftype=1 to enable d_type support.\n"
+			}
+			msg += "         Running without d_type support will not be supported in future releases."
+			fmt.Fprintln(dockerCli.Err(), msg)
+		}
+	}
+}
+
+func getBackingFs(info types.Info) string {
+	if info.DriverStatus == nil {
+		return ""
+	}
+
+	for _, pair := range info.DriverStatus {
+		if pair[0] == "Backing Filesystem" {
+			return pair[1]
+		}
+	}
+	return ""
 }
 
 func formatInfo(dockerCli *command.DockerCli, info types.Info, format string) error {

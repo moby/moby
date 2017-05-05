@@ -1,6 +1,7 @@
 package dockerfile
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,10 +14,10 @@ import (
 var pattern = regexp.MustCompile(`^[a-zA-Z]:\.$`)
 
 // normaliseWorkdir normalises a user requested working directory in a
-// platform sematically consistent way.
+// platform semantically consistent way.
 func normaliseWorkdir(current string, requested string) (string, error) {
 	if requested == "" {
-		return "", fmt.Errorf("cannot normalise nothing")
+		return "", errors.New("cannot normalise nothing")
 	}
 
 	// `filepath.Clean` will replace "" with "." so skip in that case
@@ -83,4 +84,10 @@ func errNotJSON(command, original string) error {
 		extra = fmt.Sprintf(`. It looks like '%s' includes a file path without an escaped back-slash. JSON requires back-slashes to be escaped such as ["c:\\path\\to\\file.exe", "/parameter"]`, original)
 	}
 	return fmt.Errorf("%s requires the arguments to be in JSON form%s", command, extra)
+}
+
+// equalEnvKeys compare two strings and returns true if they are equal. On
+// Windows this comparison is case insensitive.
+func equalEnvKeys(from, to string) bool {
+	return strings.ToUpper(from) == strings.ToUpper(to)
 }

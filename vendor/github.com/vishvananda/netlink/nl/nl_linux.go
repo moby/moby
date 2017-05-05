@@ -17,13 +17,14 @@ import (
 
 const (
 	// Family type definitions
-	FAMILY_ALL = syscall.AF_UNSPEC
-	FAMILY_V4  = syscall.AF_INET
-	FAMILY_V6  = syscall.AF_INET6
+	FAMILY_ALL  = syscall.AF_UNSPEC
+	FAMILY_V4   = syscall.AF_INET
+	FAMILY_V6   = syscall.AF_INET6
+	FAMILY_MPLS = AF_MPLS
 )
 
 // SupportedNlFamilies contains the list of netlink families this netlink package supports
-var SupportedNlFamilies = []int{syscall.NETLINK_ROUTE, syscall.NETLINK_XFRM}
+var SupportedNlFamilies = []int{syscall.NETLINK_ROUTE, syscall.NETLINK_XFRM, syscall.NETLINK_NETFILTER}
 
 var nextSeqNr uint32
 
@@ -98,6 +99,147 @@ func (msg *IfInfomsg) Serialize() []byte {
 
 func (msg *IfInfomsg) Len() int {
 	return syscall.SizeofIfInfomsg
+}
+
+func (msg *IfInfomsg) EncapType() string {
+	switch msg.Type {
+	case 0:
+		return "generic"
+	case syscall.ARPHRD_ETHER:
+		return "ether"
+	case syscall.ARPHRD_EETHER:
+		return "eether"
+	case syscall.ARPHRD_AX25:
+		return "ax25"
+	case syscall.ARPHRD_PRONET:
+		return "pronet"
+	case syscall.ARPHRD_CHAOS:
+		return "chaos"
+	case syscall.ARPHRD_IEEE802:
+		return "ieee802"
+	case syscall.ARPHRD_ARCNET:
+		return "arcnet"
+	case syscall.ARPHRD_APPLETLK:
+		return "atalk"
+	case syscall.ARPHRD_DLCI:
+		return "dlci"
+	case syscall.ARPHRD_ATM:
+		return "atm"
+	case syscall.ARPHRD_METRICOM:
+		return "metricom"
+	case syscall.ARPHRD_IEEE1394:
+		return "ieee1394"
+	case syscall.ARPHRD_INFINIBAND:
+		return "infiniband"
+	case syscall.ARPHRD_SLIP:
+		return "slip"
+	case syscall.ARPHRD_CSLIP:
+		return "cslip"
+	case syscall.ARPHRD_SLIP6:
+		return "slip6"
+	case syscall.ARPHRD_CSLIP6:
+		return "cslip6"
+	case syscall.ARPHRD_RSRVD:
+		return "rsrvd"
+	case syscall.ARPHRD_ADAPT:
+		return "adapt"
+	case syscall.ARPHRD_ROSE:
+		return "rose"
+	case syscall.ARPHRD_X25:
+		return "x25"
+	case syscall.ARPHRD_HWX25:
+		return "hwx25"
+	case syscall.ARPHRD_PPP:
+		return "ppp"
+	case syscall.ARPHRD_HDLC:
+		return "hdlc"
+	case syscall.ARPHRD_LAPB:
+		return "lapb"
+	case syscall.ARPHRD_DDCMP:
+		return "ddcmp"
+	case syscall.ARPHRD_RAWHDLC:
+		return "rawhdlc"
+	case syscall.ARPHRD_TUNNEL:
+		return "ipip"
+	case syscall.ARPHRD_TUNNEL6:
+		return "tunnel6"
+	case syscall.ARPHRD_FRAD:
+		return "frad"
+	case syscall.ARPHRD_SKIP:
+		return "skip"
+	case syscall.ARPHRD_LOOPBACK:
+		return "loopback"
+	case syscall.ARPHRD_LOCALTLK:
+		return "ltalk"
+	case syscall.ARPHRD_FDDI:
+		return "fddi"
+	case syscall.ARPHRD_BIF:
+		return "bif"
+	case syscall.ARPHRD_SIT:
+		return "sit"
+	case syscall.ARPHRD_IPDDP:
+		return "ip/ddp"
+	case syscall.ARPHRD_IPGRE:
+		return "gre"
+	case syscall.ARPHRD_PIMREG:
+		return "pimreg"
+	case syscall.ARPHRD_HIPPI:
+		return "hippi"
+	case syscall.ARPHRD_ASH:
+		return "ash"
+	case syscall.ARPHRD_ECONET:
+		return "econet"
+	case syscall.ARPHRD_IRDA:
+		return "irda"
+	case syscall.ARPHRD_FCPP:
+		return "fcpp"
+	case syscall.ARPHRD_FCAL:
+		return "fcal"
+	case syscall.ARPHRD_FCPL:
+		return "fcpl"
+	case syscall.ARPHRD_FCFABRIC:
+		return "fcfb0"
+	case syscall.ARPHRD_FCFABRIC + 1:
+		return "fcfb1"
+	case syscall.ARPHRD_FCFABRIC + 2:
+		return "fcfb2"
+	case syscall.ARPHRD_FCFABRIC + 3:
+		return "fcfb3"
+	case syscall.ARPHRD_FCFABRIC + 4:
+		return "fcfb4"
+	case syscall.ARPHRD_FCFABRIC + 5:
+		return "fcfb5"
+	case syscall.ARPHRD_FCFABRIC + 6:
+		return "fcfb6"
+	case syscall.ARPHRD_FCFABRIC + 7:
+		return "fcfb7"
+	case syscall.ARPHRD_FCFABRIC + 8:
+		return "fcfb8"
+	case syscall.ARPHRD_FCFABRIC + 9:
+		return "fcfb9"
+	case syscall.ARPHRD_FCFABRIC + 10:
+		return "fcfb10"
+	case syscall.ARPHRD_FCFABRIC + 11:
+		return "fcfb11"
+	case syscall.ARPHRD_FCFABRIC + 12:
+		return "fcfb12"
+	case syscall.ARPHRD_IEEE802_TR:
+		return "tr"
+	case syscall.ARPHRD_IEEE80211:
+		return "ieee802.11"
+	case syscall.ARPHRD_IEEE80211_PRISM:
+		return "ieee802.11/prism"
+	case syscall.ARPHRD_IEEE80211_RADIOTAP:
+		return "ieee802.11/radiotap"
+	case syscall.ARPHRD_IEEE802154:
+		return "ieee802.15.4"
+
+	case 65534:
+		return "none"
+	case 65535:
+		return "void"
+	}
+	return fmt.Sprintf("unknown%d", msg.Type)
 }
 
 func rtaAlignOf(attrlen int) int {
@@ -179,6 +321,7 @@ func (a *RtAttr) Serialize() []byte {
 type NetlinkRequest struct {
 	syscall.NlMsghdr
 	Data    []NetlinkRequestData
+	RawData []byte
 	Sockets map[int]*SocketHandle
 }
 
@@ -190,6 +333,8 @@ func (req *NetlinkRequest) Serialize() []byte {
 		dataBytes[i] = data.Serialize()
 		length = length + len(dataBytes[i])
 	}
+	length += len(req.RawData)
+
 	req.Len = uint32(length)
 	b := make([]byte, length)
 	hdr := (*(*[syscall.SizeofNlMsghdr]byte)(unsafe.Pointer(req)))[:]
@@ -201,12 +346,23 @@ func (req *NetlinkRequest) Serialize() []byte {
 			next = next + 1
 		}
 	}
+	// Add the raw data if any
+	if len(req.RawData) > 0 {
+		copy(b[next:length], req.RawData)
+	}
 	return b
 }
 
 func (req *NetlinkRequest) AddData(data NetlinkRequestData) {
 	if data != nil {
 		req.Data = append(req.Data, data)
+	}
+}
+
+// AddRawData adds raw bytes to the end of the NetlinkRequest object during serialization
+func (req *NetlinkRequest) AddRawData(data []byte) {
+	if data != nil {
+		req.RawData = append(req.RawData, data...)
 	}
 }
 
@@ -309,7 +465,7 @@ type NetlinkSocket struct {
 }
 
 func getNetlinkSocket(protocol int) (*NetlinkSocket, error) {
-	fd, err := syscall.Socket(syscall.AF_NETLINK, syscall.SOCK_RAW, protocol)
+	fd, err := syscall.Socket(syscall.AF_NETLINK, syscall.SOCK_RAW|syscall.SOCK_CLOEXEC, protocol)
 	if err != nil {
 		return nil, err
 	}
@@ -512,6 +668,13 @@ func Uint32Attr(v uint32) []byte {
 	native := NativeEndian()
 	bytes := make([]byte, 4)
 	native.PutUint32(bytes, v)
+	return bytes
+}
+
+func Uint64Attr(v uint64) []byte {
+	native := NativeEndian()
+	bytes := make([]byte, 8)
+	native.PutUint64(bytes, v)
 	return bytes
 }
 

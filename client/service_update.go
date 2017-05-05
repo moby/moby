@@ -1,6 +1,7 @@
 package client
 
 import (
+	"encoding/json"
 	"net/url"
 	"strconv"
 
@@ -10,7 +11,7 @@ import (
 )
 
 // ServiceUpdate updates a Service.
-func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, version swarm.Version, service swarm.ServiceSpec, options types.ServiceUpdateOptions) error {
+func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, version swarm.Version, service swarm.ServiceSpec, options types.ServiceUpdateOptions) (types.ServiceUpdateResponse, error) {
 	var (
 		headers map[string][]string
 		query   = url.Values{}
@@ -26,9 +27,19 @@ func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, version 
 		query.Set("registryAuthFrom", options.RegistryAuthFrom)
 	}
 
+	if options.Rollback != "" {
+		query.Set("rollback", options.Rollback)
+	}
+
 	query.Set("version", strconv.FormatUint(version.Index, 10))
 
+	var response types.ServiceUpdateResponse
 	resp, err := cli.post(ctx, "/services/"+serviceID+"/update", query, service, headers)
+	if err != nil {
+		return response, err
+	}
+
+	err = json.NewDecoder(resp.body).Decode(&response)
 	ensureReaderClosed(resp)
-	return err
+	return response, err
 }

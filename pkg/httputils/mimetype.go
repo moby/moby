@@ -8,9 +8,8 @@ import (
 // MimeTypes stores the MIME content type.
 var MimeTypes = struct {
 	TextPlain   string
-	Tar         string
 	OctetStream string
-}{"text/plain", "application/tar", "application/octet-stream"}
+}{"text/plain", "application/octet-stream"}
 
 // DetectContentType returns a best guess representation of the MIME
 // content type for the bytes at c.  The value detected by

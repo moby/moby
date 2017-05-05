@@ -1,9 +1,5 @@
 package mount
 
-import (
-	"time"
-)
-
 // GetMounts retrieves a list of mounts for the current running process.
 func GetMounts() ([]*Info, error) {
 	return parseMountTable()
@@ -46,29 +42,14 @@ func Mount(device, target, mType, options string) error {
 // flags.go for supported option flags.
 func ForceMount(device, target, mType, options string) error {
 	flag, data := parseOptions(options)
-	if err := mount(device, target, mType, uintptr(flag), data); err != nil {
-		return err
-	}
-	return nil
+	return mount(device, target, mType, uintptr(flag), data)
 }
 
-// Unmount will unmount the target filesystem, so long as it is mounted.
+// Unmount lazily unmounts a filesystem on supported platforms, otherwise
+// does a normal unmount.
 func Unmount(target string) error {
 	if mounted, err := Mounted(target); err != nil || !mounted {
 		return err
 	}
-	return ForceUnmount(target)
-}
-
-// ForceUnmount will force an unmount of the target filesystem, regardless if
-// it is mounted or not.
-func ForceUnmount(target string) (err error) {
-	// Simple retry logic for unmount
-	for i := 0; i < 10; i++ {
-		if err = unmount(target, 0); err == nil {
-			return nil
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-	return
+	return unmount(target, mntDetach)
 }

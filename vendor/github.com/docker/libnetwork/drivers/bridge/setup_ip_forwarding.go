@@ -2,9 +2,10 @@ package bridge
 
 import (
 	"fmt"
-	log "github.com/Sirupsen/logrus"
-	"github.com/docker/libnetwork/iptables"
 	"io/ioutil"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/docker/libnetwork/iptables"
 )
 
 const (
@@ -40,14 +41,14 @@ func setupIPForwarding(enableIPTables bool) error {
 		}
 		if err := iptables.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
 			if err := configureIPForwarding(false); err != nil {
-				log.Errorf("Disabling IP forwarding failed, %v", err)
+				logrus.Errorf("Disabling IP forwarding failed, %v", err)
 			}
 			return err
 		}
 		iptables.OnReloaded(func() {
-			log.Debugf("Setting the default DROP policy on firewall reload")
+			logrus.Debug("Setting the default DROP policy on firewall reload")
 			if err := iptables.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
-				log.Warnf("Settig the default DROP policy on firewall reload failed, %v", err)
+				logrus.Warnf("Settig the default DROP policy on firewall reload failed, %v", err)
 			}
 		})
 	}

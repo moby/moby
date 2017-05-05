@@ -27,6 +27,8 @@ func TestImageBuildError(t *testing.T) {
 }
 
 func TestImageBuild(t *testing.T) {
+	v1 := "value1"
+	v2 := "value2"
 	emptyRegistryConfig := "bnVsbA=="
 	buildCases := []struct {
 		buildOptions           types.ImageBuildOptions
@@ -105,13 +107,14 @@ func TestImageBuild(t *testing.T) {
 		},
 		{
 			buildOptions: types.ImageBuildOptions{
-				BuildArgs: map[string]string{
-					"ARG1": "value1",
-					"ARG2": "value2",
+				BuildArgs: map[string]*string{
+					"ARG1": &v1,
+					"ARG2": &v2,
+					"ARG3": nil,
 				},
 			},
 			expectedQueryParams: map[string]string{
-				"buildargs": `{"ARG1":"value1","ARG2":"value2"}`,
+				"buildargs": `{"ARG1":"value1","ARG2":"value2","ARG3":null}`,
 				"rm":        "0",
 			},
 			expectedTags:           []string{},
@@ -167,8 +170,8 @@ func TestImageBuild(t *testing.T) {
 					return nil, fmt.Errorf("X-Registry-Config header not properly set in the request. Expected '%s', got %s", buildCase.expectedRegistryConfig, registryConfig)
 				}
 				contentType := r.Header.Get("Content-Type")
-				if contentType != "application/tar" {
-					return nil, fmt.Errorf("Content-type header not properly set in the request. Expected 'application/tar', got %s", contentType)
+				if contentType != "application/x-tar" {
+					return nil, fmt.Errorf("Content-type header not properly set in the request. Expected 'application/x-tar', got %s", contentType)
 				}
 
 				// Check query parameters
