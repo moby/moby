@@ -19,6 +19,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/reference"
+	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/distribution"
@@ -34,6 +35,7 @@ import (
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/plugin/v2"
 	refstore "github.com/docker/docker/reference"
+	"github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
@@ -219,12 +221,15 @@ func computePrivileges(c types.PluginConfig) (types.PluginPrivileges, error) {
 func (pm *Manager) Privileges(ctx context.Context, ref reference.Named, metaHeader http.Header, authConfig *types.AuthConfig) (types.PluginPrivileges, error) {
 	// create image store instance
 	cs := &tempConfigStore{}
-
+	var authenticator auth.Authenticator
+	if authConfig != nil {
+		authenticator = registry.NewAuthConfigAuthenticator(authConfig)
+	}
 	// DownloadManager not defined because only pulling configuration.
 	pluginPullConfig := &distribution.ImagePullConfig{
 		Config: distribution.Config{
 			MetaHeaders:      metaHeader,
-			AuthConfig:       authConfig,
+			Authenticator:    authenticator,
 			RegistryService:  pm.config.RegistryService,
 			ImageEventLogger: func(string, string, string) {},
 			ImageStore:       cs,
@@ -276,11 +281,14 @@ func (pm *Manager) Upgrade(ctx context.Context, ref reference.Named, name string
 		tmpDir:    tmpRootFSDir,
 		blobStore: pm.blobStore,
 	}
-
+	var authenticator auth.Authenticator
+	if authConfig != nil {
+		authenticator = registry.NewAuthConfigAuthenticator(authConfig)
+	}
 	pluginPullConfig := &distribution.ImagePullConfig{
 		Config: distribution.Config{
 			MetaHeaders:      metaHeader,
-			AuthConfig:       authConfig,
+			Authenticator:    authenticator,
 			RegistryService:  pm.config.RegistryService,
 			ImageEventLogger: pm.config.LogPluginEvent,
 			ImageStore:       dm,
@@ -328,11 +336,14 @@ func (pm *Manager) Pull(ctx context.Context, ref reference.Named, name string, m
 		tmpDir:    tmpRootFSDir,
 		blobStore: pm.blobStore,
 	}
-
+	var authenticator auth.Authenticator
+	if authConfig != nil {
+		authenticator = registry.NewAuthConfigAuthenticator(authConfig)
+	}
 	pluginPullConfig := &distribution.ImagePullConfig{
 		Config: distribution.Config{
 			MetaHeaders:      metaHeader,
-			AuthConfig:       authConfig,
+			Authenticator:    authenticator,
 			RegistryService:  pm.config.RegistryService,
 			ImageEventLogger: pm.config.LogPluginEvent,
 			ImageStore:       dm,
@@ -450,11 +461,14 @@ func (pm *Manager) Push(ctx context.Context, name string, metaHeader http.Header
 	}
 
 	uploadManager := xfer.NewLayerUploadManager(3)
-
+	var authenticator auth.Authenticator
+	if authConfig != nil {
+		authenticator = registry.NewAuthConfigAuthenticator(authConfig)
+	}
 	imagePushConfig := &distribution.ImagePushConfig{
 		Config: distribution.Config{
 			MetaHeaders:      metaHeader,
-			AuthConfig:       authConfig,
+			Authenticator:    authenticator,
 			ProgressOutput:   po,
 			RegistryService:  pm.config.RegistryService,
 			ReferenceStore:   rs,

@@ -5,7 +5,11 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
+	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
@@ -15,6 +19,7 @@ import (
 	"github.com/docker/docker/builder/dockerfile/command"
 	"github.com/docker/docker/builder/dockerfile/parser"
 	"github.com/docker/docker/builder/remotecontext"
+	"github.com/docker/docker/client/session"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
@@ -36,15 +41,42 @@ var validCommitCommands = map[string]bool{
 
 var defaultLogConfig = container.LogConfig{Type: "none"}
 
+// SessionGetter is object used to get access to a session by uuid
+type SessionGetter interface {
+	GetSession(ctx context.Context, uuid string) (context.Context, session.Caller, error)
+}
+
 // BuildManager is shared across all Builder objects
 type BuildManager struct {
-	backend   builder.Backend
-	pathCache pathCache // TODO: make this persistent
+	backend          builder.Backend
+	pathCache        pathCache // TODO: make this persistent
+	fsCache          *FSCache
+	sessionTransport *ClientSessionTransport
+	once             sync.Once
+	sg               SessionGetter
 }
 
 // NewBuildManager creates a BuildManager
-func NewBuildManager(b builder.Backend) *BuildManager {
-	return &BuildManager{backend: b, pathCache: &syncmap.Map{}}
+func NewBuildManager(b builder.Backend, sg SessionGetter) (*BuildManager, error) {
+	bm := &BuildManager{
+		backend:   b,
+		pathCache: &syncmap.Map{},
+		sg:        sg,
+	}
+	tmpdir, err := ioutil.TempDir("", "fscache")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create tmp directory")
+	}
+
+	fsCache, err := NewFSCache(FSCacheOpt{
+		Backend: &tmpCacheBackend{tmpdir},
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create fscache")
+	}
+	bm.fsCache = fsCache
+	fsCache.RegisterTransport(ClientSessionTransportName, NewClientSessionTransport())
+	return bm, nil
 }
 
 // Build starts a new build from a BuildConfig
@@ -64,12 +96,14 @@ func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (
 			}
 		}()
 	}
-
+	// TODO: don't pass fscache/sm here
 	builderOptions := builderOptions{
 		Options:        config.Options,
 		ProgressWriter: config.ProgressWriter,
 		Backend:        bm.backend,
 		PathCache:      bm.pathCache,
+		FSCache:        bm.fsCache,
+		SessionGetter:  bm.sg,
 	}
 	return newBuilder(ctx, builderOptions).build(source, dockerfile)
 }
@@ -80,6 +114,8 @@ type builderOptions struct {
 	Backend        builder.Backend
 	ProgressWriter backend.ProgressWriter
 	PathCache      pathCache
+	FSCache        *FSCache
+	SessionGetter  SessionGetter
 }
 
 // Builder is a Dockerfile builder
@@ -91,9 +127,11 @@ type Builder struct {
 	Stderr io.Writer
 	Output io.Writer
 
-	docker    builder.Backend
-	source    builder.Source
-	clientCtx context.Context
+	docker        builder.Backend
+	source        builder.Source
+	clientCtx     context.Context
+	fsCache       *FSCache
+	sessionGetter SessionGetter
 
 	runConfig     *container.Config // runconfig for cmd, run, entrypoint etc.
 	tmpContainers map[string]struct{}
@@ -102,6 +140,7 @@ type Builder struct {
 	cacheBusted   bool
 	buildArgs     *buildArgs
 	imageCache    builder.ImageCache
+	auth          AuthConfigProvider
 
 	// TODO: these move to DispatchState
 	maintainer  string
@@ -127,6 +166,8 @@ func newBuilder(clientCtx context.Context, options builderOptions) *Builder {
 		runConfig:     new(container.Config),
 		tmpContainers: map[string]struct{}{},
 		buildArgs:     newBuildArgs(config.BuildArgs),
+		sessionGetter: options.SessionGetter,
+		fsCache:       options.FSCache,
 	}
 	b.imageContexts = &imageContexts{b: b, cache: options.PathCache}
 	return b
@@ -147,6 +188,36 @@ func (b *Builder) build(source builder.Source, dockerfile *parser.Result) (*buil
 
 	// TODO: Remove source field from Builder
 	b.source = source
+
+	// TODO: remove this: read dockerfile from request, mode to detect
+	if b.sessionGetter != nil && b.options.SessionId != "" {
+		st := time.Now()
+		ctx, cancel := context.WithTimeout(context.Background(), sessionConnectTimeout)
+		defer cancel()
+		_, caller, err := b.sessionGetter.GetSession(ctx, b.options.SessionId)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get session for %s", b.options.SessionId)
+		}
+
+		if b.options.RemoteContext == "client-session" {
+			csi, err := NewClientSessionIdentifier(caller, "_main",
+				b.options.SessionId, []string{"/"})
+			if err != nil {
+				return nil, err
+			}
+			ctx, err := b.fsCache.SyncFrom(context.Background(), csi)
+			if err != nil {
+				return nil, err
+			}
+			b.source = ctx
+			defer ctx.Close()
+		}
+
+		b.auth = NewAuthConfigProvider(b.options.AuthConfigs, caller)
+		logrus.Debugf("sync-time: %v", time.Since(st))
+	} else {
+		b.auth = NewAuthConfigProvider(b.options.AuthConfigs, nil)
+	}
 
 	addNodesForLabelOption(dockerfile.AST, b.options.Labels)
 
@@ -296,4 +367,19 @@ func dispatchFromDockerfile(b *Builder, result *parser.Result) error {
 		}
 	}
 	return nil
+}
+
+type tmpCacheBackend struct {
+	root string
+}
+
+func (tcb *tmpCacheBackend) Get(id string) (string, error) {
+	d := filepath.Join(tcb.root, id)
+	if err := os.MkdirAll(d, 0700); err != nil {
+		return "", errors.Wrapf(err, "failed to create tmp dir for %s", d)
+	}
+	return d, nil
+}
+func (tcb *tmpCacheBackend) Remove(id string) error {
+	return os.RemoveAll(filepath.Join(tcb.root, id))
 }

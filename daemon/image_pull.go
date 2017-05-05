@@ -6,6 +6,7 @@ import (
 
 	dist "github.com/docker/distribution"
 	"github.com/docker/distribution/reference"
+	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/distribution"
@@ -43,39 +44,24 @@ func (daemon *Daemon) PullImage(ctx context.Context, image, tag string, metaHead
 		}
 	}
 
-	return daemon.pullImageWithReference(ctx, ref, metaHeaders, authConfig, outStream)
+	return daemon.pullImageWithReference(ctx, ref, metaHeaders, registry.NewAuthConfigAuthenticator(authConfig), outStream)
 }
 
 // PullOnBuild tells Docker to pull image referenced by `name`.
-func (daemon *Daemon) PullOnBuild(ctx context.Context, name string, authConfigs map[string]types.AuthConfig, output io.Writer) (builder.Image, error) {
+func (daemon *Daemon) PullOnBuild(ctx context.Context, name string, authenticator auth.Authenticator, output io.Writer) (builder.Image, error) {
 	ref, err := reference.ParseNormalizedNamed(name)
 	if err != nil {
 		return nil, err
 	}
 	ref = reference.TagNameOnly(ref)
 
-	pullRegistryAuth := &types.AuthConfig{}
-	if len(authConfigs) > 0 {
-		// The request came with a full auth config file, we prefer to use that
-		repoInfo, err := daemon.RegistryService.ResolveRepository(ref)
-		if err != nil {
-			return nil, err
-		}
-
-		resolvedConfig := registry.ResolveAuthConfig(
-			authConfigs,
-			repoInfo.Index,
-		)
-		pullRegistryAuth = &resolvedConfig
-	}
-
-	if err := daemon.pullImageWithReference(ctx, ref, nil, pullRegistryAuth, output); err != nil {
+	if err := daemon.pullImageWithReference(ctx, ref, nil, authenticator, output); err != nil {
 		return nil, err
 	}
 	return daemon.GetImage(name)
 }
 
-func (daemon *Daemon) pullImageWithReference(ctx context.Context, ref reference.Named, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
+func (daemon *Daemon) pullImageWithReference(ctx context.Context, ref reference.Named, metaHeaders map[string][]string, authenticator auth.Authenticator, outStream io.Writer) error {
 	// Include a buffer so that slow client connections don't affect
 	// transfer performance.
 	progressChan := make(chan progress.Progress, 100)
@@ -92,7 +78,7 @@ func (daemon *Daemon) pullImageWithReference(ctx context.Context, ref reference.
 	imagePullConfig := &distribution.ImagePullConfig{
 		Config: distribution.Config{
 			MetaHeaders:      metaHeaders,
-			AuthConfig:       authConfig,
+			Authenticator:    authenticator,
 			ProgressOutput:   progress.ChanOutput(progressChan),
 			RegistryService:  daemon.RegistryService,
 			ImageEventLogger: daemon.LogImageEvent,
@@ -140,7 +126,7 @@ func (daemon *Daemon) GetRepository(ctx context.Context, ref reference.NamedTagg
 			continue
 		}
 
-		repository, confirmedV2, lastError = distribution.NewV2Repository(ctx, repoInfo, endpoint, nil, authConfig, "pull")
+		repository, confirmedV2, lastError = distribution.NewV2Repository(ctx, repoInfo, endpoint, nil, registry.NewAuthConfigAuthenticator(authConfig), "pull")
 		if lastError == nil && confirmedV2 {
 			break
 		}

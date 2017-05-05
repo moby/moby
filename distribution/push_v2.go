@@ -60,7 +60,7 @@ type pushState struct {
 func (p *v2Pusher) Push(ctx context.Context) (err error) {
 	p.pushState.remoteLayers = make(map[layer.DiffID]distribution.Descriptor)
 
-	p.repo, p.pushState.confirmedV2, err = NewV2Repository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "push", "pull")
+	p.repo, p.pushState.confirmedV2, err = NewV2Repository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.Authenticator, "push", "pull")
 	if err != nil {
 		logrus.Debugf("Error getting v2 registry: %v", err)
 		return err
@@ -129,7 +129,7 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, ref reference.NamedTagged, id 
 	}
 	defer l.Release()
 
-	hmacKey, err := metadata.ComputeV2MetadataHMACKey(p.config.AuthConfig)
+	hmacKey, err := metadata.ComputeV2MetadataHMACKey(p.config.Authenticator)
 	if err != nil {
 		return fmt.Errorf("failed to compute hmac key of auth config: %v", err)
 	}

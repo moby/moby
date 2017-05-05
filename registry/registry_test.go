@@ -12,7 +12,6 @@ import (
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client/transport"
-	"github.com/docker/docker/api/types"
 	registrytypes "github.com/docker/docker/api/types/registry"
 )
 
@@ -26,16 +25,15 @@ const (
 )
 
 func spawnTestRegistrySession(t *testing.T) *Session {
-	authConfig := &types.AuthConfig{}
 	endpoint, err := NewV1Endpoint(makeIndex("/v1/"), "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	userAgent := "docker test client"
 	var tr http.RoundTripper = debugTransport{NewTransport(nil), t.Log}
-	tr = transport.NewTransport(AuthTransport(tr, authConfig, false), DockerHeaders(userAgent, nil)...)
+	tr = transport.NewTransport(AuthTransport(tr, nil, false), DockerHeaders(userAgent, nil)...)
 	client := HTTPClient(tr)
-	r, err := NewSession(client, authConfig, endpoint)
+	r, err := NewSession(client, nil, endpoint)
 	if err != nil {
 		t.Fatal(err)
 	}

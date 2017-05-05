@@ -61,7 +61,7 @@ func (hf HeaderField) String() string {
 func (hf HeaderField) Size() uint32 {
 	// http://http2.github.io/http2-spec/compression.html#rfc.section.4.1
 	// "The size of the dynamic table is the sum of the size of
-	// its entries.  The size of an entry is the sum of its name's
+	// its entries. The size of an entry is the sum of its name's
 	// length in octets (as defined in Section 5.2), its value's
 	// length in octets (see Section 5.2), plus 32.  The size of
 	// an entry is calculated using the length of the name and
@@ -307,7 +307,7 @@ func (d *Decoder) Write(p []byte) (n int, err error) {
 		err = d.parseHeaderFieldRepr()
 		if err == errNeedMore {
 			// Extra paranoia, making sure saveBuf won't
-			// get too large.  All the varint and string
+			// get too large. All the varint and string
 			// reading code earlier should already catch
 			// overlong things and return ErrStringLength,
 			// but keep this as a last resort.

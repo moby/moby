@@ -22,7 +22,7 @@ const (
 )
 
 // loginV1 tries to register/login to the v1 registry server.
-func loginV1(authConfig *types.AuthConfig, apiEndpoint APIEndpoint, userAgent string) (string, string, error) {
+func loginV1(authenticator auth.Authenticator, apiEndpoint APIEndpoint, userAgent string) (string, string, error) {
 	registryEndpoint, err := apiEndpoint.ToV1Endpoint(userAgent, nil)
 	if err != nil {
 		return "", "", err
@@ -42,7 +42,8 @@ func loginV1(authConfig *types.AuthConfig, apiEndpoint APIEndpoint, userAgent st
 	if err != nil {
 		return "", "", err
 	}
-	req.SetBasicAuth(authConfig.Username, authConfig.Password)
+	u,p := authenticator.GetBasicAuthInfo()
+	req.SetBasicAuth(u,p)
 	resp, err := registryEndpoint.client.Do(req)
 	if err != nil {
 		// fallback when request could not be completed
@@ -76,51 +77,6 @@ func loginV1(authConfig *types.AuthConfig, apiEndpoint APIEndpoint, userAgent st
 		resp.StatusCode, resp.Header)
 }
 
-type loginCredentialStore struct {
-	authConfig *types.AuthConfig
-}
-
-func (lcs loginCredentialStore) Basic(*url.URL) (string, string) {
-	return lcs.authConfig.Username, lcs.authConfig.Password
-}
-
-func (lcs loginCredentialStore) RefreshToken(*url.URL, string) string {
-	return lcs.authConfig.IdentityToken
-}
-
-func (lcs loginCredentialStore) SetRefreshToken(u *url.URL, service, token string) {
-	lcs.authConfig.IdentityToken = token
-}
-
-type staticCredentialStore struct {
-	auth *types.AuthConfig
-}
-
-// NewStaticCredentialStore returns a credential store
-// which always returns the same credential values.
-func NewStaticCredentialStore(auth *types.AuthConfig) auth.CredentialStore {
-	return staticCredentialStore{
-		auth: auth,
-	}
-}
-
-func (scs staticCredentialStore) Basic(*url.URL) (string, string) {
-	if scs.auth == nil {
-		return "", ""
-	}
-	return scs.auth.Username, scs.auth.Password
-}
-
-func (scs staticCredentialStore) RefreshToken(*url.URL, string) string {
-	if scs.auth == nil {
-		return ""
-	}
-	return scs.auth.IdentityToken
-}
-
-func (scs staticCredentialStore) SetRefreshToken(*url.URL, string, string) {
-}
-
 type fallbackError struct {
 	err error
 }
@@ -132,18 +88,13 @@ func (err fallbackError) Error() string {
 // loginV2 tries to login to the v2 registry server. The given registry
 // endpoint will be pinged to get authorization challenges. These challenges
 // will be used to authenticate against the registry to validate credentials.
-func loginV2(authConfig *types.AuthConfig, endpoint APIEndpoint, userAgent string) (string, string, error) {
+func loginV2(authenticator auth.Authenticator, endpoint APIEndpoint, userAgent string) (string, string, error) {
 	logrus.Debugf("attempting v2 login to registry endpoint %s", strings.TrimRight(endpoint.URL.String(), "/")+"/v2/")
 
 	modifiers := DockerHeaders(userAgent, nil)
 	authTransport := transport.NewTransport(NewTransport(endpoint.TLSConfig), modifiers...)
 
-	credentialAuthConfig := *authConfig
-	creds := loginCredentialStore{
-		authConfig: &credentialAuthConfig,
-	}
-
-	loginClient, foundV2, err := v2AuthHTTPClient(endpoint.URL, authTransport, modifiers, creds, nil)
+	loginClient, foundV2, err := v2AuthHTTPClient(endpoint.URL, authTransport, modifiers, authenticator, nil)
 	if err != nil {
 		return "", "", err
 	}
@@ -174,12 +125,12 @@ func loginV2(authConfig *types.AuthConfig, endpoint APIEndpoint, userAgent strin
 		}
 		return "", "", err
 	}
-
-	return "Login Succeeded", credentialAuthConfig.IdentityToken, nil
+	_, identityToken := authenticator.GetIdentityTokenInfo()
+	return "Login Succeeded", identityToken, nil
 
 }
 
-func v2AuthHTTPClient(endpoint *url.URL, authTransport http.RoundTripper, modifiers []transport.RequestModifier, creds auth.CredentialStore, scopes []auth.Scope) (*http.Client, bool, error) {
+func v2AuthHTTPClient(endpoint *url.URL, authTransport http.RoundTripper, modifiers []transport.RequestModifier, authenticator auth.Authenticator, scopes []auth.Scope) (*http.Client, bool, error) {
 	challengeManager, foundV2, err := PingV2Registry(endpoint, authTransport)
 	if err != nil {
 		if !foundV2 {
@@ -190,13 +141,13 @@ func v2AuthHTTPClient(endpoint *url.URL, authTransport http.RoundTripper, modifi
 
 	tokenHandlerOptions := auth.TokenHandlerOptions{
 		Transport:     authTransport,
-		Credentials:   creds,
+		Authenticator: authenticator,
 		OfflineAccess: true,
 		ClientID:      AuthClientID,
 		Scopes:        scopes,
 	}
 	tokenHandler := auth.NewTokenHandlerWithOptions(tokenHandlerOptions)
-	basicHandler := auth.NewBasicHandler(creds)
+	basicHandler := auth.NewBasicHandler(authenticator)
 	modifiers = append(modifiers, auth.NewAuthorizer(challengeManager, tokenHandler, basicHandler))
 	tr := transport.NewTransport(authTransport, modifiers...)
 

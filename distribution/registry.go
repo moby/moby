@@ -12,7 +12,6 @@ import (
 	"github.com/docker/distribution/registry/client"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/transport"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/registry"
 	"github.com/docker/go-connections/sockets"
@@ -54,7 +53,7 @@ func init() {
 // NewV2Repository returns a repository (v2 only). It creates an HTTP transport
 // providing timeout settings and authentication support, and also verifies the
 // remote API version.
-func NewV2Repository(ctx context.Context, repoInfo *registry.RepositoryInfo, endpoint registry.APIEndpoint, metaHeaders http.Header, authConfig *types.AuthConfig, actions ...string) (repo distribution.Repository, foundVersion bool, err error) {
+func NewV2Repository(ctx context.Context, repoInfo *registry.RepositoryInfo, endpoint registry.APIEndpoint, metaHeaders http.Header, authenticator auth.Authenticator, actions ...string) (repo distribution.Repository, foundVersion bool, err error) {
 	repoName := repoInfo.Name.Name()
 	// If endpoint does not support CanonicalName, use the RemoteName instead
 	if endpoint.TrimHostname {
@@ -99,8 +98,8 @@ func NewV2Repository(ctx context.Context, repoInfo *registry.RepositoryInfo, end
 		}
 	}
 
-	if authConfig.RegistryToken != "" {
-		passThruTokenHandler := &existingTokenHandler{token: authConfig.RegistryToken}
+	if authenticator.HasPassthroughToken() {
+		passThruTokenHandler := &existingTokenHandler{token: authenticator.GetPassthroughToken()}
 		modifiers = append(modifiers, auth.NewAuthorizer(challengeManager, passThruTokenHandler))
 	} else {
 		scope := auth.RepositoryScope{
@@ -109,15 +108,14 @@ func NewV2Repository(ctx context.Context, repoInfo *registry.RepositoryInfo, end
 			Class:      repoInfo.Class,
 		}
 
-		creds := registry.NewStaticCredentialStore(authConfig)
 		tokenHandlerOptions := auth.TokenHandlerOptions{
-			Transport:   authTransport,
-			Credentials: creds,
-			Scopes:      []auth.Scope{scope},
-			ClientID:    registry.AuthClientID,
+			Transport:     authTransport,
+			Authenticator: authenticator,
+			Scopes:        []auth.Scope{scope},
+			ClientID:      registry.AuthClientID,
 		}
 		tokenHandler := auth.NewTokenHandlerWithOptions(tokenHandlerOptions)
-		basicHandler := auth.NewBasicHandler(creds)
+		basicHandler := auth.NewBasicHandler(authenticator)
 		modifiers = append(modifiers, auth.NewAuthorizer(challengeManager, tokenHandler, basicHandler))
 	}
 	tr := transport.NewTransport(base, modifiers...)
