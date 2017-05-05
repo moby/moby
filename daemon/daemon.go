@@ -66,7 +66,7 @@ var (
 	// containerd if none is specified
 	DefaultRuntimeBinary = "docker-runc"
 
-	errSystemNotSupported = errors.New("The Docker daemon is not supported on this platform.")
+	errSystemNotSupported = errors.New("the Docker daemon is not supported on this platform")
 )
 
 // Daemon holds information about the Docker daemon.
