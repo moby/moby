@@ -99,8 +99,10 @@ do
 			;;
 
 		proxy)
-			export CGO_ENABLED=0
-			install_proxy
+			(
+				export CGO_ENABLED=0
+				install_proxy
+			)
 			;;
 
 		proxy-dynamic)
