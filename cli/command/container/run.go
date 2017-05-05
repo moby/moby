@@ -170,7 +170,8 @@ func runContainer(dockerCli *command.DockerCli, opts *runOptions, copts *contain
 		}
 	}
 
-	statusChan := waitExitOrRemoved(ctx, dockerCli, createResponse.ID, copts.autoRemove)
+	attachDone := make(chan struct{})
+	statusChan := waitExitOrRemoved(ctx, dockerCli, createResponse.ID, attachDone, copts.autoRemove)
 
 	//start the container
 	if err := client.ContainerStart(ctx, createResponse.ID, types.ContainerStartOptions{}); err != nil {
@@ -180,6 +181,7 @@ func runContainer(dockerCli *command.DockerCli, opts *runOptions, copts *contain
 		if attach {
 			cancelFun()
 			<-errCh
+			close(attachDone)
 		}
 
 		reportError(stderr, cmdPath, err.Error(), false)
@@ -201,6 +203,7 @@ func runContainer(dockerCli *command.DockerCli, opts *runOptions, copts *contain
 			logrus.Debugf("Error hijack: %s", err)
 			return err
 		}
+		close(attachDone)
 	}
 
 	// Detached mode: wait for the id to be displayed and return.
