@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/builder/remotecontext"
 	"github.com/docker/docker/client/session"
 	"github.com/docker/docker/client/session/auth"
+	"github.com/docker/docker/client/session/echo"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
@@ -108,6 +109,31 @@ func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (
 		if c != nil {
 			if p, ok := auth.TryGetAuthConfigProviderClient(c); ok {
 				builderOptions.authProvider = p
+			}
+
+			instanceName := c.ListStreamInstances("echoService")[0]
+			if c.SupportsStream("echoService", instanceName, "echo") {
+				err = c.ConnectToStream(ctx, "echoService", instanceName, "echo", func(stream session.MessageStream) error {
+					done := make(chan interface{})
+					go func() {
+						var receivedMsg echo.Msg
+						for i := 0; i < 3; i++ {
+							stream.RecvMsg(&receivedMsg)
+							logrus.Debugf("received back message %s", receivedMsg.Value)
+						}
+						close(done)
+					}()
+
+					for i := 0; i < 3; i++ {
+						sentMessage := echo.Msg{Value: fmt.Sprintf("Value %d", i)}
+						err := stream.SendMsg(&sentMessage)
+						if err != nil {
+							return err
+						}
+					}
+					<-done
+					return nil
+				})
 			}
 		}
 	}

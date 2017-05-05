@@ -1,0 +1,6 @@
+syntax = "proto3";
+package echo;
+
+message Msg{
+    string value = 1;
+}

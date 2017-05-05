@@ -30,6 +30,7 @@ import (
 	cliconfig "github.com/docker/docker/cli/config"
 	"github.com/docker/docker/client/session"
 	"github.com/docker/docker/client/session/auth"
+	"github.com/docker/docker/client/session/echo"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/fileutils"
@@ -321,6 +322,24 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		}
 		authConfigs = make(map[string]types.AuthConfig)
 		auth.AttachAuthConfigProviderToSession(&authProvider{dockerCli, progressOutput}, s)
+		s.AllowStream("echoService", "main", "echo", func(stream session.MessageStream) error {
+			for {
+				var msg echo.Msg
+				err := stream.RecvMsg(&msg)
+				if err == io.EOF {
+					progress.Message(progressOutput, "echo", "got EOF")
+					return nil
+				}
+				if err != nil {
+					return err
+				}
+				progress.Messagef(progressOutput, "echo", "got message %s, sending it back", msg.Value)
+				err = stream.SendMsg(&msg)
+				if err != nil {
+					return err
+				}
+			}
+		})
 	} else {
 		authConfigs, _ = dockerCli.GetAllCredentials()
 	}
