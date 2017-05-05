@@ -191,7 +191,7 @@ func (na *NetworkAllocator) ServiceAllocate(s *api.Service) (err error) {
 
 vipLoop:
 	for _, eAttach := range s.Endpoint.VirtualIPs {
-		if na.IsVIPOnIngressNetwork(eAttach) {
+		if na.IsVIPOnIngressNetwork(eAttach) && IsIngressNetworkNeeded(s) {
 			if err = na.allocateVIP(eAttach); err != nil {
 				return err
 			}
@@ -362,7 +362,7 @@ func (na *NetworkAllocator) ServiceNeedsAllocation(s *api.Service, flags ...func
 	if s.Endpoint != nil {
 	vipLoop:
 		for _, vip := range s.Endpoint.VirtualIPs {
-			if na.IsVIPOnIngressNetwork(vip) {
+			if na.IsVIPOnIngressNetwork(vip) && IsIngressNetworkNeeded(s) {
 				continue vipLoop
 			}
 			for _, net := range specNetworks {
@@ -802,17 +802,15 @@ func (na *NetworkAllocator) allocatePools(n *api.Network) (map[string]string, er
 
 	pools := make(map[string]string)
 
-	if n.Spec.IPAM == nil {
-		n.Spec.IPAM = &api.IPAMOptions{}
-	}
-
-	ipamConfigs := make([]*api.IPAMConfig, len(n.Spec.IPAM.Configs))
-	copy(ipamConfigs, n.Spec.IPAM.Configs)
+	var ipamConfigs []*api.IPAMConfig
 
 	// If there is non-nil IPAM state always prefer those subnet
 	// configs over Spec configs.
 	if n.IPAM != nil {
 		ipamConfigs = n.IPAM.Configs
+	} else if n.Spec.IPAM != nil {
+		ipamConfigs = make([]*api.IPAMConfig, len(n.Spec.IPAM.Configs))
+		copy(ipamConfigs, n.Spec.IPAM.Configs)
 	}
 
 	// Append an empty slot for subnet allocation if there are no
@@ -912,4 +910,27 @@ func IsIngressNetwork(nw *api.Network) bool {
 	// Check if legacy defined ingress network
 	_, ok := nw.Spec.Annotations.Labels["com.docker.swarm.internal"]
 	return ok && nw.Spec.Annotations.Name == "ingress"
+}
+
+// IsIngressNetworkNeeded checks whether the service requires the routing-mesh
+func IsIngressNetworkNeeded(s *api.Service) bool {
+	if s == nil {
+		return false
+	}
+
+	if s.Spec.Endpoint == nil {
+		return false
+	}
+
+	for _, p := range s.Spec.Endpoint.Ports {
+		// The service to which this task belongs is trying to
+		// expose ports with PublishMode as Ingress to the
+		// external world. Automatically attach the task to
+		// the ingress network.
+		if p.PublishMode == api.PublishModeIngress {
+			return true
+		}
+	}
+
+	return false
 }

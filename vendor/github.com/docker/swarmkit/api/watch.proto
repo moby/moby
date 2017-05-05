@@ -69,8 +69,8 @@ message SelectBy {
 }
 
 
-// Store defines the RPC methods for interacting with the data store.
-service Store {
+// Watch defines the RPC methods for monitoring data store change.
+service Watch {
 	// Watch starts a stream that returns any changes to objects that match
 	// the specified selectors. When the stream begins, it immediately sends
 	// an empty message back to the client. It is important to wait for

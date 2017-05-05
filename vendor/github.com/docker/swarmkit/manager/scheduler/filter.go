@@ -217,3 +217,46 @@ func (f *ConstraintFilter) Explain(nodes int) string {
 	}
 	return fmt.Sprintf("scheduling constraints not satisfied on %d nodes", nodes)
 }
+
+// PlatformFilter selects only nodes that run the required platform.
+type PlatformFilter struct {
+	supportedPlatforms []*api.Platform
+}
+
+// SetTask returns true when the filter is enabled for a given task.
+func (f *PlatformFilter) SetTask(t *api.Task) bool {
+	placement := t.Spec.Placement
+	if placement != nil {
+		// copy the platform information
+		f.supportedPlatforms = placement.Platforms
+		if len(placement.Platforms) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// Check returns true if the task can be scheduled into the given node.
+func (f *PlatformFilter) Check(n *NodeInfo) bool {
+	// if the supportedPlatforms field is empty, then either it wasn't
+	// provided or there are no constraints
+	if len(f.supportedPlatforms) == 0 {
+		return true
+	}
+	// check if the platform for the node is supported
+	nodePlatform := n.Description.Platform
+	for _, p := range f.supportedPlatforms {
+		if (p.Architecture == "" || p.Architecture == nodePlatform.Architecture) && (p.OS == "" || p.OS == nodePlatform.OS) {
+			return true
+		}
+	}
+	return false
+}
+
+// Explain returns an explanation of a failure.
+func (f *PlatformFilter) Explain(nodes int) string {
+	if nodes == 1 {
+		return "unsupported platform on 1 node"
+	}
+	return fmt.Sprintf("unsupported platform on %d nodes", nodes)
+}

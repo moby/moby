@@ -1,4 +1,4 @@
-package storeapi
+package watchapi
 
 import (
 	"google.golang.org/grpc"
@@ -14,7 +14,7 @@ import (
 // an empty message back to the client. It is important to wait for
 // this message before taking any actions that depend on an established
 // stream of changes for consistency.
-func (s *Server) Watch(request *api.WatchRequest, stream api.Store_WatchServer) error {
+func (s *Server) Watch(request *api.WatchRequest, stream api.Watch_WatchServer) error {
 	ctx := stream.Context()
 
 	watchArgs, err := api.ConvertWatchArgs(request.Entries)

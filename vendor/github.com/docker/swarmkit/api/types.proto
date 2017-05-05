@@ -771,6 +771,11 @@ message Placement {
 	// such as topology. They are provided in order from highest to lowest
 	// precedence.
 	repeated PlacementPreference preferences = 2;
+
+	// Platforms stores all the platforms that the image can run on.
+	// This field is used in the platform filter for scheduling. If empty,
+	// then the platform filter is off, meaning there are no scheduling restrictions.
+	repeated Platform platforms = 3;
 }
 
 // JoinToken contains the join tokens for workers and managers.

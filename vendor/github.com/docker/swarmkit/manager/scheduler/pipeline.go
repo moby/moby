@@ -13,6 +13,7 @@ var (
 		&ResourceFilter{},
 		&PluginFilter{},
 		&ConstraintFilter{},
+		&PlatformFilter{},
 	}
 )
 
