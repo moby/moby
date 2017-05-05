@@ -74,9 +74,10 @@ type commonBridgeConfig struct {
 // It includes json tags to deserialize configuration from a file
 // using the same names that the flags in the command line use.
 type CommonTLSOptions struct {
-	CAFile   string `json:"tlscacert,omitempty"`
-	CertFile string `json:"tlscert,omitempty"`
-	KeyFile  string `json:"tlskey,omitempty"`
+	CAFile     string `json:"tlscacert,omitempty"`
+	CertFile   string `json:"tlscert,omitempty"`
+	KeyFile    string `json:"tlskey,omitempty"`
+	MinVersion string `json:"tlsminversion,omitempty"`
 }
 
 // CommonConfig defines the configuration of a docker daemon which is

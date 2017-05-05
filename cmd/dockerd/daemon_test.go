@@ -49,6 +49,18 @@ func TestLoadDaemonCliConfigWithTLS(t *testing.T) {
 	assert.Equal(t, "/tmp/ca.pem", loadedConfig.CommonTLSOptions.CAFile)
 }
 
+func TestLoadDaemonCliConfigWithTLSMinVersion(t *testing.T) {
+	opts := defaultOptions("")
+	opts.common.TLSOptions.CAFile = "/tmp/ca.pem"
+	opts.common.TLS = true
+	opts.common.TLSOptions.MinVersion = "VersionTLS11"
+
+	loadedConfig, err := loadDaemonCliConfig(opts)
+	assert.NilError(t, err)
+	assert.NotNil(t, loadedConfig)
+	assert.Equal(t, loadedConfig.CommonTLSOptions.MinVersion, "VersionTLS11")
+}
+
 func TestLoadDaemonCliConfigWithConflicts(t *testing.T) {
 	tempFile := tempfile.NewTempFile(t, "config", `{"labels": ["l3=foo"]}`)
 	defer tempFile.Remove()

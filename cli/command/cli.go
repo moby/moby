@@ -240,7 +240,12 @@ func LoadDefaultConfigFile(err io.Writer) *configfile.ConfigFile {
 
 // NewAPIClientFromFlags creates a new APIClient from command line flags
 func NewAPIClientFromFlags(opts *cliflags.CommonOptions, configFile *configfile.ConfigFile) (client.APIClient, error) {
-	host, err := getServerHost(opts.Hosts, opts.TLSOptions)
+	tlsOptions, err := tlsConfigFromOptions(opts)
+	if err != nil {
+		return &client.Client{}, err
+	}
+
+	host, err := getServerHost(opts.Hosts, tlsOptions)
 	if err != nil {
 		return &client.Client{}, err
 	}
@@ -256,7 +261,7 @@ func NewAPIClientFromFlags(opts *cliflags.CommonOptions, configFile *configfile.
 		verStr = tmpStr
 	}
 
-	httpClient, err := newHTTPClient(host, opts.TLSOptions)
+	httpClient, err := newHTTPClient(host, tlsOptions)
 	if err != nil {
 		return &client.Client{}, err
 	}
@@ -302,6 +307,27 @@ func newHTTPClient(host string, tlsOptions *tlsconfig.Options) (*http.Client, er
 	return &http.Client{
 		Transport: tr,
 	}, nil
+}
+
+func tlsConfigFromOptions(opts *cliflags.CommonOptions) (*tlsconfig.Options, error) {
+	if opts.TLSOptions == nil {
+		return nil, nil
+	}
+
+	tlsMinVersion, err := dopts.ParseTLSMinVersion(opts.TLSOptions.MinVersion)
+	if err != nil {
+		return nil, err
+	}
+
+	tlsOptions := &tlsconfig.Options{
+		CAFile:             opts.TLSOptions.CAFile,
+		CertFile:           opts.TLSOptions.CertFile,
+		KeyFile:            opts.TLSOptions.KeyFile,
+		InsecureSkipVerify: !opts.TLSVerify,
+		MinVersion:         tlsMinVersion,
+	}
+
+	return tlsOptions, nil
 }
 
 // UserAgent returns the user agent string used for making API requests

@@ -1,6 +1,7 @@
 package opts
 
 import (
+	"crypto/tls"
 	"fmt"
 	"math/big"
 	"net"
@@ -402,6 +403,30 @@ func ParseLink(val string) (string, string, error) {
 		return arr[0][1:], alias, nil
 	}
 	return arr[0], arr[1], nil
+}
+
+// ParseTLSMinVersion takes a string and returns:
+//	for an empty version string: 0 (which is ignored by tlsconfig)
+//	for a valid version string: a valid TLS version
+//	for an invalid version string: an error
+func ParseTLSMinVersion(val string) (uint16, error) {
+	allTLSVersions := map[string]uint16{
+		"VERSIONSSL30": tls.VersionSSL30,
+		"VERSIONTLS10": tls.VersionTLS10,
+		"VERSIONTLS11": tls.VersionTLS11,
+		"VERSIONTLS12": tls.VersionTLS12,
+	}
+
+	if val == "" {
+		return 0, nil
+	}
+
+	key := strings.ToUpper(val)
+	if version, ok := allTLSVersions[key]; ok {
+		return version, nil
+	}
+
+	return 0, fmt.Errorf("invalid minimum TLS version string: %q", val)
 }
 
 // ValidateLink validates that the specified string has a valid link format (containerName:alias).
