@@ -145,3 +145,23 @@ func TestLoadDaemonConfigWithRegistryOptions(t *testing.T) {
 	assert.Len(t, loadedConfig.Mirrors, 1)
 	assert.Len(t, loadedConfig.InsecureRegistries, 1)
 }
+
+func TestLoadDaemonConfigWithUnofficialRegistryMirrors(t *testing.T) {
+	content := `{
+        "registry-mirrors": [
+            "https://mirrors.docker.com",
+            "https://private_registry.com->https://local_cache"
+        ],
+		"insecure-registries": ["https://insecure.docker.com"]
+	}`
+	tempFile := tempfile.NewTempFile(t, "config", content)
+	defer tempFile.Remove()
+
+	opts := defaultOptions(tempFile.Name())
+	loadedConfig, err := loadDaemonCliConfig(opts)
+	assert.NoError(t, err)
+	assert.NotNil(t, loadedConfig)
+
+	assert.Equal(t, len(loadedConfig.Mirrors), 2)
+	assert.Equal(t, len(loadedConfig.InsecureRegistries), 1)
+}

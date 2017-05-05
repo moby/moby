@@ -271,10 +271,12 @@ func prettyPrintInfo(dockerCli *command.DockerCli, info types.Info) error {
 		}
 	}
 
-	if info.RegistryConfig != nil && len(info.RegistryConfig.Mirrors) > 0 {
-		fmt.Fprintln(dockerCli.Out(), "Registry Mirrors:")
-		for _, mirror := range info.RegistryConfig.Mirrors {
-			fmt.Fprintf(dockerCli.Out(), " %s\n", mirror)
+	if info.RegistryConfig != nil {
+		for indexInfo := range info.RegistryConfig.IndexConfigs {
+			fmt.Fprintf(dockerCli.Out(), "Registry Mirrors for %s:", indexInfo)
+			for _, mirror := range info.RegistryConfig.IndexConfigs[indexInfo].Mirrors {
+				fmt.Fprintf(dockerCli.Out(), " %s\n", mirror)
+			}
 		}
 	}
 

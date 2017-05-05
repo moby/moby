@@ -40,98 +40,100 @@ func TestDaemonReloadLabels(t *testing.T) {
 	}
 }
 
-func TestDaemonReloadMirrors(t *testing.T) {
-	daemon := &Daemon{}
-	daemon.RegistryService = registry.NewService(registry.ServiceOptions{
-		InsecureRegistries: []string{},
-		Mirrors: []string{
-			"https://mirror.test1.com",
-			"https://mirror.test2.com", // this will be removed when reloading
-			"https://mirror.test3.com", // this will be removed when reloading
-		},
-	})
-
-	daemon.configStore = &config.Config{}
-
-	type pair struct {
-		valid   bool
-		mirrors []string
-		after   []string
-	}
-
-	loadMirrors := []pair{
-		{
-			valid:   false,
-			mirrors: []string{"10.10.1.11:5000"}, // this mirror is invalid
-			after:   []string{},
-		},
-		{
-			valid:   false,
-			mirrors: []string{"mirror.test1.com"}, // this mirror is invalid
-			after:   []string{},
-		},
-		{
-			valid:   false,
-			mirrors: []string{"10.10.1.11:5000", "mirror.test1.com"}, // mirrors are invalid
-			after:   []string{},
-		},
-		{
-			valid:   true,
-			mirrors: []string{"https://mirror.test1.com", "https://mirror.test4.com"},
-			after:   []string{"https://mirror.test1.com/", "https://mirror.test4.com/"},
-		},
-	}
-
-	for _, value := range loadMirrors {
-		valuesSets := make(map[string]interface{})
-		valuesSets["registry-mirrors"] = value.mirrors
-
-		newConfig := &config.Config{
-			CommonConfig: config.CommonConfig{
-				ServiceOptions: registry.ServiceOptions{
-					Mirrors: value.mirrors,
-				},
-				ValuesSet: valuesSets,
-			},
-		}
-
-		err := daemon.Reload(newConfig)
-		if !value.valid && err == nil {
-			// mirrors should be invalid, should be a non-nil error
-			t.Fatalf("Expected daemon reload error with invalid mirrors: %s, while get nil", value.mirrors)
-		}
-
-		if value.valid {
-			if err != nil {
-				// mirrors should be valid, should be no error
-				t.Fatal(err)
-			}
-			registryService := daemon.RegistryService.ServiceConfig()
-
-			if len(registryService.Mirrors) != len(value.after) {
-				t.Fatalf("Expected %d daemon mirrors %s while get %d with %s",
-					len(value.after),
-					value.after,
-					len(registryService.Mirrors),
-					registryService.Mirrors)
-			}
-
-			dataMap := map[string]struct{}{}
-
-			for _, mirror := range registryService.Mirrors {
-				if _, exist := dataMap[mirror]; !exist {
-					dataMap[mirror] = struct{}{}
-				}
-			}
-
-			for _, address := range value.after {
-				if _, exist := dataMap[address]; !exist {
-					t.Fatalf("Expected %s in daemon mirrors, while get none", address)
-				}
-			}
-		}
-	}
-}
+// TODO(amidlash): deleteme. This test is no longer applicable, since
+// the mirrors are now configured within IndexConfigs
+// func TestDaemonReloadMirrors(t *testing.T) {
+// 	daemon := &Daemon{}
+// 	daemon.RegistryService = registry.NewService(registry.ServiceOptions{
+// 		InsecureRegistries: []string{},
+// 		Mirrors: []string{
+// 			"https://mirror.test1.com",
+// 			"https://mirror.test2.com", // this will be removed when reloading
+// 			"https://mirror.test3.com", // this will be removed when reloading
+// 		},
+// 	})
+//
+// 	daemon.configStore = &config.Config{}
+//
+// 	type pair struct {
+// 		valid   bool
+// 		mirrors []string
+// 		after   []string
+// 	}
+//
+// 	loadMirrors := []pair{
+// 		{
+// 			valid:   false,
+// 			mirrors: []string{"10.10.1.11:5000"}, // this mirror is invalid
+// 			after:   []string{},
+// 		},
+// 		{
+// 			valid:   false,
+// 			mirrors: []string{"mirror.test1.com"}, // this mirror is invalid
+// 			after:   []string{},
+// 		},
+// 		{
+// 			valid:   false,
+// 			mirrors: []string{"10.10.1.11:5000", "mirror.test1.com"}, // mirrors are invalid
+// 			after:   []string{},
+// 		},
+// 		{
+// 			valid:   true,
+// 			mirrors: []string{"https://mirror.test1.com", "https://mirror.test4.com"},
+// 			after:   []string{"https://mirror.test1.com/", "https://mirror.test4.com/"},
+// 		},
+// 	}
+//
+// 	for _, value := range loadMirrors {
+// 		valuesSets := make(map[string]interface{})
+// 		valuesSets["registry-mirrors"] = value.mirrors
+//
+// 		newConfig := &config.Config{
+// 			CommonConfig: config.CommonConfig{
+// 				ServiceOptions: registry.ServiceOptions{
+// 					Mirrors: value.mirrors,
+// 				},
+// 				ValuesSet: valuesSets,
+// 			},
+// 		}
+//
+// 		err := daemon.Reload(newConfig)
+// 		if !value.valid && err == nil {
+// 			// mirrors should be invalid, should be a non-nil error
+// 			t.Fatalf("Expected daemon reload error with invalid mirrors: %s, while get nil", value.mirrors)
+// 		}
+//
+// 		if value.valid {
+// 			if err != nil {
+// 				// mirrors should be valid, should be no error
+// 				t.Fatal(err)
+// 			}
+// 			registryService := daemon.RegistryService.ServiceConfig()
+//
+// 			if len(registryService.Mirrors) != len(value.after) {
+// 				t.Fatalf("Expected %d daemon mirrors %s while get %d with %s",
+// 					len(value.after),
+// 					value.after,
+// 					len(registryService.Mirrors),
+// 					registryService.Mirrors)
+// 			}
+//
+// 			dataMap := map[string]struct{}{}
+//
+// 			for _, mirror := range registryService.Mirrors {
+// 				if _, exist := dataMap[mirror]; !exist {
+// 					dataMap[mirror] = struct{}{}
+// 				}
+// 			}
+//
+// 			for _, address := range value.after {
+// 				if _, exist := dataMap[address]; !exist {
+// 					t.Fatalf("Expected %s in daemon mirrors, while get none", address)
+// 				}
+// 			}
+// 		}
+// 	}
+// }
 
 func TestDaemonReloadInsecureRegistries(t *testing.T) {
 	daemon := &Daemon{}
@@ -208,12 +210,12 @@ func TestDaemonReloadInsecureRegistries(t *testing.T) {
 		}
 	}
 
-	// assert if "10.10.1.22:5000" is removed when reloading
+	// assert that "10.10.1.22:5000" is removed when reloading
 	if value, ok := dataMap["10.10.1.22:5000"]; ok {
 		t.Fatalf("Expected no insecure registry of 10.10.1.22:5000, got %d", value)
 	}
 
-	// assert if "docker2.com" is removed when reloading
+	// assert that "docker2.com" is removed when reloading
 	if value, ok := dataMap["docker2.com"]; ok {
 		t.Fatalf("Expected no insecure registry of docker2.com, got %d", value)
 	}

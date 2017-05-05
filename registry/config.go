@@ -89,46 +89,92 @@ func newServiceConfig(options ServiceOptions) *serviceConfig {
 		ServiceConfig: registrytypes.ServiceConfig{
 			InsecureRegistryCIDRs: make([]*registrytypes.NetIPNet, 0),
 			IndexConfigs:          make(map[string]*registrytypes.IndexInfo, 0),
-			// Hack: Bypass setting the mirrors to IndexConfigs since they are going away
-			// and Mirrors are only for the official registry anyways.
 		},
 		V2Only: options.V2Only,
 	}
 
-	config.LoadMirrors(options.Mirrors)
-	config.LoadInsecureRegistries(options.InsecureRegistries)
+	err := config.LoadInsecureRegistries(options.InsecureRegistries)
+	if err != nil {
+		logrus.Warnf("error loading InsecureRegistries: %s\n", err.Error())
+	}
+	// Copy mirror information to IndexConfigs
+	err = config.LoadMirrors(options.Mirrors)
+	if err != nil {
+		logrus.Warnf("error loading mirrors: %s\n", err.Error())
+	}
 
 	return config
+}
+
+// MirrorMapping causes engine to redirect requests originally specified
+// to 'Source' to 'Target'
+type MirrorMapping struct {
+	Source string
+	Target string
+}
+
+// ParseRegistryMirrorEntry parses a 'hostname->newhost' string into hostname, newhost
+// returns source, sink
+func ParseRegistryMirrorEntry(mirrorConfig string) (*MirrorMapping, error) {
+	res := strings.Split(mirrorConfig, "->")
+	if len(res) == 1 {
+		return &MirrorMapping{
+			Source: IndexName,
+			Target: res[0],
+		}, nil
+	} else if len(res) == 2 {
+		return &MirrorMapping{
+			Source: res[0],
+			Target: res[1],
+		}, nil
+	}
+	logrus.Warnf("Invalid registry entry: '%s', ignoring", mirrorConfig)
+	return nil, fmt.Errorf("Invalid mirror config entry: '%s'", mirrorConfig)
 }
 
 // LoadMirrors loads mirrors to config, after removing duplicates.
 // Returns an error if mirrors contains an invalid mirror.
 func (config *serviceConfig) LoadMirrors(mirrors []string) error {
-	mMap := map[string]struct{}{}
-	unique := []string{}
+	// sources are the pre-redirect hosts
+	type HostSet map[string]struct{}
+	sources := make(map[string]HostSet)
 
 	for _, mirror := range mirrors {
-		m, err := ValidateMirror(mirror)
+		mapping, err := ParseRegistryMirrorEntry(mirror)
 		if err != nil {
 			return err
 		}
-		if _, exist := mMap[m]; !exist {
-			mMap[m] = struct{}{}
-			unique = append(unique, m)
+		mapping.Target, err = ValidateMirror(mapping.Target)
+		if err != nil {
+			return err
 		}
+		if _, ok := sources[mapping.Source]; !ok {
+			sources[mapping.Source] = make(HostSet)
+		}
+		sources[mapping.Source][mapping.Target] = struct{}{}
 	}
 
-	config.Mirrors = unique
-
-	// Configure public registry since mirrors may have changed.
-	config.IndexConfigs[IndexName] = &registrytypes.IndexInfo{
-		Name:     IndexName,
-		Mirrors:  config.Mirrors,
-		Secure:   true,
-		Official: true,
+	// Reconfigure indexconfigs, now that we have collected the mirrors.
+	for host := range sources {
+		mirrors := []string{}
+		for mirror := range sources[host] {
+			mirrors = append(mirrors, mirror)
+		}
+		ie, err := newIndexInfo(config, host)
+		if err != nil {
+			return err
+		}
+		config.IndexConfigs[host] = ie
+		config.IndexConfigs[host].Mirrors = mirrors
 	}
-
 	return nil
+}
+
+func trimInsensitive(base, prefix string) string {
+	if strings.HasPrefix(strings.ToLower(base), prefix) {
+		return base[len(prefix):]
+	}
+	return base
 }
 
 // LoadInsecureRegistries loads insecure registries to config
@@ -158,11 +204,11 @@ skip:
 			return err
 		}
 		if strings.HasPrefix(strings.ToLower(r), "http://") {
-			logrus.Warnf("insecure registry %s should not contain 'http://' and 'http://' has been removed from the insecure registry config", r)
-			r = r[7:]
+			logrus.Warnf("insecure registry %s should not contain 'http://'. http://' has been removed from the insecure registry config", r)
+			r = trimInsensitive(r, "http://")
 		} else if strings.HasPrefix(strings.ToLower(r), "https://") {
-			logrus.Warnf("insecure registry %s should not contain 'https://' and 'https://' has been removed from the insecure registry config", r)
-			r = r[8:]
+			logrus.Warnf("insecure registry %s should not contain 'https://'. 'https://' has been removed from the insecure registry config", r)
+			r = trimInsensitive(r, "https://")
 		} else if validateNoScheme(r) != nil {
 			// Insecure registry should not contain '://'
 			// before returning err, roll back to original data
@@ -198,14 +244,6 @@ skip:
 				Official: false,
 			}
 		}
-	}
-
-	// Configure public registry.
-	config.IndexConfigs[IndexName] = &registrytypes.IndexInfo{
-		Name:     IndexName,
-		Mirrors:  config.Mirrors,
-		Secure:   true,
-		Official: true,
 	}
 
 	return nil
@@ -284,7 +322,7 @@ func ValidateMirror(val string) (string, error) {
 func ValidateIndexName(val string) (string, error) {
 	// TODO: upstream this to check to reference package
 	if val == "index.docker.io" {
-		val = "docker.io"
+		val = IndexName
 	}
 	if strings.HasPrefix(val, "-") || strings.HasSuffix(val, "-") {
 		return "", fmt.Errorf("Invalid index name (%s). Cannot begin or end with a hyphen.", val)
@@ -341,9 +379,9 @@ func newIndexInfo(config *serviceConfig, indexName string) (*registrytypes.Index
 	index := &registrytypes.IndexInfo{
 		Name:     indexName,
 		Mirrors:  make([]string, 0),
-		Official: false,
+		Official: indexName == IndexName,
+		Secure:   isSecureIndex(config, indexName),
 	}
-	index.Secure = isSecureIndex(config, indexName)
 	return index, nil
 }
 

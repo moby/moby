@@ -58,7 +58,6 @@ func (s *DefaultService) ServiceConfig() *registrytypes.ServiceConfig {
 	servConfig := registrytypes.ServiceConfig{
 		InsecureRegistryCIDRs: make([]*(registrytypes.NetIPNet), 0),
 		IndexConfigs:          make(map[string]*(registrytypes.IndexInfo)),
-		Mirrors:               make([]string, 0),
 	}
 
 	// construct a new ServiceConfig which will not retrieve s.Config directly,
@@ -68,8 +67,6 @@ func (s *DefaultService) ServiceConfig() *registrytypes.ServiceConfig {
 	for key, value := range s.config.ServiceConfig.IndexConfigs {
 		servConfig.IndexConfigs[key] = value
 	}
-
-	servConfig.Mirrors = append(servConfig.Mirrors, s.config.ServiceConfig.Mirrors...)
 
 	return &servConfig
 }
