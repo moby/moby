@@ -710,7 +710,7 @@ func (sc *serverConn) serve() {
 		return
 	}
 	// Now that we've got the preface, get us out of the
-	// "StateNew" state.  We can't go directly to idle, though.
+	// "StateNew" state. We can't go directly to idle, though.
 	// Active means we read some data and anticipate a request. We'll
 	// do another Active when we get a HEADERS frame.
 	sc.setConnState(http.StateActive)
@@ -2103,8 +2103,8 @@ func (b *requestBody) Read(p []byte) (n int, err error) {
 	return
 }
 
-// responseWriter is the http.ResponseWriter implementation.  It's
-// intentionally small (1 pointer wide) to minimize garbage.  The
+// responseWriter is the http.ResponseWriter implementation. It's
+// intentionally small (1 pointer wide) to minimize garbage. The
 // responseWriterState pointer inside is zeroed at the end of a
 // request (in handlerDone) and calls on the responseWriter thereafter
 // simply crash (caller's mistake), but the much larger responseWriterState
@@ -2278,7 +2278,7 @@ const TrailerPrefix = "Trailer:"
 // says you SHOULD (but not must) predeclare any trailers in the
 // header, the official ResponseWriter rules said trailers in Go must
 // be predeclared, and then we reuse the same ResponseWriter.Header()
-// map to mean both Headers and Trailers.  When it's time to write the
+// map to mean both Headers and Trailers. When it's time to write the
 // Trailers, we pick out the fields of Headers that were declared as
 // trailers. That worked for a while, until we found the first major
 // user of Trailers in the wild: gRPC (using them only over http2),

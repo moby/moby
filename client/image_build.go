@@ -120,6 +120,9 @@ func (cli *Client) imageBuildOptionsToQuery(options types.ImageBuildOptions) (ur
 		return query, err
 	}
 	query.Set("cachefrom", string(cacheFromJSON))
+	if options.SessionID != "" {
+		query.Set("session", options.SessionID)
+	}
 
 	return query, nil
 }

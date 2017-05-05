@@ -575,7 +575,7 @@ func (cc *ClientConn) canTakeNewRequestLocked() bool {
 		cc.nextStreamID < math.MaxInt32
 }
 
-// onIdleTimeout is called from a time.AfterFunc goroutine.  It will
+// onIdleTimeout is called from a time.AfterFunc goroutine. It will
 // only be called when we're idle, but because we're coming from a new
 // goroutine, there could be a new request coming in at the same time,
 // so this simply calls the synchronized closeIfIdle to shut down this
@@ -809,8 +809,8 @@ func (cc *ClientConn) RoundTrip(req *http.Request) (*http.Response, error) {
 			// 2xx, however, then assume the server DOES potentially
 			// want our body (e.g. full-duplex streaming:
 			// golang.org/issue/13444). If it turns out the server
-			// doesn't, they'll RST_STREAM us soon enough.  This is a
-			// heuristic to avoid adding knobs to Transport.  Hopefully
+			// doesn't, they'll RST_STREAM us soon enough. This is a
+			// heuristic to avoid adding knobs to Transport. Hopefully
 			// we can keep it.
 			bodyWriter.cancel()
 			cs.abortRequestBodyWrite(errStopReqBodyWrite)

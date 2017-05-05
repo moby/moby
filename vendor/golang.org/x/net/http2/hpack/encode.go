@@ -45,7 +45,7 @@ func NewEncoder(w io.Writer) *Encoder {
 
 // WriteField encodes f into a single Write to e's underlying Writer.
 // This function may also produce bytes for "Header Table Size Update"
-// if necessary.  If produced, it is done before encoding f.
+// if necessary. If produced, it is done before encoding f.
 func (e *Encoder) WriteField(f HeaderField) error {
 	e.buf = e.buf[:0]
 

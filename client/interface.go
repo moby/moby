@@ -2,6 +2,7 @@ package client
 
 import (
 	"io"
+	"net"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -31,6 +32,7 @@ type CommonAPIClient interface {
 	ClientVersion() string
 	ServerVersion(ctx context.Context) (types.Version, error)
 	UpdateClientVersion(v string)
+	DialSession(ctx context.Context, proto string, meta map[string][]string) (net.Conn, error)
 }
 
 // ContainerAPIClient defines API client methods for the containers

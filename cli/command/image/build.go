@@ -4,6 +4,10 @@ import (
 	"archive/tar"
 	"bufio"
 	"bytes"
+	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -13,14 +17,20 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/builder/dockerignore"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/command/image/build"
+	cliconfig "github.com/docker/docker/cli/config"
+	"github.com/docker/docker/client/session"
+	"github.com/docker/docker/client/session/auth"
+	"github.com/docker/docker/client/session/echo"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/fileutils"
@@ -33,7 +43,6 @@ import (
 	units "github.com/docker/go-units"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"golang.org/x/net/context"
 )
 
 type buildOptions struct {
@@ -143,6 +152,27 @@ func (out *lastProgressOutput) WriteProgress(prog progress.Progress) error {
 	return out.output.WriteProgress(prog)
 }
 
+func isSessionSupported(dockerCli *command.DockerCli) bool {
+	return dockerCli.ServerInfo().HasExperimental && versions.GreaterThanOrEqualTo(dockerCli.Client().ClientVersion(), "1.26")
+}
+
+type authProvider struct {
+	dockerCli      *command.DockerCli
+	progressOutput progress.Output
+}
+
+func (p *authProvider) GetRegistryAuth(ctx context.Context, reg string) (*types.AuthConfig, error) {
+	if reg == "" {
+		return nil, errors.New("No registry specified")
+	}
+	progress.Messagef(p.progressOutput, "registry-auth", "Streaming credentials for registry %s", reg)
+	conf, err := p.dockerCli.CredentialsStore(reg).Get(reg)
+	if err != nil {
+		return nil, nil // ignore error: just returning no auth config
+	}
+	return &conf, nil
+}
+
 func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 	var (
 		buildCtx      io.ReadCloser
@@ -153,6 +183,7 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		relDockerfile string
 		progBuff      io.Writer
 		buildBuff     io.Writer
+		remote        string
 	)
 
 	specifiedContext := options.context
@@ -256,7 +287,8 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		}
 	}
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	var resolvedTags []*resolvedTag
 	if command.IsTrusted() {
@@ -274,9 +306,46 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		progressOutput = &lastProgressOutput{output: progressOutput}
 	}
 
+	if dockerfileCtx != nil && buildCtx == nil {
+		buildCtx = dockerfileCtx
+	}
+	var authConfigs map[string]types.AuthConfig
+	var s *session.ServerSession
+	if isSessionSupported(dockerCli) {
+		sharedKey, err := getBuildSharedKey(contextDir)
+		if err != nil {
+			return errors.Wrap(err, "failed to get build shared key")
+		}
+		s, err = session.NewServerSession(filepath.Base(contextDir), sharedKey)
+		if err != nil {
+			return errors.Wrap(err, "failed to create session")
+		}
+		authConfigs = make(map[string]types.AuthConfig)
+		auth.AttachAuthConfigProviderToSession(&authProvider{dockerCli, progressOutput}, s)
+		s.AllowStream("echoService", "main", "echo", func(stream session.MessageStream) error {
+			for {
+				var msg echo.Msg
+				err := stream.RecvMsg(&msg)
+				if err == io.EOF {
+					progress.Message(progressOutput, "echo", "got EOF")
+					return nil
+				}
+				if err != nil {
+					return err
+				}
+				progress.Messagef(progressOutput, "echo", "got message %s, sending it back", msg.Value)
+				err = stream.SendMsg(&msg)
+				if err != nil {
+					return err
+				}
+			}
+		})
+	} else {
+		authConfigs, _ = dockerCli.GetAllCredentials()
+	}
+
 	var body io.Reader = progress.NewProgressReader(buildCtx, progressOutput, 0, "", "Sending build context to Docker daemon")
 
-	authConfigs, _ := dockerCli.GetAllCredentials()
 	buildOptions := types.ImageBuildOptions{
 		Memory:         options.memory.Value(),
 		MemorySwap:     options.memorySwap.Value(),
@@ -305,6 +374,18 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		Squash:         options.squash,
 		ExtraHosts:     options.extraHosts.GetAll(),
 		Target:         options.target,
+		RemoteContext:  remote,
+	}
+
+	if s != nil {
+		go func() {
+			logrus.Debugf("running session: %v", s.UUID())
+			if err := s.Run(ctx, dockerCli.Client().DialSession); err != nil {
+				logrus.Error(err)
+				cancel()
+			}
+		}()
+		buildOptions.SessionID = s.UUID()
 	}
 
 	response, err := dockerCli.Client().ImageBuild(ctx, body, buildOptions)
@@ -402,6 +483,36 @@ func addDockerfileToBuildContext(dockerfileCtx io.ReadCloser, buildCtx io.ReadCl
 		},
 	})
 	return buildCtx, randomName, nil
+}
+
+func getBuildSharedKey(dir string) (string, error) {
+	// build session is hash of build dir with node based randomness
+	sessionFile := filepath.Join(cliconfig.Dir(), ".buildsharedkey")
+	if _, err := os.Lstat(sessionFile); err != nil {
+		if os.IsNotExist(err) {
+			b := make([]byte, 32)
+			if _, err := rand.Read(b); err != nil {
+				return "", err
+			}
+			if err := os.MkdirAll(cliconfig.Dir(), 0600); err != nil {
+				return "", err
+			}
+			if err := ioutil.WriteFile(sessionFile, []byte(hex.EncodeToString(b)), 0600); err != nil {
+				return "", err
+			}
+		} else {
+			return "", err
+		}
+	}
+
+	dt, err := ioutil.ReadFile(sessionFile)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to read %s", sessionFile)
+
+	}
+
+	s := sha256.Sum256([]byte(fmt.Sprintf("%s:%s", dt, dir)))
+	return hex.EncodeToString(s[:]), nil // add randomness to force recheck
 }
 
 func isLocalDir(c string) bool {

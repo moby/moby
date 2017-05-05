@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -15,6 +17,9 @@ import (
 	"github.com/docker/docker/builder/dockerfile/command"
 	"github.com/docker/docker/builder/dockerfile/parser"
 	"github.com/docker/docker/builder/remotecontext"
+	"github.com/docker/docker/client/session"
+	"github.com/docker/docker/client/session/auth"
+	"github.com/docker/docker/client/session/echo"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
@@ -36,15 +41,26 @@ var validCommitCommands = map[string]bool{
 
 var defaultLogConfig = container.LogConfig{Type: "none"}
 
+// SessionGetter is object used to get access to a session by uuid
+type SessionGetter interface {
+	GetSession(ctx context.Context, uuid string) (context.Context, session.Caller, error)
+}
+
 // BuildManager is shared across all Builder objects
 type BuildManager struct {
 	backend   builder.Backend
 	pathCache pathCache // TODO: make this persistent
+	sg        SessionGetter
 }
 
 // NewBuildManager creates a BuildManager
-func NewBuildManager(b builder.Backend) *BuildManager {
-	return &BuildManager{backend: b, pathCache: &syncmap.Map{}}
+func NewBuildManager(b builder.Backend, sg SessionGetter) (*BuildManager, error) {
+	bm := &BuildManager{
+		backend:   b,
+		pathCache: &syncmap.Map{},
+		sg:        sg,
+	}
+	return bm, nil
 }
 
 // Build starts a new build from a BuildConfig
@@ -65,12 +81,66 @@ func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (
 		}()
 	}
 
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	if config.Options.SessionID != "" && bm.sg != nil {
+		logrus.Debug("client is session enabled")
+		sessionCtx, c, err := bm.sg.GetSession(ctx, config.Options.SessionID)
+		if err != nil {
+			return nil, err
+		}
+		defer c.Close()
+		go func() {
+			<-sessionCtx.Done()
+			cancel()
+		}()
+	}
+
 	builderOptions := builderOptions{
 		Options:        config.Options,
 		ProgressWriter: config.ProgressWriter,
 		Backend:        bm.backend,
 		PathCache:      bm.pathCache,
 	}
+
+	if bm.sg != nil && config.Options.SessionID != "" {
+		_, c, _ := bm.sg.GetSession(ctx, config.Options.SessionID)
+		if c != nil {
+			if p, ok := auth.TryGetAuthConfigProviderClient(c); ok {
+				builderOptions.authProvider = p
+			}
+
+			instanceName := c.ListStreamInstances("echoService")[0]
+			if c.SupportsStream("echoService", instanceName, "echo") {
+				err = c.ConnectToStream(ctx, "echoService", instanceName, "echo", func(stream session.MessageStream) error {
+					done := make(chan interface{})
+					go func() {
+						var receivedMsg echo.Msg
+						for i := 0; i < 3; i++ {
+							stream.RecvMsg(&receivedMsg)
+							logrus.Debugf("received back message %s", receivedMsg.Value)
+						}
+						close(done)
+					}()
+
+					for i := 0; i < 3; i++ {
+						sentMessage := echo.Msg{Value: fmt.Sprintf("Value %d", i)}
+						err := stream.SendMsg(&sentMessage)
+						if err != nil {
+							return err
+						}
+					}
+					<-done
+					return nil
+				})
+			}
+		}
+	}
+	if builderOptions.authProvider == nil {
+		builderOptions.authProvider = &staticAuthConfigProvider{auths: config.Options.AuthConfigs}
+	}
+
 	return newBuilder(ctx, builderOptions).build(source, dockerfile)
 }
 
@@ -80,6 +150,7 @@ type builderOptions struct {
 	Backend        builder.Backend
 	ProgressWriter backend.ProgressWriter
 	PathCache      pathCache
+	authProvider   auth.AuthConfigProvider
 }
 
 // Builder is a Dockerfile builder
@@ -101,6 +172,7 @@ type Builder struct {
 	cacheBusted   bool
 	buildArgs     *buildArgs
 	imageCache    builder.ImageCache
+	authProvider auth.AuthConfigProvider
 }
 
 // newBuilder creates a new Dockerfile builder from an optional dockerfile and a Options.
@@ -109,6 +181,7 @@ func newBuilder(clientCtx context.Context, options builderOptions) *Builder {
 	if config == nil {
 		config = new(types.ImageBuildOptions)
 	}
+
 	b := &Builder{
 		clientCtx:     clientCtx,
 		options:       config,
@@ -118,7 +191,9 @@ func newBuilder(clientCtx context.Context, options builderOptions) *Builder {
 		docker:        options.Backend,
 		tmpContainers: map[string]struct{}{},
 		buildArgs:     newBuildArgs(config.BuildArgs),
+		authProvider:  options.authProvider,
 	}
+
 	b.imageContexts = &imageContexts{b: b, cache: options.PathCache}
 	return b
 }
@@ -134,7 +209,6 @@ func (b *Builder) resetImageCache() {
 // the instructions from the file.
 func (b *Builder) build(source builder.Source, dockerfile *parser.Result) (*builder.Result, error) {
 	defer b.imageContexts.unmount()
-
 	// TODO: Remove source field from Builder
 	b.source = source
 
@@ -233,7 +307,7 @@ func BuildFromConfig(config *container.Config, changes []string) (*container.Con
 		return config, nil
 	}
 
-	b := newBuilder(context.Background(), builderOptions{})
+	b := newBuilder(context.Background(), builderOptions{authProvider: &nilAuthConfigProvider{}})
 
 	dockerfile, err := parser.Parse(bytes.NewBufferString(strings.Join(changes, "\n")))
 	if err != nil {
@@ -285,4 +359,19 @@ func dispatchFromDockerfile(b *Builder, result *parser.Result, dispatchState *di
 		}
 	}
 	return dispatchState.runConfig, nil
+}
+
+type tmpCacheBackend struct {
+	root string
+}
+
+func (tcb *tmpCacheBackend) Get(id string) (string, error) {
+	d := filepath.Join(tcb.root, id)
+	if err := os.MkdirAll(d, 0700); err != nil {
+		return "", errors.Wrapf(err, "failed to create tmp dir for %s", d)
+	}
+	return d, nil
+}
+func (tcb *tmpCacheBackend) Remove(id string) error {
+	return os.RemoveAll(filepath.Join(tcb.root, id))
 }
