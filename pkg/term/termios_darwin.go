@@ -1,35 +1,36 @@
 package term
 
 import (
-	"syscall"
 	"unsafe"
+
+	"golang.org/x/sys/unix"
 )
 
 const (
-	getTermios = syscall.TIOCGETA
-	setTermios = syscall.TIOCSETA
+	getTermios = unix.TIOCGETA
+	setTermios = unix.TIOCSETA
 )
 
-// Termios magic numbers, passthrough to the ones defined in syscall.
+// Termios magic numbers, passthrough to the ones defined in unix.
 const (
-	IGNBRK = syscall.IGNBRK
-	PARMRK = syscall.PARMRK
-	INLCR  = syscall.INLCR
-	IGNCR  = syscall.IGNCR
-	ECHONL = syscall.ECHONL
-	CSIZE  = syscall.CSIZE
-	ICRNL  = syscall.ICRNL
-	ISTRIP = syscall.ISTRIP
-	PARENB = syscall.PARENB
-	ECHO   = syscall.ECHO
-	ICANON = syscall.ICANON
-	ISIG   = syscall.ISIG
-	IXON   = syscall.IXON
-	BRKINT = syscall.BRKINT
-	INPCK  = syscall.INPCK
-	OPOST  = syscall.OPOST
-	CS8    = syscall.CS8
-	IEXTEN = syscall.IEXTEN
+	IGNBRK = unix.IGNBRK
+	PARMRK = unix.PARMRK
+	INLCR  = unix.INLCR
+	IGNCR  = unix.IGNCR
+	ECHONL = unix.ECHONL
+	CSIZE  = unix.CSIZE
+	ICRNL  = unix.ICRNL
+	ISTRIP = unix.ISTRIP
+	PARENB = unix.PARENB
+	ECHO   = unix.ECHO
+	ICANON = unix.ICANON
+	ISIG   = unix.ISIG
+	IXON   = unix.IXON
+	BRKINT = unix.BRKINT
+	INPCK  = unix.INPCK
+	OPOST  = unix.OPOST
+	CS8    = unix.CS8
+	IEXTEN = unix.IEXTEN
 )
 
 // Termios is the Unix API for terminal I/O.
@@ -48,7 +49,7 @@ type Termios struct {
 // restored.
 func MakeRaw(fd uintptr) (*State, error) {
 	var oldState State
-	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, uintptr(getTermios), uintptr(unsafe.Pointer(&oldState.termios))); err != 0 {
+	if _, _, err := unix.Syscall(unix.SYS_IOCTL, fd, uintptr(getTermios), uintptr(unsafe.Pointer(&oldState.termios))); err != 0 {
 		return nil, err
 	}
 
@@ -58,10 +59,10 @@ func MakeRaw(fd uintptr) (*State, error) {
 	newState.Lflag &^= (ECHO | ECHONL | ICANON | ISIG | IEXTEN)
 	newState.Cflag &^= (CSIZE | PARENB)
 	newState.Cflag |= CS8
-	newState.Cc[syscall.VMIN] = 1
-	newState.Cc[syscall.VTIME] = 0
+	newState.Cc[unix.VMIN] = 1
+	newState.Cc[unix.VTIME] = 0
 
-	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, uintptr(setTermios), uintptr(unsafe.Pointer(&newState))); err != 0 {
+	if _, _, err := unix.Syscall(unix.SYS_IOCTL, fd, uintptr(setTermios), uintptr(unsafe.Pointer(&newState))); err != 0 {
 		return nil, err
 	}
 

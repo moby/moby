@@ -5,6 +5,8 @@ package term
 import (
 	"syscall"
 	"unsafe"
+
+	"golang.org/x/sys/unix"
 )
 
 // #include <termios.h>
@@ -13,7 +15,7 @@ import "C"
 // Termios is the Unix API for terminal I/O.
 // It is passthrough for syscall.Termios in order to make it portable with
 // other platforms where it is not available or handled differently.
-type Termios syscall.Termios
+type Termios unix.Termios
 
 // MakeRaw put the terminal connected to the given file descriptor into raw
 // mode and returns the previous state of the terminal so that it can be
