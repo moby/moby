@@ -1511,6 +1511,11 @@ _docker_container_run_and_create() {
 		--env-file
 		--expose
 		--group-add
+		--health-cmd
+		--health-interval
+		--health-retries
+		--health-start-period
+		--health-timeout
 		--hostname -h
 		--ip
 		--ip6
@@ -1566,6 +1571,7 @@ _docker_container_run_and_create() {
 		--help
 		--init
 		--interactive -i
+		--no-healthcheck
 		--oom-kill-disable
 		--privileged
 		--publish-all -P
@@ -1576,14 +1582,9 @@ _docker_container_run_and_create() {
 	if [ "$command" = "run" -o "$subcommand" = "run" ] ; then
 		options_with_args="$options_with_args
 			--detach-keys
-			--health-cmd
-			--health-interval
-			--health-retries
-			--health-timeout
 		"
 		boolean_options="$boolean_options
 			--detach -d
-			--no-healthcheck
 			--rm
 			--sig-proxy=false
 		"
@@ -3030,6 +3031,7 @@ _docker_service_update_and_create() {
 		--health-cmd
 		--health-interval
 		--health-retries
+		--health-start-period
 		--health-timeout
 		--hostname
 		--label -l
@@ -3039,7 +3041,6 @@ _docker_service_update_and_create() {
 		--log-opt
 		--mount
 		--network
-		--no-healthcheck
 		--replicas
 		--reserve-cpu
 		--reserve-memory
@@ -3065,6 +3066,7 @@ _docker_service_update_and_create() {
 
 	local boolean_options="
 		--help
+		--no-healthcheck
 		--read-only
 		--tty -t
 		--with-registry-auth
