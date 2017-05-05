@@ -45,10 +45,10 @@ func (s *DockerSuite) TestInspectDefault(c *check.C) {
 	//Both the container and image are named busybox. docker inspect will fetch the container JSON.
 	//If the container JSON is not available, it will go for the image JSON.
 
-	out, _ := dockerCmd(c, "run", "--name=busybox", "-d", "busybox", "true")
+	out, _ := dockerCmd(c, "run", "--name=busybox1", "-d", "busybox", "true")
 	containerID := strings.TrimSpace(out)
 
-	inspectOut := inspectField(c, "busybox", "Id")
+	inspectOut := inspectField(c, "busybox1", "Id")
 	c.Assert(strings.TrimSpace(inspectOut), checker.Equals, containerID)
 }
 
@@ -366,6 +366,15 @@ func (s *DockerSuite) TestInspectStopWhenNotFound(c *check.C) {
 	c.Assert(result.Stdout(), checker.Contains, "busybox1")
 	c.Assert(result.Stdout(), checker.Contains, "busybox2")
 	c.Assert(result.Stderr(), checker.Contains, "Error: No such container: missing")
+}
+
+func (s *DockerSuite) TestInspectStopWhenObjectTypesMixed(c *check.C) {
+	runSleepingContainer(c, "--name=busybox1", "-d")
+	dockerCmd(c, "volume", "create", "vol1")
+	out, _, err := dockerCmdWithError("inspect", "busybox1", "vol1")
+	c.Assert(err, checker.Not(check.IsNil))
+	c.Assert(out, checker.Contains, "Error: all objects to inspect were expected to be of type container")
+	c.Assert(out, checker.Contains, "vol1 is of type volume")
 }
 
 func (s *DockerSuite) TestInspectHistory(c *check.C) {

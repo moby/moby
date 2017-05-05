@@ -55,7 +55,7 @@ func dockerCmdWithResult(args ...string) *icmd.Result {
 }
 
 func findContainerIP(c *check.C, id string, network string) string {
-	out, _ := dockerCmd(c, "inspect", fmt.Sprintf("--format='{{ .NetworkSettings.Networks.%s.IPAddress }}'", network), id)
+	out, _ := dockerCmd(c, "inspect", "--type", "container", fmt.Sprintf("--format='{{ .NetworkSettings.Networks.%s.IPAddress }}'", network), id)
 	return strings.Trim(out, " \r\n'")
 }
 
