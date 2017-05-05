@@ -75,6 +75,7 @@ by the `docker` command line:
   `docker pull`) in `docker help` output, and only `Management commands` per object-type (e.g., `docker container`) are
   printed. This may become the default in a future release, at which point this environment-variable is removed.
 * `DOCKER_TMPDIR` Location for temporary Docker files.
+* `DOCKER_CUSTOMHEADER` Custom headers that the docker client would include in HTTP requests. This parameter serves the same purpose as the `HttpHeaders` configuration in config.json except the environmental variable would take precedence. The value of the variable should be provided in the format of a JSON object. I.E. `{ "Header" : "value" }`
 
 Because Docker is developed using Go, you can also use any environment
 variables used by the Go runtime. In particular, you may find these useful:
