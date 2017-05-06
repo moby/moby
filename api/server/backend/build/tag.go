@@ -5,7 +5,7 @@ import (
 	"io"
 
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/image"
+	"github.com/docker/docker/monolith/image"
 	"github.com/pkg/errors"
 )
 

@@ -5,7 +5,7 @@
 The Moby Project
 ================
 
-![Moby Project logo](docs/static_files/moby-project-logo.png "The Moby Project")
+![Moby Project logo](static_files/moby-project-logo.png "The Moby Project")
 
 Moby is an open-source project created by Docker to advance the software containerization movement.
 It provides a “Lego set” of dozens of components, the framework for assembling them into custom container-based systems, and a place for all container enthusiasts to experiment and exchange ideas.

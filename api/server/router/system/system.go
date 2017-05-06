@@ -2,7 +2,7 @@ package system
 
 import (
 	"github.com/docker/docker/api/server/router"
-	"github.com/docker/docker/daemon/cluster"
+	"github.com/docker/docker/monolith/daemon/cluster"
 )
 
 // systemRouter provides information about the Docker system overall.

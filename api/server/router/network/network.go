@@ -2,7 +2,7 @@ package network
 
 import (
 	"github.com/docker/docker/api/server/router"
-	"github.com/docker/docker/daemon/cluster"
+	"github.com/docker/docker/monolith/daemon/cluster"
 )
 
 // networkRouter is a router to talk with the network controller

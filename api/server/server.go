@@ -12,7 +12,7 @@ import (
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/server/middleware"
 	"github.com/docker/docker/api/server/router"
-	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/monolith/dockerversion"
 	"github.com/gorilla/mux"
 	"golang.org/x/net/context"
 )

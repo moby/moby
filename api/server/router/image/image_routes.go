@@ -17,7 +17,7 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/streamformatter"
-	"github.com/docker/docker/registry"
+	"github.com/docker/docker/monolith/registry"
 	"golang.org/x/net/context"
 )
 
