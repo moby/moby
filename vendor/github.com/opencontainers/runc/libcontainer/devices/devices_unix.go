@@ -23,7 +23,7 @@ var (
 	ioutilReadDir = ioutil.ReadDir
 )
 
-// Given the path to a device and it's cgroup_permissions(which cannot be easily queried) look up the information about a linux device and return that information as a Device struct.
+// Given the path to a device and its cgroup_permissions(which cannot be easily queried) look up the information about a linux device and return that information as a Device struct.
 func DeviceFromPath(path, permissions string) (*configs.Device, error) {
 	fileInfo, err := osLstat(path)
 	if err != nil {
@@ -75,7 +75,8 @@ func getDevices(path string) ([]*configs.Device, error) {
 		switch {
 		case f.IsDir():
 			switch f.Name() {
-			case "pts", "shm", "fd", "mqueue":
+			// ".lxc" & ".lxd-mounts" added to address https://github.com/lxc/lxd/issues/2825
+			case "pts", "shm", "fd", "mqueue", ".lxc", ".lxd-mounts":
 				continue
 			default:
 				sub, err := getDevices(filepath.Join(path, f.Name()))
@@ -92,6 +93,9 @@ func getDevices(path string) ([]*configs.Device, error) {
 		device, err := DeviceFromPath(filepath.Join(path, f.Name()), "rwm")
 		if err != nil {
 			if err == ErrNotADevice {
+				continue
+			}
+			if os.IsNotExist(err) {
 				continue
 			}
 			return nil, err

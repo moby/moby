@@ -210,6 +210,7 @@ message UpdateResource {
 	repeated ThrottleDevice blkioThrottleWriteBpsDevice = 15;
 	repeated ThrottleDevice blkioThrottleReadIopsDevice = 16;
 	repeated ThrottleDevice blkioThrottleWriteIopsDevice = 17;
+	uint64 pidsLimit = 18;
 }
 
 message BlockIODevice {

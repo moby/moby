@@ -33,6 +33,8 @@ enum sync_t {
 	SYNC_USERMAP_ACK = 0x41, /* Mapping finished by the parent. */
 	SYNC_RECVPID_PLS = 0x42, /* Tell parent we're sending the PID. */
 	SYNC_RECVPID_ACK = 0x43, /* PID was correctly received by parent. */
+	SYNC_GRANDCHILD  = 0x44, /* The grandchild is ready to run. */
+	SYNC_CHILD_READY = 0x45, /* The child or grandchild is ready to return. */
 
 	/* XXX: This doesn't help with segfaults and other such issues. */
 	SYNC_ERR = 0xFF, /* Fatal error, no turning back. The error code follows. */
@@ -70,20 +72,23 @@ struct nlconfig_t {
 	char *namespaces;
 	size_t namespaces_len;
 	uint8_t is_setgroup;
-	int consolefd;
+	uint8_t is_rootless;
+	char *oom_score_adj;
+	size_t oom_score_adj_len;
 };
 
 /*
  * List of netlink message types sent to us as part of bootstrapping the init.
  * These constants are defined in libcontainer/message_linux.go.
  */
-#define INIT_MSG		62000
+#define INIT_MSG			62000
 #define CLONE_FLAGS_ATTR	27281
-#define CONSOLE_PATH_ATTR	27282
-#define NS_PATHS_ATTR		27283
-#define UIDMAP_ATTR		27284
-#define GIDMAP_ATTR		27285
-#define SETGROUP_ATTR		27286
+#define NS_PATHS_ATTR		27282
+#define UIDMAP_ATTR			27283
+#define GIDMAP_ATTR			27284
+#define SETGROUP_ATTR		27285
+#define OOM_SCORE_ADJ_ATTR	27286
+#define ROOTLESS_ATTR	    27287
 
 /*
  * Use the raw syscall for versions of glibc which don't include a function for
@@ -172,6 +177,7 @@ static void update_setgroups(int pid, enum policy_t setgroup)
 			policy = "deny";
 			break;
 		case SETGROUPS_DEFAULT:
+		default:
 			/* Nothing to do. */
 			return;
 	}
@@ -186,7 +192,7 @@ static void update_setgroups(int pid, enum policy_t setgroup)
 	}
 }
 
-static void update_uidmap(int pid, char *map, int map_len)
+static void update_uidmap(int pid, char *map, size_t map_len)
 {
 	if (map == NULL || map_len <= 0)
 		return;
@@ -195,13 +201,22 @@ static void update_uidmap(int pid, char *map, int map_len)
 		bail("failed to update /proc/%d/uid_map", pid);
 }
 
-static void update_gidmap(int pid, char *map, int map_len)
+static void update_gidmap(int pid, char *map, size_t map_len)
 {
 	if (map == NULL || map_len <= 0)
 		return;
 
 	if (write_file(map, map_len, "/proc/%d/gid_map", pid) < 0)
 		bail("failed to update /proc/%d/gid_map", pid);
+}
+
+static void update_oom_score_adj(char *data, size_t len)
+{
+	if (data == NULL || len <= 0)
+		return;
+
+	if (write_file(data, len, "/proc/self/oom_score_adj") < 0)
+		bail("failed to update /proc/self/oom_score_adj");
 }
 
 /* A dummy function that just jumps to the given jumpval. */
@@ -285,7 +300,7 @@ static void nl_parse(int fd, struct nlconfig_t *config)
 	/* Retrieve the netlink header. */
 	len = read(fd, &hdr, NLMSG_HDRLEN);
 	if (len != NLMSG_HDRLEN)
-		bail("invalid netlink header length %lu", len);
+		bail("invalid netlink header length %zu", len);
 
 	if (hdr.nlmsg_type == NLMSG_ERROR)
 		bail("failed to read netlink message");
@@ -301,11 +316,10 @@ static void nl_parse(int fd, struct nlconfig_t *config)
 
 	len = read(fd, data, size);
 	if (len != size)
-		bail("failed to read netlink payload, %lu != %lu", len, size);
+		bail("failed to read netlink payload, %zu != %zu", len, size);
 
 	/* Parse the netlink payload. */
 	config->data = data;
-	config->consolefd = -1;
 	while (current < data + size) {
 		struct nlattr *nlattr = (struct nlattr *)current;
 		size_t payload_len = nlattr->nla_len - NLA_HDRLEN;
@@ -318,14 +332,12 @@ static void nl_parse(int fd, struct nlconfig_t *config)
 		case CLONE_FLAGS_ATTR:
 			config->cloneflags = readint32(current);
 			break;
-		case CONSOLE_PATH_ATTR:
-			/*
-			 * We open the console here because we currently evaluate console
-			 * paths from the *host* namespaces.
-			 */
-			config->consolefd = open(current, O_RDWR);
-			if (config->consolefd < 0)
-				bail("failed to open console %s", current);
+		case ROOTLESS_ATTR:
+			config->is_rootless = readint8(current);
+			break;
+		case OOM_SCORE_ADJ_ATTR:
+			config->oom_score_adj = current;
+			config->oom_score_adj_len = payload_len;
 			break;
 		case NS_PATHS_ATTR:
 			config->namespaces = current;
@@ -394,7 +406,7 @@ void join_namespaces(char *nslist)
 
 		fd = open(path, O_RDONLY);
 		if (fd < 0)
-			bail("failed to open %s", namespace);
+			bail("failed to open %s", path);
 
 		ns->fd = fd;
 		ns->ns = nsflag(namespace);
@@ -424,7 +436,7 @@ void nsexec(void)
 {
 	int pipenum;
 	jmp_buf env;
-	int syncpipe[2];
+	int sync_child_pipe[2], sync_grandchild_pipe[2];
 	struct nlconfig_t config = {0};
 
 	/*
@@ -435,17 +447,42 @@ void nsexec(void)
 	if (pipenum == -1)
 		return;
 
-	/* make the process non-dumpable */
-	if (prctl(PR_SET_DUMPABLE, 0, 0, 0, 0) != 0) {
-		bail("failed to set process as non-dumpable");
-	}
-
 	/* Parse all of the netlink configuration. */
 	nl_parse(pipenum, &config);
 
+	/* Set oom_score_adj. This has to be done before !dumpable because
+	 * /proc/self/oom_score_adj is not writeable unless you're an privileged
+	 * user (if !dumpable is set). All children inherit their parent's
+	 * oom_score_adj value on fork(2) so this will always be propagated
+	 * properly.
+	 */
+	update_oom_score_adj(config.oom_score_adj, config.oom_score_adj_len);
+
+	/*
+	 * Make the process non-dumpable, to avoid various race conditions that
+	 * could cause processes in namespaces we're joining to access host
+	 * resources (or potentially execute code).
+	 *
+	 * However, if the number of namespaces we are joining is 0, we are not
+	 * going to be switching to a different security context. Thus setting
+	 * ourselves to be non-dumpable only breaks things (like rootless
+	 * containers), which is the recommendation from the kernel folks.
+	 */
+	if (config.namespaces) {
+		if (prctl(PR_SET_DUMPABLE, 0, 0, 0, 0) < 0)
+			bail("failed to set process as non-dumpable");
+	}
+
 	/* Pipe so we can tell the child when we've finished setting up. */
-	if (socketpair(AF_LOCAL, SOCK_STREAM, 0, syncpipe) < 0)
+	if (socketpair(AF_LOCAL, SOCK_STREAM, 0, sync_child_pipe) < 0)
 		bail("failed to setup sync pipe between parent and child");
+
+	/*
+	 * We need a new socketpair to sync with grandchild so we don't have
+	 * race condition with child.
+	 */
+	if (socketpair(AF_LOCAL, SOCK_STREAM, 0, sync_grandchild_pipe) < 0)
+		bail("failed to setup sync pipe between parent and grandchild");
 
 	/* TODO: Currently we aren't dealing with child deaths properly. */
 
@@ -508,6 +545,7 @@ void nsexec(void)
 			int len;
 			pid_t child;
 			char buf[JSON_MAX];
+			bool ready = false;
 
 			/* For debugging. */
 			prctl(PR_SET_NAME, (unsigned long) "runc:[0:PARENT]", 0, 0, 0);
@@ -517,31 +555,46 @@ void nsexec(void)
 			if (child < 0)
 				bail("unable to fork: child_func");
 
-			/* State machine for synchronisation with the children. */
-			while (true) {
+			/*
+			 * State machine for synchronisation with the children.
+			 *
+			 * Father only return when both child and grandchild are
+			 * ready, so we can receive all possible error codes
+			 * generated by children.
+			 */
+			while (!ready) {
 				enum sync_t s;
+				int ret;
 
-				/* This doesn't need to be global, we're in the parent. */
-				int syncfd = syncpipe[1];
+				syncfd = sync_child_pipe[1];
+				close(sync_child_pipe[0]);
 
 				if (read(syncfd, &s, sizeof(s)) != sizeof(s))
 					bail("failed to sync with child: next state");
 
 				switch (s) {
-				case SYNC_ERR: {
-						/* We have to mirror the error code of the child. */
-						int ret;
+				case SYNC_ERR:
+					/* We have to mirror the error code of the child. */
+					if (read(syncfd, &ret, sizeof(ret)) != sizeof(ret))
+						bail("failed to sync with child: read(error code)");
 
-						if (read(syncfd, &ret, sizeof(ret)) != sizeof(ret))
-							bail("failed to sync with child: read(error code)");
-
-						exit(ret);
-					}
-					break;
+					exit(ret);
 				case SYNC_USERMAP_PLS:
-					/* Enable setgroups(2) if we've been asked to. */
+					/*
+					 * Enable setgroups(2) if we've been asked to. But we also
+					 * have to explicitly disable setgroups(2) if we're
+					 * creating a rootless container (this is required since
+					 * Linux 3.19).
+					 */
+					if (config.is_rootless && config.is_setgroup) {
+						kill(child, SIGKILL);
+						bail("cannot allow setgroup in an unprivileged user namespace setup");
+					}
+
 					if (config.is_setgroup)
 						update_setgroups(child, SETGROUPS_ALLOW);
+					if (config.is_rootless)
+						update_setgroups(child, SETGROUPS_DENY);
 
 					/* Set up mappings. */
 					update_uidmap(child, config.uidmap, config.uidmap_len);
@@ -552,11 +605,6 @@ void nsexec(void)
 						kill(child, SIGKILL);
 						bail("failed to sync with child: write(SYNC_USERMAP_ACK)");
 					}
-					break;
-				case SYNC_USERMAP_ACK:
-					/* We should _never_ receive acks. */
-					kill(child, SIGKILL);
-					bail("failed to sync with child: unexpected SYNC_USERMAP_ACK");
 					break;
 				case SYNC_RECVPID_PLS: {
 						pid_t old = child;
@@ -575,18 +623,49 @@ void nsexec(void)
 							bail("failed to sync with child: write(SYNC_RECVPID_ACK)");
 						}
 					}
-
-					/* Leave the loop. */
-					goto out;
-				case SYNC_RECVPID_ACK:
-					/* We should _never_ receive acks. */
-					kill(child, SIGKILL);
-					bail("failed to sync with child: unexpected SYNC_RECVPID_ACK");
 					break;
+				case SYNC_CHILD_READY:
+					ready = true;
+					break;
+				default:
+					bail("unexpected sync value: %u", s);
 				}
 			}
 
-		out:
+			/* Now sync with grandchild. */
+
+			ready = false;
+			while (!ready) {
+				enum sync_t s;
+				int ret;
+
+				syncfd = sync_grandchild_pipe[1];
+				close(sync_grandchild_pipe[0]);
+
+				s = SYNC_GRANDCHILD;
+				if (write(syncfd, &s, sizeof(s)) != sizeof(s)) {
+					kill(child, SIGKILL);
+					bail("failed to sync with child: write(SYNC_GRANDCHILD)");
+				}
+
+				if (read(syncfd, &s, sizeof(s)) != sizeof(s))
+					bail("failed to sync with child: next state");
+
+				switch (s) {
+				case SYNC_ERR:
+					/* We have to mirror the error code of the child. */
+					if (read(syncfd, &ret, sizeof(ret)) != sizeof(ret))
+						bail("failed to sync with child: read(error code)");
+
+					exit(ret);
+				case SYNC_CHILD_READY:
+					ready = true;
+					break;
+				default:
+					bail("unexpected sync value: %u", s);
+				}
+			}
+
 			/* Send the init_func pid back to our parent. */
 			len = snprintf(buf, JSON_MAX, "{\"pid\": %d}\n", child);
 			if (len < 0) {
@@ -615,7 +694,8 @@ void nsexec(void)
 			enum sync_t s;
 
 			/* We're in a child and thus need to tell the parent if we die. */
-			syncfd = syncpipe[0];
+			syncfd = sync_child_pipe[0];
+			close(sync_child_pipe[1]);
 
 			/* For debugging. */
 			prctl(PR_SET_NAME, (unsigned long) "runc:[1:CHILD]", 0, 0, 0);
@@ -653,6 +733,11 @@ void nsexec(void)
 				 * clone_parent rant). So signal our parent to hook us up.
 				 */
 
+				/* Switching is only necessary if we joined namespaces. */
+				if (config.namespaces) {
+					if (prctl(PR_SET_DUMPABLE, 1, 0, 0, 0) < 0)
+						bail("failed to set process as dumpable");
+				}
 				s = SYNC_USERMAP_PLS;
 				if (write(syncfd, &s, sizeof(s)) != sizeof(s))
 					bail("failed to sync with parent: write(SYNC_USERMAP_PLS)");
@@ -663,6 +748,11 @@ void nsexec(void)
 					bail("failed to sync with parent: read(SYNC_USERMAP_ACK)");
 				if (s != SYNC_USERMAP_ACK)
 					bail("failed to sync with parent: SYNC_USERMAP_ACK: got %u", s);
+				/* Switching is only necessary if we joined namespaces. */
+				if (config.namespaces) {
+					if (prctl(PR_SET_DUMPABLE, 0, 0, 0, 0) < 0)
+						bail("failed to set process as dumpable");
+				}
 			}
 
 			/*
@@ -700,6 +790,12 @@ void nsexec(void)
 				bail("failed to sync with parent: SYNC_RECVPID_ACK: got %u", s);
 			}
 
+			s = SYNC_CHILD_READY;
+			if (write(syncfd, &s, sizeof(s)) != sizeof(s)) {
+				kill(child, SIGKILL);
+				bail("failed to sync with parent: write(SYNC_CHILD_READY)");
+			}
+
 			/* Our work is done. [Stage 2: JUMP_INIT] is doing the rest of the work. */
 			exit(0);
 		}
@@ -715,13 +811,21 @@ void nsexec(void)
 			 * We're inside the child now, having jumped from the
 			 * start_child() code after forking in the parent.
 			 */
-			int consolefd = config.consolefd;
+			enum sync_t s;
 
 			/* We're in a child and thus need to tell the parent if we die. */
-			syncfd = syncpipe[0];
+			syncfd = sync_grandchild_pipe[0];
+			close(sync_grandchild_pipe[1]);
+			close(sync_child_pipe[0]);
+			close(sync_child_pipe[1]);
 
 			/* For debugging. */
 			prctl(PR_SET_NAME, (unsigned long) "runc:[2:INIT]", 0, 0, 0);
+
+			if (read(syncfd, &s, sizeof(s)) != sizeof(s))
+				bail("failed to sync with parent: read(SYNC_GRANDCHILD)");
+			if (s != SYNC_GRANDCHILD)
+				bail("failed to sync with parent: SYNC_GRANDCHILD: got %u", s);
 
 			if (setsid() < 0)
 				bail("setsid failed");
@@ -732,23 +836,17 @@ void nsexec(void)
 			if (setgid(0) < 0)
 				bail("setgid failed");
 
-			if (setgroups(0, NULL) < 0)
-				bail("setgroups failed");
-
-			if (consolefd != -1) {
-				if (ioctl(consolefd, TIOCSCTTY, 0) < 0)
-					bail("ioctl TIOCSCTTY failed");
-				if (dup3(consolefd, STDIN_FILENO, 0) != STDIN_FILENO)
-					bail("failed to dup stdin");
-				if (dup3(consolefd, STDOUT_FILENO, 0) != STDOUT_FILENO)
-					bail("failed to dup stdout");
-				if (dup3(consolefd, STDERR_FILENO, 0) != STDERR_FILENO)
-					bail("failed to dup stderr");
+			if (!config.is_rootless && config.is_setgroup) {
+				if (setgroups(0, NULL) < 0)
+					bail("setgroups failed");
 			}
 
+			s = SYNC_CHILD_READY;
+			if (write(syncfd, &s, sizeof(s)) != sizeof(s))
+				bail("failed to sync with patent: write(SYNC_CHILD_READY)");
+
 			/* Close sync pipes. */
-			close(syncpipe[0]);
-			close(syncpipe[1]);
+			close(sync_grandchild_pipe[0]);
 
 			/* Free netlink data. */
 			nl_free(&config);
@@ -758,7 +856,6 @@ void nsexec(void)
 		}
 	default:
 		bail("unexpected jump value");
-		break;
 	}
 
 	/* Should never be reached. */
