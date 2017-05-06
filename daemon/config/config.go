@@ -97,6 +97,7 @@ type CommonConfig struct {
 	GraphOptions         []string                  `json:"storage-opts,omitempty"`
 	Labels               []string                  `json:"labels,omitempty"`
 	Mtu                  int                       `json:"mtu,omitempty"`
+	NetworkDiagnose      int                       `json:"network-diagnose,omitempty"`
 	Pidfile              string                    `json:"pidfile,omitempty"`
 	RawLogs              bool                      `json:"raw-logs,omitempty"`
 	RootDeprecated       string                    `json:"graph,omitempty"`

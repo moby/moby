@@ -57,6 +57,9 @@ func (daemon *Daemon) Reload(conf *config.Config) (err error) {
 	if err := daemon.reloadLiveRestore(conf, attributes); err != nil {
 		return err
 	}
+	if err := daemon.reloadNetworkDiagnose(conf, attributes); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -280,5 +283,17 @@ func (daemon *Daemon) reloadLiveRestore(conf *config.Config, attributes map[stri
 
 	// prepare reload event attributes with updatable configurations
 	attributes["live-restore"] = fmt.Sprintf("%t", daemon.configStore.LiveRestoreEnabled)
+	return nil
+}
+
+// reloadNetworkDiagnose updates the network controller starting the diagnose mode if the config is valid
+func (daemon *Daemon) reloadNetworkDiagnose(conf *config.Config, attributes map[string]string) error {
+	// Enable the network diagnose if the flag is set with a valid port withing the range
+	if conf.IsValueSet("network-diagnose") && conf.NetworkDiagnose > 0 && conf.NetworkDiagnose < 65536 {
+		logrus.Errorf("CAlling the diagnode start with %d", conf.NetworkDiagnose)
+		daemon.netController.StartDiagnose(conf.NetworkDiagnose)
+	} else {
+		daemon.netController.StopDiagnose()
+	}
 	return nil
 }
