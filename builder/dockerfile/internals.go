@@ -7,31 +7,15 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"io"
-	"net/http"
-	"net/url"
-	"os"
-	"path/filepath"
-	"runtime"
-	"sort"
 	"strings"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/builder"
-	"github.com/docker/docker/builder/remotecontext"
 	containerpkg "github.com/docker/docker/container"
-	"github.com/docker/docker/pkg/httputils"
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/jsonmessage"
-	"github.com/docker/docker/pkg/progress"
-	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/system"
-	"github.com/docker/docker/pkg/urlutil"
 	"github.com/pkg/errors"
 )
 
@@ -83,90 +67,14 @@ func (b *Builder) commitContainer(dispatchState *dispatchState, id string, conta
 	return nil
 }
 
-type copyInfo struct {
-	root       string
-	path       string
-	hash       string
-	decompress bool
-}
-
-// TODO: this needs to be split so that a Builder method doesn't accept req
-func (b *Builder) runContextCommand(req dispatchRequest, allowRemote bool, allowLocalDecompression bool, cmdName string, imageSource *imageMount) error {
-	args := req.args
-	if len(args) < 2 {
-		return fmt.Errorf("Invalid %s format - at least two arguments required", cmdName)
-	}
-
-	// Work in daemon-specific filepath semantics
-	dest := filepath.FromSlash(args[len(args)-1]) // last one is always the dest
-
-	var infos []copyInfo
-
-	// Loop through each src file and calculate the info we need to
-	// do the copy (e.g. hash value if cached).  Don't actually do
-	// the copy until we've looked at all src files
-	var err error
-	for _, orig := range args[0 : len(args)-1] {
-		if urlutil.IsURL(orig) {
-			if !allowRemote {
-				return fmt.Errorf("Source can't be a URL for %s", cmdName)
-			}
-			remote, path, err := b.download(orig)
-			if err != nil {
-				return err
-			}
-			defer os.RemoveAll(remote.Root())
-			h, err := remote.Hash(path)
-			if err != nil {
-				return err
-			}
-			infos = append(infos, copyInfo{
-				root: remote.Root(),
-				path: path,
-				hash: h,
-			})
-			continue
-		}
-		// not a URL
-		subInfos, err := b.calcCopyInfo(cmdName, orig, allowLocalDecompression, true, imageSource)
-		if err != nil {
-			return err
-		}
-
-		infos = append(infos, subInfos...)
-	}
-
-	if len(infos) == 0 {
-		return errors.New("No source files were specified")
-	}
-	if len(infos) > 1 && !strings.HasSuffix(dest, string(os.PathSeparator)) {
-		return fmt.Errorf("When using %s with more than one source file, the destination must be a directory and end with a /", cmdName)
-	}
-
-	// For backwards compat, if there's just one info then use it as the
-	// cache look-up string, otherwise hash 'em all into one
-	var srcHash string
-
-	if len(infos) == 1 {
-		info := infos[0]
-		srcHash = info.hash
-	} else {
-		var hashs []string
-		var origs []string
-		for _, info := range infos {
-			origs = append(origs, info.path)
-			hashs = append(hashs, info.hash)
-		}
-		hasher := sha256.New()
-		hasher.Write([]byte(strings.Join(hashs, ",")))
-		srcHash = "multi:" + hex.EncodeToString(hasher.Sum(nil))
-	}
+func (b *Builder) performCopy(state *dispatchState, inst copyInstruction) error {
+	srcHash := getSourceHashFromInfos(inst.infos)
 
 	// TODO: should this have been using origPaths instead of srcHash in the comment?
 	runConfigWithCommentCmd := copyRunConfig(
-		req.state.runConfig,
-		withCmdCommentString(fmt.Sprintf("%s %s in %s ", cmdName, srcHash, dest)))
-	if hit, err := b.probeCache(req.state, runConfigWithCommentCmd); err != nil || hit {
+		state.runConfig,
+		withCmdCommentString(fmt.Sprintf("%s %s in %s ", inst.cmdName, srcHash, inst.dest)))
+	if hit, err := b.probeCache(state, runConfigWithCommentCmd); err != nil || hit {
 		return err
 	}
 
@@ -182,17 +90,36 @@ func (b *Builder) runContextCommand(req dispatchRequest, allowRemote bool, allow
 
 	// Twiddle the destination when it's a relative path - meaning, make it
 	// relative to the WORKINGDIR
-	if dest, err = normaliseDest(cmdName, req.state.runConfig.WorkingDir, dest); err != nil {
+	dest, err := normaliseDest(inst.cmdName, state.runConfig.WorkingDir, inst.dest)
+	if err != nil {
 		return err
 	}
 
-	for _, info := range infos {
-		if err := b.docker.CopyOnBuild(container.ID, dest, info.root, info.path, info.decompress); err != nil {
+	for _, info := range inst.infos {
+		if err := b.docker.CopyOnBuild(container.ID, dest, info.root, info.path, inst.allowLocalDecompression); err != nil {
 			return err
 		}
 	}
+	return b.commitContainer(state, container.ID, runConfigWithCommentCmd)
+}
 
-	return b.commitContainer(req.state, container.ID, runConfigWithCommentCmd)
+// For backwards compat, if there's just one info then use it as the
+// cache look-up string, otherwise hash 'em all into one
+func getSourceHashFromInfos(infos []copyInfo) string {
+	if len(infos) == 1 {
+		return infos[0].hash
+	}
+	var hashs []string
+	for _, info := range infos {
+		hashs = append(hashs, info.hash)
+	}
+	return hashStringSlice("multi", hashs)
+}
+
+func hashStringSlice(prefix string, slice []string) string {
+	hasher := sha256.New()
+	hasher.Write([]byte(strings.Join(slice, ",")))
+	return prefix + ":" + hex.EncodeToString(hasher.Sum(nil))
 }
 
 type runConfigModifier func(*container.Config)
@@ -257,227 +184,6 @@ func getShell(c *container.Config) []string {
 		return append([]string{}, defaultShell[:]...)
 	}
 	return append([]string{}, c.Shell[:]...)
-}
-
-func (b *Builder) download(srcURL string) (remote builder.Source, p string, err error) {
-	// get filename from URL
-	u, err := url.Parse(srcURL)
-	if err != nil {
-		return
-	}
-	path := filepath.FromSlash(u.Path) // Ensure in platform semantics
-	if strings.HasSuffix(path, string(os.PathSeparator)) {
-		path = path[:len(path)-1]
-	}
-	parts := strings.Split(path, string(os.PathSeparator))
-	filename := parts[len(parts)-1]
-	if filename == "" {
-		err = fmt.Errorf("cannot determine filename from url: %s", u)
-		return
-	}
-
-	// Initiate the download
-	resp, err := httputils.Download(srcURL)
-	if err != nil {
-		return
-	}
-
-	// Prepare file in a tmp dir
-	tmpDir, err := ioutils.TempDir("", "docker-remote")
-	if err != nil {
-		return
-	}
-	defer func() {
-		if err != nil {
-			os.RemoveAll(tmpDir)
-		}
-	}()
-	tmpFileName := filepath.Join(tmpDir, filename)
-	tmpFile, err := os.OpenFile(tmpFileName, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
-	if err != nil {
-		return
-	}
-
-	progressOutput := streamformatter.NewJSONProgressOutput(b.Output, true)
-	progressReader := progress.NewProgressReader(resp.Body, progressOutput, resp.ContentLength, "", "Downloading")
-	// Download and dump result to tmp file
-	// TODO: add filehash directly
-	if _, err = io.Copy(tmpFile, progressReader); err != nil {
-		tmpFile.Close()
-		return
-	}
-	fmt.Fprintln(b.Stdout)
-
-	// Set the mtime to the Last-Modified header value if present
-	// Otherwise just remove atime and mtime
-	mTime := time.Time{}
-
-	lastMod := resp.Header.Get("Last-Modified")
-	if lastMod != "" {
-		// If we can't parse it then just let it default to 'zero'
-		// otherwise use the parsed time value
-		if parsedMTime, err := http.ParseTime(lastMod); err == nil {
-			mTime = parsedMTime
-		}
-	}
-
-	tmpFile.Close()
-
-	if err = system.Chtimes(tmpFileName, mTime, mTime); err != nil {
-		return
-	}
-
-	lc, err := remotecontext.NewLazyContext(tmpDir)
-	if err != nil {
-		return
-	}
-
-	return lc, filename, nil
-}
-
-var windowsBlacklist = map[string]bool{
-	"c:\\":        true,
-	"c:\\windows": true,
-}
-
-func (b *Builder) calcCopyInfo(cmdName, origPath string, allowLocalDecompression, allowWildcards bool, imageSource *imageMount) ([]copyInfo, error) {
-
-	// Work in daemon-specific OS filepath semantics
-	origPath = filepath.FromSlash(origPath)
-	// validate windows paths from other images
-	if imageSource != nil && runtime.GOOS == "windows" {
-		p := strings.ToLower(filepath.Clean(origPath))
-		if !filepath.IsAbs(p) {
-			if filepath.VolumeName(p) != "" {
-				if p[len(p)-2:] == ":." { // case where clean returns weird c:. paths
-					p = p[:len(p)-1]
-				}
-				p += "\\"
-			} else {
-				p = filepath.Join("c:\\", p)
-			}
-		}
-		if _, blacklisted := windowsBlacklist[p]; blacklisted {
-			return nil, errors.New("copy from c:\\ or c:\\windows is not allowed on windows")
-		}
-	}
-
-	if origPath != "" && origPath[0] == os.PathSeparator && len(origPath) > 1 {
-		origPath = origPath[1:]
-	}
-	origPath = strings.TrimPrefix(origPath, "."+string(os.PathSeparator))
-
-	source := b.source
-	var err error
-	if imageSource != nil {
-		source, err = imageSource.Source()
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to copy")
-		}
-	}
-
-	if source == nil {
-		return nil, errors.Errorf("No context given. Impossible to use %s", cmdName)
-	}
-
-	// Deal with wildcards
-	if allowWildcards && containsWildcards(origPath) {
-		var copyInfos []copyInfo
-		if err := filepath.Walk(source.Root(), func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-			rel, err := remotecontext.Rel(source.Root(), path)
-			if err != nil {
-				return err
-			}
-			if rel == "." {
-				return nil
-			}
-			if match, _ := filepath.Match(origPath, rel); !match {
-				return nil
-			}
-
-			// Note we set allowWildcards to false in case the name has
-			// a * in it
-			subInfos, err := b.calcCopyInfo(cmdName, rel, allowLocalDecompression, false, imageSource)
-			if err != nil {
-				return err
-			}
-			copyInfos = append(copyInfos, subInfos...)
-			return nil
-		}); err != nil {
-			return nil, err
-		}
-		return copyInfos, nil
-	}
-
-	// Must be a dir or a file
-	hash, err := source.Hash(origPath)
-	if err != nil {
-		return nil, err
-	}
-
-	fi, err := remotecontext.StatAt(source, origPath)
-	if err != nil {
-		return nil, err
-	}
-
-	// TODO: remove, handle dirs in Hash()
-	copyInfos := []copyInfo{{root: source.Root(), path: origPath, hash: hash, decompress: allowLocalDecompression}}
-
-	if imageSource != nil {
-		// fast-cache based on imageID
-		if h, ok := b.imageSources.getCache(imageSource.Image().ImageID(), origPath); ok {
-			copyInfos[0].hash = h.(string)
-			return copyInfos, nil
-		}
-	}
-
-	// Deal with the single file case
-	if !fi.IsDir() {
-		copyInfos[0].hash = "file:" + copyInfos[0].hash
-		return copyInfos, nil
-	}
-
-	fp, err := remotecontext.FullPath(source, origPath)
-	if err != nil {
-		return nil, err
-	}
-	// Must be a dir
-	var subfiles []string
-	err = filepath.Walk(fp, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		rel, err := remotecontext.Rel(source.Root(), path)
-		if err != nil {
-			return err
-		}
-		if rel == "." {
-			return nil
-		}
-		hash, err := source.Hash(rel)
-		if err != nil {
-			return nil
-		}
-		// we already checked handleHash above
-		subfiles = append(subfiles, hash)
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	sort.Strings(subfiles)
-	hasher := sha256.New()
-	hasher.Write([]byte(strings.Join(subfiles, ",")))
-	copyInfos[0].hash = "dir:" + hex.EncodeToString(hasher.Sum(nil))
-	if imageSource != nil {
-		b.imageSources.setCache(imageSource.Image().ImageID(), origPath, copyInfos[0].hash)
-	}
-
-	return copyInfos, nil
 }
 
 // probeCache checks if cache match can be found for current build instruction.
