@@ -133,7 +133,7 @@ You can specify to which of the three standard streams (`STDIN`, `STDOUT`,
 For interactive processes (like a shell), you must use `-i -t` together in
 order to allocate a tty for the container process. `-i -t` is often written `-it`
 as you'll see in later examples.  Specifying `-t` is forbidden when the client
-standard output is redirected or piped, such as in:
+is receiving its standard input from a pipe, as in:
 
     $ echo test | docker run -i busybox cat
 
