@@ -18,6 +18,7 @@ var basicFunctions = template.FuncMap{
 	"title":    strings.Title,
 	"lower":    strings.ToLower,
 	"upper":    strings.ToUpper,
+	"replace":  strings.Replace,
 	"pad":      padWithSpace,
 	"truncate": truncateWithLength,
 }
