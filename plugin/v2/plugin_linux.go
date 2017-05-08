@@ -42,7 +42,7 @@ func (p *Plugin) InitSpec(execRoot string) (*specs.Spec, error) {
 	if p.PluginObj.Config.Network.Type != "" {
 		// TODO: if net == bridge, use libnetwork controller to create a new plugin-specific bridge, bind mount /etc/hosts and /etc/resolv.conf look at the docker code (allocateNetwork, initialize)
 		if p.PluginObj.Config.Network.Type == "host" {
-			oci.RemoveNamespace(&s, specs.NamespaceType("network"))
+			oci.RemoveNamespace(&s, specs.LinuxNamespaceType("network"))
 		}
 		etcHosts := "/etc/hosts"
 		resolvConf := "/etc/resolv.conf"
@@ -61,11 +61,11 @@ func (p *Plugin) InitSpec(execRoot string) (*specs.Spec, error) {
 			})
 	}
 	if p.PluginObj.Config.PidHost {
-		oci.RemoveNamespace(&s, specs.NamespaceType("pid"))
+		oci.RemoveNamespace(&s, specs.LinuxNamespaceType("pid"))
 	}
 
 	if p.PluginObj.Config.IpcHost {
-		oci.RemoveNamespace(&s, specs.NamespaceType("ipc"))
+		oci.RemoveNamespace(&s, specs.LinuxNamespaceType("ipc"))
 	}
 
 	for _, mnt := range mounts {
@@ -95,8 +95,7 @@ func (p *Plugin) InitSpec(execRoot string) (*specs.Spec, error) {
 	}
 
 	if p.PluginObj.Config.Linux.AllowAllDevices {
-		rwm := "rwm"
-		s.Linux.Resources.Devices = []specs.DeviceCgroup{{Allow: true, Access: &rwm}}
+		s.Linux.Resources.Devices = []specs.LinuxDeviceCgroup{{Allow: true, Access: "rwm"}}
 	}
 	for _, dev := range p.PluginObj.Settings.Devices {
 		path := *dev.Path
@@ -122,7 +121,11 @@ func (p *Plugin) InitSpec(execRoot string) (*specs.Spec, error) {
 	s.Process.Cwd = cwd
 	s.Process.Env = envs
 
-	s.Process.Capabilities = append(s.Process.Capabilities, p.PluginObj.Config.Linux.Capabilities...)
+	caps := s.Process.Capabilities
+	caps.Bounding = append(caps.Bounding, p.PluginObj.Config.Linux.Capabilities...)
+	caps.Permitted = append(caps.Permitted, p.PluginObj.Config.Linux.Capabilities...)
+	caps.Inheritable = append(caps.Inheritable, p.PluginObj.Config.Linux.Capabilities...)
+	caps.Effective = append(caps.Effective, p.PluginObj.Config.Linux.Capabilities...)
 
 	return &s, nil
 }

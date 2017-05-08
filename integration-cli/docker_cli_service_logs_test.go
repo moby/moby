@@ -281,7 +281,7 @@ func (s *DockerSwarmSuite) TestServiceLogsTTY(c *check.C) {
 	result = icmd.RunCmd(cmd)
 	// for some reason there is carriage return in the output. i think this is
 	// just expected.
-	c.Assert(result, icmd.Matches, icmd.Expected{Out: "out\r\nerr\r\n"})
+	c.Assert(result, icmd.Matches, icmd.Expected{Out: "out\nerr\n"})
 }
 
 func (s *DockerSwarmSuite) TestServiceLogsNoHangDeletedContainer(c *check.C) {
