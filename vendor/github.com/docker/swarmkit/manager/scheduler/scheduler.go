@@ -125,15 +125,15 @@ func (s *Scheduler) Run(ctx context.Context) error {
 		commitDebounceTimeout <-chan time.Time
 	)
 
-	pendingChanges := 0
+	tickRequired := false
 
 	schedule := func() {
 		if len(s.preassignedTasks) > 0 {
 			s.processPreassignedTasks(ctx)
 		}
-		if pendingChanges > 0 {
+		if tickRequired {
 			s.tick(ctx)
-			pendingChanges = 0
+			tickRequired = false
 		}
 	}
 
@@ -143,17 +143,24 @@ func (s *Scheduler) Run(ctx context.Context) error {
 		case event := <-updates:
 			switch v := event.(type) {
 			case api.EventCreateTask:
-				pendingChanges += s.createTask(ctx, v.Task)
+				if s.createTask(ctx, v.Task) {
+					tickRequired = true
+				}
 			case api.EventUpdateTask:
-				pendingChanges += s.updateTask(ctx, v.Task)
+				if s.updateTask(ctx, v.Task) {
+					tickRequired = true
+				}
 			case api.EventDeleteTask:
-				s.deleteTask(ctx, v.Task)
+				if s.deleteTask(ctx, v.Task) {
+					// deleting tasks may free up node resource, pending tasks should be re-evaluated.
+					tickRequired = true
+				}
 			case api.EventCreateNode:
 				s.createOrUpdateNode(v.Node)
-				pendingChanges++
+				tickRequired = true
 			case api.EventUpdateNode:
 				s.createOrUpdateNode(v.Node)
-				pendingChanges++
+				tickRequired = true
 			case api.EventDeleteNode:
 				s.nodeSet.remove(v.Node.ID)
 			case state.EventCommit:
@@ -193,24 +200,24 @@ func (s *Scheduler) enqueue(t *api.Task) {
 	s.unassignedTasks[t.ID] = t
 }
 
-func (s *Scheduler) createTask(ctx context.Context, t *api.Task) int {
+func (s *Scheduler) createTask(ctx context.Context, t *api.Task) bool {
 	// Ignore all tasks that have not reached PENDING
 	// state, and tasks that no longer consume resources.
 	if t.Status.State < api.TaskStatePending || t.Status.State > api.TaskStateRunning {
-		return 0
+		return false
 	}
 
 	s.allTasks[t.ID] = t
 	if t.NodeID == "" {
 		// unassigned task
 		s.enqueue(t)
-		return 1
+		return true
 	}
 
 	if t.Status.State == api.TaskStatePending {
 		s.preassignedTasks[t.ID] = t
 		// preassigned tasks do not contribute to running tasks count
-		return 0
+		return false
 	}
 
 	nodeInfo, err := s.nodeSet.nodeInfo(t.NodeID)
@@ -218,23 +225,23 @@ func (s *Scheduler) createTask(ctx context.Context, t *api.Task) int {
 		s.nodeSet.updateNode(nodeInfo)
 	}
 
-	return 0
+	return false
 }
 
-func (s *Scheduler) updateTask(ctx context.Context, t *api.Task) int {
+func (s *Scheduler) updateTask(ctx context.Context, t *api.Task) bool {
 	// Ignore all tasks that have not reached PENDING
 	// state.
 	if t.Status.State < api.TaskStatePending {
-		return 0
+		return false
 	}
 
 	oldTask := s.allTasks[t.ID]
 
-	// Ignore all tasks that have not reached ALLOCATED
+	// Ignore all tasks that have not reached Pending
 	// state, and tasks that no longer consume resources.
 	if t.Status.State > api.TaskStateRunning {
 		if oldTask == nil {
-			return 1
+			return false
 		}
 		s.deleteTask(ctx, oldTask)
 		if t.Status.State != oldTask.Status.State &&
@@ -245,7 +252,7 @@ func (s *Scheduler) updateTask(ctx context.Context, t *api.Task) int {
 				s.nodeSet.updateNode(nodeInfo)
 			}
 		}
-		return 1
+		return true
 	}
 
 	if t.NodeID == "" {
@@ -255,7 +262,7 @@ func (s *Scheduler) updateTask(ctx context.Context, t *api.Task) int {
 		}
 		s.allTasks[t.ID] = t
 		s.enqueue(t)
-		return 1
+		return true
 	}
 
 	if t.Status.State == api.TaskStatePending {
@@ -265,7 +272,7 @@ func (s *Scheduler) updateTask(ctx context.Context, t *api.Task) int {
 		s.allTasks[t.ID] = t
 		s.preassignedTasks[t.ID] = t
 		// preassigned tasks do not contribute to running tasks count
-		return 0
+		return false
 	}
 
 	s.allTasks[t.ID] = t
@@ -274,16 +281,18 @@ func (s *Scheduler) updateTask(ctx context.Context, t *api.Task) int {
 		s.nodeSet.updateNode(nodeInfo)
 	}
 
-	return 0
+	return false
 }
 
-func (s *Scheduler) deleteTask(ctx context.Context, t *api.Task) {
+func (s *Scheduler) deleteTask(ctx context.Context, t *api.Task) bool {
 	delete(s.allTasks, t.ID)
 	delete(s.preassignedTasks, t.ID)
 	nodeInfo, err := s.nodeSet.nodeInfo(t.NodeID)
 	if err == nil && nodeInfo.removeTask(t) {
 		s.nodeSet.updateNode(nodeInfo)
+		return true
 	}
+	return false
 }
 
 func (s *Scheduler) createOrUpdateNode(n *api.Node) {

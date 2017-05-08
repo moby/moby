@@ -1,4 +1,4 @@
-package storeapi
+package watchapi
 
 import (
 	"github.com/docker/swarmkit/manager/state/store"

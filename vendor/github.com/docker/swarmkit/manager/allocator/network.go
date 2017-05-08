@@ -562,25 +562,7 @@ func taskUpdateEndpoint(t *api.Task, endpoint *api.Endpoint) {
 
 // IsIngressNetworkNeeded checks whether the service requires the routing-mesh
 func IsIngressNetworkNeeded(s *api.Service) bool {
-	if s == nil {
-		return false
-	}
-
-	if s.Spec.Endpoint == nil {
-		return false
-	}
-
-	for _, p := range s.Spec.Endpoint.Ports {
-		// The service to which this task belongs is trying to
-		// expose ports with PublishMode as Ingress to the
-		// external world. Automatically attach the task to
-		// the ingress network.
-		if p.PublishMode == api.PublishModeIngress {
-			return true
-		}
-	}
-
-	return false
+	return networkallocator.IsIngressNetworkNeeded(s)
 }
 
 func (a *Allocator) taskCreateNetworkAttachments(t *api.Task, s *api.Service) {

@@ -50,6 +50,12 @@ const (
 	base36DigestLen = 50
 )
 
+var (
+	// GetCertRetryInterval is how long to wait before retrying a node
+	// certificate or root certificate request.
+	GetCertRetryInterval = 2 * time.Second
+)
+
 // SecurityConfig is used to represent a node's security configuration. It includes information about
 // the RootCA and ServerTLSCreds/ClientTLSCreds transport authenticators to be used for MTLS
 type SecurityConfig struct {
@@ -307,6 +313,12 @@ func DownloadRootCA(ctx context.Context, paths CertPaths, token string, connBrok
 			break
 		}
 		log.G(ctx).WithError(err).Errorf("failed to retrieve remote root CA certificate")
+
+		select {
+		case <-time.After(GetCertRetryInterval):
+		case <-ctx.Done():
+			return RootCA{}, ctx.Err()
+		}
 	}
 	if err != nil {
 		return RootCA{}, err
@@ -385,6 +397,8 @@ type CertificateRequestConfig struct {
 	// NodeCertificateStatusRequestTimeout determines how long to wait for a node
 	// status RPC result.  If not provided (zero value), will default to 5 seconds.
 	NodeCertificateStatusRequestTimeout time.Duration
+	// RetryInterval specifies how long to delay between retries, if non-zero.
+	RetryInterval time.Duration
 }
 
 // CreateSecurityConfig creates a new key and cert for this node, either locally
@@ -400,11 +414,12 @@ func (rootCA RootCA) CreateSecurityConfig(ctx context.Context, krw *KeyReadWrite
 	tlsKeyPair, issuerInfo, err := rootCA.IssueAndSaveNewCertificates(krw, cn, proposedRole, org)
 	switch errors.Cause(err) {
 	case ErrNoValidSigner:
+		config.RetryInterval = GetCertRetryInterval
 		// Request certificate issuance from a remote CA.
 		// Last argument is nil because at this point we don't have any valid TLS creds
 		tlsKeyPair, issuerInfo, err = rootCA.RequestAndSaveNewCertificates(ctx, krw, config)
 		if err != nil {
-			log.G(ctx).WithError(err).Error("failed to request save new certificate")
+			log.G(ctx).WithError(err).Error("failed to request and save new certificate")
 			return nil, err
 		}
 	case nil:
