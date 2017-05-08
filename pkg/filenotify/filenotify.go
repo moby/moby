@@ -3,7 +3,7 @@
 // These are wrapped up in a common interface so that either can be used interchangeably in your code.
 package filenotify
 
-import "github.com/fsnotify/fsnotify"
+import "gopkg.in/fsnotify.v1"
 
 // FileWatcher is an interface for implementing file notification watchers
 type FileWatcher interface {

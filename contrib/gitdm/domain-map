@@ -23,14 +23,7 @@ github@hollensbe.org            Docker      < 2015-01-01
 github@hollensbe.org            Cisco
 
 david.calavera@gmail.com        Docker      < 2016-04-01
-david.calavera@gmail.com        (Unknown)
-
-madhu@socketplane.io            Docker
-ejhazlett@gmail.com             Docker
-ben@firshman.co.uk              Docker
-
-vincent@sbr.pm                  (Unknown)   < 2016-10-24
-vincent@sbr.pm                  Docker
+david.calavera@gmail.com        Netlify
 
 #
 # Others
@@ -44,4 +37,3 @@ microsoft.com                   Microsoft
 
 redhat.com                      Red Hat
 mrunalp@gmail.com               Red Hat
-antonio.murdaca@gmail.com       Red Hat

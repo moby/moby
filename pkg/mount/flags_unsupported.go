@@ -27,5 +27,4 @@ const (
 	STRICTATIME = 0
 	SYNCHRONOUS = 0
 	RDONLY      = 0
-	mntDetach   = 0
 )

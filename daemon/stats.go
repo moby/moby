@@ -5,25 +5,24 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
-	"time"
 
 	"golang.org/x/net/context"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
-	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/api/types/versions/v1p20"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/versions"
+	"github.com/docker/engine-api/types/versions/v1p20"
 )
 
 // ContainerStats writes information about the container to the stream
 // given in the config object.
 func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, config *backend.ContainerStatsConfig) error {
-	if runtime.GOOS == "solaris" {
-		return fmt.Errorf("%+v does not support stats", runtime.GOOS)
+	if runtime.GOOS == "windows" {
+		return errors.New("Windows does not support stats")
 	}
-	// Engine API version (used for backwards compatibility)
+	// Remote API version (used for backwards compatibility)
 	apiVersion := config.Version
 
 	container, err := daemon.GetContainer(prefixOrName)
@@ -31,11 +30,9 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 		return err
 	}
 
-	// If the container is either not running or restarting and requires no stream, return an empty stats.
-	if (!container.IsRunning() || container.IsRestarting()) && !config.Stream {
-		return json.NewEncoder(config.OutStream).Encode(&types.StatsJSON{
-			Name: container.Name,
-			ID:   container.ID})
+	// If the container is not running and requires no stream, return an empty stats.
+	if !container.IsRunning() && !config.Stream {
+		return json.NewEncoder(config.OutStream).Encode(&types.Stats{})
 	}
 
 	outStream := config.OutStream
@@ -47,15 +44,10 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 	}
 
 	var preCPUStats types.CPUStats
-	var preRead time.Time
 	getStatJSON := func(v interface{}) *types.StatsJSON {
 		ss := v.(types.StatsJSON)
-		ss.Name = container.Name
-		ss.ID = container.ID
 		ss.PreCPUStats = preCPUStats
-		ss.PreRead = preRead
 		preCPUStats = ss.CPUStats
-		preRead = ss.Read
 		return &ss
 	}
 
@@ -75,9 +67,6 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 			var statsJSON interface{}
 			statsJSONPost120 := getStatJSON(v)
 			if versions.LessThan(apiVersion, "1.21") {
-				if runtime.GOOS == "windows" {
-					return errors.New("API versions pre v1.21 do not support stats on Windows")
-				}
 				var (
 					rxBytes   uint64
 					rxPackets uint64
@@ -135,11 +124,11 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 }
 
 func (daemon *Daemon) subscribeToContainerStats(c *container.Container) chan interface{} {
-	return daemon.statsCollector.Collect(c)
+	return daemon.statsCollector.collect(c)
 }
 
 func (daemon *Daemon) unsubscribeToContainerStats(c *container.Container, ch chan interface{}) {
-	daemon.statsCollector.Unsubscribe(c, ch)
+	daemon.statsCollector.unsubscribe(c, ch)
 }
 
 // GetContainerStats collects all the stats published by a container
@@ -149,10 +138,57 @@ func (daemon *Daemon) GetContainerStats(container *container.Container) (*types.
 		return nil, err
 	}
 
-	// We already have the network stats on Windows directly from HCS.
-	if !container.Config.NetworkDisabled && runtime.GOOS != "windows" {
+	if !container.Config.NetworkDisabled {
 		if stats.Networks, err = daemon.getNetworkStats(container); err != nil {
 			return nil, err
+		}
+	}
+
+	return stats, nil
+}
+
+// Resolve Network SandboxID in case the container reuse another container's network stack
+func (daemon *Daemon) getNetworkSandboxID(c *container.Container) (string, error) {
+	curr := c
+	for curr.HostConfig.NetworkMode.IsContainer() {
+		containerID := curr.HostConfig.NetworkMode.ConnectedContainer()
+		connected, err := daemon.GetContainer(containerID)
+		if err != nil {
+			return "", fmt.Errorf("Could not get container for %s", containerID)
+		}
+		curr = connected
+	}
+	return curr.NetworkSettings.SandboxID, nil
+}
+
+func (daemon *Daemon) getNetworkStats(c *container.Container) (map[string]types.NetworkStats, error) {
+	sandboxID, err := daemon.getNetworkSandboxID(c)
+	if err != nil {
+		return nil, err
+	}
+
+	sb, err := daemon.netController.SandboxByID(sandboxID)
+	if err != nil {
+		return nil, err
+	}
+
+	lnstats, err := sb.Statistics()
+	if err != nil {
+		return nil, err
+	}
+
+	stats := make(map[string]types.NetworkStats)
+	// Convert libnetwork nw stats into engine-api stats
+	for ifName, ifStats := range lnstats {
+		stats[ifName] = types.NetworkStats{
+			RxBytes:   ifStats.RxBytes,
+			RxPackets: ifStats.RxPackets,
+			RxErrors:  ifStats.RxErrors,
+			RxDropped: ifStats.RxDropped,
+			TxBytes:   ifStats.TxBytes,
+			TxPackets: ifStats.TxPackets,
+			TxErrors:  ifStats.TxErrors,
+			TxDropped: ifStats.TxDropped,
 		}
 	}
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 PKGVERSION="${VERSION//-/'~'}"
 # if we have a "-dev" suffix or have change in Git, let's make this package version more complex so it works better

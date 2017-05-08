@@ -4,7 +4,7 @@ Locker
 locker provides a mechanism for creating finer-grained locking to help
 free up more global locks to handle other tasks.
 
-The implementation looks close to a sync.Mutex, however, the user must provide a
+The implementation looks close to a sync.Mutex, however the user must provide a
 reference to use to refer to the underlying lock when locking and unlocking,
 and unlock may generate an error.
 
@@ -59,7 +59,7 @@ function (or before doing anything with the underlying state), this ensures any
 other function that is dealing with the same name will block.
 
 When needing to modify the underlying data, use the global lock to ensure nothing
-else is modifying it at the same time.
+else is modfying it at the same time.
 Since name lock is already in place, no reads will occur while the modification
 is being performed.
 

@@ -68,18 +68,18 @@ func init() {
 func rfc5424formatterWithAppNameAsTag(p syslog.Priority, hostname, tag, content string) string {
 	timestamp := time.Now().Format(time.RFC3339)
 	pid := os.Getpid()
-	msg := fmt.Sprintf("<%d>%d %s %s %s %d %s - %s",
+	msg := fmt.Sprintf("<%d>%d %s %s %s %d %s %s",
 		p, 1, timestamp, hostname, tag, pid, tag, content)
 	return msg
 }
 
 // The timestamp field in rfc5424 is derived from rfc3339. Whereas rfc3339 makes allowances
-// for multiple syntaxes, there are further restrictions in rfc5424, i.e., the maximum
+// for multiple syntaxes, there are further restrictions in rfc5424, i.e., the maximium
 // resolution is limited to "TIME-SECFRAC" which is 6 (microsecond resolution)
 func rfc5424microformatterWithAppNameAsTag(p syslog.Priority, hostname, tag, content string) string {
 	timestamp := time.Now().Format("2006-01-02T15:04:05.999999Z07:00")
 	pid := os.Getpid()
-	msg := fmt.Sprintf("<%d>%d %s %s %s %d %s - %s",
+	msg := fmt.Sprintf("<%d>%d %s %s %s %d %s %s",
 		p, 1, timestamp, hostname, tag, pid, tag, content)
 	return msg
 }
@@ -87,30 +87,30 @@ func rfc5424microformatterWithAppNameAsTag(p syslog.Priority, hostname, tag, con
 // New creates a syslog logger using the configuration passed in on
 // the context. Supported context configuration variables are
 // syslog-address, syslog-facility, syslog-format.
-func New(info logger.Info) (logger.Logger, error) {
-	tag, err := loggerutils.ParseLogTag(info, loggerutils.DefaultTemplate)
+func New(ctx logger.Context) (logger.Logger, error) {
+	tag, err := loggerutils.ParseLogTag(ctx, loggerutils.DefaultTemplate)
 	if err != nil {
 		return nil, err
 	}
 
-	proto, address, err := parseAddress(info.Config["syslog-address"])
+	proto, address, err := parseAddress(ctx.Config["syslog-address"])
 	if err != nil {
 		return nil, err
 	}
 
-	facility, err := parseFacility(info.Config["syslog-facility"])
+	facility, err := parseFacility(ctx.Config["syslog-facility"])
 	if err != nil {
 		return nil, err
 	}
 
-	syslogFormatter, syslogFramer, err := parseLogFormat(info.Config["syslog-format"], proto)
+	syslogFormatter, syslogFramer, err := parseLogFormat(ctx.Config["syslog-format"], proto)
 	if err != nil {
 		return nil, err
 	}
 
 	var log *syslog.Writer
 	if proto == secureProto {
-		tlsConfig, tlsErr := parseTLSConfig(info.Config)
+		tlsConfig, tlsErr := parseTLSConfig(ctx.Config)
 		if tlsErr != nil {
 			return nil, tlsErr
 		}
@@ -132,12 +132,10 @@ func New(info logger.Info) (logger.Logger, error) {
 }
 
 func (s *syslogger) Log(msg *logger.Message) error {
-	line := string(msg.Line)
-	logger.PutMessage(msg)
 	if msg.Source == "stderr" {
-		return s.writer.Err(line)
+		return s.writer.Err(string(msg.Line))
 	}
-	return s.writer.Info(line)
+	return s.writer.Info(string(msg.Line))
 }
 
 func (s *syslogger) Close() error {
@@ -186,7 +184,6 @@ func ValidateLogOpt(cfg map[string]string) error {
 	for key := range cfg {
 		switch key {
 		case "env":
-		case "env-regex":
 		case "labels":
 		case "syslog-address":
 		case "syslog-facility":

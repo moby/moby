@@ -1,17 +1,12 @@
----
-title: "volume ls"
-description: "The volume ls command description and usage"
-keywords: "volume, list"
----
-
-<!-- This file is maintained within the docker/docker Github
-     repository at https://github.com/docker/docker/. Make all
-     pull requests against that repo. If you see this file in
-     another repository, consider it read-only there, as it will
-     periodically be overwritten by the definitive file. Pull
-     requests which include edits to this file in other repositories
-     will be rejected.
--->
+<!--[metadata]>
++++
+title = "volume ls"
+description = "The volume ls command description and usage"
+keywords = ["volume, list"]
+[menu.main]
+parent = "smn_cli"
++++
+<![end-metadata]-->
 
 # volume ls
 
@@ -34,32 +29,22 @@ Options:
   -q, --quiet          Only display volume names
 ```
 
-## Description
+Lists all the volumes Docker knows about. You can filter using the `-f` or `--filter` flag. Refer to the [filtering](#filtering) section for more information about available filter options.
 
-List all the volumes known to Docker. You can filter using the `-f` or
-`--filter` flag. Refer to the [filtering](#filtering) section for more
-information about available filter options.
+Example output:
 
-## Examples
-
-### Create a volume
 ```bash
 $ docker volume create rosemary
-
 rosemary
-
-$ docker volume create tyler
-
+$docker volume create tyler
 tyler
-
 $ docker volume ls
-
 DRIVER              VOLUME NAME
 local               rosemary
 local               tyler
 ```
 
-### Filtering
+## Filtering
 
 The filtering flag (`-f` or `--filter`) format is of "key=value". If there is more
 than one filter, then pass multiple flags (e.g., `--filter "foo=bar" --filter "bif=baz"`)
@@ -71,7 +56,7 @@ The currently supported filters are:
 * label (`label=<key>` or `label=<key>=<value>`)
 * name (a volume's name)
 
-#### dangling
+### dangling
 
 The `dangling` filter matches on all volumes not referenced by any containers
 
@@ -84,11 +69,11 @@ DRIVER              VOLUME NAME
 local               rosemary
 ```
 
-#### driver
+### driver
 
-The `driver` filter matches volumes based on their driver.
+The `driver` filter matches on all or part of a volume's driver name.
 
-The following example matches volumes that are created with the `local` driver:
+The following filter matches all volumes with a driver name containing the `local` string.
 
 ```bash
 $ docker volume ls -f driver=local
@@ -98,7 +83,7 @@ local               rosemary
 local               tyler
 ```
 
-#### label
+#### Label
 
 The `label` filter matches volumes based on the presence of a `label` alone or
 a `label` and a value.
@@ -107,10 +92,8 @@ First, let's create some volumes to illustrate this;
 
 ```bash
 $ docker volume create the-doctor --label is-timelord=yes
-
 the-doctor
 $ docker volume create daleks --label is-timelord=no
-
 daleks
 ```
 
@@ -120,12 +103,12 @@ regardless of its value.
 ```bash
 $ docker volume ls --filter label=is-timelord
 
-DRIVER              VOLUME NAME
+DRIVER              NAME
 local               daleks
 local               the-doctor
 ```
 
-As the above example demonstrates, both volumes with `is-timelord=yes`, and
+As can be seen in the above example, both volumes with `is-timelord=yes`, and
 `is-timelord=no` are returned.
 
 Filtering on both `key` *and* `value` of the label, produces the expected result:
@@ -133,7 +116,7 @@ Filtering on both `key` *and* `value` of the label, produces the expected result
 ```bash
 $ docker volume ls --filter label=is-timelord=yes
 
-DRIVER              VOLUME NAME
+DRIVER              NAME
 local               the-doctor
 ```
 
@@ -143,23 +126,20 @@ should be met;
 ```bash
 $ docker volume ls --filter label=is-timelord=yes --filter label=is-timelord=no
 
-DRIVER              VOLUME NAME
+DRIVER              NAME
 ```
 
-#### name
+### name
 
 The `name` filter matches on all or part of a volume's name.
 
 The following filter matches all volumes with a name containing the `rose` string.
 
-```bash
-$ docker volume ls -f name=rose
+    $ docker volume ls -f name=rose
+    DRIVER              VOLUME NAME
+    local               rosemary
 
-DRIVER              VOLUME NAME
-local               rosemary
-```
-
-### Formatting
+## Formatting
 
 The formatting options (`--format`) pretty-prints volumes output
 using a Go template.
@@ -184,16 +164,14 @@ The following example uses a template without headers and outputs the
 
 ```bash
 $ docker volume ls --format "{{.Name}}: {{.Driver}}"
-
 vol1: local
 vol2: local
 vol3: local
 ```
 
-## Related commands
+## Related information
 
 * [volume create](volume_create.md)
 * [volume inspect](volume_inspect.md)
 * [volume rm](volume_rm.md)
-* [volume prune](volume_prune.md)
-* [Understand Data Volumes](https://docs.docker.com/engine/tutorials/dockervolumes/)
+* [Understand Data Volumes](../../tutorials/dockervolumes.md)

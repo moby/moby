@@ -24,7 +24,6 @@ func newDaemonCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runDaemon()
 		},
-		Deprecated: "and will be removed in Docker 17.12. Please run `dockerd` directly.",
 	}
 	cmd.SetHelpFunc(helpFunc)
 	return cmd

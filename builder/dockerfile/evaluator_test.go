@@ -5,12 +5,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/parser"
-	"github.com/docker/docker/builder/remotecontext"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/reexec"
+	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/container"
 )
 
 type dispatchTestCase struct {
@@ -158,7 +158,7 @@ func executeTestCase(t *testing.T, testCase dispatchTestCase) {
 		}
 	}()
 
-	context, err := remotecontext.MakeTarSumContext(tarStream)
+	context, err := builder.MakeTarSumContext(tarStream)
 
 	if err != nil {
 		t.Fatalf("Error when creating tar context: %s", err)
@@ -171,28 +171,20 @@ func executeTestCase(t *testing.T, testCase dispatchTestCase) {
 	}()
 
 	r := strings.NewReader(testCase.dockerfile)
-	result, err := parser.Parse(r)
+	d := parser.Directive{}
+	parser.SetEscapeToken(parser.DefaultEscapeToken, &d)
+	n, err := parser.Parse(r, &d)
 
 	if err != nil {
 		t.Fatalf("Error when parsing Dockerfile: %s", err)
 	}
 
 	config := &container.Config{}
-	options := &types.ImageBuildOptions{
-		BuildArgs: make(map[string]*string),
-	}
+	options := &types.ImageBuildOptions{}
 
-	b := &Builder{
-		runConfig: config,
-		options:   options,
-		Stdout:    ioutil.Discard,
-		source:    context,
-		buildArgs: newBuildArgs(options.BuildArgs),
-	}
+	b := &Builder{runConfig: config, options: options, Stdout: ioutil.Discard, context: context}
 
-	shlex := NewShellLex(parser.DefaultEscapeToken)
-	n := result.AST
-	err = b.dispatch(0, len(n.Children), n.Children[0], shlex)
+	err = b.dispatch(0, len(n.Children), n.Children[0])
 
 	if err == nil {
 		t.Fatalf("No error when executing test %s", testCase.name)

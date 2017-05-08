@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 if [ ! "$(go env GOOS)" = 'windows' ]; then
 	trap - EXIT # reset EXIT trap applied in .integration-daemon-start

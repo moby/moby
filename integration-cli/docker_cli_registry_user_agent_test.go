@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"regexp"
 
-	"github.com/docker/docker/integration-cli/registry"
 	"github.com/go-check/check"
 )
 
@@ -47,8 +46,8 @@ func regexpCheckUA(c *check.C, ua string) {
 	c.Assert(bMatchUpstreamUA, check.Equals, true, check.Commentf("(Upstream) Docker Client User-Agent malformed"))
 }
 
-func registerUserAgentHandler(reg *registry.Mock, result *string) {
-	reg.RegisterHandler("/v2/", func(w http.ResponseWriter, r *http.Request) {
+func registerUserAgentHandler(reg *testRegistry, result *string) {
+	reg.registerHandler("/v2/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(404)
 		var ua string
 		for k, v := range r.Header {
@@ -62,7 +61,7 @@ func registerUserAgentHandler(reg *registry.Mock, result *string) {
 
 // TestUserAgentPassThrough verifies that when an image is pulled from
 // a registry, the registry should see a User-Agent string of the form
-// [docker engine UA] UpstreamClientSTREAM-CLIENT([client UA])
+// [docker engine UA] UptreamClientSTREAM-CLIENT([client UA])
 func (s *DockerRegistrySuite) TestUserAgentPassThrough(c *check.C) {
 	var (
 		buildUA string
@@ -71,35 +70,32 @@ func (s *DockerRegistrySuite) TestUserAgentPassThrough(c *check.C) {
 		loginUA string
 	)
 
-	buildReg, err := registry.NewMock(c)
-	defer buildReg.Close()
+	buildReg, err := newTestRegistry(c)
 	c.Assert(err, check.IsNil)
 	registerUserAgentHandler(buildReg, &buildUA)
-	buildRepoName := fmt.Sprintf("%s/busybox", buildReg.URL())
+	buildRepoName := fmt.Sprintf("%s/busybox", buildReg.hostport)
 
-	pullReg, err := registry.NewMock(c)
-	defer pullReg.Close()
+	pullReg, err := newTestRegistry(c)
 	c.Assert(err, check.IsNil)
 	registerUserAgentHandler(pullReg, &pullUA)
-	pullRepoName := fmt.Sprintf("%s/busybox", pullReg.URL())
+	pullRepoName := fmt.Sprintf("%s/busybox", pullReg.hostport)
 
-	pushReg, err := registry.NewMock(c)
-	defer pushReg.Close()
+	pushReg, err := newTestRegistry(c)
 	c.Assert(err, check.IsNil)
 	registerUserAgentHandler(pushReg, &pushUA)
-	pushRepoName := fmt.Sprintf("%s/busybox", pushReg.URL())
+	pushRepoName := fmt.Sprintf("%s/busybox", pushReg.hostport)
 
-	loginReg, err := registry.NewMock(c)
-	defer loginReg.Close()
+	loginReg, err := newTestRegistry(c)
 	c.Assert(err, check.IsNil)
 	registerUserAgentHandler(loginReg, &loginUA)
 
-	s.d.Start(c,
-		"--insecure-registry", buildReg.URL(),
-		"--insecure-registry", pullReg.URL(),
-		"--insecure-registry", pushReg.URL(),
-		"--insecure-registry", loginReg.URL(),
+	err = s.d.Start(
+		"--insecure-registry", buildReg.hostport,
+		"--insecure-registry", pullReg.hostport,
+		"--insecure-registry", pushReg.hostport,
+		"--insecure-registry", loginReg.hostport,
 		"--disable-legacy-registry=true")
+	c.Assert(err, check.IsNil)
 
 	dockerfileName, cleanup1, err := makefile(fmt.Sprintf("FROM %s", buildRepoName))
 	c.Assert(err, check.IsNil, check.Commentf("Unable to create test dockerfile"))
@@ -107,7 +103,7 @@ func (s *DockerRegistrySuite) TestUserAgentPassThrough(c *check.C) {
 	s.d.Cmd("build", "--file", dockerfileName, ".")
 	regexpCheckUA(c, buildUA)
 
-	s.d.Cmd("login", "-u", "richard", "-p", "testtest", "-e", "testuser@testdomain.com", loginReg.URL())
+	s.d.Cmd("login", "-u", "richard", "-p", "testtest", "-e", "testuser@testdomain.com", loginReg.hostport)
 	regexpCheckUA(c, loginUA)
 
 	s.d.Cmd("pull", pullRepoName)

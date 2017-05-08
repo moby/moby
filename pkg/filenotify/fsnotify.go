@@ -1,6 +1,6 @@
 package filenotify
 
-import "github.com/fsnotify/fsnotify"
+import "gopkg.in/fsnotify.v1"
 
 // fsNotifyWatcher wraps the fsnotify package to satisfy the FileNotifer interface
 type fsNotifyWatcher struct {

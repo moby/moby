@@ -19,26 +19,30 @@ import (
 
 var (
 	// BufioReader32KPool is a pool which returns bufio.Reader with a 32K buffer.
-	BufioReader32KPool = newBufioReaderPoolWithSize(buffer32K)
+	BufioReader32KPool *BufioReaderPool
 	// BufioWriter32KPool is a pool which returns bufio.Writer with a 32K buffer.
-	BufioWriter32KPool = newBufioWriterPoolWithSize(buffer32K)
+	BufioWriter32KPool *BufioWriterPool
 )
 
 const buffer32K = 32 * 1024
 
 // BufioReaderPool is a bufio reader that uses sync.Pool.
 type BufioReaderPool struct {
-	pool sync.Pool
+	pool *sync.Pool
+}
+
+func init() {
+	BufioReader32KPool = newBufioReaderPoolWithSize(buffer32K)
+	BufioWriter32KPool = newBufioWriterPoolWithSize(buffer32K)
 }
 
 // newBufioReaderPoolWithSize is unexported because new pools should be
 // added here to be shared where required.
 func newBufioReaderPoolWithSize(size int) *BufioReaderPool {
-	return &BufioReaderPool{
-		pool: sync.Pool{
-			New: func() interface{} { return bufio.NewReaderSize(nil, size) },
-		},
+	pool := &sync.Pool{
+		New: func() interface{} { return bufio.NewReaderSize(nil, size) },
 	}
+	return &BufioReaderPool{pool: pool}
 }
 
 // Get returns a bufio.Reader which reads from r. The buffer size is that of the pool.
@@ -76,17 +80,16 @@ func (bufPool *BufioReaderPool) NewReadCloserWrapper(buf *bufio.Reader, r io.Rea
 
 // BufioWriterPool is a bufio writer that uses sync.Pool.
 type BufioWriterPool struct {
-	pool sync.Pool
+	pool *sync.Pool
 }
 
 // newBufioWriterPoolWithSize is unexported because new pools should be
 // added here to be shared where required.
 func newBufioWriterPoolWithSize(size int) *BufioWriterPool {
-	return &BufioWriterPool{
-		pool: sync.Pool{
-			New: func() interface{} { return bufio.NewWriterSize(nil, size) },
-		},
+	pool := &sync.Pool{
+		New: func() interface{} { return bufio.NewWriterSize(nil, size) },
 	}
+	return &BufioWriterPool{pool: pool}
 }
 
 // Get returns a bufio.Writer which writes to w. The buffer size is that of the pool.

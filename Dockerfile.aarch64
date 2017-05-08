@@ -15,7 +15,7 @@
 # the case. Therefore, you don't have to disable it anymore.
 #
 
-FROM aarch64/ubuntu:xenial
+FROM aarch64/ubuntu:wily
 
 # Packaged dependencies
 RUN apt-get update && apt-get install -y \
@@ -25,7 +25,6 @@ RUN apt-get update && apt-get install -y \
 	bash-completion \
 	btrfs-tools \
 	build-essential \
-	cmake \
 	createrepo \
 	curl \
 	dpkg-sig \
@@ -38,8 +37,8 @@ RUN apt-get update && apt-get install -y \
 	libc6-dev \
 	libcap-dev \
 	libltdl-dev \
+	libsqlite3-dev \
 	libsystemd-dev \
-	libyaml-dev \
 	mercurial \
 	net-tools \
 	parallel \
@@ -47,22 +46,25 @@ RUN apt-get update && apt-get install -y \
 	python-dev \
 	python-mock \
 	python-pip \
-	python-setuptools \
 	python-websocket \
-	golang-go \
+	gccgo \
 	iproute2 \
 	iputils-ping \
-	vim-common \
 	--no-install-recommends
+
+# Install armhf loader to use armv6 binaries on armv8
+RUN dpkg --add-architecture armhf \
+	&& apt-get update \
+	&& apt-get install -y libc6:armhf
 
 # Get lvm2 source for compiling statically
 ENV LVM2_VERSION 2.02.103
 RUN mkdir -p /usr/local/lvm2 \
 	&& curl -fsSL "https://mirrors.kernel.org/sourceware/lvm2/LVM2.${LVM2_VERSION}.tgz" \
 		| tar -xzC /usr/local/lvm2 --strip-components=1
-# See https://git.fedorahosted.org/cgit/lvm2.git/refs/tags for release tags
+# see https://git.fedorahosted.org/cgit/lvm2.git/refs/tags for release tags
 
-# Fix platform enablement in lvm2 to support aarch64 properly
+# fix platform enablement in lvm2 to support aarch64 properly
 RUN set -e \
 	&& for f in config.guess config.sub; do \
 		curl -fsSL -o "/usr/local/lvm2/autoconf/$f" "http://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=$f;hb=HEAD"; \
@@ -76,10 +78,10 @@ RUN cd /usr/local/lvm2 \
 		--enable-static_link \
 	&& make device-mapper \
 	&& make install_device-mapper
-# See https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
+# see https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
 
-# Install seccomp: the version shipped upstream is too old
-ENV SECCOMP_VERSION 2.3.2
+# install seccomp: the version shipped in trusty is too old
+ENV SECCOMP_VERSION 2.3.1
 RUN set -x \
 	&& export SECCOMP_PATH="$(mktemp -d)" \
 	&& curl -fsSL "https://github.com/seccomp/libseccomp/releases/download/v${SECCOMP_VERSION}/libseccomp-${SECCOMP_VERSION}.tar.gz" \
@@ -94,28 +96,17 @@ RUN set -x \
 	&& rm -rf "$SECCOMP_PATH"
 
 # Install Go
-# We don't have official binary golang 1.7.5 tarballs for ARM64, eigher for Go or
-# bootstrap, so we use golang-go (1.6) as bootstrap to build Go from source code.
+# We don't have official binary tarballs for ARM64, eigher for Go or bootstrap,
+# so we use gccgo as bootstrap to build Go from source code.
 # We don't use the official ARMv6 released binaries as a GOROOT_BOOTSTRAP, because
 # not all ARM64 platforms support 32-bit mode. 32-bit mode is optional for ARMv8.
-ENV GO_VERSION 1.7.5
-RUN mkdir /usr/src/go && curl -fsSL https://golang.org/dl/go${GO_VERSION}.src.tar.gz | tar -v -C /usr/src/go -xz --strip-components=1 \
+ENV GO_VERSION 1.7
+RUN mkdir /usr/src/go && curl -fsSL https://storage.googleapis.com/golang/go${GO_VERSION}.src.tar.gz | tar -v -C /usr/src/go -xz --strip-components=1 \
 	&& cd /usr/src/go/src \
 	&& GOOS=linux GOARCH=arm64 GOROOT_BOOTSTRAP="$(go env GOROOT)" ./make.bash
 
-ENV PATH /go/bin:/usr/src/go/bin:$PATH
-ENV GOPATH /go
-
-# Dependency for golint
-ENV GO_TOOLS_COMMIT 823804e1ae08dbb14eb807afc7db9993bc9e3cc3
-RUN git clone https://github.com/golang/tools.git /go/src/golang.org/x/tools \
-	&& (cd /go/src/golang.org/x/tools && git checkout -q $GO_TOOLS_COMMIT)
-
-# Grab Go's lint tool
-ENV GO_LINT_COMMIT 32a87160691b3c96046c0c678fe57c5bef761456
-RUN git clone https://github.com/golang/lint.git /go/src/github.com/golang/lint \
-	&& (cd /go/src/github.com/golang/lint && git checkout -q $GO_LINT_COMMIT) \
-	&& go install -v github.com/golang/lint/golint
+ENV PATH /usr/src/go/bin:$PATH
+ENV GOPATH /go:/go/src/github.com/docker/docker/vendor
 
 # Only install one version of the registry, because old version which support
 # schema1 manifests is not working on ARM64, we should skip integration-cli
@@ -130,7 +121,7 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Install notary and notary-server
-ENV NOTARY_VERSION v0.5.0
+ENV NOTARY_VERSION v0.3.0
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/docker/notary.git "$GOPATH/src/github.com/docker/notary" \
@@ -142,25 +133,11 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Get the "docker-py" source so we can run their integration tests
-ENV DOCKER_PY_COMMIT 4a08d04aef0595322e1b5ac7c52f28a931da85a5
-# Before running the integration tests conftest.py is
-# loaded which results in loads auth.py that
-# imports the docker-pycreds module.
+ENV DOCKER_PY_COMMIT e2655f658408f9ad1f62abdef3eb6ed43c0cf324
 RUN git clone https://github.com/docker/docker-py.git /docker-py \
 	&& cd /docker-py \
 	&& git checkout -q $DOCKER_PY_COMMIT \
-	&& pip install wheel \
-	&& pip install docker-pycreds==0.2.1 \
 	&& pip install -r test-requirements.txt
-
-# Install yamllint for validating swagger.yaml
-RUN pip install yamllint==1.5.0
-
-# Install go-swagger for validating swagger.yaml
-ENV GO_SWAGGER_COMMIT c28258affb0b6251755d92489ef685af8d4ff3eb
-RUN git clone https://github.com/go-swagger/go-swagger.git /go/src/github.com/go-swagger/go-swagger \
-	&& (cd /go/src/github.com/go-swagger/go-swagger && git checkout -q $GO_SWAGGER_COMMIT) \
-	&& go install -v github.com/go-swagger/go-swagger/cmd/swagger
 
 # Set user.email so crosbymichael's in-container merge commits go smoothly
 RUN git config --global user.email 'docker-dummy@example.com'
@@ -182,17 +159,53 @@ RUN ln -sv $PWD/contrib/completion/bash/docker /etc/bash_completion.d/docker
 # Get useful and necessary Hub images so we can "docker load" locally instead of pulling
 COPY contrib/download-frozen-image-v2.sh /go/src/github.com/docker/docker/contrib/
 RUN ./contrib/download-frozen-image-v2.sh /docker-frozen-images \
-	aarch64/buildpack-deps:jessie@sha256:107f4a96837ed89c493fc205cd28508ed0b6b680b4bf3e514e9f0fa0f6667b77 \
-	aarch64/busybox:latest@sha256:5a06b8b2fdf22dd1f4085c6c3efd23ee99af01b2d668d286bc4be6d8baa10efb \
-	aarch64/debian:jessie@sha256:e6f90b568631705bd5cb27490977378ba762792b38d47c91c4da7a539f63079a \
-	aarch64/hello-world:latest@sha256:bd1722550b97668b23ede297abf824d4855f4d9f600dab7b4db1a963dae7ec9e
-# See also ensureFrozenImagesLinux() in "integration-cli/fixtures_linux_daemon_test.go" (which needs to be updated when adding images to this list)
+	aarch64/buildpack-deps:jessie@sha256:6aa1d6910791b7ac78265fd0798e5abd6cb3f27ae992f6f960f6c303ec9535f2 \
+	aarch64/busybox:latest@sha256:b23a6a37cf269dff6e46d2473b6e227afa42b037e6d23435f1d2bc40fc8c2828 \
+	aarch64/debian:jessie@sha256:4be74a41a7c70ebe887b634b11ffe516cf4fcd56864a54941e56bb49883c3170 \
+	aarch64/hello-world:latest@sha256:65a4a158587b307bb02db4de41b836addb0c35175bdc801367b1ac1ddeb9afda
+# see also "hack/make/.ensure-frozen-images" (which needs to be updated any time this list is)
 
-# Install tomlv, vndr, runc, containerd, tini, docker-proxy
-# Please edit hack/dockerfile/install-binaries.sh to update them.
-COPY hack/dockerfile/binaries-commits /tmp/binaries-commits
-COPY hack/dockerfile/install-binaries.sh /tmp/install-binaries.sh
-RUN /tmp/install-binaries.sh tomlv vndr runc containerd tini proxy
+# Download man page generator
+RUN set -x \
+	&& export GOPATH="$(mktemp -d)" \
+	&& git clone --depth 1 -b v1.0.5 https://github.com/cpuguy83/go-md2man.git "$GOPATH/src/github.com/cpuguy83/go-md2man" \
+	&& git clone --depth 1 -b v1.4 https://github.com/russross/blackfriday.git "$GOPATH/src/github.com/russross/blackfriday" \
+	&& go get -v -d github.com/cpuguy83/go-md2man \
+	&& go build -v -o /usr/local/bin/go-md2man github.com/cpuguy83/go-md2man \
+	&& rm -rf "$GOPATH"
+
+# Download toml validator
+ENV TOMLV_COMMIT 9baf8a8a9f2ed20a8e54160840c492f937eeaf9a
+RUN set -x \
+	&& export GOPATH="$(mktemp -d)" \
+	&& git clone https://github.com/BurntSushi/toml.git "$GOPATH/src/github.com/BurntSushi/toml" \
+	&& (cd "$GOPATH/src/github.com/BurntSushi/toml" && git checkout -q "$TOMLV_COMMIT") \
+	&& go build -v -o /usr/local/bin/tomlv github.com/BurntSushi/toml/cmd/tomlv \
+	&& rm -rf "$GOPATH"
+
+# Install runc
+ENV RUNC_COMMIT cc29e3dded8e27ba8f65738f40d251c885030a28
+RUN set -x \
+	&& export GOPATH="$(mktemp -d)" \
+	&& git clone https://github.com/opencontainers/runc.git "$GOPATH/src/github.com/opencontainers/runc" \
+	&& cd "$GOPATH/src/github.com/opencontainers/runc" \
+	&& git checkout -q "$RUNC_COMMIT" \
+	&& make static BUILDTAGS="seccomp apparmor selinux" \
+	&& cp runc /usr/local/bin/docker-runc \
+	&& rm -rf "$GOPATH"
+
+# Install containerd
+ENV CONTAINERD_COMMIT 8508d2bec90b96403143a1104cdcbd56f6aeb361
+RUN set -x \
+	&& export GOPATH="$(mktemp -d)" \
+	&& git clone https://github.com/docker/containerd.git "$GOPATH/src/github.com/docker/containerd" \
+	&& cd "$GOPATH/src/github.com/docker/containerd" \
+	&& git checkout -q "$CONTAINERD_COMMIT" \
+	&& make static \
+	&& cp bin/containerd /usr/local/bin/docker-containerd \
+	&& cp bin/containerd-shim /usr/local/bin/docker-containerd-shim \
+	&& cp bin/ctr /usr/local/bin/docker-containerd-ctr \
+	&& rm -rf "$GOPATH"
 
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 ENTRYPOINT ["hack/dind"]

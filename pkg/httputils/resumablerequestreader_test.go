@@ -8,7 +8,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 )
 
 func TestResumableRequestHeaderSimpleErrors(t *testing.T) {
@@ -56,11 +55,10 @@ func TestResumableRequestHeaderNotTooMuchFailures(t *testing.T) {
 	}
 
 	resreq := &resumableRequestReader{
-		client:       client,
-		request:      badReq,
-		failures:     0,
-		maxFailures:  2,
-		waitDuration: 10 * time.Millisecond,
+		client:      client,
+		request:     badReq,
+		failures:    0,
+		maxFailures: 2,
 	}
 	read, err := resreq.Read([]byte{})
 	if err != nil || read != 0 {
@@ -195,11 +193,10 @@ func TestResumableRequestReaderWithServerDoesntSupportByteRanges(t *testing.T) {
 	}
 	defer resreq.Close()
 
-	expectedError := "the server doesn't support byte ranges"
 	buf := make([]byte, 2)
 	_, err = resreq.Read(buf)
-	if err == nil || err.Error() != expectedError {
-		t.Fatalf("Expected an error '%s', got %v", expectedError, err)
+	if err == nil || err.Error() != "the server doesn't support byte ranges" {
+		t.Fatalf("Expected an error 'the server doesn't support byte ranges', got %v", err)
 	}
 }
 
@@ -232,7 +229,7 @@ func TestResumableRequestReaderWithZeroTotalSize(t *testing.T) {
 	resstr := strings.TrimSuffix(string(data), "\n")
 
 	if resstr != srvtxt {
-		t.Error("resstr != srvtxt")
+		t.Errorf("resstr != srvtxt")
 	}
 }
 
@@ -266,7 +263,7 @@ func TestResumableRequestReader(t *testing.T) {
 	resstr := strings.TrimSuffix(string(data), "\n")
 
 	if resstr != srvtxt {
-		t.Error("resstr != srvtxt")
+		t.Errorf("resstr != srvtxt")
 	}
 }
 
@@ -305,6 +302,6 @@ func TestResumableRequestReaderWithInitialResponse(t *testing.T) {
 	resstr := strings.TrimSuffix(string(data), "\n")
 
 	if resstr != srvtxt {
-		t.Error("resstr != srvtxt")
+		t.Errorf("resstr != srvtxt")
 	}
 }

@@ -7,12 +7,10 @@ import (
 	"strconv"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/server/httputils"
-	basictypes "github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/backend"
-	"github.com/docker/docker/api/types/filters"
-	types "github.com/docker/docker/api/types/swarm"
+	basictypes "github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/filters"
+	types "github.com/docker/engine-api/types/swarm"
 	"golang.org/x/net/context"
 )
 
@@ -65,8 +63,7 @@ func (sr *swarmRouter) updateCluster(ctx context.Context, w http.ResponseWriter,
 	rawVersion := r.URL.Query().Get("version")
 	version, err := strconv.ParseUint(rawVersion, 10, 64)
 	if err != nil {
-		err := fmt.Errorf("invalid swarm version '%s': %v", rawVersion, err)
-		return errors.NewBadRequestError(err)
+		return fmt.Errorf("Invalid swarm version '%s': %s", rawVersion, err.Error())
 	}
 
 	var flags types.UpdateFlags
@@ -74,8 +71,7 @@ func (sr *swarmRouter) updateCluster(ctx context.Context, w http.ResponseWriter,
 	if value := r.URL.Query().Get("rotateWorkerToken"); value != "" {
 		rot, err := strconv.ParseBool(value)
 		if err != nil {
-			err := fmt.Errorf("invalid value for rotateWorkerToken: %s", value)
-			return errors.NewBadRequestError(err)
+			return fmt.Errorf("invalid value for rotateWorkerToken: %s", value)
 		}
 
 		flags.RotateWorkerToken = rot
@@ -84,20 +80,10 @@ func (sr *swarmRouter) updateCluster(ctx context.Context, w http.ResponseWriter,
 	if value := r.URL.Query().Get("rotateManagerToken"); value != "" {
 		rot, err := strconv.ParseBool(value)
 		if err != nil {
-			err := fmt.Errorf("invalid value for rotateManagerToken: %s", value)
-			return errors.NewBadRequestError(err)
+			return fmt.Errorf("invalid value for rotateManagerToken: %s", value)
 		}
 
 		flags.RotateManagerToken = rot
-	}
-
-	if value := r.URL.Query().Get("rotateManagerUnlockKey"); value != "" {
-		rot, err := strconv.ParseBool(value)
-		if err != nil {
-			return errors.NewBadRequestError(fmt.Errorf("invalid value for rotateManagerUnlockKey: %s", value))
-		}
-
-		flags.RotateManagerUnlockKey = rot
 	}
 
 	if err := sr.backend.Update(version, swarm, flags); err != nil {
@@ -105,31 +91,6 @@ func (sr *swarmRouter) updateCluster(ctx context.Context, w http.ResponseWriter,
 		return err
 	}
 	return nil
-}
-
-func (sr *swarmRouter) unlockCluster(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	var req types.UnlockRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return err
-	}
-
-	if err := sr.backend.UnlockSwarm(req); err != nil {
-		logrus.Errorf("Error unlocking swarm: %v", err)
-		return err
-	}
-	return nil
-}
-
-func (sr *swarmRouter) getUnlockKey(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	unlockKey, err := sr.backend.GetUnlockKey()
-	if err != nil {
-		logrus.WithError(err).Errorf("Error retrieving swarm unlock key")
-		return err
-	}
-
-	return httputils.WriteJSON(w, http.StatusOK, &basictypes.SwarmUnlockKeyResponse{
-		UnlockKey: unlockKey,
-	})
 }
 
 func (sr *swarmRouter) getServices(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -141,7 +102,7 @@ func (sr *swarmRouter) getServices(ctx context.Context, w http.ResponseWriter, r
 		return err
 	}
 
-	services, err := sr.backend.GetServices(basictypes.ServiceListOptions{Filters: filter})
+	services, err := sr.backend.GetServices(basictypes.ServiceListOptions{Filter: filter})
 	if err != nil {
 		logrus.Errorf("Error getting services: %v", err)
 		return err
@@ -151,17 +112,7 @@ func (sr *swarmRouter) getServices(ctx context.Context, w http.ResponseWriter, r
 }
 
 func (sr *swarmRouter) getService(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	var insertDefaults bool
-	if value := r.URL.Query().Get("insertDefaults"); value != "" {
-		var err error
-		insertDefaults, err = strconv.ParseBool(value)
-		if err != nil {
-			err := fmt.Errorf("invalid value for insertDefaults: %s", value)
-			return errors.NewBadRequestError(err)
-		}
-	}
-
-	service, err := sr.backend.GetService(vars["id"], insertDefaults)
+	service, err := sr.backend.GetService(vars["id"])
 	if err != nil {
 		logrus.Errorf("Error getting service %s: %v", vars["id"], err)
 		return err
@@ -179,13 +130,15 @@ func (sr *swarmRouter) createService(ctx context.Context, w http.ResponseWriter,
 	// Get returns "" if the header does not exist
 	encodedAuth := r.Header.Get("X-Registry-Auth")
 
-	resp, err := sr.backend.CreateService(service, encodedAuth)
+	id, err := sr.backend.CreateService(service, encodedAuth)
 	if err != nil {
-		logrus.Errorf("Error creating service %s: %v", service.Name, err)
+		logrus.Errorf("Error creating service %s: %v", id, err)
 		return err
 	}
 
-	return httputils.WriteJSON(w, http.StatusCreated, resp)
+	return httputils.WriteJSON(w, http.StatusCreated, &basictypes.ServiceCreateResponse{
+		ID: id,
+	})
 }
 
 func (sr *swarmRouter) updateService(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -197,23 +150,17 @@ func (sr *swarmRouter) updateService(ctx context.Context, w http.ResponseWriter,
 	rawVersion := r.URL.Query().Get("version")
 	version, err := strconv.ParseUint(rawVersion, 10, 64)
 	if err != nil {
-		err := fmt.Errorf("invalid service version '%s': %v", rawVersion, err)
-		return errors.NewBadRequestError(err)
+		return fmt.Errorf("Invalid service version '%s': %s", rawVersion, err.Error())
 	}
 
-	var flags basictypes.ServiceUpdateOptions
-
 	// Get returns "" if the header does not exist
-	flags.EncodedRegistryAuth = r.Header.Get("X-Registry-Auth")
-	flags.RegistryAuthFrom = r.URL.Query().Get("registryAuthFrom")
-	flags.Rollback = r.URL.Query().Get("rollback")
+	encodedAuth := r.Header.Get("X-Registry-Auth")
 
-	resp, err := sr.backend.UpdateService(vars["id"], version, service, flags)
-	if err != nil {
+	if err := sr.backend.UpdateService(vars["id"], version, service, encodedAuth); err != nil {
 		logrus.Errorf("Error updating service %s: %v", vars["id"], err)
 		return err
 	}
-	return httputils.WriteJSON(w, http.StatusOK, resp)
+	return nil
 }
 
 func (sr *swarmRouter) removeService(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -222,30 +169,6 @@ func (sr *swarmRouter) removeService(ctx context.Context, w http.ResponseWriter,
 		return err
 	}
 	return nil
-}
-
-func (sr *swarmRouter) getTaskLogs(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := httputils.ParseForm(r); err != nil {
-		return err
-	}
-
-	// make a selector to pass to the helper function
-	selector := &backend.LogSelector{
-		Tasks: []string{vars["id"]},
-	}
-	return sr.swarmLogs(ctx, w, r, selector)
-}
-
-func (sr *swarmRouter) getServiceLogs(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := httputils.ParseForm(r); err != nil {
-		return err
-	}
-
-	// make a selector to pass to the helper function
-	selector := &backend.LogSelector{
-		Services: []string{vars["id"]},
-	}
-	return sr.swarmLogs(ctx, w, r, selector)
 }
 
 func (sr *swarmRouter) getNodes(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -257,7 +180,7 @@ func (sr *swarmRouter) getNodes(ctx context.Context, w http.ResponseWriter, r *h
 		return err
 	}
 
-	nodes, err := sr.backend.GetNodes(basictypes.NodeListOptions{Filters: filter})
+	nodes, err := sr.backend.GetNodes(basictypes.NodeListOptions{Filter: filter})
 	if err != nil {
 		logrus.Errorf("Error getting nodes: %v", err)
 		return err
@@ -285,8 +208,7 @@ func (sr *swarmRouter) updateNode(ctx context.Context, w http.ResponseWriter, r 
 	rawVersion := r.URL.Query().Get("version")
 	version, err := strconv.ParseUint(rawVersion, 10, 64)
 	if err != nil {
-		err := fmt.Errorf("invalid node version '%s': %v", rawVersion, err)
-		return errors.NewBadRequestError(err)
+		return fmt.Errorf("Invalid node version '%s': %s", rawVersion, err.Error())
 	}
 
 	if err := sr.backend.UpdateNode(vars["id"], version, node); err != nil {
@@ -319,7 +241,7 @@ func (sr *swarmRouter) getTasks(ctx context.Context, w http.ResponseWriter, r *h
 		return err
 	}
 
-	tasks, err := sr.backend.GetTasks(basictypes.TaskListOptions{Filters: filter})
+	tasks, err := sr.backend.GetTasks(basictypes.TaskListOptions{Filter: filter})
 	if err != nil {
 		logrus.Errorf("Error getting tasks: %v", err)
 		return err
@@ -336,75 +258,4 @@ func (sr *swarmRouter) getTask(ctx context.Context, w http.ResponseWriter, r *ht
 	}
 
 	return httputils.WriteJSON(w, http.StatusOK, task)
-}
-
-func (sr *swarmRouter) getSecrets(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := httputils.ParseForm(r); err != nil {
-		return err
-	}
-	filters, err := filters.FromParam(r.Form.Get("filters"))
-	if err != nil {
-		return err
-	}
-
-	secrets, err := sr.backend.GetSecrets(basictypes.SecretListOptions{Filters: filters})
-	if err != nil {
-		return err
-	}
-
-	return httputils.WriteJSON(w, http.StatusOK, secrets)
-}
-
-func (sr *swarmRouter) createSecret(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	var secret types.SecretSpec
-	if err := json.NewDecoder(r.Body).Decode(&secret); err != nil {
-		return err
-	}
-
-	id, err := sr.backend.CreateSecret(secret)
-	if err != nil {
-		return err
-	}
-
-	return httputils.WriteJSON(w, http.StatusCreated, &basictypes.SecretCreateResponse{
-		ID: id,
-	})
-}
-
-func (sr *swarmRouter) removeSecret(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := sr.backend.RemoveSecret(vars["id"]); err != nil {
-		return err
-	}
-	w.WriteHeader(http.StatusNoContent)
-
-	return nil
-}
-
-func (sr *swarmRouter) getSecret(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	secret, err := sr.backend.GetSecret(vars["id"])
-	if err != nil {
-		return err
-	}
-
-	return httputils.WriteJSON(w, http.StatusOK, secret)
-}
-
-func (sr *swarmRouter) updateSecret(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	var secret types.SecretSpec
-	if err := json.NewDecoder(r.Body).Decode(&secret); err != nil {
-		return errors.NewBadRequestError(err)
-	}
-
-	rawVersion := r.URL.Query().Get("version")
-	version, err := strconv.ParseUint(rawVersion, 10, 64)
-	if err != nil {
-		return errors.NewBadRequestError(fmt.Errorf("invalid secret version"))
-	}
-
-	id := vars["id"]
-	if err := sr.backend.UpdateSecret(id, version, secret); err != nil {
-		return err
-	}
-
-	return nil
 }

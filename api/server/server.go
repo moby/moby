@@ -8,11 +8,10 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/server/middleware"
 	"github.com/docker/docker/api/server/router"
-	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/errors"
 	"github.com/gorilla/mux"
 	"golang.org/x/net/context"
 )
@@ -77,7 +76,7 @@ func (s *Server) Close() {
 }
 
 // serveAPI loops through all initialized servers and spawns goroutine
-// with Serve method for each. It sets createMux() as Handler also.
+// with Server method for each. It sets createMux() as Handler also.
 func (s *Server) serveAPI() error {
 	var chErrors = make(chan error, len(s.servers))
 	for _, srv := range s.servers {
@@ -103,7 +102,7 @@ func (s *Server) serveAPI() error {
 }
 
 // HTTPServer contains an instance of http server and the listener.
-// srv *http.Server, contains configuration to create an http server and a mux router with all api end points.
+// srv *http.Server, contains configuration to create a http server and a mux router with all api end points.
 // l   net.Listener, is a TCP or Socket listener that dispatches incoming request to the router.
 type HTTPServer struct {
 	srv *http.Server
@@ -129,7 +128,7 @@ func (s *Server) makeHTTPHandler(handler httputils.APIFunc) http.HandlerFunc {
 		// apply to all requests. Data that is specific to the
 		// immediate function being called should still be passed
 		// as 'args' on the function call.
-		ctx := context.WithValue(context.Background(), dockerversion.UAStringKey, r.Header.Get("User-Agent"))
+		ctx := context.Background()
 		handlerFunc := s.handlerWithGlobalMiddlewares(handler)
 
 		vars := mux.Vars(r)
@@ -138,10 +137,7 @@ func (s *Server) makeHTTPHandler(handler httputils.APIFunc) http.HandlerFunc {
 		}
 
 		if err := handlerFunc(ctx, w, r, vars); err != nil {
-			statusCode := httputils.GetHTTPErrorStatusCode(err)
-			if statusCode >= 500 {
-				logrus.Errorf("Handler for %s %s returned error: %v", r.Method, r.URL.Path, err)
-			}
+			logrus.Errorf("Handler for %s %s returned error: %v", r.Method, r.URL.Path, err)
 			httputils.MakeErrorHandler(err)(w, r)
 		}
 	}
@@ -150,7 +146,9 @@ func (s *Server) makeHTTPHandler(handler httputils.APIFunc) http.HandlerFunc {
 // InitRouter initializes the list of routers for the server.
 // This method also enables the Go profiler if enableProfiler is true.
 func (s *Server) InitRouter(enableProfiler bool, routers ...router.Router) {
-	s.routers = append(s.routers, routers...)
+	for _, r := range routers {
+		s.routers = append(s.routers, r)
+	}
 
 	m := s.createMux()
 	if enableProfiler {

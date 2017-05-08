@@ -77,7 +77,7 @@ func TestChrootUntarWithHugeExcludesList(t *testing.T) {
 	options := &archive.TarOptions{}
 	//65534 entries of 64-byte strings ~= 4MB of environment space which should overflow
 	//on most systems when passed via environment or command line arguments
-	excludes := make([]string, 65534)
+	excludes := make([]string, 65534, 65534)
 	for i := 0; i < 65534; i++ {
 		excludes[i] = strings.Repeat(string(i), 64)
 	}
@@ -165,7 +165,7 @@ func TestChrootTarUntarWithSymlink(t *testing.T) {
 	if err := system.MkdirAll(src, 0700); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := prepareSourceDirectory(10, src, false); err != nil {
+	if _, err := prepareSourceDirectory(10, src, true); err != nil {
 		t.Fatal(err)
 	}
 	dest := filepath.Join(tmpdir, "dest")
@@ -179,8 +179,8 @@ func TestChrootTarUntarWithSymlink(t *testing.T) {
 
 func TestChrootCopyWithTar(t *testing.T) {
 	// TODO Windows: Figure out why this is failing
-	if runtime.GOOS == "windows" || runtime.GOOS == "solaris" {
-		t.Skip("Failing on Windows and Solaris")
+	if runtime.GOOS == "windows" {
+		t.Skip("Failing on Windows")
 	}
 	tmpdir, err := ioutil.TempDir("", "docker-TestChrootCopyWithTar")
 	if err != nil {
@@ -284,7 +284,7 @@ func TestChrootUntarPath(t *testing.T) {
 	if err := system.MkdirAll(src, 0700); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := prepareSourceDirectory(10, src, false); err != nil {
+	if _, err := prepareSourceDirectory(10, src, true); err != nil {
 		t.Fatal(err)
 	}
 	dest := filepath.Join(tmpdir, "dest")

@@ -1,23 +1,20 @@
----
-redirect_from:
-- "/engine/extend/plugins/"
-title: "Use Docker Engine plugins"
-description: "How to add additional functionality to Docker with plugins extensions"
-keywords: "Examples, Usage, plugins, docker, documentation, user guide"
----
+<!--[metadata]>
++++
+aliases = "/engine/extend/plugins/"
+title = "Use Docker Engine plugins"
+description = "How to add additional functionality to Docker with plugins extensions"
+keywords = ["Examples, Usage, plugins, docker, documentation, user guide"]
+[menu.main]
+parent = "engine_extend"
+weight=3
++++
+<![end-metadata]-->
 
-<!-- This file is maintained within the docker/docker Github
-     repository at https://github.com/docker/docker/. Make all
-     pull requests against that repo. If you see this file in
-     another repository, consider it read-only there, as it will
-     periodically be overwritten by the definitive file. Pull
-     requests which include edits to this file in other repositories
-     will be rejected.
--->
+# Use Docker Engine plugins
 
 This document describes the Docker Engine plugins generally available in Docker
-Engine. To view information on plugins managed by Docker,
-refer to [Docker Engine plugin system](index.md).
+Engine. To view information on plugins managed by Docker Engine currently in
+experimental status, refer to [Docker Engine plugin system](index.md).
 
 You can extend the capabilities of the Docker Engine by loading third-party
 plugins. This page explains the types of plugins and provides links to several
@@ -58,14 +55,11 @@ Plugin                                                                          
 Plugin                                                                              | Description
 ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 [Azure File Storage plugin](https://github.com/Azure/azurefile-dockervolumedriver)  | Lets you mount Microsoft [Azure File Storage](https://azure.microsoft.com/blog/azure-file-storage-now-generally-available/) shares to Docker containers as volumes using the SMB 3.0 protocol. [Learn more](https://azure.microsoft.com/blog/persistent-docker-volumes-with-azure-file-storage/).
-[BeeGFS Volume Plugin](https://github.com/RedCoolBeans/docker-volume-beegfs)        | An open source volume plugin to create persistent volumes in a BeeGFS parallel file system.
 [Blockbridge plugin](https://github.com/blockbridge/blockbridge-docker-volume)      | A volume plugin that provides access to an extensible set of container-based persistent storage options. It supports single and multi-host Docker environments with features that include tenant isolation, automated provisioning, encryption, secure deletion, snapshots and QoS.
-[Contiv Volume Plugin](https://github.com/contiv/volplugin)                         | An open source volume plugin that provides multi-tenant, persistent, distributed storage with intent based consumption. It has support for Ceph and NFS.
+[Contiv Volume Plugin](https://github.com/contiv/volplugin)                         | An open source volume plugin that provides multi-tenant, persistent, distributed storage with intent based consumption using ceph underneath.
 [Convoy plugin](https://github.com/rancher/convoy)                                  | A volume plugin for a variety of storage back-ends including device mapper and NFS. It's a simple standalone executable written in Go and provides the framework to support vendor-specific extensions such as snapshots, backups and restore.
-[DigitalOcean Block Storage plugin](https://github.com/omallo/docker-volume-plugin-dostorage) | Integrates DigitalOcean's [block storage solution](https://www.digitalocean.com/products/storage/) into the Docker ecosystem by automatically attaching a given block storage volume to a DigitalOcean droplet and making the contents of the volume available to Docker containers running on that droplet.
 [DRBD plugin](https://www.drbd.org/en/supported-projects/docker)                    | A volume plugin that provides highly available storage replicated by [DRBD](https://www.drbd.org). Data written to the docker volume is replicated in a cluster of DRBD nodes.
 [Flocker plugin](https://clusterhq.com/docker-plugin/)                              | A volume plugin that provides multi-host portable volumes for Docker, enabling you to run databases and other stateful containers and move them around across a cluster of machines.
-[Fuxi Volume Plugin](https://github.com/openstack/fuxi)                             | A volume plugin that is developed as part of the OpenStack Kuryr project and implements the Docker volume plugin API by utilizing Cinder, the OpenStack block storage service.
 [gce-docker plugin](https://github.com/mcuadros/gce-docker)                         | A volume plugin able to attach, format and mount Google Compute [persistent-disks](https://cloud.google.com/compute/docs/disks/persistent-disks).
 [GlusterFS plugin](https://github.com/calavera/docker-volume-glusterfs)             | A volume plugin that provides multi-host volumes management for Docker using GlusterFS.
 [Horcrux Volume Plugin](https://github.com/muthu-r/horcrux)                         | A volume plugin that allows on-demand, version controlled access to your data. Horcrux is an open-source plugin, written in Go, and supports SCP, [Minio](https://www.minio.io) and Amazon S3.
@@ -75,9 +69,7 @@ Plugin                                                                          
 [Local Persist Plugin](https://github.com/CWSpear/local-persist)                    | A volume plugin that extends the default `local` driver's functionality by allowing you specify a mountpoint anywhere on the host, which enables the files to *always persist*, even if the volume is removed via `docker volume rm`.
 [NetApp Plugin](https://github.com/NetApp/netappdvp) (nDVP)                         | A volume plugin that provides direct integration with the Docker ecosystem for the NetApp storage portfolio. The nDVP package supports the provisioning and management of storage resources from the storage platform to Docker hosts, with a robust framework for adding additional platforms in the future.
 [Netshare plugin](https://github.com/ContainX/docker-volume-netshare)                 | A volume plugin that provides volume management for NFS 3/4, AWS EFS and CIFS file systems.
-[Nimble Storage Volume Plugin](https://connect.nimblestorage.com/community/app-integration/docker)| A volume plug-in that integrates with Nimble Storage Unified Flash Fabric arrays. The plug-in abstracts array volume capabilities to the Docker administrator to allow self-provisioning of secure multi-tenant volumes and clones.
 [OpenStorage Plugin](https://github.com/libopenstorage/openstorage)                 | A cluster-aware volume plugin that provides volume management for file and block storage solutions.  It implements a vendor neutral specification for implementing extensions such as CoS, encryption, and snapshots. It has example drivers based on FUSE, NFS, NBD and EBS to name a few.
-[Portworx Volume Plugin](https://github.com/portworx/px-dev)                        | A volume plugin that turns any server into a scale-out converged compute/storage node, providing container granular storage and highly available volumes across any node, using a shared-nothing storage backend that works with any docker scheduler.
 [Quobyte Volume Plugin](https://github.com/quobyte/docker-volume)                   | A volume plugin that connects Docker to [Quobyte](http://www.quobyte.com/containers)'s data center file system, a general-purpose scalable and fault-tolerant storage platform.
 [REX-Ray plugin](https://github.com/emccode/rexray)                                 | A volume plugin which is written in Go and provides advanced storage functionality for many platforms including VirtualBox, EC2, Google Compute Engine, OpenStack, and EMC.
 [Virtuozzo Storage and Ploop plugin](https://github.com/virtuozzo/docker-volume-ploop) | A volume plugin with support for Virtuozzo Storage distributed cloud file system as well as ploop devices.
@@ -88,7 +80,6 @@ Plugin                                                                          
  Plugin                                                       | Description
 ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  [Twistlock AuthZ Broker](https://github.com/twistlock/authz) | A basic extendable authorization plugin that runs directly on the host or inside a container. This plugin allows you to define user policies that it evaluates during authorization. Basic authorization is provided if Docker daemon is started with the --tlsverify flag (username is extracted from the certificate common name).
- [HBM plugin](https://github.com/kassisol/hbm)                | An authorization plugin that prevents from executing commands with certains parameters.
 
 ## Troubleshooting a plugin
 

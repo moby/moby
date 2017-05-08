@@ -15,91 +15,68 @@ var (
 		"amazing",
 		"angry",
 		"awesome",
-		"blissful",
+		"backstabbing",
+		"berserk",
+		"big",
 		"boring",
-		"brave",
 		"clever",
 		"cocky",
 		"compassionate",
-		"competent",
 		"condescending",
-		"confident",
 		"cranky",
-		"dazzling",
+		"desperate",
 		"determined",
 		"distracted",
 		"dreamy",
+		"drunk",
 		"eager",
 		"ecstatic",
 		"elastic",
 		"elated",
 		"elegant",
-		"eloquent",
-		"epic",
+		"evil",
 		"fervent",
-		"festive",
-		"flamboyant",
 		"focused",
-		"friendly",
-		"frosty",
-		"gallant",
-		"gifted",
+		"furious",
+		"gigantic",
+		"gloomy",
 		"goofy",
-		"gracious",
+		"grave",
 		"happy",
-		"hardcore",
-		"heuristic",
+		"high",
 		"hopeful",
 		"hungry",
 		"infallible",
-		"inspiring",
 		"jolly",
 		"jovial",
-		"keen",
-		"kind",
-		"laughing",
+		"kickass",
+		"lonely",
 		"loving",
-		"lucid",
-		"mystifying",
+		"mad",
 		"modest",
-		"musing",
 		"naughty",
-		"nervous",
-		"nifty",
+		"nauseous",
 		"nostalgic",
-		"objective",
-		"optimistic",
 		"peaceful",
 		"pedantic",
 		"pensive",
-		"practical",
-		"priceless",
-		"quirky",
-		"quizzical",
-		"relaxed",
+		"prickly",
 		"reverent",
 		"romantic",
 		"sad",
 		"serene",
 		"sharp",
+		"sick",
 		"silly",
 		"sleepy",
+		"small",
 		"stoic",
 		"stupefied",
 		"suspicious",
 		"tender",
 		"thirsty",
+		"tiny",
 		"trusting",
-		"unruffled",
-		"upbeat",
-		"vibrant",
-		"vigilant",
-		"vigorous",
-		"wizardly",
-		"wonderful",
-		"xenodochial",
-		"youthful",
-		"zealous",
 		"zen",
 	}
 
@@ -150,9 +127,6 @@ var (
 
 		// Alexander Graham Bell - an eminent Scottish-born scientist, inventor, engineer and innovator who is credited with inventing the first practical telephone - https://en.wikipedia.org/wiki/Alexander_Graham_Bell
 		"bell",
-
-		// Karl Friedrich Benz - a German automobile engineer. Inventor of the first practical motorcar. https://en.wikipedia.org/wiki/Karl_Benz
-		"benz",
 
 		// Homi J Bhabha - was an Indian nuclear physicist, founding director, and professor of physics at the Tata Institute of Fundamental Research. Colloquially known as "father of Indian nuclear programme"- https://en.wikipedia.org/wiki/Homi_J._Bhabha
 		"bhabha",
@@ -294,9 +268,6 @@ var (
 		// Werner Heisenberg was a founding father of quantum mechanics. https://en.wikipedia.org/wiki/Werner_Heisenberg
 		"heisenberg",
 
-		// Grete Hermann was a German philosopher noted for her philosophical work on the foundations of quantum mechanics. https://en.wikipedia.org/wiki/Grete_Hermann
-		"hermann",
-
 		// Jaroslav Heyrovský was the inventor of the polarographic method, father of the electroanalytical method, and recipient of the Nobel Prize in 1959. His main field of work was polarography. https://en.wikipedia.org/wiki/Jaroslav_Heyrovsk%C3%BD
 		"heyrovsky",
 
@@ -315,9 +286,6 @@ var (
 		// Hypatia - Greek Alexandrine Neoplatonist philosopher in Egypt who was one of the earliest mothers of mathematics - https://en.wikipedia.org/wiki/Hypatia
 		"hypatia",
 
-		// Mary Jackson, American mathematician and aerospace engineer who earned the highest title within NASA's engineering department - https://en.wikipedia.org/wiki/Mary_Jackson_(engineer)
-		"jackson",
-
 		// Yeong-Sil Jang was a Korean scientist and astronomer during the Joseon Dynasty; he invented the first metal printing press and water gauge. https://en.wikipedia.org/wiki/Jang_Yeong-sil
 		"jang",
 
@@ -326,9 +294,6 @@ var (
 
 		// Mary Lou Jepsen, was the founder and chief technology officer of One Laptop Per Child (OLPC), and the founder of Pixel Qi. https://en.wikipedia.org/wiki/Mary_Lou_Jepsen
 		"jepsen",
-
-		// Katherine Coleman Goble Johnson - American physicist and mathematician contributed to the NASA. https://en.wikipedia.org/wiki/Katherine_Johnson
-		"johnson",
 
 		// Irène Joliot-Curie - French scientist who was awarded the Nobel Prize for Chemistry in 1935. Daughter of Marie and Pierre Curie. https://en.wikipedia.org/wiki/Ir%C3%A8ne_Joliot-Curie
 		"joliot",
@@ -344,9 +309,6 @@ var (
 
 		// Mary Kenneth Keller, Sister Mary Kenneth Keller became the first American woman to earn a PhD in Computer Science in 1965. https://en.wikipedia.org/wiki/Mary_Kenneth_Keller
 		"keller",
-
-		// Johannes Kepler, German astronomer known for his three laws of planetary motion - https://en.wikipedia.org/wiki/Johannes_Kepler
-		"kepler",
 
 		// Har Gobind Khorana - Indian-American biochemist who shared the 1968 Nobel Prize for Physiology - https://en.wikipedia.org/wiki/Har_Gobind_Khorana
 		"khorana",
@@ -431,9 +393,6 @@ var (
 
 		// Ian Murdock - founder of the Debian project - https://en.wikipedia.org/wiki/Ian_Murdock
 		"murdock",
-
-		// John von Neumann - todays computer architectures are based on the von Neumann architecture. https://en.wikipedia.org/wiki/Von_Neumann_architecture
-		"neumann",
 
 		// Isaac Newton invented classic mechanics and modern optics. https://en.wikipedia.org/wiki/Isaac_Newton
 		"newton",

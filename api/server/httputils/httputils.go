@@ -1,6 +1,7 @@
 package httputils
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,6 +14,9 @@ import (
 
 // APIVersionKey is the client's requested API version.
 const APIVersionKey = "api-version"
+
+// UAStringKey is used as key type for user-agent string in net/context struct
+const UAStringKey = "upstream-user-agent"
 
 // APIFunc is an adapter to allow the use of ordinary functions as Docker API endpoints.
 // Any function that has the appropriate signature can be registered as an API endpoint (e.g. getVersion).
@@ -73,16 +77,22 @@ func ParseForm(r *http.Request) error {
 	return nil
 }
 
+// WriteJSON writes the value v to the http response stream as json with standard json encoding.
+func WriteJSON(w http.ResponseWriter, code int, v interface{}) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	return json.NewEncoder(w).Encode(v)
+}
+
 // VersionFromContext returns an API version from the context using APIVersionKey.
 // It panics if the context value does not have version.Version type.
-func VersionFromContext(ctx context.Context) string {
+func VersionFromContext(ctx context.Context) (ver string) {
 	if ctx == nil {
-		return ""
+		return
 	}
-
-	if val := ctx.Value(APIVersionKey); val != nil {
-		return val.(string)
+	val := ctx.Value(APIVersionKey)
+	if val == nil {
+		return
 	}
-
-	return ""
+	return val.(string)
 }

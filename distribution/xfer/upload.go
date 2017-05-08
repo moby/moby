@@ -16,25 +16,19 @@ const maxUploadAttempts = 5
 // LayerUploadManager provides task management and progress reporting for
 // uploads.
 type LayerUploadManager struct {
-	tm           TransferManager
-	waitDuration time.Duration
+	tm TransferManager
 }
 
-// SetConcurrency sets the max concurrent uploads for each push
+// SetConcurrency set the max concurrent uploads for each push
 func (lum *LayerUploadManager) SetConcurrency(concurrency int) {
 	lum.tm.SetConcurrency(concurrency)
 }
 
 // NewLayerUploadManager returns a new LayerUploadManager.
-func NewLayerUploadManager(concurrencyLimit int, options ...func(*LayerUploadManager)) *LayerUploadManager {
-	manager := LayerUploadManager{
-		tm:           NewTransferManager(concurrencyLimit),
-		waitDuration: time.Second,
+func NewLayerUploadManager(concurrencyLimit int) *LayerUploadManager {
+	return &LayerUploadManager{
+		tm: NewTransferManager(concurrencyLimit),
 	}
-	for _, option := range options {
-		option(&manager)
-	}
-	return &manager
 }
 
 type uploadTransfer struct {
@@ -148,7 +142,7 @@ func (lum *LayerUploadManager) makeUploadFunc(descriptor UploadDescriptor) DoFun
 
 				logrus.Errorf("Upload failed, retrying: %v", err)
 				delay := retries * 5
-				ticker := time.NewTicker(lum.waitDuration)
+				ticker := time.NewTicker(time.Second)
 
 			selectLoop:
 				for {

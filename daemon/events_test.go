@@ -4,10 +4,10 @@ import (
 	"testing"
 	"time"
 
-	containertypes "github.com/docker/docker/api/types/container"
-	eventtypes "github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/events"
+	containertypes "github.com/docker/engine-api/types/container"
+	eventtypes "github.com/docker/engine-api/types/events"
 )
 
 func TestLogContainerEventCopyLabels(t *testing.T) {
@@ -89,6 +89,6 @@ func validateTestAttributes(t *testing.T, l chan interface{}, expectedAttributes
 			}
 		}
 	case <-time.After(10 * time.Second):
-		t.Fatal("LogEvent test timed out")
+		t.Fatalf("LogEvent test timed out")
 	}
 }

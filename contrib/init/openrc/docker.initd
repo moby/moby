@@ -6,10 +6,8 @@ command="${DOCKERD_BINARY:-/usr/bin/dockerd}"
 pidfile="${DOCKER_PIDFILE:-/run/${RC_SVCNAME}.pid}"
 command_args="-p \"${pidfile}\" ${DOCKER_OPTS}"
 DOCKER_LOGFILE="${DOCKER_LOGFILE:-/var/log/${RC_SVCNAME}.log}"
-DOCKER_ERRFILE="${DOCKER_ERRFILE:-${DOCKER_LOGFILE}}"
-DOCKER_OUTFILE="${DOCKER_OUTFILE:-${DOCKER_LOGFILE}}"
 start_stop_daemon_args="--background \
-	--stderr \"${DOCKER_ERRFILE}\" --stdout \"${DOCKER_OUTFILE}\""
+	--stderr \"${DOCKER_LOGFILE}\" --stdout \"${DOCKER_LOGFILE}\""
 
 start_pre() {
 	checkpath -f -m 0644 -o root:docker "$DOCKER_LOGFILE"

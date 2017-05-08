@@ -125,7 +125,7 @@ func (out *progressOutput) WriteProgress(prog progress.Progress) error {
 	if prog.Message != "" {
 		formatted = out.sf.FormatStatus(prog.ID, prog.Message)
 	} else {
-		jsonProgress := jsonmessage.JSONProgress{Current: prog.Current, Total: prog.Total, HideCounts: prog.HideCounts}
+		jsonProgress := jsonmessage.JSONProgress{Current: prog.Current, Total: prog.Total}
 		formatted = out.sf.FormatProgress(prog.ID, prog.Action, &jsonProgress, prog.Aux)
 	}
 	_, err := out.out.Write(formatted)

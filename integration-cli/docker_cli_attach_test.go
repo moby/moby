@@ -10,8 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/integration-cli/cli"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
+	icmd "github.com/docker/docker/pkg/integration/cmd"
 	"github.com/go-check/check"
 )
 
@@ -23,8 +22,8 @@ func (s *DockerSuite) TestAttachMultipleAndRestart(c *check.C) {
 	endGroup.Add(3)
 	startGroup.Add(3)
 
-	cli.DockerCmd(c, "run", "--name", "attacher", "-d", "busybox", "/bin/sh", "-c", "while true; do sleep 1; echo hello; done")
-	cli.WaitRun(c, "attacher")
+	err := waitForContainer("attacher", "-d", "busybox", "/bin/sh", "-c", "while true; do sleep 1; echo hello; done")
+	c.Assert(err, check.IsNil)
 
 	startDone := make(chan struct{})
 	endDone := make(chan struct{})
@@ -78,7 +77,7 @@ func (s *DockerSuite) TestAttachMultipleAndRestart(c *check.C) {
 		c.Fatalf("Attaches did not initialize properly")
 	}
 
-	cli.DockerCmd(c, "kill", "attacher")
+	dockerCmd(c, "kill", "attacher")
 
 	select {
 	case <-endDone:
@@ -155,8 +154,9 @@ func (s *DockerSuite) TestAttachDisconnect(c *check.C) {
 }
 
 func (s *DockerSuite) TestAttachPausedContainer(c *check.C) {
-	testRequires(c, IsPausable)
-	runSleepingContainer(c, "-d", "--name=test")
+	testRequires(c, DaemonIsLinux) // Containers cannot be paused on Windows
+	defer unpauseAllContainers()
+	dockerCmd(c, "run", "-d", "--name=test", "busybox", "top")
 	dockerCmd(c, "pause", "test")
 
 	result := dockerCmdWithResult("attach", "test")

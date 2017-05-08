@@ -14,8 +14,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/cli/build"
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 	"github.com/kr/pty"
 )
@@ -112,7 +111,7 @@ func (s *DockerSuite) TestEventsOOMDisableTrue(c *check.C) {
 	case <-time.After(20 * time.Second):
 		observer.CheckEventError(c, containerID, "oom", matcher)
 	case <-testActions["oom"]:
-	// ignore, done
+		// ignore, done
 	case errRun := <-errChan:
 		if errRun != nil {
 			c.Fatalf("%v", errRun)
@@ -311,9 +310,11 @@ func (s *DockerSuite) TestEventsImageUntagDelete(c *check.C) {
 	defer observer.Stop()
 
 	name := "testimageevents"
-	buildImageSuccessfully(c, name, build.WithDockerfile(`FROM scratch
-		MAINTAINER "docker"`))
-	imageID := getIDByName(c, name)
+	imageID, err := buildImage(name,
+		`FROM scratch
+		MAINTAINER "docker"`,
+		true)
+	c.Assert(err, checker.IsNil)
 	c.Assert(deleteImages(name), checker.IsNil)
 
 	testActions := map[string]chan bool{
@@ -399,7 +400,7 @@ func (s *DockerDaemonSuite) TestDaemonEvents(c *check.C) {
 	daemonConfig := `{"labels":["foo=bar"]}`
 	fmt.Fprintf(configFile, "%s", daemonConfig)
 	configFile.Close()
-	s.d.Start(c, fmt.Sprintf("--config-file=%s", configFilePath))
+	c.Assert(s.d.Start(fmt.Sprintf("--config-file=%s", configFilePath)), check.IsNil)
 
 	// Get daemon ID
 	out, err := s.d.Cmd("info")
@@ -417,18 +418,18 @@ func (s *DockerDaemonSuite) TestDaemonEvents(c *check.C) {
 
 	configFile, err = os.Create(configFilePath)
 	c.Assert(err, checker.IsNil)
-	daemonConfig = `{"max-concurrent-downloads":1,"labels":["bar=foo"], "shutdown-timeout": 10}`
+	daemonConfig = `{"max-concurrent-downloads":1,"labels":["bar=foo"]}`
 	fmt.Fprintf(configFile, "%s", daemonConfig)
 	configFile.Close()
 
-	c.Assert(s.d.Signal(syscall.SIGHUP), checker.IsNil)
+	syscall.Kill(s.d.cmd.Process.Pid, syscall.SIGHUP)
 
 	time.Sleep(3 * time.Second)
 
 	out, err = s.d.Cmd("events", "--since=0", "--until", daemonUnixTime(c))
 	c.Assert(err, checker.IsNil)
 
-	c.Assert(out, checker.Contains, fmt.Sprintf("daemon reload %s (cluster-advertise=, cluster-store=, cluster-store-opts={}, debug=true, default-runtime=runc, default-shm-size=67108864, insecure-registries=[], labels=[\"bar=foo\"], live-restore=false, max-concurrent-downloads=1, max-concurrent-uploads=5, name=%s, registry-mirrors=[], runtimes=runc:{docker-runc []}, shutdown-timeout=10)", daemonID, daemonName))
+	c.Assert(out, checker.Contains, fmt.Sprintf("daemon reload %s (cluster-advertise=, cluster-store=, cluster-store-opts={}, debug=true, default-runtime=runc, labels=[\"bar=foo\"], live-restore=false, max-concurrent-downloads=1, max-concurrent-uploads=5, name=%s, runtimes=runc:{docker-runc []})", daemonID, daemonName))
 }
 
 func (s *DockerDaemonSuite) TestDaemonEventsWithFilters(c *check.C) {
@@ -443,7 +444,7 @@ func (s *DockerDaemonSuite) TestDaemonEventsWithFilters(c *check.C) {
 	daemonConfig := `{"labels":["foo=bar"]}`
 	fmt.Fprintf(configFile, "%s", daemonConfig)
 	configFile.Close()
-	s.d.Start(c, fmt.Sprintf("--config-file=%s", configFilePath))
+	c.Assert(s.d.Start(fmt.Sprintf("--config-file=%s", configFilePath)), check.IsNil)
 
 	// Get daemon ID
 	out, err := s.d.Cmd("info")
@@ -459,7 +460,7 @@ func (s *DockerDaemonSuite) TestDaemonEventsWithFilters(c *check.C) {
 	}
 	c.Assert(daemonID, checker.Not(checker.Equals), "")
 
-	c.Assert(s.d.Signal(syscall.SIGHUP), checker.IsNil)
+	syscall.Kill(s.d.cmd.Process.Pid, syscall.SIGHUP)
 
 	time.Sleep(3 * time.Second)
 

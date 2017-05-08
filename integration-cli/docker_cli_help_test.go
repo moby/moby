@@ -2,19 +2,18 @@ package main
 
 import (
 	"fmt"
+	"os/exec"
 	"runtime"
 	"strings"
 	"unicode"
 
-	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/pkg/homedir"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
+	"github.com/docker/docker/pkg/integration/checker"
+	icmd "github.com/docker/docker/pkg/integration/cmd"
 	"github.com/go-check/check"
 )
 
 func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
-	// FIXME(vdemeester) should be a unit test, probably using golden files ?
 	testRequires(c, DaemonIsLinux)
 
 	// Make sure main help text fits within 80 chars and that
@@ -53,12 +52,11 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 		scanForHome := runtime.GOOS != "windows" && home != "/"
 
 		// Check main help text to make sure its not over 80 chars
-		result := icmd.RunCmd(icmd.Cmd{
-			Command: []string{dockerBinary, "help"},
-			Env:     newEnvs,
-		})
-		result.Assert(c, icmd.Success)
-		lines := strings.Split(result.Combined(), "\n")
+		helpCmd := exec.Command(dockerBinary, "help")
+		helpCmd.Env = newEnvs
+		out, _, err := runCommandWithOutput(helpCmd)
+		c.Assert(err, checker.IsNil, check.Commentf(out))
+		lines := strings.Split(out, "\n")
 		for _, line := range lines {
 			// All lines should not end with a space
 			c.Assert(line, checker.Not(checker.HasSuffix), " ", check.Commentf("Line should not end with a space"))
@@ -77,24 +75,29 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 		// Make sure each cmd's help text fits within 90 chars and that
 		// on non-windows system we use ~ when possible (to shorten things).
 		// Pull the list of commands from the "Commands:" section of docker help
-		// FIXME(vdemeester) Why re-run help ?
-		//helpCmd = exec.Command(dockerBinary, "help")
-		//helpCmd.Env = newEnvs
-		//out, _, err = runCommandWithOutput(helpCmd)
-		//c.Assert(err, checker.IsNil, check.Commentf(out))
-		i := strings.Index(result.Combined(), "Commands:")
-		c.Assert(i, checker.GreaterOrEqualThan, 0, check.Commentf("Missing 'Commands:' in:\n%s", result.Combined()))
+		helpCmd = exec.Command(dockerBinary, "help")
+		helpCmd.Env = newEnvs
+		out, _, err = runCommandWithOutput(helpCmd)
+		c.Assert(err, checker.IsNil, check.Commentf(out))
+		i := strings.Index(out, "Commands:")
+		c.Assert(i, checker.GreaterOrEqualThan, 0, check.Commentf("Missing 'Commands:' in:\n%s", out))
 
 		cmds := []string{}
 		// Grab all chars starting at "Commands:"
-		helpOut := strings.Split(result.Combined()[i:], "\n")
-		// Skip first line, it is just "Commands:"
-		helpOut = helpOut[1:]
+		helpOut := strings.Split(out[i:], "\n")
+		// First line is just "Commands:"
+		if isLocalDaemon {
+			// Replace first line with "daemon" command since it's not part of the list of commands.
+			helpOut[0] = " daemon"
+		} else {
+			// Skip first line
+			helpOut = helpOut[1:]
+		}
 
 		// Create the list of commands we want to test
 		cmdsToTest := []string{}
 		for _, cmd := range helpOut {
-			// Stop on blank line or non-indented line
+			// Stop on blank line or non-idented line
 			if cmd == "" || !unicode.IsSpace(rune(cmd[0])) {
 				break
 			}
@@ -118,12 +121,6 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 		cmdsToTest = append(cmdsToTest, "network inspect")
 		cmdsToTest = append(cmdsToTest, "network ls")
 		cmdsToTest = append(cmdsToTest, "network rm")
-
-		if testEnv.ExperimentalDaemon() {
-			cmdsToTest = append(cmdsToTest, "checkpoint create")
-			cmdsToTest = append(cmdsToTest, "checkpoint ls")
-			cmdsToTest = append(cmdsToTest, "checkpoint rm")
-		}
 
 		// Divide the list of commands into go routines and  run the func testcommand on the commands in parallel
 		// to save runtime of test
@@ -150,55 +147,56 @@ func (s *DockerSuite) TestHelpExitCodesHelpOutput(c *check.C) {
 	// various good and bad cases are what we expect
 
 	// docker : stdout=all, stderr=empty, rc=0
-	out := cli.DockerCmd(c).Combined()
+	out, _, err := dockerCmdWithError()
+	c.Assert(err, checker.IsNil, check.Commentf(out))
 	// Be really pick
 	c.Assert(out, checker.Not(checker.HasSuffix), "\n\n", check.Commentf("Should not have a blank line at the end of 'docker'\n"))
 
 	// docker help: stdout=all, stderr=empty, rc=0
-	out = cli.DockerCmd(c, "help").Combined()
+	out, _, err = dockerCmdWithError("help")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
 	// Be really pick
 	c.Assert(out, checker.Not(checker.HasSuffix), "\n\n", check.Commentf("Should not have a blank line at the end of 'docker help'\n"))
 
 	// docker --help: stdout=all, stderr=empty, rc=0
-	out = cli.DockerCmd(c, "--help").Combined()
+	out, _, err = dockerCmdWithError("--help")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
 	// Be really pick
 	c.Assert(out, checker.Not(checker.HasSuffix), "\n\n", check.Commentf("Should not have a blank line at the end of 'docker --help'\n"))
 
 	// docker inspect busybox: stdout=all, stderr=empty, rc=0
 	// Just making sure stderr is empty on valid cmd
-	out = cli.DockerCmd(c, "inspect", "busybox").Combined()
+	out, _, err = dockerCmdWithError("inspect", "busybox")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
 	// Be really pick
 	c.Assert(out, checker.Not(checker.HasSuffix), "\n\n", check.Commentf("Should not have a blank line at the end of 'docker inspect busyBox'\n"))
 
 	// docker rm: stdout=empty, stderr=all, rc!=0
 	// testing the min arg error msg
-	cli.Docker(cli.Args("rm")).Assert(c, icmd.Expected{
-		ExitCode: 1,
-		Error:    "exit status 1",
-		Out:      "",
-		// Should not contain full help text but should contain info about
-		// # of args and Usage line
-		Err: "requires at least 1 argument",
-	})
+	cmd := exec.Command(dockerBinary, "rm")
+	stdout, stderr, _, err := runCommandWithStdoutStderr(cmd)
+	c.Assert(err, checker.NotNil)
+	c.Assert(stdout, checker.Equals, "")
+	// Should not contain full help text but should contain info about
+	// # of args and Usage line
+	c.Assert(stderr, checker.Contains, "requires at least 1 argument", check.Commentf("Missing # of args text from 'docker rm'\n"))
 
 	// docker rm NoSuchContainer: stdout=empty, stderr=all, rc=0
 	// testing to make sure no blank line on error
-	result := cli.Docker(cli.Args("rm", "NoSuchContainer")).Assert(c, icmd.Expected{
-		ExitCode: 1,
-		Error:    "exit status 1",
-		Out:      "",
-	})
+	cmd = exec.Command(dockerBinary, "rm", "NoSuchContainer")
+	stdout, stderr, _, err = runCommandWithStdoutStderr(cmd)
+	c.Assert(err, checker.NotNil)
+	c.Assert(len(stderr), checker.Not(checker.Equals), 0)
+	c.Assert(stdout, checker.Equals, "")
 	// Be really picky
-	c.Assert(len(result.Stderr()), checker.Not(checker.Equals), 0)
-	c.Assert(result.Stderr(), checker.Not(checker.HasSuffix), "\n\n", check.Commentf("Should not have a blank line at the end of 'docker rm'\n"))
+	c.Assert(stderr, checker.Not(checker.HasSuffix), "\n\n", check.Commentf("Should not have a blank line at the end of 'docker rm'\n"))
 
 	// docker BadCmd: stdout=empty, stderr=all, rc=0
-	cli.Docker(cli.Args("BadCmd")).Assert(c, icmd.Expected{
-		ExitCode: 1,
-		Error:    "exit status 1",
-		Out:      "",
-		Err:      "docker: 'BadCmd' is not a docker command.\nSee 'docker --help'\n",
-	})
+	cmd = exec.Command(dockerBinary, "BadCmd")
+	stdout, stderr, _, err = runCommandWithStdoutStderr(cmd)
+	c.Assert(err, checker.NotNil)
+	c.Assert(stdout, checker.Equals, "")
+	c.Assert(stderr, checker.Equals, "docker: 'BadCmd' is not a docker command.\nSee 'docker --help'.\n", check.Commentf("Unexcepted output for 'docker badCmd'\n"))
 }
 
 func testCommand(cmd string, newEnvs []string, scanForHome bool, home string) error {
@@ -206,13 +204,9 @@ func testCommand(cmd string, newEnvs []string, scanForHome bool, home string) er
 	args := strings.Split(cmd+" --help", " ")
 
 	// Check the full usage text
-	result := icmd.RunCmd(icmd.Cmd{
-		Command: append([]string{dockerBinary}, args...),
-		Env:     newEnvs,
-	})
-	err := result.Error
-	out := result.Stdout()
-	stderr := result.Stderr()
+	helpCmd := exec.Command(dockerBinary, args...)
+	helpCmd.Env = newEnvs
+	out, stderr, _, err := runCommandWithStdoutStderr(helpCmd)
 	if len(stderr) != 0 {
 		return fmt.Errorf("Error on %q help. non-empty stderr:%q\n", cmd, stderr)
 	}
@@ -233,6 +227,14 @@ func testCommand(cmd string, newEnvs []string, scanForHome bool, home string) er
 		i := strings.Index(line, "~")
 		if i >= 0 && i != len(line)-1 && line[i+1] != '/' {
 			return fmt.Errorf("Help for %q should not have used ~:\n%s", cmd, line)
+		}
+
+		// If a line starts with 4 spaces then assume someone
+		// added a multi-line description for an option and we need
+		// to flag it
+		if strings.HasPrefix(line, "    ") &&
+			!strings.HasPrefix(strings.TrimLeft(line, " "), "--") {
+			return fmt.Errorf("Help for %q should not have a multi-line option", cmd)
 		}
 
 		// Options should NOT end with a period

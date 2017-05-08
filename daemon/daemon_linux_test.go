@@ -62,7 +62,7 @@ func TestCleanupMounts(t *testing.T) {
 	d.cleanupMountsFromReaderByID(strings.NewReader(mountsFixture), "", unmount)
 
 	if unmounted != 1 {
-		t.Fatal("Expected to unmount the shm (and the shm only)")
+		t.Fatalf("Expected to unmount the shm (and the shm only)")
 	}
 }
 
@@ -83,7 +83,7 @@ func TestCleanupMountsByID(t *testing.T) {
 	d.cleanupMountsFromReaderByID(strings.NewReader(mountsFixture), "03ca4b49e71f1e49a41108829f4d5c70ac95934526e2af8984a1f65f1de0715d", unmount)
 
 	if unmounted != 1 {
-		t.Fatal("Expected to unmount the auf root (and that only)")
+		t.Fatalf("Expected to unmount the auf root (and that only)")
 	}
 }
 
@@ -99,6 +99,6 @@ func TestNotCleanupMounts(t *testing.T) {
 	mountInfo := `234 232 0:59 / /dev/shm rw,nosuid,nodev,noexec,relatime - tmpfs shm rw,size=65536k`
 	d.cleanupMountsFromReaderByID(strings.NewReader(mountInfo), "", unmount)
 	if unmounted {
-		t.Fatal("Expected not to clean up /dev/shm")
+		t.Fatalf("Expected not to clean up /dev/shm")
 	}
 }

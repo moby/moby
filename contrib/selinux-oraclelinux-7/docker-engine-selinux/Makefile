@@ -14,3 +14,10 @@ all: ${TARGETS:=.pp.bz2}
 clean:
 	rm -f *~  *.tc *.pp *.pp.bz2
 	rm -rf tmp *.tar.gz
+
+man: install
+	sepolicy manpage --domain ${TARGETS}_t
+
+install:
+	semodule -i ${TARGETS}
+

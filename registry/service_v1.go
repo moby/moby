@@ -1,13 +1,25 @@
 package registry
 
-import "net/url"
+import (
+	"net/url"
+
+	"github.com/docker/go-connections/tlsconfig"
+)
 
 func (s *DefaultService) lookupV1Endpoints(hostname string) (endpoints []APIEndpoint, err error) {
-	if hostname == DefaultNamespace || hostname == DefaultV2Registry.Host || hostname == IndexHostname {
-		return []APIEndpoint{}, nil
+	tlsConfig := tlsconfig.ServerDefault()
+	if hostname == DefaultNamespace {
+		endpoints = append(endpoints, APIEndpoint{
+			URL:          DefaultV1Registry,
+			Version:      APIVersion1,
+			Official:     true,
+			TrimHostname: true,
+			TLSConfig:    tlsConfig,
+		})
+		return endpoints, nil
 	}
 
-	tlsConfig, err := s.tlsConfig(hostname)
+	tlsConfig, err = s.TLSConfig(hostname)
 	if err != nil {
 		return nil, err
 	}

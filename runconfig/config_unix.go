@@ -3,8 +3,8 @@
 package runconfig
 
 import (
-	"github.com/docker/docker/api/types/container"
-	networktypes "github.com/docker/docker/api/types/network"
+	"github.com/docker/engine-api/types/container"
+	networktypes "github.com/docker/engine-api/types/network"
 )
 
 // ContainerConfigWrapper is a Config wrapper that holds the container Config (portable)
@@ -53,7 +53,7 @@ func (w *ContainerConfigWrapper) getHostConfig() *container.HostConfig {
 
 	// Make sure NetworkMode has an acceptable value. We do this to ensure
 	// backwards compatible API behavior.
-	SetDefaultNetModeIfBlank(hc)
+	hc = SetDefaultNetModeIfBlank(hc)
 
 	return hc
 }

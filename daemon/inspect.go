@@ -4,14 +4,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
-	networktypes "github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/api/types/versions/v1p20"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/network"
-	"github.com/docker/go-connections/nat"
+	"github.com/docker/engine-api/types"
+	networktypes "github.com/docker/engine-api/types/network"
+	"github.com/docker/engine-api/types/versions"
+	"github.com/docker/engine-api/types/versions/v1p20"
 )
 
 // ContainerInspect returns low-level information about a
@@ -36,19 +35,11 @@ func (daemon *Daemon) ContainerInspectCurrent(name string, size bool) (*types.Co
 	}
 
 	container.Lock()
+	defer container.Unlock()
 
-	base, err := daemon.getInspectData(container)
+	base, err := daemon.getInspectData(container, size)
 	if err != nil {
-		container.Unlock()
 		return nil, err
-	}
-
-	apiNetworks := make(map[string]*networktypes.EndpointSettings)
-	for name, epConf := range container.NetworkSettings.Networks {
-		if epConf.EndpointSettings != nil {
-			// We must make a copy of this pointer object otherwise it can race with other operations
-			apiNetworks[name] = epConf.EndpointSettings.Copy()
-		}
 	}
 
 	mountPoints := addMountPoints(container)
@@ -59,26 +50,13 @@ func (daemon *Daemon) ContainerInspectCurrent(name string, size bool) (*types.Co
 			HairpinMode:            container.NetworkSettings.HairpinMode,
 			LinkLocalIPv6Address:   container.NetworkSettings.LinkLocalIPv6Address,
 			LinkLocalIPv6PrefixLen: container.NetworkSettings.LinkLocalIPv6PrefixLen,
+			Ports:                  container.NetworkSettings.Ports,
 			SandboxKey:             container.NetworkSettings.SandboxKey,
 			SecondaryIPAddresses:   container.NetworkSettings.SecondaryIPAddresses,
 			SecondaryIPv6Addresses: container.NetworkSettings.SecondaryIPv6Addresses,
 		},
 		DefaultNetworkSettings: daemon.getDefaultNetworkSettings(container.NetworkSettings.Networks),
-		Networks:               apiNetworks,
-	}
-
-	ports := make(nat.PortMap, len(container.NetworkSettings.Ports))
-	for k, pm := range container.NetworkSettings.Ports {
-		ports[k] = pm
-	}
-	networkSettings.NetworkSettingsBase.Ports = ports
-
-	container.Unlock()
-
-	if size {
-		sizeRw, sizeRootFs := daemon.getSize(base.ID)
-		base.SizeRw = &sizeRw
-		base.SizeRootFs = &sizeRootFs
+		Networks:               container.NetworkSettings.Networks,
 	}
 
 	return &types.ContainerJSON{
@@ -99,7 +77,7 @@ func (daemon *Daemon) containerInspect120(name string) (*v1p20.ContainerJSON, er
 	container.Lock()
 	defer container.Unlock()
 
-	base, err := daemon.getInspectData(container)
+	base, err := daemon.getInspectData(container, false)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +100,7 @@ func (daemon *Daemon) containerInspect120(name string) (*v1p20.ContainerJSON, er
 	}, nil
 }
 
-func (daemon *Daemon) getInspectData(container *container.Container) (*types.ContainerJSONBase, error) {
+func (daemon *Daemon) getInspectData(container *container.Container, size bool) (*types.ContainerJSONBase, error) {
 	// make a copy to play with
 	hostConfig := *container.HostConfig
 
@@ -131,9 +109,6 @@ func (daemon *Daemon) getInspectData(container *container.Container) (*types.Con
 	for linkAlias, child := range children {
 		hostConfig.Links = append(hostConfig.Links, fmt.Sprintf("%s:%s", child.Name, linkAlias))
 	}
-
-	// We merge the Ulimits from hostConfig with daemon default
-	daemon.mergeUlimits(&hostConfig)
 
 	var containerHealth *types.Health
 	if container.State.Health != nil {
@@ -176,6 +151,16 @@ func (daemon *Daemon) getInspectData(container *container.Container) (*types.Con
 		HostConfig:   &hostConfig,
 	}
 
+	var (
+		sizeRw     int64
+		sizeRootFs int64
+	)
+	if size {
+		sizeRw, sizeRootFs = daemon.getSize(container)
+		contJSONBase.SizeRw = &sizeRw
+		contJSONBase.SizeRootFs = &sizeRootFs
+	}
+
 	// Now set any platform-specific fields
 	contJSONBase = setPlatformSpecificContainerFields(container, contJSONBase)
 
@@ -214,7 +199,6 @@ func (daemon *Daemon) ContainerExecInspect(id string) (*backend.ExecInspect, err
 		CanRemove:     e.CanRemove,
 		ContainerID:   e.ContainerID,
 		DetachKeys:    e.DetachKeys,
-		Pid:           e.Pid,
 	}, nil
 }
 
@@ -252,10 +236,10 @@ func (daemon *Daemon) getBackwardsCompatibleNetworkSettings(settings *network.Se
 
 // getDefaultNetworkSettings creates the deprecated structure that holds the information
 // about the bridge network for a container.
-func (daemon *Daemon) getDefaultNetworkSettings(networks map[string]*network.EndpointSettings) types.DefaultNetworkSettings {
+func (daemon *Daemon) getDefaultNetworkSettings(networks map[string]*networktypes.EndpointSettings) types.DefaultNetworkSettings {
 	var settings types.DefaultNetworkSettings
 
-	if defaultNetwork, ok := networks["bridge"]; ok && defaultNetwork.EndpointSettings != nil {
+	if defaultNetwork, ok := networks["bridge"]; ok {
 		settings.EndpointID = defaultNetwork.EndpointID
 		settings.Gateway = defaultNetwork.Gateway
 		settings.GlobalIPv6Address = defaultNetwork.GlobalIPv6Address

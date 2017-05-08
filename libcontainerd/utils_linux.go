@@ -1,8 +1,6 @@
 package libcontainerd
 
 import (
-	"syscall"
-
 	containerd "github.com/docker/containerd/api/grpc/types"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
@@ -51,12 +49,4 @@ func convertRlimits(sr []specs.Rlimit) (cr []*containerd.Rlimit) {
 		})
 	}
 	return
-}
-
-// setPDeathSig sets the parent death signal to SIGKILL
-func setSysProcAttr(sid bool) *syscall.SysProcAttr {
-	return &syscall.SysProcAttr{
-		Setsid:    sid,
-		Pdeathsig: syscall.SIGKILL,
-	}
 }

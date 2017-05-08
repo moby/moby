@@ -8,15 +8,14 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/request"
+	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/filters"
+	"github.com/docker/engine-api/types/network"
 	"github.com/go-check/check"
 )
 
-func (s *DockerSuite) TestAPINetworkGetDefaults(c *check.C) {
+func (s *DockerSuite) TestApiNetworkGetDefaults(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	// By default docker daemon creates 3 networks. check if they are present
 	defaults := []string{"bridge", "host", "none"}
@@ -25,7 +24,7 @@ func (s *DockerSuite) TestAPINetworkGetDefaults(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestAPINetworkCreateDelete(c *check.C) {
+func (s *DockerSuite) TestApiNetworkCreateDelete(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	// Create a network
 	name := "testnetwork"
@@ -43,7 +42,7 @@ func (s *DockerSuite) TestAPINetworkCreateDelete(c *check.C) {
 	c.Assert(isNetworkAvailable(c, name), checker.Equals, false)
 }
 
-func (s *DockerSuite) TestAPINetworkCreateCheckDuplicate(c *check.C) {
+func (s *DockerSuite) TestApiNetworkCreateCheckDuplicate(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	name := "testcheckduplicate"
 	configOnCheck := types.NetworkCreateRequest{
@@ -70,13 +69,13 @@ func (s *DockerSuite) TestAPINetworkCreateCheckDuplicate(c *check.C) {
 	createNetwork(c, configNotCheck, true)
 }
 
-func (s *DockerSuite) TestAPINetworkFilter(c *check.C) {
+func (s *DockerSuite) TestApiNetworkFilter(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	nr := getNetworkResource(c, getNetworkIDByName(c, "bridge"))
 	c.Assert(nr.Name, checker.Equals, "bridge")
 }
 
-func (s *DockerSuite) TestAPINetworkInspect(c *check.C) {
+func (s *DockerSuite) TestApiNetworkInspect(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	// Inspect default bridge network
 	nr := getNetworkResource(c, "bridge")
@@ -130,7 +129,7 @@ func (s *DockerSuite) TestAPINetworkInspect(c *check.C) {
 	c.Assert(isNetworkAvailable(c, "br0"), checker.Equals, false)
 }
 
-func (s *DockerSuite) TestAPINetworkConnectDisconnect(c *check.C) {
+func (s *DockerSuite) TestApiNetworkConnectDisconnect(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	// Create test network
 	name := "testnetwork"
@@ -171,7 +170,7 @@ func (s *DockerSuite) TestAPINetworkConnectDisconnect(c *check.C) {
 	deleteNetwork(c, nr.ID, true)
 }
 
-func (s *DockerSuite) TestAPINetworkIPAMMultipleBridgeNetworks(c *check.C) {
+func (s *DockerSuite) TestApiNetworkIpamMultipleBridgeNetworks(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	// test0 bridge network
 	ipam0 := &network.IPAM{
@@ -236,7 +235,7 @@ func (s *DockerSuite) TestAPINetworkIPAMMultipleBridgeNetworks(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestAPICreateDeletePredefinedNetworks(c *check.C) {
+func (s *DockerSuite) TestApiCreateDeletePredefinedNetworks(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	createDeletePredefinedNetwork(c, "bridge")
 	createDeletePredefinedNetwork(c, "none")
@@ -257,13 +256,12 @@ func createDeletePredefinedNetwork(c *check.C, name string) {
 }
 
 func isNetworkAvailable(c *check.C, name string) bool {
-	resp, body, err := request.Get("/networks")
+	status, body, err := sockRequest("GET", "/networks", nil)
+	c.Assert(status, checker.Equals, http.StatusOK)
 	c.Assert(err, checker.IsNil)
-	defer resp.Body.Close()
-	c.Assert(resp.StatusCode, checker.Equals, http.StatusOK)
 
 	nJSON := []types.NetworkResource{}
-	err = json.NewDecoder(body).Decode(&nJSON)
+	err = json.Unmarshal(body, &nJSON)
 	c.Assert(err, checker.IsNil)
 
 	for _, n := range nJSON {
@@ -284,12 +282,12 @@ func getNetworkIDByName(c *check.C, name string) string {
 	c.Assert(err, checker.IsNil)
 	v.Set("filters", filterJSON)
 
-	resp, body, err := request.Get("/networks?" + v.Encode())
-	c.Assert(resp.StatusCode, checker.Equals, http.StatusOK)
+	status, body, err := sockRequest("GET", "/networks?"+v.Encode(), nil)
+	c.Assert(status, checker.Equals, http.StatusOK)
 	c.Assert(err, checker.IsNil)
 
 	nJSON := []types.NetworkResource{}
-	err = json.NewDecoder(body).Decode(&nJSON)
+	err = json.Unmarshal(body, &nJSON)
 	c.Assert(err, checker.IsNil)
 	c.Assert(len(nJSON), checker.Equals, 1)
 
@@ -297,29 +295,28 @@ func getNetworkIDByName(c *check.C, name string) string {
 }
 
 func getNetworkResource(c *check.C, id string) *types.NetworkResource {
-	_, obj, err := request.Get("/networks/" + id)
+	_, obj, err := sockRequest("GET", "/networks/"+id, nil)
 	c.Assert(err, checker.IsNil)
 
 	nr := types.NetworkResource{}
-	err = json.NewDecoder(obj).Decode(&nr)
+	err = json.Unmarshal(obj, &nr)
 	c.Assert(err, checker.IsNil)
 
 	return &nr
 }
 
 func createNetwork(c *check.C, config types.NetworkCreateRequest, shouldSucceed bool) string {
-	resp, body, err := request.Post("/networks/create", request.JSONBody(config))
-	c.Assert(err, checker.IsNil)
-	defer resp.Body.Close()
+	status, resp, err := sockRequest("POST", "/networks/create", config)
 	if !shouldSucceed {
-		c.Assert(resp.StatusCode, checker.Not(checker.Equals), http.StatusCreated)
+		c.Assert(status, checker.Not(checker.Equals), http.StatusCreated)
 		return ""
 	}
 
-	c.Assert(resp.StatusCode, checker.Equals, http.StatusCreated)
+	c.Assert(err, checker.IsNil)
+	c.Assert(status, checker.Equals, http.StatusCreated)
 
 	var nr types.NetworkCreateResponse
-	err = json.NewDecoder(body).Decode(&nr)
+	err = json.Unmarshal(resp, &nr)
 	c.Assert(err, checker.IsNil)
 
 	return nr.ID
@@ -330,8 +327,8 @@ func connectNetwork(c *check.C, nid, cid string) {
 		Container: cid,
 	}
 
-	resp, _, err := request.Post("/networks/"+nid+"/connect", request.JSONBody(config))
-	c.Assert(resp.StatusCode, checker.Equals, http.StatusOK)
+	status, _, err := sockRequest("POST", "/networks/"+nid+"/connect", config)
+	c.Assert(status, checker.Equals, http.StatusOK)
 	c.Assert(err, checker.IsNil)
 }
 
@@ -340,18 +337,17 @@ func disconnectNetwork(c *check.C, nid, cid string) {
 		Container: cid,
 	}
 
-	resp, _, err := request.Post("/networks/"+nid+"/disconnect", request.JSONBody(config))
-	c.Assert(resp.StatusCode, checker.Equals, http.StatusOK)
+	status, _, err := sockRequest("POST", "/networks/"+nid+"/disconnect", config)
+	c.Assert(status, checker.Equals, http.StatusOK)
 	c.Assert(err, checker.IsNil)
 }
 
 func deleteNetwork(c *check.C, id string, shouldSucceed bool) {
-	resp, _, err := request.Delete("/networks/" + id)
-	c.Assert(err, checker.IsNil)
-	defer resp.Body.Close()
+	status, _, err := sockRequest("DELETE", "/networks/"+id, nil)
 	if !shouldSucceed {
-		c.Assert(resp.StatusCode, checker.Not(checker.Equals), http.StatusOK)
+		c.Assert(status, checker.Not(checker.Equals), http.StatusOK)
 		return
 	}
-	c.Assert(resp.StatusCode, checker.Equals, http.StatusNoContent)
+	c.Assert(status, checker.Equals, http.StatusNoContent)
+	c.Assert(err, checker.IsNil)
 }

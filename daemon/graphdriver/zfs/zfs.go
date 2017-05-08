@@ -220,10 +220,7 @@ func (d *Driver) Status() [][2]string {
 
 // GetMetadata returns image/container metadata related to graph driver
 func (d *Driver) GetMetadata(id string) (map[string]string, error) {
-	return map[string]string{
-		"Mountpoint": d.mountPath(id),
-		"Dataset":    d.zfsPath(id),
-	}, nil
+	return nil, nil
 }
 
 func (d *Driver) cloneFilesystem(name, parentName string) error {
@@ -258,17 +255,12 @@ func (d *Driver) mountPath(id string) string {
 
 // CreateReadWrite creates a layer that is writable for use as a container
 // file system.
-func (d *Driver) CreateReadWrite(id, parent string, opts *graphdriver.CreateOpts) error {
-	return d.Create(id, parent, opts)
+func (d *Driver) CreateReadWrite(id, parent, mountLabel string, storageOpt map[string]string) error {
+	return d.Create(id, parent, mountLabel, storageOpt)
 }
 
 // Create prepares the dataset and filesystem for the ZFS driver for the given id under the parent.
-func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
-	var storageOpt map[string]string
-	if opts != nil {
-		storageOpt = opts.StorageOpt
-	}
-
+func (d *Driver) Create(id string, parent string, mountLabel string, storageOpt map[string]string) error {
 	err := d.create(id, parent, storageOpt)
 	if err == nil {
 		return nil

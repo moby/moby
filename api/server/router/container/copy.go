@@ -10,8 +10,8 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/versions"
 	"golang.org/x/net/context"
 )
 
@@ -50,8 +50,11 @@ func (s *containerRouter) postContainersCopy(ctx context.Context, w http.Respons
 	defer data.Close()
 
 	w.Header().Set("Content-Type", "application/x-tar")
-	_, err = io.Copy(w, data)
-	return err
+	if _, err := io.Copy(w, data); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // // Encode the stat to JSON, base64 encode, and place in a header.
@@ -112,7 +115,5 @@ func (s *containerRouter) putContainersArchive(ctx context.Context, w http.Respo
 	}
 
 	noOverwriteDirNonDir := httputils.BoolValue(r, "noOverwriteDirNonDir")
-	copyUIDGID := httputils.BoolValue(r, "copyUIDGID")
-
-	return s.backend.ContainerExtractToDir(v.Name, v.Path, copyUIDGID, noOverwriteDirNonDir, r.Body)
+	return s.backend.ContainerExtractToDir(v.Name, v.Path, noOverwriteDirNonDir, r.Body)
 }

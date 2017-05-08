@@ -1,9 +1,9 @@
-#!/usr/bin/env bash
+#!/bin/bash
 set -e
 
 # Run Docker's test suite, including sub-packages, and store their output as a bundle
 # If $TESTFLAGS is set in the environment, it is passed as extra arguments to 'go test'.
-# You can use this to select certain tests to run, e.g.
+# You can use this to select certain tests to run, eg.
 #
 #   TESTFLAGS='-test.run ^TestBuild$' ./hack/make.sh test-unit
 #
@@ -25,30 +25,15 @@ bundle_test_unit() {
 	else
 		TEST_PATH=./${TESTDIRS}
 	fi
-
-	if [ "$(go env GOHOSTOS)" = 'solaris' ]; then
-		pkg_list=$(go list -e \
-			-f '{{if ne .Name "github.com/docker/docker"}}
-				{{.ImportPath}}
-			    {{end}}' \
-			"${BUILDFLAGS[@]}" $TEST_PATH \
-			| grep github.com/docker/docker \
-			| grep -v github.com/docker/docker/vendor \
-			| grep -v github.com/docker/docker/daemon/graphdriver \
-			| grep -v github.com/docker/docker/man \
-			| grep -v github.com/docker/docker/integration-cli)
-	else
-		pkg_list=$(go list -e \
-			-f '{{if ne .Name "github.com/docker/docker"}}
-				{{.ImportPath}}
-			    {{end}}' \
-			"${BUILDFLAGS[@]}" $TEST_PATH \
-			| grep github.com/docker/docker \
-			| grep -v github.com/docker/docker/vendor \
-			| grep -v github.com/docker/docker/man \
-			| grep -v github.com/docker/docker/integration-cli)
-	fi
-
+	pkg_list=$(go list -e \
+		-f '{{if ne .Name "github.com/docker/docker"}}
+			{{.ImportPath}}
+		    {{end}}' \
+		"${BUILDFLAGS[@]}" $TEST_PATH \
+		| grep github.com/docker/docker \
+		| grep -v github.com/docker/docker/vendor \
+		| grep -v github.com/docker/docker/man \
+		| grep -v github.com/docker/docker/integration-cli)
 	go test -cover -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" $TESTFLAGS $pkg_list
 }
 

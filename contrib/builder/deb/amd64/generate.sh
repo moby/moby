@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 set -e
 
 # usage: ./generate.sh [versions]
@@ -43,14 +43,14 @@ for version in "${versions[@]}"; do
 
 	if [ "$distro" = "debian" ]; then
 		cat >> "$version/Dockerfile" <<-'EOF'
-			# allow replacing httpredir or deb mirror
-			ARG APT_MIRROR=deb.debian.org
-			RUN sed -ri "s/(httpredir|deb).debian.org/$APT_MIRROR/g" /etc/apt/sources.list
+			# allow replacing httpredir mirror
+			ARG APT_MIRROR=httpredir.debian.org
+			RUN sed -i s/httpredir.debian.org/$APT_MIRROR/g /etc/apt/sources.list
 		EOF
 
 		if [ "$suite" = "wheezy" ]; then
 			cat >> "$version/Dockerfile" <<-'EOF'
-				RUN sed -ri "s/(httpredir|deb).debian.org/$APT_MIRROR/g" /etc/apt/sources.list.d/backports.list
+				RUN sed -i s/httpredir.debian.org/$APT_MIRROR/g /etc/apt/sources.list.d/backports.list
 			EOF
 		fi
 
@@ -66,7 +66,6 @@ for version in "${versions[@]}"; do
 		bash-completion # for bash-completion debhelper integration
 		btrfs-tools # for "btrfs/ioctl.h" (and "version.h" if possible)
 		build-essential # "essential for building Debian packages"
-		cmake # tini dep
 		curl ca-certificates # for downloading Go
 		debhelper # for easy ".deb" building
 		dh-apparmor # for apparmor debhelper
@@ -76,20 +75,20 @@ for version in "${versions[@]}"; do
 		libdevmapper-dev # for "libdevmapper.h"
 		libltdl-dev # for pkcs11 "ltdl.h"
 		libseccomp-dev  # for "seccomp.h" & "libseccomp.so"
+		libsqlite3-dev # for "sqlite3.h"
 		pkg-config # for detecting things like libsystemd-journal dynamically
-		vim-common # tini dep
 	)
 	# packaging for "sd-journal.h" and libraries varies
 	case "$suite" in
-		wheezy) ;;
-		jessie|trusty) packages+=( libsystemd-journal-dev ) ;;
-		*) packages+=( libsystemd-dev ) ;;
+		precise|wheezy) ;;
+		sid|stretch|wily|xenial) packages+=( libsystemd-dev );;
+		*) packages+=( libsystemd-journal-dev );;
 	esac
 
-	# debian wheezy does not have the right libseccomp libs
+	# debian wheezy & ubuntu precise do not have the right libseccomp libs
 	# debian jessie & ubuntu trusty have a libseccomp < 2.2.1 :(
 	case "$suite" in
-		wheezy|jessie|trusty)
+		precise|wheezy|jessie|trusty)
 			packages=( "${packages[@]/libseccomp-dev}" )
 			runcBuildTags="apparmor selinux"
 			;;
@@ -98,6 +97,23 @@ for version in "${versions[@]}"; do
 			runcBuildTags="apparmor seccomp selinux"
 			;;
 	esac
+
+
+	if [ "$suite" = 'precise' ]; then
+		# precise has a few package issues
+
+		# - dh-systemd doesn't exist at all
+		packages=( "${packages[@]/dh-systemd}" )
+
+		# - libdevmapper-dev is missing critical structs (too old)
+		packages=( "${packages[@]/libdevmapper-dev}" )
+		extraBuildTags+=' exclude_graphdriver_devicemapper'
+
+		# - btrfs-tools is missing "ioctl.h" (too old), so it's useless
+		#   (since kernels on precise are old too, just skip btrfs entirely)
+		packages=( "${packages[@]/btrfs-tools}" )
+		extraBuildTags+=' exclude_graphdriver_btrfs'
+	fi
 
 	if [ "$suite" = 'wheezy' ]; then
 		# pull a couple packages from backports explicitly
@@ -114,7 +130,7 @@ for version in "${versions[@]}"; do
 	echo >> "$version/Dockerfile"
 
 	awk '$1 == "ENV" && $2 == "GO_VERSION" { print; exit }' ../../../../Dockerfile >> "$version/Dockerfile"
-	echo 'RUN curl -fSL "https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz" | tar xzC /usr/local' >> "$version/Dockerfile"
+	echo 'RUN curl -fSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" | tar xzC /usr/local' >> "$version/Dockerfile"
 	echo 'ENV PATH $PATH:/usr/local/go/bin' >> "$version/Dockerfile"
 
 	echo >> "$version/Dockerfile"

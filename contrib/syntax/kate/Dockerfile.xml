@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE language SYSTEM "language.dtd">
+<!-- Dockerfile syntaxfile v1.0 by James Turnbull <james@lovedthanlost.net> -->
+<language name="Dockerfile" section="Other"
+          version="1.0" kateversion="2.4"
+          extensions="Dockerfile"
+          mimetype="text/plain"
+          author="James Turnbull (james@lovedthanlost.net)"
+          license="GPL">
+  <highlighting>
+    <list name="keywords">
+      <item> ADD </item>
+      <item> ARG </item>
+      <item> CMD </item>
+      <item> COPY </item>
+      <item> ENTRYPOINT </item>
+      <item> ENV </item>
+      <item> EXPOSE </item>
+      <item> FROM </item>
+      <item> HEALTHCHECK </item>
+      <item> LABEL </item>
+      <item> MAINTAINER </item>
+      <item> ONBUILD </item>
+      <item> RUN </item>
+      <item> SHELL </item>
+      <item> STOPSIGNAL </item>
+      <item> USER </item>
+      <item> VOLUME </item>
+      <item> WORKDIR </item>
+    </list>
+    <contexts>
+      <context name="normal" attribute="Normal" lineEndContext="#stay">
+        <DetectSpaces/>
+        <DetectChar attribute="Comment" context="Comment" char="#"/>
+        <keyword attribute="Keyword"  context="#stay" String="keywords"/>
+        <DetectIdentifier/>
+        <DetectChar attribute="String" context="string&quot;" char="&quot;"/>
+        <DetectChar attribute="String" context="string'" char="'"/>
+      </context>
+      <context attribute="Comment" lineEndContext="#pop" name="Comment">
+        <LineContinue attribute="Comment" context="#stay" />
+      </context>
+      <context name="string&quot;" attribute="String" lineEndContext="#pop">
+        <LineContinue attribute="Operator" context="#stay"/>
+        <DetectChar attribute="String" context="#pop" char="&quot;"/>
+        <DetectChar attribute="Operator" context="dollar" char="$"/>
+      </context>
+      <context name="string'" attribute="String" lineEndContext="#pop">
+        <LineContinue attribute="String" context="#stay"/>
+        <DetectChar attribute="String" context="#pop" char="'"/>
+        <DetectChar attribute="Operator" context="dollar" char="$"/>
+      </context>
+    </contexts>
+    <itemDatas>
+      <itemData name="Normal"    defStyleNum="dsNormal" spellChecking="0"/>
+      <itemData name="Keyword"   defStyleNum="dsKeyword" spellChecking="0"/>
+      <itemData name="Comment"   defStyleNum="dsComment"/>
+      <itemData name="String"    defStyleNum="dsString" spellChecking="0"/>
+    </itemDatas>
+  </highlighting>
+  <general>
+    <comments>
+      <comment name = "singleLine" start = "#"/>
+    </comments>
+  </general>
+</language>
+<!-- kate: space-indent on; indent-width 2; replace-tabs on; -->

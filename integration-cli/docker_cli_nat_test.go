@@ -6,24 +6,19 @@ import (
 	"net"
 	"strings"
 
-	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/cli"
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
 func startServerContainer(c *check.C, msg string, port int) string {
 	name := "server"
 	cmd := []string{
-		"run",
-		"--name",
-		name,
 		"-d",
 		"-p", fmt.Sprintf("%d:%d", port, port),
 		"busybox",
 		"sh", "-c", fmt.Sprintf("echo %q | nc -lp %d", msg, port),
 	}
-	cli.DockerCmd(c, cmd...)
-	cli.WaitRun(c, name)
+	c.Assert(waitForContainer(name, cmd...), check.IsNil)
 	return name
 }
 
@@ -41,6 +36,16 @@ func getExternalAddress(c *check.C) net.IP {
 	c.Assert(err, check.IsNil)
 
 	return ifaceIP
+}
+
+func getContainerLogs(c *check.C, containerID string) string {
+	out, _ := dockerCmd(c, "logs", containerID)
+	return strings.Trim(out, "\r\n")
+}
+
+func getContainerStatus(c *check.C, containerID string) string {
+	out := inspectField(c, containerID, "State.Running")
+	return out
 }
 
 func (s *DockerSuite) TestNetworkNat(c *check.C) {

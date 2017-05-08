@@ -2,15 +2,13 @@ package daemon
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
 	"runtime"
-	"strings"
 	"time"
 
-	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
@@ -19,7 +17,8 @@ import (
 	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
-	"github.com/pkg/errors"
+	"github.com/docker/docker/reference"
+	"github.com/docker/engine-api/types/container"
 )
 
 // ImportImage imports an image, getting the archived layer data either from
@@ -36,10 +35,11 @@ func (daemon *Daemon) ImportImage(src string, repository, tag string, msg string
 
 	if repository != "" {
 		var err error
-		newRef, err = reference.ParseNormalizedNamed(repository)
+		newRef, err = reference.ParseNamed(repository)
 		if err != nil {
 			return err
 		}
+
 		if _, isCanonical := newRef.(reference.Canonical); isCanonical {
 			return errors.New("cannot import digest reference")
 		}
@@ -60,19 +60,20 @@ func (daemon *Daemon) ImportImage(src string, repository, tag string, msg string
 		rc = inConfig
 	} else {
 		inConfig.Close()
-		if len(strings.Split(src, "://")) == 1 {
-			src = "http://" + src
-		}
 		u, err := url.Parse(src)
 		if err != nil {
 			return err
 		}
-
+		if u.Scheme == "" {
+			u.Scheme = "http"
+			u.Host = src
+			u.Path = ""
+		}
+		outStream.Write(sf.FormatStatus("", "Downloading from %s", u))
 		resp, err = httputils.Download(u.String())
 		if err != nil {
 			return err
 		}
-		outStream.Write(sf.FormatStatus("", "Downloading from %s", u))
 		progressOutput := sf.NewProgressOutput(outStream, true)
 		rc = progress.NewProgressReader(resp.Body, progressOutput, resp.ContentLength, "", "Importing")
 	}

@@ -23,6 +23,10 @@ type spc_t;
 domain_type(spc_t)
 role system_r types spc_t;
 
+type docker_auth_t;
+type docker_auth_exec_t;
+init_daemon_domain(docker_auth_t, docker_auth_exec_t)
+
 type spc_var_run_t;
 files_pid_file(spc_var_run_t)
 
@@ -50,6 +54,9 @@ files_tmpfs_file(docker_tmpfs_t)
 type docker_var_run_t;
 files_pid_file(docker_var_run_t)
 
+type docker_plugin_var_run_t;
+files_pid_file(docker_plugin_var_run_t)
+
 type docker_unit_file_t;
 systemd_unit_file(docker_unit_file_t)
 
@@ -58,6 +65,20 @@ term_pty(docker_devpts_t)
 
 type docker_share_t;
 files_type(docker_share_t)
+
+# OL7 systemd selinux update
+type systemd_machined_t;
+type systemd_machined_exec_t;
+init_daemon_domain(systemd_machined_t, systemd_machined_exec_t)
+
+# /run/systemd/machines
+type systemd_machined_var_run_t;
+files_pid_file(systemd_machined_var_run_t)
+
+# /var/lib/machines
+type systemd_machined_var_lib_t;
+files_type(systemd_machined_var_lib_t)
+
 
 ########################################
 #
@@ -72,6 +93,8 @@ allow docker_t self:tcp_socket create_stream_socket_perms;
 allow docker_t self:udp_socket create_socket_perms;
 allow docker_t self:capability2 block_suspend;
 
+docker_auth_stream_connect(docker_t)
+
 manage_files_pattern(docker_t, docker_home_t, docker_home_t)
 manage_dirs_pattern(docker_t, docker_home_t, docker_home_t)
 manage_lnk_files_pattern(docker_t, docker_home_t, docker_home_t)
@@ -83,6 +106,7 @@ files_etc_filetrans(docker_t, docker_config_t, dir, "docker")
 
 manage_dirs_pattern(docker_t, docker_lock_t, docker_lock_t)
 manage_files_pattern(docker_t, docker_lock_t, docker_lock_t)
+files_lock_filetrans(docker_t, docker_lock_t, { dir file }, "lxc")
 
 manage_dirs_pattern(docker_t, docker_log_t, docker_log_t)
 manage_files_pattern(docker_t, docker_log_t, docker_log_t)
@@ -205,6 +229,10 @@ optional_policy(`
 	openvswitch_stream_connect(docker_t)
 ')
 
+#
+# lxc rules
+#
+
 allow docker_t self:capability { dac_override setgid setpcap setuid sys_admin sys_boot sys_chroot sys_ptrace };
 
 allow docker_t self:process { getcap setcap setexec setpgid setsched signal_perms };
@@ -286,6 +314,7 @@ optional_policy(`
 
 	optional_policy(`
 		systemd_dbus_chat_logind(docker_t)
+		systemd_dbus_chat_machined(docker_t)
 	')
 
 	optional_policy(`
@@ -298,6 +327,11 @@ optional_policy(`
 ')
 
 optional_policy(`
+	unconfined_domain(docker_t)
+	# unconfined_typebounds(docker_t)
+')
+
+optional_policy(`
 	virt_read_config(docker_t)
 	virt_exec(docker_t)
 	virt_stream_connect(docker_t)
@@ -305,10 +339,12 @@ optional_policy(`
 	virt_exec_sandbox_files(docker_t)
 	virt_manage_sandbox_files(docker_t)
 	virt_relabel_sandbox_filesystem(docker_t)
+	# for lxc
 	virt_transition_svirt_sandbox(docker_t, system_r)
 	virt_mounton_sandbox_file(docker_t)
 #	virt_attach_sandbox_tun_iface(docker_t)
 	allow docker_t svirt_sandbox_domain:tun_socket relabelfrom;
+	virt_sandbox_entrypoint(docker_t)
 ')
 
 tunable_policy(`docker_connect_any',`
@@ -321,17 +357,19 @@ tunable_policy(`docker_connect_any',`
 #
 # spc local policy
 #
-domain_entry_file(spc_t, docker_share_t)
-domain_entry_file(spc_t, docker_var_lib_t)
+allow spc_t { docker_var_lib_t docker_share_t }:file entrypoint;
 role system_r types spc_t;
 
-domain_entry_file(spc_t, docker_share_t)
-domain_entry_file(spc_t, docker_var_lib_t)
 domtrans_pattern(docker_t, docker_share_t, spc_t)
 domtrans_pattern(docker_t, docker_var_lib_t, spc_t)
 allow docker_t spc_t:process { setsched signal_perms };
 ps_process_pattern(docker_t, spc_t)
 allow docker_t spc_t:socket_class_set { relabelto relabelfrom };
+filetrans_pattern(docker_t, docker_var_lib_t, docker_share_t, dir, "overlay")
+
+optional_policy(`
+	systemd_dbus_chat_machined(spc_t)
+')
 
 optional_policy(`
 	dbus_chat_system_bus(spc_t)
@@ -342,66 +380,86 @@ optional_policy(`
 ')
 
 optional_policy(`
-	unconfined_domain(docker_t)
-')
-
-optional_policy(`
 	virt_transition_svirt_sandbox(spc_t, system_r)
+	virt_sandbox_entrypoint(spc_t)
 ')
 
 ########################################
 #
-# docker upstream policy
+# docker_auth local policy
 #
+allow docker_auth_t self:fifo_file rw_fifo_file_perms;
+allow docker_auth_t self:unix_stream_socket create_stream_socket_perms;
+dontaudit docker_auth_t self:capability net_admin;
+
+docker_stream_connect(docker_auth_t)
+
+manage_dirs_pattern(docker_auth_t, docker_plugin_var_run_t, docker_plugin_var_run_t)
+manage_files_pattern(docker_auth_t, docker_plugin_var_run_t, docker_plugin_var_run_t)
+manage_sock_files_pattern(docker_auth_t, docker_plugin_var_run_t, docker_plugin_var_run_t)
+manage_lnk_files_pattern(docker_auth_t, docker_plugin_var_run_t, docker_plugin_var_run_t)
+files_pid_filetrans(docker_auth_t, docker_plugin_var_run_t, { dir file lnk_file sock_file })
+
+domain_use_interactive_fds(docker_auth_t)
+
+kernel_read_net_sysctls(docker_auth_t)
+
+auth_use_nsswitch(docker_auth_t)
+
+files_read_etc_files(docker_auth_t)
+
+miscfiles_read_localization(docker_auth_t)
+
+sysnet_dns_name_resolve(docker_auth_t)
+
+########################################
+#
+# OL7.2 systemd selinux update
+# systemd_machined local policy
+#
+allow systemd_machined_t self:capability { dac_override setgid sys_admin sys_chroot sys_ptrace };
+allow systemd_machined_t systemd_unit_file_t:service { status start };
+allow systemd_machined_t self:unix_dgram_socket create_socket_perms;
+
+manage_dirs_pattern(systemd_machined_t, systemd_machined_var_run_t, systemd_machined_var_run_t)
+manage_files_pattern(systemd_machined_t, systemd_machined_var_run_t, systemd_machined_var_run_t)
+manage_lnk_files_pattern(systemd_machined_t, systemd_machined_var_run_t, systemd_machined_var_run_t)
+init_pid_filetrans(systemd_machined_t, systemd_machined_var_run_t, dir, "machines")
+
+manage_dirs_pattern(systemd_machined_t, systemd_machined_var_lib_t, systemd_machined_var_lib_t)
+manage_files_pattern(systemd_machined_t, systemd_machined_var_lib_t, systemd_machined_var_lib_t)
+manage_lnk_files_pattern(systemd_machined_t, systemd_machined_var_lib_t, systemd_machined_var_lib_t)
+init_var_lib_filetrans(systemd_machined_t, systemd_machined_var_lib_t, dir, "machines")
+
+kernel_dgram_send(systemd_machined_t)
+# This is a bug, but need for now.
+kernel_read_unlabeled_state(systemd_machined_t)
+
+init_dbus_chat(systemd_machined_t)
+init_status(systemd_machined_t)
+
+userdom_dbus_send_all_users(systemd_machined_t)
+
+term_use_ptmx(systemd_machined_t)
 
 optional_policy(`
-#    domain_stub_named_filetrans_domain()
-     gen_require(`
-        attribute named_filetrans_domain;
-     ')
-
-      docker_filetrans_named_content(named_filetrans_domain)
+       dbus_connect_system_bus(systemd_machined_t)
+       dbus_system_bus_client(systemd_machined_t)
 ')
 
 optional_policy(`
-    lvm_stub()
-    docker_rw_sem(lvm_t)
+       docker_read_share_files(systemd_machined_t)
+       docker_spc_read_state(systemd_machined_t)
 ')
 
 optional_policy(`
-    staff_stub()
-    docker_stream_connect(staff_t)
-    docker_exec(staff_t)
+       virt_dbus_chat(systemd_machined_t)
+       virt_sandbox_read_state(systemd_machined_t)
+       virt_signal_sandbox(systemd_machined_t)
+       virt_stream_connect_sandbox(systemd_machined_t)
+       virt_rw_svirt_dev(systemd_machined_t)
+       virt_getattr_sandbox_filesystem(systemd_machined_t)
+       virt_read_sandbox_files(systemd_machined_t)
 ')
 
-optional_policy(`
-    virt_stub_svirt_sandbox_domain()
-    virt_stub_svirt_sandbox_file()
-    allow svirt_sandbox_domain self:netlink_kobject_uevent_socket create_socket_perms;
-    docker_read_share_files(svirt_sandbox_domain)
-    docker_lib_filetrans(svirt_sandbox_domain,svirt_sandbox_file_t, sock_file)
-    docker_use_ptys(svirt_sandbox_domain)
-    docker_spc_stream_connect(svirt_sandbox_domain)
-    fs_list_tmpfs(svirt_sandbox_domain)
-    fs_rw_hugetlbfs_files(svirt_sandbox_domain)
-    fs_dontaudit_remount_tmpfs(svirt_sandbox_domain)
-    dev_dontaudit_mounton_sysfs(svirt_sandbox_domain)
 
-    tunable_policy(`virt_sandbox_use_fusefs',`
-	fs_manage_fusefs_dirs(svirt_sandbox_domain)
-	fs_manage_fusefs_files(svirt_sandbox_domain)
-	fs_manage_fusefs_symlinks(svirt_sandbox_domain)
-    ')
-     gen_require(`
-        attribute domain;
-     ')
-
-     dontaudit svirt_sandbox_domain domain:key {search link};
-')
-
-optional_policy(`
-	gen_require(`
-		type pcp_pmcd_t;
-	')
-	docker_manage_lib_files(pcp_pmcd_t)
-')

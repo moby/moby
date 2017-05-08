@@ -54,7 +54,7 @@ and_underscore=working too
 	}
 
 	if !reflect.DeepEqual(lines, expectedLines) {
-		t.Fatal("lines not equal to expectedLines")
+		t.Fatal("lines not equal to expected_lines")
 	}
 }
 
@@ -128,11 +128,12 @@ another invalid line`
 	defer os.Remove(tmpFile)
 
 	_, err := ParseEnvFile(tmpFile)
+
 	if err == nil {
 		t.Fatalf("Expected an ErrBadEnvVariable, got nothing")
 	}
 	if _, ok := err.(ErrBadEnvVariable); !ok {
-		t.Fatalf("Expected an ErrBadEnvVariable, got [%v]", err)
+		t.Fatalf("Expected an ErrBadEnvvariable, got [%v]", err)
 	}
 	expectedMessage := "poorly formatted environment: variable 'first line' has white spaces"
 	if err.Error() != expectedMessage {

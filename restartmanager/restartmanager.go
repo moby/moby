@@ -6,13 +6,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
+	"github.com/docker/engine-api/types/container"
 )
 
 const (
 	backoffMultiplier = 2
 	defaultTimeout    = 100 * time.Millisecond
-	maxRestartTimeout = 1 * time.Minute
 )
 
 // ErrRestartCanceled is returned when the restart manager has been
@@ -36,7 +35,7 @@ type restartManager struct {
 	canceled     bool
 }
 
-// New returns a new restartManager based on a policy.
+// New returns a new restartmanager based on a policy.
 func New(policy container.RestartPolicy, restartCount int) RestartManager {
 	return &restartManager{policy: policy, restartCount: restartCount, cancel: make(chan struct{})}
 }
@@ -64,21 +63,17 @@ func (rm *restartManager) ShouldRestart(exitCode uint32, hasBeenManuallyStopped 
 	}
 
 	if rm.active {
-		return false, nil, fmt.Errorf("invalid call on an active restart manager")
+		return false, nil, fmt.Errorf("invalid call on active restartmanager")
 	}
 	// if the container ran for more than 10s, regardless of status and policy reset the
 	// the timeout back to the default.
 	if executionDuration.Seconds() >= 10 {
 		rm.timeout = 0
 	}
-	switch {
-	case rm.timeout == 0:
+	if rm.timeout == 0 {
 		rm.timeout = defaultTimeout
-	case rm.timeout < maxRestartTimeout:
+	} else {
 		rm.timeout *= backoffMultiplier
-	}
-	if rm.timeout > maxRestartTimeout {
-		rm.timeout = maxRestartTimeout
 	}
 
 	var restart bool

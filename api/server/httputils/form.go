@@ -1,7 +1,7 @@
 package httputils
 
 import (
-	"errors"
+	"fmt"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -15,7 +15,7 @@ func BoolValue(r *http.Request, k string) bool {
 }
 
 // BoolValueOrDefault returns the default bool passed if the query param is
-// missing, otherwise it's just a proxy to boolValue above.
+// missing, otherwise it's just a proxy to boolValue above
 func BoolValueOrDefault(r *http.Request, k string, d bool) bool {
 	if _, ok := r.Form[k]; !ok {
 		return d
@@ -38,7 +38,10 @@ func Int64ValueOrZero(r *http.Request, k string) int64 {
 func Int64ValueOrDefault(r *http.Request, field string, def int64) (int64, error) {
 	if r.Form.Get(field) != "" {
 		value, err := strconv.ParseInt(r.Form.Get(field), 10, 64)
-		return value, err
+		if err != nil {
+			return value, err
+		}
+		return value, nil
 	}
 	return def, nil
 }
@@ -61,9 +64,9 @@ func ArchiveFormValues(r *http.Request, vars map[string]string) (ArchiveOptions,
 
 	switch {
 	case name == "":
-		return ArchiveOptions{}, errors.New("bad parameter: 'name' cannot be empty")
+		return ArchiveOptions{}, fmt.Errorf("bad parameter: 'name' cannot be empty")
 	case path == "":
-		return ArchiveOptions{}, errors.New("bad parameter: 'path' cannot be empty")
+		return ArchiveOptions{}, fmt.Errorf("bad parameter: 'path' cannot be empty")
 	}
 
 	return ArchiveOptions{name, path}, nil

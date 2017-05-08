@@ -54,13 +54,3 @@ func normaliseDest(cmdName, workingDir, requested string) (string, error) {
 	}
 	return dest, nil
 }
-
-func containsWildcards(name string) bool {
-	for i := 0; i < len(name); i++ {
-		ch := name[i]
-		if ch == '*' || ch == '?' || ch == '[' {
-			return true
-		}
-	}
-	return false
-}

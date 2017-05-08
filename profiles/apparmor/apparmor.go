@@ -5,18 +5,19 @@ package apparmor
 import (
 	"bufio"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"strings"
 
 	"github.com/docker/docker/pkg/aaparser"
-	"github.com/docker/docker/pkg/templates"
+	"github.com/docker/docker/utils/templates"
 )
 
 var (
 	// profileDirectory is the file store for apparmor profiles and macros.
 	profileDirectory = "/etc/apparmor.d"
+	// defaultProfilePath is the default path for the apparmor profile to be saved.
+	defaultProfilePath = path.Join(profileDirectory, "docker")
 )
 
 // profileData holds information about the given profile for generation.
@@ -54,7 +55,10 @@ func (p *profileData) generateDefault(out io.Writer) error {
 	}
 	p.Version = ver
 
-	return compiled.Execute(out, p)
+	if err := compiled.Execute(out, p); err != nil {
+		return err
+	}
+	return nil
 }
 
 // macrosExists checks if the passed macro exists.
@@ -63,52 +67,51 @@ func macroExists(m string) bool {
 	return err == nil
 }
 
-// InstallDefault generates a default profile in a temp directory determined by
-// os.TempDir(), then loads the profile into the kernel using 'apparmor_parser'.
+// InstallDefault generates a default profile and installs it in the
+// ProfileDirectory with `apparmor_parser`.
 func InstallDefault(name string) error {
+	// Make sure the path where they want to save the profile exists
+	if err := os.MkdirAll(profileDirectory, 0755); err != nil {
+		return err
+	}
+
 	p := profileData{
 		Name: name,
 	}
 
-	// Install to a temporary directory.
-	f, err := ioutil.TempFile("", name)
+	f, err := os.OpenFile(defaultProfilePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return err
 	}
-	profilePath := f.Name()
-
-	defer f.Close()
-	defer os.Remove(profilePath)
-
 	if err := p.generateDefault(f); err != nil {
+		f.Close()
+		return err
+	}
+	f.Close()
+
+	if err := aaparser.LoadProfile(defaultProfilePath); err != nil {
 		return err
 	}
 
-	return aaparser.LoadProfile(profilePath)
+	return nil
 }
 
-// IsLoaded checks if a profile with the given name has been loaded into the
-// kernel.
-func IsLoaded(name string) (bool, error) {
+// IsLoaded checks if a passed profile has been loaded into the kernel.
+func IsLoaded(name string) error {
 	file, err := os.Open("/sys/kernel/security/apparmor/profiles")
 	if err != nil {
-		return false, err
+		return err
 	}
 	defer file.Close()
 
 	r := bufio.NewReader(file)
 	for {
 		p, err := r.ReadString('\n')
-		if err == io.EOF {
-			break
-		}
 		if err != nil {
-			return false, err
+			return err
 		}
 		if strings.HasPrefix(p, name+" ") {
-			return true, nil
+			return nil
 		}
 	}
-
-	return false, nil
 }

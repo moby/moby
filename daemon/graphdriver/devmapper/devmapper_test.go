@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	// Reduce the size of the base fs and loopback for the tests
+	// Reduce the size the the base fs and loopback for the tests
 	defaultDataLoopbackSize = 300 * 1024 * 1024
 	defaultMetaDataLoopbackSize = 200 * 1024 * 1024
 	defaultBaseFsSize = 300 * 1024 * 1024
@@ -59,7 +59,7 @@ func testChangeLoopBackSize(t *testing.T, delta, expectDataSize, expectMetaDataS
 	defer graphtest.PutDriver(t)
 	// make sure data or metadata loopback size are the default size
 	if s := driver.DeviceSet.Status(); s.Data.Total != uint64(defaultDataLoopbackSize) || s.Metadata.Total != uint64(defaultMetaDataLoopbackSize) {
-		t.Fatal("data or metadata loop back size is incorrect")
+		t.Fatalf("data or metadata loop back size is incorrect")
 	}
 	if err := driver.Cleanup(); err != nil {
 		t.Fatal(err)
@@ -74,7 +74,7 @@ func testChangeLoopBackSize(t *testing.T, delta, expectDataSize, expectMetaDataS
 	}
 	driver = d.(*graphdriver.NaiveDiffDriver).ProtoDriver.(*Driver)
 	if s := driver.DeviceSet.Status(); s.Data.Total != uint64(expectDataSize) || s.Metadata.Total != uint64(expectMetaDataSize) {
-		t.Fatal("data or metadata loop back size is incorrect")
+		t.Fatalf("data or metadata loop back size is incorrect")
 	}
 	if err := driver.Cleanup(); err != nil {
 		t.Fatal(err)
@@ -104,7 +104,7 @@ func TestDevmapperLockReleasedDeviceDeletion(t *testing.T) {
 		// function return and we are deadlocked. Release lock
 		// here so that cleanup could succeed and fail the test.
 		driver.DeviceSet.Unlock()
-		t.Fatal("Could not acquire devices lock after call to cleanupDeletedDevices()")
+		t.Fatalf("Could not acquire devices lock after call to cleanupDeletedDevices()")
 	case <-doneChan:
 	}
 }

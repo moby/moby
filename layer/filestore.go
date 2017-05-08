@@ -15,8 +15,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution"
+	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/opencontainers/go-digest"
 )
 
 var (
@@ -34,7 +34,7 @@ type fileMetadataStore struct {
 
 type fileMetadataTransaction struct {
 	store *fileMetadataStore
-	ws    *ioutils.AtomicWriteSet
+	root  string
 }
 
 // NewFSMetadataStore returns an instance of a metadata store
@@ -71,32 +71,33 @@ func (fms *fileMetadataStore) StartTransaction() (MetadataTransaction, error) {
 	if err := os.MkdirAll(tmpDir, 0755); err != nil {
 		return nil, err
 	}
-	ws, err := ioutils.NewAtomicWriteSet(tmpDir)
+
+	td, err := ioutil.TempDir(tmpDir, "layer-")
 	if err != nil {
 		return nil, err
 	}
-
+	// Create a new tempdir
 	return &fileMetadataTransaction{
 		store: fms,
-		ws:    ws,
+		root:  td,
 	}, nil
 }
 
 func (fm *fileMetadataTransaction) SetSize(size int64) error {
 	content := fmt.Sprintf("%d", size)
-	return fm.ws.WriteFile("size", []byte(content), 0644)
+	return ioutil.WriteFile(filepath.Join(fm.root, "size"), []byte(content), 0644)
 }
 
 func (fm *fileMetadataTransaction) SetParent(parent ChainID) error {
-	return fm.ws.WriteFile("parent", []byte(digest.Digest(parent).String()), 0644)
+	return ioutil.WriteFile(filepath.Join(fm.root, "parent"), []byte(digest.Digest(parent).String()), 0644)
 }
 
 func (fm *fileMetadataTransaction) SetDiffID(diff DiffID) error {
-	return fm.ws.WriteFile("diff", []byte(digest.Digest(diff).String()), 0644)
+	return ioutil.WriteFile(filepath.Join(fm.root, "diff"), []byte(digest.Digest(diff).String()), 0644)
 }
 
 func (fm *fileMetadataTransaction) SetCacheID(cacheID string) error {
-	return fm.ws.WriteFile("cache-id", []byte(cacheID), 0644)
+	return ioutil.WriteFile(filepath.Join(fm.root, "cache-id"), []byte(cacheID), 0644)
 }
 
 func (fm *fileMetadataTransaction) SetDescriptor(ref distribution.Descriptor) error {
@@ -104,11 +105,11 @@ func (fm *fileMetadataTransaction) SetDescriptor(ref distribution.Descriptor) er
 	if err != nil {
 		return err
 	}
-	return fm.ws.WriteFile("descriptor.json", jsonRef, 0644)
+	return ioutil.WriteFile(filepath.Join(fm.root, "descriptor.json"), jsonRef, 0644)
 }
 
 func (fm *fileMetadataTransaction) TarSplitWriter(compressInput bool) (io.WriteCloser, error) {
-	f, err := fm.ws.FileWriter("tar-split.json.gz", os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(filepath.Join(fm.root, "tar-split.json.gz"), os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return nil, err
 	}
@@ -130,16 +131,15 @@ func (fm *fileMetadataTransaction) Commit(layer ChainID) error {
 	if err := os.MkdirAll(filepath.Dir(finalDir), 0755); err != nil {
 		return err
 	}
-
-	return fm.ws.Commit(finalDir)
+	return os.Rename(fm.root, finalDir)
 }
 
 func (fm *fileMetadataTransaction) Cancel() error {
-	return fm.ws.Cancel()
+	return os.RemoveAll(fm.root)
 }
 
 func (fm *fileMetadataTransaction) String() string {
-	return fm.ws.String()
+	return fm.root
 }
 
 func (fms *fileMetadataStore) GetSize(layer ChainID) (int64, error) {
@@ -165,7 +165,7 @@ func (fms *fileMetadataStore) GetParent(layer ChainID) (ChainID, error) {
 		return "", err
 	}
 
-	dgst, err := digest.Parse(strings.TrimSpace(string(content)))
+	dgst, err := digest.ParseDigest(strings.TrimSpace(string(content)))
 	if err != nil {
 		return "", err
 	}
@@ -179,7 +179,7 @@ func (fms *fileMetadataStore) GetDiffID(layer ChainID) (DiffID, error) {
 		return "", err
 	}
 
-	dgst, err := digest.Parse(strings.TrimSpace(string(content)))
+	dgst, err := digest.ParseDigest(strings.TrimSpace(string(content)))
 	if err != nil {
 		return "", err
 	}
@@ -296,7 +296,7 @@ func (fms *fileMetadataStore) GetMountParent(mount string) (ChainID, error) {
 		return "", err
 	}
 
-	dgst, err := digest.Parse(strings.TrimSpace(string(content)))
+	dgst, err := digest.ParseDigest(strings.TrimSpace(string(content)))
 	if err != nil {
 		return "", err
 	}

@@ -3,13 +3,23 @@ package network
 import (
 	"fmt"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/filters"
 )
 
-func filterNetworkByType(nws []types.NetworkResource, netType string) ([]types.NetworkResource, error) {
-	retNws := []types.NetworkResource{}
+var (
+	// AcceptedFilters is an acceptable filters for validation
+	AcceptedFilters = map[string]bool{
+		"driver": true,
+		"type":   true,
+		"name":   true,
+		"id":     true,
+		"label":  true,
+	}
+)
+
+func filterNetworkByType(nws []types.NetworkResource, netType string) (retNws []types.NetworkResource, err error) {
 	switch netType {
 	case "builtin":
 		for _, nw := range nws {
@@ -37,6 +47,10 @@ func filterNetworks(nws []types.NetworkResource, filter filters.Args) ([]types.N
 		return nws, nil
 	}
 
+	if err := filter.Validate(AcceptedFilters); err != nil {
+		return nil, err
+	}
+
 	displayNet := []types.NetworkResource{}
 	for _, nw := range nws {
 		if filter.Include("driver") {
@@ -59,16 +73,11 @@ func filterNetworks(nws []types.NetworkResource, filter filters.Args) ([]types.N
 				continue
 			}
 		}
-		if filter.Include("scope") {
-			if !filter.ExactMatch("scope", nw.Scope) {
-				continue
-			}
-		}
 		displayNet = append(displayNet, nw)
 	}
 
 	if filter.Include("type") {
-		typeNet := []types.NetworkResource{}
+		var typeNet []types.NetworkResource
 		errFilter := filter.WalkValues("type", func(fval string) error {
 			passList, err := filterNetworkByType(displayNet, fval)
 			if err != nil {

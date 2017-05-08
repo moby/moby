@@ -29,7 +29,7 @@ func TestMiddlewares(t *testing.T) {
 
 	localHandler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 		if httputils.VersionFromContext(ctx) == "" {
-			t.Fatal("Expected version, got empty string")
+			t.Fatalf("Expected version, got empty string")
 		}
 
 		if sv := w.Header().Get("Server"); !strings.Contains(sv, "Docker/0.1omega2") {

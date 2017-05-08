@@ -5,8 +5,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/daemon"
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
@@ -26,7 +25,7 @@ func init() {
 // relative impact of each individual operation. As part of this suite, all
 // images are removed after each test.
 type DockerHubPullSuite struct {
-	d  *daemon.Daemon
+	d  *Daemon
 	ds *DockerSuite
 }
 
@@ -40,16 +39,16 @@ func newDockerHubPullSuite() *DockerHubPullSuite {
 // SetUpSuite starts the suite daemon.
 func (s *DockerHubPullSuite) SetUpSuite(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
-		Experimental: testEnv.ExperimentalDaemon(),
-	})
-	s.d.Start(c)
+	s.d = NewDaemon(c)
+	err := s.d.Start()
+	c.Assert(err, checker.IsNil, check.Commentf("starting push/pull test daemon: %v", err))
 }
 
 // TearDownSuite stops the suite daemon.
 func (s *DockerHubPullSuite) TearDownSuite(c *check.C) {
 	if s.d != nil {
-		s.d.Stop(c)
+		err := s.d.Stop()
+		c.Assert(err, checker.IsNil, check.Commentf("stopping push/pull test daemon: %v", err))
 	}
 }
 
@@ -85,7 +84,7 @@ func (s *DockerHubPullSuite) CmdWithError(name string, arg ...string) (string, e
 
 // MakeCmd returns an exec.Cmd command to run against the suite daemon.
 func (s *DockerHubPullSuite) MakeCmd(name string, arg ...string) *exec.Cmd {
-	args := []string{"--host", s.d.Sock(), name}
+	args := []string{"--host", s.d.sock(), name}
 	args = append(args, arg...)
 	return exec.Command(dockerBinary, args...)
 }

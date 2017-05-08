@@ -10,10 +10,9 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/registry/client/auth"
-	"github.com/docker/distribution/registry/client/auth/challenge"
 	"github.com/docker/distribution/registry/client/transport"
-	"github.com/docker/docker/api/types"
-	registrytypes "github.com/docker/docker/api/types/registry"
+	"github.com/docker/engine-api/types"
+	registrytypes "github.com/docker/engine-api/types/registry"
 )
 
 const (
@@ -207,21 +206,6 @@ func v2AuthHTTPClient(endpoint *url.URL, authTransport http.RoundTripper, modifi
 
 }
 
-// ConvertToHostname converts a registry url which has http|https prepended
-// to just an hostname.
-func ConvertToHostname(url string) string {
-	stripped := url
-	if strings.HasPrefix(url, "http://") {
-		stripped = strings.TrimPrefix(url, "http://")
-	} else if strings.HasPrefix(url, "https://") {
-		stripped = strings.TrimPrefix(url, "https://")
-	}
-
-	nameParts := strings.SplitN(stripped, "/", 2)
-
-	return nameParts[0]
-}
-
 // ResolveAuthConfig matches an auth configuration to a server address or a URL
 func ResolveAuthConfig(authConfigs map[string]types.AuthConfig, index *registrytypes.IndexInfo) types.AuthConfig {
 	configKey := GetAuthConfigKey(index)
@@ -230,10 +214,23 @@ func ResolveAuthConfig(authConfigs map[string]types.AuthConfig, index *registryt
 		return c
 	}
 
+	convertToHostname := func(url string) string {
+		stripped := url
+		if strings.HasPrefix(url, "http://") {
+			stripped = strings.Replace(url, "http://", "", 1)
+		} else if strings.HasPrefix(url, "https://") {
+			stripped = strings.Replace(url, "https://", "", 1)
+		}
+
+		nameParts := strings.SplitN(stripped, "/", 2)
+
+		return nameParts[0]
+	}
+
 	// Maybe they have a legacy config file, we will iterate the keys converting
 	// them to the new format and testing
 	for registry, ac := range authConfigs {
-		if configKey == ConvertToHostname(registry) {
+		if configKey == convertToHostname(registry) {
 			return ac
 		}
 	}
@@ -249,14 +246,14 @@ type PingResponseError struct {
 }
 
 func (err PingResponseError) Error() string {
-	return err.Err.Error()
+	return err.Error()
 }
 
 // PingV2Registry attempts to ping a v2 registry and on success return a
 // challenge manager for the supported authentication types and
 // whether v2 was confirmed by the response. If a response is received but
 // cannot be interpreted a PingResponseError will be returned.
-func PingV2Registry(endpoint *url.URL, transport http.RoundTripper) (challenge.Manager, bool, error) {
+func PingV2Registry(endpoint *url.URL, transport http.RoundTripper) (auth.ChallengeManager, bool, error) {
 	var (
 		foundV2   = false
 		v2Version = auth.APIVersion{
@@ -292,7 +289,7 @@ func PingV2Registry(endpoint *url.URL, transport http.RoundTripper) (challenge.M
 		}
 	}
 
-	challengeManager := challenge.NewSimpleManager()
+	challengeManager := auth.NewSimpleChallengeManager()
 	if err := challengeManager.AddResponse(resp); err != nil {
 		return nil, foundV2, PingResponseError{
 			Err: err,

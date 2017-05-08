@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"os/exec"
 
-	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
@@ -21,24 +21,24 @@ func (s *DockerSuite) TestLoginWithoutTTY(c *check.C) {
 
 func (s *DockerRegistryAuthHtpasswdSuite) TestLoginToPrivateRegistry(c *check.C) {
 	// wrong credentials
-	out, _, err := dockerCmdWithError("login", "-u", s.reg.Username(), "-p", "WRONGPASSWORD", privateRegistryURL)
+	out, _, err := dockerCmdWithError("login", "-u", s.reg.username, "-p", "WRONGPASSWORD", privateRegistryURL)
 	c.Assert(err, checker.NotNil, check.Commentf(out))
 	c.Assert(out, checker.Contains, "401 Unauthorized")
 
 	// now it's fine
-	dockerCmd(c, "login", "-u", s.reg.Username(), "-p", s.reg.Password(), privateRegistryURL)
+	dockerCmd(c, "login", "-u", s.reg.username, "-p", s.reg.password, privateRegistryURL)
 }
 
 func (s *DockerRegistryAuthHtpasswdSuite) TestLoginToPrivateRegistryDeprecatedEmailFlag(c *check.C) {
 	// Test to make sure login still works with the deprecated -e and --email flags
 	// wrong credentials
-	out, _, err := dockerCmdWithError("login", "-u", s.reg.Username(), "-p", "WRONGPASSWORD", "-e", s.reg.Email(), privateRegistryURL)
+	out, _, err := dockerCmdWithError("login", "-u", s.reg.username, "-p", "WRONGPASSWORD", "-e", s.reg.email, privateRegistryURL)
 	c.Assert(err, checker.NotNil, check.Commentf(out))
 	c.Assert(out, checker.Contains, "401 Unauthorized")
 
 	// now it's fine
 	// -e flag
-	dockerCmd(c, "login", "-u", s.reg.Username(), "-p", s.reg.Password(), "-e", s.reg.Email(), privateRegistryURL)
+	dockerCmd(c, "login", "-u", s.reg.username, "-p", s.reg.password, "-e", s.reg.email, privateRegistryURL)
 	// --email flag
-	dockerCmd(c, "login", "-u", s.reg.Username(), "-p", s.reg.Password(), "--email", s.reg.Email(), privateRegistryURL)
+	dockerCmd(c, "login", "-u", s.reg.username, "-p", s.reg.password, "--email", s.reg.email, privateRegistryURL)
 }

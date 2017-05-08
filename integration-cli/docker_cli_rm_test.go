@@ -4,8 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/cli/build"
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
@@ -39,15 +38,14 @@ func (s *DockerSuite) TestRmContainerWithVolume(c *check.C) {
 func (s *DockerSuite) TestRmContainerRunning(c *check.C) {
 	createRunningContainer(c, "foo")
 
-	res, _, err := dockerCmdWithError("rm", "foo")
+	_, _, err := dockerCmdWithError("rm", "foo")
 	c.Assert(err, checker.NotNil, check.Commentf("Expected error, can't rm a running container"))
-	c.Assert(res, checker.Contains, "cannot remove a running container")
 }
 
 func (s *DockerSuite) TestRmContainerForceRemoveRunning(c *check.C) {
 	createRunningContainer(c, "foo")
 
-	// Stop then remove with -f
+	// Stop then remove with -s
 	dockerCmd(c, "rm", "-f", "foo")
 }
 
@@ -60,12 +58,13 @@ func (s *DockerSuite) TestRmContainerOrphaning(c *check.C) {
 	MAINTAINER Integration Tests`
 
 	// build first dockerfile
-	buildImageSuccessfully(c, img, build.WithDockerfile(dockerfile1))
-	img1 := getIDByName(c, img)
+	img1, err := buildImage(img, dockerfile1, true)
+	c.Assert(err, check.IsNil, check.Commentf("Could not build image %s", img))
 	// run container on first image
 	dockerCmd(c, "run", img)
 	// rebuild dockerfile with a small addition at the end
-	buildImageSuccessfully(c, img, build.WithDockerfile(dockerfile2))
+	_, err = buildImage(img, dockerfile2, true)
+	c.Assert(err, check.IsNil, check.Commentf("Could not rebuild image %s", img))
 	// try to remove the image, should not error out.
 	out, _, err := dockerCmdWithError("rmi", img)
 	c.Assert(err, check.IsNil, check.Commentf("Expected to removing the image, but failed: %s", out))

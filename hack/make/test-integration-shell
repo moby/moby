@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 bundle .integration-daemon-start
 bundle .integration-daemon-setup

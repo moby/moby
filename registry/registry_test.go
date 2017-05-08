@@ -1,5 +1,3 @@
-// +build !solaris
-
 package registry
 
 import (
@@ -10,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client/transport"
-	"github.com/docker/docker/api/types"
-	registrytypes "github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/reference"
+	"github.com/docker/engine-api/types"
+	registrytypes "github.com/docker/engine-api/types/registry"
 )
 
 var (
@@ -201,7 +199,7 @@ func TestGetRemoteImageLayer(t *testing.T) {
 
 func TestGetRemoteTag(t *testing.T) {
 	r := spawnTestRegistrySession(t)
-	repoRef, err := reference.ParseNormalizedNamed(REPO)
+	repoRef, err := reference.ParseNamed(REPO)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -211,7 +209,7 @@ func TestGetRemoteTag(t *testing.T) {
 	}
 	assertEqual(t, tag, imageID, "Expected tag test to map to "+imageID)
 
-	bazRef, err := reference.ParseNormalizedNamed("foo42/baz")
+	bazRef, err := reference.ParseNamed("foo42/baz")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -223,7 +221,7 @@ func TestGetRemoteTag(t *testing.T) {
 
 func TestGetRemoteTags(t *testing.T) {
 	r := spawnTestRegistrySession(t)
-	repoRef, err := reference.ParseNormalizedNamed(REPO)
+	repoRef, err := reference.ParseNamed(REPO)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -235,7 +233,7 @@ func TestGetRemoteTags(t *testing.T) {
 	assertEqual(t, tags["latest"], imageID, "Expected tag latest to map to "+imageID)
 	assertEqual(t, tags["test"], imageID, "Expected tag test to map to "+imageID)
 
-	bazRef, err := reference.ParseNormalizedNamed("foo42/baz")
+	bazRef, err := reference.ParseNamed("foo42/baz")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -252,7 +250,7 @@ func TestGetRepositoryData(t *testing.T) {
 		t.Fatal(err)
 	}
 	host := "http://" + parsedURL.Host + "/v1/"
-	repoRef, err := reference.ParseNormalizedNamed(REPO)
+	repoRef, err := reference.ParseNamed(REPO)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -505,7 +503,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 	}
 
 	for reposName, expectedRepoInfo := range expectedRepoInfos {
-		named, err := reference.ParseNormalizedNamed(reposName)
+		named, err := reference.WithName(reposName)
 		if err != nil {
 			t.Error(err)
 		}
@@ -515,9 +513,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 			t.Error(err)
 		} else {
 			checkEqual(t, repoInfo.Index.Name, expectedRepoInfo.Index.Name, reposName)
-			checkEqual(t, reference.Path(repoInfo.Name), expectedRepoInfo.RemoteName, reposName)
-			checkEqual(t, reference.FamiliarName(repoInfo.Name), expectedRepoInfo.LocalName, reposName)
-			checkEqual(t, repoInfo.Name.Name(), expectedRepoInfo.CanonicalName, reposName)
+			checkEqual(t, repoInfo.RemoteName(), expectedRepoInfo.RemoteName, reposName)
+			checkEqual(t, repoInfo.Name(), expectedRepoInfo.LocalName, reposName)
+			checkEqual(t, repoInfo.FullName(), expectedRepoInfo.CanonicalName, reposName)
 			checkEqual(t, repoInfo.Index.Official, expectedRepoInfo.Index.Official, reposName)
 			checkEqual(t, repoInfo.Official, expectedRepoInfo.Official, reposName)
 		}
@@ -663,13 +661,13 @@ func TestMirrorEndpointLookup(t *testing.T) {
 		}
 		return false
 	}
-	s := DefaultService{config: makeServiceConfig([]string{"https://my.mirror"}, nil)}
+	s := DefaultService{config: makeServiceConfig([]string{"my.mirror"}, nil)}
 
 	imageName, err := reference.WithName(IndexName + "/test/image")
 	if err != nil {
 		t.Error(err)
 	}
-	pushAPIEndpoints, err := s.LookupPushEndpoints(reference.Domain(imageName))
+	pushAPIEndpoints, err := s.LookupPushEndpoints(imageName.Hostname())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -677,7 +675,7 @@ func TestMirrorEndpointLookup(t *testing.T) {
 		t.Fatal("Push endpoint should not contain mirror")
 	}
 
-	pullAPIEndpoints, err := s.LookupPullEndpoints(reference.Domain(imageName))
+	pullAPIEndpoints, err := s.LookupPullEndpoints(imageName.Hostname())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -688,7 +686,7 @@ func TestMirrorEndpointLookup(t *testing.T) {
 
 func TestPushRegistryTag(t *testing.T) {
 	r := spawnTestRegistrySession(t)
-	repoRef, err := reference.ParseNormalizedNamed(REPO)
+	repoRef, err := reference.ParseNamed(REPO)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -710,7 +708,7 @@ func TestPushImageJSONIndex(t *testing.T) {
 			Checksum: "sha256:bea7bf2e4bacd479344b737328db47b18880d09096e6674165533aa994f5e9f2",
 		},
 	}
-	repoRef, err := reference.ParseNormalizedNamed(REPO)
+	repoRef, err := reference.ParseNamed(REPO)
 	if err != nil {
 		t.Fatal(err)
 	}

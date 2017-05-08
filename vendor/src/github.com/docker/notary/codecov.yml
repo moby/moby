@@ -1,0 +1,18 @@
+codecov:
+  notify:
+    # 2 builds on circleci, 1 jenkins build
+    after_n_builds: 3
+coverage:
+  status:
+    # project will give us the diff in the total code coverage between a commit
+    # and its parent
+    project:
+      default:
+        target: auto
+    # patch would give us the code coverage of the diff only
+    patch: false
+    # changes tells us if there are unexpected code coverage changes in other files
+    # which were not changed by the diff
+    changes: false
+comment: off
+
