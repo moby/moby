@@ -1,13 +1,16 @@
----
-redirect_from:
-  - /reference/commandline/swarm_init/
-description: The swarm init command description and usage
-keywords:
-- swarm, init
-title: docker swarm init
----
+<!--[metadata]>
++++
+title = "swarm init"
+description = "The swarm init command description and usage"
+keywords = ["swarm, init"]
+[menu.main]
+parent = "smn_cli"
++++
+<![end-metadata]-->
 
 **Warning:** this command is part of the Swarm management feature introduced in Docker 1.12, and might be subject to non backward-compatible changes.
+
+# swarm init
 
 ```markdown
 Usage:  docker swarm init [OPTIONS]
@@ -71,7 +74,7 @@ This flag forces an existing node that was part of a quorum that was lost to res
 
 ### `--listen-addr value`
 
-The node listens for inbound swarm manager traffic on this address. The default is to listen on
+The node listens for inbound Swarm manager traffic on this address. The default is to listen on
 0.0.0.0:2377. It is also possible to specify a network interface to listen on that interface's
 address; for example `--listen-addr eth0:2377`.
 

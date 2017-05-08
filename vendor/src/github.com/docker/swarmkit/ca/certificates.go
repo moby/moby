@@ -683,27 +683,26 @@ func GetRemoteSignedCertificate(ctx context.Context, csr []byte, token string, r
 	}
 }
 
-// readCertValidity returns the certificate issue and expiration time
-func readCertValidity(paths CertPaths) (time.Time, time.Time, error) {
-	var zeroTime time.Time
+// readCertExpiration returns the number of months left for certificate expiration
+func readCertExpiration(paths CertPaths) (time.Duration, error) {
 	// Read the Cert
 	cert, err := ioutil.ReadFile(paths.Cert)
 	if err != nil {
 		log.Debugf("failed to read certificate file: %s", paths.Cert)
-		return zeroTime, zeroTime, err
+		return time.Hour, err
 	}
 
 	// Create an x509 certificate out of the contents on disk
 	certBlock, _ := pem.Decode([]byte(cert))
 	if certBlock == nil {
-		return zeroTime, zeroTime, errors.New("failed to decode certificate block")
+		return time.Hour, fmt.Errorf("failed to decode certificate block")
 	}
 	X509Cert, err := x509.ParseCertificate(certBlock.Bytes)
 	if err != nil {
-		return zeroTime, zeroTime, err
+		return time.Hour, err
 	}
 
-	return X509Cert.NotBefore, X509Cert.NotAfter, nil
+	return X509Cert.NotAfter.Sub(time.Now()), nil
 
 }
 

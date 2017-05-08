@@ -21,4 +21,3 @@ weight=9
 * [Amazon CloudWatch Logs logging driver](awslogs.md)
 * [Splunk logging driver](splunk.md)
 * [ETW logging driver](etwlogs.md)
-* [Google Cloud Logging driver](gcplogs.md)

@@ -37,7 +37,7 @@ type buildOptions struct {
 	context        string
 	dockerfileName string
 	tags           opts.ListOpts
-	labels         opts.ListOpts
+	labels         []string
 	buildArgs      opts.ListOpts
 	ulimits        *runconfigopts.UlimitOpt
 	memory         string
@@ -64,7 +64,6 @@ func NewBuildCommand(dockerCli *client.DockerCli) *cobra.Command {
 		tags:      opts.NewListOpts(validateTag),
 		buildArgs: opts.NewListOpts(runconfigopts.ValidateEnv),
 		ulimits:   runconfigopts.NewUlimitOpt(&ulimits),
-		labels:    opts.NewListOpts(runconfigopts.ValidateEnv),
 	}
 
 	cmd := &cobra.Command{
@@ -93,7 +92,7 @@ func NewBuildCommand(dockerCli *client.DockerCli) *cobra.Command {
 	flags.StringVar(&options.cpuSetMems, "cpuset-mems", "", "MEMs in which to allow execution (0-3, 0,1)")
 	flags.StringVar(&options.cgroupParent, "cgroup-parent", "", "Optional parent cgroup for the container")
 	flags.StringVar(&options.isolation, "isolation", "", "Container isolation technology")
-	flags.Var(&options.labels, "label", "Set metadata for an image")
+	flags.StringSliceVar(&options.labels, "label", []string{}, "Set metadata for an image")
 	flags.BoolVar(&options.noCache, "no-cache", false, "Do not use cache when building the image")
 	flags.BoolVar(&options.rm, "rm", true, "Remove intermediate containers after a successful build")
 	flags.BoolVar(&options.forceRm, "force-rm", false, "Always remove intermediate containers")
@@ -265,7 +264,7 @@ func runBuild(dockerCli *client.DockerCli, options buildOptions) error {
 		Ulimits:        options.ulimits.GetList(),
 		BuildArgs:      runconfigopts.ConvertKVStringsToMap(options.buildArgs.GetAll()),
 		AuthConfigs:    dockerCli.RetrieveAuthConfigs(),
-		Labels:         runconfigopts.ConvertKVStringsToMap(options.labels.GetAll()),
+		Labels:         runconfigopts.ConvertKVStringsToMap(options.labels),
 	}
 
 	response, err := dockerCli.Client().ImageBuild(ctx, body, buildOptions)

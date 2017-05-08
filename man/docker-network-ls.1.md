@@ -166,7 +166,7 @@ attached.
   Do not truncate the output
 
 **-q**, **--quiet**=*true*|*false*
-  Only display network IDs
+  Only display numeric IDs
 
 **--help**
   Print usage statement

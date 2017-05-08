@@ -10,9 +10,11 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/server/httputils"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/events"
+	"github.com/docker/engine-api/types/versions"
 	"github.com/docker/libnetwork"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
@@ -117,6 +119,8 @@ func (c *containerAdapter) removeNetworks(ctx context.Context) error {
 func (c *containerAdapter) create(ctx context.Context, backend executorpkg.Backend) error {
 	var cr types.ContainerCreateResponse
 	var err error
+	version := httputils.VersionFromContext(ctx)
+	validateHostname := versions.GreaterThanOrEqualTo(version, "1.24")
 
 	if cr, err = backend.CreateManagedContainer(types.ContainerCreateConfig{
 		Name:       c.container.name(),
@@ -124,7 +128,7 @@ func (c *containerAdapter) create(ctx context.Context, backend executorpkg.Backe
 		HostConfig: c.container.hostConfig(),
 		// Use the first network in container create
 		NetworkingConfig: c.container.createNetworkingConfig(),
-	}); err != nil {
+	}, validateHostname); err != nil {
 		return err
 	}
 
@@ -148,7 +152,9 @@ func (c *containerAdapter) create(ctx context.Context, backend executorpkg.Backe
 }
 
 func (c *containerAdapter) start(ctx context.Context) error {
-	return c.backend.ContainerStart(c.container.name(), nil)
+	version := httputils.VersionFromContext(ctx)
+	validateHostname := versions.GreaterThanOrEqualTo(version, "1.24")
+	return c.backend.ContainerStart(c.container.name(), nil, validateHostname)
 }
 
 func (c *containerAdapter) inspect(ctx context.Context) (types.ContainerJSON, error) {

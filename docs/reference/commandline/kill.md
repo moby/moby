@@ -1,11 +1,14 @@
----
-redirect_from:
-  - /reference/commandline/kill/
-description: The kill command description and usage
-keywords:
-- container, kill, signal
-title: docker kill
----
+<!--[metadata]>
++++
+title = "kill"
+description = "The kill command description and usage"
+keywords = ["container, kill, signal"]
+[menu.main]
+parent = "smn_cli"
++++
+<![end-metadata]-->
+
+# kill
 
 ```markdown
 Usage:  docker kill [OPTIONS] CONTAINER [CONTAINER...]

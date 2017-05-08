@@ -236,18 +236,7 @@ func restartPolicyFromGRPC(p *swarmapi.RestartPolicy) *types.RestartPolicy {
 	var rp *types.RestartPolicy
 	if p != nil {
 		rp = &types.RestartPolicy{}
-
-		switch p.Condition {
-		case swarmapi.RestartOnNone:
-			rp.Condition = types.RestartPolicyConditionNone
-		case swarmapi.RestartOnFailure:
-			rp.Condition = types.RestartPolicyConditionOnFailure
-		case swarmapi.RestartOnAny:
-			rp.Condition = types.RestartPolicyConditionAny
-		default:
-			rp.Condition = types.RestartPolicyConditionAny
-		}
-
+		rp.Condition = types.RestartPolicyCondition(strings.ToLower(p.Condition.String()))
 		if p.Delay != nil {
 			delay, _ := ptypes.Duration(p.Delay)
 			rp.Delay = &delay
@@ -266,19 +255,13 @@ func restartPolicyToGRPC(p *types.RestartPolicy) (*swarmapi.RestartPolicy, error
 	var rp *swarmapi.RestartPolicy
 	if p != nil {
 		rp = &swarmapi.RestartPolicy{}
-
-		switch p.Condition {
-		case types.RestartPolicyConditionNone:
-			rp.Condition = swarmapi.RestartOnNone
-		case types.RestartPolicyConditionOnFailure:
-			rp.Condition = swarmapi.RestartOnFailure
-		case types.RestartPolicyConditionAny:
+		sanatizedCondition := strings.ToUpper(strings.Replace(string(p.Condition), "-", "_", -1))
+		if condition, ok := swarmapi.RestartPolicy_RestartCondition_value[sanatizedCondition]; ok {
+			rp.Condition = swarmapi.RestartPolicy_RestartCondition(condition)
+		} else if string(p.Condition) == "" {
 			rp.Condition = swarmapi.RestartOnAny
-		default:
-			if string(p.Condition) != "" {
-				return nil, fmt.Errorf("invalid RestartCondition: %q", p.Condition)
-			}
-			rp.Condition = swarmapi.RestartOnAny
+		} else {
+			return nil, fmt.Errorf("invalid RestartCondition: %q", p.Condition)
 		}
 
 		if p.Delay != nil {

@@ -41,6 +41,7 @@ func NewCommitCommand(dockerCli *client.DockerCli) *cobra.Command {
 			return runCommit(dockerCli, &opts)
 		},
 	}
+	cmd.SetFlagErrorFunc(flagErrorFunc)
 
 	flags := cmd.Flags()
 	flags.SetInterspersed(false)

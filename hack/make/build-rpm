@@ -99,7 +99,7 @@ set -e
 		# add runc and containerd compile and install
 		cat >> "$DEST/$version/Dockerfile.build" <<-EOF
 			# Install runc
-			RUN git clone https://github.com/docker/runc.git "/go/src/github.com/opencontainers/runc" \
+			RUN git clone https://github.com/opencontainers/runc.git "/go/src/github.com/opencontainers/runc" \
 					&& cd "/go/src/github.com/opencontainers/runc" \
 					&& git checkout -q "\$RUNC_COMMIT"
 			RUN set -x && export GOPATH="/go" && cd "/go/src/github.com/opencontainers/runc" \

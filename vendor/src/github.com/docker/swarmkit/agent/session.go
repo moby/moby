@@ -2,7 +2,6 @@ package agent
 
 import (
 	"errors"
-	"sync"
 	"time"
 
 	"github.com/docker/swarmkit/api"
@@ -41,7 +40,6 @@ type session struct {
 
 	registered chan struct{} // closed registration
 	closed     chan struct{}
-	closeOnce  sync.Once
 }
 
 func newSession(ctx context.Context, agent *Agent, delay time.Duration) *session {
@@ -301,25 +299,16 @@ func (s *session) sendTaskStatuses(ctx context.Context, updates ...*api.UpdateTa
 	return updates[n:], nil
 }
 
-// sendError is used to send errors to errs channel and trigger session recreation
-func (s *session) sendError(err error) {
-	select {
-	case s.errs <- err:
-	case <-s.closed:
-	}
-}
-
-// close closing session. It should be called only in <-session.errs branch
-// of event loop.
 func (s *session) close() error {
-	s.closeOnce.Do(func() {
+	select {
+	case <-s.closed:
+		return errSessionClosed
+	default:
 		if s.conn != nil {
 			s.agent.config.Managers.ObserveIfExists(api.Peer{Addr: s.addr}, -picker.DefaultObservationWeight)
 			s.conn.Close()
 		}
-
 		close(s.closed)
-	})
-
-	return nil
+		return nil
+	}
 }

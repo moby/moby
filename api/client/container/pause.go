@@ -28,6 +28,7 @@ func NewPauseCommand(dockerCli *client.DockerCli) *cobra.Command {
 			return runPause(dockerCli, &opts)
 		},
 	}
+	cmd.SetFlagErrorFunc(flagErrorFunc)
 
 	return cmd
 }

@@ -1,11 +1,14 @@
----
-redirect_from:
-  - /reference/commandline/events/
-description: The events command description and usage
-keywords:
-- events, container, report
-title: docker events
----
+<!--[metadata]>
++++
+title = "events"
+description = "The events command description and usage"
+keywords = ["events, container, report"]
+[menu.main]
+parent = "smn_cli"
++++
+<![end-metadata]-->
+
+# events
 
 ```markdown
 Usage:  docker events [OPTIONS]
@@ -21,7 +24,7 @@ Options:
 
 Docker containers report the following events:
 
-    attach, commit, copy, create, destroy, detach, die, exec_create, exec_detach, exec_start, export, health_status, kill, oom, pause, rename, resize, restart, start, stop, top, unpause, update
+    attach, commit, copy, create, destroy, detach, die, exec_create, exec_detach, exec_start, export, kill, oom, pause, rename, resize, restart, start, stop, top, unpause, update
 
 Docker images report the following events:
 

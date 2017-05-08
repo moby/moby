@@ -1,17 +1,20 @@
----
-redirect_from:
-  - /reference/commandline/plugin_rm/
-advisory: experimental
-description: the plugin rm command description and usage
-keywords:
-- plugin, rm
-title: docker plugin rm (experimental)
----
+<!--[metadata]>
++++
+title = "plugin rm"
+description = "the plugin rm command description and usage"
+keywords = ["plugin, rm"]
+advisory = "experimental"
+[menu.main]
+parent = "smn_cli"
++++
+<![end-metadata]-->
+
+# plugin rm (experimental)
 
 ```markdown
 Usage:  docker plugin rm PLUGIN
 
-Remove one or more plugins
+Remove a plugin
 
 Aliases:
   rm, remove

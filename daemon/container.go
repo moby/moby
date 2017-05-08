@@ -3,6 +3,7 @@ package daemon
 import (
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"time"
 
 	"github.com/docker/docker/container"
@@ -89,9 +90,9 @@ func (daemon *Daemon) load(id string) (*container.Container, error) {
 func (daemon *Daemon) Register(c *container.Container) error {
 	// Attach to stdout and stderr
 	if c.Config.OpenStdin {
-		c.StreamConfig.NewInputPipes()
+		c.NewInputPipes()
 	} else {
-		c.StreamConfig.NewNopInputPipe()
+		c.NewNopInputPipe()
 	}
 
 	daemon.containers.Add(c.ID, c)
@@ -202,7 +203,7 @@ func (daemon *Daemon) setHostConfig(container *container.Container, hostConfig *
 
 // verifyContainerSettings performs validation of the hostconfig and config
 // structures.
-func (daemon *Daemon) verifyContainerSettings(hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool) ([]string, error) {
+func (daemon *Daemon) verifyContainerSettings(hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool, validateHostname bool) ([]string, error) {
 
 	// First perform verification of settings common across all platforms.
 	if config != nil {
@@ -217,6 +218,18 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *containertypes.HostCon
 			_, err := signal.ParseSignal(config.StopSignal)
 			if err != nil {
 				return nil, err
+			}
+		}
+
+		// Validate if the given hostname is RFC 1123 (https://tools.ietf.org/html/rfc1123) compliant.
+		if validateHostname && len(config.Hostname) > 0 {
+			// RFC1123 specifies that 63 bytes is the maximium length
+			// Windows has the limitation of 63 bytes in length
+			// Linux hostname is limited to HOST_NAME_MAX=64, not including the terminating null byte.
+			// We limit the length to 63 bytes here to match RFC1035 and RFC1123.
+			matched, _ := regexp.MatchString("^(([[:alnum:]]|[[:alnum:]][[:alnum:]\\-]*[[:alnum:]])\\.)*([[:alnum:]]|[[:alnum:]][[:alnum:]\\-]*[[:alnum:]])$", config.Hostname)
+			if len(config.Hostname) > 63 || !matched {
+				return nil, fmt.Errorf("invalid hostname format: %s", config.Hostname)
 			}
 		}
 	}

@@ -33,7 +33,6 @@ import (
 	"strings"
 	"sync"
 	"syscall"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/vbatts/tar-split/tar/storage"
@@ -265,39 +264,6 @@ func (a *Driver) createDirsFor(id string) error {
 	return nil
 }
 
-// Helper function to debug EBUSY errors on remove.
-func debugEBusy(mountPath string) (out []string, err error) {
-	// lsof is not part of GNU coreutils. This is a best effort
-	// attempt to detect offending processes.
-	c := exec.Command("lsof")
-
-	r, err := c.StdoutPipe()
-	if err != nil {
-		return nil, fmt.Errorf("Assigning pipes failed with %v", err)
-	}
-
-	if err := c.Start(); err != nil {
-		return nil, fmt.Errorf("Starting %s failed with %v", c.Path, err)
-	}
-
-	defer func() {
-		waiterr := c.Wait()
-		if waiterr != nil && err == nil {
-			err = fmt.Errorf("Waiting for %s failed with %v", c.Path, waiterr)
-		}
-	}()
-
-	sc := bufio.NewScanner(r)
-	for sc.Scan() {
-		entry := sc.Text()
-		if strings.Contains(entry, mountPath) {
-			out = append(out, entry, "\n")
-		}
-	}
-
-	return out, nil
-}
-
 // Remove will unmount and remove the given id.
 func (a *Driver) Remove(id string) error {
 	a.pathCacheLock.Lock()
@@ -306,35 +272,9 @@ func (a *Driver) Remove(id string) error {
 	if !exists {
 		mountpoint = a.getMountpoint(id)
 	}
-
-	var retries int
-	for {
-		mounted, err := a.mounted(mountpoint)
-		if err != nil {
-			return err
-		}
-		if !mounted {
-			break
-		}
-
-		if err := a.unmount(mountpoint); err != nil {
-			if err != syscall.EBUSY {
-				return fmt.Errorf("aufs: unmount error: %s: %v", mountpoint, err)
-			}
-			if retries >= 5 {
-				out, debugErr := debugEBusy(mountpoint)
-				if debugErr == nil {
-					logrus.Warnf("debugEBusy returned %v", out)
-				}
-				return fmt.Errorf("aufs: unmount error after retries: %s: %v", mountpoint, err)
-			}
-			// If unmount returns EBUSY, it could be a transient error. Sleep and retry.
-			retries++
-			logrus.Warnf("unmount failed due to EBUSY: retry count: %d", retries)
-			time.Sleep(100 * time.Millisecond)
-			continue
-		}
-		break
+	if err := a.unmount(mountpoint); err != nil {
+		// no need to return here, we can still try to remove since the `Rename` will fail below if still mounted
+		logrus.Debugf("aufs: error while unmounting %s: %v", mountpoint, err)
 	}
 
 	// Atomically remove each directory in turn by first moving it out of the
@@ -342,13 +282,6 @@ func (a *Driver) Remove(id string) error {
 	// the whole tree.
 	tmpMntPath := path.Join(a.mntPath(), fmt.Sprintf("%s-removing", id))
 	if err := os.Rename(mountpoint, tmpMntPath); err != nil && !os.IsNotExist(err) {
-		if err == syscall.EBUSY {
-			logrus.Warnf("os.Rename err due to EBUSY")
-			out, debugErr := debugEBusy(mountpoint)
-			if debugErr == nil {
-				logrus.Warnf("debugEBusy returned %v", out)
-			}
-		}
 		return err
 	}
 	defer os.RemoveAll(tmpMntPath)

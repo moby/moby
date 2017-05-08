@@ -1,10 +1,16 @@
----
-redirect_from:
-- "/engine/misc/deprecated/"
-title: "Deprecated Engine Features"
-description: "Deprecated Features."
-keywords: "docker, documentation, about, technology, deprecate"
----
+<!--[metadata]>
++++
+aliases = ["/engine/misc/deprecated/"]
+title = "Deprecated Engine Features"
+description = "Deprecated Features."
+keywords = ["docker, documentation, about, technology, deprecate"]
+[menu.main]
+parent = "engine_use"
+weight=80
++++
+<![end-metadata]-->
+
+# Deprecated Engine Features
 
 The following list of features are deprecated in Engine.
 To learn more about Docker Engine's deprecation policy,
@@ -99,11 +105,8 @@ Log tags are now generated in a standard way across different logging drivers.
 Because of which, the driver specific log tag options `syslog-tag`, `gelf-tag` and
 `fluentd-tag` have been deprecated in favor of the generic `tag` option.
 
-```bash
-{% raw %}
-docker --log-driver=syslog --log-opt tag="{{.ImageName}}/{{.Name}}/{{.ID}}"
-{% endraw %}
-```
+    docker --log-driver=syslog --log-opt tag="{{.ImageName}}/{{.Name}}/{{.ID}}"
+
 ### LXC built-in exec driver
 **Deprecated In Release: [v1.8.0](https://github.com/docker/docker/releases/tag/v1.8.0)**
 

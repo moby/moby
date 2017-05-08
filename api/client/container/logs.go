@@ -41,6 +41,7 @@ func NewLogsCommand(dockerCli *client.DockerCli) *cobra.Command {
 			return runLogs(dockerCli, &opts)
 		},
 	}
+	cmd.SetFlagErrorFunc(flagErrorFunc)
 
 	flags := cmd.Flags()
 	flags.BoolVarP(&opts.follow, "follow", "f", false, "Follow log output")

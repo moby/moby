@@ -21,7 +21,7 @@ func NewRenameCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var opts renameOptions
 
 	cmd := &cobra.Command{
-		Use:   "rename CONTAINER NEW_NAME",
+		Use:   "rename OLD_NAME NEW_NAME",
 		Short: "Rename a container",
 		Args:  cli.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -30,6 +30,7 @@ func NewRenameCommand(dockerCli *client.DockerCli) *cobra.Command {
 			return runRename(dockerCli, &opts)
 		},
 	}
+	cmd.SetFlagErrorFunc(flagErrorFunc)
 
 	return cmd
 }

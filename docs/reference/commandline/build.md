@@ -1,11 +1,14 @@
----
-redirect_from:
-  - /reference/commandline/build/
-description: The build command description and usage
-keywords:
-- build, docker, image
-title: docker build
----
+<!--[metadata]>
++++
+title = "build"
+description = "The build command description and usage"
+keywords = ["build, docker, image"]
+[menu.main]
+parent = "smn_cli"
++++
+<![end-metadata]-->
+
+# build
 
 ```markdown
 Usage:  docker build [OPTIONS] PATH | URL | -
@@ -91,9 +94,11 @@ Build Syntax Suffix             | Commit Used           | Build Context Used
 
 If you pass an URL to a remote tarball, the URL itself is sent to the daemon:
 
+Instead of specifying a context, you can pass a single Dockerfile in the `URL`
+or pipe the file in via `STDIN`. To pipe a Dockerfile from `STDIN`:
+
 ```bash
 $ docker build http://server/context.tar.gz
-```
 
 The download operation will be performed on the host the Docker daemon is
 running on, which is not necessarily the same host from which the build command
@@ -226,12 +231,12 @@ specify an arbitrary Git repository by using the `git://` or `git@` scheme.
 $ docker build -f ctx/Dockerfile http://server/ctx.tar.gz
 
 Downloading context: http://server/ctx.tar.gz [===================>]    240 B/240 B
-Step 1 : FROM busybox
+Step 0 : FROM busybox
  ---> 8c2e06607696
-Step 2 : ADD ctx/container.cfg /
+Step 1 : ADD ctx/container.cfg /
  ---> e7829950cee3
 Removing intermediate container b35224abf821
-Step 3 : CMD /bin/ls
+Step 2 : CMD /bin/ls
  ---> Running in fbc63d321d73
  ---> 3286931702ad
 Removing intermediate container fbc63d321d73

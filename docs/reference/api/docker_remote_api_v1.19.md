@@ -1,11 +1,15 @@
----
-redirect_from:
-  - /reference/api/docker_remote_api_v1.19/
-description: API Documentation for Docker
-keywords:
-- API, Docker, rcli, REST,  documentation
-title: Docker Remote API v1.19
----
+<!--[metadata]>
++++
+title = "Remote API v1.19"
+description = "API Documentation for Docker"
+keywords = ["API, Docker, rcli, REST,  documentation"]
+[menu.main]
+parent = "engine_remoteapi"
+weight = 2
++++
+<![end-metadata]-->
+
+# Docker Remote API v1.19
 
 ## 1. Brief introduction
 
@@ -216,8 +220,8 @@ Create a container
 -   **Tty** - Boolean value, Attach standard streams to a `tty`, including `stdin` if it is not closed.
 -   **OpenStdin** - Boolean value, opens `stdin`,
 -   **StdinOnce** - Boolean value, close `stdin` after the 1 attached client disconnects.
--   **Env** - A list of environment variables in the form of `["VAR=value", ...]`
--   **Labels** - Adds a map of labels to a container. To specify a map: `{"key":"value", ... }`
+-   **Env** - A list of environment variables in the form of `["VAR=value"[,"VAR2=value2"]]`
+-   **Labels** - Adds a map of labels to a container. To specify a map: `{"key":"value"[,"key2":"value2"]}`
 -   **Cmd** - Command to run specified as a string or an array of strings.
 -   **Entrypoint** - Set the entry point for the container as a string or an array
       of strings.
@@ -231,13 +235,10 @@ Create a container
 -   **ExposedPorts** - An object mapping ports to an empty object in the form of:
       `"ExposedPorts": { "<port>/<tcp|udp>: {}" }`
 -   **HostConfig**
-    -   **Binds** – A list of bind-mounts for this container. Each item is a string in one of these forms:
-           + `host-src:container-dest` to bind-mount a host path into the
-             container. Both `host-src`, and `container-dest` must be an
-             _absolute_ path.
-           + `host-src:container-dest:ro` to make the bind-mount read-only
-             inside the container. Both `host-src`, and `container-dest` must be
-             an _absolute_ path.
+    -   **Binds** – A list of volume bindings for this container. Each volume binding is a string in one of these forms:
+           + `container_path` to create a new volume for the container
+           + `host_path:container_path` to bind-mount a host path into the container
+           + `host_path:container_path:ro` to make the bind-mount read-only inside the container.
     -   **Links** - A list of links for the container. Each link entry should be
           in the form of `container_name:alias`.
     -   **LxcConf** - LXC specific configurations. These configurations only
@@ -533,9 +534,7 @@ Get `stdout` and `stderr` logs from the container ``id``
      Connection: Upgrade
      Upgrade: tcp
 
-     {% raw %}
      {{ STREAM }}
-     {% endraw %}
 
 **Query parameters**:
 
@@ -612,9 +611,7 @@ Export the contents of container `id`
     HTTP/1.1 200 OK
     Content-Type: application/octet-stream
 
-    {% raw %}
     {{ TAR STREAM }}
-    {% endraw %}
 
 **Status codes**:
 
@@ -766,7 +763,7 @@ Start the container `id`
 
 > **Note**:
 > For backwards compatibility, this endpoint accepts a `HostConfig` as JSON-encoded request body.
-> See [create a container](docker_remote_api_v1.19.md#create-a-container) for details.
+> See [create a container](#create-a-container) for details.
 
 **Example request**:
 
@@ -939,9 +936,7 @@ Attach to the container `id`
     Connection: Upgrade
     Upgrade: tcp
 
-    {% raw %}
     {{ STREAM }}
-    {% endraw %}
 
 **Query parameters**:
 
@@ -963,43 +958,43 @@ Attach to the container `id`
 -   **404** – no such container
 -   **500** – server error
 
-**Stream details**:
+    **Stream details**:
 
-When using the TTY setting is enabled in
-[`POST /containers/create`
-](docker_remote_api_v1.19.md#create-a-container),
-the stream is the raw data from the process PTY and client's `stdin`.
-When the TTY is disabled, then the stream is multiplexed to separate
-`stdout` and `stderr`.
+    When using the TTY setting is enabled in
+    [`POST /containers/create`
+    ](#create-a-container),
+    the stream is the raw data from the process PTY and client's `stdin`.
+    When the TTY is disabled, then the stream is multiplexed to separate
+    `stdout` and `stderr`.
 
-The format is a **Header** and a **Payload** (frame).
+    The format is a **Header** and a **Payload** (frame).
 
-**HEADER**
+    **HEADER**
 
-The header contains the information which the stream writes (`stdout` or
-`stderr`). It also contains the size of the associated frame encoded in the
-last four bytes (`uint32`).
+    The header contains the information which the stream writes (`stdout` or
+    `stderr`). It also contains the size of the associated frame encoded in the
+    last four bytes (`uint32`).
 
-It is encoded on the first eight bytes like this:
+    It is encoded on the first eight bytes like this:
 
-    header := [8]byte{STREAM_TYPE, 0, 0, 0, SIZE1, SIZE2, SIZE3, SIZE4}
+        header := [8]byte{STREAM_TYPE, 0, 0, 0, SIZE1, SIZE2, SIZE3, SIZE4}
 
-`STREAM_TYPE` can be:
+    `STREAM_TYPE` can be:
 
 -   0: `stdin` (is written on `stdout`)
 -   1: `stdout`
 -   2: `stderr`
 
-`SIZE1, SIZE2, SIZE3, SIZE4` are the four bytes of
-the `uint32` size encoded as big endian.
+    `SIZE1, SIZE2, SIZE3, SIZE4` are the four bytes of
+    the `uint32` size encoded as big endian.
 
-**PAYLOAD**
+    **PAYLOAD**
 
-The payload is the raw stream.
+    The payload is the raw stream.
 
-**IMPLEMENTATION**
+    **IMPLEMENTATION**
 
-The simplest way to implement the Attach protocol is the following:
+    The simplest way to implement the Attach protocol is the following:
 
     1.  Read eight bytes.
     2.  Choose `stdout` or `stderr` depending on the first byte.
@@ -1021,9 +1016,7 @@ Implements websocket protocol handshake according to [RFC 6455](http://tools.iet
 
 **Example response**
 
-    {% raw %}
     {{ STREAM }}
-    {% endraw %}
 
 **Query parameters**:
 
@@ -1116,9 +1109,7 @@ Copy files or folders of container `id`
     HTTP/1.1 200 OK
     Content-Type: application/x-tar
 
-    {% raw %}
     {{ TAR STREAM }}
-    {% endraw %}
 
 **Status codes**:
 
@@ -1229,9 +1220,7 @@ Build an image from a Dockerfile
 
     POST /build HTTP/1.1
 
-    {% raw %}
     {{ TAR STREAM }}
-    {% endraw %}
 
 **Example response**:
 
@@ -1296,7 +1285,7 @@ Create an image either by pulling it from the registry or by importing it
 
 **Example request**:
 
-    POST /images/create?fromImage=busybox&tag=latest HTTP/1.1
+    POST /images/create?fromImage=ubuntu HTTP/1.1
 
 **Example response**:
 
@@ -1318,8 +1307,7 @@ a base64-encoded AuthConfig object.
 -   **fromSrc** – Source to import.  The value may be a URL from which the image
         can be retrieved or `-` to read the image from the request body.
 -   **repo** – Repository name.
--   **tag** – Tag. If empty when pulling an image, this causes all tags
-        for the given image to be pulled.
+-   **tag** – Tag.
 
 **Request Headers**:
 
@@ -1871,7 +1859,7 @@ If `name` is a specific name and tag (e.g. ubuntu:latest), then only that image
 image (and its parents) are returned, but with the exclusion of the
 'repositories' file in the tarball, as there were no image names referenced.
 
-See the [image tarball format](docker_remote_api_v1.19.md#image-tarball-format) for more details.
+See the [image tarball format](#image-tarball-format) for more details.
 
 **Example request**
 
@@ -1900,7 +1888,7 @@ For each value of the `names` parameter: if it is a specific name and tag (e.g.
 an image ID, similarly only that image (and its parents) are returned and there
 would be no names referenced in the 'repositories' file for this image ID.
 
-See the [image tarball format](docker_remote_api_v1.19.md#image-tarball-format) for more details.
+See the [image tarball format](#image-tarball-format) for more details.
 
 **Example request**
 
@@ -1923,7 +1911,7 @@ See the [image tarball format](docker_remote_api_v1.19.md#image-tarball-format) 
 `POST /images/load`
 
 Load a set of images and tags into a Docker repository.
-See the [image tarball format](docker_remote_api_v1.19.md#image-tarball-format) for more details.
+See the [image tarball format](#image-tarball-format) for more details.
 
 **Example request**
 
@@ -1973,14 +1961,15 @@ Sets up an exec instance in a running container `id`
     POST /containers/e90e34656806/exec HTTP/1.1
     Content-Type: application/json
 
-    {
-      "AttachStdin": true,
-      "AttachStdout": true,
-      "AttachStderr": true,
-      "Cmd": ["sh"],
-      "Tty": true,
-      "User": "123:456"
-    }
+      {
+       "AttachStdin": false,
+       "AttachStdout": true,
+       "AttachStderr": true,
+       "Tty": false,
+       "Cmd": [
+                     "date"
+             ]
+      }
 
 **Example response**:
 
@@ -1999,9 +1988,7 @@ Sets up an exec instance in a running container `id`
 -   **AttachStderr** - Boolean value, attaches to `stderr` of the `exec` command.
 -   **Tty** - Boolean value to allocate a pseudo-TTY.
 -   **Cmd** - Command to run specified as a string or an array of strings.
--   **User** - A string value specifying the user, and optionally, group to run
-        the exec process inside the container. Format is one of: `"user"`,
-        `"user:group"`, `"uid"`, or `"uid:gid"`.
+
 
 **Status codes**:
 
@@ -2031,9 +2018,7 @@ interactive session with the `exec` command.
     HTTP/1.1 200 OK
     Content-Type: application/vnd.docker.raw-stream
 
-    {% raw %}
     {{ STREAM }}
-    {% endraw %}
 
 **JSON parameters**:
 
@@ -2045,9 +2030,8 @@ interactive session with the `exec` command.
 -   **200** – no error
 -   **404** – no such exec instance
 
-**Stream details**:
-
-Similar to the stream behavior of `POST /containers/(id or name)/attach` API
+    **Stream details**:
+    Similar to the stream behavior of `POST /containers/(id or name)/attach` API
 
 ### Exec Resize
 

@@ -20,7 +20,6 @@ type containerCommon struct {
 	restarting     bool
 	processes      map[string]*process
 	startedAt      time.Time
-	attachStdio    StdioCallback // hack for v1.12 backport
 }
 
 // WithRestartManager sets the restartmanager to be used with the container.

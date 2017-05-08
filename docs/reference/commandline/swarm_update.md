@@ -1,13 +1,16 @@
----
-redirect_from:
-  - /reference/commandline/swarm_update/
-description: The swarm update command description and usage
-keywords:
-- swarm, update
-title: docker swarm update
----
+<!--[metadata]>
++++
+title = "swarm update"
+description = "The swarm update command description and usage"
+keywords = ["swarm, update"]
+[menu.main]
+parent = "smn_cli"
++++
+<![end-metadata]-->
 
 **Warning:** this command is part of the Swarm management feature introduced in Docker 1.12, and might be subject to non backward-compatible changes.
+
+# swarm update
 
 ```markdown
 Usage:  docker swarm update [OPTIONS]

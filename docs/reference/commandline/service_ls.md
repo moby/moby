@@ -1,13 +1,16 @@
----
-redirect_from:
-  - /reference/commandline/service_ls/
-description: The service ls command description and usage
-keywords:
-- service, ls
-title: docker service ls
----
+<!--[metadata]>
++++
+title = "service ls"
+description = "The service ls command description and usage"
+keywords = ["service, ls"]
+[menu.main]
+parent = "smn_cli"
++++
+<![end-metadata]-->
 
 **Warning:** this command is part of the Swarm management feature introduced in Docker 1.12, and might be subject to non backward-compatible changes.
+
+# service ls
 
 ```Markdown
 Usage:	docker service ls [OPTIONS]
@@ -27,7 +30,6 @@ This command when run targeting a manager, lists services are running in the
 swarm.
 
 On a manager node:
-
 ```bash
 ID            NAME      REPLICAS  IMAGE         COMMAND
 c8wgl7q4ndfd  frontend  5/5       nginx:alpine
@@ -45,9 +47,9 @@ than one filter, then pass multiple flags (e.g., `--filter "foo=bar" --filter "b
 
 The currently supported filters are:
 
-* [id](service_ls.md#id)
-* [label](service_ls.md#label)
-* [name](service_ls.md#name)
+* [id](#id)
+* [label](#label)
+* [name](#name)
 
 #### ID
 

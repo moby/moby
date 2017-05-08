@@ -26,15 +26,11 @@ type LinkAttrs struct {
 	Name         string
 	HardwareAddr net.HardwareAddr
 	Flags        net.Flags
-	RawFlags     uint32
 	ParentIndex  int         // index of the parent link device
 	MasterIndex  int         // must be the index of a bridge
 	Namespace    interface{} // nil | NsPid | NsFd
 	Alias        string
 	Statistics   *LinkStatistics
-	Promisc      int
-	Xdp          *LinkXdp
-	EncapType    string
 }
 
 // NewLinkAttrs returns LinkAttrs structure filled with default values
@@ -71,11 +67,6 @@ type LinkStatistics struct {
 	TxWindowErrors    uint32
 	RxCompressed      uint32
 	TxCompressed      uint32
-}
-
-type LinkXdp struct {
-	Fd       int
-	Attached bool
 }
 
 // Device links cannot be created via netlink. These links
@@ -180,13 +171,11 @@ func (macvtap Macvtap) Type() string {
 }
 
 type TuntapMode uint16
-type TuntapFlag uint16
 
 // Tuntap links created via /dev/tun/tap, but can be destroyed via netlink
 type Tuntap struct {
 	LinkAttrs
-	Mode  TuntapMode
-	Flags TuntapFlag
+	Mode TuntapMode
 }
 
 func (tuntap *Tuntap) Attrs() *LinkAttrs {
@@ -262,7 +251,6 @@ type IPVlanMode uint16
 const (
 	IPVLAN_MODE_L2 IPVlanMode = iota
 	IPVLAN_MODE_L3
-	IPVLAN_MODE_L3S
 	IPVLAN_MODE_MAX
 )
 

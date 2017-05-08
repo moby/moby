@@ -125,8 +125,6 @@ func (a *Allocator) Run(ctx context.Context) error {
 		aaCopy := aa
 		actor := func() error {
 			wg.Add(1)
-			defer wg.Done()
-
 			// init might return an allocator specific context
 			// which is a child of the passed in context to hold
 			// allocator specific state
@@ -135,10 +133,10 @@ func (a *Allocator) Run(ctx context.Context) error {
 				// if we are failing in the init of
 				// this allocator.
 				aa.cancel()
+				wg.Done()
 				return err
 			}
 
-			wg.Add(1)
 			go func() {
 				defer wg.Done()
 				a.run(ctx, aaCopy)

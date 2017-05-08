@@ -1,11 +1,14 @@
----
-redirect_from:
-  - /reference/commandline/node_demote/
-description: The node demote command description and usage
-keywords:
-- node, demote
-title: docker node demote
----
+<!--[metadata]>
++++
+title = "node demote"
+description = "The node demote command description and usage"
+keywords = ["node, demote"]
+[menu.main]
+parent = "smn_cli"
++++
+<![end-metadata]-->
+
+# node demote
 
 ```markdown
 Usage:  docker node demote NODE [NODE...]
