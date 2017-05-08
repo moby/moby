@@ -28,6 +28,7 @@ func NewUnpauseCommand(dockerCli *client.DockerCli) *cobra.Command {
 			return runUnpause(dockerCli, &opts)
 		},
 	}
+	cmd.SetFlagErrorFunc(flagErrorFunc)
 
 	return cmd
 }

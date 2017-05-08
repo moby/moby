@@ -1,11 +1,18 @@
----
-redirect_from:
-  - /reference/commandline/
-description: Docker's CLI command description and usage
-keywords:
-- Docker, Docker documentation, CLI,  command line
-title: The Docker commands
----
+<!-- [metadata]>
++++
+title = "Docker commands"
+description = "Docker's CLI command description and usage"
+keywords = ["Docker, Docker documentation, CLI,  command line"]
+[menu.main]
+identifier= "smn_cli_guide"
+parent = "smn_cli"
+weight=-70
++++
+<![end-metadata]-->
+
+
+
+# The Docker commands
 
 This section contains reference information on using Docker's command line
 client. Each command has a reference page along with samples. If you are
@@ -129,7 +136,7 @@ read the [`dockerd`](dockerd.md) reference page.
 | [service create](service_create.md) | Create a new service                   |
 | [service inspect](service_inspect.md) | Inspect a service                    |
 | [service ls](service_ls.md) | List services in the swarm                     |
-| [service rm](service_rm.md) | Remove a service from the swarm                |
+| [service rm](service_rm.md) | Reemove a swervice from the swarm              |
 | [service scale](service_scale.md) | Set the number of replicas for the desired state of the service |
 | [service ps](service_ps.md) | List the tasks of a service              |
 | [service update](service_update.md)  | Update the attributes of a service    |

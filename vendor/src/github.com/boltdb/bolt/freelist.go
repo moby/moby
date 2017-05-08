@@ -166,16 +166,12 @@ func (f *freelist) read(p *page) {
 	}
 
 	// Copy the list of page ids from the freelist.
-	if count == 0 {
-		f.ids = nil
-	} else {
-		ids := ((*[maxAllocSize]pgid)(unsafe.Pointer(&p.ptr)))[idx:count]
-		f.ids = make([]pgid, len(ids))
-		copy(f.ids, ids)
+	ids := ((*[maxAllocSize]pgid)(unsafe.Pointer(&p.ptr)))[idx:count]
+	f.ids = make([]pgid, len(ids))
+	copy(f.ids, ids)
 
-		// Make sure they're sorted.
-		sort.Sort(pgids(f.ids))
-	}
+	// Make sure they're sorted.
+	sort.Sort(pgids(f.ids))
 
 	// Rebuild the page cache.
 	f.reindex()
@@ -193,9 +189,7 @@ func (f *freelist) write(p *page) error {
 
 	// The page.count can only hold up to 64k elements so if we overflow that
 	// number then we handle it by putting the size in the first element.
-	if len(ids) == 0 {
-		p.count = uint16(len(ids))
-	} else if len(ids) < 0xFFFF {
+	if len(ids) < 0xFFFF {
 		p.count = uint16(len(ids))
 		copy(((*[maxAllocSize]pgid)(unsafe.Pointer(&p.ptr)))[:], ids)
 	} else {
@@ -236,7 +230,7 @@ func (f *freelist) reload(p *page) {
 
 // reindex rebuilds the free cache based on available and pending free lists.
 func (f *freelist) reindex() {
-	f.cache = make(map[pgid]bool, len(f.ids))
+	f.cache = make(map[pgid]bool)
 	for _, id := range f.ids {
 		f.cache[id] = true
 	}

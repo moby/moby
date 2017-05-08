@@ -77,7 +77,10 @@ func DialWithTLSConfig(network, raddr string, priority Priority, tag string, tls
 		tlsConfig: tlsConfig,
 	}
 
-	_, err := w.connect()
+	w.Lock()
+	defer w.Unlock()
+
+	err := w.connect()
 	if err != nil {
 		return nil, err
 	}

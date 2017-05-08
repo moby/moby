@@ -147,7 +147,7 @@ func (sb *sandbox) Key() string {
 
 func (sb *sandbox) Labels() map[string]interface{} {
 	sb.Lock()
-	defer sb.Unlock()
+	sb.Unlock()
 	opts := make(map[string]interface{}, len(sb.config.generic))
 	for k, v := range sb.config.generic {
 		opts[k] = v
@@ -202,14 +202,12 @@ func (sb *sandbox) delete(force bool) error {
 	retain := false
 	for _, ep := range sb.getConnectedEndpoints() {
 		// gw network endpoint detach and removal are automatic
-		if ep.endpointInGWNetwork() && !force {
+		if ep.endpointInGWNetwork() {
 			continue
 		}
 		// Retain the sanbdox if we can't obtain the network from store.
 		if _, err := c.getNetworkFromStore(ep.getNetwork().ID()); err != nil {
-			if c.isDistributedControl() {
-				retain = true
-			}
+			retain = true
 			log.Warnf("Failed getting network for ep %s during sandbox %s delete: %v", ep.ID(), sb.ID(), err)
 			continue
 		}
@@ -436,14 +434,8 @@ func (sb *sandbox) ResolveIP(ip string) string {
 	return svc
 }
 
-func (sb *sandbox) execFunc(f func()) error {
-	sb.Lock()
-	osSbox := sb.osSbox
-	sb.Unlock()
-	if osSbox != nil {
-		return osSbox.InvokeFunc(f)
-	}
-	return fmt.Errorf("osl sandbox unavailable in ExecFunc for %v", sb.ContainerID())
+func (sb *sandbox) execFunc(f func()) {
+	sb.osSbox.InvokeFunc(f)
 }
 
 func (sb *sandbox) ResolveService(name string) ([]*net.SRV, []net.IP, error) {
@@ -713,12 +705,9 @@ func (sb *sandbox) SetKey(basePath string) error {
 	if oldosSbox != nil && sb.resolver != nil {
 		sb.resolver.Stop()
 
-		if err := sb.osSbox.InvokeFunc(sb.resolver.SetupFunc()); err == nil {
-			if err := sb.resolver.Start(); err != nil {
-				log.Errorf("Resolver Start failed for container %s, %q", sb.ContainerID(), err)
-			}
-		} else {
-			log.Errorf("Resolver Setup Function failed for container %s, %q", sb.ContainerID(), err)
+		sb.osSbox.InvokeFunc(sb.resolver.SetupFunc())
+		if err := sb.resolver.Start(); err != nil {
+			log.Errorf("Resolver Setup/Start failed for container %s, %q", sb.ContainerID(), err)
 		}
 	}
 
@@ -923,9 +912,8 @@ func (sb *sandbox) clearNetworkResources(origEp *endpoint) error {
 		releaseOSSboxResources(osSbox, ep)
 	}
 
-	sb.Lock()
 	delete(sb.populatedEndpoints, ep.ID())
-
+	sb.Lock()
 	if len(sb.endpoints) == 0 {
 		// sb.endpoints should never be empty and this is unexpected error condition
 		// We log an error message to note this down for debugging purposes.

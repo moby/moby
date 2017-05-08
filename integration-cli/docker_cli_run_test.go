@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net"
 	"os"
@@ -4417,6 +4416,42 @@ func (s *DockerSuite) TestRunVolumeCopyFlag(c *check.C) {
 	c.Assert(err, checker.NotNil, check.Commentf(out))
 }
 
+func (s *DockerSuite) TestRunTooLongHostname(c *check.C) {
+	// Test case in #21445
+	hostname1 := "this-is-a-way-too-long-hostname-but-it-should-give-a-nice-error.local"
+	out, _, err := dockerCmdWithError("run", "--hostname", hostname1, "busybox", "echo", "test")
+	c.Assert(err, checker.NotNil, check.Commentf("Expected docker run to fail!"))
+	c.Assert(out, checker.Contains, "invalid hostname format:", check.Commentf("Expected to have 'invalid hostname format:' in the output, get: %s!", out))
+
+	// Additional test cases
+	validHostnames := map[string]string{
+		"hostname":    "hostname",
+		"host-name":   "host-name",
+		"hostname123": "hostname123",
+		"123hostname": "123hostname",
+		"hostname-of-63-bytes-long-should-be-valid-and-without-any-error": "hostname-of-63-bytes-long-should-be-valid-and-without-any-error",
+	}
+	for hostname := range validHostnames {
+		dockerCmd(c, "run", "--hostname", hostname, "busybox", "echo", "test")
+	}
+
+	invalidHostnames := map[string]string{
+		"^hostname": "invalid hostname format: ^hostname",
+		"hostname%": "invalid hostname format: hostname%",
+		"host&name": "invalid hostname format: host&name",
+		"-hostname": "invalid hostname format: -hostname",
+		"host_name": "invalid hostname format: host_name",
+		"hostname-of-64-bytes-long-should-be-invalid-and-be-with-an-error": "invalid hostname format: hostname-of-64-bytes-long-should-be-invalid-and-be-with-an-error",
+	}
+
+	for hostname, expectedError := range invalidHostnames {
+		out, _, err = dockerCmdWithError("run", "--hostname", hostname, "busybox", "echo", "test")
+		c.Assert(err, checker.NotNil, check.Commentf("Expected docker run to fail!"))
+		c.Assert(out, checker.Contains, expectedError, check.Commentf("Expected to have '%s' in the output, get: %s!", expectedError, out))
+
+	}
+}
+
 // Test case for #21976
 func (s *DockerSuite) TestRunDnsInHostMode(c *check.C) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
@@ -4455,45 +4490,4 @@ func (s *DockerSuite) TestRunAddHostInHostMode(c *check.C) {
 	expectedOutput := "1.2.3.4\textra"
 	out, _ := dockerCmd(c, "run", "--add-host=extra:1.2.3.4", "--net=host", "busybox", "cat", "/etc/hosts")
 	c.Assert(out, checker.Contains, expectedOutput, check.Commentf("Expected '%s', but got %q", expectedOutput, out))
-}
-
-func (s *DockerSuite) TestRunStoppedLoggingDriverNoLeak(c *check.C) {
-	nroutines, err := getGoroutineNumber()
-	c.Assert(err, checker.IsNil)
-
-	out, _, err := dockerCmdWithError("run", "--name=fail", "--log-driver=splunk", "busybox", "true")
-	c.Assert(err, checker.NotNil)
-	c.Assert(out, checker.Contains, "Failed to initialize logging driver", check.Commentf("error should be about logging driver, got output %s", out))
-
-	// NGoroutines is not updated right away, so we need to wait before failing
-	c.Assert(waitForGoroutines(nroutines), checker.IsNil)
-}
-
-// #28658
-func (s *DockerSuite) TestSlowStdinClosing(c *check.C) {
-	name := "testslowstdinclosing"
-	repeat := 3 // regression happened 50% of the time
-	for i := 0; i < repeat; i++ {
-		cmd := exec.Command(dockerBinary, "run", "--rm", "--name", name, "-i", "busybox", "cat")
-		cmd.Stdin = &delayedReader{}
-		done := make(chan error, 1)
-		go func() {
-			_, err := runCommand(cmd)
-			done <- err
-		}()
-
-		select {
-		case <-time.After(15 * time.Second):
-			c.Fatal("running container timed out") // cleanup in teardown
-		case err := <-done:
-			c.Assert(err, checker.IsNil)
-		}
-	}
-}
-
-type delayedReader struct{}
-
-func (s *delayedReader) Read([]byte) (int, error) {
-	time.Sleep(500 * time.Millisecond)
-	return 0, io.EOF
 }

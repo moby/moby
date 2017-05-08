@@ -1,11 +1,14 @@
----
-redirect_from:
-  - /reference/commandline/volume_ls/
-description: The volume ls command description and usage
-keywords:
-- volume, list
-title: docker volume ls
----
+<!--[metadata]>
++++
+title = "volume ls"
+description = "The volume ls command description and usage"
+keywords = ["volume, list"]
+[menu.main]
+parent = "smn_cli"
++++
+<![end-metadata]-->
+
+# volume ls
 
 ```markdown
 Usage:  docker volume ls [OPTIONS]
@@ -24,7 +27,7 @@ Options:
   -q, --quiet          Only display volume names
 ```
 
-Lists all the volumes Docker knows about. You can filter using the `-f` or `--filter` flag. Refer to the [filtering](volume_ls.md#filtering) section for more information about available filter options.
+Lists all the volumes Docker knows about. You can filter using the `-f` or `--filter` flag. Refer to the [filtering](#filtering) section for more information about available filter options.
 
 Example output:
 

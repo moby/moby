@@ -1,55 +1,55 @@
----
-redirect_from:
-  - /reference/commandline/swarm_leave/
-description: The swarm leave command description and usage
-keywords:
-- swarm, leave
-title: docker swarm leave
----
+<!--[metadata]>
++++
+title = "swarm leave"
+description = "The swarm leave command description and usage"
+keywords = ["swarm, leave"]
+[menu.main]
+parent = "smn_cli"
++++
+<![end-metadata]-->
 
 **Warning:** this command is part of the Swarm management feature introduced in Docker 1.12, and might be subject to non backward-compatible changes.
+
+# swarm leave
 
 ```markdown
 Usage:  docker swarm leave [OPTIONS]
 
-Leave the swarm (workers only).
+Leave a swarm
 
 Options:
-      --force   Force this node to leave the swarm, ignoring warnings
+      --force   Force leave ignoring warnings.
       --help    Print usage
 ```
 
-When you run this command on a worker, that worker leaves the swarm.
+This command causes the node to leave the swarm.
 
-You can use the `--force` option to on a manager to remove it from the swarm.
-However, this does not reconfigure the swarm to ensure that there are enough
-managers to maintain a quorum in the swarm. The safe way to remove a manager
-from a swarm is to demote it to a worker and then direct it to leave the quorum
-without using `--force`. Only use `--force` in situations where the swarm will
-no longer be used after the manager leaves, such as in a single-node swarm.
-
-Consider the following swarm, as seen from the manager:
-
+On a manager node:
 ```bash
 $ docker node ls
 ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
 7ln70fl22uw2dvjn2ft53m3q5    worker2   Ready   Active
-dkp8vy1dq1kxleu9g4u78tlag    worker1   Ready   Active
+dkp8vy1dq1kxleu9g4u78tlag    worker1   Ready   Active        Reachable
 dvfxp4zseq4s0rih1selh0d20 *  manager1  Ready   Active        Leader
 ```
 
-To remove `worker2`, issue the following command from `worker2` itself:
-
+On a worker node, worker2 in the following example:
 ```bash
 $ docker swarm leave
 Node left the default swarm.
 ```
 
-To remove an inactive node, use the [`node rm`](node_rm.md) command instead.
+On a manager node:
+```bash
+$ docker node ls
+ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
+7ln70fl22uw2dvjn2ft53m3q5    worker2   Down    Active
+dkp8vy1dq1kxleu9g4u78tlag    worker1   Ready   Active        Reachable
+dvfxp4zseq4s0rih1selh0d20 *  manager1  Ready   Active        Leader
+```
 
 ## Related information
 
-* [node rm](node_rm.md)
 * [swarm init](swarm_init.md)
 * [swarm join](swarm_join.md)
 * [swarm update](swarm_update.md)

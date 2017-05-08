@@ -1,11 +1,14 @@
----
-redirect_from:
-  - /reference/commandline/version/
-description: The version command description and usage
-keywords:
-- version, architecture, api
-title: docker version
----
+<!--[metadata]>
++++
+title = "version"
+description = "The version command description and usage"
+keywords = ["version, architecture, api"]
+[menu.main]
+parent = "smn_cli"
++++
+<![end-metadata]-->
+
+# version
 
 ```markdown
 Usage:  docker version [OPTIONS]
@@ -46,14 +49,10 @@ describes all the details of the format.
 
 **Get server version:**
 
-    {% raw %}
     $ docker version --format '{{.Server.Version}}'
 	1.8.0
-    {% endraw %}
 
 **Dump raw data:**
 
-    {% raw %}
     $ docker version --format '{{json .}}'
     {"Client":{"Version":"1.8.0","ApiVersion":"1.20","GitCommit":"f5bae0a","GoVersion":"go1.4.2","Os":"linux","Arch":"amd64","BuildTime":"Tue Jun 23 17:56:00 UTC 2015"},"ServerOK":true,"Server":{"Version":"1.8.0","ApiVersion":"1.20","GitCommit":"f5bae0a","GoVersion":"go1.4.2","Os":"linux","Arch":"amd64","KernelVersion":"3.13.2-gentoo","BuildTime":"Tue Jun 23 17:56:00 UTC 2015"}}
-    {% endraw %}

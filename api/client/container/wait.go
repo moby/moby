@@ -28,6 +28,7 @@ func NewWaitCommand(dockerCli *client.DockerCli) *cobra.Command {
 			return runWait(dockerCli, &opts)
 		},
 	}
+	cmd.SetFlagErrorFunc(flagErrorFunc)
 
 	return cmd
 }

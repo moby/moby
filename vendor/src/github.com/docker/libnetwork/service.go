@@ -45,9 +45,6 @@ type service struct {
 	// List of ingress ports exposed by the service
 	ingressPorts portConfigs
 
-	// Service aliases
-	aliases []string
-
 	sync.Mutex
 }
 

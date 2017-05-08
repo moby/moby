@@ -73,11 +73,9 @@ To see usage for a specific command, specify the command with the `--help` flag:
 
     Attach to a running container
 
-    Options:
-      --detach-keys string   Override the key sequence for detaching a container
-      --help                 Print usage
-      --no-stdin             Do not attach STDIN
-      --sig-proxy            Proxy all received signals to the process (default true)
+      --help              Print usage
+      --no-stdin          Do not attach stdin
+      --sig-proxy=true    Proxy all received signals to the process
 
 > **Note:**
 > For further details and examples of each command, see the

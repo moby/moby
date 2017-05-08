@@ -4,7 +4,6 @@ import (
 	"io"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/Microsoft/hcsshim"
 )
@@ -20,17 +19,16 @@ type process struct {
 	hcsProcess  hcsshim.Process
 }
 
-type autoClosingReader struct {
-	io.ReadCloser
-	sync.Once
-}
-
-func (r *autoClosingReader) Read(b []byte) (n int, err error) {
-	n, err = r.ReadCloser.Read(b)
-	if err == io.EOF {
-		r.Once.Do(func() { r.ReadCloser.Close() })
-	}
-	return
+func openReaderFromPipe(p io.ReadCloser) io.Reader {
+	r, w := io.Pipe()
+	go func() {
+		if _, err := io.Copy(w, p); err != nil {
+			r.CloseWithError(err)
+		}
+		w.Close()
+		p.Close()
+	}()
+	return r
 }
 
 // fixStdinBackspaceBehavior works around a bug in Windows before build 14350

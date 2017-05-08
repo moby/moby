@@ -24,8 +24,11 @@ You can also use the `docker run --net=<network-name>` option to start a contain
 ```bash
 $ docker run -itd --net=multi-host-network --ip 172.20.88.22 --ip6 2001:db8::8822 busybox
 ```
+
 You can pause, restart, and stop containers that are connected to a network.
-A container connects to its configured networks when it runs.
+Paused containers remain connected and can be revealed by a `network inspect`.
+When the container is stopped, it does not appear on the network until you restart
+it.
 
 If specified, the container's IP address(es) is reapplied when a stopped
 container is restarted. If the IP address is no longer available, the container

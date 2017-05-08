@@ -81,7 +81,6 @@ DEFAULT_BUNDLES=(
 )
 
 VERSION=$(< ./VERSION)
-! BUILDTIME=$(date --rfc-3339 ns 2> /dev/null | sed -e 's/ /T/')
 if command -v git &> /dev/null && [ -d .git ] && git rev-parse &> /dev/null; then
 	GITCOMMIT=$(git rev-parse --short HEAD)
 	if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
@@ -94,6 +93,11 @@ if command -v git &> /dev/null && [ -d .git ] && git rev-parse &> /dev/null; the
 		echo "# Here is the current list:"
 		git status --porcelain --untracked-files=no
 		echo "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+	fi
+	! BUILDTIME=$(date --rfc-3339 ns 2> /dev/null | sed -e 's/ /T/') &> /dev/null
+	if [ -z $BUILDTIME ]; then
+		# If using bash 3.1 which doesn't support --rfc-3389, eg Windows CI
+		BUILDTIME=$(date -u)
 	fi
 elif [ "$DOCKER_GITCOMMIT" ]; then
 	GITCOMMIT="$DOCKER_GITCOMMIT"

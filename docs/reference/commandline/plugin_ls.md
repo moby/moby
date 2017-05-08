@@ -1,12 +1,15 @@
----
-redirect_from:
-  - /reference/commandline/plugin_ls/
-advisory: experimental
-description: The plugin ls command description and usage
-keywords:
-- plugin, list
-title: docker plugin ls (experimental)
----
+<!--[metadata]>
++++
+title = "plugin ls"
+description = "The plugin ls command description and usage"
+keywords = ["plugin, list"]
+advisory = "experimental"
+[menu.main]
+parent = "smn_cli"
++++
+<![end-metadata]-->
+
+# plugin ls (experimental)
 
 ```markdown
 Usage:  docker plugin ls

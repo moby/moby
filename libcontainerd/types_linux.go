@@ -27,9 +27,9 @@ type Process struct {
 	Capabilities []string `json:"capabilities,omitempty"`
 	// Rlimits specifies rlimit options to apply to the process.
 	Rlimits []specs.Rlimit `json:"rlimits,omitempty"`
-	// ApparmorProfile specifies the apparmor profile for the container.
+	// ApparmorProfile specified the apparmor profile for the container.
 	ApparmorProfile *string `json:"apparmorProfile,omitempty"`
-	// SelinuxLabel specifies the selinux context that the container process is run as.
+	// SelinuxProcessLabel specifies the selinux context that the container process is run as.
 	SelinuxLabel *string `json:"selinuxLabel,omitempty"`
 }
 

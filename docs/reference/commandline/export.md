@@ -1,11 +1,14 @@
----
-redirect_from:
-  - /reference/commandline/export/
-description: The export command description and usage
-keywords:
-- export, file, system, container
-title: docker export
----
+<!--[metadata]>
++++
+title = "export"
+description = "The export command description and usage"
+keywords = ["export, file, system, container"]
+[menu.main]
+parent = "smn_cli"
++++
+<![end-metadata]-->
+
+# export
 
 ```markdown
 Usage:  docker export [OPTIONS] CONTAINER

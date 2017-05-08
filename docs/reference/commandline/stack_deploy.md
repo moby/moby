@@ -1,12 +1,15 @@
----
-redirect_from:
-  - /reference/commandline/stack_deploy/
-advisory: experimental
-description: The stack deploy command description and usage
-keywords:
-- stack, deploy, up
-title: docker stack deploy (experimental)
----
+<!--[metadata]>
++++
+title = "stack deploy"
+description = "The stack deploy command description and usage"
+keywords = ["stack, deploy, up"]
+advisory = "experimental"
+[menu.main]
+parent = "smn_cli"
++++
+<![end-metadata]-->
+
+# stack deploy (experimental)
 
 ```markdown
 Usage:  docker stack deploy [OPTIONS] STACK
@@ -54,4 +57,4 @@ axqh55ipl40h  vossibility-stack_vossibility-collector  1 icecrime/vossibility-co
 * [stack config](stack_config.md)
 * [stack rm](stack_rm.md)
 * [stack services](stack_services.md)
-* [stack ps](stack_ps.md)
+* [stack tasks](stack_tasks.md)

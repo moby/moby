@@ -8,6 +8,8 @@ import (
 
 // A Writer is a connection to a syslog server.
 type Writer struct {
+	sync.Mutex // guards conn
+
 	priority  Priority
 	tag       string
 	hostname  string
@@ -17,48 +19,28 @@ type Writer struct {
 	framer    Framer
 	formatter Formatter
 
-	mu   sync.RWMutex // guards conn
 	conn serverConn
 }
 
-// getConn provides access to the internal conn, protected by a mutex. The
-// conn is threadsafe, so it can be used while unlocked, but we want to avoid
-// race conditions on grabbing a reference to it.
-func (w *Writer) getConn() serverConn {
-	w.mu.RLock()
-	conn := w.conn
-	w.mu.RUnlock()
-	return conn
-}
-
-// setConn updates the internal conn, protected by a mutex.
-func (w *Writer) setConn(c serverConn) {
-	w.mu.Lock()
-	w.conn = c
-	w.mu.Unlock()
-}
-
 // connect makes a connection to the syslog server.
-func (w *Writer) connect() (serverConn, error) {
-	conn := w.getConn()
-	if conn != nil {
+// It must be called with w.mu held.
+func (w *Writer) connect() (err error) {
+	if w.conn != nil {
 		// ignore err from close, it makes sense to continue anyway
-		conn.close()
-		w.setConn(nil)
+		w.conn.close()
+		w.conn = nil
 	}
 
+	var conn serverConn
 	var hostname string
-	var err error
 	dialer := w.getDialer()
 	conn, hostname, err = dialer.Call()
 	if err == nil {
-		w.setConn(conn)
+		w.conn = conn
 		w.hostname = hostname
-
-		return conn, nil
-	} else {
-		return nil, err
 	}
+
+	return
 }
 
 // SetFormatter changes the formatter function for subsequent messages.
@@ -77,17 +59,14 @@ func (w *Writer) Write(b []byte) (int, error) {
 	return w.writeAndRetry(w.priority, string(b))
 }
 
-// WriteWithPriority sends a log message with a custom priority
-func (w *Writer) WriteWithPriority(p Priority, b []byte) (int, error) {
-	return w.writeAndRetry(p, string(b))
-}
-
 // Close closes a connection to the syslog daemon.
 func (w *Writer) Close() error {
-	conn := w.getConn()
-	if conn != nil {
-		err := conn.close()
-		w.setConn(nil)
+	w.Lock()
+	defer w.Unlock()
+
+	if w.conn != nil {
+		err := w.conn.close()
+		w.conn = nil
 		return err
 	}
 	return nil
@@ -152,29 +131,29 @@ func (w *Writer) Debug(m string) (err error) {
 func (w *Writer) writeAndRetry(p Priority, s string) (int, error) {
 	pr := (w.priority & facilityMask) | (p & severityMask)
 
-	conn := w.getConn()
-	if conn != nil {
-		if n, err := w.write(conn, pr, s); err == nil {
+	w.Lock()
+	defer w.Unlock()
+
+	if w.conn != nil {
+		if n, err := w.write(pr, s); err == nil {
 			return n, err
 		}
 	}
-
-	var err error
-	if conn, err = w.connect(); err != nil {
+	if err := w.connect(); err != nil {
 		return 0, err
 	}
-	return w.write(conn, pr, s)
+	return w.write(pr, s)
 }
 
 // write generates and writes a syslog formatted string. It formats the
 // message based on the current Formatter and Framer.
-func (w *Writer) write(conn serverConn, p Priority, msg string) (int, error) {
+func (w *Writer) write(p Priority, msg string) (int, error) {
 	// ensure it ends in a \n
 	if !strings.HasSuffix(msg, "\n") {
 		msg += "\n"
 	}
 
-	err := conn.writeString(w.framer, w.formatter, p, w.hostname, w.tag, msg)
+	err := w.conn.writeString(w.framer, w.formatter, p, w.hostname, w.tag, msg)
 	if err != nil {
 		return 0, err
 	}

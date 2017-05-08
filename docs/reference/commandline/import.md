@@ -1,11 +1,14 @@
----
-redirect_from:
-  - /reference/commandline/import/
-description: The import command description and usage
-keywords:
-- import, file, system, container
-title: docker import
----
+<!--[metadata]>
++++
+title = "import"
+description = "The import command description and usage"
+keywords = ["import, file, system, container"]
+[menu.main]
+parent = "smn_cli"
++++
+<![end-metadata]-->
+
+# import
 
 ```markdown
 Usage:  docker import [OPTIONS] file|URL|- [REPOSITORY[:TAG]]

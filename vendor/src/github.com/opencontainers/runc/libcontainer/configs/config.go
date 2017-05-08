@@ -148,6 +148,10 @@ type Config struct {
 	// More information about kernel oom score calculation here: https://lwn.net/Articles/317814/
 	OomScoreAdj int `json:"oom_score_adj"`
 
+	// AdditionalGroups specifies the gids that should be added to supplementary groups
+	// in addition to those that the user belongs to.
+	AdditionalGroups []string `json:"additional_groups"`
+
 	// UidMappings is an array of User ID mappings for User Namespaces
 	UidMappings []IDMap `json:"uid_mappings"`
 
@@ -300,38 +304,29 @@ func (c Command) Run(s HookState) error {
 	if err != nil {
 		return err
 	}
-	var stdout, stderr bytes.Buffer
 	cmd := exec.Cmd{
-		Path:   c.Path,
-		Args:   c.Args,
-		Env:    c.Env,
-		Stdin:  bytes.NewReader(b),
-		Stdout: &stdout,
-		Stderr: &stderr,
-	}
-	if err := cmd.Start(); err != nil {
-		return err
+		Path:  c.Path,
+		Args:  c.Args,
+		Env:   c.Env,
+		Stdin: bytes.NewReader(b),
 	}
 	errC := make(chan error, 1)
 	go func() {
-		err := cmd.Wait()
+		out, err := cmd.CombinedOutput()
 		if err != nil {
-			err = fmt.Errorf("error running hook: %v, stdout: %s, stderr: %s", err, stdout.String(), stderr.String())
+			err = fmt.Errorf("%s: %s", err, out)
 		}
 		errC <- err
 	}()
-	var timerCh <-chan time.Time
 	if c.Timeout != nil {
-		timer := time.NewTimer(*c.Timeout)
-		defer timer.Stop()
-		timerCh = timer.C
+		select {
+		case err := <-errC:
+			return err
+		case <-time.After(*c.Timeout):
+			cmd.Process.Kill()
+			cmd.Wait()
+			return fmt.Errorf("hook ran past specified timeout of %.1fs", c.Timeout.Seconds())
+		}
 	}
-	select {
-	case err := <-errC:
-		return err
-	case <-timerCh:
-		cmd.Process.Kill()
-		cmd.Wait()
-		return fmt.Errorf("hook ran past specified timeout of %.1fs", c.Timeout.Seconds())
-	}
+	return <-errC
 }

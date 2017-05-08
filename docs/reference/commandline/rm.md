@@ -1,11 +1,14 @@
----
-redirect_from:
-  - /reference/commandline/rm/
-description: The rm command description and usage
-keywords:
-- remove, Docker, container
-title: docker rm
----
+<!--[metadata]>
++++
+title = "rm"
+description = "The rm command description and usage"
+keywords = ["remove, Docker, container"]
+[menu.main]
+parent = "smn_cli"
++++
+<![end-metadata]-->
+
+# rm
 
 ```markdown
 Usage:  docker rm [OPTIONS] CONTAINER [CONTAINER...]

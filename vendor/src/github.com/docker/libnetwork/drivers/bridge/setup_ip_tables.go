@@ -79,11 +79,11 @@ func (n *bridgeNetwork) setupIPTables(config *networkConfiguration, i *bridgeInt
 		Mask: i.bridgeIPv4.Mask,
 	}
 	if config.Internal {
-		if err = setupInternalNetworkRules(config.BridgeName, maskedAddrv4, config.EnableICC, true); err != nil {
+		if err = setupInternalNetworkRules(config.BridgeName, maskedAddrv4, true); err != nil {
 			return fmt.Errorf("Failed to Setup IP tables: %s", err.Error())
 		}
 		n.registerIptCleanFunc(func() error {
-			return setupInternalNetworkRules(config.BridgeName, maskedAddrv4, config.EnableICC, false)
+			return setupInternalNetworkRules(config.BridgeName, maskedAddrv4, false)
 		})
 	} else {
 		if err = setupIPTablesInternal(config.BridgeName, maskedAddrv4, config.EnableICC, config.EnableIPMasquerade, hairpinMode, true); err != nil {
@@ -333,7 +333,7 @@ func removeIPChains() {
 	}
 }
 
-func setupInternalNetworkRules(bridgeIface string, addr net.Addr, icc, insert bool) error {
+func setupInternalNetworkRules(bridgeIface string, addr net.Addr, insert bool) error {
 	var (
 		inDropRule  = iptRule{table: iptables.Filter, chain: IsolationChain, args: []string{"-i", bridgeIface, "!", "-d", addr.String(), "-j", "DROP"}}
 		outDropRule = iptRule{table: iptables.Filter, chain: IsolationChain, args: []string{"-o", bridgeIface, "!", "-s", addr.String(), "-j", "DROP"}}
@@ -342,10 +342,6 @@ func setupInternalNetworkRules(bridgeIface string, addr net.Addr, icc, insert bo
 		return err
 	}
 	if err := programChainRule(outDropRule, "DROP OUTGOING", insert); err != nil {
-		return err
-	}
-	// Set Inter Container Communication.
-	if err := setIcc(bridgeIface, icc, insert); err != nil {
 		return err
 	}
 	return nil

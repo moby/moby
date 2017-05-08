@@ -16,14 +16,12 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/container/stream"
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/jsonfilelog"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/promise"
@@ -60,7 +58,7 @@ func (DetachError) Error() string {
 // CommonContainer holds the fields for a container which are
 // applicable across all platforms supported by the daemon.
 type CommonContainer struct {
-	StreamConfig *stream.Config
+	*runconfig.StreamConfig
 	// embed for Container to support states directly.
 	*State          `json:"State"` // Needed for remote api version <= 1.11
 	Root            string         `json:"-"` // Path to the "home" of the container, including metadata.
@@ -103,7 +101,7 @@ func NewBaseContainer(id, root string) *Container {
 			ExecCommands:  exec.NewStore(),
 			Root:          root,
 			MountPoints:   make(map[string]*volume.MountPoint),
-			StreamConfig:  stream.NewConfig(),
+			StreamConfig:  runconfig.NewStreamConfig(),
 			attachContext: &attachContext{},
 		},
 	}
@@ -368,7 +366,7 @@ func (container *Container) Attach(stdin io.ReadCloser, stdout io.Writer, stderr
 
 // AttachStreams connects streams to a TTY.
 // Used by exec too. Should this move somewhere else?
-func AttachStreams(ctx context.Context, streamConfig *stream.Config, openStdin, stdinOnce, tty bool, stdin io.ReadCloser, stdout io.Writer, stderr io.Writer, keys []byte) chan error {
+func AttachStreams(ctx context.Context, streamConfig *runconfig.StreamConfig, openStdin, stdinOnce, tty bool, stdin io.ReadCloser, stdout io.Writer, stderr io.Writer, keys []byte) chan error {
 	var (
 		cStdout, cStderr io.ReadCloser
 		cStdin           io.WriteCloser
@@ -973,67 +971,4 @@ func (container *Container) CancelAttachContext() {
 		container.attachContext.ctx = nil
 	}
 	container.attachContext.mu.Unlock()
-}
-
-func (container *Container) startLogging() error {
-	if container.HostConfig.LogConfig.Type == "none" {
-		return nil // do not start logging routines
-	}
-
-	l, err := container.StartLogger(container.HostConfig.LogConfig)
-	if err != nil {
-		return fmt.Errorf("Failed to initialize logging driver: %v", err)
-	}
-
-	copier := logger.NewCopier(map[string]io.Reader{"stdout": container.StdoutPipe(), "stderr": container.StderrPipe()}, l)
-	container.LogCopier = copier
-	copier.Run()
-	container.LogDriver = l
-
-	// set LogPath field only for json-file logdriver
-	if jl, ok := l.(*jsonfilelog.JSONFileLogger); ok {
-		container.LogPath = jl.LogPath()
-	}
-
-	return nil
-}
-
-// StdinPipe gets the stdin stream of the container
-func (container *Container) StdinPipe() io.WriteCloser {
-	return container.StreamConfig.StdinPipe()
-}
-
-// StdoutPipe gets the stdout stream of the container
-func (container *Container) StdoutPipe() io.ReadCloser {
-	return container.StreamConfig.StdoutPipe()
-}
-
-// StderrPipe gets the stderr stream of the container
-func (container *Container) StderrPipe() io.ReadCloser {
-	return container.StreamConfig.StderrPipe()
-}
-
-// CloseStreams closes the container's stdio streams
-func (container *Container) CloseStreams() error {
-	return container.StreamConfig.CloseStreams()
-}
-
-// InitializeStdio is called by libcontainerd to connect the stdio.
-func (container *Container) InitializeStdio(iop libcontainerd.IOPipe) error {
-	if err := container.startLogging(); err != nil {
-		container.Reset(false)
-		return err
-	}
-
-	container.StreamConfig.CopyToPipe(iop)
-
-	if container.StreamConfig.Stdin() == nil && !container.Config.Tty {
-		if iop.Stdin != nil {
-			if err := iop.Stdin.Close(); err != nil {
-				logrus.Warnf("error closing stdin: %+v", err)
-			}
-		}
-	}
-
-	return nil
 }

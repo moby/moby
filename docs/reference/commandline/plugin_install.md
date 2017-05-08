@@ -1,12 +1,15 @@
----
-redirect_from:
-  - /reference/commandline/plugin_install/
-advisory: experimental
-description: the plugin install command description and usage
-keywords:
-- plugin, install
-title: docker plugin install (experimental)
----
+<!--[metadata]>
++++
+title = "plugin install"
+description = "the plugin install command description and usage"
+keywords = ["plugin, install"]
+advisory = "experimental"
+[menu.main]
+parent = "smn_cli"
++++
+<![end-metadata]-->
+
+# plugin install (experimental)
 
 ```markdown
 Usage:  docker plugin install [OPTIONS] PLUGIN

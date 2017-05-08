@@ -1,11 +1,14 @@
----
-redirect_from:
-  - /reference/commandline/diff/
-description: The diff command description and usage
-keywords:
-- list, changed, files, container
-title: docker diff
----
+<!--[metadata]>
++++
+title = "diff"
+description = "The diff command description and usage"
+keywords = ["list, changed, files, container"]
+[menu.main]
+parent = "smn_cli"
++++
+<![end-metadata]-->
+
+# diff
 
 ```markdown
 Usage:  docker diff CONTAINER

@@ -77,7 +77,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	}
 
 	if s := n.getSubnetforIP(ep.addr); s == nil {
-		return fmt.Errorf("no matching subnet for IP %q in network %q", ep.addr, nid)
+		return fmt.Errorf("no matching subnet for IP %q in network %q\n", ep.addr, nid)
 	}
 
 	if ep.mac == nil {

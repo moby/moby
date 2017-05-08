@@ -59,7 +59,6 @@ func New(endpoints []string, options *store.Config) (store.Store, error) {
 		db          *bolt.DB
 		err         error
 		boltOptions *bolt.Options
-		timeout     = transientTimeout
 	)
 
 	if len(endpoints) > 1 {
@@ -83,15 +82,11 @@ func New(endpoints []string, options *store.Config) (store.Store, error) {
 		}
 	}
 
-	if options.ConnectionTimeout != 0 {
-		timeout = options.ConnectionTimeout
-	}
-
 	b := &BoltDB{
 		client:            db,
 		path:              endpoints[0],
 		boltBucket:        []byte(options.Bucket),
-		timeout:           timeout,
+		timeout:           transientTimeout,
 		PersistConnection: options.PersistConnection,
 	}
 

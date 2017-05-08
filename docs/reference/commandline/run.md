@@ -1,11 +1,14 @@
----
-redirect_from:
-  - /reference/commandline/run/
-description: The run command description and usage
-keywords:
-- run, command, container
-title: docker run
----
+<!--[metadata]>
++++
+title = "run"
+description = "The run command description and usage"
+keywords = ["run, command, container"]
+[menu.main]
+parent = "smn_cli"
++++
+<![end-metadata]-->
+
+# run
 
 ```markdown
 Usage:  docker run [OPTIONS] IMAGE [COMMAND] [ARG...]
@@ -112,10 +115,9 @@ Options:
                                     'host': Use the Docker host user namespace
                                     '': Use the Docker daemon user namespace specified by `--userns-remap` option.
       --uts string                  UTS namespace to use
-  -v, --volume value                Bind mount a volume (default []). The format
-                                    is `[host-src:]container-dest[:<options>]`.
-                                    The comma-delimited `options` are [rw|ro],
-                                    [z|Z], [[r]shared|[r]slave|[r]private], and
+  -v, --volume value                Bind mount a volume (default []). The comma-delimited
+                                    `options` are [rw|ro], [z|Z],
+                                    [[r]shared|[r]slave|[r]private], and
                                     [nocopy]. The 'host-src' is an absolute path
                                     or a name value.
       --volume-driver string        Optional volume driver for the container
@@ -192,10 +194,10 @@ The `-w` lets the command being executed inside directory given, here
 
 ### Set storage driver options per container
 
-    $ docker run -it --storage-opt size=120G fedora /bin/bash
+    $ docker create -it --storage-opt size=120G fedora /bin/bash
 
-This (size) will allow to set the container rootfs size to 120G at creation time.
-User cannot pass a size less than the Default BaseFS Size. This option is only
+This (size) will allow to set the container rootfs size to 120G at creation time. 
+User cannot pass a size less than the Default BaseFS Size. This option is only 
 available for the `devicemapper`, `btrfs`, and `zfs` graph drivers.
 
 ### Mount tmpfs (--tmpfs)
@@ -236,28 +238,6 @@ binary (refer to [get the linux binary](
 ../../installation/binaries.md#get-the-linux-binary)),
 you give the container the full access to create and manipulate the host's
 Docker daemon.
-
-On Windows, the paths must be specified using Windows-style semantics. 
-
-    PS C:\> docker run -v c:\foo:c:\dest microsoft/nanoserver cmd /s /c type c:\dest\somefile.txt
-    Contents of file
-	
-    PS C:\> docker run -v c:\foo:d: microsoft/nanoserver cmd /s /c type d:\somefile.txt
-    Contents of file
-
-The following examples will fail when using Windows-based containers, as the 
-destination of a volume or bind-mount inside the container must be one of: 
-a non-existing or empty directory; or a drive other than C:. Further, the source
-of a bind mount must be a local directory, not a file.
-
-    net use z: \\remotemachine\share
-    docker run -v z:\foo:c:\dest ...
-    docker run -v \\uncpath\to\directory:c:\dest ...
-    docker run -v c:\foo\somefile.txt:c:\dest ...
-    docker run -v c:\foo:c: ...
-    docker run -v c:\foo:c:\existing-directory-with-contents ...
-
-For in-depth information about volumes, refer to [manage data in containers](https://docs.docker.com/engine/tutorials/dockervolumes/)
 
 ### Publish or expose port (-p, --expose)
 
@@ -566,7 +546,7 @@ more `--add-host` flags. This example adds a static address for a host named
 `docker`:
 
     $ docker run --add-host=docker:10.180.0.1 --rm -it debian
-    root@f38c87f2a42d:/# ping docker
+    $$ ping docker
     PING docker (10.180.0.1): 48 data bytes
     56 bytes from 10.180.0.1: icmp_seq=0 ttl=254 time=7.600 ms
     56 bytes from 10.180.0.1: icmp_seq=1 ttl=254 time=30.705 ms
@@ -653,14 +633,14 @@ On Microsoft Windows, can take any of these values:
 | `hyperv`   | Hyper-V hypervisor partition-based isolation.                                                                                                                  |
 
 On Windows, the default isolation for client is `hyperv`, and for server is
-`process`. Therefore when running on Windows server without a `daemon` option
+`process`. Therefore when running on Windows server without a `daemon` option 
 set, these two commands are equivalent:
 ```
 $ docker run -d --isolation default busybox top
 $ docker run -d --isolation process busybox top
 ```
 
-If you have set the `--exec-opt isolation=hyperv` option on the Docker `daemon`,
+If you have set the `--exec-opt isolation=hyperv` option on the Docker `daemon`, 
 if running on Windows server, any of these commands also result in `hyperv` isolation:
 
 ```
@@ -677,8 +657,8 @@ network namespace, run this command:
     $ docker run --sysctl net.ipv4.ip_forward=1 someimage
 
 
-> **Note**: Not all sysctls are namespaced. Docker does not support changing sysctls
-> inside of a container that also modify the host system. As the kernel
+> **Note**: Not all sysctls are namespaced. docker does not support changing sysctls
+> inside of a container that also modify the host system. As the kernel 
 > evolves we expect to see more sysctls become namespaced.
 
 #### Currently supported sysctls

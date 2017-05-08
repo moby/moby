@@ -1,11 +1,14 @@
----
-redirect_from:
-  - /reference/commandline/volume_rm/
-description: the volume rm command description and usage
-keywords:
-- volume, rm
-title: docker volume rm
----
+<!--[metadata]>
++++
+title = "volume rm"
+description = "the volume rm command description and usage"
+keywords = ["volume, rm"]
+[menu.main]
+parent = "smn_cli"
++++
+<![end-metadata]-->
+
+# volume rm
 
 ```markdown
 Usage:  docker volume rm VOLUME [VOLUME...]

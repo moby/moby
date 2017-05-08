@@ -188,9 +188,9 @@ func (d *Daemon) ContainerExecStart(ctx context.Context, name string, stdin io.R
 	}
 
 	if ec.OpenStdin {
-		ec.StreamConfig.NewInputPipes()
+		ec.NewInputPipes()
 	} else {
-		ec.StreamConfig.NewNopInputPipe()
+		ec.NewNopInputPipe()
 	}
 
 	p := libcontainerd.Process{
@@ -204,7 +204,7 @@ func (d *Daemon) ContainerExecStart(ctx context.Context, name string, stdin io.R
 
 	attachErr := container.AttachStreams(ctx, ec.StreamConfig, ec.OpenStdin, true, ec.Tty, cStdin, cStdout, cStderr, ec.DetachKeys)
 
-	if err := d.containerd.AddProcess(ctx, c.ID, name, p, ec.InitializeStdio); err != nil {
+	if err := d.containerd.AddProcess(ctx, c.ID, name, p); err != nil {
 		return err
 	}
 

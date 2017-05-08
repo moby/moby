@@ -97,7 +97,7 @@ task assignments for the `redis` service:
     9bg7cezvedmkgg6c8yzvbhwsd  redis.3       redis:3.0.6  worker2   Running        Running 4 minutes
     ```
 
-    The swarm manager maintains the desired state by ending the task on a node
+    The Swarm manager maintains the desired state by ending the task on a node
     with `Drain` availability and creating a new task on a node with `Active`
     availability.
 
