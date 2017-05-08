@@ -8283,15 +8283,26 @@ paths:
         - "application/json"
       responses:
         200:
-          description: "digest and platform information"
+          description: "descriptor and platform information"
           schema:
             type: "object"
             x-go-name: DistributionInspect
-            required: [Digest, ID, Platforms]
+            required: [Descriptor, Platforms]
             properties:
-              Digest:
-                type: "string"
-                x-nullable: false
+              Descriptor:
+                type: "object"
+                properties:
+                  MediaType:
+                    type: "string"
+                  Size:
+                    type: "integer"
+                    format: "int64"
+                  Digest:
+                    type: "string"
+                  URLs:
+                    type: "array"
+                    items:
+                      type: "string"
               Platforms:
                 type: "array"
                 items:

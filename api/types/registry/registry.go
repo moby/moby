@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"net"
 
+	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/manifestlist"
-	digest "github.com/opencontainers/go-digest"
 )
 
 // ServiceConfig stores daemon registry services configuration.
@@ -109,8 +109,9 @@ type SearchResults struct {
 // DistributionInspect describes the result obtained from contacting the
 // registry to retrieve image metadata
 type DistributionInspect struct {
-	// Digest is the content addressable digest for the image on the registry
-	Digest digest.Digest
+	// Descriptor contains information about the manifest, including
+	// the content addressable digest
+	Descriptor distribution.Descriptor
 	// Platforms contains the list of platforms supported by the image,
 	// obtained by parsing the manifest
 	Platforms []manifestlist.PlatformSpec

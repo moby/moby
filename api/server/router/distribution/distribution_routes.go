@@ -58,6 +58,7 @@ func (s *distributionRouter) getDistributionInfo(ctx context.Context, w http.Res
 	if err != nil {
 		return err
 	}
+	blobsrvc := distrepo.Blobs(ctx)
 
 	if canonicalRef, ok := namedRef.(reference.Canonical); !ok {
 		namedRef = reference.TagNameOnly(namedRef)
@@ -67,23 +68,35 @@ func (s *distributionRouter) getDistributionInfo(ctx context.Context, w http.Res
 			return errors.Errorf("image reference not tagged: %s", image)
 		}
 
-		dscrptr, err := distrepo.Tags(ctx).Get(ctx, taggedRef.Tag())
+		distributionInspect.Descriptor, err = distrepo.Tags(ctx).Get(ctx, taggedRef.Tag())
 		if err != nil {
 			return err
 		}
-		distributionInspect.Digest = dscrptr.Digest
 	} else {
-		distributionInspect.Digest = canonicalRef.Digest()
+		// TODO(nishanttotla): Once manifests can be looked up as a blob, the
+		// descriptor should be set using blobsrvc.Stat(ctx, canonicalRef.Digest())
+		// instead of having to manually fill in the fields
+		distributionInspect.Descriptor.Digest = canonicalRef.Digest()
 	}
-	// at this point, we have a digest, so we can retrieve the manifest
 
+	// we have a digest, so we can retrieve the manifest
 	mnfstsrvc, err := distrepo.Manifests(ctx)
 	if err != nil {
 		return err
 	}
-	mnfst, err := mnfstsrvc.Get(ctx, distributionInspect.Digest)
+	mnfst, err := mnfstsrvc.Get(ctx, distributionInspect.Descriptor.Digest)
 	if err != nil {
 		return err
+	}
+
+	mediaType, payload, err := mnfst.Payload()
+	if err != nil {
+		return err
+	}
+	// update MediaType because registry might return something incorrect
+	distributionInspect.Descriptor.MediaType = mediaType
+	if distributionInspect.Descriptor.Size == 0 {
+		distributionInspect.Descriptor.Size = int64(len(payload))
 	}
 
 	// retrieve platform information depending on the type of manifest
@@ -93,7 +106,6 @@ func (s *distributionRouter) getDistributionInfo(ctx context.Context, w http.Res
 			distributionInspect.Platforms = append(distributionInspect.Platforms, m.Platform)
 		}
 	case *schema2.DeserializedManifest:
-		blobsrvc := distrepo.Blobs(ctx)
 		configJSON, err := blobsrvc.Get(ctx, mnfstObj.Config.Digest)
 		var platform manifestlist.PlatformSpec
 		if err == nil {
