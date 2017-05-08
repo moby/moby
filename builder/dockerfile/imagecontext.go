@@ -19,10 +19,11 @@ type pathCache interface {
 // imageContexts is a helper for stacking up built image rootfs and reusing
 // them as contexts
 type imageContexts struct {
-	b      *Builder
-	list   []*imageMount
-	byName map[string]*imageMount
-	cache  pathCache
+	b              *Builder
+	list           []*imageMount // indexed list of stages
+	implicitMounts []*imageMount // implicitly mounted images
+	byName         map[string]*imageMount
+	cache          pathCache
 }
 
 func (ic *imageContexts) newImageMount(id string) *imageMount {
@@ -75,14 +76,17 @@ func (ic *imageContexts) get(indexOrName string) (*imageMount, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "invalid from flag value %s", indexOrName)
 	}
+	ic.implicitMounts = append(ic.implicitMounts, im)
 	return im, nil
 }
 
 func (ic *imageContexts) unmount() (retErr error) {
-	for _, im := range ic.list {
-		if err := im.unmount(); err != nil {
-			logrus.Error(err)
-			retErr = err
+	for _, iml := range append([][]*imageMount{}, ic.list, ic.implicitMounts) {
+		for _, im := range iml {
+			if err := im.unmount(); err != nil {
+				logrus.Error(err)
+				retErr = err
+			}
 		}
 	}
 	for _, im := range ic.byName {
