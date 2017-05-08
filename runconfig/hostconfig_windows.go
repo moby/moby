@@ -82,3 +82,15 @@ func validatePrivileged(hc *container.HostConfig) error {
 	}
 	return nil
 }
+
+// validateReadonlyRootfs performs platform specific validation of the ReadonlyRootfs setting
+func validateReadonlyRootfs(hc *container.HostConfig) error {
+	// We may not be passed a host config, such as in the case of docker commit
+	if hc == nil {
+		return nil
+	}
+	if hc.ReadonlyRootfs {
+		return fmt.Errorf("invalid --read-only: Windows does not support this feature")
+	}
+	return nil
+}

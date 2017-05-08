@@ -103,3 +103,8 @@ func validateResources(hc *container.HostConfig, si *sysinfo.SysInfo) error {
 func validatePrivileged(hc *container.HostConfig) error {
 	return nil
 }
+
+// validateReadonlyRootfs performs platform specific validation of the ReadonlyRootfs setting
+func validateReadonlyRootfs(hc *container.HostConfig) error {
+	return nil
+}
