@@ -58,6 +58,10 @@ var (
 	// ErrMemberUnknown is sent in response to a message from an
 	// unrecognized peer.
 	ErrMemberUnknown = errors.New("raft: member unknown")
+
+	// work around lint
+	lostQuorumMessage = "The swarm does not have a leader. It's possible that too few managers are online. Make sure more than half of the managers are online."
+	errLostQuorum     = errors.New(lostQuorumMessage)
 )
 
 // LeadershipState indicates whether the node is a leader or follower.
@@ -68,6 +72,10 @@ const (
 	IsLeader LeadershipState = iota
 	// IsFollower indicates that the node is a raft follower.
 	IsFollower
+
+	// lostQuorumTimeout is the number of ticks that can elapse with no
+	// leader before LeaderConn starts returning an error right away.
+	lostQuorumTimeout = 10
 )
 
 // EncryptionKeys are the current and, if necessary, pending DEKs with which to
@@ -143,6 +151,7 @@ type Node struct {
 	rotationQueued      bool
 	clearData           bool
 	waitForAppliedIndex uint64
+	ticksWithNoLeader   uint32
 }
 
 // NodeOptions provides node-level options.
@@ -207,6 +216,7 @@ func NewNode(opts NodeOptions) *Node {
 			MaxSizePerMsg:   cfg.MaxSizePerMsg,
 			MaxInflightMsgs: cfg.MaxInflightMsgs,
 			Logger:          cfg.Logger,
+			CheckQuorum:     cfg.CheckQuorum,
 		},
 		doneCh:              make(chan struct{}),
 		RemovedFromRaft:     make(chan struct{}),
@@ -528,6 +538,12 @@ func (n *Node) Run(ctx context.Context) error {
 		select {
 		case <-n.ticker.C():
 			n.raftNode.Tick()
+
+			if n.leader() == raft.None {
+				atomic.AddUint32(&n.ticksWithNoLeader, 1)
+			} else {
+				atomic.StoreUint32(&n.ticksWithNoLeader, 0)
+			}
 		case rd := <-n.raftNode.Ready():
 			raftConfig := n.getCurrentRaftConfig()
 
@@ -698,9 +714,7 @@ func (n *Node) restoreFromSnapshot(ctx context.Context, data []byte) error {
 
 	for _, removedMember := range snapCluster.Removed {
 		n.cluster.RemoveMember(removedMember)
-		if err := n.transport.RemovePeer(removedMember); err != nil {
-			log.G(ctx).WithError(err).Errorf("failed to remove peer %x from transport", removedMember)
-		}
+		n.transport.RemovePeer(removedMember)
 		delete(oldMembers, removedMember)
 	}
 
@@ -1356,6 +1370,10 @@ func (n *Node) getLeaderConn() (*grpc.ClientConn, error) {
 // LeaderConn returns current connection to cluster leader or raftselector.ErrIsLeader
 // if current machine is leader.
 func (n *Node) LeaderConn(ctx context.Context) (*grpc.ClientConn, error) {
+	if atomic.LoadUint32(&n.ticksWithNoLeader) > lostQuorumTimeout {
+		return nil, errLostQuorum
+	}
+
 	cc, err := n.getLeaderConn()
 	if err == nil {
 		return cc, nil

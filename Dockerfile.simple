@@ -64,7 +64,8 @@ ENV CGO_LDFLAGS -L/lib
 # Please edit hack/dockerfile/install-binaries.sh to update them.
 COPY hack/dockerfile/binaries-commits /tmp/binaries-commits
 COPY hack/dockerfile/install-binaries.sh /tmp/install-binaries.sh
-RUN /tmp/install-binaries.sh runc containerd tini proxy
+RUN /tmp/install-binaries.sh runc containerd tini proxy dockercli
+ENV PATH=/usr/local/cli:$PATH
 
 ENV AUTO_GOPATH 1
 WORKDIR /usr/src/docker

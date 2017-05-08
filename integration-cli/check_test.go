@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/swarm"
-	cliconfig "github.com/docker/docker/cli/config"
+	dcli "github.com/docker/docker/cli"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build/fakestorage"
 	"github.com/docker/docker/integration-cli/daemon"
@@ -37,7 +37,7 @@ var (
 	testEnv *environment.Execution
 
 	// the docker client binary to use
-	dockerBinary = "docker"
+	dockerBinary = ""
 )
 
 func init() {
@@ -406,7 +406,7 @@ func (s *DockerTrustSuite) TearDownTest(c *check.C) {
 	}
 
 	// Remove trusted keys and metadata after test
-	os.RemoveAll(filepath.Join(cliconfig.Dir(), "trust"))
+	os.RemoveAll(filepath.Join(dcli.ConfigurationDir(), "trust"))
 	s.ds.TearDownTest(c)
 }
 

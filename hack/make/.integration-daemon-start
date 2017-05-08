@@ -3,10 +3,17 @@
 # see test-integration-cli for example usage of this script
 
 base="$ABS_DEST/.."
-export PATH="$base/binary-client:$base/binary-daemon:$base/dynbinary-client:$base/dynbinary-daemon:$PATH"
+export PATH="$base/binary-daemon:$base/dynbinary-daemon:$PATH"
 
-if ! command -v docker &> /dev/null; then
-	echo >&2 'error: binary-client or dynbinary-client must be run before .integration-daemon-start'
+export TEST_CLIENT_BINARY=docker
+export DOCKER_API_VERSION=1.30
+if [ -n "$DOCKER_CLI_PATH" ]; then
+	export TEST_CLIENT_BINARY=/usr/local/cli/$(basename "$DOCKER_CLI_PATH")
+fi
+
+echo "Using test binary $TEST_CLIENT_BINARY"
+if ! command -v "$TEST_CLIENT_BINARY" &> /dev/null; then
+	echo >&2 'error: missing test client $TEST_CLIENT_BINARY'
 	false
 fi
 
@@ -88,7 +95,7 @@ fi
 # give it a little time to come up so it's "ready"
 tries=60
 echo "INFO: Waiting for daemon to start..."
-while ! docker version &> /dev/null; do
+while ! $TEST_CLIENT_BINARY version &> /dev/null; do
 	(( tries-- ))
 	if [ $tries -le 0 ]; then
 		printf "\n"
@@ -96,8 +103,8 @@ while ! docker version &> /dev/null; do
 			echo >&2 "error: daemon failed to start"
 			echo >&2 "  check $DEST/docker.log for details"
 		else
-			echo >&2 "error: daemon at $DOCKER_HOST fails to 'docker version':"
-			docker version >&2 || true
+			echo >&2 "error: daemon at $DOCKER_HOST fails to '$TEST_CLIENT_BINARY version':"
+			$TEST_CLIENT_BINARY version >&2 || true
 			# Additional Windows CI debugging as this is a common error as of
 			# January 2016
 			if [ "$(go env GOOS)" = 'windows' ]; then

@@ -241,7 +241,7 @@ func (r *rootRotationReconciler) batchUpdateNodes(toUpdate []*api.Node) error {
 	if len(toUpdate) == 0 {
 		return nil
 	}
-	_, err := r.store.Batch(func(batch *store.Batch) error {
+	err := r.store.Batch(func(batch *store.Batch) error {
 		// Directly update the nodes rather than get + update, and ignore version errors.  Since
 		// `rootRotationReconciler` should be hooked up to all node update/delete/create events, we should have
 		// close to the latest versions of all the nodes.  If not, the node will updated later and the

@@ -283,3 +283,52 @@ func (s *DockerSwarmSuite) TestServiceLogsTTY(c *check.C) {
 	// just expected.
 	c.Assert(result, icmd.Matches, icmd.Expected{Out: "out\r\nerr\r\n"})
 }
+
+func (s *DockerSwarmSuite) TestServiceLogsNoHangDeletedContainer(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	name := "TestServiceLogsNoHangDeletedContainer"
+
+	result := icmd.RunCmd(d.Command(
+		// create a service
+		"service", "create",
+		// name it $name
+		"--name", name,
+		// busybox image, shell string
+		"busybox", "sh", "-c",
+		// echo to stdout and stderr
+		"while true; do echo line; sleep 2; done",
+	))
+
+	// confirm that the command succeeded
+	c.Assert(result, icmd.Matches, icmd.Expected{})
+	// get the service id
+	id := strings.TrimSpace(result.Stdout())
+	c.Assert(id, checker.Not(checker.Equals), "")
+
+	// make sure task has been deployed.
+	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
+	// and make sure we have all the log lines
+	waitAndAssert(c, defaultReconciliationTimeout, countLogLines(d, name), checker.Equals, 2)
+
+	// now find and nuke the container
+	result = icmd.RunCmd(d.Command("ps", "-q"))
+	containerID := strings.TrimSpace(result.Stdout())
+	c.Assert(containerID, checker.Not(checker.Equals), "")
+	result = icmd.RunCmd(d.Command("stop", containerID))
+	c.Assert(result, icmd.Matches, icmd.Expected{Out: containerID})
+	result = icmd.RunCmd(d.Command("rm", containerID))
+	c.Assert(result, icmd.Matches, icmd.Expected{Out: containerID})
+
+	// run logs. use tail 2 to make sure we don't try to get a bunch of logs
+	// somehow and slow down execution time
+	cmd := d.Command("service", "logs", "--tail", "2", id)
+	// start the command and then wait for it to finish with a 3 second timeout
+	result = icmd.StartCmd(cmd)
+	result = icmd.WaitOnCmd(3*time.Second, result)
+
+	// then, assert that the result matches expected. if the command timed out,
+	// if the command is timed out, result.Timeout will be true, but the
+	// Expected defaults to false
+	c.Assert(result, icmd.Matches, icmd.Expected{})
+}

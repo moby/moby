@@ -28,6 +28,7 @@ import (
 	"github.com/docker/docker/pkg/testutil"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
+	"github.com/opencontainers/go-digest"
 )
 
 func (s *DockerSuite) TestBuildJSONEmptyRun(c *check.C) {
@@ -1080,8 +1081,8 @@ func (s *DockerSuite) TestBuildWithInaccessibleFilesInContext(c *check.C) {
 			c.Fatalf("output should've contained the string: no permission to read from but contained: %s", result.Combined())
 		}
 
-		if !strings.Contains(result.Combined(), "Error checking context") {
-			c.Fatalf("output should've contained the string: Error checking context")
+		if !strings.Contains(result.Combined(), "error checking context") {
+			c.Fatalf("output should've contained the string: error checking context")
 		}
 	}
 	{
@@ -1118,8 +1119,8 @@ func (s *DockerSuite) TestBuildWithInaccessibleFilesInContext(c *check.C) {
 			c.Fatalf("output should've contained the string: can't access %s", result.Combined())
 		}
 
-		if !strings.Contains(result.Combined(), "Error checking context") {
-			c.Fatalf("output should've contained the string: Error checking context\ngot:%s", result.Combined())
+		if !strings.Contains(result.Combined(), "error checking context") {
+			c.Fatalf("output should've contained the string: error checking context\ngot:%s", result.Combined())
 		}
 
 	}
@@ -2508,7 +2509,7 @@ func (s *DockerSuite) TestBuildDockerignoringBadExclusion(c *check.C) {
 		build.WithFile(".dockerignore", "!\n"),
 	)).Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err:      "Error checking context: 'illegal exclusion pattern: \"!\"",
+		Err:      "error checking context: 'illegal exclusion pattern: \"!\"",
 	})
 }
 
@@ -3692,7 +3693,7 @@ func (s *DockerSuite) TestBuildRenamedDockerfile(c *check.C) {
 	}
 	cli.Docker(cli.Args("build", fmt.Sprintf("--file=%s", nonDockerfileFile), "-t", "test5", "."), cli.InDir(ctx.Dir)).Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err:      fmt.Sprintf("The Dockerfile (%s) must be within the build context (.)", nonDockerfileFile),
+		Err:      fmt.Sprintf("unable to prepare context: the Dockerfile (%s) must be within the build context", nonDockerfileFile),
 	})
 
 	cli.Docker(cli.Args("build", "-f", filepath.Join("..", "Dockerfile"), "-t", "test6", ".."), cli.InDir(filepath.Join(ctx.Dir, "files"))).Assert(c, icmd.Expected{
@@ -6397,4 +6398,50 @@ CMD echo foo
 
 	out, _ := dockerCmd(c, "inspect", "--format", "{{ json .Config.Cmd }}", "build2")
 	c.Assert(strings.TrimSpace(out), checker.Equals, `["/bin/sh","-c","echo foo"]`)
+}
+
+func (s *DockerSuite) TestBuildIidFile(c *check.C) {
+	tmpDir, err := ioutil.TempDir("", "TestBuildIidFile")
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+	tmpIidFile := filepath.Join(tmpDir, "iid")
+
+	name := "testbuildiidfile"
+	// Use a Dockerfile with multiple stages to ensure we get the last one
+	cli.BuildCmd(c, name,
+		build.WithDockerfile(`FROM `+minimalBaseImage()+` AS stage1
+ENV FOO FOO
+FROM `+minimalBaseImage()+`
+ENV BAR BAZ`),
+		cli.WithFlags("--iidfile", tmpIidFile))
+
+	id, err := ioutil.ReadFile(tmpIidFile)
+	c.Assert(err, check.IsNil)
+	d, err := digest.Parse(string(id))
+	c.Assert(err, check.IsNil)
+	c.Assert(d.String(), checker.Equals, getIDByName(c, name))
+}
+
+func (s *DockerSuite) TestBuildIidFileCleanupOnFail(c *check.C) {
+	tmpDir, err := ioutil.TempDir("", "TestBuildIidFileCleanupOnFail")
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+	tmpIidFile := filepath.Join(tmpDir, "iid")
+
+	err = ioutil.WriteFile(tmpIidFile, []byte("Dummy"), 0666)
+	c.Assert(err, check.IsNil)
+
+	cli.Docker(cli.Build("testbuildiidfilecleanuponfail"),
+		build.WithDockerfile(`FROM `+minimalBaseImage()+`
+	RUN /non/existing/command`),
+		cli.WithFlags("--iidfile", tmpIidFile)).Assert(c, icmd.Expected{
+		ExitCode: 1,
+	})
+	_, err = os.Stat(tmpIidFile)
+	c.Assert(err, check.NotNil)
+	c.Assert(os.IsNotExist(err), check.Equals, true)
 }

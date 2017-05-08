@@ -1,5 +1,6 @@
 // +build !windows
 // +build !linux !cgo
+// +build !linux !ppc64le
 // +build !solaris !cgo
 
 package term

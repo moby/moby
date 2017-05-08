@@ -14,7 +14,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	cfconfig "github.com/cloudflare/cfssl/config"
-	events "github.com/docker/go-events"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/connectionbroker"
 	"github.com/docker/swarmkit/identity"
@@ -50,13 +49,6 @@ const (
 	// ceil(log(2^256-1, 36))
 	base36DigestLen = 50
 )
-
-// RenewTLSExponentialBackoff sets the exponential backoff when trying to renew TLS certificates that have expired
-var RenewTLSExponentialBackoff = events.ExponentialBackoffConfig{
-	Base:   time.Second * 5,
-	Factor: time.Second * 5,
-	Max:    1 * time.Hour,
-}
 
 // SecurityConfig is used to represent a node's security configuration. It includes information about
 // the RootCA and ServerTLSCreds/ClientTLSCreds transport authenticators to be used for MTLS
@@ -466,96 +458,6 @@ func RenewTLSConfigNow(ctx context.Context, s *SecurityConfig, connBroker *conne
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.updateTLSCredentials(tlsKeyPair, issuerInfo)
-}
-
-// RenewTLSConfig will continuously monitor for the necessity of renewing the local certificates, either by
-// issuing them locally if key-material is available, or requesting them from a remote CA.
-func RenewTLSConfig(ctx context.Context, s *SecurityConfig, connBroker *connectionbroker.Broker, renew <-chan struct{}) <-chan CertificateUpdate {
-	updates := make(chan CertificateUpdate)
-
-	go func() {
-		var (
-			retry      time.Duration
-			forceRetry bool
-		)
-		expBackoff := events.NewExponentialBackoff(RenewTLSExponentialBackoff)
-		defer close(updates)
-		for {
-			ctx = log.WithModule(ctx, "tls")
-			log := log.G(ctx).WithFields(logrus.Fields{
-				"node.id":   s.ClientTLSCreds.NodeID(),
-				"node.role": s.ClientTLSCreds.Role(),
-			})
-			// Our starting default will be 5 minutes
-			retry = 5 * time.Minute
-
-			// Since the expiration of the certificate is managed remotely we should update our
-			// retry timer on every iteration of this loop.
-			// Retrieve the current certificate expiration information.
-			validFrom, validUntil, err := readCertValidity(s.KeyReader())
-			if err != nil {
-				// We failed to read the expiration, let's stick with the starting default
-				log.Errorf("failed to read the expiration of the TLS certificate in: %s", s.KeyReader().Target())
-
-				select {
-				case updates <- CertificateUpdate{Err: errors.New("failed to read certificate expiration")}:
-				case <-ctx.Done():
-					log.Info("shutting down certificate renewal routine")
-					return
-				}
-			} else {
-				// If we have an expired certificate, try to renew immediately: the hope that this is a temporary clock skew, or
-				// we can issue our own TLS certs.
-				if validUntil.Before(time.Now()) {
-					log.Warn("the current TLS certificate is expired, so an attempt to renew it will be made immediately")
-					// retry immediately(ish) with exponential backoff
-					retry = expBackoff.Proceed(nil)
-				} else if forceRetry {
-					// A forced renewal was requested, but did not succeed yet.
-					// retry immediately(ish) with exponential backoff
-					retry = expBackoff.Proceed(nil)
-				} else {
-					// Random retry time between 50% and 80% of the total time to expiration
-					retry = calculateRandomExpiry(validFrom, validUntil)
-				}
-			}
-
-			log.WithFields(logrus.Fields{
-				"time": time.Now().Add(retry),
-			}).Debugf("next certificate renewal scheduled for %v from now", retry)
-
-			select {
-			case <-time.After(retry):
-				log.Info("renewing certificate")
-			case <-renew:
-				forceRetry = true
-				log.Info("forced certificate renewal")
-			case <-ctx.Done():
-				log.Info("shutting down certificate renewal routine")
-				return
-			}
-
-			// ignore errors - it will just try again later
-			var certUpdate CertificateUpdate
-			if err := RenewTLSConfigNow(ctx, s, connBroker); err != nil {
-				certUpdate.Err = err
-				expBackoff.Failure(nil, nil)
-			} else {
-				certUpdate.Role = s.ClientTLSCreds.Role()
-				expBackoff = events.NewExponentialBackoff(RenewTLSExponentialBackoff)
-				forceRetry = false
-			}
-
-			select {
-			case updates <- certUpdate:
-			case <-ctx.Done():
-				log.Info("shutting down certificate renewal routine")
-				return
-			}
-		}
-	}()
-
-	return updates
 }
 
 // calculateRandomExpiry returns a random duration between 50% and 80% of the

@@ -249,7 +249,7 @@ func (g *Orchestrator) removeTasksFromNode(ctx context.Context, node *api.Node) 
 		return
 	}
 
-	_, err = g.store.Batch(func(batch *store.Batch) error {
+	err = g.store.Batch(func(batch *store.Batch) error {
 		for _, t := range tasks {
 			// Global orchestrator only removes tasks from globalServices
 			if _, exists := g.globalServices[t.ServiceID]; exists {
@@ -296,7 +296,7 @@ func (g *Orchestrator) reconcileServices(ctx context.Context, serviceIDs []strin
 
 	updates := make(map[*api.Service][]orchestrator.Slot)
 
-	_, err := g.store.Batch(func(batch *store.Batch) error {
+	err := g.store.Batch(func(batch *store.Batch) error {
 		for _, serviceID := range serviceIDs {
 			var updateTasks []orchestrator.Slot
 
@@ -433,7 +433,7 @@ func (g *Orchestrator) reconcileServicesOneNode(ctx context.Context, serviceIDs 
 		}
 	}
 
-	_, err = g.store.Batch(func(batch *store.Batch) error {
+	err = g.store.Batch(func(batch *store.Batch) error {
 		for _, serviceID := range serviceIDs {
 			service, exists := g.globalServices[serviceID]
 			if !exists {
@@ -505,7 +505,7 @@ func (g *Orchestrator) tickTasks(ctx context.Context) {
 	if len(g.restartTasks) == 0 {
 		return
 	}
-	_, err := g.store.Batch(func(batch *store.Batch) error {
+	err := g.store.Batch(func(batch *store.Batch) error {
 		for taskID := range g.restartTasks {
 			err := batch.Update(func(tx store.Tx) error {
 				t := store.GetTask(tx, taskID)

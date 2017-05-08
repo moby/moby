@@ -11,6 +11,7 @@ docker-build - Build an image from a Dockerfile
 [**--cpu-shares**[=*0*]]
 [**--cgroup-parent**[=*CGROUP-PARENT*]]
 [**--help**]
+[**--iidfile**[=*CIDFILE*]]
 [**-f**|**--file**[=*PATH/Dockerfile*]]
 [**-squash**] *Experimental*
 [**--force-rm**]
@@ -103,6 +104,9 @@ option can be set multiple times.
 
 **--no-cache**=*true*|*false*
    Do not use cache when building the image. The default is *false*.
+
+**--iidfile**=""
+   Write the image ID to the file
 
 **--help**
   Print usage statement

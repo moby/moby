@@ -394,7 +394,7 @@ func (s *Scheduler) applySchedulingDecisions(ctx context.Context, schedulingDeci
 	successful = make([]schedulingDecision, 0, len(schedulingDecisions))
 
 	// Apply changes to master store
-	applied, err := s.store.Batch(func(batch *store.Batch) error {
+	err := s.store.Batch(func(batch *store.Batch) error {
 		for len(schedulingDecisions) > 0 {
 			err := batch.Update(func(tx store.Tx) error {
 				// Update exactly one task inside this Update
@@ -452,8 +452,8 @@ func (s *Scheduler) applySchedulingDecisions(ctx context.Context, schedulingDeci
 
 	if err != nil {
 		log.G(ctx).WithError(err).Error("scheduler tick transaction failed")
-		failed = append(failed, successful[applied:]...)
-		successful = successful[:applied]
+		failed = append(failed, successful...)
+		successful = nil
 	}
 	return
 }

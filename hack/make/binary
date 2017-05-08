@@ -4,11 +4,6 @@ rm -rf "$DEST"
 
 # This script exists as backwards compatibility for CI
 (
-	DEST="${DEST}-client"
-	ABS_DEST="${ABS_DEST}-client"
-	. hack/make/binary-client
-)
-(
 	DEST="${DEST}-daemon"
 	ABS_DEST="${ABS_DEST}-daemon"
 	. hack/make/binary-daemon

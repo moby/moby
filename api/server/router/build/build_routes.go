@@ -132,7 +132,10 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 }
 
 func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	var notVerboseBuffer = bytes.NewBuffer(nil)
+	var (
+		notVerboseBuffer = bytes.NewBuffer(nil)
+		version          = httputils.VersionFromContext(ctx)
+	)
 
 	w.Header().Set("Content-Type", "application/json")
 
@@ -177,10 +180,12 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 		return progress.NewProgressReader(in, progressOutput, r.ContentLength, "Downloading context", buildOptions.RemoteContext)
 	}
 
+	wantAux := versions.GreaterThanOrEqualTo(version, "1.30")
+
 	imgID, err := br.backend.Build(ctx, backend.BuildConfig{
 		Source:         r.Body,
 		Options:        buildOptions,
-		ProgressWriter: buildProgressWriter(out, createProgressReader),
+		ProgressWriter: buildProgressWriter(out, wantAux, createProgressReader),
 	})
 	if err != nil {
 		return errf(err)
@@ -221,13 +226,19 @@ func (s *syncWriter) Write(b []byte) (count int, err error) {
 	return
 }
 
-func buildProgressWriter(out io.Writer, createProgressReader func(io.ReadCloser) io.ReadCloser) backend.ProgressWriter {
+func buildProgressWriter(out io.Writer, wantAux bool, createProgressReader func(io.ReadCloser) io.ReadCloser) backend.ProgressWriter {
 	out = &syncWriter{w: out}
+
+	var aux *streamformatter.AuxFormatter
+	if wantAux {
+		aux = &streamformatter.AuxFormatter{Writer: out}
+	}
 
 	return backend.ProgressWriter{
 		Output:             out,
 		StdoutFormatter:    streamformatter.NewStdoutWriter(out),
 		StderrFormatter:    streamformatter.NewStderrWriter(out),
+		AuxFormatter:       aux,
 		ProgressReaderFunc: createProgressReader,
 	}
 }
