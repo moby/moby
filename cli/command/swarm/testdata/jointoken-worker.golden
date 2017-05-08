@@ -1,3 +1,0 @@
-To add a worker to this swarm, run the following command:
-
-    docker swarm join --token worker-join-token 127.0.0.1

@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/Sirupsen/logrus"
-	cliconfig "github.com/docker/docker/cli/config"
+	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/opts"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/spf13/pflag"
@@ -21,7 +21,7 @@ const (
 	DefaultKeyFile = "key.pem"
 	// DefaultCertFile is the default filename for the cert pem file
 	DefaultCertFile = "cert.pem"
-	// FlagTLSVerify is the flag name for the TLS verification option
+	// FlagTLSVerify is the flag name for the tls verification option
 	FlagTLSVerify = "tlsverify"
 )
 
@@ -49,25 +49,21 @@ func NewCommonOptions() *CommonOptions {
 // InstallFlags adds flags for the common options on the FlagSet
 func (commonOpts *CommonOptions) InstallFlags(flags *pflag.FlagSet) {
 	if dockerCertPath == "" {
-		dockerCertPath = cliconfig.Dir()
+		dockerCertPath = cliconfig.ConfigDir()
 	}
 
 	flags.BoolVarP(&commonOpts.Debug, "debug", "D", false, "Enable debug mode")
-	flags.StringVarP(&commonOpts.LogLevel, "log-level", "l", "info", `Set the logging level ("debug"|"info"|"warn"|"error"|"fatal")`)
+	flags.StringVarP(&commonOpts.LogLevel, "log-level", "l", "info", "Set the logging level")
 	flags.BoolVar(&commonOpts.TLS, "tls", false, "Use TLS; implied by --tlsverify")
 	flags.BoolVar(&commonOpts.TLSVerify, FlagTLSVerify, dockerTLSVerify, "Use TLS and verify the remote")
 
 	// TODO use flag flags.String("identity"}, "i", "", "Path to libtrust key file")
 
-	commonOpts.TLSOptions = &tlsconfig.Options{
-		CAFile:   filepath.Join(dockerCertPath, DefaultCaFile),
-		CertFile: filepath.Join(dockerCertPath, DefaultCertFile),
-		KeyFile:  filepath.Join(dockerCertPath, DefaultKeyFile),
-	}
+	commonOpts.TLSOptions = &tlsconfig.Options{}
 	tlsOptions := commonOpts.TLSOptions
-	flags.Var(opts.NewQuotedString(&tlsOptions.CAFile), "tlscacert", "Trust certs signed only by this CA")
-	flags.Var(opts.NewQuotedString(&tlsOptions.CertFile), "tlscert", "Path to TLS certificate file")
-	flags.Var(opts.NewQuotedString(&tlsOptions.KeyFile), "tlskey", "Path to TLS key file")
+	flags.StringVar(&tlsOptions.CAFile, "tlscacert", filepath.Join(dockerCertPath, DefaultCaFile), "Trust certs signed only by this CA")
+	flags.StringVar(&tlsOptions.CertFile, "tlscert", filepath.Join(dockerCertPath, DefaultCertFile), "Path to TLS certificate file")
+	flags.StringVar(&tlsOptions.KeyFile, "tlskey", filepath.Join(dockerCertPath, DefaultKeyFile), "Path to TLS key file")
 
 	hostOpt := opts.NewNamedListOptsRef("hosts", &commonOpts.Hosts, opts.ValidateHost)
 	flags.VarP(hostOpt, "host", "H", "Daemon socket(s) to connect to")
@@ -77,7 +73,7 @@ func (commonOpts *CommonOptions) InstallFlags(flags *pflag.FlagSet) {
 // complete
 func (commonOpts *CommonOptions) SetDefaultOptions(flags *pflag.FlagSet) {
 	// Regardless of whether the user sets it to true or false, if they
-	// specify --tlsverify at all then we need to turn on TLS
+	// specify --tlsverify at all then we need to turn on tls
 	// TLSVerify can be true even if not set due to DOCKER_TLS_VERIFY env var, so we need
 	// to check that here as well
 	if flags.Changed(FlagTLSVerify) || commonOpts.TLSVerify {
@@ -105,8 +101,9 @@ func (commonOpts *CommonOptions) SetDefaultOptions(flags *pflag.FlagSet) {
 	}
 }
 
-// SetLogLevel sets the logrus logging level
-func SetLogLevel(logLevel string) {
+// SetDaemonLogLevel sets the logrus logging level
+// TODO: this is a bad name, it applies to the client as well.
+func SetDaemonLogLevel(logLevel string) {
 	if logLevel != "" {
 		lvl, err := logrus.ParseLevel(logLevel)
 		if err != nil {

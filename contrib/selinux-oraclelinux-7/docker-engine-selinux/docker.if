@@ -112,7 +112,28 @@ interface(`docker_read_share_files',`
 	')
 
 	files_search_var_lib($1)
+	list_dirs_pattern($1, docker_share_t, docker_share_t)
 	read_files_pattern($1, docker_share_t, docker_share_t)
+	read_lnk_files_pattern($1, docker_share_t, docker_share_t)
+')
+
+######################################
+## <summary>
+##	Allow the specified domain to execute docker shared files
+##	in the caller domain.
+## </summary>
+## <param name="domain">
+##	<summary>
+##	Domain allowed access.
+##	</summary>
+## </param>
+#
+interface(`docker_exec_share_files',`
+	gen_require(`
+		type docker_share_t;
+	')
+
+	can_exec($1, docker_share_t)
 ')
 
 ########################################
@@ -284,7 +305,7 @@ interface(`docker_filetrans_named_content',`
     gen_require(`
         type docker_var_lib_t;
         type docker_share_t;
-	type docker_log_t;
+    	type docker_log_t;
 	    type docker_var_run_t;
         type docker_home_t;
     ')
@@ -292,6 +313,7 @@ interface(`docker_filetrans_named_content',`
     files_pid_filetrans($1, docker_var_run_t, file, "docker.pid")
     files_pid_filetrans($1, docker_var_run_t, sock_file, "docker.sock")
     files_pid_filetrans($1, docker_var_run_t, dir, "docker-client")
+    logging_log_filetrans($1, docker_log_t, dir, "lxc")
     files_var_lib_filetrans($1, docker_var_lib_t, dir, "docker")
     filetrans_pattern($1, docker_var_lib_t, docker_share_t, file, "config.env")
     filetrans_pattern($1, docker_var_lib_t, docker_share_t, file, "hosts")
@@ -339,7 +361,6 @@ interface(`docker_spc_stream_connect',`
 	files_write_all_pid_sockets($1)
 	allow $1 spc_t:unix_stream_socket connectto;
 ')
-
 
 ########################################
 ## <summary>
@@ -389,73 +410,250 @@ interface(`docker_admin',`
 	')
 ')
 
-interface(`domain_stub_named_filetrans_domain',`
-    gen_require(`
-        attribute named_filetrans_domain;
-    ')
-')
-
-interface(`lvm_stub',`
-    gen_require(`
-        type lvm_t;
-    ')
-')
-interface(`staff_stub',`
-    gen_require(`
-        type staff_t;
-    ')
-')
-interface(`virt_stub_svirt_sandbox_domain',`
+########################################
+## <summary>
+##	Execute docker_auth_exec_t in the docker_auth domain.
+## </summary>
+## <param name="domain">
+## <summary>
+##	Domain allowed to transition.
+## </summary>
+## </param>
+#
+interface(`docker_auth_domtrans',`
 	gen_require(`
-		attribute svirt_sandbox_domain;
-	')
-')
-interface(`virt_stub_svirt_sandbox_file',`
-	gen_require(`
-		type svirt_sandbox_file_t;
-	')
-')
-interface(`fs_dontaudit_remount_tmpfs',`
-	gen_require(`
-		type tmpfs_t;
+		type docker_auth_t, docker_auth_exec_t;
 	')
 
-	dontaudit $1 tmpfs_t:filesystem remount;
+	corecmd_search_bin($1)
+	domtrans_pattern($1, docker_auth_exec_t, docker_auth_t)
 ')
-interface(`dev_dontaudit_list_all_dev_nodes',`
+
+######################################
+## <summary>
+##	Execute docker_auth in the caller domain.
+## </summary>
+## <param name="domain">
+##	<summary>
+##	Domain allowed access.
+##	</summary>
+## </param>
+#
+interface(`docker_auth_exec',`
 	gen_require(`
-		type device_t;
+		type docker_auth_exec_t;
 	')
 
-	dontaudit $1 device_t:dir list_dir_perms;
+	corecmd_search_bin($1)
+	can_exec($1, docker_auth_exec_t)
 ')
-interface(`kernel_unlabeled_entry_type',`
+
+########################################
+## <summary>
+##	Connect to docker_auth over a unix stream socket.
+## </summary>
+## <param name="domain">
+##	<summary>
+##	Domain allowed access.
+##	</summary>
+## </param>
+#
+interface(`docker_auth_stream_connect',`
 	gen_require(`
-		type unlabeled_t;
+		type docker_auth_t, docker_plugin_var_run_t;
 	')
 
-	domain_entry_file($1, unlabeled_t)
+	files_search_pids($1)
+	stream_connect_pattern($1, docker_plugin_var_run_t, docker_plugin_var_run_t, docker_auth_t)
 ')
-interface(`kernel_unlabeled_domtrans',`
+
+########################################
+## <summary>
+##	docker domain typebounds calling domain.
+## </summary>
+## <param name="domain">
+## <summary>
+##	Domain to be typebound.
+## </summary>
+## </param>
+#
+interface(`docker_typebounds',`
 	gen_require(`
-		type unlabeled_t;
+		type docker_t;
 	')
 
-	read_lnk_files_pattern($1, unlabeled_t, unlabeled_t)
-	domain_transition_pattern($1, unlabeled_t, $2)
-	type_transition $1 unlabeled_t:process $2;
+	typebounds docker_t $1;
 ')
-interface(`files_write_all_pid_sockets',`
-	gen_require(`
-		attribute pidfile;
-	')
 
-	allow $1 pidfile:sock_file write_sock_file_perms;
-')
-interface(`dev_dontaudit_mounton_sysfs',`
+########################################
+## <summary>
+##	Allow any docker_exec_t to be an entrypoint of this domain
+## </summary>
+## <param name="domain">
+##	<summary>
+##	Domain allowed access.
+##	</summary>
+## </param>
+## <rolecap/>
+#
+interface(`docker_entrypoint',`
 	gen_require(`
-		type sysfs_t;
+		type docker_exec_t;
 	')
-
-	dontaudit $1 sysfs_t:dir mounton;
+	allow $1 docker_exec_t:file entrypoint;
 ')
+
+########################################
+## <summary>
+##     Send and receive messages from
+##     systemd machined over dbus.
+## </summary>
+## <param name="domain">
+##     <summary>
+##     Domain allowed access.
+##     </summary>
+## </param>
+#
+interface(`systemd_dbus_chat_machined',`
+       gen_require(`
+               type systemd_machined_t;
+               class dbus send_msg;
+       ')
+
+       allow $1 systemd_machined_t:dbus send_msg;
+       allow systemd_machined_t $1:dbus send_msg;
+       ps_process_pattern(systemd_machined_t, $1)
+')
+
+########################################
+## <summary>
+##     Allow any svirt_sandbox_file_t to be an entrypoint of this domain
+## </summary>
+## <param name="domain">
+##     <summary>
+##     Domain allowed access.
+##     </summary>
+## </param>
+## <rolecap/>
+#
+interface(`virt_sandbox_entrypoint',`
+       gen_require(`
+               type svirt_sandbox_file_t;
+       ')
+       allow $1 svirt_sandbox_file_t:file entrypoint;
+')
+
+########################################
+## <summary>
+##      Send and receive messages from
+##      virt over dbus.
+## </summary>
+## <param name="domain">
+##      <summary>
+##      Domain allowed access.
+##      </summary>
+## </param>
+#
+interface(`virt_dbus_chat',`
+        gen_require(`
+                type virtd_t;
+                class dbus send_msg;
+        ')
+
+        allow $1 virtd_t:dbus send_msg;
+        allow virtd_t $1:dbus send_msg;
+        ps_process_pattern(virtd_t, $1)
+')
+
+#######################################
+## <summary>
+##      Read the process state of virt sandbox containers
+## </summary>
+## <param name="domain">
+##      <summary>
+##      Domain allowed access.
+##      </summary>
+## </param>
+#
+interface(`virt_sandbox_read_state',`
+       gen_require(`
+               attribute svirt_sandbox_domain;
+       ')
+
+       ps_process_pattern($1, svirt_sandbox_domain)
+')
+
+######################################
+## <summary>
+##     Send a signal to sandbox domains
+## </summary>
+## <param name="domain">
+##      <summary>
+##      Domain allowed access.
+##      </summary>
+## </param>
+#
+interface(`virt_signal_sandbox',`
+       gen_require(`
+               attribute svirt_sandbox_domain;
+       ')
+
+       allow $1 svirt_sandbox_domain:process signal;
+')
+
+#######################################
+## <summary>
+##     Getattr Sandbox File systems
+## </summary>
+## <param name="domain">
+##     <summary>
+##     Domain allowed access.
+##     </summary>
+## </param>
+#
+interface(`virt_getattr_sandbox_filesystem',`
+       gen_require(`
+              type svirt_sandbox_file_t;
+       ')
+
+       allow $1 svirt_sandbox_file_t:filesystem getattr;
+')
+
+#######################################
+## <summary>
+##     Read Sandbox Files
+## </summary>
+## <param name="domain">
+##     <summary>
+##     Domain allowed access.
+##     </summary>
+## </param>
+#
+interface(`virt_read_sandbox_files',`
+       gen_require(`
+               type svirt_sandbox_file_t;
+       ')
+
+       list_dirs_pattern($1, svirt_sandbox_file_t, svirt_sandbox_file_t)
+       read_files_pattern($1, svirt_sandbox_file_t, svirt_sandbox_file_t)
+       read_lnk_files_pattern($1, svirt_sandbox_file_t, svirt_sandbox_file_t)
+')
+
+#######################################
+## <summary>
+##      Read the process state of spc containers
+## </summary>
+## <param name="domain">
+##      <summary>
+##      Domain allowed access.
+##      </summary>
+## </param>
+#
+interface(`docker_spc_read_state',`
+        gen_require(`
+                type spc_t;
+        ')
+
+        ps_process_pattern($1, spc_t)
+')
+

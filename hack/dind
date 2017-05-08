@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 set -e
 
 # DinD: a wrapper script which allows docker to be run inside a docker container.

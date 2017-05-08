@@ -5,7 +5,7 @@ distributing Docker, specifically:
 
 ## Guides
 
-If you're a *contributor* or aspiring contributor, you should read [CONTRIBUTING.md](../CONTRIBUTING.md).
+If you're a *contributor* or aspiring contributor, you should read [CONTRIBUTORS.md](../CONTRIBUTING.md).
 
 If you're a *maintainer* or aspiring maintainer, you should read [MAINTAINERS](../MAINTAINERS).
 

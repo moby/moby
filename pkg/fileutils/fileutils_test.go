@@ -8,10 +8,6 @@ import (
 	"runtime"
 	"strings"
 	"testing"
-
-	"fmt"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // CopyFile with invalid src
@@ -212,7 +208,7 @@ func TestReadSymlinkedDirectoryToFile(t *testing.T) {
 
 func TestWildcardMatches(t *testing.T) {
 	match, _ := Matches("fileutils.go", []string{"*"})
-	if !match {
+	if match != true {
 		t.Errorf("failed to get a wildcard match, got %v", match)
 	}
 }
@@ -220,7 +216,7 @@ func TestWildcardMatches(t *testing.T) {
 // A simple pattern match should return true.
 func TestPatternMatches(t *testing.T) {
 	match, _ := Matches("fileutils.go", []string{"*.go"})
-	if !match {
+	if match != true {
 		t.Errorf("failed to get a match, got %v", match)
 	}
 }
@@ -228,7 +224,7 @@ func TestPatternMatches(t *testing.T) {
 // An exclusion followed by an inclusion should return true.
 func TestExclusionPatternMatchesPatternBefore(t *testing.T) {
 	match, _ := Matches("fileutils.go", []string{"!fileutils.go", "*.go"})
-	if !match {
+	if match != true {
 		t.Errorf("failed to get true match on exclusion pattern, got %v", match)
 	}
 }
@@ -236,7 +232,7 @@ func TestExclusionPatternMatchesPatternBefore(t *testing.T) {
 // A folder pattern followed by an exception should return false.
 func TestPatternMatchesFolderExclusions(t *testing.T) {
 	match, _ := Matches("docs/README.md", []string{"docs", "!docs/README.md"})
-	if match {
+	if match != false {
 		t.Errorf("failed to get a false match on exclusion pattern, got %v", match)
 	}
 }
@@ -244,7 +240,7 @@ func TestPatternMatchesFolderExclusions(t *testing.T) {
 // A folder pattern followed by an exception should return false.
 func TestPatternMatchesFolderWithSlashExclusions(t *testing.T) {
 	match, _ := Matches("docs/README.md", []string{"docs/", "!docs/README.md"})
-	if match {
+	if match != false {
 		t.Errorf("failed to get a false match on exclusion pattern, got %v", match)
 	}
 }
@@ -252,7 +248,7 @@ func TestPatternMatchesFolderWithSlashExclusions(t *testing.T) {
 // A folder pattern followed by an exception should return false.
 func TestPatternMatchesFolderWildcardExclusions(t *testing.T) {
 	match, _ := Matches("docs/README.md", []string{"docs/*", "!docs/README.md"})
-	if match {
+	if match != false {
 		t.Errorf("failed to get a false match on exclusion pattern, got %v", match)
 	}
 }
@@ -260,7 +256,7 @@ func TestPatternMatchesFolderWildcardExclusions(t *testing.T) {
 // A pattern followed by an exclusion should return false.
 func TestExclusionPatternMatchesPatternAfter(t *testing.T) {
 	match, _ := Matches("fileutils.go", []string{"*.go", "!fileutils.go"})
-	if match {
+	if match != false {
 		t.Errorf("failed to get false match on exclusion pattern, got %v", match)
 	}
 }
@@ -268,7 +264,7 @@ func TestExclusionPatternMatchesPatternAfter(t *testing.T) {
 // A filename evaluating to . should return false.
 func TestExclusionPatternMatchesWholeDirectory(t *testing.T) {
 	match, _ := Matches(".", []string{"*.go"})
-	if match {
+	if match != false {
 		t.Errorf("failed to get false match on ., got %v", match)
 	}
 }
@@ -278,6 +274,14 @@ func TestSingleExclamationError(t *testing.T) {
 	_, err := Matches("fileutils.go", []string{"!"})
 	if err == nil {
 		t.Errorf("failed to get an error for a single exclamation point, got %v", err)
+	}
+}
+
+// A string preceded with a ! should return true from Exclusion.
+func TestExclusion(t *testing.T) {
+	exclusion := exclusion("!")
+	if !exclusion {
+		t.Errorf("failed to get true for a single !, got %v", exclusion)
 	}
 }
 
@@ -303,14 +307,17 @@ func TestMatchesWithMalformedPatterns(t *testing.T) {
 	}
 }
 
-type matchesTestCase struct {
-	pattern string
-	text    string
-	pass    bool
-}
-
+// Test lots of variants of patterns & strings
 func TestMatches(t *testing.T) {
-	tests := []matchesTestCase{
+	// TODO Windows: Port this test
+	if runtime.GOOS == "windows" {
+		t.Skip("Needs porting to Windows")
+	}
+	tests := []struct {
+		pattern string
+		text    string
+		pass    bool
+	}{
 		{"**", "file", true},
 		{"**", "file/", true},
 		{"**/", "file", true}, // weird one
@@ -318,7 +325,7 @@ func TestMatches(t *testing.T) {
 		{"**", "/", true},
 		{"**/", "/", true},
 		{"**", "dir/file", true},
-		{"**/", "dir/file", true},
+		{"**/", "dir/file", false},
 		{"**", "dir/file/", true},
 		{"**/", "dir/file/", true},
 		{"**/**", "dir/file", true},
@@ -328,7 +335,7 @@ func TestMatches(t *testing.T) {
 		{"dir/**", "dir/dir2/file", true},
 		{"dir/**", "dir/dir2/file/", true},
 		{"**/dir2/*", "dir/dir2/file", true},
-		{"**/dir2/*", "dir/dir2/file/", true},
+		{"**/dir2/*", "dir/dir2/file/", false},
 		{"**/dir2/**", "dir/dir2/dir3/file", true},
 		{"**/dir2/**", "dir/dir2/dir3/file/", true},
 		{"**file", "file", true},
@@ -362,6 +369,9 @@ func TestMatches(t *testing.T) {
 		{"abc.def", "abcZdef", false},
 		{"abc?def", "abcZdef", true},
 		{"abc?def", "abcdef", false},
+		{"a\\*b", "a*b", true},
+		{"a\\", "a", false},
+		{"a\\", "a\\", false},
 		{"a\\\\", "a\\", true},
 		{"**/foo/bar", "foo/bar", true},
 		{"**/foo/bar", "dir/foo/bar", true},
@@ -369,89 +379,73 @@ func TestMatches(t *testing.T) {
 		{"abc/**", "abc", false},
 		{"abc/**", "abc/def", true},
 		{"abc/**", "abc/def/ghi", true},
-		{"**/.foo", ".foo", true},
-		{"**/.foo", "bar.foo", false},
-	}
-
-	if runtime.GOOS != "windows" {
-		tests = append(tests, []matchesTestCase{
-			{"a\\*b", "a*b", true},
-			{"a\\", "a", false},
-			{"a\\", "a\\", false},
-		}...)
 	}
 
 	for _, test := range tests {
-		desc := fmt.Sprintf("pattern=%q text=%q", test.pattern, test.text)
-		pm, err := NewPatternMatcher([]string{test.pattern})
-		require.NoError(t, err, desc)
-		res, _ := pm.Matches(test.text)
-		assert.Equal(t, test.pass, res, desc)
+		res, _ := regexpMatch(test.pattern, test.text)
+		if res != test.pass {
+			t.Fatalf("Failed: %v - res:%v", test, res)
+		}
+	}
+}
+
+// An empty string should return true from Empty.
+func TestEmpty(t *testing.T) {
+	empty := empty("")
+	if !empty {
+		t.Errorf("failed to get true for an empty string, got %v", empty)
 	}
 }
 
 func TestCleanPatterns(t *testing.T) {
-	patterns := []string{"docs", "config"}
-	pm, err := NewPatternMatcher(patterns)
-	if err != nil {
-		t.Fatalf("invalid pattern %v", patterns)
-	}
-	cleaned := pm.Patterns()
+	cleaned, _, _, _ := CleanPatterns([]string{"docs", "config"})
 	if len(cleaned) != 2 {
 		t.Errorf("expected 2 element slice, got %v", len(cleaned))
 	}
 }
 
 func TestCleanPatternsStripEmptyPatterns(t *testing.T) {
-	patterns := []string{"docs", "config", ""}
-	pm, err := NewPatternMatcher(patterns)
-	if err != nil {
-		t.Fatalf("invalid pattern %v", patterns)
-	}
-	cleaned := pm.Patterns()
+	cleaned, _, _, _ := CleanPatterns([]string{"docs", "config", ""})
 	if len(cleaned) != 2 {
 		t.Errorf("expected 2 element slice, got %v", len(cleaned))
 	}
 }
 
 func TestCleanPatternsExceptionFlag(t *testing.T) {
-	patterns := []string{"docs", "!docs/README.md"}
-	pm, err := NewPatternMatcher(patterns)
-	if err != nil {
-		t.Fatalf("invalid pattern %v", patterns)
-	}
-	if !pm.Exclusions() {
-		t.Errorf("expected exceptions to be true, got %v", pm.Exclusions())
+	_, _, exceptions, _ := CleanPatterns([]string{"docs", "!docs/README.md"})
+	if !exceptions {
+		t.Errorf("expected exceptions to be true, got %v", exceptions)
 	}
 }
 
 func TestCleanPatternsLeadingSpaceTrimmed(t *testing.T) {
-	patterns := []string{"docs", "  !docs/README.md"}
-	pm, err := NewPatternMatcher(patterns)
-	if err != nil {
-		t.Fatalf("invalid pattern %v", patterns)
-	}
-	if !pm.Exclusions() {
-		t.Errorf("expected exceptions to be true, got %v", pm.Exclusions())
+	_, _, exceptions, _ := CleanPatterns([]string{"docs", "  !docs/README.md"})
+	if !exceptions {
+		t.Errorf("expected exceptions to be true, got %v", exceptions)
 	}
 }
 
 func TestCleanPatternsTrailingSpaceTrimmed(t *testing.T) {
-	patterns := []string{"docs", "!docs/README.md  "}
-	pm, err := NewPatternMatcher(patterns)
-	if err != nil {
-		t.Fatalf("invalid pattern %v", patterns)
-	}
-	if !pm.Exclusions() {
-		t.Errorf("expected exceptions to be true, got %v", pm.Exclusions())
+	_, _, exceptions, _ := CleanPatterns([]string{"docs", "!docs/README.md  "})
+	if !exceptions {
+		t.Errorf("expected exceptions to be true, got %v", exceptions)
 	}
 }
 
 func TestCleanPatternsErrorSingleException(t *testing.T) {
-	patterns := []string{"!"}
-	_, err := NewPatternMatcher(patterns)
+	_, _, _, err := CleanPatterns([]string{"!"})
 	if err == nil {
 		t.Errorf("expected error on single exclamation point, got %v", err)
+	}
+}
+
+func TestCleanPatternsFolderSplit(t *testing.T) {
+	_, dirs, _, _ := CleanPatterns([]string{"docs/config/CONFIG.md"})
+	if dirs[0][0] != "docs" {
+		t.Errorf("expected first element in dirs slice to be docs, got %v", dirs[0][1])
+	}
+	if dirs[0][1] != "config" {
+		t.Errorf("expected first element in dirs slice to be config, got %v", dirs[0][1])
 	}
 }
 
@@ -512,7 +506,7 @@ var matchTests = []matchTest{
 	{"*c", "abc", true, nil},
 	{"a*", "a", true, nil},
 	{"a*", "abc", true, nil},
-	{"a*", "ab/c", true, nil},
+	{"a*", "ab/c", false, nil},
 	{"a*/b", "abc/b", true, nil},
 	{"a*/b", "a/c/b", false, nil},
 	{"a*b*c*d*e*/f", "axbxcxdxe/f", true, nil},
@@ -576,14 +570,14 @@ func TestMatch(t *testing.T) {
 		pattern := tt.pattern
 		s := tt.s
 		if runtime.GOOS == "windows" {
-			if strings.Contains(pattern, "\\") {
+			if strings.Index(pattern, "\\") >= 0 {
 				// no escape allowed on windows.
 				continue
 			}
 			pattern = filepath.Clean(pattern)
 			s = filepath.Clean(s)
 		}
-		ok, err := Matches(s, []string{pattern})
+		ok, err := regexpMatch(pattern, s)
 		if ok != tt.match || err != tt.err {
 			t.Fatalf("Match(%#q, %#q) = %v, %q want %v, %q", pattern, s, ok, errp(err), tt.match, errp(tt.err))
 		}

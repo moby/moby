@@ -2,6 +2,5 @@
 
 package daemon
 
-func ensureDefaultAppArmorProfile() error {
-	return nil
+func installDefaultAppArmorProfile() {
 }

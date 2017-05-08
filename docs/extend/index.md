@@ -1,52 +1,56 @@
----
-description: Develop and use a plugin with the managed plugin system
-keywords: "API, Usage, plugins, documentation, developer"
-title: Managed plugin system
----
-
-<!-- This file is maintained within the docker/docker Github
-     repository at https://github.com/docker/docker/. Make all
-     pull requests against that repo. If you see this file in
-     another repository, consider it read-only there, as it will
-     periodically be overwritten by the definitive file. Pull
-     requests which include edits to this file in other repositories
-     will be rejected.
--->
+<!--[metadata]>
++++
+aliases = [
+"/engine/extend/"
+]
+title = "Managed plugin system"
+description = "How develop and use a plugin with the managed plugin system"
+keywords = ["API, Usage, plugins, documentation, developer"]
+advisory = "experimental"
+[menu.main]
+parent = "engine_extend"
+weight=1
++++
+<![end-metadata]-->
 
 # Docker Engine managed plugin system
 
-* [Installing and using a plugin](index.md#installing-and-using-a-plugin)
-* [Developing a plugin](index.md#developing-a-plugin)
-* [Debugging plugins](index.md#debugging-plugins)
+This document describes the plugin system available today in the **experimental
+build** of Docker 1.12:
 
-Docker Engine's plugin system allows you to install, start, stop, and remove
-plugins using Docker Engine.
+* [How to operate an existing plugin](#how-to-operate-a-plugin)
+* [How to develop a plugin](#how-to-develop-a-plugin)
 
-For information about the legacy plugin system available in Docker Engine 1.12
-and earlier, see [Understand legacy Docker Engine plugins](legacy_plugins.md).
+Unlike the legacy plugin system, you now manage plugins using Docker Engine:
 
-> **Note**: Docker Engine managed plugins are currently not supported
-on Windows daemons.
+* install plugins
+* start plugins
+* stop plugins
+* remove plugins
 
-## Installing and using a plugin
+The current Docker Engine plugin system only supports volume drivers. We are
+adding more plugin driver types in the future releases.
 
-Plugins are distributed as Docker images and can be hosted on Docker Hub or on
-a private registry.
+For information on Docker Engine plugins generally available in Docker Engine
+1.12 and earlier, refer to [Understand legacy Docker Engine plugins](legacy_plugins.md).
 
-To install a plugin, use the `docker plugin install` command, which pulls the
-plugin from Docker Hub or your private registry, prompts you to grant
-permissions or capabilities if necessary, and enables the plugin.
+## How to operate a plugin
 
-To check the status of installed plugins, use the `docker plugin ls` command.
-Plugins that start successfully are listed as enabled in the output.
+Plugins are distributed as Docker images, so develpers can host them on Docker
+Hub or on a private registry.
 
-After a plugin is installed, you can use it as an option for another Docker
-operation, such as creating a volume.
+You install the plugin using a single command: `docker plugin install <PLUGIN>`.
+The `plugin install` command pulls the plugin from the Docker Hub or private
+registry. If necessary the CLI prompts you to accept any privilige requriements.
+For example the plugin may require access to a device on the host system.
+Finally it enables the plugin.
 
-In the following example, you install the `sshfs` plugin, verify that it is
-enabled, and use it to create a volume.
+Run `docker plugin ls` to check the status of installed plugins. The Engine
+markes plugins that are started without issues as `ENABLED`.
 
-> **Note**: This example is intended for instructional purposes only. Once the volume is created, your SSH password to the remote host will be exposed as plaintext when inspecting the volume. You should delete the volume as soon as you are done with the example.
+After you install a plugin, the plugin behavior is the same as legacy plugins.
+The following example demonstrates how to install the `sshfs` plugin and use it
+to create a volume.
 
 1.  Install the `sshfs` plugin.
 
@@ -61,37 +65,39 @@ enabled, and use it to create a volume.
     vieux/sshfs
     ```
 
-    The plugin requests 2 privileges:
-    
-    - It needs access to the `host` network.
-    - It needs the `CAP_SYS_ADMIN` capability, which allows the plugin to run
-    the `mount` command.
+    The plugin requests 2 privileges, the `CAP_SYS_ADMIN` capability to be able
+    to do mount inside the plugin and `host networking`.
 
-2.  Check that the plugin is enabled in the output of `docker plugin ls`.
+2. Check for a value of `true` the `ENABLED` column to verify the plugin
+started without error.
 
     ```bash
     $ docker plugin ls
 
-    ID                    NAME                  TAG                 DESCRIPTION                   ENABLED
-    69553ca1d789          vieux/sshfs           latest              the `sshfs` plugin            true
+    NAME                TAG                 ENABLED
+    vieux/sshfs         latest              true
     ```
 
-3.  Create a volume using the plugin.
-    This example mounts the `/remote` directory on host `1.2.3.4` into a
-    volume named `sshvolume`.   
-
-    This volume can now be mounted into containers.
+3. Create a volume using the plugin.
 
     ```bash
     $ docker volume create \
       -d vieux/sshfs \
       --name sshvolume \
-      -o sshcmd=user@1.2.3.4:/remote \
-      -o password=$(cat file_containing_password_for_remote_host)
+      -o sshcmd=user@1.2.3.4:/remote
 
     sshvolume
     ```
-4.  Verify that the volume was created successfully.
+
+4.  Use the volume `sshvolume`.
+
+    ```bash
+    $ docker run -v sshvolume:/data busybox ls /data
+
+    <content of /remote on machine 1.2.3.4>
+    ```
+
+5. Verify the plugin successfully created the volume.
 
     ```bash
     $ docker volume ls
@@ -100,163 +106,167 @@ enabled, and use it to create a volume.
     vieux/sshfs         sshvolume
     ```
 
-5.  Start a container that uses the volume `sshvolume`.
+    You can stop a plugin with the `docker plugin disable`
+    command or remove a plugin with `docker plugin remove`.
 
-    ```bash
-    $ docker run --rm -v sshvolume:/data busybox ls /data
+See the [command line reference](../reference/commandline/index.md) for more
+information.
 
-    <content of /remote on machine 1.2.3.4>
-    ```
+## How to develop a plugin
 
-6.  Remove the volume `sshvolume`
-    ```bash
-    docker volume rm sshvolume
+Plugin creation is currently a manual process. We plan to add automation in a
+future release with a command such as `docker plugin build`.
 
-    sshvolume
-    ```
-To disable a plugin, use the `docker plugin disable` command. To completely
-remove it, use the `docker plugin remove` command. For other available
-commands and options, see the
-[command line reference](../reference/commandline/index.md).
+This section describes the format of an existing enabled plugin. You have to
+create and format the plugin files by hand.
 
+Plugins are stored in `/var/lib/docker/plugins`. For instance:
 
-## Developing a plugin
+```bash
+# ls -la /var/lib/docker/plugins
+total 20
+drwx------  4 root root 4096 Aug  8 18:03 .
+drwx--x--x 12 root root 4096 Aug  8 17:53 ..
+drwxr-xr-x  3 root root 4096 Aug  8 17:56 cd851ce43a403
+-rw-------  1 root root 2107 Aug  8 18:03 plugins.json
+```
 
-#### The rootfs directory
-The `rootfs` directory represents the root filesystem of the plugin. In this
-example, it was created from a Dockerfile:
+`plugins.json` is an inventory of all installed plugins. For example:
 
->**Note:** The `/run/docker/plugins` directory is mandatory inside of the
-plugin's filesystem for docker to communicate with the plugin.
+```bash
+# cat plugins.json
+{
+  "cd851ce43a403": {
+    "plugin": {
+      "Manifest": {
+        "Args": {
+          "Value": null,
+          "Settable": null,
+          "Description": "",
+          "Name": ""
+        },
+        "Env": null,
+        "Devices": null,
+        "Mounts": null,
+        "Capabilities": [
+          "CAP_SYS_ADMIN"
+        ],
+        "ManifestVersion": "v0.1",
+        "Description": "sshFS plugin for Docker",
+        "Documentation": "https://docs.docker.com/engine/extend/plugins/",
+        "Interface": {
+          "Socket": "sshfs.sock",
+          "Types": [
+            "docker.volumedriver/1.0"
+          ]
+        },
+        "Entrypoint": [
+          "/go/bin/docker-volume-sshfs"
+        ],
+        "Workdir": "",
+        "User": {},
+        "Network": {
+          "Type": "host"
+        }
+      },
+      "Config": {
+        "Devices": null,
+        "Args": null,
+        "Env": [],
+        "Mounts": []
+      },
+      "Active": true,
+      "Tag": "latest",
+      "Name": "vieux/sshfs",
+      "Id": "cd851ce43a403"
+    }
+  }
+}
+```
+
+Each folder represents a plugin. For example:
+
+```bash
+# ls -la /var/lib/docker/plugins/cd851ce43a403
+total 12
+drwx------ 19 root root 4096 Aug  8 17:56 rootfs
+-rw-r--r--  1 root root   50 Aug  8 17:56 plugin-config.json
+-rw-------  1 root root  347 Aug  8 17:56 manifest.json
+```
+
+`rootfs` represents the root filesystem of the plugin. In this example, it was
+created from a Dockerfile as follows:
+
+>**Note:** `/run/docker/plugins` is mandatory for docker to communicate with
+the plugin._
 
 ```bash
 $ git clone https://github.com/vieux/docker-volume-sshfs
 $ cd docker-volume-sshfs
-$ docker build -t rootfsimage .
-$ id=$(docker create rootfsimage true) # id was cd851ce43a403 when the image was created
-$ sudo mkdir -p myplugin/rootfs
-$ sudo docker export "$id" | sudo tar -x -C myplugin/rootfs
+$ docker build -t rootfs .
+$ id=$(docker create rootfs true) # id was cd851ce43a403 when the image was created
+$ mkdir -p /var/lib/docker/plugins/$id/rootfs
+$ docker export "$id" | tar -x -C /var/lib/docker/plugins/$id/rootfs
 $ docker rm -vf "$id"
-$ docker rmi rootfsimage
+$ docker rmi rootfs
 ```
 
-#### The config.json file
+`manifest.json` describes the plugin and `plugin-config.json` contains some
+runtime parameters. For example:
 
-The `config.json` file describes the plugin. See the [plugins config reference](config.md).
-
-Consider the following `config.json` file.
-
-```json
+```bash
+# cat manifest.json
 {
+	"manifestVersion": "v0.1",
 	"description": "sshFS plugin for Docker",
 	"documentation": "https://docs.docker.com/engine/extend/plugins/",
-	"entrypoint": ["/docker-volume-sshfs"],
+	"entrypoint": ["/go/bin/docker-volume-sshfs"],
 	"network": {
 		   "type": "host"
 		   },
-	"interface" : {
-		   "types": ["docker.volumedriver/1.0"],
-		   "socket": "sshfs.sock"
-	},
-	"linux": {
-		"capabilities": ["CAP_SYS_ADMIN"]
-	}
+		   "interface" : {
+		   	       "types": ["docker.volumedriver/1.0"],
+			       		"socket": "sshfs.sock"
+					},
+					"capabilities": ["CAP_SYS_ADMIN"]
 }
 ```
 
-This plugin is a volume driver. It requires a `host` network and the
-`CAP_SYS_ADMIN` capability. It depends upon the `/docker-volume-sshfs`
-entrypoint and uses the `/run/docker/plugins/sshfs.sock` socket to communicate
-with Docker Engine. This plugin has no runtime parameters.
-
-#### Creating the plugin
-
-A new plugin can be created by running
-`docker plugin create <plugin-name> ./path/to/plugin/data` where the plugin
-data contains a plugin configuration file `config.json` and a root filesystem
-in subdirectory `rootfs`.
-
-After that the plugin `<plugin-name>` will show up in `docker plugin ls`.
-Plugins can be pushed to remote registries with
-`docker plugin push <plugin-name>`.
-
-
-## Debugging plugins
-
-Stdout of a plugin is redirected to dockerd logs. Such entries have a
-`plugin=<ID>` suffix. Here are a few examples of commands for pluginID
-`f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62` and their
-corresponding log entries in the docker daemon logs.
+In this example, you can see the plugin is a volume driver, requires the
+`CAP_SYS_ADMIN` capability, `host networking`, `/go/bin/docker-volume-sshfs` as
+entrypoint and is going to use `/run/docker/plugins/sshfs.sock` to communicate
+with the Docker Engine.
 
 ```bash
-$ docker plugin install tiborvass/sample-volume-plugins
-
-INFO[0036] Starting...       Found 0 volumes on startup  plugin=f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62
+# cat plugin-config.json
+{
+  "Devices": null,
+  "Args": null,
+  "Env": [],
+  "Mounts": []
+}
 ```
 
-```bash
-$ docker volume create -d tiborvass/sample-volume-plugins samplevol
+This plugin doesn't require runtime parameters.
 
-INFO[0193] Create Called...  Ensuring directory /data/samplevol exists on host...  plugin=f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62
-INFO[0193] open /var/lib/docker/plugin-data/local-persist.json: no such file or directory  plugin=f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62
-INFO[0193]                   Created volume samplevol with mountpoint /data/samplevol  plugin=f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62
-INFO[0193] Path Called...    Returned path /data/samplevol  plugin=f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62
-```
+Both `manifest.json` and `plugin-config.json` are part of the `plugins.json`.
+`manifest.json` is read-only and `plugin-config.json` is read-write.
 
-```bash
-$ docker run -v samplevol:/tmp busybox sh
+To summarize, follow the steps below to create a plugin:
 
-INFO[0421] Get Called...     Found samplevol                plugin=f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62
-INFO[0421] Mount Called...   Mounted samplevol              plugin=f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62
-INFO[0421] Path Called...    Returned path /data/samplevol  plugin=f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62
-INFO[0421] Unmount Called... Unmounted samplevol            plugin=f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62
-```
-
-#### Using docker-runc to obtain logfiles and shell into the plugin.
-
-`docker-runc`, the default docker container runtime can be used for debugging
-plugins. This is specifically useful to collect plugin logs if they are
-redirected to a file.
-
-```bash
-$ docker-runc list
-ID                                                                 PID         STATUS      BUNDLE                                                                                       CREATED
-f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62   2679        running     /run/docker/libcontainerd/f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62	2017-02-06T21:53:03.031537592Z
-r
-```
-
-```bash
-$ docker-runc exec f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62 cat /var/log/plugin.log
-```
-
-If the plugin has a built-in shell, then exec into the plugin can be done as
-follows:
-```bash
-$ docker-runc exec -t f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62 sh
-```
-
-#### Using curl to debug plugin socket issues.
-
-To verify if the plugin API socket that the docker daemon communicates with
-is responsive, use curl. In this example, we will make API calls from the
-docker host to volume and network plugins using curl 7.47.0 to ensure that
-the plugin is listening on the said socket. For a well functioning plugin,
-these basic requests should work. Note that plugin sockets are available on the host under `/var/run/docker/plugins/<pluginID>`
-
-
-```bash
-curl -H "Content-Type: application/json" -XPOST -d '{}' --unix-socket /var/run/docker/plugins/e8a37ba56fc879c991f7d7921901723c64df6b42b87e6a0b055771ecf8477a6d/plugin.sock http:/VolumeDriver.List
-
-{"Mountpoint":"","Err":"","Volumes":[{"Name":"myvol1","Mountpoint":"/data/myvol1"},{"Name":"myvol2","Mountpoint":"/data/myvol2"}],"Volume":null}
-```
-
-```bash
-curl -H "Content-Type: application/json" -XPOST -d '{}' --unix-socket /var/run/docker/plugins/45e00a7ce6185d6e365904c8bcf62eb724b1fe307e0d4e7ecc9f6c1eb7bcdb70/plugin.sock http:/NetworkDriver.GetCapabilities
-
-{"Scope":"local"}
-```
-When using curl 7.5 and above, the URL should be of the form
-`http://hostname/APICall`, where `hostname` is the valid hostname where the
-plugin is installed and `APICall` is the call to the plugin API.
-
-For example, `http://localhost/VolumeDriver.List`
+0. Choose a name for the plugin. Plugin name uses the same format as images,
+for example: `<repo_name>/<name>`.
+1. Create a rootfs in `/var/lib/docker/plugins/$id/rootfs`.
+2. Create manifest.json file in `/var/lib/docker/plugins/$id/`.
+3. Create a `plugin-config.json` if needed.
+4. Create or add a section to `/var/lib/docker/plugins/plugins.json`. Use
+   `<user>/<name>` as “Name” and `$id` as “Id”.
+5. Restart the Docker Engine.
+6. Run `docker plugin ls`.
+    * If your plugin is listed as `ENABLED=true`, you can push it to the
+    registry.
+    * If the plugin is not listed or if `ENABLED=false`, something went wrong.
+    Check the daemon logs for errors.
+7. If you are not already logged in, use `docker login` to authenticate against
+   a registry.
+8. Run `docker plugin push <repo_name>/<name>` to push the plugin.

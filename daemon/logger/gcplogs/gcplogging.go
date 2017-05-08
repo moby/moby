@@ -8,23 +8,19 @@ import (
 
 	"github.com/docker/docker/daemon/logger"
 
-	"cloud.google.com/go/compute/metadata"
-	"cloud.google.com/go/logging"
 	"github.com/Sirupsen/logrus"
 	"golang.org/x/net/context"
+	"google.golang.org/cloud/compute/metadata"
+	"google.golang.org/cloud/logging"
 )
 
 const (
 	name = "gcplogs"
 
-	projectOptKey  = "gcp-project"
-	logLabelsKey   = "labels"
-	logEnvKey      = "env"
-	logEnvRegexKey = "env-regex"
-	logCmdKey      = "gcp-log-cmd"
-	logZoneKey     = "gcp-meta-zone"
-	logNameKey     = "gcp-meta-name"
-	logIDKey       = "gcp-meta-id"
+	projectOptKey = "gcp-project"
+	logLabelsKey  = "labels"
+	logEnvKey     = "env"
+	logCmdKey     = "gcp-log-cmd"
 )
 
 var (
@@ -52,7 +48,7 @@ func init() {
 }
 
 type gcplogs struct {
-	logger    *logging.Logger
+	client    *logging.Client
 	instance  *instanceInfo
 	container *containerInfo
 }
@@ -88,7 +84,7 @@ func initGCP() {
 			// These will fail on instances if the metadata service is
 			// down or the client is compiled with an API version that
 			// has been removed. Since these are not vital, let's ignore
-			// them and make their fields in the dockerLogEntry ,omitempty
+			// them and make their fields in the dockeLogEntry ,omitempty
 			projectID, _ = metadata.ProjectID()
 			zone, _ = metadata.Zone()
 			instanceName, _ = metadata.InstanceName()
@@ -101,58 +97,43 @@ func initGCP() {
 // default credentials.
 //
 // See https://developers.google.com/identity/protocols/application-default-credentials
-func New(info logger.Info) (logger.Logger, error) {
+func New(ctx logger.Context) (logger.Logger, error) {
 	initGCP()
 
 	var project string
 	if projectID != "" {
 		project = projectID
 	}
-	if projectID, found := info.Config[projectOptKey]; found {
+	if projectID, found := ctx.Config[projectOptKey]; found {
 		project = projectID
 	}
 	if project == "" {
-		return nil, fmt.Errorf("No project was specified and couldn't read project from the metadata server. Please specify a project")
+		return nil, fmt.Errorf("No project was specified and couldn't read project from the meatadata server. Please specify a project")
 	}
 
-	// Issue #29344: gcplogs segfaults (static binary)
-	// If HOME is not set, logging.NewClient() will call os/user.Current() via oauth2/google.
-	// However, in static binary, os/user.Current() leads to segfault due to a glibc issue that won't be fixed
-	// in a short term. (golang/go#13470, https://sourceware.org/bugzilla/show_bug.cgi?id=19341)
-	// So we forcibly set HOME so as to avoid call to os/user/Current()
-	if err := ensureHomeIfIAmStatic(); err != nil {
-		return nil, err
-	}
-
-	c, err := logging.NewClient(context.Background(), project)
+	c, err := logging.NewClient(context.Background(), project, "gcplogs-docker-driver")
 	if err != nil {
 		return nil, err
 	}
-	lg := c.Logger("gcplogs-docker-driver")
 
-	if err := c.Ping(context.Background()); err != nil {
+	if err := c.Ping(); err != nil {
 		return nil, fmt.Errorf("unable to connect or authenticate with Google Cloud Logging: %v", err)
 	}
 
-	extraAttributes, err := info.ExtraAttributes(nil)
-	if err != nil {
-		return nil, err
-	}
-
 	l := &gcplogs{
-		logger: lg,
+		client: c,
 		container: &containerInfo{
-			Name:      info.ContainerName,
-			ID:        info.ContainerID,
-			ImageName: info.ContainerImageName,
-			ImageID:   info.ContainerImageID,
-			Created:   info.ContainerCreated,
-			Metadata:  extraAttributes,
+			Name:      ctx.ContainerName,
+			ID:        ctx.ContainerID,
+			ImageName: ctx.ContainerImageName,
+			ImageID:   ctx.ContainerImageID,
+			Created:   ctx.ContainerCreated,
+			Metadata:  ctx.ExtraAttributes(nil),
 		},
 	}
 
-	if info.Config[logCmdKey] == "true" {
-		l.container.Command = info.Command()
+	if ctx.Config[logCmdKey] == "true" {
+		l.container.Command = ctx.Command()
 	}
 
 	if onGCE {
@@ -161,26 +142,17 @@ func New(info logger.Info) (logger.Logger, error) {
 			Name: instanceName,
 			ID:   instanceID,
 		}
-	} else if info.Config[logZoneKey] != "" || info.Config[logNameKey] != "" || info.Config[logIDKey] != "" {
-		l.instance = &instanceInfo{
-			Zone: info.Config[logZoneKey],
-			Name: info.Config[logNameKey],
-			ID:   info.Config[logIDKey],
-		}
 	}
 
 	// The logger "overflows" at a rate of 10,000 logs per second and this
 	// overflow func is called. We want to surface the error to the user
 	// without overly spamming /var/log/docker.log so we log the first time
 	// we overflow and every 1000th time after.
-	c.OnError = func(err error) {
-		if err == logging.ErrOverflow {
-			if i := atomic.AddUint64(&droppedLogs, 1); i%1000 == 1 {
-				logrus.Errorf("gcplogs driver has dropped %v logs", i)
-			}
-		} else {
-			logrus.Error(err)
+	c.Overflow = func(_ *logging.Client, _ logging.Entry) error {
+		if i := atomic.AddUint64(&droppedLogs, 1); i%1000 == 1 {
+			logrus.Errorf("gcplogs driver has dropped %v logs", i)
 		}
+		return nil
 	}
 
 	return l, nil
@@ -191,7 +163,7 @@ func New(info logger.Info) (logger.Logger, error) {
 func ValidateLogOpts(cfg map[string]string) error {
 	for k := range cfg {
 		switch k {
-		case projectOptKey, logLabelsKey, logEnvKey, logEnvRegexKey, logCmdKey, logZoneKey, logNameKey, logIDKey:
+		case projectOptKey, logLabelsKey, logEnvKey, logCmdKey:
 		default:
 			return fmt.Errorf("%q is not a valid option for the gcplogs driver", k)
 		}
@@ -200,24 +172,18 @@ func ValidateLogOpts(cfg map[string]string) error {
 }
 
 func (l *gcplogs) Log(m *logger.Message) error {
-	data := string(m.Line)
-	ts := m.Timestamp
-	logger.PutMessage(m)
-
-	l.logger.Log(logging.Entry{
-		Timestamp: ts,
+	return l.client.Log(logging.Entry{
+		Time: m.Timestamp,
 		Payload: &dockerLogEntry{
 			Instance:  l.instance,
 			Container: l.container,
-			Data:      data,
+			Data:      string(m.Line),
 		},
 	})
-	return nil
 }
 
 func (l *gcplogs) Close() error {
-	l.logger.Flush()
-	return nil
+	return l.client.Flush()
 }
 
 func (l *gcplogs) Name() string {

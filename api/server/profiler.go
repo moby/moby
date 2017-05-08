@@ -19,28 +19,23 @@ func profilerSetup(mainRouter *mux.Router) {
 	r.HandleFunc("/pprof/profile", pprof.Profile)
 	r.HandleFunc("/pprof/symbol", pprof.Symbol)
 	r.HandleFunc("/pprof/trace", pprof.Trace)
-	r.HandleFunc("/pprof/{name}", handlePprof)
-}
-
-func handlePprof(w http.ResponseWriter, r *http.Request) {
-	var name string
-	if vars := mux.Vars(r); vars != nil {
-		name = vars["name"]
-	}
-	pprof.Handler(name).ServeHTTP(w, r)
+	r.HandleFunc("/pprof/block", pprof.Handler("block").ServeHTTP)
+	r.HandleFunc("/pprof/heap", pprof.Handler("heap").ServeHTTP)
+	r.HandleFunc("/pprof/goroutine", pprof.Handler("goroutine").ServeHTTP)
+	r.HandleFunc("/pprof/threadcreate", pprof.Handler("threadcreate").ServeHTTP)
 }
 
 // Replicated from expvar.go as not public.
 func expVars(w http.ResponseWriter, r *http.Request) {
 	first := true
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	fmt.Fprintln(w, "{")
+	fmt.Fprintf(w, "{\n")
 	expvar.Do(func(kv expvar.KeyValue) {
 		if !first {
-			fmt.Fprintln(w, ",")
+			fmt.Fprintf(w, ",\n")
 		}
 		first = false
 		fmt.Fprintf(w, "%q: %s", kv.Key, kv.Value)
 	})
-	fmt.Fprintln(w, "\n}")
+	fmt.Fprintf(w, "\n}\n")
 }

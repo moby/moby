@@ -223,12 +223,10 @@
 				"prctl",
 				"pread64",
 				"preadv",
-				"preadv2",
 				"prlimit64",
 				"pselect6",
 				"pwrite64",
 				"pwritev",
-				"pwritev2",
 				"read",
 				"readahead",
 				"readlink",
@@ -314,6 +312,8 @@
 				"signalfd",
 				"signalfd4",
 				"sigreturn",
+				"socket",
+				"socketcall",
 				"socketpair",
 				"splice",
 				"stat",
@@ -417,240 +417,6 @@
 		},
 		{
 			"names": [
-				"socket"
-			],
-			"action": "SCMP_ACT_ALLOW",
-			"args": [
-				{
-					"index": 0,
-					"value": 1,
-					"valueTwo": 0,
-					"op": "SCMP_CMP_EQ"
-				}
-			],
-			"comment": "",
-			"includes": {},
-			"excludes": {}
-		},
-		{
-			"names": [
-				"socket"
-			],
-			"action": "SCMP_ACT_ALLOW",
-			"args": [
-				{
-					"index": 0,
-					"value": 2,
-					"valueTwo": 0,
-					"op": "SCMP_CMP_EQ"
-				}
-			],
-			"comment": "",
-			"includes": {},
-			"excludes": {}
-		},
-		{
-			"names": [
-				"socket"
-			],
-			"action": "SCMP_ACT_ALLOW",
-			"args": [
-				{
-					"index": 0,
-					"value": 10,
-					"valueTwo": 0,
-					"op": "SCMP_CMP_EQ"
-				}
-			],
-			"comment": "",
-			"includes": {},
-			"excludes": {}
-		},
-		{
-			"names": [
-				"socket"
-			],
-			"action": "SCMP_ACT_ALLOW",
-			"args": [
-				{
-					"index": 0,
-					"value": 16,
-					"valueTwo": 0,
-					"op": "SCMP_CMP_EQ"
-				}
-			],
-			"comment": "",
-			"includes": {},
-			"excludes": {}
-		},
-		{
-			"names": [
-				"socket"
-			],
-			"action": "SCMP_ACT_ALLOW",
-			"args": [
-				{
-					"index": 0,
-					"value": 17,
-					"valueTwo": 0,
-					"op": "SCMP_CMP_EQ"
-				}
-			],
-			"comment": "",
-			"includes": {},
-			"excludes": {}
-		},
-		{
-			"names": [
-				"socketcall"
-			],
-			"action": "SCMP_ACT_ALLOW",
-			"args": [
-				{
-					"index": 0,
-					"value": 1,
-					"valueTwo": 0,
-					"op": "SCMP_CMP_GT"
-				}
-			],
-			"comment": "",
-			"includes": {},
-			"excludes": {}
-		},
-		{
-			"names": [
-				"socketcall"
-			],
-			"action": "SCMP_ACT_ALLOW",
-			"args": [
-				{
-					"index": 0,
-					"value": 1,
-					"valueTwo": 0,
-					"op": "SCMP_CMP_EQ"
-				},
-				{
-					"index": 1,
-					"value": 1,
-					"valueTwo": 0,
-					"op": "SCMP_CMP_EQ"
-				}
-			],
-			"comment": "",
-			"includes": {},
-			"excludes": {}
-		},
-		{
-			"names": [
-				"socketcall"
-			],
-			"action": "SCMP_ACT_ALLOW",
-			"args": [
-				{
-					"index": 0,
-					"value": 1,
-					"valueTwo": 0,
-					"op": "SCMP_CMP_EQ"
-				},
-				{
-					"index": 1,
-					"value": 2,
-					"valueTwo": 0,
-					"op": "SCMP_CMP_EQ"
-				}
-			],
-			"comment": "",
-			"includes": {},
-			"excludes": {}
-		},
-		{
-			"names": [
-				"socketcall"
-			],
-			"action": "SCMP_ACT_ALLOW",
-			"args": [
-				{
-					"index": 0,
-					"value": 1,
-					"valueTwo": 0,
-					"op": "SCMP_CMP_EQ"
-				},
-				{
-					"index": 1,
-					"value": 10,
-					"valueTwo": 0,
-					"op": "SCMP_CMP_EQ"
-				}
-			],
-			"comment": "",
-			"includes": {},
-			"excludes": {}
-		},
-		{
-			"names": [
-				"socketcall"
-			],
-			"action": "SCMP_ACT_ALLOW",
-			"args": [
-				{
-					"index": 0,
-					"value": 1,
-					"valueTwo": 0,
-					"op": "SCMP_CMP_EQ"
-				},
-				{
-					"index": 1,
-					"value": 16,
-					"valueTwo": 0,
-					"op": "SCMP_CMP_EQ"
-				}
-			],
-			"comment": "",
-			"includes": {},
-			"excludes": {}
-		},
-		{
-			"names": [
-				"socketcall"
-			],
-			"action": "SCMP_ACT_ALLOW",
-			"args": [
-				{
-					"index": 0,
-					"value": 1,
-					"valueTwo": 0,
-					"op": "SCMP_CMP_EQ"
-				},
-				{
-					"index": 1,
-					"value": 17,
-					"valueTwo": 0,
-					"op": "SCMP_CMP_EQ"
-				}
-			],
-			"comment": "",
-			"includes": {},
-			"excludes": {}
-		},
-		{
-			"names": [
-				"sync_file_range2"
-			],
-			"action": "SCMP_ACT_ALLOW",
-			"args": [],
-			"comment": "",
-			"includes": {
-				"arches": [
-					"ppc64le"
-				]
-			},
-			"excludes": {}
-		},
-		{
-			"names": [
-				"arm_fadvise64_64",
-				"arm_sync_file_range",
-				"sync_file_range2",
 				"breakpoint",
 				"cacheflush",
 				"set_tls"
@@ -900,8 +666,7 @@
 			"names": [
 				"settimeofday",
 				"stime",
-				"adjtimex",
-				"clock_settime"
+				"adjtimex"
 			],
 			"action": "SCMP_ACT_ALLOW",
 			"args": [],

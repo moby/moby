@@ -20,7 +20,7 @@ static int child_exec(void *stuff)
 {
 	struct clone_args *args = (struct clone_args *)stuff;
 	if (execvp(args->argv[0], args->argv) != 0) {
-		fprintf(stderr, "failed to execvp arguments %s\n",
+		fprintf(stderr, "failed to execvp argments %s\n",
 			strerror(errno));
 		exit(-1);
 	}

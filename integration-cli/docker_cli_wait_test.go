@@ -6,8 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/integration-cli/checker"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
@@ -37,7 +36,7 @@ func (s *DockerSuite) TestWaitBlockedExitZero(c *check.C) {
 	chWait := make(chan string)
 	go func() {
 		chWait <- ""
-		out := icmd.RunCommand(dockerBinary, "wait", containerID).Combined()
+		out, _, _ := runCommandWithOutput(exec.Command(dockerBinary, "wait", containerID))
 		chWait <- out
 	}()
 

@@ -7,20 +7,19 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/request"
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
 // #16665
-func (s *DockerSuite) TestInspectAPICpusetInConfigPre120(c *check.C) {
+func (s *DockerSuite) TestInspectApiCpusetInConfigPre120(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, cgroupCpuset)
 
 	name := "cpusetinconfig-pre120"
 	dockerCmd(c, "run", "--name", name, "--cpuset-cpus", "0", "busybox", "true")
 
-	status, body, err := request.SockRequest("GET", fmt.Sprintf("/v1.19/containers/%s/json", name), nil, daemonHost())
+	status, body, err := sockRequest("GET", fmt.Sprintf("/v1.19/containers/%s/json", name), nil)
 	c.Assert(status, check.Equals, http.StatusOK)
 	c.Assert(err, check.IsNil)
 
@@ -32,5 +31,5 @@ func (s *DockerSuite) TestInspectAPICpusetInConfigPre120(c *check.C) {
 	c.Assert(ok, checker.True, check.Commentf("Unable to find 'Config'"))
 	cfg := config.(map[string]interface{})
 	_, ok = cfg["Cpuset"]
-	c.Assert(ok, checker.True, check.Commentf("API version 1.19 expected to include Cpuset in 'Config'"))
+	c.Assert(ok, checker.True, check.Commentf("Api version 1.19 expected to include Cpuset in 'Config'"))
 }

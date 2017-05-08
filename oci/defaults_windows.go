@@ -3,17 +3,21 @@ package oci
 import (
 	"runtime"
 
-	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/docker/docker/libcontainerd/windowsoci"
 )
 
 // DefaultSpec returns default spec used by docker.
-func DefaultSpec() specs.Spec {
-	return specs.Spec{
-		Version: specs.Version,
-		Platform: specs.Platform{
+func DefaultSpec() windowsoci.WindowsSpec {
+	s := windowsoci.Spec{
+		Version: windowsoci.Version,
+		Platform: windowsoci.Platform{
 			OS:   runtime.GOOS,
 			Arch: runtime.GOARCH,
 		},
-		Windows: &specs.Windows{},
+	}
+
+	return windowsoci.WindowsSpec{
+		Spec:    s,
+		Windows: windowsoci.Windows{},
 	}
 }

@@ -46,7 +46,7 @@ func TestSortFileInfoSums(t *testing.T) {
 	fis = newFileInfoSums()
 	fis.SortByPos()
 	if fis[0].Pos() != 0 {
-		t.Error("sorted fileInfoSums by Pos should order them by position.")
+		t.Errorf("sorted fileInfoSums by Pos should order them by position.")
 	}
 
 	fis = newFileInfoSums()
@@ -56,7 +56,7 @@ func TestSortFileInfoSums(t *testing.T) {
 		t.Errorf("Expected %q, got %q", expected, gotFileInfoSum)
 	}
 	if fis.GetFile("noPresent") != nil {
-		t.Error("Should have return nil if name not found.")
+		t.Errorf("Should have return nil if name not found.")
 	}
 
 }

@@ -66,7 +66,7 @@ func TestFileSpecPlugin(t *testing.T) {
 			t.Fatalf("Expected plugin addr `%s`, got %s\n", c.addr, p.Addr)
 		}
 
-		if !p.TLSConfig.InsecureSkipVerify {
+		if p.TLSConfig.InsecureSkipVerify != true {
 			t.Fatalf("Expected TLS verification to be skipped")
 		}
 	}

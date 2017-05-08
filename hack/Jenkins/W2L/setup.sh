@@ -188,7 +188,7 @@ if [ $ec -eq 0 ]; then
 FROM docker:$COMMITHASH
 RUN hack/make.sh binary
 RUN cp bundles/latest/binary/docker /bin/docker 
-CMD dockerd -D -H tcp://0.0.0.0:$port_inner $daemon_extra_args
+CMD docker daemon -D -H tcp://0.0.0.0:$port_inner $daemon_extra_args
 EOF
 	else
 		set -x

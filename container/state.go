@@ -7,7 +7,6 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/go-units"
 )
 
@@ -79,7 +78,6 @@ func (s *State) String() string {
 		if h := s.Health; h != nil {
 			return fmt.Sprintf("Up %s (%s)", units.HumanDuration(time.Now().UTC().Sub(s.StartedAt)), h.String())
 		}
-
 		return fmt.Sprintf("Up %s", units.HumanDuration(time.Now().UTC().Sub(s.StartedAt)))
 	}
 
@@ -100,23 +98,6 @@ func (s *State) String() string {
 	}
 
 	return fmt.Sprintf("Exited (%d) %s ago", s.ExitCodeValue, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
-}
-
-// HealthString returns a single string to describe health status.
-func (s *State) HealthString() string {
-	if s.Health == nil {
-		return types.NoHealthcheck
-	}
-
-	return s.Health.String()
-}
-
-// IsValidHealthString checks if the provided string is a valid container health status or not.
-func IsValidHealthString(s string) bool {
-	return s == types.Starting ||
-		s == types.Healthy ||
-		s == types.Unhealthy ||
-		s == types.NoHealthcheck
 }
 
 // StateString returns a single string to describe state
@@ -175,26 +156,28 @@ func wait(waitChan <-chan struct{}, timeout time.Duration) error {
 
 // WaitStop waits until state is stopped. If state already stopped it returns
 // immediately. If you want wait forever you must supply negative timeout.
-// Returns exit code, that was passed to SetStopped
+// Returns exit code, that was passed to SetStoppedLocking
 func (s *State) WaitStop(timeout time.Duration) (int, error) {
-	ctx := context.Background()
-	if timeout >= 0 {
-		var cancel func()
-		ctx, cancel = context.WithTimeout(ctx, timeout)
-		defer cancel()
+	s.Lock()
+	if !s.Running {
+		exitCode := s.ExitCodeValue
+		s.Unlock()
+		return exitCode, nil
 	}
-	if err := s.WaitWithContext(ctx); err != nil {
-		if status, ok := err.(*StateStatus); ok {
-			return status.ExitCode(), nil
-		}
+	waitChan := s.waitChan
+	s.Unlock()
+	if err := wait(waitChan, timeout); err != nil {
 		return -1, err
 	}
-	return 0, nil
+	s.Lock()
+	defer s.Unlock()
+	return s.ExitCode(), nil
 }
 
 // WaitWithContext waits for the container to stop. Optional context can be
 // passed for canceling the request.
 func (s *State) WaitWithContext(ctx context.Context) error {
+	// todo(tonistiigi): make other wait functions use this
 	s.Lock()
 	if !s.Running {
 		state := newStateStatus(s.ExitCode(), s.Error())
@@ -260,6 +243,13 @@ func (s *State) SetRunning(pid int, initial bool) {
 	}
 }
 
+// SetStoppedLocking locks the container state and sets it to "stopped".
+func (s *State) SetStoppedLocking(exitStatus *ExitStatus) {
+	s.Lock()
+	s.SetStopped(exitStatus)
+	s.Unlock()
+}
+
 // SetStopped sets the container state to "stopped" without locking.
 func (s *State) SetStopped(exitStatus *ExitStatus) {
 	s.Running = false
@@ -272,7 +262,15 @@ func (s *State) SetStopped(exitStatus *ExitStatus) {
 	s.waitChan = make(chan struct{})
 }
 
-// SetRestarting sets the container state to "restarting" without locking.
+// SetRestartingLocking is when docker handles the auto restart of containers when they are
+// in the middle of a stop and being restarted again
+func (s *State) SetRestartingLocking(exitStatus *ExitStatus) {
+	s.Lock()
+	s.SetRestarting(exitStatus)
+	s.Unlock()
+}
+
+// SetRestarting sets the container state to "restarting".
 // It also sets the container PID to 0.
 func (s *State) SetRestarting(exitStatus *ExitStatus) {
 	// we should consider the container running when it is restarting because of

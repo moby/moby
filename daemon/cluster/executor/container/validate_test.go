@@ -26,7 +26,7 @@ func newTestControllerWithMount(m api.Mount) (*controller, error) {
 				},
 			},
 		},
-	}, nil)
+	})
 }
 
 func TestControllerValidateMountBind(t *testing.T) {
@@ -42,10 +42,10 @@ func TestControllerValidateMountBind(t *testing.T) {
 	// with non-existing source
 	if _, err := newTestControllerWithMount(api.Mount{
 		Type:   api.MountTypeBind,
-		Source: testAbsNonExistent,
+		Source: "/some-non-existing-host-path/",
 		Target: testAbsPath,
-	}); err != nil {
-		t.Fatalf("controller should not error at creation: %v", err)
+	}); err == nil || !strings.Contains(err.Error(), "invalid bind mount source") {
+		t.Fatalf("expected  error, got: %v", err)
 	}
 
 	// with proper source

@@ -5,7 +5,7 @@ package seccomp
 import (
 	"syscall"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/engine-api/types"
 )
 
 func arches() []types.Architecture {
@@ -217,12 +217,10 @@ func DefaultProfile() *types.Seccomp {
 				"prctl",
 				"pread64",
 				"preadv",
-				"preadv2",
 				"prlimit64",
 				"pselect6",
 				"pwrite64",
 				"pwritev",
-				"pwritev2",
 				"read",
 				"readahead",
 				"readlink",
@@ -308,6 +306,8 @@ func DefaultProfile() *types.Seccomp {
 				"signalfd",
 				"signalfd4",
 				"sigreturn",
+				"socket",
+				"socketcall",
 				"socketpair",
 				"splice",
 				"stat",
@@ -389,167 +389,7 @@ func DefaultProfile() *types.Seccomp {
 			},
 		},
 		{
-			Names:  []string{"socket"},
-			Action: types.ActAllow,
-			Args: []*types.Arg{
-				{
-					Index: 0,
-					Value: syscall.AF_UNIX,
-					Op:    types.OpEqualTo,
-				},
-			},
-		},
-		{
-			Names:  []string{"socket"},
-			Action: types.ActAllow,
-			Args: []*types.Arg{
-				{
-					Index: 0,
-					Value: syscall.AF_INET,
-					Op:    types.OpEqualTo,
-				},
-			},
-		},
-		{
-			Names:  []string{"socket"},
-			Action: types.ActAllow,
-			Args: []*types.Arg{
-				{
-					Index: 0,
-					Value: syscall.AF_INET6,
-					Op:    types.OpEqualTo,
-				},
-			},
-		},
-		{
-			Names:  []string{"socket"},
-			Action: types.ActAllow,
-			Args: []*types.Arg{
-				{
-					Index: 0,
-					Value: syscall.AF_NETLINK,
-					Op:    types.OpEqualTo,
-				},
-			},
-		},
-		{
-			Names:  []string{"socket"},
-			Action: types.ActAllow,
-			Args: []*types.Arg{
-				{
-					Index: 0,
-					Value: syscall.AF_PACKET,
-					Op:    types.OpEqualTo,
-				},
-			},
-		},
-		// socketcall(1, ...) is equivalent to socket(...) on some architectures eg i386
-		{
-			Names:  []string{"socketcall"},
-			Action: types.ActAllow,
-			Args: []*types.Arg{
-				{
-					Index: 0,
-					Value: 1,
-					Op:    types.OpGreaterThan,
-				},
-			},
-		},
-		{
-			Names:  []string{"socketcall"},
-			Action: types.ActAllow,
-			Args: []*types.Arg{
-				{
-					Index: 0,
-					Value: 1,
-					Op:    types.OpEqualTo,
-				},
-				{
-					Index: 1,
-					Value: syscall.AF_UNIX,
-					Op:    types.OpEqualTo,
-				},
-			},
-		},
-		{
-			Names:  []string{"socketcall"},
-			Action: types.ActAllow,
-			Args: []*types.Arg{
-				{
-					Index: 0,
-					Value: 1,
-					Op:    types.OpEqualTo,
-				},
-				{
-					Index: 1,
-					Value: syscall.AF_INET,
-					Op:    types.OpEqualTo,
-				},
-			},
-		},
-		{
-			Names:  []string{"socketcall"},
-			Action: types.ActAllow,
-			Args: []*types.Arg{
-				{
-					Index: 0,
-					Value: 1,
-					Op:    types.OpEqualTo,
-				},
-				{
-					Index: 1,
-					Value: syscall.AF_INET6,
-					Op:    types.OpEqualTo,
-				},
-			},
-		},
-		{
-			Names:  []string{"socketcall"},
-			Action: types.ActAllow,
-			Args: []*types.Arg{
-				{
-					Index: 0,
-					Value: 1,
-					Op:    types.OpEqualTo,
-				},
-				{
-					Index: 1,
-					Value: syscall.AF_NETLINK,
-					Op:    types.OpEqualTo,
-				},
-			},
-		},
-		{
-			Names:  []string{"socketcall"},
-			Action: types.ActAllow,
-			Args: []*types.Arg{
-				{
-					Index: 0,
-					Value: 1,
-					Op:    types.OpEqualTo,
-				},
-				{
-					Index: 1,
-					Value: syscall.AF_PACKET,
-					Op:    types.OpEqualTo,
-				},
-			},
-		},
-		{
 			Names: []string{
-				"sync_file_range2",
-			},
-			Action: types.ActAllow,
-			Args:   []*types.Arg{},
-			Includes: types.Filter{
-				Arches: []string{"ppc64le"},
-			},
-		},
-		{
-			Names: []string{
-				"arm_fadvise64_64",
-				"arm_sync_file_range",
-				"sync_file_range2",
 				"breakpoint",
 				"cacheflush",
 				"set_tls",
@@ -735,7 +575,6 @@ func DefaultProfile() *types.Seccomp {
 				"settimeofday",
 				"stime",
 				"adjtimex",
-				"clock_settime",
 			},
 			Action: types.ActAllow,
 			Args:   []*types.Arg{},

@@ -123,7 +123,7 @@ However, there might be a way to implement that feature *on top of* Docker.
       group is for contributors and other people contributing to the Docker project.
       You can join them without a google account by sending an email to 
       <a href="mailto:docker-dev+subscribe@googlegroups.com">docker-dev+subscribe@googlegroups.com</a>.
-      After receiving the join-request message, you can simply reply to that to confirm the subscription.
+      After receiving the join-request message, you can simply reply to that to confirm the subscribtion.
     </td>
   </tr>
   <tr>
@@ -137,7 +137,7 @@ However, there might be a way to implement that feature *on top of* Docker.
   <tr>
     <td>Stack Overflow</td>
     <td>
-      Stack Overflow has thousands of Docker questions listed. We regularly
+      Stack Overflow has over 17000 Docker questions listed. We regularly
       monitor <a href="https://stackoverflow.com/search?tab=newest&q=docker" target="_blank">Docker questions</a>
       and so do many other knowledgeable Docker users.
     </td>
@@ -173,63 +173,9 @@ committing your changes. Most editors have plug-ins that do this automatically.
 Pull request descriptions should be as clear as possible and include a reference
 to all the issues that they address.
 
-### Successful Changes
-
-Before contributing large or high impact changes, make the effort to coordinate
-with the maintainers of the project before submitting a pull request. This
-prevents you from doing extra work that may or may not be merged.
-
-Large PRs that are just submitted without any prior communication are unlikely
-to be successful.
-
-While pull requests are the methodology for submitting changes to code, changes
-are much more likely to be accepted if they are accompanied by additional
-engineering work. While we don't define this explicitly, most of these goals
-are accomplished through communication of the design goals and subsequent
-solutions. Often times, it helps to first state the problem before presenting
-solutions.
-
-Typically, the best methods of accomplishing this are to submit an issue,
-stating the problem. This issue can include a problem statement and a
-checklist with requirements. If solutions are proposed, alternatives should be
-listed and eliminated. Even if the criteria for elimination of a solution is
-frivolous, say so.
-
-Larger changes typically work best with design documents. These are focused on
-providing context to the design at the time the feature was conceived and can
-inform future documentation contributions.
-
-### Commit Messages
-
 Commit messages must start with a capitalized and short summary (max. 50 chars)
 written in the imperative, followed by an optional, more detailed explanatory
 text which is separated from the summary by an empty line.
-
-Commit messages should follow best practices, including explaining the context
-of the problem and how it was solved, including in caveats or follow up changes
-required. They should tell the story of the change and provide readers
-understanding of what led to it.
-
-If you're lost about what this even means, please see [How to Write a Git
-Commit Message](http://chris.beams.io/posts/git-commit/) for a start.
-
-In practice, the best approach to maintaining a nice commit message is to
-leverage a `git add -p` and `git commit --amend` to formulate a solid
-changeset. This allows one to piece together a change, as information becomes
-available.
-
-If you squash a series of commits, don't just submit that. Re-write the commit
-message, as if the series of commits was a single stroke of brilliance.
-
-That said, there is no requirement to have a single commit for a PR, as long as
-each commit tells the story. For example, if there is a feature that requires a
-package, it might make sense to have the package in a separate commit then have
-a subsequent commit that uses it.
-
-Remember, you're telling part of the story with the commit message. Don't make
-your chapter weird.
-
-### Review
 
 Code review comments may be added to your pull request. Discuss, then make the
 suggested modifications and push additional commits to your feature branch. Post
@@ -288,9 +234,8 @@ Developer Certificate of Origin
 Version 1.1
 
 Copyright (C) 2004, 2006 The Linux Foundation and its contributors.
-1 Letterman Drive
-Suite D4700
-San Francisco, CA, 94129
+660 York Street, Suite 102,
+San Francisco, CA 94110 USA
 
 Everyone is permitted to copy and distribute verbatim copies of this
 license document, but changing it is not allowed.

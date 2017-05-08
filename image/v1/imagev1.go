@@ -2,16 +2,19 @@ package v1
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/stringid"
-	"github.com/opencontainers/go-digest"
+	"github.com/docker/engine-api/types/versions"
 )
+
+var validHex = regexp.MustCompile(`^([a-f0-9]{64})$`)
 
 // noFallbackMinVersion is the minimum version for which v1compatibility
 // information will not be marshaled through the Image struct to remove
@@ -106,7 +109,7 @@ func MakeConfigFromV1Config(imageJSON []byte, rootfs *image.RootFS, history []im
 	return json.Marshal(c)
 }
 
-// MakeV1ConfigFromConfig creates a legacy V1 image config from an Image struct
+// MakeV1ConfigFromConfig creates an legacy V1 image config from an Image struct
 func MakeV1ConfigFromConfig(img *image.Image, v1ID, parentV1ID string, throwaway bool) ([]byte, error) {
 	// Top-level v1compatibility string should be a modified version of the
 	// image config.
@@ -146,5 +149,8 @@ func rawJSON(value interface{}) *json.RawMessage {
 
 // ValidateID checks whether an ID string is a valid image ID.
 func ValidateID(id string) error {
-	return stringid.ValidateID(id)
+	if ok := validHex.MatchString(id); !ok {
+		return fmt.Errorf("image ID %q is invalid", id)
+	}
+	return nil
 }

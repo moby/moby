@@ -77,11 +77,9 @@ func setCgroupMem(quiet bool) cgroupMemInfo {
 func setCgroupCPU(quiet bool) cgroupCPUInfo {
 
 	return cgroupCPUInfo{
-		CPUShares:          true,
-		CPUCfsPeriod:       false,
-		CPUCfsQuota:        true,
-		CPURealtimePeriod:  false,
-		CPURealtimeRuntime: false,
+		CPUShares:    true,
+		CPUCfsPeriod: false,
+		CPUCfsQuota:  true,
 	}
 }
 

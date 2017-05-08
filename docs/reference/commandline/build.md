@@ -1,17 +1,12 @@
----
-title: "build"
-description: "The build command description and usage"
-keywords: "build, docker, image"
----
-
-<!-- This file is maintained within the docker/docker Github
-     repository at https://github.com/docker/docker/. Make all
-     pull requests against that repo. If you see this file in
-     another repository, consider it read-only there, as it will
-     periodically be overwritten by the definitive file. Pull
-     requests which include edits to this file in other repositories
-     will be rejected.
--->
+<!--[metadata]>
++++
+title = "build"
+description = "The build command description and usage"
+keywords = ["build, docker, image"]
+[menu.main]
+parent = "smn_cli"
++++
+<![end-metadata]-->
 
 # build
 
@@ -21,11 +16,8 @@ Usage:  docker build [OPTIONS] PATH | URL | -
 Build an image from a Dockerfile
 
 Options:
-      --add-host value          Add a custom host-to-IP mapping (host:ip) (default [])
       --build-arg value         Set build-time variables (default [])
-      --cache-from value        Images to consider as cache sources (default [])
       --cgroup-parent string    Optional parent cgroup for the container
-      --compress                Compress the build context using gzip
       --cpu-period int          Limit the CPU CFS (Completely Fair Scheduler) period
       --cpu-quota int           Limit the CPU CFS (Completely Fair Scheduler) quota
   -c, --cpu-shares int          CPU shares (relative weight)
@@ -39,27 +31,17 @@ Options:
       --label value             Set metadata for an image (default [])
   -m, --memory string           Memory limit
       --memory-swap string      Swap limit equal to memory plus swap: '-1' to enable unlimited swap
-      --network string          Set the networking mode for the RUN instructions during build
-                                'bridge': use default Docker bridge
-                                'none': no networking
-                                'container:<name|id>': reuse another container's network stack
-                                'host': use the Docker host network stack
-                                '<network-name>|<network-id>': connect to a user-defined network
       --no-cache                Do not use cache when building the image
       --pull                    Always attempt to pull a newer version of the image
   -q, --quiet                   Suppress the build output and print image ID on success
       --rm                      Remove intermediate containers after a successful build (default true)
-      --security-opt value      Security Options (default [])
-      --shm-size bytes          Size of /dev/shm
+      --shm-size string         Size of /dev/shm, default value is 64MB.
                                 The format is `<number><unit>`. `number` must be greater than `0`.
                                 Unit is optional and can be `b` (bytes), `k` (kilobytes), `m` (megabytes),
                                 or `g` (gigabytes). If you omit the unit, the system uses bytes.
-      --squash                  Squash newly built layers into a single new layer (**Experimental Only**)
   -t, --tag value               Name and optionally a tag in the 'name:tag' format (default [])
       --ulimit value            Ulimit options (default [])
 ```
-
-## Description
 
 Builds Docker images from a Dockerfile and a "context". A build's context is
 the files located in the specified `PATH` or `URL`. The build process can refer
@@ -112,9 +94,11 @@ Build Syntax Suffix             | Commit Used           | Build Context Used
 
 If you pass an URL to a remote tarball, the URL itself is sent to the daemon:
 
+Instead of specifying a context, you can pass a single Dockerfile in the `URL`
+or pipe the file in via `STDIN`. To pipe a Dockerfile from `STDIN`:
+
 ```bash
 $ docker build http://server/context.tar.gz
-```
 
 The download operation will be performed on the host the Docker daemon is
 running on, which is not necessarily the same host from which the build command
@@ -173,9 +157,9 @@ $ docker build -t fail .
 
 Sending build context to Docker daemon 2.048 kB
 Sending build context to Docker daemon
-Step 1/3 : FROM busybox
+Step 1 : FROM busybox
  ---> 4986bf8c1536
-Step 2/3 : RUN exit 13
+Step 2 : RUN exit 13
  ---> Running in e26670ec7a0a
 INFO[0000] The command [/bin/sh -c exit 13] returned a non-zero code: 13
 $ echo $?
@@ -194,10 +178,10 @@ See also:
 $ docker build .
 
 Uploading context 10240 bytes
-Step 1/3 : FROM busybox
+Step 1 : FROM busybox
 Pulling repository busybox
  ---> e9aa60c60128MB/2.284 MB (100%) endpoint: https://cdn-registry-1.docker.io/v1/
-Step 2/3 : RUN ls -lh /
+Step 2 : RUN ls -lh /
  ---> Running in 9c9e81692ae9
 total 24
 drwxr-xr-x    2 root     root        4.0K Mar 12  2013 bin
@@ -211,7 +195,7 @@ dr-xr-xr-x   13 root     root           0 Nov 15 23:34 sys
 drwxr-xr-x    2 root     root        4.0K Mar 12  2013 tmp
 drwxr-xr-x    2 root     root        4.0K Nov 15 23:34 usr
  ---> b35f4035db3f
-Step 3/3 : CMD echo Hello world
+Step 3 : CMD echo Hello world
  ---> Running in 02071fceb21b
  ---> f52f38b7823e
 Successfully built f52f38b7823e
@@ -247,12 +231,12 @@ specify an arbitrary Git repository by using the `git://` or `git@` scheme.
 $ docker build -f ctx/Dockerfile http://server/ctx.tar.gz
 
 Downloading context: http://server/ctx.tar.gz [===================>]    240 B/240 B
-Step 1/3 : FROM busybox
+Step 0 : FROM busybox
  ---> 8c2e06607696
-Step 2/3 : ADD ctx/container.cfg /
+Step 1 : ADD ctx/container.cfg /
  ---> e7829950cee3
 Removing intermediate container b35224abf821
-Step 3/3 : CMD /bin/ls
+Step 2 : CMD /bin/ls
  ---> Running in fbc63d321d73
  ---> 3286931702ad
 Removing intermediate container fbc63d321d73
@@ -262,7 +246,7 @@ Successfully built 377c409b35e4
 This sends the URL `http://server/ctx.tar.gz` to the Docker daemon, which
 downloads and extracts the referenced tarball. The `-f ctx/Dockerfile`
 parameter specifies a path inside `ctx.tar.gz` to the `Dockerfile` that is used
-to build the image. Any `ADD` commands in that `Dockerfile` that refers to local
+to build the image. Any `ADD` commands in that `Dockerfile` that refer to local
 paths must be relative to the root of the contents inside `ctx.tar.gz`. In the
 example above, the tarball contains a directory `ctx/`, so the `ADD
 ctx/container.cfg /` operation works as expected.
@@ -285,16 +269,16 @@ $ docker build - < context.tar.gz
 This will build an image for a compressed context read from `STDIN`.  Supported
 formats are: bzip2, gzip and xz.
 
-### Use a .dockerignore file
+### Usage of .dockerignore
 
 ```bash
 $ docker build .
 
 Uploading context 18.829 MB
 Uploading context
-Step 1/2 : FROM busybox
+Step 1 : FROM busybox
  ---> 769b9341d937
-Step 2/2 : CMD echo Hello world
+Step 2 : CMD echo Hello world
  ---> Using cache
  ---> 99cc1ad10469
 Successfully built 99cc1ad10469
@@ -302,9 +286,9 @@ $ echo ".git" > .dockerignore
 $ docker build .
 Uploading context  6.76 MB
 Uploading context
-Step 1/2 : FROM busybox
+Step 1 : FROM busybox
  ---> 769b9341d937
-Step 2/2 : CMD echo Hello world
+Step 2 : CMD echo Hello world
  ---> Using cache
  ---> 99cc1ad10469
 Successfully built 99cc1ad10469
@@ -315,7 +299,7 @@ directory from the context. Its effect can be seen in the changed size of the
 uploaded context. The builder reference contains detailed information on
 [creating a .dockerignore file](../builder.md#dockerignore-file)
 
-### Tag an image (-t)
+### Tag image (-t)
 
 ```bash
 $ docker build -t vieux/apache:2.0 .
@@ -334,8 +318,7 @@ For example, to tag an image both as `whenry/fedora-jboss:latest` and
 ```bash
 $ docker build -t whenry/fedora-jboss:latest -t whenry/fedora-jboss:v2.1 .
 ```
-
-### Specify a Dockerfile (-f)
+### Specify Dockerfile (-f)
 
 ```bash
 $ docker build -f Dockerfile.debug .
@@ -343,13 +326,6 @@ $ docker build -f Dockerfile.debug .
 
 This will use a file called `Dockerfile.debug` for the build instructions
 instead of `Dockerfile`.
-
-```bash
-$ curl example.com/remote/Dockerfile | docker build -f - .
-```
-
-The above command will use the current directory as the build context and read
-a Dockerfile from stdin.
 
 ```bash
 $ docker build -f dockerfiles/Dockerfile.debug -t myapp_debug .
@@ -381,7 +357,7 @@ the command line.
 > repeatable builds on remote Docker hosts. This is also the reason why
 > `ADD ../file` will not work.
 
-### Use a custom parent cgroup (--cgroup-parent)
+### Optional parent cgroup (--cgroup-parent)
 
 When `docker build` is run with the `--cgroup-parent` option the containers
 used in the build will be run with the [corresponding `docker run`
@@ -419,12 +395,6 @@ Dockerfile are echoed during the build process.
 For detailed information on using `ARG` and `ENV` instructions, see the
 [Dockerfile reference](../builder.md).
 
-### Optional security options (--security-opt)
-
-This flag is only supported on a daemon running on Windows, and only supports
-the `credentialspec` option. The `credentialspec` must be in the format
-`file://spec.txt` or `registry://keyname`.
-
 ### Specify isolation technology for container (--isolation)
 
 This option is useful in situations where you are running Docker containers on
@@ -440,118 +410,3 @@ Linux namespaces. On Microsoft Windows, you can specify these values:
 | `hyperv`  | Hyper-V hypervisor partition-based isolation.                                                                                                                 |
 
 Specifying the `--isolation` flag without a value is the same as setting `--isolation="default"`.
-
-### Add entries to container hosts file (--add-host)
-
-You can add other hosts into a container's `/etc/hosts` file by using one or
-more `--add-host` flags. This example adds a static address for a host named
-`docker`:
-
-    $ docker build --add-host=docker:10.180.0.1 .
-
-### Squash an image's layers (--squash) **Experimental Only**
-
-#### Overview
-
-Once the image is built, squash the new layers into a new image with a single
-new layer. Squashing does not destroy any existing image, rather it creates a new
-image with the content of the squashed layers. This effectively makes it look
-like all `Dockerfile` commands were created with a single layer. The build
-cache is preserved with this method.
-
-**Note**: using this option means the new image will not be able to take
-advantage of layer sharing with other images and may use significantly more
-space.
-
-**Note**: using this option you may see significantly more space used due to
-storing two copies of the image, one for the build cache with all the cache
-layers in tact, and one for the squashed version.
-
-#### Prerequisites
-
-The example on this page is using experimental mode in Docker 1.13.
-
-Experimental mode can be enabled by using the `--experimental` flag when starting the Docker daemon or setting `experimental: true` in the `daemon.json` configuration file.
-
-By default, experimental mode is disabled. To see the current configuration, use the `docker version` command.
-
-```none
-
-Server:
- Version:      1.13.1
- API version:  1.26 (minimum version 1.12)
- Go version:   go1.7.5
- Git commit:   092cba3
- Built:        Wed Feb  8 06:35:24 2017
- OS/Arch:      linux/amd64
- Experimental: false
-
- [...]
-
-```
-
-To enable experimental mode, users need to restart the docker daemon with the experimental flag enabled.
-
-#### Enable Docker experimental
-
-Experimental features are now included in the standard Docker binaries as of version 1.13.0. For enabling experimental features, you need to start the Docker daemon with `--experimental` flag. You can also enable the daemon flag via /etc/docker/daemon.json. e.g.
-
-```
-
-{
-    "experimental": true
-}
-
-```
-Then make sure the experimental flag is enabled:
-
-```bash
-
-$ docker version -f '{{.Server.Experimental}}'
-true
-
-```
-
-#### Build an image with `--squash` argument
-
-The following is an example of docker build with `--squash` argument
-
-```Dockerfile
-
-FROM busybox
-RUN echo hello > /hello
-RUN echo world >> /hello
-RUN touch remove_me /remove_me
-ENV HELLO world
-RUN rm /remove_me
-
-```
-An image named `test` is built with `--squash` argument.
-
-```bash
-
-$ docker build --squash -t test .
-
-[...]
-
-```
-
-If everything is right, the history will look like this:
-
-```bash
-$ docker history test 
-
-IMAGE               CREATED             CREATED BY                                      SIZE                COMMENT
-4e10cb5b4cac        3 seconds ago                                                       12 B                merge sha256:88a7b0112a41826885df0e7072698006ee8f621c6ab99fca7fe9151d7b599702 to sha256:47bcc53f74dc94b1920f0b34f6036096526296767650f223433fe65c35f149eb
-<missing>           5 minutes ago       /bin/sh -c rm /remove_me                        0 B
-<missing>           5 minutes ago       /bin/sh -c #(nop) ENV HELLO=world               0 B
-<missing>           5 minutes ago       /bin/sh -c touch remove_me /remove_me           0 B
-<missing>           5 minutes ago       /bin/sh -c echo world >> /hello                 0 B
-<missing>           6 minutes ago       /bin/sh -c echo hello > /hello                  0 B
-<missing>           7 weeks ago         /bin/sh -c #(nop) CMD ["sh"]                    0 B
-<missing>           7 weeks ago         /bin/sh -c #(nop) ADD file:47ca6e777c36a4cfff   1.113 MB
-
-```
-We could find that all layer's name is `<missing>`, and there is a new layer with COMMENT `merge`.
-
-Test the image, check for `/remove_me` being gone, make sure `hello\nworld` is in `/hello`, make sure the `HELLO` envvar's value is `world`.

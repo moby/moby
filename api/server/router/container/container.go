@@ -46,8 +46,8 @@ func (r *containerRouter) initRoutes() {
 		router.NewGetRoute("/containers/{name:.*}/changes", r.getContainersChanges),
 		router.NewGetRoute("/containers/{name:.*}/json", r.getContainersByName),
 		router.NewGetRoute("/containers/{name:.*}/top", r.getContainersTop),
-		router.NewGetRoute("/containers/{name:.*}/logs", r.getContainersLogs, router.WithCancel),
-		router.NewGetRoute("/containers/{name:.*}/stats", r.getContainersStats, router.WithCancel),
+		router.Cancellable(router.NewGetRoute("/containers/{name:.*}/logs", r.getContainersLogs)),
+		router.Cancellable(router.NewGetRoute("/containers/{name:.*}/stats", r.getContainersStats)),
 		router.NewGetRoute("/containers/{name:.*}/attach/ws", r.wsContainersAttach),
 		router.NewGetRoute("/exec/{id:.*}/json", r.getExecByID),
 		router.NewGetRoute("/containers/{name:.*}/archive", r.getContainersArchive),
@@ -68,7 +68,6 @@ func (r *containerRouter) initRoutes() {
 		router.NewPostRoute("/exec/{name:.*}/resize", r.postContainerExecResize),
 		router.NewPostRoute("/containers/{name:.*}/rename", r.postContainerRename),
 		router.NewPostRoute("/containers/{name:.*}/update", r.postContainerUpdate),
-		router.NewPostRoute("/containers/prune", r.postContainersPrune, router.WithCancel),
 		// PUT
 		router.NewPutRoute("/containers/{name:.*}/archive", r.putContainersArchive),
 		// DELETE

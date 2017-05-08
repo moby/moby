@@ -31,7 +31,7 @@ type Winsize struct {
 	y      uint16
 }
 
-// StdStreams returns the standard streams (stdin, stdout, stderr).
+// StdStreams returns the standard streams (stdin, stdout, stedrr).
 func StdStreams() (stdIn io.ReadCloser, stdOut, stdErr io.Writer) {
 	return os.Stdin, os.Stdout, os.Stderr
 }

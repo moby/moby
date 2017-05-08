@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 set -e
 
 dir="$1"
@@ -44,7 +44,7 @@ dir_in_dir() {
 #   (like -v /home:... for example - DON'T DELETE MY HOME DIRECTORY BRU!)
 for mount in $(awk '{ print $5 }' /proc/self/mountinfo); do
 	mount="$(readlink -f "$mount" || true)"
-	if [ "$dir" != "$mount" ] && dir_in_dir "$mount" "$dir"; then
+	if dir_in_dir "$mount" "$dir"; then
 		( set -x; umount -f "$mount" )
 	fi
 done
@@ -54,11 +54,9 @@ if command -v btrfs > /dev/null 2>&1; then
 	# Find btrfs subvolumes under $dir checking for inode 256
 	# Source: http://stackoverflow.com/a/32865333
 	for subvol in $(find "$dir" -type d -inum 256 | sort -r); do
-		if [ "$dir" != "$subvol" ]; then
-			( set -x; btrfs subvolume delete "$subvol" )
-		fi
+		( set -x; btrfs subvolume delete "$subvol" )
 	done
 fi
 
 # finally, DESTROY ALL THINGS
-( shopt -s dotglob; set -x; rm -rf "$dir"/* )
+( set -x; rm -rf "$dir" )

@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 #
 # This script generates a gitdm compatible email aliases file from a git

@@ -30,7 +30,7 @@ Where:
 - `--type` is the name of the interface to use
 - `--name` is the subsystem that the plugin "Implements"
 - `-i` is the input file containing the interface definition
-- `-o` is the output file where the generated code should go
+- `-o` is the output file where the the generated code should go
 
 **Note**: The generated code will use the same package name as the one defined in the input file
 

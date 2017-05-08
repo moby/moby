@@ -42,7 +42,7 @@ type ServerHeader struct {
 }
 
 // ParseServerHeader extracts pieces from an HTTP server header
-// which is in the format "docker/version (os)" e.g. docker/1.8.0-dev (windows).
+// which is in the format "docker/version (os)" eg docker/1.8.0-dev (windows).
 func ParseServerHeader(hdr string) (*ServerHeader, error) {
 	matches := headerRegexp.FindStringSubmatch(hdr)
 	if len(matches) != 4 {

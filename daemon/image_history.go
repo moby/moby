@@ -2,23 +2,21 @@ package daemon
 
 import (
 	"fmt"
-	"time"
 
-	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/layer"
+	"github.com/docker/docker/reference"
+	"github.com/docker/engine-api/types"
 )
 
 // ImageHistory returns a slice of ImageHistory structures for the specified image
 // name by walking the image lineage.
-func (daemon *Daemon) ImageHistory(name string) ([]*image.HistoryResponseItem, error) {
-	start := time.Now()
+func (daemon *Daemon) ImageHistory(name string) ([]*types.ImageHistory, error) {
 	img, err := daemon.GetImage(name)
 	if err != nil {
 		return nil, err
 	}
 
-	history := []*image.HistoryResponseItem{}
+	history := []*types.ImageHistory{}
 
 	layerCounter := 0
 	rootFS := *img.RootFS
@@ -46,7 +44,7 @@ func (daemon *Daemon) ImageHistory(name string) ([]*image.HistoryResponseItem, e
 			layerCounter++
 		}
 
-		history = append([]*image.HistoryResponseItem{{
+		history = append([]*types.ImageHistory{{
 			ID:        "<missing>",
 			Created:   h.Created.Unix(),
 			CreatedBy: h.CreatedBy,
@@ -62,9 +60,9 @@ func (daemon *Daemon) ImageHistory(name string) ([]*image.HistoryResponseItem, e
 		h.ID = id.String()
 
 		var tags []string
-		for _, r := range daemon.referenceStore.References(id.Digest()) {
+		for _, r := range daemon.referenceStore.References(id) {
 			if _, ok := r.(reference.NamedTagged); ok {
-				tags = append(tags, reference.FamiliarString(r))
+				tags = append(tags, r.String())
 			}
 		}
 
@@ -79,6 +77,6 @@ func (daemon *Daemon) ImageHistory(name string) ([]*image.HistoryResponseItem, e
 			break
 		}
 	}
-	imageActions.WithValues("history").UpdateSince(start)
+
 	return history, nil
 }

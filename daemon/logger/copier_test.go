@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -34,9 +33,6 @@ func (l *TestLoggerJSON) Name() string { return "json" }
 func TestCopier(t *testing.T) {
 	stdoutLine := "Line that thinks that it is log line from docker stdout"
 	stderrLine := "Line that thinks that it is log line from docker stderr"
-	stdoutTrailingLine := "stdout trailing line"
-	stderrTrailingLine := "stderr trailing line"
-
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	for i := 0; i < 30; i++ {
@@ -48,14 +44,6 @@ func TestCopier(t *testing.T) {
 		}
 	}
 
-	// Test remaining lines without line-endings
-	if _, err := stdout.WriteString(stdoutTrailingLine); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := stderr.WriteString(stderrTrailingLine); err != nil {
-		t.Fatal(err)
-	}
-
 	var jsonBuf bytes.Buffer
 
 	jsonLog := &TestLoggerJSON{Encoder: json.NewEncoder(&jsonBuf)}
@@ -90,87 +78,13 @@ func TestCopier(t *testing.T) {
 			t.Fatalf("Wrong Source: %q, should be %q or %q", msg.Source, "stdout", "stderr")
 		}
 		if msg.Source == "stdout" {
-			if string(msg.Line) != stdoutLine && string(msg.Line) != stdoutTrailingLine {
-				t.Fatalf("Wrong Line: %q, expected %q or %q", msg.Line, stdoutLine, stdoutTrailingLine)
+			if string(msg.Line) != stdoutLine {
+				t.Fatalf("Wrong Line: %q, expected %q", msg.Line, stdoutLine)
 			}
 		}
 		if msg.Source == "stderr" {
-			if string(msg.Line) != stderrLine && string(msg.Line) != stderrTrailingLine {
-				t.Fatalf("Wrong Line: %q, expected %q or %q", msg.Line, stderrLine, stderrTrailingLine)
-			}
-		}
-	}
-}
-
-// TestCopierLongLines tests long lines without line breaks
-func TestCopierLongLines(t *testing.T) {
-	// Long lines (should be split at "bufSize")
-	const bufSize = 16 * 1024
-	stdoutLongLine := strings.Repeat("a", bufSize)
-	stderrLongLine := strings.Repeat("b", bufSize)
-	stdoutTrailingLine := "stdout trailing line"
-	stderrTrailingLine := "stderr trailing line"
-
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-
-	for i := 0; i < 3; i++ {
-		if _, err := stdout.WriteString(stdoutLongLine); err != nil {
-			t.Fatal(err)
-		}
-		if _, err := stderr.WriteString(stderrLongLine); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	if _, err := stdout.WriteString(stdoutTrailingLine); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := stderr.WriteString(stderrTrailingLine); err != nil {
-		t.Fatal(err)
-	}
-
-	var jsonBuf bytes.Buffer
-
-	jsonLog := &TestLoggerJSON{Encoder: json.NewEncoder(&jsonBuf)}
-
-	c := NewCopier(
-		map[string]io.Reader{
-			"stdout": &stdout,
-			"stderr": &stderr,
-		},
-		jsonLog)
-	c.Run()
-	wait := make(chan struct{})
-	go func() {
-		c.Wait()
-		close(wait)
-	}()
-	select {
-	case <-time.After(1 * time.Second):
-		t.Fatal("Copier failed to do its work in 1 second")
-	case <-wait:
-	}
-	dec := json.NewDecoder(&jsonBuf)
-	for {
-		var msg Message
-		if err := dec.Decode(&msg); err != nil {
-			if err == io.EOF {
-				break
-			}
-			t.Fatal(err)
-		}
-		if msg.Source != "stdout" && msg.Source != "stderr" {
-			t.Fatalf("Wrong Source: %q, should be %q or %q", msg.Source, "stdout", "stderr")
-		}
-		if msg.Source == "stdout" {
-			if string(msg.Line) != stdoutLongLine && string(msg.Line) != stdoutTrailingLine {
-				t.Fatalf("Wrong Line: %q, expected 'stdoutLongLine' or 'stdoutTrailingLine'", msg.Line)
-			}
-		}
-		if msg.Source == "stderr" {
-			if string(msg.Line) != stderrLongLine && string(msg.Line) != stderrTrailingLine {
-				t.Fatalf("Wrong Line: %q, expected 'stderrLongLine' or 'stderrTrailingLine'", msg.Line)
+			if string(msg.Line) != stderrLine {
+				t.Fatalf("Wrong Line: %q, expected %q", msg.Line, stderrLine)
 			}
 		}
 	}
@@ -200,7 +114,7 @@ func TestCopierSlow(t *testing.T) {
 	c.Close()
 	select {
 	case <-time.After(200 * time.Millisecond):
-		t.Fatal("failed to exit in time after the copier is closed")
+		t.Fatalf("failed to exit in time after the copier is closed")
 	case <-wait:
 	}
 }
@@ -208,7 +122,7 @@ func TestCopierSlow(t *testing.T) {
 type BenchmarkLoggerDummy struct {
 }
 
-func (l *BenchmarkLoggerDummy) Log(m *Message) error { PutMessage(m); return nil }
+func (l *BenchmarkLoggerDummy) Log(m *Message) error { return nil }
 
 func (l *BenchmarkLoggerDummy) Close() error { return nil }
 

@@ -1,17 +1,12 @@
----
-title: "logout"
-description: "The logout command description and usage"
-keywords: "logout, docker, registry"
----
-
-<!-- This file is maintained within the docker/docker Github
-     repository at https://github.com/docker/docker/. Make all
-     pull requests against that repo. If you see this file in
-     another repository, consider it read-only there, as it will
-     periodically be overwritten by the definitive file. Pull
-     requests which include edits to this file in other repositories
-     will be rejected.
--->
+<!--[metadata]>
++++
+title = "logout"
+description = "The logout command description and usage"
+keywords = ["logout, docker, registry"]
+[menu.main]
+parent = "smn_cli"
++++
+<![end-metadata]-->
 
 # logout
 
@@ -25,8 +20,6 @@ Options:
       --help   Print usage
 ```
 
-## Examples
+For example:
 
-```bash
-$ docker logout localhost:8080
-```
+    $ docker logout localhost:8080

@@ -1,5 +1,5 @@
-#!/usr/bin/env bash
-set -eo pipefail
+#!/bin/bash
+set -e
 
 # hello-world                      latest              ef872312fe1b        3 months ago        910 B
 # hello-world                      latest              ef872312fe1bbc5e05aae626791a47ee9b032efa8f3bda39cc0be7b56bfe59b9   3 months ago        910 B
@@ -9,10 +9,6 @@ set -eo pipefail
 
 if ! command -v curl &> /dev/null; then
 	echo >&2 'error: "curl" not found!'
-	exit 1
-fi
-if ! command -v jq &> /dev/null; then
-	echo >&2 'error: "jq" not found!'
 	exit 1
 fi
 
@@ -31,18 +27,7 @@ mkdir -p "$dir"
 # hacky workarounds for Bash 3 support (no associative arrays)
 images=()
 rm -f "$dir"/tags-*.tmp
-manifestJsonEntries=()
-doNotGenerateManifestJson=
 # repositories[busybox]='"latest": "...", "ubuntu-14.04": "..."'
-
-# bash v4 on Windows CI requires CRLF separator
-newlineIFS=$'\n'
-if [ "$(go env GOHOSTOS)" = 'windows' ]; then
-	major=$(echo ${BASH_VERSION%%[^0.9]} | cut -d. -f1)
-	if [ "$major" -ge 4 ]; then
-		newlineIFS=$'\r\n'
-	fi
-fi
 
 while [ $# -gt 0 ]; do
 	imageTag="$1"
@@ -59,187 +44,30 @@ while [ $# -gt 0 ]; do
 
 	imageFile="${image//\//_}" # "/" can't be in filenames :)
 
-	token="$(curl -fsSL "https://auth.docker.io/token?service=registry.docker.io&scope=repository:$image:pull" | jq --raw-output '.token')"
+	token="$(curl -sSL "https://auth.docker.io/token?service=registry.docker.io&scope=repository:$image:pull" | jq --raw-output .token)"
 
-	manifestJson="$(
-		curl -fsSL \
-			-H "Authorization: Bearer $token" \
-			-H 'Accept: application/vnd.docker.distribution.manifest.v2+json' \
-			-H 'Accept: application/vnd.docker.distribution.manifest.v1+json' \
-			"https://registry-1.docker.io/v2/$image/manifests/$digest"
-	)"
+	manifestJson="$(curl -sSL -H "Authorization: Bearer $token" "https://registry-1.docker.io/v2/$image/manifests/$digest")"
 	if [ "${manifestJson:0:1}" != '{' ]; then
 		echo >&2 "error: /v2/$image/manifests/$digest returned something unexpected:"
 		echo >&2 "  $manifestJson"
 		exit 1
 	fi
 
-	imageIdentifier="$image:$tag@$digest"
+	layersFs=$(echo "$manifestJson" | jq --raw-output '.fsLayers | .[] | .blobSum')
 
-	schemaVersion="$(echo "$manifestJson" | jq --raw-output '.schemaVersion')"
-	case "$schemaVersion" in
-		2)
-			mediaType="$(echo "$manifestJson" | jq --raw-output '.mediaType')"
+	IFS=$'\n'
+	# bash v4 on Windows CI requires CRLF separator
+	if [ "$(go env GOHOSTOS)" = 'windows' ]; then
+		major=$(echo ${BASH_VERSION%%[^0.9]} | cut -d. -f1)
+		if [ "$major" -ge 4 ]; then
+			IFS=$'\r\n'
+		fi
+	fi
+	layers=( ${layersFs} )
+	unset IFS
 
-			case "$mediaType" in
-				application/vnd.docker.distribution.manifest.v2+json)
-					configDigest="$(echo "$manifestJson" | jq --raw-output '.config.digest')"
-					imageId="${configDigest#*:}" # strip off "sha256:"
-
-					configFile="$imageId.json"
-					curl -fsSL \
-						-H "Authorization: Bearer $token" \
-						"https://registry-1.docker.io/v2/$image/blobs/$configDigest" \
-						-o "$dir/$configFile"
-
-					layersFs="$(echo "$manifestJson" | jq --raw-output --compact-output '.layers[]')"
-					IFS="$newlineIFS"
-					layers=( $layersFs )
-					unset IFS
-
-					echo "Downloading '$imageIdentifier' (${#layers[@]} layers)..."
-					layerId=
-					layerFiles=()
-					for i in "${!layers[@]}"; do
-						layerMeta="${layers[$i]}"
-
-						layerMediaType="$(echo "$layerMeta" | jq --raw-output '.mediaType')"
-						layerDigest="$(echo "$layerMeta" | jq --raw-output '.digest')"
-
-						# save the previous layer's ID
-						parentId="$layerId"
-						# create a new fake layer ID based on this layer's digest and the previous layer's fake ID
-						layerId="$(echo "$parentId"$'\n'"$layerDigest" | sha256sum | cut -d' ' -f1)"
-						# this accounts for the possibility that an image contains the same layer twice (and thus has a duplicate digest value)
-
-						mkdir -p "$dir/$layerId"
-						echo '1.0' > "$dir/$layerId/VERSION"
-
-						if [ ! -s "$dir/$layerId/json" ]; then
-							parentJson="$(printf ', parent: "%s"' "$parentId")"
-							addJson="$(printf '{ id: "%s"%s }' "$layerId" "${parentId:+$parentJson}")"
-							# this starter JSON is taken directly from Docker's own "docker save" output for unimportant layers
-							jq "$addJson + ." > "$dir/$layerId/json" <<-'EOJSON'
-								{
-									"created": "0001-01-01T00:00:00Z",
-									"container_config": {
-										"Hostname": "",
-										"Domainname": "",
-										"User": "",
-										"AttachStdin": false,
-										"AttachStdout": false,
-										"AttachStderr": false,
-										"Tty": false,
-										"OpenStdin": false,
-										"StdinOnce": false,
-										"Env": null,
-										"Cmd": null,
-										"Image": "",
-										"Volumes": null,
-										"WorkingDir": "",
-										"Entrypoint": null,
-										"OnBuild": null,
-										"Labels": null
-									}
-								}
-							EOJSON
-						fi
-
-						case "$layerMediaType" in
-							application/vnd.docker.image.rootfs.diff.tar.gzip)
-								layerTar="$layerId/layer.tar"
-								layerFiles=( "${layerFiles[@]}" "$layerTar" )
-								# TODO figure out why "-C -" doesn't work here
-								# "curl: (33) HTTP server doesn't seem to support byte ranges. Cannot resume."
-								# "HTTP/1.1 416 Requested Range Not Satisfiable"
-								if [ -f "$dir/$layerTar" ]; then
-									# TODO hackpatch for no -C support :'(
-									echo "skipping existing ${layerId:0:12}"
-									continue
-								fi
-								curl -fSL --progress \
-									-H "Authorization: Bearer $token" \
-									"https://registry-1.docker.io/v2/$image/blobs/$layerDigest" \
-									-o "$dir/$layerTar"
-								;;
-
-							*)
-								echo >&2 "error: unknown layer mediaType ($imageIdentifier, $layerDigest): '$layerMediaType'"
-								exit 1
-								;;
-						esac
-					done
-
-					# change "$imageId" to be the ID of the last layer we added (needed for old-style "repositories" file which is created later -- specifically for older Docker daemons)
-					imageId="$layerId"
-
-					# munge the top layer image manifest to have the appropriate image configuration for older daemons
-					imageOldConfig="$(jq --raw-output --compact-output '{ id: .id } + if .parent then { parent: .parent } else {} end' "$dir/$imageId/json")"
-					jq --raw-output "$imageOldConfig + del(.history, .rootfs)" "$dir/$configFile" > "$dir/$imageId/json"
-
-					manifestJsonEntry="$(
-						echo '{}' | jq --raw-output '. + {
-							Config: "'"$configFile"'",
-							RepoTags: ["'"${image#library\/}:$tag"'"],
-							Layers: '"$(echo '[]' | jq --raw-output ".$(for layerFile in "${layerFiles[@]}"; do echo " + [ \"$layerFile\" ]"; done)")"'
-						}'
-					)"
-					manifestJsonEntries=( "${manifestJsonEntries[@]}" "$manifestJsonEntry" )
-					;;
-
-				*)
-					echo >&2 "error: unknown manifest mediaType ($imageIdentifier): '$mediaType'"
-					exit 1
-					;;
-			esac
-			;;
-
-		1)
-			if [ -z "$doNotGenerateManifestJson" ]; then
-				echo >&2 "warning: '$imageIdentifier' uses schemaVersion '$schemaVersion'"
-				echo >&2 "  this script cannot (currently) recreate the 'image config' to put in a 'manifest.json' (thus any schemaVersion 2+ images will be imported in the old way, and their 'docker history' will suffer)"
-				echo >&2
-				doNotGenerateManifestJson=1
-			fi
-
-			layersFs="$(echo "$manifestJson" | jq --raw-output '.fsLayers | .[] | .blobSum')"
-			IFS="$newlineIFS"
-			layers=( $layersFs )
-			unset IFS
-
-			history="$(echo "$manifestJson" | jq '.history | [.[] | .v1Compatibility]')"
-			imageId="$(echo "$history" | jq --raw-output '.[0]' | jq --raw-output '.id')"
-
-			echo "Downloading '$imageIdentifier' (${#layers[@]} layers)..."
-			for i in "${!layers[@]}"; do
-				imageJson="$(echo "$history" | jq --raw-output ".[${i}]")"
-				layerId="$(echo "$imageJson" | jq --raw-output '.id')"
-				imageLayer="${layers[$i]}"
-
-				mkdir -p "$dir/$layerId"
-				echo '1.0' > "$dir/$layerId/VERSION"
-
-				echo "$imageJson" > "$dir/$layerId/json"
-
-				# TODO figure out why "-C -" doesn't work here
-				# "curl: (33) HTTP server doesn't seem to support byte ranges. Cannot resume."
-				# "HTTP/1.1 416 Requested Range Not Satisfiable"
-				if [ -f "$dir/$layerId/layer.tar" ]; then
-					# TODO hackpatch for no -C support :'(
-					echo "skipping existing ${layerId:0:12}"
-					continue
-				fi
-				curl -fSL --progress -H "Authorization: Bearer $token" "https://registry-1.docker.io/v2/$image/blobs/$imageLayer" -o "$dir/$layerId/layer.tar" # -C -
-			done
-			;;
-
-		*)
-			echo >&2 "error: unknown manifest schemaVersion ($imageIdentifier): '$schemaVersion'"
-			exit 1
-			;;
-	esac
-
-	echo
+	history=$(echo "$manifestJson" | jq '.history | [.[] | .v1Compatibility]')
+	imageId=$(echo "$history" | jq --raw-output .[0] | jq --raw-output .id)
 
 	if [ -s "$dir/tags-$imageFile.tmp" ]; then
 		echo -n ', ' >> "$dir/tags-$imageFile.tmp"
@@ -247,6 +75,30 @@ while [ $# -gt 0 ]; do
 		images=( "${images[@]}" "$image" )
 	fi
 	echo -n '"'"$tag"'": "'"$imageId"'"' >> "$dir/tags-$imageFile.tmp"
+
+	echo "Downloading '${image}:${tag}@${digest}' (${#layers[@]} layers)..."
+	for i in "${!layers[@]}"; do
+		imageJson=$(echo "$history" | jq --raw-output .[${i}])
+		imageId=$(echo "$imageJson" | jq --raw-output .id)
+		imageLayer=${layers[$i]}
+
+		mkdir -p "$dir/$imageId"
+		echo '1.0' > "$dir/$imageId/VERSION"
+
+		echo "$imageJson" > "$dir/$imageId/json"
+
+		# TODO figure out why "-C -" doesn't work here
+		# "curl: (33) HTTP server doesn't seem to support byte ranges. Cannot resume."
+		# "HTTP/1.1 416 Requested Range Not Satisfiable"
+		if [ -f "$dir/$imageId/layer.tar" ]; then
+			# TODO hackpatch for no -C support :'(
+			echo "skipping existing ${imageId:0:12}"
+			continue
+		fi
+		token="$(curl -sSL "https://auth.docker.io/token?service=registry.docker.io&scope=repository:$image:pull" | jq --raw-output .token)"
+		curl -SL --progress -H "Authorization: Bearer $token" "https://registry-1.docker.io/v2/$image/blobs/$imageLayer" -o "$dir/$imageId/layer.tar" # -C -
+	done
+	echo
 done
 
 echo -n '{' > "$dir/repositories"
@@ -263,12 +115,6 @@ done
 echo -n $'\n}\n' >> "$dir/repositories"
 
 rm -f "$dir"/tags-*.tmp
-
-if [ -z "$doNotGenerateManifestJson" ] && [ "${#manifestJsonEntries[@]}" -gt 0 ]; then
-	echo '[]' | jq --raw-output ".$(for entry in "${manifestJsonEntries[@]}"; do echo " + [ $entry ]"; done)" > "$dir/manifest.json"
-else
-	rm -f "$dir/manifest.json"
-fi
 
 echo "Download of images into '$dir' complete."
 echo "Use something like the following to load the result into a Docker daemon:"

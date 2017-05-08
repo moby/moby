@@ -2,17 +2,17 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/request"
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
-func (s *DockerSuite) TestLogsAPIWithStdout(c *check.C) {
+func (s *DockerSuite) TestLogsApiWithStdout(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "-t", "busybox", "/bin/sh", "-c", "while true; do echo hello; sleep 1; done")
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), checker.IsNil)
@@ -25,7 +25,7 @@ func (s *DockerSuite) TestLogsAPIWithStdout(c *check.C) {
 	chLog := make(chan logOut)
 
 	go func() {
-		res, body, err := request.Get(fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&timestamps=1", id))
+		res, body, err := sockRequestRaw("GET", fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&timestamps=1", id), nil, "")
 		if err != nil {
 			chLog <- logOut{"", nil, err}
 			return
@@ -51,11 +51,11 @@ func (s *DockerSuite) TestLogsAPIWithStdout(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestLogsAPINoStdoutNorStderr(c *check.C) {
+func (s *DockerSuite) TestLogsApiNoStdoutNorStderr(c *check.C) {
 	name := "logs_test"
 	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
 
-	status, body, err := request.SockRequest("GET", fmt.Sprintf("/containers/%s/logs", name), nil, daemonHost())
+	status, body, err := sockRequest("GET", fmt.Sprintf("/containers/%s/logs", name), nil)
 	c.Assert(status, checker.Equals, http.StatusBadRequest)
 	c.Assert(err, checker.IsNil)
 
@@ -64,12 +64,12 @@ func (s *DockerSuite) TestLogsAPINoStdoutNorStderr(c *check.C) {
 }
 
 // Regression test for #12704
-func (s *DockerSuite) TestLogsAPIFollowEmptyOutput(c *check.C) {
+func (s *DockerSuite) TestLogsApiFollowEmptyOutput(c *check.C) {
 	name := "logs_test"
 	t0 := time.Now()
 	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "sleep", "10")
 
-	_, body, err := request.Get(fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&stderr=1&tail=all", name))
+	_, body, err := sockRequestRaw("GET", fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&stderr=1&tail=all", name), bytes.NewBuffer(nil), "")
 	t1 := time.Now()
 	c.Assert(err, checker.IsNil)
 	body.Close()
@@ -79,9 +79,9 @@ func (s *DockerSuite) TestLogsAPIFollowEmptyOutput(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestLogsAPIContainerNotFound(c *check.C) {
+func (s *DockerSuite) TestLogsApiContainerNotFound(c *check.C) {
 	name := "nonExistentContainer"
-	resp, _, err := request.Get(fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&stderr=1&tail=all", name))
+	resp, _, err := sockRequestRaw("GET", fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&stderr=1&tail=all", name), bytes.NewBuffer(nil), "")
 	c.Assert(err, checker.IsNil)
 	c.Assert(resp.StatusCode, checker.Equals, http.StatusNotFound)
 }

@@ -16,11 +16,8 @@ func (c *Cluster) resolveSystemAddr() (net.IP, error) {
 		return nil, err
 	}
 
-	var (
-		systemAddr      net.IP
-		systemInterface string
-		deviceFound     bool
-	)
+	var systemAddr net.IP
+	var systemInterface string
 
 	for _, intf := range interfaces {
 		// Skip non device or inactive interfaces
@@ -42,9 +39,6 @@ func (c *Cluster) resolveSystemAddr() (net.IP, error) {
 			if !ipAddr.IsGlobalUnicast() {
 				continue
 			}
-
-			// At least one non-loopback device is found and it is administratively up
-			deviceFound = true
 
 			if ipAddr.To4() != nil {
 				if interfaceAddr4 != nil {
@@ -77,13 +71,6 @@ func (c *Cluster) resolveSystemAddr() (net.IP, error) {
 	}
 
 	if systemAddr == nil {
-		if !deviceFound {
-			// If no non-loopback device type interface is found,
-			// fall back to the regular auto-detection mechanism.
-			// This is to cover the case where docker is running
-			// inside a container (eths are in fact veths).
-			return c.resolveSystemAddrViaSubnetCheck()
-		}
 		return nil, errNoIP
 	}
 

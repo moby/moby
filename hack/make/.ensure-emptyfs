@@ -1,7 +1,7 @@
-#!/usr/bin/env bash
+#!/bin/bash
 set -e
 
-if ! docker inspect -t image emptyfs &> /dev/null; then
+if ! docker inspect emptyfs &> /dev/null; then
 	# let's build a "docker save" tarball for "emptyfs"
 	# see https://github.com/docker/docker/pull/5262
 	# and also https://github.com/docker/docker/issues/4242

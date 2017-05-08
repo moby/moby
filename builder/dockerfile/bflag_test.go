@@ -35,10 +35,10 @@ func TestBuilderFlags(t *testing.T) {
 	}
 
 	if flStr1.IsUsed() == true {
-		t.Fatal("Test3 - str1 was not used!")
+		t.Fatalf("Test3 - str1 was not used!")
 	}
 	if flBool1.IsUsed() == true {
-		t.Fatal("Test3 - bool1 was not used!")
+		t.Fatalf("Test3 - bool1 was not used!")
 	}
 
 	// ---
@@ -53,16 +53,16 @@ func TestBuilderFlags(t *testing.T) {
 	}
 
 	if flStr1.Value != "HI" {
-		t.Fatal("Str1 was supposed to default to: HI")
+		t.Fatalf("Str1 was supposed to default to: HI")
 	}
 	if flBool1.IsTrue() {
-		t.Fatal("Bool1 was supposed to default to: false")
+		t.Fatalf("Bool1 was supposed to default to: false")
 	}
 	if flStr1.IsUsed() == true {
-		t.Fatal("Str1 was not used!")
+		t.Fatalf("Str1 was not used!")
 	}
 	if flBool1.IsUsed() == true {
-		t.Fatal("Bool1 was not used!")
+		t.Fatalf("Bool1 was not used!")
 	}
 
 	// ---
@@ -116,7 +116,7 @@ func TestBuilderFlags(t *testing.T) {
 	}
 
 	if !flBool1.IsTrue() {
-		t.Fatal("Test-b1 Bool1 was supposed to be true")
+		t.Fatalf("Test-b1 Bool1 was supposed to be true")
 	}
 
 	// ---
@@ -130,7 +130,7 @@ func TestBuilderFlags(t *testing.T) {
 	}
 
 	if !flBool1.IsTrue() {
-		t.Fatal("Test-b2 Bool1 was supposed to be true")
+		t.Fatalf("Test-b2 Bool1 was supposed to be true")
 	}
 
 	// ---
@@ -144,7 +144,7 @@ func TestBuilderFlags(t *testing.T) {
 	}
 
 	if flBool1.IsTrue() {
-		t.Fatal("Test-b3 Bool1 was supposed to be false")
+		t.Fatalf("Test-b3 Bool1 was supposed to be false")
 	}
 
 	// ---
@@ -179,9 +179,9 @@ func TestBuilderFlags(t *testing.T) {
 	}
 
 	if flStr1.Value != "BYE" {
-		t.Fatalf("Test %s, str1 should be BYE", bf.Args)
+		t.Fatalf("Teset %s, str1 should be BYE", bf.Args)
 	}
 	if !flBool1.IsTrue() {
-		t.Fatalf("Test %s, bool1 should be true", bf.Args)
+		t.Fatalf("Teset %s, bool1 should be true", bf.Args)
 	}
 }

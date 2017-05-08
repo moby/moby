@@ -1,98 +1,42 @@
 package daemon
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"testing"
 
-	"github.com/docker/docker/api/types"
-	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/pkg/testutil"
-	"github.com/stretchr/testify/require"
+	"github.com/docker/engine-api/types"
+	containertypes "github.com/docker/engine-api/types/container"
 )
 
-func newDaemonWithTmpRoot(t *testing.T) (*Daemon, func()) {
+func TestContainerDoubleDelete(t *testing.T) {
 	tmp, err := ioutil.TempDir("", "docker-daemon-unix-test-")
-	require.NoError(t, err)
-	d := &Daemon{
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmp)
+	daemon := &Daemon{
 		repository: tmp,
 		root:       tmp,
 	}
-	d.containers = container.NewMemoryStore()
-	return d, func() { os.RemoveAll(tmp) }
-}
+	daemon.containers = container.NewMemoryStore()
 
-func newContainerWithState(state *container.State) *container.Container {
-	return &container.Container{
+	container := &container.Container{
 		CommonContainer: container.CommonContainer{
 			ID:     "test",
-			State:  state,
+			State:  container.NewState(),
 			Config: &containertypes.Config{},
 		},
 	}
-
-}
-
-// TestContainerDelete tests that a useful error message and instructions is
-// given when attempting to remove a container (#30842)
-func TestContainerDelete(t *testing.T) {
-	tt := []struct {
-		errMsg        string
-		fixMsg        string
-		initContainer func() *container.Container
-	}{
-		// a paused container
-		{
-			errMsg: "cannot remove a paused container",
-			fixMsg: "Unpause and then stop the container before attempting removal or force remove",
-			initContainer: func() *container.Container {
-				return newContainerWithState(&container.State{Paused: true, Running: true})
-			}},
-		// a restarting container
-		{
-			errMsg: "cannot remove a restarting container",
-			fixMsg: "Stop the container before attempting removal or force remove",
-			initContainer: func() *container.Container {
-				c := newContainerWithState(container.NewState())
-				c.SetRunning(0, true)
-				c.SetRestarting(&container.ExitStatus{})
-				return c
-			}},
-		// a running container
-		{
-			errMsg: "cannot remove a running container",
-			fixMsg: "Stop the container before attempting removal or force remove",
-			initContainer: func() *container.Container {
-				return newContainerWithState(&container.State{Running: true})
-			}},
-	}
-
-	for _, te := range tt {
-		c := te.initContainer()
-		d, cleanup := newDaemonWithTmpRoot(t)
-		defer cleanup()
-		d.containers.Add(c.ID, c)
-
-		err := d.ContainerRm(c.ID, &types.ContainerRmConfig{ForceRemove: false})
-		testutil.ErrorContains(t, err, te.errMsg)
-		testutil.ErrorContains(t, err, te.fixMsg)
-	}
-}
-
-func TestContainerDoubleDelete(t *testing.T) {
-	c := newContainerWithState(container.NewState())
+	daemon.containers.Add(container.ID, container)
 
 	// Mark the container as having a delete in progress
-	c.SetRemovalInProgress()
+	container.SetRemovalInProgress()
 
-	d, cleanup := newDaemonWithTmpRoot(t)
-	defer cleanup()
-	d.containers.Add(c.ID, c)
-
-	// Try to remove the container when its state is removalInProgress.
-	// It should return an error indicating it is under removal progress.
-	err := d.ContainerRm(c.ID, &types.ContainerRmConfig{ForceRemove: true})
-	testutil.ErrorContains(t, err, fmt.Sprintf("removal of container %s is already in progress", c.ID))
+	// Try to remove the container when its start is removalInProgress.
+	// It should ignore the container and not return an error.
+	if err := daemon.ContainerRm(container.ID, &types.ContainerRmConfig{ForceRemove: true}); err != nil {
+		t.Fatal(err)
+	}
 }

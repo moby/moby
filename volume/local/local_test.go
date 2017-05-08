@@ -12,22 +12,6 @@ import (
 	"github.com/docker/docker/pkg/mount"
 )
 
-func TestGetAddress(t *testing.T) {
-	cases := map[string]string{
-		"addr=11.11.11.1":   "11.11.11.1",
-		" ":                 "",
-		"addr=":             "",
-		"addr=2001:db8::68": "2001:db8::68",
-	}
-	for name, success := range cases {
-		v := getAddress(name)
-		if v != success {
-			t.Errorf("Test case failed for %s actual: %s expected : %s", name, v, success)
-		}
-	}
-
-}
-
 func TestRemove(t *testing.T) {
 	// TODO Windows: Investigate why this test fails on Windows under CI
 	//               but passes locally.
@@ -180,9 +164,10 @@ func TestValidateName(t *testing.T) {
 }
 
 func TestCreateWithOpts(t *testing.T) {
-	if runtime.GOOS == "windows" || runtime.GOOS == "solaris" {
+	if runtime.GOOS == "windows" {
 		t.Skip()
 	}
+
 	rootDir, err := ioutil.TempDir("", "local-volume-test")
 	if err != nil {
 		t.Fatal(err)

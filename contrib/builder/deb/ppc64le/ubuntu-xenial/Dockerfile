@@ -4,10 +4,18 @@
 
 FROM ppc64le/ubuntu:xenial
 
-RUN apt-get update && apt-get install -y apparmor bash-completion btrfs-tools build-essential cmake curl ca-certificates debhelper dh-apparmor dh-systemd git libapparmor-dev libdevmapper-dev libltdl-dev pkg-config vim-common libseccomp-dev libsystemd-dev --no-install-recommends && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y apparmor bash-completion btrfs-tools build-essential curl ca-certificates debhelper dh-apparmor dh-systemd git golang-go libapparmor-dev libdevmapper-dev libltdl-dev libseccomp-dev libsqlite3-dev libsystemd-dev pkg-config --no-install-recommends && rm -rf /var/lib/apt/lists/*
 
-ENV GO_VERSION 1.7.5
-RUN curl -fsSL "https://golang.org/dl/go${GO_VERSION}.linux-ppc64le.tar.gz" | tar xzC /usr/local
+ENV GO_VERSION 1.6.3
+ENV GO_DOWNLOAD_URL https://golang.org/dl/go${GO_VERSION}.src.tar.gz
+ENV GOROOT_BOOTSTRAP /usr/lib/go-1.6
+
+RUN curl -fsSL "$GO_DOWNLOAD_URL" -o golang.tar.gz \
+	&& tar -C /usr/local -xzf golang.tar.gz \
+	&& rm golang.tar.gz \
+	&& cd /usr/local/go/src && ./make.bash 2>&1 \
+	&& apt-get purge -y golang-go && apt-get autoremove -y
+
 ENV PATH $PATH:/usr/local/go/bin
 
 ENV AUTO_GOPATH 1

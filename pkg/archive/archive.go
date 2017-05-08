@@ -27,6 +27,10 @@ import (
 )
 
 type (
+	// Archive is a type of io.ReadCloser which has two interfaces Read and Closer.
+	Archive io.ReadCloser
+	// Reader is a type of io.Reader.
+	Reader io.Reader
 	// Compression is the state represents if compressed or not.
 	Compression int
 	// WhiteoutFormat is the format of whiteouts unpacked
@@ -35,7 +39,6 @@ type (
 	TarChownOptions struct {
 		UID, GID int
 	}
-
 	// TarOptions wraps the tar options.
 	TarOptions struct {
 		IncludeFiles     []string
@@ -145,7 +148,7 @@ func DetectCompression(source []byte) Compression {
 			logrus.Debug("Len too short")
 			continue
 		}
-		if bytes.Equal(m, source[:len(m)]) {
+		if bytes.Compare(m, source[:len(m)]) == 0 {
 			return compression
 		}
 	}
@@ -225,93 +228,6 @@ func CompressStream(dest io.Writer, compression Compression) (io.WriteCloser, er
 	}
 }
 
-// TarModifierFunc is a function that can be passed to ReplaceFileTarWrapper to
-// modify the contents or header of an entry in the archive. If the file already
-// exists in the archive the TarModifierFunc will be called with the Header and
-// a reader which will return the files content. If the file does not exist both
-// header and content will be nil.
-type TarModifierFunc func(path string, header *tar.Header, content io.Reader) (*tar.Header, []byte, error)
-
-// ReplaceFileTarWrapper converts inputTarStream to a new tar stream. Files in the
-// tar stream are modified if they match any of the keys in mods.
-func ReplaceFileTarWrapper(inputTarStream io.ReadCloser, mods map[string]TarModifierFunc) io.ReadCloser {
-	pipeReader, pipeWriter := io.Pipe()
-
-	go func() {
-		tarReader := tar.NewReader(inputTarStream)
-		tarWriter := tar.NewWriter(pipeWriter)
-		defer inputTarStream.Close()
-		defer tarWriter.Close()
-
-		modify := func(name string, original *tar.Header, modifier TarModifierFunc, tarReader io.Reader) error {
-			header, data, err := modifier(name, original, tarReader)
-			switch {
-			case err != nil:
-				return err
-			case header == nil:
-				return nil
-			}
-
-			header.Name = name
-			header.Size = int64(len(data))
-			if err := tarWriter.WriteHeader(header); err != nil {
-				return err
-			}
-			if len(data) != 0 {
-				if _, err := tarWriter.Write(data); err != nil {
-					return err
-				}
-			}
-			return nil
-		}
-
-		var err error
-		var originalHeader *tar.Header
-		for {
-			originalHeader, err = tarReader.Next()
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				pipeWriter.CloseWithError(err)
-				return
-			}
-
-			modifier, ok := mods[originalHeader.Name]
-			if !ok {
-				// No modifiers for this file, copy the header and data
-				if err := tarWriter.WriteHeader(originalHeader); err != nil {
-					pipeWriter.CloseWithError(err)
-					return
-				}
-				if _, err := pools.Copy(tarWriter, tarReader); err != nil {
-					pipeWriter.CloseWithError(err)
-					return
-				}
-				continue
-			}
-			delete(mods, originalHeader.Name)
-
-			if err := modify(originalHeader.Name, originalHeader, modifier, tarReader); err != nil {
-				pipeWriter.CloseWithError(err)
-				return
-			}
-		}
-
-		// Apply the modifiers that haven't matched any files in the archive
-		for name, modifier := range mods {
-			if err := modify(name, nil, modifier, nil); err != nil {
-				pipeWriter.CloseWithError(err)
-				return
-			}
-		}
-
-		pipeWriter.Close()
-
-	}()
-	return pipeReader
-}
-
 // Extension returns the extension of a file that uses the specified compression algorithm.
 func (compression *Compression) Extension() string {
 	switch *compression {
@@ -327,40 +243,8 @@ func (compression *Compression) Extension() string {
 	return ""
 }
 
-// FileInfoHeader creates a populated Header from fi.
-// Compared to archive pkg this function fills in more information.
-func FileInfoHeader(path, name string, fi os.FileInfo) (*tar.Header, error) {
-	var link string
-	if fi.Mode()&os.ModeSymlink != 0 {
-		var err error
-		link, err = os.Readlink(path)
-		if err != nil {
-			return nil, err
-		}
-	}
-	hdr, err := tar.FileInfoHeader(fi, link)
-	if err != nil {
-		return nil, err
-	}
-	hdr.Mode = int64(chmodTarEntry(os.FileMode(hdr.Mode)))
-	name, err = canonicalTarName(name, fi.IsDir())
-	if err != nil {
-		return nil, fmt.Errorf("tar: cannot canonicalize path: %v", err)
-	}
-	hdr.Name = name
-	if err := setHeaderForSpecialDevice(hdr, name, fi.Sys()); err != nil {
-		return nil, err
-	}
-	capability, _ := system.Lgetxattr(path, "security.capability")
-	if capability != nil {
-		hdr.Xattrs = make(map[string]string)
-		hdr.Xattrs["security.capability"] = string(capability)
-	}
-	return hdr, nil
-}
-
 type tarWhiteoutConverter interface {
-	ConvertWrite(*tar.Header, string, os.FileInfo) (*tar.Header, error)
+	ConvertWrite(*tar.Header, string, os.FileInfo) error
 	ConvertRead(*tar.Header, string) (bool, error)
 }
 
@@ -402,18 +286,33 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 		return err
 	}
 
-	hdr, err := FileInfoHeader(path, name, fi)
+	link := ""
+	if fi.Mode()&os.ModeSymlink != 0 {
+		if link, err = os.Readlink(path); err != nil {
+			return err
+		}
+	}
+
+	hdr, err := tar.FileInfoHeader(fi, link)
+	if err != nil {
+		return err
+	}
+	hdr.Mode = int64(chmodTarEntry(os.FileMode(hdr.Mode)))
+
+	name, err = canonicalTarName(name, fi.IsDir())
+	if err != nil {
+		return fmt.Errorf("tar: cannot canonicalize path: %v", err)
+	}
+	hdr.Name = name
+
+	inode, err := setHeaderForSpecialDevice(hdr, ta, name, fi.Sys())
 	if err != nil {
 		return err
 	}
 
 	// if it's not a directory and has more than 1 link,
-	// it's hard linked, so set the type flag accordingly
+	// it's hardlinked, so set the type flag accordingly
 	if !fi.IsDir() && hasHardlinks(fi) {
-		inode, err := getInodeFromStat(fi.Sys())
-		if err != nil {
-			return err
-		}
 		// a link should have a name that it links too
 		// and that linked name should be first in the tar archive
 		if oldpath, ok := ta.SeenFiles[inode]; ok {
@@ -423,6 +322,12 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 		} else {
 			ta.SeenFiles[inode] = name
 		}
+	}
+
+	capability, _ := system.Lgetxattr(path, "security.capability")
+	if capability != nil {
+		hdr.Xattrs = make(map[string]string)
+		hdr.Xattrs["security.capability"] = string(capability)
 	}
 
 	//handle re-mapping container ID mappings back to host ID mappings before
@@ -446,24 +351,8 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 	}
 
 	if ta.WhiteoutConverter != nil {
-		wo, err := ta.WhiteoutConverter.ConvertWrite(hdr, path, fi)
-		if err != nil {
+		if err := ta.WhiteoutConverter.ConvertWrite(hdr, path, fi); err != nil {
 			return err
-		}
-
-		// If a new whiteout file exists, write original hdr, then
-		// replace hdr with wo to be written after. Whiteouts should
-		// always be written after the original. Note the original
-		// hdr may have been updated to be a whiteout with returning
-		// a whiteout header
-		if wo != nil {
-			if err := ta.TarWriter.WriteHeader(hdr); err != nil {
-				return err
-			}
-			if hdr.Typeflag == tar.TypeReg && hdr.Size > 0 {
-				return fmt.Errorf("tar: cannot use whiteout for non-empty file")
-			}
-			hdr = wo
 		}
 	}
 
@@ -472,10 +361,7 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 	}
 
 	if hdr.Typeflag == tar.TypeReg && hdr.Size > 0 {
-		// We use system.OpenSequential to ensure we use sequential file
-		// access on Windows to avoid depleting the standby list.
-		// On Linux, this equates to a regular os.Open.
-		file, err := system.OpenSequential(path)
+		file, err := os.Open(path)
 		if err != nil {
 			return err
 		}
@@ -513,10 +399,8 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 		}
 
 	case tar.TypeReg, tar.TypeRegA:
-		// Source is regular file. We use system.OpenFileSequential to use sequential
-		// file access to avoid depleting the standby list on Windows.
-		// On Linux, this equates to a regular os.OpenFile
-		file, err := system.OpenFileSequential(path, os.O_CREATE|os.O_WRONLY, hdrInfo.Mode())
+		// Source is regular file
+		file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, hdrInfo.Mode())
 		if err != nil {
 			return err
 		}
@@ -651,7 +535,8 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 	// on platforms other than Windows.
 	srcPath = fixVolumePathPrefix(srcPath)
 
-	pm, err := fileutils.NewPatternMatcher(options.ExcludePatterns)
+	patterns, patDirs, exceptions, err := fileutils.CleanPatterns(options.ExcludePatterns)
+
 	if err != nil {
 		return nil, err
 	}
@@ -748,7 +633,7 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 				// is asking for that file no matter what - which is true
 				// for some files, like .dockerignore and Dockerfile (sometimes)
 				if include != relFilePath {
-					skip, err = pm.Matches(relFilePath)
+					skip, err = fileutils.OptimizedMatches(relFilePath, patterns, patDirs)
 					if err != nil {
 						logrus.Errorf("Error matching %s: %v", relFilePath, err)
 						return err
@@ -758,7 +643,7 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 				if skip {
 					// If we want to skip this file and its a directory
 					// then we should first check to see if there's an
-					// excludes pattern (e.g. !dir/file) that starts with this
+					// excludes pattern (eg !dir/file) that starts with this
 					// dir. If so then we can't skip this dir.
 
 					// Its not a dir then so we can just return/skip.
@@ -767,17 +652,18 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 					}
 
 					// No exceptions (!...) in patterns so just skip dir
-					if !pm.Exclusions() {
+					if !exceptions {
 						return filepath.SkipDir
 					}
 
 					dirSlash := relFilePath + string(filepath.Separator)
 
-					for _, pat := range pm.Patterns() {
-						if !pat.Exclusion() {
+					for _, pat := range patterns {
+						if pat[0] != '!' {
 							continue
 						}
-						if strings.HasPrefix(pat.String()+string(filepath.Separator), dirSlash) {
+						pat = pat[1:] + string(filepath.Separator)
+						if strings.HasPrefix(pat, dirSlash) {
 							// found a match - so can't skip this dir
 							return nil
 						}
@@ -1164,7 +1050,7 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 		return nil
 	})
 	defer func() {
-		if er := <-errC; err == nil && er != nil {
+		if er := <-errC; err != nil {
 			err = er
 		}
 	}()
@@ -1220,7 +1106,7 @@ func cmdStream(cmd *exec.Cmd, input io.Reader) (io.ReadCloser, <-chan struct{}, 
 // NewTempArchive reads the content of src into a temporary file, and returns the contents
 // of that file as an archive. The archive can only be read once - as soon as reading completes,
 // the file will be deleted.
-func NewTempArchive(src io.Reader, dir string) (*TempArchive, error) {
+func NewTempArchive(src Archive, dir string) (*TempArchive, error) {
 	f, err := ioutil.TempFile(dir, "")
 	if err != nil {
 		return nil, err

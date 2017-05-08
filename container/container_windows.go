@@ -7,7 +7,9 @@ import (
 	"os"
 	"path/filepath"
 
-	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/utils"
+	"github.com/docker/docker/volume"
+	containertypes "github.com/docker/engine-api/types/container"
 )
 
 // Container holds fields specific to the Windows implementation. See
@@ -15,8 +17,10 @@ import (
 type Container struct {
 	CommonContainer
 
+	HostnamePath   string
+	HostsPath      string
+	ResolvConfPath string
 	// Fields below here are platform specific.
-	NetworkSharedContainerID string
 }
 
 // ExitStatus provides exit reasons for a container.
@@ -26,14 +30,14 @@ type ExitStatus struct {
 }
 
 // CreateDaemonEnvironment creates a new environment variable slice for this container.
-func (container *Container) CreateDaemonEnvironment(_ bool, linkedEnv []string) []string {
+func (container *Container) CreateDaemonEnvironment(linkedEnv []string) []string {
 	// because the env on the container can override certain default values
 	// we need to replace the 'env' keys where they match and append anything
 	// else.
-	return ReplaceOrAppendEnvValues(linkedEnv, container.Config.Env)
+	return utils.ReplaceOrAppendEnvValues(linkedEnv, container.Config.Env)
 }
 
-// UnmountIpcMounts unmounts Ipc related mounts.
+// UnmountIpcMounts unmount Ipc related mounts.
 // This is a NOOP on windows.
 func (container *Container) UnmountIpcMounts(unmount func(pth string) error) {
 }
@@ -43,66 +47,28 @@ func (container *Container) IpcMounts() []Mount {
 	return nil
 }
 
-// SecretMount returns the mount for the secret path
-func (container *Container) SecretMount() *Mount {
+// UnmountVolumes explicitly unmounts volumes from the container.
+func (container *Container) UnmountVolumes(forceSyscall bool, volumeEventLog func(name, action string, attributes map[string]string)) error {
 	return nil
-}
-
-// UnmountSecrets unmounts the fs for secrets
-func (container *Container) UnmountSecrets() error {
-	return nil
-}
-
-// DetachAndUnmount unmounts all volumes.
-// On Windows it only delegates to `UnmountVolumes` since there is nothing to
-// force unmount.
-func (container *Container) DetachAndUnmount(volumeEventLog func(name, action string, attributes map[string]string)) error {
-	return container.UnmountVolumes(volumeEventLog)
 }
 
 // TmpfsMounts returns the list of tmpfs mounts
-func (container *Container) TmpfsMounts() ([]Mount, error) {
+func (container *Container) TmpfsMounts() []Mount {
 	var mounts []Mount
-	return mounts, nil
+	return mounts
 }
 
 // UpdateContainer updates configuration of a container
 func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfig) error {
 	container.Lock()
 	defer container.Unlock()
-
 	resources := hostConfig.Resources
-	if resources.CPUShares != 0 ||
-		resources.Memory != 0 ||
-		resources.NanoCPUs != 0 ||
-		resources.CgroupParent != "" ||
-		resources.BlkioWeight != 0 ||
-		len(resources.BlkioWeightDevice) != 0 ||
-		len(resources.BlkioDeviceReadBps) != 0 ||
-		len(resources.BlkioDeviceWriteBps) != 0 ||
-		len(resources.BlkioDeviceReadIOps) != 0 ||
-		len(resources.BlkioDeviceWriteIOps) != 0 ||
-		resources.CPUPeriod != 0 ||
-		resources.CPUQuota != 0 ||
-		resources.CPURealtimePeriod != 0 ||
-		resources.CPURealtimeRuntime != 0 ||
-		resources.CpusetCpus != "" ||
-		resources.CpusetMems != "" ||
-		len(resources.Devices) != 0 ||
-		len(resources.DeviceCgroupRules) != 0 ||
-		resources.DiskQuota != 0 ||
-		resources.KernelMemory != 0 ||
-		resources.MemoryReservation != 0 ||
-		resources.MemorySwap != 0 ||
-		resources.MemorySwappiness != nil ||
-		resources.OomKillDisable != nil ||
-		resources.PidsLimit != 0 ||
-		len(resources.Ulimits) != 0 ||
-		resources.CPUCount != 0 ||
-		resources.CPUPercent != 0 ||
-		resources.IOMaximumIOps != 0 ||
-		resources.IOMaximumBandwidth != 0 {
-		return fmt.Errorf("resource updating isn't supported on Windows")
+	if resources.BlkioWeight != 0 || resources.CPUShares != 0 ||
+		resources.CPUPeriod != 0 || resources.CPUQuota != 0 ||
+		resources.CpusetCpus != "" || resources.CpusetMems != "" ||
+		resources.Memory != 0 || resources.MemorySwap != 0 ||
+		resources.MemoryReservation != 0 || resources.KernelMemory != 0 {
+		return fmt.Errorf("Resource updating isn't supported on Windows")
 	}
 	// update HostConfig of container
 	if hostConfig.RestartPolicy.Name != "" {
@@ -112,6 +78,13 @@ func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfi
 		container.HostConfig.RestartPolicy = hostConfig.RestartPolicy
 	}
 	return nil
+}
+
+// appendNetworkMounts appends any network mounts to the array of mount points passed in.
+// Windows does not support network mounts (not to be confused with SMB network mounts), so
+// this is a no-op.
+func appendNetworkMounts(container *Container, volumeMounts []volume.MountPoint) ([]volume.MountPoint, error) {
+	return volumeMounts, nil
 }
 
 // cleanResourcePath cleans a resource path by removing C:\ syntax, and prepares
@@ -131,7 +104,9 @@ func (container *Container) BuildHostnameFile() error {
 	return nil
 }
 
-// EnableServiceDiscoveryOnDefaultNetwork Enable service discovery on default network
-func (container *Container) EnableServiceDiscoveryOnDefaultNetwork() bool {
-	return true
+// canMountFS determines if the file system for the container
+// can be mounted locally. In the case of Windows, this is not possible
+// for Hyper-V containers during WORKDIR execution for example.
+func (container *Container) canMountFS() bool {
+	return !containertypes.Isolation.IsHyperV(container.HostConfig.Isolation)
 }

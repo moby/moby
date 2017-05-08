@@ -6,48 +6,38 @@ import (
 	"io"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/opencontainers/go-digest"
+	"github.com/docker/distribution/digest"
+	"github.com/docker/engine-api/types/container"
 )
 
 // ID is the content-addressable ID of an image.
 type ID digest.Digest
 
 func (id ID) String() string {
-	return id.Digest().String()
-}
-
-// Digest converts ID into a digest
-func (id ID) Digest() digest.Digest {
-	return digest.Digest(id)
-}
-
-// IDFromDigest creates an ID from a digest
-func IDFromDigest(digest digest.Digest) ID {
-	return ID(digest)
+	return digest.Digest(id).String()
 }
 
 // V1Image stores the V1 image configuration.
 type V1Image struct {
-	// ID is a unique 64 character identifier of the image
+	// ID a unique 64 character identifier of the image
 	ID string `json:"id,omitempty"`
-	// Parent is the ID of the parent image
+	// Parent id of the image
 	Parent string `json:"parent,omitempty"`
-	// Comment is the commit message that was set when committing the image
+	// Comment user added comment
 	Comment string `json:"comment,omitempty"`
-	// Created is the timestamp at which the image was created
+	// Created timestamp when image was created
 	Created time.Time `json:"created"`
 	// Container is the id of the container used to commit
 	Container string `json:"container,omitempty"`
 	// ContainerConfig is the configuration of the container that is committed into the image
 	ContainerConfig container.Config `json:"container_config,omitempty"`
-	// DockerVersion specifies the version of Docker that was used to build the image
+	// DockerVersion specifies version on which image is built
 	DockerVersion string `json:"docker_version,omitempty"`
-	// Author is the name of the author that was specified when committing the image
+	// Author of the image
 	Author string `json:"author,omitempty"`
 	// Config is the configuration of the container received from the client
 	Config *container.Config `json:"config,omitempty"`
-	// Architecture is the hardware that the image is built and runs on
+	// Architecture is the hardware that the image is build and runs on
 	Architecture string `json:"architecture,omitempty"`
 	// OS is the operating system used to build and run the image
 	OS string `json:"os,omitempty"`
@@ -82,9 +72,9 @@ func (img *Image) ID() ID {
 	return img.computedID
 }
 
-// ImageID stringifies ID.
+// ImageID stringizes ID.
 func (img *Image) ImageID() string {
-	return img.ID().String()
+	return string(img.ID())
 }
 
 // RunConfig returns the image's container config.
@@ -112,13 +102,13 @@ func (img *Image) MarshalJSON() ([]byte, error) {
 
 // History stores build commands that were used to create an image
 type History struct {
-	// Created is the timestamp at which the image was created
+	// Created timestamp for build point
 	Created time.Time `json:"created"`
-	// Author is the name of the author that was specified when committing the image
+	// Author of the build point
 	Author string `json:"author,omitempty"`
-	// CreatedBy keeps the Dockerfile command used while building the image
+	// CreatedBy keeps the Dockerfile command used while building image.
 	CreatedBy string `json:"created_by,omitempty"`
-	// Comment is the commit message that was set when committing the image
+	// Comment is custom message set by the user when creating the image.
 	Comment string `json:"comment,omitempty"`
 	// EmptyLayer is set to true if this history item did not generate a
 	// layer. Otherwise, the history item is associated with the next
@@ -126,7 +116,7 @@ type History struct {
 	EmptyLayer bool `json:"empty_layer,omitempty"`
 }
 
-// Exporter provides interface for loading and saving images
+// Exporter provides interface for exporting and importing images
 type Exporter interface {
 	Load(io.ReadCloser, io.Writer, bool) error
 	// TODO: Load(net.Context, io.ReadCloser, <- chan StatusMessage) error
@@ -141,7 +131,7 @@ func NewFromJSON(src []byte) (*Image, error) {
 		return nil, err
 	}
 	if img.RootFS == nil {
-		return nil, errors.New("invalid image JSON, no RootFS key")
+		return nil, errors.New("Invalid image JSON, no RootFS key.")
 	}
 
 	img.rawJSON = src

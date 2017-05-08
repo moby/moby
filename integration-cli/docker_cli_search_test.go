@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
@@ -122,10 +122,10 @@ func (s *DockerSuite) TestSearchWithLimit(c *check.C) {
 	c.Assert(outSlice, checker.HasLen, limit+2) // 1 header, 1 carriage return
 
 	limit = 0
-	_, _, err = dockerCmdWithError("search", fmt.Sprintf("--limit=%d", limit), "docker")
+	out, _, err = dockerCmdWithError("search", fmt.Sprintf("--limit=%d", limit), "docker")
 	c.Assert(err, checker.Not(checker.IsNil))
 
 	limit = 200
-	_, _, err = dockerCmdWithError("search", fmt.Sprintf("--limit=%d", limit), "docker")
+	out, _, err = dockerCmdWithError("search", fmt.Sprintf("--limit=%d", limit), "docker")
 	c.Assert(err, checker.Not(checker.IsNil))
 }

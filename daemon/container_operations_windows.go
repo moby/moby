@@ -3,16 +3,28 @@
 package daemon
 
 import (
+	"fmt"
+
 	"github.com/docker/docker/container"
-	"github.com/docker/libnetwork"
+	networktypes "github.com/docker/engine-api/types/network"
 )
 
 func (daemon *Daemon) setupLinkedContainers(container *container.Container) ([]string, error) {
 	return nil, nil
 }
 
+// ConnectToNetwork connects a container to a network
+func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName string, endpointConfig *networktypes.EndpointSettings) error {
+	return fmt.Errorf("Windows does not support connecting a running container to a network")
+}
+
+// DisconnectFromNetwork disconnects container from a network.
+func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, networkName string, force bool) error {
+	return fmt.Errorf("Windows does not support disconnecting a running container from a network")
+}
+
 // getSize returns real size & virtual size
-func (daemon *Daemon) getSize(containerID string) (int64, int64) {
+func (daemon *Daemon) getSize(container *container.Container) (int64, int64) {
 	// TODO Windows
 	return 0, 0
 }
@@ -45,16 +57,4 @@ func isLinkable(child *container.Container) bool {
 
 func enableIPOnPredefinedNetwork() bool {
 	return true
-}
-
-func (daemon *Daemon) isNetworkHotPluggable() bool {
-	return false
-}
-
-func setupPathsAndSandboxOptions(container *container.Container, sboxOptions *[]libnetwork.SandboxOption) error {
-	return nil
-}
-
-func initializeNetworkingPaths(container *container.Container, nc *container.Container) {
-	container.NetworkSharedContainerID = nc.ID
 }

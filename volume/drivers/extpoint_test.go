@@ -3,7 +3,7 @@ package volumedrivers
 import (
 	"testing"
 
-	volumetestutils "github.com/docker/docker/volume/testutils"
+	"github.com/docker/docker/volume/testutils"
 )
 
 func TestGetDriver(t *testing.T) {
@@ -11,8 +11,8 @@ func TestGetDriver(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected error, was nil")
 	}
-	Register(volumetestutils.NewFakeDriver("fake"), "fake")
 
+	Register(volumetestutils.NewFakeDriver("fake"), "fake")
 	d, err := GetDriver("fake")
 	if err != nil {
 		t.Fatal(err)

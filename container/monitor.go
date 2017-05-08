@@ -23,7 +23,7 @@ func (container *Container) Reset(lock bool) {
 
 	// Re-create a brand new stdin pipe once the container exited
 	if container.Config.OpenStdin {
-		container.StreamConfig.NewInputPipes()
+		container.NewInputPipes()
 	}
 
 	if container.LogDriver != nil {

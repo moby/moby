@@ -3,23 +3,24 @@ package daemon
 import (
 	"fmt"
 
-	"github.com/docker/docker/api/types/container"
+	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/container"
 )
 
 // ContainerUpdate updates configuration of the container
-func (daemon *Daemon) ContainerUpdate(name string, hostConfig *container.HostConfig) (container.ContainerUpdateOKBody, error) {
+func (daemon *Daemon) ContainerUpdate(name string, hostConfig *container.HostConfig, validateHostname bool) (types.ContainerUpdateResponse, error) {
 	var warnings []string
 
-	warnings, err := daemon.verifyContainerSettings(hostConfig, nil, true)
+	warnings, err := daemon.verifyContainerSettings(hostConfig, nil, true, validateHostname)
 	if err != nil {
-		return container.ContainerUpdateOKBody{Warnings: warnings}, err
+		return types.ContainerUpdateResponse{Warnings: warnings}, err
 	}
 
 	if err := daemon.update(name, hostConfig); err != nil {
-		return container.ContainerUpdateOKBody{Warnings: warnings}, err
+		return types.ContainerUpdateResponse{Warnings: warnings}, err
 	}
 
-	return container.ContainerUpdateOKBody{Warnings: warnings}, nil
+	return types.ContainerUpdateResponse{Warnings: warnings}, nil
 }
 
 // ContainerUpdateCmdOnBuild updates Path and Args for the container with ID cID.
@@ -67,9 +68,7 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 	}
 
 	// if Restart Policy changed, we need to update container monitor
-	if hostConfig.RestartPolicy.Name != "" {
-		container.UpdateMonitor(hostConfig.RestartPolicy)
-	}
+	container.UpdateMonitor(hostConfig.RestartPolicy)
 
 	// If container is not running, update hostConfig struct is enough,
 	// resources will be updated when the container is started again.

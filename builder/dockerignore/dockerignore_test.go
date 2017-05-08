@@ -43,15 +43,15 @@ func TestReadAll(t *testing.T) {
 	}
 
 	if di[0] != "test1" {
-		t.Fatal("First element is not test1")
+		t.Fatalf("First element is not test1")
 	}
 	if di[1] != "/test2" {
-		t.Fatal("Second element is not /test2")
+		t.Fatalf("Second element is not /test2")
 	}
 	if di[2] != "/a/file/here" {
-		t.Fatal("Third element is not /a/file/here")
+		t.Fatalf("Third element is not /a/file/here")
 	}
 	if di[3] != "lastfile" {
-		t.Fatal("Fourth element is not lastfile")
+		t.Fatalf("Fourth element is not lastfile")
 	}
 }

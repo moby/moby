@@ -14,14 +14,13 @@ import (
 	"encoding/json"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/distribution/reference"
+	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/image"
 	imagev1 "github.com/docker/docker/image/v1"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/ioutils"
-	refstore "github.com/docker/docker/reference"
-	"github.com/opencontainers/go-digest"
+	"github.com/docker/docker/reference"
 )
 
 type graphIDRegistrar interface {
@@ -57,7 +56,7 @@ var (
 
 // Migrate takes an old graph directory and transforms the metadata into the
 // new format.
-func Migrate(root, driverName string, ls layer.Store, is image.Store, rs refstore.Store, ms metadata.Store) error {
+func Migrate(root, driverName string, ls layer.Store, is image.Store, rs reference.Store, ms metadata.Store) error {
 	graphDir := filepath.Join(root, graphDirName)
 	if _, err := os.Lstat(graphDir); os.IsNotExist(err) {
 		return nil
@@ -196,7 +195,10 @@ func saveMappings(root string, mappings map[string]image.ID) error {
 		return err
 	}
 	defer f.Close()
-	return json.NewEncoder(f).Encode(mappings)
+	if err := json.NewEncoder(f).Encode(mappings); err != nil {
+		return err
+	}
+	return nil
 }
 
 func migrateImages(root string, ls graphIDRegistrar, is image.Store, ms metadata.Store, mappings map[string]image.ID) error {
@@ -292,8 +294,8 @@ func migrateContainers(root string, ls graphIDMounter, is image.Store, imageMapp
 }
 
 type refAdder interface {
-	AddTag(ref reference.Named, id digest.Digest, force bool) error
-	AddDigest(ref reference.Canonical, id digest.Digest, force bool) error
+	AddTag(ref reference.Named, id image.ID, force bool) error
+	AddDigest(ref reference.Canonical, id image.ID, force bool) error
 }
 
 func migrateRefs(root, driverName string, rs refAdder, mappings map[string]image.ID) error {
@@ -323,23 +325,19 @@ func migrateRefs(root, driverName string, rs refAdder, mappings map[string]image
 	for name, repo := range repos.Repositories {
 		for tag, id := range repo {
 			if strongID, exists := mappings[id]; exists {
-				ref, err := reference.ParseNormalizedNamed(name)
+				ref, err := reference.WithName(name)
 				if err != nil {
 					logrus.Errorf("migrate tags: invalid name %q, %q", name, err)
 					continue
 				}
-				if !reference.IsNameOnly(ref) {
-					logrus.Errorf("migrate tags: invalid name %q, unexpected tag or digest", name)
-					continue
-				}
-				if dgst, err := digest.Parse(tag); err == nil {
-					canonical, err := reference.WithDigest(reference.TrimNamed(ref), dgst)
+				if dgst, err := digest.ParseDigest(tag); err == nil {
+					canonical, err := reference.WithDigest(ref, dgst)
 					if err != nil {
 						logrus.Errorf("migrate tags: invalid digest %q, %q", dgst, err)
 						continue
 					}
-					if err := rs.AddDigest(canonical, strongID.Digest(), false); err != nil {
-						logrus.Errorf("can't migrate digest %q for %q, err: %q", reference.FamiliarString(ref), strongID, err)
+					if err := rs.AddDigest(canonical, strongID, false); err != nil {
+						logrus.Errorf("can't migrate digest %q for %q, err: %q", ref.String(), strongID, err)
 					}
 				} else {
 					tagRef, err := reference.WithTag(ref, tag)
@@ -347,8 +345,8 @@ func migrateRefs(root, driverName string, rs refAdder, mappings map[string]image
 						logrus.Errorf("migrate tags: invalid tag %q, %q", tag, err)
 						continue
 					}
-					if err := rs.AddTag(tagRef, strongID.Digest(), false); err != nil {
-						logrus.Errorf("can't migrate tag %q for %q, err: %q", reference.FamiliarString(ref), strongID, err)
+					if err := rs.AddTag(tagRef, strongID, false); err != nil {
+						logrus.Errorf("can't migrate tag %q for %q, err: %q", ref.String(), strongID, err)
 					}
 				}
 				logrus.Infof("migrated tag %s:%s to point to %s", name, tag, strongID)
@@ -430,7 +428,7 @@ func migrateImage(id, root string, ls graphIDRegistrar, is image.Store, ms metad
 	if err != nil {
 		return err
 	}
-	diffID, err := digest.Parse(string(diffIDData))
+	diffID, err := digest.ParseDigest(string(diffIDData))
 	if err != nil {
 		return err
 	}
@@ -482,7 +480,7 @@ func migrateImage(id, root string, ls graphIDRegistrar, is image.Store, ms metad
 
 	checksum, err := ioutil.ReadFile(filepath.Join(root, graphDirName, id, "checksum"))
 	if err == nil { // best effort
-		dgst, err := digest.Parse(string(checksum))
+		dgst, err := digest.ParseDigest(string(checksum))
 		if err == nil {
 			V2MetadataService := metadata.NewV2MetadataService(ms)
 			V2MetadataService.Add(layer.DiffID(), metadata.V2Metadata{Digest: dgst})

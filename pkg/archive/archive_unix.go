@@ -41,25 +41,7 @@ func chmodTarEntry(perm os.FileMode) os.FileMode {
 	return perm // noop for unix as golang APIs provide perm bits correctly
 }
 
-func setHeaderForSpecialDevice(hdr *tar.Header, name string, stat interface{}) (err error) {
-	s, ok := stat.(*syscall.Stat_t)
-
-	if !ok {
-		err = errors.New("cannot convert stat value to syscall.Stat_t")
-		return
-	}
-
-	// Currently go does not fill in the major/minors
-	if s.Mode&syscall.S_IFBLK != 0 ||
-		s.Mode&syscall.S_IFCHR != 0 {
-		hdr.Devmajor = int64(major(uint64(s.Rdev)))
-		hdr.Devminor = int64(minor(uint64(s.Rdev)))
-	}
-
-	return
-}
-
-func getInodeFromStat(stat interface{}) (inode uint64, err error) {
+func setHeaderForSpecialDevice(hdr *tar.Header, ta *tarAppender, name string, stat interface{}) (inode uint64, err error) {
 	s, ok := stat.(*syscall.Stat_t)
 
 	if !ok {
@@ -68,6 +50,13 @@ func getInodeFromStat(stat interface{}) (inode uint64, err error) {
 	}
 
 	inode = uint64(s.Ino)
+
+	// Currently go does not fill in the major/minors
+	if s.Mode&syscall.S_IFBLK != 0 ||
+		s.Mode&syscall.S_IFCHR != 0 {
+		hdr.Devmajor = int64(major(uint64(s.Rdev)))
+		hdr.Devminor = int64(minor(uint64(s.Rdev)))
+	}
 
 	return
 }
@@ -107,7 +96,10 @@ func handleTarTypeBlockCharFifo(hdr *tar.Header, path string) error {
 		mode |= syscall.S_IFIFO
 	}
 
-	return system.Mknod(path, mode, int(system.Mkdev(hdr.Devmajor, hdr.Devminor)))
+	if err := system.Mknod(path, mode, int(system.Mkdev(hdr.Devmajor, hdr.Devminor))); err != nil {
+		return err
+	}
+	return nil
 }
 
 func handleLChmod(hdr *tar.Header, path string, hdrInfo os.FileInfo) error {

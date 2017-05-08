@@ -1,8 +1,6 @@
 package container
 
-import (
-	"sync"
-)
+import "sync"
 
 // memoryStore implements a Store in memory.
 type memoryStore struct {
@@ -27,9 +25,8 @@ func (c *memoryStore) Add(id string, cont *Container) {
 
 // Get returns a container from the store by id.
 func (c *memoryStore) Get(id string) *Container {
-	var res *Container
 	c.RLock()
-	res = c.s[id]
+	res := c.s[id]
 	c.RUnlock()
 	return res
 }
@@ -67,7 +64,7 @@ func (c *memoryStore) First(filter StoreFilter) *Container {
 }
 
 // ApplyAll calls the reducer function with every container in the store.
-// This operation is asynchronous in the memory store.
+// This operation is asyncronous in the memory store.
 // NOTE: Modifications to the store MUST NOT be done by the StoreReducer.
 func (c *memoryStore) ApplyAll(apply StoreReducer) {
 	wg := new(sync.WaitGroup)

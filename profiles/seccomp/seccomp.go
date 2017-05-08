@@ -7,8 +7,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/stringutils"
+	"github.com/docker/engine-api/types"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	libseccomp "github.com/seccomp/libseccomp-golang"
 )
@@ -20,7 +20,7 @@ func GetDefaultProfile(rs *specs.Spec) (*specs.Seccomp, error) {
 	return setupSeccomp(DefaultProfile(), rs)
 }
 
-// LoadProfile takes a json string and decodes the seccomp profile.
+// LoadProfile takes a file path and decodes the seccomp profile.
 func LoadProfile(body string, rs *specs.Spec) (*specs.Seccomp, error) {
 	var config types.Seccomp
 	if err := json.Unmarshal([]byte(body), &config); err != nil {

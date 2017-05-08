@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"path/filepath"
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
@@ -12,7 +11,7 @@ import (
 	"github.com/docker/docker/pkg/system"
 )
 
-var defaultDaemonConfigFile = ""
+var defaultDaemonConfigFile = os.Getenv("programdata") + string(os.PathSeparator) + "docker" + string(os.PathSeparator) + "config" + string(os.PathSeparator) + "daemon.json"
 
 // currentUserIsOwner checks whether the current user is the owner of the given
 // file.
@@ -25,14 +24,12 @@ func setDefaultUmask() error {
 	return nil
 }
 
-func getDaemonConfDir(root string) string {
-	return filepath.Join(root, `\config`)
+func getDaemonConfDir() string {
+	return os.Getenv("PROGRAMDATA") + `\docker\config`
 }
 
-// preNotifySystem sends a message to the host when the API is active, but before the daemon is
-func preNotifySystem() {
-	// start the service now to prevent timeouts waiting for daemon to start
-	// but still (eventually) complete all requests that are sent after this
+// notifySystem sends a message to the host when the server is ready to be used
+func notifySystem() {
 	if service != nil {
 		err := service.started()
 		if err != nil {
@@ -41,16 +38,9 @@ func preNotifySystem() {
 	}
 }
 
-// notifySystem sends a message to the host when the server is ready to be used
-func notifySystem() {
-}
-
 // notifyShutdown is called after the daemon shuts down but before the process exits.
 func notifyShutdown(err error) {
 	if service != nil {
-		if err != nil {
-			logrus.Fatal(err)
-		}
 		service.stopped(err)
 	}
 }

@@ -2,7 +2,6 @@ package chrootarchive
 
 import (
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -14,7 +13,7 @@ import (
 // applyLayerHandler parses a diff in the standard layer format from `layer`, and
 // applies it to the directory `dest`. Returns the size in bytes of the
 // contents of the layer.
-func applyLayerHandler(dest string, layer io.Reader, options *archive.TarOptions, decompress bool) (size int64, err error) {
+func applyLayerHandler(dest string, layer archive.Reader, options *archive.TarOptions, decompress bool) (size int64, err error) {
 	dest = filepath.Clean(dest)
 
 	// Ensure it is a Windows-style volume path
@@ -38,7 +37,7 @@ func applyLayerHandler(dest string, layer io.Reader, options *archive.TarOptions
 	s, err := archive.UnpackLayer(dest, layer, nil)
 	os.RemoveAll(tmpDir)
 	if err != nil {
-		return 0, fmt.Errorf("ApplyLayer %s failed UnpackLayer to %s: %s", layer, dest, err)
+		return 0, fmt.Errorf("ApplyLayer %s failed UnpackLayer to %s", err, dest)
 	}
 
 	return s, nil

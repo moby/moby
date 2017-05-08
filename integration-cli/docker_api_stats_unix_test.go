@@ -7,16 +7,15 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/request"
+	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/engine-api/types"
 	"github.com/go-check/check"
 )
 
-func (s *DockerSuite) TestAPIStatsContainerGetMemoryLimit(c *check.C) {
+func (s *DockerSuite) TestApiStatsContainerGetMemoryLimit(c *check.C) {
 	testRequires(c, DaemonIsLinux, memoryLimitSupport)
 
-	resp, body, err := request.Get("/info", request.JSON)
+	resp, body, err := sockRequestRaw("GET", "/info", nil, "application/json")
 	c.Assert(err, checker.IsNil)
 	c.Assert(resp.StatusCode, checker.Equals, http.StatusOK)
 	var info types.Info
@@ -29,7 +28,7 @@ func (s *DockerSuite) TestAPIStatsContainerGetMemoryLimit(c *check.C) {
 	dockerCmd(c, "run", "-d", "--name", conName, "busybox", "top")
 	c.Assert(waitRun(conName), checker.IsNil)
 
-	resp, body, err = request.Get(fmt.Sprintf("/containers/%s/stats?stream=false", conName))
+	resp, body, err = sockRequestRaw("GET", fmt.Sprintf("/containers/%s/stats?stream=false", conName), nil, "")
 	c.Assert(err, checker.IsNil)
 	c.Assert(resp.StatusCode, checker.Equals, http.StatusOK)
 	c.Assert(resp.Header.Get("Content-Type"), checker.Equals, "application/json")

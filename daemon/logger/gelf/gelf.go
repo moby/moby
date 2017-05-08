@@ -5,6 +5,7 @@
 package gelf
 
 import (
+	"bytes"
 	"compress/flate"
 	"encoding/json"
 	"fmt"
@@ -24,7 +25,7 @@ const name = "gelf"
 
 type gelfLogger struct {
 	writer   *gelf.Writer
-	info     logger.Info
+	ctx      logger.Context
 	hostname string
 	rawExtra json.RawMessage
 }
@@ -40,46 +41,44 @@ func init() {
 
 // New creates a gelf logger using the configuration passed in on the
 // context. The supported context configuration variable is gelf-address.
-func New(info logger.Info) (logger.Logger, error) {
+func New(ctx logger.Context) (logger.Logger, error) {
 	// parse gelf address
-	address, err := parseAddress(info.Config["gelf-address"])
+	address, err := parseAddress(ctx.Config["gelf-address"])
 	if err != nil {
 		return nil, err
 	}
 
 	// collect extra data for GELF message
-	hostname, err := info.Hostname()
+	hostname, err := ctx.Hostname()
 	if err != nil {
 		return nil, fmt.Errorf("gelf: cannot access hostname to set source field")
 	}
 
+	// remove trailing slash from container name
+	containerName := bytes.TrimLeft([]byte(ctx.ContainerName), "/")
+
 	// parse log tag
-	tag, err := loggerutils.ParseLogTag(info, loggerutils.DefaultTemplate)
+	tag, err := loggerutils.ParseLogTag(ctx, loggerutils.DefaultTemplate)
 	if err != nil {
 		return nil, err
 	}
 
 	extra := map[string]interface{}{
-		"_container_id":   info.ContainerID,
-		"_container_name": info.Name(),
-		"_image_id":       info.ContainerImageID,
-		"_image_name":     info.ContainerImageName,
-		"_command":        info.Command(),
+		"_container_id":   ctx.ContainerID,
+		"_container_name": string(containerName),
+		"_image_id":       ctx.ContainerImageID,
+		"_image_name":     ctx.ContainerImageName,
+		"_command":        ctx.Command(),
 		"_tag":            tag,
-		"_created":        info.ContainerCreated,
+		"_created":        ctx.ContainerCreated,
 	}
 
-	extraAttrs, err := info.ExtraAttributes(func(key string) string {
+	extraAttrs := ctx.ExtraAttributes(func(key string) string {
 		if key[0] == '_' {
 			return key
 		}
 		return "_" + key
 	})
-
-	if err != nil {
-		return nil, err
-	}
-
 	for k, v := range extraAttrs {
 		extra[k] = v
 	}
@@ -95,7 +94,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		return nil, fmt.Errorf("gelf: cannot connect to GELF endpoint: %s %v", address, err)
 	}
 
-	if v, ok := info.Config["gelf-compression-type"]; ok {
+	if v, ok := ctx.Config["gelf-compression-type"]; ok {
 		switch v {
 		case "gzip":
 			gelfWriter.CompressionType = gelf.CompressGzip
@@ -108,7 +107,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		}
 	}
 
-	if v, ok := info.Config["gelf-compression-level"]; ok {
+	if v, ok := ctx.Config["gelf-compression-level"]; ok {
 		val, err := strconv.Atoi(v)
 		if err != nil {
 			return nil, fmt.Errorf("gelf: invalid compression level %s, err %v", v, err)
@@ -118,7 +117,7 @@ func New(info logger.Info) (logger.Logger, error) {
 
 	return &gelfLogger{
 		writer:   gelfWriter,
-		info:     info,
+		ctx:      ctx,
 		hostname: hostname,
 		rawExtra: rawExtra,
 	}, nil
@@ -138,7 +137,6 @@ func (s *gelfLogger) Log(msg *logger.Message) error {
 		Level:    level,
 		RawExtra: s.rawExtra,
 	}
-	logger.PutMessage(msg)
 
 	if err := s.writer.WriteMessage(&m); err != nil {
 		return fmt.Errorf("gelf: cannot send GELF message: %v", err)
@@ -162,7 +160,6 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case "tag":
 		case "labels":
 		case "env":
-		case "env-regex":
 		case "gelf-compression-level":
 			i, err := strconv.Atoi(val)
 			if err != nil || i < flate.DefaultCompression || i > flate.BestCompression {
@@ -179,8 +176,11 @@ func ValidateLogOpt(cfg map[string]string) error {
 		}
 	}
 
-	_, err := parseAddress(cfg["gelf-address"])
-	return err
+	if _, err := parseAddress(cfg["gelf-address"]); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func parseAddress(address string) (string, error) {

@@ -10,14 +10,13 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/registry"
+	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/container"
+	"github.com/docker/engine-api/types/versions"
 	"golang.org/x/net/context"
 )
 
@@ -64,7 +63,7 @@ func (s *imageRouter) postCommit(ctx context.Context, w http.ResponseWriter, r *
 		return err
 	}
 
-	return httputils.WriteJSON(w, http.StatusCreated, &types.IDResponse{
+	return httputils.WriteJSON(w, http.StatusCreated, &types.ContainerCommitResponse{
 		ID: string(imgID),
 	})
 }
@@ -248,18 +247,8 @@ func (s *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter, 
 		return err
 	}
 
-	imageFilters, err := filters.FromParam(r.Form.Get("filters"))
-	if err != nil {
-		return err
-	}
-
-	filterParam := r.Form.Get("filter")
-	// FIXME(vdemeester) This has been deprecated in 1.13, and is target for removal for v17.12
-	if filterParam != "" {
-		imageFilters.Add("reference", filterParam)
-	}
-
-	images, err := s.backend.Images(imageFilters, httputils.BoolValue(r, "all"), false)
+	// FIXME: The filter parameter could just be a match filter
+	images, err := s.backend.Images(r.Form.Get("filters"), r.Form.Get("filter"), httputils.BoolValue(r, "all"))
 	if err != nil {
 		return err
 	}
@@ -324,21 +313,4 @@ func (s *imageRouter) getImagesSearch(ctx context.Context, w http.ResponseWriter
 		return err
 	}
 	return httputils.WriteJSON(w, http.StatusOK, query.Results)
-}
-
-func (s *imageRouter) postImagesPrune(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := httputils.ParseForm(r); err != nil {
-		return err
-	}
-
-	pruneFilters, err := filters.FromParam(r.Form.Get("filters"))
-	if err != nil {
-		return err
-	}
-
-	pruneReport, err := s.backend.ImagesPrune(ctx, pruneFilters)
-	if err != nil {
-		return err
-	}
-	return httputils.WriteJSON(w, http.StatusOK, pruneReport)
 }

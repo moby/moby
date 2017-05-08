@@ -1,17 +1,12 @@
----
-title: "logs"
-description: "The logs command description and usage"
-keywords: "logs, retrieve, docker"
----
-
-<!-- This file is maintained within the docker/docker Github
-     repository at https://github.com/docker/docker/. Make all
-     pull requests against that repo. If you see this file in
-     another repository, consider it read-only there, as it will
-     periodically be overwritten by the definitive file. Pull
-     requests which include edits to this file in other repositories
-     will be rejected.
--->
+<!--[metadata]>
++++
+title = "logs"
+description = "The logs command description and usage"
+keywords = ["logs, retrieve, docker"]
+[menu.main]
+parent = "smn_cli"
++++
+<![end-metadata]-->
 
 # logs
 
@@ -24,20 +19,15 @@ Options:
       --details        Show extra details provided to logs
   -f, --follow         Follow log output
       --help           Print usage
-      --since string   Show logs since timestamp (e.g. 2013-01-02T13:23:37) or relative (e.g. 42m for 42 minutes)
+      --since string   Show logs since timestamp
       --tail string    Number of lines to show from the end of the logs (default "all")
   -t, --timestamps     Show timestamps
 ```
 
-## Description
+> **Note**: this command is available only for containers with `json-file` and
+> `journald` logging drivers.
 
 The `docker logs` command batch-retrieves logs present at the time of execution.
-
-> **Note**: this command is only functional for containers that are started with
-> the `json-file` or `journald` logging driver.
-
-For more information about selecting and configuring logging drivers, refer to
-[Configure logging drivers](https://docs.docker.com/engine/admin/logging/overview/).
 
 The `docker logs --follow` command will continue streaming the new output from
 the container's `STDOUT` and `STDERR`.

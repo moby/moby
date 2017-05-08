@@ -300,7 +300,7 @@ func NewTransferManager(concurrencyLimit int) TransferManager {
 	}
 }
 
-// SetConcurrency sets the concurrencyLimit
+// SetConcurrency set the concurrencyLimit
 func (tm *transferManager) SetConcurrency(concurrency int) {
 	tm.mu.Lock()
 	tm.concurrencyLimit = concurrency

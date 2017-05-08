@@ -3,16 +3,36 @@
 package daemon
 
 import (
+	"fmt"
+
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/runconfig"
-	"github.com/docker/libnetwork"
+	networktypes "github.com/docker/engine-api/types/network"
 )
 
 func (daemon *Daemon) setupLinkedContainers(container *container.Container) ([]string, error) {
 	return nil, nil
 }
 
+// ConnectToNetwork connects a container to a network
+func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName string, endpointConfig *networktypes.EndpointSettings) error {
+	return fmt.Errorf("Solaris does not support connecting a running container to a network")
+}
+
+// getSize returns real size & virtual size
+func (daemon *Daemon) getSize(container *container.Container) (int64, int64) {
+	return 0, 0
+}
+
+// DisconnectFromNetwork disconnects a container from the network
+func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, networkName string, force bool) error {
+	return fmt.Errorf("Solaris does not support disconnecting a running container from a network")
+}
+
 func (daemon *Daemon) setupIpcDirs(container *container.Container) error {
+	return nil
+}
+
+func (daemon *Daemon) mountVolumes(container *container.Container) error {
 	return nil
 }
 
@@ -25,22 +45,5 @@ func detachMounted(path string) error {
 }
 
 func isLinkable(child *container.Container) bool {
-	// A container is linkable only if it belongs to the default network
-	_, ok := child.NetworkSettings.Networks[runconfig.DefaultDaemonNetworkMode().NetworkName()]
-	return ok
-}
-
-func enableIPOnPredefinedNetwork() bool {
 	return false
-}
-
-func (daemon *Daemon) isNetworkHotPluggable() bool {
-	return false
-}
-
-func setupPathsAndSandboxOptions(container *container.Container, sboxOptions *[]libnetwork.SandboxOption) error {
-	return nil
-}
-
-func initializeNetworkingPaths(container *container.Container, nc *container.Container) {
 }

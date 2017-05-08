@@ -62,7 +62,7 @@ func TestListContainers(t *testing.T) {
 		t.Fatalf("expected list size 2, got %v", len(list))
 	}
 	if list[0].ID != "id2" {
-		t.Fatalf("expected id2, got %v", list[0].ID)
+		t.Fatalf("expected older container to be first, got %v", list[0].ID)
 	}
 }
 
@@ -101,6 +101,6 @@ func TestApplyAllContainer(t *testing.T) {
 		t.Fatal("expected container to not be nil")
 	}
 	if cont.ID != "newID" {
-		t.Fatalf("expected newID, got %v", cont.ID)
+		t.Fatalf("expected newID, got %v", cont)
 	}
 }

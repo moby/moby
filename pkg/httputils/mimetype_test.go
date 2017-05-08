@@ -8,6 +8,6 @@ func TestDetectContentType(t *testing.T) {
 	input := []byte("That is just a plain text")
 
 	if contentType, _, err := DetectContentType(input); err != nil || contentType != "text/plain" {
-		t.Error("TestDetectContentType failed")
+		t.Errorf("TestDetectContentType failed")
 	}
 }

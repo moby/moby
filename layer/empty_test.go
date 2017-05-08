@@ -4,12 +4,12 @@ import (
 	"io"
 	"testing"
 
-	"github.com/opencontainers/go-digest"
+	"github.com/docker/distribution/digest"
 )
 
 func TestEmptyLayer(t *testing.T) {
 	if EmptyLayer.ChainID() != ChainID(DigestSHA256EmptyTar) {
-		t.Fatal("wrong ChainID for empty layer")
+		t.Fatal("wrong ID for empty layer")
 	}
 
 	if EmptyLayer.DiffID() != DigestSHA256EmptyTar {
@@ -33,7 +33,7 @@ func TestEmptyLayer(t *testing.T) {
 		t.Fatalf("error streaming tar for empty layer: %v", err)
 	}
 
-	digester := digest.Canonical.Digester()
+	digester := digest.Canonical.New()
 	_, err = io.Copy(digester.Hash(), tarStream)
 
 	if err != nil {

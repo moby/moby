@@ -9,8 +9,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/fsnotify/fsnotify"
-	"golang.org/x/net/context"
+	"gopkg.in/fsnotify.v1"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/logger"
@@ -88,7 +87,10 @@ func (l *JSONFileLogger) readLogs(logWatcher *logger.LogWatcher, config logger.R
 		}
 	}
 
-	if !config.Follow || l.closed {
+	if !config.Follow {
+		if err := latestFile.Close(); err != nil {
+			logrus.Errorf("Error closing file: %v", err)
+		}
 		l.mu.Unlock()
 		return
 	}
@@ -97,23 +99,21 @@ func (l *JSONFileLogger) readLogs(logWatcher *logger.LogWatcher, config logger.R
 		latestFile.Seek(0, os.SEEK_END)
 	}
 
-	notifyRotate := l.writer.NotifyRotate()
-	defer l.writer.NotifyRotateEvict(notifyRotate)
-
 	l.readers[logWatcher] = struct{}{}
-
 	l.mu.Unlock()
 
+	notifyRotate := l.writer.NotifyRotate()
 	followLogs(latestFile, logWatcher, notifyRotate, config.Since)
 
 	l.mu.Lock()
 	delete(l.readers, logWatcher)
 	l.mu.Unlock()
+
+	l.writer.NotifyRotateEvict(notifyRotate)
 }
 
 func tailFile(f io.ReadSeeker, logWatcher *logger.LogWatcher, tail int, since time.Time) {
-	var rdr io.Reader
-	rdr = f
+	var rdr io.Reader = f
 	if tail > 0 {
 		ls, err := tailfile.TailFile(f, tail)
 		if err != nil {
@@ -135,11 +135,7 @@ func tailFile(f io.ReadSeeker, logWatcher *logger.LogWatcher, tail int, since ti
 		if !since.IsZero() && msg.Timestamp.Before(since) {
 			continue
 		}
-		select {
-		case <-logWatcher.WatchClose():
-			return
-		case logWatcher.Msg <- msg:
-		}
+		logWatcher.Msg <- msg
 	}
 }
 
@@ -175,20 +171,7 @@ func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan int
 	}
 	defer func() {
 		f.Close()
-		fileWatcher.Remove(name)
 		fileWatcher.Close()
-	}()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go func() {
-		select {
-		case <-logWatcher.WatchClose():
-			fileWatcher.Remove(name)
-			cancel()
-		case <-ctx.Done():
-			return
-		}
 	}()
 
 	var retries int
@@ -225,7 +208,8 @@ func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan int
 			case fsnotify.Rename, fsnotify.Remove:
 				select {
 				case <-notifyRotate:
-				case <-ctx.Done():
+				case <-logWatcher.WatchClose():
+					fileWatcher.Remove(name)
 					return errDone
 				}
 				if err := handleRotate(); err != nil {
@@ -247,19 +231,17 @@ func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan int
 				return errRetry
 			}
 			return err
-		case <-ctx.Done():
+		case <-logWatcher.WatchClose():
+			fileWatcher.Remove(name)
 			return errDone
 		}
 	}
 
 	handleDecodeErr := func(err error) error {
 		if err == io.EOF {
-			for {
-				err := waitRead()
-				if err == nil {
-					break
-				}
+			for err := waitRead(); err != nil; {
 				if err == errRetry {
+					// retry the waitRead
 					continue
 				}
 				return err
@@ -307,7 +289,7 @@ func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan int
 		}
 		select {
 		case logWatcher.Msg <- msg:
-		case <-ctx.Done():
+		case <-logWatcher.WatchClose():
 			logWatcher.Msg <- msg
 			for {
 				msg, err := decodeLogLine(dec, l)

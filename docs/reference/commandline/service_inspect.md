@@ -1,17 +1,12 @@
----
-title: "service inspect"
-description: "The service inspect command description and usage"
-keywords: "service, inspect"
----
-
-<!-- This file is maintained within the docker/docker Github
-     repository at https://github.com/docker/docker/. Make all
-     pull requests against that repo. If you see this file in
-     another repository, consider it read-only there, as it will
-     periodically be overwritten by the definitive file. Pull
-     requests which include edits to this file in other repositories
-     will be rejected.
--->
+<!--[metadata]>
++++
+title = "service inspect"
+description = "The service inspect command description and usage"
+keywords = ["service, inspect"]
+[menu.main]
+parent = "smn_cli"
++++
+<![end-metadata]-->
 
 # service inspect
 
@@ -21,12 +16,11 @@ Usage:  docker service inspect [OPTIONS] SERVICE [SERVICE...]
 Display detailed information on one or more services
 
 Options:
-  -f, --format string   Format the output using the given Go template
+  -f, --format string   Format the output using the given go template
       --help            Print usage
-      --pretty          Print the information in a human friendly format
+      --pretty          Print the information in a human friendly format.
 ```
 
-## Description
 
 Inspects the specified service. This command has to be run targeting a manager
 node.
@@ -39,7 +33,7 @@ describes all the details of the format.
 
 ## Examples
 
-### Inspect a service by name or ID
+### Inspecting a service  by name or ID
 
 You can inspect a service, either by its *name*, or *ID*
 
@@ -47,16 +41,15 @@ For example, given the following service;
 
 ```bash
 $ docker service ls
-ID            NAME   MODE        REPLICAS  IMAGE
-dmu1ept4cxcf  redis  replicated  3/3       redis:3.0.6
+ID            NAME      REPLICAS  IMAGE         COMMAND
+dmu1ept4cxcf  redis     3/3       redis:3.0.6
 ```
 
 Both `docker service inspect redis`, and `docker service inspect dmu1ept4cxcf`
 produce the same result:
 
-```none
+```bash
 $ docker service inspect redis
-
 [
     {
         "ID": "dmu1ept4cxcfe8k8lhtux3ro3",
@@ -100,7 +93,6 @@ $ docker service inspect redis
 
 ```bash
 $ docker service inspect dmu1ept4cxcf
-
 [
     {
         "ID": "dmu1ept4cxcfe8k8lhtux3ro3",
@@ -112,41 +104,34 @@ $ docker service inspect dmu1ept4cxcf
 ]
 ```
 
-### Formatting
+### Inspect a service using pretty-print
 
 You can print the inspect output in a human-readable format instead of the default
 JSON output, by using the `--pretty` option:
 
 ```bash
 $ docker service inspect --pretty frontend
-
 ID:		c8wgl7q4ndfd52ni6qftkvnnp
 Name:		frontend
 Labels:
  - org.example.projectname=demo-app
-Service Mode:	REPLICATED
+Mode:		REPLICATED
  Replicas:		5
 Placement:
 UpdateConfig:
  Parallelism:	0
- On failure:	pause
- Max failure ratio:	0
 ContainerSpec:
  Image:		nginx:alpine
 Resources:
-Networks:	net1
-Endpoint Mode:  vip
 Ports:
+ Name =
+ Protocol = tcp
+ TargetPort = 443
  PublishedPort = 4443
-  Protocol = tcp
-  TargetPort = 443
-  PublishMode = ingress
 ```
 
-You can also use `--format pretty` for the same effect.
 
-
-#### Find the number of tasks running as part of a service
+### Finding the number of tasks running as part of a service
 
 The `--format` option can be used to obtain specific information about a
 service. For example, the following command outputs the number of replicas
@@ -154,15 +139,13 @@ of the "redis" service.
 
 ```bash
 $ docker service inspect --format='{{.Spec.Mode.Replicated.Replicas}}' redis
-
 10
 ```
 
 
-## Related commands
+## Related information
 
 * [service create](service_create.md)
-* [service logs](service_logs.md)
 * [service ls](service_ls.md)
 * [service rm](service_rm.md)
 * [service scale](service_scale.md)

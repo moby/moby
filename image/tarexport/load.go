@@ -11,7 +11,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution"
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/image/v1"
 	"github.com/docker/docker/layer"
@@ -21,8 +20,7 @@ import (
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/symlink"
-	"github.com/docker/docker/pkg/system"
-	"github.com/opencontainers/go-digest"
+	"github.com/docker/docker/reference"
 )
 
 func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool) error {
@@ -85,7 +83,7 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 		rootFS.DiffIDs = nil
 
 		if expected, actual := len(m.Layers), len(img.RootFS.DiffIDs); expected != actual {
-			return fmt.Errorf("invalid manifest, layers length mismatch: expected %d, got %d", expected, actual)
+			return fmt.Errorf("invalid manifest, layers length mismatch: expected %q, got %q", expected, actual)
 		}
 
 		for i, diffID := range img.RootFS.DiffIDs {
@@ -117,7 +115,7 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 
 		imageRefCount = 0
 		for _, repoTag := range m.RepoTags {
-			named, err := reference.ParseNormalizedNamed(repoTag)
+			named, err := reference.ParseNamed(repoTag)
 			if err != nil {
 				return err
 			}
@@ -125,8 +123,8 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 			if !ok {
 				return fmt.Errorf("invalid tag %q", repoTag)
 			}
-			l.setLoadedTag(ref, imgID.Digest(), outStream)
-			outStream.Write([]byte(fmt.Sprintf("Loaded image: %s\n", reference.FamiliarString(ref))))
+			l.setLoadedTag(ref, imgID, outStream)
+			outStream.Write([]byte(fmt.Sprintf("Loaded image: %s\n", ref)))
 			imageRefCount++
 		}
 
@@ -165,9 +163,7 @@ func (l *tarexporter) setParentID(id, parentID image.ID) error {
 }
 
 func (l *tarexporter) loadLayer(filename string, rootFS image.RootFS, id string, foreignSrc distribution.Descriptor, progressOutput progress.Output) (layer.Layer, error) {
-	// We use system.OpenSequential to use sequential file access on Windows, avoiding
-	// depleting the standby list. On Linux, this equates to a regular os.Open.
-	rawTar, err := system.OpenSequential(filename)
+	rawTar, err := os.Open(filename)
 	if err != nil {
 		logrus.Debugf("Error reading embedded tar: %v", err)
 		return nil, err
@@ -199,9 +195,9 @@ func (l *tarexporter) loadLayer(filename string, rootFS image.RootFS, id string,
 	return l.ls.Register(inflatedLayerData, rootFS.ChainID())
 }
 
-func (l *tarexporter) setLoadedTag(ref reference.NamedTagged, imgID digest.Digest, outStream io.Writer) error {
+func (l *tarexporter) setLoadedTag(ref reference.NamedTagged, imgID image.ID, outStream io.Writer) error {
 	if prevID, err := l.rs.Get(ref); err == nil && prevID != imgID {
-		fmt.Fprintf(outStream, "The image %s already exists, renaming the old one with ID %s to empty string\n", reference.FamiliarString(ref), string(prevID)) // todo: this message is wrong in case of multiple tags
+		fmt.Fprintf(outStream, "The image %s already exists, renaming the old one with ID %s to empty string\n", ref.String(), string(prevID)) // todo: this message is wrong in case of multiple tags
 	}
 
 	if err := l.rs.AddTag(ref, imgID, true); err != nil {
@@ -249,7 +245,7 @@ func (l *tarexporter) legacyLoad(tmpDir string, outStream io.Writer, progressOut
 			if !ok {
 				return fmt.Errorf("invalid target ID: %v", oldID)
 			}
-			named, err := reference.ParseNormalizedNamed(name)
+			named, err := reference.WithName(name)
 			if err != nil {
 				return err
 			}
@@ -257,7 +253,7 @@ func (l *tarexporter) legacyLoad(tmpDir string, outStream io.Writer, progressOut
 			if err != nil {
 				return err
 			}
-			l.setLoadedTag(ref, imgID.Digest(), outStream)
+			l.setLoadedTag(ref, imgID, outStream)
 		}
 	}
 

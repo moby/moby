@@ -1,0 +1,4 @@
+package: main
+import:
+  - package: github.com/go-check/check
+    ref:     11d3bc7aa68e238947792f30573146a3231fc0f1

@@ -17,7 +17,7 @@ the address Docker uses to advertise the node using the `--cluster-advertise`
 flag.
 
 ```bash
-$ dockerd -H=<node_ip:2376> --cluster-advertise=<node_ip:2376> --cluster-store etcd://<etcd_ip1>,<etcd_ip2>/<path>
+$ docker daemon -H=<node_ip:2376> --cluster-advertise=<node_ip:2376> --cluster-store etcd://<etcd_ip1>,<etcd_ip2>/<path>
 ```
 
 ### Using consul
@@ -27,7 +27,7 @@ the address Docker uses to advertise the node using the `--cluster-advertise`
 flag.
 
 ```bash
-$ dockerd -H=<node_ip:2376> --cluster-advertise=<node_ip:2376> --cluster-store consul://<consul_ip>/<path>
+$ docker daemon -H=<node_ip:2376> --cluster-advertise=<node_ip:2376> --cluster-store consul://<consul_ip>/<path>
 ```
 
 ### Using zookeeper
@@ -37,5 +37,5 @@ the address Docker uses to advertise the node using the `--cluster-advertise`
 flag.
 
 ```bash
-$ dockerd -H=<node_ip:2376> --cluster-advertise=<node_ip:2376> --cluster-store zk://<zk_addr1>,<zk_addr2>/<path>
+$ docker daemon -H=<node_ip:2376> --cluster-advertise=<node_ip:2376> --cluster-store zk://<zk_addr1>,<zk_addr2>/<path>
 ```
