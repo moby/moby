@@ -161,11 +161,7 @@ func (n *networkRouter) deleteNetwork(ctx context.Context, w http.ResponseWriter
 		return err
 	}
 	if _, err := n.clusterProvider.GetNetwork(vars["id"]); err == nil {
-		if err = n.clusterProvider.RemoveNetwork(vars["id"]); err != nil {
-			return err
-		}
-		w.WriteHeader(http.StatusNoContent)
-		return nil
+		return n.clusterProvider.RemoveNetwork(vars["id"])
 	}
 	if err := n.backend.DeleteNetwork(vars["id"]); err != nil {
 		return err
@@ -264,9 +260,6 @@ func buildIpamResources(r *types.NetworkResource, nwInfo libnetwork.NetworkInfo)
 
 	if !hasIpv6Conf {
 		for _, ip6Info := range ipv6Info {
-			if ip6Info.IPAMData.Pool == nil {
-				continue
-			}
 			iData := network.IPAMConfig{}
 			iData.Subnet = ip6Info.IPAMData.Pool.String()
 			iData.Gateway = ip6Info.IPAMData.Gateway.String()

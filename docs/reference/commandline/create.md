@@ -1,11 +1,14 @@
----
-redirect_from:
-  - /reference/commandline/create/
-description: The create command description and usage
-keywords:
-- docker, create, container
-title: docker create
----
+<!--[metadata]>
++++
+title = "create"
+description = "The create command description and usage"
+keywords = ["docker, create, container"]
+[menu.main]
+parent = "smn_cli"
++++
+<![end-metadata]-->
+
+# create
 
 Creates a new container.
 
@@ -104,10 +107,9 @@ Options:
                                     'host': Use the Docker host user namespace
                                     '': Use the Docker daemon user namespace specified by `--userns-remap` option.
       --uts string                  UTS namespace to use
-  -v, --volume value                Bind mount a volume (default []). The format
-                                    is `[host-src:]container-dest[:<options>]`.
-                                    The comma-delimited `options` are [rw|ro],
-                                    [z|Z], [[r]shared|[r]slave|[r]private], and
+  -v, --volume value                Bind mount a volume (default []). The comma-delimited
+                                    `options` are [rw|ro], [z|Z],
+                                    [[r]shared|[r]slave|[r]private], and
                                     [nocopy]. The 'host-src' is an absolute path
                                     or a name value.
       --volume-driver string        Optional volume driver for the container
@@ -166,8 +168,8 @@ Set storage driver options per container.
 
     $ docker create -it --storage-opt size=120G fedora /bin/bash
 
-This (size) will allow to set the container rootfs size to 120G at creation time.
-User cannot pass a size less than the Default BaseFS Size. This option is only
+This (size) will allow to set the container rootfs size to 120G at creation time. 
+User cannot pass a size less than the Default BaseFS Size. This option is only 
 available for the `devicemapper`, `btrfs`, and `zfs` graph drivers.
 
 ### Specify isolation technology for container (--isolation)

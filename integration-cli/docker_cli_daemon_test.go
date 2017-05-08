@@ -2717,35 +2717,3 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromCommandLine(c *check.C) {
 	out, err = s.d.Cmd("run", "--rm", "--runtime=runc", "busybox", "ls")
 	c.Assert(err, check.IsNil, check.Commentf(out))
 }
-
-// #29598
-func (s *DockerDaemonSuite) TestRestartPolicyWithLiveRestore(c *check.C) {
-	testRequires(c, SameHostDaemon, DaemonIsLinux)
-	c.Assert(s.d.StartWithBusybox("--live-restore"), check.IsNil)
-
-	out, err := s.d.Cmd("run", "-d", "--restart", "always", "busybox", "top")
-	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
-	id := strings.TrimSpace(out)
-
-	c.Assert(s.d.Restart("--live-restore"), check.IsNil)
-
-	c.Assert(s.d.waitRun(id), check.IsNil)
-
-	pid, err := s.d.Cmd("inspect", "-f", "{{.State.Pid}}", id)
-	c.Assert(err, check.IsNil)
-	pidint, err := strconv.Atoi(strings.TrimSpace(pid))
-	c.Assert(err, check.IsNil)
-	c.Assert(syscall.Kill(pidint, syscall.SIGKILL), check.IsNil)
-
-	// This test is only for v1.12 and only checks that killing of a process
-	// doesn't cause a panic. Actual issue is fixed in v1.13 with a proper test.
-	calls := 0
-	for range time.NewTicker(500 * time.Millisecond).C {
-		out, err := s.d.inspectFilter(id, "json .Id")
-		c.Assert(err, checker.IsNil, check.Commentf(out))
-		calls++
-		if calls >= 10 {
-			break
-		}
-	}
-}

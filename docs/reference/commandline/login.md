@@ -1,11 +1,14 @@
----
-redirect_from:
-  - /reference/commandline/login/
-description: The login command description and usage
-keywords:
-- registry, login, image
-title: docker login
----
+<!--[metadata]>
++++
+title = "login"
+description = "The login command description and usage"
+keywords = ["registry, login, image"]
+[menu.main]
+parent = "smn_cli"
++++
+<![end-metadata]-->
+
+# login
 
 ```markdown
 Usage:  docker login [OPTIONS] [SERVER]
@@ -29,11 +32,14 @@ adding the server name.
 `docker login` requires user to use `sudo` or be `root`, except when:
 
 1.  connecting to a remote daemon, such as a `docker-machine` provisioned `docker engine`.
-2.  user is added to the `docker` group.  This will impact the security of your system; the `docker` group is `root` equivalent.  See [Docker Daemon Attack Surface](/engine/security/security/#docker-daemon-attack-surface) for details.
+2.  user is added to the `docker` group.  This will impact the security of your system; the `docker` group is `root` equivalent.  See [Docker Daemon Attack Surface](https://docs.docker.com/security/security/#docker-daemon-attack-surface) for details.
 
 You can log into any public or private repository for which you have
 credentials.  When you log in, the command stores encoded credentials in
 `$HOME/.docker/config.json` on Linux or `%USERPROFILE%/.docker/config.json` on Windows.
+
+> **Note**:  When running `sudo docker login` credentials are saved in `/root/.docker/config.json`.
+>
 
 ## Credentials store
 
@@ -49,12 +55,12 @@ This is the list of currently available credentials helpers and where
 you can download them from:
 
 - D-Bus Secret Service: https://github.com/docker/docker-credential-helpers/releases
-- Apple macOS keychain: https://github.com/docker/docker-credential-helpers/releases
+- Apple OS X keychain: https://github.com/docker/docker-credential-helpers/releases
 - Microsoft Windows Credential Manager: https://github.com/docker/docker-credential-helpers/releases
 
 ### Usage
 
-You need to specify the credentials store in `$HOME/.docker/config.json`
+You need to speficy the credentials store in `$HOME/.docker/config.json`
 to tell the docker engine to use it:
 
 ```json

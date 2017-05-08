@@ -1,11 +1,14 @@
----
-redirect_from:
-  - /reference/commandline/start/
-description: The start command description and usage
-keywords:
-- Start, container, stopped
-title: docker start
----
+<!--[metadata]>
++++
+title = "start"
+description = "The start command description and usage"
+keywords = ["Start, container, stopped"]
+[menu.main]
+parent = "smn_cli"
++++
+<![end-metadata]-->
+
+# start
 
 ```markdown
 Usage:  docker start [OPTIONS] CONTAINER [CONTAINER...]

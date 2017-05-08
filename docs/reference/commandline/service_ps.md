@@ -1,15 +1,17 @@
----
-redirect_from:
-- /reference/commandline/service_ps/
-- /engine/reference/commandline/service_tasks/
-description: The service ps command description and usage
-keywords:
-- service, tasks
-- ps
-title: docker service ps
----
+<!--[metadata]>
++++
+title = "service ps"
+description = "The service ps command description and usage"
+keywords = ["service, tasks", "ps"]
+aliases = ["/engine/reference/commandline/service_tasks/"]
+[menu.main]
+parent = "smn_cli"
++++
+<![end-metadata]-->
 
 **Warning:** this command is part of the Swarm management feature introduced in Docker 1.12, and might be subject to non backward-compatible changes.
+
+# service ps
 
 ```Markdown
 Usage:	docker service ps [OPTIONS] SERVICE
@@ -58,10 +60,9 @@ Multiple filter flags are combined as an `OR` filter. For example,
 
 The currently supported filters are:
 
-* [id](service_ps.md#id)
-* [name](service_ps.md#name)
-* [node](service_ps.md#node)
-* [desired-state](service_ps.md#desired-state)
+* [id](#id)
+* [name](#name)
+* [desired-state](#desired-state)
 
 
 #### ID
@@ -83,20 +84,6 @@ The `name` filter matches on task names.
 $ docker service ps -f "name=redis.1" redis
 ID                         NAME      SERVICE  IMAGE        DESIRED STATE  LAST STATE         NODE
 0qihejybwf1x5vqi8lgzlgnpq  redis.1   redis    redis:3.0.6  Running        Running 8 seconds  manager1
-```
-
-
-#### Node
-
-The `node` filter matches on a node name or a node ID.
-
-```bash
-$ docker service ps -f "node=manager1" redis
-NAME                                IMAGE        NODE      DESIRED STATE  CURRENT STATE
-redis.1.0qihejybwf1x5vqi8lgzlgnpq   redis:3.0.6  manager1  Running        Running 8 seconds
-redis.5.1x0v8yomsncd6sbvfn0ph6ogc   redis:3.0.6  manager1  Running        Running 8 seconds
-redis.9.3w1wu13yuplna8ri3fx47iwad   redis:3.0.6  manager1  Running        Running 8 seconds
-redis.10.8eaxrb2fqpbnv9x30vr06i6vt  redis:3.0.6  manager1  Running        Running 8 seconds
 ```
 
 

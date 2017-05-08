@@ -1,11 +1,14 @@
----
-redirect_from:
-  - /reference/commandline/history/
-description: The history command description and usage
-keywords:
-- docker, image, history
-title: docker history
----
+<!--[metadata]>
++++
+title = "history"
+description = "The history command description and usage"
+keywords = ["docker, image, history"]
+[menu.main]
+parent = "smn_cli"
++++
+<![end-metadata]-->
+
+# history
 
 ```markdown
 Usage:  docker history [OPTIONS] IMAGE

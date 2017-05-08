@@ -1,11 +1,14 @@
----
-redirect_from:
-  - /reference/commandline/logout/
-description: The logout command description and usage
-keywords:
-- logout, docker, registry
-title: docker logout
----
+<!--[metadata]>
++++
+title = "logout"
+description = "The logout command description and usage"
+keywords = ["logout, docker, registry"]
+[menu.main]
+parent = "smn_cli"
++++
+<![end-metadata]-->
+
+# logout
 
 ```markdown
 Usage:  docker logout [SERVER]

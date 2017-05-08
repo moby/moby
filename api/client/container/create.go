@@ -43,6 +43,7 @@ func NewCreateCommand(dockerCli *client.DockerCli) *cobra.Command {
 			return runCreate(dockerCli, cmd.Flags(), &opts, copts)
 		},
 	}
+	cmd.SetFlagErrorFunc(flagErrorFunc)
 
 	flags := cmd.Flags()
 	flags.SetInterspersed(false)

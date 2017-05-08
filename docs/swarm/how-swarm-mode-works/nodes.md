@@ -86,7 +86,6 @@ You can also demote a manager node to a worker node. See
 [node demote](../../reference/commandline/node_demote.md).
 
 
-## Learn More
+## What's Next
 
 * Read about how swarm mode [services](services.md) work.
-* Learn how [PKI](pki.md) works in swarm mode

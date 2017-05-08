@@ -1,12 +1,15 @@
----
-redirect_from:
-  - /reference/commandline/plugin_enable/
-advisory: experimental
-description: the plugin enable command description and usage
-keywords:
-- plugin, enable
-title: docker plugin enable (experimental)
----
+<!--[metadata]>
++++
+title = "plugin enable"
+description = "the plugin enable command description and usage"
+keywords = ["plugin, enable"]
+advisory = "experimental"
+[menu.main]
+parent = "smn_cli"
++++
+<![end-metadata]-->
+
+# plugin enable (experimental)
 
 ```markdown
 Usage:  docker plugin enable PLUGIN

@@ -211,11 +211,6 @@ func NewSandbox(key string, osCreate, isRestore bool) (Sandbox, error) {
 		return nil, fmt.Errorf("failed to create a netlink handle: %v", err)
 	}
 
-	err = n.nlHandle.SetSocketTimeout(ns.NetlinkSocketsTimeout)
-	if err != nil {
-		log.Warnf("Failed to set the timeout on the sandbox netlink handle sockets: %v", err)
-	}
-
 	if err = n.loopbackUp(); err != nil {
 		n.nlHandle.Delete()
 		return nil, err
@@ -256,11 +251,6 @@ func GetSandboxForExternalKey(basePath string, key string) (Sandbox, error) {
 	n.nlHandle, err = netlink.NewHandleAt(sboxNs, syscall.NETLINK_ROUTE)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create a netlink handle: %v", err)
-	}
-
-	err = n.nlHandle.SetSocketTimeout(ns.NetlinkSocketsTimeout)
-	if err != nil {
-		log.Warnf("Failed to set the timeout on the sandbox netlink handle sockets: %v", err)
 	}
 
 	if err = n.loopbackUp(); err != nil {

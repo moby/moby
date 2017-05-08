@@ -10,14 +10,13 @@ daemonSupporting=(
 
 # if we have our linux/amd64 version compiled, let's symlink it in
 if [ -x "$DEST/../binary-daemon/dockerd-$VERSION" ]; then
-	arch=$(go env GOHOSTARCH)
-	mkdir -p "$DEST/linux/${arch}"
+	mkdir -p "$DEST/linux/amd64"
 	(
-		cd "$DEST/linux/${arch}"
+		cd "$DEST/linux/amd64"
 		ln -s ../../../binary-daemon/* ./
 		ln -s ../../../binary-client/* ./
 	)
-	echo "Created symlinks:" "$DEST/linux/${arch}/"*
+	echo "Created symlinks:" "$DEST/linux/amd64/"*
 fi
 
 for platform in $DOCKER_CROSSPLATFORMS; do

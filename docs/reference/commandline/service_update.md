@@ -1,13 +1,16 @@
----
-redirect_from:
-  - /reference/commandline/service_update/
-description: The service update command description and usage
-keywords:
-- service, update
-title: docker service update
----
+<!--[metadata]>
++++
+title = "service update"
+description = "The service update command description and usage"
+keywords = ["service, update"]
+[menu.main]
+parent = "smn_cli"
++++
+<![end-metadata]-->
 
 **Warning:** this command is part of the Swarm management feature introduced in Docker 1.12, and might be subject to non backward-compatible changes.
+
+# service update
 
 ```Markdown
 Usage:  docker service update [OPTIONS] SERVICE
@@ -62,46 +65,6 @@ for further information.
 
 ```bash
 $ docker service update --limit-cpu 2 redis
-```
-
-### Adding and removing mounts
-
-Use the `--mount-add` or `--mount-rm` options add or remove a service's bind-mounts
-or volumes.
-
-The following example creates a service which mounts the `test-data` volume to
-`/somewhere`. The next step updates the service to also mount the `other-volume`
-volume to `/somewhere-else`volume, The last step unmounts the `/somewhere` mount
-point, effectively removing the `test-data` volume. Each command returns the
-service name.
-
-- The `--mount-add` flag takes the same parameters as the `--mount` flag on
-  `service create`. Refer to the [volumes and
-  bind-mounts](service_create.md#volumes-and-bind-mounts-mount) section in the
-  `service create` reference for details.
-
-- The `--mount-rm` flag takes the `target` path of the mount.
-
-```bash
-$ docker service create \
-    --name=myservice \
-    --mount \
-      type=volume,source=test-data,target=/somewhere \
-    nginx:alpine \
-    myservice
-
-myservice
-
-$ docker service update \
-    --mount-add \
-      type=volume,source=other-volume,target=/somewhere-else \
-    myservice
-
-myservice
-
-$ docker service update --mount-rm /somewhere myservice
-
-myservice
 ```
 
 ## Related information

@@ -4,8 +4,7 @@ CROSS="$DEST/../cross"
 
 set -e
 
-arch=$(go env GOHOSTARCH)
-if [ ! -d "$CROSS/linux/${arch}" ]; then
+if [ ! -d "$CROSS/linux/amd64" ]; then
 	echo >&2 'error: binary and cross must be run before tgz'
 	false
 fi

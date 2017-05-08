@@ -1,11 +1,14 @@
----
-redirect_from:
-  - /reference/commandline/commit/
-description: The commit command description and usage
-keywords:
-- commit, file, changes
-title: docker commit
----
+<!--[metadata]>
++++
+title = "commit"
+description = "The commit command description and usage"
+keywords = ["commit, file, changes"]
+[menu.main]
+parent = "smn_cli"
++++
+<![end-metadata]-->
+
+# commit
 
 ```markdown
 Usage:  docker commit [OPTIONS] CONTAINER [REPOSITORY[:TAG]]
@@ -52,7 +55,6 @@ created.  Supported `Dockerfile` instructions:
 
 ## Commit a container with new configurations
 
-    {% raw %}
     $ docker ps
     ID                  IMAGE               COMMAND             CREATED             STATUS              PORTS
     c3f279d17e0a        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours
@@ -63,9 +65,8 @@ created.  Supported `Dockerfile` instructions:
     f5283438590d
     $ docker inspect -f "{{ .Config.Env }}" f5283438590d
     [HOME=/ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin DEBUG=true]
-    {% endraw %}
 
-## Commit a container with new `CMD` and `EXPOSE` instructions
+## Commit a container with new `CMD` and `EXPOSE` instructions 
 
     $ docker ps
     ID                  IMAGE               COMMAND             CREATED             STATUS              PORTS
@@ -74,7 +75,7 @@ created.  Supported `Dockerfile` instructions:
 
     $ docker commit --change='CMD ["apachectl", "-DFOREGROUND"]' -c "EXPOSE 80" c3f279d17e0a  svendowideit/testimage:version4
     f5283438590d
-
+    
     $ docker run -d svendowideit/testimage:version4
     89373736e2e7f00bc149bd783073ac43d0507da250e999f3f1036e0db60817c0
 

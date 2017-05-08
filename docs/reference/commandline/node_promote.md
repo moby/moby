@@ -1,11 +1,14 @@
----
-redirect_from:
-  - /reference/commandline/node_promote/
-description: The node promote command description and usage
-keywords:
-- node, promote
-title: docker node promote
----
+<!--[metadata]>
++++
+title = "node promote"
+description = "The node promote command description and usage"
+keywords = ["node, promote"]
+[menu.main]
+parent = "smn_cli"
++++
+<![end-metadata]-->
+
+# node promote
 
 ```markdown
 Usage:  docker node promote NODE [NODE...]

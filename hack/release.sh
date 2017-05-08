@@ -258,7 +258,7 @@ release_build() {
 
 # Upload binaries and tgz files to S3
 release_binaries() {
-	[ "$(find bundles/$VERSION -path "bundles/$VERSION/cross/*/*/docker-$VERSION")" != "" ] || {
+	[ -e "bundles/$VERSION/cross/linux/amd64/docker-$VERSION" ] || {
 		echo >&2 './hack/make.sh must be run before release_binaries'
 		exit 1
 	}

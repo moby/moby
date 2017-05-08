@@ -60,7 +60,7 @@ func (a TcAct) String() string {
 	case TC_ACT_JUMP:
 		return "jump"
 	}
-	return fmt.Sprintf("0x%x", int32(a))
+	return fmt.Sprintf("0x%x", a)
 }
 
 type TcPolAct int32
@@ -86,7 +86,7 @@ func (a TcPolAct) String() string {
 	case TC_POLICE_PIPE:
 		return "pipe"
 	}
-	return fmt.Sprintf("0x%x", int32(a))
+	return fmt.Sprintf("0x%x", a)
 }
 
 type ActionAttrs struct {

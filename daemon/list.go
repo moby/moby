@@ -157,9 +157,7 @@ func (daemon *Daemon) filterByNameIDMatches(ctx *listContext) []*container.Conta
 
 	cntrs := make([]*container.Container, 0, len(matches))
 	for id := range matches {
-		if c := daemon.containers.Get(id); c != nil {
-			cntrs = append(cntrs, c)
-		}
+		cntrs = append(cntrs, daemon.containers.Get(id))
 	}
 
 	// Restore sort-order after filtering

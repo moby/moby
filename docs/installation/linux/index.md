@@ -19,6 +19,7 @@ Docker Engine is supported on several Linux distributions. Installation instruct
 * [CRUX Linux](cruxlinux.md)
 * [Debian](debian.md)
 * [Fedora](fedora.md)
+* [FrugalWare](frugalware.md)
 * [Gentoo](gentoolinux.md)
 * [Oracle Linux](oracle.md)
 * [Red Hat Enterprise Linux](rhel.md)

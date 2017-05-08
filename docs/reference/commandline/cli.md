@@ -1,11 +1,15 @@
----
-redirect_from:
-  - /reference/commandline/cli/
-description: Docker's CLI command description and usage
-keywords:
-- Docker, Docker documentation, CLI,  command line
-title: Use the Docker Engine command-line
----
+<!--[metadata]>
++++
+title = "Use the Docker command line"
+description = "Docker's CLI command description and usage"
+keywords = ["Docker, Docker documentation, CLI,  command line"]
+[menu.main]
+parent = "smn_cli"
+weight = -2
++++
+<![end-metadata]-->
+
+# Use the Docker command line
 
 To list available commands, either run `docker` with no parameters
 or execute `docker help`:
@@ -118,7 +122,7 @@ directives, see the
 Once attached to a container, users detach from it and leave it running using
 the using `CTRL-p CTRL-q` key sequence. This detach key sequence is customizable
 using the `detachKeys` property. Specify a `<sequence>` value for the
-property. The format of the `<sequence>` is a comma-separated list of either
+property. The format of the `<sequence>` is a comma-separated list of either 
 a letter [a-Z], or the `ctrl-` combined with any of the following:
 
 * `a-z` (a single lowercase alpha character )
@@ -141,7 +145,6 @@ directives, see the [**Formatting** section in the `docker images` documentation
 
 Following is a sample `config.json` file:
 
-    {% raw %}
     {
       "HttpHeaders": {
         "MyHeader": "MyValue"
@@ -150,7 +153,6 @@ Following is a sample `config.json` file:
       "imagesFormat": "table {{.ID}}\\t{{.Repository}}\\t{{.Tag}}\\t{{.CreatedAt}}",
       "detachKeys": "ctrl-e,e"
     }
-    {% endraw %}
 
 ### Notary
 

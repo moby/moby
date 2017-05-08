@@ -1,11 +1,15 @@
----
-redirect_from:
-  - /reference/builder/
-description: Dockerfiles use a simple DSL which allows you to automate the steps you would normally manually take to create an image.
-keywords:
-- builder, docker, Dockerfile, automation,  image creation
-title: Dockerfile reference
----
+<!--[metadata]>
++++
+title = "Dockerfile reference"
+description = "Dockerfiles use a simple DSL which allows you to automate the steps you would normally manually take to create an image."
+keywords = ["builder, docker, Dockerfile, automation,  image creation"]
+[menu.main]
+parent = "engine_ref"
+weight=-90
++++
+<![end-metadata]-->
+
+# Dockerfile reference
 
 Docker can build images automatically by reading the instructions from a
 `Dockerfile`. A `Dockerfile` is a text document that contains all the commands a
@@ -22,7 +26,7 @@ Practices](../userguide/eng-image/dockerfile_best-practices.md) for a tip-orient
 The [`docker build`](commandline/build.md) command builds an image from
 a `Dockerfile` and a *context*. The build's context is the files at a specified
 location `PATH` or `URL`. The `PATH` is a directory on your local filesystem.
-The `URL` is a Git repository location.
+The `URL` is a the location of a Git repository.
 
 A context is processed recursively. So, a `PATH` includes any subdirectories and
 the `URL` includes the repository and its submodules. A simple build command
@@ -46,7 +50,7 @@ To use a file in the build context, the `Dockerfile` refers to the file specifie
 in an instruction, for example,  a `COPY` instruction. To increase the build's
 performance, exclude files and directories by adding a `.dockerignore` file to
 the context directory.  For information about how to [create a `.dockerignore`
-file](builder.md#dockerignore-file) see the documentation on this page.
+file](#dockerignore-file) see the documentation on this page.
 
 Traditionally, the `Dockerfile` is called `Dockerfile` and located in the root
 of the context. You use the `-f` flag with `docker build` to point to a Dockerfile
@@ -82,15 +86,15 @@ the `Using cache` message in the console output.
 
     $ docker build -t svendowideit/ambassador .
     Sending build context to Docker daemon 15.36 kB
-    Step 1 : FROM alpine:3.2
+    Step 0 : FROM alpine:3.2
      ---> 31f630c65071
-    Step 2 : MAINTAINER SvenDowideit@home.org.au
+    Step 1 : MAINTAINER SvenDowideit@home.org.au
      ---> Using cache
      ---> 2a1c91448f5f
-    Step 3 : RUN apk update &&      apk add socat &&        rm -r /var/cache/
+    Step 2 : RUN apk update &&      apk add socat &&        rm -r /var/cache/
      ---> Using cache
      ---> 21ed6e7fbb73
-    Step 4 : CMD env | grep _TCP= | (sed 's/.*_PORT_\([0-9]*\)_TCP=tcp:\/\/\(.*\):\(.*\)/socat -t 100000000 TCP4-LISTEN:\1,fork,reuseaddr TCP4:\2:\3 \&/' && echo wait) | sh
+    Step 3 : CMD env | grep _TCP= | (sed 's/.*_PORT_\([0-9]*\)_TCP=tcp:\/\/\(.*\):\(.*\)/socat -t 100000000 TCP4-LISTEN:\1,fork,reuseaddr TCP4:\2:\3 \&/' && echo wait) | sh
      ---> Using cache
      ---> 7ea8aef582cc
     Successfully built 7ea8aef582cc
@@ -294,7 +298,7 @@ Results in:
 
 ## Environment replacement
 
-Environment variables (declared with [the `ENV` statement](builder.md#env)) can also be
+Environment variables (declared with [the `ENV` statement](#env)) can also be
 used in certain instructions as variables to be interpreted by the
 `Dockerfile`. Escapes are also handled for including variable-like syntax
 into a statement literally.
@@ -498,7 +502,7 @@ default is `/bin/sh -c` on Linux or `cmd /S /C` on Windows)
 - `RUN ["executable", "param1", "param2"]` (*exec* form)
 
 The `RUN` instruction will execute any commands in a new layer on top of the
-current image and commit the results. The resulting committed image will be
+current image and commit the results. The resulting comitted image will be
 used for the next step in the `Dockerfile`.
 
 Layering `RUN` instructions and generating commits conforms to the core
@@ -513,15 +517,13 @@ command.
 
 In the *shell* form you can use a `\` (backslash) to continue a single
 RUN instruction onto the next line. For example, consider these two lines:
-
 ```
-RUN /bin/bash -c 'source $HOME/.bashrc; \
+RUN /bin/bash -c 'source $HOME/.bashrc ;\
 echo $HOME'
 ```
 Together they are equivalent to this single line:
-
 ```
-RUN /bin/bash -c 'source $HOME/.bashrc; echo $HOME'
+RUN /bin/bash -c 'source $HOME/.bashrc ; echo $HOME'
 ```
 
 > **Note**:
@@ -562,7 +564,7 @@ See the [`Dockerfile` Best Practices
 guide](../userguide/eng-image/dockerfile_best-practices.md#build-cache) for more information.
 
 The cache for `RUN` instructions can be invalidated by `ADD` instructions. See
-[below](builder.md#add) for details.
+[below](#add) for details.
 
 ### Known issues (RUN)
 
@@ -631,13 +633,13 @@ must be individually expressed as strings in the array:
 
 If you would like your container to run the same executable every time, then
 you should consider using `ENTRYPOINT` in combination with `CMD`. See
-[*ENTRYPOINT*](builder.md#entrypoint).
+[*ENTRYPOINT*](#entrypoint).
 
 If the user specifies arguments to `docker run` then they will override the
 default specified in `CMD`.
 
 > **Note**:
-> Don't confuse `RUN` with `CMD`. `RUN` actually runs a command and commits
+> don't confuse `RUN` with `CMD`. `RUN` actually runs a command and commits
 > the result; `CMD` does not execute anything at build time, but specifies
 > the intended command for the image.
 
@@ -709,7 +711,7 @@ feature](../userguide/networking/index.md)).
 
 The `ENV` instruction sets the environment variable `<key>` to the value
 `<value>`. This value will be in the environment of all "descendant"
-`Dockerfile` commands and can be [replaced inline](builder.md#environment-replacement) in
+`Dockerfile` commands and can be [replaced inline](#environment-replacement) in
 many as well.
 
 The `ENV` instruction has two forms. The first form, `ENV <key> <value>`,
@@ -733,7 +735,7 @@ and
     ENV myDog Rex The Dog
     ENV myCat fluffy
 
-will yield the same net results in the final image, but the first form
+will yield the same net results in the final container, but the first form
 is preferred because it produces a single cache layer.
 
 The environment variables set using `ENV` will persist when a container is run
@@ -755,7 +757,7 @@ ADD has two forms:
 whitespace)
 
 The `ADD` instruction copies new files, directories or remote file URLs from `<src>`
-and adds them to the filesystem of the image at the path `<dest>`.
+and adds them to the filesystem of the container at the path `<dest>`.
 
 Multiple `<src>` resource may be specified but if they are files or
 directories then they must be relative to the source directory that is
@@ -788,7 +790,7 @@ of whether or not the file has changed and the cache should be updated.
 > can only contain a URL based `ADD` instruction. You can also pass a
 > compressed archive through STDIN: (`docker build - < archive.tar.gz`),
 > the `Dockerfile` at the root of the archive and the rest of the
-> archive will be used as the context of the build.
+> archive will get used at the context of the build.
 
 > **Note**:
 > If your URL files are protected using authentication, you
@@ -830,7 +832,7 @@ guide](../userguide/eng-image/dockerfile_best-practices.md#build-cache) for more
 - If `<src>` is a *local* tar archive in a recognized compression format
   (identity, gzip, bzip2 or xz) then it is unpacked as a directory. Resources
   from *remote* URLs are **not** decompressed. When a directory is copied or
-  unpacked, it has the same behavior as `tar -x`, the result is the union of:
+  unpacked, it has the same behavior as `tar -x`: the result is the union of:
 
     1. Whatever existed at the destination path and
     2. The contents of the source tree, with conflicts resolved in favor
@@ -1066,7 +1068,7 @@ user	0m 0.03s
 sys	0m 0.03s
 ```
 
-> **Note:** you can override the `ENTRYPOINT` setting using `--entrypoint`,
+> **Note:** you can over ride the `ENTRYPOINT` setting using `--entrypoint`,
 > but this can only set the binary to *exec* (no `sh -c` will be used).
 
 > **Note**:
@@ -1245,9 +1247,9 @@ The output of the final `pwd` command in this `Dockerfile` would be
     ARG <name>[=<default value>]
 
 The `ARG` instruction defines a variable that users can pass at build-time to
-the builder with the `docker build` command using the
-`--build-arg <varname>=<value>` flag. If a user specifies a build argument
-that was not defined in the Dockerfile, the build outputs an error.
+the builder with the `docker build` command using the `--build-arg
+<varname>=<value>` flag. If a user specifies a build argument that was not
+defined in the Dockerfile, the build outputs an error.
 
 ```
 One or more build-args were not consumed, failing build.
@@ -1346,7 +1348,7 @@ its value would be `v1.0.0` as it is the default set in line 3 by the `ENV` inst
 The variable expansion technique in this example allows you to pass arguments
 from the command line and persist them in the final image by leveraging the
 `ENV` instruction. Variable expansion is only supported for [a limited set of
-Dockerfile instructions.](builder.md#environment-replacement)
+Dockerfile instructions.](#environment-replacement)
 
 Docker has a set of predefined `ARG` variables that you can use without a
 corresponding `ARG` instruction in the Dockerfile.
@@ -1360,11 +1362,8 @@ corresponding `ARG` instruction in the Dockerfile.
 * `NO_PROXY`
 * `no_proxy`
 
-To use these, simply pass them on the command line using the flag:
-
-```
---build-arg <varname>=<value>
-```
+To use these, simply pass them on the command line using the `--build-arg
+<varname>=<value>` flag.
 
 ### Impact on build caching
 
@@ -1662,7 +1661,7 @@ a shell operates. For example, using `SHELL cmd /S /C /V:ON|OFF` on Windows, del
 environment variable expansion semantics could be modified.
 
 The `SHELL` instruction can also be used on Linux should an alternate shell be
-required such as `zsh`, `csh`, `tcsh` and others.
+required such `zsh`, `csh`, `tcsh` and others.
 
 The `SHELL` feature was added in Docker 1.12.
 

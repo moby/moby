@@ -89,9 +89,9 @@ func New(rootPath string) (*VolumeStore, error) {
 }
 
 func (s *VolumeStore) getNamed(name string) (volume.Volume, bool) {
-	s.globalLock.RLock()
+	s.globalLock.Lock()
 	v, exists := s.names[name]
-	s.globalLock.RUnlock()
+	s.globalLock.Unlock()
 	return v, exists
 }
 
@@ -104,37 +104,18 @@ func (s *VolumeStore) setNamed(v volume.Volume, ref string) {
 	s.globalLock.Unlock()
 }
 
-// getRefs gets the list of refs for a given name
-// Callers of this function are expected to hold the name lock.
-func (s *VolumeStore) getRefs(name string) []string {
-	s.globalLock.RLock()
-	refs := s.refs[name]
-	s.globalLock.RUnlock()
-	return refs
-}
-
 func (s *VolumeStore) purge(name string) {
 	s.globalLock.Lock()
 	delete(s.names, name)
 	delete(s.refs, name)
 	delete(s.labels, name)
-	err := s.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(volumeBucketName))
-		return b.Delete([]byte(name))
-	})
-	if err != nil {
-		logrus.Errorf("Error removing volume metadata: %v", err)
-	}
 	s.globalLock.Unlock()
 }
 
 // VolumeStore is a struct that stores the list of volumes available and keeps track of their usage counts
 type VolumeStore struct {
-	// locks ensures that only one action is being performed on a particular volume at a time without locking the entire store
-	// since actions on volumes can be quite slow, this ensures the store is free to handle requests for other volumes.
-	locks *locker.Locker
-	// globalLock is used to protect access to mutable structures used by the store object
-	globalLock sync.RWMutex
+	locks      *locker.Locker
+	globalLock sync.Mutex
 	// names stores the volume name -> driver name relationship.
 	// This is used for making lookups faster so we don't have to probe all drivers
 	names map[string]volume.Volume
@@ -201,9 +182,7 @@ func (s *VolumeStore) list() ([]volume.Volume, []string, error) {
 				return
 			}
 			for i, v := range vs {
-				s.globalLock.RLock()
 				vs[i] = volumeWrapper{v, s.labels[v.Name()], d.Scope()}
-				s.globalLock.RUnlock()
 			}
 
 			chVols <- vols{vols: vs}
@@ -223,13 +202,11 @@ func (s *VolumeStore) list() ([]volume.Volume, []string, error) {
 	}
 
 	if len(badDrivers) > 0 {
-		s.globalLock.RLock()
 		for _, v := range s.names {
 			if _, exists := badDrivers[v.DriverName()]; exists {
 				ls = append(ls, v)
 			}
 		}
-		s.globalLock.RUnlock()
 	}
 	return ls, warnings, nil
 }
@@ -356,8 +333,6 @@ func (s *VolumeStore) GetWithRef(name, driverName, ref string) (volume.Volume, e
 
 	s.setNamed(v, ref)
 
-	s.globalLock.RLock()
-	defer s.globalLock.RUnlock()
 	return volumeWrapper{v, s.labels[name], vd.Scope()}, nil
 }
 
@@ -406,9 +381,9 @@ func (s *VolumeStore) getVolume(name string) (volume.Volume, error) {
 	}
 
 	logrus.Debugf("Getting volume reference for name: %s", name)
-	s.globalLock.RLock()
+	s.globalLock.Lock()
 	v, exists := s.names[name]
-	s.globalLock.RUnlock()
+	s.globalLock.Unlock()
 	if exists {
 		vd, err := volumedrivers.GetDriver(v.DriverName())
 		if err != nil {
@@ -444,8 +419,7 @@ func (s *VolumeStore) Remove(v volume.Volume) error {
 	s.locks.Lock(name)
 	defer s.locks.Unlock(name)
 
-	refs := s.getRefs(name)
-	if len(refs) > 0 {
+	if refs, exists := s.refs[name]; exists && len(refs) > 0 {
 		return &OpErr{Err: errVolumeInUse, Name: v.Name(), Op: "remove", Refs: refs}
 	}
 
@@ -486,7 +460,13 @@ func (s *VolumeStore) Refs(v volume.Volume) []string {
 	s.locks.Lock(v.Name())
 	defer s.locks.Unlock(v.Name())
 
-	refs := s.getRefs(v.Name())
+	s.globalLock.Lock()
+	defer s.globalLock.Unlock()
+	refs, exists := s.refs[v.Name()]
+	if !exists {
+		return nil
+	}
+
 	refsOut := make([]string, len(refs))
 	copy(refsOut, refs)
 	return refsOut
@@ -502,11 +482,9 @@ func (s *VolumeStore) FilterByDriver(name string) ([]volume.Volume, error) {
 	if err != nil {
 		return nil, &OpErr{Err: err, Name: name, Op: "list"}
 	}
-	s.globalLock.RLock()
 	for i, v := range ls {
 		ls[i] = volumeWrapper{v, s.labels[v.Name()], vd.Scope()}
 	}
-	s.globalLock.RUnlock()
 	return ls, nil
 }
 

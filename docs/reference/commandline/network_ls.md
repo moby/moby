@@ -1,11 +1,14 @@
----
-redirect_from:
-  - /reference/commandline/network_ls/
-description: The network ls command description and usage
-keywords:
-- network, list, user-defined
-title: docker network ls
----
+<!--[metadata]>
++++
+title = "network ls"
+description = "The network ls command description and usage"
+keywords = ["network, list, user-defined"]
+[menu.main]
+parent = "smn_cli"
++++
+<![end-metadata]-->
+
+# docker network ls
 
 ```markdown
 Usage:  docker network ls [OPTIONS]
@@ -19,7 +22,7 @@ Options:
   -f, --filter value   Provide filter values (i.e. 'dangling=true') (default [])
       --help           Print usage
       --no-trunc       Do not truncate the output
-  -q, --quiet          Only display network IDs
+  -q, --quiet          Only display volume names
 ```
 
 Lists all the networks the Engine `daemon` knows about. This includes the

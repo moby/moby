@@ -1,11 +1,14 @@
----
-redirect_from:
-  - /reference/commandline/info/
-description: The info command description and usage
-keywords:
-- display, docker, information
-title: docker info
----
+<!--[metadata]>
++++
+title = "info"
+description = "The info command description and usage"
+keywords = ["display, docker, information"]
+[menu.main]
+parent = "smn_cli"
++++
+<![end-metadata]-->
+
+# info
 
 ```markdown
 Usage:  docker info
@@ -30,7 +33,7 @@ meta data regarding those images are stored. When run for the first time Docker
 allocates a certain amount of data space and meta data space from the space
 available on the volume where `/var/lib/docker` is mounted.
 
-# Examples
+# EXAMPLES
 
 ## Display Docker system information
 
@@ -51,7 +54,7 @@ storage driver and a node that is part of a 2-node swarm:
     Plugins:
      Volume: local
      Network: bridge null host overlay
-    Swarm:
+    Swarm: 
      NodeID: 0gac67oclbxq7
      Is Manager: true
      Managers: 2

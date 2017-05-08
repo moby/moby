@@ -757,6 +757,17 @@ func (ep *endpoint) Delete(force bool) error {
 		}
 	}()
 
+	if err = n.getEpCnt().DecEndpointCnt(); err != nil && !force {
+		return err
+	}
+	defer func() {
+		if err != nil && !force {
+			if e := n.getEpCnt().IncEndpointCnt(); e != nil {
+				log.Warnf("failed to update network %s : %v", n.name, e)
+			}
+		}
+	}()
+
 	// unwatch for service records
 	n.getController().unWatchSvcRecord(ep)
 
@@ -765,10 +776,6 @@ func (ep *endpoint) Delete(force bool) error {
 	}
 
 	ep.releaseAddress()
-
-	if err := n.getEpCnt().DecEndpointCnt(); err != nil {
-		log.Warnf("failed to decrement endpoint coint for ep %s: %v", ep.ID(), err)
-	}
 
 	return nil
 }

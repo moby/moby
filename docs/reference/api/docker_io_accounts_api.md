@@ -1,11 +1,15 @@
----
-redirect_from:
-  - /reference/api/docker_io_accounts_api/
-description: API Documentation for docker.io accounts.
-keywords:
-- API, Docker, accounts, REST,  documentation
-title: Accounts API for docker.io
----
+<!--[metadata]>
++++
+title = "docker.io accounts API"
+description = "API Documentation for docker.io accounts."
+keywords = ["API, Docker, accounts, REST,  documentation"]
+[menu.main]
+parent = "engine_remoteapi"
+weight=90
++++
+<![end-metadata]-->
+
+# docker.io accounts API
 
 ## Get a single user
 

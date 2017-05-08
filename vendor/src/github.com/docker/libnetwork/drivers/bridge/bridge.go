@@ -1243,17 +1243,8 @@ func (d *driver) ProgramExternalConnectivity(nid, eid string, options map[string
 		return err
 	}
 
-	defer func() {
-		if err != nil {
-			if e := network.releasePorts(endpoint); e != nil {
-				logrus.Errorf("Failed to release ports allocated for the bridge endpoint %s on failure %v because of %v",
-					eid, err, e)
-			}
-			endpoint.portMapping = nil
-		}
-	}()
-
 	if err = d.storeUpdate(endpoint); err != nil {
+		endpoint.portMapping = nil
 		return fmt.Errorf("failed to update bridge endpoint %s to store: %v", endpoint.id[0:7], err)
 	}
 
@@ -1284,12 +1275,6 @@ func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
 	err = network.releasePorts(endpoint)
 	if err != nil {
 		logrus.Warn(err)
-	}
-
-	endpoint.portMapping = nil
-
-	if err = d.storeUpdate(endpoint); err != nil {
-		return fmt.Errorf("failed to update bridge endpoint %s to store: %v", endpoint.id[0:7], err)
 	}
 
 	return nil

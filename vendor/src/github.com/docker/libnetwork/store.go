@@ -346,10 +346,6 @@ func (c *controller) networkWatchLoop(nw *netWatch, ep *endpoint, ecCh <-chan da
 }
 
 func (c *controller) processEndpointCreate(nmap map[string]*netWatch, ep *endpoint) {
-	if !c.isDistributedControl() && ep.getNetwork().driverScope() == datastore.GlobalScope {
-		return
-	}
-
 	c.Lock()
 	nw, ok := nmap[ep.getNetwork().ID()]
 	c.Unlock()
@@ -404,10 +400,6 @@ func (c *controller) processEndpointCreate(nmap map[string]*netWatch, ep *endpoi
 }
 
 func (c *controller) processEndpointDelete(nmap map[string]*netWatch, ep *endpoint) {
-	if !c.isDistributedControl() && ep.getNetwork().driverScope() == datastore.GlobalScope {
-		return
-	}
-
 	c.Lock()
 	nw, ok := nmap[ep.getNetwork().ID()]
 

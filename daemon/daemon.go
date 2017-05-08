@@ -175,7 +175,7 @@ func (daemon *Daemon) restore() error {
 			defer wg.Done()
 			rm := c.RestartManager(false)
 			if c.IsRunning() || c.IsPaused() {
-				if err := daemon.containerd.Restore(c.ID, c.InitializeStdio, libcontainerd.WithRestartManager(rm)); err != nil {
+				if err := daemon.containerd.Restore(c.ID, libcontainerd.WithRestartManager(rm)); err != nil {
 					logrus.Errorf("Failed to restore %s with containerd: %s", c.ID, err)
 					return
 				}
@@ -606,7 +606,6 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 		return nil, err
 	}
 
-	// Plugin system initialization should happen before restore. Do not change order.
 	if err := pluginInit(d, config, containerdRemote); err != nil {
 		return nil, err
 	}

@@ -1,11 +1,14 @@
----
-redirect_from:
-  - /reference/commandline/stop/
-description: The stop command description and usage
-keywords:
-- stop, SIGKILL, SIGTERM
-title: docker stop
----
+<!--[metadata]>
++++
+title = "stop"
+description = "The stop command description and usage"
+keywords = ["stop, SIGKILL, SIGTERM"]
+[menu.main]
+parent = "smn_cli"
++++
+<![end-metadata]-->
+
+# stop
 
 ```markdown
 Usage:  docker stop [OPTIONS] CONTAINER [CONTAINER...]

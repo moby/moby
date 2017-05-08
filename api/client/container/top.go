@@ -32,6 +32,7 @@ func NewTopCommand(dockerCli *client.DockerCli) *cobra.Command {
 			return runTop(dockerCli, &opts)
 		},
 	}
+	cmd.SetFlagErrorFunc(flagErrorFunc)
 
 	flags := cmd.Flags()
 	flags.SetInterspersed(false)
