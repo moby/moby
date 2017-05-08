@@ -64,7 +64,7 @@ If you have an earlier Windows system that doesn't meet the Docker for Windows p
 See [Docker Toolbox Overview](/toolbox/overview.md) for help on installing Docker with Toolbox.
 
 ### Docker for Linux
-Docker Engine runs navitvely on Linux distributions.
+Docker Engine runs natively on Linux distributions.
 
 For full instructions on getting Docker for various Linux distributions, see [Install Docker Engine](/engine/installation/index.md).
 

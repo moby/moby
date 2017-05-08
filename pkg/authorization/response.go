@@ -175,16 +175,18 @@ func (rm *responseModifier) Flush() {
 
 // FlushAll flushes all data to the HTTP response
 func (rm *responseModifier) FlushAll() error {
-	// Copy the status code
-	if rm.statusCode > 0 {
-		rm.rw.WriteHeader(rm.statusCode)
-	}
-
 	// Copy the header
 	for k, vv := range rm.header {
 		for _, v := range vv {
 			rm.rw.Header().Add(k, v)
 		}
+	}
+
+	// Copy the status code
+	// Also WriteHeader needs to be done after all the headers
+	// have been copied (above).
+	if rm.statusCode > 0 {
+		rm.rw.WriteHeader(rm.statusCode)
 	}
 
 	var err error

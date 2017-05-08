@@ -53,7 +53,7 @@ following:
     EnvironmentFile=-/etc/sysconfig/docker-storage
     EnvironmentFile=-/etc/sysconfig/docker-network
     ExecStart=
-    ExecStart=/usr/bin/docker daemon -H fd:// $OPTIONS \
+    ExecStart=/usr/bin/dockerd $OPTIONS \
               $DOCKER_STORAGE_OPTIONS \
               $DOCKER_NETWORK_OPTIONS \
               $BLOCK_REGISTRY \
@@ -85,18 +85,31 @@ In this example, we'll assume that your `docker.service` file looks something li
     [Unit]
     Description=Docker Application Container Engine
     Documentation=https://docs.docker.com
-    After=network.target docker.socket
-    Requires=docker.socket
+    After=network.target
 
     [Service]
     Type=notify
-    ExecStart=/usr/bin/docker daemon -H fd://
-    LimitNOFILE=1048576
-    LimitNPROC=1048576
-    TasksMax=1048576
+    # the default is not to use systemd for cgroups because the delegate issues still
+    # exists and systemd currently does not support the cgroup feature set required
+    # for containers run by docker
+    ExecStart=/usr/bin/dockerd
+    ExecReload=/bin/kill -s HUP $MAINPID
+    # Having non-zero Limit*s causes performance problems due to accounting overhead
+    # in the kernel. We recommend using cgroups to do container-local accounting.
+    LimitNOFILE=infinity
+    LimitNPROC=infinity
+    LimitCORE=infinity
+    # Uncomment TasksMax if your systemd version supports it.
+    # Only systemd 226 and above support this version.
+    #TasksMax=infinity
+    TimeoutStartSec=0
+    # set delegate yes so that systemd does not reset the cgroups of docker containers
+    Delegate=yes
+    # kill only the docker process, not all processes in the cgroup
+    KillMode=process
 
     [Install]
-    Also=docker.socket
+    WantedBy=multi-user.target
 
 This will allow us to add extra flags via a drop-in file (mentioned above) by
 placing a file containing the following in the `/etc/systemd/system/docker.service.d`
@@ -104,7 +117,7 @@ directory:
 
     [Service]
     ExecStart=
-    ExecStart=/usr/bin/docker daemon -H fd:// --graph="/mnt/docker-data" --storage-driver=overlay
+    ExecStart=/usr/bin/dockerd --graph="/mnt/docker-data" --storage-driver=overlay
 
 You can also set other environment variables in this file, for example, the
 `HTTP_PROXY` environment variables described below.
@@ -114,7 +127,7 @@ by a new configuration as follows:
 
     [Service]
     ExecStart=
-    ExecStart=/usr/bin/docker daemon -H fd:// --bip=172.17.42.1/16
+    ExecStart=/usr/bin/dockerd --bip=172.17.42.1/16
 
 If you fail to specify an empty configuration, Docker reports an error such as:
 

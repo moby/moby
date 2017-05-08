@@ -15,7 +15,7 @@
 # the case. Therefore, you don't have to disable it anymore.
 #
 
-FROM ppc64le/gcc:6.1
+FROM ppc64le/debian:jessie
 
 # Packaged dependencies
 RUN apt-get update && apt-get install -y \
@@ -87,22 +87,13 @@ RUN set -x \
         && rm -rf "$SECCOMP_PATH"
 
 
-## BUILD GOLANG 1.6
-# NOTE: ppc64le has compatibility issues with older versions of go, so make sure the version >= 1.6
-ENV GO_VERSION 1.6.3
-ENV GO_DOWNLOAD_URL https://golang.org/dl/go${GO_VERSION}.src.tar.gz
-ENV GO_DOWNLOAD_SHA256 787b0b750d037016a30c6ed05a8a70a91b2e9db4bd9b1a2453aa502a63f1bccc
-ENV GOROOT_BOOTSTRAP /usr/local
+# Install Go
+# NOTE: official ppc64le go binaries weren't available until go 1.6.4 and 1.7.4
+ENV GO_VERSION 1.6.4
+RUN curl -fsSL "https://golang.org/dl/go${GO_VERSION}.linux-ppc64le.tar.gz" \
+	| tar -xzC /usr/local
 
-RUN curl -fsSL "$GO_DOWNLOAD_URL" -o golang.tar.gz \
-    && echo "$GO_DOWNLOAD_SHA256  golang.tar.gz" | sha256sum -c - \
-    && tar -C /usr/src -xzf golang.tar.gz \
-    && rm golang.tar.gz \
-    && cd /usr/src/go/src && ./make.bash 2>&1
-
-ENV GOROOT_BOOTSTRAP /usr/src/
-
-ENV PATH /usr/src/go/bin/:/go/bin:$PATH
+ENV PATH /go/bin:/usr/local/go/bin:$PATH
 ENV GOPATH /go:/go/src/github.com/docker/docker/vendor
 
 # This has been commented out and kept as reference because we don't support compiling with older Go anymore.
@@ -204,10 +195,10 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Install runc
-ENV RUNC_COMMIT cc29e3dded8e27ba8f65738f40d251c885030a28
+ENV RUNC_COMMIT 50a19c6ff828c58e5dab13830bd3dacde268afe5
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
-	&& git clone https://github.com/opencontainers/runc.git "$GOPATH/src/github.com/opencontainers/runc" \
+	&& git clone https://github.com/docker/runc.git "$GOPATH/src/github.com/opencontainers/runc" \
 	&& cd "$GOPATH/src/github.com/opencontainers/runc" \
 	&& git checkout -q "$RUNC_COMMIT" \
 	&& make static BUILDTAGS="apparmor seccomp selinux" \
@@ -215,7 +206,7 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Install containerd
-ENV CONTAINERD_COMMIT 0ac3cd1be170d180b2baed755e8f0da547ceb267
+ENV CONTAINERD_COMMIT 2a5e70cbf65457815ee76b7e5dd2a01292d9eca8
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/docker/containerd.git "$GOPATH/src/github.com/docker/containerd" \

@@ -37,7 +37,6 @@ func NewStartCommand(dockerCli *client.DockerCli) *cobra.Command {
 			return runStart(dockerCli, &opts)
 		},
 	}
-	cmd.SetFlagErrorFunc(flagErrorFunc)
 
 	flags := cmd.Flags()
 	flags.BoolVarP(&opts.attach, "attach", "a", false, "Attach STDOUT/STDERR and forward signals")

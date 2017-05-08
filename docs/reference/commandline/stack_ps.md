@@ -1,26 +1,23 @@
-<!--[metadata]>
-+++
-title = "stack tasks"
-description = "The stack tasks command description and usage"
-keywords = ["stack, tasks"]
-advisory = "experimental"
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
-
-# stack tasks (experimental)
+---
+redirect_from:
+  - /reference/commandline/stack_tasks/
+advisory: experimental
+description: The stack ps command description and usage
+keywords:
+- stack, ps
+title: docker stack ps (experimental)
+---
 
 ```markdown
-Usage:  docker stack tasks [OPTIONS] STACK
+Usage:  docker stack ps [OPTIONS] STACK
 
 List the tasks in the stack
 
 Options:
   -a, --all            Display all tasks
   -f, --filter value   Filter output based on conditions provided
-      --help           Print usage
       --no-resolve     Do not map IDs to Names
+      --no-trunc       Do not truncate output
 ```
 
 Lists the tasks that are running as part of the specified stack. This
@@ -35,9 +32,9 @@ Multiple filter flags are combined as an `OR` filter. For example,
 
 The currently supported filters are:
 
-* [id](#id)
-* [name](#name)
-* [desired-state](#desired-state)
+* id
+* name
+* desired-state
 
 ## Related information
 

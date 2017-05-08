@@ -436,6 +436,11 @@ do_install() {
 				( set -x; $sh_c 'sleep 3; apt-get install -y -q curl ca-certificates' )
 				curl='curl -sSL'
 			fi
+			if [ ! -e /usr/bin/gpg ]; then
+				apt_get_update
+				( set -x; $sh_c 'sleep 3; apt-get install -y -q gnupg2 || apt-get install -y -q gnupg' )
+			fi
+
 			(
 			set -x
 			for key_server in $key_servers ; do

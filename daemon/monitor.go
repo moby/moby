@@ -3,13 +3,11 @@ package daemon
 import (
 	"errors"
 	"fmt"
-	"io"
 	"runtime"
 	"strconv"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/libcontainerd"
-	"github.com/docker/docker/runconfig"
 )
 
 // StateChanged updates daemon state changes from containerd
@@ -30,7 +28,7 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 	case libcontainerd.StateExit:
 		c.Lock()
 		defer c.Unlock()
-		c.Wait()
+		c.StreamConfig.Wait()
 		c.Reset(false)
 		c.SetStopped(platformConstructExitStatus(e))
 		attributes := map[string]string{
@@ -59,13 +57,13 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 		daemon.updateHealthMonitor(c)
 		return c.ToDisk()
 	case libcontainerd.StateExitProcess:
-		c.Lock()
-		defer c.Unlock()
 		if execConfig := c.ExecCommands.Get(e.ProcessID); execConfig != nil {
 			ec := int(e.ExitCode)
+			execConfig.Lock()
+			defer execConfig.Unlock()
 			execConfig.ExitCode = &ec
 			execConfig.Running = false
-			execConfig.Wait()
+			execConfig.StreamConfig.Wait()
 			if err := execConfig.CloseStreams(); err != nil {
 				logrus.Errorf("%s: %s", c.ID, err)
 			}
@@ -96,60 +94,6 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 		c.Paused = false
 		daemon.updateHealthMonitor(c)
 		daemon.LogContainerEvent(c, "unpause")
-	}
-
-	return nil
-}
-
-// AttachStreams is called by libcontainerd to connect the stdio.
-func (daemon *Daemon) AttachStreams(id string, iop libcontainerd.IOPipe) error {
-	var s *runconfig.StreamConfig
-	c := daemon.containers.Get(id)
-	if c == nil {
-		ec, err := daemon.getExecConfig(id)
-		if err != nil {
-			return fmt.Errorf("no such exec/container: %s", id)
-		}
-		s = ec.StreamConfig
-	} else {
-		s = c.StreamConfig
-		if err := daemon.StartLogging(c); err != nil {
-			c.Reset(false)
-			return err
-		}
-	}
-
-	copyFunc := func(w io.Writer, r io.Reader) {
-		s.Add(1)
-		go func() {
-			if _, err := io.Copy(w, r); err != nil {
-				logrus.Errorf("%v stream copy error: %v", id, err)
-			}
-			s.Done()
-		}()
-	}
-
-	if iop.Stdout != nil {
-		copyFunc(s.Stdout(), iop.Stdout)
-	}
-	if iop.Stderr != nil {
-		copyFunc(s.Stderr(), iop.Stderr)
-	}
-
-	if stdin := s.Stdin(); stdin != nil {
-		if iop.Stdin != nil {
-			go func() {
-				io.Copy(iop.Stdin, stdin)
-				iop.Stdin.Close()
-			}()
-		}
-	} else {
-		if c != nil && !c.Config.Tty {
-			// tty is enabled, so dont close containerd's iopipe stdin.
-			if iop.Stdin != nil {
-				iop.Stdin.Close()
-			}
-		}
 	}
 
 	return nil

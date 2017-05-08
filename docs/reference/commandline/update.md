@@ -1,14 +1,11 @@
-<!--[metadata]>
-+++
-title = "update"
-description = "The update command description and usage"
-keywords = ["resources, update, dynamically"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
-
-## update
+---
+redirect_from:
+  - /reference/commandline/update/
+description: The update command description and usage
+keywords:
+- resources, update, dynamically
+title: docker update
+---
 
 ```markdown
 Usage:  docker update [OPTIONS] CONTAINER [CONTAINER...]
@@ -46,7 +43,7 @@ Another configuration you can change with this command is restart policy,
 new restart policy will take effect instantly after you run `docker update`
 on a container.
 
-## EXAMPLES
+## Examples
 
 The following sections illustrate ways to use this command.
 

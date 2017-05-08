@@ -196,7 +196,6 @@ You can `attach` to a running `container` and investigate its configuration:
 $ docker attach container1
 
 root@0cb243cd1293:/# ifconfig
-ifconfig
 eth0      Link encap:Ethernet  HWaddr 02:42:AC:11:00:02
           inet addr:172.17.0.2  Bcast:0.0.0.0  Mask:255.255.0.0
           inet6 addr: fe80::42:acff:fe11:2/64 Scope:Link
@@ -251,7 +250,6 @@ To detach from a `container1` and leave it running use `CTRL-p CTRL-q`.Then, att
 $ docker attach container2
 
 root@0cb243cd1293:/# ifconfig
-
 eth0      Link encap:Ethernet  HWaddr 02:42:AC:11:00:03
           inet addr:172.17.0.3  Bcast:0.0.0.0  Mask:255.255.0.0
           inet6 addr: fe80::42:acff:fe11:3/64 Scope:Link
@@ -428,7 +426,7 @@ $ docker network create \
 
 # Create an nginx service and extend the my-multi-host-network to nodes where
 # the service's tasks run.
-$ $ docker service create --replicas 2 --network my-multi-host-network --name my-web nginx
+$ docker service create --replicas 2 --network my-multi-host-network --name my-web nginx
 
 716thylsndqma81j6kkkb5aus
 ```
@@ -497,7 +495,7 @@ Docker Engine for use with `overlay` network. There are three options to set:
     </tbody>
 </table>
 
-Create an `overlay` network on one of the machines in the Swarm.
+Create an `overlay` network on one of the machines in the swarm.
 
     $ docker network create --driver overlay my-multi-host-network
 
@@ -537,7 +535,7 @@ built-in network drivers. For example:
 You can inspect it, add containers to and from it, and so forth. Of course,
 different plugins may make use of different technologies or frameworks. Custom
 networks can include features not present in Docker's default networks. For more
-information on writing plugins, see [Extending Docker](../../extend/index.md) and
+information on writing plugins, see [Extending Docker](../../extend/legacy_plugins.md) and
 [Writing a network driver plugin](../../extend/plugins_network.md).
 
 ### Docker embedded DNS server

@@ -2,6 +2,8 @@ package store
 
 import (
 	"errors"
+	"io/ioutil"
+	"os"
 	"strings"
 	"testing"
 
@@ -43,7 +45,13 @@ func TestRemove(t *testing.T) {
 	volumedrivers.Register(vt.NewFakeDriver("noop"), "noop")
 	defer volumedrivers.Unregister("fake")
 	defer volumedrivers.Unregister("noop")
-	s, err := New("")
+	dir, err := ioutil.TempDir("", "test-remove")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	s, err := New(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -180,7 +188,13 @@ func TestFilterByUsed(t *testing.T) {
 func TestDerefMultipleOfSameRef(t *testing.T) {
 	volumedrivers.Register(vt.NewFakeDriver("fake"), "fake")
 
-	s, err := New("")
+	dir, err := ioutil.TempDir("", "deref-multi-same-ref")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	s, err := New(dir)
 	if err != nil {
 		t.Fatal(err)
 	}

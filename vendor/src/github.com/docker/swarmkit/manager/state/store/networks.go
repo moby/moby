@@ -183,6 +183,22 @@ func FindNetworks(tx ReadTx, by By) ([]*api.Network, error) {
 	return networkList, err
 }
 
+// FindNetwork is a utility function which returns the first
+// network for which the target string matches the ID, or
+// the name or the ID prefix.
+func FindNetwork(tx ReadTx, target string) *api.Network {
+	if n := GetNetwork(tx, target); n != nil {
+		return n
+	}
+	if list, err := FindNetworks(tx, ByName(target)); err == nil && len(list) == 1 {
+		return list[0]
+	}
+	if list, err := FindNetworks(tx, ByIDPrefix(target)); err == nil && len(list) == 1 {
+		return list[0]
+	}
+	return nil
+}
+
 type networkIndexerByID struct{}
 
 func (ni networkIndexerByID) FromArgs(args ...interface{}) ([]byte, error) {

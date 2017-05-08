@@ -39,7 +39,7 @@ Some options are supported by specifying `--log-opt` as many times as needed:
 Configure the default logging driver by passing the
 `--log-driver` option to the Docker daemon:
 
-    docker daemon --log-driver=fluentd
+    dockerd --log-driver=fluentd
 
 To set the logging driver for a specific container, pass the
 `--log-driver` option to `docker run`:
@@ -107,7 +107,7 @@ aggregate store.
 
 2. Launch Fluentd container with this configuration file:
 
-        $ docker run -it -p 24224:24224 -v /path/to/conf/test.conf:/fluentd/etc -e FLUENTD_CONF=test.conf fluent/fluentd:latest
+        $ docker run -it -p 24224:24224 -v /path/to/conf/test.conf:/fluentd/etc/test.conf -e FLUENTD_CONF=test.conf fluent/fluentd:latest
 
 3. Start one or more containers with the `fluentd` logging driver:
 

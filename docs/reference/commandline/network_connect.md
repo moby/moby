@@ -1,14 +1,11 @@
-<!--[metadata]>
-+++
-title = "network connect"
-description = "The network connect command description and usage"
-keywords = ["network, connect, user-defined"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
-
-# network connect
+---
+redirect_from:
+  - /reference/commandline/network_connect/
+description: The network connect command description and usage
+keywords:
+- network, connect, user-defined
+title: docker network connect
+---
 
 ```markdown
 Usage:  docker network connect [OPTIONS] NETWORK CONTAINER
@@ -56,11 +53,8 @@ being connected to.
 ```bash
 $ docker network connect --alias db --alias mysql multi-host-network container2
 ```
-
 You can pause, restart, and stop containers that are connected to a network.
-Paused containers remain connected and can be revealed by a `network inspect`.
-When the container is stopped, it does not appear on the network until you restart
-it.
+A container connects to its configured networks when it runs.
 
 If specified, the container's IP address(es) is reapplied when a stopped
 container is restarted. If the IP address is no longer available, the container

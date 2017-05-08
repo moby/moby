@@ -168,14 +168,14 @@ func (d *driver) peerDbAdd(nid, eid string, peerIP net.IP, peerIPMask net.IPMask
 }
 
 func (d *driver) peerDbDelete(nid, eid string, peerIP net.IP, peerIPMask net.IPMask,
-	peerMac net.HardwareAddr, vtep net.IP) bool {
+	peerMac net.HardwareAddr, vtep net.IP) peerEntry {
 	peerDbWg.Wait()
 
 	d.peerDb.Lock()
 	pMap, ok := d.peerDb.mp[nid]
 	if !ok {
 		d.peerDb.Unlock()
-		return false
+		return peerEntry{}
 	}
 	d.peerDb.Unlock()
 
@@ -186,19 +186,20 @@ func (d *driver) peerDbDelete(nid, eid string, peerIP net.IP, peerIPMask net.IPM
 
 	pMap.Lock()
 
-	if pEntry, ok := pMap.mp[pKey.String()]; ok {
+	pEntry, ok := pMap.mp[pKey.String()]
+	if ok {
 		// Mismatched endpoint ID(possibly outdated). Do not
 		// delete peerdb
 		if pEntry.eid != eid {
 			pMap.Unlock()
-			return false
+			return pEntry
 		}
 	}
 
 	delete(pMap.mp, pKey.String())
 	pMap.Unlock()
 
-	return true
+	return pEntry
 }
 
 func (d *driver) peerDbUpdateSandbox(nid string) {
@@ -276,7 +277,7 @@ func (d *driver) peerAdd(nid, eid string, peerIP net.IP, peerIPMask net.IPMask,
 
 	s := n.getSubnetforIP(IP)
 	if s == nil {
-		return fmt.Errorf("couldn't find the subnet %q in network %q\n", IP.String(), n.id)
+		return fmt.Errorf("couldn't find the subnet %q in network %q", IP.String(), n.id)
 	}
 
 	if err := n.obtainVxlanID(s); err != nil {
@@ -312,10 +313,9 @@ func (d *driver) peerDelete(nid, eid string, peerIP net.IP, peerIPMask net.IPMas
 		return err
 	}
 
+	var pEntry peerEntry
 	if updateDb {
-		if !d.peerDbDelete(nid, eid, peerIP, peerIPMask, peerMac, vtep) {
-			return nil
-		}
+		pEntry = d.peerDbDelete(nid, eid, peerIP, peerIPMask, peerMac, vtep)
 	}
 
 	n := d.network(nid)
@@ -328,14 +328,24 @@ func (d *driver) peerDelete(nid, eid string, peerIP net.IP, peerIPMask net.IPMas
 		return nil
 	}
 
-	// Delete fdb entry to the bridge for the peer mac
-	if err := sbox.DeleteNeighbor(vtep, peerMac); err != nil {
-		return fmt.Errorf("could not delete fdb entry into the sandbox: %v", err)
+	// Delete fdb entry to the bridge for the peer mac only if the
+	// entry existed in local peerdb. If it is a stale delete
+	// request, still call DeleteNeighbor but only to cleanup any
+	// leftover sandbox neighbor cache and not actually delete the
+	// kernel state.
+	if (eid == pEntry.eid && vtep.Equal(pEntry.vtep)) ||
+		(eid != pEntry.eid && !vtep.Equal(pEntry.vtep)) {
+		if err := sbox.DeleteNeighbor(vtep, peerMac,
+			eid == pEntry.eid && vtep.Equal(pEntry.vtep)); err != nil {
+			return fmt.Errorf("could not delete fdb entry into the sandbox: %v", err)
+		}
 	}
 
 	// Delete neighbor entry for the peer IP
-	if err := sbox.DeleteNeighbor(peerIP, peerMac); err != nil {
-		return fmt.Errorf("could not delete neighbor entry into the sandbox: %v", err)
+	if eid == pEntry.eid {
+		if err := sbox.DeleteNeighbor(peerIP, peerMac, true); err != nil {
+			return fmt.Errorf("could not delete neighbor entry into the sandbox: %v", err)
+		}
 	}
 
 	if err := d.checkEncryption(nid, vtep, 0, false, false); err != nil {

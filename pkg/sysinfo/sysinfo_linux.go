@@ -18,7 +18,7 @@ const (
 )
 
 func findCgroupMountpoints() (map[string]string, error) {
-	cgMounts, err := cgroups.GetCgroupMounts()
+	cgMounts, err := cgroups.GetCgroupMounts(false)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse cgroup information: %v", err)
 	}

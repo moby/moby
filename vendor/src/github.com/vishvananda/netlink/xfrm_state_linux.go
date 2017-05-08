@@ -213,7 +213,7 @@ func (h *Handle) xfrmStateGetOrDelete(state *XfrmState, nlProto int) (*XfrmState
 		req.AddData(out)
 	}
 	if state.Src != nil {
-		out := nl.NewRtAttr(nl.XFRMA_SRCADDR, state.Src)
+		out := nl.NewRtAttr(nl.XFRMA_SRCADDR, state.Src.To16())
 		req.AddData(out)
 	}
 

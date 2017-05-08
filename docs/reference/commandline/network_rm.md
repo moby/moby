@@ -1,14 +1,11 @@
-<!--[metadata]>
-+++
-title = "network rm"
-description = "the network rm command description and usage"
-keywords = ["network, rm, user-defined"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
-
-# network rm
+---
+redirect_from:
+  - /reference/commandline/network_rm/
+description: the network rm command description and usage
+keywords:
+- network, rm, user-defined
+title: docker network rm
+---
 
 ```markdown
 Usage:  docker network rm NETWORK [NETWORK...]

@@ -6,7 +6,7 @@ docker-rename - Rename a container
 
 # SYNOPSIS
 **docker rename**
-OLD_NAME NEW_NAME
+CONTAINER NEW_NAME
 
 # OPTIONS
 There are no available options.

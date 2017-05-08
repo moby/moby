@@ -1,14 +1,11 @@
-<!--[metadata]>
-+++
-title = "load"
-description = "The load command description and usage"
-keywords = ["stdin, tarred, repository"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
-
-# load
+---
+redirect_from:
+  - /reference/commandline/load/
+description: The load command description and usage
+keywords:
+- stdin, tarred, repository
+title: docker load
+---
 
 ```markdown
 Usage:  docker load [OPTIONS]

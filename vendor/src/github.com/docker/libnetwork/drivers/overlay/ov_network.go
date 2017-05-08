@@ -308,6 +308,11 @@ func populateVNITbl() {
 			}
 			defer nlh.Delete()
 
+			err = nlh.SetSocketTimeout(soTimeout)
+			if err != nil {
+				logrus.Warnf("Failed to set the timeout on the netlink handle sockets for vni table population: %v", err)
+			}
+
 			links, err := nlh.LinkList()
 			if err != nil {
 				logrus.Errorf("Failed to list interfaces during vni population for ns %s: %v", path, err)
@@ -500,9 +505,13 @@ func (n *network) initSubnetSandbox(s *subnet, restore bool) error {
 	vxlanName := n.generateVxlanName(s)
 
 	if restore {
-		n.restoreSubnetSandbox(s, brName, vxlanName)
+		if err := n.restoreSubnetSandbox(s, brName, vxlanName); err != nil {
+			return err
+		}
 	} else {
-		n.setupSubnetSandbox(s, brName, vxlanName)
+		if err := n.setupSubnetSandbox(s, brName, vxlanName); err != nil {
+			return err
+		}
 	}
 
 	n.Lock()

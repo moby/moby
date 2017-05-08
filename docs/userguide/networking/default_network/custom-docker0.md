@@ -45,7 +45,7 @@ Finally, the `docker0` Ethernet bridge settings are used every time you create a
 
 $ docker run -i -t --rm base /bin/bash
 
-$$ ip addr show eth0
+root@f38c87f2a42d:/# ip addr show eth0
 
 24: eth0: <BROADCAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP group default qlen 1000
     link/ether 32:6f:e0:35:57:91 brd ff:ff:ff:ff:ff:ff
@@ -54,12 +54,12 @@ $$ ip addr show eth0
     inet6 fe80::306f:e0ff:fe35:5791/64 scope link
        valid_lft forever preferred_lft forever
 
-$$ ip route
+root@f38c87f2a42d:/# ip route
 
 default via 172.17.42.1 dev eth0
 172.17.0.0/16 dev eth0  proto kernel  scope link  src 172.17.0.3
 
-$$ exit
+root@f38c87f2a42d:/# exit
 ```
 
 Remember that the Docker host will not be willing to forward container packets out on to the Internet unless its `ip_forward` system setting is `1` -- see the section on [Communicating to the outside world](container-communication.md#communicating-to-the-outside-world) for details.

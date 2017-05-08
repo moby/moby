@@ -1,14 +1,11 @@
-<!--[metadata]>
-+++
-title = "pause"
-description = "The pause command description and usage"
-keywords = ["cgroups, container, suspend, SIGSTOP"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
-
-# pause
+---
+redirect_from:
+  - /reference/commandline/pause/
+description: The pause command description and usage
+keywords:
+- cgroups, container, suspend, SIGSTOP
+title: docker pause
+---
 
 ```markdown
 Usage:  docker pause CONTAINER [CONTAINER...]

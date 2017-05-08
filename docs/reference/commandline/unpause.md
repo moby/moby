@@ -1,14 +1,11 @@
-<!--[metadata]>
-+++
-title = "unpause"
-description = "The unpause command description and usage"
-keywords = ["cgroups, suspend, container"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
-
-# unpause
+---
+redirect_from:
+  - /reference/commandline/unpause/
+description: The unpause command description and usage
+keywords:
+- cgroups, suspend, container
+title: docker unpause
+---
 
 ```markdown
 Usage:  docker unpause CONTAINER [CONTAINER...]

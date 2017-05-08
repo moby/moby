@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/net/context"
@@ -250,7 +251,10 @@ func (d *Daemon) initHealthMonitor(c *container.Container) {
 	// This is needed in case we're auto-restarting
 	d.stopHealthchecks(c)
 
-	if c.State.Health == nil {
+	if h := c.State.Health; h != nil {
+		h.Status = types.Starting
+		h.FailingStreak = 0
+	} else {
 		h := &container.Health{}
 		h.Status = types.Starting
 		c.State.Health = h
@@ -271,11 +275,15 @@ func (d *Daemon) stopHealthchecks(c *container.Container) {
 // Buffer up to maxOutputLen bytes. Further data is discarded.
 type limitedBuffer struct {
 	buf       bytes.Buffer
+	mu        sync.Mutex
 	truncated bool // indicates that data has been lost
 }
 
 // Append to limitedBuffer while there is room.
 func (b *limitedBuffer) Write(data []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
 	bufLen := b.buf.Len()
 	dataLen := len(data)
 	keep := min(maxOutputLen-bufLen, dataLen)
@@ -290,6 +298,9 @@ func (b *limitedBuffer) Write(data []byte) (int, error) {
 
 // The contents of the buffer, with "..." appended if it overflowed.
 func (b *limitedBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
 	out := b.buf.String()
 	if b.truncated {
 		out = out + "..."

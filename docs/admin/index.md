@@ -25,7 +25,7 @@ or `systemd` to manage the `docker` daemon's start and stop.
 
 ### Running the docker daemon directly
 
-The `docker` daemon can be run directly using the `dockerd` command. By default it listens on
+The Docker daemon can be run directly using the `dockerd` command. By default it listens on
 the Unix socket `unix:///var/run/docker.sock`
 
     $ dockerd
@@ -38,9 +38,9 @@ the Unix socket `unix:///var/run/docker.sock`
 
 ### Configuring the docker daemon directly
 
-If you're running the `docker` daemon directly by running `docker daemon` instead
+If you're running the Docker daemon directly by running `dockerd` instead
 of using a process manager, you can append the configuration options to the `docker` run
-command directly. Other options can be passed to the `docker` daemon to configure it.
+command directly. Other options can be passed to the Docker daemon to configure it.
 
 Some of the daemon's options are:
 
@@ -51,7 +51,7 @@ Some of the daemon's options are:
 | `--tls=false`         | Enable or disable TLS. By default, this is false.         |
 
 
-Here is an example of running the `docker` daemon with configuration options:
+Here is an example of running the Docker daemon with configuration options:
 
     $ dockerd -D --tls=true --tlscert=/var/docker/server.pem --tlskey=/var/docker/serverkey.pem -H tcp://192.168.59.3:2376
 

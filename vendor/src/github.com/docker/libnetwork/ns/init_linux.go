@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/vishvananda/netlink"
@@ -17,6 +18,8 @@ var (
 	initNs   netns.NsHandle
 	initNl   *netlink.Handle
 	initOnce sync.Once
+	// NetlinkSocketsTimeout represents the default timeout duration for the sockets
+	NetlinkSocketsTimeout = 3 * time.Second
 )
 
 // Init initializes a new network namespace
@@ -29,6 +32,10 @@ func Init() {
 	initNl, err = netlink.NewHandle(getSupportedNlFamilies()...)
 	if err != nil {
 		log.Errorf("could not create netlink handle on initial namespace: %v", err)
+	}
+	err = initNl.SetSocketTimeout(NetlinkSocketsTimeout)
+	if err != nil {
+		log.Warnf("Failed to set the timeout on the default netlink handle sockets: %v", err)
 	}
 }
 
@@ -69,8 +76,10 @@ func NlHandle() *netlink.Handle {
 func getSupportedNlFamilies() []int {
 	fams := []int{syscall.NETLINK_ROUTE}
 	if err := loadXfrmModules(); err != nil {
-		log.Warnf("Could not load necessary modules for IPSEC rules: %v", err)
-		return fams
+		if checkXfrmSocket() != nil {
+			log.Warnf("Could not load necessary modules for IPSEC rules: %v", err)
+			return fams
+		}
 	}
 	return append(fams, syscall.NETLINK_XFRM)
 }
@@ -82,5 +91,15 @@ func loadXfrmModules() error {
 	if out, err := exec.Command("modprobe", "-va", "xfrm_algo").CombinedOutput(); err != nil {
 		return fmt.Errorf("Running modprobe xfrm_algo failed with message: `%s`, error: %v", strings.TrimSpace(string(out)), err)
 	}
+	return nil
+}
+
+// API check on required xfrm modules (xfrm_user, xfrm_algo)
+func checkXfrmSocket() error {
+	fd, err := syscall.Socket(syscall.AF_NETLINK, syscall.SOCK_RAW, syscall.NETLINK_XFRM)
+	if err != nil {
+		return err
+	}
+	syscall.Close(fd)
 	return nil
 }

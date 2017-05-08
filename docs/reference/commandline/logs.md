@@ -1,14 +1,11 @@
-<!--[metadata]>
-+++
-title = "logs"
-description = "The logs command description and usage"
-keywords = ["logs, retrieve, docker"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
-
-# logs
+---
+redirect_from:
+  - /reference/commandline/logs/
+description: The logs command description and usage
+keywords:
+- logs, retrieve, docker
+title: docker logs
+---
 
 ```markdown
 Usage:  docker logs [OPTIONS] CONTAINER
@@ -24,10 +21,13 @@ Options:
   -t, --timestamps     Show timestamps
 ```
 
-> **Note**: this command is available only for containers with `json-file` and
-> `journald` logging drivers.
-
 The `docker logs` command batch-retrieves logs present at the time of execution.
+
+> **Note**: this command is only functional for containers that are started with
+> the `json-file` or `journald` logging driver.
+
+For more information about selecting and configuring logging drivers, refer to
+[Configure logging drivers](https://docs.docker.com/engine/admin/logging/overview/).
 
 The `docker logs --follow` command will continue streaming the new output from
 the container's `STDOUT` and `STDERR`.

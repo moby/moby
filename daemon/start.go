@@ -18,7 +18,7 @@ import (
 )
 
 // ContainerStart starts a container.
-func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.HostConfig, validateHostname bool) error {
+func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.HostConfig) error {
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
@@ -38,7 +38,7 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 		// This is kept for backward compatibility - hostconfig should be passed when
 		// creating a container, not during start.
 		if hostConfig != nil {
-			logrus.Warn("DEPRECATED: Setting host configuration options when the container starts is deprecated and will be removed in Docker 1.12")
+			logrus.Warn("DEPRECATED: Setting host configuration options when the container starts is deprecated and has been removed in Docker 1.12")
 			oldNetworkMode := container.HostConfig.NetworkMode
 			if err := daemon.setSecurityOptions(container, hostConfig); err != nil {
 				return err
@@ -52,7 +52,7 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 			newNetworkMode := container.HostConfig.NetworkMode
 			if string(oldNetworkMode) != string(newNetworkMode) {
 				// if user has change the network mode on starting, clean up the
-				// old networks. It is a deprecated feature and will be removed in Docker 1.12
+				// old networks. It is a deprecated feature and has been removed in Docker 1.12
 				container.NetworkSettings.Networks = nil
 				if err := container.ToDisk(); err != nil {
 					return err
@@ -68,7 +68,7 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 
 	// check if hostConfig is in line with the current system settings.
 	// It may happen cgroups are umounted or the like.
-	if _, err = daemon.verifyContainerSettings(container.HostConfig, nil, false, validateHostname); err != nil {
+	if _, err = daemon.verifyContainerSettings(container.HostConfig, nil, false); err != nil {
 		return err
 	}
 	// Adapt for old containers in case we have updates in this function and
@@ -141,7 +141,7 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 		createOptions = append(createOptions, *copts...)
 	}
 
-	if err := daemon.containerd.Create(container.ID, *spec, createOptions...); err != nil {
+	if err := daemon.containerd.Create(container.ID, *spec, container.InitializeStdio, createOptions...); err != nil {
 		errDesc := grpc.ErrorDesc(err)
 		logrus.Errorf("Create container failed with error: %s", errDesc)
 		// if we receive an internal error from the initial start of a container then lets

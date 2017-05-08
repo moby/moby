@@ -1,24 +1,11 @@
-<!--[metadata]>
-+++
-title = "Docker run reference"
-description = "Configure containers at runtime"
-keywords = ["docker, run, configure,  runtime"]
-[menu.main]
-parent = "engine_ref"
-weight=-80
-+++
-<![end-metadata]-->
-
-<!-- TODO (@thaJeztah) define more flexible table/td classes -->
-<style>
-table .no-wrap {
-    white-space: nowrap;
-}
-table code {
-    white-space: nowrap;
-}
-</style>
-# Docker run reference
+---
+redirect_from:
+  - /reference/run/
+description: Configure containers at runtime
+keywords:
+- docker, run, configure,  runtime
+title: Docker run reference
+---
 
 Docker runs processes in isolated containers. A container is a process
 which runs on a host. The host may be local or remote. When an operator
@@ -67,18 +54,18 @@ types*](commandline/cli.md#option-types).
 Only the operator (the person executing `docker run`) can set the
 following options.
 
- - [Detached vs foreground](#detached-vs-foreground)
-     - [Detached (-d)](#detached-d)
-     - [Foreground](#foreground)
- - [Container identification](#container-identification)
-     - [Name (--name)](#name-name)
-     - [PID equivalent](#pid-equivalent)
- - [IPC settings (--ipc)](#ipc-settings-ipc)
- - [Network settings](#network-settings)
- - [Restart policies (--restart)](#restart-policies-restart)
- - [Clean up (--rm)](#clean-up-rm)
- - [Runtime constraints on resources](#runtime-constraints-on-resources)
- - [Runtime privilege and Linux capabilities](#runtime-privilege-and-linux-capabilities)
+ - [Detached vs foreground](run.md#detached-vs-foreground)
+     - [Detached (-d)](run.md#detached--d)
+     - [Foreground](run.md#foreground)
+ - [Container identification](run.md#container-identification)
+     - [Name (--name)](run.md#name---name)
+     - [PID equivalent](run.md#pid-equivalent)
+ - [IPC settings (--ipc)](run.md#ipc-settings---ipc)
+ - [Network settings](run.md#network-settings)
+ - [Restart policies (--restart)](run.md#restart-policies---restart)
+ - [Clean up (--rm)](run.md#clean-up---rm)
+ - [Runtime constraints on resources](run.md#runtime-constraints-on-resources)
+ - [Runtime privilege and Linux capabilities](run.md#runtime-privilege-and-linux-capabilities)
 
 ## Detached vs foreground
 
@@ -190,7 +177,7 @@ Images using the v2 or later image format have a content-addressable identifier
 called a digest. As long as the input used to generate the image is unchanged,
 the digest value is predictable and referenceable.
 
-The following example runs a container from the `alpine` image with the 
+The following example runs a container from the `alpine` image with the
 `sha256:9cacb71397b640eca97488cf08582ae4e4068513101088e9f96c9814bfda95e0` digest:
 
     $ docker run alpine@sha256:9cacb71397b640eca97488cf08582ae4e4068513101088e9f96c9814bfda95e0 date
@@ -248,7 +235,7 @@ $ docker run --name my-redis -d redis
 Debug the redis container by running another container that has strace in it:
 
 ```bash
-$ docker run --it --pid=container:my-redis bash
+$ docker run -it --pid=container:my-redis my_strace_docker_image bash
 $ strace -p 1
 ```
 
@@ -350,13 +337,13 @@ Supported networks :
       <td class="no-wrap"><strong>container</strong>:&lt;name|id&gt;</td>
       <td>
         Use the network stack of another container, specified via
-        its *name* or *id*.
+        its <i>name</i> or <i>id</i>.
       </td>
     </tr>
     <tr>
       <td class="no-wrap"><strong>NETWORK</strong></td>
       <td>
-        Connects the container to a user created network (using `docker network create` command)
+        Connects the container to a user created network (using <code>docker network create</code> command)
       </td>
     </tr>
   </tbody>
@@ -429,7 +416,7 @@ running the `redis-cli` command and connecting to the Redis server over the
 You can create a network using a Docker network driver or an external network
 driver plugin. You can connect multiple containers to the same network. Once
 connected to a user-defined network, the containers can communicate easily using
-only another container's IP address or name.  
+only another container's IP address or name.
 
 For `overlay` networks or custom plugins that support multi-host connectivity,
 containers connected to the same multi-host network but launched from different
@@ -546,18 +533,22 @@ will try forever to restart the container. The number of (attempted) restarts
 for a container can be obtained via [`docker inspect`](commandline/inspect.md). For example, to get the number of restarts
 for container "my-container";
 
+    {% raw %}
     $ docker inspect -f "{{ .RestartCount }}" my-container
     # 2
+    {% endraw %}
 
 Or, to get the last time the container was (re)started;
 
+    {% raw %}
     $ docker inspect -f "{{ .State.StartedAt }}" my-container
     # 2015-03-04T23:47:07.691840179Z
+    {% endraw %}
 
 
 Combining `--restart` (restart policy) with the `--rm` (clean up) flag results
 in an error. On container restart, attached clients are disconnected. See the
-examples on using the [`--rm` (clean up)](#clean-up-rm) flag later in this page.
+examples on using the [`--rm` (clean up)](run.md#clean-up-rm) flag later in this page.
 
 ### Examples
 
@@ -625,15 +616,15 @@ but the volume for `/bar` will not. Volumes inherited via `--volumes-from` will 
 with the same logic -- if the original volume was specified with a name it will **not** be removed.
 
 ## Security configuration
-    --security-opt="label=user:USER"   : Set the label user for the container
-    --security-opt="label=role:ROLE"   : Set the label role for the container
-    --security-opt="label=type:TYPE"   : Set the label type for the container
-    --security-opt="label=level:LEVEL" : Set the label level for the container
-    --security-opt="label=disable"     : Turn off label confinement for the container
-    --security-opt="apparmor=PROFILE"  : Set the apparmor profile to be applied to the container
-    --security-opt="no-new-privileges" : Disable container processes from gaining new privileges
-    --security-opt="seccomp=unconfined": Turn off seccomp confinement for the container
-    --security-opt="seccomp=profile.json: White listed syscalls seccomp Json file to be used as a seccomp filter
+    --security-opt="label=user:USER"     : Set the label user for the container
+    --security-opt="label=role:ROLE"     : Set the label role for the container
+    --security-opt="label=type:TYPE"     : Set the label type for the container
+    --security-opt="label=level:LEVEL"   : Set the label level for the container
+    --security-opt="label=disable"       : Turn off label confinement for the container
+    --security-opt="apparmor=PROFILE"    : Set the apparmor profile to be applied to the container
+    --security-opt="no-new-privileges"   : Disable container processes from gaining new privileges
+    --security-opt="seccomp=unconfined"  : Turn off seccomp confinement for the container
+    --security-opt="seccomp=profile.json": White listed syscalls seccomp Json file to be used as a seccomp filter
 
 
 You can override the default labeling scheme for each container by specifying
@@ -645,7 +636,7 @@ allows you to share the same content between containers.
 > **Note**: Automatic translation of MLS labels is not currently supported.
 
 To disable the security labeling for this container versus running with the
-`--permissive` flag, use the following command:
+`--privileged` flag, use the following command:
 
     $ docker run --security-opt label=disable -it fedora bash
 
@@ -735,7 +726,7 @@ We have four ways to set user memory usage:
       <td class="no-wrap"><strong>memory=L&lt;inf, memory-swap=2*L</strong></td>
       <td>
         (specify memory without memory-swap) The container is not allowed to
-        use more than L bytes of memory, swap *plus* memory usage is double
+        use more than L bytes of memory, swap <i>plus</i> memory usage is double
         of that.
       </td>
     </tr>
@@ -745,7 +736,7 @@ We have four ways to set user memory usage:
       </td>
       <td>
         (specify both memory and memory-swap) The container is not allowed to
-        use more than L bytes of memory, swap *plus* memory usage is limited
+        use more than L bytes of memory, swap <i>plus</i> memory usage is limited
         by S.
       </td>
     </tr>
@@ -1262,15 +1253,15 @@ Four of the Dockerfile commands cannot be overridden at runtime: `FROM`,
 in `docker run`. We'll go through what the developer might have set in each
 Dockerfile instruction and how the operator can override that setting.
 
- - [CMD (Default Command or Options)](#cmd-default-command-or-options)
+ - [CMD (Default Command or Options)](run.md#cmd-default-command-or-options)
  - [ENTRYPOINT (Default Command to Execute at Runtime)](
     #entrypoint-default-command-to-execute-at-runtime)
- - [EXPOSE (Incoming Ports)](#expose-incoming-ports)
- - [ENV (Environment Variables)](#env-environment-variables)
- - [HEALTHCHECK](#healthcheck)
- - [VOLUME (Shared Filesystems)](#volume-shared-filesystems)
- - [USER](#user)
- - [WORKDIR](#workdir)
+ - [EXPOSE (Incoming Ports)](run.md#expose-incoming-ports)
+ - [ENV (Environment Variables)](run.md#env-environment-variables)
+ - [HEALTHCHECK](run.md#healthcheck)
+ - [VOLUME (Shared Filesystems)](run.md#volume-shared-filesystems)
+ - [USER](run.md#user)
+ - [WORKDIR](run.md#workdir)
 
 ### CMD (default command or options)
 
@@ -1367,7 +1358,7 @@ If the operator uses `--link` when starting a new client container in the
 default bridge network, then the client container can access the exposed
 port via a private networking interface.
 If `--link` is used when starting a container in a user-defined network as
-described in [*Docker network overview*](../userguide/networking/index.md)),
+described in [*Docker network overview*](../userguide/networking/index.md),
 it will provide a named alias for the container being linked to.
 
 ### ENV (environment variables)
@@ -1375,34 +1366,12 @@ it will provide a named alias for the container being linked to.
 When a new container is created, Docker will set the following environment
 variables automatically:
 
-<table>
- <tr>
-  <th>Variable</th>
-  <th>Value</th>
- </tr>
- <tr>
-  <td><code>HOME</code></td>
-  <td>
-    Set based on the value of <code>USER</code>
-  </td>
- </tr>
- <tr>
-  <td><code>HOSTNAME</code></td>
-  <td>
-    The hostname associated with the container
-  </td>
- </tr>
- <tr>
-  <td><code>PATH</code></td>
-  <td>
-    Includes popular directories, such as :<br>
-    <code>/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin</code>
-  </td>
- <tr>
-  <td><code>TERM</code></td>
-  <td><code>xterm</code> if the container is allocated a pseudo-TTY</td>
- </tr>
-</table>
+| Variable | Value |
+| -------- | ----- |
+| `HOME` | Set based on the value of `USER` |
+| `HOSTNAME` | The hostname associated with the container |
+| `PATH` | Includes popular directories, such as `:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin` |
+| `TERM` | `xterm` if the container is allocated a pseudo-TTY |
 
 Additionally, the operator can **set any environment variable** in the
 container by using one or more `-e` flags, even overriding those mentioned
@@ -1431,6 +1400,7 @@ Similarly the operator can set the **hostname** with `-h`.
 
 Example:
 
+    {% raw %}
     $ docker run --name=test -d \
         --health-cmd='stat /etc/passwd || exit 1' \
         --health-interval=2s \
@@ -1475,6 +1445,7 @@ Example:
         }
       ]
     }
+    {% endraw %}
 
 The health status is also displayed in the `docker ps` output.
 

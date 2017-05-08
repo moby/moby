@@ -49,6 +49,9 @@ for version in "${versions[@]}"; do
 			echo "RUN yum install -y kernel-uek-devel-4.1.12-32.el6uek"  >> "$version/Dockerfile"
 			echo >> "$version/Dockerfile"
 			;;
+		fedora:*)
+			echo "RUN ${installer} -y upgrade" >> "$version/Dockerfile"
+			;;
 		*) ;;
 	esac
 

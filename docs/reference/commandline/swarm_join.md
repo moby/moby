@@ -1,16 +1,13 @@
-<!--[metadata]>
-+++
-title = "swarm join"
-description = "The swarm join command description and usage"
-keywords = ["swarm, join"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+redirect_from:
+  - /reference/commandline/swarm_join/
+description: The swarm join command description and usage
+keywords:
+- swarm, join
+title: docker swarm join
+---
 
 **Warning:** this command is part of the Swarm management feature introduced in Docker 1.12, and might be subject to non backward-compatible changes.
-
-# swarm join
 
 ```markdown
 Usage:  docker swarm join [OPTIONS] HOST:PORT
@@ -61,7 +58,7 @@ dvfxp4zseq4s0rih1selh0d20 *  manager1  Ready   Active        Leader
 
 ### `--listen-addr value`
 
-If the node is a manager, it will listen for inbound Swarm manager traffic on this
+If the node is a manager, it will listen for inbound swarm manager traffic on this
 address. The default is to listen on 0.0.0.0:2377. It is also possible to specify a
 network interface to listen on that interface's address; for example `--listen-addr eth0:2377`.
 
@@ -86,10 +83,6 @@ Specifying a port is optional. If the value is a bare IP address, or interface
 name, the default port 2377 will be used.
 
 This flag is generally not necessary when joining an existing swarm.
-
-### `--manager`
-
-Joins the node as a manager
 
 ### `--token string`
 

@@ -1,16 +1,13 @@
-<!--[metadata]>
-+++
-title = "service create"
-description = "The service create command description and usage"
-keywords = ["service, create"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+redirect_from:
+  - /reference/commandline/service_create/
+description: The service create command description and usage
+keywords:
+- service, create
+title: docker service create
+---
 
 **Warning:** this command is part of the Swarm management feature introduced in Docker 1.12, and might be subject to non backward-compatible changes.
-
-# service create
 
 ```Markdown
 Usage:  docker service create [OPTIONS] IMAGE [COMMAND] [ARG...]
@@ -49,8 +46,8 @@ Options:
   -w, --workdir string                 Working directory inside the container
 ```
 
-Creates a service as described by the specified parameters. This command has to
-be run targeting a manager node.
+Creates a service as described by the specified parameters. You must run this
+command on a manager node.
 
 ## Examples
 
@@ -65,10 +62,10 @@ ID            NAME   REPLICAS  IMAGE        COMMAND
 dmu1ept4cxcf  redis  1/1       redis:3.0.6
 ```
 
-### Create a service with 5 tasks
+### Create a service with 5 replica tasks (--replicas)
 
-You can set the number of tasks for a service using the `--replicas` option. The
-following command creates a `redis` service with `5` tasks:
+Use the `--replicas` flag to set the number of replica tasks for a replicated
+service. The following command creates a `redis` service with `5` replica tasks:
 
 ```bash
 $ docker service create --name redis --replicas=5 redis:3.0.6
@@ -76,12 +73,12 @@ $ docker service create --name redis --replicas=5 redis:3.0.6
 ```
 
 The above command sets the *desired* number of tasks for the service. Even
-though the command returns directly, actual scaling of the service may take
+though the command returns immediately, actual scaling of the service may take
 some time. The `REPLICAS` column shows both the *actual* and *desired* number
-of tasks for the service.
+of replica tasks for the service.
 
-In the following example, the desired number of tasks is set to `5`, but the
-*actual* number is `3`
+In the following example the desired state is  `5` replicas, but the current
+number of `RUNNING` tasks is `3`:
 
 ```bash
 $ docker service ls
@@ -89,8 +86,8 @@ ID            NAME    REPLICAS  IMAGE        COMMAND
 4cdgfyky7ozw  redis   3/5       redis:3.0.7
 ```
 
-Once all the tasks are created, the actual number of tasks is equal to the
-desired number:
+Once all the tasks are created and `RUNNING`, the actual number of tasks is
+equal to the desired number:
 
 ```bash
 $ docker service ls
@@ -98,9 +95,7 @@ ID            NAME    REPLICAS  IMAGE        COMMAND
 4cdgfyky7ozw  redis   5/5       redis:3.0.7
 ```
 
-
 ### Create a service with a rolling update policy
-
 
 ```bash
 $ docker service create \
@@ -111,10 +106,12 @@ $ docker service create \
   redis:3.0.6
 ```
 
-When this service is [updated](service_update.md), a rolling update will update
-tasks in batches of `2`, with `10s` between batches.
+When you run a [service update](service_update.md), the scheduler updates a
+maximum of 2 tasks at a time, with `10s` between updates. For more information,
+refer to the [rolling updates
+tutorial](../../swarm/swarm-tutorial/rolling-update.md).
 
-### Setting environment variables (-e --env)
+### Set environment variables (-e, --env)
 
 This sets environmental variables for all tasks in a service. For example:
 
@@ -122,7 +119,7 @@ This sets environmental variables for all tasks in a service. For example:
 $ docker service create --name redis_2 --replicas 5 --env MYVAR=foo redis:3.0.6
 ```
 
-### Set metadata on a service (-l --label)
+### Set metadata on a service (-l, --label)
 
 A label is a `key=value` pair that applies metadata to a service. To label a
 service with two labels:
@@ -138,32 +135,259 @@ $ docker service create \
 For more information about labels, refer to [apply custom
 metadata](../../userguide/labels-custom-metadata.md).
 
-### Set service mode
+### Add bind-mounts or volumes
 
-Is this a replicated service or a global service. A replicated service runs as
-many tasks as specified, while a global service runs on each active node in the
-swarm.
+Docker supports two different kinds of mounts, which allow containers to read to
+or write from files or directories on other containers or the host operating
+system. These types are _data volumes_ (often referred to simply as volumes) and
+_bind-mounts_.
 
-The following command creates a "global" service:
+A **bind-mount** makes a file or directory on the host available to the
+container it is mounted within. A bind-mount may be either read-only or
+read-write. For example, a container might share its host's DNS information by
+means of a bind-mount of the host's `/etc/resolv.conf` or a container might
+write logs to its host's `/var/log/myContainerLogs` directory. If you use
+bind-mounts and your host and containers have different notions of permissions,
+access controls, or other such details, you will run into portability issues.
+
+A **named volume** is a mechanism for decoupling persistent data needed by your
+container from the image used to create the container and from the host machine.
+Named volumes are created and managed by Docker, and a named volume persists
+even when no container is currently using it. Data in named volumes can be
+shared between a container and the host machine, as well as between multiple
+containers. Docker uses a _volume driver_ to create, manage, and mount volumes.
+You can back up or restore volumes using Docker commands.
+
+Consider a situation where your image starts a lightweight web server. You could
+use that image as a base image, copy in your website's HTML files, and package
+that into another image. Each time your website changed, you'd need to update
+the new image and redeploy all of the containers serving your website. A better
+solution is to store the website in a named volume which is attached to each of
+your web server containers when they start. To update the website, you just
+update the named volume.
+
+For more information about named volumes, see
+[Data Volumes](/engine/tutorials/dockervolumes/).
+
+The following table describes options which apply to both bind-mounts and named
+volumes in a service:
+
+<table>
+<thead>
+<tr>
+<th align="left">Option</th>
+<th align="left">Required</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td align="left"><strong>type</strong></td>
+<td align="left"></td>
+<td align="left">The type of mount, can be either <code>volume</code>, or <code>bind</code>. Defaults to <code>volume</code> if no type is specified.<ul><li><code>volume</code>: mounts a <a href="../../../../engine/reference/commandline/volume_create/">managed volume</a> into the container.</li><li><code>bind</code>: bind-mounts a directory or file from the host into the container.</li></ul></td>
+</tr>
+
+<tr>
+<td align="left"><strong>src</strong> or <strong>source</strong></td>
+<td align="left">for <code>type=bind</code>&nbsp;only</td>
+<td align="left"><ul><li><code>type=volume</code>: <code>src</code> is an optional way to specify the name of the volume (for example, <code>src=my-volume</code>). If the named volume does not exist, it is automatically created. If no <code>src</code> is specified, the volume is assigned a random name which is guaranteed to be unique on the host, but may not be unique cluster-wide. A randomly-named volume has the same lifecycle as its container and is destroyed when the <em>container</em> is destroyed (which is upon <code>service update</code>, or when scaling or re-balancing the service).</li><li><code>type=bind</code>: <code>src</code> is required, and specifies an absolute path to the file or directory to bind-mount (for example, <code>src=/path/on/host/</code>).  An error is produced if the file or directory does not exist.</li></ul></td>
+</tr>
+
+<tr>
+<td align="left"><strong>dst</strong> or <strong>destination</strong> or <strong>target</strong></td>
+<td align="left">yes</td>
+<td align="left">Mount path inside the container, for example <code>/some/path/in/container/</code>. If the path does not exist in the container&rsquo;s filesystem, the Engine creates a directory at the specified location before mounting the volume or bind-mount.</td>
+</tr>
+
+<tr>
+<td align="left"><strong>readonly</strong> or <strong>ro</strong></td>
+<td align="left"></td>
+<td align="left">The Engine mounts binds and volumes <code>read-write</code> unless <code>readonly</code> option is given when mounting the bind or volume.<br /><br /><ul><li><code>true</code> or <code>1</code> or no value: Mounts the bind or volume read-only.</li><li><code>false</code> or <code>0</code>: Mounts the bind or volume read-write.</li></ul></td>
+</tr>
+</tbody>
+</table>
+
+#### Bind Propagation
+
+Bind propagation refers to whether or not mounts created within a given
+bind-mount or named volume can be propagated to replicas of that mount. Consider
+a mount point `/mnt`, which is also mounted on `/tmp`. The propagation settings
+control whether a mount on `/tmp/a` would also be available on `/mnt/a`. Each
+propagation setting has a recursive counterpoint. In the case of recursion,
+consider that `/tmp/a` is also mounted as `/foo`. The propagation settings
+control whether `/mnt/a` and/or `/tmp/a` would exist.
+
+The `bind-propagation` option defaults to `rprivate` for both bind-mounts and
+volume mounts, and is only configurable for bind-mounts. In other words, named
+volumes do not support bind propagation.
+
+- **`shared`**: Sub-mounts of the original mount are exposed to replica mounts,
+                and sub-mounts of replica mounts are also propagated to the
+                original mount.
+- **`slave`**: similar to a shared mount, but only in one direction. If the
+               original mount exposes a sub-mount, the replica mount can see it.
+               However, if the replica mount exposes a sub-mount, the original
+               mount cannot see it.
+- **`private`**: The mount is private. Sub-mounts within it are not exposed to
+                 replica mounts, and sub-mounts of replica mounts are not
+                 exposed to the original mount.
+- **`rshared`**: The same as shared, but the propagation also extends to and from
+                 mount points nested within any of the original or replica mount
+                 points.
+- **`rslave`**: The same as `slave`, but the propagation also extends to and from
+                 mount points nested within any of the original or replica mount
+                 points.
+- **`rprivate`**: The default. The same as `private`, meaning that no mount points
+                  anywhere within the original or replica mount points propagate
+                  in either direction.
+
+For more information about bind propagation, see the
+[Linux kernel documentation for shared subtree](https://www.kernel.org/doc/Documentation/filesystems/sharedsubtree.txt).
+
+#### Options for Named Volumes
+The following options can only be used for named volumes (`type=volume`);
+
+<table>
+<thead>
+<tr>
+<th align="left">Option</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td align="left"><strong>volume-driver</strong></td>
+<td align="left">Name of the volume-driver plugin to use for the volume. Defaults to <code>&quot;local&quot;</code>, to use the local volume driver to create the volume if the volume does not exist.</td>
+</tr>
+
+<tr>
+<td align="left"><strong>volume-label</strong></td>
+<td align="left">One or more custom metadata (&ldquo;labels&rdquo;) to apply to the volume upon creation. For example, <code>volume-label=mylabel=hello-world,my-other-label=hello-mars</code>. For more information about labels, refer to <a href="../../../../engine/userguide/labels-custom-metadata/">apply custom metadata</a>.</td>
+</tr>
+
+<tr>
+<td align="left"><strong>volume-nocopy</strong></td>
+<td align="left">By default, if you attach an empty volume to a container, and files or directories already existed at the mount-path in the container (<code>dst</code>), the Engine copies those files and directories into the volume, allowing the host to access them. Set <code>volume-nocopy</code> to disables copying files from the container&rsquo;s filesystem to the volume and mount the empty volume.<br /><br />A value is optional:<ul><li><code>true</code> or <code>1</code>: Default if you do not provide a value. Disables copying.</li><li><code>false</code> or <code>0</code>: Enables copying.</li></ul></td>
+</tr>
+
+<tr>
+<td align="left"><strong>volume-opt</strong></td>
+<td align="left">Options specific to a given volume driver, which will be passed to the driver when creating the volume. Options are provided as a comma-separated list of key/value pairs, for example, <code>volume-opt=some-option=some-value,some-other-option=some-other-value</code>. For available options for a given driver, refer to that driver&rsquo;s documentation.</td>
+</tr>
+</tbody>
+</table>
+
+
+#### Differences between "--mount" and "--volume"
+
+The `--mount` flag supports most options that are supported by the `-v`
+or `--volume` flag for `docker run`, with some important exceptions:
+
+- The `--mount` flag allows you to specify a volume driver and volume driver
+    options *per volume*, without creating the volumes in advance. In contrast,
+    `docker run` allows you to specify a single volume driver which is shared
+    by all volumes, using the `--volume-driver` flag.
+
+- The `--mount` flag allows you to specify custom metadata ("labels") for a volume,
+    before the volume is created.
+
+- When you use `--mount` with `type=bind`, the host-path must refer to an *existing*
+    path on the host. The path will not be created for you and the service will fail
+    with an error if the path does not exist.
+
+- The `--mount` flag does not allow you to relabel a volume with `Z` or `z` flags,
+    which are used for `selinux` labeling.
+
+#### Create a service using a named volume
+
+The following example creates a service that uses a named volume:
 
 ```bash
-$ docker service create --name redis_2 --mode global redis:3.0.6
+$ docker service create \
+  --name my-service \
+  --replicas 3 \
+  --mount type=volume,source=my-volume,destination=/path/in/container,volume-label="color=red",volume-label="shape=round" \
+  nginx:alpine
 ```
 
-### Specify service constraints
+For each replica of the service, the engine requests a volume named "my-volume"
+from the default ("local") volume driver where the task is deployed. If the
+volume does not exist, the engine creates a new volume and applies the "color"
+and "shape" labels.
+
+When the task is started, the volume is mounted on `/path/in/container/` inside
+the container.
+
+Be aware that the default ("local") volume is a locally scoped volume driver.
+This means that depending on where a task is deployed, either that task gets a
+*new* volume named "my-volume", or shares the same "my-volume" with other tasks
+of the same service. Multiple containers writing to a single shared volume can
+cause data corruption if the software running inside the container is not
+designed to handle concurrent processes writing to the same location. Also take
+into account that containers can be re-scheduled by the Swarm orchestrator and
+be deployed on a different node.
+
+#### Create a service that uses an anonymous volume
+
+The following command creates a service with three replicas with an anonymous
+volume on `/path/in/container`:
+
+```bash
+$ docker service create \
+  --name my-service \
+  --replicas 3 \
+  --mount type=volume,destination=/path/in/container \
+  nginx:alpine
+```
+
+In this example, no name (`source`) is specified for the volume, so a new volume
+is created for each task. This guarantees that each task gets its own volume,
+and volumes are not shared between tasks. Anonymous volumes are removed after
+the task using them is complete.
+
+#### Create a service that uses a bind-mounted host directory
+
+The following example bind-mounts a host directory at `/path/in/container` in
+the containers backing the service:
+
+```bash
+$ docker service create \
+  --name my-service \
+  --mount type=bind,source=/path/on/host,destination=/path/in/container \
+  nginx:alpine
+```
+
+### Set service mode (--mode)
+
+The service mode determines whether this is a _replicated_ service or a _global_
+service. A replicated service runs as many tasks as specified, while a global
+service runs on each active node in the swarm.
+
+The following command creates a global service:
+
+```bash
+$ docker service create \
+ --name redis_2 \
+ --mode global \
+ redis:3.0.6
+```
+
+### Specify service constraints (--constraint)
 
 You can limit the set of nodes where a task can be scheduled by defining
 constraint expressions. Multiple constraints find nodes that satisfy every
 expression (AND match). Constraints can match node or Docker Engine labels as
 follows:
 
-| node attribute | matches | example |
-|:------------- |:-------------| :---------------------------------------------|
-| node.id | node ID | `node.id == 2ivku8v2gvtg4`                               |
-| node.hostname | node hostname | `node.hostname != node-2`                    |
-| node.role | node role: manager | `node.role == manager`                      |
-| node.labels | user defined node labels | `node.labels.security == high`      |
-| engine.labels | Docker Engine's labels | `engine.labels.operatingsystem == ubuntu 14.04`|
+| node attribute  | matches                   | example                                         |
+|:----------------|:--------------------------|:------------------------------------------------|
+| node.id         | node ID                   | `node.id == 2ivku8v2gvtg4`                      |
+| node.hostname   | node hostname             | `node.hostname != node-2`                       |
+| node.role       | node role: manager        | `node.role == manager`                          |
+| node.labels     | user defined node labels  | `node.labels.security == high`                  |
+| engine.labels   | Docker Engine's labels    | `engine.labels.operatingsystem == ubuntu 14.04` |
 
 `engine.labels` apply to Docker Engine labels like operating system,
 drivers, etc. Swarm administrators add `node.labels` for operational purposes by
@@ -179,6 +403,89 @@ $ docker service create \
   redis:3.0.6
 ```
 
+### Attach a service to an existing network (--network)
+
+You can use overlay networks to connect one or more services within the swarm.
+
+First, create an overlay network on a manager node the docker network create
+command:
+
+```bash
+$ docker network create --driver overlay my-network
+
+etjpu59cykrptrgw0z0hk5snf
+```
+
+After you create an overlay network in swarm mode, all manager nodes have
+access to the network.
+
+When you create a service and pass the --network flag to attach the service to
+the overlay network:
+
+```bash
+$ docker service create \
+  --replicas 3 \
+  --network my-network \
+  --name my-web \
+  nginx
+
+716thylsndqma81j6kkkb5aus
+```
+
+The swarm extends my-network to each node running the service.
+
+Containers on the same network can access each other using
+[service discovery](../../swarm/networking.md#use-swarm-mode-service-discovery).
+
+### Publish service ports externally to the swarm (-p, --publish)
+
+You can publish service ports to make them available externally to the swarm
+using the `--publish` flag:
+
+```bash
+$ docker service create --publish <TARGET-PORT>:<SERVICE-PORT> nginx
+```
+
+For example:
+
+```bash
+$ docker service create --name my_web --replicas 3 --publish 8080:80 nginx
+```
+
+When you publish a service port, the swarm routing mesh makes the service
+accessible at the target port on every node regardless if there is a task for
+the service running on the node. For more information refer to
+[Use swarm mode routing mesh](https://docs.docker.com/engine/swarm/ingress/).
+
+### Publish a port for TCP only or UCP only
+
+By default, when you publish a port, it is a TCP port. You can
+specifically publish a UDP port instead of or in addition to a TCP port. When
+you publish both TCP and UDP ports, Docker 1.12.2 and earlier require you to
+add the suffix `/tcp` for TCP ports. Otherwise it is optional.
+
+#### TCP only
+
+The following two commands are equivalent.
+
+```bash
+$ docker service create --name dns-cache -p 53:53 dns-cache
+
+$ docker service create --name dns-cache -p 53:53/tcp dns-cache
+```
+
+#### TCP and UDP
+
+```bash
+$ docker service create --name dns-cache -p 53:53/tcp -p 53:53/udp dns-cache
+```
+
+#### UDP only
+
+```bash
+$ docker service create --name dns-cache -p 53:53/udp dns-cache
+```
+
 ## Related information
 
 * [service inspect](service_inspect.md)
@@ -187,3 +494,5 @@ $ docker service create \
 * [service scale](service_scale.md)
 * [service ps](service_ps.md)
 * [service update](service_update.md)
+
+<style>table tr > td:first-child { white-space: nowrap;}</style>

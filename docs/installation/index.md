@@ -1,5 +1,6 @@
 <!--[metadata]>
 +++
+aliases = ["/engine/installation/linux/frugalware/","/engine/installation/frugalware/"]
 title = "Install"
 description = "Lists the installation methods"
 keywords = ["Docker install "]
@@ -20,7 +21,6 @@ Docker Engine is supported on Linux, Cloud, Windows, and OS X. Installation inst
 * [CRUX Linux](linux/cruxlinux.md)
 * [Debian](linux/debian.md)
 * [Fedora](linux/fedora.md)
-* [FrugalWare](linux/frugalware.md)
 * [Gentoo](linux/gentoolinux.md)
 * [Oracle Linux](linux/oracle.md)
 * [Red Hat Enterprise Linux](linux/rhel.md)

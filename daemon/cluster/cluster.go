@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"encoding/json"
+	stdliberrors "errors"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -455,11 +456,13 @@ func (c *Cluster) Join(req types.JoinRequest) error {
 	}
 
 	var advertiseAddr string
-	advertiseHost, advertisePort, err := c.resolveAdvertiseAddr(req.AdvertiseAddr, listenPort)
-	// For joining, we don't need to provide an advertise address,
-	// since the remote side can detect it.
-	if err == nil {
-		advertiseAddr = net.JoinHostPort(advertiseHost, advertisePort)
+	if req.AdvertiseAddr != "" {
+		advertiseHost, advertisePort, err := c.resolveAdvertiseAddr(req.AdvertiseAddr, listenPort)
+		// For joining, we don't need to provide an advertise address,
+		// since the remote side can detect it.
+		if err == nil {
+			advertiseAddr = net.JoinHostPort(advertiseHost, advertisePort)
+		}
 	}
 
 	// todo: check current state existing
@@ -658,6 +661,13 @@ func (c *Cluster) GetLocalAddress() string {
 	c.RLock()
 	defer c.RUnlock()
 	return c.actualLocalAddr
+}
+
+// GetListenAddress returns the listen address.
+func (c *Cluster) GetListenAddress() string {
+	c.RLock()
+	defer c.RUnlock()
+	return c.listenAddr
 }
 
 // GetAdvertiseAddress returns the remotely reachable address of this node.
@@ -1313,6 +1323,8 @@ func validateAndSanitizeInitRequest(req *types.InitRequest) error {
 	// provide sane defaults instead of erroring
 	if spec.Name == "" {
 		spec.Name = "default"
+	} else if spec.Name != "default" {
+		return stdliberrors.New(`swarm spec must be named "default"`)
 	}
 	if spec.Raft.SnapshotInterval == 0 {
 		spec.Raft.SnapshotInterval = defaultSpec.Raft.SnapshotInterval

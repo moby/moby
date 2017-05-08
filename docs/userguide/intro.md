@@ -3,6 +3,7 @@
 title = "Introduction"
 description = "Introduction to user guide"
 keywords = ["docker, introduction, documentation, about, technology, docker.io, user, guide, user's, manual, platform, framework, home,  intro"]
+identifier = "engine_guide_intro"
 [menu.main]
 parent="engine_guide"
 +++
@@ -63,6 +64,25 @@ Now we know how to link Docker containers together the next step is
 learning how to manage data, volumes and mounts inside our containers.
 
 Go to [Managing Data in Containers](../tutorials/dockervolumes.md).
+
+## Managing metadata (labels) for Docker objects
+
+Labels are a mechanism for applying metadata to Docker objects, including:
+
+- Images
+- Containers
+- Local daemons
+- Volumes
+- Networks
+- Swarm nodes
+- Swarm services
+
+
+You can use labels to organize your images, record licensing information, annotate
+relationships between containers, volumes, and networks, or in any way that makes
+sense for your business or application.
+
+Go to [Managing Docker object labels](labels-custom-metadata.md).
 
 ## Docker products that complement Engine
 

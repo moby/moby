@@ -225,8 +225,8 @@ func (g *GlobalOrchestrator) reconcileOneService(ctx context.Context, service *a
 		}
 	}
 
+	var updateTasks []*api.Task
 	_, err = g.store.Batch(func(batch *store.Batch) error {
-		var updateTasks []*api.Task
 		for nodeID := range g.nodes {
 			ntasks := nodeTasks[nodeID]
 			// if restart policy considers this node has finished its task
@@ -243,13 +243,14 @@ func (g *GlobalOrchestrator) reconcileOneService(ctx context.Context, service *a
 				g.removeTasks(ctx, batch, service, ntasks[1:])
 			}
 		}
-		if len(updateTasks) > 0 {
-			g.updater.Update(ctx, g.cluster, service, updateTasks)
-		}
 		return nil
 	})
 	if err != nil {
 		log.G(ctx).WithError(err).Errorf("global orchestrator: reconcileOneService transaction failed")
+	}
+
+	if len(updateTasks) > 0 {
+		g.updater.Update(ctx, g.cluster, service, updateTasks)
 	}
 }
 

@@ -1,14 +1,11 @@
-<!--[metadata]>
-+++
-title = "save"
-description = "The save command description and usage"
-keywords = ["tarred, repository, backup"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
-
-# save
+---
+redirect_from:
+  - /reference/commandline/save/
+description: The save command description and usage
+keywords:
+- tarred, repository, backup
+title: docker save
+---
 
 ```markdown
 Usage:  docker save [OPTIONS] IMAGE [IMAGE...]

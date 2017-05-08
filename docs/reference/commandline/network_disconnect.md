@@ -1,14 +1,11 @@
-<!--[metadata]>
-+++
-title = "network disconnect"
-description = "The network disconnect command description and usage"
-keywords = ["network, disconnect, user-defined"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
-
-# network disconnect
+---
+redirect_from:
+  - /reference/commandline/network_disconnect/
+description: The network disconnect command description and usage
+keywords:
+- network, disconnect, user-defined
+title: docker network disconnect
+---
 
 ```markdown
 Usage:  docker network disconnect [OPTIONS] NETWORK CONTAINER

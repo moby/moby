@@ -32,7 +32,7 @@ This article covers the following swarm administration tasks:
 * [Forcefully removing a node](#force-remove-a-node)
 * [Recovering from disaster](#recover-from-disaster)
 
-Refer to [How swarm mode nodes work](how-swarm-mode-works/nodes.md)
+Refer to [How nodes work](how-swarm-mode-works/nodes.md)
 for a brief overview of Docker Swarm mode and the difference between manager and
 worker nodes.
 

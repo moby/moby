@@ -204,7 +204,6 @@ func (a *Agent) run(ctx context.Context) {
 			delay := time.Duration(rand.Int63n(int64(backoff)))
 			session = newSession(ctx, a, delay)
 			registered = session.registered
-			sessionq = a.sessionq
 		case <-a.stopped:
 			// TODO(stevvooe): Wait on shutdown and cleanup. May need to pump
 			// this loop a few times.
@@ -319,7 +318,8 @@ func (a *Agent) UpdateTaskStatus(ctx context.Context, taskID string, status *api
 				if err == errTaskUnknown {
 					err = nil // dispatcher no longer cares about this task.
 				} else {
-					log.G(ctx).WithError(err).Error("sending task status update failed")
+					log.G(ctx).WithError(err).Error("closing session after fatal error")
+					session.sendError(err)
 				}
 			} else {
 				log.G(ctx).Debug("task status reported")

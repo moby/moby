@@ -134,6 +134,43 @@ image. We recommend the [Debian image](https://hub.docker.com/_/debian/)
 since it’s very tightly controlled and kept minimal (currently under 150 mb),
 while still being a full distribution.
 
+### LABEL
+
+[Understanding object labels](../labels-custom-metadata.md)
+
+You can add labels to your image to help organize images by project, record
+licensing information, to aid in automation, or for other reasons. For each
+label, add a line beginning with `LABEL` and with one or more key-value pairs.
+The following examples show the different acceptable formats. Explanatory comments
+are included inline.
+
+>**Note**: If your string contains spaces, it must be quoted **or** the spaces
+must be escaped. If your string contains inner quote characters (`"`), escape
+them as well.
+
+```dockerfile
+# Set one or more individual labels
+LABEL com.example.version="0.0.1-beta"
+LABEL vendor="ACME Incorporated"
+LABEL com.example.release-date="2015-02-12"
+LABEL com.example.version.is-production=""
+
+# Set multiple labels on one line
+LABEL com.example.version="0.0.1-beta" com.example.release-date="2015-02-12"
+
+# Set multiple labels at once, using line-continuation characters to break long lines
+LABEL vendor=ACME\ Incorporated \
+      com.example.is-beta= \
+      com.example.is-production="" \
+      com.example.version="0.0.1-beta" \
+      com.example.release-date="2015-02-12"
+```
+
+See [Understanding object labels](../labels-custom-metadata.md) for
+guidelines about acceptable label keys and values. For information about
+querying labels, refer to the items related to filtering in
+[Managing labels on objects](../labels-custom-metadata.md#managing-labels-on-objects).
+
 ### RUN
 
 [Dockerfile reference for the RUN instruction](../../reference/builder.md#run)
@@ -142,7 +179,7 @@ As always, to make your `Dockerfile` more readable, understandable, and
 maintainable, split long or complex `RUN` statements on multiple lines separated
 with backslashes.
 
-### apt-get
+#### apt-get
 
 Probably the most common use-case for `RUN` is an application of `apt-get`. The
 `RUN apt-get` command, because it installs packages, has several gotchas to look
@@ -238,12 +275,12 @@ keep the image size down. Since the `RUN` statement starts with
 The `CMD` instruction should be used to run the software contained by your
 image, along with any arguments. `CMD` should almost always be used in the
 form of `CMD [“executable”, “param1”, “param2”…]`. Thus, if the image is for a
-service (Apache, Rails, etc.), you would run something like
+service, such as Apache and Rails, you would run something like
 `CMD ["apache2","-DFOREGROUND"]`. Indeed, this form of the instruction is
 recommended for any service-based image.
 
-In most other cases, `CMD` should be given an interactive shell (bash, python,
-perl, etc), for example, `CMD ["perl", "-de0"]`, `CMD ["python"]`, or
+In most other cases, `CMD` should be given an interactive shell, such as bash, python
+and perl. For example, `CMD ["perl", "-de0"]`, `CMD ["python"]`, or
 `CMD [“php”, “-a”]`. Using this form means that when you execute something like
 `docker run -it python`, you’ll get dropped into a usable shell, ready to go.
 `CMD` should rarely be used in the manner of `CMD [“param”, “param”]` in

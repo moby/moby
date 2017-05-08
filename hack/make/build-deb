@@ -72,7 +72,7 @@ set -e
 		# add runc and containerd compile and install
 		cat >> "$DEST/$version/Dockerfile.build" <<-EOF
 			# Install runc
-			RUN git clone https://github.com/opencontainers/runc.git "/go/src/github.com/opencontainers/runc" \
+			RUN git clone https://github.com/docker/runc.git "/go/src/github.com/opencontainers/runc" \
 					&& cd "/go/src/github.com/opencontainers/runc" \
 					&& git checkout -q "\$RUNC_COMMIT"
 			RUN set -x && export GOPATH="/go" && cd "/go/src/github.com/opencontainers/runc" \
@@ -88,7 +88,7 @@ set -e
 		fi
 		cat >> "$DEST/$version/Dockerfile.build" <<-EOF
 			RUN cp -aL hack/make/.build-deb debian
-			RUN { echo '$debSource (${debVersion}-0~${suite}) $suite; urgency=low'; echo; echo '  * Version: $VERSION'; echo; echo " -- $debMaintainer  $debDate"; } > debian/changelog && cat >&2 debian/changelog
+			RUN { echo '$debSource (${debVersion}-0~${version}) $suite; urgency=low'; echo; echo '  * Version: $VERSION'; echo; echo " -- $debMaintainer  $debDate"; } > debian/changelog && cat >&2 debian/changelog
 			RUN dpkg-buildpackage -uc -us -I.git
 		EOF
 		tempImage="docker-temp/build-deb:$version"

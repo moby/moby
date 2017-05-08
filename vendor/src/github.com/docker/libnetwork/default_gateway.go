@@ -107,7 +107,7 @@ func (sb *sandbox) needDefaultGW() bool {
 			return false
 		}
 		for _, r := range ep.StaticRoutes() {
-			if r.Destination.String() == "0.0.0.0/0" {
+			if r.Destination != nil && r.Destination.String() == "0.0.0.0/0" {
 				return false
 			}
 		}

@@ -1,14 +1,11 @@
-<!--[metadata]>
-+++
-title = "exec"
-description = "The exec command description and usage"
-keywords = ["command, container, run, execute"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
-
-# exec
+---
+redirect_from:
+  - /reference/commandline/exec/
+description: The exec command description and usage
+keywords:
+- command, container, run, execute
+title: docker exec
+---
 
 ```markdown
 Usage:  docker exec [OPTIONS] CONTAINER COMMAND [ARG...]

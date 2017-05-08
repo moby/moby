@@ -58,6 +58,7 @@ If you are using Docker for Mac, Docker for Windows, or Docker on Linux, you wil
 
 The getting started tour uses Docker Engine CLI commands entered on the command line of a terminal window. You don't need to be a wizard at the command line, but you should be familiar with how to open your favorite shell or terminal, and run basic commands in that environment. It helps (but isn't required) to know how to navigate a directory tree, manipulate files, list running process, and so forth.
 
+## Where to go next
 
 Go to [the next page to install](step_one.md).
 

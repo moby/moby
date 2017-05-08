@@ -31,7 +31,6 @@ func NewStopCommand(dockerCli *client.DockerCli) *cobra.Command {
 			return runStop(dockerCli, &opts)
 		},
 	}
-	cmd.SetFlagErrorFunc(flagErrorFunc)
 
 	flags := cmd.Flags()
 	flags.IntVarP(&opts.time, "time", "t", 10, "Seconds to wait for stop before killing it")

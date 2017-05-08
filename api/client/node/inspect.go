@@ -71,6 +71,8 @@ func printHumanFriendly(out io.Writer, refs []string, getRef inspect.GetRefFunc)
 		// print extra space between objects, but not after the last one
 		if idx+1 != len(refs) {
 			fmt.Fprintf(out, "\n\n")
+		} else {
+			fmt.Fprintf(out, "\n")
 		}
 	}
 	return nil
@@ -135,8 +137,7 @@ func printNode(out io.Writer, node swarm.Node) {
 	if len(node.Description.Engine.Labels) != 0 {
 		fmt.Fprintln(out, "Engine Labels:")
 		for k, v := range node.Description.Engine.Labels {
-			fmt.Fprintf(out, " - %s = %s", k, v)
+			fmt.Fprintf(out, " - %s = %s\n", k, v)
 		}
 	}
-
 }

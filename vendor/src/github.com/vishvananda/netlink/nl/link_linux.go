@@ -1,13 +1,35 @@
 package nl
 
 import (
+	"syscall"
 	"unsafe"
 )
 
 const (
 	DEFAULT_CHANGE = 0xFFFFFFFF
 	// doesn't exist in syscall
-	IFLA_VFINFO_LIST = 0x16
+	IFLA_VFINFO_LIST = syscall.IFLA_IFALIAS + 1 + iota
+	IFLA_STATS64
+	IFLA_VF_PORTS
+	IFLA_PORT_SELF
+	IFLA_AF_SPEC
+	IFLA_GROUP
+	IFLA_NET_NS_FD
+	IFLA_EXT_MASK
+	IFLA_PROMISCUITY
+	IFLA_NUM_TX_QUEUES
+	IFLA_NUM_RX_QUEUES
+	IFLA_CARRIER
+	IFLA_PHYS_PORT_ID
+	IFLA_CARRIER_CHANGES
+	IFLA_PHYS_SWITCH_ID
+	IFLA_LINK_NETNSID
+	IFLA_PHYS_PORT_NAME
+	IFLA_PROTO_DOWN
+	IFLA_GSO_MAX_SEGS
+	IFLA_GSO_MAX_SIZE
+	IFLA_PAD
+	IFLA_XDP
 )
 
 const (
@@ -87,11 +109,6 @@ const (
 	IFLA_IPVLAN_UNSPEC = iota
 	IFLA_IPVLAN_MODE
 	IFLA_IPVLAN_MAX = IFLA_IPVLAN_MODE
-)
-
-const (
-	// not defined in syscall
-	IFLA_NET_NS_FD = 28
 )
 
 const (
@@ -394,3 +411,10 @@ func DeserializeVfRssQueryEn(b []byte) *VfRssQueryEn {
 func (msg *VfRssQueryEn) Serialize() []byte {
 	return (*(*[SizeofVfRssQueryEn]byte)(unsafe.Pointer(msg)))[:]
 }
+
+const (
+	IFLA_XDP_UNSPEC   = iota
+	IFLA_XDP_FD       /* fd of xdp program to attach, or -1 to remove */
+	IFLA_XDP_ATTACHED /* read-only bool indicating if prog is attached */
+	IFLA_XDP_MAX      = IFLA_XDP_ATTACHED
+)

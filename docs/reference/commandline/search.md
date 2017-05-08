@@ -1,14 +1,11 @@
-<!--[metadata]>
-+++
-title = "search"
-description = "The search command description and usage"
-keywords = ["search, hub, images"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
-
-# search
+---
+redirect_from:
+  - /reference/commandline/search/
+description: The search command description and usage
+keywords:
+- search, hub, images
+title: docker search
+---
 
 ```markdown
 Usage:  docker search [OPTIONS] TERM
@@ -41,7 +38,7 @@ This example displays images with a name containing 'busybox':
 
     $ docker search busybox
     NAME                             DESCRIPTION                                     STARS     OFFICIAL   AUTOMATED
-    busybox                          Busybox base image.                             316       [OK]       
+    busybox                          Busybox base image.                             316       [OK]
     progrium/busybox                                                                 50                   [OK]
     radial/busyboxplus               Full-chain, Internet enabled, busybox made...   8                    [OK]
     odise/busybox-python                                                             2                    [OK]
@@ -74,13 +71,13 @@ at least 3 stars and the description isn't truncated in the output:
 
     $ docker search --stars=3 --no-trunc busybox
     NAME                 DESCRIPTION                                                                               STARS     OFFICIAL   AUTOMATED
-    busybox              Busybox base image.                                                                       325       [OK]       
+    busybox              Busybox base image.                                                                       325       [OK]
     progrium/busybox                                                                                               50                   [OK]
     radial/busyboxplus   Full-chain, Internet enabled, busybox made from scratch. Comes in git and cURL flavors.   8                    [OK]
 
 ## Limit search results (--limit)
 
-The flag `--limit` is the maximium number of results returned by a search. This value could
+The flag `--limit` is the maximum number of results returned by a search. This value could
 be in the range between 1 and 100. The default value of `--limit` is 25.
 
 
@@ -103,7 +100,7 @@ least 3 stars:
 
     $ docker search --filter stars=3 busybox
     NAME                 DESCRIPTION                                     STARS     OFFICIAL   AUTOMATED
-    busybox              Busybox base image.                             325       [OK]       
+    busybox              Busybox base image.                             325       [OK]
     progrium/busybox                                                     50                   [OK]
     radial/busyboxplus   Full-chain, Internet enabled, busybox made...   8                    [OK]
 
@@ -123,7 +120,7 @@ and are automated builds:
 This example displays images with a name containing 'busybox', at least
 3 stars and are official builds:
 
-    $ docker search --filter "is-automated=true" --filter "stars=3" busybox
+    $ docker search --filter "is-official=true" --filter "stars=3" busybox
     NAME                 DESCRIPTION                                     STARS     OFFICIAL   AUTOMATED
     progrium/busybox                                                     50                   [OK]
     radial/busyboxplus   Full-chain, Internet enabled, busybox made...   8                    [OK]

@@ -1,17 +1,14 @@
-<!--[metadata]>
-+++
-title = "network create"
-description = "The network create command description and usage"
-keywords = ["network, create"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
-
-# network create
+---
+redirect_from:
+  - /reference/commandline/network_create/
+description: The network create command description and usage
+keywords:
+- network, create
+title: docker network create
+---
 
 ```markdown
-Usage:	docker network create [OPTIONS]
+Usage:	docker network create [OPTIONS] NETWORK
 
 Create a network
 
@@ -133,11 +130,11 @@ support it you can create multiple subnetworks.
 $ docker network create -d overlay \
   --subnet=192.168.0.0/16 \
   --subnet=192.170.0.0/16 \
-  --gateway=192.168.0.100 \ 
+  --gateway=192.168.0.100 \
   --gateway=192.170.0.100 \
   --ip-range=192.168.1.0/24 \
-  --aux-address a=192.168.1.5 --aux-address b=192.168.1.6 \
-  --aux-address a=192.170.1.5 --aux-address b=192.170.1.6 \
+  --aux-address="my-router=192.168.1.5" --aux-address="my-switch=192.168.1.6" \
+  --aux-address="my-printer=192.170.1.5" --aux-address="my-nas=192.170.1.6" \
   my-multihost-network
 ```
 
@@ -156,7 +153,7 @@ equivalent docker daemon flags used for docker0 bridge:
 | `com.docker.network.bridge.enable_ip_masquerade` | `--ip-masq` | Enable IP masquerading                                |
 | `com.docker.network.bridge.enable_icc`           | `--icc`     | Enable or Disable Inter Container Connectivity        |
 | `com.docker.network.bridge.host_binding_ipv4`    | `--ip`      | Default IP when binding container ports               |
-| `com.docker.network.mtu`                         | `--mtu`     | Set the containers network MTU                        |
+| `com.docker.network.driver.mtu`                  | `--mtu`     | Set the containers network MTU                        |
 
 The following arguments can be passed to `docker network create` for any
 network driver, again with their approximate equivalents to `docker daemon`.

@@ -34,7 +34,7 @@ If you are brand new to Docker, see [About Docker Engine](../../index.md).
 To run this tutorial, you need the following:
 
 * [three networked host machines](#three-networked-host-machines)
-* [Docker Engine 1.12 or later installed](#docker-engine-1-12-or-later)
+* [Docker Engine 1.12 or later installed](#docker-engine-1-12-or-newer)
 * [the IP address of the manager machine](#the-ip-address-of-the-manager-machine)
 * [open ports between the hosts](#open-ports-between-the-hosts)
 
@@ -87,7 +87,7 @@ will serve as the single swarm node.
 
 * Currently, you cannot use Docker for Mac or Windows alone to test a
 _multi-node_ swarm. However, you can use the included version of [Docker
-Machine](/machine/overview.md) to create the swarm nodes, then follow the
+Machine](/machine/overview.md) to create the swarm nodes (see [Get started with Docker Machine and a local VM](/machine/get-started.md)), then follow the
 tutorial for all multi-node features. For this scenario, you run commands from
 a Docker for Mac or Docker for Windows host, but that Docker host itself is
 _not_ participating in the swarm (i.e., it will not be `manager1`, `worker1`,
