@@ -16,6 +16,23 @@
 				<key>1</key>
 				<dict>
 					<key>name</key>
+					<string>keyword.other.special-method.dockerfile</string>
+				</dict>
+				<key>2</key>
+				<dict>
+					<key>name</key>
+					<string>keyword.other.special-method.dockerfile</string>
+				</dict>
+			</dict>
+			<key>match</key>
+			<string>^\s*\b(FROM)\b.*?\b(AS)\b</string>
+		</dict>
+		<dict>
+			<key>captures</key>
+			<dict>
+				<key>1</key>
+				<dict>
+					<key>name</key>
 					<string>keyword.control.dockerfile</string>
 				</dict>
 				<key>2</key>
