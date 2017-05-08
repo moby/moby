@@ -114,8 +114,8 @@ Function Get-GitCommit() {
 
 # Utility function to get get the current build version of docker
 Function Get-DockerVersion() {
-    if (-not (Test-Path ".\VERSION")) { Throw "VERSION file not found. Is this running from the root of a docker repository?" }
-    return $(Get-Content ".\VERSION" -raw).ToString().Replace("`n","").Trim()
+    if (-not (Test-Path "./VERSION")) { Throw "VERSION file not found. Is this running from the root of a docker repository?" }
+    return $(Get-Content "./VERSION" -raw).ToString().Replace("`n","").Trim()
 }
 
 # Utility function to determine if we are running in a container or not.
@@ -190,6 +190,11 @@ Function Execute-Build($type, $additionalBuildTags, $directory) {
                     " -ldflags """ + "-linkmode=internal" + """" + `
                     " -o $root\bundles\"+$directory+".exe"
     Invoke-Expression $buildCommand
+
+    # TODO: CI should not assume binaires are in the parent dir
+    New-Item $root\..\bundles -type directory
+    Copy-Item $root\bundles\$directory.exe $root\..\bundles\ -recurse
+
     if ($LASTEXITCODE -ne 0) { Throw "Failed to compile $type" }
     Pop-Location; $global:pushed=$False
 }
@@ -398,7 +403,7 @@ Try {
         if ($Daemon) { Execute-Build "daemon" "daemon" "dockerd" }
         if ($Client) {
             $dockerCliCommit=$(findstr DOCKERCLI_COMMIT hack\dockerfile\binaries-commits)
-            Push-Location ..
+            Push-Location ..\..
             # TODO: check if cli folder exists already
             git clone https://github.com/docker/cli
             cd cli

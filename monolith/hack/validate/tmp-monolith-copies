@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+
+export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+source "${SCRIPTDIR}/.validate"
+
+tmp_validate_dockerfile_diff(){
+	for i in $(ls Dockerfile*); do
+		diff $i monolith/$i > /dev/null 2>&1
+	done
+}
+
+tmp_validate_makeps1() {
+	diff hack/make.ps1 monolith/hack/make.ps1 > /dev/null 2>&1
+}
+
+tmp_validate_dockerfile_diff || (
+	echo The Dockerfiles at the root of the repository differ from those in monolith/.
+	echo These files should be exact copies of the Dockerfiles in monolith/ but found unmatched changes.
+	echo
+	echo This is a temporary solution while we transition this repo to all moby code and split up the monolith.
+	echo
+	echo $(git status | grep Dockerfile)
+)
