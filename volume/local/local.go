@@ -353,7 +353,7 @@ func (v *localVolume) Unmount(id string) error {
 
 func (v *localVolume) unmount() error {
 	if v.opts != nil {
-		if err := mount.Unmount(v.path); err != nil {
+		if err := unmount(v.path); err != nil {
 			if mounted, mErr := mount.Mounted(v.path); mounted || mErr != nil {
 				return errors.Wrapf(err, "error while unmounting volume path '%s'", v.path)
 			}
