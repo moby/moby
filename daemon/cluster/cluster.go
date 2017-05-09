@@ -51,6 +51,7 @@ import (
 	types "github.com/docker/docker/api/types/swarm"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	"github.com/docker/docker/pkg/signal"
+	metrics "github.com/docker/go-metrics"
 	swarmapi "github.com/docker/swarmkit/api"
 	swarmnode "github.com/docker/swarmkit/node"
 	"github.com/pkg/errors"
@@ -117,6 +118,7 @@ type Cluster struct {
 	config       Config
 	configEvent  chan struct{} // todo: make this array and goroutine safe
 	attachers    map[string]*attacher
+	metrics      *metrics.Namespace
 }
 
 // attacher manages the in-memory attachment state of a container
@@ -150,7 +152,11 @@ func New(config Config) (*Cluster, error) {
 		configEvent: make(chan struct{}, 10),
 		runtimeRoot: config.RuntimeRoot,
 		attachers:   make(map[string]*attacher),
+		metrics:     metrics.NewNamespace("engine", "cluster", nil),
 	}
+
+	newInfoMetrics(c, c.metrics)
+	metrics.Register(c.metrics)
 
 	nodeConfig, err := loadPersistentState(root)
 	if err != nil {
@@ -337,6 +343,8 @@ func (c *Cluster) errNoManager(st nodeState) error {
 
 // Cleanup stops active swarm node. This is run before daemon shutdown.
 func (c *Cluster) Cleanup() {
+	metrics.Deregister(c.metrics)
+
 	c.controlMutex.Lock()
 	defer c.controlMutex.Unlock()
 
