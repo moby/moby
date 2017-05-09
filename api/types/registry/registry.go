@@ -7,9 +7,11 @@ import (
 
 // ServiceConfig stores daemon registry services configuration.
 type ServiceConfig struct {
-	InsecureRegistryCIDRs []*NetIPNet           `json:"InsecureRegistryCIDRs"`
-	IndexConfigs          map[string]*IndexInfo `json:"IndexConfigs"`
-	Mirrors               []string
+	AllowNondistributableArtifactsCIDRs     []*NetIPNet
+	AllowNondistributableArtifactsHostnames []string
+	InsecureRegistryCIDRs                   []*NetIPNet           `json:"InsecureRegistryCIDRs"`
+	IndexConfigs                            map[string]*IndexInfo `json:"IndexConfigs"`
+	Mirrors                                 []string
 }
 
 // NetIPNet is the net.IPNet type, which can be marshalled and

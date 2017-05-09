@@ -4,6 +4,7 @@ package daemon
 
 import (
 	"reflect"
+	"sort"
 	"testing"
 	"time"
 
@@ -37,6 +38,61 @@ func TestDaemonReloadLabels(t *testing.T) {
 	label := daemon.configStore.Labels[0]
 	if label != "foo:baz" {
 		t.Fatalf("Expected daemon label `foo:baz`, got %s", label)
+	}
+}
+
+func TestDaemonReloadAllowNondistributableArtifacts(t *testing.T) {
+	daemon := &Daemon{
+		configStore: &config.Config{},
+	}
+
+	// Initialize daemon with some registries.
+	daemon.RegistryService = registry.NewService(registry.ServiceOptions{
+		AllowNondistributableArtifacts: []string{
+			"127.0.0.0/8",
+			"10.10.1.11:5000",
+			"10.10.1.22:5000", // This will be removed during reload.
+			"docker1.com",
+			"docker2.com", // This will be removed during reload.
+		},
+	})
+
+	registries := []string{
+		"127.0.0.0/8",
+		"10.10.1.11:5000",
+		"10.10.1.33:5000", // This will be added during reload.
+		"docker1.com",
+		"docker3.com", // This will be added during reload.
+	}
+
+	newConfig := &config.Config{
+		CommonConfig: config.CommonConfig{
+			ServiceOptions: registry.ServiceOptions{
+				AllowNondistributableArtifacts: registries,
+			},
+			ValuesSet: map[string]interface{}{
+				"allow-nondistributable-artifacts": registries,
+			},
+		},
+	}
+
+	if err := daemon.Reload(newConfig); err != nil {
+		t.Fatal(err)
+	}
+
+	actual := []string{}
+	serviceConfig := daemon.RegistryService.ServiceConfig()
+	for _, value := range serviceConfig.AllowNondistributableArtifactsCIDRs {
+		actual = append(actual, value.String())
+	}
+	for _, value := range serviceConfig.AllowNondistributableArtifactsHostnames {
+		actual = append(actual, value)
+	}
+
+	sort.Strings(registries)
+	sort.Strings(actual)
+	if !reflect.DeepEqual(registries, actual) {
+		t.Fatalf("expected %v, got %v\n", registries, actual)
 	}
 }
 

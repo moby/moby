@@ -2603,6 +2603,7 @@ __docker_subcommand() {
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help)*--add-runtime=[Register an additional OCI compatible runtime]:runtime:__docker_complete_runtimes" \
+                "($help)*--allow-nondistributable-artifacts=[Push nondistributable artifacts to specified registries]:registry: " \
                 "($help)--api-cors-header=[CORS headers in the Engine API]:CORS headers: " \
                 "($help)*--authorization-plugin=[Authorization plugins to load]" \
                 "($help -b --bridge)"{-b=,--bridge=}"[Attach containers to a network bridge]:bridge:_net_interfaces" \

@@ -44,6 +44,8 @@ func (s *DefaultService) lookupV2Endpoints(hostname string) (endpoints []APIEndp
 		return endpoints, nil
 	}
 
+	ana := allowNondistributableArtifacts(s.config, hostname)
+
 	tlsConfig, err = s.tlsConfig(hostname)
 	if err != nil {
 		return nil, err
@@ -55,9 +57,10 @@ func (s *DefaultService) lookupV2Endpoints(hostname string) (endpoints []APIEndp
 				Scheme: "https",
 				Host:   hostname,
 			},
-			Version:      APIVersion2,
-			TrimHostname: true,
-			TLSConfig:    tlsConfig,
+			Version: APIVersion2,
+			AllowNondistributableArtifacts: ana,
+			TrimHostname:                   true,
+			TLSConfig:                      tlsConfig,
 		},
 	}
 
@@ -67,8 +70,9 @@ func (s *DefaultService) lookupV2Endpoints(hostname string) (endpoints []APIEndp
 				Scheme: "http",
 				Host:   hostname,
 			},
-			Version:      APIVersion2,
-			TrimHostname: true,
+			Version: APIVersion2,
+			AllowNondistributableArtifacts: ana,
+			TrimHostname:                   true,
 			// used to check if supposed to be secure via InsecureSkipVerify
 			TLSConfig: tlsConfig,
 		})
