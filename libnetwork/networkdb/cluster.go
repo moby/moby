@@ -107,7 +107,7 @@ func (nDB *NetworkDB) clusterInit() error {
 		config.BindPort = nDB.config.BindPort
 	}
 
-	config.ProtocolVersion = memberlist.ProtocolVersionMax
+	config.ProtocolVersion = memberlist.ProtocolVersion2Compatible
 	config.Delegate = &delegate{nDB: nDB}
 	config.Events = &eventDelegate{nDB: nDB}
 	// custom logger that does not add time or date, so they are not
