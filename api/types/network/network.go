@@ -58,6 +58,7 @@ type EndpointSettings struct {
 	GlobalIPv6Address   string
 	GlobalIPv6PrefixLen int
 	MacAddress          string
+	DriverOpts          map[string]string
 }
 
 // Task carries the information about one backend task
