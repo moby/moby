@@ -264,8 +264,8 @@ func (a *Agent) run(ctx context.Context) {
 			sessionq = a.sessionq
 		case err := <-session.errs:
 			// TODO(stevvooe): This may actually block if a session is closed
-			// but no error was sent. Session.close must only be called here
-			// for this to work.
+			// but no error was sent. This must be the only place
+			// session.close is called in response to errors, for this to work.
 			if err != nil {
 				log.G(ctx).WithError(err).Error("agent: session failed")
 				backoff = initialSessionFailureBackoff + 2*backoff
@@ -315,7 +315,11 @@ func (a *Agent) run(ctx context.Context) {
 				nodeDescription = newNodeDescription
 				// close the session
 				log.G(ctx).Info("agent: found node update")
-				session.sendError(nil)
+				if err := session.close(); err != nil {
+					log.G(ctx).WithError(err).Error("agent: closing session failed")
+				}
+				sessionq = nil
+				registered = nil
 			}
 		case <-a.stopped:
 			// TODO(stevvooe): Wait on shutdown and cleanup. May need to pump
