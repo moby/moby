@@ -14,12 +14,15 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cloudflare/cfssl/csr"
 	"github.com/cloudflare/cfssl/helpers"
+	"github.com/cloudflare/cfssl/initca"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/daemon"
+	"github.com/docker/swarmkit/ca"
 	"github.com/go-check/check"
 )
 
@@ -929,4 +932,73 @@ func (s *DockerSwarmSuite) TestAPISwarmHealthcheckNone(c *check.C) {
 
 	out, err = d.Cmd("exec", containers[0], "ping", "-c1", "-W3", "top")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
+}
+
+func (s *DockerSwarmSuite) TestSwarmRepeatedRootRotation(c *check.C) {
+	m := s.AddDaemon(c, true, true)
+	w := s.AddDaemon(c, true, false)
+
+	info, err := m.SwarmInfo()
+	c.Assert(err, checker.IsNil)
+
+	currentTrustRoot := info.Cluster.TLSInfo.TrustRoot
+
+	// rotate multiple times
+	for i := 0; i < 4; i++ {
+		var cert, key []byte
+		if i%2 != 0 {
+			cert, _, key, err = initca.New(&csr.CertificateRequest{
+				CN:         "newRoot",
+				KeyRequest: csr.NewBasicKeyRequest(),
+				CA:         &csr.CAConfig{Expiry: ca.RootCAExpiration},
+			})
+			c.Assert(err, checker.IsNil)
+		}
+		expectedCert := string(cert)
+		m.UpdateSwarm(c, func(s *swarm.Spec) {
+			s.CAConfig.SigningCACert = expectedCert
+			s.CAConfig.SigningCAKey = string(key)
+			s.CAConfig.ForceRotate++
+		})
+
+		// poll to make sure update succeeds
+		var clusterTLSInfo swarm.TLSInfo
+		for j := 0; j < 18; j++ {
+			info, err := m.SwarmInfo()
+			c.Assert(err, checker.IsNil)
+			c.Assert(info.Cluster.Spec.CAConfig.SigningCACert, checker.Equals, expectedCert)
+			// the desired CA key is always redacted
+			c.Assert(info.Cluster.Spec.CAConfig.SigningCAKey, checker.Equals, "")
+
+			clusterTLSInfo = info.Cluster.TLSInfo
+
+			if !info.Cluster.RootRotationInProgress {
+				break
+			}
+
+			// root rotation not done
+			time.Sleep(250 * time.Millisecond)
+		}
+		c.Assert(clusterTLSInfo.TrustRoot, checker.Not(checker.Equals), currentTrustRoot)
+		if cert != nil {
+			c.Assert(clusterTLSInfo.TrustRoot, checker.Equals, expectedCert)
+		}
+		// could take another second or two for the nodes to trust the new roots after the've all gotten
+		// new TLS certificates
+		for j := 0; j < 18; j++ {
+			mInfo := m.GetNode(c, m.NodeID).Description.TLSInfo
+			wInfo := m.GetNode(c, w.NodeID).Description.TLSInfo
+
+			if mInfo.TrustRoot == clusterTLSInfo.TrustRoot && wInfo.TrustRoot == clusterTLSInfo.TrustRoot {
+				break
+			}
+
+			// nodes don't trust root certs yet
+			time.Sleep(250 * time.Millisecond)
+		}
+
+		c.Assert(m.GetNode(c, m.NodeID).Description.TLSInfo, checker.DeepEquals, clusterTLSInfo)
+		c.Assert(m.GetNode(c, w.NodeID).Description.TLSInfo, checker.DeepEquals, clusterTLSInfo)
+		currentTrustRoot = clusterTLSInfo.TrustRoot
+	}
 }
