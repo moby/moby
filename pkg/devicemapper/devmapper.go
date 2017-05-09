@@ -257,7 +257,7 @@ func (t *Task) getNextTarget(next unsafe.Pointer) (nextPtr unsafe.Pointer, start
 // UdevWait waits for any processes that are waiting for udev to complete the specified cookie.
 func UdevWait(cookie *uint) error {
 	if res := DmUdevWait(*cookie); res != 1 {
-		logrus.Debugf("devicemapper: Failed to wait on udev cookie %d", *cookie)
+		logrus.Debugf("devicemapper: Failed to wait on udev cookie %d, %d", *cookie, res)
 		return ErrUdevWait
 	}
 	return nil
