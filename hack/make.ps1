@@ -397,12 +397,13 @@ Try {
         # Perform the actual build
         if ($Daemon) { Execute-Build "daemon" "daemon" "dockerd" }
         if ($Client) {
-            $dockerCliCommit=$(findstr DOCKERCLI_COMMIT hack\dockerfile\binaries-commits)
+            $dockerCliRepo = (findstr DOCKERCLI_REPO hack\dockerfile\binaries-commits).split("=")[1]
+            $dockerCliCommit = (findstr DOCKERCLI_COMMIT hack\dockerfile\binaries-commits).split("=")[1]
             Push-Location ..
             # TODO: check if cli folder exists already
-            git clone https://github.com/docker/cli
+            git clone $dockerCliRepo
             cd cli
-            git checkout $dockerCliCommit.split("=")[1]
+            git checkout $dockerCliCommit
             # TODO: update CI script to not assume binary is in docker/docker
             go build -o ..\docker\bundles\docker.exe github.com/docker/cli/cmd/docker
             Pop-Location
