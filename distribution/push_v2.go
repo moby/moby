@@ -415,6 +415,10 @@ func (pd *v2PushDescriptor) uploadUsingSession(
 	var reader io.ReadCloser
 
 	contentReader, err := pd.layer.Open()
+	if err != nil {
+		return distribution.Descriptor{}, retryOnError(err)
+	}
+
 	size, _ := pd.layer.Size()
 
 	reader = progress.NewProgressReader(ioutils.NewCancelReadCloser(ctx, contentReader), progressOutput, size, pd.ID(), "Pushing")
