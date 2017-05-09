@@ -9,7 +9,7 @@
 # docker run -v `pwd`:/go/src/github.com/docker/docker --privileged -i -t docker bash
 #
 # # Run the test suite:
-# docker run --privileged docker hack/make.sh test-unit test-integration-cli test-docker-py
+# docker run --privileged docker hack/make.sh test-unit test-integration test-docker-py
 #
 # Note: AppArmor used to mess with privileged mode, but this is no longer
 # the case. Therefore, you don't have to disable it anymore.
@@ -108,7 +108,7 @@ RUN git clone https://github.com/golang/lint.git /go/src/github.com/golang/lint 
 
 # Install two versions of the registry. The first is an older version that
 # only supports schema1 manifests. The second is a newer version that supports
-# both. This allows integration-cli tests to cover push/pull with both schema1
+# both. This allows integration tests to cover push/pull with both schema1
 # and schema2 manifests.
 ENV REGISTRY_COMMIT_SCHEMA1 ec87e9b6971d831f0eff752ddb54fb64693e51cd
 ENV REGISTRY_COMMIT 47a064d4195a9b56133891bbb13620c3ac83a827
@@ -166,7 +166,7 @@ RUN ./contrib/download-frozen-image-v2.sh /docker-frozen-images \
 	s390x/busybox:latest@sha256:e32f40c39ca596a4317392bd32809bb188c4ae5864ea827c3219c75c50069964 \
 	s390x/debian:jessie@sha256:6994e3ffa5a1dabea09d536f350b3ed2715292cb469417c42a82b70fcbff7d32 \
 	s390x/hello-world:latest@sha256:602db500fee63934292260e65c0c528128ad1c1c7c6497f95bbbac7d4d5312f1
-# See also ensureFrozenImagesLinux() in "integration-cli/fixtures_linux_daemon_test.go" (which needs to be updated when adding images to this list)
+# See also ensureFrozenImagesLinux() in "integration/fixtures_linux_daemon_test.go" (which needs to be updated when adding images to this list)
 
 # Install tomlv, vndr, runc, containerd, tini, docker-proxy
 # Please edit hack/dockerfile/install-binaries.sh to update them.

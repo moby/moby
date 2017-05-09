@@ -9,7 +9,7 @@
 # docker run -v `pwd`:/go/src/github.com/docker/docker --privileged -i -t docker bash
 #
 # # Run the test suite:
-# docker run -e DOCKER_GITCOMMIT=foo --privileged docker hack/make.sh test-unit test-integration-cli test-docker-py
+# docker run -e DOCKER_GITCOMMIT=foo --privileged docker hack/make.sh test-unit test-integration test-docker-py
 #
 # # Publish a release:
 # docker run --privileged \
@@ -165,7 +165,7 @@ RUN apt-get install libnet-dev -y && \
 
 # Install two versions of the registry. The first is an older version that
 # only supports schema1 manifests. The second is a newer version that supports
-# both. This allows integration-cli tests to cover push/pull with both schema1
+# both. This allows integration tests to cover push/pull with both schema1
 # and schema2 manifests.
 ENV REGISTRY_COMMIT_SCHEMA1 ec87e9b6971d831f0eff752ddb54fb64693e51cd
 ENV REGISTRY_COMMIT 47a064d4195a9b56133891bbb13620c3ac83a827
@@ -239,7 +239,7 @@ RUN ./contrib/download-frozen-image-v2.sh /docker-frozen-images \
 	busybox:latest@sha256:32f093055929dbc23dec4d03e09dfe971f5973a9ca5cf059cbfb644c206aa83f \
 	debian:jessie@sha256:72f784399fd2719b4cb4e16ef8e369a39dc67f53d978cd3e2e7bf4e502c7b793 \
 	hello-world:latest@sha256:c5515758d4c5e1e838e9cd307f6c6a0d620b5e07e6f927b07d05f6d12a1ac8d7
-# See also ensureFrozenImagesLinux() in "integration-cli/fixtures_linux_daemon_test.go" (which needs to be updated when adding images to this list)
+# See also ensureFrozenImagesLinux() in "integration/fixtures_linux_daemon_test.go" (which needs to be updated when adding images to this list)
 
 # Install tomlv, vndr, runc, containerd, tini, docker-proxy dockercli
 # Please edit hack/dockerfile/install-binaries.sh to update them.

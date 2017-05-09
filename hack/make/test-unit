@@ -36,7 +36,7 @@ bundle_test_unit() {
 			| grep -v github.com/docker/docker/vendor \
 			| grep -v github.com/docker/docker/daemon/graphdriver \
 			| grep -v github.com/docker/docker/man \
-			| grep -v github.com/docker/docker/integration-cli)
+			| grep -v github.com/docker/docker/integration)
 	else
 		pkg_list=$(go list -e \
 			-f '{{if ne .Name "github.com/docker/docker"}}
@@ -46,7 +46,7 @@ bundle_test_unit() {
 			| grep github.com/docker/docker \
 			| grep -v github.com/docker/docker/vendor \
 			| grep -v github.com/docker/docker/man \
-			| grep -v github.com/docker/docker/integration-cli)
+			| grep -v github.com/docker/docker/integration)
 	fi
 
 	go test -cover -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" $TESTFLAGS $pkg_list

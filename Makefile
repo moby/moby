@@ -1,4 +1,4 @@
-.PHONY: all binary build cross deb help init-go-pkg-cache install manpages rpm run shell test test-docker-py test-integration-cli test-unit tgz validate win
+.PHONY: all binary build cross deb help init-go-pkg-cache install manpages rpm run shell test test-docker-py test-integration test-integration-cli test-unit tgz validate win
 
 # set the graph driver as the current graphdriver if not set
 DOCKER_GRAPHDRIVER := $(if $(DOCKER_GRAPHDRIVER),$(DOCKER_GRAPHDRIVER),$(shell docker info 2>&1 | grep "Storage Driver" | sed 's/.*: //'))
@@ -78,8 +78,8 @@ export BUILD_APT_MIRROR
 
 SWAGGER_DOCS_PORT ?= 9000
 
-INTEGRATION_CLI_MASTER_IMAGE := $(if $(INTEGRATION_CLI_MASTER_IMAGE), $(INTEGRATION_CLI_MASTER_IMAGE), integration-cli-master)
-INTEGRATION_CLI_WORKER_IMAGE := $(if $(INTEGRATION_CLI_WORKER_IMAGE), $(INTEGRATION_CLI_WORKER_IMAGE), integration-cli-worker)
+INTEGRATION_MASTER_IMAGE := $(if $(INTEGRATION_MASTER_IMAGE), $(INTEGRATION_MASTER_IMAGE), integration-master)
+INTEGRATION_WORKER_IMAGE := $(if $(INTEGRATION_WORKER_IMAGE), $(INTEGRATION_WORKER_IMAGE), integration-worker)
 
 define \n
 
@@ -153,13 +153,17 @@ yaml-docs-gen: build ## generate documentation YAML files consumed by docs repo
 	$(DOCKER_RUN_DOCKER) sh -c 'hack/make.sh yaml-docs-generator && ( root=$$(pwd); cd bundles/latest/yaml-docs-generator; mkdir docs; ./yaml-docs-generator --root $${root} --target $$(pwd)/docs )'
 
 test: build ## run the unit, integration and docker-py tests
-	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary cross test-unit test-integration-cli test-docker-py
+	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary cross test-unit test-integration test-docker-py
 
 test-docker-py: build ## run the docker-py tests
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary test-docker-py
 
-test-integration-cli: build ## run the integration tests
-	$(DOCKER_RUN_DOCKER) hack/make.sh build-integration-test-binary dynbinary test-integration-cli
+test-integration: build ## run the integration tests
+	$(DOCKER_RUN_DOCKER) hack/make.sh build-integration-test-binary dynbinary test-integration
+
+# FIXME(vdemeester) remove once CI jobs are up-to-date
+test-integration-cli: build
+	$(DOCKER_RUN_DOCKER) hack/make.sh build-integration-test-binary dynbinary test-integration
 
 test-unit: build ## run the unit tests
 	$(DOCKER_RUN_DOCKER) hack/make.sh test-unit
@@ -189,18 +193,18 @@ swagger-docs: ## preview the API documentation
 		-p $(SWAGGER_DOCS_PORT):80 \
 		bfirsh/redoc:1.6.2
 
-build-integration-cli-on-swarm: build ## build images and binary for running integration-cli on Swarm in parallel
-	@echo "Building hack/integration-cli-on-swarm"
-	go build -o ./hack/integration-cli-on-swarm/integration-cli-on-swarm ./hack/integration-cli-on-swarm/host
+build-integration-on-swarm: build ## build images and binary for running integration on Swarm in parallel
+	@echo "Building hack/integration-on-swarm"
+	go build -o ./hack/integration-on-swarm/integration-on-swarm ./hack/integration-on-swarm/host
 	@echo "Building $(INTEGRATION_CLI_MASTER_IMAGE)"
-	docker build -t $(INTEGRATION_CLI_MASTER_IMAGE) hack/integration-cli-on-swarm/agent
+	docker build -t $(INTEGRATION_CLI_MASTER_IMAGE) hack/integration-on-swarm/agent
 # For worker, we don't use `docker build` so as to enable DOCKER_INCREMENTAL_BINARY and so on
 	@echo "Building $(INTEGRATION_CLI_WORKER_IMAGE) from $(DOCKER_IMAGE)"
-	$(eval tmp := integration-cli-worker-tmp)
+	$(eval tmp := integration-worker-tmp)
 # We mount pkgcache, but not bundle (bundle needs to be baked into the image)
 # For avoiding bakings DOCKER_GRAPHDRIVER and so on to image, we cannot use $(DOCKER_ENVS) here
 	docker run -t -d --name $(tmp) -e DOCKER_GITCOMMIT -e BUILDFLAGS -e DOCKER_INCREMENTAL_BINARY --privileged $(DOCKER_MOUNT_PKGCACHE) $(DOCKER_IMAGE) top
 	docker exec $(tmp) hack/make.sh build-integration-test-binary dynbinary
-	docker exec $(tmp) go build -o /worker github.com/docker/docker/hack/integration-cli-on-swarm/agent/worker
+	docker exec $(tmp) go build -o /worker github.com/docker/docker/hack/integration-on-swarm/agent/worker
 	docker commit -c 'ENTRYPOINT ["/worker"]' $(tmp) $(INTEGRATION_CLI_WORKER_IMAGE)
 	docker rm -f $(tmp)

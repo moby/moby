@@ -2,9 +2,9 @@
 
 : ${TEST_REPEAT:=0}
 
-bundle_test_integration_cli() {
+bundle_test_integration() {
 	TESTFLAGS="$TESTFLAGS -check.v -check.timeout=${TIMEOUT} -test.timeout=360m"
-	go_test_dir integration-cli $DOCKER_INTEGRATION_TESTS_VERIFIED
+	go_test_dir integration $DOCKER_INTEGRATION_TESTS_VERIFIED
 }
 
 # If $TESTFLAGS is set in the environment, it is passed as extra arguments to 'go test'.
@@ -12,10 +12,10 @@ bundle_test_integration_cli() {
 #
 #     TESTFLAGS='-test.run ^TestBuild$' ./hack/make.sh test-unit
 #
-# For integration-cli test, we use [gocheck](https://labix.org/gocheck), if you want
+# For integration test, we use [gocheck](https://labix.org/gocheck), if you want
 # to run certain tests on your local host, you should run with command:
 #
-#     TESTFLAGS='-check.f DockerSuite.TestBuild*' ./hack/make.sh binary test-integration-cli
+#     TESTFLAGS='-check.f DockerSuite.TestBuild*' ./hack/make.sh binary test-integration
 #
 go_test_dir() {
 	dir=$1
@@ -26,7 +26,7 @@ go_test_dir() {
 	(
 		set -e
 		mkdir -p "$DEST/coverprofiles"
-		export DEST="$ABS_DEST" # in a subshell this is safe -- our integration-cli tests need DEST, and "cd" screws it up
+		export DEST="$ABS_DEST" # in a subshell this is safe -- our integration tests need DEST, and "cd" screws it up
 		if [ -z $precompiled ]; then
 			ensure_test_dir $1 $testbinary
 		fi
