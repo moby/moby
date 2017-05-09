@@ -101,3 +101,8 @@ func validateMountSettings(c *container.Config, hc *container.HostConfig) error 
 
 	return nil
 }
+
+// GetHostConfig gets the HostConfig of the Config
+func (w *ContainerConfigWrapper) GetHostConfig() *container.HostConfig {
+	return w.getHostConfig()
+}
