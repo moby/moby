@@ -98,6 +98,8 @@ type hnsResponse struct {
 
 func hnsCall(method, path, request string, returnResponse interface{}) error {
 	var responseBuffer *uint16
+	logrus.Debugf("[%s]=>[%s] Request : %s", method, path, request)
+
 	err := _hnsCall(method, path, request, &responseBuffer)
 	if err != nil {
 		return makeError(err, "hnsCall ", "")
@@ -157,4 +159,113 @@ func HNSEndpointRequest(method, path, request string) (*HNSEndpoint, error) {
 	}
 
 	return endpoint, nil
+}
+
+// HNSListEndpointRequest makes a HNS call to query the list of available endpoints
+func HNSListEndpointRequest() ([]HNSEndpoint, error) {
+	var endpoint []HNSEndpoint
+	err := hnsCall("GET", "/endpoints/", "", &endpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	return endpoint, nil
+}
+
+// HotAttachEndpoint makes a HCS Call to attach the endpoint to the container
+func HotAttachEndpoint(containerID string, endpointID string) error {
+	return modifyNetworkEndpoint(containerID, endpointID, Add)
+}
+
+// HotDetachEndpoint makes a HCS Call to detach the endpoint from the container
+func HotDetachEndpoint(containerID string, endpointID string) error {
+	return modifyNetworkEndpoint(containerID, endpointID, Remove)
+}
+
+// ModifyContainer corresponding to the container id, by sending a request
+func modifyContainer(id string, request *ResourceModificationRequestResponse) error {
+	container, err := OpenContainer(id)
+	if err != nil {
+		if IsNotExist(err) {
+			return ErrComputeSystemDoesNotExist
+		}
+		return getInnerError(err)
+	}
+	defer container.Close()
+	err = container.Modify(request)
+	if err != nil {
+		if IsNotSupported(err) {
+			return ErrPlatformNotSupported
+		}
+		return getInnerError(err)
+	}
+
+	return nil
+}
+
+func modifyNetworkEndpoint(containerID string, endpointID string, request RequestType) error {
+	requestMessage := &ResourceModificationRequestResponse{
+		Resource: Network,
+		Request:  request,
+		Data:     endpointID,
+	}
+	err := modifyContainer(containerID, requestMessage)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// GetHNSNetworkByID
+func GetHNSNetworkByID(networkID string) (*HNSNetwork, error) {
+	return HNSNetworkRequest("GET", networkID, "")
+}
+
+// GetHNSNetworkName filtered by Name
+func GetHNSNetworkByName(networkName string) (*HNSNetwork, error) {
+	hsnnetworks, err := HNSListNetworkRequest("GET", "", "")
+	if err != nil {
+		return nil, err
+	}
+	for _, hnsnetwork := range hsnnetworks {
+		if hnsnetwork.Name == networkName {
+			return &hnsnetwork, nil
+		}
+	}
+	return nil, fmt.Errorf("Network %v not found", networkName)
+}
+
+// Create Endpoint by sending EndpointRequest to HNS. TODO: Create a separate HNS interface to place all these methods
+func (endpoint *HNSEndpoint) Create() (*HNSEndpoint, error) {
+	jsonString, err := json.Marshal(endpoint)
+	if err != nil {
+		return nil, err
+	}
+	return HNSEndpointRequest("POST", "", string(jsonString))
+}
+
+// Create Endpoint by sending EndpointRequest to HNS
+func (endpoint *HNSEndpoint) Delete() (*HNSEndpoint, error) {
+	return HNSEndpointRequest("DELETE", endpoint.Id, "")
+}
+
+// GetHNSEndpointByID
+func GetHNSEndpointByID(endpointID string) (*HNSEndpoint, error) {
+	return HNSEndpointRequest("GET", endpointID, "")
+}
+
+// GetHNSNetworkName filtered by Name
+func GetHNSEndpointByName(endpointName string) (*HNSEndpoint, error) {
+	hnsResponse, err := HNSListEndpointRequest()
+	if err != nil {
+		return nil, err
+	}
+	for _, hnsEndpoint := range hnsResponse {
+		if hnsEndpoint.Name == endpointName {
+			return &hnsEndpoint, nil
+		}
+	}
+	return nil, fmt.Errorf("Endpoint %v not found", endpointName)
 }
