@@ -60,7 +60,7 @@ func ensureSyscallTest(c *check.C) {
 	gcc, err := exec.LookPath("gcc")
 	c.Assert(err, checker.IsNil, check.Commentf("could not find gcc"))
 
-	tests := []string{"userns", "ns", "acct", "setuid", "setgid", "socket", "raw", "appletalk"}
+	tests := []string{"userns", "ns", "acct", "setuid", "setgid", "socket", "raw"}
 	for _, test := range tests {
 		out, err := exec.Command(gcc, "-g", "-Wall", "-static", fmt.Sprintf("../contrib/syscall-test/%s.c", test), "-o", fmt.Sprintf("%s/%s-test", tmp, test)).CombinedOutput()
 		c.Assert(err, checker.IsNil, check.Commentf(string(out)))
