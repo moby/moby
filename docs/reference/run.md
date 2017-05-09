@@ -1408,13 +1408,17 @@ The following environment variables are set for Linux containers:
 
 Additionally, the operator can **set any environment variable** in the
 container by using one or more `-e` flags, even overriding those mentioned
-above, or already defined by the developer with a Dockerfile `ENV`:
+above, or already defined by the developer with a Dockerfile `ENV`. If the
+operator names an environment variable without specifying a value, then the
+current value of the named variable is propagated into the container's environment:
 
 ```bash
-$ docker run -e "deep=purple" --rm alpine env
+$ export today=Wednesday
+$ docker run -e "deep=purple" -e today --rm alpine env
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 HOSTNAME=d2219b854598
 deep=purple
+today=Wednesday
 HOME=/root
 ```
 
