@@ -474,7 +474,7 @@ func verifyV4INCEntries(networks map[string]*bridgeNetwork, numEntries int, t *t
 			if x == y {
 				continue
 			}
-			re := regexp.MustCompile(fmt.Sprintf("%s %s", x.config.BridgeName, y.config.BridgeName))
+			re := regexp.MustCompile(x.config.BridgeName + " " + y.config.BridgeName)
 			matches := re.FindAllString(string(out[:]), -1)
 			if len(matches) != 1 {
 				t.Fatalf("Cannot find expected inter-network isolation rules in IP Tables:\n%s", string(out[:]))
