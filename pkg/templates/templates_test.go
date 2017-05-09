@@ -7,6 +7,17 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// Github #32120
+func TestParseJSONFunctions(t *testing.T) {
+	tm, err := Parse(`{{json .Ports}}`)
+	assert.NoError(t, err)
+
+	var b bytes.Buffer
+	assert.NoError(t, tm.Execute(&b, map[string]string{"Ports": "0.0.0.0:2->8/udp"}))
+	want := "\"0.0.0.0:2->8/udp\""
+	assert.Equal(t, want, b.String())
+}
+
 func TestParseStringFunctions(t *testing.T) {
 	tm, err := Parse(`{{join (split . ":") "/"}}`)
 	assert.NoError(t, err)
