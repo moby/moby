@@ -50,6 +50,7 @@ func NewBuildManager(b builder.Backend) *BuildManager {
 
 // Build starts a new build from a BuildConfig
 func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (*builder.Result, error) {
+	buildsTriggered.Inc()
 	if config.Options.Dockerfile == "" {
 		config.Options.Dockerfile = builder.DefaultDockerfileName
 	}
@@ -144,6 +145,7 @@ func (b *Builder) build(source builder.Source, dockerfile *parser.Result) (*buil
 	addNodesForLabelOption(dockerfile.AST, b.options.Labels)
 
 	if err := checkDispatchDockerfile(dockerfile.AST); err != nil {
+		buildsFailed.WithValues(metricsDockerfileSyntaxError).Inc()
 		return nil, err
 	}
 
@@ -153,12 +155,14 @@ func (b *Builder) build(source builder.Source, dockerfile *parser.Result) (*buil
 	}
 
 	if b.options.Target != "" && !dispatchState.isCurrentStage(b.options.Target) {
+		buildsFailed.WithValues(metricsBuildTargetNotReachableError).Inc()
 		return nil, errors.Errorf("failed to reach build target %s in Dockerfile", b.options.Target)
 	}
 
 	b.warnOnUnusedBuildArgs()
 
 	if dispatchState.imageID == "" {
+		buildsFailed.WithValues(metricsDockerfileEmptyError).Inc()
 		return nil, errors.New("No image was generated. Is your Dockerfile empty?")
 	}
 	return &builder.Result{ImageID: dispatchState.imageID, FromImage: dispatchState.baseImage}, nil
@@ -181,6 +185,7 @@ func (b *Builder) dispatchDockerfileWithCancellation(dockerfile *parser.Result) 
 		case <-b.clientCtx.Done():
 			logrus.Debug("Builder: build cancelled!")
 			fmt.Fprint(b.Stdout, "Build cancelled")
+			buildsFailed.WithValues(metricsBuildCanceled).Inc()
 			return nil, errors.New("Build cancelled")
 		default:
 			// Not cancelled yet, keep going...

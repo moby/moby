@@ -134,6 +134,7 @@ func (b *Builder) dispatch(options dispatchOptions) (*dispatchState, error) {
 	// To ensure the user is given a decent error message if the platform
 	// on which the daemon is running does not support a builder command.
 	if err := platformSupports(strings.ToLower(cmd)); err != nil {
+		buildsFailed.WithValues(metricsCommandNotSupportedError).Inc()
 		return nil, err
 	}
 
@@ -155,6 +156,7 @@ func (b *Builder) dispatch(options dispatchOptions) (*dispatchState, error) {
 	processFunc := createProcessWordFunc(options.shlex, cmd, envs)
 	words, err := getDispatchArgsFromNode(ast, processFunc, msg)
 	if err != nil {
+		buildsFailed.WithValues(metricsErrorProcessingCommandsError).Inc()
 		return nil, err
 	}
 	args = append(args, words...)
@@ -163,6 +165,7 @@ func (b *Builder) dispatch(options dispatchOptions) (*dispatchState, error) {
 
 	f, ok := evaluateTable[cmd]
 	if !ok {
+		buildsFailed.WithValues(metricsUnknownInstructionError).Inc()
 		return nil, fmt.Errorf("unknown instruction: %s", upperCasedCmd)
 	}
 	if err := f(newDispatchRequestFromOptions(options, b, args)); err != nil {
@@ -283,6 +286,7 @@ func checkDispatch(ast *parser.Node) error {
 	// least one argument
 	if upperCasedCmd == "ONBUILD" {
 		if ast.Next == nil {
+			buildsFailed.WithValues(metricsMissingOnbuildArgumentsError).Inc()
 			return errors.New("ONBUILD requires at least one argument")
 		}
 	}
@@ -290,6 +294,6 @@ func checkDispatch(ast *parser.Node) error {
 	if _, ok := evaluateTable[cmd]; ok {
 		return nil
 	}
-
+	buildsFailed.WithValues(metricsUnknownInstructionError).Inc()
 	return errors.Errorf("unknown instruction: %s", upperCasedCmd)
 }

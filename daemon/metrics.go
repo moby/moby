@@ -12,7 +12,7 @@ var (
 	containerStates           metrics.LabeledGauge
 	imageActions              metrics.LabeledTimer
 	networkActions            metrics.LabeledTimer
-	engineVersion             metrics.LabeledGauge
+	engineInfo                metrics.LabeledGauge
 	engineCpus                metrics.Gauge
 	engineMemory              metrics.Gauge
 	healthChecksCounter       metrics.Counter
@@ -35,12 +35,14 @@ func init() {
 	}
 
 	networkActions = ns.NewLabeledTimer("network_actions", "The number of seconds it takes to process each network action", "action")
-	engineVersion = ns.NewLabeledGauge("engine", "The version and commit information for the engine process", metrics.Unit("info"),
+	engineInfo = ns.NewLabeledGauge("engine", "The information related to the engine and the OS it is running on", metrics.Unit("info"),
 		"version",
 		"commit",
 		"architecture",
-		"graph_driver", "kernel",
-		"os",
+		"graphdriver",
+		"kernel", "os",
+		"os_type",
+		"daemon_id", // ID is a randomly generated unique identifier (e.g. UUID4)
 	)
 	engineCpus = ns.NewGauge("engine_cpus", "The number of cpus that the host system of the engine has", metrics.Unit("cpus"))
 	engineMemory = ns.NewGauge("engine_memory", "The number of bytes of memory that the host system of the engine has", metrics.Bytes)
