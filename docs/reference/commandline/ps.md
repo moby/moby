@@ -82,20 +82,20 @@ than one filter, then pass multiple flags (e.g. `--filter "foo=bar" --filter "bi
 
 The currently supported filters are:
 
-* id (container's id)
+* id (`container's id`)
 * label (`label=<key>` or `label=<key>=<value>`)
-* name (container's name)
-* exited (int - the code of exited containers. Only useful with `--all`)
+* name (`container's name`)
+* exited (`int` - the code of exited containers. Only useful with `--all`)
 * status (`created|restarting|running|removing|paused|exited|dead`)
 * ancestor (`<image-name>[:<tag>]`,  `<image id>` or `<image@digest>`) - filters containers that were created from the given image or a descendant.
-* before (container's id or name) - filters containers created before given id or name
-* since (container's id or name) - filters containers created since given id or name
+* before (`container's id or name`) - filters containers created before given id or name
+* since (`container's id or name`) - filters containers created since given id or name
 * isolation (`default|process|hyperv`)   (Windows daemon only)
-* volume (volume name or mount point) - filters containers that mount volumes.
-* network (network id or name) - filters containers connected to the provided network
-* health (starting|healthy|unhealthy|none) - filters containers based on healthcheck status
-* publish=(container's published port) - filters published ports by containers
-* expose=(container's exposed port) - filters exposed ports by containers
+* volume (`volume name or mount point`) - filters containers that mount volumes.
+* network (`network id or name`) - filters containers connected to the provided network
+* health (`starting|healthy|unhealthy|none`) - filters containers based on healthcheck status
+* publish=(`container's published port`) - filters published ports by containers
+* expose=(`container's exposed port`) - filters exposed ports by containers
 
 #### label
 
