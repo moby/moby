@@ -24,6 +24,7 @@ Options:
       --help   Print usage
 
 Commands:
+  ca          Manage root CA
   init        Initialize a swarm
   join        Join a swarm as a node and/or manager
   join-token  Manage join tokens
