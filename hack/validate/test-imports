@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# Make sure we're not using gos' Testing package any more in integration-cli
+# Make sure we're not using gos' Testing package any more in integration
 
 export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "${SCRIPTDIR}/.validate"
 
 IFS=$'\n'
-files=( $(validate_diff --diff-filter=ACMR --name-only -- 'integration-cli/*.go' || true) )
+files=( $(validate_diff --diff-filter=ACMR --name-only -- 'integration/*.go' || true) )
 unset IFS
 
 badFiles=()
 for f in "${files[@]}"; do
 	# skip check_test.go since it *does* use the testing package
-	if [ "$f" = "integration-cli/check_test.go" ]; then
+	if [ "$f" = "integration/check_test.go" ]; then
 		continue
 	fi
 

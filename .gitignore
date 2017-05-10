@@ -32,4 +32,4 @@ man/man1
 man/man5
 man/man8
 vendor/pkg/
-hack/integration-cli-on-swarm/integration-cli-on-swarm
+hack/integration-on-swarm/integration-on-swarm

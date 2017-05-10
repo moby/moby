@@ -111,7 +111,7 @@ func TestConvertSliceOfStringsToMap(t *testing.T) {
 }
 
 func TestCompareDirectoryEntries(t *testing.T) {
-	tmpFolder, err := ioutil.TempDir("", "integration-cli-utils-compare-directories")
+	tmpFolder, err := ioutil.TempDir("", "integration-utils-compare-directories")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -182,7 +182,7 @@ func TestListTar(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Failing on Windows - needs further investigation")
 	}
-	tmpFolder, err := ioutil.TempDir("", "integration-cli-utils-list-tar")
+	tmpFolder, err := ioutil.TempDir("", "integration-utils-list-tar")
 	if err != nil {
 		t.Fatal(err)
 	}

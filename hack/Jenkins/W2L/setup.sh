@@ -261,7 +261,7 @@ if [ $ec -eq 0 ]; then
 	export DOCKER_TEST_TLS_VERIFY="$DOCKER_TLS_VERIFY"
 	export DOCKER_TEST_CERT_PATH="$DOCKER_CERT_PATH"
 	#export TESTFLAGS='-check.vv'
-	hack/make.sh test-integration-cli
+	hack/make.sh test-integration
 	ec=$?
 	set +x
 	if [ 0 -ne $ec ]; then

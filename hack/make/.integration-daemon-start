@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# see test-integration-cli for example usage of this script
+# see test-integration for example usage of this script
 
 base="$ABS_DEST/.."
 export PATH="$base/binary-daemon:$base/dynbinary-daemon:$PATH"

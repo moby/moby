@@ -3,5 +3,5 @@ bundles
 vendor/pkg
 .go-pkg-cache
 .git
-hack/integration-cli-on-swarm/integration-cli-on-swarm
+hack/integration-on-swarm/integration-on-swarm
 
