@@ -169,6 +169,9 @@ type Linux struct {
 	ReadonlyPaths []string `json:"readonlyPaths,omitempty"`
 	// MountLabel specifies the selinux context for the mounts in the container.
 	MountLabel string `json:"mountLabel,omitempty"`
+	// IntelRdt contains Intel Resource Director Technology (RDT) information
+	// for handling resource constraints (e.g., L3 cache) for the container
+	IntelRdt *LinuxIntelRdt `json:"intelRdt,omitempty"`
 }
 
 // LinuxNamespace is the configuration for a Linux namespace
@@ -247,9 +250,9 @@ type linuxBlockIODevice struct {
 // LinuxWeightDevice struct holds a `major:minor weight` pair for blkioWeightDevice
 type LinuxWeightDevice struct {
 	linuxBlockIODevice
-	// Weight is the bandwidth rate for the device, range is from 10 to 1000
+	// Weight is the bandwidth rate for the device.
 	Weight *uint16 `json:"weight,omitempty"`
-	// LeafWeight is the bandwidth rate for the device while competing with the cgroup's child cgroups, range is from 10 to 1000, CFQ scheduler only
+	// LeafWeight is the bandwidth rate for the device while competing with the cgroup's child cgroups, CFQ scheduler only
 	LeafWeight *uint16 `json:"leafWeight,omitempty"`
 }
 
@@ -262,9 +265,9 @@ type LinuxThrottleDevice struct {
 
 // LinuxBlockIO for Linux cgroup 'blkio' resource management
 type LinuxBlockIO struct {
-	// Specifies per cgroup weight, range is from 10 to 1000
+	// Specifies per cgroup weight
 	Weight *uint16 `json:"blkioWeight,omitempty"`
-	// Specifies tasks' weight in the given cgroup while competing with the cgroup's child cgroups, range is from 10 to 1000, CFQ scheduler only
+	// Specifies tasks' weight in the given cgroup while competing with the cgroup's child cgroups, CFQ scheduler only
 	LeafWeight *uint16 `json:"blkioLeafWeight,omitempty"`
 	// Weight per cgroup per device, can override BlkioWeight
 	WeightDevice []LinuxWeightDevice `json:"blkioWeightDevice,omitempty"`
@@ -457,8 +460,8 @@ type WindowsCPUResources struct {
 	Count *uint64 `json:"count,omitempty"`
 	// CPU shares (relative weight to other containers with cpu shares). Range is from 1 to 10000.
 	Shares *uint16 `json:"shares,omitempty"`
-	// Percent of available CPUs usable by the container.
-	Percent *uint8 `json:"percent,omitempty"`
+	// Specifies the portion of processor cycles that this container can use as a percentage times 100.
+	Maximum *uint16 `json:"maximum,omitempty"`
 }
 
 // WindowsStorageResources contains storage resource management settings.
@@ -481,7 +484,7 @@ type WindowsNetworkResources struct {
 type LinuxSeccomp struct {
 	DefaultAction LinuxSeccompAction `json:"defaultAction"`
 	Architectures []Arch             `json:"architectures,omitempty"`
-	Syscalls      []LinuxSyscall     `json:"syscalls"`
+	Syscalls      []LinuxSyscall     `json:"syscalls,omitempty"`
 }
 
 // Arch used for additional architectures
@@ -546,8 +549,15 @@ type LinuxSeccompArg struct {
 
 // LinuxSyscall is used to match a syscall in Seccomp
 type LinuxSyscall struct {
-	Names   []string           `json:"names"`
-	Action  LinuxSeccompAction `json:"action"`
-	Args    []LinuxSeccompArg  `json:"args"`
-	Comment string             `json:"comment"`
+	Names  []string           `json:"names"`
+	Action LinuxSeccompAction `json:"action"`
+	Args   []LinuxSeccompArg  `json:"args,omitempty"`
+}
+
+// LinuxIntelRdt has container runtime resource constraints
+// for Intel RDT/CAT which introduced in Linux 4.10 kernel
+type LinuxIntelRdt struct {
+	// The schema for L3 cache id and capacity bitmask (CBM)
+	// Format: "L3:<cache_id0>=<cbm0>;<cache_id1>=<cbm1>;..."
+	L3CacheSchema string `json:"l3CacheSchema,omitempty"`
 }
