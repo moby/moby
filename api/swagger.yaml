@@ -8291,6 +8291,7 @@ paths:
             properties:
               Descriptor:
                 type: "object"
+                description: "A descriptor struct containing digest, media type, and size"
                 properties:
                   MediaType:
                     type: "string"
@@ -8305,6 +8306,7 @@ paths:
                       type: "string"
               Platforms:
                 type: "array"
+                description: "An array containing all platforms supported by the image"
                 items:
                   type: "object"
                   properties:
@@ -8324,6 +8326,23 @@ paths:
                       type: "array"
                       items:
                         type: "string"
+          examples:
+            application/json:
+              Descriptor:
+                MediaType: "application/vnd.docker.distribution.manifest.v2+json"
+                Digest: "sha256:c0537ff6a5218ef531ece93d4984efc99bbf3f7497c0a7726c88e2bb7584dc96"
+                Size: 3987495
+                URLs:
+                  - ""
+              Platforms:
+                - Architecture: "amd64"
+                  OS: "linux"
+                  OSVersion: ""
+                  OSFeatures:
+                    - ""
+                  Variant: ""
+                  Features:
+                    - ""
         401:
           description: "Failed authentication or no image found"
           schema:
