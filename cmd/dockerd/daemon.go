@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/api/server/router/build"
 	checkpointrouter "github.com/docker/docker/api/server/router/checkpoint"
 	"github.com/docker/docker/api/server/router/container"
+	distributionrouter "github.com/docker/docker/api/server/router/distribution"
 	"github.com/docker/docker/api/server/router/image"
 	"github.com/docker/docker/api/server/router/network"
 	pluginrouter "github.com/docker/docker/api/server/router/plugin"
@@ -487,6 +488,7 @@ func initRouter(s *apiserver.Server, d *daemon.Daemon, c *cluster.Cluster) {
 		build.NewRouter(buildbackend.NewBackend(d, d), d),
 		swarmrouter.NewRouter(c),
 		pluginrouter.NewRouter(d.PluginManager()),
+		distributionrouter.NewRouter(d),
 	}
 
 	if d.NetworkControllerEnabled() {

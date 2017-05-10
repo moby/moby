@@ -8274,3 +8274,90 @@ paths:
           format: "int64"
           required: true
       tags: ["Secret"]
+  /distribution/{name}/json:
+    get:
+      summary: "Get image information from the registry"
+      description: "Return image digest and platform information by contacting the registry."
+      operationId: "DistributionInspect"
+      produces:
+        - "application/json"
+      responses:
+        200:
+          description: "descriptor and platform information"
+          schema:
+            type: "object"
+            x-go-name: DistributionInspect
+            required: [Descriptor, Platforms]
+            properties:
+              Descriptor:
+                type: "object"
+                description: "A descriptor struct containing digest, media type, and size"
+                properties:
+                  MediaType:
+                    type: "string"
+                  Size:
+                    type: "integer"
+                    format: "int64"
+                  Digest:
+                    type: "string"
+                  URLs:
+                    type: "array"
+                    items:
+                      type: "string"
+              Platforms:
+                type: "array"
+                description: "An array containing all platforms supported by the image"
+                items:
+                  type: "object"
+                  properties:
+                    Architecture:
+                      type: "string"
+                    OS:
+                      type: "string"
+                    OSVersion:
+                      type: "string"
+                    OSFeatures:
+                      type: "array"
+                      items:
+                        type: "string"
+                    Variant:
+                      type: "string"
+                    Features:
+                      type: "array"
+                      items:
+                        type: "string"
+          examples:
+            application/json:
+              Descriptor:
+                MediaType: "application/vnd.docker.distribution.manifest.v2+json"
+                Digest: "sha256:c0537ff6a5218ef531ece93d4984efc99bbf3f7497c0a7726c88e2bb7584dc96"
+                Size: 3987495
+                URLs:
+                  - ""
+              Platforms:
+                - Architecture: "amd64"
+                  OS: "linux"
+                  OSVersion: ""
+                  OSFeatures:
+                    - ""
+                  Variant: ""
+                  Features:
+                    - ""
+        401:
+          description: "Failed authentication or no image found"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+          examples:
+            application/json:
+              message: "No such image: someimage (tag: latest)"
+        500:
+          description: "Server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      parameters:
+        - name: "name"
+          in: "path"
+          description: "Image name or id"
+          type: "string"
+          required: true
+      tags: ["Distribution"]

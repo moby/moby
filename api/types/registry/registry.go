@@ -3,6 +3,9 @@ package registry
 import (
 	"encoding/json"
 	"net"
+
+	"github.com/docker/distribution"
+	"github.com/docker/distribution/manifest/manifestlist"
 )
 
 // ServiceConfig stores daemon registry services configuration.
@@ -101,4 +104,15 @@ type SearchResults struct {
 	NumResults int `json:"num_results"`
 	// Results is a slice containing the actual results for the search
 	Results []SearchResult `json:"results"`
+}
+
+// DistributionInspect describes the result obtained from contacting the
+// registry to retrieve image metadata
+type DistributionInspect struct {
+	// Descriptor contains information about the manifest, including
+	// the content addressable digest
+	Descriptor distribution.Descriptor
+	// Platforms contains the list of platforms supported by the image,
+	// obtained by parsing the manifest
+	Platforms []manifestlist.PlatformSpec
 }
