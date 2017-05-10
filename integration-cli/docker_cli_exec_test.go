@@ -143,7 +143,7 @@ func (s *DockerSuite) TestExecPausedContainer(c *check.C) {
 	ContainerID := strings.TrimSpace(out)
 
 	dockerCmd(c, "pause", "testing")
-	out, _, err := dockerCmdWithError("exec", "-i", "-t", ContainerID, "echo", "hello")
+	out, _, err := dockerCmdWithError("exec", ContainerID, "echo", "hello")
 	c.Assert(err, checker.NotNil, check.Commentf("container should fail to exec new command if it is paused"))
 
 	expected := ContainerID + " is paused, unpause the container before exec"
