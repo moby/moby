@@ -131,6 +131,7 @@ func (p *v2Puller) pullV2Repository(ctx context.Context, ref reference.Named) (e
 
 type v2LayerDescriptor struct {
 	digest            digest.Digest
+	diffID            layer.DiffID
 	repoInfo          *registry.RepositoryInfo
 	repo              distribution.Repository
 	V2MetadataService metadata.V2MetadataService
@@ -148,6 +149,9 @@ func (ld *v2LayerDescriptor) ID() string {
 }
 
 func (ld *v2LayerDescriptor) DiffID() (layer.DiffID, error) {
+	if ld.diffID != "" {
+		return ld.diffID, nil
+	}
 	return ld.V2MetadataService.GetDiffID(ld.digest)
 }
 
@@ -574,6 +578,16 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 
 		if configRootFS == nil {
 			return "", "", errRootFSInvalid
+		}
+
+		if len(descriptors) != len(configRootFS.DiffIDs) {
+			return "", "", errRootFSMismatch
+		}
+
+		// Populate diff ids in descriptors to avoid downloading foreign layers
+		// which have been side loaded
+		for i := range descriptors {
+			descriptors[i].(*v2LayerDescriptor).diffID = configRootFS.DiffIDs[i]
 		}
 	}
 
