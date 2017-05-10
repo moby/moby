@@ -18,10 +18,12 @@ import (
 //sys waitNamedPipe(name string, timeout uint32) (err error) = WaitNamedPipeW
 //sys getNamedPipeInfo(pipe syscall.Handle, flags *uint32, outSize *uint32, inSize *uint32, maxInstances *uint32) (err error) = GetNamedPipeInfo
 //sys getNamedPipeHandleState(pipe syscall.Handle, state *uint32, curInstances *uint32, maxCollectionCount *uint32, collectDataTimeout *uint32, userName *uint16, maxUserNameSize uint32) (err error) = GetNamedPipeHandleStateW
+//sys localAlloc(uFlags uint32, length uint32) (ptr uintptr) = LocalAlloc
+//sys copyMemory(dst uintptr, src uintptr, length uint32) = RtlCopyMemory
 
 type securityAttributes struct {
 	Length             uint32
-	SecurityDescriptor *byte
+	SecurityDescriptor uintptr
 	InheritHandle      uint32
 }
 
@@ -231,12 +233,15 @@ func makeServerPipeHandle(path string, securityDescriptor []byte, c *PipeConfig,
 		mode |= cPIPE_TYPE_MESSAGE
 	}
 
-	var sa securityAttributes
-	sa.Length = uint32(unsafe.Sizeof(sa))
+	sa := &securityAttributes{}
+	sa.Length = uint32(unsafe.Sizeof(*sa))
 	if securityDescriptor != nil {
-		sa.SecurityDescriptor = &securityDescriptor[0]
+		len := uint32(len(securityDescriptor))
+		sa.SecurityDescriptor = localAlloc(0, len)
+		defer localFree(sa.SecurityDescriptor)
+		copyMemory(sa.SecurityDescriptor, uintptr(unsafe.Pointer(&securityDescriptor[0])), len)
 	}
-	h, err := createNamedPipe(path, flags, mode, cPIPE_UNLIMITED_INSTANCES, uint32(c.OutputBufferSize), uint32(c.InputBufferSize), 0, &sa)
+	h, err := createNamedPipe(path, flags, mode, cPIPE_UNLIMITED_INSTANCES, uint32(c.OutputBufferSize), uint32(c.InputBufferSize), 0, sa)
 	if err != nil {
 		return 0, &os.PathError{Op: "open", Path: path, Err: err}
 	}
@@ -363,7 +368,7 @@ func connectPipe(p *win32File) error {
 		return err
 	}
 	err = connectNamedPipe(p.handle, &c.o)
-	_, err = p.asyncIo(c, time.Time{}, 0, err)
+	_, err = p.asyncIo(c, nil, 0, err)
 	if err != nil && err != cERROR_PIPE_CONNECTED {
 		return err
 	}

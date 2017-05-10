@@ -185,7 +185,6 @@ type BackupFileReader struct {
 // Read will attempt to read the security descriptor of the file.
 func NewBackupFileReader(f *os.File, includeSecurity bool) *BackupFileReader {
 	r := &BackupFileReader{f, includeSecurity, 0}
-	runtime.SetFinalizer(r, func(r *BackupFileReader) { r.Close() })
 	return r
 }
 
@@ -196,6 +195,7 @@ func (r *BackupFileReader) Read(b []byte) (int, error) {
 	if err != nil {
 		return 0, &os.PathError{"BackupRead", r.f.Name(), err}
 	}
+	runtime.KeepAlive(r.f)
 	if bytesRead == 0 {
 		return 0, io.EOF
 	}
@@ -207,6 +207,7 @@ func (r *BackupFileReader) Read(b []byte) (int, error) {
 func (r *BackupFileReader) Close() error {
 	if r.ctx != 0 {
 		backupRead(syscall.Handle(r.f.Fd()), nil, nil, true, false, &r.ctx)
+		runtime.KeepAlive(r.f)
 		r.ctx = 0
 	}
 	return nil
@@ -223,7 +224,6 @@ type BackupFileWriter struct {
 // Write() will attempt to restore the security descriptor from the stream.
 func NewBackupFileWriter(f *os.File, includeSecurity bool) *BackupFileWriter {
 	w := &BackupFileWriter{f, includeSecurity, 0}
-	runtime.SetFinalizer(w, func(w *BackupFileWriter) { w.Close() })
 	return w
 }
 
@@ -234,6 +234,7 @@ func (w *BackupFileWriter) Write(b []byte) (int, error) {
 	if err != nil {
 		return 0, &os.PathError{"BackupWrite", w.f.Name(), err}
 	}
+	runtime.KeepAlive(w.f)
 	if int(bytesWritten) != len(b) {
 		return int(bytesWritten), errors.New("not all bytes could be written")
 	}
@@ -245,6 +246,7 @@ func (w *BackupFileWriter) Write(b []byte) (int, error) {
 func (w *BackupFileWriter) Close() error {
 	if w.ctx != 0 {
 		backupWrite(syscall.Handle(w.f.Fd()), nil, nil, true, false, &w.ctx)
+		runtime.KeepAlive(w.f)
 		w.ctx = 0
 	}
 	return nil
