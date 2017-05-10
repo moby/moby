@@ -7,7 +7,9 @@ import "time"
 type ClusterInfo struct {
 	ID string
 	Meta
-	Spec Spec
+	Spec                   Spec
+	TLSInfo                TLSInfo
+	RootRotationInProgress bool
 }
 
 // Swarm represents a swarm.

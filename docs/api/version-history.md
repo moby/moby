@@ -18,7 +18,11 @@ keywords: "API, Docker, rcli, REST, documentation"
 [Docker Engine API v1.30](https://docs.docker.com/engine/api/v1.30/) documentation
 
 * `GET /info` now returns the list of supported logging drivers, including plugins.
+* `GET /info` and `GET /swarm` now returns the cluster-wide swarm CA info if the node is in a swarm: the cluster root CA certificate, and the cluster TLS
+ leaf certificate issuer's subject and public key.
 * `POST /build/` now (when not silent) produces an `Aux` message in the JSON output stream with payload `types.BuildResult` for each image produced. The final such message will reference the image resulting from the build.
+* `GET /nodes` and `GET /nodes/{id}` now returns additional information about swarm TLS info if the node is part of a swarm: the trusted root CA, and the
+ issuer's subject and public key.
 
 ## v1.29 API changes
 

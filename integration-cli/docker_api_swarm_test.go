@@ -32,6 +32,7 @@ func (s *DockerSwarmSuite) TestAPISwarmInit(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(info.ControlAvailable, checker.True)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
+	c.Assert(info.Cluster.RootRotationInProgress, checker.False)
 
 	d2 := s.AddDaemon(c, true, false)
 	info, err = d2.SwarmInfo()
