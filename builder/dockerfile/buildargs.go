@@ -3,6 +3,7 @@ package dockerfile
 import (
 	"fmt"
 	"github.com/docker/docker/runconfig/opts"
+	"io"
 )
 
 // builtinAllowedBuildArgs is list of built-in allowed build args
@@ -40,16 +41,20 @@ func newBuildArgs(argsFromOptions map[string]*string) *buildArgs {
 	}
 }
 
-// UnreferencedOptionArgs returns the list of args that were set from options but
-// were never referenced from the Dockerfile
-func (b *buildArgs) UnreferencedOptionArgs() []string {
+// WarnOnUnusedBuildArgs checks if there are any leftover build-args that were
+// passed but not consumed during build. Print a warning, if there are any.
+func (b *buildArgs) WarnOnUnusedBuildArgs(out io.Writer) {
 	leftoverArgs := []string{}
 	for arg := range b.argsFromOptions {
-		if _, ok := b.referencedArgs[arg]; !ok {
+		_, isReferenced := b.referencedArgs[arg]
+		_, isBuiltin := builtinAllowedBuildArgs[arg]
+		if !isBuiltin && !isReferenced {
 			leftoverArgs = append(leftoverArgs, arg)
 		}
 	}
-	return leftoverArgs
+	if len(leftoverArgs) > 0 {
+		fmt.Fprintf(out, "[Warning] One or more build-args %v were not consumed\n", leftoverArgs)
+	}
 }
 
 // ResetAllowed clears the list of args that are allowed to be used by a
@@ -69,13 +74,13 @@ func (b *buildArgs) AddArg(key string, value *string) {
 	b.referencedArgs[key] = struct{}{}
 }
 
-// IsUnreferencedBuiltin checks if the key is a built-in arg, or if it has been
-// referenced by the Dockerfile. Returns true if the arg is a builtin that has
-// not been referenced in the Dockerfile.
-func (b *buildArgs) IsUnreferencedBuiltin(key string) bool {
+// IsReferencedOrNotBuiltin checks if the key is a built-in arg, or if it has been
+// referenced by the Dockerfile. Returns true if the arg is not a builtin or
+// if the builtin has been referenced in the Dockerfile.
+func (b *buildArgs) IsReferencedOrNotBuiltin(key string) bool {
 	_, isBuiltin := builtinAllowedBuildArgs[key]
 	_, isAllowed := b.allowedBuildArgs[key]
-	return isBuiltin && !isAllowed
+	return isAllowed || !isBuiltin
 }
 
 // GetAllAllowed returns a mapping with all the allowed args

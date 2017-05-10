@@ -418,7 +418,7 @@ func prependEnvOnCmd(buildArgs *buildArgs, buildArgVars []string, cmd strslice.S
 	var tmpBuildEnv []string
 	for _, env := range buildArgVars {
 		key := strings.SplitN(env, "=", 2)[0]
-		if !buildArgs.IsUnreferencedBuiltin(key) {
+		if buildArgs.IsReferencedOrNotBuiltin(key) {
 			tmpBuildEnv = append(tmpBuildEnv, env)
 		}
 	}

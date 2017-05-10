@@ -159,7 +159,7 @@ func (b *Builder) build(source builder.Source, dockerfile *parser.Result) (*buil
 		return nil, errors.Errorf("failed to reach build target %s in Dockerfile", b.options.Target)
 	}
 
-	b.warnOnUnusedBuildArgs()
+	b.buildArgs.WarnOnUnusedBuildArgs(b.Stderr)
 
 	if dispatchState.imageID == "" {
 		buildsFailed.WithValues(metricsDockerfileEmptyError).Inc()
@@ -238,15 +238,6 @@ func addNodesForLabelOption(dockerfile *parser.Node, labels map[string]string) {
 
 	node := parser.NodeFromLabels(labels)
 	dockerfile.Children = append(dockerfile.Children, node)
-}
-
-// check if there are any leftover build-args that were passed but not
-// consumed during build. Print a warning, if there are any.
-func (b *Builder) warnOnUnusedBuildArgs() {
-	leftoverArgs := b.buildArgs.UnreferencedOptionArgs()
-	if len(leftoverArgs) > 0 {
-		fmt.Fprintf(b.Stderr, "[Warning] One or more build-args %v were not consumed\n", leftoverArgs)
-	}
 }
 
 // BuildFromConfig builds directly from `changes`, treating it as if it were the contents of a Dockerfile
