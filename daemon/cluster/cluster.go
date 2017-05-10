@@ -1119,6 +1119,16 @@ func (c *Cluster) CreateService(s types.ServiceSpec, encodedAuth string) (*apity
 		} else {
 			logrus.Debugf("creating service using supplied digest reference %s", ctnr.Image)
 		}
+
+		// Replace the context with a fresh one.
+		// If we timed out while communicating with the
+		// registry, then "ctx" will already be expired, which
+		// would cause UpdateService below to fail. Reusing
+		// "ctx" could make it impossible to create a service
+		// if the registry is slow or unresponsive.
+		var newCancel func()
+		ctx, newCancel = c.getRequestContext()
+		defer newCancel()
 	}
 
 	r, err := c.client.CreateService(ctx, &swarmapi.CreateServiceRequest{Spec: &serviceSpec})
@@ -1230,6 +1240,16 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec typ
 		} else {
 			logrus.Debugf("updating service using supplied digest reference %s", newCtnr.Image)
 		}
+
+		// Replace the context with a fresh one.
+		// If we timed out while communicating with the
+		// registry, then "ctx" will already be expired, which
+		// would cause UpdateService below to fail. Reusing
+		// "ctx" could make it impossible to create a service
+		// if the registry is slow or unresponsive.
+		var newCancel func()
+		ctx, newCancel = c.getRequestContext()
+		defer newCancel()
 	}
 
 	_, err = c.client.UpdateService(
