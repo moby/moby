@@ -244,15 +244,24 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 }
 
 func (c *controller) SetClusterProvider(provider cluster.Provider) {
+	var sameProvider bool
 	c.Lock()
-	c.cfg.Daemon.ClusterProvider = provider
-	disableProviderCh := c.cfg.Daemon.DisableProvider
-	c.Unlock()
-	if provider != nil {
-		go c.clusterAgentInit()
+	// Avoids to spawn multiple goroutine for the same cluster provider
+	if c.cfg.Daemon.ClusterProvider == provider {
+		// If the cluster provider is already set, there is already a go routine spawned
+		// that is listening for events, so nothing to do here
+		sameProvider = true
 	} else {
-		disableProviderCh <- struct{}{}
+		c.cfg.Daemon.ClusterProvider = provider
 	}
+	c.Unlock()
+
+	if provider == nil || sameProvider {
+		return
+	}
+	// We don't want to spawn a new go routine if the previous one did not exit yet
+	c.AgentStopWait()
+	go c.clusterAgentInit()
 }
 
 func isValidClusteringIP(addr string) bool {
@@ -262,12 +271,6 @@ func isValidClusteringIP(addr string) bool {
 // libnetwork side of agent depends on the keys. On the first receipt of
 // keys setup the agent. For subsequent key set handle the key change
 func (c *controller) SetKeys(keys []*types.EncryptionKey) error {
-	c.Lock()
-	existingKeys := c.keys
-	clusterConfigAvailable := c.clusterConfigAvailable
-	agent := c.agent
-	c.Unlock()
-
 	subsysKeys := make(map[string]int)
 	for _, key := range keys {
 		if key.Subsystem != subsysGossip &&
@@ -282,19 +285,8 @@ func (c *controller) SetKeys(keys []*types.EncryptionKey) error {
 		}
 	}
 
-	if len(existingKeys) == 0 {
-		c.Lock()
-		c.keys = keys
-		c.Unlock()
-		if agent != nil {
-			return (fmt.Errorf("libnetwork agent setup without keys"))
-		}
-		if clusterConfigAvailable {
-			return c.agentSetup()
-		}
-		logrus.Debug("received encryption keys before cluster config")
-		return nil
-	}
+	agent := c.getAgent()
+
 	if agent == nil {
 		c.Lock()
 		c.keys = keys
@@ -312,24 +304,32 @@ func (c *controller) getAgent() *agent {
 
 func (c *controller) clusterAgentInit() {
 	clusterProvider := c.cfg.Daemon.ClusterProvider
+	var keysAvailable bool
 	for {
-		select {
-		case <-clusterProvider.ListenClusterEvents():
-			if !c.isDistributedControl() {
-				c.Lock()
-				c.clusterConfigAvailable = true
-				keys := c.keys
-				c.Unlock()
-				// agent initialization needs encryption keys and bind/remote IP which
-				// comes from the daemon cluster events
-				if len(keys) > 0 {
-					c.agentSetup()
+		eventType := <-clusterProvider.ListenClusterEvents()
+		// The events: EventSocketChange, EventNodeReady and EventNetworkKeysAvailable are not ordered
+		// when all the condition for the agent initialization are met then proceed with it
+		switch eventType {
+		case cluster.EventNetworkKeysAvailable:
+			// Validates that the keys are actually available before starting the initialization
+			// This will handle old spurious messages left on the channel
+			c.Lock()
+			keysAvailable = c.keys != nil
+			c.Unlock()
+			fallthrough
+		case cluster.EventSocketChange, cluster.EventNodeReady:
+			if keysAvailable && !c.isDistributedControl() {
+				c.agentOperationStart()
+				if err := c.agentSetup(clusterProvider); err != nil {
+					c.agentStopComplete()
+				} else {
+					c.agentInitComplete()
 				}
 			}
-		case <-c.cfg.Daemon.DisableProvider:
+		case cluster.EventNodeLeave:
+			keysAvailable = false
+			c.agentOperationStart()
 			c.Lock()
-			c.clusterConfigAvailable = false
-			c.agentInitDone = make(chan struct{})
 			c.keys = nil
 			c.Unlock()
 
@@ -343,20 +343,14 @@ func (c *controller) clusterAgentInit() {
 			c.agentClose()
 			c.cleanupServiceBindings("")
 
-			c.Lock()
-			if c.agentStopDone != nil {
-				close(c.agentStopDone)
-				c.agentStopDone = nil
-			}
-			c.Unlock()
+			c.agentStopComplete()
 
 			return
 		}
 	}
 }
 
-// AgentInitWait waits for agent initialization to be completed in the
-// controller.
+// AgentInitWait waits for agent initialization to be completed in the controller.
 func (c *controller) AgentInitWait() {
 	c.Lock()
 	agentInitDone := c.agentInitDone
@@ -367,6 +361,7 @@ func (c *controller) AgentInitWait() {
 	}
 }
 
+// AgentStopWait waits for the Agent stop to be completed in the controller
 func (c *controller) AgentStopWait() {
 	c.Lock()
 	agentStopDone := c.agentStopDone
@@ -374,6 +369,38 @@ func (c *controller) AgentStopWait() {
 	if agentStopDone != nil {
 		<-agentStopDone
 	}
+}
+
+// agentOperationStart marks the start of an Agent Init or Agent Stop
+func (c *controller) agentOperationStart() {
+	c.Lock()
+	if c.agentInitDone == nil {
+		c.agentInitDone = make(chan struct{})
+	}
+	if c.agentStopDone == nil {
+		c.agentStopDone = make(chan struct{})
+	}
+	c.Unlock()
+}
+
+// agentInitComplete notifies the successful completion of the Agent initialization
+func (c *controller) agentInitComplete() {
+	c.Lock()
+	if c.agentInitDone != nil {
+		close(c.agentInitDone)
+		c.agentInitDone = nil
+	}
+	c.Unlock()
+}
+
+// agentStopComplete notifies the successful completion of the Agent stop
+func (c *controller) agentStopComplete() {
+	c.Lock()
+	if c.agentStopDone != nil {
+		close(c.agentStopDone)
+		c.agentStopDone = nil
+	}
+	c.Unlock()
 }
 
 func (c *controller) makeDriverConfig(ntype string) map[string]interface{} {
