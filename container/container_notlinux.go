@@ -12,8 +12,8 @@ func detachMounted(path string) error {
 	return unix.Unmount(path, 0)
 }
 
-// SecretMount returns the mount for the secret path
-func (container *Container) SecretMount() *Mount {
+// SecretMounts returns the mounts for the secret path
+func (container *Container) SecretMounts() []Mount {
 	return nil
 }
 

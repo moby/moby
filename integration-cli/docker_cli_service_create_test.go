@@ -5,6 +5,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/docker/docker/api/types"
@@ -90,23 +91,41 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretSimple(c *check.C) {
 	c.Assert(refs[0].File.Name, checker.Equals, testName)
 	c.Assert(refs[0].File.UID, checker.Equals, "0")
 	c.Assert(refs[0].File.GID, checker.Equals, "0")
+
+	out, err = d.Cmd("service", "rm", serviceName)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	d.DeleteSecret(c, testName)
 }
 
-func (s *DockerSwarmSuite) TestServiceCreateWithSecretSourceTarget(c *check.C) {
+func (s *DockerSwarmSuite) TestServiceCreateWithSecretSourceTargetPaths(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
-	serviceName := "test-service-secret"
-	testName := "test_secret"
-	id := d.CreateSecret(c, swarm.SecretSpec{
-		Annotations: swarm.Annotations{
-			Name: testName,
-		},
-		Data: []byte("TESTINGDATA"),
-	})
-	c.Assert(id, checker.Not(checker.Equals), "", check.Commentf("secrets: %s", id))
-	testTarget := "testing"
+	testPaths := map[string]string{
+		"app":                  "/etc/secret",
+		"test_secret":          "test_secret",
+		"relative_secret":      "relative/secret",
+		"escapes_in_container": "../secret",
+	}
 
-	out, err := d.Cmd("service", "create", "--name", serviceName, "--secret", fmt.Sprintf("source=%s,target=%s", testName, testTarget), "busybox", "top")
+	var secretFlags []string
+
+	for testName, testTarget := range testPaths {
+		id := d.CreateSecret(c, swarm.SecretSpec{
+			Annotations: swarm.Annotations{
+				Name: testName,
+			},
+			Data: []byte("TESTINGDATA " + testName + " " + testTarget),
+		})
+		c.Assert(id, checker.Not(checker.Equals), "", check.Commentf("secrets: %s", id))
+
+		secretFlags = append(secretFlags, "--secret", fmt.Sprintf("source=%s,target=%s", testName, testTarget))
+	}
+
+	serviceName := "svc"
+	serviceCmd := []string{"service", "create", "--name", serviceName}
+	serviceCmd = append(serviceCmd, secretFlags...)
+	serviceCmd = append(serviceCmd, "busybox", "top")
+	out, err := d.Cmd(serviceCmd...)
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	out, err = d.Cmd("service", "inspect", "--format", "{{ json .Spec.TaskTemplate.ContainerSpec.Secrets }}", serviceName)
@@ -114,11 +133,82 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretSourceTarget(c *check.C) {
 
 	var refs []swarm.SecretReference
 	c.Assert(json.Unmarshal([]byte(out), &refs), checker.IsNil)
-	c.Assert(refs, checker.HasLen, 1)
+	c.Assert(refs, checker.HasLen, len(testPaths))
 
-	c.Assert(refs[0].SecretName, checker.Equals, testName)
-	c.Assert(refs[0].File, checker.Not(checker.IsNil))
-	c.Assert(refs[0].File.Name, checker.Equals, testTarget)
+	var tasks []swarm.Task
+	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
+		tasks = d.GetServiceTasks(c, serviceName)
+		return len(tasks) > 0, nil
+	}, checker.Equals, true)
+
+	task := tasks[0]
+	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
+		if task.NodeID == "" || task.Status.ContainerStatus.ContainerID == "" {
+			task = d.GetTask(c, task.ID)
+		}
+		return task.NodeID != "" && task.Status.ContainerStatus.ContainerID != "", nil
+	}, checker.Equals, true)
+
+	for testName, testTarget := range testPaths {
+		path := testTarget
+		if !filepath.IsAbs(path) {
+			path = filepath.Join("/run/secrets", path)
+		}
+		out, err := d.Cmd("exec", task.Status.ContainerStatus.ContainerID, "cat", path)
+		c.Assert(err, checker.IsNil)
+		c.Assert(out, checker.Equals, "TESTINGDATA "+testName+" "+testTarget)
+	}
+
+	out, err = d.Cmd("service", "rm", serviceName)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+}
+
+func (s *DockerSwarmSuite) TestServiceCreateWithSecretReferencedTwice(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	id := d.CreateSecret(c, swarm.SecretSpec{
+		Annotations: swarm.Annotations{
+			Name: "mysecret",
+		},
+		Data: []byte("TESTINGDATA"),
+	})
+	c.Assert(id, checker.Not(checker.Equals), "", check.Commentf("secrets: %s", id))
+
+	serviceName := "svc"
+	out, err := d.Cmd("service", "create", "--name", serviceName, "--secret", "source=mysecret,target=target1", "--secret", "source=mysecret,target=target2", "busybox", "top")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	out, err = d.Cmd("service", "inspect", "--format", "{{ json .Spec.TaskTemplate.ContainerSpec.Secrets }}", serviceName)
+	c.Assert(err, checker.IsNil)
+
+	var refs []swarm.SecretReference
+	c.Assert(json.Unmarshal([]byte(out), &refs), checker.IsNil)
+	c.Assert(refs, checker.HasLen, 2)
+
+	var tasks []swarm.Task
+	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
+		tasks = d.GetServiceTasks(c, serviceName)
+		return len(tasks) > 0, nil
+	}, checker.Equals, true)
+
+	task := tasks[0]
+	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
+		if task.NodeID == "" || task.Status.ContainerStatus.ContainerID == "" {
+			task = d.GetTask(c, task.ID)
+		}
+		return task.NodeID != "" && task.Status.ContainerStatus.ContainerID != "", nil
+	}, checker.Equals, true)
+
+	for _, target := range []string{"target1", "target2"} {
+		c.Assert(err, checker.IsNil, check.Commentf(out))
+		path := filepath.Join("/run/secrets", target)
+		out, err := d.Cmd("exec", task.Status.ContainerStatus.ContainerID, "cat", path)
+		c.Assert(err, checker.IsNil)
+		c.Assert(out, checker.Equals, "TESTINGDATA")
+	}
+
+	out, err = d.Cmd("service", "rm", serviceName)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
 }
 
 func (s *DockerSwarmSuite) TestServiceCreateMountTmpfs(c *check.C) {

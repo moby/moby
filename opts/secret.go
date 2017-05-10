@@ -4,7 +4,6 @@ import (
 	"encoding/csv"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -53,10 +52,6 @@ func (o *SecretOpt) Set(value string) error {
 		case "source", "src":
 			options.SecretName = value
 		case "target":
-			tDir, _ := filepath.Split(value)
-			if tDir != "" {
-				return fmt.Errorf("target must not be a path")
-			}
 			options.File.Name = value
 		case "uid":
 			options.File.UID = value

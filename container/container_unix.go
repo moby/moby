@@ -163,11 +163,6 @@ func (container *Container) NetworkMounts() []Mount {
 	return mounts
 }
 
-// SecretMountPath returns the path of the secret mount for the container
-func (container *Container) SecretMountPath() string {
-	return filepath.Join(container.Root, "secrets")
-}
-
 // CopyImagePathContent copies files in destination to the volume.
 func (container *Container) CopyImagePathContent(v volume.Volume, destination string) error {
 	rootfs, err := symlink.FollowSymlinkInScope(filepath.Join(container.BaseFS, destination), container.BaseFS)
@@ -253,17 +248,21 @@ func (container *Container) IpcMounts() []Mount {
 	return mounts
 }
 
-// SecretMount returns the mount for the secret path
-func (container *Container) SecretMount() *Mount {
-	if len(container.SecretReferences) > 0 {
-		return &Mount{
-			Source:      container.SecretMountPath(),
-			Destination: containerSecretMountPath,
-			Writable:    false,
+// SecretMounts returns the mounts for the secret path.
+func (container *Container) SecretMounts() []Mount {
+	var mounts []Mount
+	for _, r := range container.SecretReferences {
+		if r.File == nil {
+			continue
 		}
+		mounts = append(mounts, Mount{
+			Source:      container.SecretFilePath(*r),
+			Destination: getSecretTargetPath(r),
+			Writable:    false,
+		})
 	}
 
-	return nil
+	return mounts
 }
 
 // UnmountSecrets unmounts the local tmpfs for secrets

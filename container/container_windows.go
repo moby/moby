@@ -10,6 +10,10 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 )
 
+const (
+	containerSecretMountPath = `C:\ProgramData\Docker\secrets`
+)
+
 // Container holds fields specific to the Windows implementation. See
 // CommonContainer for standard fields common to all containers.
 type Container struct {
@@ -43,8 +47,8 @@ func (container *Container) IpcMounts() []Mount {
 	return nil
 }
 
-// SecretMount returns the mount for the secret path
-func (container *Container) SecretMount() *Mount {
+// SecretMounts returns the mounts for the secret path
+func (container *Container) SecretMounts() []Mount {
 	return nil
 }
 

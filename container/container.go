@@ -948,3 +948,21 @@ func (container *Container) InitializeStdio(iop libcontainerd.IOPipe) error {
 
 	return nil
 }
+
+// SecretMountPath returns the path of the secret mount for the container
+func (container *Container) SecretMountPath() string {
+	return filepath.Join(container.Root, "secrets")
+}
+
+// SecretFilePath returns the path to the location of a secret on the host.
+func (container *Container) SecretFilePath(secretRef swarmtypes.SecretReference) string {
+	return filepath.Join(container.SecretMountPath(), secretRef.SecretID)
+}
+
+func getSecretTargetPath(r *swarmtypes.SecretReference) string {
+	if filepath.IsAbs(r.File.Name) {
+		return r.File.Name
+	}
+
+	return filepath.Join(containerSecretMountPath, r.File.Name)
+}
