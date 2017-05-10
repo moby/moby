@@ -397,16 +397,38 @@ Try {
         # Perform the actual build
         if ($Daemon) { Execute-Build "daemon" "daemon" "dockerd" }
         if ($Client) {
-            $dockerCliRepo = (findstr DOCKERCLI_REPO hack\dockerfile\binaries-commits).split("=")[1]
-            $dockerCliCommit = (findstr DOCKERCLI_COMMIT hack\dockerfile\binaries-commits).split("=")[1]
-            Push-Location ..
-            # TODO: check if cli folder exists already
-            git clone $dockerCliRepo
-            cd cli
-            git checkout $dockerCliCommit
-            # TODO: update CI script to not assume binary is in docker/docker
-            go build -o ..\docker\bundles\docker.exe github.com/docker/cli/cmd/docker
-            Pop-Location
+            # Get the repo and commit of the client to build.
+            "hack\dockerfile\binaries-commits" | ForEach-Object {
+                $dockerCliRepo = ((Get-Content $_ | Select-String "DOCKERCLI_REPO") -split "=")[1]
+                $dockerCliCommit = ((Get-Content $_ | Select-String "DOCKERCLI_COMMIT") -split "=")[1]
+            }
+
+            # Build from a temporary directory.
+            $tempLocation = "$env:TEMP\$(New-Guid)"
+            New-Item -ItemType Directory $tempLocation | Out-Null
+
+            # Temporarily override GOPATH, then clone, checkout, and build.
+            $saveGOPATH = $env:GOPATH
+            Try {
+                $env:GOPATH = $tempLocation
+                $dockerCliRoot = "$env:GOPATH\src\$($dockerCliRepo.Split("/", 3)[2])"
+                Write-Host "INFO: Cloning client repository..."
+                Invoke-Expression "git clone -q $dockerCliRepo $dockerCliRoot"
+                if ($LASTEXITCODE -ne 0) { Throw "Failed to clone client repository $dockerCliRepo" }
+                Invoke-Expression "git -C $dockerCliRoot  checkout -q $dockerCliCommit"
+                if ($LASTEXITCODE -ne 0) { Throw "Failed to checkout client commit $dockerCliCommit" }
+                Write-Host "INFO: Building client..."
+                Invoke-Expression "go build -o $root\bundles\docker.exe github.com/docker/cli/cmd/docker"
+                if ($LASTEXITCODE -ne 0) { Throw "Failed to compile client" }
+            }
+            Catch [Exception] {
+                Throw $_
+            }
+            Finally {
+                # Always restore GOPATH and remove the temporary directory.
+                $env:GOPATH = $saveGOPATH
+                Remove-Item -Force -Recurse $tempLocation
+            }
         }
     }
 
