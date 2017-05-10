@@ -165,7 +165,7 @@ func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, kw KeyWrit
 	// responding properly (for example, it may have just been demoted).
 	var signedCert []byte
 	for i := 0; i != 5; i++ {
-		signedCert, err = GetRemoteSignedCertificate(ctx, csr, token, rca.Pool, r, transport, nodeInfo)
+		signedCert, err = GetRemoteSignedCertificate(ctx, csr, token, rca.Pool, r, transport, nodeInfo, 0)
 		if err == nil {
 			break
 		}
@@ -545,7 +545,7 @@ func CreateRootCA(rootCN string, paths CertPaths) (RootCA, error) {
 
 // GetRemoteSignedCertificate submits a CSR to a remote CA server address,
 // and that is part of a CA identified by a specific certificate pool.
-func GetRemoteSignedCertificate(ctx context.Context, csr []byte, token string, rootCAPool *x509.CertPool, r remotes.Remotes, creds credentials.TransportCredentials, nodeInfo chan<- api.IssueNodeCertificateResponse) ([]byte, error) {
+func GetRemoteSignedCertificate(ctx context.Context, csr []byte, token string, rootCAPool *x509.CertPool, r remotes.Remotes, creds credentials.TransportCredentials, nodeInfo chan<- api.IssueNodeCertificateResponse, nodeCertificateStatusRequestTimeout time.Duration) ([]byte, error) {
 	if rootCAPool == nil {
 		return nil, errors.New("valid root CA pool required")
 	}
@@ -560,7 +560,6 @@ func GetRemoteSignedCertificate(ctx context.Context, csr []byte, token string, r
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Close()
 
 	// Create a CAClient to retrieve a new Certificate
 	caClient := api.NewNodeCAClient(conn)
@@ -570,6 +569,7 @@ func GetRemoteSignedCertificate(ctx context.Context, csr []byte, token string, r
 	issueResponse, err := caClient.IssueNodeCertificate(ctx, issueRequest)
 	if err != nil {
 		r.Observe(peer, -remotes.DefaultObservationWeight)
+		conn.Close()
 		return nil, err
 	}
 
@@ -587,18 +587,31 @@ func GetRemoteSignedCertificate(ctx context.Context, csr []byte, token string, r
 
 	// Exponential backoff with Max of 30 seconds to wait for a new retry
 	for {
-		// Send the Request and retrieve the certificate
-		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		defer cancel()
-		statusResponse, err := caClient.NodeCertificateStatus(ctx, statusRequest)
-		if err != nil {
-			r.Observe(peer, -remotes.DefaultObservationWeight)
-			return nil, err
+		timeout := 5 * time.Second
+		if nodeCertificateStatusRequestTimeout > 0 {
+			timeout = nodeCertificateStatusRequestTimeout
 		}
+		// Send the Request and retrieve the certificate
+		stateCtx, cancel := context.WithTimeout(ctx, timeout)
+		defer cancel()
+		statusResponse, err := caClient.NodeCertificateStatus(stateCtx, statusRequest)
+		switch {
+		case err != nil && grpc.Code(err) != codes.DeadlineExceeded:
+			// Because IssueNodeCertificate succeeded, if this call failed likely it is due to an issue with this
+			// particular connection, so we need to get another.
+			r.Observe(peer, -remotes.DefaultObservationWeight)
+			conn.Close()
+			conn, peer, err = getGRPCConnection(creds, r)
+			if err != nil {
+				return nil, err
+			}
+			caClient = api.NewNodeCAClient(conn)
 
-		// If the certificate was issued, return
-		if statusResponse.Status.State == api.IssuanceStateIssued {
+		// If there was no deadline exceeded error, and the certificate was issued, return
+		case err == nil && statusResponse.Status.State == api.IssuanceStateIssued:
 			if statusResponse.Certificate == nil {
+				r.Observe(peer, -remotes.DefaultObservationWeight)
+				conn.Close()
 				return nil, errors.New("no certificate in CertificateStatus response")
 			}
 
@@ -609,14 +622,20 @@ func GetRemoteSignedCertificate(ctx context.Context, csr []byte, token string, r
 			// current request.
 			if bytes.Equal(statusResponse.Certificate.CSR, csr) {
 				r.Observe(peer, remotes.DefaultObservationWeight)
+				conn.Close()
 				return statusResponse.Certificate.Certificate, nil
 			}
 		}
 
 		// If we're still pending, the issuance failed, or the state is unknown
-		// let's continue trying.
+		// let's continue trying after an exponential backoff
 		expBackoff.Failure(nil, nil)
-		time.Sleep(expBackoff.Proceed(nil))
+		select {
+		case <-ctx.Done():
+			conn.Close()
+			return nil, err
+		case <-time.After(expBackoff.Proceed(nil)):
+		}
 	}
 }
 

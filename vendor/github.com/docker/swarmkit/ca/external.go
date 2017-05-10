@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/cloudflare/cfssl/api"
@@ -23,6 +24,8 @@ var ErrNoExternalCAURLs = errors.New("no external CA URLs")
 // ExternalCA is able to make certificate signing requests to one of a list
 // remote CFSSL API endpoints.
 type ExternalCA struct {
+	ExternalRequestTimeout time.Duration
+
 	mu     sync.Mutex
 	rootCA *RootCA
 	urls   []string
@@ -33,8 +36,9 @@ type ExternalCA struct {
 // authenticate to any of the given URLS of CFSSL API endpoints.
 func NewExternalCA(rootCA *RootCA, tlsConfig *tls.Config, urls ...string) *ExternalCA {
 	return &ExternalCA{
-		rootCA: rootCA,
-		urls:   urls,
+		ExternalRequestTimeout: 5 * time.Second,
+		rootCA:                 rootCA,
+		urls:                   urls,
 		client: &http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: tlsConfig,
@@ -87,7 +91,9 @@ func (eca *ExternalCA) Sign(ctx context.Context, req signer.SignRequest) (cert [
 	// Try each configured proxy URL. Return after the first success. If
 	// all fail then the last error will be returned.
 	for _, url := range urls {
-		cert, err = makeExternalSignRequest(ctx, client, url, csrJSON)
+		requestCtx, cancel := context.WithTimeout(ctx, eca.ExternalRequestTimeout)
+		cert, err = makeExternalSignRequest(requestCtx, client, url, csrJSON)
+		cancel()
 		if err == nil {
 			return eca.rootCA.AppendFirstRootPEM(cert)
 		}

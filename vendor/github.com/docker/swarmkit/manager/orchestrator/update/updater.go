@@ -406,7 +406,11 @@ func (u *Updater) updateTask(ctx context.Context, slot orchestrator.Slot, update
 	}
 
 	if delayStartCh != nil {
-		<-delayStartCh
+		select {
+		case <-delayStartCh:
+		case <-u.stopChan:
+			return nil
+		}
 	}
 
 	// Wait for the new task to come up.
@@ -456,7 +460,11 @@ func (u *Updater) useExistingTask(ctx context.Context, slot orchestrator.Slot, e
 		}
 
 		if delayStartCh != nil {
-			<-delayStartCh
+			select {
+			case <-delayStartCh:
+			case <-u.stopChan:
+				return nil
+			}
 		}
 	}
 
