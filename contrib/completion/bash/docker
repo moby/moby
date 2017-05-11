@@ -2022,15 +2022,15 @@ _docker_daemon() {
  			COMPREPLY=( $( compgen -W "false true" -- "${cur##*=}" ) )
  			return
  			;;
- 		dm.fs)
- 			COMPREPLY=( $( compgen -W "ext4 xfs" -- "${cur##*=}" ) )
- 			return
- 			;;
- 		dm.thinpooldev)
+		dm.directlvm_device|dm.thinpooldev)
 			cur=${cur##*=}
- 			_filedir
- 			return
- 			;;
+			_filedir
+			return
+			;;
+		dm.fs)
+			COMPREPLY=( $( compgen -W "ext4 xfs" -- "${cur##*=}" ) )
+			return
+			;;
  	esac
 
 	case "$prev" in
@@ -2070,6 +2070,7 @@ _docker_daemon() {
 				dm.basesize
 				dm.blkdiscard
 				dm.blocksize
+				dm.directlvm_device
 				dm.fs
 				dm.loopdatasize
 				dm.loopmetadatasize
@@ -2078,6 +2079,10 @@ _docker_daemon() {
 				dm.mountopt
 				dm.override_udev_sync_check
 				dm.thinpooldev
+				dm.thinp_autoextend_percent
+				dm.thinp_autoextend_threshold
+				dm.thinp_metapercent
+				dm.thinp_percent
 				dm.use_deferred_deletion
 				dm.use_deferred_removal
 			"
