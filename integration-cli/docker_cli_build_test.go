@@ -5946,7 +5946,7 @@ func (s *DockerSuite) TestBuildCopyFromPreviousRootFSErrors(c *check.C) {
 			dockerfile: `
 		FROM busybox
 		COPY --from=0 foo bar`,
-			expectedError: "invalid from flag value 0 refers current build block",
+			expectedError: "invalid from flag value 0: refers to current build stage",
 		},
 		{
 			dockerfile: `

@@ -28,6 +28,7 @@ import (
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/command"
 	"github.com/docker/docker/builder/dockerfile/parser"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig/opts"
 	"github.com/pkg/errors"
 )
@@ -184,37 +185,55 @@ type dispatchOptions struct {
 
 // dispatchState is a data object which is modified by dispatchers
 type dispatchState struct {
-	runConfig   *container.Config
-	maintainer  string
-	cmdSet      bool
-	noBaseImage bool
-	imageID     string
-	baseImage   builder.Image
-	stageName   string
+	runConfig  *container.Config
+	maintainer string
+	cmdSet     bool
+	imageID    string
+	baseImage  builder.Image
+	stageName  string
 }
 
 func newDispatchState() *dispatchState {
 	return &dispatchState{runConfig: &container.Config{}}
 }
 
-func (r *dispatchState) updateRunConfig() {
-	r.runConfig.Image = r.imageID
+func (s *dispatchState) updateRunConfig() {
+	s.runConfig.Image = s.imageID
 }
 
 // hasFromImage returns true if the builder has processed a `FROM <image>` line
-func (r *dispatchState) hasFromImage() bool {
-	return r.imageID != "" || r.noBaseImage
+func (s *dispatchState) hasFromImage() bool {
+	return s.imageID != "" || (s.baseImage != nil && s.baseImage.ImageID() == "")
 }
 
-func (r *dispatchState) runConfigEnvMapping() map[string]string {
-	return opts.ConvertKVStringsToMap(r.runConfig.Env)
-}
-
-func (r *dispatchState) isCurrentStage(target string) bool {
+func (s *dispatchState) isCurrentStage(target string) bool {
 	if target == "" {
 		return false
 	}
-	return strings.EqualFold(r.stageName, target)
+	return strings.EqualFold(s.stageName, target)
+}
+
+func (s *dispatchState) beginStage(stageName string, image builder.Image) {
+	s.stageName = stageName
+	s.imageID = image.ImageID()
+
+	if image.RunConfig() != nil {
+		s.runConfig = image.RunConfig()
+	}
+	s.baseImage = image
+	s.setDefaultPath()
+}
+
+// Add the default PATH to runConfig.ENV if one exists for the platform and there
+// is no PATH set. Note that windows won't have one as it's set by HCS
+func (s *dispatchState) setDefaultPath() {
+	if system.DefaultPathEnv == "" {
+		return
+	}
+	envMap := opts.ConvertKVStringsToMap(s.runConfig.Env)
+	if _, ok := envMap["PATH"]; !ok {
+		s.runConfig.Env = append(s.runConfig.Env, "PATH="+system.DefaultPathEnv)
+	}
 }
 
 func handleOnBuildNode(ast *parser.Node, msg *bytes.Buffer) (*parser.Node, []string, error) {

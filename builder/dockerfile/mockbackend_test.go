@@ -15,28 +15,13 @@ import (
 
 // MockBackend implements the builder.Backend interface for unit testing
 type MockBackend struct {
-	getImageOnBuildFunc  func(string) (builder.Image, error)
-	getImageOnBuildImage *mockImage
-	containerCreateFunc  func(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error)
-	commitFunc           func(string, *backend.ContainerCommitConfig) (string, error)
-}
-
-func (m *MockBackend) GetImageOnBuild(name string) (builder.Image, error) {
-	if m.getImageOnBuildFunc != nil {
-		return m.getImageOnBuildFunc(name)
-	}
-	if m.getImageOnBuildImage != nil {
-		return m.getImageOnBuildImage, nil
-	}
-	return &mockImage{id: "theid"}, nil
+	containerCreateFunc func(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error)
+	commitFunc          func(string, *backend.ContainerCommitConfig) (string, error)
+	getImageFunc        func(string) (builder.Image, builder.ReleaseableLayer, error)
 }
 
 func (m *MockBackend) TagImageWithReference(image.ID, reference.Named) error {
 	return nil
-}
-
-func (m *MockBackend) PullOnBuild(ctx context.Context, name string, authConfigs map[string]types.AuthConfig, output io.Writer) (builder.Image, error) {
-	return nil, nil
 }
 
 func (m *MockBackend) ContainerAttachRaw(cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool, attached chan struct{}) error {
@@ -81,16 +66,12 @@ func (m *MockBackend) CopyOnBuild(containerID string, destPath string, srcRoot s
 	return nil
 }
 
-func (m *MockBackend) HasExperimental() bool {
-	return false
-}
+func (m *MockBackend) GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ReleaseableLayer, error) {
+	if m.getImageFunc != nil {
+		return m.getImageFunc(refOrID)
+	}
 
-func (m *MockBackend) SquashImage(from string, to string) (string, error) {
-	return "", nil
-}
-
-func (m *MockBackend) MountImage(name string) (string, func() error, error) {
-	return "", func() error { return nil }, nil
+	return &mockImage{id: "theid"}, &mockLayer{}, nil
 }
 
 type mockImage struct {
@@ -115,4 +96,14 @@ func (mic *mockImageCache) GetCache(parentID string, cfg *container.Config) (str
 		return mic.getCacheFunc(parentID, cfg)
 	}
 	return "", nil
+}
+
+type mockLayer struct{}
+
+func (l *mockLayer) Release() error {
+	return nil
+}
+
+func (l *mockLayer) Mount() (string, error) {
+	return "mountPath", nil
 }

@@ -45,7 +45,10 @@ type BuildManager struct {
 
 // NewBuildManager creates a BuildManager
 func NewBuildManager(b builder.Backend) *BuildManager {
-	return &BuildManager{backend: b, pathCache: &syncmap.Map{}}
+	return &BuildManager{
+		backend:   b,
+		pathCache: &syncmap.Map{},
+	}
 }
 
 // Build starts a new build from a BuildConfig
@@ -99,11 +102,12 @@ type Builder struct {
 	clientCtx context.Context
 
 	tmpContainers map[string]struct{}
-	imageContexts *imageContexts // helper for storing contexts from builds
+	buildStages   *buildStages
 	disableCommit bool
 	cacheBusted   bool
 	buildArgs     *buildArgs
 	imageCache    builder.ImageCache
+	imageSources  *imageSources
 }
 
 // newBuilder creates a new Dockerfile builder from an optional dockerfile and a Options.
@@ -122,8 +126,9 @@ func newBuilder(clientCtx context.Context, options builderOptions) *Builder {
 		docker:        options.Backend,
 		tmpContainers: map[string]struct{}{},
 		buildArgs:     newBuildArgs(config.BuildArgs),
+		buildStages:   newBuildStages(),
+		imageSources:  newImageSources(clientCtx, options),
 	}
-	b.imageContexts = &imageContexts{b: b, cache: options.PathCache}
 	return b
 }
 
@@ -137,7 +142,7 @@ func (b *Builder) resetImageCache() {
 // Build runs the Dockerfile builder by parsing the Dockerfile and executing
 // the instructions from the file.
 func (b *Builder) build(source builder.Source, dockerfile *parser.Result) (*builder.Result, error) {
-	defer b.imageContexts.unmount()
+	defer b.imageSources.Unmount()
 
 	// TODO: Remove source field from Builder
 	b.source = source

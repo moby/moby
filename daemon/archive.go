@@ -8,12 +8,10 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
@@ -469,35 +467,4 @@ func (daemon *Daemon) CopyOnBuild(cID, destPath, srcRoot, srcPath string, decomp
 	}
 
 	return fixPermissions(fullSrcPath, destPath, rootUID, rootGID, destExists)
-}
-
-// MountImage returns mounted path with rootfs of an image.
-func (daemon *Daemon) MountImage(name string) (string, func() error, error) {
-	img, err := daemon.GetImage(name)
-	if err != nil {
-		return "", nil, errors.Wrapf(err, "no such image: %s", name)
-	}
-
-	mountID := stringid.GenerateRandomID()
-	rwLayer, err := daemon.layerStore.CreateRWLayer(mountID, img.RootFS.ChainID(), nil)
-	if err != nil {
-		return "", nil, errors.Wrap(err, "failed to create rwlayer")
-	}
-
-	mountPath, err := rwLayer.Mount("")
-	if err != nil {
-		metadata, releaseErr := daemon.layerStore.ReleaseRWLayer(rwLayer)
-		if releaseErr != nil {
-			err = errors.Wrapf(err, "failed to release rwlayer: %s", releaseErr.Error())
-		}
-		layer.LogReleaseMetadata(metadata)
-		return "", nil, errors.Wrap(err, "failed to mount rwlayer")
-	}
-
-	return mountPath, func() error {
-		rwLayer.Unmount()
-		metadata, err := daemon.layerStore.ReleaseRWLayer(rwLayer)
-		layer.LogReleaseMetadata(metadata)
-		return err
-	}, nil
 }
