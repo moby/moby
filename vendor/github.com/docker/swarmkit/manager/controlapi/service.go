@@ -3,7 +3,6 @@ package controlapi
 import (
 	"errors"
 	"reflect"
-	"strconv"
 	"strings"
 	"time"
 
@@ -433,10 +432,9 @@ func (s *Server) validateNetworks(networks []*api.NetworkAttachmentConfig) error
 		if network == nil {
 			continue
 		}
-		if network.Spec.Internal {
+		if allocator.IsIngressNetwork(network) {
 			return grpc.Errorf(codes.InvalidArgument,
-				"Service cannot be explicitly attached to %q network which is a swarm internal network",
-				network.Spec.Annotations.Name)
+				"Service cannot be explicitly attached to the ingress network %q", network.Spec.Annotations.Name)
 		}
 	}
 	return nil
@@ -490,18 +488,32 @@ func (s *Server) checkPortConflicts(spec *api.ServiceSpec, serviceID string) err
 		return nil
 	}
 
-	pcToString := func(pc *api.PortConfig) string {
-		port := strconv.FormatUint(uint64(pc.PublishedPort), 10)
-		return port + "/" + pc.Protocol.String()
+	type portSpec struct {
+		protocol      api.PortConfig_Protocol
+		publishedPort uint32
 	}
 
-	reqPorts := make(map[string]bool)
-	for _, pc := range spec.Endpoint.Ports {
-		if pc.PublishedPort > 0 {
-			reqPorts[pcToString(pc)] = true
+	pcToStruct := func(pc *api.PortConfig) portSpec {
+		return portSpec{
+			protocol:      pc.Protocol,
+			publishedPort: pc.PublishedPort,
 		}
 	}
-	if len(reqPorts) == 0 {
+
+	ingressPorts := make(map[portSpec]struct{})
+	hostModePorts := make(map[portSpec]struct{})
+	for _, pc := range spec.Endpoint.Ports {
+		if pc.PublishedPort == 0 {
+			continue
+		}
+		switch pc.PublishMode {
+		case api.PublishModeIngress:
+			ingressPorts[pcToStruct(pc)] = struct{}{}
+		case api.PublishModeHost:
+			hostModePorts[pcToStruct(pc)] = struct{}{}
+		}
+	}
+	if len(ingressPorts) == 0 && len(hostModePorts) == 0 {
 		return nil
 	}
 
@@ -517,6 +529,31 @@ func (s *Server) checkPortConflicts(spec *api.ServiceSpec, serviceID string) err
 		return err
 	}
 
+	isPortInUse := func(pc *api.PortConfig, service *api.Service) error {
+		if pc.PublishedPort == 0 {
+			return nil
+		}
+
+		switch pc.PublishMode {
+		case api.PublishModeHost:
+			if _, ok := ingressPorts[pcToStruct(pc)]; ok {
+				return grpc.Errorf(codes.InvalidArgument, "port '%d' is already in use by service '%s' (%s) as a host-published port", pc.PublishedPort, service.Spec.Annotations.Name, service.ID)
+			}
+
+			// Multiple services with same port in host publish mode can
+			// coexist - this is handled by the scheduler.
+			return nil
+		case api.PublishModeIngress:
+			_, ingressConflict := ingressPorts[pcToStruct(pc)]
+			_, hostModeConflict := hostModePorts[pcToStruct(pc)]
+			if ingressConflict || hostModeConflict {
+				return grpc.Errorf(codes.InvalidArgument, "port '%d' is already in use by service '%s' (%s) as an ingress port", pc.PublishedPort, service.Spec.Annotations.Name, service.ID)
+			}
+		}
+
+		return nil
+	}
+
 	for _, service := range services {
 		// If service ID is the same (and not "") then this is an update
 		if serviceID != "" && serviceID == service.ID {
@@ -524,15 +561,15 @@ func (s *Server) checkPortConflicts(spec *api.ServiceSpec, serviceID string) err
 		}
 		if service.Spec.Endpoint != nil {
 			for _, pc := range service.Spec.Endpoint.Ports {
-				if reqPorts[pcToString(pc)] {
-					return grpc.Errorf(codes.InvalidArgument, "port '%d' is already in use by service '%s' (%s)", pc.PublishedPort, service.Spec.Annotations.Name, service.ID)
+				if err := isPortInUse(pc, service); err != nil {
+					return err
 				}
 			}
 		}
 		if service.Endpoint != nil {
 			for _, pc := range service.Endpoint.Ports {
-				if reqPorts[pcToString(pc)] {
-					return grpc.Errorf(codes.InvalidArgument, "port '%d' is already in use by service '%s' (%s)", pc.PublishedPort, service.Spec.Annotations.Name, service.ID)
+				if err := isPortInUse(pc, service); err != nil {
+					return err
 				}
 			}
 		}

@@ -14,6 +14,7 @@ var (
 		&PluginFilter{},
 		&ConstraintFilter{},
 		&PlatformFilter{},
+		&HostPortFilter{},
 	}
 )
 

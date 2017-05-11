@@ -1370,10 +1370,6 @@ func (n *Node) getLeaderConn() (*grpc.ClientConn, error) {
 // LeaderConn returns current connection to cluster leader or raftselector.ErrIsLeader
 // if current machine is leader.
 func (n *Node) LeaderConn(ctx context.Context) (*grpc.ClientConn, error) {
-	if atomic.LoadUint32(&n.ticksWithNoLeader) > lostQuorumTimeout {
-		return nil, errLostQuorum
-	}
-
 	cc, err := n.getLeaderConn()
 	if err == nil {
 		return cc, nil
@@ -1381,6 +1377,10 @@ func (n *Node) LeaderConn(ctx context.Context) (*grpc.ClientConn, error) {
 	if err == raftselector.ErrIsLeader {
 		return nil, err
 	}
+	if atomic.LoadUint32(&n.ticksWithNoLeader) > lostQuorumTimeout {
+		return nil, errLostQuorum
+	}
+
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 	for {

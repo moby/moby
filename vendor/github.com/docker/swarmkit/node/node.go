@@ -16,6 +16,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/boltdb/bolt"
 	"github.com/docker/docker/pkg/plugingetter"
+	metrics "github.com/docker/go-metrics"
 	"github.com/docker/swarmkit/agent"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
@@ -41,6 +42,9 @@ const (
 )
 
 var (
+	nodeInfo    metrics.LabeledGauge
+	nodeManager metrics.Gauge
+
 	errNodeStarted    = errors.New("node: already started")
 	errNodeNotStarted = errors.New("node: not started")
 	certDirectory     = "certificates"
@@ -48,6 +52,16 @@ var (
 	// ErrInvalidUnlockKey is returned when we can't decrypt the TLS certificate
 	ErrInvalidUnlockKey = errors.New("node is locked, and needs a valid unlock key")
 )
+
+func init() {
+	ns := metrics.NewNamespace("swarm", "node", nil)
+	nodeInfo = ns.NewLabeledGauge("info", "Information related to the swarm", "",
+		"swarm_id",
+		"node_id",
+	)
+	nodeManager = ns.NewGauge("manager", "Whether this node is a manager or not", "")
+	metrics.Register(ns)
+}
 
 // Config provides values for a Node.
 type Config struct {
@@ -346,6 +360,17 @@ func (n *Node) run(ctx context.Context) (err error) {
 	var wg sync.WaitGroup
 	wg.Add(3)
 
+	nodeInfo.WithValues(
+		securityConfig.ClientTLSCreds.Organization(),
+		securityConfig.ClientTLSCreds.NodeID(),
+	).Set(1)
+
+	if n.currentRole() == api.NodeRoleManager {
+		nodeManager.Set(1)
+	} else {
+		nodeManager.Set(0)
+	}
+
 	updates := renewer.Start(ctx)
 	go func() {
 		for certUpdate := range updates {
@@ -357,6 +382,13 @@ func (n *Node) run(ctx context.Context) (err error) {
 			n.role = certUpdate.Role
 			n.roleCond.Broadcast()
 			n.Unlock()
+
+			// Export the new role.
+			if n.currentRole() == api.NodeRoleManager {
+				nodeManager.Set(1)
+			} else {
+				nodeManager.Set(0)
+			}
 		}
 
 		wg.Done()
