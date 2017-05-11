@@ -118,6 +118,9 @@ type NodeConstructor func(*swarm.Node)
 // SecretConstructor defines a swarm secret constructor
 type SecretConstructor func(*swarm.Secret)
 
+// ConfigConstructor defines a swarm config constructor
+type ConfigConstructor func(*swarm.Config)
+
 // SpecConstructor defines a swarm spec constructor
 type SpecConstructor func(*swarm.Spec)
 
@@ -405,6 +408,59 @@ func (d *Swarm) UpdateSecret(c *check.C, id string, f ...SecretConstructor) {
 	}
 	url := fmt.Sprintf("/secrets/%s/update?version=%d", secret.ID, secret.Version.Index)
 	status, out, err := d.SockRequest("POST", url, secret.Spec)
+	c.Assert(err, checker.IsNil, check.Commentf(string(out)))
+	c.Assert(status, checker.Equals, http.StatusOK, check.Commentf("output: %q", string(out)))
+}
+
+// CreateConfig creates a config given the specified spec
+func (d *Swarm) CreateConfig(c *check.C, configSpec swarm.ConfigSpec) string {
+	status, out, err := d.SockRequest("POST", "/configs/create", configSpec)
+
+	c.Assert(err, checker.IsNil, check.Commentf(string(out)))
+	c.Assert(status, checker.Equals, http.StatusCreated, check.Commentf("output: %q", string(out)))
+
+	var scr types.ConfigCreateResponse
+	c.Assert(json.Unmarshal(out, &scr), checker.IsNil)
+	return scr.ID
+}
+
+// ListConfigs returns the list of the current swarm configs
+func (d *Swarm) ListConfigs(c *check.C) []swarm.Config {
+	status, out, err := d.SockRequest("GET", "/configs", nil)
+	c.Assert(err, checker.IsNil, check.Commentf(string(out)))
+	c.Assert(status, checker.Equals, http.StatusOK, check.Commentf("output: %q", string(out)))
+
+	configs := []swarm.Config{}
+	c.Assert(json.Unmarshal(out, &configs), checker.IsNil)
+	return configs
+}
+
+// GetConfig returns a swarm config identified by the specified id
+func (d *Swarm) GetConfig(c *check.C, id string) *swarm.Config {
+	var config swarm.Config
+	status, out, err := d.SockRequest("GET", "/configs/"+id, nil)
+	c.Assert(err, checker.IsNil, check.Commentf(string(out)))
+	c.Assert(status, checker.Equals, http.StatusOK, check.Commentf("output: %q", string(out)))
+	c.Assert(json.Unmarshal(out, &config), checker.IsNil)
+	return &config
+}
+
+// DeleteConfig removes the swarm config identified by the specified id
+func (d *Swarm) DeleteConfig(c *check.C, id string) {
+	status, out, err := d.SockRequest("DELETE", "/configs/"+id, nil)
+	c.Assert(err, checker.IsNil, check.Commentf(string(out)))
+	c.Assert(status, checker.Equals, http.StatusNoContent, check.Commentf("output: %q", string(out)))
+}
+
+// UpdateConfig updates the swarm config identified by the specified id
+// Currently, only label update is supported.
+func (d *Swarm) UpdateConfig(c *check.C, id string, f ...ConfigConstructor) {
+	config := d.GetConfig(c, id)
+	for _, fn := range f {
+		fn(config)
+	}
+	url := fmt.Sprintf("/configs/%s/update?version=%d", config.ID, config.Version.Index)
+	status, out, err := d.SockRequest("POST", url, config.Spec)
 	c.Assert(err, checker.IsNil, check.Commentf(string(out)))
 	c.Assert(status, checker.Equals, http.StatusOK, check.Commentf("output: %q", string(out)))
 }

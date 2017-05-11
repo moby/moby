@@ -18,6 +18,7 @@ import (
 
 // CommonAPIClient is the common methods between stable and experimental versions of APIClient.
 type CommonAPIClient interface {
+	ConfigAPIClient
 	ContainerAPIClient
 	ImageAPIClient
 	NodeAPIClient
@@ -170,4 +171,13 @@ type SecretAPIClient interface {
 	SecretRemove(ctx context.Context, id string) error
 	SecretInspectWithRaw(ctx context.Context, name string) (swarm.Secret, []byte, error)
 	SecretUpdate(ctx context.Context, id string, version swarm.Version, secret swarm.SecretSpec) error
+}
+
+// ConfigAPIClient defines API client methods for configs
+type ConfigAPIClient interface {
+	ConfigList(ctx context.Context, options types.ConfigListOptions) ([]swarm.Config, error)
+	ConfigCreate(ctx context.Context, config swarm.ConfigSpec) (types.ConfigCreateResponse, error)
+	ConfigRemove(ctx context.Context, id string) error
+	ConfigInspectWithRaw(ctx context.Context, name string) (swarm.Config, []byte, error)
+	ConfigUpdate(ctx context.Context, id string, version swarm.Version, config swarm.ConfigSpec) error
 }

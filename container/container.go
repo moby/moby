@@ -87,8 +87,9 @@ type CommonContainer struct {
 	MountPoints            map[string]*volume.MountPoint
 	HostConfig             *containertypes.HostConfig `json:"-"` // do not serialize the host config in the json, otherwise we'll make the container unportable
 	ExecCommands           *exec.Store                `json:"-"`
-	SecretStore            agentexec.SecretGetter     `json:"-"`
+	DependencyStore        agentexec.DependencyGetter `json:"-"`
 	SecretReferences       []*swarmtypes.SecretReference
+	ConfigReferences       []*swarmtypes.ConfigReference
 	// logDriver for closing
 	LogDriver      logger.Logger  `json:"-"`
 	LogCopier      *logger.Copier `json:"-"`
@@ -965,4 +966,15 @@ func getSecretTargetPath(r *swarmtypes.SecretReference) string {
 	}
 
 	return filepath.Join(containerSecretMountPath, r.File.Name)
+}
+
+// ConfigsDirPath returns the path to the directory where configs are stored on
+// disk.
+func (container *Container) ConfigsDirPath() string {
+	return filepath.Join(container.Root, "configs")
+}
+
+// ConfigFilePath returns the path to the on-disk location of a config.
+func (container *Container) ConfigFilePath(configRef swarmtypes.ConfigReference) string {
+	return filepath.Join(container.ConfigsDirPath(), configRef.ConfigID)
 }

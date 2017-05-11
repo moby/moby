@@ -277,6 +277,23 @@ func (container *Container) UnmountSecrets() error {
 	return detachMounted(container.SecretMountPath())
 }
 
+// ConfigMounts returns the mounts for configs.
+func (container *Container) ConfigMounts() []Mount {
+	var mounts []Mount
+	for _, configRef := range container.ConfigReferences {
+		if configRef.File == nil {
+			continue
+		}
+		mounts = append(mounts, Mount{
+			Source:      container.ConfigFilePath(*configRef),
+			Destination: configRef.File.Name,
+			Writable:    false,
+		})
+	}
+
+	return mounts
+}
+
 // UpdateContainer updates configuration of a container.
 func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfig) error {
 	container.Lock()
