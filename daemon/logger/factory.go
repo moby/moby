@@ -119,6 +119,7 @@ func GetLogDriver(name string) (Creator, error) {
 var builtInLogOpts = map[string]bool{
 	"mode":            true,
 	"max-buffer-size": true,
+	"max-log-size":    true,
 }
 
 // ValidateLogOpts checks the options for the given log driver. The
@@ -140,6 +141,12 @@ func ValidateLogOpts(name string, cfg map[string]string) error {
 		}
 		if _, err := units.RAMInBytes(s); err != nil {
 			return errors.Wrap(err, "error parsing option max-buffer-size")
+		}
+	}
+
+	if s, ok := cfg["max-log-size"]; ok {
+		if _, err := units.RAMInBytes(s); err != nil {
+			return errors.Wrap(err, "error parsing option max-log-size")
 		}
 	}
 

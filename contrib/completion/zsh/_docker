@@ -223,7 +223,7 @@ __docker_get_log_options() {
     local log_driver=${opt_args[--log-driver]:-"all"}
     local -a common_options awslogs_options fluentd_options gelf_options journald_options json_file_options logentries_options syslog_options splunk_options
 
-    common_options=("max-buffer-size" "mode")
+    common_options=("max-buffer-size" "mode" "max-log-size")
     awslogs_options=($common_options "awslogs-region" "awslogs-group" "awslogs-stream" "awslogs-create-group")
     fluentd_options=($common_options "env" "fluentd-address" "fluentd-async-connect" "fluentd-buffer-limit" "fluentd-retry-wait" "fluentd-max-retries" "labels" "tag")
     gcplogs_options=($common_options "env" "gcp-log-cmd" "gcp-project" "labels")

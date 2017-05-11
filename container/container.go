@@ -896,7 +896,17 @@ func (container *Container) startLogging() error {
 		return fmt.Errorf("failed to initialize logging driver: %v", err)
 	}
 
-	copier := logger.NewCopier(map[string]io.Reader{"stdout": container.StdoutPipe(), "stderr": container.StderrPipe()}, l)
+	bufSize := int64(-1)
+	if s, exists := container.HostConfig.LogConfig.Config["max-log-size"]; exists {
+		bufSize, err = units.RAMInBytes(s)
+		if err != nil {
+			return err
+		}
+	} else {
+		bufSize = 16 * 1024
+	}
+
+	copier := logger.NewCopier(map[string]io.Reader{"stdout": container.StdoutPipe(), "stderr": container.StderrPipe()}, l, bufSize)
 	container.LogCopier = copier
 	copier.Run()
 	container.LogDriver = l

@@ -10,7 +10,6 @@ import (
 )
 
 const (
-	bufSize  = 16 * 1024
 	readSize = 2 * 1024
 )
 
@@ -23,14 +22,16 @@ type Copier struct {
 	copyJobs  sync.WaitGroup
 	closeOnce sync.Once
 	closed    chan struct{}
+	bufSize   int64
 }
 
 // NewCopier creates a new Copier
-func NewCopier(srcs map[string]io.Reader, dst Logger) *Copier {
+func NewCopier(srcs map[string]io.Reader, dst Logger, bufSize int64) *Copier {
 	return &Copier{
-		srcs:   srcs,
-		dst:    dst,
-		closed: make(chan struct{}),
+		srcs:    srcs,
+		dst:     dst,
+		closed:  make(chan struct{}),
+		bufSize: bufSize,
 	}
 }
 
@@ -44,7 +45,7 @@ func (c *Copier) Run() {
 
 func (c *Copier) copySrc(name string, src io.Reader) {
 	defer c.copyJobs.Done()
-	buf := make([]byte, bufSize)
+	buf := make([]byte, c.bufSize)
 	n := 0
 	eof := false
 
