@@ -13,8 +13,6 @@ import (
 )
 
 const (
-	// DefaultTrustKeyFile is the default filename for the trust key
-	DefaultTrustKeyFile = "key.json"
 	// DefaultCaFile is the default filename for the CA pem file
 	DefaultCaFile = "ca.pem"
 	// DefaultKeyFile is the default filename for the key pem file
@@ -38,7 +36,6 @@ type CommonOptions struct {
 	TLS        bool
 	TLSVerify  bool
 	TLSOptions *tlsconfig.Options
-	TrustKey   string
 }
 
 // NewCommonOptions returns a new CommonOptions
