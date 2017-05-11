@@ -59,7 +59,7 @@ func (s *DockerSuite) TestConfigHTTPHeader(c *check.C) {
 	c.Assert(headers["User-Agent"], checker.NotNil, check.Commentf("Missing User-Agent"))
 
 	//TODO(tiborvass): restore dockerversion.Version instead of library-import
-	c.Assert(headers["User-Agent"][0], checker.Equals, "Docker-Client/library-import ("+runtime.GOOS+")", check.Commentf("Badly formatted User-Agent,out:%v", result.Combined()))
+	c.Assert(headers["User-Agent"][0], checker.Equals, "Docker-Client/unknown-version ("+runtime.GOOS+")", check.Commentf("Badly formatted User-Agent,out:%v", result.Combined()))
 
 	c.Assert(headers["Myheader"], checker.NotNil)
 	c.Assert(headers["Myheader"][0], checker.Equals, "MyValue", check.Commentf("Missing/bad header,out:%v", result.Combined()))
