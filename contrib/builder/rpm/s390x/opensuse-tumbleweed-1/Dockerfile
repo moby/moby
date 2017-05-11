@@ -9,7 +9,7 @@ RUN zypper ar https://download.opensuse.org/ports/zsystems/tumbleweed/repo/oss/ 
 RUN zypper --non-interactive install ca-certificates* curl gzip rpm-build
 RUN zypper --non-interactive install libbtrfs-devel device-mapper-devel glibc-static  libselinux-devel libtool-ltdl-devel pkg-config selinux-policy selinux-policy-devel sqlite-devel systemd-devel tar git cmake vim systemd-rpm-macros
 
-ENV GO_VERSION 1.7.5
+ENV GO_VERSION 1.8.1
 RUN curl -fsSL "https://golang.org/dl/go${GO_VERSION}.linux-s390x.tar.gz" | tar xzC /usr/local
 ENV PATH $PATH:/usr/local/go/bin
 

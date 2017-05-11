@@ -8,7 +8,7 @@ FROM sinenomine/clefos-base-s390x
 RUN touch /var/lib/rpm/* && yum groupinstall -y "Development Tools"
 RUN touch /var/lib/rpm/* && yum install -y btrfs-progs-devel device-mapper-devel glibc-static libseccomp-devel libselinux-devel libtool-ltdl-devel pkgconfig selinux-policy selinux-policy-devel sqlite-devel systemd-devel tar git cmake vim-common
 
-ENV GO_VERSION 1.7.5
+ENV GO_VERSION 1.8.1
 RUN curl -fsSL "https://golang.org/dl/go${GO_VERSION}.linux-s390x.tar.gz" | tar xzC /usr/local
 ENV PATH $PATH:/usr/local/go/bin
 
