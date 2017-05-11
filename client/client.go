@@ -46,6 +46,7 @@ For example, to list running containers (the equivalent of "docker ps"):
 package client
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -57,6 +58,9 @@ import (
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
 )
+
+// ErrRedirect is the error returned by checkRedirect when the request is non-GET.
+var ErrRedirect = errors.New("unexpected redirect in response")
 
 // Client is the API client that performs all operations
 // against a docker server.
@@ -79,6 +83,23 @@ type Client struct {
 	customHTTPHeaders map[string]string
 	// manualOverride is set to true when the version was set by users.
 	manualOverride bool
+}
+
+// CheckRedirect specifies the policy for dealing with redirect responses:
+// If the request is non-GET return `ErrRedirect`. Otherwise use the last response.
+//
+// Go 1.8 changes behavior for HTTP redirects (specificlaly 301, 307, and 308) in the client .
+// The Docker client (and by extension docker API client) can be made to to send a request
+// like POST /containers//start where what would normally be in the name section of the URL is empty.
+// This triggers an HTTP 301 from the daemon.
+// In go 1.8 this 301 will be converted to a GET request, and ends up getting a 404 from the daemon.
+// This behavior change manifests in the client in that before the 301 was not followed and
+// the client did not generate an error, but now results in a message like Error response from daemon: page not found.
+func CheckRedirect(req *http.Request, via []*http.Request) error {
+	if via[0].Method == http.MethodGet {
+		return http.ErrUseLastResponse
+	}
+	return ErrRedirect
 }
 
 // NewEnvClient initializes a new API client based on environment variables.
@@ -104,6 +125,7 @@ func NewEnvClient() (*Client, error) {
 			Transport: &http.Transport{
 				TLSClientConfig: tlsc,
 			},
+			CheckRedirect: CheckRedirect,
 		}
 	}
 
@@ -147,7 +169,8 @@ func NewClient(host string, version string, client *http.Client, httpHeaders map
 		transport := new(http.Transport)
 		sockets.ConfigureTransport(transport, proto, addr)
 		client = &http.Client{
-			Transport: transport,
+			Transport:     transport,
+			CheckRedirect: CheckRedirect,
 		}
 	}
 
