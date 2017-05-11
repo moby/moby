@@ -13,6 +13,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/go-events"
+	"github.com/docker/libnetwork/cluster"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
@@ -40,7 +41,7 @@ type agent struct {
 	bindAddr          string
 	advertiseAddr     string
 	dataPathAddr      string
-	epTblCancel       func()
+	coreCancelFuncs   []func()
 	driverCancelFuncs map[string][]func()
 	sync.Mutex
 }
@@ -192,16 +193,12 @@ func (c *controller) handleKeyChange(keys []*types.EncryptionKey) error {
 	return nil
 }
 
-func (c *controller) agentSetup() error {
-	c.Lock()
-	clusterProvider := c.cfg.Daemon.ClusterProvider
-	agent := c.agent
-	c.Unlock()
+func (c *controller) agentSetup(clusterProvider cluster.Provider) error {
+	agent := c.getAgent()
 
-	if clusterProvider == nil {
-		msg := "Aborting initialization of Libnetwork Agent because cluster provider is now unset"
-		logrus.Errorf(msg)
-		return fmt.Errorf(msg)
+	// If the agent is already present there is no need to try to initilize it again
+	if agent != nil {
+		return nil
 	}
 
 	bindAddr := clusterProvider.GetLocalAddress()
@@ -221,15 +218,15 @@ func (c *controller) agentSetup() error {
 		listenAddr, bindAddr, advAddr, dataAddr, remoteAddrList)
 	if advAddr != "" && agent == nil {
 		if err := c.agentInit(listenAddr, bindAddr, advAddr, dataAddr); err != nil {
-			logrus.Errorf("Error in agentInit : %v", err)
-		} else {
-			c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
-				if capability.DataScope == datastore.GlobalScope {
-					c.agentDriverNotify(driver)
-				}
-				return false
-			})
+			logrus.Errorf("error in agentInit: %v", err)
+			return err
 		}
+		c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
+			if capability.DataScope == datastore.GlobalScope {
+				c.agentDriverNotify(driver)
+			}
+			return false
+		})
 	}
 
 	if len(remoteAddrList) > 0 {
@@ -237,14 +234,6 @@ func (c *controller) agentSetup() error {
 			logrus.Errorf("Error in joining gossip cluster : %v(join will be retried in background)", err)
 		}
 	}
-
-	c.Lock()
-	if c.agent != nil && c.agentInitDone != nil {
-		close(c.agentInitDone)
-		c.agentInitDone = nil
-		c.agentStopDone = make(chan struct{})
-	}
-	c.Unlock()
 
 	return nil
 }
@@ -287,16 +276,12 @@ func (c *controller) getPrimaryKeyTag(subsys string) ([]byte, uint64, error) {
 }
 
 func (c *controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, dataPathAddr string) error {
-	if !c.isAgent() {
-		return nil
-	}
-
 	bindAddr, err := resolveAddr(bindAddrOrInterface)
 	if err != nil {
 		return err
 	}
 
-	keys, tags := c.getKeys(subsysGossip)
+	keys, _ := c.getKeys(subsysGossip)
 	hostname, _ := os.Hostname()
 	nodeName := hostname + "-" + stringid.TruncateID(stringid.GenerateRandomID())
 	logrus.Info("Gossip cluster hostname ", nodeName)
@@ -312,8 +297,11 @@ func (c *controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, d
 		return err
 	}
 
+	var cancelList []func()
 	ch, cancel := nDB.Watch(libnetworkEPTable, "", "")
+	cancelList = append(cancelList, cancel)
 	nodeCh, cancel := nDB.Watch(networkdb.NodeTable, "", "")
+	cancelList = append(cancelList, cancel)
 
 	c.Lock()
 	c.agent = &agent{
@@ -321,7 +309,7 @@ func (c *controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, d
 		bindAddr:          bindAddr,
 		advertiseAddr:     advertiseAddr,
 		dataPathAddr:      dataPathAddr,
-		epTblCancel:       cancel,
+		coreCancelFuncs:   cancelList,
 		driverCancelFuncs: make(map[string][]func()),
 	}
 	c.Unlock()
@@ -330,7 +318,7 @@ func (c *controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, d
 	go c.handleTableEvents(nodeCh, c.handleNodeTableEvent)
 
 	drvEnc := discoverapi.DriverEncryptionConfig{}
-	keys, tags = c.getKeys(subsysIPSec)
+	keys, tags := c.getKeys(subsysIPSec)
 	drvEnc.Keys = keys
 	drvEnc.Tags = tags
 
@@ -399,13 +387,16 @@ func (c *controller) agentClose() {
 			cancelList = append(cancelList, cancel)
 		}
 	}
+
+	// Add also the cancel functions for the network db
+	for _, cancel := range agent.coreCancelFuncs {
+		cancelList = append(cancelList, cancel)
+	}
 	agent.Unlock()
 
 	for _, cancel := range cancelList {
 		cancel()
 	}
-
-	agent.epTblCancel()
 
 	agent.networkDB.Close()
 }

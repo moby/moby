@@ -1980,3 +1980,24 @@ func (s *DockerSwarmSuite) TestSwarmInitUnspecifiedDataPathAddr(c *check.C) {
 	c.Assert(err, checker.NotNil)
 	c.Assert(out, checker.Contains, "data path address must be a non-zero IP")
 }
+
+func (s *DockerSwarmSuite) TestSwarmJoinLeave(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	out, err := d.Cmd("swarm", "join-token", "-q", "worker")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+
+	token := strings.TrimSpace(out)
+
+	// Verify that back to back join/leave does not cause panics
+	d1 := s.AddDaemon(c, false, false)
+	for i := 0; i < 10; i++ {
+		out, err = d1.Cmd("swarm", "join", "--token", token, d.ListenAddr)
+		c.Assert(err, checker.IsNil)
+		c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+
+		_, err = d1.Cmd("swarm", "leave")
+		c.Assert(err, checker.IsNil)
+	}
+}

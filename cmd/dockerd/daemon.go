@@ -300,6 +300,11 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 	if err != nil {
 		logrus.Fatalf("Error creating cluster component: %v", err)
 	}
+	d.SetCluster(c)
+	err = c.Start()
+	if err != nil {
+		logrus.Fatalf("Error starting cluster component: %v", err)
+	}
 
 	// Restart all autostart containers which has a swarm endpoint
 	// and is not yet running now that we have successfully
@@ -316,7 +321,6 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 
 	cli.d = d
 
-	d.SetCluster(c)
 	initRouter(api, d, c)
 
 	cli.setupConfigReloadTrap()

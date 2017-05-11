@@ -11,6 +11,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/executor/container"
+	lncluster "github.com/docker/libnetwork/cluster"
 	swarmapi "github.com/docker/swarmkit/api"
 	swarmnode "github.com/docker/swarmkit/node"
 	"github.com/pkg/errors"
@@ -162,7 +163,7 @@ func (n *nodeRunner) handleControlSocketChange(ctx context.Context, node *swarmn
 		}
 		n.grpcConn = conn
 		n.mu.Unlock()
-		n.cluster.configEvent <- struct{}{}
+		n.cluster.SendClusterEvent(lncluster.EventSocketChange)
 	}
 }
 
@@ -175,7 +176,7 @@ func (n *nodeRunner) handleReadyEvent(ctx context.Context, node *swarmnode.Node,
 		close(ready)
 	case <-ctx.Done():
 	}
-	n.cluster.configEvent <- struct{}{}
+	n.cluster.SendClusterEvent(lncluster.EventNodeReady)
 }
 
 func (n *nodeRunner) handleNodeExit(node *swarmnode.Node) {
@@ -217,6 +218,7 @@ func (n *nodeRunner) Stop() error {
 	if err := n.swarmNode.Stop(ctx); err != nil && !strings.Contains(err.Error(), "context canceled") {
 		return err
 	}
+	n.cluster.SendClusterEvent(lncluster.EventNodeLeave)
 	<-n.done
 	return nil
 }

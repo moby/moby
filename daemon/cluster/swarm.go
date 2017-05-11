@@ -388,7 +388,6 @@ func (c *Cluster) Leave(force bool) error {
 		}
 	}
 
-	c.configEvent <- struct{}{}
 	// todo: cleanup optional?
 	if err := clearPersistentState(c.root); err != nil {
 		return err
