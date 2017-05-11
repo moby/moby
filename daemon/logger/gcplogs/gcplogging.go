@@ -61,7 +61,7 @@ type gcplogs struct {
 type dockerLogEntry struct {
 	Instance  *instanceInfo  `json:"instance,omitempty"`
 	Container *containerInfo `json:"container,omitempty"`
-	Data      string         `json:"data,omitempty"`
+	Message   string         `json:"message,omitempty"`
 }
 
 type instanceInfo struct {
@@ -219,7 +219,7 @@ func ValidateLogOpts(cfg map[string]string) error {
 }
 
 func (l *gcplogs) Log(m *logger.Message) error {
-	data := string(m.Line)
+	message := string(m.Line)
 	ts := m.Timestamp
 	logger.PutMessage(m)
 
@@ -228,7 +228,7 @@ func (l *gcplogs) Log(m *logger.Message) error {
 		Payload: &dockerLogEntry{
 			Instance:  l.instance,
 			Container: l.container,
-			Data:      data,
+			Message:   message,
 		},
 	})
 	return nil
