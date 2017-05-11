@@ -746,17 +746,24 @@ __docker_complete_log_drivers() {
 
 __docker_complete_log_options() {
 	# see repository docker/docker.github.io/engine/admin/logging/
-	local common_options="max-buffer-size mode"
 
-	local awslogs_options="$common_options awslogs-create-group awslogs-group awslogs-region awslogs-stream"
-	local fluentd_options="$common_options env fluentd-address fluentd-async-connect fluentd-buffer-limit fluentd-retry-wait fluentd-max-retries labels tag"
-	local gcplogs_options="$common_options env gcp-log-cmd gcp-project labels"
-	local gelf_options="$common_options env gelf-address gelf-compression-level gelf-compression-type labels tag"
-	local journald_options="$common_options env labels tag"
-	local json_file_options="$common_options env labels max-file max-size"
-	local logentries_options="$common_options logentries-token"
-	local syslog_options="$common_options env labels syslog-address syslog-facility syslog-format syslog-tls-ca-cert syslog-tls-cert syslog-tls-key syslog-tls-skip-verify tag"
-	local splunk_options="$common_options env labels splunk-caname splunk-capath splunk-format splunk-gzip splunk-gzip-level splunk-index splunk-insecureskipverify splunk-source splunk-sourcetype splunk-token splunk-url splunk-verify-connection tag"
+	# really global options, defined in https://github.com/moby/moby/blob/master/daemon/logger/factory.go
+	local common_options1="max-buffer-size mode"
+	# common options defined in https://github.com/moby/moby/blob/master/daemon/logger/loginfo.go
+	# but not implemented in all log drivers
+	local common_options2="env env-regex labels"
+
+	# awslogs does not implement the $common_options2.
+	local awslogs_options="$common_options1 awslogs-create-group awslogs-group awslogs-region awslogs-stream tag"
+
+	local fluentd_options="$common_options1 $common_options2 fluentd-address fluentd-async-connect fluentd-buffer-limit fluentd-retry-wait fluentd-max-retries tag"
+	local gcplogs_options="$common_options1 $common_options2 gcp-log-cmd gcp-meta-id gcp-meta-name gcp-meta-zone gcp-project"
+	local gelf_options="$common_options1 $common_options2 gelf-address gelf-compression-level gelf-compression-type tag"
+	local journald_options="$common_options1 $common_options2 tag"
+	local json_file_options="$common_options1 $common_options2 max-file max-size"
+	local logentries_options="$common_options1 $common_options2 logentries-token tag"
+	local splunk_options="$common_options1 $common_options2 splunk-caname splunk-capath splunk-format splunk-gzip splunk-gzip-level splunk-index splunk-insecureskipverify splunk-source splunk-sourcetype splunk-token splunk-url splunk-verify-connection tag"
+	local syslog_options="$common_options1 $common_options2 syslog-address syslog-facility syslog-format syslog-tls-ca-cert syslog-tls-cert syslog-tls-key syslog-tls-skip-verify tag"
 
 	local all_options="$fluentd_options $gcplogs_options $gelf_options $journald_options $logentries_options $json_file_options $syslog_options $splunk_options"
 
