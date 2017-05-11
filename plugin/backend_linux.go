@@ -4,6 +4,7 @@ package plugin
 
 import (
 	"archive/tar"
+	"bytes"
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
@@ -15,7 +16,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/manifest/schema2"
@@ -31,19 +31,20 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/pkg/chrootarchive"
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/symlink"
-	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/plugin/v2"
 	refstore "github.com/docker/docker/reference"
 	"github.com/opencontainers/go-digest"
+	ocispecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
+
+const mediaTypePluginConfig string = "application/vnd.oci.image.manifest.v1+json"
 
 var acceptedPluginFilterTags = map[string]bool{
 	"enabled":    true,
@@ -53,12 +54,6 @@ var acceptedPluginFilterTags = map[string]bool{
 const (
 	manifestFileName = "manifest.json"
 )
-
-type manifestItem struct {
-	Name   string
-	Config string
-	Layers []string
-}
 
 // Disable deactivates a plugin. This means resources (volumes, networks) cant use them.
 func (pm *Manager) Disable(refOrID string, config *types.PluginDisableConfig) error {
@@ -814,21 +809,9 @@ func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, 
 }
 
 // SavePlugin saves the plugin in outStream
-// The tar layout is as follows:
-// --- sha256ofconfig.json
-// --- sha256ofrootfs.tar.gz
-// --- manifest.json containing metadata of the form
-//	{
-//		"Name"  : pluginName
-//		"Config": sha256config.json
-//		"Layers": [
-//			"sha256rootfs.tar.gz"
-//		]
-//	}
-/* XXX: Eventually add a OCI image spec complaint layout
- * https://github.com/opencontainers/image-spec/blob/master/image-layout.md
- */
-func (pm *Manager) SavePlugin(plugin string, outStream *ioutils.WriteFlusher) error {
+// The tar layout follows the v1.0 OCI image spec defined here:
+// https://github.com/opencontainers/image-spec/blob/master/image-layout.md
+func (pm *Manager) SavePlugin(plugin string, outStream io.Writer) error {
 	srcP, err := pm.config.Store.GetV2Plugin(plugin)
 	if err != nil {
 		return err
@@ -853,55 +836,55 @@ func (pm *Manager) SavePlugin(plugin string, outStream *ioutils.WriteFlusher) er
 	defer os.RemoveAll(tempDir)
 
 	// 2. save config and rootfs into tmpdir
-	var manifest manifestItem
-	var layers []string
-	for i, dgst := range []digest.Digest{srcP.Config, srcP.Blobsums[0]} {
+	manifest := ociNewManifest()
+
+	for i, dgst := range append([]digest.Digest{srcP.Config}, srcP.Blobsums...) {
 		rdr, err := pm.blobStore.Get(dgst)
 		if err != nil {
 			return err
 		}
 		defer rdr.Close()
 
-		var ext string
-		if i == 0 {
-			ext = ".json"
-			manifest.Config = dgst.Hex() + ext
-		} else {
-			ext = ".tar.gz"
-			layers = append(layers, dgst.Hex()+ext)
-			manifest.Layers = layers
-		}
-
-		dest := filepath.Join(tempDir, dgst.Hex()+ext)
-		wtr, err := os.Create(dest)
+		size, err := ociWriteBlob(tempDir, dgst, rdr)
 		if err != nil {
 			return err
 		}
-		defer wtr.Close()
 
-		if _, err := io.Copy(wtr, rdr); err != nil {
-			return err
-		}
-
-		// set access and modified times of the manifest to be unix epoch, so that
-		// tar checksum is consistent.
-		if err := system.Chtimes(dest, time.Unix(0, 0), time.Unix(0, 0)); err != nil {
-			return err
+		if i == 0 {
+			manifest.Config.Digest = dgst
+			manifest.Config.Size = size
+		} else {
+			manifest.Layers = append(manifest.Layers, ocispecv1.Descriptor{
+				Digest:    dgst,
+				Size:      size,
+				MediaType: schema2.MediaTypeLayer,
+			})
 		}
 	}
 
-	manifest.Name = srcP.PluginObj.Name
-	manifestFileName := filepath.Join(tempDir, manifestFileName)
-	f, err := os.OpenFile(manifestFileName, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+	manifestBytes, err := json.Marshal(&manifest)
+	if err != nil {
+		return errors.Wrap(err, "error marshaling plugin manifest")
+	}
+	manifestDigest := digest.FromBytes(manifestBytes)
+	manifestSize, err := ociWriteBlob(tempDir, manifestDigest, bytes.NewReader(manifestBytes))
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 
-	if err := json.NewEncoder(f).Encode(manifest); err != nil {
+	if err := ociWriteLayout(tempDir); err != nil {
 		return err
 	}
-	if err := system.Chtimes(manifestFileName, time.Unix(0, 0), time.Unix(0, 0)); err != nil {
+	if err := ociWriteIndex(tempDir, []ocispecv1.Descriptor{
+		// TODO(@cpuguy83): support platform field?
+		// Haven't found where this is stored if at all yet
+		{
+			MediaType:   schema2.MediaTypeManifest,
+			Size:        manifestSize,
+			Digest:      manifestDigest,
+			Annotations: map[string]string{"com.docker.plugin.ref.name": srcP.PluginObj.Name},
+		},
+	}); err != nil {
 		return err
 	}
 
@@ -910,6 +893,7 @@ func (pm *Manager) SavePlugin(plugin string, outStream *ioutils.WriteFlusher) er
 	if err != nil {
 		return err
 	}
+	defer fs.Close()
 
 	// 5. stream it back to the outStream
 	if _, err = io.Copy(outStream, fs); err != nil {
@@ -924,7 +908,15 @@ func safePath(base, path string) (string, error) {
 	return symlink.FollowSymlinkInScope(filepath.Join(base, path), base)
 }
 
+// TODO: remove this, won't be used
+type manifestItem struct {
+	Name   string
+	Layers []string
+	Config string
+}
+
 // LoadPlugin loads a plugin from input tar archive
+// TODO(cpuguy83): THIS ISN'T READY YET, MAKE THIS WORK WITH THE OUTPUT OF SAVE
 func (pm *Manager) LoadPlugin(input io.ReadCloser, outStream io.Writer, quiet bool) (err error) {
 	outStream = streamformatter.NewStdoutWriter(outStream)
 
