@@ -8242,7 +8242,8 @@ paths:
           description: "no error"
           schema:
             $ref: "#/definitions/Secret"
-            example:
+          examples:
+            application/json:
               ID: "ktnbjxoalbkvbvedmg1urrz8h"
               Version:
                 Index: 11
