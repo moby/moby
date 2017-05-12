@@ -410,7 +410,9 @@ func (l *logStream) collectBatch() {
 					events = l.processEvent(events, eventBuffer, eventBufferTimestamp)
 					eventBuffer = eventBuffer[:0]
 				}
-				eventBuffer = append(eventBuffer, unprocessedLine...)
+				// Append new line
+				processedLine := append(unprocessedLine, "\n"...)
+				eventBuffer = append(eventBuffer, processedLine...)
 				logger.PutMessage(msg)
 				continue
 			}

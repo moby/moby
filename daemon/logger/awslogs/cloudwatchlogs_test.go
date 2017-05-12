@@ -534,7 +534,7 @@ func TestCollectBatchMultilinePattern(t *testing.T) {
 	argument := <-mockClient.putLogEventsArgument
 	assert.NotNil(t, argument, "Expected non-nil PutLogEventsInput")
 	assert.Equal(t, 1, len(argument.LogEvents), "Expected LogEvents to contain 1 elements, but contains %d", len(argument.LogEvents))
-	assert.Equal(t, logline+logline, *argument.LogEvents[0].Message, "Expected message to be %s but was %s", logline+logline, *argument.LogEvents[0].Message)
+	assert.Equal(t, logline+"\n"+logline+"\n", *argument.LogEvents[0].Message, "Expected message to be %s but was %s", logline+logline, *argument.LogEvents[0].Message)
 
 	stream.Close()
 
@@ -542,7 +542,7 @@ func TestCollectBatchMultilinePattern(t *testing.T) {
 	argument = <-mockClient.putLogEventsArgument
 	assert.NotNil(t, argument, "Expected non-nil PutLogEventsInput")
 	assert.Equal(t, 1, len(argument.LogEvents), "Expected LogEvents to contain 1 elements, but contains %d", len(argument.LogEvents))
-	assert.Equal(t, "xxxx "+logline, *argument.LogEvents[0].Message, "Expected message to be %s but was %s", "xxxx "+logline, *argument.LogEvents[0].Message)
+	assert.Equal(t, "xxxx "+logline+"\n", *argument.LogEvents[0].Message, "Expected message to be %s but was %s", "xxxx "+logline, *argument.LogEvents[0].Message)
 }
 
 func BenchmarkCollectBatch(b *testing.B) {
@@ -647,7 +647,7 @@ func TestCollectBatchMultilinePatternMaxEventAge(t *testing.T) {
 	argument := <-mockClient.putLogEventsArgument
 	assert.NotNil(t, argument, "Expected non-nil PutLogEventsInput")
 	assert.Equal(t, 1, len(argument.LogEvents), "Expected LogEvents to contain 1 elements, but contains %d", len(argument.LogEvents))
-	assert.Equal(t, logline+logline, *argument.LogEvents[0].Message, "Expected message to be %s but was %s", logline+logline, *argument.LogEvents[0].Message)
+	assert.Equal(t, logline+"\n"+logline+"\n", *argument.LogEvents[0].Message, "Expected message to be %s but was %s", logline+logline, *argument.LogEvents[0].Message)
 
 	stream.Close()
 }
@@ -695,7 +695,7 @@ func TestCollectBatchMultilinePatternNegativeEventAge(t *testing.T) {
 	argument := <-mockClient.putLogEventsArgument
 	assert.NotNil(t, argument, "Expected non-nil PutLogEventsInput")
 	assert.Equal(t, 1, len(argument.LogEvents), "Expected LogEvents to contain 1 elements, but contains %d", len(argument.LogEvents))
-	assert.Equal(t, logline+logline, *argument.LogEvents[0].Message, "Expected message to be %s but was %s", logline+logline, *argument.LogEvents[0].Message)
+	assert.Equal(t, logline+"\n"+logline+"\n", *argument.LogEvents[0].Message, "Expected message to be %s but was %s", logline+logline, *argument.LogEvents[0].Message)
 
 	stream.Close()
 }
