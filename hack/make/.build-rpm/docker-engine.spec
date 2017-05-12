@@ -74,28 +74,22 @@ Requires: device-mapper >= 1.02.90-2
 
 # start if with_selinux
 %if 0%{?with_selinux}
-# Version of SELinux we were using
-%if 0%{?fedora} == 20
-%global selinux_policyver 3.12.1-197
-%endif # fedora 20
-%if 0%{?fedora} == 21
-%global selinux_policyver 3.13.1-105
-%endif # fedora 21
-%if 0%{?fedora} >= 22
-%global selinux_policyver 3.13.1-128
-%endif # fedora 22
-%if 0%{?centos} >= 7 || 0%{?rhel} >= 7
-%global selinux_policyver 3.13.1-23
-%endif # centos,rhel 7
+
+%if 0%{?centos} >= 7 || 0%{?rhel} >= 7 || 0%{?fedora} >= 25
+Requires: container-selinux >= 2.9
+%endif# centos 7, rhel 7, fedora 25
+
 %if 0%{?oraclelinux} >= 7
 %global selinux_policyver 3.13.1-102.0.3.el7_3.15
 %endif # oraclelinux 7
-%endif # with_selinux
-
-# RE: rhbz#1195804 - ensure min NVR for selinux-policy
-%if 0%{?with_selinux}
+%if 0%{?fedora} == 24
+%global selinux_policyver 3.13.1-191
+%endif # fedora 24 -- container-selinux on fedora24 does not properly set dockerd, for now just carry docker-engine-selinux for it
+%if 0%{?oraclelinux} >= 7 || 0%{?fedora} == 24
 Requires: selinux-policy >= %{selinux_policyver}
 Requires(pre): %{name}-selinux >= %{version}-%{release}
+%endif # selinux-policy for oraclelinux-7, fedora-24
+
 %endif # with_selinux
 
 # conflicting packages
