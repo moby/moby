@@ -50,8 +50,8 @@ import (
 	"github.com/docker/docker/api/types/network"
 	types "github.com/docker/docker/api/types/swarm"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
+	"github.com/docker/docker/daemon/cluster/provider"
 	"github.com/docker/docker/pkg/signal"
-	lncluster "github.com/docker/libnetwork/cluster"
 	swarmapi "github.com/docker/swarmkit/api"
 	swarmnode "github.com/docker/swarmkit/node"
 	"github.com/pkg/errors"
@@ -119,7 +119,7 @@ type Cluster struct {
 	root         string
 	runtimeRoot  string
 	config       Config
-	configEvent  chan lncluster.ConfigEventType // todo: make this array and goroutine safe
+	configEvent  chan provider.ClusterConfigEventType // todo: make this array and goroutine safe
 	attachers    map[string]*attacher
 	watchStream  chan *swarmapi.WatchMessage
 }
@@ -152,7 +152,7 @@ func New(config Config) (*Cluster, error) {
 	c := &Cluster{
 		root:        root,
 		config:      config,
-		configEvent: make(chan lncluster.ConfigEventType, 10),
+		configEvent: make(chan provider.ClusterConfigEventType, 10),
 		runtimeRoot: config.RuntimeRoot,
 		attachers:   make(map[string]*attacher),
 		watchStream: config.WatchStream,
@@ -322,7 +322,7 @@ func (c *Cluster) getRemoteAddressList() []string {
 // ListenClusterEvents returns a channel that receives messages on cluster
 // participation changes.
 // todo: make cancelable and accessible to multiple callers
-func (c *Cluster) ListenClusterEvents() <-chan lncluster.ConfigEventType {
+func (c *Cluster) ListenClusterEvents() <-chan provider.ClusterConfigEventType {
 	return c.configEvent
 }
 
@@ -432,7 +432,7 @@ func (c *Cluster) lockedManagerAction(fn func(ctx context.Context, state nodeSta
 // TODO This method should not be exposed.
 // Currently it is used to notify the network controller that the keys are
 // available
-func (c *Cluster) SendClusterEvent(event lncluster.ConfigEventType) {
+func (c *Cluster) SendClusterEvent(event provider.ClusterConfigEventType) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	c.configEvent <- event

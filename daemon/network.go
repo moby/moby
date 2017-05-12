@@ -12,11 +12,11 @@ import (
 	apierrors "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/daemon/cluster/provider"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/libnetwork"
-	lncluster "github.com/docker/libnetwork/cluster"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/ipamapi"
 	networktypes "github.com/docker/libnetwork/types"
@@ -241,7 +241,7 @@ func (daemon *Daemon) SetNetworkBootstrapKeys(keys []*networktypes.EncryptionKey
 	err := daemon.netController.SetKeys(keys)
 	if err == nil {
 		// Upon successful key setting dispatch the keys available event
-		daemon.cluster.SendClusterEvent(lncluster.EventNetworkKeysAvailable)
+		daemon.cluster.SendClusterEvent(provider.ClusterEventNetworkKeysAvailable)
 	}
 	return err
 }
