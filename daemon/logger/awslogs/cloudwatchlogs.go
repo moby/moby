@@ -93,29 +93,6 @@ func init() {
 	}
 }
 
-// Parses awslogs-multiline-pattern and awslogs-datetime-format options
-// If awslogs-datetime-format is present, convert the format from strftime
-// to regexp and return.
-// If awslogs-multiline-pattern is present, compile regexp and return
-func parseMultilineOptions(info logger.Info) (*regexp.Regexp, error) {
-	dateTimeFormat := info.Config[datetimeFormatKey]
-	multilinePatternKey := info.Config[multilinePatternKey]
-	if dateTimeFormat != "" {
-		r := regexp.MustCompile("%.")
-		multilinePatternKey = r.ReplaceAllStringFunc(dateTimeFormat, func(s string) string {
-			return strftimeToRegex[s]
-		})
-	}
-	if multilinePatternKey != "" {
-		multilinePattern, err := regexp.Compile(multilinePatternKey)
-		if err != nil {
-			return nil, errors.Wrapf(err, "awslogs could not parse multiline pattern key %q", multilinePatternKey)
-		}
-		return multilinePattern, nil
-	}
-	return nil, nil
-}
-
 // New creates an awslogs logger using the configuration passed in on the
 // context.  Supported context configuration variables are awslogs-region,
 // awslogs-group, awslogs-stream, awslogs-create-group, awslogs-multiline-pattern
@@ -165,6 +142,56 @@ func New(info logger.Info) (logger.Logger, error) {
 	go containerStream.collectBatch()
 
 	return containerStream, nil
+}
+
+// Parses awslogs-multiline-pattern and awslogs-datetime-format options
+// If awslogs-datetime-format is present, convert the format from strftime
+// to regexp and return.
+// If awslogs-multiline-pattern is present, compile regexp and return
+func parseMultilineOptions(info logger.Info) (*regexp.Regexp, error) {
+	dateTimeFormat := info.Config[datetimeFormatKey]
+	multilinePatternKey := info.Config[multilinePatternKey]
+	// strftime input is parsed into a regular expression
+	if dateTimeFormat != "" {
+		// %. matches each strftime format sequence and ReplaceAllStringFunc
+		// looks up each format sequence in the conversion table strftimeToRegex
+		// to replace with a defined regular expression
+		r := regexp.MustCompile("%.")
+		multilinePatternKey = r.ReplaceAllStringFunc(dateTimeFormat, func(s string) string {
+			return strftimeToRegex[s]
+		})
+	}
+	if multilinePatternKey != "" {
+		multilinePattern, err := regexp.Compile(multilinePatternKey)
+		if err != nil {
+			return nil, errors.Wrapf(err, "awslogs could not parse multiline pattern key %q", multilinePatternKey)
+		}
+		return multilinePattern, nil
+	}
+	return nil, nil
+}
+
+// Maps strftime format strings to regex
+var strftimeToRegex = map[string]string{
+	/*weekdayShort          */ `%a`: `(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)`,
+	/*weekdayFull           */ `%A`: `(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)`,
+	/*weekdayZeroIndex      */ `%w`: `[0-6]`,
+	/*dayZeroPadded         */ `%d`: `(?:0[1-9]|[1,2][0-9]|3[0,1])`,
+	/*monthShort            */ `%b`: `(?:Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)`,
+	/*monthFull             */ `%B`: `(?:January|February|March|April|June|July|August|September|October|November|December)`,
+	/*monthZeroPadded       */ `%m`: `(?:0[1-9]|1[0-2])`,
+	/*yearCentury           */ `%Y`: `\d{4}`,
+	/*yearZeroPadded        */ `%y`: `\d{2}`,
+	/*hour24ZeroPadded      */ `%H`: `(?:[0,1][0-9]|2[0-3])`,
+	/*hour12ZeroPadded      */ `%I`: `(?:0[0-9]|1[0-2])`,
+	/*AM or PM              */ `%p`: "[A,P]M",
+	/*minuteZeroPadded      */ `%M`: `[0-5][0-9]`,
+	/*secondZeroPadded      */ `%S`: `[0-5][0-9]`,
+	/*microsecondZeroPadded */ `%f`: `\d{6}`,
+	/*utcOffset             */ `%z`: `[+-]\d{4}`,
+	/*tzName                */ `%Z`: `[A-Z]{1,4}T`,
+	/*dayOfYearZeroPadded   */ `%j`: `(?:0[0-9][1-9]|[1,2][0-9][0-9]|3[0-5][0-9]|36[0-6])`,
+	/*milliseconds          */ `%L`: `\.\d{3}`,
 }
 
 func parseLogGroup(info logger.Info, groupTemplate string) (string, error) {
@@ -352,7 +379,9 @@ func (l *logStream) collectBatch() {
 			// If event buffer is older than batch publish frequency flush the event buffer
 			if eventBufferTimestamp > 0 && len(eventBuffer) > 0 {
 				eventBufferAge := t.UnixNano()/int64(time.Millisecond) - eventBufferTimestamp
-				if eventBufferAge > int64(batchPublishFrequency)/int64(time.Millisecond) {
+				eventBufferExpired := eventBufferAge > int64(batchPublishFrequency)/int64(time.Millisecond)
+				eventBufferNegative := eventBufferAge < 0
+				if eventBufferExpired || eventBufferNegative {
 					events = l.processEvent(events, eventBuffer, eventBufferTimestamp)
 				}
 			}
@@ -376,12 +405,12 @@ func (l *logStream) collectBatch() {
 					eventBufferTimestamp = msg.Timestamp.UnixNano() / int64(time.Millisecond)
 					eventBuffer = eventBuffer[:0]
 				}
-				eventBuffer = append(eventBuffer, unprocessedLine...)
-				// If we have exceeded max bytes per event flush the event buffer up to max bytes
-				if len(eventBuffer) > maximumBytesPerEvent {
-					events = l.processEvent(events, eventBuffer[:maximumBytesPerEvent], eventBufferTimestamp)
-					eventBuffer = eventBuffer[maximumBytesPerEvent:]
+				// If we will exceed max bytes per event flush the current event buffer before appending
+				if len(eventBuffer)+len(unprocessedLine) > maximumBytesPerEvent {
+					events = l.processEvent(events, eventBuffer, eventBufferTimestamp)
+					eventBuffer = eventBuffer[:0]
 				}
+				eventBuffer = append(eventBuffer, unprocessedLine...)
 				logger.PutMessage(msg)
 				continue
 			}
@@ -464,29 +493,6 @@ func (l *logStream) publishBatch(events []wrappedEvent) {
 	}
 }
 
-// Maps strftime format strings to regex
-var strftimeToRegex = map[string]string{
-	/*weekdayShort          */ `%a`: `(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)`,
-	/*weekdayFull           */ `%A`: `(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)`,
-	/*weekdayZeroIndex      */ `%w`: `[0-6]`,
-	/*dayZeroPadded         */ `%d`: `(?:0[1-9]|[1,2][0-9]|3[0,1])`,
-	/*monthShort            */ `%b`: `(?:Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)`,
-	/*monthFull             */ `%B`: `(?:January|February|March|April|June|July|August|September|October|November|December)`,
-	/*monthZeroPadded       */ `%m`: `(?:0[1-9]|1[0-2])`,
-	/*yearCentury           */ `%Y`: `\d{4}`,
-	/*yearZeroPadded        */ `%y`: `\d{2}`,
-	/*hour24ZeroPadded      */ `%H`: `(?:[0,1][0-9]|2[0-3])`,
-	/*hour12ZeroPadded      */ `%I`: `(?:0[0-9]|1[0-2])`,
-	/*AM or PM              */ `%p`: "[A,P]M",
-	/*minuteZeroPadded      */ `%M`: `[0-5][0-9]`,
-	/*secondZeroPadded      */ `%S`: `[0-5][0-9]`,
-	/*microsecondZeroPadded */ `%f`: `\d{6}`,
-	/*utcOffset             */ `%z`: `[+-]\d{4}`,
-	/*tzName                */ `%Z`: `[A-Z]{1,4}T`,
-	/*dayOfYearZeroPadded   */ `%j`: `(?:0[0-9][1-9]|[1,2][0-9][0-9]|3[0-5][0-9]|36[0-6])`,
-	/*milliseconds          */ `%L`: `\.\d{3}`,
-}
-
 // putLogEvents wraps the PutLogEvents API
 func (l *logStream) putLogEvents(events []*cloudwatchlogs.InputLogEvent, sequenceToken *string) (*string, error) {
 	input := &cloudwatchlogs.PutLogEventsInput{
@@ -512,7 +518,8 @@ func (l *logStream) putLogEvents(events []*cloudwatchlogs.InputLogEvent, sequenc
 }
 
 // ValidateLogOpt looks for awslogs-specific log options awslogs-region,
-// awslogs-group, awslogs-stream, awslogs-create-group
+// awslogs-group, awslogs-stream, awslogs-create-group, awslogs-datetime-format,
+// awslogs-multiline-pattern
 func ValidateLogOpt(cfg map[string]string) error {
 	for key := range cfg {
 		switch key {
@@ -534,6 +541,11 @@ func ValidateLogOpt(cfg map[string]string) error {
 		if _, err := strconv.ParseBool(cfg[logCreateGroupKey]); err != nil {
 			return fmt.Errorf("must specify valid value for log opt '%s': %v", logCreateGroupKey, err)
 		}
+	}
+	_, datetimeFormatKeyExists := cfg[datetimeFormatKey]
+	_, multilinePatternKeyExists := cfg[multilinePatternKey]
+	if datetimeFormatKeyExists && multilinePatternKeyExists {
+		return fmt.Errorf("you cannot configure log opt '%s' and '%s' at the same time", datetimeFormatKey, multilinePatternKey)
 	}
 	return nil
 }

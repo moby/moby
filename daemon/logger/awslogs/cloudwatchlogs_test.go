@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/docker/dockerversion"
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -527,33 +528,21 @@ func TestCollectBatchMultilinePattern(t *testing.T) {
 		Timestamp: time.Now(),
 	})
 
-	ticks <- time.Time{}
+	ticks <- time.Now()
 
 	// Verify single multiline event
 	argument := <-mockClient.putLogEventsArgument
-	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
-	}
-	if len(argument.LogEvents) != 1 {
-		t.Errorf("Expected LogEvents to contain 1 elements, but contains %d", len(argument.LogEvents))
-	}
-	if *argument.LogEvents[0].Message != logline+logline {
-		t.Errorf("Expected message to be %s but was %s", logline+logline, *argument.LogEvents[0].Message)
-	}
+	assert.NotNil(t, argument, "Expected non-nil PutLogEventsInput")
+	assert.Equal(t, 1, len(argument.LogEvents), "Expected LogEvents to contain 1 elements, but contains %d", len(argument.LogEvents))
+	assert.Equal(t, logline+logline, *argument.LogEvents[0].Message, "Expected message to be %s but was %s", logline+logline, *argument.LogEvents[0].Message)
 
 	stream.Close()
 
 	// Verify single event
 	argument = <-mockClient.putLogEventsArgument
-	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
-	}
-	if len(argument.LogEvents) != 1 {
-		t.Errorf("Expected LogEvents to contain 1 elements, but contains %d", len(argument.LogEvents))
-	}
-	if *argument.LogEvents[0].Message != "xxxx "+logline {
-		t.Errorf("Expected message to be %s but was %s", "xxxx "+logline, *argument.LogEvents[0].Message)
-	}
+	assert.NotNil(t, argument, "Expected non-nil PutLogEventsInput")
+	assert.Equal(t, 1, len(argument.LogEvents), "Expected LogEvents to contain 1 elements, but contains %d", len(argument.LogEvents))
+	assert.Equal(t, "xxxx "+logline, *argument.LogEvents[0].Message, "Expected message to be %s but was %s", "xxxx "+logline, *argument.LogEvents[0].Message)
 }
 
 func BenchmarkCollectBatch(b *testing.B) {
@@ -656,15 +645,57 @@ func TestCollectBatchMultilinePatternMaxEventAge(t *testing.T) {
 
 	// Verify single multiline event is flushed after maximum event buffer age (batchPublishFrequency)
 	argument := <-mockClient.putLogEventsArgument
-	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
+	assert.NotNil(t, argument, "Expected non-nil PutLogEventsInput")
+	assert.Equal(t, 1, len(argument.LogEvents), "Expected LogEvents to contain 1 elements, but contains %d", len(argument.LogEvents))
+	assert.Equal(t, logline+logline, *argument.LogEvents[0].Message, "Expected message to be %s but was %s", logline+logline, *argument.LogEvents[0].Message)
+
+	stream.Close()
+}
+
+func TestCollectBatchMultilinePatternNegativeEventAge(t *testing.T) {
+	mockClient := newMockClient()
+	multilinePattern := regexp.MustCompile("xxxx")
+	stream := &logStream{
+		client:           mockClient,
+		logGroupName:     groupName,
+		logStreamName:    streamName,
+		multilinePattern: multilinePattern,
+		sequenceToken:    aws.String(sequenceToken),
+		messages:         make(chan *logger.Message),
 	}
-	if len(argument.LogEvents) != 1 {
-		t.Errorf("Expected LogEvents to contain 1 elements, but contains %d", len(argument.LogEvents))
+	mockClient.putLogEventsResult <- &putLogEventsResult{
+		successResult: &cloudwatchlogs.PutLogEventsOutput{
+			NextSequenceToken: aws.String(nextSequenceToken),
+		},
 	}
-	if *argument.LogEvents[0].Message != logline+logline {
-		t.Errorf("Expected message to be %s but was %s", logline+logline, *argument.LogEvents[0].Message)
+	ticks := make(chan time.Time)
+	newTicker = func(_ time.Duration) *time.Ticker {
+		return &time.Ticker{
+			C: ticks,
+		}
 	}
+
+	go stream.collectBatch()
+
+	stream.Log(&logger.Message{
+		Line:      []byte(logline),
+		Timestamp: time.Now(),
+	})
+
+	// Log an event 1 second later
+	stream.Log(&logger.Message{
+		Line:      []byte(logline),
+		Timestamp: time.Now().Add(time.Second),
+	})
+
+	// Fire ticker in past to simulate negative event buffer age
+	ticks <- time.Now().Add(-time.Second)
+
+	// Verify single multiline event is flushed with a negative event buffer age
+	argument := <-mockClient.putLogEventsArgument
+	assert.NotNil(t, argument, "Expected non-nil PutLogEventsInput")
+	assert.Equal(t, 1, len(argument.LogEvents), "Expected LogEvents to contain 1 elements, but contains %d", len(argument.LogEvents))
+	assert.Equal(t, logline+logline, *argument.LogEvents[0].Message, "Expected message to be %s but was %s", logline+logline, *argument.LogEvents[0].Message)
 
 	stream.Close()
 }
@@ -930,32 +961,8 @@ func TestParseLogOptionsMultilinePattern(t *testing.T) {
 	}
 
 	multilinePattern, err := parseMultilineOptions(info)
-	if err != nil {
-		t.Errorf("Received unexpected err: %v\n", err)
-	}
-	if !multilinePattern.MatchString("xxxx") {
-		t.Errorf("Expected multilinePattern to match string xxxx but no match found")
-	}
-}
-
-func TestParseLogOptionsDatetimeFormatSupersedesMultilinePattern(t *testing.T) {
-	info := logger.Info{
-		Config: map[string]string{
-			multilinePatternKey: "^xxxx",
-			datetimeFormatKey:   "%Y-%m-%d",
-		},
-	}
-
-	multilinePattern, err := parseMultilineOptions(info)
-	if err != nil {
-		t.Errorf("Received unexpected err: %v\n", err)
-	}
-	if multilinePattern.MatchString("xxxx") {
-		t.Errorf("Expected multilinePattern to NOT match string xxxx but match was made")
-	}
-	if !multilinePattern.MatchString("2017-01-01") {
-		t.Errorf("Expected multilinePattern to match string 2017-01-01 but no match found")
-	}
+	assert.Nil(t, err, "Received unexpected err: %v\n", err)
+	assert.True(t, multilinePattern.MatchString("xxxx"), "Expected multilinePattern to match string xxxx but no match found")
 }
 
 func TestParseLogOptionsDatetimeFormat(t *testing.T) {
@@ -972,19 +979,30 @@ func TestParseLogOptionsDatetimeFormat(t *testing.T) {
 		{"Day of the week: %w, Day of the year: %j", "Day of the week: 4, Day of the year: 091"},
 	}
 	for _, dt := range datetimeFormatTests {
-		info := logger.Info{
-			Config: map[string]string{
-				datetimeFormatKey: dt.format,
-			},
-		}
-		multilinePattern, err := parseMultilineOptions(info)
-		if err != nil {
-			t.Errorf("Received unexpected err: %v\n", err)
-		}
-		if !multilinePattern.MatchString(dt.match) {
-			t.Errorf("Expected multilinePattern %s to match string %s but no match found", dt.format, dt.match)
-		}
+		t.Run(dt.match, func(t *testing.T) {
+			info := logger.Info{
+				Config: map[string]string{
+					datetimeFormatKey: dt.format,
+				},
+			}
+			multilinePattern, err := parseMultilineOptions(info)
+			assert.Nil(t, err, "Received unexpected err: %v\n", err)
+			assert.True(t, multilinePattern.MatchString(dt.match), "Expected multilinePattern %s to match string %s but no match found", dt.format, dt.match)
+		})
 	}
+}
+
+func TestValidateLogOptionsDatetimeFormatAndMultilinePattern(t *testing.T) {
+	cfg := map[string]string{
+		multilinePatternKey: "^xxxx",
+		datetimeFormatKey:   "%Y-%m-%d",
+		logGroupKey:         groupName,
+	}
+	conflictingLogOptionsError := "you cannot configure log opt 'awslogs-datetime-format' and 'awslogs-multiline-pattern' at the same time"
+
+	err := ValidateLogOpt(cfg)
+	assert.NotNil(t, err, "Expected an error but received nil")
+	assert.Equal(t, err.Error(), conflictingLogOptionsError, "Received incorrect error: %v\n", err)
 }
 
 func TestCreateTagSuccess(t *testing.T) {
