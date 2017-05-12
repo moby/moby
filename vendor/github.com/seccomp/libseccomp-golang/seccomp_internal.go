@@ -7,7 +7,6 @@ package seccomp
 
 import (
 	"fmt"
-	"os"
 	"syscall"
 )
 
@@ -21,42 +20,14 @@ import (
 #include <seccomp.h>
 
 #if SCMP_VER_MAJOR < 2
-#error Minimum supported version of Libseccomp is v2.1.0
-#elif SCMP_VER_MAJOR == 2 && SCMP_VER_MINOR < 1
-#error Minimum supported version of Libseccomp is v2.1.0
+#error Minimum supported version of Libseccomp is v2.2.0
+#elif SCMP_VER_MAJOR == 2 && SCMP_VER_MINOR < 2
+#error Minimum supported version of Libseccomp is v2.2.0
 #endif
 
 #define ARCH_BAD ~0
 
 const uint32_t C_ARCH_BAD = ARCH_BAD;
-
-#ifndef SCMP_ARCH_AARCH64
-#define SCMP_ARCH_AARCH64 ARCH_BAD
-#endif
-
-#ifndef SCMP_ARCH_MIPS
-#define SCMP_ARCH_MIPS ARCH_BAD
-#endif
-
-#ifndef SCMP_ARCH_MIPS64
-#define SCMP_ARCH_MIPS64 ARCH_BAD
-#endif
-
-#ifndef SCMP_ARCH_MIPS64N32
-#define SCMP_ARCH_MIPS64N32 ARCH_BAD
-#endif
-
-#ifndef SCMP_ARCH_MIPSEL
-#define SCMP_ARCH_MIPSEL ARCH_BAD
-#endif
-
-#ifndef SCMP_ARCH_MIPSEL64
-#define SCMP_ARCH_MIPSEL64 ARCH_BAD
-#endif
-
-#ifndef SCMP_ARCH_MIPSEL64N32
-#define SCMP_ARCH_MIPSEL64N32 ARCH_BAD
-#endif
 
 #ifndef SCMP_ARCH_PPC
 #define SCMP_ARCH_PPC ARCH_BAD
@@ -102,12 +73,6 @@ const uint32_t C_ACT_ERRNO         = SCMP_ACT_ERRNO(0);
 const uint32_t C_ACT_TRACE         = SCMP_ACT_TRACE(0);
 const uint32_t C_ACT_ALLOW         = SCMP_ACT_ALLOW;
 
-// If TSync is not supported, make sure it doesn't map to a supported filter attribute
-// Don't worry about major version < 2, the minimum version checks should catch that case
-#if SCMP_VER_MAJOR == 2 && SCMP_VER_MINOR < 2
-#define SCMP_FLTATR_CTL_TSYNC _SCMP_CMP_MIN
-#endif
-
 const uint32_t C_ATTRIBUTE_DEFAULT = (uint32_t)SCMP_FLTATR_ACT_DEFAULT;
 const uint32_t C_ATTRIBUTE_BADARCH = (uint32_t)SCMP_FLTATR_ACT_BADARCH;
 const uint32_t C_ATTRIBUTE_NNP     = (uint32_t)SCMP_FLTATR_CTL_NNP;
@@ -125,25 +90,61 @@ const int      C_VERSION_MAJOR     = SCMP_VER_MAJOR;
 const int      C_VERSION_MINOR     = SCMP_VER_MINOR;
 const int      C_VERSION_MICRO     = SCMP_VER_MICRO;
 
+#if SCMP_VER_MAJOR == 2 && SCMP_VER_MINOR >= 3
+unsigned int get_major_version()
+{
+        return seccomp_version()->major;
+}
+
+unsigned int get_minor_version()
+{
+        return seccomp_version()->minor;
+}
+
+unsigned int get_micro_version()
+{
+        return seccomp_version()->micro;
+}
+#else
+unsigned int get_major_version()
+{
+        return (unsigned int)C_VERSION_MAJOR;
+}
+
+unsigned int get_minor_version()
+{
+        return (unsigned int)C_VERSION_MINOR;
+}
+
+unsigned int get_micro_version()
+{
+        return (unsigned int)C_VERSION_MICRO;
+}
+#endif
+
 typedef struct scmp_arg_cmp* scmp_cast_t;
 
-// Wrapper to create an scmp_arg_cmp struct
-void*
-make_struct_arg_cmp(
-                    unsigned int arg,
-                    int compare,
-                    uint64_t a,
-                    uint64_t b
-                   )
+void* make_arg_cmp_array(unsigned int length)
 {
-	struct scmp_arg_cmp *s = malloc(sizeof(struct scmp_arg_cmp));
+        return calloc(length, sizeof(struct scmp_arg_cmp));
+}
 
-	s->arg = arg;
-	s->op = compare;
-	s->datum_a = a;
-	s->datum_b = b;
+// Wrapper to add an scmp_arg_cmp struct to an existing arg_cmp array
+void add_struct_arg_cmp(
+                        struct scmp_arg_cmp* arr,
+                        unsigned int pos,
+                        unsigned int arg,
+                        int compare,
+                        uint64_t a,
+                        uint64_t b
+                       )
+{
+        arr[pos].arg = arg;
+        arr[pos].op = compare;
+        arr[pos].datum_a = a;
+        arr[pos].datum_b = b;
 
-	return s;
+        return;
 }
 */
 import "C"
@@ -178,26 +179,26 @@ var (
 	// Error thrown on bad filter context
 	errBadFilter = fmt.Errorf("filter is invalid or uninitialized")
 	// Constants representing library major, minor, and micro versions
-	verMajor = int(C.C_VERSION_MAJOR)
-	verMinor = int(C.C_VERSION_MINOR)
-	verMicro = int(C.C_VERSION_MICRO)
+	verMajor = uint(C.get_major_version())
+	verMinor = uint(C.get_minor_version())
+	verMicro = uint(C.get_micro_version())
 )
 
 // Nonexported functions
 
 // Check if library version is greater than or equal to the given one
-func checkVersionAbove(major, minor, micro int) bool {
+func checkVersionAbove(major, minor, micro uint) bool {
 	return (verMajor > major) ||
 		(verMajor == major && verMinor > minor) ||
 		(verMajor == major && verMinor == minor && verMicro >= micro)
 }
 
-// Init function: Verify library version is appropriate
-func init() {
-	if !checkVersionAbove(2, 1, 0) {
-		fmt.Fprintf(os.Stderr, "Libseccomp version too low: minimum supported is 2.1.0, detected %d.%d.%d", C.C_VERSION_MAJOR, C.C_VERSION_MINOR, C.C_VERSION_MICRO)
-		os.Exit(-1)
+// Ensure that the library is supported, i.e. >= 2.2.0.
+func ensureSupportedVersion() error {
+	if !checkVersionAbove(2, 2, 0) {
+		return VersionError{}
 	}
+	return nil
 }
 
 // Filter helpers
@@ -214,10 +215,6 @@ func (f *ScmpFilter) getFilterAttr(attr scmpFilterAttr) (C.uint32_t, error) {
 
 	if !f.valid {
 		return 0x0, errBadFilter
-	}
-
-	if !checkVersionAbove(2, 2, 0) && attr == filterAttrTsync {
-		return 0x0, fmt.Errorf("the thread synchronization attribute is not supported in this version of the library")
 	}
 
 	var attribute C.uint32_t
@@ -239,10 +236,6 @@ func (f *ScmpFilter) setFilterAttr(attr scmpFilterAttr, value C.uint32_t) error 
 		return errBadFilter
 	}
 
-	if !checkVersionAbove(2, 2, 0) && attr == filterAttrTsync {
-		return fmt.Errorf("the thread synchronization attribute is not supported in this version of the library")
-	}
-
 	retCode := C.seccomp_attr_set(f.filterCtx, attr.toNative(), value)
 	if retCode != 0 {
 		return syscall.Errno(-1 * retCode)
@@ -254,12 +247,9 @@ func (f *ScmpFilter) setFilterAttr(attr scmpFilterAttr, value C.uint32_t) error 
 // DOES NOT LOCK OR CHECK VALIDITY
 // Assumes caller has already done this
 // Wrapper for seccomp_rule_add_... functions
-func (f *ScmpFilter) addRuleWrapper(call ScmpSyscall, action ScmpAction, exact bool, cond C.scmp_cast_t) error {
-	var length C.uint
-	if cond != nil {
-		length = 1
-	} else {
-		length = 0
+func (f *ScmpFilter) addRuleWrapper(call ScmpSyscall, action ScmpAction, exact bool, length C.uint, cond C.scmp_cast_t) error {
+	if length != 0 && cond == nil {
+		return fmt.Errorf("null conditions list, but length is nonzero")
 	}
 
 	var retCode C.int
@@ -273,6 +263,8 @@ func (f *ScmpFilter) addRuleWrapper(call ScmpSyscall, action ScmpAction, exact b
 		return fmt.Errorf("unrecognized syscall")
 	} else if syscall.Errno(-1*retCode) == syscall.EPERM {
 		return fmt.Errorf("requested action matches default action of filter")
+	} else if syscall.Errno(-1*retCode) == syscall.EINVAL {
+		return fmt.Errorf("two checks on same syscall argument")
 	} else if retCode != 0 {
 		return syscall.Errno(-1 * retCode)
 	}
@@ -290,22 +282,32 @@ func (f *ScmpFilter) addRuleGeneric(call ScmpSyscall, action ScmpAction, exact b
 	}
 
 	if len(conds) == 0 {
-		if err := f.addRuleWrapper(call, action, exact, nil); err != nil {
+		if err := f.addRuleWrapper(call, action, exact, 0, nil); err != nil {
 			return err
 		}
 	} else {
 		// We don't support conditional filtering in library version v2.1
 		if !checkVersionAbove(2, 2, 1) {
-			return fmt.Errorf("conditional filtering requires libseccomp version >= 2.2.1")
+			return VersionError{
+				message: "conditional filtering is not supported",
+				minimum: "2.2.1",
+			}
 		}
 
-		for _, cond := range conds {
-			cmpStruct := C.make_struct_arg_cmp(C.uint(cond.Argument), cond.Op.toNative(), C.uint64_t(cond.Operand1), C.uint64_t(cond.Operand2))
-			defer C.free(cmpStruct)
+		argsArr := C.make_arg_cmp_array(C.uint(len(conds)))
+		if argsArr == nil {
+			return fmt.Errorf("error allocating memory for conditions")
+		}
+		defer C.free(argsArr)
 
-			if err := f.addRuleWrapper(call, action, exact, C.scmp_cast_t(cmpStruct)); err != nil {
-				return err
-			}
+		for i, cond := range conds {
+			C.add_struct_arg_cmp(C.scmp_cast_t(argsArr), C.uint(i),
+				C.uint(cond.Argument), cond.Op.toNative(),
+				C.uint64_t(cond.Operand1), C.uint64_t(cond.Operand2))
+		}
+
+		if err := f.addRuleWrapper(call, action, exact, C.uint(len(conds)), C.scmp_cast_t(argsArr)); err != nil {
+			return err
 		}
 	}
 
