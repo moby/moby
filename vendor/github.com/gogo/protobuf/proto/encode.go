@@ -1075,10 +1075,17 @@ func (o *Buffer) enc_map(p *Properties, base structPointer) error {
 
 func (o *Buffer) enc_exts(p *Properties, base structPointer) error {
 	exts := structPointer_Extensions(base, p.field)
-	if err := encodeExtensions(exts); err != nil {
+
+	v, mu := exts.extensionsRead()
+	if v == nil {
+		return nil
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if err := encodeExtensionsMap(v); err != nil {
 		return err
 	}
-	v, _ := exts.extensionsRead()
 
 	return o.enc_map_body(v)
 }

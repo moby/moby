@@ -1,0 +1,13 @@
+syntax = "proto3";
+package internal;
+
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+
+message Value{
+    string Text = 1;
+}
+
+service Echo {
+    option (gogoproto.goproto_named_instances) = true;
+    rpc MessageStream (stream Value) returns (stream Value);
+}

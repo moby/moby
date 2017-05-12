@@ -38,7 +38,6 @@ option go_package = "types";
 option java_package = "com.google.protobuf";
 option java_outer_classname = "TimestampProto";
 option java_multiple_files = true;
-option java_generate_equals_and_hash = true;
 option objc_class_prefix = "GPB";
 
 // A Timestamp represents a point in time independent of any time zone
@@ -90,16 +89,14 @@ option objc_class_prefix = "GPB";
 //
 // Example 5: Compute Timestamp from current time in Python.
 //
-//     now = time.time()
-//     seconds = int(now)
-//     nanos = int((now - seconds) * 10**9)
-//     timestamp = Timestamp(seconds=seconds, nanos=nanos)
+//     timestamp = Timestamp()
+//     timestamp.GetCurrentTime()
 //
 //
 message Timestamp {
 
   // Represents seconds of UTC time since Unix epoch
-  // 1970-01-01T00:00:00Z. Must be from from 0001-01-01T00:00:00Z to
+  // 1970-01-01T00:00:00Z. Must be from 0001-01-01T00:00:00Z to
   // 9999-12-31T23:59:59Z inclusive.
   int64 seconds = 1;
 

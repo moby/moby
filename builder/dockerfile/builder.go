@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/builder/remotecontext"
 	"github.com/docker/docker/client/session"
 	"github.com/docker/docker/client/session/auth"
+	"github.com/docker/docker/client/session/echo"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
@@ -109,6 +110,38 @@ func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (
 			if p, ok := auth.TryGetAuthConfigProviderClient(c); ok {
 				builderOptions.authProvider = p
 			}
+			echo1Messages := make(chan string)
+			echo1Callbacks := make(chan string)
+			echo2Messages := make(chan string)
+			echo2Callbacks := make(chan string)
+			if ok, _ := echo.TrySetupEchoClient(ctx, c, "echo1", echo1Messages, echo1Callbacks); ok {
+				go func() {
+					echo1Messages <- "Message for echo1 : 1"
+					echo1Messages <- "Message for echo1 : 2"
+					echo1Messages <- "Message for echo1 : 3"
+					close(echo1Messages)
+				}()
+				go func() {
+					for m := range echo1Callbacks {
+						logrus.Debugf("Received from echo1: %s", m)
+					}
+					logrus.Debugf("echo1 closed")
+				}()
+			}
+			if ok, _ := echo.TrySetupEchoClient(ctx, c, "echo2", echo2Messages, echo2Callbacks); ok {
+				go func() {
+					echo2Messages <- "Message for echo2 : 1"
+					echo2Messages <- "Message for echo2 : 2"
+					echo2Messages <- "Message for echo2 : 3"
+					close(echo2Messages)
+				}()
+				go func() {
+					for m := range echo2Callbacks {
+						logrus.Debugf("Received from echo2: %s", m)
+					}
+					logrus.Debugf("echo2 closed")
+				}()
+			}
 		}
 	}
 	if builderOptions.authProvider == nil {
@@ -146,7 +179,7 @@ type Builder struct {
 	cacheBusted   bool
 	buildArgs     *buildArgs
 	imageCache    builder.ImageCache
-	authProvider auth.AuthConfigProvider
+	authProvider  auth.AuthConfigProvider
 }
 
 // newBuilder creates a new Dockerfile builder from an optional dockerfile and a Options.

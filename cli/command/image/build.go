@@ -30,6 +30,7 @@ import (
 	cliconfig "github.com/docker/docker/cli/config"
 	"github.com/docker/docker/client/session"
 	"github.com/docker/docker/client/session/auth"
+	"github.com/docker/docker/client/session/echo"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/fileutils"
@@ -308,6 +309,8 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 	if dockerfileCtx != nil && buildCtx == nil {
 		buildCtx = dockerfileCtx
 	}
+	echo1Done := make(chan interface{})
+	echo2Done := make(chan interface{})
 	var authConfigs map[string]types.AuthConfig
 	var s *session.ServerSession
 	if isSessionSupported(dockerCli) {
@@ -321,8 +324,26 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		}
 		authConfigs = make(map[string]types.AuthConfig)
 		auth.AttachAuthConfigProviderToSession(&authProvider{dockerCli, progressOutput}, s)
+		echo1Messages := make(chan string)
+		echo2Messages := make(chan string)
+		echo.AttachEchoServerToSession(s, "echo1", echo1Messages)
+		echo.AttachEchoServerToSession(s, "echo2", echo2Messages)
+		go func() {
+			for m := range echo1Messages {
+				progress.Messagef(progressOutput, "echo", "Echo1 received: %s", m)
+			}
+			close(echo1Done)
+		}()
+		go func() {
+			for m := range echo2Messages {
+				progress.Messagef(progressOutput, "echo", "Echo2 received: %s", m)
+			}
+			close(echo2Done)
+		}()
 	} else {
 		authConfigs, _ = dockerCli.GetAllCredentials()
+		close(echo1Done)
+		close(echo2Done)
 	}
 
 	var body io.Reader = progress.NewProgressReader(buildCtx, progressOutput, 0, "", "Sending build context to Docker daemon")
@@ -418,6 +439,8 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 			}
 		}
 	}
+	<-echo1Done
+	<-echo2Done
 
 	return nil
 }

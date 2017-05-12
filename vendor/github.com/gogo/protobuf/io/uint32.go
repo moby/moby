@@ -30,53 +30,65 @@ package io
 
 import (
 	"encoding/binary"
-	"github.com/gogo/protobuf/proto"
 	"io"
+
+	"github.com/gogo/protobuf/proto"
 )
 
+const uint32BinaryLen = 4
+
 func NewUint32DelimitedWriter(w io.Writer, byteOrder binary.ByteOrder) WriteCloser {
-	return &uint32Writer{w, byteOrder, nil}
+	return &uint32Writer{w, byteOrder, nil, make([]byte, uint32BinaryLen)}
 }
 
 func NewSizeUint32DelimitedWriter(w io.Writer, byteOrder binary.ByteOrder, size int) WriteCloser {
-	return &uint32Writer{w, byteOrder, make([]byte, size)}
+	return &uint32Writer{w, byteOrder, make([]byte, size), make([]byte, uint32BinaryLen)}
 }
 
 type uint32Writer struct {
 	w         io.Writer
 	byteOrder binary.ByteOrder
 	buffer    []byte
+	lenBuf    []byte
 }
 
-func (this *uint32Writer) WriteMsg(msg proto.Message) (err error) {
-	var data []byte
-	if m, ok := msg.(marshaler); ok {
-		n, ok := getSize(m)
-		if !ok {
-			data, err = proto.Marshal(msg)
-			if err != nil {
-				return err
-			}
-		}
-		if n >= len(this.buffer) {
-			this.buffer = make([]byte, n)
-		}
-		_, err = m.MarshalTo(this.buffer)
-		if err != nil {
-			return err
-		}
-		data = this.buffer[:n]
-	} else {
-		data, err = proto.Marshal(msg)
-		if err != nil {
-			return err
-		}
+func (this *uint32Writer) writeFallback(msg proto.Message) error {
+	data, err := proto.Marshal(msg)
+	if err != nil {
+		return err
 	}
+
 	length := uint32(len(data))
-	if err = binary.Write(this.w, this.byteOrder, &length); err != nil {
+	this.byteOrder.PutUint32(this.lenBuf, length)
+	if _, err = this.w.Write(this.lenBuf); err != nil {
 		return err
 	}
 	_, err = this.w.Write(data)
+	return err
+}
+
+func (this *uint32Writer) WriteMsg(msg proto.Message) error {
+	m, ok := msg.(marshaler)
+	if !ok {
+		return this.writeFallback(msg)
+	}
+
+	n, ok := getSize(m)
+	if !ok {
+		return this.writeFallback(msg)
+	}
+
+	size := n + uint32BinaryLen
+	if size > len(this.buffer) {
+		this.buffer = make([]byte, size)
+	}
+
+	this.byteOrder.PutUint32(this.buffer, uint32(n))
+	if _, err := m.MarshalTo(this.buffer[uint32BinaryLen:]); err != nil {
+		return err
+	}
+
+	_, err := this.w.Write(this.buffer[:size])
 	return err
 }
 
