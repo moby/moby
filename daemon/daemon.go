@@ -106,6 +106,7 @@ type Daemon struct {
 	defaultIsolation          containertypes.Isolation // Default isolation mode on Windows
 	clusterProvider           cluster.Provider
 	cluster                   Cluster
+	metricsPluginListener     net.Listener
 
 	machineMemory uint64
 
@@ -593,6 +594,12 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	d.PluginStore = pluginStore
 	logger.RegisterPluginGetter(d.PluginStore)
 
+	metricsSockPath, err := d.listenMetricsSock()
+	if err != nil {
+		return nil, err
+	}
+	registerMetricsPluginCallback(d.PluginStore, metricsSockPath)
+
 	// Plugin system initialization should happen before restore. Do not change order.
 	d.pluginManager, err = plugin.NewManager(plugin.ManagerConfig{
 		Root:               filepath.Join(config.Root, "plugins"),
@@ -821,6 +828,8 @@ func (daemon *Daemon) Shutdown() error {
 	if daemon.configStore.LiveRestoreEnabled && daemon.containers != nil {
 		// check if there are any running containers, if none we should do some cleanup
 		if ls, err := daemon.Containers(&types.ContainerListOptions{}); len(ls) != 0 || err != nil {
+			// metrics plugins still need some cleanup
+			daemon.cleanupMetricsPlugins()
 			return nil
 		}
 	}
@@ -860,6 +869,8 @@ func (daemon *Daemon) Shutdown() error {
 		logrus.Debugf("start clean shutdown of cluster resources...")
 		daemon.DaemonLeavesCluster()
 	}
+
+	daemon.cleanupMetricsPlugins()
 
 	// Shutdown plugins after containers and layerstore. Don't change the order.
 	daemon.pluginShutdown()
