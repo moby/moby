@@ -19,11 +19,14 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 * `GET /info` now returns the list of supported logging drivers, including plugins.
 * `GET /info` and `GET /swarm` now returns the cluster-wide swarm CA info if the node is in a swarm: the cluster root CA certificate, and the cluster TLS
- leaf certificate issuer's subject and public key.
+ leaf certificate issuer's subject and public key. It also displays the desired CA signing certificate, if any was provided as part of the spec.
 * `POST /build/` now (when not silent) produces an `Aux` message in the JSON output stream with payload `types.BuildResult` for each image produced. The final such message will reference the image resulting from the build.
 * `GET /nodes` and `GET /nodes/{id}` now returns additional information about swarm TLS info if the node is part of a swarm: the trusted root CA, and the
  issuer's subject and public key.
 * `GET /distribution/(name)/json` is a new endpoint that returns a JSON output stream with payload `types.DistributionInspect` for an image name. It includes a descriptor with the digest, and supported platforms retrieved from directly contacting the registry.
+* `POST /swarm/update` now accepts 3 additional parameters as part of the swarm spec's CA configuration; the desired CA certificate for
+ the swarm, the desired CA key for the swarm (if not using an external certificate), and an optional parameter to force swarm to
+ generate and rotate to a new CA certificate/key pair.
 
 ## v1.29 API changes
 

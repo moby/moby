@@ -1886,6 +1886,14 @@ definitions:
                 CACert:
                   description: "The root CA certificate (in PEM format) this external CA uses to issue TLS certificates (assumed to be to the current swarm root CA certificate if not provided)."
                   type: "string"
+          SigningCACert:
+            description: "The desired signing CA certificate for all swarm node TLS leaf certificates, in PEM format."
+            type: "string"
+          SigningCAKey:
+            description: "The desired signing CA key for all swarm node TLS leaf certificates, in PEM format."
+            type: "string"
+          ForceRotate:
+            description: "An integer whose purpose is to force swarm to generate a new signing CA certificate and key, if none have been specified in `SigningCACert` and `SigningCAKey`"
       EncryptionConfig:
         description: "Parameters related to encryption-at-rest."
         type: "object"
