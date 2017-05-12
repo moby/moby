@@ -21,9 +21,14 @@ import (
 	"syscall"
 	"time"
 
+	"crypto/tls"
+	"crypto/x509"
+
+	"github.com/cloudflare/cfssl/helpers"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/daemon"
+	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/testutil"
@@ -1687,7 +1692,7 @@ func (s *DockerDaemonSuite) TestDaemonStartWithoutHost(c *check.C) {
 }
 
 // FIXME(vdemeester) Use a new daemon instance instead of the Suite one
-func (s *DockerDaemonSuite) TestDaemonStartWithDefalutTLSHost(c *check.C) {
+func (s *DockerDaemonSuite) TestDaemonStartWithDefaultTLSHost(c *check.C) {
 	s.d.UseDefaultTLSHost = true
 	defer func() {
 		s.d.UseDefaultTLSHost = false
@@ -1717,6 +1722,33 @@ func (s *DockerDaemonSuite) TestDaemonStartWithDefalutTLSHost(c *check.C) {
 	if !strings.Contains(out, "Server") {
 		c.Fatalf("docker version should return information of server side")
 	}
+
+	// ensure when connecting to the server that only a single acceptable CA is requested
+	contents, err := ioutil.ReadFile("fixtures/https/ca.pem")
+	c.Assert(err, checker.IsNil)
+	rootCert, err := helpers.ParseCertificatePEM(contents)
+	c.Assert(err, checker.IsNil)
+	rootPool := x509.NewCertPool()
+	rootPool.AddCert(rootCert)
+
+	var certRequestInfo *tls.CertificateRequestInfo
+	conn, err := tls.Dial("tcp", fmt.Sprintf("%s:%d", opts.DefaultHTTPHost, opts.DefaultTLSHTTPPort), &tls.Config{
+		RootCAs: rootPool,
+		GetClientCertificate: func(cri *tls.CertificateRequestInfo) (*tls.Certificate, error) {
+			certRequestInfo = cri
+			cert, err := tls.LoadX509KeyPair("fixtures/https/client-cert.pem", "fixtures/https/client-key.pem")
+			if err != nil {
+				return nil, err
+			}
+			return &cert, nil
+		},
+	})
+	c.Assert(err, checker.IsNil)
+	conn.Close()
+
+	c.Assert(certRequestInfo, checker.NotNil)
+	c.Assert(certRequestInfo.AcceptableCAs, checker.HasLen, 1)
+	c.Assert(certRequestInfo.AcceptableCAs[0], checker.DeepEquals, rootCert.RawSubject)
 }
 
 func (s *DockerDaemonSuite) TestBridgeIPIsExcludedFromAllocatorPool(c *check.C) {

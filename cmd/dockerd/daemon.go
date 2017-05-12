@@ -129,9 +129,10 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 
 	if cli.Config.TLS {
 		tlsOptions := tlsconfig.Options{
-			CAFile:   cli.Config.CommonTLSOptions.CAFile,
-			CertFile: cli.Config.CommonTLSOptions.CertFile,
-			KeyFile:  cli.Config.CommonTLSOptions.KeyFile,
+			CAFile:             cli.Config.CommonTLSOptions.CAFile,
+			CertFile:           cli.Config.CommonTLSOptions.CertFile,
+			KeyFile:            cli.Config.CommonTLSOptions.KeyFile,
+			ExclusiveRootPools: true,
 		}
 
 		if cli.Config.TLSVerify {
