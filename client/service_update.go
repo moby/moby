@@ -13,15 +13,16 @@ import (
 // ServiceUpdate updates a Service.
 func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, version swarm.Version, service swarm.ServiceSpec, options types.ServiceUpdateOptions) (types.ServiceUpdateResponse, error) {
 	var (
-		headers map[string][]string
 		query   = url.Values{}
 		distErr error
 	)
 
+	headers := map[string][]string{
+		"version": {cli.version},
+	}
+
 	if options.EncodedRegistryAuth != "" {
-		headers = map[string][]string{
-			"X-Registry-Auth": {options.EncodedRegistryAuth},
-		}
+		headers["X-Registry-Auth"] = []string{options.EncodedRegistryAuth}
 	}
 
 	if options.RegistryAuthFrom != "" {

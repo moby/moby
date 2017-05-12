@@ -13,15 +13,14 @@ import (
 
 // ServiceCreate creates a new Service.
 func (cli *Client) ServiceCreate(ctx context.Context, service swarm.ServiceSpec, options types.ServiceCreateOptions) (types.ServiceCreateResponse, error) {
-	var (
-		headers map[string][]string
-		distErr error
-	)
+	var distErr error
+
+	headers := map[string][]string{
+		"version": {cli.version},
+	}
 
 	if options.EncodedRegistryAuth != "" {
-		headers = map[string][]string{
-			"X-Registry-Auth": {options.EncodedRegistryAuth},
-		}
+		headers["X-Registry-Auth"] = []string{options.EncodedRegistryAuth}
 	}
 
 	// Contact the registry to retrieve digest and platform information
