@@ -219,6 +219,8 @@ func (s *dispatchState) beginStage(stageName string, image builder.Image) {
 
 	if image.RunConfig() != nil {
 		s.runConfig = image.RunConfig()
+	} else {
+		s.runConfig = &container.Config{}
 	}
 	s.baseImage = image
 	s.setDefaultPath()
