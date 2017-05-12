@@ -857,7 +857,7 @@ func (pm *Manager) SavePlugin(plugin string, outStream io.Writer) error {
 			manifest.Layers = append(manifest.Layers, ocispecv1.Descriptor{
 				Digest:    dgst,
 				Size:      size,
-				MediaType: schema2.MediaTypeLayer,
+				MediaType: ocispecv1.MediaTypeImageLayerGzip,
 			})
 		}
 	}
@@ -879,7 +879,7 @@ func (pm *Manager) SavePlugin(plugin string, outStream io.Writer) error {
 		// TODO(@cpuguy83): support platform field?
 		// Haven't found where this is stored if at all yet
 		{
-			MediaType:   schema2.MediaTypeManifest,
+			MediaType:   ocispecv1.MediaTypeImageManifest,
 			Size:        manifestSize,
 			Digest:      manifestDigest,
 			Annotations: map[string]string{"com.docker.plugin.ref.name": srcP.PluginObj.Name},
@@ -916,7 +916,8 @@ type manifestItem struct {
 }
 
 // LoadPlugin loads a plugin from input tar archive
-// TODO(cpuguy83): THIS ISN'T READY YET, MAKE THIS WORK WITH THE OUTPUT OF SAVE
+// The input archive *must* be in the OCI image spec format defined here:
+// https://github.com/opencontainers/image-spec/blob/master/image-layout.md
 func (pm *Manager) LoadPlugin(input io.ReadCloser, outStream io.Writer, quiet bool) (err error) {
 	outStream = streamformatter.NewStdoutWriter(outStream)
 
@@ -927,136 +928,130 @@ func (pm *Manager) LoadPlugin(input io.ReadCloser, outStream io.Writer, quiet bo
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// 2. untar the given tar
 	if err := chrootarchive.Untar(input, tmpDir, nil); err != nil {
 		return err
 	}
 
-	// 3. open manifest.
-	manifestPath, err := safePath(tmpDir, manifestFileName)
+	f, err := os.Open(filepath.Join(tmpDir, "index.json"))
 	if err != nil {
-		return err
+		return errors.Wrap(err, "error opening oci index")
 	}
-	manifestFile, err := os.Open(manifestPath)
-	if err != nil {
-		return err
-	}
-	defer manifestFile.Close()
+	defer f.Close()
+	var index ocispecv1.Index
 
-	// 4. decode the json file into a struct
-	var manifest manifestItem
-	if err := json.NewDecoder(manifestFile).Decode(&manifest); err != nil {
-		return err
+	if err := json.NewDecoder(f).Decode(&index); err != nil {
+		return errors.Wrap(err, "error reading oci index")
 	}
 
-	// 5. read config file
-	configPath, err := safePath(tmpDir, manifest.Config)
-	if err != nil {
-		return err
-	}
-	rdr, err := os.Open(configPath)
-	if err != nil {
-		return err
-	}
-	defer rdr.Close()
+	for _, m := range index.Manifests {
+		if m.MediaType != ocispecv1.MediaTypeImageManifest {
+			continue
+		}
 
-	// write config to blobStore.
-	configBlob, err := pm.blobStore.New()
-	if err != nil {
-		return err
-	}
-	defer configBlob.Close()
+		f, err := os.Open(filepath.Join(tmpDir, "blobs", m.Digest.Algorithm().String(), m.Digest.Hex()))
+		if err != nil {
+			return errors.Wrap(err, "error opening manifest")
+		}
 
-	configRdr := io.TeeReader(rdr, configBlob)
-	configBytes, err := ioutil.ReadAll(configRdr)
-	if err != nil {
-		return err
-	}
-	_, err = configBlob.Commit()
-	if err != nil {
-		return err
-	}
+		var manifest ocispecv1.Manifest
+		if err := json.NewDecoder(f).Decode(&manifest); err != nil {
+			return errors.Wrap(err, "error reading manifest")
+		}
+		if manifest.Config.MediaType != schema2.MediaTypePluginConfig {
+			continue
+		}
 
-	var config types.PluginConfig
-	if err := json.Unmarshal(configBytes, &config); err != nil {
-		return err
-	}
-	privileges, err := computePrivileges(config)
-	if err != nil {
-		return err
-	}
+		// TODO(@cpuguy83): verify digests?
+		f, err = os.Open(filepath.Join(tmpDir, "blobs", manifest.Config.Digest.Algorithm().String(), manifest.Config.Digest.Hex()))
+		if err != nil {
+			return errors.Wrap(err, "error opening plugin config")
+		}
+		defer f.Close()
 
-	// 6. read rootfs
-	compressedTar, err := safePath(tmpDir, manifest.Layers[0])
-	if err != nil {
-		return err
+		configBlob, err := pm.blobStore.New()
+		if err != nil {
+			return err
+		}
+		defer configBlob.Close()
+		r := io.TeeReader(f, configBlob)
+
+		var config types.PluginConfig
+		if err := json.NewDecoder(r).Decode(&config); err != nil {
+			return errors.Wrap(err, "error reading plugin config")
+		}
+		if _, err := configBlob.Commit(); err != nil {
+			return err
+		}
+		privileges, err := computePrivileges(config)
+		if err != nil {
+			return err
+		}
+
+		// create a tmpdir to extract the plugin rootfs
+		tmpRootFS, err := ioutil.TempDir(tmpDir, ".rootfs")
+		if err != nil {
+			return errors.Wrap(err, "error creating rootfs dir")
+		}
+		defer os.RemoveAll(tmpRootFS)
+
+		layerDigests := make([]digest.Digest, 0, len(manifest.Layers))
+		for _, l := range manifest.Layers {
+			if l.MediaType != ocispecv1.MediaTypeImageLayerGzip {
+				continue
+			}
+			compressedTar, err := os.Open(filepath.Join(tmpDir, "blobs", l.Digest.Algorithm().String(), l.Digest.Hex()))
+			if err != nil {
+				return err
+			}
+			defer compressedTar.Close()
+			// XXX: Instead of using the blobStore interface to create, write and commit
+			// to blobstore, why not simply copy the files and rename them?
+			rootfsBlob, err := pm.blobStore.New()
+			if err != nil {
+				return err
+			}
+			defer rootfsBlob.Close()
+
+			size, err := io.Copy(rootfsBlob, compressedTar)
+			if err != nil {
+				return errors.Wrap(err, "error reading layer")
+			}
+			if size != l.Size {
+				return errors.New("layer size mismatch")
+			}
+
+			if _, err := rootfsBlob.Commit(); err != nil {
+				return err
+			}
+
+			// decompress for plugin rootfs
+			if _, err := compressedTar.Seek(0, 0); err != nil {
+				return errors.Wrap(err, "error seeking to beginning of layer stream")
+			}
+			decompressedTar, err := archive.DecompressStream(compressedTar)
+			if err != nil {
+				return err
+			}
+			if err = chrootarchive.Untar(decompressedTar, tmpRootFS, nil); err != nil {
+				return err
+			}
+			layerDigests = append(layerDigests, l.Digest)
+		}
+
+		name := m.Annotations["com.docker.plugin.ref.name"]
+		p, err := pm.createPlugin(name, manifest.Config.Digest, layerDigests, tmpRootFS, &privileges, &config)
+		if err != nil {
+			return err
+		}
+
+		p.PluginObj.PluginReference = name
+		pm.config.LogPluginEvent(p.PluginObj.ID, name, "load")
+
+		outStream.Write([]byte(fmt.Sprintf("Loaded plugin ID: %s\n", p.PluginObj.ID)))
+
+		// call mountPropUpdate to finalize mount magic for volume plugins.
+		mountPropUpdate(p)
 	}
-	// open the compressedTar
-	compressedTarRdr, err := os.Open(compressedTar)
-	if err != nil {
-		return err
-	}
-	defer compressedTarRdr.Close()
-
-	// XXX: Instead of using the blobStore interface to create, write and commit
-	// to blobstore, why not simply copy the files and rename them?
-
-	// write rootfs to blobStore
-	rootfsBlob, err := pm.blobStore.New()
-	if err != nil {
-		return err
-	}
-	rootfsRdr := io.TeeReader(compressedTarRdr, rootfsBlob)
-	_, err = ioutil.ReadAll(rootfsRdr)
-	if err != nil {
-		return err
-	}
-	_, err = rootfsBlob.Commit()
-	if err != nil {
-		return err
-	}
-
-	// file seek to the beginning for DecompressStream's reader
-	compressedTarRdr.Seek(0, 0)
-	// decompress the tar.gz archive.
-	decompressedTarRdr, err := archive.DecompressStream(compressedTarRdr)
-	if err != nil {
-		return err
-	}
-	// create a tmpdir to extract the decompressedTarRdr
-	tmpRootFS, err := ioutil.TempDir(tmpDir, ".rootfs")
-	if err != nil {
-		return err
-	}
-	defer os.RemoveAll(tmpRootFS)
-	if err = chrootarchive.Untar(decompressedTarRdr, tmpRootFS, nil); err != nil {
-		return err
-	}
-
-	// 7. generate new plugin config from JSON and rootfs with the given config file
-	// and the given rootfs. Register a new plugin.
-	tmp1 := strings.Split(manifest.Config, ".")
-	configDigest := digest.NewDigestFromHex("sha256", tmp1[0])
-	logrus.Debugf("config digest: %v", configDigest)
-
-	tmp2 := strings.Split(manifest.Layers[0], ".")
-	rootfsDigest := digest.NewDigestFromHex("sha256", tmp2[0])
-	logrus.Debugf("rootfs digest: %v", rootfsDigest)
-
-	layerDigests := []digest.Digest{rootfsDigest}
-	p, err := pm.createPlugin(manifest.Name, configDigest, layerDigests, tmpRootFS, &privileges, &config)
-	if err != nil {
-		return err
-	}
-
-	p.PluginObj.PluginReference = manifest.Name
-
-	pm.config.LogPluginEvent(p.PluginObj.ID, manifest.Name, "load")
-
-	outStream.Write([]byte(fmt.Sprintf("Loaded plugin ID: %s\n", p.PluginObj.ID)))
-
-	// call mountPropUpdate to finalize mount magic for volume plugins.
-	mountPropUpdate(p)
 
 	return nil
 }
