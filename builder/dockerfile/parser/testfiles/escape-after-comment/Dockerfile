@@ -4,6 +4,6 @@
 # escape = `
 
 FROM image
-MAINTAINER foo@bar.com
+LABEL maintainer foo@bar.com
 ENV GOPATH \
 \go

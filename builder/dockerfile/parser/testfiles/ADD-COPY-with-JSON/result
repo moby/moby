@@ -1,5 +1,5 @@
 (from "ubuntu:14.04")
-(maintainer "Seongyeol Lim <seongyeol37@gmail.com>")
+(label "maintainer" "Seongyeol Lim <seongyeol37@gmail.com>")
 (copy "." "/go/src/github.com/docker/docker")
 (add "." "/")
 (add "null" "/")
