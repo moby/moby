@@ -31,6 +31,7 @@ docker-build - Build an image from a Dockerfile
 [**--cpu-quota**[=*0*]]
 [**--cpuset-cpus**[=*CPUSET-CPUS*]]
 [**--cpuset-mems**[=*CPUSET-MEMS*]]
+[**--target**[=*[]*]]
 [**--ulimit**[=*[]*]]
 PATH | URL | -
 
@@ -232,6 +233,9 @@ two memory nodes.
 
   If the path is not absolute, the path is considered relative to the `cgroups` path of the init process.
 Cgroups are created if they do not already exist.
+
+**--target**=""
+   Set the target build stage name.
 
 **--ulimit**=[]
   Ulimit options
