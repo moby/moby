@@ -66,7 +66,7 @@ func (n *Namespace) newCounterOpts(name, help string) prometheus.CounterOpts {
 	return prometheus.CounterOpts{
 		Namespace:   n.name,
 		Subsystem:   n.subsystem,
-		Name:        fmt.Sprintf("%s_%s", name, Total),
+		Name:        makeName(name, Total),
 		Help:        help,
 		ConstLabels: prometheus.Labels(n.labels),
 	}
@@ -92,7 +92,7 @@ func (n *Namespace) newTimerOpts(name, help string) prometheus.HistogramOpts {
 	return prometheus.HistogramOpts{
 		Namespace:   n.name,
 		Subsystem:   n.subsystem,
-		Name:        fmt.Sprintf("%s_%s", name, Seconds),
+		Name:        makeName(name, Seconds),
 		Help:        help,
 		ConstLabels: prometheus.Labels(n.labels),
 	}
@@ -118,7 +118,7 @@ func (n *Namespace) newGaugeOpts(name, help string, unit Unit) prometheus.GaugeO
 	return prometheus.GaugeOpts{
 		Namespace:   n.name,
 		Subsystem:   n.subsystem,
-		Name:        fmt.Sprintf("%s_%s", name, unit),
+		Name:        makeName(name, unit),
 		Help:        help,
 		ConstLabels: prometheus.Labels(n.labels),
 	}
@@ -149,9 +149,7 @@ func (n *Namespace) Add(collector prometheus.Collector) {
 }
 
 func (n *Namespace) NewDesc(name, help string, unit Unit, labels ...string) *prometheus.Desc {
-	if string(unit) != "" {
-		name = fmt.Sprintf("%s_%s", name, unit)
-	}
+	name = makeName(name, unit)
 	namespace := n.name
 	if n.subsystem != "" {
 		namespace = fmt.Sprintf("%s_%s", namespace, n.subsystem)
@@ -172,4 +170,12 @@ func mergeLabels(lbs ...Labels) Labels {
 	}
 
 	return merged
+}
+
+func makeName(name string, unit Unit) string {
+	if unit == "" {
+		return name
+	}
+
+	return fmt.Sprintf("%s_%s", name, unit)
 }
