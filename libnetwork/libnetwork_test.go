@@ -359,6 +359,109 @@ func TestDeleteNetworkWithActiveEndpoints(t *testing.T) {
 	}
 }
 
+func TestNetworkConfig(t *testing.T) {
+	if !testutils.IsRunningInContainer() {
+		defer testutils.SetupTestOSContext(t)()
+	}
+
+	// Verify config network cannot inherit another config network
+	configNetwork, err := controller.NewNetwork("bridge", "config_network0", "",
+		libnetwork.NetworkOptionConfigOnly(),
+		libnetwork.NetworkOptionConfigFrom("anotherConfigNw"))
+
+	if err == nil {
+		t.Fatal("Expected to fail. But instead succeeded")
+	}
+	if _, ok := err.(types.ForbiddenError); !ok {
+		t.Fatalf("Did not fail with expected error. Actual error: %v", err)
+	}
+
+	// Create supported config network
+	netOption := options.Generic{
+		"EnableICC": false,
+	}
+	option := options.Generic{
+		netlabel.GenericData: netOption,
+	}
+	ipamV4ConfList := []*libnetwork.IpamConf{{PreferredPool: "192.168.100.0/24", SubPool: "192.168.100.128/25", Gateway: "192.168.100.1"}}
+	ipamV6ConfList := []*libnetwork.IpamConf{{PreferredPool: "2001:db8:abcd::/64", SubPool: "2001:db8:abcd::ef99/80", Gateway: "2001:db8:abcd::22"}}
+
+	netOptions := []libnetwork.NetworkOption{
+		libnetwork.NetworkOptionConfigOnly(),
+		libnetwork.NetworkOptionEnableIPv6(true),
+		libnetwork.NetworkOptionGeneric(option),
+		libnetwork.NetworkOptionIpam("default", "", ipamV4ConfList, ipamV6ConfList, nil),
+	}
+
+	configNetwork, err = controller.NewNetwork(bridgeNetType, "config_network0", "", netOptions...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify a config-only network cannot be created with network operator configurations
+	for i, opt := range []libnetwork.NetworkOption{
+		libnetwork.NetworkOptionInternalNetwork(),
+		libnetwork.NetworkOptionAttachable(true),
+		libnetwork.NetworkOptionIngress(true),
+	} {
+		_, err = controller.NewNetwork(bridgeNetType, "testBR", "",
+			libnetwork.NetworkOptionConfigOnly(), opt)
+		if err == nil {
+			t.Fatalf("Expected to fail. But instead succeeded for option: %d", i)
+		}
+		if _, ok := err.(types.ForbiddenError); !ok {
+			t.Fatalf("Did not fail with expected error. Actual error: %v", err)
+		}
+	}
+
+	// Verify a network cannot be created with both config-from and network specific configurations
+	for i, opt := range []libnetwork.NetworkOption{
+		libnetwork.NetworkOptionEnableIPv6(true),
+		libnetwork.NetworkOptionIpam("my-ipam", "", nil, nil, nil),
+		libnetwork.NetworkOptionIpam("", "", ipamV4ConfList, nil, nil),
+		libnetwork.NetworkOptionIpam("", "", nil, ipamV6ConfList, nil),
+		libnetwork.NetworkOptionLabels(map[string]string{"number": "two"}),
+		libnetwork.NetworkOptionDriverOpts(map[string]string{"com.docker.network.mtu": "1600"}),
+	} {
+		_, err = controller.NewNetwork(bridgeNetType, "testBR", "",
+			libnetwork.NetworkOptionConfigFrom("config_network0"), opt)
+		if err == nil {
+			t.Fatalf("Expected to fail. But instead succeeded for option: %d", i)
+		}
+		if _, ok := err.(types.ForbiddenError); !ok {
+			t.Fatalf("Did not fail with expected error. Actual error: %v", err)
+		}
+	}
+
+	// Create a valid network
+	network, err := controller.NewNetwork(bridgeNetType, "testBR", "",
+		libnetwork.NetworkOptionConfigFrom("config_network0"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify the config network cannot be removed
+	err = configNetwork.Delete()
+	if err == nil {
+		t.Fatal("Expected to fail. But instead succeeded")
+	}
+
+	if _, ok := err.(types.ForbiddenError); !ok {
+		t.Fatalf("Did not fail with expected error. Actual error: %v", err)
+	}
+
+	// Delete network
+	if err := network.Delete(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify the config network can now be removed
+	if err := configNetwork.Delete(); err != nil {
+		t.Fatal(err)
+	}
+
+}
+
 func TestUnknownNetwork(t *testing.T) {
 	if !testutils.IsRunningInContainer() {
 		defer testutils.SetupTestOSContext(t)()

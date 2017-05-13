@@ -238,8 +238,9 @@ func TestGetExtraCapabilities(t *testing.T) {
 
 	handle(t, mux, "GetCapabilities", func(msg map[string]interface{}) interface{} {
 		return map[string]interface{}{
-			"Scope": "local",
-			"foo":   "bar",
+			"Scope":             "local",
+			"foo":               "bar",
+			"ConnectivityScope": "global",
 		}
 	})
 
@@ -258,6 +259,8 @@ func TestGetExtraCapabilities(t *testing.T) {
 		t.Fatal(err)
 	} else if c.DataScope != datastore.LocalScope {
 		t.Fatalf("get capability '%s', expecting 'local'", c.DataScope)
+	} else if c.ConnectivityScope != datastore.GlobalScope {
+		t.Fatalf("get capability '%s', expecting %q", c.ConnectivityScope, datastore.GlobalScope)
 	}
 }
 

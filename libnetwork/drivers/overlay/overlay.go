@@ -56,7 +56,8 @@ type driver struct {
 // Init registers a new instance of overlay driver
 func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 	c := driverapi.Capability{
-		DataScope: datastore.GlobalScope,
+		DataScope:         datastore.GlobalScope,
+		ConnectivityScope: datastore.GlobalScope,
 	}
 	d := &driver{
 		networks: networkTable{},

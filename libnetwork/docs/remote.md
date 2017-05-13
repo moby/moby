@@ -56,10 +56,12 @@ Other entries in the list value are allowed; `"NetworkDriver"` indicates that th
 After Handshake, the remote driver will receive another POST message to the URL `/NetworkDriver.GetCapabilities` with no payload. The driver's response should have the form:
 
 	{
-		"Scope": "local"
+		"Scope":             "local"
+		"ConnectivityScope": "global"
 	}
 
-Value of "Scope" should be either "local" or "global" which indicates the capability of remote driver, values beyond these will fail driver's registration and return an error to the caller.
+Value of "Scope" should be either "local" or "global" which indicates whether the resource allocations for this driver's network can be done only locally to the node or globally across the cluster of nodes. Any other value will fail driver's registration and return an error to the caller.
+Similarly, value of "ConnectivityScope" should be either "local" or "global" which indicates whether the driver's network can provide connectivity only locally to this node or globally across the cluster of nodes. If the value is missing, libnetwork will set it to the value of "Scope". should be either "local" or "global" which indicates
 
 ### Create network
 

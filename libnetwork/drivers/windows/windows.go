@@ -104,7 +104,8 @@ func GetInit(networkType string) func(dc driverapi.DriverCallback, config map[st
 		}
 
 		return dc.RegisterDriver(networkType, newDriver(networkType), driverapi.Capability{
-			DataScope: datastore.LocalScope,
+			DataScope:         datastore.LocalScope,
+			ConnectivityScope: datastore.LocalScope,
 		})
 	}
 }
