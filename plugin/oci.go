@@ -16,6 +16,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+const ociPluginNameKey = "com.docker.plugin.ref.name"
+
 func ociNewManifest() ocispecv1.Manifest {
 	return ocispecv1.Manifest{
 		Versioned: specs.Versioned{SchemaVersion: 2},
@@ -90,4 +92,53 @@ func ociWriteIndex(root string, manifests []ocispecv1.Descriptor) error {
 		return errors.Wrap(err, "error resetting mod times on oci index file")
 	}
 	return nil
+}
+
+type ociImageBundleV1 struct {
+	root string
+}
+
+func (b *ociImageBundleV1) GetIndex() (ocispecv1.Index, error) {
+	var index ocispecv1.Index
+
+	f, err := os.Open(filepath.Join(b.root, "index.json"))
+	if err != nil {
+		return index, errors.Wrap(err, "error opening oci index")
+	}
+	defer f.Close()
+
+	if err := json.NewDecoder(f).Decode(&index); err != nil {
+		return index, errors.Wrap(err, "error reading oci index")
+	}
+	return index, nil
+}
+
+func (b *ociImageBundleV1) ReadManifest(d ocispecv1.Descriptor) (ocispecv1.Manifest, error) {
+	var m ocispecv1.Manifest
+
+	f, err := b.openBlob(d.Digest)
+	if err != nil {
+		return m, errors.Wrap(err, "error reading manifest")
+	}
+	defer f.Close()
+
+	digester := digest.Canonical.Digester()
+	rdr := io.TeeReader(f, digester.Hash())
+
+	if err := json.NewDecoder(rdr).Decode(&m); err != nil {
+		return m, errors.Wrap(err, "error decoding manifest")
+	}
+
+	if d.Digest != digester.Digest() {
+		return m, errDigestMismatch
+	}
+	return m, nil
+}
+
+func (b *ociImageBundleV1) openBlob(d digest.Digest) (io.ReadCloser, error) {
+	f, err := os.Open(filepath.Join(b.root, "blobs", d.Algorithm().String(), d.Hex()))
+	if err != nil {
+		return nil, errors.Wrap(err, "error opening blob")
+	}
+	return f, nil
 }

@@ -35,7 +35,6 @@ import (
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
-	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/plugin/v2"
 	refstore "github.com/docker/docker/reference"
 	"github.com/opencontainers/go-digest"
@@ -44,16 +43,12 @@ import (
 	"golang.org/x/net/context"
 )
 
-const mediaTypePluginConfig string = "application/vnd.oci.image.manifest.v1+json"
-
 var acceptedPluginFilterTags = map[string]bool{
 	"enabled":    true,
 	"capability": true,
 }
 
-const (
-	manifestFileName = "manifest.json"
-)
+var errDigestMismatch = errors.New("digest does not match")
 
 // Disable deactivates a plugin. This means resources (volumes, networks) cant use them.
 func (pm *Manager) Disable(refOrID string, config *types.PluginDisableConfig) error {
@@ -882,7 +877,7 @@ func (pm *Manager) SavePlugin(plugin string, outStream io.Writer) error {
 			MediaType:   ocispecv1.MediaTypeImageManifest,
 			Size:        manifestSize,
 			Digest:      manifestDigest,
-			Annotations: map[string]string{"com.docker.plugin.ref.name": srcP.PluginObj.Name},
+			Annotations: map[string]string{ociPluginNameKey: srcP.PluginObj.Name},
 		},
 	}); err != nil {
 		return err
@@ -904,17 +899,6 @@ func (pm *Manager) SavePlugin(plugin string, outStream io.Writer) error {
 	return nil
 }
 
-func safePath(base, path string) (string, error) {
-	return symlink.FollowSymlinkInScope(filepath.Join(base, path), base)
-}
-
-// TODO: remove this, won't be used
-type manifestItem struct {
-	Name   string
-	Layers []string
-	Config string
-}
-
 // LoadPlugin loads a plugin from input tar archive
 // The input archive *must* be in the OCI image spec format defined here:
 // https://github.com/opencontainers/image-spec/blob/master/image-layout.md
@@ -932,15 +916,10 @@ func (pm *Manager) LoadPlugin(input io.ReadCloser, outStream io.Writer, quiet bo
 		return err
 	}
 
-	f, err := os.Open(filepath.Join(tmpDir, "index.json"))
+	bundle := &ociImageBundleV1{tmpDir}
+	index, err := bundle.GetIndex()
 	if err != nil {
-		return errors.Wrap(err, "error opening oci index")
-	}
-	defer f.Close()
-	var index ocispecv1.Index
-
-	if err := json.NewDecoder(f).Decode(&index); err != nil {
-		return errors.Wrap(err, "error reading oci index")
+		return err
 	}
 
 	for _, m := range index.Manifests {
@@ -948,23 +927,18 @@ func (pm *Manager) LoadPlugin(input io.ReadCloser, outStream io.Writer, quiet bo
 			continue
 		}
 
-		f, err := os.Open(filepath.Join(tmpDir, "blobs", m.Digest.Algorithm().String(), m.Digest.Hex()))
+		manifest, err := bundle.ReadManifest(m)
 		if err != nil {
-			return errors.Wrap(err, "error opening manifest")
+			return err
 		}
 
-		var manifest ocispecv1.Manifest
-		if err := json.NewDecoder(f).Decode(&manifest); err != nil {
-			return errors.Wrap(err, "error reading manifest")
-		}
 		if manifest.Config.MediaType != schema2.MediaTypePluginConfig {
 			continue
 		}
 
-		// TODO(@cpuguy83): verify digests?
-		f, err = os.Open(filepath.Join(tmpDir, "blobs", manifest.Config.Digest.Algorithm().String(), manifest.Config.Digest.Hex()))
+		f, err := bundle.openBlob(manifest.Config.Digest)
 		if err != nil {
-			return errors.Wrap(err, "error opening plugin config")
+			return err
 		}
 		defer f.Close()
 
@@ -979,9 +953,15 @@ func (pm *Manager) LoadPlugin(input io.ReadCloser, outStream io.Writer, quiet bo
 		if err := json.NewDecoder(r).Decode(&config); err != nil {
 			return errors.Wrap(err, "error reading plugin config")
 		}
-		if _, err := configBlob.Commit(); err != nil {
+		configDigest, err := configBlob.Commit()
+		if err != nil {
 			return err
 		}
+
+		if configDigest != manifest.Config.Digest {
+			return errDigestMismatch
+		}
+
 		privileges, err := computePrivileges(config)
 		if err != nil {
 			return err
@@ -999,46 +979,49 @@ func (pm *Manager) LoadPlugin(input io.ReadCloser, outStream io.Writer, quiet bo
 			if l.MediaType != ocispecv1.MediaTypeImageLayerGzip {
 				continue
 			}
-			compressedTar, err := os.Open(filepath.Join(tmpDir, "blobs", l.Digest.Algorithm().String(), l.Digest.Hex()))
-			if err != nil {
-				return err
-			}
-			defer compressedTar.Close()
-			// XXX: Instead of using the blobStore interface to create, write and commit
-			// to blobstore, why not simply copy the files and rename them?
-			rootfsBlob, err := pm.blobStore.New()
-			if err != nil {
-				return err
-			}
-			defer rootfsBlob.Close()
 
-			size, err := io.Copy(rootfsBlob, compressedTar)
-			if err != nil {
-				return errors.Wrap(err, "error reading layer")
-			}
-			if size != l.Size {
-				return errors.New("layer size mismatch")
-			}
-
-			if _, err := rootfsBlob.Commit(); err != nil {
-				return err
+			var blob io.Reader
+			var layerCommiter Commiter
+			if f, err := pm.blobStore.Get(l.Digest); err == nil && f != nil {
+				defer f.Close()
+				blob = f
+			} else {
+				bs, err := pm.blobStore.New()
+				if err != nil {
+					return err
+				}
+				defer bs.Close()
+				f, err := bundle.openBlob(l.Digest)
+				if err != nil {
+					return err
+				}
+				defer f.Close()
+				blob = io.TeeReader(f, bs)
+				layerCommiter = bs
 			}
 
-			// decompress for plugin rootfs
-			if _, err := compressedTar.Seek(0, 0); err != nil {
-				return errors.Wrap(err, "error seeking to beginning of layer stream")
-			}
-			decompressedTar, err := archive.DecompressStream(compressedTar)
+			tar, err := archive.DecompressStream(blob)
 			if err != nil {
-				return err
+				return errors.Wrapf(err, "error decompressing layer stream for %s", l.Digest.String())
 			}
-			if err = chrootarchive.Untar(decompressedTar, tmpRootFS, nil); err != nil {
-				return err
+			if _, err := chrootarchive.ApplyLayer(tmpRootFS, tar); err != nil {
+				return errors.Wrap(err, "error extracting layer")
 			}
+
+			if layerCommiter != nil {
+				dgst, err := layerCommiter.Commit()
+				if err != nil {
+					return err
+				}
+				if dgst != l.Digest {
+					return errDigestMismatch
+				}
+			}
+
 			layerDigests = append(layerDigests, l.Digest)
 		}
 
-		name := m.Annotations["com.docker.plugin.ref.name"]
+		name := m.Annotations[ociPluginNameKey]
 		p, err := pm.createPlugin(name, manifest.Config.Digest, layerDigests, tmpRootFS, &privileges, &config)
 		if err != nil {
 			return err

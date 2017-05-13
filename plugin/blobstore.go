@@ -76,6 +76,11 @@ func (b *basicBlobStore) gc(whitelist map[digest.Digest]struct{}) {
 // WriteCommitCloser defines object that can be committed to blobstore.
 type WriteCommitCloser interface {
 	io.WriteCloser
+	Commiter
+}
+
+// Commiter is an object that can commit a blob and return it's digest
+type Commiter interface {
 	Commit() (digest.Digest, error)
 }
 
