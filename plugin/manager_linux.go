@@ -273,16 +273,14 @@ func (pm *Manager) setupNewPlugin(configDigest digest.Digest, privileges *types.
 }
 
 // createPlugin creates a new plugin. take lock before calling.
-func (pm *Manager) createPlugin(name string, configDigest digest.Digest, blobsums []digest.Digest, rootFSDir string, privileges *types.PluginPrivileges, config *types.PluginConfig) (p *v2.Plugin, err error) {
+func (pm *Manager) createPlugin(name string, configDigest digest.Digest, blobsums []digest.Digest, rootFSDir string, privileges *types.PluginPrivileges) (p *v2.Plugin, err error) {
 	if err := pm.config.Store.validateName(name); err != nil { // todo: this check is wrong. remove store
 		return nil, err
 	}
 
-	if config == nil {
-		config, err = pm.setupNewPlugin(configDigest, privileges)
-		if err != nil {
-			return nil, err
-		}
+	config, err := pm.setupNewPlugin(configDigest, privileges)
+	if err != nil {
+		return nil, err
 	}
 
 	p = &v2.Plugin{

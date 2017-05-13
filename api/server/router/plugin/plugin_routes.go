@@ -228,7 +228,7 @@ func (pr *pluginRouter) savePlugin(ctx context.Context, w http.ResponseWriter, r
 	plugin := r.FormValue("plugin")
 
 	// send output to the backend, so that it can be filled with the tar stream
-	if err := pr.backend.SavePlugin(plugin, output); err != nil {
+	if err := pr.backend.SavePlugin(ctx, plugin, output); err != nil {
 		if !output.Flushed() {
 			return err
 		}
@@ -242,15 +242,16 @@ func (pr *pluginRouter) loadPlugin(ctx context.Context, w http.ResponseWriter, r
 		return err
 	}
 
-	quiet := httputils.BoolValueOrDefault(r, "quiet", true)
-
 	// set the response to json
 	w.Header().Set("Content-Type", "application/json")
 
 	output := ioutils.NewWriteFlusher(w)
 	defer output.Close()
 
-	if err := pr.backend.LoadPlugin(r.Body, output, quiet); err != nil {
+	if err := pr.backend.LoadPlugin(ctx, r.Body, output); err != nil {
+		if !output.Flushed() {
+			return err
+		}
 		output.Write(streamformatter.FormatError(err))
 	}
 	return nil

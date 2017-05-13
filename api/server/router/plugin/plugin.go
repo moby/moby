@@ -35,7 +35,7 @@ func (r *pluginRouter) initRoutes() {
 		router.NewPostRoute("/plugins/{name:.*}/upgrade", r.upgradePlugin, router.WithCancel),
 		router.NewPostRoute("/plugins/{name:.*}/set", r.setPlugin),
 		router.NewPostRoute("/plugins/create", r.createPlugin),
-		router.NewPostRoute("/plugins/load", r.loadPlugin),
-		router.NewGetRoute("/plugins/save", r.savePlugin),
+		router.NewPostRoute("/plugins/load", r.loadPlugin, router.WithCancel),
+		router.NewGetRoute("/plugins/save", r.savePlugin, router.WithCancel),
 	}
 }

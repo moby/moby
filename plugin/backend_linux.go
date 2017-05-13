@@ -38,6 +38,7 @@ import (
 	"github.com/docker/docker/plugin/v2"
 	refstore "github.com/docker/docker/reference"
 	"github.com/opencontainers/go-digest"
+	specs "github.com/opencontainers/image-spec/specs-go"
 	ocispecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
@@ -47,8 +48,6 @@ var acceptedPluginFilterTags = map[string]bool{
 	"enabled":    true,
 	"capability": true,
 }
-
-var errDigestMismatch = errors.New("digest does not match")
 
 // Disable deactivates a plugin. This means resources (volumes, networks) cant use them.
 func (pm *Manager) Disable(refOrID string, config *types.PluginDisableConfig) error {
@@ -353,7 +352,7 @@ func (pm *Manager) Pull(ctx context.Context, ref reference.Named, name string, m
 		return err
 	}
 
-	p, err := pm.createPlugin(name, dm.configDigest, dm.blobs, tmpRootFSDir, &privileges, nil)
+	p, err := pm.createPlugin(name, dm.configDigest, dm.blobs, tmpRootFSDir, &privileges)
 	if err != nil {
 		return err
 	}
@@ -792,7 +791,7 @@ func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, 
 		return err
 	}
 
-	p, err := pm.createPlugin(name, configBlobsum, []digest.Digest{rootFSBlobsum}, tmpRootFSDir, nil, nil)
+	p, err := pm.createPlugin(name, configBlobsum, []digest.Digest{rootFSBlobsum}, tmpRootFSDir, nil)
 	if err != nil {
 		return err
 	}
@@ -806,7 +805,7 @@ func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, 
 // SavePlugin saves the plugin in outStream
 // The tar layout follows the v1.0 OCI image spec defined here:
 // https://github.com/opencontainers/image-spec/blob/master/image-layout.md
-func (pm *Manager) SavePlugin(plugin string, outStream io.Writer) error {
+func (pm *Manager) SavePlugin(ctx context.Context, plugin string, outStream io.Writer) (err error) {
 	srcP, err := pm.config.Store.GetV2Plugin(plugin)
 	if err != nil {
 		return err
@@ -815,45 +814,47 @@ func (pm *Manager) SavePlugin(plugin string, outStream io.Writer) error {
 	pm.muGC.RLock()
 	defer pm.muGC.RUnlock()
 
-	ref, err := reference.ParseNormalizedNamed(plugin)
-	if err != nil {
-		return errors.Wrapf(err, "failed to parse reference %v", plugin)
-	}
-	if _, ok := ref.(reference.Canonical); ok {
-		return errors.Errorf("canonical references are not permitted")
-	}
-
-	// 1. create tempDir to save the tar
 	tempDir, err := ioutil.TempDir("", "docker-plugin-export-")
 	if err != nil {
 		return err
 	}
 	defer os.RemoveAll(tempDir)
 
-	// 2. save config and rootfs into tmpdir
-	manifest := ociNewManifest()
+	bundle := ociImageBundleV1{tempDir}
+	manifest := ocispecv1.Manifest{
+		Versioned: specs.Versioned{SchemaVersion: 2},
+		Config: ocispecv1.Descriptor{
+			MediaType: schema2.MediaTypePluginConfig,
+		},
+	}
 
 	for i, dgst := range append([]digest.Digest{srcP.Config}, srcP.Blobsums...) {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
 		rdr, err := pm.blobStore.Get(dgst)
 		if err != nil {
 			return err
 		}
 		defer rdr.Close()
 
-		size, err := ociWriteBlob(tempDir, dgst, rdr)
+		d, err := bundle.AddBlob(rdr)
 		if err != nil {
 			return err
 		}
+		if d.Digest != dgst {
+			return errDigestMismatch
+		}
 
 		if i == 0 {
-			manifest.Config.Digest = dgst
-			manifest.Config.Size = size
+			manifest.Config.Digest = d.Digest
+			manifest.Config.Size = d.Size
 		} else {
-			manifest.Layers = append(manifest.Layers, ocispecv1.Descriptor{
-				Digest:    dgst,
-				Size:      size,
-				MediaType: ocispecv1.MediaTypeImageLayerGzip,
-			})
+			d.MediaType = ocispecv1.MediaTypeImageLayerGzip
+			manifest.Layers = append(manifest.Layers, d)
 		}
 	}
 
@@ -861,25 +862,14 @@ func (pm *Manager) SavePlugin(plugin string, outStream io.Writer) error {
 	if err != nil {
 		return errors.Wrap(err, "error marshaling plugin manifest")
 	}
-	manifestDigest := digest.FromBytes(manifestBytes)
-	manifestSize, err := ociWriteBlob(tempDir, manifestDigest, bytes.NewReader(manifestBytes))
+	manifestDescriptor, err := bundle.AddBlob(bytes.NewReader(manifestBytes))
 	if err != nil {
 		return err
 	}
+	manifestDescriptor.MediaType = ocispecv1.MediaTypeImageManifest
+	manifestDescriptor.Annotations = map[string]string{ociPluginNameKey: srcP.PluginObj.Name}
 
-	if err := ociWriteLayout(tempDir); err != nil {
-		return err
-	}
-	if err := ociWriteIndex(tempDir, []ocispecv1.Descriptor{
-		// TODO(@cpuguy83): support platform field?
-		// Haven't found where this is stored if at all yet
-		{
-			MediaType:   ocispecv1.MediaTypeImageManifest,
-			Size:        manifestSize,
-			Digest:      manifestDigest,
-			Annotations: map[string]string{ociPluginNameKey: srcP.PluginObj.Name},
-		},
-	}); err != nil {
+	if err := bundle.Commit([]ocispecv1.Descriptor{manifestDescriptor}); err != nil {
 		return err
 	}
 
@@ -902,7 +892,7 @@ func (pm *Manager) SavePlugin(plugin string, outStream io.Writer) error {
 // LoadPlugin loads a plugin from input tar archive
 // The input archive *must* be in the OCI image spec format defined here:
 // https://github.com/opencontainers/image-spec/blob/master/image-layout.md
-func (pm *Manager) LoadPlugin(input io.ReadCloser, outStream io.Writer, quiet bool) (err error) {
+func (pm *Manager) LoadPlugin(ctx context.Context, input io.ReadCloser, outStream io.Writer) (err error) {
 	outStream = streamformatter.NewStdoutWriter(outStream)
 
 	// 1. create the tempdir used to untar and then load
@@ -917,49 +907,24 @@ func (pm *Manager) LoadPlugin(input io.ReadCloser, outStream io.Writer, quiet bo
 	}
 
 	bundle := &ociImageBundleV1{tmpDir}
-	index, err := bundle.GetIndex()
-	if err != nil {
-		return err
-	}
-
-	for _, m := range index.Manifests {
-		if m.MediaType != ocispecv1.MediaTypeImageManifest {
-			continue
-		}
-
-		manifest, err := bundle.ReadManifest(m)
-		if err != nil {
-			return err
-		}
-
+	err = bundle.Walk(ctx, func(manifest ocispecv1.Manifest, annotations map[string]string) error {
 		if manifest.Config.MediaType != schema2.MediaTypePluginConfig {
-			continue
+			return nil
 		}
 
-		f, err := bundle.openBlob(manifest.Config.Digest)
+		f, verify, err := getBlob(pm.blobStore, bundle.Store(), manifest.Config.Digest)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "error getting plugin config")
 		}
 		defer f.Close()
 
-		configBlob, err := pm.blobStore.New()
-		if err != nil {
-			return err
-		}
-		defer configBlob.Close()
-		r := io.TeeReader(f, configBlob)
-
 		var config types.PluginConfig
-		if err := json.NewDecoder(r).Decode(&config); err != nil {
+		if err := json.NewDecoder(f).Decode(&config); err != nil {
 			return errors.Wrap(err, "error reading plugin config")
 		}
-		configDigest, err := configBlob.Commit()
-		if err != nil {
-			return err
-		}
 
-		if configDigest != manifest.Config.Digest {
-			return errDigestMismatch
+		if err := verify(); err != nil {
+			return err
 		}
 
 		privileges, err := computePrivileges(config)
@@ -975,54 +940,25 @@ func (pm *Manager) LoadPlugin(input io.ReadCloser, outStream io.Writer, quiet bo
 		defer os.RemoveAll(tmpRootFS)
 
 		layerDigests := make([]digest.Digest, 0, len(manifest.Layers))
-		for _, l := range manifest.Layers {
+
+		for i, l := range manifest.Layers {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+			}
 			if l.MediaType != ocispecv1.MediaTypeImageLayerGzip {
 				continue
 			}
-
-			var blob io.Reader
-			var layerCommiter Commiter
-			if f, err := pm.blobStore.Get(l.Digest); err == nil && f != nil {
-				defer f.Close()
-				blob = f
-			} else {
-				bs, err := pm.blobStore.New()
-				if err != nil {
-					return err
-				}
-				defer bs.Close()
-				f, err := bundle.openBlob(l.Digest)
-				if err != nil {
-					return err
-				}
-				defer f.Close()
-				blob = io.TeeReader(f, bs)
-				layerCommiter = bs
+			diffID := config.Rootfs.DiffIds[i]
+			if err := pm.importImageLayer(bundle.Store(), l.Digest, tmpRootFS, diffID); err != nil {
+				return err
 			}
-
-			tar, err := archive.DecompressStream(blob)
-			if err != nil {
-				return errors.Wrapf(err, "error decompressing layer stream for %s", l.Digest.String())
-			}
-			if _, err := chrootarchive.ApplyLayer(tmpRootFS, tar); err != nil {
-				return errors.Wrap(err, "error extracting layer")
-			}
-
-			if layerCommiter != nil {
-				dgst, err := layerCommiter.Commit()
-				if err != nil {
-					return err
-				}
-				if dgst != l.Digest {
-					return errDigestMismatch
-				}
-			}
-
 			layerDigests = append(layerDigests, l.Digest)
 		}
 
-		name := m.Annotations[ociPluginNameKey]
-		p, err := pm.createPlugin(name, manifest.Config.Digest, layerDigests, tmpRootFS, &privileges, &config)
+		name := annotations[ociPluginNameKey]
+		p, err := pm.createPlugin(name, manifest.Config.Digest, layerDigests, tmpRootFS, &privileges)
 		if err != nil {
 			return err
 		}
@@ -1031,12 +967,36 @@ func (pm *Manager) LoadPlugin(input io.ReadCloser, outStream io.Writer, quiet bo
 		pm.config.LogPluginEvent(p.PluginObj.ID, name, "load")
 
 		outStream.Write([]byte(fmt.Sprintf("Loaded plugin ID: %s\n", p.PluginObj.ID)))
-
 		// call mountPropUpdate to finalize mount magic for volume plugins.
 		mountPropUpdate(p)
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (pm *Manager) importImageLayer(remote readOnlyBlobstore, dgst digest.Digest, rootfs, diffID string) error {
+	blob, verify, err := getBlob(pm.blobStore, remote, dgst)
+	if err != nil {
+		return err
+	}
+	defer blob.Close()
+
+	tar, err := archive.DecompressStream(blob)
+	if err != nil {
+		return errors.Wrapf(err, "error decompressing layer stream for %s", dgst.String())
 	}
 
-	return nil
+	digester := digest.Canonical.Digester()
+	if _, err := chrootarchive.ApplyLayer(rootfs, io.TeeReader(tar, digester.Hash())); err != nil {
+		return errors.Wrap(err, "error extracting layer")
+	}
+	if digester.Digest() != digest.Digest(diffID) {
+		return errDigestMismatch
+	}
+	return verify()
 }
 
 func (pm *Manager) validateConfig(config types.PluginConfig) error {
