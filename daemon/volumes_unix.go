@@ -1,7 +1,5 @@
 // +build !windows
 
-// TODO(amitkris): We need to split this file for solaris.
-
 package daemon
 
 import (

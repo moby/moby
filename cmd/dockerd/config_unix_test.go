@@ -1,9 +1,8 @@
-// +build linux,!solaris freebsd,!solaris
+// +build linux freebsd
 
 package main
 
 import (
-	"runtime"
 	"testing"
 
 	"github.com/docker/docker/daemon/config"
@@ -12,9 +11,6 @@ import (
 )
 
 func TestDaemonParseShmSize(t *testing.T) {
-	if runtime.GOOS == "solaris" {
-		t.Skip("ShmSize not supported on Solaris\n")
-	}
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 
 	conf := &config.Config{}

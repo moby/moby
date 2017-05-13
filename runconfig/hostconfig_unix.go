@@ -1,4 +1,4 @@
-// +build !windows,!solaris
+// +build !windows
 
 package runconfig
 
