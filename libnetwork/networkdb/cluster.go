@@ -480,26 +480,31 @@ func (nDB *NetworkDB) bulkSyncTables() {
 
 func (nDB *NetworkDB) bulkSync(nodes []string, all bool) ([]string, error) {
 	if !all {
-		// If not all, then just pick one.
-		nodes = nDB.mRandomNodes(1, nodes)
+		// Get 2 random nodes. 2nd node will be tried if the bulk sync to
+		// 1st node fails.
+		nodes = nDB.mRandomNodes(2, nodes)
 	}
 
 	if len(nodes) == 0 {
 		return nil, nil
 	}
 
-	logrus.Debugf("%s: Initiating bulk sync with nodes %v", nDB.config.NodeName, nodes)
 	var err error
 	var networks []string
 	for _, node := range nodes {
 		if node == nDB.config.NodeName {
 			continue
 		}
-
+		logrus.Debugf("%s: Initiating bulk sync with node %v", nDB.config.NodeName, node)
 		networks = nDB.findCommonNetworks(node)
 		err = nDB.bulkSyncNode(networks, node, true)
+		// if its periodic bulksync stop after the first successful sync
+		if !all && err == nil {
+			break
+		}
 		if err != nil {
-			err = fmt.Errorf("bulk sync failed on node %s: %v", node, err)
+			err = fmt.Errorf("bulk sync to node %s failed: %v", node, err)
+			logrus.Warn(err.Error())
 		}
 	}
 
