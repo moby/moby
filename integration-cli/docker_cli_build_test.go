@@ -6202,6 +6202,27 @@ func (s *DockerSuite) TestBuildCopyFromWindowsIsCaseInsensitive(c *check.C) {
 	})
 }
 
+// #33176
+func (s *DockerSuite) TestBuildCopyFromResetScratch(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	dockerfile := `
+		FROM busybox
+		WORKDIR /foo/bar
+		FROM scratch
+		ENV FOO=bar
+		`
+	ctx := fakecontext.New(c, "",
+		fakecontext.WithDockerfile(dockerfile),
+	)
+	defer ctx.Close()
+
+	cli.BuildCmd(c, "build1", build.WithExternalBuildContext(ctx))
+
+	res := cli.InspectCmd(c, "build1", cli.Format(".Config.WorkingDir")).Combined()
+	c.Assert(strings.TrimSpace(res), checker.Equals, "")
+}
+
 func (s *DockerSuite) TestBuildIntermediateTarget(c *check.C) {
 	dockerfile := `
 		FROM busybox AS build-env

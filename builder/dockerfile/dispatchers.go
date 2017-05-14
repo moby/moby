@@ -8,6 +8,7 @@ package dockerfile
 // package.
 
 import (
+	"bytes"
 	"fmt"
 	"regexp"
 	"runtime"
@@ -16,7 +17,6 @@ import (
 	"strings"
 	"time"
 
-	"bytes"
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
