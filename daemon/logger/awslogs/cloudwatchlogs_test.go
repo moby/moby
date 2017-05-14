@@ -533,16 +533,16 @@ func TestCollectBatchMultilinePattern(t *testing.T) {
 	// Verify single multiline event
 	argument := <-mockClient.putLogEventsArgument
 	assert.NotNil(t, argument, "Expected non-nil PutLogEventsInput")
-	assert.Equal(t, 1, len(argument.LogEvents), "Expected LogEvents to contain 1 elements, but contains %d", len(argument.LogEvents))
-	assert.Equal(t, logline+"\n"+logline+"\n", *argument.LogEvents[0].Message, "Expected message to be %s but was %s", logline+logline, *argument.LogEvents[0].Message)
+	assert.Equal(t, 1, len(argument.LogEvents), "Expected single multiline event")
+	assert.Equal(t, logline+"\n"+logline+"\n", *argument.LogEvents[0].Message, "Received incorrect multiline message")
 
 	stream.Close()
 
 	// Verify single event
 	argument = <-mockClient.putLogEventsArgument
 	assert.NotNil(t, argument, "Expected non-nil PutLogEventsInput")
-	assert.Equal(t, 1, len(argument.LogEvents), "Expected LogEvents to contain 1 elements, but contains %d", len(argument.LogEvents))
-	assert.Equal(t, "xxxx "+logline+"\n", *argument.LogEvents[0].Message, "Expected message to be %s but was %s", "xxxx "+logline, *argument.LogEvents[0].Message)
+	assert.Equal(t, 1, len(argument.LogEvents), "Expected single multiline event")
+	assert.Equal(t, "xxxx "+logline+"\n", *argument.LogEvents[0].Message, "Received incorrect multiline message")
 }
 
 func BenchmarkCollectBatch(b *testing.B) {
@@ -646,8 +646,8 @@ func TestCollectBatchMultilinePatternMaxEventAge(t *testing.T) {
 	// Verify single multiline event is flushed after maximum event buffer age (batchPublishFrequency)
 	argument := <-mockClient.putLogEventsArgument
 	assert.NotNil(t, argument, "Expected non-nil PutLogEventsInput")
-	assert.Equal(t, 1, len(argument.LogEvents), "Expected LogEvents to contain 1 elements, but contains %d", len(argument.LogEvents))
-	assert.Equal(t, logline+"\n"+logline+"\n", *argument.LogEvents[0].Message, "Expected message to be %s but was %s", logline+logline, *argument.LogEvents[0].Message)
+	assert.Equal(t, 1, len(argument.LogEvents), "Expected single multiline event")
+	assert.Equal(t, logline+"\n"+logline+"\n", *argument.LogEvents[0].Message, "Received incorrect multiline message")
 
 	stream.Close()
 }
@@ -694,8 +694,8 @@ func TestCollectBatchMultilinePatternNegativeEventAge(t *testing.T) {
 	// Verify single multiline event is flushed with a negative event buffer age
 	argument := <-mockClient.putLogEventsArgument
 	assert.NotNil(t, argument, "Expected non-nil PutLogEventsInput")
-	assert.Equal(t, 1, len(argument.LogEvents), "Expected LogEvents to contain 1 elements, but contains %d", len(argument.LogEvents))
-	assert.Equal(t, logline+"\n"+logline+"\n", *argument.LogEvents[0].Message, "Expected message to be %s but was %s", logline+logline, *argument.LogEvents[0].Message)
+	assert.Equal(t, 1, len(argument.LogEvents), "Expected single multiline event")
+	assert.Equal(t, logline+"\n"+logline+"\n", *argument.LogEvents[0].Message, "Received incorrect multiline message")
 
 	stream.Close()
 }
@@ -961,8 +961,8 @@ func TestParseLogOptionsMultilinePattern(t *testing.T) {
 	}
 
 	multilinePattern, err := parseMultilineOptions(info)
-	assert.Nil(t, err, "Received unexpected err: %v\n", err)
-	assert.True(t, multilinePattern.MatchString("xxxx"), "Expected multilinePattern to match string xxxx but no match found")
+	assert.Nil(t, err, "Received unexpected error")
+	assert.True(t, multilinePattern.MatchString("xxxx"), "No multiline pattern match found")
 }
 
 func TestParseLogOptionsDatetimeFormat(t *testing.T) {
@@ -986,8 +986,8 @@ func TestParseLogOptionsDatetimeFormat(t *testing.T) {
 				},
 			}
 			multilinePattern, err := parseMultilineOptions(info)
-			assert.Nil(t, err, "Received unexpected err: %v\n", err)
-			assert.True(t, multilinePattern.MatchString(dt.match), "Expected multilinePattern %s to match string %s but no match found", dt.format, dt.match)
+			assert.Nil(t, err, "Received unexpected error")
+			assert.True(t, multilinePattern.MatchString(dt.match), "No multiline pattern match found")
 		})
 	}
 }
@@ -1001,8 +1001,8 @@ func TestValidateLogOptionsDatetimeFormatAndMultilinePattern(t *testing.T) {
 	conflictingLogOptionsError := "you cannot configure log opt 'awslogs-datetime-format' and 'awslogs-multiline-pattern' at the same time"
 
 	err := ValidateLogOpt(cfg)
-	assert.NotNil(t, err, "Expected an error but received nil")
-	assert.Equal(t, err.Error(), conflictingLogOptionsError, "Received incorrect error: %v\n", err)
+	assert.NotNil(t, err, "Expected an error")
+	assert.Equal(t, err.Error(), conflictingLogOptionsError, "Received invalid error")
 }
 
 func TestCreateTagSuccess(t *testing.T) {

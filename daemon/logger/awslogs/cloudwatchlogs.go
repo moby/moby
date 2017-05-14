@@ -367,7 +367,14 @@ var newTicker = func(freq time.Duration) *time.Ticker {
 // maximumBytesPerPut).  Log messages are split by the maximum bytes per event
 // (defined in maximumBytesPerEvent).  There is a fixed per-event byte overhead
 // (defined in perEventBytes) which is accounted for in split- and batch-
-// calculations.
+// calculations.  If the awslogs-multiline-pattern or awslogs-datetime-format
+// options have been configured, multiline processing is enabled, where
+// log messages are stored in an event buffer until a multiline pattern match
+// is found, at which point the messages in the event buffer are pushed to
+// CloudWatch logs as a single log event.  Multline messages still are processed
+// according to the maximumBytesPerPut constraint, and the implementation only
+// allows for messages to be buffered for a maximum of 2*batchPublishFrequency
+// seconds.
 func (l *logStream) collectBatch() {
 	timer := newTicker(batchPublishFrequency)
 	var events []wrappedEvent
@@ -414,10 +421,10 @@ func (l *logStream) collectBatch() {
 				processedLine := append(unprocessedLine, "\n"...)
 				eventBuffer = append(eventBuffer, processedLine...)
 				logger.PutMessage(msg)
-				continue
+			} else {
+				events = l.processEvent(events, unprocessedLine, msg.Timestamp.UnixNano()/int64(time.Millisecond))
+				logger.PutMessage(msg)
 			}
-			events = l.processEvent(events, unprocessedLine, msg.Timestamp.UnixNano()/int64(time.Millisecond))
-			logger.PutMessage(msg)
 		}
 	}
 }
