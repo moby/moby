@@ -54,3 +54,8 @@ func (el *emptyLayer) DiffSize() (size int64, err error) {
 func (el *emptyLayer) Metadata() (map[string]string, error) {
 	return make(map[string]string), nil
 }
+
+// IsEmpty returns true if the layer is an EmptyLayer
+func IsEmpty(diffID DiffID) bool {
+	return diffID == DigestSHA256EmptyTar
+}

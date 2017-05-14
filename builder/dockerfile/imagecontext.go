@@ -6,36 +6,28 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types/backend"
-	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/remotecontext"
+	"github.com/docker/docker/layer"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
 
 type buildStage struct {
-	id     string
-	config *container.Config
+	id string
 }
 
-func newBuildStageFromImage(image builder.Image) *buildStage {
-	return &buildStage{id: image.ImageID(), config: image.RunConfig()}
+func newBuildStage(imageID string) *buildStage {
+	return &buildStage{id: imageID}
 }
 
 func (b *buildStage) ImageID() string {
 	return b.id
 }
 
-func (b *buildStage) RunConfig() *container.Config {
-	return b.config
-}
-
-func (b *buildStage) update(imageID string, runConfig *container.Config) {
+func (b *buildStage) update(imageID string) {
 	b.id = imageID
-	b.config = runConfig
 }
-
-var _ builder.Image = &buildStage{}
 
 // buildStages tracks each stage of a build so they can be retrieved by index
 // or by name.
@@ -48,12 +40,12 @@ func newBuildStages() *buildStages {
 	return &buildStages{byName: make(map[string]*buildStage)}
 }
 
-func (s *buildStages) getByName(name string) (builder.Image, bool) {
+func (s *buildStages) getByName(name string) (*buildStage, bool) {
 	stage, ok := s.byName[strings.ToLower(name)]
 	return stage, ok
 }
 
-func (s *buildStages) get(indexOrName string) (builder.Image, error) {
+func (s *buildStages) get(indexOrName string) (*buildStage, error) {
 	index, err := strconv.Atoi(indexOrName)
 	if err == nil {
 		if err := s.validateIndex(index); err != nil {
@@ -78,7 +70,7 @@ func (s *buildStages) validateIndex(i int) error {
 }
 
 func (s *buildStages) add(name string, image builder.Image) error {
-	stage := newBuildStageFromImage(image)
+	stage := newBuildStage(image.ImageID())
 	name = strings.ToLower(name)
 	if len(name) > 0 {
 		if _, ok := s.byName[name]; ok {
@@ -90,8 +82,8 @@ func (s *buildStages) add(name string, image builder.Image) error {
 	return nil
 }
 
-func (s *buildStages) update(imageID string, runConfig *container.Config) {
-	s.sequence[len(s.sequence)-1].update(imageID, runConfig)
+func (s *buildStages) update(imageID string) {
+	s.sequence[len(s.sequence)-1].update(imageID)
 }
 
 type getAndMountFunc func(string) (builder.Image, builder.ReleaseableLayer, error)
@@ -189,4 +181,8 @@ func (im *imageMount) Image() builder.Image {
 
 func (im *imageMount) ImageID() string {
 	return im.image.ImageID()
+}
+
+func (im *imageMount) DiffID() layer.DiffID {
+	return im.layer.DiffID()
 }

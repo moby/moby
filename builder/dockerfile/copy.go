@@ -13,9 +13,12 @@ import (
 
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/remotecontext"
+	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/pkg/errors"
@@ -32,6 +35,10 @@ type copyInfo struct {
 	root string
 	path string
 	hash string
+}
+
+func (c copyInfo) fullPath() (string, error) {
+	return symlink.FollowSymlinkInScope(filepath.Join(c.root, c.path), c.root)
 }
 
 func newCopyInfoFromSource(source builder.Source, path string, hash string) copyInfo {
@@ -354,4 +361,54 @@ func downloadSource(output io.Writer, stdout io.Writer, srcURL string) (remote b
 
 	lc, err := remotecontext.NewLazyContext(tmpDir)
 	return lc, filename, err
+}
+
+type copyFileOptions struct {
+	decompress bool
+	archiver   *archive.Archiver
+}
+
+func copyFile(dest copyInfo, source copyInfo, options copyFileOptions) error {
+	srcPath, err := source.fullPath()
+	if err != nil {
+		return err
+	}
+	destPath, err := dest.fullPath()
+	if err != nil {
+		return err
+	}
+
+	archiver := options.archiver
+	rootIDs := archiver.IDMappings.RootPair()
+
+	src, err := os.Stat(srcPath)
+	if err != nil {
+		return err // TODO: errors.Wrapf
+	}
+	if src.IsDir() {
+		if err := archiver.CopyWithTar(srcPath, destPath); err != nil {
+			return err
+		}
+		return fixPermissions(srcPath, destPath, rootIDs)
+	}
+
+	if options.decompress && archive.IsArchivePath(srcPath) {
+		// To support the untar feature we need to clean up the path a little bit
+		// because tar is not very forgiving
+		tarDest := dest.path
+		// TODO: could this be just TrimSuffix()?
+		if strings.HasSuffix(tarDest, string(os.PathSeparator)) {
+			tarDest = filepath.Dir(dest.path)
+		}
+		return archiver.UntarPath(srcPath, tarDest)
+	}
+
+	if err := idtools.MkdirAllAndChownNew(filepath.Dir(destPath), 0755, rootIDs); err != nil {
+		return err
+	}
+	if err := archiver.CopyFileWithTar(srcPath, destPath); err != nil {
+		return err
+	}
+	// TODO: do I have to change destPath to the filename?
+	return fixPermissions(srcPath, destPath, rootIDs)
 }

@@ -15,6 +15,8 @@ import (
 	"github.com/docker/docker/builder/dockerfile/command"
 	"github.com/docker/docker/builder/dockerfile/parser"
 	"github.com/docker/docker/builder/remotecontext"
+	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
@@ -98,6 +100,7 @@ type Builder struct {
 	docker    builder.Backend
 	clientCtx context.Context
 
+	archiver         *archive.Archiver
 	buildStages      *buildStages
 	disableCommit    bool
 	buildArgs        *buildArgs
@@ -121,6 +124,7 @@ func newBuilder(clientCtx context.Context, options builderOptions) *Builder {
 		Aux:              options.ProgressWriter.AuxFormatter,
 		Output:           options.ProgressWriter.Output,
 		docker:           options.Backend,
+		archiver:         chrootarchive.NewArchiver(options.Backend.IDMappings()),
 		buildArgs:        newBuildArgs(config.BuildArgs),
 		buildStages:      newBuildStages(),
 		imageSources:     newImageSources(clientCtx, options),

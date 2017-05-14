@@ -23,6 +23,7 @@ import (
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/parser"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/go-connections/nat"
@@ -251,10 +252,8 @@ func parseBuildStageName(args []string) (string, error) {
 	return stageName, nil
 }
 
-// scratchImage is used as a token for the empty base image. It uses buildStage
-// as a convenient implementation of builder.Image, but is not actually a
-// buildStage.
-var scratchImage builder.Image = &buildStage{}
+// scratchImage is used as a token for the empty base image.
+var scratchImage builder.Image = &image.Image{}
 
 func (b *Builder) getFromImage(shlex *ShellLex, name string) (builder.Image, error) {
 	substitutionArgs := []string{}
@@ -267,8 +266,8 @@ func (b *Builder) getFromImage(shlex *ShellLex, name string) (builder.Image, err
 		return nil, err
 	}
 
-	if im, ok := b.buildStages.getByName(name); ok {
-		return im, nil
+	if stage, ok := b.buildStages.getByName(name); ok {
+		name = stage.ImageID()
 	}
 
 	// Windows cannot support a container with no base image.

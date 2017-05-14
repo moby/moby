@@ -12,6 +12,8 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/builder"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
 )
@@ -37,7 +39,6 @@ func (b *Builder) commit(dispatchState *dispatchState, comment string) error {
 	return b.commitContainer(dispatchState, id, runConfigWithCommentCmd)
 }
 
-// TODO: see if any args can be dropped
 func (b *Builder) commitContainer(dispatchState *dispatchState, id string, containerConfig *container.Config) error {
 	if b.disableCommit {
 		return nil
@@ -60,8 +61,18 @@ func (b *Builder) commitContainer(dispatchState *dispatchState, id string, conta
 	}
 
 	dispatchState.imageID = imageID
-	b.buildStages.update(imageID, dispatchState.runConfig)
+	b.buildStages.update(imageID)
 	return nil
+}
+
+func (b *Builder) exportImage(state *dispatchState, image builder.Image) error {
+	config, err := image.MarshalJSON()
+	if err != nil {
+		return errors.Wrap(err, "failed to encode image config")
+	}
+
+	state.imageID, err = b.docker.CreateImage(config, state.imageID)
+	return err
 }
 
 func (b *Builder) performCopy(state *dispatchState, inst copyInstruction) error {
@@ -83,12 +94,34 @@ func (b *Builder) performCopy(state *dispatchState, inst copyInstruction) error 
 		return err
 	}
 
+	imageMount, err := b.imageSources.Get(state.imageID)
+	if err != nil {
+		return err
+	}
+	destSource, err := imageMount.Source()
+	if err != nil {
+		return err
+	}
+
+	destInfo := newCopyInfoFromSource(destSource, dest, "")
+	opts := copyFileOptions{
+		decompress: inst.allowLocalDecompression,
+		archiver:   b.archiver,
+	}
 	for _, info := range inst.infos {
-		if err := b.docker.CopyOnBuild(containerID, dest, info.root, info.path, inst.allowLocalDecompression); err != nil {
+		if err := copyFile(destInfo, info, opts); err != nil {
 			return err
 		}
 	}
-	return b.commitContainer(state, containerID, runConfigWithCommentCmd)
+
+	newImage := imageMount.Image().NewChild(image.ChildConfig{
+		Author:          state.maintainer,
+		DiffID:          imageMount.DiffID(),
+		ContainerConfig: runConfigWithCommentCmd,
+		// TODO: ContainerID?
+		// TODO: Config?
+	})
+	return b.exportImage(state, newImage)
 }
 
 // For backwards compat, if there's just one info then use it as the
@@ -182,7 +215,7 @@ func (b *Builder) probeCache(dispatchState *dispatchState, runConfig *container.
 	fmt.Fprint(b.Stdout, " ---> Using cache\n")
 
 	dispatchState.imageID = string(cachedID)
-	b.buildStages.update(dispatchState.imageID, runConfig)
+	b.buildStages.update(dispatchState.imageID)
 	return true, nil
 }
 
