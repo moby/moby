@@ -621,7 +621,7 @@ func (c *controller) pushNodeDiscovery(d driverapi.Driver, cap driverapi.Capabil
 		}
 	}
 
-	if d == nil || cap.DataScope != datastore.GlobalScope || nodes == nil {
+	if d == nil || cap.ConnectivityScope != datastore.GlobalScope || nodes == nil {
 		return
 	}
 
@@ -722,22 +722,46 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 	}
 
 	network.processOptions(options...)
+	if err := network.validateConfiguration(); err != nil {
+		return nil, err
+	}
 
-	_, cap, err := network.resolveDriver(networkType, true)
+	var (
+		cap *driverapi.Capability
+		err error
+	)
+
+	// Reset network types, force local scope and skip allocation and
+	// plumbing for configuration networks. Reset of the config-only
+	// network drivers is needed so that this special network is not
+	// usable by old engine versions.
+	if network.configOnly {
+		network.scope = datastore.LocalScope
+		network.networkType = "null"
+		network.ipamType = ""
+		goto addToStore
+	}
+
+	_, cap, err = network.resolveDriver(network.networkType, true)
 	if err != nil {
 		return nil, err
 	}
 
+	if network.scope == datastore.LocalScope && cap.DataScope == datastore.GlobalScope {
+		return nil, types.ForbiddenErrorf("cannot downgrade network scope for %s networks", networkType)
+
+	}
 	if network.ingress && cap.DataScope != datastore.GlobalScope {
 		return nil, types.ForbiddenErrorf("Ingress network can only be global scope network")
 	}
 
-	if cap.DataScope == datastore.GlobalScope && !c.isDistributedControl() && !network.dynamic {
+	// At this point the network scope is still unknown if not set by user
+	if (cap.DataScope == datastore.GlobalScope || network.scope == datastore.SwarmScope) &&
+		!c.isDistributedControl() && !network.dynamic {
 		if c.isManager() {
 			// For non-distributed controlled environment, globalscoped non-dynamic networks are redirected to Manager
 			return nil, ManagerRedirectError(name)
 		}
-
 		return nil, types.ForbiddenErrorf("Cannot create a multi-host network from a worker node. Please create the network from a manager node.")
 	}
 
@@ -745,6 +769,26 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 	// before we allocate anything.
 	if _, err := network.driver(true); err != nil {
 		return nil, err
+	}
+
+	// From this point on, we need the network specific configuration,
+	// which may come from a configuration-only network
+	if network.configFrom != "" {
+		t, err := c.getConfigNetwork(network.configFrom)
+		if err != nil {
+			return nil, types.NotFoundErrorf("configuration network %q does not exist", network.configFrom)
+		}
+		if err := t.applyConfigurationTo(network); err != nil {
+			return nil, types.InternalErrorf("Failed to apply configuration: %v", err)
+		}
+		defer func() {
+			if err == nil {
+				if err := t.getEpCnt().IncEndpointCnt(); err != nil {
+					logrus.Warnf("Failed to update reference count for configuration network %q on creation of network %q: %v",
+						t.Name(), network.Name(), err)
+				}
+			}
+		}()
 	}
 
 	err = network.ipamAllocate()
@@ -769,6 +813,7 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 		}
 	}()
 
+addToStore:
 	// First store the endpoint count, then the network. To avoid to
 	// end up with a datastore containing a network and not an epCnt,
 	// in case of an ungraceful shutdown during this function call.
@@ -788,6 +833,9 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 	if err = c.updateToStore(network); err != nil {
 		return nil, err
 	}
+	if network.configOnly {
+		return network, nil
+	}
 
 	joinCluster(network)
 	if !c.isDistributedControl() {
@@ -796,11 +844,18 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 		c.Unlock()
 	}
 
+	c.Lock()
+	arrangeUserFilterRule()
+	c.Unlock()
+
 	return network, nil
 }
 
 var joinCluster NetworkWalker = func(nw Network) bool {
 	n := nw.(*network)
+	if n.configOnly {
+		return false
+	}
 	if err := n.joinCluster(); err != nil {
 		logrus.Errorf("Failed to join network %s (%s) into agent cluster: %v", n.Name(), n.ID(), err)
 	}
@@ -816,6 +871,9 @@ func (c *controller) reservePools() {
 	}
 
 	for _, n := range networks {
+		if n.configOnly {
+			continue
+		}
 		if !doReplayPoolReserve(n) {
 			continue
 		}

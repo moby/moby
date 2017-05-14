@@ -161,7 +161,8 @@ type DriverCallback interface {
 
 // Capability represents the high level capabilities of the drivers which libnetwork can make use of
 type Capability struct {
-	DataScope string
+	DataScope         string
+	ConnectivityScope string
 }
 
 // IPAMData represents the per-network ip related

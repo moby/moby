@@ -58,7 +58,8 @@ type network struct {
 // Init initializes and registers the libnetwork ipvlan driver
 func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 	c := driverapi.Capability{
-		DataScope: datastore.LocalScope,
+		DataScope:         datastore.LocalScope,
+		ConnectivityScope: datastore.GlobalScope,
 	}
 	d := &driver{
 		networks: networkTable{},
