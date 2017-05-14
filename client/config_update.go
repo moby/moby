@@ -8,7 +8,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-// ConfigUpdate attempts to updates a Config
+// ConfigUpdate attempts to update a Config
 func (cli *Client) ConfigUpdate(ctx context.Context, id string, version swarm.Version, config swarm.ConfigSpec) error {
 	query := url.Values{}
 	query.Set("version", strconv.FormatUint(version.Index, 10))
