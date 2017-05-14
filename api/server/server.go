@@ -92,13 +92,12 @@ func (s *Server) serveAPI() error {
 		}(srv)
 	}
 
-	for i := 0; i < len(s.servers); i++ {
+	for range s.servers {
 		err := <-chErrors
 		if err != nil {
 			return err
 		}
 	}
-
 	return nil
 }
 
