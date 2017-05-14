@@ -359,22 +359,16 @@ var newTicker = func(freq time.Duration) *time.Ticker {
 }
 
 // collectBatch executes as a goroutine to perform batching of log events for
-// submission to the log stream.  Batching is performed on time- and size-
-// bases.  Time-based batching occurs at a 5 second interval (defined in the
-// batchPublishFrequency const).  Size-based batching is performed on the
-// maximum number of events per batch (defined in maximumLogEventsPerPut) and
-// the maximum number of total bytes in a batch (defined in
-// maximumBytesPerPut).  Log messages are split by the maximum bytes per event
-// (defined in maximumBytesPerEvent).  There is a fixed per-event byte overhead
-// (defined in perEventBytes) which is accounted for in split- and batch-
-// calculations.  If the awslogs-multiline-pattern or awslogs-datetime-format
-// options have been configured, multiline processing is enabled, where
-// log messages are stored in an event buffer until a multiline pattern match
-// is found, at which point the messages in the event buffer are pushed to
-// CloudWatch logs as a single log event.  Multline messages still are processed
+// submission to the log stream.  If the awslogs-multiline-pattern or
+// awslogs-datetime-format options have been configured, multiline processing
+// is enabled, where log messages are stored in an event buffer until a multiline
+// pattern match is found, at which point the messages in the event buffer are
+// pushed to CloudWatch logs as a single log event.  Multline messages are processed
 // according to the maximumBytesPerPut constraint, and the implementation only
 // allows for messages to be buffered for a maximum of 2*batchPublishFrequency
-// seconds.
+// seconds.  When events are ready to be processed for submission to CloudWatch
+// Logs, the processEvents method is called.  If a multiline pattern is not
+// configured, log events are submitted to the processEvents method immediately.
 func (l *logStream) collectBatch() {
 	timer := newTicker(batchPublishFrequency)
 	var events []wrappedEvent
@@ -429,7 +423,15 @@ func (l *logStream) collectBatch() {
 	}
 }
 
-// processEvent processes log events
+// processEvent processes log events that are ready for submission to CloudWatch
+// logs.  Batching is performed on time- and size-bases.  Time-based batching
+// occurs at a 5 second interval (defined in the batchPublishFrequency const).
+// Size-based batching is performed on the maximum number of events per batch
+// (defined in maximumLogEventsPerPut) and the maximum number of total bytes in a
+// batch (defined in maximumBytesPerPut).  Log messages are split by the maximum
+// bytes per event (defined in maximumBytesPerEvent).  There is a fixed per-event
+// byte overhead (defined in perEventBytes) which is accounted for in split- and
+// batch-calculations.
 func (l *logStream) processEvent(events []wrappedEvent, unprocessedLine []byte, timestamp int64) []wrappedEvent {
 	bytes := 0
 	for len(unprocessedLine) > 0 {
