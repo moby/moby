@@ -29,11 +29,6 @@ FROM debian:jessie
 ARG APT_MIRROR=deb.debian.org
 RUN sed -ri "s/(httpredir|deb).debian.org/$APT_MIRROR/g" /etc/apt/sources.list
 
-# Add zfs ppa
-COPY keys/launchpad-ppa-zfs.asc /go/src/github.com/docker/docker/keys/
-RUN apt-key add /go/src/github.com/docker/docker/keys/launchpad-ppa-zfs.asc
-RUN echo deb http://ppa.launchpad.net/zfs-native/stable/ubuntu trusty main > /etc/apt/sources.list.d/zfs.list
-
 # Packaged dependencies
 RUN apt-get update && apt-get install -y \
 	apparmor \
@@ -63,7 +58,6 @@ RUN apt-get update && apt-get install -y \
 	libprotobuf-dev \
 	libsystemd-journal-dev \
 	libtool \
-	libzfs-dev \
 	mercurial \
 	net-tools \
 	pkg-config \
@@ -74,7 +68,6 @@ RUN apt-get update && apt-get install -y \
 	python-pip \
 	python-websocket \
 	tar \
-	ubuntu-zfs \
 	vim \
 	vim-common \
 	xfsprogs \
