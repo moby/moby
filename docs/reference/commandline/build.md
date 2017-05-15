@@ -57,6 +57,7 @@ Options:
                                 or `g` (gigabytes). If you omit the unit, the system uses bytes.
       --squash                  Squash newly built layers into a single new layer (**Experimental Only**)
   -t, --tag value               Name and optionally a tag in the 'name:tag' format (default [])
+      --target string           Set the target build stage to build.
       --ulimit value            Ulimit options (default [])
 ```
 
@@ -453,6 +454,24 @@ more `--add-host` flags. This example adds a static address for a host named
 `docker`:
 
     $ docker build --add-host=docker:10.180.0.1 .
+
+### Specifying target build stage (--target)
+
+When building a Dockerfile with multiple build stages, `--target` can be used to
+specify an intermediate build stage by name as a final stage for the resulting
+image. Commands after the target stage will be skipped.
+
+```Dockerfile
+FROM debian AS build-env
+...
+
+FROM alpine AS production-env
+...
+```
+
+```bash
+$ docker build -t mybuildimage --target build-env .
+```
 
 ### Squash an image's layers (--squash) **Experimental Only**
 
