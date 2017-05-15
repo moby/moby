@@ -411,7 +411,7 @@ Try {
             $saveGOPATH = $env:GOPATH
             Try {
                 $env:GOPATH = $tempLocation
-                $dockerCliRoot = "$env:GOPATH\src\$($dockerCliRepo.Split("/", 3)[2])"
+                $dockerCliRoot = "$env:GOPATH\src\github.com\docker\cli"
                 Write-Host "INFO: Cloning client repository..."
                 Invoke-Expression "git clone -q $dockerCliRepo $dockerCliRoot"
                 if ($LASTEXITCODE -ne 0) { Throw "Failed to clone client repository $dockerCliRepo" }
