@@ -215,7 +215,7 @@ func (s *DockerSuite) TestLogsSinceFutureFollow(c *check.C) {
 func (s *DockerSuite) TestLogsFollowSlowStdoutConsumer(c *check.C) {
 	// TODO Windows: Fix this test for TP5.
 	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", `usleep 600000;yes X | head -c 200000`)
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", `echo START; while [ ! -f /ready ]; do usleep 50000; done; usleep 600000; yes X | head -c 200000`)
 
 	id := strings.TrimSpace(out)
 
@@ -230,6 +230,12 @@ func (s *DockerSuite) TestLogsFollowSlowStdoutConsumer(c *check.C) {
 	stdout, err := logCmd.StdoutPipe()
 	c.Assert(err, checker.IsNil)
 	c.Assert(logCmd.Start(), checker.IsNil)
+
+	// Read "START" from the log stream, so we know the stream has started
+	// before telling the container to start flooding the logs.
+	_, err = io.ReadFull(stdout, make([]byte, 6))
+	c.Assert(err, checker.IsNil)
+	cli.DockerCmd(c, "exec", id, "touch", "/ready")
 
 	// First read slowly
 	bytes1, err := testutil.ConsumeWithSpeed(stdout, 10, 50*time.Millisecond, stopSlowRead)
