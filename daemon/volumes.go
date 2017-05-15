@@ -281,6 +281,7 @@ func (daemon *Daemon) backportMountSpec(container *container.Container) {
 		from, _, err := volume.ParseVolumesFrom(fromSpec)
 		if err != nil {
 			logrus.WithError(err).WithField("id", container.ID).Error("Error reading volumes-from spec during mount spec backport")
+			continue
 		}
 		fromC, err := daemon.GetContainer(from)
 		if err != nil {
