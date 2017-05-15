@@ -260,3 +260,44 @@ func (f *PlatformFilter) Explain(nodes int) string {
 	}
 	return fmt.Sprintf("unsupported platform on %d nodes", nodes)
 }
+
+// HostPortFilter checks that the node has a specific port available.
+type HostPortFilter struct {
+	t *api.Task
+}
+
+// SetTask returns true when the filter is enabled for a given task.
+func (f *HostPortFilter) SetTask(t *api.Task) bool {
+	if t.Endpoint != nil {
+		for _, port := range t.Endpoint.Ports {
+			if port.PublishMode == api.PublishModeHost && port.PublishedPort != 0 {
+				f.t = t
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// Check returns true if the task can be scheduled into the given node.
+func (f *HostPortFilter) Check(n *NodeInfo) bool {
+	for _, port := range f.t.Endpoint.Ports {
+		if port.PublishMode == api.PublishModeHost && port.PublishedPort != 0 {
+			portSpec := hostPortSpec{protocol: port.Protocol, publishedPort: port.PublishedPort}
+			if _, ok := n.usedHostPorts[portSpec]; ok {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+// Explain returns an explanation of a failure.
+func (f *HostPortFilter) Explain(nodes int) string {
+	if nodes == 1 {
+		return "host-mode port already in use on 1 node"
+	}
+	return fmt.Sprintf("host-mode port already in use on %d nodes", nodes)
+}

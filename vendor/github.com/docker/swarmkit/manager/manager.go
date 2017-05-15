@@ -28,6 +28,7 @@ import (
 	"github.com/docker/swarmkit/manager/health"
 	"github.com/docker/swarmkit/manager/keymanager"
 	"github.com/docker/swarmkit/manager/logbroker"
+	"github.com/docker/swarmkit/manager/metrics"
 	"github.com/docker/swarmkit/manager/orchestrator/constraintenforcer"
 	"github.com/docker/swarmkit/manager/orchestrator/global"
 	"github.com/docker/swarmkit/manager/orchestrator/replicated"
@@ -123,6 +124,7 @@ type Config struct {
 type Manager struct {
 	config Config
 
+	collector              *metrics.Collector
 	caserver               *ca.Server
 	dispatcher             *dispatcher.Dispatcher
 	logbroker              *logbroker.LogBroker
@@ -214,6 +216,7 @@ func New(config *Config) (*Manager, error) {
 
 	m := &Manager{
 		config:          *config,
+		collector:       metrics.NewCollector(raftNode.MemoryStore()),
 		caserver:        ca.NewServer(raftNode.MemoryStore(), config.SecurityConfig, config.RootCAPaths),
 		dispatcher:      dispatcher.New(raftNode, dispatcher.DefaultConfig()),
 		logbroker:       logbroker.New(raftNode.MemoryStore()),
@@ -503,6 +506,13 @@ func (m *Manager) Run(parent context.Context) error {
 
 	localHealthServer.SetServingStatus("ControlAPI", api.HealthCheckResponse_SERVING)
 
+	// Start metrics collection.
+	go func(collector *metrics.Collector) {
+		if err := collector.Run(ctx); err != nil {
+			log.G(ctx).WithError(err).Error("collector failed with an error")
+		}
+	}(m.collector)
+
 	close(m.started)
 
 	go func() {
@@ -579,6 +589,7 @@ func (m *Manager) Stop(ctx context.Context, clearData bool) {
 
 	m.raftNode.Cancel()
 
+	m.collector.Stop()
 	m.dispatcher.Stop()
 	m.logbroker.Stop()
 	m.caserver.Stop()
