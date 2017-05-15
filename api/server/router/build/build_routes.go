@@ -127,6 +127,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 		}
 		options.CacheFrom = cacheFrom
 	}
+	options.SessionID = r.FormValue("session")
 
 	return options, nil
 }

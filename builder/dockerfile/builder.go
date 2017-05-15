@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/builder/dockerfile/command"
 	"github.com/docker/docker/builder/dockerfile/parser"
 	"github.com/docker/docker/builder/remotecontext"
+	"github.com/docker/docker/client/session"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/idtools"
@@ -40,18 +41,25 @@ var validCommitCommands = map[string]bool{
 	"workdir":     true,
 }
 
+// SessionGetter is object used to get access to a session by uuid
+type SessionGetter interface {
+	Get(ctx context.Context, uuid string) (session.Caller, error)
+}
+
 // BuildManager is shared across all Builder objects
 type BuildManager struct {
 	archiver  *archive.Archiver
 	backend   builder.Backend
 	pathCache pathCache // TODO: make this persistent
+	sg        SessionGetter
 }
 
 // NewBuildManager creates a BuildManager
-func NewBuildManager(b builder.Backend, idMappings *idtools.IDMappings) *BuildManager {
+func NewBuildManager(b builder.Backend, sg SessionGetter, idMappings *idtools.IDMappings) *BuildManager {
 	return &BuildManager{
 		backend:   b,
 		pathCache: &syncmap.Map{},
+		sg:        sg,
 		archiver:  chrootarchive.NewArchiver(idMappings),
 	}
 }
@@ -84,6 +92,13 @@ func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (
 		}
 	}
 
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	if err := bm.initializeClientSession(ctx, cancel, config.Options); err != nil {
+		return nil, err
+	}
+
 	builderOptions := builderOptions{
 		Options:        config.Options,
 		ProgressWriter: config.ProgressWriter,
@@ -94,6 +109,22 @@ func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (
 	}
 
 	return newBuilder(ctx, builderOptions).build(source, dockerfile)
+}
+
+func (bm *BuildManager) initializeClientSession(ctx context.Context, cancel func(), options *types.ImageBuildOptions) error {
+	if options.SessionID == "" || bm.sg == nil {
+		return nil
+	}
+	logrus.Debug("client is session enabled")
+	c, err := bm.sg.Get(ctx, options.SessionID)
+	if err != nil {
+		return err
+	}
+	go func() {
+		<-c.Context().Done()
+		cancel()
+	}()
+	return nil
 }
 
 // builderOptions are the dependencies required by the builder

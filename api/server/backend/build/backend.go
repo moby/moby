@@ -27,9 +27,9 @@ type Backend struct {
 }
 
 // NewBackend creates a new build backend from components
-func NewBackend(components ImageComponent, builderBackend builder.Backend, idMappings *idtools.IDMappings) *Backend {
-	manager := dockerfile.NewBuildManager(builderBackend, idMappings)
-	return &Backend{imageComponent: components, manager: manager}
+func NewBackend(components ImageComponent, builderBackend builder.Backend, sg dockerfile.SessionGetter, idMappings *idtools.IDMappings) (*Backend, error) {
+	manager := dockerfile.NewBuildManager(builderBackend, sg, idMappings)
+	return &Backend{imageComponent: components, manager: manager}, nil
 }
 
 // Build builds an image from a Source
