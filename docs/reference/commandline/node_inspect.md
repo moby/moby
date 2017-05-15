@@ -47,8 +47,8 @@ $ docker node inspect swarm-manager
     "Version": {
         "Index": 10
     },
-    "CreatedAt": "2016-06-16T22:52:44.9910662Z",
-    "UpdatedAt": "2016-06-16T22:52:45.230878043Z",
+    "CreatedAt": "2017-05-16T22:52:44.9910662Z",
+    "UpdatedAt": "2017-05-16T22:52:45.230878043Z",
     "Spec": {
         "Role": "manager",
         "Availability": "active"
@@ -64,7 +64,7 @@ $ docker node inspect swarm-manager
             "MemoryBytes": 1039843328
         },
         "Engine": {
-            "EngineVersion": "1.12.0",
+            "EngineVersion": "17.06.0-ce",
             "Plugins": [
                 {
                     "Type": "Volume",
@@ -91,6 +91,11 @@ $ docker node inspect swarm-manager
                     "Name": "overlay"
                 }
             ]
+        },
+        "TLSInfo": {
+            "TrustRoot": "-----BEGIN CERTIFICATE-----\nMIIBazCCARCgAwIBAgIUOzgqU4tA2q5Yv1HnkzhSIwGyIBswCgYIKoZIzj0EAwIw\nEzERMA8GA1UEAxMIc3dhcm0tY2EwHhcNMTcwNTAyMDAyNDAwWhcNMzcwNDI3MDAy\nNDAwWjATMREwDwYDVQQDEwhzd2FybS1jYTBZMBMGByqGSM49AgEGCCqGSM49AwEH\nA0IABMbiAmET+HZyve35ujrnL2kOLBEQhFDZ5MhxAuYs96n796sFlfxTxC1lM/2g\nAh8DI34pm3JmHgZxeBPKUURJHKWjQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNVHRMB\nAf8EBTADAQH/MB0GA1UdDgQWBBS3sjTJOcXdkls6WSY2rTx1KIJueTAKBggqhkjO\nPQQDAgNJADBGAiEAoeVWkaXgSUAucQmZ3Yhmx22N/cq1EPBgYHOBZmHt0NkCIQC3\nzONcJ/+WA21OXtb+vcijpUOXtNjyHfcox0N8wsLDqQ==\n-----END CERTIFICATE-----\n",
+            "CertIssuerSubject": "MBMxETAPBgNVBAMTCHN3YXJtLWNh",
+            "CertIssuerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAExuICYRP4dnK97fm6OucvaQ4sERCEUNnkyHEC5iz3qfv3qwWV/FPELWUz/aACHwMjfimbcmYeBnF4E8pRREkcpQ=="
         }
     },
     "Status": {
@@ -116,7 +121,7 @@ false
 $ docker node inspect --pretty self
 ID:                     e216jshn25ckzbvmwlnh5jr3g
 Hostname:               swarm-manager
-Joined at:              2016-06-16 22:52:44.9910662 +0000 utc
+Joined at:              2017-05-16 22:52:44.9910662 +0000 utc
 Status:
  State:                 Ready
  Availability:          Active
@@ -134,7 +139,22 @@ Resources:
 Plugins:
   Network:              overlay, bridge, null, host, overlay
   Volume:               local
-Engine Version:         1.12.0
+Engine Version:         17.06.0-ce
+TLS Info:
+ TrustRoot:
+-----BEGIN CERTIFICATE-----
+MIIBazCCARCgAwIBAgIUOzgqU4tA2q5Yv1HnkzhSIwGyIBswCgYIKoZIzj0EAwIw
+EzERMA8GA1UEAxMIc3dhcm0tY2EwHhcNMTcwNTAyMDAyNDAwWhcNMzcwNDI3MDAy
+NDAwWjATMREwDwYDVQQDEwhzd2FybS1jYTBZMBMGByqGSM49AgEGCCqGSM49AwEH
+A0IABMbiAmET+HZyve35ujrnL2kOLBEQhFDZ5MhxAuYs96n796sFlfxTxC1lM/2g
+Ah8DI34pm3JmHgZxeBPKUURJHKWjQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNVHRMB
+Af8EBTADAQH/MB0GA1UdDgQWBBS3sjTJOcXdkls6WSY2rTx1KIJueTAKBggqhkjO
+PQQDAgNJADBGAiEAoeVWkaXgSUAucQmZ3Yhmx22N/cq1EPBgYHOBZmHt0NkCIQC3
+zONcJ/+WA21OXtb+vcijpUOXtNjyHfcox0N8wsLDqQ==
+-----END CERTIFICATE-----
+
+ Issuer Public Key:	MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAExuICYRP4dnK97fm6OucvaQ4sERCEUNnkyHEC5iz3qfv3qwWV/FPELWUz/aACHwMjfimbcmYeBnF4E8pRREkcpQ==
+ Issuer Subject:	MBMxETAPBgNVBAMTCHN3YXJtLWNh
 ```
 
 ## Related commands

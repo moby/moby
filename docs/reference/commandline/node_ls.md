@@ -145,17 +145,19 @@ Placeholder      | Description
 `.Status`        | Node status
 `.Availability`  | Node availability ("active", "pause", or "drain")
 `.ManagerStatus` | Manager status of the node
+`.TLSStatus`     | TLS status of the node ("Ready", or "Needs Rotation" has TLS certificate signed by an old CA)
 
 When using the `--format` option, the `node ls` command will either
 output the data exactly as the template declares or, when using the
 `table` directive, includes column headers as well.
 
 The following example uses a template without headers and outputs the
-`ID` and `Hostname` entries separated by a colon for all nodes:
+`ID`, `Hostname`, and `TLS Status` entries separated by a colon for all nodes:
 
 ```bash
-$ docker node ls --format "{{.ID}}: {{.Hostname}}"
-e216jshn25ckzbvmwlnh5jr3g: swarm-manager1
+$ docker node ls --format "{{.ID}}: {{.Hostname}} {{.TLSStatus}}"
+e216jshn25ckzbvmwlnh5jr3g: swarm-manager1 Ready
+35o6tiywb700jesrt3dmllaza: swarm-worker1 Needs Rotation  
 ``
 
 
