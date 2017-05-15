@@ -98,7 +98,9 @@ func (c *controller) getNetworkFromStore(nid string) (*network, error) {
 		}
 
 		n.epCnt = ec
-		n.scope = store.Scope()
+		if n.scope == "" {
+			n.scope = store.Scope()
+		}
 		return n, nil
 	}
 
@@ -132,7 +134,9 @@ func (c *controller) getNetworksForScope(scope string) ([]*network, error) {
 		}
 
 		n.epCnt = ec
-		n.scope = scope
+		if n.scope == "" {
+			n.scope = scope
+		}
 		nl = append(nl, n)
 	}
 
@@ -171,7 +175,9 @@ func (c *controller) getNetworksFromStore() ([]*network, error) {
 				ec.n = n
 				n.epCnt = ec
 			}
-			n.scope = store.Scope()
+			if n.scope == "" {
+				n.scope = store.Scope()
+			}
 			n.Unlock()
 			nl = append(nl, n)
 		}
