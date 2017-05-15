@@ -158,7 +158,7 @@ func executeTestCase(t *testing.T, testCase dispatchTestCase) {
 		}
 	}()
 
-	context, err := remotecontext.MakeTarSumContext(tarStream)
+	context, err := remotecontext.FromArchive(tarStream)
 
 	if err != nil {
 		t.Fatalf("Error when creating tar context: %s", err)

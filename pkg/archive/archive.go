@@ -305,15 +305,7 @@ func (compression *Compression) Extension() string {
 
 // FileInfoHeader creates a populated Header from fi.
 // Compared to archive pkg this function fills in more information.
-func FileInfoHeader(path, name string, fi os.FileInfo) (*tar.Header, error) {
-	var link string
-	if fi.Mode()&os.ModeSymlink != 0 {
-		var err error
-		link, err = os.Readlink(path)
-		if err != nil {
-			return nil, err
-		}
-	}
+func FileInfoHeader(name string, fi os.FileInfo, link string) (*tar.Header, error) {
 	hdr, err := tar.FileInfoHeader(fi, link)
 	if err != nil {
 		return nil, err
@@ -327,12 +319,18 @@ func FileInfoHeader(path, name string, fi os.FileInfo) (*tar.Header, error) {
 	if err := setHeaderForSpecialDevice(hdr, name, fi.Sys()); err != nil {
 		return nil, err
 	}
+	return hdr, nil
+}
+
+// ReadSecurityXattrToTarHeader reads security.capability xattr from filesystem
+// to a tar header
+func ReadSecurityXattrToTarHeader(path string, hdr *tar.Header) error {
 	capability, _ := system.Lgetxattr(path, "security.capability")
 	if capability != nil {
 		hdr.Xattrs = make(map[string]string)
 		hdr.Xattrs["security.capability"] = string(capability)
 	}
-	return hdr, nil
+	return nil
 }
 
 type tarWhiteoutConverter interface {
@@ -386,8 +384,20 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 		return err
 	}
 
-	hdr, err := FileInfoHeader(path, name, fi)
+	var link string
+	if fi.Mode()&os.ModeSymlink != 0 {
+		var err error
+		link, err = os.Readlink(path)
+		if err != nil {
+			return err
+		}
+	}
+
+	hdr, err := FileInfoHeader(name, fi, link)
 	if err != nil {
+		return err
+	}
+	if err := ReadSecurityXattrToTarHeader(path, hdr); err != nil {
 		return err
 	}
 

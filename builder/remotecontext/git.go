@@ -25,5 +25,5 @@ func MakeGitContext(gitURL string) (builder.Source, error) {
 		c.Close()
 		os.RemoveAll(root)
 	}()
-	return MakeTarSumContext(c)
+	return FromArchive(c)
 }

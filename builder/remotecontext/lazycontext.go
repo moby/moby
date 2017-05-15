@@ -43,7 +43,7 @@ func (c *lazySource) Hash(path string) (string, error) {
 
 	fi, err := os.Lstat(fullPath)
 	if err != nil {
-		return "", err
+		return "", errors.WithStack(err)
 	}
 
 	relPath, err := Rel(c.root, fullPath)

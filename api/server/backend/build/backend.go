@@ -4,11 +4,11 @@ import (
 	"fmt"
 
 	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/builder"
-	"github.com/docker/docker/builder/dockerfile"
+	"github.com/docker/docker/builder/fscache"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
@@ -20,16 +20,21 @@ type ImageComponent interface {
 	TagImageWithReference(image.ID, string, reference.Named) error
 }
 
+// Builder defines interface for running a build
+type Builder interface {
+	Build(context.Context, backend.BuildConfig) (*builder.Result, error)
+}
+
 // Backend provides build functionality to the API router
 type Backend struct {
-	manager        *dockerfile.BuildManager
+	builder        Builder
+	fsCache        *fscache.FSCache
 	imageComponent ImageComponent
 }
 
 // NewBackend creates a new build backend from components
-func NewBackend(components ImageComponent, builderBackend builder.Backend, sg dockerfile.SessionGetter, idMappings *idtools.IDMappings) (*Backend, error) {
-	manager := dockerfile.NewBuildManager(builderBackend, sg, idMappings)
-	return &Backend{imageComponent: components, manager: manager}, nil
+func NewBackend(components ImageComponent, builder Builder, fsCache *fscache.FSCache) (*Backend, error) {
+	return &Backend{imageComponent: components, builder: builder, fsCache: fsCache}, nil
 }
 
 // Build builds an image from a Source
@@ -40,7 +45,7 @@ func (b *Backend) Build(ctx context.Context, config backend.BuildConfig) (string
 		return "", err
 	}
 
-	build, err := b.manager.Build(ctx, config)
+	build, err := b.builder.Build(ctx, config)
 	if err != nil {
 		return "", err
 	}
@@ -56,6 +61,15 @@ func (b *Backend) Build(ctx context.Context, config backend.BuildConfig) (string
 	fmt.Fprintf(stdout, "Successfully built %s\n", stringid.TruncateID(imageID))
 	err = tagger.TagImages(image.ID(imageID))
 	return imageID, err
+}
+
+// PruneCache removes all cached build sources
+func (b *Backend) PruneCache(ctx context.Context) (*types.BuildCachePruneReport, error) {
+	size, err := b.fsCache.Prune()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to prune build cache")
+	}
+	return &types.BuildCachePruneReport{SpaceReclaimed: size}, nil
 }
 
 func squashBuild(build *builder.Result, imageComponent ImageComponent) (string, error) {

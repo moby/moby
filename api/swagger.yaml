@@ -4745,6 +4745,27 @@ paths:
           schema:
             $ref: "#/definitions/ErrorResponse"
       tags: ["Image"]
+  /build/prune:
+    post:
+      summary: "Delete builder cache"
+      produces:
+        - "application/json"
+      operationId: "BuildPrune"
+      responses:
+        200:
+          description: "No error"
+          schema:
+            type: "object"
+            properties:
+              SpaceReclaimed:
+                description: "Disk space reclaimed in bytes"
+                type: "integer"
+                format: "int64"
+        500:
+          description: "Server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      tags: ["Image"]
   /images/create:
     post:
       summary: "Create an image"

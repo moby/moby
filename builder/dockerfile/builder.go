@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
@@ -15,6 +16,7 @@ import (
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/command"
 	"github.com/docker/docker/builder/dockerfile/parser"
+	"github.com/docker/docker/builder/fscache"
 	"github.com/docker/docker/builder/remotecontext"
 	"github.com/docker/docker/client/session"
 	"github.com/docker/docker/pkg/archive"
@@ -52,16 +54,22 @@ type BuildManager struct {
 	backend   builder.Backend
 	pathCache pathCache // TODO: make this persistent
 	sg        SessionGetter
+	fsCache   *fscache.FSCache
 }
 
 // NewBuildManager creates a BuildManager
-func NewBuildManager(b builder.Backend, sg SessionGetter, idMappings *idtools.IDMappings) *BuildManager {
-	return &BuildManager{
+func NewBuildManager(b builder.Backend, sg SessionGetter, fsCache *fscache.FSCache, idMappings *idtools.IDMappings) (*BuildManager, error) {
+	bm := &BuildManager{
 		backend:   b,
 		pathCache: &syncmap.Map{},
 		sg:        sg,
 		archiver:  chrootarchive.NewArchiver(idMappings),
+		fsCache:   fsCache,
 	}
+	if err := fsCache.RegisterTransport(remotecontext.ClientSessionRemote, NewClientSessionTransport()); err != nil {
+		return nil, err
+	}
+	return bm, nil
 }
 
 // Build starts a new build from a BuildConfig
@@ -75,13 +83,13 @@ func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (
 	if err != nil {
 		return nil, err
 	}
-	if source != nil {
-		defer func() {
+	defer func() {
+		if source != nil {
 			if err := source.Close(); err != nil {
 				logrus.Debugf("[BUILDER] failed to remove temporary context: %v", err)
 			}
-		}()
-	}
+		}
+	}()
 
 	// TODO @jhowardmsft LCOW support - this will require rework to allow both linux and Windows simultaneously.
 	// This is an interim solution to hardcode to linux if LCOW is turned on.
@@ -95,8 +103,10 @@ func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	if err := bm.initializeClientSession(ctx, cancel, config.Options); err != nil {
+	if src, err := bm.initializeClientSession(ctx, cancel, config.Options); err != nil {
 		return nil, err
+	} else if src != nil {
+		source = src
 	}
 
 	builderOptions := builderOptions{
@@ -111,20 +121,38 @@ func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (
 	return newBuilder(ctx, builderOptions).build(source, dockerfile)
 }
 
-func (bm *BuildManager) initializeClientSession(ctx context.Context, cancel func(), options *types.ImageBuildOptions) error {
+func (bm *BuildManager) initializeClientSession(ctx context.Context, cancel func(), options *types.ImageBuildOptions) (builder.Source, error) {
 	if options.SessionID == "" || bm.sg == nil {
-		return nil
+		return nil, nil
 	}
 	logrus.Debug("client is session enabled")
+
+	ctx, cancelCtx := context.WithTimeout(ctx, sessionConnectTimeout)
+	defer cancelCtx()
+
 	c, err := bm.sg.Get(ctx, options.SessionID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	go func() {
 		<-c.Context().Done()
 		cancel()
 	}()
-	return nil
+	if options.RemoteContext == remotecontext.ClientSessionRemote {
+		st := time.Now()
+		csi, err := NewClientSessionSourceIdentifier(ctx, bm.sg,
+			options.SessionID, []string{"/"})
+		if err != nil {
+			return nil, err
+		}
+		src, err := bm.fsCache.SyncFrom(ctx, csi)
+		if err != nil {
+			return nil, err
+		}
+		logrus.Debugf("sync-time: %v", time.Since(st))
+		return src, nil
+	}
+	return nil, nil
 }
 
 // builderOptions are the dependencies required by the builder
