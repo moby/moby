@@ -74,12 +74,12 @@ pre-packaged tarball contexts and plain text files.
 ### Git repositories
 
 When the `URL` parameter points to the location of a Git repository, the
-repository acts as the build context. The system recursively clones the
-repository and its submodules using a `git clone --depth 1 --recursive`
-command. This command runs in a temporary directory on your local host. After
-the command succeeds, the directory is sent to the Docker daemon as the
-context. Local clones give you the ability to access private repositories using
-local user credentials, VPN's, and so forth.
+repository acts as the build context. The system recursively fetches the
+repository and its submodules. The commit history is not preserved. A
+repository is first pulled into a temporary directory on your local host. After
+the that succeeds, the directory is sent to the Docker daemon as the context.
+Local copy gives you the ability to access private repositories using local
+user credentials, VPN's, and so forth.
 
 > **Note:**
 > If the `URL` parameter contains a fragment the system will recursively clone
@@ -87,8 +87,9 @@ local user credentials, VPN's, and so forth.
 
 Git URLs accept context configuration in their fragment section, separated by a
 colon `:`.  The first part represents the reference that Git will check out,
-this can be either a branch, a tag, or a commit SHA. The second part represents
-a subdirectory inside the repository that will be used as a build context.
+this can be either a branch, a tag, or a remote reference. The second part
+represents a subdirectory inside the repository that will be used as a build
+context.
 
 For example, run this command to use a directory called `docker` in the branch
 `container`:
@@ -105,12 +106,11 @@ Build Syntax Suffix             | Commit Used           | Build Context Used
 `myrepo.git`                    | `refs/heads/master`   | `/`
 `myrepo.git#mytag`              | `refs/tags/mytag`     | `/`
 `myrepo.git#mybranch`           | `refs/heads/mybranch` | `/`
-`myrepo.git#abcdef`             | `sha1 = abcdef`       | `/`
+`myrepo.git#pull/42/head`       | `refs/pull/42/head`   | `/`
 `myrepo.git#:myfolder`          | `refs/heads/master`   | `/myfolder`
 `myrepo.git#master:myfolder`    | `refs/heads/master`   | `/myfolder`
 `myrepo.git#mytag:myfolder`     | `refs/tags/mytag`     | `/myfolder`
 `myrepo.git#mybranch:myfolder`  | `refs/heads/mybranch` | `/myfolder`
-`myrepo.git#abcdef:myfolder`    | `sha1 = abcdef`       | `/myfolder`
 
 
 ### Tarball contexts
