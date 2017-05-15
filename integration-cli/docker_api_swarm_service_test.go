@@ -196,7 +196,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesUpdateStartFirst(c *check.C) {
 	// service started from this image won't pass health check
 	_, _, err := d.BuildImageWithOut(image2,
 		`FROM busybox
-		HEALTHCHECK --interval=1s --timeout=1s --retries=1024\
+		HEALTHCHECK --interval=1s --timeout=30s --retries=1024 \
 		  CMD cat /status`,
 		true)
 	c.Check(err, check.IsNil)
