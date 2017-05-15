@@ -190,7 +190,7 @@ swagger-docs: ## preview the API documentation
 		bfirsh/redoc:1.6.2
 
 build-integration-cli-on-swarm: build ## build images and binary for running integration-cli on Swarm in parallel
-	@echo "Building hack/integration-cli-on-swarm"
+	@echo "Building hack/integration-cli-on-swarm (if build fails, please refer to hack/integration-cli-on-swarm/README.md)"
 	go build -o ./hack/integration-cli-on-swarm/integration-cli-on-swarm ./hack/integration-cli-on-swarm/host
 	@echo "Building $(INTEGRATION_CLI_MASTER_IMAGE)"
 	docker build -t $(INTEGRATION_CLI_MASTER_IMAGE) hack/integration-cli-on-swarm/agent
