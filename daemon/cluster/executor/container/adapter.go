@@ -405,11 +405,11 @@ func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscription
 	apiOptions := &types.ContainerLogsOptions{
 		Follow: options.Follow,
 
-		// TODO(stevvooe): Parse timestamp out of message. This
-		// absolutely needs to be done before going to production with
-		// this, at it is completely redundant.
+		// Always say yes to Timestamps and Details. we make the decision
+		// of whether to return these to the user or not way higher up the
+		// stack.
 		Timestamps: true,
-		Details:    false, // no clue what to do with this, let's just deprecate it.
+		Details:    true,
 	}
 
 	if options.Since != nil {
