@@ -94,6 +94,10 @@ func InitFilter(home string, options []string, uidMaps, gidMaps []idtools.IDMap)
 		return nil, fmt.Errorf("%s is on an ReFS volume - ReFS volumes are not supported", home)
 	}
 
+	if err := idtools.MkdirAllAs(home, 0700, 0, 0); err != nil {
+		return nil, fmt.Errorf("windowsfilter failed to create '%s': %v", home, err)
+	}
+
 	d := &Driver{
 		info: hcsshim.DriverInfo{
 			HomeDir: home,

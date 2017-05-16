@@ -3,9 +3,11 @@ package build
 import (
 	"fmt"
 	"io"
+	"runtime"
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
 )
 
@@ -33,7 +35,12 @@ func NewTagger(backend ImageComponent, stdout io.Writer, names []string) (*Tagge
 // TagImages creates image tags for the imageID
 func (bt *Tagger) TagImages(imageID image.ID) error {
 	for _, rt := range bt.repoAndTags {
-		if err := bt.imageComponent.TagImageWithReference(imageID, rt); err != nil {
+		// TODO @jhowardmsft LCOW support. Will need revisiting.
+		platform := runtime.GOOS
+		if platform == "windows" && system.LCOWSupported() {
+			platform = "linux"
+		}
+		if err := bt.imageComponent.TagImageWithReference(imageID, platform, rt); err != nil {
 			return err
 		}
 		fmt.Fprintf(bt.stdout, "Successfully tagged %s\n", reference.FamiliarString(rt))

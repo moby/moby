@@ -115,10 +115,10 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 	// When container creation fails and `RWLayer` has not been created yet, we
 	// do not call `ReleaseRWLayer`
 	if container.RWLayer != nil {
-		metadata, err := daemon.layerStore.ReleaseRWLayer(container.RWLayer)
+		metadata, err := daemon.stores[container.Platform].layerStore.ReleaseRWLayer(container.RWLayer)
 		layer.LogReleaseMetadata(metadata)
 		if err != nil && err != layer.ErrMountDoesNotExist {
-			return errors.Wrapf(err, "driver %q failed to remove root filesystem for %s", daemon.GraphDriverName(), container.ID)
+			return errors.Wrapf(err, "driver %q failed to remove root filesystem for %s", daemon.GraphDriverName(container.Platform), container.ID)
 		}
 	}
 
