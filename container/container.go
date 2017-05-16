@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -77,6 +78,7 @@ type Container struct {
 	LogPath         string
 	Name            string
 	Driver          string
+	Platform        string
 	// MountLabel contains the options for the 'mount' command
 	MountLabel             string
 	ProcessLabel           string
@@ -140,6 +142,13 @@ func (container *Container) FromDisk() error {
 	// Load container settings
 	if err := dec.Decode(container); err != nil {
 		return err
+	}
+
+	// Ensure the platform is set if blank. Assume it is the platform of the
+	// host OS if not, to ensure containers created before multiple-platform
+	// support are migrated
+	if container.Platform == "" {
+		container.Platform = runtime.GOOS
 	}
 
 	if err := label.ReserveLabel(container.ProcessLabel); err != nil {
