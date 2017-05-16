@@ -157,6 +157,9 @@ func (d *Driver) Status() [][2]string {
 	if lv := btrfsLibVersion(); lv != -1 {
 		status = append(status, [2]string{"Library Version", fmt.Sprintf("%d", lv)})
 	}
+	if sv, err := isSubvolume(d.home); err == nil {
+		status = append(status, [2]string{"Root Subvolume", fmt.Sprintf("%v", sv)})
+	}
 	return status
 }
 
