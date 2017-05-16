@@ -1,3 +1,5 @@
+// +build darwin freebsd openbsd
+
 package term
 
 import (
@@ -7,8 +9,8 @@ import (
 )
 
 const (
-	getTermios = unix.TCGETS
-	setTermios = unix.TCSETS
+	getTermios = unix.TIOCGETA
+	setTermios = unix.TIOCSETA
 )
 
 // Termios is the Unix API for terminal I/O.
@@ -24,15 +26,17 @@ func MakeRaw(fd uintptr) (*State, error) {
 	}
 
 	newState := oldState.termios
-
 	newState.Iflag &^= (unix.IGNBRK | unix.BRKINT | unix.PARMRK | unix.ISTRIP | unix.INLCR | unix.IGNCR | unix.ICRNL | unix.IXON)
-	newState.Oflag |= unix.OPOST
+	newState.Oflag &^= unix.OPOST
 	newState.Lflag &^= (unix.ECHO | unix.ECHONL | unix.ICANON | unix.ISIG | unix.IEXTEN)
 	newState.Cflag &^= (unix.CSIZE | unix.PARENB)
 	newState.Cflag |= unix.CS8
+	newState.Cc[unix.VMIN] = 1
+	newState.Cc[unix.VTIME] = 0
 
 	if _, _, err := unix.Syscall(unix.SYS_IOCTL, fd, setTermios, uintptr(unsafe.Pointer(&newState))); err != 0 {
 		return nil, err
 	}
+
 	return &oldState, nil
 }
