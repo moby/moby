@@ -15,12 +15,12 @@ import (
 	"github.com/opencontainers/go-digest"
 )
 
-func (daemon *Daemon) getLayerRefs() map[layer.ChainID]int {
-	tmpImages := daemon.imageStore.Map()
+func (daemon *Daemon) getLayerRefs(platform string) map[layer.ChainID]int {
+	tmpImages := daemon.stores[platform].imageStore.Map()
 	layerRefs := map[layer.ChainID]int{}
 	for id, img := range tmpImages {
 		dgst := digest.Digest(id)
-		if len(daemon.referenceStore.References(dgst)) == 0 && len(daemon.imageStore.Children(id)) != 0 {
+		if len(daemon.stores[platform].referenceStore.References(dgst)) == 0 && len(daemon.stores[platform].imageStore.Children(id)) != 0 {
 			continue
 		}
 
@@ -53,6 +53,7 @@ func (daemon *Daemon) SystemDiskUsage(ctx context.Context) (*types.DiskUsage, er
 	}
 
 	// Get all top images with extra attributes
+	// TODO @jhowardmsft LCOW. This may need revisiting
 	allImages, err := daemon.Images(filters.NewArgs(), false, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve image list: %v", err)
@@ -94,23 +95,26 @@ func (daemon *Daemon) SystemDiskUsage(ctx context.Context) (*types.DiskUsage, er
 	}
 
 	// Get total layers size on disk
-	layerRefs := daemon.getLayerRefs()
-	allLayers := daemon.layerStore.Map()
 	var allLayersSize int64
-	for _, l := range allLayers {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-			size, err := l.DiffSize()
-			if err == nil {
-				if _, ok := layerRefs[l.ChainID()]; ok {
-					allLayersSize += size
+	for platform := range daemon.stores {
+		layerRefs := daemon.getLayerRefs(platform)
+		allLayers := daemon.stores[platform].layerStore.Map()
+		var allLayersSize int64
+		for _, l := range allLayers {
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			default:
+				size, err := l.DiffSize()
+				if err == nil {
+					if _, ok := layerRefs[l.ChainID()]; ok {
+						allLayersSize += size
+					} else {
+						logrus.Warnf("found leaked image layer %v platform %s", l.ChainID(), platform)
+					}
 				} else {
-					logrus.Warnf("found leaked image layer %v", l.ChainID())
+					logrus.Warnf("failed to get diff size for layer %v %s", l.ChainID(), platform)
 				}
-			} else {
-				logrus.Warnf("failed to get diff size for layer %v", l.ChainID())
 			}
 		}
 	}

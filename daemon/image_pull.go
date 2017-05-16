@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"io"
+	"runtime"
 	"strings"
 
 	dist "github.com/docker/distribution"
@@ -59,6 +60,12 @@ func (daemon *Daemon) pullImageWithReference(ctx context.Context, ref reference.
 		close(writesDone)
 	}()
 
+	// ------------------------------------------------------------------------------
+	// TODO @jhowardmsft LCOW. For now, use just the store for the host OS. This will
+	// need some work to complete - we won't know the platform until after metadata
+	// is pulled from the repository. This affects plugin as well to complete.
+	// ------------------------------------------------------------------------------
+
 	imagePullConfig := &distribution.ImagePullConfig{
 		Config: distribution.Config{
 			MetaHeaders:      metaHeaders,
@@ -66,9 +73,9 @@ func (daemon *Daemon) pullImageWithReference(ctx context.Context, ref reference.
 			ProgressOutput:   progress.ChanOutput(progressChan),
 			RegistryService:  daemon.RegistryService,
 			ImageEventLogger: daemon.LogImageEvent,
-			MetadataStore:    daemon.distributionMetadataStore,
-			ImageStore:       distribution.NewImageConfigStoreFromStore(daemon.imageStore),
-			ReferenceStore:   daemon.referenceStore,
+			MetadataStore:    daemon.stores[runtime.GOOS].distributionMetadataStore,
+			ImageStore:       distribution.NewImageConfigStoreFromStore(daemon.stores[runtime.GOOS].imageStore),
+			ReferenceStore:   daemon.stores[runtime.GOOS].referenceStore,
 		},
 		DownloadManager: daemon.downloadManager,
 		Schema2Types:    distribution.ImageTypes,

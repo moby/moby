@@ -160,26 +160,21 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 	}()
 
 	var parent *image.Image
-	os := runtime.GOOS
 	if container.ImageID == "" {
 		parent = new(image.Image)
 		parent.RootFS = image.NewRootFS()
 	} else {
-		parent, err = daemon.imageStore.Get(container.ImageID)
+		parent, err = daemon.stores[container.Platform].imageStore.Get(container.ImageID)
 		if err != nil {
 			return "", err
 		}
-		// To support LCOW, Windows needs to pass the platform in when registering the layer in the store
-		if runtime.GOOS == "windows" {
-			os = parent.OS
-		}
 	}
 
-	l, err := daemon.layerStore.Register(rwTar, parent.RootFS.ChainID(), layer.Platform(os))
+	l, err := daemon.stores[container.Platform].layerStore.Register(rwTar, rootFS.ChainID(), layer.Platform(container.Platform))
 	if err != nil {
 		return "", err
 	}
-	defer layer.ReleaseAndLog(daemon.layerStore, l)
+	defer layer.ReleaseAndLog(daemon.stores[container.Platform].layerStore, l)
 
 	containerConfig := c.ContainerConfig
 	if containerConfig == nil {
@@ -198,13 +193,13 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		return "", err
 	}
 
-	id, err := daemon.imageStore.Create(config)
+	id, err := daemon.stores[container.Platform].imageStore.Create(config)
 	if err != nil {
 		return "", err
 	}
 
 	if container.ImageID != "" {
-		if err := daemon.imageStore.SetParent(id, container.ImageID); err != nil {
+		if err := daemon.stores[container.Platform].imageStore.SetParent(id, container.ImageID); err != nil {
 			return "", err
 		}
 	}
@@ -223,7 +218,7 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 				return "", err
 			}
 		}
-		if err := daemon.TagImageWithReference(id, newTag); err != nil {
+		if err := daemon.TagImageWithReference(id, container.Platform, newTag); err != nil {
 			return "", err
 		}
 		imageRef = reference.FamiliarString(newTag)
