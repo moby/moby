@@ -1,4 +1,4 @@
-// +build solaris
+// +build solaris,cgo
 
 package term
 
