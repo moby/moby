@@ -88,6 +88,11 @@ type ResourceRequirements struct {
 type Placement struct {
 	Constraints []string              `json:",omitempty"`
 	Preferences []PlacementPreference `json:",omitempty"`
+
+	// Platforms stores all the platforms that the image can run on.
+	// This field is used in the platform filter for scheduling. If empty,
+	// then the platform filter is off, meaning there are no scheduling restrictions.
+	Platforms []Platform `json:",omitempty"`
 }
 
 // PlacementPreference provides a way to make the scheduler aware of factors

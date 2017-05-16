@@ -198,9 +198,17 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 				})
 			}
 		}
+		var platforms []*swarmapi.Platform
+		for _, plat := range s.TaskTemplate.Placement.Platforms {
+			platforms = append(platforms, &swarmapi.Platform{
+				Architecture: plat.Architecture,
+				OS:           plat.OS,
+			})
+		}
 		spec.Task.Placement = &swarmapi.Placement{
 			Constraints: s.TaskTemplate.Placement.Constraints,
 			Preferences: preferences,
+			Platforms:   platforms,
 		}
 	}
 
@@ -391,6 +399,13 @@ func placementFromGRPC(p *swarmapi.Placement) *types.Placement {
 				},
 			})
 		}
+	}
+
+	for _, plat := range p.Platforms {
+		r.Platforms = append(r.Platforms, types.Platform{
+			Architecture: plat.Architecture,
+			OS:           plat.OS,
+		})
 	}
 
 	return r

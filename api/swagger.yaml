@@ -2158,6 +2158,16 @@ definitions:
                     SpreadDescriptor:
                       description: "label descriptor, such as engine.labels.az"
                       type: "string"
+          Platforms:
+            description: "An array of supported platforms."
+            type: "array"
+            items:
+              type: "object"
+              properties:
+                Architecture:
+                  type: "string"
+                OS:
+                  type: "string"
       ForceUpdate:
         description: "A counter that triggers an update even if no relevant parameters have been changed."
         type: "integer"
