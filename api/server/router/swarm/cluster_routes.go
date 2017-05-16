@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/filters"
 	types "github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/api/types/versions"
 	"golang.org/x/net/context"
 )
 
@@ -178,8 +179,13 @@ func (sr *swarmRouter) createService(ctx context.Context, w http.ResponseWriter,
 
 	// Get returns "" if the header does not exist
 	encodedAuth := r.Header.Get("X-Registry-Auth")
+	cliVersion := r.Header.Get("version")
+	queryRegistry := false
+	if cliVersion != "" && versions.LessThan(cliVersion, "1.30") {
+		queryRegistry = true
+	}
 
-	resp, err := sr.backend.CreateService(service, encodedAuth)
+	resp, err := sr.backend.CreateService(service, encodedAuth, queryRegistry)
 	if err != nil {
 		logrus.Errorf("Error creating service %s: %v", service.Name, err)
 		return err
@@ -207,8 +213,13 @@ func (sr *swarmRouter) updateService(ctx context.Context, w http.ResponseWriter,
 	flags.EncodedRegistryAuth = r.Header.Get("X-Registry-Auth")
 	flags.RegistryAuthFrom = r.URL.Query().Get("registryAuthFrom")
 	flags.Rollback = r.URL.Query().Get("rollback")
+	cliVersion := r.Header.Get("version")
+	queryRegistry := false
+	if cliVersion != "" && versions.LessThan(cliVersion, "1.30") {
+		queryRegistry = true
+	}
 
-	resp, err := sr.backend.UpdateService(vars["id"], version, service, flags)
+	resp, err := sr.backend.UpdateService(vars["id"], version, service, flags, queryRegistry)
 	if err != nil {
 		logrus.Errorf("Error updating service %s: %v", vars["id"], err)
 		return err

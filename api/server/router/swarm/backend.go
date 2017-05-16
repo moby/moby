@@ -19,8 +19,8 @@ type Backend interface {
 
 	GetServices(basictypes.ServiceListOptions) ([]types.Service, error)
 	GetService(idOrName string, insertDefaults bool) (types.Service, error)
-	CreateService(types.ServiceSpec, string) (*basictypes.ServiceCreateResponse, error)
-	UpdateService(string, uint64, types.ServiceSpec, basictypes.ServiceUpdateOptions) (*basictypes.ServiceUpdateResponse, error)
+	CreateService(types.ServiceSpec, string, bool) (*basictypes.ServiceCreateResponse, error)
+	UpdateService(string, uint64, types.ServiceSpec, basictypes.ServiceUpdateOptions, bool) (*basictypes.ServiceUpdateResponse, error)
 	RemoveService(string) error
 
 	ServiceLogs(context.Context, *backend.LogSelector, *basictypes.ContainerLogsOptions) (<-chan *backend.LogMessage, error)

@@ -20,6 +20,7 @@ import (
 type CommonAPIClient interface {
 	ConfigAPIClient
 	ContainerAPIClient
+	DistributionAPIClient
 	ImageAPIClient
 	NodeAPIClient
 	NetworkAPIClient
@@ -67,6 +68,11 @@ type ContainerAPIClient interface {
 	CopyFromContainer(ctx context.Context, container, srcPath string) (io.ReadCloser, types.ContainerPathStat, error)
 	CopyToContainer(ctx context.Context, container, path string, content io.Reader, options types.CopyToContainerOptions) error
 	ContainersPrune(ctx context.Context, pruneFilters filters.Args) (types.ContainersPruneReport, error)
+}
+
+// DistributionAPIClient defines API client methods for the registry
+type DistributionAPIClient interface {
+	DistributionInspect(ctx context.Context, image, encodedRegistryAuth string) (registry.DistributionInspect, error)
 }
 
 // ImageAPIClient defines API client methods for the images
