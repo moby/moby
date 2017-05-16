@@ -404,13 +404,14 @@ func (d *Dispatcher) markNodeReady(nodeID string, description *api.NodeDescripti
 
 	// Wait until the node update batch happens before unblocking register.
 	d.processUpdatesLock.Lock()
+	defer d.processUpdatesLock.Unlock()
+
 	select {
 	case <-d.ctx.Done():
 		return d.ctx.Err()
 	default:
 	}
 	d.processUpdatesCond.Wait()
-	d.processUpdatesLock.Unlock()
 
 	return nil
 }
