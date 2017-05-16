@@ -17,11 +17,12 @@
              development and Windows to Windows CI.
 
              Usage Examples (run from repo root):
-                "hack\make.ps1 -Binary" to build the binaries
-                "hack\make.ps1 -Client" to build just the client 64-bit binary
+                "hack\make.ps1 -Client" to build docker.exe client 64-bit binary (remote repo)
                 "hack\make.ps1 -TestUnit" to run unit tests
-                "hack\make.ps1 -Binary -TestUnit" to build the binaries and run unit tests
+                "hack\make.ps1 -Daemon -TestUnit" to build the daemon and run unit tests
                 "hack\make.ps1 -All" to run everything this script knows about that can run in a container
+                "hack\make.ps1" to build the daemon binary (same as -Daemon)
+                "hack\make.ps1 -Binary" shortcut to -Client and -Daemon
 
 .PARAMETER Client
      Builds the client binaries.
@@ -30,7 +31,7 @@
      Builds the daemon binary.
 
 .PARAMETER Binary
-     Builds the client binaries and the daemon binary. A convenient shortcut to `make.ps1 -Client -Daemon`.
+     Builds the client and daemon binaries. A convenient shortcut to `make.ps1 -Client -Daemon`.
 
 .PARAMETER Race
      Use -race in go build and go test.
@@ -340,8 +341,8 @@ Try {
     # Handle the "-Binary" shortcut to build both client and daemon.
     if ($Binary) { $Client = $True; $Daemon = $True }
 
-    # Default to building the binaries if not asked for anything explicitly.
-    if (-not($Client) -and -not($Daemon) -and -not($DCO) -and -not($PkgImports) -and -not($GoFormat) -and -not($TestUnit)) { $Client=$True; $Daemon=$True }
+    # Default to building the daemon if not asked for anything explicitly.
+    if (-not($Client) -and -not($Daemon) -and -not($DCO) -and -not($PkgImports) -and -not($GoFormat) -and -not($TestUnit)) { $Daemon=$True }
 
     # Verify git is installed
     if ($(Get-Command git -ErrorAction SilentlyContinue) -eq $nil) { Throw "Git does not appear to be installed" }
