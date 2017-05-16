@@ -418,8 +418,10 @@ Try {
                 Invoke-Expression "git -C $dockerCliRoot  checkout -q $dockerCliCommit"
                 if ($LASTEXITCODE -ne 0) { Throw "Failed to checkout client commit $dockerCliCommit" }
                 Write-Host "INFO: Building client..."
-                Invoke-Expression "go build -o $root\bundles\docker.exe github.com/docker/cli/cmd/docker"
+                Push-Location "$dockerCliRoot\cmd\docker"; $global:pushed=$True
+                Invoke-Expression "go build -o $root\bundles\docker.exe"
                 if ($LASTEXITCODE -ne 0) { Throw "Failed to compile client" }
+                Pop-Location; $global:pushed=$False
             }
             Catch [Exception] {
                 Throw $_
