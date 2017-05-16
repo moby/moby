@@ -25,6 +25,27 @@ var (
 	// ErrPruneRunning is returned when a prune request is received while
 	// one is in progress
 	ErrPruneRunning = fmt.Errorf("a prune operation is already running")
+
+	containersAcceptedFilters = map[string]bool{
+		"label":  true,
+		"label!": true,
+		"until":  true,
+	}
+	volumesAcceptedFilters = map[string]bool{
+		"label":  true,
+		"label!": true,
+	}
+	imagesAcceptedFilters = map[string]bool{
+		"dangling": true,
+		"label":    true,
+		"label!":   true,
+		"until":    true,
+	}
+	networksAcceptedFilters = map[string]bool{
+		"label":  true,
+		"label!": true,
+		"until":  true,
+	}
 )
 
 // ContainersPrune removes unused containers
@@ -35,6 +56,12 @@ func (daemon *Daemon) ContainersPrune(ctx context.Context, pruneFilters filters.
 	defer atomic.StoreInt32(&daemon.pruneRunning, 0)
 
 	rep := &types.ContainersPruneReport{}
+
+	// make sure that only accepted filters have been received
+	err := pruneFilters.Validate(containersAcceptedFilters)
+	if err != nil {
+		return nil, err
+	}
 
 	until, err := getUntilFromPruneFilters(pruneFilters)
 	if err != nil {
@@ -81,6 +108,12 @@ func (daemon *Daemon) VolumesPrune(ctx context.Context, pruneFilters filters.Arg
 	}
 	defer atomic.StoreInt32(&daemon.pruneRunning, 0)
 
+	// make sure that only accepted filters have been received
+	err := pruneFilters.Validate(volumesAcceptedFilters)
+	if err != nil {
+		return nil, err
+	}
+
 	rep := &types.VolumesPruneReport{}
 
 	pruneVols := func(v volume.Volume) error {
@@ -117,7 +150,7 @@ func (daemon *Daemon) VolumesPrune(ctx context.Context, pruneFilters filters.Arg
 		return nil
 	}
 
-	err := daemon.traverseLocalVolumes(pruneVols)
+	err = daemon.traverseLocalVolumes(pruneVols)
 
 	return rep, err
 }
@@ -128,6 +161,12 @@ func (daemon *Daemon) ImagesPrune(ctx context.Context, pruneFilters filters.Args
 		return nil, ErrPruneRunning
 	}
 	defer atomic.StoreInt32(&daemon.pruneRunning, 0)
+
+	// make sure that only accepted filters have been received
+	err := pruneFilters.Validate(imagesAcceptedFilters)
+	if err != nil {
+		return nil, err
+	}
 
 	rep := &types.ImagesPruneReport{}
 
@@ -356,6 +395,12 @@ func (daemon *Daemon) NetworksPrune(ctx context.Context, pruneFilters filters.Ar
 		return nil, ErrPruneRunning
 	}
 	defer atomic.StoreInt32(&daemon.pruneRunning, 0)
+
+	// make sure that only accepted filters have been received
+	err := pruneFilters.Validate(networksAcceptedFilters)
+	if err != nil {
+		return nil, err
+	}
 
 	if _, err := getUntilFromPruneFilters(pruneFilters); err != nil {
 		return nil, err
