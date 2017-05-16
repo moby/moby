@@ -42,15 +42,17 @@ type store struct {
 	images    map[ID]*imageMeta
 	fs        StoreBackend
 	digestSet *digestset.Set
+	platform  string
 }
 
 // NewImageStore returns new store object for given layer store
-func NewImageStore(fs StoreBackend, ls LayerGetReleaser) (Store, error) {
+func NewImageStore(fs StoreBackend, platform string, ls LayerGetReleaser) (Store, error) {
 	is := &store{
 		ls:        ls,
 		images:    make(map[ID]*imageMeta),
 		fs:        fs,
 		digestSet: digestset.NewSet(),
+		platform:  platform,
 	}
 
 	// load all current images and retain layers
