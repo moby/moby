@@ -9,6 +9,7 @@ import (
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/identity"
 	"github.com/docker/swarmkit/manager/allocator"
+	"github.com/docker/swarmkit/manager/allocator/networkallocator"
 	"github.com/docker/swarmkit/manager/state/store"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -87,6 +88,10 @@ func validateNetworkSpec(spec *api.NetworkSpec, pg plugingetter.PluginGetter) er
 		return err
 	}
 
+	if _, ok := spec.Annotations.Labels[networkallocator.PredefinedLabel]; ok {
+		return grpc.Errorf(codes.PermissionDenied, "label %s is for internally created predefined networks and cannot be applied by users",
+			networkallocator.PredefinedLabel)
+	}
 	if err := validateDriver(spec.DriverConfig, pg, driverapi.NetworkPluginEndpointType); err != nil {
 		return err
 	}
@@ -175,6 +180,11 @@ func (s *Server) RemoveNetwork(ctx context.Context, request *api.RemoveNetworkRe
 
 	if allocator.IsIngressNetwork(n) {
 		rm = s.removeIngressNetwork
+	}
+
+	if v, ok := n.Spec.Annotations.Labels[networkallocator.PredefinedLabel]; ok && v == "true" {
+		return nil, grpc.Errorf(codes.FailedPrecondition, "network %s (%s) is a swarm predefined network and cannot be removed",
+			request.NetworkID, n.Spec.Annotations.Name)
 	}
 
 	if err := rm(n.ID); err != nil {
