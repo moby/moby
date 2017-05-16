@@ -1,10 +1,15 @@
-// +build windows
-
 package daemon
 
 import (
+	"fmt"
+	"io/ioutil"
+	"os"
+
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/libnetwork"
+	"github.com/pkg/errors"
 )
 
 func (daemon *Daemon) setupLinkedContainers(container *container.Container) ([]string, error) {
@@ -32,6 +37,57 @@ func (daemon *Daemon) mountVolumes(container *container.Container) error {
 }
 
 func detachMounted(path string) error {
+	return nil
+}
+
+func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
+	if len(c.SecretReferences) == 0 {
+		return nil
+	}
+
+	localMountPath := c.SecretMountPath()
+	logrus.Debugf("secrets: setting up secret dir: %s", localMountPath)
+
+	// create local secret root
+	if err := system.MkdirAllWithACL(localMountPath, 0); err != nil {
+		return errors.Wrap(err, "error creating secret local directory")
+	}
+
+	defer func() {
+		if setupErr != nil {
+			if err := os.RemoveAll(localMountPath); err != nil {
+				logrus.Errorf("error cleaning up secret mount: %s", err)
+			}
+		}
+	}()
+
+	if c.DependencyStore == nil {
+		return fmt.Errorf("secret store is not initialized")
+	}
+
+	for _, s := range c.SecretReferences {
+		// TODO (ehazlett): use type switch when more are supported
+		if s.File == nil {
+			logrus.Error("secret target type is not a file target")
+			continue
+		}
+
+		// secrets are created in the SecretMountPath on the host, at a
+		// single level
+		fPath := c.SecretFilePath(*s)
+		logrus.WithFields(logrus.Fields{
+			"name": s.File.Name,
+			"path": fPath,
+		}).Debug("injecting secret")
+		secret := c.DependencyStore.Secrets().Get(s.SecretID)
+		if secret == nil {
+			return fmt.Errorf("unable to get secret from secret store")
+		}
+		if err := ioutil.WriteFile(fPath, secret.Spec.Data, s.File.Mode); err != nil {
+			return errors.Wrap(err, "error injecting secret")
+		}
+	}
+
 	return nil
 }
 
