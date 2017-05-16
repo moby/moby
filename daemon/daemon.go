@@ -656,7 +656,9 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 		return nil, err
 	}
 
-	d.imageStore, err = image.NewImageStore(ifs, d.layerStore)
+	// TODO LCOW @jhowardmsft. For now assume it's the runtime OS. This will be modified
+	// as the stores are split in a follow-up commit.
+	d.imageStore, err = image.NewImageStore(ifs, runtime.GOOS, d.layerStore)
 	if err != nil {
 		return nil, err
 	}

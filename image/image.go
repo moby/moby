@@ -96,6 +96,15 @@ func (img *Image) RunConfig() *container.Config {
 	return img.Config
 }
 
+// Platform returns the image's operating system. If not populated, defaults to the host runtime OS.
+func (img *Image) Platform() string {
+	os := img.OS
+	if os == "" {
+		os = runtime.GOOS
+	}
+	return os
+}
+
 // MarshalJSON serializes the image to JSON. It sorts the top-level keys so
 // that JSON that's been manipulated by a push/pull cycle with a legacy
 // registry won't end up with a different key order.
