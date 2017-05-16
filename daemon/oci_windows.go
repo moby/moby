@@ -29,6 +29,10 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 		return nil, err
 	}
 
+	if err := daemon.setupConfigDir(c); err != nil {
+		return nil, err
+	}
+
 	// In s.Mounts
 	mounts, err := daemon.setupMounts(c)
 	if err != nil {
@@ -44,29 +48,34 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 		isHyperV = c.HostConfig.Isolation.IsHyperV()
 	}
 
-	// If the container has not been started, and has secrets, create symlinks
-	// to each secret. If it has been started before, the symlinks should have
-	// already been created. Also, it is important to not mount a Hyper-V
-	// container that has been started before, to protect the host from the
-	// container; for example, from malicious mutation of NTFS data structures.
-	if !c.HasBeenStartedBefore && len(c.SecretReferences) > 0 {
+	// If the container has not been started, and has configs or secrets
+	// secrets, create symlinks to each confing and secret. If it has been
+	// started before, the symlinks should have already been created. Also, it
+	// is important to not mount a Hyper-V  container that has been started
+	// before, to protect the host from the container; for example, from
+	// malicious mutation of NTFS data structures.
+	if !c.HasBeenStartedBefore && (len(c.SecretReferences) > 0 || len(c.ConfigReferences) > 0) {
 		// The container file system is mounted before this function is called,
 		// except for Hyper-V containers, so mount it here in that case.
 		if isHyperV {
 			if err := daemon.Mount(c); err != nil {
 				return nil, err
 			}
+			defer daemon.Unmount(c)
 		}
-		err := c.CreateSecretSymlinks()
-		if isHyperV {
-			daemon.Unmount(c)
+		if err := c.CreateSecretSymlinks(); err != nil {
+			return nil, err
 		}
-		if err != nil {
+		if err := c.CreateConfigSymlinks(); err != nil {
 			return nil, err
 		}
 	}
 
 	if m := c.SecretMounts(); m != nil {
+		mounts = append(mounts, m...)
+	}
+
+	if m := c.ConfigMounts(); m != nil {
 		mounts = append(mounts, m...)
 	}
 

@@ -1,7 +1,7 @@
-// +build !linux,!windows
+// +build windows
 
 package daemon
 
 func configsSupported() bool {
-	return false
+	return true
 }

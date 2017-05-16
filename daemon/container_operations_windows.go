@@ -16,6 +16,55 @@ func (daemon *Daemon) setupLinkedContainers(container *container.Container) ([]s
 	return nil, nil
 }
 
+func (daemon *Daemon) setupConfigDir(c *container.Container) (setupErr error) {
+	if len(c.ConfigReferences) == 0 {
+		return nil
+	}
+
+	localPath := c.ConfigsDirPath()
+	logrus.Debugf("configs: setting up config dir: %s", localPath)
+
+	// create local config root
+	if err := system.MkdirAllWithACL(localPath, 0); err != nil {
+		return errors.Wrap(err, "error creating config dir")
+	}
+
+	defer func() {
+		if setupErr != nil {
+			if err := os.RemoveAll(localPath); err != nil {
+				logrus.Errorf("error cleaning up config dir: %s", err)
+			}
+		}
+	}()
+
+	if c.DependencyStore == nil {
+		return fmt.Errorf("config store is not initialized")
+	}
+
+	for _, configRef := range c.ConfigReferences {
+		// TODO (ehazlett): use type switch when more are supported
+		if configRef.File == nil {
+			logrus.Error("config target type is not a file target")
+			continue
+		}
+
+		fPath := c.ConfigFilePath(*configRef)
+
+		log := logrus.WithFields(logrus.Fields{"name": configRef.File.Name, "path": fPath})
+
+		log.Debug("injecting config")
+		config := c.DependencyStore.Configs().Get(configRef.ConfigID)
+		if config == nil {
+			return fmt.Errorf("unable to get config from config store")
+		}
+		if err := ioutil.WriteFile(fPath, config.Spec.Data, configRef.File.Mode); err != nil {
+			return errors.Wrap(err, "error injecting config")
+		}
+	}
+
+	return nil
+}
+
 // getSize returns real size & virtual size
 func (daemon *Daemon) getSize(containerID string) (int64, int64) {
 	// TODO Windows
