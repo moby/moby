@@ -4,8 +4,7 @@ import (
 	"encoding/json"
 	"net"
 
-	"github.com/docker/distribution"
-	"github.com/docker/distribution/manifest/manifestlist"
+	"github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ServiceConfig stores daemon registry services configuration.
@@ -111,8 +110,8 @@ type SearchResults struct {
 type DistributionInspect struct {
 	// Descriptor contains information about the manifest, including
 	// the content addressable digest
-	Descriptor distribution.Descriptor
+	Descriptor v1.Descriptor
 	// Platforms contains the list of platforms supported by the image,
 	// obtained by parsing the manifest
-	Platforms []manifestlist.PlatformSpec
+	Platforms []v1.Platform
 }
