@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	"github.com/docker/docker/api/errors"
@@ -144,8 +145,10 @@ func (daemon *Daemon) newContainer(name string, config *containertypes.Config, h
 	base.ImageID = imgID
 	base.NetworkSettings = &network.Settings{IsAnonymousEndpoint: noExplicitName}
 	base.Name = name
-	base.Driver = daemon.GraphDriverName()
-
+	// TODO @jhowardmsft LCOW - Get it from the platform of the container. For now, assume it is the OS of the host
+	base.Driver = daemon.GraphDriverName(runtime.GOOS)
+	// TODO @jhowardmsft LCOW - Similarly on this field. To solve this it will need a CLI/REST change in a subsequent PR during LCOW development
+	base.Platform = runtime.GOOS
 	return base, err
 }
 

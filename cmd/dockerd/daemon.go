@@ -267,12 +267,6 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 
 	logrus.Info("Daemon has completed initialization")
 
-	logrus.WithFields(logrus.Fields{
-		"version":     dockerversion.Version,
-		"commit":      dockerversion.GitCommit,
-		"graphdriver": d.GraphDriverName(),
-	}).Info("Docker daemon")
-
 	cli.d = d
 
 	initRouter(api, d, c)

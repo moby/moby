@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"io"
+	"runtime"
 
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/reference"
@@ -39,6 +40,11 @@ func (daemon *Daemon) PushImage(ctx context.Context, image, tag string, metaHead
 		close(writesDone)
 	}()
 
+	// ------------------------------------------------------------------------------
+	// TODO @jhowardmsft LCOW. For now, use just the store for the host OS. This will
+	// need some work to complete.
+	// ------------------------------------------------------------------------------
+
 	imagePushConfig := &distribution.ImagePushConfig{
 		Config: distribution.Config{
 			MetaHeaders:      metaHeaders,
@@ -46,12 +52,12 @@ func (daemon *Daemon) PushImage(ctx context.Context, image, tag string, metaHead
 			ProgressOutput:   progress.ChanOutput(progressChan),
 			RegistryService:  daemon.RegistryService,
 			ImageEventLogger: daemon.LogImageEvent,
-			MetadataStore:    daemon.distributionMetadataStore,
-			ImageStore:       distribution.NewImageConfigStoreFromStore(daemon.imageStore),
-			ReferenceStore:   daemon.referenceStore,
+			MetadataStore:    daemon.stores[runtime.GOOS].distributionMetadataStore,
+			ImageStore:       distribution.NewImageConfigStoreFromStore(daemon.stores[runtime.GOOS].imageStore),
+			ReferenceStore:   daemon.stores[runtime.GOOS].referenceStore,
 		},
 		ConfigMediaType: schema2.MediaTypeImageConfig,
-		LayerStore:      distribution.NewLayerProviderFromStore(daemon.layerStore),
+		LayerStore:      distribution.NewLayerProviderFromStore(daemon.stores[runtime.GOOS].layerStore),
 		TrustKey:        daemon.trustKey,
 		UploadManager:   daemon.uploadManager,
 	}

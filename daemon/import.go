@@ -91,11 +91,11 @@ func (daemon *Daemon) ImportImage(src string, repository, tag string, msg string
 	//       but for Linux images, there's no reason it couldn't. However it
 	//       would need another CLI flag as there's no meta-data indicating
 	//       the OS of the thing being imported.
-	l, err := daemon.layerStore.Register(inflatedLayerData, "", "")
+	l, err := daemon.stores[runtime.GOOS].layerStore.Register(inflatedLayerData, "", "")
 	if err != nil {
 		return err
 	}
-	defer layer.ReleaseAndLog(daemon.layerStore, l)
+	defer layer.ReleaseAndLog(daemon.stores[runtime.GOOS].layerStore, l) // TODO LCOW @jhowardmsft as for above comment
 
 	created := time.Now().UTC()
 	imgConfig, err := json.Marshal(&image.Image{
@@ -103,7 +103,7 @@ func (daemon *Daemon) ImportImage(src string, repository, tag string, msg string
 			DockerVersion: dockerversion.Version,
 			Config:        config,
 			Architecture:  runtime.GOARCH,
-			OS:            runtime.GOOS,
+			OS:            runtime.GOOS, // TODO LCOW @jhowardmsft as for above commment
 			Created:       created,
 			Comment:       msg,
 		},
@@ -120,14 +120,16 @@ func (daemon *Daemon) ImportImage(src string, repository, tag string, msg string
 		return err
 	}
 
-	id, err := daemon.imageStore.Create(imgConfig)
+	// TODO @jhowardmsft LCOW - Again, assume the OS of the host for now
+	id, err := daemon.stores[runtime.GOOS].imageStore.Create(imgConfig)
 	if err != nil {
 		return err
 	}
 
 	// FIXME: connect with commit code and call refstore directly
 	if newRef != nil {
-		if err := daemon.TagImageWithReference(id, newRef); err != nil {
+		// TODO @jhowardmsft LCOW - Again, assume the OS of the host for now
+		if err := daemon.TagImageWithReference(id, runtime.GOOS, newRef); err != nil {
 			return err
 		}
 	}

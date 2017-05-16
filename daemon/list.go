@@ -317,7 +317,7 @@ func (daemon *Daemon) foldFilter(config *types.ContainerListOptions) (*listConte
 	if psFilters.Include("ancestor") {
 		ancestorFilter = true
 		psFilters.WalkValues("ancestor", func(ancestor string) error {
-			id, err := daemon.GetImageID(ancestor)
+			id, platform, err := daemon.GetImageIDAndPlatform(ancestor)
 			if err != nil {
 				logrus.Warnf("Error while looking up for image %v", ancestor)
 				return nil
@@ -327,7 +327,7 @@ func (daemon *Daemon) foldFilter(config *types.ContainerListOptions) (*listConte
 				return nil
 			}
 			// Then walk down the graph and put the imageIds in imagesFilter
-			populateImageFilterByParents(imagesFilter, id, daemon.imageStore.Children)
+			populateImageFilterByParents(imagesFilter, id, daemon.stores[platform].imageStore.Children)
 			return nil
 		})
 	}
@@ -558,7 +558,7 @@ func (daemon *Daemon) transformContainer(container *container.Container, ctx *li
 
 	image := container.Config.Image // if possible keep the original ref
 	if image != container.ImageID.String() {
-		id, err := daemon.GetImageID(image)
+		id, _, err := daemon.GetImageIDAndPlatform(image)
 		if _, isDNE := err.(ErrImageDoesNotExist); err != nil && !isDNE {
 			return nil, err
 		}

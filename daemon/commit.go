@@ -168,11 +168,10 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 	var history []image.History
 	rootFS := image.NewRootFS()
 	osVersion := ""
-	os := ""
 	var osFeatures []string
 
 	if container.ImageID != "" {
-		img, err := daemon.imageStore.Get(container.ImageID)
+		img, err := daemon.stores[container.Platform].imageStore.Get(container.ImageID)
 		if err != nil {
 			return "", err
 		}
@@ -180,17 +179,13 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		rootFS = img.RootFS
 		osVersion = img.OSVersion
 		osFeatures = img.OSFeatures
-		// To support LCOW, Windows needs to pass the platform in when registering the layer in the store
-		if runtime.GOOS == "windows" {
-			os = img.OS
-		}
 	}
 
-	l, err := daemon.layerStore.Register(rwTar, rootFS.ChainID(), layer.Platform(os))
+	l, err := daemon.stores[container.Platform].layerStore.Register(rwTar, rootFS.ChainID(), layer.Platform(container.Platform))
 	if err != nil {
 		return "", err
 	}
-	defer layer.ReleaseAndLog(daemon.layerStore, l)
+	defer layer.ReleaseAndLog(daemon.stores[container.Platform].layerStore, l)
 
 	h := image.History{
 		Author:     c.Author,
@@ -228,13 +223,13 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		return "", err
 	}
 
-	id, err := daemon.imageStore.Create(config)
+	id, err := daemon.stores[container.Platform].imageStore.Create(config)
 	if err != nil {
 		return "", err
 	}
 
 	if container.ImageID != "" {
-		if err := daemon.imageStore.SetParent(id, container.ImageID); err != nil {
+		if err := daemon.stores[container.Platform].imageStore.SetParent(id, container.ImageID); err != nil {
 			return "", err
 		}
 	}
@@ -253,7 +248,7 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 				return "", err
 			}
 		}
-		if err := daemon.TagImageWithReference(id, newTag); err != nil {
+		if err := daemon.TagImageWithReference(id, container.Platform, newTag); err != nil {
 			return "", err
 		}
 		imageRef = reference.FamiliarString(newTag)

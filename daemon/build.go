@@ -1,6 +1,9 @@
 package daemon
 
 import (
+	"io"
+	"runtime"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
@@ -12,7 +15,6 @@ import (
 	"github.com/docker/docker/registry"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
-	"io"
 )
 
 type releaseableLayer struct {
@@ -108,7 +110,8 @@ func (daemon *Daemon) GetImageAndReleasableLayer(ctx context.Context, refOrID st
 		image, _ := daemon.GetImage(refOrID)
 		// TODO: shouldn't we error out if error is different from "not found" ?
 		if image != nil {
-			layer, err := newReleasableLayerForImage(image, daemon.layerStore)
+			// TODO LCOW @jhowardmsft. For now using runtime.GOOS for this, will need enhancing for platform when porting the builder
+			layer, err := newReleasableLayerForImage(image, daemon.stores[runtime.GOOS].layerStore)
 			return image, layer, err
 		}
 	}
@@ -117,6 +120,7 @@ func (daemon *Daemon) GetImageAndReleasableLayer(ctx context.Context, refOrID st
 	if err != nil {
 		return nil, nil, err
 	}
-	layer, err := newReleasableLayerForImage(image, daemon.layerStore)
+	// TODO LCOW @jhowardmsft. For now using runtime.GOOS for this, will need enhancing for platform when porting the builder
+	layer, err := newReleasableLayerForImage(image, daemon.stores[runtime.GOOS].layerStore)
 	return image, layer, err
 }
