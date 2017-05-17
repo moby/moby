@@ -96,7 +96,12 @@ func (daemon *Daemon) pullForBuilder(ctx context.Context, name string, authConfi
 		pullRegistryAuth = &resolvedConfig
 	}
 
-	if err := daemon.pullImageWithReference(ctx, ref, nil, pullRegistryAuth, output); err != nil {
+	// TODO @jhowardmsft LCOW Support: For now, use the runtime operating system of the host.
+	// When it gets to the builder part, this will need revisiting. There would have to be
+	// some indication from the user either through CLI flag to build, or through an explicit
+	// mechanism in a dockerfile such as a parser directive extension or an addition to
+	// the FROM statement syntax.
+	if err := daemon.pullImageWithReference(ctx, ref, runtime.GOOS, nil, pullRegistryAuth, output); err != nil {
 		return nil, err
 	}
 	return daemon.GetImage(name)

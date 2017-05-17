@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -20,6 +21,7 @@ import (
 	containerpkg "github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/cluster/convert"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/libnetwork"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
@@ -88,7 +90,13 @@ func (c *containerAdapter) pullImage(ctx context.Context) error {
 	pr, pw := io.Pipe()
 	metaHeaders := map[string][]string{}
 	go func() {
-		err := c.backend.PullImage(ctx, c.container.image(), "", metaHeaders, authConfig, pw)
+		// TODO @jhowardmsft LCOW Support: This will need revisiting as
+		// the stack is built up to include LCOW support for swarm.
+		platform := runtime.GOOS
+		if platform == "windows" && system.LCOWSupported() {
+			platform = "linux"
+		}
+		err := c.backend.PullImage(ctx, c.container.image(), "", platform, metaHeaders, authConfig, pw)
 		pw.CloseWithError(err)
 	}()
 
