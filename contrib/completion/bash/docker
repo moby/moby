@@ -1969,6 +1969,7 @@ _docker_daemon() {
 	local options_with_args="
 		$global_options_with_args
 		--add-runtime
+		--allow-nondistributable-artifacts
 		--api-cors-header
 		--authorization-plugin
 		--bip

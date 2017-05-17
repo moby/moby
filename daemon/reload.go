@@ -48,6 +48,9 @@ func (daemon *Daemon) Reload(conf *config.Config) (err error) {
 	if err := daemon.reloadLabels(conf, attributes); err != nil {
 		return err
 	}
+	if err := daemon.reloadAllowNondistributableArtifacts(conf, attributes); err != nil {
+		return err
+	}
 	if err := daemon.reloadInsecureRegistries(conf, attributes); err != nil {
 		return err
 	}
@@ -212,6 +215,31 @@ func (daemon *Daemon) reloadLabels(conf *config.Config, attributes map[string]st
 		attributes["labels"] = string(labels)
 	} else {
 		attributes["labels"] = "[]"
+	}
+
+	return nil
+}
+
+// reloadAllowNondistributableArtifacts updates the configuration with allow-nondistributable-artifacts options
+// and updates the passed attributes.
+func (daemon *Daemon) reloadAllowNondistributableArtifacts(conf *config.Config, attributes map[string]string) error {
+	// Update corresponding configuration.
+	if conf.IsValueSet("allow-nondistributable-artifacts") {
+		daemon.configStore.AllowNondistributableArtifacts = conf.AllowNondistributableArtifacts
+		if err := daemon.RegistryService.LoadAllowNondistributableArtifacts(conf.AllowNondistributableArtifacts); err != nil {
+			return err
+		}
+	}
+
+	// Prepare reload event attributes with updatable configurations.
+	if daemon.configStore.AllowNondistributableArtifacts != nil {
+		v, err := json.Marshal(daemon.configStore.AllowNondistributableArtifacts)
+		if err != nil {
+			return err
+		}
+		attributes["allow-nondistributable-artifacts"] = string(v)
+	} else {
+		attributes["allow-nondistributable-artifacts"] = "[]"
 	}
 
 	return nil
