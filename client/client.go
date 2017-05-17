@@ -247,6 +247,12 @@ func (cli *Client) UpdateClientVersion(v string) {
 
 }
 
+// DaemonHost returns the host associated with this instance of the Client.
+// This operation doesn't acquire a mutex.
+func (cli *Client) DaemonHost() string {
+	return cli.host
+}
+
 // ParseHost verifies that the given host strings is valid.
 func ParseHost(host string) (string, string, string, error) {
 	protoAddrParts := strings.SplitN(host, "://", 2)

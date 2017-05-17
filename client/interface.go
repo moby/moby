@@ -31,6 +31,7 @@ type CommonAPIClient interface {
 	SystemAPIClient
 	VolumeAPIClient
 	ClientVersion() string
+	DaemonHost() string
 	ServerVersion(ctx context.Context) (types.Version, error)
 	UpdateClientVersion(v string)
 }
