@@ -213,6 +213,8 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 		}
 	}
 
+	label.Relabel(localMountPath, c.MountLabel, false)
+
 	// remount secrets ro
 	if err := mount.Mount("tmpfs", localMountPath, "tmpfs", "remount,ro,"+tmpfsOwnership); err != nil {
 		return errors.Wrap(err, "unable to remount secret dir as readonly")
