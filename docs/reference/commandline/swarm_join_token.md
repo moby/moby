@@ -106,6 +106,7 @@ Only print the token. Do not print a complete command for joining.
 
 ## Related commands
 
+* [swarm ca](swarm_ca.md)
 * [swarm init](swarm_init.md)
 * [swarm join](swarm_join.md)
 * [swarm leave](swarm_leave.md)

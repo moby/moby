@@ -62,6 +62,7 @@ command.
 
 ## Related commands
 
+* [swarm ca](swarm_ca.md)
 * [node rm](node_rm.md)
 * [swarm init](swarm_init.md)
 * [swarm join](swarm_join.md)
