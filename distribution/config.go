@@ -59,6 +59,9 @@ type ImagePullConfig struct {
 	// Schema2Types is the valid schema2 configuration types allowed
 	// by the pull operation.
 	Schema2Types []string
+	// Platform is the requested platform of the image being pulled to ensure it can be validated
+	// when the host platform supports multiple image operating systems.
+	Platform string
 }
 
 // ImagePushConfig stores push configuration.
