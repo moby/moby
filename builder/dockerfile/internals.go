@@ -84,7 +84,7 @@ func (b *Builder) exportImage(state *dispatchState, imageMount *imageMount, runC
 		ContainerConfig: runConfig,
 		DiffID:          newLayer.DiffID(),
 		Config:          copyRunConfig(state.runConfig),
-	})
+	}, parentImage.OS)
 
 	// TODO: it seems strange to marshal this here instead of just passing in the
 	// image struct
