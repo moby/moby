@@ -2001,3 +2001,220 @@ func (s *DockerSwarmSuite) TestSwarmJoinLeave(c *check.C) {
 		c.Assert(err, checker.IsNil)
 	}
 }
+
+func (s *DockerSwarmSuite) TestSwarmClusterEventsSource(c *check.C) {
+	d1 := s.AddDaemon(c, true, true)
+	d2 := s.AddDaemon(c, true, true)
+	d3 := s.AddDaemon(c, true, false)
+
+	// create a network
+	out, err := d1.Cmd("network", "create", "--attachable", "-d", "overlay", "foo")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	networkID := strings.TrimSpace(out)
+	c.Assert(networkID, checker.Not(checker.Equals), "")
+
+	until := daemonUnixTime(c)
+	// d1 is a manager
+	out, err = d1.Cmd("events", "--since=0", "--until", until, "-f scope=swarm")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(strings.TrimSpace(out), checker.Contains, "network create "+networkID)
+
+	// d2 is a manager
+	out, err = d2.Cmd("events", "--since=0", "--until", until, "-f scope=swarm")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(strings.TrimSpace(out), checker.Contains, "network create "+networkID)
+
+	// d3 is a worker, not able to get cluster events
+	out, err = d3.Cmd("events", "--since=0", "--until", until, "-f scope=swarm")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Contains), "network create ")
+}
+
+func (s *DockerSwarmSuite) TestSwarmClusterEventsScope(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	// create a service
+	out, err := d.Cmd("service", "create", "--name", "test", "--detach=false", "busybox", "top")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	serviceID := strings.Split(out, "\n")[0]
+
+	until := daemonUnixTime(c)
+	// scope swarm filters cluster events
+	out, err = d.Cmd("events", "--since=0", "--until", until, "-f scope=swarm")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(strings.TrimSpace(out), checker.Contains, "service create "+serviceID)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Contains), "container create ")
+
+	// without scope all events are returned
+	out, err = d.Cmd("events", "--since=0", "--until", until)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(strings.TrimSpace(out), checker.Contains, "service create "+serviceID)
+	c.Assert(strings.TrimSpace(out), checker.Contains, "container create ")
+
+	// scope local only show non-cluster events
+	out, err = d.Cmd("events", "--since=0", "--until", until, "-f scope=local")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Contains), "service create ")
+	c.Assert(strings.TrimSpace(out), checker.Contains, "container create ")
+}
+
+func (s *DockerSwarmSuite) TestSwarmClusterEventsType(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	// create a service
+	out, err := d.Cmd("service", "create", "--name", "test", "--detach=false", "busybox", "top")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	serviceID := strings.Split(out, "\n")[0]
+
+	// create a network
+	out, err = d.Cmd("network", "create", "--attachable", "-d", "overlay", "foo")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	networkID := strings.TrimSpace(out)
+	c.Assert(networkID, checker.Not(checker.Equals), "")
+
+	until := daemonUnixTime(c)
+	// filter by service
+	out, err = d.Cmd("events", "--since=0", "--until", until, "-f type=service")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "service create "+serviceID)
+	c.Assert(out, checker.Not(checker.Contains), "network create")
+
+	// filter by network
+	out, err = d.Cmd("events", "--since=0", "--until", until, "-f type=network")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "network create "+networkID)
+	c.Assert(out, checker.Not(checker.Contains), "service create")
+}
+
+func (s *DockerSwarmSuite) TestSwarmClusterEventsService(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	// create a service
+	out, err := d.Cmd("service", "create", "--name", "test", "--detach=false", "busybox", "top")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	serviceID := strings.Split(out, "\n")[0]
+
+	t1 := daemonUnixTime(c)
+	// validate service create event
+	out, err = d.Cmd("events", "--since=0", "--until", t1, "-f scope=swarm")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "service create "+serviceID)
+
+	out, err = d.Cmd("service", "update", "--force", "--detach=false", "test")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	t2 := daemonUnixTime(c)
+	out, err = d.Cmd("events", "--since", t1, "--until", t2, "-f scope=swarm")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "service update "+serviceID)
+	c.Assert(out, checker.Contains, "updatestate.new=updating")
+	c.Assert(out, checker.Contains, "updatestate.new=completed, updatestate.old=updating")
+
+	// scale service
+	out, err = d.Cmd("service", "scale", "test=3")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	t3 := daemonUnixTime(c)
+	out, err = d.Cmd("events", "--since", t2, "--until", t3, "-f scope=swarm")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "service update "+serviceID)
+	c.Assert(out, checker.Contains, "replicas.new=3, replicas.old=1")
+
+	// remove service
+	out, err = d.Cmd("service", "rm", "test")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	t4 := daemonUnixTime(c)
+	out, err = d.Cmd("events", "--since", t3, "--until", t4, "-f scope=swarm")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "service remove "+serviceID)
+}
+
+func (s *DockerSwarmSuite) TestSwarmClusterEventsNode(c *check.C) {
+	d1 := s.AddDaemon(c, true, true)
+	s.AddDaemon(c, true, true)
+	d3 := s.AddDaemon(c, true, true)
+
+	d3ID := d3.NodeID
+	t1 := daemonUnixTime(c)
+	out, err := d1.Cmd("events", "--since=0", "--until", t1, "-f scope=swarm")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "node create "+d3ID)
+
+	out, err = d1.Cmd("node", "update", "--availability=pause", d3ID)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	t2 := daemonUnixTime(c)
+	// filter by type
+	out, err = d1.Cmd("events", "--since", t1, "--until", t2, "-f type=node")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "node update "+d3ID)
+	c.Assert(out, checker.Contains, "availability.new=pause, availability.old=active")
+
+	out, err = d1.Cmd("node", "demote", d3ID)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	t3 := daemonUnixTime(c)
+	// filter by type and scope
+	out, err = d1.Cmd("events", "--since", t2, "--until", t3, "-f type=node", "-f scope=swarm")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "node update "+d3ID)
+
+	out, err = d1.Cmd("node", "rm", "-f", d3ID)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	t4 := daemonUnixTime(c)
+	// filter by type and scope
+	out, err = d1.Cmd("events", "--since", t3, "--until", t4, "-f type=node", "-f scope=swarm")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "node remove "+d3ID)
+}
+
+func (s *DockerSwarmSuite) TestSwarmClusterEventsNetwork(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	// create a network
+	out, err := d.Cmd("network", "create", "--attachable", "-d", "overlay", "foo")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	networkID := strings.TrimSpace(out)
+
+	t1 := daemonUnixTime(c)
+	out, err = d.Cmd("events", "--since=0", "--until", t1, "-f scope=swarm")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "network create "+networkID)
+
+	// remove network
+	out, err = d.Cmd("network", "rm", "foo")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	t2 := daemonUnixTime(c)
+	// filtered by network
+	out, err = d.Cmd("events", "--since", t1, "--until", t2, "-f type=network")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "network remove "+networkID)
+}
+
+func (s *DockerSwarmSuite) TestSwarmClusterEventsSecret(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	testName := "test_secret"
+	id := d.CreateSecret(c, swarm.SecretSpec{
+		Annotations: swarm.Annotations{
+			Name: testName,
+		},
+		Data: []byte("TESTINGDATA"),
+	})
+	c.Assert(id, checker.Not(checker.Equals), "", check.Commentf("secrets: %s", id))
+
+	t1 := daemonUnixTime(c)
+	out, err := d.Cmd("events", "--since=0", "--until", t1, "-f scope=swarm")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "secret create "+id)
+
+	d.DeleteSecret(c, id)
+	t2 := daemonUnixTime(c)
+	// filtered by secret
+	out, err = d.Cmd("events", "--since", t1, "--until", t2, "-f type=secret")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "secret remove "+id)
+}

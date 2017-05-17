@@ -119,7 +119,7 @@ func (s *DockerSuite) TestEventsLimit(c *check.C) {
 	out, _ := dockerCmd(c, "events", "--since=0", "--until", daemonUnixTime(c))
 	events := strings.Split(out, "\n")
 	nEvents := len(events) - 1
-	c.Assert(nEvents, checker.Equals, 64, check.Commentf("events should be limited to 64, but received %d", nEvents))
+	c.Assert(nEvents, checker.Equals, 256, check.Commentf("events should be limited to 256, but received %d", nEvents))
 }
 
 func (s *DockerSuite) TestEventsContainerEvents(c *check.C) {

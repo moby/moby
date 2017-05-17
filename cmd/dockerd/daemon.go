@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"os"
@@ -44,6 +45,7 @@ import (
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/tlsconfig"
+	swarmapi "github.com/docker/swarmkit/api"
 	"github.com/spf13/pflag"
 )
 
@@ -227,6 +229,10 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 
 	name, _ := os.Hostname()
 
+	// Use a buffered channel to pass changes from store watch API to daemon
+	// A buffer allows store watch API and daemon processing to not wait for each other
+	watchStream := make(chan *swarmapi.WatchMessage, 32)
+
 	c, err := cluster.New(cluster.Config{
 		Root:                   cli.Config.Root,
 		Name:                   name,
@@ -234,6 +240,7 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 		NetworkSubnetsProvider: d,
 		DefaultAdvertiseAddr:   cli.Config.SwarmDefaultAdvertiseAddr,
 		RuntimeRoot:            cli.getSwarmRunRoot(),
+		WatchStream:            watchStream,
 	})
 	if err != nil {
 		logrus.Fatalf("Error creating cluster component: %v", err)
@@ -260,6 +267,11 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 	cli.d = d
 
 	initRouter(api, d, c)
+
+	// process cluster change notifications
+	watchCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go d.ProcessClusterNotifications(watchCtx, watchStream)
 
 	cli.setupConfigReloadTrap()
 

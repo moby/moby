@@ -159,11 +159,55 @@ func (n *nodeRunner) handleControlSocketChange(ctx context.Context, node *swarmn
 			} else {
 				n.controlClient = swarmapi.NewControlClient(conn)
 				n.logsClient = swarmapi.NewLogsClient(conn)
+				// push store changes to daemon
+				go n.watchClusterEvents(ctx, conn)
 			}
 		}
 		n.grpcConn = conn
 		n.mu.Unlock()
 		n.cluster.SendClusterEvent(lncluster.EventSocketChange)
+	}
+}
+
+func (n *nodeRunner) watchClusterEvents(ctx context.Context, conn *grpc.ClientConn) {
+	client := swarmapi.NewWatchClient(conn)
+	watch, err := client.Watch(ctx, &swarmapi.WatchRequest{
+		Entries: []*swarmapi.WatchRequest_WatchEntry{
+			{
+				Kind:   "node",
+				Action: swarmapi.WatchActionKindCreate | swarmapi.WatchActionKindUpdate | swarmapi.WatchActionKindRemove,
+			},
+			{
+				Kind:   "service",
+				Action: swarmapi.WatchActionKindCreate | swarmapi.WatchActionKindUpdate | swarmapi.WatchActionKindRemove,
+			},
+			{
+				Kind:   "network",
+				Action: swarmapi.WatchActionKindCreate | swarmapi.WatchActionKindUpdate | swarmapi.WatchActionKindRemove,
+			},
+			{
+				Kind:   "secret",
+				Action: swarmapi.WatchActionKindCreate | swarmapi.WatchActionKindUpdate | swarmapi.WatchActionKindRemove,
+			},
+		},
+		IncludeOldObject: true,
+	})
+	if err != nil {
+		logrus.WithError(err).Error("failed to watch cluster store")
+		return
+	}
+	for {
+		msg, err := watch.Recv()
+		if err != nil {
+			// store watch is broken
+			logrus.WithError(err).Error("failed to receive changes from store watch API")
+			return
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case n.cluster.watchStream <- msg:
+		}
 	}
 }
 
