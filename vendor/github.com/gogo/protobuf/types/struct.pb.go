@@ -22,8 +22,6 @@ import math "math"
 import strconv "strconv"
 
 import strings "strings"
-import github_com_gogo_protobuf_proto "github.com/gogo/protobuf/proto"
-import sort "sort"
 import reflect "reflect"
 import github_com_gogo_protobuf_sortkeys "github.com/gogo/protobuf/sortkeys"
 
@@ -747,24 +745,6 @@ func valueToGoStringStruct(v interface{}, typ string) string {
 	}
 	pv := reflect.Indirect(rv).Interface()
 	return fmt.Sprintf("func(v %v) *%v { return &v } ( %#v )", typ, typ, pv)
-}
-func extensionToGoStringStruct(m github_com_gogo_protobuf_proto.Message) string {
-	e := github_com_gogo_protobuf_proto.GetUnsafeExtensionsMap(m)
-	if e == nil {
-		return "nil"
-	}
-	s := "proto.NewUnsafeXXX_InternalExtensions(map[int32]proto.Extension{"
-	keys := make([]int, 0, len(e))
-	for k := range e {
-		keys = append(keys, int(k))
-	}
-	sort.Ints(keys)
-	ss := []string{}
-	for _, k := range keys {
-		ss = append(ss, strconv.Itoa(k)+": "+e[int32(k)].GoString())
-	}
-	s += strings.Join(ss, ",") + "})"
-	return s
 }
 func (m *Struct) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
@@ -1878,7 +1858,7 @@ func init() { proto.RegisterFile("struct.proto", fileDescriptorStruct) }
 
 var fileDescriptorStruct = []byte{
 	// 432 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0x74, 0x91, 0xc1, 0x6b, 0xd4, 0x40,
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x91, 0xc1, 0x6b, 0xd4, 0x40,
 	0x14, 0xc6, 0xf3, 0xb2, 0xdd, 0xe0, 0xbe, 0x94, 0x5a, 0x46, 0xd0, 0xa5, 0xc2, 0xb8, 0x6c, 0x2f,
 	0x41, 0x24, 0x87, 0xf5, 0x22, 0xae, 0x17, 0x03, 0xb5, 0x05, 0x43, 0x89, 0xd1, 0x56, 0xf0, 0xb2,
 	0x98, 0x6d, 0xba, 0x84, 0x4e, 0x67, 0x4a, 0x32, 0x51, 0xf6, 0xa6, 0xff, 0x85, 0x47, 0xf1, 0x24,
