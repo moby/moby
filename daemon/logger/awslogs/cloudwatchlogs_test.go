@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"regexp"
 	"runtime"
 	"strings"
 	"testing"
@@ -17,6 +18,7 @@ import (
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/docker/dockerversion"
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -24,8 +26,25 @@ const (
 	streamName        = "streamName"
 	sequenceToken     = "sequenceToken"
 	nextSequenceToken = "nextSequenceToken"
-	logline           = "this is a log line"
+	logline           = "this is a log line\r"
+	multilineLogline  = "2017-01-01 01:01:44 This is a multiline log entry\r"
 )
+
+// Generates i multi-line events each with j lines
+func (l *logStream) logGenerator(lineCount int, multilineCount int) {
+	for i := 0; i < multilineCount; i++ {
+		l.Log(&logger.Message{
+			Line:      []byte(multilineLogline),
+			Timestamp: time.Time{},
+		})
+		for j := 0; j < lineCount; j++ {
+			l.Log(&logger.Message{
+				Line:      []byte(logline),
+				Timestamp: time.Time{},
+			})
+		}
+	}
+}
 
 func TestNewAWSLogsClientUserAgentHandler(t *testing.T) {
 	info := logger.Info{
@@ -471,6 +490,216 @@ func TestCollectBatchTicker(t *testing.T) {
 
 }
 
+func TestCollectBatchMultilinePattern(t *testing.T) {
+	mockClient := newMockClient()
+	multilinePattern := regexp.MustCompile("xxxx")
+	stream := &logStream{
+		client:           mockClient,
+		logGroupName:     groupName,
+		logStreamName:    streamName,
+		multilinePattern: multilinePattern,
+		sequenceToken:    aws.String(sequenceToken),
+		messages:         make(chan *logger.Message),
+	}
+	mockClient.putLogEventsResult <- &putLogEventsResult{
+		successResult: &cloudwatchlogs.PutLogEventsOutput{
+			NextSequenceToken: aws.String(nextSequenceToken),
+		},
+	}
+	ticks := make(chan time.Time)
+	newTicker = func(_ time.Duration) *time.Ticker {
+		return &time.Ticker{
+			C: ticks,
+		}
+	}
+
+	go stream.collectBatch()
+
+	stream.Log(&logger.Message{
+		Line:      []byte(logline),
+		Timestamp: time.Now(),
+	})
+	stream.Log(&logger.Message{
+		Line:      []byte(logline),
+		Timestamp: time.Now(),
+	})
+	stream.Log(&logger.Message{
+		Line:      []byte("xxxx " + logline),
+		Timestamp: time.Now(),
+	})
+
+	ticks <- time.Now()
+
+	// Verify single multiline event
+	argument := <-mockClient.putLogEventsArgument
+	assert.NotNil(t, argument, "Expected non-nil PutLogEventsInput")
+	assert.Equal(t, 1, len(argument.LogEvents), "Expected single multiline event")
+	assert.Equal(t, logline+"\n"+logline+"\n", *argument.LogEvents[0].Message, "Received incorrect multiline message")
+
+	stream.Close()
+
+	// Verify single event
+	argument = <-mockClient.putLogEventsArgument
+	assert.NotNil(t, argument, "Expected non-nil PutLogEventsInput")
+	assert.Equal(t, 1, len(argument.LogEvents), "Expected single multiline event")
+	assert.Equal(t, "xxxx "+logline+"\n", *argument.LogEvents[0].Message, "Received incorrect multiline message")
+}
+
+func BenchmarkCollectBatch(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		mockClient := newMockClient()
+		stream := &logStream{
+			client:        mockClient,
+			logGroupName:  groupName,
+			logStreamName: streamName,
+			sequenceToken: aws.String(sequenceToken),
+			messages:      make(chan *logger.Message),
+		}
+		mockClient.putLogEventsResult <- &putLogEventsResult{
+			successResult: &cloudwatchlogs.PutLogEventsOutput{
+				NextSequenceToken: aws.String(nextSequenceToken),
+			},
+		}
+		ticks := make(chan time.Time)
+		newTicker = func(_ time.Duration) *time.Ticker {
+			return &time.Ticker{
+				C: ticks,
+			}
+		}
+
+		go stream.collectBatch()
+		stream.logGenerator(10, 100)
+		ticks <- time.Time{}
+		stream.Close()
+	}
+}
+
+func BenchmarkCollectBatchMultilinePattern(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		mockClient := newMockClient()
+		multilinePattern := regexp.MustCompile(`\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[1,2][0-9]|3[0,1]) (?:[0,1][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]`)
+		stream := &logStream{
+			client:           mockClient,
+			logGroupName:     groupName,
+			logStreamName:    streamName,
+			multilinePattern: multilinePattern,
+			sequenceToken:    aws.String(sequenceToken),
+			messages:         make(chan *logger.Message),
+		}
+		mockClient.putLogEventsResult <- &putLogEventsResult{
+			successResult: &cloudwatchlogs.PutLogEventsOutput{
+				NextSequenceToken: aws.String(nextSequenceToken),
+			},
+		}
+		ticks := make(chan time.Time)
+		newTicker = func(_ time.Duration) *time.Ticker {
+			return &time.Ticker{
+				C: ticks,
+			}
+		}
+		go stream.collectBatch()
+		stream.logGenerator(10, 100)
+		ticks <- time.Time{}
+		stream.Close()
+	}
+}
+
+func TestCollectBatchMultilinePatternMaxEventAge(t *testing.T) {
+	mockClient := newMockClient()
+	multilinePattern := regexp.MustCompile("xxxx")
+	stream := &logStream{
+		client:           mockClient,
+		logGroupName:     groupName,
+		logStreamName:    streamName,
+		multilinePattern: multilinePattern,
+		sequenceToken:    aws.String(sequenceToken),
+		messages:         make(chan *logger.Message),
+	}
+	mockClient.putLogEventsResult <- &putLogEventsResult{
+		successResult: &cloudwatchlogs.PutLogEventsOutput{
+			NextSequenceToken: aws.String(nextSequenceToken),
+		},
+	}
+	ticks := make(chan time.Time)
+	newTicker = func(_ time.Duration) *time.Ticker {
+		return &time.Ticker{
+			C: ticks,
+		}
+	}
+
+	go stream.collectBatch()
+
+	stream.Log(&logger.Message{
+		Line:      []byte(logline),
+		Timestamp: time.Now(),
+	})
+
+	// Log an event 1 second later
+	stream.Log(&logger.Message{
+		Line:      []byte(logline),
+		Timestamp: time.Now().Add(time.Second),
+	})
+
+	// Fire ticker batchPublishFrequency seconds later
+	ticks <- time.Now().Add(batchPublishFrequency * time.Second)
+
+	// Verify single multiline event is flushed after maximum event buffer age (batchPublishFrequency)
+	argument := <-mockClient.putLogEventsArgument
+	assert.NotNil(t, argument, "Expected non-nil PutLogEventsInput")
+	assert.Equal(t, 1, len(argument.LogEvents), "Expected single multiline event")
+	assert.Equal(t, logline+"\n"+logline+"\n", *argument.LogEvents[0].Message, "Received incorrect multiline message")
+
+	stream.Close()
+}
+
+func TestCollectBatchMultilinePatternNegativeEventAge(t *testing.T) {
+	mockClient := newMockClient()
+	multilinePattern := regexp.MustCompile("xxxx")
+	stream := &logStream{
+		client:           mockClient,
+		logGroupName:     groupName,
+		logStreamName:    streamName,
+		multilinePattern: multilinePattern,
+		sequenceToken:    aws.String(sequenceToken),
+		messages:         make(chan *logger.Message),
+	}
+	mockClient.putLogEventsResult <- &putLogEventsResult{
+		successResult: &cloudwatchlogs.PutLogEventsOutput{
+			NextSequenceToken: aws.String(nextSequenceToken),
+		},
+	}
+	ticks := make(chan time.Time)
+	newTicker = func(_ time.Duration) *time.Ticker {
+		return &time.Ticker{
+			C: ticks,
+		}
+	}
+
+	go stream.collectBatch()
+
+	stream.Log(&logger.Message{
+		Line:      []byte(logline),
+		Timestamp: time.Now(),
+	})
+
+	// Log an event 1 second later
+	stream.Log(&logger.Message{
+		Line:      []byte(logline),
+		Timestamp: time.Now().Add(time.Second),
+	})
+
+	// Fire ticker in past to simulate negative event buffer age
+	ticks <- time.Now().Add(-time.Second)
+
+	// Verify single multiline event is flushed with a negative event buffer age
+	argument := <-mockClient.putLogEventsArgument
+	assert.NotNil(t, argument, "Expected non-nil PutLogEventsInput")
+	assert.Equal(t, 1, len(argument.LogEvents), "Expected single multiline event")
+	assert.Equal(t, logline+"\n"+logline+"\n", *argument.LogEvents[0].Message, "Received incorrect multiline message")
+
+	stream.Close()
+}
+
 func TestCollectBatchClose(t *testing.T) {
 	mockClient := newMockClient()
 	stream := &logStream{
@@ -722,6 +951,58 @@ func TestCollectBatchWithDuplicateTimestamps(t *testing.T) {
 			t.Errorf("Expected event to be %v but was %v", *expectedEvents[i], *argument.LogEvents[i])
 		}
 	}
+}
+
+func TestParseLogOptionsMultilinePattern(t *testing.T) {
+	info := logger.Info{
+		Config: map[string]string{
+			multilinePatternKey: "^xxxx",
+		},
+	}
+
+	multilinePattern, err := parseMultilineOptions(info)
+	assert.Nil(t, err, "Received unexpected error")
+	assert.True(t, multilinePattern.MatchString("xxxx"), "No multiline pattern match found")
+}
+
+func TestParseLogOptionsDatetimeFormat(t *testing.T) {
+	datetimeFormatTests := []struct {
+		format string
+		match  string
+	}{
+		{"%d/%m/%y %a %H:%M:%S%L %Z", "31/12/10 Mon 08:42:44.345 NZDT"},
+		{"%Y-%m-%d %A %I:%M:%S.%f%p%z", "2007-12-04 Monday 08:42:44.123456AM+1200"},
+		{"%b|%b|%b|%b|%b|%b|%b|%b|%b|%b|%b|%b", "Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec"},
+		{"%B|%B|%B|%B|%B|%B|%B|%B|%B|%B|%B|%B", "January|February|March|April|May|June|July|August|September|October|November|December"},
+		{"%A|%A|%A|%A|%A|%A|%A", "Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday"},
+		{"%a|%a|%a|%a|%a|%a|%a", "Mon|Tue|Wed|Thu|Fri|Sat|Sun"},
+		{"Day of the week: %w, Day of the year: %j", "Day of the week: 4, Day of the year: 091"},
+	}
+	for _, dt := range datetimeFormatTests {
+		t.Run(dt.match, func(t *testing.T) {
+			info := logger.Info{
+				Config: map[string]string{
+					datetimeFormatKey: dt.format,
+				},
+			}
+			multilinePattern, err := parseMultilineOptions(info)
+			assert.Nil(t, err, "Received unexpected error")
+			assert.True(t, multilinePattern.MatchString(dt.match), "No multiline pattern match found")
+		})
+	}
+}
+
+func TestValidateLogOptionsDatetimeFormatAndMultilinePattern(t *testing.T) {
+	cfg := map[string]string{
+		multilinePatternKey: "^xxxx",
+		datetimeFormatKey:   "%Y-%m-%d",
+		logGroupKey:         groupName,
+	}
+	conflictingLogOptionsError := "you cannot configure log opt 'awslogs-datetime-format' and 'awslogs-multiline-pattern' at the same time"
+
+	err := ValidateLogOpt(cfg)
+	assert.NotNil(t, err, "Expected an error")
+	assert.Equal(t, err.Error(), conflictingLogOptionsError, "Received invalid error")
 }
 
 func TestCreateTagSuccess(t *testing.T) {
