@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -59,14 +60,24 @@ func TestServiceCreate(t *testing.T) {
 }
 
 func TestServiceCreateCompatiblePlatforms(t *testing.T) {
-	var platforms []v1.Platform
+	var (
+		platforms               []v1.Platform
+		distributionInspectBody io.ReadCloser
+		distributionInspect     registrytypes.DistributionInspect
+	)
+
 	client := &Client{
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if strings.HasPrefix(req.URL.Path, "/services/create") {
-				// platforms should have been resolved by now
-				if len(platforms) != 1 || platforms[0].Architecture != "amd64" || platforms[0].OS != "linux" {
-					return nil, fmt.Errorf("incorrect platform information")
+				// check if the /distribution endpoint returned correct output
+				err := json.NewDecoder(distributionInspectBody).Decode(&distributionInspect)
+				if err != nil {
+					return nil, err
 				}
+				if len(distributionInspect.Platforms) == 0 || distributionInspect.Platforms[0].Architecture != platforms[0].Architecture || distributionInspect.Platforms[0].OS != platforms[0].OS {
+					return nil, fmt.Errorf("received incorrect platform information from registry")
+				}
+
 				b, err := json.Marshal(types.ServiceCreateResponse{
 					ID: "service_" + platforms[0].Architecture,
 				})
@@ -91,6 +102,7 @@ func TestServiceCreateCompatiblePlatforms(t *testing.T) {
 				if err != nil {
 					return nil, err
 				}
+				distributionInspectBody = ioutil.NopCloser(bytes.NewReader(b))
 				return &http.Response{
 					StatusCode: http.StatusOK,
 					Body:       ioutil.NopCloser(bytes.NewReader(b)),
