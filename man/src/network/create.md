@@ -134,3 +134,44 @@ $ docker network create -d overlay \
   --opt encrypted=true \
   my-ingress-network
 ```
+
+### Run services on predefined networks
+
+You can create services on the predefined docker networks `bridge` and `host`.
+
+```bash
+$ docker service create --name my-service \
+  --network host \
+  --replicas 2 \
+  busybox top
+```
+
+### Swarm networks with local scope drivers
+
+You can create a swarm network with local scope network drivers. You do so
+by promoting the network scope to `swarm` during the creation of the network. 
+You will then be able to use this network when creating services. 
+
+```bash
+$ docker network create -d bridge \
+  --scope swarm \
+  --attachable \
+  swarm-network
+```
+
+For network drivers which provide connectivity across hosts (ex. macvlan), if
+node specific configurations are needed in order to plumb the network on each
+host, you will supply that configuration via a configuration only network.
+When you create the swarm scoped network, you will then specify the name of the 
+network which contains the configuration.
+
+
+```bash
+node1$ docker network create --config-only --subnet 192.168.100.0/24 --gateway 192.168.100.115 mv-config
+node2$ docker network create --config-only --subnet 192.168.200.0/24 --gateway 192.168.200.202 mv-config
+node1$ docker network create -d macvlan --scope swarm --config-from mv-config --attachable swarm-network
+```
+
+
+
+
