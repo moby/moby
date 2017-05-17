@@ -67,6 +67,7 @@ RUN apt-get update && apt-get install -y \
 	python-mock \
 	python-pip \
 	python-websocket \
+	shellcheck \
 	tar \
 	vim \
 	vim-common \

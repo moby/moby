@@ -32,7 +32,10 @@ RUN apt-get update && apt-get install -y \
 	g++ \
 	gcc \
 	git \
+	golang-go \
+	iproute2 \
 	iptables \
+	iputils-ping \
 	jq \
 	libapparmor-dev \
 	libc6-dev \
@@ -49,9 +52,7 @@ RUN apt-get update && apt-get install -y \
 	python-pip \
 	python-setuptools \
 	python-websocket \
-	golang-go \
-	iproute2 \
-	iputils-ping \
+	shellcheck \
 	vim-common \
 	--no-install-recommends
 
