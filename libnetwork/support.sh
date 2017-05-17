@@ -30,6 +30,7 @@ echo "Overlay network configuration"
 for networkID in $(${DOCKER} network ls --filter driver=overlay -q) ; do
     echo "Network ${networkID}"
     nspath=(${NSDIR}/*-$(echo ${networkID}| cut -c1-10))
+    ${DOCKER} network inspect -v ${networkID}
     ${NSENTER} --net=${nspath[0]} ${BRIDGE} fdb show ${BRIDGEIF}
     ${NSENTER} --net=${nspath[0]} ${BRCTL} showmacs ${BRIDGEIF}
     echo ""
