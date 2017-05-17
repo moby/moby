@@ -4,6 +4,7 @@ import (
 	"errors"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/volume"
@@ -82,6 +83,7 @@ func (a *volumeDriverAdapter) Get(name string) (volume.Volume, error) {
 		name:         v.Name,
 		driverName:   a.Name(),
 		eMount:       v.Mountpoint,
+		createdAt:    v.CreatedAt,
 		status:       v.Status,
 		baseHostPath: a.baseHostPath,
 	}, nil
@@ -124,13 +126,15 @@ type volumeAdapter struct {
 	name         string
 	baseHostPath string
 	driverName   string
-	eMount       string // ephemeral host volume path
+	eMount       string    // ephemeral host volume path
+	createdAt    time.Time // time the directory was created
 	status       map[string]interface{}
 }
 
 type proxyVolume struct {
 	Name       string
 	Mountpoint string
+	CreatedAt  time.Time
 	Status     map[string]interface{}
 }
 
@@ -168,6 +172,9 @@ func (a *volumeAdapter) Unmount(id string) error {
 	return err
 }
 
+func (a *volumeAdapter) CreatedAt() (time.Time, error) {
+	return a.createdAt, nil
+}
 func (a *volumeAdapter) Status() map[string]interface{} {
 	out := make(map[string]interface{}, len(a.status))
 	for k, v := range a.status {

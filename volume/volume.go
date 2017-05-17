@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/pkg/idtools"
@@ -64,6 +65,8 @@ type Volume interface {
 	Mount(id string) (string, error)
 	// Unmount unmounts the volume when it is no longer in use.
 	Unmount(id string) error
+	// CreatedAt returns Volume Creation time
+	CreatedAt() (time.Time, error)
 	// Status returns low-level status information about a volume
 	Status() map[string]interface{}
 }
