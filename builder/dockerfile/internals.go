@@ -23,6 +23,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/remotecontext"
+	containerpkg "github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/jsonmessage"
@@ -596,16 +597,25 @@ func (b *Builder) run(cID string, cmd []string) (err error) {
 		return err
 	}
 
-	if ret, _ := b.docker.ContainerWait(cID, -1); ret != 0 {
+	waitC, err := b.docker.ContainerWait(b.clientCtx, cID, containerpkg.WaitConditionNotRunning)
+	if err != nil {
+		// Unable to begin waiting for container.
 		close(finished)
 		if cancelErr := <-cancelErrCh; cancelErr != nil {
-			logrus.Debugf("Build cancelled (%v) and got a non-zero code from ContainerWait: %d",
-				cancelErr, ret)
+			logrus.Debugf("Build cancelled (%v) and unable to begin ContainerWait: %d", cancelErr, err)
+		}
+		return err
+	}
+
+	if status := <-waitC; status.ExitCode() != 0 {
+		close(finished)
+		if cancelErr := <-cancelErrCh; cancelErr != nil {
+			logrus.Debugf("Build cancelled (%v) and got a non-zero code from ContainerWait: %d", cancelErr, status.ExitCode())
 		}
 		// TODO: change error type, because jsonmessage.JSONError assumes HTTP
 		return &jsonmessage.JSONError{
-			Message: fmt.Sprintf("The command '%s' returned a non-zero code: %d", strings.Join(cmd, " "), ret),
-			Code:    ret,
+			Message: fmt.Sprintf("The command '%s' returned a non-zero code: %d", strings.Join(cmd, " "), status.ExitCode()),
+			Code:    status.ExitCode(),
 		}
 	}
 	close(finished)

@@ -6,6 +6,7 @@
 package daemon
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -773,7 +774,12 @@ func (daemon *Daemon) shutdownContainer(c *container.Container) error {
 		if err := daemon.containerUnpause(c); err != nil {
 			return fmt.Errorf("Failed to unpause container %s with error: %v", c.ID, err)
 		}
-		if _, err := c.WaitStop(time.Duration(stopTimeout) * time.Second); err != nil {
+
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(stopTimeout)*time.Second)
+		defer cancel()
+
+		// Wait with timeout for container to exit.
+		if status := <-c.Wait(ctx, container.WaitConditionNotRunning); status.Err() != nil {
 			logrus.Debugf("container %s failed to exit in %d second of SIGTERM, sending SIGKILL to force", c.ID, stopTimeout)
 			sig, ok := signal.SignalMap["KILL"]
 			if !ok {
@@ -782,8 +788,10 @@ func (daemon *Daemon) shutdownContainer(c *container.Container) error {
 			if err := daemon.kill(c, int(sig)); err != nil {
 				logrus.Errorf("Failed to SIGKILL container %s", c.ID)
 			}
-			c.WaitStop(-1 * time.Second)
-			return err
+			// Wait for exit again without a timeout.
+			// Explicitly ignore the result.
+			_ = <-c.Wait(context.Background(), container.WaitConditionNotRunning)
+			return status.Err()
 		}
 	}
 	// If container failed to exit in stopTimeout seconds of SIGTERM, then using the force
@@ -791,7 +799,9 @@ func (daemon *Daemon) shutdownContainer(c *container.Container) error {
 		return fmt.Errorf("Failed to stop container %s with error: %v", c.ID, err)
 	}
 
-	c.WaitStop(-1 * time.Second)
+	// Wait without timeout for the container to exit.
+	// Ignore the result.
+	_ = <-c.Wait(context.Background(), container.WaitConditionNotRunning)
 	return nil
 }
 

@@ -2,13 +2,13 @@ package dockerfile
 
 import (
 	"io"
-	"time"
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
+	containerpkg "github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"golang.org/x/net/context"
 )
@@ -54,8 +54,8 @@ func (m *MockBackend) ContainerStart(containerID string, hostConfig *container.H
 	return nil
 }
 
-func (m *MockBackend) ContainerWait(containerID string, timeout time.Duration) (int, error) {
-	return 0, nil
+func (m *MockBackend) ContainerWait(ctx context.Context, containerID string, condition containerpkg.WaitCondition) (<-chan containerpkg.StateStatus, error) {
+	return nil, nil
 }
 
 func (m *MockBackend) ContainerCreateWorkdir(containerID string) error {

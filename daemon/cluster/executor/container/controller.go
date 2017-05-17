@@ -279,25 +279,27 @@ func (r *controller) Wait(pctx context.Context) error {
 		}
 	}()
 
-	err := r.adapter.wait(ctx)
-	if ctx.Err() != nil {
-		return ctx.Err()
+	waitC, err := r.adapter.wait(ctx)
+	if err != nil {
+		return err
 	}
 
-	if err != nil {
-		ee := &exitError{}
-		if ec, ok := err.(exec.ExitCoder); ok {
-			ee.code = ec.ExitCode()
+	if status := <-waitC; status.ExitCode() != 0 {
+		exitErr := &exitError{
+			code: status.ExitCode(),
 		}
+
+		// Set the cause if it is knowable.
 		select {
 		case e := <-healthErr:
-			ee.cause = e
+			exitErr.cause = e
 		default:
-			if err.Error() != "" {
-				ee.cause = err
+			if status.Err() != nil {
+				exitErr.cause = status.Err()
 			}
 		}
-		return ee
+
+		return exitErr
 	}
 
 	return nil
