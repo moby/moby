@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	registrytypes "github.com/docker/docker/api/types/registry"
+	"github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
@@ -68,9 +69,14 @@ func (s *distributionRouter) getDistributionInfo(ctx context.Context, w http.Res
 			return errors.Errorf("image reference not tagged: %s", image)
 		}
 
-		distributionInspect.Descriptor, err = distrepo.Tags(ctx).Get(ctx, taggedRef.Tag())
+		descriptor, err := distrepo.Tags(ctx).Get(ctx, taggedRef.Tag())
 		if err != nil {
 			return err
+		}
+		distributionInspect.Descriptor = v1.Descriptor{
+			MediaType: descriptor.MediaType,
+			Digest:    descriptor.Digest,
+			Size:      descriptor.Size,
 		}
 	} else {
 		// TODO(nishanttotla): Once manifests can be looked up as a blob, the
@@ -103,11 +109,17 @@ func (s *distributionRouter) getDistributionInfo(ctx context.Context, w http.Res
 	switch mnfstObj := mnfst.(type) {
 	case *manifestlist.DeserializedManifestList:
 		for _, m := range mnfstObj.Manifests {
-			distributionInspect.Platforms = append(distributionInspect.Platforms, m.Platform)
+			distributionInspect.Platforms = append(distributionInspect.Platforms, v1.Platform{
+				Architecture: m.Platform.Architecture,
+				OS:           m.Platform.OS,
+				OSVersion:    m.Platform.OSVersion,
+				OSFeatures:   m.Platform.OSFeatures,
+				Variant:      m.Platform.Variant,
+			})
 		}
 	case *schema2.DeserializedManifest:
 		configJSON, err := blobsrvc.Get(ctx, mnfstObj.Config.Digest)
-		var platform manifestlist.PlatformSpec
+		var platform v1.Platform
 		if err == nil {
 			err := json.Unmarshal(configJSON, &platform)
 			if err == nil {
@@ -115,7 +127,7 @@ func (s *distributionRouter) getDistributionInfo(ctx context.Context, w http.Res
 			}
 		}
 	case *schema1.SignedManifest:
-		platform := manifestlist.PlatformSpec{
+		platform := v1.Platform{
 			Architecture: mnfstObj.Architecture,
 			OS:           "linux",
 		}
