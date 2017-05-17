@@ -6,10 +6,10 @@ import (
 	"io"
 	"os"
 	"os/signal"
-	"syscall"
 
 	"github.com/Azure/go-ansiterm/winterm"
 	"github.com/docker/docker/pkg/term/windows"
+	"golang.org/x/sys/windows"
 )
 
 // State holds the console mode for the terminal.
@@ -79,19 +79,19 @@ func StdStreams() (stdIn io.ReadCloser, stdOut, stdErr io.Writer) {
 	}
 
 	if emulateStdin {
-		stdIn = windows.NewAnsiReader(syscall.STD_INPUT_HANDLE)
+		stdIn = windowsconsole.NewAnsiReader(windows.STD_INPUT_HANDLE)
 	} else {
 		stdIn = os.Stdin
 	}
 
 	if emulateStdout {
-		stdOut = windows.NewAnsiWriter(syscall.STD_OUTPUT_HANDLE)
+		stdOut = windowsconsole.NewAnsiWriter(windows.STD_OUTPUT_HANDLE)
 	} else {
 		stdOut = os.Stdout
 	}
 
 	if emulateStderr {
-		stdErr = windows.NewAnsiWriter(syscall.STD_ERROR_HANDLE)
+		stdErr = windowsconsole.NewAnsiWriter(windows.STD_ERROR_HANDLE)
 	} else {
 		stdErr = os.Stderr
 	}
@@ -101,7 +101,7 @@ func StdStreams() (stdIn io.ReadCloser, stdOut, stdErr io.Writer) {
 
 // GetFdInfo returns the file descriptor for an os.File and indicates whether the file represents a terminal.
 func GetFdInfo(in interface{}) (uintptr, bool) {
-	return windows.GetHandleInfo(in)
+	return windowsconsole.GetHandleInfo(in)
 }
 
 // GetWinsize returns the window size based on the specified file descriptor.
@@ -121,7 +121,7 @@ func GetWinsize(fd uintptr) (*Winsize, error) {
 
 // IsTerminal returns true if the given file descriptor is a terminal.
 func IsTerminal(fd uintptr) bool {
-	return windows.IsConsole(fd)
+	return windowsconsole.IsConsole(fd)
 }
 
 // RestoreTerminal restores the terminal connected to the given file descriptor
