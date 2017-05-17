@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	goruntime "runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -379,14 +378,10 @@ func (r *remote) runContainerdDaemon() error {
 		"--start-timeout", "2m",
 		"--state-dir", filepath.Join(r.stateDir, containerdStateDir),
 	}
-	if goruntime.GOOS == "solaris" {
-		args = append(args, "--shim", "containerd-shim", "--runtime", "runc")
-	} else {
-		args = append(args, "--shim", "docker-containerd-shim")
-		if r.runtime != "" {
-			args = append(args, "--runtime")
-			args = append(args, r.runtime)
-		}
+	args = append(args, "--shim", "docker-containerd-shim")
+	if r.runtime != "" {
+		args = append(args, "--runtime")
+		args = append(args, r.runtime)
 	}
 	if r.debugLog {
 		args = append(args, "--debug")

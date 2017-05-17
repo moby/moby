@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	goruntime "runtime"
 	"strings"
 
 	containerd "github.com/docker/containerd/api/grpc/types"
@@ -59,7 +58,7 @@ func (p *process) openFifos(ctx context.Context, terminal bool) (pipe *IOPipe, e
 		}
 	}()
 
-	if goruntime.GOOS == "solaris" || !terminal {
+	if !terminal {
 		// For Solaris terminal handling is done exclusively by the runtime therefore we make no distinction
 		// in the processing for terminal and !terminal cases.
 		io.Stderr, err = fifo.OpenFifo(ctx, p.fifo(unix.Stderr), unix.O_RDONLY|unix.O_CREAT|unix.O_NONBLOCK, 0700)

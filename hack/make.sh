@@ -97,13 +97,6 @@ if [ "$AUTO_GOPATH" ]; then
 	mkdir -p .gopath/src/"$(dirname "${DOCKER_PKG}")"
 	ln -sf ../../../.. .gopath/src/"${DOCKER_PKG}"
 	export GOPATH="${PWD}/.gopath"
-
-	if [ "$(go env GOOS)" = 'solaris' ]; then
-		# sys/unix is installed outside the standard library on solaris
-		# TODO need to allow for version change, need to get version from go
-		export GO_VERSION=${GO_VERSION:-"1.8.1"}
-		export GOPATH="${GOPATH}:/usr/lib/gocode/${GO_VERSION}"
-	fi
 fi
 
 if [ ! "$GOPATH" ]; then

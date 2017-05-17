@@ -4,7 +4,6 @@ package config
 
 import (
 	"io/ioutil"
-	"runtime"
 
 	"testing"
 )
@@ -82,9 +81,6 @@ func TestDaemonConfigurationMerge(t *testing.T) {
 }
 
 func TestDaemonConfigurationMergeShmSize(t *testing.T) {
-	if runtime.GOOS == "solaris" {
-		t.Skip("ShmSize not supported on Solaris\n")
-	}
 	f, err := ioutil.TempFile("", "docker-config-")
 	if err != nil {
 		t.Fatal(err)
