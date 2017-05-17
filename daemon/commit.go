@@ -207,7 +207,7 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 			DockerVersion:   dockerversion.Version,
 			Config:          newConfig,
 			Architecture:    runtime.GOARCH,
-			OS:              runtime.GOOS,
+			OS:              container.Platform,
 			Container:       container.ID,
 			ContainerConfig: *containerConfig,
 			Author:          c.Author,
