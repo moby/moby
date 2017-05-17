@@ -139,3 +139,26 @@ func (s *DockerSuite) TestHealth(c *check.C) {
 	c.Check(out, checker.Equals, "[CMD cat /my status]\n")
 
 }
+
+// Github #33021
+func (s *DockerSuite) TestUnsetEnvVarHealthCheck(c *check.C) {
+	testRequires(c, DaemonIsLinux) // busybox doesn't work on Windows
+
+	imageName := "testhealth"
+	buildImageSuccessfully(c, imageName, build.WithDockerfile(`FROM busybox
+HEALTHCHECK --interval=1s --timeout=5s --retries=5 CMD /bin/sh -c "sleep 1"
+ENTRYPOINT /bin/sh -c "sleep 600"`))
+
+	name := "env_test_health"
+	// No health status before starting
+	dockerCmd(c, "run", "-d", "--name", name, "-e", "FOO", imageName)
+	defer func() {
+		dockerCmd(c, "rm", "-f", name)
+		dockerCmd(c, "rmi", imageName)
+	}()
+
+	// Start
+	dockerCmd(c, "start", name)
+	waitForHealthStatus(c, name, "starting", "healthy")
+
+}

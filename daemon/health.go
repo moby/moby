@@ -64,31 +64,35 @@ type cmdProbe struct {
 
 // exec the healthcheck command in the container.
 // Returns the exit code and probe output (if any)
-func (p *cmdProbe) run(ctx context.Context, d *Daemon, container *container.Container) (*types.HealthcheckResult, error) {
-
-	cmdSlice := strslice.StrSlice(container.Config.Healthcheck.Test)[1:]
+func (p *cmdProbe) run(ctx context.Context, d *Daemon, cntr *container.Container) (*types.HealthcheckResult, error) {
+	cmdSlice := strslice.StrSlice(cntr.Config.Healthcheck.Test)[1:]
 	if p.shell {
-		cmdSlice = append(getShell(container.Config), cmdSlice...)
+		cmdSlice = append(getShell(cntr.Config), cmdSlice...)
 	}
 	entrypoint, args := d.getEntrypointAndArgs(strslice.StrSlice{}, cmdSlice)
 	execConfig := exec.NewConfig()
 	execConfig.OpenStdin = false
 	execConfig.OpenStdout = true
 	execConfig.OpenStderr = true
-	execConfig.ContainerID = container.ID
+	execConfig.ContainerID = cntr.ID
 	execConfig.DetachKeys = []byte{}
 	execConfig.Entrypoint = entrypoint
 	execConfig.Args = args
 	execConfig.Tty = false
 	execConfig.Privileged = false
-	execConfig.User = container.Config.User
-	execConfig.Env = container.Config.Env
+	execConfig.User = cntr.Config.User
 
-	d.registerExecCommand(container, execConfig)
-	d.LogContainerEvent(container, "exec_create: "+execConfig.Entrypoint+" "+strings.Join(execConfig.Args, " "))
+	linkedEnv, err := d.setupLinkedContainers(cntr)
+	if err != nil {
+		return nil, err
+	}
+	execConfig.Env = container.ReplaceOrAppendEnvValues(cntr.CreateDaemonEnvironment(execConfig.Tty, linkedEnv), execConfig.Env)
+
+	d.registerExecCommand(cntr, execConfig)
+	d.LogContainerEvent(cntr, "exec_create: "+execConfig.Entrypoint+" "+strings.Join(execConfig.Args, " "))
 
 	output := &limitedBuffer{}
-	err := d.ContainerExecStart(ctx, execConfig.ID, nil, output, output)
+	err = d.ContainerExecStart(ctx, execConfig.ID, nil, output, output)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +101,7 @@ func (p *cmdProbe) run(ctx context.Context, d *Daemon, container *container.Cont
 		return nil, err
 	}
 	if info.ExitCode == nil {
-		return nil, fmt.Errorf("Healthcheck for container %s has no exit code!", container.ID)
+		return nil, fmt.Errorf("Healthcheck for container %s has no exit code!", cntr.ID)
 	}
 	// Note: Go's json package will handle invalid UTF-8 for us
 	out := output.String()
