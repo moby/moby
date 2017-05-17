@@ -161,21 +161,18 @@ A service has the following fields:
         only specify the container port to be exposed. These ports can be
         mapped on runtime hosts at the operator's discretion.
     </dd>
-
     <dt>
         WorkingDir <code>string</code>
     </dt>
     <dd>
         Working directory inside the service containers.
     </dd>
-
     <dt>
         User <code>string</code>
     </dt>
     <dd>
         Username or UID (format: <code>&lt;name|uid&gt;[:&lt;group|gid&gt;]</code>).
     </dd>
-
     <dt>
         Networks <code>[]string</code>
     </dt>
