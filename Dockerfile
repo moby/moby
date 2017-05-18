@@ -47,6 +47,7 @@ RUN apt-get update && apt-get install -y \
 	curl \
 	dpkg-sig \
 	gcc-mingw-w64 \
+	ghc \
 	git \
 	iptables \
 	jq \
@@ -209,12 +210,10 @@ RUN git clone https://github.com/go-swagger/go-swagger.git /go/src/github.com/go
 
 # Install shellcheck from source to get a more recent version on debian jessie
 ENV SHELLCHECK_VERSION v0.4.6
-# Required by cabal (See: https://github.com/haskell/cabal/issues/1883)
-ENV LANG "en_US.UTF-8"
 RUN set -x \
 	&& git clone --branch "$SHELLCHECK_VERSION" https://github.com/koalaman/shellcheck.git /usr/local/shellcheck \
 	&& cd /usr/local/shellcheck \
-	&& cabal update && cabal install
+	&& export LANG="C.UTF-8" && cabal update && cabal install
 ENV PATH $HOME/.cabal/bin:$PATH
 
 # Set user.email so crosbymichael's in-container merge commits go smoothly

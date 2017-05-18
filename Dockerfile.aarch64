@@ -32,6 +32,7 @@ RUN apt-get update && apt-get install -y \
 	dpkg-sig \
 	g++ \
 	gcc \
+	ghc \
 	git \
 	golang-go \
 	iproute2 \
