@@ -765,6 +765,10 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 		return nil, types.ForbiddenErrorf("Cannot create a multi-host network from a worker node. Please create the network from a manager node.")
 	}
 
+	if network.scope == datastore.SwarmScope && c.isDistributedControl() {
+		return nil, types.ForbiddenErrorf("cannot create a swarm scoped network when swarm is not active")
+	}
+
 	// Make sure we have a driver available for this network type
 	// before we allocate anything.
 	if _, err := network.driver(true); err != nil {
