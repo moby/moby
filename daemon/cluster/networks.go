@@ -17,7 +17,28 @@ import (
 
 // GetNetworks returns all current cluster managed networks.
 func (c *Cluster) GetNetworks() ([]apitypes.NetworkResource, error) {
-	return c.getNetworks(nil)
+	list, err := c.getNetworks(nil)
+	if err != nil {
+		return nil, err
+	}
+	removePredefinedNetworks(&list)
+	return list, nil
+}
+
+func removePredefinedNetworks(networks *[]apitypes.NetworkResource) {
+	if networks == nil {
+		return
+	}
+	var idxs []int
+	for i, n := range *networks {
+		if v, ok := n.Labels["com.docker.swarm.predefined"]; ok && v == "true" {
+			idxs = append(idxs, i)
+		}
+	}
+	for i, idx := range idxs {
+		idx -= i
+		*networks = append((*networks)[:idx], (*networks)[idx+1:]...)
+	}
 }
 
 func (c *Cluster) getNetworks(filters *swarmapi.ListNetworksRequest_Filters) ([]apitypes.NetworkResource, error) {
@@ -269,16 +290,27 @@ func (c *Cluster) populateNetworkID(ctx context.Context, client swarmapi.Control
 	if len(networks) == 0 {
 		networks = s.Networks
 	}
-
 	for i, n := range networks {
 		apiNetwork, err := getNetwork(ctx, client, n.Target)
 		if err != nil {
-			if ln, _ := c.config.Backend.FindNetwork(n.Target); ln != nil && !ln.Info().Dynamic() {
+			ln, _ := c.config.Backend.FindNetwork(n.Target)
+			if ln != nil && runconfig.IsPreDefinedNetwork(ln.Name()) {
+				// Need to retrieve the corresponding predefined swarm network
+				// and use its id for the request.
+				apiNetwork, err = getNetwork(ctx, client, ln.Name())
+				if err != nil {
+					err = fmt.Errorf("could not find the corresponding predefined swarm network: %v", err)
+					return apierrors.NewRequestNotFoundError(err)
+				}
+				goto setid
+			}
+			if ln != nil && !ln.Info().Dynamic() {
 				err = fmt.Errorf("The network %s cannot be used with services. Only networks scoped to the swarm can be used, such as those created with the overlay driver.", ln.Name())
 				return apierrors.NewRequestForbiddenError(err)
 			}
 			return err
 		}
+	setid:
 		networks[i].Target = apiNetwork.ID
 	}
 	return nil

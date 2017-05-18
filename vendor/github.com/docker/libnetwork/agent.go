@@ -222,7 +222,7 @@ func (c *controller) agentSetup(clusterProvider cluster.Provider) error {
 			return err
 		}
 		c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
-			if capability.DataScope == datastore.GlobalScope {
+			if capability.ConnectivityScope == datastore.GlobalScope {
 				c.agentDriverNotify(driver)
 			}
 			return false
@@ -507,7 +507,7 @@ func (n *network) Services() map[string]ServiceInfo {
 }
 
 func (n *network) isClusterEligible() bool {
-	if n.driverScope() != datastore.GlobalScope {
+	if n.scope != datastore.SwarmScope || !n.driverIsMultihost() {
 		return false
 	}
 	return n.getController().getAgent() != nil

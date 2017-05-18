@@ -176,7 +176,7 @@ func (c *containerAdapter) removeNetworks(ctx context.Context) error {
 }
 
 func (c *containerAdapter) networkAttach(ctx context.Context) error {
-	config := c.container.createNetworkingConfig()
+	config := c.container.createNetworkingConfig(c.backend)
 
 	var (
 		networkName string
@@ -195,7 +195,7 @@ func (c *containerAdapter) networkAttach(ctx context.Context) error {
 }
 
 func (c *containerAdapter) waitForDetach(ctx context.Context) error {
-	config := c.container.createNetworkingConfig()
+	config := c.container.createNetworkingConfig(c.backend)
 
 	var (
 		networkName string
@@ -216,20 +216,19 @@ func (c *containerAdapter) waitForDetach(ctx context.Context) error {
 func (c *containerAdapter) create(ctx context.Context) error {
 	var cr containertypes.ContainerCreateCreatedBody
 	var err error
-
 	if cr, err = c.backend.CreateManagedContainer(types.ContainerCreateConfig{
 		Name:       c.container.name(),
 		Config:     c.container.config(),
 		HostConfig: c.container.hostConfig(),
 		// Use the first network in container create
-		NetworkingConfig: c.container.createNetworkingConfig(),
+		NetworkingConfig: c.container.createNetworkingConfig(c.backend),
 	}); err != nil {
 		return err
 	}
 
 	// Docker daemon currently doesn't support multiple networks in container create
 	// Connect to all other networks
-	nc := c.container.connectNetworkingConfig()
+	nc := c.container.connectNetworkingConfig(c.backend)
 
 	if nc != nil {
 		for n, ep := range nc.EndpointsConfig {

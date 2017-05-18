@@ -100,3 +100,8 @@ func (es *EndpointSettings) Copy() *EndpointSettings {
 type NetworkingConfig struct {
 	EndpointsConfig map[string]*EndpointSettings // Endpoint configs for each connecting network
 }
+
+// ConfigReference specifies the source which provides a network's configuration
+type ConfigReference struct {
+	Network string
+}

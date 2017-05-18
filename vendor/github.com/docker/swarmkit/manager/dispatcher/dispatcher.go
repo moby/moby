@@ -427,13 +427,14 @@ func (d *Dispatcher) markNodeReady(ctx context.Context, nodeID string, descripti
 
 	// Wait until the node update batch happens before unblocking register.
 	d.processUpdatesLock.Lock()
+	defer d.processUpdatesLock.Unlock()
+
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
 	default:
 	}
 	d.processUpdatesCond.Wait()
-	d.processUpdatesLock.Unlock()
 
 	return nil
 }

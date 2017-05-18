@@ -593,7 +593,7 @@ func (a *Allocator) taskCreateNetworkAttachments(t *api.Task, s *api.Service) {
 			attachment := api.NetworkAttachment{Network: n}
 			attachment.Aliases = append(attachment.Aliases, na.Aliases...)
 			attachment.Addresses = append(attachment.Addresses, na.Addresses...)
-
+			attachment.DriverOpts = na.DriverOpts
 			networks = append(networks, &attachment)
 		}
 	})

@@ -244,11 +244,29 @@ func (f *PlatformFilter) Check(n *NodeInfo) bool {
 		return true
 	}
 	// check if the platform for the node is supported
-	nodePlatform := n.Description.Platform
-	for _, p := range f.supportedPlatforms {
-		if (p.Architecture == "" || p.Architecture == nodePlatform.Architecture) && (p.OS == "" || p.OS == nodePlatform.OS) {
-			return true
+	if n.Description != nil {
+		if nodePlatform := n.Description.Platform; nodePlatform != nil {
+			for _, p := range f.supportedPlatforms {
+				if f.platformEqual(*p, *nodePlatform) {
+					return true
+				}
+			}
 		}
+	}
+	return false
+}
+
+func (f *PlatformFilter) platformEqual(imgPlatform, nodePlatform api.Platform) bool {
+	// normalize "x86_64" architectures to "amd64"
+	if imgPlatform.Architecture == "x86_64" {
+		imgPlatform.Architecture = "amd64"
+	}
+	if nodePlatform.Architecture == "x86_64" {
+		nodePlatform.Architecture = "amd64"
+	}
+
+	if (imgPlatform.Architecture == "" || imgPlatform.Architecture == nodePlatform.Architecture) && (imgPlatform.OS == "" || imgPlatform.OS == nodePlatform.OS) {
+		return true
 	}
 	return false
 }

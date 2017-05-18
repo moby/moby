@@ -18,8 +18,10 @@ import (
 	enginemount "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	volumetypes "github.com/docker/docker/api/types/volume"
+	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
 	"github.com/docker/go-connections/nat"
+	netconst "github.com/docker/libnetwork/datastore"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/template"
@@ -374,6 +376,14 @@ func (c *containerConfig) hostConfig() *enginecontainer.HostConfig {
 		}
 	}
 
+	if len(c.task.Networks) > 0 {
+		labels := c.task.Networks[0].Network.Spec.Annotations.Labels
+		name := c.task.Networks[0].Network.Spec.Annotations.Name
+		if v, ok := labels["com.docker.swarm.predefined"]; ok && v == "true" {
+			hc.NetworkMode = enginecontainer.NetworkMode(name)
+		}
+	}
+
 	return hc
 }
 
@@ -428,7 +438,7 @@ func (c *containerConfig) resources() enginecontainer.Resources {
 }
 
 // Docker daemon supports just 1 network during container create.
-func (c *containerConfig) createNetworkingConfig() *network.NetworkingConfig {
+func (c *containerConfig) createNetworkingConfig(b executorpkg.Backend) *network.NetworkingConfig {
 	var networks []*api.NetworkAttachment
 	if c.task.Spec.GetContainer() != nil || c.task.Spec.GetAttachment() != nil {
 		networks = c.task.Networks
@@ -436,19 +446,18 @@ func (c *containerConfig) createNetworkingConfig() *network.NetworkingConfig {
 
 	epConfig := make(map[string]*network.EndpointSettings)
 	if len(networks) > 0 {
-		epConfig[networks[0].Network.Spec.Annotations.Name] = getEndpointConfig(networks[0])
+		epConfig[networks[0].Network.Spec.Annotations.Name] = getEndpointConfig(networks[0], b)
 	}
 
 	return &network.NetworkingConfig{EndpointsConfig: epConfig}
 }
 
 // TODO: Merge this function with createNetworkingConfig after daemon supports multiple networks in container create
-func (c *containerConfig) connectNetworkingConfig() *network.NetworkingConfig {
+func (c *containerConfig) connectNetworkingConfig(b executorpkg.Backend) *network.NetworkingConfig {
 	var networks []*api.NetworkAttachment
 	if c.task.Spec.GetContainer() != nil {
 		networks = c.task.Networks
 	}
-
 	// First network is used during container create. Other networks are used in "docker network connect"
 	if len(networks) < 2 {
 		return nil
@@ -456,12 +465,12 @@ func (c *containerConfig) connectNetworkingConfig() *network.NetworkingConfig {
 
 	epConfig := make(map[string]*network.EndpointSettings)
 	for _, na := range networks[1:] {
-		epConfig[na.Network.Spec.Annotations.Name] = getEndpointConfig(na)
+		epConfig[na.Network.Spec.Annotations.Name] = getEndpointConfig(na, b)
 	}
 	return &network.NetworkingConfig{EndpointsConfig: epConfig}
 }
 
-func getEndpointConfig(na *api.NetworkAttachment) *network.EndpointSettings {
+func getEndpointConfig(na *api.NetworkAttachment, b executorpkg.Backend) *network.EndpointSettings {
 	var ipv4, ipv6 string
 	for _, addr := range na.Addresses {
 		ip, _, err := net.ParseCIDR(addr)
@@ -479,13 +488,19 @@ func getEndpointConfig(na *api.NetworkAttachment) *network.EndpointSettings {
 		}
 	}
 
-	return &network.EndpointSettings{
+	n := &network.EndpointSettings{
 		NetworkID: na.Network.ID,
 		IPAMConfig: &network.EndpointIPAMConfig{
 			IPv4Address: ipv4,
 			IPv6Address: ipv6,
 		},
 	}
+	if v, ok := na.Network.Spec.Annotations.Labels["com.docker.swarm.predefined"]; ok && v == "true" {
+		if ln, err := b.FindNetwork(na.Network.Spec.Annotations.Name); err == nil {
+			n.NetworkID = ln.ID()
+		}
+	}
+	return n
 }
 
 func (c *containerConfig) virtualIP(networkID string) string {
@@ -570,27 +585,38 @@ func (c *containerConfig) networkCreateRequest(name string) (clustertypes.Networ
 
 	options := types.NetworkCreate{
 		// ID:     na.Network.ID,
-		Driver: na.Network.DriverState.Name,
-		IPAM: &network.IPAM{
-			Driver:  na.Network.IPAM.Driver.Name,
-			Options: na.Network.IPAM.Driver.Options,
-		},
-		Options:        na.Network.DriverState.Options,
 		Labels:         na.Network.Spec.Annotations.Labels,
 		Internal:       na.Network.Spec.Internal,
 		Attachable:     na.Network.Spec.Attachable,
 		Ingress:        na.Network.Spec.Ingress,
 		EnableIPv6:     na.Network.Spec.Ipv6Enabled,
 		CheckDuplicate: true,
+		Scope:          netconst.SwarmScope,
 	}
 
-	for _, ic := range na.Network.IPAM.Configs {
-		c := network.IPAMConfig{
-			Subnet:  ic.Subnet,
-			IPRange: ic.Range,
-			Gateway: ic.Gateway,
+	if na.Network.Spec.ConfigFrom != "" {
+		options.ConfigFrom = &network.ConfigReference{
+			Network: na.Network.Spec.ConfigFrom,
 		}
-		options.IPAM.Config = append(options.IPAM.Config, c)
+	}
+
+	if na.Network.DriverState != nil {
+		options.Driver = na.Network.DriverState.Name
+		options.Options = na.Network.DriverState.Options
+	}
+	if na.Network.IPAM != nil {
+		options.IPAM = &network.IPAM{
+			Driver:  na.Network.IPAM.Driver.Name,
+			Options: na.Network.IPAM.Driver.Options,
+		}
+		for _, ic := range na.Network.IPAM.Configs {
+			c := network.IPAMConfig{
+				Subnet:  ic.Subnet,
+				IPRange: ic.Range,
+				Gateway: ic.Gateway,
+			}
+			options.IPAM.Config = append(options.IPAM.Config, c)
+		}
 	}
 
 	return clustertypes.NetworkCreateRequest{
