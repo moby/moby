@@ -114,7 +114,10 @@ func (n *bridgeNetwork) setupIPTables(config *networkConfiguration, i *bridgeInt
 		n.portMapper.SetIptablesChain(natChain, n.getNetworkBridgeName())
 	}
 
-	if err := ensureJumpRule("FORWARD", IsolationChain); err != nil {
+	d.Lock()
+	err = ensureJumpRule("FORWARD", IsolationChain)
+	d.Unlock()
+	if err != nil {
 		return err
 	}
 
