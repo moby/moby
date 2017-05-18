@@ -356,10 +356,10 @@ func (n *network) validateConfiguration() error {
 	if n.configOnly {
 		// Only supports network specific configurations.
 		// Network operator configurations are not supported.
-		if n.ingress || n.internal || n.attachable {
+		if n.ingress || n.internal || n.attachable || n.scope != "" {
 			return types.ForbiddenErrorf("configuration network can only contain network " +
 				"specific fields. Network operator fields like " +
-				"[ ingress | internal | attachable ] are not supported.")
+				"[ ingress | internal | attachable | scope ] are not supported.")
 		}
 	}
 	if n.configFrom != "" {
@@ -904,17 +904,14 @@ func (n *network) driver(load bool) (driverapi.Driver, error) {
 		return nil, err
 	}
 
-	c := n.getController()
-	isAgent := c.isAgent()
 	n.Lock()
 	// If load is not required, driver, cap and err may all be nil
 	if n.scope == "" && cap != nil {
 		n.scope = cap.DataScope
 	}
-	if isAgent && n.dynamic {
-		// If we are running in agent mode and the network
-		// is dynamic, then the networks are swarm scoped
-		// regardless of the backing driver.
+	if n.dynamic {
+		// If the network is dynamic, then it is swarm
+		// scoped regardless of the backing driver.
 		n.scope = datastore.SwarmScope
 	}
 	n.Unlock()
