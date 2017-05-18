@@ -911,8 +911,8 @@ func (n *network) driver(load bool) (driverapi.Driver, error) {
 	if n.scope == "" && cap != nil {
 		n.scope = cap.DataScope
 	}
-	if isAgent && n.dynamic {
-		// If we are running in agent mode and the network
+	if isAgent || n.dynamic {
+		// If we are running in agent mode or the network
 		// is dynamic, then the networks are swarm scoped
 		// regardless of the backing driver.
 		n.scope = datastore.SwarmScope
