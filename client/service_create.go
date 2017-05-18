@@ -24,14 +24,18 @@ func (cli *Client) ServiceCreate(ctx context.Context, service swarm.ServiceSpec,
 		headers["X-Registry-Auth"] = []string{options.EncodedRegistryAuth}
 	}
 
+	// ensure that the image is tagged
+	if taggedImg := imageWithTagString(service.TaskTemplate.ContainerSpec.Image); taggedImg != "" {
+		service.TaskTemplate.ContainerSpec.Image = taggedImg
+	}
+
 	// Contact the registry to retrieve digest and platform information
 	if options.QueryRegistry {
 		distributionInspect, err := cli.DistributionInspect(ctx, service.TaskTemplate.ContainerSpec.Image, options.EncodedRegistryAuth)
 		distErr = err
 		if err == nil {
 			// now pin by digest if the image doesn't already contain a digest
-			img := imageWithDigestString(service.TaskTemplate.ContainerSpec.Image, distributionInspect.Descriptor.Digest)
-			if img != "" {
+			if img := imageWithDigestString(service.TaskTemplate.ContainerSpec.Image, distributionInspect.Descriptor.Digest); img != "" {
 				service.TaskTemplate.ContainerSpec.Image = img
 			}
 			// add platforms that are compatible with the service
@@ -55,18 +59,29 @@ func (cli *Client) ServiceCreate(ctx context.Context, service swarm.ServiceSpec,
 }
 
 // imageWithDigestString takes an image string and a digest, and updates
-// the image string if it didn't originally contain a digest. It assumes
-// that the image string is not an image ID
+// the image string if it didn't originally contain a digest. It returns
+// an empty string if there are no updates.
 func imageWithDigestString(image string, dgst digest.Digest) string {
-	ref, err := reference.ParseAnyReference(image)
+	namedRef, err := reference.ParseNormalizedNamed(image)
 	if err == nil {
-		if _, isCanonical := ref.(reference.Canonical); !isCanonical {
-			namedRef, _ := ref.(reference.Named)
+		if _, isCanonical := namedRef.(reference.Canonical); !isCanonical {
+			// ensure that image gets a default tag if none is provided
 			img, err := reference.WithDigest(namedRef, dgst)
 			if err == nil {
-				return img.String()
+				return reference.FamiliarString(img)
 			}
 		}
+	}
+	return ""
+}
+
+// imageWithTagString takes an image string, and returns a tagged image
+// string, adding a 'latest' tag if one was not provided. It returns an
+// emptry string if a canonical reference was provided
+func imageWithTagString(image string) string {
+	namedRef, err := reference.ParseNormalizedNamed(image)
+	if err == nil {
+		return reference.FamiliarString(reference.TagNameOnly(namedRef))
 	}
 	return ""
 }
