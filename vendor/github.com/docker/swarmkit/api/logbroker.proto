@@ -19,7 +19,7 @@ enum LogStream {
 message LogSubscriptionOptions {
 	// Streams defines which log streams should be sent from the task source.
 	// Empty means send all the messages.
-	repeated LogStream streams = 1;
+	repeated LogStream streams = 1 [packed=false];
 
 	// Follow instructs the publisher to continue sending log messages as they
 	// are produced, after satisfying the initial query.

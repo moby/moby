@@ -92,6 +92,7 @@ var E_Deepcopy = &proto.ExtensionDesc{
 	Field:         70000,
 	Name:          "docker.protobuf.plugin.deepcopy",
 	Tag:           "varint,70000,opt,name=deepcopy,def=1",
+	Filename:      "plugin.proto",
 }
 
 var E_StoreObject = &proto.ExtensionDesc{
@@ -100,6 +101,7 @@ var E_StoreObject = &proto.ExtensionDesc{
 	Field:         70001,
 	Name:          "docker.protobuf.plugin.store_object",
 	Tag:           "bytes,70001,opt,name=store_object,json=storeObject",
+	Filename:      "plugin.proto",
 }
 
 var E_TlsAuthorization = &proto.ExtensionDesc{
@@ -108,6 +110,7 @@ var E_TlsAuthorization = &proto.ExtensionDesc{
 	Field:         73626345,
 	Name:          "docker.protobuf.plugin.tls_authorization",
 	Tag:           "bytes,73626345,opt,name=tls_authorization,json=tlsAuthorization",
+	Filename:      "plugin.proto",
 }
 
 func init() {

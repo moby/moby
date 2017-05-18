@@ -66,7 +66,7 @@ message JoinResponse {
 
 	// RemovedMembers is a list of members that have been removed from
 	// the cluster, so the new node can avoid communicating with them.
-	repeated uint64 removed_members = 3;
+	repeated uint64 removed_members = 3 [packed=false];
 }
 
 message LeaveRequest {
