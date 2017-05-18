@@ -213,7 +213,8 @@ ENV SHELLCHECK_VERSION v0.4.6
 RUN set -x \
 	&& git clone --branch "$SHELLCHECK_VERSION" https://github.com/koalaman/shellcheck.git /usr/local/shellcheck \
 	&& cd /usr/local/shellcheck \
-	&& export LANG="C.UTF-8" && cabal update && cabal install
+	&& LANG="C.UTF-8" cabal update \
+	&& LANG="C.UTF-8" cabal install
 ENV PATH /root/.cabal/bin:$PATH
 
 # Set user.email so crosbymichael's in-container merge commits go smoothly
