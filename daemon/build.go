@@ -2,7 +2,6 @@ package daemon
 
 import (
 	"io"
-	"runtime"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
@@ -110,7 +109,7 @@ func newReleasableLayerForImage(img *image.Image, layerStore layer.Store) (build
 }
 
 // TODO: could this use the regular daemon PullImage ?
-func (daemon *Daemon) pullForBuilder(ctx context.Context, name string, authConfigs map[string]types.AuthConfig, output io.Writer) (*image.Image, error) {
+func (daemon *Daemon) pullForBuilder(ctx context.Context, name string, authConfigs map[string]types.AuthConfig, output io.Writer, platform string) (*image.Image, error) {
 	ref, err := reference.ParseNormalizedNamed(name)
 	if err != nil {
 		return nil, err
@@ -129,12 +128,7 @@ func (daemon *Daemon) pullForBuilder(ctx context.Context, name string, authConfi
 		pullRegistryAuth = &resolvedConfig
 	}
 
-	// TODO @jhowardmsft LCOW Support: For now, use the runtime operating system of the host.
-	// When it gets to the builder part, this will need revisiting. There would have to be
-	// some indication from the user either through CLI flag to build, or through an explicit
-	// mechanism in a dockerfile such as a parser directive extension or an addition to
-	// the FROM statement syntax.
-	if err := daemon.pullImageWithReference(ctx, ref, runtime.GOOS, nil, pullRegistryAuth, output); err != nil {
+	if err := daemon.pullImageWithReference(ctx, ref, platform, nil, pullRegistryAuth, output); err != nil {
 		return nil, err
 	}
 	return daemon.GetImage(name)
@@ -153,18 +147,16 @@ func (daemon *Daemon) GetImageAndReleasableLayer(ctx context.Context, refOrID st
 		image, _ := daemon.GetImage(refOrID)
 		// TODO: shouldn't we error out if error is different from "not found" ?
 		if image != nil {
-			// TODO LCOW @jhowardmsft. For now using runtime.GOOS for this, will need enhancing for platform when porting the builder
-			layer, err := newReleasableLayerForImage(image, daemon.stores[runtime.GOOS].layerStore)
+			layer, err := newReleasableLayerForImage(image, daemon.stores[opts.Platform].layerStore)
 			return image, layer, err
 		}
 	}
 
-	image, err := daemon.pullForBuilder(ctx, refOrID, opts.AuthConfig, opts.Output)
+	image, err := daemon.pullForBuilder(ctx, refOrID, opts.AuthConfig, opts.Output, opts.Platform)
 	if err != nil {
 		return nil, nil, err
 	}
-	// TODO LCOW @jhowardmsft. For now using runtime.GOOS for this, will need enhancing for platform when porting the builder
-	layer, err := newReleasableLayerForImage(image, daemon.stores[runtime.GOOS].layerStore)
+	layer, err := newReleasableLayerForImage(image, daemon.stores[opts.Platform].layerStore)
 	return image, layer, err
 }
 
