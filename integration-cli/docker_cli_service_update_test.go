@@ -15,7 +15,7 @@ func (s *DockerSwarmSuite) TestServiceUpdatePort(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
 	serviceName := "TestServiceUpdatePort"
-	serviceArgs := append([]string{"service", "create", "--name", serviceName, "-p", "8080:8081", defaultSleepImage}, sleepCommandForDaemonPlatform()...)
+	serviceArgs := append([]string{"service", "create", "--no-resolve-image", "--name", serviceName, "-p", "8080:8081", defaultSleepImage}, sleepCommandForDaemonPlatform()...)
 
 	// Create a service with a port mapping of 8080:8081.
 	out, err := d.Cmd(serviceArgs...)
@@ -48,7 +48,7 @@ func (s *DockerSwarmSuite) TestServiceUpdatePort(c *check.C) {
 
 func (s *DockerSwarmSuite) TestServiceUpdateLabel(c *check.C) {
 	d := s.AddDaemon(c, true, true)
-	out, err := d.Cmd("service", "create", "--name=test", "busybox", "top")
+	out, err := d.Cmd("service", "create", "--no-resolve-image", "--name=test", "busybox", "top")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	service := d.GetService(c, "test")
 	c.Assert(service.Spec.Labels, checker.HasLen, 0)
@@ -100,7 +100,7 @@ func (s *DockerSwarmSuite) TestServiceUpdateSecrets(c *check.C) {
 	testTarget := "testing"
 	serviceName := "test"
 
-	out, err := d.Cmd("service", "create", "--name", serviceName, "busybox", "top")
+	out, err := d.Cmd("service", "create", "--no-resolve-image", "--name", serviceName, "busybox", "top")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	// add secret
@@ -142,7 +142,7 @@ func (s *DockerSwarmSuite) TestServiceUpdateConfigs(c *check.C) {
 	testTarget := "/testing"
 	serviceName := "test"
 
-	out, err := d.Cmd("service", "create", "--name", serviceName, "busybox", "top")
+	out, err := d.Cmd("service", "create", "--no-resolve-image", "--name", serviceName, "busybox", "top")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	// add config
