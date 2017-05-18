@@ -40,6 +40,7 @@ RUN apt-get update && apt-get install -y \
 	bsdmainutils \
 	btrfs-tools \
 	build-essential \
+	cabal-install \
 	clang \
 	cmake \
 	createrepo \
@@ -67,7 +68,6 @@ RUN apt-get update && apt-get install -y \
 	python-mock \
 	python-pip \
 	python-websocket \
-	shellcheck \
 	tar \
 	vim \
 	vim-common \
@@ -206,6 +206,16 @@ ENV GO_SWAGGER_COMMIT c28258affb0b6251755d92489ef685af8d4ff3eb
 RUN git clone https://github.com/go-swagger/go-swagger.git /go/src/github.com/go-swagger/go-swagger \
 	&& (cd /go/src/github.com/go-swagger/go-swagger && git checkout -q $GO_SWAGGER_COMMIT) \
 	&& go install -v github.com/go-swagger/go-swagger/cmd/swagger
+
+# Install shellcheck from source to get a more recent version on debian jessie
+ENV SHELLCHECK_VERSION v0.4.6
+# Required by cabal (See: https://github.com/haskell/cabal/issues/1883)
+ENV LANG "en_US.UTF-8"
+RUN set -x \
+	&& git clone --branch "$SHELLCHECK_VERSION" https://github.com/koalaman/shellcheck.git /usr/local/ \
+	&& cd /usr/local/shellcheck \
+	&& cabal update && cabal install
+ENV PATH $HOME/.cabal/bin:$PATH
 
 # Set user.email so crosbymichael's in-container merge commits go smoothly
 RUN git config --global user.email 'docker-dummy@example.com'
