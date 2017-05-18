@@ -35,6 +35,11 @@ func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, version 
 
 	query.Set("version", strconv.FormatUint(version.Index, 10))
 
+	// ensure that the image is tagged
+	if taggedImg := imageWithTagString(service.TaskTemplate.ContainerSpec.Image); taggedImg != "" {
+		service.TaskTemplate.ContainerSpec.Image = taggedImg
+	}
+
 	// Contact the registry to retrieve digest and platform information
 	// This happens only when the image has changed
 	if options.QueryRegistry {
@@ -42,8 +47,7 @@ func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, version 
 		distErr = err
 		if err == nil {
 			// now pin by digest if the image doesn't already contain a digest
-			img := imageWithDigestString(service.TaskTemplate.ContainerSpec.Image, distributionInspect.Descriptor.Digest)
-			if img != "" {
+			if img := imageWithDigestString(service.TaskTemplate.ContainerSpec.Image, distributionInspect.Descriptor.Digest); img != "" {
 				service.TaskTemplate.ContainerSpec.Image = img
 			}
 			// add platforms that are compatible with the service
