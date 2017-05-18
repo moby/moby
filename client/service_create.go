@@ -55,12 +55,9 @@ func (cli *Client) ServiceCreate(ctx context.Context, service swarm.ServiceSpec,
 // the image string if it didn't originally contain a digest. It assumes
 // that the image string is not an image ID
 func imageWithDigestString(image string, dgst digest.Digest) string {
-	isCanonical := false
 	ref, err := reference.ParseAnyReference(image)
 	if err == nil {
-		_, isCanonical = ref.(reference.Canonical)
-
-		if !isCanonical {
+		if _, isCanonical := ref.(reference.Canonical); !isCanonical {
 			namedRef, _ := ref.(reference.Named)
 			img, err := reference.WithDigest(namedRef, dgst)
 			if err == nil {
