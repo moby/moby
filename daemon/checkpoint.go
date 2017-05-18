@@ -103,7 +103,7 @@ func (daemon *Daemon) CheckpointList(name string, config types.CheckpointListOpt
 		return nil, err
 	}
 
-	checkpointDir, err := getCheckpointDir(config.CheckpointDir, "", name, container.ID, container.CheckpointDir(), true)
+	checkpointDir, err := getCheckpointDir(config.CheckpointDir, "", name, container.ID, container.CheckpointDir(), false)
 	if err != nil {
 		return nil, err
 	}
