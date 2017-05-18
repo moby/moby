@@ -1034,3 +1034,20 @@ func TestCreateTagSuccess(t *testing.T) {
 		t.Errorf("Expected LogStreamName to be %s", "test-container/container-abcdefghijklmnopqrstuvwxyz01234567890")
 	}
 }
+
+func BenchmarkUnwrapEvents(b *testing.B) {
+	events := make([]wrappedEvent, maximumLogEventsPerPut)
+	for i := 0; i < maximumLogEventsPerPut; i++ {
+		mes := strings.Repeat("0", maximumBytesPerEvent)
+		events[i].inputLogEvent = &cloudwatchlogs.InputLogEvent{
+			Message: &mes,
+		}
+	}
+
+	as := assert.New(b)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		res := unwrapEvents(events)
+		as.Len(res, maximumLogEventsPerPut)
+	}
+}
