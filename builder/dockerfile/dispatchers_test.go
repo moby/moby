@@ -194,7 +194,7 @@ func TestFromScratch(t *testing.T) {
 	req := defaultDispatchReq(b, "scratch")
 	err := from(req)
 
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == "windows" && !system.LCOWSupported() {
 		assert.EqualError(t, err, "Windows does not support FROM scratch")
 		return
 	}
@@ -202,7 +202,12 @@ func TestFromScratch(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, req.state.hasFromImage())
 	assert.Equal(t, "", req.state.imageID)
-	assert.Equal(t, []string{"PATH=" + system.DefaultPathEnv}, req.state.runConfig.Env)
+	// Windows does not set the default path. TODO @jhowardmsft LCOW support. This will need revisiting as we get further into the implementation
+	expected := "PATH=" + system.DefaultPathEnv
+	if runtime.GOOS == "windows" {
+		expected = ""
+	}
+	assert.Equal(t, []string{expected}, req.state.runConfig.Env)
 }
 
 func TestFromWithArg(t *testing.T) {

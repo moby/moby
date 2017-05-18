@@ -256,13 +256,13 @@ func (b *Builder) probeAndCreate(dispatchState *dispatchState, runConfig *contai
 	}
 	// Set a log config to override any default value set on the daemon
 	hostConfig := &container.HostConfig{LogConfig: defaultLogConfig}
-	container, err := b.containerManager.Create(runConfig, hostConfig)
+	container, err := b.containerManager.Create(runConfig, hostConfig, b.platform)
 	return container.ID, err
 }
 
 func (b *Builder) create(runConfig *container.Config) (string, error) {
 	hostConfig := hostConfigFromOptions(b.options)
-	container, err := b.containerManager.Create(runConfig, hostConfig)
+	container, err := b.containerManager.Create(runConfig, hostConfig, b.platform)
 	if err != nil {
 		return "", err
 	}

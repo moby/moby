@@ -28,4 +28,5 @@ type GetImageAndLayerOptions struct {
 	ForcePull  bool
 	AuthConfig map[string]types.AuthConfig
 	Output     io.Writer
+	Platform   string
 }

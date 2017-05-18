@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"unicode"
 
 	"github.com/docker/docker/builder/dockerfile/command"
+	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
 )
 
@@ -79,22 +81,28 @@ func (node *Node) AddChild(child *Node, startLine, endLine int) {
 }
 
 var (
-	dispatch           map[string]func(string, *Directive) (*Node, map[string]bool, error)
-	tokenWhitespace    = regexp.MustCompile(`[\t\v\f\r ]+`)
-	tokenEscapeCommand = regexp.MustCompile(`^#[ \t]*escape[ \t]*=[ \t]*(?P<escapechar>.).*$`)
-	tokenComment       = regexp.MustCompile(`^#.*$`)
+	dispatch             map[string]func(string, *Directive) (*Node, map[string]bool, error)
+	tokenWhitespace      = regexp.MustCompile(`[\t\v\f\r ]+`)
+	tokenEscapeCommand   = regexp.MustCompile(`^#[ \t]*escape[ \t]*=[ \t]*(?P<escapechar>.).*$`)
+	tokenPlatformCommand = regexp.MustCompile(`^#[ \t]*platform[ \t]*=[ \t]*(?P<platform>.*)$`)
+	tokenComment         = regexp.MustCompile(`^#.*$`)
 )
 
 // DefaultEscapeToken is the default escape token
 const DefaultEscapeToken = '\\'
 
+// DefaultPlatformToken is the platform assumed for the build if not explicitly provided
+var DefaultPlatformToken = runtime.GOOS
+
 // Directive is the structure used during a build run to hold the state of
 // parsing directives.
 type Directive struct {
 	escapeToken           rune           // Current escape token
+	platformToken         string         // Current platform token
 	lineContinuationRegex *regexp.Regexp // Current line continuation regex
 	processingComplete    bool           // Whether we are done looking for directives
 	escapeSeen            bool           // Whether the escape directive has been seen
+	platformSeen          bool           // Whether the platform directive has been seen
 }
 
 // setEscapeToken sets the default token for escaping characters in a Dockerfile.
@@ -105,6 +113,22 @@ func (d *Directive) setEscapeToken(s string) error {
 	d.escapeToken = rune(s[0])
 	d.lineContinuationRegex = regexp.MustCompile(`\` + s + `[ \t]*$`)
 	return nil
+}
+
+// setPlatformToken sets the default platform for pulling images in a Dockerfile.
+func (d *Directive) setPlatformToken(s string) error {
+	s = strings.ToLower(s)
+	valid := []string{runtime.GOOS}
+	if runtime.GOOS == "windows" && system.LCOWSupported() {
+		valid = append(valid, "linux")
+	}
+	for _, item := range valid {
+		if s == item {
+			d.platformToken = s
+			return nil
+		}
+	}
+	return fmt.Errorf("invalid PLATFORM '%s'. Must be one of %v", s, valid)
 }
 
 // possibleParserDirective looks for one or more parser directives '# escapeToken=<char>' and
@@ -128,6 +152,23 @@ func (d *Directive) possibleParserDirective(line string) error {
 		}
 	}
 
+	// TODO @jhowardmsft LCOW Support: Eventually this check can be removed,
+	// but only recognise a platform token if running in LCOW mode.
+	if runtime.GOOS == "windows" && system.LCOWSupported() {
+		tpcMatch := tokenPlatformCommand.FindStringSubmatch(strings.ToLower(line))
+		if len(tpcMatch) != 0 {
+			for i, n := range tokenPlatformCommand.SubexpNames() {
+				if n == "platform" {
+					if d.platformSeen == true {
+						return errors.New("only one platform parser directive can be used")
+					}
+					d.platformSeen = true
+					return d.setPlatformToken(tpcMatch[i])
+				}
+			}
+		}
+	}
+
 	d.processingComplete = true
 	return nil
 }
@@ -136,6 +177,7 @@ func (d *Directive) possibleParserDirective(line string) error {
 func NewDefaultDirective() *Directive {
 	directive := Directive{}
 	directive.setEscapeToken(string(DefaultEscapeToken))
+	directive.setPlatformToken(runtime.GOOS)
 	return &directive
 }
 
@@ -200,6 +242,7 @@ func newNodeFromLine(line string, directive *Directive) (*Node, error) {
 type Result struct {
 	AST         *Node
 	EscapeToken rune
+	Platform    string
 }
 
 // Parse reads lines from a Reader, parses the lines into an AST and returns
@@ -252,7 +295,7 @@ func Parse(rwc io.Reader) (*Result, error) {
 		}
 		root.AddChild(child, startLine, currentLine)
 	}
-	return &Result{AST: root, EscapeToken: d.escapeToken}, nil
+	return &Result{AST: root, EscapeToken: d.escapeToken, Platform: d.platformToken}, nil
 }
 
 func trimComments(src []byte) []byte {
