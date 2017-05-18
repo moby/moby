@@ -356,10 +356,10 @@ func (n *network) validateConfiguration() error {
 	if n.configOnly {
 		// Only supports network specific configurations.
 		// Network operator configurations are not supported.
-		if n.ingress || n.internal || n.attachable {
+		if n.ingress || n.internal || n.attachable || n.scope != "" {
 			return types.ForbiddenErrorf("configuration network can only contain network " +
 				"specific fields. Network operator fields like " +
-				"[ ingress | internal | attachable ] are not supported.")
+				"[ ingress | internal | attachable | scope ] are not supported.")
 		}
 	}
 	if n.configFrom != "" {
