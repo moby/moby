@@ -148,7 +148,16 @@ func add(req dispatchRequest) error {
 		return err
 	}
 
-	return req.builder.runContextCommand(req, true, true, "ADD", nil)
+	downloader := newRemoteSourceDownloader(req.builder.Output, req.builder.Stdout)
+	copier := copierFromDispatchRequest(req, downloader, nil)
+	defer copier.Cleanup()
+	copyInstruction, err := copier.createCopyInstruction(req.args, "ADD")
+	if err != nil {
+		return err
+	}
+	copyInstruction.allowLocalDecompression = true
+
+	return req.builder.performCopy(req.state, copyInstruction)
 }
 
 // COPY foo /path
@@ -169,7 +178,15 @@ func dispatchCopy(req dispatchRequest) error {
 	if err != nil {
 		return errors.Wrapf(err, "invalid from flag value %s", flFrom.Value)
 	}
-	return req.builder.runContextCommand(req, false, false, "COPY", im)
+
+	copier := copierFromDispatchRequest(req, errOnSourceDownload, im)
+	defer copier.Cleanup()
+	copyInstruction, err := copier.createCopyInstruction(req.args, "COPY")
+	if err != nil {
+		return err
+	}
+
+	return req.builder.performCopy(req.state, copyInstruction)
 }
 
 func (b *Builder) getImageMount(fromFlag *Flag) (*imageMount, error) {

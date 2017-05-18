@@ -105,13 +105,13 @@ func initDispatchTestCases() []dispatchTestCase {
 		{
 			name:          "COPY wildcard no files",
 			dockerfile:    `COPY file*.txt /tmp/`,
-			expectedError: "No source files were specified",
+			expectedError: "COPY failed: no source files were specified",
 			files:         nil,
 		},
 		{
 			name:          "COPY url",
 			dockerfile:    `COPY https://index.docker.io/robots.txt /`,
-			expectedError: "Source can't be a URL for COPY",
+			expectedError: "source can't be a URL for COPY",
 			files:         nil,
 		},
 		{
@@ -184,7 +184,6 @@ func executeTestCase(t *testing.T, testCase dispatchTestCase) {
 	b := &Builder{
 		options:   options,
 		Stdout:    ioutil.Discard,
-		source:    context,
 		buildArgs: newBuildArgs(options.BuildArgs),
 	}
 
@@ -196,6 +195,7 @@ func executeTestCase(t *testing.T, testCase dispatchTestCase) {
 		stepMsg: formatStep(0, len(n.Children)),
 		node:    n.Children[0],
 		shlex:   shlex,
+		source:  context,
 	}
 	state, err = b.dispatch(opts)
 

@@ -13,11 +13,6 @@ import (
 	"golang.org/x/net/context"
 )
 
-type pathCache interface {
-	Load(key interface{}) (value interface{}, ok bool)
-	Store(key, value interface{})
-}
-
 type buildStage struct {
 	id     string
 	config *container.Config
@@ -148,23 +143,6 @@ func (m *imageSources) Unmount() (retErr error) {
 	return
 }
 
-// TODO: remove getCache/setCache from imageSources
-func (m *imageSources) getCache(id, path string) (interface{}, bool) {
-	if m.cache != nil {
-		if id == "" {
-			return nil, false
-		}
-		return m.cache.Load(id + path)
-	}
-	return nil, false
-}
-
-func (m *imageSources) setCache(id, path string, v interface{}) {
-	if m.cache != nil {
-		m.cache.Store(id+path, v)
-	}
-}
-
 // imageMount is a reference to an image that can be used as a builder.Source
 type imageMount struct {
 	image  builder.Image
@@ -207,4 +185,8 @@ func (im *imageMount) unmount() error {
 
 func (im *imageMount) Image() builder.Image {
 	return im.image
+}
+
+func (im *imageMount) ImageID() string {
+	return im.image.ImageID()
 }

@@ -68,6 +68,7 @@ type dispatchRequest struct {
 	original   string
 	shlex      *ShellLex
 	state      *dispatchState
+	source     builder.Source
 }
 
 func newDispatchRequestFromOptions(options dispatchOptions, builder *Builder, args []string) dispatchRequest {
@@ -79,6 +80,7 @@ func newDispatchRequestFromOptions(options dispatchOptions, builder *Builder, ar
 		flags:      NewBFlagsWithArgs(options.node.Flags),
 		shlex:      options.shlex,
 		state:      options.state,
+		source:     options.source,
 	}
 }
 
@@ -181,6 +183,7 @@ type dispatchOptions struct {
 	stepMsg string
 	node    *parser.Node
 	shlex   *ShellLex
+	source  builder.Source
 }
 
 // dispatchState is a data object which is modified by dispatchers

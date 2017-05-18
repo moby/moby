@@ -98,7 +98,6 @@ type Builder struct {
 	Output io.Writer
 
 	docker    builder.Backend
-	source    builder.Source
 	clientCtx context.Context
 
 	tmpContainers map[string]struct{}
@@ -108,6 +107,7 @@ type Builder struct {
 	buildArgs     *buildArgs
 	imageCache    builder.ImageCache
 	imageSources  *imageSources
+	pathCache     pathCache
 }
 
 // newBuilder creates a new Dockerfile builder from an optional dockerfile and a Options.
@@ -128,6 +128,7 @@ func newBuilder(clientCtx context.Context, options builderOptions) *Builder {
 		buildArgs:     newBuildArgs(config.BuildArgs),
 		buildStages:   newBuildStages(),
 		imageSources:  newImageSources(clientCtx, options),
+		pathCache:     options.PathCache,
 	}
 	return b
 }
@@ -144,9 +145,6 @@ func (b *Builder) resetImageCache() {
 func (b *Builder) build(source builder.Source, dockerfile *parser.Result) (*builder.Result, error) {
 	defer b.imageSources.Unmount()
 
-	// TODO: Remove source field from Builder
-	b.source = source
-
 	addNodesForLabelOption(dockerfile.AST, b.options.Labels)
 
 	if err := checkDispatchDockerfile(dockerfile.AST); err != nil {
@@ -154,7 +152,7 @@ func (b *Builder) build(source builder.Source, dockerfile *parser.Result) (*buil
 		return nil, err
 	}
 
-	dispatchState, err := b.dispatchDockerfileWithCancellation(dockerfile)
+	dispatchState, err := b.dispatchDockerfileWithCancellation(dockerfile, source)
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +178,7 @@ func emitImageID(aux *streamformatter.AuxFormatter, state *dispatchState) error 
 	return aux.Emit(types.BuildResult{ID: state.imageID})
 }
 
-func (b *Builder) dispatchDockerfileWithCancellation(dockerfile *parser.Result) (*dispatchState, error) {
+func (b *Builder) dispatchDockerfileWithCancellation(dockerfile *parser.Result, source builder.Source) (*dispatchState, error) {
 	shlex := NewShellLex(dockerfile.EscapeToken)
 	state := newDispatchState()
 	total := len(dockerfile.AST.Children)
@@ -214,6 +212,7 @@ func (b *Builder) dispatchDockerfileWithCancellation(dockerfile *parser.Result) 
 			stepMsg: formatStep(i, total),
 			node:    n,
 			shlex:   shlex,
+			source:  source,
 		}
 		if state, err = b.dispatch(opts); err != nil {
 			if b.options.ForceRemove {
