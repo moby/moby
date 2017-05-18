@@ -590,9 +590,9 @@ func (slice byTimestamp) Swap(i, j int) {
 }
 
 func unwrapEvents(events []wrappedEvent) []*cloudwatchlogs.InputLogEvent {
-	cwEvents := []*cloudwatchlogs.InputLogEvent{}
-	for _, input := range events {
-		cwEvents = append(cwEvents, input.inputLogEvent)
+	cwEvents := make([]*cloudwatchlogs.InputLogEvent, len(events))
+	for i, input := range events {
+		cwEvents[i] = input.inputLogEvent
 	}
 	return cwEvents
 }
