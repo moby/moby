@@ -22,10 +22,11 @@ func GetVersion() (int, error) {
 	return parseVersion(output)
 }
 
-// LoadProfile runs `apparmor_parser -r` on a specified apparmor profile to
-// replace the profile.
+// LoadProfile runs `apparmor_parser -Kr` on a specified apparmor profile to
+// replace the profile. The `-K` is necessary to make sure that apparmor_parser
+// doesn't try to write to a read-only filesystem.
 func LoadProfile(profilePath string) error {
-	_, err := cmd("", "-r", profilePath)
+	_, err := cmd("", "-Kr", profilePath)
 	return err
 }
 
