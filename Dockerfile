@@ -212,7 +212,7 @@ ENV SHELLCHECK_VERSION v0.4.6
 # Required by cabal (See: https://github.com/haskell/cabal/issues/1883)
 ENV LANG "en_US.UTF-8"
 RUN set -x \
-	&& git clone --branch "$SHELLCHECK_VERSION" https://github.com/koalaman/shellcheck.git /usr/local/ \
+	&& git clone --branch "$SHELLCHECK_VERSION" https://github.com/koalaman/shellcheck.git /usr/local/shellcheck \
 	&& cd /usr/local/shellcheck \
 	&& cabal update && cabal install
 ENV PATH $HOME/.cabal/bin:$PATH
