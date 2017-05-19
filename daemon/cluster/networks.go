@@ -305,7 +305,7 @@ func (c *Cluster) populateNetworkID(ctx context.Context, client swarmapi.Control
 				goto setid
 			}
 			if ln != nil && !ln.Info().Dynamic() {
-				err = fmt.Errorf("The network %s cannot be used with services. Only networks scoped to the swarm can be used, such as those created with the overlay driver.", ln.Name())
+				err = fmt.Errorf("The network %s cannot be used with services. Only swarm scoped networks can be used.", ln.Name())
 				return apierrors.NewRequestForbiddenError(err)
 			}
 			return err
