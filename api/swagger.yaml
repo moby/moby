@@ -3107,10 +3107,22 @@ paths:
                 type: "object"
                 properties:
                   Status:
-                    description: "The status of the container. For example, `running` or `exited`."
+                    description: |
+                      The status of the container. For example, `"running"` or `"exited"`.
                     type: "string"
+                    enum: ["created", "running", "paused", "restarting", "removing", "exited", "dead"]
                   Running:
-                    description: "Whether this container is running."
+                    description: |
+                      Whether this container is running.
+
+                      Note that a running container can be _paused_. The `Running` and `Paused`
+                      booleans are not mutually exclusive:
+
+                      When pausing a container (on Linux), the cgroups freezer is used to suspend
+                      all processes in the container. Freezing the process requires the process to
+                      be running. As a result, paused containers are both `Running` _and_ `Paused`.
+
+                      Use the `Status` field instead to determin if a container's state is "running".
                     type: "boolean"
                   Paused:
                     description: "Whether this container is paused."
