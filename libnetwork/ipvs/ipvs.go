@@ -25,6 +25,20 @@ type Service struct {
 	Netmask       uint32
 	AddressFamily uint16
 	PEName        string
+	Stats         SvcStats
+}
+
+type SvcStats struct {
+	Connections uint32
+	PacketsIn   uint32
+	PacketsOut  uint32
+	BytesIn     uint64
+	BytesOut    uint64
+	CPS         uint32
+	BPSOut      uint32
+	PPSIn       uint32
+	PPSOut      uint32
+	BPSIn       uint32
 }
 
 // Destination defines an IPVS destination (real server) in its
@@ -116,4 +130,46 @@ func (i *Handle) UpdateDestination(s *Service, d *Destination) error {
 // passed ipvs service in the passed handle.
 func (i *Handle) DelDestination(s *Service, d *Destination) error {
 	return i.doCmd(s, d, ipvsCmdDelDest)
+}
+
+// GetServices returns an array of services configured at the kernel
+func (i *Handle) GetServices() ([]*Service, error) {
+	var res []*Service
+	//var emptySrv Service
+	//var emptyDest Destination
+
+	msgs, err := i.doCmdwithResponse(nil, nil, ipvsCmdGetService)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, msg := range msgs {
+		srv, err := i.ParseService(msg)
+		if err != nil {
+			return res, err
+		}
+		res = append(res, srv)
+	}
+
+	return res, nil
+}
+
+// GetDestinations returns an array of Destinations configured for this
+func (i *Handle) GetDestinations(s *Service) ([]*Destination, error) {
+
+	var res []*Destination
+
+	msgs, err := i.doCmdwithResponse(s, nil, ipvsCmdGetDest)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, msg := range msgs {
+		dest, err := i.ParseDestination(msg)
+		if err != nil {
+			return res, err
+		}
+		res = append(res, dest)
+	}
+	return res, nil
 }
