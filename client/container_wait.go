@@ -31,7 +31,7 @@ func (cli *Client) ContainerWait(ctx context.Context, containerID string, condit
 	}
 
 	resultC := make(chan container.ContainerWaitOKBody)
-	errC := make(chan error)
+	errC := make(chan error, 1)
 
 	query := url.Values{}
 	query.Set("condition", string(condition))
