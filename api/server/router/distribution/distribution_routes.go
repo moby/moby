@@ -122,7 +122,7 @@ func (s *distributionRouter) getDistributionInfo(ctx context.Context, w http.Res
 		var platform v1.Platform
 		if err == nil {
 			err := json.Unmarshal(configJSON, &platform)
-			if err == nil {
+			if err == nil && (platform.OS != "" || platform.Architecture != "") {
 				distributionInspect.Platforms = append(distributionInspect.Platforms, platform)
 			}
 		}
