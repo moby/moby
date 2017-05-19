@@ -29,7 +29,7 @@ func networkFromGRPC(n *swarmapi.Network) types.Network {
 				IPv6Enabled: n.Spec.Ipv6Enabled,
 				Internal:    n.Spec.Internal,
 				Attachable:  n.Spec.Attachable,
-				Ingress:     n.Spec.Ingress,
+				Ingress:     IsIngressNetwork(n),
 				IPAMOptions: ipamFromGRPC(n.Spec.IPAM),
 				Scope:       netconst.SwarmScope,
 			},
@@ -165,7 +165,7 @@ func BasicNetworkFromGRPC(n swarmapi.Network) basictypes.NetworkResource {
 		IPAM:       ipam,
 		Internal:   spec.Internal,
 		Attachable: spec.Attachable,
-		Ingress:    spec.Ingress,
+		Ingress:    IsIngressNetwork(&n),
 		Labels:     n.Spec.Annotations.Labels,
 	}
 
@@ -224,4 +224,14 @@ func BasicNetworkCreateToGRPC(create basictypes.NetworkCreateRequest) swarmapi.N
 		ns.ConfigFrom = create.ConfigFrom.Network
 	}
 	return ns
+}
+
+// IsIngressNetwork check if the swarm network is an ingress network
+func IsIngressNetwork(n *swarmapi.Network) bool {
+	if n.Spec.Ingress {
+		return true
+	}
+	// Check if legacy defined ingress network
+	_, ok := n.Spec.Annotations.Labels["com.docker.swarm.internal"]
+	return ok && n.Spec.Annotations.Name == "ingress"
 }
