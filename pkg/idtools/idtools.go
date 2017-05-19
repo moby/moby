@@ -37,6 +37,7 @@ const (
 // MkdirAllAs creates a directory (include any along the path) and then modifies
 // ownership to the requested uid/gid.  If the directory already exists, this
 // function will still change ownership to the requested uid/gid pair.
+// Deprecated: Use MkdirAllAndChown
 func MkdirAllAs(path string, mode os.FileMode, ownerUID, ownerGID int) error {
 	return mkdirAs(path, mode, ownerUID, ownerGID, true, true)
 }
@@ -44,14 +45,36 @@ func MkdirAllAs(path string, mode os.FileMode, ownerUID, ownerGID int) error {
 // MkdirAllNewAs creates a directory (include any along the path) and then modifies
 // ownership ONLY of newly created directories to the requested uid/gid. If the
 // directories along the path exist, no change of ownership will be performed
+// Deprecated: Use MkdirAllAndChownNew
 func MkdirAllNewAs(path string, mode os.FileMode, ownerUID, ownerGID int) error {
 	return mkdirAs(path, mode, ownerUID, ownerGID, true, false)
 }
 
 // MkdirAs creates a directory and then modifies ownership to the requested uid/gid.
 // If the directory already exists, this function still changes ownership
+// Deprecated: Use MkdirAndChown with a IDPair
 func MkdirAs(path string, mode os.FileMode, ownerUID, ownerGID int) error {
 	return mkdirAs(path, mode, ownerUID, ownerGID, false, true)
+}
+
+// MkdirAllAndChown creates a directory (include any along the path) and then modifies
+// ownership to the requested uid/gid.  If the directory already exists, this
+// function will still change ownership to the requested uid/gid pair.
+func MkdirAllAndChown(path string, mode os.FileMode, ids IDPair) error {
+	return mkdirAs(path, mode, ids.UID, ids.GID, true, true)
+}
+
+// MkdirAndChown creates a directory and then modifies ownership to the requested uid/gid.
+// If the directory already exists, this function still changes ownership
+func MkdirAndChown(path string, mode os.FileMode, ids IDPair) error {
+	return mkdirAs(path, mode, ids.UID, ids.GID, false, true)
+}
+
+// MkdirAllAndChownNew creates a directory (include any along the path) and then modifies
+// ownership ONLY of newly created directories to the requested uid/gid. If the
+// directories along the path exist, no change of ownership will be performed
+func MkdirAllAndChownNew(path string, mode os.FileMode, ids IDPair) error {
+	return mkdirAs(path, mode, ids.UID, ids.GID, true, false)
 }
 
 // GetRootUIDGID retrieves the remapped root uid/gid pair from the set of maps.
@@ -108,26 +131,59 @@ func ToHost(contID int, idMap []IDMap) (int, error) {
 	return -1, fmt.Errorf("Container ID %d cannot be mapped to a host ID", contID)
 }
 
-// CreateIDMappings takes a requested user and group name and
+// IDPair is a UID and GID pair
+type IDPair struct {
+	UID int
+	GID int
+}
+
+// IDMappings contains a mappings of UIDs and GIDs
+type IDMappings struct {
+	uids []IDMap
+	gids []IDMap
+}
+
+// NewIDMappings takes a requested user and group name and
 // using the data from /etc/sub{uid,gid} ranges, creates the
 // proper uid and gid remapping ranges for that user/group pair
-func CreateIDMappings(username, groupname string) ([]IDMap, []IDMap, error) {
+func NewIDMappings(username, groupname string) (*IDMappings, error) {
 	subuidRanges, err := parseSubuid(username)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	subgidRanges, err := parseSubgid(groupname)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	if len(subuidRanges) == 0 {
-		return nil, nil, fmt.Errorf("No subuid ranges found for user %q", username)
+		return nil, fmt.Errorf("No subuid ranges found for user %q", username)
 	}
 	if len(subgidRanges) == 0 {
-		return nil, nil, fmt.Errorf("No subgid ranges found for group %q", groupname)
+		return nil, fmt.Errorf("No subgid ranges found for group %q", groupname)
 	}
 
-	return createIDMap(subuidRanges), createIDMap(subgidRanges), nil
+	return &IDMappings{
+		uids: createIDMap(subuidRanges),
+		gids: createIDMap(subgidRanges),
+	}, nil
+}
+
+// RootPair returns a uid and gid pair for the root user
+func (i *IDMappings) RootPair() (IDPair, error) {
+	uid, gid, err := GetRootUIDGID(i.uids, i.gids)
+	return IDPair{UID: uid, GID: gid}, err
+}
+
+// UIDs return the UID mapping
+// TODO: remove this once everything has been refactored to use pairs
+func (i *IDMappings) UIDs() []IDMap {
+	return i.uids
+}
+
+// GIDs return the UID mapping
+// TODO: remove this once everything has been refactored to use pairs
+func (i *IDMappings) GIDs() []IDMap {
+	return i.gids
 }
 
 func createIDMap(subidRanges ranges) []IDMap {

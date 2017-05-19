@@ -109,14 +109,14 @@ func (daemon *Daemon) setupIpcDirs(c *container.Container) error {
 		}
 		c.ShmPath = "/dev/shm"
 	} else {
-		rootUID, rootGID := daemon.GetRemappedUIDGID()
+		rootIDs, _ := daemon.idMappings.RootPair()
 		if !c.HasMountFor("/dev/shm") {
 			shmPath, err := c.ShmResourcePath()
 			if err != nil {
 				return err
 			}
 
-			if err := idtools.MkdirAllAs(shmPath, 0700, rootUID, rootGID); err != nil {
+			if err := idtools.MkdirAllAndChown(shmPath, 0700, rootIDs); err != nil {
 				return err
 			}
 
@@ -128,7 +128,7 @@ func (daemon *Daemon) setupIpcDirs(c *container.Container) error {
 			if err := syscall.Mount("shm", shmPath, "tmpfs", uintptr(syscall.MS_NOEXEC|syscall.MS_NOSUID|syscall.MS_NODEV), label.FormatMountLabel(shmproperty, c.GetMountLabel())); err != nil {
 				return fmt.Errorf("mounting shm tmpfs: %s", err)
 			}
-			if err := os.Chown(shmPath, rootUID, rootGID); err != nil {
+			if err := os.Chown(shmPath, rootIDs.UID, rootIDs.GID); err != nil {
 				return err
 			}
 		}
@@ -147,9 +147,9 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 	logrus.Debugf("secrets: setting up secret dir: %s", localMountPath)
 
 	// retrieve possible remapped range start for root UID, GID
-	rootUID, rootGID := daemon.GetRemappedUIDGID()
+	rootIDs, _ := daemon.idMappings.RootPair()
 	// create tmpfs
-	if err := idtools.MkdirAllAs(localMountPath, 0700, rootUID, rootGID); err != nil {
+	if err := idtools.MkdirAllAndChown(localMountPath, 0700, rootIDs); err != nil {
 		return errors.Wrap(err, "error creating secret local mount path")
 	}
 
@@ -164,7 +164,7 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 		}
 	}()
 
-	tmpfsOwnership := fmt.Sprintf("uid=%d,gid=%d", rootUID, rootGID)
+	tmpfsOwnership := fmt.Sprintf("uid=%d,gid=%d", rootIDs.UID, rootIDs.GID)
 	if err := mount.Mount("tmpfs", localMountPath, "tmpfs", "nodev,nosuid,noexec,"+tmpfsOwnership); err != nil {
 		return errors.Wrap(err, "unable to setup secret mount")
 	}
@@ -183,7 +183,7 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 		// secrets are created in the SecretMountPath on the host, at a
 		// single level
 		fPath := c.SecretFilePath(*s)
-		if err := idtools.MkdirAllAs(filepath.Dir(fPath), 0700, rootUID, rootGID); err != nil {
+		if err := idtools.MkdirAllAndChown(filepath.Dir(fPath), 0700, rootIDs); err != nil {
 			return errors.Wrap(err, "error creating secret mount path")
 		}
 
@@ -208,7 +208,7 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 			return err
 		}
 
-		if err := os.Chown(fPath, rootUID+uid, rootGID+gid); err != nil {
+		if err := os.Chown(fPath, rootIDs.UID+uid, rootIDs.GID+gid); err != nil {
 			return errors.Wrap(err, "error setting ownership for secret")
 		}
 	}
@@ -232,9 +232,9 @@ func (daemon *Daemon) setupConfigDir(c *container.Container) (setupErr error) {
 	logrus.Debugf("configs: setting up config dir: %s", localPath)
 
 	// retrieve possible remapped range start for root UID, GID
-	rootUID, rootGID := daemon.GetRemappedUIDGID()
+	rootIDs, _ := daemon.idMappings.RootPair()
 	// create tmpfs
-	if err := idtools.MkdirAllAs(localPath, 0700, rootUID, rootGID); err != nil {
+	if err := idtools.MkdirAllAndChown(localPath, 0700, rootIDs); err != nil {
 		return errors.Wrap(err, "error creating config dir")
 	}
 
@@ -261,7 +261,7 @@ func (daemon *Daemon) setupConfigDir(c *container.Container) (setupErr error) {
 
 		log := logrus.WithFields(logrus.Fields{"name": configRef.File.Name, "path": fPath})
 
-		if err := idtools.MkdirAllAs(filepath.Dir(fPath), 0700, rootUID, rootGID); err != nil {
+		if err := idtools.MkdirAllAndChown(filepath.Dir(fPath), 0700, rootIDs); err != nil {
 			return errors.Wrap(err, "error creating config path")
 		}
 
@@ -283,7 +283,7 @@ func (daemon *Daemon) setupConfigDir(c *container.Container) (setupErr error) {
 			return err
 		}
 
-		if err := os.Chown(fPath, rootUID+uid, rootGID+gid); err != nil {
+		if err := os.Chown(fPath, rootIDs.UID+uid, rootIDs.GID+gid); err != nil {
 			return errors.Wrap(err, "error setting ownership for config")
 		}
 	}

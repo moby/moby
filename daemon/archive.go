@@ -375,7 +375,7 @@ func (daemon *Daemon) CopyOnBuild(cID, destPath, srcRoot, srcPath string, decomp
 
 	destExists := true
 	destDir := false
-	rootUID, rootGID := daemon.GetRemappedUIDGID()
+	rootIDs, _ := daemon.idMappings.RootPair()
 
 	// Work in daemon-local OS specific file paths
 	destPath = filepath.FromSlash(destPath)
@@ -413,11 +413,10 @@ func (daemon *Daemon) CopyOnBuild(cID, destPath, srcRoot, srcPath string, decomp
 		destExists = false
 	}
 
-	uidMaps, gidMaps := daemon.GetUIDGIDMaps()
 	archiver := &archive.Archiver{
 		Untar:   chrootarchive.Untar,
-		UIDMaps: uidMaps,
-		GIDMaps: gidMaps,
+		UIDMaps: daemon.idMappings.UIDs(),
+		GIDMaps: daemon.idMappings.GIDs(),
 	}
 
 	src, err := os.Stat(fullSrcPath)
@@ -430,7 +429,7 @@ func (daemon *Daemon) CopyOnBuild(cID, destPath, srcRoot, srcPath string, decomp
 		if err := archiver.CopyWithTar(fullSrcPath, destPath); err != nil {
 			return err
 		}
-		return fixPermissions(fullSrcPath, destPath, rootUID, rootGID, destExists)
+		return fixPermissions(fullSrcPath, destPath, rootIDs.UID, rootIDs.GID, destExists)
 	}
 	if decompress && archive.IsArchivePath(fullSrcPath) {
 		// Only try to untar if it is a file and that we've been told to decompress (when ADD-ing a remote file)
@@ -459,12 +458,12 @@ func (daemon *Daemon) CopyOnBuild(cID, destPath, srcRoot, srcPath string, decomp
 		destPath = filepath.Join(destPath, filepath.Base(srcPath))
 	}
 
-	if err := idtools.MkdirAllNewAs(filepath.Dir(destPath), 0755, rootUID, rootGID); err != nil {
+	if err := idtools.MkdirAllAndChownNew(filepath.Dir(destPath), 0755, rootIDs); err != nil {
 		return err
 	}
 	if err := archiver.CopyFileWithTar(fullSrcPath, destPath); err != nil {
 		return err
 	}
 
-	return fixPermissions(fullSrcPath, destPath, rootUID, rootGID, destExists)
+	return fixPermissions(fullSrcPath, destPath, rootIDs.UID, rootIDs.GID, destExists)
 }

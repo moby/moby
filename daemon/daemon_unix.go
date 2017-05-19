@@ -1026,40 +1026,38 @@ func parseRemappedRoot(usergrp string) (string, string, error) {
 	return username, groupname, nil
 }
 
-func setupRemappedRoot(config *config.Config) ([]idtools.IDMap, []idtools.IDMap, error) {
+func setupRemappedRoot(config *config.Config) (*idtools.IDMappings, error) {
 	if runtime.GOOS != "linux" && config.RemappedRoot != "" {
-		return nil, nil, fmt.Errorf("User namespaces are only supported on Linux")
+		return nil, fmt.Errorf("User namespaces are only supported on Linux")
 	}
 
 	// if the daemon was started with remapped root option, parse
 	// the config option to the int uid,gid values
-	var (
-		uidMaps, gidMaps []idtools.IDMap
-	)
 	if config.RemappedRoot != "" {
 		username, groupname, err := parseRemappedRoot(config.RemappedRoot)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		if username == "root" {
 			// Cannot setup user namespaces with a 1-to-1 mapping; "--root=0:0" is a no-op
 			// effectively
 			logrus.Warn("User namespaces: root cannot be remapped with itself; user namespaces are OFF")
-			return uidMaps, gidMaps, nil
+			return &idtools.IDMappings{}, nil
 		}
 		logrus.Infof("User namespaces: ID ranges will be mapped to subuid/subgid ranges of: %s:%s", username, groupname)
 		// update remapped root setting now that we have resolved them to actual names
 		config.RemappedRoot = fmt.Sprintf("%s:%s", username, groupname)
 
-		uidMaps, gidMaps, err = idtools.CreateIDMappings(username, groupname)
+		mappings, err := idtools.NewIDMappings(username, groupname)
 		if err != nil {
-			return nil, nil, fmt.Errorf("Can't create ID mappings: %v", err)
+			return nil, errors.Wrapf(err, "Can't create ID mappings: %v")
 		}
+		return mappings, nil
 	}
-	return uidMaps, gidMaps, nil
+	return &idtools.IDMappings{}, nil
 }
 
-func setupDaemonRoot(config *config.Config, rootDir string, rootUID, rootGID int) error {
+func setupDaemonRoot(config *config.Config, rootDir string, rootIDs idtools.IDPair) error {
 	config.Root = rootDir
 	// the docker root metadata directory needs to have execute permissions for all users (g+x,o+x)
 	// so that syscalls executing as non-root, operating on subdirectories of the graph root
@@ -1084,10 +1082,10 @@ func setupDaemonRoot(config *config.Config, rootDir string, rootUID, rootGID int
 	// a new subdirectory with ownership set to the remapped uid/gid (so as to allow
 	// `chdir()` to work for containers namespaced to that uid/gid)
 	if config.RemappedRoot != "" {
-		config.Root = filepath.Join(rootDir, fmt.Sprintf("%d.%d", rootUID, rootGID))
+		config.Root = filepath.Join(rootDir, fmt.Sprintf("%d.%d", rootIDs.UID, rootIDs.GID))
 		logrus.Debugf("Creating user namespaced daemon root: %s", config.Root)
 		// Create the root directory if it doesn't exist
-		if err := idtools.MkdirAllAs(config.Root, 0700, rootUID, rootGID); err != nil {
+		if err := idtools.MkdirAllAndChown(config.Root, 0700, rootIDs); err != nil {
 			return fmt.Errorf("Cannot create daemon root: %s: %v", config.Root, err)
 		}
 		// we also need to verify that any pre-existing directories in the path to
@@ -1100,7 +1098,7 @@ func setupDaemonRoot(config *config.Config, rootDir string, rootUID, rootGID int
 			if dirPath == "/" {
 				break
 			}
-			if !idtools.CanAccess(dirPath, rootUID, rootGID) {
+			if !idtools.CanAccess(dirPath, rootIDs) {
 				return fmt.Errorf("A subdirectory in your graphroot path (%s) restricts access to the remapped root uid/gid; please fix by allowing 'o+x' permissions on existing directories.", config.Root)
 			}
 		}

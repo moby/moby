@@ -216,7 +216,7 @@ func (container *Container) WriteHostConfig() error {
 }
 
 // SetupWorkingDirectory sets up the container's working directory as set in container.Config.WorkingDir
-func (container *Container) SetupWorkingDirectory(rootUID, rootGID int) error {
+func (container *Container) SetupWorkingDirectory(rootIDs idtools.IDPair) error {
 	if container.Config.WorkingDir == "" {
 		return nil
 	}
@@ -228,7 +228,7 @@ func (container *Container) SetupWorkingDirectory(rootUID, rootGID int) error {
 		return err
 	}
 
-	if err := idtools.MkdirAllNewAs(pth, 0755, rootUID, rootGID); err != nil {
+	if err := idtools.MkdirAllAndChownNew(pth, 0755, rootIDs); err != nil {
 		pthInfo, err2 := os.Stat(pth)
 		if err2 == nil && pthInfo != nil && !pthInfo.IsDir() {
 			return fmt.Errorf("Cannot mkdir: %s is not a directory", container.Config.WorkingDir)

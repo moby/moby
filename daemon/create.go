@@ -117,14 +117,14 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 		return nil, err
 	}
 
-	rootUID, rootGID, err := idtools.GetRootUIDGID(daemon.uidMaps, daemon.gidMaps)
+	rootIDs, err := daemon.idMappings.RootPair()
 	if err != nil {
 		return nil, err
 	}
-	if err := idtools.MkdirAs(container.Root, 0700, rootUID, rootGID); err != nil {
+	if err := idtools.MkdirAndChown(container.Root, 0700, rootIDs); err != nil {
 		return nil, err
 	}
-	if err := idtools.MkdirAs(container.CheckpointDir(), 0700, rootUID, rootGID); err != nil {
+	if err := idtools.MkdirAndChown(container.CheckpointDir(), 0700, rootIDs); err != nil {
 		return nil, err
 	}
 

@@ -151,7 +151,7 @@ func (m *MountPoint) Cleanup() error {
 // configured, or creating the source directory if supplied.
 // The, optional, checkFun parameter allows doing additional checking
 // before creating the source directory on the host.
-func (m *MountPoint) Setup(mountLabel string, rootUID, rootGID int, checkFun func(m *MountPoint) error) (path string, err error) {
+func (m *MountPoint) Setup(mountLabel string, rootIDs idtools.IDPair, checkFun func(m *MountPoint) error) (path string, err error) {
 	defer func() {
 		if err == nil {
 			if label.RelabelNeeded(m.Mode) {
@@ -196,7 +196,7 @@ func (m *MountPoint) Setup(mountLabel string, rootUID, rootGID int, checkFun fun
 		}
 		// idtools.MkdirAllNewAs() produces an error if m.Source exists and is a file (not a directory)
 		// also, makes sure that if the directory is created, the correct remapped rootUID/rootGID will own it
-		if err := idtools.MkdirAllNewAs(m.Source, 0755, rootUID, rootGID); err != nil {
+		if err := idtools.MkdirAllAndChownNew(m.Source, 0755, rootIDs); err != nil {
 			if perr, ok := err.(*os.PathError); ok {
 				if perr.Err != syscall.ENOTDIR {
 					return "", errors.Wrapf(err, "error while creating mount source path '%s'", m.Source)
