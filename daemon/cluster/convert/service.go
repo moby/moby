@@ -100,7 +100,6 @@ func serviceSpecFromGRPC(spec *swarmapi.ServiceSpec) (*types.ServiceSpec, error)
 			return nil, fmt.Errorf("unknown task runtime type: %s", t.Generic.Payload.TypeUrl)
 		}
 
-		taskTemplate.RuntimeData = t.Generic.Payload.Value
 	default:
 		return nil, fmt.Errorf("error creating service; unsupported runtime %T", t)
 	}
@@ -176,7 +175,6 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 				Kind: string(types.RuntimePlugin),
 				Payload: &gogotypes.Any{
 					TypeUrl: string(types.RuntimeURLPlugin),
-					Value:   s.TaskTemplate.RuntimeData,
 				},
 			},
 		}

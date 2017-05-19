@@ -2174,9 +2174,6 @@ definitions:
       Runtime:
         description: "Runtime is the type of runtime specified for the task executor."
         type: "string"
-      RuntimeData:
-        description: "RuntimeData is the payload sent to be used with the runtime for the executor."
-        type: "array"
       Networks:
         type: "array"
         items:
