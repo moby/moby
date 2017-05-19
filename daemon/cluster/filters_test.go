@@ -51,7 +51,7 @@ func TestNewListSecretsFilters(t *testing.T) {
 
 	for _, filter := range invalidFilters {
 		if _, err := newListSecretsFilters(filter); err == nil {
-			t.Fatalf("Should get an error for filter %s, while got nil", filter)
+			t.Fatalf("Should get an error for filter %v, while got nil", filter)
 		}
 	}
 }
@@ -96,7 +96,7 @@ func TestNewListConfigsFilters(t *testing.T) {
 
 	for _, filter := range invalidFilters {
 		if _, err := newListConfigsFilters(filter); err == nil {
-			t.Fatalf("Should get an error for filter %s, while got nil", filter)
+			t.Fatalf("Should get an error for filter %v, while got nil", filter)
 		}
 	}
 }
