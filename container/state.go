@@ -357,11 +357,28 @@ func (s *State) ResetRemovalInProgress() {
 	s.Unlock()
 }
 
+// IsRemovalInProgress returns whether the RemovalInProgress flag is set.
+// Used by Container to check whether a container is being removed.
+func (s *State) IsRemovalInProgress() bool {
+	s.Lock()
+	res := s.RemovalInProgress
+	s.Unlock()
+	return res
+}
+
 // SetDead sets the container state to "dead"
 func (s *State) SetDead() {
 	s.Lock()
 	s.Dead = true
 	s.Unlock()
+}
+
+// IsDead returns whether the Dead flag is set. Used by Container to check whether a container is dead.
+func (s *State) IsDead() bool {
+	s.Lock()
+	res := s.Dead
+	s.Unlock()
+	return res
 }
 
 // SetRemoved assumes this container is already in the "dead" state and
