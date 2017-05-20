@@ -204,7 +204,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithInvalidBasesize(c *check.C) {
 	if newBasesizeBytes < oldBasesizeBytes {
 		err := s.d.RestartWithError("--storage-opt", fmt.Sprintf("dm.basesize=%d", newBasesizeBytes))
 		c.Assert(err, check.NotNil, check.Commentf("daemon should not have started as new base device size is less than existing base device size: %v", err))
-		// 'err != nil' is expected behaviour, no new daemon started,
+		// 'err != nil' is expected behavior, no new daemon started,
 		// so no need to stop daemon.
 		if err != nil {
 			return

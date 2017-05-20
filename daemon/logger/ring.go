@@ -121,7 +121,7 @@ func (r *RingLogger) run() {
 
 type messageRing struct {
 	mu sync.Mutex
-	// singals callers of `Dequeue` to wake up either on `Close` or when a new `Message` is added
+	// signals callers of `Dequeue` to wake up either on `Close` or when a new `Message` is added
 	wait *sync.Cond
 
 	sizeBytes int64 // current buffer size

@@ -88,7 +88,7 @@ func (s *DockerSuite) TestAPIErrorJSON(c *check.C) {
 }
 
 func (s *DockerSuite) TestAPIErrorPlainText(c *check.C) {
-	// Windows requires API 1.25 or later. This test is validating a behaviour which was present
+	// Windows requires API 1.25 or later. This test is validating a behavior which was present
 	// in v1.23, but changed in 1.24, hence not applicable on Windows. See apiVersionSupportsJSONErrors
 	testRequires(c, DaemonIsLinux)
 	httpResp, body, err := request.Post("/v1.23/containers/create", request.JSONBody(struct{}{}))

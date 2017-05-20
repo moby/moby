@@ -20,7 +20,7 @@ import (
 // These types of errors do not need to be returned since it's ok for the dir to
 // be gone we can just retry the remove operation.
 //
-// This should not return a `os.ErrNotExist` kind of error under any cirucmstances
+// This should not return a `os.ErrNotExist` kind of error under any circumstances
 func EnsureRemoveAll(dir string) error {
 	notExistErr := make(map[string]bool)
 

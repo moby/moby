@@ -448,7 +448,7 @@ func (s *DockerSwarmSuite) TestOverlayAttachableReleaseResourcesOnFailure(c *che
 	out, err = d.Cmd("run", "-d", "--network", "ovnet", "--name", "c1", "--ip", "10.10.9.33", "busybox", "top")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
-	// Attempt to attach another contianer with same IP, must fail
+	// Attempt to attach another container with same IP, must fail
 	_, err = d.Cmd("run", "-d", "--network", "ovnet", "--name", "c2", "--ip", "10.10.9.33", "busybox", "top")
 	c.Assert(err, checker.NotNil)
 

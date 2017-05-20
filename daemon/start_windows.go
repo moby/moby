@@ -27,7 +27,7 @@ func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Contain
 		// Container is set to use the default, so take the default from the daemon configuration
 		hvOpts.IsHyperV = daemon.defaultIsolation.IsHyperV()
 	} else {
-		// Container is requesting an isolation mode. Honour it.
+		// Container is requesting an isolation mode. Honor it.
 		hvOpts.IsHyperV = container.HostConfig.Isolation.IsHyperV()
 	}
 

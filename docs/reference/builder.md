@@ -1477,7 +1477,7 @@ In this case, the value of the `HTTP_PROXY` variable is not available in the
 proxy server changed to `http://user:pass@proxy.sfo.example.com`, a subsequent
 build does not result in a cache miss.
 
-If you need to override this behaviour then you may do so by adding an `ARG`
+If you need to override this behavior then you may do so by adding an `ARG`
 statement in the Dockerfile as follows:
 
 ``` Dockerfile
