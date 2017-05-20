@@ -2002,6 +2002,35 @@ func (s *DockerSwarmSuite) TestSwarmJoinLeave(c *check.C) {
 	}
 }
 
+const defaultRetryCount = 10
+
+func waitForEvent(c *check.C, d *daemon.Swarm, since string, filter string, event string, retry int) string {
+	if retry < 1 {
+		c.Fatalf("retry count %d is invalid. It should be no less than 1", retry)
+		return ""
+	}
+	var out string
+	for i := 0; i < retry; i++ {
+		until := daemonUnixTime(c)
+		var err error
+		if len(filter) > 0 {
+			out, err = d.Cmd("events", "--since", since, "--until", until, filter)
+		} else {
+			out, err = d.Cmd("events", "--since", since, "--until", until)
+		}
+		c.Assert(err, checker.IsNil, check.Commentf(out))
+		if strings.Contains(out, event) {
+			return strings.TrimSpace(out)
+		}
+		// no need to sleep after last retry
+		if i < retry-1 {
+			time.Sleep(200 * time.Millisecond)
+		}
+	}
+	c.Fatalf("docker events output '%s' doesn't contain event '%s'", out, event)
+	return ""
+}
+
 func (s *DockerSwarmSuite) TestSwarmClusterEventsSource(c *check.C) {
 	d1 := s.AddDaemon(c, true, true)
 	d2 := s.AddDaemon(c, true, true)
@@ -2013,21 +2042,13 @@ func (s *DockerSwarmSuite) TestSwarmClusterEventsSource(c *check.C) {
 	networkID := strings.TrimSpace(out)
 	c.Assert(networkID, checker.Not(checker.Equals), "")
 
-	until := daemonUnixTime(c)
-	// d1 is a manager
-	out, err = d1.Cmd("events", "--since=0", "--until", until, "-f scope=swarm")
-	c.Assert(err, checker.IsNil, check.Commentf(out))
-	c.Assert(strings.TrimSpace(out), checker.Contains, "network create "+networkID)
-
-	// d2 is a manager
-	out, err = d2.Cmd("events", "--since=0", "--until", until, "-f scope=swarm")
-	c.Assert(err, checker.IsNil, check.Commentf(out))
-	c.Assert(strings.TrimSpace(out), checker.Contains, "network create "+networkID)
+	// d1, d2 are managers that can get swarm events
+	waitForEvent(c, d1, "0", "-f scope=swarm", "network create "+networkID, defaultRetryCount)
+	waitForEvent(c, d2, "0", "-f scope=swarm", "network create "+networkID, defaultRetryCount)
 
 	// d3 is a worker, not able to get cluster events
-	out, err = d3.Cmd("events", "--since=0", "--until", until, "-f scope=swarm")
-	c.Assert(err, checker.IsNil, check.Commentf(out))
-	c.Assert(strings.TrimSpace(out), checker.Not(checker.Contains), "network create ")
+	out = waitForEvent(c, d3, "0", "-f scope=swarm", "", 1)
+	c.Assert(out, checker.Not(checker.Contains), "network create ")
 }
 
 func (s *DockerSwarmSuite) TestSwarmClusterEventsScope(c *check.C) {
@@ -2038,24 +2059,17 @@ func (s *DockerSwarmSuite) TestSwarmClusterEventsScope(c *check.C) {
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	serviceID := strings.Split(out, "\n")[0]
 
-	until := daemonUnixTime(c)
 	// scope swarm filters cluster events
-	out, err = d.Cmd("events", "--since=0", "--until", until, "-f scope=swarm")
-	c.Assert(err, checker.IsNil, check.Commentf(out))
-	c.Assert(strings.TrimSpace(out), checker.Contains, "service create "+serviceID)
-	c.Assert(strings.TrimSpace(out), checker.Not(checker.Contains), "container create ")
+	out = waitForEvent(c, d, "0", "-f scope=swarm", "service create "+serviceID, defaultRetryCount)
+	c.Assert(out, checker.Not(checker.Contains), "container create ")
 
-	// without scope all events are returned
-	out, err = d.Cmd("events", "--since=0", "--until", until)
-	c.Assert(err, checker.IsNil, check.Commentf(out))
-	c.Assert(strings.TrimSpace(out), checker.Contains, "service create "+serviceID)
-	c.Assert(strings.TrimSpace(out), checker.Contains, "container create ")
+	// all events are returned if scope is not specified
+	waitForEvent(c, d, "0", "", "service create "+serviceID, 1)
+	waitForEvent(c, d, "0", "", "container create ", defaultRetryCount)
 
-	// scope local only show non-cluster events
-	out, err = d.Cmd("events", "--since=0", "--until", until, "-f scope=local")
-	c.Assert(err, checker.IsNil, check.Commentf(out))
-	c.Assert(strings.TrimSpace(out), checker.Not(checker.Contains), "service create ")
-	c.Assert(strings.TrimSpace(out), checker.Contains, "container create ")
+	// scope local only shows non-cluster events
+	out = waitForEvent(c, d, "0", "-f scope=local", "container create ", 1)
+	c.Assert(out, checker.Not(checker.Contains), "service create ")
 }
 
 func (s *DockerSwarmSuite) TestSwarmClusterEventsType(c *check.C) {
@@ -2072,17 +2086,12 @@ func (s *DockerSwarmSuite) TestSwarmClusterEventsType(c *check.C) {
 	networkID := strings.TrimSpace(out)
 	c.Assert(networkID, checker.Not(checker.Equals), "")
 
-	until := daemonUnixTime(c)
 	// filter by service
-	out, err = d.Cmd("events", "--since=0", "--until", until, "-f type=service")
-	c.Assert(err, checker.IsNil, check.Commentf(out))
-	c.Assert(out, checker.Contains, "service create "+serviceID)
+	out = waitForEvent(c, d, "0", "-f type=service", "service create "+serviceID, defaultRetryCount)
 	c.Assert(out, checker.Not(checker.Contains), "network create")
 
 	// filter by network
-	out, err = d.Cmd("events", "--since=0", "--until", until, "-f type=network")
-	c.Assert(err, checker.IsNil, check.Commentf(out))
-	c.Assert(out, checker.Contains, "network create "+networkID)
+	out = waitForEvent(c, d, "0", "-f type=network", "network create "+networkID, defaultRetryCount)
 	c.Assert(out, checker.Not(checker.Contains), "service create")
 }
 
@@ -2094,40 +2103,36 @@ func (s *DockerSwarmSuite) TestSwarmClusterEventsService(c *check.C) {
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	serviceID := strings.Split(out, "\n")[0]
 
-	t1 := daemonUnixTime(c)
 	// validate service create event
-	out, err = d.Cmd("events", "--since=0", "--until", t1, "-f scope=swarm")
-	c.Assert(err, checker.IsNil, check.Commentf(out))
-	c.Assert(out, checker.Contains, "service create "+serviceID)
+	waitForEvent(c, d, "0", "-f scope=swarm", "service create "+serviceID, defaultRetryCount)
 
+	t1 := daemonUnixTime(c)
 	out, err = d.Cmd("service", "update", "--force", "--detach=false", "test")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
-	t2 := daemonUnixTime(c)
-	out, err = d.Cmd("events", "--since", t1, "--until", t2, "-f scope=swarm")
-	c.Assert(err, checker.IsNil, check.Commentf(out))
-	c.Assert(out, checker.Contains, "service update "+serviceID)
+	// wait for service update start
+	out = waitForEvent(c, d, t1, "-f scope=swarm", "service update "+serviceID, defaultRetryCount)
 	c.Assert(out, checker.Contains, "updatestate.new=updating")
+
+	// allow service update complete. This is a service with 1 instance
+	time.Sleep(400 * time.Millisecond)
+	out = waitForEvent(c, d, t1, "-f scope=swarm", "service update "+serviceID, defaultRetryCount)
 	c.Assert(out, checker.Contains, "updatestate.new=completed, updatestate.old=updating")
 
 	// scale service
+	t2 := daemonUnixTime(c)
 	out, err = d.Cmd("service", "scale", "test=3")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
-	t3 := daemonUnixTime(c)
-	out, err = d.Cmd("events", "--since", t2, "--until", t3, "-f scope=swarm")
-	c.Assert(err, checker.IsNil, check.Commentf(out))
-	c.Assert(out, checker.Contains, "service update "+serviceID)
+	out = waitForEvent(c, d, t2, "-f scope=swarm", "service update "+serviceID, defaultRetryCount)
 	c.Assert(out, checker.Contains, "replicas.new=3, replicas.old=1")
 
 	// remove service
+	t3 := daemonUnixTime(c)
 	out, err = d.Cmd("service", "rm", "test")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
-	t4 := daemonUnixTime(c)
-	out, err = d.Cmd("events", "--since", t3, "--until", t4, "-f scope=swarm")
-	c.Assert(err, checker.IsNil, check.Commentf(out))
-	c.Assert(out, checker.Contains, "service remove "+serviceID)
+	waitForEvent(c, d, t3, "-f scope=swarm", "service remove "+serviceID, defaultRetryCount)
 }
 
 func (s *DockerSwarmSuite) TestSwarmClusterEventsNode(c *check.C) {
@@ -2136,38 +2141,28 @@ func (s *DockerSwarmSuite) TestSwarmClusterEventsNode(c *check.C) {
 	d3 := s.AddDaemon(c, true, true)
 
 	d3ID := d3.NodeID
+	waitForEvent(c, d1, "0", "-f scope=swarm", "node create "+d3ID, defaultRetryCount)
+
 	t1 := daemonUnixTime(c)
-	out, err := d1.Cmd("events", "--since=0", "--until", t1, "-f scope=swarm")
-	c.Assert(err, checker.IsNil, check.Commentf(out))
-	c.Assert(out, checker.Contains, "node create "+d3ID)
-
-	out, err = d1.Cmd("node", "update", "--availability=pause", d3ID)
+	out, err := d1.Cmd("node", "update", "--availability=pause", d3ID)
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
-	t2 := daemonUnixTime(c)
 	// filter by type
-	out, err = d1.Cmd("events", "--since", t1, "--until", t2, "-f type=node")
-	c.Assert(err, checker.IsNil, check.Commentf(out))
-	c.Assert(out, checker.Contains, "node update "+d3ID)
+	out = waitForEvent(c, d1, t1, "-f type=node", "node update "+d3ID, defaultRetryCount)
 	c.Assert(out, checker.Contains, "availability.new=pause, availability.old=active")
 
+	t2 := daemonUnixTime(c)
 	out, err = d1.Cmd("node", "demote", d3ID)
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
-	t3 := daemonUnixTime(c)
-	// filter by type and scope
-	out, err = d1.Cmd("events", "--since", t2, "--until", t3, "-f type=node", "-f scope=swarm")
-	c.Assert(err, checker.IsNil, check.Commentf(out))
-	c.Assert(out, checker.Contains, "node update "+d3ID)
+	waitForEvent(c, d1, t2, "-f type=node", "node update "+d3ID, defaultRetryCount)
 
+	t3 := daemonUnixTime(c)
 	out, err = d1.Cmd("node", "rm", "-f", d3ID)
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
-	t4 := daemonUnixTime(c)
-	// filter by type and scope
-	out, err = d1.Cmd("events", "--since", t3, "--until", t4, "-f type=node", "-f scope=swarm")
-	c.Assert(err, checker.IsNil, check.Commentf(out))
-	c.Assert(out, checker.Contains, "node remove "+d3ID)
+	// filter by scope
+	waitForEvent(c, d1, t3, "-f scope=swarm", "node remove "+d3ID, defaultRetryCount)
 }
 
 func (s *DockerSwarmSuite) TestSwarmClusterEventsNetwork(c *check.C) {
@@ -2178,20 +2173,15 @@ func (s *DockerSwarmSuite) TestSwarmClusterEventsNetwork(c *check.C) {
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	networkID := strings.TrimSpace(out)
 
-	t1 := daemonUnixTime(c)
-	out, err = d.Cmd("events", "--since=0", "--until", t1, "-f scope=swarm")
-	c.Assert(err, checker.IsNil, check.Commentf(out))
-	c.Assert(out, checker.Contains, "network create "+networkID)
+	waitForEvent(c, d, "0", "-f scope=swarm", "network create "+networkID, defaultRetryCount)
 
 	// remove network
+	t1 := daemonUnixTime(c)
 	out, err = d.Cmd("network", "rm", "foo")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
-	t2 := daemonUnixTime(c)
 	// filtered by network
-	out, err = d.Cmd("events", "--since", t1, "--until", t2, "-f type=network")
-	c.Assert(err, checker.IsNil, check.Commentf(out))
-	c.Assert(out, checker.Contains, "network remove "+networkID)
+	waitForEvent(c, d, t1, "-f type=network", "network remove "+networkID, defaultRetryCount)
 }
 
 func (s *DockerSwarmSuite) TestSwarmClusterEventsSecret(c *check.C) {
@@ -2206,15 +2196,10 @@ func (s *DockerSwarmSuite) TestSwarmClusterEventsSecret(c *check.C) {
 	})
 	c.Assert(id, checker.Not(checker.Equals), "", check.Commentf("secrets: %s", id))
 
-	t1 := daemonUnixTime(c)
-	out, err := d.Cmd("events", "--since=0", "--until", t1, "-f scope=swarm")
-	c.Assert(err, checker.IsNil, check.Commentf(out))
-	c.Assert(out, checker.Contains, "secret create "+id)
+	waitForEvent(c, d, "0", "-f scope=swarm", "secret create "+id, defaultRetryCount)
 
+	t1 := daemonUnixTime(c)
 	d.DeleteSecret(c, id)
-	t2 := daemonUnixTime(c)
 	// filtered by secret
-	out, err = d.Cmd("events", "--since", t1, "--until", t2, "-f type=secret")
-	c.Assert(err, checker.IsNil, check.Commentf(out))
-	c.Assert(out, checker.Contains, "secret remove "+id)
+	waitForEvent(c, d, t1, "-f type=secret", "secret remove "+id, defaultRetryCount)
 }
