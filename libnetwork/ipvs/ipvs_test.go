@@ -3,10 +3,7 @@
 package ipvs
 
 import (
-	"fmt"
 	"net"
-	"os/exec"
-	"strings"
 	"syscall"
 	"testing"
 
@@ -44,75 +41,73 @@ var (
 	}
 )
 
-func checkDestination(t *testing.T, checkPresent bool, protocol, serviceAddress, realAddress, fwdMethod string) {
-	var (
-		realServerStart bool
-		realServers     []string
-	)
+func lookupFwMethod(fwMethod uint32) string {
 
-	out, err := exec.Command("ipvsadm", "-Ln").CombinedOutput()
-	require.NoError(t, err)
-
-	for _, o := range strings.Split(string(out), "\n") {
-		cmpStr := serviceAddress
-		if protocol == "FWM" {
-			cmpStr = " " + cmpStr
-		}
-
-		if strings.Contains(o, cmpStr) {
-			realServerStart = true
-			continue
-		}
-
-		if realServerStart {
-			if !strings.Contains(o, "->") {
-				break
-			}
-
-			realServers = append(realServers, o)
-		}
+	switch fwMethod {
+	case ConnectionFlagMasq:
+		return fwdMethodStrings[0]
+	case ConnectionFlagTunnel:
+		return fwdMethodStrings[1]
+	case ConnectionFlagDirectRoute:
+		return fwdMethodStrings[2]
 	}
-
-	for _, r := range realServers {
-		if strings.Contains(r, realAddress) {
-			parts := strings.Fields(r)
-			assert.Equal(t, fwdMethod, parts[2])
-			return
-		}
-	}
-
-	if checkPresent {
-		t.Fatalf("Did not find the destination %s fwdMethod %s in ipvs output", realAddress, fwdMethod)
-	}
+	return ""
 }
 
-func checkService(t *testing.T, checkPresent bool, protocol, schedMethod, serviceAddress string) {
-	out, err := exec.Command("ipvsadm", "-Ln").CombinedOutput()
+func checkDestination(t *testing.T, i *Handle, s *Service, d *Destination, checkPresent bool) {
+	dstFound := false
+
+	dstArray, err := i.GetDestinations(s)
 	require.NoError(t, err)
 
-	for _, o := range strings.Split(string(out), "\n") {
-		cmpStr := serviceAddress
-		if protocol == "FWM" {
-			cmpStr = " " + cmpStr
-		}
-
-		if strings.Contains(o, cmpStr) {
-			parts := strings.Split(o, " ")
-			assert.Equal(t, protocol, parts[0])
-			assert.Equal(t, serviceAddress, parts[2])
-			assert.Equal(t, schedMethod, parts[3])
-
-			if !checkPresent {
-				t.Fatalf("Did not expect the service %s in ipvs output", serviceAddress)
-			}
-
-			return
+	for _, dst := range dstArray {
+		if dst.Address.String() == d.Address.String() && dst.Port == d.Port && lookupFwMethod(dst.ConnectionFlags) == lookupFwMethod(d.ConnectionFlags) {
+			dstFound = true
+			break
 		}
 	}
 
-	if checkPresent {
-		t.Fatalf("Did not find the service %s in ipvs output", serviceAddress)
+	switch checkPresent {
+	case true: //The test expects the service to be present
+		if !dstFound {
+
+			t.Fatalf("Did not find the service %s in ipvs output", d.Address.String())
+		}
+	case false: //The test expects that the service should not be present
+		if dstFound {
+			t.Fatalf("Did not find the destination %s fwdMethod %s in ipvs output", d.Address.String(), lookupFwMethod(d.ConnectionFlags))
+		}
 	}
+
+}
+
+func checkService(t *testing.T, i *Handle, s *Service, checkPresent bool) {
+
+	svcArray, err := i.GetServices()
+	require.NoError(t, err)
+
+	svcFound := false
+
+	for _, svc := range svcArray {
+
+		if svc.Protocol == s.Protocol && svc.Address.String() == s.Address.String() && svc.Port == s.Port {
+			svcFound = true
+			break
+		}
+	}
+
+	switch checkPresent {
+	case true: //The test expects the service to be present
+		if !svcFound {
+
+			t.Fatalf("Did not find the service %s in ipvs output", s.Address.String())
+		}
+	case false: //The test expects that the service should not be present
+		if svcFound {
+			t.Fatalf("Did not expect the service %s in ipvs output", s.Address.String())
+		}
+	}
+
 }
 
 func TestGetFamily(t *testing.T) {
@@ -137,7 +132,6 @@ func TestService(t *testing.T) {
 
 	for _, protocol := range protocols {
 		for _, schedMethod := range schedMethods {
-			var serviceAddress string
 
 			s := Service{
 				AddressFamily: nl.FAMILY_V4,
@@ -147,24 +141,20 @@ func TestService(t *testing.T) {
 			switch protocol {
 			case "FWM":
 				s.FWMark = 1234
-				serviceAddress = fmt.Sprintf("%d", 1234)
 			case "TCP":
 				s.Protocol = syscall.IPPROTO_TCP
 				s.Port = 80
 				s.Address = net.ParseIP("1.2.3.4")
 				s.Netmask = 0xFFFFFFFF
-				serviceAddress = "1.2.3.4:80"
 			case "UDP":
 				s.Protocol = syscall.IPPROTO_UDP
 				s.Port = 53
 				s.Address = net.ParseIP("2.3.4.5")
-				serviceAddress = "2.3.4.5:53"
 			}
 
 			err := i.NewService(&s)
 			assert.NoError(t, err)
-			checkService(t, true, protocol, schedMethod, serviceAddress)
-			var lastMethod string
+			checkService(t, i, &s, true)
 			for _, updateSchedMethod := range schedMethods {
 				if updateSchedMethod == schedMethod {
 					continue
@@ -173,13 +163,18 @@ func TestService(t *testing.T) {
 				s.SchedName = updateSchedMethod
 				err = i.UpdateService(&s)
 				assert.NoError(t, err)
-				checkService(t, true, protocol, updateSchedMethod, serviceAddress)
-				lastMethod = updateSchedMethod
+				checkService(t, i, &s, true)
+
+				scopy, err := i.GetService(&s)
+				assert.NoError(t, err)
+				assert.Equal(t, (*scopy).Address.String(), s.Address.String())
+				assert.Equal(t, (*scopy).Port, s.Port)
+				assert.Equal(t, (*scopy).Protocol, s.Protocol)
 			}
 
 			err = i.DelService(&s)
 			assert.NoError(t, err)
-			checkService(t, false, protocol, lastMethod, serviceAddress)
+			checkService(t, i, &s, false)
 		}
 	}
 
@@ -220,7 +215,6 @@ func TestDestination(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, protocol := range protocols {
-		var serviceAddress string
 
 		s := Service{
 			AddressFamily: nl.FAMILY_V4,
@@ -230,26 +224,23 @@ func TestDestination(t *testing.T) {
 		switch protocol {
 		case "FWM":
 			s.FWMark = 1234
-			serviceAddress = fmt.Sprintf("%d", 1234)
 		case "TCP":
 			s.Protocol = syscall.IPPROTO_TCP
 			s.Port = 80
 			s.Address = net.ParseIP("1.2.3.4")
 			s.Netmask = 0xFFFFFFFF
-			serviceAddress = "1.2.3.4:80"
 		case "UDP":
 			s.Protocol = syscall.IPPROTO_UDP
 			s.Port = 53
 			s.Address = net.ParseIP("2.3.4.5")
-			serviceAddress = "2.3.4.5:53"
 		}
 
 		err := i.NewService(&s)
 		assert.NoError(t, err)
-		checkService(t, true, protocol, RoundRobin, serviceAddress)
+		checkService(t, i, &s, true)
 
 		s.SchedName = ""
-		for j, fwdMethod := range fwdMethods {
+		for _, fwdMethod := range fwdMethods {
 			d1 := Destination{
 				AddressFamily:   nl.FAMILY_V4,
 				Address:         net.ParseIP("10.1.1.2"),
@@ -258,10 +249,9 @@ func TestDestination(t *testing.T) {
 				ConnectionFlags: fwdMethod,
 			}
 
-			realAddress := "10.1.1.2:5000"
 			err := i.NewDestination(&s, &d1)
 			assert.NoError(t, err)
-			checkDestination(t, true, protocol, serviceAddress, realAddress, fwdMethodStrings[j])
+			checkDestination(t, i, &s, &d1, true)
 			d2 := Destination{
 				AddressFamily:   nl.FAMILY_V4,
 				Address:         net.ParseIP("10.1.1.3"),
@@ -270,10 +260,9 @@ func TestDestination(t *testing.T) {
 				ConnectionFlags: fwdMethod,
 			}
 
-			realAddress = "10.1.1.3:5000"
 			err = i.NewDestination(&s, &d2)
 			assert.NoError(t, err)
-			checkDestination(t, true, protocol, serviceAddress, realAddress, fwdMethodStrings[j])
+			checkDestination(t, i, &s, &d2, true)
 
 			d3 := Destination{
 				AddressFamily:   nl.FAMILY_V4,
@@ -283,32 +272,28 @@ func TestDestination(t *testing.T) {
 				ConnectionFlags: fwdMethod,
 			}
 
-			realAddress = "10.1.1.4:5000"
 			err = i.NewDestination(&s, &d3)
 			assert.NoError(t, err)
-			checkDestination(t, true, protocol, serviceAddress, realAddress, fwdMethodStrings[j])
+			checkDestination(t, i, &s, &d3, true)
 
-			for m, updateFwdMethod := range fwdMethods {
+			for _, updateFwdMethod := range fwdMethods {
 				if updateFwdMethod == fwdMethod {
 					continue
 				}
 				d1.ConnectionFlags = updateFwdMethod
-				realAddress = "10.1.1.2:5000"
 				err = i.UpdateDestination(&s, &d1)
 				assert.NoError(t, err)
-				checkDestination(t, true, protocol, serviceAddress, realAddress, fwdMethodStrings[m])
+				checkDestination(t, i, &s, &d1, true)
 
 				d2.ConnectionFlags = updateFwdMethod
-				realAddress = "10.1.1.3:5000"
 				err = i.UpdateDestination(&s, &d2)
 				assert.NoError(t, err)
-				checkDestination(t, true, protocol, serviceAddress, realAddress, fwdMethodStrings[m])
+				checkDestination(t, i, &s, &d2, true)
 
 				d3.ConnectionFlags = updateFwdMethod
-				realAddress = "10.1.1.4:5000"
 				err = i.UpdateDestination(&s, &d3)
 				assert.NoError(t, err)
-				checkDestination(t, true, protocol, serviceAddress, realAddress, fwdMethodStrings[m])
+				checkDestination(t, i, &s, &d3, true)
 			}
 
 			err = i.DelDestination(&s, &d1)
@@ -317,6 +302,8 @@ func TestDestination(t *testing.T) {
 			assert.NoError(t, err)
 			err = i.DelDestination(&s, &d3)
 			assert.NoError(t, err)
+			checkDestination(t, i, &s, &d3, false)
+
 		}
 	}
 }

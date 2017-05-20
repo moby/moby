@@ -6,6 +6,7 @@ import (
 	"net"
 	"syscall"
 
+	"fmt"
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
 )
@@ -28,6 +29,7 @@ type Service struct {
 	Stats         SvcStats
 }
 
+// SvcStats defines an IPVS service statistics
 type SvcStats struct {
 	Connections uint32
 	PacketsIn   uint32
@@ -132,44 +134,28 @@ func (i *Handle) DelDestination(s *Service, d *Destination) error {
 	return i.doCmd(s, d, ipvsCmdDelDest)
 }
 
-// GetServices returns an array of services configured at the kernel
+// GetServices returns an array of services configured on the Node
 func (i *Handle) GetServices() ([]*Service, error) {
-	var res []*Service
-	//var emptySrv Service
-	//var emptyDest Destination
-
-	msgs, err := i.doCmdwithResponse(nil, nil, ipvsCmdGetService)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, msg := range msgs {
-		srv, err := i.ParseService(msg)
-		if err != nil {
-			return res, err
-		}
-		res = append(res, srv)
-	}
-
-	return res, nil
+	return i.doGetServicesCmd(nil)
 }
 
-// GetDestinations returns an array of Destinations configured for this
+// GetDestinations returns an array of Destinations configured for this Service
 func (i *Handle) GetDestinations(s *Service) ([]*Destination, error) {
+	return i.doGetDestinationsCmd(s, nil)
+}
 
-	var res []*Destination
+//GetService gets details of a specific IPVS services, useful in updating statisics etc.,
+func (i *Handle) GetService(s *Service) (*Service, error) {
 
-	msgs, err := i.doCmdwithResponse(s, nil, ipvsCmdGetDest)
+	res, err := i.doGetServicesCmd(s)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, msg := range msgs {
-		dest, err := i.ParseDestination(msg)
-		if err != nil {
-			return res, err
-		}
-		res = append(res, dest)
+	//We are looking for exactly one service otherwise error out
+	if len(res) != 1 {
+		return nil, fmt.Errorf("Expected only one service obtained=%d", len(res))
 	}
-	return res, nil
+
+	return res[0], nil
 }
