@@ -44,7 +44,7 @@ func (s *DockerSuite) TestNetHostname(c *check.C) {
 	c.Assert(out, checker.Contains, runconfig.ErrConflictNetworkHostname.Error())
 
 	out, _ = dockerCmdWithFail(c, "run", "--net=container", "busybox", "ps")
-	c.Assert(out, checker.Contains, "--net: invalid net mode: invalid container format container:<name|id>")
+	c.Assert(out, checker.Contains, "Invalid network mode: invalid container format container:<name|id>")
 
 	out, _ = dockerCmdWithFail(c, "run", "--net=weird", "busybox", "ps")
 	c.Assert(out, checker.Contains, "network weird not found")
