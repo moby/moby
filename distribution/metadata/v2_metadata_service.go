@@ -203,7 +203,7 @@ func (serv *v2MetadataService) TagAndAdd(diffID layer.DiffID, hmacKey []byte, me
 	return serv.Add(diffID, meta)
 }
 
-// Remove unassociates a metadata entry from a layer DiffID.
+// Remove disassociates a metadata entry from a layer DiffID.
 func (serv *v2MetadataService) Remove(metadata V2Metadata) error {
 	if serv.store == nil {
 		// Support a service which has no backend storage, in this case

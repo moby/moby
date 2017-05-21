@@ -373,7 +373,7 @@ func RemoveDeviceDeferred(name string) error {
 	// semaphores created in `task.setCookie` will be cleaned up in `UdevWait`.
 	// So these two function call must come in pairs, otherwise semaphores will
 	// be leaked, and the  limit of number of semaphores defined in `/proc/sys/kernel/sem`
-	// will be reached, which will eventually make all follwing calls to 'task.SetCookie'
+	// will be reached, which will eventually make all following calls to 'task.SetCookie'
 	// fail.
 	// this call will not wait for the deferred removal's final executing, since no
 	// udev event will be generated, and the semaphore's value will not be incremented

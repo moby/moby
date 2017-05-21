@@ -269,7 +269,7 @@ func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfi
 	cResources := &container.HostConfig.Resources
 
 	// validate NanoCPUs, CPUPeriod, and CPUQuota
-	// Becuase NanoCPU effectively updates CPUPeriod/CPUQuota,
+	// Because NanoCPU effectively updates CPUPeriod/CPUQuota,
 	// once NanoCPU is already set, updating CPUPeriod/CPUQuota will be blocked, and vice versa.
 	// In the following we make sure the intended update (resources) does not conflict with the existing (cResource).
 	if resources.NanoCPUs > 0 && cResources.CPUPeriod > 0 {

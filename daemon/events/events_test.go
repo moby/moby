@@ -247,7 +247,7 @@ func TestLoadBufferedEventsOnlyFromPast(t *testing.T) {
 }
 
 // #13753
-func TestIngoreBufferedWhenNoTimes(t *testing.T) {
+func TestIgnoreBufferedWhenNoTimes(t *testing.T) {
 	m1, err := eventstestutils.Scan("2016-03-07T17:28:03.022433271+02:00 container die 0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079 (image=ubuntu, name=small_hoover)")
 	if err != nil {
 		t.Fatal(err)

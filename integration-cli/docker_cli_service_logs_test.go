@@ -212,7 +212,7 @@ func (s *DockerSwarmSuite) TestServiceLogsTaskLogs(c *check.C) {
 		fmt.Sprintf("--replicas=%v", replicas),
 		// which has this the task id as an environment variable templated in
 		"--env", "TASK={{.Task.ID}}",
-		// and runs this command to print exaclty 6 logs lines
+		// and runs this command to print exactly 6 logs lines
 		"busybox", "sh", "-c", "for line in $(seq 0 5); do echo $TASK log test $line; done; sleep 100000",
 	))
 	result.Assert(c, icmd.Expected{})

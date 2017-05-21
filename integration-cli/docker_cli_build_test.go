@@ -1712,7 +1712,7 @@ func (s *DockerSuite) TestBuildEntrypoint(c *check.C) {
 }
 
 // #6445 ensure ONBUILD triggers aren't committed to grandchildren
-func (s *DockerSuite) TestBuildOnBuildLimitedInheritence(c *check.C) {
+func (s *DockerSuite) TestBuildOnBuildLimitedInheritance(c *check.C) {
 	buildImageSuccessfully(c, "testonbuildtrigger1", build.WithDockerfile(`
 		FROM busybox
 		RUN echo "GRANDPARENT"
@@ -3063,7 +3063,7 @@ func (s *DockerSuite) TestBuildFromGitWithContext(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestBuildFromGitwithF(c *check.C) {
+func (s *DockerSuite) TestBuildFromGitWithF(c *check.C) {
 	name := "testbuildfromgitwithf"
 	git := fakegit.New(c, "repo", map[string]string{
 		"myApp/myDockerfile": `FROM busybox
@@ -3225,7 +3225,7 @@ func (s *DockerSuite) TestBuildCmdJSONNoShDashC(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestBuildEntrypointCanBeOverridenByChild(c *check.C) {
+func (s *DockerSuite) TestBuildEntrypointCanBeOverriddenByChild(c *check.C) {
 	buildImageSuccessfully(c, "parent", build.WithDockerfile(`
     FROM busybox
     ENTRYPOINT exit 130
@@ -3245,7 +3245,7 @@ func (s *DockerSuite) TestBuildEntrypointCanBeOverridenByChild(c *check.C) {
 	})
 }
 
-func (s *DockerSuite) TestBuildEntrypointCanBeOverridenByChildInspect(c *check.C) {
+func (s *DockerSuite) TestBuildEntrypointCanBeOverriddenByChildInspect(c *check.C) {
 	var (
 		name     = "testbuildepinherit"
 		name2    = "testbuildepinherit2"
@@ -4472,26 +4472,26 @@ func (s *DockerSuite) TestBuildBuildTimeArgOverrideArgDefinedBeforeEnv(c *check.
 	imgName := "bldargtest"
 	envKey := "foo"
 	envVal := "bar"
-	envValOveride := "barOverride"
+	envValOverride := "barOverride"
 	dockerfile := fmt.Sprintf(`FROM busybox
 		ARG %s
 		ENV %s %s
 		RUN echo $%s
 		CMD echo $%s
-        `, envKey, envKey, envValOveride, envKey, envKey)
+        `, envKey, envKey, envValOverride, envKey, envKey)
 
 	result := buildImage(imgName,
 		cli.WithFlags("--build-arg", fmt.Sprintf("%s=%s", envKey, envVal)),
 		build.WithDockerfile(dockerfile),
 	)
 	result.Assert(c, icmd.Success)
-	if strings.Count(result.Combined(), envValOveride) != 2 {
-		c.Fatalf("failed to access environment variable in output: %q expected: %q", result.Combined(), envValOveride)
+	if strings.Count(result.Combined(), envValOverride) != 2 {
+		c.Fatalf("failed to access environment variable in output: %q expected: %q", result.Combined(), envValOverride)
 	}
 
 	containerName := "bldargCont"
-	if out, _ := dockerCmd(c, "run", "--name", containerName, imgName); !strings.Contains(out, envValOveride) {
-		c.Fatalf("run produced invalid output: %q, expected %q", out, envValOveride)
+	if out, _ := dockerCmd(c, "run", "--name", containerName, imgName); !strings.Contains(out, envValOverride) {
+		c.Fatalf("run produced invalid output: %q, expected %q", out, envValOverride)
 	}
 }
 
@@ -4501,25 +4501,25 @@ func (s *DockerSuite) TestBuildBuildTimeArgOverrideEnvDefinedBeforeArg(c *check.
 	imgName := "bldargtest"
 	envKey := "foo"
 	envVal := "bar"
-	envValOveride := "barOverride"
+	envValOverride := "barOverride"
 	dockerfile := fmt.Sprintf(`FROM busybox
 		ENV %s %s
 		ARG %s
 		RUN echo $%s
 		CMD echo $%s
-        `, envKey, envValOveride, envKey, envKey, envKey)
+        `, envKey, envValOverride, envKey, envKey, envKey)
 	result := buildImage(imgName,
 		cli.WithFlags("--build-arg", fmt.Sprintf("%s=%s", envKey, envVal)),
 		build.WithDockerfile(dockerfile),
 	)
 	result.Assert(c, icmd.Success)
-	if strings.Count(result.Combined(), envValOveride) != 2 {
-		c.Fatalf("failed to access environment variable in output: %q expected: %q", result.Combined(), envValOveride)
+	if strings.Count(result.Combined(), envValOverride) != 2 {
+		c.Fatalf("failed to access environment variable in output: %q expected: %q", result.Combined(), envValOverride)
 	}
 
 	containerName := "bldargCont"
-	if out, _ := dockerCmd(c, "run", "--name", containerName, imgName); !strings.Contains(out, envValOveride) {
-		c.Fatalf("run produced invalid output: %q, expected %q", out, envValOveride)
+	if out, _ := dockerCmd(c, "run", "--name", containerName, imgName); !strings.Contains(out, envValOverride) {
+		c.Fatalf("run produced invalid output: %q, expected %q", out, envValOverride)
 	}
 }
 
@@ -4616,25 +4616,25 @@ func (s *DockerSuite) TestBuildBuildTimeArgExpansionOverride(c *check.C) {
 	envKey := "foo"
 	envVal := "bar"
 	envKey1 := "foo1"
-	envValOveride := "barOverride"
+	envValOverride := "barOverride"
 	dockerfile := fmt.Sprintf(`FROM busybox
 		ARG %s
 		ENV %s %s
 		ENV %s ${%s}
 		RUN echo $%s
-		CMD echo $%s`, envKey, envKey, envValOveride, envKey1, envKey, envKey1, envKey1)
+		CMD echo $%s`, envKey, envKey, envValOverride, envKey1, envKey, envKey1, envKey1)
 	result := buildImage(imgName,
 		cli.WithFlags("--build-arg", fmt.Sprintf("%s=%s", envKey, envVal)),
 		build.WithDockerfile(dockerfile),
 	)
 	result.Assert(c, icmd.Success)
-	if strings.Count(result.Combined(), envValOveride) != 2 {
-		c.Fatalf("failed to access environment variable in output: %q expected: %q", result.Combined(), envValOveride)
+	if strings.Count(result.Combined(), envValOverride) != 2 {
+		c.Fatalf("failed to access environment variable in output: %q expected: %q", result.Combined(), envValOverride)
 	}
 
 	containerName := "bldargCont"
-	if out, _ := dockerCmd(c, "run", "--name", containerName, imgName); !strings.Contains(out, envValOveride) {
-		c.Fatalf("run produced invalid output: %q, expected %q", out, envValOveride)
+	if out, _ := dockerCmd(c, "run", "--name", containerName, imgName); !strings.Contains(out, envValOverride) {
+		c.Fatalf("run produced invalid output: %q, expected %q", out, envValOverride)
 	}
 }
 
@@ -4690,24 +4690,24 @@ func (s *DockerSuite) TestBuildBuildTimeArgDefaultOverride(c *check.C) {
 	imgName := "bldargtest"
 	envKey := "foo"
 	envVal := "bar"
-	envValOveride := "barOverride"
+	envValOverride := "barOverride"
 	dockerfile := fmt.Sprintf(`FROM busybox
 		ARG %s=%s
 		ENV %s $%s
 		RUN echo $%s
 		CMD echo $%s`, envKey, envVal, envKey, envKey, envKey, envKey)
 	result := buildImage(imgName,
-		cli.WithFlags("--build-arg", fmt.Sprintf("%s=%s", envKey, envValOveride)),
+		cli.WithFlags("--build-arg", fmt.Sprintf("%s=%s", envKey, envValOverride)),
 		build.WithDockerfile(dockerfile),
 	)
 	result.Assert(c, icmd.Success)
-	if strings.Count(result.Combined(), envValOveride) != 1 {
-		c.Fatalf("failed to access environment variable in output: %q expected: %q", result.Combined(), envValOveride)
+	if strings.Count(result.Combined(), envValOverride) != 1 {
+		c.Fatalf("failed to access environment variable in output: %q expected: %q", result.Combined(), envValOverride)
 	}
 
 	containerName := "bldargCont"
-	if out, _ := dockerCmd(c, "run", "--name", containerName, imgName); !strings.Contains(out, envValOveride) {
-		c.Fatalf("run produced invalid output: %q, expected %q", out, envValOveride)
+	if out, _ := dockerCmd(c, "run", "--name", containerName, imgName); !strings.Contains(out, envValOverride) {
+		c.Fatalf("run produced invalid output: %q, expected %q", out, envValOverride)
 	}
 }
 
@@ -4824,7 +4824,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgEmptyValVariants(c *check.C) {
 	buildImageSuccessfully(c, imgName, build.WithDockerfile(dockerfile))
 }
 
-func (s *DockerSuite) TestBuildBuildTimeArgDefintionWithNoEnvInjection(c *check.C) {
+func (s *DockerSuite) TestBuildBuildTimeArgDefinitionWithNoEnvInjection(c *check.C) {
 	imgName := "bldargtest"
 	envKey := "foo"
 	dockerfile := fmt.Sprintf(`FROM busybox
@@ -5785,7 +5785,7 @@ func (s *DockerSuite) TestBuildWithExtraHostInvalidFormat(c *check.C) {
 		buildFlag  string
 	}{
 		{"extra_host_missing_ip", dockerfile, "--add-host=foo"},
-		{"extra_host_missing_ip_with_delimeter", dockerfile, "--add-host=foo:"},
+		{"extra_host_missing_ip_with_delimiter", dockerfile, "--add-host=foo:"},
 		{"extra_host_missing_hostname", dockerfile, "--add-host=:127.0.0.1"},
 		{"extra_host_invalid_ipv4", dockerfile, "--add-host=foo:101.10.2"},
 		{"extra_host_invalid_ipv6", dockerfile, "--add-host=foo:2001::1::3F"},

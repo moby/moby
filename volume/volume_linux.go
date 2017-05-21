@@ -26,7 +26,7 @@ func ConvertTmpfsOptions(opt *mounttypes.TmpfsOptions, readOnly bool) (string, e
 		// okay, since API is that way anyways.
 
 		// we do this by finding the suffix that divides evenly into the
-		// value, returing the value itself, with no suffix, if it fails.
+		// value, returning the value itself, with no suffix, if it fails.
 		//
 		// For the most part, we don't enforce any semantic to this values.
 		// The operating system will usually align this and enforce minimum

@@ -174,27 +174,27 @@ func writeLVMConfig(root string, cfg directLVMConfig) error {
 func setupDirectLVM(cfg directLVMConfig) error {
 	pvCreate, err := exec.LookPath("pvcreate")
 	if err != nil {
-		return errors.Wrap(err, "error lookuping up command `pvcreate` while setting up direct lvm")
+		return errors.Wrap(err, "error looking up command `pvcreate` while setting up direct lvm")
 	}
 
 	vgCreate, err := exec.LookPath("vgcreate")
 	if err != nil {
-		return errors.Wrap(err, "error lookuping up command `vgcreate` while setting up direct lvm")
+		return errors.Wrap(err, "error looking up command `vgcreate` while setting up direct lvm")
 	}
 
 	lvCreate, err := exec.LookPath("lvcreate")
 	if err != nil {
-		return errors.Wrap(err, "error lookuping up command `lvcreate` while setting up direct lvm")
+		return errors.Wrap(err, "error looking up command `lvcreate` while setting up direct lvm")
 	}
 
 	lvConvert, err := exec.LookPath("lvconvert")
 	if err != nil {
-		return errors.Wrap(err, "error lookuping up command `lvconvert` while setting up direct lvm")
+		return errors.Wrap(err, "error looking up command `lvconvert` while setting up direct lvm")
 	}
 
 	lvChange, err := exec.LookPath("lvchange")
 	if err != nil {
-		return errors.Wrap(err, "error lookuping up command `lvchange` while setting up direct lvm")
+		return errors.Wrap(err, "error looking up command `lvchange` while setting up direct lvm")
 	}
 
 	if cfg.AutoExtendPercent == 0 {

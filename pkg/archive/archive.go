@@ -180,7 +180,7 @@ func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
 	}
 }
 
-// CompressStream compresseses the dest with specified compression algorithm.
+// CompressStream compresses the dest with specified compression algorithm.
 func CompressStream(dest io.Writer, compression Compression) (io.WriteCloser, error) {
 	p := pools.BufioWriter32KPool
 	buf := p.Get(dest)

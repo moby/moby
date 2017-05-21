@@ -328,7 +328,7 @@ func makeBackingFsDev(home string) (string, error) {
 	}
 
 	backingFsBlockDev := path.Join(home, "backingFsBlockDev")
-	// Re-create just in case comeone copied the home directory over to a new device
+	// Re-create just in case someone copied the home directory over to a new device
 	syscall.Unlink(backingFsBlockDev)
 	stat := fileinfo.Sys().(*syscall.Stat_t)
 	if err := syscall.Mknod(backingFsBlockDev, syscall.S_IFBLK|0600, int(stat.Dev)); err != nil {

@@ -221,7 +221,7 @@ func (store *store) Delete(ref reference.Named) (bool, error) {
 func (store *store) Get(ref reference.Named) (digest.Digest, error) {
 	if canonical, ok := ref.(reference.Canonical); ok {
 		// If reference contains both tag and digest, only
-		// lookup by digest as it takes precendent over
+		// lookup by digest as it takes precedence over
 		// tag, until tag/digest combos are stored.
 		if _, ok := ref.(reference.Tagged); ok {
 			var err error

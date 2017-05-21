@@ -20,7 +20,7 @@ func TestGetAllAllowed(t *testing.T) {
 	})
 
 	buildArgs.AddMetaArg("ArgFromMeta", strPtr("frommeta1"))
-	buildArgs.AddMetaArg("ArgFromMetaOverriden", strPtr("frommeta2"))
+	buildArgs.AddMetaArg("ArgFromMetaOverridden", strPtr("frommeta2"))
 	buildArgs.AddMetaArg("ArgFromMetaNotUsed", strPtr("frommeta3"))
 
 	buildArgs.AddArg("ArgOverriddenByOptions", strPtr("fromdockerfile2"))
@@ -28,7 +28,7 @@ func TestGetAllAllowed(t *testing.T) {
 	buildArgs.AddArg("ArgNoDefaultInDockerfile", nil)
 	buildArgs.AddArg("ArgNoDefaultInDockerfileFromOptions", nil)
 	buildArgs.AddArg("ArgFromMeta", nil)
-	buildArgs.AddArg("ArgFromMetaOverriden", strPtr("fromdockerfile3"))
+	buildArgs.AddArg("ArgFromMetaOverridden", strPtr("fromdockerfile3"))
 
 	all := buildArgs.GetAllAllowed()
 	expected := map[string]string{
@@ -37,7 +37,7 @@ func TestGetAllAllowed(t *testing.T) {
 		"ArgWithDefaultInDockerfile":          "fromdockerfile1",
 		"ArgNoDefaultInDockerfileFromOptions": "fromopt3",
 		"ArgFromMeta":                         "frommeta1",
-		"ArgFromMetaOverriden":                "fromdockerfile3",
+		"ArgFromMetaOverridden":               "fromdockerfile3",
 	}
 	assert.Equal(t, expected, all)
 }

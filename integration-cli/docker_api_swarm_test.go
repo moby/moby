@@ -985,7 +985,7 @@ func (s *DockerSwarmSuite) TestSwarmRepeatedRootRotation(c *check.C) {
 		if cert != nil {
 			c.Assert(clusterTLSInfo.TrustRoot, checker.Equals, expectedCert)
 		}
-		// could take another second or two for the nodes to trust the new roots after the've all gotten
+		// could take another second or two for the nodes to trust the new roots after they've all gotten
 		// new TLS certificates
 		for j := 0; j < 18; j++ {
 			mInfo := m.GetNode(c, m.NodeID).Description.TLSInfo

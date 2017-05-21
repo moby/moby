@@ -25,7 +25,7 @@ func (NoopVolume) Mount(_ string) (string, error) { return "noop", nil }
 // Unmount unmounts the volume from the container
 func (NoopVolume) Unmount(_ string) error { return nil }
 
-// Status proivdes low-level details about the volume
+// Status provides low-level details about the volume
 func (NoopVolume) Status() map[string]interface{} { return nil }
 
 // CreatedAt provides the time the volume (directory) was created at
@@ -57,7 +57,7 @@ func (FakeVolume) Mount(_ string) (string, error) { return "fake", nil }
 // Unmount unmounts the volume from the container
 func (FakeVolume) Unmount(_ string) error { return nil }
 
-// Status proivdes low-level details about the volume
+// Status provides low-level details about the volume
 func (FakeVolume) Status() map[string]interface{} { return nil }
 
 // CreatedAt provides the time the volume (directory) was created at

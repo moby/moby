@@ -190,7 +190,7 @@ be found.
 * Update runc to 54296cf40ad8143b62dbcaa1d90e520a2136ddfe [#31666](https://github.com/docker/docker/pull/31666)
  * Ignore cgroup2 mountpoints [opencontainers/runc#1266](https://github.com/opencontainers/runc/pull/1266)
 * Update containerd to 4ab9917febca54791c5f071a9d1f404867857fcc [#31662](https://github.com/docker/docker/pull/31662) [#31852](https://github.com/docker/docker/pull/31852)
- * Register healtcheck service before calling restore() [docker/containerd#609](https://github.com/docker/containerd/pull/609)
+ * Register healthcheck service before calling restore() [docker/containerd#609](https://github.com/docker/containerd/pull/609)
 * Fix `docker exec` not working after unattended upgrades that reload apparmor profiles [#31773](https://github.com/docker/docker/pull/31773)
 * Fix unmounting layer without merge dir with Overlay2 [#31069](https://github.com/docker/docker/pull/31069)
 * Do not ignore "volume in use" errors when force-delete [#31450](https://github.com/docker/docker/pull/31450)
@@ -1087,12 +1087,12 @@ installing docker, please make sure to update them accordingly.
 + Add security options to `docker info` output [#21172](https://github.com/docker/docker/pull/21172) [#23520](https://github.com/docker/docker/pull/23520)
 + Add insecure registries to `docker info` output [#20410](https://github.com/docker/docker/pull/20410)
 + Extend Docker authorization with TLS user information [#21556](https://github.com/docker/docker/pull/21556)
-+ devicemapper: expose Mininum Thin Pool Free Space through `docker info` [#21945](https://github.com/docker/docker/pull/21945)
++ devicemapper: expose Minimum Thin Pool Free Space through `docker info` [#21945](https://github.com/docker/docker/pull/21945)
 * API now returns a JSON object when an error occurs making it more consistent [#22880](https://github.com/docker/docker/pull/22880)
 - Prevent `docker run -i --restart` from hanging on exit [#22777](https://github.com/docker/docker/pull/22777)
 - Fix API/CLI discrepancy on hostname validation [#21641](https://github.com/docker/docker/pull/21641)
 - Fix discrepancy in the format of sizes in `stats` from HumanSize to BytesSize [#21773](https://github.com/docker/docker/pull/21773)
-- authz: when request is denied return forbbiden exit code (403) [#22448](https://github.com/docker/docker/pull/22448)
+- authz: when request is denied return forbidden exit code (403) [#22448](https://github.com/docker/docker/pull/22448)
 - Windows: fix tty-related displaying issues [#23878](https://github.com/docker/docker/pull/23878)
 
 ### Runtime
@@ -1887,7 +1887,7 @@ by another client (#15489)
 
 #### Remote API
 
-- Fix unmarshalling of Command and Entrypoint
+- Fix unmarshaling of Command and Entrypoint
 - Set limit for minimum client version supported
 - Validate port specification
 - Return proper errors when attach/reattach fail
@@ -2572,7 +2572,7 @@ With the ongoing changes to the networking and execution subsystems of docker te
 - Fix ADD caching issue with . prefixed path
 - Fix docker build on devicemapper by reverting sparse file tar option
 - Fix issue with file caching and prevent wrong cache hit
-* Use same error handling while unmarshalling CMD and ENTRYPOINT
+* Use same error handling while unmarshaling CMD and ENTRYPOINT
 
 #### Documentation
 

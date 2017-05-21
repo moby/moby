@@ -34,7 +34,7 @@ func (s *DockerSuite) TestVolumeCLICreate(c *check.C) {
 
 func (s *DockerSuite) TestVolumeCLIInspect(c *check.C) {
 	c.Assert(
-		exec.Command(dockerBinary, "volume", "inspect", "doesntexist").Run(),
+		exec.Command(dockerBinary, "volume", "inspect", "doesnotexist").Run(),
 		check.Not(check.IsNil),
 		check.Commentf("volume inspect should error on non-existent volume"),
 	)
@@ -54,10 +54,10 @@ func (s *DockerSuite) TestVolumeCLIInspectMulti(c *check.C) {
 	dockerCmd(c, "volume", "create", "test2")
 	dockerCmd(c, "volume", "create", "test3")
 
-	result := dockerCmdWithResult("volume", "inspect", "--format={{ .Name }}", "test1", "test2", "doesntexist", "test3")
+	result := dockerCmdWithResult("volume", "inspect", "--format={{ .Name }}", "test1", "test2", "doesnotexist", "test3")
 	c.Assert(result, icmd.Matches, icmd.Expected{
 		ExitCode: 1,
-		Err:      "No such volume: doesntexist",
+		Err:      "No such volume: doesnotexist",
 	})
 
 	out := result.Stdout()
@@ -185,7 +185,7 @@ func (s *DockerSuite) TestVolumeCLILsFilterDangling(c *check.C) {
 
 	out, _ = dockerCmd(c, "volume", "ls", "--filter", "name=testisin")
 	c.Assert(out, check.Not(checker.Contains), "testnotinuse1\n", check.Commentf("expected volume 'testnotinuse1' in output"))
-	c.Assert(out, checker.Contains, "testisinuse1\n", check.Commentf("execpeted volume 'testisinuse1' in output"))
+	c.Assert(out, checker.Contains, "testisinuse1\n", check.Commentf("expected volume 'testisinuse1' in output"))
 	c.Assert(out, checker.Contains, "testisinuse2\n", check.Commentf("expected volume 'testisinuse2' in output"))
 }
 
@@ -234,7 +234,7 @@ func (s *DockerSuite) TestVolumeCLIRm(c *check.C) {
 
 	dockerCmd(c, "volume", "rm", volumeID)
 	c.Assert(
-		exec.Command("volume", "rm", "doesntexist").Run(),
+		exec.Command("volume", "rm", "doesnotexist").Run(),
 		check.Not(check.IsNil),
 		check.Commentf("volume rm should fail with non-existent volume"),
 	)

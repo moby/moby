@@ -300,7 +300,7 @@ func (d *Driver) Remove(id string) error {
 		//
 		// TODO @jhowardmsft - For RS3, we can remove the retries. Also consider
 		// using platform APIs (if available) to get this more succinctly. Also
-		// consider enlighting the Remove() interface to have context of why
+		// consider enhancing the Remove() interface to have context of why
 		// the remove is being called - that could improve efficiency by not
 		// enumerating compute systems during a remove of a container as it's
 		// not required.

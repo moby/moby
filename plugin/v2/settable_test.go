@@ -68,7 +68,7 @@ func TestIsSettable(t *testing.T) {
 	}
 }
 
-func TestUpdateSettinsEnv(t *testing.T) {
+func TestUpdateSettingsEnv(t *testing.T) {
 	contexts := []struct {
 		env    []string
 		set    settable

@@ -125,7 +125,7 @@ type MountPoint struct {
 	Spec mounttypes.Mount
 
 	// Track usage of this mountpoint
-	// Specicially needed for containers which are running and calls to `docker cp`
+	// Specifically needed for containers which are running and calls to `docker cp`
 	// because both these actions require mounting the volumes.
 	active int
 }

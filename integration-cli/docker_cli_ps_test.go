@@ -746,7 +746,7 @@ func (s *DockerSuite) TestPsShowMounts(c *check.C) {
 	fields = strings.Fields(lines[1])
 	c.Assert(fields, checker.HasLen, 2)
 
-	annonymounsVolumeID := fields[1]
+	anonymousVolumeID := fields[1]
 
 	fields = strings.Fields(lines[2])
 	c.Assert(fields[1], checker.Equals, "ps-volume-test")
@@ -771,7 +771,7 @@ func (s *DockerSuite) TestPsShowMounts(c *check.C) {
 	c.Assert(lines, checker.HasLen, 2)
 
 	fields = strings.Fields(lines[0])
-	c.Assert(fields[1], checker.Equals, annonymounsVolumeID)
+	c.Assert(fields[1], checker.Equals, anonymousVolumeID)
 	fields = strings.Fields(lines[1])
 	c.Assert(fields[1], checker.Equals, "ps-volume-test")
 

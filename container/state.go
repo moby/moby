@@ -185,7 +185,7 @@ const (
 // timeouts, and avoiding goroutine leaks. Wait must be called without holding
 // the state lock. Returns a channel from which the caller will receive the
 // result. If the container exited on its own, the result's Err() method will
-// be nil and its ExitCode() method will return the conatiners exit code,
+// be nil and its ExitCode() method will return the container's exit code,
 // otherwise, the results Err() method will return an error indicating why the
 // wait operation failed.
 func (s *State) Wait(ctx context.Context, condition WaitCondition) <-chan StateStatus {

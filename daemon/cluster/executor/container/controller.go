@@ -343,7 +343,7 @@ func (r *controller) Shutdown(ctx context.Context) error {
 		}
 
 		// add a delay for gossip converge
-		// TODO(dongluochen): this delay shoud be configurable to fit different cluster size and network delay.
+		// TODO(dongluochen): this delay should be configurable to fit different cluster size and network delay.
 		time.Sleep(defaultGossipConvergeDelay)
 	}
 
