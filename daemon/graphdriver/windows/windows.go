@@ -13,7 +13,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -744,34 +743,59 @@ func writeLayerFromTar(r io.Reader, w hcsshim.LayerWriter, root string) (int64, 
 
 // importLayer adds a new layer to the tag and graph store based on the given data.
 func (d *Driver) importLayer(id string, layerData io.Reader, parentLayerPaths []string) (size int64, err error) {
-	if !noreexec {
-		cmd := reexec.Command(append([]string{"docker-windows-write-layer", d.info.HomeDir, id}, parentLayerPaths...)...)
-		output := bytes.NewBuffer(nil)
-		cmd.Stdin = layerData
-		cmd.Stdout = output
-		cmd.Stderr = output
-
-		if err = cmd.Start(); err != nil {
-			return
-		}
-
-		if err = cmd.Wait(); err != nil {
-			return 0, fmt.Errorf("re-exec error: %v: output: %s", err, output)
-		}
-
-		return strconv.ParseInt(output.String(), 10, 64)
+	if noreexec {
+		return writeLayer(layerData, d.info.HomeDir, id, parentLayerPaths...)
 	}
-	return writeLayer(layerData, d.info.HomeDir, id, parentLayerPaths...)
+	cmd := reexec.Command(append([]string{"docker-windows-write-layer", d.info.HomeDir, id}, parentLayerPaths...)...)
+	resultOutput := bytes.NewBuffer(nil)
+	logOutput := bytes.NewBuffer(nil)
+	cmd.Stdin = layerData
+	cmd.Stdout = resultOutput
+	cmd.Stderr = logOutput
+
+	if err = cmd.Start(); err != nil {
+		return
+	}
+
+	err = cmd.Wait()
+	if logOutput.Len() > 0 {
+		logrus.Debug("re-exec output: ", logOutput.String())
+	}
+
+	if err != nil {
+		return
+	}
+
+	var result reexecResult
+	err = json.Unmarshal(resultOutput.Bytes(), &result)
+	if err != nil {
+		return
+	}
+
+	if result.Error != "" {
+		return 0, errors.New(result.Error)
+	}
+
+	return result.Size, nil
+}
+
+type reexecResult struct {
+	Size  int64
+	Error string
 }
 
 // writeLayerReexec is the re-exec entry point for writing a layer from a tar file
 func writeLayerReexec() {
 	size, err := writeLayer(os.Stdin, os.Args[1], os.Args[2], os.Args[3:]...)
+	result := reexecResult{Size: size}
+	if err != nil {
+		result.Error = err.Error()
+	}
+	err = json.NewEncoder(os.Stdout).Encode(result)
 	if err != nil {
 		fmt.Fprint(os.Stderr, err)
 		os.Exit(1)
 	}
-	fmt.Fprint(os.Stdout, size)
 }
 
 // writeLayer writes a layer from a tar file.
