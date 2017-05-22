@@ -120,7 +120,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 
 	// In s.Windows.Resources
 	cpuShares := uint16(c.HostConfig.CPUShares)
-	cpuPercent := uint8(c.HostConfig.CPUPercent)
+	cpuMaximum := uint16(c.HostConfig.CPUPercent) * 100
 	cpuCount := uint64(c.HostConfig.CPUCount)
 	if c.HostConfig.NanoCPUs > 0 {
 		if isHyperV {
@@ -128,21 +128,24 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 			leftoverNanoCPUs := c.HostConfig.NanoCPUs % 1e9
 			if leftoverNanoCPUs != 0 {
 				cpuCount++
-				cpuPercent = uint8(c.HostConfig.NanoCPUs * 100 / int64(cpuCount) / 1e9)
+				cpuMaximum = uint16(c.HostConfig.NanoCPUs / int64(cpuCount) / (1e9 / 10000))
+				if cpuMaximum < 1 {
+					// The requested NanoCPUs is so small that we rounded to 0, use 1 instead
+					cpuMaximum = 1
+				}
 			}
 		} else {
-			cpuPercent = uint8(c.HostConfig.NanoCPUs * 100 / int64(sysinfo.NumCPU()) / 1e9)
-
-			if cpuPercent < 1 {
+			cpuMaximum = uint16(c.HostConfig.NanoCPUs / int64(sysinfo.NumCPU()) / (1e9 / 10000))
+			if cpuMaximum < 1 {
 				// The requested NanoCPUs is so small that we rounded to 0, use 1 instead
-				cpuPercent = 1
+				cpuMaximum = 1
 			}
 		}
 	}
 	memoryLimit := uint64(c.HostConfig.Memory)
 	s.Windows.Resources = &specs.WindowsResources{
 		CPU: &specs.WindowsCPUResources{
-			Percent: &cpuPercent,
+			Maximum: &cpuMaximum,
 			Shares:  &cpuShares,
 			Count:   &cpuCount,
 		},
