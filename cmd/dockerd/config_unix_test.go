@@ -13,7 +13,7 @@ import (
 
 func TestDaemonParseShmSize(t *testing.T) {
 	if runtime.GOOS == "solaris" {
-		t.Skip("ShmSize not supported on Solaris\n")
+		t.Skip("ShmSize not supported on %s", runtime.GOOS)
 	}
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 
