@@ -367,6 +367,8 @@ func connectPipe(p *win32File) error {
 	if err != nil {
 		return err
 	}
+	defer p.wg.Done()
+
 	err = connectNamedPipe(p.handle, &c.o)
 	_, err = p.asyncIo(c, nil, 0, err)
 	if err != nil && err != cERROR_PIPE_CONNECTED {
