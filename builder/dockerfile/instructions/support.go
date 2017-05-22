@@ -1,4 +1,4 @@
-package dockerfile
+package instructions
 
 import "strings"
 
