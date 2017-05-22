@@ -1225,7 +1225,7 @@ func (v mergeVal) IsBoolFlag() bool {
 
 // Name returns the name of a mergeVal.
 // If the original value had a name, return the original name,
-// otherwise, return the key asinged to this mergeVal.
+// otherwise, return the key assigned to this mergeVal.
 func (v mergeVal) Name() string {
 	type namedValue interface {
 		Name() string

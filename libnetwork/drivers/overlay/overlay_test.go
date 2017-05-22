@@ -115,11 +115,11 @@ func TestOverlayConfig(t *testing.T) {
 
 	d := dt.d
 	if d.notifyCh == nil {
-		t.Fatal("Driver notify channel wasn't initialzed after Config method")
+		t.Fatal("Driver notify channel wasn't initialized after Config method")
 	}
 
 	if d.exitCh == nil {
-		t.Fatal("Driver serfloop exit channel wasn't initialzed after Config method")
+		t.Fatal("Driver serfloop exit channel wasn't initialized after Config method")
 	}
 
 	if d.serfInstance == nil {

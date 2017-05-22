@@ -58,7 +58,7 @@ type NetworkDB struct {
 	// List of all peer nodes which have left
 	leftNodes map[string]*node
 
-	// A multi-dimensional map of network/node attachmemts. The
+	// A multi-dimensional map of network/node attachments. The
 	// first key is a node name and the second key is a network ID
 	// for the network that node is participating in.
 	networks map[string]map[string]*network
@@ -153,7 +153,7 @@ type network struct {
 	entriesNumber int
 }
 
-// Config represents the configuration of the networdb instance and
+// Config represents the configuration of the networkdb instance and
 // can be passed by the caller.
 type Config struct {
 	// NodeID is the node unique identifier of the node when is part of the cluster

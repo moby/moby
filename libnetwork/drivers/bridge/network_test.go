@@ -53,7 +53,7 @@ func TestLinkCreate(t *testing.T) {
 		t.Fatalf("Failed to create a link: %s", err.Error())
 	}
 
-	// Verify sbox endoint interface inherited MTU value from bridge config
+	// Verify sbox endpoint interface inherited MTU value from bridge config
 	sboxLnk, err := netlink.LinkByName(te.iface.srcName)
 	if err != nil {
 		t.Fatal(err)
@@ -167,7 +167,7 @@ func TestLinkCreateNoEnableIPv6(t *testing.T) {
 
 	iface := te.iface
 	if iface.addrv6 != nil && iface.addrv6.IP.To16() != nil {
-		t.Fatalf("Expectd IPv6 address to be nil when IPv6 is not enabled. Got IPv6 = %s", iface.addrv6.String())
+		t.Fatalf("Expected IPv6 address to be nil when IPv6 is not enabled. Got IPv6 = %s", iface.addrv6.String())
 	}
 
 	if te.gw6.To16() != nil {

@@ -121,7 +121,7 @@ type NetworkController interface {
 	// Stop network controller
 	Stop()
 
-	// ReloadCondfiguration updates the controller configuration
+	// ReloadConfiguration updates the controller configuration
 	ReloadConfiguration(cfgOptions ...config.Option) error
 
 	// SetClusterProvider sets cluster provider

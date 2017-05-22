@@ -119,7 +119,7 @@ func newInfo(hnd *netlink.Handle, t *testing.T) (Sandbox, error) {
 func verifySandbox(t *testing.T, s Sandbox, ifaceSuffixes []string) {
 	_, ok := s.(*networkNamespace)
 	if !ok {
-		t.Fatalf("The sandox interface returned is not of type networkNamespace")
+		t.Fatalf("The sandbox interface returned is not of type networkNamespace")
 	}
 
 	sbNs, err := netns.GetFromPath(s.Key())

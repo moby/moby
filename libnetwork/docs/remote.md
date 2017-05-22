@@ -7,7 +7,7 @@ For the semantics of driver methods, which correspond to the protocol below, ple
 
 ## LibNetwork integration with the Docker `plugins` package
 
-When LibNetwork initialises the `drivers.remote` package with the `Init()` function, it passes a `DriverCallback` as a parameter, which implements `RegisterDriver()`. The remote driver package uses this interface to register remote drivers with LibNetwork's `NetworkController`, by supplying it in a `plugins.Handle` callback.
+When LibNetwork initializes the `drivers.remote` package with the `Init()` function, it passes a `DriverCallback` as a parameter, which implements `RegisterDriver()`. The remote driver package uses this interface to register remote drivers with LibNetwork's `NetworkController`, by supplying it in a `plugins.Handle` callback.
 
 The callback is invoked when a driver is loaded with the `plugins.Get` API call. How that comes about is out of scope here (but it might be, for instance, when that driver is mentioned by the user).
 

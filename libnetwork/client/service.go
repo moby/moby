@@ -96,7 +96,7 @@ func lookupServiceID(cli *NetworkCli, nwName, svNameID string) (string, error) {
 
 func lookupContainerID(cli *NetworkCli, cnNameID string) (string, error) {
 	// Container is a Docker resource, ask docker about it.
-	// In case of connecton error, we assume we are running in dnet and return whatever was passed to us
+	// In case of connection error, we assume we are running in dnet and return whatever was passed to us
 	obj, _, err := readBody(cli.call("GET", fmt.Sprintf("/containers/%s/json", cnNameID), nil, nil))
 	if err != nil {
 		// We are probably running outside of docker

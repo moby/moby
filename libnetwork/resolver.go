@@ -35,7 +35,7 @@ type Resolver interface {
 }
 
 // DNSBackend represents a backend DNS resolver used for DNS name
-// resolution. All the queries to the resolver are forwared to the
+// resolution. All the queries to the resolver are forwarded to the
 // backend resolver.
 type DNSBackend interface {
 	// ResolveName resolves a service name to an IPv4 or IPv6 address by searching

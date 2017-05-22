@@ -289,17 +289,17 @@ function test_single_network_connectivity() {
     echo $(docker ps)
     dnet_cmd $(inst_id2port 1) network create -d bridge --internal internal
     dnet_cmd $(inst_id2port 1) container create container_1
-    # connects to internal network, confirm it can't conmunicate with outside world
+    # connects to internal network, confirm it can't communicate with outside world
     net_connect 1 container_1 internal
     run runc $(dnet_container_name 1 bridge) $(get_sbox_id 1 container_1) "ping -c 1 8.8.8.8"
     [[ "$output" == *"1 packets transmitted, 0 packets received, 100% packet loss"* ]]
     net_disconnect 1 container_1 internal
-    # connects to bridge network, confirm it can conmunicate with outside world
+    # connects to bridge network, confirm it can communicate with outside world
     net_connect 1 container_1 bridge
     runc $(dnet_container_name 1 bridge) $(get_sbox_id 1 container_1) "ping -c 1 8.8.8.8"
     net_disconnect 1 container_1 bridge
     dnet_cmd $(inst_id2port 1) container rm container_1
-    # test conmunications within internal network
+    # test communications within internal network
     test_single_network_connectivity internal 3
     dnet_cmd $(inst_id2port 1) network rm internal
 }

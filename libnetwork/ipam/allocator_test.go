@@ -1104,7 +1104,7 @@ func TestRelease(t *testing.T) {
 			{"192.168.1.254"},
 		}
 
-		// One by one, relase the address and request again. We should get the same IP
+		// One by one, release the address and request again. We should get the same IP
 		for i, inp := range toRelease {
 			ip0 := net.ParseIP(inp.address)
 			a.ReleaseAddress(pid, ip0)

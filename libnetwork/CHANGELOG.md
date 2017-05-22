@@ -30,7 +30,7 @@
 - Fix the handling for default gateway Endpoint join/leave.
 
 ## 0.7.0-rc.3 (2016-04-05)
-- Revert fix for default gateway endoint join/leave. Needs to be reworked.
+- Revert fix for default gateway endpoint join/leave. Needs to be reworked.
 - Persist the network internal mode for bridge networks
 
 ## 0.7.0-rc.2 (2016-04-05)

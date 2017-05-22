@@ -372,7 +372,7 @@ func (h *Handle) set(ordinal, start, end uint64, any bool, release bool, serial 
 			h.Lock()
 		}
 
-		// Previous atomic push was succesfull. Save private copy to local copy
+		// Previous atomic push was successful. Save private copy to local copy
 		h.unselected = nh.unselected
 		h.head = nh.head
 		h.dbExists = nh.dbExists
