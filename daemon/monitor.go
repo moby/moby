@@ -46,7 +46,8 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 		c.StreamConfig.Wait()
 		c.Reset(false)
 
-		restart, wait, err := c.RestartManager().ShouldRestart(e.ExitCode, c.HasBeenManuallyStopped, time.Since(c.StartedAt))
+		// If daemon is being shutdown, don't let the container restart
+		restart, wait, err := c.RestartManager().ShouldRestart(e.ExitCode, daemon.IsShuttingDown() || c.HasBeenManuallyStopped, time.Since(c.StartedAt))
 		if err == nil && restart {
 			c.RestartCount++
 			c.SetRestarting(platformConstructExitStatus(e))
