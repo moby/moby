@@ -55,6 +55,7 @@
 				"accept",
 				"accept4",
 				"access",
+				"adjtimex",
 				"alarm",
 				"alarm",
 				"bind",
@@ -719,7 +720,6 @@
 			"names": [
 				"settimeofday",
 				"stime",
-				"adjtimex",
 				"clock_settime"
 			],
 			"action": "SCMP_ACT_ALLOW",
