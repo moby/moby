@@ -597,9 +597,9 @@ func (c *containerConfig) networkCreateRequest(name string) (clustertypes.Networ
 		Scope:          netconst.SwarmScope,
 	}
 
-	if na.Network.Spec.ConfigFrom != "" {
+	if na.Network.Spec.GetNetwork() != "" {
 		options.ConfigFrom = &network.ConfigReference{
-			Network: na.Network.Spec.ConfigFrom,
+			Network: na.Network.Spec.GetNetwork(),
 		}
 	}
 
