@@ -144,7 +144,7 @@ func (i *Handle) GetDestinations(s *Service) ([]*Destination, error) {
 	return i.doGetDestinationsCmd(s, nil)
 }
 
-//GetService gets details of a specific IPVS services, useful in updating statisics etc.,
+// GetService gets details of a specific IPVS services, useful in updating statisics etc.,
 func (i *Handle) GetService(s *Service) (*Service, error) {
 
 	res, err := i.doGetServicesCmd(s)
@@ -152,7 +152,7 @@ func (i *Handle) GetService(s *Service) (*Service, error) {
 		return nil, err
 	}
 
-	//We are looking for exactly one service otherwise error out
+	// We are looking for exactly one service otherwise error out
 	if len(res) != 1 {
 		return nil, fmt.Errorf("Expected only one service obtained=%d", len(res))
 	}

@@ -19,8 +19,7 @@ import (
 	"github.com/vishvananda/netns"
 )
 
-//For Quick Reference IPVS related netlink message is described at the end of this file.
-
+// For Quick Reference IPVS related netlink message is described at the end of this file.
 var (
 	native     = nl.NativeEndian()
 	ipvsFamily int
@@ -74,7 +73,6 @@ func setup() {
 
 func fillService(s *Service) nl.NetlinkRequestData {
 	cmdAttr := nl.NewRtAttr(ipvsCmdAttrService, nil)
-
 	nl.NewRtAttrChild(cmdAttr, ipvsSvcAttrAddressFamily, nl.Uint16Attr(s.AddressFamily))
 	if s.FWMark != 0 {
 		nl.NewRtAttrChild(cmdAttr, ipvsSvcAttrFWMark, nl.Uint32Attr(s.FWMark))
@@ -267,13 +265,13 @@ func parseIP(ip []byte, family uint16) (net.IP, error) {
 	case syscall.AF_INET6:
 		resIP = (net.IP)(ip[:16])
 	default:
-		return resIP, fmt.Errorf("parseIP Error ip=%v", ip)
+		return nil, fmt.Errorf("parseIP Error ip=%v", ip)
 
 	}
 	return resIP, nil
 }
 
-//parseStats
+// parseStats
 func assembleStats(msg []byte) (SvcStats, error) {
 
 	var s SvcStats
@@ -311,7 +309,7 @@ func assembleStats(msg []byte) (SvcStats, error) {
 	return s, nil
 }
 
-//assembleService assembles a services back from a hain of netlink attributes
+// assembleService assembles a services back from a hain of netlink attributes
 func assembleService(attrs []syscall.NetlinkRouteAttr) (*Service, error) {
 
 	var s Service
@@ -356,7 +354,7 @@ func assembleService(attrs []syscall.NetlinkRouteAttr) (*Service, error) {
 	return &s, nil
 }
 
-//parseService given a ipvs netlink response this function will respond with a valid service entry, an error otherwise
+// parseService given a ipvs netlink response this function will respond with a valid service entry, an error otherwise
 func (i *Handle) parseService(msg []byte) (*Service, error) {
 
 	var s *Service
@@ -368,7 +366,7 @@ func (i *Handle) parseService(msg []byte) (*Service, error) {
 		return nil, err
 	}
 	if len(NetLinkAttrs) == 0 {
-		return nil, fmt.Errorf("Error No valid net link message found while Parsing service record")
+		return nil, fmt.Errorf("error no valid netlink message found while parsing service record")
 	}
 
 	//Now Parse and get IPVS related attributes messages packed in this message.
@@ -386,7 +384,7 @@ func (i *Handle) parseService(msg []byte) (*Service, error) {
 	return s, nil
 }
 
-//doGetServicesCmd a wrapper which could be used commonly for both GetServices() and GetService(*Service)
+// doGetServicesCmd a wrapper which could be used commonly for both GetServices() and GetService(*Service)
 func (i *Handle) doGetServicesCmd(svc *Service) ([]*Service, error) {
 	var res []*Service
 
@@ -438,7 +436,7 @@ func assembleDestination(attrs []syscall.NetlinkRouteAttr) (*Destination, error)
 	return &d, nil
 }
 
-//parseDestination given a ipvs netlink response this function will respond with a valid destination entry, an error otherwise
+// parseDestination given a ipvs netlink response this function will respond with a valid destination entry, an error otherwise
 func (i *Handle) parseDestination(msg []byte) (*Destination, error) {
 	var dst *Destination
 
@@ -449,7 +447,7 @@ func (i *Handle) parseDestination(msg []byte) (*Destination, error) {
 		return nil, err
 	}
 	if len(NetLinkAttrs) == 0 {
-		return nil, fmt.Errorf("Error No valid net link message found while Parsing service record")
+		return nil, fmt.Errorf("error no valid netlink message found while parsing destination record")
 	}
 
 	//Now Parse and get IPVS related attributes messages packed in this message.
@@ -487,7 +485,7 @@ func (i *Handle) doGetDestinationsCmd(s *Service, d *Destination) ([]*Destinatio
 	return res, nil
 }
 
-//IPVS related netlink message format explained
+// IPVS related netlink message format explained
 
 /* EACH NETLINK MSG is of the below format, this is what we will receive from execute() api.
    If we have multiple netlink objects to process like GetServices() etc., execute() will
