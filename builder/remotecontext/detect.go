@@ -41,6 +41,7 @@ func Detect(config backend.BuildConfig) (remote builder.Source, dockerfile *pars
 }
 
 func newArchiveRemote(rc io.ReadCloser, dockerfilePath string) (builder.Source, *parser.Result, error) {
+	defer rc.Close()
 	c, err := MakeTarSumContext(rc)
 	if err != nil {
 		return nil, nil, err
