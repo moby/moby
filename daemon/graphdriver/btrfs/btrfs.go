@@ -191,9 +191,7 @@ func subvolCreate(path, name string) error {
 		args.name[i] = C.char(c)
 	}
 
-	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_SUBVOL_CREATE,
-		uintptr(unsafe.Pointer(&args)))
-	if errno != 0 {
+	if _, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_SUBVOL_CREATE, uintptr(unsafe.Pointer(&args))); errno != 0 {
 		return fmt.Errorf("Failed to create btrfs subvolume: %v", errno.Error())
 	}
 	return nil
@@ -219,9 +217,7 @@ func subvolSnapshot(src, dest, name string) error {
 	C.set_name_btrfs_ioctl_vol_args_v2(&args, cs)
 	C.free(unsafe.Pointer(cs))
 
-	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(destDir), C.BTRFS_IOC_SNAP_CREATE_V2,
-		uintptr(unsafe.Pointer(&args)))
-	if errno != 0 {
+	if _, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(destDir), C.BTRFS_IOC_SNAP_CREATE_V2, uintptr(unsafe.Pointer(&args))); errno != 0 {
 		return fmt.Errorf("Failed to create btrfs snapshot: %v", errno.Error())
 	}
 	return nil
@@ -281,9 +277,7 @@ func subvolDelete(dirpath, name string) error {
 	for i, c := range []byte(name) {
 		args.name[i] = C.char(c)
 	}
-	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_SNAP_DESTROY,
-		uintptr(unsafe.Pointer(&args)))
-	if errno != 0 {
+	if _, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_SNAP_DESTROY, uintptr(unsafe.Pointer(&args))); errno != 0 {
 		return fmt.Errorf("Failed to destroy btrfs snapshot %s for %s: %v", dirpath, name, errno.Error())
 	}
 	return nil
@@ -307,9 +301,7 @@ func (d *Driver) subvolEnableQuota() error {
 
 	var args C.struct_btrfs_ioctl_quota_ctl_args
 	args.cmd = C.BTRFS_QUOTA_CTL_ENABLE
-	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QUOTA_CTL,
-		uintptr(unsafe.Pointer(&args)))
-	if errno != 0 {
+	if _, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QUOTA_CTL, uintptr(unsafe.Pointer(&args))); errno != 0 {
 		return fmt.Errorf("Failed to enable btrfs quota for %s: %v", dir, errno.Error())
 	}
 
@@ -336,9 +328,7 @@ func (d *Driver) subvolDisableQuota() error {
 
 	var args C.struct_btrfs_ioctl_quota_ctl_args
 	args.cmd = C.BTRFS_QUOTA_CTL_DISABLE
-	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QUOTA_CTL,
-		uintptr(unsafe.Pointer(&args)))
-	if errno != 0 {
+	if _, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QUOTA_CTL, uintptr(unsafe.Pointer(&args))); errno != 0 {
 		return fmt.Errorf("Failed to disable btrfs quota for %s: %v", dir, errno.Error())
 	}
 
@@ -364,9 +354,7 @@ func (d *Driver) subvolRescanQuota() error {
 	defer closeDir(dir)
 
 	var args C.struct_btrfs_ioctl_quota_rescan_args
-	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QUOTA_RESCAN_WAIT,
-		uintptr(unsafe.Pointer(&args)))
-	if errno != 0 {
+	if _, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QUOTA_RESCAN_WAIT, uintptr(unsafe.Pointer(&args))); errno != 0 {
 		return fmt.Errorf("Failed to rescan btrfs quota for %s: %v", dir, errno.Error())
 	}
 
@@ -383,9 +371,7 @@ func subvolLimitQgroup(path string, size uint64) error {
 	var args C.struct_btrfs_ioctl_qgroup_limit_args
 	args.lim.max_referenced = C.__u64(size)
 	args.lim.flags = C.BTRFS_QGROUP_LIMIT_MAX_RFER
-	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QGROUP_LIMIT,
-		uintptr(unsafe.Pointer(&args)))
-	if errno != 0 {
+	if _, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QGROUP_LIMIT, uintptr(unsafe.Pointer(&args))); errno != 0 {
 		return fmt.Errorf("Failed to limit qgroup for %s: %v", dir, errno.Error())
 	}
 
@@ -402,9 +388,7 @@ func subvolLookupQgroup(path string) (uint64, error) {
 	var args C.struct_btrfs_ioctl_ino_lookup_args
 	args.objectid = C.BTRFS_FIRST_FREE_OBJECTID
 
-	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_INO_LOOKUP,
-		uintptr(unsafe.Pointer(&args)))
-	if errno != 0 {
+	if _, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_INO_LOOKUP, uintptr(unsafe.Pointer(&args))); errno != 0 {
 		return 0, fmt.Errorf("Failed to lookup qgroup for %s: %v", dir, errno.Error())
 	}
 	if args.treeid == 0 {
