@@ -7,10 +7,10 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"syscall"
 
 	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/pkg/system"
+	"golang.org/x/sys/unix"
 )
 
 const defaultDaemonConfigFile = ""
@@ -30,8 +30,8 @@ func currentUserIsOwner(f string) bool {
 // caused by custom umask
 func setDefaultUmask() error {
 	desiredUmask := 0022
-	syscall.Umask(desiredUmask)
-	if umask := syscall.Umask(desiredUmask); umask != desiredUmask {
+	unix.Umask(desiredUmask)
+	if umask := unix.Umask(desiredUmask); umask != desiredUmask {
 		return fmt.Errorf("failed to set umask: expected %#o, got %#o", desiredUmask, umask)
 	}
 

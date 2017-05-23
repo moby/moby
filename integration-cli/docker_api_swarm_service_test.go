@@ -7,7 +7,6 @@ import (
 	"path"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/docker/docker/api/types/swarm"
@@ -17,6 +16,7 @@ import (
 	"github.com/docker/docker/integration-cli/fixtures/plugin"
 	"github.com/go-check/check"
 	"golang.org/x/net/context"
+	"golang.org/x/sys/unix"
 )
 
 func setPortConfig(portConfig []swarm.PortConfig) daemon.ServiceConstructor {
@@ -584,7 +584,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesStateReporting(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	pid, err := strconv.Atoi(strings.TrimSpace(pidStr))
 	c.Assert(err, checker.IsNil)
-	c.Assert(syscall.Kill(pid, syscall.SIGKILL), checker.IsNil)
+	c.Assert(unix.Kill(pid, unix.SIGKILL), checker.IsNil)
 
 	time.Sleep(time.Second) // give some time to handle the signal
 

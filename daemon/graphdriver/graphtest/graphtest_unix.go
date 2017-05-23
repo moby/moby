@@ -9,7 +9,6 @@ import (
 	"os"
 	"path"
 	"reflect"
-	"syscall"
 	"testing"
 	"unsafe"
 
@@ -18,6 +17,7 @@ import (
 	"github.com/docker/go-units"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sys/unix"
 )
 
 var (
@@ -329,8 +329,8 @@ func DriverTestSetQuota(t *testing.T, drivername string) {
 
 	quota := uint64(50 * units.MiB)
 	err = writeRandomFile(path.Join(mountPath, "file"), quota*2)
-	if pathError, ok := err.(*os.PathError); ok && pathError.Err != syscall.EDQUOT {
-		t.Fatalf("expect write() to fail with %v, got %v", syscall.EDQUOT, err)
+	if pathError, ok := err.(*os.PathError); ok && pathError.Err != unix.EDQUOT {
+		t.Fatalf("expect write() to fail with %v, got %v", unix.EDQUOT, err)
 	}
 
 }

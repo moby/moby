@@ -1,14 +1,14 @@
 package system
 
 import (
-	"syscall"
 	"unsafe"
 
 	"github.com/Sirupsen/logrus"
+	"golang.org/x/sys/windows"
 )
 
 var (
-	ntuserApiset       = syscall.NewLazyDLL("ext-ms-win-ntuser-window-l1-1-0")
+	ntuserApiset       = windows.NewLazyDLL("ext-ms-win-ntuser-window-l1-1-0")
 	procGetVersionExW  = modkernel32.NewProc("GetVersionExW")
 	procGetProductInfo = modkernel32.NewProc("GetProductInfo")
 )
@@ -42,7 +42,7 @@ type osVersionInfoEx struct {
 func GetOSVersion() OSVersion {
 	var err error
 	osv := OSVersion{}
-	osv.Version, err = syscall.GetVersion()
+	osv.Version, err = windows.GetVersion()
 	if err != nil {
 		// GetVersion never fails.
 		panic(err)
@@ -93,20 +93,20 @@ func Unmount(dest string) error {
 func CommandLineToArgv(commandLine string) ([]string, error) {
 	var argc int32
 
-	argsPtr, err := syscall.UTF16PtrFromString(commandLine)
+	argsPtr, err := windows.UTF16PtrFromString(commandLine)
 	if err != nil {
 		return nil, err
 	}
 
-	argv, err := syscall.CommandLineToArgv(argsPtr, &argc)
+	argv, err := windows.CommandLineToArgv(argsPtr, &argc)
 	if err != nil {
 		return nil, err
 	}
-	defer syscall.LocalFree(syscall.Handle(uintptr(unsafe.Pointer(argv))))
+	defer windows.LocalFree(windows.Handle(uintptr(unsafe.Pointer(argv))))
 
 	newArgs := make([]string, argc)
 	for i, v := range (*argv)[:argc] {
-		newArgs[i] = string(syscall.UTF16ToString((*v)[:]))
+		newArgs[i] = string(windows.UTF16ToString((*v)[:]))
 	}
 
 	return newArgs, nil

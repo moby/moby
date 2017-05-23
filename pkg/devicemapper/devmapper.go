@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"os"
 	"runtime"
-	"syscall"
 	"unsafe"
 
 	"github.com/Sirupsen/logrus"
+	"golang.org/x/sys/unix"
 )
 
 // DevmapperLogger defines methods for logging with devicemapper.
@@ -449,7 +449,7 @@ func BlockDeviceDiscard(path string) error {
 
 	// Without this sometimes the remove of the device that happens after
 	// discard fails with EBUSY.
-	syscall.Sync()
+	unix.Sync()
 
 	return nil
 }

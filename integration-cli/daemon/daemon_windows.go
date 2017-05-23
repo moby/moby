@@ -10,21 +10,21 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-func openEvent(desiredAccess uint32, inheritHandle bool, name string, proc *windows.LazyProc) (handle syscall.Handle, err error) {
-	namep, _ := syscall.UTF16PtrFromString(name)
+func openEvent(desiredAccess uint32, inheritHandle bool, name string, proc *windows.LazyProc) (handle windows.Handle, err error) {
+	namep, _ := windows.UTF16PtrFromString(name)
 	var _p2 uint32
 	if inheritHandle {
 		_p2 = 1
 	}
 	r0, _, e1 := proc.Call(uintptr(desiredAccess), uintptr(_p2), uintptr(unsafe.Pointer(namep)))
-	handle = syscall.Handle(r0)
-	if handle == syscall.InvalidHandle {
+	handle = windows.Handle(r0)
+	if handle == windows.InvalidHandle {
 		err = e1
 	}
 	return
 }
 
-func pulseEvent(handle syscall.Handle, proc *windows.LazyProc) (err error) {
+func pulseEvent(handle windows.Handle, proc *windows.LazyProc) (err error) {
 	r0, _, _ := proc.Call(uintptr(handle))
 	if r0 != 0 {
 		err = syscall.Errno(r0)

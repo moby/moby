@@ -33,12 +33,9 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/vbatts/tar-split/tar/storage"
-
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
@@ -47,9 +44,10 @@ import (
 	"github.com/docker/docker/pkg/locker"
 	mountpk "github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/system"
-
 	rsystem "github.com/opencontainers/runc/libcontainer/system"
 	"github.com/opencontainers/selinux/go-selinux/label"
+	"github.com/vbatts/tar-split/tar/storage"
+	"golang.org/x/sys/unix"
 )
 
 var (
@@ -295,7 +293,7 @@ func (a *Driver) Remove(id string) error {
 		}
 
 		if err := a.unmount(mountpoint); err != nil {
-			if err != syscall.EBUSY {
+			if err != unix.EBUSY {
 				return fmt.Errorf("aufs: unmount error: %s: %v", mountpoint, err)
 			}
 			if retries >= 5 {
@@ -315,7 +313,7 @@ func (a *Driver) Remove(id string) error {
 	// the whole tree.
 	tmpMntPath := path.Join(a.mntPath(), fmt.Sprintf("%s-removing", id))
 	if err := os.Rename(mountpoint, tmpMntPath); err != nil && !os.IsNotExist(err) {
-		if err == syscall.EBUSY {
+		if err == unix.EBUSY {
 			logrus.Warn("os.Rename err due to EBUSY")
 		}
 		return err
@@ -575,7 +573,7 @@ func (a *Driver) aufsMount(ro []string, rw, target, mountLabel string) (err erro
 	if useDirperm() {
 		offset += len(",dirperm1")
 	}
-	b := make([]byte, syscall.Getpagesize()-len(mountLabel)-offset) // room for xino & mountLabel
+	b := make([]byte, unix.Getpagesize()-len(mountLabel)-offset) // room for xino & mountLabel
 	bp := copy(b, fmt.Sprintf("br:%s=rw", rw))
 
 	index := 0
@@ -599,7 +597,7 @@ func (a *Driver) aufsMount(ro []string, rw, target, mountLabel string) (err erro
 	for ; index < len(ro); index++ {
 		layer := fmt.Sprintf(":%s=ro+wh", ro[index])
 		data := label.FormatMountLabel(fmt.Sprintf("append%s", layer), mountLabel)
-		if err = mount("none", target, "aufs", syscall.MS_REMOUNT, data); err != nil {
+		if err = mount("none", target, "aufs", unix.MS_REMOUNT, data); err != nil {
 			return
 		}
 	}

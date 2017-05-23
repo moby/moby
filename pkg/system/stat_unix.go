@@ -2,7 +2,9 @@
 
 package system
 
-import "syscall"
+import (
+	"syscall"
+)
 
 // StatT type contains status of a file. It contains metadata
 // like permission, owner, group, size, etc about a file.

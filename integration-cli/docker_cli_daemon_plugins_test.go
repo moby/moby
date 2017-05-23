@@ -6,12 +6,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/pkg/mount"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
+	"golang.org/x/sys/unix"
 )
 
 // TestDaemonRestartWithPluginEnabled tests state restore for an enabled plugin
@@ -145,7 +145,7 @@ func (s *DockerDaemonSuite) TestDaemonShutdownWithPlugins(c *check.C) {
 	}
 
 	for {
-		if err := syscall.Kill(s.d.Pid(), 0); err == syscall.ESRCH {
+		if err := unix.Kill(s.d.Pid(), 0); err == unix.ESRCH {
 			break
 		}
 	}

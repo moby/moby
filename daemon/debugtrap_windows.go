@@ -3,13 +3,13 @@ package daemon
 import (
 	"fmt"
 	"os"
-	"syscall"
 	"unsafe"
 
 	winio "github.com/Microsoft/go-winio"
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/system"
+	"golang.org/x/sys/windows"
 )
 
 func (d *Daemon) setupDumpStackTrap(root string) {
@@ -22,7 +22,7 @@ func (d *Daemon) setupDumpStackTrap(root string) {
 		logrus.Errorf("failed to get security descriptor for debug stackdump event %s: %s", ev, err.Error())
 		return
 	}
-	var sa syscall.SecurityAttributes
+	var sa windows.SecurityAttributes
 	sa.Length = uint32(unsafe.Sizeof(sa))
 	sa.InheritHandle = 1
 	sa.SecurityDescriptor = uintptr(unsafe.Pointer(&sd[0]))
@@ -34,7 +34,7 @@ func (d *Daemon) setupDumpStackTrap(root string) {
 	go func() {
 		logrus.Debugf("Stackdump - waiting signal at %s", ev)
 		for {
-			syscall.WaitForSingleObject(h, syscall.INFINITE)
+			windows.WaitForSingleObject(h, windows.INFINITE)
 			path, err := signal.DumpStacks(root)
 			if err != nil {
 				logrus.WithError(err).Error("failed to write goroutines dump")

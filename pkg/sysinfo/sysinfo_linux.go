@@ -6,10 +6,10 @@ import (
 	"os"
 	"path"
 	"strings"
-	"syscall"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -60,9 +60,9 @@ func New(quiet bool) *SysInfo {
 	}
 
 	// Check if Seccomp is supported, via CONFIG_SECCOMP.
-	if _, _, err := syscall.RawSyscall(syscall.SYS_PRCTL, syscall.PR_GET_SECCOMP, 0, 0); err != syscall.EINVAL {
+	if _, _, err := unix.RawSyscall(unix.SYS_PRCTL, unix.PR_GET_SECCOMP, 0, 0); err != unix.EINVAL {
 		// Make sure the kernel has CONFIG_SECCOMP_FILTER.
-		if _, _, err := syscall.RawSyscall(syscall.SYS_PRCTL, syscall.PR_SET_SECCOMP, SeccompModeFilter, 0); err != syscall.EINVAL {
+		if _, _, err := unix.RawSyscall(unix.SYS_PRCTL, unix.PR_SET_SECCOMP, SeccompModeFilter, 0); err != unix.EINVAL {
 			sysInfo.Seccomp = true
 		}
 	}

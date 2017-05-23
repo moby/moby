@@ -15,7 +15,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 
 	"github.com/Sirupsen/logrus"
 
@@ -35,6 +34,7 @@ import (
 	units "github.com/docker/go-units"
 
 	"github.com/opencontainers/selinux/go-selinux/label"
+	"golang.org/x/sys/unix"
 )
 
 var (
@@ -539,7 +539,7 @@ func (d *Driver) Get(id string, mountLabel string) (s string, err error) {
 	defer func() {
 		if err != nil {
 			if c := d.ctr.Decrement(mergedDir); c <= 0 {
-				syscall.Unmount(mergedDir, 0)
+				unix.Unmount(mergedDir, 0)
 			}
 		}
 	}()
@@ -552,10 +552,10 @@ func (d *Driver) Get(id string, mountLabel string) (s string, err error) {
 	}
 	opts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", strings.Join(absLowers, ":"), path.Join(dir, "diff"), path.Join(dir, "work"))
 	mountData := label.FormatMountLabel(opts, mountLabel)
-	mount := syscall.Mount
+	mount := unix.Mount
 	mountTarget := mergedDir
 
-	pageSize := syscall.Getpagesize()
+	pageSize := unix.Getpagesize()
 
 	// Go can return a larger page size than supported by the system
 	// as of go 1.7. This will be fixed in 1.8 and this block can be
@@ -619,7 +619,7 @@ func (d *Driver) Put(id string) error {
 	if count := d.ctr.Decrement(mountpoint); count > 0 {
 		return nil
 	}
-	if err := syscall.Unmount(mountpoint, syscall.MNT_DETACH); err != nil {
+	if err := unix.Unmount(mountpoint, unix.MNT_DETACH); err != nil {
 		logrus.Debugf("Failed to unmount %s overlay: %s - %v", id, mountpoint, err)
 	}
 	return nil

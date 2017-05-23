@@ -124,7 +124,7 @@ func getFileSystemType(drive string) (fsType string, hr error) {
 		modkernel32              = windows.NewLazySystemDLL("kernel32.dll")
 		procGetVolumeInformation = modkernel32.NewProc("GetVolumeInformationW")
 		buf                      = make([]uint16, 255)
-		size                     = syscall.MAX_PATH + 1
+		size                     = windows.MAX_PATH + 1
 	)
 	if len(drive) != 1 {
 		hr = errors.New("getFileSystemType must be called with a drive letter")
@@ -132,11 +132,11 @@ func getFileSystemType(drive string) (fsType string, hr error) {
 	}
 	drive += `:\`
 	n := uintptr(unsafe.Pointer(nil))
-	r0, _, _ := syscall.Syscall9(procGetVolumeInformation.Addr(), 8, uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr(drive))), n, n, n, n, n, uintptr(unsafe.Pointer(&buf[0])), uintptr(size), 0)
+	r0, _, _ := syscall.Syscall9(procGetVolumeInformation.Addr(), 8, uintptr(unsafe.Pointer(windows.StringToUTF16Ptr(drive))), n, n, n, n, n, uintptr(unsafe.Pointer(&buf[0])), uintptr(size), 0)
 	if int32(r0) < 0 {
 		hr = syscall.Errno(win32FromHresult(r0))
 	}
-	fsType = syscall.UTF16ToString(buf)
+	fsType = windows.UTF16ToString(buf)
 	return
 }
 
@@ -904,12 +904,12 @@ func (fg *fileGetCloserWithBackupPrivileges) Get(filename string) (io.ReadCloser
 	// standby list - Microsoft VSO Bug Tracker #9900466
 	err := winio.RunWithPrivilege(winio.SeBackupPrivilege, func() error {
 		path := longpath.AddPrefix(filepath.Join(fg.path, filename))
-		p, err := syscall.UTF16FromString(path)
+		p, err := windows.UTF16FromString(path)
 		if err != nil {
 			return err
 		}
 		const fileFlagSequentialScan = 0x08000000 // FILE_FLAG_SEQUENTIAL_SCAN
-		h, err := syscall.CreateFile(&p[0], syscall.GENERIC_READ, syscall.FILE_SHARE_READ, nil, syscall.OPEN_EXISTING, syscall.FILE_FLAG_BACKUP_SEMANTICS|fileFlagSequentialScan, 0)
+		h, err := windows.CreateFile(&p[0], windows.GENERIC_READ, windows.FILE_SHARE_READ, nil, windows.OPEN_EXISTING, windows.FILE_FLAG_BACKUP_SEMANTICS|fileFlagSequentialScan, 0)
 		if err != nil {
 			return &os.PathError{Op: "open", Path: path, Err: err}
 		}

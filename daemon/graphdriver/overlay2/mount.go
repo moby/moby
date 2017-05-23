@@ -9,9 +9,9 @@ import (
 	"fmt"
 	"os"
 	"runtime"
-	"syscall"
 
 	"github.com/docker/docker/pkg/reexec"
+	"golang.org/x/sys/unix"
 )
 
 func init() {
@@ -80,7 +80,7 @@ func mountFromMain() {
 		fatal(err)
 	}
 
-	if err := syscall.Mount(options.Device, options.Target, options.Type, uintptr(options.Flag), options.Label); err != nil {
+	if err := unix.Mount(options.Device, options.Target, options.Type, uintptr(options.Flag), options.Label); err != nil {
 		fatal(err)
 	}
 

@@ -1,33 +1,34 @@
 package system
 
 import (
-	"syscall"
 	"unsafe"
+
+	"golang.org/x/sys/unix"
 )
 
 // Lgetxattr retrieves the value of the extended attribute identified by attr
 // and associated with the given path in the file system.
 // It will returns a nil slice and nil error if the xattr is not set.
 func Lgetxattr(path string, attr string) ([]byte, error) {
-	pathBytes, err := syscall.BytePtrFromString(path)
+	pathBytes, err := unix.BytePtrFromString(path)
 	if err != nil {
 		return nil, err
 	}
-	attrBytes, err := syscall.BytePtrFromString(attr)
+	attrBytes, err := unix.BytePtrFromString(attr)
 	if err != nil {
 		return nil, err
 	}
 
 	dest := make([]byte, 128)
 	destBytes := unsafe.Pointer(&dest[0])
-	sz, _, errno := syscall.Syscall6(syscall.SYS_LGETXATTR, uintptr(unsafe.Pointer(pathBytes)), uintptr(unsafe.Pointer(attrBytes)), uintptr(destBytes), uintptr(len(dest)), 0, 0)
-	if errno == syscall.ENODATA {
+	sz, _, errno := unix.Syscall6(unix.SYS_LGETXATTR, uintptr(unsafe.Pointer(pathBytes)), uintptr(unsafe.Pointer(attrBytes)), uintptr(destBytes), uintptr(len(dest)), 0, 0)
+	if errno == unix.ENODATA {
 		return nil, nil
 	}
-	if errno == syscall.ERANGE {
+	if errno == unix.ERANGE {
 		dest = make([]byte, sz)
 		destBytes := unsafe.Pointer(&dest[0])
-		sz, _, errno = syscall.Syscall6(syscall.SYS_LGETXATTR, uintptr(unsafe.Pointer(pathBytes)), uintptr(unsafe.Pointer(attrBytes)), uintptr(destBytes), uintptr(len(dest)), 0, 0)
+		sz, _, errno = unix.Syscall6(unix.SYS_LGETXATTR, uintptr(unsafe.Pointer(pathBytes)), uintptr(unsafe.Pointer(attrBytes)), uintptr(destBytes), uintptr(len(dest)), 0, 0)
 	}
 	if errno != 0 {
 		return nil, errno
@@ -41,11 +42,11 @@ var _zero uintptr
 // Lsetxattr sets the value of the extended attribute identified by attr
 // and associated with the given path in the file system.
 func Lsetxattr(path string, attr string, data []byte, flags int) error {
-	pathBytes, err := syscall.BytePtrFromString(path)
+	pathBytes, err := unix.BytePtrFromString(path)
 	if err != nil {
 		return err
 	}
-	attrBytes, err := syscall.BytePtrFromString(attr)
+	attrBytes, err := unix.BytePtrFromString(attr)
 	if err != nil {
 		return err
 	}
@@ -55,7 +56,7 @@ func Lsetxattr(path string, attr string, data []byte, flags int) error {
 	} else {
 		dataBytes = unsafe.Pointer(&_zero)
 	}
-	_, _, errno := syscall.Syscall6(syscall.SYS_LSETXATTR, uintptr(unsafe.Pointer(pathBytes)), uintptr(unsafe.Pointer(attrBytes)), uintptr(dataBytes), uintptr(len(data)), uintptr(flags), 0)
+	_, _, errno := unix.Syscall6(unix.SYS_LSETXATTR, uintptr(unsafe.Pointer(pathBytes)), uintptr(unsafe.Pointer(attrBytes)), uintptr(dataBytes), uintptr(len(data)), uintptr(flags), 0)
 	if errno != 0 {
 		return errno
 	}

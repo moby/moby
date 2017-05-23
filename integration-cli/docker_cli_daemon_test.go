@@ -19,7 +19,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"crypto/tls"
@@ -42,6 +41,7 @@ import (
 	"github.com/docker/libtrust"
 	"github.com/go-check/check"
 	"github.com/kr/pty"
+	"golang.org/x/sys/unix"
 )
 
 // TestLegacyDaemonCommand test starting docker daemon using "deprecated" docker daemon
@@ -2309,8 +2309,8 @@ func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFile(c *check.C) {
 	fmt.Fprintf(configFile, "%s", daemonConfig)
 	configFile.Close()
 
-	c.Assert(s.d.Signal(syscall.SIGHUP), checker.IsNil)
-	// syscall.Kill(s.d.cmd.Process.Pid, syscall.SIGHUP)
+	c.Assert(s.d.Signal(unix.SIGHUP), checker.IsNil)
+	// unix.Kill(s.d.cmd.Process.Pid, unix.SIGHUP)
 
 	time.Sleep(3 * time.Second)
 
@@ -2350,8 +2350,8 @@ func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFileReload(c *chec
 	fmt.Fprintf(configFile, "%s", daemonConfig)
 	configFile.Close()
 
-	c.Assert(s.d.Signal(syscall.SIGHUP), checker.IsNil)
-	// syscall.Kill(s.d.cmd.Process.Pid, syscall.SIGHUP)
+	c.Assert(s.d.Signal(unix.SIGHUP), checker.IsNil)
+	// unix.Kill(s.d.cmd.Process.Pid, unix.SIGHUP)
 
 	time.Sleep(3 * time.Second)
 
@@ -2368,7 +2368,7 @@ func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFileReload(c *chec
 	fmt.Fprintf(configFile, "%s", daemonConfig)
 	configFile.Close()
 
-	c.Assert(s.d.Signal(syscall.SIGHUP), checker.IsNil)
+	c.Assert(s.d.Signal(unix.SIGHUP), checker.IsNil)
 
 	time.Sleep(3 * time.Second)
 
@@ -2455,7 +2455,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *check.C) {
 }
 `
 	ioutil.WriteFile(configName, []byte(config), 0644)
-	c.Assert(s.d.Signal(syscall.SIGHUP), checker.IsNil)
+	c.Assert(s.d.Signal(unix.SIGHUP), checker.IsNil)
 	// Give daemon time to reload config
 	<-time.After(1 * time.Second)
 
@@ -2484,7 +2484,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *check.C) {
 }
 `
 	ioutil.WriteFile(configName, []byte(config), 0644)
-	c.Assert(s.d.Signal(syscall.SIGHUP), checker.IsNil)
+	c.Assert(s.d.Signal(unix.SIGHUP), checker.IsNil)
 	// Give daemon time to reload config
 	<-time.After(1 * time.Second)
 
@@ -2510,7 +2510,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *check.C) {
 }
 `
 	ioutil.WriteFile(configName, []byte(config), 0644)
-	c.Assert(s.d.Signal(syscall.SIGHUP), checker.IsNil)
+	c.Assert(s.d.Signal(unix.SIGHUP), checker.IsNil)
 	// Give daemon time to reload config
 	<-time.After(1 * time.Second)
 
@@ -2762,7 +2762,7 @@ func (s *DockerDaemonSuite) TestDaemonShutdownTimeout(c *check.C) {
 	_, err := s.d.Cmd("run", "-d", "busybox", "top")
 	c.Assert(err, check.IsNil)
 
-	c.Assert(s.d.Signal(syscall.SIGINT), checker.IsNil)
+	c.Assert(s.d.Signal(unix.SIGINT), checker.IsNil)
 
 	select {
 	case <-s.d.Wait:
@@ -2796,7 +2796,7 @@ func (s *DockerDaemonSuite) TestDaemonShutdownTimeoutWithConfigFile(c *check.C) 
 	fmt.Fprintf(configFile, "%s", daemonConfig)
 	configFile.Close()
 
-	c.Assert(s.d.Signal(syscall.SIGHUP), checker.IsNil)
+	c.Assert(s.d.Signal(unix.SIGHUP), checker.IsNil)
 
 	select {
 	case <-s.d.Wait:
@@ -2897,7 +2897,7 @@ func (s *DockerDaemonSuite) TestRestartPolicyWithLiveRestore(c *check.C) {
 	pidint, err := strconv.Atoi(strings.TrimSpace(pid))
 	c.Assert(err, check.IsNil)
 	c.Assert(pidint, checker.GreaterThan, 0)
-	c.Assert(syscall.Kill(pidint, syscall.SIGKILL), check.IsNil)
+	c.Assert(unix.Kill(pidint, unix.SIGKILL), check.IsNil)
 
 	ticker := time.NewTicker(50 * time.Millisecond)
 	timeout := time.After(10 * time.Second)

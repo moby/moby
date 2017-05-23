@@ -3,13 +3,13 @@
 package platform
 
 import (
-	"syscall"
+	"golang.org/x/sys/unix"
 )
 
 // runtimeArchitecture gets the name of the current architecture (x86, x86_64, …)
 func runtimeArchitecture() (string, error) {
-	utsname := &syscall.Utsname{}
-	if err := syscall.Uname(utsname); err != nil {
+	utsname := &unix.Utsname{}
+	if err := unix.Uname(utsname); err != nil {
 		return "", err
 	}
 	return charsToString(utsname.Machine), nil

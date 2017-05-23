@@ -1,5 +1,5 @@
-// +build linux,arm linux,ppc64 linux,ppc64le s390x
-// see golang's sources src/syscall/ztypes_linux_*.go that use uint8
+// +build linux,arm linux,ppc64 linux,ppc64le
+// see golang's sources golang.org/x/sys/unix/ztypes_linux_*.go that use uint8
 
 package platform
 

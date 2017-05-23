@@ -5,11 +5,11 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"syscall"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/pkg/system"
+	"golang.org/x/sys/windows"
 )
 
 var defaultDaemonConfigFile = ""
@@ -58,14 +58,14 @@ func notifyShutdown(err error) {
 // setupConfigReloadTrap configures a Win32 event to reload the configuration.
 func (cli *DaemonCli) setupConfigReloadTrap() {
 	go func() {
-		sa := syscall.SecurityAttributes{
+		sa := windows.SecurityAttributes{
 			Length: 0,
 		}
 		ev := "Global\\docker-daemon-config-" + fmt.Sprint(os.Getpid())
 		if h, _ := system.CreateEvent(&sa, false, false, ev); h != 0 {
 			logrus.Debugf("Config reload - waiting signal at %s", ev)
 			for {
-				syscall.WaitForSingleObject(h, syscall.INFINITE)
+				windows.WaitForSingleObject(h, windows.INFINITE)
 				cli.reloadConfig()
 			}
 		}
