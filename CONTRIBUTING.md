@@ -160,6 +160,10 @@ it! Take a look at existing tests for inspiration. [Run the full test
 suite](https://docs.docker.com/opensource/project/test-and-docs/) on your branch before
 submitting a pull request.
 
+If your changes need integration tests, write them against the API. The `cli`
+integration tests are slowly either migrated to API tests or moved away as unit
+tests in `docker/cli` and end-to-end tests for docker.
+
 Update the documentation when creating or modifying features. Test your
 documentation changes for clarity, concision, and correctness, as well as a
 clean documentation build. See our contributors guide for [our style
