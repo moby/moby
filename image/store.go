@@ -12,11 +12,18 @@ import (
 	"github.com/opencontainers/go-digest"
 )
 
+var (
+	// ErrReferenceCountNotZero will be returned when removing an image which its reference count is not zero.
+	ErrReferenceCountNotZero = errors.New("can not remove image: reference is not zero")
+)
+
 // Store is an interface for creating and accessing images
 type Store interface {
 	Create(config []byte) (ID, error)
 	Get(id ID) (*Image, error)
 	Delete(id ID) ([]layer.Metadata, error)
+	HoldOn(id ID) error
+	HoldOff(id ID) error
 	Search(partialID string) (ID, error)
 	SetParent(id ID, parent ID) error
 	GetParent(id ID) (ID, error)
@@ -32,8 +39,9 @@ type LayerGetReleaser interface {
 }
 
 type imageMeta struct {
-	layer    layer.Layer
-	children map[ID]struct{}
+	layer          layer.Layer
+	children       map[ID]struct{}
+	referenceCount int
 }
 
 type store struct {
@@ -80,8 +88,9 @@ func (is *store) restore() error {
 		}
 
 		imageMeta := &imageMeta{
-			layer:    l,
-			children: make(map[ID]struct{}),
+			layer:          l,
+			children:       make(map[ID]struct{}),
+			referenceCount: 0,
 		}
 
 		is.images[IDFromDigest(dgst)] = imageMeta
@@ -152,8 +161,9 @@ func (is *store) Create(config []byte) (ID, error) {
 	}
 
 	imageMeta := &imageMeta{
-		layer:    l,
-		children: make(map[ID]struct{}),
+		layer:          l,
+		children:       make(map[ID]struct{}),
+		referenceCount: 0,
 	}
 
 	is.images[imageID] = imageMeta
@@ -204,10 +214,17 @@ func (is *store) Get(id ID) (*Image, error) {
 func (is *store) Delete(id ID) ([]layer.Metadata, error) {
 	is.Lock()
 	defer is.Unlock()
+	return is.delete(id)
+}
+func (is *store) delete(id ID) ([]layer.Metadata, error) {
 
 	imageMeta := is.images[id]
 	if imageMeta == nil {
 		return nil, fmt.Errorf("unrecognized image ID %s", id.String())
+	}
+
+	if imageMeta.referenceCount > 0 {
+		return nil, ErrReferenceCountNotZero
 	}
 	for id := range imageMeta.children {
 		is.fs.DeleteMetadata(id.Digest(), "parent")
@@ -226,6 +243,46 @@ func (is *store) Delete(id ID) ([]layer.Metadata, error) {
 		return is.ls.Release(imageMeta.layer)
 	}
 	return nil, nil
+}
+
+// HoldOn will increase the reference count for image
+func (is *store) HoldOn(id ID) error {
+	is.Lock()
+	defer is.Unlock()
+
+	imageMeta := is.images[id]
+	if imageMeta == nil {
+		return fmt.Errorf("unrecognized image ID %s", id.String())
+	}
+	imageMeta.referenceCount++
+
+	if parent, err := is.GetParent(id); err == nil {
+		if parentMeta := is.images[parent]; parentMeta != nil {
+			parentMeta.referenceCount++
+		}
+	}
+
+	return nil
+}
+
+// HoldOff will decrease the reference count for image
+func (is *store) HoldOff(id ID) error {
+	is.Lock()
+	defer is.Unlock()
+
+	imageMeta := is.images[id]
+	if imageMeta == nil {
+		return fmt.Errorf("unrecognized image ID %s", id.String())
+	}
+
+	imageMeta.referenceCount--
+	if parent, err := is.GetParent(id); err == nil {
+		if parentMeta := is.images[parent]; parentMeta != nil {
+			parentMeta.referenceCount--
+		}
+	}
+
+	return nil
 }
 
 func (is *store) SetParent(id, parent ID) error {

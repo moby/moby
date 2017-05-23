@@ -85,6 +85,10 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 			return nil, errors.New("Platform on which parent image was created is not Solaris")
 		}
 		imgID = img.ID()
+		if err := daemon.HoldOnImageByID(string(imgID)); err != nil {
+			return nil, err
+		}
+		defer daemon.HoldOffImageByID(string(imgID))
 	}
 
 	if err := daemon.mergeAndVerifyConfig(params.Config, img); err != nil {

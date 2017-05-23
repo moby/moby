@@ -974,6 +974,16 @@ func (daemon *Daemon) GetRemappedUIDGID() (int, int) {
 	return uid, gid
 }
 
+// HoldOnImageByID will increase the image reference count
+func (daemon *Daemon) HoldOnImageByID(id string) error {
+	return daemon.imageStore.HoldOn(image.ID(id))
+}
+
+// HoldOffImageByID will decrease the image reference count
+func (daemon *Daemon) HoldOffImageByID(id string) error {
+	return daemon.imageStore.HoldOff(image.ID(id))
+}
+
 // prepareTempDir prepares and returns the default directory to use
 // for temporary files.
 // If it doesn't exist, it is created. If it exists, its content is removed.
