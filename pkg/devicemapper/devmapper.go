@@ -155,6 +155,7 @@ func (t *Task) run() error {
 	if res := DmTaskRun(t.unmanaged); res != 1 {
 		return ErrTaskRun
 	}
+	runtime.KeepAlive(t)
 	return nil
 }
 
