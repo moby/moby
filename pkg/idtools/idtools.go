@@ -118,6 +118,7 @@ func ToContainer(hostID int, idMap []IDMap) (int, error) {
 // ToHost takes an id mapping and a remapped ID, and translates the
 // ID to the mapped host ID. If no map is provided, then the translation
 // assumes a 1-to-1 mapping and returns the passed in id #
+// Depercated: use IDMappings.UIDToHost and IDMappings.GIDToHost
 func ToHost(contID int, idMap []IDMap) (int, error) {
 	if idMap == nil {
 		return contID, nil
@@ -172,6 +173,16 @@ func NewIDMappings(username, groupname string) (*IDMappings, error) {
 func (i *IDMappings) RootPair() (IDPair, error) {
 	uid, gid, err := GetRootUIDGID(i.uids, i.gids)
 	return IDPair{UID: uid, GID: gid}, err
+}
+
+// UIDToHost returns the host UID for the container uid
+func (i *IDMappings) UIDToHost(uid int) (int, error) {
+	return ToHost(uid, i.uids)
+}
+
+// GIDToHost returns the host GID for the container gid
+func (i *IDMappings) GIDToHost(gid int) (int, error) {
+	return ToHost(gid, i.gids)
 }
 
 // UIDs return the UID mapping

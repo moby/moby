@@ -20,9 +20,6 @@ func (daemon *Daemon) tarCopyOptions(container *container.Container, noOverwrite
 
 	return &archive.TarOptions{
 		NoOverwriteDirNonDir: noOverwriteDirNonDir,
-		ChownOpts: &archive.TarChownOptions{
-			UID: user.Uid,
-			GID: user.Gid,
-		},
+		ChownOpts:            idtools.IDPair{UID: user.Uid, GID: user.Gid},
 	}, nil
 }

@@ -413,12 +413,7 @@ func (daemon *Daemon) CopyOnBuild(cID, destPath, srcRoot, srcPath string, decomp
 		destExists = false
 	}
 
-	archiver := &archive.Archiver{
-		Untar:   chrootarchive.Untar,
-		UIDMaps: daemon.idMappings.UIDs(),
-		GIDMaps: daemon.idMappings.GIDs(),
-	}
-
+	archiver := chrootarchive.NewArchiver(daemon.idMappings)
 	src, err := os.Stat(fullSrcPath)
 	if err != nil {
 		return err

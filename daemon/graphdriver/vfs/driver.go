@@ -15,7 +15,7 @@ import (
 
 var (
 	// CopyWithTar defines the copy method to use.
-	CopyWithTar = chrootarchive.CopyWithTar
+	CopyWithTar = chrootarchive.NewArchiver(nil).CopyWithTar
 )
 
 func init() {
