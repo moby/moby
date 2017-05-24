@@ -1,16 +1,16 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/integration-cli/request"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
+	"golang.org/x/net/context"
 )
 
 func (s *DockerSuite) TestKillContainer(c *check.C) {
@@ -131,8 +131,10 @@ func (s *DockerSuite) TestKillStoppedContainerAPIPre120(c *check.C) {
 	testRequires(c, DaemonIsLinux) // Windows only supports 1.25 or later
 	runSleepingContainer(c, "--name", "docker-kill-test-api", "-d")
 	dockerCmd(c, "stop", "docker-kill-test-api")
-
-	status, _, err := request.SockRequest("POST", fmt.Sprintf("/v1.19/containers/%s/kill", "docker-kill-test-api"), nil, daemonHost())
+	var httpClient *http.Client
+	cli, err := client.NewClient(daemonHost(), "v1.19", httpClient, nil)
 	c.Assert(err, check.IsNil)
-	c.Assert(status, check.Equals, http.StatusNoContent)
+	defer cli.Close()
+	err = cli.ContainerKill(context.Background(), "docker-kill-test-api", "SIGKILL")
+	c.Assert(err, check.IsNil)
 }

@@ -5,9 +5,11 @@ package main
 import (
 	"strings"
 
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/request"
 	"github.com/go-check/check"
+	"golang.org/x/net/context"
 )
 
 func (s *DockerSuite) TestAPIUpdateContainer(c *check.C) {
@@ -16,12 +18,19 @@ func (s *DockerSuite) TestAPIUpdateContainer(c *check.C) {
 	testRequires(c, swapMemorySupport)
 
 	name := "apiUpdateContainer"
-	hostConfig := map[string]interface{}{
-		"Memory":     314572800,
-		"MemorySwap": 524288000,
+	updateConfig := container.UpdateConfig{
+		Resources: container.Resources{
+			Memory:     314572800,
+			MemorySwap: 524288000,
+		},
 	}
 	dockerCmd(c, "run", "-d", "--name", name, "-m", "200M", "busybox", "top")
-	_, _, err := request.SockRequest("POST", "/containers/"+name+"/update", hostConfig, daemonHost())
+	cli, err := client.NewEnvClient()
+	c.Assert(err, check.IsNil)
+	defer cli.Close()
+
+	_, err = cli.ContainerUpdate(context.Background(), name, updateConfig)
+
 	c.Assert(err, check.IsNil)
 
 	c.Assert(inspectField(c, name, "HostConfig.Memory"), checker.Equals, "314572800")

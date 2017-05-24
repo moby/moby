@@ -86,11 +86,13 @@ func (s *DockerSuite) TestPostContainersAttachContainerNotFound(c *check.C) {
 }
 
 func (s *DockerSuite) TestGetContainersWsAttachContainerNotFound(c *check.C) {
-	status, body, err := request.SockRequest("GET", "/containers/doesnotexist/attach/ws", nil, daemonHost())
-	c.Assert(status, checker.Equals, http.StatusNotFound)
+	res, body, err := request.Get("/containers/doesnotexist/attach/ws")
+	c.Assert(res.StatusCode, checker.Equals, http.StatusNotFound)
+	c.Assert(err, checker.IsNil)
+	b, err := request.ReadBody(body)
 	c.Assert(err, checker.IsNil)
 	expected := "No such container: doesnotexist"
-	c.Assert(getErrorMessage(c, body), checker.Contains, expected)
+	c.Assert(getErrorMessage(c, b), checker.Contains, expected)
 }
 
 func (s *DockerSuite) TestPostContainersAttach(c *check.C) {
@@ -177,6 +179,7 @@ func (s *DockerSuite) TestPostContainersAttach(c *check.C) {
 	// Make sure we don't see "hello" if Logs is false
 	client, err := client.NewEnvClient()
 	c.Assert(err, checker.IsNil)
+	defer client.Close()
 
 	cid, _ = dockerCmd(c, "run", "-di", "busybox", "/bin/sh", "-c", "echo hello; cat")
 	cid = strings.TrimSpace(cid)
