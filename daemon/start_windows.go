@@ -45,10 +45,6 @@ func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Contain
 	if err != nil {
 		return nil, fmt.Errorf("failed to get layer metadata - %s", err)
 	}
-	if hvOpts.IsHyperV {
-		hvOpts.SandboxPath = filepath.Dir(m["dir"])
-	}
-
 	layerOpts.LayerFolderPath = m["dir"]
 
 	// Generate the layer paths of the layer options
