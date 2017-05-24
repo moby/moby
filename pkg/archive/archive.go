@@ -39,7 +39,7 @@ type (
 		NoLchown         bool
 		UIDMaps          []idtools.IDMap
 		GIDMaps          []idtools.IDMap
-		ChownOpts        idtools.IDPair
+		ChownOpts        *idtools.IDPair
 		IncludeSourceDir bool
 		// WhiteoutFormat is the expected on disk format for whiteout files.
 		// This format will be converted to the standard format on pack
@@ -920,7 +920,7 @@ loop:
 			}
 		}
 
-		if err := createTarFile(path, dest, hdr, trBuf, !options.NoLchown, &options.ChownOpts, options.InUserNS); err != nil {
+		if err := createTarFile(path, dest, hdr, trBuf, !options.NoLchown, options.ChownOpts, options.InUserNS); err != nil {
 			return err
 		}
 
