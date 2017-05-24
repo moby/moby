@@ -28,11 +28,10 @@ const defaultGossipConvergeDelay = 2 * time.Second
 // Most operations against docker's API are done through the container name,
 // which is unique to the task.
 type controller struct {
-	task    *api.Task
-	adapter *containerAdapter
-	closed  chan struct{}
-	err     error
-
+	task       *api.Task
+	adapter    *containerAdapter
+	closed     chan struct{}
+	err        error
 	pulled     chan struct{} // closed after pull
 	cancelPull func()        // cancels pull context if not nil
 	pullErr    error         // pull error, only read after pulled closed
@@ -146,7 +145,6 @@ func (r *controller) Prepare(ctx context.Context) error {
 			}
 		}
 	}
-
 	if err := r.adapter.create(ctx); err != nil {
 		if isContainerCreateNameConflict(err) {
 			if _, err := r.adapter.inspect(ctx); err != nil {
@@ -564,15 +562,8 @@ func (r *controller) matchevent(event events.Message) bool {
 	if event.Type != events.ContainerEventType {
 		return false
 	}
-
-	// TODO(stevvooe): Filter based on ID matching, in addition to name.
-
-	// Make sure the events are for this container.
-	if event.Actor.Attributes["name"] != r.adapter.container.name() {
-		return false
-	}
-
-	return true
+	// we can't filter using id since it will have huge chances to introduce a deadlock. see #33377.
+	return event.Actor.Attributes["name"] == r.adapter.container.name()
 }
 
 func (r *controller) checkClosed() error {
