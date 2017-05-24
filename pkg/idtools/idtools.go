@@ -99,10 +99,10 @@ func GetRootUIDGID(uidMap, gidMap []IDMap) (int, int, error) {
 	return uid, gid, nil
 }
 
-// ToContainer takes an id mapping, and uses it to translate a
+// toContainer takes an id mapping, and uses it to translate a
 // host ID to the remapped ID. If no map is provided, then the translation
 // assumes a 1-to-1 mapping and returns the passed in id
-func ToContainer(hostID int, idMap []IDMap) (int, error) {
+func toContainer(hostID int, idMap []IDMap) (int, error) {
 	if idMap == nil {
 		return hostID, nil
 	}
@@ -169,6 +169,12 @@ func NewIDMappings(username, groupname string) (*IDMappings, error) {
 	}, nil
 }
 
+// NewIDMappingsFromMaps creates a new mapping from two slices
+// Deprecated: this is a temporary shim while transitioning to IDMapping
+func NewIDMappingsFromMaps(uids []IDMap, gids []IDMap) *IDMappings {
+	return &IDMappings{uids: uids, gids: gids}
+}
+
 // RootPair returns a uid and gid pair for the root user
 func (i *IDMappings) RootPair() (IDPair, error) {
 	uid, gid, err := GetRootUIDGID(i.uids, i.gids)
@@ -183,6 +189,21 @@ func (i *IDMappings) UIDToHost(uid int) (int, error) {
 // GIDToHost returns the host GID for the container gid
 func (i *IDMappings) GIDToHost(gid int) (int, error) {
 	return ToHost(gid, i.gids)
+}
+
+// UIDToContainer returns the container UID for the host uid
+func (i *IDMappings) UIDToContainer(uid int) (int, error) {
+	return toContainer(uid, i.uids)
+}
+
+// GIDToContainer returns the container GID for the host gid
+func (i *IDMappings) GIDToContainer(gid int) (int, error) {
+	return toContainer(gid, i.gids)
+}
+
+// Empty returns true if there are no id mappings
+func (i *IDMappings) Empty() bool {
+	return len(i.uids) == 0 && len(i.gids) == 0
 }
 
 // UIDs return the UID mapping
