@@ -49,6 +49,13 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 		c.StreamConfig.Wait()
 		c.Reset(false)
 
+		// cancel healthcheck here, they will be automatically
+		// restarted if/when the container is started again
+		daemon.stopHealthchecks(c)
+		if !daemon.Cleanup(c) && e.ExitCode == 0 {
+			e.ExitCode = 129
+		}
+
 		// If daemon is being shutdown, don't let the container restart
 		restart, wait, err := c.RestartManager().ShouldRestart(e.ExitCode, daemon.IsShuttingDown() || c.HasBeenManuallyStopped, time.Since(c.StartedAt))
 		if err == nil && restart {
@@ -59,14 +66,10 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 			defer daemon.autoRemove(c)
 		}
 
-		// cancel healthcheck here, they will be automatically
-		// restarted if/when the container is started again
-		daemon.stopHealthchecks(c)
 		attributes := map[string]string{
 			"exitCode": strconv.Itoa(int(e.ExitCode)),
 		}
 		daemon.LogContainerEventWithAttributes(c, "die", attributes)
-		daemon.Cleanup(c)
 
 		if err == nil && restart {
 			go func() {

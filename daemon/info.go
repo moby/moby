@@ -184,6 +184,7 @@ func (daemon *Daemon) showPluginsInfo() types.PluginsInfo {
 	// The authorization plugins are returned in the order they are
 	// used as they constitute a request/response modification chain.
 	pluginsInfo.Authorization = daemon.configStore.AuthorizationPlugins
+	pluginsInfo.MountPoint = daemon.configStore.MountPointPlugins
 	pluginsInfo.Log = logger.ListDrivers()
 
 	return pluginsInfo

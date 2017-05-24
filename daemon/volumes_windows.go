@@ -23,13 +23,15 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 		if err := daemon.lazyInitializeVolume(c.ID, mount); err != nil {
 			return nil, err
 		}
-		err := mount.Setup(c.MountLabel, idtools.IDPair{0, 0}, nil)
-		if err != nil {
+		if err := mount.Realize(); err != nil {
+			return nil, err
+		}
+		if err := mount.Setup(c.MountLabel, idtools.IDPair{0, 0}); err != nil {
 			return nil, err
 		}
 
 		mnts = append(mnts, container.Mount{
-			Source:      mount.Source,
+			Source:      mount.EffectiveSource(),
 			Destination: mount.Destination,
 			Writable:    mount.RW,
 		})

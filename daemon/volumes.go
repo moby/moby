@@ -3,7 +3,6 @@ package daemon
 import (
 	"fmt"
 	"reflect"
-	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types"

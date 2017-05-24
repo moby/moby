@@ -41,12 +41,6 @@ func linuxValidateAbsolute(p string) error {
 	return fmt.Errorf("invalid mount path: '%s' mount path must be absolute", p)
 }
 func (p *linuxParser) validateMountConfig(mnt *mount.Mount) error {
-	// there was something looking like a bug in existing codebase:
-	// - validateMountConfig on linux was called with options skipping bind source existance when calling ParseMountRaw
-	// - but not when calling ParseMountSpec directly... nor when the unit test called it directly
-	return p.validateMountConfigImpl(mnt, true)
-}
-func (p *linuxParser) validateMountConfigImpl(mnt *mount.Mount, validateBindSourceExists bool) error {
 	if len(mnt.Target) == 0 {
 		return &errMountConfig{mnt, errMissingField("Target")}
 	}
@@ -78,13 +72,6 @@ func (p *linuxParser) validateMountConfigImpl(mnt *mount.Mount, validateBindSour
 
 		if err := linuxValidateAbsolute(mnt.Source); err != nil {
 			return &errMountConfig{mnt, err}
-		}
-
-		if validateBindSourceExists {
-			exists, _, _ := currentFileInfoProvider.fileInfo(mnt.Source)
-			if !exists {
-				return &errMountConfig{mnt, errBindNotExist}
-			}
 		}
 
 	case mount.TypeVolume:
@@ -245,6 +232,7 @@ func (p *linuxParser) ParseMountRaw(raw, volumeDriver string) (*MountPoint, erro
 	}
 
 	spec.ReadOnly = !p.ReadWrite(mode)
+	spec.Consistency = consistencyOfMode(mode)
 
 	// cannot assume that if a volume driver is passed in that we should set it
 	if volumeDriver != "" && spec.Type == mount.TypeVolume {
@@ -265,9 +253,10 @@ func (p *linuxParser) ParseMountRaw(raw, volumeDriver string) (*MountPoint, erro
 		}
 	}
 
-	mp, err := p.parseMountSpec(spec, false)
+	mp, err := p.ParseMountSpec(spec)
 	if mp != nil {
 		mp.Mode = mode
+		mp.CreateSourceIfMissing = true
 	}
 	if err != nil {
 		err = fmt.Errorf("%v: %v", errInvalidSpec(raw), err)
@@ -275,16 +264,14 @@ func (p *linuxParser) ParseMountRaw(raw, volumeDriver string) (*MountPoint, erro
 	return mp, err
 }
 func (p *linuxParser) ParseMountSpec(cfg mount.Mount) (*MountPoint, error) {
-	return p.parseMountSpec(cfg, true)
-}
-func (p *linuxParser) parseMountSpec(cfg mount.Mount, validateBindSourceExists bool) (*MountPoint, error) {
-	if err := p.validateMountConfigImpl(&cfg, validateBindSourceExists); err != nil {
+	if err := p.validateMountConfig(&cfg); err != nil {
 		return nil, err
 	}
 	mp := &MountPoint{
 		RW:          !cfg.ReadOnly,
 		Destination: path.Clean(filepath.ToSlash(cfg.Target)),
 		Type:        cfg.Type,
+		Consistency: cfg.Consistency,
 		Spec:        cfg,
 	}
 

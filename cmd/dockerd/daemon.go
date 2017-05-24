@@ -25,7 +25,7 @@ import (
 	sessionrouter "github.com/docker/docker/api/server/router/session"
 	swarmrouter "github.com/docker/docker/api/server/router/swarm"
 	systemrouter "github.com/docker/docker/api/server/router/system"
-	"github.com/docker/docker/api/server/router/volume"
+	volumerouter "github.com/docker/docker/api/server/router/volume"
 	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/builder/fscache"
 	"github.com/docker/docker/cli/debug"
@@ -41,11 +41,14 @@ import (
 	"github.com/docker/docker/pkg/jsonlog"
 	"github.com/docker/docker/pkg/pidfile"
 	"github.com/docker/docker/pkg/plugingetter"
+	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/plugin"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/volume"
+	"github.com/docker/docker/volume/mountpoint"
 	"github.com/docker/go-connections/tlsconfig"
 	swarmapi "github.com/docker/swarmkit/api"
 	"github.com/moby/buildkit/session"
@@ -237,6 +240,9 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	if err := validateAuthzPlugins(cli.Config.AuthorizationPlugins, pluginStore); err != nil {
 		return fmt.Errorf("Error validating authorization plugin: %v", err)
 	}
+	if err := validateMountPointPlugins(cli.Config.MountPointPlugins, pluginStore); err != nil {
+		return fmt.Errorf("Error validating mount point plugin: %s", err)
+	}
 
 	// TODO: move into startMetricsServer()
 	if cli.Config.MetricsAddress != "" {
@@ -379,6 +385,25 @@ func (cli *DaemonCli) reloadConfig() {
 		}
 		cli.authzMiddleware.SetPlugins(config.AuthorizationPlugins)
 
+		// Revalidate and reload the mount point plugins
+		if err := validateMountPointPlugins(config.MountPointPlugins, cli.d.PluginStore); err != nil {
+			logrus.Fatalf("Error validating mount point plugin: %s", err)
+			return
+		}
+		if config.MountPointChain == nil {
+			chain, err := volume.NewMountPointChain(config.MountPointPlugins, cli.d.PluginStore)
+			if err != nil {
+				logrus.Fatalf("Error creating mount point plugin chain: %s", err)
+				return
+			}
+			config.MountPointChain = chain
+		} else {
+			err := config.MountPointChain.SetPlugins(config.MountPointPlugins)
+			if err != nil {
+				logrus.Fatalf("Error instantiating mount point plugin chain: %s", err)
+			}
+		}
+
 		if err := cli.d.Reload(config); err != nil {
 			logrus.Errorf("Error reconfiguring the daemon: %v", err)
 			return
@@ -518,7 +543,7 @@ func initRouter(opts routerOptions) {
 		container.NewRouter(opts.daemon, decoder),
 		image.NewRouter(opts.daemon, decoder),
 		systemrouter.NewRouter(opts.daemon, opts.cluster, opts.buildCache),
-		volume.NewRouter(opts.daemon),
+		volumerouter.NewRouter(opts.daemon),
 		build.NewRouter(opts.buildBackend, opts.daemon),
 		sessionrouter.NewRouter(opts.sessionManager),
 		swarmrouter.NewRouter(opts.cluster),
@@ -544,7 +569,7 @@ func initRouter(opts routerOptions) {
 }
 
 // TODO: remove this from cli and return the authzMiddleware
-func (cli *DaemonCli) initMiddlewares(s *apiserver.Server, cfg *apiserver.Config, pluginStore plugingetter.PluginGetter) error {
+func (cli *DaemonCli) initMiddlewares(s *apiserver.Server, cfg *apiserver.Config, pluginStore *plugin.Store) error {
 	v := cfg.Version
 
 	exp := middleware.NewExperimentalMiddleware(cli.Config.Experimental)
@@ -561,6 +586,20 @@ func (cli *DaemonCli) initMiddlewares(s *apiserver.Server, cfg *apiserver.Config
 	cli.authzMiddleware = authorization.NewMiddleware(cli.Config.AuthorizationPlugins, pluginStore)
 	cli.Config.AuthzMiddleware = cli.authzMiddleware
 	s.UseMiddleware(cli.authzMiddleware)
+
+	pluginStore.HandleV2("mountpoint", func(name string, client *plugins.Client) {
+		err := cli.Config.MountPointChain.AppendPluginIfMissing(name)
+		if err != nil {
+			logrus.Errorf("unable to load mount point plugin %s: %s", name, err)
+			plugin, err := pluginStore.GetV2Plugin(name)
+			if err != nil {
+				logrus.Errorf("unable to get mount point plugin object %s while recovering from load failure: %s", name, err)
+			} else {
+				pluginStore.SetState(plugin, false)
+			}
+		}
+	})
+
 	return nil
 }
 
@@ -569,6 +608,18 @@ func (cli *DaemonCli) initMiddlewares(s *apiserver.Server, cfg *apiserver.Config
 func validateAuthzPlugins(requestedPlugins []string, pg plugingetter.PluginGetter) error {
 	for _, reqPlugin := range requestedPlugins {
 		if _, err := pg.Get(reqPlugin, authorization.AuthZApiImplements, plugingetter.Lookup); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// validateMountPointPlugins validates that the plugins requested with
+// the --mount-point-plugin flag are valid MountPointDriver plugins
+// present on the host and available to the daemon
+func validateMountPointPlugins(requestedPlugins []string, pg plugingetter.PluginGetter) error {
+	for _, reqPlugin := range requestedPlugins {
+		if _, err := pg.Get(reqPlugin, mountpoint.MountPointAPIImplements, plugingetter.Lookup); err != nil {
 			return err
 		}
 	}

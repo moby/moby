@@ -63,6 +63,7 @@ func (e *executor) Describe(ctx context.Context) (*api.NodeDescription, error) {
 	// the plugin list by default.
 	addPlugins("Network", append([]string{"overlay"}, info.Plugins.Network...))
 	addPlugins("Authorization", info.Plugins.Authorization)
+	addPlugins("MountPoint", info.Plugins.MountPoint)
 	addPlugins("Log", info.Plugins.Log)
 
 	// add v2 plugins
@@ -81,6 +82,10 @@ func (e *executor) Describe(ctx context.Context) (*api.NodeDescription, error) {
 					plgnTyp = "Network"
 				case "logdriver":
 					plgnTyp = "Log"
+				case "authz":
+					plgnTyp = "Authorization"
+				case "mountpoint":
+					plgnTyp = "MountPoint"
 				}
 
 				plugins[api.PluginDescription{

@@ -25,6 +25,7 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/plugin/v2"
 	"github.com/docker/docker/registry"
+	"github.com/docker/docker/volume"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -54,6 +55,7 @@ type ManagerConfig struct {
 	Root               string
 	ExecRoot           string
 	AuthzMiddleware    *authorization.Middleware
+	MountPointChain    *volume.MountPointChain
 }
 
 // Manager controls the plugin subsystem.
