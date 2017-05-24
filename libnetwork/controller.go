@@ -53,12 +53,12 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/daemon/cluster/provider"
 	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/docker/pkg/locker"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/libnetwork/cluster"
 	"github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/discoverapi"
@@ -123,7 +123,7 @@ type NetworkController interface {
 	ReloadConfiguration(cfgOptions ...config.Option) error
 
 	// SetClusterProvider sets cluster provider
-	SetClusterProvider(provider cluster.Provider)
+	SetClusterProvider(provider provider.Cluster)
 
 	// Wait for agent initialization complete in libnetwork controller
 	AgentInitWait()
@@ -243,7 +243,7 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 	return c, nil
 }
 
-func (c *controller) SetClusterProvider(provider cluster.Provider) {
+func (c *controller) SetClusterProvider(provider provider.Cluster) {
 	var sameProvider bool
 	c.Lock()
 	// Avoids to spawn multiple goroutine for the same cluster provider
@@ -307,17 +307,17 @@ func (c *controller) clusterAgentInit() {
 	var keysAvailable bool
 	for {
 		eventType := <-clusterProvider.ListenClusterEvents()
-		// The events: EventSocketChange, EventNodeReady and EventNetworkKeysAvailable are not ordered
+		// The events: ClusterEventSocketChange, ClusterEventNodeReady and ClusterEventNetworkKeysAvailable are not ordered
 		// when all the condition for the agent initialization are met then proceed with it
 		switch eventType {
-		case cluster.EventNetworkKeysAvailable:
+		case provider.ClusterEventNetworkKeysAvailable:
 			// Validates that the keys are actually available before starting the initialization
 			// This will handle old spurious messages left on the channel
 			c.Lock()
 			keysAvailable = c.keys != nil
 			c.Unlock()
 			fallthrough
-		case cluster.EventSocketChange, cluster.EventNodeReady:
+		case provider.ClusterEventSocketChange, provider.ClusterEventNodeReady:
 			if keysAvailable && !c.isDistributedControl() {
 				c.agentOperationStart()
 				if err := c.agentSetup(clusterProvider); err != nil {
@@ -326,7 +326,7 @@ func (c *controller) clusterAgentInit() {
 					c.agentInitComplete()
 				}
 			}
-		case cluster.EventNodeLeave:
+		case provider.ClusterEventNodeLeave:
 			keysAvailable = false
 			c.agentOperationStart()
 			c.Lock()
