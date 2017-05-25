@@ -62,6 +62,7 @@ func (s *DockerSwarmSuite) TestStackDeployComposeFile(c *check.C) {
 	testStackName := "testdeploy"
 	stackArgs := []string{
 		"stack", "deploy",
+		"--resolve-image", "never",
 		"--compose-file", "fixtures/deploy/default.yaml",
 		testStackName,
 	}
@@ -88,6 +89,7 @@ func (s *DockerSwarmSuite) TestStackDeployWithSecretsTwice(c *check.C) {
 	testStackName := "testdeploy"
 	stackArgs := []string{
 		"stack", "deploy",
+		"--resolve-image", "never",
 		"--compose-file", "fixtures/deploy/secrets.yaml",
 		testStackName,
 	}
@@ -120,6 +122,7 @@ func (s *DockerSwarmSuite) TestStackRemove(c *check.C) {
 	stackName := "testdeploy"
 	stackArgs := []string{
 		"stack", "deploy",
+		"--resolve-image", "never",
 		"--compose-file", "fixtures/deploy/remove.yaml",
 		stackName,
 	}
@@ -179,6 +182,7 @@ func (s *DockerSwarmSuite) TestStackDeployWithDAB(c *check.C) {
 	// deploy
 	stackArgs := []string{
 		"stack", "deploy",
+		"--resolve-image", "never",
 		"--bundle-file", testDABFileName,
 		testStackName,
 	}
