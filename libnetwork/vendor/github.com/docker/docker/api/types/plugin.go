@@ -22,6 +22,9 @@ type Plugin struct {
 	// Required: true
 	Name string `json:"Name"`
 
+	// plugin remote reference used to push/pull the plugin
+	PluginReference string `json:"PluginReference,omitempty"`
+
 	// settings
 	// Required: true
 	Settings PluginSettings `json:"Settings"`
@@ -39,6 +42,9 @@ type PluginConfig struct {
 	// Required: true
 	Description string `json:"Description"`
 
+	// Docker Version used to create the plugin
+	DockerVersion string `json:"DockerVersion,omitempty"`
+
 	// documentation
 	// Required: true
 	Documentation string `json:"Documentation"`
@@ -55,6 +61,10 @@ type PluginConfig struct {
 	// Required: true
 	Interface PluginConfigInterface `json:"Interface"`
 
+	// ipc host
+	// Required: true
+	IpcHost bool `json:"IpcHost"`
+
 	// linux
 	// Required: true
 	Linux PluginConfigLinux `json:"Linux"`
@@ -66,6 +76,10 @@ type PluginConfig struct {
 	// network
 	// Required: true
 	Network PluginConfigNetwork `json:"Network"`
+
+	// pid host
+	// Required: true
+	PidHost bool `json:"PidHost"`
 
 	// propagated mount
 	// Required: true
@@ -120,13 +134,13 @@ type PluginConfigInterface struct {
 // swagger:model PluginConfigLinux
 type PluginConfigLinux struct {
 
+	// allow all devices
+	// Required: true
+	AllowAllDevices bool `json:"AllowAllDevices"`
+
 	// capabilities
 	// Required: true
 	Capabilities []string `json:"Capabilities"`
-
-	// device creation
-	// Required: true
-	DeviceCreation bool `json:"DeviceCreation"`
 
 	// devices
 	// Required: true
