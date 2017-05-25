@@ -4,14 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"runtime"
+	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/layer"
 	"github.com/opencontainers/go-digest"
-	"runtime"
-	"strings"
 )
 
 // ID is the content-addressable ID of an image.
@@ -125,10 +125,13 @@ type ChildConfig struct {
 	Config          *container.Config
 }
 
-// NewChild creates a new Image as a child of this image.
-func (img *Image) NewChild(child ChildConfig) *Image {
+// NewChildImage creates a new Image as a child of this image.
+func NewChildImage(img *Image, child ChildConfig) *Image {
 	isEmptyLayer := layer.IsEmpty(child.DiffID)
 	rootFS := img.RootFS
+	if rootFS == nil {
+		rootFS = NewRootFS()
+	}
 	if !isEmptyLayer {
 		rootFS.Append(child.DiffID)
 	}

@@ -2,16 +2,22 @@
 
 package dockerfile
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+
+	"github.com/docker/docker/pkg/testutil"
+	"github.com/stretchr/testify/assert"
+)
 
 func TestNormaliseDest(t *testing.T) {
 	tests := []struct{ current, requested, expected, etext string }{
-		{``, `D:\`, ``, `Windows does not support TEST with a destinations not on the system drive (C:)`},
-		{``, `e:/`, ``, `Windows does not support TEST with a destinations not on the system drive (C:)`},
+		{``, `D:\`, ``, `Windows does not support destinations not on the system drive (C:)`},
+		{``, `e:/`, ``, `Windows does not support destinations not on the system drive (C:)`},
 		{`invalid`, `./c1`, ``, `Current WorkingDir invalid is not platform consistent`},
 		{`C:`, ``, ``, `Current WorkingDir C: is not platform consistent`},
 		{`C`, ``, ``, `Current WorkingDir C is not platform consistent`},
-		{`D:\`, `.`, ``, "Windows does not support TEST with relative paths when WORKDIR is not the system drive"},
+		{`D:\`, `.`, ``, "Windows does not support relative paths when WORKDIR is not the system drive"},
 		{``, `D`, `D`, ``},
 		{``, `./a1`, `.\a1`, ``},
 		{``, `.\b1`, `.\b1`, ``},
@@ -32,20 +38,16 @@ func TestNormaliseDest(t *testing.T) {
 		{`C:\wdm`, `foo/bar/`, `\wdm\foo\bar\`, ``},
 		{`C:\wdn`, `foo\bar/`, `\wdn\foo\bar\`, ``},
 	}
-	for _, i := range tests {
-		got, err := normaliseDest("TEST", i.current, i.requested)
-		if err != nil && i.etext == "" {
-			t.Fatalf("TestNormaliseDest Got unexpected error %q for %s %s. ", err.Error(), i.current, i.requested)
-		}
-		if i.etext != "" && ((err == nil) || (err != nil && err.Error() != i.etext)) {
-			if err == nil {
-				t.Fatalf("TestNormaliseDest Expected an error for %s %s but didn't get one", i.current, i.requested)
-			} else {
-				t.Fatalf("TestNormaliseDest Wrong error text for %s %s - %s", i.current, i.requested, err.Error())
+	for _, testcase := range tests {
+		msg := fmt.Sprintf("Input: %s, %s", testcase.current, testcase.requested)
+		actual, err := normaliseDest(testcase.current, testcase.requested)
+		if testcase.etext == "" {
+			if !assert.NoError(t, err, msg) {
+				continue
 			}
-		}
-		if i.etext == "" && got != i.expected {
-			t.Fatalf("TestNormaliseDest Expected %q for %q and %q. Got %q", i.expected, i.current, i.requested, got)
+			assert.Equal(t, testcase.expected, actual, msg)
+		} else {
+			testutil.ErrorContains(t, err, testcase.etext)
 		}
 	}
 }

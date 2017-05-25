@@ -1,3 +1,5 @@
+// +build !windows
+
 package dockerfile
 
 import (
@@ -7,20 +9,8 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 )
 
-func pathExists(path string) (bool, error) {
-	_, err := os.Stat(path)
-	switch {
-	case err == nil:
-		return true, nil
-	case os.IsNotExist(err):
-		return false, nil
-	}
-	return false, err
-}
-
-// TODO: review this
 func fixPermissions(source, destination string, rootIDs idtools.IDPair) error {
-	doChownDestination, err := chownDestinationRoot(destination)
+	skipChownRoot, err := isExistingDirectory(destination)
 	if err != nil {
 		return err
 	}
@@ -30,7 +20,7 @@ func fixPermissions(source, destination string, rootIDs idtools.IDPair) error {
 	return filepath.Walk(source, func(fullpath string, info os.FileInfo, err error) error {
 		// Do not alter the walk root iff. it existed before, as it doesn't fall under
 		// the domain of "things we should chown".
-		if !doChownDestination && (source == fullpath) {
+		if skipChownRoot && source == fullpath {
 			return nil
 		}
 
@@ -43,22 +33,4 @@ func fixPermissions(source, destination string, rootIDs idtools.IDPair) error {
 		fullpath = filepath.Join(destination, cleaned)
 		return os.Lchown(fullpath, rootIDs.UID, rootIDs.GID)
 	})
-}
-
-// If the destination didn't already exist, or the destination isn't a
-// directory, then we should Lchown the destination. Otherwise, we shouldn't
-// Lchown the destination.
-func chownDestinationRoot(destination string) (bool, error) {
-	destExists, err := pathExists(destination)
-	if err != nil {
-		return false, err
-	}
-	destStat, err := os.Stat(destination)
-	if err != nil {
-		// This should *never* be reached, because the destination must've already
-		// been created while untar-ing the context.
-		return false, err
-	}
-
-	return !destExists || !destStat.IsDir(), nil
 }

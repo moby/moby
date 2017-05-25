@@ -2,7 +2,6 @@ package image
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"sync"
 
@@ -10,6 +9,7 @@ import (
 	"github.com/docker/distribution/digestset"
 	"github.com/docker/docker/layer"
 	"github.com/opencontainers/go-digest"
+	"github.com/pkg/errors"
 )
 
 // Store is an interface for creating and accessing images
@@ -147,7 +147,7 @@ func (is *store) Create(config []byte) (ID, error) {
 	if layerID != "" {
 		l, err = is.ls.Get(layerID)
 		if err != nil {
-			return "", err
+			return "", errors.Wrapf(err, "failed to get layer %s", layerID)
 		}
 	}
 

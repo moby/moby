@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/builder/remotecontext"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
@@ -39,15 +40,17 @@ var validCommitCommands = map[string]bool{
 
 // BuildManager is shared across all Builder objects
 type BuildManager struct {
+	archiver  *archive.Archiver
 	backend   builder.Backend
 	pathCache pathCache // TODO: make this persistent
 }
 
 // NewBuildManager creates a BuildManager
-func NewBuildManager(b builder.Backend) *BuildManager {
+func NewBuildManager(b builder.Backend, idMappings *idtools.IDMappings) *BuildManager {
 	return &BuildManager{
 		backend:   b,
 		pathCache: &syncmap.Map{},
+		archiver:  chrootarchive.NewArchiver(idMappings),
 	}
 }
 
@@ -75,6 +78,7 @@ func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (
 		ProgressWriter: config.ProgressWriter,
 		Backend:        bm.backend,
 		PathCache:      bm.pathCache,
+		Archiver:       bm.archiver,
 	}
 	return newBuilder(ctx, builderOptions).build(source, dockerfile)
 }
@@ -85,6 +89,7 @@ type builderOptions struct {
 	Backend        builder.Backend
 	ProgressWriter backend.ProgressWriter
 	PathCache      pathCache
+	Archiver       *archive.Archiver
 }
 
 // Builder is a Dockerfile builder
@@ -124,7 +129,7 @@ func newBuilder(clientCtx context.Context, options builderOptions) *Builder {
 		Aux:              options.ProgressWriter.AuxFormatter,
 		Output:           options.ProgressWriter.Output,
 		docker:           options.Backend,
-		archiver:         chrootarchive.NewArchiver(options.Backend.IDMappings()),
+		archiver:         options.Archiver,
 		buildArgs:        newBuildArgs(config.BuildArgs),
 		buildStages:      newBuildStages(),
 		imageSources:     newImageSources(clientCtx, options),

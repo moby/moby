@@ -368,7 +368,7 @@ type copyFileOptions struct {
 	archiver   *archive.Archiver
 }
 
-func copyFile(dest copyInfo, source copyInfo, options copyFileOptions) error {
+func performCopyForInfo(dest copyInfo, source copyInfo, options copyFileOptions) error {
 	srcPath, err := source.fullPath()
 	if err != nil {
 		return err
@@ -379,36 +379,63 @@ func copyFile(dest copyInfo, source copyInfo, options copyFileOptions) error {
 	}
 
 	archiver := options.archiver
-	rootIDs := archiver.IDMappings.RootPair()
 
 	src, err := os.Stat(srcPath)
 	if err != nil {
 		return errors.Wrapf(err, "source path not found")
 	}
 	if src.IsDir() {
-		if err := archiver.CopyWithTar(srcPath, destPath); err != nil {
-			return err
-		}
-		return fixPermissions(srcPath, destPath, rootIDs)
+		return copyDirectory(archiver, srcPath, destPath)
 	}
-
 	if options.decompress && archive.IsArchivePath(srcPath) {
-		// To support the untar feature we need to clean up the path a little bit
-		// because tar is not very forgiving
-		tarDest := dest.path
-		// TODO: could this be just TrimSuffix()?
-		if strings.HasSuffix(tarDest, string(os.PathSeparator)) {
-			tarDest = filepath.Dir(dest.path)
-		}
-		return archiver.UntarPath(srcPath, tarDest)
+		return archiver.UntarPath(srcPath, destPath)
 	}
 
-	if err := idtools.MkdirAllAndChownNew(filepath.Dir(destPath), 0755, rootIDs); err != nil {
+	destExistsAsDir, err := isExistingDirectory(destPath)
+	if err != nil {
 		return err
 	}
-	if err := archiver.CopyFileWithTar(srcPath, destPath); err != nil {
-		return err
+	// dest.path must be used because destPath has already been cleaned of any
+	// trailing slash
+	if endsInSlash(dest.path) || destExistsAsDir {
+		// source.path must be used to get the correct filename when the source
+		// is a symlink
+		destPath = filepath.Join(destPath, filepath.Base(source.path))
 	}
-	// TODO: do I have to change destPath to the filename?
-	return fixPermissions(srcPath, destPath, rootIDs)
+	return copyFile(archiver, srcPath, destPath)
+}
+
+func copyDirectory(archiver *archive.Archiver, source, dest string) error {
+	if err := archiver.CopyWithTar(source, dest); err != nil {
+		return errors.Wrapf(err, "failed to copy directory")
+	}
+	return fixPermissions(source, dest, archiver.IDMappings.RootPair())
+}
+
+func copyFile(archiver *archive.Archiver, source, dest string) error {
+	rootIDs := archiver.IDMappings.RootPair()
+
+	if err := idtools.MkdirAllAndChownNew(filepath.Dir(dest), 0755, rootIDs); err != nil {
+		return errors.Wrapf(err, "failed to create new directory")
+	}
+	if err := archiver.CopyFileWithTar(source, dest); err != nil {
+		return errors.Wrapf(err, "failed to copy file")
+	}
+	return fixPermissions(source, dest, rootIDs)
+}
+
+func endsInSlash(path string) bool {
+	return strings.HasSuffix(path, string(os.PathSeparator))
+}
+
+// isExistingDirectory returns true if the path exists and is a directory
+func isExistingDirectory(path string) (bool, error) {
+	destStat, err := os.Stat(path)
+	switch {
+	case os.IsNotExist(err):
+		return false, nil
+	case err != nil:
+		return false, err
+	}
+	return destStat.IsDir(), nil
 }

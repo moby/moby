@@ -188,7 +188,7 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		Config:          newConfig,
 		DiffID:          l.DiffID(),
 	}
-	config, err := json.Marshal(parent.NewChild(cc))
+	config, err := json.Marshal(image.NewChildImage(parent, cc))
 	if err != nil {
 		return "", err
 	}

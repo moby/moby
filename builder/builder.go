@@ -11,9 +11,7 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	containerpkg "github.com/docker/docker/container"
-	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/idtools"
 	"golang.org/x/net/context"
 )
 
@@ -45,9 +43,7 @@ type Backend interface {
 	// ContainerCreateWorkdir creates the workdir
 	ContainerCreateWorkdir(containerID string) error
 
-	CreateImage(config []byte, parent string) (string, error)
-
-	IDMappings() *idtools.IDMappings
+	CreateImage(config []byte, parent string) (Image, error)
 
 	ImageCacheBuilder
 }
@@ -98,12 +94,12 @@ type Image interface {
 	ImageID() string
 	RunConfig() *container.Config
 	MarshalJSON() ([]byte, error)
-	NewChild(child image.ChildConfig) *image.Image
 }
 
 // ReleaseableLayer is an image layer that can be mounted and released
 type ReleaseableLayer interface {
 	Release() error
 	Mount() (string, error)
+	Commit() (ReleaseableLayer, error)
 	DiffID() layer.DiffID
 }

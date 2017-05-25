@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
@@ -26,8 +27,8 @@ type Backend struct {
 }
 
 // NewBackend creates a new build backend from components
-func NewBackend(components ImageComponent, builderBackend builder.Backend) *Backend {
-	manager := dockerfile.NewBuildManager(builderBackend)
+func NewBackend(components ImageComponent, builderBackend builder.Backend, idMappings *idtools.IDMappings) *Backend {
+	manager := dockerfile.NewBuildManager(builderBackend, idMappings)
 	return &Backend{imageComponent: components, manager: manager}
 }
 

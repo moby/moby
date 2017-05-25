@@ -8,7 +8,7 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/remotecontext"
-	"github.com/docker/docker/layer"
+	dockerimage "github.com/docker/docker/image"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
@@ -92,6 +92,7 @@ type getAndMountFunc func(string) (builder.Image, builder.ReleaseableLayer, erro
 // all images so they can be unmounted at the end of the build.
 type imageSources struct {
 	byImageID map[string]*imageMount
+	withoutID []*imageMount
 	getImage  getAndMountFunc
 	cache     pathCache // TODO: remove
 }
@@ -121,7 +122,7 @@ func (m *imageSources) Get(idOrRef string) (*imageMount, error) {
 		return nil, err
 	}
 	im := newImageMount(image, layer)
-	m.byImageID[image.ImageID()] = im
+	m.Add(im)
 	return im, nil
 }
 
@@ -132,7 +133,23 @@ func (m *imageSources) Unmount() (retErr error) {
 			retErr = err
 		}
 	}
+	for _, im := range m.withoutID {
+		if err := im.unmount(); err != nil {
+			logrus.Error(err)
+			retErr = err
+		}
+	}
 	return
+}
+
+func (m *imageSources) Add(im *imageMount) {
+	switch im.image {
+	case nil:
+		im.image = &dockerimage.Image{}
+		m.withoutID = append(m.withoutID, im)
+	default:
+		m.byImageID[im.image.ImageID()] = im
+	}
 }
 
 // imageMount is a reference to an image that can be used as a builder.Source
@@ -172,6 +189,7 @@ func (im *imageMount) unmount() error {
 	if err := im.layer.Release(); err != nil {
 		return errors.Wrapf(err, "failed to unmount previous build image %s", im.image.ImageID())
 	}
+	im.layer = nil
 	return nil
 }
 
@@ -179,10 +197,10 @@ func (im *imageMount) Image() builder.Image {
 	return im.image
 }
 
-func (im *imageMount) ImageID() string {
-	return im.image.ImageID()
+func (im *imageMount) Layer() builder.ReleaseableLayer {
+	return im.layer
 }
 
-func (im *imageMount) DiffID() layer.DiffID {
-	return im.layer.DiffID()
+func (im *imageMount) ImageID() string {
+	return im.image.ImageID()
 }
