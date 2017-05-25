@@ -1,4 +1,4 @@
-FROM    golang:1.7.5-alpine
+FROM    golang:1.8.3-alpine
 
 RUN     apk add -U git bash curl gcc musl-dev make
 
