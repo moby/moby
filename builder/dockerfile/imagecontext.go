@@ -156,7 +156,7 @@ func (im *imageMount) Source() (builder.Source, error) {
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to mount %s", im.image.ImageID())
 		}
-		source, err := remotecontext.NewLazyContext(mountPath)
+		source, err := remotecontext.NewLazySource(mountPath)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to create lazycontext for %s", mountPath)
 		}

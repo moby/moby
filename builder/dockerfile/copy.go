@@ -155,7 +155,7 @@ func (o *copier) calcCopyInfo(origPath string, allowWildcards bool) ([]copyInfo,
 		var err error
 		o.source, err = imageSource.Source()
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to copy")
+			return nil, errors.Wrapf(err, "failed to copy from %s", imageSource.ImageID())
 		}
 	}
 
@@ -359,7 +359,7 @@ func downloadSource(output io.Writer, stdout io.Writer, srcURL string) (remote b
 		return
 	}
 
-	lc, err := remotecontext.NewLazyContext(tmpDir)
+	lc, err := remotecontext.NewLazySource(tmpDir)
 	return lc, filename, err
 }
 
@@ -383,7 +383,7 @@ func copyFile(dest copyInfo, source copyInfo, options copyFileOptions) error {
 
 	src, err := os.Stat(srcPath)
 	if err != nil {
-		return err // TODO: errors.Wrapf
+		return errors.Wrapf(err, "source path not found")
 	}
 	if src.IsDir() {
 		if err := archiver.CopyWithTar(srcPath, destPath); err != nil {

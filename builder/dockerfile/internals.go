@@ -100,7 +100,7 @@ func (b *Builder) performCopy(state *dispatchState, inst copyInstruction) error 
 	}
 	destSource, err := imageMount.Source()
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "failed to mount copy source")
 	}
 
 	destInfo := newCopyInfoFromSource(destSource, dest, "")

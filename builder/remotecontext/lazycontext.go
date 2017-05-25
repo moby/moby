@@ -12,30 +12,30 @@ import (
 	"github.com/pkg/errors"
 )
 
-// NewLazyContext creates a new LazyContext. LazyContext defines a hashed build
+// NewLazySource creates a new LazyContext. LazyContext defines a hashed build
 // context based on a root directory. Individual files are hashed first time
 // they are asked. It is not safe to call methods of LazyContext concurrently.
-func NewLazyContext(root string) (builder.Source, error) {
-	return &lazyContext{
+func NewLazySource(root string) (builder.Source, error) {
+	return &lazySource{
 		root: root,
 		sums: make(map[string]string),
 	}, nil
 }
 
-type lazyContext struct {
+type lazySource struct {
 	root string
 	sums map[string]string
 }
 
-func (c *lazyContext) Root() string {
+func (c *lazySource) Root() string {
 	return c.root
 }
 
-func (c *lazyContext) Close() error {
+func (c *lazySource) Close() error {
 	return nil
 }
 
-func (c *lazyContext) Hash(path string) (string, error) {
+func (c *lazySource) Hash(path string) (string, error) {
 	cleanPath, fullPath, err := normalize(path, c.root)
 	if err != nil {
 		return "", err
@@ -62,7 +62,7 @@ func (c *lazyContext) Hash(path string) (string, error) {
 	return sum, nil
 }
 
-func (c *lazyContext) prepareHash(relPath string, fi os.FileInfo) (string, error) {
+func (c *lazySource) prepareHash(relPath string, fi os.FileInfo) (string, error) {
 	p := filepath.Join(c.root, relPath)
 	h, err := NewFileHash(p, relPath, fi)
 	if err != nil {
