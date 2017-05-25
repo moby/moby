@@ -78,6 +78,12 @@ type Plugin struct {
 	handlersRun bool
 }
 
+// BasePath returns the path to which all paths returned by the plugin are relative to.
+// For v1 plugins, this always returns the host's root directory.
+func (p *Plugin) BasePath() string {
+	return "/"
+}
+
 // Name returns the name of the plugin.
 func (p *Plugin) Name() string {
 	return p.name
@@ -169,7 +175,7 @@ func (p *Plugin) activateWithLock() error {
 
 func (p *Plugin) waitActive() error {
 	p.activateWait.L.Lock()
-	for !p.activated() && p.activateErr == nil {
+	for !p.activated() {
 		p.activateWait.Wait()
 	}
 	p.activateWait.L.Unlock()
