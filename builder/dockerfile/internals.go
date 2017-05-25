@@ -9,12 +9,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
-	containerpkg "github.com/docker/docker/container"
-	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
 )
@@ -74,19 +71,10 @@ func (b *Builder) performCopy(state *dispatchState, inst copyInstruction) error 
 	runConfigWithCommentCmd := copyRunConfig(
 		state.runConfig,
 		withCmdCommentString(fmt.Sprintf("%s %s in %s ", inst.cmdName, srcHash, inst.dest)))
-	if hit, err := b.probeCache(state, runConfigWithCommentCmd); err != nil || hit {
+	containerID, err := b.probeAndCreate(state, runConfigWithCommentCmd)
+	if err != nil || containerID == "" {
 		return err
 	}
-
-	container, err := b.docker.ContainerCreate(types.ContainerCreateConfig{
-		Config: runConfigWithCommentCmd,
-		// Set a log config to override any default value set on the daemon
-		HostConfig: &container.HostConfig{LogConfig: defaultLogConfig},
-	})
-	if err != nil {
-		return err
-	}
-	b.tmpContainers[container.ID] = struct{}{}
 
 	// Twiddle the destination when it's a relative path - meaning, make it
 	// relative to the WORKINGDIR
@@ -96,11 +84,11 @@ func (b *Builder) performCopy(state *dispatchState, inst copyInstruction) error 
 	}
 
 	for _, info := range inst.infos {
-		if err := b.docker.CopyOnBuild(container.ID, dest, info.root, info.path, inst.allowLocalDecompression); err != nil {
+		if err := b.docker.CopyOnBuild(containerID, dest, info.root, info.path, inst.allowLocalDecompression); err != nil {
 			return err
 		}
 	}
-	return b.commitContainer(state, container.ID, runConfigWithCommentCmd)
+	return b.commitContainer(state, containerID, runConfigWithCommentCmd)
 }
 
 // For backwards compat, if there's just one info then use it as the
@@ -186,166 +174,65 @@ func getShell(c *container.Config) []string {
 	return append([]string{}, c.Shell[:]...)
 }
 
-// probeCache checks if cache match can be found for current build instruction.
-// If an image is found, probeCache returns `(true, nil)`.
-// If no image is found, it returns `(false, nil)`.
-// If there is any error, it returns `(false, err)`.
 func (b *Builder) probeCache(dispatchState *dispatchState, runConfig *container.Config) (bool, error) {
-	c := b.imageCache
-	if c == nil || b.options.NoCache || b.cacheBusted {
-		return false, nil
-	}
-	cache, err := c.GetCache(dispatchState.imageID, runConfig)
-	if err != nil {
+	cachedID, err := b.imageProber.Probe(dispatchState.imageID, runConfig)
+	if cachedID == "" || err != nil {
 		return false, err
 	}
-	if len(cache) == 0 {
-		logrus.Debugf("[BUILDER] Cache miss: %s", runConfig.Cmd)
-		b.cacheBusted = true
-		return false, nil
-	}
-
 	fmt.Fprint(b.Stdout, " ---> Using cache\n")
-	logrus.Debugf("[BUILDER] Use cached version: %s", runConfig.Cmd)
-	dispatchState.imageID = string(cache)
-	b.buildStages.update(dispatchState.imageID, runConfig)
 
+	dispatchState.imageID = string(cachedID)
+	b.buildStages.update(dispatchState.imageID, runConfig)
 	return true, nil
 }
 
+var defaultLogConfig = container.LogConfig{Type: "none"}
+
+func (b *Builder) probeAndCreate(dispatchState *dispatchState, runConfig *container.Config) (string, error) {
+	if hit, err := b.probeCache(dispatchState, runConfig); err != nil || hit {
+		return "", err
+	}
+	// Set a log config to override any default value set on the daemon
+	hostConfig := &container.HostConfig{LogConfig: defaultLogConfig}
+	container, err := b.containerManager.Create(runConfig, hostConfig)
+	return container.ID, err
+}
+
 func (b *Builder) create(runConfig *container.Config) (string, error) {
-	resources := container.Resources{
-		CgroupParent: b.options.CgroupParent,
-		CPUShares:    b.options.CPUShares,
-		CPUPeriod:    b.options.CPUPeriod,
-		CPUQuota:     b.options.CPUQuota,
-		CpusetCpus:   b.options.CPUSetCPUs,
-		CpusetMems:   b.options.CPUSetMems,
-		Memory:       b.options.Memory,
-		MemorySwap:   b.options.MemorySwap,
-		Ulimits:      b.options.Ulimits,
-	}
-
-	// TODO: why not embed a hostconfig in builder?
-	hostConfig := &container.HostConfig{
-		SecurityOpt: b.options.SecurityOpt,
-		Isolation:   b.options.Isolation,
-		ShmSize:     b.options.ShmSize,
-		Resources:   resources,
-		NetworkMode: container.NetworkMode(b.options.NetworkMode),
-		// Set a log config to override any default value set on the daemon
-		LogConfig:  defaultLogConfig,
-		ExtraHosts: b.options.ExtraHosts,
-	}
-
-	// Create the container
-	c, err := b.docker.ContainerCreate(types.ContainerCreateConfig{
-		Config:     runConfig,
-		HostConfig: hostConfig,
-	})
+	hostConfig := hostConfigFromOptions(b.options)
+	container, err := b.containerManager.Create(runConfig, hostConfig)
 	if err != nil {
 		return "", err
 	}
-	for _, warning := range c.Warnings {
+	// TODO: could this be moved into containerManager.Create() ?
+	for _, warning := range container.Warnings {
 		fmt.Fprintf(b.Stdout, " ---> [Warning] %s\n", warning)
 	}
-
-	b.tmpContainers[c.ID] = struct{}{}
-	fmt.Fprintf(b.Stdout, " ---> Running in %s\n", stringid.TruncateID(c.ID))
-	return c.ID, nil
+	fmt.Fprintf(b.Stdout, " ---> Running in %s\n", stringid.TruncateID(container.ID))
+	return container.ID, nil
 }
 
-var errCancelled = errors.New("build cancelled")
-
-func (b *Builder) run(cID string, cmd []string) (err error) {
-	attached := make(chan struct{})
-	errCh := make(chan error)
-	go func() {
-		errCh <- b.docker.ContainerAttachRaw(cID, nil, b.Stdout, b.Stderr, true, attached)
-	}()
-
-	select {
-	case err := <-errCh:
-		return err
-	case <-attached:
+func hostConfigFromOptions(options *types.ImageBuildOptions) *container.HostConfig {
+	resources := container.Resources{
+		CgroupParent: options.CgroupParent,
+		CPUShares:    options.CPUShares,
+		CPUPeriod:    options.CPUPeriod,
+		CPUQuota:     options.CPUQuota,
+		CpusetCpus:   options.CPUSetCPUs,
+		CpusetMems:   options.CPUSetMems,
+		Memory:       options.Memory,
+		MemorySwap:   options.MemorySwap,
+		Ulimits:      options.Ulimits,
 	}
 
-	finished := make(chan struct{})
-	cancelErrCh := make(chan error, 1)
-	go func() {
-		select {
-		case <-b.clientCtx.Done():
-			logrus.Debugln("Build cancelled, killing and removing container:", cID)
-			b.docker.ContainerKill(cID, 0)
-			b.removeContainer(cID)
-			cancelErrCh <- errCancelled
-		case <-finished:
-			cancelErrCh <- nil
-		}
-	}()
-
-	if err := b.docker.ContainerStart(cID, nil, "", ""); err != nil {
-		close(finished)
-		if cancelErr := <-cancelErrCh; cancelErr != nil {
-			logrus.Debugf("Build cancelled (%v) and got an error from ContainerStart: %v",
-				cancelErr, err)
-		}
-		return err
-	}
-
-	// Block on reading output from container, stop on err or chan closed
-	if err := <-errCh; err != nil {
-		close(finished)
-		if cancelErr := <-cancelErrCh; cancelErr != nil {
-			logrus.Debugf("Build cancelled (%v) and got an error from errCh: %v",
-				cancelErr, err)
-		}
-		return err
-	}
-
-	waitC, err := b.docker.ContainerWait(b.clientCtx, cID, containerpkg.WaitConditionNotRunning)
-	if err != nil {
-		// Unable to begin waiting for container.
-		close(finished)
-		if cancelErr := <-cancelErrCh; cancelErr != nil {
-			logrus.Debugf("Build cancelled (%v) and unable to begin ContainerWait: %d", cancelErr, err)
-		}
-		return err
-	}
-
-	if status := <-waitC; status.ExitCode() != 0 {
-		close(finished)
-		if cancelErr := <-cancelErrCh; cancelErr != nil {
-			logrus.Debugf("Build cancelled (%v) and got a non-zero code from ContainerWait: %d", cancelErr, status.ExitCode())
-		}
-		// TODO: change error type, because jsonmessage.JSONError assumes HTTP
-		return &jsonmessage.JSONError{
-			Message: fmt.Sprintf("The command '%s' returned a non-zero code: %d", strings.Join(cmd, " "), status.ExitCode()),
-			Code:    status.ExitCode(),
-		}
-	}
-	close(finished)
-	return <-cancelErrCh
-}
-
-func (b *Builder) removeContainer(c string) error {
-	rmConfig := &types.ContainerRmConfig{
-		ForceRemove:  true,
-		RemoveVolume: true,
-	}
-	if err := b.docker.ContainerRm(c, rmConfig); err != nil {
-		fmt.Fprintf(b.Stdout, "Error removing intermediate container %s: %v\n", stringid.TruncateID(c), err)
-		return err
-	}
-	return nil
-}
-
-func (b *Builder) clearTmp() {
-	for c := range b.tmpContainers {
-		if err := b.removeContainer(c); err != nil {
-			return
-		}
-		delete(b.tmpContainers, c)
-		fmt.Fprintf(b.Stdout, "Removing intermediate container %s\n", stringid.TruncateID(c))
+	return &container.HostConfig{
+		SecurityOpt: options.SecurityOpt,
+		Isolation:   options.Isolation,
+		ShmSize:     options.ShmSize,
+		Resources:   resources,
+		NetworkMode: container.NetworkMode(options.NetworkMode),
+		// Set a log config to override any default value set on the daemon
+		LogConfig:  defaultLogConfig,
+		ExtraHosts: options.ExtraHosts,
 	}
 }

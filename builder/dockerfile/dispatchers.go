@@ -19,11 +19,11 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/parser"
+	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/go-connections/nat"
 	"github.com/pkg/errors"
@@ -218,7 +218,7 @@ func from(req dispatchRequest) error {
 		return err
 	}
 
-	req.builder.resetImageCache()
+	req.builder.imageProber.Reset()
 	image, err := req.builder.getFromImage(req.shlex, req.args[0])
 	if err != nil {
 		return err
@@ -398,24 +398,15 @@ func workdir(req dispatchRequest) error {
 
 	comment := "WORKDIR " + runConfig.WorkingDir
 	runConfigWithCommentCmd := copyRunConfig(runConfig, withCmdCommentString(comment))
-	if hit, err := req.builder.probeCache(req.state, runConfigWithCommentCmd); err != nil || hit {
+	containerID, err := req.builder.probeAndCreate(req.state, runConfigWithCommentCmd)
+	if err != nil || containerID == "" {
+		return err
+	}
+	if err := req.builder.docker.ContainerCreateWorkdir(containerID); err != nil {
 		return err
 	}
 
-	container, err := req.builder.docker.ContainerCreate(types.ContainerCreateConfig{
-		Config: runConfigWithCommentCmd,
-		// Set a log config to override any default value set on the daemon
-		HostConfig: &container.HostConfig{LogConfig: defaultLogConfig},
-	})
-	if err != nil {
-		return err
-	}
-	req.builder.tmpContainers[container.ID] = struct{}{}
-	if err := req.builder.docker.ContainerCreateWorkdir(container.ID); err != nil {
-		return err
-	}
-
-	return req.builder.commitContainer(req.state, container.ID, runConfigWithCommentCmd)
+	return req.builder.commitContainer(req.state, containerID, runConfigWithCommentCmd)
 }
 
 // RUN some command yo
@@ -471,7 +462,16 @@ func run(req dispatchRequest) error {
 	if err != nil {
 		return err
 	}
-	if err := req.builder.run(cID, runConfig.Cmd); err != nil {
+	if err := req.builder.containerManager.Run(req.builder.clientCtx, cID, req.builder.Stdout, req.builder.Stderr); err != nil {
+		if err, ok := err.(*statusCodeError); ok {
+			// TODO: change error type, because jsonmessage.JSONError assumes HTTP
+			return &jsonmessage.JSONError{
+				Message: fmt.Sprintf(
+					"The command '%s' returned a non-zero code: %d",
+					strings.Join(runConfig.Cmd, " "), err.StatusCode()),
+				Code: err.StatusCode(),
+			}
+		}
 		return err
 	}
 

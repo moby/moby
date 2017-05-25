@@ -7,6 +7,7 @@ import (
 
 	"bytes"
 	"context"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
@@ -54,7 +55,6 @@ func newBuilderWithMockBackend() *Builder {
 		options:       &types.ImageBuildOptions{},
 		docker:        mockBackend,
 		buildArgs:     newBuildArgs(make(map[string]*string)),
-		tmpContainers: make(map[string]struct{}),
 		Stdout:        new(bytes.Buffer),
 		clientCtx:     ctx,
 		disableCommit: true,
@@ -62,7 +62,9 @@ func newBuilderWithMockBackend() *Builder {
 			Options: &types.ImageBuildOptions{},
 			Backend: mockBackend,
 		}),
-		buildStages: newBuildStages(),
+		buildStages:      newBuildStages(),
+		imageProber:      newImageProber(mockBackend, nil, false),
+		containerManager: newContainerManager(mockBackend),
 	}
 	return b
 }
@@ -479,9 +481,12 @@ func TestRunWithBuildArgs(t *testing.T) {
 			return "", nil
 		},
 	}
-	b.imageCache = imageCache
 
 	mockBackend := b.docker.(*MockBackend)
+	mockBackend.makeImageCacheFunc = func(_ []string) builder.ImageCache {
+		return imageCache
+	}
+	b.imageProber = newImageProber(mockBackend, nil, false)
 	mockBackend.getImageFunc = func(_ string) (builder.Image, builder.ReleaseableLayer, error) {
 		return &mockImage{
 			id:     "abcdef",

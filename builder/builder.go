@@ -7,12 +7,11 @@ package builder
 import (
 	"io"
 
-	"golang.org/x/net/context"
-
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	containerpkg "github.com/docker/docker/container"
+	"golang.org/x/net/context"
 )
 
 const (
@@ -36,21 +35,10 @@ type Source interface {
 // Backend abstracts calls to a Docker Daemon.
 type Backend interface {
 	ImageBackend
+	ExecBackend
 
-	// ContainerAttachRaw attaches to container.
-	ContainerAttachRaw(cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool, attached chan struct{}) error
-	// ContainerCreate creates a new Docker container and returns potential warnings
-	ContainerCreate(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error)
-	// ContainerRm removes a container specified by `id`.
-	ContainerRm(name string, config *types.ContainerRmConfig) error
 	// Commit creates a new Docker image from an existing Docker container.
 	Commit(string, *backend.ContainerCommitConfig) (string, error)
-	// ContainerKill stops the container execution abruptly.
-	ContainerKill(containerID string, sig uint64) error
-	// ContainerStart starts a new container
-	ContainerStart(containerID string, hostConfig *container.HostConfig, checkpoint string, checkpointDir string) error
-	// ContainerWait stops processing until the given container is stopped.
-	ContainerWait(ctx context.Context, name string, condition containerpkg.WaitCondition) (<-chan containerpkg.StateStatus, error)
 	// ContainerCreateWorkdir creates the workdir
 	ContainerCreateWorkdir(containerID string) error
 
@@ -59,11 +47,29 @@ type Backend interface {
 	// TODO: extract in the builder instead of passing `decompress`
 	// TODO: use containerd/fs.changestream instead as a source
 	CopyOnBuild(containerID string, destPath string, srcRoot string, srcPath string, decompress bool) error
+
+	ImageCacheBuilder
 }
 
 // ImageBackend are the interface methods required from an image component
 type ImageBackend interface {
 	GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (Image, ReleaseableLayer, error)
+}
+
+// ExecBackend contains the interface methods required for executing containers
+type ExecBackend interface {
+	// ContainerAttachRaw attaches to container.
+	ContainerAttachRaw(cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool, attached chan struct{}) error
+	// ContainerCreate creates a new Docker container and returns potential warnings
+	ContainerCreate(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error)
+	// ContainerRm removes a container specified by `id`.
+	ContainerRm(name string, config *types.ContainerRmConfig) error
+	// ContainerKill stops the container execution abruptly.
+	ContainerKill(containerID string, sig uint64) error
+	// ContainerStart starts a new container
+	ContainerStart(containerID string, hostConfig *container.HostConfig, checkpoint string, checkpointDir string) error
+	// ContainerWait stops processing until the given container is stopped.
+	ContainerWait(ctx context.Context, name string, condition containerpkg.WaitCondition) (<-chan containerpkg.StateStatus, error)
 }
 
 // Result is the output produced by a Builder

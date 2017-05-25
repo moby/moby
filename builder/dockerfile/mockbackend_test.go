@@ -3,13 +3,11 @@ package dockerfile
 import (
 	"io"
 
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
 	containerpkg "github.com/docker/docker/container"
-	"github.com/docker/docker/image"
 	"golang.org/x/net/context"
 )
 
@@ -18,10 +16,7 @@ type MockBackend struct {
 	containerCreateFunc func(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error)
 	commitFunc          func(string, *backend.ContainerCommitConfig) (string, error)
 	getImageFunc        func(string) (builder.Image, builder.ReleaseableLayer, error)
-}
-
-func (m *MockBackend) TagImageWithReference(image.ID, reference.Named) error {
-	return nil
+	makeImageCacheFunc  func(cacheFrom []string) builder.ImageCache
 }
 
 func (m *MockBackend) ContainerAttachRaw(cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool, attached chan struct{}) error {
@@ -72,6 +67,13 @@ func (m *MockBackend) GetImageAndReleasableLayer(ctx context.Context, refOrID st
 	}
 
 	return &mockImage{id: "theid"}, &mockLayer{}, nil
+}
+
+func (m *MockBackend) MakeImageCache(cacheFrom []string) builder.ImageCache {
+	if m.makeImageCacheFunc != nil {
+		return m.makeImageCacheFunc(cacheFrom)
+	}
+	return nil
 }
 
 type mockImage struct {
