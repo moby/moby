@@ -45,7 +45,7 @@ func validateNetContainerMode(c *container.Config, hc *container.HostConfig) err
 	parts := strings.Split(string(hc.NetworkMode), ":")
 	if parts[0] == "container" {
 		if len(parts) < 2 || parts[1] == "" {
-			return fmt.Errorf("--net: invalid net mode: invalid container format container:<name|id>")
+			return fmt.Errorf("Invalid network mode: invalid container format container:<name|id>")
 		}
 	}
 

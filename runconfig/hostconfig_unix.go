@@ -55,7 +55,7 @@ func validateIsolation(hc *container.HostConfig) error {
 		return nil
 	}
 	if !hc.Isolation.IsValid() {
-		return fmt.Errorf("invalid --isolation: %q - %s only supports 'default'", hc.Isolation, runtime.GOOS)
+		return fmt.Errorf("Invalid isolation: %q - %s only supports 'default'", hc.Isolation, runtime.GOOS)
 	}
 	return nil
 }
@@ -68,11 +68,11 @@ func validateQoS(hc *container.HostConfig) error {
 	}
 
 	if hc.IOMaximumBandwidth != 0 {
-		return fmt.Errorf("invalid QoS settings: %s does not support --io-maxbandwidth", runtime.GOOS)
+		return fmt.Errorf("Invalid QoS settings: %s does not support configuration of maximum bandwidth", runtime.GOOS)
 	}
 
 	if hc.IOMaximumIOps != 0 {
-		return fmt.Errorf("invalid QoS settings: %s does not support --io-maxiops", runtime.GOOS)
+		return fmt.Errorf("Invalid QoS settings: %s does not support configuration of maximum IOPs", runtime.GOOS)
 	}
 	return nil
 }
@@ -86,15 +86,15 @@ func validateResources(hc *container.HostConfig, si *sysinfo.SysInfo) error {
 	}
 
 	if hc.Resources.CPURealtimePeriod > 0 && !si.CPURealtimePeriod {
-		return fmt.Errorf("invalid --cpu-rt-period: Your kernel does not support cgroup rt period")
+		return fmt.Errorf("Your kernel does not support cgroup cpu real-time period")
 	}
 
 	if hc.Resources.CPURealtimeRuntime > 0 && !si.CPURealtimeRuntime {
-		return fmt.Errorf("invalid --cpu-rt-runtime: Your kernel does not support cgroup rt runtime")
+		return fmt.Errorf("Your kernel does not support cgroup cpu real-time runtime")
 	}
 
 	if hc.Resources.CPURealtimePeriod != 0 && hc.Resources.CPURealtimeRuntime != 0 && hc.Resources.CPURealtimeRuntime > hc.Resources.CPURealtimePeriod {
-		return fmt.Errorf("invalid --cpu-rt-runtime: rt runtime cannot be higher than rt period")
+		return fmt.Errorf("cpu real-time runtime cannot be higher than cpu real-time period")
 	}
 	return nil
 }
