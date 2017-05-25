@@ -55,13 +55,13 @@ func lookupFwMethod(fwMethod uint32) string {
 }
 
 func checkDestination(t *testing.T, i *Handle, s *Service, d *Destination, checkPresent bool) {
-	dstFound := false
+	var dstFound bool
 
 	dstArray, err := i.GetDestinations(s)
 	require.NoError(t, err)
 
 	for _, dst := range dstArray {
-		if dst.Address.String() == d.Address.String() && dst.Port == d.Port && lookupFwMethod(dst.ConnectionFlags) == lookupFwMethod(d.ConnectionFlags) {
+		if dst.Address.Equal(d.Address) && dst.Port == d.Port && lookupFwMethod(dst.ConnectionFlags) == lookupFwMethod(d.ConnectionFlags) {
 			dstFound = true
 			break
 		}
@@ -86,7 +86,7 @@ func checkService(t *testing.T, i *Handle, s *Service, checkPresent bool) {
 	svcArray, err := i.GetServices()
 	require.NoError(t, err)
 
-	svcFound := false
+	var svcFound bool
 
 	for _, svc := range svcArray {
 

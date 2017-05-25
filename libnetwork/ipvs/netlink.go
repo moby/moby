@@ -225,7 +225,6 @@ done:
 			return nil, err
 		}
 		for _, m := range msgs {
-
 			if m.Header.Seq != req.Seq {
 				continue
 			}
@@ -235,7 +234,6 @@ done:
 			if m.Header.Type == syscall.NLMSG_DONE {
 				break done
 			}
-
 			if m.Header.Type == syscall.NLMSG_ERROR {
 				error := int32(native.Uint32(m.Data[0:4]))
 				if error == 0 {
@@ -396,7 +394,7 @@ func (i *Handle) doGetServicesCmd(svc *Service) ([]*Service, error) {
 	for _, msg := range msgs {
 		srv, err := i.parseService(msg)
 		if err != nil {
-			return res, err
+			return nil, err
 		}
 		res = append(res, srv)
 	}
