@@ -49,7 +49,6 @@ const defaultOwner = "docker"
 // | VolumePath      | \\?\\Volume{GUIDa}                         |                                                   |
 // | LayerFolderPath | %root%\windowsfilter\containerID           | %root%\windowsfilter\containerID (servicing only) |
 // | Layers[]        | ID=GUIDb;Path=%root%\windowsfilter\layerID | ID=GUIDb;Path=%root%\windowsfilter\layerID        |
-// | SandboxPath     |                                            | %root%\windowsfilter                              |
 // | HvRuntime       |                                            | ImagePath=%root%\BaseLayerID\UtilityVM            |
 // +-----------------+--------------------------------------------+---------------------------------------------------+
 //
@@ -88,7 +87,6 @@ const defaultOwner = "docker"
 //	}],
 //	"HostName": "475c2c58933b",
 //	"MappedDirectories": [],
-//	"SandboxPath": "C:\\\\control\\\\windowsfilter",
 //	"HvPartition": true,
 //	"EndpointList": ["e1bb1e61-d56f-405e-b75d-fd520cefa0cb"],
 //	"DNSSearchList": "a.com,b.com,c.com",
@@ -159,7 +157,6 @@ func (clnt *client) Create(containerID string, checkpoint string, checkpointDir 
 		}
 		if h, ok := option.(*HyperVIsolationOption); ok {
 			configuration.HvPartition = h.IsHyperV
-			configuration.SandboxPath = h.SandboxPath
 			continue
 		}
 		if l, ok := option.(*LayerOption); ok {
