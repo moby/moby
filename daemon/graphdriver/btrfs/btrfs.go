@@ -16,10 +16,12 @@ import "C"
 
 import (
 	"fmt"
+	"io/ioutil"
 	"math"
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -477,6 +479,14 @@ func (d *Driver) subvolumesDirID(id string) string {
 	return path.Join(d.subvolumesDir(), id)
 }
 
+func (d *Driver) quotasDir() string {
+	return path.Join(d.home, "quotas")
+}
+
+func (d *Driver) quotasDirID(id string) string {
+	return path.Join(d.quotasDir(), id)
+}
+
 // CreateReadWrite creates a layer that is writable for use as a container
 // file system.
 func (d *Driver) CreateReadWrite(id, parent string, opts *graphdriver.CreateOpts) error {
@@ -485,6 +495,7 @@ func (d *Driver) CreateReadWrite(id, parent string, opts *graphdriver.CreateOpts
 
 // Create the filesystem with given id.
 func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
+	quotas := path.Join(d.home, "quotas")
 	subvolumes := path.Join(d.home, "subvolumes")
 	rootUID, rootGID, err := idtools.GetRootUIDGID(d.uidMaps, d.gidMaps)
 	if err != nil {
@@ -521,7 +532,14 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
 		if err := d.parseStorageOpt(storageOpt, driver); err != nil {
 			return err
 		}
+
 		if err := d.setStorageSize(path.Join(subvolumes, id), driver); err != nil {
+			return err
+		}
+		if err := idtools.MkdirAllAs(quotas, 0700, rootUID, rootGID); err != nil {
+			return err
+		}
+		if err := ioutil.WriteFile(path.Join(quotas, id), []byte(fmt.Sprint(driver.options.size)), 0644); err != nil {
 			return err
 		}
 	}
@@ -588,6 +606,14 @@ func (d *Driver) Remove(id string) error {
 	if _, err := os.Stat(dir); err != nil {
 		return err
 	}
+	quotasDir := d.quotasDirID(id)
+	if _, err := os.Stat(quotasDir); err == nil {
+		if err := os.Remove(quotasDir); err != nil {
+			return err
+		}
+	} else if !os.IsNotExist(err) {
+		return err
+	}
 
 	// Call updateQuotaStatus() to invoke status update
 	d.updateQuotaStatus()
@@ -614,6 +640,17 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 
 	if !st.IsDir() {
 		return "", fmt.Errorf("%s: not a directory", dir)
+	}
+
+	if quota, err := ioutil.ReadFile(d.quotasDirID(id)); err == nil {
+		if size, err := strconv.ParseUint(string(quota), 10, 64); err == nil && size >= d.options.minSpace {
+			if err := d.subvolEnableQuota(); err != nil {
+				return "", err
+			}
+			if err := subvolLimitQgroup(dir, size); err != nil {
+				return "", err
+			}
+		}
 	}
 
 	return dir, nil
