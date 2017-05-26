@@ -5,6 +5,7 @@ package v2
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/docker/docker/api/types"
@@ -108,7 +109,7 @@ func (p *Plugin) InitSpec(execRoot string) (*specs.Spec, error) {
 	}
 
 	envs := make([]string, 1, len(p.PluginObj.Settings.Env)+1)
-	envs[0] = "PATH=" + system.DefaultPathEnv
+	envs[0] = "PATH=" + system.DefaultPathEnv(runtime.GOOS)
 	envs = append(envs, p.PluginObj.Settings.Env...)
 
 	args := append(p.PluginObj.Config.Entrypoint, p.PluginObj.Settings.Args...)
