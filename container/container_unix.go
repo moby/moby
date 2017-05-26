@@ -35,27 +35,6 @@ type ExitStatus struct {
 	OOMKilled bool
 }
 
-// CreateDaemonEnvironment returns the list of all environment variables given the list of
-// environment variables related to links.
-// Sets PATH, HOSTNAME and if container.Config.Tty is set: TERM.
-// The defaults set here do not override the values in container.Config.Env
-func (container *Container) CreateDaemonEnvironment(tty bool, linkedEnv []string) []string {
-	// Setup environment
-	env := []string{
-		"PATH=" + system.DefaultPathEnv,
-		"HOSTNAME=" + container.Config.Hostname,
-	}
-	if tty {
-		env = append(env, "TERM=xterm")
-	}
-	env = append(env, linkedEnv...)
-	// because the env on the container can override certain default values
-	// we need to replace the 'env' keys where they match and append anything
-	// else.
-	env = ReplaceOrAppendEnvValues(env, container.Config.Env)
-	return env
-}
-
 // TrySetNetworkMount attempts to set the network mounts given a provided destination and
 // the path to use for it; return true if the given destination was a network mount file
 func (container *Container) TrySetNetworkMount(destination string, path string) bool {
