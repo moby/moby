@@ -216,7 +216,7 @@ func (daemon *Daemon) ImagesPrune(ctx context.Context, pruneFilters filters.Args
 			if !until.IsZero() && img.Created.After(until) {
 				continue
 			}
-			if !matchLabels(pruneFilters, img.Config.Labels) {
+			if img.Config != nil && !matchLabels(pruneFilters, img.Config.Labels) {
 				continue
 			}
 			topImages[id] = img
