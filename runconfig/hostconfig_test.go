@@ -167,11 +167,11 @@ func TestPidModeTest(t *testing.T) {
 func TestRestartPolicy(t *testing.T) {
 	restartPolicies := map[container.RestartPolicy][]bool{
 		// none, always, failure
-		container.RestartPolicy{}:                                         {true, false, false},
-		container.RestartPolicy{Name: "something", MaximumRetryCount: 0}:  {false, false, false},
-		container.RestartPolicy{Name: "no", MaximumRetryCount: 0}:         {true, false, false},
-		container.RestartPolicy{Name: "always", MaximumRetryCount: 0}:     {false, true, false},
-		container.RestartPolicy{Name: "on-failure", MaximumRetryCount: 0}: {false, false, true},
+		{}: {true, false, false},
+		{Name: "something", MaximumRetryCount: 0}:  {false, false, false},
+		{Name: "no", MaximumRetryCount: 0}:         {true, false, false},
+		{Name: "always", MaximumRetryCount: 0}:     {false, true, false},
+		{Name: "on-failure", MaximumRetryCount: 0}: {false, false, true},
 	}
 	for restartPolicy, state := range restartPolicies {
 		if restartPolicy.IsNone() != state[0] {
