@@ -1,6 +1,7 @@
 package libcontainerd
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -96,8 +97,17 @@ const defaultOwner = "docker"
 func (clnt *client) Create(containerID string, checkpoint string, checkpointDir string, spec specs.Spec, attachStdio StdioCallback, options ...CreateOption) error {
 	clnt.lock(containerID)
 	defer clnt.unlock(containerID)
-	logrus.Debugln("libcontainerd: client.Create() with spec", spec)
+	if b, err := json.Marshal(spec); err == nil {
+		logrus.Debugln("libcontainerd: client.Create() with spec", string(b))
+	}
+	osName := spec.Platform.OS
+	if osName == "windows" {
+		return clnt.createWindows(containerID, checkpoint, checkpointDir, spec, attachStdio, options...)
+	}
+	return clnt.createLinux(containerID, checkpoint, checkpointDir, spec, attachStdio, options...)
+}
 
+func (clnt *client) createWindows(containerID string, checkpoint string, checkpointDir string, spec specs.Spec, attachStdio StdioCallback, options ...CreateOption) error {
 	configuration := &hcsshim.ContainerConfig{
 		SystemType: "Container",
 		Name:       containerID,
@@ -265,15 +275,98 @@ func (clnt *client) Create(containerID string, checkpoint string, checkpointDir 
 	// Call start, and if it fails, delete the container from our
 	// internal structure, start will keep HCS in sync by deleting the
 	// container there.
-	logrus.Debugf("libcontainerd: Create() id=%s, Calling start()", containerID)
+	logrus.Debugf("libcontainerd: createWindows() id=%s, Calling start()", containerID)
 	if err := container.start(attachStdio); err != nil {
 		clnt.deleteContainer(containerID)
 		return err
 	}
 
-	logrus.Debugf("libcontainerd: Create() id=%s completed successfully", containerID)
+	logrus.Debugf("libcontainerd: createWindows() id=%s completed successfully", containerID)
 	return nil
 
+}
+
+func (clnt *client) createLinux(containerID string, checkpoint string, checkpointDir string, spec specs.Spec, attachStdio StdioCallback, options ...CreateOption) error {
+	logrus.Debugf("libcontainerd: createLinux(): containerId %s ", containerID)
+
+	// TODO @jhowardmsft LCOW Support: This needs to be configurable, not hard-coded.
+	// However, good-enough for the LCOW bring-up.
+	configuration := &hcsshim.ContainerConfig{
+		HvPartition:                 true,
+		Name:                        containerID,
+		SystemType:                  "container",
+		ContainerType:               "linux",
+		TerminateOnLastHandleClosed: true,
+		HvRuntime: &hcsshim.HvRuntime{
+			ImagePath: `c:\program files\lcow`,
+		},
+	}
+
+	var layerOpt *LayerOption
+	for _, option := range options {
+		if l, ok := option.(*LayerOption); ok {
+			layerOpt = l
+		}
+	}
+
+	// We must have a layer option with at least one path
+	if layerOpt == nil || layerOpt.LayerPaths == nil {
+		return fmt.Errorf("no layer option or paths were supplied to the runtime")
+	}
+
+	// LayerFolderPath (writeable layer) + Layers (Guid + path)
+	configuration.LayerFolderPath = layerOpt.LayerFolderPath
+	for _, layerPath := range layerOpt.LayerPaths {
+		_, filename := filepath.Split(layerPath)
+		g, err := hcsshim.NameToGuid(filename)
+		if err != nil {
+			return err
+		}
+		configuration.Layers = append(configuration.Layers, hcsshim.Layer{
+			ID:   g.ToString(),
+			Path: filepath.Join(layerPath, "layer.vhd"),
+		})
+	}
+
+	hcsContainer, err := hcsshim.CreateContainer(containerID, configuration)
+	if err != nil {
+		return err
+	}
+
+	// Construct a container object for calling start on it.
+	container := &container{
+		containerCommon: containerCommon{
+			process: process{
+				processCommon: processCommon{
+					containerID:  containerID,
+					client:       clnt,
+					friendlyName: InitFriendlyName,
+				},
+			},
+			processes: make(map[string]*process),
+		},
+		ociSpec:      spec,
+		hcsContainer: hcsContainer,
+	}
+
+	container.options = options
+	for _, option := range options {
+		if err := option.Apply(container); err != nil {
+			logrus.Errorf("libcontainerd: createLinux() %v", err)
+		}
+	}
+
+	// Call start, and if it fails, delete the container from our
+	// internal structure, start will keep HCS in sync by deleting the
+	// container there.
+	logrus.Debugf("libcontainerd: createLinux() id=%s, Calling start()", containerID)
+	if err := container.start(attachStdio); err != nil {
+		clnt.deleteContainer(containerID)
+		return err
+	}
+
+	logrus.Debugf("libcontainerd: createLinux() id=%s completed successfully", containerID)
+	return nil
 }
 
 // AddProcess is the handler for adding a process to an already running
@@ -292,13 +385,15 @@ func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendly
 	// create stdin, even if it's not used - it will be closed shortly. Stderr
 	// is only created if it we're not -t.
 	createProcessParms := hcsshim.ProcessConfig{
-		EmulateConsole:   procToAdd.Terminal,
 		CreateStdInPipe:  true,
 		CreateStdOutPipe: true,
 		CreateStdErrPipe: !procToAdd.Terminal,
 	}
-	createProcessParms.ConsoleSize[0] = uint(procToAdd.ConsoleSize.Height)
-	createProcessParms.ConsoleSize[1] = uint(procToAdd.ConsoleSize.Width)
+	if procToAdd.Terminal {
+		createProcessParms.EmulateConsole = true
+		createProcessParms.ConsoleSize[0] = uint(procToAdd.ConsoleSize.Height)
+		createProcessParms.ConsoleSize[1] = uint(procToAdd.ConsoleSize.Width)
+	}
 
 	// Take working directory from the process to add if it is defined,
 	// otherwise take from the first process.

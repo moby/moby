@@ -7,11 +7,17 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/sysinfo"
+	"github.com/docker/docker/pkg/system"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
-	s := oci.DefaultSpec()
+	img, err := daemon.GetImage(string(c.ImageID))
+	if err != nil {
+		return nil, err
+	}
+
+	s := oci.DefaultOSSpec(img.OS)
 
 	linkedEnv, err := daemon.setupLinkedContainers(c)
 	if err != nil {
@@ -95,7 +101,30 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	if !c.Config.ArgsEscaped {
 		s.Process.Args = escapeArgs(s.Process.Args)
 	}
+
 	s.Process.Cwd = c.Config.WorkingDir
+	s.Process.Env = c.CreateDaemonEnvironment(c.Config.Tty, linkedEnv)
+	if c.Config.Tty {
+		s.Process.Terminal = c.Config.Tty
+		s.Process.ConsoleSize.Height = c.HostConfig.ConsoleSize[0]
+		s.Process.ConsoleSize.Width = c.HostConfig.ConsoleSize[1]
+	}
+	s.Process.User.Username = c.Config.User
+
+	if img.OS == "windows" {
+		daemon.createSpecWindowsFields(c, &s, isHyperV)
+	} else {
+		// TODO @jhowardmsft LCOW Support. Modify this check when running in dual-mode
+		if system.LCOWSupported() && img.OS == "linux" {
+			daemon.createSpecLinuxFields(c, &s)
+		}
+	}
+
+	return (*specs.Spec)(&s), nil
+}
+
+// Sets the Windows-specific fields of the OCI spec
+func (daemon *Daemon) createSpecWindowsFields(c *container.Container, s *specs.Spec, isHyperV bool) {
 	if len(s.Process.Cwd) == 0 {
 		// We default to C:\ to workaround the oddity of the case that the
 		// default directory for cmd running as LocalSystem (or
@@ -106,17 +135,11 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 		// as c:\. Hence, setting it to default of c:\ makes for consistency.
 		s.Process.Cwd = `C:\`
 	}
-	s.Process.Env = c.CreateDaemonEnvironment(c.Config.Tty, linkedEnv)
-	s.Process.ConsoleSize.Height = c.HostConfig.ConsoleSize[0]
-	s.Process.ConsoleSize.Width = c.HostConfig.ConsoleSize[1]
-	s.Process.Terminal = c.Config.Tty
-	s.Process.User.Username = c.Config.User
 
-	// In spec.Root. This is not set for Hyper-V containers
-	if !isHyperV {
-		s.Root.Path = c.BaseFS
-	}
 	s.Root.Readonly = false // Windows does not support a read-only root filesystem
+	if !isHyperV {
+		s.Root.Path = c.BaseFS // This is not set for Hyper-V containers
+	}
 
 	// In s.Windows.Resources
 	cpuShares := uint16(c.HostConfig.CPUShares)
@@ -157,7 +180,17 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 			Iops: &c.HostConfig.IOMaximumIOps,
 		},
 	}
-	return (*specs.Spec)(&s), nil
+}
+
+// Sets the Linux-specific fields of the OCI spec
+// TODO: @jhowardmsft LCOW Support. We need to do a lot more pulling in what can
+// be pulled in from oci_linux.go.
+func (daemon *Daemon) createSpecLinuxFields(c *container.Container, s *specs.Spec) {
+	if len(s.Process.Cwd) == 0 {
+		s.Process.Cwd = `/`
+	}
+	s.Root.Path = "rootfs"
+	s.Root.Readonly = c.HostConfig.ReadonlyRootfs
 }
 
 func escapeArgs(args []string) []string {

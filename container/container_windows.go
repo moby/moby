@@ -23,14 +23,6 @@ type ExitStatus struct {
 	ExitCode int
 }
 
-// CreateDaemonEnvironment creates a new environment variable slice for this container.
-func (container *Container) CreateDaemonEnvironment(_ bool, linkedEnv []string) []string {
-	// because the env on the container can override certain default values
-	// we need to replace the 'env' keys where they match and append anything
-	// else.
-	return ReplaceOrAppendEnvValues(linkedEnv, container.Config.Env)
-}
-
 // UnmountIpcMounts unmounts Ipc related mounts.
 // This is a NOOP on windows.
 func (container *Container) UnmountIpcMounts(unmount func(pth string) error) {

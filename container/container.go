@@ -34,6 +34,7 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/symlink"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/restartmanager"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
@@ -1003,4 +1004,32 @@ func (container *Container) ConfigsDirPath() string {
 // ConfigFilePath returns the path to the on-disk location of a config.
 func (container *Container) ConfigFilePath(configRef swarmtypes.ConfigReference) string {
 	return filepath.Join(container.ConfigsDirPath(), configRef.ConfigID)
+}
+
+// CreateDaemonEnvironment creates a new environment variable slice for this container.
+func (container *Container) CreateDaemonEnvironment(tty bool, linkedEnv []string) []string {
+	// Setup environment
+	// TODO @jhowardmsft LCOW Support. This will need revisiting later.
+	platform := container.Platform
+	if platform == "" {
+		platform = runtime.GOOS
+	}
+	env := []string{}
+	if runtime.GOOS != "windows" || (runtime.GOOS == "windows" && system.LCOWSupported() && platform == "linux") {
+		env = []string{
+			"PATH=" + system.DefaultPathEnv(platform),
+			"HOSTNAME=" + container.Config.Hostname,
+		}
+		if tty {
+			env = append(env, "TERM=xterm")
+		}
+		env = append(env, linkedEnv...)
+	}
+
+	// because the env on the container can override certain default values
+	// we need to replace the 'env' keys where they match and append anything
+	// else.
+	//return ReplaceOrAppendEnvValues(linkedEnv, container.Config.Env)
+	foo := ReplaceOrAppendEnvValues(env, container.Config.Env)
+	return foo
 }
