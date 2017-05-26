@@ -442,7 +442,7 @@ do_install() {
 					else
 						echo >&2 'Warning: current kernel is not supported by the linux-image-extra-virtual'
 						echo >&2 ' package.  We have no AUFS support.  Consider installing the packages'
-						echo >&2 ' linux-image-virtual kernel and linux-image-extra-virtual for AUFS support.'
+						echo >&2 ' "linux-image-virtual" and "linux-image-extra-virtual" for AUFS support.'
 						( set -x; sleep 10 )
 					fi
 				fi

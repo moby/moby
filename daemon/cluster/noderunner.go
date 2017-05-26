@@ -11,6 +11,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/executor/container"
+	lncluster "github.com/docker/libnetwork/cluster"
 	swarmapi "github.com/docker/swarmkit/api"
 	swarmnode "github.com/docker/swarmkit/node"
 	"github.com/pkg/errors"
@@ -158,11 +159,55 @@ func (n *nodeRunner) handleControlSocketChange(ctx context.Context, node *swarmn
 			} else {
 				n.controlClient = swarmapi.NewControlClient(conn)
 				n.logsClient = swarmapi.NewLogsClient(conn)
+				// push store changes to daemon
+				go n.watchClusterEvents(ctx, conn)
 			}
 		}
 		n.grpcConn = conn
 		n.mu.Unlock()
-		n.cluster.configEvent <- struct{}{}
+		n.cluster.SendClusterEvent(lncluster.EventSocketChange)
+	}
+}
+
+func (n *nodeRunner) watchClusterEvents(ctx context.Context, conn *grpc.ClientConn) {
+	client := swarmapi.NewWatchClient(conn)
+	watch, err := client.Watch(ctx, &swarmapi.WatchRequest{
+		Entries: []*swarmapi.WatchRequest_WatchEntry{
+			{
+				Kind:   "node",
+				Action: swarmapi.WatchActionKindCreate | swarmapi.WatchActionKindUpdate | swarmapi.WatchActionKindRemove,
+			},
+			{
+				Kind:   "service",
+				Action: swarmapi.WatchActionKindCreate | swarmapi.WatchActionKindUpdate | swarmapi.WatchActionKindRemove,
+			},
+			{
+				Kind:   "network",
+				Action: swarmapi.WatchActionKindCreate | swarmapi.WatchActionKindUpdate | swarmapi.WatchActionKindRemove,
+			},
+			{
+				Kind:   "secret",
+				Action: swarmapi.WatchActionKindCreate | swarmapi.WatchActionKindUpdate | swarmapi.WatchActionKindRemove,
+			},
+		},
+		IncludeOldObject: true,
+	})
+	if err != nil {
+		logrus.WithError(err).Error("failed to watch cluster store")
+		return
+	}
+	for {
+		msg, err := watch.Recv()
+		if err != nil {
+			// store watch is broken
+			logrus.WithError(err).Error("failed to receive changes from store watch API")
+			return
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case n.cluster.watchStream <- msg:
+		}
 	}
 }
 
@@ -175,7 +220,7 @@ func (n *nodeRunner) handleReadyEvent(ctx context.Context, node *swarmnode.Node,
 		close(ready)
 	case <-ctx.Done():
 	}
-	n.cluster.configEvent <- struct{}{}
+	n.cluster.SendClusterEvent(lncluster.EventNodeReady)
 }
 
 func (n *nodeRunner) handleNodeExit(node *swarmnode.Node) {
@@ -217,6 +262,7 @@ func (n *nodeRunner) Stop() error {
 	if err := n.swarmNode.Stop(ctx); err != nil && !strings.Contains(err.Error(), "context canceled") {
 		return err
 	}
+	n.cluster.SendClusterEvent(lncluster.EventNodeLeave)
 	<-n.done
 	return nil
 }

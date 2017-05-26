@@ -530,6 +530,17 @@ FROM extras:${CODE_VERSION}
 CMD  /code/run-extras
 ```
 
+To use the default value of an `ARG` declared before the first `FROM` use an
+`ARG` instruction without a value:
+
+```Dockerfile
+ARG  SETTINGS=default
+
+FROM busybox
+ARG  SETTINGS
+
+```
+
 ## RUN
 
 RUN has 2 forms:

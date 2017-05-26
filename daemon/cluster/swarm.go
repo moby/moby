@@ -88,10 +88,6 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 		}
 	}
 
-	if !req.ForceNewCluster {
-		clearPersistentState(c.root)
-	}
-
 	nr, err := c.newNodeRunner(nodeStartConfig{
 		forceNewCluster: req.ForceNewCluster,
 		autolock:        req.AutoLockManagers,
@@ -109,15 +105,13 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 	c.mu.Unlock()
 
 	if err := <-nr.Ready(); err != nil {
+		c.mu.Lock()
+		c.nr = nil
+		c.mu.Unlock()
 		if !req.ForceNewCluster { // if failure on first attempt don't keep state
 			if err := clearPersistentState(c.root); err != nil {
 				return "", err
 			}
-		}
-		if err != nil {
-			c.mu.Lock()
-			c.nr = nil
-			c.mu.Unlock()
 		}
 		return "", err
 	}
@@ -166,8 +160,6 @@ func (c *Cluster) Join(req types.JoinRequest) error {
 		return err
 	}
 
-	clearPersistentState(c.root)
-
 	nr, err := c.newNodeRunner(nodeStartConfig{
 		RemoteAddr:    req.RemoteAddrs[0],
 		ListenAddr:    net.JoinHostPort(listenHost, listenPort),
@@ -193,6 +185,9 @@ func (c *Cluster) Join(req types.JoinRequest) error {
 			c.mu.Lock()
 			c.nr = nil
 			c.mu.Unlock()
+			if err := clearPersistentState(c.root); err != nil {
+				return err
+			}
 		}
 		return err
 	}
@@ -388,7 +383,6 @@ func (c *Cluster) Leave(force bool) error {
 		}
 	}
 
-	c.configEvent <- struct{}{}
 	// todo: cleanup optional?
 	if err := clearPersistentState(c.root); err != nil {
 		return err

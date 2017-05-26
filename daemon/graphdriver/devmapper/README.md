@@ -5,7 +5,9 @@
 The device mapper graphdriver uses the device mapper thin provisioning
 module (dm-thinp) to implement CoW snapshots. The preferred model is
 to have a thin pool reserved outside of Docker and passed to the
-daemon via the `--storage-opt dm.thinpooldev` option.
+daemon via the `--storage-opt dm.thinpooldev` option. Alternatively,
+the device mapper graphdriver can setup a block device to handle this
+for you via the `--storage-opt dm.directlvm_device` option.
 
 As a fallback if no thin pool is provided, loopback files will be
 created.  Loopback is very slow, but can be used without any

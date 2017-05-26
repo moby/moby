@@ -217,3 +217,105 @@ func (f *ConstraintFilter) Explain(nodes int) string {
 	}
 	return fmt.Sprintf("scheduling constraints not satisfied on %d nodes", nodes)
 }
+
+// PlatformFilter selects only nodes that run the required platform.
+type PlatformFilter struct {
+	supportedPlatforms []*api.Platform
+}
+
+// SetTask returns true when the filter is enabled for a given task.
+func (f *PlatformFilter) SetTask(t *api.Task) bool {
+	placement := t.Spec.Placement
+	if placement != nil {
+		// copy the platform information
+		f.supportedPlatforms = placement.Platforms
+		if len(placement.Platforms) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// Check returns true if the task can be scheduled into the given node.
+func (f *PlatformFilter) Check(n *NodeInfo) bool {
+	// if the supportedPlatforms field is empty, then either it wasn't
+	// provided or there are no constraints
+	if len(f.supportedPlatforms) == 0 {
+		return true
+	}
+	// check if the platform for the node is supported
+	if n.Description != nil {
+		if nodePlatform := n.Description.Platform; nodePlatform != nil {
+			for _, p := range f.supportedPlatforms {
+				if f.platformEqual(*p, *nodePlatform) {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+func (f *PlatformFilter) platformEqual(imgPlatform, nodePlatform api.Platform) bool {
+	// normalize "x86_64" architectures to "amd64"
+	if imgPlatform.Architecture == "x86_64" {
+		imgPlatform.Architecture = "amd64"
+	}
+	if nodePlatform.Architecture == "x86_64" {
+		nodePlatform.Architecture = "amd64"
+	}
+
+	if (imgPlatform.Architecture == "" || imgPlatform.Architecture == nodePlatform.Architecture) && (imgPlatform.OS == "" || imgPlatform.OS == nodePlatform.OS) {
+		return true
+	}
+	return false
+}
+
+// Explain returns an explanation of a failure.
+func (f *PlatformFilter) Explain(nodes int) string {
+	if nodes == 1 {
+		return "unsupported platform on 1 node"
+	}
+	return fmt.Sprintf("unsupported platform on %d nodes", nodes)
+}
+
+// HostPortFilter checks that the node has a specific port available.
+type HostPortFilter struct {
+	t *api.Task
+}
+
+// SetTask returns true when the filter is enabled for a given task.
+func (f *HostPortFilter) SetTask(t *api.Task) bool {
+	if t.Endpoint != nil {
+		for _, port := range t.Endpoint.Ports {
+			if port.PublishMode == api.PublishModeHost && port.PublishedPort != 0 {
+				f.t = t
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// Check returns true if the task can be scheduled into the given node.
+func (f *HostPortFilter) Check(n *NodeInfo) bool {
+	for _, port := range f.t.Endpoint.Ports {
+		if port.PublishMode == api.PublishModeHost && port.PublishedPort != 0 {
+			portSpec := hostPortSpec{protocol: port.Protocol, publishedPort: port.PublishedPort}
+			if _, ok := n.usedHostPorts[portSpec]; ok {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+// Explain returns an explanation of a failure.
+func (f *HostPortFilter) Explain(nodes int) string {
+	if nodes == 1 {
+		return "host-mode port already in use on 1 node"
+	}
+	return fmt.Sprintf("host-mode port already in use on %d nodes", nodes)
+}

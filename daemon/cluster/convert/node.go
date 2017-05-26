@@ -50,6 +50,11 @@ func NodeFromGRPC(n swarmapi.Node) types.Node {
 				node.Description.Engine.Plugins = append(node.Description.Engine.Plugins, types.PluginDescription{Type: plugin.Type, Name: plugin.Name})
 			}
 		}
+		if n.Description.TLSInfo != nil {
+			node.Description.TLSInfo.TrustRoot = string(n.Description.TLSInfo.TrustRoot)
+			node.Description.TLSInfo.CertIssuerPublicKey = n.Description.TLSInfo.CertIssuerPublicKey
+			node.Description.TLSInfo.CertIssuerSubject = n.Description.TLSInfo.CertIssuerSubject
+		}
 	}
 
 	//Manager

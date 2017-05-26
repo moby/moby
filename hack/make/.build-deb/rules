@@ -15,14 +15,12 @@ override_dh_auto_build:
 
 override_dh_auto_test:
 	./bundles/$(VERSION)/dynbinary-daemon/dockerd -v
-	./bundles/$(VERSION)/dynbinary-client/docker -v
 
 override_dh_strip:
 	# Go has lots of problems with stripping, so just don't
 
 override_dh_auto_install:
 	mkdir -p debian/docker-engine/usr/bin
-	cp -aT "$$(readlink -f bundles/$(VERSION)/dynbinary-client/docker)" debian/docker-engine/usr/bin/docker
 	cp -aT "$$(readlink -f bundles/$(VERSION)/dynbinary-daemon/dockerd)" debian/docker-engine/usr/bin/dockerd
 	cp -aT /usr/local/bin/docker-proxy debian/docker-engine/usr/bin/docker-proxy
 	cp -aT /usr/local/bin/docker-containerd debian/docker-engine/usr/bin/docker-containerd

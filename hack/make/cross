@@ -15,7 +15,6 @@ if [ -x "$DEST/../binary-daemon/dockerd-$VERSION" ]; then
 	(
 		cd "$DEST/linux/${arch}"
 		ln -s ../../../binary-daemon/* ./
-		ln -s ../../../binary-client/* ./
 	)
 	echo "Created symlinks:" "$DEST/linux/${arch}/"*
 fi
@@ -24,8 +23,6 @@ for platform in $DOCKER_CROSSPLATFORMS; do
 	(
 		export KEEPDEST=1
 		export DEST="$DEST/$platform" # bundles/VERSION/cross/GOOS/GOARCH/docker-VERSION
-		mkdir -p "$DEST"
-		ABS_DEST="$(cd "$DEST" && pwd -P)"
 		export GOOS=${platform%/*}
 		export GOARCH=${platform##*/}
 
@@ -36,14 +33,12 @@ for platform in $DOCKER_CROSSPLATFORMS; do
 			# they build cross platform.
 			go install github.com/docker/docker/pkg/...
 
-			if [ -z "${daemonSupporting[$platform]}" ]; then
-				# we just need a simple client for these platforms
-				export LDFLAGS_STATIC_DOCKER=""
-				# remove the "daemon" build tag from platforms that aren't supported
-				export BUILDFLAGS=( "${ORIG_BUILDFLAGS[@]/ daemon/}" )
-				source "${MAKEDIR}/binary-client"
-			else
-				source "${MAKEDIR}/binary-client"
+			if [ -n "${daemonSupporting[$platform]}" ]; then
+				# Since tgz relies on the paths created by mkdir
+				# and we removed the clients, we don't want to mkdir
+				# for all the platforms, only the ones supported by the daemon.
+				mkdir -p "$DEST"
+				ABS_DEST="$(cd "$DEST" && pwd -P)"
 				source "${MAKEDIR}/binary-daemon"
 			fi
 		fi

@@ -11,9 +11,9 @@ import (
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
-// Device transforms a libcontainer configs.Device to a specs.Device object.
-func Device(d *configs.Device) specs.Device {
-	return specs.Device{
+// Device transforms a libcontainer configs.Device to a specs.LinuxDevice object.
+func Device(d *configs.Device) specs.LinuxDevice {
+	return specs.LinuxDevice{
 		Type:     string(d.Type),
 		Path:     d.Path,
 		Major:    d.Major,
@@ -24,19 +24,19 @@ func Device(d *configs.Device) specs.Device {
 	}
 }
 
-func deviceCgroup(d *configs.Device) specs.DeviceCgroup {
+func deviceCgroup(d *configs.Device) specs.LinuxDeviceCgroup {
 	t := string(d.Type)
-	return specs.DeviceCgroup{
+	return specs.LinuxDeviceCgroup{
 		Allow:  true,
-		Type:   &t,
+		Type:   t,
 		Major:  &d.Major,
 		Minor:  &d.Minor,
-		Access: &d.Permissions,
+		Access: d.Permissions,
 	}
 }
 
 // DevicesFromPath computes a list of devices and device permissions from paths (pathOnHost and pathInContainer) and cgroup permissions.
-func DevicesFromPath(pathOnHost, pathInContainer, cgroupPermissions string) (devs []specs.Device, devPermissions []specs.DeviceCgroup, err error) {
+func DevicesFromPath(pathOnHost, pathInContainer, cgroupPermissions string) (devs []specs.LinuxDevice, devPermissions []specs.LinuxDeviceCgroup, err error) {
 	resolvedPathOnHost := pathOnHost
 
 	// check if it is a symbolic link

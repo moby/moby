@@ -1,5 +1,5 @@
 (from "busybox:buildroot-2014.02")
-(maintainer "docker <docker@docker.io>")
+(label "maintainer" "docker <docker@docker.io>")
 (onbuild (run "echo" "test"))
 (onbuild (run "echo test"))
 (onbuild (copy "." "/"))

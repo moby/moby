@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	containerd "github.com/docker/containerd/api/grpc/types"
+	containerd "github.com/containerd/containerd/api/grpc/types"
 	"github.com/docker/docker/pkg/locker"
 	"github.com/docker/docker/pkg/system"
 	"github.com/golang/protobuf/ptypes"
@@ -154,7 +154,7 @@ func (r *remote) handleConnectionChange() {
 		logrus.Debugf("libcontainerd: containerd health check returned error: %v", err)
 
 		if r.daemonPid != -1 {
-			if strings.Contains(err.Error(), "is closing") {
+			if r.closeManually {
 				// Well, we asked for it to stop, just return
 				return
 			}

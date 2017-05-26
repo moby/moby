@@ -23,11 +23,13 @@ import (
 	"github.com/docker/swarmkit/identity"
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/allocator"
+	"github.com/docker/swarmkit/manager/allocator/networkallocator"
 	"github.com/docker/swarmkit/manager/controlapi"
 	"github.com/docker/swarmkit/manager/dispatcher"
 	"github.com/docker/swarmkit/manager/health"
 	"github.com/docker/swarmkit/manager/keymanager"
 	"github.com/docker/swarmkit/manager/logbroker"
+	"github.com/docker/swarmkit/manager/metrics"
 	"github.com/docker/swarmkit/manager/orchestrator/constraintenforcer"
 	"github.com/docker/swarmkit/manager/orchestrator/global"
 	"github.com/docker/swarmkit/manager/orchestrator/replicated"
@@ -36,7 +38,7 @@ import (
 	"github.com/docker/swarmkit/manager/scheduler"
 	"github.com/docker/swarmkit/manager/state/raft"
 	"github.com/docker/swarmkit/manager/state/store"
-	"github.com/docker/swarmkit/manager/storeapi"
+	"github.com/docker/swarmkit/manager/watchapi"
 	"github.com/docker/swarmkit/remotes"
 	"github.com/docker/swarmkit/xnet"
 	gogotypes "github.com/gogo/protobuf/types"
@@ -123,6 +125,7 @@ type Config struct {
 type Manager struct {
 	config Config
 
+	collector              *metrics.Collector
 	caserver               *ca.Server
 	dispatcher             *dispatcher.Dispatcher
 	logbroker              *logbroker.LogBroker
@@ -214,6 +217,7 @@ func New(config *Config) (*Manager, error) {
 
 	m := &Manager{
 		config:          *config,
+		collector:       metrics.NewCollector(raftNode.MemoryStore()),
 		caserver:        ca.NewServer(raftNode.MemoryStore(), config.SecurityConfig, config.RootCAPaths),
 		dispatcher:      dispatcher.New(raftNode, dispatcher.DefaultConfig()),
 		logbroker:       logbroker.New(raftNode.MemoryStore()),
@@ -394,13 +398,13 @@ func (m *Manager) Run(parent context.Context) error {
 	}
 
 	baseControlAPI := controlapi.NewServer(m.raftNode.MemoryStore(), m.raftNode, m.config.SecurityConfig, m.caserver, m.config.PluginGetter)
-	baseStoreAPI := storeapi.NewServer(m.raftNode.MemoryStore())
+	baseWatchAPI := watchapi.NewServer(m.raftNode.MemoryStore())
 	baseResourceAPI := resourceapi.New(m.raftNode.MemoryStore())
 	healthServer := health.NewHealthServer()
 	localHealthServer := health.NewHealthServer()
 
 	authenticatedControlAPI := api.NewAuthenticatedWrapperControlServer(baseControlAPI, authorize)
-	authenticatedStoreAPI := api.NewAuthenticatedWrapperStoreServer(baseStoreAPI, authorize)
+	authenticatedWatchAPI := api.NewAuthenticatedWrapperWatchServer(baseWatchAPI, authorize)
 	authenticatedResourceAPI := api.NewAuthenticatedWrapperResourceAllocatorServer(baseResourceAPI, authorize)
 	authenticatedLogsServerAPI := api.NewAuthenticatedWrapperLogsServer(m.logbroker, authorize)
 	authenticatedLogBrokerAPI := api.NewAuthenticatedWrapperLogBrokerServer(m.logbroker, authorize)
@@ -450,7 +454,6 @@ func (m *Manager) Run(parent context.Context) error {
 		return context.WithValue(ctx, ca.LocalRequestKey, nodeInfo), nil
 	}
 	localProxyControlAPI := api.NewRaftProxyControlServer(baseControlAPI, m.raftNode, handleRequestLocally, forwardAsOwnRequest)
-	localProxyStoreAPI := api.NewRaftProxyStoreServer(baseStoreAPI, m.raftNode, handleRequestLocally, forwardAsOwnRequest)
 	localProxyLogsAPI := api.NewRaftProxyLogsServer(m.logbroker, m.raftNode, handleRequestLocally, forwardAsOwnRequest)
 	localProxyDispatcherAPI := api.NewRaftProxyDispatcherServer(m.dispatcher, m.raftNode, handleRequestLocally, forwardAsOwnRequest)
 	localProxyCAAPI := api.NewRaftProxyCAServer(m.caserver, m.raftNode, handleRequestLocally, forwardAsOwnRequest)
@@ -466,7 +469,7 @@ func (m *Manager) Run(parent context.Context) error {
 	api.RegisterHealthServer(m.server, authenticatedHealthAPI)
 	api.RegisterRaftMembershipServer(m.server, proxyRaftMembershipAPI)
 	api.RegisterControlServer(m.server, authenticatedControlAPI)
-	api.RegisterStoreServer(m.server, authenticatedStoreAPI)
+	api.RegisterWatchServer(m.server, authenticatedWatchAPI)
 	api.RegisterLogsServer(m.server, authenticatedLogsServerAPI)
 	api.RegisterLogBrokerServer(m.server, proxyLogBrokerAPI)
 	api.RegisterResourceAllocatorServer(m.server, proxyResourceAPI)
@@ -474,7 +477,7 @@ func (m *Manager) Run(parent context.Context) error {
 	grpc_prometheus.Register(m.server)
 
 	api.RegisterControlServer(m.localserver, localProxyControlAPI)
-	api.RegisterStoreServer(m.localserver, localProxyStoreAPI)
+	api.RegisterWatchServer(m.localserver, baseWatchAPI)
 	api.RegisterLogsServer(m.localserver, localProxyLogsAPI)
 	api.RegisterHealthServer(m.localserver, localHealthServer)
 	api.RegisterDispatcherServer(m.localserver, localProxyDispatcherAPI)
@@ -503,6 +506,13 @@ func (m *Manager) Run(parent context.Context) error {
 	}
 
 	localHealthServer.SetServingStatus("ControlAPI", api.HealthCheckResponse_SERVING)
+
+	// Start metrics collection.
+	go func(collector *metrics.Collector) {
+		if err := collector.Run(ctx); err != nil {
+			log.G(ctx).WithError(err).Error("collector failed with an error")
+		}
+	}(m.collector)
 
 	close(m.started)
 
@@ -580,6 +590,7 @@ func (m *Manager) Stop(ctx context.Context, clearData bool) {
 
 	m.raftNode.Cancel()
 
+	m.collector.Stop()
 	m.dispatcher.Stop()
 	m.logbroker.Stop()
 	m.caserver.Stop()
@@ -928,6 +939,16 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 			if err := store.CreateNetwork(tx, newIngressNetwork()); err != nil {
 				log.G(ctx).WithError(err).Error("failed to create default ingress network")
 			}
+			// Create now the static predefined node-local networks which
+			// are known to be present in each cluster node. This is needed
+			// in order to allow running services on the predefined docker
+			// networks like `bridge` and `host`.
+			log.G(ctx).Info("Creating node-local predefined networks")
+			for _, p := range networkallocator.PredefinedNetworks() {
+				if err := store.CreateNetwork(tx, newPredefinedNetwork(p.Name, p.Driver)); err != nil {
+					log.G(ctx).WithError(err).Error("failed to create predefined network " + p.Name)
+				}
+			}
 		}
 
 		return nil
@@ -1143,6 +1164,27 @@ func newIngressNetwork() *api.Network {
 					},
 				},
 			},
+		},
+	}
+}
+
+// Creates a network object representing one of the predefined networks
+// known to be statically created on the cluster nodes. These objects
+// are populated in the store at cluster creation solely in order to
+// support running services on the nodes' predefined networks.
+// External clients can filter these predefined networks by looking
+// at the predefined label.
+func newPredefinedNetwork(name, driver string) *api.Network {
+	return &api.Network{
+		ID: identity.NewID(),
+		Spec: api.NetworkSpec{
+			Annotations: api.Annotations{
+				Name: name,
+				Labels: map[string]string{
+					networkallocator.PredefinedLabel: "true",
+				},
+			},
+			DriverConfig: &api.Driver{Name: driver},
 		},
 	}
 }

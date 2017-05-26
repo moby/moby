@@ -746,17 +746,24 @@ __docker_complete_log_drivers() {
 
 __docker_complete_log_options() {
 	# see repository docker/docker.github.io/engine/admin/logging/
-	local common_options="max-buffer-size mode"
 
-	local awslogs_options="$common_options awslogs-create-group awslogs-group awslogs-region awslogs-stream"
-	local fluentd_options="$common_options env fluentd-address fluentd-async-connect fluentd-buffer-limit fluentd-retry-wait fluentd-max-retries labels tag"
-	local gcplogs_options="$common_options env gcp-log-cmd gcp-project labels"
-	local gelf_options="$common_options env gelf-address gelf-compression-level gelf-compression-type labels tag"
-	local journald_options="$common_options env labels tag"
-	local json_file_options="$common_options env labels max-file max-size"
-	local logentries_options="$common_options logentries-token"
-	local syslog_options="$common_options env labels syslog-address syslog-facility syslog-format syslog-tls-ca-cert syslog-tls-cert syslog-tls-key syslog-tls-skip-verify tag"
-	local splunk_options="$common_options env labels splunk-caname splunk-capath splunk-format splunk-gzip splunk-gzip-level splunk-index splunk-insecureskipverify splunk-source splunk-sourcetype splunk-token splunk-url splunk-verify-connection tag"
+	# really global options, defined in https://github.com/moby/moby/blob/master/daemon/logger/factory.go
+	local common_options1="max-buffer-size mode"
+	# common options defined in https://github.com/moby/moby/blob/master/daemon/logger/loginfo.go
+	# but not implemented in all log drivers
+	local common_options2="env env-regex labels"
+
+	# awslogs does not implement the $common_options2.
+	local awslogs_options="$common_options1 awslogs-create-group awslogs-group awslogs-region awslogs-stream tag"
+
+	local fluentd_options="$common_options1 $common_options2 fluentd-address fluentd-async-connect fluentd-buffer-limit fluentd-retry-wait fluentd-max-retries tag"
+	local gcplogs_options="$common_options1 $common_options2 gcp-log-cmd gcp-meta-id gcp-meta-name gcp-meta-zone gcp-project"
+	local gelf_options="$common_options1 $common_options2 gelf-address gelf-compression-level gelf-compression-type tag"
+	local journald_options="$common_options1 $common_options2 tag"
+	local json_file_options="$common_options1 $common_options2 max-file max-size"
+	local logentries_options="$common_options1 $common_options2 logentries-token tag"
+	local splunk_options="$common_options1 $common_options2 splunk-caname splunk-capath splunk-format splunk-gzip splunk-gzip-level splunk-index splunk-insecureskipverify splunk-source splunk-sourcetype splunk-token splunk-url splunk-verify-connection tag"
+	local syslog_options="$common_options1 $common_options2 syslog-address syslog-facility syslog-format syslog-tls-ca-cert syslog-tls-cert syslog-tls-key syslog-tls-skip-verify tag"
 
 	local all_options="$fluentd_options $gcplogs_options $gelf_options $journald_options $logentries_options $json_file_options $syslog_options $splunk_options"
 
@@ -1511,6 +1518,11 @@ _docker_container_run_and_create() {
 		--env-file
 		--expose
 		--group-add
+		--health-cmd
+		--health-interval
+		--health-retries
+		--health-start-period
+		--health-timeout
 		--hostname -h
 		--ip
 		--ip6
@@ -1566,6 +1578,7 @@ _docker_container_run_and_create() {
 		--help
 		--init
 		--interactive -i
+		--no-healthcheck
 		--oom-kill-disable
 		--privileged
 		--publish-all -P
@@ -1576,14 +1589,9 @@ _docker_container_run_and_create() {
 	if [ "$command" = "run" -o "$subcommand" = "run" ] ; then
 		options_with_args="$options_with_args
 			--detach-keys
-			--health-cmd
-			--health-interval
-			--health-retries
-			--health-timeout
 		"
 		boolean_options="$boolean_options
 			--detach -d
-			--no-healthcheck
 			--rm
 			--sig-proxy=false
 		"
@@ -1961,6 +1969,7 @@ _docker_daemon() {
 	local options_with_args="
 		$global_options_with_args
 		--add-runtime
+		--allow-nondistributable-artifacts
 		--api-cors-header
 		--authorization-plugin
 		--bip
@@ -2021,15 +2030,15 @@ _docker_daemon() {
  			COMPREPLY=( $( compgen -W "false true" -- "${cur##*=}" ) )
  			return
  			;;
- 		dm.fs)
- 			COMPREPLY=( $( compgen -W "ext4 xfs" -- "${cur##*=}" ) )
- 			return
- 			;;
- 		dm.thinpooldev)
+		dm.directlvm_device|dm.thinpooldev)
 			cur=${cur##*=}
- 			_filedir
- 			return
- 			;;
+			_filedir
+			return
+			;;
+		dm.fs)
+			COMPREPLY=( $( compgen -W "ext4 xfs" -- "${cur##*=}" ) )
+			return
+			;;
  	esac
 
 	case "$prev" in
@@ -2069,6 +2078,7 @@ _docker_daemon() {
 				dm.basesize
 				dm.blkdiscard
 				dm.blocksize
+				dm.directlvm_device
 				dm.fs
 				dm.loopdatasize
 				dm.loopmetadatasize
@@ -2077,6 +2087,10 @@ _docker_daemon() {
 				dm.mountopt
 				dm.override_udev_sync_check
 				dm.thinpooldev
+				dm.thinp_autoextend_percent
+				dm.thinp_autoextend_threshold
+				dm.thinp_metapercent
+				dm.thinp_percent
 				dm.use_deferred_deletion
 				dm.use_deferred_removal
 			"
@@ -3030,6 +3044,7 @@ _docker_service_update_and_create() {
 		--health-cmd
 		--health-interval
 		--health-retries
+		--health-start-period
 		--health-timeout
 		--hostname
 		--label -l
@@ -3039,7 +3054,6 @@ _docker_service_update_and_create() {
 		--log-opt
 		--mount
 		--network
-		--no-healthcheck
 		--replicas
 		--reserve-cpu
 		--reserve-memory
@@ -3065,6 +3079,7 @@ _docker_service_update_and_create() {
 
 	local boolean_options="
 		--help
+		--no-healthcheck
 		--read-only
 		--tty -t
 		--with-registry-auth
@@ -4017,7 +4032,7 @@ _docker_stack_deploy() {
 
 	case "$cur" in
 		-*)
-			local options="--compose-file -c --help --with-registry-auth"
+			local options="--compose-file -c --help --prune --with-registry-auth"
 			__docker_daemon_is_experimental && options+=" --bundle-file"
 			COMPREPLY=( $( compgen -W "$options" -- "$cur" ) )
 			;;

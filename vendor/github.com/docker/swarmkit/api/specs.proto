@@ -341,6 +341,11 @@ message NetworkSpec {
 	// swarm internally created only and it was identified by the name
 	// "ingress" and the label "com.docker.swarm.internal": "true".
 	bool ingress = 7;
+
+	// ConfigFrom indicates that the network specific configuration
+	// for this network will be provided via another network, locally
+	// on the node where this network is being plumbed.
+	string config_from = 8;
 }
 
 // ClusterSpec specifies global cluster settings.

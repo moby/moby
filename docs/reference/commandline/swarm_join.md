@@ -121,6 +121,7 @@ by passing `--availability=drain` to `docker swarm join`.
 
 ## Related commands
 
+* [swarm ca](swarm_ca.md)
 * [swarm init](swarm_init.md)
 * [swarm join-token](swarm_join_token.md)
 * [swarm leave](swarm_leave.md)

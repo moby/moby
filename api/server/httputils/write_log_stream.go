@@ -3,6 +3,7 @@ package httputils
 import (
 	"fmt"
 	"io"
+	"net/url"
 	"sort"
 	"strings"
 
@@ -85,6 +86,7 @@ func (s byKey) Swap(i, j int) {
 func stringAttrs(a backend.LogAttributes) string {
 	var ss byKey
 	for k, v := range a {
+		k, v := url.QueryEscape(k), url.QueryEscape(v)
 		ss = append(ss, k+"="+v)
 	}
 	sort.Sort(ss)

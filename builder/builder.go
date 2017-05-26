@@ -6,11 +6,11 @@ package builder
 
 import (
 	"io"
-	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
+	containerpkg "github.com/docker/docker/container"
 	"golang.org/x/net/context"
 )
 
@@ -34,26 +34,11 @@ type Source interface {
 
 // Backend abstracts calls to a Docker Daemon.
 type Backend interface {
-	// TODO: use digest reference instead of name
+	ImageBackend
+	ExecBackend
 
-	// GetImageOnBuild looks up a Docker image referenced by `name`.
-	GetImageOnBuild(name string) (Image, error)
-	// PullOnBuild tells Docker to pull image referenced by `name`.
-	PullOnBuild(ctx context.Context, name string, authConfigs map[string]types.AuthConfig, output io.Writer) (Image, error)
-	// ContainerAttachRaw attaches to container.
-	ContainerAttachRaw(cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool, attached chan struct{}) error
-	// ContainerCreate creates a new Docker container and returns potential warnings
-	ContainerCreate(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error)
-	// ContainerRm removes a container specified by `id`.
-	ContainerRm(name string, config *types.ContainerRmConfig) error
 	// Commit creates a new Docker image from an existing Docker container.
 	Commit(string, *backend.ContainerCommitConfig) (string, error)
-	// ContainerKill stops the container execution abruptly.
-	ContainerKill(containerID string, sig uint64) error
-	// ContainerStart starts a new container
-	ContainerStart(containerID string, hostConfig *container.HostConfig, checkpoint string, checkpointDir string) error
-	// ContainerWait stops processing until the given container is stopped.
-	ContainerWait(containerID string, timeout time.Duration) (int, error)
 	// ContainerCreateWorkdir creates the workdir
 	ContainerCreateWorkdir(containerID string) error
 
@@ -63,14 +48,28 @@ type Backend interface {
 	// TODO: use containerd/fs.changestream instead as a source
 	CopyOnBuild(containerID string, destPath string, srcRoot string, srcPath string, decompress bool) error
 
-	// MountImage returns mounted path with rootfs of an image.
-	MountImage(name string) (string, func() error, error)
+	ImageCacheBuilder
 }
 
-// Image represents a Docker image used by the builder.
-type Image interface {
-	ImageID() string
-	RunConfig() *container.Config
+// ImageBackend are the interface methods required from an image component
+type ImageBackend interface {
+	GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (Image, ReleaseableLayer, error)
+}
+
+// ExecBackend contains the interface methods required for executing containers
+type ExecBackend interface {
+	// ContainerAttachRaw attaches to container.
+	ContainerAttachRaw(cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool, attached chan struct{}) error
+	// ContainerCreate creates a new Docker container and returns potential warnings
+	ContainerCreate(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error)
+	// ContainerRm removes a container specified by `id`.
+	ContainerRm(name string, config *types.ContainerRmConfig) error
+	// ContainerKill stops the container execution abruptly.
+	ContainerKill(containerID string, sig uint64) error
+	// ContainerStart starts a new container
+	ContainerStart(containerID string, hostConfig *container.HostConfig, checkpoint string, checkpointDir string) error
+	// ContainerWait stops processing until the given container is stopped.
+	ContainerWait(ctx context.Context, name string, condition containerpkg.WaitCondition) (<-chan containerpkg.StateStatus, error)
 }
 
 // Result is the output produced by a Builder
@@ -91,4 +90,16 @@ type ImageCache interface {
 	// GetCache returns a reference to a cached image whose parent equals `parent`
 	// and runconfig equals `cfg`. A cache miss is expected to return an empty ID and a nil error.
 	GetCache(parentID string, cfg *container.Config) (imageID string, err error)
+}
+
+// Image represents a Docker image used by the builder.
+type Image interface {
+	ImageID() string
+	RunConfig() *container.Config
+}
+
+// ReleaseableLayer is an image layer that can be mounted and released
+type ReleaseableLayer interface {
+	Release() error
+	Mount() (string, error)
 }

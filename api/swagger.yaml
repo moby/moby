@@ -1716,6 +1716,8 @@ definitions:
                       type: "string"
                     Name:
                       type: "string"
+          TLSInfo:
+            $ref: "#/definitions/SwarmSpec"
     example:
       ID: "24ifsmvkjbyhk"
       Version:
@@ -1756,6 +1758,47 @@ definitions:
         Leader: true
         Reachability: "reachable"
         Addr: "172.17.0.2:2377"
+      TLSInfo:
+        TrustRoot: |
+          -----BEGIN CERTIFICATE-----
+          MIIBajCCARCgAwIBAgIUbYqrLSOSQHoxD8CwG6Bi2PJi9c8wCgYIKoZIzj0EAwIw
+          EzERMA8GA1UEAxMIc3dhcm0tY2EwHhcNMTcwNDI0MjE0MzAwWhcNMzcwNDE5MjE0
+          MzAwWjATMREwDwYDVQQDEwhzd2FybS1jYTBZMBMGByqGSM49AgEGCCqGSM49AwEH
+          A0IABJk/VyMPYdaqDXJb/VXh5n/1Yuv7iNrxV3Qb3l06XD46seovcDWs3IZNV1lf
+          3Skyr0ofcchipoiHkXBODojJydSjQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNVHRMB
+          Af8EBTADAQH/MB0GA1UdDgQWBBRUXxuRcnFjDfR/RIAUQab8ZV/n4jAKBggqhkjO
+          PQQDAgNIADBFAiAy+JTe6Uc3KyLCMiqGl2GyWGQqQDEcO3/YG36x7om65AIhAJvz
+          pxv6zFeVEkAEEkqIYi0omA9+CjanB/6Bz4n1uw8H
+          -----END CERTIFICATE-----
+        CertIssuerSubject: "MBMxETAPBgNVBAMTCHN3YXJtLWNh"
+        CertIssuerPublicKey: "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEmT9XIw9h1qoNclv9VeHmf/Vi6/uI2vFXdBveXTpcPjqx6i9wNazchk1XWV/dKTKvSh9xyGKmiIeRcE4OiMnJ1A=="
+  TLSInfo:
+    description: "Information about the issuer of leaf TLS certificates and the trusted root CA certificate"
+    type: "object"
+    properties:
+      TrustRoot:
+        description: "The root CA certificate(s) that are used to validate leaf TLS certificates"
+        type: "string"
+      CertIssuerSubject:
+        description: "The base64-url-safe-encoded raw subject bytes of the issuer"
+        type: "string"
+      CertIssuerPublicKey:
+        description: "The base64-url-safe-encoded raw public key bytes of the issuer"
+        type: "string"
+    example:
+      TrustRoot: |
+        -----BEGIN CERTIFICATE-----
+        MIIBajCCARCgAwIBAgIUbYqrLSOSQHoxD8CwG6Bi2PJi9c8wCgYIKoZIzj0EAwIw
+        EzERMA8GA1UEAxMIc3dhcm0tY2EwHhcNMTcwNDI0MjE0MzAwWhcNMzcwNDE5MjE0
+        MzAwWjATMREwDwYDVQQDEwhzd2FybS1jYTBZMBMGByqGSM49AgEGCCqGSM49AwEH
+        A0IABJk/VyMPYdaqDXJb/VXh5n/1Yuv7iNrxV3Qb3l06XD46seovcDWs3IZNV1lf
+        3Skyr0ofcchipoiHkXBODojJydSjQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNVHRMB
+        Af8EBTADAQH/MB0GA1UdDgQWBBRUXxuRcnFjDfR/RIAUQab8ZV/n4jAKBggqhkjO
+        PQQDAgNIADBFAiAy+JTe6Uc3KyLCMiqGl2GyWGQqQDEcO3/YG36x7om65AIhAJvz
+        pxv6zFeVEkAEEkqIYi0omA9+CjanB/6Bz4n1uw8H
+        -----END CERTIFICATE-----
+      CertIssuerSubject: "MBMxETAPBgNVBAMTCHN3YXJtLWNh"
+      CertIssuerPublicKey: "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEmT9XIw9h1qoNclv9VeHmf/Vi6/uI2vFXdBveXTpcPjqx6i9wNazchk1XWV/dKTKvSh9xyGKmiIeRcE4OiMnJ1A=="
   SwarmSpec:
     description: "User modifiable swarm configuration."
     type: "object"
@@ -1843,6 +1886,14 @@ definitions:
                 CACert:
                   description: "The root CA certificate (in PEM format) this external CA uses to issue TLS certificates (assumed to be to the current swarm root CA certificate if not provided)."
                   type: "string"
+          SigningCACert:
+            description: "The desired signing CA certificate for all swarm node TLS leaf certificates, in PEM format."
+            type: "string"
+          SigningCAKey:
+            description: "The desired signing CA key for all swarm node TLS leaf certificates, in PEM format."
+            type: "string"
+          ForceRotate:
+            description: "An integer whose purpose is to force swarm to generate a new signing CA certificate and key, if none have been specified in `SigningCACert` and `SigningCAKey`"
       EncryptionConfig:
         description: "Parameters related to encryption-at-rest."
         type: "object"
@@ -1903,6 +1954,11 @@ definitions:
         format: "dateTime"
       Spec:
         $ref: "#/definitions/SwarmSpec"
+      TLSInfo:
+        $ref: "#/definitions/TLSInfo"
+      RootRotationInProgress:
+        description: "Whether there is currently a root CA rotation in progress for the swarm"
+        type: "boolean"
   TaskSpec:
     description: "User modifiable task configuration."
     type: "object"
@@ -2102,15 +2158,22 @@ definitions:
                     SpreadDescriptor:
                       description: "label descriptor, such as engine.labels.az"
                       type: "string"
+          Platforms:
+            description: "An array of supported platforms."
+            type: "array"
+            items:
+              type: "object"
+              properties:
+                Architecture:
+                  type: "string"
+                OS:
+                  type: "string"
       ForceUpdate:
         description: "A counter that triggers an update even if no relevant parameters have been changed."
         type: "integer"
       Runtime:
         description: "Runtime is the type of runtime specified for the task executor."
         type: "string"
-      RuntimeData:
-        description: "RuntimeData is the payload sent to be used with the runtime for the executor."
-        type: "array"
       Networks:
         type: "array"
         items:
@@ -3041,10 +3104,22 @@ paths:
                 type: "object"
                 properties:
                   Status:
-                    description: "The status of the container. For example, `running` or `exited`."
+                    description: |
+                      The status of the container. For example, `"running"` or `"exited"`.
                     type: "string"
+                    enum: ["created", "running", "paused", "restarting", "removing", "exited", "dead"]
                   Running:
-                    description: "Whether this container is running."
+                    description: |
+                      Whether this container is running.
+
+                      Note that a running container can be _paused_. The `Running` and `Paused`
+                      booleans are not mutually exclusive:
+
+                      When pausing a container (on Linux), the cgroups freezer is used to suspend
+                      all processes in the container. Freezing the process requires the process to
+                      be running. As a result, paused containers are both `Running` _and_ `Paused`.
+
+                      Use the `Status` field instead to determin if a container's state is "running".
                     type: "boolean"
                   Paused:
                     description: "Whether this container is paused."
@@ -4204,6 +4279,11 @@ paths:
           required: true
           description: "ID or name of the container"
           type: "string"
+        - name: "condition"
+          in: "query"
+          description: "Wait until a container state reaches the given condition, either 'not-running' (default), 'next-exit', or 'removed'."
+          type: "string"
+          default: "not-running"
       tags: ["Container"]
   /containers/{id}:
     delete:
@@ -6231,6 +6311,11 @@ paths:
   /networks:
     get:
       summary: "List networks"
+      description: |
+        Returns a list of networks. For details on the format, see [the network inspect endpoint](#operation/NetworkInspect).
+
+        Note that it uses a different, smaller representation of a network than inspecting a single network. For example,
+        the list of containers attached to the network is not propagated in API versions 1.28 and up.
       operationId: "NetworkList"
       produces:
         - "application/json"
@@ -6257,12 +6342,6 @@ paths:
                   Config:
                     -
                       Subnet: "172.17.0.0/16"
-                Containers:
-                  39b69226f9d79f5634485fb236a23b2fe4e96a0a94128390a7fbbcc167065867:
-                    EndpointID: "ed2419a97c1d9954d05b46e462e7002ea552f216e9b136b80a7db8d98b442eda"
-                    MacAddress: "02:42:ac:11:00:02"
-                    IPv4Address: "172.17.0.2/16"
-                    IPv6Address: ""
                 Options:
                   com.docker.network.bridge.default_bridge: "true"
                   com.docker.network.bridge.enable_icc: "true"
@@ -7206,6 +7285,21 @@ paths:
               UpdatedAt: "2016-08-15T16:32:09.623207604Z"
               Version:
                 Index: 51
+              RootRotationInProgress: false
+              TLSInfo:
+                TrustRoot: |
+                  -----BEGIN CERTIFICATE-----
+                  MIIBajCCARCgAwIBAgIUbYqrLSOSQHoxD8CwG6Bi2PJi9c8wCgYIKoZIzj0EAwIw
+                  EzERMA8GA1UEAxMIc3dhcm0tY2EwHhcNMTcwNDI0MjE0MzAwWhcNMzcwNDE5MjE0
+                  MzAwWjATMREwDwYDVQQDEwhzd2FybS1jYTBZMBMGByqGSM49AgEGCCqGSM49AwEH
+                  A0IABJk/VyMPYdaqDXJb/VXh5n/1Yuv7iNrxV3Qb3l06XD46seovcDWs3IZNV1lf
+                  3Skyr0ofcchipoiHkXBODojJydSjQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNVHRMB
+                  Af8EBTADAQH/MB0GA1UdDgQWBBRUXxuRcnFjDfR/RIAUQab8ZV/n4jAKBggqhkjO
+                  PQQDAgNIADBFAiAy+JTe6Uc3KyLCMiqGl2GyWGQqQDEcO3/YG36x7om65AIhAJvz
+                  pxv6zFeVEkAEEkqIYi0omA9+CjanB/6Bz4n1uw8H
+                  -----END CERTIFICATE-----
+                CertIssuerSubject: "MBMxETAPBgNVBAMTCHN3YXJtLWNh"
+                CertIssuerPublicKey: "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEmT9XIw9h1qoNclv9VeHmf/Vi6/uI2vFXdBveXTpcPjqx6i9wNazchk1XWV/dKTKvSh9xyGKmiIeRcE4OiMnJ1A=="
         404:
           description: "no such swarm"
           schema:
@@ -7550,6 +7644,15 @@ paths:
                         Nameservers: ["8.8.8.8"]
                         Search: ["example.org"]
                         Options: ["timeout:3"]
+                      Secrets:
+                        -
+                          File:
+                            Name: "www.example.org.key"
+                            UID: "33"
+                            GID: "33"
+                            Mode: 384
+                          SecretID: "fpjqlhnwb19zds35k8wn80lq9"
+                          SecretName: "example_org_domain_key"
                     LogDriver:
                       Name: "json-file"
                       Options:
@@ -8180,7 +8283,8 @@ paths:
           description: "no error"
           schema:
             $ref: "#/definitions/Secret"
-            example:
+          examples:
+            application/json:
               ID: "ktnbjxoalbkvbvedmg1urrz8h"
               Version:
                 Index: 11
@@ -8275,3 +8379,90 @@ paths:
           format: "int64"
           required: true
       tags: ["Secret"]
+  /distribution/{name}/json:
+    get:
+      summary: "Get image information from the registry"
+      description: "Return image digest and platform information by contacting the registry."
+      operationId: "DistributionInspect"
+      produces:
+        - "application/json"
+      responses:
+        200:
+          description: "descriptor and platform information"
+          schema:
+            type: "object"
+            x-go-name: DistributionInspect
+            required: [Descriptor, Platforms]
+            properties:
+              Descriptor:
+                type: "object"
+                description: "A descriptor struct containing digest, media type, and size"
+                properties:
+                  MediaType:
+                    type: "string"
+                  Size:
+                    type: "integer"
+                    format: "int64"
+                  Digest:
+                    type: "string"
+                  URLs:
+                    type: "array"
+                    items:
+                      type: "string"
+              Platforms:
+                type: "array"
+                description: "An array containing all platforms supported by the image"
+                items:
+                  type: "object"
+                  properties:
+                    Architecture:
+                      type: "string"
+                    OS:
+                      type: "string"
+                    OSVersion:
+                      type: "string"
+                    OSFeatures:
+                      type: "array"
+                      items:
+                        type: "string"
+                    Variant:
+                      type: "string"
+                    Features:
+                      type: "array"
+                      items:
+                        type: "string"
+          examples:
+            application/json:
+              Descriptor:
+                MediaType: "application/vnd.docker.distribution.manifest.v2+json"
+                Digest: "sha256:c0537ff6a5218ef531ece93d4984efc99bbf3f7497c0a7726c88e2bb7584dc96"
+                Size: 3987495
+                URLs:
+                  - ""
+              Platforms:
+                - Architecture: "amd64"
+                  OS: "linux"
+                  OSVersion: ""
+                  OSFeatures:
+                    - ""
+                  Variant: ""
+                  Features:
+                    - ""
+        401:
+          description: "Failed authentication or no image found"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+          examples:
+            application/json:
+              message: "No such image: someimage (tag: latest)"
+        500:
+          description: "Server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      parameters:
+        - name: "name"
+          in: "path"
+          description: "Image name or id"
+          type: "string"
+          required: true
+      tags: ["Distribution"]

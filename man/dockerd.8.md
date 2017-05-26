@@ -7,6 +7,7 @@ dockerd - Enable daemon mode
 # SYNOPSIS
 **dockerd**
 [**--add-runtime**[=*[]*]]
+[**--allow-nondistributable-artifacts**[=*[]*]]
 [**--api-cors-header**=[=*API-CORS-HEADER*]]
 [**--authorization-plugin**[=*[]*]]
 [**-b**|**--bridge**[=*BRIDGE*]]
@@ -115,6 +116,20 @@ $ sudo dockerd --add-runtime runc=runc --add-runtime custom=/usr/local/bin/my-ru
 ```
 
   **Note**: defining runtime arguments via the command line is not supported.
+
+**--allow-nondistributable-artifacts**=[]
+  Push nondistributable artifacts to the specified registries.
+
+  List can contain elements with CIDR notation to specify a whole subnet.
+
+  This option is useful when pushing images containing nondistributable
+  artifacts to a registry on an air-gapped network so hosts on that network can
+  pull the images without connecting to another server.
+
+  **Warning**: Nondistributable artifacts typically have restrictions on how
+  and where they can be distributed and shared. Only use this feature to push
+  artifacts to private registries and ensure that you are in compliance with
+  any terms that cover redistributing nondistributable artifacts.
 
 **--api-cors-header**=""
   Set CORS headers in the Engine API. Default is cors disabled. Give urls like
@@ -419,6 +434,54 @@ Example use:
 
    $ dockerd \
          --storage-opt dm.thinpooldev=/dev/mapper/thin-pool
+
+#### dm.directlvm_device
+
+As an alternative to manually creating a thin pool as above, Docker can
+automatically configure a block device for you.
+
+Example use:
+
+   $ dockerd \
+         --storage-opt dm.directlvm_device=/dev/xvdf
+
+##### dm.thinp_percent
+
+Sets the percentage of passed in block device to use for storage.
+
+###### Example:
+
+   $ sudo dockerd \
+        --storage-opt dm.thinp_percent=95
+
+##### `dm.thinp_metapercent`
+
+Sets the percentage of the passed in block device to use for metadata storage.
+
+###### Example:
+
+   $ sudo dockerd \
+         --storage-opt dm.thinp_metapercent=1
+
+##### dm.thinp_autoextend_threshold
+
+Sets the value of the percentage of space used before `lvm` attempts to
+autoextend the available space [100 = disabled]
+
+###### Example:
+
+   $ sudo dockerd \
+         --storage-opt dm.thinp_autoextend_threshold=80
+
+##### dm.thinp_autoextend_percent
+
+Sets the value percentage value to increase the thin pool by when when `lvm`
+attempts to autoextend the available space [100 = disabled]
+
+###### Example:
+
+   $ sudo dockerd \
+         --storage-opt dm.thinp_autoextend_percent=20
 
 #### dm.basesize
 

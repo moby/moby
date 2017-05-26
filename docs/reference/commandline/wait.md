@@ -21,7 +21,7 @@ Usage:  docker wait CONTAINER [CONTAINER...]
 Block until one or more containers stop, then print their exit codes
 
 Options:
-      --help   Print usage
+      --help        Print usage
 ```
 
 > **Note**: `docker wait` returns `0` when run against a container which had

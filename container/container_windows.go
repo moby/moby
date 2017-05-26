@@ -8,6 +8,13 @@ import (
 	"path/filepath"
 
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/pkg/system"
+)
+
+const (
+	containerSecretMountPath         = `C:\ProgramData\Docker\secrets`
+	containerInternalSecretMountPath = `C:\ProgramData\Docker\internal\secrets`
+	containerInternalConfigsDirPath  = `C:\ProgramData\Docker\internal\configs`
 )
 
 // Container holds fields specific to the Windows implementation. See
@@ -43,14 +50,83 @@ func (container *Container) IpcMounts() []Mount {
 	return nil
 }
 
-// SecretMount returns the mount for the secret path
-func (container *Container) SecretMount() *Mount {
+// CreateSecretSymlinks creates symlinks to files in the secret mount.
+func (container *Container) CreateSecretSymlinks() error {
+	for _, r := range container.SecretReferences {
+		if r.File == nil {
+			continue
+		}
+		resolvedPath, _, err := container.ResolvePath(getSecretTargetPath(r))
+		if err != nil {
+			return err
+		}
+		if err := system.MkdirAll(filepath.Dir(resolvedPath), 0); err != nil {
+			return err
+		}
+		if err := os.Symlink(filepath.Join(containerInternalSecretMountPath, r.SecretID), resolvedPath); err != nil {
+			return err
+		}
+	}
+
 	return nil
+}
+
+// SecretMounts returns the mount for the secret path.
+// All secrets are stored in a single mount on Windows. Target symlinks are
+// created for each secret, pointing to the files in this mount.
+func (container *Container) SecretMounts() []Mount {
+	var mounts []Mount
+	if len(container.SecretReferences) > 0 {
+		mounts = append(mounts, Mount{
+			Source:      container.SecretMountPath(),
+			Destination: containerInternalSecretMountPath,
+			Writable:    false,
+		})
+	}
+
+	return mounts
 }
 
 // UnmountSecrets unmounts the fs for secrets
 func (container *Container) UnmountSecrets() error {
+	return os.RemoveAll(container.SecretMountPath())
+}
+
+// CreateConfigSymlinks creates symlinks to files in the config mount.
+func (container *Container) CreateConfigSymlinks() error {
+	for _, configRef := range container.ConfigReferences {
+		if configRef.File == nil {
+			continue
+		}
+		resolvedPath, _, err := container.ResolvePath(configRef.File.Name)
+		if err != nil {
+			return err
+		}
+		if err := system.MkdirAll(filepath.Dir(resolvedPath), 0); err != nil {
+			return err
+		}
+		if err := os.Symlink(filepath.Join(containerInternalConfigsDirPath, configRef.ConfigID), resolvedPath); err != nil {
+			return err
+		}
+	}
+
 	return nil
+}
+
+// ConfigMounts returns the mount for configs.
+// All configs are stored in a single mount on Windows. Target symlinks are
+// created for each config, pointing to the files in this mount.
+func (container *Container) ConfigMounts() []Mount {
+	var mounts []Mount
+	if len(container.ConfigReferences) > 0 {
+		mounts = append(mounts, Mount{
+			Source:      container.ConfigsDirPath(),
+			Destination: containerInternalConfigsDirPath,
+			Writable:    false,
+		})
+	}
+
+	return mounts
 }
 
 // DetachAndUnmount unmounts all volumes.

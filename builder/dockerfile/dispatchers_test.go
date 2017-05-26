@@ -7,12 +7,14 @@ import (
 
 	"bytes"
 	"context"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/parser"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/testutil"
 	"github.com/docker/go-connections/nat"
 	"github.com/stretchr/testify/assert"
@@ -26,7 +28,7 @@ type commandWithFunction struct {
 
 func withArgs(f dispatcher) func([]string) error {
 	return func(args []string) error {
-		return f(dispatchRequest{args: args, runConfig: &container.Config{}})
+		return f(dispatchRequest{args: args})
 	}
 }
 
@@ -38,26 +40,32 @@ func withBuilderAndArgs(builder *Builder, f dispatcher) func([]string) error {
 
 func defaultDispatchReq(builder *Builder, args ...string) dispatchRequest {
 	return dispatchRequest{
-		builder:   builder,
-		args:      args,
-		flags:     NewBFlags(),
-		runConfig: &container.Config{},
-		shlex:     NewShellLex(parser.DefaultEscapeToken),
+		builder: builder,
+		args:    args,
+		flags:   NewBFlags(),
+		shlex:   NewShellLex(parser.DefaultEscapeToken),
+		state:   &dispatchState{runConfig: &container.Config{}},
 	}
 }
 
 func newBuilderWithMockBackend() *Builder {
+	mockBackend := &MockBackend{}
+	ctx := context.Background()
 	b := &Builder{
-		runConfig:     &container.Config{},
 		options:       &types.ImageBuildOptions{},
-		docker:        &MockBackend{},
+		docker:        mockBackend,
 		buildArgs:     newBuildArgs(make(map[string]*string)),
-		tmpContainers: make(map[string]struct{}),
 		Stdout:        new(bytes.Buffer),
-		clientCtx:     context.Background(),
+		clientCtx:     ctx,
 		disableCommit: true,
+		imageSources: newImageSources(ctx, builderOptions{
+			Options: &types.ImageBuildOptions{},
+			Backend: mockBackend,
+		}),
+		buildStages:      newBuildStages(),
+		imageProber:      newImageProber(mockBackend, nil, false),
+		containerManager: newContainerManager(mockBackend),
 	}
-	b.imageContexts = &imageContexts{b: b}
 	return b
 }
 
@@ -138,7 +146,7 @@ func TestEnv2Variables(t *testing.T) {
 		fmt.Sprintf("%s=%s", args[0], args[1]),
 		fmt.Sprintf("%s=%s", args[2], args[3]),
 	}
-	assert.Equal(t, expected, req.runConfig.Env)
+	assert.Equal(t, expected, req.state.runConfig.Env)
 }
 
 func TestEnvValueWithExistingRunConfigEnv(t *testing.T) {
@@ -146,7 +154,7 @@ func TestEnvValueWithExistingRunConfigEnv(t *testing.T) {
 
 	args := []string{"var1", "val1"}
 	req := defaultDispatchReq(b, args...)
-	req.runConfig.Env = []string{"var1=old", "var2=fromenv"}
+	req.state.runConfig.Env = []string{"var1=old", "var2=fromenv"}
 	err := env(req)
 	require.NoError(t, err)
 
@@ -154,16 +162,17 @@ func TestEnvValueWithExistingRunConfigEnv(t *testing.T) {
 		fmt.Sprintf("%s=%s", args[0], args[1]),
 		"var2=fromenv",
 	}
-	assert.Equal(t, expected, req.runConfig.Env)
+	assert.Equal(t, expected, req.state.runConfig.Env)
 }
 
 func TestMaintainer(t *testing.T) {
 	maintainerEntry := "Some Maintainer <maintainer@example.com>"
 
 	b := newBuilderWithMockBackend()
-	err := maintainer(defaultDispatchReq(b, maintainerEntry))
+	req := defaultDispatchReq(b, maintainerEntry)
+	err := maintainer(req)
 	require.NoError(t, err)
-	assert.Equal(t, maintainerEntry, b.maintainer)
+	assert.Equal(t, maintainerEntry, req.state.maintainer)
 }
 
 func TestLabel(t *testing.T) {
@@ -176,13 +185,14 @@ func TestLabel(t *testing.T) {
 	err := label(req)
 	require.NoError(t, err)
 
-	require.Contains(t, req.runConfig.Labels, labelName)
-	assert.Equal(t, req.runConfig.Labels[labelName], labelValue)
+	require.Contains(t, req.state.runConfig.Labels, labelName)
+	assert.Equal(t, req.state.runConfig.Labels[labelName], labelValue)
 }
 
 func TestFromScratch(t *testing.T) {
 	b := newBuilderWithMockBackend()
-	err := from(defaultDispatchReq(b, "scratch"))
+	req := defaultDispatchReq(b, "scratch")
+	err := from(req)
 
 	if runtime.GOOS == "windows" {
 		assert.EqualError(t, err, "Windows does not support FROM scratch")
@@ -190,26 +200,28 @@ func TestFromScratch(t *testing.T) {
 	}
 
 	require.NoError(t, err)
-	assert.Equal(t, "", b.image)
-	assert.Equal(t, true, b.noBaseImage)
+	assert.True(t, req.state.hasFromImage())
+	assert.Equal(t, "", req.state.imageID)
+	assert.Equal(t, []string{"PATH=" + system.DefaultPathEnv}, req.state.runConfig.Env)
 }
 
 func TestFromWithArg(t *testing.T) {
 	tag, expected := ":sometag", "expectedthisid"
 
-	getImage := func(name string) (builder.Image, error) {
+	getImage := func(name string) (builder.Image, builder.ReleaseableLayer, error) {
 		assert.Equal(t, "alpine"+tag, name)
-		return &mockImage{id: "expectedthisid"}, nil
+		return &mockImage{id: "expectedthisid"}, nil, nil
 	}
 	b := newBuilderWithMockBackend()
-	b.docker.(*MockBackend).getImageOnBuildFunc = getImage
+	b.docker.(*MockBackend).getImageFunc = getImage
 
 	require.NoError(t, arg(defaultDispatchReq(b, "THETAG="+tag)))
-	err := from(defaultDispatchReq(b, "alpine${THETAG}"))
+	req := defaultDispatchReq(b, "alpine${THETAG}")
+	err := from(req)
 
 	require.NoError(t, err)
-	assert.Equal(t, expected, b.image)
-	assert.Equal(t, expected, b.from.ImageID())
+	assert.Equal(t, expected, req.state.imageID)
+	assert.Equal(t, expected, req.state.baseImage.ImageID())
 	assert.Len(t, b.buildArgs.GetAllAllowed(), 0)
 	assert.Len(t, b.buildArgs.GetAllMeta(), 1)
 }
@@ -217,17 +229,33 @@ func TestFromWithArg(t *testing.T) {
 func TestFromWithUndefinedArg(t *testing.T) {
 	tag, expected := "sometag", "expectedthisid"
 
-	getImage := func(name string) (builder.Image, error) {
+	getImage := func(name string) (builder.Image, builder.ReleaseableLayer, error) {
 		assert.Equal(t, "alpine", name)
-		return &mockImage{id: "expectedthisid"}, nil
+		return &mockImage{id: "expectedthisid"}, nil, nil
 	}
 	b := newBuilderWithMockBackend()
-	b.docker.(*MockBackend).getImageOnBuildFunc = getImage
+	b.docker.(*MockBackend).getImageFunc = getImage
 	b.options.BuildArgs = map[string]*string{"THETAG": &tag}
 
-	err := from(defaultDispatchReq(b, "alpine${THETAG}"))
+	req := defaultDispatchReq(b, "alpine${THETAG}")
+	err := from(req)
 	require.NoError(t, err)
-	assert.Equal(t, expected, b.image)
+	assert.Equal(t, expected, req.state.imageID)
+}
+
+func TestFromMultiStageWithScratchNamedStage(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows does not support scratch")
+	}
+	b := newBuilderWithMockBackend()
+	req := defaultDispatchReq(b, "scratch", "AS", "base")
+
+	require.NoError(t, from(req))
+	assert.True(t, req.state.hasFromImage())
+
+	req.args = []string{"base"}
+	require.NoError(t, from(req))
+	assert.True(t, req.state.hasFromImage())
 }
 
 func TestOnbuildIllegalTriggers(t *testing.T) {
@@ -249,11 +277,11 @@ func TestOnbuild(t *testing.T) {
 
 	req := defaultDispatchReq(b, "ADD", ".", "/app/src")
 	req.original = "ONBUILD ADD . /app/src"
-	req.runConfig = &container.Config{}
+	req.state.runConfig = &container.Config{}
 
 	err := onbuild(req)
 	require.NoError(t, err)
-	assert.Equal(t, "ADD . /app/src", req.runConfig.OnBuild[0])
+	assert.Equal(t, "ADD . /app/src", req.state.runConfig.OnBuild[0])
 }
 
 func TestWorkdir(t *testing.T) {
@@ -266,7 +294,7 @@ func TestWorkdir(t *testing.T) {
 	req := defaultDispatchReq(b, workingDir)
 	err := workdir(req)
 	require.NoError(t, err)
-	assert.Equal(t, workingDir, req.runConfig.WorkingDir)
+	assert.Equal(t, workingDir, req.state.runConfig.WorkingDir)
 }
 
 func TestCmd(t *testing.T) {
@@ -284,8 +312,8 @@ func TestCmd(t *testing.T) {
 		expectedCommand = strslice.StrSlice(append([]string{"/bin/sh"}, "-c", command))
 	}
 
-	assert.Equal(t, expectedCommand, req.runConfig.Cmd)
-	assert.True(t, b.cmdSet)
+	assert.Equal(t, expectedCommand, req.state.runConfig.Cmd)
+	assert.True(t, req.state.cmdSet)
 }
 
 func TestHealthcheckNone(t *testing.T) {
@@ -295,8 +323,8 @@ func TestHealthcheckNone(t *testing.T) {
 	err := healthcheck(req)
 	require.NoError(t, err)
 
-	require.NotNil(t, req.runConfig.Healthcheck)
-	assert.Equal(t, []string{"NONE"}, req.runConfig.Healthcheck.Test)
+	require.NotNil(t, req.state.runConfig.Healthcheck)
+	assert.Equal(t, []string{"NONE"}, req.state.runConfig.Healthcheck.Test)
 }
 
 func TestHealthcheckCmd(t *testing.T) {
@@ -307,9 +335,9 @@ func TestHealthcheckCmd(t *testing.T) {
 	err := healthcheck(req)
 	require.NoError(t, err)
 
-	require.NotNil(t, req.runConfig.Healthcheck)
+	require.NotNil(t, req.state.runConfig.Healthcheck)
 	expectedTest := []string{"CMD-SHELL", "curl -f http://localhost/ || exit 1"}
-	assert.Equal(t, expectedTest, req.runConfig.Healthcheck.Test)
+	assert.Equal(t, expectedTest, req.state.runConfig.Healthcheck.Test)
 }
 
 func TestEntrypoint(t *testing.T) {
@@ -319,7 +347,7 @@ func TestEntrypoint(t *testing.T) {
 	req := defaultDispatchReq(b, entrypointCmd)
 	err := entrypoint(req)
 	require.NoError(t, err)
-	require.NotNil(t, req.runConfig.Entrypoint)
+	require.NotNil(t, req.state.runConfig.Entrypoint)
 
 	var expectedEntrypoint strslice.StrSlice
 	if runtime.GOOS == "windows" {
@@ -327,7 +355,7 @@ func TestEntrypoint(t *testing.T) {
 	} else {
 		expectedEntrypoint = strslice.StrSlice(append([]string{"/bin/sh"}, "-c", entrypointCmd))
 	}
-	assert.Equal(t, expectedEntrypoint, req.runConfig.Entrypoint)
+	assert.Equal(t, expectedEntrypoint, req.state.runConfig.Entrypoint)
 }
 
 func TestExpose(t *testing.T) {
@@ -338,12 +366,12 @@ func TestExpose(t *testing.T) {
 	err := expose(req)
 	require.NoError(t, err)
 
-	require.NotNil(t, req.runConfig.ExposedPorts)
-	require.Len(t, req.runConfig.ExposedPorts, 1)
+	require.NotNil(t, req.state.runConfig.ExposedPorts)
+	require.Len(t, req.state.runConfig.ExposedPorts, 1)
 
 	portsMapping, err := nat.ParsePortSpec(exposedPort)
 	require.NoError(t, err)
-	assert.Contains(t, req.runConfig.ExposedPorts, portsMapping[0].Port)
+	assert.Contains(t, req.state.runConfig.ExposedPorts, portsMapping[0].Port)
 }
 
 func TestUser(t *testing.T) {
@@ -353,7 +381,7 @@ func TestUser(t *testing.T) {
 	req := defaultDispatchReq(b, userCommand)
 	err := user(req)
 	require.NoError(t, err)
-	assert.Equal(t, userCommand, req.runConfig.User)
+	assert.Equal(t, userCommand, req.state.runConfig.User)
 }
 
 func TestVolume(t *testing.T) {
@@ -365,9 +393,9 @@ func TestVolume(t *testing.T) {
 	err := volume(req)
 	require.NoError(t, err)
 
-	require.NotNil(t, req.runConfig.Volumes)
-	assert.Len(t, req.runConfig.Volumes, 1)
-	assert.Contains(t, req.runConfig.Volumes, exposedVolume)
+	require.NotNil(t, req.state.runConfig.Volumes)
+	assert.Len(t, req.state.runConfig.Volumes, 1)
+	assert.Contains(t, req.state.runConfig.Volumes, exposedVolume)
 }
 
 func TestStopSignal(t *testing.T) {
@@ -377,7 +405,7 @@ func TestStopSignal(t *testing.T) {
 	req := defaultDispatchReq(b, signal)
 	err := stopSignal(req)
 	require.NoError(t, err)
-	assert.Equal(t, signal, req.runConfig.StopSignal)
+	assert.Equal(t, signal, req.state.runConfig.StopSignal)
 }
 
 func TestArg(t *testing.T) {
@@ -405,7 +433,7 @@ func TestShell(t *testing.T) {
 	require.NoError(t, err)
 
 	expectedShell := strslice.StrSlice([]string{shellCmd})
-	assert.Equal(t, expectedShell, req.runConfig.Shell)
+	assert.Equal(t, expectedShell, req.state.runConfig.Shell)
 }
 
 func TestParseOptInterval(t *testing.T) {
@@ -439,8 +467,9 @@ func TestRunWithBuildArgs(t *testing.T) {
 	b.buildArgs.argsFromOptions["HTTP_PROXY"] = strPtr("FOO")
 	b.disableCommit = false
 
+	runConfig := &container.Config{}
 	origCmd := strslice.StrSlice([]string{"cmd", "in", "from", "image"})
-	cmdWithShell := strslice.StrSlice(append(getShell(b.runConfig), "echo foo"))
+	cmdWithShell := strslice.StrSlice(append(getShell(runConfig), "echo foo"))
 	envVars := []string{"|1", "one=two"}
 	cachedCmd := strslice.StrSlice(append(envVars, cmdWithShell...))
 
@@ -452,12 +481,17 @@ func TestRunWithBuildArgs(t *testing.T) {
 			return "", nil
 		},
 	}
-	b.imageCache = imageCache
 
 	mockBackend := b.docker.(*MockBackend)
-	mockBackend.getImageOnBuildImage = &mockImage{
-		id:     "abcdef",
-		config: &container.Config{Cmd: origCmd},
+	mockBackend.makeImageCacheFunc = func(_ []string) builder.ImageCache {
+		return imageCache
+	}
+	b.imageProber = newImageProber(mockBackend, nil, false)
+	mockBackend.getImageFunc = func(_ string) (builder.Image, builder.ReleaseableLayer, error) {
+		return &mockImage{
+			id:     "abcdef",
+			config: &container.Config{Cmd: origCmd},
+		}, nil, nil
 	}
 	mockBackend.containerCreateFunc = func(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error) {
 		// Check the runConfig.Cmd sent to create()
@@ -477,12 +511,10 @@ func TestRunWithBuildArgs(t *testing.T) {
 	req := defaultDispatchReq(b, "abcdef")
 	require.NoError(t, from(req))
 	b.buildArgs.AddArg("one", strPtr("two"))
-	// TODO: this can be removed with b.runConfig
-	req.runConfig.Cmd = origCmd
 
 	req.args = []string{"echo foo"}
 	require.NoError(t, run(req))
 
 	// Check that runConfig.Cmd has not been modified by run
-	assert.Equal(t, origCmd, b.runConfig.Cmd)
+	assert.Equal(t, origCmd, req.state.runConfig.Cmd)
 }

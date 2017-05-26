@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strconv"
 	"syscall"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
@@ -17,6 +16,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/versions"
+	containerpkg "github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/signal"
 	"golang.org/x/net/context"
@@ -284,13 +284,48 @@ func (s *containerRouter) postContainersUnpause(ctx context.Context, w http.Resp
 }
 
 func (s *containerRouter) postContainersWait(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	status, err := s.backend.ContainerWait(vars["name"], -1*time.Second)
+	// Behavior changed in version 1.30 to handle wait condition and to
+	// return headers immediately.
+	version := httputils.VersionFromContext(ctx)
+	legacyBehavior := versions.LessThan(version, "1.30")
+
+	// The wait condition defaults to "not-running".
+	waitCondition := containerpkg.WaitConditionNotRunning
+	if !legacyBehavior {
+		if err := httputils.ParseForm(r); err != nil {
+			return err
+		}
+		switch container.WaitCondition(r.Form.Get("condition")) {
+		case container.WaitConditionNextExit:
+			waitCondition = containerpkg.WaitConditionNextExit
+		case container.WaitConditionRemoved:
+			waitCondition = containerpkg.WaitConditionRemoved
+		}
+	}
+
+	// Note: the context should get canceled if the client closes the
+	// connection since this handler has been wrapped by the
+	// router.WithCancel() wrapper.
+	waitC, err := s.backend.ContainerWait(ctx, vars["name"], waitCondition)
 	if err != nil {
 		return err
 	}
 
-	return httputils.WriteJSON(w, http.StatusOK, &container.ContainerWaitOKBody{
-		StatusCode: int64(status),
+	w.Header().Set("Content-Type", "application/json")
+
+	if !legacyBehavior {
+		// Write response header immediately.
+		w.WriteHeader(http.StatusOK)
+		if flusher, ok := w.(http.Flusher); ok {
+			flusher.Flush()
+		}
+	}
+
+	// Block on the result of the wait operation.
+	status := <-waitC
+
+	return json.NewEncoder(w).Encode(&container.ContainerWaitOKBody{
+		StatusCode: int64(status.ExitCode()),
 	})
 }
 

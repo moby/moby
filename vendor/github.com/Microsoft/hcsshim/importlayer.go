@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"runtime"
 
 	"github.com/Microsoft/go-winio"
 	"github.com/Sirupsen/logrus"
@@ -209,6 +208,5 @@ func NewLayerWriter(info DriverInfo, layerID string, parentLayerPaths []string) 
 	if err != nil {
 		return nil, makeError(err, "ImportLayerStart", "")
 	}
-	runtime.SetFinalizer(w, func(w *FilterLayerWriter) { w.Close() })
 	return w, nil
 }

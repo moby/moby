@@ -20,15 +20,14 @@ func TestCloneArgsSmartHttp(t *testing.T) {
 	serverURL, _ := url.Parse(server.URL)
 
 	serverURL.Path = "/repo.git"
-	gitURL := serverURL.String()
 
 	mux.HandleFunc("/repo.git/info/refs", func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query().Get("service")
 		w.Header().Set("Content-Type", fmt.Sprintf("application/x-%s-advertisement", q))
 	})
 
-	args := cloneArgs(serverURL, "/tmp")
-	exp := []string{"clone", "--recursive", "--depth", "1", gitURL, "/tmp"}
+	args := fetchArgs(serverURL, "master")
+	exp := []string{"fetch", "--recurse-submodules=yes", "--depth", "1", "origin", "master"}
 	if !reflect.DeepEqual(args, exp) {
 		t.Fatalf("Expected %v, got %v", exp, args)
 	}
@@ -40,14 +39,13 @@ func TestCloneArgsDumbHttp(t *testing.T) {
 	serverURL, _ := url.Parse(server.URL)
 
 	serverURL.Path = "/repo.git"
-	gitURL := serverURL.String()
 
 	mux.HandleFunc("/repo.git/info/refs", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
 	})
 
-	args := cloneArgs(serverURL, "/tmp")
-	exp := []string{"clone", "--recursive", gitURL, "/tmp"}
+	args := fetchArgs(serverURL, "master")
+	exp := []string{"fetch", "--recurse-submodules=yes", "origin", "master"}
 	if !reflect.DeepEqual(args, exp) {
 		t.Fatalf("Expected %v, got %v", exp, args)
 	}
@@ -55,17 +53,8 @@ func TestCloneArgsDumbHttp(t *testing.T) {
 
 func TestCloneArgsGit(t *testing.T) {
 	u, _ := url.Parse("git://github.com/docker/docker")
-	args := cloneArgs(u, "/tmp")
-	exp := []string{"clone", "--recursive", "--depth", "1", "git://github.com/docker/docker", "/tmp"}
-	if !reflect.DeepEqual(args, exp) {
-		t.Fatalf("Expected %v, got %v", exp, args)
-	}
-}
-
-func TestCloneArgsStripFragment(t *testing.T) {
-	u, _ := url.Parse("git://github.com/docker/docker#test")
-	args := cloneArgs(u, "/tmp")
-	exp := []string{"clone", "--recursive", "git://github.com/docker/docker", "/tmp"}
+	args := fetchArgs(u, "master")
+	exp := []string{"fetch", "--recurse-submodules=yes", "--depth", "1", "origin", "master"}
 	if !reflect.DeepEqual(args, exp) {
 		t.Fatalf("Expected %v, got %v", exp, args)
 	}
@@ -198,7 +187,8 @@ func TestCheckoutGit(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		r, err := checkoutGit(c.frag, gitDir)
+		ref, subdir := getRefAndSubdir(c.frag)
+		r, err := checkoutGit(gitDir, ref, subdir)
 
 		fail := err != nil
 		if fail != c.fail {

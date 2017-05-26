@@ -131,6 +131,7 @@ func (p *v2Puller) pullV2Repository(ctx context.Context, ref reference.Named) (e
 
 type v2LayerDescriptor struct {
 	digest            digest.Digest
+	diffID            layer.DiffID
 	repoInfo          *registry.RepositoryInfo
 	repo              distribution.Repository
 	V2MetadataService metadata.V2MetadataService
@@ -148,6 +149,9 @@ func (ld *v2LayerDescriptor) ID() string {
 }
 
 func (ld *v2LayerDescriptor) DiffID() (layer.DiffID, error) {
+	if ld.diffID != "" {
+		return ld.diffID, nil
+	}
 	return ld.V2MetadataService.GetDiffID(ld.digest)
 }
 
@@ -330,18 +334,18 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 		manifest    distribution.Manifest
 		tagOrDigest string // Used for logging/progress only
 	)
-	if tagged, isTagged := ref.(reference.NamedTagged); isTagged {
-		manifest, err = manSvc.Get(ctx, "", distribution.WithTag(tagged.Tag()))
-		if err != nil {
-			return false, allowV1Fallback(err)
-		}
-		tagOrDigest = tagged.Tag()
-	} else if digested, isDigested := ref.(reference.Canonical); isDigested {
+	if digested, isDigested := ref.(reference.Canonical); isDigested {
 		manifest, err = manSvc.Get(ctx, digested.Digest())
 		if err != nil {
 			return false, err
 		}
 		tagOrDigest = digested.Digest().String()
+	} else if tagged, isTagged := ref.(reference.NamedTagged); isTagged {
+		manifest, err = manSvc.Get(ctx, "", distribution.WithTag(tagged.Tag()))
+		if err != nil {
+			return false, allowV1Fallback(err)
+		}
+		tagOrDigest = tagged.Tag()
 	} else {
 		return false, fmt.Errorf("internal error: reference has neither a tag nor a digest: %s", reference.FamiliarString(ref))
 	}
@@ -574,6 +578,16 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 
 		if configRootFS == nil {
 			return "", "", errRootFSInvalid
+		}
+
+		if len(descriptors) != len(configRootFS.DiffIDs) {
+			return "", "", errRootFSMismatch
+		}
+
+		// Populate diff ids in descriptors to avoid downloading foreign layers
+		// which have been side loaded
+		for i := range descriptors {
+			descriptors[i].(*v2LayerDescriptor).diffID = configRootFS.DiffIDs[i]
 		}
 	}
 

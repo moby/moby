@@ -20,7 +20,7 @@ RUNC_BUILDTAGS="${RUNC_BUILDTAGS:-"seccomp apparmor selinux"}"
 
 install_runc() {
 	echo "Install runc version $RUNC_COMMIT"
-	git clone https://github.com/docker/runc.git "$GOPATH/src/github.com/opencontainers/runc"
+	git clone https://github.com/opencontainers/runc.git "$GOPATH/src/github.com/opencontainers/runc"
 	cd "$GOPATH/src/github.com/opencontainers/runc"
 	git checkout -q "$RUNC_COMMIT"
 	make BUILDTAGS="$RUNC_BUILDTAGS" $1
@@ -29,8 +29,8 @@ install_runc() {
 
 install_containerd() {
 	echo "Install containerd version $CONTAINERD_COMMIT"
-	git clone https://github.com/docker/containerd.git "$GOPATH/src/github.com/docker/containerd"
-	cd "$GOPATH/src/github.com/docker/containerd"
+	git clone https://github.com/containerd/containerd.git "$GOPATH/src/github.com/containerd/containerd"
+	cd "$GOPATH/src/github.com/containerd/containerd"
 	git checkout -q "$CONTAINERD_COMMIT"
 	make $1
 	cp bin/containerd /usr/local/bin/docker-containerd
@@ -52,6 +52,14 @@ install_bindata() {
     cd $GOPATH/src/github.com/jteeuwen/go-bindata
     git checkout -q "$BINDATA_COMMIT"
 	go build -o /usr/local/bin/go-bindata github.com/jteeuwen/go-bindata/go-bindata
+}
+
+install_dockercli() {
+	echo "Install docker/cli version $DOCKERCLI_COMMIT"
+	git clone "$DOCKERCLI_REPO" "$GOPATH/src/github.com/docker/cli"
+	cd "$GOPATH/src/github.com/docker/cli"
+	git checkout -q "$DOCKERCLI_COMMIT"
+	go build -o /usr/local/bin/docker github.com/docker/cli/cmd/docker
 }
 
 for prog in "$@"
@@ -91,8 +99,10 @@ do
 			;;
 
 		proxy)
-			export CGO_ENABLED=0
-			install_proxy
+			(
+				export CGO_ENABLED=0
+				install_proxy
+			)
 			;;
 
 		proxy-dynamic)
@@ -107,12 +117,16 @@ do
 			go build -v -o /usr/local/bin/vndr .
 			;;
 
-        bindata)
-            install_bindata
-            ;;
+		bindata)
+			install_bindata
+			;;
+
+		dockercli)
+			install_dockercli
+			;;
 
 		*)
-			echo echo "Usage: $0 [tomlv|runc|containerd|tini|proxy]"
+			echo echo "Usage: $0 [tomlv|runc|runc-dynamic|containerd|containerd-dynamic|tini|proxy|proxy-dynamic|bindata|vndr|dockercli]"
 			exit 1
 
 	esac

@@ -174,6 +174,42 @@ func getSecret(ctx context.Context, c swarmapi.ControlClient, input string) (*sw
 	return rl.Secrets[0], nil
 }
 
+func getConfig(ctx context.Context, c swarmapi.ControlClient, input string) (*swarmapi.Config, error) {
+	// attempt to lookup config by full ID
+	if rg, err := c.GetConfig(ctx, &swarmapi.GetConfigRequest{ConfigID: input}); err == nil {
+		return rg.Config, nil
+	}
+
+	// If any error (including NotFound), ListConfigs to match via full name.
+	rl, err := c.ListConfigs(ctx, &swarmapi.ListConfigsRequest{
+		Filters: &swarmapi.ListConfigsRequest_Filters{
+			Names: []string{input},
+		},
+	})
+	if err != nil || len(rl.Configs) == 0 {
+		// If any error or 0 result, ListConfigs to match via ID prefix.
+		rl, err = c.ListConfigs(ctx, &swarmapi.ListConfigsRequest{
+			Filters: &swarmapi.ListConfigsRequest_Filters{
+				IDPrefixes: []string{input},
+			},
+		})
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	if len(rl.Configs) == 0 {
+		err := fmt.Errorf("config %s not found", input)
+		return nil, errors.NewRequestNotFoundError(err)
+	}
+
+	if l := len(rl.Configs); l > 1 {
+		return nil, fmt.Errorf("config %s is ambiguous (%d matches found)", input, l)
+	}
+
+	return rl.Configs[0], nil
+}
+
 func getNetwork(ctx context.Context, c swarmapi.ControlClient, input string) (*swarmapi.Network, error) {
 	// GetNetwork to match via full ID.
 	if rg, err := c.GetNetwork(ctx, &swarmapi.GetNetworkRequest{NetworkID: input}); err == nil {

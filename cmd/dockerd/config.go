@@ -9,6 +9,8 @@ import (
 const (
 	// defaultShutdownTimeout is the default shutdown timeout for the daemon
 	defaultShutdownTimeout = 15
+	// defaultTrustKeyFile is the default filename for the trust key
+	defaultTrustKeyFile = "key.json"
 )
 
 // installCommonConfigFlags adds flags to the pflag.FlagSet to configure the daemon
@@ -52,6 +54,13 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
 	flags.BoolVar(&conf.Experimental, "experimental", false, "Enable experimental features")
 
 	flags.StringVar(&conf.MetricsAddress, "metrics-addr", "", "Set default address and port to serve the metrics api on")
+
+	// "--deprecated-key-path" is to allow configuration of the key used
+	// for the daemon ID and the deprecated image signing. It was never
+	// exposed as a command line option but is added here to allow
+	// overriding the default path in configuration.
+	flags.Var(opts.NewQuotedString(&conf.TrustKeyPath), "deprecated-key-path", "Path to key file for ID and image signing")
+	flags.MarkHidden("deprecated-key-path")
 
 	conf.MaxConcurrentDownloads = &maxConcurrentDownloads
 	conf.MaxConcurrentUploads = &maxConcurrentUploads

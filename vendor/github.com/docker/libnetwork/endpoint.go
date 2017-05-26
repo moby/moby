@@ -1152,6 +1152,9 @@ func (c *controller) cleanupLocalEndpoints() {
 	}
 
 	for _, n := range nl {
+		if n.ConfigOnly() {
+			continue
+		}
 		epl, err := n.getEndpointsFromStore()
 		if err != nil {
 			logrus.Warnf("Could not get list of endpoints in network %s during endpoint cleanup: %v", n.name, err)

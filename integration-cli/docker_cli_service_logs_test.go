@@ -31,7 +31,7 @@ func (s *DockerSwarmSuite) TestServiceLogs(c *check.C) {
 	}
 
 	for name, message := range services {
-		out, err := d.Cmd("service", "create", "--name", name, "busybox",
+		out, err := d.Cmd("service", "create", "--no-resolve-image", "--name", name, "busybox",
 			"sh", "-c", fmt.Sprintf("echo %s; tail -f /dev/null", message))
 		c.Assert(err, checker.IsNil)
 		c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
@@ -55,8 +55,14 @@ func (s *DockerSwarmSuite) TestServiceLogs(c *check.C) {
 // output.
 func countLogLines(d *daemon.Swarm, name string) func(*check.C) (interface{}, check.CommentInterface) {
 	return func(c *check.C) (interface{}, check.CommentInterface) {
-		result := icmd.RunCmd(d.Command("service", "logs", "-t", name))
+		result := icmd.RunCmd(d.Command("service", "logs", "-t", "--raw", name))
 		result.Assert(c, icmd.Expected{})
+		// if this returns an emptystring, trying to split it later will return
+		// an array containing emptystring. a valid log line will NEVER be
+		// emptystring because we ask for the timestamp.
+		if result.Stdout() == "" {
+			return 0, check.Commentf("Empty stdout")
+		}
 		lines := strings.Split(strings.TrimSpace(result.Stdout()), "\n")
 		return len(lines), check.Commentf("output, %q", string(result.Stdout()))
 	}
@@ -68,7 +74,7 @@ func (s *DockerSwarmSuite) TestServiceLogsCompleteness(c *check.C) {
 	name := "TestServiceLogsCompleteness"
 
 	// make a service that prints 6 lines
-	out, err := d.Cmd("service", "create", "--name", name, "busybox", "sh", "-c", "for line in $(seq 0 5); do echo log test $line; done; sleep 100000")
+	out, err := d.Cmd("service", "create", "--no-resolve-image", "--name", name, "busybox", "sh", "-c", "for line in $(seq 0 5); do echo log test $line; done; sleep 100000")
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
 
@@ -95,7 +101,7 @@ func (s *DockerSwarmSuite) TestServiceLogsTail(c *check.C) {
 	name := "TestServiceLogsTail"
 
 	// make a service that prints 6 lines
-	out, err := d.Cmd("service", "create", "--name", name, "busybox", "sh", "-c", "for line in $(seq 1 6); do echo log test $line; done; sleep 100000")
+	out, err := d.Cmd("service", "create", "--no-resolve-image", "--name", name, "busybox", "sh", "-c", "for line in $(seq 1 6); do echo log test $line; done; sleep 100000")
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
 
@@ -119,7 +125,7 @@ func (s *DockerSwarmSuite) TestServiceLogsSince(c *check.C) {
 
 	name := "TestServiceLogsSince"
 
-	out, err := d.Cmd("service", "create", "--name", name, "busybox", "sh", "-c", "for i in $(seq 1 3); do sleep .1; echo log$i; done; sleep 10000000")
+	out, err := d.Cmd("service", "create", "--no-resolve-image", "--name", name, "busybox", "sh", "-c", "for i in $(seq 1 3); do sleep .1; echo log$i; done; sleep 10000000")
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
 	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
@@ -153,7 +159,7 @@ func (s *DockerSwarmSuite) TestServiceLogsFollow(c *check.C) {
 
 	name := "TestServiceLogsFollow"
 
-	out, err := d.Cmd("service", "create", "--name", name, "busybox", "sh", "-c", "while true; do echo log test; sleep 0.1; done")
+	out, err := d.Cmd("service", "create", "--no-resolve-image", "--name", name, "busybox", "sh", "-c", "while true; do echo log test; sleep 0.1; done")
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
 
@@ -201,7 +207,7 @@ func (s *DockerSwarmSuite) TestServiceLogsTaskLogs(c *check.C) {
 
 	result := icmd.RunCmd(d.Command(
 		// create a service with the name
-		"service", "create", "--name", name,
+		"service", "create", "--no-resolve-image", "--name", name,
 		// which has some number of replicas
 		fmt.Sprintf("--replicas=%v", replicas),
 		// which has this the task id as an environment variable templated in
@@ -253,7 +259,7 @@ func (s *DockerSwarmSuite) TestServiceLogsTTY(c *check.C) {
 
 	result := icmd.RunCmd(d.Command(
 		// create a service
-		"service", "create",
+		"service", "create", "--no-resolve-image",
 		// name it $name
 		"--name", name,
 		// use a TTY
@@ -277,9 +283,105 @@ func (s *DockerSwarmSuite) TestServiceLogsTTY(c *check.C) {
 	// and make sure we have all the log lines
 	waitAndAssert(c, defaultReconciliationTimeout, countLogLines(d, name), checker.Equals, 2)
 
-	cmd := d.Command("service", "logs", name)
+	cmd := d.Command("service", "logs", "--raw", name)
 	result = icmd.RunCmd(cmd)
 	// for some reason there is carriage return in the output. i think this is
 	// just expected.
-	c.Assert(result, icmd.Matches, icmd.Expected{Out: "out\r\nerr\r\n"})
+	c.Assert(result, icmd.Matches, icmd.Expected{Out: "out\nerr\n"})
+}
+
+func (s *DockerSwarmSuite) TestServiceLogsNoHangDeletedContainer(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	name := "TestServiceLogsNoHangDeletedContainer"
+
+	result := icmd.RunCmd(d.Command(
+		// create a service
+		"service", "create", "--no-resolve-image",
+		// name it $name
+		"--name", name,
+		// busybox image, shell string
+		"busybox", "sh", "-c",
+		// echo to stdout and stderr
+		"while true; do echo line; sleep 2; done",
+	))
+
+	// confirm that the command succeeded
+	c.Assert(result, icmd.Matches, icmd.Expected{})
+	// get the service id
+	id := strings.TrimSpace(result.Stdout())
+	c.Assert(id, checker.Not(checker.Equals), "")
+
+	// make sure task has been deployed.
+	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
+	// and make sure we have all the log lines
+	waitAndAssert(c, defaultReconciliationTimeout, countLogLines(d, name), checker.Equals, 2)
+
+	// now find and nuke the container
+	result = icmd.RunCmd(d.Command("ps", "-q"))
+	containerID := strings.TrimSpace(result.Stdout())
+	c.Assert(containerID, checker.Not(checker.Equals), "")
+	result = icmd.RunCmd(d.Command("stop", containerID))
+	c.Assert(result, icmd.Matches, icmd.Expected{Out: containerID})
+	result = icmd.RunCmd(d.Command("rm", containerID))
+	c.Assert(result, icmd.Matches, icmd.Expected{Out: containerID})
+
+	// run logs. use tail 2 to make sure we don't try to get a bunch of logs
+	// somehow and slow down execution time
+	cmd := d.Command("service", "logs", "--tail", "2", id)
+	// start the command and then wait for it to finish with a 3 second timeout
+	result = icmd.StartCmd(cmd)
+	result = icmd.WaitOnCmd(3*time.Second, result)
+
+	// then, assert that the result matches expected. if the command timed out,
+	// if the command is timed out, result.Timeout will be true, but the
+	// Expected defaults to false
+	c.Assert(result, icmd.Matches, icmd.Expected{})
+}
+
+func (s *DockerSwarmSuite) TestServiceLogsDetails(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	name := "TestServiceLogsDetails"
+
+	result := icmd.RunCmd(d.Command(
+		// create a service
+		"service", "create", "--no-resolve-image",
+		// name it $name
+		"--name", name,
+		// add an environment variable
+		"--env", "asdf=test1",
+		// add a log driver (without explicitly setting a driver, log-opt doesn't work)
+		"--log-driver", "json-file",
+		// add a log option to print the environment variable
+		"--log-opt", "env=asdf",
+		// busybox image, shell string
+		"busybox", "sh", "-c",
+		// make a log line
+		"echo LogLine; while true; do sleep 1; done;",
+	))
+
+	result.Assert(c, icmd.Expected{})
+	id := strings.TrimSpace(result.Stdout())
+	c.Assert(id, checker.Not(checker.Equals), "")
+
+	// make sure task has been deployed
+	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
+	// and make sure we have all the log lines
+	waitAndAssert(c, defaultReconciliationTimeout, countLogLines(d, name), checker.Equals, 1)
+
+	// First, test without pretty printing
+	// call service logs with details. set raw to skip pretty printing
+	result = icmd.RunCmd(d.Command("service", "logs", "--raw", "--details", name))
+	// in this case, we should get details and we should get log message, but
+	// there will also be context as details (which will fall after the detail
+	// we inserted in alphabetical order
+	c.Assert(result, icmd.Matches, icmd.Expected{Out: "asdf=test1"})
+	c.Assert(result, icmd.Matches, icmd.Expected{Out: "LogLine"})
+
+	// call service logs with details. this time, don't pass raw
+	result = icmd.RunCmd(d.Command("service", "logs", "--details", id))
+	// in this case, we should get details space logmessage as well. the context
+	// is part of the pretty part of the logline
+	c.Assert(result, icmd.Matches, icmd.Expected{Out: "asdf=test1 LogLine"})
 }

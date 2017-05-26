@@ -153,7 +153,7 @@ func (daemon *Daemon) getInspectData(container *container.Container) (*types.Con
 		Dead:       container.State.Dead,
 		Pid:        container.State.Pid,
 		ExitCode:   container.State.ExitCode(),
-		Error:      container.State.Error(),
+		Error:      container.State.ErrorMsg,
 		StartedAt:  container.State.StartedAt.Format(time.RFC3339Nano),
 		FinishedAt: container.State.FinishedAt.Format(time.RFC3339Nano),
 		Health:     containerHealth,

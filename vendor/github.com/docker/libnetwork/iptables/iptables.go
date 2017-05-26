@@ -498,3 +498,44 @@ func parseVersionNumbers(input string) (major, minor, micro int) {
 func supportsCOption(mj, mn, mc int) bool {
 	return mj > 1 || (mj == 1 && (mn > 4 || (mn == 4 && mc >= 11)))
 }
+
+// AddReturnRule adds a return rule for the chain in the filter table
+func AddReturnRule(chain string) error {
+	var (
+		table = Filter
+		args  = []string{"-j", "RETURN"}
+	)
+
+	if Exists(table, chain, args...) {
+		return nil
+	}
+
+	err := RawCombinedOutput(append([]string{"-A", chain}, args...)...)
+	if err != nil {
+		return fmt.Errorf("unable to add return rule in %s chain: %s", chain, err.Error())
+	}
+
+	return nil
+}
+
+// EnsureJumpRule ensures the jump rule is on top
+func EnsureJumpRule(fromChain, toChain string) error {
+	var (
+		table = Filter
+		args  = []string{"-j", toChain}
+	)
+
+	if Exists(table, fromChain, args...) {
+		err := RawCombinedOutput(append([]string{"-D", fromChain}, args...)...)
+		if err != nil {
+			return fmt.Errorf("unable to remove jump to %s rule in %s chain: %s", toChain, fromChain, err.Error())
+		}
+	}
+
+	err := RawCombinedOutput(append([]string{"-I", fromChain}, args...)...)
+	if err != nil {
+		return fmt.Errorf("unable to insert jump to %s rule in %s chain: %s", toChain, fromChain, err.Error())
+	}
+
+	return nil
+}

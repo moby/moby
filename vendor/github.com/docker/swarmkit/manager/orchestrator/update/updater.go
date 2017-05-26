@@ -378,7 +378,7 @@ func (u *Updater) updateTask(ctx context.Context, slot orchestrator.Slot, update
 	startThenStop := false
 	var delayStartCh <-chan struct{}
 	// Atomically create the updated task and bring down the old one.
-	_, err := u.store.Batch(func(batch *store.Batch) error {
+	err := u.store.Batch(func(batch *store.Batch) error {
 		err := batch.Update(func(tx store.Tx) error {
 			if store.GetService(tx, updated.ServiceID) == nil {
 				return errors.New("service was deleted")
@@ -431,7 +431,7 @@ func (u *Updater) updateTask(ctx context.Context, slot orchestrator.Slot, update
 				u.updatedTasksMu.Unlock()
 
 				if startThenStop {
-					_, err := u.store.Batch(func(batch *store.Batch) error {
+					err := u.store.Batch(func(batch *store.Batch) error {
 						_, err := u.removeOldTasks(ctx, batch, slot)
 						if err != nil {
 							log.G(ctx).WithError(err).WithField("task.id", updated.ID).Warning("failed to remove old task after starting replacement")
@@ -457,7 +457,7 @@ func (u *Updater) useExistingTask(ctx context.Context, slot orchestrator.Slot, e
 	}
 	if len(removeTasks) != 0 || existing.DesiredState != api.TaskStateRunning {
 		var delayStartCh <-chan struct{}
-		_, err := u.store.Batch(func(batch *store.Batch) error {
+		err := u.store.Batch(func(batch *store.Batch) error {
 			var oldTask *api.Task
 			if len(removeTasks) != 0 {
 				var err error

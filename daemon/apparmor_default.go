@@ -28,7 +28,7 @@ func ensureDefaultAppArmorProfile() error {
 
 		// Load the profile.
 		if err := aaprofile.InstallDefault(defaultApparmorProfile); err != nil {
-			return fmt.Errorf("AppArmor enabled on system but the %s profile could not be loaded.", defaultApparmorProfile)
+			return fmt.Errorf("AppArmor enabled on system but the %s profile could not be loaded: %s", defaultApparmorProfile, err)
 		}
 	}
 

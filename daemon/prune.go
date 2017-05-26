@@ -22,19 +22,46 @@ import (
 )
 
 var (
-	// ErrPruneRunning is returned when a prune request is received while
+	// errPruneRunning is returned when a prune request is received while
 	// one is in progress
-	ErrPruneRunning = fmt.Errorf("a prune operation is already running")
+	errPruneRunning = fmt.Errorf("a prune operation is already running")
+
+	containersAcceptedFilters = map[string]bool{
+		"label":  true,
+		"label!": true,
+		"until":  true,
+	}
+	volumesAcceptedFilters = map[string]bool{
+		"label":  true,
+		"label!": true,
+	}
+	imagesAcceptedFilters = map[string]bool{
+		"dangling": true,
+		"label":    true,
+		"label!":   true,
+		"until":    true,
+	}
+	networksAcceptedFilters = map[string]bool{
+		"label":  true,
+		"label!": true,
+		"until":  true,
+	}
 )
 
 // ContainersPrune removes unused containers
 func (daemon *Daemon) ContainersPrune(ctx context.Context, pruneFilters filters.Args) (*types.ContainersPruneReport, error) {
 	if !atomic.CompareAndSwapInt32(&daemon.pruneRunning, 0, 1) {
-		return nil, ErrPruneRunning
+		return nil, errPruneRunning
 	}
 	defer atomic.StoreInt32(&daemon.pruneRunning, 0)
 
 	rep := &types.ContainersPruneReport{}
+
+	// make sure that only accepted filters have been received
+	err := pruneFilters.Validate(containersAcceptedFilters)
+	if err != nil {
+		return nil, err
+	}
 
 	until, err := getUntilFromPruneFilters(pruneFilters)
 	if err != nil {
@@ -77,9 +104,15 @@ func (daemon *Daemon) ContainersPrune(ctx context.Context, pruneFilters filters.
 // VolumesPrune removes unused local volumes
 func (daemon *Daemon) VolumesPrune(ctx context.Context, pruneFilters filters.Args) (*types.VolumesPruneReport, error) {
 	if !atomic.CompareAndSwapInt32(&daemon.pruneRunning, 0, 1) {
-		return nil, ErrPruneRunning
+		return nil, errPruneRunning
 	}
 	defer atomic.StoreInt32(&daemon.pruneRunning, 0)
+
+	// make sure that only accepted filters have been received
+	err := pruneFilters.Validate(volumesAcceptedFilters)
+	if err != nil {
+		return nil, err
+	}
 
 	rep := &types.VolumesPruneReport{}
 
@@ -117,7 +150,7 @@ func (daemon *Daemon) VolumesPrune(ctx context.Context, pruneFilters filters.Arg
 		return nil
 	}
 
-	err := daemon.traverseLocalVolumes(pruneVols)
+	err = daemon.traverseLocalVolumes(pruneVols)
 
 	return rep, err
 }
@@ -125,9 +158,15 @@ func (daemon *Daemon) VolumesPrune(ctx context.Context, pruneFilters filters.Arg
 // ImagesPrune removes unused images
 func (daemon *Daemon) ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*types.ImagesPruneReport, error) {
 	if !atomic.CompareAndSwapInt32(&daemon.pruneRunning, 0, 1) {
-		return nil, ErrPruneRunning
+		return nil, errPruneRunning
 	}
 	defer atomic.StoreInt32(&daemon.pruneRunning, 0)
+
+	// make sure that only accepted filters have been received
+	err := pruneFilters.Validate(imagesAcceptedFilters)
+	if err != nil {
+		return nil, err
+	}
 
 	rep := &types.ImagesPruneReport{}
 
@@ -276,6 +315,9 @@ func (daemon *Daemon) localNetworksPrune(ctx context.Context, pruneFilters filte
 			return true
 		default:
 		}
+		if nw.Info().ConfigOnly() {
+			return false
+		}
 		if !until.IsZero() && nw.Info().Created().After(until) {
 			return false
 		}
@@ -353,9 +395,15 @@ func (daemon *Daemon) clusterNetworksPrune(ctx context.Context, pruneFilters fil
 // NetworksPrune removes unused networks
 func (daemon *Daemon) NetworksPrune(ctx context.Context, pruneFilters filters.Args) (*types.NetworksPruneReport, error) {
 	if !atomic.CompareAndSwapInt32(&daemon.pruneRunning, 0, 1) {
-		return nil, ErrPruneRunning
+		return nil, errPruneRunning
 	}
 	defer atomic.StoreInt32(&daemon.pruneRunning, 0)
+
+	// make sure that only accepted filters have been received
+	err := pruneFilters.Validate(networksAcceptedFilters)
+	if err != nil {
+		return nil, err
+	}
 
 	if _, err := getUntilFromPruneFilters(pruneFilters); err != nil {
 		return nil, err

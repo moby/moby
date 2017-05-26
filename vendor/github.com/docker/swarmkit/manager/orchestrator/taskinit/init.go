@@ -21,7 +21,7 @@ type InitHandler interface {
 // CheckTasks fixes tasks in the store before orchestrator runs. The previous leader might
 // not have finished processing their updates and left them in an inconsistent state.
 func CheckTasks(ctx context.Context, s *store.MemoryStore, readTx store.ReadTx, initHandler InitHandler, startSupervisor *restart.Supervisor) error {
-	_, err := s.Batch(func(batch *store.Batch) error {
+	err := s.Batch(func(batch *store.Batch) error {
 		tasks, err := store.FindTasks(readTx, store.All)
 		if err != nil {
 			return err

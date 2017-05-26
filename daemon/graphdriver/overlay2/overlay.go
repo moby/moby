@@ -31,6 +31,7 @@ import (
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
+	"github.com/docker/docker/pkg/system"
 	units "github.com/docker/go-units"
 
 	"github.com/opencontainers/selinux/go-selinux/label"
@@ -149,9 +150,19 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 
 	// check if they are running over btrfs, aufs, zfs, overlay, or ecryptfs
 	switch fsMagic {
-	case graphdriver.FsMagicBtrfs, graphdriver.FsMagicAufs, graphdriver.FsMagicZfs, graphdriver.FsMagicOverlay, graphdriver.FsMagicEcryptfs:
+	case graphdriver.FsMagicAufs, graphdriver.FsMagicZfs, graphdriver.FsMagicOverlay, graphdriver.FsMagicEcryptfs:
 		logrus.Errorf("'overlay2' is not supported over %s", backingFs)
 		return nil, graphdriver.ErrIncompatibleFS
+	case graphdriver.FsMagicBtrfs:
+		// Support for OverlayFS on BTRFS was added in kernel 4.7
+		// See https://btrfs.wiki.kernel.org/index.php/Changelog
+		if kernel.CompareKernelVersion(*v, kernel.VersionInfo{Kernel: 4, Major: 7, Minor: 0}) < 0 {
+			if !opts.overrideKernelCheck {
+				logrus.Errorf("'overlay2' requires kernel 4.7 to use on %s", backingFs)
+				return nil, graphdriver.ErrIncompatibleFS
+			}
+			logrus.Warn("Using pre-4.7.0 kernel for overlay2 on btrfs, may require kernel update")
+		}
 	}
 
 	rootUID, rootGID, err := idtools.GetRootUIDGID(uidMaps, gidMaps)
@@ -464,7 +475,7 @@ func (d *Driver) Remove(id string) error {
 		}
 	}
 
-	if err := os.RemoveAll(dir); err != nil && !os.IsNotExist(err) {
+	if err := system.EnsureRemoveAll(dir); err != nil && !os.IsNotExist(err) {
 		return err
 	}
 	return nil

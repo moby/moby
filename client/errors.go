@@ -256,6 +256,28 @@ func IsErrSecretNotFound(err error) bool {
 	return ok
 }
 
+// configNotFoundError implements an error returned when a config is not found.
+type configNotFoundError struct {
+	name string
+}
+
+// Error returns a string representation of a configNotFoundError
+func (e configNotFoundError) Error() string {
+	return fmt.Sprintf("Error: no such config: %s", e.name)
+}
+
+// NotFound indicates that this error type is of NotFound
+func (e configNotFoundError) NotFound() bool {
+	return true
+}
+
+// IsErrConfigNotFound returns true if the error is caused
+// when a config is not found.
+func IsErrConfigNotFound(err error) bool {
+	_, ok := err.(configNotFoundError)
+	return ok
+}
+
 // pluginNotFoundError implements an error returned when a plugin is not in the docker host.
 type pluginNotFoundError struct {
 	name string

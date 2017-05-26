@@ -8,6 +8,7 @@ package dockerfile
 // package.
 
 import (
+	"bytes"
 	"fmt"
 	"regexp"
 	"runtime"
@@ -16,13 +17,13 @@ import (
 	"strings"
 	"time"
 
-	"bytes"
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/builder"
+	"github.com/docker/docker/builder/dockerfile/parser"
+	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/go-connections/nat"
 	"github.com/pkg/errors"
@@ -47,6 +48,7 @@ func env(req dispatchRequest) error {
 		return err
 	}
 
+	runConfig := req.state.runConfig
 	commitMessage := bytes.NewBufferString("ENV")
 
 	for j := 0; j < len(req.args); j += 2 {
@@ -59,21 +61,21 @@ func env(req dispatchRequest) error {
 		commitMessage.WriteString(" " + newVar)
 
 		gotOne := false
-		for i, envVar := range req.runConfig.Env {
+		for i, envVar := range runConfig.Env {
 			envParts := strings.SplitN(envVar, "=", 2)
 			compareFrom := envParts[0]
 			if equalEnvKeys(compareFrom, name) {
-				req.runConfig.Env[i] = newVar
+				runConfig.Env[i] = newVar
 				gotOne = true
 				break
 			}
 		}
 		if !gotOne {
-			req.runConfig.Env = append(req.runConfig.Env, newVar)
+			runConfig.Env = append(runConfig.Env, newVar)
 		}
 	}
 
-	return req.builder.commit(commitMessage.String())
+	return req.builder.commit(req.state, commitMessage.String())
 }
 
 // MAINTAINER some text <maybe@an.email.address>
@@ -89,8 +91,8 @@ func maintainer(req dispatchRequest) error {
 	}
 
 	maintainer := req.args[0]
-	req.builder.maintainer = maintainer
-	return req.builder.commit("MAINTAINER " + maintainer)
+	req.state.maintainer = maintainer
+	return req.builder.commit(req.state, "MAINTAINER "+maintainer)
 }
 
 // LABEL some json data describing the image
@@ -111,26 +113,25 @@ func label(req dispatchRequest) error {
 	}
 
 	commitStr := "LABEL"
+	runConfig := req.state.runConfig
 
-	if req.runConfig.Labels == nil {
-		req.runConfig.Labels = map[string]string{}
+	if runConfig.Labels == nil {
+		runConfig.Labels = map[string]string{}
 	}
 
 	for j := 0; j < len(req.args); j++ {
-		// name  ==> req.args[j]
-		// value ==> req.args[j+1]
-
-		if len(req.args[j]) == 0 {
+		name := req.args[j]
+		if name == "" {
 			return errBlankCommandNames("LABEL")
 		}
 
-		newVar := req.args[j] + "=" + req.args[j+1] + ""
-		commitStr += " " + newVar
+		value := req.args[j+1]
+		commitStr += " " + name + "=" + value
 
-		req.runConfig.Labels[req.args[j]] = req.args[j+1]
+		runConfig.Labels[name] = value
 		j++
 	}
-	return req.builder.commit(commitStr)
+	return req.builder.commit(req.state, commitStr)
 }
 
 // ADD foo /path
@@ -147,7 +148,16 @@ func add(req dispatchRequest) error {
 		return err
 	}
 
-	return req.builder.runContextCommand(req.args, true, true, "ADD", nil)
+	downloader := newRemoteSourceDownloader(req.builder.Output, req.builder.Stdout)
+	copier := copierFromDispatchRequest(req, downloader, nil)
+	defer copier.Cleanup()
+	copyInstruction, err := copier.createCopyInstruction(req.args, "ADD")
+	if err != nil {
+		return err
+	}
+	copyInstruction.allowLocalDecompression = true
+
+	return req.builder.performCopy(req.state, copyInstruction)
 }
 
 // COPY foo /path
@@ -160,27 +170,46 @@ func dispatchCopy(req dispatchRequest) error {
 	}
 
 	flFrom := req.flags.AddString("from", "")
-
 	if err := req.flags.Parse(); err != nil {
 		return err
 	}
 
-	var im *imageMount
-	if flFrom.IsUsed() {
-		var err error
-		im, err = req.builder.imageContexts.get(flFrom.Value)
-		if err != nil {
-			return err
-		}
+	im, err := req.builder.getImageMount(flFrom)
+	if err != nil {
+		return errors.Wrapf(err, "invalid from flag value %s", flFrom.Value)
 	}
 
-	return req.builder.runContextCommand(req.args, false, false, "COPY", im)
+	copier := copierFromDispatchRequest(req, errOnSourceDownload, im)
+	defer copier.Cleanup()
+	copyInstruction, err := copier.createCopyInstruction(req.args, "COPY")
+	if err != nil {
+		return err
+	}
+
+	return req.builder.performCopy(req.state, copyInstruction)
+}
+
+func (b *Builder) getImageMount(fromFlag *Flag) (*imageMount, error) {
+	if !fromFlag.IsUsed() {
+		// TODO: this could return the source in the default case as well?
+		return nil, nil
+	}
+
+	imageRefOrID := fromFlag.Value
+	stage, err := b.buildStages.get(fromFlag.Value)
+	if err != nil {
+		return nil, err
+	}
+	if stage != nil {
+		imageRefOrID = stage.ImageID()
+	}
+	return b.imageSources.Get(imageRefOrID)
 }
 
 // FROM imagename[:tag | @digest] [AS build-stage-name]
 //
 func from(req dispatchRequest) error {
-	ctxName, err := parseBuildStageName(req.args)
+	stageName, err := parseBuildStageName(req.args)
 	if err != nil {
 		return err
 	}
@@ -189,22 +218,22 @@ func from(req dispatchRequest) error {
 		return err
 	}
 
-	req.builder.resetImageCache()
-	if _, err := req.builder.imageContexts.add(ctxName); err != nil {
-		return err
-	}
-
+	req.builder.imageProber.Reset()
 	image, err := req.builder.getFromImage(req.shlex, req.args[0])
 	if err != nil {
 		return err
 	}
-	if image != nil {
-		req.builder.imageContexts.update(image.ImageID(), image.RunConfig())
+	if err := req.builder.buildStages.add(stageName, image); err != nil {
+		return err
 	}
-	req.builder.from = image
-
+	req.state.beginStage(stageName, image)
 	req.builder.buildArgs.ResetAllowed()
-	return req.builder.processImageFrom(image)
+	if image.ImageID() == "" {
+		// Typically this means they used "FROM scratch"
+		return nil
+	}
+
+	return processOnBuild(req)
 }
 
 func parseBuildStageName(args []string) (string, error) {
@@ -222,6 +251,11 @@ func parseBuildStageName(args []string) (string, error) {
 	return stageName, nil
 }
 
+// scratchImage is used as a token for the empty base image. It uses buildStage
+// as a convenient implementation of builder.Image, but is not actually a
+// buildStage.
+var scratchImage builder.Image = &buildStage{}
+
 func (b *Builder) getFromImage(shlex *ShellLex, name string) (builder.Image, error) {
 	substitutionArgs := []string{}
 	for key, value := range b.buildArgs.GetAllMeta() {
@@ -233,12 +267,8 @@ func (b *Builder) getFromImage(shlex *ShellLex, name string) (builder.Image, err
 		return nil, err
 	}
 
-	if im, ok := b.imageContexts.byName[name]; ok {
-		if len(im.ImageID()) > 0 {
-			return im, nil
-		}
-		// FROM scratch does not have an ImageID
-		return nil, nil
+	if im, ok := b.buildStages.getByName(name); ok {
+		return im, nil
 	}
 
 	// Windows cannot support a container with no base image.
@@ -246,11 +276,60 @@ func (b *Builder) getFromImage(shlex *ShellLex, name string) (builder.Image, err
 		if runtime.GOOS == "windows" {
 			return nil, errors.New("Windows does not support FROM scratch")
 		}
-		b.image = ""
-		b.noBaseImage = true
-		return nil, nil
+		return scratchImage, nil
 	}
-	return pullOrGetImage(b, name)
+	imageMount, err := b.imageSources.Get(name)
+	if err != nil {
+		return nil, err
+	}
+	return imageMount.Image(), nil
+}
+
+func processOnBuild(req dispatchRequest) error {
+	dispatchState := req.state
+	// Process ONBUILD triggers if they exist
+	if nTriggers := len(dispatchState.runConfig.OnBuild); nTriggers != 0 {
+		word := "trigger"
+		if nTriggers > 1 {
+			word = "triggers"
+		}
+		fmt.Fprintf(req.builder.Stderr, "# Executing %d build %s...\n", nTriggers, word)
+	}
+
+	// Copy the ONBUILD triggers, and remove them from the config, since the config will be committed.
+	onBuildTriggers := dispatchState.runConfig.OnBuild
+	dispatchState.runConfig.OnBuild = []string{}
+
+	// Reset stdin settings as all build actions run without stdin
+	dispatchState.runConfig.OpenStdin = false
+	dispatchState.runConfig.StdinOnce = false
+
+	// parse the ONBUILD triggers by invoking the parser
+	for _, step := range onBuildTriggers {
+		dockerfile, err := parser.Parse(strings.NewReader(step))
+		if err != nil {
+			return err
+		}
+
+		for _, n := range dockerfile.AST.Children {
+			if err := checkDispatch(n); err != nil {
+				return err
+			}
+
+			upperCasedCmd := strings.ToUpper(n.Value)
+			switch upperCasedCmd {
+			case "ONBUILD":
+				return errors.New("Chaining ONBUILD via `ONBUILD ONBUILD` isn't allowed")
+			case "MAINTAINER", "FROM":
+				return errors.Errorf("%s isn't allowed as an ONBUILD trigger", upperCasedCmd)
+			}
+		}
+
+		if _, err := dispatchFromDockerfile(req.builder, dockerfile, dispatchState); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // ONBUILD RUN echo yo
@@ -279,9 +358,10 @@ func onbuild(req dispatchRequest) error {
 		return fmt.Errorf("%s isn't allowed as an ONBUILD trigger", triggerInstruction)
 	}
 
+	runConfig := req.state.runConfig
 	original := regexp.MustCompile(`(?i)^\s*ONBUILD\s*`).ReplaceAllString(req.original, "")
-	req.runConfig.OnBuild = append(req.runConfig.OnBuild, original)
-	return req.builder.commit("ONBUILD " + original)
+	runConfig.OnBuild = append(runConfig.OnBuild, original)
+	return req.builder.commit(req.state, "ONBUILD "+original)
 }
 
 // WORKDIR /tmp
@@ -298,9 +378,10 @@ func workdir(req dispatchRequest) error {
 		return err
 	}
 
+	runConfig := req.state.runConfig
 	// This is from the Dockerfile and will not necessarily be in platform
 	// specific semantics, hence ensure it is converted.
-	req.runConfig.WorkingDir, err = normaliseWorkdir(req.runConfig.WorkingDir, req.args[0])
+	runConfig.WorkingDir, err = normaliseWorkdir(runConfig.WorkingDir, req.args[0])
 	if err != nil {
 		return err
 	}
@@ -315,26 +396,17 @@ func workdir(req dispatchRequest) error {
 		return nil
 	}
 
-	comment := "WORKDIR " + req.runConfig.WorkingDir
-	runConfigWithCommentCmd := copyRunConfig(req.runConfig, withCmdCommentString(comment))
-	if hit, err := req.builder.probeCache(req.builder.image, runConfigWithCommentCmd); err != nil || hit {
+	comment := "WORKDIR " + runConfig.WorkingDir
+	runConfigWithCommentCmd := copyRunConfig(runConfig, withCmdCommentString(comment))
+	containerID, err := req.builder.probeAndCreate(req.state, runConfigWithCommentCmd)
+	if err != nil || containerID == "" {
+		return err
+	}
+	if err := req.builder.docker.ContainerCreateWorkdir(containerID); err != nil {
 		return err
 	}
 
-	container, err := req.builder.docker.ContainerCreate(types.ContainerCreateConfig{
-		Config: runConfigWithCommentCmd,
-		// Set a log config to override any default value set on the daemon
-		HostConfig: &container.HostConfig{LogConfig: defaultLogConfig},
-	})
-	if err != nil {
-		return err
-	}
-	req.builder.tmpContainers[container.ID] = struct{}{}
-	if err := req.builder.docker.ContainerCreateWorkdir(container.ID); err != nil {
-		return err
-	}
-
-	return req.builder.commitContainer(container.ID, runConfigWithCommentCmd)
+	return req.builder.commitContainer(req.state, containerID, runConfigWithCommentCmd)
 }
 
 // RUN some command yo
@@ -348,7 +420,7 @@ func workdir(req dispatchRequest) error {
 // RUN [ "echo", "hi" ] # echo hi
 //
 func run(req dispatchRequest) error {
-	if !req.builder.hasFromImage() {
+	if !req.state.hasFromImage() {
 		return errors.New("Please provide a source image with `from` prior to run")
 	}
 
@@ -356,29 +428,30 @@ func run(req dispatchRequest) error {
 		return err
 	}
 
+	stateRunConfig := req.state.runConfig
 	args := handleJSONArgs(req.args, req.attributes)
 	if !req.attributes["json"] {
-		args = append(getShell(req.runConfig), args...)
+		args = append(getShell(stateRunConfig), args...)
 	}
 	cmdFromArgs := strslice.StrSlice(args)
-	buildArgs := req.builder.buildArgsWithoutConfigEnv()
+	buildArgs := req.builder.buildArgs.FilterAllowed(stateRunConfig.Env)
 
 	saveCmd := cmdFromArgs
 	if len(buildArgs) > 0 {
 		saveCmd = prependEnvOnCmd(req.builder.buildArgs, buildArgs, cmdFromArgs)
 	}
 
-	runConfigForCacheProbe := copyRunConfig(req.runConfig,
+	runConfigForCacheProbe := copyRunConfig(stateRunConfig,
 		withCmd(saveCmd),
 		withEntrypointOverride(saveCmd, nil))
-	hit, err := req.builder.probeCache(req.builder.image, runConfigForCacheProbe)
+	hit, err := req.builder.probeCache(req.state, runConfigForCacheProbe)
 	if err != nil || hit {
 		return err
 	}
 
-	runConfig := copyRunConfig(req.runConfig,
+	runConfig := copyRunConfig(stateRunConfig,
 		withCmd(cmdFromArgs),
-		withEnv(append(req.runConfig.Env, buildArgs...)),
+		withEnv(append(stateRunConfig.Env, buildArgs...)),
 		withEntrypointOverride(saveCmd, strslice.StrSlice{""}))
 
 	// set config as already being escaped, this prevents double escaping on windows
@@ -389,11 +462,20 @@ func run(req dispatchRequest) error {
 	if err != nil {
 		return err
 	}
-	if err := req.builder.run(cID, runConfig.Cmd); err != nil {
+	if err := req.builder.containerManager.Run(req.builder.clientCtx, cID, req.builder.Stdout, req.builder.Stderr); err != nil {
+		if err, ok := err.(*statusCodeError); ok {
+			// TODO: change error type, because jsonmessage.JSONError assumes HTTP
+			return &jsonmessage.JSONError{
+				Message: fmt.Sprintf(
+					"The command '%s' returned a non-zero code: %d",
+					strings.Join(runConfig.Cmd, " "), err.StatusCode()),
+				Code: err.StatusCode(),
+			}
+		}
 		return err
 	}
 
-	return req.builder.commitContainer(cID, runConfigForCacheProbe)
+	return req.builder.commitContainer(req.state, cID, runConfigForCacheProbe)
 }
 
 // Derive the command to use for probeCache() and to commit in this container.
@@ -411,7 +493,7 @@ func prependEnvOnCmd(buildArgs *buildArgs, buildArgVars []string, cmd strslice.S
 	var tmpBuildEnv []string
 	for _, env := range buildArgVars {
 		key := strings.SplitN(env, "=", 2)[0]
-		if !buildArgs.IsUnreferencedBuiltin(key) {
+		if buildArgs.IsReferencedOrNotBuiltin(key) {
 			tmpBuildEnv = append(tmpBuildEnv, env)
 		}
 	}
@@ -431,22 +513,22 @@ func cmd(req dispatchRequest) error {
 		return err
 	}
 
+	runConfig := req.state.runConfig
 	cmdSlice := handleJSONArgs(req.args, req.attributes)
-
 	if !req.attributes["json"] {
-		cmdSlice = append(getShell(req.runConfig), cmdSlice...)
+		cmdSlice = append(getShell(runConfig), cmdSlice...)
 	}
 
-	req.runConfig.Cmd = strslice.StrSlice(cmdSlice)
+	runConfig.Cmd = strslice.StrSlice(cmdSlice)
 	// set config as already being escaped, this prevents double escaping on windows
-	req.runConfig.ArgsEscaped = true
+	runConfig.ArgsEscaped = true
 
-	if err := req.builder.commit(fmt.Sprintf("CMD %q", cmdSlice)); err != nil {
+	if err := req.builder.commit(req.state, fmt.Sprintf("CMD %q", cmdSlice)); err != nil {
 		return err
 	}
 
 	if len(req.args) != 0 {
-		req.builder.cmdSet = true
+		req.state.cmdSet = true
 	}
 
 	return nil
@@ -478,6 +560,7 @@ func healthcheck(req dispatchRequest) error {
 	if len(req.args) == 0 {
 		return errAtLeastOneArgument("HEALTHCHECK")
 	}
+	runConfig := req.state.runConfig
 	typ := strings.ToUpper(req.args[0])
 	args := req.args[1:]
 	if typ == "NONE" {
@@ -485,12 +568,12 @@ func healthcheck(req dispatchRequest) error {
 			return errors.New("HEALTHCHECK NONE takes no arguments")
 		}
 		test := strslice.StrSlice{typ}
-		req.runConfig.Healthcheck = &container.HealthConfig{
+		runConfig.Healthcheck = &container.HealthConfig{
 			Test: test,
 		}
 	} else {
-		if req.runConfig.Healthcheck != nil {
-			oldCmd := req.runConfig.Healthcheck.Test
+		if runConfig.Healthcheck != nil {
+			oldCmd := runConfig.Healthcheck.Test
 			if len(oldCmd) > 0 && oldCmd[0] != "NONE" {
 				fmt.Fprintf(req.builder.Stdout, "Note: overriding previous HEALTHCHECK: %v\n", oldCmd)
 			}
@@ -554,10 +637,10 @@ func healthcheck(req dispatchRequest) error {
 			healthcheck.Retries = 0
 		}
 
-		req.runConfig.Healthcheck = &healthcheck
+		runConfig.Healthcheck = &healthcheck
 	}
 
-	return req.builder.commit(fmt.Sprintf("HEALTHCHECK %q", req.runConfig.Healthcheck))
+	return req.builder.commit(req.state, fmt.Sprintf("HEALTHCHECK %q", runConfig.Healthcheck))
 }
 
 // ENTRYPOINT /usr/sbin/nginx
@@ -573,27 +656,28 @@ func entrypoint(req dispatchRequest) error {
 		return err
 	}
 
+	runConfig := req.state.runConfig
 	parsed := handleJSONArgs(req.args, req.attributes)
 
 	switch {
 	case req.attributes["json"]:
 		// ENTRYPOINT ["echo", "hi"]
-		req.runConfig.Entrypoint = strslice.StrSlice(parsed)
+		runConfig.Entrypoint = strslice.StrSlice(parsed)
 	case len(parsed) == 0:
 		// ENTRYPOINT []
-		req.runConfig.Entrypoint = nil
+		runConfig.Entrypoint = nil
 	default:
 		// ENTRYPOINT echo hi
-		req.runConfig.Entrypoint = strslice.StrSlice(append(getShell(req.runConfig), parsed[0]))
+		runConfig.Entrypoint = strslice.StrSlice(append(getShell(runConfig), parsed[0]))
 	}
 
 	// when setting the entrypoint if a CMD was not explicitly set then
 	// set the command to nil
-	if !req.builder.cmdSet {
-		req.runConfig.Cmd = nil
+	if !req.state.cmdSet {
+		runConfig.Cmd = nil
 	}
 
-	return req.builder.commit(fmt.Sprintf("ENTRYPOINT %q", req.runConfig.Entrypoint))
+	return req.builder.commit(req.state, fmt.Sprintf("ENTRYPOINT %q", runConfig.Entrypoint))
 }
 
 // EXPOSE 6667/tcp 7000/tcp
@@ -612,8 +696,9 @@ func expose(req dispatchRequest) error {
 		return err
 	}
 
-	if req.runConfig.ExposedPorts == nil {
-		req.runConfig.ExposedPorts = make(nat.PortSet)
+	runConfig := req.state.runConfig
+	if runConfig.ExposedPorts == nil {
+		runConfig.ExposedPorts = make(nat.PortSet)
 	}
 
 	ports, _, err := nat.ParsePortSpecs(portsTab)
@@ -627,14 +712,14 @@ func expose(req dispatchRequest) error {
 	portList := make([]string, len(ports))
 	var i int
 	for port := range ports {
-		if _, exists := req.runConfig.ExposedPorts[port]; !exists {
-			req.runConfig.ExposedPorts[port] = struct{}{}
+		if _, exists := runConfig.ExposedPorts[port]; !exists {
+			runConfig.ExposedPorts[port] = struct{}{}
 		}
 		portList[i] = string(port)
 		i++
 	}
 	sort.Strings(portList)
-	return req.builder.commit("EXPOSE " + strings.Join(portList, " "))
+	return req.builder.commit(req.state, "EXPOSE "+strings.Join(portList, " "))
 }
 
 // USER foo
@@ -651,8 +736,8 @@ func user(req dispatchRequest) error {
 		return err
 	}
 
-	req.runConfig.User = req.args[0]
-	return req.builder.commit(fmt.Sprintf("USER %v", req.args))
+	req.state.runConfig.User = req.args[0]
+	return req.builder.commit(req.state, fmt.Sprintf("USER %v", req.args))
 }
 
 // VOLUME /foo
@@ -668,17 +753,18 @@ func volume(req dispatchRequest) error {
 		return err
 	}
 
-	if req.runConfig.Volumes == nil {
-		req.runConfig.Volumes = map[string]struct{}{}
+	runConfig := req.state.runConfig
+	if runConfig.Volumes == nil {
+		runConfig.Volumes = map[string]struct{}{}
 	}
 	for _, v := range req.args {
 		v = strings.TrimSpace(v)
 		if v == "" {
 			return errors.New("VOLUME specified can not be an empty string")
 		}
-		req.runConfig.Volumes[v] = struct{}{}
+		runConfig.Volumes[v] = struct{}{}
 	}
-	return req.builder.commit(fmt.Sprintf("VOLUME %v", req.args))
+	return req.builder.commit(req.state, fmt.Sprintf("VOLUME %v", req.args))
 }
 
 // STOPSIGNAL signal
@@ -695,8 +781,8 @@ func stopSignal(req dispatchRequest) error {
 		return err
 	}
 
-	req.runConfig.StopSignal = sig
-	return req.builder.commit(fmt.Sprintf("STOPSIGNAL %v", req.args))
+	req.state.runConfig.StopSignal = sig
+	return req.builder.commit(req.state, fmt.Sprintf("STOPSIGNAL %v", req.args))
 }
 
 // ARG name[=value]
@@ -742,11 +828,11 @@ func arg(req dispatchRequest) error {
 	req.builder.buildArgs.AddArg(name, value)
 
 	// Arg before FROM doesn't add a layer
-	if !req.builder.hasFromImage() {
+	if !req.state.hasFromImage() {
 		req.builder.buildArgs.AddMetaArg(name, value)
 		return nil
 	}
-	return req.builder.commit("ARG " + arg)
+	return req.builder.commit(req.state, "ARG "+arg)
 }
 
 // SHELL powershell -command
@@ -763,12 +849,12 @@ func shell(req dispatchRequest) error {
 		return errAtLeastOneArgument("SHELL")
 	case req.attributes["json"]:
 		// SHELL ["powershell", "-command"]
-		req.runConfig.Shell = strslice.StrSlice(shellSlice)
+		req.state.runConfig.Shell = strslice.StrSlice(shellSlice)
 	default:
 		// SHELL powershell -command - not JSON
 		return errNotJSON("SHELL", req.original)
 	}
-	return req.builder.commit(fmt.Sprintf("SHELL %v", shellSlice))
+	return req.builder.commit(req.state, fmt.Sprintf("SHELL %v", shellSlice))
 }
 
 func errAtLeastOneArgument(command string) error {
@@ -789,30 +875,4 @@ func errBlankCommandNames(command string) error {
 
 func errTooManyArguments(command string) error {
 	return fmt.Errorf("Bad input to %s, too many arguments", command)
-}
-
-// mountByRef creates an imageMount from a reference. pulling the image if needed.
-func mountByRef(b *Builder, name string) (*imageMount, error) {
-	image, err := pullOrGetImage(b, name)
-	if err != nil {
-		return nil, err
-	}
-	im := b.imageContexts.newImageMount(image.ImageID())
-	return im, nil
-}
-
-func pullOrGetImage(b *Builder, name string) (builder.Image, error) {
-	var image builder.Image
-	if !b.options.PullParent {
-		image, _ = b.docker.GetImageOnBuild(name)
-		// TODO: shouldn't we error out if error is different from "not found" ?
-	}
-	if image == nil {
-		var err error
-		image, err = b.docker.PullOnBuild(b.clientCtx, name, b.options.AuthConfigs, b.Output)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return image, nil
 }

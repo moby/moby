@@ -15,7 +15,7 @@ import (
 func (s *DockerSwarmSuite) TestSwarmVolumePlugin(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
-	out, err := d.Cmd("service", "create", "--mount", "type=volume,source=my-volume,destination=/foo,volume-driver=customvolumedriver", "--name", "top", "busybox", "top")
+	out, err := d.Cmd("service", "create", "--no-resolve-image", "--mount", "type=volume,source=my-volume,destination=/foo,volume-driver=customvolumedriver", "--name", "top", "busybox", "top")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	// Make sure task stays pending before plugin is available
@@ -74,7 +74,7 @@ func (s *DockerSwarmSuite) TestSwarmNetworkPluginV2(c *check.C) {
 
 	// create a global service to ensure that both nodes will have an instance
 	serviceName := "my-service"
-	_, err = d1.Cmd("service", "create", "--name", serviceName, "--mode=global", "--network", networkName, "busybox", "top")
+	_, err = d1.Cmd("service", "create", "--no-resolve-image", "--name", serviceName, "--mode=global", "--network", networkName, "busybox", "top")
 	c.Assert(err, checker.IsNil)
 
 	// wait for tasks ready
@@ -96,7 +96,7 @@ func (s *DockerSwarmSuite) TestSwarmNetworkPluginV2(c *check.C) {
 
 	image := "busybox"
 	// create a new global service again.
-	_, err = d1.Cmd("service", "create", "--name", serviceName, "--mode=global", "--network", networkName, image, "top")
+	_, err = d1.Cmd("service", "create", "--no-resolve-image", "--name", serviceName, "--mode=global", "--network", networkName, image, "top")
 	c.Assert(err, checker.IsNil)
 
 	waitAndAssert(c, defaultReconciliationTimeout, d1.CheckRunningTaskImages, checker.DeepEquals,

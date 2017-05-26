@@ -11,7 +11,7 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
-	containerd "github.com/docker/containerd/api/grpc/types"
+	containerd "github.com/containerd/containerd/api/grpc/types"
 	"github.com/docker/docker/pkg/idtools"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"golang.org/x/net/context"

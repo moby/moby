@@ -13,6 +13,7 @@ import (
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
+	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )
 
@@ -280,5 +281,54 @@ func TestNewEnvClientSetsDefaultVersion(t *testing.T) {
 	// Restore environment variables
 	for _, key := range envVarKeys {
 		os.Setenv(key, envVarValues[key])
+	}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (rtf roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return rtf(req)
+}
+
+type bytesBufferClose struct {
+	*bytes.Buffer
+}
+
+func (bbc bytesBufferClose) Close() error {
+	return nil
+}
+
+func TestClientRedirect(t *testing.T) {
+	client := &http.Client{
+		CheckRedirect: CheckRedirect,
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if req.URL.String() == "/bla" {
+				return &http.Response{StatusCode: 404}, nil
+			}
+			return &http.Response{
+				StatusCode: 301,
+				Header:     map[string][]string{"Location": {"/bla"}},
+				Body:       bytesBufferClose{bytes.NewBuffer(nil)},
+			}, nil
+		}),
+	}
+
+	cases := []struct {
+		httpMethod  string
+		expectedErr error
+		statusCode  int
+	}{
+		{http.MethodGet, nil, 301},
+		{http.MethodPost, &url.Error{Op: "Post", URL: "/bla", Err: ErrRedirect}, 301},
+		{http.MethodPut, &url.Error{Op: "Put", URL: "/bla", Err: ErrRedirect}, 301},
+		{http.MethodDelete, &url.Error{Op: "Delete", URL: "/bla", Err: ErrRedirect}, 301},
+	}
+
+	for _, tc := range cases {
+		req, err := http.NewRequest(tc.httpMethod, "/redirectme", nil)
+		assert.NoError(t, err)
+		resp, err := client.Do(req)
+		assert.Equal(t, tc.expectedErr, err)
+		assert.Equal(t, tc.statusCode, resp.StatusCode)
 	}
 }

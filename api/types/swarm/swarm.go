@@ -7,7 +7,9 @@ import "time"
 type ClusterInfo struct {
 	ID string
 	Meta
-	Spec Spec
+	Spec                   Spec
+	TLSInfo                TLSInfo
+	RootRotationInProgress bool
 }
 
 // Swarm represents a swarm.
@@ -107,6 +109,16 @@ type CAConfig struct {
 	// ExternalCAs is a list of CAs to which a manager node will make
 	// certificate signing requests for node certificates.
 	ExternalCAs []*ExternalCA `json:",omitempty"`
+
+	// SigningCACert and SigningCAKey specify the desired signing root CA and
+	// root CA key for the swarm.  When inspecting the cluster, the key will
+	// be redacted.
+	SigningCACert string `json:",omitempty"`
+	SigningCAKey  string `json:",omitempty"`
+
+	// If this value changes, and there is no specified signing cert and key,
+	// then the swarm is forced to generate a new root certificate ane key.
+	ForceRotate uint64 `json:",omitempty"`
 }
 
 // ExternalCAProtocol represents type of external CA.

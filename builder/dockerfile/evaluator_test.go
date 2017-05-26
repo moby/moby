@@ -105,13 +105,13 @@ func initDispatchTestCases() []dispatchTestCase {
 		{
 			name:          "COPY wildcard no files",
 			dockerfile:    `COPY file*.txt /tmp/`,
-			expectedError: "No source files were specified",
+			expectedError: "COPY failed: no source files were specified",
 			files:         nil,
 		},
 		{
 			name:          "COPY url",
 			dockerfile:    `COPY https://index.docker.io/robots.txt /`,
-			expectedError: "Source can't be a URL for COPY",
+			expectedError: "source can't be a URL for COPY",
 			files:         nil,
 		},
 		{
@@ -123,7 +123,7 @@ func initDispatchTestCases() []dispatchTestCase {
 		{
 			name:          "Invalid instruction",
 			dockerfile:    `foo bar`,
-			expectedError: "Unknown instruction: FOO",
+			expectedError: "unknown instruction: FOO",
 			files:         nil,
 		}}
 
@@ -177,22 +177,27 @@ func executeTestCase(t *testing.T, testCase dispatchTestCase) {
 		t.Fatalf("Error when parsing Dockerfile: %s", err)
 	}
 
-	config := &container.Config{}
 	options := &types.ImageBuildOptions{
 		BuildArgs: make(map[string]*string),
 	}
 
 	b := &Builder{
-		runConfig: config,
 		options:   options,
 		Stdout:    ioutil.Discard,
-		source:    context,
 		buildArgs: newBuildArgs(options.BuildArgs),
 	}
 
 	shlex := NewShellLex(parser.DefaultEscapeToken)
 	n := result.AST
-	err = b.dispatch(0, len(n.Children), n.Children[0], shlex)
+	state := &dispatchState{runConfig: &container.Config{}}
+	opts := dispatchOptions{
+		state:   state,
+		stepMsg: formatStep(0, len(n.Children)),
+		node:    n.Children[0],
+		shlex:   shlex,
+		source:  context,
+	}
+	state, err = b.dispatch(opts)
 
 	if err == nil {
 		t.Fatalf("No error when executing test %s", testCase.name)

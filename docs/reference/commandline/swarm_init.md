@@ -159,6 +159,7 @@ by passing `--availability=drain` to `docker swarm init`.
 
 ## Related commands
 
+* [swarm ca](swarm_ca.md)
 * [swarm join](swarm_join.md)
 * [swarm join-token](swarm_join_token.md)
 * [swarm leave](swarm_leave.md)

@@ -18,8 +18,9 @@ import (
 
 // ServiceOptions holds command line options.
 type ServiceOptions struct {
-	Mirrors            []string `json:"registry-mirrors,omitempty"`
-	InsecureRegistries []string `json:"insecure-registries,omitempty"`
+	AllowNondistributableArtifacts []string `json:"allow-nondistributable-artifacts,omitempty"`
+	Mirrors                        []string `json:"registry-mirrors,omitempty"`
+	InsecureRegistries             []string `json:"insecure-registries,omitempty"`
 
 	// V2Only controls access to legacy registries.  If it is set to true via the
 	// command line flag the daemon will not attempt to contact v1 legacy registries
@@ -74,9 +75,11 @@ var lookupIP = net.LookupIP
 // InstallCliFlags adds command-line options to the top-level flag parser for
 // the current process.
 func (options *ServiceOptions) InstallCliFlags(flags *pflag.FlagSet) {
+	ana := opts.NewNamedListOptsRef("allow-nondistributable-artifacts", &options.AllowNondistributableArtifacts, ValidateIndexName)
 	mirrors := opts.NewNamedListOptsRef("registry-mirrors", &options.Mirrors, ValidateMirror)
 	insecureRegistries := opts.NewNamedListOptsRef("insecure-registries", &options.InsecureRegistries, ValidateIndexName)
 
+	flags.Var(ana, "allow-nondistributable-artifacts", "Allow push of nondistributable artifacts to registry")
 	flags.Var(mirrors, "registry-mirror", "Preferred Docker registry mirror")
 	flags.Var(insecureRegistries, "insecure-registry", "Enable insecure registry communication")
 
@@ -95,10 +98,48 @@ func newServiceConfig(options ServiceOptions) *serviceConfig {
 		V2Only: options.V2Only,
 	}
 
+	config.LoadAllowNondistributableArtifacts(options.AllowNondistributableArtifacts)
 	config.LoadMirrors(options.Mirrors)
 	config.LoadInsecureRegistries(options.InsecureRegistries)
 
 	return config
+}
+
+// LoadAllowNondistributableArtifacts loads allow-nondistributable-artifacts registries into config.
+func (config *serviceConfig) LoadAllowNondistributableArtifacts(registries []string) error {
+	cidrs := map[string]*registrytypes.NetIPNet{}
+	hostnames := map[string]bool{}
+
+	for _, r := range registries {
+		if _, err := ValidateIndexName(r); err != nil {
+			return err
+		}
+		if validateNoScheme(r) != nil {
+			return fmt.Errorf("allow-nondistributable-artifacts registry %s should not contain '://'", r)
+		}
+
+		if _, ipnet, err := net.ParseCIDR(r); err == nil {
+			// Valid CIDR.
+			cidrs[ipnet.String()] = (*registrytypes.NetIPNet)(ipnet)
+		} else if err := validateHostPort(r); err == nil {
+			// Must be `host:port` if not CIDR.
+			hostnames[r] = true
+		} else {
+			return fmt.Errorf("allow-nondistributable-artifacts registry %s is not valid: %v", r, err)
+		}
+	}
+
+	config.AllowNondistributableArtifactsCIDRs = make([]*(registrytypes.NetIPNet), 0)
+	for _, c := range cidrs {
+		config.AllowNondistributableArtifactsCIDRs = append(config.AllowNondistributableArtifactsCIDRs, c)
+	}
+
+	config.AllowNondistributableArtifactsHostnames = make([]string, 0)
+	for h := range hostnames {
+		config.AllowNondistributableArtifactsHostnames = append(config.AllowNondistributableArtifactsHostnames, h)
+	}
+
+	return nil
 }
 
 // LoadMirrors loads mirrors to config, after removing duplicates.
@@ -211,6 +252,25 @@ skip:
 	return nil
 }
 
+// allowNondistributableArtifacts returns true if the provided hostname is part of the list of regsitries
+// that allow push of nondistributable artifacts.
+//
+// The list can contain elements with CIDR notation to specify a whole subnet. If the subnet contains an IP
+// of the registry specified by hostname, true is returned.
+//
+// hostname should be a URL.Host (`host:port` or `host`) where the `host` part can be either a domain name
+// or an IP address. If it is a domain name, then it will be resolved to IP addresses for matching. If
+// resolution fails, CIDR matching is not performed.
+func allowNondistributableArtifacts(config *serviceConfig, hostname string) bool {
+	for _, h := range config.AllowNondistributableArtifactsHostnames {
+		if h == hostname {
+			return true
+		}
+	}
+
+	return isCIDRMatch(config.AllowNondistributableArtifactsCIDRs, hostname)
+}
+
 // isSecureIndex returns false if the provided indexName is part of the list of insecure registries
 // Insecure registries accept HTTP and/or accept HTTPS with certificates from unknown CAs.
 //
@@ -229,10 +289,17 @@ func isSecureIndex(config *serviceConfig, indexName string) bool {
 		return index.Secure
 	}
 
-	host, _, err := net.SplitHostPort(indexName)
+	return !isCIDRMatch(config.InsecureRegistryCIDRs, indexName)
+}
+
+// isCIDRMatch returns true if URLHost matches an element of cidrs. URLHost is a URL.Host (`host:port` or `host`)
+// where the `host` part can be either a domain name or an IP address. If it is a domain name, then it will be
+// resolved to IP addresses for matching. If resolution fails, false is returned.
+func isCIDRMatch(cidrs []*registrytypes.NetIPNet, URLHost string) bool {
+	host, _, err := net.SplitHostPort(URLHost)
 	if err != nil {
-		// assume indexName is of the form `host` without the port and go on.
-		host = indexName
+		// Assume URLHost is of the form `host` without the port and go on.
+		host = URLHost
 	}
 
 	addrs, err := lookupIP(host)
@@ -249,15 +316,15 @@ func isSecureIndex(config *serviceConfig, indexName string) bool {
 
 	// Try CIDR notation only if addrs has any elements, i.e. if `host`'s IP could be determined.
 	for _, addr := range addrs {
-		for _, ipnet := range config.InsecureRegistryCIDRs {
+		for _, ipnet := range cidrs {
 			// check if the addr falls in the subnet
 			if (*net.IPNet)(ipnet).Contains(addr) {
-				return false
+				return true
 			}
 		}
 	}
 
-	return true
+	return false
 }
 
 // ValidateMirror validates an HTTP(S) registry mirror

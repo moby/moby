@@ -16,4 +16,3 @@ export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 . $SCRIPTDIR/vet
 . $SCRIPTDIR/changelog-well-formed
 . $SCRIPTDIR/changelog-date-descending
-. $SCRIPTDIR/compose-bindata

@@ -43,6 +43,7 @@ $ docker swarm update --cert-expiry 720h
 
 ## Related commands
 
+* [swarm ca](swarm_ca.md)
 * [swarm init](swarm_init.md)
 * [swarm join](swarm_join.md)
 * [swarm join-token](swarm_join_token.md)

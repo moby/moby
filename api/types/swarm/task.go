@@ -67,9 +67,6 @@ type TaskSpec struct {
 	ForceUpdate uint64
 
 	Runtime RuntimeType `json:",omitempty"`
-	// TODO (ehazlett): this should be removed and instead
-	// use struct tags (proto) for the runtimes
-	RuntimeData []byte `json:",omitempty"`
 }
 
 // Resources represents resources (CPU/Memory).
@@ -88,6 +85,11 @@ type ResourceRequirements struct {
 type Placement struct {
 	Constraints []string              `json:",omitempty"`
 	Preferences []PlacementPreference `json:",omitempty"`
+
+	// Platforms stores all the platforms that the image can run on.
+	// This field is used in the platform filter for scheduling. If empty,
+	// then the platform filter is off, meaning there are no scheduling restrictions.
+	Platforms []Platform `json:",omitempty"`
 }
 
 // PlacementPreference provides a way to make the scheduler aware of factors

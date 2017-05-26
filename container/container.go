@@ -87,8 +87,9 @@ type CommonContainer struct {
 	MountPoints            map[string]*volume.MountPoint
 	HostConfig             *containertypes.HostConfig `json:"-"` // do not serialize the host config in the json, otherwise we'll make the container unportable
 	ExecCommands           *exec.Store                `json:"-"`
-	SecretStore            agentexec.SecretGetter     `json:"-"`
+	DependencyStore        agentexec.DependencyGetter `json:"-"`
 	SecretReferences       []*swarmtypes.SecretReference
+	ConfigReferences       []*swarmtypes.ConfigReference
 	// logDriver for closing
 	LogDriver      logger.Logger  `json:"-"`
 	LogCopier      *logger.Copier `json:"-"`
@@ -400,21 +401,20 @@ func (container *Container) AddMountPointWithVolume(destination string, vol volu
 func (container *Container) UnmountVolumes(volumeEventLog func(name, action string, attributes map[string]string)) error {
 	var errors []string
 	for _, volumeMount := range container.MountPoints {
-		// Check if the mountpoint has an ID, this is currently the best way to tell if it's actually mounted
-		// TODO(cpuguyh83): there should be a better way to handle this
-		if volumeMount.Volume != nil && volumeMount.ID != "" {
-			if err := volumeMount.Volume.Unmount(volumeMount.ID); err != nil {
-				errors = append(errors, err.Error())
-				continue
-			}
-			volumeMount.ID = ""
-
-			attributes := map[string]string{
-				"driver":    volumeMount.Volume.DriverName(),
-				"container": container.ID,
-			}
-			volumeEventLog(volumeMount.Volume.Name(), "unmount", attributes)
+		if volumeMount.Volume == nil {
+			continue
 		}
+
+		if err := volumeMount.Cleanup(); err != nil {
+			errors = append(errors, err.Error())
+			continue
+		}
+
+		attributes := map[string]string{
+			"driver":    volumeMount.Volume.DriverName(),
+			"container": container.ID,
+		}
+		volumeEventLog(volumeMount.Volume.Name(), "unmount", attributes)
 	}
 	if len(errors) > 0 {
 		return fmt.Errorf("error while unmounting volumes for container %s: %s", container.ID, strings.Join(errors, "; "))
@@ -645,7 +645,11 @@ func (container *Container) BuildJoinOptions(n libnetwork.Network) ([]libnetwork
 			}
 			joinOptions = append(joinOptions, libnetwork.CreateOptionAlias(name, alias))
 		}
+		for k, v := range epConfig.DriverOpts {
+			joinOptions = append(joinOptions, libnetwork.EndpointOptionGeneric(options.Generic{k: v}))
+		}
 	}
+
 	return joinOptions, nil
 }
 
@@ -743,6 +747,10 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epC
 
 			createOptions = append(createOptions, libnetwork.EndpointOptionGeneric(genericOption))
 		}
+		for k, v := range epConfig.DriverOpts {
+			createOptions = append(createOptions, libnetwork.EndpointOptionGeneric(options.Generic{k: v}))
+		}
+
 	}
 
 	// Port-mapping rules belong to the container & applicable only to non-internal networks
@@ -948,4 +956,33 @@ func (container *Container) InitializeStdio(iop libcontainerd.IOPipe) error {
 	}
 
 	return nil
+}
+
+// SecretMountPath returns the path of the secret mount for the container
+func (container *Container) SecretMountPath() string {
+	return filepath.Join(container.Root, "secrets")
+}
+
+// SecretFilePath returns the path to the location of a secret on the host.
+func (container *Container) SecretFilePath(secretRef swarmtypes.SecretReference) string {
+	return filepath.Join(container.SecretMountPath(), secretRef.SecretID)
+}
+
+func getSecretTargetPath(r *swarmtypes.SecretReference) string {
+	if filepath.IsAbs(r.File.Name) {
+		return r.File.Name
+	}
+
+	return filepath.Join(containerSecretMountPath, r.File.Name)
+}
+
+// ConfigsDirPath returns the path to the directory where configs are stored on
+// disk.
+func (container *Container) ConfigsDirPath() string {
+	return filepath.Join(container.Root, "configs")
+}
+
+// ConfigFilePath returns the path to the on-disk location of a config.
+func (container *Container) ConfigFilePath(configRef swarmtypes.ConfigReference) string {
+	return filepath.Join(container.ConfigsDirPath(), configRef.ConfigID)
 }

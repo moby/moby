@@ -145,6 +145,7 @@ Swarm: active
   Heartbeat Period: 5 seconds
  CA Configuration:
   Expiry Duration: 3 months
+ Root Rotation In Progress: false
  Node Address: 172.16.66.128 172.16.66.129
  Manager Addresses:
   172.16.66.128:2477

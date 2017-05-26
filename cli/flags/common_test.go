@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	cliconfig "github.com/docker/docker/cli/config"
+	"github.com/docker/docker/cli"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 )
@@ -26,7 +26,7 @@ func TestCommonOptionsInstallFlags(t *testing.T) {
 }
 
 func defaultPath(filename string) string {
-	return filepath.Join(cliconfig.Dir(), filename)
+	return filepath.Join(cli.ConfigurationDir(), filename)
 }
 
 func TestCommonOptionsInstallFlagsWithDefaults(t *testing.T) {

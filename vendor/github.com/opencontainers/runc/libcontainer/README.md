@@ -1,3 +1,7 @@
+# libcontainer
+
+[![GoDoc](https://godoc.org/github.com/opencontainers/runc/libcontainer?status.svg)](https://godoc.org/github.com/opencontainers/runc/libcontainer)
+
 Libcontainer provides a native Go implementation for creating containers
 with namespaces, cgroups, capabilities, and filesystem access controls.
 It allows you to manage the lifecycle of the container performing additional operations
@@ -16,7 +20,14 @@ the current binary (/proc/self/exe) to be executed as the init process, and use
 arg "init", we call the first step process "bootstrap", so you always need a "init"
 function as the entry of "bootstrap".
 
+In addition to the go init function the early stage bootstrap is handled by importing
+[nsenter](https://github.com/opencontainers/runc/blob/master/libcontainer/nsenter/README.md).
+
 ```go
+import (
+	_ "github.com/opencontainers/runc/libcontainer/nsenter"
+)
+
 func init() {
 	if len(os.Args) > 1 && os.Args[1] == "init" {
 		runtime.GOMAXPROCS(1)

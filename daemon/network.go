@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/libnetwork"
+	lncluster "github.com/docker/libnetwork/cluster"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/ipamapi"
 	networktypes "github.com/docker/libnetwork/types"
@@ -207,7 +208,6 @@ func (daemon *Daemon) setupIngress(create *clustertypes.NetworkCreateRequest, ip
 
 func (daemon *Daemon) releaseIngress(id string) {
 	controller := daemon.netController
-
 	if err := controller.SandboxDestroy("ingress-sbox"); err != nil {
 		logrus.Errorf("Failed to delete ingress sandbox: %v", err)
 	}
@@ -233,13 +233,17 @@ func (daemon *Daemon) releaseIngress(id string) {
 		logrus.Errorf("Failed to delete ingress network %s: %v", n.ID(), err)
 		return
 	}
-
 	return
 }
 
 // SetNetworkBootstrapKeys sets the bootstrap keys.
 func (daemon *Daemon) SetNetworkBootstrapKeys(keys []*networktypes.EncryptionKey) error {
-	return daemon.netController.SetKeys(keys)
+	err := daemon.netController.SetKeys(keys)
+	if err == nil {
+		// Upon successful key setting dispatch the keys available event
+		daemon.cluster.SendClusterEvent(lncluster.EventNetworkKeysAvailable)
+	}
+	return err
 }
 
 // UpdateAttachment notifies the attacher about the attachment config.
@@ -314,6 +318,11 @@ func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string
 		libnetwork.NetworkOptionLabels(create.Labels),
 		libnetwork.NetworkOptionAttachable(create.Attachable),
 		libnetwork.NetworkOptionIngress(create.Ingress),
+		libnetwork.NetworkOptionScope(create.Scope),
+	}
+
+	if create.ConfigOnly {
+		nwOptions = append(nwOptions, libnetwork.NetworkOptionConfigOnly())
 	}
 
 	if create.IPAM != nil {
@@ -331,6 +340,10 @@ func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string
 	if agent {
 		nwOptions = append(nwOptions, libnetwork.NetworkOptionDynamic())
 		nwOptions = append(nwOptions, libnetwork.NetworkOptionPersist(false))
+	}
+
+	if create.ConfigFrom != nil {
+		nwOptions = append(nwOptions, libnetwork.NetworkOptionConfigFrom(create.ConfigFrom.Network))
 	}
 
 	n, err := c.NewNetwork(driver, create.Name, id, nwOptions...)
@@ -494,13 +507,29 @@ func (daemon *Daemon) deleteNetwork(networkID string, dynamic bool) error {
 		return apierrors.NewRequestForbiddenError(err)
 	}
 
+	if dynamic && !nw.Info().Dynamic() {
+		if runconfig.IsPreDefinedNetwork(nw.Name()) {
+			// Predefined networks now support swarm services. Make this
+			// a no-op when cluster requests to remove the predefined network.
+			return nil
+		}
+		err := fmt.Errorf("%s is not a dynamic network", nw.Name())
+		return apierrors.NewRequestForbiddenError(err)
+	}
+
 	if err := nw.Delete(); err != nil {
 		return err
 	}
-	daemon.pluginRefCount(nw.Type(), driverapi.NetworkPluginEndpointType, plugingetter.Release)
-	ipamType, _, _, _ := nw.Info().IpamConfig()
-	daemon.pluginRefCount(ipamType, ipamapi.PluginEndpointType, plugingetter.Release)
-	daemon.LogNetworkEvent(nw, "destroy")
+
+	// If this is not a configuration only network, we need to
+	// update the corresponding remote drivers' reference counts
+	if !nw.Info().ConfigOnly() {
+		daemon.pluginRefCount(nw.Type(), driverapi.NetworkPluginEndpointType, plugingetter.Release)
+		ipamType, _, _, _ := nw.Info().IpamConfig()
+		daemon.pluginRefCount(ipamType, ipamapi.PluginEndpointType, plugingetter.Release)
+		daemon.LogNetworkEvent(nw, "destroy")
+	}
+
 	return nil
 }
 

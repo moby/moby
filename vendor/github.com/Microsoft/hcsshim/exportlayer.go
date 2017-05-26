@@ -4,7 +4,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"runtime"
 	"syscall"
 
 	"github.com/Microsoft/go-winio"
@@ -143,7 +142,6 @@ func NewLayerReader(info DriverInfo, layerID string, parentLayerPaths []string) 
 	if err != nil {
 		return nil, makeError(err, "ExportLayerBegin", "")
 	}
-	runtime.SetFinalizer(r, func(r *FilterLayerReader) { r.Close() })
 	return r, err
 }
 

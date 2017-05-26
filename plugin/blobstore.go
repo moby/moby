@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
@@ -143,7 +144,7 @@ func (dm *downloadManager) Download(ctx context.Context, initialRootFS image.Roo
 			return initialRootFS, nil, err
 		}
 		digester := digest.Canonical.Digester()
-		if _, err := archive.ApplyLayer(dm.tmpDir, io.TeeReader(inflatedLayerData, digester.Hash())); err != nil {
+		if _, err := chrootarchive.ApplyLayer(dm.tmpDir, io.TeeReader(inflatedLayerData, digester.Hash())); err != nil {
 			return initialRootFS, nil, err
 		}
 		initialRootFS.Append(layer.DiffID(digester.Digest()))

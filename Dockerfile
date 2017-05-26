@@ -9,7 +9,7 @@
 # docker run -v `pwd`:/go/src/github.com/docker/docker --privileged -i -t docker bash
 #
 # # Run the test suite:
-# docker run --privileged docker hack/make.sh test-unit test-integration-cli test-docker-py
+# docker run -e DOCKER_GITCOMMIT=foo --privileged docker hack/make.sh test-unit test-integration-cli test-docker-py
 #
 # # Publish a release:
 # docker run --privileged \
@@ -28,11 +28,6 @@ FROM debian:jessie
 # allow replacing httpredir or deb mirror
 ARG APT_MIRROR=deb.debian.org
 RUN sed -ri "s/(httpredir|deb).debian.org/$APT_MIRROR/g" /etc/apt/sources.list
-
-# Add zfs ppa
-COPY keys/launchpad-ppa-zfs.asc /go/src/github.com/docker/docker/keys/
-RUN apt-key add /go/src/github.com/docker/docker/keys/launchpad-ppa-zfs.asc
-RUN echo deb http://ppa.launchpad.net/zfs-native/stable/ubuntu trusty main > /etc/apt/sources.list.d/zfs.list
 
 # Packaged dependencies
 RUN apt-get update && apt-get install -y \
@@ -63,7 +58,6 @@ RUN apt-get update && apt-get install -y \
 	libprotobuf-dev \
 	libsystemd-journal-dev \
 	libtool \
-	libzfs-dev \
 	mercurial \
 	net-tools \
 	pkg-config \
@@ -74,7 +68,6 @@ RUN apt-get update && apt-get install -y \
 	python-pip \
 	python-websocket \
 	tar \
-	ubuntu-zfs \
 	vim \
 	vim-common \
 	xfsprogs \
@@ -127,7 +120,7 @@ RUN set -x \
 # IMPORTANT: If the version of Go is updated, the Windows to Linux CI machines
 #            will need updating, to avoid errors. Ping #docker-maintainers on IRC
 #            with a heads-up.
-ENV GO_VERSION 1.7.5
+ENV GO_VERSION 1.8.1
 RUN curl -fsSL "https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz" \
 	| tar -xzC /usr/local
 
@@ -241,11 +234,12 @@ RUN ./contrib/download-frozen-image-v2.sh /docker-frozen-images \
 	hello-world:latest@sha256:c5515758d4c5e1e838e9cd307f6c6a0d620b5e07e6f927b07d05f6d12a1ac8d7
 # See also ensureFrozenImagesLinux() in "integration-cli/fixtures_linux_daemon_test.go" (which needs to be updated when adding images to this list)
 
-# Install tomlv, vndr, runc, containerd, tini, docker-proxy
+# Install tomlv, vndr, runc, containerd, tini, docker-proxy dockercli
 # Please edit hack/dockerfile/install-binaries.sh to update them.
 COPY hack/dockerfile/binaries-commits /tmp/binaries-commits
 COPY hack/dockerfile/install-binaries.sh /tmp/install-binaries.sh
-RUN /tmp/install-binaries.sh tomlv vndr runc containerd tini proxy bindata
+RUN /tmp/install-binaries.sh tomlv vndr runc containerd tini proxy bindata dockercli
+ENV PATH=/usr/local/cli:$PATH
 
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 ENTRYPOINT ["hack/dind"]

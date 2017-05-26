@@ -100,7 +100,7 @@ func (s *DockerSuite) TestImagesFilterLabelMatch(c *check.C) {
 }
 
 // Regression : #15659
-func (s *DockerSuite) TestImagesFilterLabelWithCommit(c *check.C) {
+func (s *DockerSuite) TestCommitWithFilterLabel(c *check.C) {
 	// Create a container
 	dockerCmd(c, "run", "--name", "bar", "busybox", "/bin/sh")
 	// Commit with labels "using changes"

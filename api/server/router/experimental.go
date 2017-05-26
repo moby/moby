@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	errExperimentalFeature = errors.New("This experimental feature is disabled by default. Start the Docker daemon with --experimental in order to enable it.")
+	errExperimentalFeature = errors.New("This experimental feature is disabled by default. Start the Docker daemon in experimental mode in order to enable it.")
 )
 
 // ExperimentalRoute defines an experimental API route that can be enabled or disabled.

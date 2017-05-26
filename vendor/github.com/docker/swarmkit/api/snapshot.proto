@@ -28,7 +28,7 @@ message StoreSnapshot {
 // ClusterSnapshot stores cluster membership information in snapshots.
 message ClusterSnapshot {
 	repeated RaftMember members = 1;
-	repeated uint64 removed = 2;
+	repeated uint64 removed = 2 [packed=false];
 }
 
 message Snapshot {

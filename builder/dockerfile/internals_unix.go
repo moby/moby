@@ -36,3 +36,7 @@ func containsWildcards(name string) bool {
 	}
 	return false
 }
+
+func validateCopySourcePath(imageSource *imageMount, origPath string) error {
+	return nil
+}

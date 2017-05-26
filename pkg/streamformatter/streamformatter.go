@@ -117,7 +117,7 @@ func (out *progressOutput) WriteProgress(prog progress.Progress) error {
 	if prog.Message != "" {
 		formatted = out.sf.formatStatus(prog.ID, prog.Message)
 	} else {
-		jsonProgress := jsonmessage.JSONProgress{Current: prog.Current, Total: prog.Total, HideCounts: prog.HideCounts}
+		jsonProgress := jsonmessage.JSONProgress{Current: prog.Current, Total: prog.Total, HideCounts: prog.HideCounts, Units: prog.Units}
 		formatted = out.sf.formatProgress(prog.ID, prog.Action, &jsonProgress, prog.Aux)
 	}
 	_, err := out.out.Write(formatted)
@@ -131,4 +131,29 @@ func (out *progressOutput) WriteProgress(prog progress.Progress) error {
 	}
 
 	return nil
+}
+
+// AuxFormatter is a streamFormatter that writes aux progress messages
+type AuxFormatter struct {
+	io.Writer
+}
+
+// Emit emits the given interface as an aux progress message
+func (sf *AuxFormatter) Emit(aux interface{}) error {
+	auxJSONBytes, err := json.Marshal(aux)
+	if err != nil {
+		return err
+	}
+	auxJSON := new(json.RawMessage)
+	*auxJSON = auxJSONBytes
+	msgJSON, err := json.Marshal(&jsonmessage.JSONMessage{Aux: auxJSON})
+	if err != nil {
+		return err
+	}
+	msgJSON = appendNewline(msgJSON)
+	n, err := sf.Writer.Write(msgJSON)
+	if n != len(msgJSON) {
+		return io.ErrShortWrite
+	}
+	return err
 }

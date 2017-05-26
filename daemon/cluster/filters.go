@@ -103,3 +103,19 @@ func newListSecretsFilters(filter filters.Args) (*swarmapi.ListSecretsRequest_Fi
 		Labels:       runconfigopts.ConvertKVStringsToMap(filter.Get("label")),
 	}, nil
 }
+
+func newListConfigsFilters(filter filters.Args) (*swarmapi.ListConfigsRequest_Filters, error) {
+	accepted := map[string]bool{
+		"name":  true,
+		"id":    true,
+		"label": true,
+	}
+	if err := filter.Validate(accepted); err != nil {
+		return nil, err
+	}
+	return &swarmapi.ListConfigsRequest_Filters{
+		NamePrefixes: filter.Get("name"),
+		IDPrefixes:   filter.Get("id"),
+		Labels:       runconfigopts.ConvertKVStringsToMap(filter.Get("label")),
+	}, nil
+}

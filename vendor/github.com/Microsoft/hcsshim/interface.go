@@ -117,6 +117,9 @@ type Container interface {
 
 	// Close cleans up any state associated with the container but does not terminate or wait for it.
 	Close() error
+
+	// Modify the System
+	Modify(config *ResourceModificationRequestResponse) error
 }
 
 // Process represents a running or exited process.

@@ -1015,18 +1015,6 @@ func (s *DockerSuite) TestRunSeccompProfileDenyUnshareUserns(c *check.C) {
 	})
 }
 
-// TestRunSeccompProfileDenyUnusualSocketFamilies checks that rarely used socket families such as Appletalk are blocked by the default profile
-func (s *DockerSuite) TestRunSeccompProfileDenyUnusualSocketFamilies(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled)
-	ensureSyscallTest(c)
-
-	runCmd := exec.Command(dockerBinary, "run", "syscall-test", "appletalk-test")
-	_, _, err := runCommandWithOutput(runCmd)
-	if err != nil {
-		c.Fatal("expected opening appletalk socket family to fail")
-	}
-}
-
 // TestRunSeccompProfileDenyCloneUserns checks that 'docker run syscall-test'
 // with a the default seccomp profile exits with operation not permitted.
 func (s *DockerSuite) TestRunSeccompProfileDenyCloneUserns(c *check.C) {

@@ -39,10 +39,9 @@ type FlushOption struct {
 }
 
 // HyperVIsolationOption is a CreateOption that indicates whether the runtime
-// should start the container as a Hyper-V container, and if so, the sandbox path.
+// should start the container as a Hyper-V container.
 type HyperVIsolationOption struct {
-	IsHyperV    bool
-	SandboxPath string `json:",omitempty"`
+	IsHyperV bool
 }
 
 // LayerOption is a CreateOption that indicates to the runtime the layer folder

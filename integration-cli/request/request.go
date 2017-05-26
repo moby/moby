@@ -217,13 +217,14 @@ func SockRequestRaw(method, endpoint string, data io.Reader, ct, daemon string, 
 	}
 
 	resp, err := client.Do(req)
+	if err != nil {
+		client.Close()
+		return resp, nil, err
+	}
 	body := ioutils.NewReadCloserWrapper(resp.Body, func() error {
 		defer resp.Body.Close()
 		return client.Close()
 	})
-	if err != nil {
-		client.Close()
-	}
 
 	return resp, body, err
 }

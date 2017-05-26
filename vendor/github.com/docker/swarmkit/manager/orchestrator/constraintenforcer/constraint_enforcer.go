@@ -129,7 +129,7 @@ func (ce *ConstraintEnforcer) rejectNoncompliantTasks(node *api.Node) {
 	}
 
 	if len(removeTasks) != 0 {
-		_, err := ce.store.Batch(func(batch *store.Batch) error {
+		err := ce.store.Batch(func(batch *store.Batch) error {
 			for _, t := range removeTasks {
 				err := batch.Update(func(tx store.Tx) error {
 					t = store.GetTask(tx, t.ID)

@@ -8,6 +8,12 @@ import (
 	"golang.org/x/net/context"
 )
 
+// hostPortSpec specifies a used host port.
+type hostPortSpec struct {
+	protocol      api.PortConfig_Protocol
+	publishedPort uint32
+}
+
 // NodeInfo contains a node and some additional metadata.
 type NodeInfo struct {
 	*api.Node
@@ -15,6 +21,7 @@ type NodeInfo struct {
 	ActiveTasksCount          int
 	ActiveTasksCountByService map[string]int
 	AvailableResources        api.Resources
+	usedHostPorts             map[hostPortSpec]struct{}
 
 	// recentFailures is a map from service ID to the timestamps of the
 	// most recent failures the node has experienced from replicas of that
@@ -30,6 +37,7 @@ func newNodeInfo(n *api.Node, tasks map[string]*api.Task, availableResources api
 		Tasks: make(map[string]*api.Task),
 		ActiveTasksCountByService: make(map[string]int),
 		AvailableResources:        availableResources,
+		usedHostPorts:             make(map[hostPortSpec]struct{}),
 		recentFailures:            make(map[string][]time.Time),
 	}
 
@@ -57,6 +65,15 @@ func (nodeInfo *NodeInfo) removeTask(t *api.Task) bool {
 	nodeInfo.AvailableResources.MemoryBytes += reservations.MemoryBytes
 	nodeInfo.AvailableResources.NanoCPUs += reservations.NanoCPUs
 
+	if t.Endpoint != nil {
+		for _, port := range t.Endpoint.Ports {
+			if port.PublishMode == api.PublishModeHost && port.PublishedPort != 0 {
+				portSpec := hostPortSpec{protocol: port.Protocol, publishedPort: port.PublishedPort}
+				delete(nodeInfo.usedHostPorts, portSpec)
+			}
+		}
+	}
+
 	return true
 }
 
@@ -83,6 +100,15 @@ func (nodeInfo *NodeInfo) addTask(t *api.Task) bool {
 	reservations := taskReservations(t.Spec)
 	nodeInfo.AvailableResources.MemoryBytes -= reservations.MemoryBytes
 	nodeInfo.AvailableResources.NanoCPUs -= reservations.NanoCPUs
+
+	if t.Endpoint != nil {
+		for _, port := range t.Endpoint.Ports {
+			if port.PublishMode == api.PublishModeHost && port.PublishedPort != 0 {
+				portSpec := hostPortSpec{protocol: port.Protocol, publishedPort: port.PublishedPort}
+				nodeInfo.usedHostPorts[portSpec] = struct{}{}
+			}
+		}
+	}
 
 	if t.DesiredState <= api.TaskStateRunning {
 		nodeInfo.ActiveTasksCount++

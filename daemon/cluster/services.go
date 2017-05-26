@@ -117,7 +117,7 @@ func (c *Cluster) GetService(input string, insertDefaults bool) (types.Service, 
 }
 
 // CreateService creates a new service in a managed swarm cluster.
-func (c *Cluster) CreateService(s types.ServiceSpec, encodedAuth string) (*apitypes.ServiceCreateResponse, error) {
+func (c *Cluster) CreateService(s types.ServiceSpec, encodedAuth string, queryRegistry bool) (*apitypes.ServiceCreateResponse, error) {
 	var resp *apitypes.ServiceCreateResponse
 	err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
 		err := c.populateNetworkID(ctx, state.controlClient, &s)
@@ -151,8 +151,11 @@ func (c *Cluster) CreateService(s types.ServiceSpec, encodedAuth string) (*apity
 				}
 			}
 
-			// pin image by digest
-			if os.Getenv("DOCKER_SERVICE_PREFER_OFFLINE_IMAGE") != "1" {
+			// pin image by digest for API versions < 1.30
+			// TODO(nishanttotla): The check on "DOCKER_SERVICE_PREFER_OFFLINE_IMAGE"
+			// should be removed in the future. Since integration tests only use the
+			// latest API version, so this is no longer required.
+			if os.Getenv("DOCKER_SERVICE_PREFER_OFFLINE_IMAGE") != "1" && queryRegistry {
 				digestImage, err := c.imageWithDigestString(ctx, ctnr.Image, authConfig)
 				if err != nil {
 					logrus.Warnf("unable to pin image %s to digest: %s", ctnr.Image, err.Error())
@@ -193,7 +196,7 @@ func (c *Cluster) CreateService(s types.ServiceSpec, encodedAuth string) (*apity
 }
 
 // UpdateService updates existing service to match new properties.
-func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec types.ServiceSpec, flags apitypes.ServiceUpdateOptions) (*apitypes.ServiceUpdateResponse, error) {
+func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec types.ServiceSpec, flags apitypes.ServiceUpdateOptions, queryRegistry bool) (*apitypes.ServiceUpdateResponse, error) {
 	var resp *apitypes.ServiceUpdateResponse
 
 	err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
@@ -256,8 +259,11 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec typ
 
 		resp = &apitypes.ServiceUpdateResponse{}
 
-		// pin image by digest
-		if os.Getenv("DOCKER_SERVICE_PREFER_OFFLINE_IMAGE") != "1" {
+		// pin image by digest for API versions < 1.30
+		// TODO(nishanttotla): The check on "DOCKER_SERVICE_PREFER_OFFLINE_IMAGE"
+		// should be removed in the future. Since integration tests only use the
+		// latest API version, so this is no longer required.
+		if os.Getenv("DOCKER_SERVICE_PREFER_OFFLINE_IMAGE") != "1" && queryRegistry {
 			digestImage, err := c.imageWithDigestString(ctx, newCtnr.Image, authConfig)
 			if err != nil {
 				logrus.Warnf("unable to pin image %s to digest: %s", newCtnr.Image, err.Error())
@@ -430,9 +436,17 @@ func (c *Cluster) ServiceLogs(ctx context.Context, selector *backend.LogSelector
 				if err != nil {
 					m.Err = err
 				}
+				// copy over all of the details
+				for _, d := range msg.Attrs {
+					m.Attrs[d.Key] = d.Value
+				}
+				// we have the final say over context details (in case there
+				// is a conflict (if the user added a detail with a context's
+				// key for some reason))
 				m.Attrs[contextPrefix+".node.id"] = msg.Context.NodeID
 				m.Attrs[contextPrefix+".service.id"] = msg.Context.ServiceID
 				m.Attrs[contextPrefix+".task.id"] = msg.Context.TaskID
+
 				switch msg.Stream {
 				case swarmapi.LogStreamStdout:
 					m.Source = "stdout"

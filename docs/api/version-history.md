@@ -18,6 +18,17 @@ keywords: "API, Docker, rcli, REST, documentation"
 [Docker Engine API v1.30](https://docs.docker.com/engine/api/v1.30/) documentation
 
 * `GET /info` now returns the list of supported logging drivers, including plugins.
+* `GET /info` and `GET /swarm` now returns the cluster-wide swarm CA info if the node is in a swarm: the cluster root CA certificate, and the cluster TLS
+ leaf certificate issuer's subject and public key. It also displays the desired CA signing certificate, if any was provided as part of the spec.
+* `POST /build/` now (when not silent) produces an `Aux` message in the JSON output stream with payload `types.BuildResult` for each image produced. The final such message will reference the image resulting from the build.
+* `GET /nodes` and `GET /nodes/{id}` now returns additional information about swarm TLS info if the node is part of a swarm: the trusted root CA, and the
+ issuer's subject and public key.
+* `GET /distribution/(name)/json` is a new endpoint that returns a JSON output stream with payload `types.DistributionInspect` for an image name. It includes a descriptor with the digest, and supported platforms retrieved from directly contacting the registry.
+* `POST /swarm/update` now accepts 3 additional parameters as part of the swarm spec's CA configuration; the desired CA certificate for
+ the swarm, the desired CA key for the swarm (if not using an external certificate), and an optional parameter to force swarm to
+ generate and rotate to a new CA certificate/key pair.
+* `POST /service/create` and `POST /services/(id or name)/update` now take the field `Platforms` as part of the service `Placement`, allowing to specify platforms supported by the service.
+* `POST /containers/(name)/wait` now accepts a `condition` query parameter to indicate which state change condition to wait for. Also, response headers are now returned immediately to acknowledge that the server has registered a wait callback for the client.
 
 ## v1.29 API changes
 
@@ -28,7 +39,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `GET /networks/(name)` now returns an `Ingress` field showing whether the network is the ingress one.
 * `GET /networks/` now supports a `scope` filter to filter networks based on the network mode (`swarm`, `global`, or `local`).
 * `POST /containers/create`, `POST /service/create` and `POST /services/(id or name)/update` now takes the field `StartPeriod` as a part of the `HealthConfig` allowing for specification of a period during which the container should not be considered unhealthy even if health checks do not pass.
-* `GET /services/(id)` now accepts an `insertDefaults` query-parameter to merge default values into the service inspect output. 
+* `GET /services/(id)` now accepts an `insertDefaults` query-parameter to merge default values into the service inspect output.
 * `POST /containers/prune`, `POST /images/prune`, `POST /volumes/prune`, and `POST /networks/prune` now support a `label` filter to filter containers, images, volumes, or networks based on the label. The format of the label filter could be `label=<key>`/`label=<key>=<value>` to remove those with the specified labels, or `label!=<key>`/`label!=<key>=<value>` to remove those without the specified labels.
 
 ## v1.28 API changes
