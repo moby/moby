@@ -3119,7 +3119,7 @@ paths:
                       all processes in the container. Freezing the process requires the process to
                       be running. As a result, paused containers are both `Running` _and_ `Paused`.
 
-                      Use the `Status` field instead to determin if a container's state is "running".
+                      Use the `Status` field instead to determine if a container's state is "running".
                     type: "boolean"
                   Paused:
                     description: "Whether this container is paused."
