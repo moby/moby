@@ -129,15 +129,15 @@ func (c *Client) SendFile(serviceMethod string, data io.Reader, ret interface{})
 }
 
 func (c *Client) callWithRetry(serviceMethod string, data io.Reader, retry bool) (io.ReadCloser, error) {
-	req, err := c.requestFactory.NewRequest(serviceMethod, data)
-	if err != nil {
-		return nil, err
-	}
-
 	var retries int
 	start := time.Now()
 
 	for {
+		req, err := c.requestFactory.NewRequest(serviceMethod, data)
+		if err != nil {
+			return nil, err
+		}
+
 		resp, err := c.http.Do(req)
 		if err != nil {
 			if !retry {
