@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -35,6 +36,26 @@ func TestFailedConnection(t *testing.T) {
 	_, err := c.callWithRetry("Service.Method", nil, false)
 	if err == nil {
 		t.Fatal("Unexpected successful connection")
+	}
+}
+
+func TestFailOnce(t *testing.T) {
+	addr := setupRemotePluginServer()
+	defer teardownRemotePluginServer()
+
+	failed := false
+	mux.HandleFunc("/Test.FailOnce", func(w http.ResponseWriter, r *http.Request) {
+		if !failed {
+			failed = true
+			panic("Plugin not ready")
+		}
+	})
+
+	c, _ := NewClient(addr, &tlsconfig.Options{InsecureSkipVerify: true})
+	b := strings.NewReader("body")
+	_, err := c.callWithRetry("Test.FailOnce", b, true)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
