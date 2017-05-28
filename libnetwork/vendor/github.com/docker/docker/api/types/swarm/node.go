@@ -52,7 +52,6 @@ type NodeDescription struct {
 	Platform  Platform          `json:",omitempty"`
 	Resources Resources         `json:",omitempty"`
 	Engine    EngineDescription `json:",omitempty"`
-	TLSInfo   TLSInfo           `json:",omitempty"`
 }
 
 // Platform represents the platform (Arch/OS).

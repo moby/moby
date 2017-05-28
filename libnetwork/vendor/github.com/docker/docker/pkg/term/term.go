@@ -10,8 +10,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
-
-	"golang.org/x/sys/unix"
+	"syscall"
 )
 
 var (
@@ -32,7 +31,7 @@ type Winsize struct {
 	y      uint16
 }
 
-// StdStreams returns the standard streams (stdin, stdout, stderr).
+// StdStreams returns the standard streams (stdin, stdout, stedrr).
 func StdStreams() (stdIn io.ReadCloser, stdOut, stdErr io.Writer) {
 	return os.Stdin, os.Stdout, os.Stderr
 }
@@ -80,7 +79,7 @@ func SaveState(fd uintptr) (*State, error) {
 // descriptor, with echo disabled.
 func DisableEcho(fd uintptr, state *State) error {
 	newState := state.termios
-	newState.Lflag &^= unix.ECHO
+	newState.Lflag &^= syscall.ECHO
 
 	if err := tcset(fd, &newState); err != 0 {
 		return err

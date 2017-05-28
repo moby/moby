@@ -79,8 +79,8 @@ func ToParamWithVersion(version string, a Args) (string, error) {
 	}
 
 	// for daemons older than v1.10, filter must be of the form map[string][]string
-	var buf []byte
-	var err error
+	buf := []byte{}
+	err := errors.New("")
 	if version != "" && versions.LessThan(version, "1.22") {
 		buf, err = json.Marshal(convertArgsToSlice(a.fields))
 	} else {

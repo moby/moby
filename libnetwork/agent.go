@@ -11,9 +11,9 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/daemon/cluster/provider"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/go-events"
+	"github.com/docker/libnetwork/cluster"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
@@ -193,7 +193,7 @@ func (c *controller) handleKeyChange(keys []*types.EncryptionKey) error {
 	return nil
 }
 
-func (c *controller) agentSetup(clusterProvider provider.Cluster) error {
+func (c *controller) agentSetup(clusterProvider cluster.Provider) error {
 	agent := c.getAgent()
 
 	// If the agent is already present there is no need to try to initilize it again

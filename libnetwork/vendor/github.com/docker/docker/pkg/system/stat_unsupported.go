@@ -1,3 +1,5 @@
+// +build !linux,!windows,!freebsd,!solaris,!openbsd,!darwin
+
 package system
 
 import (
@@ -11,5 +13,5 @@ func fromStatT(s *syscall.Stat_t) (*StatT, error) {
 		uid:  s.Uid,
 		gid:  s.Gid,
 		rdev: uint64(s.Rdev),
-		mtim: s.Mtim}, nil
+		mtim: s.Mtimespec}, nil
 }
