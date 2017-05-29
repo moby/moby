@@ -633,8 +633,8 @@ func (pm *Manager) Remove(name string, config *types.PluginRmConfig) error {
 	id := p.GetID()
 	pm.config.Store.Remove(p)
 	pluginDir := filepath.Join(pm.config.Root, id)
-	if err := recursiveUnmount(pm.config.Root); err != nil {
-		logrus.WithField("dir", pm.config.Root).WithField("id", id).Warn(err)
+	if err := recursiveUnmount(pluginDir); err != nil {
+		logrus.WithField("dir", pluginDir).WithField("id", id).Warn(err)
 	}
 	if err := os.RemoveAll(pluginDir); err != nil {
 		logrus.Warnf("unable to remove %q from plugin remove: %v", pluginDir, err)
