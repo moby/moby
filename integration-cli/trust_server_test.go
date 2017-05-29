@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	dcli "github.com/docker/docker/cli"
+	"github.com/docker/docker/cli/flags"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
@@ -108,7 +108,7 @@ func newTestNotary(c *check.C) (*testNotary, error) {
 		"skipTLSVerify": true
 	}
 }`
-	if _, err = fmt.Fprintf(clientConfig, template, filepath.Join(dcli.ConfigurationDir(), "trust"), notaryURL); err != nil {
+	if _, err = fmt.Fprintf(clientConfig, template, filepath.Join(flags.ConfigurationDir(), "trust"), notaryURL); err != nil {
 		os.RemoveAll(tmp)
 		return nil, err
 	}
