@@ -1048,6 +1048,10 @@ definitions:
         type: "string"
         description: "Mount path of the volume on the host."
         x-nullable: false
+      CreatedAt:
+        type: "string"
+        format: "dateTime"
+        description: "Time volume was created."
       Status:
         type: "object"
         description: |
@@ -1101,6 +1105,7 @@ definitions:
         com.example.some-label: "some-value"
         com.example.some-other-label: "some-other-value"
       Scope: "local"
+      CreatedAt: "2016-06-07T20:31:11.853781916Z"
 
   Network:
     type: "object"

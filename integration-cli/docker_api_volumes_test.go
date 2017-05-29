@@ -2,8 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	volumetypes "github.com/docker/docker/api/types/volume"
@@ -69,6 +72,8 @@ func (s *DockerSuite) TestVolumesAPIInspect(c *check.C) {
 	config := volumetypes.VolumesCreateBody{
 		Name: "test",
 	}
+	// sampling current time minus a minute so to now have false positive in case of delays
+	now := time.Now().Truncate(time.Minute)
 	status, b, err := request.SockRequest("POST", "/volumes/create", config, daemonHost())
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusCreated, check.Commentf(string(b)))
@@ -87,4 +92,12 @@ func (s *DockerSuite) TestVolumesAPIInspect(c *check.C) {
 	c.Assert(status, checker.Equals, http.StatusOK, check.Commentf(string(b)))
 	c.Assert(json.Unmarshal(b, &vol), checker.IsNil)
 	c.Assert(vol.Name, checker.Equals, config.Name)
+
+	// comparing CreatedAt field time for the new volume to now. Removing a minute from both to avoid false positive
+	testCreatedAt, err := time.Parse(time.RFC3339, strings.TrimSpace(vol.CreatedAt))
+	c.Assert(err, check.IsNil)
+	testCreatedAt = testCreatedAt.Truncate(time.Minute)
+	if !testCreatedAt.Equal(now) {
+		c.Assert(fmt.Errorf("Time Volume is CreatedAt not equal to current time"), check.NotNil)
+	}
 }

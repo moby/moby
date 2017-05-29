@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	dockererrors "github.com/docker/docker/api/errors"
@@ -28,9 +29,11 @@ type mounts []container.Mount
 
 // volumeToAPIType converts a volume.Volume to the type used by the Engine API
 func volumeToAPIType(v volume.Volume) *types.Volume {
+	createdAt, _ := v.CreatedAt()
 	tv := &types.Volume{
-		Name:   v.Name(),
-		Driver: v.DriverName(),
+		Name:      v.Name(),
+		Driver:    v.DriverName(),
+		CreatedAt: createdAt.Format(time.RFC3339),
 	}
 	if v, ok := v.(volume.DetailedVolume); ok {
 		tv.Labels = v.Labels()
