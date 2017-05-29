@@ -53,15 +53,6 @@ type LayerOption struct {
 	LayerPaths []string
 }
 
-// NetworkEndpointsOption is a CreateOption that provides the runtime list
-// of network endpoints to which a container should be attached during its creation.
-type NetworkEndpointsOption struct {
-	Endpoints                []string
-	AllowUnqualifiedDNSQuery bool
-	DNSSearchList            []string
-	NetworkSharedContainerID string
-}
-
 // CredentialsOption is a CreateOption that indicates the credentials from
 // a credential spec to be used to the runtime
 type CredentialsOption struct {

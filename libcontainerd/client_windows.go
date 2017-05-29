@@ -145,6 +145,15 @@ func (clnt *client) Create(containerID string, checkpoint string, checkpointDir 
 		}
 	}
 
+	if spec.Windows.Network != nil {
+		configuration.EndpointList = spec.Windows.Network.EndpointList
+		configuration.AllowUnqualifiedDNSQuery = spec.Windows.Network.AllowUnqualifiedDNSQuery
+		if spec.Windows.Network.DNSSearchList != nil {
+			configuration.DNSSearchList = strings.Join(spec.Windows.Network.DNSSearchList, ",")
+		}
+		configuration.NetworkSharedContainerName = spec.Windows.Network.NetworkSharedContainerName
+	}
+
 	var layerOpt *LayerOption
 	for _, option := range options {
 		if s, ok := option.(*ServicingOption); ok {
@@ -161,15 +170,6 @@ func (clnt *client) Create(containerID string, checkpoint string, checkpointDir 
 		}
 		if l, ok := option.(*LayerOption); ok {
 			layerOpt = l
-		}
-		if n, ok := option.(*NetworkEndpointsOption); ok {
-			configuration.EndpointList = n.Endpoints
-			configuration.AllowUnqualifiedDNSQuery = n.AllowUnqualifiedDNSQuery
-			if n.DNSSearchList != nil {
-				configuration.DNSSearchList = strings.Join(n.DNSSearchList, ",")
-			}
-			configuration.NetworkSharedContainerName = n.NetworkSharedContainerID
-			continue
 		}
 		if c, ok := option.(*CredentialsOption); ok {
 			configuration.Credentials = c.Credentials

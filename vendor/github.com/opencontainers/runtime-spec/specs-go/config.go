@@ -432,6 +432,8 @@ type SolarisAnet struct {
 type Windows struct {
 	// Resources contains information for handling resource constraints for the container.
 	Resources *WindowsResources `json:"resources,omitempty"`
+	// Network restriction configuration.
+	Network *WindowsNetwork `json:"network,omitempty"`
 }
 
 // WindowsResources has container runtime resource constraints for containers running on Windows.
@@ -442,8 +444,6 @@ type WindowsResources struct {
 	CPU *WindowsCPUResources `json:"cpu,omitempty"`
 	// Storage restriction configuration.
 	Storage *WindowsStorageResources `json:"storage,omitempty"`
-	// Network restriction configuration.
-	Network *WindowsNetworkResources `json:"network,omitempty"`
 }
 
 // WindowsMemoryResources contains memory resource management settings.
@@ -474,10 +474,16 @@ type WindowsStorageResources struct {
 	SandboxSize *uint64 `json:"sandboxSize,omitempty"`
 }
 
-// WindowsNetworkResources contains network resource management settings.
-type WindowsNetworkResources struct {
-	// EgressBandwidth is the maximum egress bandwidth in bytes per second.
-	EgressBandwidth *uint64 `json:"egressBandwidth,omitempty"`
+// WindowsNetwork contains network settings for Windows containers.
+type WindowsNetwork struct {
+	// List of HNS endpoints that the container should connect to.
+	EndpointList []string `json:"endpointList,omitempty"`
+	// Specifies if unqualified DNS name resolution is allowed.
+	AllowUnqualifiedDNSQuery bool `json:"allowUnqualifiedDNSQuery,omitempty"`
+	// Comma seperated list of DNS suffixes to use for name resolution.
+	DNSSearchList []string `json:"DNSSearchList,omitempty"`
+	// Name (ID) of the container that we will share with the network stack.
+	NetworkSharedContainerName string `json:"networkSharedContainerName,omitempty"`
 }
 
 // LinuxSeccomp represents syscall restrictions

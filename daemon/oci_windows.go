@@ -1,12 +1,14 @@
 package daemon
 
 import (
+	"fmt"
 	"syscall"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/sysinfo"
+	"github.com/docker/docker/pkg/system"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
@@ -157,6 +159,69 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 			Iops: &c.HostConfig.IOMaximumIOps,
 		},
 	}
+
+	dnsSearch := daemon.getDNSSearchSettings(c)
+	if dnsSearch != nil {
+		osv := system.GetOSVersion()
+		if osv.Build < 14997 {
+			return nil, fmt.Errorf("dns-search option is not supported on the current platform")
+		}
+	}
+
+	// Get endpoints for the libnetwork allocated networks to the container
+	var epList []string
+	AllowUnqualifiedDNSQuery := false
+	gwHNSID := ""
+	if c.NetworkSettings != nil {
+		for n := range c.NetworkSettings.Networks {
+			sn, err := daemon.FindNetwork(n)
+			if err != nil {
+				continue
+			}
+
+			ep, err := c.GetEndpointInNetwork(sn)
+			if err != nil {
+				continue
+			}
+
+			data, err := ep.DriverInfo()
+			if err != nil {
+				continue
+			}
+
+			if data["GW_INFO"] != nil {
+				gwInfo := data["GW_INFO"].(map[string]interface{})
+				if gwInfo["hnsid"] != nil {
+					gwHNSID = gwInfo["hnsid"].(string)
+				}
+			}
+
+			if data["hnsid"] != nil {
+				epList = append(epList, data["hnsid"].(string))
+			}
+
+			if data["AllowUnqualifiedDNSQuery"] != nil {
+				AllowUnqualifiedDNSQuery = true
+			}
+		}
+	}
+
+	var networkSharedContainerID string
+	if c.HostConfig.NetworkMode.IsContainer() {
+		networkSharedContainerID = c.NetworkSharedContainerID
+	}
+
+	if gwHNSID != "" {
+		epList = append(epList, gwHNSID)
+	}
+
+	s.Windows.Network = &specs.WindowsNetwork{
+		EndpointList:               epList,
+		AllowUnqualifiedDNSQuery:   AllowUnqualifiedDNSQuery,
+		DNSSearchList:              dnsSearch,
+		NetworkSharedContainerName: networkSharedContainerID,
+	}
+
 	return (*specs.Spec)(&s), nil
 }
 
