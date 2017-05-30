@@ -30,6 +30,7 @@ import (
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/daemon/logger"
 	// register graph drivers
+	"github.com/docker/docker/daemon/cluster/provider"
 	_ "github.com/docker/docker/daemon/graphdriver/register"
 	"github.com/docker/docker/daemon/initlayer"
 	"github.com/docker/docker/daemon/stats"
@@ -56,7 +57,6 @@ import (
 	"github.com/docker/docker/volume/local"
 	"github.com/docker/docker/volume/store"
 	"github.com/docker/libnetwork"
-	"github.com/docker/libnetwork/cluster"
 	nwconfig "github.com/docker/libnetwork/config"
 	"github.com/docker/libtrust"
 	"github.com/pkg/errors"
@@ -105,7 +105,7 @@ type Daemon struct {
 	containerd                libcontainerd.Client
 	containerdRemote          libcontainerd.Remote
 	defaultIsolation          containertypes.Isolation // Default isolation mode on Windows
-	clusterProvider           cluster.Provider
+	clusterProvider           provider.Cluster
 	cluster                   Cluster
 	metricsPluginListener     net.Listener
 
@@ -440,7 +440,7 @@ func (daemon *Daemon) registerLink(parent, child *container.Container, alias str
 
 // DaemonJoinsCluster informs the daemon has joined the cluster and provides
 // the handler to query the cluster component
-func (daemon *Daemon) DaemonJoinsCluster(clusterProvider cluster.Provider) {
+func (daemon *Daemon) DaemonJoinsCluster(clusterProvider provider.Cluster) {
 	daemon.setClusterProvider(clusterProvider)
 }
 
@@ -471,7 +471,7 @@ func (daemon *Daemon) DaemonLeavesCluster() {
 }
 
 // setClusterProvider sets a component for querying the current cluster state.
-func (daemon *Daemon) setClusterProvider(clusterProvider cluster.Provider) {
+func (daemon *Daemon) setClusterProvider(clusterProvider provider.Cluster) {
 	daemon.clusterProvider = clusterProvider
 	daemon.netController.SetClusterProvider(clusterProvider)
 }

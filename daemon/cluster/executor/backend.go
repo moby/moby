@@ -14,10 +14,10 @@ import (
 	"github.com/docker/docker/api/types/network"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	containerpkg "github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/cluster/provider"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
 	"github.com/docker/docker/plugin"
 	"github.com/docker/libnetwork"
-	"github.com/docker/libnetwork/cluster"
 	networktypes "github.com/docker/libnetwork/types"
 	"github.com/docker/swarmkit/agent/exec"
 	"golang.org/x/net/context"
@@ -50,7 +50,7 @@ type Backend interface {
 	VolumeCreate(name, driverName string, opts, labels map[string]string) (*types.Volume, error)
 	Containers(config *types.ContainerListOptions) ([]*types.Container, error)
 	SetNetworkBootstrapKeys([]*networktypes.EncryptionKey) error
-	DaemonJoinsCluster(provider cluster.Provider)
+	DaemonJoinsCluster(provider provider.Cluster)
 	DaemonLeavesCluster()
 	IsSwarmCompatible() error
 	SubscribeToEvents(since, until time.Time, filter filters.Args) ([]events.Message, chan interface{})

@@ -5,11 +5,11 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/daemon/cluster/provider"
 	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/docker/libkv/store"
-	"github.com/docker/libnetwork/cluster"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/osl"
@@ -33,7 +33,7 @@ type DaemonCfg struct {
 	DefaultDriver   string
 	Labels          []string
 	DriverCfg       map[string]interface{}
-	ClusterProvider cluster.Provider
+	ClusterProvider provider.Cluster
 }
 
 // ClusterCfg represents cluster configuration

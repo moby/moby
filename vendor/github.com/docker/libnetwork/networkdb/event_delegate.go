@@ -47,7 +47,9 @@ func (e *eventDelegate) NotifyLeave(mn *memberlist.Node) {
 	if n, ok := e.nDB.nodes[mn.Name]; ok {
 		delete(e.nDB.nodes, mn.Name)
 
-		n.reapTime = reapInterval
+		// In case of node failure, keep retrying to reconnect every retryInterval (1sec) for nodeReapInterval (24h)
+		// Explicit leave will have already removed the node from the list of nodes (nDB.nodes) and put it into the leftNodes map
+		n.reapTime = nodeReapInterval
 		e.nDB.failedNodes[mn.Name] = n
 	}
 	e.nDB.Unlock()
