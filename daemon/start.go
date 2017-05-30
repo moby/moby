@@ -105,7 +105,7 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 	}
 
 	if container.RemovalInProgress || container.Dead {
-		return fmt.Errorf("Container is marked for removal and cannot be started.")
+		return fmt.Errorf("container is marked for removal and cannot be started")
 	}
 
 	// if we encounter an error during start we need to ensure that any other
