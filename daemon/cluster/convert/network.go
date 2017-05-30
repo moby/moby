@@ -36,9 +36,9 @@ func networkFromGRPC(n *swarmapi.Network) types.Network {
 			IPAMOptions: ipamFromGRPC(n.IPAM),
 		}
 
-		if n.Spec.ConfigFrom != "" {
+		if n.Spec.GetNetwork() != "" {
 			network.Spec.ConfigFrom = &networktypes.ConfigReference{
-				Network: n.Spec.ConfigFrom,
+				Network: n.Spec.GetNetwork(),
 			}
 		}
 
@@ -169,9 +169,9 @@ func BasicNetworkFromGRPC(n swarmapi.Network) basictypes.NetworkResource {
 		Labels:     n.Spec.Annotations.Labels,
 	}
 
-	if n.Spec.ConfigFrom != "" {
+	if n.Spec.GetNetwork() != "" {
 		nr.ConfigFrom = networktypes.ConfigReference{
-			Network: n.Spec.ConfigFrom,
+			Network: n.Spec.GetNetwork(),
 		}
 	}
 
@@ -221,7 +221,9 @@ func BasicNetworkCreateToGRPC(create basictypes.NetworkCreateRequest) swarmapi.N
 		ns.IPAM.Configs = ipamSpec
 	}
 	if create.ConfigFrom != nil {
-		ns.ConfigFrom = create.ConfigFrom.Network
+		ns.ConfigFrom = &swarmapi.NetworkSpec_Network{
+			Network: create.ConfigFrom.Network,
+		}
 	}
 	return ns
 }
