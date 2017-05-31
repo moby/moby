@@ -233,7 +233,7 @@ func (p *process) updateExitStatusFile(status uint32) (uint32, error) {
 	p.stateLock.Lock()
 	p.state = Stopped
 	p.stateLock.Unlock()
-	err := ioutil.WriteFile(filepath.Join(p.root, ExitStatusFile), []byte(fmt.Sprintf("%u", status)), 0644)
+	err := ioutil.WriteFile(filepath.Join(p.root, ExitStatusFile), []byte(fmt.Sprintf("%d", status)), 0644)
 	return status, err
 }
 

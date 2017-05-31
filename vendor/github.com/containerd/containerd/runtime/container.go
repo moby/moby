@@ -544,7 +544,6 @@ func (c *container) createCmd(ctx context.Context, pid string, cmd *exec.Cmd, p 
 	case err := <-ch:
 		return err
 	}
-	return nil
 }
 
 func hostIDFromMap(id uint32, mp []ocs.LinuxIDMapping) int {
