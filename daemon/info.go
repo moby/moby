@@ -123,6 +123,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		RegistryConfig:     daemon.RegistryService.ServiceConfig(),
 		NCPU:               sysinfo.NumCPU(),
 		MemTotal:           meminfo.MemTotal,
+		GenericResources:   daemon.genericResources,
 		DockerRootDir:      daemon.configStore.Root,
 		Labels:             daemon.configStore.Labels,
 		ExperimentalBuild:  daemon.configStore.Experimental,

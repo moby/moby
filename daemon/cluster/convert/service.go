@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/api/types/swarm/runtime"
 	"github.com/docker/docker/pkg/namesgenerator"
 	swarmapi "github.com/docker/swarmkit/api"
+	"github.com/docker/swarmkit/api/genericresource"
 	"github.com/gogo/protobuf/proto"
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/pkg/errors"
@@ -301,6 +302,31 @@ func annotationsFromGRPC(ann swarmapi.Annotations) types.Annotations {
 	return a
 }
 
+// GenericResourcesFromGRPC converts a GRPC GenericResource to a GenericResource
+func GenericResourcesFromGRPC(genericRes []*swarmapi.GenericResource) []types.GenericResource {
+	var generic []types.GenericResource
+	for _, res := range genericRes {
+		var current types.GenericResource
+
+		switch r := res.Resource.(type) {
+		case *swarmapi.GenericResource_DiscreteResourceSpec:
+			current.DiscreteResourceSpec = &types.DiscreteGenericResource{
+				Kind:  r.DiscreteResourceSpec.Kind,
+				Value: r.DiscreteResourceSpec.Value,
+			}
+		case *swarmapi.GenericResource_NamedResourceSpec:
+			current.NamedResourceSpec = &types.NamedGenericResource{
+				Kind:  r.NamedResourceSpec.Kind,
+				Value: r.NamedResourceSpec.Value,
+			}
+		}
+
+		generic = append(generic, current)
+	}
+
+	return generic
+}
+
 func resourcesFromGRPC(res *swarmapi.ResourceRequirements) *types.ResourceRequirements {
 	var resources *types.ResourceRequirements
 	if res != nil {
@@ -313,13 +339,32 @@ func resourcesFromGRPC(res *swarmapi.ResourceRequirements) *types.ResourceRequir
 		}
 		if res.Reservations != nil {
 			resources.Reservations = &types.Resources{
-				NanoCPUs:    res.Reservations.NanoCPUs,
-				MemoryBytes: res.Reservations.MemoryBytes,
+				NanoCPUs:         res.Reservations.NanoCPUs,
+				MemoryBytes:      res.Reservations.MemoryBytes,
+				GenericResources: GenericResourcesFromGRPC(res.Reservations.Generic),
 			}
 		}
 	}
 
 	return resources
+}
+
+// GenericResourcesToGRPC converts a GenericResource to a GRPC GenericResource
+func GenericResourcesToGRPC(genericRes []types.GenericResource) []*swarmapi.GenericResource {
+	var generic []*swarmapi.GenericResource
+	for _, res := range genericRes {
+		var r *swarmapi.GenericResource
+
+		if res.DiscreteResourceSpec != nil {
+			r = genericresource.NewDiscrete(res.DiscreteResourceSpec.Kind, res.DiscreteResourceSpec.Value)
+		} else if res.NamedResourceSpec != nil {
+			r = genericresource.NewString(res.NamedResourceSpec.Kind, res.NamedResourceSpec.Value)
+		}
+
+		generic = append(generic, r)
+	}
+
+	return generic
 }
 
 func resourcesToGRPC(res *types.ResourceRequirements) *swarmapi.ResourceRequirements {
@@ -336,6 +381,7 @@ func resourcesToGRPC(res *types.ResourceRequirements) *swarmapi.ResourceRequirem
 			reqs.Reservations = &swarmapi.Resources{
 				NanoCPUs:    res.Reservations.NanoCPUs,
 				MemoryBytes: res.Reservations.MemoryBytes,
+				Generic:     GenericResourcesToGRPC(res.Reservations.GenericResources),
 			}
 
 		}
