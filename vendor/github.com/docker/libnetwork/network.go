@@ -412,6 +412,9 @@ func (n *network) applyConfigurationTo(to *network) error {
 			}
 		}
 	}
+	if len(n.ipamType) != 0 {
+		to.ipamType = n.ipamType
+	}
 	if len(n.ipamOptions) > 0 {
 		to.ipamOptions = make(map[string]string, len(n.ipamOptions))
 		for k, v := range n.ipamOptions {

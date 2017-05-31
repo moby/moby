@@ -6,6 +6,7 @@ import (
 	"net"
 	"syscall"
 
+	"fmt"
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
 )
@@ -25,6 +26,21 @@ type Service struct {
 	Netmask       uint32
 	AddressFamily uint16
 	PEName        string
+	Stats         SvcStats
+}
+
+// SvcStats defines an IPVS service statistics
+type SvcStats struct {
+	Connections uint32
+	PacketsIn   uint32
+	PacketsOut  uint32
+	BytesIn     uint64
+	BytesOut    uint64
+	CPS         uint32
+	BPSOut      uint32
+	PPSIn       uint32
+	PPSOut      uint32
+	BPSIn       uint32
 }
 
 // Destination defines an IPVS destination (real server) in its
@@ -116,4 +132,30 @@ func (i *Handle) UpdateDestination(s *Service, d *Destination) error {
 // passed ipvs service in the passed handle.
 func (i *Handle) DelDestination(s *Service, d *Destination) error {
 	return i.doCmd(s, d, ipvsCmdDelDest)
+}
+
+// GetServices returns an array of services configured on the Node
+func (i *Handle) GetServices() ([]*Service, error) {
+	return i.doGetServicesCmd(nil)
+}
+
+// GetDestinations returns an array of Destinations configured for this Service
+func (i *Handle) GetDestinations(s *Service) ([]*Destination, error) {
+	return i.doGetDestinationsCmd(s, nil)
+}
+
+// GetService gets details of a specific IPVS services, useful in updating statisics etc.,
+func (i *Handle) GetService(s *Service) (*Service, error) {
+
+	res, err := i.doGetServicesCmd(s)
+	if err != nil {
+		return nil, err
+	}
+
+	// We are looking for exactly one service otherwise error out
+	if len(res) != 1 {
+		return nil, fmt.Errorf("Expected only one service obtained=%d", len(res))
+	}
+
+	return res[0], nil
 }
