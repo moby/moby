@@ -413,15 +413,11 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 	//writing tar headers/files. We skip whiteout files because they were written
 	//by the kernel and already have proper ownership relative to the host
 	if !strings.HasPrefix(filepath.Base(hdr.Name), WhiteoutPrefix) && !ta.IDMappings.Empty() {
-		uid, gid, err := getFileUIDGID(fi.Sys())
+		fileIDPair, err := getFileUIDGID(fi.Sys())
 		if err != nil {
 			return err
 		}
-		hdr.Uid, err = ta.IDMappings.UIDToContainer(uid)
-		if err != nil {
-			return err
-		}
-		hdr.Gid, err = ta.IDMappings.GIDToContainer(gid)
+		hdr.Uid, hdr.Gid, err = ta.IDMappings.ToContainer(fileIDPair)
 		if err != nil {
 			return err
 		}
@@ -806,7 +802,8 @@ func Unpack(decompressedArchive io.Reader, dest string, options *TarOptions) err
 	defer pools.BufioReader32KPool.Put(trBuf)
 
 	var dirs []*tar.Header
-	remappedRootUID, remappedRootGID, err := idtools.GetRootUIDGID(options.UIDMaps, options.GIDMaps)
+	idMappings := idtools.NewIDMappingsFromMaps(options.UIDMaps, options.GIDMaps)
+	rootIDs, err := idMappings.RootPair()
 	if err != nil {
 		return err
 	}
@@ -843,7 +840,7 @@ loop:
 			parent := filepath.Dir(hdr.Name)
 			parentPath := filepath.Join(dest, parent)
 			if _, err := os.Lstat(parentPath); err != nil && os.IsNotExist(err) {
-				err = idtools.MkdirAllNewAs(parentPath, 0777, remappedRootUID, remappedRootGID)
+				err = idtools.MkdirAllAndChownNew(parentPath, 0777, rootIDs)
 				if err != nil {
 					return err
 				}
@@ -888,26 +885,8 @@ loop:
 		}
 		trBuf.Reset(tr)
 
-		// if the options contain a uid & gid maps, convert header uid/gid
-		// entries using the maps such that lchown sets the proper mapped
-		// uid/gid after writing the file. We only perform this mapping if
-		// the file isn't already owned by the remapped root UID or GID, as
-		// that specific uid/gid has no mapping from container -> host, and
-		// those files already have the proper ownership for inside the
-		// container.
-		if hdr.Uid != remappedRootUID {
-			xUID, err := idtools.ToHost(hdr.Uid, options.UIDMaps)
-			if err != nil {
-				return err
-			}
-			hdr.Uid = xUID
-		}
-		if hdr.Gid != remappedRootGID {
-			xGID, err := idtools.ToHost(hdr.Gid, options.GIDMaps)
-			if err != nil {
-				return err
-			}
-			hdr.Gid = xGID
+		if err := remapIDs(idMappings, hdr); err != nil {
+			return err
 		}
 
 		if whiteoutConverter != nil {
@@ -1083,24 +1062,8 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 		hdr.Name = filepath.Base(dst)
 		hdr.Mode = int64(chmodTarEntry(os.FileMode(hdr.Mode)))
 
-		remappedRootIDs, err := archiver.IDMappings.RootPair()
-		if err != nil {
+		if err := remapIDs(archiver.IDMappings, hdr); err != nil {
 			return err
-		}
-
-		// only perform mapping if the file being copied isn't already owned by the
-		// uid or gid of the remapped root in the container
-		if remappedRootIDs.UID != hdr.Uid {
-			hdr.Uid, err = archiver.IDMappings.UIDToHost(hdr.Uid)
-			if err != nil {
-				return err
-			}
-		}
-		if remappedRootIDs.GID != hdr.Gid {
-			hdr.Gid, err = archiver.IDMappings.GIDToHost(hdr.Gid)
-			if err != nil {
-				return err
-			}
 		}
 
 		tw := tar.NewWriter(w)
@@ -1123,6 +1086,12 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 	if err != nil {
 		r.CloseWithError(err)
 	}
+	return err
+}
+
+func remapIDs(idMappings *idtools.IDMappings, hdr *tar.Header) error {
+	ids, err := idMappings.ToHost(idtools.IDPair{UID: hdr.Uid, GID: hdr.Gid})
+	hdr.Uid, hdr.Gid = ids.UID, ids.GID
 	return err
 }
 

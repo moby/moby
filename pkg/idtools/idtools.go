@@ -80,21 +80,13 @@ func MkdirAllAndChownNew(path string, mode os.FileMode, ids IDPair) error {
 // GetRootUIDGID retrieves the remapped root uid/gid pair from the set of maps.
 // If the maps are empty, then the root uid/gid will default to "real" 0/0
 func GetRootUIDGID(uidMap, gidMap []IDMap) (int, int, error) {
-	var uid, gid int
-
-	if uidMap != nil {
-		xUID, err := ToHost(0, uidMap)
-		if err != nil {
-			return -1, -1, err
-		}
-		uid = xUID
+	uid, err := toHost(0, uidMap)
+	if err != nil {
+		return -1, -1, err
 	}
-	if gidMap != nil {
-		xGID, err := ToHost(0, gidMap)
-		if err != nil {
-			return -1, -1, err
-		}
-		gid = xGID
+	gid, err := toHost(0, gidMap)
+	if err != nil {
+		return -1, -1, err
 	}
 	return uid, gid, nil
 }
@@ -115,11 +107,10 @@ func toContainer(hostID int, idMap []IDMap) (int, error) {
 	return -1, fmt.Errorf("Host ID %d cannot be mapped to a container ID", hostID)
 }
 
-// ToHost takes an id mapping and a remapped ID, and translates the
+// toHost takes an id mapping and a remapped ID, and translates the
 // ID to the mapped host ID. If no map is provided, then the translation
 // assumes a 1-to-1 mapping and returns the passed in id #
-// Depercated: use IDMappings.UIDToHost and IDMappings.GIDToHost
-func ToHost(contID int, idMap []IDMap) (int, error) {
+func toHost(contID int, idMap []IDMap) (int, error) {
 	if idMap == nil {
 		return contID, nil
 	}
@@ -181,24 +172,35 @@ func (i *IDMappings) RootPair() (IDPair, error) {
 	return IDPair{UID: uid, GID: gid}, err
 }
 
-// UIDToHost returns the host UID for the container uid
-func (i *IDMappings) UIDToHost(uid int) (int, error) {
-	return ToHost(uid, i.uids)
+// ToHost returns the host UID and GID for the container uid, gid.
+// Remapping is only performed if the ids aren't already the remapped root ids
+func (i *IDMappings) ToHost(pair IDPair) (IDPair, error) {
+	target, err := i.RootPair()
+	if err != nil {
+		return IDPair{}, err
+	}
+
+	if pair.UID != target.UID {
+		target.UID, err = toHost(pair.UID, i.uids)
+		if err != nil {
+			return target, err
+		}
+	}
+
+	if pair.GID != target.GID {
+		target.GID, err = toHost(pair.GID, i.gids)
+	}
+	return target, err
 }
 
-// GIDToHost returns the host GID for the container gid
-func (i *IDMappings) GIDToHost(gid int) (int, error) {
-	return ToHost(gid, i.gids)
-}
-
-// UIDToContainer returns the container UID for the host uid
-func (i *IDMappings) UIDToContainer(uid int) (int, error) {
-	return toContainer(uid, i.uids)
-}
-
-// GIDToContainer returns the container GID for the host gid
-func (i *IDMappings) GIDToContainer(gid int) (int, error) {
-	return toContainer(gid, i.gids)
+// ToContainer returns the container UID and GID for the host uid and gid
+func (i *IDMappings) ToContainer(pair IDPair) (int, int, error) {
+	uid, err := toContainer(pair.UID, i.uids)
+	if err != nil {
+		return -1, -1, err
+	}
+	gid, err := toContainer(pair.GID, i.gids)
+	return uid, gid, err
 }
 
 // Empty returns true if there are no id mappings
