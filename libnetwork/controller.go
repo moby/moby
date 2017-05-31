@@ -738,7 +738,6 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 	if network.configOnly {
 		network.scope = datastore.LocalScope
 		network.networkType = "null"
-		network.ipamType = ""
 		goto addToStore
 	}
 
