@@ -166,7 +166,7 @@ func newBuilder(clientCtx context.Context, options builderOptions) *Builder {
 		buildStages:      newBuildStages(),
 		imageSources:     newImageSources(clientCtx, options),
 		pathCache:        options.PathCache,
-		imageProber:      newImageProber(options.Backend, config.CacheFrom, config.NoCache),
+		imageProber:      newImageProber(options.Backend, config.CacheFrom, options.Platform, config.NoCache),
 		containerManager: newContainerManager(options.Backend),
 		platform:         options.Platform,
 	}
