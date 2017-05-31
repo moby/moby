@@ -22,6 +22,7 @@ func (e *eventDelegate) broadcastNodeEvent(addr net.IP, op opType) {
 }
 
 func (e *eventDelegate) NotifyJoin(mn *memberlist.Node) {
+	logrus.Infof("Node %s/%s, joined gossip cluster", mn.Name, mn.Addr)
 	e.broadcastNodeEvent(mn.Addr, opCreate)
 	e.nDB.Lock()
 	// In case the node is rejoining after a failure or leave,
@@ -37,9 +38,12 @@ func (e *eventDelegate) NotifyJoin(mn *memberlist.Node) {
 
 	e.nDB.nodes[mn.Name] = &node{Node: *mn}
 	e.nDB.Unlock()
+	logrus.Infof("Node %s/%s, added to nodes list", mn.Name, mn.Addr)
 }
 
 func (e *eventDelegate) NotifyLeave(mn *memberlist.Node) {
+	var failed bool
+	logrus.Infof("Node %s/%s, left gossip cluster", mn.Name, mn.Addr)
 	e.broadcastNodeEvent(mn.Addr, opDelete)
 	e.nDB.deleteNodeTableEntries(mn.Name)
 	e.nDB.deleteNetworkEntriesForNode(mn.Name)
@@ -47,10 +51,17 @@ func (e *eventDelegate) NotifyLeave(mn *memberlist.Node) {
 	if n, ok := e.nDB.nodes[mn.Name]; ok {
 		delete(e.nDB.nodes, mn.Name)
 
-		n.reapTime = reapInterval
+		// In case of node failure, keep retrying to reconnect every retryInterval (1sec) for nodeReapInterval (24h)
+		// Explicit leave will have already removed the node from the list of nodes (nDB.nodes) and put it into the leftNodes map
+		n.reapTime = nodeReapInterval
 		e.nDB.failedNodes[mn.Name] = n
+		failed = true
 	}
 	e.nDB.Unlock()
+	if failed {
+		logrus.Infof("Node %s/%s, added to failed nodes list", mn.Name, mn.Addr)
+	}
+
 }
 
 func (e *eventDelegate) NotifyUpdate(n *memberlist.Node) {

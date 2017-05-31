@@ -284,7 +284,6 @@ func (nDB *NetworkDB) reconnectNode() {
 	}
 
 	if err := nDB.sendNodeEvent(NodeEventTypeJoin); err != nil {
-		logrus.Errorf("failed to send node join during reconnect: %v", err)
 		return
 	}
 
