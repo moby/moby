@@ -157,6 +157,7 @@ while [ $# -gt 0 ]; do
 									echo "skipping existing ${layerId:0:12}"
 									continue
 								fi
+								token="$(curl -fsSL "https://auth.docker.io/token?service=registry.docker.io&scope=repository:$image:pull" | jq --raw-output '.token')"
 								curl -fSL --progress \
 									-H "Authorization: Bearer $token" \
 									"https://registry-1.docker.io/v2/$image/blobs/$layerDigest" \
@@ -229,6 +230,7 @@ while [ $# -gt 0 ]; do
 					echo "skipping existing ${layerId:0:12}"
 					continue
 				fi
+				token="$(curl -fsSL "https://auth.docker.io/token?service=registry.docker.io&scope=repository:$image:pull" | jq --raw-output '.token')"
 				curl -fSL --progress -H "Authorization: Bearer $token" "https://registry-1.docker.io/v2/$image/blobs/$imageLayer" -o "$dir/$layerId/layer.tar" # -C -
 			done
 			;;
