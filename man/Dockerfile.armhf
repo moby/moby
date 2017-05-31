@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y \
   gcc \
   make
 
-ENV GO_VERSION 1.7.5
+ENV GO_VERSION 1.8.3
 RUN curl -fsSL "https://golang.org/dl/go${GO_VERSION}.linux-armv6l.tar.gz" \
   | tar -xzC /usr/local
 ENV PATH /go/bin:/usr/local/go/bin:$PATH

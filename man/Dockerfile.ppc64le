@@ -7,7 +7,7 @@ RUN     apt-get update && apt-get install -y \
         make \
         tar
 
-ENV     GO_VERSION 1.7.5
+ENV     GO_VERSION 1.8.3
 RUN     curl -fsSL "https://golang.org/dl/go${GO_VERSION}.linux-ppc64le.tar.gz" \
         | tar -xzC /usr/local
 ENV     PATH /usr/local/go/bin:$PATH
