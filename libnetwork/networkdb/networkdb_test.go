@@ -339,17 +339,17 @@ func TestNetworkDBWatch(t *testing.T) {
 	err = dbs[0].CreateEntry("test_table", "network1", "test_key", []byte("test_value"))
 	assert.NoError(t, err)
 
-	testWatch(t, ch, CreateEvent{}, "test_table", "network1", "test_key", "test_value")
+	testWatch(t, ch.C, CreateEvent{}, "test_table", "network1", "test_key", "test_value")
 
 	err = dbs[0].UpdateEntry("test_table", "network1", "test_key", []byte("test_updated_value"))
 	assert.NoError(t, err)
 
-	testWatch(t, ch, UpdateEvent{}, "test_table", "network1", "test_key", "test_updated_value")
+	testWatch(t, ch.C, UpdateEvent{}, "test_table", "network1", "test_key", "test_updated_value")
 
 	err = dbs[0].DeleteEntry("test_table", "network1", "test_key")
 	assert.NoError(t, err)
 
-	testWatch(t, ch, DeleteEvent{}, "test_table", "network1", "test_key", "")
+	testWatch(t, ch.C, DeleteEvent{}, "test_table", "network1", "test_key", "")
 
 	cancel()
 	closeNetworkDBInstances(dbs)
