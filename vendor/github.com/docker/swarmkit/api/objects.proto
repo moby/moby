@@ -239,6 +239,8 @@ message Task {
 	//
 	// If not present, the daemon's default will be used.
 	Driver log_driver = 13;
+
+	repeated GenericResource assigned_generic_resources = 15;
 }
 
 // NetworkAttachment specifies the network parameters of attachment to

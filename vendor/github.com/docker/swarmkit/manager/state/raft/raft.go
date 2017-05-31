@@ -361,7 +361,7 @@ func (n *Node) JoinAndStart(ctx context.Context) (err error) {
 		if err != nil {
 			n.stopMu.Lock()
 			// to shutdown transport
-			close(n.stopped)
+			n.cancelFunc()
 			n.stopMu.Unlock()
 			n.done()
 		} else {

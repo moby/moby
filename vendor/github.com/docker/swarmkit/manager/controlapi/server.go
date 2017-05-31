@@ -5,6 +5,7 @@ import (
 
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/swarmkit/ca"
+	"github.com/docker/swarmkit/manager/allocator"
 	"github.com/docker/swarmkit/manager/state/raft"
 	"github.com/docker/swarmkit/manager/state/store"
 )
@@ -20,12 +21,13 @@ type Server struct {
 	raft           *raft.Node
 	securityConfig *ca.SecurityConfig
 	scu            ca.APISecurityConfigUpdater
+	a              *allocator.Allocator
 	pg             plugingetter.PluginGetter
 }
 
 // NewServer creates a Cluster API server.
 func NewServer(store *store.MemoryStore, raft *raft.Node, securityConfig *ca.SecurityConfig,
-	scu ca.APISecurityConfigUpdater, pg plugingetter.PluginGetter) *Server {
+	scu ca.APISecurityConfigUpdater, a *allocator.Allocator, pg plugingetter.PluginGetter) *Server {
 	return &Server{
 		store:          store,
 		raft:           raft,
