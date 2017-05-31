@@ -5,6 +5,7 @@ import (
 	"runtime"
 
 	"github.com/docker/docker/image/tarexport"
+	"github.com/docker/docker/pkg/system"
 )
 
 // ExportImage exports a list of images to the given output stream. The
@@ -13,8 +14,12 @@ import (
 // the same tag are exported. names is the set of tags to export, and
 // outStream is the writer which the images are written to.
 func (daemon *Daemon) ExportImage(names []string, outStream io.Writer) error {
-	// TODO @jhowardmsft LCOW. For now, assume it is the OS of the host
-	imageExporter := tarexport.NewTarExporter(daemon.stores[runtime.GOOS].imageStore, daemon.stores[runtime.GOOS].layerStore, daemon.stores[runtime.GOOS].referenceStore, daemon)
+	// TODO @jhowardmsft LCOW. This will need revisiting later.
+	platform := runtime.GOOS
+	if platform == "windows" && system.LCOWSupported() {
+		platform = "linux"
+	}
+	imageExporter := tarexport.NewTarExporter(daemon.stores[platform].imageStore, daemon.stores[platform].layerStore, daemon.stores[platform].referenceStore, daemon)
 	return imageExporter.Save(names, outStream)
 }
 
@@ -22,7 +27,11 @@ func (daemon *Daemon) ExportImage(names []string, outStream io.Writer) error {
 // complement of ImageExport.  The input stream is an uncompressed tar
 // ball containing images and metadata.
 func (daemon *Daemon) LoadImage(inTar io.ReadCloser, outStream io.Writer, quiet bool) error {
-	// TODO @jhowardmsft LCOW. For now, assume it is the OS of the host
-	imageExporter := tarexport.NewTarExporter(daemon.stores[runtime.GOOS].imageStore, daemon.stores[runtime.GOOS].layerStore, daemon.stores[runtime.GOOS].referenceStore, daemon)
+	// TODO @jhowardmsft LCOW. This will need revisiting later.
+	platform := runtime.GOOS
+	if platform == "windows" && system.LCOWSupported() {
+		platform = "linux"
+	}
+	imageExporter := tarexport.NewTarExporter(daemon.stores[platform].imageStore, daemon.stores[platform].layerStore, daemon.stores[platform].referenceStore, daemon)
 	return imageExporter.Load(inTar, outStream, quiet)
 }
