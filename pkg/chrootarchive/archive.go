@@ -46,14 +46,15 @@ func untarHandler(tarArchive io.Reader, dest string, options *archive.TarOptions
 		options.ExcludePatterns = []string{}
 	}
 
-	rootUID, rootGID, err := idtools.GetRootUIDGID(options.UIDMaps, options.GIDMaps)
+	idMappings := idtools.NewIDMappingsFromMaps(options.UIDMaps, options.GIDMaps)
+	rootIDs, err := idMappings.RootPair()
 	if err != nil {
 		return err
 	}
 
 	dest = filepath.Clean(dest)
 	if _, err := os.Stat(dest); os.IsNotExist(err) {
-		if err := idtools.MkdirAllNewAs(dest, 0755, rootUID, rootGID); err != nil {
+		if err := idtools.MkdirAllAndChownNew(dest, 0755, rootIDs); err != nil {
 			return err
 		}
 	}

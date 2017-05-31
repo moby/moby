@@ -42,14 +42,6 @@ func MkdirAllAs(path string, mode os.FileMode, ownerUID, ownerGID int) error {
 	return mkdirAs(path, mode, ownerUID, ownerGID, true, true)
 }
 
-// MkdirAllNewAs creates a directory (include any along the path) and then modifies
-// ownership ONLY of newly created directories to the requested uid/gid. If the
-// directories along the path exist, no change of ownership will be performed
-// Deprecated: Use MkdirAllAndChownNew
-func MkdirAllNewAs(path string, mode os.FileMode, ownerUID, ownerGID int) error {
-	return mkdirAs(path, mode, ownerUID, ownerGID, true, false)
-}
-
 // MkdirAs creates a directory and then modifies ownership to the requested uid/gid.
 // If the directory already exists, this function still changes ownership
 // Deprecated: Use MkdirAndChown with a IDPair
