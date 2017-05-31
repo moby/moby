@@ -17,6 +17,25 @@ func (d *delegate) NodeMeta(limit int) []byte {
 	return []byte{}
 }
 
+func (nDB *NetworkDB) getNode(nEvent *NodeEvent) *node {
+	nDB.Lock()
+	defer nDB.Unlock()
+
+	for _, nodes := range []map[string]*node{
+		nDB.failedNodes,
+		nDB.leftNodes,
+		nDB.nodes,
+	} {
+		if n, ok := nodes[nEvent.NodeName]; ok {
+			if n.ltime >= nEvent.LTime {
+				return nil
+			}
+			return n
+		}
+	}
+	return nil
+}
+
 func (nDB *NetworkDB) checkAndGetNode(nEvent *NodeEvent) *node {
 	nDB.Lock()
 	defer nDB.Unlock()
@@ -63,10 +82,28 @@ func (nDB *NetworkDB) purgeSameNode(n *node) {
 }
 
 func (nDB *NetworkDB) handleNodeEvent(nEvent *NodeEvent) bool {
-	n := nDB.checkAndGetNode(nEvent)
+	// Update our local clock if the received messages has newer
+	// time.
+	nDB.networkClock.Witness(nEvent.LTime)
+
+	n := nDB.getNode(nEvent)
 	if n == nil {
 		return false
 	}
+	// If its a node leave event for a manager and this is the only manager we
+	// know of we want the reconnect logic to kick in. In a single manager
+	// cluster manager's gossip can't be bootstrapped unless some other node
+	// connects to it.
+	if len(nDB.bootStrapIP) == 1 && nEvent.Type == NodeEventTypeLeave {
+		for _, ip := range nDB.bootStrapIP {
+			if ip.Equal(n.Addr) {
+				n.ltime = nEvent.LTime
+				return true
+			}
+		}
+	}
+
+	n = nDB.checkAndGetNode(nEvent)
 
 	nDB.purgeSameNode(n)
 	n.ltime = nEvent.LTime
@@ -76,11 +113,13 @@ func (nDB *NetworkDB) handleNodeEvent(nEvent *NodeEvent) bool {
 		nDB.Lock()
 		nDB.nodes[n.Name] = n
 		nDB.Unlock()
+		logrus.Infof("Node join event for %s/%s", n.Name, n.Addr)
 		return true
 	case NodeEventTypeLeave:
 		nDB.Lock()
 		nDB.leftNodes[n.Name] = n
 		nDB.Unlock()
+		logrus.Infof("Node leave event for %s/%s", n.Name, n.Addr)
 		return true
 	}
 
