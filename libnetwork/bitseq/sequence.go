@@ -41,6 +41,7 @@ type Handle struct {
 	id         string
 	dbIndex    uint64
 	dbExists   bool
+	curr       uint64
 	store      datastore.DataStore
 	sync.Mutex
 }
@@ -193,6 +194,7 @@ func (h *Handle) getCopy() *Handle {
 		dbIndex:    h.dbIndex,
 		dbExists:   h.dbExists,
 		store:      h.store,
+		curr:       h.curr,
 	}
 }
 
@@ -323,10 +325,10 @@ func (h *Handle) set(ordinal, start, end uint64, any bool, release bool) (uint64
 			bytePos, bitPos = ordinalToPos(ordinal)
 		} else {
 			if any {
-				bytePos, bitPos, err = getFirstAvailable(h.head, start)
+				bytePos, bitPos, err = getAvailableFromCurrent(h.head, start, h.curr, end)
 				ret = posToOrdinal(bytePos, bitPos)
-				if end < ret {
-					err = ErrNoBitAvailable
+				if err == nil {
+					h.curr = ret + 1
 				}
 			} else {
 				bytePos, bitPos, err = checkIfAvailable(h.head, ordinal)
@@ -513,6 +515,29 @@ func getFirstAvailable(head *sequence, start uint64) (uint64, uint64, error) {
 		current = current.next
 	}
 	return invalidPos, invalidPos, ErrNoBitAvailable
+}
+
+//getAvailableFromCurrent will look for available ordinal from the current ordinal.
+// If none found then it will loop back to the start to check of the available bit.
+//This can be further optimized to check from start till curr in case of a rollover
+func getAvailableFromCurrent(head *sequence, start, curr, end uint64) (uint64, uint64, error) {
+	var bytePos, bitPos uint64
+	if curr != 0 && curr > start {
+		bytePos, bitPos, _ = getFirstAvailable(head, curr)
+		ret := posToOrdinal(bytePos, bitPos)
+		if end < ret {
+			goto begin
+		}
+		return bytePos, bitPos, nil
+	}
+
+begin:
+	bytePos, bitPos, _ = getFirstAvailable(head, start)
+	ret := posToOrdinal(bytePos, bitPos)
+	if end < ret {
+		return invalidPos, invalidPos, ErrNoBitAvailable
+	}
+	return bytePos, bitPos, nil
 }
 
 // checkIfAvailable checks if the bit correspondent to the specified ordinal is unset
