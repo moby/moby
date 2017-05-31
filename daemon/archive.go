@@ -375,7 +375,7 @@ func (daemon *Daemon) CopyOnBuild(cID, destPath, srcRoot, srcPath string, decomp
 
 	destExists := true
 	destDir := false
-	rootIDs, _ := daemon.idMappings.RootPair()
+	rootIDs := daemon.idMappings.RootPair()
 
 	// Work in daemon-local OS specific file paths
 	destPath = filepath.FromSlash(destPath)

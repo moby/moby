@@ -28,10 +28,7 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		home:       home,
 		idMappings: idtools.NewIDMappingsFromMaps(uidMaps, gidMaps),
 	}
-	rootIDs, err := d.idMappings.RootPair()
-	if err != nil {
-		return nil, err
-	}
+	rootIDs := d.idMappings.RootPair()
 	if err := idtools.MkdirAllAndChown(home, 0700, rootIDs); err != nil {
 		return nil, err
 	}
@@ -79,10 +76,7 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
 	}
 
 	dir := d.dir(id)
-	rootIDs, err := d.idMappings.RootPair()
-	if err != nil {
-		return err
-	}
+	rootIDs := d.idMappings.RootPair()
 	if err := idtools.MkdirAllAndChown(filepath.Dir(dir), 0700, rootIDs); err != nil {
 		return err
 	}

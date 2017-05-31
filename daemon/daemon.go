@@ -527,11 +527,7 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	if err != nil {
 		return nil, err
 	}
-	rootIDs, err := idMappings.RootPair()
-	if err != nil {
-		return nil, err
-	}
-
+	rootIDs := idMappings.RootPair()
 	if err := setupDaemonProcess(config); err != nil {
 		return nil, err
 	}
@@ -994,7 +990,7 @@ func prepareTempDir(rootDir string, rootIDs idtools.IDPair) (string, error) {
 }
 
 func (daemon *Daemon) setupInitLayer(initPath string) error {
-	rootIDs, _ := daemon.idMappings.RootPair()
+	rootIDs := daemon.idMappings.RootPair()
 	return initlayer.Setup(initPath, rootIDs)
 }
 
@@ -1157,14 +1153,5 @@ func CreateDaemonRoot(config *config.Config) error {
 	if err != nil {
 		return err
 	}
-	rootIDs, err := idMappings.RootPair()
-	if err != nil {
-		return err
-	}
-
-	if err := setupDaemonRoot(config, realRoot, rootIDs); err != nil {
-		return err
-	}
-
-	return nil
+	return setupDaemonRoot(config, realRoot, idMappings.RootPair())
 }

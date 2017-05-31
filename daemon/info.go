@@ -72,7 +72,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 	if selinuxEnabled() {
 		securityOptions = append(securityOptions, "name=selinux")
 	}
-	rootIDs, _ := daemon.idMappings.RootPair()
+	rootIDs := daemon.idMappings.RootPair()
 	if rootIDs.UID != 0 || rootIDs.GID != 0 {
 		securityOptions = append(securityOptions, "name=userns")
 	}

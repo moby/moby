@@ -158,19 +158,19 @@ func NewIDMappingsFromMaps(uids []IDMap, gids []IDMap) *IDMappings {
 	return &IDMappings{uids: uids, gids: gids}
 }
 
-// RootPair returns a uid and gid pair for the root user
-func (i *IDMappings) RootPair() (IDPair, error) {
-	uid, gid, err := GetRootUIDGID(i.uids, i.gids)
-	return IDPair{UID: uid, GID: gid}, err
+// RootPair returns a uid and gid pair for the root user. The error is ignored
+// because a root user always exists, and the defaults are correct when the uid
+// and gid maps are empty.
+func (i *IDMappings) RootPair() IDPair {
+	uid, gid, _ := GetRootUIDGID(i.uids, i.gids)
+	return IDPair{UID: uid, GID: gid}
 }
 
 // ToHost returns the host UID and GID for the container uid, gid.
 // Remapping is only performed if the ids aren't already the remapped root ids
 func (i *IDMappings) ToHost(pair IDPair) (IDPair, error) {
-	target, err := i.RootPair()
-	if err != nil {
-		return IDPair{}, err
-	}
+	var err error
+	target := i.RootPair()
 
 	if pair.UID != target.UID {
 		target.UID, err = toHost(pair.UID, i.uids)

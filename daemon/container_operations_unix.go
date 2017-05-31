@@ -109,7 +109,7 @@ func (daemon *Daemon) setupIpcDirs(c *container.Container) error {
 		}
 		c.ShmPath = "/dev/shm"
 	} else {
-		rootIDs, _ := daemon.idMappings.RootPair()
+		rootIDs := daemon.idMappings.RootPair()
 		if !c.HasMountFor("/dev/shm") {
 			shmPath, err := c.ShmResourcePath()
 			if err != nil {
@@ -147,7 +147,7 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 	logrus.Debugf("secrets: setting up secret dir: %s", localMountPath)
 
 	// retrieve possible remapped range start for root UID, GID
-	rootIDs, _ := daemon.idMappings.RootPair()
+	rootIDs := daemon.idMappings.RootPair()
 	// create tmpfs
 	if err := idtools.MkdirAllAndChown(localMountPath, 0700, rootIDs); err != nil {
 		return errors.Wrap(err, "error creating secret local mount path")
@@ -232,7 +232,7 @@ func (daemon *Daemon) setupConfigDir(c *container.Container) (setupErr error) {
 	logrus.Debugf("configs: setting up config dir: %s", localPath)
 
 	// retrieve possible remapped range start for root UID, GID
-	rootIDs, _ := daemon.idMappings.RootPair()
+	rootIDs := daemon.idMappings.RootPair()
 	// create tmpfs
 	if err := idtools.MkdirAllAndChown(localPath, 0700, rootIDs); err != nil {
 		return errors.Wrap(err, "error creating config dir")

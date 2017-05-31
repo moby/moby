@@ -117,10 +117,7 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 		return nil, err
 	}
 
-	rootIDs, err := daemon.idMappings.RootPair()
-	if err != nil {
-		return nil, err
-	}
+	rootIDs := daemon.idMappings.RootPair()
 	if err := idtools.MkdirAndChown(container.Root, 0700, rootIDs); err != nil {
 		return nil, err
 	}

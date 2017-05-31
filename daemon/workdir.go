@@ -16,6 +16,5 @@ func (daemon *Daemon) ContainerCreateWorkdir(cID string) error {
 		return err
 	}
 	defer daemon.Unmount(container)
-	rootIDs, _ := daemon.idMappings.RootPair()
-	return container.SetupWorkingDirectory(rootIDs)
+	return container.SetupWorkingDirectory(daemon.idMappings.RootPair())
 }

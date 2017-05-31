@@ -803,10 +803,7 @@ func Unpack(decompressedArchive io.Reader, dest string, options *TarOptions) err
 
 	var dirs []*tar.Header
 	idMappings := idtools.NewIDMappingsFromMaps(options.UIDMaps, options.GIDMaps)
-	rootIDs, err := idMappings.RootPair()
-	if err != nil {
-		return err
-	}
+	rootIDs := idMappings.RootPair()
 	whiteoutConverter := getWhiteoutConverter(options.WhiteoutFormat)
 
 	// Iterate through the files in the archive.
@@ -1008,10 +1005,7 @@ func (archiver *Archiver) CopyWithTar(src, dst string) error {
 	// if this archiver is set up with ID mapping we need to create
 	// the new destination directory with the remapped root UID/GID pair
 	// as owner
-	rootIDs, err := archiver.IDMappings.RootPair()
-	if err != nil {
-		return err
-	}
+	rootIDs := archiver.IDMappings.RootPair()
 	// Create dst, copy src's content into it
 	logrus.Debugf("Creating dest directory: %s", dst)
 	if err := idtools.MkdirAllAndChownNew(dst, 0755, rootIDs); err != nil {

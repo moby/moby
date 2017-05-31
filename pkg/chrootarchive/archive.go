@@ -47,10 +47,7 @@ func untarHandler(tarArchive io.Reader, dest string, options *archive.TarOptions
 	}
 
 	idMappings := idtools.NewIDMappingsFromMaps(options.UIDMaps, options.GIDMaps)
-	rootIDs, err := idMappings.RootPair()
-	if err != nil {
-		return err
-	}
+	rootIDs := idMappings.RootPair()
 
 	dest = filepath.Clean(dest)
 	if _, err := os.Stat(dest); os.IsNotExist(err) {

@@ -22,7 +22,7 @@ func (daemon *Daemon) createContainerPlatformSpecificSettings(container *contain
 	}
 	defer daemon.Unmount(container)
 
-	rootIDs, _ := daemon.idMappings.RootPair()
+	rootIDs := daemon.idMappings.RootPair()
 	if err := container.SetupWorkingDirectory(rootIDs); err != nil {
 		return err
 	}
