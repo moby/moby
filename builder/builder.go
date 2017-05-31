@@ -78,7 +78,7 @@ type Result struct {
 // ImageCacheBuilder represents a generator for stateful image cache.
 type ImageCacheBuilder interface {
 	// MakeImageCache creates a stateful image cache.
-	MakeImageCache(cacheFrom []string) ImageCache
+	MakeImageCache(cacheFrom []string, platform string) ImageCache
 }
 
 // ImageCache abstracts an image cache.

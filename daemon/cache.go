@@ -1,22 +1,18 @@
 package daemon
 
 import (
-	"runtime"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/image/cache"
 )
 
 // MakeImageCache creates a stateful image cache.
-func (daemon *Daemon) MakeImageCache(sourceRefs []string) builder.ImageCache {
+func (daemon *Daemon) MakeImageCache(sourceRefs []string, platform string) builder.ImageCache {
 	if len(sourceRefs) == 0 {
-		// TODO @jhowardmsft LCOW. For now, assume it is the OS of the host
-		return cache.NewLocal(daemon.stores[runtime.GOOS].imageStore)
+		return cache.NewLocal(daemon.stores[platform].imageStore)
 	}
 
-	// TODO @jhowardmsft LCOW. For now, assume it is the OS of the host
-	cache := cache.New(daemon.stores[runtime.GOOS].imageStore)
+	cache := cache.New(daemon.stores[platform].imageStore)
 
 	for _, ref := range sourceRefs {
 		img, err := daemon.GetImage(ref)
