@@ -59,4 +59,5 @@ func waitForNotification(callbackNumber uintptr, expectedNotification hcsNotific
 	case <-c:
 		return ErrTimeout
 	}
+	return nil
 }
