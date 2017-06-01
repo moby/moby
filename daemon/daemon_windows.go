@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/platform"
@@ -627,4 +628,14 @@ func (daemon *Daemon) verifyVolumesInfo(container *container.Container) error {
 
 func (daemon *Daemon) setupSeccompProfile() error {
 	return nil
+}
+
+func getRealPath(path string) (string, error) {
+	if system.IsIoTCore() {
+		// Due to https://github.com/golang/go/issues/20506, path expansion
+		// does not work correctly on the default IoT Core configuration.
+		// TODO @darrenstahlmsft remove this once golang/go/20506 is fixed
+		return path, nil
+	}
+	return fileutils.ReadSymlinkedDirectory(path)
 }

@@ -40,7 +40,6 @@ import (
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/migrate/v1"
-	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/registrar"
@@ -537,7 +536,7 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	if err != nil {
 		return nil, fmt.Errorf("Unable to get the TempDir under %s: %s", config.Root, err)
 	}
-	realTmp, err := fileutils.ReadSymlinkedDirectory(tmp)
+	realTmp, err := getRealPath(tmp)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to get the full path to the TempDir (%s): %s", tmp, err)
 	}
@@ -1143,7 +1142,7 @@ func CreateDaemonRoot(config *config.Config) error {
 	if _, err := os.Stat(config.Root); err != nil && os.IsNotExist(err) {
 		realRoot = config.Root
 	} else {
-		realRoot, err = fileutils.ReadSymlinkedDirectory(config.Root)
+		realRoot, err = getRealPath(config.Root)
 		if err != nil {
 			return fmt.Errorf("Unable to get the full path to root (%s): %s", config.Root, err)
 		}
