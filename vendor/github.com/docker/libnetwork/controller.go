@@ -205,6 +205,7 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 			dcfg = c.makeDriverConfig(i.ntype)
 		}
 
+		// in i.fn, bridge drivers restore the port mapping and proxy based on stored endpoint
 		if err := drvRegistry.AddDriver(i.ntype, i.fn, dcfg); err != nil {
 			return nil, err
 		}
@@ -232,6 +233,8 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 	c.reservePools()
 
 	// Cleanup resources
+	// clean up the sandbox and the related endpoints( including release port mapping and proxy), however, if endpoint updated but
+	// process exited abnormally before update the sandbox store, then after the process restart, there would be ports leak.
 	c.sandboxCleanup(c.cfg.ActiveSandboxes)
 	c.cleanupLocalEndpoints()
 	c.networkCleanup()
