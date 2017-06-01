@@ -614,7 +614,7 @@ func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 	}
 	defer ep.Delete(false)
 
-	expectedIP, _ := types.ParseCIDR("10.34.0.2/16")
+	expectedIP, _ := types.ParseCIDR("10.34.0.1/16")
 	if !types.CompareIPNet(ep.Info().Iface().Address(), expectedIP) {
 		t.Fatalf("Ipam release must have failed, endpoint has unexpected address: %v", ep.Info().Iface().Address())
 	}

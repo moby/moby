@@ -199,22 +199,22 @@ func (h *Handle) getCopy() *Handle {
 }
 
 // SetAnyInRange atomically sets the first unset bit in the specified range in the sequence and returns the corresponding ordinal
-func (h *Handle) SetAnyInRange(start, end uint64) (uint64, error) {
+func (h *Handle) SetAnyInRange(start, end uint64, serial bool) (uint64, error) {
 	if end < start || end >= h.bits {
 		return invalidPos, fmt.Errorf("invalid bit range [%d, %d]", start, end)
 	}
 	if h.Unselected() == 0 {
 		return invalidPos, ErrNoBitAvailable
 	}
-	return h.set(0, start, end, true, false)
+	return h.set(0, start, end, true, false, serial)
 }
 
 // SetAny atomically sets the first unset bit in the sequence and returns the corresponding ordinal
-func (h *Handle) SetAny() (uint64, error) {
+func (h *Handle) SetAny(serial bool) (uint64, error) {
 	if h.Unselected() == 0 {
 		return invalidPos, ErrNoBitAvailable
 	}
-	return h.set(0, 0, h.bits-1, true, false)
+	return h.set(0, 0, h.bits-1, true, false, serial)
 }
 
 // Set atomically sets the corresponding bit in the sequence
@@ -222,7 +222,7 @@ func (h *Handle) Set(ordinal uint64) error {
 	if err := h.validateOrdinal(ordinal); err != nil {
 		return err
 	}
-	_, err := h.set(ordinal, 0, 0, false, false)
+	_, err := h.set(ordinal, 0, 0, false, false, false)
 	return err
 }
 
@@ -231,7 +231,7 @@ func (h *Handle) Unset(ordinal uint64) error {
 	if err := h.validateOrdinal(ordinal); err != nil {
 		return err
 	}
-	_, err := h.set(ordinal, 0, 0, false, true)
+	_, err := h.set(ordinal, 0, 0, false, true, false)
 	return err
 }
 
@@ -300,7 +300,7 @@ func (h *Handle) CheckConsistency() error {
 }
 
 // set/reset the bit
-func (h *Handle) set(ordinal, start, end uint64, any bool, release bool) (uint64, error) {
+func (h *Handle) set(ordinal, start, end uint64, any bool, release bool, serial bool) (uint64, error) {
 	var (
 		bitPos  uint64
 		bytePos uint64
@@ -310,6 +310,7 @@ func (h *Handle) set(ordinal, start, end uint64, any bool, release bool) (uint64
 
 	for {
 		var store datastore.DataStore
+		curr := uint64(0)
 		h.Lock()
 		store = h.store
 		h.Unlock()
@@ -320,12 +321,15 @@ func (h *Handle) set(ordinal, start, end uint64, any bool, release bool) (uint64
 		}
 
 		h.Lock()
+		if serial {
+			curr = h.curr
+		}
 		// Get position if available
 		if release {
 			bytePos, bitPos = ordinalToPos(ordinal)
 		} else {
 			if any {
-				bytePos, bitPos, err = getAvailableFromCurrent(h.head, start, h.curr, end)
+				bytePos, bitPos, err = getAvailableFromCurrent(h.head, start, curr, end)
 				ret = posToOrdinal(bytePos, bitPos)
 				if err == nil {
 					h.curr = ret + 1
@@ -517,9 +521,9 @@ func getFirstAvailable(head *sequence, start uint64) (uint64, uint64, error) {
 	return invalidPos, invalidPos, ErrNoBitAvailable
 }
 
-//getAvailableFromCurrent will look for available ordinal from the current ordinal.
+// getAvailableFromCurrent will look for available ordinal from the current ordinal.
 // If none found then it will loop back to the start to check of the available bit.
-//This can be further optimized to check from start till curr in case of a rollover
+// This can be further optimized to check from start till curr in case of a rollover
 func getAvailableFromCurrent(head *sequence, start, curr, end uint64) (uint64, uint64, error) {
 	var bytePos, bitPos uint64
 	if curr != 0 && curr > start {

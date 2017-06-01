@@ -1033,7 +1033,7 @@ func assertGetAddress(t *testing.T, subnet string) {
 	start := time.Now()
 	run := 0
 	for err != ipamapi.ErrNoAvailableIPs {
-		_, err = a.getAddress(sub, bm, nil, nil)
+		_, err = a.getAddress(sub, bm, nil, nil, false)
 		run++
 	}
 	if printTime {

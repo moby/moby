@@ -1,4 +1,4 @@
-SetAny(false)package bitseq
+package bitseq
 
 import (
 	"fmt"
@@ -613,7 +613,7 @@ func TestSetUnset(t *testing.T) {
 	if _, err := hnd.SetAny(false); err != ErrNoBitAvailable {
 		t.Fatal("Expected error. Got success")
 	}
-	if _, err := hnd.SetAnyInRange(10, 20); err != ErrNoBitAvailable {
+	if _, err := hnd.SetAnyInRange(10, 20, false); err != ErrNoBitAvailable {
 		t.Fatal("Expected error. Got success")
 	}
 	if err := hnd.Set(50); err != ErrBitAllocated {
@@ -647,7 +647,7 @@ func TestOffsetSetUnset(t *testing.T) {
 		t.Fatal("Expected error. Got success")
 	}
 
-	if _, err := hnd.SetAnyInRange(10, 20); err != ErrNoBitAvailable {
+	if _, err := hnd.SetAnyInRange(10, 20, false); err != ErrNoBitAvailable {
 		t.Fatal("Expected error. Got success")
 	}
 
@@ -656,7 +656,7 @@ func TestOffsetSetUnset(t *testing.T) {
 	}
 
 	//At this point sequence is (0xffffffff, 9)->(0x7fffffff, 1)->(0xffffffff, 22)->end
-	if o, err = hnd.SetAnyInRange(32, 500); err != nil {
+	if o, err = hnd.SetAnyInRange(32, 500, false); err != nil {
 		t.Fatal(err)
 	}
 
@@ -675,15 +675,15 @@ func TestSetInRange(t *testing.T) {
 
 	firstAv := uint64(100*blockLen + blockLen - 1)
 
-	if o, err := hnd.SetAnyInRange(4, 3); err == nil {
+	if o, err := hnd.SetAnyInRange(4, 3, false); err == nil {
 		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
 	}
 
-	if o, err := hnd.SetAnyInRange(0, numBits); err == nil {
+	if o, err := hnd.SetAnyInRange(0, numBits, false); err == nil {
 		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
 	}
 
-	o, err := hnd.SetAnyInRange(100*uint64(blockLen), 101*uint64(blockLen))
+	o, err := hnd.SetAnyInRange(100*uint64(blockLen), 101*uint64(blockLen), false)
 	if err != nil {
 		t.Fatalf("Unexpected failure: (%d, %v)", o, err)
 	}
@@ -691,19 +691,19 @@ func TestSetInRange(t *testing.T) {
 		t.Fatalf("Unexpected ordinal: %d", o)
 	}
 
-	if o, err := hnd.SetAnyInRange(0, uint64(blockLen)); err == nil {
+	if o, err := hnd.SetAnyInRange(0, uint64(blockLen), false); err == nil {
 		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
 	}
 
-	if o, err := hnd.SetAnyInRange(0, firstAv-1); err == nil {
+	if o, err := hnd.SetAnyInRange(0, firstAv-1, false); err == nil {
 		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
 	}
 
-	if o, err := hnd.SetAnyInRange(111*uint64(blockLen), 161*uint64(blockLen)); err == nil {
+	if o, err := hnd.SetAnyInRange(111*uint64(blockLen), 161*uint64(blockLen), false); err == nil {
 		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
 	}
 
-	o, err = hnd.SetAnyInRange(161*uint64(blockLen), 162*uint64(blockLen))
+	o, err = hnd.SetAnyInRange(161*uint64(blockLen), 162*uint64(blockLen), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -711,7 +711,7 @@ func TestSetInRange(t *testing.T) {
 		t.Fatalf("Unexpected ordinal: %d", o)
 	}
 
-	o, err = hnd.SetAnyInRange(161*uint64(blockLen), 162*uint64(blockLen))
+	o, err = hnd.SetAnyInRange(161*uint64(blockLen), 162*uint64(blockLen), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -719,17 +719,17 @@ func TestSetInRange(t *testing.T) {
 		t.Fatalf("Unexpected ordinal: %d", o)
 	}
 
-	o, err = hnd.SetAnyInRange(161*uint64(blockLen), 162*uint64(blockLen))
+	o, err = hnd.SetAnyInRange(161*uint64(blockLen), 162*uint64(blockLen), false)
 	if err == nil {
 		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
 	}
 
-	if _, err := hnd.SetAnyInRange(0, numBits-1); err != nil {
+	if _, err := hnd.SetAnyInRange(0, numBits-1, false); err != nil {
 		t.Fatalf("Unexpected failure: %v", err)
 	}
 
 	// set one bit using the set range with 1 bit size range
-	if _, err := hnd.SetAnyInRange(uint64(163*blockLen-1), uint64(163*blockLen-1)); err != nil {
+	if _, err := hnd.SetAnyInRange(uint64(163*blockLen-1), uint64(163*blockLen-1), false); err != nil {
 		t.Fatal(err)
 	}
 
@@ -741,12 +741,12 @@ func TestSetInRange(t *testing.T) {
 
 	// set all bit in the first range
 	for hnd.Unselected() > 22 {
-		if o, err := hnd.SetAnyInRange(0, 7); err != nil {
+		if o, err := hnd.SetAnyInRange(0, 7, false); err != nil {
 			t.Fatalf("Unexpected failure: (%d, %v)", o, err)
 		}
 	}
 	// try one more set, which should fail
-	o, err = hnd.SetAnyInRange(0, 7)
+	o, err = hnd.SetAnyInRange(0, 7, false)
 	if err == nil {
 		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
 	}
@@ -756,13 +756,13 @@ func TestSetInRange(t *testing.T) {
 
 	// set all bit in a second range
 	for hnd.Unselected() > 14 {
-		if o, err := hnd.SetAnyInRange(8, 15); err != nil {
+		if o, err := hnd.SetAnyInRange(8, 15, false); err != nil {
 			t.Fatalf("Unexpected failure: (%d, %v)", o, err)
 		}
 	}
 
 	// try one more set, which should fail
-	o, err = hnd.SetAnyInRange(0, 15)
+	o, err = hnd.SetAnyInRange(0, 15, false)
 	if err == nil {
 		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
 	}
@@ -772,131 +772,11 @@ func TestSetInRange(t *testing.T) {
 
 	// set all bit in a range which includes the last bit
 	for hnd.Unselected() > 12 {
-		if o, err := hnd.SetAnyInRange(28, 29); err != nil {
+		if o, err := hnd.SetAnyInRange(28, 29, false); err != nil {
 			t.Fatalf("Unexpected failure: (%d, %v)", o, err)
 		}
 	}
-	o, err = hnd.SetAnyInRange(28, 29)
-	if err == nil {
-		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
-	}
-	if err != ErrNoBitAvailable {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-}
-
-func TestSetInRangeSerial(t *testing.T) {
-	numBits := uint64(1024 * blockLen)
-	hnd, err := NewHandle("", nil, "", numBits)
-	if err != nil {
-		t.Fatal(err)
-	}
-	hnd.head = getTestSequence()
-
-	firstAv := uint64(100*blockLen + blockLen - 1)
-
-	if o, err := hnd.SetAnyInRange(4, 3); err == nil {
-		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
-	}
-
-	if o, err := hnd.SetAnyInRange(0, numBits); err == nil {
-		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
-	}
-
-	o, err := hnd.SetAnyInRange(100*uint64(blockLen), 101*uint64(blockLen))
-	if err != nil {
-		t.Fatalf("Unexpected failure: (%d, %v)", o, err)
-	}
-	if o != firstAv {
-		t.Fatalf("Unexpected ordinal: %d", o)
-	}
-
-	if o, err := hnd.SetAnyInRange(0, uint64(blockLen)); err == nil {
-		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
-	}
-
-	if o, err := hnd.SetAnyInRange(0, firstAv-1); err == nil {
-		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
-	}
-
-	if o, err := hnd.SetAnyInRange(111*uint64(blockLen), 161*uint64(blockLen)); err == nil {
-		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
-	}
-
-	o, err = hnd.SetAnyInRange(161*uint64(blockLen), 162*uint64(blockLen))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if o != 161*uint64(blockLen)+30 {
-		t.Fatalf("Unexpected ordinal: %d", o)
-	}
-
-	o, err = hnd.SetAnyInRange(161*uint64(blockLen), 162*uint64(blockLen))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if o != 161*uint64(blockLen)+31 {
-		t.Fatalf("Unexpected ordinal: %d", o)
-	}
-
-	o, err = hnd.SetAnyInRange(161*uint64(blockLen), 162*uint64(blockLen))
-	if err == nil {
-		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
-	}
-
-	if _, err := hnd.SetAnyInRange(0, numBits-1); err != nil {
-		t.Fatalf("Unexpected failure: %v", err)
-	}
-
-	// set one bit using the set range with 1 bit size range
-	if _, err := hnd.SetAnyInRange(uint64(163*blockLen-1), uint64(163*blockLen-1)); err != nil {
-		t.Fatal(err)
-	}
-
-	// create a non multiple of 32 mask
-	hnd, err = NewHandle("", nil, "", 30)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// set all bit in the first range
-	for hnd.Unselected() > 22 {
-		if o, err := hnd.SetAnyInRange(0, 7); err != nil {
-			t.Fatalf("Unexpected failure: (%d, %v)", o, err)
-		}
-	}
-	// try one more set, which should fail
-	o, err = hnd.SetAnyInRange(0, 7)
-	if err == nil {
-		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
-	}
-	if err != ErrNoBitAvailable {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-
-	// set all bit in a second range
-	for hnd.Unselected() > 14 {
-		if o, err := hnd.SetAnyInRange(8, 15); err != nil {
-			t.Fatalf("Unexpected failure: (%d, %v)", o, err)
-		}
-	}
-
-	// try one more set, which should fail
-	o, err = hnd.SetAnyInRange(0, 15)
-	if err == nil {
-		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
-	}
-	if err != ErrNoBitAvailable {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-
-	// set all bit in a range which includes the last bit
-	for hnd.Unselected() > 12 {
-		if o, err := hnd.SetAnyInRange(28, 29); err != nil {
-			t.Fatalf("Unexpected failure: (%d, %v)", o, err)
-		}
-	}
-	o, err = hnd.SetAnyInRange(28, 29)
+	o, err = hnd.SetAnyInRange(28, 29, false)
 	if err == nil {
 		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
 	}
@@ -926,7 +806,7 @@ func TestSetAnyInRange(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	o, err := hnd.SetAnyInRange(128, 255)
+	o, err := hnd.SetAnyInRange(128, 255, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -934,7 +814,7 @@ func TestSetAnyInRange(t *testing.T) {
 		t.Fatalf("Unexpected ordinal: %d", o)
 	}
 
-	o, err = hnd.SetAnyInRange(128, 255)
+	o, err = hnd.SetAnyInRange(128, 255, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -943,7 +823,7 @@ func TestSetAnyInRange(t *testing.T) {
 		t.Fatalf("Unexpected ordinal: %d", o)
 	}
 
-	o, err = hnd.SetAnyInRange(246, 255)
+	o, err = hnd.SetAnyInRange(246, 255, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -951,7 +831,7 @@ func TestSetAnyInRange(t *testing.T) {
 		t.Fatalf("Unexpected ordinal: %d", o)
 	}
 
-	o, err = hnd.SetAnyInRange(246, 255)
+	o, err = hnd.SetAnyInRange(246, 255, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1131,6 +1011,7 @@ func TestAllocateRandomDeallocateSerialize(t *testing.T) {
 			t.Fatalf("Unexpected failure on allocation %d: %v\n%s", i, err, hnd)
 		}
 	}
+
 	if hnd.Unselected() != uint64(numBits/2) {
 		t.Fatalf("Expected full sequence. Instead found %d free bits. %s", hnd.unselected, hnd)
 	}
@@ -1354,5 +1235,78 @@ func TestIsCorrupted(t *testing.T) {
 		if hnd.runConsistencyCheck() {
 			t.Fatalf("Sequence still marked corrupted (%d): %s", idx, hnd)
 		}
+	}
+}
+
+func TestSetRollover(t *testing.T) {
+	ds, err := randomLocalStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	numBlocks := uint32(8)
+	numBits := int(numBlocks * blockLen)
+	hnd, err := NewHandle("bitseq-test/data/", ds, "test1", uint64(numBits))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Allocate first half of the bits
+	for i := 0; i < numBits/2; i++ {
+		_, err := hnd.SetAny(true)
+		if err != nil {
+			t.Fatalf("Unexpected failure on allocation %d: %v\n%s", i, err, hnd)
+		}
+	}
+
+	if hnd.Unselected() != uint64(numBits/2) {
+		t.Fatalf("Expected full sequence. Instead found %d free bits. %s", hnd.unselected, hnd)
+	}
+
+	seed := time.Now().Unix()
+	rand.Seed(seed)
+
+	// Deallocate half of the allocated bits following a random pattern
+	pattern := rand.Perm(numBits / 2)
+	for i := 0; i < numBits/4; i++ {
+		bit := pattern[i]
+		err := hnd.Unset(uint64(bit))
+		if err != nil {
+			t.Fatalf("Unexpected failure on deallocation of %d: %v.\nSeed: %d.\n%s", bit, err, seed, hnd)
+		}
+	}
+	if hnd.Unselected() != uint64(3*numBits/4) {
+		t.Fatalf("Expected full sequence. Instead found %d free bits.\nSeed: %d.\n%s", hnd.unselected, seed, hnd)
+	}
+
+	//request to allocate for remaining half of the bits
+	for i := 0; i < numBits/2; i++ {
+		_, err := hnd.SetAny(true)
+		if err != nil {
+			t.Fatalf("Unexpected failure on allocation %d: %v\nSeed: %d\n%s", i, err, seed, hnd)
+		}
+	}
+
+	//At this point all the bits must be allocated except the randomly unallocated bits
+	//which were unallocated in the first half of the bit sequence
+	if hnd.Unselected() != uint64(numBits/4) {
+		t.Fatalf("Unexpected number of unselected bits %d, Expected %d", hnd.Unselected(), numBits/4)
+	}
+
+	for i := 0; i < numBits/4; i++ {
+		_, err := hnd.SetAny(true)
+		if err != nil {
+			t.Fatalf("Unexpected failure on allocation %d: %v\nSeed: %d\n%s", i, err, seed, hnd)
+		}
+	}
+	//Now requesting to allocate the unallocated random bits (qurter of the number of bits) should
+	//leave no more bits that can be allocated.
+	if hnd.Unselected() != 0 {
+		t.Fatalf("Unexpected number of unselected bits %d, Expected %d", hnd.Unselected(), numBits/4)
+	}
+
+	err = hnd.Destroy()
+	if err != nil {
+		t.Fatal(err)
 	}
 }
