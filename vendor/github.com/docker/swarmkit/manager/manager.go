@@ -217,7 +217,6 @@ func New(config *Config) (*Manager, error) {
 
 	m := &Manager{
 		config:          *config,
-		collector:       metrics.NewCollector(raftNode.MemoryStore()),
 		caserver:        ca.NewServer(raftNode.MemoryStore(), config.SecurityConfig, config.RootCAPaths),
 		dispatcher:      dispatcher.New(raftNode, dispatcher.DefaultConfig()),
 		logbroker:       logbroker.New(raftNode.MemoryStore()),
@@ -502,12 +501,16 @@ func (m *Manager) Run(parent context.Context) error {
 	healthServer.SetServingStatus("Raft", api.HealthCheckResponse_SERVING)
 
 	if err := m.raftNode.JoinAndStart(ctx); err != nil {
+		// Don't block future calls to Stop.
+		close(m.started)
 		return errors.Wrap(err, "can't initialize raft node")
 	}
 
 	localHealthServer.SetServingStatus("ControlAPI", api.HealthCheckResponse_SERVING)
 
 	// Start metrics collection.
+
+	m.collector = metrics.NewCollector(m.raftNode.MemoryStore())
 	go func(collector *metrics.Collector) {
 		if err := collector.Run(ctx); err != nil {
 			log.G(ctx).WithError(err).Error("collector failed with an error")
@@ -590,7 +593,10 @@ func (m *Manager) Stop(ctx context.Context, clearData bool) {
 
 	m.raftNode.Cancel()
 
-	m.collector.Stop()
+	if m.collector != nil {
+		m.collector.Stop()
+	}
+
 	m.dispatcher.Stop()
 	m.logbroker.Stop()
 	m.caserver.Stop()

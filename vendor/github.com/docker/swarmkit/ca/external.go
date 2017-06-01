@@ -23,6 +23,9 @@ import (
 	"golang.org/x/net/context/ctxhttp"
 )
 
+// ExternalCrossSignProfile is the profile that we will be sending cross-signing CSR sign requests with
+const ExternalCrossSignProfile = "CA"
+
 // ErrNoExternalCAURLs is an error used it indicate that an ExternalCA is
 // configured with no URLs to which it can proxy certificate signing requests.
 var ErrNoExternalCAURLs = errors.New("no external CA URLs")
@@ -79,13 +82,19 @@ func (eca *ExternalCA) UpdateTLSConfig(tlsConfig *tls.Config) {
 	}
 }
 
-// UpdateURLs updates the list of CSR API endpoints by setting it to the given
-// urls.
+// UpdateURLs updates the list of CSR API endpoints by setting it to the given urls.
 func (eca *ExternalCA) UpdateURLs(urls ...string) {
 	eca.mu.Lock()
 	defer eca.mu.Unlock()
 
 	eca.urls = urls
+}
+
+// UpdateRootCA changes the root CA used to append intermediates
+func (eca *ExternalCA) UpdateRootCA(rca *RootCA) {
+	eca.mu.Lock()
+	eca.rootCA = rca
+	eca.mu.Unlock()
 }
 
 // Sign signs a new certificate by proxying the given certificate signing
@@ -96,6 +105,7 @@ func (eca *ExternalCA) Sign(ctx context.Context, req signer.SignRequest) (cert [
 	eca.mu.Lock()
 	urls := eca.urls
 	client := eca.client
+	intermediates := eca.rootCA.Intermediates
 	eca.mu.Unlock()
 
 	if len(urls) == 0 {
@@ -114,7 +124,7 @@ func (eca *ExternalCA) Sign(ctx context.Context, req signer.SignRequest) (cert [
 		cert, err = makeExternalSignRequest(requestCtx, client, url, csrJSON)
 		cancel()
 		if err == nil {
-			return append(cert, eca.rootCA.Intermediates...), err
+			return append(cert, intermediates...), err
 		}
 		logrus.Debugf("unable to proxy certificate signing request to %s: %s", url, err)
 	}
@@ -157,6 +167,7 @@ func (eca *ExternalCA) CrossSignRootCA(ctx context.Context, rca RootCA) ([]byte,
 			CN:    rootCert.Subject.CommonName,
 			Names: cfCSRObj.Names,
 		},
+		Profile: ExternalCrossSignProfile,
 	}
 	// cfssl actually ignores non subject alt name extensions in the CSR, so we have to add the CA extension in the signing
 	// request as well
