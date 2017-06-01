@@ -30,6 +30,7 @@ func (cli *Client) ContainerStatPath(ctx context.Context, containerID, path stri
 }
 
 // CopyToContainer copies content into the container filesystem.
+// Note that `content` must be a Reader for a TAR
 func (cli *Client) CopyToContainer(ctx context.Context, container, path string, content io.Reader, options types.CopyToContainerOptions) error {
 	query := url.Values{}
 	query.Set("path", filepath.ToSlash(path)) // Normalize the paths used in the API.
