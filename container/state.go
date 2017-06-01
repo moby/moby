@@ -180,7 +180,7 @@ const (
 	WaitConditionRemoved
 )
 
-// Wait waits until the continer is in a certain state indicated by the given
+// Wait waits until the container is in a certain state indicated by the given
 // condition. A context must be used for cancelling the request, controlling
 // timeouts, and avoiding goroutine leaks. Wait must be called without holding
 // the state lock. Returns a channel from which the caller will receive the

@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/api/types/versions"
 )
 
-// ContainerWait waits until the specified continer is in a certain state
+// ContainerWait waits until the specified container is in a certain state
 // indicated by the given condition, either "not-running" (default),
 // "next-exit", or "removed".
 //
