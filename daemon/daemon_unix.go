@@ -191,6 +191,19 @@ func (daemon *Daemon) parseSecurityOpt(container *container.Container, hostConfi
 	return parseSecurityOpt(container, hostConfig)
 }
 
+func getHugetlbResources(config containertypes.Resources) []specs.LinuxHugepageLimit {
+	var hpLimits []specs.LinuxHugepageLimit
+
+	for _, hpl := range config.Hugetlbs {
+		hpLimits = append(hpLimits, specs.LinuxHugepageLimit{
+			Pagesize: hpl.PageSize,
+			Limit:    hpl.Limit,
+		})
+	}
+
+	return hpLimits
+}
+
 func parseSecurityOpt(container *container.Container, config *containertypes.HostConfig) error {
 	var (
 		labelOpts []string
@@ -556,7 +569,44 @@ func verifyPlatformContainerResources(resources *containertypes.Resources, sysIn
 		resources.BlkioDeviceWriteIOps = []*pblkiodev.ThrottleDevice{}
 	}
 
+	if !sysInfo.HugetlbLimit {
+		logrus.Warnf("Your kernel does not support hugetlb limit. --hugetlb-limit discarded.")
+		resources.Hugetlbs = []containertypes.Hugetlb{}
+	} else {
+		newHugetlbs, warning, err := validateHugetlbs(resources.Hugetlbs, sysInfo)
+		warnings = append(warnings, warning...)
+		if err != nil {
+			return warnings, err
+		}
+		resources.Hugetlbs = newHugetlbs
+	}
+
 	return warnings, nil
+}
+
+func validateHugetlbs(hgtlbs []containertypes.Hugetlb, sysInfo *sysinfo.SysInfo) ([]containertypes.Hugetlb, []string, error) {
+	warnings := []string{}
+	htbMap := make(map[string]uint64)
+
+	for _, hpl := range hgtlbs {
+		size, warning, err := sysInfo.ValidateHugetlb(hpl.PageSize, hpl.Limit)
+		warnings = append(warnings, warning...)
+		if err != nil {
+			return nil, warnings, err
+		}
+		htbMap[size] = hpl.Limit
+	}
+
+	newHgtlbs := []containertypes.Hugetlb{}
+	for k, v := range htbMap {
+		hugetlb := containertypes.Hugetlb{
+			PageSize: k,
+			Limit:    v,
+		}
+		newHgtlbs = append(newHgtlbs, hugetlb)
+	}
+
+	return newHgtlbs, warnings, nil
 }
 
 func (daemon *Daemon) getCgroupDriver() string {

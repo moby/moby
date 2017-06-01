@@ -54,6 +54,7 @@ func setResources(s *specs.Spec, r containertypes.Resources) error {
 		return err
 	}
 
+	hpRes := getHugetlbResources(r)
 	memoryRes := getMemoryResources(r)
 	cpuRes, err := getCPUResources(r)
 	if err != nil {
@@ -75,6 +76,7 @@ func setResources(s *specs.Spec, r containertypes.Resources) error {
 		Pids: &specs.LinuxPids{
 			Limit: r.PidsLimit,
 		},
+		HugepageLimits: hpRes,
 	}
 
 	if s.Linux.Resources != nil && len(s.Linux.Resources.Devices) > 0 {

@@ -68,6 +68,10 @@ func memorySwappinessSupport() bool {
 	return testEnv.IsLocalDaemon() && SysInfo.MemorySwappiness
 }
 
+func hugetlbLimitSupport() bool {
+	return SysInfo.HugetlbLimit
+}
+
 func blkioWeight() bool {
 	return testEnv.IsLocalDaemon() && SysInfo.BlkioWeight
 }

@@ -36,6 +36,7 @@ func New(quiet bool) *SysInfo {
 		logrus.Warnf("Failed to parse cgroup information: %v", err)
 	} else {
 		sysInfo.cgroupMemInfo = checkCgroupMem(cgMounts, quiet)
+		sysInfo.cgroupHugetlbInfo = checkCgroupHugetlb(cgMounts, quiet)
 		sysInfo.cgroupCPUInfo = checkCgroupCPU(cgMounts, quiet)
 		sysInfo.cgroupBlkioInfo = checkCgroupBlkioInfo(cgMounts, quiet)
 		sysInfo.cgroupCpusetInfo = checkCgroupCpusetInfo(cgMounts, quiet)
@@ -63,6 +64,36 @@ func New(quiet bool) *SysInfo {
 	}
 
 	return sysInfo
+}
+
+// checkCgroupHugetlb reads the hugetlb information from the hugetlb cgroup mount point.
+func checkCgroupHugetlb(cgMounts map[string]string, quiet bool) cgroupHugetlbInfo {
+	var (
+		dSize string
+		err   error
+		c     cgroupHugetlbInfo
+	)
+	mountPoint, ok := cgMounts["hugetlb"]
+	if !ok {
+		if !quiet {
+			logrus.Warnf("Your kernel does not support cgroup hugetlb limit")
+		}
+		return c
+	}
+	dSize, err = c.GetDefaultHugepageSize()
+	if err != nil {
+		logrus.Warnf("Your kernel does not support cgroup hugetlb limit")
+		return c
+	}
+
+	hugetlbLimit := cgroupEnabled(mountPoint, fmt.Sprintf("hugetlb.%s.limit_in_bytes", dSize))
+	if !quiet && !hugetlbLimit {
+		logrus.Warn("Your kernel does not support hugetlb limit.")
+	}
+
+	return cgroupHugetlbInfo{
+		HugetlbLimit: hugetlbLimit,
+	}
 }
 
 // checkCgroupMem reads the memory information from the memory cgroup mount point.
