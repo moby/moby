@@ -1,4 +1,4 @@
-package gitutils
+package git
 
 import (
 	"fmt"
@@ -8,10 +8,12 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"reflect"
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCloneArgsSmartHttp(t *testing.T) {
@@ -28,9 +30,7 @@ func TestCloneArgsSmartHttp(t *testing.T) {
 
 	args := fetchArgs(serverURL, "master")
 	exp := []string{"fetch", "--recurse-submodules=yes", "--depth", "1", "origin", "master"}
-	if !reflect.DeepEqual(args, exp) {
-		t.Fatalf("Expected %v, got %v", exp, args)
-	}
+	assert.Equal(t, exp, args)
 }
 
 func TestCloneArgsDumbHttp(t *testing.T) {
@@ -46,18 +46,14 @@ func TestCloneArgsDumbHttp(t *testing.T) {
 
 	args := fetchArgs(serverURL, "master")
 	exp := []string{"fetch", "--recurse-submodules=yes", "origin", "master"}
-	if !reflect.DeepEqual(args, exp) {
-		t.Fatalf("Expected %v, got %v", exp, args)
-	}
+	assert.Equal(t, exp, args)
 }
 
 func TestCloneArgsGit(t *testing.T) {
 	u, _ := url.Parse("git://github.com/docker/docker")
 	args := fetchArgs(u, "master")
 	exp := []string{"fetch", "--recurse-submodules=yes", "--depth", "1", "origin", "master"}
-	if !reflect.DeepEqual(args, exp) {
-		t.Fatalf("Expected %v, got %v", exp, args)
-	}
+	assert.Equal(t, exp, args)
 }
 
 func gitGetConfig(name string) string {
@@ -72,9 +68,7 @@ func gitGetConfig(name string) string {
 
 func TestCheckoutGit(t *testing.T) {
 	root, err := ioutil.TempDir("", "docker-build-git-checkout")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	defer os.RemoveAll(root)
 
 	autocrlf := gitGetConfig("core.autocrlf")
@@ -89,30 +83,22 @@ func TestCheckoutGit(t *testing.T) {
 
 	gitDir := filepath.Join(root, "repo")
 	_, err = git("init", gitDir)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
-	if _, err = gitWithinDir(gitDir, "config", "user.email", "test@docker.com"); err != nil {
-		t.Fatal(err)
-	}
+	_, err = gitWithinDir(gitDir, "config", "user.email", "test@docker.com")
+	require.NoError(t, err)
 
-	if _, err = gitWithinDir(gitDir, "config", "user.name", "Docker test"); err != nil {
-		t.Fatal(err)
-	}
+	_, err = gitWithinDir(gitDir, "config", "user.name", "Docker test")
+	require.NoError(t, err)
 
-	if err = ioutil.WriteFile(filepath.Join(gitDir, "Dockerfile"), []byte("FROM scratch"), 0644); err != nil {
-		t.Fatal(err)
-	}
+	err = ioutil.WriteFile(filepath.Join(gitDir, "Dockerfile"), []byte("FROM scratch"), 0644)
+	require.NoError(t, err)
 
 	subDir := filepath.Join(gitDir, "subdir")
-	if err = os.Mkdir(subDir, 0755); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, os.Mkdir(subDir, 0755))
 
-	if err = ioutil.WriteFile(filepath.Join(subDir, "Dockerfile"), []byte("FROM scratch\nEXPOSE 5000"), 0644); err != nil {
-		t.Fatal(err)
-	}
+	err = ioutil.WriteFile(filepath.Join(subDir, "Dockerfile"), []byte("FROM scratch\nEXPOSE 5000"), 0644)
+	require.NoError(t, err)
 
 	if runtime.GOOS != "windows" {
 		if err = os.Symlink("../subdir", filepath.Join(gitDir, "parentlink")); err != nil {
@@ -124,37 +110,29 @@ func TestCheckoutGit(t *testing.T) {
 		}
 	}
 
-	if _, err = gitWithinDir(gitDir, "add", "-A"); err != nil {
-		t.Fatal(err)
-	}
+	_, err = gitWithinDir(gitDir, "add", "-A")
+	require.NoError(t, err)
 
-	if _, err = gitWithinDir(gitDir, "commit", "-am", "First commit"); err != nil {
-		t.Fatal(err)
-	}
+	_, err = gitWithinDir(gitDir, "commit", "-am", "First commit")
+	require.NoError(t, err)
 
-	if _, err = gitWithinDir(gitDir, "checkout", "-b", "test"); err != nil {
-		t.Fatal(err)
-	}
+	_, err = gitWithinDir(gitDir, "checkout", "-b", "test")
+	require.NoError(t, err)
 
-	if err = ioutil.WriteFile(filepath.Join(gitDir, "Dockerfile"), []byte("FROM scratch\nEXPOSE 3000"), 0644); err != nil {
-		t.Fatal(err)
-	}
+	err = ioutil.WriteFile(filepath.Join(gitDir, "Dockerfile"), []byte("FROM scratch\nEXPOSE 3000"), 0644)
+	require.NoError(t, err)
 
-	if err = ioutil.WriteFile(filepath.Join(subDir, "Dockerfile"), []byte("FROM busybox\nEXPOSE 5000"), 0644); err != nil {
-		t.Fatal(err)
-	}
+	err = ioutil.WriteFile(filepath.Join(subDir, "Dockerfile"), []byte("FROM busybox\nEXPOSE 5000"), 0644)
+	require.NoError(t, err)
 
-	if _, err = gitWithinDir(gitDir, "add", "-A"); err != nil {
-		t.Fatal(err)
-	}
+	_, err = gitWithinDir(gitDir, "add", "-A")
+	require.NoError(t, err)
 
-	if _, err = gitWithinDir(gitDir, "commit", "-am", "Branch commit"); err != nil {
-		t.Fatal(err)
-	}
+	_, err = gitWithinDir(gitDir, "commit", "-am", "Branch commit")
+	require.NoError(t, err)
 
-	if _, err = gitWithinDir(gitDir, "checkout", "master"); err != nil {
-		t.Fatal(err)
-	}
+	_, err = gitWithinDir(gitDir, "checkout", "master")
+	require.NoError(t, err)
 
 	type singleCase struct {
 		frag string
@@ -190,21 +168,13 @@ func TestCheckoutGit(t *testing.T) {
 		ref, subdir := getRefAndSubdir(c.frag)
 		r, err := checkoutGit(gitDir, ref, subdir)
 
-		fail := err != nil
-		if fail != c.fail {
-			t.Fatalf("Expected %v failure, error was %v\n", c.fail, err)
-		}
 		if c.fail {
+			assert.Error(t, err)
 			continue
 		}
 
 		b, err := ioutil.ReadFile(filepath.Join(r, "Dockerfile"))
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if string(b) != c.exp {
-			t.Fatalf("Expected %v, was %v\n", c.exp, string(b))
-		}
+		require.NoError(t, err)
+		assert.Equal(t, c.exp, string(b))
 	}
 }
