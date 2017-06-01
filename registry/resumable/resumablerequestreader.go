@@ -1,4 +1,4 @@
-package httputils
+package resumable
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
-type resumableRequestReader struct {
+type requestReader struct {
 	client          *http.Client
 	request         *http.Request
 	lastRange       int64
@@ -20,22 +20,22 @@ type resumableRequestReader struct {
 	waitDuration    time.Duration
 }
 
-// ResumableRequestReader makes it possible to resume reading a request's body transparently
+// NewRequestReader makes it possible to resume reading a request's body transparently
 // maxfail is the number of times we retry to make requests again (not resumes)
 // totalsize is the total length of the body; auto detect if not provided
-func ResumableRequestReader(c *http.Client, r *http.Request, maxfail uint32, totalsize int64) io.ReadCloser {
-	return &resumableRequestReader{client: c, request: r, maxFailures: maxfail, totalSize: totalsize, waitDuration: 5 * time.Second}
+func NewRequestReader(c *http.Client, r *http.Request, maxfail uint32, totalsize int64) io.ReadCloser {
+	return &requestReader{client: c, request: r, maxFailures: maxfail, totalSize: totalsize, waitDuration: 5 * time.Second}
 }
 
-// ResumableRequestReaderWithInitialResponse makes it possible to resume
+// NewRequestReaderWithInitialResponse makes it possible to resume
 // reading the body of an already initiated request.
-func ResumableRequestReaderWithInitialResponse(c *http.Client, r *http.Request, maxfail uint32, totalsize int64, initialResponse *http.Response) io.ReadCloser {
-	return &resumableRequestReader{client: c, request: r, maxFailures: maxfail, totalSize: totalsize, currentResponse: initialResponse, waitDuration: 5 * time.Second}
+func NewRequestReaderWithInitialResponse(c *http.Client, r *http.Request, maxfail uint32, totalsize int64, initialResponse *http.Response) io.ReadCloser {
+	return &requestReader{client: c, request: r, maxFailures: maxfail, totalSize: totalsize, currentResponse: initialResponse, waitDuration: 5 * time.Second}
 }
 
-func (r *resumableRequestReader) Read(p []byte) (n int, err error) {
+func (r *requestReader) Read(p []byte) (n int, err error) {
 	if r.client == nil || r.request == nil {
-		return 0, fmt.Errorf("client and request can't be nil\n")
+		return 0, fmt.Errorf("client and request can't be nil")
 	}
 	isFreshRequest := false
 	if r.lastRange != 0 && r.currentResponse == nil {
@@ -81,14 +81,14 @@ func (r *resumableRequestReader) Read(p []byte) (n int, err error) {
 	return n, err
 }
 
-func (r *resumableRequestReader) Close() error {
+func (r *requestReader) Close() error {
 	r.cleanUpResponse()
 	r.client = nil
 	r.request = nil
 	return nil
 }
 
-func (r *resumableRequestReader) cleanUpResponse() {
+func (r *requestReader) cleanUpResponse() {
 	if r.currentResponse != nil {
 		r.currentResponse.Body.Close()
 		r.currentResponse = nil
