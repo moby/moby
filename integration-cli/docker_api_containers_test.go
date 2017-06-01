@@ -1933,3 +1933,18 @@ func (s *DockerSuite) TestContainersAPICreateMountsTmpfs(c *check.C) {
 		}
 	}
 }
+
+// Regression test for #33334
+// Makes sure that when a container which has a custom stop signal + restart=always
+// gets killed (with SIGKILL) by the kill API, that the restart policy is cancelled.
+func (s *DockerSuite) TestContainerKillCustomStopSignal(c *check.C) {
+	id := strings.TrimSpace(runSleepingContainer(c, "--stop-signal=SIGTERM", "--restart=always"))
+	res, _, err := request.Post("/containers/" + id + "/kill")
+	c.Assert(err, checker.IsNil)
+	defer res.Body.Close()
+
+	b, err := ioutil.ReadAll(res.Body)
+	c.Assert(res.StatusCode, checker.Equals, http.StatusNoContent, check.Commentf(string(b)))
+	err = waitInspect(id, "{{.State.Running}} {{.State.Restarting}}", "false false", 30*time.Second)
+	c.Assert(err, checker.IsNil)
+}
