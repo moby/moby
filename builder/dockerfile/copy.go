@@ -13,7 +13,6 @@ import (
 
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/remotecontext"
-	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
@@ -292,7 +291,6 @@ func errOnSourceDownload(_ string) (builder.Source, string, error) {
 }
 
 func downloadSource(output io.Writer, stdout io.Writer, srcURL string) (remote builder.Source, p string, err error) {
-	// get filename from URL
 	u, err := url.Parse(srcURL)
 	if err != nil {
 		return
@@ -303,8 +301,7 @@ func downloadSource(output io.Writer, stdout io.Writer, srcURL string) (remote b
 		return
 	}
 
-	// Initiate the download
-	resp, err := httputils.Download(srcURL)
+	resp, err := remotecontext.GetWithStatusError(srcURL)
 	if err != nil {
 		return
 	}

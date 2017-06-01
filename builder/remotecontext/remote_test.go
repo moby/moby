@@ -11,6 +11,9 @@ import (
 
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var binaryContext = []byte{0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00} //xz magic
@@ -229,5 +232,45 @@ func TestMakeRemoteContext(t *testing.T) {
 
 	if fileInfo.Pos() != 0 {
 		t.Fatalf("File %s should have position 0, got %d", builder.DefaultDockerfileName, fileInfo.Pos())
+	}
+}
+
+func TestGetWithStatusError(t *testing.T) {
+	var testcases = []struct {
+		err          error
+		statusCode   int
+		expectedErr  string
+		expectedBody string
+	}{
+		{
+			statusCode:   200,
+			expectedBody: "THE BODY",
+		},
+		{
+			statusCode:   400,
+			expectedErr:  "with status 400 Bad Request: broke",
+			expectedBody: "broke",
+		},
+	}
+	for _, testcase := range testcases {
+		ts := httptest.NewServer(
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				buffer := bytes.NewBufferString(testcase.expectedBody)
+				w.WriteHeader(testcase.statusCode)
+				w.Write(buffer.Bytes())
+			}),
+		)
+		defer ts.Close()
+		response, err := GetWithStatusError(ts.URL)
+
+		if testcase.expectedErr == "" {
+			require.NoError(t, err)
+
+			body, err := testutil.ReadBody(response.Body)
+			require.NoError(t, err)
+			assert.Contains(t, string(body), testcase.expectedBody)
+		} else {
+			testutil.ErrorContains(t, err, testcase.expectedErr)
+		}
 	}
 }
