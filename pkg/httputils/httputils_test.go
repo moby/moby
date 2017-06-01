@@ -5,8 +5,11 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
+
+	"github.com/docker/docker/pkg/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDownload(t *testing.T) {
@@ -22,10 +25,8 @@ func TestDownload(t *testing.T) {
 
 	actual, err := ioutil.ReadAll(response.Body)
 	response.Body.Close()
-
-	if err != nil || string(actual) != expected {
-		t.Fatalf("Expected the response %q, got err:%q, actual:%q", expected, err, string(actual))
-	}
+	require.NoError(t, err)
+	assert.Equal(t, expected, string(actual))
 }
 
 func TestDownload400Errors(t *testing.T) {
@@ -36,29 +37,11 @@ func TestDownload400Errors(t *testing.T) {
 	}))
 	defer ts.Close()
 	// Expected status code = 403
-	if _, err := Download(ts.URL); err == nil || err.Error() != expectedError {
-		t.Fatalf("Expected the error %q, got %q", expectedError, err)
-	}
+	_, err := Download(ts.URL)
+	assert.EqualError(t, err, expectedError)
 }
 
 func TestDownloadOtherErrors(t *testing.T) {
-	if _, err := Download("I'm not an url.."); err == nil || !strings.Contains(err.Error(), "unsupported protocol scheme") {
-		t.Fatalf("Expected an error with 'unsupported protocol scheme', got %q", err)
-	}
-}
-
-func TestNewHTTPRequestError(t *testing.T) {
-	errorMessage := "Some error message"
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// 403
-		http.Error(w, errorMessage, http.StatusForbidden)
-	}))
-	defer ts.Close()
-	httpResponse, err := http.Get(ts.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := NewHTTPRequestError(errorMessage, httpResponse); err.Error() != errorMessage {
-		t.Fatalf("Expected err to be %q, got %q", errorMessage, err)
-	}
+	_, err := Download("I'm not an url..")
+	testutil.ErrorContains(t, err, "unsupported protocol scheme")
 }

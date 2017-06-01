@@ -23,8 +23,8 @@ import (
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/docker/api/types"
 	registrytypes "github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/registry/resumable"
@@ -227,7 +227,7 @@ func (r *Session) GetRemoteHistory(imgID, registry string) ([]string, error) {
 		if res.StatusCode == 401 {
 			return nil, errcode.ErrorCodeUnauthorized.WithArgs()
 		}
-		return nil, httputils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying to fetch remote history for %s", res.StatusCode, imgID), res)
+		return nil, newJSONError(fmt.Sprintf("Server error: %d trying to fetch remote history for %s", res.StatusCode, imgID), res)
 	}
 
 	var history []string
@@ -247,7 +247,7 @@ func (r *Session) LookupRemoteImage(imgID, registry string) error {
 	}
 	res.Body.Close()
 	if res.StatusCode != 200 {
-		return httputils.NewHTTPRequestError(fmt.Sprintf("HTTP code %d", res.StatusCode), res)
+		return newJSONError(fmt.Sprintf("HTTP code %d", res.StatusCode), res)
 	}
 	return nil
 }
@@ -260,7 +260,7 @@ func (r *Session) GetRemoteImageJSON(imgID, registry string) ([]byte, int64, err
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		return nil, -1, httputils.NewHTTPRequestError(fmt.Sprintf("HTTP code %d", res.StatusCode), res)
+		return nil, -1, newJSONError(fmt.Sprintf("HTTP code %d", res.StatusCode), res)
 	}
 	// if the size header is not present, then set it to '-1'
 	imageSize := int64(-1)
@@ -445,13 +445,13 @@ func (r *Session) GetRepositoryData(name reference.Named) (*RepositoryData, erro
 	// TODO: Right now we're ignoring checksums in the response body.
 	// In the future, we need to use them to check image validity.
 	if res.StatusCode == 404 {
-		return nil, httputils.NewHTTPRequestError(fmt.Sprintf("HTTP code: %d", res.StatusCode), res)
+		return nil, newJSONError(fmt.Sprintf("HTTP code: %d", res.StatusCode), res)
 	} else if res.StatusCode != 200 {
 		errBody, err := ioutil.ReadAll(res.Body)
 		if err != nil {
 			logrus.Debugf("Error reading response body: %s", err)
 		}
-		return nil, httputils.NewHTTPRequestError(fmt.Sprintf("Error: Status %d trying to pull repository %s: %q", res.StatusCode, reference.Path(name), errBody), res)
+		return nil, newJSONError(fmt.Sprintf("Error: Status %d trying to pull repository %s: %q", res.StatusCode, reference.Path(name), errBody), res)
 	}
 
 	var endpoints []string
@@ -538,12 +538,12 @@ func (r *Session) PushImageJSONRegistry(imgData *ImgData, jsonRaw []byte, regist
 	}
 	defer res.Body.Close()
 	if res.StatusCode == 401 && strings.HasPrefix(registry, "http://") {
-		return httputils.NewHTTPRequestError("HTTP code 401, Docker will not send auth headers over HTTP.", res)
+		return newJSONError("HTTP code 401, Docker will not send auth headers over HTTP.", res)
 	}
 	if res.StatusCode != 200 {
 		errBody, err := ioutil.ReadAll(res.Body)
 		if err != nil {
-			return httputils.NewHTTPRequestError(fmt.Sprintf("HTTP code %d while uploading metadata and error when trying to parse response body: %s", res.StatusCode, err), res)
+			return newJSONError(fmt.Sprintf("HTTP code %d while uploading metadata and error when trying to parse response body: %s", res.StatusCode, err), res)
 		}
 		var jsonBody map[string]string
 		if err := json.Unmarshal(errBody, &jsonBody); err != nil {
@@ -551,7 +551,7 @@ func (r *Session) PushImageJSONRegistry(imgData *ImgData, jsonRaw []byte, regist
 		} else if jsonBody["error"] == "Image already exists" {
 			return ErrAlreadyExists
 		}
-		return httputils.NewHTTPRequestError(fmt.Sprintf("HTTP code %d while uploading metadata: %q", res.StatusCode, errBody), res)
+		return newJSONError(fmt.Sprintf("HTTP code %d while uploading metadata: %q", res.StatusCode, errBody), res)
 	}
 	return nil
 }
@@ -592,9 +592,9 @@ func (r *Session) PushImageLayerRegistry(imgID string, layer io.Reader, registry
 	if res.StatusCode != 200 {
 		errBody, err := ioutil.ReadAll(res.Body)
 		if err != nil {
-			return "", "", httputils.NewHTTPRequestError(fmt.Sprintf("HTTP code %d while uploading metadata and error when trying to parse response body: %s", res.StatusCode, err), res)
+			return "", "", newJSONError(fmt.Sprintf("HTTP code %d while uploading metadata and error when trying to parse response body: %s", res.StatusCode, err), res)
 		}
-		return "", "", httputils.NewHTTPRequestError(fmt.Sprintf("Received HTTP code %d while uploading layer: %q", res.StatusCode, errBody), res)
+		return "", "", newJSONError(fmt.Sprintf("Received HTTP code %d while uploading layer: %q", res.StatusCode, errBody), res)
 	}
 
 	checksumPayload = "sha256:" + hex.EncodeToString(h.Sum(nil))
@@ -620,7 +620,7 @@ func (r *Session) PushRegistryTag(remote reference.Named, revision, tag, registr
 	}
 	res.Body.Close()
 	if res.StatusCode != 200 && res.StatusCode != 201 {
-		return httputils.NewHTTPRequestError(fmt.Sprintf("Internal server error: %d trying to push tag %s on %s", res.StatusCode, tag, reference.Path(remote)), res)
+		return newJSONError(fmt.Sprintf("Internal server error: %d trying to push tag %s on %s", res.StatusCode, tag, reference.Path(remote)), res)
 	}
 	return nil
 }
@@ -684,7 +684,7 @@ func (r *Session) PushImageJSONIndex(remote reference.Named, imgList []*ImgData,
 			if err != nil {
 				logrus.Debugf("Error reading response body: %s", err)
 			}
-			return nil, httputils.NewHTTPRequestError(fmt.Sprintf("Error: Status %d trying to push repository %s: %q", res.StatusCode, reference.Path(remote), errBody), res)
+			return nil, newJSONError(fmt.Sprintf("Error: Status %d trying to push repository %s: %q", res.StatusCode, reference.Path(remote), errBody), res)
 		}
 		tokens = res.Header["X-Docker-Token"]
 		logrus.Debugf("Auth token: %v", tokens)
@@ -702,7 +702,7 @@ func (r *Session) PushImageJSONIndex(remote reference.Named, imgList []*ImgData,
 			if err != nil {
 				logrus.Debugf("Error reading response body: %s", err)
 			}
-			return nil, httputils.NewHTTPRequestError(fmt.Sprintf("Error: Status %d trying to push checksums %s: %q", res.StatusCode, reference.Path(remote), errBody), res)
+			return nil, newJSONError(fmt.Sprintf("Error: Status %d trying to push checksums %s: %q", res.StatusCode, reference.Path(remote), errBody), res)
 		}
 	}
 
@@ -751,7 +751,7 @@ func (r *Session) SearchRepositories(term string, limit int) (*registrytypes.Sea
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		return nil, httputils.NewHTTPRequestError(fmt.Sprintf("Unexpected status code %d", res.StatusCode), res)
+		return nil, newJSONError(fmt.Sprintf("Unexpected status code %d", res.StatusCode), res)
 	}
 	result := new(registrytypes.SearchResults)
 	return result, json.NewDecoder(res.Body).Decode(result)
@@ -781,4 +781,11 @@ func isTimeout(err error) bool {
 	}
 	t, ok := e.(timeout)
 	return ok && t.Timeout()
+}
+
+func newJSONError(msg string, res *http.Response) error {
+	return &jsonmessage.JSONError{
+		Message: msg,
+		Code:    res.StatusCode,
+	}
 }
