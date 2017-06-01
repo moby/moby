@@ -27,7 +27,6 @@ import (
 	systemrouter "github.com/docker/docker/api/server/router/system"
 	"github.com/docker/docker/api/server/router/volume"
 	"github.com/docker/docker/cli/debug"
-	cliflags "github.com/docker/docker/cli/flags"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/cluster"
 	"github.com/docker/docker/daemon/config"
@@ -65,14 +64,14 @@ func NewDaemonCli() *DaemonCli {
 	return &DaemonCli{}
 }
 
-func (cli *DaemonCli) start(opts daemonOptions) (err error) {
+func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	stopc := make(chan bool)
 	defer close(stopc)
 
 	// warn from uuid package when running the daemon
 	uuid.Loggerf = logrus.Warnf
 
-	opts.common.SetDefaultOptions(opts.flags)
+	opts.SetDefaultOptions(opts.flags)
 
 	if cli.Config, err = loadDaemonCliConfig(opts); err != nil {
 		return err
@@ -358,20 +357,20 @@ func shutdownDaemon(d *daemon.Daemon) {
 	}
 }
 
-func loadDaemonCliConfig(opts daemonOptions) (*config.Config, error) {
+func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 	conf := opts.daemonConfig
 	flags := opts.flags
-	conf.Debug = opts.common.Debug
-	conf.Hosts = opts.common.Hosts
-	conf.LogLevel = opts.common.LogLevel
-	conf.TLS = opts.common.TLS
-	conf.TLSVerify = opts.common.TLSVerify
+	conf.Debug = opts.Debug
+	conf.Hosts = opts.Hosts
+	conf.LogLevel = opts.LogLevel
+	conf.TLS = opts.TLS
+	conf.TLSVerify = opts.TLSVerify
 	conf.CommonTLSOptions = config.CommonTLSOptions{}
 
-	if opts.common.TLSOptions != nil {
-		conf.CommonTLSOptions.CAFile = opts.common.TLSOptions.CAFile
-		conf.CommonTLSOptions.CertFile = opts.common.TLSOptions.CertFile
-		conf.CommonTLSOptions.KeyFile = opts.common.TLSOptions.KeyFile
+	if opts.TLSOptions != nil {
+		conf.CommonTLSOptions.CAFile = opts.TLSOptions.CAFile
+		conf.CommonTLSOptions.CertFile = opts.TLSOptions.CertFile
+		conf.CommonTLSOptions.KeyFile = opts.TLSOptions.KeyFile
 	}
 
 	if conf.TrustKeyPath == "" {
@@ -425,12 +424,12 @@ func loadDaemonCliConfig(opts daemonOptions) (*config.Config, error) {
 
 	// Regardless of whether the user sets it to true or false, if they
 	// specify TLSVerify at all then we need to turn on TLS
-	if conf.IsValueSet(cliflags.FlagTLSVerify) {
+	if conf.IsValueSet(FlagTLSVerify) {
 		conf.TLS = true
 	}
 
 	// ensure that the log level is the one set after merging configurations
-	cliflags.SetLogLevel(conf.LogLevel)
+	setLogLevel(conf.LogLevel)
 
 	return conf, nil
 }

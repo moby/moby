@@ -1,16 +1,18 @@
-package flags
+package main
 
 import (
 	"path/filepath"
 	"testing"
 
+	cliconfig "github.com/docker/docker/cli/config"
+	"github.com/docker/docker/daemon/config"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestCommonOptionsInstallFlags(t *testing.T) {
 	flags := pflag.NewFlagSet("testing", pflag.ContinueOnError)
-	opts := NewCommonOptions()
+	opts := newDaemonOptions(&config.Config{})
 	opts.InstallFlags(flags)
 
 	err := flags.Parse([]string{
@@ -25,12 +27,12 @@ func TestCommonOptionsInstallFlags(t *testing.T) {
 }
 
 func defaultPath(filename string) string {
-	return filepath.Join(ConfigurationDir(), filename)
+	return filepath.Join(cliconfig.Dir(), filename)
 }
 
 func TestCommonOptionsInstallFlagsWithDefaults(t *testing.T) {
 	flags := pflag.NewFlagSet("testing", pflag.ContinueOnError)
-	opts := NewCommonOptions()
+	opts := newDaemonOptions(&config.Config{})
 	opts.InstallFlags(flags)
 
 	err := flags.Parse([]string{})

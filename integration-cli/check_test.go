@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/cli/flags"
+	"github.com/docker/docker/cli/config"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build/fakestorage"
 	"github.com/docker/docker/integration-cli/daemon"
@@ -406,7 +406,7 @@ func (s *DockerTrustSuite) TearDownTest(c *check.C) {
 	}
 
 	// Remove trusted keys and metadata after test
-	os.RemoveAll(filepath.Join(flags.ConfigurationDir(), "trust"))
+	os.RemoveAll(filepath.Join(config.Dir(), "trust"))
 	s.ds.TearDownTest(c)
 }
 
