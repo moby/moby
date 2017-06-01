@@ -7,6 +7,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/term"
 )
@@ -86,7 +87,7 @@ func (c *Config) CopyStreams(ctx context.Context, cfg *AttachConfig) chan error 
 		if cfg.TTY {
 			_, err = copyEscapable(cfg.CStdin, cfg.Stdin, cfg.DetachKeys)
 		} else {
-			_, err = io.Copy(cfg.CStdin, cfg.Stdin)
+			_, err = pools.Copy(cfg.CStdin, cfg.Stdin)
 		}
 		if err == io.ErrClosedPipe {
 			err = nil
@@ -116,7 +117,7 @@ func (c *Config) CopyStreams(ctx context.Context, cfg *AttachConfig) chan error 
 		}
 
 		logrus.Debugf("attach: %s: begin", name)
-		_, err := io.Copy(stream, streamPipe)
+		_, err := pools.Copy(stream, streamPipe)
 		if err == io.ErrClosedPipe {
 			err = nil
 		}
@@ -174,5 +175,5 @@ func copyEscapable(dst io.Writer, src io.ReadCloser, keys []byte) (written int64
 	pr := term.NewEscapeProxy(src, keys)
 	defer src.Close()
 
-	return io.Copy(dst, pr)
+	return pools.Copy(dst, pr)
 }
