@@ -11,7 +11,6 @@ import (
 
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/httputils"
 )
 
 var binaryContext = []byte{0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00} //xz magic
@@ -188,7 +187,7 @@ func TestMakeRemoteContext(t *testing.T) {
 	mux.Handle("/", http.FileServer(http.Dir(contextDir)))
 
 	remoteContext, err := MakeRemoteContext(remoteURL, map[string]func(io.ReadCloser) (io.ReadCloser, error){
-		httputils.MimeTypes.TextPlain: func(rc io.ReadCloser) (io.ReadCloser, error) {
+		mimeTypes.TextPlain: func(rc io.ReadCloser) (io.ReadCloser, error) {
 			dockerfile, err := ioutil.ReadAll(rc)
 			if err != nil {
 				return nil, err

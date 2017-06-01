@@ -94,8 +94,8 @@ func inspectResponse(ct string, r io.ReadCloser, clen int64) (string, io.ReadClo
 	// content type for files without an extension (e.g. 'Dockerfile')
 	// so if we receive this value we better check for text content
 	contentType := ct
-	if len(ct) == 0 || ct == httputils.MimeTypes.OctetStream {
-		contentType, _, err = httputils.DetectContentType(preamble)
+	if len(ct) == 0 || ct == mimeTypes.OctetStream {
+		contentType, _, err = detectContentType(preamble)
 		if err != nil {
 			return contentType, bodyReader, err
 		}
