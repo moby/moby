@@ -1,4 +1,4 @@
-package ioutils
+package multireader
 
 import (
 	"bytes"
