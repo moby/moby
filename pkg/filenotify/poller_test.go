@@ -61,7 +61,7 @@ func TestPollerEvent(t *testing.T) {
 	default:
 	}
 
-	if err := ioutil.WriteFile(f.Name(), []byte("hello"), 644); err != nil {
+	if err := ioutil.WriteFile(f.Name(), []byte("hello"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	if err := assertEvent(w, fsnotify.Write); err != nil {
