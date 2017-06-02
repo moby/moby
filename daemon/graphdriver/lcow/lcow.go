@@ -2,11 +2,6 @@
 
 package lcow
 
-// TODO @gupta-ak. This is partially implemented. This driver relies on
-// a service VM for operation, but dummy mode enabled through environment
-// variable 'LCOW_DUMMYMODE' so that development of the engines LCOW changes
-// can continue on public RS1 builds.
-
 import (
 	"encoding/json"
 	"fmt"
@@ -118,7 +113,8 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
 
 	layerPath := d.dir(id)
 	logrus.Debugf("LCOWDriver Create id %s layerPath %s", id, layerPath)
-	if err := os.Mkdir(layerPath, 755); err != nil {
+	// Make sure the layers are created with the correct ACL so that VMs can access them.
+	if err := system.MkdirAllWithACL(layerPath, 755, system.SddlNtvmAdministratorsLocalSystem); err != nil {
 		return err
 	}
 
