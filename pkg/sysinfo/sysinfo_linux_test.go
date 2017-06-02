@@ -28,7 +28,7 @@ func TestReadProcBool(t *testing.T) {
 		t.Fatal(err)
 	}
 	if readProcBool(procFile) {
-		t.Fatal("expected proc bool to be false, got false")
+		t.Fatal("expected proc bool to be false, got true")
 	}
 
 	if readProcBool(path.Join(tmpDir, "no-exist")) {
