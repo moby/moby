@@ -17,7 +17,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/fsutils"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/volume"
 )
@@ -55,10 +55,10 @@ type activeMount struct {
 // New instantiates a new Root instance with the provided scope. Scope
 // is the base path that the Root instance uses to store its
 // volumes. The base path is created here if it does not exist.
-func New(scope string, rootIDs idtools.IDPair) (*Root, error) {
+func New(scope string, rootIDs fsutils.IDPair) (*Root, error) {
 	rootDirectory := filepath.Join(scope, volumesPathName)
 
-	if err := idtools.MkdirAllAndChown(rootDirectory, 0700, rootIDs); err != nil {
+	if err := fsutils.MkdirAllAndChown(rootDirectory, 0700, rootIDs); err != nil {
 		return nil, err
 	}
 
@@ -124,7 +124,7 @@ type Root struct {
 	scope   string
 	path    string
 	volumes map[string]*localVolume
-	rootIDs idtools.IDPair
+	rootIDs fsutils.IDPair
 }
 
 // List lists all the volumes
@@ -165,7 +165,7 @@ func (r *Root) Create(name string, opts map[string]string) (volume.Volume, error
 	}
 
 	path := r.DataPath(name)
-	if err := idtools.MkdirAllAndChown(path, 0755, r.rootIDs); err != nil {
+	if err := fsutils.MkdirAllAndChown(path, 0755, r.rootIDs); err != nil {
 		if os.IsExist(err) {
 			return nil, fmt.Errorf("volume already exists under %s", filepath.Dir(path))
 		}

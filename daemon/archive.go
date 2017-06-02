@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/fsutils"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/system"
@@ -453,7 +453,7 @@ func (daemon *Daemon) CopyOnBuild(cID, destPath, srcRoot, srcPath string, decomp
 		destPath = filepath.Join(destPath, filepath.Base(srcPath))
 	}
 
-	if err := idtools.MkdirAllAndChownNew(filepath.Dir(destPath), 0755, rootIDs); err != nil {
+	if err := fsutils.MkdirAllAndChownNew(filepath.Dir(destPath), 0755, rootIDs); err != nil {
 		return err
 	}
 	if err := archiver.CopyFileWithTar(fullSrcPath, destPath); err != nil {

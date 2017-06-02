@@ -5,7 +5,7 @@ package daemon
 import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/fsutils"
 )
 
 func (daemon *Daemon) tarCopyOptions(container *container.Container, noOverwriteDirNonDir bool) (*archive.TarOptions, error) {
@@ -13,13 +13,13 @@ func (daemon *Daemon) tarCopyOptions(container *container.Container, noOverwrite
 		return daemon.defaultTarCopyOptions(noOverwriteDirNonDir), nil
 	}
 
-	user, err := idtools.LookupUser(container.Config.User)
+	user, err := fsutils.LookupUser(container.Config.User)
 	if err != nil {
 		return nil, err
 	}
 
 	return &archive.TarOptions{
 		NoOverwriteDirNonDir: noOverwriteDirNonDir,
-		ChownOpts:            &idtools.IDPair{UID: user.Uid, GID: user.Gid},
+		ChownOpts:            &fsutils.IDPair{UID: user.Uid, GID: user.Gid},
 	}, nil
 }

@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/fsutils"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
 )
@@ -39,11 +39,11 @@ type graphDriverResponse struct {
 type graphDriverInitRequest struct {
 	Home    string
 	Opts    []string        `json:"Opts"`
-	UIDMaps []idtools.IDMap `json:"UIDMaps"`
-	GIDMaps []idtools.IDMap `json:"GIDMaps"`
+	UIDMaps []fsutils.IDMap `json:"UIDMaps"`
+	GIDMaps []fsutils.IDMap `json:"GIDMaps"`
 }
 
-func (d *graphDriverProxy) Init(home string, opts []string, uidMaps, gidMaps []idtools.IDMap) error {
+func (d *graphDriverProxy) Init(home string, opts []string, uidMaps, gidMaps []fsutils.IDMap) error {
 	if !d.p.IsV1() {
 		if cp, ok := d.p.(plugingetter.CountedPlugin); ok {
 			// always acquire here, it will be cleaned up on daemon shutdown

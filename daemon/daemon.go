@@ -40,7 +40,7 @@ import (
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/migrate/v1"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/fsutils"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/registrar"
 	"github.com/docker/docker/pkg/signal"
@@ -93,7 +93,7 @@ type Daemon struct {
 	seccompEnabled            bool
 	apparmorEnabled           bool
 	shutdown                  bool
-	idMappings                *idtools.IDMappings
+	idMappings                *fsutils.IDMappings
 	layerStore                layer.Store
 	imageStore                image.Store
 	PluginStore               *plugin.Store // todo: remove
@@ -585,7 +585,7 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	}
 
 	daemonRepo := filepath.Join(config.Root, "containers")
-	if err := idtools.MkdirAllAndChown(daemonRepo, 0700, rootIDs); err != nil && !os.IsExist(err) {
+	if err := fsutils.MkdirAllAndChown(daemonRepo, 0700, rootIDs); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 
@@ -974,7 +974,7 @@ func (daemon *Daemon) GraphDriverName() string {
 // prepareTempDir prepares and returns the default directory to use
 // for temporary files.
 // If it doesn't exist, it is created. If it exists, its content is removed.
-func prepareTempDir(rootDir string, rootIDs idtools.IDPair) (string, error) {
+func prepareTempDir(rootDir string, rootIDs fsutils.IDPair) (string, error) {
 	var tmpDir string
 	if tmpDir = os.Getenv("DOCKER_TMPDIR"); tmpDir == "" {
 		tmpDir = filepath.Join(rootDir, "tmp")
@@ -994,7 +994,7 @@ func prepareTempDir(rootDir string, rootIDs idtools.IDPair) (string, error) {
 	}
 	// We don't remove the content of tmpdir if it's not the default,
 	// it may hold things that do not belong to us.
-	return tmpDir, idtools.MkdirAllAndChown(tmpDir, 0700, rootIDs)
+	return tmpDir, fsutils.MkdirAllAndChown(tmpDir, 0700, rootIDs)
 }
 
 func (daemon *Daemon) setupInitLayer(initPath string) error {
@@ -1010,7 +1010,7 @@ func setDefaultMtu(conf *config.Config) {
 	conf.Mtu = config.DefaultNetworkMtu
 }
 
-func (daemon *Daemon) configureVolumes(rootIDs idtools.IDPair) (*store.VolumeStore, error) {
+func (daemon *Daemon) configureVolumes(rootIDs fsutils.IDPair) (*store.VolumeStore, error) {
 	volumesDriver, err := local.New(daemon.configStore.Root, rootIDs)
 	if err != nil {
 		return nil, err

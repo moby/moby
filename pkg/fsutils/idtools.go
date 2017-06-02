@@ -1,4 +1,4 @@
-package idtools
+package fsutils
 
 import (
 	"bufio"

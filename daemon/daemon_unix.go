@@ -26,7 +26,7 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/opts"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/fsutils"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/sysinfo"
@@ -958,7 +958,7 @@ func parseRemappedRoot(usergrp string) (string, string, error) {
 	if uid, err := strconv.ParseInt(idparts[0], 10, 32); err == nil {
 		// must be a uid; take it as valid
 		userID = int(uid)
-		luser, err := idtools.LookupUID(userID)
+		luser, err := fsutils.LookupUID(userID)
 		if err != nil {
 			return "", "", fmt.Errorf("Uid %d has no entry in /etc/passwd: %v", userID, err)
 		}
@@ -966,7 +966,7 @@ func parseRemappedRoot(usergrp string) (string, string, error) {
 		if len(idparts) == 1 {
 			// if the uid was numeric and no gid was specified, take the uid as the gid
 			groupID = userID
-			lgrp, err := idtools.LookupGID(groupID)
+			lgrp, err := fsutils.LookupGID(groupID)
 			if err != nil {
 				return "", "", fmt.Errorf("Gid %d has no entry in /etc/group: %v", groupID, err)
 			}
@@ -979,7 +979,7 @@ func parseRemappedRoot(usergrp string) (string, string, error) {
 		if lookupName == defaultIDSpecifier {
 			lookupName = defaultRemappedID
 		}
-		luser, err := idtools.LookupUser(lookupName)
+		luser, err := fsutils.LookupUser(lookupName)
 		if err != nil && idparts[0] != defaultIDSpecifier {
 			// error if the name requested isn't the special "dockremap" ID
 			return "", "", fmt.Errorf("Error during uid lookup for %q: %v", lookupName, err)
@@ -987,7 +987,7 @@ func parseRemappedRoot(usergrp string) (string, string, error) {
 			// special case-- if the username == "default", then we have been asked
 			// to create a new entry pair in /etc/{passwd,group} for which the /etc/sub{uid,gid}
 			// ranges will be used for the user and group mappings in user namespaced containers
-			_, _, err := idtools.AddNamespaceRangesUser(defaultRemappedID)
+			_, _, err := fsutils.AddNamespaceRangesUser(defaultRemappedID)
 			if err == nil {
 				return defaultRemappedID, defaultRemappedID, nil
 			}
@@ -996,7 +996,7 @@ func parseRemappedRoot(usergrp string) (string, string, error) {
 		username = luser.Name
 		if len(idparts) == 1 {
 			// we only have a string username, and no group specified; look up gid from username as group
-			group, err := idtools.LookupGroup(lookupName)
+			group, err := fsutils.LookupGroup(lookupName)
 			if err != nil {
 				return "", "", fmt.Errorf("Error during gid lookup for %q: %v", lookupName, err)
 			}
@@ -1010,14 +1010,14 @@ func parseRemappedRoot(usergrp string) (string, string, error) {
 		if gid, err := strconv.ParseInt(idparts[1], 10, 32); err == nil {
 			// must be a gid, take it as valid
 			groupID = int(gid)
-			lgrp, err := idtools.LookupGID(groupID)
+			lgrp, err := fsutils.LookupGID(groupID)
 			if err != nil {
 				return "", "", fmt.Errorf("Gid %d has no entry in /etc/passwd: %v", groupID, err)
 			}
 			groupname = lgrp.Name
 		} else {
 			// not a number; attempt a lookup
-			if _, err := idtools.LookupGroup(idparts[1]); err != nil {
+			if _, err := fsutils.LookupGroup(idparts[1]); err != nil {
 				return "", "", fmt.Errorf("Error during groupname lookup for %q: %v", idparts[1], err)
 			}
 			groupname = idparts[1]
@@ -1026,7 +1026,7 @@ func parseRemappedRoot(usergrp string) (string, string, error) {
 	return username, groupname, nil
 }
 
-func setupRemappedRoot(config *config.Config) (*idtools.IDMappings, error) {
+func setupRemappedRoot(config *config.Config) (*fsutils.IDMappings, error) {
 	if runtime.GOOS != "linux" && config.RemappedRoot != "" {
 		return nil, fmt.Errorf("User namespaces are only supported on Linux")
 	}
@@ -1042,22 +1042,22 @@ func setupRemappedRoot(config *config.Config) (*idtools.IDMappings, error) {
 			// Cannot setup user namespaces with a 1-to-1 mapping; "--root=0:0" is a no-op
 			// effectively
 			logrus.Warn("User namespaces: root cannot be remapped with itself; user namespaces are OFF")
-			return &idtools.IDMappings{}, nil
+			return &fsutils.IDMappings{}, nil
 		}
 		logrus.Infof("User namespaces: ID ranges will be mapped to subuid/subgid ranges of: %s:%s", username, groupname)
 		// update remapped root setting now that we have resolved them to actual names
 		config.RemappedRoot = fmt.Sprintf("%s:%s", username, groupname)
 
-		mappings, err := idtools.NewIDMappings(username, groupname)
+		mappings, err := fsutils.NewIDMappings(username, groupname)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Can't create ID mappings: %v")
 		}
 		return mappings, nil
 	}
-	return &idtools.IDMappings{}, nil
+	return &fsutils.IDMappings{}, nil
 }
 
-func setupDaemonRoot(config *config.Config, rootDir string, rootIDs idtools.IDPair) error {
+func setupDaemonRoot(config *config.Config, rootDir string, rootIDs fsutils.IDPair) error {
 	config.Root = rootDir
 	// the docker root metadata directory needs to have execute permissions for all users (g+x,o+x)
 	// so that syscalls executing as non-root, operating on subdirectories of the graph root
@@ -1085,7 +1085,7 @@ func setupDaemonRoot(config *config.Config, rootDir string, rootIDs idtools.IDPa
 		config.Root = filepath.Join(rootDir, fmt.Sprintf("%d.%d", rootIDs.UID, rootIDs.GID))
 		logrus.Debugf("Creating user namespaced daemon root: %s", config.Root)
 		// Create the root directory if it doesn't exist
-		if err := idtools.MkdirAllAndChown(config.Root, 0700, rootIDs); err != nil {
+		if err := fsutils.MkdirAllAndChown(config.Root, 0700, rootIDs); err != nil {
 			return fmt.Errorf("Cannot create daemon root: %s: %v", config.Root, err)
 		}
 		// we also need to verify that any pre-existing directories in the path to
@@ -1098,7 +1098,7 @@ func setupDaemonRoot(config *config.Config, rootDir string, rootIDs idtools.IDPa
 			if dirPath == "/" {
 				break
 			}
-			if !idtools.CanAccess(dirPath, rootIDs) {
+			if !fsutils.CanAccess(dirPath, rootIDs) {
 				return fmt.Errorf("A subdirectory in your graphroot path (%s) restricts access to the remapped root uid/gid; please fix by allowing 'o+x' permissions on existing directories.", config.Root)
 			}
 		}

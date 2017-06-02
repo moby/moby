@@ -17,7 +17,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/fsutils"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
 	"github.com/opencontainers/selinux/go-selinux/label"
@@ -118,10 +118,10 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 	}
 
 	rootIDs := daemon.idMappings.RootPair()
-	if err := idtools.MkdirAndChown(container.Root, 0700, rootIDs); err != nil {
+	if err := fsutils.MkdirAndChown(container.Root, 0700, rootIDs); err != nil {
 		return nil, err
 	}
-	if err := idtools.MkdirAndChown(container.CheckpointDir(), 0700, rootIDs); err != nil {
+	if err := fsutils.MkdirAndChown(container.CheckpointDir(), 0700, rootIDs); err != nil {
 		return nil, err
 	}
 

@@ -7,7 +7,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/fsutils"
 	"github.com/docker/docker/pkg/ioutils"
 )
 
@@ -24,8 +24,8 @@ var (
 // Notably, the AUFS driver doesn't need to be wrapped like this.
 type NaiveDiffDriver struct {
 	ProtoDriver
-	uidMaps []idtools.IDMap
-	gidMaps []idtools.IDMap
+	uidMaps []fsutils.IDMap
+	gidMaps []fsutils.IDMap
 }
 
 // NewNaiveDiffDriver returns a fully functional driver that wraps the
@@ -35,7 +35,7 @@ type NaiveDiffDriver struct {
 //     Changes(id, parent string) ([]archive.Change, error)
 //     ApplyDiff(id, parent string, diff archive.Reader) (size int64, err error)
 //     DiffSize(id, parent string) (size int64, err error)
-func NewNaiveDiffDriver(driver ProtoDriver, uidMaps, gidMaps []idtools.IDMap) Driver {
+func NewNaiveDiffDriver(driver ProtoDriver, uidMaps, gidMaps []fsutils.IDMap) Driver {
 	return &NaiveDiffDriver{ProtoDriver: driver,
 		uidMaps: uidMaps,
 		gidMaps: gidMaps}

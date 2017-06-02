@@ -11,7 +11,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/fsutils"
 	"github.com/docker/docker/volume"
 	"github.com/docker/docker/volume/drivers"
 	"github.com/docker/docker/volume/local"
@@ -278,7 +278,7 @@ func TestMigratePre17Volumes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	drv, err := local.New(volumeRoot, idtools.IDPair{UID: 0, GID: 0})
+	drv, err := local.New(volumeRoot, fsutils.IDPair{UID: 0, GID: 0})
 	if err != nil {
 		t.Fatal(err)
 	}

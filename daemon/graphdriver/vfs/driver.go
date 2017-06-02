@@ -7,7 +7,7 @@ import (
 
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/chrootarchive"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/fsutils"
 	"github.com/docker/docker/pkg/system"
 	"github.com/opencontainers/selinux/go-selinux/label"
 )
@@ -23,13 +23,13 @@ func init() {
 
 // Init returns a new VFS driver.
 // This sets the home directory for the driver and returns NaiveDiffDriver.
-func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
+func Init(home string, options []string, uidMaps, gidMaps []fsutils.IDMap) (graphdriver.Driver, error) {
 	d := &Driver{
 		home:       home,
-		idMappings: idtools.NewIDMappingsFromMaps(uidMaps, gidMaps),
+		idMappings: fsutils.NewIDMappingsFromMaps(uidMaps, gidMaps),
 	}
 	rootIDs := d.idMappings.RootPair()
-	if err := idtools.MkdirAllAndChown(home, 0700, rootIDs); err != nil {
+	if err := fsutils.MkdirAllAndChown(home, 0700, rootIDs); err != nil {
 		return nil, err
 	}
 	return graphdriver.NewNaiveDiffDriver(d, uidMaps, gidMaps), nil
@@ -41,7 +41,7 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 // Driver must be wrapped in NaiveDiffDriver to be used as a graphdriver.Driver
 type Driver struct {
 	home       string
-	idMappings *idtools.IDMappings
+	idMappings *fsutils.IDMappings
 }
 
 func (d *Driver) String() string {
@@ -77,10 +77,10 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
 
 	dir := d.dir(id)
 	rootIDs := d.idMappings.RootPair()
-	if err := idtools.MkdirAllAndChown(filepath.Dir(dir), 0700, rootIDs); err != nil {
+	if err := fsutils.MkdirAllAndChown(filepath.Dir(dir), 0700, rootIDs); err != nil {
 		return err
 	}
-	if err := idtools.MkdirAndChown(dir, 0755, rootIDs); err != nil {
+	if err := fsutils.MkdirAndChown(dir, 0755, rootIDs); err != nil {
 		return err
 	}
 	labelOpts := []string{"level:s0"}

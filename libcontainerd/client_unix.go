@@ -12,7 +12,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	containerd "github.com/containerd/containerd/api/grpc/types"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/fsutils"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"golang.org/x/net/context"
 )
@@ -34,7 +34,7 @@ func (clnt *client) prepareBundleDir(uid, gid int) (string, error) {
 		}
 		if os.IsNotExist(err) || fi.Mode()&1 == 0 {
 			p = fmt.Sprintf("%s.%d.%d", p, uid, gid)
-			if err := idtools.MkdirAndChown(p, 0700, idtools.IDPair{uid, gid}); err != nil && !os.IsExist(err) {
+			if err := fsutils.MkdirAndChown(p, 0700, fsutils.IDPair{uid, gid}); err != nil && !os.IsExist(err) {
 				return "", err
 			}
 		}
@@ -71,7 +71,7 @@ func (clnt *client) Create(containerID string, checkpoint string, checkpointDir 
 		}
 	}()
 
-	if err := idtools.MkdirAllAndChown(container.dir, 0700, idtools.IDPair{uid, gid}); err != nil && !os.IsExist(err) {
+	if err := fsutils.MkdirAllAndChown(container.dir, 0700, fsutils.IDPair{uid, gid}); err != nil && !os.IsExist(err) {
 		return err
 	}
 

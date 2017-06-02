@@ -1,6 +1,6 @@
 // +build !windows
 
-package idtools
+package fsutils
 
 import (
 	"bytes"
@@ -176,12 +176,12 @@ func getentGroup(args string) (user.Group, error) {
 }
 
 func callGetent(args string) (io.Reader, error) {
-	entOnce.Do(func() { getentCmd, _ = resolveBinary("getent") })
+	entOnce.Do(func() { getentCmd, _ = system.ResolveBinary("getent") })
 	// if no `getent` command on host, can't do anything else
 	if getentCmd == "" {
 		return nil, fmt.Errorf("")
 	}
-	out, err := execCmd(getentCmd, args)
+	out, err := system.ExecCmd(getentCmd, args)
 	if err != nil {
 		exitCode, errC := system.GetExitCode(err)
 		if errC != nil {

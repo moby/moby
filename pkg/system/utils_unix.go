@@ -1,6 +1,6 @@
 // +build !windows
 
-package idtools
+package system
 
 import (
 	"fmt"
@@ -9,7 +9,8 @@ import (
 	"strings"
 )
 
-func resolveBinary(binname string) (string, error) {
+// ResolveBinary resolves a binary path (symlinks and such).
+func ResolveBinary(binname string) (string, error) {
 	binaryPath, err := exec.LookPath(binname)
 	if err != nil {
 		return "", err
@@ -26,7 +27,8 @@ func resolveBinary(binname string) (string, error) {
 	return "", fmt.Errorf("Binary %q does not resolve to a binary of that name in $PATH (%q)", binname, resolvedPath)
 }
 
-func execCmd(cmd, args string) ([]byte, error) {
+// ExecCmd calls exec.Command and returns the CombinedOutput.
+func ExecCmd(cmd, args string) ([]byte, error) {
 	execCmd := exec.Command(cmd, strings.Split(args, " ")...)
 	return execCmd.CombinedOutput()
 }

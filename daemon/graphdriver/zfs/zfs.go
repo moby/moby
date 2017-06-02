@@ -15,7 +15,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/fsutils"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
 	zfs "github.com/mistifyio/go-zfs"
@@ -42,7 +42,7 @@ func (*Logger) Log(cmd []string) {
 // Init returns a new ZFS driver.
 // It takes base mount path and an array of options which are represented as key value pairs.
 // Each option is in the for key=value. 'zfs.fsname' is expected to be a valid key in the options.
-func Init(base string, opt []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
+func Init(base string, opt []string, uidMaps, gidMaps []fsutils.IDMap) (graphdriver.Driver, error) {
 	var err error
 
 	if _, err := exec.LookPath("zfs"); err != nil {
@@ -99,11 +99,11 @@ func Init(base string, opt []string, uidMaps, gidMaps []idtools.IDMap) (graphdri
 		return nil, fmt.Errorf("BUG: zfs get all -t filesystem -rHp '%s' should contain '%s'", options.fsName, options.fsName)
 	}
 
-	rootUID, rootGID, err := idtools.GetRootUIDGID(uidMaps, gidMaps)
+	rootUID, rootGID, err := fsutils.GetRootUIDGID(uidMaps, gidMaps)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get root uid/guid: %v", err)
 	}
-	if err := idtools.MkdirAllAs(base, 0700, rootUID, rootGID); err != nil {
+	if err := fsutils.MkdirAllAs(base, 0700, rootUID, rootGID); err != nil {
 		return nil, fmt.Errorf("Failed to create '%s': %v", base, err)
 	}
 
@@ -171,8 +171,8 @@ type Driver struct {
 	options          zfsOptions
 	sync.Mutex       // protects filesystem cache against concurrent access
 	filesystemsCache map[string]bool
-	uidMaps          []idtools.IDMap
-	gidMaps          []idtools.IDMap
+	uidMaps          []fsutils.IDMap
+	gidMaps          []fsutils.IDMap
 	ctr              *graphdriver.RefCounter
 }
 
@@ -366,13 +366,13 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 	options := label.FormatMountLabel("", mountLabel)
 	logrus.Debugf(`[zfs] mount("%s", "%s", "%s")`, filesystem, mountpoint, options)
 
-	rootUID, rootGID, err := idtools.GetRootUIDGID(d.uidMaps, d.gidMaps)
+	rootUID, rootGID, err := fsutils.GetRootUIDGID(d.uidMaps, d.gidMaps)
 	if err != nil {
 		d.ctr.Decrement(mountpoint)
 		return "", err
 	}
 	// Create the target directories if they don't exist
-	if err := idtools.MkdirAllAs(mountpoint, 0755, rootUID, rootGID); err != nil {
+	if err := fsutils.MkdirAllAs(mountpoint, 0755, rootUID, rootGID); err != nil {
 		d.ctr.Decrement(mountpoint)
 		return "", err
 	}

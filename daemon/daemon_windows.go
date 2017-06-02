@@ -15,7 +15,7 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/fileutils"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/fsutils"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/platform"
 	"github.com/docker/docker/pkg/sysinfo"
@@ -458,11 +458,11 @@ func (daemon *Daemon) cleanupMounts() error {
 	return nil
 }
 
-func setupRemappedRoot(config *config.Config) (*idtools.IDMappings, error) {
-	return &idtools.IDMappings{}, nil
+func setupRemappedRoot(config *config.Config) (*fsutils.IDMappings, error) {
+	return &fsutils.IDMappings{}, nil
 }
 
-func setupDaemonRoot(config *config.Config, rootDir string, rootIDs idtools.IDPair) error {
+func setupDaemonRoot(config *config.Config, rootDir string, rootIDs fsutils.IDPair) error {
 	config.Root = rootDir
 	// Create the root directory if it doesn't exists
 	if err := system.MkdirAllWithACL(config.Root, 0); err != nil && !os.IsExist(err) {
