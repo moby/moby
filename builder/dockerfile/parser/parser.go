@@ -107,29 +107,28 @@ func (d *Directive) setEscapeToken(s string) error {
 	return nil
 }
 
-// processLine looks for a parser directive '# escapeToken=<char>. Parser
-// directives must precede any builder instruction or other comments, and cannot
-// be repeated.
-func (d *Directive) processLine(line string) error {
+// possibleParserDirective looks for one or more parser directives '# escapeToken=<char>' and
+// '# platform=<string>'. Parser directives must precede any builder instruction
+// or other comments, and cannot be repeated.
+func (d *Directive) possibleParserDirective(line string) error {
 	if d.processingComplete {
 		return nil
 	}
-	// Processing is finished after the first call
-	defer func() { d.processingComplete = true }()
 
 	tecMatch := tokenEscapeCommand.FindStringSubmatch(strings.ToLower(line))
-	if len(tecMatch) == 0 {
-		return nil
-	}
-	if d.escapeSeen == true {
-		return errors.New("only one escape parser directive can be used")
-	}
-	for i, n := range tokenEscapeCommand.SubexpNames() {
-		if n == "escapechar" {
-			d.escapeSeen = true
-			return d.setEscapeToken(tecMatch[i])
+	if len(tecMatch) != 0 {
+		for i, n := range tokenEscapeCommand.SubexpNames() {
+			if n == "escapechar" {
+				if d.escapeSeen == true {
+					return errors.New("only one escape parser directive can be used")
+				}
+				d.escapeSeen = true
+				return d.setEscapeToken(tecMatch[i])
+			}
 		}
 	}
+
+	d.processingComplete = true
 	return nil
 }
 
@@ -213,34 +212,36 @@ func Parse(rwc io.Reader) (*Result, error) {
 
 	var err error
 	for scanner.Scan() {
-		bytes := scanner.Bytes()
-		switch currentLine {
-		case 0:
-			bytes, err = processFirstLine(d, bytes)
-			if err != nil {
-				return nil, err
-			}
-		default:
-			bytes = processLine(bytes, true)
+		bytesRead := scanner.Bytes()
+		if currentLine == 0 {
+			// First line, strip the byte-order-marker if present
+			bytesRead = bytes.TrimPrefix(bytesRead, utf8bom)
+		}
+		bytesRead, err = processLine(d, bytesRead, true)
+		if err != nil {
+			return nil, err
 		}
 		currentLine++
 
 		startLine := currentLine
-		line, isEndOfLine := trimContinuationCharacter(string(bytes), d)
+		line, isEndOfLine := trimContinuationCharacter(string(bytesRead), d)
 		if isEndOfLine && line == "" {
 			continue
 		}
 
 		for !isEndOfLine && scanner.Scan() {
-			bytes := processLine(scanner.Bytes(), false)
+			bytesRead, err := processLine(d, scanner.Bytes(), false)
+			if err != nil {
+				return nil, err
+			}
 			currentLine++
 
 			// TODO: warn this is being deprecated/removed
-			if isEmptyContinuationLine(bytes) {
+			if isEmptyContinuationLine(bytesRead) {
 				continue
 			}
 
-			continuationLine := string(bytes)
+			continuationLine := string(bytesRead)
 			continuationLine, isEndOfLine = trimContinuationCharacter(continuationLine, d)
 			line += continuationLine
 		}
@@ -251,7 +252,6 @@ func Parse(rwc io.Reader) (*Result, error) {
 		}
 		root.AddChild(child, startLine, currentLine)
 	}
-
 	return &Result{AST: root, EscapeToken: d.escapeToken}, nil
 }
 
@@ -279,16 +279,10 @@ func trimContinuationCharacter(line string, d *Directive) (string, bool) {
 
 // TODO: remove stripLeftWhitespace after deprecation period. It seems silly
 // to preserve whitespace on continuation lines. Why is that done?
-func processLine(token []byte, stripLeftWhitespace bool) []byte {
+func processLine(d *Directive, token []byte, stripLeftWhitespace bool) ([]byte, error) {
 	if stripLeftWhitespace {
 		token = trimWhitespace(token)
 	}
-	return trimComments(token)
-}
-
-func processFirstLine(d *Directive, token []byte) ([]byte, error) {
-	token = bytes.TrimPrefix(token, utf8bom)
-	token = trimWhitespace(token)
-	err := d.processLine(string(token))
+	err := d.possibleParserDirective(string(token))
 	return trimComments(token), err
 }
