@@ -20,8 +20,8 @@ func TestLoadDaemonCliConfigWithDaemonFlags(t *testing.T) {
 	defer tempFile.Remove()
 
 	opts := defaultOptions(tempFile.Name())
-	opts.common.Debug = true
-	opts.common.LogLevel = "info"
+	opts.Debug = true
+	opts.LogLevel = "info"
 	assert.NoError(t, opts.flags.Set("selinux-enabled", "true"))
 
 	loadedConfig, err := loadDaemonCliConfig(opts)

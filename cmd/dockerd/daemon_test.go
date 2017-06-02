@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/Sirupsen/logrus"
-	cliflags "github.com/docker/docker/cli/flags"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/pkg/testutil"
 	"github.com/docker/docker/pkg/testutil/tempfile"
@@ -13,13 +12,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func defaultOptions(configFile string) daemonOptions {
-	opts := daemonOptions{
-		daemonConfig: &config.Config{},
-		flags:        &pflag.FlagSet{},
-		common:       cliflags.NewCommonOptions(),
-	}
-	opts.common.InstallFlags(opts.flags)
+func defaultOptions(configFile string) *daemonOptions {
+	opts := newDaemonOptions(&config.Config{})
+	opts.flags = &pflag.FlagSet{}
+	opts.InstallFlags(opts.flags)
 	installConfigFlags(opts.daemonConfig, opts.flags)
 	opts.flags.StringVar(&opts.configFile, "config-file", defaultDaemonConfigFile, "")
 	opts.configFile = configFile
@@ -28,7 +24,7 @@ func defaultOptions(configFile string) daemonOptions {
 
 func TestLoadDaemonCliConfigWithoutOverriding(t *testing.T) {
 	opts := defaultOptions("")
-	opts.common.Debug = true
+	opts.Debug = true
 
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	require.NoError(t, err)
@@ -40,8 +36,8 @@ func TestLoadDaemonCliConfigWithoutOverriding(t *testing.T) {
 
 func TestLoadDaemonCliConfigWithTLS(t *testing.T) {
 	opts := defaultOptions("")
-	opts.common.TLSOptions.CAFile = "/tmp/ca.pem"
-	opts.common.TLS = true
+	opts.TLSOptions.CAFile = "/tmp/ca.pem"
+	opts.TLS = true
 
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	require.NoError(t, err)
@@ -70,7 +66,7 @@ func TestLoadDaemonCliConfigWithTLSVerify(t *testing.T) {
 	defer tempFile.Remove()
 
 	opts := defaultOptions(tempFile.Name())
-	opts.common.TLSOptions.CAFile = "/tmp/ca.pem"
+	opts.TLSOptions.CAFile = "/tmp/ca.pem"
 
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	require.NoError(t, err)
@@ -83,7 +79,7 @@ func TestLoadDaemonCliConfigWithExplicitTLSVerifyFalse(t *testing.T) {
 	defer tempFile.Remove()
 
 	opts := defaultOptions(tempFile.Name())
-	opts.common.TLSOptions.CAFile = "/tmp/ca.pem"
+	opts.TLSOptions.CAFile = "/tmp/ca.pem"
 
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	require.NoError(t, err)
@@ -96,7 +92,7 @@ func TestLoadDaemonCliConfigWithoutTLSVerify(t *testing.T) {
 	defer tempFile.Remove()
 
 	opts := defaultOptions(tempFile.Name())
-	opts.common.TLSOptions.CAFile = "/tmp/ca.pem"
+	opts.TLSOptions.CAFile = "/tmp/ca.pem"
 
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	require.NoError(t, err)

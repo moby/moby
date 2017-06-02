@@ -1,4 +1,4 @@
-package flags
+package config
 
 import (
 	"os"
@@ -12,9 +12,9 @@ var (
 	configFileDir = ".docker"
 )
 
-// ConfigurationDir returns the path to the configuration directory as specified by the DOCKER_CONFIG environment variable.
+// Dir returns the path to the configuration directory as specified by the DOCKER_CONFIG environment variable.
 // TODO: this was copied from cli/config/configfile and should be removed once cmd/dockerd moves
-func ConfigurationDir() string {
+func Dir() string {
 	return configDir
 }
 
