@@ -20,7 +20,7 @@ func (cli *Client) ContainerStatPath(ctx context.Context, containerID, path stri
 	query := url.Values{}
 	query.Set("path", filepath.ToSlash(path)) // Normalize the paths used in the API.
 
-	urlStr := fmt.Sprintf("/containers/%s/archive", containerID)
+	urlStr := "/containers/" + containerID + "/archive"
 	response, err := cli.head(ctx, urlStr, query, nil)
 	if err != nil {
 		return types.ContainerPathStat{}, err
@@ -42,7 +42,7 @@ func (cli *Client) CopyToContainer(ctx context.Context, container, path string, 
 		query.Set("copyUIDGID", "true")
 	}
 
-	apiPath := fmt.Sprintf("/containers/%s/archive", container)
+	apiPath := "/containers/" + container + "/archive"
 
 	response, err := cli.putRaw(ctx, apiPath, query, content, nil)
 	if err != nil {
@@ -63,7 +63,7 @@ func (cli *Client) CopyFromContainer(ctx context.Context, container, srcPath str
 	query := make(url.Values, 1)
 	query.Set("path", filepath.ToSlash(srcPath)) // Normalize the paths used in the API.
 
-	apiPath := fmt.Sprintf("/containers/%s/archive", container)
+	apiPath := "/containers/" + container + "/archive"
 	response, err := cli.get(ctx, apiPath, query, nil)
 	if err != nil {
 		return nil, types.ContainerPathStat{}, err
