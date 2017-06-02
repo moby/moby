@@ -274,7 +274,7 @@ func BuildFromConfig(config *container.Config, changes []string) (*container.Con
 	}
 	dispatchState := newDispatchState()
 	dispatchState.runConfig = config
-	return dispatchFromDockerfile(b, dockerfile, dispatchState)
+	return dispatchFromDockerfile(b, dockerfile, dispatchState, nil)
 }
 
 func checkDispatchDockerfile(dockerfile *parser.Node) error {
@@ -286,7 +286,7 @@ func checkDispatchDockerfile(dockerfile *parser.Node) error {
 	return nil
 }
 
-func dispatchFromDockerfile(b *Builder, result *parser.Result, dispatchState *dispatchState) (*container.Config, error) {
+func dispatchFromDockerfile(b *Builder, result *parser.Result, dispatchState *dispatchState, source builder.Source) (*container.Config, error) {
 	shlex := NewShellLex(result.EscapeToken)
 	ast := result.AST
 	total := len(ast.Children)
@@ -297,6 +297,7 @@ func dispatchFromDockerfile(b *Builder, result *parser.Result, dispatchState *di
 			stepMsg: formatStep(i, total),
 			node:    n,
 			shlex:   shlex,
+			source:  source,
 		}
 		if _, err := b.dispatch(opts); err != nil {
 			return nil, err
