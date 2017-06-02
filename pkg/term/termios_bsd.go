@@ -27,7 +27,7 @@ func MakeRaw(fd uintptr) (*State, error) {
 
 	newState := oldState.termios
 	newState.Iflag &^= (unix.IGNBRK | unix.BRKINT | unix.PARMRK | unix.ISTRIP | unix.INLCR | unix.IGNCR | unix.ICRNL | unix.IXON)
-	newState.Oflag &^= unix.OPOST
+	newState.Oflag |= unix.OPOST
 	newState.Lflag &^= (unix.ECHO | unix.ECHONL | unix.ICANON | unix.ISIG | unix.IEXTEN)
 	newState.Cflag &^= (unix.CSIZE | unix.PARENB)
 	newState.Cflag |= unix.CS8
