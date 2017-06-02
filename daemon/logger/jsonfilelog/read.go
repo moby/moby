@@ -14,8 +14,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/daemon/logger/jsonfilelog/multireader"
 	"github.com/docker/docker/pkg/filenotify"
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/jsonlog"
 	"github.com/docker/docker/pkg/tailfile"
 )
@@ -77,7 +77,7 @@ func (l *JSONFileLogger) readLogs(logWatcher *logger.LogWatcher, config logger.R
 	defer latestFile.Close()
 
 	if config.Tail != 0 {
-		tailer := ioutils.MultiReadSeeker(append(files, latestFile)...)
+		tailer := multireader.MultiReadSeeker(append(files, latestFile)...)
 		tailFile(tailer, logWatcher, config.Tail, config.Since)
 	}
 
