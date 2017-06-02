@@ -58,7 +58,6 @@ const defaultOwner = "docker"
 //	"SystemType": "Container",
 //	"Name": "5e0055c814a6005b8e57ac59f9a522066e0af12b48b3c26a9416e23907698776",
 //	"Owner": "docker",
-//	"IsDummy": false,
 //	"VolumePath": "\\\\\\\\?\\\\Volume{66d1ef4c-7a00-11e6-8948-00155ddbef9d}",
 //	"IgnoreFlushesDuringBoot": true,
 //	"LayerFolderPath": "C:\\\\control\\\\windowsfilter\\\\5e0055c814a6005b8e57ac59f9a522066e0af12b48b3c26a9416e23907698776",
@@ -79,7 +78,6 @@ const defaultOwner = "docker"
 //	"SystemType": "Container",
 //	"Name": "475c2c58933b72687a88a441e7e0ca4bd72d76413c5f9d5031fee83b98f6045d",
 //	"Owner": "docker",
-//	"IsDummy": false,
 //	"IgnoreFlushesDuringBoot": true,
 //	"Layers": [{
 //		"ID": "18955d65-d45a-557b-bf1c-49d6dfefc526",
