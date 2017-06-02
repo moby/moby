@@ -249,3 +249,28 @@ func (s *DockerSuite) TestBuildAPIUnnormalizedTarPaths(c *check.C) {
 
 	c.Assert(imageA, checker.Not(checker.Equals), imageB)
 }
+
+func (s *DockerSuite) TestBuildOnBuildWithCopy(c *check.C) {
+	dockerfile := `
+		FROM ` + minimalBaseImage() + ` as onbuildbase
+		ONBUILD COPY file /file
+
+		FROM onbuildbase
+	`
+	ctx := fakecontext.New(c, "",
+		fakecontext.WithDockerfile(dockerfile),
+		fakecontext.WithFile("file", "some content"),
+	)
+	defer ctx.Close()
+
+	res, body, err := request.Post(
+		"/build",
+		request.RawContent(ctx.AsTarReader(c)),
+		request.ContentType("application/x-tar"))
+	c.Assert(err, checker.IsNil)
+	c.Assert(res.StatusCode, checker.Equals, http.StatusOK)
+
+	out, err := testutil.ReadBody(body)
+	c.Assert(err, checker.IsNil)
+	c.Assert(string(out), checker.Contains, "Successfully built")
+}
