@@ -594,7 +594,7 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	}
 
 	if runtime.GOOS == "windows" {
-		if err := system.MkdirAll(filepath.Join(config.Root, "credentialspecs"), 0); err != nil && !os.IsExist(err) {
+		if err := system.MkdirAll(filepath.Join(config.Root, "credentialspecs"), 0, ""); err != nil && !os.IsExist(err) {
 			return nil, err
 		}
 	}
@@ -709,7 +709,7 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 
 	trustDir := filepath.Join(config.Root, "trust")
 
-	if err := system.MkdirAll(trustDir, 0700); err != nil {
+	if err := system.MkdirAll(trustDir, 0700, ""); err != nil {
 		return nil, err
 	}
 
