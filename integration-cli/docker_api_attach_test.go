@@ -13,13 +13,14 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/request"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/go-check/check"
 	"golang.org/x/net/websocket"
 )
 
-func (s *DockerSuite) TestGetContainersAttachWebsocket(c *check.C) {
+func (s *DockerSuite) TestGetContainersAttachWebsocketTTY(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-dit", "busybox", "cat")
 
@@ -43,6 +44,115 @@ func (s *DockerSuite) TestGetContainersAttachWebsocket(c *check.C) {
 	outChan := make(chan error)
 	go func() {
 		_, err := io.ReadFull(ws, actual)
+		outChan <- err
+		close(outChan)
+	}()
+
+	inChan := make(chan error)
+	go func() {
+		_, err := ws.Write(expected)
+		inChan <- err
+		close(inChan)
+	}()
+
+	select {
+	case err := <-inChan:
+		c.Assert(err, checker.IsNil)
+	case <-time.After(5 * time.Second):
+		c.Fatal("Timeout writing to ws")
+	}
+
+	select {
+	case err := <-outChan:
+		c.Assert(err, checker.IsNil)
+	case <-time.After(5 * time.Second):
+		c.Fatal("Timeout reading from ws")
+	}
+
+	c.Assert(actual, checker.DeepEquals, expected, check.Commentf("Websocket didn't return the expected data"))
+}
+
+func (s *DockerSuite) TestGetContainersAttachWebsocketNoTTYPre136(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	out := cli.DockerCmd(c, "run", "-di", "busybox", "cat").Combined()
+	id := strings.TrimSpace(out)
+
+	rwc, err := request.SockConn(time.Duration(10*time.Second), daemonHost())
+	c.Assert(err, checker.IsNil)
+
+	config, err := websocket.NewConfig(
+		"/v1.35/containers/"+id+"/attach/ws?stream=1&stdin=1&stdout=1&stderr=1",
+		"http://localhost",
+	)
+	c.Assert(err, checker.IsNil)
+
+	ws, err := websocket.NewClient(config, rwc)
+	c.Assert(err, checker.IsNil)
+	defer ws.Close()
+
+	expected := []byte("hello")
+	actual := make([]byte, len(expected))
+
+	outChan := make(chan error)
+	go func() {
+		_, err := io.ReadFull(ws, actual)
+		outChan <- err
+		close(outChan)
+	}()
+
+	inChan := make(chan error)
+	go func() {
+		_, err := ws.Write(expected)
+		inChan <- err
+		close(inChan)
+	}()
+
+	select {
+	case err := <-inChan:
+		c.Assert(err, checker.IsNil)
+	case <-time.After(5 * time.Second):
+		c.Fatal("Timeout writing to ws")
+	}
+
+	select {
+	case err := <-outChan:
+		c.Assert(err, checker.IsNil)
+	case <-time.After(5 * time.Second):
+		c.Fatal("Timeout reading from ws")
+	}
+
+	c.Assert(actual, checker.DeepEquals, expected, check.Commentf("Websocket didn't return the expected data"))
+}
+
+func (s *DockerSuite) TestGetContainersAttachWebsocketNoTTY(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	out := cli.DockerCmd(c, "run", "-di", "busybox", "cat").Combined()
+	id := strings.TrimSpace(out)
+
+	rwc, err := request.SockConn(time.Duration(10*time.Second), daemonHost())
+	c.Assert(err, checker.IsNil)
+
+	config, err := websocket.NewConfig(
+		"/containers/"+id+"/attach/ws?stream=1&stdin=1&stdout=1&stderr=1",
+		"http://localhost",
+	)
+	c.Assert(err, checker.IsNil)
+
+	ws, err := websocket.NewClient(config, rwc)
+	c.Assert(err, checker.IsNil)
+	defer ws.Close()
+
+	r, w := io.Pipe()
+	go func() {
+		stdcopy.StdCopy(w, w, ws)
+	}()
+
+	expected := []byte("hello")
+	actual := make([]byte, len(expected))
+
+	outChan := make(chan error)
+	go func() {
+		_, err := io.ReadFull(r, actual)
 		outChan <- err
 		close(outChan)
 	}()

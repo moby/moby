@@ -18,7 +18,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 [Docker Engine API v1.36](https://docs.docker.com/engine/api/v1.36/) documentation
 
 * `Get /events` now return `exec_die` event when an exec process terminates.  
-
+* `/containers/attach` websocket endpoint now properly multiplexes streams on non-TTY outputs so clients can differentiate stdout and stderr. This uses the same stream format as the normal HTTP endpoint.
 
 ## v1.35 API changes
 
@@ -41,7 +41,6 @@ keywords: "API, Docker, rcli, REST, documentation"
   `Os`, `Arch`, `BuildTime`, `KernelVersion`, and `Experimental` fields. Going
   forward, the information from the `Components` section is preferred over their
   top-level counterparts.
-
 
 ## v1.34 API changes
 

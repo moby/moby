@@ -625,9 +625,15 @@ func (s *containerRouter) wsContainersAttach(ctx context.Context, w http.Respons
 		UseStdin:   true,
 		UseStdout:  true,
 		UseStderr:  true,
-		MuxStreams: false, // TODO: this should be true since it's a single stream for both stdout and stderr
+		MuxStreams: true,
 	}
 
+	// In prior API versions we were only mixing stdout/stderr streams together
+	// with no way for the client to differentiate. Setting `MuxStreams` to false
+	// keeps this old behavior.
+	if versions.LessThan(version, "1.36") {
+		attachConfig.MuxStreams = false
+	}
 	err = s.backend.ContainerAttach(containerName, attachConfig)
 	close(done)
 	select {
