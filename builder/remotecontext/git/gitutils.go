@@ -1,4 +1,4 @@
-package gitutils
+package git
 
 import (
 	"fmt"
