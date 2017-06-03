@@ -8,7 +8,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/assert"
-	"path/filepath"
 )
 
 func init() {
