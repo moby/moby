@@ -325,7 +325,7 @@ func processOnBuild(req dispatchRequest) error {
 			}
 		}
 
-		if _, err := dispatchFromDockerfile(req.builder, dockerfile, dispatchState); err != nil {
+		if _, err := dispatchFromDockerfile(req.builder, dockerfile, dispatchState, req.source); err != nil {
 			return err
 		}
 	}
