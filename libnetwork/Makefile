@@ -121,7 +121,6 @@ run-tests:
 
 check-local:	check-format check-code run-tests
 
-
 integration-tests: ./bin/dnet
 	@./test/integration/dnet/run-integration-tests.sh
 
