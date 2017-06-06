@@ -26,38 +26,28 @@ import (
 
 func TestGetContainer(t *testing.T) {
 	c1 := &container.Container{
-		CommonContainer: container.CommonContainer{
-			ID:   "5a4ff6a163ad4533d22d69a2b8960bf7fafdcba06e72d2febdba229008b0bf57",
-			Name: "tender_bardeen",
-		},
+		ID:   "5a4ff6a163ad4533d22d69a2b8960bf7fafdcba06e72d2febdba229008b0bf57",
+		Name: "tender_bardeen",
 	}
 
 	c2 := &container.Container{
-		CommonContainer: container.CommonContainer{
-			ID:   "3cdbd1aa394fd68559fd1441d6eff2ab7c1e6363582c82febfaa8045df3bd8de",
-			Name: "drunk_hawking",
-		},
+		ID:   "3cdbd1aa394fd68559fd1441d6eff2ab7c1e6363582c82febfaa8045df3bd8de",
+		Name: "drunk_hawking",
 	}
 
 	c3 := &container.Container{
-		CommonContainer: container.CommonContainer{
-			ID:   "3cdbd1aa394fd68559fd1441d6eff2abfafdcba06e72d2febdba229008b0bf57",
-			Name: "3cdbd1aa",
-		},
+		ID:   "3cdbd1aa394fd68559fd1441d6eff2abfafdcba06e72d2febdba229008b0bf57",
+		Name: "3cdbd1aa",
 	}
 
 	c4 := &container.Container{
-		CommonContainer: container.CommonContainer{
-			ID:   "75fb0b800922abdbef2d27e60abcdfaf7fb0698b2a96d22d3354da361a6ff4a5",
-			Name: "5a4ff6a163ad4533d22d69a2b8960bf7fafdcba06e72d2febdba229008b0bf57",
-		},
+		ID:   "75fb0b800922abdbef2d27e60abcdfaf7fb0698b2a96d22d3354da361a6ff4a5",
+		Name: "5a4ff6a163ad4533d22d69a2b8960bf7fafdcba06e72d2febdba229008b0bf57",
 	}
 
 	c5 := &container.Container{
-		CommonContainer: container.CommonContainer{
-			ID:   "d22d69a2b8960bf7fafdcba06e72d2febdba960bf7fafdcba06e72d2f9008b060b",
-			Name: "d22d69a2b896",
-		},
+		ID:   "d22d69a2b8960bf7fafdcba06e72d2febdba960bf7fafdcba06e72d2f9008b060b",
+		Name: "d22d69a2b896",
 	}
 
 	store := container.NewMemoryStore()
@@ -183,7 +173,7 @@ func TestContainerInitDNS(t *testing.T) {
 "UpdateDns":false,"Volumes":{},"VolumesRW":{},"AppliedVolumesFrom":null}`
 
 	// Container struct only used to retrieve path to config file
-	container := &container.Container{CommonContainer: container.CommonContainer{Root: containerPath}}
+	container := &container.Container{Root: containerPath}
 	configPath, err := container.ConfigPath()
 	if err != nil {
 		t.Fatal(err)
