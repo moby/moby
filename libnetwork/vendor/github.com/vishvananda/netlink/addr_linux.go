@@ -195,10 +195,16 @@ func parseAddr(m []byte) (addr Addr, family, index int, err error) {
 				Mask: net.CIDRMask(int(msg.Prefixlen), 8*len(attr.Value)),
 			}
 			addr.IPNet = local
+		case syscall.IFA_BROADCAST:
+			addr.Broadcast = attr.Value
 		case syscall.IFA_LABEL:
 			addr.Label = string(attr.Value[:len(attr.Value)-1])
 		case IFA_FLAGS:
 			addr.Flags = int(native.Uint32(attr.Value[0:4]))
+		case nl.IFA_CACHEINFO:
+			ci := nl.DeserializeIfaCacheInfo(attr.Value)
+			addr.PreferedLft = int(ci.IfaPrefered)
+			addr.ValidLft = int(ci.IfaValid)
 		}
 	}
 
@@ -216,6 +222,10 @@ func parseAddr(m []byte) (addr Addr, family, index int, err error) {
 type AddrUpdate struct {
 	LinkAddress net.IPNet
 	LinkIndex   int
+	Flags       int
+	Scope       int
+	PreferedLft int
+	ValidLft    int
 	NewAddr     bool // true=added false=deleted
 }
 
@@ -263,7 +273,13 @@ func addrSubscribe(newNs, curNs netns.NsHandle, ch chan<- AddrUpdate, done <-cha
 					continue
 				}
 
-				ch <- AddrUpdate{LinkAddress: *addr.IPNet, LinkIndex: ifindex, NewAddr: msgType == syscall.RTM_NEWADDR}
+				ch <- AddrUpdate{LinkAddress: *addr.IPNet,
+					LinkIndex:   ifindex,
+					NewAddr:     msgType == syscall.RTM_NEWADDR,
+					Flags:       addr.Flags,
+					Scope:       addr.Scope,
+					PreferedLft: addr.PreferedLft,
+					ValidLft:    addr.ValidLft}
 			}
 		}
 	}()

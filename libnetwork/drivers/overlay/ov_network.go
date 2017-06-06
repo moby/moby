@@ -58,6 +58,7 @@ type network struct {
 	dbIndex   uint64
 	dbExists  bool
 	sbox      osl.Sandbox
+	nlSocket  *nl.NetlinkSocket
 	endpoints endpointTable
 	driver    *driver
 	joinCnt   int
@@ -343,6 +344,12 @@ func (n *network) destroySandbox() {
 			if err := removeNetworkChain(n.id[:12]); err != nil {
 				logrus.Warnf("could not remove network chain: %v", err)
 			}
+		}
+
+		// Close the netlink socket, this will also release the watchMiss goroutine that is using it
+		if n.nlSocket != nil {
+			n.nlSocket.Close()
+			n.nlSocket = nil
 		}
 
 		n.sbox.Destroy()
@@ -685,6 +692,7 @@ func (n *network) initSandbox(restore bool) error {
 	sbox.InvokeFunc(func() {
 		nlSock, err = nl.Subscribe(syscall.NETLINK_ROUTE, syscall.RTNLGRP_NEIGH)
 	})
+	n.setNetlinkSocket(nlSock)
 
 	if err == nil {
 		go n.watchMiss(nlSock)
@@ -700,6 +708,13 @@ func (n *network) watchMiss(nlSock *nl.NetlinkSocket) {
 	for {
 		msgs, err := nlSock.Receive()
 		if err != nil {
+			n.Lock()
+			nlFd := nlSock.GetFd()
+			n.Unlock()
+			if nlFd == -1 {
+				// The netlink socket got closed, simply exit to not leak this goroutine
+				return
+			}
 			logrus.Errorf("Failed to receive from netlink: %v ", err)
 			continue
 		}
@@ -813,6 +828,12 @@ func (n *network) sandbox() osl.Sandbox {
 func (n *network) setSandbox(sbox osl.Sandbox) {
 	n.Lock()
 	n.sbox = sbox
+	n.Unlock()
+}
+
+func (n *network) setNetlinkSocket(nlSk *nl.NetlinkSocket) {
+	n.Lock()
+	n.nlSocket = nlSk
 	n.Unlock()
 }
 
