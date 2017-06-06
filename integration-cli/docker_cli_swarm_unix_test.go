@@ -94,7 +94,7 @@ func (s *DockerSwarmSuite) TestSwarmNetworkPluginV2(c *check.C) {
 
 	time.Sleep(20 * time.Second)
 
-	image := "busybox"
+	image := "busybox:latest"
 	// create a new global service again.
 	_, err = d1.Cmd("service", "create", "--no-resolve-image", "--name", serviceName, "--mode=global", "--network", networkName, image, "top")
 	c.Assert(err, checker.IsNil)
