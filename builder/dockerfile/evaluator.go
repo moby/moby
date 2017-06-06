@@ -171,11 +171,9 @@ func (b *Builder) dispatch(options dispatchOptions) (*dispatchState, error) {
 		buildsFailed.WithValues(metricsUnknownInstructionError).Inc()
 		return nil, fmt.Errorf("unknown instruction: %s", upperCasedCmd)
 	}
-	if err := f(newDispatchRequestFromOptions(options, b, args)); err != nil {
-		return nil, err
-	}
 	options.state.updateRunConfig()
-	return options.state, nil
+	err = f(newDispatchRequestFromOptions(options, b, args))
+	return options.state, err
 }
 
 type dispatchOptions struct {
