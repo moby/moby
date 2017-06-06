@@ -9,7 +9,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
-	daemonconfig "github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/pkg/errors"
@@ -38,7 +37,8 @@ func (daemon *Daemon) FillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 	}
 
 	v.RuncCommit.Expected = dockerversion.RuncCommitID
-	if rv, err := exec.Command(DefaultRuntimeBinary, "--version").Output(); err == nil {
+	defaultRuntimeBinary := daemon.configStore.GetRuntime(daemon.configStore.GetDefaultRuntimeName()).Path
+	if rv, err := exec.Command(defaultRuntimeBinary).Output(); err == nil {
 		parts := strings.Split(strings.TrimSpace(string(rv)), "\n")
 		if len(parts) == 3 {
 			parts = strings.Split(parts[1], ": ")
@@ -48,23 +48,24 @@ func (daemon *Daemon) FillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 		}
 
 		if v.RuncCommit.ID == "" {
-			logrus.Warnf("failed to retrieve %s version: unknown output format: %s", DefaultRuntimeBinary, string(rv))
+			logrus.Warnf("failed to retrieve %s version: unknown output format: %s", defaultRuntimeBinary, string(rv))
 			v.RuncCommit.ID = "N/A"
 		}
 	} else {
-		logrus.Warnf("failed to retrieve %s version: %v", DefaultRuntimeBinary, err)
+		logrus.Warnf("failed to retrieve %s version: %v", defaultRuntimeBinary, err)
 		v.RuncCommit.ID = "N/A"
 	}
 
-	if rv, err := exec.Command(daemonconfig.DefaultInitBinary, "--version").Output(); err == nil {
+	defaultInitBinary := daemon.configStore.GetInitPath()
+	if rv, err := exec.Command(defaultInitBinary, "--version").Output(); err == nil {
 		ver, err := parseInitVersion(string(rv))
 
 		if err != nil {
-			logrus.Warnf("failed to retrieve %s version: %s", daemonconfig.DefaultInitBinary, err)
+			logrus.Warnf("failed to retrieve %s version: %s", defaultInitBinary, err)
 		}
 		v.InitCommit = ver
 	} else {
-		logrus.Warnf("failed to retrieve %s version: %s", daemonconfig.DefaultInitBinary, err)
+		logrus.Warnf("failed to retrieve %s version: %s", defaultInitBinary, err)
 		v.InitCommit.ID = "N/A"
 	}
 }
