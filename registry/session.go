@@ -757,19 +757,6 @@ func (r *Session) SearchRepositories(term string, limit int) (*registrytypes.Sea
 	return result, json.NewDecoder(res.Body).Decode(result)
 }
 
-// GetAuthConfig returns the authentication settings for a session
-// TODO(tiborvass): remove this once registry client v2 is vendored
-func (r *Session) GetAuthConfig(withPasswd bool) *types.AuthConfig {
-	password := ""
-	if withPasswd {
-		password = r.authConfig.Password
-	}
-	return &types.AuthConfig{
-		Username: r.authConfig.Username,
-		Password: password,
-	}
-}
-
 func isTimeout(err error) bool {
 	type timeout interface {
 		Timeout() bool
