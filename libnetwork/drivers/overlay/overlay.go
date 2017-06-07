@@ -180,6 +180,10 @@ func Fini(drv driverapi.Driver) {
 }
 
 func (d *driver) configure() error {
+
+	// Apply OS specific kernel configs if needed
+	d.initOS.Do(applyOStweaks)
+
 	if d.store == nil {
 		return nil
 	}
@@ -187,9 +191,6 @@ func (d *driver) configure() error {
 	if d.vxlanIdm == nil {
 		return d.initializeVxlanIdm()
 	}
-
-	// Apply OS specific kernel configs if needed
-	d.initOS.Do(applyOStweaks)
 
 	return nil
 }
