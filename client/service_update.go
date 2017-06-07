@@ -35,24 +35,44 @@ func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, version 
 
 	query.Set("version", strconv.FormatUint(version.Index, 10))
 
-	// ensure that the image is tagged
-	if taggedImg := imageWithTagString(service.TaskTemplate.ContainerSpec.Image); taggedImg != "" {
-		service.TaskTemplate.ContainerSpec.Image = taggedImg
+	if err := validateServiceSpec(service); err != nil {
+		return types.ServiceUpdateResponse{}, err
 	}
 
-	// Contact the registry to retrieve digest and platform information
-	// This happens only when the image has changed
-	if options.QueryRegistry {
-		distributionInspect, err := cli.DistributionInspect(ctx, service.TaskTemplate.ContainerSpec.Image, options.EncodedRegistryAuth)
-		distErr = err
-		if err == nil {
-			// now pin by digest if the image doesn't already contain a digest
-			if img := imageWithDigestString(service.TaskTemplate.ContainerSpec.Image, distributionInspect.Descriptor.Digest); img != "" {
+	var imgPlatforms []swarm.Platform
+	// ensure that the image is tagged
+	if service.TaskTemplate.ContainerSpec != nil {
+		if taggedImg := imageWithTagString(service.TaskTemplate.ContainerSpec.Image); taggedImg != "" {
+			service.TaskTemplate.ContainerSpec.Image = taggedImg
+		}
+		if options.QueryRegistry {
+			var img string
+			img, imgPlatforms, distErr = imageDigestAndPlatforms(ctx, cli, service.TaskTemplate.ContainerSpec.Image, options.EncodedRegistryAuth)
+			if img != "" {
 				service.TaskTemplate.ContainerSpec.Image = img
 			}
-			// add platforms that are compatible with the service
-			service.TaskTemplate.Placement = setServicePlatforms(service.TaskTemplate.Placement, distributionInspect)
 		}
+	}
+
+	// ensure that the image is tagged
+	if service.TaskTemplate.PluginSpec != nil {
+		if taggedImg := imageWithTagString(service.TaskTemplate.PluginSpec.Remote); taggedImg != "" {
+			service.TaskTemplate.PluginSpec.Remote = taggedImg
+		}
+		if options.QueryRegistry {
+			var img string
+			img, imgPlatforms, distErr = imageDigestAndPlatforms(ctx, cli, service.TaskTemplate.PluginSpec.Remote, options.EncodedRegistryAuth)
+			if img != "" {
+				service.TaskTemplate.PluginSpec.Remote = img
+			}
+		}
+	}
+
+	if service.TaskTemplate.Placement == nil && len(imgPlatforms) > 0 {
+		service.TaskTemplate.Placement = &swarm.Placement{}
+	}
+	if len(imgPlatforms) > 0 {
+		service.TaskTemplate.Placement.Platforms = imgPlatforms
 	}
 
 	var response types.ServiceUpdateResponse

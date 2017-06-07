@@ -1975,11 +1975,39 @@ definitions:
     description: "User modifiable task configuration."
     type: "object"
     properties:
+      PluginSpec:
+        type: "object"
+        description: "Invalid when specified with `ContainerSpec`."
+        properties:
+          Name:
+            description: "The name or 'alias' to use for the plugin."
+            type: "string"
+          Remote:
+            description: "The plugin image reference to use."
+            type: "string"
+          Disabled:
+            description: "Disable the plugin once scheduled."
+            type: "boolean"
+          PluginPrivilege:
+            type: "array"
+            items:
+              description: "Describes a permission accepted by the user upon installing the plugin."
+              type: "object"
+              properties:
+                Name:
+                  type: "string"
+                Description:
+                  type: "string"
+                Value:
+                  type: "array"
+                  items:
+                    type: "string"
       ContainerSpec:
         type: "object"
+        description: "Invalid when specified with `PluginSpec`."
         properties:
           Image:
-            description: "The image name to use for the container."
+            description: "The image name to use for the container"
             type: "string"
           Labels:
             description: "User-defined key/value data."

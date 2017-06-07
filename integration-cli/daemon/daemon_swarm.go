@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
 	"github.com/pkg/errors"
@@ -124,20 +126,29 @@ type ConfigConstructor func(*swarm.Config)
 // SpecConstructor defines a swarm spec constructor
 type SpecConstructor func(*swarm.Spec)
 
-// CreateService creates a swarm service given the specified service constructor
-func (d *Swarm) CreateService(c *check.C, f ...ServiceConstructor) string {
+// CreateServiceWithOptions creates a swarm service given the specified service constructors
+// and auth config
+func (d *Swarm) CreateServiceWithOptions(c *check.C, opts types.ServiceCreateOptions, f ...ServiceConstructor) string {
+	cl, err := client.NewClient(d.Sock(), "", nil, nil)
+	c.Assert(err, checker.IsNil, check.Commentf("failed to create client"))
+	defer cl.Close()
+
 	var service swarm.Service
 	for _, fn := range f {
 		fn(&service)
 	}
-	status, out, err := d.SockRequest("POST", "/services/create", service.Spec)
 
-	c.Assert(err, checker.IsNil, check.Commentf(string(out)))
-	c.Assert(status, checker.Equals, http.StatusCreated, check.Commentf("output: %q", string(out)))
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
-	var scr types.ServiceCreateResponse
-	c.Assert(json.Unmarshal(out, &scr), checker.IsNil)
-	return scr.ID
+	res, err := cl.ServiceCreate(ctx, service.Spec, opts)
+	c.Assert(err, checker.IsNil)
+	return res.ID
+}
+
+// CreateService creates a swarm service given the specified service constructor
+func (d *Swarm) CreateService(c *check.C, f ...ServiceConstructor) string {
+	return d.CreateServiceWithOptions(c, types.ServiceCreateOptions{}, f...)
 }
 
 // GetService returns the swarm service corresponding to the specified id
@@ -200,6 +211,37 @@ func (d *Swarm) CheckServiceUpdateState(service string) func(*check.C) (interfac
 	}
 }
 
+// CheckPluginRunning returns the runtime state of the plugin
+func (d *Swarm) CheckPluginRunning(plugin string) func(c *check.C) (interface{}, check.CommentInterface) {
+	return func(c *check.C) (interface{}, check.CommentInterface) {
+		status, out, err := d.SockRequest("GET", "/plugins/"+plugin+"/json", nil)
+		c.Assert(err, checker.IsNil, check.Commentf(string(out)))
+		if status != http.StatusOK {
+			return false, nil
+		}
+
+		var p types.Plugin
+		c.Assert(json.Unmarshal(out, &p), checker.IsNil, check.Commentf(string(out)))
+
+		return p.Enabled, check.Commentf("%+v", p)
+	}
+}
+
+// CheckPluginImage returns the runtime state of the plugin
+func (d *Swarm) CheckPluginImage(plugin string) func(c *check.C) (interface{}, check.CommentInterface) {
+	return func(c *check.C) (interface{}, check.CommentInterface) {
+		status, out, err := d.SockRequest("GET", "/plugins/"+plugin+"/json", nil)
+		c.Assert(err, checker.IsNil, check.Commentf(string(out)))
+		if status != http.StatusOK {
+			return false, nil
+		}
+
+		var p types.Plugin
+		c.Assert(json.Unmarshal(out, &p), checker.IsNil, check.Commentf(string(out)))
+		return p.PluginReference, check.Commentf("%+v", p)
+	}
+}
+
 // CheckServiceTasks returns the number of tasks for the specified service
 func (d *Swarm) CheckServiceTasks(service string) func(*check.C) (interface{}, check.CommentInterface) {
 	return func(c *check.C) (interface{}, check.CommentInterface) {
@@ -247,7 +289,7 @@ func (d *Swarm) CheckRunningTaskImages(c *check.C) (interface{}, check.CommentIn
 
 	result := make(map[string]int)
 	for _, task := range tasks {
-		if task.Status.State == swarm.TaskStateRunning {
+		if task.Status.State == swarm.TaskStateRunning && task.Spec.ContainerSpec != nil {
 			result[task.Spec.ContainerSpec.Image]++
 		}
 	}

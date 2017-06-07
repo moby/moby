@@ -53,6 +53,16 @@ func (p *Publisher) SubscribeTopic(topic topicFunc) chan interface{} {
 	return ch
 }
 
+// SubscribeTopicWithBuffer adds a new subscriber that filters messages sent by a topic.
+// The returned channel has a buffer of the specified size.
+func (p *Publisher) SubscribeTopicWithBuffer(topic topicFunc, buffer int) chan interface{} {
+	ch := make(chan interface{}, buffer)
+	p.m.Lock()
+	p.subscribers[ch] = topic
+	p.m.Unlock()
+	return ch
+}
+
 // Evict removes the specified subscriber from receiving any more messages.
 func (p *Publisher) Evict(sub chan interface{}) {
 	p.m.Lock()

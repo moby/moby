@@ -13,8 +13,11 @@ import (
 	gogotypes "github.com/gogo/protobuf/types"
 )
 
-func containerSpecFromGRPC(c *swarmapi.ContainerSpec) types.ContainerSpec {
-	containerSpec := types.ContainerSpec{
+func containerSpecFromGRPC(c *swarmapi.ContainerSpec) *types.ContainerSpec {
+	if c == nil {
+		return nil
+	}
+	containerSpec := &types.ContainerSpec{
 		Image:      c.Image,
 		Labels:     c.Labels,
 		Command:    c.Command,
@@ -211,7 +214,7 @@ func configReferencesFromGRPC(sr []*swarmapi.ConfigReference) []*types.ConfigRef
 	return refs
 }
 
-func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
+func containerToGRPC(c *types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 	containerSpec := &swarmapi.ContainerSpec{
 		Image:      c.Image,
 		Labels:     c.Labels,

@@ -1,14 +1,16 @@
 package convert
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
 	types "github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/api/types/swarm/runtime"
 	"github.com/docker/docker/pkg/namesgenerator"
 	swarmapi "github.com/docker/swarmkit/api"
+	"github.com/gogo/protobuf/proto"
 	gogotypes "github.com/gogo/protobuf/types"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -85,7 +87,10 @@ func serviceSpecFromGRPC(spec *swarmapi.ServiceSpec) (*types.ServiceSpec, error)
 
 	}
 
-	taskTemplate := taskSpecFromGRPC(spec.Task)
+	taskTemplate, err := taskSpecFromGRPC(spec.Task)
+	if err != nil {
+		return nil, err
+	}
 
 	switch t := spec.Task.GetRuntime().(type) {
 	case *swarmapi.TaskSpec_Container:
@@ -164,19 +169,34 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 
 	switch s.TaskTemplate.Runtime {
 	case types.RuntimeContainer, "": // if empty runtime default to container
-		containerSpec, err := containerToGRPC(s.TaskTemplate.ContainerSpec)
-		if err != nil {
-			return swarmapi.ServiceSpec{}, err
+		if s.TaskTemplate.ContainerSpec != nil {
+			containerSpec, err := containerToGRPC(s.TaskTemplate.ContainerSpec)
+			if err != nil {
+				return swarmapi.ServiceSpec{}, err
+			}
+			spec.Task.Runtime = &swarmapi.TaskSpec_Container{Container: containerSpec}
 		}
-		spec.Task.Runtime = &swarmapi.TaskSpec_Container{Container: containerSpec}
 	case types.RuntimePlugin:
-		spec.Task.Runtime = &swarmapi.TaskSpec_Generic{
-			Generic: &swarmapi.GenericRuntimeSpec{
-				Kind: string(types.RuntimePlugin),
-				Payload: &gogotypes.Any{
-					TypeUrl: string(types.RuntimeURLPlugin),
+		if s.Mode.Replicated != nil {
+			return swarmapi.ServiceSpec{}, errors.New("plugins must not use replicated mode")
+		}
+
+		s.Mode.Global = &types.GlobalService{} // must always be global
+
+		if s.TaskTemplate.PluginSpec != nil {
+			pluginSpec, err := proto.Marshal(s.TaskTemplate.PluginSpec)
+			if err != nil {
+				return swarmapi.ServiceSpec{}, err
+			}
+			spec.Task.Runtime = &swarmapi.TaskSpec_Generic{
+				Generic: &swarmapi.GenericRuntimeSpec{
+					Kind: string(types.RuntimePlugin),
+					Payload: &gogotypes.Any{
+						TypeUrl: string(types.RuntimeURLPlugin),
+						Value:   pluginSpec,
+					},
 				},
-			},
+			}
 		}
 	default:
 		return swarmapi.ServiceSpec{}, ErrUnsupportedRuntime
@@ -507,21 +527,14 @@ func updateConfigToGRPC(updateConfig *types.UpdateConfig) (*swarmapi.UpdateConfi
 	return converted, nil
 }
 
-func taskSpecFromGRPC(taskSpec swarmapi.TaskSpec) types.TaskSpec {
+func taskSpecFromGRPC(taskSpec swarmapi.TaskSpec) (types.TaskSpec, error) {
 	taskNetworks := make([]types.NetworkAttachmentConfig, 0, len(taskSpec.Networks))
 	for _, n := range taskSpec.Networks {
 		netConfig := types.NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases, DriverOpts: n.DriverAttachmentOpts}
 		taskNetworks = append(taskNetworks, netConfig)
 	}
 
-	c := taskSpec.GetContainer()
-	cSpec := types.ContainerSpec{}
-	if c != nil {
-		cSpec = containerSpecFromGRPC(c)
-	}
-
-	return types.TaskSpec{
-		ContainerSpec: cSpec,
+	t := types.TaskSpec{
 		Resources:     resourcesFromGRPC(taskSpec.Resources),
 		RestartPolicy: restartPolicyFromGRPC(taskSpec.Restart),
 		Placement:     placementFromGRPC(taskSpec.Placement),
@@ -529,4 +542,26 @@ func taskSpecFromGRPC(taskSpec swarmapi.TaskSpec) types.TaskSpec {
 		Networks:      taskNetworks,
 		ForceUpdate:   taskSpec.ForceUpdate,
 	}
+
+	switch taskSpec.GetRuntime().(type) {
+	case *swarmapi.TaskSpec_Container, nil:
+		c := taskSpec.GetContainer()
+		if c != nil {
+			t.ContainerSpec = containerSpecFromGRPC(c)
+		}
+	case *swarmapi.TaskSpec_Generic:
+		g := taskSpec.GetGeneric()
+		if g != nil {
+			switch g.Kind {
+			case string(types.RuntimePlugin):
+				var p runtime.PluginSpec
+				if err := proto.Unmarshal(g.Payload.Value, &p); err != nil {
+					return t, errors.Wrap(err, "error unmarshalling plugin spec")
+				}
+				t.PluginSpec = &p
+			}
+		}
+	}
+
+	return t, nil
 }

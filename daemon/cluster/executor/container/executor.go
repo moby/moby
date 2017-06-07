@@ -22,15 +22,17 @@ import (
 )
 
 type executor struct {
-	backend      executorpkg.Backend
-	dependencies exec.DependencyManager
+	backend       executorpkg.Backend
+	pluginBackend plugin.Backend
+	dependencies  exec.DependencyManager
 }
 
 // NewExecutor returns an executor from the docker client.
-func NewExecutor(b executorpkg.Backend) exec.Executor {
+func NewExecutor(b executorpkg.Backend, p plugin.Backend) exec.Executor {
 	return &executor{
-		backend:      b,
-		dependencies: agent.NewDependencyManager(),
+		backend:       b,
+		pluginBackend: p,
+		dependencies:  agent.NewDependencyManager(),
 	}
 }
 
@@ -181,7 +183,7 @@ func (e *executor) Controller(t *api.Task) (exec.Controller, error) {
 		}
 		switch runtimeKind {
 		case string(swarmtypes.RuntimePlugin):
-			c, err := plugin.NewController()
+			c, err := plugin.NewController(e.pluginBackend, t)
 			if err != nil {
 				return ctlr, err
 			}
