@@ -12,12 +12,23 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )
 
+func TestConfigListUnsupported(t *testing.T) {
+	client := &Client{
+		version: "1.29",
+		client:  &http.Client{},
+	}
+	_, err := client.ConfigList(context.Background(), types.ConfigListOptions{})
+	assert.EqualError(t, err, `"config list" requires API version 1.30, but the Docker daemon API version is 1.29`)
+}
+
 func TestConfigListError(t *testing.T) {
 	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
+		version: "1.30",
+		client:  newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
 	_, err := client.ConfigList(context.Background(), types.ConfigListOptions{})
@@ -27,7 +38,7 @@ func TestConfigListError(t *testing.T) {
 }
 
 func TestConfigList(t *testing.T) {
-	expectedURL := "/configs"
+	expectedURL := "/v1.30/configs"
 
 	filters := filters.NewArgs()
 	filters.Add("label", "label1")
@@ -54,6 +65,7 @@ func TestConfigList(t *testing.T) {
 	}
 	for _, listCase := range listCases {
 		client := &Client{
+			version: "1.30",
 			client: newMockClient(func(req *http.Request) (*http.Response, error) {
 				if !strings.HasPrefix(req.URL.Path, expectedURL) {
 					return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)

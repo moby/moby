@@ -11,12 +11,23 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )
 
+func TestConfigCreateUnsupported(t *testing.T) {
+	client := &Client{
+		version: "1.29",
+		client:  &http.Client{},
+	}
+	_, err := client.ConfigCreate(context.Background(), swarm.ConfigSpec{})
+	assert.EqualError(t, err, `"config create" requires API version 1.30, but the Docker daemon API version is 1.29`)
+}
+
 func TestConfigCreateError(t *testing.T) {
 	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
+		version: "1.30",
+		client:  newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ConfigCreate(context.Background(), swarm.ConfigSpec{})
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
@@ -25,8 +36,9 @@ func TestConfigCreateError(t *testing.T) {
 }
 
 func TestConfigCreate(t *testing.T) {
-	expectedURL := "/configs/create"
+	expectedURL := "/v1.30/configs/create"
 	client := &Client{
+		version: "1.30",
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)

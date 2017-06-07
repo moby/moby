@@ -10,12 +10,23 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )
 
+func TestConfigInspectUnsupported(t *testing.T) {
+	client := &Client{
+		version: "1.29",
+		client:  &http.Client{},
+	}
+	_, _, err := client.ConfigInspectWithRaw(context.Background(), "nothing")
+	assert.EqualError(t, err, `"config inspect" requires API version 1.30, but the Docker daemon API version is 1.29`)
+}
+
 func TestConfigInspectError(t *testing.T) {
 	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
+		version: "1.30",
+		client:  newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
 	_, _, err := client.ConfigInspectWithRaw(context.Background(), "nothing")
@@ -26,7 +37,8 @@ func TestConfigInspectError(t *testing.T) {
 
 func TestConfigInspectConfigNotFound(t *testing.T) {
 	client := &Client{
-		client: newMockClient(errorMock(http.StatusNotFound, "Server error")),
+		version: "1.30",
+		client:  newMockClient(errorMock(http.StatusNotFound, "Server error")),
 	}
 
 	_, _, err := client.ConfigInspectWithRaw(context.Background(), "unknown")
@@ -36,8 +48,9 @@ func TestConfigInspectConfigNotFound(t *testing.T) {
 }
 
 func TestConfigInspect(t *testing.T) {
-	expectedURL := "/configs/config_id"
+	expectedURL := "/v1.30/configs/config_id"
 	client := &Client{
+		version: "1.30",
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
