@@ -222,7 +222,7 @@ func (d *driver) peerDbUpdateSandbox(nid string) {
 	for pKeyStr, pEntry := range pMap.mp {
 		var pKey peerKey
 		if _, err := fmt.Sscan(pKeyStr, &pKey); err != nil {
-			fmt.Printf("peer key scan failed: %v", err)
+			logrus.Errorf("peer key scan failed: %v", err)
 		}
 
 		if pEntry.isLocal {
@@ -237,7 +237,7 @@ func (d *driver) peerDbUpdateSandbox(nid string) {
 			if err := d.peerAdd(nid, entry.eid, pKey.peerIP, entry.peerIPMask,
 				pKey.peerMac, entry.vtep,
 				false, false, false); err != nil {
-				fmt.Printf("peerdbupdate in sandbox failed for ip %s and mac %s: %v",
+				logrus.Errorf("peerdbupdate in sandbox failed for ip %s and mac %s: %v",
 					pKey.peerIP, pKey.peerMac, err)
 			}
 		}
