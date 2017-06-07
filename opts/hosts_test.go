@@ -179,3 +179,21 @@ func TestValidateExtraHosts(t *testing.T) {
 		}
 	}
 }
+
+func TestParseSSH(t *testing.T) {
+	var (
+		defaultUser = "me"
+		complete    = "ssh://me@example.com:22/var/run/docker.sock"
+	)
+	valids := map[string]string{
+		"example.com":               complete,
+		"me@example.com":            complete,
+		"me@example.com:2222":       "ssh://me@example.com:2222/var/run/docker.sock",
+		"me@example.com/dummy.sock": "ssh://me@example.com:22/dummy.sock",
+	}
+	for validAddr, expectedAddr := range valids {
+		if addr, err := parseSSHAddr(validAddr, defaultUser, DefaultSSHPort, DefaultUnixSocket); err != nil || addr != expectedAddr {
+			t.Errorf("%v -> expected %v, got %v and addr %v", validAddr, expectedAddr, err, addr)
+		}
+	}
+}

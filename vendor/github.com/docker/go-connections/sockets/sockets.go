@@ -3,8 +3,10 @@ package sockets
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -24,6 +26,8 @@ func ConfigureTransport(tr *http.Transport, proto, addr string) error {
 		return configureUnixTransport(tr, proto, addr)
 	case "npipe":
 		return configureNpipeTransport(tr, proto, addr)
+	case "ssh": // unix over ssh
+		return configureSSHTransport(tr, proto, addr)
 	default:
 		tr.Proxy = http.ProxyFromEnvironment
 		dialer, err := DialerFromEnvironment(&net.Dialer{
@@ -35,4 +39,29 @@ func ConfigureTransport(tr *http.Transport, proto, addr string) error {
 		tr.Dial = dialer.Dial
 	}
 	return nil
+}
+
+func configureSSHTransport(tr *http.Transport, proto, addr string) error {
+	tr.Dial = func(_, _ string) (net.Conn, error) {
+		return DialSSH(addr)
+	}
+	return nil
+}
+
+// DialSSH connects to a Unix socket over SSH.
+func DialSSH(addr string) (net.Conn, error) {
+	u, err := url.Parse("ssh://" + addr)
+	if err != nil {
+		return nil, err
+	}
+	if u.User == nil || u.User.Username() == "" {
+		return nil, fmt.Errorf("ssh requires username")
+	}
+	if _, ok := u.User.Password(); ok {
+		return nil, fmt.Errorf("ssh does not accept plain-text password")
+	}
+	if u.Path == "" {
+		return nil, fmt.Errorf("ssh requires socket path")
+	}
+	return dialSSH(u.User.Username(), u.Host, u.Path)
 }
