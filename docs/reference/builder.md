@@ -1296,11 +1296,18 @@ into the newly created volume.
 
 ## USER
 
-    USER daemon
+    USER <user>[:<group>]
+or
+    USER <UID>[:<GID>]
 
-The `USER` instruction sets the user name or UID to use when running the image
-and for any `RUN`, `CMD` and `ENTRYPOINT` instructions that follow it in the
-`Dockerfile`.
+The `USER` instruction sets the user name (or UID) and optionally the user
+group (or GID) to use when running the image and for any `RUN`, `CMD` and
+`ENTRYPOINT` instructions that follow it in the `Dockerfile`.
+
+> **Warning**:
+> When the user does doesn't have a primary group then the image (or the next
+> instructions) will be run with the `root` group.
+
 
 ## WORKDIR
 
