@@ -116,6 +116,17 @@ type Daemon struct {
 
 	diskUsageRunning int32
 	pruneRunning     int32
+	hosts            map[string]bool // hosts stores the addresses the daemon is listening on
+}
+
+// StoreHosts stores the addresses the daemon is listening on
+func (daemon *Daemon) StoreHosts(hosts []string) {
+	if daemon.hosts == nil {
+		daemon.hosts = make(map[string]bool)
+	}
+	for _, h := range hosts {
+		daemon.hosts[h] = true
+	}
 }
 
 // HasExperimental returns whether the experimental features of the daemon are enabled or not

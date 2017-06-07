@@ -149,7 +149,9 @@ func (m *MountPoint) Cleanup() error {
 
 // Setup sets up a mount point by either mounting the volume if it is
 // configured, or creating the source directory if supplied.
-func (m *MountPoint) Setup(mountLabel string, rootUID, rootGID int) (path string, err error) {
+// The, optional, checkFun parameter allows doing additional checking
+// before creating the source directory on the host.
+func (m *MountPoint) Setup(mountLabel string, rootUID, rootGID int, checkFun func(m *MountPoint) error) (path string, err error) {
 	defer func() {
 		if err == nil {
 			if label.RelabelNeeded(m.Mode) {
@@ -184,6 +186,14 @@ func (m *MountPoint) Setup(mountLabel string, rootUID, rootGID int) (path string
 
 	// system.MkdirAll() produces an error if m.Source exists and is a file (not a directory),
 	if m.Type == mounttypes.TypeBind {
+		// Before creating the source directory on the host, invoke checkFun if it's not nil. One of
+		// the use case is to forbid creating the daemon socket as a directory if the daemon is in
+		// the process of shutting down.
+		if checkFun != nil {
+			if err := checkFun(m); err != nil {
+				return "", err
+			}
+		}
 		// idtools.MkdirAllNewAs() produces an error if m.Source exists and is a file (not a directory)
 		// also, makes sure that if the directory is created, the correct remapped rootUID/rootGID will own it
 		if err := idtools.MkdirAllNewAs(m.Source, 0755, rootUID, rootGID); err != nil {
