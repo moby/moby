@@ -216,9 +216,9 @@ func (cli *Client) getAPIPath(p string, query url.Values) string {
 	var apiPath string
 	if cli.version != "" {
 		v := strings.TrimPrefix(cli.version, "v")
-		apiPath = fmt.Sprintf("%s/v%s%s", cli.basePath, v, p)
+		apiPath = cli.basePath + "/v" + v + p
 	} else {
-		apiPath = fmt.Sprintf("%s%s", cli.basePath, p)
+		apiPath = cli.basePath + p
 	}
 
 	u := &url.URL{
