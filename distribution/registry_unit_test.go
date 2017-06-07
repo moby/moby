@@ -152,7 +152,7 @@ func testDirectory(templateDir string) (dir string, err error) {
 		return
 	}
 	if templateDir != "" {
-		if err = archive.CopyWithTar(templateDir, dir); err != nil {
+		if err = archive.NewDefaultArchiver().CopyWithTar(templateDir, dir); err != nil {
 			return
 		}
 	}

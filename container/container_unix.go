@@ -425,7 +425,7 @@ func copyExistingContents(source, destination string) error {
 		}
 		if len(srcList) == 0 {
 			// If the source volume is empty, copies files from the root into the volume
-			if err := chrootarchive.CopyWithTar(source, destination); err != nil {
+			if err := chrootarchive.NewArchiver(nil).CopyWithTar(source, destination); err != nil {
 				return err
 			}
 		}

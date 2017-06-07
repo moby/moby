@@ -11,7 +11,13 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 )
 
-var chrootArchiver = &archive.Archiver{Untar: Untar}
+// NewArchiver returns a new Archiver which uses chrootarchive.Untar
+func NewArchiver(idMappings *idtools.IDMappings) *archive.Archiver {
+	if idMappings == nil {
+		idMappings = &idtools.IDMappings{}
+	}
+	return &archive.Archiver{Untar: Untar, IDMappings: idMappings}
+}
 
 // Untar reads a stream of bytes from `archive`, parses it as a tar archive,
 // and unpacks it into the directory at `dest`.
@@ -30,7 +36,6 @@ func UntarUncompressed(tarArchive io.Reader, dest string, options *archive.TarOp
 
 // Handler for teasing out the automatic decompression
 func untarHandler(tarArchive io.Reader, dest string, options *archive.TarOptions, decompress bool) error {
-
 	if tarArchive == nil {
 		return fmt.Errorf("Empty archive")
 	}
@@ -41,14 +46,12 @@ func untarHandler(tarArchive io.Reader, dest string, options *archive.TarOptions
 		options.ExcludePatterns = []string{}
 	}
 
-	rootUID, rootGID, err := idtools.GetRootUIDGID(options.UIDMaps, options.GIDMaps)
-	if err != nil {
-		return err
-	}
+	idMappings := idtools.NewIDMappingsFromMaps(options.UIDMaps, options.GIDMaps)
+	rootIDs := idMappings.RootPair()
 
 	dest = filepath.Clean(dest)
 	if _, err := os.Stat(dest); os.IsNotExist(err) {
-		if err := idtools.MkdirAllNewAs(dest, 0755, rootUID, rootGID); err != nil {
+		if err := idtools.MkdirAllAndChownNew(dest, 0755, rootIDs); err != nil {
 			return err
 		}
 	}
@@ -64,34 +67,4 @@ func untarHandler(tarArchive io.Reader, dest string, options *archive.TarOptions
 	}
 
 	return invokeUnpack(r, dest, options)
-}
-
-// TarUntar is a convenience function which calls Tar and Untar, with the output of one piped into the other.
-// If either Tar or Untar fails, TarUntar aborts and returns the error.
-func TarUntar(src, dst string) error {
-	return chrootArchiver.TarUntar(src, dst)
-}
-
-// CopyWithTar creates a tar archive of filesystem path `src`, and
-// unpacks it at filesystem path `dst`.
-// The archive is streamed directly with fixed buffering and no
-// intermediary disk IO.
-func CopyWithTar(src, dst string) error {
-	return chrootArchiver.CopyWithTar(src, dst)
-}
-
-// CopyFileWithTar emulates the behavior of the 'cp' command-line
-// for a single file. It copies a regular file from path `src` to
-// path `dst`, and preserves all its metadata.
-//
-// If `dst` ends with a trailing slash '/' ('\' on Windows), the final
-// destination path will be `dst/base(src)` or `dst\base(src)`
-func CopyFileWithTar(src, dst string) (err error) {
-	return chrootArchiver.CopyFileWithTar(src, dst)
-}
-
-// UntarPath is a convenience function which looks for an archive
-// at filesystem path `src`, and unpacks it at `dst`.
-func UntarPath(src, dst string) error {
-	return chrootArchiver.UntarPath(src, dst)
 }

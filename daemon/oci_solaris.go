@@ -130,8 +130,7 @@ func (daemon *Daemon) populateCommonSpec(s *specs.Spec, c *container.Container) 
 		Path:     filepath.Dir(c.BaseFS),
 		Readonly: c.HostConfig.ReadonlyRootfs,
 	}
-	rootUID, rootGID := daemon.GetRemappedUIDGID()
-	if err := c.SetupWorkingDirectory(rootUID, rootGID); err != nil {
+	if err := c.SetupWorkingDirectory(daemon.idMappings.RootPair()); err != nil {
 		return err
 	}
 	cwd := c.Config.WorkingDir

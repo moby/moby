@@ -271,13 +271,13 @@ func setNamespaces(daemon *Daemon, s *specs.Spec, c *container.Container) error 
 	userNS := false
 	// user
 	if c.HostConfig.UsernsMode.IsPrivate() {
-		uidMap, gidMap := daemon.GetUIDGIDMaps()
+		uidMap := daemon.idMappings.UIDs()
 		if uidMap != nil {
 			userNS = true
 			ns := specs.LinuxNamespace{Type: "user"}
 			setNamespace(s, ns)
 			s.Linux.UIDMappings = specMapping(uidMap)
-			s.Linux.GIDMappings = specMapping(gidMap)
+			s.Linux.GIDMappings = specMapping(daemon.idMappings.GIDs())
 		}
 	}
 	// network
@@ -591,7 +591,7 @@ func setMounts(daemon *Daemon, s *specs.Spec, c *container.Container, mounts []c
 
 	// TODO: until a kernel/mount solution exists for handling remount in a user namespace,
 	// we must clear the readonly flag for the cgroups mount (@mrunalp concurs)
-	if uidMap, _ := daemon.GetUIDGIDMaps(); uidMap != nil || c.HostConfig.Privileged {
+	if uidMap := daemon.idMappings.UIDs(); uidMap != nil || c.HostConfig.Privileged {
 		for i, m := range s.Mounts {
 			if m.Type == "cgroup" {
 				clearReadOnly(&s.Mounts[i])
@@ -611,8 +611,7 @@ func (daemon *Daemon) populateCommonSpec(s *specs.Spec, c *container.Container) 
 		Path:     c.BaseFS,
 		Readonly: c.HostConfig.ReadonlyRootfs,
 	}
-	rootUID, rootGID := daemon.GetRemappedUIDGID()
-	if err := c.SetupWorkingDirectory(rootUID, rootGID); err != nil {
+	if err := c.SetupWorkingDirectory(daemon.idMappings.RootPair()); err != nil {
 		return err
 	}
 	cwd := c.Config.WorkingDir

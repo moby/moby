@@ -94,8 +94,7 @@ type Daemon struct {
 	seccompEnabled            bool
 	apparmorEnabled           bool
 	shutdown                  bool
-	uidMaps                   []idtools.IDMap
-	gidMaps                   []idtools.IDMap
+	idMappings                *idtools.IDMappings
 	layerStore                layer.Store
 	imageStore                image.Store
 	PluginStore               *plugin.Store // todo: remove
@@ -524,21 +523,17 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 		return nil, err
 	}
 
-	uidMaps, gidMaps, err := setupRemappedRoot(config)
+	idMappings, err := setupRemappedRoot(config)
 	if err != nil {
 		return nil, err
 	}
-	rootUID, rootGID, err := idtools.GetRootUIDGID(uidMaps, gidMaps)
-	if err != nil {
-		return nil, err
-	}
-
+	rootIDs := idMappings.RootPair()
 	if err := setupDaemonProcess(config); err != nil {
 		return nil, err
 	}
 
 	// set up the tmpDir to use a canonical path
-	tmp, err := prepareTempDir(config.Root, rootUID, rootGID)
+	tmp, err := prepareTempDir(config.Root, rootIDs)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to get the TempDir under %s: %s", config.Root, err)
 	}
@@ -587,7 +582,7 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	}
 
 	daemonRepo := filepath.Join(config.Root, "containers")
-	if err := idtools.MkdirAllAs(daemonRepo, 0700, rootUID, rootGID); err != nil && !os.IsExist(err) {
+	if err := idtools.MkdirAllAndChown(daemonRepo, 0700, rootIDs); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 
@@ -632,8 +627,7 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 		MetadataStorePathTemplate: filepath.Join(config.Root, "image", "%s", "layerdb"),
 		GraphDriver:               driverName,
 		GraphDriverOptions:        config.GraphOptions,
-		UIDMaps:                   uidMaps,
-		GIDMaps:                   gidMaps,
+		IDMappings:                idMappings,
 		PluginGetter:              d.PluginStore,
 		ExperimentalEnabled:       config.Experimental,
 	})
@@ -665,7 +659,7 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	}
 
 	// Configure the volumes driver
-	volStore, err := d.configureVolumes(rootUID, rootGID)
+	volStore, err := d.configureVolumes(rootIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -728,8 +722,7 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	d.EventsService = eventsService
 	d.volumes = volStore
 	d.root = config.Root
-	d.uidMaps = uidMaps
-	d.gidMaps = gidMaps
+	d.idMappings = idMappings
 	d.seccompEnabled = sysInfo.Seccomp
 	d.apparmorEnabled = sysInfo.AppArmor
 
@@ -970,25 +963,10 @@ func (daemon *Daemon) GraphDriverName() string {
 	return daemon.layerStore.DriverName()
 }
 
-// GetUIDGIDMaps returns the current daemon's user namespace settings
-// for the full uid and gid maps which will be applied to containers
-// started in this instance.
-func (daemon *Daemon) GetUIDGIDMaps() ([]idtools.IDMap, []idtools.IDMap) {
-	return daemon.uidMaps, daemon.gidMaps
-}
-
-// GetRemappedUIDGID returns the current daemon's uid and gid values
-// if user namespaces are in use for this daemon instance.  If not
-// this function will return "real" root values of 0, 0.
-func (daemon *Daemon) GetRemappedUIDGID() (int, int) {
-	uid, gid, _ := idtools.GetRootUIDGID(daemon.uidMaps, daemon.gidMaps)
-	return uid, gid
-}
-
 // prepareTempDir prepares and returns the default directory to use
 // for temporary files.
 // If it doesn't exist, it is created. If it exists, its content is removed.
-func prepareTempDir(rootDir string, rootUID, rootGID int) (string, error) {
+func prepareTempDir(rootDir string, rootIDs idtools.IDPair) (string, error) {
 	var tmpDir string
 	if tmpDir = os.Getenv("DOCKER_TMPDIR"); tmpDir == "" {
 		tmpDir = filepath.Join(rootDir, "tmp")
@@ -1008,12 +986,12 @@ func prepareTempDir(rootDir string, rootUID, rootGID int) (string, error) {
 	}
 	// We don't remove the content of tmpdir if it's not the default,
 	// it may hold things that do not belong to us.
-	return tmpDir, idtools.MkdirAllAs(tmpDir, 0700, rootUID, rootGID)
+	return tmpDir, idtools.MkdirAllAndChown(tmpDir, 0700, rootIDs)
 }
 
 func (daemon *Daemon) setupInitLayer(initPath string) error {
-	rootUID, rootGID := daemon.GetRemappedUIDGID()
-	return initlayer.Setup(initPath, rootUID, rootGID)
+	rootIDs := daemon.idMappings.RootPair()
+	return initlayer.Setup(initPath, rootIDs)
 }
 
 func setDefaultMtu(conf *config.Config) {
@@ -1024,8 +1002,8 @@ func setDefaultMtu(conf *config.Config) {
 	conf.Mtu = config.DefaultNetworkMtu
 }
 
-func (daemon *Daemon) configureVolumes(rootUID, rootGID int) (*store.VolumeStore, error) {
-	volumesDriver, err := local.New(daemon.configStore.Root, rootUID, rootGID)
+func (daemon *Daemon) configureVolumes(rootIDs idtools.IDPair) (*store.VolumeStore, error) {
+	volumesDriver, err := local.New(daemon.configStore.Root, rootIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -1171,18 +1149,9 @@ func CreateDaemonRoot(config *config.Config) error {
 		}
 	}
 
-	uidMaps, gidMaps, err := setupRemappedRoot(config)
+	idMappings, err := setupRemappedRoot(config)
 	if err != nil {
 		return err
 	}
-	rootUID, rootGID, err := idtools.GetRootUIDGID(uidMaps, gidMaps)
-	if err != nil {
-		return err
-	}
-
-	if err := setupDaemonRoot(config, realRoot, rootUID, rootGID); err != nil {
-		return err
-	}
-
-	return nil
+	return setupDaemonRoot(config, realRoot, idMappings.RootPair())
 }

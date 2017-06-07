@@ -20,7 +20,8 @@ import (
 
 func init() {
 	graphdriver.ApplyUncompressedLayer = archive.UnpackLayer
-	vfs.CopyWithTar = archive.CopyWithTar
+	defaultArchiver := archive.NewDefaultArchiver()
+	vfs.CopyWithTar = defaultArchiver.CopyWithTar
 }
 
 func newVFSGraphDriver(td string) (graphdriver.Driver, error) {

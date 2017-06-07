@@ -454,11 +454,11 @@ func (daemon *Daemon) cleanupMounts() error {
 	return nil
 }
 
-func setupRemappedRoot(config *config.Config) ([]idtools.IDMap, []idtools.IDMap, error) {
-	return nil, nil, nil
+func setupRemappedRoot(config *config.Config) (*idtools.IDMappings, error) {
+	return &idtools.IDMappings{}, nil
 }
 
-func setupDaemonRoot(config *config.Config, rootDir string, rootUID, rootGID int) error {
+func setupDaemonRoot(config *config.Config, rootDir string, rootIDs idtools.IDPair) error {
 	config.Root = rootDir
 	// Create the root directory if it doesn't exists
 	if err := system.MkdirAllWithACL(config.Root, 0); err != nil && !os.IsExist(err) {

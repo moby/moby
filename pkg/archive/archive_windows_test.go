@@ -27,7 +27,7 @@ func TestCopyFileWithInvalidDest(t *testing.T) {
 		t.Fatal(err)
 	}
 	ioutil.WriteFile(src, []byte("content"), 0777)
-	err = CopyWithTar(src, dest)
+	err = defaultCopyWithTar(src, dest)
 	if err == nil {
 		t.Fatalf("archiver.CopyWithTar should throw an error on invalid dest.")
 	}

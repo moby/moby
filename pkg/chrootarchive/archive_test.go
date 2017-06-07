@@ -22,6 +22,24 @@ func init() {
 	reexec.Init()
 }
 
+var chrootArchiver = NewArchiver(nil)
+
+func TarUntar(src, dst string) error {
+	return chrootArchiver.TarUntar(src, dst)
+}
+
+func CopyFileWithTar(src, dst string) (err error) {
+	return chrootArchiver.CopyFileWithTar(src, dst)
+}
+
+func UntarPath(src, dst string) error {
+	return chrootArchiver.UntarPath(src, dst)
+}
+
+func CopyWithTar(src, dst string) error {
+	return chrootArchiver.CopyWithTar(src, dst)
+}
+
 func TestChrootTarUntar(t *testing.T) {
 	tmpdir, err := ioutil.TempDir("", "docker-TestChrootTarUntar")
 	if err != nil {
