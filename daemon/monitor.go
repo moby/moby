@@ -69,6 +69,10 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 			go func() {
 				err := <-wait
 				if err == nil {
+					// daemon.netController is initialized when daemon is restoring containers.
+					// But containerStart will use daemon.netController segment.
+					// So to avoid panic at startup process, here must wait util daemon restore done.
+					daemon.waitForStartupDone()
 					if err = daemon.containerStart(c, "", "", false); err != nil {
 						logrus.Debugf("failed to restart container: %+v", err)
 					}
