@@ -59,6 +59,7 @@ func makePluginCreator(name string, l *logPluginProxy, basePath string) Creator 
 			driverName: name,
 			id:         id,
 			plugin:     l,
+			basePath:   basePath,
 			fifoPath:   filepath.Join(root, id),
 			logInfo:    logCtx,
 		}

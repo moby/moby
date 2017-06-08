@@ -3,6 +3,7 @@ package logger
 import (
 	"io"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -18,6 +19,7 @@ type pluginAdapter struct {
 	driverName   string
 	id           string
 	plugin       logPlugin
+	basePath     string
 	fifoPath     string
 	capabilities Capability
 	logInfo      Info
@@ -56,7 +58,7 @@ func (a *pluginAdapter) Close() error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	if err := a.plugin.StopLogging(a.fifoPath); err != nil {
+	if err := a.plugin.StopLogging(strings.TrimPrefix(a.fifoPath, a.basePath)); err != nil {
 		return err
 	}
 
