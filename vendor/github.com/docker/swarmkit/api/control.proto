@@ -48,6 +48,9 @@ service Control {
 	rpc RemoveService(RemoveServiceRequest) returns (RemoveServiceResponse) {
 		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
 	};
+	rpc RemoveReplica(RemoveReplicaRequest) returns (RemoveReplicaResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	};
 
 	rpc GetNetwork(GetNetworkRequest) returns (GetNetworkResponse) {
 		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
@@ -316,6 +319,14 @@ message ListServicesRequest {
 
 message ListServicesResponse {
 	repeated Service services = 1;
+}
+
+message RemoveReplicaRequest {
+	string service_id = 1;
+	uint64 slot = 2;
+}
+
+message RemoveReplicaResponse {
 }
 
 message CreateNetworkRequest {

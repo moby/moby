@@ -7942,6 +7942,45 @@ paths:
           type: "string"
           default: "all"
       tags: ["Service"]
+  /services/{id}/replicas/{slot}:
+    delete:
+      summary: "Remove a replica"
+      description: |
+        Remove a replica from a service.
+
+        **Note**: This endpoint works only for replicated services.
+      operationId: "ReplicaRemove"
+      responses:
+        200:
+          description: "no error"
+        400:
+          description: "bad parameter"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        404:
+          description: "no such replica"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500:
+          description: "server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        503:
+          description: "node is not part of a swarm"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      parameters:
+        - name: "id"
+          in: "path"
+          description: "ID or name of service."
+          required: true
+          type: "string"
+        - name: "slot"
+          in: "path"
+          description: "service slot number for a task."
+          required: true
+          type: "string"
+      tags: ["Service"]
   /tasks:
     get:
       summary: "List tasks"

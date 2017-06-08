@@ -550,3 +550,16 @@ func (c *Cluster) imageWithDigestString(ctx context.Context, image string, authC
 func digestWarning(image string) string {
 	return fmt.Sprintf("image %s could not be accessed on a registry to record\nits digest. Each node will access %s independently,\npossibly leading to different nodes running different\nversions of the image.\n", image, image)
 }
+
+// RemoveReplica removes a replica from a replicated service.
+func (c *Cluster) RemoveReplica(serviceID string, slot uint64) error {
+	return c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+		service, err := getService(ctx, state.controlClient, serviceID, false)
+		if err != nil {
+			return err
+		}
+
+		_, err = state.controlClient.RemoveReplica(ctx, &swarmapi.RemoveReplicaRequest{ServiceID: service.ID, Slot: slot})
+		return err
+	})
+}

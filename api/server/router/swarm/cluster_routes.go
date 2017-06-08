@@ -349,6 +349,22 @@ func (sr *swarmRouter) getTask(ctx context.Context, w http.ResponseWriter, r *ht
 	return httputils.WriteJSON(w, http.StatusOK, task)
 }
 
+func (sr *swarmRouter) removeReplica(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	// validate input arg scale number
+	slot, err := strconv.ParseUint(vars["slot"], 10, 64)
+	if err != nil {
+		err := fmt.Errorf("invalid slot number '%s': %v", vars["slot"], err)
+		return errors.NewBadRequestError(err)
+	}
+
+	if err := sr.backend.RemoveReplica(vars["id"], slot); err != nil {
+		logrus.Errorf("Error removing replica %s.%d: %v", vars["id"], slot, err)
+		return err
+	}
+
+	return nil
+}
+
 func (sr *swarmRouter) getSecrets(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
