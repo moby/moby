@@ -46,7 +46,8 @@ func (daemon *Daemon) createContainerPlatformSpecificSettings(container *contain
 			return fmt.Errorf("cannot mount volume over existing file, file exists %s", path)
 		}
 
-		v, err := daemon.volumes.CreateWithRef(name, hostConfig.VolumeDriver, container.ID, nil, nil)
+		// Force to use default driver to handle the request
+		v, err := daemon.volumes.CreateWithRef(name, "", container.ID, nil, nil)
 		if err != nil {
 			return err
 		}

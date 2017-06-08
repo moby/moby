@@ -16,9 +16,10 @@ func (daemon *Daemon) createContainerPlatformSpecificSettings(container *contain
 		hostConfig.Isolation = daemon.defaultIsolation
 	}
 
+	// Force to use default driver to handle the request
 	for spec := range config.Volumes {
 
-		mp, err := volume.ParseMountRaw(spec, hostConfig.VolumeDriver)
+		mp, err := volume.ParseMountRaw(spec, "")
 		if err != nil {
 			return fmt.Errorf("Unrecognised volume spec: %v", err)
 		}
@@ -34,11 +35,9 @@ func (daemon *Daemon) createContainerPlatformSpecificSettings(container *contain
 			continue
 		}
 
-		volumeDriver := hostConfig.VolumeDriver
-
 		// Create the volume in the volume driver. If it doesn't exist,
 		// a new one will be created.
-		v, err := daemon.volumes.CreateWithRef(mp.Name, volumeDriver, container.ID, nil, nil)
+		v, err := daemon.volumes.CreateWithRef(mp.Name, "", container.ID, nil, nil)
 		if err != nil {
 			return err
 		}
