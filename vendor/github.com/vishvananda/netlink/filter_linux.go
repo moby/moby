@@ -141,19 +141,19 @@ func (h *Handle) FilterAdd(filter Filter) error {
 		}
 
 		if native != networkOrder {
-			// Copy Tcu32Sel.
-			cSel := sel
+			// Copy TcU32Sel.
+			cSel := *sel
 			keys := make([]nl.TcU32Key, cap(sel.Keys))
 			copy(keys, sel.Keys)
 			cSel.Keys = keys
-			sel = cSel
+			sel = &cSel
 
 			// Handle the endianness of attributes
 			sel.Offmask = native.Uint16(htons(sel.Offmask))
 			sel.Hmask = native.Uint32(htonl(sel.Hmask))
-			for _, key := range sel.Keys {
-				key.Mask = native.Uint32(htonl(key.Mask))
-				key.Val = native.Uint32(htonl(key.Val))
+			for i, key := range sel.Keys {
+				sel.Keys[i].Mask = native.Uint32(htonl(key.Mask))
+				sel.Keys[i].Val = native.Uint32(htonl(key.Val))
 			}
 		}
 		sel.Nkeys = uint8(len(sel.Keys))
@@ -453,14 +453,10 @@ func parseU32Data(filter Filter, data []syscall.NetlinkRouteAttr) (bool, error) 
 				// Handle the endianness of attributes
 				u32.Sel.Offmask = native.Uint16(htons(sel.Offmask))
 				u32.Sel.Hmask = native.Uint32(htonl(sel.Hmask))
-				for _, key := range u32.Sel.Keys {
-					key.Mask = native.Uint32(htonl(key.Mask))
-					key.Val = native.Uint32(htonl(key.Val))
+				for i, key := range u32.Sel.Keys {
+					u32.Sel.Keys[i].Mask = native.Uint32(htonl(key.Mask))
+					u32.Sel.Keys[i].Val = native.Uint32(htonl(key.Val))
 				}
-			}
-			// only parse if we have a very basic redirect
-			if sel.Flags&nl.TC_U32_TERMINAL == 0 || sel.Nkeys != 1 {
-				return detailed, nil
 			}
 		case nl.TCA_U32_ACT:
 			tables, err := nl.ParseRouteAttr(datum.Value)
