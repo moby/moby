@@ -50,6 +50,7 @@ bundle_test_unit() {
 	fi
 
 	go test -cover -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" $TESTFLAGS $pkg_list
+	go test -cover -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" $TESTFLAGS github.com/docker/docker/pkg/term -test.root
 }
 
 bundle_test_unit 2>&1 | tee -a "$DEST/test.log"
