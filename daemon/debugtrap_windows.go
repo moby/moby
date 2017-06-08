@@ -41,12 +41,6 @@ func (d *Daemon) setupDumpStackTrap(root string) {
 			} else {
 				logrus.Infof("goroutine stacks written to %s", path)
 			}
-			path, err = d.dumpDaemon(root)
-			if err != nil {
-				logrus.WithError(err).Error("failed to write daemon datastructure dump")
-			} else {
-				logrus.Infof("daemon datastructure dump written to %s", path)
-			}
 		}
 	}()
 }
