@@ -663,6 +663,15 @@ func (sb *sandbox) SetKey(basePath string) error {
 		if err = sb.populateNetworkResources(ep); err != nil {
 			return err
 		}
+		// update the endpoint after sandbox
+		n, err := ep.getNetworkFromStore()
+		if err != nil {
+			return fmt.Errorf("failed to get network from store during join: %v", err)
+		}
+		if err = n.getController().updateToStore(ep); err != nil {
+			return err
+		}
+
 	}
 	return nil
 }

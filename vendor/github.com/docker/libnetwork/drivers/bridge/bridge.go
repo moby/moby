@@ -1311,10 +1311,12 @@ func (d *driver) ProgramExternalConnectivity(nid, eid string, options map[string
 			endpoint.portMapping = nil
 		}
 	}()
-
-	if err = d.storeUpdate(endpoint); err != nil {
-		return fmt.Errorf("failed to update bridge endpoint %s to store: %v", endpoint.id[0:7], err)
-	}
+	/*
+		// the endpoint should be updated after sandbox
+		if err = d.storeUpdate(endpoint); err != nil {
+			return fmt.Errorf("failed to update bridge endpoint %s to store: %v", endpoint.id[0:7], err)
+		}
+	*/
 
 	if !network.config.EnableICC {
 		return d.link(network, endpoint, true)
