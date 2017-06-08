@@ -410,3 +410,38 @@ func (s *DockerSwarmSuite) TestServiceCreateMountTmpfs(c *check.C) {
 	c.Assert(strings.TrimSpace(out), checker.HasPrefix, "tmpfs on /foo type tmpfs")
 	c.Assert(strings.TrimSpace(out), checker.Contains, "size=1024k")
 }
+
+func (s *DockerSwarmSuite) TestServiceCreateWithNetworkAlias(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+	out, err := d.Cmd("network", "create", "--scope=swarm", "test_swarm_br")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	out, err = d.Cmd("service", "create", "--no-resolve-image", "--detach=true", "--network=name=test_swarm_br,alias=srv_alias", "--name=alias_tst_container", "busybox", "top")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	id := strings.TrimSpace(out)
+
+	var tasks []swarm.Task
+	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
+		tasks = d.GetServiceTasks(c, id)
+		return len(tasks) > 0, nil
+	}, checker.Equals, true)
+
+	task := tasks[0]
+	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
+		if task.NodeID == "" || task.Status.ContainerStatus.ContainerID == "" {
+			task = d.GetTask(c, task.ID)
+		}
+		return task.NodeID != "" && task.Status.ContainerStatus.ContainerID != "", nil
+	}, checker.Equals, true)
+
+	// check container alias config
+	out, err = s.nodeCmd(c, task.NodeID, "inspect", "--format", "{{json .NetworkSettings.Networks.test_swarm_br.Aliases}}", task.Status.ContainerStatus.ContainerID)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	// Make sure the only alias seen is the container-id
+	var aliases []string
+	c.Assert(json.Unmarshal([]byte(out), &aliases), checker.IsNil)
+	c.Assert(aliases, checker.HasLen, 1)
+
+	c.Assert(task.Status.ContainerStatus.ContainerID, checker.Contains, aliases[0])
+}
