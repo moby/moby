@@ -63,7 +63,7 @@ func IsTaskDirty(s *api.Service, t *api.Task) bool {
 	// If the spec version matches, we know the task is not dirty. However,
 	// if it does not match, that doesn't mean the task is dirty, since
 	// only a portion of the spec is included in the comparison.
-	if t.SpecVersion != nil && *s.SpecVersion == *t.SpecVersion {
+	if t.SpecVersion != nil && s.SpecVersion != nil && *s.SpecVersion == *t.SpecVersion {
 		return false
 	}
 
