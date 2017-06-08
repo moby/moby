@@ -170,21 +170,6 @@ func SetRawTerminal(fd uintptr) (*State, error) {
 	return state, err
 }
 
-// SetRawTerminalOutput puts the output of terminal connected to the given file
-// descriptor into raw mode. On UNIX, this does nothing and returns nil for the
-// state. On Windows, it disables LF -> CRLF translation.
-func SetRawTerminalOutput(fd uintptr) (*State, error) {
-	state, err := SaveState(fd)
-	if err != nil {
-		return nil, err
-	}
-
-	// Ignore failures, since disableNewlineAutoReturn might not be supported on this
-	// version of Windows.
-	winterm.SetConsoleMode(fd, state.mode|disableNewlineAutoReturn)
-	return state, err
-}
-
 // MakeRaw puts the terminal (Windows Console) connected to the given file descriptor into raw
 // mode and returns the previous state of the terminal so that it can be restored.
 func MakeRaw(fd uintptr) (*State, error) {

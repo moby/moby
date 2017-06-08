@@ -101,13 +101,6 @@ func SetRawTerminal(fd uintptr) (*State, error) {
 	return oldState, err
 }
 
-// SetRawTerminalOutput puts the output of terminal connected to the given file
-// descriptor into raw mode. On UNIX, this does nothing and returns nil for the
-// state. On Windows, it disables LF -> CRLF translation.
-func SetRawTerminalOutput(fd uintptr) (*State, error) {
-	return nil, nil
-}
-
 func handleInterrupt(fd uintptr, state *State) {
 	sigchan := make(chan os.Signal, 1)
 	signal.Notify(sigchan, os.Interrupt)
