@@ -44,6 +44,9 @@ func (n IpcMode) Valid() bool {
 	parts := strings.Split(string(n), ":")
 	switch mode := parts[0]; mode {
 	case "", "host":
+		if len(parts) != 1 {
+			return false
+		}
 	case "container":
 		if len(parts) != 2 || parts[1] == "" {
 			return false
@@ -122,6 +125,9 @@ func (n UsernsMode) Valid() bool {
 	parts := strings.Split(string(n), ":")
 	switch mode := parts[0]; mode {
 	case "", "host":
+		if len(parts) != 1 {
+			return false
+		}
 	default:
 		return false
 	}
@@ -169,6 +175,9 @@ func (n UTSMode) Valid() bool {
 	parts := strings.Split(string(n), ":")
 	switch mode := parts[0]; mode {
 	case "", "host":
+		if len(parts) != 1 {
+			return false
+		}
 	default:
 		return false
 	}
@@ -199,6 +208,9 @@ func (n PidMode) Valid() bool {
 	parts := strings.Split(string(n), ":")
 	switch mode := parts[0]; mode {
 	case "", "host":
+		if len(parts) != 1 {
+			return false
+		}
 	case "container":
 		if len(parts) != 2 || parts[1] == "" {
 			return false
