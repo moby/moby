@@ -59,7 +59,7 @@ func (conf *Config) GetExecRoot() string {
 	return conf.ExecRoot
 }
 
-// GetInitPath returns the configure docker-init path
+// GetInitPath returns the configured docker-init path
 func (conf *Config) GetInitPath() string {
 	conf.Lock()
 	defer conf.Unlock()
