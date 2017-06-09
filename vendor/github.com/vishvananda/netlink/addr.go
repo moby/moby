@@ -10,11 +10,13 @@ import (
 // include a mask, so it stores the address as a net.IPNet.
 type Addr struct {
 	*net.IPNet
-	Label     string
-	Flags     int
-	Scope     int
-	Peer      *net.IPNet
-	Broadcast net.IP
+	Label       string
+	Flags       int
+	Scope       int
+	Peer        *net.IPNet
+	Broadcast   net.IP
+	PreferedLft int
+	ValidLft    int
 }
 
 // String returns $ip/$netmask $label

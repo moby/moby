@@ -401,7 +401,7 @@ func (h *Handle) RouteListFiltered(family int, filter *Route, filterMask uint64)
 		}
 		if filter != nil {
 			switch {
-			case filterMask&RT_FILTER_TABLE != 0 && route.Table != filter.Table:
+			case filterMask&RT_FILTER_TABLE != 0 && filter.Table != syscall.RT_TABLE_UNSPEC && route.Table != filter.Table:
 				continue
 			case filterMask&RT_FILTER_PROTOCOL != 0 && route.Protocol != filter.Protocol:
 				continue
