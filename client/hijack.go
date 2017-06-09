@@ -1,9 +1,11 @@
 package client
 
 import (
+	"bytes"
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -72,11 +74,23 @@ func (cli *Client) postHijacked(ctx context.Context, path string, query url.Valu
 	defer clientconn.Close()
 
 	// Server hijacks the connection, error 'connection closed' expected
-	_, err = clientconn.Do(req)
+	resp, err := clientconn.Do(req)
+	if err != nil {
+		return types.HijackedResponse{}, err
+	}
 
-	rwc, br := clientconn.Hijack()
+	defer resp.Body.Close()
+	switch resp.StatusCode {
+	case http.StatusOK, http.StatusSwitchingProtocols:
+		rwc, br := clientconn.Hijack()
+		return types.HijackedResponse{Conn: rwc, Reader: br}, err
+	}
 
-	return types.HijackedResponse{Conn: rwc, Reader: br}, err
+	errbody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return types.HijackedResponse{}, err
+	}
+	return types.HijackedResponse{}, fmt.Errorf("Error response from daemon: %s", bytes.TrimSpace(errbody))
 }
 
 func tlsDial(network, addr string, config *tls.Config) (net.Conn, error) {
