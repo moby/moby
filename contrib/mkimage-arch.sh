@@ -17,7 +17,7 @@ hash expect &>/dev/null || {
 
 export LANG="C.UTF-8"
 
-ROOTFS=$(mktemp -d ${TMPDIR:-/var/tmp}/rootfs-archlinux-XXXXXXXXXX)
+ROOTFS=$(mktemp -d ${TMPDIR:-/tmp}/rootfs-archlinux-XXXXXXXXXX)
 chmod 755 $ROOTFS
 
 # packages to ignore for space savings
@@ -58,7 +58,7 @@ case "$arch" in
 			echo "Could not find archlinuxarm-keyring. Please, install it and run pacman-key --populate archlinuxarm"
 			exit 1
 		fi
-		PACMAN_CONF=$(mktemp ${TMPDIR:-/var/tmp}/pacman-conf-archlinux-XXXXXXXXX)
+		PACMAN_CONF=$(mktemp ${TMPDIR:-/tmp}/pacman-conf-archlinux-XXXXXXXXX)
 		version="$(echo $arch | cut -c 5)"
 		sed "s/Architecture = armv/Architecture = armv${version}h/g" './mkimage-archarm-pacman.conf' > "${PACMAN_CONF}"
 		PACMAN_MIRRORLIST='Server = http://mirror.archlinuxarm.org/$arch/$repo'
