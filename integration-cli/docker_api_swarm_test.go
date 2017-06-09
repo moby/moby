@@ -229,7 +229,7 @@ func (s *DockerSwarmSuite) TestAPISwarmPromoteDemote(c *check.C) {
 	url := fmt.Sprintf("/nodes/%s/update?version=%d", node.ID, node.Version.Index)
 	status, out, err := d1.SockRequest("POST", url, node.Spec)
 	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusInternalServerError, check.Commentf("output: %q", string(out)))
+	c.Assert(status, checker.Equals, http.StatusBadRequest, check.Commentf("output: %q", string(out)))
 	// The warning specific to demoting the last manager is best-effort and
 	// won't appear until the Role field of the demoted manager has been
 	// updated.
