@@ -89,7 +89,7 @@ ID                         HOSTNAME       STATUS  AVAILABILITY  MANAGER STATUS
 1bcef6utixb0l0ca7gxuivsj0  swarm-worker2  Ready   Active
 ```
 
-#### membersip
+#### membership
 
 The `membership` filter matches nodes based on the presence of a `membership` and a value
 `accepted` or `pending`.
