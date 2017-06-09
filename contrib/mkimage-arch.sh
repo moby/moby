@@ -67,6 +67,23 @@ case "$arch" in
 		ARCH_KEYRING=archlinuxarm
 		DOCKER_IMAGE_NAME="armv${version}h/archlinux"
 		;;
+	
+	aarch64*)
+		if pacman -Q archlinuxarm-keyring >/dev/null 2>&1; then
+			pacman-key --init
+			pacman-key --populate archlinuxarm
+		else
+			echo "Could not find archlinuxarm-keyring. Please, install it and run pacman-key --populate archlinuxarm"
+			exit 1
+		fi
+		PACMAN_CONF='./mkimage-arch-aarch64-pacman.conf'
+		PACMAN_MIRRORLIST='Server = http://mirror.archlinuxarm.org/$arch/$repo'
+		PACMAN_EXTRA_PKGS='archlinuxarm-keyring'
+		EXPECT_TIMEOUT=900 # Most aarch64-based devices can be kinda slow (e.g. RPiv3)
+		ARCH_KEYRING=archlinuxarm
+		DOCKER_IMAGE_NAME="aarch64/archlinux"
+		;;
+	
 	*)
 		PACMAN_CONF='./mkimage-arch-pacman.conf'
 		PACMAN_MIRRORLIST='Server = https://mirrors.kernel.org/archlinux/$repo/os/$arch'
