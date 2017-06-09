@@ -157,42 +157,45 @@ func TestGetFirstAvailable(t *testing.T) {
 		mask    *sequence
 		bytePos uint64
 		bitPos  uint64
+		start   uint64
 	}{
-		{&sequence{block: 0xffffffff, count: 2048}, invalidPos, invalidPos},
-		{&sequence{block: 0x0, count: 8}, 0, 0},
-		{&sequence{block: 0x80000000, count: 8}, 0, 1},
-		{&sequence{block: 0xC0000000, count: 8}, 0, 2},
-		{&sequence{block: 0xE0000000, count: 8}, 0, 3},
-		{&sequence{block: 0xF0000000, count: 8}, 0, 4},
-		{&sequence{block: 0xF8000000, count: 8}, 0, 5},
-		{&sequence{block: 0xFC000000, count: 8}, 0, 6},
-		{&sequence{block: 0xFE000000, count: 8}, 0, 7},
+		{&sequence{block: 0xffffffff, count: 2048}, invalidPos, invalidPos, 0},
+		{&sequence{block: 0x0, count: 8}, 0, 0, 0},
+		{&sequence{block: 0x80000000, count: 8}, 0, 1, 0},
+		{&sequence{block: 0xC0000000, count: 8}, 0, 2, 0},
+		{&sequence{block: 0xE0000000, count: 8}, 0, 3, 0},
+		{&sequence{block: 0xF0000000, count: 8}, 0, 4, 0},
+		{&sequence{block: 0xF8000000, count: 8}, 0, 5, 0},
+		{&sequence{block: 0xFC000000, count: 8}, 0, 6, 0},
+		{&sequence{block: 0xFE000000, count: 8}, 0, 7, 0},
+		{&sequence{block: 0xFE000000, count: 8}, 3, 0, 24},
 
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0x00000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 0},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0x80000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 1},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xC0000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 2},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xE0000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 3},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xF0000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 4},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xF8000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 5},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFC000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 6},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFE000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 7},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0x00000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 0, 0},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0x80000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 1, 0},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xC0000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 2, 0},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xE0000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 3, 0},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xF0000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 4, 0},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xF8000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 5, 0},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFC000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 6, 0},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFE000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 7, 0},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0x0E000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 0, 16},
 
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFF000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 0},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFF800000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 1},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFC00000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 2},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFE00000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 3},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFF00000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 4},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFF80000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 5},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFFC0000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 6},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFFE0000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 7},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFF000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 0, 0},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFF800000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 1, 0},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFC00000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 2, 0},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFE00000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 3, 0},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFF00000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 4, 0},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFF80000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 5, 0},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFFC0000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 6, 0},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFFE0000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 7, 0},
 
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xfffffffe, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 7, 7},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xfffffffe, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 7, 7, 0},
 
-		{&sequence{block: 0xffffffff, count: 2, next: &sequence{block: 0x0, count: 6}}, 8, 0},
+		{&sequence{block: 0xffffffff, count: 2, next: &sequence{block: 0x0, count: 6}}, 8, 0, 0},
 	}
 
 	for n, i := range input {
-		bytePos, bitPos, _ := getFirstAvailable(i.mask, 0)
+		bytePos, bitPos, _ := getFirstAvailable(i.mask, i.start)
 		if bytePos != i.bytePos || bitPos != i.bitPos {
 			t.Fatalf("Error in (%d) getFirstAvailable(). Expected (%d, %d). Got (%d, %d)", n, i.bytePos, i.bitPos, bytePos, bitPos)
 		}
@@ -622,6 +625,43 @@ func TestSetUnset(t *testing.T) {
 			t.Fatal(err)
 		}
 		i++
+	}
+}
+
+func TestOffsetSetUnset(t *testing.T) {
+	numBits := uint64(32 * blockLen)
+	var o uint64
+	hnd, err := NewHandle("", nil, "", numBits)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// set and unset all one by one
+	for hnd.Unselected() > 0 {
+		if _, err := hnd.SetAny(); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if _, err := hnd.SetAny(); err != ErrNoBitAvailable {
+		t.Fatal("Expected error. Got success")
+	}
+
+	if _, err := hnd.SetAnyInRange(10, 20); err != ErrNoBitAvailable {
+		t.Fatal("Expected error. Got success")
+	}
+
+	if err := hnd.Unset(288); err != nil {
+		t.Fatal(err)
+	}
+
+	//At this point sequence is (0xffffffff, 9)->(0x7fffffff, 1)->(0xffffffff, 22)->end
+	if o, err = hnd.SetAnyInRange(32, 500); err != nil {
+		t.Fatal(err)
+	}
+
+	if o != 288 {
+		t.Fatalf("Expected ordinal not received, Received:%d", o)
 	}
 }
 
