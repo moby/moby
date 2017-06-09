@@ -46,7 +46,7 @@ type driver struct {
 	store            datastore.DataStore
 	localStore       datastore.DataStore
 	vxlanIdm         *idm.Idm
-	once             sync.Once
+	initOS           sync.Once
 	joinOnce         sync.Once
 	localJoinOnce    sync.Once
 	keys             []*key
@@ -180,6 +180,10 @@ func Fini(drv driverapi.Driver) {
 }
 
 func (d *driver) configure() error {
+
+	// Apply OS specific kernel configs if needed
+	d.initOS.Do(applyOStweaks)
+
 	if d.store == nil {
 		return nil
 	}

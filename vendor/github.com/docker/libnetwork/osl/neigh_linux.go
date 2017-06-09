@@ -78,6 +78,23 @@ func (n *networkNamespace) DeleteNeighbor(dstIP net.IP, dstMac net.HardwareAddr,
 		if err := nlh.NeighDel(nlnh); err != nil {
 			logrus.Warnf("Deleting neighbor IP %s, mac %s failed, %v", dstIP, dstMac, err)
 		}
+
+		// Delete the dynamic entry in the bridge
+		if nlnh.Family > 0 {
+			nlnh := &netlink.Neigh{
+				IP:     dstIP,
+				Family: nh.family,
+			}
+
+			nlnh.HardwareAddr = dstMac
+			nlnh.Flags = netlink.NTF_MASTER
+			if nh.linkDst != "" {
+				nlnh.LinkIndex = iface.Attrs().Index
+			}
+			if err := nlh.NeighDel(nlnh); err != nil {
+				logrus.Warnf("Deleting bridge mac mac %s failed, %v", dstMac, err)
+			}
+		}
 	}
 
 	n.Lock()

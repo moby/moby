@@ -43,7 +43,7 @@ type DeleteEvent event
 // filter is an empty string it acts as a wildcard for that
 // field. Watch returns a channel of events, where the events will be
 // sent.
-func (nDB *NetworkDB) Watch(tname, nid, key string) (chan events.Event, func()) {
+func (nDB *NetworkDB) Watch(tname, nid, key string) (*events.Channel, func()) {
 	var matcher events.Matcher
 
 	if tname != "" || nid != "" || key != "" {
@@ -82,7 +82,7 @@ func (nDB *NetworkDB) Watch(tname, nid, key string) (chan events.Event, func()) 
 	}
 
 	nDB.broadcaster.Add(sink)
-	return ch.C, func() {
+	return ch, func() {
 		nDB.broadcaster.Remove(sink)
 		ch.Close()
 		sink.Close()
