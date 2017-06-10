@@ -289,6 +289,16 @@ func (n *networkNamespace) AddInterface(srcName, dstPrefix string, options ...If
 
 	// Configure the interface now this is moved in the proper namespace.
 	if err := configureInterface(nlh, iface, i); err != nil {
+		// If configuring the device fails move it back to the host namespace
+		// and change the name back to the source name. This allows the caller
+		// to properly cleanup the interface. Its important especially for
+		// interfaces with global attributes, ex: vni id for vxlan interfaces.
+		if nerr := nlh.LinkSetName(iface, i.SrcName()); nerr != nil {
+			logrus.Errorf("renaming interface (%s->%s) failed, %v after config error %v", i.DstName(), i.SrcName(), nerr, err)
+		}
+		if nerr := nlh.LinkSetNsFd(iface, ns.ParseHandlerInt()); nerr != nil {
+			logrus.Errorf("moving inteface %s to host ns failed, %v, after config error %v", i.SrcName(), nerr, err)
+		}
 		return err
 	}
 

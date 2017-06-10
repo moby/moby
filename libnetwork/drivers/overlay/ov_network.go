@@ -588,6 +588,23 @@ func (n *network) setupSubnetSandbox(s *subnet, brName, vxlanName string) error 
 
 	if err := sbox.AddInterface(vxlanName, "vxlan",
 		sbox.InterfaceOptions().Master(brName)); err != nil {
+		// If adding vxlan device to the overlay namespace fails, remove the bridge interface we
+		// already added to the namespace. This allows the caller to try the setup again.
+		for _, iface := range sbox.Info().Interfaces() {
+			if iface.SrcName() == brName {
+				if ierr := iface.Remove(); ierr != nil {
+					logrus.Errorf("removing bridge failed from ov ns %v failed, %v", n.sbox.Key(), ierr)
+				}
+			}
+		}
+
+		// Also, delete the vxlan interface. Since a global vni id is associated
+		// with the vxlan interface, an orphaned vxlan interface will result in
+		// failure of vxlan device creation if the vni is assigned to some other
+		// network.
+		if deleteErr := deleteInterface(vxlanName); deleteErr != nil {
+			logrus.Warnf("could not delete vxlan interface, %s, error %v, after config error, %v", vxlanName, deleteErr, err)
+		}
 		return fmt.Errorf("vxlan interface creation failed for subnet %q: %v", s.subnetIP.String(), err)
 	}
 
@@ -629,6 +646,9 @@ func (n *network) initSubnetSandbox(s *subnet, restore bool) error {
 		}
 	} else {
 		if err := n.setupSubnetSandbox(s, brName, vxlanName); err != nil {
+			// The error in setupSubnetSandbox could be a temporary glitch. reset the
+			// subnet once object to allow the setup to be retried on another endpoint join.
+			s.once = &sync.Once{}
 			return err
 		}
 	}
