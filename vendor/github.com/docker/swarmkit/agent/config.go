@@ -43,6 +43,10 @@ type Config struct {
 
 	// NodeTLSInfo contains the starting node TLS info to bootstrap into the agent
 	NodeTLSInfo *api.NodeTLSInfo
+
+	// SessionTracker, if provided, will have its SessionClosed and SessionError methods called
+	// when sessions close and error.
+	SessionTracker SessionTracker
 }
 
 func (c *Config) validate() error {
@@ -63,4 +67,17 @@ func (c *Config) validate() error {
 	}
 
 	return nil
+}
+
+// A SessionTracker gets notified when sessions close and error
+type SessionTracker interface {
+	// SessionClosed is called whenever a session is closed - if the function errors, the agent
+	// will exit with the returned error.  Otherwise the agent can continue and rebuild a new session.
+	SessionClosed() error
+
+	// SessionError is called whenever a session errors
+	SessionError(err error)
+
+	// SessionEstablished is called whenever a session is established
+	SessionEstablished()
 }
