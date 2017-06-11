@@ -24,7 +24,7 @@ func (s *DockerSwarmSuite) TestServiceRemoveReplica(c *check.C) {
 		return len(tasks) > 0, nil
 	}, checker.Equals, true)
 	c.Assert(tasks, checker.HasLen, 3)
-	
+
 	task := tasks[0]
 	taskName := fmt.Sprintf("%v.%v", service1Name, task.Slot)
 	_, err = d.Cmd("service", "rm-replica", taskName)
@@ -59,7 +59,7 @@ func (s *DockerSwarmSuite) TestServiceRemoveReplica(c *check.C) {
 		tasks = d.GetServiceTasks(c, service.ID)
 		return len(tasks) > 0, nil
 	}, checker.Equals, true)
-	
+
 	task = tasks[0]
 	taskName = fmt.Sprintf("%v.%v", service2Name, task.Slot)
 	_, err = d.Cmd("service", "rm-replica", taskName)
