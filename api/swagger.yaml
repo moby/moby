@@ -6437,6 +6437,10 @@ paths:
           description: "Detailed inspect output for troubleshooting"
           type: "boolean"
           default: false
+        - name: "scope"
+          in: "query"
+          description: "Filter the network by scope (swarm, global, or local)"
+          type: "string"
       tags: ["Network"]
 
     delete:

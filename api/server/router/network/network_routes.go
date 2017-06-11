@@ -98,6 +98,14 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 			return errors.NewBadRequestError(err)
 		}
 	}
+	scope := r.URL.Query().Get("scope")
+
+	isMatchingScope := func(scope, term string) bool {
+		if term != "" {
+			return scope == term
+		}
+		return true
+	}
 
 	// In case multiple networks have duplicate names, return error.
 	// TODO (yongtang): should we wrap with version here for backward compatibility?
@@ -112,15 +120,15 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 
 	nw := n.backend.GetNetworks()
 	for _, network := range nw {
-		if network.ID() == term {
+		if network.ID() == term && isMatchingScope(network.Info().Scope(), scope) {
 			return httputils.WriteJSON(w, http.StatusOK, *n.buildDetailedNetworkResources(network, verbose))
 		}
-		if network.Name() == term {
+		if network.Name() == term && isMatchingScope(network.Info().Scope(), scope) {
 			// No need to check the ID collision here as we are still in
 			// local scope and the network ID is unique in this scope.
 			listByFullName[network.ID()] = *n.buildDetailedNetworkResources(network, verbose)
 		}
-		if strings.HasPrefix(network.ID(), term) {
+		if strings.HasPrefix(network.ID(), term) && isMatchingScope(network.Info().Scope(), scope) {
 			// No need to check the ID collision here as we are still in
 			// local scope and the network ID is unique in this scope.
 			listByPartialID[network.ID()] = *n.buildDetailedNetworkResources(network, verbose)
@@ -129,10 +137,10 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 
 	nr, _ := n.cluster.GetNetworks()
 	for _, network := range nr {
-		if network.ID == term {
+		if network.ID == term && isMatchingScope(network.Scope, scope) {
 			return httputils.WriteJSON(w, http.StatusOK, network)
 		}
-		if network.Name == term {
+		if network.Name == term && isMatchingScope(network.Scope, scope) {
 			// Check the ID collision as we are in swarm scope here, and
 			// the map (of the listByFullName) may have already had a
 			// network with the same ID (from local scope previously)
@@ -140,7 +148,7 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 				listByFullName[network.ID] = network
 			}
 		}
-		if strings.HasPrefix(network.ID, term) {
+		if strings.HasPrefix(network.ID, term) && isMatchingScope(network.Scope, scope) {
 			// Check the ID collision as we are in swarm scope here, and
 			// the map (of the listByPartialID) may have already had a
 			// network with the same ID (from local scope previously)
