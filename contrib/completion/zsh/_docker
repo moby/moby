@@ -2620,7 +2620,7 @@ __docker_subcommand() {
                 "($help)--default-gateway-v6[Container default gateway IPv6 address]:IPv6 address: " \
                 "($help)--default-shm-size=[Default shm size for containers]:size:" \
                 "($help)*--default-ulimit=[Default ulimits for containers]:ulimit: " \
-                "($help)--disable-legacy-registry[Disable contacting legacy registries]" \
+                "($help)--disable-legacy-registry[Disable contacting legacy registries (default true)]" \
                 "($help)*--dns=[DNS server to use]:DNS: " \
                 "($help)*--dns-opt=[DNS options to use]:DNS option: " \
                 "($help)*--dns-search=[DNS search domains to use]:DNS search: " \

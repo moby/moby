@@ -192,7 +192,7 @@ $ sudo dockerd --add-runtime runc=runc --add-runtime custom=/usr/local/bin/my-ru
   Default ulimits for containers.
 
 **--disable-legacy-registry**=*true*|*false*
-  Disable contacting legacy registries
+  Disable contacting legacy registries. Default is `true`.
 
 **--dns**=""
   Force Docker to use specific DNS servers
