@@ -98,8 +98,7 @@ func (s *DockerRegistrySuite) TestUserAgentPassThrough(c *check.C) {
 		"--insecure-registry", buildReg.URL(),
 		"--insecure-registry", pullReg.URL(),
 		"--insecure-registry", pushReg.URL(),
-		"--insecure-registry", loginReg.URL(),
-		"--disable-legacy-registry=true")
+		"--insecure-registry", loginReg.URL())
 
 	dockerfileName, cleanup1, err := makefile(fmt.Sprintf("FROM %s", buildRepoName))
 	c.Assert(err, check.IsNil, check.Commentf("Unable to create test dockerfile"))

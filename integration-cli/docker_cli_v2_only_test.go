@@ -34,7 +34,7 @@ func makefile(contents string) (string, func(), error) {
 
 }
 
-// TestV2Only ensures that a daemon in v2-only mode does not
+// TestV2Only ensures that a daemon by default does not
 // attempt to contact any v1 registry endpoints.
 func (s *DockerRegistrySuite) TestV2Only(c *check.C) {
 	reg, err := registry.NewMock(c)
@@ -51,7 +51,7 @@ func (s *DockerRegistrySuite) TestV2Only(c *check.C) {
 
 	repoName := fmt.Sprintf("%s/busybox", reg.URL())
 
-	s.d.Start(c, "--insecure-registry", reg.URL(), "--disable-legacy-registry=true")
+	s.d.Start(c, "--insecure-registry", reg.URL())
 
 	dockerfileName, cleanup, err := makefile(fmt.Sprintf("FROM %s/busybox", reg.URL()))
 	c.Assert(err, check.IsNil, check.Commentf("Unable to create test dockerfile"))
@@ -66,7 +66,7 @@ func (s *DockerRegistrySuite) TestV2Only(c *check.C) {
 	s.d.Cmd("pull", repoName)
 }
 
-// TestV1 starts a daemon in 'normal' mode
+// TestV1 starts a daemon with legacy registries enabled
 // and ensure v1 endpoints are hit for the following operations:
 // login, push, pull, build & run
 func (s *DockerRegistrySuite) TestV1(c *check.C) {
