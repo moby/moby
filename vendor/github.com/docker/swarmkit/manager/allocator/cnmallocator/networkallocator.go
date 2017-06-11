@@ -946,7 +946,7 @@ func (na *cnmNetworkAllocator) IsVIPOnIngressNetwork(vip *api.Endpoint_VirtualIP
 }
 
 // IsBuiltInDriver returns whether the passed driver is an internal network driver
-func (na *cnmNetworkAllocator) IsBuiltInDriver(name string) bool {
+func IsBuiltInDriver(name string) bool {
 	n := strings.ToLower(name)
 	for _, d := range initializers {
 		if n == d.ntype {

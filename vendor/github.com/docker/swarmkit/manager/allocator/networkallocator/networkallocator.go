@@ -31,13 +31,6 @@ func OnInit(options *ServiceAllocationOpts) {
 // NetworkAllocator provides network model specific allocation functionality.
 type NetworkAllocator interface {
 	//
-	// Drivers
-	//
-
-	// IsBuiltInDriver returns whether the passed driver is an internal network driver
-	IsBuiltInDriver(name string) bool
-
-	//
 	// Network Allocation
 	//
 

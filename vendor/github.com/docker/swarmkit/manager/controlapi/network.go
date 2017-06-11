@@ -51,14 +51,14 @@ func validateIPAMConfiguration(ipamConf *api.IPAMConfig) error {
 	return nil
 }
 
-func validateIPAM(ipam *api.IPAMOptions, a *allocator.Allocator, pg plugingetter.PluginGetter) error {
+func validateIPAM(ipam *api.IPAMOptions, pg plugingetter.PluginGetter) error {
 	if ipam == nil {
 		// It is ok to not specify any IPAM configurations. We
 		// will choose good defaults.
 		return nil
 	}
 
-	if err := validateDriver(ipam.Driver, a, pg, ipamapi.PluginEndpointType); err != nil {
+	if err := validateDriver(ipam.Driver, pg, ipamapi.PluginEndpointType); err != nil {
 		return err
 	}
 
@@ -71,7 +71,7 @@ func validateIPAM(ipam *api.IPAMOptions, a *allocator.Allocator, pg plugingetter
 	return nil
 }
 
-func validateNetworkSpec(spec *api.NetworkSpec, a *allocator.Allocator, pg plugingetter.PluginGetter) error {
+func validateNetworkSpec(spec *api.NetworkSpec, pg plugingetter.PluginGetter) error {
 	if spec == nil {
 		return grpc.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
 	}
@@ -92,11 +92,11 @@ func validateNetworkSpec(spec *api.NetworkSpec, a *allocator.Allocator, pg plugi
 		return grpc.Errorf(codes.PermissionDenied, "label %s is for internally created predefined networks and cannot be applied by users",
 			networkallocator.PredefinedLabel)
 	}
-	if err := validateDriver(spec.DriverConfig, a, pg, driverapi.NetworkPluginEndpointType); err != nil {
+	if err := validateDriver(spec.DriverConfig, pg, driverapi.NetworkPluginEndpointType); err != nil {
 		return err
 	}
 
-	if err := validateIPAM(spec.IPAM, a, pg); err != nil {
+	if err := validateIPAM(spec.IPAM, pg); err != nil {
 		return err
 	}
 
@@ -107,7 +107,7 @@ func validateNetworkSpec(spec *api.NetworkSpec, a *allocator.Allocator, pg plugi
 // - Returns `InvalidArgument` if the NetworkSpec is malformed.
 // - Returns an error if the creation fails.
 func (s *Server) CreateNetwork(ctx context.Context, request *api.CreateNetworkRequest) (*api.CreateNetworkResponse, error) {
-	if err := validateNetworkSpec(request.Spec, s.a, s.pg); err != nil {
+	if err := validateNetworkSpec(request.Spec, s.pg); err != nil {
 		return nil, err
 	}
 

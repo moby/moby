@@ -396,7 +396,7 @@ func (m *Manager) Run(parent context.Context) error {
 		return err
 	}
 
-	baseControlAPI := controlapi.NewServer(m.raftNode.MemoryStore(), m.raftNode, m.config.SecurityConfig, m.caserver, m.allocator, m.config.PluginGetter)
+	baseControlAPI := controlapi.NewServer(m.raftNode.MemoryStore(), m.raftNode, m.config.SecurityConfig, m.caserver, m.config.PluginGetter)
 	baseWatchAPI := watchapi.NewServer(m.raftNode.MemoryStore())
 	baseResourceAPI := resourceapi.New(m.raftNode.MemoryStore())
 	healthServer := health.NewHealthServer()
@@ -698,7 +698,7 @@ func (m *Manager) updateKEK(ctx context.Context, cluster *api.Cluster) error {
 
 			connBroker := connectionbroker.New(remotes.NewRemotes())
 			connBroker.SetLocalConn(conn)
-			if err := ca.RenewTLSConfigNow(ctx, securityConfig, connBroker); err != nil {
+			if err := ca.RenewTLSConfigNow(ctx, securityConfig, connBroker, m.config.RootCAPaths); err != nil {
 				logger.WithError(err).Error("failed to download new TLS certificate after locking the cluster")
 			}
 		}()
