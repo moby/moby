@@ -597,8 +597,14 @@ func (ep *endpoint) rename(name string) error {
 
 	c := n.getController()
 
+	sb, ok := ep.getSandbox()
+	if !ok {
+		logrus.Warnf("rename for %s aborted, sandbox %s is not anymore present", ep.ID(), ep.sandboxID)
+		return nil
+	}
+
 	if c.isAgent() {
-		if err = ep.deleteServiceInfoFromCluster(); err != nil {
+		if err = ep.deleteServiceInfoFromCluster(sb, "rename"); err != nil {
 			return types.InternalErrorf("Could not delete service state for endpoint %s from cluster on rename: %v", ep.Name(), err)
 		}
 	} else {
@@ -617,15 +623,15 @@ func (ep *endpoint) rename(name string) error {
 	ep.anonymous = false
 
 	if c.isAgent() {
-		if err = ep.addServiceInfoToCluster(); err != nil {
+		if err = ep.addServiceInfoToCluster(sb); err != nil {
 			return types.InternalErrorf("Could not add service state for endpoint %s to cluster on rename: %v", ep.Name(), err)
 		}
 		defer func() {
 			if err != nil {
-				ep.deleteServiceInfoFromCluster()
+				ep.deleteServiceInfoFromCluster(sb, "rename")
 				ep.name = oldName
 				ep.anonymous = oldAnonymous
-				ep.addServiceInfoToCluster()
+				ep.addServiceInfoToCluster(sb)
 			}
 		}()
 	} else {
@@ -746,7 +752,7 @@ func (ep *endpoint) sbLeave(sb *sandbox, force bool, options ...EndpointOption) 
 		return err
 	}
 
-	if e := ep.deleteServiceInfoFromCluster(); e != nil {
+	if e := ep.deleteServiceInfoFromCluster(sb, "sbLeave"); e != nil {
 		logrus.Errorf("Could not delete service state for endpoint %s from cluster: %v", ep.Name(), e)
 	}
 
