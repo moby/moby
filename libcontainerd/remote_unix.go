@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	goruntime "runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -389,30 +388,10 @@ func (r *remote) runContainerdDaemon() error {
 
 	// Start a new instance
 	args := []string{
-		"-l", fmt.Sprintf("unix://%s", r.rpcAddr),
-		"--metrics-interval=0",
-		"--start-timeout", "2m",
-		"--state-dir", filepath.Join(r.stateDir, containerdStateDir),
+		"--state", filepath.Join(r.stateDir, containerdStateDir),
 	}
-	if goruntime.GOOS == "solaris" {
-		args = append(args, "--shim", "containerd-shim", "--runtime", "runc")
-	} else {
-		args = append(args, "--shim", "docker-containerd-shim")
-		if r.runtime != "" {
-			args = append(args, "--runtime")
-			args = append(args, r.runtime)
-		}
-	}
-	if r.debugLog {
-		args = append(args, "--debug")
-	}
-	if len(r.runtimeArgs) > 0 {
-		for _, v := range r.runtimeArgs {
-			args = append(args, "--runtime-args")
-			args = append(args, v)
-		}
-		logrus.Debugf("libcontainerd: runContainerdDaemon: runtimeArgs: %s", args)
-	}
+
+	logrus.Debugf("libcontainerd: runContainerdDaemon: runtimeArgs: %s", args)
 
 	cmd := exec.Command(containerdBinary, args...)
 	// redirect containerd logs to docker logs
