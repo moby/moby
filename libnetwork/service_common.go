@@ -237,6 +237,8 @@ func (c *controller) addServiceBinding(svcName, svcID, nID, eID, containerName s
 		// Create a new load balancer if we are seeing this
 		// network attachment on the service for the first
 		// time.
+		fwMarkCtrMu.Lock()
+
 		lb = &loadBalancer{
 			vip:      vip,
 			fwMark:   fwMarkCtr,
@@ -244,7 +246,6 @@ func (c *controller) addServiceBinding(svcName, svcID, nID, eID, containerName s
 			service:  s,
 		}
 
-		fwMarkCtrMu.Lock()
 		fwMarkCtr++
 		fwMarkCtrMu.Unlock()
 
@@ -342,7 +343,7 @@ func (c *controller) rmServiceBinding(svcName, svcID, nID, eID, containerName st
 
 	// Remove loadbalancer service(if needed) and backend in all
 	// sandboxes in the network only if the vip is valid.
-	if len(vip) != 0 {
+	if len(vip) != 0 && entries == 0 {
 		n.(*network).rmLBBackend(ip, vip, lb.fwMark, ingressPorts, rmService)
 	}
 
