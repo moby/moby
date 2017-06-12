@@ -7,6 +7,7 @@ package osl
 func GC() {
 }
 
+// GetSandboxForExternalKey returns sandbox object for the supplied path
 func GetSandboxForExternalKey(path string, key string) (Sandbox, error) {
 	return nil, nil
 }

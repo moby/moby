@@ -446,6 +446,9 @@ func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 	}
 
 	cfgOptions, err := OptionBoltdbWithRandomDBFile()
+	if err != nil {
+		t.Fatal(err)
+	}
 	c, err := New(cfgOptions...)
 	if err != nil {
 		t.Fatal(err)

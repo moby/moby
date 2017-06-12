@@ -20,6 +20,9 @@ func TestReloaded(t *testing.T) {
 	var fwdChain *ChainInfo
 
 	fwdChain, err = NewChain("FWD", Filter, false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	bridgeName := "lo"
 
 	err = ProgramChain(fwdChain, bridgeName, false, true)

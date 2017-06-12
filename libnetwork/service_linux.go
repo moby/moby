@@ -520,7 +520,7 @@ func writePortsToFile(ports []*PortConfig) (string, error) {
 	}
 	defer f.Close()
 
-	buf, err := proto.Marshal(&EndpointRecord{
+	buf, _ := proto.Marshal(&EndpointRecord{
 		IngressPorts: ports,
 	})
 

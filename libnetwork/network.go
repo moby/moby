@@ -1904,7 +1904,7 @@ func (n *network) ResolveIP(ip string) string {
 		return ""
 	}
 	// NOTE it is possible to have more than one element in the Set, this will happen
-	// because of interleave of diffent events from differnt sources (local container create vs
+	// because of interleave of different events from different sources (local container create vs
 	// network db notifications)
 	// In such cases the resolution will be based on the first element of the set, and can vary
 	// during the system stabilitation

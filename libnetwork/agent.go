@@ -165,13 +165,13 @@ func (c *controller) handleKeyChange(keys []*types.EncryptionKey) error {
 		a.networkDB.SetKey(added)
 	}
 
-	key, tag, err := c.getPrimaryKeyTag(subsysGossip)
+	key, _, err := c.getPrimaryKeyTag(subsysGossip)
 	if err != nil {
 		return err
 	}
 	a.networkDB.SetPrimaryKey(key)
 
-	key, tag, err = c.getPrimaryKeyTag(subsysIPSec)
+	key, tag, err := c.getPrimaryKeyTag(subsysIPSec)
 	if err != nil {
 		return err
 	}
