@@ -51,6 +51,18 @@ func (m *Middleware) RemovePlugin(name string) {
 	m.plugins = plugins
 }
 
+// AppendPluginIfMissing appends the authorization plugin named to the end of the chain if it isn't already in the chain
+func (m *Middleware) AppendPluginIfMissing(name string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, p := range m.plugins {
+		if p.Name() == name {
+			return
+		}
+	}
+	m.plugins = append(m.plugins, newAuthorizationPlugin(name))
+}
+
 // WrapHandler returns a new handler function wrapping the previous one in the request chain.
 func (m *Middleware) WrapHandler(handler func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error) func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
