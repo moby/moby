@@ -60,7 +60,7 @@ func (s *DockerRegistrySuite) TestV2Only(c *check.C) {
 	s.d.Cmd("build", "--file", dockerfileName, ".")
 
 	s.d.Cmd("run", repoName)
-	s.d.Cmd("login", "-u", "richard", "-p", "testtest", "-e", "testuser@testdomain.com", reg.URL())
+	s.d.Cmd("login", "-u", "richard", "-p", "testtest", reg.URL())
 	s.d.Cmd("tag", "busybox", repoName)
 	s.d.Cmd("push", repoName)
 	s.d.Cmd("pull", repoName)
