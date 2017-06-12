@@ -49,9 +49,14 @@ func regexpCheckUA(c *check.C, ua string) {
 	c.Assert(bMatchUpstreamUA, check.Equals, true, check.Commentf("(Upstream) Docker Client User-Agent malformed"))
 }
 
+// registerUserAgentHandler registers a handler for the `/v2/*` endpoint.
+// Note that a 404 is returned to prevent the client to proceed.
+// We are only checking if the client sent a valid User Agent string along
+// with the request.
 func registerUserAgentHandler(reg *registry.Mock, result *string) {
 	reg.RegisterHandler("/v2/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(404)
+		w.Write([]byte(`{"errors":[{"code": "UNSUPPORTED","message": "this is a mock registry"}]}`))
 		var ua string
 		for k, v := range r.Header {
 			if k == "User-Agent" {
@@ -66,63 +71,33 @@ func registerUserAgentHandler(reg *registry.Mock, result *string) {
 // a registry, the registry should see a User-Agent string of the form
 // [docker engine UA] UpstreamClientSTREAM-CLIENT([client UA])
 func (s *DockerRegistrySuite) TestUserAgentPassThrough(c *check.C) {
-	var (
-		buildUA string
-		pullUA  string
-		pushUA  string
-		loginUA string
-	)
+	var ua string
 
-	buildReg, err := registry.NewMock(c)
-	defer buildReg.Close()
+	reg, err := registry.NewMock(c)
+	defer reg.Close()
 	c.Assert(err, check.IsNil)
-	registerUserAgentHandler(buildReg, &buildUA)
-	buildRepoName := fmt.Sprintf("%s/busybox", buildReg.URL())
+	registerUserAgentHandler(reg, &ua)
+	repoName := fmt.Sprintf("%s/busybox", reg.URL())
 
-	pullReg, err := registry.NewMock(c)
-	defer pullReg.Close()
-	c.Assert(err, check.IsNil)
-	registerUserAgentHandler(pullReg, &pullUA)
-	pullRepoName := fmt.Sprintf("%s/busybox", pullReg.URL())
-
-	pushReg, err := registry.NewMock(c)
-	defer pushReg.Close()
-	c.Assert(err, check.IsNil)
-	registerUserAgentHandler(pushReg, &pushUA)
-	pushRepoName := fmt.Sprintf("%s/busybox", pushReg.URL())
-
-	loginReg, err := registry.NewMock(c)
-	defer loginReg.Close()
-	c.Assert(err, check.IsNil)
-	registerUserAgentHandler(loginReg, &loginUA)
-
-	s.d.Start(c,
-		"--insecure-registry", buildReg.URL(),
-		"--insecure-registry", pullReg.URL(),
-		"--insecure-registry", pushReg.URL(),
-		"--insecure-registry", loginReg.URL())
+	s.d.StartWithBusybox(c, "--insecure-registry", reg.URL())
 
 	tmp, err := ioutil.TempDir("", "integration-cli-")
 	c.Assert(err, check.IsNil)
 	defer os.RemoveAll(tmp)
 
-	dockerfileName, err := makefile(tmp, fmt.Sprintf("FROM %s", buildRepoName))
+	dockerfile, err := makefile(tmp, fmt.Sprintf("FROM %s", repoName))
 	c.Assert(err, check.IsNil, check.Commentf("Unable to create test dockerfile"))
 
-	s.d.Cmd("build", "--file", dockerfileName, tmp)
-	regexpCheckUA(c, buildUA)
+	s.d.Cmd("build", "--file", dockerfile, tmp)
+	regexpCheckUA(c, ua)
 
-	s.d.Cmd("login", "-u", "richard", "-p", "testtest", loginReg.URL())
-	regexpCheckUA(c, loginUA)
+	s.d.Cmd("login", "-u", "richard", "-p", "testtest", reg.URL())
+	regexpCheckUA(c, ua)
 
-	s.d.Cmd("pull", pullRepoName)
-	regexpCheckUA(c, pullUA)
+	s.d.Cmd("pull", repoName)
+	regexpCheckUA(c, ua)
 
-	dockerfileName, err = makefile(tmp, `FROM scratch
-	ENV foo bar`)
-	c.Assert(err, check.IsNil, check.Commentf("Unable to create test dockerfile"))
-	s.d.Cmd("build", "-t", pushRepoName, "--file", dockerfileName, ".")
-
-	s.d.Cmd("push", pushRepoName)
-	regexpCheckUA(c, pushUA)
+	s.d.Cmd("tag", "busybox", repoName)
+	s.d.Cmd("push", repoName)
+	regexpCheckUA(c, ua)
 }
