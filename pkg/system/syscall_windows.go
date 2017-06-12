@@ -8,8 +8,9 @@ import (
 )
 
 var (
-	ntuserApiset      = syscall.NewLazyDLL("ext-ms-win-ntuser-window-l1-1-0")
-	procGetVersionExW = modkernel32.NewProc("GetVersionExW")
+	ntuserApiset       = syscall.NewLazyDLL("ext-ms-win-ntuser-window-l1-1-0")
+	procGetVersionExW  = modkernel32.NewProc("GetVersionExW")
+	procGetProductInfo = modkernel32.NewProc("GetProductInfo")
 )
 
 // OSVersion is a wrapper for Windows version information
@@ -64,6 +65,22 @@ func IsWindowsClient() bool {
 	}
 	const verNTWorkstation = 0x00000001
 	return osviex.ProductType == verNTWorkstation
+}
+
+// IsIoTCore returns true if the currently running image is based off of
+// Windows 10 IoT Core.
+// @engine maintainers - this function should not be removed or modified as it
+// is used to enforce licensing restrictions on Windows.
+func IsIoTCore() bool {
+	var returnedProductType uint32
+	r1, _, err := procGetProductInfo.Call(6, 1, 0, 0, uintptr(unsafe.Pointer(&returnedProductType)))
+	if r1 == 0 {
+		logrus.Warnf("GetProductInfo failed - assuming this is not IoT: %v", err)
+		return false
+	}
+	const productIoTUAP = 0x0000007B
+	const productIoTUAPCommercial = 0x00000083
+	return returnedProductType == productIoTUAP || returnedProductType == productIoTUAPCommercial
 }
 
 // Unmount is a platform-specific helper function to call
