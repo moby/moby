@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -39,6 +40,41 @@ var nativeToSeccomp = map[string]types.Arch{
 	"s390x":       types.ArchS390X,
 }
 
+// Returns the architecture C libseccomp was compiled for
+func getSeccompArch() (types.Arch, error) {
+	if n, err := libseccomp.GetNativeArch(); err != nil {
+		return "", fmt.Errorf("libseccomp internal error: %v", err)
+	} else if seccompArch, ok := nativeToSeccomp[n.String()]; !ok {
+		return "", fmt.Errorf("unknown architecture %q returned by libseccomp", n)
+	} else {
+		return seccompArch, nil
+	}
+}
+
+// Converts { "amd64", "s390", "foobar" } into
+// { "SCMP_ARCH_X86_64", "SCMP_ARCH_S390", "foobar" } etc.
+// When no conversion was performed, the input slice itself is returned
+func supportLegacyArchID(arr []string) []string {
+	ret := &arr
+	var allocated []string
+	for i, inp := range arr {
+		if a, ok := nativeToSeccomp[inp]; ok {
+			if ret == &arr {
+				allocated = make([]string, i, len(arr))
+				copy(allocated, arr)
+				ret = &allocated
+			}
+			sa := string(a)
+			logrus.Warnf("seccomp: legacy arch ID %q should be replaced with %q",
+				inp, sa)
+			*ret = append(*ret, sa)
+		} else if ret != &arr {
+			*ret = append(*ret, inp)
+		}
+	}
+	return *ret
+}
+
 func setupSeccomp(config *types.Seccomp, rs *specs.Spec) (*specs.LinuxSeccomp, error) {
 	if config == nil {
 		return nil, nil
@@ -51,11 +87,11 @@ func setupSeccomp(config *types.Seccomp, rs *specs.Spec) (*specs.LinuxSeccomp, e
 
 	newConfig := &specs.LinuxSeccomp{}
 
-	var arch string
-	var native, err = libseccomp.GetNativeArch()
-	if err == nil {
-		arch = native.String()
+	seccompArch, err := getSeccompArch()
+	if err != nil {
+		return nil, err
 	}
+
 
 	if len(config.Architectures) != 0 && len(config.ArchMap) != 0 {
 		return nil, errors.New("'architectures' and 'archMap' were specified in the seccomp profile, use either 'architectures' or 'archMap'")
@@ -70,15 +106,12 @@ func setupSeccomp(config *types.Seccomp, rs *specs.Spec) (*specs.LinuxSeccomp, e
 
 	if len(config.ArchMap) != 0 {
 		for _, a := range config.ArchMap {
-			seccompArch, ok := nativeToSeccomp[arch]
-			if ok {
-				if a.Arch == seccompArch {
-					newConfig.Architectures = append(newConfig.Architectures, specs.Arch(a.Arch))
-					for _, sa := range a.SubArches {
-						newConfig.Architectures = append(newConfig.Architectures, specs.Arch(sa))
-					}
-					break
+			if a.Arch == seccompArch {
+				newConfig.Architectures = append(newConfig.Architectures, specs.Arch(a.Arch))
+				for _, sa := range a.SubArches {
+					newConfig.Architectures = append(newConfig.Architectures, specs.Arch(sa))
 				}
+				break
 			}
 		}
 	}
@@ -89,7 +122,7 @@ Loop:
 	// Loop through all syscall blocks and convert them to libcontainer format after filtering them
 	for _, call := range config.Syscalls {
 		if len(call.Excludes.Arches) > 0 {
-			if stringutils.InSlice(call.Excludes.Arches, arch) {
+			if stringutils.InSlice(supportLegacyArchID(call.Excludes.Arches), string(seccompArch)) {
 				continue Loop
 			}
 		}
@@ -101,7 +134,7 @@ Loop:
 			}
 		}
 		if len(call.Includes.Arches) > 0 {
-			if !stringutils.InSlice(call.Includes.Arches, arch) {
+			if !stringutils.InSlice(supportLegacyArchID(call.Includes.Arches), string(seccompArch)) {
 				continue Loop
 			}
 		}

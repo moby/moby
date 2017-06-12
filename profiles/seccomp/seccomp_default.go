@@ -420,7 +420,7 @@ func DefaultProfile() *types.Seccomp {
 			Action: types.ActAllow,
 			Args:   []*types.Arg{},
 			Includes: types.Filter{
-				Arches: []string{"ppc64le"},
+				Arches: []string{string(types.ArchPPC64LE)},
 			},
 		},
 		{
@@ -435,7 +435,7 @@ func DefaultProfile() *types.Seccomp {
 			Action: types.ActAllow,
 			Args:   []*types.Arg{},
 			Includes: types.Filter{
-				Arches: []string{"arm", "arm64"},
+				Arches: []string{string(types.ArchARM), string(types.ArchAARCH64)},
 			},
 		},
 		{
@@ -445,7 +445,7 @@ func DefaultProfile() *types.Seccomp {
 			Action: types.ActAllow,
 			Args:   []*types.Arg{},
 			Includes: types.Filter{
-				Arches: []string{"amd64", "x32"},
+				Arches: []string{string(types.ArchX86_64), string(types.ArchX32)},
 			},
 		},
 		{
@@ -455,7 +455,7 @@ func DefaultProfile() *types.Seccomp {
 			Action: types.ActAllow,
 			Args:   []*types.Arg{},
 			Includes: types.Filter{
-				Arches: []string{"amd64", "x32", "x86"},
+				Arches: []string{string(types.ArchX86_64), string(types.ArchX32), string(types.ArchX86)},
 			},
 		},
 		{
@@ -467,7 +467,7 @@ func DefaultProfile() *types.Seccomp {
 			Action: types.ActAllow,
 			Args:   []*types.Arg{},
 			Includes: types.Filter{
-				Arches: []string{"s390", "s390x"},
+				Arches: []string{string(types.ArchS390), string(types.ArchS390X)},
 			},
 		},
 		{
@@ -517,7 +517,7 @@ func DefaultProfile() *types.Seccomp {
 			},
 			Excludes: types.Filter{
 				Caps:   []string{"CAP_SYS_ADMIN"},
-				Arches: []string{"s390", "s390x"},
+				Arches: []string{string(types.ArchS390), string(types.ArchS390X)},
 			},
 		},
 		{
@@ -535,7 +535,7 @@ func DefaultProfile() *types.Seccomp {
 			},
 			Comment: "s390 parameter ordering for clone is different",
 			Includes: types.Filter{
-				Arches: []string{"s390", "s390x"},
+				Arches: []string{string(types.ArchS390), string(types.ArchS390X)},
 			},
 			Excludes: types.Filter{
 				Caps: []string{"CAP_SYS_ADMIN"},
