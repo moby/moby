@@ -126,6 +126,11 @@ type LocalSigner struct {
 	cryptoSigner crypto.Signer
 }
 
+type x509UnknownAuthError struct {
+	error
+	failedLeafCert *x509.Certificate
+}
+
 // RootCA is the representation of everything we need to sign certificates and/or to verify certificates
 //
 // RootCA.Cert:          [CA cert1][CA cert2]
@@ -275,6 +280,17 @@ func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, kw KeyWrit
 	// Create an X509Cert so we can .Verify()
 	// Check to see if this certificate was signed by our CA, and isn't expired
 	parsedCerts, chains, err := ValidateCertChain(rca.Pool, signedCert, false)
+	// TODO(cyli): - right now we need the invalid certificate in order to determine whether or not we should
+	// download a new root, because we only want to do that in the case of workers.  When we have a single
+	// codepath for updating the root CAs for both managers and workers, this snippet can go.
+	if _, ok := err.(x509.UnknownAuthorityError); ok {
+		if parsedCerts, parseErr := helpers.ParseCertificatesPEM(signedCert); parseErr == nil && len(parsedCerts) > 0 {
+			return nil, nil, x509UnknownAuthError{
+				error:          err,
+				failedLeafCert: parsedCerts[0],
+			}
+		}
+	}
 	if err != nil {
 		return nil, nil, err
 	}

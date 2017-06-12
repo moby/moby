@@ -89,6 +89,39 @@ type CertificateUpdate struct {
 	Err  error
 }
 
+func validateRootCAAndTLSCert(rootCA *RootCA, externalCARootPool *x509.CertPool, tlsKeyPair *tls.Certificate) error {
+	var (
+		leafCert         *x509.Certificate
+		intermediatePool *x509.CertPool
+	)
+	for i, derBytes := range tlsKeyPair.Certificate {
+		parsed, err := x509.ParseCertificate(derBytes)
+		if err != nil {
+			return errors.Wrap(err, "could not validate new root certificates due to parse error")
+		}
+		if i == 0 {
+			leafCert = parsed
+		} else {
+			if intermediatePool == nil {
+				intermediatePool = x509.NewCertPool()
+			}
+			intermediatePool.AddCert(parsed)
+		}
+	}
+	opts := x509.VerifyOptions{
+		Roots:         rootCA.Pool,
+		Intermediates: intermediatePool,
+	}
+	if _, err := leafCert.Verify(opts); err != nil {
+		return errors.Wrap(err, "new root CA does not match existing TLS credentials")
+	}
+	opts.Roots = externalCARootPool
+	if _, err := leafCert.Verify(opts); err != nil {
+		return errors.Wrap(err, "new external root pool does not match existing TLS credentials")
+	}
+	return nil
+}
+
 // NewSecurityConfig initializes and returns a new SecurityConfig.
 func NewSecurityConfig(rootCA *RootCA, krw *KeyReadWriter, tlsKeyPair *tls.Certificate, issuerInfo *IssuerInfo) (*SecurityConfig, error) {
 	// Create the Server TLS Credentials for this node. These will not be used by workers.
@@ -155,6 +188,11 @@ func (s *SecurityConfig) UpdateRootCA(rootCA *RootCA, externalCARootPool *x509.C
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	// refuse to update the root CA if the current TLS credentials do not validate against it
+	if err := validateRootCAAndTLSCert(rootCA, externalCARootPool, s.certificate); err != nil {
+		return err
+	}
+
 	s.rootCA = rootCA
 	s.externalCAClientRootPool = externalCARootPool
 	s.externalCA.UpdateRootCA(rootCA)
@@ -215,6 +253,13 @@ func (s *SecurityConfig) updateTLSCredentials(certificate *tls.Certificate, issu
 		})
 	}
 	return nil
+}
+
+// UpdateTLSCredentials updates the security config with an updated TLS certificate and issuer info
+func (s *SecurityConfig) UpdateTLSCredentials(certificate *tls.Certificate, issuerInfo *IssuerInfo) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.updateTLSCredentials(certificate, issuerInfo)
 }
 
 // SigningPolicy creates a policy used by the signer to ensure that the only fields
@@ -447,9 +492,35 @@ func (rootCA RootCA) CreateSecurityConfig(ctx context.Context, krw *KeyReadWrite
 	return secConfig, err
 }
 
+// TODO(cyli): currently we have to only update if it's a worker role - if we have a single root CA update path for
+// both managers and workers, we won't need to check any more.
+func updateRootThenUpdateCert(ctx context.Context, s *SecurityConfig, connBroker *connectionbroker.Broker, rootPaths CertPaths, failedCert *x509.Certificate) (*tls.Certificate, *IssuerInfo, error) {
+	if len(failedCert.Subject.OrganizationalUnit) == 0 || failedCert.Subject.OrganizationalUnit[0] != WorkerRole {
+		return nil, nil, errors.New("cannot update root CA since this is not a worker")
+	}
+	// try downloading a new root CA if it's an unknown authority issue, in case there was a root rotation completion
+	// and we just didn't get the new root
+	rootCA, err := GetRemoteCA(ctx, "", connBroker)
+	if err != nil {
+		return nil, nil, err
+	}
+	// validate against the existing security config creds
+	if err := s.UpdateRootCA(&rootCA, rootCA.Pool); err != nil {
+		return nil, nil, err
+	}
+	if err := SaveRootCA(rootCA, rootPaths); err != nil {
+		return nil, nil, err
+	}
+	return rootCA.RequestAndSaveNewCertificates(ctx, s.KeyWriter(),
+		CertificateRequestConfig{
+			ConnBroker:  connBroker,
+			Credentials: s.ClientTLSCreds,
+		})
+}
+
 // RenewTLSConfigNow gets a new TLS cert and key, and updates the security config if provided.  This is similar to
 // RenewTLSConfig, except while that monitors for expiry, and periodically renews, this renews once and is blocking
-func RenewTLSConfigNow(ctx context.Context, s *SecurityConfig, connBroker *connectionbroker.Broker) error {
+func RenewTLSConfigNow(ctx context.Context, s *SecurityConfig, connBroker *connectionbroker.Broker, rootPaths CertPaths) error {
 	s.renewalMu.Lock()
 	defer s.renewalMu.Unlock()
 
@@ -467,14 +538,21 @@ func RenewTLSConfigNow(ctx context.Context, s *SecurityConfig, connBroker *conne
 			ConnBroker:  connBroker,
 			Credentials: s.ClientTLSCreds,
 		})
+	if wrappedError, ok := err.(x509UnknownAuthError); ok {
+		var newErr error
+		tlsKeyPair, issuerInfo, newErr = updateRootThenUpdateCert(ctx, s, connBroker, rootPaths, wrappedError.failedLeafCert)
+		if newErr != nil {
+			err = wrappedError.error
+		} else {
+			err = nil
+		}
+	}
 	if err != nil {
 		log.WithError(err).Errorf("failed to renew the certificate")
 		return err
 	}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.updateTLSCredentials(tlsKeyPair, issuerInfo)
+	return s.UpdateTLSCredentials(tlsKeyPair, issuerInfo)
 }
 
 // calculateRandomExpiry returns a random duration between 50% and 80% of the

@@ -279,7 +279,7 @@ func (n *Node) run(ctx context.Context) (err error) {
 		return err
 	}
 
-	renewer := ca.NewTLSRenewer(securityConfig, n.connBroker)
+	renewer := ca.NewTLSRenewer(securityConfig, n.connBroker, paths.RootCA)
 
 	ctx = log.WithLogger(ctx, log.G(ctx).WithField("node.id", n.NodeID()))
 
@@ -344,12 +344,12 @@ func (n *Node) run(ctx context.Context) (err error) {
 						log.G(ctx).WithError(err).Error("invalid new root certificate from the dispatcher")
 						continue
 					}
-					if err := ca.SaveRootCA(newRootCA, paths.RootCA); err != nil {
-						log.G(ctx).WithError(err).Error("could not save new root certificate from the dispatcher")
-						continue
-					}
 					if err := securityConfig.UpdateRootCA(&newRootCA, newRootCA.Pool); err != nil {
 						log.G(ctx).WithError(err).Error("could not use new root CA from dispatcher")
+						continue
+					}
+					if err := ca.SaveRootCA(newRootCA, paths.RootCA); err != nil {
+						log.G(ctx).WithError(err).Error("could not save new root certificate from the dispatcher")
 						continue
 					}
 				}

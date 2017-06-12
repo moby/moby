@@ -624,10 +624,6 @@ func (s *Server) UpdateRootCA(ctx context.Context, cluster *api.Cluster) error {
 		if err != nil {
 			return errors.Wrap(err, "invalid Root CA object in cluster")
 		}
-		if err := SaveRootCA(updatedRootCA, s.rootPaths); err != nil {
-			return errors.Wrap(err, "unable to save new root CA certificates")
-		}
-
 		externalCARootPool := updatedRootCA.Pool
 		if rCA.RootRotation != nil {
 			// the external CA has to trust the new CA cert
@@ -639,6 +635,9 @@ func (s *Server) UpdateRootCA(ctx context.Context, cluster *api.Cluster) error {
 		// Attempt to update our local RootCA with the new parameters
 		if err := s.securityConfig.UpdateRootCA(&updatedRootCA, externalCARootPool); err != nil {
 			return errors.Wrap(err, "updating Root CA failed")
+		}
+		if err := SaveRootCA(updatedRootCA, s.rootPaths); err != nil {
+			return errors.Wrap(err, "unable to save new root CA certificates")
 		}
 		// only update the server cache if we've successfully updated the root CA
 		logger.Debugf("Root CA %s successfully", setOrUpdate)

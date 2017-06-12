@@ -27,14 +27,16 @@ type TLSRenewer struct {
 	connBroker   *connectionbroker.Broker
 	renew        chan struct{}
 	expectedRole string
+	rootPaths    CertPaths
 }
 
 // NewTLSRenewer creates a new TLS renewer. It must be started with Start.
-func NewTLSRenewer(s *SecurityConfig, connBroker *connectionbroker.Broker) *TLSRenewer {
+func NewTLSRenewer(s *SecurityConfig, connBroker *connectionbroker.Broker, rootPaths CertPaths) *TLSRenewer {
 	return &TLSRenewer{
 		s:          s,
 		connBroker: connBroker,
 		renew:      make(chan struct{}, 1),
+		rootPaths:  rootPaths,
 	}
 }
 
@@ -135,7 +137,7 @@ func (t *TLSRenewer) Start(ctx context.Context) <-chan CertificateUpdate {
 
 			// ignore errors - it will just try again later
 			var certUpdate CertificateUpdate
-			if err := RenewTLSConfigNow(ctx, t.s, t.connBroker); err != nil {
+			if err := RenewTLSConfigNow(ctx, t.s, t.connBroker, t.rootPaths); err != nil {
 				certUpdate.Err = err
 				expBackoff.Failure(nil, nil)
 			} else {

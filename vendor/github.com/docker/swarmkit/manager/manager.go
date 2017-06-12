@@ -698,7 +698,7 @@ func (m *Manager) updateKEK(ctx context.Context, cluster *api.Cluster) error {
 
 			connBroker := connectionbroker.New(remotes.NewRemotes())
 			connBroker.SetLocalConn(conn)
-			if err := ca.RenewTLSConfigNow(ctx, securityConfig, connBroker); err != nil {
+			if err := ca.RenewTLSConfigNow(ctx, securityConfig, connBroker, m.config.RootCAPaths); err != nil {
 				logger.WithError(err).Error("failed to download new TLS certificate after locking the cluster")
 			}
 		}()

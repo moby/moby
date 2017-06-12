@@ -3,10 +3,9 @@ package networkallocator
 import (
 	"github.com/docker/libnetwork/drivers/overlay/ovmanager"
 	"github.com/docker/libnetwork/drivers/remote"
-	"github.com/docker/libnetwork/drvregistry"
 )
 
-const initializers = []initializer{
+var initializers = []initializer{
 	{remote.Init, "remote"},
 	{ovmanager.Init, "overlay"},
 }
