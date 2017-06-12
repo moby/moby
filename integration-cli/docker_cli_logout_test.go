@@ -13,6 +13,10 @@ import (
 )
 
 func (s *DockerRegistryAuthHtpasswdSuite) TestLogoutWithExternalAuth(c *check.C) {
+
+	// @TODO TestLogoutWithExternalAuth expects docker to fall back to a v1 registry, so has to be updated for v17.12, when v1 registries are no longer supported
+	s.d.StartWithBusybox(c, "--disable-legacy-registry=false")
+
 	osPath := os.Getenv("PATH")
 	defer os.Setenv("PATH", osPath)
 
@@ -28,6 +32,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestLogoutWithExternalAuth(c *check.C)
 
 	tmp, err := ioutil.TempDir("", "integration-cli-")
 	c.Assert(err, checker.IsNil)
+	defer os.RemoveAll(tmp)
 
 	externalAuthConfig := `{ "credsStore": "shell-test" }`
 
@@ -35,24 +40,27 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestLogoutWithExternalAuth(c *check.C)
 	err = ioutil.WriteFile(configPath, []byte(externalAuthConfig), 0644)
 	c.Assert(err, checker.IsNil)
 
-	dockerCmd(c, "--config", tmp, "login", "-u", s.reg.Username(), "-p", s.reg.Password(), privateRegistryURL)
+	_, err = s.d.Cmd("--config", tmp, "login", "-u", s.reg.Username(), "-p", s.reg.Password(), privateRegistryURL)
+	c.Assert(err, checker.IsNil)
 
 	b, err := ioutil.ReadFile(configPath)
 	c.Assert(err, checker.IsNil)
 	c.Assert(string(b), checker.Not(checker.Contains), "\"auth\":")
 	c.Assert(string(b), checker.Contains, privateRegistryURL)
 
-	dockerCmd(c, "--config", tmp, "tag", "busybox", repoName)
-	dockerCmd(c, "--config", tmp, "push", repoName)
-
-	dockerCmd(c, "--config", tmp, "logout", privateRegistryURL)
+	_, err = s.d.Cmd("--config", tmp, "tag", "busybox", repoName)
+	c.Assert(err, checker.IsNil)
+	_, err = s.d.Cmd("--config", tmp, "push", repoName)
+	c.Assert(err, checker.IsNil)
+	_, err = s.d.Cmd("--config", tmp, "logout", privateRegistryURL)
+	c.Assert(err, checker.IsNil)
 
 	b, err = ioutil.ReadFile(configPath)
 	c.Assert(err, checker.IsNil)
 	c.Assert(string(b), checker.Not(checker.Contains), privateRegistryURL)
 
 	// check I cannot pull anymore
-	out, _, err := dockerCmdWithError("--config", tmp, "pull", repoName)
+	out, err := s.d.Cmd("--config", tmp, "pull", repoName)
 	c.Assert(err, check.NotNil, check.Commentf(out))
 	c.Assert(out, checker.Contains, "Error: image dockercli/busybox:authtest not found")
 }
