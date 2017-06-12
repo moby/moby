@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/libnetwork/common"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
@@ -383,7 +384,7 @@ func TestSRVServiceQuery(t *testing.T) {
 	sr := svcInfo{
 		svcMap:     make(map[string][]net.IP),
 		svcIPv6Map: make(map[string][]net.IP),
-		ipMap:      make(map[string]*ipInfo),
+		ipMap:      common.NewSetMatrix(),
 		service:    make(map[string][]servicePorts),
 	}
 	// backing container for the service
