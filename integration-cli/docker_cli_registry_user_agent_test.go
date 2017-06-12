@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net/http"
+	"os"
 	"regexp"
 
 	"github.com/docker/docker/integration-cli/registry"
@@ -100,10 +102,14 @@ func (s *DockerRegistrySuite) TestUserAgentPassThrough(c *check.C) {
 		"--insecure-registry", pushReg.URL(),
 		"--insecure-registry", loginReg.URL())
 
-	dockerfileName, cleanup1, err := makefile(fmt.Sprintf("FROM %s", buildRepoName))
+	tmp, err := ioutil.TempDir("", "integration-cli-")
+	c.Assert(err, check.IsNil)
+	defer os.RemoveAll(tmp)
+
+	dockerfileName, err := makefile(tmp, fmt.Sprintf("FROM %s", buildRepoName))
 	c.Assert(err, check.IsNil, check.Commentf("Unable to create test dockerfile"))
-	defer cleanup1()
-	s.d.Cmd("build", "--file", dockerfileName, ".")
+
+	s.d.Cmd("build", "--file", dockerfileName, tmp)
 	regexpCheckUA(c, buildUA)
 
 	s.d.Cmd("login", "-u", "richard", "-p", "testtest", loginReg.URL())
@@ -112,10 +118,9 @@ func (s *DockerRegistrySuite) TestUserAgentPassThrough(c *check.C) {
 	s.d.Cmd("pull", pullRepoName)
 	regexpCheckUA(c, pullUA)
 
-	dockerfileName, cleanup2, err := makefile(`FROM scratch
+	dockerfileName, err = makefile(tmp, `FROM scratch
 	ENV foo bar`)
 	c.Assert(err, check.IsNil, check.Commentf("Unable to create test dockerfile"))
-	defer cleanup2()
 	s.d.Cmd("build", "-t", pushRepoName, "--file", dockerfileName, ".")
 
 	s.d.Cmd("push", pushRepoName)
