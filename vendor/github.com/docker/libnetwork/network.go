@@ -10,6 +10,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/libnetwork/common"
 	"github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
@@ -97,7 +98,7 @@ type ipInfo struct {
 type svcInfo struct {
 	svcMap     map[string][]net.IP
 	svcIPv6Map map[string][]net.IP
-	ipMap      map[string]*ipInfo
+	ipMap      common.SetMatrix
 	service    map[string][]servicePorts
 }
 
@@ -990,6 +991,12 @@ func (n *network) delete(force bool) error {
 
 	c.cleanupServiceBindings(n.ID())
 
+	// The network had been left, the service discovery can be cleaned up
+	c.Lock()
+	logrus.Debugf("network %s delete, clean svcRecords", n.id)
+	delete(c.svcRecords, n.id)
+	c.Unlock()
+
 removeFromStore:
 	// deleteFromStore performs an atomic delete operation and the
 	// network.epCnt will help prevent any possible
@@ -1227,36 +1234,34 @@ func (n *network) updateSvcRecord(ep *endpoint, localEps []*endpoint, isAdd bool
 			// breaks some apps
 			if ep.isAnonymous() {
 				if len(myAliases) > 0 {
-					n.addSvcRecords(myAliases[0], iface.Address().IP, ipv6, true)
+					n.addSvcRecords(ep.ID(), myAliases[0], iface.Address().IP, ipv6, true, "updateSvcRecord")
 				}
 			} else {
-				n.addSvcRecords(epName, iface.Address().IP, ipv6, true)
+				n.addSvcRecords(ep.ID(), epName, iface.Address().IP, ipv6, true, "updateSvcRecord")
 			}
 			for _, alias := range myAliases {
-				n.addSvcRecords(alias, iface.Address().IP, ipv6, false)
+				n.addSvcRecords(ep.ID(), alias, iface.Address().IP, ipv6, false, "updateSvcRecord")
 			}
 		} else {
 			if ep.isAnonymous() {
 				if len(myAliases) > 0 {
-					n.deleteSvcRecords(myAliases[0], iface.Address().IP, ipv6, true)
+					n.deleteSvcRecords(ep.ID(), myAliases[0], iface.Address().IP, ipv6, true, "updateSvcRecord")
 				}
 			} else {
-				n.deleteSvcRecords(epName, iface.Address().IP, ipv6, true)
+				n.deleteSvcRecords(ep.ID(), epName, iface.Address().IP, ipv6, true, "updateSvcRecord")
 			}
 			for _, alias := range myAliases {
-				n.deleteSvcRecords(alias, iface.Address().IP, ipv6, false)
+				n.deleteSvcRecords(ep.ID(), alias, iface.Address().IP, ipv6, false, "updateSvcRecord")
 			}
 		}
 	}
 }
 
-func addIPToName(ipMap map[string]*ipInfo, name string, ip net.IP) {
+func addIPToName(ipMap common.SetMatrix, name string, ip net.IP) {
 	reverseIP := netutils.ReverseIP(ip.String())
-	if _, ok := ipMap[reverseIP]; !ok {
-		ipMap[reverseIP] = &ipInfo{
-			name: name,
-		}
-	}
+	ipMap.Insert(reverseIP, ipInfo{
+		name: name,
+	})
 }
 
 func addNameToIP(svcMap map[string][]net.IP, name string, epIP net.IP) {
@@ -1284,24 +1289,25 @@ func delNameToIP(svcMap map[string][]net.IP, name string, epIP net.IP) {
 	}
 }
 
-func (n *network) addSvcRecords(name string, epIP net.IP, epIPv6 net.IP, ipMapUpdate bool) {
+func (n *network) addSvcRecords(eID, name string, epIP net.IP, epIPv6 net.IP, ipMapUpdate bool, method string) {
 	// Do not add service names for ingress network as this is a
 	// routing only network
 	if n.ingress {
 		return
 	}
 
-	logrus.Debugf("(%s).addSvcRecords(%s, %s, %s, %t)", n.ID()[0:7], name, epIP, epIPv6, ipMapUpdate)
+	logrus.Debugf("%s (%s).addSvcRecords(%s, %s, %s, %t) %s", eID, n.ID()[0:7], name, epIP, epIPv6, ipMapUpdate, method)
 
 	c := n.getController()
 	c.Lock()
 	defer c.Unlock()
+
 	sr, ok := c.svcRecords[n.ID()]
 	if !ok {
 		sr = svcInfo{
 			svcMap:     make(map[string][]net.IP),
 			svcIPv6Map: make(map[string][]net.IP),
-			ipMap:      make(map[string]*ipInfo),
+			ipMap:      common.NewSetMatrix(),
 		}
 		c.svcRecords[n.ID()] = sr
 	}
@@ -1319,28 +1325,33 @@ func (n *network) addSvcRecords(name string, epIP net.IP, epIPv6 net.IP, ipMapUp
 	}
 }
 
-func (n *network) deleteSvcRecords(name string, epIP net.IP, epIPv6 net.IP, ipMapUpdate bool) {
+func (n *network) deleteSvcRecords(eID, name string, epIP net.IP, epIPv6 net.IP, ipMapUpdate bool, method string) {
 	// Do not delete service names from ingress network as this is a
 	// routing only network
 	if n.ingress {
 		return
 	}
 
-	logrus.Debugf("(%s).deleteSvcRecords(%s, %s, %s, %t)", n.ID()[0:7], name, epIP, epIPv6, ipMapUpdate)
+	logrus.Debugf("%s (%s).deleteSvcRecords(%s, %s, %s, %t) %s", eID, n.ID()[0:7], name, epIP, epIPv6, ipMapUpdate, method)
 
 	c := n.getController()
 	c.Lock()
 	defer c.Unlock()
+
 	sr, ok := c.svcRecords[n.ID()]
 	if !ok {
 		return
 	}
 
 	if ipMapUpdate {
-		delete(sr.ipMap, netutils.ReverseIP(epIP.String()))
+		sr.ipMap.Remove(netutils.ReverseIP(epIP.String()), ipInfo{
+			name: name,
+		})
 
 		if epIPv6 != nil {
-			delete(sr.ipMap, netutils.ReverseIP(epIPv6.String()))
+			sr.ipMap.Remove(netutils.ReverseIP(epIPv6.String()), ipInfo{
+				name: name,
+			})
 		}
 	}
 
@@ -1868,9 +1879,11 @@ func (n *network) HandleQueryResp(name string, ip net.IP) {
 	}
 
 	ipStr := netutils.ReverseIP(ip.String())
-
-	if ipInfo, ok := sr.ipMap[ipStr]; ok {
-		ipInfo.extResolver = true
+	// If an object with extResolver == true is already in the set this call will fail
+	// but anyway it means that has already been inserted before
+	if ok, _ := sr.ipMap.Contains(ipStr, ipInfo{name: name}); ok {
+		sr.ipMap.Remove(ipStr, ipInfo{name: name})
+		sr.ipMap.Insert(ipStr, ipInfo{name: name, extResolver: true})
 	}
 }
 
@@ -1886,13 +1899,27 @@ func (n *network) ResolveIP(ip string) string {
 
 	nwName := n.Name()
 
-	ipInfo, ok := sr.ipMap[ip]
-
-	if !ok || ipInfo.extResolver {
+	elemSet, ok := sr.ipMap.Get(ip)
+	if !ok || len(elemSet) == 0 {
+		return ""
+	}
+	// NOTE it is possible to have more than one element in the Set, this will happen
+	// because of interleave of diffent events from differnt sources (local container create vs
+	// network db notifications)
+	// In such cases the resolution will be based on the first element of the set, and can vary
+	// during the system stabilitation
+	elem, ok := elemSet[0].(ipInfo)
+	if !ok {
+		setStr, b := sr.ipMap.String(ip)
+		logrus.Errorf("expected set of ipInfo type for key %s set:%t %s", ip, b, setStr)
 		return ""
 	}
 
-	return ipInfo.name + "." + nwName
+	if elem.extResolver {
+		return ""
+	}
+
+	return elem.name + "." + nwName
 }
 
 func (n *network) ResolveService(name string) ([]*net.SRV, []net.IP) {
