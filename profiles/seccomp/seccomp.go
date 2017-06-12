@@ -92,24 +92,25 @@ func setupSeccomp(config *types.Seccomp, rs *specs.Spec) (*specs.LinuxSeccomp, e
 		return nil, err
 	}
 
-
-	if len(config.Architectures) != 0 && len(config.ArchMap) != 0 {
-		return nil, errors.New("'architectures' and 'archMap' were specified in the seccomp profile, use either 'architectures' or 'archMap'")
+	registerArch := func(a types.Arch) {
+		newConfig.Architectures = append(newConfig.Architectures, specs.Arch(a))
 	}
 
-	// if config.Architectures == 0 then libseccomp will figure out the architecture to use
 	if len(config.Architectures) != 0 {
-		for _, a := range config.Architectures {
-			newConfig.Architectures = append(newConfig.Architectures, specs.Arch(a))
+		if len(config.ArchMap) != 0 {
+			return nil, errors.New("either one (not both) of 'architectures' or 'archMap' must be specified in the seccomp profile")
 		}
-	}
 
-	if len(config.ArchMap) != 0 {
+		for _, a := range config.Architectures {
+			registerArch(a)
+		}
+	} else {
+		// libseccomp will figure out the architecture to use
 		for _, a := range config.ArchMap {
 			if a.Arch == seccompArch {
-				newConfig.Architectures = append(newConfig.Architectures, specs.Arch(a.Arch))
+				registerArch(a.Arch)
 				for _, sa := range a.SubArches {
-					newConfig.Architectures = append(newConfig.Architectures, specs.Arch(sa))
+					registerArch(sa)
 				}
 				break
 			}
@@ -121,6 +122,10 @@ func setupSeccomp(config *types.Seccomp, rs *specs.Spec) (*specs.LinuxSeccomp, e
 Loop:
 	// Loop through all syscall blocks and convert them to libcontainer format after filtering them
 	for _, call := range config.Syscalls {
+		registerSyscall := func(name string) {
+			newConfig.Syscalls = append(newConfig.Syscalls, createSpecsSyscall(name, call.Action, call.Args))
+		}
+
 		if len(call.Excludes.Arches) > 0 {
 			if stringutils.InSlice(supportLegacyArchID(call.Excludes.Arches), string(seccompArch)) {
 				continue Loop
@@ -146,17 +151,21 @@ Loop:
 			}
 		}
 
-		if call.Name != "" && len(call.Names) != 0 {
-			return nil, errors.New("'name' and 'names' were specified in the seccomp profile, use either 'name' or 'names'")
-		}
-
 		if call.Name != "" {
-			newConfig.Syscalls = append(newConfig.Syscalls, createSpecsSyscall(call.Name, call.Action, call.Args))
+			if len(call.Names) == 0 {
+				registerSyscall(call.Name)
+				continue Loop
+			}
+		} else {
+			if len(call.Names) != 0 {
+				for _, n := range call.Names {
+					registerSyscall(n)
+				}
+				continue Loop
+			}
 		}
 
-		for _, n := range call.Names {
-			newConfig.Syscalls = append(newConfig.Syscalls, createSpecsSyscall(n, call.Action, call.Args))
-		}
+		return nil, fmt.Errorf("either one (not both) of 'name' or 'names' must be specified in the seccomp profile: %v", call)
 	}
 
 	return newConfig, nil
