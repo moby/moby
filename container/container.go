@@ -107,7 +107,8 @@ type Container struct {
 	NoNewPrivileges bool
 
 	// Fields here are specific to Windows
-	NetworkSharedContainerID string
+	NetworkSharedContainerID string   `json:"-"`
+	SharedEndpointList       []string `json:"-"`
 }
 
 // NewBaseContainer creates a new container with its

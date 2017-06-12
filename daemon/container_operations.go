@@ -886,7 +886,12 @@ func (daemon *Daemon) initializeNetworking(container *container.Container) error
 		if err != nil {
 			return err
 		}
-		initializeNetworkingPaths(container, nc)
+
+		err = daemon.initializeNetworkingPaths(container, nc)
+		if err != nil {
+			return err
+		}
+
 		container.Config.Hostname = nc.Config.Hostname
 		container.Config.Domainname = nc.Config.Domainname
 		return nil
