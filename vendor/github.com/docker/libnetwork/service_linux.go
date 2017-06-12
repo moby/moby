@@ -44,6 +44,11 @@ func (n *network) connectedLoadbalancers() []*loadBalancer {
 	var lbs []*loadBalancer
 	for _, s := range serviceBindings {
 		s.Lock()
+		// Skip the serviceBindings that got deleted
+		if s.deleted {
+			s.Unlock()
+			continue
+		}
 		if lb, ok := s.loadBalancers[n.ID()]; ok {
 			lbs = append(lbs, lb)
 		}
@@ -97,8 +102,8 @@ func (sb *sandbox) populateLoadbalancers(ep *endpoint) {
 		}
 
 		lb.service.Lock()
-		for _, ip := range lb.backEnds {
-			sb.addLBBackend(ip, lb.vip, lb.fwMark, lb.service.ingressPorts, eIP, gwIP, n.ingress)
+		for _, l := range lb.backEnds {
+			sb.addLBBackend(l.ip, lb.vip, lb.fwMark, lb.service.ingressPorts, eIP, gwIP, n.ingress)
 		}
 		lb.service.Unlock()
 	}
