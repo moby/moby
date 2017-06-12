@@ -29,7 +29,7 @@ type ErrNotFound string
 
 func (name ErrNotFound) Error() string { return fmt.Sprintf("plugin %q not found", string(name)) }
 
-// ErrAmbiguous indicates that a plugin was not found locally.
+// ErrAmbiguous indicates that more than one plugin was found
 type ErrAmbiguous string
 
 func (name ErrAmbiguous) Error() string {
