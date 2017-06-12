@@ -409,7 +409,7 @@ func (s *session) sendError(err error) {
 }
 
 // close closing session. It should be called only in <-session.errs branch
-// of event loop.
+// of event loop, or when cleaning up the agent.
 func (s *session) close() error {
 	s.closeOnce.Do(func() {
 		s.cancel()

@@ -7,7 +7,7 @@ import (
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/libnetwork/ipamapi"
 	"github.com/docker/swarmkit/api"
-	"github.com/docker/swarmkit/manager/allocator/networkallocator"
+	"github.com/docker/swarmkit/manager/allocator"
 	"github.com/docker/swarmkit/manager/state/store"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -93,7 +93,7 @@ func validateConfigOrSecretAnnotations(m api.Annotations) error {
 	return nil
 }
 
-func validateDriver(driver *api.Driver, pg plugingetter.PluginGetter, pluginType string) error {
+func validateDriver(driver *api.Driver, a *allocator.Allocator, pg plugingetter.PluginGetter, pluginType string) error {
 	if driver == nil {
 		// It is ok to not specify the driver. We will choose
 		// a default driver.
@@ -111,7 +111,7 @@ func validateDriver(driver *api.Driver, pg plugingetter.PluginGetter, pluginType
 			return nil
 		}
 	default:
-		if networkallocator.IsBuiltInDriver(driver.Name) {
+		if a.IsBuiltInNetworkDriver(driver.Name) {
 			return nil
 		}
 	}

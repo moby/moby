@@ -9,6 +9,7 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/api/defaults"
+	"github.com/docker/swarmkit/api/genericresource"
 	"github.com/docker/swarmkit/api/naming"
 	"github.com/docker/swarmkit/identity"
 	"github.com/docker/swarmkit/manager/allocator"
@@ -41,6 +42,9 @@ func validateResources(r *api.Resources) error {
 
 	if r.MemoryBytes != 0 && r.MemoryBytes < 4*1024*1024 {
 		return grpc.Errorf(codes.InvalidArgument, "invalid memory value %d: Must be at least 4MiB", r.MemoryBytes)
+	}
+	if err := genericresource.ValidateTask(r); err != nil {
+		return nil
 	}
 	return nil
 }

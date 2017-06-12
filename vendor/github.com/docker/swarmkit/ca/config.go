@@ -157,6 +157,8 @@ func (s *SecurityConfig) UpdateRootCA(rootCA *RootCA, externalCARootPool *x509.C
 
 	s.rootCA = rootCA
 	s.externalCAClientRootPool = externalCARootPool
+	s.externalCA.UpdateRootCA(rootCA)
+
 	return s.updateTLSCredentials(s.certificate, s.issuerInfo)
 }
 
