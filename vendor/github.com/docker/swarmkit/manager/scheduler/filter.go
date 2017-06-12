@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/docker/swarmkit/api"
+	"github.com/docker/swarmkit/api/genericresource"
 	"github.com/docker/swarmkit/manager/constraint"
 )
 
@@ -61,9 +62,12 @@ func (f *ResourceFilter) SetTask(t *api.Task) bool {
 	if r == nil || r.Reservations == nil {
 		return false
 	}
-	if r.Reservations.NanoCPUs == 0 && r.Reservations.MemoryBytes == 0 {
+
+	res := r.Reservations
+	if res.NanoCPUs == 0 && res.MemoryBytes == 0 && len(res.Generic) == 0 {
 		return false
 	}
+
 	f.reservations = r.Reservations
 	return true
 }
@@ -76,6 +80,13 @@ func (f *ResourceFilter) Check(n *NodeInfo) bool {
 
 	if f.reservations.MemoryBytes > n.AvailableResources.MemoryBytes {
 		return false
+	}
+
+	for _, v := range f.reservations.Generic {
+		enough, err := genericresource.HasEnough(n.AvailableResources.Generic, v)
+		if err != nil || !enough {
+			return false
+		}
 	}
 
 	return true
@@ -128,6 +139,12 @@ func (f *PluginFilter) SetTask(t *api.Task) bool {
 // Check returns true if the task can be scheduled into the given node.
 // TODO(amitshukla): investigate storing Plugins as a map so it can be easily probed
 func (f *PluginFilter) Check(n *NodeInfo) bool {
+	if n.Description == nil || n.Description.Engine == nil {
+		// If the node is not running Engine, plugins are not
+		// supported.
+		return true
+	}
+
 	// Get list of plugins on the node
 	nodePlugins := n.Description.Engine.Plugins
 

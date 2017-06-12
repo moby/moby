@@ -1,4 +1,4 @@
-package networkallocator
+package cnmallocator
 
 import (
 	"github.com/docker/libnetwork/drvregistry"

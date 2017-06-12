@@ -1,8 +1,9 @@
-package networkallocator
+package cnmallocator
 
 import (
 	"github.com/docker/libnetwork/drivers/overlay/ovmanager"
 	"github.com/docker/libnetwork/drivers/remote"
+	"github.com/docker/swarmkit/manager/allocator/networkallocator"
 )
 
 var initializers = []initializer{
@@ -11,6 +12,6 @@ var initializers = []initializer{
 }
 
 // PredefinedNetworks returns the list of predefined network structures
-func PredefinedNetworks() []PredefinedNetworkData {
+func PredefinedNetworks() []networkallocator.PredefinedNetworkData {
 	return nil
 }

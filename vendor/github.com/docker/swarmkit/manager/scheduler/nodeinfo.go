@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/docker/swarmkit/api"
+	"github.com/docker/swarmkit/api/genericresource"
 	"github.com/docker/swarmkit/log"
 	"golang.org/x/net/context"
 )
@@ -20,7 +21,7 @@ type NodeInfo struct {
 	Tasks                     map[string]*api.Task
 	ActiveTasksCount          int
 	ActiveTasksCountByService map[string]int
-	AvailableResources        api.Resources
+	AvailableResources        *api.Resources
 	usedHostPorts             map[hostPortSpec]struct{}
 
 	// recentFailures is a map from service ID to the timestamps of the
@@ -36,7 +37,7 @@ func newNodeInfo(n *api.Node, tasks map[string]*api.Task, availableResources api
 		Node:  n,
 		Tasks: make(map[string]*api.Task),
 		ActiveTasksCountByService: make(map[string]int),
-		AvailableResources:        availableResources,
+		AvailableResources:        availableResources.Copy(),
 		usedHostPorts:             make(map[hostPortSpec]struct{}),
 		recentFailures:            make(map[string][]time.Time),
 	}
@@ -44,6 +45,7 @@ func newNodeInfo(n *api.Node, tasks map[string]*api.Task, availableResources api
 	for _, t := range tasks {
 		nodeInfo.addTask(t)
 	}
+
 	return nodeInfo
 }
 
@@ -62,8 +64,20 @@ func (nodeInfo *NodeInfo) removeTask(t *api.Task) bool {
 	}
 
 	reservations := taskReservations(t.Spec)
-	nodeInfo.AvailableResources.MemoryBytes += reservations.MemoryBytes
-	nodeInfo.AvailableResources.NanoCPUs += reservations.NanoCPUs
+	resources := nodeInfo.AvailableResources
+
+	resources.MemoryBytes += reservations.MemoryBytes
+	resources.NanoCPUs += reservations.NanoCPUs
+
+	if nodeInfo.Description == nil || nodeInfo.Description.Resources == nil ||
+		nodeInfo.Description.Resources.Generic == nil {
+		return true
+	}
+
+	taskAssigned := t.AssignedGenericResources
+	nodeAvailableResources := &resources.Generic
+	nodeRes := nodeInfo.Description.Resources.Generic
+	genericresource.Reclaim(nodeAvailableResources, taskAssigned, nodeRes)
 
 	if t.Endpoint != nil {
 		for _, port := range t.Endpoint.Ports {
@@ -97,9 +111,18 @@ func (nodeInfo *NodeInfo) addTask(t *api.Task) bool {
 	}
 
 	nodeInfo.Tasks[t.ID] = t
+
 	reservations := taskReservations(t.Spec)
-	nodeInfo.AvailableResources.MemoryBytes -= reservations.MemoryBytes
-	nodeInfo.AvailableResources.NanoCPUs -= reservations.NanoCPUs
+	resources := nodeInfo.AvailableResources
+
+	resources.MemoryBytes -= reservations.MemoryBytes
+	resources.NanoCPUs -= reservations.NanoCPUs
+
+	// minimum size required
+	t.AssignedGenericResources = make([]*api.GenericResource, 0, len(resources.Generic))
+	taskAssigned := &t.AssignedGenericResources
+
+	genericresource.Claim(&resources.Generic, taskAssigned, reservations.Generic)
 
 	if t.Endpoint != nil {
 		for _, port := range t.Endpoint.Ports {

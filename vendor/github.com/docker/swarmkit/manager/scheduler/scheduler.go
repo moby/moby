@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/docker/swarmkit/api"
+	"github.com/docker/swarmkit/api/genericresource"
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/state"
 	"github.com/docker/swarmkit/manager/state/store"
@@ -297,15 +298,21 @@ func (s *Scheduler) deleteTask(ctx context.Context, t *api.Task) bool {
 
 func (s *Scheduler) createOrUpdateNode(n *api.Node) {
 	nodeInfo, _ := s.nodeSet.nodeInfo(n.ID)
-	var resources api.Resources
+	var resources *api.Resources
 	if n.Description != nil && n.Description.Resources != nil {
-		resources = *n.Description.Resources
+		resources = n.Description.Resources.Copy()
 		// reconcile resources by looping over all tasks in this node
 		for _, task := range nodeInfo.Tasks {
 			reservations := taskReservations(task.Spec)
+
 			resources.MemoryBytes -= reservations.MemoryBytes
 			resources.NanoCPUs -= reservations.NanoCPUs
+
+			genericresource.ConsumeNodeResources(&resources.Generic,
+				task.AssignedGenericResources)
 		}
+	} else {
+		resources = &api.Resources{}
 	}
 	nodeInfo.Node = n
 	nodeInfo.AvailableResources = resources
