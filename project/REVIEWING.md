@@ -43,6 +43,8 @@ Process labels are to assist in preparing (patch) releases. These labels should 
 
 Label                           | Use for
 ------------------------------- | -------------------------------------------------------------------------
+`process/cherry-pick-stable`    | PRs that should be considered for backporting to a patch-release on the "stable" (quarterly) release.
+`process/cherry-picked-stable`  | PRs that have been backported to to a patch-release on the "stable" (quarterly) release. Given that GitHub does not allow setting multiple milestones, it's important to refer to them from the cherry-pick PR for future reference.
 `process/cherry-pick`           | PRs that should be cherry-picked in the bump/release branch. These pull-requests must also be assigned to a milestone.
 `process/cherry-picked`         | PRs that have been cherry-picked. This label is helpful to find PR's that have been added to release-candidates, and to update the change log
 `process/docs-cherry-pick`      | PRs that should be cherry-picked in the docs branch. Only apply this label for changes that apply to the *current* release, and generic documentation fixes, such as Markdown and spelling fixes.

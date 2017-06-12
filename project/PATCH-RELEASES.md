@@ -66,3 +66,32 @@ Any code delivered as part of a patch release should make life easier for a
 significant amount of users with zero chance of degrading anybody's experience.
 A good rule of thumb for that is to limit cherry-picking to small patches, which
 fix well-understood issues, and which come with verifiable tests.
+
+## Backporting fixes to "stable" (quarterly) releases
+
+Quarterly releases (17.03, 17.06 and so on) of Docker CE are maintained for four
+months. During this period they receive critical bugfixes (P0, P1), and security
+fixes. The process for releasing patch-releases on the "stable" channel is similar
+to the process described above. Some additional details are explained below.
+
+It's important that users are able to upgrade from the stable (quarterly) release
+channel to the "edge" (monthly) release channel, without regressions. For that
+reason, fixes for stable releases should always be included in the current "edge"
+release before being _backported_ to the stable release. In rare cases this can
+imply that both an "edge" and a "stable" patch release must take place.
+
+If needed, a separate pull request / patch must be created if a fix cannot be
+backported as-is to the stable release.
+
+To guarantee stability of the quarterly releases, and to not introduce regressions;
+
+- Only P0 and P1 issues can be backported to stable releases (which includes security fixes).
+- Fixes that should be considered for backporting must be labeled with the
+  `process/backport` label. The release captain, together with relevant
+  maintainers decides if a fix will be included in the patch release.
+- Cosmetic changes, and minor usability issues should not be considered.
+- Release candidates (if needed, multiple) are published for patch releases
+  before a patch release is made generally available on the "stable" channel.
+
+Documentation changes are an exception to the above, and can be cherry-picked
+into the release branch, even if no patch-release is planned.
