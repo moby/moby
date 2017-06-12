@@ -126,6 +126,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		}()
 	}
 
+	// TODO: extract to newApiServerConfig()
 	serverConfig := &apiserver.Config{
 		Logging:     true,
 		SocketGroup: cli.Config.SocketGroup,
@@ -157,8 +158,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		cli.Config.Hosts = make([]string, 1)
 	}
 
-	api := apiserver.New(serverConfig)
-	cli.api = api
+	cli.api = apiserver.New(serverConfig)
 
 	var hosts []string
 
@@ -194,7 +194,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		}
 		logrus.Debugf("Listener created for HTTP on %s (%s)", proto, addr)
 		hosts = append(hosts, protoAddrParts[1])
-		api.Accept(addr, ls...)
+		cli.api.Accept(addr, ls...)
 	}
 
 	registryService := registry.NewService(cli.Config.ServiceOptions)
@@ -212,17 +212,12 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 
 	pluginStore := plugin.NewStore()
 
-	if err := cli.initMiddlewares(api, serverConfig, pluginStore); err != nil {
+	if err := cli.initMiddlewares(cli.api, serverConfig, pluginStore); err != nil {
 		logrus.Fatalf("Error creating middlewares: %v", err)
 	}
 
 	if system.LCOWSupported() {
 		logrus.Warnln("LCOW support is enabled - this feature is incomplete")
-	}
-
-	sm, err := session.NewManager()
-	if err != nil {
-		return errors.Wrap(err, "failed to create sessionmanager")
 	}
 
 	d, err := daemon.NewDaemon(cli.Config, registryService, containerdRemote, pluginStore)
@@ -237,6 +232,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		return fmt.Errorf("Error validating authorization plugin: %v", err)
 	}
 
+	// TODO: move into startMetricsServer()
 	if cli.Config.MetricsAddress != "" {
 		if !d.HasExperimental() {
 			return fmt.Errorf("metrics-addr is only supported when experimental is enabled")
@@ -246,6 +242,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		}
 	}
 
+	// TODO: createAndStartCluster()
 	name, _ := os.Hostname()
 
 	// Use a buffered channel to pass changes from store watch API to daemon
@@ -270,30 +267,6 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		logrus.Fatalf("Error starting cluster component: %v", err)
 	}
 
-	builderStateDir := filepath.Join(cli.Config.Root, "builder")
-
-	fsCache, err := fscache.NewFSCache(fscache.Opt{
-		Backend: fscache.NewNaiveCacheBackend(builderStateDir),
-		Root:    builderStateDir,
-		GCPolicy: fscache.GCPolicy{ // TODO: expose this in config
-			MaxSize:         1024 * 1024 * 512,  // 512MB
-			MaxKeepDuration: 7 * 24 * time.Hour, // 1 week
-		},
-	})
-	if err != nil {
-		return errors.Wrap(err, "failed to create fscache")
-	}
-
-	manager, err := dockerfile.NewBuildManager(d, sm, fsCache, d.IDMappings())
-	if err != nil {
-		return err
-	}
-
-	bb, err := buildbackend.NewBackend(d, manager, fsCache)
-	if err != nil {
-		return errors.Wrap(err, "failed to create buildmanager")
-	}
-
 	// Restart all autostart containers which has a swarm endpoint
 	// and is not yet running now that we have successfully
 	// initialized the cluster.
@@ -303,7 +276,14 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 
 	cli.d = d
 
-	initRouter(api, d, c, sm, bb, fsCache)
+	routerOptions, err := newRouterOptions(cli.Config, d)
+	if err != nil {
+		return err
+	}
+	routerOptions.api = cli.api
+	routerOptions.cluster = c
+
+	initRouter(routerOptions)
 
 	// process cluster change notifications
 	watchCtx, cancel := context.WithCancel(context.Background())
@@ -316,7 +296,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	// We need to start it as a goroutine and wait on it so
 	// daemon doesn't exit
 	serveAPIWait := make(chan error)
-	go api.Wait(serveAPIWait)
+	go cli.api.Wait(serveAPIWait)
 
 	// after the daemon is done setting up we can notify systemd api
 	notifySystem()
@@ -332,6 +312,54 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	}
 
 	return nil
+}
+
+type routerOptions struct {
+	sessionManager *session.Manager
+	buildBackend   *buildbackend.Backend
+	buildCache     *fscache.FSCache
+	daemon         *daemon.Daemon
+	api            *apiserver.Server
+	cluster        *cluster.Cluster
+}
+
+func newRouterOptions(config *config.Config, daemon *daemon.Daemon) (routerOptions, error) {
+	opts := routerOptions{}
+	sm, err := session.NewManager()
+	if err != nil {
+		return opts, errors.Wrap(err, "failed to create sessionmanager")
+	}
+
+	builderStateDir := filepath.Join(config.Root, "builder")
+
+	buildCache, err := fscache.NewFSCache(fscache.Opt{
+		Backend: fscache.NewNaiveCacheBackend(builderStateDir),
+		Root:    builderStateDir,
+		GCPolicy: fscache.GCPolicy{ // TODO: expose this in config
+			MaxSize:         1024 * 1024 * 512,  // 512MB
+			MaxKeepDuration: 7 * 24 * time.Hour, // 1 week
+		},
+	})
+	if err != nil {
+		return opts, errors.Wrap(err, "failed to create fscache")
+	}
+
+	manager, err := dockerfile.NewBuildManager(daemon, sm, buildCache, daemon.IDMappings())
+	if err != nil {
+		return opts, err
+	}
+
+	bb, err := buildbackend.NewBackend(daemon, manager, buildCache)
+	if err != nil {
+		return opts, errors.Wrap(err, "failed to create buildmanager")
+	}
+
+	return routerOptions{
+		sessionManager: sm,
+		buildBackend:   bb,
+		buildCache:     buildCache,
+		daemon:         daemon,
+	}, nil
 }
 
 func (cli *DaemonCli) reloadConfig() {
@@ -476,28 +504,28 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 	return conf, nil
 }
 
-func initRouter(s *apiserver.Server, d *daemon.Daemon, c *cluster.Cluster, sm *session.Manager, bb *buildbackend.Backend, bc *fscache.FSCache) {
+func initRouter(opts routerOptions) {
 	decoder := runconfig.ContainerDecoder{}
 
 	routers := []router.Router{
 		// we need to add the checkpoint router before the container router or the DELETE gets masked
-		checkpointrouter.NewRouter(d, decoder),
-		container.NewRouter(d, decoder),
-		image.NewRouter(d, decoder),
-		systemrouter.NewRouter(d, c, bc),
-		volume.NewRouter(d),
-		build.NewRouter(bb, d),
-		sessionrouter.NewRouter(sm),
-		swarmrouter.NewRouter(c),
-		pluginrouter.NewRouter(d.PluginManager()),
-		distributionrouter.NewRouter(d),
+		checkpointrouter.NewRouter(opts.daemon, decoder),
+		container.NewRouter(opts.daemon, decoder),
+		image.NewRouter(opts.daemon, decoder),
+		systemrouter.NewRouter(opts.daemon, opts.cluster, opts.buildCache),
+		volume.NewRouter(opts.daemon),
+		build.NewRouter(opts.buildBackend, opts.daemon),
+		sessionrouter.NewRouter(opts.sessionManager),
+		swarmrouter.NewRouter(opts.cluster),
+		pluginrouter.NewRouter(opts.daemon.PluginManager()),
+		distributionrouter.NewRouter(opts.daemon),
 	}
 
-	if d.NetworkControllerEnabled() {
-		routers = append(routers, network.NewRouter(d, c))
+	if opts.daemon.NetworkControllerEnabled() {
+		routers = append(routers, network.NewRouter(opts.daemon, opts.cluster))
 	}
 
-	if d.HasExperimental() {
+	if opts.daemon.HasExperimental() {
 		for _, r := range routers {
 			for _, route := range r.Routes() {
 				if experimental, ok := route.(router.ExperimentalRoute); ok {
@@ -507,9 +535,10 @@ func initRouter(s *apiserver.Server, d *daemon.Daemon, c *cluster.Cluster, sm *s
 		}
 	}
 
-	s.InitRouter(debug.IsEnabled(), routers...)
+	opts.api.InitRouter(debug.IsEnabled(), routers...)
 }
 
+// TODO: remove this from cli and return the authzMiddleware
 func (cli *DaemonCli) initMiddlewares(s *apiserver.Server, cfg *apiserver.Config, pluginStore *plugin.Store) error {
 	v := cfg.Version
 
