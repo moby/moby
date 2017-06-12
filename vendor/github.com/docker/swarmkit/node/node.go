@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -33,6 +34,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 )
 
@@ -344,12 +346,12 @@ func (n *Node) run(ctx context.Context) (err error) {
 						log.G(ctx).WithError(err).Error("invalid new root certificate from the dispatcher")
 						continue
 					}
-					if err := ca.SaveRootCA(newRootCA, paths.RootCA); err != nil {
-						log.G(ctx).WithError(err).Error("could not save new root certificate from the dispatcher")
-						continue
-					}
 					if err := securityConfig.UpdateRootCA(&newRootCA, newRootCA.Pool); err != nil {
 						log.G(ctx).WithError(err).Error("could not use new root CA from dispatcher")
+						continue
+					}
+					if err := ca.SaveRootCA(newRootCA, paths.RootCA); err != nil {
+						log.G(ctx).WithError(err).Error("could not save new root certificate from the dispatcher")
 						continue
 					}
 				}
@@ -432,10 +434,10 @@ func (n *Node) run(ctx context.Context) (err error) {
 	}()
 
 	wg.Wait()
-	if managerErr != nil && managerErr != context.Canceled {
+	if managerErr != nil && errors.Cause(managerErr) != context.Canceled {
 		return managerErr
 	}
-	if agentErr != nil && agentErr != context.Canceled {
+	if agentErr != nil && errors.Cause(agentErr) != context.Canceled {
 		return agentErr
 	}
 	return err
@@ -516,7 +518,7 @@ waitPeer:
 	rootCA := securityConfig.RootCA()
 	issuer := securityConfig.IssuerInfo()
 
-	a, err := agent.New(&agent.Config{
+	agentConfig := &agent.Config{
 		Hostname:         n.config.Hostname,
 		ConnBroker:       n.connBroker,
 		Executor:         n.config.Executor,
@@ -529,7 +531,14 @@ waitPeer:
 			CertIssuerPublicKey: issuer.PublicKey,
 			CertIssuerSubject:   issuer.Subject,
 		},
-	})
+	}
+	// if a join address has been specified, then if the agent fails to connect due to a TLS error, fail fast - don't
+	// keep re-trying to join
+	if n.config.JoinAddr != "" {
+		agentConfig.SessionTracker = &firstSessionErrorTracker{}
+	}
+
+	a, err := agent.New(agentConfig)
 	if err != nil {
 		return err
 	}
@@ -1055,3 +1064,37 @@ func (sp sortablePeers) Less(i, j int) bool { return sp[i].NodeID < sp[j].NodeID
 func (sp sortablePeers) Len() int { return len(sp) }
 
 func (sp sortablePeers) Swap(i, j int) { sp[i], sp[j] = sp[j], sp[i] }
+
+// firstSessionErrorTracker is a utility that helps determine whether the agent should exit after
+// a TLS failure on establishing the first session.  This should only happen if a join address
+// is specified.  If establishing the first session succeeds, but later on some session fails
+// because of a TLS error, we don't want to exit the agent because a previously successful
+// session indicates that the TLS error may be a transient issue.
+type firstSessionErrorTracker struct {
+	mu               sync.Mutex
+	pastFirstSession bool
+	err              error
+}
+
+func (fs *firstSessionErrorTracker) SessionEstablished() {
+	fs.mu.Lock()
+	fs.pastFirstSession = true
+	fs.mu.Unlock()
+}
+
+func (fs *firstSessionErrorTracker) SessionError(err error) {
+	fs.mu.Lock()
+	fs.err = err
+	fs.mu.Unlock()
+}
+
+func (fs *firstSessionErrorTracker) SessionClosed() error {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+	// unfortunately grpc connection errors are type grpc.rpcError, which are not exposed, and we can't get at the underlying error type
+	if !fs.pastFirstSession && grpc.Code(fs.err) == codes.Internal &&
+		strings.HasPrefix(grpc.ErrorDesc(fs.err), "connection error") && strings.Contains(grpc.ErrorDesc(fs.err), "transport: x509:") {
+		return fs.err
+	}
+	return nil
+}

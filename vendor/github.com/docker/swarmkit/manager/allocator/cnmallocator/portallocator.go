@@ -1,4 +1,4 @@
-package networkallocator
+package cnmallocator
 
 import (
 	"fmt"

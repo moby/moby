@@ -30,12 +30,32 @@ message Annotations {
 	repeated IndexEntry indices = 4 [(gogoproto.nullable) = false];
 }
 
+message GenericString {
+	string kind = 1;
+	string value = 2;
+}
+
+message GenericDiscrete {
+	string kind = 1;
+	int64 value = 2;
+}
+
+message GenericResource {
+	oneof resource {
+		GenericString str = 1;
+		GenericDiscrete discrete = 2;
+	}
+}
+
 message Resources {
 	// Amount of CPUs (e.g. 2000000000 = 2 CPU cores)
 	int64 nano_cpus = 1 [(gogoproto.customname) = "NanoCPUs"];
 
 	// Amount of memory in bytes.
 	int64 memory_bytes = 2;
+
+	// User specified resource (e.g: bananas=2;apple={red,yellow,green})
+	repeated GenericResource generic = 3;
 }
 
 message ResourceRequirements {

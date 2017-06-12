@@ -871,7 +871,7 @@ func GetRemoteSignedCertificate(ctx context.Context, csr []byte, rootCAPool *x50
 			caClient = api.NewNodeCAClient(conn.ClientConn)
 
 		// If there was no deadline exceeded error, and the certificate was issued, return
-		case err == nil && statusResponse.Status.State == api.IssuanceStateIssued:
+		case err == nil && (statusResponse.Status.State == api.IssuanceStateIssued || statusResponse.Status.State == api.IssuanceStateRotate):
 			if statusResponse.Certificate == nil {
 				conn.Close(false)
 				return nil, errors.New("no certificate in CertificateStatus response")

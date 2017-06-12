@@ -89,6 +89,39 @@ type CertificateUpdate struct {
 	Err  error
 }
 
+func validateRootCAAndTLSCert(rootCA *RootCA, externalCARootPool *x509.CertPool, tlsKeyPair *tls.Certificate) error {
+	var (
+		leafCert         *x509.Certificate
+		intermediatePool *x509.CertPool
+	)
+	for i, derBytes := range tlsKeyPair.Certificate {
+		parsed, err := x509.ParseCertificate(derBytes)
+		if err != nil {
+			return errors.Wrap(err, "could not validate new root certificates due to parse error")
+		}
+		if i == 0 {
+			leafCert = parsed
+		} else {
+			if intermediatePool == nil {
+				intermediatePool = x509.NewCertPool()
+			}
+			intermediatePool.AddCert(parsed)
+		}
+	}
+	opts := x509.VerifyOptions{
+		Roots:         rootCA.Pool,
+		Intermediates: intermediatePool,
+	}
+	if _, err := leafCert.Verify(opts); err != nil {
+		return errors.Wrap(err, "new root CA does not match existing TLS credentials")
+	}
+	opts.Roots = externalCARootPool
+	if _, err := leafCert.Verify(opts); err != nil {
+		return errors.Wrap(err, "new external root pool does not match existing TLS credentials")
+	}
+	return nil
+}
+
 // NewSecurityConfig initializes and returns a new SecurityConfig.
 func NewSecurityConfig(rootCA *RootCA, krw *KeyReadWriter, tlsKeyPair *tls.Certificate, issuerInfo *IssuerInfo) (*SecurityConfig, error) {
 	// Create the Server TLS Credentials for this node. These will not be used by workers.
@@ -155,8 +188,15 @@ func (s *SecurityConfig) UpdateRootCA(rootCA *RootCA, externalCARootPool *x509.C
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	// refuse to update the root CA if the current TLS credentials do not validate against it
+	if err := validateRootCAAndTLSCert(rootCA, externalCARootPool, s.certificate); err != nil {
+		return err
+	}
+
 	s.rootCA = rootCA
 	s.externalCAClientRootPool = externalCARootPool
+	s.externalCA.UpdateRootCA(rootCA)
+
 	return s.updateTLSCredentials(s.certificate, s.issuerInfo)
 }
 
@@ -213,6 +253,13 @@ func (s *SecurityConfig) updateTLSCredentials(certificate *tls.Certificate, issu
 		})
 	}
 	return nil
+}
+
+// UpdateTLSCredentials updates the security config with an updated TLS certificate and issuer info
+func (s *SecurityConfig) UpdateTLSCredentials(certificate *tls.Certificate, issuerInfo *IssuerInfo) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.updateTLSCredentials(certificate, issuerInfo)
 }
 
 // SigningPolicy creates a policy used by the signer to ensure that the only fields
@@ -470,9 +517,7 @@ func RenewTLSConfigNow(ctx context.Context, s *SecurityConfig, connBroker *conne
 		return err
 	}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.updateTLSCredentials(tlsKeyPair, issuerInfo)
+	return s.UpdateTLSCredentials(tlsKeyPair, issuerInfo)
 }
 
 // calculateRandomExpiry returns a random duration between 50% and 80% of the
