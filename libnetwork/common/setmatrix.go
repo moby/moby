@@ -22,7 +22,7 @@ type SetMatrix interface {
 	// returns true if the mapping was deleted, false otherwise
 	// returns also the number of endpoints associated to the IP
 	Remove(key string, value interface{}) (bool, int)
-	// Cardinality returns the number of elements in the set of a specfic key
+	// Cardinality returns the number of elements in the set of a specific key
 	// returns false if the key is not in the map
 	Cardinality(key string) (int, bool)
 	// String returns the string version of the set, empty otherwise

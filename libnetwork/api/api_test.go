@@ -914,6 +914,9 @@ func TestAttachDetachBackend(t *testing.T) {
 
 	cid := "abcdefghi"
 	sbox, err := c.NewSandbox(cid)
+	if err != nil {
+		t.Fatal(err)
+	}
 	sid := sbox.ID()
 	defer sbox.Delete()
 
@@ -1280,6 +1283,9 @@ func TestJoinLeave(t *testing.T) {
 
 	cid := "abcdefghi"
 	sb, err := c.NewSandbox(cid)
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer sb.Delete()
 
 	jl := endpointJoin{SandboxID: sb.ID()}

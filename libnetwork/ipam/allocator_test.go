@@ -262,7 +262,7 @@ func TestAddSubnets(t *testing.T) {
 		t.Fatal("returned different pool id for same sub pool requests")
 	}
 
-	pid, _, _, err = a.RequestPool(localAddressSpace, "10.20.2.0/24", "", nil, false)
+	_, _, _, err = a.RequestPool(localAddressSpace, "10.20.2.0/24", "", nil, false)
 	if err == nil {
 		t.Fatal("Failed to detect overlapping subnets")
 	}
@@ -296,7 +296,6 @@ func TestAddReleasePoolID(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	subnets := aSpace.subnets
 	pid0, _, _, err := a.RequestPool(localAddressSpace, "10.0.0.0/8", "", nil, false)
 	if err != nil {
 		t.Fatal("Unexpected failure in adding pool")
@@ -310,7 +309,7 @@ func TestAddReleasePoolID(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	subnets = aSpace.subnets
+	subnets := aSpace.subnets
 
 	if subnets[k0].RefCount != 1 {
 		t.Fatalf("Unexpected ref count for %s: %d", k0, subnets[k0].RefCount)
