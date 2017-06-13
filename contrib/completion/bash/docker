@@ -3038,6 +3038,7 @@ _docker_service_update() {
 # and `docker service update`
 _docker_service_update_and_create() {
 	local options_with_args="
+		--credential-spec
 		--endpoint-mode
 		--env -e
 		--force

@@ -26,6 +26,7 @@ Options:
       --constraint-rm list                 Remove a constraint
       --container-label-add list           Add or update a container label
       --container-label-rm list            Remove a container label by its key
+      --credential-spec                    Credential spec for managed service account (Windows only)
   -d, --detach                             Exit immediately instead of waiting for the service to converge (default true)
       --dns-add list                       Add or update a custom DNS server
       --dns-option-add list                Add or update a DNS option
