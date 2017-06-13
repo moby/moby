@@ -57,20 +57,20 @@ func NewClient(addr string, tlsConfig *tlsconfig.Options) (*Client, error) {
 }
 
 // NewClientWithTimeout creates a new plugin client (http).
-func NewClientWithTimeout(addr string, tlsConfig *tlsconfig.Options, timeoutInSecs int) (*Client, error) {
+func NewClientWithTimeout(addr string, tlsConfig *tlsconfig.Options, timeout time.Duration) (*Client, error) {
 	clientTransport, err := newTransport(addr, tlsConfig)
 	if err != nil {
 		return nil, err
 	}
-	return newClientWithTransport(clientTransport, timeoutInSecs), nil
+	return newClientWithTransport(clientTransport, timeout), nil
 }
 
 // newClientWithTransport creates a new plugin client with a given transport.
-func newClientWithTransport(tr transport.Transport, timeoutInSecs int) *Client {
+func newClientWithTransport(tr transport.Transport, timeout time.Duration) *Client {
 	return &Client{
 		http: &http.Client{
 			Transport: tr,
-			Timeout:   time.Duration(timeoutInSecs) * time.Second,
+			Timeout:   timeout,
 		},
 		requestFactory: tr,
 	}
