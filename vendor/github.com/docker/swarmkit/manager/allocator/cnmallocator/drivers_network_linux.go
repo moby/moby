@@ -1,4 +1,4 @@
-package networkallocator
+package cnmallocator
 
 import (
 	"github.com/docker/libnetwork/drivers/bridge/brmanager"
@@ -7,6 +7,7 @@ import (
 	"github.com/docker/libnetwork/drivers/macvlan/mvmanager"
 	"github.com/docker/libnetwork/drivers/overlay/ovmanager"
 	"github.com/docker/libnetwork/drivers/remote"
+	"github.com/docker/swarmkit/manager/allocator/networkallocator"
 )
 
 var initializers = []initializer{
@@ -19,9 +20,9 @@ var initializers = []initializer{
 }
 
 // PredefinedNetworks returns the list of predefined network structures
-func PredefinedNetworks() []PredefinedNetworkData {
-	return []PredefinedNetworkData{
-		{"bridge", "bridge"},
-		{"host", "host"},
+func PredefinedNetworks() []networkallocator.PredefinedNetworkData {
+	return []networkallocator.PredefinedNetworkData{
+		{Name: "bridge", Driver: "bridge"},
+		{Name: "host", Driver: "host"},
 	}
 }
