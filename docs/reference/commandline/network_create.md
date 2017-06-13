@@ -197,10 +197,11 @@ $ docker network create \
 
 ### Transparent driver options
 
-The `transparent` network on Windows is very similar to the Linux `bridge` driver.
-It uses a Hyper-V virtual switch to create multiple virtual NICs, each with a unique
-MAC address. These can either use DHCP, or static IP assignments if `--subnet` and `--gateway`
-are set when the network is created.
+The `transparent` network on Windows is very similar to the Linux `macvlan` driver.
+It uses a Hyper-V virtual switch to create multiple virtual NICs, each with a 
+unique MAC address. These can either use DHCP, or static IP assignments if 
+`--subnet` and `--gateway` are set when the network is created. No encapsulation
+or address translation is done, 
 
 | Option                                       | Description                                                      |
 |----------------------------------------------|------------------------------------------------------------------|
