@@ -80,7 +80,7 @@ func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) error {
 
 func (pm *Manager) pluginPostStart(p *v2.Plugin, c *controller) error {
 	sockAddr := filepath.Join(pm.config.ExecRoot, p.GetID(), p.GetSocket())
-	client, err := plugins.NewClientWithTimeout("unix://"+sockAddr, nil, c.timeoutInSecs)
+	client, err := plugins.NewClientWithTimeout("unix://"+sockAddr, nil, time.Duration(c.timeoutInSecs)*time.Second)
 	if err != nil {
 		c.restart = false
 		shutdownPlugin(p, c, pm.containerdClient)

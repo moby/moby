@@ -65,6 +65,13 @@ func (daemon *Daemon) SystemDiskUsage(ctx context.Context) (*types.DiskUsage, er
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
+			if d, ok := v.(volume.DetailedVolume); ok {
+				// skip local volumes with mount options since these could have external
+				// mounted filesystems that will be slow to enumerate.
+				if len(d.Options()) > 0 {
+					return nil
+				}
+			}
 			name := v.Name()
 			refs := daemon.volumes.Refs(v)
 

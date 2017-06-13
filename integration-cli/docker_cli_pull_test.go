@@ -98,11 +98,11 @@ func (s *DockerHubPullSuite) TestPullNonExistingImage(c *check.C) {
 	for record := range recordChan {
 		if len(record.option) == 0 {
 			c.Assert(record.err, checker.NotNil, check.Commentf("expected non-zero exit status when pulling non-existing image: %s", record.out))
-			c.Assert(record.out, checker.Contains, fmt.Sprintf("repository %s not found: does not exist or no pull access", record.e.repo), check.Commentf("expected image not found error messages"))
+			c.Assert(record.out, checker.Contains, fmt.Sprintf("pull access denied for %s, repository does not exist or may require 'docker login'", record.e.repo), check.Commentf("expected image not found error messages"))
 		} else {
 			// pull -a on a nonexistent registry should fall back as well
 			c.Assert(record.err, checker.NotNil, check.Commentf("expected non-zero exit status when pulling non-existing image: %s", record.out))
-			c.Assert(record.out, checker.Contains, fmt.Sprintf("repository %s not found", record.e.repo), check.Commentf("expected image not found error messages"))
+			c.Assert(record.out, checker.Contains, fmt.Sprintf("pull access denied for %s, repository does not exist or may require 'docker login'", record.e.repo), check.Commentf("expected image not found error messages"))
 			c.Assert(record.out, checker.Not(checker.Contains), "unauthorized", check.Commentf(`message should not contain "unauthorized"`))
 		}
 	}
@@ -258,10 +258,13 @@ func (s *DockerHubPullSuite) TestPullClientDisconnect(c *check.C) {
 }
 
 func (s *DockerRegistryAuthHtpasswdSuite) TestPullNoCredentialsNotFound(c *check.C) {
+	// @TODO TestPullNoCredentialsNotFound expects docker to fall back to a v1 registry, so has to be updated for v17.12, when v1 registries are no longer supported
+	s.d.StartWithBusybox(c, "--disable-legacy-registry=false")
+
 	// we don't care about the actual image, we just want to see image not found
 	// because that means v2 call returned 401 and we fell back to v1 which usually
 	// gives a 404 (in this case the test registry doesn't handle v1 at all)
-	out, _, err := dockerCmdWithError("pull", privateRegistryURL+"/busybox")
+	out, err := s.d.Cmd("pull", privateRegistryURL+"/busybox")
 	c.Assert(err, check.NotNil, check.Commentf(out))
 	c.Assert(out, checker.Contains, "Error: image busybox:latest not found")
 }

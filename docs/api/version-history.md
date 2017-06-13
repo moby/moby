@@ -21,6 +21,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `POST /secrets/create` now returns status code 409 instead of 500 when creating an already existing secret.
 * `POST /secrets/(name)/update` now returns status code 400 instead of 500 when updating a secret's content which is not the labels.
 * `POST /nodes/(name)/update` now returns status code 400 instead of 500 when demoting last node fails.
+* `GET /networks/(id or name)` now takes an optional query parameter `scope` that will filter the network based on the scope (`local`, `swarm`, or `global`).
 
 ## v1.30 API changes
 

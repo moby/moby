@@ -21,5 +21,5 @@ func cleanPath(s string) string {
 
 // installCliPlatformFlags handles any platform specific flags for the service.
 func (options *ServiceOptions) installCliPlatformFlags(flags *pflag.FlagSet) {
-	flags.BoolVar(&options.V2Only, "disable-legacy-registry", false, "Disable contacting legacy registries")
+	flags.BoolVar(&options.V2Only, "disable-legacy-registry", true, "Disable contacting legacy registries")
 }
