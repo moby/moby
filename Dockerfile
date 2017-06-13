@@ -40,12 +40,14 @@ RUN apt-get update && apt-get install -y \
 	bsdmainutils \
 	btrfs-tools \
 	build-essential \
+	cabal-install \
 	clang \
 	cmake \
 	createrepo \
 	curl \
 	dpkg-sig \
 	gcc-mingw-w64 \
+	ghc \
 	git \
 	iptables \
 	jq \
@@ -205,6 +207,15 @@ ENV GO_SWAGGER_COMMIT c28258affb0b6251755d92489ef685af8d4ff3eb
 RUN git clone https://github.com/go-swagger/go-swagger.git /go/src/github.com/go-swagger/go-swagger \
 	&& (cd /go/src/github.com/go-swagger/go-swagger && git checkout -q $GO_SWAGGER_COMMIT) \
 	&& go install -v github.com/go-swagger/go-swagger/cmd/swagger
+
+# Install shellcheck from source to get a more recent version on debian jessie
+ENV SHELLCHECK_VERSION v0.4.6
+RUN set -x \
+	&& git clone --branch "$SHELLCHECK_VERSION" https://github.com/koalaman/shellcheck.git /usr/local/shellcheck \
+	&& cd /usr/local/shellcheck \
+	&& LANG="C.UTF-8" cabal update \
+	&& LANG="C.UTF-8" cabal install
+ENV PATH /root/.cabal/bin:$PATH
 
 # Set user.email so crosbymichael's in-container merge commits go smoothly
 RUN git config --global user.email 'docker-dummy@example.com'

@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -e
+SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+export SCRIPTDIR
+
+# shellcheck source=/dev/null
+source "${SCRIPTDIR}/.validate"
+
+# Maintain an array of files to shellcheck not the best solution but will do for the time being
+FILES=()
+FILES+=("contrib/completion/bash/docker")
+FILES+=("hack/validate/shellcheck")
+
+for f in "${FILES[@]}"; do
+    shellcheck "$f"
+done
