@@ -46,6 +46,19 @@ func (m *Middleware) SetPlugins(names []string) {
 	m.mu.Unlock()
 }
 
+// RemovePlugin removes a single plugin from this authz middleware chain
+func (m *Middleware) RemovePlugin(name string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	plugins := m.plugins[:0]
+	for _, authPlugin := range m.plugins {
+		if authPlugin.Name() != name {
+			plugins = append(plugins, authPlugin)
+		}
+	}
+	m.plugins = plugins
+}
+
 // WrapHandler returns a new handler function wrapping the previous one in the request chain.
 func (m *Middleware) WrapHandler(handler func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error) func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
