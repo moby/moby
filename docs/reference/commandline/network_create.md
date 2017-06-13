@@ -48,7 +48,8 @@ Creates a new network. The `DRIVER` accepts `bridge` or `overlay` which are the
 built-in network drivers on Linux. Windows has built-in network drivers `nat`, 
 `transparent`, and `overlay`. If you have installed a third party or your own custom
 network driver you can specify that `DRIVER` here also. If you don't specify the
-`--driver` option, the command automatically creates a `bridge` network for you on Linux, or `nat` on Windows.
+`--driver` option, the command automatically creates a `bridge` network for you
+on Linux, or `nat` on Windows.
 
 When you install Docker Engine it creates a `bridge` or `nat` network automatically. This
 network corresponds to the `docker0` bridge that Engine has traditionally relied
@@ -181,7 +182,7 @@ network driver, again with their approximate equivalents to `docker daemon`.
 |--------------|----------------|--------------------------------------------|
 | `--gateway`  | -              | IPv4 or IPv6 Gateway for the master subnet |
 | `--ip-range` | `--fixed-cidr` | Allocate IPs from a range                  |
-| `--internal` | -              | Restrict external access to the network   |
+| `--internal` | -              | Restrict external access to the network    |
 | `--ipv6`     | `--ipv6`       | Enable IPv6 networking                     |
 | `--subnet`   | `--bip`        | Subnet for network                         |
 
@@ -195,18 +196,19 @@ $ docker network create \
 ```
 
 ### Transparent driver options
+
 The `transparent` network on Windows is very similar to the Linux `bridge` driver.
 It uses a Hyper-V virtual switch to create multiple virtual NICs, each with a unique
 MAC address. These can either use DHCP, or static IP assignments if `--subnet` and `--gateway`
 are set when the network is created.
 
-| Option                                          | Description                                           |
-|-------------------------------------------------|-------------------------------------------------------|
-| `com.docker.network.windowsshim.interface`      | Existing network adapter name to bind to the transparent network |
+| Option                                       | Description                                                      |
+|----------------------------------------------|------------------------------------------------------------------|
+| `com.docker.network.windowsshim.interface`   | Existing network adapter name to bind to the transparent network |
 
 
 For example, `get-netadapter` can be used to find a NIC, which can then be passed with `-o` when creating
-a transparent network. This example will use DHCP to obtain container IPs.
+a transparent network. This example uses DHCP to obtain container IPs.
 
 ```powershell
 PS> get-netadapter
