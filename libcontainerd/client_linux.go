@@ -117,6 +117,13 @@ func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendly
 		return -1, err
 	}
 
+	// clean up fifos if failed to add process
+	defer func() {
+		if err != nil {
+			p.cleanFifos(processFriendlyName)
+		}
+	}()
+
 	resp, err := clnt.remote.apiClient.AddProcess(ctx, r)
 	if err != nil {
 		p.closeFifos(iopipe)

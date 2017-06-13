@@ -69,11 +69,7 @@ func (ctr *container) clean() error {
 // Caller needs to lock container ID before calling this method.
 func (ctr *container) cleanProcess(id string) {
 	if p, ok := ctr.processes[id]; ok {
-		for _, i := range []int{unix.Stdin, unix.Stdout, unix.Stderr} {
-			if err := os.Remove(p.fifo(i)); err != nil && !os.IsNotExist(err) {
-				logrus.Warnf("libcontainerd: failed to remove %v for process %v: %v", p.fifo(i), id, err)
-			}
-		}
+		p.cleanFifos(id)
 	}
 	delete(ctr.processes, id)
 }
