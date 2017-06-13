@@ -38,7 +38,7 @@ func (daemon *Daemon) FillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 
 	v.RuncCommit.Expected = dockerversion.RuncCommitID
 	defaultRuntimeBinary := daemon.configStore.GetRuntime(daemon.configStore.GetDefaultRuntimeName()).Path
-	if rv, err := exec.Command(defaultRuntimeBinary).Output(); err == nil {
+	if rv, err := exec.Command(defaultRuntimeBinary, "--version").Output(); err == nil {
 		parts := strings.Split(strings.TrimSpace(string(rv)), "\n")
 		if len(parts) == 3 {
 			parts = strings.Split(parts[1], ": ")
