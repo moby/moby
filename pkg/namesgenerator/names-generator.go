@@ -587,6 +587,12 @@ var (
 
 		// Ada Yonath - an Israeli crystallographer, the first woman from the Middle East to win a Nobel prize in the sciences. https://en.wikipedia.org/wiki/Ada_Yonath
 		"yonath",
+		
+		//Nelson Mandela (1918-2013) - Fought for the freedom of the people of South Africa 
+		"mandela",
+		
+		//Mary Slessor 1848 – 1915. A missionary, stopped killing of twins in eastern Nigeria
+		"slessor"
 	}
 )
 
