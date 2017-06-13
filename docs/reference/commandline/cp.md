@@ -28,6 +28,7 @@ container source to stdout.
 
 Options:
   -L, --follow-link   Always follow symbol link in SRC_PATH
+  -a, --archive       Archive mode (copy all uid/gid information)
       --help          Print usage
 ```
 
@@ -53,7 +54,9 @@ copied recursively with permissions preserved if possible. Ownership is set to
 the user and primary group at the destination. For example, files copied to a
 container are created with `UID:GID` of the root user. Files copied to the local
 machine are created with the `UID:GID` of the user which invoked the `docker cp`
-command.  If you specify the `-L` option, `docker cp` follows any symbolic link
+command. However, if you specify the `-a` option, `docker cp` sets the ownership
+to the user and primary group at the source.
+If you specify the `-L` option, `docker cp` follows any symbolic link
 in the `SRC_PATH`.  `docker cp` does *not* create parent directories for
 `DEST_PATH` if they do not exist.
 
