@@ -13,7 +13,7 @@ example, by using nonce 1 for the first message, nonce 2 for the second
 message, etc. Nonces are long enough that randomly generated nonces have
 negligible risk of collision.
 
-This package is interoperable with NaCl: http://nacl.cr.yp.to/secretbox.html.
+This package is interoperable with NaCl: https://nacl.cr.yp.to/secretbox.html.
 */
 package secretbox // import "golang.org/x/crypto/nacl/secretbox"
 
