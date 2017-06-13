@@ -945,18 +945,19 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 			if err := store.CreateNetwork(tx, newIngressNetwork()); err != nil {
 				log.G(ctx).WithError(err).Error("failed to create default ingress network")
 			}
-			// Create now the static predefined node-local networks which
-			// are known to be present in each cluster node. This is needed
-			// in order to allow running services on the predefined docker
-			// networks like `bridge` and `host`.
-			log.G(ctx).Info("Creating node-local predefined networks")
-			for _, p := range networkallocator.PredefinedNetworks() {
+		}
+		// Create now the static predefined if the store does not contain predefined
+		//networks like bridge/host node-local networks which
+		// are known to be present in each cluster node. This is needed
+		// in order to allow running services on the predefined docker
+		// networks like `bridge` and `host`.
+		for _, p := range networkallocator.PredefinedNetworks() {
+			if store.GetNetwork(tx, p.Name) == nil {
 				if err := store.CreateNetwork(tx, newPredefinedNetwork(p.Name, p.Driver)); err != nil {
 					log.G(ctx).WithError(err).Error("failed to create predefined network " + p.Name)
 				}
 			}
 		}
-
 		return nil
 	})
 
