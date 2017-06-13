@@ -68,8 +68,9 @@ func TestServiceCreateCompatiblePlatforms(t *testing.T) {
 	)
 
 	client := &Client{
+		version: "1.30",
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
-			if strings.HasPrefix(req.URL.Path, "/services/create") {
+			if strings.HasPrefix(req.URL.Path, "/v1.30/services/create") {
 				// check if the /distribution endpoint returned correct output
 				err := json.NewDecoder(distributionInspectBody).Decode(&distributionInspect)
 				if err != nil {
@@ -89,7 +90,7 @@ func TestServiceCreateCompatiblePlatforms(t *testing.T) {
 					StatusCode: http.StatusOK,
 					Body:       ioutil.NopCloser(bytes.NewReader(b)),
 				}, nil
-			} else if strings.HasPrefix(req.URL.Path, "/distribution/") {
+			} else if strings.HasPrefix(req.URL.Path, "/v1.30/distribution/") {
 				platforms = []v1.Platform{
 					{
 						Architecture: "amd64",
@@ -146,8 +147,9 @@ func TestServiceCreateDigestPinning(t *testing.T) {
 	}
 
 	client := &Client{
+		version: "1.30",
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
-			if strings.HasPrefix(req.URL.Path, "/services/create") {
+			if strings.HasPrefix(req.URL.Path, "/v1.30/services/create") {
 				// reset and set image received by the service create endpoint
 				serviceCreateImage = ""
 				var service swarm.ServiceSpec
@@ -166,10 +168,10 @@ func TestServiceCreateDigestPinning(t *testing.T) {
 					StatusCode: http.StatusOK,
 					Body:       ioutil.NopCloser(bytes.NewReader(b)),
 				}, nil
-			} else if strings.HasPrefix(req.URL.Path, "/distribution/cannotresolve") {
+			} else if strings.HasPrefix(req.URL.Path, "/v1.30/distribution/cannotresolve") {
 				// unresolvable image
 				return nil, fmt.Errorf("cannot resolve image")
-			} else if strings.HasPrefix(req.URL.Path, "/distribution/") {
+			} else if strings.HasPrefix(req.URL.Path, "/v1.30/distribution/") {
 				// resolvable images
 				b, err := json.Marshal(registrytypes.DistributionInspect{
 					Descriptor: v1.Descriptor{

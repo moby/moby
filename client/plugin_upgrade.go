@@ -12,6 +12,9 @@ import (
 
 // PluginUpgrade upgrades a plugin
 func (cli *Client) PluginUpgrade(ctx context.Context, name string, options types.PluginInstallOptions) (rc io.ReadCloser, err error) {
+	if err := cli.NewVersionError("1.26", "plugin upgrade"); err != nil {
+		return nil, err
+	}
 	query := url.Values{}
 	if _, err := reference.ParseNormalizedNamed(options.RemoteRef); err != nil {
 		return nil, errors.Wrap(err, "invalid remote reference")

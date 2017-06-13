@@ -10,6 +10,12 @@ import (
 
 // DistributionInspect returns the image digest with full Manifest
 func (cli *Client) DistributionInspect(ctx context.Context, image, encodedRegistryAuth string) (registrytypes.DistributionInspect, error) {
+	// Contact the registry to retrieve digest and platform information
+	var distributionInspect registrytypes.DistributionInspect
+
+	if err := cli.NewVersionError("1.30", "distribution inspect"); err != nil {
+		return distributionInspect, err
+	}
 	var headers map[string][]string
 
 	if encodedRegistryAuth != "" {
@@ -18,8 +24,6 @@ func (cli *Client) DistributionInspect(ctx context.Context, image, encodedRegist
 		}
 	}
 
-	// Contact the registry to retrieve digest and platform information
-	var distributionInspect registrytypes.DistributionInspect
 	resp, err := cli.get(ctx, "/distribution/"+image+"/json", url.Values{}, headers)
 	if err != nil {
 		return distributionInspect, err

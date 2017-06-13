@@ -10,12 +10,23 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )
 
+func TestSecretInspectUnsupported(t *testing.T) {
+	client := &Client{
+		version: "1.24",
+		client:  &http.Client{},
+	}
+	_, _, err := client.SecretInspectWithRaw(context.Background(), "nothing")
+	assert.EqualError(t, err, `"secret inspect" requires API version 1.25, but the Docker daemon API version is 1.24`)
+}
+
 func TestSecretInspectError(t *testing.T) {
 	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
+		version: "1.25",
+		client:  newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
 	_, _, err := client.SecretInspectWithRaw(context.Background(), "nothing")
@@ -26,7 +37,8 @@ func TestSecretInspectError(t *testing.T) {
 
 func TestSecretInspectSecretNotFound(t *testing.T) {
 	client := &Client{
-		client: newMockClient(errorMock(http.StatusNotFound, "Server error")),
+		version: "1.25",
+		client:  newMockClient(errorMock(http.StatusNotFound, "Server error")),
 	}
 
 	_, _, err := client.SecretInspectWithRaw(context.Background(), "unknown")
@@ -36,8 +48,9 @@ func TestSecretInspectSecretNotFound(t *testing.T) {
 }
 
 func TestSecretInspect(t *testing.T) {
-	expectedURL := "/secrets/secret_id"
+	expectedURL := "/v1.25/secrets/secret_id"
 	client := &Client{
+		version: "1.25",
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)

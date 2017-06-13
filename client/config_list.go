@@ -12,6 +12,9 @@ import (
 
 // ConfigList returns the list of configs.
 func (cli *Client) ConfigList(ctx context.Context, options types.ConfigListOptions) ([]swarm.Config, error) {
+	if err := cli.NewVersionError("1.30", "config list"); err != nil {
+		return nil, err
+	}
 	query := url.Values{}
 
 	if options.Filters.Len() > 0 {

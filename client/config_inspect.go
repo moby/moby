@@ -12,6 +12,9 @@ import (
 
 // ConfigInspectWithRaw returns the config information with raw data
 func (cli *Client) ConfigInspectWithRaw(ctx context.Context, id string) (swarm.Config, []byte, error) {
+	if err := cli.NewVersionError("1.30", "config inspect"); err != nil {
+		return swarm.Config{}, nil, err
+	}
 	resp, err := cli.get(ctx, "/configs/"+id, nil, nil)
 	if err != nil {
 		if resp.statusCode == http.StatusNotFound {
