@@ -38,8 +38,23 @@ func ReadAll(reader io.Reader) ([]string, error) {
 		if pattern == "" {
 			continue
 		}
-		pattern = filepath.Clean(pattern)
-		pattern = filepath.ToSlash(pattern)
+		// normalize absolute paths to paths relative to the context
+		// (taking care of '!' prefix)
+		invert := pattern[0] == '!'
+		if invert {
+			pattern = strings.TrimSpace(pattern[1:])
+		}
+		if len(pattern) > 0 {
+			pattern = filepath.Clean(pattern)
+			pattern = filepath.ToSlash(pattern)
+			if len(pattern) > 1 && pattern[0] == '/' {
+				pattern = pattern[1:]
+			}
+		}
+		if invert {
+			pattern = "!" + pattern
+		}
+
 		excludes = append(excludes, pattern)
 	}
 	if err := scanner.Err(); err != nil {
