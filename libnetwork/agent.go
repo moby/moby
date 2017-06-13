@@ -883,7 +883,7 @@ func (c *controller) handleEpTableEvent(ev events.Event) {
 	}
 
 	if isAdd {
-		logrus.Debugf("handleEpTableEvent ADD %s R:%v", isAdd, eid, epRec)
+		logrus.Debugf("handleEpTableEvent ADD %s R:%v", eid, epRec)
 		if svcID != "" {
 			// This is a remote task part of a service
 			if err := c.addServiceBinding(svcName, svcID, nid, eid, containerName, vip, ingressPorts, serviceAliases, taskAliases, ip, "handleEpTableEvent"); err != nil {
@@ -897,7 +897,7 @@ func (c *controller) handleEpTableEvent(ev events.Event) {
 			}
 		}
 	} else {
-		logrus.Debugf("handleEpTableEvent DEL %s R:%v", isAdd, eid, epRec)
+		logrus.Debugf("handleEpTableEvent DEL %s R:%v", eid, epRec)
 		if svcID != "" {
 			// This is a remote task part of a service
 			if err := c.rmServiceBinding(svcName, svcID, nid, eid, containerName, vip, ingressPorts, serviceAliases, taskAliases, ip, "handleEpTableEvent"); err != nil {
