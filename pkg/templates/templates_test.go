@@ -57,14 +57,32 @@ func TestParseTruncateFunction(t *testing.T) {
 			template: `{{truncate . 30}}`,
 			expected: "tupx5xzf6hvsrhnruz5cr8gwp",
 		},
+		{
+			template: `{{pad . 3 3}}`,
+			expected: "   tupx5xzf6hvsrhnruz5cr8gwp   ",
+		},
 	}
 
 	for _, testCase := range testCases {
 		tm, err := Parse(testCase.template)
 		assert.NoError(t, err)
 
-		var b bytes.Buffer
-		assert.NoError(t, tm.Execute(&b, source))
-		assert.Equal(t, testCase.expected, b.String())
+		t.Run("Non Empty Source Test with template: "+testCase.template, func(t *testing.T) {
+			var b bytes.Buffer
+			assert.NoError(t, tm.Execute(&b, source))
+			assert.Equal(t, testCase.expected, b.String())
+		})
+
+		t.Run("Empty Source Test with template: "+testCase.template, func(t *testing.T) {
+			var c bytes.Buffer
+			assert.NoError(t, tm.Execute(&c, ""))
+			assert.Equal(t, "", c.String())
+		})
+
+		t.Run("Nil Source Test with template: "+testCase.template, func(t *testing.T) {
+			var c bytes.Buffer
+			assert.Error(t, tm.Execute(&c, nil))
+			assert.Equal(t, "", c.String())
+		})
 	}
 }
