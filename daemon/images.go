@@ -295,7 +295,8 @@ func (daemon *Daemon) SquashImage(id, parent string) (string, error) {
 	}
 	defer ts.Close()
 
-	newL, err := daemon.stores[img.Platform()].layerStore.Register(ts, parentChainID, layer.Platform(img.Platform()))
+	// TODO @jhowardmsft LCOW support: Last parameter will need populating
+	newL, err := daemon.stores[img.Platform()].layerStore.Register(ts, parentChainID, layer.Platform(img.Platform()), &layer.RegisterOpts{})
 	if err != nil {
 		return "", errors.Wrap(err, "error registering layer")
 	}

@@ -305,7 +305,7 @@ func (s *DockerExternalGraphdriverSuite) setUpPlugin(c *check.C, name string, ex
 			http.Error(w, fmt.Sprintf("missing id"), 409)
 		}
 
-		size, err := driver.ApplyDiff(id, parent, diff)
+		size, err := driver.ApplyDiff(id, parent, diff, nil)
 		if err != nil {
 			respond(w, err)
 			return

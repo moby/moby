@@ -1,6 +1,15 @@
 package layer
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/Microsoft/hcsshim"
+)
+
+// RegisterOpts contain optional arguments to be passed to Register
+type RegisterOpts struct {
+	Uvm hcsshim.Container
+}
 
 // GetLayerPath returns the path to a layer
 func GetLayerPath(s Store, layer ChainID) (string, error) {

@@ -215,8 +215,12 @@ func (d *Driver) Changes(id, parent string) ([]archive.Change, error) {
 // layer with the specified id and parent, returning the size of the
 // new layer in bytes.
 // The layer should not be mounted when calling this function
-func (d *Driver) ApplyDiff(id, parent string, diff io.Reader) (int64, error) {
+func (d *Driver) ApplyDiff(id, parent string, diff io.Reader, opts *graphdriver.ApplyDiffOpts) (int64, error) {
 	logrus.Debugf("LCOWDriver ApplyDiff() id %s parent %s", id, parent)
+	if opts == nil || opts.Uvm == nil {
+		return 0, fmt.Errorf("no utility VM opt passed into the graphdriver in ApplyDiff()")
+	}
+	// TODO @jhowardmsft IN PROGRESS - Change next line to opts.Uvm.
 	return opengcs.TarStreamToVHD(d.uvm, filepath.Join(d.homeDir, id, "layer.vhd"), diff)
 }
 

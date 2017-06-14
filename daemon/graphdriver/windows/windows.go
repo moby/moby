@@ -548,7 +548,7 @@ func (d *Driver) Changes(id, parent string) ([]archive.Change, error) {
 // layer with the specified id and parent, returning the size of the
 // new layer in bytes.
 // The layer should not be mounted when calling this function
-func (d *Driver) ApplyDiff(id, parent string, diff io.Reader) (int64, error) {
+func (d *Driver) ApplyDiff(id, parent string, diff io.Reader, opts *graphdriver.ApplyDiffOpts) (int64, error) {
 	var layerChain []string
 	if parent != "" {
 		rPId, err := d.resolveID(parent)

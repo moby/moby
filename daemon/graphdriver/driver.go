@@ -99,7 +99,7 @@ type DiffDriver interface {
 	// layer with the specified id and parent, returning the size of the
 	// new layer in bytes.
 	// The archive.Reader must be an uncompressed stream.
-	ApplyDiff(id, parent string, diff io.Reader) (size int64, err error)
+	ApplyDiff(id, parent string, diff io.Reader, opts *ApplyDiffOpts) (size int64, err error)
 	// DiffSize calculates the changes between the specified id
 	// and its parent and returns the size in bytes of the changes
 	// relative to its base filesystem directory.

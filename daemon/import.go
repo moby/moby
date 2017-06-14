@@ -90,7 +90,8 @@ func (daemon *Daemon) ImportImage(src string, repository, platform string, tag s
 	if err != nil {
 		return err
 	}
-	l, err := daemon.stores[platform].layerStore.Register(inflatedLayerData, "", layer.Platform(platform))
+	// TODO @jhowardmsft LCOW support: Last parameter will need populating
+	l, err := daemon.stores[platform].layerStore.Register(inflatedLayerData, "", layer.Platform(platform), &layer.RegisterOpts{})
 	if err != nil {
 		return err
 	}

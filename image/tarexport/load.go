@@ -203,10 +203,11 @@ func (l *tarexporter) loadLayer(filename string, rootFS image.RootFS, id string,
 	}
 	defer inflatedLayerData.Close()
 
+	// TODO @jhowardmsft LCOW support: Last parameter will need populating in the following two calls to register
 	if ds, ok := l.ls.(layer.DescribableStore); ok {
-		return ds.RegisterWithDescriptor(inflatedLayerData, rootFS.ChainID(), platform, foreignSrc)
+		return ds.RegisterWithDescriptor(inflatedLayerData, rootFS.ChainID(), platform, foreignSrc, &layer.RegisterOpts{})
 	}
-	return l.ls.Register(inflatedLayerData, rootFS.ChainID(), platform)
+	return l.ls.Register(inflatedLayerData, rootFS.ChainID(), platform, &layer.RegisterOpts{})
 }
 
 func (l *tarexporter) setLoadedTag(ref reference.NamedTagged, imgID digest.Digest, outStream io.Writer) error {

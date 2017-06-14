@@ -181,7 +181,8 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		osFeatures = img.OSFeatures
 	}
 
-	l, err := daemon.stores[container.Platform].layerStore.Register(rwTar, rootFS.ChainID(), layer.Platform(container.Platform))
+	// TODO @jhowardmsft LCOW Support - Last Parameter will need populating
+	l, err := daemon.stores[container.Platform].layerStore.Register(rwTar, rootFS.ChainID(), layer.Platform(container.Platform), &layer.RegisterOpts{})
 	if err != nil {
 		return "", err
 	}

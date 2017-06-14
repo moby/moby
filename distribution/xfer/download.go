@@ -340,10 +340,11 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 			if fs, ok := descriptor.(distribution.Describable); ok {
 				src = fs.Descriptor()
 			}
+			// TODO @jhowardmsft LCOW Support: Last parameters on Register/RegisterWithDescriptor will need populating with Utility VM
 			if ds, ok := d.layerStore.(layer.DescribableStore); ok {
-				d.layer, err = ds.RegisterWithDescriptor(inflatedLayerData, parentLayer, platform, src)
+				d.layer, err = ds.RegisterWithDescriptor(inflatedLayerData, parentLayer, platform, src, &layer.RegisterOpts{})
 			} else {
-				d.layer, err = d.layerStore.Register(inflatedLayerData, parentLayer, platform)
+				d.layer, err = d.layerStore.Register(inflatedLayerData, parentLayer, platform, &layer.RegisterOpts{})
 			}
 			if err != nil {
 				select {
@@ -439,10 +440,11 @@ func (ldm *LayerDownloadManager) makeDownloadFuncFromDownload(descriptor Downloa
 			if fs, ok := l.(distribution.Describable); ok {
 				src = fs.Descriptor()
 			}
+			// TODO @jhowardmsft LCOW support: Last parameter will need populating on the following two calls
 			if ds, ok := d.layerStore.(layer.DescribableStore); ok {
-				d.layer, err = ds.RegisterWithDescriptor(layerReader, parentLayer, platform, src)
+				d.layer, err = ds.RegisterWithDescriptor(layerReader, parentLayer, platform, src, &layer.RegisterOpts{})
 			} else {
-				d.layer, err = d.layerStore.Register(layerReader, parentLayer, platform)
+				d.layer, err = d.layerStore.Register(layerReader, parentLayer, platform, &layer.RegisterOpts{})
 			}
 			if err != nil {
 				d.err = fmt.Errorf("failed to register layer: %v", err)

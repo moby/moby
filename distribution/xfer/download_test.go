@@ -91,11 +91,11 @@ func (ls *mockLayerStore) Map() map[layer.ChainID]layer.Layer {
 	return layers
 }
 
-func (ls *mockLayerStore) Register(reader io.Reader, parentID layer.ChainID, platform layer.Platform) (layer.Layer, error) {
-	return ls.RegisterWithDescriptor(reader, parentID, distribution.Descriptor{})
+func (ls *mockLayerStore) Register(reader io.Reader, parentID layer.ChainID, platform layer.Platform, opts *layer.RegisterOpts) (layer.Layer, error) {
+	return ls.RegisterWithDescriptor(reader, parentID, distribution.Descriptor{}, opts)
 }
 
-func (ls *mockLayerStore) RegisterWithDescriptor(reader io.Reader, parentID layer.ChainID, _ distribution.Descriptor) (layer.Layer, error) {
+func (ls *mockLayerStore) RegisterWithDescriptor(reader io.Reader, parentID layer.ChainID, _ distribution.Descriptor, opts *layer.RegisterOpts) (layer.Layer, error) {
 	var (
 		parent layer.Layer
 		err    error
@@ -293,7 +293,7 @@ func TestSuccessfulDownload(t *testing.T) {
 	firstDescriptor := descriptors[0].(*mockDownloadDescriptor)
 
 	// Pre-register the first layer to simulate an already-existing layer
-	l, err := layerStore.Register(firstDescriptor.mockTarStream(), "", layer.Platform(runtime.GOOS))
+	l, err := layerStore.Register(firstDescriptor.mockTarStream(), "", layer.Platform(runtime.GOOS), &layer.RegisterOpts{})
 	if err != nil {
 		t.Fatal(err)
 	}

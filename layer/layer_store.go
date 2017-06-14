@@ -223,7 +223,7 @@ func (ls *layerStore) loadMount(mount string) error {
 	return nil
 }
 
-func (ls *layerStore) applyTar(tx MetadataTransaction, ts io.Reader, parent string, layer *roLayer) error {
+func (ls *layerStore) applyTar(tx MetadataTransaction, ts io.Reader, parent string, layer *roLayer, opts *RegisterOpts) error {
 	digester := digest.Canonical.Digester()
 	tr := io.TeeReader(ts, digester.Hash())
 
@@ -244,7 +244,7 @@ func (ls *layerStore) applyTar(tx MetadataTransaction, ts io.Reader, parent stri
 		}
 	}
 
-	applySize, err := ls.driver.ApplyDiff(layer.cacheID, parent, rdr)
+	applySize, err := ls.driver.ApplyDiff(layer.cacheID, parent, rdr, getApplyDiffOpts(opts))
 	if err != nil {
 		return err
 	}
@@ -260,11 +260,11 @@ func (ls *layerStore) applyTar(tx MetadataTransaction, ts io.Reader, parent stri
 	return nil
 }
 
-func (ls *layerStore) Register(ts io.Reader, parent ChainID, platform Platform) (Layer, error) {
-	return ls.registerWithDescriptor(ts, parent, platform, distribution.Descriptor{})
+func (ls *layerStore) Register(ts io.Reader, parent ChainID, platform Platform, opts *RegisterOpts) (Layer, error) {
+	return ls.registerWithDescriptor(ts, parent, platform, distribution.Descriptor{}, opts)
 }
 
-func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, platform Platform, descriptor distribution.Descriptor) (Layer, error) {
+func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, platform Platform, descriptor distribution.Descriptor, opts *RegisterOpts) (Layer, error) {
 	// err is used to hold the error which will always trigger
 	// cleanup of creates sources but may not be an error returned
 	// to the caller (already exists).
@@ -331,7 +331,7 @@ func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, platf
 		}
 	}()
 
-	if err = ls.applyTar(tx, ts, pid, layer); err != nil {
+	if err = ls.applyTar(tx, ts, pid, layer, opts); err != nil {
 		return nil, err
 	}
 
