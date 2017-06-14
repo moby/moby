@@ -289,6 +289,7 @@ func resourcesFromGRPC(res *swarmapi.ResourceRequirements) *types.ResourceRequir
 			resources.Limits = &types.Resources{
 				NanoCPUs:    res.Limits.NanoCPUs,
 				MemoryBytes: res.Limits.MemoryBytes,
+				PidsLimit:   res.Limits.PidsLimit,
 			}
 		}
 		if res.Reservations != nil {
@@ -310,6 +311,7 @@ func resourcesToGRPC(res *types.ResourceRequirements) *swarmapi.ResourceRequirem
 			reqs.Limits = &swarmapi.Resources{
 				NanoCPUs:    res.Limits.NanoCPUs,
 				MemoryBytes: res.Limits.MemoryBytes,
+				PidsLimit:   res.Limits.PidsLimit,
 			}
 		}
 		if res.Reservations != nil {

@@ -435,6 +435,10 @@ func (c *containerConfig) resources() enginecontainer.Resources {
 		resources.CPUQuota = r.Limits.NanoCPUs * resources.CPUPeriod / 1e9
 	}
 
+	if r.Limits.PidsLimit > -1 {
+		resources.PidsLimit = r.Limits.PidsLimit
+	}
+
 	return resources
 }
 
