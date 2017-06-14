@@ -73,6 +73,7 @@ type TaskSpec struct {
 type Resources struct {
 	NanoCPUs    int64 `json:",omitempty"`
 	MemoryBytes int64 `json:",omitempty"`
+	PidsLimit   int64 `json:",omitempty"`
 }
 
 // ResourceRequirements represents resources requirements.

@@ -2108,6 +2108,10 @@ definitions:
                 description: "Memory limit in Bytes."
                 type: "integer"
                 format: "int64"
+              PidsLimit:
+                description: "PIDs limit in integers. Set to -1 for unlimited PIDs."
+                type: "integer"
+                format: "int64"
           Reservation:
             description: "Define resources reservation."
             properties:
