@@ -18,7 +18,7 @@ func (daemon *Daemon) ContainerRestart(name string, seconds *int) error {
 	if err != nil {
 		return err
 	}
-	if seconds == nil {
+	if seconds == nil || *seconds < 0 {
 		stopTimeout := container.StopTimeout()
 		seconds = &stopTimeout
 	}
