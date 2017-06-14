@@ -460,9 +460,9 @@ func (a *Driver) DiffSize(id, parent string) (size int64, err error) {
 // ApplyDiff extracts the changeset from the given diff into the
 // layer with the specified id and parent, returning the size of the
 // new layer in bytes.
-func (a *Driver) ApplyDiff(id, parent string, diff io.Reader) (size int64, err error) {
+func (a *Driver) ApplyDiff(id, parent string, diff io.Reader, opts *graphdriver.ApplyDiffOpts) (size int64, err error) {
 	if !a.isParent(id, parent) {
-		return a.naiveDiff.ApplyDiff(id, parent, diff)
+		return a.naiveDiff.ApplyDiff(id, parent, diff, opts)
 	}
 
 	// AUFS doesn't need the parent id to apply the diff if it is the direct parent.

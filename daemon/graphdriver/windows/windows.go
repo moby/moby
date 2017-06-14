@@ -94,6 +94,10 @@ func InitFilter(home string, options []string, uidMaps, gidMaps []idtools.IDMap)
 		return nil, fmt.Errorf("%s is on an ReFS volume - ReFS volumes are not supported", home)
 	}
 
+	if err := idtools.MkdirAllAs(home, 0700, 0, 0); err != nil {
+		return nil, fmt.Errorf("windowsfilter failed to create '%s': %v", home, err)
+	}
+
 	d := &Driver{
 		info: hcsshim.DriverInfo{
 			HomeDir: home,
@@ -544,7 +548,7 @@ func (d *Driver) Changes(id, parent string) ([]archive.Change, error) {
 // layer with the specified id and parent, returning the size of the
 // new layer in bytes.
 // The layer should not be mounted when calling this function
-func (d *Driver) ApplyDiff(id, parent string, diff io.Reader) (int64, error) {
+func (d *Driver) ApplyDiff(id, parent string, diff io.Reader, opts *graphdriver.ApplyDiffOpts) (int64, error) {
 	var layerChain []string
 	if parent != "" {
 		rPId, err := d.resolveID(parent)

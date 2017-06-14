@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"fmt"
+	"runtime"
 	"time"
 
 	"github.com/docker/distribution/reference"
@@ -16,6 +17,12 @@ func (daemon *Daemon) ImageHistory(name string) ([]*image.HistoryResponseItem, e
 	img, err := daemon.GetImage(name)
 	if err != nil {
 		return nil, err
+	}
+
+	// If the image OS isn't set, assume it's the host OS
+	platform := img.OS
+	if platform == "" {
+		platform = runtime.GOOS
 	}
 
 	history := []*image.HistoryResponseItem{}
@@ -33,12 +40,12 @@ func (daemon *Daemon) ImageHistory(name string) ([]*image.HistoryResponseItem, e
 			}
 
 			rootFS.Append(img.RootFS.DiffIDs[layerCounter])
-			l, err := daemon.layerStore.Get(rootFS.ChainID())
+			l, err := daemon.stores[platform].layerStore.Get(rootFS.ChainID())
 			if err != nil {
 				return nil, err
 			}
 			layerSize, err = l.DiffSize()
-			layer.ReleaseAndLog(daemon.layerStore, l)
+			layer.ReleaseAndLog(daemon.stores[platform].layerStore, l)
 			if err != nil {
 				return nil, err
 			}
@@ -62,7 +69,7 @@ func (daemon *Daemon) ImageHistory(name string) ([]*image.HistoryResponseItem, e
 		h.ID = id.String()
 
 		var tags []string
-		for _, r := range daemon.referenceStore.References(id.Digest()) {
+		for _, r := range daemon.stores[platform].referenceStore.References(id.Digest()) {
 			if _, ok := r.(reference.NamedTagged); ok {
 				tags = append(tags, reference.FamiliarString(r))
 			}

@@ -16,7 +16,7 @@ import (
 // ImageComponent provides an interface for working with images
 type ImageComponent interface {
 	SquashImage(from string, to string) (string, error)
-	TagImageWithReference(image.ID, reference.Named) error
+	TagImageWithReference(image.ID, string, reference.Named) error
 }
 
 // Backend provides build functionality to the API router

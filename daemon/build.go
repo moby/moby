@@ -1,6 +1,8 @@
 package daemon
 
 import (
+	"io"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
@@ -12,7 +14,6 @@ import (
 	"github.com/docker/docker/registry"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
-	"io"
 )
 
 type releaseableLayer struct {
@@ -75,7 +76,7 @@ func newReleasableLayerForImage(img *image.Image, layerStore layer.Store) (build
 }
 
 // TODO: could this use the regular daemon PullImage ?
-func (daemon *Daemon) pullForBuilder(ctx context.Context, name string, authConfigs map[string]types.AuthConfig, output io.Writer) (*image.Image, error) {
+func (daemon *Daemon) pullForBuilder(ctx context.Context, name string, authConfigs map[string]types.AuthConfig, output io.Writer, platform string) (*image.Image, error) {
 	ref, err := reference.ParseNormalizedNamed(name)
 	if err != nil {
 		return nil, err
@@ -94,7 +95,7 @@ func (daemon *Daemon) pullForBuilder(ctx context.Context, name string, authConfi
 		pullRegistryAuth = &resolvedConfig
 	}
 
-	if err := daemon.pullImageWithReference(ctx, ref, nil, pullRegistryAuth, output); err != nil {
+	if err := daemon.pullImageWithReference(ctx, ref, platform, nil, pullRegistryAuth, output); err != nil {
 		return nil, err
 	}
 	return daemon.GetImage(name)
@@ -108,15 +109,15 @@ func (daemon *Daemon) GetImageAndReleasableLayer(ctx context.Context, refOrID st
 		image, _ := daemon.GetImage(refOrID)
 		// TODO: shouldn't we error out if error is different from "not found" ?
 		if image != nil {
-			layer, err := newReleasableLayerForImage(image, daemon.layerStore)
+			layer, err := newReleasableLayerForImage(image, daemon.stores[opts.Platform].layerStore)
 			return image, layer, err
 		}
 	}
 
-	image, err := daemon.pullForBuilder(ctx, refOrID, opts.AuthConfig, opts.Output)
+	image, err := daemon.pullForBuilder(ctx, refOrID, opts.AuthConfig, opts.Output, opts.Platform)
 	if err != nil {
 		return nil, nil, err
 	}
-	layer, err := newReleasableLayerForImage(image, daemon.layerStore)
+	layer, err := newReleasableLayerForImage(image, daemon.stores[opts.Platform].layerStore)
 	return image, layer, err
 }

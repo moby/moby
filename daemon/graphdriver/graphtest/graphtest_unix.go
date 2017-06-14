@@ -237,7 +237,7 @@ func DriverTestDiffApply(t testing.TB, fileCount int, drivername string, driverO
 		t.Fatal(err)
 	}
 
-	applyDiffSize, err := driver.ApplyDiff(diff, base, bytes.NewReader(buf.Bytes()))
+	applyDiffSize, err := driver.ApplyDiff(diff, base, bytes.NewReader(buf.Bytes()), nil)
 	if err != nil {
 		t.Fatal(err)
 	}

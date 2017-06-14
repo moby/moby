@@ -320,6 +320,7 @@ type ContainerJSONBase struct {
 	Name            string
 	RestartCount    int
 	Driver          string
+	Platform        string
 	MountLabel      string
 	ProcessLabel    string
 	AppArmorProfile string

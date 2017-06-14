@@ -171,7 +171,7 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 	var osFeatures []string
 
 	if container.ImageID != "" {
-		img, err := daemon.imageStore.Get(container.ImageID)
+		img, err := daemon.stores[container.Platform].imageStore.Get(container.ImageID)
 		if err != nil {
 			return "", err
 		}
@@ -181,11 +181,12 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		osFeatures = img.OSFeatures
 	}
 
-	l, err := daemon.layerStore.Register(rwTar, rootFS.ChainID())
+	// TODO @jhowardmsft LCOW Support - Last Parameter will need populating
+	l, err := daemon.stores[container.Platform].layerStore.Register(rwTar, rootFS.ChainID(), layer.Platform(container.Platform), &layer.RegisterOpts{})
 	if err != nil {
 		return "", err
 	}
-	defer layer.ReleaseAndLog(daemon.layerStore, l)
+	defer layer.ReleaseAndLog(daemon.stores[container.Platform].layerStore, l)
 
 	h := image.History{
 		Author:     c.Author,
@@ -207,7 +208,7 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 			DockerVersion:   dockerversion.Version,
 			Config:          newConfig,
 			Architecture:    runtime.GOARCH,
-			OS:              runtime.GOOS,
+			OS:              container.Platform,
 			Container:       container.ID,
 			ContainerConfig: *containerConfig,
 			Author:          c.Author,
@@ -223,13 +224,13 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		return "", err
 	}
 
-	id, err := daemon.imageStore.Create(config)
+	id, err := daemon.stores[container.Platform].imageStore.Create(config)
 	if err != nil {
 		return "", err
 	}
 
 	if container.ImageID != "" {
-		if err := daemon.imageStore.SetParent(id, container.ImageID); err != nil {
+		if err := daemon.stores[container.Platform].imageStore.SetParent(id, container.ImageID); err != nil {
 			return "", err
 		}
 	}
@@ -248,7 +249,7 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 				return "", err
 			}
 		}
-		if err := daemon.TagImageWithReference(id, newTag); err != nil {
+		if err := daemon.TagImageWithReference(id, container.Platform, newTag); err != nil {
 			return "", err
 		}
 		imageRef = reference.FamiliarString(newTag)

@@ -35,7 +35,6 @@ type ContainerProperties struct {
 	SystemType        string
 	Owner             string
 	SiloGUID          string            `json:"SiloGuid,omitempty"`
-	IsDummy           bool              `json:",omitempty"`
 	RuntimeID         string            `json:"RuntimeId,omitempty"`
 	IsRuntimeTemplate bool              `json:",omitempty"`
 	RuntimeImagePath  string            `json:",omitempty"`
