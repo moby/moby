@@ -629,6 +629,10 @@ func (sb *sandbox) SetKey(basePath string) error {
 	}
 
 	sb.Lock()
+	if sb.inDelete {
+		sb.Unlock()
+		return types.ForbiddenErrorf("failed to SetKey: sandbox %q delete in progress", sb.id)
+	}
 	oldosSbox := sb.osSbox
 	sb.Unlock()
 
