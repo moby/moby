@@ -730,6 +730,8 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	d.linkIndex = newLinkIndex()
 	d.containerdRemote = containerdRemote
 
+	daemon.hosts = make(map[string]bool)
+
 	go d.execCommandGC()
 
 	d.containerd, err = containerdRemote.Client(d)
