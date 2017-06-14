@@ -50,6 +50,9 @@ type nodeStartConfig struct {
 	AdvertiseAddr string
 	// DataPathAddr is the address that has to be used for the data path
 	DataPathAddr string
+	// JoinInProgress is set to true if a join operation has started, but
+	// not completed yet.
+	JoinInProgress bool
 
 	joinAddr        string
 	forceNewCluster bool
@@ -98,6 +101,13 @@ func (n *nodeRunner) start(conf nodeStartConfig) error {
 		control = filepath.Join(n.cluster.runtimeRoot, controlSocket)
 	}
 
+	joinAddr := conf.joinAddr
+	if joinAddr == "" && conf.JoinInProgress {
+		// We must have been restarted while trying to join a cluster.
+		// Continue trying to join instead of forming our own cluster.
+		joinAddr = conf.RemoteAddr
+	}
+
 	// Hostname is not set here. Instead, it is obtained from
 	// the node description that is reported periodically
 	swarmnodeConfig := swarmnode.Config{
@@ -105,7 +115,7 @@ func (n *nodeRunner) start(conf nodeStartConfig) error {
 		ListenControlAPI:   control,
 		ListenRemoteAPI:    conf.ListenAddr,
 		AdvertiseRemoteAPI: conf.AdvertiseAddr,
-		JoinAddr:           conf.joinAddr,
+		JoinAddr:           joinAddr,
 		StateDir:           n.cluster.root,
 		JoinToken:          conf.joinToken,
 		Executor:           container.NewExecutor(n.cluster.config.Backend),
@@ -133,6 +143,9 @@ func (n *nodeRunner) start(conf nodeStartConfig) error {
 	n.done = make(chan struct{})
 	n.ready = make(chan struct{})
 	n.swarmNode = node
+	if conf.joinAddr != "" {
+		conf.JoinInProgress = true
+	}
 	n.config = conf
 	savePersistentState(n.cluster.root, conf)
 
@@ -216,6 +229,10 @@ func (n *nodeRunner) handleReadyEvent(ctx context.Context, node *swarmnode.Node,
 	case <-node.Ready():
 		n.mu.Lock()
 		n.err = nil
+		if n.config.JoinInProgress {
+			n.config.JoinInProgress = false
+			savePersistentState(n.cluster.root, n.config)
+		}
 		n.mu.Unlock()
 		close(ready)
 	case <-ctx.Done():
@@ -306,7 +323,6 @@ func (n *nodeRunner) enableReconnectWatcher() {
 	delayCtx, cancel := context.WithTimeout(context.Background(), n.reconnectDelay)
 	n.cancelReconnect = cancel
 
-	config := n.config
 	go func() {
 		<-delayCtx.Done()
 		if delayCtx.Err() != context.DeadlineExceeded {
@@ -317,15 +333,8 @@ func (n *nodeRunner) enableReconnectWatcher() {
 		if n.stopping {
 			return
 		}
-		remotes := n.cluster.getRemoteAddressList()
-		if len(remotes) > 0 {
-			config.RemoteAddr = remotes[0]
-		} else {
-			config.RemoteAddr = ""
-		}
 
-		config.joinAddr = config.RemoteAddr
-		if err := n.start(config); err != nil {
+		if err := n.start(n.config); err != nil {
 			n.err = err
 		}
 	}()
