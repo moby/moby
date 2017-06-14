@@ -29,11 +29,18 @@ type ErrNotFound string
 
 func (name ErrNotFound) Error() string { return fmt.Sprintf("plugin %q not found", string(name)) }
 
-// ErrAmbiguous indicates that a plugin was not found locally.
+// ErrAmbiguous indicates that more than one plugin was found
 type ErrAmbiguous string
 
 func (name ErrAmbiguous) Error() string {
 	return fmt.Sprintf("multiple plugins found for %q", string(name))
+}
+
+// ErrDisabled indicates that a plugin was found but it is disabled
+type ErrDisabled string
+
+func (name ErrDisabled) Error() string {
+	return fmt.Sprintf("plugin %s found but disabled", string(name))
 }
 
 // GetV2Plugin retrieves a plugin by name, id or partial ID.
@@ -138,7 +145,7 @@ func (ps *Store) Get(name, capability string, mode int) (plugingetter.CompatPlug
 			}
 			// Plugin was found but it is disabled, so we should not fall back to legacy plugins
 			// but we should error out right away
-			return nil, ErrNotFound(name)
+			return nil, ErrDisabled(name)
 		}
 		if _, ok := errors.Cause(err).(ErrNotFound); !ok {
 			return nil, err
