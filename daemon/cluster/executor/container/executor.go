@@ -19,6 +19,7 @@ import (
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/api/naming"
+	"github.com/docker/swarmkit/template"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
@@ -191,7 +192,7 @@ func (e *executor) Configure(ctx context.Context, node *api.Node) error {
 
 // Controller returns a docker container runner.
 func (e *executor) Controller(t *api.Task) (exec.Controller, error) {
-	dependencyGetter := agent.Restrict(e.dependencies, t)
+	dependencyGetter := template.NewTemplatedDependencyGetter(agent.Restrict(e.dependencies, t), t, nil)
 
 	// Get the node description from the executor field
 	e.mutex.Lock()
