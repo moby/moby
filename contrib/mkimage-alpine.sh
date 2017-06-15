@@ -52,7 +52,7 @@ save() {
 	tar --numeric-owner -C $ROOTFS -c . | xz > rootfs.tar.xz
 }
 
-while getopts "hr:m:s" opt; do
+while getopts "hr:m:sc:" opt; do
 	case $opt in
 		r)
 			REL=$OPTARG
@@ -64,7 +64,7 @@ while getopts "hr:m:s" opt; do
 			SAVE=1
 			;;
 		c)
-			ADDITIONALREPO=community
+			ADDITIONALREPO=$OPTARG
 			;;
 		*)
 			usage
@@ -76,7 +76,7 @@ REL=${REL:-edge}
 MIRROR=${MIRROR:-http://nl.alpinelinux.org/alpine}
 SAVE=${SAVE:-0}
 MAINREPO=$MIRROR/$REL/main
-ADDITIONALREPO=$MIRROR/$REL/community
+ADDITIONALREPO=$MIRROR/$REL/${ADDITIONALREPO:-community}
 ARCH=${ARCH:-$(uname -m)}
 
 tmp
