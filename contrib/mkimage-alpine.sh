@@ -8,7 +8,7 @@ set -e
 }
 
 usage() {
-	printf >&2 '%s: [-r release] [-m mirror] [-s]  [-c additional repository]\n' "$0"
+	printf >&2 '%s: [-r release] [-m mirror] [-s] [-c additional repository] [-a arch]\n' "$0"
 	exit 1
 }
 
@@ -52,7 +52,7 @@ save() {
 	tar --numeric-owner -C $ROOTFS -c . | xz > rootfs.tar.xz
 }
 
-while getopts "hr:m:sc:" opt; do
+while getopts "hr:m:sc:a:" opt; do
 	case $opt in
 		r)
 			REL=$OPTARG
@@ -65,6 +65,9 @@ while getopts "hr:m:sc:" opt; do
 			;;
 		c)
 			ADDITIONALREPO=$OPTARG
+			;;
+		a)
+			ARCH=$OPTARG
 			;;
 		*)
 			usage
