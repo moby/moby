@@ -3338,6 +3338,18 @@ definitions:
       Driver:
         description: "Name of the secrets driver used to fetch the secret's value from an external secret store"
         $ref: "#/definitions/Driver"
+      Templating:
+        description: "Templating driver, if applicable"
+        type: "object"
+        properties:
+          Name:
+            description: "Name of the templating driver (i.e. 'golang')"
+            type: "string"
+          Options:
+            description: "key/value map of driver specific options."
+            type: "object"
+            additionalProperties:
+              type: "string"
 
   Secret:
     type: "object"
@@ -3374,6 +3386,18 @@ definitions:
           Base64-url-safe-encoded ([RFC 4648](https://tools.ietf.org/html/rfc4648#section-3.2))
           config data.
         type: "string"
+      Templating:
+        description: "Templating driver, if applicable"
+        type: "object"
+        properties:
+          Name:
+            description: "Name of the templating driver (i.e. 'golang')"
+            type: "string"
+          Options:
+            description: "key/value map of driver specific options."
+            type: "object"
+            additionalProperties:
+              type: "string"
 
   Config:
     type: "object"

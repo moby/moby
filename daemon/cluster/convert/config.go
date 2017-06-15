@@ -2,6 +2,7 @@ package convert // import "github.com/docker/docker/daemon/cluster/convert"
 
 import (
 	swarmtypes "github.com/docker/docker/api/types/swarm"
+	types "github.com/docker/docker/api/types/swarm"
 	swarmapi "github.com/docker/swarmkit/api"
 	gogotypes "github.com/gogo/protobuf/types"
 )
@@ -21,18 +22,34 @@ func ConfigFromGRPC(s *swarmapi.Config) swarmtypes.Config {
 	config.CreatedAt, _ = gogotypes.TimestampFromProto(s.Meta.CreatedAt)
 	config.UpdatedAt, _ = gogotypes.TimestampFromProto(s.Meta.UpdatedAt)
 
+	if s.Spec.Templating != nil {
+		config.Spec.Templating = &types.Driver{
+			Name:    s.Spec.Templating.Name,
+			Options: s.Spec.Templating.Options,
+		}
+	}
+
 	return config
 }
 
 // ConfigSpecToGRPC converts Config to a grpc Config.
 func ConfigSpecToGRPC(s swarmtypes.ConfigSpec) swarmapi.ConfigSpec {
-	return swarmapi.ConfigSpec{
+	spec := swarmapi.ConfigSpec{
 		Annotations: swarmapi.Annotations{
 			Name:   s.Name,
 			Labels: s.Labels,
 		},
 		Data: s.Data,
 	}
+
+	if s.Templating != nil {
+		spec.Templating = &swarmapi.Driver{
+			Name:    s.Templating.Name,
+			Options: s.Templating.Options,
+		}
+	}
+
+	return spec
 }
 
 // ConfigReferencesFromGRPC converts a slice of grpc ConfigReference to ConfigReference
