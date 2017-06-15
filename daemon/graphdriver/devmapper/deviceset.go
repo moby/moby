@@ -1693,16 +1693,6 @@ func (devices *DeviceSet) initDevmapper(doInit bool) (retErr error) {
 	// give ourselves to libdm as a log handler
 	devicemapper.LogInit(devices)
 
-	version, err := devicemapper.GetDriverVersion()
-	if err != nil {
-		// Can't even get driver version, assume not supported
-		return graphdriver.ErrNotSupported
-	}
-
-	if err := determineDriverCapabilities(version); err != nil {
-		return graphdriver.ErrNotSupported
-	}
-
 	if err := devices.enableDeferredRemovalDeletion(); err != nil {
 		return err
 	}
@@ -2641,6 +2631,22 @@ func NewDeviceSet(root string, doInit bool, options []string, uidMaps, gidMaps [
 		uidMaps:               uidMaps,
 		gidMaps:               gidMaps,
 		minFreeSpacePercent:   defaultMinFreeSpacePercent,
+	}
+
+	version, err := devicemapper.GetDriverVersion()
+	if err != nil {
+		// Can't even get driver version, assume not supported
+		return nil, graphdriver.ErrNotSupported
+	}
+
+	if err := determineDriverCapabilities(version); err != nil {
+		return nil, graphdriver.ErrNotSupported
+	}
+
+	if driverDeferredRemovalSupport && devicemapper.LibraryDeferredRemovalSupport {
+		// enable deferred stuff by default
+		enableDeferredDeletion = true
+		enableDeferredRemoval = true
 	}
 
 	foundBlkDiscard := false
