@@ -5,8 +5,11 @@ package config
 import (
 	"io/ioutil"
 	"runtime"
-
 	"testing"
+
+	"github.com/docker/docker/opts"
+	units "github.com/docker/go-units"
+	"github.com/spf13/pflag"
 )
 
 func TestDaemonConfigurationMerge(t *testing.T) {
@@ -44,7 +47,16 @@ func TestDaemonConfigurationMerge(t *testing.T) {
 		},
 	}
 
-	cc, err := MergeDaemonConfigurations(c, nil, configFile)
+	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+
+	var debug bool
+	ulimit := make(map[string]*units.Ulimit)
+
+	flags.BoolVarP(&debug, "debug", "D", false, "")
+	flags.Var(opts.NewUlimitOpt(&ulimit), "default-ulimit", "Default ulimits for containers")
+	flags.Var(opts.NewNamedMapOpts("log-opts", nil, nil), "log-opt", "")
+
+	cc, err := MergeDaemonConfigurations(c, flags, configFile)
 	if err != nil {
 		t.Fatal(err)
 	}
