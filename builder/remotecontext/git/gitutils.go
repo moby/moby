@@ -1,7 +1,6 @@
 package git
 
 import (
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -98,20 +97,44 @@ func getRefAndSubdir(fragment string) (ref string, subdir string) {
 
 func fetchArgs(remoteURL string, ref string) []string {
 	args := []string{"fetch", "--recurse-submodules=yes"}
-	shallow := true
 
-	if urlutil.IsURL(remoteURL) {
-		res, err := http.Head(fmt.Sprintf("%s/info/refs?service=git-upload-pack", remoteURL))
-		if err != nil || res.Header.Get("Content-Type") != "application/x-git-upload-pack-advertisement" {
-			shallow = false
-		}
-	}
-
-	if shallow {
+	if supportsShallowClone(remoteURL) {
 		args = append(args, "--depth", "1")
 	}
 
 	return append(args, "origin", ref)
+}
+
+// Check if a given git URL supports a shallow git clone,
+// i.e. it is a non-HTTP server or a smart HTTP server.
+func supportsShallowClone(remoteURL string) bool {
+	if urlutil.IsURL(remoteURL) {
+		// Check if the HTTP server is smart
+
+		// Smart servers must correctly respond to a query for the git-upload-pack service
+		serviceURL := remoteURL + "/info/refs?service=git-upload-pack"
+
+		// Try a HEAD request and fallback to a Get request on error
+		res, err := http.Head(serviceURL)
+		if err != nil || res.StatusCode != http.StatusOK {
+			res, err = http.Get(serviceURL)
+			if err == nil {
+				res.Body.Close()
+			}
+			if err != nil || res.StatusCode != http.StatusOK {
+				// request failed
+				return false
+			}
+		}
+
+		if res.Header.Get("Content-Type") != "application/x-git-upload-pack-advertisement" {
+			// Fallback, not a smart server
+			return false
+		}
+		return true
+	}
+	// Non-HTTP protocols always support shallow clones
+	return true
 }
 
 func checkoutGit(root, ref, subdir string) (string, error) {
