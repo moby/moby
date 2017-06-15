@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
+	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/sysinfo"
@@ -524,4 +525,8 @@ func setupDaemonProcess(config *Config) error {
 
 func (daemon *Daemon) setupSeccompProfile() error {
 	return nil
+}
+
+func getRealPath(path string) (string, error) {
+	return fileutils.ReadSymlinkedDirectory(path)
 }
