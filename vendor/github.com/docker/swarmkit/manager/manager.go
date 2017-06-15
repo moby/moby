@@ -698,7 +698,7 @@ func (m *Manager) updateKEK(ctx context.Context, cluster *api.Cluster) error {
 
 			connBroker := connectionbroker.New(remotes.NewRemotes())
 			connBroker.SetLocalConn(conn)
-			if err := ca.RenewTLSConfigNow(ctx, securityConfig, connBroker); err != nil {
+			if err := ca.RenewTLSConfigNow(ctx, securityConfig, connBroker, m.config.RootCAPaths); err != nil {
 				logger.WithError(err).Error("failed to download new TLS certificate after locking the cluster")
 			}
 		}()
@@ -945,18 +945,19 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 			if err := store.CreateNetwork(tx, newIngressNetwork()); err != nil {
 				log.G(ctx).WithError(err).Error("failed to create default ingress network")
 			}
-			// Create now the static predefined node-local networks which
-			// are known to be present in each cluster node. This is needed
-			// in order to allow running services on the predefined docker
-			// networks like `bridge` and `host`.
-			log.G(ctx).Info("Creating node-local predefined networks")
-			for _, p := range allocator.PredefinedNetworks() {
+		}
+		// Create now the static predefined if the store does not contain predefined
+		//networks like bridge/host node-local networks which
+		// are known to be present in each cluster node. This is needed
+		// in order to allow running services on the predefined docker
+		// networks like `bridge` and `host`.
+		for _, p := range allocator.PredefinedNetworks() {
+			if store.GetNetwork(tx, p.Name) == nil {
 				if err := store.CreateNetwork(tx, newPredefinedNetwork(p.Name, p.Driver)); err != nil {
 					log.G(ctx).WithError(err).Error("failed to create predefined network " + p.Name)
 				}
 			}
 		}
-
 		return nil
 	})
 
@@ -1033,7 +1034,7 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 	}(m.constraintEnforcer)
 
 	go func(taskReaper *taskreaper.TaskReaper) {
-		taskReaper.Run()
+		taskReaper.Run(ctx)
 	}(m.taskReaper)
 
 	go func(orchestrator *replicated.Orchestrator) {

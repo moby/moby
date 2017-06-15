@@ -3,13 +3,22 @@ package template
 import (
 	"bytes"
 	"fmt"
+	"strings"
+	"text/template"
 
+	"github.com/docker/swarmkit/agent/configs"
+	"github.com/docker/swarmkit/agent/exec"
+	"github.com/docker/swarmkit/agent/secrets"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/api/naming"
+	"github.com/pkg/errors"
 )
 
 // Context defines the strict set of values that can be injected into a
 // template expression in SwarmKit data structure.
+// NOTE: Be very careful adding any fields to this structure with types
+// that have methods defined on them. The template would be able to
+// invoke those methods.
 type Context struct {
 	Service struct {
 		ID     string
@@ -58,7 +67,118 @@ func NewContextFromTask(t *api.Task) (ctx Context) {
 // Expand treats the string s as a template and populates it with values from
 // the context.
 func (ctx *Context) Expand(s string) (string, error) {
-	tmpl, err := newTemplate(s)
+	tmpl, err := newTemplate(s, nil)
+	if err != nil {
+		return s, err
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, ctx); err != nil {
+		return s, err
+	}
+
+	return buf.String(), nil
+}
+
+// PayloadContext provides a context for expanding a config or secret payload.
+// NOTE: Be very careful adding any fields to this structure with types
+// that have methods defined on them. The template would be able to
+// invoke those methods.
+type PayloadContext struct {
+	Context
+
+	t                 *api.Task
+	restrictedSecrets exec.SecretGetter
+	restrictedConfigs exec.ConfigGetter
+}
+
+func (ctx PayloadContext) secretGetter(target string) (string, error) {
+	if ctx.restrictedSecrets == nil {
+		return "", errors.New("secrets unavailable")
+	}
+
+	container := ctx.t.Spec.GetContainer()
+	if container == nil {
+		return "", errors.New("task is not a container")
+	}
+
+	for _, secretRef := range container.Secrets {
+		file := secretRef.GetFile()
+		if file != nil && file.Name == target {
+			secret, err := ctx.restrictedSecrets.Get(secretRef.SecretID)
+			if err != nil {
+				return "", err
+			}
+			return string(secret.Spec.Data), nil
+		}
+	}
+
+	return "", errors.Errorf("secret target %s not found", target)
+}
+
+func (ctx PayloadContext) configGetter(target string) (string, error) {
+	if ctx.restrictedConfigs == nil {
+		return "", errors.New("configs unavailable")
+	}
+
+	container := ctx.t.Spec.GetContainer()
+	if container == nil {
+		return "", errors.New("task is not a container")
+	}
+
+	for _, configRef := range container.Configs {
+		file := configRef.GetFile()
+		if file != nil && file.Name == target {
+			config, err := ctx.restrictedConfigs.Get(configRef.ConfigID)
+			if err != nil {
+				return "", err
+			}
+			return string(config.Spec.Data), nil
+		}
+	}
+
+	return "", errors.Errorf("config target %s not found", target)
+}
+
+func (ctx PayloadContext) envGetter(variable string) (string, error) {
+	container := ctx.t.Spec.GetContainer()
+	if container == nil {
+		return "", errors.New("task is not a container")
+	}
+
+	for _, env := range container.Env {
+		parts := strings.SplitN(env, "=", 2)
+
+		if len(parts) > 1 && parts[0] == variable {
+			return parts[1], nil
+		}
+	}
+	return "", nil
+}
+
+// NewPayloadContextFromTask returns a new template context from the data
+// available in the task. This context also provides access to the configs
+// and secrets that the task has access to. The provided context can then
+// be used to populate runtime values in a templated config or secret.
+func NewPayloadContextFromTask(t *api.Task, dependencies exec.DependencyGetter) (ctx PayloadContext) {
+	return PayloadContext{
+		Context:           NewContextFromTask(t),
+		t:                 t,
+		restrictedSecrets: secrets.Restrict(dependencies.Secrets(), t),
+		restrictedConfigs: configs.Restrict(dependencies.Configs(), t),
+	}
+}
+
+// Expand treats the string s as a template and populates it with values from
+// the context.
+func (ctx *PayloadContext) Expand(s string) (string, error) {
+	funcMap := template.FuncMap{
+		"secret": ctx.secretGetter,
+		"config": ctx.configGetter,
+		"env":    ctx.envGetter,
+	}
+
+	tmpl, err := newTemplate(s, funcMap)
 	if err != nil {
 		return s, err
 	}

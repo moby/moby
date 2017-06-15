@@ -631,7 +631,7 @@ func (d *Dispatcher) processUpdates(ctx context.Context) {
 					logger.WithError(err).Error("failed to update task status")
 					return nil
 				}
-				logger.Debug("task status updated")
+				logger.Debug("dispatcher committed status update to store")
 				return nil
 			})
 			if err != nil {

@@ -142,6 +142,10 @@ func (na *cnmNetworkAllocator) Allocate(n *api.Network) error {
 		n.DriverState = &api.Driver{
 			Name: d.name,
 		}
+		// In order to support backward compatibility with older daemon
+		// versions which assumes the network attachment to contains
+		// non nil IPAM attribute, passing an empty object
+		n.IPAM = &api.IPAMOptions{Driver: &api.Driver{}}
 	} else {
 		nw.pools, err = na.allocatePools(n)
 		if err != nil {
