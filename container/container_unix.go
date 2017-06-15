@@ -441,11 +441,26 @@ func copyOwnership(source, destination string) error {
 		return err
 	}
 
-	if err := os.Chown(destination, int(stat.UID()), int(stat.GID())); err != nil {
+	destStat, err := system.Stat(destination)
+	if err != nil {
 		return err
 	}
 
-	return os.Chmod(destination, os.FileMode(stat.Mode()))
+	// In some cases, even though UID/GID match and it would effectively be a no-op,
+	// this can return a permission denied error... for example if this is an NFS
+	// mount.
+	// Since it's not really an error that we can't chown to the same UID/GID, don't
+	// even bother trying in such cases.
+	if stat.UID() != destStat.UID() || stat.GID() != destStat.GID() {
+		if err := os.Chown(destination, int(stat.UID()), int(stat.GID())); err != nil {
+			return err
+		}
+	}
+
+	if stat.Mode() != destStat.Mode() {
+		return os.Chmod(destination, os.FileMode(stat.Mode()))
+	}
+	return nil
 }
 
 // TmpfsMounts returns the list of tmpfs mounts
