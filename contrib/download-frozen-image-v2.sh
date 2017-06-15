@@ -44,6 +44,17 @@ if [ "$(go env GOHOSTOS)" = 'windows' ]; then
 	fi
 fi
 
+fetch_blob() {
+	url=$1
+	token=$2
+	dest=$3
+	echo "Attempting to download blob $url"
+	target=$(curl -sS -v -H "Authorization: Bearer $token" "$url" 2>&1 | grep "Location:" | sed 's/< Location: \(.*\)\r/\1/')
+	# curl blob (exclude auth token)
+	curl -fsS --progress "${target}" -o "$dest"
+}
+
+
 while [ $# -gt 0 ]; do
 	imageTag="$1"
 	shift
@@ -87,10 +98,7 @@ while [ $# -gt 0 ]; do
 					imageId="${configDigest#*:}" # strip off "sha256:"
 
 					configFile="$imageId.json"
-					curl -fsSL \
-						-H "Authorization: Bearer $token" \
-						"https://registry-1.docker.io/v2/$image/blobs/$configDigest" \
-						-o "$dir/$configFile"
+					fetch_blob "https://registry-1.docker.io/v2/$image/blobs/$configDigest" $token "$dir/$configFile"
 
 					layersFs="$(echo "$manifestJson" | jq --raw-output --compact-output '.layers[]')"
 					IFS="$newlineIFS"
@@ -158,10 +166,7 @@ while [ $# -gt 0 ]; do
 									continue
 								fi
 								token="$(curl -fsSL "https://auth.docker.io/token?service=registry.docker.io&scope=repository:$image:pull" | jq --raw-output '.token')"
-								curl -fSL --progress \
-									-H "Authorization: Bearer $token" \
-									"https://registry-1.docker.io/v2/$image/blobs/$layerDigest" \
-									-o "$dir/$layerTar"
+								fetch_blob "https://registry-1.docker.io/v2/$image/blobs/$layerDigest" $token "$dir/$layerTar"
 								;;
 
 							*)
@@ -231,7 +236,8 @@ while [ $# -gt 0 ]; do
 					continue
 				fi
 				token="$(curl -fsSL "https://auth.docker.io/token?service=registry.docker.io&scope=repository:$image:pull" | jq --raw-output '.token')"
-				curl -fSL --progress -H "Authorization: Bearer $token" "https://registry-1.docker.io/v2/$image/blobs/$imageLayer" -o "$dir/$layerId/layer.tar" # -C -
+				# find redirect using token:
+				fetch_blob "https://registry-1.docker.io/v2/$image/blobs/$imageLayer" $token "$dir/$layerId/layer.tar"
 			done
 			;;
 
