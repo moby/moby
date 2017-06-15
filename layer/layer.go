@@ -190,6 +190,7 @@ type Store interface {
 	ReleaseRWLayer(RWLayer) ([]Metadata, error)
 
 	Cleanup() error
+	DriverPut(id string) error
 	DriverStatus() [][2]string
 	DriverName() string
 }

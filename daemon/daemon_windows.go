@@ -631,3 +631,7 @@ func (daemon *Daemon) verifyVolumesInfo(container *container.Container) error {
 func (daemon *Daemon) setupSeccompProfile() error {
 	return nil
 }
+
+func (daemon *Daemon) removeRedundantMounts(containers map[string]*container.Container) error {
+	return nil
+}
