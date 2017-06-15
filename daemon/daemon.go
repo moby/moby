@@ -116,6 +116,7 @@ type Daemon struct {
 	diskUsageRunning int32
 	pruneRunning     int32
 	hosts            map[string]bool // hosts stores the addresses the daemon is listening on
+	startupDone      chan struct{}
 }
 
 // StoreHosts stores the addresses the daemon is listening on
@@ -543,7 +544,10 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	}
 	os.Setenv("TMPDIR", realTmp)
 
-	d := &Daemon{configStore: config}
+	d := &Daemon{
+		configStore: config,
+		startupDone: make(chan struct{}),
+	}
 	// Ensure the daemon is properly shutdown if there is a failure during
 	// initialization
 	defer func() {
@@ -740,6 +744,7 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	if err := d.restore(); err != nil {
 		return nil, err
 	}
+	close(d.startupDone)
 
 	// FIXME: this method never returns an error
 	info, _ := d.SystemInfo()
@@ -758,6 +763,10 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	engineMemory.Set(float64(info.MemTotal))
 
 	return d, nil
+}
+
+func (daemon *Daemon) waitForStartupDone() {
+	<-daemon.startupDone
 }
 
 func (daemon *Daemon) shutdownContainer(c *container.Container) error {
