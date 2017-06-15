@@ -14,6 +14,38 @@ import (
 	"testing"
 )
 
+func TestParseRemoteURL(t *testing.T) {
+	dir, err := parseRemoteURL("git://github.com/user/repo.git")
+	require.NoError(t, err)
+	assert.NotEmpty(t, dir)
+	assert.Equal(t, gitRepo{"git://github.com/user/repo.git", "master", ""}, dir)
+
+	dir, err = parseRemoteURL("git://github.com/user/repo.git#mybranch:mydir/mysubdir/")
+	require.NoError(t, err)
+	assert.NotEmpty(t, dir)
+	assert.Equal(t, gitRepo{"git://github.com/user/repo.git", "mybranch", "mydir/mysubdir/"}, dir)
+
+	dir, err = parseRemoteURL("https://github.com/user/repo.git")
+	require.NoError(t, err)
+	assert.NotEmpty(t, dir)
+	assert.Equal(t, gitRepo{"https://github.com/user/repo.git", "master", ""}, dir)
+
+	dir, err = parseRemoteURL("https://github.com/user/repo.git#mybranch:mydir/mysubdir/")
+	require.NoError(t, err)
+	assert.NotEmpty(t, dir)
+	assert.Equal(t, gitRepo{"https://github.com/user/repo.git", "mybranch", "mydir/mysubdir/"}, dir)
+
+	dir, err = parseRemoteURL("git@github.com:user/repo.git")
+	require.NoError(t, err)
+	assert.NotEmpty(t, dir)
+	assert.Equal(t, gitRepo{"git@github.com:user/repo.git", "master", ""}, dir)
+
+	dir, err = parseRemoteURL("git@github.com:user/repo.git#mybranch:mydir/mysubdir/")
+	require.NoError(t, err)
+	assert.NotEmpty(t, dir)
+	assert.Equal(t, gitRepo{"git@github.com:user/repo.git", "mybranch", "mydir/mysubdir/"}, dir)
+}
+
 func TestCloneArgsSmartHttp(t *testing.T) {
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
@@ -26,7 +58,7 @@ func TestCloneArgsSmartHttp(t *testing.T) {
 		w.Header().Set("Content-Type", fmt.Sprintf("application/x-%s-advertisement", q))
 	})
 
-	args := fetchArgs(serverURL, "master")
+	args := fetchArgs(serverURL.String(), "master")
 	exp := []string{"fetch", "--recurse-submodules=yes", "--depth", "1", "origin", "master"}
 	if !reflect.DeepEqual(args, exp) {
 		t.Fatalf("Expected %v, got %v", exp, args)
@@ -44,7 +76,7 @@ func TestCloneArgsDumbHttp(t *testing.T) {
 		w.Header().Set("Content-Type", "text/plain")
 	})
 
-	args := fetchArgs(serverURL, "master")
+	args := fetchArgs(serverURL.String(), "master")
 	exp := []string{"fetch", "--recurse-submodules=yes", "origin", "master"}
 	if !reflect.DeepEqual(args, exp) {
 		t.Fatalf("Expected %v, got %v", exp, args)
@@ -52,8 +84,7 @@ func TestCloneArgsDumbHttp(t *testing.T) {
 }
 
 func TestCloneArgsGit(t *testing.T) {
-	u, _ := url.Parse("git://github.com/docker/docker")
-	args := fetchArgs(u, "master")
+	args := fetchArgs("git://github.com/docker/docker", "master")
 	exp := []string{"fetch", "--recurse-submodules=yes", "--depth", "1", "origin", "master"}
 	if !reflect.DeepEqual(args, exp) {
 		t.Fatalf("Expected %v, got %v", exp, args)
