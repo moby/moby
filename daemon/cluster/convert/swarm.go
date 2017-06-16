@@ -31,9 +31,10 @@ func SwarmFromGRPC(c swarmapi.Cluster) types.Swarm {
 					AutoLockManagers: c.Spec.EncryptionConfig.AutoLockManagers,
 				},
 				CAConfig: types.CAConfig{
-					// do not include the signing CA key (it should already be redacted via the swarm APIs)
-					SigningCACert: string(c.Spec.CAConfig.SigningCACert),
-					ForceRotate:   c.Spec.CAConfig.ForceRotate,
+					// do not include the signing CA cert or key (it should already be redacted via the swarm APIs) -
+					// the key because it's secret, and the cert because otherwise doing a get + update on the spec
+					// can cause issues because the key would be missing and the cert wouldn't
+					ForceRotate: c.Spec.CAConfig.ForceRotate,
 				},
 			},
 			TLSInfo: types.TLSInfo{

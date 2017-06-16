@@ -967,20 +967,21 @@ func (s *DockerSwarmSuite) TestSwarmRepeatedRootRotation(c *check.C) {
 		for j := 0; j < 18; j++ {
 			info, err := m.SwarmInfo()
 			c.Assert(err, checker.IsNil)
-			c.Assert(info.Cluster.Spec.CAConfig.SigningCACert, checker.Equals, expectedCert)
-			// the desired CA key is always redacted
+
+			// the desired CA cert and key is always redacted
 			c.Assert(info.Cluster.Spec.CAConfig.SigningCAKey, checker.Equals, "")
+			c.Assert(info.Cluster.Spec.CAConfig.SigningCACert, checker.Equals, "")
 
 			clusterTLSInfo = info.Cluster.TLSInfo
 
-			if !info.Cluster.RootRotationInProgress {
+			// if root rotation is done and the trust root has changed, we don't have to poll anymore
+			if !info.Cluster.RootRotationInProgress && clusterTLSInfo.TrustRoot != currentTrustRoot {
 				break
 			}
 
 			// root rotation not done
 			time.Sleep(250 * time.Millisecond)
 		}
-		c.Assert(clusterTLSInfo.TrustRoot, checker.Not(checker.Equals), currentTrustRoot)
 		if cert != nil {
 			c.Assert(clusterTLSInfo.TrustRoot, checker.Equals, expectedCert)
 		}
