@@ -110,17 +110,13 @@ func newURLRemote(url string, dockerfilePath string, progressReader func(in io.R
 			return progressReader(rc), nil
 		},
 	})
-	if err != nil {
-		if err == dockerfileFoundErr {
-			res, err := parser.Parse(dockerfile)
-			if err != nil {
-				return nil, nil, err
-			}
-			return nil, res, nil
-		}
+	switch {
+	case err == dockerfileFoundErr:
+		res, err := parser.Parse(dockerfile)
+		return nil, res, err
+	case err != nil:
 		return nil, nil, err
 	}
-
 	return withDockerfileFromContext(c.(modifiableContext), dockerfilePath)
 }
 

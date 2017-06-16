@@ -255,6 +255,7 @@ func (b *Builder) build(source builder.Source, dockerfile *parser.Result) (*buil
 		return nil, errors.Errorf("failed to reach build target %s in Dockerfile", b.options.Target)
 	}
 
+	dockerfile.PrintWarnings(b.Stderr)
 	b.buildArgs.WarnOnUnusedBuildArgs(b.Stderr)
 
 	if dispatchState.imageID == "" {

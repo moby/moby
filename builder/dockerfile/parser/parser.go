@@ -246,6 +246,14 @@ type Result struct {
 	Warnings    []string
 }
 
+// PrintWarnings to the writer
+func (r *Result) PrintWarnings(out io.Writer) {
+	if len(r.Warnings) == 0 {
+		return
+	}
+	fmt.Fprintf(out, strings.Join(r.Warnings, "\n")+"\n")
+}
+
 // Parse reads lines from a Reader, parses the lines into an AST and returns
 // the AST and escape token
 func Parse(rwc io.Reader) (*Result, error) {
@@ -311,7 +319,7 @@ func Parse(rwc io.Reader) (*Result, error) {
 		AST:         root,
 		Warnings:    warnings,
 		EscapeToken: d.escapeToken,
-		Platform: d.platformToken,
+		Platform:    d.platformToken,
 	}, nil
 }
 
