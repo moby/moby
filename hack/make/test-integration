@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 set -e
 
+source "${MAKEDIR}/.go-autogen"
 source hack/make/.integration-test-helpers
 
 # subshell so that we can export PATH without breaking other things
 (
+	bundle build-integration-cli-test-binary
+
 	bundle .integration-daemon-start
 
 	bundle .integration-daemon-setup
@@ -15,7 +18,7 @@ source hack/make/.integration-test-helpers
 
 	if [ "$(go env GOOS)" != 'windows' ]
 	then
-		leftovers=$(ps -ax -o pid,cmd | awk '$2 == "docker-containerd-shim" && $4 ~ /.*\/bundles\/.*\/test-integration-cli/ { print $1 }')
+		leftovers=$(ps -ax -o pid,cmd | awk '$2 == "docker-containerd-shim" && $4 ~ /.*\/bundles\/.*\/test-integration/ { print $1 }')
 		if [ -n "$leftovers" ]
 		then
 			ps aux

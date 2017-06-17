@@ -2,7 +2,7 @@
 set -e
 
 rm -rf "$DEST"
-DEST="$ABS_DEST/../test-integration-cli"
+DEST="$ABS_DEST/../test-integration"
 
 source "$SCRIPTDIR/make/.go-autogen"
 
