@@ -7,6 +7,25 @@ bundle_test_integration_cli() {
 	go_test_dir integration-cli $DOCKER_INTEGRATION_TESTS_VERIFIED
 }
 
+bundle_test_integration() {
+	TESTFLAGS="$TESTFLAGS -v -test.timeout=60m"
+	(
+		set -e
+		cd integration
+		INCBUILD="-i"
+		count=0
+		for flag in "${BUILDFLAGS[@]}"; do
+			if [ "${flag}" == ${INCBUILD} ]; then
+				unset BUILDFLAGS[${count}]
+				break
+			fi
+			count=$[ ${count} + 1 ]
+		done
+		echo go test -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" $TESTFLAGS ./...
+		go test -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" $TESTFLAGS ./...
+	)
+}
+
 # If $TESTFLAGS is set in the environment, it is passed as extra arguments to 'go test'.
 # You can use this to select certain tests to run, e.g.
 #
