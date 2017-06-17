@@ -1,12 +1,27 @@
 package aaparser
 
 import (
+	"flag"
+	"io/ioutil"
+	"os"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 type versionExpected struct {
 	output  string
 	version int
+}
+
+const (
+	defaultApparmorProfile = "docker-default"
+)
+
+var rootEnabled = false
+
+func init() {
+	flag.BoolVar(&rootEnabled, "test.root", false, "enable tests that require root")
 }
 
 func TestParseVersion(t *testing.T) {
@@ -70,4 +85,34 @@ Copyright 2009-2012 Canonical Ltd.
 			t.Fatalf("expected version to be %d, was %d, for: %#v\n", v.version, version, v)
 		}
 	}
+}
+
+func requiresRoot(t *testing.T) {
+	if !rootEnabled {
+		t.Skip("skipping test that requires root")
+		return
+	}
+	require.Equal(t, 0, os.Getuid(), "This test must be run as root.")
+}
+
+func TestGetVersion(t *testing.T) {
+	output, err := cmd("", "--version")
+	require.NotNil(t, output)
+	version, err := GetVersion()
+	require.NoError(t, err)
+	require.NotEqual(t, -1, version)
+}
+
+func TestLoadProfile(t *testing.T) {
+	requiresRoot(t)
+
+	file, err := ioutil.TempFile("", defaultApparmorProfile)
+	require.NoError(t, err)
+
+	profilePath := file.Name()
+	defer file.Close()
+	defer os.Remove(profilePath)
+
+	err = LoadProfile(profilePath)
+	require.NoError(t, err)
 }
