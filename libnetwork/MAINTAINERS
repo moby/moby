@@ -17,6 +17,7 @@
 			"mavenugo",
 			"sanimej",
 			"chenchun",
+                        "fcrisciani",
 		]
 
 [people]
@@ -41,6 +42,11 @@
 	Name = "Chun Chen"
 	Email = "ramichen@tencent.com"
 	GitHub = "chenchun"
+
+	[people.fcrisciani]
+	Name = "Flavio Crisciani"
+	Email = "flavio.crisciani@docker.com"
+	GitHub = "fcrisciani"
 
 	[people.icecrime]
 	Name = "Arnaud Porterie"
