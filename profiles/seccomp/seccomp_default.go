@@ -49,6 +49,7 @@ func DefaultProfile() *types.Seccomp {
 				"accept",
 				"accept4",
 				"access",
+				"adjtimex",
 				"alarm",
 				"alarm",
 				"bind",
@@ -611,7 +612,6 @@ func DefaultProfile() *types.Seccomp {
 			Names: []string{
 				"settimeofday",
 				"stime",
-				"adjtimex",
 				"clock_settime",
 			},
 			Action: types.ActAllow,
