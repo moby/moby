@@ -6,7 +6,7 @@ source hack/make/.integration-test-helpers
 
 # subshell so that we can export PATH without breaking other things
 (
-	bundle build-integration-cli-test-binary
+    build_test_suite_binaries
 
 	bundle .integration-daemon-start
 

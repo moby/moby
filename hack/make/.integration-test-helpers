@@ -1,29 +1,36 @@
 #!/usr/bin/env bash
 
+source "$SCRIPTDIR/make/.go-autogen"
+
 : ${TEST_REPEAT:=0}
 
-bundle_test_integration_cli() {
-	TESTFLAGS="$TESTFLAGS -check.v -check.timeout=${TIMEOUT} -test.timeout=360m"
-	go_test_dir integration-cli $DOCKER_INTEGRATION_TESTS_VERIFIED
+bundle_test_integration() {
+	(
+		local flags="-v -test.timeout=${TIMEOUT} $TESTFLAGS"
+		cd integration
+		set -ex
+		# TODO: run existing binary?
+		go test -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" $flags ./...
+	)
+	(
+		local flags="$TESTFLAGS -check.v -check.timeout=${TIMEOUT} -test.timeout=360m"
+		go_test_dir integration-cli
+	)
 }
 
-bundle_test_integration() {
-	TESTFLAGS="$TESTFLAGS -v -test.timeout=60m"
-	(
-		set -e
-		cd integration
-		INCBUILD="-i"
-		count=0
-		for flag in "${BUILDFLAGS[@]}"; do
-			if [ "${flag}" == ${INCBUILD} ]; then
-				unset BUILDFLAGS[${count}]
-				break
-			fi
-			count=$[ ${count} + 1 ]
-		done
-		echo go test -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" $TESTFLAGS ./...
-		go test -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" $TESTFLAGS ./...
-	)
+build_test_suite_binaries() {
+	build_test_suite_binary integration-cli "test.main"
+	for dir in $(find integration -type d); do
+		build_test_suite_binary "$dir" "test.main"
+	done
+}
+
+# Build a binary for a test suite package
+build_test_suite_binary() {
+	local dir="$1"
+	local out="$2"
+	echo Building test suite binary "$dir/$out"
+	go test -c -o "$dir/$out" -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" "./$dir"
 }
 
 # If $TESTFLAGS is set in the environment, it is passed as extra arguments to 'go test'.
@@ -34,42 +41,19 @@ bundle_test_integration() {
 # For integration-cli test, we use [gocheck](https://labix.org/gocheck), if you want
 # to run certain tests on your local host, you should run with command:
 #
-#     TESTFLAGS='-check.f DockerSuite.TestBuild*' ./hack/make.sh binary test-integration-cli
+#     TESTFLAGS='-check.f DockerSuite.TestBuild*' ./hack/make.sh binary test-integration
 #
 go_test_dir() {
-	dir=$1
-	precompiled=$2
-	testbinary="$ABS_DEST/test.main"
-	testcover=()
-	testcoverprofile=()
+	local dir=$1
 	(
 		set -e
-		mkdir -p "$DEST/coverprofiles"
-		export DEST="$ABS_DEST" # in a subshell this is safe -- our integration-cli tests need DEST, and "cd" screws it up
-		if [ -z $precompiled ]; then
-			ensure_test_dir $1 $testbinary
-		fi
+		# DEST is used by the test suite
+		export DEST="$ABS_DEST"
 		cd "$dir"
-		i=0
-		while ((++i)); do
-			test_env "$testbinary" $TESTFLAGS
-			if [ $i -gt "$TEST_REPEAT" ]; then
-				break
-			fi
-			echo "Repeating test ($i)"
+		for i in $(seq 0 $TEST_REPEAT); do
+			echo "Repeating integration-test ($i)"
+			test_env "./test.main" $TESTFLAGS
 		done
-	)
-}
-
-ensure_test_dir() {
-	(
-		# make sure a test dir will compile
-		dir="$1"
-		out="$2"
-		echo Building test dir: "$dir"
-		set -xe
-		cd "$dir"
-		go test -c -o "$out" -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}"
 	)
 }
 
