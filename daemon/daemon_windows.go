@@ -486,6 +486,11 @@ func (daemon *Daemon) runAsHyperVContainer(hostConfig *containertypes.HostConfig
 // conditionalMountOnStart is a platform specific helper function during the
 // container start to call mount.
 func (daemon *Daemon) conditionalMountOnStart(container *container.Container) error {
+	// Bail out now for Linux containers
+	if system.LCOWSupported() && container.Platform != "windows" {
+		return nil
+	}
+
 	// We do not mount if a Hyper-V container
 	if !daemon.runAsHyperVContainer(container.HostConfig) {
 		return daemon.Mount(container)
@@ -496,6 +501,11 @@ func (daemon *Daemon) conditionalMountOnStart(container *container.Container) er
 // conditionalUnmountOnCleanup is a platform specific helper function called
 // during the cleanup of a container to unmount.
 func (daemon *Daemon) conditionalUnmountOnCleanup(container *container.Container) error {
+	// Bail out now for Linux containers
+	if system.LCOWSupported() && container.Platform != "windows" {
+		return nil
+	}
+
 	// We do not unmount if a Hyper-V container
 	if !daemon.runAsHyperVContainer(container.HostConfig) {
 		return daemon.Unmount(container)
