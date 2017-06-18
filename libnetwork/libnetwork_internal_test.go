@@ -13,6 +13,7 @@ import (
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/ipamapi"
 	"github.com/docker/libnetwork/netlabel"
+	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/testutils"
 	"github.com/docker/libnetwork/types"
 )
@@ -382,8 +383,8 @@ func TestSRVServiceQuery(t *testing.T) {
 	}
 
 	sr := svcInfo{
-		svcMap:     make(map[string][]net.IP),
-		svcIPv6Map: make(map[string][]net.IP),
+		svcMap:     common.NewSetMatrix(),
+		svcIPv6Map: common.NewSetMatrix(),
 		ipMap:      common.NewSetMatrix(),
 		service:    make(map[string][]servicePorts),
 	}
@@ -437,6 +438,119 @@ func TestSRVServiceQuery(t *testing.T) {
 	_, ip = ep.Info().Sandbox().ResolveService("_http._icmp.web.swarm")
 	if len(ip) != 0 {
 		t.Fatal("Valid response for invalid service name")
+	}
+}
+
+func TestServiceVIPReuse(t *testing.T) {
+	c, err := New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Stop()
+
+	n, err := c.NewNetwork("bridge", "net1", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := n.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	ep, err := n.CreateEndpoint("testep")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sb, err := c.NewSandbox("c1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := sb.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	err = ep.Join(sb)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Add 2 services with same name but different service ID to share the same VIP
+	n.(*network).addSvcRecords("ep1", "service_test", "serviceID1", net.ParseIP("192.168.0.1"), net.IP{}, true, "test")
+	n.(*network).addSvcRecords("ep2", "service_test", "serviceID2", net.ParseIP("192.168.0.1"), net.IP{}, true, "test")
+
+	ipToResolve := netutils.ReverseIP("192.168.0.1")
+
+	ipList, _ := n.(*network).ResolveName("service_test", types.IPv4)
+	if len(ipList) == 0 {
+		t.Fatal("There must be the VIP")
+	}
+	if len(ipList) != 1 {
+		t.Fatal("It must return only 1 VIP")
+	}
+	if ipList[0].String() != "192.168.0.1" {
+		t.Fatal("The service VIP is 192.168.0.1")
+	}
+	name := n.(*network).ResolveIP(ipToResolve)
+	if name == "" {
+		t.Fatal("It must return a name")
+	}
+	if name != "service_test.net1" {
+		t.Fatalf("It must return the service_test.net1 != %s", name)
+	}
+
+	// Delete service record for one of the services, the IP should remain because one service is still associated with it
+	n.(*network).deleteSvcRecords("ep1", "service_test", "serviceID1", net.ParseIP("192.168.0.1"), net.IP{}, true, "test")
+	ipList, _ = n.(*network).ResolveName("service_test", types.IPv4)
+	if len(ipList) == 0 {
+		t.Fatal("There must be the VIP")
+	}
+	if len(ipList) != 1 {
+		t.Fatal("It must return only 1 VIP")
+	}
+	if ipList[0].String() != "192.168.0.1" {
+		t.Fatal("The service VIP is 192.168.0.1")
+	}
+	name = n.(*network).ResolveIP(ipToResolve)
+	if name == "" {
+		t.Fatal("It must return a name")
+	}
+	if name != "service_test.net1" {
+		t.Fatalf("It must return the service_test.net1 != %s", name)
+	}
+
+	// Delete again the service using the previous service ID, nothing should happen
+	n.(*network).deleteSvcRecords("ep2", "service_test", "serviceID1", net.ParseIP("192.168.0.1"), net.IP{}, true, "test")
+	ipList, _ = n.(*network).ResolveName("service_test", types.IPv4)
+	if len(ipList) == 0 {
+		t.Fatal("There must be the VIP")
+	}
+	if len(ipList) != 1 {
+		t.Fatal("It must return only 1 VIP")
+	}
+	if ipList[0].String() != "192.168.0.1" {
+		t.Fatal("The service VIP is 192.168.0.1")
+	}
+	name = n.(*network).ResolveIP(ipToResolve)
+	if name == "" {
+		t.Fatal("It must return a name")
+	}
+	if name != "service_test.net1" {
+		t.Fatalf("It must return the service_test.net1 != %s", name)
+	}
+
+	// Delete now using the second service ID, now all the entries should be gone
+	n.(*network).deleteSvcRecords("ep2", "service_test", "serviceID2", net.ParseIP("192.168.0.1"), net.IP{}, true, "test")
+	ipList, _ = n.(*network).ResolveName("service_test", types.IPv4)
+	if len(ipList) != 0 {
+		t.Fatal("All the VIPs should be gone now")
+	}
+	name = n.(*network).ResolveIP(ipToResolve)
+	if name != "" {
+		t.Fatalf("It must return empty no more services associated, instead:%s", name)
 	}
 }
 
