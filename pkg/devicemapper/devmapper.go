@@ -333,6 +333,7 @@ func RemoveDevice(name string) error {
 	if err := task.setCookie(cookie, 0); err != nil {
 		return fmt.Errorf("devicemapper: Can not set cookie: %s", err)
 	}
+	defer UdevWait(cookie)
 
 	dmSawBusy = false // reset before the task is run
 	if err = task.run(); err != nil {
@@ -342,7 +343,7 @@ func RemoveDevice(name string) error {
 		return fmt.Errorf("devicemapper: Error running RemoveDevice %s", err)
 	}
 
-	return UdevWait(cookie)
+	return nil
 }
 
 // RemoveDeviceDeferred is a useful helper for cleaning up a device, but deferred.
@@ -368,10 +369,6 @@ func RemoveDeviceDeferred(name string) error {
 		return fmt.Errorf("devicemapper: Can not set cookie: %s", err)
 	}
 
-	if err = task.run(); err != nil {
-		return fmt.Errorf("devicemapper: Error running RemoveDeviceDeferred %s", err)
-	}
-
 	// libdevmapper and udev relies on System V semaphore for synchronization,
 	// semaphores created in `task.setCookie` will be cleaned up in `UdevWait`.
 	// So these two function call must come in pairs, otherwise semaphores will
@@ -381,8 +378,13 @@ func RemoveDeviceDeferred(name string) error {
 	// this call will not wait for the deferred removal's final executing, since no
 	// udev event will be generated, and the semaphore's value will not be incremented
 	// by udev, what UdevWait is just cleaning up the semaphore.
+	defer UdevWait(cookie)
 
-	return UdevWait(cookie)
+	if err = task.run(); err != nil {
+		return fmt.Errorf("devicemapper: Error running RemoveDeviceDeferred %s", err)
+	}
+
+	return nil
 }
 
 // CancelDeferredRemove cancels a deferred remove for a device.
@@ -476,12 +478,13 @@ func CreatePool(poolName string, dataFile, metadataFile *os.File, poolBlockSize 
 	if err := task.setCookie(cookie, flags); err != nil {
 		return fmt.Errorf("devicemapper: Can't set cookie %s", err)
 	}
+	defer UdevWait(cookie)
 
 	if err := task.run(); err != nil {
 		return fmt.Errorf("devicemapper: Error running deviceCreate (CreatePool) %s", err)
 	}
 
-	return UdevWait(cookie)
+	return nil
 }
 
 // ReloadPool is the programmatic example of "dmsetup reload".
@@ -661,12 +664,13 @@ func ResumeDevice(name string) error {
 	if err := task.setCookie(cookie, 0); err != nil {
 		return fmt.Errorf("devicemapper: Can't set cookie %s", err)
 	}
+	defer UdevWait(cookie)
 
 	if err := task.run(); err != nil {
 		return fmt.Errorf("devicemapper: Error running deviceResume %s", err)
 	}
 
-	return UdevWait(cookie)
+	return nil
 }
 
 // CreateDevice creates a device with the specified poolName with the specified device id.
@@ -759,11 +763,13 @@ func activateDevice(poolName string, name string, deviceID int, size uint64, ext
 		return fmt.Errorf("devicemapper: Can't set cookie %s", err)
 	}
 
+	defer UdevWait(cookie)
+
 	if err := task.run(); err != nil {
 		return fmt.Errorf("devicemapper: Error running deviceCreate (ActivateDevice) %s", err)
 	}
 
-	return UdevWait(cookie)
+	return nil
 }
 
 // CreateSnapDeviceRaw creates a snapshot device. Caller needs to suspend and resume the origin device if it is active.
