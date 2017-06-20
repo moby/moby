@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -15,6 +14,7 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )
 
@@ -61,27 +61,24 @@ func TestServiceCreate(t *testing.T) {
 }
 
 func TestServiceCreateCompatiblePlatforms(t *testing.T) {
-	var (
-		platforms               []v1.Platform
-		distributionInspectBody io.ReadCloser
-		distributionInspect     registrytypes.DistributionInspect
-	)
-
 	client := &Client{
 		version: "1.30",
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if strings.HasPrefix(req.URL.Path, "/v1.30/services/create") {
+				var serviceSpec swarm.ServiceSpec
+
 				// check if the /distribution endpoint returned correct output
-				err := json.NewDecoder(distributionInspectBody).Decode(&distributionInspect)
+				err := json.NewDecoder(req.Body).Decode(&serviceSpec)
 				if err != nil {
 					return nil, err
 				}
-				if len(distributionInspect.Platforms) == 0 || distributionInspect.Platforms[0].Architecture != platforms[0].Architecture || distributionInspect.Platforms[0].OS != platforms[0].OS {
-					return nil, fmt.Errorf("received incorrect platform information from registry")
-				}
 
+				assert.Equal(t, "foobar:1.0@sha256:c0537ff6a5218ef531ece93d4984efc99bbf3f7497c0a7726c88e2bb7584dc96", serviceSpec.TaskTemplate.ContainerSpec.Image)
+				assert.Len(t, serviceSpec.TaskTemplate.Placement.Platforms, 1)
+
+				p := serviceSpec.TaskTemplate.Placement.Platforms[0]
 				b, err := json.Marshal(types.ServiceCreateResponse{
-					ID: "service_" + platforms[0].Architecture,
+					ID: "service_" + p.OS + "_" + p.Architecture,
 				})
 				if err != nil {
 					return nil, err
@@ -91,20 +88,20 @@ func TestServiceCreateCompatiblePlatforms(t *testing.T) {
 					Body:       ioutil.NopCloser(bytes.NewReader(b)),
 				}, nil
 			} else if strings.HasPrefix(req.URL.Path, "/v1.30/distribution/") {
-				platforms = []v1.Platform{
-					{
-						Architecture: "amd64",
-						OS:           "linux",
-					},
-				}
 				b, err := json.Marshal(registrytypes.DistributionInspect{
-					Descriptor: v1.Descriptor{},
-					Platforms:  platforms,
+					Descriptor: v1.Descriptor{
+						Digest: "sha256:c0537ff6a5218ef531ece93d4984efc99bbf3f7497c0a7726c88e2bb7584dc96",
+					},
+					Platforms: []v1.Platform{
+						{
+							Architecture: "amd64",
+							OS:           "linux",
+						},
+					},
 				})
 				if err != nil {
 					return nil, err
 				}
-				distributionInspectBody = ioutil.NopCloser(bytes.NewReader(b))
 				return &http.Response{
 					StatusCode: http.StatusOK,
 					Body:       ioutil.NopCloser(bytes.NewReader(b)),
@@ -115,13 +112,11 @@ func TestServiceCreateCompatiblePlatforms(t *testing.T) {
 		}),
 	}
 
-	r, err := client.ServiceCreate(context.Background(), swarm.ServiceSpec{}, types.ServiceCreateOptions{QueryRegistry: true})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if r.ID != "service_amd64" {
-		t.Fatalf("expected `service_amd64`, got %s", r.ID)
-	}
+	spec := swarm.ServiceSpec{TaskTemplate: swarm.TaskSpec{ContainerSpec: swarm.ContainerSpec{Image: "foobar:1.0"}}}
+
+	r, err := client.ServiceCreate(context.Background(), spec, types.ServiceCreateOptions{QueryRegistry: true})
+	assert.NoError(t, err)
+	assert.Equal(t, "service_linux_amd64", r.ID)
 }
 
 func TestServiceCreateDigestPinning(t *testing.T) {
