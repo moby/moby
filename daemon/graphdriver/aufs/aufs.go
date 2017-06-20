@@ -573,7 +573,7 @@ func (a *Driver) aufsMount(ro []string, rw, target, mountLabel string) (err erro
 
 	offset := 54
 	if useDirperm() {
-		offset += len("dirperm1")
+		offset += len(",dirperm1")
 	}
 	b := make([]byte, syscall.Getpagesize()-len(mountLabel)-offset) // room for xino & mountLabel
 	bp := copy(b, fmt.Sprintf("br:%s=rw", rw))
