@@ -27,6 +27,7 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/pkg/system"
 	refstore "github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
@@ -486,7 +487,26 @@ func (p *v2Puller) pullSchema1(ctx context.Context, ref reference.Named, unverif
 		descriptors = append(descriptors, layerDescriptor)
 	}
 
-	resultRootFS, release, err := p.config.DownloadManager.Download(ctx, *rootFS, "", descriptors, p.config.ProgressOutput)
+	// The v1 manifest itself doesn't directly contain a platform. However,
+	// the history does, but unfortunately that's a string, so search through
+	// all the history until hopefully we find one which indicates the os.
+	platform := runtime.GOOS
+	if runtime.GOOS == "windows" && system.LCOWSupported() {
+		type config struct {
+			Os string `json:"os,omitempty"`
+		}
+		for _, v := range verifiedManifest.History {
+			var c config
+			if err := json.Unmarshal([]byte(v.V1Compatibility), &c); err == nil {
+				if c.Os != "" {
+					platform = c.Os
+					break
+				}
+			}
+		}
+	}
+
+	resultRootFS, release, err := p.config.DownloadManager.Download(ctx, *rootFS, layer.Platform(platform), descriptors, p.config.ProgressOutput)
 	if err != nil {
 		return "", "", err
 	}
