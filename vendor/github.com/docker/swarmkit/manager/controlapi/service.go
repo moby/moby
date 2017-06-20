@@ -931,3 +931,50 @@ func (s *Server) ListServices(ctx context.Context, request *api.ListServicesRequ
 		Services: services,
 	}, nil
 }
+
+// RemoveReplica removes a Task referenced by Slot and scales down a Service referenced by ServiceID.
+// - Returns `InvalidArgument` if ServiceID is not provided or Slot is invalid.
+// - Returns `NotFound` if the Task or Service is not found.
+// - Returns an error if the deletion fails.
+func (s *Server) RemoveReplica(ctx context.Context, request *api.RemoveReplicaRequest) (*api.RemoveReplicaResponse, error) {
+	if request.ServiceID == "" || request.Slot == 0 {
+		return nil, grpc.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
+	}
+
+	var tasks []*api.Task
+	var err error
+	s.store.View(func(tx store.ReadTx) {
+		tasks, err = store.FindTasks(tx, store.BySlot(request.ServiceID, request.Slot))
+	})
+	if err != nil || len(tasks) == 0 {
+		return nil, grpc.Errorf(codes.NotFound, "task %s.%d not found", request.ServiceID, request.Slot)
+	}
+
+	var service *api.Service
+	s.store.View(func(tx store.ReadTx) {
+		service = store.GetService(tx, request.ServiceID)
+	})
+	if service == nil {
+		return nil, grpc.Errorf(codes.NotFound, "service %s not found", request.ServiceID)
+	}
+
+	serviceMode, _ := service.Spec.GetMode().(*api.ServiceSpec_Replicated)
+
+	err = s.store.Update(func(tx store.Tx) error {
+		result := store.DeleteTask(tx, tasks[0].ID)
+		if result != nil {
+			if result == store.ErrNotExist {
+				return grpc.Errorf(codes.NotFound, "task %s not found", tasks[0].ID)
+			}
+			return result
+		}
+
+		serviceMode.Replicated.Replicas = serviceMode.Replicated.Replicas - 1
+		return store.UpdateService(tx, service)
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &api.RemoveReplicaResponse{}, nil
+}

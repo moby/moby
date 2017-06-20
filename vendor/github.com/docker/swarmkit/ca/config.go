@@ -492,9 +492,35 @@ func (rootCA RootCA) CreateSecurityConfig(ctx context.Context, krw *KeyReadWrite
 	return secConfig, err
 }
 
+// TODO(cyli): currently we have to only update if it's a worker role - if we have a single root CA update path for
+// both managers and workers, we won't need to check any more.
+func updateRootThenUpdateCert(ctx context.Context, s *SecurityConfig, connBroker *connectionbroker.Broker, rootPaths CertPaths, failedCert *x509.Certificate) (*tls.Certificate, *IssuerInfo, error) {
+	if len(failedCert.Subject.OrganizationalUnit) == 0 || failedCert.Subject.OrganizationalUnit[0] != WorkerRole {
+		return nil, nil, errors.New("cannot update root CA since this is not a worker")
+	}
+	// try downloading a new root CA if it's an unknown authority issue, in case there was a root rotation completion
+	// and we just didn't get the new root
+	rootCA, err := GetRemoteCA(ctx, "", connBroker)
+	if err != nil {
+		return nil, nil, err
+	}
+	// validate against the existing security config creds
+	if err := s.UpdateRootCA(&rootCA, rootCA.Pool); err != nil {
+		return nil, nil, err
+	}
+	if err := SaveRootCA(rootCA, rootPaths); err != nil {
+		return nil, nil, err
+	}
+	return rootCA.RequestAndSaveNewCertificates(ctx, s.KeyWriter(),
+		CertificateRequestConfig{
+			ConnBroker:  connBroker,
+			Credentials: s.ClientTLSCreds,
+		})
+}
+
 // RenewTLSConfigNow gets a new TLS cert and key, and updates the security config if provided.  This is similar to
 // RenewTLSConfig, except while that monitors for expiry, and periodically renews, this renews once and is blocking
-func RenewTLSConfigNow(ctx context.Context, s *SecurityConfig, connBroker *connectionbroker.Broker) error {
+func RenewTLSConfigNow(ctx context.Context, s *SecurityConfig, connBroker *connectionbroker.Broker, rootPaths CertPaths) error {
 	s.renewalMu.Lock()
 	defer s.renewalMu.Unlock()
 
@@ -512,6 +538,15 @@ func RenewTLSConfigNow(ctx context.Context, s *SecurityConfig, connBroker *conne
 			ConnBroker:  connBroker,
 			Credentials: s.ClientTLSCreds,
 		})
+	if wrappedError, ok := err.(x509UnknownAuthError); ok {
+		var newErr error
+		tlsKeyPair, issuerInfo, newErr = updateRootThenUpdateCert(ctx, s, connBroker, rootPaths, wrappedError.failedLeafCert)
+		if newErr != nil {
+			err = wrappedError.error
+		} else {
+			err = nil
+		}
+	}
 	if err != nil {
 		log.WithError(err).Errorf("failed to renew the certificate")
 		return err

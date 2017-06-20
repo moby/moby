@@ -281,7 +281,7 @@ func (n *Node) run(ctx context.Context) (err error) {
 		return err
 	}
 
-	renewer := ca.NewTLSRenewer(securityConfig, n.connBroker)
+	renewer := ca.NewTLSRenewer(securityConfig, n.connBroker, paths.RootCA)
 
 	ctx = log.WithLogger(ctx, log.G(ctx).WithField("node.id", n.NodeID()))
 

@@ -22,6 +22,7 @@ type Backend interface {
 	CreateService(types.ServiceSpec, string, bool) (*basictypes.ServiceCreateResponse, error)
 	UpdateService(string, uint64, types.ServiceSpec, basictypes.ServiceUpdateOptions, bool) (*basictypes.ServiceUpdateResponse, error)
 	RemoveService(string) error
+	RemoveReplica(serviceID string, slot uint64) error
 
 	ServiceLogs(context.Context, *backend.LogSelector, *basictypes.ContainerLogsOptions) (<-chan *backend.LogMessage, error)
 
