@@ -1,6 +1,8 @@
 package daemon
 
 import (
+	"io"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
@@ -12,7 +14,6 @@ import (
 	"github.com/docker/docker/registry"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
-	"io"
 )
 
 type releaseableLayer struct {
@@ -104,12 +105,18 @@ func (daemon *Daemon) pullForBuilder(ctx context.Context, name string, authConfi
 // Every call to GetImageAndReleasableLayer MUST call releasableLayer.Release() to prevent
 // leaking of layers.
 func (daemon *Daemon) GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ReleaseableLayer, error) {
-	if !opts.ForcePull {
-		image, _ := daemon.GetImage(refOrID)
+	id, _ := daemon.GetImageID(refOrID)
+	refIsID := id.String() == refOrID // detect if ref is an ID to skip pulling
+
+	if refIsID || !opts.ForcePull {
+		image, err := daemon.GetImage(refOrID)
 		// TODO: shouldn't we error out if error is different from "not found" ?
 		if image != nil {
 			layer, err := newReleasableLayerForImage(image, daemon.layerStore)
 			return image, layer, err
+		}
+		if refIsID {
+			return nil, nil, err
 		}
 	}
 
