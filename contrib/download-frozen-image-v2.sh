@@ -44,16 +44,41 @@ if [ "$(go env GOHOSTOS)" = 'windows' ]; then
 	fi
 fi
 
-fetch_blob() {
-	url=$1
-	token=$2
-	dest=$3
-	echo "Attempting to download blob $url"
-	target=$(curl -sS -v -H "Authorization: Bearer $token" "$url" 2>&1 | grep "Location:" | sed 's/< Location: \(.*\)\r/\1/')
-	# curl blob (exclude auth token)
-	curl -fsS --progress "${target}" -o "$dest"
-}
+registryBase='https://registry-1.docker.io'
+authBase='https://auth.docker.io'
+authService='registry.docker.io'
 
+# https://github.com/moby/moby/issues/33700
+fetch_blob() {
+	local token="$1"; shift
+	local image="$1"; shift
+	local digest="$1"; shift
+	local targetFile="$1"; shift
+	local curlArgs=( "$@" )
+
+	local curlHeaders="$(
+		curl -S "${curlArgs[@]}" \
+			-H "Authorization: Bearer $token" \
+			"$registryBase/v2/$image/blobs/$digest" \
+			-o "$targetFile" \
+			-D-
+	)"
+	curlHeaders="$(echo "$curlHeaders" | tr -d '\r')"
+	if [ "$(echo "$curlHeaders" | awk 'NR == 1 { print $2; exit }')" != '200' ]; then
+		rm -f "$targetFile"
+
+		local blobRedirect="$(echo "$curlHeaders" | awk -F ': ' 'tolower($1) == "location" { print $2; exit }')"
+		if [ -z "$blobRedirect" ]; then
+			echo >&2 "error: failed fetching '$image' blob '$digest'"
+			echo "$curlHeaders" | head -1 >&2
+			return 1
+		fi
+
+		curl -fSL "${curlArgs[@]}" \
+			"$blobRedirect" \
+			-o "$targetFile"
+	fi
+}
 
 while [ $# -gt 0 ]; do
 	imageTag="$1"
@@ -70,14 +95,14 @@ while [ $# -gt 0 ]; do
 
 	imageFile="${image//\//_}" # "/" can't be in filenames :)
 
-	token="$(curl -fsSL "https://auth.docker.io/token?service=registry.docker.io&scope=repository:$image:pull" | jq --raw-output '.token')"
+	token="$(curl -fsSL "$authBase/token?service=$authService&scope=repository:$image:pull" | jq --raw-output '.token')"
 
 	manifestJson="$(
 		curl -fsSL \
 			-H "Authorization: Bearer $token" \
 			-H 'Accept: application/vnd.docker.distribution.manifest.v2+json' \
 			-H 'Accept: application/vnd.docker.distribution.manifest.v1+json' \
-			"https://registry-1.docker.io/v2/$image/manifests/$digest"
+			"$registryBase/v2/$image/manifests/$digest"
 	)"
 	if [ "${manifestJson:0:1}" != '{' ]; then
 		echo >&2 "error: /v2/$image/manifests/$digest returned something unexpected:"
@@ -98,7 +123,7 @@ while [ $# -gt 0 ]; do
 					imageId="${configDigest#*:}" # strip off "sha256:"
 
 					configFile="$imageId.json"
-					fetch_blob "https://registry-1.docker.io/v2/$image/blobs/$configDigest" $token "$dir/$configFile"
+					fetch_blob "$token" "$image" "$configDigest" "$dir/$configFile" -s
 
 					layersFs="$(echo "$manifestJson" | jq --raw-output --compact-output '.layers[]')"
 					IFS="$newlineIFS"
@@ -165,8 +190,8 @@ while [ $# -gt 0 ]; do
 									echo "skipping existing ${layerId:0:12}"
 									continue
 								fi
-								token="$(curl -fsSL "https://auth.docker.io/token?service=registry.docker.io&scope=repository:$image:pull" | jq --raw-output '.token')"
-								fetch_blob "https://registry-1.docker.io/v2/$image/blobs/$layerDigest" $token "$dir/$layerTar"
+								token="$(curl -fsSL "$authBase/token?service=$authService&scope=repository:$image:pull" | jq --raw-output '.token')"
+								fetch_blob "$token" "$image" "$layerDigest" "$dir/$layerTar" --progress
 								;;
 
 							*)
@@ -235,9 +260,8 @@ while [ $# -gt 0 ]; do
 					echo "skipping existing ${layerId:0:12}"
 					continue
 				fi
-				token="$(curl -fsSL "https://auth.docker.io/token?service=registry.docker.io&scope=repository:$image:pull" | jq --raw-output '.token')"
-				# find redirect using token:
-				fetch_blob "https://registry-1.docker.io/v2/$image/blobs/$imageLayer" $token "$dir/$layerId/layer.tar"
+				token="$(curl -fsSL "$authBase/token?service=$authService&scope=repository:$image:pull" | jq --raw-output '.token')"
+				fetch_blob "$token" "$image" "$imageLayer" "$dir/$layerId/layer.tar" --progress
 			done
 			;;
 
