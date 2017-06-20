@@ -232,9 +232,12 @@ func (ep *hnsEndpoint) MarshalJSON() ([]byte, error) {
 	epMap["Type"] = ep.Type
 	epMap["profileID"] = ep.profileID
 	epMap["MacAddress"] = ep.macAddress.String()
-	epMap["Addr"] = ep.addr.String()
-	epMap["gateway"] = ep.gateway.String()
-
+	if ep.addr.IP != nil {
+		epMap["Addr"] = ep.addr.String()
+	}
+	if ep.gateway != nil {
+		epMap["gateway"] = ep.gateway.String()
+	}
 	epMap["epOption"] = ep.epOption
 	epMap["epConnectivity"] = ep.epConnectivity
 	epMap["PortMapping"] = ep.portMapping
@@ -251,7 +254,6 @@ func (ep *hnsEndpoint) UnmarshalJSON(b []byte) error {
 	if err = json.Unmarshal(b, &epMap); err != nil {
 		return fmt.Errorf("Failed to unmarshal to endpoint: %v", err)
 	}
-
 	if v, ok := epMap["MacAddress"]; ok {
 		if ep.macAddress, err = net.ParseMAC(v.(string)); err != nil {
 			return types.InternalErrorf("failed to decode endpoint MAC address (%s) after json unmarshal: %v", v.(string), err)
@@ -262,7 +264,9 @@ func (ep *hnsEndpoint) UnmarshalJSON(b []byte) error {
 			return types.InternalErrorf("failed to decode endpoint IPv4 address (%s) after json unmarshal: %v", v.(string), err)
 		}
 	}
-
+	if v, ok := epMap["gateway"]; ok {
+		ep.gateway = net.ParseIP(v.(string))
+	}
 	ep.id = epMap["id"].(string)
 	ep.Type = epMap["Type"].(string)
 	ep.nid = epMap["nid"].(string)

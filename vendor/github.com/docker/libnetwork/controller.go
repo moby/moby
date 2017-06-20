@@ -1014,7 +1014,7 @@ func (c *controller) NetworkByID(id string) (Network, error) {
 }
 
 // NewSandbox creates a new sandbox for the passed container id
-func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (sBox Sandbox, err error) {
+func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (Sandbox, error) {
 	if containerID == "" {
 		return nil, types.BadRequestErrorf("invalid container ID")
 	}
@@ -1054,7 +1054,6 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (s
 			extDNS:             []extDNSEntry{},
 		}
 	}
-	sBox = sb
 
 	heap.Init(&sb.endpoints)
 
@@ -1073,6 +1072,8 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (s
 		sb.id = "ingress_sbox"
 	}
 	c.Unlock()
+
+	var err error
 	defer func() {
 		if err != nil {
 			c.Lock()

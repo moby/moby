@@ -102,8 +102,8 @@ func (sb *sandbox) populateLoadbalancers(ep *endpoint) {
 		}
 
 		lb.service.Lock()
-		for _, l := range lb.backEnds {
-			sb.addLBBackend(l.ip, lb.vip, lb.fwMark, lb.service.ingressPorts, eIP, gwIP, n.ingress)
+		for _, ip := range lb.backEnds {
+			sb.addLBBackend(ip, lb.vip, lb.fwMark, lb.service.ingressPorts, eIP, gwIP, n.ingress)
 		}
 		lb.service.Unlock()
 	}
@@ -520,7 +520,7 @@ func writePortsToFile(ports []*PortConfig) (string, error) {
 	}
 	defer f.Close()
 
-	buf, err := proto.Marshal(&EndpointRecord{
+	buf, _ := proto.Marshal(&EndpointRecord{
 		IngressPorts: ports,
 	})
 
