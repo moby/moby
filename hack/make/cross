@@ -29,6 +29,7 @@ for platform in $DOCKER_CROSSPLATFORMS; do
 		if [ "$GOOS" != "solaris" ]; then
 			# TODO. Solaris cannot be cross build because of CGO calls.
 
+			echo "Cross building: $DEST"
 			# go install docker/docker/pkg packages to ensure that
 			# they build cross platform.
 			go install github.com/docker/docker/pkg/...
