@@ -247,6 +247,11 @@ func redactClusters(clusters []*api.Cluster) []*api.Cluster {
 		// Do not copy secret keys
 		redactedSpec := cluster.Spec.Copy()
 		redactedSpec.CAConfig.SigningCAKey = nil
+		// the cert is not a secret, but if API users get the cluster spec and then update,
+		// then because the cert is included but not the key, the user can get update errors
+		// or unintended consequences (such as telling swarm to forget about the key so long
+		// as there is a corresponding external CA)
+		redactedSpec.CAConfig.SigningCACert = nil
 
 		redactedRootCA := cluster.RootCA.Copy()
 		redactedRootCA.CAKey = nil

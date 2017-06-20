@@ -296,19 +296,26 @@ func (s *Scheduler) deleteTask(ctx context.Context, t *api.Task) bool {
 }
 
 func (s *Scheduler) createOrUpdateNode(n *api.Node) {
-	nodeInfo, _ := s.nodeSet.nodeInfo(n.ID)
+	nodeInfo, nodeInfoErr := s.nodeSet.nodeInfo(n.ID)
 	var resources api.Resources
 	if n.Description != nil && n.Description.Resources != nil {
 		resources = *n.Description.Resources
 		// reconcile resources by looping over all tasks in this node
-		for _, task := range nodeInfo.Tasks {
-			reservations := taskReservations(task.Spec)
-			resources.MemoryBytes -= reservations.MemoryBytes
-			resources.NanoCPUs -= reservations.NanoCPUs
+		if nodeInfoErr == nil {
+			for _, task := range nodeInfo.Tasks {
+				reservations := taskReservations(task.Spec)
+				resources.MemoryBytes -= reservations.MemoryBytes
+				resources.NanoCPUs -= reservations.NanoCPUs
+			}
 		}
 	}
-	nodeInfo.Node = n
-	nodeInfo.AvailableResources = resources
+
+	if nodeInfoErr != nil {
+		nodeInfo = newNodeInfo(n, nil, resources)
+	} else {
+		nodeInfo.Node = n
+		nodeInfo.AvailableResources = resources
+	}
 	s.nodeSet.addOrUpdateNode(nodeInfo)
 }
 
