@@ -5,7 +5,7 @@ package homedir
 import (
 	"os"
 
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/fsutils"
 )
 
 // GetStatic returns the home directory for the current user without calling
@@ -15,7 +15,7 @@ import (
 // (#29344, golang/go#13470, https://sourceware.org/bugzilla/show_bug.cgi?id=19341)
 func GetStatic() (string, error) {
 	uid := os.Getuid()
-	usr, err := idtools.LookupUID(uid)
+	usr, err := fsutils.LookupUID(uid)
 	if err != nil {
 		return "", err
 	}

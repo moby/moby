@@ -18,7 +18,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/fileutils"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/fsutils"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/promise"
@@ -37,9 +37,9 @@ type (
 		ExcludePatterns  []string
 		Compression      Compression
 		NoLchown         bool
-		UIDMaps          []idtools.IDMap
-		GIDMaps          []idtools.IDMap
-		ChownOpts        *idtools.IDPair
+		UIDMaps          []fsutils.IDMap
+		GIDMaps          []fsutils.IDMap
+		ChownOpts        *fsutils.IDPair
 		IncludeSourceDir bool
 		// WhiteoutFormat is the expected on disk format for whiteout files.
 		// This format will be converted to the standard format on pack
@@ -61,12 +61,12 @@ type (
 // which will then be passed to Untar operations
 type Archiver struct {
 	Untar      func(io.Reader, string, *TarOptions) error
-	IDMappings *idtools.IDMappings
+	IDMappings *fsutils.IDMappings
 }
 
 // NewDefaultArchiver returns a new Archiver without any IDMappings
 func NewDefaultArchiver() *Archiver {
-	return &Archiver{Untar: Untar, IDMappings: &idtools.IDMappings{}}
+	return &Archiver{Untar: Untar, IDMappings: &fsutils.IDMappings{}}
 }
 
 // breakoutError is used to differentiate errors related to breaking out
@@ -346,7 +346,7 @@ type tarAppender struct {
 
 	// for hardlink mapping
 	SeenFiles  map[uint64]string
-	IDMappings *idtools.IDMappings
+	IDMappings *fsutils.IDMappings
 
 	// For packing and unpacking whiteout files in the
 	// non standard format. The whiteout files defined
@@ -355,7 +355,7 @@ type tarAppender struct {
 	WhiteoutConverter tarWhiteoutConverter
 }
 
-func newTarAppender(idMapping *idtools.IDMappings, writer io.Writer) *tarAppender {
+func newTarAppender(idMapping *fsutils.IDMappings, writer io.Writer) *tarAppender {
 	return &tarAppender{
 		SeenFiles:  make(map[uint64]string),
 		TarWriter:  tar.NewWriter(writer),
@@ -474,7 +474,7 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 	return nil
 }
 
-func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, Lchown bool, chownOpts *idtools.IDPair, inUserns bool) error {
+func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, Lchown bool, chownOpts *fsutils.IDPair, inUserns bool) error {
 	// hdr.Mode is in linux format, which we can use for sycalls,
 	// but for os.Foo() calls we need the mode converted to os.FileMode,
 	// so use hdrInfo.Mode() (they differ for e.g. setuid bits)
@@ -554,7 +554,7 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 	// Lchown is not supported on Windows.
 	if Lchown && runtime.GOOS != "windows" {
 		if chownOpts == nil {
-			chownOpts = &idtools.IDPair{UID: hdr.Uid, GID: hdr.Gid}
+			chownOpts = &fsutils.IDPair{UID: hdr.Uid, GID: hdr.Gid}
 		}
 		if err := os.Lchown(path, chownOpts.UID, chownOpts.GID); err != nil {
 			return err
@@ -643,7 +643,7 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 
 	go func() {
 		ta := newTarAppender(
-			idtools.NewIDMappingsFromMaps(options.UIDMaps, options.GIDMaps),
+			fsutils.NewIDMappingsFromMaps(options.UIDMaps, options.GIDMaps),
 			compressWriter,
 		)
 		ta.WhiteoutConverter = getWhiteoutConverter(options.WhiteoutFormat)
@@ -802,7 +802,7 @@ func Unpack(decompressedArchive io.Reader, dest string, options *TarOptions) err
 	defer pools.BufioReader32KPool.Put(trBuf)
 
 	var dirs []*tar.Header
-	idMappings := idtools.NewIDMappingsFromMaps(options.UIDMaps, options.GIDMaps)
+	idMappings := fsutils.NewIDMappingsFromMaps(options.UIDMaps, options.GIDMaps)
 	rootIDs := idMappings.RootPair()
 	whiteoutConverter := getWhiteoutConverter(options.WhiteoutFormat)
 
@@ -837,7 +837,7 @@ loop:
 			parent := filepath.Dir(hdr.Name)
 			parentPath := filepath.Join(dest, parent)
 			if _, err := os.Lstat(parentPath); err != nil && os.IsNotExist(err) {
-				err = idtools.MkdirAllAndChownNew(parentPath, 0777, rootIDs)
+				err = fsutils.MkdirAllAndChownNew(parentPath, 0777, rootIDs)
 				if err != nil {
 					return err
 				}
@@ -1008,7 +1008,7 @@ func (archiver *Archiver) CopyWithTar(src, dst string) error {
 	rootIDs := archiver.IDMappings.RootPair()
 	// Create dst, copy src's content into it
 	logrus.Debugf("Creating dest directory: %s", dst)
-	if err := idtools.MkdirAllAndChownNew(dst, 0755, rootIDs); err != nil {
+	if err := fsutils.MkdirAllAndChownNew(dst, 0755, rootIDs); err != nil {
 		return err
 	}
 	logrus.Debugf("Calling TarUntar(%s, %s)", src, dst)
@@ -1083,8 +1083,8 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 	return err
 }
 
-func remapIDs(idMappings *idtools.IDMappings, hdr *tar.Header) error {
-	ids, err := idMappings.ToHost(idtools.IDPair{UID: hdr.Uid, GID: hdr.Gid})
+func remapIDs(idMappings *fsutils.IDMappings, hdr *tar.Header) error {
+	ids, err := idMappings.ToHost(fsutils.IDPair{UID: hdr.Uid, GID: hdr.Gid})
 	hdr.Uid, hdr.Gid = ids.UID, ids.GID
 	return err
 }

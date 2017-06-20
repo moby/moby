@@ -13,7 +13,7 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/vfs"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/fsutils"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/opencontainers/go-digest"
 )
@@ -25,14 +25,14 @@ func init() {
 }
 
 func newVFSGraphDriver(td string) (graphdriver.Driver, error) {
-	uidMap := []idtools.IDMap{
+	uidMap := []fsutils.IDMap{
 		{
 			ContainerID: 0,
 			HostID:      os.Getuid(),
 			Size:        1,
 		},
 	}
-	gidMap := []idtools.IDMap{
+	gidMap := []fsutils.IDMap{
 		{
 			ContainerID: 0,
 			HostID:      os.Getgid(),

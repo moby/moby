@@ -17,7 +17,7 @@ import (
 	"github.com/docker/docker/daemon/caps"
 	daemonconfig "github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/oci"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/fsutils"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/pkg/symlink"
@@ -352,7 +352,7 @@ func setNamespaces(daemon *Daemon, s *specs.Spec, c *container.Container) error 
 	return nil
 }
 
-func specMapping(s []idtools.IDMap) []specs.LinuxIDMapping {
+func specMapping(s []fsutils.IDMap) []specs.LinuxIDMapping {
 	var ids []specs.LinuxIDMapping
 	for _, item := range s {
 		ids = append(ids, specs.LinuxIDMapping{

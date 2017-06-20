@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/fsutils"
 	"github.com/docker/docker/pkg/system"
 	rsystem "github.com/opencontainers/runc/libcontainer/system"
 )
@@ -73,13 +73,13 @@ func getInodeFromStat(stat interface{}) (inode uint64, err error) {
 	return
 }
 
-func getFileUIDGID(stat interface{}) (idtools.IDPair, error) {
+func getFileUIDGID(stat interface{}) (fsutils.IDPair, error) {
 	s, ok := stat.(*syscall.Stat_t)
 
 	if !ok {
-		return idtools.IDPair{}, errors.New("cannot convert stat value to syscall.Stat_t")
+		return fsutils.IDPair{}, errors.New("cannot convert stat value to syscall.Stat_t")
 	}
-	return idtools.IDPair{UID: int(s.Uid), GID: int(s.Gid)}, nil
+	return fsutils.IDPair{UID: int(s.Uid), GID: int(s.Gid)}, nil
 }
 
 func major(device uint64) uint64 {

@@ -13,7 +13,7 @@ import (
 
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/devicemapper"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/fsutils"
 	"github.com/docker/docker/pkg/locker"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/system"
@@ -28,14 +28,14 @@ func init() {
 type Driver struct {
 	*DeviceSet
 	home    string
-	uidMaps []idtools.IDMap
-	gidMaps []idtools.IDMap
+	uidMaps []fsutils.IDMap
+	gidMaps []fsutils.IDMap
 	ctr     *graphdriver.RefCounter
 	locker  *locker.Locker
 }
 
 // Init creates a driver with the given home and the set of options.
-func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
+func Init(home string, options []string, uidMaps, gidMaps []fsutils.IDMap) (graphdriver.Driver, error) {
 	deviceSet, err := NewDeviceSet(home, true, options, uidMaps, gidMaps)
 	if err != nil {
 		return nil, err
@@ -178,18 +178,18 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 		return rootFs, nil
 	}
 
-	uid, gid, err := idtools.GetRootUIDGID(d.uidMaps, d.gidMaps)
+	uid, gid, err := fsutils.GetRootUIDGID(d.uidMaps, d.gidMaps)
 	if err != nil {
 		d.ctr.Decrement(mp)
 		return "", err
 	}
 
 	// Create the target directories if they don't exist
-	if err := idtools.MkdirAllAs(path.Join(d.home, "mnt"), 0755, uid, gid); err != nil && !os.IsExist(err) {
+	if err := fsutils.MkdirAllAs(path.Join(d.home, "mnt"), 0755, uid, gid); err != nil && !os.IsExist(err) {
 		d.ctr.Decrement(mp)
 		return "", err
 	}
-	if err := idtools.MkdirAs(mp, 0755, uid, gid); err != nil && !os.IsExist(err) {
+	if err := fsutils.MkdirAs(mp, 0755, uid, gid); err != nil && !os.IsExist(err) {
 		d.ctr.Decrement(mp)
 		return "", err
 	}
@@ -200,7 +200,7 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 		return "", err
 	}
 
-	if err := idtools.MkdirAllAs(rootFs, 0755, uid, gid); err != nil && !os.IsExist(err) {
+	if err := fsutils.MkdirAllAs(rootFs, 0755, uid, gid); err != nil && !os.IsExist(err) {
 		d.ctr.Decrement(mp)
 		d.DeviceSet.UnmountDevice(id, mp)
 		return "", err

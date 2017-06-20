@@ -29,7 +29,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/fsutils"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/system"
@@ -48,7 +48,7 @@ type btrfsOptions struct {
 
 // Init returns a new BTRFS driver.
 // An error is returned if BTRFS is not supported.
-func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
+func Init(home string, options []string, uidMaps, gidMaps []fsutils.IDMap) (graphdriver.Driver, error) {
 
 	fsMagic, err := graphdriver.GetFSMagic(home)
 	if err != nil {
@@ -59,11 +59,11 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		return nil, graphdriver.ErrPrerequisites
 	}
 
-	rootUID, rootGID, err := idtools.GetRootUIDGID(uidMaps, gidMaps)
+	rootUID, rootGID, err := fsutils.GetRootUIDGID(uidMaps, gidMaps)
 	if err != nil {
 		return nil, err
 	}
-	if err := idtools.MkdirAllAs(home, 0700, rootUID, rootGID); err != nil {
+	if err := fsutils.MkdirAllAs(home, 0700, rootUID, rootGID); err != nil {
 		return nil, err
 	}
 
@@ -120,8 +120,8 @@ func parseOptions(opt []string) (btrfsOptions, bool, error) {
 type Driver struct {
 	//root of the file system
 	home         string
-	uidMaps      []idtools.IDMap
-	gidMaps      []idtools.IDMap
+	uidMaps      []fsutils.IDMap
+	gidMaps      []fsutils.IDMap
 	options      btrfsOptions
 	quotaEnabled bool
 	once         sync.Once
@@ -497,11 +497,11 @@ func (d *Driver) CreateReadWrite(id, parent string, opts *graphdriver.CreateOpts
 func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
 	quotas := path.Join(d.home, "quotas")
 	subvolumes := path.Join(d.home, "subvolumes")
-	rootUID, rootGID, err := idtools.GetRootUIDGID(d.uidMaps, d.gidMaps)
+	rootUID, rootGID, err := fsutils.GetRootUIDGID(d.uidMaps, d.gidMaps)
 	if err != nil {
 		return err
 	}
-	if err := idtools.MkdirAllAs(subvolumes, 0700, rootUID, rootGID); err != nil {
+	if err := fsutils.MkdirAllAs(subvolumes, 0700, rootUID, rootGID); err != nil {
 		return err
 	}
 	if parent == "" {
@@ -536,7 +536,7 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
 		if err := d.setStorageSize(path.Join(subvolumes, id), driver); err != nil {
 			return err
 		}
-		if err := idtools.MkdirAllAs(quotas, 0700, rootUID, rootGID); err != nil {
+		if err := fsutils.MkdirAllAs(quotas, 0700, rootUID, rootGID); err != nil {
 			return err
 		}
 		if err := ioutil.WriteFile(path.Join(quotas, id), []byte(fmt.Sprint(driver.options.size)), 0644); err != nil {

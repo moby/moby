@@ -8,7 +8,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/fsutils"
 )
 
 // Setup populates a directory with mountpoints suitable
@@ -16,7 +16,7 @@ import (
 //
 // This extra layer is used by all containers as the top-most ro layer. It protects
 // the container from unwanted side-effects on the rw layer.
-func Setup(initLayer string, rootIDs idtools.IDPair) error {
+func Setup(initLayer string, rootIDs fsutils.IDPair) error {
 	for pth, typ := range map[string]string{
 		"/dev/pts":         "dir",
 		"/dev/shm":         "dir",
@@ -38,12 +38,12 @@ func Setup(initLayer string, rootIDs idtools.IDPair) error {
 
 		if _, err := os.Stat(filepath.Join(initLayer, pth)); err != nil {
 			if os.IsNotExist(err) {
-				if err := idtools.MkdirAllAndChownNew(filepath.Join(initLayer, filepath.Dir(pth)), 0755, rootIDs); err != nil {
+				if err := fsutils.MkdirAllAndChownNew(filepath.Join(initLayer, filepath.Dir(pth)), 0755, rootIDs); err != nil {
 					return err
 				}
 				switch typ {
 				case "dir":
-					if err := idtools.MkdirAllAndChownNew(filepath.Join(initLayer, pth), 0755, rootIDs); err != nil {
+					if err := fsutils.MkdirAllAndChownNew(filepath.Join(initLayer, pth), 0755, rootIDs); err != nil {
 						return err
 					}
 				case "file":

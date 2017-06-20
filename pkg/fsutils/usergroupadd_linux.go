@@ -1,4 +1,4 @@
-package idtools
+package fsutils
 
 import (
 	"fmt"
@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/docker/docker/pkg/system"
 )
 
 // add a user and/or group to Linux /etc/passwd, /etc/group using standard
@@ -41,7 +43,7 @@ func AddNamespaceRangesUser(name string) (int, int, error) {
 	}
 
 	// Query the system for the created uid and gid pair
-	out, err := execCmd("id", name)
+	out, err := system.ExecCmd("id", name)
 	if err != nil {
 		return -1, -1, fmt.Errorf("Error trying to find uid/gid for new user %q: %v", name, err)
 	}
@@ -70,9 +72,9 @@ func AddNamespaceRangesUser(name string) (int, int, error) {
 func addUser(userName string) error {
 	once.Do(func() {
 		// set up which commands are used for adding users/groups dependent on distro
-		if _, err := resolveBinary("adduser"); err == nil {
+		if _, err := system.ResolveBinary("adduser"); err == nil {
 			userCommand = "adduser"
-		} else if _, err := resolveBinary("useradd"); err == nil {
+		} else if _, err := system.ResolveBinary("useradd"); err == nil {
 			userCommand = "useradd"
 		}
 	})
@@ -80,7 +82,7 @@ func addUser(userName string) error {
 		return fmt.Errorf("Cannot add user; no useradd/adduser binary found")
 	}
 	args := fmt.Sprintf(cmdTemplates[userCommand], userName)
-	out, err := execCmd(userCommand, args)
+	out, err := system.ExecCmd(userCommand, args)
 	if err != nil {
 		return fmt.Errorf("Failed to add user with error: %v; output: %q", err, string(out))
 	}
@@ -101,7 +103,7 @@ func createSubordinateRanges(name string) error {
 		if err != nil {
 			return fmt.Errorf("Can't find available subuid range: %v", err)
 		}
-		out, err := execCmd(userMod, fmt.Sprintf(cmdTemplates[userMod], "v", startID, startID+defaultRangeLen-1, name))
+		out, err := system.ExecCmd(userMod, fmt.Sprintf(cmdTemplates[userMod], "v", startID, startID+defaultRangeLen-1, name))
 		if err != nil {
 			return fmt.Errorf("Unable to add subuid range to user: %q; output: %s, err: %v", name, out, err)
 		}
@@ -117,7 +119,7 @@ func createSubordinateRanges(name string) error {
 		if err != nil {
 			return fmt.Errorf("Can't find available subgid range: %v", err)
 		}
-		out, err := execCmd(userMod, fmt.Sprintf(cmdTemplates[userMod], "w", startID, startID+defaultRangeLen-1, name))
+		out, err := system.ExecCmd(userMod, fmt.Sprintf(cmdTemplates[userMod], "w", startID, startID+defaultRangeLen-1, name))
 		if err != nil {
 			return fmt.Errorf("Unable to add subgid range to user: %q; output: %s, err: %v", name, out, err)
 		}

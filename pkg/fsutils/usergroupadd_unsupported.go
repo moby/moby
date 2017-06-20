@@ -1,6 +1,6 @@
 // +build !linux
 
-package idtools
+package fsutils
 
 import "fmt"
 

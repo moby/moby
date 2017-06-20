@@ -24,7 +24,7 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/devicemapper"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/fsutils"
 	"github.com/docker/docker/pkg/loopback"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
@@ -121,8 +121,8 @@ type DeviceSet struct {
 	BaseDeviceFilesystem  string // save filesystem of base device
 	nrDeletedDevices      uint   // number of deleted devices
 	deletionWorkerTicker  *time.Ticker
-	uidMaps               []idtools.IDMap
-	gidMaps               []idtools.IDMap
+	uidMaps               []fsutils.IDMap
+	gidMaps               []fsutils.IDMap
 	minFreeSpacePercent   uint32 //min free space percentage in thinpool
 	xfsNospaceRetries     string // max retries when xfs receives ENOSPC
 	lvmSetupConfig        directLVMConfig
@@ -268,11 +268,11 @@ func (devices *DeviceSet) ensureImage(name string, size int64) (string, error) {
 	dirname := devices.loopbackDir()
 	filename := path.Join(dirname, name)
 
-	uid, gid, err := idtools.GetRootUIDGID(devices.uidMaps, devices.gidMaps)
+	uid, gid, err := fsutils.GetRootUIDGID(devices.uidMaps, devices.gidMaps)
 	if err != nil {
 		return "", err
 	}
-	if err := idtools.MkdirAllAs(dirname, 0700, uid, gid); err != nil && !os.IsExist(err) {
+	if err := fsutils.MkdirAllAs(dirname, 0700, uid, gid); err != nil && !os.IsExist(err) {
 		return "", err
 	}
 
@@ -1722,11 +1722,11 @@ func (devices *DeviceSet) initDevmapper(doInit bool) (retErr error) {
 
 	//create the root dir of the devmapper driver ownership to match this
 	//daemon's remapped root uid/gid so containers can start properly
-	uid, gid, err := idtools.GetRootUIDGID(devices.uidMaps, devices.gidMaps)
+	uid, gid, err := fsutils.GetRootUIDGID(devices.uidMaps, devices.gidMaps)
 	if err != nil {
 		return err
 	}
-	if err := idtools.MkdirAs(devices.root, 0700, uid, gid); err != nil && !os.IsExist(err) {
+	if err := fsutils.MkdirAs(devices.root, 0700, uid, gid); err != nil && !os.IsExist(err) {
 		return err
 	}
 	if err := os.MkdirAll(devices.metadataDir(), 0700); err != nil && !os.IsExist(err) {
@@ -2624,7 +2624,7 @@ func (devices *DeviceSet) exportDeviceMetadata(hash string) (*deviceMetadata, er
 }
 
 // NewDeviceSet creates the device set based on the options provided.
-func NewDeviceSet(root string, doInit bool, options []string, uidMaps, gidMaps []idtools.IDMap) (*DeviceSet, error) {
+func NewDeviceSet(root string, doInit bool, options []string, uidMaps, gidMaps []fsutils.IDMap) (*DeviceSet, error) {
 	devicemapper.SetDevDir("/dev")
 
 	devices := &DeviceSet{

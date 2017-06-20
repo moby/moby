@@ -12,7 +12,7 @@ import (
 	"github.com/vbatts/tar-split/tar/storage"
 
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/fsutils"
 	"github.com/docker/docker/pkg/plugingetter"
 )
 
@@ -44,7 +44,7 @@ type CreateOpts struct {
 }
 
 // InitFunc initializes the storage driver.
-type InitFunc func(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (Driver, error)
+type InitFunc func(root string, options []string, uidMaps, gidMaps []fsutils.IDMap) (Driver, error)
 
 // ProtoDriver defines the basic capabilities of a driver.
 // This interface exists solely to be a minimum set of methods
@@ -181,7 +181,7 @@ func GetDriver(name string, pg plugingetter.PluginGetter, config Options) (Drive
 }
 
 // getBuiltinDriver initializes and returns the registered driver, but does not try to load from plugins
-func getBuiltinDriver(name, home string, options []string, uidMaps, gidMaps []idtools.IDMap) (Driver, error) {
+func getBuiltinDriver(name, home string, options []string, uidMaps, gidMaps []fsutils.IDMap) (Driver, error) {
 	if initFunc, exists := drivers[name]; exists {
 		return initFunc(filepath.Join(home, name), options, uidMaps, gidMaps)
 	}
@@ -193,8 +193,8 @@ func getBuiltinDriver(name, home string, options []string, uidMaps, gidMaps []id
 type Options struct {
 	Root                string
 	DriverOptions       []string
-	UIDMaps             []idtools.IDMap
-	GIDMaps             []idtools.IDMap
+	UIDMaps             []fsutils.IDMap
+	GIDMaps             []fsutils.IDMap
 	ExperimentalEnabled bool
 }
 

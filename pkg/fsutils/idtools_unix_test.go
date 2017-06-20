@@ -1,6 +1,6 @@
 // +build !windows
 
-package idtools
+package fsutils
 
 import (
 	"fmt"

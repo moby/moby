@@ -15,7 +15,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/links"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/fsutils"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
@@ -116,7 +116,7 @@ func (daemon *Daemon) setupIpcDirs(c *container.Container) error {
 				return err
 			}
 
-			if err := idtools.MkdirAllAndChown(shmPath, 0700, rootIDs); err != nil {
+			if err := fsutils.MkdirAllAndChown(shmPath, 0700, rootIDs); err != nil {
 				return err
 			}
 
@@ -149,7 +149,7 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 	// retrieve possible remapped range start for root UID, GID
 	rootIDs := daemon.idMappings.RootPair()
 	// create tmpfs
-	if err := idtools.MkdirAllAndChown(localMountPath, 0700, rootIDs); err != nil {
+	if err := fsutils.MkdirAllAndChown(localMountPath, 0700, rootIDs); err != nil {
 		return errors.Wrap(err, "error creating secret local mount path")
 	}
 
@@ -183,7 +183,7 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 		// secrets are created in the SecretMountPath on the host, at a
 		// single level
 		fPath := c.SecretFilePath(*s)
-		if err := idtools.MkdirAllAndChown(filepath.Dir(fPath), 0700, rootIDs); err != nil {
+		if err := fsutils.MkdirAllAndChown(filepath.Dir(fPath), 0700, rootIDs); err != nil {
 			return errors.Wrap(err, "error creating secret mount path")
 		}
 
@@ -234,7 +234,7 @@ func (daemon *Daemon) setupConfigDir(c *container.Container) (setupErr error) {
 	// retrieve possible remapped range start for root UID, GID
 	rootIDs := daemon.idMappings.RootPair()
 	// create tmpfs
-	if err := idtools.MkdirAllAndChown(localPath, 0700, rootIDs); err != nil {
+	if err := fsutils.MkdirAllAndChown(localPath, 0700, rootIDs); err != nil {
 		return errors.Wrap(err, "error creating config dir")
 	}
 
@@ -261,7 +261,7 @@ func (daemon *Daemon) setupConfigDir(c *container.Container) (setupErr error) {
 
 		log := logrus.WithFields(logrus.Fields{"name": configRef.File.Name, "path": fPath})
 
-		if err := idtools.MkdirAllAndChown(filepath.Dir(fPath), 0700, rootIDs); err != nil {
+		if err := fsutils.MkdirAllAndChown(filepath.Dir(fPath), 0700, rootIDs); err != nil {
 			return errors.Wrap(err, "error creating config path")
 		}
 

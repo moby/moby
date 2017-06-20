@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/fsutils"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/system"
 )
@@ -391,10 +391,10 @@ func ChangesSize(newDir string, changes []Change) int64 {
 }
 
 // ExportChanges produces an Archive from the provided changes, relative to dir.
-func ExportChanges(dir string, changes []Change, uidMaps, gidMaps []idtools.IDMap) (io.ReadCloser, error) {
+func ExportChanges(dir string, changes []Change, uidMaps, gidMaps []fsutils.IDMap) (io.ReadCloser, error) {
 	reader, writer := io.Pipe()
 	go func() {
-		ta := newTarAppender(idtools.NewIDMappingsFromMaps(uidMaps, gidMaps), writer)
+		ta := newTarAppender(fsutils.NewIDMappingsFromMaps(uidMaps, gidMaps), writer)
 
 		// this buffer is needed for the duration of this piped stream
 		defer pools.BufioWriter32KPool.Put(ta.Buffer)

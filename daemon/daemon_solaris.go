@@ -14,7 +14,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/fileutils"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/fsutils"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/sysinfo"
 	refstore "github.com/docker/docker/reference"
@@ -89,7 +89,7 @@ func parseSecurityOpt(container *container.Container, config *containertypes.Hos
 	return err
 }
 
-func setupRemappedRoot(config *Config) ([]idtools.IDMap, []idtools.IDMap, error) {
+func setupRemappedRoot(config *Config) ([]fsutils.IDMap, []fsutils.IDMap, error) {
 	return nil, nil, nil
 }
 

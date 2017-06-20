@@ -8,13 +8,13 @@ import (
 	"path/filepath"
 
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/fsutils"
 )
 
 // NewArchiver returns a new Archiver which uses chrootarchive.Untar
-func NewArchiver(idMappings *idtools.IDMappings) *archive.Archiver {
+func NewArchiver(idMappings *fsutils.IDMappings) *archive.Archiver {
 	if idMappings == nil {
-		idMappings = &idtools.IDMappings{}
+		idMappings = &fsutils.IDMappings{}
 	}
 	return &archive.Archiver{Untar: Untar, IDMappings: idMappings}
 }
@@ -46,12 +46,12 @@ func untarHandler(tarArchive io.Reader, dest string, options *archive.TarOptions
 		options.ExcludePatterns = []string{}
 	}
 
-	idMappings := idtools.NewIDMappingsFromMaps(options.UIDMaps, options.GIDMaps)
+	idMappings := fsutils.NewIDMappingsFromMaps(options.UIDMaps, options.GIDMaps)
 	rootIDs := idMappings.RootPair()
 
 	dest = filepath.Clean(dest)
 	if _, err := os.Stat(dest); os.IsNotExist(err) {
-		if err := idtools.MkdirAllAndChownNew(dest, 0755, rootIDs); err != nil {
+		if err := fsutils.MkdirAllAndChownNew(dest, 0755, rootIDs); err != nil {
 			return err
 		}
 	}

@@ -29,7 +29,7 @@ import (
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/opts"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/fsutils"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/symlink"
@@ -216,7 +216,7 @@ func (container *Container) WriteHostConfig() error {
 }
 
 // SetupWorkingDirectory sets up the container's working directory as set in container.Config.WorkingDir
-func (container *Container) SetupWorkingDirectory(rootIDs idtools.IDPair) error {
+func (container *Container) SetupWorkingDirectory(rootIDs fsutils.IDPair) error {
 	if container.Config.WorkingDir == "" {
 		return nil
 	}
@@ -228,7 +228,7 @@ func (container *Container) SetupWorkingDirectory(rootIDs idtools.IDPair) error 
 		return err
 	}
 
-	if err := idtools.MkdirAllAndChownNew(pth, 0755, rootIDs); err != nil {
+	if err := fsutils.MkdirAllAndChownNew(pth, 0755, rootIDs); err != nil {
 		pthInfo, err2 := os.Stat(pth)
 		if err2 == nil && pthInfo != nil && !pthInfo.IsDir() {
 			return fmt.Errorf("Cannot mkdir: %s is not a directory", container.Config.WorkingDir)

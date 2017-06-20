@@ -10,7 +10,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution"
 	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/fsutils"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/opencontainers/go-digest"
@@ -44,7 +44,7 @@ type StoreOptions struct {
 	MetadataStorePathTemplate string
 	GraphDriver               string
 	GraphDriverOptions        []string
-	IDMappings                *idtools.IDMappings
+	IDMappings                *fsutils.IDMappings
 	PluginGetter              plugingetter.PluginGetter
 	ExperimentalEnabled       bool
 }
