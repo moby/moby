@@ -10,24 +10,26 @@ import (
 type SetMatrix interface {
 	// Get returns the members of the set for a specific key as a slice.
 	Get(key string) ([]interface{}, bool)
-	// Contains is used to verify is an element is in a set for a specific key
+	// Contains is used to verify if an element is in a set for a specific key
 	// returns true if the element is in the set
 	// returns true if there is a set for the key
 	Contains(key string, value interface{}) (bool, bool)
-	// Insert inserts the mapping between the IP and the endpoint identifier
-	// returns true if the mapping was not present, false otherwise
-	// returns also the number of endpoints associated to the IP
+	// Insert inserts the value in the set of a key
+	// returns true if the value is inserted (was not already in the set), false otherwise
+	// returns also the length of the set for the key
 	Insert(key string, value interface{}) (bool, int)
-	// Remove removes the mapping between the IP and the endpoint identifier
-	// returns true if the mapping was deleted, false otherwise
-	// returns also the number of endpoints associated to the IP
+	// Remove removes the value in the set for a specific key
+	// returns true if the value is deleted, false otherwise
+	// returns also the length of the set for the key
 	Remove(key string, value interface{}) (bool, int)
-	// Cardinality returns the number of elements in the set of a specfic key
-	// returns false if the key is not in the map
+	// Cardinality returns the number of elements in the set for a key
+	// returns false if the set is not present
 	Cardinality(key string) (int, bool)
 	// String returns the string version of the set, empty otherwise
-	// returns false if the key is not in the map
+	// returns false if the set is not present
 	String(key string) (string, bool)
+	// Returns all the keys in the map
+	Keys() []string
 }
 
 type setMatrix struct {
@@ -120,4 +122,14 @@ func (s *setMatrix) String(key string) (string, bool) {
 		return "", ok
 	}
 	return set.String(), ok
+}
+
+func (s *setMatrix) Keys() []string {
+	s.Lock()
+	defer s.Unlock()
+	keys := make([]string, 0, len(s.matrix))
+	for k := range s.matrix {
+		keys = append(keys, k)
+	}
+	return keys
 }

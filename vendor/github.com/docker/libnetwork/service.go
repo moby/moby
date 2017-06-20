@@ -85,14 +85,8 @@ type loadBalancer struct {
 
 	// Map of backend IPs backing this loadbalancer on this
 	// network. It is keyed with endpoint ID.
-	backEnds map[string]loadBalancerBackend
+	backEnds map[string]net.IP
 
 	// Back pointer to service to which the loadbalancer belongs.
 	service *service
-}
-
-type loadBalancerBackend struct {
-	ip            net.IP
-	containerName string
-	taskAliases   []string
 }
