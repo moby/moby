@@ -112,7 +112,6 @@ if [ ! "$GOPATH" ]; then
 	exit 1
 fi
 
-DOCKER_BUILDTAGS+=" daemon"
 if ${PKG_CONFIG} 'libsystemd >= 209' 2> /dev/null ; then
 	DOCKER_BUILDTAGS+=" journald"
 elif ${PKG_CONFIG} 'libsystemd-journal' 2> /dev/null ; then
@@ -139,7 +138,6 @@ fi
 # Use these flags when compiling the tests and final binary
 
 IAMSTATIC='true'
-source "$SCRIPTDIR/make/.go-autogen"
 if [ -z "$DOCKER_DEBUG" ]; then
 	LDFLAGS='-w'
 fi

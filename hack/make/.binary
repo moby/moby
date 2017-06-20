@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
+GO_PACKAGE='github.com/docker/docker/cmd/dockerd'
+BINARY_SHORT_NAME='dockerd'
 BINARY_NAME="$BINARY_SHORT_NAME-$VERSION"
 BINARY_EXTENSION="$(binary_extension)"
 BINARY_FULLNAME="$BINARY_NAME$BINARY_EXTENSION"
