@@ -2,6 +2,7 @@ package dockerfile
 
 import (
 	"fmt"
+	"runtime"
 	"testing"
 
 	"github.com/docker/docker/api/types"
@@ -97,9 +98,9 @@ func TestCopyRunConfig(t *testing.T) {
 		},
 		{
 			doc:       "Set the command to a comment",
-			modifiers: []runConfigModifier{withCmdComment("comment")},
+			modifiers: []runConfigModifier{withCmdComment("comment", runtime.GOOS)},
 			expected: &container.Config{
-				Cmd: append(defaultShell, "#(nop) ", "comment"),
+				Cmd: append(defaultShellForPlatform(runtime.GOOS), "#(nop) ", "comment"),
 				Env: defaultEnv,
 			},
 		},

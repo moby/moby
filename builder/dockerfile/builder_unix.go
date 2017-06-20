@@ -2,4 +2,6 @@
 
 package dockerfile
 
-var defaultShell = []string{"/bin/sh", "-c"}
+func defaultShellForPlatform(platform string) []string {
+	return []string{"/bin/sh", "-c"}
+}

@@ -474,7 +474,7 @@ func TestRunWithBuildArgs(t *testing.T) {
 
 	runConfig := &container.Config{}
 	origCmd := strslice.StrSlice([]string{"cmd", "in", "from", "image"})
-	cmdWithShell := strslice.StrSlice(append(getShell(runConfig), "echo foo"))
+	cmdWithShell := strslice.StrSlice(append(getShell(runConfig, runtime.GOOS), "echo foo"))
 	envVars := []string{"|1", "one=two"}
 	cachedCmd := strslice.StrSlice(append(envVars, cmdWithShell...))
 
