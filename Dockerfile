@@ -201,9 +201,6 @@ RUN ln -sfv $PWD/.bashrc ~/.bashrc
 # Add integration helps to bashrc
 RUN echo "source $PWD/hack/make/.integration-test-helpers" >> /etc/bash.bashrc
 
-# Register Docker's bash completion.
-RUN ln -sv $PWD/contrib/completion/bash/docker /etc/bash_completion.d/docker
-
 # Get useful and necessary Hub images so we can "docker load" locally instead of pulling
 COPY contrib/download-frozen-image-v2.sh /go/src/github.com/docker/docker/contrib/
 RUN ./contrib/download-frozen-image-v2.sh /docker-frozen-images \
