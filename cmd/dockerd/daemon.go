@@ -453,7 +453,7 @@ func initRouter(s *apiserver.Server, d *daemon.Daemon, c *cluster.Cluster) {
 		image.NewRouter(d, decoder),
 		systemrouter.NewRouter(d, c),
 		volume.NewRouter(d),
-		build.NewRouter(buildbackend.NewBackend(d, d), d),
+		build.NewRouter(buildbackend.NewBackend(d, d, d.IDMappings()), d),
 		swarmrouter.NewRouter(c),
 		pluginrouter.NewRouter(d.PluginManager()),
 		distributionrouter.NewRouter(d),

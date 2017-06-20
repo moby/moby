@@ -81,7 +81,7 @@ func withDockerfileFromContext(c modifiableContext, dockerfilePath string) (buil
 }
 
 func newGitRemote(gitURL string, dockerfilePath string) (builder.Source, *parser.Result, error) {
-	c, err := MakeGitContext(gitURL) // TODO: change this to NewLazyContext
+	c, err := MakeGitContext(gitURL) // TODO: change this to NewLazySource
 	if err != nil {
 		return nil, nil, err
 	}

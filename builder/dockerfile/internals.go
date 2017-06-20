@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
 )
@@ -37,7 +38,6 @@ func (b *Builder) commit(dispatchState *dispatchState, comment string) error {
 	return b.commitContainer(dispatchState, id, runConfigWithCommentCmd)
 }
 
-// TODO: see if any args can be dropped
 func (b *Builder) commitContainer(dispatchState *dispatchState, id string, containerConfig *container.Config) error {
 	if b.disableCommit {
 		return nil
@@ -60,7 +60,47 @@ func (b *Builder) commitContainer(dispatchState *dispatchState, id string, conta
 	}
 
 	dispatchState.imageID = imageID
-	b.buildStages.update(imageID, dispatchState.runConfig)
+	b.buildStages.update(imageID)
+	return nil
+}
+
+func (b *Builder) exportImage(state *dispatchState, imageMount *imageMount, runConfig *container.Config) error {
+	newLayer, err := imageMount.Layer().Commit()
+	if err != nil {
+		return err
+	}
+
+	// add an image mount without an image so the layer is properly unmounted
+	// if there is an error before we can add the full mount with image
+	b.imageSources.Add(newImageMount(nil, newLayer))
+
+	parentImage, ok := imageMount.Image().(*image.Image)
+	if !ok {
+		return errors.Errorf("unexpected image type")
+	}
+
+	newImage := image.NewChildImage(parentImage, image.ChildConfig{
+		Author:          state.maintainer,
+		ContainerConfig: runConfig,
+		DiffID:          newLayer.DiffID(),
+		Config:          copyRunConfig(state.runConfig),
+	})
+
+	// TODO: it seems strange to marshal this here instead of just passing in the
+	// image struct
+	config, err := newImage.MarshalJSON()
+	if err != nil {
+		return errors.Wrap(err, "failed to encode image config")
+	}
+
+	exportedImage, err := b.docker.CreateImage(config, state.imageID)
+	if err != nil {
+		return errors.Wrapf(err, "failed to export image")
+	}
+
+	state.imageID = exportedImage.ImageID()
+	b.imageSources.Add(newImageMount(exportedImage, newLayer))
+	b.buildStages.update(state.imageID)
 	return nil
 }
 
@@ -71,24 +111,46 @@ func (b *Builder) performCopy(state *dispatchState, inst copyInstruction) error 
 	runConfigWithCommentCmd := copyRunConfig(
 		state.runConfig,
 		withCmdCommentString(fmt.Sprintf("%s %s in %s ", inst.cmdName, srcHash, inst.dest)))
-	containerID, err := b.probeAndCreate(state, runConfigWithCommentCmd)
-	if err != nil || containerID == "" {
+	hit, err := b.probeCache(state, runConfigWithCommentCmd)
+	if err != nil || hit {
 		return err
 	}
 
-	// Twiddle the destination when it's a relative path - meaning, make it
-	// relative to the WORKINGDIR
-	dest, err := normaliseDest(inst.cmdName, state.runConfig.WorkingDir, inst.dest)
+	imageMount, err := b.imageSources.Get(state.imageID)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get destination image %q", state.imageID)
+	}
+	destInfo, err := createDestInfo(state.runConfig.WorkingDir, inst, imageMount)
 	if err != nil {
 		return err
 	}
 
+	opts := copyFileOptions{
+		decompress: inst.allowLocalDecompression,
+		archiver:   b.archiver,
+	}
 	for _, info := range inst.infos {
-		if err := b.docker.CopyOnBuild(containerID, dest, info.root, info.path, inst.allowLocalDecompression); err != nil {
-			return err
+		if err := performCopyForInfo(destInfo, info, opts); err != nil {
+			return errors.Wrapf(err, "failed to copy files")
 		}
 	}
-	return b.commitContainer(state, containerID, runConfigWithCommentCmd)
+	return b.exportImage(state, imageMount, runConfigWithCommentCmd)
+}
+
+func createDestInfo(workingDir string, inst copyInstruction, imageMount *imageMount) (copyInfo, error) {
+	// Twiddle the destination when it's a relative path - meaning, make it
+	// relative to the WORKINGDIR
+	dest, err := normaliseDest(workingDir, inst.dest)
+	if err != nil {
+		return copyInfo{}, errors.Wrapf(err, "invalid %s", inst.cmdName)
+	}
+
+	destMount, err := imageMount.Source()
+	if err != nil {
+		return copyInfo{}, errors.Wrapf(err, "failed to mount copy source")
+	}
+
+	return newCopyInfoFromSource(destMount, dest, ""), nil
 }
 
 // For backwards compat, if there's just one info then use it as the
@@ -182,7 +244,7 @@ func (b *Builder) probeCache(dispatchState *dispatchState, runConfig *container.
 	fmt.Fprint(b.Stdout, " ---> Using cache\n")
 
 	dispatchState.imageID = string(cachedID)
-	b.buildStages.update(dispatchState.imageID, runConfig)
+	b.buildStages.update(dispatchState.imageID)
 	return true, nil
 }
 

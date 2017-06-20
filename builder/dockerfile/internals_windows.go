@@ -12,7 +12,7 @@ import (
 
 // normaliseDest normalises the destination of a COPY/ADD command in a
 // platform semantically consistent way.
-func normaliseDest(cmdName, workingDir, requested string) (string, error) {
+func normaliseDest(workingDir, requested string) (string, error) {
 	dest := filepath.FromSlash(requested)
 	endsInSlash := strings.HasSuffix(dest, string(os.PathSeparator))
 
@@ -32,7 +32,7 @@ func normaliseDest(cmdName, workingDir, requested string) (string, error) {
 	// we only want to validate where the DriveColon part has been supplied.
 	if filepath.IsAbs(dest) {
 		if strings.ToUpper(string(dest[0])) != "C" {
-			return "", fmt.Errorf("Windows does not support %s with a destinations not on the system drive (C:)", cmdName)
+			return "", fmt.Errorf("Windows does not support destinations not on the system drive (C:)")
 		}
 		dest = dest[2:] // Strip the drive letter
 	}
@@ -44,7 +44,7 @@ func normaliseDest(cmdName, workingDir, requested string) (string, error) {
 		}
 		if !system.IsAbs(dest) {
 			if string(workingDir[0]) != "C" {
-				return "", fmt.Errorf("Windows does not support %s with relative paths when WORKDIR is not the system drive", cmdName)
+				return "", fmt.Errorf("Windows does not support relative paths when WORKDIR is not the system drive")
 			}
 			dest = filepath.Join(string(os.PathSeparator), workingDir[2:], dest)
 			// Make sure we preserve any trailing slash

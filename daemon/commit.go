@@ -12,7 +12,6 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/ioutils"
@@ -129,11 +128,6 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		return "", err
 	}
 
-	containerConfig := c.ContainerConfig
-	if containerConfig == nil {
-		containerConfig = container.Config
-	}
-
 	// It is not possible to commit a running container on Windows and on Solaris.
 	if (runtime.GOOS == "windows" || runtime.GOOS == "solaris") && container.IsRunning() {
 		return "", errors.Errorf("%+v does not support commit of a running container", runtime.GOOS)
@@ -165,60 +159,36 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		}
 	}()
 
-	var history []image.History
-	rootFS := image.NewRootFS()
-	osVersion := ""
-	var osFeatures []string
-
-	if container.ImageID != "" {
-		img, err := daemon.imageStore.Get(container.ImageID)
+	var parent *image.Image
+	if container.ImageID == "" {
+		parent = new(image.Image)
+		parent.RootFS = image.NewRootFS()
+	} else {
+		parent, err = daemon.imageStore.Get(container.ImageID)
 		if err != nil {
 			return "", err
 		}
-		history = img.History
-		rootFS = img.RootFS
-		osVersion = img.OSVersion
-		osFeatures = img.OSFeatures
 	}
 
-	l, err := daemon.layerStore.Register(rwTar, rootFS.ChainID())
+	l, err := daemon.layerStore.Register(rwTar, parent.RootFS.ChainID())
 	if err != nil {
 		return "", err
 	}
 	defer layer.ReleaseAndLog(daemon.layerStore, l)
 
-	h := image.History{
-		Author:     c.Author,
-		Created:    time.Now().UTC(),
-		CreatedBy:  strings.Join(containerConfig.Cmd, " "),
-		Comment:    c.Comment,
-		EmptyLayer: true,
+	containerConfig := c.ContainerConfig
+	if containerConfig == nil {
+		containerConfig = container.Config
 	}
-
-	if diffID := l.DiffID(); layer.DigestSHA256EmptyTar != diffID {
-		h.EmptyLayer = false
-		rootFS.Append(diffID)
+	cc := image.ChildConfig{
+		ContainerID:     container.ID,
+		Author:          c.Author,
+		Comment:         c.Comment,
+		ContainerConfig: containerConfig,
+		Config:          newConfig,
+		DiffID:          l.DiffID(),
 	}
-
-	history = append(history, h)
-
-	config, err := json.Marshal(&image.Image{
-		V1Image: image.V1Image{
-			DockerVersion:   dockerversion.Version,
-			Config:          newConfig,
-			Architecture:    runtime.GOARCH,
-			OS:              runtime.GOOS,
-			Container:       container.ID,
-			ContainerConfig: *containerConfig,
-			Author:          c.Author,
-			Created:         h.Created,
-		},
-		RootFS:     rootFS,
-		History:    history,
-		OSFeatures: osFeatures,
-		OSVersion:  osVersion,
-	})
-
+	config, err := json.Marshal(image.NewChildImage(parent, cc))
 	if err != nil {
 		return "", err
 	}

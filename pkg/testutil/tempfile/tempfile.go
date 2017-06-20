@@ -34,3 +34,23 @@ func (f *TempFile) Name() string {
 func (f *TempFile) Remove() {
 	os.Remove(f.Name())
 }
+
+// TempDir is a temporary directory that can be used with unit tests. TempDir
+// reduces the boilerplate setup required in each test case by handling
+// setup errors.
+type TempDir struct {
+	Path string
+}
+
+// NewTempDir returns a new temp file with contents
+func NewTempDir(t require.TestingT, prefix string) *TempDir {
+	path, err := ioutil.TempDir("", prefix+"-")
+	require.NoError(t, err)
+
+	return &TempDir{Path: path}
+}
+
+// Remove removes the file
+func (f *TempDir) Remove() {
+	os.Remove(f.Path)
+}

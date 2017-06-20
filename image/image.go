@@ -4,9 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"runtime"
+	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/layer"
 	"github.com/opencontainers/go-digest"
 )
 
@@ -110,6 +114,51 @@ func (img *Image) MarshalJSON() ([]byte, error) {
 	return json.Marshal(c)
 }
 
+// ChildConfig is the configuration to apply to an Image to create a new
+// Child image. Other properties of the image are copied from the parent.
+type ChildConfig struct {
+	ContainerID     string
+	Author          string
+	Comment         string
+	DiffID          layer.DiffID
+	ContainerConfig *container.Config
+	Config          *container.Config
+}
+
+// NewChildImage creates a new Image as a child of this image.
+func NewChildImage(img *Image, child ChildConfig) *Image {
+	isEmptyLayer := layer.IsEmpty(child.DiffID)
+	rootFS := img.RootFS
+	if rootFS == nil {
+		rootFS = NewRootFS()
+	}
+	if !isEmptyLayer {
+		rootFS.Append(child.DiffID)
+	}
+	imgHistory := NewHistory(
+		child.Author,
+		child.Comment,
+		strings.Join(child.ContainerConfig.Cmd, " "),
+		isEmptyLayer)
+
+	return &Image{
+		V1Image: V1Image{
+			DockerVersion:   dockerversion.Version,
+			Config:          child.Config,
+			Architecture:    runtime.GOARCH,
+			OS:              runtime.GOOS,
+			Container:       child.ContainerID,
+			ContainerConfig: *child.ContainerConfig,
+			Author:          child.Author,
+			Created:         imgHistory.Created,
+		},
+		RootFS:     rootFS,
+		History:    append(img.History, imgHistory),
+		OSFeatures: img.OSFeatures,
+		OSVersion:  img.OSVersion,
+	}
+}
+
 // History stores build commands that were used to create an image
 type History struct {
 	// Created is the timestamp at which the image was created
@@ -124,6 +173,18 @@ type History struct {
 	// layer. Otherwise, the history item is associated with the next
 	// layer in the RootFS section.
 	EmptyLayer bool `json:"empty_layer,omitempty"`
+}
+
+// NewHistory creates a new history struct from arguments, and sets the created
+// time to the current time in UTC
+func NewHistory(author, comment, createdBy string, isEmptyLayer bool) History {
+	return History{
+		Author:     author,
+		Created:    time.Now().UTC(),
+		CreatedBy:  createdBy,
+		Comment:    comment,
+		EmptyLayer: isEmptyLayer,
+	}
 }
 
 // Exporter provides interface for loading and saving images

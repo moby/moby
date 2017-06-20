@@ -17,11 +17,6 @@ func checkIfPathIsInAVolume(container *container.Container, absPath string) (boo
 	return false, nil
 }
 
-func fixPermissions(source, destination string, uid, gid int, destExisted bool) error {
-	// chown is not supported on Windows
-	return nil
-}
-
 // isOnlineFSOperationPermitted returns an error if an online filesystem operation
 // is not permitted (such as stat or for copying). Running Hyper-V containers
 // cannot have their file-system interrogated from the host as the filter is

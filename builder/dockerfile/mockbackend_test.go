@@ -1,6 +1,7 @@
 package dockerfile
 
 import (
+	"encoding/json"
 	"io"
 
 	"github.com/docker/docker/api/types"
@@ -8,6 +9,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
 	containerpkg "github.com/docker/docker/container"
+	"github.com/docker/docker/layer"
 	"golang.org/x/net/context"
 )
 
@@ -76,6 +78,10 @@ func (m *MockBackend) MakeImageCache(cacheFrom []string) builder.ImageCache {
 	return nil
 }
 
+func (m *MockBackend) CreateImage(config []byte, parent string) (builder.Image, error) {
+	return nil, nil
+}
+
 type mockImage struct {
 	id     string
 	config *container.Config
@@ -87,6 +93,11 @@ func (i *mockImage) ImageID() string {
 
 func (i *mockImage) RunConfig() *container.Config {
 	return i.config
+}
+
+func (i *mockImage) MarshalJSON() ([]byte, error) {
+	type rawImage mockImage
+	return json.Marshal(rawImage(*i))
 }
 
 type mockImageCache struct {
@@ -108,4 +119,12 @@ func (l *mockLayer) Release() error {
 
 func (l *mockLayer) Mount() (string, error) {
 	return "mountPath", nil
+}
+
+func (l *mockLayer) Commit() (builder.ReleaseableLayer, error) {
+	return nil, nil
+}
+
+func (l *mockLayer) DiffID() layer.DiffID {
+	return layer.DiffID("abcdef")
 }

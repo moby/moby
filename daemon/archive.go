@@ -10,9 +10,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
 )
@@ -361,104 +359,4 @@ func (daemon *Daemon) containerCopy(container *container.Container, resource str
 	})
 	daemon.LogContainerEvent(container, "copy")
 	return reader, nil
-}
-
-// CopyOnBuild copies/extracts a source FileInfo to a destination path inside a container
-// specified by a container object.
-// TODO: make sure callers don't unnecessarily convert destPath with filepath.FromSlash (Copy does it already).
-// CopyOnBuild should take in abstract paths (with slashes) and the implementation should convert it to OS-specific paths.
-func (daemon *Daemon) CopyOnBuild(cID, destPath, srcRoot, srcPath string, decompress bool) error {
-	fullSrcPath, err := symlink.FollowSymlinkInScope(filepath.Join(srcRoot, srcPath), srcRoot)
-	if err != nil {
-		return err
-	}
-
-	destExists := true
-	destDir := false
-	rootIDs := daemon.idMappings.RootPair()
-
-	// Work in daemon-local OS specific file paths
-	destPath = filepath.FromSlash(destPath)
-
-	c, err := daemon.GetContainer(cID)
-	if err != nil {
-		return err
-	}
-	err = daemon.Mount(c)
-	if err != nil {
-		return err
-	}
-	defer daemon.Unmount(c)
-
-	dest, err := c.GetResourcePath(destPath)
-	if err != nil {
-		return err
-	}
-
-	// Preserve the trailing slash
-	// TODO: why are we appending another path separator if there was already one?
-	if strings.HasSuffix(destPath, string(os.PathSeparator)) || destPath == "." {
-		destDir = true
-		dest += string(os.PathSeparator)
-	}
-
-	destPath = dest
-
-	destStat, err := os.Stat(destPath)
-	if err != nil {
-		if !os.IsNotExist(err) {
-			//logrus.Errorf("Error performing os.Stat on %s. %s", destPath, err)
-			return err
-		}
-		destExists = false
-	}
-
-	archiver := chrootarchive.NewArchiver(daemon.idMappings)
-	src, err := os.Stat(fullSrcPath)
-	if err != nil {
-		return err
-	}
-
-	if src.IsDir() {
-		// copy as directory
-		if err := archiver.CopyWithTar(fullSrcPath, destPath); err != nil {
-			return err
-		}
-		return fixPermissions(fullSrcPath, destPath, rootIDs.UID, rootIDs.GID, destExists)
-	}
-	if decompress && archive.IsArchivePath(fullSrcPath) {
-		// Only try to untar if it is a file and that we've been told to decompress (when ADD-ing a remote file)
-
-		// First try to unpack the source as an archive
-		// to support the untar feature we need to clean up the path a little bit
-		// because tar is very forgiving.  First we need to strip off the archive's
-		// filename from the path but this is only added if it does not end in slash
-		tarDest := destPath
-		if strings.HasSuffix(tarDest, string(os.PathSeparator)) {
-			tarDest = filepath.Dir(destPath)
-		}
-
-		// try to successfully untar the orig
-		err := archiver.UntarPath(fullSrcPath, tarDest)
-		/*
-			if err != nil {
-				logrus.Errorf("Couldn't untar to %s: %v", tarDest, err)
-			}
-		*/
-		return err
-	}
-
-	// only needed for fixPermissions, but might as well put it before CopyFileWithTar
-	if destDir || (destExists && destStat.IsDir()) {
-		destPath = filepath.Join(destPath, filepath.Base(srcPath))
-	}
-
-	if err := idtools.MkdirAllAndChownNew(filepath.Dir(destPath), 0755, rootIDs); err != nil {
-		return err
-	}
-	if err := archiver.CopyFileWithTar(fullSrcPath, destPath); err != nil {
-		return err
-	}
-
-	return fixPermissions(fullSrcPath, destPath, rootIDs.UID, rootIDs.GID, destExists)
 }

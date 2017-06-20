@@ -13,9 +13,12 @@ import (
 
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/remotecontext"
+	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/pkg/errors"
@@ -32,6 +35,10 @@ type copyInfo struct {
 	root string
 	path string
 	hash string
+}
+
+func (c copyInfo) fullPath() (string, error) {
+	return symlink.FollowSymlinkInScope(filepath.Join(c.root, c.path), c.root)
 }
 
 func newCopyInfoFromSource(source builder.Source, path string, hash string) copyInfo {
@@ -148,7 +155,7 @@ func (o *copier) calcCopyInfo(origPath string, allowWildcards bool) ([]copyInfo,
 		var err error
 		o.source, err = imageSource.Source()
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to copy")
+			return nil, errors.Wrapf(err, "failed to copy from %s", imageSource.ImageID())
 		}
 	}
 
@@ -352,6 +359,83 @@ func downloadSource(output io.Writer, stdout io.Writer, srcURL string) (remote b
 		return
 	}
 
-	lc, err := remotecontext.NewLazyContext(tmpDir)
+	lc, err := remotecontext.NewLazySource(tmpDir)
 	return lc, filename, err
+}
+
+type copyFileOptions struct {
+	decompress bool
+	archiver   *archive.Archiver
+}
+
+func performCopyForInfo(dest copyInfo, source copyInfo, options copyFileOptions) error {
+	srcPath, err := source.fullPath()
+	if err != nil {
+		return err
+	}
+	destPath, err := dest.fullPath()
+	if err != nil {
+		return err
+	}
+
+	archiver := options.archiver
+
+	src, err := os.Stat(srcPath)
+	if err != nil {
+		return errors.Wrapf(err, "source path not found")
+	}
+	if src.IsDir() {
+		return copyDirectory(archiver, srcPath, destPath)
+	}
+	if options.decompress && archive.IsArchivePath(srcPath) {
+		return archiver.UntarPath(srcPath, destPath)
+	}
+
+	destExistsAsDir, err := isExistingDirectory(destPath)
+	if err != nil {
+		return err
+	}
+	// dest.path must be used because destPath has already been cleaned of any
+	// trailing slash
+	if endsInSlash(dest.path) || destExistsAsDir {
+		// source.path must be used to get the correct filename when the source
+		// is a symlink
+		destPath = filepath.Join(destPath, filepath.Base(source.path))
+	}
+	return copyFile(archiver, srcPath, destPath)
+}
+
+func copyDirectory(archiver *archive.Archiver, source, dest string) error {
+	if err := archiver.CopyWithTar(source, dest); err != nil {
+		return errors.Wrapf(err, "failed to copy directory")
+	}
+	return fixPermissions(source, dest, archiver.IDMappings.RootPair())
+}
+
+func copyFile(archiver *archive.Archiver, source, dest string) error {
+	rootIDs := archiver.IDMappings.RootPair()
+
+	if err := idtools.MkdirAllAndChownNew(filepath.Dir(dest), 0755, rootIDs); err != nil {
+		return errors.Wrapf(err, "failed to create new directory")
+	}
+	if err := archiver.CopyFileWithTar(source, dest); err != nil {
+		return errors.Wrapf(err, "failed to copy file")
+	}
+	return fixPermissions(source, dest, rootIDs)
+}
+
+func endsInSlash(path string) bool {
+	return strings.HasSuffix(path, string(os.PathSeparator))
+}
+
+// isExistingDirectory returns true if the path exists and is a directory
+func isExistingDirectory(path string) (bool, error) {
+	destStat, err := os.Stat(path)
+	switch {
+	case os.IsNotExist(err):
+		return false, nil
+	case err != nil:
+		return false, err
+	}
+	return destStat.IsDir(), nil
 }
