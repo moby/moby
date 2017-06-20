@@ -65,7 +65,7 @@ func (b *Builder) commitContainer(dispatchState *dispatchState, id string, conta
 }
 
 func (b *Builder) exportImage(state *dispatchState, imageMount *imageMount, runConfig *container.Config) error {
-	newLayer, err := imageMount.Layer().Commit()
+	newLayer, err := imageMount.Layer().Commit(b.platform)
 	if err != nil {
 		return err
 	}
@@ -93,7 +93,7 @@ func (b *Builder) exportImage(state *dispatchState, imageMount *imageMount, runC
 		return errors.Wrap(err, "failed to encode image config")
 	}
 
-	exportedImage, err := b.docker.CreateImage(config, state.imageID)
+	exportedImage, err := b.docker.CreateImage(config, state.imageID, parentImage.OS)
 	if err != nil {
 		return errors.Wrapf(err, "failed to export image")
 	}

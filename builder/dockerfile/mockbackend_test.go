@@ -78,7 +78,7 @@ func (m *MockBackend) MakeImageCache(cacheFrom []string, platform string) builde
 	return nil
 }
 
-func (m *MockBackend) CreateImage(config []byte, parent string) (builder.Image, error) {
+func (m *MockBackend) CreateImage(config []byte, parent string, platform string) (builder.Image, error) {
 	return nil, nil
 }
 
@@ -121,7 +121,7 @@ func (l *mockLayer) Mount() (string, error) {
 	return "mountPath", nil
 }
 
-func (l *mockLayer) Commit() (builder.ReleaseableLayer, error) {
+func (l *mockLayer) Commit(string) (builder.ReleaseableLayer, error) {
 	return nil, nil
 }
 
