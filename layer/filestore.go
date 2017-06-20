@@ -226,6 +226,7 @@ func (fms *fileMetadataStore) TarSplitReader(layer ChainID) (io.ReadCloser, erro
 	}
 	f, err := gzip.NewReader(fz)
 	if err != nil {
+		fz.Close()
 		return nil, err
 	}
 
