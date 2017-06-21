@@ -256,6 +256,10 @@ func (daemon *Daemon) removeAllReferencesToImageID(imgID image.ID, records *[]ty
 			return err
 		}
 
+		if canonical, ok := imageRef.(reference.Canonical); ok {
+			daemon.manifestStore.Delete(canonical)
+		}
+
 		untaggedRecord := types.ImageDeleteResponseItem{Untagged: reference.FamiliarString(parsedRef)}
 
 		daemon.LogImageEvent(imgID.String(), imgID.String(), "untag")
