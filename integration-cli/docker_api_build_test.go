@@ -4,11 +4,14 @@ import (
 	"archive/tar"
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"regexp"
 	"strings"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli/build/fakecontext"
 	"github.com/docker/docker/integration-cli/cli/build/fakegit"
@@ -320,6 +323,44 @@ func (s *DockerSuite) TestBuildOnBuildCache(c *check.C) {
 	image, _, err := client.ImageInspectWithRaw(context.Background(), childID)
 	require.NoError(c, err)
 	assert.Equal(c, parentID, image.Parent)
+}
+
+func (s *DockerRegistrySuite) TestBuildCopyFromForcePull(c *check.C) {
+	client, err := request.NewClient()
+	require.NoError(c, err)
+
+	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
+	// tag the image to upload it to the private registry
+	err = client.ImageTag(context.TODO(), "busybox", repoName)
+	assert.Nil(c, err)
+	// push the image to the registry
+	rc, err := client.ImagePush(context.TODO(), repoName, types.ImagePushOptions{RegistryAuth: "{}"})
+	assert.Nil(c, err)
+	_, err = io.Copy(ioutil.Discard, rc)
+	assert.Nil(c, err)
+
+	dockerfile := fmt.Sprintf(`
+		FROM %s AS foo
+		RUN touch abc
+		FROM %s
+		COPY --from=foo /abc /
+		`, repoName, repoName)
+
+	ctx := fakecontext.New(c, "",
+		fakecontext.WithDockerfile(dockerfile),
+	)
+	defer ctx.Close()
+
+	res, body, err := request.Post(
+		"/build?pull=1",
+		request.RawContent(ctx.AsTarReader(c)),
+		request.ContentType("application/x-tar"))
+	require.NoError(c, err)
+	assert.Equal(c, http.StatusOK, res.StatusCode)
+
+	out, err := testutil.ReadBody(body)
+	require.NoError(c, err)
+	assert.Contains(c, string(out), "Successfully built")
 }
 
 type buildLine struct {

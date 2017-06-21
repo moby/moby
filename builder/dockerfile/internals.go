@@ -116,7 +116,7 @@ func (b *Builder) performCopy(state *dispatchState, inst copyInstruction) error 
 		return err
 	}
 
-	imageMount, err := b.imageSources.Get(state.imageID)
+	imageMount, err := b.imageSources.Get(state.imageID, true)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get destination image %q", state.imageID)
 	}

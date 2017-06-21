@@ -18,6 +18,7 @@ import (
 )
 
 type releaseableLayer struct {
+	released   bool
 	layerStore layer.Store
 	roLayer    layer.Layer
 	rwLayer    layer.RWLayer
@@ -70,6 +71,10 @@ func (rl *releaseableLayer) DiffID() layer.DiffID {
 }
 
 func (rl *releaseableLayer) Release() error {
+	if rl.released {
+		return nil
+	}
+	rl.released = true
 	rl.releaseRWLayer()
 	return rl.releaseROLayer()
 }
@@ -143,8 +148,11 @@ func (daemon *Daemon) GetImageAndReleasableLayer(ctx context.Context, refOrID st
 		return nil, layer, err
 	}
 
-	if !opts.ForcePull {
-		image, _ := daemon.GetImage(refOrID)
+	if opts.PullOption != backend.PullOptionForcePull {
+		image, err := daemon.GetImage(refOrID)
+		if err != nil && opts.PullOption == backend.PullOptionNoPull {
+			return nil, nil, err
+		}
 		// TODO: shouldn't we error out if error is different from "not found" ?
 		if image != nil {
 			layer, err := newReleasableLayerForImage(image, daemon.layerStore)

@@ -86,21 +86,29 @@ func (s *buildStages) update(imageID string) {
 	s.sequence[len(s.sequence)-1].update(imageID)
 }
 
-type getAndMountFunc func(string) (builder.Image, builder.ReleaseableLayer, error)
+type getAndMountFunc func(string, bool) (builder.Image, builder.ReleaseableLayer, error)
 
 // imageSources mounts images and provides a cache for mounted images. It tracks
 // all images so they can be unmounted at the end of the build.
 type imageSources struct {
 	byImageID map[string]*imageMount
-	withoutID []*imageMount
+	mounts    []*imageMount
 	getImage  getAndMountFunc
 	cache     pathCache // TODO: remove
 }
 
 func newImageSources(ctx context.Context, options builderOptions) *imageSources {
-	getAndMount := func(idOrRef string) (builder.Image, builder.ReleaseableLayer, error) {
+	getAndMount := func(idOrRef string, localOnly bool) (builder.Image, builder.ReleaseableLayer, error) {
+		pullOption := backend.PullOptionNoPull
+		if !localOnly {
+			if options.Options.PullParent {
+				pullOption = backend.PullOptionForcePull
+			} else {
+				pullOption = backend.PullOptionPreferLocal
+			}
+		}
 		return options.Backend.GetImageAndReleasableLayer(ctx, idOrRef, backend.GetImageAndLayerOptions{
-			ForcePull:  options.Options.PullParent,
+			PullOption: pullOption,
 			AuthConfig: options.Options.AuthConfigs,
 			Output:     options.ProgressWriter.Output,
 		})
@@ -112,12 +120,12 @@ func newImageSources(ctx context.Context, options builderOptions) *imageSources 
 	}
 }
 
-func (m *imageSources) Get(idOrRef string) (*imageMount, error) {
+func (m *imageSources) Get(idOrRef string, localOnly bool) (*imageMount, error) {
 	if im, ok := m.byImageID[idOrRef]; ok {
 		return im, nil
 	}
 
-	image, layer, err := m.getImage(idOrRef)
+	image, layer, err := m.getImage(idOrRef, localOnly)
 	if err != nil {
 		return nil, err
 	}
@@ -127,13 +135,7 @@ func (m *imageSources) Get(idOrRef string) (*imageMount, error) {
 }
 
 func (m *imageSources) Unmount() (retErr error) {
-	for _, im := range m.byImageID {
-		if err := im.unmount(); err != nil {
-			logrus.Error(err)
-			retErr = err
-		}
-	}
-	for _, im := range m.withoutID {
+	for _, im := range m.mounts {
 		if err := im.unmount(); err != nil {
 			logrus.Error(err)
 			retErr = err
@@ -146,10 +148,10 @@ func (m *imageSources) Add(im *imageMount) {
 	switch im.image {
 	case nil:
 		im.image = &dockerimage.Image{}
-		m.withoutID = append(m.withoutID, im)
 	default:
 		m.byImageID[im.image.ImageID()] = im
 	}
+	m.mounts = append(m.mounts, im)
 }
 
 // imageMount is a reference to an image that can be used as a builder.Source

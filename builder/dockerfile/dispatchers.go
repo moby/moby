@@ -196,6 +196,7 @@ func (b *Builder) getImageMount(fromFlag *Flag) (*imageMount, error) {
 		return nil, nil
 	}
 
+	var localOnly bool
 	imageRefOrID := fromFlag.Value
 	stage, err := b.buildStages.get(fromFlag.Value)
 	if err != nil {
@@ -203,8 +204,9 @@ func (b *Builder) getImageMount(fromFlag *Flag) (*imageMount, error) {
 	}
 	if stage != nil {
 		imageRefOrID = stage.ImageID()
+		localOnly = true
 	}
-	return b.imageSources.Get(imageRefOrID)
+	return b.imageSources.Get(imageRefOrID, localOnly)
 }
 
 // FROM imagename[:tag | @digest] [AS build-stage-name]
@@ -266,8 +268,10 @@ func (b *Builder) getFromImage(shlex *ShellLex, name string) (builder.Image, err
 		return nil, err
 	}
 
+	var localOnly bool
 	if stage, ok := b.buildStages.getByName(name); ok {
 		name = stage.ImageID()
+		localOnly = true
 	}
 
 	// Windows cannot support a container with no base image.
@@ -277,7 +281,7 @@ func (b *Builder) getFromImage(shlex *ShellLex, name string) (builder.Image, err
 		}
 		return scratchImage, nil
 	}
-	imageMount, err := b.imageSources.Get(name)
+	imageMount, err := b.imageSources.Get(name, localOnly)
 	if err != nil {
 		return nil, err
 	}
