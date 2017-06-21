@@ -37,7 +37,7 @@ type imageMeta struct {
 }
 
 type store struct {
-	sync.Mutex
+	sync.RWMutex
 	ls        LayerGetReleaser
 	images    map[ID]*imageMeta
 	fs        StoreBackend
@@ -166,9 +166,6 @@ func (is *store) Create(config []byte) (ID, error) {
 }
 
 func (is *store) Search(term string) (ID, error) {
-	is.Lock()
-	defer is.Unlock()
-
 	dgst, err := is.digestSet.Lookup(term)
 	if err != nil {
 		if err == digestset.ErrDigestNotFound {
@@ -251,8 +248,8 @@ func (is *store) GetParent(id ID) (ID, error) {
 }
 
 func (is *store) Children(id ID) []ID {
-	is.Lock()
-	defer is.Unlock()
+	is.RLock()
+	defer is.RUnlock()
 
 	return is.children(id)
 }
@@ -276,8 +273,8 @@ func (is *store) Map() map[ID]*Image {
 }
 
 func (is *store) imagesMap(all bool) map[ID]*Image {
-	is.Lock()
-	defer is.Unlock()
+	is.RLock()
+	defer is.RUnlock()
 
 	images := make(map[ID]*Image)
 
