@@ -824,7 +824,7 @@ ensures the container doesn't consume too much memory for long time, because
 every memory reclaim shrinks the container's consumption to the reservation.
 
 By default, kernel kills processes in a container if an out-of-memory (OOM)
-error occurs. To change this behavior, use the `--oom-kill-disable` option.
+error occurs. To change this behaviour, use the `--oom-kill-disable` option.
 Only disable the OOM killer on containers where you have also set the
 `-m/--memory` option. If the `-m` flag is not set, this can result in the host
 running out of memory and require killing the host's system processes to free
