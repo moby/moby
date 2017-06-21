@@ -80,7 +80,7 @@ func New(stateDir string, options ...RemoteOption) (_ Remote, err error) {
 		}
 	}
 
-	if err := system.MkdirAll(stateDir, 0700); err != nil {
+	if err := system.MkdirAll(stateDir, 0700, ""); err != nil {
 		return nil, err
 	}
 

@@ -40,6 +40,7 @@ import (
 	"github.com/docker/docker/pkg/pidfile"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/signal"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/plugin"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
@@ -210,6 +211,10 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		logrus.Fatalf("Error creating middlewares: %v", err)
 	}
 
+	if system.LCOWSupported() {
+		logrus.Warnln("LCOW support is enabled - this feature is incomplete")
+	}
+
 	d, err := daemon.NewDaemon(cli.Config, registryService, containerdRemote, pluginStore)
 	if err != nil {
 		return fmt.Errorf("Error starting daemon: %v", err)
@@ -261,12 +266,6 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	d.RestartSwarmContainers()
 
 	logrus.Info("Daemon has completed initialization")
-
-	logrus.WithFields(logrus.Fields{
-		"version":     dockerversion.Version,
-		"commit":      dockerversion.GitCommit,
-		"graphdriver": d.GraphDriverName(),
-	}).Info("Docker daemon")
 
 	cli.d = d
 

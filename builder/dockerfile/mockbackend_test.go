@@ -18,7 +18,7 @@ type MockBackend struct {
 	containerCreateFunc func(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error)
 	commitFunc          func(string, *backend.ContainerCommitConfig) (string, error)
 	getImageFunc        func(string) (builder.Image, builder.ReleaseableLayer, error)
-	makeImageCacheFunc  func(cacheFrom []string) builder.ImageCache
+	makeImageCacheFunc  func(cacheFrom []string, platform string) builder.ImageCache
 }
 
 func (m *MockBackend) ContainerAttachRaw(cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool, attached chan struct{}) error {
@@ -71,14 +71,14 @@ func (m *MockBackend) GetImageAndReleasableLayer(ctx context.Context, refOrID st
 	return &mockImage{id: "theid"}, &mockLayer{}, nil
 }
 
-func (m *MockBackend) MakeImageCache(cacheFrom []string) builder.ImageCache {
+func (m *MockBackend) MakeImageCache(cacheFrom []string, platform string) builder.ImageCache {
 	if m.makeImageCacheFunc != nil {
-		return m.makeImageCacheFunc(cacheFrom)
+		return m.makeImageCacheFunc(cacheFrom, platform)
 	}
 	return nil
 }
 
-func (m *MockBackend) CreateImage(config []byte, parent string) (builder.Image, error) {
+func (m *MockBackend) CreateImage(config []byte, parent string, platform string) (builder.Image, error) {
 	return nil, nil
 }
 
@@ -121,7 +121,7 @@ func (l *mockLayer) Mount() (string, error) {
 	return "mountPath", nil
 }
 
-func (l *mockLayer) Commit() (builder.ReleaseableLayer, error) {
+func (l *mockLayer) Commit(string) (builder.ReleaseableLayer, error) {
 	return nil, nil
 }
 

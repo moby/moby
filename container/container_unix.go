@@ -26,21 +26,6 @@ const (
 	containerSecretMountPath = "/run/secrets"
 )
 
-// Container holds the fields specific to unixen implementations.
-// See CommonContainer for standard fields common to all containers.
-type Container struct {
-	CommonContainer
-
-	// Fields below here are platform specific.
-	AppArmorProfile string
-	HostnamePath    string
-	HostsPath       string
-	ShmPath         string
-	ResolvConfPath  string
-	SeccompProfile  string
-	NoNewPrivileges bool
-}
-
 // ExitStatus provides exit reasons for a container.
 type ExitStatus struct {
 	// The exit code with which the container exited.
@@ -48,27 +33,6 @@ type ExitStatus struct {
 
 	// Whether the container encountered an OOM.
 	OOMKilled bool
-}
-
-// CreateDaemonEnvironment returns the list of all environment variables given the list of
-// environment variables related to links.
-// Sets PATH, HOSTNAME and if container.Config.Tty is set: TERM.
-// The defaults set here do not override the values in container.Config.Env
-func (container *Container) CreateDaemonEnvironment(tty bool, linkedEnv []string) []string {
-	// Setup environment
-	env := []string{
-		"PATH=" + system.DefaultPathEnv,
-		"HOSTNAME=" + container.Config.Hostname,
-	}
-	if tty {
-		env = append(env, "TERM=xterm")
-	}
-	env = append(env, linkedEnv...)
-	// because the env on the container can override certain default values
-	// we need to replace the 'env' keys where they match and append anything
-	// else.
-	env = ReplaceOrAppendEnvValues(env, container.Config.Env)
-	return env
 }
 
 // TrySetNetworkMount attempts to set the network mounts given a provided destination and

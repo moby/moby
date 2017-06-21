@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -33,6 +34,7 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/symlink"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/restartmanager"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
@@ -58,9 +60,8 @@ var (
 	errInvalidNetwork  = fmt.Errorf("invalid network settings while building port map info")
 )
 
-// CommonContainer holds the fields for a container which are
-// applicable across all platforms supported by the daemon.
-type CommonContainer struct {
+// Container holds the structure defining a container object.
+type Container struct {
 	StreamConfig *stream.Config
 	// embed for Container to support states directly.
 	*State          `json:"State"` // Needed for Engine API version <= 1.11
@@ -78,6 +79,7 @@ type CommonContainer struct {
 	LogPath         string
 	Name            string
 	Driver          string
+	Platform        string
 	// MountLabel contains the options for the 'mount' command
 	MountLabel             string
 	ProcessLabel           string
@@ -95,21 +97,31 @@ type CommonContainer struct {
 	LogCopier      *logger.Copier `json:"-"`
 	restartManager restartmanager.RestartManager
 	attachContext  *attachContext
+
+	// Fields here are specific to Unix platforms
+	AppArmorProfile string
+	HostnamePath    string
+	HostsPath       string
+	ShmPath         string
+	ResolvConfPath  string
+	SeccompProfile  string
+	NoNewPrivileges bool
+
+	// Fields here are specific to Windows
+	NetworkSharedContainerID string
 }
 
 // NewBaseContainer creates a new container with its
 // basic configuration.
 func NewBaseContainer(id, root string) *Container {
 	return &Container{
-		CommonContainer: CommonContainer{
-			ID:            id,
-			State:         NewState(),
-			ExecCommands:  exec.NewStore(),
-			Root:          root,
-			MountPoints:   make(map[string]*volume.MountPoint),
-			StreamConfig:  stream.NewConfig(),
-			attachContext: &attachContext{},
-		},
+		ID:            id,
+		State:         NewState(),
+		ExecCommands:  exec.NewStore(),
+		Root:          root,
+		MountPoints:   make(map[string]*volume.MountPoint),
+		StreamConfig:  stream.NewConfig(),
+		attachContext: &attachContext{},
 	}
 }
 
@@ -131,6 +143,13 @@ func (container *Container) FromDisk() error {
 	// Load container settings
 	if err := dec.Decode(container); err != nil {
 		return err
+	}
+
+	// Ensure the platform is set if blank. Assume it is the platform of the
+	// host OS if not, to ensure containers created before multiple-platform
+	// support are migrated
+	if container.Platform == "" {
+		container.Platform = runtime.GOOS
 	}
 
 	if err := label.ReserveLabel(container.ProcessLabel); err != nil {
@@ -985,4 +1004,32 @@ func (container *Container) ConfigsDirPath() string {
 // ConfigFilePath returns the path to the on-disk location of a config.
 func (container *Container) ConfigFilePath(configRef swarmtypes.ConfigReference) string {
 	return filepath.Join(container.ConfigsDirPath(), configRef.ConfigID)
+}
+
+// CreateDaemonEnvironment creates a new environment variable slice for this container.
+func (container *Container) CreateDaemonEnvironment(tty bool, linkedEnv []string) []string {
+	// Setup environment
+	// TODO @jhowardmsft LCOW Support. This will need revisiting later.
+	platform := container.Platform
+	if platform == "" {
+		platform = runtime.GOOS
+	}
+	env := []string{}
+	if runtime.GOOS != "windows" || (runtime.GOOS == "windows" && system.LCOWSupported() && platform == "linux") {
+		env = []string{
+			"PATH=" + system.DefaultPathEnv(platform),
+			"HOSTNAME=" + container.Config.Hostname,
+		}
+		if tty {
+			env = append(env, "TERM=xterm")
+		}
+		env = append(env, linkedEnv...)
+	}
+
+	// because the env on the container can override certain default values
+	// we need to replace the 'env' keys where they match and append anything
+	// else.
+	//return ReplaceOrAppendEnvValues(linkedEnv, container.Config.Env)
+	foo := ReplaceOrAppendEnvValues(env, container.Config.Env)
+	return foo
 }

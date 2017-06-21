@@ -111,7 +111,7 @@ func (daemon *Daemon) Register(c *container.Container) {
 	daemon.idIndex.Add(c.ID)
 }
 
-func (daemon *Daemon) newContainer(name string, config *containertypes.Config, hostConfig *containertypes.HostConfig, imgID image.ID, managed bool) (*container.Container, error) {
+func (daemon *Daemon) newContainer(name string, platform string, config *containertypes.Config, hostConfig *containertypes.HostConfig, imgID image.ID, managed bool) (*container.Container, error) {
 	var (
 		id             string
 		err            error
@@ -144,8 +144,8 @@ func (daemon *Daemon) newContainer(name string, config *containertypes.Config, h
 	base.ImageID = imgID
 	base.NetworkSettings = &network.Settings{IsAnonymousEndpoint: noExplicitName}
 	base.Name = name
-	base.Driver = daemon.GraphDriverName()
-
+	base.Driver = daemon.GraphDriverName(platform)
+	base.Platform = platform
 	return base, err
 }
 

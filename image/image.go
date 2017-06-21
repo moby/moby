@@ -96,6 +96,15 @@ func (img *Image) RunConfig() *container.Config {
 	return img.Config
 }
 
+// Platform returns the image's operating system. If not populated, defaults to the host runtime OS.
+func (img *Image) Platform() string {
+	os := img.OS
+	if os == "" {
+		os = runtime.GOOS
+	}
+	return os
+}
+
 // MarshalJSON serializes the image to JSON. It sorts the top-level keys so
 // that JSON that's been manipulated by a push/pull cycle with a legacy
 // registry won't end up with a different key order.
@@ -126,7 +135,7 @@ type ChildConfig struct {
 }
 
 // NewChildImage creates a new Image as a child of this image.
-func NewChildImage(img *Image, child ChildConfig) *Image {
+func NewChildImage(img *Image, child ChildConfig, platform string) *Image {
 	isEmptyLayer := layer.IsEmpty(child.DiffID)
 	rootFS := img.RootFS
 	if rootFS == nil {
@@ -146,7 +155,7 @@ func NewChildImage(img *Image, child ChildConfig) *Image {
 			DockerVersion:   dockerversion.Version,
 			Config:          child.Config,
 			Architecture:    runtime.GOARCH,
-			OS:              runtime.GOOS,
+			OS:              platform,
 			Container:       child.ContainerID,
 			ContainerConfig: *child.ContainerConfig,
 			Author:          child.Author,

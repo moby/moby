@@ -26,6 +26,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/signal"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/go-connections/nat"
 	"github.com/pkg/errors"
 )
@@ -274,10 +275,12 @@ func (b *Builder) getFromImage(shlex *ShellLex, name string) (builder.Image, err
 		localOnly = true
 	}
 
-	// Windows cannot support a container with no base image.
+	// Windows cannot support a container with no base image unless it is LCOW.
 	if name == api.NoBaseImageSpecifier {
 		if runtime.GOOS == "windows" {
-			return nil, errors.New("Windows does not support FROM scratch")
+			if b.platform == "windows" || (b.platform != "windows" && !system.LCOWSupported()) {
+				return nil, errors.New("Windows does not support FROM scratch")
+			}
 		}
 		return scratchImage, nil
 	}
@@ -400,7 +403,7 @@ func workdir(req dispatchRequest) error {
 	}
 
 	comment := "WORKDIR " + runConfig.WorkingDir
-	runConfigWithCommentCmd := copyRunConfig(runConfig, withCmdCommentString(comment))
+	runConfigWithCommentCmd := copyRunConfig(runConfig, withCmdCommentString(comment, req.builder.platform))
 	containerID, err := req.builder.probeAndCreate(req.state, runConfigWithCommentCmd)
 	if err != nil || containerID == "" {
 		return err
@@ -418,7 +421,7 @@ func workdir(req dispatchRequest) error {
 // the current SHELL which defaults to 'sh -c' under linux or 'cmd /S /C' under
 // Windows, in the event there is only one argument The difference in processing:
 //
-// RUN echo hi          # sh -c echo hi       (Linux)
+// RUN echo hi          # sh -c echo hi       (Linux and LCOW)
 // RUN echo hi          # cmd /S /C echo hi   (Windows)
 // RUN [ "echo", "hi" ] # echo hi
 //
@@ -434,7 +437,7 @@ func run(req dispatchRequest) error {
 	stateRunConfig := req.state.runConfig
 	args := handleJSONArgs(req.args, req.attributes)
 	if !req.attributes["json"] {
-		args = append(getShell(stateRunConfig), args...)
+		args = append(getShell(stateRunConfig, req.builder.platform), args...)
 	}
 	cmdFromArgs := strslice.StrSlice(args)
 	buildArgs := req.builder.buildArgs.FilterAllowed(stateRunConfig.Env)
@@ -519,7 +522,7 @@ func cmd(req dispatchRequest) error {
 	runConfig := req.state.runConfig
 	cmdSlice := handleJSONArgs(req.args, req.attributes)
 	if !req.attributes["json"] {
-		cmdSlice = append(getShell(runConfig), cmdSlice...)
+		cmdSlice = append(getShell(runConfig, req.builder.platform), cmdSlice...)
 	}
 
 	runConfig.Cmd = strslice.StrSlice(cmdSlice)
@@ -671,7 +674,7 @@ func entrypoint(req dispatchRequest) error {
 		runConfig.Entrypoint = nil
 	default:
 		// ENTRYPOINT echo hi
-		runConfig.Entrypoint = strslice.StrSlice(append(getShell(runConfig), parsed[0]))
+		runConfig.Entrypoint = strslice.StrSlice(append(getShell(runConfig, req.builder.platform), parsed[0]))
 	}
 
 	// when setting the entrypoint if a CMD was not explicitly set then

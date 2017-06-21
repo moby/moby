@@ -97,6 +97,8 @@ type imageSources struct {
 	cache     pathCache // TODO: remove
 }
 
+// TODO @jhowardmsft LCOW Support: Eventually, platform can be moved to options.Options.Platform,
+// and removed from builderOptions, but that can't be done yet as it would affect the API.
 func newImageSources(ctx context.Context, options builderOptions) *imageSources {
 	getAndMount := func(idOrRef string, localOnly bool) (builder.Image, builder.ReleaseableLayer, error) {
 		pullOption := backend.PullOptionNoPull
@@ -111,6 +113,7 @@ func newImageSources(ctx context.Context, options builderOptions) *imageSources 
 			PullOption: pullOption,
 			AuthConfig: options.Options.AuthConfigs,
 			Output:     options.ProgressWriter.Output,
+			Platform:   options.Platform,
 		})
 	}
 

@@ -43,7 +43,7 @@ type Backend interface {
 	// ContainerCreateWorkdir creates the workdir
 	ContainerCreateWorkdir(containerID string) error
 
-	CreateImage(config []byte, parent string) (Image, error)
+	CreateImage(config []byte, parent string, platform string) (Image, error)
 
 	ImageCacheBuilder
 }
@@ -78,7 +78,7 @@ type Result struct {
 // ImageCacheBuilder represents a generator for stateful image cache.
 type ImageCacheBuilder interface {
 	// MakeImageCache creates a stateful image cache.
-	MakeImageCache(cacheFrom []string) ImageCache
+	MakeImageCache(cacheFrom []string, platform string) ImageCache
 }
 
 // ImageCache abstracts an image cache.
@@ -100,6 +100,6 @@ type Image interface {
 type ReleaseableLayer interface {
 	Release() error
 	Mount() (string, error)
-	Commit() (ReleaseableLayer, error)
+	Commit(platform string) (ReleaseableLayer, error)
 	DiffID() layer.DiffID
 }

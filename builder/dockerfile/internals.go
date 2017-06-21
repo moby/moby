@@ -25,7 +25,7 @@ func (b *Builder) commit(dispatchState *dispatchState, comment string) error {
 		return errors.New("Please provide a source image with `from` prior to commit")
 	}
 
-	runConfigWithCommentCmd := copyRunConfig(dispatchState.runConfig, withCmdComment(comment))
+	runConfigWithCommentCmd := copyRunConfig(dispatchState.runConfig, withCmdComment(comment, b.platform))
 	hit, err := b.probeCache(dispatchState, runConfigWithCommentCmd)
 	if err != nil || hit {
 		return err
@@ -65,7 +65,7 @@ func (b *Builder) commitContainer(dispatchState *dispatchState, id string, conta
 }
 
 func (b *Builder) exportImage(state *dispatchState, imageMount *imageMount, runConfig *container.Config) error {
-	newLayer, err := imageMount.Layer().Commit()
+	newLayer, err := imageMount.Layer().Commit(b.platform)
 	if err != nil {
 		return err
 	}
@@ -84,7 +84,7 @@ func (b *Builder) exportImage(state *dispatchState, imageMount *imageMount, runC
 		ContainerConfig: runConfig,
 		DiffID:          newLayer.DiffID(),
 		Config:          copyRunConfig(state.runConfig),
-	})
+	}, parentImage.OS)
 
 	// TODO: it seems strange to marshal this here instead of just passing in the
 	// image struct
@@ -93,7 +93,7 @@ func (b *Builder) exportImage(state *dispatchState, imageMount *imageMount, runC
 		return errors.Wrap(err, "failed to encode image config")
 	}
 
-	exportedImage, err := b.docker.CreateImage(config, state.imageID)
+	exportedImage, err := b.docker.CreateImage(config, state.imageID, parentImage.OS)
 	if err != nil {
 		return errors.Wrapf(err, "failed to export image")
 	}
@@ -110,7 +110,7 @@ func (b *Builder) performCopy(state *dispatchState, inst copyInstruction) error 
 	// TODO: should this have been using origPaths instead of srcHash in the comment?
 	runConfigWithCommentCmd := copyRunConfig(
 		state.runConfig,
-		withCmdCommentString(fmt.Sprintf("%s %s in %s ", inst.cmdName, srcHash, inst.dest)))
+		withCmdCommentString(fmt.Sprintf("%s %s in %s ", inst.cmdName, srcHash, inst.dest), b.platform))
 	hit, err := b.probeCache(state, runConfigWithCommentCmd)
 	if err != nil || hit {
 		return err
@@ -190,9 +190,9 @@ func withCmd(cmd []string) runConfigModifier {
 
 // withCmdComment sets Cmd to a nop comment string. See withCmdCommentString for
 // why there are two almost identical versions of this.
-func withCmdComment(comment string) runConfigModifier {
+func withCmdComment(comment string, platform string) runConfigModifier {
 	return func(runConfig *container.Config) {
-		runConfig.Cmd = append(getShell(runConfig), "#(nop) ", comment)
+		runConfig.Cmd = append(getShell(runConfig, platform), "#(nop) ", comment)
 	}
 }
 
@@ -200,9 +200,9 @@ func withCmdComment(comment string) runConfigModifier {
 // A few instructions (workdir, copy, add) used a nop comment that is a single arg
 // where as all the other instructions used a two arg comment string. This
 // function implements the single arg version.
-func withCmdCommentString(comment string) runConfigModifier {
+func withCmdCommentString(comment string, platform string) runConfigModifier {
 	return func(runConfig *container.Config) {
-		runConfig.Cmd = append(getShell(runConfig), "#(nop) "+comment)
+		runConfig.Cmd = append(getShell(runConfig, platform), "#(nop) "+comment)
 	}
 }
 
@@ -229,9 +229,9 @@ func withEntrypointOverride(cmd []string, entrypoint []string) runConfigModifier
 
 // getShell is a helper function which gets the right shell for prefixing the
 // shell-form of RUN, ENTRYPOINT and CMD instructions
-func getShell(c *container.Config) []string {
+func getShell(c *container.Config, platform string) []string {
 	if 0 == len(c.Shell) {
-		return append([]string{}, defaultShell[:]...)
+		return append([]string{}, defaultShellForPlatform(platform)[:]...)
 	}
 	return append([]string{}, c.Shell[:]...)
 }
@@ -256,13 +256,13 @@ func (b *Builder) probeAndCreate(dispatchState *dispatchState, runConfig *contai
 	}
 	// Set a log config to override any default value set on the daemon
 	hostConfig := &container.HostConfig{LogConfig: defaultLogConfig}
-	container, err := b.containerManager.Create(runConfig, hostConfig)
+	container, err := b.containerManager.Create(runConfig, hostConfig, b.platform)
 	return container.ID, err
 }
 
 func (b *Builder) create(runConfig *container.Config) (string, error) {
 	hostConfig := hostConfigFromOptions(b.options)
-	container, err := b.containerManager.Create(runConfig, hostConfig)
+	container, err := b.containerManager.Create(runConfig, hostConfig, b.platform)
 	if err != nil {
 		return "", err
 	}

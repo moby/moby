@@ -28,10 +28,11 @@ func newContainerManager(docker builder.ExecBackend) *containerManager {
 }
 
 // Create a container
-func (c *containerManager) Create(runConfig *container.Config, hostConfig *container.HostConfig) (container.ContainerCreateCreatedBody, error) {
+func (c *containerManager) Create(runConfig *container.Config, hostConfig *container.HostConfig, platform string) (container.ContainerCreateCreatedBody, error) {
 	container, err := c.backend.ContainerCreate(types.ContainerCreateConfig{
 		Config:     runConfig,
 		HostConfig: hostConfig,
+		Platform:   platform,
 	})
 	if err != nil {
 		return container, err

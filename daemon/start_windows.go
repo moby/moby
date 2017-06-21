@@ -41,7 +41,7 @@ func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Contain
 	layerOpts.LayerFolderPath = m["dir"]
 
 	// Generate the layer paths of the layer options
-	img, err := daemon.imageStore.Get(container.ImageID)
+	img, err := daemon.stores[container.Platform].imageStore.Get(container.ImageID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to graph.Get on ImageID %s - %s", container.ImageID, err)
 	}
@@ -49,9 +49,9 @@ func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Contain
 	max := len(img.RootFS.DiffIDs)
 	for i := 1; i <= max; i++ {
 		img.RootFS.DiffIDs = img.RootFS.DiffIDs[:i]
-		layerPath, err := layer.GetLayerPath(daemon.layerStore, img.RootFS.ChainID())
+		layerPath, err := layer.GetLayerPath(daemon.stores[container.Platform].layerStore, img.RootFS.ChainID())
 		if err != nil {
-			return nil, fmt.Errorf("failed to get layer path from graphdriver %s for ImageID %s - %s", daemon.layerStore, img.RootFS.ChainID(), err)
+			return nil, fmt.Errorf("failed to get layer path from graphdriver %s for ImageID %s - %s", daemon.stores[container.Platform].layerStore, img.RootFS.ChainID(), err)
 		}
 		// Reverse order, expecting parent most first
 		layerOpts.LayerPaths = append([]string{layerPath}, layerOpts.LayerPaths...)

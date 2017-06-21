@@ -94,7 +94,7 @@ func TestLayerMigration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ls, err := NewStoreFromGraphDriver(fms, graph)
+	ls, err := NewStoreFromGraphDriver(fms, graph, runtime.GOOS)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,14 +110,14 @@ func TestLayerMigration(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	layer1b, err := ls.Register(bytes.NewReader(tar1), "")
+	layer1b, err := ls.Register(bytes.NewReader(tar1), "", Platform(runtime.GOOS))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	assertReferences(t, layer1a, layer1b)
 	// Attempt register, should be same
-	layer2a, err := ls.Register(bytes.NewReader(tar2), layer1a.ChainID())
+	layer2a, err := ls.Register(bytes.NewReader(tar2), layer1a.ChainID(), Platform(runtime.GOOS))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -222,7 +222,7 @@ func TestLayerMigrationNoTarsplit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ls, err := NewStoreFromGraphDriver(fms, graph)
+	ls, err := NewStoreFromGraphDriver(fms, graph, runtime.GOOS)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -238,7 +238,7 @@ func TestLayerMigrationNoTarsplit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	layer1b, err := ls.Register(bytes.NewReader(tar1), "")
+	layer1b, err := ls.Register(bytes.NewReader(tar1), "", Platform(runtime.GOOS))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -246,7 +246,7 @@ func TestLayerMigrationNoTarsplit(t *testing.T) {
 	assertReferences(t, layer1a, layer1b)
 
 	// Attempt register, should be same
-	layer2a, err := ls.Register(bytes.NewReader(tar2), layer1a.ChainID())
+	layer2a, err := ls.Register(bytes.NewReader(tar2), layer1a.ChainID(), Platform(runtime.GOOS))
 	if err != nil {
 		t.Fatal(err)
 	}

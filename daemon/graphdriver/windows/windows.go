@@ -94,6 +94,10 @@ func InitFilter(home string, options []string, uidMaps, gidMaps []idtools.IDMap)
 		return nil, fmt.Errorf("%s is on an ReFS volume - ReFS volumes are not supported", home)
 	}
 
+	if err := idtools.MkdirAllAs(home, 0700, 0, 0); err != nil {
+		return nil, fmt.Errorf("windowsfilter failed to create '%s': %v", home, err)
+	}
+
 	d := &Driver{
 		info: hcsshim.DriverInfo{
 			HomeDir: home,
@@ -149,8 +153,19 @@ func (d *Driver) Status() [][2]string {
 	}
 }
 
+// panicIfUsedByLcow does exactly what it says.
+// TODO @jhowardmsft - this is an temporary measure for the bring-up of
+// Linux containers on Windows. It is a failsafe to ensure that the right
+// graphdriver is used.
+func panicIfUsedByLcow() {
+	if system.LCOWSupported() {
+		panic("inconsistency - windowsfilter graphdriver should not be used when in LCOW mode")
+	}
+}
+
 // Exists returns true if the given id is registered with this driver.
 func (d *Driver) Exists(id string) bool {
+	panicIfUsedByLcow()
 	rID, err := d.resolveID(id)
 	if err != nil {
 		return false
@@ -165,6 +180,7 @@ func (d *Driver) Exists(id string) bool {
 // CreateReadWrite creates a layer that is writable for use as a container
 // file system.
 func (d *Driver) CreateReadWrite(id, parent string, opts *graphdriver.CreateOpts) error {
+	panicIfUsedByLcow()
 	if opts != nil {
 		return d.create(id, parent, opts.MountLabel, false, opts.StorageOpt)
 	}
@@ -173,6 +189,7 @@ func (d *Driver) CreateReadWrite(id, parent string, opts *graphdriver.CreateOpts
 
 // Create creates a new read-only layer with the given id.
 func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
+	panicIfUsedByLcow()
 	if opts != nil {
 		return d.create(id, parent, opts.MountLabel, true, opts.StorageOpt)
 	}
@@ -256,6 +273,7 @@ func (d *Driver) dir(id string) string {
 
 // Remove unmounts and removes the dir information.
 func (d *Driver) Remove(id string) error {
+	panicIfUsedByLcow()
 	rID, err := d.resolveID(id)
 	if err != nil {
 		return err
@@ -337,6 +355,7 @@ func (d *Driver) Remove(id string) error {
 
 // Get returns the rootfs path for the id. This will mount the dir at its given path.
 func (d *Driver) Get(id, mountLabel string) (string, error) {
+	panicIfUsedByLcow()
 	logrus.Debugf("WindowsGraphDriver Get() id %s mountLabel %s", id, mountLabel)
 	var dir string
 
@@ -395,6 +414,7 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 
 // Put adds a new layer to the driver.
 func (d *Driver) Put(id string) error {
+	panicIfUsedByLcow()
 	logrus.Debugf("WindowsGraphDriver Put() id %s", id)
 
 	rID, err := d.resolveID(id)
@@ -424,7 +444,6 @@ func (d *Driver) Put(id string) error {
 // We use this opportunity to cleanup any -removing folders which may be
 // still left if the daemon was killed while it was removing a layer.
 func (d *Driver) Cleanup() error {
-
 	items, err := ioutil.ReadDir(d.info.HomeDir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -454,6 +473,7 @@ func (d *Driver) Cleanup() error {
 // layer and its parent layer which may be "".
 // The layer should be mounted when calling this function
 func (d *Driver) Diff(id, parent string) (_ io.ReadCloser, err error) {
+	panicIfUsedByLcow()
 	rID, err := d.resolveID(id)
 	if err != nil {
 		return
@@ -490,6 +510,7 @@ func (d *Driver) Diff(id, parent string) (_ io.ReadCloser, err error) {
 // and its parent layer. If parent is "", then all changes will be ADD changes.
 // The layer should not be mounted when calling this function.
 func (d *Driver) Changes(id, parent string) ([]archive.Change, error) {
+	panicIfUsedByLcow()
 	rID, err := d.resolveID(id)
 	if err != nil {
 		return nil, err
@@ -545,6 +566,7 @@ func (d *Driver) Changes(id, parent string) ([]archive.Change, error) {
 // new layer in bytes.
 // The layer should not be mounted when calling this function
 func (d *Driver) ApplyDiff(id, parent string, diff io.Reader) (int64, error) {
+	panicIfUsedByLcow()
 	var layerChain []string
 	if parent != "" {
 		rPId, err := d.resolveID(parent)
@@ -579,6 +601,7 @@ func (d *Driver) ApplyDiff(id, parent string, diff io.Reader) (int64, error) {
 // and its parent and returns the size in bytes of the changes
 // relative to its base filesystem directory.
 func (d *Driver) DiffSize(id, parent string) (size int64, err error) {
+	panicIfUsedByLcow()
 	rPId, err := d.resolveID(parent)
 	if err != nil {
 		return
@@ -600,6 +623,7 @@ func (d *Driver) DiffSize(id, parent string) (size int64, err error) {
 
 // GetMetadata returns custom driver information.
 func (d *Driver) GetMetadata(id string) (map[string]string, error) {
+	panicIfUsedByLcow()
 	m := make(map[string]string)
 	m["dir"] = d.dir(id)
 	return m, nil
@@ -902,6 +926,7 @@ func (fg *fileGetCloserWithBackupPrivileges) Close() error {
 // DiffGetter returns a FileGetCloser that can read files from the directory that
 // contains files for the layer differences. Used for direct access for tar-split.
 func (d *Driver) DiffGetter(id string) (graphdriver.FileGetCloser, error) {
+	panicIfUsedByLcow()
 	id, err := d.resolveID(id)
 	if err != nil {
 		return nil, err

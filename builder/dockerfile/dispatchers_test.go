@@ -63,7 +63,7 @@ func newBuilderWithMockBackend() *Builder {
 			Backend: mockBackend,
 		}),
 		buildStages:      newBuildStages(),
-		imageProber:      newImageProber(mockBackend, nil, false),
+		imageProber:      newImageProber(mockBackend, nil, runtime.GOOS, false),
 		containerManager: newContainerManager(mockBackend),
 	}
 	return b
@@ -194,7 +194,7 @@ func TestFromScratch(t *testing.T) {
 	req := defaultDispatchReq(b, "scratch")
 	err := from(req)
 
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == "windows" && !system.LCOWSupported() {
 		assert.EqualError(t, err, "Windows does not support FROM scratch")
 		return
 	}
@@ -202,7 +202,12 @@ func TestFromScratch(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, req.state.hasFromImage())
 	assert.Equal(t, "", req.state.imageID)
-	assert.Equal(t, []string{"PATH=" + system.DefaultPathEnv}, req.state.runConfig.Env)
+	// Windows does not set the default path. TODO @jhowardmsft LCOW support. This will need revisiting as we get further into the implementation
+	expected := "PATH=" + system.DefaultPathEnv(runtime.GOOS)
+	if runtime.GOOS == "windows" {
+		expected = ""
+	}
+	assert.Equal(t, []string{expected}, req.state.runConfig.Env)
 }
 
 func TestFromWithArg(t *testing.T) {
@@ -469,7 +474,7 @@ func TestRunWithBuildArgs(t *testing.T) {
 
 	runConfig := &container.Config{}
 	origCmd := strslice.StrSlice([]string{"cmd", "in", "from", "image"})
-	cmdWithShell := strslice.StrSlice(append(getShell(runConfig), "echo foo"))
+	cmdWithShell := strslice.StrSlice(append(getShell(runConfig, runtime.GOOS), "echo foo"))
 	envVars := []string{"|1", "one=two"}
 	cachedCmd := strslice.StrSlice(append(envVars, cmdWithShell...))
 
@@ -483,10 +488,10 @@ func TestRunWithBuildArgs(t *testing.T) {
 	}
 
 	mockBackend := b.docker.(*MockBackend)
-	mockBackend.makeImageCacheFunc = func(_ []string) builder.ImageCache {
+	mockBackend.makeImageCacheFunc = func(_ []string, _ string) builder.ImageCache {
 		return imageCache
 	}
-	b.imageProber = newImageProber(mockBackend, nil, false)
+	b.imageProber = newImageProber(mockBackend, nil, runtime.GOOS, false)
 	mockBackend.getImageFunc = func(_ string) (builder.Image, builder.ReleaseableLayer, error) {
 		return &mockImage{
 			id:     "abcdef",
