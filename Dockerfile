@@ -148,7 +148,7 @@ RUN git clone https://github.com/golang/lint.git /go/src/github.com/golang/lint 
 
 # Install CRIU for checkpoint/restore support
 ENV CRIU_VERSION 2.12.1
-# Install dependancy packages specific to criu
+# Install dependency packages specific to criu
 RUN apt-get install libnet-dev -y && \
 	mkdir -p /usr/src/criu \
 	&& curl -sSL https://github.com/xemul/criu/archive/v${CRIU_VERSION}.tar.gz | tar -v -C /usr/src/criu/ -xz --strip-components=1 \

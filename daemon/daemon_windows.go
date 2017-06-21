@@ -478,7 +478,7 @@ func (daemon *Daemon) runAsHyperVContainer(hostConfig *containertypes.HostConfig
 		return daemon.defaultIsolation.IsHyperV()
 	}
 
-	// Container is requesting an isolation mode. Honour it.
+	// Container is requesting an isolation mode. Honor it.
 	return hostConfig.Isolation.IsHyperV()
 
 }

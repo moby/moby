@@ -152,7 +152,7 @@
 # -----------------------------------------------------------------------------------------
 
 
-# The number of build steps below are explicitly minimised to improve performance.
+# The number of build steps below are explicitly minimized to improve performance.
 FROM microsoft/windowsservercore
 
 # Use PowerShell as the default shell
