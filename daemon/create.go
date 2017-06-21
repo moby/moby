@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
 	"github.com/opencontainers/selinux/go-selinux/label"
 )
@@ -75,6 +76,16 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 		err       error
 	)
 
+	// TODO: @jhowardmsft LCOW support - at a later point, can remove the hard-coding
+	// to force the platform to be linux.
+	// Default the platform if not supplied
+	if params.Platform == "" {
+		params.Platform = runtime.GOOS
+	}
+	if params.Platform == "windows" && system.LCOWSupported() {
+		params.Platform = "linux"
+	}
+
 	if params.Config.Image != "" {
 		img, err = daemon.GetImage(params.Config.Image)
 		if err != nil {
@@ -82,9 +93,23 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 		}
 
 		if runtime.GOOS == "solaris" && img.OS != "solaris " {
-			return nil, errors.New("Platform on which parent image was created is not Solaris")
+			return nil, errors.New("platform on which parent image was created is not Solaris")
 		}
 		imgID = img.ID()
+
+		if runtime.GOOS == "windows" && img.OS == "linux" && !system.LCOWSupported() {
+			return nil, errors.New("platform on which parent image was created is not Windows")
+		}
+	}
+
+	// Make sure the platform requested matches the image
+	if img != nil {
+		if params.Platform != img.Platform() {
+			// Ignore this in LCOW mode. @jhowardmsft TODO - This will need revisiting later.
+			if !(runtime.GOOS == "windows" && system.LCOWSupported()) {
+				return nil, fmt.Errorf("cannot create a %s container from a %s image", params.Platform, img.Platform())
+			}
+		}
 	}
 
 	if err := daemon.mergeAndVerifyConfig(params.Config, img); err != nil {
@@ -95,7 +120,7 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 		return nil, err
 	}
 
-	if container, err = daemon.newContainer(params.Name, params.Config, params.HostConfig, imgID, managed); err != nil {
+	if container, err = daemon.newContainer(params.Name, params.Platform, params.Config, params.HostConfig, imgID, managed); err != nil {
 		return nil, err
 	}
 	defer func() {
@@ -215,7 +240,7 @@ func (daemon *Daemon) generateSecurityOpt(hostConfig *containertypes.HostConfig)
 func (daemon *Daemon) setRWLayer(container *container.Container) error {
 	var layerID layer.ChainID
 	if container.ImageID != "" {
-		img, err := daemon.imageStore.Get(container.ImageID)
+		img, err := daemon.stores[container.Platform].imageStore.Get(container.ImageID)
 		if err != nil {
 			return err
 		}
@@ -228,7 +253,7 @@ func (daemon *Daemon) setRWLayer(container *container.Container) error {
 		StorageOpt: container.HostConfig.StorageOpt,
 	}
 
-	rwLayer, err := daemon.layerStore.CreateRWLayer(container.ID, layerID, rwLayerOpts)
+	rwLayer, err := daemon.stores[container.Platform].layerStore.CreateRWLayer(container.ID, layerID, rwLayerOpts)
 	if err != nil {
 		return err
 	}

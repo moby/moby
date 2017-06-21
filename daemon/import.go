@@ -26,12 +26,17 @@ import (
 // inConfig (if src is "-"), or from a URI specified in src. Progress output is
 // written to outStream. Repository and tag names can optionally be given in
 // the repo and tag arguments, respectively.
-func (daemon *Daemon) ImportImage(src string, repository, tag string, msg string, inConfig io.ReadCloser, outStream io.Writer, changes []string) error {
+func (daemon *Daemon) ImportImage(src string, repository, platform string, tag string, msg string, inConfig io.ReadCloser, outStream io.Writer, changes []string) error {
 	var (
 		rc     io.ReadCloser
 		resp   *http.Response
 		newRef reference.Named
 	)
+
+	// Default the platform if not supplied.
+	if platform == "" {
+		platform = runtime.GOOS
+	}
 
 	if repository != "" {
 		var err error
@@ -85,12 +90,11 @@ func (daemon *Daemon) ImportImage(src string, repository, tag string, msg string
 	if err != nil {
 		return err
 	}
-	// TODO: support windows baselayer?
-	l, err := daemon.layerStore.Register(inflatedLayerData, "")
+	l, err := daemon.stores[platform].layerStore.Register(inflatedLayerData, "", layer.Platform(platform))
 	if err != nil {
 		return err
 	}
-	defer layer.ReleaseAndLog(daemon.layerStore, l)
+	defer layer.ReleaseAndLog(daemon.stores[platform].layerStore, l)
 
 	created := time.Now().UTC()
 	imgConfig, err := json.Marshal(&image.Image{
@@ -98,7 +102,7 @@ func (daemon *Daemon) ImportImage(src string, repository, tag string, msg string
 			DockerVersion: dockerversion.Version,
 			Config:        config,
 			Architecture:  runtime.GOARCH,
-			OS:            runtime.GOOS,
+			OS:            platform,
 			Created:       created,
 			Comment:       msg,
 		},
@@ -115,14 +119,14 @@ func (daemon *Daemon) ImportImage(src string, repository, tag string, msg string
 		return err
 	}
 
-	id, err := daemon.imageStore.Create(imgConfig)
+	id, err := daemon.stores[platform].imageStore.Create(imgConfig)
 	if err != nil {
 		return err
 	}
 
 	// FIXME: connect with commit code and call refstore directly
 	if newRef != nil {
-		if err := daemon.TagImageWithReference(id, newRef); err != nil {
+		if err := daemon.TagImageWithReference(id, platform, newRef); err != nil {
 			return err
 		}
 	}

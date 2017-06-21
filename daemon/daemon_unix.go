@@ -702,14 +702,22 @@ func overlaySupportsSelinux() (bool, error) {
 }
 
 // configureKernelSecuritySupport configures and validates security support for the kernel
-func configureKernelSecuritySupport(config *config.Config, driverName string) error {
+func configureKernelSecuritySupport(config *config.Config, driverNames []string) error {
 	if config.EnableSelinuxSupport {
 		if !selinuxEnabled() {
 			logrus.Warn("Docker could not enable SELinux on the host system")
 			return nil
 		}
 
-		if driverName == "overlay" || driverName == "overlay2" {
+		overlayFound := false
+		for _, d := range driverNames {
+			if d == "overlay" || d == "overlay2" {
+				overlayFound = true
+				break
+			}
+		}
+
+		if overlayFound {
 			// If driver is overlay or overlay2, make sure kernel
 			// supports selinux with overlay.
 			supported, err := overlaySupportsSelinux()
@@ -718,7 +726,7 @@ func configureKernelSecuritySupport(config *config.Config, driverName string) er
 			}
 
 			if !supported {
-				logrus.Warnf("SELinux is not supported with the %s graph driver on this kernel", driverName)
+				logrus.Warnf("SELinux is not supported with the %v graph driver on this kernel", driverNames)
 			}
 		}
 	} else {

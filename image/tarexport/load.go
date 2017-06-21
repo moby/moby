@@ -2,12 +2,14 @@ package tarexport
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution"
@@ -85,6 +87,17 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 			return fmt.Errorf("invalid manifest, layers length mismatch: expected %d, got %d", expected, actual)
 		}
 
+		// On Windows, validate the platform, defaulting to windows if not present.
+		platform := layer.Platform(img.OS)
+		if runtime.GOOS == "windows" {
+			if platform == "" {
+				platform = "windows"
+			}
+			if (platform != "windows") && (platform != "linux") {
+				return fmt.Errorf("configuration for this image has an unsupported platform: %s", platform)
+			}
+		}
+
 		for i, diffID := range img.RootFS.DiffIDs {
 			layerPath, err := safePath(tmpDir, m.Layers[i])
 			if err != nil {
@@ -94,7 +107,7 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 			r.Append(diffID)
 			newLayer, err := l.ls.Get(r.ChainID())
 			if err != nil {
-				newLayer, err = l.loadLayer(layerPath, rootFS, diffID.String(), m.LayerSources[diffID], progressOutput)
+				newLayer, err = l.loadLayer(layerPath, rootFS, diffID.String(), platform, m.LayerSources[diffID], progressOutput)
 				if err != nil {
 					return err
 				}
@@ -161,7 +174,7 @@ func (l *tarexporter) setParentID(id, parentID image.ID) error {
 	return l.is.SetParent(id, parentID)
 }
 
-func (l *tarexporter) loadLayer(filename string, rootFS image.RootFS, id string, foreignSrc distribution.Descriptor, progressOutput progress.Output) (layer.Layer, error) {
+func (l *tarexporter) loadLayer(filename string, rootFS image.RootFS, id string, platform layer.Platform, foreignSrc distribution.Descriptor, progressOutput progress.Output) (layer.Layer, error) {
 	// We use system.OpenSequential to use sequential file access on Windows, avoiding
 	// depleting the standby list. On Linux, this equates to a regular os.Open.
 	rawTar, err := system.OpenSequential(filename)
@@ -191,9 +204,9 @@ func (l *tarexporter) loadLayer(filename string, rootFS image.RootFS, id string,
 	defer inflatedLayerData.Close()
 
 	if ds, ok := l.ls.(layer.DescribableStore); ok {
-		return ds.RegisterWithDescriptor(inflatedLayerData, rootFS.ChainID(), foreignSrc)
+		return ds.RegisterWithDescriptor(inflatedLayerData, rootFS.ChainID(), platform, foreignSrc)
 	}
-	return l.ls.Register(inflatedLayerData, rootFS.ChainID())
+	return l.ls.Register(inflatedLayerData, rootFS.ChainID(), platform)
 }
 
 func (l *tarexporter) setLoadedTag(ref reference.NamedTagged, imgID digest.Digest, outStream io.Writer) error {
@@ -208,6 +221,10 @@ func (l *tarexporter) setLoadedTag(ref reference.NamedTagged, imgID digest.Diges
 }
 
 func (l *tarexporter) legacyLoad(tmpDir string, outStream io.Writer, progressOutput progress.Output) error {
+	if runtime.GOOS == "windows" {
+		return errors.New("Windows does not support legacy loading of images")
+	}
+
 	legacyLoadedMap := make(map[string]image.ID)
 
 	dirs, err := ioutil.ReadDir(tmpDir)
@@ -312,7 +329,7 @@ func (l *tarexporter) legacyLoadImage(oldID, sourceDir string, loadedMap map[str
 	if err != nil {
 		return err
 	}
-	newLayer, err := l.loadLayer(layerPath, *rootFS, oldID, distribution.Descriptor{}, progressOutput)
+	newLayer, err := l.loadLayer(layerPath, *rootFS, oldID, "", distribution.Descriptor{}, progressOutput)
 	if err != nil {
 		return err
 	}

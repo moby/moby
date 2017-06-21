@@ -65,7 +65,7 @@ func (b *Builder) commitContainer(dispatchState *dispatchState, id string, conta
 }
 
 func (b *Builder) exportImage(state *dispatchState, imageMount *imageMount, runConfig *container.Config) error {
-	newLayer, err := imageMount.Layer().Commit()
+	newLayer, err := imageMount.Layer().Commit(b.platform)
 	if err != nil {
 		return err
 	}
@@ -84,7 +84,7 @@ func (b *Builder) exportImage(state *dispatchState, imageMount *imageMount, runC
 		ContainerConfig: runConfig,
 		DiffID:          newLayer.DiffID(),
 		Config:          copyRunConfig(state.runConfig),
-	})
+	}, parentImage.OS)
 
 	// TODO: it seems strange to marshal this here instead of just passing in the
 	// image struct
@@ -93,7 +93,7 @@ func (b *Builder) exportImage(state *dispatchState, imageMount *imageMount, runC
 		return errors.Wrap(err, "failed to encode image config")
 	}
 
-	exportedImage, err := b.docker.CreateImage(config, state.imageID)
+	exportedImage, err := b.docker.CreateImage(config, state.imageID, parentImage.OS)
 	if err != nil {
 		return errors.Wrapf(err, "failed to export image")
 	}
@@ -256,13 +256,13 @@ func (b *Builder) probeAndCreate(dispatchState *dispatchState, runConfig *contai
 	}
 	// Set a log config to override any default value set on the daemon
 	hostConfig := &container.HostConfig{LogConfig: defaultLogConfig}
-	container, err := b.containerManager.Create(runConfig, hostConfig)
+	container, err := b.containerManager.Create(runConfig, hostConfig, b.platform)
 	return container.ID, err
 }
 
 func (b *Builder) create(runConfig *container.Config) (string, error) {
 	hostConfig := hostConfigFromOptions(b.options)
-	container, err := b.containerManager.Create(runConfig, hostConfig)
+	container, err := b.containerManager.Create(runConfig, hostConfig, b.platform)
 	if err != nil {
 		return "", err
 	}

@@ -17,27 +17,10 @@ const (
 	containerInternalConfigsDirPath  = `C:\ProgramData\Docker\internal\configs`
 )
 
-// Container holds fields specific to the Windows implementation. See
-// CommonContainer for standard fields common to all containers.
-type Container struct {
-	CommonContainer
-
-	// Fields below here are platform specific.
-	NetworkSharedContainerID string
-}
-
 // ExitStatus provides exit reasons for a container.
 type ExitStatus struct {
 	// The exit code with which the container exited.
 	ExitCode int
-}
-
-// CreateDaemonEnvironment creates a new environment variable slice for this container.
-func (container *Container) CreateDaemonEnvironment(_ bool, linkedEnv []string) []string {
-	// because the env on the container can override certain default values
-	// we need to replace the 'env' keys where they match and append anything
-	// else.
-	return ReplaceOrAppendEnvValues(linkedEnv, container.Config.Env)
 }
 
 // UnmountIpcMounts unmounts Ipc related mounts.
@@ -60,7 +43,7 @@ func (container *Container) CreateSecretSymlinks() error {
 		if err != nil {
 			return err
 		}
-		if err := system.MkdirAll(filepath.Dir(resolvedPath), 0); err != nil {
+		if err := system.MkdirAll(filepath.Dir(resolvedPath), 0, ""); err != nil {
 			return err
 		}
 		if err := os.Symlink(filepath.Join(containerInternalSecretMountPath, r.SecretID), resolvedPath); err != nil {
@@ -102,7 +85,7 @@ func (container *Container) CreateConfigSymlinks() error {
 		if err != nil {
 			return err
 		}
-		if err := system.MkdirAll(filepath.Dir(resolvedPath), 0); err != nil {
+		if err := system.MkdirAll(filepath.Dir(resolvedPath), 0, ""); err != nil {
 			return err
 		}
 		if err := os.Symlink(filepath.Join(containerInternalConfigsDirPath, configRef.ConfigID), resolvedPath); err != nil {

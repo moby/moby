@@ -16,21 +16,28 @@ import (
 	winio "github.com/Microsoft/go-winio"
 )
 
+const (
+	// SddlAdministratorsLocalSystem is local administrators plus NT AUTHORITY\System
+	SddlAdministratorsLocalSystem = "D:P(A;OICI;GA;;;BA)(A;OICI;GA;;;SY)"
+	// SddlNtvmAdministratorsLocalSystem is NT VIRTUAL MACHINE\Virtual Machines plus local administrators plus NT AUTHORITY\System
+	SddlNtvmAdministratorsLocalSystem = "D:P(A;OICI;GA;;;S-1-5-83-0)(A;OICI;GA;;;BA)(A;OICI;GA;;;SY)"
+)
+
 // MkdirAllWithACL is a wrapper for MkdirAll that creates a directory
-// ACL'd for Builtin Administrators and Local System.
-func MkdirAllWithACL(path string, perm os.FileMode) error {
-	return mkdirall(path, true)
+// with an appropriate SDDL defined ACL.
+func MkdirAllWithACL(path string, perm os.FileMode, sddl string) error {
+	return mkdirall(path, true, sddl)
 }
 
 // MkdirAll implementation that is volume path aware for Windows.
-func MkdirAll(path string, _ os.FileMode) error {
-	return mkdirall(path, false)
+func MkdirAll(path string, _ os.FileMode, sddl string) error {
+	return mkdirall(path, false, sddl)
 }
 
 // mkdirall is a custom version of os.MkdirAll modified for use on Windows
 // so that it is both volume path aware, and can create a directory with
 // a DACL.
-func mkdirall(path string, adminAndLocalSystem bool) error {
+func mkdirall(path string, applyACL bool, sddl string) error {
 	if re := regexp.MustCompile(`^\\\\\?\\Volume{[a-z0-9-]+}$`); re.MatchString(path) {
 		return nil
 	}
@@ -64,15 +71,15 @@ func mkdirall(path string, adminAndLocalSystem bool) error {
 
 	if j > 1 {
 		// Create parent
-		err = mkdirall(path[0:j-1], false)
+		err = mkdirall(path[0:j-1], false, sddl)
 		if err != nil {
 			return err
 		}
 	}
 
 	// Parent now exists; invoke os.Mkdir or mkdirWithACL and use its result.
-	if adminAndLocalSystem {
-		err = mkdirWithACL(path)
+	if applyACL {
+		err = mkdirWithACL(path, sddl)
 	} else {
 		err = os.Mkdir(path, 0)
 	}
@@ -96,9 +103,9 @@ func mkdirall(path string, adminAndLocalSystem bool) error {
 // in golang to cater for creating a directory am ACL permitting full
 // access, with inheritance, to any subfolder/file for Built-in Administrators
 // and Local System.
-func mkdirWithACL(name string) error {
+func mkdirWithACL(name string, sddl string) error {
 	sa := syscall.SecurityAttributes{Length: 0}
-	sddl := "D:P(A;OICI;GA;;;BA)(A;OICI;GA;;;SY)"
+
 	sd, err := winio.SddlToSecurityDescriptor(sddl)
 	if err != nil {
 		return &os.PathError{Op: "mkdir", Path: name, Err: err}

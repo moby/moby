@@ -25,7 +25,7 @@ func (daemon *Daemon) setupConfigDir(c *container.Container) (setupErr error) {
 	logrus.Debugf("configs: setting up config dir: %s", localPath)
 
 	// create local config root
-	if err := system.MkdirAllWithACL(localPath, 0); err != nil {
+	if err := system.MkdirAllWithACL(localPath, 0, system.SddlAdministratorsLocalSystem); err != nil {
 		return errors.Wrap(err, "error creating config dir")
 	}
 
@@ -98,7 +98,7 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 	logrus.Debugf("secrets: setting up secret dir: %s", localMountPath)
 
 	// create local secret root
-	if err := system.MkdirAllWithACL(localMountPath, 0); err != nil {
+	if err := system.MkdirAllWithACL(localMountPath, 0, system.SddlAdministratorsLocalSystem); err != nil {
 		return errors.Wrap(err, "error creating secret local directory")
 	}
 

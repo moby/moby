@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"io"
+	"runtime"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
@@ -40,7 +41,7 @@ func (rl *releaseableLayer) Mount() (string, error) {
 	return rl.rwLayer.Mount("")
 }
 
-func (rl *releaseableLayer) Commit() (builder.ReleaseableLayer, error) {
+func (rl *releaseableLayer) Commit(platform string) (builder.ReleaseableLayer, error) {
 	var chainID layer.ChainID
 	if rl.roLayer != nil {
 		chainID = rl.roLayer.ChainID()
@@ -51,7 +52,7 @@ func (rl *releaseableLayer) Commit() (builder.ReleaseableLayer, error) {
 		return nil, err
 	}
 
-	newLayer, err := rl.layerStore.Register(stream, chainID)
+	newLayer, err := rl.layerStore.Register(stream, chainID, layer.Platform(platform))
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +115,7 @@ func newReleasableLayerForImage(img *image.Image, layerStore layer.Store) (build
 }
 
 // TODO: could this use the regular daemon PullImage ?
-func (daemon *Daemon) pullForBuilder(ctx context.Context, name string, authConfigs map[string]types.AuthConfig, output io.Writer) (*image.Image, error) {
+func (daemon *Daemon) pullForBuilder(ctx context.Context, name string, authConfigs map[string]types.AuthConfig, output io.Writer, platform string) (*image.Image, error) {
 	ref, err := reference.ParseNormalizedNamed(name)
 	if err != nil {
 		return nil, err
@@ -133,7 +134,7 @@ func (daemon *Daemon) pullForBuilder(ctx context.Context, name string, authConfi
 		pullRegistryAuth = &resolvedConfig
 	}
 
-	if err := daemon.pullImageWithReference(ctx, ref, nil, pullRegistryAuth, output); err != nil {
+	if err := daemon.pullImageWithReference(ctx, ref, platform, nil, pullRegistryAuth, output); err != nil {
 		return nil, err
 	}
 	return daemon.GetImage(name)
@@ -144,7 +145,7 @@ func (daemon *Daemon) pullForBuilder(ctx context.Context, name string, authConfi
 // leaking of layers.
 func (daemon *Daemon) GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ReleaseableLayer, error) {
 	if refOrID == "" {
-		layer, err := newReleasableLayerForImage(nil, daemon.layerStore)
+		layer, err := newReleasableLayerForImage(nil, daemon.stores[opts.Platform].layerStore)
 		return nil, layer, err
 	}
 
@@ -155,35 +156,38 @@ func (daemon *Daemon) GetImageAndReleasableLayer(ctx context.Context, refOrID st
 		}
 		// TODO: shouldn't we error out if error is different from "not found" ?
 		if image != nil {
-			layer, err := newReleasableLayerForImage(image, daemon.layerStore)
+			layer, err := newReleasableLayerForImage(image, daemon.stores[opts.Platform].layerStore)
 			return image, layer, err
 		}
 	}
 
-	image, err := daemon.pullForBuilder(ctx, refOrID, opts.AuthConfig, opts.Output)
+	image, err := daemon.pullForBuilder(ctx, refOrID, opts.AuthConfig, opts.Output, opts.Platform)
 	if err != nil {
 		return nil, nil, err
 	}
-	layer, err := newReleasableLayerForImage(image, daemon.layerStore)
+	layer, err := newReleasableLayerForImage(image, daemon.stores[opts.Platform].layerStore)
 	return image, layer, err
 }
 
 // CreateImage creates a new image by adding a config and ID to the image store.
 // This is similar to LoadImage() except that it receives JSON encoded bytes of
 // an image instead of a tar archive.
-func (daemon *Daemon) CreateImage(config []byte, parent string) (builder.Image, error) {
-	id, err := daemon.imageStore.Create(config)
+func (daemon *Daemon) CreateImage(config []byte, parent string, platform string) (builder.Image, error) {
+	if platform == "" {
+		platform = runtime.GOOS
+	}
+	id, err := daemon.stores[platform].imageStore.Create(config)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to create image")
 	}
 
 	if parent != "" {
-		if err := daemon.imageStore.SetParent(id, image.ID(parent)); err != nil {
+		if err := daemon.stores[platform].imageStore.SetParent(id, image.ID(parent)); err != nil {
 			return nil, errors.Wrapf(err, "failed to set parent %s", parent)
 		}
 	}
 
-	return daemon.imageStore.Get(id)
+	return daemon.stores[platform].imageStore.Get(id)
 }
 
 // IDMappings returns uid/gid mappings for the builder

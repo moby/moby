@@ -19,13 +19,13 @@ type imageProber struct {
 	cacheBusted bool
 }
 
-func newImageProber(cacheBuilder builder.ImageCacheBuilder, cacheFrom []string, noCache bool) ImageProber {
+func newImageProber(cacheBuilder builder.ImageCacheBuilder, cacheFrom []string, platform string, noCache bool) ImageProber {
 	if noCache {
 		return &nopProber{}
 	}
 
 	reset := func() builder.ImageCache {
-		return cacheBuilder.MakeImageCache(cacheFrom)
+		return cacheBuilder.MakeImageCache(cacheFrom, platform)
 	}
 	return &imageProber{cache: reset(), reset: reset}
 }

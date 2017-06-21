@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -21,6 +22,7 @@ import (
 	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/mount"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/plugin/v2"
 	"github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
@@ -348,17 +350,22 @@ func isEqualPrivilege(a, b types.PluginPrivilege) bool {
 	return reflect.DeepEqual(a.Value, b.Value)
 }
 
-func configToRootFS(c []byte) (*image.RootFS, error) {
+func configToRootFS(c []byte) (*image.RootFS, layer.Platform, error) {
+	// TODO @jhowardmsft LCOW - Will need to revisit this. For now, calculate the platform.
+	platform := layer.Platform(runtime.GOOS)
+	if platform == "windows" && system.LCOWSupported() {
+		platform = "linux"
+	}
 	var pluginConfig types.PluginConfig
 	if err := json.Unmarshal(c, &pluginConfig); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	// validation for empty rootfs is in distribution code
 	if pluginConfig.Rootfs == nil {
-		return nil, nil
+		return nil, platform, nil
 	}
 
-	return rootFSFromPlugin(pluginConfig.Rootfs), nil
+	return rootFSFromPlugin(pluginConfig.Rootfs), platform, nil
 }
 
 func rootFSFromPlugin(pluginfs *types.PluginConfigRootfs) *image.RootFS {
