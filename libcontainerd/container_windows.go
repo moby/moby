@@ -42,13 +42,6 @@ func (ctr *container) newProcess(friendlyName string) *process {
 // Caller needs to lock container ID before calling this method.
 func (ctr *container) start(attachStdio StdioCallback) error {
 	var err error
-	isServicing := false
-
-	for _, option := range ctr.options {
-		if s, ok := option.(*ServicingOption); ok && s.IsServicing {
-			isServicing = true
-		}
-	}
 
 	// Start the container.  If this is a servicing container, this call will block
 	// until the container is done with the servicing execution.
@@ -71,9 +64,9 @@ func (ctr *container) start(attachStdio StdioCallback) error {
 	createProcessParms := &hcsshim.ProcessConfig{
 		EmulateConsole:   ctr.ociSpec.Process.Terminal,
 		WorkingDirectory: ctr.ociSpec.Process.Cwd,
-		CreateStdInPipe:  !isServicing,
-		CreateStdOutPipe: !isServicing,
-		CreateStdErrPipe: !ctr.ociSpec.Process.Terminal && !isServicing,
+		CreateStdInPipe:  !ctr.ociSpec.Windows.Servicing,
+		CreateStdOutPipe: !ctr.ociSpec.Windows.Servicing,
+		CreateStdErrPipe: !ctr.ociSpec.Process.Terminal && !ctr.ociSpec.Windows.Servicing,
 	}
 	createProcessParms.ConsoleSize[0] = uint(ctr.ociSpec.Process.ConsoleSize.Height)
 	createProcessParms.ConsoleSize[1] = uint(ctr.ociSpec.Process.ConsoleSize.Width)
@@ -103,7 +96,7 @@ func (ctr *container) start(attachStdio StdioCallback) error {
 
 	// If this is a servicing container, wait on the process synchronously here and
 	// if it succeeds, wait for it cleanly shutdown and merge into the parent container.
-	if isServicing {
+	if ctr.ociSpec.Windows.Servicing {
 		exitCode := ctr.waitProcessExitCode(&ctr.process)
 
 		if exitCode != 0 {

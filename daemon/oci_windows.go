@@ -1,13 +1,25 @@
 package daemon
 
 import (
+	"fmt"
+	"io/ioutil"
+	"path/filepath"
+	"strings"
 	"syscall"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/layer"
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/opencontainers/runtime-spec/specs-go"
+
+	"golang.org/x/sys/windows/registry"
+)
+
+const (
+	credentialSpecRegistryLocation = `SOFTWARE\Microsoft\Windows NT\CurrentVersion\Virtualization\Containers\CredentialSpecs`
+	credentialSpecFileLocation     = "CredentialSpecs"
 )
 
 func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
@@ -39,7 +51,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 		return nil, err
 	}
 
-	var isHyperV bool
+	isHyperV := false
 	if c.HostConfig.Isolation.IsDefault() {
 		// Container using default isolation, so take the default from the daemon configuration
 		isHyperV = daemon.defaultIsolation.IsHyperV()
@@ -47,6 +59,12 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 		// Container may be requesting an explicit isolation mode.
 		isHyperV = c.HostConfig.Isolation.IsHyperV()
 	}
+	if isHyperV {
+		s.Windows.HyperV = &specs.WindowsHyperV{}
+	}
+
+	// First boot optimisation
+	s.Windows.IgnoreFlushesDuringBoot = !c.HasBeenStartedBefore
 
 	// If the container has not been started, and has configs or secrets
 	// secrets, create symlinks to each confing and secret. If it has been
@@ -91,6 +109,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	}
 
 	// In s.Process
+	s.Process = &specs.Process{}
 	s.Process.Args = append([]string{c.Path}, c.Args...)
 	if !c.Config.ArgsEscaped {
 		s.Process.Args = escapeArgs(s.Process.Args)
@@ -107,14 +126,19 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 		s.Process.Cwd = `C:\`
 	}
 	s.Process.Env = c.CreateDaemonEnvironment(c.Config.Tty, linkedEnv)
-	s.Process.ConsoleSize.Height = c.HostConfig.ConsoleSize[0]
-	s.Process.ConsoleSize.Width = c.HostConfig.ConsoleSize[1]
+	s.Process.ConsoleSize = &specs.Box{
+		Height: c.HostConfig.ConsoleSize[0],
+		Width:  c.HostConfig.ConsoleSize[1],
+	}
 	s.Process.Terminal = c.Config.Tty
 	s.Process.User.Username = c.Config.User
 
 	// In spec.Root. This is not set for Hyper-V containers
 	if !isHyperV {
 		s.Root.Path = c.BaseFS
+		if !strings.HasSuffix(s.Root.Path, `\`) {
+			s.Root.Path = s.Root.Path + `\` // Ensure a correctly formatted volume GUID path \\?\Volume{GUID}\
+		}
 	}
 	s.Root.Readonly = false // Windows does not support a read-only root filesystem
 
@@ -157,6 +181,127 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 			Iops: &c.HostConfig.IOMaximumIOps,
 		},
 	}
+
+	dnsSearch := daemon.getDNSSearchSettings(c)
+
+	// Get endpoints for the libnetwork allocated networks to the container
+	var epList []string
+	AllowUnqualifiedDNSQuery := false
+	gwHNSID := ""
+	if c.NetworkSettings != nil {
+		for n := range c.NetworkSettings.Networks {
+			sn, err := daemon.FindNetwork(n)
+			if err != nil {
+				continue
+			}
+			ep, err := c.GetEndpointInNetwork(sn)
+			if err != nil {
+				continue
+			}
+			data, err := ep.DriverInfo()
+			if err != nil {
+				continue
+			}
+			if data["GW_INFO"] != nil {
+				gwInfo := data["GW_INFO"].(map[string]interface{})
+				if gwInfo["hnsid"] != nil {
+					gwHNSID = gwInfo["hnsid"].(string)
+				}
+			}
+			if data["hnsid"] != nil {
+				epList = append(epList, data["hnsid"].(string))
+			}
+			if data["AllowUnqualifiedDNSQuery"] != nil {
+				AllowUnqualifiedDNSQuery = true
+			}
+		}
+	}
+
+	var networkSharedContainerID string
+	if c.HostConfig.NetworkMode.IsContainer() {
+		networkSharedContainerID = c.NetworkSharedContainerID
+	}
+
+	if gwHNSID != "" {
+		epList = append(epList, gwHNSID)
+	}
+
+	s.Windows.Network = &specs.WindowsNetwork{
+		EndpointList:               epList,
+		AllowUnqualifiedDNSQuery:   AllowUnqualifiedDNSQuery,
+		DNSSearchList:              dnsSearch,
+		NetworkSharedContainerName: networkSharedContainerID,
+	}
+
+	// Read and add credentials from the security options if a credential spec has been provided.
+	if c.HostConfig.SecurityOpt != nil {
+		cs := ""
+		for _, sOpt := range c.HostConfig.SecurityOpt {
+			sOpt = strings.ToLower(sOpt)
+			if !strings.Contains(sOpt, "=") {
+				return nil, fmt.Errorf("invalid security option: no equals sign in supplied value %s", sOpt)
+			}
+			var splitsOpt []string
+			splitsOpt = strings.SplitN(sOpt, "=", 2)
+			if len(splitsOpt) != 2 {
+				return nil, fmt.Errorf("invalid security option: %s", sOpt)
+			}
+			if splitsOpt[0] != "credentialspec" {
+				return nil, fmt.Errorf("security option not supported: %s", splitsOpt[0])
+			}
+
+			var (
+				match   bool
+				csValue string
+				err     error
+			)
+			if match, csValue = getCredentialSpec("file://", splitsOpt[1]); match {
+				if csValue == "" {
+					return nil, fmt.Errorf("no value supplied for file:// credential spec security option")
+				}
+				if cs, err = readCredentialSpecFile(c.ID, daemon.root, filepath.Clean(csValue)); err != nil {
+					return nil, err
+				}
+			} else if match, csValue = getCredentialSpec("registry://", splitsOpt[1]); match {
+				if csValue == "" {
+					return nil, fmt.Errorf("no value supplied for registry:// credential spec security option")
+				}
+				if cs, err = readCredentialSpecRegistry(c.ID, csValue); err != nil {
+					return nil, err
+				}
+			} else {
+				return nil, fmt.Errorf("invalid credential spec security option - value must be prefixed file:// or registry:// followed by a value")
+			}
+		}
+		s.Windows.CredentialSpec = cs
+	}
+
+	// Assume we are not starting a container for a servicing operation
+	s.Windows.Servicing = false
+
+	// Add all the layer folders, with the RW layer added.
+	img, err := daemon.imageStore.Get(c.ImageID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to graph.Get on ImageID %s - %s", c.ImageID, err)
+	}
+	// Get the layer path for each layer.
+	max := len(img.RootFS.DiffIDs)
+	for i := 1; i <= max; i++ {
+		img.RootFS.DiffIDs = img.RootFS.DiffIDs[:i]
+		layerPath, err := layer.GetLayerPath(daemon.layerStore, img.RootFS.ChainID())
+		if err != nil {
+			return nil, fmt.Errorf("failed to get layer path from graphdriver %s for ImageID %s - %s", daemon.layerStore, img.RootFS.ChainID(), err)
+		}
+		// Reverse order, expecting parent most first
+		s.Windows.LayerFolders = append([]string{layerPath}, s.Windows.LayerFolders...)
+	}
+
+	m, err := c.RWLayer.Metadata()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get layer metadata - %s", err)
+	}
+	s.Windows.LayerFolders = append(s.Windows.LayerFolders, m["dir"])
+
 	return (*specs.Spec)(&s), nil
 }
 
@@ -172,4 +317,53 @@ func escapeArgs(args []string) []string {
 // It will do nothing on non-Linux platform
 func (daemon *Daemon) mergeUlimits(c *containertypes.HostConfig) {
 	return
+}
+
+// getCredentialSpec is a helper function to get the value of a credential spec supplied
+// on the CLI, stripping the prefix
+func getCredentialSpec(prefix, value string) (bool, string) {
+	if strings.HasPrefix(value, prefix) {
+		return true, strings.TrimPrefix(value, prefix)
+	}
+	return false, ""
+}
+
+// readCredentialSpecRegistry is a helper function to read a credential spec from
+// the registry. If not found, we return an empty string and warn in the log.
+// This allows for staging on machines which do not have the necessary components.
+func readCredentialSpecRegistry(id, name string) (string, error) {
+	var (
+		k   registry.Key
+		err error
+		val string
+	)
+	if k, err = registry.OpenKey(registry.LOCAL_MACHINE, credentialSpecRegistryLocation, registry.QUERY_VALUE); err != nil {
+		return "", fmt.Errorf("failed handling spec %q for container %s - %s could not be opened", name, id, credentialSpecRegistryLocation)
+	}
+	if val, _, err = k.GetStringValue(name); err != nil {
+		if err == registry.ErrNotExist {
+			return "", fmt.Errorf("credential spec %q for container %s as it was not found", name, id)
+		}
+		return "", fmt.Errorf("error %v reading credential spec %q from registry for container %s", err, name, id)
+	}
+	return val, nil
+}
+
+// readCredentialSpecFile is a helper function to read a credential spec from
+// a file. If not found, we return an empty string and warn in the log.
+// This allows for staging on machines which do not have the necessary components.
+func readCredentialSpecFile(id, root, location string) (string, error) {
+	if filepath.IsAbs(location) {
+		return "", fmt.Errorf("invalid credential spec - file:// path cannot be absolute")
+	}
+	base := filepath.Join(root, credentialSpecFileLocation)
+	full := filepath.Join(base, location)
+	if !strings.HasPrefix(full, base) {
+		return "", fmt.Errorf("invalid credential spec - file:// path must be under %s", base)
+	}
+	bcontents, err := ioutil.ReadFile(full)
+	if err != nil {
+		return "", fmt.Errorf("credential spec '%s' for container %s as the file could not be read: %q", full, id, err)
+	}
+	return string(bcontents[:]), nil
 }
