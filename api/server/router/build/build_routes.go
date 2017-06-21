@@ -21,6 +21,7 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/docker/docker/pkg/system"
 	units "github.com/docker/go-units"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -78,6 +79,24 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 
 	if runtime.GOOS != "windows" && options.SecurityOpt != nil {
 		return nil, fmt.Errorf("The daemon on this platform does not support setting security options on build")
+	}
+
+	if versions.GreaterThanOrEqualTo(version, "1.32") {
+		options.Platform = strings.ToLower(r.FormValue("platform"))
+		platformValid := false
+		platforms := []string{"", runtime.GOOS}
+		if system.LCOWSupported() {
+			platforms = append(platforms, "linux")
+		}
+		for _, p := range platforms {
+			if options.Platform == p {
+				platformValid = true
+				break
+			}
+		}
+		if !platformValid {
+			return nil, fmt.Errorf("unsupported platform %q", options.Platform)
+		}
 	}
 
 	var buildUlimits = []*units.Ulimit{}

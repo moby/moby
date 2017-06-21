@@ -4964,6 +4964,11 @@ paths:
 
             Only the registry domain name (and port if not the default 443) are required. However, for legacy reasons, the Docker Hub registry must be specified with both a `https://` prefix and a `/v1/` suffix even though Docker will prefer to use the v2 registry API.
           type: "string"
+        - name: "platform"
+          in: "query"
+          description: "Target platform if daemon supports multiple platforms."
+          type: "string"
+          default: ""
       responses:
         200:
           description: "no error"
