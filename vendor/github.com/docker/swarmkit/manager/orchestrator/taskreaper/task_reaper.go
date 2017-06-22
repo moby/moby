@@ -4,7 +4,6 @@ import (
 	"sort"
 	"time"
 
-	"github.com/docker/go-events"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/state"
@@ -33,29 +32,28 @@ type TaskReaper struct {
 	taskHistory int64
 	dirty       map[instanceTuple]struct{}
 	orphaned    []string
-	watcher     chan events.Event
-	cancelWatch func()
 	stopChan    chan struct{}
 	doneChan    chan struct{}
 }
 
 // New creates a new TaskReaper.
 func New(store *store.MemoryStore) *TaskReaper {
-	watcher, cancel := state.Watch(store.WatchQueue(), api.EventCreateTask{}, api.EventUpdateTask{}, api.EventUpdateCluster{})
-
 	return &TaskReaper{
-		store:       store,
-		watcher:     watcher,
-		cancelWatch: cancel,
-		dirty:       make(map[instanceTuple]struct{}),
-		stopChan:    make(chan struct{}),
-		doneChan:    make(chan struct{}),
+		store:    store,
+		dirty:    make(map[instanceTuple]struct{}),
+		stopChan: make(chan struct{}),
+		doneChan: make(chan struct{}),
 	}
 }
 
 // Run is the TaskReaper's main loop.
-func (tr *TaskReaper) Run() {
-	defer close(tr.doneChan)
+func (tr *TaskReaper) Run(ctx context.Context) {
+	watcher, watchCancel := state.Watch(tr.store.WatchQueue(), api.EventCreateTask{}, api.EventUpdateTask{}, api.EventUpdateCluster{})
+
+	defer func() {
+		close(tr.doneChan)
+		watchCancel()
+	}()
 
 	var tasks []*api.Task
 	tr.store.View(func(readTx store.ReadTx) {
@@ -68,7 +66,7 @@ func (tr *TaskReaper) Run() {
 
 		tasks, err = store.FindTasks(readTx, store.ByTaskState(api.TaskStateOrphaned))
 		if err != nil {
-			log.G(context.TODO()).WithError(err).Error("failed to find Orphaned tasks in task reaper init")
+			log.G(ctx).WithError(err).Error("failed to find Orphaned tasks in task reaper init")
 		}
 	})
 
@@ -91,7 +89,7 @@ func (tr *TaskReaper) Run() {
 
 	for {
 		select {
-		case event := <-tr.watcher:
+		case event := <-watcher:
 			switch v := event.(type) {
 			case api.EventCreateTask:
 				t := v.Task
@@ -218,7 +216,6 @@ func (tr *TaskReaper) tick() {
 
 // Stop stops the TaskReaper and waits for the main loop to exit.
 func (tr *TaskReaper) Stop() {
-	tr.cancelWatch()
 	close(tr.stopChan)
 	<-tr.doneChan
 }

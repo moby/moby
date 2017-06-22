@@ -1,6 +1,7 @@
 package secrets
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/docker/swarmkit/agent/exec"
@@ -22,13 +23,13 @@ func NewManager() exec.SecretsManager {
 }
 
 // Get returns a secret by ID.  If the secret doesn't exist, returns nil.
-func (s *secrets) Get(secretID string) *api.Secret {
+func (s *secrets) Get(secretID string) (*api.Secret, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if s, ok := s.m[secretID]; ok {
-		return s
+		return s, nil
 	}
-	return nil
+	return nil, fmt.Errorf("secret %s not found", secretID)
 }
 
 // Add adds one or more secrets to the secret map.
@@ -63,9 +64,9 @@ type taskRestrictedSecretsProvider struct {
 	secretIDs map[string]struct{} // allow list of secret ids
 }
 
-func (sp *taskRestrictedSecretsProvider) Get(secretID string) *api.Secret {
+func (sp *taskRestrictedSecretsProvider) Get(secretID string) (*api.Secret, error) {
 	if _, ok := sp.secretIDs[secretID]; !ok {
-		return nil
+		return nil, fmt.Errorf("task not authorized to access secret %s", secretID)
 	}
 
 	return sp.secrets.Get(secretID)

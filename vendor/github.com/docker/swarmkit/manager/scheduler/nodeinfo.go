@@ -63,6 +63,15 @@ func (nodeInfo *NodeInfo) removeTask(t *api.Task) bool {
 		nodeInfo.ActiveTasksCountByService[t.ServiceID]--
 	}
 
+	if t.Endpoint != nil {
+		for _, port := range t.Endpoint.Ports {
+			if port.PublishMode == api.PublishModeHost && port.PublishedPort != 0 {
+				portSpec := hostPortSpec{protocol: port.Protocol, publishedPort: port.PublishedPort}
+				delete(nodeInfo.usedHostPorts, portSpec)
+			}
+		}
+	}
+
 	reservations := taskReservations(t.Spec)
 	resources := nodeInfo.AvailableResources
 
@@ -78,15 +87,6 @@ func (nodeInfo *NodeInfo) removeTask(t *api.Task) bool {
 	nodeAvailableResources := &resources.Generic
 	nodeRes := nodeInfo.Description.Resources.Generic
 	genericresource.Reclaim(nodeAvailableResources, taskAssigned, nodeRes)
-
-	if t.Endpoint != nil {
-		for _, port := range t.Endpoint.Ports {
-			if port.PublishMode == api.PublishModeHost && port.PublishedPort != 0 {
-				portSpec := hostPortSpec{protocol: port.Protocol, publishedPort: port.PublishedPort}
-				delete(nodeInfo.usedHostPorts, portSpec)
-			}
-		}
-	}
 
 	return true
 }

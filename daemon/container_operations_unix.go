@@ -191,9 +191,9 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 			"name": s.File.Name,
 			"path": fPath,
 		}).Debug("injecting secret")
-		secret := c.DependencyStore.Secrets().Get(s.SecretID)
-		if secret == nil {
-			return fmt.Errorf("unable to get secret from secret store")
+		secret, err := c.DependencyStore.Secrets().Get(s.SecretID)
+		if err != nil {
+			return errors.Wrap(err, "unable to get secret from secret store")
 		}
 		if err := ioutil.WriteFile(fPath, secret.Spec.Data, s.File.Mode); err != nil {
 			return errors.Wrap(err, "error injecting secret")
@@ -266,9 +266,9 @@ func (daemon *Daemon) setupConfigDir(c *container.Container) (setupErr error) {
 		}
 
 		log.Debug("injecting config")
-		config := c.DependencyStore.Configs().Get(configRef.ConfigID)
-		if config == nil {
-			return fmt.Errorf("unable to get config from config store")
+		config, err := c.DependencyStore.Configs().Get(configRef.ConfigID)
+		if err != nil {
+			return errors.Wrap(err, "unable to get config from config store")
 		}
 		if err := ioutil.WriteFile(fPath, config.Spec.Data, configRef.File.Mode); err != nil {
 			return errors.Wrap(err, "error injecting config")

@@ -59,6 +59,12 @@ type networkContext struct {
 	// lastRetry is the last timestamp when unallocated
 	// tasks/services/networks were retried.
 	lastRetry time.Time
+
+	// somethingWasDeallocated indicates that we just deallocated at
+	// least one service/task/network, so we should retry failed
+	// allocations (in we are experiencing IP exhaustion and an IP was
+	// released).
+	somethingWasDeallocated bool
 }
 
 func (a *Allocator) doNetworkInit(ctx context.Context) (err error) {
@@ -226,6 +232,8 @@ func (a *Allocator) doNetworkAlloc(ctx context.Context, ev events.Event) {
 		// resources.
 		if err := nc.nwkAllocator.Deallocate(n); err != nil {
 			log.G(ctx).WithError(err).Errorf("Failed during network free for network %s", n.ID)
+		} else {
+			nc.somethingWasDeallocated = true
 		}
 
 		delete(nc.unallocatedNetworks, n.ID)
@@ -292,6 +300,8 @@ func (a *Allocator) doNetworkAlloc(ctx context.Context, ev events.Event) {
 
 		if err := nc.nwkAllocator.DeallocateService(s); err != nil {
 			log.G(ctx).WithError(err).Errorf("Failed deallocation during delete of service %s", s.ID)
+		} else {
+			nc.somethingWasDeallocated = true
 		}
 
 		// Remove it from unallocatedServices just in case
@@ -304,11 +314,12 @@ func (a *Allocator) doNetworkAlloc(ctx context.Context, ev events.Event) {
 	case state.EventCommit:
 		a.procTasksNetwork(ctx, false)
 
-		if time.Since(nc.lastRetry) > retryInterval {
+		if time.Since(nc.lastRetry) > retryInterval || nc.somethingWasDeallocated {
 			a.procUnallocatedNetworks(ctx)
 			a.procUnallocatedServices(ctx)
 			a.procTasksNetwork(ctx, true)
 			nc.lastRetry = time.Now()
+			nc.somethingWasDeallocated = false
 		}
 
 		// Any left over tasks are moved to the unallocated set
@@ -353,6 +364,8 @@ func (a *Allocator) doNodeAlloc(ctx context.Context, ev events.Event) {
 		if nc.nwkAllocator.IsNodeAllocated(node) {
 			if err := nc.nwkAllocator.DeallocateNode(node); err != nil {
 				log.G(ctx).WithError(err).Errorf("Failed freeing network resources for node %s", node.ID)
+			} else {
+				nc.somethingWasDeallocated = true
 			}
 		}
 		return
@@ -447,6 +460,8 @@ func (a *Allocator) deallocateNodes(ctx context.Context) error {
 		if nc.nwkAllocator.IsNodeAllocated(node) {
 			if err := nc.nwkAllocator.DeallocateNode(node); err != nil {
 				log.G(ctx).WithError(err).Errorf("Failed freeing network resources for node %s", node.ID)
+			} else {
+				nc.somethingWasDeallocated = true
 			}
 			node.Attachment = nil
 			if err := a.store.Batch(func(batch *store.Batch) error {
@@ -695,12 +710,15 @@ func (a *Allocator) doTaskAlloc(ctx context.Context, ev events.Event) {
 		if nc.nwkAllocator.IsTaskAllocated(t) {
 			if err := nc.nwkAllocator.DeallocateTask(t); err != nil {
 				log.G(ctx).WithError(err).Errorf("Failed freeing network resources for task %s", t.ID)
+			} else {
+				nc.somethingWasDeallocated = true
 			}
 		}
 
 		// Cleanup any task references that might exist
 		delete(nc.pendingTasks, t.ID)
 		delete(nc.unallocatedTasks, t.ID)
+
 		return
 	}
 
@@ -835,6 +853,7 @@ func (a *Allocator) allocateService(ctx context.Context, s *api.Service) error {
 		if err := nc.nwkAllocator.DeallocateService(s); err != nil {
 			return err
 		}
+		nc.somethingWasDeallocated = true
 	}
 
 	if err := nc.nwkAllocator.AllocateService(s); err != nil {
@@ -887,7 +906,7 @@ func (a *Allocator) allocateNetwork(ctx context.Context, n *api.Network) error {
 
 	if err := nc.nwkAllocator.Allocate(n); err != nil {
 		nc.unallocatedNetworks[n.ID] = n
-		return errors.Wrapf(err, "failed during network allocation for network %s", n.ID)
+		return err
 	}
 
 	return nil
@@ -954,7 +973,6 @@ func (a *Allocator) allocateTask(ctx context.Context, t *api.Task) (err error) {
 			}
 
 			if err = nc.nwkAllocator.AllocateTask(t); err != nil {
-				err = errors.Wrapf(err, "failed during network allocation for task %s", t.ID)
 				return
 			}
 			if nc.nwkAllocator.IsTaskAllocated(t) {
