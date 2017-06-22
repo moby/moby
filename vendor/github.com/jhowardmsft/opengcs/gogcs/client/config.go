@@ -51,12 +51,11 @@ const (
 // must be in the same directory.
 //
 // VHD is the priority.
-//
-// All paths are full host path-names.
 type Config struct {
-	Kernel            string            // Kernel for Utility VM (embedded in a UEFI bootloader)
-	Initrd            string            // Initrd image for Utility VM
-	Vhdx              string            // VHD for booting the utility VM
+	KirdPath          string            // Path to where kernel/initrd are found (defaults to c:\program files\lcow)
+	KernelFile        string            // Kernel for Utility VM (embedded in a UEFI bootloader) - does NOT include full path, just filename
+	InitrdFile        string            // Initrd image for Utility VM - does NOT include full path, just filename
+	Vhdx              string            // VHD for booting the utility VM - is a full path
 	Name              string            // Name of the utility VM
 	RequestedMode     Mode              // What mode is preferred when validating
 	ActualMode        Mode              // What mode was obtained during validation
@@ -67,12 +66,6 @@ type Config struct {
 // GenerateDefault generates a default config from a set of options
 // If baseDir is not supplied, defaults to $env:ProgramFiles\lcow
 func (config *Config) GenerateDefault(options []string) error {
-	baseDir := filepath.Join(os.Getenv("ProgramFiles"), "lcow")
-
-	if _, err := os.Stat(baseDir); os.IsNotExist(err) {
-		return fmt.Errorf("opengcs: cannot create default utility VM configuration as directory '%s' was not found", baseDir)
-	}
-
 	if config.UvmTimeoutSeconds < 0 {
 		return fmt.Errorf("opengcs: cannot generate a config when supplied a negative utility VM timeout")
 	}
@@ -93,18 +86,16 @@ func (config *Config) GenerateDefault(options []string) error {
 		}
 	}
 
-	config.Vhdx = filepath.Join(baseDir, `uvm.vhdx`)
-	config.Kernel = filepath.Join(baseDir, `bootx64.efi`)
-	config.Initrd = filepath.Join(baseDir, `initrd.img`)
-
 	for _, v := range options {
 		opt := strings.SplitN(v, "=", 2)
 		if len(opt) == 2 {
 			switch strings.ToLower(opt[0]) {
+			case "opengcskirdpath":
+				config.KirdPath = opt[1]
 			case "opengcskernel":
-				config.Kernel = opt[1]
+				config.KernelFile = opt[1]
 			case "opengcsinitrd":
-				config.Initrd = opt[1]
+				config.InitrdFile = opt[1]
 			case "opengcsvhdx":
 				config.Vhdx = opt[1]
 			case "opengcstimeoutsecs":
@@ -117,6 +108,20 @@ func (config *Config) GenerateDefault(options []string) error {
 				}
 			}
 		}
+	}
+
+	if config.KirdPath == "" {
+		config.KirdPath = filepath.Join(os.Getenv("ProgramFiles"), "lcow")
+	}
+
+	if config.Vhdx == "" {
+		config.Vhdx = filepath.Join(config.KirdPath, `uvm.vhdx`)
+	}
+	if config.KernelFile == "" {
+		config.KernelFile = `bootx64.efi`
+	}
+	if config.InitrdFile == "" {
+		config.InitrdFile = `initrd.img`
 	}
 
 	// Which timeout are we going to take? If not through option or environment,
@@ -143,7 +148,7 @@ func (config *Config) validate() error {
 	if config.RequestedMode == ModeRequestVhdx && config.Vhdx == "" {
 		return fmt.Errorf("opengcs: config is invalid - request for VHDX mode did not supply a VHDX")
 	}
-	if config.RequestedMode == ModeRequestKernelInitrd && (config.Kernel == "" || config.Initrd == "") {
+	if config.RequestedMode == ModeRequestKernelInitrd && (config.KernelFile == "" || config.InitrdFile == "") {
 		return fmt.Errorf("opengcs: config is invalid - request for Kernel+Initrd mode must supply both kernel and initrd")
 	}
 
@@ -160,22 +165,23 @@ func (config *Config) validate() error {
 	}
 
 	// So must be kernel+initrd, or auto where we fallback as the VHDX doesn't exist
-	if config.Initrd == "" || config.Kernel == "" {
+	if config.InitrdFile == "" || config.KernelFile == "" {
 		if config.RequestedMode == ModeRequestKernelInitrd {
 			return fmt.Errorf("opengcs: both initrd and kernel options for utility VM boot must be supplied")
 		}
 		return fmt.Errorf("opengcs: configuration is invalid")
 	}
-	if _, err := os.Stat(config.Kernel); os.IsNotExist(err) {
-		return fmt.Errorf("opengcs: kernel '%s' was not found", config.Kernel)
+
+	// Move to validation
+	//if _, err := os.Stat(baseDir); os.IsNotExist(err) {
+	//	return fmt.Errorf("opengcs: cannot create default utility VM configuration as directory '%s' was not found", baseDir)
+	//}
+
+	if _, err := os.Stat(filepath.Join(config.KirdPath, config.KernelFile)); os.IsNotExist(err) {
+		return fmt.Errorf("opengcs: kernel '%s' was not found", filepath.Join(config.KirdPath, config.KernelFile))
 	}
-	if _, err := os.Stat(config.Initrd); os.IsNotExist(err) {
-		return fmt.Errorf("opengcs: initrd '%s' was not found", config.Initrd)
-	}
-	dk, _ := filepath.Split(config.Kernel)
-	di, _ := filepath.Split(config.Initrd)
-	if dk != di {
-		return fmt.Errorf("initrd '%s' and kernel '%s' must be located in the same directory", config.Initrd, config.Kernel)
+	if _, err := os.Stat(filepath.Join(config.KirdPath, config.InitrdFile)); os.IsNotExist(err) {
+		return fmt.Errorf("opengcs: initrd '%s' was not found", filepath.Join(config.KirdPath, config.InitrdFile))
 	}
 
 	config.ActualMode = ModeActualKernelInitrd
@@ -203,13 +209,10 @@ func (config *Config) Create() error {
 			ImagePath: config.Vhdx,
 		}
 	} else {
-		// TODO @jhowardmsft - with a platform change that is in-flight, remove ImagePath for
-		// initrd/kernel boot. Current platform requires it.
-		dir, _ := filepath.Split(config.Initrd)
 		configuration.HvRuntime = &hcsshim.HvRuntime{
-			ImagePath:       dir,
-			LinuxInitrdPath: config.Initrd,
-			LinuxKernelPath: config.Kernel,
+			ImagePath:       config.KirdPath,
+			LinuxInitrdFile: config.InitrdFile,
+			LinuxKernelFile: config.KernelFile,
 		}
 	}
 
