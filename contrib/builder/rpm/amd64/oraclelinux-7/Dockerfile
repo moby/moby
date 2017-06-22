@@ -13,6 +13,6 @@ ENV PATH $PATH:/usr/local/go/bin
 
 ENV AUTO_GOPATH 1
 
-ENV DOCKER_BUILDTAGS pkcs11 seccomp selinux
+ENV DOCKER_BUILDTAGS seccomp selinux
 ENV RUNC_BUILDTAGS seccomp selinux
 

@@ -46,14 +46,6 @@ install_proxy() {
 	go build -ldflags="$PROXY_LDFLAGS" -o /usr/local/bin/docker-proxy github.com/docker/libnetwork/cmd/proxy
 }
 
-install_bindata() {
-    echo "Install go-bindata version $BINDATA_COMMIT"
-    git clone https://github.com/jteeuwen/go-bindata "$GOPATH/src/github.com/jteeuwen/go-bindata"
-    cd $GOPATH/src/github.com/jteeuwen/go-bindata
-    git checkout -q "$BINDATA_COMMIT"
-	go build -o /usr/local/bin/go-bindata github.com/jteeuwen/go-bindata/go-bindata
-}
-
 install_dockercli() {
 	echo "Install docker/cli version $DOCKERCLI_COMMIT"
 	git clone "$DOCKERCLI_REPO" "$GOPATH/src/github.com/docker/cli"
@@ -117,16 +109,12 @@ do
 			go build -v -o /usr/local/bin/vndr .
 			;;
 
-		bindata)
-			install_bindata
-			;;
-
 		dockercli)
 			install_dockercli
 			;;
 
 		*)
-			echo echo "Usage: $0 [tomlv|runc|runc-dynamic|containerd|containerd-dynamic|tini|proxy|proxy-dynamic|bindata|vndr|dockercli]"
+			echo echo "Usage: $0 [tomlv|runc|runc-dynamic|containerd|containerd-dynamic|tini|proxy|proxy-dynamic|vndr|dockercli]"
 			exit 1
 
 	esac

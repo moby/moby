@@ -1,23 +1,18 @@
 #!/usr/bin/env bash
 set -e
 
-# explicit list of os/arch combos that support being a daemon
-declare -A daemonSupporting
-daemonSupporting=(
-	[linux/amd64]=1
-	[windows/amd64]=1
-)
-
 # if we have our linux/amd64 version compiled, let's symlink it in
 if [ -x "$DEST/../binary-daemon/dockerd-$VERSION" ]; then
 	arch=$(go env GOHOSTARCH)
 	mkdir -p "$DEST/linux/${arch}"
 	(
 		cd "$DEST/linux/${arch}"
-		ln -s ../../../binary-daemon/* ./
+		ln -sf ../../../binary-daemon/* ./
 	)
 	echo "Created symlinks:" "$DEST/linux/${arch}/"*
 fi
+
+DOCKER_CROSSPLATFORMS=${DOCKER_CROSSPLATFORMS:-"linux/amd64 windows/amd64"}
 
 for platform in $DOCKER_CROSSPLATFORMS; do
 	(
@@ -26,22 +21,9 @@ for platform in $DOCKER_CROSSPLATFORMS; do
 		export GOOS=${platform%/*}
 		export GOARCH=${platform##*/}
 
-		if [ "$GOOS" != "solaris" ]; then
-			# TODO. Solaris cannot be cross build because of CGO calls.
-
-			echo "Cross building: $DEST"
-			# go install docker/docker/pkg packages to ensure that
-			# they build cross platform.
-			go install github.com/docker/docker/pkg/...
-
-			if [ -n "${daemonSupporting[$platform]}" ]; then
-				# Since tgz relies on the paths created by mkdir
-				# and we removed the clients, we don't want to mkdir
-				# for all the platforms, only the ones supported by the daemon.
-				mkdir -p "$DEST"
-				ABS_DEST="$(cd "$DEST" && pwd -P)"
-				source "${MAKEDIR}/binary-daemon"
-			fi
-		fi
+		echo "Cross building: $DEST"
+		mkdir -p "$DEST"
+		ABS_DEST="$(cd "$DEST" && pwd -P)"
+		source "${MAKEDIR}/binary-daemon"
 	)
 done

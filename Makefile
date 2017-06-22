@@ -17,7 +17,7 @@ export DOCKER_GITCOMMIT
 # to allow things like `make KEEPBUNDLE=1 binary` easily
 # `project/PACKAGERS.md` have some limited documentation of some of these
 DOCKER_ENVS := \
-	$(if $(DOCKER_CROSSPLATFORMS), -e DOCKER_CROSSPLATFORMS) \
+	-e DOCKER_CROSSPLATFORMS \
 	-e BUILD_APT_MIRROR \
 	-e BUILDFLAGS \
 	-e KEEPBUNDLE \
@@ -134,12 +134,6 @@ init-go-pkg-cache:
 install: ## install the linux binaries
 	KEEPBUNDLE=1 hack/make.sh install-binary
 
-manpages: ## Generate man pages from go source and markdown
-	docker build ${DOCKER_BUILD_ARGS} -t docker-manpage-dev -f "man/$(DOCKERFILE)" ./man
-	docker run --rm \
-		-v $(PWD):/go/src/github.com/docker/docker/ \
-		docker-manpage-dev
-
 rpm: build ## build the rpm packages
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary build-rpm
 
@@ -148,9 +142,6 @@ run: build ## run the docker daemon in a container
 
 shell: build ## start a shell inside the build env
 	$(DOCKER_RUN_DOCKER) bash
-
-yaml-docs-gen: build ## generate documentation YAML files consumed by docs repo
-	$(DOCKER_RUN_DOCKER) sh -c 'hack/make.sh yaml-docs-generator && ( root=$$(pwd); cd bundles/latest/yaml-docs-generator; mkdir docs; ./yaml-docs-generator --root $${root} --target $$(pwd)/docs )'
 
 test: build ## run the unit, integration and docker-py tests
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary cross test-unit test-integration-cli test-docker-py

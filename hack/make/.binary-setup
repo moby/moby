@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-DOCKER_CLIENT_BINARY_NAME='docker'
 DOCKER_DAEMON_BINARY_NAME='dockerd'
 DOCKER_RUNC_BINARY_NAME='docker-runc'
 DOCKER_CONTAINERD_BINARY_NAME='docker-containerd'

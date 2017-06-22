@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
+GO_PACKAGE='github.com/docker/docker/cmd/dockerd'
+BINARY_SHORT_NAME='dockerd'
 BINARY_NAME="$BINARY_SHORT_NAME-$VERSION"
 BINARY_EXTENSION="$(binary_extension)"
 BINARY_FULLNAME="$BINARY_NAME$BINARY_EXTENSION"
@@ -18,17 +20,6 @@ if [ "$(go env GOOS)/$(go env GOARCH)" != "$(go env GOHOSTOS)/$(go env GOHOSTARC
 			export CGO_ENABLED=1
 			;;
 	esac
-fi
-
-if [ "$IAMSTATIC" == "true" ] && [ "$(go env GOHOSTOS)" == "linux" ]; then
-	if  [ "${GOOS}/${GOARCH}" == "darwin/amd64" ]; then
-		export CGO_ENABLED=1
-		export CC=o64-clang
-		export LDFLAGS='-linkmode external -s'
-		export LDFLAGS_STATIC_DOCKER='-extld='${CC}
-	else
-		export BUILDFLAGS=( "${BUILDFLAGS[@]/pkcs11 /}" ) # we cannot dlopen in pkcs11 in a static binary
-	fi
 fi
 
 echo "Building: $DEST/$BINARY_FULLNAME"
