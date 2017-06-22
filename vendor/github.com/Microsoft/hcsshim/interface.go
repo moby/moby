@@ -11,6 +11,7 @@ import (
 type ProcessConfig struct {
 	ApplicationName   string            `json:",omitempty"`
 	CommandLine       string            `json:",omitempty"`
+	CommandArgs       []string          `json:",omitempty"` // Used by Linux Containers on Windows
 	User              string            `json:",omitempty"`
 	WorkingDirectory  string            `json:",omitempty"`
 	Environment       map[string]string `json:",omitempty"`
@@ -39,8 +40,8 @@ type MappedDir struct {
 type HvRuntime struct {
 	ImagePath       string `json:",omitempty"`
 	SkipTemplate    bool   `json:",omitempty"`
-	LinuxInitrdPath string `json:",omitempty"` // Host path to an initrd image for starting a Linux utility VM
-	LinuxKernelPath string `json:",omitempty"` // Host path to kernel for starting a Linux utility VM
+	LinuxInitrdFile string `json:",omitempty"` // File under ImagePath on host containing an initrd image for starting a Linux utility VM
+	LinuxKernelFile string `json:",omitempty"` // File under ImagePath on host containing a kernel for starting a Linux utility VM
 }
 
 type MappedVirtualDisk struct {
