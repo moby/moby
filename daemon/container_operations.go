@@ -45,16 +45,6 @@ func (daemon *Daemon) getDNSSearchSettings(container *container.Container) []str
 	return nil
 }
 
-// checkpointAndSave grabs a container lock to safely call container.CheckpointTo
-func (daemon *Daemon) checkpointAndSave(container *container.Container) error {
-	container.Lock()
-	defer container.Unlock()
-	if err := container.CheckpointTo(daemon.containersReplica); err != nil {
-		return fmt.Errorf("Error saving container state: %v", err)
-	}
-	return nil
-}
-
 func (daemon *Daemon) buildSandboxOptions(container *container.Container) ([]libnetwork.SandboxOption, error) {
 	var (
 		sboxOptions []libnetwork.SandboxOption
@@ -1017,7 +1007,7 @@ func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName 
 		}
 	}
 
-	return daemon.checkpointAndSave(container)
+	return container.CheckpointTo(daemon.containersReplica)
 }
 
 // DisconnectFromNetwork disconnects container from network n.
@@ -1053,7 +1043,7 @@ func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, netw
 		return err
 	}
 
-	if err := daemon.checkpointAndSave(container); err != nil {
+	if err := container.CheckpointTo(daemon.containersReplica); err != nil {
 		return err
 	}
 
