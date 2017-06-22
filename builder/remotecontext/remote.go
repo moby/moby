@@ -28,7 +28,7 @@ var mimeRe = regexp.MustCompile(acceptableRemoteMIME)
 //
 // If a match is found, then the body is sent to the contentType handler and a (potentially compressed) tar stream is expected
 // to be returned. If no match is found, it is assumed the body is a tar stream (compressed or not).
-// In either case, an (assumed) tar stream is passed to MakeTarSumContext whose result is returned.
+// In either case, an (assumed) tar stream is passed to FromArchive whose result is returned.
 func MakeRemoteContext(remoteURL string, contentTypeHandlers map[string]func(io.ReadCloser) (io.ReadCloser, error)) (builder.Source, error) {
 	f, err := GetWithStatusError(remoteURL)
 	if err != nil {
@@ -63,7 +63,7 @@ func MakeRemoteContext(remoteURL string, contentTypeHandlers map[string]func(io.
 
 	// Pass through - this is a pre-packaged context, presumably
 	// with a Dockerfile with the right name inside it.
-	return MakeTarSumContext(contextReader)
+	return FromArchive(contextReader)
 }
 
 // GetWithStatusError does an http.Get() and returns an error if the

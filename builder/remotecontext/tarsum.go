@@ -1,128 +1,174 @@
 package remotecontext
 
 import (
-	"io"
+	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 
-	"github.com/docker/docker/builder"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/chrootarchive"
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/symlink"
-	"github.com/docker/docker/pkg/tarsum"
+	iradix "github.com/hashicorp/go-immutable-radix"
 	"github.com/pkg/errors"
+	"github.com/tonistiigi/fsutil"
 )
 
-type tarSumContext struct {
+type hashed interface {
+	Hash() string
+}
+
+// CachableSource is a source that contains cache records for its contents
+type CachableSource struct {
+	mu   sync.Mutex
 	root string
-	sums tarsum.FileInfoSums
+	tree *iradix.Tree
+	txn  *iradix.Txn
 }
 
-func (c *tarSumContext) Close() error {
-	return os.RemoveAll(c.root)
+// NewCachableSource creates new CachableSource
+func NewCachableSource(root string) *CachableSource {
+	ts := &CachableSource{
+		tree: iradix.New(),
+		root: root,
+	}
+	return ts
 }
 
-func convertPathError(err error, cleanpath string) error {
-	if err, ok := err.(*os.PathError); ok {
-		err.Path = cleanpath
+// MarshalBinary marshals current cache information to a byte array
+func (cs *CachableSource) MarshalBinary() ([]byte, error) {
+	b := TarsumBackup{Hashes: make(map[string]string)}
+	root := cs.getRoot()
+	root.Walk(func(k []byte, v interface{}) bool {
+		b.Hashes[string(k)] = v.(*fileInfo).sum
+		return false
+	})
+	return b.Marshal()
+}
+
+// UnmarshalBinary decodes cache information for presented byte array
+func (cs *CachableSource) UnmarshalBinary(data []byte) error {
+	var b TarsumBackup
+	if err := b.Unmarshal(data); err != nil {
 		return err
 	}
-	return err
-}
-
-type modifiableContext interface {
-	builder.Source
-	// Remove deletes the entry specified by `path`.
-	// It is usual for directory entries to delete all its subentries.
-	Remove(path string) error
-}
-
-// MakeTarSumContext returns a build Context from a tar stream.
-//
-// It extracts the tar stream to a temporary folder that is deleted as soon as
-// the Context is closed.
-// As the extraction happens, a tarsum is calculated for every file, and the set of
-// all those sums then becomes the source of truth for all operations on this Context.
-//
-// Closing tarStream has to be done by the caller.
-func MakeTarSumContext(tarStream io.Reader) (builder.Source, error) {
-	root, err := ioutils.TempDir("", "docker-builder")
-	if err != nil {
-		return nil, err
+	txn := iradix.New().Txn()
+	for p, v := range b.Hashes {
+		txn.Insert([]byte(p), &fileInfo{sum: v})
 	}
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+	cs.tree = txn.Commit()
+	return nil
+}
 
-	tsc := &tarSumContext{root: root}
-
-	// Make sure we clean-up upon error.  In the happy case the caller
-	// is expected to manage the clean-up
-	defer func() {
+// Scan rescans the cache information from the file system
+func (cs *CachableSource) Scan() error {
+	lc, err := NewLazySource(cs.root)
+	if err != nil {
+		return err
+	}
+	txn := iradix.New().Txn()
+	err = filepath.Walk(cs.root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			tsc.Close()
+			return errors.Wrapf(err, "failed to walk %s", path)
 		}
-	}()
-
-	decompressedStream, err := archive.DecompressStream(tarStream)
-	if err != nil {
-		return nil, err
-	}
-
-	sum, err := tarsum.NewTarSum(decompressedStream, true, tarsum.Version1)
-	if err != nil {
-		return nil, err
-	}
-
-	err = chrootarchive.Untar(sum, root, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	tsc.sums = sum.GetSums()
-
-	return tsc, nil
-}
-
-func (c *tarSumContext) Root() string {
-	return c.root
-}
-
-func (c *tarSumContext) Remove(path string) error {
-	_, fullpath, err := normalize(path, c.root)
+		rel, err := Rel(cs.root, path)
+		if err != nil {
+			return err
+		}
+		h, err := lc.Hash(rel)
+		if err != nil {
+			return err
+		}
+		txn.Insert([]byte(rel), &fileInfo{sum: h})
+		return nil
+	})
 	if err != nil {
 		return err
 	}
-	return os.RemoveAll(fullpath)
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+	cs.tree = txn.Commit()
+	return nil
 }
 
-func (c *tarSumContext) Hash(path string) (string, error) {
-	cleanpath, fullpath, err := normalize(path, c.root)
-	if err != nil {
-		return "", err
+// HandleChange notifies the source about a modification operation
+func (cs *CachableSource) HandleChange(kind fsutil.ChangeKind, p string, fi os.FileInfo, err error) (retErr error) {
+	cs.mu.Lock()
+	if cs.txn == nil {
+		cs.txn = cs.tree.Txn()
+	}
+	if kind == fsutil.ChangeKindDelete {
+		cs.txn.Delete([]byte(p))
+		cs.mu.Unlock()
+		return
 	}
 
-	rel, err := filepath.Rel(c.root, fullpath)
-	if err != nil {
-		return "", convertPathError(err, cleanpath)
+	h, ok := fi.(hashed)
+	if !ok {
+		cs.mu.Unlock()
+		return errors.Errorf("invalid fileinfo: %s", p)
 	}
 
-	// Use the checksum of the followed path(not the possible symlink) because
-	// this is the file that is actually copied.
-	if tsInfo := c.sums.GetFile(filepath.ToSlash(rel)); tsInfo != nil {
-		return tsInfo.Sum(), nil
+	hfi := &fileInfo{
+		sum: h.Hash(),
 	}
-	// We set sum to path by default for the case where GetFile returns nil.
-	// The usual case is if relative path is empty.
-	return path, nil // backwards compat TODO: see if really needed
+	cs.txn.Insert([]byte(p), hfi)
+	cs.mu.Unlock()
+	return nil
 }
 
-func normalize(path, root string) (cleanPath, fullPath string, err error) {
-	cleanPath = filepath.Clean(string(os.PathSeparator) + path)[1:]
-	fullPath, err = symlink.FollowSymlinkInScope(filepath.Join(root, path), root)
-	if err != nil {
-		return "", "", errors.Wrapf(err, "forbidden path outside the build context: %s (%s)", path, cleanPath)
+func (cs *CachableSource) getRoot() *iradix.Node {
+	cs.mu.Lock()
+	if cs.txn != nil {
+		cs.tree = cs.txn.Commit()
+		cs.txn = nil
 	}
-	if _, err := os.Lstat(fullPath); err != nil {
+	t := cs.tree
+	cs.mu.Unlock()
+	return t.Root()
+}
+
+// Close closes the source
+func (cs *CachableSource) Close() error {
+	return nil
+}
+
+func (cs *CachableSource) normalize(path string) (cleanpath, fullpath string, err error) {
+	cleanpath = filepath.Clean(string(os.PathSeparator) + path)[1:]
+	fullpath, err = symlink.FollowSymlinkInScope(filepath.Join(cs.root, path), cs.root)
+	if err != nil {
+		return "", "", fmt.Errorf("Forbidden path outside the context: %s (%s)", path, fullpath)
+	}
+	_, err = os.Lstat(fullpath)
+	if err != nil {
 		return "", "", convertPathError(err, path)
 	}
 	return
+}
+
+// Hash returns a hash for a single file in the source
+func (cs *CachableSource) Hash(path string) (string, error) {
+	n := cs.getRoot()
+	sum := ""
+	// TODO: check this for symlinks
+	v, ok := n.Get([]byte(path))
+	if !ok {
+		sum = path
+	} else {
+		sum = v.(*fileInfo).sum
+	}
+	return sum, nil
+}
+
+// Root returns a root directory for the source
+func (cs *CachableSource) Root() string {
+	return cs.root
+}
+
+type fileInfo struct {
+	sum string
+}
+
+func (fi *fileInfo) Hash() string {
+	return fi.sum
 }

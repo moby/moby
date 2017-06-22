@@ -212,26 +212,13 @@ func TestMakeRemoteContext(t *testing.T) {
 		t.Fatal("Remote context should not be nil")
 	}
 
-	tarSumCtx, ok := remoteContext.(*tarSumContext)
-
-	if !ok {
-		t.Fatal("Cast error, remote context should be casted to tarSumContext")
+	h, err := remoteContext.Hash(builder.DefaultDockerfileName)
+	if err != nil {
+		t.Fatalf("failed to compute hash %s", err)
 	}
 
-	fileInfoSums := tarSumCtx.sums
-
-	if fileInfoSums.Len() != 1 {
-		t.Fatalf("Size of file info sums should be 1, got: %d", fileInfoSums.Len())
-	}
-
-	fileInfo := fileInfoSums.GetFile(builder.DefaultDockerfileName)
-
-	if fileInfo == nil {
-		t.Fatalf("There should be file named %s in fileInfoSums", builder.DefaultDockerfileName)
-	}
-
-	if fileInfo.Pos() != 0 {
-		t.Fatalf("File %s should have position 0, got %d", builder.DefaultDockerfileName, fileInfo.Pos())
+	if expected, actual := "7b6b6b66bee9e2102fbdc2228be6c980a2a23adf371962a37286a49f7de0f7cc", h; expected != actual {
+		t.Fatalf("There should be file named %s %s in fileInfoSums", expected, actual)
 	}
 }
 
