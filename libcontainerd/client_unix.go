@@ -83,8 +83,7 @@ func (clnt *client) Create(containerID string, checkpoint string, checkpointDir 
 	if err := json.NewEncoder(f).Encode(spec); err != nil {
 		return err
 	}
-
-	return container.start(checkpoint, checkpointDir, attachStdio)
+	return container.start(&spec, checkpoint, checkpointDir, attachStdio)
 }
 
 func (clnt *client) Signal(containerID string, sig int) error {
