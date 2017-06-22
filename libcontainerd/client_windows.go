@@ -292,10 +292,11 @@ func (clnt *client) createLinux(containerID string, checkpoint string, checkpoin
 	// TODO @jhowardmsft LCOW Support: This needs to be configurable, not hard-coded.
 	// However, good-enough for the LCOW bring-up.
 	configuration := &hcsshim.ContainerConfig{
-		HvPartition:                 true,
-		Name:                        containerID,
-		SystemType:                  "container",
-		ContainerType:               "linux",
+		HvPartition:   true,
+		Name:          containerID,
+		SystemType:    "container",
+		ContainerType: "linux",
+		Owner:         defaultOwner,
 		TerminateOnLastHandleClosed: true,
 		HvRuntime: &hcsshim.HvRuntime{
 			ImagePath: `c:\program files\lcow`,
@@ -326,6 +327,18 @@ func (clnt *client) createLinux(containerID string, checkpoint string, checkpoin
 			ID:   g.ToString(),
 			Path: filepath.Join(layerPath, "layer.vhd"),
 		})
+	}
+
+	for _, option := range options {
+		if n, ok := option.(*NetworkEndpointsOption); ok {
+			configuration.EndpointList = n.Endpoints
+			configuration.AllowUnqualifiedDNSQuery = n.AllowUnqualifiedDNSQuery
+			if n.DNSSearchList != nil {
+				configuration.DNSSearchList = strings.Join(n.DNSSearchList, ",")
+			}
+			configuration.NetworkSharedContainerName = n.NetworkSharedContainerID
+			break
+		}
 	}
 
 	hcsContainer, err := hcsshim.CreateContainer(containerID, configuration)
