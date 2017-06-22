@@ -33,7 +33,8 @@ type CommonAPIClient interface {
 	ClientVersion() string
 	DaemonHost() string
 	ServerVersion(ctx context.Context) (types.Version, error)
-	UpdateClientVersion(v string)
+	NegotiateAPIVersion(ctx context.Context)
+	NegotiateAPIVersionPing(types.Ping)
 }
 
 // ContainerAPIClient defines API client methods for the containers
