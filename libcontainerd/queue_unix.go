@@ -27,5 +27,11 @@ func (q *queue) append(id string, f func()) {
 		}
 		f()
 		close(done)
+
+		q.Lock()
+		if q.fns[id] == done {
+			delete(q.fns, id)
+		}
+		q.Unlock()
 	}()
 }
