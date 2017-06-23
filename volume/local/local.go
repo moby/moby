@@ -203,6 +203,20 @@ func (r *Root) Create(name string, opts map[string]string) (volume.Volume, error
 	return v, nil
 }
 
+func (r *Root) Rename(name, newName string) error {
+	r.m.Lock()
+	defer r.m.Unlock()
+	v := r.volumes[name]
+	v.name = newName
+	v.path = strings.Replace(v.path, name, newName, -1)
+	if err := os.Rename(filepath.Join(r.path, name), filepath.Join(r.path, newName)); err != nil {
+		return err
+	}
+	delete(r.volumes, name)
+	r.volumes[newName] = v
+	return nil
+}
+
 // Remove removes the specified volume and all underlying data. If the
 // given volume does not belong to this driver and an error is
 // returned. The volume is reference counted, if all references are

@@ -121,3 +121,42 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 	daemon.LogContainerEventWithAttributes(container, "rename", attributes)
 	return nil
 }
+
+// Volume rename renames a given volume.
+// If the volume is referenced by a running container it is not renamed.
+// This is called directly from the Engine API
+func (daemon *Daemon) VolumeRename(name string, newName string) error {
+	var runningContainers []string
+
+	v, err := daemon.volumes.Get(name)
+	if err != nil {
+		return err
+	}
+
+	if daemon.volumes.HasRef(name) {
+		refs := daemon.volumes.GetRefs(name)
+		for _, containerID := range refs {
+			container, err := daemon.GetContainer(containerID)
+			if err != nil {
+				return err
+			}
+
+			if container.IsRunning() {
+				runningContainers = append(runningContainers, containerID)
+			}
+		}
+	}
+
+	if len(runningContainers) > 0 {
+		return fmt.Errorf("Volume %s is in use by running containers %v. Stop the containers before renaming the volume.\n", v.Name(), runningContainers)
+	}
+
+	if err := daemon.volumes.Rename(v, newName); err != nil {
+		return err
+	}
+
+	// Update Container config for stopped containers.
+	// Update config.v2.json and hostconfig.json where there are references
+	// of old volume name. This solution is very hacky, so open a discussion upstream.
+	return nil
+}

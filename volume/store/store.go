@@ -1,6 +1,7 @@
 package store
 
 import (
+	"fmt"
 	"net"
 	"os"
 	"path/filepath"
@@ -115,6 +116,16 @@ func (s *VolumeStore) setNamed(v volume.Volume, ref string) {
 	s.globalLock.Unlock()
 }
 
+// Wrapper to getRefs function.
+func (s *VolumeStore) GetRefs(name string) []string {
+	return s.getRefs(name)
+}
+
+// Wrapper to hasRef function.
+func (s *VolumeStore) HasRef(name string) bool {
+	return s.hasRef(name)
+}
+
 // hasRef returns true if the given name has at least one ref.
 // Callers of this function are expected to hold the name lock.
 func (s *VolumeStore) hasRef(name string) bool {
@@ -226,6 +237,7 @@ func (s *VolumeStore) list() ([]volume.Volume, []string, error) {
 	chVols := make(chan vols, len(drivers))
 
 	for _, vd := range drivers {
+		fmt.Println(vd.Name())
 		go func(d volume.Driver) {
 			vs, err := d.List()
 			if err != nil {
@@ -289,6 +301,76 @@ func (s *VolumeStore) CreateWithRef(name, driverName, ref string, opts, labels m
 // This is just like CreateWithRef() except we don't store a reference while holding the lock.
 func (s *VolumeStore) Create(name, driverName string, opts, labels map[string]string) (volume.Volume, error) {
 	return s.CreateWithRef(name, driverName, "", opts, labels)
+}
+
+func (s *VolumeStore) Rename(vol volume.Volume, newName string) error {
+	name := normaliseVolumeName(vol.Name())
+	s.locks.Lock(name)
+	defer s.locks.Unlock(name)
+
+	vd, err := volumedrivers.GetDriver(vol.DriverName())
+	if err != nil {
+		return &OpErr{Err: err, Name: vol.DriverName(), Op: "rename"}
+	}
+
+	newName = normaliseVolumeName(newName)
+
+	valid, err := volume.IsVolumeNameValid(newName)
+	if err != nil {
+		return err
+	}
+	if !valid {
+		return &OpErr{Err: errInvalidName, Name: newName, Op: "rename"}
+	}
+
+	v, err := s.checkConflict(newName, vol.DriverName())
+	if err != nil {
+		return err
+	}
+
+	if v != nil {
+		fmt.Errorf("Volume with name %s already exists in some other volume driver.\n", newName)
+	}
+
+	if err = vd.Rename(name, newName); err != nil {
+		return err
+	}
+
+	return s.updateVolumeMetadata(vol, name, newName)
+}
+
+func (s *VolumeStore) updateVolumeMetadata(vol volume.Volume, name, newName string) error {
+
+	// Remove Metadata
+	if err := s.removeMeta(name); err != nil {
+		return fmt.Errorf("Error removing volume metadata for volume %q: %v", name, err)
+	}
+
+	// Remove original volume from Volume Store
+	origVol := s.names[name]
+	origRefs := s.refs[name]
+	origLabels := s.labels[name]
+	origOptions := s.options[name]
+	delete(s.names, name)
+	delete(s.refs, name)
+	delete(s.labels, name)
+	delete(s.options, name)
+
+	// Update Volume Store
+	s.names[newName] = origVol
+	s.refs[newName] = origRefs
+	s.labels[newName] = origLabels
+	s.options[newName] = origOptions
+
+	// Update metadata.db
+	metadata := volumeMetadata{
+		Name:    newName,
+		Driver:  vol.DriverName(),
+		Labels:  origLabels,
+		Options: origOptions,
+	}
+
+	return s.setMeta(newName, metadata)
 }
 
 // checkConflict checks the local cache for name collisions with the passed in name,
