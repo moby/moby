@@ -8508,6 +8508,9 @@ paths:
       description: |
         Start a new interactive session with a server. Session allows server to call back to the client for advanced capabilities.
 
+        > **Note**: This endpoint is *experimental* and only available if the daemon is started with experimental
+        > features enabled. The specifications for this endpoint may still change in a future version of the API.
+
         ### Hijacking
 
         This endpoint hijacks the HTTP connection to HTTP2 transport that allows the client to expose gPRC services on that connection.
@@ -8541,4 +8544,4 @@ paths:
           description: "server error"
           schema:
             $ref: "#/definitions/ErrorResponse"
-      tags: ["Session"]
+      tags: ["Session (experimental)"]
