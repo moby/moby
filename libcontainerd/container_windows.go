@@ -82,7 +82,11 @@ func (ctr *container) start(attachStdio StdioCallback) error {
 
 	// Configure the environment for the process
 	createProcessParms.Environment = setupEnvironmentVariables(ctr.ociSpec.Process.Env)
-	createProcessParms.CommandLine = strings.Join(ctr.ociSpec.Process.Args, " ")
+	if ctr.ociSpec.Platform.OS == "windows" {
+		createProcessParms.CommandLine = strings.Join(ctr.ociSpec.Process.Args, " ")
+	} else {
+		createProcessParms.CommandArgs = ctr.ociSpec.Process.Args
+	}
 	createProcessParms.User = ctr.ociSpec.Process.User.Username
 
 	// LCOW requires the raw OCI spec passed through HCS and onwards to GCS for the utility VM.
