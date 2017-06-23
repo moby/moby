@@ -1,6 +1,7 @@
 package streamformatter
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"strings"
@@ -19,12 +20,12 @@ func TestRawProgressFormatterFormatStatus(t *testing.T) {
 
 func TestRawProgressFormatterFormatProgress(t *testing.T) {
 	sf := rawProgressFormatter{}
-	progress := &jsonmessage.JSONProgress{
+	jsonProgress := &jsonmessage.JSONProgress{
 		Current: 15,
 		Total:   30,
 		Start:   1,
 	}
-	res := sf.formatProgress("id", "action", progress, nil)
+	res := sf.formatProgress("id", "action", jsonProgress, nil)
 	out := string(res)
 	assert.True(t, strings.HasPrefix(out, "action [===="))
 	assert.Contains(t, out, "15B/30B")
@@ -52,24 +53,25 @@ func TestFormatJSONError(t *testing.T) {
 
 func TestJsonProgressFormatterFormatProgress(t *testing.T) {
 	sf := &jsonProgressFormatter{}
-	progress := &jsonmessage.JSONProgress{
+	jsonProgress := &jsonmessage.JSONProgress{
 		Current: 15,
 		Total:   30,
 		Start:   1,
 	}
-	res := sf.formatProgress("id", "action", progress, nil)
+	res := sf.formatProgress("id", "action", jsonProgress, &AuxFormatter{Writer: &bytes.Buffer{}})
 	msg := &jsonmessage.JSONMessage{}
+
 	require.NoError(t, json.Unmarshal(res, msg))
 	assert.Equal(t, "id", msg.ID)
 	assert.Equal(t, "action", msg.Status)
 
-	// The progress will always be in the format of:
+	// jsonProgress will always be in the format of:
 	// [=========================>                         ]      15B/30B 412910h51m30s
 	// The last entry '404933h7m11s' is the timeLeftBox.
-	// However, the timeLeftBox field may change as progress.String() depends on time.Now().
+	// However, the timeLeftBox field may change as jsonProgress.String() depends on time.Now().
 	// Therefore, we have to strip the timeLeftBox from the strings to do the comparison.
 
-	// Compare the progress strings before the timeLeftBox
+	// Compare the jsonProgress strings before the timeLeftBox
 	expectedProgress := "[=========================>                         ]      15B/30B"
 	// if terminal column is <= 110, expectedProgressShort is expected.
 	expectedProgressShort := "      15B/30B"
@@ -79,5 +81,29 @@ func TestJsonProgressFormatterFormatProgress(t *testing.T) {
 			expectedProgress, expectedProgressShort, msg.ProgressMessage)
 	}
 
-	assert.Equal(t, progress, msg.Progress)
+	assert.Equal(t, jsonProgress, msg.Progress)
+}
+
+func TestJsonProgressFormatterFormatStatus(t *testing.T) {
+	sf := jsonProgressFormatter{}
+	res := sf.formatStatus("ID", "%s%d", "a", 1)
+	assert.Equal(t, `{"status":"a1","id":"ID"}`+streamNewline, string(res))
+}
+
+func TestNewJSONProgressOutput(t *testing.T) {
+	b := bytes.Buffer{}
+	b.Write(FormatStatus("id", "Downloading"))
+	_ = NewJSONProgressOutput(&b, false)
+	assert.Equal(t, `{"status":"Downloading","id":"id"}`+streamNewline, b.String())
+}
+
+func TestAuxFormatterEmit(t *testing.T) {
+	b := bytes.Buffer{}
+	aux := &AuxFormatter{Writer: &b}
+	sampleAux := &struct {
+		Data string
+	}{"Additional data"}
+	err := aux.Emit(sampleAux)
+	require.NoError(t, err)
+	assert.Equal(t, `{"aux":{"Data":"Additional data"}}`+streamNewline, b.String())
 }
