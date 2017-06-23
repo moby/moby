@@ -324,7 +324,7 @@ func (s *VolumeStore) Create(name, driverName string, opts, labels map[string]st
 // TODO(cpuguy83): With v2 plugins this shouldn't be a problem. Could also potentially
 // use a connect timeout for this kind of check to ensure we aren't blocking for a
 // long time.
-func (s *VolumeStore) checkConflict(name, driverName string) (volume.Volume, error) {
+func (s *VolumeStore) checkConflict(name, driverName string, found ...func(v volume.Volume) error) (volume.Volume, error) {
 	// check the local cache
 	v, _ := s.getNamed(name)
 	if v == nil {
@@ -356,6 +356,11 @@ func (s *VolumeStore) checkConflict(name, driverName string) (volume.Volume, err
 	if exists {
 		if conflict {
 			return nil, errors.Wrapf(errNameConflict, "driver '%s' already has volume '%s'", vDriverName, name)
+		}
+		for _, f := range found {
+			if err := f(v); err != nil {
+				return v, err
+			}
 		}
 		return v, nil
 	}
@@ -398,18 +403,9 @@ func (s *VolumeStore) create(name, driverName string, opts, labels map[string]st
 		return nil, &OpErr{Err: errInvalidName, Name: name, Op: "create"}
 	}
 
-	v, err := s.checkConflict(name, driverName)
+	v, err := s.checkConflict(name, driverName, found...)
 	if err != nil {
-		return nil, err
-	}
-
-	if v != nil {
-		for _, f := range found {
-			if err := f(v); err != nil {
-				return v, err
-			}
-		}
-		return v, nil
+		return v, err
 	}
 
 	// Since there isn't a specified driver name, let's see if any of the existing drivers have this volume name
