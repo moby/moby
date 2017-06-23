@@ -4,6 +4,8 @@ set -e
 rm -rf "$DEST"
 DEST="$ABS_DEST/../test-integration-cli"
 
+source "$SCRIPTDIR/make/.go-autogen"
+
 if [ -z $DOCKER_INTEGRATION_TESTS_VERIFIED ]; then
 	source ${MAKEDIR}/.integration-test-helpers
 	ensure_test_dir integration-cli "$DEST/test.main"
