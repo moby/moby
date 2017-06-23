@@ -30,6 +30,6 @@ func DevmapperLogCallback(level C.int, file *C.char, line C.int, dmErrnoOrClass 
 	}
 
 	if dmLogger != nil {
-		dmLogger.DMLog(int(level), C.GoString(file), int(line), int(dmErrnoOrClass), msg)
+		dmLogger.DMLog(LogLevel(level), C.GoString(file), int(line), int(dmErrnoOrClass), msg)
 	}
 }
