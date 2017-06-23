@@ -167,12 +167,9 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 	runconfig.SetDefaultNetModeIfBlank(container.HostConfig)
 
 	daemon.updateContainerNetworkSettings(container, endpointsConfigs)
-
-	if err := container.ToDisk(); err != nil {
-		logrus.Errorf("Error saving new container to disk: %v", err)
+	if err := daemon.Register(container); err != nil {
 		return nil, err
 	}
-	daemon.Register(container)
 	stateCtr.set(container.ID, "stopped")
 	daemon.LogContainerEvent(container, "create")
 	return container, nil

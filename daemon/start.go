@@ -58,7 +58,7 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 				// if user has change the network mode on starting, clean up the
 				// old networks. It is a deprecated feature and has been removed in Docker 1.12
 				container.NetworkSettings.Networks = nil
-				if err := container.ToDisk(); err != nil {
+				if err := container.CheckpointTo(daemon.containersReplica); err != nil {
 					return err
 				}
 			}
@@ -84,11 +84,6 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 	}
 
 	return daemon.containerStart(container, checkpoint, checkpointDir, true)
-}
-
-// Start starts a container
-func (daemon *Daemon) Start(container *container.Container) error {
-	return daemon.containerStart(container, "", "", true)
 }
 
 // containerStart prepares the container to run by setting up everything the
@@ -117,8 +112,9 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 			if container.ExitCode() == 0 {
 				container.SetExitCode(128)
 			}
-			container.ToDisk()
-
+			if err := container.CheckpointTo(daemon.containersReplica); err != nil {
+				logrus.Errorf("%s: failed saving state on start failure: %v", container.ID, err)
+			}
 			container.Reset(false)
 
 			daemon.Cleanup(container)

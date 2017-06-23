@@ -83,6 +83,7 @@ type Daemon struct {
 	ID                    string
 	repository            string
 	containers            container.Store
+	containersReplica     container.ViewDB
 	execCommands          *exec.Store
 	downloadManager       *xfer.LayerDownloadManager
 	uploadManager         *xfer.LayerUploadManager
@@ -182,16 +183,19 @@ func (daemon *Daemon) restore() error {
 	activeSandboxes := make(map[string]interface{})
 	for id, c := range containers {
 		if err := daemon.registerName(c); err != nil {
-			logrus.Errorf("Failed to register container %s: %s", c.ID, err)
+			logrus.Errorf("Failed to register container name %s: %s", c.ID, err)
 			delete(containers, id)
 			continue
 		}
-		daemon.Register(c)
-
 		// verify that all volumes valid and have been migrated from the pre-1.7 layout
 		if err := daemon.verifyVolumesInfo(c); err != nil {
 			// don't skip the container due to error
 			logrus.Errorf("Failed to verify volumes for container '%s': %v", c.ID, err)
+		}
+		if err := daemon.Register(c); err != nil {
+			logrus.Errorf("Failed to register container %s: %s", c.ID, err)
+			delete(containers, id)
+			continue
 		}
 
 		// The LogConfig.Type is empty if the container was created before docker 1.12 with default log driver.
@@ -212,7 +216,7 @@ func (daemon *Daemon) restore() error {
 		go func(c *container.Container) {
 			defer wg.Done()
 			daemon.backportMountSpec(c)
-			if err := c.ToDiskLocking(); err != nil {
+			if err := daemon.checkpointAndSave(c); err != nil {
 				logrus.WithError(err).WithField("container", c.ID).Error("error saving backported mountspec to disk")
 			}
 
@@ -271,6 +275,7 @@ func (daemon *Daemon) restore() error {
 				}
 			}
 
+			c.Lock()
 			if c.RemovalInProgress {
 				// We probably crashed in the middle of a removal, reset
 				// the flag.
@@ -281,10 +286,13 @@ func (daemon *Daemon) restore() error {
 				// be removed. So we put the container in the "dead"
 				// state and leave further processing up to them.
 				logrus.Debugf("Resetting RemovalInProgress flag from %v", c.ID)
-				c.ResetRemovalInProgress()
-				c.SetDead()
-				c.ToDisk()
+				c.RemovalInProgress = false
+				c.Dead = true
+				if err := c.CheckpointTo(daemon.containersReplica); err != nil {
+					logrus.Errorf("Failed to update container %s state: %v", c.ID, err)
+				}
 			}
+			c.Unlock()
 		}(c)
 	}
 	wg.Wait()
@@ -755,6 +763,9 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	d.ID = trustKey.PublicKey().KeyID()
 	d.repository = daemonRepo
 	d.containers = container.NewMemoryStore()
+	if d.containersReplica, err = container.NewViewDB(); err != nil {
+		return nil, err
+	}
 	d.execCommands = exec.NewStore()
 	d.trustKey = trustKey
 	d.idIndex = truncindex.NewTruncIndex([]string{})
@@ -1221,4 +1232,14 @@ func CreateDaemonRoot(config *config.Config) error {
 		return err
 	}
 	return setupDaemonRoot(config, realRoot, idMappings.RootPair())
+}
+
+// checkpointAndSave grabs a container lock to safely call container.CheckpointTo
+func (daemon *Daemon) checkpointAndSave(container *container.Container) error {
+	container.Lock()
+	defer container.Unlock()
+	if err := container.CheckpointTo(daemon.containersReplica); err != nil {
+		return fmt.Errorf("Error saving container state: %v", err)
+	}
+	return nil
 }

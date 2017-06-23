@@ -39,6 +39,9 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 			return errors.New("Received StateOOM from libcontainerd on Windows. This should never happen.")
 		}
 		daemon.updateHealthMonitor(c)
+		if err := c.CheckpointTo(daemon.containersReplica); err != nil {
+			return err
+		}
 		daemon.LogContainerEvent(c, "oom")
 	case libcontainerd.StateExit:
 
@@ -90,7 +93,7 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 		daemon.setStateCounter(c)
 
 		defer c.Unlock()
-		if err := c.ToDisk(); err != nil {
+		if err := c.CheckpointTo(daemon.containersReplica); err != nil {
 			return err
 		}
 		return daemon.postRunProcessing(c, e)
@@ -119,30 +122,30 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 		c.HasBeenStartedBefore = true
 		daemon.setStateCounter(c)
 
-		if err := c.ToDisk(); err != nil {
+		daemon.initHealthMonitor(c)
+		if err := c.CheckpointTo(daemon.containersReplica); err != nil {
 			c.Reset(false)
 			return err
 		}
-		daemon.initHealthMonitor(c)
 
 		daemon.LogContainerEvent(c, "start")
 	case libcontainerd.StatePause:
 		// Container is already locked in this case
 		c.Paused = true
 		daemon.setStateCounter(c)
-		if err := c.ToDisk(); err != nil {
+		daemon.updateHealthMonitor(c)
+		if err := c.CheckpointTo(daemon.containersReplica); err != nil {
 			return err
 		}
-		daemon.updateHealthMonitor(c)
 		daemon.LogContainerEvent(c, "pause")
 	case libcontainerd.StateResume:
 		// Container is already locked in this case
 		c.Paused = false
 		daemon.setStateCounter(c)
-		if err := c.ToDisk(); err != nil {
+		daemon.updateHealthMonitor(c)
+		if err := c.CheckpointTo(daemon.containersReplica); err != nil {
 			return err
 		}
-		daemon.updateHealthMonitor(c)
 		daemon.LogContainerEvent(c, "unpause")
 	}
 	return nil

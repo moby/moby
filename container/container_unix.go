@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/pkg/chrootarchive"
@@ -261,11 +262,8 @@ func (container *Container) ConfigMounts() []Mount {
 	return mounts
 }
 
-// UpdateContainer updates configuration of a container.
+// UpdateContainer updates configuration of a container. Callers must hold a Lock on the Container.
 func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfig) error {
-	container.Lock()
-	defer container.Unlock()
-
 	// update resources of container
 	resources := hostConfig.Resources
 	cResources := &container.HostConfig.Resources
@@ -332,11 +330,6 @@ func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfi
 			return fmt.Errorf("Restart policy cannot be updated because AutoRemove is enabled for the container")
 		}
 		container.HostConfig.RestartPolicy = hostConfig.RestartPolicy
-	}
-
-	if err := container.ToDisk(); err != nil {
-		logrus.Errorf("Error saving updated container: %v", err)
-		return err
 	}
 
 	return nil
@@ -461,4 +454,22 @@ func cleanResourcePath(path string) string {
 // EnableServiceDiscoveryOnDefaultNetwork Enable service discovery on default network
 func (container *Container) EnableServiceDiscoveryOnDefaultNetwork() bool {
 	return false
+}
+
+// GetMountPoints gives a platform specific transformation to types.MountPoint. Callers must hold a Container lock.
+func (container *Container) GetMountPoints() []types.MountPoint {
+	mountPoints := make([]types.MountPoint, 0, len(container.MountPoints))
+	for _, m := range container.MountPoints {
+		mountPoints = append(mountPoints, types.MountPoint{
+			Type:        m.Type,
+			Name:        m.Name,
+			Source:      m.Path(),
+			Destination: m.Destination,
+			Driver:      m.Driver,
+			Mode:        m.Mode,
+			RW:          m.RW,
+			Propagation: m.Propagation,
+		})
+	}
+	return mountPoints
 }

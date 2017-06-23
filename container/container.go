@@ -1,6 +1,7 @@
 package container
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,8 +14,6 @@ import (
 	"sync"
 	"syscall"
 	"time"
-
-	"golang.org/x/net/context"
 
 	"github.com/Sirupsen/logrus"
 	containertypes "github.com/docker/docker/api/types/container"
@@ -45,7 +44,7 @@ import (
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/types"
 	agentexec "github.com/docker/swarmkit/agent/exec"
-	"github.com/opencontainers/selinux/go-selinux/label"
+	"golang.org/x/net/context"
 )
 
 const configFileName = "config.v2.json"
@@ -152,41 +151,51 @@ func (container *Container) FromDisk() error {
 		container.Platform = runtime.GOOS
 	}
 
-	if err := label.ReserveLabel(container.ProcessLabel); err != nil {
-		return err
-	}
 	return container.readHostConfig()
 }
 
-// ToDisk saves the container configuration on disk.
-func (container *Container) ToDisk() error {
+// toDisk saves the container configuration on disk and returns a deep copy.
+func (container *Container) toDisk() (*Container, error) {
+	var (
+		buf      bytes.Buffer
+		deepCopy Container
+	)
 	pth, err := container.ConfigPath()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	jsonSource, err := ioutils.NewAtomicFileWriter(pth, 0644)
+	// Save container settings
+	f, err := ioutils.NewAtomicFileWriter(pth, 0644)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	w := io.MultiWriter(&buf, f)
+	if err := json.NewEncoder(w).Encode(container); err != nil {
+		return nil, err
+	}
+
+	if err := json.NewDecoder(&buf).Decode(&deepCopy); err != nil {
+		return nil, err
+	}
+	deepCopy.HostConfig, err = container.WriteHostConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	return &deepCopy, nil
+}
+
+// CheckpointTo makes the Container's current state visible to queries, and persists state.
+// Callers must hold a Container lock.
+func (container *Container) CheckpointTo(store ViewDB) error {
+	deepCopy, err := container.toDisk()
 	if err != nil {
 		return err
 	}
-	defer jsonSource.Close()
-
-	enc := json.NewEncoder(jsonSource)
-
-	// Save container settings
-	if err := enc.Encode(container); err != nil {
-		return err
-	}
-
-	return container.WriteHostConfig()
-}
-
-// ToDiskLocking saves the container configuration on disk in a thread safe way.
-func (container *Container) ToDiskLocking() error {
-	container.Lock()
-	err := container.ToDisk()
-	container.Unlock()
-	return err
+	return store.Save(deepCopy)
 }
 
 // readHostConfig reads the host configuration from disk for the container.
@@ -218,20 +227,34 @@ func (container *Container) readHostConfig() error {
 	return nil
 }
 
-// WriteHostConfig saves the host configuration on disk for the container.
-func (container *Container) WriteHostConfig() error {
+// WriteHostConfig saves the host configuration on disk for the container,
+// and returns a deep copy of the saved object. Callers must hold a Container lock.
+func (container *Container) WriteHostConfig() (*containertypes.HostConfig, error) {
+	var (
+		buf      bytes.Buffer
+		deepCopy containertypes.HostConfig
+	)
+
 	pth, err := container.HostConfigPath()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	f, err := ioutils.NewAtomicFileWriter(pth, 0644)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer f.Close()
 
-	return json.NewEncoder(f).Encode(&container.HostConfig)
+	w := io.MultiWriter(&buf, f)
+	if err := json.NewEncoder(w).Encode(&container.HostConfig); err != nil {
+		return nil, err
+	}
+
+	if err := json.NewDecoder(&buf).Decode(&deepCopy); err != nil {
+		return nil, err
+	}
+	return &deepCopy, nil
 }
 
 // SetupWorkingDirectory sets up the container's working directory as set in container.Config.WorkingDir
