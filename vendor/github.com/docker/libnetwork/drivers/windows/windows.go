@@ -324,6 +324,9 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 	}
 
 	n, err := d.getNetwork(id)
+	if err != nil {
+		return err
+	}
 	n.created = true
 	return d.storeUpdate(config)
 }
@@ -530,7 +533,13 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	}
 
 	epOption, err := parseEndpointOptions(epOptions)
+	if err != nil {
+		return err
+	}
 	epConnectivity, err := parseEndpointConnectivity(epOptions)
+	if err != nil {
+		return err
+	}
 
 	macAddress := ifInfo.MacAddress()
 	// Use the macaddress if it was provided

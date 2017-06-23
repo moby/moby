@@ -165,13 +165,13 @@ func (c *controller) handleKeyChange(keys []*types.EncryptionKey) error {
 		a.networkDB.SetKey(added)
 	}
 
-	key, tag, err := c.getPrimaryKeyTag(subsysGossip)
+	key, _, err := c.getPrimaryKeyTag(subsysGossip)
 	if err != nil {
 		return err
 	}
 	a.networkDB.SetPrimaryKey(key)
 
-	key, tag, err = c.getPrimaryKeyTag(subsysIPSec)
+	key, tag, err := c.getPrimaryKeyTag(subsysIPSec)
 	if err != nil {
 		return err
 	}
@@ -648,13 +648,13 @@ func (ep *endpoint) addServiceInfoToCluster(sb *sandbox) error {
 		TaskAliases:  ep.myAliases,
 		EndpointIP:   ep.Iface().Address().IP.String(),
 	})
-
 	if err != nil {
 		return err
 	}
 
 	if agent != nil {
 		if err := agent.networkDB.CreateEntry(libnetworkEPTable, n.ID(), ep.ID(), buf); err != nil {
+			logrus.Warnf("addServiceInfoToCluster NetworkDB CreateEntry failed for %s %s err:%s", ep.id, n.id, err)
 			return err
 		}
 	}
@@ -686,6 +686,13 @@ func (ep *endpoint) deleteServiceInfoFromCluster(sb *sandbox, method string) err
 		name = ep.MyAliases()[0]
 	}
 
+	if agent != nil {
+		// First delete from networkDB then locally
+		if err := agent.networkDB.DeleteEntry(libnetworkEPTable, n.ID(), ep.ID()); err != nil {
+			logrus.Warnf("deleteServiceInfoFromCluster NetworkDB DeleteEntry failed for %s %s err:%s", ep.id, n.id, err)
+		}
+	}
+
 	if ep.Iface().Address() != nil {
 		if ep.svcID != "" {
 			// This is a task part of a service
@@ -693,7 +700,7 @@ func (ep *endpoint) deleteServiceInfoFromCluster(sb *sandbox, method string) err
 			if n.ingress {
 				ingressPorts = ep.ingressPorts
 			}
-			if err := c.rmServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), name, ep.virtualIP, ingressPorts, ep.svcAliases, ep.myAliases, ep.Iface().Address().IP, "deleteServiceInfoFromCluster"); err != nil {
+			if err := c.rmServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), name, ep.virtualIP, ingressPorts, ep.svcAliases, ep.myAliases, ep.Iface().Address().IP, "deleteServiceInfoFromCluster", true); err != nil {
 				return err
 			}
 		} else {
@@ -701,12 +708,6 @@ func (ep *endpoint) deleteServiceInfoFromCluster(sb *sandbox, method string) err
 			if err := c.delContainerNameResolution(n.ID(), ep.ID(), name, ep.myAliases, ep.Iface().Address().IP, "deleteServiceInfoFromCluster"); err != nil {
 				return err
 			}
-		}
-	}
-
-	if agent != nil {
-		if err := agent.networkDB.DeleteEntry(libnetworkEPTable, n.ID(), ep.ID()); err != nil {
-			return err
 		}
 	}
 
@@ -883,7 +884,7 @@ func (c *controller) handleEpTableEvent(ev events.Event) {
 	}
 
 	if isAdd {
-		logrus.Debugf("handleEpTableEvent ADD %s R:%v", isAdd, eid, epRec)
+		logrus.Debugf("handleEpTableEvent ADD %s R:%v", eid, epRec)
 		if svcID != "" {
 			// This is a remote task part of a service
 			if err := c.addServiceBinding(svcName, svcID, nid, eid, containerName, vip, ingressPorts, serviceAliases, taskAliases, ip, "handleEpTableEvent"); err != nil {
@@ -897,10 +898,10 @@ func (c *controller) handleEpTableEvent(ev events.Event) {
 			}
 		}
 	} else {
-		logrus.Debugf("handleEpTableEvent DEL %s R:%v", isAdd, eid, epRec)
+		logrus.Debugf("handleEpTableEvent DEL %s R:%v", eid, epRec)
 		if svcID != "" {
 			// This is a remote task part of a service
-			if err := c.rmServiceBinding(svcName, svcID, nid, eid, containerName, vip, ingressPorts, serviceAliases, taskAliases, ip, "handleEpTableEvent"); err != nil {
+			if err := c.rmServiceBinding(svcName, svcID, nid, eid, containerName, vip, ingressPorts, serviceAliases, taskAliases, ip, "handleEpTableEvent", true); err != nil {
 				logrus.Errorf("failed removing service binding for %s epRec:%v err:%s", eid, epRec, err)
 				return
 			}
