@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Microsoft/hcsshim"
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
@@ -32,6 +33,9 @@ func init() {
 const (
 	// sandboxFilename is the name of the file containing a layers sandbox (read-write layer)
 	sandboxFilename = "sandbox.vhdx"
+
+	// svmScratchFilename is the name of the scratch-space used by an SVM to avoid running out of memory
+	svmScratchFilename = "scratch.vhdx"
 )
 
 // cacheType is our internal structure representing an item in our local cache
@@ -51,8 +55,13 @@ type Driver struct {
 	cachedSandboxFile string
 	// options are the graphdriver options we are initialised with
 	options []string
-	// JJH LIFETIME TODO - Remove this and move up to daemon. For now, a global service utility-VM
+	// config is the representation of the SVM.
+	// @jhowardmsft LIFETIME TODO - For now, a global service utility-VM
 	config client.Config
+	// svmScratchSpaceFile is a host location for a dedicated scratch space
+	// that the SVM utilities can use as a scratch-space to avoid OOMs
+	// @jhowardmsft LIFETIME TODO - For now, a global service utility-VM
+	svmScratchSpaceFile string
 
 	// it is safe for windows to use a cache here because it does not support
 	// restoring containers when the daemon dies.
@@ -69,10 +78,11 @@ func InitLCOW(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (
 	logrus.Debugf("%s %s", title, home)
 
 	d := &Driver{
-		homeDir:           home,
-		options:           options,
-		cachedSandboxFile: filepath.Join(home, "cache", sandboxFilename),
-		cache:             make(map[string]cacheType),
+		homeDir:             home,
+		options:             options,
+		cachedSandboxFile:   filepath.Join(home, "cache", sandboxFilename),
+		svmScratchSpaceFile: filepath.Join(home, "svmscratch", svmScratchFilename),
+		cache:               make(map[string]cacheType),
 	}
 
 	if err := idtools.MkdirAllAs(home, 0700, 0, 0); err != nil {
@@ -84,6 +94,11 @@ func InitLCOW(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (
 		return nil, fmt.Errorf("%s failed to create '%s': %v", title, home, err)
 	}
 
+	// Location for the SVM scratch
+	if err := idtools.MkdirAllAs(filepath.Dir(d.svmScratchSpaceFile), 0700, 0, 0); err != nil {
+		return nil, fmt.Errorf("%s failed to create '%s': %v", title, home, err)
+	}
+
 	return d, nil
 }
 
@@ -92,6 +107,8 @@ func InitLCOW(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (
 // service VM globally to a service VM per container (or offline operation). However,
 // for the initial bring-up of LCOW, this is acceptable.
 func (d *Driver) startUvm(context string) error {
+	const toolsScratchPath = "/mnt/gcs/LinuxServiceVM/scratch"
+
 	// Nothing to do if it's already running
 	if d.config.Uvm != nil {
 		return nil
@@ -102,10 +119,36 @@ func (d *Driver) startUvm(context string) error {
 		return fmt.Errorf("failed to generate default gogcs configuration (%s): %s", context, err)
 	}
 
+	scratchAttached := false
+	if _, err := os.Stat(d.svmScratchSpaceFile); err == nil {
+		// We have a scratch space already, so just attach it as a mapped virtual disk
+		logrus.Debugf("lcowdriver: startuvm: (%s) attaching pre-existing scratch", context)
+		mvd := hcsshim.MappedVirtualDisk{
+			HostPath:          d.svmScratchSpaceFile,
+			ContainerPath:     toolsScratchPath,
+			CreateInUtilityVM: true,
+		}
+		d.config.MappedVirtualDisks = append(d.config.MappedVirtualDisks, mvd)
+		scratchAttached = true
+	}
+
 	d.config.Name = "LinuxServiceVM" // TODO @jhowardmsft - This requires an in-flight platform change. Can't hard code it to this longer term
 	if err := d.config.Create(); err != nil {
 		return fmt.Errorf("failed to start utility VM (%s): %s", context, err)
 	}
+
+	// Hot-add the scratch-space if not already attached
+	if !scratchAttached {
+		logrus.Debugf("lcowdriver: startuvm: (%s) creating an SVM scratch", context)
+		if err := d.config.CreateSandbox(d.svmScratchSpaceFile, client.DefaultSandboxSizeMB, d.cachedSandboxFile); err != nil {
+			return fmt.Errorf("failed to create SVM scratch VHDX (%s): %s", context, err)
+		}
+		logrus.Debugf("lcowdriver: startuvm: (%s) hot-adding an SVM scratch", context)
+		if err := d.config.HotAddVhd(d.svmScratchSpaceFile, toolsScratchPath); err != nil {
+			return fmt.Errorf("failed to hot-add %s failed: %s", d.svmScratchSpaceFile, err)
+		}
+	}
+	logrus.Debugf("lcowdriver: startuvm: (%s) successful", context)
 	return nil
 }
 
