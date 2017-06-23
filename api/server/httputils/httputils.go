@@ -3,12 +3,12 @@ package httputils
 import (
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
 	"golang.org/x/net/context"
-
-	"github.com/docker/docker/api"
 )
 
 // APIVersionKey is the client's requested API version.
@@ -55,7 +55,7 @@ func CheckForJSON(r *http.Request) error {
 	}
 
 	// Otherwise it better be json
-	if api.MatchesContentType(ct, "application/json") {
+	if matchesContentType(ct, "application/json") {
 		return nil
 	}
 	return fmt.Errorf("Content-Type specified (%s) must be 'application/json'", ct)
@@ -85,4 +85,13 @@ func VersionFromContext(ctx context.Context) string {
 	}
 
 	return ""
+}
+
+// matchesContentType validates the content type against the expected one
+func matchesContentType(contentType, expectedType string) bool {
+	mimetype, _, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		logrus.Errorf("Error parsing media type: %s error: %v", contentType, err)
+	}
+	return err == nil && mimetype == expectedType
 }
