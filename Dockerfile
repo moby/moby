@@ -217,7 +217,8 @@ COPY hack/dockerfile/install-binaries.sh /tmp/install-binaries.sh
 RUN /tmp/install-binaries.sh tomlv vndr runc containerd tini proxy dockercli
 ENV PATH=/usr/local/cli:$PATH
 
-# Activate bash completion if mounted with DOCKER_BASH_COMPLETION_PATH
+# Activate bash completion and include Docker's completion if mounted with DOCKER_BASH_COMPLETION_PATH
+RUN echo "source /usr/share/bash-completion/bash_completion" >> /etc/bash.bashrc
 RUN ln -s /usr/local/completion/bash/docker /etc/bash_completion.d/docker
 
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
