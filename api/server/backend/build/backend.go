@@ -55,6 +55,11 @@ func (b *Backend) Build(ctx context.Context, config backend.BuildConfig) (string
 		if imageID, err = squashBuild(build, b.imageComponent); err != nil {
 			return "", err
 		}
+		if config.ProgressWriter.AuxFormatter != nil {
+			if err = config.ProgressWriter.AuxFormatter.Emit(types.BuildResult{ID: imageID}); err != nil {
+				return "", err
+			}
+		}
 	}
 
 	stdout := config.ProgressWriter.StdoutFormatter
