@@ -5,6 +5,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -25,6 +26,9 @@ import (
 	"crypto/x509"
 
 	"github.com/cloudflare/cfssl/helpers"
+	"github.com/docker/docker/api"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/daemon"
@@ -2979,4 +2983,46 @@ func (s *DockerDaemonSuite) TestShmSizeReload(c *check.C) {
 	out, err = s.d.Cmd("inspect", "--format", "{{.HostConfig.ShmSize}}", name)
 	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
 	c.Assert(strings.TrimSpace(out), check.Equals, fmt.Sprintf("%v", size))
+}
+
+// TestFailedPluginRemove makes sure that a failed plugin remove does not block
+// the daemon from starting
+func (s *DockerDaemonSuite) TestFailedPluginRemove(c *check.C) {
+	testRequires(c, DaemonIsLinux, IsAmd64, SameHostDaemon)
+	d := daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{})
+	d.Start(c)
+	cli, err := client.NewClient(d.Sock(), api.DefaultVersion, nil, nil)
+	c.Assert(err, checker.IsNil)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
+	defer cancel()
+
+	name := "test-plugin-rm-fail"
+	out, err := cli.PluginInstall(ctx, name, types.PluginInstallOptions{
+		Disabled:             true,
+		AcceptAllPermissions: true,
+		RemoteRef:            "cpuguy83/docker-logdriver-test",
+	})
+	c.Assert(err, checker.IsNil)
+	defer out.Close()
+	io.Copy(ioutil.Discard, out)
+
+	ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	p, _, err := cli.PluginInspectWithRaw(ctx, name)
+	c.Assert(err, checker.IsNil)
+
+	// simulate a bad/partial removal by removing the plugin config.
+	configPath := filepath.Join(d.Root, "plugins", p.ID, "config.json")
+	c.Assert(os.Remove(configPath), checker.IsNil)
+
+	d.Restart(c)
+	ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	_, err = cli.Ping(ctx)
+	c.Assert(err, checker.IsNil)
+
+	_, _, err = cli.PluginInspectWithRaw(ctx, name)
+	// plugin should be gone since the config.json is gone
+	c.Assert(err, checker.NotNil)
 }
