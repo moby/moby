@@ -118,7 +118,7 @@ func (d *Driver) terminateUvm(context string) error {
 
 	// FIXME: @jhowardmsft
 	// This isn't thread-safe yet, but will change anyway with the lifetime
-	// changes and multiple instances. Defering that work for now.
+	// changes and multiple instances. Deferring that work for now.
 	uvm := d.config.Uvm
 	d.config.Uvm = nil
 
@@ -190,7 +190,6 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
 	// Make sure layers are created with the correct ACL so that VMs can access them.
 	layerPath := d.dir(id)
 	logrus.Debugf("lcowdriver: create: id %s: creating layerPath %s", id, layerPath)
-	// Make sure the layers are created with the correct ACL so that VMs can access them.
 	if err := system.MkdirAllWithACL(layerPath, 755, system.SddlNtvmAdministratorsLocalSystem); err != nil {
 		return err
 	}

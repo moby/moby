@@ -91,8 +91,8 @@ var (
 // DefaultEscapeToken is the default escape token
 const DefaultEscapeToken = '\\'
 
-// DefaultPlatformToken is the platform assumed for the build if not explicitly provided
-var DefaultPlatformToken = runtime.GOOS
+// defaultPlatformToken is the platform assumed for the build if not explicitly provided
+var defaultPlatformToken = runtime.GOOS
 
 // Directive is the structure used during a build run to hold the state of
 // parsing directives.
@@ -119,7 +119,7 @@ func (d *Directive) setEscapeToken(s string) error {
 func (d *Directive) setPlatformToken(s string) error {
 	s = strings.ToLower(s)
 	valid := []string{runtime.GOOS}
-	if runtime.GOOS == "windows" && system.LCOWSupported() {
+	if system.LCOWSupported() {
 		valid = append(valid, "linux")
 	}
 	for _, item := range valid {
@@ -154,7 +154,7 @@ func (d *Directive) possibleParserDirective(line string) error {
 
 	// TODO @jhowardmsft LCOW Support: Eventually this check can be removed,
 	// but only recognise a platform token if running in LCOW mode.
-	if runtime.GOOS == "windows" && system.LCOWSupported() {
+	if system.LCOWSupported() {
 		tpcMatch := tokenPlatformCommand.FindStringSubmatch(strings.ToLower(line))
 		if len(tpcMatch) != 0 {
 			for i, n := range tokenPlatformCommand.SubexpNames() {
@@ -177,7 +177,7 @@ func (d *Directive) possibleParserDirective(line string) error {
 func NewDefaultDirective() *Directive {
 	directive := Directive{}
 	directive.setEscapeToken(string(DefaultEscapeToken))
-	directive.setPlatformToken(runtime.GOOS)
+	directive.setPlatformToken(defaultPlatformToken)
 	return &directive
 }
 

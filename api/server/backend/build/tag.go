@@ -37,7 +37,7 @@ func (bt *Tagger) TagImages(imageID image.ID) error {
 	for _, rt := range bt.repoAndTags {
 		// TODO @jhowardmsft LCOW support. Will need revisiting.
 		platform := runtime.GOOS
-		if platform == "windows" && system.LCOWSupported() {
+		if system.LCOWSupported() {
 			platform = "linux"
 		}
 		if err := bt.imageComponent.TagImageWithReference(imageID, platform, rt); err != nil {

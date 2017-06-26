@@ -154,7 +154,7 @@ func (d *Driver) Status() [][2]string {
 }
 
 // panicIfUsedByLcow does exactly what it says.
-// TODO @jhowardmsft - this is an temporary measure for the bring-up of
+// TODO @jhowardmsft - this is a temporary measure for the bring-up of
 // Linux containers on Windows. It is a failsafe to ensure that the right
 // graphdriver is used.
 func panicIfUsedByLcow() {

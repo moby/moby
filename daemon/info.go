@@ -90,7 +90,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 
 	// TODO @jhowardmsft LCOW support. For now, hard-code the platform shown for the driver status
 	p := runtime.GOOS
-	if p == "windows" && system.LCOWSupported() {
+	if system.LCOWSupported() {
 		p = "linux"
 	}
 

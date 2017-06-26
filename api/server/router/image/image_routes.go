@@ -101,7 +101,7 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 	//	}
 	//	valid := []string{runtime.GOOS}
 	//
-	//	if runtime.GOOS == "windows" && system.LCOWSupported() {
+	//	if system.LCOWSupported() {
 	//		valid = append(valid, "linux")
 	//	}
 	//
@@ -118,7 +118,7 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 	//		return err
 	//	}
 	platform := runtime.GOOS
-	if platform == "windows" && system.LCOWSupported() {
+	if system.LCOWSupported() {
 		platform = "linux"
 	}
 

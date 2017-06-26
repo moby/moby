@@ -1038,7 +1038,7 @@ func (container *Container) CreateDaemonEnvironment(tty bool, linkedEnv []string
 		platform = runtime.GOOS
 	}
 	env := []string{}
-	if runtime.GOOS != "windows" || (runtime.GOOS == "windows" && system.LCOWSupported() && platform == "linux") {
+	if runtime.GOOS != "windows" || (system.LCOWSupported() && platform == "linux") {
 		env = []string{
 			"PATH=" + system.DefaultPathEnv(platform),
 			"HOSTNAME=" + container.Config.Hostname,
@@ -1052,7 +1052,6 @@ func (container *Container) CreateDaemonEnvironment(tty bool, linkedEnv []string
 	// because the env on the container can override certain default values
 	// we need to replace the 'env' keys where they match and append anything
 	// else.
-	//return ReplaceOrAppendEnvValues(linkedEnv, container.Config.Env)
-	foo := ReplaceOrAppendEnvValues(env, container.Config.Env)
-	return foo
+	env = ReplaceOrAppendEnvValues(env, container.Config.Env)
+	return env
 }

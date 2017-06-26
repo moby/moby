@@ -93,7 +93,7 @@ func (c *containerAdapter) pullImage(ctx context.Context) error {
 		// TODO @jhowardmsft LCOW Support: This will need revisiting as
 		// the stack is built up to include LCOW support for swarm.
 		platform := runtime.GOOS
-		if platform == "windows" && system.LCOWSupported() {
+		if system.LCOWSupported() {
 			platform = "linux"
 		}
 		err := c.backend.PullImage(ctx, c.container.image(), "", platform, metaHeaders, authConfig, pw)

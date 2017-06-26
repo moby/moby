@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"runtime"
 	"strings"
 	"sync"
 
@@ -273,7 +272,7 @@ func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, platf
 	var p *roLayer
 
 	// Integrity check - ensure we are creating something for the correct platform
-	if runtime.GOOS == "windows" && system.LCOWSupported() {
+	if system.LCOWSupported() {
 		if strings.ToLower(ls.platform) != strings.ToLower(string(platform)) {
 			return nil, fmt.Errorf("cannot create entry for platform %q in layer store for platform %q", platform, ls.platform)
 		}

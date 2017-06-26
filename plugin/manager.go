@@ -353,7 +353,7 @@ func isEqualPrivilege(a, b types.PluginPrivilege) bool {
 func configToRootFS(c []byte) (*image.RootFS, layer.Platform, error) {
 	// TODO @jhowardmsft LCOW - Will need to revisit this. For now, calculate the platform.
 	platform := layer.Platform(runtime.GOOS)
-	if platform == "windows" && system.LCOWSupported() {
+	if system.LCOWSupported() {
 		platform = "linux"
 	}
 	var pluginConfig types.PluginConfig

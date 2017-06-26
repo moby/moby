@@ -233,7 +233,7 @@ func (s *dispatchState) beginStage(stageName string, image builder.Image) {
 func (s *dispatchState) setDefaultPath() {
 	// TODO @jhowardmsft LCOW Support - This will need revisiting later
 	platform := runtime.GOOS
-	if platform == "windows" && system.LCOWSupported() {
+	if system.LCOWSupported() {
 		platform = "linux"
 	}
 	if system.DefaultPathEnv(platform) == "" {

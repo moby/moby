@@ -16,7 +16,7 @@ import (
 func (daemon *Daemon) ExportImage(names []string, outStream io.Writer) error {
 	// TODO @jhowardmsft LCOW. This will need revisiting later.
 	platform := runtime.GOOS
-	if platform == "windows" && system.LCOWSupported() {
+	if system.LCOWSupported() {
 		platform = "linux"
 	}
 	imageExporter := tarexport.NewTarExporter(daemon.stores[platform].imageStore, daemon.stores[platform].layerStore, daemon.stores[platform].referenceStore, daemon)
@@ -29,7 +29,7 @@ func (daemon *Daemon) ExportImage(names []string, outStream io.Writer) error {
 func (daemon *Daemon) LoadImage(inTar io.ReadCloser, outStream io.Writer, quiet bool) error {
 	// TODO @jhowardmsft LCOW. This will need revisiting later.
 	platform := runtime.GOOS
-	if platform == "windows" && system.LCOWSupported() {
+	if system.LCOWSupported() {
 		platform = "linux"
 	}
 	imageExporter := tarexport.NewTarExporter(daemon.stores[platform].imageStore, daemon.stores[platform].layerStore, daemon.stores[platform].referenceStore, daemon)
