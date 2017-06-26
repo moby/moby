@@ -112,9 +112,10 @@ func (s *journald) Log(msg *logger.Message) error {
 	}
 
 	line := string(msg.Line)
+	source := msg.Source
 	logger.PutMessage(msg)
 
-	if msg.Source == "stderr" {
+	if source == "stderr" {
 		return journal.Send(line, journal.PriErr, vars)
 	}
 	return journal.Send(line, journal.PriInfo, vars)
