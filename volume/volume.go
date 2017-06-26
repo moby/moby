@@ -153,6 +153,10 @@ func (m *MountPoint) Setup(mountLabel string, rootUID, rootGID int, checkFun fun
 		if err == nil {
 			if label.RelabelNeeded(m.Mode) {
 				if err = label.Relabel(m.Source, mountLabel, label.IsShared(m.Mode)); err != nil {
+					if err == syscall.ENOTSUP {
+						err = nil
+						return
+					}
 					path = ""
 					err = errors.Wrapf(err, "error setting label on mount source '%s'", m.Source)
 					return
