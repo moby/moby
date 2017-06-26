@@ -209,3 +209,30 @@ func TestCheckoutGit(t *testing.T) {
 		assert.Equal(t, c.exp, string(b))
 	}
 }
+
+func TestValidGitTransport(t *testing.T) {
+	gitUrls := []string{
+		"git://github.com/docker/docker",
+		"git@github.com:docker/docker.git",
+		"git@bitbucket.org:atlassianlabs/atlassian-docker.git",
+		"https://github.com/docker/docker.git",
+		"http://github.com/docker/docker.git",
+		"http://github.com/docker/docker.git#branch",
+		"http://github.com/docker/docker.git#:dir",
+	}
+	incompleteGitUrls := []string{
+		"github.com/docker/docker",
+	}
+
+	for _, url := range gitUrls {
+		if !isGitTransport(url) {
+			t.Fatalf("%q should be detected as valid Git prefix", url)
+		}
+	}
+
+	for _, url := range incompleteGitUrls {
+		if isGitTransport(url) {
+			t.Fatalf("%q should not be detected as valid Git prefix", url)
+		}
+	}
+}

@@ -57,7 +57,7 @@ func Clone(remoteURL string) (string, error) {
 func parseRemoteURL(remoteURL string) (gitRepo, error) {
 	repo := gitRepo{}
 
-	if !urlutil.IsGitTransport(remoteURL) {
+	if !isGitTransport(remoteURL) {
 		remoteURL = "https://" + remoteURL
 	}
 
@@ -150,4 +150,10 @@ func gitWithinDir(dir string, args ...string) ([]byte, error) {
 
 func git(args ...string) ([]byte, error) {
 	return exec.Command("git", args...).CombinedOutput()
+}
+
+// isGitTransport returns true if the provided str is a git transport by inspecting
+// the prefix of the string for known protocols used in git.
+func isGitTransport(str string) bool {
+	return urlutil.IsURL(str) || strings.HasPrefix(str, "git://") || strings.HasPrefix(str, "git@")
 }
