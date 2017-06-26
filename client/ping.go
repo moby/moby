@@ -18,13 +18,15 @@ func (cli *Client) Ping(ctx context.Context) (types.Ping, error) {
 	}
 	defer ensureReaderClosed(serverResp)
 
-	ping.APIVersion = serverResp.header.Get("API-Version")
+	if serverResp.header != nil {
+		ping.APIVersion = serverResp.header.Get("API-Version")
 
-	if serverResp.header.Get("Docker-Experimental") == "true" {
-		ping.Experimental = true
+		if serverResp.header.Get("Docker-Experimental") == "true" {
+			ping.Experimental = true
+		}
+		ping.OSType = serverResp.header.Get("OSType")
 	}
 
-	ping.OSType = serverResp.header.Get("OSType")
-
-	return ping, nil
+	err = cli.checkResponseErr(serverResp)
+	return ping, err
 }
