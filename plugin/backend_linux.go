@@ -13,7 +13,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -32,6 +31,7 @@ import (
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/progress"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/plugin/v2"
 	refstore "github.com/docker/docker/reference"
 	"github.com/opencontainers/go-digest"
@@ -631,14 +631,20 @@ func (pm *Manager) Remove(name string, config *types.PluginRmConfig) error {
 	}()
 
 	id := p.GetID()
-	pm.config.Store.Remove(p)
 	pluginDir := filepath.Join(pm.config.Root, id)
-	if err := recursiveUnmount(pluginDir); err != nil {
-		logrus.WithField("dir", pluginDir).WithField("id", id).Warn(err)
+
+	if err := mount.RecursiveUnmount(pluginDir); err != nil {
+		return errors.Wrap(err, "error unmounting plugin data")
 	}
-	if err := os.RemoveAll(pluginDir); err != nil {
-		logrus.Warnf("unable to remove %q from plugin remove: %v", pluginDir, err)
+
+	if err := os.Rename(pluginDir, pluginDir+"-removing"); err != nil {
+		return errors.Wrap(err, "error performing atomic remove of plugin dir")
 	}
+
+	if err := system.EnsureRemoveAll(pluginDir); err != nil {
+		return errors.Wrap(err, "error removing plugin dir")
+	}
+	pm.config.Store.Remove(p)
 	pm.config.LogPluginEvent(id, name, "remove")
 	return nil
 }
@@ -657,27 +663,6 @@ func getMounts(root string) ([]string, error) {
 	}
 
 	return mounts, nil
-}
-
-func recursiveUnmount(root string) error {
-	mounts, err := getMounts(root)
-	if err != nil {
-		return err
-	}
-
-	// sort in reverse-lexicographic order so the root mount will always be last
-	sort.Sort(sort.Reverse(sort.StringSlice(mounts)))
-
-	for i, m := range mounts {
-		if err := mount.Unmount(m); err != nil {
-			if i == len(mounts)-1 {
-				return errors.Wrapf(err, "error performing recursive unmount on %s", root)
-			}
-			logrus.WithError(err).WithField("mountpoint", m).Warn("could not unmount")
-		}
-	}
-
-	return nil
 }
 
 // Set sets plugin args

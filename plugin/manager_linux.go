@@ -203,7 +203,7 @@ func (pm *Manager) upgradePlugin(p *v2.Plugin, configDigest digest.Digest, blobs
 	// Make sure nothing is mounted
 	// This could happen if the plugin was disabled with `-f` with active mounts.
 	// If there is anything in `orig` is still mounted, this should error out.
-	if err := recursiveUnmount(orig); err != nil {
+	if err := mount.RecursiveUnmount(orig); err != nil {
 		return err
 	}
 

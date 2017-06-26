@@ -161,6 +161,19 @@ func (pm *Manager) StateChanged(id string, e libcontainerd.StateInfo) error {
 	return nil
 }
 
+func handleLoadError(err error, id string) {
+	if err == nil {
+		return
+	}
+	logger := logrus.WithError(err).WithField("id", id)
+	if os.IsNotExist(errors.Cause(err)) {
+		// Likely some error while removing on an older version of docker
+		logger.Warn("missing plugin config, skipping: this may be caused due to a failed remove and requires manual cleanup.")
+		return
+	}
+	logger.Error("error loading plugin, skipping")
+}
+
 func (pm *Manager) reload() error { // todo: restore
 	dir, err := ioutil.ReadDir(pm.config.Root)
 	if err != nil {
@@ -171,9 +184,17 @@ func (pm *Manager) reload() error { // todo: restore
 		if validFullID.MatchString(v.Name()) {
 			p, err := pm.loadPlugin(v.Name())
 			if err != nil {
-				return err
+				handleLoadError(err, v.Name())
+				continue
 			}
 			plugins[p.GetID()] = p
+		} else {
+			if validFullID.MatchString(strings.TrimSuffix(v.Name(), "-removing")) {
+				// There was likely some error while removing this plugin, let's try to remove again here
+				if err := system.EnsureRemoveAll(v.Name()); err != nil {
+					logrus.WithError(err).WithField("id", v.Name()).Warn("error while attempting to clean up previously removed plugin")
+				}
+			}
 		}
 	}
 
