@@ -31,7 +31,9 @@ func (config *Config) TarToVhd(targetVHDFile string, reader io.Reader) (int64, e
 	}
 
 	// Don't need stdin now we've sent everything. This signals GCS that we are finished sending data.
-	process.Process.CloseStdin()
+	if err := process.Process.CloseStdin(); err != nil {
+		return 0, fmt.Errorf("opengcs: TarToVhd: %s: failed closing stdin handle: %s", targetVHDFile, err)
+	}
 
 	// Write stdout contents of `tar2vhd` to the VHD file
 	payloadSize, err := writeFileFromReader(targetVHDFile, process.Stdout, config.UvmTimeoutSeconds, fmt.Sprintf("output of tar2vhd to %s", targetVHDFile))

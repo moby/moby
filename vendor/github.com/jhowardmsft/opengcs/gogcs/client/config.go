@@ -52,19 +52,20 @@ const (
 //
 // VHD is the priority.
 type Config struct {
-	KirdPath          string            // Path to where kernel/initrd are found (defaults to c:\program files\lcow)
-	KernelFile        string            // Kernel for Utility VM (embedded in a UEFI bootloader) - does NOT include full path, just filename
-	InitrdFile        string            // Initrd image for Utility VM - does NOT include full path, just filename
-	Vhdx              string            // VHD for booting the utility VM - is a full path
-	Name              string            // Name of the utility VM
-	RequestedMode     Mode              // What mode is preferred when validating
-	ActualMode        Mode              // What mode was obtained during validation
-	UvmTimeoutSeconds int               // How long to wait for the utility VM to respond in seconds
-	Uvm               hcsshim.Container // The actual container
+	KirdPath           string                      // Path to where kernel/initrd are found (defaults to c:\program files\Linux Containers)
+	KernelFile         string                      // Kernel for Utility VM (embedded in a UEFI bootloader) - does NOT include full path, just filename
+	InitrdFile         string                      // Initrd image for Utility VM - does NOT include full path, just filename
+	Vhdx               string                      // VHD for booting the utility VM - is a full path
+	Name               string                      // Name of the utility VM
+	RequestedMode      Mode                        // What mode is preferred when validating
+	ActualMode         Mode                        // What mode was obtained during validation
+	UvmTimeoutSeconds  int                         // How long to wait for the utility VM to respond in seconds
+	Uvm                hcsshim.Container           // The actual container
+	MappedVirtualDisks []hcsshim.MappedVirtualDisk // Data-disks to be attached
 }
 
 // GenerateDefault generates a default config from a set of options
-// If baseDir is not supplied, defaults to $env:ProgramFiles\lcow
+// If baseDir is not supplied, defaults to $env:ProgramFiles\Linux Containers
 func (config *Config) GenerateDefault(options []string) error {
 	if config.UvmTimeoutSeconds < 0 {
 		return fmt.Errorf("opengcs: cannot generate a config when supplied a negative utility VM timeout")
@@ -111,7 +112,7 @@ func (config *Config) GenerateDefault(options []string) error {
 	}
 
 	if config.KirdPath == "" {
-		config.KirdPath = filepath.Join(os.Getenv("ProgramFiles"), "lcow")
+		config.KirdPath = filepath.Join(os.Getenv("ProgramFiles"), "Linux Containers")
 	}
 
 	if config.Vhdx == "" {
@@ -137,6 +138,8 @@ func (config *Config) GenerateDefault(options []string) error {
 			}
 		}
 	}
+
+	config.MappedVirtualDisks = nil
 
 	return nil
 }
@@ -172,11 +175,6 @@ func (config *Config) validate() error {
 		return fmt.Errorf("opengcs: configuration is invalid")
 	}
 
-	// Move to validation
-	//if _, err := os.Stat(baseDir); os.IsNotExist(err) {
-	//	return fmt.Errorf("opengcs: cannot create default utility VM configuration as directory '%s' was not found", baseDir)
-	//}
-
 	if _, err := os.Stat(filepath.Join(config.KirdPath, config.KernelFile)); os.IsNotExist(err) {
 		return fmt.Errorf("opengcs: kernel '%s' was not found", filepath.Join(config.KirdPath, config.KernelFile))
 	}
@@ -185,6 +183,17 @@ func (config *Config) validate() error {
 	}
 
 	config.ActualMode = ModeActualKernelInitrd
+
+	// Ensure all the MappedVirtualDisks exist on the host
+	for _, mvd := range config.MappedVirtualDisks {
+		if _, err := os.Stat(mvd.HostPath); err != nil {
+			return fmt.Errorf("opengcs: MappedVirtualDisk '%s' was not found", mvd.HostPath)
+		}
+		if mvd.ContainerPath == "" {
+			return fmt.Errorf("opengcs: MappedVirtualDisk '%s' has no container path", mvd.HostPath)
+		}
+	}
+
 	return nil
 }
 
@@ -202,6 +211,7 @@ func (config *Config) Create() error {
 		SystemType:                  "container",
 		ContainerType:               "linux",
 		TerminateOnLastHandleClosed: true,
+		MappedVirtualDisks:          config.MappedVirtualDisks,
 	}
 
 	if config.ActualMode == ModeActualVhdx {

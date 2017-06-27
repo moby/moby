@@ -41,20 +41,9 @@ func copyWithTimeout(dst io.Writer, src io.Reader, size int64, timeoutSeconds in
 
 	done := make(chan resultType, 1)
 	go func() {
-		// TODO @jhowardmsft. Needs platform fix. Improve reliability by
-		// chunking the data. Ultimately can just use io.Copy instead with no loop
 		result := resultType{}
-		var copied int64
-		for {
-			copied, result.err = io.CopyN(dst, src, 1024)
-			result.bytes += copied
-			if copied == 0 {
-				done <- result
-				break
-			}
-			// TODO @jhowardmsft - next line is debugging only. Remove
-			//logrus.Debugf("%s: copied so far %d\n", context, result.bytes)
-		}
+		result.bytes, result.err = io.Copy(dst, src)
+		done <- result
 	}()
 
 	var result resultType

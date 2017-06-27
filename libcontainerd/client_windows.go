@@ -299,7 +299,7 @@ func (clnt *client) createLinux(containerID string, checkpoint string, checkpoin
 		Owner:         defaultOwner,
 		TerminateOnLastHandleClosed: true,
 		HvRuntime: &hcsshim.HvRuntime{
-			ImagePath:       `c:\program files\lcow`,
+			ImagePath:       `c:\Program Files\Linux Containers`,
 			LinuxKernelFile: `bootx64.efi`,
 			LinuxInitrdFile: `initrd.img`,
 		},
