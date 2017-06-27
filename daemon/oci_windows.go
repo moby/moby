@@ -98,7 +98,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 
 	// In s.Process
 	s.Process.Args = append([]string{c.Path}, c.Args...)
-	if !c.Config.ArgsEscaped {
+	if !c.Config.ArgsEscaped && img.OS == "windows" {
 		s.Process.Args = escapeArgs(s.Process.Args)
 	}
 

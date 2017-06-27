@@ -420,7 +420,11 @@ func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendly
 
 	// Configure the environment for the process
 	createProcessParms.Environment = setupEnvironmentVariables(procToAdd.Env)
-	createProcessParms.CommandLine = strings.Join(procToAdd.Args, " ")
+	if container.ociSpec.Platform.OS == "windows" {
+		createProcessParms.CommandLine = strings.Join(procToAdd.Args, " ")
+	} else {
+		createProcessParms.CommandArgs = procToAdd.Args
+	}
 	createProcessParms.User = procToAdd.User.Username
 
 	logrus.Debugf("libcontainerd: commandLine: %s", createProcessParms.CommandLine)
