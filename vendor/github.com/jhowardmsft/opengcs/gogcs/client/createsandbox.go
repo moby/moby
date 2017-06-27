@@ -25,7 +25,7 @@ func (config *Config) CreateSandbox(destFile string, maxSizeInMB uint32, cacheFi
 	logrus.Debugf("opengcs: CreateSandbox: %s size:%dMB cache:%s", destFile, maxSizeInMB, cacheFile)
 
 	// Retrieve from cache if the default size and already on disk
-	if maxSizeInMB == DefaultSandboxSizeMB {
+	if cacheFile != "" && maxSizeInMB == DefaultSandboxSizeMB {
 		sandboxCacheLock.Lock()
 		if _, err := os.Stat(cacheFile); err == nil {
 			if err := copyFile(cacheFile, destFile); err != nil {
@@ -61,7 +61,7 @@ func (config *Config) CreateSandbox(destFile string, maxSizeInMB uint32, cacheFi
 	}
 
 	// Populate the cache
-	if maxSizeInMB == DefaultSandboxSizeMB {
+	if cacheFile != "" && maxSizeInMB == DefaultSandboxSizeMB {
 		sandboxCacheLock.Lock()
 		// It may already exist due to being created on another thread, in which case no copy back needed.
 		if _, err := os.Stat(cacheFile); os.IsNotExist(err) {
