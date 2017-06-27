@@ -16,6 +16,38 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestParseRemoteURL(t *testing.T) {
+	dir, err := parseRemoteURL("git://github.com/user/repo.git")
+	require.NoError(t, err)
+	assert.NotEmpty(t, dir)
+	assert.Equal(t, gitRepo{"git://github.com/user/repo.git", "master", ""}, dir)
+
+	dir, err = parseRemoteURL("git://github.com/user/repo.git#mybranch:mydir/mysubdir/")
+	require.NoError(t, err)
+	assert.NotEmpty(t, dir)
+	assert.Equal(t, gitRepo{"git://github.com/user/repo.git", "mybranch", "mydir/mysubdir/"}, dir)
+
+	dir, err = parseRemoteURL("https://github.com/user/repo.git")
+	require.NoError(t, err)
+	assert.NotEmpty(t, dir)
+	assert.Equal(t, gitRepo{"https://github.com/user/repo.git", "master", ""}, dir)
+
+	dir, err = parseRemoteURL("https://github.com/user/repo.git#mybranch:mydir/mysubdir/")
+	require.NoError(t, err)
+	assert.NotEmpty(t, dir)
+	assert.Equal(t, gitRepo{"https://github.com/user/repo.git", "mybranch", "mydir/mysubdir/"}, dir)
+
+	dir, err = parseRemoteURL("git@github.com:user/repo.git")
+	require.NoError(t, err)
+	assert.NotEmpty(t, dir)
+	assert.Equal(t, gitRepo{"git@github.com:user/repo.git", "master", ""}, dir)
+
+	dir, err = parseRemoteURL("git@github.com:user/repo.git#mybranch:mydir/mysubdir/")
+	require.NoError(t, err)
+	assert.NotEmpty(t, dir)
+	assert.Equal(t, gitRepo{"git@github.com:user/repo.git", "mybranch", "mydir/mysubdir/"}, dir)
+}
+
 func TestCloneArgsSmartHttp(t *testing.T) {
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
@@ -28,7 +60,7 @@ func TestCloneArgsSmartHttp(t *testing.T) {
 		w.Header().Set("Content-Type", fmt.Sprintf("application/x-%s-advertisement", q))
 	})
 
-	args := fetchArgs(serverURL, "master")
+	args := fetchArgs(serverURL.String(), "master")
 	exp := []string{"fetch", "--recurse-submodules=yes", "--depth", "1", "origin", "master"}
 	assert.Equal(t, exp, args)
 }
@@ -44,14 +76,13 @@ func TestCloneArgsDumbHttp(t *testing.T) {
 		w.Header().Set("Content-Type", "text/plain")
 	})
 
-	args := fetchArgs(serverURL, "master")
+	args := fetchArgs(serverURL.String(), "master")
 	exp := []string{"fetch", "--recurse-submodules=yes", "origin", "master"}
 	assert.Equal(t, exp, args)
 }
 
 func TestCloneArgsGit(t *testing.T) {
-	u, _ := url.Parse("git://github.com/docker/docker")
-	args := fetchArgs(u, "master")
+	args := fetchArgs("git://github.com/docker/docker", "master")
 	exp := []string{"fetch", "--recurse-submodules=yes", "--depth", "1", "origin", "master"}
 	assert.Equal(t, exp, args)
 }
@@ -176,5 +207,32 @@ func TestCheckoutGit(t *testing.T) {
 		b, err := ioutil.ReadFile(filepath.Join(r, "Dockerfile"))
 		require.NoError(t, err)
 		assert.Equal(t, c.exp, string(b))
+	}
+}
+
+func TestValidGitTransport(t *testing.T) {
+	gitUrls := []string{
+		"git://github.com/docker/docker",
+		"git@github.com:docker/docker.git",
+		"git@bitbucket.org:atlassianlabs/atlassian-docker.git",
+		"https://github.com/docker/docker.git",
+		"http://github.com/docker/docker.git",
+		"http://github.com/docker/docker.git#branch",
+		"http://github.com/docker/docker.git#:dir",
+	}
+	incompleteGitUrls := []string{
+		"github.com/docker/docker",
+	}
+
+	for _, url := range gitUrls {
+		if !isGitTransport(url) {
+			t.Fatalf("%q should be detected as valid Git prefix", url)
+		}
+	}
+
+	for _, url := range incompleteGitUrls {
+		if isGitTransport(url) {
+			t.Fatalf("%q should not be detected as valid Git prefix", url)
+		}
 	}
 }
