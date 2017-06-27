@@ -133,8 +133,9 @@ func New(info logger.Info) (logger.Logger, error) {
 
 func (s *syslogger) Log(msg *logger.Message) error {
 	line := string(msg.Line)
+	isError := (msg.Source == "stderr")
 	logger.PutMessage(msg)
-	if msg.Source == "stderr" {
+	if isError {
 		return s.writer.Err(line)
 	}
 	return s.writer.Info(line)
