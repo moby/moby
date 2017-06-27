@@ -2014,21 +2014,47 @@ func (devices *DeviceSet) markForDeferredDeletion(info *devInfo) error {
 
 // Should be called with devices.Lock() held.
 func (devices *DeviceSet) deleteTransaction(info *devInfo, syncDelete bool) error {
-	if err := devices.openTransaction(info.Hash, info.DeviceID); err != nil {
+	var err error
+
+	if err = devices.openTransaction(info.Hash, info.DeviceID); err != nil {
 		logrus.Debugf("devmapper: Error opening transaction hash = %s deviceId = %d", "", info.DeviceID)
 		return err
 	}
 
 	defer devices.closeTransaction()
 
-	err := devicemapper.DeleteDevice(devices.getPoolDevName(), info.DeviceID)
-	if err != nil {
-		// If syncDelete is true, we want to return error. If deferred
-		// deletion is not enabled, we return an error. If error is
-		// something other then EBUSY, return an error.
-		if syncDelete || !devices.deferredDelete || err != devicemapper.ErrBusy {
-			logrus.Debugf("devmapper: Error deleting device: %s", err)
+	if devices.deferredRemove && !devices.deferredDelete {
+		for i := 0; i < 200; i++ {
+			err = devicemapper.DeleteDevice(devices.getPoolDevName(), info.DeviceID)
+			if err == nil {
+				break
+			}
+			if err != devicemapper.ErrBusy {
+				logrus.Debugf("devmapper: Error deleting device: %s", err)
+				return err
+			}
+
+			// If we see EBUSY it may be a transient error,
+			// sleep a bit a retry a few times.
+			devices.Unlock()
+			time.Sleep(100 * time.Millisecond)
+			devices.Lock()
+		}
+
+		if err != nil {
+			logrus.Debugf("devmapper: Timed out trying to deleting device: %s", err)
 			return err
+		}
+	} else {
+		err = devicemapper.DeleteDevice(devices.getPoolDevName(), info.DeviceID)
+		if err != nil {
+			// If syncDelete is true, we want to return error. If deferred
+			// deletion is not enabled, we return an error. If error is
+			// something other then EBUSY, return an error.
+			if syncDelete || !devices.deferredDelete || err != devicemapper.ErrBusy {
+				logrus.Debugf("devmapper: Error deleting device: %s", err)
+				return err
+			}
 		}
 	}
 
