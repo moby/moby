@@ -147,7 +147,7 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, ref reference.NamedTagged, id 
 	}
 
 	// Loop bounds condition is to avoid pushing the base layer on Windows.
-	for i := 0; i < len(rootfs.DiffIDs); i++ {
+	for range rootfs.DiffIDs {
 		descriptor := descriptorTemplate
 		descriptor.layer = l
 		descriptor.checkedDigests = make(map[digest.Digest]struct{})
