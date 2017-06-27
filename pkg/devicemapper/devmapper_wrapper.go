@@ -58,7 +58,6 @@ const (
 var (
 	DmGetLibraryVersion       = dmGetLibraryVersionFct
 	DmGetNextTarget           = dmGetNextTargetFct
-	DmLogInitVerbose          = dmLogInitVerboseFct
 	DmSetDevDir               = dmSetDevDirFct
 	DmTaskAddTarget           = dmTaskAddTargetFct
 	DmTaskCreate              = dmTaskCreateFct
@@ -226,10 +225,6 @@ func dmUdevWaitFct(cookie uint) int {
 
 func dmCookieSupportedFct() int {
 	return int(C.dm_cookie_supported())
-}
-
-func dmLogInitVerboseFct(level int) {
-	C.dm_log_init_verbose(C.int(level))
 }
 
 func logWithErrnoInitFct() {

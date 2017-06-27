@@ -264,11 +264,6 @@ func UdevWait(cookie *uint) error {
 	return nil
 }
 
-// LogInitVerbose is an interface to initialize the verbose logger for the device mapper library.
-func LogInitVerbose(level int) {
-	DmLogInitVerbose(level)
-}
-
 var dmLogger DevmapperLogger
 
 // LogInit initializes the logger for the device mapper library.
