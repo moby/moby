@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"regexp"
@@ -320,6 +321,50 @@ func (s *DockerSuite) TestBuildOnBuildCache(c *check.C) {
 	image, _, err := client.ImageInspectWithRaw(context.Background(), childID)
 	require.NoError(c, err)
 	assert.Equal(c, parentID, image.Parent)
+}
+
+func (s *DockerSuite) TestBuildAddRemoteNoDecompress(c *check.C) {
+	buffer := new(bytes.Buffer)
+	tw := tar.NewWriter(buffer)
+	dt := []byte("contents")
+	err := tw.WriteHeader(&tar.Header{
+		Name:     "foo",
+		Size:     int64(len(dt)),
+		Mode:     0600,
+		Typeflag: tar.TypeReg,
+	})
+	require.NoError(c, err)
+	_, err = tw.Write(dt)
+	require.NoError(c, err)
+	err = tw.Close()
+	require.NoError(c, err)
+
+	server := fakestorage.New(c, "", fakecontext.WithBinaryFiles(map[string]*bytes.Buffer{
+		"test.tar": buffer,
+	}))
+	defer server.Close()
+
+	dockerfile := fmt.Sprintf(`
+		FROM busybox
+		ADD %s/test.tar /
+		RUN [ -f test.tar ]
+		`, server.URL())
+
+	ctx := fakecontext.New(c, "",
+		fakecontext.WithDockerfile(dockerfile),
+	)
+	defer ctx.Close()
+
+	res, body, err := request.Post(
+		"/build",
+		request.RawContent(ctx.AsTarReader(c)),
+		request.ContentType("application/x-tar"))
+	require.NoError(c, err)
+	assert.Equal(c, http.StatusOK, res.StatusCode)
+
+	out, err := testutil.ReadBody(body)
+	require.NoError(c, err)
+	assert.Contains(c, string(out), "Successfully built")
 }
 
 type buildLine struct {

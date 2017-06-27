@@ -30,9 +30,10 @@ type pathCache interface {
 // copyInfo is a data object which stores the metadata about each source file in
 // a copyInstruction
 type copyInfo struct {
-	root string
-	path string
-	hash string
+	root         string
+	path         string
+	hash         string
+	noDecompress bool
 }
 
 func newCopyInfoFromSource(source builder.Source, path string, hash string) copyInfo {
@@ -118,7 +119,9 @@ func (o *copier) getCopyInfoForSourcePath(orig string) ([]copyInfo, error) {
 	o.tmpPaths = append(o.tmpPaths, remote.Root())
 
 	hash, err := remote.Hash(path)
-	return newCopyInfos(newCopyInfoFromSource(remote, path, hash)), err
+	ci := newCopyInfoFromSource(remote, path, hash)
+	ci.noDecompress = true // data from http shouldn't be extracted even on ADD
+	return newCopyInfos(ci), err
 }
 
 // Cleanup removes any temporary directories created as part of downloading

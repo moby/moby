@@ -156,6 +156,11 @@ func add(req dispatchRequest) error {
 		return err
 	}
 	copyInstruction.allowLocalDecompression = true
+	for _, ci := range copyInstruction.infos {
+		if ci.noDecompress {
+			copyInstruction.allowLocalDecompression = false
+		}
+	}
 
 	return req.builder.performCopy(req.state, copyInstruction)
 }
