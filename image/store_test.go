@@ -149,6 +149,24 @@ func defaultImageStore(t *testing.T) (Store, func()) {
 	return store, cleanup
 }
 
+func TestGetAndSetLastUpdated(t *testing.T) {
+	store, cleanup := defaultImageStore(t)
+	defer cleanup()
+
+	id, err := store.Create([]byte(`{"comment": "abc1", "rootfs": {"type": "layers"}}`))
+	assert.NoError(t, err)
+
+	updated, err := store.GetLastUpdated(id)
+	assert.NoError(t, err)
+	assert.Equal(t, updated.IsZero(), true)
+
+	assert.NoError(t, store.SetLastUpdated(id))
+
+	updated, err = store.GetLastUpdated(id)
+	assert.NoError(t, err)
+	assert.Equal(t, updated.IsZero(), false)
+}
+
 type mockLayerGetReleaser struct{}
 
 func (ls *mockLayerGetReleaser) Get(layer.ChainID) (layer.Layer, error) {

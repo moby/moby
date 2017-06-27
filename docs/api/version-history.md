@@ -25,6 +25,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `POST /session` is a new endpoint that can be used for running interactive long-running protocols between client and
   the daemon. This endpoint is experimental and only available if the daemon is started with experimental features
   enabled.
+* `GET /images/(name)/get` now includes an `ImageMetadata` field which contains image metadata that is local to the engine and not part of the image config.
 
 ## v1.30 API changes
 

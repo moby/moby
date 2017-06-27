@@ -32,6 +32,9 @@ func (daemon *Daemon) TagImageWithReference(imageID image.ID, platform string, n
 		return err
 	}
 
+	if err := daemon.stores[platform].imageStore.SetLastUpdated(imageID); err != nil {
+		return err
+	}
 	daemon.LogImageEvent(imageID.String(), reference.FamiliarString(newTag), "tag")
 	return nil
 }

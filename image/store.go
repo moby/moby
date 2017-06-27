@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digestset"
@@ -23,6 +24,8 @@ type Store interface {
 	Search(partialID string) (ID, error)
 	SetParent(id ID, parent ID) error
 	GetParent(id ID) (ID, error)
+	SetLastUpdated(id ID) error
+	GetLastUpdated(id ID) (time.Time, error)
 	Children(id ID) []ID
 	Map() map[ID]*Image
 	Heads() map[ID]*Image
@@ -257,6 +260,22 @@ func (is *store) GetParent(id ID) (ID, error) {
 		return "", err
 	}
 	return ID(d), nil // todo: validate?
+}
+
+// SetLastUpdated time for the image ID to the current time
+func (is *store) SetLastUpdated(id ID) error {
+	lastUpdated := []byte(time.Now().Format(time.RFC3339Nano))
+	return is.fs.SetMetadata(id.Digest(), "lastUpdated", lastUpdated)
+}
+
+// GetLastUpdated time for the image ID
+func (is *store) GetLastUpdated(id ID) (time.Time, error) {
+	bytes, err := is.fs.GetMetadata(id.Digest(), "lastUpdated")
+	if err != nil || len(bytes) == 0 {
+		// No lastUpdated time
+		return time.Time{}, nil
+	}
+	return time.Parse(time.RFC3339Nano, string(bytes))
 }
 
 func (is *store) Children(id ID) []ID {
