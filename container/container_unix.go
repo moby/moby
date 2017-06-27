@@ -233,6 +233,20 @@ func (container *Container) SecretMounts() ([]Mount, error) {
 			Writable:    false,
 		})
 	}
+	for _, r := range container.ConfigReferences {
+		if !r.Sensitive || r.File == nil {
+			continue
+		}
+		fPath, err := container.SensitiveConfigFilePath(*r.ConfigReference)
+		if err != nil {
+			return nil, err
+		}
+		mounts = append(mounts, Mount{
+			Source:      fPath,
+			Destination: r.File.Name,
+			Writable:    false,
+		})
+	}
 
 	return mounts, nil
 }
@@ -257,10 +271,10 @@ func (container *Container) UnmountSecrets() error {
 func (container *Container) ConfigMounts() ([]Mount, error) {
 	var mounts []Mount
 	for _, configRef := range container.ConfigReferences {
-		if configRef.File == nil {
+		if configRef.Sensitive || configRef.File == nil {
 			continue
 		}
-		src, err := container.ConfigFilePath(*configRef)
+		src, err := container.ConfigFilePath(*configRef.ConfigReference)
 		if err != nil {
 			return nil, err
 		}

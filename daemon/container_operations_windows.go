@@ -51,7 +51,7 @@ func (daemon *Daemon) setupConfigDir(c *container.Container) (setupErr error) {
 			continue
 		}
 
-		fPath, err := c.ConfigFilePath(*configRef)
+		fPath, err := c.ConfigFilePath(*configRef.ConfigReference)
 		if err != nil {
 			return err
 		}

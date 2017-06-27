@@ -68,6 +68,13 @@ type ExitStatus struct {
 	ExitedAt time.Time
 }
 
+// ConfigReference wraps swarmtypes.ConfigReference to add a Sensitive flag.
+type ConfigReference struct {
+	*swarmtypes.ConfigReference
+	// Sensitive is set if this config should not be written to disk.
+	Sensitive bool
+}
+
 // Container holds the structure defining a container object.
 type Container struct {
 	StreamConfig *stream.Config
@@ -99,7 +106,7 @@ type Container struct {
 	ExecCommands           *exec.Store                `json:"-"`
 	DependencyStore        agentexec.DependencyGetter `json:"-"`
 	SecretReferences       []*swarmtypes.SecretReference
-	ConfigReferences       []*swarmtypes.ConfigReference
+	ConfigReferences       []*ConfigReference
 	// logDriver for closing
 	LogDriver      logger.Logger  `json:"-"`
 	LogCopier      *logger.Copier `json:"-"`
@@ -1062,6 +1069,16 @@ func (container *Container) ConfigFilePath(configRef swarmtypes.ConfigReference)
 		return "", err
 	}
 	return filepath.Join(configs, configRef.ConfigID), nil
+}
+
+// SensitiveConfigFilePath returns the path to the location of a config mounted
+// as a secret.
+func (container *Container) SensitiveConfigFilePath(configRef swarmtypes.ConfigReference) (string, error) {
+	secretMountPath, err := container.SecretMountPath()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(secretMountPath, configRef.ConfigID+"c"), nil
 }
 
 // CreateDaemonEnvironment creates a new environment variable slice for this container.

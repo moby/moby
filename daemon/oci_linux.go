@@ -760,7 +760,7 @@ func (daemon *Daemon) populateCommonSpec(s *specs.Spec, c *container.Container) 
 	return nil
 }
 
-func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
+func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, err error) {
 	s := oci.DefaultSpec()
 	if err := daemon.populateCommonSpec(&s, c); err != nil {
 		return nil, err
@@ -842,12 +842,25 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 		return nil, err
 	}
 
-	if err := daemon.setupSecretDir(c); err != nil {
+	var hasSecretDir bool
+	defer func() {
+		if hasSecretDir && err != nil {
+			daemon.cleanupSecretDir(c)
+		}
+	}()
+
+	if err := daemon.setupSecretDir(c, &hasSecretDir); err != nil {
 		return nil, err
 	}
 
-	if err := daemon.setupConfigDir(c); err != nil {
+	if err := daemon.setupConfigDir(c, &hasSecretDir); err != nil {
 		return nil, err
+	}
+
+	if hasSecretDir {
+		if err := daemon.remountSecretDir(c); err != nil {
+			return nil, err
+		}
 	}
 
 	ms, err := daemon.setupMounts(c)
