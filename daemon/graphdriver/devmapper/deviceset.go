@@ -35,17 +35,13 @@ import (
 )
 
 var (
-	defaultDataLoopbackSize     int64  = 100 * 1024 * 1024 * 1024
-	defaultMetaDataLoopbackSize int64  = 2 * 1024 * 1024 * 1024
-	defaultBaseFsSize           uint64 = 10 * 1024 * 1024 * 1024
-	defaultThinpBlockSize       uint32 = 128 // 64K = 128 512b sectors
-	defaultUdevSyncOverride            = false
-	maxDeviceID                        = 0xffffff // 24 bit, pool limit
-	deviceIDMapSz                      = (maxDeviceID + 1) / 8
-	// We retry device removal so many a times that even error messages
-	// will fill up console during normal operation. So only log Fatal
-	// messages by default.
-	logLevel                            = devicemapper.LogLevelFatal
+	defaultDataLoopbackSize      int64  = 100 * 1024 * 1024 * 1024
+	defaultMetaDataLoopbackSize  int64  = 2 * 1024 * 1024 * 1024
+	defaultBaseFsSize            uint64 = 10 * 1024 * 1024 * 1024
+	defaultThinpBlockSize        uint32 = 128 // 64K = 128 512b sectors
+	defaultUdevSyncOverride             = false
+	maxDeviceID                         = 0xffffff // 24 bit, pool limit
+	deviceIDMapSz                       = (maxDeviceID + 1) / 8
 	driverDeferredRemovalSupport        = false
 	enableDeferredRemoval               = false
 	enableDeferredDeletion              = false
@@ -1273,26 +1269,6 @@ func setCloseOnExec(name string) {
 	}
 }
 
-// DMLog implements logging using DevMapperLogger interface.
-func (devices *DeviceSet) DMLog(level int, file string, line int, dmError int, message string) {
-	// By default libdm sends us all the messages including debug ones.
-	// We need to filter out messages here and figure out which one
-	// should be printed.
-	if level > logLevel {
-		return
-	}
-
-	// FIXME(vbatts) push this back into ./pkg/devicemapper/
-	if level <= devicemapper.LogLevelErr {
-		logrus.Errorf("libdevmapper(%d): %s:%d (%d) %s", level, file, line, dmError, message)
-	} else if level <= devicemapper.LogLevelInfo {
-		logrus.Infof("libdevmapper(%d): %s:%d (%d) %s", level, file, line, dmError, message)
-	} else {
-		// FIXME(vbatts) push this back into ./pkg/devicemapper/
-		logrus.Debugf("libdevmapper(%d): %s:%d (%d) %s", level, file, line, dmError, message)
-	}
-}
-
 func major(device uint64) uint64 {
 	return (device >> 8) & 0xfff
 }
@@ -1690,9 +1666,6 @@ func (devices *DeviceSet) enableDeferredRemovalDeletion() error {
 }
 
 func (devices *DeviceSet) initDevmapper(doInit bool) (retErr error) {
-	// give ourselves to libdm as a log handler
-	devicemapper.LogInit(devices)
-
 	if err := devices.enableDeferredRemovalDeletion(); err != nil {
 		return err
 	}
