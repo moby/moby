@@ -2761,6 +2761,18 @@ func NewDeviceSet(root string, doInit bool, options []string, uidMaps, gidMaps [
 				return nil, errors.New("dm.thinp_autoextend_threshold must be greater than 0 and less than 100")
 			}
 			lvmSetupConfig.AutoExtendThreshold = per
+		case "dm.libdm_log_level":
+			level, err := strconv.ParseInt(val, 10, 32)
+			if err != nil {
+				return nil, errors.Wrapf(err, "could not parse `dm.libdm_log_level=%s`", val)
+			}
+			if level < devicemapper.LogLevelFatal || level > devicemapper.LogLevelDebug {
+				return nil, errors.Errorf("dm.libdm_log_level must be in range [%d,%d]", devicemapper.LogLevelFatal, devicemapper.LogLevelDebug)
+			}
+			// Register a new logging callback with the specified level.
+			devicemapper.LogInit(devicemapper.DefaultLogger{
+				Level: int(level),
+			})
 		default:
 			return nil, fmt.Errorf("devmapper: Unknown option %s\n", key)
 		}
