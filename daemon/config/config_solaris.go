@@ -27,3 +27,8 @@ type BridgeConfig struct {
 func (conf *Config) IsSwarmCompatible() error {
 	return nil
 }
+
+// ValidatePlatformConfig checks if any platform-specific configuration settings are invalid.
+func (conf *Config) ValidatePlatformConfig() error {
+	return nil
+}

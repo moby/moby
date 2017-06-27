@@ -50,3 +50,8 @@ func (conf *Config) GetExecRoot() string {
 func (conf *Config) IsSwarmCompatible() error {
 	return nil
 }
+
+// ValidatePlatformConfig checks if any platform-specific configuration settings are invalid.
+func (conf *Config) ValidatePlatformConfig() error {
+	return nil
+}

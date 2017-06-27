@@ -276,6 +276,15 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 			hostConfig.ShmSize = int64(daemon.configStore.ShmSize)
 		}
 	}
+	// Set default IPC mode, if unset for container
+	if hostConfig.IpcMode.IsEmpty() {
+		m := config.DefaultIpcMode
+		if daemon.configStore != nil {
+			m = daemon.configStore.IpcMode
+		}
+		hostConfig.IpcMode = containertypes.IpcMode(m)
+	}
+
 	var err error
 	opts, err := daemon.generateSecurityOpt(hostConfig)
 	if err != nil {
@@ -581,7 +590,11 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 
 // reloadPlatform updates configuration with platform specific options
 // and updates the passed attributes
-func (daemon *Daemon) reloadPlatform(conf *config.Config, attributes map[string]string) {
+func (daemon *Daemon) reloadPlatform(conf *config.Config, attributes map[string]string) error {
+	if err := conf.ValidatePlatformConfig(); err != nil {
+		return err
+	}
+
 	if conf.IsValueSet("runtimes") {
 		daemon.configStore.Runtimes = conf.Runtimes
 		// Always set the default one
@@ -596,6 +609,10 @@ func (daemon *Daemon) reloadPlatform(conf *config.Config, attributes map[string]
 		daemon.configStore.ShmSize = conf.ShmSize
 	}
 
+	if conf.IpcMode != "" {
+		daemon.configStore.IpcMode = conf.IpcMode
+	}
+
 	// Update attributes
 	var runtimeList bytes.Buffer
 	for name, rt := range daemon.configStore.Runtimes {
@@ -608,6 +625,9 @@ func (daemon *Daemon) reloadPlatform(conf *config.Config, attributes map[string]
 	attributes["runtimes"] = runtimeList.String()
 	attributes["default-runtime"] = daemon.configStore.DefaultRuntime
 	attributes["default-shm-size"] = fmt.Sprintf("%d", daemon.configStore.ShmSize)
+	attributes["default-ipc-mode"] = daemon.configStore.IpcMode
+
+	return nil
 }
 
 // verifyDaemonSettings performs validation of daemon config struct

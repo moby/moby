@@ -665,7 +665,17 @@ definitions:
               type: "string"
           IpcMode:
             type: "string"
-            description: "IPC namespace to use for the container."
+            description: |
+                    IPC sharing mode for the container. Possible values are:
+
+                    - `"none"`: own private IPC namespace, with /dev/shm not mounted
+                    - `"private"`: own private IPC namespace
+                    - `"shareable"`: own private IPC namespace, with a possibility to share it with other containers
+                    - `"container:<name|id>"`: join another (shareable) container's IPC namespace
+                    - `"host"`: use the host system's IPC namespace
+
+                    If not specified, daemon default is used, which can either be `"private"`
+                    or `"shareable"`, depending on daemon version and configuration.
           Cgroup:
             type: "string"
             description: "Cgroup to use for the container."

@@ -17,6 +17,9 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.32](https://docs.docker.com/engine/api/v1.32/) documentation
 
+* `POST /containers/create` now accepts additional values for the
+  `HostConfig.IpcMode` property. New values are `private`, `shareable`,
+  and `none`.
 
 ## v1.31 API changes
 
