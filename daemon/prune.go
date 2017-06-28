@@ -161,7 +161,7 @@ func (daemon *Daemon) VolumesPrune(ctx context.Context, pruneFilters filters.Arg
 func (daemon *Daemon) ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*types.ImagesPruneReport, error) {
 	// TODO @jhowardmsft LCOW Support: This will need revisiting later.
 	platform := runtime.GOOS
-	if platform == "windows" && system.LCOWSupported() {
+	if system.LCOWSupported() {
 		platform = "linux"
 	}
 

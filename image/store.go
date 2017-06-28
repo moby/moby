@@ -3,7 +3,6 @@ package image
 import (
 	"encoding/json"
 	"fmt"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -119,8 +118,9 @@ func (is *store) Create(config []byte) (ID, error) {
 		return "", err
 	}
 
+	// TODO @jhowardmsft - LCOW Support. This will need revisiting.
 	// Integrity check - ensure we are creating something for the correct platform
-	if runtime.GOOS == "windows" && system.LCOWSupported() {
+	if system.LCOWSupported() {
 		if strings.ToLower(img.Platform()) != strings.ToLower(is.platform) {
 			return "", fmt.Errorf("cannot create entry for platform %q in image store for platform %q", img.Platform(), is.platform)
 		}

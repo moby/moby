@@ -38,7 +38,7 @@ func (r byCreated) Less(i, j int) bool { return r[i].Created < r[j].Created }
 func (daemon *Daemon) Map() map[image.ID]*image.Image {
 	// TODO @jhowardmsft LCOW. This will need  work to enumerate the stores for all platforms.
 	platform := runtime.GOOS
-	if platform == "windows" && system.LCOWSupported() {
+	if system.LCOWSupported() {
 		platform = "linux"
 	}
 	return daemon.stores[platform].imageStore.Map()
@@ -53,7 +53,7 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 
 	// TODO @jhowardmsft LCOW. This will need  work to enumerate the stores for all platforms.
 	platform := runtime.GOOS
-	if platform == "windows" && system.LCOWSupported() {
+	if system.LCOWSupported() {
 		platform = "linux"
 	}
 

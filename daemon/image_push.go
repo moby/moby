@@ -43,7 +43,7 @@ func (daemon *Daemon) PushImage(ctx context.Context, image, tag string, metaHead
 
 	// TODO @jhowardmsft LCOW Support. This will require revisiting. For now, hard-code.
 	platform := runtime.GOOS
-	if platform == "windows" && system.LCOWSupported() {
+	if system.LCOWSupported() {
 		platform = "linux"
 	}
 

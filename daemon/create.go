@@ -82,7 +82,7 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 	if params.Platform == "" {
 		params.Platform = runtime.GOOS
 	}
-	if params.Platform == "windows" && system.LCOWSupported() {
+	if system.LCOWSupported() {
 		params.Platform = "linux"
 	}
 
@@ -106,7 +106,7 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 	if img != nil {
 		if params.Platform != img.Platform() {
 			// Ignore this in LCOW mode. @jhowardmsft TODO - This will need revisiting later.
-			if !(runtime.GOOS == "windows" && system.LCOWSupported()) {
+			if !system.LCOWSupported() {
 				return nil, fmt.Errorf("cannot create a %s container from a %s image", params.Platform, img.Platform())
 			}
 		}

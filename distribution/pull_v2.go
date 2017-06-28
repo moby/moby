@@ -491,7 +491,7 @@ func (p *v2Puller) pullSchema1(ctx context.Context, ref reference.Named, unverif
 	// the history does, but unfortunately that's a string, so search through
 	// all the history until hopefully we find one which indicates the os.
 	platform := runtime.GOOS
-	if runtime.GOOS == "windows" && system.LCOWSupported() {
+	if system.LCOWSupported() {
 		type config struct {
 			Os string `json:"os,omitempty"`
 		}
