@@ -26,6 +26,8 @@ bundle_test_unit() {
 		TEST_PATH=./${TESTDIRS}
 	fi
 
+	source "${MAKEDIR}/.go-autogen"
+
 	if [ "$(go env GOHOSTOS)" = 'solaris' ]; then
 		pkg_list=$(go list -e \
 			-f '{{if ne .Name "github.com/docker/docker"}}
