@@ -1,6 +1,7 @@
 package session
 
 import (
+	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -49,8 +50,6 @@ func (sm *Manager) HandleHTTPRequest(ctx context.Context, w http.ResponseWriter,
 	}
 
 	uuid := r.Header.Get(headerSessionUUID)
-	name := r.Header.Get(headerSessionName)
-	sharedKey := r.Header.Get(headerSessionSharedKey)
 
 	proto := r.Header.Get("Upgrade")
 
@@ -89,8 +88,24 @@ func (sm *Manager) HandleHTTPRequest(ctx context.Context, w http.ResponseWriter,
 	conn.Write([]byte{})
 	resp.Write(conn)
 
+	return sm.handleConn(ctx, conn, r.Header)
+}
+
+// HandleConn handles an incoming raw connection
+func (sm *Manager) HandleConn(ctx context.Context, conn net.Conn, opts map[string][]string) error {
+	sm.mu.Lock()
+	return sm.handleConn(ctx, conn, opts)
+}
+
+// caller needs to take lock, this function will release it
+func (sm *Manager) handleConn(ctx context.Context, conn net.Conn, opts map[string][]string) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
+
+	h := http.Header(opts)
+	uuid := h.Get(headerSessionUUID)
+	name := h.Get(headerSessionName)
+	sharedKey := h.Get(headerSessionSharedKey)
 
 	ctx, cc, err := grpcClientConn(ctx, conn)
 	if err != nil {
@@ -111,7 +126,7 @@ func (sm *Manager) HandleHTTPRequest(ctx context.Context, w http.ResponseWriter,
 		supported: make(map[string]struct{}),
 	}
 
-	for _, m := range r.Header[headerSessionMethod] {
+	for _, m := range opts[headerSessionMethod] {
 		c.supported[strings.ToLower(m)] = struct{}{}
 	}
 	sm.sessions[uuid] = c
