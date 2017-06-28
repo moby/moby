@@ -51,7 +51,7 @@ func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, version 
 				service.TaskTemplate.ContainerSpec.Image = img
 			}
 			// add platforms that are compatible with the service
-			service.TaskTemplate.Placement = updateServicePlatforms(service.TaskTemplate.Placement, distributionInspect)
+			service.TaskTemplate.Placement = setServicePlatforms(service.TaskTemplate.Placement, distributionInspect)
 		}
 	}
 

@@ -39,7 +39,7 @@ func (cli *Client) ServiceCreate(ctx context.Context, service swarm.ServiceSpec,
 				service.TaskTemplate.ContainerSpec.Image = img
 			}
 			// add platforms that are compatible with the service
-			service.TaskTemplate.Placement = updateServicePlatforms(service.TaskTemplate.Placement, distributionInspect)
+			service.TaskTemplate.Placement = setServicePlatforms(service.TaskTemplate.Placement, distributionInspect)
 		}
 	}
 	var response types.ServiceCreateResponse
@@ -86,13 +86,15 @@ func imageWithTagString(image string) string {
 	return ""
 }
 
-// updateServicePlatforms updates the Platforms in swarm.Placement to list
-// all compatible platforms for the service, as found in distributionInspect
-// and returns a pointer to the new or updated swarm.Placement struct
-func updateServicePlatforms(placement *swarm.Placement, distributionInspect registrytypes.DistributionInspect) *swarm.Placement {
+// setServicePlatforms sets Platforms in swarm.Placement to list all
+// compatible platforms for the service, as found in distributionInspect
+// and returns a pointer to the new or updated swarm.Placement struct.
+func setServicePlatforms(placement *swarm.Placement, distributionInspect registrytypes.DistributionInspect) *swarm.Placement {
 	if placement == nil {
 		placement = &swarm.Placement{}
 	}
+	// reset any existing listed platforms
+	placement.Platforms = []swarm.Platform{}
 	for _, p := range distributionInspect.Platforms {
 		placement.Platforms = append(placement.Platforms, swarm.Platform{
 			Architecture: p.Architecture,
