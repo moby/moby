@@ -12,6 +12,11 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+const (
+	keyOverrideExcludes = "override-excludes"
+	keyIncludePatterns  = "include-patterns"
+)
+
 type fsSyncProvider struct {
 	root     string
 	excludes []string
@@ -54,9 +59,10 @@ func (sp *fsSyncProvider) handle(method string, stream grpc.ServerStream) error 
 	opts, _ := metadata.FromContext(stream.Context()) // if no metadata continue with empty object
 
 	var excludes []string
-	if len(opts["Override-Excludes"]) == 0 || opts["Override-Excludes"][0] != "true" {
+	if len(opts[keyOverrideExcludes]) == 0 || opts[keyOverrideExcludes][0] != "true" {
 		excludes = sp.excludes
 	}
+	includes := opts[keyIncludePatterns]
 
 	var progress progressCb
 	if sp.p != nil {
@@ -69,7 +75,7 @@ func (sp *fsSyncProvider) handle(method string, stream grpc.ServerStream) error 
 		doneCh = sp.doneCh
 		sp.doneCh = nil
 	}
-	err := pr.sendFn(stream, sp.root, excludes, progress)
+	err := pr.sendFn(stream, sp.root, includes, excludes, progress)
 	if doneCh != nil {
 		if err != nil {
 			doneCh <- err
@@ -88,7 +94,7 @@ type progressCb func(int, bool)
 
 type protocol struct {
 	name   string
-	sendFn func(stream grpc.Stream, srcDir string, excludes []string, progress progressCb) error
+	sendFn func(stream grpc.Stream, srcDir string, includes, excludes []string, progress progressCb) error
 	recvFn func(stream grpc.Stream, destDir string, cu CacheUpdater) error
 }
 
@@ -115,7 +121,7 @@ var supportedProtocols = []protocol{
 
 // FSSendRequestOpt defines options for FSSend request
 type FSSendRequestOpt struct {
-	SrcPaths         []string
+	IncludePatterns  []string
 	OverrideExcludes bool
 	DestDir          string
 	CacheUpdater     CacheUpdater
@@ -142,7 +148,11 @@ func FSSync(ctx context.Context, c session.Caller, opt FSSendRequestOpt) error {
 
 	opts := make(map[string][]string)
 	if opt.OverrideExcludes {
-		opts["Override-Excludes"] = []string{"true"}
+		opts[keyOverrideExcludes] = []string{"true"}
+	}
+
+	if opt.IncludePatterns != nil {
+		opts[keyIncludePatterns] = opt.IncludePatterns
 	}
 
 	ctx, cancel := context.WithCancel(ctx)

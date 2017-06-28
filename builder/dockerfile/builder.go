@@ -140,8 +140,7 @@ func (bm *BuildManager) initializeClientSession(ctx context.Context, cancel func
 	}()
 	if options.RemoteContext == remotecontext.ClientSessionRemote {
 		st := time.Now()
-		csi, err := NewClientSessionSourceIdentifier(ctx, bm.sg,
-			options.SessionID, []string{"/"})
+		csi, err := NewClientSessionSourceIdentifier(ctx, bm.sg, options.SessionID)
 		if err != nil {
 			return nil, err
 		}
