@@ -50,6 +50,7 @@ type ViewDB interface {
 
 // View can be used by readers to avoid locking
 type View interface {
+	Names() map[string][]string
 	All() ([]Snapshot, error)
 	Get(id string) (*Snapshot, error)
 }
@@ -108,6 +109,10 @@ func (db *memDB) Delete(c *Container) error {
 type memdbView struct {
 	txn       *memdb.Txn
 	nameIndex map[string][]string
+}
+
+func (v *memdbView) Names() map[string][]string {
+	return v.nameIndex
 }
 
 // All returns a all items in this snapshot. Returned objects must never be modified.

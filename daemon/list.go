@@ -359,7 +359,7 @@ func (daemon *Daemon) foldFilter(view container.View, config *types.ContainerLis
 		publish:              publishFilter,
 		expose:               exposeFilter,
 		ContainerListOptions: config,
-		names:                daemon.nameIndex.GetAll(),
+		names:                view.Names(),
 	}, nil
 }
 func portOp(key string, filter map[nat.Port]bool) func(value string) error {
