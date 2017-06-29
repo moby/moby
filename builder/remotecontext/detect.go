@@ -131,6 +131,7 @@ func removeDockerfile(c modifiableContext, filesToRemove ...string) error {
 	}
 	excludes, err := dockerignore.ReadAll(f)
 	if err != nil {
+		f.Close()
 		return err
 	}
 	f.Close()
