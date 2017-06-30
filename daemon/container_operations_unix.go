@@ -165,7 +165,7 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 	}()
 
 	tmpfsOwnership := fmt.Sprintf("uid=%d,gid=%d", rootIDs.UID, rootIDs.GID)
-	if err := mount.Mount("tmpfs", localMountPath, "tmpfs", "nodev,nosuid,noexec,"+tmpfsOwnership); err != nil {
+	if err := mount.Mount("tmpfs", localMountPath, "tmpfs", "nodev,"+tmpfsOwnership); err != nil {
 		return errors.Wrap(err, "unable to setup secret mount")
 	}
 
@@ -233,7 +233,6 @@ func (daemon *Daemon) setupConfigDir(c *container.Container) (setupErr error) {
 
 	// retrieve possible remapped range start for root UID, GID
 	rootIDs := daemon.idMappings.RootPair()
-	// create tmpfs
 	if err := idtools.MkdirAllAndChown(localPath, 0700, rootIDs); err != nil {
 		return errors.Wrap(err, "error creating config dir")
 	}
