@@ -5,9 +5,9 @@
 FROM amazonlinux:latest
 
 RUN yum groupinstall -y "Development Tools"
-RUN yum install -y btrfs-progs-devel device-mapper-devel glibc-static libseccomp-devel libselinux-devel libtool-ltdl-devel pkgconfig selinux-policy selinux-policy-devel  tar git cmake vim-common
+RUN yum install -y btrfs-progs-devel device-mapper-devel glibc-static libseccomp-devel libselinux-devel pkgconfig selinux-policy selinux-policy-devel  tar git cmake vim-common
 
-ENV GO_VERSION 1.8.5
+ENV GO_VERSION 1.9.2
 RUN curl -fSL "https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz" | tar xzC /usr/local
 ENV PATH $PATH:/usr/local/go/bin
 
