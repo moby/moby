@@ -336,9 +336,13 @@ func RemoveDevice(name string) error {
 	defer UdevWait(cookie)
 
 	dmSawBusy = false // reset before the task is run
+	dmSawEnxio = false
 	if err = task.run(); err != nil {
 		if dmSawBusy {
 			return ErrBusy
+		}
+		if dmSawEnxio {
+			return ErrEnxio
 		}
 		return fmt.Errorf("devicemapper: Error running RemoveDevice %s", err)
 	}
@@ -380,7 +384,11 @@ func RemoveDeviceDeferred(name string) error {
 	// by udev, what UdevWait is just cleaning up the semaphore.
 	defer UdevWait(cookie)
 
+	dmSawEnxio = false
 	if err = task.run(); err != nil {
+		if dmSawEnxio {
+			return ErrEnxio
+		}
 		return fmt.Errorf("devicemapper: Error running RemoveDeviceDeferred %s", err)
 	}
 

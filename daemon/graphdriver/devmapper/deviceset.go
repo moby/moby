@@ -2088,7 +2088,16 @@ func (devices *DeviceSet) deleteDevice(info *devInfo, syncDelete bool) error {
 	}
 
 	// Try to deactivate device in case it is active.
-	if err := devices.deactivateDevice(info); err != nil {
+	// If deferred removal is enabled and deferred deletion is disabled
+	// then make sure device is removed synchronously. There have been
+	// some cases of device being busy for short duration and we would
+	// rather busy wait for device removal to take care of these cases.
+	deferredRemove := devices.deferredRemove
+	if !devices.deferredDelete {
+		deferredRemove = false
+	}
+
+	if err := devices.deactivateDeviceMode(info, deferredRemove); err != nil {
 		logrus.Debugf("devmapper: Error deactivating device: %s", err)
 		return err
 	}
@@ -2145,6 +2154,11 @@ func (devices *DeviceSet) deactivatePool() error {
 }
 
 func (devices *DeviceSet) deactivateDevice(info *devInfo) error {
+	return devices.deactivateDeviceMode(info, devices.deferredRemove)
+}
+
+func (devices *DeviceSet) deactivateDeviceMode(info *devInfo, deferredRemove bool) error {
+	var err error
 	logrus.Debugf("devmapper: deactivateDevice START(%s)", info.Hash)
 	defer logrus.Debugf("devmapper: deactivateDevice END(%s)", info.Hash)
 
@@ -2157,14 +2171,17 @@ func (devices *DeviceSet) deactivateDevice(info *devInfo) error {
 		return nil
 	}
 
-	if devices.deferredRemove {
-		if err := devicemapper.RemoveDeviceDeferred(info.Name()); err != nil {
-			return err
-		}
+	if deferredRemove {
+		err = devicemapper.RemoveDeviceDeferred(info.Name())
 	} else {
-		if err := devices.removeDevice(info.Name()); err != nil {
-			return err
-		}
+		err = devices.removeDevice(info.Name())
+	}
+
+	// This function's semantics is such that it does not return an
+	// error if device does not exist. So if device went away by
+	// the time we actually tried to remove it, do not return error.
+	if err != devicemapper.ErrEnxio {
+		return err
 	}
 	return nil
 }
