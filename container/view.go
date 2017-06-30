@@ -73,6 +73,17 @@ type memDB struct {
 	store *memdb.MemDB
 }
 
+// NoSuchContainerError indicates that the container wasn't found in the
+// database.
+type NoSuchContainerError struct {
+	id string
+}
+
+// Error satisfies the error interface.
+func (e NoSuchContainerError) Error() string {
+	return "no such container " + e.id
+}
+
 // NewViewDB provides the default implementation, with the default schema
 func NewViewDB() (ViewDB, error) {
 	store, err := memdb.NewMemDB(schema)
@@ -133,6 +144,9 @@ func (v *memdbView) Get(id string) (*Snapshot, error) {
 	s, err := v.txn.First(memdbTable, memdbIDIndex, id)
 	if err != nil {
 		return nil, err
+	}
+	if s == nil {
+		return nil, NoSuchContainerError{id: id}
 	}
 	return v.transform(s.(*Container)), nil
 }
