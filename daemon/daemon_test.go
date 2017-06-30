@@ -12,7 +12,6 @@ import (
 	"github.com/docker/docker/container"
 	_ "github.com/docker/docker/pkg/discovery/memory"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/registrar"
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/volume"
 	volumedrivers "github.com/docker/docker/volume/drivers"
@@ -65,10 +64,15 @@ func TestGetContainer(t *testing.T) {
 	index.Add(c4.ID)
 	index.Add(c5.ID)
 
+	containersReplica, err := container.NewViewDB()
+	if err != nil {
+		t.Fatalf("could not create ViewDB: %v", err)
+	}
+
 	daemon := &Daemon{
-		containers: store,
-		idIndex:    index,
-		nameIndex:  registrar.NewRegistrar(),
+		containers:        store,
+		containersReplica: containersReplica,
+		idIndex:           index,
 	}
 
 	daemon.reserveName(c1.ID, c1.Name)

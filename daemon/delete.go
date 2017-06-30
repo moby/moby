@@ -60,7 +60,7 @@ func (daemon *Daemon) rmLink(container *container.Container, name string) error 
 	}
 
 	parent = strings.TrimSuffix(parent, "/")
-	pe, err := daemon.nameIndex.Get(parent)
+	pe, err := daemon.containersReplica.Snapshot().GetID(parent)
 	if err != nil {
 		return fmt.Errorf("Cannot get parent %s for name %s", parent, name)
 	}
@@ -128,7 +128,6 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 		return errors.Wrapf(err, "unable to remove filesystem for %s", container.ID)
 	}
 
-	daemon.nameIndex.Delete(container.ID)
 	daemon.linkIndex.delete(container)
 	selinuxFreeLxcContexts(container.ProcessLabel)
 	daemon.idIndex.Delete(container.ID)

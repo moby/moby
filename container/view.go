@@ -1,6 +1,7 @@
 package container
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -8,14 +9,23 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/pkg/registrar"
 	"github.com/docker/go-connections/nat"
 	"github.com/hashicorp/go-memdb"
 )
 
 const (
-	memdbTable   = "containers"
-	memdbIDIndex = "id"
+	memdbContainersTable = "containers"
+	memdbNamesTable      = "names"
+
+	memdbIDIndex          = "id"
+	memdbContainerIDIndex = "containerid"
+)
+
+var (
+	// ErrNameReserved is an error which is returned when a name is requested to be reserved that already is reserved
+	ErrNameReserved = errors.New("name is reserved")
+	// ErrNameNotReserved is an error which is returned when trying to find a name that is not reserved
+	ErrNameNotReserved = errors.New("name is not reserved")
 )
 
 // Snapshot is a read only view for Containers. It holds all information necessary to serve container queries in a
@@ -41,28 +51,57 @@ type Snapshot struct {
 	}
 }
 
+// nameAssociation associates a container id with a name.
+type nameAssociation struct {
+	// name is the name to associate. Note that name is the primary key
+	// ("id" in memdb).
+	name        string
+	containerID string
+}
+
 // ViewDB provides an in-memory transactional (ACID) container Store
 type ViewDB interface {
-	Snapshot(nameIndex *registrar.Registrar) View
+	Snapshot() View
 	Save(*Container) error
 	Delete(*Container) error
+
+	ReserveName(name, containerID string) error
+	ReleaseName(name string)
 }
 
 // View can be used by readers to avoid locking
 type View interface {
 	All() ([]Snapshot, error)
 	Get(id string) (*Snapshot, error)
+
+	GetID(name string) (string, error)
+	GetAllNames() map[string][]string
 }
 
 var schema = &memdb.DBSchema{
 	Tables: map[string]*memdb.TableSchema{
-		memdbTable: {
-			Name: memdbTable,
+		memdbContainersTable: {
+			Name: memdbContainersTable,
 			Indexes: map[string]*memdb.IndexSchema{
 				memdbIDIndex: {
 					Name:    memdbIDIndex,
 					Unique:  true,
 					Indexer: &containerByIDIndexer{},
+				},
+			},
+		},
+		memdbNamesTable: {
+			Name: memdbNamesTable,
+			Indexes: map[string]*memdb.IndexSchema{
+				// Used for names, because "id" is the primary key in memdb.
+				memdbIDIndex: {
+					Name:    memdbIDIndex,
+					Unique:  true,
+					Indexer: &namesByNameIndexer{},
+				},
+				memdbContainerIDIndex: {
+					Name:    memdbContainerIDIndex,
+					Indexer: &namesByContainerIDIndexer{},
 				},
 			},
 		},
@@ -94,10 +133,9 @@ func NewViewDB() (ViewDB, error) {
 }
 
 // Snapshot provides a consistent read-only View of the database
-func (db *memDB) Snapshot(index *registrar.Registrar) View {
+func (db *memDB) Snapshot() View {
 	return &memdbView{
-		txn:       db.store.Txn(false),
-		nameIndex: index.GetAll(),
+		txn: db.store.Txn(false),
 	}
 }
 
@@ -106,25 +144,75 @@ func (db *memDB) Snapshot(index *registrar.Registrar) View {
 func (db *memDB) Save(c *Container) error {
 	txn := db.store.Txn(true)
 	defer txn.Commit()
-	return txn.Insert(memdbTable, c)
+	return txn.Insert(memdbContainersTable, c)
 }
 
 // Delete removes an item by ID
 func (db *memDB) Delete(c *Container) error {
 	txn := db.store.Txn(true)
 	defer txn.Commit()
-	return txn.Delete(memdbTable, NewBaseContainer(c.ID, c.Root))
+
+	// Delete any names referencing this container's ID.
+	iter, err := txn.Get(memdbNamesTable, memdbContainerIDIndex, c.ID)
+	if err != nil {
+		return err
+	}
+
+	var names []string
+	for {
+		item := iter.Next()
+		if item == nil {
+			break
+		}
+		names = append(names, item.(nameAssociation).name)
+	}
+
+	for _, name := range names {
+		txn.Delete(memdbNamesTable, nameAssociation{name: name})
+	}
+
+	return txn.Delete(memdbContainersTable, NewBaseContainer(c.ID, c.Root))
+}
+
+// ReserveName registers a container ID to a name
+// ReserveName is idempotent
+// Attempting to reserve a container ID to a name that already exists results in an `ErrNameReserved`
+// A name reservation is globally unique
+func (db *memDB) ReserveName(name, containerID string) error {
+	txn := db.store.Txn(true)
+	defer txn.Commit()
+
+	s, err := txn.First(memdbNamesTable, memdbIDIndex, name)
+	if err != nil {
+		return err
+	}
+	if s != nil {
+		if s.(nameAssociation).containerID != containerID {
+			return ErrNameReserved
+		}
+		return nil
+	}
+
+	txn.Insert(memdbNamesTable, nameAssociation{name: name, containerID: containerID})
+	return nil
+}
+
+// ReleaseName releases the reserved name
+// Once released, a name can be reserved again
+func (db *memDB) ReleaseName(name string) {
+	txn := db.store.Txn(true)
+	txn.Delete(memdbNamesTable, nameAssociation{name: name})
+	txn.Commit()
 }
 
 type memdbView struct {
-	txn       *memdb.Txn
-	nameIndex map[string][]string
+	txn *memdb.Txn
 }
 
 // All returns a all items in this snapshot. Returned objects must never be modified.
 func (v *memdbView) All() ([]Snapshot, error) {
 	var all []Snapshot
-	iter, err := v.txn.Get(memdbTable, memdbIDIndex)
+	iter, err := v.txn.Get(memdbContainersTable, memdbIDIndex)
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +229,7 @@ func (v *memdbView) All() ([]Snapshot, error) {
 
 // Get returns an item by id. Returned objects must never be modified.
 func (v *memdbView) Get(id string) (*Snapshot, error) {
-	s, err := v.txn.First(memdbTable, memdbIDIndex, id)
+	s, err := v.txn.First(memdbContainersTable, memdbIDIndex, id)
 	if err != nil {
 		return nil, err
 	}
@@ -151,13 +239,64 @@ func (v *memdbView) Get(id string) (*Snapshot, error) {
 	return v.transform(s.(*Container)), nil
 }
 
+// getNames lists all the reserved names for the given container ID.
+func (v *memdbView) getNames(containerID string) []string {
+	iter, err := v.txn.Get(memdbNamesTable, memdbContainerIDIndex, containerID)
+	if err != nil {
+		return nil
+	}
+
+	var names []string
+	for {
+		item := iter.Next()
+		if item == nil {
+			break
+		}
+		names = append(names, item.(nameAssociation).name)
+	}
+
+	return names
+}
+
+// GetID returns the container ID that the passed in name is reserved to.
+func (v *memdbView) GetID(name string) (string, error) {
+	s, err := v.txn.First(memdbNamesTable, memdbIDIndex, name)
+	if err != nil {
+		return "", err
+	}
+	if s == nil {
+		return "", ErrNameNotReserved
+	}
+	return s.(nameAssociation).containerID, nil
+}
+
+// GetAllNames returns all registered names.
+func (v *memdbView) GetAllNames() map[string][]string {
+	iter, err := v.txn.Get(memdbNamesTable, memdbContainerIDIndex)
+	if err != nil {
+		return nil
+	}
+
+	out := make(map[string][]string)
+	for {
+		item := iter.Next()
+		if item == nil {
+			break
+		}
+		assoc := item.(nameAssociation)
+		out[assoc.containerID] = append(out[assoc.containerID], assoc.name)
+	}
+
+	return out
+}
+
 // transform maps a (deep) copied Container object to what queries need.
 // A lock on the Container is not held because these are immutable deep copies.
 func (v *memdbView) transform(container *Container) *Snapshot {
 	snapshot := &Snapshot{
 		Container: types.Container{
 			ID:      container.ID,
-			Names:   v.nameIndex[container.ID],
+			Names:   v.getNames(container.ID),
 			ImageID: container.ImageID.String(),
 			Ports:   []types.Port{},
 			Mounts:  container.GetMountPoints(),
@@ -289,6 +428,58 @@ func (e *containerByIDIndexer) FromObject(obj interface{}) (bool, []byte, error)
 
 // FromArgs implements the memdb.Indexer interface
 func (e *containerByIDIndexer) FromArgs(args ...interface{}) ([]byte, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("must provide only a single argument")
+	}
+	arg, ok := args[0].(string)
+	if !ok {
+		return nil, fmt.Errorf("argument must be a string: %#v", args[0])
+	}
+	// Add the null character as a terminator
+	arg += "\x00"
+	return []byte(arg), nil
+}
+
+// namesByNameIndexer is used to index container name associations by name.
+type namesByNameIndexer struct{}
+
+func (e *namesByNameIndexer) FromObject(obj interface{}) (bool, []byte, error) {
+	n, ok := obj.(nameAssociation)
+	if !ok {
+		return false, nil, fmt.Errorf(`%T does not have type "nameAssociation"`, obj)
+	}
+
+	// Add the null character as a terminator
+	return true, []byte(n.name + "\x00"), nil
+}
+
+func (e *namesByNameIndexer) FromArgs(args ...interface{}) ([]byte, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("must provide only a single argument")
+	}
+	arg, ok := args[0].(string)
+	if !ok {
+		return nil, fmt.Errorf("argument must be a string: %#v", args[0])
+	}
+	// Add the null character as a terminator
+	arg += "\x00"
+	return []byte(arg), nil
+}
+
+// namesByContainerIDIndexer is used to index container names by container ID.
+type namesByContainerIDIndexer struct{}
+
+func (e *namesByContainerIDIndexer) FromObject(obj interface{}) (bool, []byte, error) {
+	n, ok := obj.(nameAssociation)
+	if !ok {
+		return false, nil, fmt.Errorf(`%T does not have type "nameAssocation"`, obj)
+	}
+
+	// Add the null character as a terminator
+	return true, []byte(n.containerID + "\x00"), nil
+}
+
+func (e *namesByContainerIDIndexer) FromArgs(args ...interface{}) ([]byte, error) {
 	if len(args) != 1 {
 		return nil, fmt.Errorf("must provide only a single argument")
 	}
