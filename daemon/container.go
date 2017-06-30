@@ -168,7 +168,7 @@ func (daemon *Daemon) GetByName(name string) (*container.Container, error) {
 	if name[0] != '/' {
 		fullName = "/" + name
 	}
-	id, err := daemon.nameIndex.Get(fullName)
+	id, err := daemon.containersReplica.Snapshot().GetID(fullName)
 	if err != nil {
 		return nil, fmt.Errorf("Could not find entity for %s", name)
 	}
