@@ -6459,3 +6459,32 @@ func (s *DockerSuite) TestBuildIidFileCleanupOnFail(c *check.C) {
 	c.Assert(err, check.NotNil)
 	c.Assert(os.IsNotExist(err), check.Equals, true)
 }
+
+func (s *DockerSuite) TestBuildIidFileSquash(c *check.C) {
+	testRequires(c, ExperimentalDaemon)
+	tmpDir, err := ioutil.TempDir("", "TestBuildIidFileSquash")
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+	tmpIidFile := filepath.Join(tmpDir, "iidsquash")
+
+	name := "testbuildiidfilesquash"
+	// Use a Dockerfile with multiple stages to ensure we get the last one
+	cli.BuildCmd(c, name,
+		// This could be minimalBaseImage except
+		// https://github.com/moby/moby/issues/33823 requires
+		// `touch` to workaround.
+		build.WithDockerfile(`FROM busybox
+ENV FOO FOO
+ENV BAR BAR
+RUN touch /foop
+`),
+		cli.WithFlags("--iidfile", tmpIidFile, "--squash"))
+
+	id, err := ioutil.ReadFile(tmpIidFile)
+	c.Assert(err, check.IsNil)
+	d, err := digest.Parse(string(id))
+	c.Assert(err, check.IsNil)
+	c.Assert(d.String(), checker.Equals, getIDByName(c, name))
+}
