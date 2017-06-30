@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/docker/docker/integration-cli/checker"
@@ -35,7 +36,22 @@ func (s *DockerSuite) TestCpToErrSrcNotExists(c *check.C) {
 	c.Assert(os.IsNotExist(srcStatErr), checker.True)
 
 	err := runDockerCp(c, srcPath, dstPath, nil)
-	c.Assert(strings.ToLower(err.Error()), checker.Contains, strings.ToLower(srcStatErr.Error()))
+	if runtime.GOOS == "windows" {
+		// Go 1.9+ on Windows returns a different error for `os.Stat()`, see
+		// https://github.com/golang/go/commit/6144c7270e5812d9de8fb97456ee4e5ae657fcbb#diff-f63e1a4b4377b2fe0b05011db3df9599
+		//
+		// Go 1.8: CreateFile C:\not-exist: The system cannot find the file specified.
+		// Go 1.9: GetFileAttributesEx C:\not-exist: The system cannot find the file specified.
+		//
+		// Due to the CLI using a different version than the daemon, comparing the
+		// error message won't work, so just hard-code the common part here.
+		//
+		// TODO this should probably be a test in the CLI repository instead
+		c.Assert(strings.ToLower(err.Error()), checker.Contains, "cannot find the file specified")
+		c.Assert(strings.ToLower(err.Error()), checker.Contains, strings.ToLower(tmpDir))
+	} else {
+		c.Assert(strings.ToLower(err.Error()), checker.Contains, strings.ToLower(srcStatErr.Error()))
+	}
 }
 
 // Test for error when SRC ends in a trailing
