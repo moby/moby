@@ -153,20 +153,18 @@ func (m *MountPoint) Cleanup() error {
 // before creating the source directory on the host.
 func (m *MountPoint) Setup(mountLabel string, rootIDs idtools.IDPair, checkFun func(m *MountPoint) error) (path string, err error) {
 	defer func() {
-		if err == nil {
-			if label.RelabelNeeded(m.Mode) {
-				if err = label.Relabel(m.Source, mountLabel, label.IsShared(m.Mode)); err != nil {
-					if err == syscall.ENOTSUP {
-						err = nil
-						return
-					}
-					path = ""
-					err = errors.Wrapf(err, "error setting label on mount source '%s'", m.Source)
-					return
-				}
-			}
+		if err != nil || !label.RelabelNeeded(m.Mode) {
+			return
 		}
-		return
+
+		err = label.Relabel(m.Source, mountLabel, label.IsShared(m.Mode))
+		if err == syscall.ENOTSUP {
+			err = nil
+		}
+		if err != nil {
+			path = ""
+			err = errors.Wrapf(err, "error setting label on mount source '%s'", m.Source)
+		}
 	}()
 
 	if m.Volume != nil {
