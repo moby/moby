@@ -74,7 +74,7 @@ func (w *RotateFileWriter) checkCapacityAndRotate() error {
 		if err := rotate(name, w.maxFiles); err != nil {
 			return err
 		}
-		file, err := os.OpenFile(name, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 06400)
+		file, err := os.OpenFile(name, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0640)
 		if err != nil {
 			return err
 		}
