@@ -162,11 +162,13 @@ func (daemon *Daemon) filterByNameIDMatches(view container.View, ctx *listContex
 	cntrs := make([]container.Snapshot, 0, len(matches))
 	for id := range matches {
 		c, err := view.Get(id)
-		if err != nil {
-			return nil, err
-		}
-		if c != nil {
+		switch err.(type) {
+		case nil:
 			cntrs = append(cntrs, *c)
+		case container.NoSuchContainerError:
+			// ignore error
+		default:
+			return nil, err
 		}
 	}
 
