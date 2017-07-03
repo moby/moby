@@ -73,7 +73,7 @@ When the proxy is asked to create a network, the remote process shall receive a 
 		{
 			"AddressSpace": string,
 			"Pool": ipv4-cidr-string,
-			"Gateway" : ipv4-address"
+			"Gateway" : ipv4-cidr-string,
 			"AuxAddresses": {
 				"<identifier1>" : "<ipv4-address1>",
 				"<identifier2>" : "<ipv4-address2>",
@@ -85,7 +85,7 @@ When the proxy is asked to create a network, the remote process shall receive a 
 		{
 			"AddressSpace": string,
 			"Pool": ipv6-cidr-string,
-			"Gateway" : ipv6-address"
+			"Gateway" : ipv6-cidr-string,
 			"AuxAddresses": {
 				"<identifier1>" : "<ipv6-address1>",
 				"<identifier2>" : "<ipv6-address2>",
@@ -103,7 +103,7 @@ When the proxy is asked to create a network, the remote process shall receive a 
 * `IPv4Data` and `IPv6Data` are the ip-addressing data configured by the user and managed by IPAM driver. The network driver is expected to honor the ip-addressing data supplied by IPAM driver. The data include,
 * `AddressSpace` : A unique string represents an isolated space for IP Addressing 
 * `Pool` : A range of IP Addresses represented in CIDR format address/mask. Since, the IPAM driver is responsible for allocating container ip-addresses, the network driver can make use of this information for the network plumbing purposes.
-* `Gateway` : Optionally, the IPAM driver may provide a Gateway for the subnet represented by the Pool. The network driver can make use of this information for the network plumbing purposes.
+* `Gateway` : Optionally, the IPAM driver may provide a Gateway IP address in CIDR format for the subnet represented by the Pool. The network driver can make use of this information for the network plumbing purposes.
 * `AuxAddresses` : A list of pre-allocated ip-addresses with an associated identifier as provided by the user to assist network driver if it requires specific ip-addresses for its operation.
 
 The response indicating success is empty:
