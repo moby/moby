@@ -32,15 +32,15 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 		return err
 	}
 
+	container.Lock()
+	defer container.Unlock()
+
 	oldName = container.Name
 	oldIsAnonymousEndpoint := container.NetworkSettings.IsAnonymousEndpoint
 
 	if oldName == newName {
 		return errors.New("Renaming a container with the same name as its current name")
 	}
-
-	container.Lock()
-	defer container.Unlock()
 
 	links := map[string]*dockercontainer.Container{}
 	for k, v := range daemon.linkIndex.children(container) {
