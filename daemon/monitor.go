@@ -46,6 +46,7 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 	case libcontainerd.StateExit:
 
 		c.Lock()
+		defer c.Unlock()
 		c.StreamConfig.Wait()
 		c.Reset(false)
 
@@ -92,7 +93,6 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 
 		daemon.setStateCounter(c)
 
-		defer c.Unlock()
 		if err := c.CheckpointTo(daemon.containersReplica); err != nil {
 			return err
 		}
