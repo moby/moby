@@ -123,6 +123,9 @@ var (
 		// Maria Ardinghelli - Italian translator, mathematician and physicist - https://en.wikipedia.org/wiki/Maria_Ardinghelli
 		"ardinghelli",
 
+		// Aristotle - Ancient Greek philosopher and scientist whose "Physics" (or "lectures on nature") profoundly influenced the sciences for over 2,000 years - https://www.loebclassics.com/view/aristotle-physics/1934/pb_LCL228.9.xml
+		"aristotle",
+		
 		// Aryabhata - Ancient Indian mathematician-astronomer during 476-550 CE https://en.wikipedia.org/wiki/Aryabhata
 		"aryabhata",
 
