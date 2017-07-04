@@ -99,7 +99,7 @@ func TestAuthZResponsePlugin(t *testing.T) {
 
 	request := Request{
 		User:        "user",
-		RequestURI:  "someting.com/auth",
+		RequestURI:  "something.com/auth",
 		RequestBody: []byte("sample body"),
 	}
 	server.replayResponse = Response{

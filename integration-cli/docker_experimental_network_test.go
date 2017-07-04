@@ -155,7 +155,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkMacvlanMultiSubnet(c *check.C) {
 	_, _, err := dockerCmdWithError("exec", "second", "ping", "-c", "1", strings.TrimSpace(ip))
 	c.Assert(err, check.IsNil)
 	// verify ipv6 connectivity to the explicit --ipv6 address second to first
-	c.Skip("Temporarily skipping while invesitigating sporadic v6 CI issues")
+	c.Skip("Temporarily skipping while investigating sporadic v6 CI issues")
 	_, _, err = dockerCmdWithError("exec", "second", "ping6", "-c", "1", strings.TrimSpace(ip6))
 	c.Assert(err, check.IsNil)
 

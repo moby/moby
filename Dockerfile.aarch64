@@ -93,7 +93,7 @@ RUN set -x \
 	&& rm -rf "$SECCOMP_PATH"
 
 # Install Go
-# We don't have official binary golang 1.7.5 tarballs for ARM64, eigher for Go or
+# We don't have official binary golang 1.7.5 tarballs for ARM64, either for Go or
 # bootstrap, so we use golang-go (1.6) as bootstrap to build Go from source code.
 # We don't use the official ARMv6 released binaries as a GOROOT_BOOTSTRAP, because
 # not all ARM64 platforms support 32-bit mode. 32-bit mode is optional for ARMv8.

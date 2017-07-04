@@ -60,7 +60,7 @@ func TestGetNames(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(names, names2) {
-		t.Fatalf("Exepected: %v, Got: %v", names, names2)
+		t.Fatalf("Expected: %v, Got: %v", names, names2)
 	}
 }
 

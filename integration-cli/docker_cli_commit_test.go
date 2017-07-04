@@ -54,9 +54,9 @@ func (s *DockerSuite) TestCommitPausedContainer(c *check.C) {
 }
 
 func (s *DockerSuite) TestCommitNewFile(c *check.C) {
-	dockerCmd(c, "run", "--name", "commiter", "busybox", "/bin/sh", "-c", "echo koye > /foo")
+	dockerCmd(c, "run", "--name", "committer", "busybox", "/bin/sh", "-c", "echo koye > /foo")
 
-	imageID, _ := dockerCmd(c, "commit", "commiter")
+	imageID, _ := dockerCmd(c, "commit", "committer")
 	imageID = strings.TrimSpace(imageID)
 
 	out, _ := dockerCmd(c, "run", imageID, "cat", "/foo")

@@ -39,7 +39,7 @@ func (daemon *Daemon) Reload(conf *config.Config) (err error) {
 
 	daemon.reloadPlatform(conf, attributes)
 	daemon.reloadDebug(conf, attributes)
-	daemon.reloadMaxConcurrentDowloadsAndUploads(conf, attributes)
+	daemon.reloadMaxConcurrentDownloadsAndUploads(conf, attributes)
 	daemon.reloadShutdownTimeout(conf, attributes)
 
 	if err := daemon.reloadClusterDiscovery(conf, attributes); err != nil {
@@ -74,9 +74,9 @@ func (daemon *Daemon) reloadDebug(conf *config.Config, attributes map[string]str
 	attributes["debug"] = fmt.Sprintf("%t", daemon.configStore.Debug)
 }
 
-// reloadMaxConcurrentDowloadsAndUploads updates configuration with max concurrent
+// reloadMaxConcurrentDownloadsAndUploads updates configuration with max concurrent
 // download and upload options and updates the passed attributes
-func (daemon *Daemon) reloadMaxConcurrentDowloadsAndUploads(conf *config.Config, attributes map[string]string) {
+func (daemon *Daemon) reloadMaxConcurrentDownloadsAndUploads(conf *config.Config, attributes map[string]string) {
 	// If no value is set for max-concurrent-downloads we assume it is the default value
 	// We always "reset" as the cost is lightweight and easy to maintain.
 	if conf.IsValueSet("max-concurrent-downloads") && conf.MaxConcurrentDownloads != nil {

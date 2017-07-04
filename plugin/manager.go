@@ -292,7 +292,7 @@ func (pm *Manager) save(p *v2.Plugin) error {
 	return nil
 }
 
-// GC cleans up unrefrenced blobs. This is recommended to run in a goroutine
+// GC cleans up unreferenced blobs. This is recommended to run in a goroutine
 func (pm *Manager) GC() {
 	pm.muGC.Lock()
 	defer pm.muGC.Unlock()

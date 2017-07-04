@@ -228,7 +228,7 @@ func TestArgsMatch(t *testing.T) {
 			"created": {"tod": true}},
 		}: "created",
 		{map[string]map[string]bool{
-			"created": {"anyting": true, "to*": true}},
+			"created": {"anything": true, "to*": true}},
 		}: "created",
 	}
 

@@ -53,7 +53,7 @@ type Result struct {
 }
 
 // Assert compares the Result against the Expected struct, and fails the test if
-// any of the expcetations are not met.
+// any of the expectations are not met.
 func (r *Result) Assert(t testingT, exp Expected) *Result {
 	err := r.Compare(exp)
 	if err == nil {

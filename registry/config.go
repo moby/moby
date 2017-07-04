@@ -252,7 +252,7 @@ skip:
 	return nil
 }
 
-// allowNondistributableArtifacts returns true if the provided hostname is part of the list of regsitries
+// allowNondistributableArtifacts returns true if the provided hostname is part of the list of registries
 // that allow push of nondistributable artifacts.
 //
 // The list can contain elements with CIDR notation to specify a whole subnet. If the subnet contains an IP

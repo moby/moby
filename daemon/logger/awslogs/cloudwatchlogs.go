@@ -363,7 +363,7 @@ var newTicker = func(freq time.Duration) *time.Ticker {
 // awslogs-datetime-format options have been configured, multiline processing
 // is enabled, where log messages are stored in an event buffer until a multiline
 // pattern match is found, at which point the messages in the event buffer are
-// pushed to CloudWatch logs as a single log event.  Multline messages are processed
+// pushed to CloudWatch logs as a single log event.  Multiline messages are processed
 // according to the maximumBytesPerPut constraint, and the implementation only
 // allows for messages to be buffered for a maximum of 2*batchPublishFrequency
 // seconds.  When events are ready to be processed for submission to CloudWatch

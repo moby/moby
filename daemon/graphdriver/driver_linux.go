@@ -95,7 +95,7 @@ func GetFSMagic(rootpath string) (FsMagic, error) {
 	return FsMagic(buf.Type), nil
 }
 
-// NewFsChecker returns a checker configured for the provied FsMagic
+// NewFsChecker returns a checker configured for the provided FsMagic
 func NewFsChecker(t FsMagic) Checker {
 	return &fsChecker{
 		t: t,

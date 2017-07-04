@@ -475,6 +475,6 @@ func (s *DockerSuite) TestPluginMetricsCollector(c *check.C) {
 
 	b, err := ioutil.ReadAll(resp.Body)
 	c.Assert(err, checker.IsNil)
-	// check that a known metric is there... don't epect this metric to change over time.. probably safe
+	// check that a known metric is there... don't expect this metric to change over time.. probably safe
 	c.Assert(string(b), checker.Contains, "container_actions")
 }

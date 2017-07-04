@@ -2,7 +2,7 @@ package swarm
 
 import "time"
 
-// ClusterInfo represents info about the cluster for outputing in "info"
+// ClusterInfo represents info about the cluster for outputting in "info"
 // it contains the same information as "Swarm", but without the JoinTokens
 type ClusterInfo struct {
 	ID string

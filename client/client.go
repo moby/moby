@@ -91,7 +91,7 @@ type Client struct {
 // CheckRedirect specifies the policy for dealing with redirect responses:
 // If the request is non-GET return `ErrRedirect`. Otherwise use the last response.
 //
-// Go 1.8 changes behavior for HTTP redirects (specificlaly 301, 307, and 308) in the client .
+// Go 1.8 changes behavior for HTTP redirects (specifically 301, 307, and 308) in the client .
 // The Docker client (and by extension docker API client) can be made to to send a request
 // like POST /containers//start where what would normally be in the name section of the URL is empty.
 // This triggers an HTTP 301 from the daemon.

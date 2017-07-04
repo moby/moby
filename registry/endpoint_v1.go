@@ -175,7 +175,7 @@ func (e *V1Endpoint) Ping() (PingResult, error) {
 		Standalone: true,
 	}
 	if err := json.Unmarshal(jsonString, &info); err != nil {
-		logrus.Debugf("Error unmarshalling the _ping PingResult: %s", err)
+		logrus.Debugf("Error unmarshaling the _ping PingResult: %s", err)
 		// don't stop here. Just assume sane defaults
 	}
 	if hdr := resp.Header.Get("X-Docker-Registry-Version"); hdr != "" {

@@ -175,7 +175,7 @@ Function Execute-Build($type, $additionalBuildTags, $directory) {
     if ($Race)                      { Write-Warning "Using race detector"; $raceParm=" -race"}
     if ($ForceBuildAll)             { $allParm=" -a" }
     if ($NoOpt)                     { $optParm=" -gcflags "+""""+"-N -l"+"""" }
-    if ($addtionalBuildTags -ne "") { $buildTags += $(" " + $additionalBuildTags) }
+    if ($additionalBuildTags -ne "") { $buildTags += $(" " + $additionalBuildTags) }
 
     # Do the go build in the appropriate directory
     # Note -linkmode=internal is required to be able to debug on Windows.

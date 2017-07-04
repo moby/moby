@@ -14,7 +14,7 @@ import (
 // indicated by the given condition, either "not-running" (default),
 // "next-exit", or "removed".
 //
-// If this client's API version is beforer 1.30, condition is ignored and
+// If this client's API version is before 1.30, condition is ignored and
 // ContainerWait will return immediately with the two channels, as the server
 // will wait as if the condition were "not-running".
 //
@@ -23,7 +23,7 @@ import (
 // then returns two channels on which the caller can wait for the exit status
 // of the container or an error if there was a problem either beginning the
 // wait request or in getting the response. This allows the caller to
-// sychronize ContainerWait with other calls, such as specifying a
+// synchronize ContainerWait with other calls, such as specifying a
 // "next-exit" condition before issuing a ContainerStart request.
 func (cli *Client) ContainerWait(ctx context.Context, containerID string, condition container.WaitCondition) (<-chan container.ContainerWaitOKBody, <-chan error) {
 	if versions.LessThan(cli.ClientVersion(), "1.30") {

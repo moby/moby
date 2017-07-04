@@ -157,7 +157,7 @@ func TestValidateDNSSearch(t *testing.T) {
 		`foo.bar-.baz`,
 		`foo.-bar`,
 		`foo.-bar.baz`,
-		`foo.bar.baz.this.should.fail.on.long.name.beause.it.is.longer.thanisshouldbethis.should.fail.on.long.name.beause.it.is.longer.thanisshouldbethis.should.fail.on.long.name.beause.it.is.longer.thanisshouldbethis.should.fail.on.long.name.beause.it.is.longer.thanisshouldbe`,
+		`foo.bar.baz.this.should.fail.on.long.name.because.it.is.longer.thanitshouldbethis.should.fail.on.long.name.because.it.is.longer.thanitshouldbethis.should.fail.on.long.name.because.it.is.longer.thanitshouldbethis.should.fail.on.long.name.because.it.is.longer.thanitshouldbe`,
 	}
 
 	for _, domain := range valid {

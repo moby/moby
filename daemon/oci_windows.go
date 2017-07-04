@@ -55,7 +55,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	}
 
 	// If the container has not been started, and has configs or secrets
-	// secrets, create symlinks to each confing and secret. If it has been
+	// secrets, create symlinks to each config and secret. If it has been
 	// started before, the symlinks should have already been created. Also, it
 	// is important to not mount a Hyper-V  container that has been started
 	// before, to protect the host from the container; for example, from
