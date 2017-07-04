@@ -239,6 +239,12 @@ copy_binaries() {
 					hash_files "$dir/docker-$file"
 				fi
 			done
+            if [ -x /usr/local/bin/docker ]; then
+                cp -f `which docker` "$dir/"
+                if [ "$2" == "hash" ]; then
+                    hash_files "$dir/docker"
+                fi
+            fi
 		fi
 	fi
 }
