@@ -93,6 +93,16 @@ const (
 	OverlayWhiteoutFormat
 )
 
+const (
+	modeISDIR  = 040000  // Directory
+	modeISFIFO = 010000  // FIFO
+	modeISREG  = 0100000 // Regular file
+	modeISLNK  = 0120000 // Symbolic link
+	modeISBLK  = 060000  // Block special file
+	modeISCHR  = 020000  // Character special file
+	modeISSOCK = 0140000 // Socket
+)
+
 // IsArchivePath checks if the (possibly compressed) file at the given path
 // starts with a tar file header.
 func IsArchivePath(path string) bool {
@@ -305,12 +315,14 @@ func (compression *Compression) Extension() string {
 
 // FileInfoHeader creates a populated Header from fi.
 // Compared to archive pkg this function fills in more information.
+// Also, regardless of Go version, this function fills file type bits (e.g. hdr.Mode |= modeISDIR),
+// which have been deleted since Go 1.9 archive/tar.
 func FileInfoHeader(name string, fi os.FileInfo, link string) (*tar.Header, error) {
 	hdr, err := tar.FileInfoHeader(fi, link)
 	if err != nil {
 		return nil, err
 	}
-	hdr.Mode = int64(chmodTarEntry(os.FileMode(hdr.Mode)))
+	hdr.Mode = fillGo18FileTypeBits(int64(chmodTarEntry(os.FileMode(hdr.Mode))), fi)
 	name, err = canonicalTarName(name, fi.IsDir())
 	if err != nil {
 		return nil, fmt.Errorf("tar: cannot canonicalize path: %v", err)
@@ -320,6 +332,31 @@ func FileInfoHeader(name string, fi os.FileInfo, link string) (*tar.Header, erro
 		return nil, err
 	}
 	return hdr, nil
+}
+
+// fillGo18FileTypeBits fills type bits which have been removed on Go 1.9 archive/tar
+// https://github.com/golang/go/commit/66b5a2f
+func fillGo18FileTypeBits(mode int64, fi os.FileInfo) int64 {
+	fm := fi.Mode()
+	switch {
+	case fm.IsRegular():
+		mode |= modeISREG
+	case fi.IsDir():
+		mode |= modeISDIR
+	case fm&os.ModeSymlink != 0:
+		mode |= modeISLNK
+	case fm&os.ModeDevice != 0:
+		if fm&os.ModeCharDevice != 0 {
+			mode |= modeISCHR
+		} else {
+			mode |= modeISBLK
+		}
+	case fm&os.ModeNamedPipe != 0:
+		mode |= modeISFIFO
+	case fm&os.ModeSocket != 0:
+		mode |= modeISSOCK
+	}
+	return mode
 }
 
 // ReadSecurityXattrToTarHeader reads security.capability xattr from filesystem
