@@ -49,7 +49,6 @@ type btrfsOptions struct {
 // Init returns a new BTRFS driver.
 // An error is returned if BTRFS is not supported.
 func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
-
 	fsMagic, err := graphdriver.GetFSMagic(home)
 	if err != nil {
 		return nil, err
@@ -63,10 +62,31 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 	if err != nil {
 		return nil, err
 	}
-	if err := idtools.MkdirAllAs(home, 0700, rootUID, rootGID); err != nil {
+
+	// In order to make sure that snapshots of / don't fill up disk with our
+	// old data, make ourselves a subvolume (snapshots don't cross subvolume
+	// boundaries). So create the parent and subvol separately.
+	homeParent := filepath.Dir(home)
+	if err := idtools.MkdirAllNewAs(homeParent, 0700, rootUID, rootGID); err != nil {
+		return nil, err
+	}
+	// Only create a subvolume if the path doesn't already exist.
+	if _, err := os.Lstat(home); os.IsNotExist(err) {
+		homeName := filepath.Base(home)
+		if err := subvolCreate(homeParent, homeName); err != nil {
+			return nil, err
+		}
+	}
+	// Always change owner and mode of home.
+	if err := os.Chmod(home, 0700); err != nil {
+		return nil, err
+	}
+	if err := os.Chown(home, rootUID, rootGID); err != nil {
 		return nil, err
 	}
 
+	// Make the mount private so as not to pollute the host mount table --
+	// containerd is in the same mountns as us.
 	if err := mount.MakePrivate(home); err != nil {
 		return nil, err
 	}
@@ -142,6 +162,9 @@ func (d *Driver) Status() [][2]string {
 	}
 	if lv := btrfsLibVersion(); lv != -1 {
 		status = append(status, [2]string{"Library Version", fmt.Sprintf("%d", lv)})
+	}
+	if sv, err := isSubvolume(d.home); err == nil {
+		status = append(status, [2]string{"Root Subvolume", fmt.Sprintf("%v", sv)})
 	}
 	return status
 }
