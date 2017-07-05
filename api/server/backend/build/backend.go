@@ -72,7 +72,7 @@ func (b *Backend) Build(ctx context.Context, config backend.BuildConfig) (string
 func (b *Backend) PruneCache(ctx context.Context) (*types.BuildCachePruneReport, error) {
 	size, err := b.fsCache.Prune()
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to prune build cache")
+		return &types.BuildCachePruneReport{SpaceReclaimed: size}, errors.Wrap(err, "failed to prune build cache")
 	}
 	return &types.BuildCachePruneReport{SpaceReclaimed: size}, nil
 }
