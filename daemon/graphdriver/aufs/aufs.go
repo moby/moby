@@ -37,8 +37,6 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/vbatts/tar-split/tar/storage"
-
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
@@ -47,9 +45,11 @@ import (
 	"github.com/docker/docker/pkg/locker"
 	mountpk "github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/system"
+	"github.com/vbatts/tar-split/tar/storage"
 
 	rsystem "github.com/opencontainers/runc/libcontainer/system"
 	"github.com/opencontainers/selinux/go-selinux/label"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -284,30 +284,41 @@ func (a *Driver) Remove(id string) error {
 		mountpoint = a.getMountpoint(id)
 	}
 
+	logger := logrus.WithFields(logrus.Fields{
+		"module": "graphdriver",
+		"driver": "aufs",
+		"layer":  id,
+	})
+
 	var retries int
 	for {
 		mounted, err := a.mounted(mountpoint)
 		if err != nil {
+			if os.IsNotExist(err) {
+				break
+			}
 			return err
 		}
 		if !mounted {
 			break
 		}
 
-		if err := a.unmount(mountpoint); err != nil {
-			if err != syscall.EBUSY {
-				return fmt.Errorf("aufs: unmount error: %s: %v", mountpoint, err)
-			}
-			if retries >= 5 {
-				return fmt.Errorf("aufs: unmount error after retries: %s: %v", mountpoint, err)
-			}
-			// If unmount returns EBUSY, it could be a transient error. Sleep and retry.
-			retries++
-			logrus.Warnf("unmount failed due to EBUSY: retry count: %d", retries)
-			time.Sleep(100 * time.Millisecond)
-			continue
+		err = a.unmount(mountpoint)
+		if err == nil {
+			break
 		}
-		break
+
+		if err != syscall.EBUSY {
+			return errors.Wrapf(err, "aufs: unmount error: %s", mountpoint)
+		}
+		if retries >= 5 {
+			return errors.Wrapf(err, "aufs: unmount error after retries: %s", mountpoint)
+		}
+		// If unmount returns EBUSY, it could be a transient error. Sleep and retry.
+		retries++
+		logger.Warnf("unmount failed due to EBUSY: retry count: %d", retries)
+		time.Sleep(100 * time.Millisecond)
+		continue
 	}
 
 	// Atomically remove each directory in turn by first moving it out of the
@@ -316,21 +327,22 @@ func (a *Driver) Remove(id string) error {
 	tmpMntPath := path.Join(a.mntPath(), fmt.Sprintf("%s-removing", id))
 	if err := os.Rename(mountpoint, tmpMntPath); err != nil && !os.IsNotExist(err) {
 		if err == syscall.EBUSY {
-			logrus.Warn("os.Rename err due to EBUSY")
+			logger.WithField("dir", mountpoint).WithError(err).Warn("os.Rename err due to EBUSY")
 		}
-		return err
+		return errors.Wrapf(err, "error preparing atomic delete of aufs mountpoint for id: %s", id)
 	}
-	defer system.EnsureRemoveAll(tmpMntPath)
+	if err := system.EnsureRemoveAll(tmpMntPath); err != nil {
+		return errors.Wrapf(err, "error removing aufs layer %s", id)
+	}
 
 	tmpDiffpath := path.Join(a.diffPath(), fmt.Sprintf("%s-removing", id))
 	if err := os.Rename(a.getDiffPath(id), tmpDiffpath); err != nil && !os.IsNotExist(err) {
-		return err
+		return errors.Wrapf(err, "error preparing atomic delete of aufs diff dir for id: %s", id)
 	}
-	defer system.EnsureRemoveAll(tmpDiffpath)
 
 	// Remove the layers file for the id
 	if err := os.Remove(path.Join(a.rootPath(), "layers", id)); err != nil && !os.IsNotExist(err) {
-		return err
+		return errors.Wrapf(err, "error removing layers dir for %s", id)
 	}
 
 	a.pathCacheLock.Lock()
