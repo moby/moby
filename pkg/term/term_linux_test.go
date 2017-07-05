@@ -3,29 +3,20 @@
 package term
 
 import (
-	"flag"
 	"io/ioutil"
 	"os"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-var rootEnabled bool
-
-func init() {
-	flag.BoolVar(&rootEnabled, "test.root", false, "enable tests that require root")
-}
 
 // RequiresRoot skips tests that require root, unless the test.root flag has
 // been set
 func RequiresRoot(t *testing.T) {
-	if !rootEnabled {
+	if os.Getuid() != 0 {
 		t.Skip("skipping test that requires root")
 		return
 	}
-	assert.Equal(t, 0, os.Getuid(), "This test must be run as root.")
 }
 
 func newTtyForTest(t *testing.T) (*os.File, error) {
@@ -113,6 +104,7 @@ func TestDisableEcho(t *testing.T) {
 	defer tty.Close()
 	require.NoError(t, err)
 	state, err := SetRawTerminal(tty.Fd())
+	defer RestoreTerminal(tty.Fd(), state)
 	require.NoError(t, err)
 	require.NotNil(t, state)
 	err = DisableEcho(tty.Fd(), state)
