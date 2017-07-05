@@ -304,7 +304,7 @@ deleteImagesLoop:
 
 	if canceled {
 		logrus.Warnf("ImagesPrune operation cancelled: %#v", *rep)
-		return nil, ctx.Err()
+		return rep, ctx.Err()
 	}
 
 	return rep, nil
@@ -428,7 +428,7 @@ func (daemon *Daemon) NetworksPrune(ctx context.Context, pruneFilters filters.Ar
 	select {
 	case <-ctx.Done():
 		logrus.Warnf("NetworksPrune operation cancelled: %#v", *rep)
-		return nil, ctx.Err()
+		return rep, ctx.Err()
 	default:
 	}
 
