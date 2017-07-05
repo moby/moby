@@ -310,12 +310,11 @@ func (nDB *NetworkDB) reapState() {
 
 func (nDB *NetworkDB) reapNetworks() {
 	nDB.Lock()
-	for name, nn := range nDB.networks {
+	for _, nn := range nDB.networks {
 		for id, n := range nn {
 			if n.leaving {
 				if n.reapTime <= 0 {
 					delete(nn, id)
-					nDB.deleteNetworkNode(id, name)
 					continue
 				}
 				n.reapTime -= reapPeriod
