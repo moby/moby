@@ -18,14 +18,6 @@ Generates AUTHORS; a file with all the names and corresponding emails of
 individual contributors. AUTHORS can be found in the home directory of
 this repository.
 
-## Install (install.sh)
-
-Executable install script for installing Docker. If updates to this are
-desired, please use hack/release.sh during a normal release. The following
-one-liner may be used for script hotfixes:
-
-- `aws s3 cp --acl public-read hack/install.sh s3://get.docker.com/index`
-
 ## Make
 
 There are two make files, each with different extensions. Neither are supposed
