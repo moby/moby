@@ -1,26 +1,38 @@
 #!/usr/bin/env bash
+#
+# For integration-cli test, we use [gocheck](https://labix.org/gocheck), if you want
+# to run certain tests on your local host, you should run with command:
+#
+#     TESTFLAGS='-check.f DockerSuite.TestBuild*' ./hack/make.sh binary test-integration
+#
 
 source "$SCRIPTDIR/make/.go-autogen"
 
-: ${TEST_REPEAT:=0}
+: ${TEST_REPEAT:=1}
 
-bundle_test_integration() {
+integration_api_dirs=("$(find ./integration -type d | grep -vE '^./integration$')")
+
+run_test_integration() {
+	local flags="-test.v -test.timeout=${TIMEOUT} $TESTFLAGS"
+	for dir in $integration_api_dirs; do
+		(
+			cd $dir
+			echo "Running $PWD"
+			test_env ./test.main $flags
+		)
+	done
+
 	(
-		local flags="-v -test.timeout=${TIMEOUT} $TESTFLAGS"
-		cd integration
-		set -ex
-		# TODO: run existing binary?
-		go test -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" $flags ./...
-	)
-	(
-		local flags="$TESTFLAGS -check.v -check.timeout=${TIMEOUT} -test.timeout=360m"
-		go_test_dir integration-cli
+		flags="-check.v -check.timeout=${TIMEOUT} -test.timeout=360m $TESTFLAGS"
+		cd integration-cli > /dev/null
+		echo "Running $PWD"
+		test_env ./test.main $flags
 	)
 }
 
 build_test_suite_binaries() {
-	build_test_suite_binary integration-cli "test.main"
-	for dir in $(find integration -type d); do
+	build_test_suite_binary ./integration-cli "test.main"
+	for dir in $integration_api_dirs; do
 		build_test_suite_binary "$dir" "test.main"
 	done
 }
@@ -30,39 +42,29 @@ build_test_suite_binary() {
 	local dir="$1"
 	local out="$2"
 	echo Building test suite binary "$dir/$out"
-	go test -c -o "$dir/$out" -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" "./$dir"
+	go test -c -o "$dir/$out" -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" "$dir"
 }
 
-# If $TESTFLAGS is set in the environment, it is passed as extra arguments to 'go test'.
-# You can use this to select certain tests to run, e.g.
-#
-#     TESTFLAGS='-test.run ^TestBuild$' ./hack/make.sh test-unit
-#
-# For integration-cli test, we use [gocheck](https://labix.org/gocheck), if you want
-# to run certain tests on your local host, you should run with command:
-#
-#     TESTFLAGS='-check.f DockerSuite.TestBuild*' ./hack/make.sh binary test-integration
-#
-go_test_dir() {
-	local dir=$1
-	(
-		set -e
-		# DEST is used by the test suite
-		export DEST="$ABS_DEST"
-		cd "$dir"
-		for i in $(seq 0 $TEST_REPEAT); do
-			echo "Repeating integration-test ($i)"
-			test_env "./test.main" $TESTFLAGS
-		done
-	)
+cleanup_test_suite_binaries() {
+	[ -n "$TESTDEBUG" ] && return
+	echo "Removing test suite binaries"
+	find integration* -name test.main | xargs -r rm
 }
 
+repeat() {
+	for i in $(seq 1 $TEST_REPEAT); do
+		echo "Running integration-test (iteration $i)"
+		$@
+	done
+}
+
+# use "env -i" to tightly control the environment variables that bleed into the tests
 test_env() {
 	(
-		set -xe
-		# use "env -i" to tightly control the environment variables that bleed into the tests
+		set -e
+		[ -n "$TESTDEBUG" ] && set -x
 		env -i \
-			DEST="$DEST" \
+			DEST="$ABS_DEST" \
 			DOCKER_CLI_VERSION="$DOCKER_CLI_VERSION" \
 			DOCKER_API_VERSION="$DOCKER_API_VERSION" \
 			DOCKER_INTEGRATION_DAEMON_DEST="$DOCKER_INTEGRATION_DAEMON_DEST" \
@@ -84,4 +86,20 @@ test_env() {
 			TEST_CLIENT_BINARY="$TEST_CLIENT_BINARY" \
 			"$@"
 	)
+}
+   
+
+error_on_leaked_containerd_shims() {
+	if [ "$(go env GOOS)" == 'windows' ]; then
+		return
+	fi
+
+	leftovers=$(ps -ax -o pid,cmd |
+	            awk '$2 == "docker-containerd-shim" && $4 ~ /.*\/bundles\/.*\/test-integration/ { print $1 }')
+	if [ -n "$leftovers" ]; then
+		ps aux
+		kill -9 $leftovers 2> /dev/null
+		echo "!!!! WARNING you have left over shim(s), Cleanup your test !!!!"
+		exit 1
+	fi
 }

@@ -18,6 +18,9 @@ if ! docker inspect -t image emptyfs &> /dev/null; then
 			tar -cf layer.tar --files-from /dev/null
 		)
 	)
-	( set -x; tar -cC "$dir" . | docker load )
+	(
+		[ -n "$TESTDEBUG" ] && set -x
+		tar -cC "$dir" . | docker load
+	)
 	rm -rf "$dir"
 fi

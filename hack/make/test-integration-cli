@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
 set -e
 echo "WARNING: test-integration-cli is DEREPCATED. Use test-integration." >&2
-exit 1
+
+# TODO: remove this and exit 1 once CI has changed to use test-integration
+bundle test-integration

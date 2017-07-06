@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-bundle .detect-daemon-osarch
+source "$MAKEDIR/.detect-daemon-osarch"
 if [ "$DOCKER_ENGINE_GOOS" != "windows" ]; then
 	bundle .ensure-emptyfs
 fi
