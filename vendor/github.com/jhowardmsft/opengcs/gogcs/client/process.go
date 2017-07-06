@@ -2,8 +2,6 @@
 
 package client
 
-// TODO @jhowardmsft - This will move to Microsoft/opengcs soon
-
 import (
 	"fmt"
 	"io"
@@ -58,4 +56,45 @@ func (config *Config) createUtilsProcess(commandLine string) (process, error) {
 
 	logrus.Debugf("opengcs: createUtilsProcess success: pid %d", proc.Process.Pid())
 	return proc, nil
+}
+
+// RunProcess runs the given command line program in the utilityVM. It takes in
+// an input to the reader to feed into stdin and returns stdout to output.
+func (config *Config) RunProcess(commandLine string, input io.Reader, output io.Writer) error {
+	logrus.Debugf("opengcs: RunProcess: %s", commandLine)
+	process, err := config.createUtilsProcess(commandLine)
+	if err != nil {
+		return err
+	}
+	defer process.Process.Close()
+
+	// Send the data into the process's stdin
+	if input != nil {
+		if _, err = copyWithTimeout(process.Stdin,
+			input,
+			0,
+			config.UvmTimeoutSeconds,
+			fmt.Sprintf("send to stdin of %s", commandLine)); err != nil {
+			return err
+		}
+
+		// Don't need stdin now we've sent everything. This signals GCS that we are finished sending data.
+		if err := process.Process.CloseStdin(); err != nil {
+			return err
+		}
+	}
+
+	if output != nil {
+		// Copy the data over to the writer.
+		if _, err := copyWithTimeout(output,
+			process.Stdout,
+			0,
+			config.UvmTimeoutSeconds,
+			fmt.Sprintf("RunProcess: copy back from %s", commandLine)); err != nil {
+			return err
+		}
+	}
+
+	logrus.Debugf("opengcs: runProcess success: %s", commandLine)
+	return nil
 }
