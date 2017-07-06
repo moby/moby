@@ -10,7 +10,7 @@ import (
 type Fields map[string]interface{}
 
 // Level type
-type Level uint8
+type Level uint32
 
 // Convert the Level to a string. E.g. PanicLevel becomes "panic".
 func (level Level) String() string {

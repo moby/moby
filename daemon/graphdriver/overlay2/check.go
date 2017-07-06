@@ -10,9 +10,9 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 // hasOpaqueCopyUpBug checks whether the filesystem has a bug

@@ -9,12 +9,12 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
 	metrics "github.com/docker/go-metrics"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 func (daemon *Daemon) listenMetricsSock() (string, error) {

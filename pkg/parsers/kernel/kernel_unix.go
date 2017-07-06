@@ -7,7 +7,7 @@ package kernel
 import (
 	"bytes"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 // GetKernelVersion gets the current kernel version.

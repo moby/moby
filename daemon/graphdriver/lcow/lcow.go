@@ -17,12 +17,12 @@ import (
 	"time"
 
 	"github.com/Microsoft/hcsshim"
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/system"
 	"github.com/jhowardmsft/opengcs/gogcs/client"
+	"github.com/sirupsen/logrus"
 )
 
 // init registers the LCOW driver to the register.

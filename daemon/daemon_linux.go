@@ -8,9 +8,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/mount"
+	"github.com/sirupsen/logrus"
 )
 
 // On Linux, plugins use a static path for storing execution state,
