@@ -70,7 +70,7 @@ func (b *Backend) Build(ctx context.Context, config backend.BuildConfig) (string
 
 // PruneCache removes all cached build sources
 func (b *Backend) PruneCache(ctx context.Context) (*types.BuildCachePruneReport, error) {
-	size, err := b.fsCache.Prune()
+	size, err := b.fsCache.Prune(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prune build cache")
 	}

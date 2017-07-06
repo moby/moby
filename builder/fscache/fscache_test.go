@@ -97,7 +97,7 @@ func TestFSCache(t *testing.T) {
 	assert.Equal(t, s, int64(8))
 
 	// prune deletes everything
-	released, err := fscache.Prune()
+	released, err := fscache.Prune(context.TODO())
 	assert.Nil(t, err)
 	assert.Equal(t, released, uint64(8))
 

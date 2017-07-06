@@ -154,8 +154,8 @@ func (fsc *FSCache) DiskUsage() (int64, error) {
 }
 
 // Prune allows manually cleaning up the cache
-func (fsc *FSCache) Prune() (uint64, error) {
-	return fsc.store.Prune()
+func (fsc *FSCache) Prune(ctx context.Context) (uint64, error) {
+	return fsc.store.Prune(ctx)
 }
 
 // Close stops the gc and closes the persistent db
@@ -396,12 +396,19 @@ func (s *fsCacheStore) DiskUsage() (int64, error) {
 }
 
 // Prune allows manually cleaning up the cache
-func (s *fsCacheStore) Prune() (uint64, error) {
+func (s *fsCacheStore) Prune(ctx context.Context) (uint64, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var size uint64
 
 	for id, snap := range s.sources {
+		select {
+		case <-ctx.Done():
+			logrus.Debugf("Cache prune operation cancelled, pruned size: %d", size)
+			// when the context is cancelled, only return current size and nil
+			return size, nil
+		default:
+		}
 		if len(snap.refs) == 0 {
 			ss, err := snap.getSize()
 			if err != nil {
