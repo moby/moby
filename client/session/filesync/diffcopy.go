@@ -9,9 +9,10 @@ import (
 	"github.com/tonistiigi/fsutil"
 )
 
-func sendDiffCopy(stream grpc.Stream, dir string, excludes []string, progress progressCb) error {
+func sendDiffCopy(stream grpc.Stream, dir string, includes, excludes []string, progress progressCb) error {
 	return fsutil.Send(stream.Context(), stream, dir, &fsutil.WalkOpt{
 		ExcludePatterns: excludes,
+		IncludePaths:    includes, // TODO: rename IncludePatterns
 	}, progress)
 }
 

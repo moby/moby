@@ -10,7 +10,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-func sendTarStream(stream grpc.Stream, dir string, excludes []string, progress progressCb) error {
+func sendTarStream(stream grpc.Stream, dir string, includes, excludes []string, progress progressCb) error {
 	a, err := archive.TarWithOptions(dir, &archive.TarOptions{
 		ExcludePatterns: excludes,
 	})
