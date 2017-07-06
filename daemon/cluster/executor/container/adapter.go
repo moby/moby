@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/daemon/cluster/convert"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	"github.com/docker/docker/pkg/system"
+	volumestore "github.com/docker/docker/volume/store"
 	"github.com/docker/libnetwork"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
@@ -390,10 +391,10 @@ func (c *containerAdapter) createVolumes(ctx context.Context) error {
 
 		// Check if this volume exists on the engine
 		if _, err := c.backend.VolumeCreate(req.Name, req.Driver, req.DriverOpts, req.Labels); err != nil {
-			// TODO(amitshukla): Today, volume create through the engine api does not return an error
-			// when the named volume with the same parameters already exists.
-			// It returns an error if the driver name is different - that is a valid error
-			return err
+			// No error if volume with the same driver name already exist (idempotency)
+			if !volumestore.IsAlreadyExists(err) {
+				return err
+			}
 		}
 
 	}

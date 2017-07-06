@@ -6,7 +6,9 @@ import (
 
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/versions"
 	volumetypes "github.com/docker/docker/api/types/volume"
+	volumestore "github.com/docker/docker/volume/store"
 	"golang.org/x/net/context"
 )
 
@@ -49,6 +51,14 @@ func (v *volumeRouter) postVolumesCreate(ctx context.Context, w http.ResponseWri
 	}
 
 	volume, err := v.backend.VolumeCreate(req.Name, req.Driver, req.DriverOpts, req.Labels)
+	if volumestore.IsAlreadyExists(err) {
+		version := httputils.VersionFromContext(ctx)
+		if versions.GreaterThanOrEqualTo(version, "1.31") {
+			w.WriteHeader(http.StatusNotModified)
+			return nil
+		}
+		return httputils.WriteJSON(w, http.StatusCreated, volume)
+	}
 	if err != nil {
 		return err
 	}

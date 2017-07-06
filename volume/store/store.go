@@ -1,9 +1,11 @@
 package store
 
 import (
+	"fmt"
 	"net"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sync"
 	"time"
 
@@ -268,17 +270,19 @@ func (s *VolumeStore) list() ([]volume.Volume, []string, error) {
 
 // CreateWithRef creates a volume with the given name and driver and stores the ref
 // This ensures there's no race between creating a volume and then storing a reference.
-func (s *VolumeStore) CreateWithRef(name, driverName, ref string, opts, labels map[string]string) (volume.Volume, error) {
+// In case a volume has already been created with the same name and driver, the already
+// created volumes will be returned
+func (s *VolumeStore) CreateWithRef(name, driverName, ref string, opts, labels map[string]string, found ...func(v volume.Volume) error) (volume.Volume, error) {
 	name = normaliseVolumeName(name)
 	s.locks.Lock(name)
 	defer s.locks.Unlock(name)
 
-	v, err := s.create(name, driverName, opts, labels)
+	v, err := s.create(name, driverName, opts, labels, found...)
 	if err != nil {
 		if _, ok := err.(*OpErr); ok {
-			return nil, err
+			return v, err
 		}
-		return nil, &OpErr{Err: err, Name: name, Op: "create"}
+		return v, &OpErr{Err: err, Name: name, Op: "create"}
 	}
 
 	s.setNamed(v, ref)
@@ -286,9 +290,25 @@ func (s *VolumeStore) CreateWithRef(name, driverName, ref string, opts, labels m
 }
 
 // Create creates a volume with the given name and driver.
-// This is just like CreateWithRef() except we don't store a reference while holding the lock.
+// In case a volume has already been created with the same name and driver, the already
+// created volumes will be returned together with the errAlreadyExists error.
 func (s *VolumeStore) Create(name, driverName string, opts, labels map[string]string) (volume.Volume, error) {
-	return s.CreateWithRef(name, driverName, "", opts, labels)
+	return s.CreateWithRef(name, driverName, "", opts, labels, func(vol volume.Volume) error {
+		var options map[string]string
+		if v, ok := vol.(volume.DetailedVolume); ok {
+			options = v.Options()
+		}
+		if options == nil {
+			options = map[string]string{}
+		}
+		if opts == nil {
+			opts = map[string]string{}
+		}
+		if reflect.DeepEqual(options, opts) {
+			return errors.Wrapf(errAlreadyExists, "a volume with the same name has already been created")
+		}
+		return fmt.Errorf("a volume with different options has already been created")
+	})
 }
 
 // checkConflict checks the local cache for name collisions with the passed in name,
@@ -304,7 +324,7 @@ func (s *VolumeStore) Create(name, driverName string, opts, labels map[string]st
 // TODO(cpuguy83): With v2 plugins this shouldn't be a problem. Could also potentially
 // use a connect timeout for this kind of check to ensure we aren't blocking for a
 // long time.
-func (s *VolumeStore) checkConflict(name, driverName string) (volume.Volume, error) {
+func (s *VolumeStore) checkConflict(name, driverName string, found ...func(v volume.Volume) error) (volume.Volume, error) {
 	// check the local cache
 	v, _ := s.getNamed(name)
 	if v == nil {
@@ -337,6 +357,11 @@ func (s *VolumeStore) checkConflict(name, driverName string) (volume.Volume, err
 		if conflict {
 			return nil, errors.Wrapf(errNameConflict, "driver '%s' already has volume '%s'", vDriverName, name)
 		}
+		for _, f := range found {
+			if err := f(v); err != nil {
+				return v, err
+			}
+		}
 		return v, nil
 	}
 
@@ -367,7 +392,8 @@ func volumeExists(v volume.Volume) (bool, error) {
 //  for the given volume name, an error is returned after checking if the reference is stale.
 // If the reference is stale, it will be purged and this create can continue.
 // It is expected that callers of this function hold any necessary locks.
-func (s *VolumeStore) create(name, driverName string, opts, labels map[string]string) (volume.Volume, error) {
+// found is the functional options that is called when an existing volume has been found
+func (s *VolumeStore) create(name, driverName string, opts, labels map[string]string, found ...func(v volume.Volume) error) (volume.Volume, error) {
 	// Validate the name in a platform-specific manner
 	valid, err := volume.IsVolumeNameValid(name)
 	if err != nil {
@@ -377,19 +403,20 @@ func (s *VolumeStore) create(name, driverName string, opts, labels map[string]st
 		return nil, &OpErr{Err: errInvalidName, Name: name, Op: "create"}
 	}
 
-	v, err := s.checkConflict(name, driverName)
+	v, err := s.checkConflict(name, driverName, found...)
 	if err != nil {
-		return nil, err
-	}
-
-	if v != nil {
-		return v, nil
+		return v, err
 	}
 
 	// Since there isn't a specified driver name, let's see if any of the existing drivers have this volume name
 	if driverName == "" {
 		v, _ := s.getVolume(name)
 		if v != nil {
+			for _, f := range found {
+				if err := f(v); err != nil {
+					return v, err
+				}
+			}
 			return v, nil
 		}
 	}

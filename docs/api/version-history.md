@@ -26,6 +26,7 @@ keywords: "API, Docker, rcli, REST, documentation"
   the daemon. This endpoint is experimental and only available if the daemon is started with experimental features
   enabled.
 * `GET /images/(name)/get` now includes an `ImageMetadata` field which contains image metadata that is local to the engine and not part of the image config.
+* `POST /volumes/create` now returns `StatusNotModified` if a volume with the same name has already been created with the same driver and same options for API version >= v1.31. An error is returned if a volume with the same name has already been created with the different driver or different options for API version >= v1.31. For API version < v1.31, the API will still return success for backward-compatibility.
 
 ## v1.30 API changes
 
