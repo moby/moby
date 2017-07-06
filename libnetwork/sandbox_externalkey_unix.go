@@ -52,7 +52,6 @@ func processSetKeyReexec() {
 	controllerID := os.Args[2]
 
 	err = SetExternalKey(controllerID, containerID, fmt.Sprintf("/proc/%d/ns/net", state.Pid))
-	return
 }
 
 // SetExternalKey provides a convenient way to set an External key to a sandbox

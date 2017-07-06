@@ -1,4 +1,4 @@
-.PHONY: all all-local build build-local clean cross cross-local vet lint misspell check check-code check-format run-tests integration-tests check-local coveralls circle-ci-cross circle-ci-build circle-ci-check circle-ci
+.PHONY: all all-local build build-local clean cross cross-local gosimple vet lint misspell check check-code check-format run-tests integration-tests check-local coveralls circle-ci-cross circle-ci-build circle-ci-check circle-ci
 SHELL=/bin/bash
 build_image=libnetworkbuild
 dockerargs = --privileged -v $(shell pwd):/go/src/github.com/docker/libnetwork -w /go/src/github.com/docker/libnetwork
@@ -64,7 +64,7 @@ cross-local:
 check: ${build_image}.created
 	@${docker} ./wrapmake.sh check-local
 
-check-code: lint vet ineffassign
+check-code: lint gosimple vet ineffassign
 
 check-format: fmt misspell
 
@@ -152,6 +152,10 @@ lint: ## run go lint
 ineffassign: ## run ineffassign
 	@echo "🐳 $@"
 	@test -z "$$(ineffassign . | grep -v vendor/ | grep -v ".pb.go:" | grep -v ".mock.go" | tee /dev/stderr)"
+
+gosimple: ## run gosimple
+	@echo "🐳 $@"
+	@test -z "$$(gosimple . | grep -v vendor/ | grep -v ".pb.go:" | grep -v ".mock.go" | tee /dev/stderr)"
 
 # CircleCI's Docker fails when cleaning up using the --rm flag
 # The following targets are a workaround for this
