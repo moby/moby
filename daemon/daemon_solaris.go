@@ -143,6 +143,7 @@ func UsingSystemd(config *Config) bool {
 // verifyPlatformContainerSettings performs platform-specific validation of the
 // hostconfig and config structures.
 func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool) ([]string, error) {
+	fixMemorySwappiness(resources)
 	warnings := []string{}
 	sysInfo := sysinfo.New(true)
 	// NOTE: We do not enforce a minimum value for swap limits for zones on Solaris and
@@ -163,7 +164,7 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 	}
 	// Solaris NOTE: We allow and encourage setting the swap without setting the memory limit.
 
-	if hostConfig.MemorySwappiness != nil && *hostConfig.MemorySwappiness != -1 && !sysInfo.MemorySwappiness {
+	if hostConfig.MemorySwappiness != nil && !sysInfo.MemorySwappiness {
 		warnings = append(warnings, "Your kernel does not support memory swappiness capabilities, memory swappiness discarded.")
 		logrus.Warnf("Your kernel does not support memory swappiness capabilities, memory swappiness discarded.")
 		hostConfig.MemorySwappiness = nil

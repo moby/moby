@@ -1243,3 +1243,11 @@ func (daemon *Daemon) checkpointAndSave(container *container.Container) error {
 	}
 	return nil
 }
+
+// because the CLI sends a -1 when it wants to unset the swappiness value
+// we need to clear it on the server side
+func fixMemorySwappiness(resources *containertypes.Resources) {
+	if resources.MemorySwappiness != nil && *resources.MemorySwappiness == -1 {
+		resources.MemorySwappiness = nil
+	}
+}

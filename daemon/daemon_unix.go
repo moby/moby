@@ -282,10 +282,6 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 		return err
 	}
 	hostConfig.SecurityOpt = append(hostConfig.SecurityOpt, opts...)
-	if hostConfig.MemorySwappiness == nil {
-		defaultSwappiness := int64(-1)
-		hostConfig.MemorySwappiness = &defaultSwappiness
-	}
 	if hostConfig.OomKillDisable == nil {
 		defaultOomKillDisable := false
 		hostConfig.OomKillDisable = &defaultOomKillDisable
@@ -296,6 +292,7 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 
 func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysinfo.SysInfo, update bool) ([]string, error) {
 	warnings := []string{}
+	fixMemorySwappiness(resources)
 
 	// memory subsystem checks and adjustments
 	if resources.Memory != 0 && resources.Memory < linuxMinMemory {
@@ -318,14 +315,14 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 	if resources.Memory == 0 && resources.MemorySwap > 0 && !update {
 		return warnings, fmt.Errorf("You should always set the Memory limit when using Memoryswap limit, see usage")
 	}
-	if resources.MemorySwappiness != nil && *resources.MemorySwappiness != -1 && !sysInfo.MemorySwappiness {
+	if resources.MemorySwappiness != nil && !sysInfo.MemorySwappiness {
 		warnings = append(warnings, "Your kernel does not support memory swappiness capabilities or the cgroup is not mounted. Memory swappiness discarded.")
 		logrus.Warn("Your kernel does not support memory swappiness capabilities, or the cgroup is not mounted. Memory swappiness discarded.")
 		resources.MemorySwappiness = nil
 	}
 	if resources.MemorySwappiness != nil {
 		swappiness := *resources.MemorySwappiness
-		if swappiness < -1 || swappiness > 100 {
+		if swappiness < 0 || swappiness > 100 {
 			return warnings, fmt.Errorf("Invalid value: %v, valid memory swappiness range is 0-100", swappiness)
 		}
 	}

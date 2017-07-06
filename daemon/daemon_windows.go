@@ -100,7 +100,7 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 
 func verifyContainerResources(resources *containertypes.Resources, isHyperv bool) ([]string, error) {
 	warnings := []string{}
-
+	fixMemorySwappiness(resources)
 	if !isHyperv {
 		// The processor resource controls are mutually exclusive on
 		// Windows Server Containers, the order of precedence is
@@ -197,7 +197,7 @@ func verifyContainerResources(resources *containertypes.Resources, isHyperv bool
 	if resources.MemorySwap != 0 {
 		return warnings, fmt.Errorf("invalid option: Windows does not support MemorySwap")
 	}
-	if resources.MemorySwappiness != nil && *resources.MemorySwappiness != -1 {
+	if resources.MemorySwappiness != nil {
 		return warnings, fmt.Errorf("invalid option: Windows does not support MemorySwappiness")
 	}
 	if resources.OomKillDisable != nil && *resources.OomKillDisable {

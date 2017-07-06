@@ -1448,7 +1448,7 @@ func (s *DockerSuite) TestPostContainersCreateMemorySwappinessHostConfigOmitted(
 	var containerJSON types.ContainerJSON
 	c.Assert(json.Unmarshal(body, &containerJSON), check.IsNil)
 
-	c.Assert(*containerJSON.HostConfig.MemorySwappiness, check.Equals, int64(-1))
+	c.Assert(containerJSON.HostConfig.MemorySwappiness, check.IsNil)
 }
 
 // check validation is done daemon side and not only in cli
