@@ -823,6 +823,11 @@ func stepLeader(r *raft, m pb.Message) {
 		return
 	case pb.MsgReadIndex:
 		if r.quorum() > 1 {
+			if r.raftLog.zeroTermOnErrCompacted(r.raftLog.term(r.raftLog.committed)) != r.Term {
+				// Reject read only request when this leader has not committed any log entry at its term.
+				return
+			}
+
 			// thinking: use an interally defined context instead of the user given context.
 			// We can express this in terms of the term and index instead of a user-supplied value.
 			// This would allow multiple reads to piggyback on the same message.
