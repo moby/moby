@@ -28,6 +28,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `GET /images/(name)/get` now includes an `ImageMetadata` field which contains image metadata that is local to the engine and not part of the image config.
 * `POST /swarm/init` now accepts a `DataPathAddr` property to set the IP-address or network interface to use for data traffic
 * `POST /swarm/join` now accepts a `DataPathAddr` property to set the IP-address or network interface to use for data traffic
+* `POST /services/create` now accepts a `PluginSpec` when `TaskTemplate.Runtime` is set to `plugin`
 
 ## v1.30 API changes
 

@@ -253,6 +253,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		Root:                   cli.Config.Root,
 		Name:                   name,
 		Backend:                d,
+		PluginBackend:          d.PluginManager(),
 		NetworkSubnetsProvider: d,
 		DefaultAdvertiseAddr:   cli.Config.SwarmDefaultAdvertiseAddr,
 		RuntimeRoot:            cli.getSwarmRunRoot(),

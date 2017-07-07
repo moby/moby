@@ -560,7 +560,7 @@ func simpleTestService(s *swarm.Service) {
 
 	s.Spec = swarm.ServiceSpec{
 		TaskTemplate: swarm.TaskSpec{
-			ContainerSpec: swarm.ContainerSpec{
+			ContainerSpec: &swarm.ContainerSpec{
 				Image:   "busybox:latest",
 				Command: []string{"/bin/top"},
 			},
@@ -583,7 +583,7 @@ func serviceForUpdate(s *swarm.Service) {
 
 	s.Spec = swarm.ServiceSpec{
 		TaskTemplate: swarm.TaskSpec{
-			ContainerSpec: swarm.ContainerSpec{
+			ContainerSpec: &swarm.ContainerSpec{
 				Image:   "busybox:latest",
 				Command: []string{"/bin/top"},
 			},
@@ -641,6 +641,9 @@ func setRollbackOrder(order string) daemon.ServiceConstructor {
 
 func setImage(image string) daemon.ServiceConstructor {
 	return func(s *swarm.Service) {
+		if s.Spec.TaskTemplate.ContainerSpec == nil {
+			s.Spec.TaskTemplate.ContainerSpec = &swarm.ContainerSpec{}
+		}
 		s.Spec.TaskTemplate.ContainerSpec.Image = image
 	}
 }
@@ -921,6 +924,9 @@ func (s *DockerSwarmSuite) TestAPISwarmHealthcheckNone(c *check.C) {
 
 	instances := 1
 	d.CreateService(c, simpleTestService, setInstances(instances), func(s *swarm.Service) {
+		if s.Spec.TaskTemplate.ContainerSpec == nil {
+			s.Spec.TaskTemplate.ContainerSpec = &swarm.ContainerSpec{}
+		}
 		s.Spec.TaskTemplate.ContainerSpec.Healthcheck = &container.HealthConfig{}
 		s.Spec.TaskTemplate.Networks = []swarm.NetworkAttachmentConfig{
 			{Target: "lb"},

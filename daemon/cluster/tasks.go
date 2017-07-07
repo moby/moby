@@ -19,7 +19,7 @@ func (c *Cluster) GetTasks(options apitypes.TaskListOptions) ([]types.Task, erro
 		return nil, c.errNoManager(state)
 	}
 
-	byName := func(filter filters.Args) error {
+	filterTransform := func(filter filters.Args) error {
 		if filter.Include("service") {
 			serviceFilters := filter.Get("service")
 			for _, serviceFilter := range serviceFilters {
@@ -42,10 +42,15 @@ func (c *Cluster) GetTasks(options apitypes.TaskListOptions) ([]types.Task, erro
 				filter.Add("node", node.ID)
 			}
 		}
+		if !filter.Include("runtime") {
+			// default to only showing container tasks
+			filter.Add("runtime", "container")
+			filter.Add("runtime", "")
+		}
 		return nil
 	}
 
-	filters, err := newListTasksFilters(options.Filters, byName)
+	filters, err := newListTasksFilters(options.Filters, filterTransform)
 	if err != nil {
 		return nil, err
 	}
@@ -61,11 +66,12 @@ func (c *Cluster) GetTasks(options apitypes.TaskListOptions) ([]types.Task, erro
 	}
 
 	tasks := make([]types.Task, 0, len(r.Tasks))
-
 	for _, task := range r.Tasks {
-		if task.Spec.GetContainer() != nil {
-			tasks = append(tasks, convert.TaskFromGRPC(*task))
+		t, err := convert.TaskFromGRPC(*task)
+		if err != nil {
+			return nil, err
 		}
+		tasks = append(tasks, t)
 	}
 	return tasks, nil
 }
@@ -83,5 +89,5 @@ func (c *Cluster) GetTask(input string) (types.Task, error) {
 	}); err != nil {
 		return types.Task{}, err
 	}
-	return convert.TaskFromGRPC(*task), nil
+	return convert.TaskFromGRPC(*task)
 }

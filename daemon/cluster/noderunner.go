@@ -118,7 +118,7 @@ func (n *nodeRunner) start(conf nodeStartConfig) error {
 		JoinAddr:           joinAddr,
 		StateDir:           n.cluster.root,
 		JoinToken:          conf.joinToken,
-		Executor:           container.NewExecutor(n.cluster.config.Backend),
+		Executor:           container.NewExecutor(n.cluster.config.Backend, n.cluster.config.PluginBackend),
 		HeartbeatTick:      1,
 		ElectionTick:       3,
 		UnlockKey:          conf.lockKey,
