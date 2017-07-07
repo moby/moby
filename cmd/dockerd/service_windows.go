@@ -13,8 +13,8 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/system"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/svc"

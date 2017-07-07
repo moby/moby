@@ -8,8 +8,8 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
+	"github.com/sirupsen/logrus"
 )
 
 const (

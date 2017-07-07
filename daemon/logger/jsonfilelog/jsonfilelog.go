@@ -11,12 +11,12 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/docker/pkg/jsonlog"
 	"github.com/docker/go-units"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 // Name is the name of the file that the jsonlogger logs to.

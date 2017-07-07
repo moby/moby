@@ -15,11 +15,11 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/volume"
+	"github.com/sirupsen/logrus"
 )
 
 // VolumeDataPathName is the name of the directory where the volume data is stored.

@@ -19,8 +19,8 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/logger"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/windows"
 )
 

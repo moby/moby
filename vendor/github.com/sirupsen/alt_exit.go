@@ -1,7 +1,7 @@
 package logrus
 
 // The following code was sourced and modified from the
-// https://bitbucket.org/tebeka/atexit package governed by the following license:
+// https://github.com/tebeka/atexit package governed by the following license:
 //
 // Copyright (c) 2012 Miki Tebeka <miki.tebeka@gmail.com>.
 //

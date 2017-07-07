@@ -1,8 +1,8 @@
 package daemon
 
 import (
-	"github.com/Sirupsen/logrus"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
+	"github.com/sirupsen/logrus"
 )
 
 // SetContainerConfigReferences sets the container config references needed

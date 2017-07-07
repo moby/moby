@@ -5,12 +5,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/pkg/registrar"
 	"github.com/docker/go-connections/nat"
 	"github.com/hashicorp/go-memdb"
+	"github.com/sirupsen/logrus"
 )
 
 const (

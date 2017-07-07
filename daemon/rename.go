@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	dockercontainer "github.com/docker/docker/container"
 	"github.com/docker/libnetwork"
+	"github.com/sirupsen/logrus"
 )
 
 // ContainerRename changes the name of a container, using the oldName
