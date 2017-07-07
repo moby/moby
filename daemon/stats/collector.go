@@ -88,24 +88,25 @@ func (s *Collector) Run() {
 
 		for _, pair := range pairs {
 			stats, err := s.supervisor.GetContainerStats(pair.container)
-			if err != nil {
-				if _, ok := err.(notRunningErr); !ok {
-					logrus.Errorf("collecting stats for %s: %v", pair.container.ID, err)
-					continue
-				}
 
-				// publish empty stats containing only name and ID if not running
+			switch err.(type) {
+			case nil:
+				// FIXME: move to containerd on Linux (not Windows)
+				stats.CPUStats.SystemUsage = systemUsage
+				stats.CPUStats.OnlineCPUs = onlineCPUs
+
+				pair.publisher.Publish(*stats)
+
+			case notRunningErr, notFoundErr:
+				// publish empty stats containing only name and ID if not running or not found
 				pair.publisher.Publish(types.StatsJSON{
 					Name: pair.container.Name,
 					ID:   pair.container.ID,
 				})
-				continue
-			}
-			// FIXME: move to containerd on Linux (not Windows)
-			stats.CPUStats.SystemUsage = systemUsage
-			stats.CPUStats.OnlineCPUs = onlineCPUs
 
-			pair.publisher.Publish(*stats)
+			default:
+				logrus.Errorf("collecting stats for %s: %v", pair.container.ID, err)
+			}
 		}
 	}
 }
@@ -113,4 +114,9 @@ func (s *Collector) Run() {
 type notRunningErr interface {
 	error
 	ContainerIsRunning() bool
+}
+
+type notFoundErr interface {
+	error
+	ContainerNotFound() bool
 }

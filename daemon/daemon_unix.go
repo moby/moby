@@ -1165,6 +1165,9 @@ func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
 	}
 	stats, err := daemon.containerd.Stats(c.ID)
 	if err != nil {
+		if strings.Contains(err.Error(), "container not found") {
+			return nil, errNotFound{c.ID}
+		}
 		return nil, err
 	}
 	s := &types.StatsJSON{}
