@@ -89,7 +89,7 @@ func (l *JSONFileLogger) readLogs(logWatcher *logger.LogWatcher, config logger.R
 	}
 
 	if config.Tail != 0 {
-		tailer := ioutils.MultiReadSeeker(append(files, latestFile)...)
+		tailer := ioutils.MultiReadSeeker(append(files, latestChunk)...)
 		tailFile(tailer, logWatcher, config.Tail, config.Since)
 	}
 
