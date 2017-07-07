@@ -6,7 +6,11 @@ import (
 	"net"
 
 	"github.com/Microsoft/hcsshim"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/libnetwork/driverapi"
+	"github.com/docker/libnetwork/drivers/windows"
+	"github.com/docker/libnetwork/netlabel"
+	"github.com/docker/libnetwork/types"
 	"github.com/sirupsen/logrus"
 )
 
@@ -15,12 +19,14 @@ type endpointTable map[string]*endpoint
 const overlayEndpointPrefix = "overlay/endpoint"
 
 type endpoint struct {
-	id        string
-	nid       string
-	profileId string
-	remote    bool
-	mac       net.HardwareAddr
-	addr      *net.IPNet
+	id             string
+	nid            string
+	profileId      string
+	remote         bool
+	mac            net.HardwareAddr
+	addr           *net.IPNet
+	disablegateway bool
+	portMapping    []types.PortBinding // Operation port bindings
 }
 
 func validateID(nid, eid string) error {
@@ -113,7 +119,8 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 		return fmt.Errorf("create endpoint was not passed interface IP address")
 	}
 
-	if s := n.getSubnetforIP(ep.addr); s == nil {
+	s := n.getSubnetforIP(ep.addr)
+	if s == nil {
 		return fmt.Errorf("no matching subnet for IP %q in network %q\n", ep.addr, nid)
 	}
 
@@ -124,6 +131,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 		VirtualNetwork:    n.hnsId,
 		IPAddress:         ep.addr.IP,
 		EnableInternalDNS: true,
+		GatewayAddress:    s.gwIP.String(),
 	}
 
 	if ep.mac != nil {
@@ -140,6 +148,33 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	}
 
 	hnsEndpoint.Policies = append(hnsEndpoint.Policies, paPolicy)
+
+	if system.GetOSVersion().Build > 16236 {
+		natPolicy, err := json.Marshal(hcsshim.PaPolicy{
+			Type: "OutBoundNAT",
+		})
+
+		if err != nil {
+			return err
+		}
+
+		hnsEndpoint.Policies = append(hnsEndpoint.Policies, natPolicy)
+
+		epConnectivity, err := windows.ParseEndpointConnectivity(epOptions)
+
+		if err != nil {
+			return err
+		}
+
+		pbPolicy, err := windows.ConvertPortBindings(epConnectivity.PortBindings)
+
+		if err != nil {
+			return err
+		}
+		hnsEndpoint.Policies = append(hnsEndpoint.Policies, pbPolicy...)
+
+		ep.disablegateway = true
+	}
 
 	configurationb, err := json.Marshal(hnsEndpoint)
 	if err != nil {
@@ -162,6 +197,12 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 		if err := ifInfo.SetMacAddress(ep.mac); err != nil {
 			return err
 		}
+	}
+
+	ep.portMapping, err = windows.ParsePortBindingPolicies(hnsresponse.Policies)
+	if err != nil {
+		hcsshim.HNSEndpointRequest("DELETE", hnsresponse.Id, "")
+		return err
 	}
 
 	n.addEndpoint(ep)
@@ -212,5 +253,15 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, erro
 	data := make(map[string]interface{}, 1)
 	data["hnsid"] = ep.profileId
 	data["AllowUnqualifiedDNSQuery"] = true
+
+	if ep.portMapping != nil {
+		// Return a copy of the operational data
+		pmc := make([]types.PortBinding, 0, len(ep.portMapping))
+		for _, pm := range ep.portMapping {
+			pmc = append(pmc, pm.GetCopy())
+		}
+		data[netlabel.PortMap] = pmc
+	}
+
 	return data, nil
 }

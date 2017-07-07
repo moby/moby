@@ -311,6 +311,7 @@ func (d *driver) createHnsNetwork(n *network) error {
 		Type:               d.Type(),
 		Subnets:            subnets,
 		NetworkAdapterName: n.interfaceName,
+		AutomaticDNS:       true,
 	}
 
 	configurationb, err := json.Marshal(network)

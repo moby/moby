@@ -396,7 +396,8 @@ func convertQosPolicies(qosPolicies []types.QosPolicy) ([]json.RawMessage, error
 	return qps, nil
 }
 
-func convertPortBindings(portBindings []types.PortBinding) ([]json.RawMessage, error) {
+// ConvertPortBindings converts PortBindings to JSON for HNS request
+func ConvertPortBindings(portBindings []types.PortBinding) ([]json.RawMessage, error) {
 	var pbs []json.RawMessage
 
 	// Enumerate through the port bindings specified by the user and convert
@@ -431,7 +432,8 @@ func convertPortBindings(portBindings []types.PortBinding) ([]json.RawMessage, e
 	return pbs, nil
 }
 
-func parsePortBindingPolicies(policies []json.RawMessage) ([]types.PortBinding, error) {
+// ParsePortBindingPolicies parses HNS endpoint response message to PortBindings
+func ParsePortBindingPolicies(policies []json.RawMessage) ([]types.PortBinding, error) {
 	var bindings []types.PortBinding
 	hcsPolicy := &hcsshim.NatPolicy{}
 
@@ -505,7 +507,8 @@ func parseEndpointOptions(epOptions map[string]interface{}) (*endpointOption, er
 	return ec, nil
 }
 
-func parseEndpointConnectivity(epOptions map[string]interface{}) (*endpointConnectivity, error) {
+// ParseEndpointConnectivity parses options passed to CreateEndpoint, specifically port bindings, and store in a endpointConnectivity object.
+func ParseEndpointConnectivity(epOptions map[string]interface{}) (*endpointConnectivity, error) {
 	if epOptions == nil {
 		return nil, nil
 	}
@@ -550,7 +553,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	if err != nil {
 		return err
 	}
-	epConnectivity, err := parseEndpointConnectivity(epOptions)
+	epConnectivity, err := ParseEndpointConnectivity(epOptions)
 	if err != nil {
 		return err
 	}
@@ -561,7 +564,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 		endpointStruct.MacAddress = strings.Replace(macAddress.String(), ":", "-", -1)
 	}
 
-	endpointStruct.Policies, err = convertPortBindings(epConnectivity.PortBindings)
+	endpointStruct.Policies, err = ConvertPortBindings(epConnectivity.PortBindings)
 	if err != nil {
 		return err
 	}
@@ -615,7 +618,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	endpoint.profileID = hnsresponse.Id
 	endpoint.epConnectivity = epConnectivity
 	endpoint.epOption = epOption
-	endpoint.portMapping, err = parsePortBindingPolicies(hnsresponse.Policies)
+	endpoint.portMapping, err = ParsePortBindingPolicies(hnsresponse.Policies)
 
 	if err != nil {
 		hcsshim.HNSEndpointRequest("DELETE", hnsresponse.Id, "")
