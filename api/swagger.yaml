@@ -2003,6 +2003,57 @@ definitions:
             description: "A list of additional groups that the container process will run as."
             items:
               type: "string"
+          Privileges:
+            type: "object"
+            description: "Security options for the container"
+            properties:
+              CredentialSpec:
+                type: "object"
+                description: "CredentialSpec for managed service account (Windows only)"
+                properties:
+                  File:
+                    type: "string"
+                    description: |
+                      Load credential spec from this file. The file is read by the daemon, and must be present in the
+                      `CredentialSpecs` subdirectory in the docker data directory, which defaults to
+                      `C:\ProgramData\Docker\` on Windows.
+
+                      For example, specifying `spec.json` loads `C:\ProgramData\Docker\CredentialSpecs\spec.json`.
+
+                      <p><br /></p>
+
+                      > **Note**: `CredentialSpec.File` and `CredentialSpec.Registry` are mutually exclusive.
+                  Registry:
+                    type: "string"
+                    description: |
+                      Load credential spec from this value in the Windows registry. The specified registry value must be
+                      located in:
+
+                      `HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Virtualization\Containers\CredentialSpecs`
+
+                      <p><br /></p>
+
+
+                      > **Note**: `CredentialSpec.File` and `CredentialSpec.Registry` are mutually exclusive.
+              SELinuxContext:
+                type: "object"
+                description: "SELinux labels of the container"
+                properties:
+                  Disable:
+                    type: "boolean"
+                    description: "Disable SELinux"
+                  User:
+                    type: "string"
+                    description: "SELinux user label"
+                  Role:
+                    type: "string"
+                    description: "SELinux role label"
+                  Type:
+                    type: "string"
+                    description: "SELinux type label"
+                  Level:
+                    type: "string"
+                    description: "SELinux level label"
           TTY:
             description: "Whether a pseudo-TTY should be allocated."
             type: "boolean"
