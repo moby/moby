@@ -45,7 +45,7 @@ set -e
 	fi
 
 	# Replace any other dashes with periods
-	rpmVersion="${rpmVersion/-/.}"
+	rpmVersion="${rpmVersion//-/.}"
 
 	rpmPackager="$(awk -F ': ' '$1 == "Packager" { print $2; exit }' hack/make/.build-rpm/${rpmName}.spec)"
 	rpmDate="$(date +'%a %b %d %Y')"
