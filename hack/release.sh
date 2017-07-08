@@ -295,18 +295,10 @@ EOF
 	fi
 }
 
-# Upload the index script
-release_index() {
-	echo "Releasing index"
-	url="$(s3_url)/" hack/make.sh install-script
-	write_to_s3 "s3://$BUCKET_PATH/index" < "bundles/$VERSION/install-script/install.sh"
-}
-
 main() {
 	[ "$SKIP_RELEASE_BUILD" = '1' ] || build_all
 	setup_s3
 	release_binaries
-	release_index
 }
 
 main
