@@ -2,6 +2,7 @@ package main
 
 import (
 	"strings"
+	"time"
 
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
@@ -64,4 +65,14 @@ func (s *DockerSuite) TestPauseFailsOnWindowsServerContainers(c *check.C) {
 	runSleepingContainer(c, "-d", "--name=test")
 	out, _, _ := dockerCmdWithError("pause", "test")
 	c.Assert(out, checker.Contains, "cannot pause Windows Server Containers")
+}
+
+func (s *DockerSuite) TestStopPausedContainer(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	id := runSleepingContainer(c)
+	cli.WaitRun(c, id)
+	cli.DockerCmd(c, "pause", id)
+	cli.DockerCmd(c, "stop", id)
+	cli.WaitForInspectResult(c, id, "{{.State.Running}}", "false", 30*time.Second)
 }

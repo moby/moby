@@ -60,15 +60,11 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, sig int)
 	container.Lock()
 	defer container.Unlock()
 
-	// We could unpause the container for them rather than returning this error
-	if container.Paused {
-		return fmt.Errorf("Container %s is paused. Unpause the container before stopping or killing", container.ID)
-	}
-
 	if !container.Running {
 		return errNotRunning{container.ID}
 	}
 
+	var unpause bool
 	if container.Config.StopSignal != "" && syscall.Signal(sig) != syscall.SIGKILL {
 		containerStopSignal, err := signal.ParseSignal(container.Config.StopSignal)
 		if err != nil {
@@ -76,9 +72,11 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, sig int)
 		}
 		if containerStopSignal == syscall.Signal(sig) {
 			container.ExitOnNext()
+			unpause = container.Paused
 		}
 	} else {
 		container.ExitOnNext()
+		unpause = container.Paused
 	}
 
 	if !daemon.IsShuttingDown() {
@@ -98,8 +96,16 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, sig int)
 		if strings.Contains(err.Error(), "container not found") ||
 			strings.Contains(err.Error(), "no such process") {
 			logrus.Warnf("container kill failed because of 'container not found' or 'no such process': %s", err.Error())
+			unpause = false
 		} else {
 			return err
+		}
+	}
+
+	if unpause {
+		// above kill signal will be sent once resume is finished
+		if err := daemon.containerd.Resume(container.ID); err != nil {
+			logrus.Warn("Cannot unpause container %s: %s", container.ID, err)
 		}
 	}
 
