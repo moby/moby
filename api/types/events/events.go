@@ -19,6 +19,8 @@ const (
 	NodeEventType = "node"
 	// SecretEventType is the event type that secrets generate
 	SecretEventType = "secret"
+	// ConfigEventType is the event type that configs generate
+	ConfigEventType = "config"
 )
 
 // Actor describes something that generates events,
