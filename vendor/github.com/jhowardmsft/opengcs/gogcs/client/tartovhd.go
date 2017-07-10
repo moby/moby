@@ -2,8 +2,6 @@
 
 package client
 
-// TODO @jhowardmsft - This will move to Microsoft/opengcs soon
-
 import (
 	"fmt"
 	"io"
@@ -26,7 +24,7 @@ func (config *Config) TarToVhd(targetVHDFile string, reader io.Reader) (int64, e
 	defer process.Process.Close()
 
 	// Send the tarstream into the `tar2vhd`s stdin
-	if _, err = copyWithTimeout(process.Stdin, reader, 0, config.UvmTimeoutSeconds, fmt.Sprintf("send %s, to stdin of tar2vhd", targetVHDFile)); err != nil {
+	if _, err = copyWithTimeout(process.Stdin, reader, 0, config.UvmTimeoutSeconds, fmt.Sprintf("stdin of tar2vhd for generating %s", targetVHDFile)); err != nil {
 		return 0, fmt.Errorf("opengcs: TarToVhd: %s: failed to send to tar2vhd in uvm: %s", targetVHDFile, err)
 	}
 
@@ -36,7 +34,7 @@ func (config *Config) TarToVhd(targetVHDFile string, reader io.Reader) (int64, e
 	}
 
 	// Write stdout contents of `tar2vhd` to the VHD file
-	payloadSize, err := writeFileFromReader(targetVHDFile, process.Stdout, config.UvmTimeoutSeconds, fmt.Sprintf("output of tar2vhd to %s", targetVHDFile))
+	payloadSize, err := writeFileFromReader(targetVHDFile, process.Stdout, config.UvmTimeoutSeconds, fmt.Sprintf("stdout of tar2vhd to %s", targetVHDFile))
 	if err != nil {
 		return 0, fmt.Errorf("opengcs: TarToVhd: %s: failed writing VHD file: %s", targetVHDFile, err)
 	}

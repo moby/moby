@@ -2,8 +2,6 @@
 
 package client
 
-// TODO @jhowardmsft - This will move to Microsoft/opengcs soon
-
 import (
 	"fmt"
 	"io"
@@ -72,10 +70,13 @@ func copyWithTimeout(dst io.Writer, src io.Reader, size int64, timeoutSeconds in
 	return result.bytes, nil
 }
 
-// copyFile is a utility for copying a file - used for the sandbox cache.
+// CopyFile is a utility for copying a file - used for the sandbox cache.
 // Uses CopyFileW win32 API for performance
-func copyFile(srcFile, destFile string) error {
+func CopyFile(srcFile, destFile string, overwrite bool) error {
 	var bFailIfExists uint32 = 1
+	if overwrite {
+		bFailIfExists = 0
+	}
 
 	lpExistingFileName, err := syscall.UTF16PtrFromString(srcFile)
 	if err != nil {
@@ -92,8 +93,7 @@ func copyFile(srcFile, destFile string) error {
 		uintptr(unsafe.Pointer(lpNewFileName)),
 		uintptr(bFailIfExists))
 	if r1 == 0 {
-		return fmt.Errorf("failed CopyFileW Win32 call from '%s' to %s: %s", srcFile, destFile, err)
+		return fmt.Errorf("failed CopyFileW Win32 call from '%s' to '%s': %s", srcFile, destFile, err)
 	}
 	return nil
-
 }

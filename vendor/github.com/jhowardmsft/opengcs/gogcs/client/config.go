@@ -2,8 +2,6 @@
 
 package client
 
-// TODO @jhowardmsft - This will move to Microsoft/opengcs soon
-
 import (
 	"encoding/json"
 	"fmt"
