@@ -2,6 +2,7 @@ package authorization // import "github.com/docker/docker/pkg/authorization"
 
 import (
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/docker/docker/pkg/plugingetter"
@@ -71,7 +72,36 @@ func (m *Middleware) WrapHandler(handler func(ctx context.Context, w http.Respon
 			userAuthNMethod = "TLS"
 		}
 
-		authCtx := NewCtx(plugins, user, userAuthNMethod, r.Method, r.RequestURI)
+		remoteAddr := r.RemoteAddr
+		if f := r.Header.Get("Forwarded"); len(f) > 0 {
+			var sep string
+			if strings.Contains(f, ",") {
+				sep = ","
+			}
+			if strings.Contains(f, ";") {
+				sep = ";"
+			}
+
+			var fvs []string
+			if len(sep) == 0 {
+				fvs = append(fvs, f)
+			} else {
+				fvs = strings.Split(f, sep)
+			}
+
+			for _, fv := range fvs {
+				kv := strings.SplitN(strings.TrimSpace(fv), "=", 1)
+				if len(kv) > 0 && kv[0] == "for" {
+					remoteAddr = kv[1]
+					break
+				}
+			}
+		}
+		if xff := r.Header.Get("X-Forwarded-For"); len(xff) > 0 {
+			remoteAddr = xff
+		}
+
+		authCtx := NewCtx(plugins, user, userAuthNMethod, r.Method, r.RequestURI, remoteAddr)
 
 		if err := authCtx.AuthZRequest(w, r); err != nil {
 			logrus.Errorf("AuthZRequest for %s %s returned error: %s", r.Method, r.RequestURI, err)

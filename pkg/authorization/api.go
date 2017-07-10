@@ -65,6 +65,11 @@ type Request struct {
 	// RequestPeerCertificates stores the request's TLS peer certificates in PEM format
 	RequestPeerCertificates []*PeerCertificate `json:"RequestPeerCertificates,omitempty"`
 
+	// RequestAddr stores the network address that sent the request
+	// There's many cases where the remote address may not be the actual
+	// remote address (e.g., proxy being used, or classic swarm, or the unix-socket being used)
+	RequestAddr string `json:"RequestAddr,omitempty"`
+
 	// ResponseStatusCode stores the status code returned from docker daemon
 	ResponseStatusCode int `json:"ResponseStatusCode,omitempty"`
 

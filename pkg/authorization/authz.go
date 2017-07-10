@@ -31,13 +31,14 @@ const maxBodySize = 1048576 // 1MB
 // If multiple authZ plugins are specified, the block/allow decision is based on ANDing all plugin results
 // For response manipulation, the response from each plugin is piped between plugins. Plugin execution order
 // is determined according to daemon parameters
-func NewCtx(authZPlugins []Plugin, user, userAuthNMethod, requestMethod, requestURI string) *Ctx {
+func NewCtx(authZPlugins []Plugin, user, userAuthNMethod, requestMethod, requestURI, remoteAddr string) *Ctx {
 	return &Ctx{
 		plugins:         authZPlugins,
 		user:            user,
 		userAuthNMethod: userAuthNMethod,
 		requestMethod:   requestMethod,
 		requestURI:      requestURI,
+		remoteAddr:      remoteAddr,
 	}
 }
 
@@ -47,6 +48,7 @@ type Ctx struct {
 	userAuthNMethod string
 	requestMethod   string
 	requestURI      string
+	remoteAddr      string
 	plugins         []Plugin
 	// authReq stores the cached request object for the current transaction
 	authReq *Request
@@ -73,6 +75,7 @@ func (ctx *Ctx) AuthZRequest(w http.ResponseWriter, r *http.Request) error {
 		UserAuthNMethod: ctx.userAuthNMethod,
 		RequestMethod:   ctx.requestMethod,
 		RequestURI:      ctx.requestURI,
+		RemoteAddr:      ctx.remoteAddr,
 		RequestBody:     body,
 		RequestHeaders:  headers(r.Header),
 	}
