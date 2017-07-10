@@ -114,7 +114,7 @@ func TestNames(t *testing.T) {
 	assert.EqualError(t, db.ReserveName("name2", "containerid3"), ErrNameReserved.Error())
 
 	// Releasing a name allows the name to point to something else later.
-	db.ReleaseName("name2")
+	assert.NoError(t, db.ReleaseName("name2"))
 	assert.NoError(t, db.ReserveName("name2", "containerid3"))
 
 	view := db.Snapshot()
@@ -131,7 +131,7 @@ func TestNames(t *testing.T) {
 	assert.EqualError(t, err, ErrNameNotReserved.Error())
 
 	// Releasing and re-reserving a name doesn't affect the snapshot.
-	db.ReleaseName("name2")
+	assert.NoError(t, db.ReleaseName("name2"))
 	assert.NoError(t, db.ReserveName("name2", "containerid4"))
 
 	id, err = view.GetID("name1")
