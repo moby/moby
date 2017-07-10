@@ -139,31 +139,40 @@ func (db *memDB) Snapshot() View {
 	}
 }
 
-// Save atomically updates the in-memory store state for a Container.
-// Only read only (deep) copies of containers may be passed in.
-func (db *memDB) Save(c *Container) error {
+func (db *memDB) withTxn(cb func(*memdb.Txn) error) error {
 	txn := db.store.Txn(true)
-	defer txn.Commit()
-	return txn.Insert(memdbContainersTable, c)
-}
-
-// Delete removes an item by ID
-func (db *memDB) Delete(c *Container) error {
-	txn := db.store.Txn(true)
-
-	view := &memdbView{txn: txn}
-	names := view.getNames(c.ID)
-
-	for _, name := range names {
-		txn.Delete(memdbNamesTable, nameAssociation{name: name})
-	}
-
-	if err := txn.Delete(memdbContainersTable, NewBaseContainer(c.ID, c.Root)); err != nil {
+	err := cb(txn)
+	if err != nil {
 		txn.Abort()
 		return err
 	}
 	txn.Commit()
 	return nil
+}
+
+// Save atomically updates the in-memory store state for a Container.
+// Only read only (deep) copies of containers may be passed in.
+func (db *memDB) Save(c *Container) error {
+	return db.withTxn(func(txn *memdb.Txn) error {
+		return txn.Insert(memdbContainersTable, c)
+	})
+}
+
+// Delete removes an item by ID
+func (db *memDB) Delete(c *Container) error {
+	return db.withTxn(func(txn *memdb.Txn) error {
+		view := &memdbView{txn: txn}
+		names := view.getNames(c.ID)
+
+		for _, name := range names {
+			txn.Delete(memdbNamesTable, nameAssociation{name: name})
+		}
+
+		if err := txn.Delete(memdbContainersTable, NewBaseContainer(c.ID, c.Root)); err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
 // ReserveName registers a container ID to a name
@@ -171,39 +180,34 @@ func (db *memDB) Delete(c *Container) error {
 // Attempting to reserve a container ID to a name that already exists results in an `ErrNameReserved`
 // A name reservation is globally unique
 func (db *memDB) ReserveName(name, containerID string) error {
-	txn := db.store.Txn(true)
+	return db.withTxn(func(txn *memdb.Txn) error {
+		s, err := txn.First(memdbNamesTable, memdbIDIndex, name)
+		if err != nil {
+			return err
+		}
+		if s != nil {
+			if s.(nameAssociation).containerID != containerID {
+				return ErrNameReserved
+			}
+			return nil
+		}
 
-	s, err := txn.First(memdbNamesTable, memdbIDIndex, name)
-	if err != nil {
-		txn.Abort()
-		return err
-	}
-	if s != nil {
-		txn.Abort()
-		if s.(nameAssociation).containerID != containerID {
-			return ErrNameReserved
+		if err := txn.Insert(memdbNamesTable, nameAssociation{name: name, containerID: containerID}); err != nil {
+			return err
 		}
 		return nil
-	}
-
-	if err := txn.Insert(memdbNamesTable, nameAssociation{name: name, containerID: containerID}); err != nil {
-		txn.Abort()
-		return err
-	}
-	txn.Commit()
-	return nil
+	})
 }
 
 // ReleaseName releases the reserved name
 // Once released, a name can be reserved again
 func (db *memDB) ReleaseName(name string) error {
-	txn := db.store.Txn(true)
-	if err := txn.Delete(memdbNamesTable, nameAssociation{name: name}); err != nil {
-		txn.Abort()
-		return err
-	}
-	txn.Commit()
-	return nil
+	return db.withTxn(func(txn *memdb.Txn) error {
+		if err := txn.Delete(memdbNamesTable, nameAssociation{name: name}); err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
 type memdbView struct {
