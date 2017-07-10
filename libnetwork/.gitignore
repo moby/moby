@@ -37,3 +37,4 @@ cmd/dnet/dnet
 .settings/
 
 libnetworkbuild.created
+test/networkDb/testMain
