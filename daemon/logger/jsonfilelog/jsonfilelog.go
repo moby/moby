@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"strconv"
 	"sync"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/docker/pkg/jsonlog"
 	"github.com/docker/go-units"
+	"github.com/pkg/errors"
 )
 
 // Name is the name of the file that the jsonlogger logs to.
@@ -22,11 +24,13 @@ const Name = "json-file"
 
 // JSONFileLogger is Logger implementation for default Docker logging.
 type JSONFileLogger struct {
-	buf     *bytes.Buffer
+	extra []byte // json-encoded extra attributes
+
+	mu      sync.RWMutex
+	buf     *bytes.Buffer // avoids allocating a new buffer on each call to `Log()`
+	closed  bool
 	writer  *loggerutils.RotateFileWriter
-	mu      sync.Mutex
 	readers map[*logger.LogWatcher]struct{} // stores the active log followers
-	extra   []byte                          // json-encoded extra attributes
 }
 
 func init() {
@@ -85,32 +89,43 @@ func New(ctx logger.Context) (logger.Logger, error) {
 
 // Log converts logger.Message to jsonlog.JSONLog and serializes it to file.
 func (l *JSONFileLogger) Log(msg *logger.Message) error {
+	l.mu.Lock()
+	err := writeMessageBuf(l.writer, msg, l.extra, l.buf)
+	l.buf.Reset()
+	l.mu.Unlock()
+	return err
+}
+
+func writeMessageBuf(w io.Writer, m *logger.Message, extra json.RawMessage, buf *bytes.Buffer) error {
+	if err := marshalMessage(m, extra, buf); err != nil {
+		return err
+	}
+	if _, err := w.Write(buf.Bytes()); err != nil {
+		return errors.Wrap(err, "error writing log entry")
+	}
+	return nil
+}
+
+func marshalMessage(msg *logger.Message, extra json.RawMessage, buf *bytes.Buffer) error {
 	timestamp, err := jsonlog.FastTimeMarshalJSON(msg.Timestamp)
 	if err != nil {
 		return err
 	}
-	l.mu.Lock()
-	logline := msg.Line
+	logLine := msg.Line
 	if !msg.Partial {
-		logline = append(msg.Line, '\n')
+		logLine = append(msg.Line, '\n')
 	}
 	err = (&jsonlog.JSONLogs{
-		Log:      logline,
+		Log:      logLine,
 		Stream:   msg.Source,
 		Created:  timestamp,
-		RawAttrs: l.extra,
-	}).MarshalJSONBuf(l.buf)
+		RawAttrs: extra,
+	}).MarshalJSONBuf(buf)
 	if err != nil {
-		l.mu.Unlock()
-		return err
+		return errors.Wrap(err, "error writing log message to buffer")
 	}
-
-	l.buf.WriteByte('\n')
-	_, err = l.writer.Write(l.buf.Bytes())
-	l.buf.Reset()
-	l.mu.Unlock()
-
-	return err
+	err = buf.WriteByte('\n')
+	return errors.Wrap(err, "error finalizing log buffer")
 }
 
 // ValidateLogOpt looks for json specific log options max-file & max-size.
