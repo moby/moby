@@ -66,7 +66,7 @@ type ViewDB interface {
 	Delete(*Container) error
 
 	ReserveName(name, containerID string) error
-	ReleaseName(name string)
+	ReleaseName(name string) error
 }
 
 // View can be used by readers to avoid locking
@@ -150,28 +150,20 @@ func (db *memDB) Save(c *Container) error {
 // Delete removes an item by ID
 func (db *memDB) Delete(c *Container) error {
 	txn := db.store.Txn(true)
-	defer txn.Commit()
 
-	// Delete any names referencing this container's ID.
-	iter, err := txn.Get(memdbNamesTable, memdbContainerIDIndex, c.ID)
-	if err != nil {
-		return err
-	}
-
-	var names []string
-	for {
-		item := iter.Next()
-		if item == nil {
-			break
-		}
-		names = append(names, item.(nameAssociation).name)
-	}
+	view := &memdbView{txn: txn}
+	names := view.getNames(c.ID)
 
 	for _, name := range names {
 		txn.Delete(memdbNamesTable, nameAssociation{name: name})
 	}
 
-	return txn.Delete(memdbContainersTable, NewBaseContainer(c.ID, c.Root))
+	if err := txn.Delete(memdbContainersTable, NewBaseContainer(c.ID, c.Root)); err != nil {
+		txn.Abort()
+		return err
+	}
+	txn.Commit()
+	return nil
 }
 
 // ReserveName registers a container ID to a name
@@ -180,29 +172,38 @@ func (db *memDB) Delete(c *Container) error {
 // A name reservation is globally unique
 func (db *memDB) ReserveName(name, containerID string) error {
 	txn := db.store.Txn(true)
-	defer txn.Commit()
 
 	s, err := txn.First(memdbNamesTable, memdbIDIndex, name)
 	if err != nil {
+		txn.Abort()
 		return err
 	}
 	if s != nil {
+		txn.Abort()
 		if s.(nameAssociation).containerID != containerID {
 			return ErrNameReserved
 		}
 		return nil
 	}
 
-	txn.Insert(memdbNamesTable, nameAssociation{name: name, containerID: containerID})
+	if err := txn.Insert(memdbNamesTable, nameAssociation{name: name, containerID: containerID}); err != nil {
+		txn.Abort()
+		return err
+	}
+	txn.Commit()
 	return nil
 }
 
 // ReleaseName releases the reserved name
 // Once released, a name can be reserved again
-func (db *memDB) ReleaseName(name string) {
+func (db *memDB) ReleaseName(name string) error {
 	txn := db.store.Txn(true)
-	txn.Delete(memdbNamesTable, nameAssociation{name: name})
+	if err := txn.Delete(memdbNamesTable, nameAssociation{name: name}); err != nil {
+		txn.Abort()
+		return err
+	}
 	txn.Commit()
+	return nil
 }
 
 type memdbView struct {
