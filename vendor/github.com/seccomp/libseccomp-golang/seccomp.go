@@ -27,6 +27,28 @@ import "C"
 
 // Exported types
 
+// VersionError denotes that the system libseccomp version is incompatible
+// with this package.
+type VersionError struct {
+	message string
+	minimum string
+}
+
+func (e VersionError) Error() string {
+	format := "Libseccomp version too low: "
+	if e.message != "" {
+		format += e.message + ": "
+	}
+	format += "minimum supported is "
+	if e.minimum != "" {
+		format += e.minimum + ": "
+	} else {
+		format += "2.2.0: "
+	}
+	format += "detected %d.%d.%d"
+	return fmt.Sprintf(format, verMajor, verMinor, verMicro)
+}
+
 // ScmpArch represents a CPU architecture. Seccomp can restrict syscalls on a
 // per-architecture basis.
 type ScmpArch uint
@@ -54,8 +76,8 @@ type ScmpSyscall int32
 
 const (
 	// Valid architectures recognized by libseccomp
-	// ARM64 and all MIPS architectures are unsupported by versions of the
-	// library before v2.2 and will return errors if used
+	// PowerPC and S390(x) architectures are unavailable below library version
+	// v2.3.0 and will returns errors if used with incompatible libraries
 
 	// ArchInvalid is a placeholder to ensure uninitialized ScmpArch
 	// variables are invalid
@@ -151,6 +173,10 @@ const (
 // GetArchFromString returns an ScmpArch constant from a string representing an
 // architecture
 func GetArchFromString(arch string) (ScmpArch, error) {
+	if err := ensureSupportedVersion(); err != nil {
+		return ArchInvalid, err
+	}
+
 	switch strings.ToLower(arch) {
 	case "x86":
 		return ArchX86, nil
@@ -298,7 +324,7 @@ func (a ScmpAction) GetReturnCode() int16 {
 // GetLibraryVersion returns the version of the library the bindings are built
 // against.
 // The version is formatted as follows: Major.Minor.Micro
-func GetLibraryVersion() (major, minor, micro int) {
+func GetLibraryVersion() (major, minor, micro uint) {
 	return verMajor, verMinor, verMicro
 }
 
@@ -338,6 +364,10 @@ func (s ScmpSyscall) GetNameByArch(arch ScmpArch) (string, error) {
 // Returns the number of the syscall, or an error if no syscall with that name
 // was found.
 func GetSyscallFromName(name string) (ScmpSyscall, error) {
+	if err := ensureSupportedVersion(); err != nil {
+		return 0, err
+	}
+
 	cString := C.CString(name)
 	defer C.free(unsafe.Pointer(cString))
 
@@ -355,6 +385,9 @@ func GetSyscallFromName(name string) (ScmpSyscall, error) {
 // Returns the number of the syscall, or an error if an invalid architecture is
 // passed or a syscall with that name was not found.
 func GetSyscallFromNameByArch(name string, arch ScmpArch) (ScmpSyscall, error) {
+	if err := ensureSupportedVersion(); err != nil {
+		return 0, err
+	}
 	if err := sanitizeArch(arch); err != nil {
 		return 0, err
 	}
@@ -386,6 +419,10 @@ func GetSyscallFromNameByArch(name string, arch ScmpArch) (ScmpSyscall, error) {
 func MakeCondition(arg uint, comparison ScmpCompareOp, values ...uint64) (ScmpCondition, error) {
 	var condStruct ScmpCondition
 
+	if err := ensureSupportedVersion(); err != nil {
+		return condStruct, err
+	}
+
 	if comparison == CompareInvalid {
 		return condStruct, fmt.Errorf("invalid comparison operator")
 	} else if arg > 5 {
@@ -413,6 +450,10 @@ func MakeCondition(arg uint, comparison ScmpCompareOp, values ...uint64) (ScmpCo
 // GetNativeArch returns architecture token representing the native kernel
 // architecture
 func GetNativeArch() (ScmpArch, error) {
+	if err := ensureSupportedVersion(); err != nil {
+		return ArchInvalid, err
+	}
+
 	arch := C.seccomp_arch_native()
 
 	return archFromNative(arch)
@@ -435,6 +476,10 @@ type ScmpFilter struct {
 // Returns a reference to a valid filter context, or nil and an error if the
 // filter context could not be created or an invalid default action was given.
 func NewFilter(defaultAction ScmpAction) (*ScmpFilter, error) {
+	if err := ensureSupportedVersion(); err != nil {
+		return nil, err
+	}
+
 	if err := sanitizeAction(defaultAction); err != nil {
 		return nil, err
 	}
@@ -448,6 +493,13 @@ func NewFilter(defaultAction ScmpAction) (*ScmpFilter, error) {
 	filter.filterCtx = fPtr
 	filter.valid = true
 	runtime.SetFinalizer(filter, filterFinalizer)
+
+	// Enable TSync so all goroutines will receive the same rules
+	// If the kernel does not support TSYNC, allow us to continue without error
+	if err := filter.setFilterAttr(filterAttrTsync, 0x1); err != nil && err != syscall.ENOTSUP {
+		filter.Release()
+		return nil, fmt.Errorf("could not create filter - error setting tsync bit: %v", err)
+	}
 
 	return filter, nil
 }
@@ -505,7 +557,7 @@ func (f *ScmpFilter) Release() {
 // The source filter src will be released as part of the process, and will no
 // longer be usable or valid after this call.
 // To be merged, filters must NOT share any architectures, and all their
-// attributes (Default Action, Bad Arch Action, No New Privs and TSync bools)
+// attributes (Default Action, Bad Arch Action, and No New Privs bools)
 // must match.
 // The filter src will be merged into the filter this is called on.
 // The architectures of the src filter not present in the destination, and all
@@ -678,30 +730,6 @@ func (f *ScmpFilter) GetNoNewPrivsBit() (bool, error) {
 	return true, nil
 }
 
-// GetTsyncBit returns whether Thread Synchronization will be enabled on the
-// filter being loaded, or an error if an issue was encountered retrieving the
-// value.
-// Thread Sync ensures that all members of the thread group of the calling
-// process will share the same Seccomp filter set.
-// Tsync is a fairly recent addition to the Linux kernel and older kernels
-// lack support. If the running kernel does not support Tsync and it is
-// requested in a filter, Libseccomp will not enable TSync support and will
-// proceed as normal.
-// This function is unavailable before v2.2 of libseccomp and will return an
-// error.
-func (f *ScmpFilter) GetTsyncBit() (bool, error) {
-	tSync, err := f.getFilterAttr(filterAttrTsync)
-	if err != nil {
-		return false, err
-	}
-
-	if tSync == 0 {
-		return false, nil
-	}
-
-	return true, nil
-}
-
 // SetBadArchAction sets the default action taken on a syscall for an
 // architecture not in the filter, or an error if an issue was encountered
 // setting the value.
@@ -726,27 +754,6 @@ func (f *ScmpFilter) SetNoNewPrivsBit(state bool) error {
 	}
 
 	return f.setFilterAttr(filterAttrNNP, toSet)
-}
-
-// SetTsync sets whether Thread Synchronization will be enabled on the filter
-// being loaded. Returns an error if setting Tsync failed, or the filter is
-// invalid.
-// Thread Sync ensures that all members of the thread group of the calling
-// process will share the same Seccomp filter set.
-// Tsync is a fairly recent addition to the Linux kernel and older kernels
-// lack support. If the running kernel does not support Tsync and it is
-// requested in a filter, Libseccomp will not enable TSync support and will
-// proceed as normal.
-// This function is unavailable before v2.2 of libseccomp and will return an
-// error.
-func (f *ScmpFilter) SetTsync(enable bool) error {
-	var toSet C.uint32_t = 0x0
-
-	if enable {
-		toSet = 0x1
-	}
-
-	return f.setFilterAttr(filterAttrTsync, toSet)
 }
 
 // SetSyscallPriority sets a syscall's priority.
