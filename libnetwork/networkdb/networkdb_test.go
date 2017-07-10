@@ -30,10 +30,10 @@ func TestMain(m *testing.M) {
 func createNetworkDBInstances(t *testing.T, num int, namePrefix string) []*NetworkDB {
 	var dbs []*NetworkDB
 	for i := 0; i < num; i++ {
-		db, err := New(&Config{
-			NodeName: fmt.Sprintf("%s%d", namePrefix, i+1),
-			BindPort: int(atomic.AddInt32(&dbPort, 1)),
-		})
+		conf := DefaultConfig()
+		conf.NodeName = fmt.Sprintf("%s%d", namePrefix, i+1)
+		conf.BindPort = int(atomic.AddInt32(&dbPort, 1))
+		db, err := New(conf)
 		require.NoError(t, err)
 
 		if i != 0 {

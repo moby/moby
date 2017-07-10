@@ -5,6 +5,7 @@ package networkdb
 import (
 	"fmt"
 	"net"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -93,6 +94,12 @@ type NetworkDB struct {
 	// bootStrapIP is the list of IPs that can be used to bootstrap
 	// the gossip.
 	bootStrapIP []net.IP
+
+	// lastStatsTimestamp is the last timestamp when the stats got printed
+	lastStatsTimestamp time.Time
+
+	// lastHealthTimestamp is the last timestamp when the health score got printed
+	lastHealthTimestamp time.Time
 }
 
 // PeerInfo represents the peer (gossip cluster) nodes of a network
@@ -126,6 +133,9 @@ type network struct {
 	// The broadcast queue for table event gossip. This is only
 	// initialized for this node's network attachment entries.
 	tableBroadcasts *memberlist.TransmitLimitedQueue
+
+	// Number of gossip messages sent related to this network during the last stats collection period
+	qMessagesSent int
 }
 
 // Config represents the configuration of the networdb instance and
@@ -149,6 +159,21 @@ type Config struct {
 	// Keys to be added to the Keyring of the memberlist. Key at index
 	// 0 is the primary key
 	Keys [][]byte
+
+	// PacketBufferSize is the maximum number of bytes that memberlist will
+	// put in a packet (this will be for UDP packets by default with a NetTransport).
+	// A safe value for this is typically 1400 bytes (which is the default). However,
+	// depending on your network's MTU (Maximum Transmission Unit) you may
+	// be able to increase this to get more content into each gossip packet.
+	PacketBufferSize int
+
+	// StatsPrintPeriod the period to use to print queue stats
+	// Default is 5min
+	StatsPrintPeriod time.Duration
+
+	// HealthPrintPeriod the period to use to print the health score
+	// Default is 1min
+	HealthPrintPeriod time.Duration
 }
 
 // entry defines a table entry
@@ -169,6 +194,18 @@ type entry struct {
 	// Number of seconds still left before a deleted table entry gets
 	// removed from networkDB
 	reapTime time.Duration
+}
+
+// DefaultConfig returns a NetworkDB config with default values
+func DefaultConfig() *Config {
+	hostname, _ := os.Hostname()
+	return &Config{
+		NodeName:          hostname,
+		BindAddr:          "0.0.0.0",
+		PacketBufferSize:  1400,
+		StatsPrintPeriod:  5 * time.Minute,
+		HealthPrintPeriod: 1 * time.Minute,
+	}
 }
 
 // New creates a new instance of NetworkDB using the Config passed by
@@ -200,6 +237,7 @@ func New(c *Config) (*NetworkDB, error) {
 // instances passed by the caller in the form of addr:port
 func (nDB *NetworkDB) Join(members []string) error {
 	nDB.Lock()
+	nDB.bootStrapIP = make([]net.IP, 0, len(members))
 	for _, m := range members {
 		nDB.bootStrapIP = append(nDB.bootStrapIP, net.ParseIP(m))
 	}
@@ -481,9 +519,8 @@ func (nDB *NetworkDB) JoinNetwork(nid string) error {
 	nodeNetworks[nid].tableBroadcasts = &memberlist.TransmitLimitedQueue{
 		NumNodes: func() int {
 			nDB.RLock()
-			num := len(nDB.networkNodes[nid])
-			nDB.RUnlock()
-			return num
+			defer nDB.RUnlock()
+			return len(nDB.networkNodes[nid])
 		},
 		RetransmitMult: 4,
 	}
