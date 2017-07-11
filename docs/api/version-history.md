@@ -26,8 +26,6 @@ keywords: "API, Docker, rcli, REST, documentation"
   the daemon. This endpoint is experimental and only available if the daemon is started with experimental features
   enabled.
 * `GET /images/(name)/get` now includes an `ImageMetadata` field which contains image metadata that is local to the engine and not part of the image config.
-* `POST /swarm/init` now accepts a `DataPathAddr` property to set the IP-address or network interface to use for data traffic
-* `POST /swarm/join` now accepts a `DataPathAddr` property to set the IP-address or network interface to use for data traffic
 * `POST /services/create` now accepts a `PluginSpec` when `TaskTemplate.Runtime` is set to `plugin`
 
 ## v1.30 API changes
@@ -46,6 +44,8 @@ keywords: "API, Docker, rcli, REST, documentation"
  generate and rotate to a new CA certificate/key pair.
 * `POST /service/create` and `POST /services/(id or name)/update` now take the field `Platforms` as part of the service `Placement`, allowing to specify platforms supported by the service.
 * `POST /containers/(name)/wait` now accepts a `condition` query parameter to indicate which state change condition to wait for. Also, response headers are now returned immediately to acknowledge that the server has registered a wait callback for the client.
+* `POST /swarm/init` now accepts a `DataPathAddr` property to set the IP-address or network interface to use for data traffic
+* `POST /swarm/join` now accepts a `DataPathAddr` property to set the IP-address or network interface to use for data traffic
 
 ## v1.29 API changes
 
