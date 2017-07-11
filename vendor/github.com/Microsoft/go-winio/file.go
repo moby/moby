@@ -124,7 +124,8 @@ func (f *win32File) Close() error {
 	return nil
 }
 
-// prepareIo prepares for a new IO operation
+// prepareIo prepares for a new IO operation.
+// The caller must call f.wg.Done() when the IO is finished, prior to Close() returning.
 func (f *win32File) prepareIo() (*ioOperation, error) {
 	f.wg.Add(1)
 	if f.closing {
@@ -155,7 +156,6 @@ func ioCompletionProcessor(h syscall.Handle) {
 // the operation has actually completed.
 func (f *win32File) asyncIo(c *ioOperation, d *deadlineHandler, bytes uint32, err error) (int, error) {
 	if err != syscall.ERROR_IO_PENDING {
-		f.wg.Done()
 		return int(bytes), err
 	}
 
@@ -192,7 +192,6 @@ func (f *win32File) asyncIo(c *ioOperation, d *deadlineHandler, bytes uint32, er
 	// code to ioCompletionProcessor, c must remain alive
 	// until the channel read is complete.
 	runtime.KeepAlive(c)
-	f.wg.Done()
 	return int(r.bytes), err
 }
 
@@ -202,6 +201,7 @@ func (f *win32File) Read(b []byte) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+	defer f.wg.Done()
 
 	if f.readDeadline.timedout.isSet() {
 		return 0, ErrTimeout
@@ -228,6 +228,8 @@ func (f *win32File) Write(b []byte) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+	defer f.wg.Done()
+
 	if f.writeDeadline.timedout.isSet() {
 		return 0, ErrTimeout
 	}
