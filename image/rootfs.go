@@ -34,6 +34,14 @@ func (r *RootFS) Append(id layer.DiffID) {
 	r.DiffIDs = append(r.DiffIDs, id)
 }
 
+// Clone returns a copy of the RootFS
+func (r *RootFS) Clone() *RootFS {
+	newRoot := NewRootFS()
+	newRoot.Type = r.Type
+	newRoot.DiffIDs = append(r.DiffIDs)
+	return newRoot
+}
+
 // ChainID returns the ChainID for the top layer in RootFS.
 func (r *RootFS) ChainID() layer.ChainID {
 	if runtime.GOOS == "windows" && r.Type == typeLayersWithBase {
