@@ -383,15 +383,11 @@ func (c *controller) agentClose() {
 
 	agent.Lock()
 	for _, cancelFuncs := range agent.driverCancelFuncs {
-		for _, cancel := range cancelFuncs {
-			cancelList = append(cancelList, cancel)
-		}
+		cancelList = append(cancelList, cancelFuncs...)
 	}
 
 	// Add also the cancel functions for the network db
-	for _, cancel := range agent.coreCancelFuncs {
-		cancelList = append(cancelList, cancel)
-	}
+	cancelList = append(cancelList, agent.coreCancelFuncs...)
 	agent.Unlock()
 
 	for _, cancel := range cancelList {

@@ -903,9 +903,7 @@ func runParallelTests(t *testing.T, thrNumber int) {
 	}
 
 	if thrNumber != first {
-		select {
-		case <-start:
-		}
+		<-start
 
 		thrdone := make(chan struct{})
 		done <- thrdone
@@ -972,9 +970,7 @@ func runParallelTests(t *testing.T, thrNumber int) {
 	}
 	if thrNumber == first {
 		for thrdone := range done {
-			select {
-			case <-thrdone:
-			}
+			<-thrdone
 		}
 
 		testns.Close()

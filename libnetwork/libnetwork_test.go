@@ -64,11 +64,7 @@ func createController() error {
 		return err
 	}
 	controller, err = libnetwork.New(append(cfgOptions, config.OptionDriverConfig(bridgeNetType, genericOption))...)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func createTestNetwork(networkType, networkName string, netOption options.Generic, ipamV4Configs, ipamV6Configs []*libnetwork.IpamConf) (libnetwork.Network, error) {
