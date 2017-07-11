@@ -5678,6 +5678,8 @@ paths:
 
         Secrets report these events: `create`, `update`, and `remove`
 
+        Configs report these events: `create`, `update`, and `remove`
+
       operationId: "SystemEvents"
       produces:
         - "application/json"
