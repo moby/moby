@@ -7,17 +7,17 @@ import (
 	"github.com/docker/swarmkit/api"
 )
 
-func discreteToString(d *api.GenericResource_Discrete) string {
-	return strconv.FormatInt(d.Discrete.Value, 10)
+func discreteToString(d *api.GenericResource_DiscreteResourceSpec) string {
+	return strconv.FormatInt(d.DiscreteResourceSpec.Value, 10)
 }
 
 // Kind returns the kind key as a string
 func Kind(res *api.GenericResource) string {
 	switch r := res.Resource.(type) {
-	case *api.GenericResource_Discrete:
-		return r.Discrete.Kind
-	case *api.GenericResource_Str:
-		return r.Str.Kind
+	case *api.GenericResource_DiscreteResourceSpec:
+		return r.DiscreteResourceSpec.Kind
+	case *api.GenericResource_NamedResourceSpec:
+		return r.NamedResourceSpec.Kind
 	}
 
 	return ""
@@ -26,10 +26,10 @@ func Kind(res *api.GenericResource) string {
 // Value returns the value key as a string
 func Value(res *api.GenericResource) string {
 	switch res := res.Resource.(type) {
-	case *api.GenericResource_Discrete:
+	case *api.GenericResource_DiscreteResourceSpec:
 		return discreteToString(res)
-	case *api.GenericResource_Str:
-		return res.Str.Value
+	case *api.GenericResource_NamedResourceSpec:
+		return res.NamedResourceSpec.Value
 	}
 
 	return ""

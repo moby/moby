@@ -15,6 +15,15 @@ type hostPortSpec struct {
 	publishedPort uint32
 }
 
+// versionedService defines a tuple that contains a service ID and a spec
+// version, so that failures can be tracked per spec version. Note that if the
+// task predates spec versioning, specVersion will contain the zero value, and
+// this will still work correctly.
+type versionedService struct {
+	serviceID   string
+	specVersion api.Version
+}
+
 // NodeInfo contains a node and some additional metadata.
 type NodeInfo struct {
 	*api.Node
@@ -24,12 +33,14 @@ type NodeInfo struct {
 	AvailableResources        *api.Resources
 	usedHostPorts             map[hostPortSpec]struct{}
 
-	// recentFailures is a map from service ID to the timestamps of the
-	// most recent failures the node has experienced from replicas of that
-	// service.
-	// TODO(aaronl): When spec versioning is supported, this should track
-	// the version of the spec that failed.
-	recentFailures map[string][]time.Time
+	// recentFailures is a map from service ID/version to the timestamps of
+	// the most recent failures the node has experienced from replicas of
+	// that service.
+	recentFailures map[versionedService][]time.Time
+
+	// lastCleanup is the last time recentFailures was cleaned up. This is
+	// done periodically to avoid recentFailures growing without any limit.
+	lastCleanup time.Time
 }
 
 func newNodeInfo(n *api.Node, tasks map[string]*api.Task, availableResources api.Resources) NodeInfo {
@@ -39,7 +50,8 @@ func newNodeInfo(n *api.Node, tasks map[string]*api.Task, availableResources api
 		ActiveTasksCountByService: make(map[string]int),
 		AvailableResources:        availableResources.Copy(),
 		usedHostPorts:             make(map[hostPortSpec]struct{}),
-		recentFailures:            make(map[string][]time.Time),
+		recentFailures:            make(map[versionedService][]time.Time),
+		lastCleanup:               time.Now(),
 	}
 
 	for _, t := range tasks {
@@ -148,30 +160,58 @@ func taskReservations(spec api.TaskSpec) (reservations api.Resources) {
 	return
 }
 
+func (nodeInfo *NodeInfo) cleanupFailures(now time.Time) {
+entriesLoop:
+	for key, failuresEntry := range nodeInfo.recentFailures {
+		for _, timestamp := range failuresEntry {
+			if now.Sub(timestamp) < monitorFailures {
+				continue entriesLoop
+			}
+		}
+		delete(nodeInfo.recentFailures, key)
+	}
+	nodeInfo.lastCleanup = now
+}
+
 // taskFailed records a task failure from a given service.
-func (nodeInfo *NodeInfo) taskFailed(ctx context.Context, serviceID string) {
+func (nodeInfo *NodeInfo) taskFailed(ctx context.Context, t *api.Task) {
 	expired := 0
 	now := time.Now()
-	for _, timestamp := range nodeInfo.recentFailures[serviceID] {
+
+	if now.Sub(nodeInfo.lastCleanup) >= monitorFailures {
+		nodeInfo.cleanupFailures(now)
+	}
+
+	versionedService := versionedService{serviceID: t.ServiceID}
+	if t.SpecVersion != nil {
+		versionedService.specVersion = *t.SpecVersion
+	}
+
+	for _, timestamp := range nodeInfo.recentFailures[versionedService] {
 		if now.Sub(timestamp) < monitorFailures {
 			break
 		}
 		expired++
 	}
 
-	if len(nodeInfo.recentFailures[serviceID])-expired == maxFailures-1 {
-		log.G(ctx).Warnf("underweighting node %s for service %s because it experienced %d failures or rejections within %s", nodeInfo.ID, serviceID, maxFailures, monitorFailures.String())
+	if len(nodeInfo.recentFailures[versionedService])-expired == maxFailures-1 {
+		log.G(ctx).Warnf("underweighting node %s for service %s because it experienced %d failures or rejections within %s", nodeInfo.ID, t.ServiceID, maxFailures, monitorFailures.String())
 	}
 
-	nodeInfo.recentFailures[serviceID] = append(nodeInfo.recentFailures[serviceID][expired:], now)
+	nodeInfo.recentFailures[versionedService] = append(nodeInfo.recentFailures[versionedService][expired:], now)
 }
 
 // countRecentFailures returns the number of times the service has failed on
 // this node within the lookback window monitorFailures.
-func (nodeInfo *NodeInfo) countRecentFailures(now time.Time, serviceID string) int {
-	recentFailureCount := len(nodeInfo.recentFailures[serviceID])
+func (nodeInfo *NodeInfo) countRecentFailures(now time.Time, t *api.Task) int {
+	versionedService := versionedService{serviceID: t.ServiceID}
+	if t.SpecVersion != nil {
+		versionedService.specVersion = *t.SpecVersion
+	}
+
+	recentFailureCount := len(nodeInfo.recentFailures[versionedService])
 	for i := recentFailureCount - 1; i >= 0; i-- {
-		if now.Sub(nodeInfo.recentFailures[serviceID][i]) > monitorFailures {
+		if now.Sub(nodeInfo.recentFailures[versionedService][i]) > monitorFailures {
 			recentFailureCount -= i + 1
 			break
 		}

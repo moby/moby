@@ -9,7 +9,7 @@ import (
 // for generic resources
 func ValidateTask(resources *api.Resources) error {
 	for _, v := range resources.Generic {
-		if v.GetDiscrete() != nil {
+		if v.GetDiscreteResourceSpec() != nil {
 			continue
 		}
 
@@ -21,7 +21,7 @@ func ValidateTask(resources *api.Resources) error {
 
 // HasEnough returns true if node can satisfy the task's GenericResource request
 func HasEnough(nodeRes []*api.GenericResource, taskRes *api.GenericResource) (bool, error) {
-	t := taskRes.GetDiscrete()
+	t := taskRes.GetDiscreteResourceSpec()
 	if t == nil {
 		return false, fmt.Errorf("task should only hold Discrete type")
 	}
@@ -36,11 +36,11 @@ func HasEnough(nodeRes []*api.GenericResource, taskRes *api.GenericResource) (bo
 	}
 
 	switch nr := nrs[0].Resource.(type) {
-	case *api.GenericResource_Discrete:
-		if t.Value > nr.Discrete.Value {
+	case *api.GenericResource_DiscreteResourceSpec:
+		if t.Value > nr.DiscreteResourceSpec.Value {
 			return false, nil
 		}
-	case *api.GenericResource_Str:
+	case *api.GenericResource_NamedResourceSpec:
 		if t.Value > int64(len(nrs)) {
 			return false, nil
 		}
@@ -57,22 +57,22 @@ func HasResource(res *api.GenericResource, resources []*api.GenericResource) boo
 		}
 
 		switch rtype := r.Resource.(type) {
-		case *api.GenericResource_Discrete:
-			if res.GetDiscrete() == nil {
+		case *api.GenericResource_DiscreteResourceSpec:
+			if res.GetDiscreteResourceSpec() == nil {
 				return false
 			}
 
-			if res.GetDiscrete().Value < rtype.Discrete.Value {
+			if res.GetDiscreteResourceSpec().Value < rtype.DiscreteResourceSpec.Value {
 				return false
 			}
 
 			return true
-		case *api.GenericResource_Str:
-			if res.GetStr() == nil {
+		case *api.GenericResource_NamedResourceSpec:
+			if res.GetNamedResourceSpec() == nil {
 				return false
 			}
 
-			if res.GetStr().Value != rtype.Str.Value {
+			if res.GetNamedResourceSpec().Value != rtype.NamedResourceSpec.Value {
 				continue
 			}
 
