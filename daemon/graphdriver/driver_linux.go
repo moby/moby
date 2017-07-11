@@ -4,9 +4,9 @@ package graphdriver
 
 import (
 	"path/filepath"
-	"syscall"
 
 	"github.com/docker/docker/pkg/mount"
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -88,8 +88,8 @@ var (
 
 // GetFSMagic returns the filesystem id given the path.
 func GetFSMagic(rootpath string) (FsMagic, error) {
-	var buf syscall.Statfs_t
-	if err := syscall.Statfs(filepath.Dir(rootpath), &buf); err != nil {
+	var buf unix.Statfs_t
+	if err := unix.Statfs(filepath.Dir(rootpath), &buf); err != nil {
 		return 0, err
 	}
 	return FsMagic(buf.Type), nil
@@ -127,8 +127,8 @@ func (c *defaultChecker) IsMounted(path string) bool {
 
 // Mounted checks if the given path is mounted as the fs type
 func Mounted(fsType FsMagic, mountPath string) (bool, error) {
-	var buf syscall.Statfs_t
-	if err := syscall.Statfs(mountPath, &buf); err != nil {
+	var buf unix.Statfs_t
+	if err := unix.Statfs(mountPath, &buf); err != nil {
 		return false, err
 	}
 	return FsMagic(buf.Type) == fsType, nil

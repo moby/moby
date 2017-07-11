@@ -15,7 +15,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -25,6 +24,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"golang.org/x/net/context"
+	"golang.org/x/sys/unix"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/grpclog"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -185,7 +185,7 @@ func (r *remote) Cleanup() {
 	r.closedManually = true
 	r.rpcConn.Close()
 	// Ask the daemon to quit
-	syscall.Kill(r.daemonPid, syscall.SIGTERM)
+	unix.Kill(r.daemonPid, unix.SIGTERM)
 
 	// Wait up to 15secs for it to stop
 	for i := time.Duration(0); i < containerdShutdownTimeout; i += time.Second {
@@ -197,7 +197,7 @@ func (r *remote) Cleanup() {
 
 	if system.IsProcessAlive(r.daemonPid) {
 		logrus.Warnf("libcontainerd: containerd (%d) didn't stop within 15 secs, killing it\n", r.daemonPid)
-		syscall.Kill(r.daemonPid, syscall.SIGKILL)
+		unix.Kill(r.daemonPid, unix.SIGKILL)
 	}
 
 	// cleanup some files
@@ -224,7 +224,7 @@ func (r *remote) Client(b Backend) (Client, error) {
 }
 
 func (r *remote) updateEventTimestamp(t time.Time) {
-	f, err := os.OpenFile(r.eventTsPath, syscall.O_CREAT|syscall.O_WRONLY|syscall.O_TRUNC, 0600)
+	f, err := os.OpenFile(r.eventTsPath, unix.O_CREAT|unix.O_WRONLY|unix.O_TRUNC, 0600)
 	if err != nil {
 		logrus.Warnf("libcontainerd: failed to open event timestamp file: %v", err)
 		return

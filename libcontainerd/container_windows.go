@@ -6,13 +6,13 @@ import (
 	"io"
 	"io/ioutil"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/Microsoft/hcsshim"
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/system"
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"golang.org/x/sys/windows"
 )
 
 type container struct {
@@ -185,7 +185,7 @@ func (ctr *container) waitProcessExitCode(process *process) int {
 	// Block indefinitely for the process to exit.
 	err := process.hcsProcess.Wait()
 	if err != nil {
-		if herr, ok := err.(*hcsshim.ProcessError); ok && herr.Err != syscall.ERROR_BROKEN_PIPE {
+		if herr, ok := err.(*hcsshim.ProcessError); ok && herr.Err != windows.ERROR_BROKEN_PIPE {
 			logrus.Warnf("libcontainerd: Wait() failed (container may have been killed): %s", err)
 		}
 		// Fall through here, do not return. This ensures we attempt to continue the
@@ -195,7 +195,7 @@ func (ctr *container) waitProcessExitCode(process *process) int {
 
 	exitCode, err := process.hcsProcess.ExitCode()
 	if err != nil {
-		if herr, ok := err.(*hcsshim.ProcessError); ok && herr.Err != syscall.ERROR_BROKEN_PIPE {
+		if herr, ok := err.(*hcsshim.ProcessError); ok && herr.Err != windows.ERROR_BROKEN_PIPE {
 			logrus.Warnf("libcontainerd: unable to get exit code from container %s", ctr.containerID)
 		}
 		// Since we got an error retrieving the exit code, make sure that the code we return

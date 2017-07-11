@@ -5,6 +5,8 @@ package reexec
 import (
 	"os/exec"
 	"syscall"
+
+	"golang.org/x/sys/unix"
 )
 
 // Self returns the path to the current process's binary.
@@ -22,7 +24,7 @@ func Command(args ...string) *exec.Cmd {
 		Path: Self(),
 		Args: args,
 		SysProcAttr: &syscall.SysProcAttr{
-			Pdeathsig: syscall.SIGTERM,
+			Pdeathsig: unix.SIGTERM,
 		},
 	}
 }

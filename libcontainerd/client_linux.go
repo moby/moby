@@ -5,7 +5,6 @@ import (
 	"os"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -17,6 +16,7 @@ import (
 	"github.com/golang/protobuf/ptypes/timestamp"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"golang.org/x/net/context"
+	"golang.org/x/sys/unix"
 )
 
 type client struct {
@@ -95,9 +95,9 @@ func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendly
 			AdditionalGids: sp.User.AdditionalGids,
 		},
 		Pid:             processFriendlyName,
-		Stdin:           p.fifo(syscall.Stdin),
-		Stdout:          p.fifo(syscall.Stdout),
-		Stderr:          p.fifo(syscall.Stderr),
+		Stdin:           p.fifo(unix.Stdin),
+		Stdout:          p.fifo(unix.Stdout),
+		Stderr:          p.fifo(unix.Stderr),
 		Capabilities:    sp.Capabilities.Effective,
 		ApparmorProfile: sp.ApparmorProfile,
 		SelinuxLabel:    sp.SelinuxLabel,
@@ -226,7 +226,7 @@ func (clnt *client) cleanupOldRootfs(containerID string) {
 	if mts, err := mount.GetMounts(); err == nil {
 		for _, mts := range mts {
 			if strings.HasSuffix(mts.Mountpoint, containerID+"/rootfs") {
-				if err := syscall.Unmount(mts.Mountpoint, syscall.MNT_DETACH); err == nil {
+				if err := unix.Unmount(mts.Mountpoint, unix.MNT_DETACH); err == nil {
 					os.RemoveAll(strings.TrimSuffix(mts.Mountpoint, "/rootfs"))
 				}
 				break
@@ -524,7 +524,7 @@ func (clnt *client) Restore(containerID string, attachStdio StdioCallback, optio
 
 	container.discardFifos()
 
-	if err := clnt.Signal(containerID, int(syscall.SIGTERM)); err != nil {
+	if err := clnt.Signal(containerID, int(unix.SIGTERM)); err != nil {
 		logrus.Errorf("libcontainerd: error sending sigterm to %v: %v", containerID, err)
 	}
 
@@ -541,7 +541,7 @@ func (clnt *client) Restore(containerID string, attachStdio StdioCallback, optio
 
 	select {
 	case <-time.After(10 * time.Second):
-		if err := clnt.Signal(containerID, int(syscall.SIGKILL)); err != nil {
+		if err := clnt.Signal(containerID, int(unix.SIGKILL)); err != nil {
 			logrus.Errorf("libcontainerd: error sending sigkill to %v: %v", containerID, err)
 		}
 		select {

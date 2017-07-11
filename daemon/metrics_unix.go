@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"syscall"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/mount"
@@ -15,11 +14,12 @@ import (
 	"github.com/docker/docker/pkg/plugins"
 	metrics "github.com/docker/go-metrics"
 	"github.com/pkg/errors"
+	"golang.org/x/sys/unix"
 )
 
 func (daemon *Daemon) listenMetricsSock() (string, error) {
 	path := filepath.Join(daemon.configStore.ExecRoot, "metrics.sock")
-	syscall.Unlink(path)
+	unix.Unlink(path)
 	l, err := net.Listen("unix", path)
 	if err != nil {
 		return "", errors.Wrap(err, "error setting up metrics plugin listener")

@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/devicemapper"
@@ -29,9 +28,9 @@ import (
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
 	units "github.com/docker/go-units"
-	"github.com/pkg/errors"
-
 	"github.com/opencontainers/selinux/go-selinux/label"
+	"github.com/pkg/errors"
+	"golang.org/x/sys/unix"
 )
 
 var (
@@ -1197,7 +1196,7 @@ func (devices *DeviceSet) growFS(info *devInfo) error {
 		return fmt.Errorf("Error mounting '%s' on '%s': %s", info.DevName(), fsMountPoint, err)
 	}
 
-	defer syscall.Unmount(fsMountPoint, syscall.MNT_DETACH)
+	defer unix.Unmount(fsMountPoint, unix.MNT_DETACH)
 
 	switch devices.BaseDeviceFilesystem {
 	case "ext4":
@@ -1266,7 +1265,7 @@ func setCloseOnExec(name string) {
 			if link == name {
 				fd, err := strconv.Atoi(i.Name())
 				if err == nil {
-					syscall.CloseOnExec(fd)
+					unix.CloseOnExec(fd)
 				}
 			}
 		}
@@ -2287,7 +2286,7 @@ func (devices *DeviceSet) Shutdown(home string) error {
 			// We use MNT_DETACH here in case it is still busy in some running
 			// container. This means it'll go away from the global scope directly,
 			// and the device will be released when that container dies.
-			if err := syscall.Unmount(p, syscall.MNT_DETACH); err != nil {
+			if err := unix.Unmount(p, unix.MNT_DETACH); err != nil {
 				logrus.Debugf("devmapper: Shutdown unmounting %s, error: %s", p, err)
 			}
 		}
@@ -2400,7 +2399,7 @@ func (devices *DeviceSet) MountDevice(hash, path, mountLabel string) error {
 
 	if fstype == "xfs" && devices.xfsNospaceRetries != "" {
 		if err := devices.xfsSetNospaceRetries(info); err != nil {
-			syscall.Unmount(path, syscall.MNT_DETACH)
+			unix.Unmount(path, unix.MNT_DETACH)
 			devices.deactivateDevice(info)
 			return err
 		}
@@ -2426,7 +2425,7 @@ func (devices *DeviceSet) UnmountDevice(hash, mountPath string) error {
 	defer devices.Unlock()
 
 	logrus.Debugf("devmapper: Unmount(%s)", mountPath)
-	if err := syscall.Unmount(mountPath, syscall.MNT_DETACH); err != nil {
+	if err := unix.Unmount(mountPath, unix.MNT_DETACH); err != nil {
 		return err
 	}
 	logrus.Debug("devmapper: Unmount done")
@@ -2523,8 +2522,8 @@ func (devices *DeviceSet) MetadataDevicePath() string {
 }
 
 func (devices *DeviceSet) getUnderlyingAvailableSpace(loopFile string) (uint64, error) {
-	buf := new(syscall.Statfs_t)
-	if err := syscall.Statfs(loopFile, buf); err != nil {
+	buf := new(unix.Statfs_t)
+	if err := unix.Statfs(loopFile, buf); err != nil {
 		logrus.Warnf("devmapper: Couldn't stat loopfile filesystem %v: %v", loopFile, err)
 		return 0, err
 	}

@@ -5,9 +5,9 @@ package daemon
 import (
 	"os"
 	"path/filepath"
-	"syscall"
 
 	"github.com/go-check/check"
+	"golang.org/x/sys/unix"
 )
 
 func cleanupExecRoot(c *check.C, execRoot string) {
@@ -18,7 +18,7 @@ func cleanupExecRoot(c *check.C, execRoot string) {
 	// new exec root.
 	netnsPath := filepath.Join(execRoot, "netns")
 	filepath.Walk(netnsPath, func(path string, info os.FileInfo, err error) error {
-		if err := syscall.Unmount(path, syscall.MNT_FORCE); err != nil {
+		if err := unix.Unmount(path, unix.MNT_FORCE); err != nil {
 			c.Logf("unmount of %s failed: %v", path, err)
 		}
 		os.Remove(path)
@@ -28,9 +28,9 @@ func cleanupExecRoot(c *check.C, execRoot string) {
 
 // SignalDaemonDump sends a signal to the daemon to write a dump file
 func SignalDaemonDump(pid int) {
-	syscall.Kill(pid, syscall.SIGQUIT)
+	unix.Kill(pid, unix.SIGQUIT)
 }
 
 func signalDaemonReload(pid int) error {
-	return syscall.Kill(pid, syscall.SIGHUP)
+	return unix.Kill(pid, unix.SIGHUP)
 }

@@ -24,7 +24,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"unsafe"
 
 	"github.com/Sirupsen/logrus"
@@ -35,6 +34,7 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/go-units"
 	"github.com/opencontainers/selinux/go-selinux/label"
+	"golang.org/x/sys/unix"
 )
 
 func init() {
@@ -197,7 +197,7 @@ func subvolCreate(path, name string) error {
 		args.name[i] = C.char(c)
 	}
 
-	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_SUBVOL_CREATE,
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_SUBVOL_CREATE,
 		uintptr(unsafe.Pointer(&args)))
 	if errno != 0 {
 		return fmt.Errorf("Failed to create btrfs subvolume: %v", errno.Error())
@@ -225,7 +225,7 @@ func subvolSnapshot(src, dest, name string) error {
 	C.set_name_btrfs_ioctl_vol_args_v2(&args, cs)
 	C.free(unsafe.Pointer(cs))
 
-	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(destDir), C.BTRFS_IOC_SNAP_CREATE_V2,
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(destDir), C.BTRFS_IOC_SNAP_CREATE_V2,
 		uintptr(unsafe.Pointer(&args)))
 	if errno != 0 {
 		return fmt.Errorf("Failed to create btrfs snapshot: %v", errno.Error())
@@ -234,8 +234,8 @@ func subvolSnapshot(src, dest, name string) error {
 }
 
 func isSubvolume(p string) (bool, error) {
-	var bufStat syscall.Stat_t
-	if err := syscall.Lstat(p, &bufStat); err != nil {
+	var bufStat unix.Stat_t
+	if err := unix.Lstat(p, &bufStat); err != nil {
 		return false, err
 	}
 
@@ -287,7 +287,7 @@ func subvolDelete(dirpath, name string, quotaEnabled bool) error {
 			var args C.struct_btrfs_ioctl_qgroup_create_args
 			args.qgroupid = C.__u64(qgroupid)
 
-			_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QGROUP_CREATE,
+			_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QGROUP_CREATE,
 				uintptr(unsafe.Pointer(&args)))
 			if errno != 0 {
 				logrus.Errorf("Failed to delete btrfs qgroup %v for %s: %v", qgroupid, fullPath, errno.Error())
@@ -302,7 +302,7 @@ func subvolDelete(dirpath, name string, quotaEnabled bool) error {
 	for i, c := range []byte(name) {
 		args.name[i] = C.char(c)
 	}
-	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_SNAP_DESTROY,
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_SNAP_DESTROY,
 		uintptr(unsafe.Pointer(&args)))
 	if errno != 0 {
 		return fmt.Errorf("Failed to destroy btrfs snapshot %s for %s: %v", dirpath, name, errno.Error())
@@ -338,7 +338,7 @@ func (d *Driver) subvolEnableQuota() error {
 
 	var args C.struct_btrfs_ioctl_quota_ctl_args
 	args.cmd = C.BTRFS_QUOTA_CTL_ENABLE
-	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QUOTA_CTL,
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QUOTA_CTL,
 		uintptr(unsafe.Pointer(&args)))
 	if errno != 0 {
 		return fmt.Errorf("Failed to enable btrfs quota for %s: %v", dir, errno.Error())
@@ -364,7 +364,7 @@ func (d *Driver) subvolDisableQuota() error {
 
 	var args C.struct_btrfs_ioctl_quota_ctl_args
 	args.cmd = C.BTRFS_QUOTA_CTL_DISABLE
-	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QUOTA_CTL,
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QUOTA_CTL,
 		uintptr(unsafe.Pointer(&args)))
 	if errno != 0 {
 		return fmt.Errorf("Failed to disable btrfs quota for %s: %v", dir, errno.Error())
@@ -389,7 +389,7 @@ func (d *Driver) subvolRescanQuota() error {
 	defer closeDir(dir)
 
 	var args C.struct_btrfs_ioctl_quota_rescan_args
-	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QUOTA_RESCAN_WAIT,
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QUOTA_RESCAN_WAIT,
 		uintptr(unsafe.Pointer(&args)))
 	if errno != 0 {
 		return fmt.Errorf("Failed to rescan btrfs quota for %s: %v", dir, errno.Error())
@@ -408,7 +408,7 @@ func subvolLimitQgroup(path string, size uint64) error {
 	var args C.struct_btrfs_ioctl_qgroup_limit_args
 	args.lim.max_referenced = C.__u64(size)
 	args.lim.flags = C.BTRFS_QGROUP_LIMIT_MAX_RFER
-	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QGROUP_LIMIT,
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QGROUP_LIMIT,
 		uintptr(unsafe.Pointer(&args)))
 	if errno != 0 {
 		return fmt.Errorf("Failed to limit qgroup for %s: %v", dir, errno.Error())
@@ -437,7 +437,7 @@ func subvolQgroupStatus(path string) error {
 	args.key.max_transid = C.__u64(math.MaxUint64)
 	args.key.nr_items = 4096
 
-	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_TREE_SEARCH,
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_TREE_SEARCH,
 		uintptr(unsafe.Pointer(&args)))
 	if errno != 0 {
 		return fmt.Errorf("Failed to search qgroup for %s: %v", path, errno.Error())
@@ -459,7 +459,7 @@ func subvolLookupQgroup(path string) (uint64, error) {
 	var args C.struct_btrfs_ioctl_ino_lookup_args
 	args.objectid = C.BTRFS_FIRST_FREE_OBJECTID
 
-	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_INO_LOOKUP,
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_INO_LOOKUP,
 		uintptr(unsafe.Pointer(&args)))
 	if errno != 0 {
 		return 0, fmt.Errorf("Failed to lookup qgroup for %s: %v", dir, errno.Error())

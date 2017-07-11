@@ -9,12 +9,12 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strconv"
-	"syscall"
 
 	"github.com/docker/docker/cmd/dockerd/hack"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/libnetwork/portallocator"
+	"golang.org/x/sys/unix"
 )
 
 const defaultDaemonConfigFile = "/etc/docker/daemon.json"
@@ -23,8 +23,8 @@ const defaultDaemonConfigFile = "/etc/docker/daemon.json"
 // caused by custom umask
 func setDefaultUmask() error {
 	desiredUmask := 0022
-	syscall.Umask(desiredUmask)
-	if umask := syscall.Umask(desiredUmask); umask != desiredUmask {
+	unix.Umask(desiredUmask)
+	if umask := unix.Umask(desiredUmask); umask != desiredUmask {
 		return fmt.Errorf("failed to set umask: expected %#o, got %#o", desiredUmask, umask)
 	}
 
@@ -38,7 +38,7 @@ func getDaemonConfDir(_ string) string {
 // setupConfigReloadTrap configures the USR2 signal to reload the configuration.
 func (cli *DaemonCli) setupConfigReloadTrap() {
 	c := make(chan os.Signal, 1)
-	signal.Notify(c, syscall.SIGHUP)
+	signal.Notify(c, unix.SIGHUP)
 	go func() {
 		for range c {
 			cli.reloadConfig()

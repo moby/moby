@@ -3,9 +3,8 @@
 package seccomp
 
 import (
-	"syscall"
-
 	"github.com/docker/docker/api/types"
+	"golang.org/x/sys/unix"
 )
 
 func arches() []types.Architecture {
@@ -510,7 +509,7 @@ func DefaultProfile() *types.Seccomp {
 			Args: []*types.Arg{
 				{
 					Index:    0,
-					Value:    syscall.CLONE_NEWNS | syscall.CLONE_NEWUTS | syscall.CLONE_NEWIPC | syscall.CLONE_NEWUSER | syscall.CLONE_NEWPID | syscall.CLONE_NEWNET,
+					Value:    unix.CLONE_NEWNS | unix.CLONE_NEWUTS | unix.CLONE_NEWIPC | unix.CLONE_NEWUSER | unix.CLONE_NEWPID | unix.CLONE_NEWNET,
 					ValueTwo: 0,
 					Op:       types.OpMaskedEqual,
 				},
@@ -528,7 +527,7 @@ func DefaultProfile() *types.Seccomp {
 			Args: []*types.Arg{
 				{
 					Index:    1,
-					Value:    syscall.CLONE_NEWNS | syscall.CLONE_NEWUTS | syscall.CLONE_NEWIPC | syscall.CLONE_NEWUSER | syscall.CLONE_NEWPID | syscall.CLONE_NEWNET,
+					Value:    unix.CLONE_NEWNS | unix.CLONE_NEWUTS | unix.CLONE_NEWIPC | unix.CLONE_NEWUSER | unix.CLONE_NEWPID | unix.CLONE_NEWNET,
 					ValueTwo: 0,
 					Op:       types.OpMaskedEqual,
 				},

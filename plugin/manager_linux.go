@@ -8,7 +8,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"syscall"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -23,6 +22,7 @@ import (
 	"github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
+	"golang.org/x/sys/unix"
 )
 
 func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) error {
@@ -146,7 +146,7 @@ func (pm *Manager) restore(p *v2.Plugin) error {
 func shutdownPlugin(p *v2.Plugin, c *controller, containerdClient libcontainerd.Client) {
 	pluginID := p.GetID()
 
-	err := containerdClient.Signal(pluginID, int(syscall.SIGTERM))
+	err := containerdClient.Signal(pluginID, int(unix.SIGTERM))
 	if err != nil {
 		logrus.Errorf("Sending SIGTERM to plugin failed with error: %v", err)
 	} else {
@@ -155,7 +155,7 @@ func shutdownPlugin(p *v2.Plugin, c *controller, containerdClient libcontainerd.
 			logrus.Debug("Clean shutdown of plugin")
 		case <-time.After(time.Second * 10):
 			logrus.Debug("Force shutdown plugin")
-			if err := containerdClient.Signal(pluginID, int(syscall.SIGKILL)); err != nil {
+			if err := containerdClient.Signal(pluginID, int(unix.SIGKILL)); err != nil {
 				logrus.Errorf("Sending SIGKILL to plugin failed with error: %v", err)
 			}
 		}

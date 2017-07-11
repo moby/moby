@@ -6,9 +6,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 
 	"github.com/docker/docker/pkg/idtools"
+	"golang.org/x/sys/unix"
 )
 
 // Setup populates a directory with mountpoints suitable
@@ -33,7 +33,7 @@ func Setup(initLayer string, rootIDs idtools.IDPair) error {
 		prev := "/"
 		for _, p := range parts[1:] {
 			prev = filepath.Join(prev, p)
-			syscall.Unlink(filepath.Join(initLayer, prev))
+			unix.Unlink(filepath.Join(initLayer, prev))
 		}
 
 		if _, err := os.Stat(filepath.Join(initLayer, pth)); err != nil {

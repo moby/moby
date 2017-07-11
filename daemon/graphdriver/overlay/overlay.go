@@ -11,7 +11,6 @@ import (
 	"os/exec"
 	"path"
 	"strconv"
-	"syscall"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
@@ -23,6 +22,7 @@ import (
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/system"
 	"github.com/opencontainers/selinux/go-selinux/label"
+	"golang.org/x/sys/unix"
 )
 
 // This is a small wrapper over the NaiveDiffWriter that lets us have a custom
@@ -363,7 +363,7 @@ func (d *Driver) Get(id string, mountLabel string) (s string, err error) {
 	defer func() {
 		if err != nil {
 			if c := d.ctr.Decrement(mergedDir); c <= 0 {
-				syscall.Unmount(mergedDir, 0)
+				unix.Unmount(mergedDir, 0)
 			}
 		}
 	}()
@@ -377,7 +377,7 @@ func (d *Driver) Get(id string, mountLabel string) (s string, err error) {
 		workDir  = path.Join(dir, "work")
 		opts     = fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowerDir, upperDir, workDir)
 	)
-	if err := syscall.Mount("overlay", mergedDir, "overlay", 0, label.FormatMountLabel(opts, mountLabel)); err != nil {
+	if err := unix.Mount("overlay", mergedDir, "overlay", 0, label.FormatMountLabel(opts, mountLabel)); err != nil {
 		return "", fmt.Errorf("error creating overlay mount to %s: %v", mergedDir, err)
 	}
 	// chown "workdir/work" to the remapped root UID/GID. Overlay fs inside a
@@ -404,7 +404,7 @@ func (d *Driver) Put(id string) error {
 	if count := d.ctr.Decrement(mountpoint); count > 0 {
 		return nil
 	}
-	if err := syscall.Unmount(mountpoint, syscall.MNT_DETACH); err != nil {
+	if err := unix.Unmount(mountpoint, unix.MNT_DETACH); err != nil {
 		logrus.Debugf("Failed to unmount %s overlay: %v", id, err)
 	}
 	return nil

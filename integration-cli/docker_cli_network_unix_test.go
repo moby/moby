@@ -12,7 +12,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -30,6 +29,7 @@ import (
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/go-check/check"
 	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
 )
 
 const dummyNetworkDriver = "dummy-network-driver"
@@ -1810,12 +1810,12 @@ func (s *DockerNetworkSuite) TestConntrackFlowsLeak(c *check.C) {
 	cli.DockerCmd(c, "run", "-d", "--name", "client", "--net=host", "appropriate/nc", "sh", "-c", cmd)
 
 	// Get all the flows using netlink
-	flows, err := netlink.ConntrackTableList(netlink.ConntrackTable, syscall.AF_INET)
+	flows, err := netlink.ConntrackTableList(netlink.ConntrackTable, unix.AF_INET)
 	c.Assert(err, check.IsNil)
 	var flowMatch int
 	for _, flow := range flows {
 		// count only the flows that we are interested in, skipping others that can be laying around the host
-		if flow.Forward.Protocol == syscall.IPPROTO_UDP &&
+		if flow.Forward.Protocol == unix.IPPROTO_UDP &&
 			flow.Forward.DstIP.Equal(net.ParseIP("192.168.10.1")) &&
 			flow.Forward.DstPort == 8080 {
 			flowMatch++
@@ -1828,11 +1828,11 @@ func (s *DockerNetworkSuite) TestConntrackFlowsLeak(c *check.C) {
 	cli.DockerCmd(c, "rm", "-fv", "server")
 
 	// Fetch again all the flows and validate that there is no server flow in the conntrack laying around
-	flows, err = netlink.ConntrackTableList(netlink.ConntrackTable, syscall.AF_INET)
+	flows, err = netlink.ConntrackTableList(netlink.ConntrackTable, unix.AF_INET)
 	c.Assert(err, check.IsNil)
 	flowMatch = 0
 	for _, flow := range flows {
-		if flow.Forward.Protocol == syscall.IPPROTO_UDP &&
+		if flow.Forward.Protocol == unix.IPPROTO_UDP &&
 			flow.Forward.DstIP.Equal(net.ParseIP("192.168.10.1")) &&
 			flow.Forward.DstPort == 8080 {
 			flowMatch++
