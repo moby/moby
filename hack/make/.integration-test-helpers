@@ -10,7 +10,9 @@ source "$SCRIPTDIR/make/.go-autogen"
 
 : ${TEST_REPEAT:=1}
 
-integration_api_dirs=("$(find ./integration -type d | grep -vE '^./integration$')")
+integration_api_dirs=("$(
+	find ./integration -type d |
+	grep -vE '^(./integration$|./integration/util)')")
 
 run_test_integration() {
 	local flags="-test.v -test.timeout=${TIMEOUT} $TESTFLAGS"

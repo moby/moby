@@ -7,52 +7,54 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
-	"github.com/stretchr/testify/require"
+	"github.com/docker/docker/integration/util/request"
+	"github.com/docker/docker/pkg/testutil"
 )
 
-func TestAPICreateWithNotExistImage(t *testing.T) {
+func TestCreateFailsWhenIdentifierDoesNotExist(t *testing.T) {
 	defer setupTest(t)()
-	clt := createClient(t)
+	client := request.NewAPIClient(t)
 
 	testCases := []struct {
+		doc           string
 		image         string
 		expectedError string
 	}{
 		{
+			doc:           "image and tag",
 			image:         "test456:v1",
 			expectedError: "No such image: test456:v1",
 		},
 		{
+			doc:           "image no tag",
 			image:         "test456",
 			expectedError: "No such image: test456",
 		},
 		{
+			doc:           "digest",
 			image:         "sha256:0cb40641836c461bc97c793971d84d758371ed682042457523e4ae701efeaaaa",
 			expectedError: "No such image: sha256:0cb40641836c461bc97c793971d84d758371ed682042457523e4ae701efeaaaa",
 		},
 	}
 
-	for index, tc := range testCases {
+	for _, tc := range testCases {
 		tc := tc
-		t.Run(strconv.Itoa(index), func(t *testing.T) {
+		t.Run(tc.doc, func(t *testing.T) {
 			t.Parallel()
-			_, err := clt.ContainerCreate(context.Background(),
-				&container.Config{
-					Image: tc.image,
-				},
+			_, err := client.ContainerCreate(context.Background(),
+				&container.Config{Image: tc.image},
 				&container.HostConfig{},
 				&network.NetworkingConfig{},
 				"foo",
 			)
-			require.Error(t, err)
-			require.Contains(t, err.Error(), tc.expectedError)
+			testutil.ErrorContains(t, err, tc.expectedError)
 		})
 	}
 }
 
-func TestAPICreateEmptyEnv(t *testing.T) {
+func TestCreateWithInvalidEnv(t *testing.T) {
 	defer setupTest(t)()
-	clt := createClient(t)
+	client := request.NewAPIClient(t)
 
 	testCases := []struct {
 		env           string
@@ -76,7 +78,7 @@ func TestAPICreateEmptyEnv(t *testing.T) {
 		tc := tc
 		t.Run(strconv.Itoa(index), func(t *testing.T) {
 			t.Parallel()
-			_, err := clt.ContainerCreate(context.Background(),
+			_, err := client.ContainerCreate(context.Background(),
 				&container.Config{
 					Image: "busybox",
 					Env:   []string{tc.env},
@@ -85,8 +87,7 @@ func TestAPICreateEmptyEnv(t *testing.T) {
 				&network.NetworkingConfig{},
 				"foo",
 			)
-			require.Error(t, err)
-			require.Contains(t, err.Error(), tc.expectedError)
+			testutil.ErrorContains(t, err, tc.expectedError)
 		})
 	}
 }

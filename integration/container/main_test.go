@@ -5,9 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/environment"
-	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -31,12 +29,6 @@ func TestMain(m *testing.M) {
 
 	res := m.Run()
 	os.Exit(res)
-}
-
-func createClient(t *testing.T) client.APIClient {
-	clt, err := client.NewEnvClient()
-	require.NoError(t, err)
-	return clt
 }
 
 func setupTest(t *testing.T) func() {
