@@ -199,7 +199,7 @@ func (c *containerAdapter) networkAttach(ctx context.Context) error {
 		}
 	}
 
-	return c.backend.UpdateAttachment(networkName, networkID, c.container.id(), config)
+	return c.backend.UpdateAttachment(networkName, networkID, c.container.networkAttachmentContainerID(), config)
 }
 
 func (c *containerAdapter) waitForDetach(ctx context.Context) error {
@@ -218,7 +218,7 @@ func (c *containerAdapter) waitForDetach(ctx context.Context) error {
 		}
 	}
 
-	return c.backend.WaitForDetachment(ctx, networkName, networkID, c.container.taskID(), c.container.id())
+	return c.backend.WaitForDetachment(ctx, networkName, networkID, c.container.taskID(), c.container.networkAttachmentContainerID())
 }
 
 func (c *containerAdapter) create(ctx context.Context) error {
