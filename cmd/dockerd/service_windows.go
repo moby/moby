@@ -397,7 +397,7 @@ func initPanicFile(path string) error {
 	// it when it panics. Remember the old stderr to restore it before removing
 	// the panic file.
 	sh := windows.STD_ERROR_HANDLE
-	h, err := windows.GetStdHandle(sh)
+	h, err := windows.GetStdHandle(uint32(sh))
 	if err != nil {
 		return err
 	}
