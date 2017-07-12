@@ -18,8 +18,8 @@ func NewSet(key string, vals ...string) []*api.GenericResource {
 // NewString creates a String resource
 func NewString(key, val string) *api.GenericResource {
 	return &api.GenericResource{
-		Resource: &api.GenericResource_Str{
-			Str: &api.GenericString{
+		Resource: &api.GenericResource_NamedResourceSpec{
+			NamedResourceSpec: &api.NamedGenericResource{
 				Kind:  key,
 				Value: val,
 			},
@@ -30,8 +30,8 @@ func NewString(key, val string) *api.GenericResource {
 // NewDiscrete creates a Discrete resource
 func NewDiscrete(key string, val int64) *api.GenericResource {
 	return &api.GenericResource{
-		Resource: &api.GenericResource_Discrete{
-			Discrete: &api.GenericDiscrete{
+		Resource: &api.GenericResource_DiscreteResourceSpec{
+			DiscreteResourceSpec: &api.DiscreteGenericResource{
 				Kind:  key,
 				Value: val,
 			},
@@ -86,21 +86,21 @@ loop:
 // Returns true if the element is to be removed from the list
 func remove(na, r *api.GenericResource) bool {
 	switch tr := r.Resource.(type) {
-	case *api.GenericResource_Discrete:
-		if na.GetDiscrete() == nil {
+	case *api.GenericResource_DiscreteResourceSpec:
+		if na.GetDiscreteResourceSpec() == nil {
 			return false // Type change, ignore
 		}
 
-		na.GetDiscrete().Value -= tr.Discrete.Value
-		if na.GetDiscrete().Value <= 0 {
+		na.GetDiscreteResourceSpec().Value -= tr.DiscreteResourceSpec.Value
+		if na.GetDiscreteResourceSpec().Value <= 0 {
 			return true
 		}
-	case *api.GenericResource_Str:
-		if na.GetStr() == nil {
+	case *api.GenericResource_NamedResourceSpec:
+		if na.GetNamedResourceSpec() == nil {
 			return false // Type change, ignore
 		}
 
-		if tr.Str.Value != na.GetStr().Value {
+		if tr.NamedResourceSpec.Value != na.GetNamedResourceSpec().Value {
 			return false // not the right item, ignore
 		}
 

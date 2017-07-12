@@ -14,6 +14,12 @@ import (
 	"github.com/pkg/errors"
 )
 
+// Platform holds information about the underlying platform of the node
+type Platform struct {
+	Architecture string
+	OS           string
+}
+
 // Context defines the strict set of values that can be injected into a
 // template expression in SwarmKit data structure.
 // NOTE: Be very careful adding any fields to this structure with types
@@ -27,7 +33,9 @@ type Context struct {
 	}
 
 	Node struct {
-		ID string
+		ID       string
+		Hostname string
+		Platform Platform
 	}
 
 	Task struct {
@@ -41,16 +49,25 @@ type Context struct {
 	}
 }
 
-// NewContextFromTask returns a new template context from the data available in
-// task. The provided context can then be used to populate runtime values in a
+// NewContext returns a new template context from the data available in the
+// task and the node where it is scheduled to run.
+// The provided context can then be used to populate runtime values in a
 // ContainerSpec.
-func NewContextFromTask(t *api.Task) (ctx Context) {
+func NewContext(n *api.NodeDescription, t *api.Task) (ctx Context) {
 	ctx.Service.ID = t.ServiceID
 	ctx.Service.Name = t.ServiceAnnotations.Name
 	ctx.Service.Labels = t.ServiceAnnotations.Labels
 
 	ctx.Node.ID = t.NodeID
 
+	// Add node information to context only if we have them available
+	if n != nil {
+		ctx.Node.Hostname = n.Hostname
+		ctx.Node.Platform = Platform{
+			Architecture: n.Platform.Architecture,
+			OS:           n.Platform.OS,
+		}
+	}
 	ctx.Task.ID = t.ID
 	ctx.Task.Name = naming.Task(t)
 
@@ -157,12 +174,13 @@ func (ctx PayloadContext) envGetter(variable string) (string, error) {
 }
 
 // NewPayloadContextFromTask returns a new template context from the data
-// available in the task. This context also provides access to the configs
+// available in the task and the node where it is scheduled to run.
+// This context also provides access to the configs
 // and secrets that the task has access to. The provided context can then
 // be used to populate runtime values in a templated config or secret.
-func NewPayloadContextFromTask(t *api.Task, dependencies exec.DependencyGetter) (ctx PayloadContext) {
+func NewPayloadContextFromTask(node *api.NodeDescription, t *api.Task, dependencies exec.DependencyGetter) (ctx PayloadContext) {
 	return PayloadContext{
-		Context:           NewContextFromTask(t),
+		Context:           NewContext(node, t),
 		t:                 t,
 		restrictedSecrets: secrets.Restrict(dependencies.Secrets(), t),
 		restrictedConfigs: configs.Restrict(dependencies.Configs(), t),

@@ -77,7 +77,7 @@ func (c *containerConfig) setTask(t *api.Task) error {
 	c.task = t
 
 	if t.Spec.GetContainer() != nil {
-		preparedSpec, err := template.ExpandContainerSpec(t)
+		preparedSpec, err := template.ExpandContainerSpec(nil, t)
 		if err != nil {
 			return err
 		}

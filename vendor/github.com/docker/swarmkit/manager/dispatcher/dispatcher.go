@@ -475,7 +475,7 @@ func (d *Dispatcher) register(ctx context.Context, nodeID string, description *a
 
 	addr, err := nodeIPFromContext(ctx)
 	if err != nil {
-		log.G(ctx).Debug(err.Error())
+		log.G(ctx).WithError(err).Debug("failed to get remote node IP")
 	}
 
 	if err := d.markNodeReady(dctx, nodeID, description, addr); err != nil {
@@ -483,7 +483,7 @@ func (d *Dispatcher) register(ctx context.Context, nodeID string, description *a
 	}
 
 	expireFunc := func() {
-		log.G(ctx).Debugf("heartbeat expiration")
+		log.G(ctx).Debug("heartbeat expiration")
 		if err := d.markNodeNotReady(nodeID, api.NodeStatus_DOWN, "heartbeat failure"); err != nil {
 			log.G(ctx).WithError(err).Errorf("failed deregistering node after heartbeat expiration")
 		}
@@ -703,7 +703,7 @@ func (d *Dispatcher) Tasks(r *api.TasksRequest, stream api.Dispatcher_TasksServe
 	if nodeInfo.ForwardedBy != nil {
 		fields["forwarder.id"] = nodeInfo.ForwardedBy.NodeID
 	}
-	log.G(stream.Context()).WithFields(fields).Debugf("")
+	log.G(stream.Context()).WithFields(fields).Debug("")
 
 	if _, err = d.nodes.GetWithSession(nodeID, r.SessionID); err != nil {
 		return err
@@ -827,7 +827,7 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 		fields["forwarder.id"] = nodeInfo.ForwardedBy.NodeID
 	}
 	log := log.G(stream.Context()).WithFields(fields)
-	log.Debugf("")
+	log.Debug("")
 
 	if _, err = d.nodes.GetWithSession(nodeID, r.SessionID); err != nil {
 		return err
@@ -1118,7 +1118,7 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 		// get the node IP addr
 		addr, err := nodeIPFromContext(stream.Context())
 		if err != nil {
-			log.G(ctx).Debugf(err.Error())
+			log.G(ctx).WithError(err).Debug("failed to get remote node IP")
 		}
 		// update the node description
 		if err := d.markNodeReady(dctx, nodeID, r.Description, addr); err != nil {

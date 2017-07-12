@@ -10,18 +10,19 @@ import (
 )
 
 // ExpandContainerSpec expands templated fields in the runtime using the task
-// state. Templating is all evaluated on the agent-side, before execution.
+// state and the node where it is scheduled to run.
+// Templating is all evaluated on the agent-side, before execution.
 //
 // Note that these are projected only on runtime values, since active task
 // values are typically manipulated in the manager.
-func ExpandContainerSpec(t *api.Task) (*api.ContainerSpec, error) {
+func ExpandContainerSpec(n *api.NodeDescription, t *api.Task) (*api.ContainerSpec, error) {
 	container := t.Spec.GetContainer()
 	if container == nil {
 		return nil, errors.Errorf("task missing ContainerSpec to expand")
 	}
 
 	container = container.Copy()
-	ctx := NewContextFromTask(t)
+	ctx := NewContext(n, t)
 
 	var err error
 	container.Env, err = expandEnv(ctx, container.Env)
@@ -128,12 +129,12 @@ func expandPayload(ctx PayloadContext, payload []byte) ([]byte, error) {
 
 // ExpandSecretSpec expands the template inside the secret payload, if any.
 // Templating is evaluated on the agent-side.
-func ExpandSecretSpec(s *api.Secret, t *api.Task, dependencies exec.DependencyGetter) (*api.SecretSpec, error) {
+func ExpandSecretSpec(s *api.Secret, node *api.NodeDescription, t *api.Task, dependencies exec.DependencyGetter) (*api.SecretSpec, error) {
 	if s.Spec.Templating == nil {
 		return &s.Spec, nil
 	}
 	if s.Spec.Templating.Name == "golang" {
-		ctx := NewPayloadContextFromTask(t, dependencies)
+		ctx := NewPayloadContextFromTask(node, t, dependencies)
 		secretSpec := s.Spec.Copy()
 
 		var err error
@@ -145,12 +146,12 @@ func ExpandSecretSpec(s *api.Secret, t *api.Task, dependencies exec.DependencyGe
 
 // ExpandConfigSpec expands the template inside the config payload, if any.
 // Templating is evaluated on the agent-side.
-func ExpandConfigSpec(c *api.Config, t *api.Task, dependencies exec.DependencyGetter) (*api.ConfigSpec, error) {
+func ExpandConfigSpec(c *api.Config, node *api.NodeDescription, t *api.Task, dependencies exec.DependencyGetter) (*api.ConfigSpec, error) {
 	if c.Spec.Templating == nil {
 		return &c.Spec, nil
 	}
 	if c.Spec.Templating.Name == "golang" {
-		ctx := NewPayloadContextFromTask(t, dependencies)
+		ctx := NewPayloadContextFromTask(node, t, dependencies)
 		configSpec := c.Spec.Copy()
 
 		var err error

@@ -128,7 +128,13 @@ func validateContainerSpec(taskSpec api.TaskSpec) error {
 	// Building a empty/dummy Task to validate the templating and
 	// the resulting container spec as well. This is a *best effort*
 	// validation.
-	container, err := template.ExpandContainerSpec(&api.Task{
+	container, err := template.ExpandContainerSpec(&api.NodeDescription{
+		Hostname: "nodeHostname",
+		Platform: &api.Platform{
+			OS:           "os",
+			Architecture: "architecture",
+		},
+	}, &api.Task{
 		Spec:      taskSpec,
 		ServiceID: "serviceid",
 		Slot:      1,

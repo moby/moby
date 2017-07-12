@@ -12,7 +12,7 @@ func Claim(nodeAvailableResources, taskAssigned *[]*api.GenericResource,
 	var resSelected []*api.GenericResource
 
 	for _, res := range taskReservations {
-		tr := res.GetDiscrete()
+		tr := res.GetDiscreteResourceSpec()
 		if tr == nil {
 			return fmt.Errorf("task should only hold Discrete type")
 		}
@@ -39,7 +39,7 @@ func ClaimResources(nodeAvailableResources, taskAssigned *[]*api.GenericResource
 }
 
 func selectNodeResources(nodeRes []*api.GenericResource,
-	tr *api.GenericDiscrete) ([]*api.GenericResource, error) {
+	tr *api.DiscreteGenericResource) ([]*api.GenericResource, error) {
 	var nrs []*api.GenericResource
 
 	for _, res := range nodeRes {
@@ -48,13 +48,13 @@ func selectNodeResources(nodeRes []*api.GenericResource,
 		}
 
 		switch nr := res.Resource.(type) {
-		case *api.GenericResource_Discrete:
-			if nr.Discrete.Value >= tr.Value && tr.Value != 0 {
+		case *api.GenericResource_DiscreteResourceSpec:
+			if nr.DiscreteResourceSpec.Value >= tr.Value && tr.Value != 0 {
 				nrs = append(nrs, NewDiscrete(tr.Kind, tr.Value))
 			}
 
 			return nrs, nil
-		case *api.GenericResource_Str:
+		case *api.GenericResource_NamedResourceSpec:
 			nrs = append(nrs, res.Copy())
 
 			if int64(len(nrs)) == tr.Value {
@@ -90,8 +90,8 @@ func reclaimResources(nodeAvailableResources *[]*api.GenericResource, taskAssign
 
 	for _, res := range taskAssigned {
 		switch tr := res.Resource.(type) {
-		case *api.GenericResource_Discrete:
-			nrs := GetResource(tr.Discrete.Kind, *nodeAvailableResources)
+		case *api.GenericResource_DiscreteResourceSpec:
+			nrs := GetResource(tr.DiscreteResourceSpec.Kind, *nodeAvailableResources)
 
 			// If the resource went down to 0 it's no longer in the
 			// available list
@@ -103,13 +103,13 @@ func reclaimResources(nodeAvailableResources *[]*api.GenericResource, taskAssign
 				continue // Type change
 			}
 
-			nr := nrs[0].GetDiscrete()
+			nr := nrs[0].GetDiscreteResourceSpec()
 			if nr == nil {
 				continue // Type change
 			}
 
-			nr.Value += tr.Discrete.Value
-		case *api.GenericResource_Str:
+			nr.Value += tr.DiscreteResourceSpec.Value
+		case *api.GenericResource_NamedResourceSpec:
 			*nodeAvailableResources = append(*nodeAvailableResources, res.Copy())
 		}
 	}
@@ -157,8 +157,8 @@ func sanitize(nodeRes []*api.GenericResource, nodeAvailableResources *[]*api.Gen
 // Returns false if the element isn't in nodeRes and "sane" and the element(s) that should be replacing it
 func sanitizeResource(nodeRes []*api.GenericResource, res *api.GenericResource) (ok bool, nrs []*api.GenericResource) {
 	switch na := res.Resource.(type) {
-	case *api.GenericResource_Discrete:
-		nrs := GetResource(na.Discrete.Kind, nodeRes)
+	case *api.GenericResource_DiscreteResourceSpec:
+		nrs := GetResource(na.DiscreteResourceSpec.Kind, nodeRes)
 
 		// Type change or removed: reset
 		if len(nrs) != 1 {
@@ -166,17 +166,17 @@ func sanitizeResource(nodeRes []*api.GenericResource, res *api.GenericResource) 
 		}
 
 		// Type change: reset
-		nr := nrs[0].GetDiscrete()
+		nr := nrs[0].GetDiscreteResourceSpec()
 		if nr == nil {
 			return false, nrs
 		}
 
 		// Amount change: reset
-		if na.Discrete.Value > nr.Value {
+		if na.DiscreteResourceSpec.Value > nr.Value {
 			return false, nrs
 		}
-	case *api.GenericResource_Str:
-		nrs := GetResource(na.Str.Kind, nodeRes)
+	case *api.GenericResource_NamedResourceSpec:
+		nrs := GetResource(na.NamedResourceSpec.Kind, nodeRes)
 
 		// Type change
 		if len(nrs) == 0 {
@@ -185,11 +185,11 @@ func sanitizeResource(nodeRes []*api.GenericResource, res *api.GenericResource) 
 
 		for _, nr := range nrs {
 			// Type change: reset
-			if nr.GetDiscrete() != nil {
+			if nr.GetDiscreteResourceSpec() != nil {
 				return false, nrs
 			}
 
-			if na.Str.Value == nr.GetStr().Value {
+			if na.NamedResourceSpec.Value == nr.GetNamedResourceSpec().Value {
 				return true, nil
 			}
 		}

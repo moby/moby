@@ -9,11 +9,12 @@ import (
 type templatedSecretGetter struct {
 	dependencies exec.DependencyGetter
 	t            *api.Task
+	node         *api.NodeDescription
 }
 
 // NewTemplatedSecretGetter returns a SecretGetter that evaluates templates.
-func NewTemplatedSecretGetter(dependencies exec.DependencyGetter, t *api.Task) exec.SecretGetter {
-	return templatedSecretGetter{dependencies: dependencies, t: t}
+func NewTemplatedSecretGetter(dependencies exec.DependencyGetter, t *api.Task, node *api.NodeDescription) exec.SecretGetter {
+	return templatedSecretGetter{dependencies: dependencies, t: t, node: node}
 }
 
 func (t templatedSecretGetter) Get(secretID string) (*api.Secret, error) {
@@ -31,7 +32,7 @@ func (t templatedSecretGetter) Get(secretID string) (*api.Secret, error) {
 		return secret, err
 	}
 
-	newSpec, err := ExpandSecretSpec(secret, t.t, t.dependencies)
+	newSpec, err := ExpandSecretSpec(secret, t.node, t.t, t.dependencies)
 	if err != nil {
 		return secret, errors.Wrapf(err, "failed to expand templated secret %s", secretID)
 	}
@@ -44,11 +45,12 @@ func (t templatedSecretGetter) Get(secretID string) (*api.Secret, error) {
 type templatedConfigGetter struct {
 	dependencies exec.DependencyGetter
 	t            *api.Task
+	node         *api.NodeDescription
 }
 
 // NewTemplatedConfigGetter returns a ConfigGetter that evaluates templates.
-func NewTemplatedConfigGetter(dependencies exec.DependencyGetter, t *api.Task) exec.ConfigGetter {
-	return templatedConfigGetter{dependencies: dependencies, t: t}
+func NewTemplatedConfigGetter(dependencies exec.DependencyGetter, t *api.Task, node *api.NodeDescription) exec.ConfigGetter {
+	return templatedConfigGetter{dependencies: dependencies, t: t, node: node}
 }
 
 func (t templatedConfigGetter) Get(configID string) (*api.Config, error) {
@@ -66,7 +68,7 @@ func (t templatedConfigGetter) Get(configID string) (*api.Config, error) {
 		return config, err
 	}
 
-	newSpec, err := ExpandConfigSpec(config, t.t, t.dependencies)
+	newSpec, err := ExpandConfigSpec(config, t.node, t.t, t.dependencies)
 	if err != nil {
 		return config, errors.Wrapf(err, "failed to expand templated config %s", configID)
 	}
@@ -82,10 +84,10 @@ type templatedDependencyGetter struct {
 }
 
 // NewTemplatedDependencyGetter returns a DependencyGetter that evaluates templates.
-func NewTemplatedDependencyGetter(dependencies exec.DependencyGetter, t *api.Task) exec.DependencyGetter {
+func NewTemplatedDependencyGetter(dependencies exec.DependencyGetter, t *api.Task, node *api.NodeDescription) exec.DependencyGetter {
 	return templatedDependencyGetter{
-		secrets: NewTemplatedSecretGetter(dependencies, t),
-		configs: NewTemplatedConfigGetter(dependencies, t),
+		secrets: NewTemplatedSecretGetter(dependencies, t, node),
+		configs: NewTemplatedConfigGetter(dependencies, t, node),
 	}
 }
 

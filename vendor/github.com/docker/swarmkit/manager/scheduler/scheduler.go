@@ -261,7 +261,7 @@ func (s *Scheduler) updateTask(ctx context.Context, t *api.Task) bool {
 			if _, wasPreassigned := s.preassignedTasks[t.ID]; !wasPreassigned {
 				nodeInfo, err := s.nodeSet.nodeInfo(t.NodeID)
 				if err == nil {
-					nodeInfo.taskFailed(ctx, t.ServiceID)
+					nodeInfo.taskFailed(ctx, t)
 					s.nodeSet.updateNode(nodeInfo)
 				}
 			}
@@ -543,8 +543,8 @@ func (s *Scheduler) scheduleTaskGroup(ctx context.Context, taskGroup map[string]
 	nodeLess := func(a *NodeInfo, b *NodeInfo) bool {
 		// If either node has at least maxFailures recent failures,
 		// that's the deciding factor.
-		recentFailuresA := a.countRecentFailures(now, t.ServiceID)
-		recentFailuresB := b.countRecentFailures(now, t.ServiceID)
+		recentFailuresA := a.countRecentFailures(now, t)
+		recentFailuresB := b.countRecentFailures(now, t)
 
 		if recentFailuresA >= maxFailures || recentFailuresB >= maxFailures {
 			if recentFailuresA > recentFailuresB {

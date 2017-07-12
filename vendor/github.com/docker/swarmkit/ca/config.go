@@ -14,6 +14,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	cfconfig "github.com/cloudflare/cfssl/config"
+	events "github.com/docker/go-events"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/connectionbroker"
 	"github.com/docker/swarmkit/identity"
@@ -123,11 +124,11 @@ func validateRootCAAndTLSCert(rootCA *RootCA, externalCARootPool *x509.CertPool,
 }
 
 // NewSecurityConfig initializes and returns a new SecurityConfig.
-func NewSecurityConfig(rootCA *RootCA, krw *KeyReadWriter, tlsKeyPair *tls.Certificate, issuerInfo *IssuerInfo) (*SecurityConfig, error) {
+func NewSecurityConfig(rootCA *RootCA, krw *KeyReadWriter, tlsKeyPair *tls.Certificate, issuerInfo *IssuerInfo) (*SecurityConfig, func() error, error) {
 	// Create the Server TLS Credentials for this node. These will not be used by workers.
 	serverTLSCreds, err := rootCA.NewServerTLSCredentials(tlsKeyPair)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Create a TLSConfig to be used when this node connects as a client to another remote node.
@@ -135,7 +136,7 @@ func NewSecurityConfig(rootCA *RootCA, krw *KeyReadWriter, tlsKeyPair *tls.Certi
 	// and managers always connect to remote managers.
 	clientTLSCreds, err := rootCA.NewClientTLSCredentials(tlsKeyPair, ManagerRole)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Make a new TLS config for the external CA client without a
@@ -146,18 +147,21 @@ func NewSecurityConfig(rootCA *RootCA, krw *KeyReadWriter, tlsKeyPair *tls.Certi
 		MinVersion:   tls.VersionTLS12,
 	}
 
+	q := watch.NewQueue()
+
 	return &SecurityConfig{
 		rootCA:        rootCA,
 		keyReadWriter: krw,
 
 		certificate: tlsKeyPair,
 		issuerInfo:  issuerInfo,
+		queue:       q,
 
 		externalCA:               NewExternalCA(rootCA, externalCATLSConfig),
 		ClientTLSCreds:           clientTLSCreds,
 		ServerTLSCreds:           serverTLSCreds,
 		externalCAClientRootPool: rootCA.Pool,
-	}, nil
+	}, q.Close, nil
 }
 
 // RootCA returns the root CA.
@@ -200,11 +204,9 @@ func (s *SecurityConfig) UpdateRootCA(rootCA *RootCA, externalCARootPool *x509.C
 	return s.updateTLSCredentials(s.certificate, s.issuerInfo)
 }
 
-// SetWatch allows you to set a watch on the security config, in order to be notified of any changes
-func (s *SecurityConfig) SetWatch(q *watch.Queue) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.queue = q
+// Watch allows you to set a watch on the security config, in order to be notified of any changes
+func (s *SecurityConfig) Watch() (chan events.Event, func()) {
+	return s.queue.Watch()
 }
 
 // IssuerInfo returns the issuer subject and issuer public key
@@ -382,7 +384,7 @@ func DownloadRootCA(ctx context.Context, paths CertPaths, token string, connBrok
 
 // LoadSecurityConfig loads TLS credentials from disk, or returns an error if
 // these credentials do not exist or are unusable.
-func LoadSecurityConfig(ctx context.Context, rootCA RootCA, krw *KeyReadWriter, allowExpired bool) (*SecurityConfig, error) {
+func LoadSecurityConfig(ctx context.Context, rootCA RootCA, krw *KeyReadWriter, allowExpired bool) (*SecurityConfig, func() error, error) {
 	ctx = log.WithModule(ctx, "tls")
 
 	// At this point we've successfully loaded the CA details from disk, or
@@ -392,13 +394,13 @@ func LoadSecurityConfig(ctx context.Context, rootCA RootCA, krw *KeyReadWriter, 
 	// Read both the Cert and Key from disk
 	cert, key, err := krw.Read()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Check to see if this certificate was signed by our CA, and isn't expired
 	_, chains, err := ValidateCertChain(rootCA.Pool, cert, allowExpired)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	// ValidateChain, if successful, will always return at least 1 chain containing
 	// at least 2 certificates:  the leaf and the root.
@@ -408,10 +410,10 @@ func LoadSecurityConfig(ctx context.Context, rootCA RootCA, krw *KeyReadWriter, 
 	// credentials
 	keyPair, err := tls.X509KeyPair(cert, key)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	secConfig, err := NewSecurityConfig(&rootCA, krw, &keyPair, &IssuerInfo{
+	secConfig, cleanup, err := NewSecurityConfig(&rootCA, krw, &keyPair, &IssuerInfo{
 		Subject:   issuer.RawSubject,
 		PublicKey: issuer.RawSubjectPublicKeyInfo,
 	})
@@ -421,7 +423,7 @@ func LoadSecurityConfig(ctx context.Context, rootCA RootCA, krw *KeyReadWriter, 
 			"node.role": secConfig.ClientTLSCreds.Role(),
 		}).Debug("loaded node credentials")
 	}
-	return secConfig, err
+	return secConfig, cleanup, err
 }
 
 // CertificateRequestConfig contains the information needed to request a
@@ -450,7 +452,7 @@ type CertificateRequestConfig struct {
 
 // CreateSecurityConfig creates a new key and cert for this node, either locally
 // or via a remote CA.
-func (rootCA RootCA) CreateSecurityConfig(ctx context.Context, krw *KeyReadWriter, config CertificateRequestConfig) (*SecurityConfig, error) {
+func (rootCA RootCA) CreateSecurityConfig(ctx context.Context, krw *KeyReadWriter, config CertificateRequestConfig) (*SecurityConfig, func() error, error) {
 	ctx = log.WithModule(ctx, "tls")
 
 	// Create a new random ID for this certificate
@@ -467,7 +469,7 @@ func (rootCA RootCA) CreateSecurityConfig(ctx context.Context, krw *KeyReadWrite
 		tlsKeyPair, issuerInfo, err = rootCA.RequestAndSaveNewCertificates(ctx, krw, config)
 		if err != nil {
 			log.G(ctx).WithError(err).Error("failed to request and save new certificate")
-			return nil, err
+			return nil, nil, err
 		}
 	case nil:
 		log.G(ctx).WithFields(logrus.Fields{
@@ -479,17 +481,17 @@ func (rootCA RootCA) CreateSecurityConfig(ctx context.Context, krw *KeyReadWrite
 			"node.id":   cn,
 			"node.role": proposedRole,
 		}).WithError(err).Errorf("failed to issue and save new certificate")
-		return nil, err
+		return nil, nil, err
 	}
 
-	secConfig, err := NewSecurityConfig(&rootCA, krw, tlsKeyPair, issuerInfo)
+	secConfig, cleanup, err := NewSecurityConfig(&rootCA, krw, tlsKeyPair, issuerInfo)
 	if err == nil {
 		log.G(ctx).WithFields(logrus.Fields{
 			"node.id":   secConfig.ClientTLSCreds.NodeID(),
 			"node.role": secConfig.ClientTLSCreds.Role(),
 		}).Debugf("new node credentials generated: %s", krw.Target())
 	}
-	return secConfig, err
+	return secConfig, cleanup, err
 }
 
 // TODO(cyli): currently we have to only update if it's a worker role - if we have a single root CA update path for
