@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -11,9 +12,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/api/types"
 	cliconfig "github.com/docker/docker/cli/config"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
+	"github.com/docker/docker/integration-cli/fixtures/plugin"
+	"github.com/docker/docker/integration-cli/request"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/go-check/check"
@@ -225,10 +229,23 @@ func (s *DockerTrustSuite) setupTrustedImage(c *check.C, name string) string {
 
 func (s *DockerTrustSuite) setupTrustedplugin(c *check.C, source, name string) string {
 	repoName := fmt.Sprintf("%v/dockercli/%s:latest", privateRegistryURL, name)
+
+	client, err := request.NewClient()
+	c.Assert(err, checker.IsNil, check.Commentf("could not create test client"))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	err = plugin.Create(ctx, client, repoName)
+	cancel()
+	c.Assert(err, checker.IsNil, check.Commentf("could not create test plugin"))
+
 	// tag the image and upload it to the private registry
-	cli.DockerCmd(c, "plugin", "install", "--grant-all-permissions", "--alias", repoName, source)
+	// TODO: shouldn't need to use the CLI to do trust
 	cli.Docker(cli.Args("plugin", "push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
-	cli.DockerCmd(c, "plugin", "rm", "-f", repoName)
+
+	ctx, cancel = context.WithTimeout(context.Background(), 60*time.Second)
+	err = client.PluginRemove(ctx, repoName, types.PluginRemoveOptions{Force: true})
+	cancel()
+	c.Assert(err, checker.IsNil, check.Commentf("failed to cleanup test plugin for trust suite"))
 	return repoName
 }
 

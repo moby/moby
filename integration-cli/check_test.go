@@ -5,21 +5,26 @@ import (
 	"net/http/httptest"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli/config"
+	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build/fakestorage"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/integration-cli/environment"
+	"github.com/docker/docker/integration-cli/fixtures/plugin"
 	"github.com/docker/docker/integration-cli/registry"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/go-check/check"
+	"golang.org/x/net/context"
 )
 
 const (
@@ -441,4 +446,51 @@ func (s *DockerTrustedSwarmSuite) TearDownTest(c *check.C) {
 
 func (s *DockerTrustedSwarmSuite) OnTimeout(c *check.C) {
 	s.swarmSuite.OnTimeout(c)
+}
+
+func init() {
+	check.Suite(&DockerPluginSuite{
+		ds: &DockerSuite{},
+	})
+}
+
+type DockerPluginSuite struct {
+	ds       *DockerSuite
+	registry *registry.V2
+}
+
+func (ps *DockerPluginSuite) registryHost() string {
+	return privateRegistryURL
+}
+
+func (ps *DockerPluginSuite) getPluginRepo() string {
+	return path.Join(ps.registryHost(), "plugin", "basic")
+}
+func (ps *DockerPluginSuite) getPluginRepoWithTag() string {
+	return ps.getPluginRepo() + ":" + "latest"
+}
+
+func (ps *DockerPluginSuite) SetUpSuite(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	ps.registry = setupRegistry(c, false, "", "")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	err := plugin.CreateInRegistry(ctx, ps.getPluginRepo(), nil)
+	c.Assert(err, checker.IsNil, check.Commentf("failed to create plugin"))
+}
+
+func (ps *DockerPluginSuite) TearDownSuite(c *check.C) {
+	if ps.registry != nil {
+		ps.registry.Close()
+	}
+}
+
+func (ps *DockerPluginSuite) TearDownTest(c *check.C) {
+	ps.ds.TearDownTest(c)
+}
+
+func (ps *DockerPluginSuite) OnTimeout(c *check.C) {
+	ps.ds.OnTimeout(c)
 }
