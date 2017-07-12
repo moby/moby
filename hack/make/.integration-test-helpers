@@ -26,7 +26,7 @@ run_test_integration() {
 
 	(
 		flags="-check.v -check.timeout=${TIMEOUT} -test.timeout=360m $TESTFLAGS"
-		cd integration-cli > /dev/null
+		cd integration-cli
 		echo "Running $PWD"
 		test_env ./test.main $flags
 	)
