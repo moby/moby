@@ -51,7 +51,7 @@ type Platform struct {
 	OS string `json:"os"`
 
 	// OSVersion is an optional field specifying the operating system
-	// version, for example `10.0.10586`.
+	// version, for example on Windows `10.0.14393.1066`.
 	OSVersion string `json:"os.version,omitempty"`
 
 	// OSFeatures is an optional field specifying an array of strings,
@@ -59,10 +59,6 @@ type Platform struct {
 	OSFeatures []string `json:"os.features,omitempty"`
 
 	// Variant is an optional field specifying a variant of the CPU, for
-	// example `ppc64le` to specify a little-endian version of a PowerPC CPU.
+	// example `v7` to specify ARMv7 when architecture is `arm`.
 	Variant string `json:"variant,omitempty"`
-
-	// Features is an optional field specifying an array of strings, each
-	// listing a required CPU feature (for example `sse4` or `aes`).
-	Features []string `json:"features,omitempty"`
 }
