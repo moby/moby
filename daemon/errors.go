@@ -39,3 +39,15 @@ func errExecPaused(id string) error {
 	err := fmt.Errorf("Container %s is paused, unpause the container before exec", id)
 	return errors.NewRequestConflictError(err)
 }
+
+type errNotFound struct {
+	containerID string
+}
+
+func (e errNotFound) Error() string {
+	return fmt.Sprintf("Container %s is not found", e.containerID)
+}
+
+func (e errNotFound) ContainerNotFound() bool {
+	return true
+}
