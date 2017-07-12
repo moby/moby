@@ -4,10 +4,8 @@ import (
 	"fmt"
 	"net/http/httptest"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
-	"strings"
 	"sync"
 	"syscall"
 	"testing"
@@ -72,17 +70,7 @@ func TestMain(m *testing.M) {
 func Test(t *testing.T) {
 	cli.EnsureTestEnvIsLoaded(t)
 	fakestorage.EnsureTestEnvIsLoaded(t)
-	cmd := exec.Command(dockerBinary, "images", "-f", "dangling=false", "--format", "{{.Repository}}:{{.Tag}}")
-	cmd.Env = appendBaseEnv(true)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		panic(fmt.Errorf("err=%v\nout=%s\n", err, out))
-	}
-	images := strings.Split(strings.TrimSpace(string(out)), "\n")
-	testEnv.ProtectImage(t, images...)
-	if testEnv.DaemonPlatform() == "linux" {
-		ensureFrozenImagesLinux(t)
-	}
+	environment.ProtectImages(t, testEnv)
 	check.TestingT(t)
 }
 
