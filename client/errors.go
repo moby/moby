@@ -228,7 +228,7 @@ func IsErrPluginPermissionDenied(err error) bool {
 // NewVersionError returns an error if the APIVersion required
 // if less than the current supported version
 func (cli *Client) NewVersionError(APIrequired, feature string) error {
-	if versions.LessThan(cli.version, APIrequired) {
+	if cli.version != "" && versions.LessThan(cli.version, APIrequired) {
 		return fmt.Errorf("%q requires API version %s, but the Docker daemon API version is %s", feature, APIrequired, cli.version)
 	}
 	return nil
