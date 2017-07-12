@@ -133,25 +133,12 @@ func (nDB *NetworkDB) handleNodeEvent(nEvent *NodeEvent) bool {
 }
 
 func (nDB *NetworkDB) handleNetworkEvent(nEvent *NetworkEvent) bool {
-	var flushEntries bool
 	// Update our local clock if the received messages has newer
 	// time.
 	nDB.networkClock.Witness(nEvent.LTime)
 
 	nDB.Lock()
-	defer func() {
-		nDB.Unlock()
-		// When a node leaves a network on the last task removal cleanup the
-		// local entries for this network & node combination. When the tasks
-		// on a network are removed we could have missed the gossip updates.
-		// Not doing this cleanup can leave stale entries because bulksyncs
-		// from the node will no longer include this network state.
-		//
-		// deleteNodeNetworkEntries takes nDB lock.
-		if flushEntries {
-			nDB.deleteNodeNetworkEntries(nEvent.NetworkID, nEvent.NodeName)
-		}
-	}()
+	defer nDB.Unlock()
 
 	if nEvent.NodeName == nDB.config.NodeName {
 		return false
@@ -179,7 +166,12 @@ func (nDB *NetworkDB) handleNetworkEvent(nEvent *NetworkEvent) bool {
 		n.leaving = nEvent.Type == NetworkEventTypeLeave
 		if n.leaving {
 			n.reapTime = reapInterval
-			flushEntries = true
+
+			// The remote node is leaving the network, but not the gossip cluster.
+			// Mark all its entries in deleted state, this will guarantee that
+			// if some node bulk sync with us, the deleted state of
+			// these entries will be propagated.
+			nDB.deleteNodeNetworkEntries(nEvent.NetworkID, nEvent.NodeName)
 		}
 
 		if nEvent.Type == NetworkEventTypeLeave {
@@ -214,9 +206,18 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent) bool {
 	nDB.RLock()
 	networks := nDB.networks[nDB.config.NodeName]
 	network, ok := networks[tEvent.NetworkID]
+	// Check if the owner of the event is still part of the network
+	nodes := nDB.networkNodes[tEvent.NetworkID]
+	var nodePresent bool
+	for _, node := range nodes {
+		if node == tEvent.NodeName {
+			nodePresent = true
+			break
+		}
+	}
 	nDB.RUnlock()
-	if !ok || network.leaving {
-		// I'm out of the network so do not propagate
+	if !ok || network.leaving || !nodePresent {
+		// I'm out of the network OR the event owner is not anymore part of the network so do not propagate
 		return false
 	}
 
