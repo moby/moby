@@ -305,3 +305,14 @@ func (s *DockerSuite) TestLogsWithDetails(c *check.C) {
 	c.Assert(details[0], checker.Equals, "baz=qux")
 	c.Assert(details[1], checker.Equals, "foo=bar")
 }
+
+func (s *DockerSuite) TestLogsWithTag(c *check.C) {
+	dockerCmd(c, "run", "--name=test", "--log-opt", "tag={{.Name}}", "busybox", "echo", "hello")
+	out, _ := dockerCmd(c, "logs", "--details", "--timestamps", "test")
+
+	logFields := strings.Fields(strings.TrimSpace(out))
+	c.Assert(len(logFields), checker.Equals, 2, check.Commentf(out))
+
+	// ensure CLI logs command does not display the tag
+	c.Assert(logFields[1], checker.Not(checker.Contains), "tag")
+}

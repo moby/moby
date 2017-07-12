@@ -17,6 +17,8 @@ type JSONLog struct {
 	Created time.Time `json:"time"`
 	// Attrs is the list of extra attributes provided by the user
 	Attrs map[string]string `json:"attrs,omitempty"`
+	// Tags requested the operator
+	Tag string `json:"tag,omitempty"`
 }
 
 // Format returns the log formatted according to format

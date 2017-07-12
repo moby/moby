@@ -31,6 +31,7 @@ type JSONFileLogger struct {
 	closed  bool
 	writer  *loggerutils.RotateFileWriter
 	readers map[*logger.LogWatcher]struct{} // stores the active log followers
+	tag     string                          // tag values requested by the user to log
 }
 
 func init() {
@@ -65,6 +66,12 @@ func New(info logger.Info) (logger.Logger, error) {
 		}
 	}
 
+	// no default template. only use a tag if the user asked for it
+	tag, err := loggerutils.ParseLogTag(info, "")
+	if err != nil {
+		return nil, err
+	}
+
 	writer, err := loggerutils.NewRotateFileWriter(info.LogPath, capval, maxFiles)
 	if err != nil {
 		return nil, err
@@ -88,20 +95,21 @@ func New(info logger.Info) (logger.Logger, error) {
 		writer:  writer,
 		readers: make(map[*logger.LogWatcher]struct{}),
 		extra:   extra,
+		tag:     tag,
 	}, nil
 }
 
 // Log converts logger.Message to jsonlog.JSONLog and serializes it to file.
 func (l *JSONFileLogger) Log(msg *logger.Message) error {
 	l.mu.Lock()
-	err := writeMessageBuf(l.writer, msg, l.extra, l.buf)
+	err := writeMessageBuf(l.writer, msg, l.extra, l.buf, l.tag)
 	l.buf.Reset()
 	l.mu.Unlock()
 	return err
 }
 
-func writeMessageBuf(w io.Writer, m *logger.Message, extra json.RawMessage, buf *bytes.Buffer) error {
-	if err := marshalMessage(m, extra, buf); err != nil {
+func writeMessageBuf(w io.Writer, m *logger.Message, extra json.RawMessage, buf *bytes.Buffer, tag string) error {
+	if err := marshalMessage(m, extra, buf, tag); err != nil {
 		logger.PutMessage(m)
 		return err
 	}
@@ -112,7 +120,7 @@ func writeMessageBuf(w io.Writer, m *logger.Message, extra json.RawMessage, buf 
 	return nil
 }
 
-func marshalMessage(msg *logger.Message, extra json.RawMessage, buf *bytes.Buffer) error {
+func marshalMessage(msg *logger.Message, extra json.RawMessage, buf *bytes.Buffer, tag string) error {
 	timestamp, err := jsonlog.FastTimeMarshalJSON(msg.Timestamp)
 	if err != nil {
 		return err
@@ -126,6 +134,7 @@ func marshalMessage(msg *logger.Message, extra json.RawMessage, buf *bytes.Buffe
 		Stream:   msg.Source,
 		Created:  timestamp,
 		RawAttrs: extra,
+		Tag:      tag,
 	}).MarshalJSONBuf(buf)
 	if err != nil {
 		return errors.Wrap(err, "error writing log message to buffer")
@@ -143,6 +152,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case "labels":
 		case "env":
 		case "env-regex":
+		case "tag":
 		default:
 			return fmt.Errorf("unknown log opt '%s' for json-file log driver", key)
 		}
