@@ -27,6 +27,7 @@ keywords: "API, Docker, rcli, REST, documentation"
   enabled.
 * `GET /images/(name)/get` now includes an `ImageMetadata` field which contains image metadata that is local to the engine and not part of the image config.
 * `POST /services/create` now accepts a `PluginSpec` when `TaskTemplate.Runtime` is set to `plugin`
+* `GET /events` now supports config events `create`, `update` and `remove` that are emitted when users create, update or remove a config
 
 ## v1.30 API changes
 

@@ -175,6 +175,8 @@ func (daemon *Daemon) generateClusterEvent(msg *swarmapi.WatchMessage) {
 			daemon.logNetworkEvent(event.Action, v.Network, event.OldObject.GetNetwork())
 		case *swarmapi.Object_Secret:
 			daemon.logSecretEvent(event.Action, v.Secret, event.OldObject.GetSecret())
+		case *swarmapi.Object_Config:
+			daemon.logConfigEvent(event.Action, v.Config, event.OldObject.GetConfig())
 		default:
 			logrus.Warnf("unrecognized event: %v", event)
 		}
@@ -195,6 +197,14 @@ func (daemon *Daemon) logSecretEvent(action swarmapi.WatchActionKind, secret *sw
 	}
 	eventTime := eventTimestamp(secret.Meta, action)
 	daemon.logClusterEvent(action, secret.ID, "secret", attributes, eventTime)
+}
+
+func (daemon *Daemon) logConfigEvent(action swarmapi.WatchActionKind, config *swarmapi.Config, oldConfig *swarmapi.Config) {
+	attributes := map[string]string{
+		"name": config.Spec.Annotations.Name,
+	}
+	eventTime := eventTimestamp(config.Meta, action)
+	daemon.logClusterEvent(action, config.ID, "config", attributes, eventTime)
 }
 
 func (daemon *Daemon) logNodeEvent(action swarmapi.WatchActionKind, node *swarmapi.Node, oldNode *swarmapi.Node) {

@@ -2208,3 +2208,23 @@ func (s *DockerSwarmSuite) TestSwarmClusterEventsSecret(c *check.C) {
 	// filtered by secret
 	waitForEvent(c, d, t1, "-f type=secret", "secret remove "+id, defaultRetryCount)
 }
+
+func (s *DockerSwarmSuite) TestSwarmClusterEventsConfig(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	testName := "test_config"
+	id := d.CreateConfig(c, swarm.ConfigSpec{
+		Annotations: swarm.Annotations{
+			Name: testName,
+		},
+		Data: []byte("TESTINGDATA"),
+	})
+	c.Assert(id, checker.Not(checker.Equals), "", check.Commentf("configs: %s", id))
+
+	waitForEvent(c, d, "0", "-f scope=swarm", "config create "+id, defaultRetryCount)
+
+	t1 := daemonUnixTime(c)
+	d.DeleteConfig(c, id)
+	// filtered by config
+	waitForEvent(c, d, t1, "-f type=config", "config remove "+id, defaultRetryCount)
+}
