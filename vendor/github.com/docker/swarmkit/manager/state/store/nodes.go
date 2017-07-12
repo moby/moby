@@ -47,21 +47,11 @@ func init() {
 			return err
 		},
 		Restore: func(tx Tx, snapshot *api.StoreSnapshot) error {
-			nodes, err := FindNodes(tx, All)
-			if err != nil {
-				return err
+			toStoreObj := make([]api.StoreObject, len(snapshot.Nodes))
+			for i, x := range snapshot.Nodes {
+				toStoreObj[i] = x
 			}
-			for _, n := range nodes {
-				if err := DeleteNode(tx, n.ID); err != nil {
-					return err
-				}
-			}
-			for _, n := range snapshot.Nodes {
-				if err := CreateNode(tx, n); err != nil {
-					return err
-				}
-			}
-			return nil
+			return RestoreTable(tx, tableNode, toStoreObj)
 		},
 		ApplyStoreAction: func(tx Tx, sa api.StoreAction) error {
 			switch v := sa.Target.(type) {

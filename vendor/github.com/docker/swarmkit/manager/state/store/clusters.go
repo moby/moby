@@ -43,21 +43,11 @@ func init() {
 			return err
 		},
 		Restore: func(tx Tx, snapshot *api.StoreSnapshot) error {
-			clusters, err := FindClusters(tx, All)
-			if err != nil {
-				return err
+			toStoreObj := make([]api.StoreObject, len(snapshot.Clusters))
+			for i, x := range snapshot.Clusters {
+				toStoreObj[i] = x
 			}
-			for _, n := range clusters {
-				if err := DeleteCluster(tx, n.ID); err != nil {
-					return err
-				}
-			}
-			for _, n := range snapshot.Clusters {
-				if err := CreateCluster(tx, n); err != nil {
-					return err
-				}
-			}
-			return nil
+			return RestoreTable(tx, tableCluster, toStoreObj)
 		},
 		ApplyStoreAction: func(tx Tx, sa api.StoreAction) error {
 			switch v := sa.Target.(type) {

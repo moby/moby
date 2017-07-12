@@ -37,21 +37,11 @@ func init() {
 			return err
 		},
 		Restore: func(tx Tx, snapshot *api.StoreSnapshot) error {
-			secrets, err := FindSecrets(tx, All)
-			if err != nil {
-				return err
+			toStoreObj := make([]api.StoreObject, len(snapshot.Secrets))
+			for i, x := range snapshot.Secrets {
+				toStoreObj[i] = x
 			}
-			for _, s := range secrets {
-				if err := DeleteSecret(tx, s.ID); err != nil {
-					return err
-				}
-			}
-			for _, s := range snapshot.Secrets {
-				if err := CreateSecret(tx, s); err != nil {
-					return err
-				}
-			}
-			return nil
+			return RestoreTable(tx, tableSecret, toStoreObj)
 		},
 		ApplyStoreAction: func(tx Tx, sa api.StoreAction) error {
 			switch v := sa.Target.(type) {

@@ -37,21 +37,11 @@ func init() {
 			return err
 		},
 		Restore: func(tx Tx, snapshot *api.StoreSnapshot) error {
-			configs, err := FindConfigs(tx, All)
-			if err != nil {
-				return err
+			toStoreObj := make([]api.StoreObject, len(snapshot.Configs))
+			for i, x := range snapshot.Configs {
+				toStoreObj[i] = x
 			}
-			for _, s := range configs {
-				if err := DeleteConfig(tx, s.ID); err != nil {
-					return err
-				}
-			}
-			for _, s := range snapshot.Configs {
-				if err := CreateConfig(tx, s); err != nil {
-					return err
-				}
-			}
-			return nil
+			return RestoreTable(tx, tableConfig, toStoreObj)
 		},
 		ApplyStoreAction: func(tx Tx, sa api.StoreAction) error {
 			switch v := sa.Target.(type) {

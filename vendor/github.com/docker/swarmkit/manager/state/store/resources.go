@@ -40,21 +40,11 @@ func init() {
 			return err
 		},
 		Restore: func(tx Tx, snapshot *api.StoreSnapshot) error {
-			resources, err := FindResources(tx, All)
-			if err != nil {
-				return err
+			toStoreObj := make([]api.StoreObject, len(snapshot.Resources))
+			for i, x := range snapshot.Resources {
+				toStoreObj[i] = resourceEntry{x}
 			}
-			for _, r := range resources {
-				if err := DeleteResource(tx, r.ID); err != nil {
-					return err
-				}
-			}
-			for _, r := range snapshot.Resources {
-				if err := CreateResource(tx, r); err != nil {
-					return err
-				}
-			}
-			return nil
+			return RestoreTable(tx, tableResource, toStoreObj)
 		},
 		ApplyStoreAction: func(tx Tx, sa api.StoreAction) error {
 			switch v := sa.Target.(type) {
@@ -80,6 +70,14 @@ type resourceEntry struct {
 
 func (r resourceEntry) CopyStoreObject() api.StoreObject {
 	return resourceEntry{Resource: r.Resource.Copy()}
+}
+
+// ensure that when update events are emitted, we unwrap resourceEntry
+func (r resourceEntry) EventUpdate(oldObject api.StoreObject) api.Event {
+	if oldObject != nil {
+		return api.EventUpdateResource{Resource: r.Resource, OldResource: oldObject.(resourceEntry).Resource}
+	}
+	return api.EventUpdateResource{Resource: r.Resource}
 }
 
 func confirmExtension(tx Tx, r *api.Resource) error {

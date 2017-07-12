@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"sync"
@@ -23,8 +24,18 @@ import (
 	"golang.org/x/net/context/ctxhttp"
 )
 
-// ExternalCrossSignProfile is the profile that we will be sending cross-signing CSR sign requests with
-const ExternalCrossSignProfile = "CA"
+const (
+	// ExternalCrossSignProfile is the profile that we will be sending cross-signing CSR sign requests with
+	ExternalCrossSignProfile = "CA"
+
+	// CertificateMaxSize is the maximum expected size of a certificate.
+	// While there is no specced upper limit to the size of an x509 certificate in PEM format,
+	// one with a ridiculous RSA key size (16384) and 26 256-character DNS SAN fields is about 14k.
+	// While there is no upper limit on the length of certificate chains, long chains are impractical.
+	// To be conservative, and to also account for external CA certificate responses in JSON format
+	// from CFSSL, we'll set the max to be 256KiB.
+	CertificateMaxSize int64 = 256 << 10
+)
 
 // ErrNoExternalCAURLs is an error used it indicate that an ExternalCA is
 // configured with no URLs to which it can proxy certificate signing requests.
@@ -190,7 +201,8 @@ func makeExternalSignRequest(ctx context.Context, client *http.Client, url strin
 	}
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	b := io.LimitReader(resp.Body, CertificateMaxSize)
+	body, err := ioutil.ReadAll(b)
 	if err != nil {
 		return nil, recoverableErr{err: errors.Wrap(err, "unable to read CSR response body")}
 	}
