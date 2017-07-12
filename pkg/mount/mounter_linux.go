@@ -29,8 +29,9 @@ func isremount(device string, flags uintptr) bool {
 
 func mount(device, target, mType string, flags uintptr, data string) error {
 	oflags := flags &^ ptypes
-	if !isremount(device, flags) {
-		// Initial call applying all non-propagation flags.
+	if !isremount(device, flags) || data != "" {
+		// Initial call applying all non-propagation flags for mount
+		// or remount with changed data
 		if err := unix.Mount(device, target, mType, oflags, data); err != nil {
 			return err
 		}
