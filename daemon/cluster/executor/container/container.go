@@ -89,7 +89,7 @@ func (c *containerConfig) setTask(t *api.Task) error {
 	return nil
 }
 
-func (c *containerConfig) id() string {
+func (c *containerConfig) networkAttachmentContainerID() string {
 	attachment := c.task.Spec.GetAttachment()
 	if attachment == nil {
 		return ""
@@ -115,7 +115,7 @@ func (c *containerConfig) nameOrID() string {
 		return c.name()
 	}
 
-	return c.id()
+	return c.networkAttachmentContainerID()
 }
 
 func (c *containerConfig) name() string {
