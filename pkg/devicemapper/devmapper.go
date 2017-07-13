@@ -13,11 +13,6 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// DevmapperLogger defines methods for logging with devicemapper.
-type DevmapperLogger interface {
-	DMLog(level int, file string, line int, dmError int, message string)
-}
-
 const (
 	deviceCreate TaskType = iota
 	deviceReload
@@ -262,19 +257,6 @@ func UdevWait(cookie *uint) error {
 		return ErrUdevWait
 	}
 	return nil
-}
-
-// LogInitVerbose is an interface to initialize the verbose logger for the device mapper library.
-func LogInitVerbose(level int) {
-	DmLogInitVerbose(level)
-}
-
-var dmLogger DevmapperLogger
-
-// LogInit initializes the logger for the device mapper library.
-func LogInit(logger DevmapperLogger) {
-	dmLogger = logger
-	LogWithErrnoInit()
 }
 
 // SetDevDir sets the dev folder for the device mapper library (usually /dev).
