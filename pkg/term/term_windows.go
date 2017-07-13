@@ -6,10 +6,10 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"syscall" // used for STD_INPUT_HANDLE, STD_OUTPUT_HANDLE and STD_ERROR_HANDLE
 
 	"github.com/Azure/go-ansiterm/winterm"
 	"github.com/docker/docker/pkg/term/windows"
-	"golang.org/x/sys/windows"
 )
 
 // State holds the console mode for the terminal.
@@ -78,20 +78,24 @@ func StdStreams() (stdIn io.ReadCloser, stdOut, stdErr io.Writer) {
 		emulateStderr = false
 	}
 
+	// Temporarily use STD_INPUT_HANDLE, STD_OUTPUT_HANDLE and
+	// STD_ERROR_HANDLE from syscall rather than x/sys/windows as long as
+	// go-ansiterm hasn't switch to x/sys/windows.
+	// TODO: switch back to x/sys/windows once go-ansiterm has switched
 	if emulateStdin {
-		stdIn = windowsconsole.NewAnsiReader(windows.STD_INPUT_HANDLE)
+		stdIn = windowsconsole.NewAnsiReader(syscall.STD_INPUT_HANDLE)
 	} else {
 		stdIn = os.Stdin
 	}
 
 	if emulateStdout {
-		stdOut = windowsconsole.NewAnsiWriter(windows.STD_OUTPUT_HANDLE)
+		stdOut = windowsconsole.NewAnsiWriter(syscall.STD_OUTPUT_HANDLE)
 	} else {
 		stdOut = os.Stdout
 	}
 
 	if emulateStderr {
-		stdErr = windowsconsole.NewAnsiWriter(windows.STD_ERROR_HANDLE)
+		stdErr = windowsconsole.NewAnsiWriter(syscall.STD_ERROR_HANDLE)
 	} else {
 		stdErr = os.Stderr
 	}
