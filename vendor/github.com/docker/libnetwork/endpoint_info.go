@@ -154,9 +154,7 @@ func (epi *endpointInterface) CopyTo(dstEpi *endpointInterface) error {
 	dstEpi.v6PoolID = epi.v6PoolID
 	if len(epi.llAddrs) != 0 {
 		dstEpi.llAddrs = make([]*net.IPNet, 0, len(epi.llAddrs))
-		for _, ll := range epi.llAddrs {
-			dstEpi.llAddrs = append(dstEpi.llAddrs, ll)
-		}
+		dstEpi.llAddrs = append(dstEpi.llAddrs, epi.llAddrs...)
 	}
 
 	for _, route := range epi.routes {

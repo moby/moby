@@ -26,14 +26,15 @@ type Config struct {
 
 // DaemonCfg represents libnetwork core configuration
 type DaemonCfg struct {
-	Debug           bool
-	Experimental    bool
-	DataDir         string
-	DefaultNetwork  string
-	DefaultDriver   string
-	Labels          []string
-	DriverCfg       map[string]interface{}
-	ClusterProvider cluster.Provider
+	Debug                  bool
+	Experimental           bool
+	DataDir                string
+	DefaultNetwork         string
+	DefaultDriver          string
+	Labels                 []string
+	DriverCfg              map[string]interface{}
+	ClusterProvider        cluster.Provider
+	NetworkControlPlaneMTU int
 }
 
 // ClusterCfg represents cluster configuration
@@ -221,6 +222,18 @@ func OptionExperimental(exp bool) Option {
 	}
 }
 
+// OptionNetworkControlPlaneMTU function returns an option setter for control plane MTU
+func OptionNetworkControlPlaneMTU(exp int) Option {
+	return func(c *Config) {
+		logrus.Debugf("Network Control Plane MTU: %d", exp)
+		if exp < 1500 {
+			// if exp == 0 the value won't be used
+			logrus.Warnf("Received a MTU of %d, this value is very low, the network control plane can misbehave", exp)
+		}
+		c.Daemon.NetworkControlPlaneMTU = exp
+	}
+}
+
 // ProcessOptions processes options and stores it in config
 func (c *Config) ProcessOptions(options ...Option) {
 	for _, opt := range options {
@@ -232,10 +245,7 @@ func (c *Config) ProcessOptions(options ...Option) {
 
 // IsValidName validates configuration objects supported by libnetwork
 func IsValidName(name string) bool {
-	if strings.TrimSpace(name) == "" {
-		return false
-	}
-	return true
+	return strings.TrimSpace(name) != ""
 }
 
 // OptionLocalKVProvider function returns an option setter for kvstore provider
