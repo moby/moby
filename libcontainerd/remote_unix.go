@@ -20,6 +20,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	containerd "github.com/containerd/containerd/api/grpc/types"
+	"github.com/crosbymichael/upgrade/v17_06_1"
 	"github.com/docker/docker/pkg/locker"
 	"github.com/docker/docker/pkg/system"
 	"github.com/golang/protobuf/ptypes"
@@ -39,7 +40,13 @@ const (
 	containerdPidFilename        = "docker-containerd.pid"
 	containerdSockFilename       = "docker-containerd.sock"
 	containerdStateDir           = "containerd"
+	containerdInitDir            = "init"
 	eventTimestampFilename       = "event.ts"
+	processFilename              = "process.json"
+
+	// TODO: Use user's --root parameter for runc, if possible
+	runcStateDir      = "/run/runc"
+	runcStateFilename = "state.json"
 )
 
 type remote struct {
@@ -89,6 +96,7 @@ func New(stateDir string, options ...RemoteOption) (_ Remote, err error) {
 	}
 
 	if r.startDaemon {
+		r.makeUpgradeProof()
 		if err := r.runContainerdDaemon(); err != nil {
 			return nil, err
 		}
@@ -126,6 +134,37 @@ func New(stateDir string, options ...RemoteOption) (_ Remote, err error) {
 	}
 
 	return r, nil
+}
+
+func (r *remote) makeUpgradeProof() {
+	dir := filepath.Join(r.stateDir, containerdStateDir)
+	f, err := os.Open(dir)
+	if err != nil {
+		logrus.Warnf("libcontainerd: makeUpgradeProof could not open %s", dir)
+		return
+	}
+	fis, err := f.Readdir(0)
+	if err != nil {
+		logrus.Warnf("libcontainerd: makeUpgradeProof could not read directory entries in %s", dir)
+		f.Close()
+		return
+	}
+	containerIds := make([]string, 0, len(fis))
+	for _, fi := range fis {
+		if fi.IsDir() {
+			containerIds = append(containerIds, fi.Name())
+		}
+	}
+	f.Close()
+	for _, id := range containerIds {
+		if err := v17_06_1.Upgrade(
+			filepath.Join(runcStateDir, id, runcStateFilename),
+			filepath.Join(r.stateDir, id, configFilename),
+			filepath.Join(dir, id, containerdInitDir, processFilename),
+		); err != nil {
+			logrus.Warnf("libcontainerd: could not upgrade state files during live restore for container %s: %v", id, err)
+		}
+	}
 }
 
 func (r *remote) UpdateOptions(options ...RemoteOption) error {
