@@ -128,13 +128,16 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 		return errors.Wrapf(err, "unable to remove filesystem for %s", container.ID)
 	}
 
-	daemon.linkIndex.delete(container)
+	linkNames := daemon.linkIndex.delete(container)
 	selinuxFreeLxcContexts(container.ProcessLabel)
 	daemon.idIndex.Delete(container.ID)
 	daemon.containers.Delete(container.ID)
 	daemon.containersReplica.Delete(container)
 	if e := daemon.removeMountPoints(container, removeVolume); e != nil {
 		logrus.Error(e)
+	}
+	for _, name := range linkNames {
+		daemon.releaseName(name)
 	}
 	container.SetRemoved()
 	stateCtr.del(container.ID)
