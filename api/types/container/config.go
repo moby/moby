@@ -32,6 +32,9 @@ type HealthConfig struct {
 	// Retries is the number of consecutive failures needed to consider a container as unhealthy.
 	// Zero means inherit.
 	Retries int `json:",omitempty"`
+
+	// True means to perform first healthcheck on startup without waiting the specified interval
+	NoWait bool `json:",omitempty"`
 }
 
 // Config contains the configuration data about a container.

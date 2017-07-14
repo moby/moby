@@ -591,6 +591,7 @@ func healthcheck(req dispatchRequest) error {
 		flTimeout := req.flags.AddString("timeout", "")
 		flStartPeriod := req.flags.AddString("start-period", "")
 		flRetries := req.flags.AddString("retries", "")
+		flNoWait := req.flags.AddBool("no-wait", false)
 
 		if err := req.flags.Parse(); err != nil {
 			return err
@@ -642,6 +643,8 @@ func healthcheck(req dispatchRequest) error {
 		} else {
 			healthcheck.Retries = 0
 		}
+
+		healthcheck.NoWait = flNoWait.IsTrue()
 
 		runConfig.Healthcheck = &healthcheck
 	}

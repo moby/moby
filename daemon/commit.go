@@ -99,6 +99,9 @@ func merge(userConf, imageConf *containertypes.Config) error {
 			if userConf.Healthcheck.Retries == 0 {
 				userConf.Healthcheck.Retries = imageConf.Healthcheck.Retries
 			}
+			if !userConf.Healthcheck.NoWait {
+				userConf.Healthcheck.NoWait = imageConf.Healthcheck.NoWait
+			}
 		}
 	}
 

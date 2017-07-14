@@ -148,12 +148,20 @@ func handleProbeResult(d *Daemon, c *container.Container, result *types.Healthch
 		// then we check if we are within the start period of the container in which
 		// case we do not increment the failure streak.
 		if h.Status == types.Starting {
-			startPeriod := timeoutWithDefault(c.Config.Healthcheck.StartPeriod, defaultStartPeriod)
-			timeSinceStart := result.Start.Sub(c.State.StartedAt)
+			if result.Start.IsZero() {
+				// In case this is the first healthcheck, the failing streak
+				// will only be incremented when noWait = False
+				if !c.Config.Healthcheck.NoWait {
+					shouldIncrementStreak = false
+				}
+			} else {
+				startPeriod := timeoutWithDefault(c.Config.Healthcheck.StartPeriod, defaultStartPeriod)
+				timeSinceStart := result.Start.Sub(c.State.StartedAt)
 
-			// If still within the start period, then don't increment failing streak.
-			if timeSinceStart < startPeriod {
-				shouldIncrementStreak = false
+				// If still within the start period, then don't increment failing streak.
+				if timeSinceStart < startPeriod {
+					shouldIncrementStreak = false
+				}
 			}
 		}
 
@@ -184,14 +192,22 @@ func handleProbeResult(d *Daemon, c *container.Container, result *types.Healthch
 func monitor(d *Daemon, c *container.Container, stop chan struct{}, probe probe) {
 	probeTimeout := timeoutWithDefault(c.Config.Healthcheck.Timeout, defaultProbeTimeout)
 	probeInterval := timeoutWithDefault(c.Config.Healthcheck.Interval, defaultProbeInterval)
+	nextProbeInterval := 0 * time.Second
 	for {
 		select {
 		case <-stop:
 			logrus.Debugf("Stop healthcheck monitoring for container %s (received while idle)", c.ID)
 			return
-		case <-time.After(probeInterval):
+		case <-time.After(nextProbeInterval):
 			logrus.Debugf("Running health check for container %s ...", c.ID)
 			startTime := time.Now()
+			if nextProbeInterval == 0 {
+				// The healthcheck started immediately. We set the startTime to 0
+				// so that it could be identified by startTime.IsZero().
+				// other healthcheck are done in intervals
+				startTime = time.Time{}
+				nextProbeInterval = probeInterval
+			}
 			ctx, cancelProbe := context.WithTimeout(context.Background(), probeTimeout)
 			results := make(chan *types.HealthcheckResult, 1)
 			go func() {

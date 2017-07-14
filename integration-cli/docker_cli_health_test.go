@@ -138,6 +138,26 @@ func (s *DockerSuite) TestHealth(c *check.C) {
 		"--format={{.Config.Healthcheck.Test}}", imageName)
 	c.Check(out, checker.Equals, "[CMD cat /my status]\n")
 
+	// Check noWait = True, which indicates the very first healthcheck (at time=0) counts
+	// The OK will happen after 1s but --health-interval=2s so we should see the first failure.
+	buildImageSuccessfully(c, "healthcheck_start", build.WithDockerfile(`FROM busybox
+		RUN /bin/sleep 1
+		RUN echo OK > /status
+		STOPSIGNAL SIGKILL
+		HEALTHCHECK --interval=1s --timeout=30s --no-wait=true \
+		  CMD cat /status`))
+	dockerCmd(c, "run", "-d", "--name=healthcheck_start",
+		"--health-interval=2s",
+		"--health-retries=1",
+		"--health-cmd=cat /status",
+		"healthcheck_start")
+	waitForHealthStatus(c, "healthcheck_start", "starting", "unhealthy")
+	health = getHealth(c, "healthcheck_start")
+	c.Check(health.Status, checker.Equals, "unhealthy")
+	c.Check(health.FailingStreak, checker.Equals, 1)
+	last = health.Log[len(health.Log)-1]
+	c.Check(last.ExitCode, checker.Equals, -1)
+	dockerCmd(c, "rm", "-f", "healthcheck_start")
 }
 
 // Github #33021
