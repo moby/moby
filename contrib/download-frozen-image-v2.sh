@@ -64,7 +64,7 @@ fetch_blob() {
 			-D-
 	)"
 	curlHeaders="$(echo "$curlHeaders" | tr -d '\r')"
-	if [ "$(echo "$curlHeaders" | awk 'NR == 1 { print $2; exit }')" != '200' ]; then
+	if echo "$curlHeaders" | grep -qE "^HTTP/[0-9].[0-9] 3"; then
 		rm -f "$targetFile"
 
 		local blobRedirect="$(echo "$curlHeaders" | awk -F ': ' 'tolower($1) == "location" { print $2; exit }')"
