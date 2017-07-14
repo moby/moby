@@ -11,7 +11,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/daemon/initlayer"
-	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
@@ -63,7 +62,8 @@ func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) error {
 		return errors.WithStack(err)
 	}
 
-	if err := pm.containerdClient.Create(p.GetID(), "", "", *spec, attachToLog(p.GetID())); err != nil {
+	stdout, stderr := makeLoggerStreams(p.GetID())
+	if err := pm.executor.Create(p.GetID(), *spec, stdout, stderr); err != nil {
 		if p.PropagatedMount != "" {
 			if err := mount.Unmount(p.PropagatedMount); err != nil {
 				logrus.Warnf("Could not unmount %s: %v", p.PropagatedMount, err)
@@ -83,7 +83,7 @@ func (pm *Manager) pluginPostStart(p *v2.Plugin, c *controller) error {
 	client, err := plugins.NewClientWithTimeout("unix://"+sockAddr, nil, time.Duration(c.timeoutInSecs)*time.Second)
 	if err != nil {
 		c.restart = false
-		shutdownPlugin(p, c, pm.containerdClient)
+		shutdownPlugin(p, c, pm.executor)
 		return errors.WithStack(err)
 	}
 
@@ -109,7 +109,7 @@ func (pm *Manager) pluginPostStart(p *v2.Plugin, c *controller) error {
 			c.restart = false
 			// While restoring plugins, we need to explicitly set the state to disabled
 			pm.config.Store.SetState(p, false)
-			shutdownPlugin(p, c, pm.containerdClient)
+			shutdownPlugin(p, c, pm.executor)
 			return err
 		}
 
@@ -121,13 +121,14 @@ func (pm *Manager) pluginPostStart(p *v2.Plugin, c *controller) error {
 }
 
 func (pm *Manager) restore(p *v2.Plugin) error {
-	if err := pm.containerdClient.Restore(p.GetID(), attachToLog(p.GetID())); err != nil {
+	stdout, stderr := makeLoggerStreams(p.GetID())
+	if err := pm.executor.Restore(p.GetID(), stdout, stderr); err != nil {
 		return err
 	}
 
 	if pm.config.LiveRestoreEnabled {
 		c := &controller{}
-		if pids, _ := pm.containerdClient.GetPidsForContainer(p.GetID()); len(pids) == 0 {
+		if isRunning, _ := pm.executor.IsRunning(p.GetID()); !isRunning {
 			// plugin is not running, so follow normal startup procedure
 			return pm.enable(p, c, true)
 		}
@@ -143,10 +144,10 @@ func (pm *Manager) restore(p *v2.Plugin) error {
 	return nil
 }
 
-func shutdownPlugin(p *v2.Plugin, c *controller, containerdClient libcontainerd.Client) {
+func shutdownPlugin(p *v2.Plugin, c *controller, executor Executor) {
 	pluginID := p.GetID()
 
-	err := containerdClient.Signal(pluginID, int(unix.SIGTERM))
+	err := executor.Signal(pluginID, int(unix.SIGTERM))
 	if err != nil {
 		logrus.Errorf("Sending SIGTERM to plugin failed with error: %v", err)
 	} else {
@@ -155,7 +156,7 @@ func shutdownPlugin(p *v2.Plugin, c *controller, containerdClient libcontainerd.
 			logrus.Debug("Clean shutdown of plugin")
 		case <-time.After(time.Second * 10):
 			logrus.Debug("Force shutdown plugin")
-			if err := containerdClient.Signal(pluginID, int(unix.SIGKILL)); err != nil {
+			if err := executor.Signal(pluginID, int(unix.SIGKILL)); err != nil {
 				logrus.Errorf("Sending SIGKILL to plugin failed with error: %v", err)
 			}
 		}
@@ -175,7 +176,7 @@ func (pm *Manager) disable(p *v2.Plugin, c *controller) error {
 	}
 
 	c.restart = false
-	shutdownPlugin(p, c, pm.containerdClient)
+	shutdownPlugin(p, c, pm.executor)
 	pm.config.Store.SetState(p, false)
 	return pm.save(p)
 }
@@ -192,9 +193,9 @@ func (pm *Manager) Shutdown() {
 			logrus.Debug("Plugin active when liveRestore is set, skipping shutdown")
 			continue
 		}
-		if pm.containerdClient != nil && p.IsEnabled() {
+		if pm.executor != nil && p.IsEnabled() {
 			c.restart = false
-			shutdownPlugin(p, c, pm.containerdClient)
+			shutdownPlugin(p, c, pm.executor)
 		}
 	}
 	mount.Unmount(pm.config.Root)
