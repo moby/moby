@@ -57,7 +57,7 @@ fetch_blob() {
 	local curlArgs=( "$@" )
 
 	local curlHeaders="$(
-		curl -S "${curlArgs[@]}" \
+		curl -SL "${curlArgs[@]}" \
 			-H "Authorization: Bearer $token" \
 			"$registryBase/v2/$image/blobs/$digest" \
 			-o "$targetFile" \
