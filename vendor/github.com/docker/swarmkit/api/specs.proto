@@ -393,6 +393,9 @@ message SecretSpec {
 	// The currently recognized values are:
 	// - golang: Go templating
 	Driver templating = 3;
+
+	// Driver is the the secret driver that is used to store the specified secret
+	Driver driver = 4;
 }
 
 // ConfigSpec specifies user-provided configuration files.

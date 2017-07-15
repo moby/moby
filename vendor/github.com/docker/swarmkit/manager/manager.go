@@ -26,6 +26,7 @@ import (
 	"github.com/docker/swarmkit/manager/allocator/networkallocator"
 	"github.com/docker/swarmkit/manager/controlapi"
 	"github.com/docker/swarmkit/manager/dispatcher"
+	"github.com/docker/swarmkit/manager/drivers"
 	"github.com/docker/swarmkit/manager/health"
 	"github.com/docker/swarmkit/manager/keymanager"
 	"github.com/docker/swarmkit/manager/logbroker"
@@ -218,7 +219,7 @@ func New(config *Config) (*Manager, error) {
 	m := &Manager{
 		config:          *config,
 		caserver:        ca.NewServer(raftNode.MemoryStore(), config.SecurityConfig, config.RootCAPaths),
-		dispatcher:      dispatcher.New(raftNode, dispatcher.DefaultConfig()),
+		dispatcher:      dispatcher.New(raftNode, dispatcher.DefaultConfig(), drivers.New(config.PluginGetter)),
 		logbroker:       logbroker.New(raftNode.MemoryStore()),
 		server:          grpc.NewServer(opts...),
 		localserver:     grpc.NewServer(opts...),

@@ -6,6 +6,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/swarmkit/api"
+	"github.com/docker/swarmkit/api/validation"
 	"github.com/docker/swarmkit/identity"
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/state/store"
@@ -13,9 +14,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
-
-// MaxSecretSize is the maximum byte length of the `Secret.Spec.Data` field.
-const MaxSecretSize = 500 * 1024 // 500KB
 
 // assumes spec is not nil
 func secretFromSecretSpec(spec *api.SecretSpec) *api.Secret {
@@ -56,7 +54,6 @@ func (s *Server) UpdateSecret(ctx context.Context, request *api.UpdateSecretRequ
 	if request.SecretID == "" || request.SecretVersion == nil {
 		return nil, grpc.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
 	}
-
 	var secret *api.Secret
 	err := s.store.Update(func(tx store.Tx) error {
 		secret = store.GetSecret(tx, request.SecretID)
@@ -245,9 +242,16 @@ func validateSecretSpec(spec *api.SecretSpec) error {
 	if err := validateConfigOrSecretAnnotations(spec.Annotations); err != nil {
 		return err
 	}
-
-	if len(spec.Data) >= MaxSecretSize || len(spec.Data) < 1 {
-		return grpc.Errorf(codes.InvalidArgument, "secret data must be larger than 0 and less than %d bytes", MaxSecretSize)
+	// Check if secret driver is defined
+	if spec.Driver != nil {
+		// Ensure secret driver has a name
+		if spec.Driver.Name == "" {
+			return grpc.Errorf(codes.InvalidArgument, "secret driver must have a name")
+		}
+		return nil
+	}
+	if err := validation.ValidateSecretPayload(spec.Data); err != nil {
+		return grpc.Errorf(codes.InvalidArgument, "%s", err.Error())
 	}
 	return nil
 }

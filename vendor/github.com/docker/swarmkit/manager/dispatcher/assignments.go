@@ -1,9 +1,13 @@
 package dispatcher
 
 import (
+	"fmt"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/api/equality"
+	"github.com/docker/swarmkit/api/validation"
+	"github.com/docker/swarmkit/manager/drivers"
 	"github.com/docker/swarmkit/manager/state/store"
 )
 
@@ -24,15 +28,16 @@ type typeAndID struct {
 }
 
 type assignmentSet struct {
+	dp                   *drivers.DriverProvider
 	tasksMap             map[string]*api.Task
 	tasksUsingDependency map[typeAndID]map[string]struct{}
 	changes              map[typeAndID]*api.AssignmentChange
-
-	log *logrus.Entry
+	log                  *logrus.Entry
 }
 
-func newAssignmentSet(log *logrus.Entry) *assignmentSet {
+func newAssignmentSet(log *logrus.Entry, dp *drivers.DriverProvider) *assignmentSet {
 	return &assignmentSet{
+		dp:                   dp,
 		changes:              make(map[typeAndID]*api.AssignmentChange),
 		tasksMap:             make(map[string]*api.Task),
 		tasksUsingDependency: make(map[typeAndID]map[string]struct{}),
@@ -53,12 +58,13 @@ func (a *assignmentSet) addTaskDependencies(readTx store.ReadTx, t *api.Task) {
 		if len(a.tasksUsingDependency[mapKey]) == 0 {
 			a.tasksUsingDependency[mapKey] = make(map[string]struct{})
 
-			secret := store.GetSecret(readTx, secretID)
-			if secret == nil {
+			secret, err := a.secret(readTx, secretID)
+			if err != nil {
 				a.log.WithFields(logrus.Fields{
 					"secret.id":   secretID,
 					"secret.name": secretRef.SecretName,
-				}).Debug("secret not found")
+					"error":       err,
+				}).Error("failed to fetch secret")
 				continue
 			}
 
@@ -244,4 +250,30 @@ func (a *assignmentSet) message() api.AssignmentsMessage {
 	a.changes = make(map[typeAndID]*api.AssignmentChange)
 
 	return message
+}
+
+// secret populates the secret value from raft store. For external secrets, the value is populated
+// from the secret driver.
+func (a *assignmentSet) secret(readTx store.ReadTx, secretID string) (*api.Secret, error) {
+	secret := store.GetSecret(readTx, secretID)
+	if secret == nil {
+		return nil, fmt.Errorf("secret not found")
+	}
+	if secret.Spec.Driver == nil {
+		return secret, nil
+	}
+	d, err := a.dp.NewSecretDriver(secret.Spec.Driver)
+	if err != nil {
+		return nil, err
+	}
+	value, err := d.Get(&secret.Spec)
+	if err != nil {
+		return nil, err
+	}
+	if err := validation.ValidateSecretPayload(value); err != nil {
+		return nil, err
+	}
+	// Assign the secret
+	secret.Spec.Data = value
+	return secret, nil
 }

@@ -10,7 +10,6 @@ import (
 )
 
 var (
-	errNotImplemented  = errors.New("not implemented")
 	errInvalidArgument = errors.New("invalid argument")
 )
 
