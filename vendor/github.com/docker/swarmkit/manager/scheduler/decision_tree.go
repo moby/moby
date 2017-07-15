@@ -20,10 +20,7 @@ type decisionTree struct {
 // (lowest) first according to the sorting function. Must be called on a leaf
 // of the decision tree.
 //
-// The caller may modify the nodes in the returned slice. This has the effect
-// of changing the nodes in the decision tree entry. The next node to
-// findBestNodes on this decisionTree entry will take into account the changes
-// that were made to the nodes.
+// The caller may modify the nodes in the returned slice.
 func (dt *decisionTree) orderedNodes(meetsConstraints func(*NodeInfo) bool, nodeLess func(*NodeInfo, *NodeInfo) bool) []NodeInfo {
 	if dt.nodeHeap.length != len(dt.nodeHeap.nodes) {
 		// We already collapsed the heap into a sorted slice, so
