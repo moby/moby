@@ -418,7 +418,6 @@ func (nDB *NetworkDB) DeleteEntry(tname, nid, key string) error {
 }
 
 func (nDB *NetworkDB) deleteNetworkEntriesForNode(deletedNode string) {
-	nDB.Lock()
 	for nid, nodes := range nDB.networkNodes {
 		updatedNodes := make([]string, 0, len(nodes))
 		for _, node := range nodes {
@@ -433,7 +432,6 @@ func (nDB *NetworkDB) deleteNetworkEntriesForNode(deletedNode string) {
 	}
 
 	delete(nDB.networks, deletedNode)
-	nDB.Unlock()
 }
 
 // deleteNodeNetworkEntries is called in 2 conditions with 2 different outcomes:
@@ -504,7 +502,6 @@ func (nDB *NetworkDB) deleteNodeNetworkEntries(nid, node string) {
 }
 
 func (nDB *NetworkDB) deleteNodeTableEntries(node string) {
-	nDB.Lock()
 	nDB.indexes[byTable].Walk(func(path string, v interface{}) bool {
 		oldEntry := v.(*entry)
 		if oldEntry.node != node {
@@ -516,21 +513,12 @@ func (nDB *NetworkDB) deleteNodeTableEntries(node string) {
 		nid := params[1]
 		key := params[2]
 
-		entry := &entry{
-			ltime:    oldEntry.ltime,
-			node:     node,
-			value:    oldEntry.value,
-			deleting: true,
-			reapTime: reapInterval,
-		}
+		nDB.indexes[byTable].Delete(fmt.Sprintf("/%s/%s/%s", tname, nid, key))
+		nDB.indexes[byNetwork].Delete(fmt.Sprintf("/%s/%s/%s", nid, tname, key))
 
-		nDB.indexes[byTable].Insert(fmt.Sprintf("/%s/%s/%s", tname, nid, key), entry)
-		nDB.indexes[byNetwork].Insert(fmt.Sprintf("/%s/%s/%s", nid, tname, key), entry)
-
-		nDB.broadcaster.Write(makeEvent(opDelete, tname, nid, key, entry.value))
+		nDB.broadcaster.Write(makeEvent(opDelete, tname, nid, key, oldEntry.value))
 		return false
 	})
-	nDB.Unlock()
 }
 
 // WalkTable walks a single table in NetworkDB and invokes the passed
@@ -690,28 +678,4 @@ func (nDB *NetworkDB) updateLocalNetworkTime() {
 	for _, n := range nDB.networks[nDB.config.NodeName] {
 		n.ltime = ltime
 	}
-}
-
-func (nDB *NetworkDB) updateLocalTableTime() {
-	nDB.Lock()
-	defer nDB.Unlock()
-
-	ltime := nDB.tableClock.Increment()
-	nDB.indexes[byTable].Walk(func(path string, v interface{}) bool {
-		entry := v.(*entry)
-		if entry.node != nDB.config.NodeName {
-			return false
-		}
-
-		params := strings.Split(path[1:], "/")
-		tname := params[0]
-		nid := params[1]
-		key := params[2]
-		entry.ltime = ltime
-
-		nDB.indexes[byTable].Insert(fmt.Sprintf("/%s/%s/%s", tname, nid, key), entry)
-		nDB.indexes[byNetwork].Insert(fmt.Sprintf("/%s/%s/%s", nid, tname, key), entry)
-
-		return false
-	})
 }
