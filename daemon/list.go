@@ -182,7 +182,7 @@ func (daemon *Daemon) filterByNameIDMatches(view container.View, ctx *listContex
 // reduceContainers parses the user's filtering options and generates the list of containers to return based on a reducer.
 func (daemon *Daemon) reduceContainers(config *types.ContainerListOptions, reducer containerReducer) ([]*types.Container, error) {
 	var (
-		view       = daemon.containersReplica.Snapshot(daemon.nameIndex)
+		view       = daemon.containersReplica.Snapshot()
 		containers = []*types.Container{}
 	)
 
@@ -361,7 +361,7 @@ func (daemon *Daemon) foldFilter(view container.View, config *types.ContainerLis
 		publish:              publishFilter,
 		expose:               exposeFilter,
 		ContainerListOptions: config,
-		names:                daemon.nameIndex.GetAll(),
+		names:                view.GetAllNames(),
 	}, nil
 }
 func portOp(key string, filter map[nat.Port]bool) func(value string) error {
