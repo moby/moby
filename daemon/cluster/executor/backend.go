@@ -59,6 +59,5 @@ type Backend interface {
 	WaitForDetachment(context.Context, string, string, string, string) error
 	GetRepository(context.Context, reference.Named, *types.AuthConfig) (distribution.Repository, bool, error)
 	LookupImage(name string) (*types.ImageInspect, error)
-	PluginManager() *plugin.Manager
 	PluginGetter() *plugin.Store
 }
