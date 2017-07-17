@@ -30,6 +30,8 @@ import (
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/daemon/logger"
 	// register graph drivers
+
+	"github.com/docker/docker/component/plugincontroller"
 	_ "github.com/docker/docker/daemon/graphdriver/register"
 	"github.com/docker/docker/daemon/initlayer"
 	"github.com/docker/docker/daemon/stats"
@@ -103,7 +105,6 @@ type Daemon struct {
 	idMappings            *idtools.IDMappings
 	stores                map[string]daemonStore // By container target platform
 	PluginStore           *plugin.Store          // todo: remove
-	pluginManager         *plugin.Manager
 	nameIndex             *registrar.Registrar
 	linkIndex             *linkIndex
 	containerd            libcontainerd.Client
@@ -637,7 +638,7 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	registerMetricsPluginCallback(d.PluginStore, metricsSockPath)
 
 	// Plugin system initialization should happen before restore. Do not change order.
-	d.pluginManager, err = plugin.NewManager(plugin.ManagerConfig{
+	pluginManager, err := plugin.NewManager(plugin.ManagerConfig{
 		Root:               filepath.Join(config.Root, "plugins"),
 		ExecRoot:           getPluginExecRoot(config.Root),
 		Store:              d.PluginStore,
@@ -650,6 +651,7 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	if err != nil {
 		return nil, errors.Wrap(err, "couldn't create plugin manager")
 	}
+	plugincontroller.Set(pluginManager)
 
 	var graphDrivers []string
 	for platform, ds := range d.stores {
@@ -929,7 +931,9 @@ func (daemon *Daemon) Shutdown() error {
 	daemon.cleanupMetricsPlugins()
 
 	// Shutdown plugins after containers and layerstore. Don't change the order.
-	daemon.pluginShutdown()
+	if pc := plugincontroller.Get(); pc != nil {
+		pc.Shutdown()
+	}
 
 	// trigger libnetwork Stop only if it's initialized
 	if daemon.netController != nil {
@@ -1157,20 +1161,6 @@ func (daemon *Daemon) GetCluster() Cluster {
 // SetCluster sets the cluster
 func (daemon *Daemon) SetCluster(cluster Cluster) {
 	daemon.cluster = cluster
-}
-
-func (daemon *Daemon) pluginShutdown() {
-	manager := daemon.pluginManager
-	// Check for a valid manager object. In error conditions, daemon init can fail
-	// and shutdown called, before plugin manager is initialized.
-	if manager != nil {
-		manager.Shutdown()
-	}
-}
-
-// PluginManager returns current pluginManager associated with the daemon
-func (daemon *Daemon) PluginManager() *plugin.Manager { // set up before daemon to avoid this method
-	return daemon.pluginManager
 }
 
 // PluginGetter returns current pluginStore associated with the daemon

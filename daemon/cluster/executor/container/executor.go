@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/component/plugincontroller"
 	"github.com/docker/docker/daemon/cluster/controllers/plugin"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
@@ -28,10 +29,10 @@ type executor struct {
 }
 
 // NewExecutor returns an executor from the docker client.
-func NewExecutor(b executorpkg.Backend, p plugin.Backend) exec.Executor {
+func NewExecutor(b executorpkg.Backend) exec.Executor {
 	return &executor{
 		backend:       b,
-		pluginBackend: p,
+		pluginBackend: plugincontroller.Wait(context.Background()),
 		dependencies:  agent.NewDependencyManager(),
 	}
 }
@@ -62,7 +63,8 @@ func (e *executor) Describe(ctx context.Context) (*api.NodeDescription, error) {
 	addPlugins("Log", info.Plugins.Log)
 
 	// add v2 plugins
-	v2Plugins, err := e.backend.PluginManager().List(filters.NewArgs())
+	pm := plugincontroller.Wait(ctx)
+	v2Plugins, err := pm.List(filters.NewArgs())
 	if err == nil {
 		for _, plgn := range v2Plugins {
 			for _, typ := range plgn.Config.Interface.Types {
