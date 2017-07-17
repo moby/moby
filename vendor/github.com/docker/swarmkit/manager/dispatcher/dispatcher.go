@@ -17,6 +17,7 @@ import (
 	"github.com/docker/swarmkit/api/equality"
 	"github.com/docker/swarmkit/ca"
 	"github.com/docker/swarmkit/log"
+	"github.com/docker/swarmkit/manager/drivers"
 	"github.com/docker/swarmkit/manager/state/store"
 	"github.com/docker/swarmkit/remotes"
 	"github.com/docker/swarmkit/watch"
@@ -125,6 +126,7 @@ type Dispatcher struct {
 	ctx                  context.Context
 	cancel               context.CancelFunc
 	clusterUpdateQueue   *watch.Queue
+	dp                   *drivers.DriverProvider
 
 	taskUpdates     map[string]*api.TaskStatus // indexed by task ID
 	taskUpdatesLock sync.Mutex
@@ -142,8 +144,9 @@ type Dispatcher struct {
 }
 
 // New returns Dispatcher with cluster interface(usually raft.Node).
-func New(cluster Cluster, c *Config) *Dispatcher {
+func New(cluster Cluster, c *Config, dp *drivers.DriverProvider) *Dispatcher {
 	d := &Dispatcher{
+		dp:                    dp,
 		nodes:                 newNodeStore(c.HeartbeatPeriod, c.HeartbeatEpsilon, c.GracePeriodMultiplier, c.RateLimitPeriod),
 		downNodes:             newNodeStore(defaultNodeDownPeriod, 0, 1, 0),
 		store:                 cluster.MemoryStore(),
@@ -836,7 +839,7 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 	var (
 		sequence    int64
 		appliesTo   string
-		assignments = newAssignmentSet(log)
+		assignments = newAssignmentSet(log, d.dp)
 	)
 
 	sendMessage := func(msg api.AssignmentsMessage, assignmentType api.AssignmentsMessage_Type) error {
