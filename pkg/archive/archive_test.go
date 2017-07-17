@@ -1203,6 +1203,25 @@ func TestReplaceFileTarWrapper(t *testing.T) {
 	}
 }
 
+// TestPrefixHeaderReadable tests that files that could be created with the
+// version of this package that was built with <=go17 are still readable.
+func TestPrefixHeaderReadable(t *testing.T) {
+	// https://gist.github.com/stevvooe/e2a790ad4e97425896206c0816e1a882#file-out-go
+	var testFile = []byte("\x1f\x8b\x08\x08\x44\x21\x68\x59\x00\x03\x74\x2e\x74\x61\x72\x00\x4b\xcb\xcf\x67\xa0\x35\x30\x80\x00\x86\x06\x10\x47\x01\xc1\x37\x40\x00\x54\xb6\xb1\xa1\xa9\x99\x09\x48\x25\x1d\x40\x69\x71\x49\x62\x91\x02\xe5\x76\xa1\x79\x84\x21\x91\xd6\x80\x72\xaf\x8f\x82\x51\x30\x0a\x46\x36\x00\x00\xf0\x1c\x1e\x95\x00\x06\x00\x00")
+
+	tmpDir, err := ioutil.TempDir("", "prefix-test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+	err = Untar(bytes.NewReader(testFile), tmpDir, nil)
+	require.NoError(t, err)
+
+	baseName := "foo"
+	pth := strings.Repeat("a", 100-len(baseName)) + "/" + baseName
+
+	_, err = os.Lstat(filepath.Join(tmpDir, pth))
+	require.NoError(t, err)
+}
+
 func buildSourceArchive(t *testing.T, numberOfFiles int) (io.ReadCloser, func()) {
 	srcDir, err := ioutil.TempDir("", "docker-test-srcDir")
 	require.NoError(t, err)
