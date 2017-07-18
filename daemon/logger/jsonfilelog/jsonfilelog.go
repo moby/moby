@@ -23,9 +23,9 @@ const Name = "json-file"
 
 // JSONFileLogger is Logger implementation for default Docker logging.
 type JSONFileLogger struct {
-	mu      sync.RWMutex
+	mu      sync.Mutex
 	closed  bool
-	writer  *loggerutils.RotateFileWriter
+	writer  *loggerutils.LogFile
 	readers map[*logger.LogWatcher]struct{} // stores the active log followers
 }
 
@@ -83,7 +83,8 @@ func New(info logger.Info) (logger.Logger, error) {
 		buf.Reset()
 		return b, nil
 	}
-	writer, err := loggerutils.NewRotateFileWriter(info.LogPath, capval, maxFiles, marshalFunc)
+
+	writer, err := loggerutils.NewLogFile(info.LogPath, capval, maxFiles, marshalFunc, decodeFunc)
 	if err != nil {
 		return nil, err
 	}

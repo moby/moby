@@ -123,7 +123,7 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 				}
 				return
 			case <-ctx.Done():
-				lg.Debug("logs: end stream, ctx is done: %v", ctx.Err())
+				lg.Debugf("logs: end stream, ctx is done: %v", ctx.Err())
 				return
 			case msg, ok := <-logs.Msg:
 				// there is some kind of pool or ring buffer in the logger that
