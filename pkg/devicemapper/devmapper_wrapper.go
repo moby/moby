@@ -15,10 +15,15 @@ static void	log_cb(int level, const char *file, int line, int dm_errno_or_class,
 {
 	char *buffer = NULL;
 	va_list ap;
+	int ret;
 
 	va_start(ap, f);
-	vasprintf(&buffer, f, ap);
+	ret = vasprintf(&buffer, f, ap);
 	va_end(ap);
+	if (ret < 0) {
+		// memory allocation failed -- should never happen?
+		return;
+	}
 
 	DevmapperLogCallback(level, (char *)file, line, dm_errno_or_class, buffer);
 	free(buffer);
