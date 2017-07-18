@@ -9,15 +9,15 @@ import (
 )
 
 func ioctlLoopCtlGetFree(fd uintptr) (int, error) {
-	index, _, err := unix.Syscall(unix.SYS_IOCTL, fd, LoopCtlGetFree, 0)
-	if err != 0 {
+	index, err := unix.IoctlGetInt(int(fd), LoopCtlGetFree)
+	if err != nil {
 		return 0, err
 	}
-	return int(index), nil
+	return index, nil
 }
 
 func ioctlLoopSetFd(loopFd, sparseFd uintptr) error {
-	if _, _, err := unix.Syscall(unix.SYS_IOCTL, loopFd, LoopSetFd, sparseFd); err != 0 {
+	if err := unix.IoctlSetInt(int(loopFd), LoopSetFd, int(sparseFd)); err != nil {
 		return err
 	}
 	return nil
@@ -47,7 +47,7 @@ func ioctlLoopGetStatus64(loopFd uintptr) (*loopInfo64, error) {
 }
 
 func ioctlLoopSetCapacity(loopFd uintptr, value int) error {
-	if _, _, err := unix.Syscall(unix.SYS_IOCTL, loopFd, LoopSetCapacity, uintptr(value)); err != 0 {
+	if err := unix.IoctlSetInt(int(loopFd), LoopSetCapacity, value); err != nil {
 		return err
 	}
 	return nil
