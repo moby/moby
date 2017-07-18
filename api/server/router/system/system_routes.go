@@ -3,6 +3,7 @@ package system
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	pkgerrors "github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
+	"golang.org/x/net/websocket"
 )
 
 func optionsHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -93,6 +95,115 @@ func (e invalidRequestError) Error() string {
 }
 
 func (e invalidRequestError) InvalidParameter() {}
+
+func getIntervalTime(sinceStr, untilStr string) (since, until time.Time, err error) {
+	if since, err = eventTime(sinceStr); err != nil {
+		return
+	}
+	if until, err = eventTime(untilStr); err != nil {
+		return
+	}
+	if !until.IsZero() && until.Before(since) {
+		err = invalidRequestError{fmt.Errorf("`since` time (%s) cannot be after `until` time (%s)", sinceStr, untilStr)}
+	}
+	return
+}
+
+func eventWaiter(until time.Time) (bool, <-chan time.Time) {
+	var (
+		timeout        <-chan time.Time
+		onlyPastEvents bool
+	)
+
+	if !until.IsZero() {
+		now := time.Now()
+		onlyPastEvents = until.Before(now)
+		if !onlyPastEvents {
+			timeout = time.NewTimer(until.Sub(now)).C
+		}
+	}
+
+	return onlyPastEvents, timeout
+}
+
+func getWebSocketStream(done chan struct{}, w http.ResponseWriter, r *http.Request) io.Writer {
+	started := make(chan struct{})
+	wsChan := make(chan *websocket.Conn)
+	h := func(conn *websocket.Conn) {
+		conn.PayloadType = websocket.BinaryFrame
+		wsChan <- conn
+		<-done
+		conn.Close()
+	}
+
+	srv := websocket.Server{Handler: h, Handshake: nil}
+	go func() {
+		close(started)
+		srv.ServeHTTP(w, r)
+	}()
+
+	conn := <-wsChan
+	return conn
+
+}
+
+func streamEvents(ctx context.Context, w io.Writer, buffered []events.Message, eventChan chan interface{}, until time.Time) error {
+	enc := json.NewEncoder(w)
+	for _, ev := range buffered {
+		if err := enc.Encode(ev); err != nil {
+			return err
+		}
+	}
+
+	onlyPastEvents, timeout := eventWaiter(until)
+
+	if onlyPastEvents {
+		return nil
+	}
+
+	for {
+		select {
+		case ev := <-eventChan:
+			jev, ok := ev.(events.Message)
+			if !ok {
+				logrus.Warnf("unexpected event message: %q", ev)
+				continue
+			}
+			if err := enc.Encode(jev); err != nil {
+				return err
+			}
+		case <-timeout:
+			return nil
+		case <-ctx.Done():
+			logrus.Debug("Client context cancelled, stop sending events")
+			return nil
+		}
+	}
+
+}
+
+func (s *systemRouter) wsEvents(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+
+	ef, err := filters.FromParam(r.Form.Get("filters"))
+	if err != nil {
+		return err
+	}
+
+	since, until, err := getIntervalTime(r.Form.Get("since"), r.Form.Get("until"))
+	if err != nil {
+		return err
+	}
+
+	done := make(chan struct{})
+	buffered, l := s.backend.SubscribeToEvents(since, until, ef)
+	defer s.backend.UnsubscribeFromEvents(l)
+	defer close(done)
+
+	return streamEvents(ctx, getWebSocketStream(done, w, r), buffered, l, until)
+}
 
 func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
