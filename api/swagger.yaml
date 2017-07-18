@@ -712,7 +712,7 @@ definitions:
               - "process"
               - "hyperv"
 
-  Config:
+  ContainerConfig:
     description: "Configuration for a container that is portable between hosts"
     type: "object"
     properties:
@@ -909,7 +909,7 @@ definitions:
         type: "string"
         x-nullable: false
       ContainerConfig:
-        $ref: "#/definitions/Config"
+        $ref: "#/definitions/ContainerConfig"
       DockerVersion:
         type: "string"
         x-nullable: false
@@ -917,7 +917,7 @@ definitions:
         type: "string"
         x-nullable: false
       Config:
-        $ref: "#/definitions/Config"
+        $ref: "#/definitions/ContainerConfig"
       Architecture:
         type: "string"
         x-nullable: false
@@ -2176,6 +2176,37 @@ definitions:
                     SecretName is the name of the secret that this references, but this is just provided for
                     lookup/display purposes. The secret in the reference will be identified by its ID.
                   type: "string"
+          Configs:
+            description: "Configs contains references to zero or more configs that will be exposed to the service."
+            type: "array"
+            items:
+              type: "object"
+              properties:
+                File:
+                  description: "File represents a specific target that is backed by a file."
+                  type: "object"
+                  properties:
+                    Name:
+                      description: "Name represents the final filename in the filesystem."
+                      type: "string"
+                    UID:
+                      description: "UID represents the file UID."
+                      type: "string"
+                    GID:
+                      description: "GID represents the file GID."
+                      type: "string"
+                    Mode:
+                      description: "Mode represents the FileMode of the file."
+                      type: "integer"
+                      format: "uint32"
+                ConfigID:
+                  description: "ConfigID represents the ID of the specific config that we're referencing."
+                  type: "string"
+                ConfigName:
+                  description: |
+                    ConfigName is the name of the config that this references, but this is just provided for
+                    lookup/display purposes. The config in the reference will be identified by its ID.
+                  type: "string"
 
       Resources:
         description: "Resource requirements which apply to each individual container created as part of the service."
@@ -2780,6 +2811,38 @@ definitions:
         format: "dateTime"
       Spec:
         $ref: "#/definitions/SecretSpec"
+  ConfigSpec:
+    type: "object"
+    properties:
+      Name:
+        description: "User-defined name of the config."
+        type: "string"
+      Labels:
+        description: "User-defined key/value metadata."
+        type: "object"
+        additionalProperties:
+          type: "string"
+      Data:
+        description: "Base64-url-safe-encoded config data"
+        type: "array"
+        items:
+          type: "string"
+  Config:
+    type: "object"
+    properties:
+      ID:
+        type: "string"
+      Version:
+        $ref: "#/definitions/ObjectVersion"
+      CreatedAt:
+        type: "string"
+        format: "dateTime"
+      UpdatedAt:
+        type: "string"
+        format: "dateTime"
+      Spec:
+        $ref: "#/definitions/ConfigSpec"
+
 paths:
   /containers/json:
     get:
@@ -2989,7 +3052,7 @@ paths:
           description: "Container to create"
           schema:
             allOf:
-              - $ref: "#/definitions/Config"
+              - $ref: "#/definitions/ContainerConfig"
               - type: "object"
                 properties:
                   HostConfig:
@@ -3287,7 +3350,7 @@ paths:
                 items:
                   $ref: "#/definitions/MountPoint"
               Config:
-                $ref: "#/definitions/Config"
+                $ref: "#/definitions/ContainerConfig"
               NetworkSettings:
                 $ref: "#/definitions/NetworkConfig"
           examples:
@@ -5674,7 +5737,7 @@ paths:
           in: "body"
           description: "The container configuration"
           schema:
-            $ref: "#/definitions/Config"
+            $ref: "#/definitions/ContainerConfig"
         - name: "container"
           in: "query"
           description: "The ID or name of the container to commit"
@@ -8530,6 +8593,198 @@ paths:
           format: "int64"
           required: true
       tags: ["Secret"]
+  /configs:
+    get:
+      summary: "List configs"
+      operationId: "ConfigList"
+      produces:
+        - "application/json"
+      responses:
+        200:
+          description: "no error"
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/Config"
+            example:
+              - ID: "ktnbjxoalbkvbvedmg1urrz8h"
+                Version:
+                  Index: 11
+                CreatedAt: "2016-11-05T01:20:17.327670065Z"
+                UpdatedAt: "2016-11-05T01:20:17.327670065Z"
+                Spec:
+                  Name: "server.conf"
+        500:
+          description: "server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        503:
+          description: "node is not part of a swarm"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      parameters:
+        - name: "filters"
+          in: "query"
+          type: "string"
+          description: |
+            A JSON encoded value of the filters (a `map[string][]string`) to process on the configs list. Available filters:
+
+            - `id=<config id>`
+            - `label=<key> or label=<key>=value`
+            - `name=<config name>`
+            - `names=<config name>`
+      tags: ["Config"]
+  /configs/create:
+    post:
+      summary: "Create a config"
+      operationId: "ConfigCreate"
+      consumes:
+        - "application/json"
+      produces:
+        - "application/json"
+      responses:
+        201:
+          description: "no error"
+          schema:
+            type: "object"
+            properties:
+              ID:
+                description: "The ID of the created config."
+                type: "string"
+            example:
+              ID: "ktnbjxoalbkvbvedmg1urrz8h"
+        409:
+          description: "name conflicts with an existing object"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500:
+          description: "server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        503:
+          description: "node is not part of a swarm"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      parameters:
+        - name: "body"
+          in: "body"
+          schema:
+            allOf:
+              - $ref: "#/definitions/ConfigSpec"
+              - type: "object"
+                example:
+                  Name: "server.conf"
+                  Labels:
+                    foo: "bar"
+                  Data: "VEhJUyBJUyBOT1QgQSBSRUFMIENFUlRJRklDQVRFCg=="
+      tags: ["Config"]
+  /configs/{id}:
+    get:
+      summary: "Inspect a config"
+      operationId: "ConfigInspect"
+      produces:
+        - "application/json"
+      responses:
+        200:
+          description: "no error"
+          schema:
+            $ref: "#/definitions/Config"
+          examples:
+            application/json:
+              ID: "ktnbjxoalbkvbvedmg1urrz8h"
+              Version:
+                Index: 11
+              CreatedAt: "2016-11-05T01:20:17.327670065Z"
+              UpdatedAt: "2016-11-05T01:20:17.327670065Z"
+              Spec:
+                Name: "app-dev.crt"
+        404:
+          description: "config not found"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500:
+          description: "server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        503:
+          description: "node is not part of a swarm"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      parameters:
+        - name: "id"
+          in: "path"
+          required: true
+          type: "string"
+          description: "ID of the config"
+      tags: ["Config"]
+    delete:
+      summary: "Delete a config"
+      operationId: "ConfigDelete"
+      produces:
+        - "application/json"
+      responses:
+        204:
+          description: "no error"
+        404:
+          description: "config not found"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500:
+          description: "server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        503:
+          description: "node is not part of a swarm"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      parameters:
+        - name: "id"
+          in: "path"
+          required: true
+          type: "string"
+          description: "ID of the config"
+      tags: ["Config"]
+  /configs/{id}/update:
+    post:
+      summary: "Update a Config"
+      operationId: "ConfigUpdate"
+      responses:
+        200:
+          description: "no error"
+        400:
+          description: "bad parameter"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        404:
+          description: "no such config"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500:
+          description: "server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        503:
+          description: "node is not part of a swarm"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      parameters:
+        - name: "id"
+          in: "path"
+          description: "The ID or name of the config"
+          type: "string"
+          required: true
+        - name: "body"
+          in: "body"
+          schema:
+            $ref: "#/definitions/ConfigSpec"
+          description: "The spec of the config to update. Currently, only the Labels field can be updated. All other fields must remain unchanged from the [ConfigInspect endpoint](#operation/ConfigInspect) response values."
+        - name: "version"
+          in: "query"
+          description: "The version number of the config object being updated. This is required to avoid conflicting writes."
+          type: "integer"
+          format: "int64"
+          required: true
+      tags: ["Config"]
   /distribution/{name}/json:
     get:
       summary: "Get image information from the registry"
