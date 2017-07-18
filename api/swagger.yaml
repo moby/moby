@@ -2739,7 +2739,7 @@ definitions:
         type: "string"
         format: "dateTime"
       Spec:
-        $ref: "#/definitions/ServiceSpec"
+        $ref: "#/definitions/SecretSpec"
 paths:
   /containers/json:
     get:
