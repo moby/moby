@@ -68,7 +68,7 @@ DEFAULT_BUNDLES=(
 )
 
 VERSION=$(< ./VERSION)
-! BUILDTIME=$(date --rfc-3339 ns 2> /dev/null | sed -e 's/ /T/')
+! BUILDTIME=$(date -u -d "@${SOURCE_DATE_EPOCH:-$(date +%s)}" --rfc-3339 ns 2> /dev/null | sed -e 's/ /T/')
 if [ "$DOCKER_GITCOMMIT" ]; then
 	GITCOMMIT="$DOCKER_GITCOMMIT"
 elif command -v git &> /dev/null && [ -d .git ] && git rev-parse &> /dev/null; then
