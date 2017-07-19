@@ -68,11 +68,6 @@ func (m *Message) AsLogMessage() *backend.LogMessage {
 	return (*backend.LogMessage)(m)
 }
 
-// LogAttributes is used to hold the extra attributes available in the log message
-// Primarily used for converting the map type to string and sorting.
-// Imported here so it can be used internally with less refactoring
-type LogAttributes backend.LogAttributes
-
 // Logger is the interface for docker logging drivers.
 type Logger interface {
 	Log(*Message) error
