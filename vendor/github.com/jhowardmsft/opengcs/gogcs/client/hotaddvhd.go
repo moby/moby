@@ -13,7 +13,7 @@ import (
 // service-VM per host scenario. In order to do a graphdriver `Diff`, we hot-add the
 // sandbox to /mnt/<id> so that we can run `exportSandbox` inside the utility VM to
 // get a tar-stream of the sandboxes contents back to the daemon.
-func (config *Config) HotAddVhd(hostPath string, containerPath string) error {
+func (config *Config) HotAddVhd(hostPath string, containerPath string, readOnly bool, mount bool) error {
 	logrus.Debugf("opengcs: HotAddVhd: %s: %s", hostPath, containerPath)
 
 	if config.Uvm == nil {
@@ -26,13 +26,14 @@ func (config *Config) HotAddVhd(hostPath string, containerPath string) error {
 			HostPath:          hostPath,
 			ContainerPath:     containerPath,
 			CreateInUtilityVM: true,
-			//ReadOnly:          true,
+			ReadOnly:          readOnly,
+			AttachOnly:        !mount,
 		},
 		Request: "Add",
 	}
-	logrus.Debugf("opengcs: HotAddVhd: %s to %s", hostPath, containerPath)
+
 	if err := config.Uvm.Modify(modification); err != nil {
-		return fmt.Errorf("opengcs: HotAddVhd: failed: %s", err)
+		return fmt.Errorf("failed to modify utility VM configuration for hot-add: %s", err)
 	}
 	logrus.Debugf("opengcs: HotAddVhd: %s added successfully", hostPath)
 	return nil

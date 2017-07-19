@@ -15,6 +15,7 @@ type process struct {
 	Process hcsshim.Process
 	Stdin   io.WriteCloser
 	Stdout  io.ReadCloser
+	Stderr  io.ReadCloser
 }
 
 // createUtilsProcess is a convenient wrapper for hcsshim.createUtilsProcess to use when
@@ -45,13 +46,13 @@ func (config *Config) createUtilsProcess(commandLine string) (process, error) {
 	}
 	proc.Process, err = config.Uvm.CreateProcess(processConfig)
 	if err != nil {
-		return process{}, fmt.Errorf("opengcs: createUtilsProcess: CreateProcess %+v failed %s", config, err)
+		return process{}, fmt.Errorf("failed to create process (%+v) in utility VM: %s", config, err)
 	}
 
-	if proc.Stdin, proc.Stdout, _, err = proc.Process.Stdio(); err != nil {
+	if proc.Stdin, proc.Stdout, proc.Stderr, err = proc.Process.Stdio(); err != nil {
 		proc.Process.Kill() // Should this have a timeout?
 		proc.Process.Close()
-		return process{}, fmt.Errorf("opengcs: createUtilsProcess: failed to get Stdio pipes %s", err)
+		return process{}, fmt.Errorf("failed to get stdio pipes for process %+v: %s", config, err)
 	}
 
 	logrus.Debugf("opengcs: createUtilsProcess success: pid %d", proc.Process.Pid())
@@ -60,41 +61,52 @@ func (config *Config) createUtilsProcess(commandLine string) (process, error) {
 
 // RunProcess runs the given command line program in the utilityVM. It takes in
 // an input to the reader to feed into stdin and returns stdout to output.
-func (config *Config) RunProcess(commandLine string, input io.Reader, output io.Writer) error {
+// IMPORTANT: It is the responsibility of the caller to call Close() on the returned process.
+func (config *Config) RunProcess(commandLine string, stdin io.Reader, stdout io.Writer, stderr io.Writer) (hcsshim.Process, error) {
 	logrus.Debugf("opengcs: RunProcess: %s", commandLine)
 	process, err := config.createUtilsProcess(commandLine)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer process.Process.Close()
 
 	// Send the data into the process's stdin
-	if input != nil {
+	if stdin != nil {
 		if _, err = copyWithTimeout(process.Stdin,
-			input,
+			stdin,
 			0,
 			config.UvmTimeoutSeconds,
 			fmt.Sprintf("send to stdin of %s", commandLine)); err != nil {
-			return err
+			return nil, err
 		}
 
 		// Don't need stdin now we've sent everything. This signals GCS that we are finished sending data.
 		if err := process.Process.CloseStdin(); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	if output != nil {
+	if stdout != nil {
 		// Copy the data over to the writer.
-		if _, err := copyWithTimeout(output,
+		if _, err := copyWithTimeout(stdout,
 			process.Stdout,
 			0,
 			config.UvmTimeoutSeconds,
 			fmt.Sprintf("RunProcess: copy back from %s", commandLine)); err != nil {
-			return err
+			return nil, err
+		}
+	}
+
+	if stderr != nil {
+		// Copy the data over to the writer.
+		if _, err := copyWithTimeout(stderr,
+			process.Stderr,
+			0,
+			config.UvmTimeoutSeconds,
+			fmt.Sprintf("RunProcess: copy back from %s", commandLine)); err != nil {
+			return nil, err
 		}
 	}
 
 	logrus.Debugf("opengcs: runProcess success: %s", commandLine)
-	return nil
+	return process.Process, nil
 }
