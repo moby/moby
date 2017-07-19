@@ -13,7 +13,43 @@
 // operations. The downside of safe-mode is that operations are slower as
 // a new service utility VM has to be started and torn-down when needed.
 //
-// To enable global mode, run with --storage-opt lcow.globalmode=true
+// Options (needs official documentation, but lets get full functionality first...) @jhowardmsft
+//
+// The following options are read by the graphdriver itself:
+//
+//   * lcow.globalmode - Enables global service VM Mode
+//        -- Possible values:     true/false
+//        -- Default if omitted:  false
+//
+//   * lcow.sandboxsize - Specifies a custom sandbox size in GB for starting a container
+//        -- Possible values:      >= default sandbox size (opengcs defined, currently 20)
+//        -- Default if ommitted:  20
+//
+// The following options are read by opengcs:
+//
+//   * lcow.kirdpath - Specifies a custom path to a kernel/initrd pair
+//        -- Possible values:      Any local path that is not a mapped drive
+//        -- Default if ommitted:  %ProgramFiles%\Linux Containers
+//
+//   * lcow.kernel - Specifies a custom kernel file located in the `lcow.kirdpath` path
+//        -- Possible values:      Any valid filename
+//        -- Default if ommitted:  bootx64.efi
+//
+//   * lcow.initrd - Specifies a custom initrd file located in the `lcow.kirdpath` path
+//        -- Possible values:      Any valid filename
+//        -- Default if ommitted:  initrd.img
+//
+//   * lcow.bootparameters - Specifies additional boot parameters for booting in kernel+initrd mode
+//        -- Possible values:      Any valid linux kernel boot options
+//        -- Default if ommitted:  <nil>
+//
+//   * lcow.vhdx - Specifies a custom vhdx file to boot (instead of a kernel+initrd)
+//        -- Possible values:      Any valid filename
+//        -- Default if ommitted:  C:\Program Files\Linux Containers\uvm.vhdx
+//
+//   * lcow.timeout - Specifies a timeout for utility VM operations in seconds
+//        -- Possible values:      >=0
+//        -- Default if ommitted:  300
 
 // TODO: Grab logs from SVM at terminate or errors
 
