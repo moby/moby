@@ -28,6 +28,13 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `GET /images/(name)/get` now includes an `ImageMetadata` field which contains image metadata that is local to the engine and not part of the image config.
 * `POST /services/create` now accepts a `PluginSpec` when `TaskTemplate.Runtime` is set to `plugin`
 * `GET /events` now supports config events `create`, `update` and `remove` that are emitted when users create, update or remove a config
+* `GET /volumes/` and `GET /volumes/{name}` now return a `CreatedAt` field,
+  containing the date/time the volume was created. This field is omitted if the
+  creation date/time for the volume is unknown. For volumes with scope "global",
+  this field represents the creation date/time of the local _instance_ of the
+  volume, which may differ from instances of the same volume on different nodes.
+* `GET /system/df` now returns a `CreatedAt` field for `Volumes`. Refer to the
+  `/volumes/` endpoint for a description of this field.
 
 ## v1.30 API changes
 

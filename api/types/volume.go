@@ -7,7 +7,7 @@ package types
 // swagger:model Volume
 type Volume struct {
 
-	// Time volume was created.
+	// Date/Time the volume was created.
 	CreatedAt string `json:"CreatedAt,omitempty"`
 
 	// Name of the volume driver used by the volume.
