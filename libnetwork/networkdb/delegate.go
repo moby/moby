@@ -179,7 +179,12 @@ func (nDB *NetworkDB) handleNetworkEvent(nEvent *NetworkEvent) bool {
 			flushEntries = true
 		}
 
-		nDB.addNetworkNode(nEvent.NetworkID, nEvent.NodeName)
+		if nEvent.Type == NetworkEventTypeLeave {
+			nDB.deleteNetworkNode(nEvent.NetworkID, nEvent.NodeName)
+		} else {
+			nDB.addNetworkNode(nEvent.NetworkID, nEvent.NodeName)
+		}
+
 		return true
 	}
 

@@ -487,7 +487,7 @@ func (nDB *NetworkDB) JoinNetwork(nid string) error {
 		},
 		RetransmitMult: 4,
 	}
-	nDB.networkNodes[nid] = append(nDB.networkNodes[nid], nDB.config.NodeName)
+	nDB.addNetworkNode(nid, nDB.config.NodeName)
 	networkNodes := nDB.networkNodes[nid]
 	nDB.Unlock()
 
@@ -521,6 +521,8 @@ func (nDB *NetworkDB) LeaveNetwork(nid string) error {
 		paths   []string
 		entries []*entry
 	)
+
+	nDB.deleteNetworkNode(nid, nDB.config.NodeName)
 
 	nwWalker := func(path string, v interface{}) bool {
 		entry, ok := v.(*entry)
@@ -580,7 +582,10 @@ func (nDB *NetworkDB) addNetworkNode(nid string, nodeName string) {
 // passed network. Caller should hold the NetworkDB lock while calling
 // this
 func (nDB *NetworkDB) deleteNetworkNode(nid string, nodeName string) {
-	nodes := nDB.networkNodes[nid]
+	nodes, ok := nDB.networkNodes[nid]
+	if !ok || len(nodes) == 0 {
+		return
+	}
 	newNodes := make([]string, 0, len(nodes)-1)
 	for _, name := range nodes {
 		if name == nodeName {
