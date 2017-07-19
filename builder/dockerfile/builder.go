@@ -241,7 +241,7 @@ func (b *Builder) build(source builder.Source, dockerfile *parser.Result) (*buil
 
 	if err := checkDispatchDockerfile(dockerfile.AST); err != nil {
 		buildsFailed.WithValues(metricsDockerfileSyntaxError).Inc()
-		return nil, err
+		return nil, validationError{err}
 	}
 
 	dispatchState, err := b.dispatchDockerfileWithCancellation(dockerfile, source)
@@ -357,7 +357,7 @@ func BuildFromConfig(config *container.Config, changes []string) (*container.Con
 
 	dockerfile, err := parser.Parse(bytes.NewBufferString(strings.Join(changes, "\n")))
 	if err != nil {
-		return nil, err
+		return nil, validationError{err}
 	}
 
 	// TODO @jhowardmsft LCOW support. For now, if LCOW enabled, switch to linux.
@@ -374,7 +374,7 @@ func BuildFromConfig(config *container.Config, changes []string) (*container.Con
 	// ensure that the commands are valid
 	for _, n := range dockerfile.AST.Children {
 		if !validCommitCommands[n.Value] {
-			return nil, fmt.Errorf("%s is not a valid change command", n.Value)
+			return nil, validationError{errors.Errorf("%s is not a valid change command", n.Value)}
 		}
 	}
 
@@ -383,7 +383,7 @@ func BuildFromConfig(config *container.Config, changes []string) (*container.Con
 	b.disableCommit = true
 
 	if err := checkDispatchDockerfile(dockerfile.AST); err != nil {
-		return nil, err
+		return nil, validationError{err}
 	}
 	dispatchState := newDispatchState()
 	dispatchState.runConfig = config

@@ -91,7 +91,7 @@ func (daemon *Daemon) getPidContainer(container *container.Container) (*containe
 
 func containerIsRunning(c *container.Container) error {
 	if !c.IsRunning() {
-		return errors.Errorf("container %s is not running", c.ID)
+		return stateConflictError{errors.Errorf("container %s is not running", c.ID)}
 	}
 	return nil
 }

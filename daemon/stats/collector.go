@@ -113,10 +113,10 @@ func (s *Collector) Run() {
 
 type notRunningErr interface {
 	error
-	ContainerIsRunning() bool
+	Conflict()
 }
 
 type notFoundErr interface {
 	error
-	ContainerNotFound() bool
+	NotFound()
 }

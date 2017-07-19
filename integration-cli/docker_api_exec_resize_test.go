@@ -22,7 +22,7 @@ func (s *DockerSuite) TestExecResizeAPIHeightWidthNoInt(c *check.C) {
 	endpoint := "/exec/" + cleanedContainerID + "/resize?h=foo&w=bar"
 	status, _, err := request.SockRequest("POST", endpoint, nil, daemonHost())
 	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusInternalServerError)
+	c.Assert(status, checker.Equals, http.StatusBadRequest)
 }
 
 // Part of #14845

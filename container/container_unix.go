@@ -3,7 +3,6 @@
 package container
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -262,6 +261,14 @@ func (container *Container) ConfigMounts() []Mount {
 	return mounts
 }
 
+type conflictingUpdateOptions string
+
+func (e conflictingUpdateOptions) Error() string {
+	return string(e)
+}
+
+func (e conflictingUpdateOptions) Conflict() {}
+
 // UpdateContainer updates configuration of a container. Callers must hold a Lock on the Container.
 func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfig) error {
 	// update resources of container
@@ -273,16 +280,16 @@ func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfi
 	// once NanoCPU is already set, updating CPUPeriod/CPUQuota will be blocked, and vice versa.
 	// In the following we make sure the intended update (resources) does not conflict with the existing (cResource).
 	if resources.NanoCPUs > 0 && cResources.CPUPeriod > 0 {
-		return fmt.Errorf("Conflicting options: Nano CPUs cannot be updated as CPU Period has already been set")
+		return conflictingUpdateOptions("Conflicting options: Nano CPUs cannot be updated as CPU Period has already been set")
 	}
 	if resources.NanoCPUs > 0 && cResources.CPUQuota > 0 {
-		return fmt.Errorf("Conflicting options: Nano CPUs cannot be updated as CPU Quota has already been set")
+		return conflictingUpdateOptions("Conflicting options: Nano CPUs cannot be updated as CPU Quota has already been set")
 	}
 	if resources.CPUPeriod > 0 && cResources.NanoCPUs > 0 {
-		return fmt.Errorf("Conflicting options: CPU Period cannot be updated as NanoCPUs has already been set")
+		return conflictingUpdateOptions("Conflicting options: CPU Period cannot be updated as NanoCPUs has already been set")
 	}
 	if resources.CPUQuota > 0 && cResources.NanoCPUs > 0 {
-		return fmt.Errorf("Conflicting options: CPU Quota cannot be updated as NanoCPUs has already been set")
+		return conflictingUpdateOptions("Conflicting options: CPU Quota cannot be updated as NanoCPUs has already been set")
 	}
 
 	if resources.BlkioWeight != 0 {
@@ -310,7 +317,7 @@ func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfi
 		// if memory limit smaller than already set memoryswap limit and doesn't
 		// update the memoryswap limit, then error out.
 		if resources.Memory > cResources.MemorySwap && resources.MemorySwap == 0 {
-			return fmt.Errorf("Memory limit should be smaller than already set memoryswap limit, update the memoryswap at the same time")
+			return conflictingUpdateOptions("Memory limit should be smaller than already set memoryswap limit, update the memoryswap at the same time")
 		}
 		cResources.Memory = resources.Memory
 	}
@@ -327,7 +334,7 @@ func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfi
 	// update HostConfig of container
 	if hostConfig.RestartPolicy.Name != "" {
 		if container.HostConfig.AutoRemove && !hostConfig.RestartPolicy.IsNone() {
-			return fmt.Errorf("Restart policy cannot be updated because AutoRemove is enabled for the container")
+			return conflictingUpdateOptions("Restart policy cannot be updated because AutoRemove is enabled for the container")
 		}
 		container.HostConfig.RestartPolicy = hostConfig.RestartPolicy
 	}

@@ -12,7 +12,6 @@ import (
 	"strings"
 	"sync"
 
-	apierrors "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
@@ -26,6 +25,14 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
+
+type invalidIsolationError string
+
+func (e invalidIsolationError) Error() string {
+	return fmt.Sprintf("Unsupported isolation: %q", string(e))
+}
+
+func (e invalidIsolationError) InvalidParameter() {}
 
 func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBuildOptions, error) {
 	version := httputils.VersionFromContext(ctx)
@@ -71,20 +78,20 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 
 	if i := container.Isolation(r.FormValue("isolation")); i != "" {
 		if !container.Isolation.IsValid(i) {
-			return nil, fmt.Errorf("Unsupported isolation: %q", i)
+			return nil, invalidIsolationError(i)
 		}
 		options.Isolation = i
 	}
 
 	if runtime.GOOS != "windows" && options.SecurityOpt != nil {
-		return nil, fmt.Errorf("The daemon on this platform does not support setting security options on build")
+		return nil, validationError{fmt.Errorf("The daemon on this platform does not support setting security options on build")}
 	}
 
 	var buildUlimits = []*units.Ulimit{}
 	ulimitsJSON := r.FormValue("ulimits")
 	if ulimitsJSON != "" {
 		if err := json.Unmarshal([]byte(ulimitsJSON), &buildUlimits); err != nil {
-			return nil, err
+			return nil, errors.Wrap(validationError{err}, "error reading ulimit settings")
 		}
 		options.Ulimits = buildUlimits
 	}
@@ -105,7 +112,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	if buildArgsJSON != "" {
 		var buildArgs = map[string]*string{}
 		if err := json.Unmarshal([]byte(buildArgsJSON), &buildArgs); err != nil {
-			return nil, err
+			return nil, errors.Wrap(validationError{err}, "error reading build args")
 		}
 		options.BuildArgs = buildArgs
 	}
@@ -114,7 +121,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	if labelsJSON != "" {
 		var labels = map[string]string{}
 		if err := json.Unmarshal([]byte(labelsJSON), &labels); err != nil {
-			return nil, err
+			return nil, errors.Wrap(validationError{err}, "error reading labels")
 		}
 		options.Labels = labels
 	}
@@ -139,6 +146,16 @@ func (br *buildRouter) postPrune(ctx context.Context, w http.ResponseWriter, r *
 	}
 	return httputils.WriteJSON(w, http.StatusOK, report)
 }
+
+type validationError struct {
+	cause error
+}
+
+func (e validationError) Error() string {
+	return e.cause.Error()
+}
+
+func (e validationError) InvalidParameter() {}
 
 func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	var (
@@ -173,8 +190,7 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 	buildOptions.AuthConfigs = getAuthConfigs(r.Header)
 
 	if buildOptions.Squash && !br.daemon.HasExperimental() {
-		return apierrors.NewBadRequestError(
-			errors.New("squash is only supported with experimental mode"))
+		return validationError{errors.New("squash is only supported with experimental mode")}
 	}
 
 	out := io.Writer(output)

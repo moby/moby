@@ -4,7 +4,6 @@ package plugin
 
 import (
 	"encoding/json"
-	"fmt"
 	"net"
 	"os"
 	"path/filepath"
@@ -28,7 +27,7 @@ import (
 func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) error {
 	p.Rootfs = filepath.Join(pm.config.Root, p.PluginObj.ID, "rootfs")
 	if p.IsEnabled() && !force {
-		return fmt.Errorf("plugin %s is already enabled", p.Name())
+		return errors.Wrap(enabledError(p.Name()), "plugin already enabled")
 	}
 	spec, err := p.InitSpec(pm.config.ExecRoot)
 	if err != nil {
@@ -171,7 +170,7 @@ func setupRoot(root string) error {
 
 func (pm *Manager) disable(p *v2.Plugin, c *controller) error {
 	if !p.IsEnabled() {
-		return fmt.Errorf("plugin %s is already disabled", p.Name())
+		return errors.Wrap(errDisabled(p.Name()), "plugin is already disabled")
 	}
 
 	c.restart = false
@@ -213,12 +212,12 @@ func (pm *Manager) upgradePlugin(p *v2.Plugin, configDigest digest.Digest, blobs
 	// This could happen if the plugin was disabled with `-f` with active mounts.
 	// If there is anything in `orig` is still mounted, this should error out.
 	if err := mount.RecursiveUnmount(orig); err != nil {
-		return err
+		return systemError{err}
 	}
 
 	backup := orig + "-old"
 	if err := os.Rename(orig, backup); err != nil {
-		return errors.Wrap(err, "error backing up plugin data before upgrade")
+		return errors.Wrap(systemError{err}, "error backing up plugin data before upgrade")
 	}
 
 	defer func() {
@@ -244,7 +243,7 @@ func (pm *Manager) upgradePlugin(p *v2.Plugin, configDigest digest.Digest, blobs
 	}()
 
 	if err := os.Rename(tmpRootFSDir, orig); err != nil {
-		return errors.Wrap(err, "error upgrading")
+		return errors.Wrap(systemError{err}, "error upgrading")
 	}
 
 	p.PluginObj.Config = config
@@ -268,7 +267,7 @@ func (pm *Manager) setupNewPlugin(configDigest digest.Digest, blobsums []digest.
 		return types.PluginConfig{}, errors.New("invalid config json")
 	}
 
-	requiredPrivileges, err := computePrivileges(config)
+	requiredPrivileges := computePrivileges(config)
 	if err != nil {
 		return types.PluginConfig{}, err
 	}
@@ -284,7 +283,7 @@ func (pm *Manager) setupNewPlugin(configDigest digest.Digest, blobsums []digest.
 // createPlugin creates a new plugin. take lock before calling.
 func (pm *Manager) createPlugin(name string, configDigest digest.Digest, blobsums []digest.Digest, rootFSDir string, privileges *types.PluginPrivileges, opts ...CreateOpt) (p *v2.Plugin, err error) {
 	if err := pm.config.Store.validateName(name); err != nil { // todo: this check is wrong. remove store
-		return nil, err
+		return nil, validationError{err}
 	}
 
 	config, err := pm.setupNewPlugin(configDigest, blobsums, privileges)

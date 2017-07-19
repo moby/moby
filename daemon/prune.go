@@ -186,7 +186,7 @@ func (daemon *Daemon) ImagesPrune(ctx context.Context, pruneFilters filters.Args
 		if pruneFilters.ExactMatch("dangling", "false") || pruneFilters.ExactMatch("dangling", "0") {
 			danglingOnly = false
 		} else if !pruneFilters.ExactMatch("dangling", "true") && !pruneFilters.ExactMatch("dangling", "1") {
-			return nil, fmt.Errorf("Invalid filter 'dangling=%s'", pruneFilters.Get("dangling"))
+			return nil, invalidFilter{"dangling", pruneFilters.Get("dangling")}
 		}
 	}
 

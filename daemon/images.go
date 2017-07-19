@@ -71,7 +71,7 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 		if imageFilters.ExactMatch("dangling", "true") {
 			danglingOnly = true
 		} else if !imageFilters.ExactMatch("dangling", "false") {
-			return nil, fmt.Errorf("Invalid filter 'dangling=%s'", imageFilters.Get("dangling"))
+			return nil, invalidFilter{"dangling", imageFilters.Get("dangling")}
 		}
 	}
 	if danglingOnly {

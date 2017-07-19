@@ -10,6 +10,7 @@ import (
 	refstore "github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
@@ -173,7 +174,7 @@ func writeStatus(requestedTag string, out progress.Output, layersDownloaded bool
 // ValidateRepoName validates the name of a repository.
 func ValidateRepoName(name reference.Named) error {
 	if reference.FamiliarName(name) == api.NoBaseImageSpecifier {
-		return fmt.Errorf("'%s' is a reserved name", api.NoBaseImageSpecifier)
+		return errors.WithStack(reservedNameError(api.NoBaseImageSpecifier))
 	}
 	return nil
 }

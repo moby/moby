@@ -310,7 +310,7 @@ func ParseMountRaw(raw, volumeDriver string) (*MountPoint, error) {
 		mp.Mode = mode
 	}
 	if err != nil {
-		err = fmt.Errorf("%v: %v", errInvalidSpec(raw), err)
+		err = errors.Wrap(err, errInvalidSpec(raw).Error())
 	}
 	return mp, err
 }
@@ -318,7 +318,7 @@ func ParseMountRaw(raw, volumeDriver string) (*MountPoint, error) {
 // ParseMountSpec reads a mount config, validates it, and configures a mountpoint from it.
 func ParseMountSpec(cfg mounttypes.Mount, options ...func(*validateOpts)) (*MountPoint, error) {
 	if err := validateMountConfig(&cfg, options...); err != nil {
-		return nil, err
+		return nil, validationError{err}
 	}
 	mp := &MountPoint{
 		RW:          !cfg.ReadOnly,
@@ -360,9 +360,9 @@ func ParseMountSpec(cfg mounttypes.Mount, options ...func(*validateOpts)) (*Moun
 }
 
 func errInvalidMode(mode string) error {
-	return fmt.Errorf("invalid mode: %v", mode)
+	return validationError{errors.Errorf("invalid mode: %v", mode)}
 }
 
 func errInvalidSpec(spec string) error {
-	return fmt.Errorf("invalid volume specification: '%s'", spec)
+	return validationError{errors.Errorf("invalid volume specification: '%s'", spec)}
 }

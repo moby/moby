@@ -1,7 +1,6 @@
 package httputils
 
 import (
-	"errors"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -49,6 +48,16 @@ type ArchiveOptions struct {
 	Path string
 }
 
+type badParameterError struct {
+	param string
+}
+
+func (e badParameterError) Error() string {
+	return "bad parameter: " + e.param + "cannot be empty"
+}
+
+func (e badParameterError) InvalidParameter() {}
+
 // ArchiveFormValues parses form values and turns them into ArchiveOptions.
 // It fails if the archive name and path are not in the request.
 func ArchiveFormValues(r *http.Request, vars map[string]string) (ArchiveOptions, error) {
@@ -57,14 +66,13 @@ func ArchiveFormValues(r *http.Request, vars map[string]string) (ArchiveOptions,
 	}
 
 	name := vars["name"]
-	path := filepath.FromSlash(r.Form.Get("path"))
-
-	switch {
-	case name == "":
-		return ArchiveOptions{}, errors.New("bad parameter: 'name' cannot be empty")
-	case path == "":
-		return ArchiveOptions{}, errors.New("bad parameter: 'path' cannot be empty")
+	if name == "" {
+		return ArchiveOptions{}, badParameterError{"name"}
 	}
 
+	path := filepath.FromSlash(r.Form.Get("path"))
+	if path == "" {
+		return ArchiveOptions{}, badParameterError{"path"}
+	}
 	return ArchiveOptions{name, path}, nil
 }

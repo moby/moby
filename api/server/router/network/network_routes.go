@@ -2,14 +2,12 @@ package network
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"golang.org/x/net/context"
 
-	"github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -18,6 +16,7 @@ import (
 	"github.com/docker/libnetwork"
 	netconst "github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/networkdb"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -83,6 +82,24 @@ SKIP:
 	return httputils.WriteJSON(w, http.StatusOK, list)
 }
 
+type invalidRequestError struct {
+	cause error
+}
+
+func (e invalidRequestError) Error() string {
+	return e.cause.Error()
+}
+
+func (e invalidRequestError) InvalidParameter() {}
+
+type ambigousResultsError string
+
+func (e ambigousResultsError) Error() string {
+	return "network " + string(e) + " is ambiguous"
+}
+
+func (ambigousResultsError) InvalidParameter() {}
+
 func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
@@ -95,8 +112,7 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 	)
 	if v := r.URL.Query().Get("verbose"); v != "" {
 		if verbose, err = strconv.ParseBool(v); err != nil {
-			err = fmt.Errorf("invalid value for verbose: %s", v)
-			return errors.NewBadRequestError(err)
+			return errors.Wrapf(invalidRequestError{err}, "invalid value for verbose: %s", v)
 		}
 	}
 	scope := r.URL.Query().Get("scope")
@@ -177,7 +193,7 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 		}
 	}
 	if len(listByFullName) > 1 {
-		return fmt.Errorf("network %s is ambiguous (%d matches found based on name)", term, len(listByFullName))
+		return errors.Wrapf(ambigousResultsError(term), "%d matches found based on name", len(listByFullName))
 	}
 
 	// Find based on partial ID, returns true only if no duplicates
@@ -187,7 +203,7 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 		}
 	}
 	if len(listByPartialID) > 1 {
-		return fmt.Errorf("network %s is ambiguous (%d matches found based on ID prefix)", term, len(listByPartialID))
+		return errors.Wrapf(ambigousResultsError(term), "%d matches found based on ID prefix", len(listByPartialID))
 	}
 
 	return libnetwork.ErrNoSuchNetwork(term)

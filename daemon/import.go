@@ -42,16 +42,16 @@ func (daemon *Daemon) ImportImage(src string, repository, platform string, tag s
 		var err error
 		newRef, err = reference.ParseNormalizedNamed(repository)
 		if err != nil {
-			return err
+			return validationError{err}
 		}
 		if _, isCanonical := newRef.(reference.Canonical); isCanonical {
-			return errors.New("cannot import digest reference")
+			return validationError{errors.New("cannot import digest reference")}
 		}
 
 		if tag != "" {
 			newRef, err = reference.WithTag(newRef, tag)
 			if err != nil {
-				return err
+				return validationError{err}
 			}
 		}
 	}
@@ -69,7 +69,7 @@ func (daemon *Daemon) ImportImage(src string, repository, platform string, tag s
 		}
 		u, err := url.Parse(src)
 		if err != nil {
-			return err
+			return validationError{err}
 		}
 
 		resp, err = remotecontext.GetWithStatusError(u.String())

@@ -190,7 +190,7 @@ func TestDecodeHostConfig(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		c, err := DecodeHostConfig(bytes.NewReader(b))
+		c, err := decodeHostConfig(bytes.NewReader(b))
 		if err != nil {
 			t.Fatal(fmt.Errorf("Error parsing %s: %v", f, err))
 		}

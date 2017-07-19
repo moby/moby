@@ -9,7 +9,6 @@ import (
 
 	"github.com/pkg/errors"
 
-	apierrors "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	networktypes "github.com/docker/docker/api/types/network"
@@ -37,17 +36,17 @@ func (daemon *Daemon) ContainerCreate(params types.ContainerCreateConfig) (conta
 func (daemon *Daemon) containerCreate(params types.ContainerCreateConfig, managed bool) (containertypes.ContainerCreateCreatedBody, error) {
 	start := time.Now()
 	if params.Config == nil {
-		return containertypes.ContainerCreateCreatedBody{}, fmt.Errorf("Config cannot be empty in order to create a container")
+		return containertypes.ContainerCreateCreatedBody{}, validationError{errors.New("Config cannot be empty in order to create a container")}
 	}
 
 	warnings, err := daemon.verifyContainerSettings(params.HostConfig, params.Config, false)
 	if err != nil {
-		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, err
+		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, validationError{err}
 	}
 
-	err = daemon.verifyNetworkingConfig(params.NetworkingConfig)
+	err = verifyNetworkingConfig(params.NetworkingConfig)
 	if err != nil {
-		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, err
+		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, validationError{err}
 	}
 
 	if params.HostConfig == nil {
@@ -55,12 +54,12 @@ func (daemon *Daemon) containerCreate(params types.ContainerCreateConfig, manage
 	}
 	err = daemon.adaptContainerSettings(params.HostConfig, params.AdjustCPUShares)
 	if err != nil {
-		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, err
+		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, validationError{err}
 	}
 
 	container, err := daemon.create(params, managed)
 	if err != nil {
-		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, daemon.imageNotExistToErrcode(err)
+		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, err
 	}
 	containerActions.WithValues("create").UpdateSince(start)
 
@@ -113,11 +112,11 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 	}
 
 	if err := daemon.mergeAndVerifyConfig(params.Config, img); err != nil {
-		return nil, err
+		return nil, validationError{err}
 	}
 
 	if err := daemon.mergeAndVerifyLogConfig(&params.HostConfig.LogConfig); err != nil {
-		return nil, err
+		return nil, validationError{err}
 	}
 
 	if container, err = daemon.newContainer(params.Name, params.Platform, params.Config, params.HostConfig, imgID, managed); err != nil {
@@ -139,7 +138,7 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 
 	// Set RWLayer for container after mount labels have been set
 	if err := daemon.setRWLayer(container); err != nil {
-		return nil, err
+		return nil, systemError{err}
 	}
 
 	rootIDs := daemon.idMappings.RootPair()
@@ -295,7 +294,7 @@ func (daemon *Daemon) mergeAndVerifyConfig(config *containertypes.Config, img *i
 
 // Checks if the client set configurations for more than one network while creating a container
 // Also checks if the IPAMConfig is valid
-func (daemon *Daemon) verifyNetworkingConfig(nwConfig *networktypes.NetworkingConfig) error {
+func verifyNetworkingConfig(nwConfig *networktypes.NetworkingConfig) error {
 	if nwConfig == nil || len(nwConfig.EndpointsConfig) == 0 {
 		return nil
 	}
@@ -303,14 +302,14 @@ func (daemon *Daemon) verifyNetworkingConfig(nwConfig *networktypes.NetworkingCo
 		for _, v := range nwConfig.EndpointsConfig {
 			if v != nil && v.IPAMConfig != nil {
 				if v.IPAMConfig.IPv4Address != "" && net.ParseIP(v.IPAMConfig.IPv4Address).To4() == nil {
-					return apierrors.NewBadRequestError(fmt.Errorf("invalid IPv4 address: %s", v.IPAMConfig.IPv4Address))
+					return errors.Errorf("invalid IPv4 address: %s", v.IPAMConfig.IPv4Address)
 				}
 				if v.IPAMConfig.IPv6Address != "" {
 					n := net.ParseIP(v.IPAMConfig.IPv6Address)
 					// if the address is an invalid network address (ParseIP == nil) or if it is
 					// an IPv4 address (To4() != nil), then it is an invalid IPv6 address
 					if n == nil || n.To4() != nil {
-						return apierrors.NewBadRequestError(fmt.Errorf("invalid IPv6 address: %s", v.IPAMConfig.IPv6Address))
+						return errors.Errorf("invalid IPv6 address: %s", v.IPAMConfig.IPv6Address)
 					}
 				}
 			}
@@ -321,6 +320,5 @@ func (daemon *Daemon) verifyNetworkingConfig(nwConfig *networktypes.NetworkingCo
 	for k := range nwConfig.EndpointsConfig {
 		l = append(l, k)
 	}
-	err := fmt.Errorf("Container cannot be connected to network endpoints: %s", strings.Join(l, ", "))
-	return apierrors.NewBadRequestError(err)
+	return errors.Errorf("Container cannot be connected to network endpoints: %s", strings.Join(l, ", "))
 }

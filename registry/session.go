@@ -3,7 +3,6 @@ package registry
 import (
 	"bytes"
 	"crypto/sha256"
-	"errors"
 	"sync"
 	// this is required for some certificates
 	_ "crypto/sha512"
@@ -27,13 +26,14 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/registry/resumable"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
 var (
 	// ErrRepoNotFound is returned if the repository didn't exist on the
 	// remote side
-	ErrRepoNotFound = errors.New("Repository not found")
+	ErrRepoNotFound notFoundError = "Repository not found"
 )
 
 // A Session is used to communicate with a V1 registry
@@ -734,27 +734,27 @@ func shouldRedirect(response *http.Response) bool {
 // SearchRepositories performs a search against the remote repository
 func (r *Session) SearchRepositories(term string, limit int) (*registrytypes.SearchResults, error) {
 	if limit < 1 || limit > 100 {
-		return nil, fmt.Errorf("Limit %d is outside the range of [1, 100]", limit)
+		return nil, validationError{errors.Errorf("Limit %d is outside the range of [1, 100]", limit)}
 	}
 	logrus.Debugf("Index server: %s", r.indexEndpoint)
 	u := r.indexEndpoint.String() + "search?q=" + url.QueryEscape(term) + "&n=" + url.QueryEscape(fmt.Sprintf("%d", limit))
 
 	req, err := http.NewRequest("GET", u, nil)
 	if err != nil {
-		return nil, fmt.Errorf("Error while getting from the server: %v", err)
+		return nil, errors.Wrap(validationError{err}, "Error building request")
 	}
 	// Have the AuthTransport send authentication, when logged in.
 	req.Header.Set("X-Docker-Token", "true")
 	res, err := r.client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, systemError{err}
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
 		return nil, newJSONError(fmt.Sprintf("Unexpected status code %d", res.StatusCode), res)
 	}
 	result := new(registrytypes.SearchResults)
-	return result, json.NewDecoder(res.Body).Decode(result)
+	return result, errors.Wrap(json.NewDecoder(res.Body).Decode(result), "error decoding registry search results")
 }
 
 func isTimeout(err error) bool {

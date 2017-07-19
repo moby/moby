@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/namesgenerator"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -55,7 +56,7 @@ func (daemon *Daemon) generateIDAndName(name string) (string, string, error) {
 
 func (daemon *Daemon) reserveName(id, name string) (string, error) {
 	if !validContainerNamePattern.MatchString(strings.TrimPrefix(name, "/")) {
-		return "", fmt.Errorf("Invalid container name (%s), only %s are allowed", name, validContainerNameChars)
+		return "", validationError{errors.Errorf("Invalid container name (%s), only %s are allowed", name, validContainerNameChars)}
 	}
 	if name[0] != '/' {
 		name = "/" + name
@@ -68,9 +69,9 @@ func (daemon *Daemon) reserveName(id, name string) (string, error) {
 				logrus.Errorf("got unexpected error while looking up reserved name: %v", err)
 				return "", err
 			}
-			return "", fmt.Errorf("Conflict. The container name %q is already in use by container %q. You have to remove (or rename) that container to be able to reuse that name.", name, id)
+			return "", validationError{errors.Errorf("Conflict. The container name %q is already in use by container %q. You have to remove (or rename) that container to be able to reuse that name.", name, id)}
 		}
-		return "", fmt.Errorf("error reserving name: %q, error: %v", name, err)
+		return "", errors.Wrapf(err, "error reserving name: %q", name)
 	}
 	return name, nil
 }

@@ -43,6 +43,7 @@ import (
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/types"
 	agentexec "github.com/docker/swarmkit/agent/exec"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
@@ -55,8 +56,8 @@ const (
 )
 
 var (
-	errInvalidEndpoint = fmt.Errorf("invalid endpoint while building port map info")
-	errInvalidNetwork  = fmt.Errorf("invalid network settings while building port map info")
+	errInvalidEndpoint = errors.New("invalid endpoint while building port map info")
+	errInvalidNetwork  = errors.New("invalid network settings while building port map info")
 )
 
 // Container holds the structure defining a container object.
@@ -274,7 +275,7 @@ func (container *Container) SetupWorkingDirectory(rootIDs idtools.IDPair) error 
 	if err := idtools.MkdirAllAndChownNew(pth, 0755, rootIDs); err != nil {
 		pthInfo, err2 := os.Stat(pth)
 		if err2 == nil && pthInfo != nil && !pthInfo.IsDir() {
-			return fmt.Errorf("Cannot mkdir: %s is not a directory", container.Config.WorkingDir)
+			return errors.Errorf("Cannot mkdir: %s is not a directory", container.Config.WorkingDir)
 		}
 
 		return err
@@ -357,7 +358,7 @@ func (container *Container) StartLogger() (logger.Logger, error) {
 	cfg := container.HostConfig.LogConfig
 	initDriver, err := logger.GetLogDriver(cfg.Type)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get logging factory: %v", err)
+		return nil, errors.Wrap(err, "failed to get logging factory")
 	}
 	info := logger.Info{
 		Config:              cfg.Config,
@@ -723,18 +724,18 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epC
 
 			for _, ips := range ipam.LinkLocalIPs {
 				if linkip = net.ParseIP(ips); linkip == nil && ips != "" {
-					return nil, fmt.Errorf("Invalid link-local IP address:%s", ipam.LinkLocalIPs)
+					return nil, errors.Errorf("Invalid link-local IP address: %s", ipam.LinkLocalIPs)
 				}
 				ipList = append(ipList, linkip)
 
 			}
 
 			if ip = net.ParseIP(ipam.IPv4Address); ip == nil && ipam.IPv4Address != "" {
-				return nil, fmt.Errorf("Invalid IPv4 address:%s)", ipam.IPv4Address)
+				return nil, errors.Errorf("Invalid IPv4 address: %s)", ipam.IPv4Address)
 			}
 
 			if ip6 = net.ParseIP(ipam.IPv6Address); ip6 == nil && ipam.IPv6Address != "" {
-				return nil, fmt.Errorf("Invalid IPv6 address:%s)", ipam.IPv6Address)
+				return nil, errors.Errorf("Invalid IPv6 address: %s)", ipam.IPv6Address)
 			}
 
 			createOptions = append(createOptions,
@@ -838,7 +839,7 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epC
 				portStart, portEnd, err = newP.Range()
 			}
 			if err != nil {
-				return nil, fmt.Errorf("Error parsing HostPort value(%s):%v", binding[i].HostPort, err)
+				return nil, errors.Wrapf(err, "Error parsing HostPort value (%s)", binding[i].HostPort)
 			}
 			pbCopy.HostPort = uint16(portStart)
 			pbCopy.HostPortEnd = uint16(portEnd)

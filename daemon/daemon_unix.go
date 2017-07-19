@@ -470,6 +470,7 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 		warnings = append(warnings, "Your kernel does not support BPS Block I/O write limit or the cgroup is not mounted. Block I/O BPS write limit discarded.")
 		logrus.Warn("Your kernel does not support BPS Block I/O write limit or the cgroup is not mounted. Block I/O BPS write limit discarded.")
 		resources.BlkioDeviceWriteBps = []*pblkiodev.ThrottleDevice{}
+
 	}
 	if len(resources.BlkioDeviceReadIOps) > 0 && !sysInfo.BlkioReadIOpsDevice {
 		warnings = append(warnings, "Your kernel does not support IOPS Block read limit or the cgroup is not mounted. Block I/O IOPS read limit discarded.")
@@ -1144,13 +1145,13 @@ func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *
 		}
 		child, err := daemon.GetContainer(name)
 		if err != nil {
-			return fmt.Errorf("Could not get container for %s", name)
+			return errors.Wrapf(err, "could not get container for %s", name)
 		}
 		for child.HostConfig.NetworkMode.IsContainer() {
 			parts := strings.SplitN(string(child.HostConfig.NetworkMode), ":", 2)
 			child, err = daemon.GetContainer(parts[1])
 			if err != nil {
-				return fmt.Errorf("Could not get container for %s", parts[1])
+				return errors.Wrapf(err, "Could not get container for %s", parts[1])
 			}
 		}
 		if child.HostConfig.NetworkMode.IsHost() {
@@ -1181,12 +1182,12 @@ func (daemon *Daemon) conditionalUnmountOnCleanup(container *container.Container
 
 func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
 	if !c.IsRunning() {
-		return nil, errNotRunning{c.ID}
+		return nil, errNotRunning(c.ID)
 	}
 	stats, err := daemon.containerd.Stats(c.ID)
 	if err != nil {
 		if strings.Contains(err.Error(), "container not found") {
-			return nil, errNotFound{c.ID}
+			return nil, containerNotFound(c.ID)
 		}
 		return nil, err
 	}

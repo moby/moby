@@ -1,7 +1,6 @@
 package daemon
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,13 +8,13 @@ import (
 	"strings"
 	"time"
 
-	dockererrors "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/volume"
 	"github.com/docker/docker/volume/drivers"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -149,7 +148,7 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 		// #10618
 		_, tmpfsExists := hostConfig.Tmpfs[bind.Destination]
 		if binds[bind.Destination] || tmpfsExists {
-			return fmt.Errorf("Duplicate mount point '%s'", bind.Destination)
+			return duplicateMountPointError(bind.Destination)
 		}
 
 		if bind.Type == mounttypes.TypeVolume {
@@ -175,11 +174,11 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 	for _, cfg := range hostConfig.Mounts {
 		mp, err := volume.ParseMountSpec(cfg)
 		if err != nil {
-			return dockererrors.NewBadRequestError(err)
+			return validationError{err}
 		}
 
 		if binds[mp.Destination] {
-			return fmt.Errorf("Duplicate mount point '%s'", cfg.Target)
+			return duplicateMountPointError(cfg.Target)
 		}
 
 		if mp.Type == mounttypes.TypeVolume {

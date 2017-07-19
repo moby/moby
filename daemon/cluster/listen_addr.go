@@ -1,20 +1,19 @@
 package cluster
 
 import (
-	"errors"
 	"fmt"
 	"net"
 )
 
-var (
-	errNoSuchInterface         = errors.New("no such interface")
-	errNoIP                    = errors.New("could not find the system's IP address")
-	errMustSpecifyListenAddr   = errors.New("must specify a listening address because the address to advertise is not recognized as a system address, and a system's IP address to use could not be uniquely identified")
-	errBadNetworkIdentifier    = errors.New("must specify a valid IP address or interface name")
-	errBadListenAddr           = errors.New("listen address must be an IP address or network interface (with optional port number)")
-	errBadAdvertiseAddr        = errors.New("advertise address must be a non-zero IP address or network interface (with optional port number)")
-	errBadDataPathAddr         = errors.New("data path address must be a non-zero IP address or network interface (without a port number)")
-	errBadDefaultAdvertiseAddr = errors.New("default advertise address must be a non-zero IP address or network interface (without a port number)")
+const (
+	errNoSuchInterface         configError = "no such interface"
+	errNoIP                    configError = "could not find the system's IP address"
+	errMustSpecifyListenAddr   configError = "must specify a listening address because the address to advertise is not recognized as a system address, and a system's IP address to use could not be uniquely identified"
+	errBadNetworkIdentifier    configError = "must specify a valid IP address or interface name"
+	errBadListenAddr           configError = "listen address must be an IP address or network interface (with optional port number)"
+	errBadAdvertiseAddr        configError = "advertise address must be a non-zero IP address or network interface (with optional port number)"
+	errBadDataPathAddr         configError = "data path address must be a non-zero IP address or network interface (without a port number)"
+	errBadDefaultAdvertiseAddr configError = "default advertise address must be a non-zero IP address or network interface (without a port number)"
 )
 
 func resolveListenAddr(specifiedAddr string) (string, string, error) {
@@ -125,13 +124,13 @@ func resolveInterfaceAddr(specifiedInterface string) (net.IP, error) {
 			if ipAddr.IP.To4() != nil {
 				// IPv4
 				if interfaceAddr4 != nil {
-					return nil, fmt.Errorf("interface %s has more than one IPv4 address (%s and %s)", specifiedInterface, interfaceAddr4, ipAddr.IP)
+					return nil, configError(fmt.Sprintf("interface %s has more than one IPv4 address (%s and %s)", specifiedInterface, interfaceAddr4, ipAddr.IP))
 				}
 				interfaceAddr4 = ipAddr.IP
 			} else {
 				// IPv6
 				if interfaceAddr6 != nil {
-					return nil, fmt.Errorf("interface %s has more than one IPv6 address (%s and %s)", specifiedInterface, interfaceAddr6, ipAddr.IP)
+					return nil, configError(fmt.Sprintf("interface %s has more than one IPv6 address (%s and %s)", specifiedInterface, interfaceAddr6, ipAddr.IP))
 				}
 				interfaceAddr6 = ipAddr.IP
 			}
@@ -139,7 +138,7 @@ func resolveInterfaceAddr(specifiedInterface string) (net.IP, error) {
 	}
 
 	if interfaceAddr4 == nil && interfaceAddr6 == nil {
-		return nil, fmt.Errorf("interface %s has no usable IPv4 or IPv6 address", specifiedInterface)
+		return nil, configError(fmt.Sprintf("interface %s has no usable IPv4 or IPv6 address", specifiedInterface))
 	}
 
 	// In the case that there's exactly one IPv4 address
@@ -296,7 +295,7 @@ func listSystemIPs() []net.IP {
 
 func errMultipleIPs(interfaceA, interfaceB string, addrA, addrB net.IP) error {
 	if interfaceA == interfaceB {
-		return fmt.Errorf("could not choose an IP address to advertise since this system has multiple addresses on interface %s (%s and %s)", interfaceA, addrA, addrB)
+		return configError(fmt.Sprintf("could not choose an IP address to advertise since this system has multiple addresses on interface %s (%s and %s)", interfaceA, addrA, addrB))
 	}
-	return fmt.Errorf("could not choose an IP address to advertise since this system has multiple addresses on different interfaces (%s on %s and %s on %s)", addrA, interfaceA, addrB, interfaceB)
+	return configError(fmt.Sprintf("could not choose an IP address to advertise since this system has multiple addresses on different interfaces (%s on %s and %s on %s)", addrA, interfaceA, addrB, interfaceB))
 }

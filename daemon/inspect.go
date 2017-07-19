@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/api/types/versions/v1p20"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/network"
+	volumestore "github.com/docker/docker/volume/store"
 	"github.com/docker/go-connections/nat"
 )
 
@@ -187,7 +188,7 @@ func (daemon *Daemon) getInspectData(container *container.Container) (*types.Con
 	// could have been removed, it will cause error if we try to get the metadata,
 	// we can ignore the error if the container is dead.
 	if err != nil && !container.Dead {
-		return nil, err
+		return nil, systemError{err}
 	}
 	contJSONBase.GraphDriver.Data = graphDriverData
 
@@ -228,7 +229,10 @@ func (daemon *Daemon) ContainerExecInspect(id string) (*backend.ExecInspect, err
 func (daemon *Daemon) VolumeInspect(name string) (*types.Volume, error) {
 	v, err := daemon.volumes.Get(name)
 	if err != nil {
-		return nil, err
+		if volumestore.IsNotExist(err) {
+			return nil, volumeNotFound(name)
+		}
+		return nil, systemError{err}
 	}
 	apiV := volumeToAPIType(v)
 	apiV.Mountpoint = v.Path()

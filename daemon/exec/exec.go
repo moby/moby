@@ -62,6 +62,11 @@ func (c *Config) CloseStreams() error {
 	return c.StreamConfig.CloseStreams()
 }
 
+// SetExitCode sets the exec config's exit code
+func (c *Config) SetExitCode(code int) {
+	c.ExitCode = &code
+}
+
 // Store keeps track of the exec configurations.
 type Store struct {
 	commands map[string]*Config

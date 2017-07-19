@@ -25,7 +25,7 @@ func (s *DockerSuite) TestAPICreateWithInvalidHealthcheckParams(c *check.C) {
 
 	status, body, err := request.SockRequest("POST", "/containers/create?name="+name, config, daemonHost())
 	c.Assert(err, check.IsNil)
-	c.Assert(status, check.Equals, http.StatusInternalServerError)
+	c.Assert(status, check.Equals, http.StatusBadRequest)
 	expected := fmt.Sprintf("Interval in Healthcheck cannot be less than %s", container.MinimumDuration)
 	c.Assert(getErrorMessage(c, body), checker.Contains, expected)
 
@@ -41,7 +41,7 @@ func (s *DockerSuite) TestAPICreateWithInvalidHealthcheckParams(c *check.C) {
 	}
 	status, body, err = request.SockRequest("POST", "/containers/create?name="+name, config, daemonHost())
 	c.Assert(err, check.IsNil)
-	c.Assert(status, check.Equals, http.StatusInternalServerError)
+	c.Assert(status, check.Equals, http.StatusBadRequest)
 	c.Assert(getErrorMessage(c, body), checker.Contains, expected)
 
 	// test invalid Timeout in Healthcheck: less than 1ms
@@ -56,7 +56,7 @@ func (s *DockerSuite) TestAPICreateWithInvalidHealthcheckParams(c *check.C) {
 	}
 	status, body, err = request.SockRequest("POST", "/containers/create?name="+name, config, daemonHost())
 	c.Assert(err, check.IsNil)
-	c.Assert(status, check.Equals, http.StatusInternalServerError)
+	c.Assert(status, check.Equals, http.StatusBadRequest)
 	expected = fmt.Sprintf("Timeout in Healthcheck cannot be less than %s", container.MinimumDuration)
 	c.Assert(getErrorMessage(c, body), checker.Contains, expected)
 
@@ -72,7 +72,7 @@ func (s *DockerSuite) TestAPICreateWithInvalidHealthcheckParams(c *check.C) {
 	}
 	status, body, err = request.SockRequest("POST", "/containers/create?name="+name, config, daemonHost())
 	c.Assert(err, check.IsNil)
-	c.Assert(status, check.Equals, http.StatusInternalServerError)
+	c.Assert(status, check.Equals, http.StatusBadRequest)
 	expected = "Retries in Healthcheck cannot be negative"
 	c.Assert(getErrorMessage(c, body), checker.Contains, expected)
 
@@ -89,7 +89,7 @@ func (s *DockerSuite) TestAPICreateWithInvalidHealthcheckParams(c *check.C) {
 	}
 	status, body, err = request.SockRequest("POST", "/containers/create?name="+name, config, daemonHost())
 	c.Assert(err, check.IsNil)
-	c.Assert(status, check.Equals, http.StatusInternalServerError)
+	c.Assert(status, check.Equals, http.StatusBadRequest)
 	expected = fmt.Sprintf("StartPeriod in Healthcheck cannot be less than %s", container.MinimumDuration)
 	c.Assert(getErrorMessage(c, body), checker.Contains, expected)
 }

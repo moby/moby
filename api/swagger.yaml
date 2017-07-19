@@ -3311,10 +3311,6 @@ paths:
           examples:
             application/json:
               message: "No such container: c2ada9df5af8"
-        406:
-          description: "impossible to attach"
-          schema:
-            $ref: "#/definitions/ErrorResponse"
         409:
           description: "conflict"
           schema:

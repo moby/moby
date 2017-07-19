@@ -784,7 +784,7 @@ func stopSignal(req dispatchRequest) error {
 	sig := req.args[0]
 	_, err := signal.ParseSignal(sig)
 	if err != nil {
-		return err
+		return validationError{err}
 	}
 
 	req.state.runConfig.StopSignal = sig
