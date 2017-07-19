@@ -1058,7 +1058,7 @@ definitions:
       CreatedAt:
         type: "string"
         format: "dateTime"
-        description: "Time volume was created."
+        description: "Date/Time the volume was created."
       Status:
         type: "object"
         description: |
@@ -6257,7 +6257,8 @@ paths:
           examples:
             application/json:
               Volumes:
-                - Name: "tardis"
+                - CreatedAt: "2017-07-19T12:00:26Z"
+                  Name: "tardis"
                   Driver: "local"
                   Mountpoint: "/var/lib/docker/volumes/tardis"
                   Labels:
