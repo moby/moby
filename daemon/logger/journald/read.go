@@ -157,6 +157,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/go-systemd/journal"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/daemon/logger"
 )
 
@@ -213,14 +214,11 @@ drain:
 				source = "stdout"
 			}
 			// Retrieve the values of any variables we're adding to the journal.
-			attrs := make(map[string]string)
+			var attrs []backend.LogAttr
 			C.sd_journal_restart_data(j)
 			for C.get_attribute_field(j, &data, &length) > C.int(0) {
 				kv := strings.SplitN(C.GoStringN(data, C.int(length)), "=", 2)
-				attrs[kv[0]] = kv[1]
-			}
-			if len(attrs) == 0 {
-				attrs = nil
+				attrs = append(attrs, backend.LogAttr{Key: kv[0], Value: kv[1]})
 			}
 			// Send the log message.
 			logWatcher.Msg <- &logger.Message{
