@@ -2985,6 +2985,165 @@ func (s *DockerDaemonSuite) TestShmSizeReload(c *check.C) {
 	c.Assert(strings.TrimSpace(out), check.Equals, fmt.Sprintf("%v", size))
 }
 
+// this is used to test both "private" and "shareable" daemon default ipc modes
+func testDaemonIpcPrivateShareable(d *daemon.Daemon, c *check.C, mustExist bool) {
+	name := "test-ipcmode"
+	_, err := d.Cmd("run", "-d", "--name", name, "busybox", "top")
+	c.Assert(err, checker.IsNil)
+
+	// get major:minor pair for /dev/shm from container's /proc/self/mountinfo
+	cmd := "awk '($5 == \"/dev/shm\") {printf $3}' /proc/self/mountinfo"
+	mm, err := d.Cmd("exec", "-i", name, "sh", "-c", cmd)
+	c.Assert(err, checker.IsNil)
+	c.Assert(mm, checker.Matches, "^[0-9]+:[0-9]+$")
+
+	exists, err := testIpcCheckDevExists(mm)
+	c.Assert(err, checker.IsNil)
+	c.Logf("[testDaemonIpcPrivateShareable] ipcdev: %v, exists: %v, mustExist: %v\n", mm, exists, mustExist)
+	c.Assert(exists, checker.Equals, mustExist)
+}
+
+// TestDaemonIpcModeShareable checks that --default-ipc-mode shareable works as intended.
+func (s *DockerDaemonSuite) TestDaemonIpcModeShareable(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	s.d.StartWithBusybox(c, "--default-ipc-mode", "shareable")
+	testDaemonIpcPrivateShareable(s.d, c, true)
+}
+
+// TestDaemonIpcModePrivate checks that --default-ipc-mode private works as intended.
+func (s *DockerDaemonSuite) TestDaemonIpcModePrivate(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	s.d.StartWithBusybox(c, "--default-ipc-mode", "private")
+	testDaemonIpcPrivateShareable(s.d, c, false)
+}
+
+// used to check if an IpcMode given in config works as intended
+func testDaemonIpcFromConfig(s *DockerDaemonSuite, c *check.C, mode string, mustExist bool) {
+	f, err := ioutil.TempFile("", "test-daemon-ipc-config")
+	c.Assert(err, checker.IsNil)
+	defer os.Remove(f.Name())
+
+	config := `{"default-ipc-mode": "` + mode + `"}`
+	_, err = f.WriteString(config)
+	c.Assert(f.Close(), checker.IsNil)
+	c.Assert(err, checker.IsNil)
+
+	s.d.StartWithBusybox(c, "--config-file", f.Name())
+	testDaemonIpcPrivateShareable(s.d, c, mustExist)
+}
+
+// TestDaemonIpcModePrivateFromConfig checks that "default-ipc-mode: private" config works as intended.
+func (s *DockerDaemonSuite) TestDaemonIpcModePrivateFromConfig(c *check.C) {
+	testDaemonIpcFromConfig(s, c, "private", false)
+}
+
+// TestDaemonIpcModeShareableFromConfig checks that "default-ipc-mode: shareable" config works as intended.
+func (s *DockerDaemonSuite) TestDaemonIpcModeShareableFromConfig(c *check.C) {
+	testDaemonIpcFromConfig(s, c, "shareable", true)
+}
+
+func testDaemonStartIpcMode(c *check.C, from, mode string, valid bool) {
+	testRequires(c, DaemonIsLinux)
+
+	d := daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
+		Experimental: testEnv.ExperimentalDaemon(),
+	})
+	c.Logf("Checking IpcMode %s set from %s\n", mode, from)
+	var serr error
+	switch from {
+	case "config":
+		f, err := ioutil.TempFile("", "test-daemon-ipc-config")
+		c.Assert(err, checker.IsNil)
+		defer os.Remove(f.Name())
+		config := `{"default-ipc-mode": "` + mode + `"}`
+		_, err = f.WriteString(config)
+		c.Assert(f.Close(), checker.IsNil)
+		c.Assert(err, checker.IsNil)
+
+		serr = d.StartWithError("--config-file", f.Name())
+	case "cli":
+		serr = d.StartWithError("--default-ipc-mode", mode)
+	default:
+		c.Fatalf("testDaemonStartIpcMode: invalid 'from' argument")
+	}
+	if serr == nil {
+		d.Stop(c)
+	}
+
+	if valid {
+		c.Assert(serr, check.IsNil)
+	} else {
+		c.Assert(serr, check.NotNil)
+		icmd.RunCommand("grep", "-E", "IPC .* is (invalid|not supported)", d.LogFileName()).Assert(c, icmd.Success)
+	}
+}
+
+// TestDaemonStartWithIpcModes checks that daemon starts fine given correct
+// arguments for default IPC mode, and bails out with incorrect ones.
+// Both CLI option (--default-ipc-mode) and config parameter are tested.
+func (s *DockerDaemonSuite) TestDaemonStartWithIpcModes(c *check.C) {
+	ipcModes := []struct {
+		mode  string
+		valid bool
+	}{
+		{"private", true},
+		{"shareable", true},
+
+		{"host", false},
+		{"container:123", false},
+		{"nosuchmode", false},
+	}
+
+	for _, from := range []string{"config", "cli"} {
+		for _, m := range ipcModes {
+			testDaemonStartIpcMode(c, from, m.mode, m.valid)
+		}
+	}
+}
+
+// TestDaemonRestartIpcMode makes sure a container keeps its ipc mode
+// (derived from daemon default) even after the daemon is restarted
+// with a different default ipc mode.
+func (s *DockerDaemonSuite) TestDaemonRestartIpcMode(c *check.C) {
+	f, err := ioutil.TempFile("", "test-daemon-ipc-config-restart")
+	c.Assert(err, checker.IsNil)
+	file := f.Name()
+	defer os.Remove(file)
+	c.Assert(f.Close(), checker.IsNil)
+
+	config := []byte(`{"default-ipc-mode": "private"}`)
+	c.Assert(ioutil.WriteFile(file, config, 0644), checker.IsNil)
+	s.d.StartWithBusybox(c, "--config-file", file)
+
+	// check the container is created with private ipc mode as per daemon default
+	name := "ipc1"
+	_, err = s.d.Cmd("run", "-d", "--name", name, "--restart=always", "busybox", "top")
+	c.Assert(err, checker.IsNil)
+	m, err := s.d.InspectField(name, ".HostConfig.IpcMode")
+	c.Assert(err, check.IsNil)
+	c.Assert(m, checker.Equals, "private")
+
+	// restart the daemon with shareable default ipc mode
+	config = []byte(`{"default-ipc-mode": "shareable"}`)
+	c.Assert(ioutil.WriteFile(file, config, 0644), checker.IsNil)
+	s.d.Restart(c, "--config-file", file)
+
+	// check the container is still having private ipc mode
+	m, err = s.d.InspectField(name, ".HostConfig.IpcMode")
+	c.Assert(err, check.IsNil)
+	c.Assert(m, checker.Equals, "private")
+
+	// check a new container is created with shareable ipc mode as per new daemon default
+	name = "ipc2"
+	_, err = s.d.Cmd("run", "-d", "--name", name, "busybox", "top")
+	c.Assert(err, checker.IsNil)
+	m, err = s.d.InspectField(name, ".HostConfig.IpcMode")
+	c.Assert(err, check.IsNil)
+	c.Assert(m, checker.Equals, "shareable")
+}
+
 // TestFailedPluginRemove makes sure that a failed plugin remove does not block
 // the daemon from starting
 func (s *DockerDaemonSuite) TestFailedPluginRemove(c *check.C) {
