@@ -620,6 +620,8 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 		driverName := os.Getenv("DOCKER_DRIVER")
 		if driverName == "" {
 			driverName = config.GraphDriver
+		} else {
+			logrus.Infof("Setting the storage driver from the $DOCKER_DRIVER environment variable (%s)", driverName)
 		}
 		d.stores[runtime.GOOS] = daemonStore{graphDriver: driverName} // May still be empty. Layerstore init determines instead.
 	}
