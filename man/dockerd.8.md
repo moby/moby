@@ -23,6 +23,7 @@ dockerd - Enable daemon mode
 [**--default-gateway**[=*DEFAULT-GATEWAY*]]
 [**--default-gateway-v6**[=*DEFAULT-GATEWAY-V6*]]
 [**--default-runtime**[=*runc*]]
+[**--default-ipc-mode**=*MODE*]
 [**--default-shm-size**[=*64MiB*]]
 [**--default-ulimit**[=*[]*]]
 [**--disable-legacy-registry**]
@@ -184,6 +185,10 @@ $ sudo dockerd --add-runtime runc=runc --add-runtime custom=/usr/local/bin/my-ru
 
 **--default-runtime**="runc"
   Set default runtime if there're more than one specified by `--add-runtime`.
+
+**--default-ipc-mode**="**private**|**shareable**"
+  Set the default IPC mode for newly created containers. The argument
+  can either be **private** or **shareable**.
 
 **--default-shm-size**=*64MiB*
   Set the daemon-wide default shm size for containers. Default is `64MiB`.
