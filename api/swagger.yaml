@@ -1089,17 +1089,27 @@ definitions:
           type: "string"
       UsageData:
         type: "object"
+        x-nullable: true
         required: [Size, RefCount]
+        description: |
+          Usage details about the volume. This information is used by the
+          `GET /system/df` endpoint, and omitted in other endpoints.
         properties:
           Size:
             type: "integer"
-            description: "The disk space used by the volume (local driver only)"
             default: -1
+            description: |
+              Amount of disk space used by the volume (in bytes). This information
+              is only available for volumes created with the `"local"` volume
+              driver. For volumes created with other volume drivers, this field
+              is set to `-1` ("not available")
             x-nullable: false
           RefCount:
             type: "integer"
             default: -1
-            description: "The number of containers referencing this volume."
+            description: |
+              The number of containers referencing this volume. This field
+              is set to `-1` if the reference-count is not available.
             x-nullable: false
 
     example:
@@ -5949,13 +5959,13 @@ paths:
                 -
                   Name: "my-volume"
                   Driver: "local"
-                  Mountpoint: ""
+                  Mountpoint: "/var/lib/docker/volumes/my-volume/_data"
                   Labels: null
-                  Scope: ""
+                  Scope: "local"
                   Options: null
                   UsageData:
-                    Size: 0
-                    RefCount: 0
+                    Size: 10920104
+                    RefCount: 2
         500:
           description: "server error"
           schema:
