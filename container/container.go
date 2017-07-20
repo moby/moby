@@ -702,6 +702,9 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epC
 		for _, alias := range epConfig.Aliases {
 			createOptions = append(createOptions, libnetwork.CreateOptionMyAlias(alias))
 		}
+		for k, v := range epConfig.DriverOpts {
+			createOptions = append(createOptions, libnetwork.EndpointOptionGeneric(options.Generic{k: v}))
+		}
 	}
 
 	if container.NetworkSettings.Service != nil {
@@ -746,9 +749,6 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epC
 			}
 
 			createOptions = append(createOptions, libnetwork.EndpointOptionGeneric(genericOption))
-		}
-		for k, v := range epConfig.DriverOpts {
-			createOptions = append(createOptions, libnetwork.EndpointOptionGeneric(options.Generic{k: v}))
 		}
 
 	}
