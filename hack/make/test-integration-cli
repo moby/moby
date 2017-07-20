@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
+source "${MAKEDIR}/.go-autogen"
 source hack/make/.integration-test-helpers
 
 # subshell so that we can export PATH without breaking other things
