@@ -181,7 +181,9 @@ func getIPv4Data(t *testing.T, iface string) []driverapi.IPAMData {
 }
 
 func TestCreateFullOptions(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	if !testutils.IsRunningInContainer() {
+		defer testutils.SetupTestOSContext(t)()
+	}
 	d := newDriver()
 
 	config := &configuration{
@@ -604,8 +606,9 @@ func TestQueryEndpointInfoHairpin(t *testing.T) {
 }
 
 func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
-	defer testutils.SetupTestOSContext(t)()
-
+	if !testutils.IsRunningInContainer() {
+		defer testutils.SetupTestOSContext(t)()
+	}
 	d := newDriver()
 
 	config := &configuration{
