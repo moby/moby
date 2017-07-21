@@ -524,10 +524,12 @@ func (r *controller) Logs(ctx context.Context, publisher exec.LogPublisher, opti
 		}
 
 		// parse the details out of the Attrs map
-		attrs := []api.LogAttr{}
-		for k, v := range msg.Attrs {
-			attr := api.LogAttr{Key: k, Value: v}
-			attrs = append(attrs, attr)
+		var attrs []api.LogAttr
+		if len(msg.Attrs) != 0 {
+			attrs = make([]api.LogAttr, 0, len(msg.Attrs))
+			for _, attr := range msg.Attrs {
+				attrs = append(attrs, api.LogAttr{Key: attr.Key, Value: attr.Value})
+			}
 		}
 
 		if err := publisher.Publish(ctx, api.LogMessage{
