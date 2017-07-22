@@ -145,6 +145,7 @@ func (dm *downloadManager) Download(ctx context.Context, initialRootFS image.Roo
 		if err != nil {
 			return initialRootFS, nil, err
 		}
+		defer inflatedLayerData.Close()
 		digester := digest.Canonical.Digester()
 		if _, err := chrootarchive.ApplyLayer(dm.tmpDir, io.TeeReader(inflatedLayerData, digester.Hash())); err != nil {
 			return initialRootFS, nil, err
