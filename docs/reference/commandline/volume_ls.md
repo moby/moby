@@ -168,10 +168,10 @@ Valid placeholders for the Go template are listed below:
 
 Placeholder   | Description
 --------------|------------------------------------------------------------------------------------------
-`.Name`       | Network name
-`.Driver`     | Network driver
-`.Scope`      | Network scope (local, global)
-`.Mountpoint` | Whether the network is internal or not.
+`.Name`       | Volume name
+`.Driver`     | Volume driver
+`.Scope`      | Volume scope (local, global)
+`.Mountpoint` | Whether the volume is internal or not.
 `.Labels`     | All labels assigned to the volume.
 `.Label`      | Value of a specific label for this volume. For example `{{.Label "project.version"}}`
 
