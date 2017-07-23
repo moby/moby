@@ -3115,6 +3115,11 @@ func (s *DockerSuite) TestRunNetworkFilesBindMount(c *check.C) {
 	filename := createTmpFile(c, expected)
 	defer os.Remove(filename)
 
+	// for user namespaced test runs, the temp file must be accessible to unprivileged root
+	if err := os.Chmod(filename, 0646); err != nil {
+		c.Fatalf("error modifying permissions of %s: %v", filename, err)
+	}
+
 	nwfiles := []string{"/etc/resolv.conf", "/etc/hosts", "/etc/hostname"}
 
 	for i := range nwfiles {
@@ -3132,6 +3137,11 @@ func (s *DockerSuite) TestRunNetworkFilesBindMountRO(c *check.C) {
 	filename := createTmpFile(c, "test123")
 	defer os.Remove(filename)
 
+	// for user namespaced test runs, the temp file must be accessible to unprivileged root
+	if err := os.Chmod(filename, 0646); err != nil {
+		c.Fatalf("error modifying permissions of %s: %v", filename, err)
+	}
+
 	nwfiles := []string{"/etc/resolv.conf", "/etc/hosts", "/etc/hostname"}
 
 	for i := range nwfiles {
@@ -3148,6 +3158,11 @@ func (s *DockerSuite) TestRunNetworkFilesBindMountROFilesystem(c *check.C) {
 
 	filename := createTmpFile(c, "test123")
 	defer os.Remove(filename)
+
+	// for user namespaced test runs, the temp file must be accessible to unprivileged root
+	if err := os.Chmod(filename, 0646); err != nil {
+		c.Fatalf("error modifying permissions of %s: %v", filename, err)
+	}
 
 	nwfiles := []string{"/etc/resolv.conf", "/etc/hosts", "/etc/hostname"}
 

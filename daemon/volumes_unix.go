@@ -86,8 +86,13 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 	// remapped root (user namespaces)
 	rootIDs := daemon.idMappings.RootPair()
 	for _, mount := range netMounts {
-		if err := os.Chown(mount.Source, rootIDs.UID, rootIDs.GID); err != nil {
-			return nil, err
+		// we should only modify ownership of network files within our own container
+		// metadata repository. If the user specifies a mount path external, it is
+		// up to the user to make sure the file has proper ownership for userns
+		if strings.Index(mount.Source, daemon.repository) == 0 {
+			if err := os.Chown(mount.Source, rootIDs.UID, rootIDs.GID); err != nil {
+				return nil, err
+			}
 		}
 	}
 	return append(mounts, netMounts...), nil
