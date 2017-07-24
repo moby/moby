@@ -120,11 +120,7 @@ func (daemon *Daemon) setupIpcDirs(c *container.Container) error {
 				return err
 			}
 
-			shmSize := int64(daemon.configStore.ShmSize)
-			if c.HostConfig.ShmSize != 0 {
-				shmSize = c.HostConfig.ShmSize
-			}
-			shmproperty := "mode=1777,size=" + strconv.FormatInt(shmSize, 10)
+			shmproperty := "mode=1777,size=" + strconv.FormatInt(c.HostConfig.ShmSize, 10)
 			if err := unix.Mount("shm", shmPath, "tmpfs", uintptr(unix.MS_NOEXEC|unix.MS_NOSUID|unix.MS_NODEV), label.FormatMountLabel(shmproperty, c.GetMountLabel())); err != nil {
 				return fmt.Errorf("mounting shm tmpfs: %s", err)
 			}
