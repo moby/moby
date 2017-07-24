@@ -11,57 +11,50 @@ import (
 
 // GetTasks returns a list of tasks matching the filter options.
 func (c *Cluster) GetTasks(options apitypes.TaskListOptions) ([]types.Task, error) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	var r *swarmapi.ListTasksResponse
 
-	state := c.currentNodeState()
-	if !state.IsActiveManager() {
-		return nil, c.errNoManager(state)
-	}
-
-	filterTransform := func(filter filters.Args) error {
-		if filter.Include("service") {
-			serviceFilters := filter.Get("service")
-			for _, serviceFilter := range serviceFilters {
-				service, err := c.GetService(serviceFilter, false)
-				if err != nil {
-					return err
+	if err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+		filterTransform := func(filter filters.Args) error {
+			if filter.Include("service") {
+				serviceFilters := filter.Get("service")
+				for _, serviceFilter := range serviceFilters {
+					service, err := getService(ctx, state.controlClient, serviceFilter, false)
+					if err != nil {
+						return err
+					}
+					filter.Del("service", serviceFilter)
+					filter.Add("service", service.ID)
 				}
-				filter.Del("service", serviceFilter)
-				filter.Add("service", service.ID)
 			}
-		}
-		if filter.Include("node") {
-			nodeFilters := filter.Get("node")
-			for _, nodeFilter := range nodeFilters {
-				node, err := c.GetNode(nodeFilter)
-				if err != nil {
-					return err
+			if filter.Include("node") {
+				nodeFilters := filter.Get("node")
+				for _, nodeFilter := range nodeFilters {
+					node, err := getNode(ctx, state.controlClient, nodeFilter)
+					if err != nil {
+						return err
+					}
+					filter.Del("node", nodeFilter)
+					filter.Add("node", node.ID)
 				}
-				filter.Del("node", nodeFilter)
-				filter.Add("node", node.ID)
 			}
+			if !filter.Include("runtime") {
+				// default to only showing container tasks
+				filter.Add("runtime", "container")
+				filter.Add("runtime", "")
+			}
+			return nil
 		}
-		if !filter.Include("runtime") {
-			// default to only showing container tasks
-			filter.Add("runtime", "container")
-			filter.Add("runtime", "")
+
+		filters, err := newListTasksFilters(options.Filters, filterTransform)
+		if err != nil {
+			return err
 		}
-		return nil
-	}
 
-	filters, err := newListTasksFilters(options.Filters, filterTransform)
-	if err != nil {
-		return nil, err
-	}
-
-	ctx, cancel := c.getRequestContext()
-	defer cancel()
-
-	r, err := state.controlClient.ListTasks(
-		ctx,
-		&swarmapi.ListTasksRequest{Filters: filters})
-	if err != nil {
+		r, err = state.controlClient.ListTasks(
+			ctx,
+			&swarmapi.ListTasksRequest{Filters: filters})
+		return err
+	}); err != nil {
 		return nil, err
 	}
 
