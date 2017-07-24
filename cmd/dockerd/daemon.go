@@ -559,7 +559,7 @@ func (cli *DaemonCli) initMiddlewares(s *apiserver.Server, cfg *apiserver.Config
 	cli.Config.AuthzMiddleware = cli.authzMiddleware
 	s.UseMiddleware(cli.authzMiddleware)
 
-	pluginStore.Handle("authz", func(name string, client *plugins.Client) {
+	pluginStore.HandleV2("authz", func(name string, client *plugins.Client) {
 		cli.Config.AuthzMiddleware.AppendPluginIfMissing(name)
 	})
 

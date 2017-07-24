@@ -176,10 +176,13 @@ func (ps *Store) GetAllByCap(capability string) ([]plugingetter.CompatPlugin, er
 	return result, nil
 }
 
-// Handle sets a callback for a given capability. It is only used by network
-// and ipam drivers during plugin registration. The callback registers the
-// driver with the subsystem (network, ipam).
-func (ps *Store) Handle(capability string, callback func(string, *plugins.Client)) {
+// HandleV2 sets a callback for a given capability for *only* V2 and
+// later plugin models. Legacy V1 plugin activation will not trigger
+// this callback. This is useful for global plugin kinds like authz
+// that participate in all transactions for their class if
+// activated. The legacy V1 plugin API has no distinction between
+// querying a plugin (or Getting it) and activating it.
+func (ps *Store) HandleV2(capability string, callback func(string, *plugins.Client)) {
 	pluginType := fmt.Sprintf("docker.%s/%s", strings.ToLower(capability), defaultAPIVersion)
 
 	// Register callback with new plugin model.
@@ -191,6 +194,15 @@ func (ps *Store) Handle(capability string, callback func(string, *plugins.Client
 	handlers = append(handlers, callback)
 	ps.handlers[pluginType] = handlers
 	ps.Unlock()
+}
+
+// Handle sets a callback for a given capability for all plugin
+// models. It is used by network and ipam drivers during plugin
+// registration. The callback registers the driver with the
+// subsystem. It should not be used for global plugin kinds like authz
+// as V1 plugins conflate querying and plugin activation.
+func (ps *Store) Handle(capability string, callback func(string, *plugins.Client)) {
+	ps.HandleV2(capability, callback)
 
 	// Register callback with legacy plugin model.
 	if allowV1PluginsFallback {
