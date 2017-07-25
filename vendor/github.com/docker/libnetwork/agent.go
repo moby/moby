@@ -638,6 +638,11 @@ func (ep *endpoint) addServiceInfoToCluster(sb *sandbox) error {
 		}
 	}
 
+	// In any case, add the container hostName to the service discovery DNS
+	if err := c.addContainerNameResolution(n.ID(), ep.ID(), sb.config.hostName, ep.myAliases, ep.Iface().Address().IP, "addServiceInfoToCluster"); err != nil {
+		return err
+	}
+
 	buf, err := proto.Marshal(&EndpointRecord{
 		Name:         name,
 		ServiceName:  ep.svcName,
@@ -709,6 +714,11 @@ func (ep *endpoint) deleteServiceInfoFromCluster(sb *sandbox, method string) err
 				return err
 			}
 		}
+	}
+
+	// In any case, delete the container hostName to the service discovery DNS
+	if err := c.delContainerNameResolution(n.ID(), ep.ID(), sb.config.hostName, ep.myAliases, ep.Iface().Address().IP, "deleteServiceInfoFromCluster"); err != nil {
+		return err
 	}
 
 	logrus.Debugf("deleteServiceInfoFromCluster from %s END for %s %s", method, ep.svcName, ep.ID())
