@@ -491,6 +491,10 @@ func (m *Manager) Run(parent context.Context) error {
 	healthServer.SetServingStatus("Raft", api.HealthCheckResponse_NOT_SERVING)
 	localHealthServer.SetServingStatus("ControlAPI", api.HealthCheckResponse_NOT_SERVING)
 
+	if err := m.watchServer.Start(ctx); err != nil {
+		log.G(ctx).WithError(err).Error("watch server failed to start")
+	}
+
 	go m.serveListener(ctx, m.remoteListener)
 	go m.serveListener(ctx, m.controlListener)
 
@@ -566,8 +570,8 @@ func (m *Manager) Run(parent context.Context) error {
 const stopTimeout = 8 * time.Second
 
 // Stop stops the manager. It immediately closes all open connections and
-// active RPCs as well as stopping the scheduler. If clearData is set, the
-// raft logs, snapshots, and keys will be erased.
+// active RPCs as well as stopping the manager's subsystems. If clearData is
+// set, the raft logs, snapshots, and keys will be erased.
 func (m *Manager) Stop(ctx context.Context, clearData bool) {
 	log.G(ctx).Info("Stopping manager")
 	// It's not safe to start shutting down while the manager is still
@@ -601,6 +605,7 @@ func (m *Manager) Stop(ctx context.Context, clearData bool) {
 
 	m.dispatcher.Stop()
 	m.logbroker.Stop()
+	m.watchServer.Stop()
 	m.caserver.Stop()
 
 	if m.allocator != nil {
@@ -1006,10 +1011,6 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 		log.G(ctx).WithError(err).Error("LogBroker failed to start")
 	}
 
-	if err := m.watchServer.Start(ctx); err != nil {
-		log.G(ctx).WithError(err).Error("watch server failed to start")
-	}
-
 	go func(server *ca.Server) {
 		if err := server.Run(ctx); err != nil {
 			log.G(ctx).WithError(err).Error("CA signer exited with an error")
@@ -1062,7 +1063,6 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 func (m *Manager) becomeFollower() {
 	m.dispatcher.Stop()
 	m.logbroker.Stop()
-	m.watchServer.Stop()
 	m.caserver.Stop()
 
 	if m.allocator != nil {
