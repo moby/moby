@@ -54,6 +54,51 @@ func TestJSONFileLogger(t *testing.T) {
 	}
 }
 
+func TestJSONFileLoggerWithTags(t *testing.T) {
+	cid := "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"
+	cname := "test-container"
+	tmp, err := ioutil.TempDir("", "docker-logger-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmp)
+	filename := filepath.Join(tmp, "container.log")
+	l, err := New(logger.Info{
+		Config: map[string]string{
+			"tag": "{{.ID}}/{{.Name}}", // first 12 characters of ContainerID and full ContainerName
+		},
+		ContainerID:   cid,
+		ContainerName: cname,
+		LogPath:       filename,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close()
+
+	if err := l.Log(&logger.Message{Line: []byte("line1"), Source: "src1"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := l.Log(&logger.Message{Line: []byte("line2"), Source: "src2"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := l.Log(&logger.Message{Line: []byte("line3"), Source: "src3"}); err != nil {
+		t.Fatal(err)
+	}
+	res, err := ioutil.ReadFile(filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := `{"log":"line1\n","stream":"src1","tag":"a7317399f3f8/test-container","time":"0001-01-01T00:00:00Z"}
+{"log":"line2\n","stream":"src2","tag":"a7317399f3f8/test-container","time":"0001-01-01T00:00:00Z"}
+{"log":"line3\n","stream":"src3","tag":"a7317399f3f8/test-container","time":"0001-01-01T00:00:00Z"}
+`
+
+	if string(res) != expected {
+		t.Fatalf("Wrong log content: %q, expected %q", res, expected)
+	}
+}
+
 func BenchmarkJSONFileLogger(b *testing.B) {
 	cid := "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"
 	tmp, err := ioutil.TempDir("", "docker-logger-")

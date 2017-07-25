@@ -101,6 +101,15 @@ func (mj *JSONLog) MarshalJSONBuf(buf *bytes.Buffer) error {
 		buf.WriteString(`"stream":`)
 		ffjsonWriteJSONString(buf, mj.Stream)
 	}
+	if len(mj.Tag) > 0 {
+		if first {
+			first = false
+		} else {
+			buf.WriteString(`,`)
+		}
+		buf.WriteString(`"tag":`)
+		ffjsonWriteJSONString(buf, mj.Tag)
+	}
 	if !first {
 		buf.WriteString(`,`)
 	}
