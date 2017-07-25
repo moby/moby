@@ -134,6 +134,9 @@ func (c *containerConfig) name() string {
 }
 
 func (c *containerConfig) image() string {
+	if c.spec() == nil {
+		return ""
+	}
 	raw := c.spec().Image
 	ref, err := reference.ParseNormalizedNamed(raw)
 	if err != nil {
@@ -188,25 +191,28 @@ func (c *containerConfig) exposedPorts() map[nat.Port]struct{} {
 func (c *containerConfig) config() *enginecontainer.Config {
 	config := &enginecontainer.Config{
 		Labels:       c.labels(),
-		StopSignal:   c.spec().StopSignal,
-		Tty:          c.spec().TTY,
-		OpenStdin:    c.spec().OpenStdin,
-		User:         c.spec().User,
-		Env:          c.spec().Env,
-		Hostname:     c.spec().Hostname,
-		WorkingDir:   c.spec().Dir,
 		Image:        c.image(),
 		ExposedPorts: c.exposedPorts(),
 		Healthcheck:  c.healthcheck(),
 	}
 
-	if len(c.spec().Command) > 0 {
+	if c.spec() != nil {
+		config.StopSignal = c.spec().StopSignal
+		config.Tty = c.spec().TTY
+		config.OpenStdin = c.spec().OpenStdin
+		config.User = c.spec().User
+		config.Env = c.spec().Env
+		config.Hostname = c.spec().Hostname
+		config.WorkingDir = c.spec().Dir
+	}
+
+	if c.spec() != nil && len(c.spec().Command) > 0 {
 		// If Command is provided, we replace the whole invocation with Command
 		// by replacing Entrypoint and specifying Cmd. Args is ignored in this
 		// case.
 		config.Entrypoint = append(config.Entrypoint, c.spec().Command...)
 		config.Cmd = append(config.Cmd, c.spec().Args...)
-	} else if len(c.spec().Args) > 0 {
+	} else if c.spec() != nil && len(c.spec().Args) > 0 {
 		// In this case, we assume the image has an Entrypoint and Args
 		// specifies the arguments for that entrypoint.
 		config.Cmd = c.spec().Args
@@ -229,8 +235,10 @@ func (c *containerConfig) labels() map[string]string {
 	)
 
 	// base labels are those defined in the spec.
-	for k, v := range c.spec().Labels {
-		labels[k] = v
+	if c.spec() != nil {
+		for k, v := range c.spec().Labels {
+			labels[k] = v
+		}
 	}
 
 	// we then apply the overrides from the task, which may be set via the
@@ -249,8 +257,10 @@ func (c *containerConfig) labels() map[string]string {
 
 func (c *containerConfig) mounts() []enginemount.Mount {
 	var r []enginemount.Mount
-	for _, mount := range c.spec().Mounts {
-		r = append(r, convertMount(mount))
+	if c.spec() != nil {
+		for _, mount := range c.spec().Mounts {
+			r = append(r, convertMount(mount))
+		}
 	}
 	return r
 }
@@ -323,6 +333,9 @@ func convertMount(m api.Mount) enginemount.Mount {
 }
 
 func (c *containerConfig) healthcheck() *enginecontainer.HealthConfig {
+	if c.spec() == nil {
+		return nil
+	}
 	hcSpec := c.spec().Healthcheck
 	if hcSpec == nil {
 		return nil
@@ -341,32 +354,35 @@ func (c *containerConfig) healthcheck() *enginecontainer.HealthConfig {
 
 func (c *containerConfig) hostConfig() *enginecontainer.HostConfig {
 	hc := &enginecontainer.HostConfig{
-		Resources:      c.resources(),
-		GroupAdd:       c.spec().Groups,
-		PortBindings:   c.portBindings(),
-		Mounts:         c.mounts(),
-		ReadonlyRootfs: c.spec().ReadOnly,
+		Resources:    c.resources(),
+		PortBindings: c.portBindings(),
+		Mounts:       c.mounts(),
 	}
 
-	if c.spec().DNSConfig != nil {
-		hc.DNS = c.spec().DNSConfig.Nameservers
-		hc.DNSSearch = c.spec().DNSConfig.Search
-		hc.DNSOptions = c.spec().DNSConfig.Options
-	}
+	if c.spec() != nil {
+		hc.GroupAdd = c.spec().Groups
+		hc.ReadonlyRootfs = c.spec().ReadOnly
 
-	c.applyPrivileges(hc)
+		if c.spec().DNSConfig != nil {
+			hc.DNS = c.spec().DNSConfig.Nameservers
+			hc.DNSSearch = c.spec().DNSConfig.Search
+			hc.DNSOptions = c.spec().DNSConfig.Options
+		}
 
-	// The format of extra hosts on swarmkit is specified in:
-	// http://man7.org/linux/man-pages/man5/hosts.5.html
-	//    IP_address canonical_hostname [aliases...]
-	// However, the format of ExtraHosts in HostConfig is
-	//    <host>:<ip>
-	// We need to do the conversion here
-	// (Alias is ignored for now)
-	for _, entry := range c.spec().Hosts {
-		parts := strings.Fields(entry)
-		if len(parts) > 1 {
-			hc.ExtraHosts = append(hc.ExtraHosts, fmt.Sprintf("%s:%s", parts[1], parts[0]))
+		c.applyPrivileges(hc)
+
+		// The format of extra hosts on swarmkit is specified in:
+		// http://man7.org/linux/man-pages/man5/hosts.5.html
+		//    IP_address canonical_hostname [aliases...]
+		// However, the format of ExtraHosts in HostConfig is
+		//    <host>:<ip>
+		// We need to do the conversion here
+		// (Alias is ignored for now)
+		for _, entry := range c.spec().Hosts {
+			parts := strings.Fields(entry)
+			if len(parts) > 1 {
+				hc.ExtraHosts = append(hc.ExtraHosts, fmt.Sprintf("%s:%s", parts[1], parts[0]))
+			}
 		}
 	}
 
