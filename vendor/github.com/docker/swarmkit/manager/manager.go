@@ -129,6 +129,7 @@ type Manager struct {
 	caserver               *ca.Server
 	dispatcher             *dispatcher.Dispatcher
 	logbroker              *logbroker.LogBroker
+	watchServer            *watchapi.Server
 	replicatedOrchestrator *replicated.Orchestrator
 	globalOrchestrator     *global.Orchestrator
 	taskReaper             *taskreaper.TaskReaper
@@ -220,6 +221,7 @@ func New(config *Config) (*Manager, error) {
 		caserver:        ca.NewServer(raftNode.MemoryStore(), config.SecurityConfig, config.RootCAPaths),
 		dispatcher:      dispatcher.New(raftNode, dispatcher.DefaultConfig()),
 		logbroker:       logbroker.New(raftNode.MemoryStore()),
+		watchServer:     watchapi.NewServer(raftNode.MemoryStore()),
 		server:          grpc.NewServer(opts...),
 		localserver:     grpc.NewServer(opts...),
 		raftNode:        raftNode,
@@ -397,13 +399,12 @@ func (m *Manager) Run(parent context.Context) error {
 	}
 
 	baseControlAPI := controlapi.NewServer(m.raftNode.MemoryStore(), m.raftNode, m.config.SecurityConfig, m.caserver, m.config.PluginGetter)
-	baseWatchAPI := watchapi.NewServer(m.raftNode.MemoryStore())
 	baseResourceAPI := resourceapi.New(m.raftNode.MemoryStore())
 	healthServer := health.NewHealthServer()
 	localHealthServer := health.NewHealthServer()
 
 	authenticatedControlAPI := api.NewAuthenticatedWrapperControlServer(baseControlAPI, authorize)
-	authenticatedWatchAPI := api.NewAuthenticatedWrapperWatchServer(baseWatchAPI, authorize)
+	authenticatedWatchAPI := api.NewAuthenticatedWrapperWatchServer(m.watchServer, authorize)
 	authenticatedResourceAPI := api.NewAuthenticatedWrapperResourceAllocatorServer(baseResourceAPI, authorize)
 	authenticatedLogsServerAPI := api.NewAuthenticatedWrapperLogsServer(m.logbroker, authorize)
 	authenticatedLogBrokerAPI := api.NewAuthenticatedWrapperLogBrokerServer(m.logbroker, authorize)
@@ -476,7 +477,7 @@ func (m *Manager) Run(parent context.Context) error {
 	grpc_prometheus.Register(m.server)
 
 	api.RegisterControlServer(m.localserver, localProxyControlAPI)
-	api.RegisterWatchServer(m.localserver, baseWatchAPI)
+	api.RegisterWatchServer(m.localserver, m.watchServer)
 	api.RegisterLogsServer(m.localserver, localProxyLogsAPI)
 	api.RegisterHealthServer(m.localserver, localHealthServer)
 	api.RegisterDispatcherServer(m.localserver, localProxyDispatcherAPI)
@@ -488,6 +489,10 @@ func (m *Manager) Run(parent context.Context) error {
 
 	healthServer.SetServingStatus("Raft", api.HealthCheckResponse_NOT_SERVING)
 	localHealthServer.SetServingStatus("ControlAPI", api.HealthCheckResponse_NOT_SERVING)
+
+	if err := m.watchServer.Start(ctx); err != nil {
+		log.G(ctx).WithError(err).Error("watch server failed to start")
+	}
 
 	go m.serveListener(ctx, m.remoteListener)
 	go m.serveListener(ctx, m.controlListener)
@@ -564,8 +569,8 @@ func (m *Manager) Run(parent context.Context) error {
 const stopTimeout = 8 * time.Second
 
 // Stop stops the manager. It immediately closes all open connections and
-// active RPCs as well as stopping the scheduler. If clearData is set, the
-// raft logs, snapshots, and keys will be erased.
+// active RPCs as well as stopping the manager's subsystems. If clearData is
+// set, the raft logs, snapshots, and keys will be erased.
 func (m *Manager) Stop(ctx context.Context, clearData bool) {
 	log.G(ctx).Info("Stopping manager")
 	// It's not safe to start shutting down while the manager is still
@@ -599,6 +604,7 @@ func (m *Manager) Stop(ctx context.Context, clearData bool) {
 
 	m.dispatcher.Stop()
 	m.logbroker.Stop()
+	m.watchServer.Stop()
 	m.caserver.Stop()
 
 	if m.allocator != nil {
@@ -1000,11 +1006,9 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 		}
 	}(m.dispatcher)
 
-	go func(lb *logbroker.LogBroker) {
-		if err := lb.Run(ctx); err != nil {
-			log.G(ctx).WithError(err).Error("LogBroker exited with an error")
-		}
-	}(m.logbroker)
+	if err := m.logbroker.Start(ctx); err != nil {
+		log.G(ctx).WithError(err).Error("LogBroker failed to start")
+	}
 
 	go func(server *ca.Server) {
 		if err := server.Run(ctx); err != nil {
