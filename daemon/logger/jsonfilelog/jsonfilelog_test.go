@@ -65,7 +65,7 @@ func TestJSONFileLoggerWithTags(t *testing.T) {
 	filename := filepath.Join(tmp, "container.log")
 	l, err := New(logger.Info{
 		Config: map[string]string{
-			"tag": "{{.ID}}/{{.Name}}", // first 10 characters of ContainerID and full ContainerName
+			"tag": "{{.ID}}/{{.Name}}", // first 12 characters of ContainerID and full ContainerName
 		},
 		ContainerID:   cid,
 		ContainerName: cname,
