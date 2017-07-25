@@ -487,6 +487,41 @@ definitions:
         type: "integer"
         format: "int64"
 
+  ResourceObject:
+    description: "An object describing the resources which can be advertised by a node and requested by a task"
+    type: "object"
+    properties:
+      NanoCPUs:
+        type: "integer"
+        format: "int64"
+      MemoryBytes:
+        type: "integer"
+        format: "int64"
+      GenericResources:
+        $ref: "#/definitions/GenericResources"
+
+  GenericResources:
+    description: "User defined Resources, can be either Integer resources (e.g: SSD=3) or String resources (e.g: GPU={UUID1, UUID2})"
+    type: "array"
+    items:
+      type: "object"
+      properties:
+        NamedResourceSpec:
+          type: "object"
+          properties:
+            Kind:
+              type: "string"
+            Value:
+              type: "string"
+        DiscreteResourceSpec:
+          type: "object"
+          properties:
+            Kind:
+              type: "string"
+            Value:
+              type: "integer"
+              format: "int64"
+
   HealthConfig:
     description: "A test to perform to check that the container is healthy."
     type: "object"
@@ -1712,14 +1747,7 @@ definitions:
               OS:
                 type: "string"
           Resources:
-            type: "object"
-            properties:
-              NanoCPUs:
-                type: "integer"
-                format: "int64"
-              MemoryBytes:
-                type: "integer"
-                format: "int64"
+            $ref: "#/definitions/ResourceObject"
           Engine:
             type: "object"
             properties:
@@ -1760,6 +1788,16 @@ definitions:
         Resources:
           NanoCPUs: 4000000000
           MemoryBytes: 8272408576
+          GenericResources:
+            - DiscreteResourceSpec:
+                Kind: "SSD"
+                Value: 3
+            - NamedResourceSpec:
+                Kind: "GPU"
+                Value: "UUID1"
+            - NamedResourceSpec:
+                Kind: "GPU"
+                Value: "UUID2"
         Engine:
           EngineVersion: "17.04.0"
           Labels:
@@ -2224,27 +2262,10 @@ definitions:
         properties:
           Limits:
             description: "Define resources limits."
-            type: "object"
-            properties:
-              NanoCPUs:
-                description: "CPU limit in units of 10<sup>-9</sup> CPU shares."
-                type: "integer"
-                format: "int64"
-              MemoryBytes:
-                description: "Memory limit in Bytes."
-                type: "integer"
-                format: "int64"
+            $ref: "#/definitions/ResourceObject"
           Reservation:
             description: "Define resources reservation."
-            properties:
-              NanoCPUs:
-                description: "CPU reservation in units of 10<sup>-9</sup> CPU shares."
-                type: "integer"
-                format: "int64"
-              MemoryBytes:
-                description: "Memory reservation in Bytes."
-                type: "integer"
-                format: "int64"
+            $ref: "#/definitions/ResourceObject"
       RestartPolicy:
         description: "Specification for the restart policy which applies to containers created as part of this service."
         type: "object"
@@ -2375,6 +2396,8 @@ definitions:
       NodeID:
         description: "The ID of the node that this task is on."
         type: "string"
+      AssignedGenericResources:
+        $ref: "#/definitions/GenericResources"
       Status:
         type: "object"
         properties:
@@ -2454,6 +2477,16 @@ definitions:
                   Gateway: "10.255.0.1"
           Addresses:
             - "10.255.0.10/16"
+      AssignedGenericResources:
+        - DiscreteResourceSpec:
+            Kind: "SSD"
+            Value: 3
+        - NamedResourceSpec:
+            Kind: "GPU"
+            Value: "UUID1"
+        - NamedResourceSpec:
+            Kind: "GPU"
+            Value: "UUID2"
   ServiceSpec:
     description: "User modifiable configuration for a service."
     properties:
@@ -5516,6 +5549,8 @@ paths:
                   type: "string"
               MemTotal:
                 type: "integer"
+              GenericResources:
+                $ref: "#/definitions/GenericResources"
               MemoryLimit:
                 type: "boolean"
               NCPU:

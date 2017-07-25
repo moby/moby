@@ -51,6 +51,7 @@ type Task struct {
 	Status              TaskStatus          `json:",omitempty"`
 	DesiredState        TaskState           `json:",omitempty"`
 	NetworksAttachments []NetworkAttachment `json:",omitempty"`
+	GenericResources    []GenericResource   `json:",omitempty"`
 }
 
 // TaskSpec represents the spec of a task.
@@ -79,8 +80,34 @@ type TaskSpec struct {
 
 // Resources represents resources (CPU/Memory).
 type Resources struct {
-	NanoCPUs    int64 `json:",omitempty"`
-	MemoryBytes int64 `json:",omitempty"`
+	NanoCPUs         int64             `json:",omitempty"`
+	MemoryBytes      int64             `json:",omitempty"`
+	GenericResources []GenericResource `json:",omitempty"`
+}
+
+// GenericResource represents a "user defined" resource which can
+// be either an integer (e.g: SSD=3) or a string (e.g: SSD=sda1)
+type GenericResource struct {
+	NamedResourceSpec    *NamedGenericResource    `json:",omitempty"`
+	DiscreteResourceSpec *DiscreteGenericResource `json:",omitempty"`
+}
+
+// NamedGenericResource represents a "user defined" resource which is defined
+// as a string.
+// "Kind" is used to describe the Kind of a resource (e.g: "GPU", "FPGA", "SSD", ...)
+// Value is used to identify the resource (GPU="UUID-1", FPGA="/dev/sdb5", ...)
+type NamedGenericResource struct {
+	Kind  string `json:",omitempty"`
+	Value string `json:",omitempty"`
+}
+
+// DiscreteGenericResource represents a "user defined" resource which is defined
+// as an integer
+// "Kind" is used to describe the Kind of a resource (e.g: "GPU", "FPGA", "SSD", ...)
+// Value is used to count the resource (SSD=5, HDD=3, ...)
+type DiscreteGenericResource struct {
+	Kind  string `json:",omitempty"`
+	Value int64  `json:",omitempty"`
 }
 
 // ResourceRequirements represents resources requirements.

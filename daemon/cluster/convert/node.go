@@ -42,6 +42,7 @@ func NodeFromGRPC(n swarmapi.Node) types.Node {
 		if n.Description.Resources != nil {
 			node.Description.Resources.NanoCPUs = n.Description.Resources.NanoCPUs
 			node.Description.Resources.MemoryBytes = n.Description.Resources.MemoryBytes
+			node.Description.Resources.GenericResources = GenericResourcesFromGRPC(n.Description.Resources.Generic)
 		}
 		if n.Description.Engine != nil {
 			node.Description.Engine.EngineVersion = n.Description.Engine.EngineVersion

@@ -30,7 +30,8 @@ func TaskFromGRPC(t swarmapi.Task) (types.Task, error) {
 			Message: t.Status.Message,
 			Err:     t.Status.Err,
 		},
-		DesiredState: types.TaskState(strings.ToLower(t.DesiredState.String())),
+		DesiredState:     types.TaskState(strings.ToLower(t.DesiredState.String())),
+		GenericResources: GenericResourcesFromGRPC(t.AssignedGenericResources),
 	}
 
 	// Meta
