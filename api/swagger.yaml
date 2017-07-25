@@ -1393,26 +1393,33 @@ definitions:
       Name:
         type: "string"
         x-nullable: false
+        example: "some-mount"
       Description:
         type: "string"
         x-nullable: false
+        example: "This is a mount that's used by the plugin."
       Settable:
         type: "array"
         items:
           type: "string"
       Source:
         type: "string"
+        example: "/var/lib/docker/plugins/"
       Destination:
         type: "string"
         x-nullable: false
+        example: "/mnt/state"
       Type:
         type: "string"
         x-nullable: false
+        example: "bind"
       Options:
         type: "array"
         items:
           type: "string"
-
+        example:
+          - "rbind"
+          - "rw"
   PluginDevice:
     type: "object"
     required: [Name, Description, Settable, Path]
@@ -1430,6 +1437,7 @@ definitions:
           type: "string"
       Path:
         type: "string"
+        example: "/dev/fuse"
 
   PluginEnv:
     type: "object"
@@ -1471,13 +1479,16 @@ definitions:
     properties:
       Id:
         type: "string"
+        example: "5724e2c8652da337ab2eedd19fc6fc0ec908e4bd907c7421bf6a8dfc70c4c078"
       Name:
         type: "string"
         x-nullable: false
+        example: "tiborvass/sample-volume-plugin"
       Enabled:
-        description: "True when the plugin is running. False when the plugin is not running, only installed."
+        description: "True if the plugin is running. False if the plugin is not running, only installed."
         type: "boolean"
         x-nullable: false
+        example: true
       Settings:
         description: "Settings that can be modified by users."
         type: "object"
@@ -1492,6 +1503,8 @@ definitions:
             type: "array"
             items:
               type: "string"
+            example:
+              - "DEBUG=0"
           Args:
             type: "array"
             items:
@@ -1504,6 +1517,7 @@ definitions:
         description: "plugin remote reference used to push/pull the plugin"
         type: "string"
         x-nullable: false
+        example: "localhost:5000/tiborvass/sample-volume-plugin:latest"
       Config:
         description: "The config of a plugin."
         type: "object"
@@ -1527,12 +1541,15 @@ definitions:
             description: "Docker Version used to create the plugin"
             type: "string"
             x-nullable: false
+            example: "17.06.0-ce"
           Description:
             type: "string"
             x-nullable: false
+            example: "A sample volume plugin for Docker"
           Documentation:
             type: "string"
             x-nullable: false
+            example: "https://docs.docker.com/engine/extend/plugins/"
           Interface:
             description: "The interface between Docker and the plugin"
             x-nullable: false
@@ -1543,16 +1560,23 @@ definitions:
                 type: "array"
                 items:
                   $ref: "#/definitions/PluginInterfaceType"
+                example:
+                  - "docker.volumedriver/1.0"
               Socket:
                 type: "string"
                 x-nullable: false
+                example: "plugins.sock"
           Entrypoint:
             type: "array"
             items:
               type: "string"
+            example:
+              - "/usr/bin/sample-volume-plugin"
+              - "/data"
           WorkDir:
             type: "string"
             x-nullable: false
+            example: "/bin/"
           User:
             type: "object"
             x-nullable: false
@@ -1560,9 +1584,11 @@ definitions:
               UID:
                 type: "integer"
                 format: "uint32"
+                example: 1000
               GID:
                 type: "integer"
                 format: "uint32"
+                example: 1000
           Network:
             type: "object"
             x-nullable: false
@@ -1571,6 +1597,7 @@ definitions:
               Type:
                 x-nullable: false
                 type: "string"
+                example: "host"
           Linux:
             type: "object"
             x-nullable: false
@@ -1580,9 +1607,13 @@ definitions:
                 type: "array"
                 items:
                   type: "string"
+                example:
+                  - "CAP_SYS_ADMIN"
+                  - "CAP_SYSLOG"
               AllowAllDevices:
                 type: "boolean"
                 x-nullable: false
+                example: false
               Devices:
                 type: "array"
                 items:
@@ -1590,12 +1621,15 @@ definitions:
           PropagatedMount:
             type: "string"
             x-nullable: false
+            example: "/mnt/volumes"
           IpcHost:
             type: "boolean"
             x-nullable: false
+            example: false
           PidHost:
             type: "boolean"
             x-nullable: false
+            example: false
           Mounts:
             type: "array"
             items:
@@ -1604,6 +1638,11 @@ definitions:
             type: "array"
             items:
               $ref: "#/definitions/PluginEnv"
+            example:
+              - Name: "DEBUG"
+                Description: "If set, prints debug messages"
+                Settable: null
+                Value: "0"
           Args:
             type: "object"
             x-nullable: false
@@ -1612,9 +1651,11 @@ definitions:
               Name:
                 x-nullable: false
                 type: "string"
+                example: "args"
               Description:
                 x-nullable: false
                 type: "string"
+                example: "command line arguments"
               Settable:
                 type: "array"
                 items:
@@ -1628,50 +1669,14 @@ definitions:
             properties:
               type:
                 type: "string"
+                example: "layers"
               diff_ids:
                 type: "array"
                 items:
                   type: "string"
-    example:
-      Id: "5724e2c8652da337ab2eedd19fc6fc0ec908e4bd907c7421bf6a8dfc70c4c078"
-      Name: "tiborvass/sample-volume-plugin"
-      Tag: "latest"
-      Active: true
-      Settings:
-        Env:
-          - "DEBUG=0"
-        Args: null
-        Devices: null
-      Config:
-        Description: "A sample volume plugin for Docker"
-        Documentation: "https://docs.docker.com/engine/extend/plugins/"
-        Interface:
-          Types:
-            - "docker.volumedriver/1.0"
-          Socket: "plugins.sock"
-        Entrypoint:
-          - "/usr/bin/sample-volume-plugin"
-          - "/data"
-        WorkDir: ""
-        User: {}
-        Network:
-          Type: ""
-        Linux:
-          Capabilities: null
-          AllowAllDevices: false
-          Devices: null
-        Mounts: null
-        PropagatedMount: "/data"
-        Env:
-          - Name: "DEBUG"
-            Description: "If set, prints debug messages"
-            Settable: null
-            Value: "0"
-        Args:
-          Name: "args"
-          Description: "command line arguments"
-          Settable: null
-          Value: []
+                example:
+                  - "sha256:675532206fbf3030b8458f88d6e26d4eb1577688a25efec97154c94e8b6b4887"
+                  - "sha256:e216a057b1cb1efc11f8a268f37ef62083e70b1b38323ba252e25ac88904a7e8"
 
   ObjectVersion:
     description: |
@@ -6931,46 +6936,6 @@ paths:
             type: "array"
             items:
               $ref: "#/definitions/Plugin"
-            example:
-              - Id: "5724e2c8652da337ab2eedd19fc6fc0ec908e4bd907c7421bf6a8dfc70c4c078"
-                Name: "tiborvass/sample-volume-plugin"
-                Tag: "latest"
-                Active: true
-                Settings:
-                  Env:
-                    - "DEBUG=0"
-                  Args: null
-                  Devices: null
-                Config:
-                  Description: "A sample volume plugin for Docker"
-                  Documentation: "https://docs.docker.com/engine/extend/plugins/"
-                  Interface:
-                    Types:
-                      - "docker.volumedriver/1.0"
-                    Socket: "plugins.sock"
-                  Entrypoint:
-                    - "/usr/bin/sample-volume-plugin"
-                    - "/data"
-                  WorkDir: ""
-                  User: {}
-                  Network:
-                    Type: ""
-                  Linux:
-                    Capabilities: null
-                    AllowAllDevices: false
-                    Devices: null
-                  Mounts: null
-                  PropagatedMount: "/data"
-                  Env:
-                    - Name: "DEBUG"
-                      Description: "If set, prints debug messages"
-                      Settable: null
-                      Value: "0"
-                  Args:
-                    Name: "args"
-                    Description: "command line arguments"
-                    Settable: null
-                    Value: []
         500:
           description: "Server error"
           schema:
