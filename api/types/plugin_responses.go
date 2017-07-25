@@ -9,14 +9,6 @@ import (
 // PluginsListResponse contains the response for the Engine API
 type PluginsListResponse []*Plugin
 
-const (
-	authzDriver   = "AuthzDriver"
-	graphDriver   = "GraphDriver"
-	ipamDriver    = "IpamDriver"
-	networkDriver = "NetworkDriver"
-	volumeDriver  = "VolumeDriver"
-)
-
 // UnmarshalJSON implements json.Unmarshaler for PluginInterfaceType
 func (t *PluginInterfaceType) UnmarshalJSON(p []byte) error {
 	versionIndex := len(p)
