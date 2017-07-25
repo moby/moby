@@ -30,6 +30,13 @@ type instanceRestartInfo struct {
 	// Restart.MaxAttempts and Restart.Window are both
 	// nonzero.
 	restartedInstances *list.List
+	// Why is specVersion in this structure and not in the map key? While
+	// putting it in the key would be a very simple solution, it wouldn't
+	// be easy to clean up map entries corresponding to old specVersions.
+	// Making the key version-agnostic and clearing the value whenever the
+	// version changes avoids the issue of stale map entries for old
+	// versions.
+	specVersion api.Version
 }
 
 type delayedStart struct {
@@ -54,8 +61,7 @@ type Supervisor struct {
 	mu               sync.Mutex
 	store            *store.MemoryStore
 	delays           map[string]*delayedStart
-	history          map[instanceTuple]*instanceRestartInfo
-	historyByService map[string]map[instanceTuple]struct{}
+	historyByService map[string]map[instanceTuple]*instanceRestartInfo
 	TaskTimeout      time.Duration
 }
 
@@ -64,8 +70,7 @@ func NewSupervisor(store *store.MemoryStore) *Supervisor {
 	return &Supervisor{
 		store:            store,
 		delays:           make(map[string]*delayedStart),
-		history:          make(map[instanceTuple]*instanceRestartInfo),
-		historyByService: make(map[string]map[instanceTuple]struct{}),
+		historyByService: make(map[string]map[instanceTuple]*instanceRestartInfo),
 		TaskTimeout:      defaultOldTaskTimeout,
 	}
 }
@@ -214,8 +219,8 @@ func (r *Supervisor) shouldRestart(ctx context.Context, t *api.Task, service *ap
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	restartInfo := r.history[instanceTuple]
-	if restartInfo == nil {
+	restartInfo := r.historyByService[t.ServiceID][instanceTuple]
+	if restartInfo == nil || (t.SpecVersion != nil && *t.SpecVersion != restartInfo.specVersion) {
 		return true
 	}
 
@@ -268,17 +273,26 @@ func (r *Supervisor) recordRestartHistory(restartTask *api.Task) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if r.history[tuple] == nil {
-		r.history[tuple] = &instanceRestartInfo{}
-	}
-
-	restartInfo := r.history[tuple]
-	restartInfo.totalRestarts++
-
 	if r.historyByService[restartTask.ServiceID] == nil {
-		r.historyByService[restartTask.ServiceID] = make(map[instanceTuple]struct{})
+		r.historyByService[restartTask.ServiceID] = make(map[instanceTuple]*instanceRestartInfo)
 	}
-	r.historyByService[restartTask.ServiceID][tuple] = struct{}{}
+	if r.historyByService[restartTask.ServiceID][tuple] == nil {
+		r.historyByService[restartTask.ServiceID][tuple] = &instanceRestartInfo{}
+	}
+
+	restartInfo := r.historyByService[restartTask.ServiceID][tuple]
+
+	if restartTask.SpecVersion != nil && *restartTask.SpecVersion != restartInfo.specVersion {
+		// This task has a different SpecVersion from the one we're
+		// tracking. Most likely, the service was updated. Past failures
+		// shouldn't count against the new service definition, so clear
+		// the history for this instance.
+		*restartInfo = instanceRestartInfo{
+			specVersion: *restartTask.SpecVersion,
+		}
+	}
+
+	restartInfo.totalRestarts++
 
 	if restartTask.Spec.Restart.Window != nil && (restartTask.Spec.Restart.Window.Seconds != 0 || restartTask.Spec.Restart.Window.Nanos != 0) {
 		if restartInfo.restartedInstances == nil {
@@ -432,16 +446,6 @@ func (r *Supervisor) CancelAll() {
 // ClearServiceHistory forgets restart history related to a given service ID.
 func (r *Supervisor) ClearServiceHistory(serviceID string) {
 	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	tuples := r.historyByService[serviceID]
-	if tuples == nil {
-		return
-	}
-
 	delete(r.historyByService, serviceID)
-
-	for t := range tuples {
-		delete(r.history, t)
-	}
+	r.mu.Unlock()
 }

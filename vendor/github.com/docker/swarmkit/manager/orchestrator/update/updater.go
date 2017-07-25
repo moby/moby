@@ -601,7 +601,9 @@ func (u *Updater) rollbackUpdate(ctx context.Context, serviceID, message string)
 			return errors.New("cannot roll back service because no previous spec is available")
 		}
 		service.Spec = *service.PreviousSpec
+		service.SpecVersion = service.PreviousSpecVersion.Copy()
 		service.PreviousSpec = nil
+		service.PreviousSpecVersion = nil
 
 		return store.UpdateService(tx, service)
 	})
