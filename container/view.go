@@ -168,9 +168,9 @@ func (db *memDB) Delete(c *Container) error {
 			txn.Delete(memdbNamesTable, nameAssociation{name: name})
 		}
 
-		if err := txn.Delete(memdbContainersTable, NewBaseContainer(c.ID, c.Root)); err != nil {
-			return err
-		}
+		// Ignore error - the container may not actually exist in the
+		// db, but we still need to clean up associated names.
+		txn.Delete(memdbContainersTable, NewBaseContainer(c.ID, c.Root))
 		return nil
 	})
 }
