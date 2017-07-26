@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 // CreateSandbox does what it says on the tin. This is done by copying a prebuilt-sandbox from the ServiceVM.

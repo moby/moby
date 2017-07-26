@@ -6,8 +6,8 @@ import (
 
 	"encoding/json"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/types"
+	"github.com/sirupsen/logrus"
 
 	"github.com/Microsoft/hcsshim"
 )

@@ -3,7 +3,6 @@ package macvlan
 import (
 	"fmt"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/libnetwork/driverapi"
@@ -12,6 +11,7 @@ import (
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/types"
+	"github.com/sirupsen/logrus"
 )
 
 // CreateNetwork the network for the specified driver type

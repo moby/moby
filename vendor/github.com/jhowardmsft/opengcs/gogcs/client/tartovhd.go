@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 // TarToVhd streams a tarstream contained in an io.Reader to a fixed vhd file

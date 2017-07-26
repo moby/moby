@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/ns"
+	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
 

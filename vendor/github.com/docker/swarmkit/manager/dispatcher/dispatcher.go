@@ -11,7 +11,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/transport"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/go-events"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/api/equality"
@@ -23,6 +22,7 @@ import (
 	"github.com/docker/swarmkit/watch"
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 

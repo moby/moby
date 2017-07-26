@@ -13,7 +13,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/cloudflare/cfssl/helpers"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/go-events"
@@ -45,6 +44,7 @@ import (
 	gogotypes "github.com/gogo/protobuf/types"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"

@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/types"
+	"github.com/sirupsen/logrus"
 )
 
 var (

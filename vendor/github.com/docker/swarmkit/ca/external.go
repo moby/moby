@@ -14,13 +14,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/cloudflare/cfssl/api"
 	"github.com/cloudflare/cfssl/config"
 	"github.com/cloudflare/cfssl/csr"
 	"github.com/cloudflare/cfssl/signer"
 	"github.com/docker/swarmkit/log"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"golang.org/x/net/context/ctxhttp"
 )

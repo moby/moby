@@ -9,7 +9,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/go-events"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/ca"
@@ -17,6 +16,7 @@ import (
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/state/store"
 	"github.com/docker/swarmkit/watch"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 

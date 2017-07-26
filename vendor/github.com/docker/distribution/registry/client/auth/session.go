@@ -10,10 +10,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/registry/client"
 	"github.com/docker/distribution/registry/client/auth/challenge"
 	"github.com/docker/distribution/registry/client/transport"
+	"github.com/sirupsen/logrus"
 )
 
 var (

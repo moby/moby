@@ -1,8 +1,8 @@
 package libnetwork
 
 import (
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/iptables"
+	"github.com/sirupsen/logrus"
 )
 
 const userChain = "DOCKER-USER"

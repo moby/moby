@@ -81,7 +81,7 @@ type ManifestList struct {
 	Manifests []ManifestDescriptor `json:"manifests"`
 }
 
-// References returnes the distribution descriptors for the referenced image
+// References returns the distribution descriptors for the referenced image
 // manifests.
 func (m ManifestList) References() []distribution.Descriptor {
 	dependencies := make([]distribution.Descriptor, len(m.Manifests))

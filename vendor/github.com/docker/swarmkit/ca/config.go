@@ -12,7 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	cfconfig "github.com/cloudflare/cfssl/config"
 	events "github.com/docker/go-events"
 	"github.com/docker/swarmkit/api"
@@ -22,6 +21,7 @@ import (
 	"github.com/docker/swarmkit/watch"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/credentials"
 
 	"golang.org/x/net/context"

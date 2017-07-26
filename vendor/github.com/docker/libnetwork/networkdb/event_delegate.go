@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"net"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/hashicorp/memberlist"
+	"github.com/sirupsen/logrus"
 )
 
 type eventDelegate struct {

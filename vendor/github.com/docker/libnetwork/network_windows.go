@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/Microsoft/hcsshim"
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/drivers/windows"
 	"github.com/docker/libnetwork/ipamapi"
 	"github.com/docker/libnetwork/ipams/windowsipam"
+	"github.com/sirupsen/logrus"
 )
 
 func executeInCompartment(compartmentID uint32, x func()) {

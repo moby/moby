@@ -1,6 +1,6 @@
 package hcsshim
 
-import "github.com/Sirupsen/logrus"
+import "github.com/sirupsen/logrus"
 
 // UnprepareLayer disables the filesystem filter for the read-write layer with
 // the given id.

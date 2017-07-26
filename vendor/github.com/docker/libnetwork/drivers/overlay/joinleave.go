@@ -5,11 +5,11 @@ import (
 	"net"
 	"syscall"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/ns"
 	"github.com/docker/libnetwork/types"
 	"github.com/gogo/protobuf/proto"
+	"github.com/sirupsen/logrus"
 )
 
 // Join method is invoked when a Sandbox is attached to an endpoint.

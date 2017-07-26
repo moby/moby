@@ -7,7 +7,7 @@ import (
 	"syscall"
 
 	"github.com/Microsoft/go-winio"
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 // ExportLayer will create a folder at exportFolderPath and fill that folder with

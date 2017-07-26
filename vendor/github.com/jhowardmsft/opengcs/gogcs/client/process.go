@@ -7,7 +7,7 @@ import (
 	"io"
 
 	"github.com/Microsoft/hcsshim"
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 // Process is the structure pertaining to a process running in a utility VM.

@@ -3,9 +3,9 @@ package ipvlan
 import (
 	"fmt"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/types"
+	"github.com/sirupsen/logrus"
 )
 
 func (d *driver) network(nid string) *network {

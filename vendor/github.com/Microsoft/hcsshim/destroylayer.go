@@ -1,6 +1,6 @@
 package hcsshim
 
-import "github.com/Sirupsen/logrus"
+import "github.com/sirupsen/logrus"
 
 // DestroyLayer will remove the on-disk files representing the layer with the given
 // id, including that layer's containing folder, if any.

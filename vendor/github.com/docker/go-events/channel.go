@@ -50,7 +50,7 @@ func (ch *Channel) Close() error {
 	return nil
 }
 
-func (ch Channel) String() string {
+func (ch *Channel) String() string {
 	// Serialize a copy of the Channel that doesn't contain the sync.Once,
 	// to avoid a data race.
 	ch2 := map[string]interface{}{

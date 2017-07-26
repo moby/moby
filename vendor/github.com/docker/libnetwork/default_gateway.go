@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/types"
+	"github.com/sirupsen/logrus"
 )
 
 const (

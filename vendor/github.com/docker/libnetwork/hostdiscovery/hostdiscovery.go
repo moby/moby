@@ -4,7 +4,7 @@ import (
 	"net"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 
 	mapset "github.com/deckarep/golang-set"
 	"github.com/docker/docker/pkg/discovery"
