@@ -122,8 +122,5 @@ func normalize(path string, root containerfs.ContainerFS) (cleanPath, fullPath s
 	if err != nil {
 		return "", "", errors.Wrapf(err, "forbidden path outside the build context: %s (%s)", path, cleanPath)
 	}
-	if _, err := root.Lstat(fullPath); err != nil {
-		return "", "", errors.WithStack(convertPathError(err, path))
-	}
 	return
 }

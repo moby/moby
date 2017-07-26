@@ -40,14 +40,14 @@ func (c *lazySource) Hash(path string) (string, error) {
 		return "", err
 	}
 
-	fi, err := c.root.Lstat(fullPath)
-	if err != nil {
-		return "", errors.WithStack(err)
-	}
-
 	relPath, err := Rel(c.root, fullPath)
 	if err != nil {
 		return "", errors.WithStack(convertPathError(err, cleanPath))
+	}
+
+	fi, err := os.Lstat(fullPath)
+	if err != nil {
+		return relPath, nil
 	}
 
 	sum, ok := c.sums[relPath]
