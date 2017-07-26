@@ -372,6 +372,7 @@ func programIngress(gwIP net.IP, ingressPorts []*PortConfig, isDelete bool) erro
 			if err := iptables.RawCombinedOutput("-I", "FORWARD", "-j", ingressChain); err != nil {
 				return fmt.Errorf("failed to add jump rule to %s in filter table forward chain: %v", ingressChain, err)
 			}
+			arrangeUserFilterRule()
 		}
 
 		oifName, err := findOIFName(gwIP)
@@ -438,7 +439,9 @@ func programIngress(gwIP net.IP, ingressPorts []*PortConfig, isDelete bool) erro
 	return nil
 }
 
-// In the filter table FORWARD chain first rule should be to jump to INGRESS-CHAIN
+// In the filter table FORWARD chain the first rule should be to jump to
+// DOCKER-USER so the user is able to filter packet first.
+// The second rule should be jump to INGRESS-CHAIN.
 // This chain has the rules to allow access to the published ports for swarm tasks
 // from local bridge networks and docker_gwbridge (ie:taks on other swarm netwroks)
 func arrangeIngressFilterRule() {
