@@ -132,7 +132,7 @@ if \
 	command -v gcc &> /dev/null \
 	&& ! ( echo -e  '#include <libdevmapper.h>\nint main() { dm_task_deferred_remove(NULL); }'| gcc -xc - -o /dev/null -ldevmapper &> /dev/null ) \
 ; then
-       DOCKER_BUILDTAGS+=' libdm_no_deferred_remove'
+	DOCKER_BUILDTAGS+=' libdm_no_deferred_remove'
 fi
 
 # Use these flags when compiling the tests and final binary
@@ -158,8 +158,8 @@ fi
 ORIG_BUILDFLAGS+=( $REBUILD_FLAG )
 
 BUILDFLAGS=( $BUILDFLAGS "${ORIG_BUILDFLAGS[@]}" )
-# Test timeout.
 
+# Test timeout.
 if [ "${DOCKER_ENGINE_GOARCH}" == "arm" ]; then
 	: ${TIMEOUT:=10m}
 elif [ "${DOCKER_ENGINE_GOARCH}" == "windows" ]; then
@@ -183,77 +183,10 @@ if [ "$(uname -s)" = 'FreeBSD' ]; then
 	LDFLAGS="$LDFLAGS -extld clang"
 fi
 
-HAVE_GO_TEST_COVER=
-if \
-	go help testflag | grep -- -cover > /dev/null \
-	&& go tool -n cover > /dev/null 2>&1 \
-; then
-	HAVE_GO_TEST_COVER=1
-fi
-
-# a helper to provide ".exe" when it's appropriate
-binary_extension() {
-	if [ "$(go env GOOS)" = 'windows' ]; then
-		echo -n '.exe'
-	fi
-}
-
-hash_files() {
-	while [ $# -gt 0 ]; do
-		f="$1"
-		shift
-		dir="$(dirname "$f")"
-		base="$(basename "$f")"
-		for hashAlgo in md5 sha256; do
-			if command -v "${hashAlgo}sum" &> /dev/null; then
-				(
-					# subshell and cd so that we get output files like:
-					#   $HASH docker-$VERSION
-					# instead of:
-					#   $HASH /go/src/github.com/.../$VERSION/binary/docker-$VERSION
-					cd "$dir"
-					"${hashAlgo}sum" "$base" > "$base.$hashAlgo"
-				)
-			fi
-		done
-	done
-}
-
 bundle() {
 	local bundle="$1"; shift
 	echo "---> Making bundle: $(basename "$bundle") (in $DEST)"
 	source "$SCRIPTDIR/make/$bundle" "$@"
-}
-
-copy_binaries() {
-	dir="$1"
-	# Add nested executables to bundle dir so we have complete set of
-	# them available, but only if the native OS/ARCH is the same as the
-	# OS/ARCH of the build target
-	if [ "$(go env GOOS)/$(go env GOARCH)" == "$(go env GOHOSTOS)/$(go env GOHOSTARCH)" ]; then
-		if [ -x /usr/local/bin/docker-runc ]; then
-			echo "Copying nested executables into $dir"
-			for file in containerd containerd-shim containerd-ctr runc init proxy; do
-				cp -f `which "docker-$file"` "$dir/"
-				if [ "$2" == "hash" ]; then
-					hash_files "$dir/docker-$file"
-				fi
-			done
-		fi
-	fi
-}
-
-install_binary() {
-	file="$1"
-	target="${DOCKER_MAKE_INSTALL_PREFIX:=/usr/local}/bin/"
-	if [ "$(go env GOOS)" == "linux" ]; then
-		echo "Installing $(basename $file) to ${target}"
-		mkdir -p "$target"
-		cp -f -L "$file" "$target"
-	else
-		echo "Install is only supported on linux"
-		return 1
-	fi
 }
 
 main() {
