@@ -47,6 +47,8 @@ func (c *lazySource) Hash(path string) (string, error) {
 
 	fi, err := os.Lstat(fullPath)
 	if err != nil {
+		// Backwards compatibility: a missing file returns a path as hash.
+		// This is reached in the case of a broken symlink.
 		return relPath, nil
 	}
 
