@@ -10,7 +10,7 @@ import (
 	"sync"
 
 	ansiterm "github.com/Azure/go-ansiterm"
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 var logger *logrus.Logger

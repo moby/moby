@@ -4,9 +4,9 @@ import (
 	"log"
 	"os"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/test/networkDb/dbclient"
 	"github.com/docker/libnetwork/test/networkDb/dbserver"
+	"github.com/sirupsen/logrus"
 )
 
 func main() {

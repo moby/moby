@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/hashicorp/memberlist"
+	"github.com/sirupsen/logrus"
 )
 
 const (

@@ -5,9 +5,9 @@ import (
 	"os"
 	"syscall"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/system"
+	"github.com/sirupsen/logrus"
 )
 
 // Copied over from docker/daemon/debugtrap_windows.go

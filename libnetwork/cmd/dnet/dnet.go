@@ -22,7 +22,6 @@ import (
 	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/docker/pkg/reexec"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/libnetwork"
@@ -36,6 +35,7 @@ import (
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/types"
 	"github.com/gorilla/mux"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
