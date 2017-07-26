@@ -19,8 +19,8 @@ import (
 	"path/filepath"
 	"unsafe"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/mount"
+	"github.com/sirupsen/logrus"
 )
 
 const (
