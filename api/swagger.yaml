@@ -322,7 +322,6 @@ definitions:
       MaximumRetryCount:
         type: "integer"
         description: "If `on-failure` is used, the number of times to retry before giving up"
-    default: {}
 
   Resources:
     description: "A container's resources (cgroups config, ulimits, etc)"
