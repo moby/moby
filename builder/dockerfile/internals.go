@@ -7,13 +7,18 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/pkg/symlink"
+	lcUser "github.com/opencontainers/runc/libcontainer/user"
 	"github.com/pkg/errors"
 )
 
@@ -107,10 +112,16 @@ func (b *Builder) exportImage(state *dispatchState, imageMount *imageMount, runC
 func (b *Builder) performCopy(state *dispatchState, inst copyInstruction) error {
 	srcHash := getSourceHashFromInfos(inst.infos)
 
+	var chownComment string
+	if inst.chownStr != "" {
+		chownComment = fmt.Sprintf("--chown=%s", inst.chownStr)
+	}
+	commentStr := fmt.Sprintf("%s %s%s in %s ", inst.cmdName, chownComment, srcHash, inst.dest)
+
 	// TODO: should this have been using origPaths instead of srcHash in the comment?
 	runConfigWithCommentCmd := copyRunConfig(
 		state.runConfig,
-		withCmdCommentString(fmt.Sprintf("%s %s in %s ", inst.cmdName, srcHash, inst.dest), b.platform))
+		withCmdCommentString(commentStr, b.platform))
 	hit, err := b.probeCache(state, runConfigWithCommentCmd)
 	if err != nil || hit {
 		return err
@@ -125,9 +136,21 @@ func (b *Builder) performCopy(state *dispatchState, inst copyInstruction) error 
 		return err
 	}
 
+	chownPair := b.archiver.IDMappings.RootPair()
+	// if a chown was requested, perform the steps to get the uid, gid
+	// translated (if necessary because of user namespaces), and replace
+	// the root pair with the chown pair for copy operations
+	if inst.chownStr != "" {
+		chownPair, err = parseChownFlag(inst.chownStr, destInfo.root, b.archiver.IDMappings)
+		if err != nil {
+			return errors.Wrapf(err, "unable to convert uid/gid chown string to host mapping")
+		}
+	}
+
 	opts := copyFileOptions{
 		decompress: inst.allowLocalDecompression,
 		archiver:   b.archiver,
+		chownPair:  chownPair,
 	}
 	for _, info := range inst.infos {
 		if err := performCopyForInfo(destInfo, info, opts); err != nil {
@@ -135,6 +158,88 @@ func (b *Builder) performCopy(state *dispatchState, inst copyInstruction) error 
 		}
 	}
 	return b.exportImage(state, imageMount, runConfigWithCommentCmd)
+}
+
+func parseChownFlag(chown, ctrRootPath string, idMappings *idtools.IDMappings) (idtools.IDPair, error) {
+	var userStr, grpStr string
+	parts := strings.Split(chown, ":")
+	if len(parts) > 2 {
+		return idtools.IDPair{}, errors.New("invalid chown string format: " + chown)
+	}
+	if len(parts) == 1 {
+		// if no group specified, use the user spec as group as well
+		userStr, grpStr = parts[0], parts[0]
+	} else {
+		userStr, grpStr = parts[0], parts[1]
+	}
+
+	passwdPath, err := symlink.FollowSymlinkInScope(filepath.Join(ctrRootPath, "etc", "passwd"), ctrRootPath)
+	if err != nil {
+		return idtools.IDPair{}, errors.Wrapf(err, "can't resolve /etc/passwd path in container rootfs")
+	}
+	groupPath, err := symlink.FollowSymlinkInScope(filepath.Join(ctrRootPath, "etc", "group"), ctrRootPath)
+	if err != nil {
+		return idtools.IDPair{}, errors.Wrapf(err, "can't resolve /etc/group path in container rootfs")
+	}
+	uid, err := lookupUser(userStr, passwdPath)
+	if err != nil {
+		return idtools.IDPair{}, errors.Wrapf(err, "can't find uid for user "+userStr)
+	}
+	gid, err := lookupGroup(grpStr, groupPath)
+	if err != nil {
+		return idtools.IDPair{}, errors.Wrapf(err, "can't find gid for group "+grpStr)
+	}
+
+	// convert as necessary because of user namespaces
+	chownPair, err := idMappings.ToHost(idtools.IDPair{UID: uid, GID: gid})
+	if err != nil {
+		return idtools.IDPair{}, errors.Wrapf(err, "unable to convert uid/gid to host mapping")
+	}
+	return chownPair, nil
+}
+
+func lookupUser(userStr, filepath string) (int, error) {
+	// if the string is actually a uid integer, parse to int and return
+	// as we don't need to translate with the help of files
+	uid, err := strconv.Atoi(userStr)
+	if err == nil {
+		return uid, nil
+	}
+	users, err := lcUser.ParsePasswdFileFilter(filepath, func(u lcUser.User) bool {
+		if u.Name == userStr {
+			return true
+		}
+		return false
+	})
+	if err != nil {
+		return 0, err
+	}
+	if len(users) == 0 {
+		return 0, errors.New("no such user: " + userStr)
+	}
+	return users[0].Uid, nil
+}
+
+func lookupGroup(groupStr, filepath string) (int, error) {
+	// if the string is actually a gid integer, parse to int and return
+	// as we don't need to translate with the help of files
+	gid, err := strconv.Atoi(groupStr)
+	if err == nil {
+		return gid, nil
+	}
+	groups, err := lcUser.ParseGroupFileFilter(filepath, func(g lcUser.Group) bool {
+		if g.Name == groupStr {
+			return true
+		}
+		return false
+	})
+	if err != nil {
+		return 0, err
+	}
+	if len(groups) == 0 {
+		return 0, errors.New("no such group: " + groupStr)
+	}
+	return groups[0].Gid, nil
 }
 
 func createDestInfo(workingDir string, inst copyInstruction, imageMount *imageMount) (copyInfo, error) {

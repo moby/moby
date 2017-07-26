@@ -410,6 +410,35 @@ func (s *DockerSuite) TestBuildAddRemoteNoDecompress(c *check.C) {
 	assert.Contains(c, string(out), "Successfully built")
 }
 
+func (s *DockerSuite) TestBuildChownOnCopy(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	dockerfile := `FROM busybox
+		RUN echo 'test1:x:1001:1001::/bin:/bin/false' >> /etc/passwd
+		RUN echo 'test1:x:1001:' >> /etc/group
+		RUN echo 'test2:x:1002:' >> /etc/group
+		COPY --chown=test1:1002 . /new_dir
+		RUN ls -l /
+		RUN [ $(ls -l / | grep new_dir | awk '{print $3":"$4}') = 'test1:test2' ]
+		RUN [ $(ls -nl / | grep new_dir | awk '{print $3":"$4}') = '1001:1002' ]
+	`
+	ctx := fakecontext.New(c, "",
+		fakecontext.WithDockerfile(dockerfile),
+		fakecontext.WithFile("test_file1", "some test content"),
+	)
+	defer ctx.Close()
+
+	res, body, err := request.Post(
+		"/build",
+		request.RawContent(ctx.AsTarReader(c)),
+		request.ContentType("application/x-tar"))
+	c.Assert(err, checker.IsNil)
+	c.Assert(res.StatusCode, checker.Equals, http.StatusOK)
+
+	out, err := testutil.ReadBody(body)
+	require.NoError(c, err)
+	assert.Contains(c, string(out), "Successfully built")
+}
+
 func (s *DockerSuite) TestBuildWithSession(c *check.C) {
 	testRequires(c, ExperimentalDaemon)
 

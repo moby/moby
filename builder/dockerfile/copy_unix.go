@@ -9,10 +9,16 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 )
 
-func fixPermissions(source, destination string, rootIDs idtools.IDPair) error {
-	skipChownRoot, err := isExistingDirectory(destination)
-	if err != nil {
-		return err
+func fixPermissions(source, destination string, rootIDs idtools.IDPair, overrideSkip bool) error {
+	var (
+		skipChownRoot bool
+		err           error
+	)
+	if !overrideSkip {
+		skipChownRoot, err = isExistingDirectory(destination)
+		if err != nil {
+			return err
+		}
 	}
 
 	// We Walk on the source rather than on the destination because we don't
