@@ -167,7 +167,9 @@ func (daemon *Daemon) setupSecretDir(c *container.Container, hasSecretDir *bool)
 	}
 
 	if !*hasSecretDir {
-		daemon.createSecretDir(c)
+		if err := daemon.createSecretDir(c); err != nil {
+			return err
+		}
 		*hasSecretDir = true
 	}
 
@@ -329,7 +331,9 @@ func (daemon *Daemon) setupConfigDir(c *container.Container, hasSecretDir *bool)
 			configRef.Sensitive = true
 			fPath, err = c.SensitiveConfigFilePath(*configRef.ConfigReference)
 			if !*hasSecretDir {
-				daemon.createSecretDir(c)
+				if err := daemon.createSecretDir(c); err != nil {
+					return err
+				}
 				*hasSecretDir = true
 			}
 		} else {
