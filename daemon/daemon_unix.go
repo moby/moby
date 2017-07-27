@@ -14,7 +14,6 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -46,6 +45,7 @@ import (
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -146,11 +146,11 @@ func getCPUResources(config containertypes.Resources) (*specs.LinuxCPU, error) {
 }
 
 func getBlkioWeightDevices(config containertypes.Resources) ([]specs.LinuxWeightDevice, error) {
-	var stat syscall.Stat_t
+	var stat unix.Stat_t
 	var blkioWeightDevices []specs.LinuxWeightDevice
 
 	for _, weightDevice := range config.BlkioWeightDevice {
-		if err := syscall.Stat(weightDevice.Path, &stat); err != nil {
+		if err := unix.Stat(weightDevice.Path, &stat); err != nil {
 			return nil, err
 		}
 		weight := weightDevice.Weight
@@ -219,10 +219,10 @@ func parseSecurityOpt(container *container.Container, config *containertypes.Hos
 
 func getBlkioThrottleDevices(devs []*blkiodev.ThrottleDevice) ([]specs.LinuxThrottleDevice, error) {
 	var throttleDevices []specs.LinuxThrottleDevice
-	var stat syscall.Stat_t
+	var stat unix.Stat_t
 
 	for _, d := range devs {
-		if err := syscall.Stat(d.Path, &stat); err != nil {
+		if err := unix.Stat(d.Path, &stat); err != nil {
 			return nil, err
 		}
 		d := specs.LinuxThrottleDevice{Rate: d.Rate}

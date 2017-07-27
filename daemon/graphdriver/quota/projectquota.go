@@ -52,10 +52,8 @@ import "C"
 import (
 	"fmt"
 	"io/ioutil"
-	"os"
 	"path"
 	"path/filepath"
-	"syscall"
 	"unsafe"
 
 	"github.com/Sirupsen/logrus"
@@ -323,15 +321,14 @@ func getDirFd(dir *C.DIR) uintptr {
 // and create a block device node under the home directory
 // to be used by quotactl commands
 func makeBackingFsDev(home string) (string, error) {
-	fileinfo, err := os.Stat(home)
-	if err != nil {
+	var stat unix.Stat_t
+	if err := unix.Stat(home, &stat); err != nil {
 		return "", err
 	}
 
 	backingFsBlockDev := path.Join(home, "backingFsBlockDev")
 	// Re-create just in case someone copied the home directory over to a new device
 	unix.Unlink(backingFsBlockDev)
-	stat := fileinfo.Sys().(*syscall.Stat_t)
 	if err := unix.Mknod(backingFsBlockDev, unix.S_IFBLK|0600, int(stat.Dev)); err != nil {
 		return "", fmt.Errorf("Failed to mknod %s: %v", backingFsBlockDev, err)
 	}
