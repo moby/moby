@@ -765,10 +765,7 @@ func (n *network) watchMiss(nlSock *nl.NetlinkSocket) {
 					logrus.Errorf("could not resolve peer %q: %v", ip, err)
 					continue
 				}
-
-				if err := n.driver.peerAdd(n.id, "dummy", ip, IPmask, mac, vtep, true, l2Miss, l3Miss); err != nil {
-					logrus.Errorf("could not add neighbor entry for missed peer %q: %v", ip, err)
-				}
+				n.driver.peerAdd(n.id, "dummy", ip, IPmask, mac, vtep, true, l2Miss, l3Miss, false)
 			} else {
 				// If the gc_thresh values are lower kernel might knock off the neighor entries.
 				// When we get a L3 miss check if its a valid peer and reprogram the neighbor
