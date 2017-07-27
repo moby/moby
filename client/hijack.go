@@ -177,12 +177,14 @@ func (cli *Client) setupHijackConn(req *http.Request, proto string) (net.Conn, e
 
 	// Server hijacks the connection, error 'connection closed' expected
 	resp, err := clientconn.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode != http.StatusSwitchingProtocols {
-		resp.Body.Close()
-		return nil, fmt.Errorf("unable to upgrade to %s, received %d", proto, resp.StatusCode)
+	if err != httputil.ErrPersistEOF {
+		if err != nil {
+			return nil, err
+		}
+		if resp.StatusCode != http.StatusSwitchingProtocols {
+			resp.Body.Close()
+			return nil, fmt.Errorf("unable to upgrade to %s, received %d", proto, resp.StatusCode)
+		}
 	}
 
 	c, br := clientconn.Hijack()
