@@ -150,4 +150,12 @@ func TestNames(t *testing.T) {
 
 	view = db.Snapshot()
 	assert.Equal(t, map[string][]string{"containerid1": {"name1", "name3", "name4"}, "containerid4": {"name2"}}, view.GetAllNames())
+
+	// Release containerid1's names with Delete even though no container exists
+	assert.NoError(t, db.Delete(&Container{ID: "containerid1"}))
+
+	// Reusing one of those names should work
+	assert.NoError(t, db.ReserveName("name1", "containerid4"))
+	view = db.Snapshot()
+	assert.Equal(t, map[string][]string{"containerid4": {"name1", "name2"}}, view.GetAllNames())
 }
