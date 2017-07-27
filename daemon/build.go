@@ -27,6 +27,7 @@ type releaseableLayer struct {
 
 func (rl *releaseableLayer) Mount() (string, error) {
 	var err error
+	var mountPath string
 	var chainID layer.ChainID
 	if rl.roLayer != nil {
 		chainID = rl.roLayer.ChainID()
@@ -38,7 +39,19 @@ func (rl *releaseableLayer) Mount() (string, error) {
 		return "", errors.Wrap(err, "failed to create rwlayer")
 	}
 
-	return rl.rwLayer.Mount("")
+	mountPath, err = rl.rwLayer.Mount("")
+	if err != nil {
+		// Clean up the layer if we fail to mount it here.
+		metadata, err := rl.layerStore.ReleaseRWLayer(rl.rwLayer)
+		layer.LogReleaseMetadata(metadata)
+		if err != nil {
+			logrus.Errorf("Failed to release RWLayer: %s", err)
+		}
+		rl.rwLayer = nil
+		return "", err
+	}
+
+	return mountPath, nil
 }
 
 func (rl *releaseableLayer) Commit(platform string) (builder.ReleaseableLayer, error) {
@@ -51,6 +64,7 @@ func (rl *releaseableLayer) Commit(platform string) (builder.ReleaseableLayer, e
 	if err != nil {
 		return nil, err
 	}
+	defer stream.Close()
 
 	newLayer, err := rl.layerStore.Register(stream, chainID, layer.Platform(platform))
 	if err != nil {
@@ -75,20 +89,32 @@ func (rl *releaseableLayer) Release() error {
 	if rl.released {
 		return nil
 	}
+	if err := rl.releaseRWLayer(); err != nil {
+		// Best effort attempt at releasing read-only layer before returning original error.
+		rl.releaseROLayer()
+		return err
+	}
+	if err := rl.releaseROLayer(); err != nil {
+		return err
+	}
 	rl.released = true
-	rl.releaseRWLayer()
-	return rl.releaseROLayer()
+	return nil
 }
 
 func (rl *releaseableLayer) releaseRWLayer() error {
 	if rl.rwLayer == nil {
 		return nil
 	}
+	if err := rl.rwLayer.Unmount(); err != nil {
+		logrus.Errorf("Failed to unmount RWLayer: %s", err)
+		return err
+	}
 	metadata, err := rl.layerStore.ReleaseRWLayer(rl.rwLayer)
 	layer.LogReleaseMetadata(metadata)
 	if err != nil {
 		logrus.Errorf("Failed to release RWLayer: %s", err)
 	}
+	rl.rwLayer = nil
 	return err
 }
 
@@ -98,6 +124,10 @@ func (rl *releaseableLayer) releaseROLayer() error {
 	}
 	metadata, err := rl.layerStore.Release(rl.roLayer)
 	layer.LogReleaseMetadata(metadata)
+	if err != nil {
+		logrus.Errorf("Failed to release ROLayer: %s", err)
+	}
+	rl.roLayer = nil
 	return err
 }
 
