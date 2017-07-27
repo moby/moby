@@ -311,7 +311,11 @@ func (c *Cluster) populateNetworkID(ctx context.Context, client swarmapi.Control
 			return err
 		}
 	setid:
-		networks[i].Target = apiNetwork.ID
+		if runconfig.IsPreDefinedNetwork(n.Target) {
+			networks[i].Target = n.Target
+		} else {
+			networks[i].Target = apiNetwork.ID
+		}
 	}
 	return nil
 }
