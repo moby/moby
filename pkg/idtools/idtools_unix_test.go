@@ -7,10 +7,10 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"syscall"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sys/unix"
 )
 
 type node struct {
@@ -187,8 +187,8 @@ func readTree(base, root string) (map[string]node, error) {
 	}
 
 	for _, info := range dirInfos {
-		s := &syscall.Stat_t{}
-		if err := syscall.Stat(filepath.Join(base, info.Name()), s); err != nil {
+		s := &unix.Stat_t{}
+		if err := unix.Stat(filepath.Join(base, info.Name()), s); err != nil {
 			return nil, fmt.Errorf("Can't stat file %q: %v", filepath.Join(base, info.Name()), err)
 		}
 		tree[filepath.Join(root, info.Name())] = node{int(s.Uid), int(s.Gid)}
