@@ -91,9 +91,7 @@ func (n *networkNamespace) DeleteNeighbor(dstIP net.IP, dstMac net.HardwareAddr,
 			if nh.linkDst != "" {
 				nlnh.LinkIndex = iface.Attrs().Index
 			}
-			if err := nlh.NeighDel(nlnh); err != nil {
-				logrus.Warnf("Deleting bridge mac mac %s failed, %v", dstMac, err)
-			}
+			nlh.NeighDel(nlnh)
 		}
 	}
 
