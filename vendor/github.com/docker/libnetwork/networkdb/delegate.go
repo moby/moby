@@ -111,9 +111,12 @@ func (nDB *NetworkDB) handleNodeEvent(nEvent *NodeEvent) bool {
 	switch nEvent.Type {
 	case NodeEventTypeJoin:
 		nDB.Lock()
+		_, found := nDB.nodes[n.Name]
 		nDB.nodes[n.Name] = n
 		nDB.Unlock()
-		logrus.Infof("Node join event for %s/%s", n.Name, n.Addr)
+		if !found {
+			logrus.Infof("Node join event for %s/%s", n.Name, n.Addr)
+		}
 		return true
 	case NodeEventTypeLeave:
 		nDB.Lock()
@@ -176,7 +179,12 @@ func (nDB *NetworkDB) handleNetworkEvent(nEvent *NetworkEvent) bool {
 			flushEntries = true
 		}
 
-		nDB.addNetworkNode(nEvent.NetworkID, nEvent.NodeName)
+		if nEvent.Type == NetworkEventTypeLeave {
+			nDB.deleteNetworkNode(nEvent.NetworkID, nEvent.NodeName)
+		} else {
+			nDB.addNetworkNode(nEvent.NetworkID, nEvent.NodeName)
+		}
+
 		return true
 	}
 

@@ -3,10 +3,6 @@ package networkdb
 import "github.com/gogo/protobuf/proto"
 
 const (
-	// Max udp message size chosen to avoid network packet
-	// fragmentation.
-	udpSendBuf = 1400
-
 	// Compound message header overhead 1 byte(message type) + 4
 	// bytes (num messages)
 	compoundHeaderOverhead = 5

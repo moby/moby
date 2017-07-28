@@ -171,6 +171,8 @@ type CommonConfig struct {
 
 	// Exposed node Generic Resources
 	NodeGenericResources string `json:"node-generic-resources,omitempty"`
+	// NetworkControlPlaneMTU allows to specify the control plane MTU, this will allow to optimize the network use in some components
+	NetworkControlPlaneMTU int `json:"network-control-plane-mtu,omitempty"`
 }
 
 // IsValueSet returns true if a configuration value
