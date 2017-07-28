@@ -127,6 +127,15 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 		}
 	}
 
+	nwk, err := n.cluster.GetNetwork(term)
+	if err == nil {
+		// If the get network is passed with a specific network ID / partial network ID
+		// return the network.
+		if strings.HasPrefix(nwk.ID, term) {
+			return httputils.WriteJSON(w, http.StatusOK, nwk)
+		}
+	}
+
 	nr, _ := n.cluster.GetNetworks()
 	for _, network := range nr {
 		if network.ID == term {
