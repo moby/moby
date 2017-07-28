@@ -43,7 +43,7 @@ func deployStack(unusedCli *client.Client, stackName, composeFilePath string) er
 
 func hasStack(unusedCli *client.Client, stackName string) bool {
 	// FIXME: eliminate os/exec (but stack is implemented in CLI ...)
-	out, err := exec.Command("docker", "stack", "ls").Output()
+	out, err := exec.Command("docker", "stack", "ls").CombinedOutput()
 	if err != nil {
 		panic(fmt.Errorf("`docker stack ls` failed with: %s", string(out)))
 	}
