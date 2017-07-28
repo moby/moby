@@ -1,9 +1,8 @@
 package cluster
 
 import (
-	"context"
-
 	"github.com/docker/docker/api/types/network"
+	"golang.org/x/net/context"
 )
 
 const (
