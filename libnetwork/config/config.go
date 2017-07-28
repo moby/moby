@@ -228,8 +228,7 @@ func OptionNetworkControlPlaneMTU(exp int) Option {
 		logrus.Debugf("Network Control Plane MTU: %d", exp)
 		if exp < 1500 {
 			// if exp == 0 the value won't be used
-			logrus.Warnf("Received a MTU of %d, this value is very low,",
-				"the network control plane can misbehave", exp)
+			logrus.Warnf("Received a MTU of %d, this value is very low, the network control plane can misbehave", exp)
 		}
 		c.Daemon.NetworkControlPlaneMTU = exp
 	}
