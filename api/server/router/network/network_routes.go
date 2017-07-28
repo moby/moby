@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/libnetwork"
+	netconst "github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/networkdb"
 )
 
@@ -132,6 +133,17 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 			// No need to check the ID collision here as we are still in
 			// local scope and the network ID is unique in this scope.
 			listByPartialID[network.ID()] = *n.buildDetailedNetworkResources(network, verbose)
+		}
+	}
+
+	nwk, err := n.cluster.GetNetwork(term)
+	if err == nil {
+		// If the get network is passed with a specific network ID / partial network ID
+		// or if the get network was passed with a network name and scope as swarm
+		// return the network. Skipped using isMatchingScope because it is true if the scope
+		// is not set which would be case if the client API v1.30
+		if strings.HasPrefix(nwk.ID, term) || (netconst.SwarmScope == scope) {
+			return httputils.WriteJSON(w, http.StatusOK, nwk)
 		}
 	}
 
