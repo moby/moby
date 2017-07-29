@@ -104,6 +104,9 @@ func (nDB *NetworkDB) handleNodeEvent(nEvent *NodeEvent) bool {
 	}
 
 	n = nDB.checkAndGetNode(nEvent)
+	if n == nil {
+		return false
+	}
 
 	nDB.purgeSameNode(n)
 	n.ltime = nEvent.LTime
