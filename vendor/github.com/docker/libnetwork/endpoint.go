@@ -933,7 +933,18 @@ func CreateOptionIpam(ipV4, ipV6 net.IP, llIPs []net.IP, ipamOptions map[string]
 				ep.iface.llAddrs = append(ep.iface.llAddrs, nw)
 			}
 		}
-		ep.ipamOptions = ipamOptions
+		filteredOptions := make(map[string]string)
+		for k, v := range ipamOptions {
+			if strings.Index(k, "ipam.") == 0 {
+				filteredOptions[k] = v
+			} else if strings.Index(k, "net.") == 0 {
+
+			} else {
+				filteredOptions[k] = v
+			}
+		}
+		ep.ipamOptions = filteredOptions
+		logrus.Debugf("Setting IPAM Options to %v\n", filteredOptions)
 	}
 }
 
