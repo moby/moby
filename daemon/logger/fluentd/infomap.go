@@ -9,7 +9,7 @@ import (
 const defaultInfoKeys = "container_id,container_name"
 
 // InfoMap returns information about a container as a map.
-func InfoMap(info logger.Info) map[string]string {
+func infoMap(info logger.Info) map[string]string {
 	infoMap := make(map[string]string)
 
 	infoKeys, ok := info.Config["info"]

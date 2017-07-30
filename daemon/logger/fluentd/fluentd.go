@@ -77,7 +77,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		return nil, err
 	}
 
-	infoMap := InfoMap(info)
+	infoMap := infoMap(info)
 	extra, err := info.ExtraAttributes(nil)
 	if err != nil {
 		return nil, err

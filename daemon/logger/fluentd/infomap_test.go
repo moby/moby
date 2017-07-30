@@ -78,7 +78,7 @@ func TestInfoMap(t *testing.T) {
 		},
 	} {
 		t.Run(test.desc, func(t *testing.T) {
-			extra := InfoMap(test.info)
+			extra := infoMap(test.info)
 
 			if !reflect.DeepEqual(extra, test.extra) {
 				t.Errorf("got info map %#v, wanted %#v", extra, test.extra)
