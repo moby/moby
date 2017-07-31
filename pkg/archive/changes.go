@@ -423,7 +423,7 @@ func ExportChanges(dir string, changes []Change, uidMaps, gidMaps []idtools.IDMa
 				}
 			} else {
 				path := filepath.Join(dir, change.Path)
-				if err := ta.addTarFile(path, change.Path[1:]); err != nil {
+				if err := ta.addTarFile(path, change.Path[1:], false, nil); err != nil {
 					logrus.Debugf("Can't add file %s to tar: %s", path, err)
 				}
 			}
