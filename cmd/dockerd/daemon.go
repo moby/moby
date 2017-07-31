@@ -30,7 +30,6 @@ import (
 	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/builder/fscache"
 	"github.com/docker/docker/cli/debug"
-	"github.com/docker/docker/client/session"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/cluster"
 	"github.com/docker/docker/daemon/config"
@@ -50,6 +49,7 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/tlsconfig"
 	swarmapi "github.com/docker/swarmkit/api"
+	"github.com/moby/buildkit/session"
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
 )

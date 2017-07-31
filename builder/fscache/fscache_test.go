@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/client/session/filesync"
+	"github.com/moby/buildkit/session/filesync"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )

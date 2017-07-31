@@ -4,7 +4,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/docker/docker/client/session"
+	"github.com/moby/buildkit/session"
 	"github.com/pkg/errors"
 	"github.com/tonistiigi/fsutil"
 	"golang.org/x/net/context"

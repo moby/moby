@@ -12,8 +12,6 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client/session"
-	"github.com/docker/docker/client/session/filesync"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli/build/fakecontext"
 	"github.com/docker/docker/integration-cli/cli/build/fakegit"
@@ -21,6 +19,8 @@ import (
 	"github.com/docker/docker/integration-cli/request"
 	"github.com/docker/docker/pkg/testutil"
 	"github.com/go-check/check"
+	"github.com/moby/buildkit/session"
+	"github.com/moby/buildkit/session/filesync"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
