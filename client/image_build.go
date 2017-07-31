@@ -10,8 +10,8 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/container"
 )
 
 // ImageBuild sends request to the daemon to build images.

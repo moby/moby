@@ -1,8 +1,8 @@
 package client
 
 import (
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/network"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/network"
 	"golang.org/x/net/context"
 )
 

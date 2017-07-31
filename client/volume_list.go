@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"net/url"
 
-	"github.com/docker/docker/api/types/filters"
-	volumetypes "github.com/docker/docker/api/types/volume"
+	"github.com/moby/moby/api/types/filters"
+	volumetypes "github.com/moby/moby/api/types/volume"
 	"golang.org/x/net/context"
 )
 

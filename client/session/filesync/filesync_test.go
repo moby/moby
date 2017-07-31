@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/docker/docker/client/session"
-	"github.com/docker/docker/client/session/testutil"
+	"github.com/moby/moby/client/session"
+	"github.com/moby/moby/client/session/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
