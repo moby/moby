@@ -2,8 +2,8 @@
 package v1p20
 
 import (
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/container"
 	"github.com/docker/go-connections/nat"
 )
 

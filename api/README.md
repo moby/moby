@@ -5,7 +5,7 @@ The Engine API is an HTTP API used by the command-line client to communicate wit
 It consists of various components in this repository:
 
 - `api/swagger.yaml` A Swagger definition of the API.
-- `api/types/` Types shared by both the client and server, representing various objects, options, responses, etc. Most are written manually, but some are automatically generated from the Swagger definition. See [#27919](https://github.com/docker/docker/issues/27919) for progress on this.
+- `api/types/` Types shared by both the client and server, representing various objects, options, responses, etc. Most are written manually, but some are automatically generated from the Swagger definition. See [#27919](https://github.com/moby/moby/issues/27919) for progress on this.
 - `cli/` The command-line client.
 - `client/` The Go client used by the command-line client. It can also be used by third-party Go programs.
 - `daemon/` The daemon, which serves the API.
@@ -29,7 +29,7 @@ The file is split into two main sections:
 
 To make an edit, first look for the endpoint you want to edit under `paths`, then make the required edits. Endpoints may reference reusable objects with `$ref`, which can be found in the `definitions` section.
 
-There is hopefully enough example material in the file for you to copy a similar pattern from elsewhere in the file (e.g. adding new fields or endpoints), but for the full reference, see the [Swagger specification](https://github.com/docker/docker/issues/27919)
+There is hopefully enough example material in the file for you to copy a similar pattern from elsewhere in the file (e.g. adding new fields or endpoints), but for the full reference, see the [Swagger specification](https://github.com/moby/moby/issues/27919)
 
 `swagger.yaml` is validated by `hack/validate/swagger` to ensure it is a valid Swagger definition. This is useful for when you are making edits to ensure you are doing the right thing.
 

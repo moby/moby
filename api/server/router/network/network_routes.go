@@ -9,12 +9,12 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/docker/docker/api/errors"
-	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/api/types/versions"
+	"github.com/moby/moby/api/errors"
+	"github.com/moby/moby/api/server/httputils"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/api/types/versions"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/networkdb"
 )

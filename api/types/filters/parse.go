@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/docker/docker/api/types/versions"
+	"github.com/moby/moby/api/types/versions"
 )
 
 // Args stores filter arguments as map key:{map key: bool}.

@@ -3,7 +3,7 @@ package container
 import (
 	"time"
 
-	"github.com/docker/docker/api/types/strslice"
+	"github.com/moby/moby/api/types/strslice"
 	"github.com/docker/go-connections/nat"
 )
 
