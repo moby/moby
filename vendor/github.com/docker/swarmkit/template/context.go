@@ -107,9 +107,10 @@ type PayloadContext struct {
 	t                 *api.Task
 	restrictedSecrets exec.SecretGetter
 	restrictedConfigs exec.ConfigGetter
+	sensitive         bool
 }
 
-func (ctx PayloadContext) secretGetter(target string) (string, error) {
+func (ctx *PayloadContext) secretGetter(target string) (string, error) {
 	if ctx.restrictedSecrets == nil {
 		return "", errors.New("secrets unavailable")
 	}
@@ -126,6 +127,7 @@ func (ctx PayloadContext) secretGetter(target string) (string, error) {
 			if err != nil {
 				return "", err
 			}
+			ctx.sensitive = true
 			return string(secret.Spec.Data), nil
 		}
 	}
@@ -133,7 +135,7 @@ func (ctx PayloadContext) secretGetter(target string) (string, error) {
 	return "", errors.Errorf("secret target %s not found", target)
 }
 
-func (ctx PayloadContext) configGetter(target string) (string, error) {
+func (ctx *PayloadContext) configGetter(target string) (string, error) {
 	if ctx.restrictedConfigs == nil {
 		return "", errors.New("configs unavailable")
 	}
@@ -157,7 +159,7 @@ func (ctx PayloadContext) configGetter(target string) (string, error) {
 	return "", errors.Errorf("config target %s not found", target)
 }
 
-func (ctx PayloadContext) envGetter(variable string) (string, error) {
+func (ctx *PayloadContext) envGetter(variable string) (string, error) {
 	container := ctx.t.Spec.GetContainer()
 	if container == nil {
 		return "", errors.New("task is not a container")

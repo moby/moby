@@ -158,6 +158,12 @@ func (s *Server) CreateSecret(ctx context.Context, request *api.CreateSecretRequ
 		return nil, err
 	}
 
+	if request.Spec.Driver != nil { // Check that the requested driver is valid
+		if _, err := s.dr.NewSecretDriver(request.Spec.Driver); err != nil {
+			return nil, err
+		}
+	}
+
 	secret := secretFromSecretSpec(request.Spec) // the store will handle name conflicts
 	err := s.store.Update(func(tx store.Tx) error {
 		return store.CreateSecret(tx, secret)

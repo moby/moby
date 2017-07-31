@@ -12,7 +12,7 @@ syntax = "proto3";
 package docker.swarmkit.v1;
 
 import "gogoproto/gogo.proto";
-import "plugin/plugin.proto";
+import "github.com/docker/swarmkit/protobuf/plugin/plugin.proto";
 
 service Health {
 	rpc Check(HealthCheckRequest) returns (HealthCheckResponse) {

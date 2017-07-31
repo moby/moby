@@ -11,20 +11,9 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// Used as a key in tasksUsingDependency and changes. Only using the
-// ID could cause (rare) collisions between different types of
-// objects, so we also include the type of object in the key.
-type objectType int
-
-const (
-	typeTask objectType = iota
-	typeSecret
-	typeConfig
-)
-
 type typeAndID struct {
 	id      string
-	objType objectType
+	objType api.ResourceType
 }
 
 type assignmentSet struct {
@@ -45,39 +34,78 @@ func newAssignmentSet(log *logrus.Entry, dp *drivers.DriverProvider) *assignment
 	}
 }
 
+func assignSecret(a *assignmentSet, readTx store.ReadTx, mapKey typeAndID, t *api.Task) {
+	a.tasksUsingDependency[mapKey] = make(map[string]struct{})
+	secret, err := a.secret(readTx, t, mapKey.id)
+	if err != nil {
+		a.log.WithFields(logrus.Fields{
+			"resource.type": "secret",
+			"secret.id":     mapKey.id,
+			"error":         err,
+		}).Debug("failed to fetch secret")
+		return
+	}
+	a.changes[mapKey] = &api.AssignmentChange{
+		Assignment: &api.Assignment{
+			Item: &api.Assignment_Secret{
+				Secret: secret,
+			},
+		},
+		Action: api.AssignmentChange_AssignmentActionUpdate,
+	}
+}
+
+func assignConfig(a *assignmentSet, readTx store.ReadTx, mapKey typeAndID) {
+	a.tasksUsingDependency[mapKey] = make(map[string]struct{})
+	config := store.GetConfig(readTx, mapKey.id)
+	if config == nil {
+		a.log.WithFields(logrus.Fields{
+			"resource.type": "config",
+			"config.id":     mapKey.id,
+		}).Debug("config not found")
+		return
+	}
+	a.changes[mapKey] = &api.AssignmentChange{
+		Assignment: &api.Assignment{
+			Item: &api.Assignment_Config{
+				Config: config,
+			},
+		},
+		Action: api.AssignmentChange_AssignmentActionUpdate,
+	}
+}
+
 func (a *assignmentSet) addTaskDependencies(readTx store.ReadTx, t *api.Task) {
+	for _, resourceRef := range t.Spec.ResourceReferences {
+		mapKey := typeAndID{objType: resourceRef.ResourceType, id: resourceRef.ResourceID}
+		if len(a.tasksUsingDependency[mapKey]) == 0 {
+			switch resourceRef.ResourceType {
+			case api.ResourceType_SECRET:
+				assignSecret(a, readTx, mapKey, t)
+			case api.ResourceType_CONFIG:
+				assignConfig(a, readTx, mapKey)
+			default:
+				a.log.WithField(
+					"resource.type", resourceRef.ResourceType,
+				).Debug("invalid resource type for a task dependency, skipping")
+				continue
+			}
+		}
+		a.tasksUsingDependency[mapKey][t.ID] = struct{}{}
+	}
+
 	var secrets []*api.SecretReference
 	container := t.Spec.GetContainer()
 	if container != nil {
 		secrets = container.Secrets
 	}
+
 	for _, secretRef := range secrets {
 		secretID := secretRef.SecretID
-		mapKey := typeAndID{objType: typeSecret, id: secretID}
+		mapKey := typeAndID{objType: api.ResourceType_SECRET, id: secretID}
 
 		if len(a.tasksUsingDependency[mapKey]) == 0 {
-			a.tasksUsingDependency[mapKey] = make(map[string]struct{})
-
-			secret, err := a.secret(readTx, secretID)
-			if err != nil {
-				a.log.WithFields(logrus.Fields{
-					"secret.id":   secretID,
-					"secret.name": secretRef.SecretName,
-					"error":       err,
-				}).Error("failed to fetch secret")
-				continue
-			}
-
-			// If the secret was found, add this secret to
-			// our set that we send down.
-			a.changes[mapKey] = &api.AssignmentChange{
-				Assignment: &api.Assignment{
-					Item: &api.Assignment_Secret{
-						Secret: secret,
-					},
-				},
-				Action: api.AssignmentChange_AssignmentActionUpdate,
-			}
+			assignSecret(a, readTx, mapKey, t)
 		}
 		a.tasksUsingDependency[mapKey][t.ID] = struct{}{}
 	}
@@ -88,30 +116,10 @@ func (a *assignmentSet) addTaskDependencies(readTx store.ReadTx, t *api.Task) {
 	}
 	for _, configRef := range configs {
 		configID := configRef.ConfigID
-		mapKey := typeAndID{objType: typeConfig, id: configID}
+		mapKey := typeAndID{objType: api.ResourceType_CONFIG, id: configID}
 
 		if len(a.tasksUsingDependency[mapKey]) == 0 {
-			a.tasksUsingDependency[mapKey] = make(map[string]struct{})
-
-			config := store.GetConfig(readTx, configID)
-			if config == nil {
-				a.log.WithFields(logrus.Fields{
-					"config.id":   configID,
-					"config.name": configRef.ConfigName,
-				}).Debug("config not found")
-				continue
-			}
-
-			// If the config was found, add this config to
-			// our set that we send down.
-			a.changes[mapKey] = &api.AssignmentChange{
-				Assignment: &api.Assignment{
-					Item: &api.Assignment_Config{
-						Config: config,
-					},
-				},
-				Action: api.AssignmentChange_AssignmentActionUpdate,
-			}
+			assignConfig(a, readTx, mapKey)
 		}
 		a.tasksUsingDependency[mapKey][t.ID] = struct{}{}
 	}
@@ -133,6 +141,35 @@ func (a *assignmentSet) releaseDependency(mapKey typeAndID, assignment *api.Assi
 
 func (a *assignmentSet) releaseTaskDependencies(t *api.Task) bool {
 	var modified bool
+
+	for _, resourceRef := range t.Spec.ResourceReferences {
+		var assignment *api.Assignment
+		switch resourceRef.ResourceType {
+		case api.ResourceType_SECRET:
+			assignment = &api.Assignment{
+				Item: &api.Assignment_Secret{
+					Secret: &api.Secret{ID: resourceRef.ResourceID},
+				},
+			}
+		case api.ResourceType_CONFIG:
+			assignment = &api.Assignment{
+				Item: &api.Assignment_Config{
+					Config: &api.Config{ID: resourceRef.ResourceID},
+				},
+			}
+		default:
+			a.log.WithField(
+				"resource.type", resourceRef.ResourceType,
+			).Debug("invalid resource type for a task dependency, skipping")
+			continue
+		}
+
+		mapKey := typeAndID{objType: resourceRef.ResourceType, id: resourceRef.ResourceID}
+		if a.releaseDependency(mapKey, assignment, t.ID) {
+			modified = true
+		}
+	}
+
 	container := t.Spec.GetContainer()
 
 	var secrets []*api.SecretReference
@@ -142,7 +179,7 @@ func (a *assignmentSet) releaseTaskDependencies(t *api.Task) bool {
 
 	for _, secretRef := range secrets {
 		secretID := secretRef.SecretID
-		mapKey := typeAndID{objType: typeSecret, id: secretID}
+		mapKey := typeAndID{objType: api.ResourceType_SECRET, id: secretID}
 		assignment := &api.Assignment{
 			Item: &api.Assignment_Secret{
 				Secret: &api.Secret{ID: secretID},
@@ -160,7 +197,7 @@ func (a *assignmentSet) releaseTaskDependencies(t *api.Task) bool {
 
 	for _, configRef := range configs {
 		configID := configRef.ConfigID
-		mapKey := typeAndID{objType: typeConfig, id: configID}
+		mapKey := typeAndID{objType: api.ResourceType_CONFIG, id: configID}
 		assignment := &api.Assignment{
 			Item: &api.Assignment_Config{
 				Config: &api.Config{ID: configID},
@@ -205,7 +242,7 @@ func (a *assignmentSet) addOrUpdateTask(readTx store.ReadTx, t *api.Task) bool {
 		a.addTaskDependencies(readTx, t)
 	}
 	a.tasksMap[t.ID] = t
-	a.changes[typeAndID{objType: typeTask, id: t.ID}] = &api.AssignmentChange{
+	a.changes[typeAndID{objType: api.ResourceType_TASK, id: t.ID}] = &api.AssignmentChange{
 		Assignment: &api.Assignment{
 			Item: &api.Assignment_Task{
 				Task: t,
@@ -221,7 +258,7 @@ func (a *assignmentSet) removeTask(t *api.Task) bool {
 		return false
 	}
 
-	a.changes[typeAndID{objType: typeTask, id: t.ID}] = &api.AssignmentChange{
+	a.changes[typeAndID{objType: api.ResourceType_TASK, id: t.ID}] = &api.AssignmentChange{
 		Assignment: &api.Assignment{
 			Item: &api.Assignment_Task{
 				Task: &api.Task{ID: t.ID},
@@ -254,7 +291,7 @@ func (a *assignmentSet) message() api.AssignmentsMessage {
 
 // secret populates the secret value from raft store. For external secrets, the value is populated
 // from the secret driver.
-func (a *assignmentSet) secret(readTx store.ReadTx, secretID string) (*api.Secret, error) {
+func (a *assignmentSet) secret(readTx store.ReadTx, task *api.Task, secretID string) (*api.Secret, error) {
 	secret := store.GetSecret(readTx, secretID)
 	if secret == nil {
 		return nil, fmt.Errorf("secret not found")
@@ -266,7 +303,7 @@ func (a *assignmentSet) secret(readTx store.ReadTx, secretID string) (*api.Secre
 	if err != nil {
 		return nil, err
 	}
-	value, err := d.Get(&secret.Spec)
+	value, err := d.Get(&secret.Spec, task)
 	if err != nil {
 		return nil, err
 	}

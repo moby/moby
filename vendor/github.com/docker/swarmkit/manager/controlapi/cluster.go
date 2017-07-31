@@ -104,17 +104,14 @@ func (s *Server) UpdateCluster(ctx context.Context, request *api.UpdateClusterRe
 		if cluster == nil {
 			return grpc.Errorf(codes.NotFound, "cluster %s not found", request.ClusterID)
 		}
-		// This ensures that we always have the latest security config, so our ca.SecurityConfig.RootCA and
-		// ca.SecurityConfig.externalCA objects are up-to-date with the current api.Cluster.RootCA and
-		// api.Cluster.Spec.ExternalCA objects, respectively.  Note that if, during this update, the cluster gets
-		// updated again with different CA info and the security config gets changed under us, that's still fine because
-		// this cluster update would fail anyway due to its version being too low on write.
-		if err := s.scu.UpdateRootCA(ctx, cluster); err != nil {
+		// This ensures that we have the current rootCA with which to generate tokens (expiration doesn't matter
+		// for generating the tokens)
+		rootCA, err := ca.RootCAFromAPI(ctx, &cluster.RootCA, ca.DefaultNodeCertExpiration)
+		if err != nil {
 			log.G(ctx).WithField(
-				"method", "(*controlapi.Server).UpdateCluster").WithError(err).Error("could not update security config")
-			return grpc.Errorf(codes.Internal, "could not update security config")
+				"method", "(*controlapi.Server).UpdateCluster").WithError(err).Error("invalid cluster root CA")
+			return grpc.Errorf(codes.Internal, "error loading cluster rootCA for update")
 		}
-		rootCA := s.securityConfig.RootCA()
 
 		cluster.Meta.Version = *request.ClusterVersion
 		cluster.Spec = *request.Spec.Copy()
@@ -122,10 +119,10 @@ func (s *Server) UpdateCluster(ctx context.Context, request *api.UpdateClusterRe
 		expireBlacklistedCerts(cluster)
 
 		if request.Rotation.WorkerJoinToken {
-			cluster.RootCA.JoinTokens.Worker = ca.GenerateJoinToken(rootCA)
+			cluster.RootCA.JoinTokens.Worker = ca.GenerateJoinToken(&rootCA)
 		}
 		if request.Rotation.ManagerJoinToken {
-			cluster.RootCA.JoinTokens.Manager = ca.GenerateJoinToken(rootCA)
+			cluster.RootCA.JoinTokens.Manager = ca.GenerateJoinToken(&rootCA)
 		}
 
 		updatedRootCA, err := validateCAConfig(ctx, s.securityConfig, cluster)

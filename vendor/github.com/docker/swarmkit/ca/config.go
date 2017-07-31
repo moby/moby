@@ -68,13 +68,10 @@ type SecurityConfig struct {
 	renewalMu sync.Mutex
 
 	rootCA        *RootCA
-	externalCA    *ExternalCA
 	keyReadWriter *KeyReadWriter
 
 	certificate *tls.Certificate
 	issuerInfo  *IssuerInfo
-
-	externalCAClientRootPool *x509.CertPool
 
 	ServerTLSCreds *MutableTLSCreds
 	ClientTLSCreds *MutableTLSCreds
@@ -90,7 +87,7 @@ type CertificateUpdate struct {
 	Err  error
 }
 
-func validateRootCAAndTLSCert(rootCA *RootCA, externalCARootPool *x509.CertPool, tlsKeyPair *tls.Certificate) error {
+func validateRootCAAndTLSCert(rootCA *RootCA, tlsKeyPair *tls.Certificate) error {
 	var (
 		leafCert         *x509.Certificate
 		intermediatePool *x509.CertPool
@@ -116,10 +113,6 @@ func validateRootCAAndTLSCert(rootCA *RootCA, externalCARootPool *x509.CertPool,
 	if _, err := leafCert.Verify(opts); err != nil {
 		return errors.Wrap(err, "new root CA does not match existing TLS credentials")
 	}
-	opts.Roots = externalCARootPool
-	if _, err := leafCert.Verify(opts); err != nil {
-		return errors.Wrap(err, "new external root pool does not match existing TLS credentials")
-	}
 	return nil
 }
 
@@ -139,16 +132,7 @@ func NewSecurityConfig(rootCA *RootCA, krw *KeyReadWriter, tlsKeyPair *tls.Certi
 		return nil, nil, err
 	}
 
-	// Make a new TLS config for the external CA client without a
-	// ServerName value set.
-	externalCATLSConfig := &tls.Config{
-		Certificates: []tls.Certificate{*tlsKeyPair},
-		RootCAs:      rootCA.Pool,
-		MinVersion:   tls.VersionTLS12,
-	}
-
 	q := watch.NewQueue()
-
 	return &SecurityConfig{
 		rootCA:        rootCA,
 		keyReadWriter: krw,
@@ -157,10 +141,8 @@ func NewSecurityConfig(rootCA *RootCA, krw *KeyReadWriter, tlsKeyPair *tls.Certi
 		issuerInfo:  issuerInfo,
 		queue:       q,
 
-		externalCA:               NewExternalCA(rootCA, externalCATLSConfig),
-		ClientTLSCreds:           clientTLSCreds,
-		ServerTLSCreds:           serverTLSCreds,
-		externalCAClientRootPool: rootCA.Pool,
+		ClientTLSCreds: clientTLSCreds,
+		ServerTLSCreds: serverTLSCreds,
 	}, q.Close, nil
 }
 
@@ -170,11 +152,6 @@ func (s *SecurityConfig) RootCA() *RootCA {
 	defer s.mu.Unlock()
 
 	return s.rootCA
-}
-
-// ExternalCA returns the external CA.
-func (s *SecurityConfig) ExternalCA() *ExternalCA {
-	return s.externalCA
 }
 
 // KeyWriter returns the object that can write keys to disk
@@ -188,19 +165,16 @@ func (s *SecurityConfig) KeyReader() KeyReader {
 }
 
 // UpdateRootCA replaces the root CA with a new root CA
-func (s *SecurityConfig) UpdateRootCA(rootCA *RootCA, externalCARootPool *x509.CertPool) error {
+func (s *SecurityConfig) UpdateRootCA(rootCA *RootCA) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	// refuse to update the root CA if the current TLS credentials do not validate against it
-	if err := validateRootCAAndTLSCert(rootCA, externalCARootPool, s.certificate); err != nil {
+	if err := validateRootCAAndTLSCert(rootCA, s.certificate); err != nil {
 		return err
 	}
 
 	s.rootCA = rootCA
-	s.externalCAClientRootPool = externalCARootPool
-	s.externalCA.UpdateRootCA(rootCA)
-
 	return s.updateTLSCredentials(s.certificate, s.issuerInfo)
 }
 
@@ -232,14 +206,6 @@ func (s *SecurityConfig) updateTLSCredentials(certificate *tls.Certificate, issu
 	if err := s.ClientTLSCreds.loadNewTLSConfig(clientConfig); err != nil {
 		return errors.Wrap(err, "failed to update the client credentials")
 	}
-
-	// Update the external CA to use the new client TLS
-	// config using a copy without a serverName specified.
-	s.externalCA.UpdateTLSConfig(&tls.Config{
-		Certificates: certs,
-		RootCAs:      s.externalCAClientRootPool,
-		MinVersion:   tls.VersionTLS12,
-	})
 
 	if err := s.ServerTLSCreds.loadNewTLSConfig(serverConfig); err != nil {
 		return errors.Wrap(err, "failed to update the server TLS credentials")
@@ -507,7 +473,7 @@ func updateRootThenUpdateCert(ctx context.Context, s *SecurityConfig, connBroker
 		return nil, nil, err
 	}
 	// validate against the existing security config creds
-	if err := s.UpdateRootCA(&rootCA, rootCA.Pool); err != nil {
+	if err := s.UpdateRootCA(&rootCA); err != nil {
 		return nil, nil, err
 	}
 	if err := SaveRootCA(rootCA, rootPaths); err != nil {

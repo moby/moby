@@ -57,6 +57,12 @@ message GenericResource {
 	}
 }
 
+enum ResourceType {
+	TASK = 0;
+	SECRET = 1;
+	CONFIG = 2;
+}
+
 message Resources {
 	// Amount of CPUs (e.g. 2000000000 = 2 CPU cores)
 	int64 nano_cpus = 1 [(gogoproto.customname) = "NanoCPUs"];
@@ -508,6 +514,15 @@ message TaskStatus {
 	// HostPorts provides a list of ports allocated at the host
 	// level.
 	PortStatus port_status = 6;
+
+	// AppliedBy gives the node ID of the manager that applied this task
+	// status update to the Task object.
+	string applied_by = 7;
+
+	// AppliedAt gives a timestamp of when this status update was applied to
+	// the Task object.
+	// Note: can't use stdtime because this field is nullable.
+	google.protobuf.Timestamp applied_at = 8;
 }
 
 // NetworkAttachmentConfig specifies how a service should be attached to a particular network.

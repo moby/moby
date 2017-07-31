@@ -17,6 +17,13 @@ import (
 func (s *Server) Watch(request *api.WatchRequest, stream api.Watch_WatchServer) error {
 	ctx := stream.Context()
 
+	s.mu.Lock()
+	pctx := s.pctx
+	s.mu.Unlock()
+	if pctx == nil {
+		return errNotRunning
+	}
+
 	watchArgs, err := api.ConvertWatchArgs(request.Entries)
 	if err != nil {
 		return grpc.Errorf(codes.InvalidArgument, "%s", err.Error())
@@ -39,6 +46,8 @@ func (s *Server) Watch(request *api.WatchRequest, stream api.Watch_WatchServer) 
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
+		case <-pctx.Done():
+			return pctx.Err()
 		case event := <-watch:
 			if commitEvent, ok := event.(state.EventCommit); ok && len(events) > 0 {
 				if err := stream.Send(&api.WatchMessage{Events: events, Version: commitEvent.Version}); err != nil {

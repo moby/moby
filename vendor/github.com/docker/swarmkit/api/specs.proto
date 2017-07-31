@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package docker.swarmkit.v1;
 
-import "types.proto";
+import "github.com/docker/swarmkit/api/types.proto";
 import "gogoproto/gogo.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/any.proto";
@@ -128,6 +128,21 @@ message TaskSpec {
 	// using the same reconciliation-based mechanism that performs rolling
 	// updates.
 	uint64 force_update = 9;
+
+	// ResourceReferences provides a generic way to specify resources that
+	// are used by this task, and should be sent down to agents along with
+	// the task. Inside the runtime field there may be more specific
+	// information about how to use the resource, but ResourceReferences
+	// establishes the relationship at the store level, and instructs the
+	// dispatcher to send the related objects.
+	//
+	// ResourceReferences is a list of ResourceReferences used by the task.
+	repeated ResourceReference resource_references = 11 [(gogoproto.nullable) = false];
+}
+
+message ResourceReference {
+	string resource_id = 1;
+	ResourceType resource_type = 2;
 }
 
 message GenericRuntimeSpec {
@@ -278,6 +293,11 @@ message ContainerSpec {
 	// task will exit and a new task will be rescheduled elsewhere. A container
 	// is considered unhealthy after `Retries` number of consecutive failures.
 	HealthConfig healthcheck = 16;
+	
+	// Run a custom init inside the container, if null, use the daemon's configured settings
+	oneof init {
+		bool init_value = 23;
+	}
 }
 
 // EndpointSpec defines the properties that can be configured to

@@ -2,12 +2,12 @@ syntax = "proto3";
 
 package docker.swarmkit.v1;
 
-import "types.proto";
-import "specs.proto";
+import "github.com/docker/swarmkit/api/types.proto";
+import "github.com/docker/swarmkit/api/specs.proto";
 import "google/protobuf/timestamp.proto";
 import "gogoproto/gogo.proto";
 import "google/protobuf/any.proto";
-import "plugin/plugin.proto";
+import "github.com/docker/swarmkit/protobuf/plugin/plugin.proto";
 
 // This file contains definitions for all first-class objects in the cluster
 // API. Such types typically have a corresponding specification, with the

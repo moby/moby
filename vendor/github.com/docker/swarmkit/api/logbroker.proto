@@ -4,7 +4,7 @@ package docker.swarmkit.v1;
 
 import "gogoproto/gogo.proto";
 import "google/protobuf/timestamp.proto";
-import "plugin/plugin.proto";
+import "github.com/docker/swarmkit/protobuf/plugin/plugin.proto";
 
 // LogStream defines the stream from which the log message came.
 enum LogStream {

@@ -63,7 +63,6 @@ func newRootRotationObject(ctx context.Context, securityConfig *ca.SecurityConfi
 		return nil, grpc.Errorf(codes.InvalidArgument, "rotating from one external CA to a different external CA is not supported")
 	default:
 		// We need the same credentials but to connect to the original URLs (in case we are in the middle of a root rotation already)
-		externalCA := securityConfig.ExternalCA().Copy()
 		var urls []string
 		for _, c := range extCAs {
 			if c.Protocol == api.ExternalCA_CAProtocolCFSSL {
@@ -74,7 +73,11 @@ func newRootRotationObject(ctx context.Context, securityConfig *ca.SecurityConfi
 			return nil, grpc.Errorf(codes.InvalidArgument,
 				"must provide an external CA for the current external root CA to generate a cross-signed certificate")
 		}
-		externalCA.UpdateURLs(urls...)
+		rootPool := x509.NewCertPool()
+		rootPool.AppendCertsFromPEM(apiRootCA.CACert)
+
+		externalCAConfig := ca.NewExternalCATLSConfig(securityConfig.ClientTLSCreds.Config().Certificates, rootPool)
+		externalCA := ca.NewExternalCA(nil, externalCAConfig, urls...)
 		crossSignedCert, err = externalCA.CrossSignRootCA(ctx, newCARootCA)
 	}
 
