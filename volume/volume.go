@@ -3,7 +3,6 @@ package volume
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -284,12 +283,7 @@ func ParseMountRaw(raw, volumeDriver string) (*MountPoint, error) {
 		return nil, errInvalidMode(mode)
 	}
 
-	if filepath.IsAbs(spec.Source) {
-		spec.Type = mounttypes.TypeBind
-	} else {
-		spec.Type = mounttypes.TypeVolume
-	}
-
+	spec.Type = detectMountType(spec.Source)
 	spec.ReadOnly = !ReadWrite(mode)
 
 	// cannot assume that if a volume driver is passed in that we should set it
@@ -350,7 +344,7 @@ func ParseMountSpec(cfg mounttypes.Mount, options ...func(*validateOpts)) (*Moun
 				mp.CopyData = false
 			}
 		}
-	case mounttypes.TypeBind:
+	case mounttypes.TypeBind, mounttypes.TypeNamedPipe:
 		mp.Source = clean(convertSlash(cfg.Source))
 		if cfg.BindOptions != nil && len(cfg.BindOptions.Propagation) > 0 {
 			mp.Propagation = cfg.BindOptions.Propagation

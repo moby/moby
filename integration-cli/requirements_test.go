@@ -37,6 +37,12 @@ func DaemonIsWindows() bool {
 	return PlatformIs("windows")
 }
 
+func DaemonIsWindowsAtLeastBuild(buildNumber int) func() bool {
+	return func() bool {
+		return DaemonIsWindows() && testEnv.DaemonKernelVersionNumeric() >= buildNumber
+	}
+}
+
 func DaemonIsLinux() bool {
 	return PlatformIs("linux")
 }
