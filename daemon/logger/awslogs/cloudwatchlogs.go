@@ -371,9 +371,10 @@ var newTicker = func(freq time.Duration) *time.Ticker {
 // configured, log events are submitted to the processEvents method immediately.
 func (l *logStream) collectBatch() {
 	timer := newTicker(batchPublishFrequency)
-	var events []wrappedEvent
+	buf := &batchBuf{}
 	var eventBuffer []byte
 	var eventBufferTimestamp int64
+
 	for {
 		select {
 		case t := <-timer.C:
@@ -383,16 +384,15 @@ func (l *logStream) collectBatch() {
 				eventBufferExpired := eventBufferAge > int64(batchPublishFrequency)/int64(time.Millisecond)
 				eventBufferNegative := eventBufferAge < 0
 				if eventBufferExpired || eventBufferNegative {
-					events = l.processEvent(events, eventBuffer, eventBufferTimestamp)
+					l.processEvent(buf, eventBuffer, eventBufferTimestamp)
 				}
 			}
-			l.publishBatch(events)
-			events = events[:0]
+			l.publishBatch(buf.drain())
 		case msg, more := <-l.messages:
 			if !more {
 				// Flush event buffer
-				events = l.processEvent(events, eventBuffer, eventBufferTimestamp)
-				l.publishBatch(events)
+				l.processEvent(buf, eventBuffer, eventBufferTimestamp)
+				l.publishBatch(buf.drain())
 				return
 			}
 			if eventBufferTimestamp == 0 {
@@ -402,13 +402,13 @@ func (l *logStream) collectBatch() {
 			if l.multilinePattern != nil {
 				if l.multilinePattern.Match(unprocessedLine) {
 					// This is a new log event so flush the current eventBuffer to events
-					events = l.processEvent(events, eventBuffer, eventBufferTimestamp)
+					l.processEvent(buf, eventBuffer, eventBufferTimestamp)
 					eventBufferTimestamp = msg.Timestamp.UnixNano() / int64(time.Millisecond)
 					eventBuffer = eventBuffer[:0]
 				}
 				// If we will exceed max bytes per event flush the current event buffer before appending
 				if len(eventBuffer)+len(unprocessedLine) > maximumBytesPerEvent {
-					events = l.processEvent(events, eventBuffer, eventBufferTimestamp)
+					l.processEvent(buf, eventBuffer, eventBufferTimestamp)
 					eventBuffer = eventBuffer[:0]
 				}
 				// Append new line
@@ -416,11 +416,38 @@ func (l *logStream) collectBatch() {
 				eventBuffer = append(eventBuffer, processedLine...)
 				logger.PutMessage(msg)
 			} else {
-				events = l.processEvent(events, unprocessedLine, msg.Timestamp.UnixNano()/int64(time.Millisecond))
+				l.processEvent(buf, unprocessedLine, msg.Timestamp.UnixNano()/int64(time.Millisecond))
 				logger.PutMessage(msg)
 			}
 		}
 	}
+}
+
+type batchBuf struct {
+	events []wrappedEvent
+	bytes  int
+}
+
+func (b *batchBuf) canAppend(line []byte) bool {
+	return (len(b.events) < maximumLogEventsPerPut) && (b.bytes+len(line)+perEventBytes <= maximumBytesPerPut)
+}
+
+func (b *batchBuf) append(line []byte, timestamp int64) {
+	b.events = append(b.events, wrappedEvent{
+		inputLogEvent: &cloudwatchlogs.InputLogEvent{
+			Message:   aws.String(string(line)),
+			Timestamp: aws.Int64(timestamp),
+		},
+		insertOrder: len(b.events),
+	})
+	b.bytes += len(line) + perEventBytes
+}
+
+func (b *batchBuf) drain() []wrappedEvent {
+	ret := b.events
+	b.bytes = 0
+	b.events = b.events[:0]
+	return ret
 }
 
 // processEvent processes log events that are ready for submission to CloudWatch
@@ -432,8 +459,7 @@ func (l *logStream) collectBatch() {
 // bytes per event (defined in maximumBytesPerEvent).  There is a fixed per-event
 // byte overhead (defined in perEventBytes) which is accounted for in split- and
 // batch-calculations.
-func (l *logStream) processEvent(events []wrappedEvent, unprocessedLine []byte, timestamp int64) []wrappedEvent {
-	bytes := 0
+func (l *logStream) processEvent(buf *batchBuf, unprocessedLine []byte, timestamp int64) {
 	for len(unprocessedLine) > 0 {
 		// Split line length so it does not exceed the maximum
 		lineBytes := len(unprocessedLine)
@@ -442,23 +468,13 @@ func (l *logStream) processEvent(events []wrappedEvent, unprocessedLine []byte, 
 		}
 		line := unprocessedLine[:lineBytes]
 		unprocessedLine = unprocessedLine[lineBytes:]
-		if (len(events) >= maximumLogEventsPerPut) || (bytes+lineBytes+perEventBytes > maximumBytesPerPut) {
+		if !buf.canAppend(line) {
 			// Publish an existing batch if it's already over the maximum number of events or if adding this
 			// event would push it over the maximum number of total bytes.
-			l.publishBatch(events)
-			events = events[:0]
-			bytes = 0
+			l.publishBatch(buf.drain())
 		}
-		events = append(events, wrappedEvent{
-			inputLogEvent: &cloudwatchlogs.InputLogEvent{
-				Message:   aws.String(string(line)),
-				Timestamp: aws.Int64(timestamp),
-			},
-			insertOrder: len(events),
-		})
-		bytes += (lineBytes + perEventBytes)
+		buf.append(line, timestamp)
 	}
-	return events
 }
 
 // publishBatch calls PutLogEvents for a given set of InputLogEvents,
