@@ -2,9 +2,9 @@
 package v1p19
 
 import (
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/versions/v1p20"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/versions/v1p20"
 	"github.com/docker/go-connections/nat"
 )
 

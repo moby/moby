@@ -9,9 +9,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/versions"
+	"github.com/moby/moby/api/server/httputils"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/versions"
 	"golang.org/x/net/context"
 )
 

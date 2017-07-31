@@ -3,7 +3,7 @@ package session
 import (
 	"net/http"
 
-	apierrors "github.com/docker/docker/api/errors"
+	apierrors "github.com/moby/moby/api/errors"
 	"golang.org/x/net/context"
 )
 

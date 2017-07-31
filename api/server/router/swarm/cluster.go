@@ -1,6 +1,6 @@
 package swarm
 
-import "github.com/docker/docker/api/server/router"
+import "github.com/moby/moby/api/server/router"
 
 // swarmRouter is a router to talk with the build controller
 type swarmRouter struct {

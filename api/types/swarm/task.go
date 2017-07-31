@@ -3,7 +3,7 @@ package swarm
 import (
 	"time"
 
-	"github.com/docker/docker/api/types/swarm/runtime"
+	"github.com/moby/moby/api/types/swarm/runtime"
 )
 
 // TaskState represents the state of a task.

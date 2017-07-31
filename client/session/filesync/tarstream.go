@@ -4,8 +4,8 @@ import (
 	"io"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/chrootarchive"
+	"github.com/moby/moby/pkg/archive"
+	"github.com/moby/moby/pkg/chrootarchive"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 )

@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
-	volumetypes "github.com/docker/docker/api/types/volume"
+	"github.com/moby/moby/api/types"
+	volumetypes "github.com/moby/moby/api/types/volume"
 	"golang.org/x/net/context"
 )
 

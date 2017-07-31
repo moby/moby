@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"runtime"
 
-	"github.com/docker/docker/api/errors"
-	"github.com/docker/docker/api/types/versions"
+	"github.com/moby/moby/api/errors"
+	"github.com/moby/moby/api/types/versions"
 	"golang.org/x/net/context"
 )
 

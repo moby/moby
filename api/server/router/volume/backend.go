@@ -4,8 +4,8 @@ import (
 	"golang.org/x/net/context"
 
 	// TODO return types need to be refactored into pkg
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/filters"
 )
 
 // Backend is the methods that need to be implemented to provide
