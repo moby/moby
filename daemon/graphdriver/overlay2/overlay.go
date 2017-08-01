@@ -703,6 +703,8 @@ func (d *Driver) Diff(id, parent string) (io.ReadCloser, error) {
 		UIDMaps:        d.uidMaps,
 		GIDMaps:        d.gidMaps,
 		WhiteoutFormat: archive.OverlayWhiteoutFormat,
+		Xattrs:         true,
+		XattrsInclude:  []string{"trusted.overlay.*"},
 	})
 }
 

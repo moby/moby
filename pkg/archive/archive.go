@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"syscall"
@@ -52,6 +53,10 @@ type (
 		// replaced with the matching name from this map.
 		RebaseNames map[string]string
 		InUserNS    bool
+		// Xattrs enable extended attributes support
+		Xattrs bool
+		// XattrsInclude specify include pattern for extended attributes.
+		XattrsInclude []string
 	}
 )
 
@@ -415,7 +420,7 @@ func canonicalTarName(name string, isDir bool) (string, error) {
 }
 
 // addTarFile adds to the tar archive a file from `path` as `name`
-func (ta *tarAppender) addTarFile(path, name string) error {
+func (ta *tarAppender) addTarFile(path, name string, xattr bool, includexattrs []string) error {
 	fi, err := os.Lstat(path)
 	if err != nil {
 		return err
@@ -454,6 +459,27 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 		} else {
 			ta.SeenFiles[inode] = name
 		}
+	}
+
+	if xattr {
+		// if the filesystem doesn't support xattr, this will fail.
+		xattrs, err := system.Listxattr(path)
+		if err != nil {
+			return err
+		}
+		for _, xar := range xattrs {
+			for _, includexattr := range includexattrs {
+				match, _ := regexp.MatchString(includexattr, xar)
+				if match {
+					val, _ := system.Lgetxattr(path, xar)
+					if hdr.Xattrs == nil {
+						hdr.Xattrs = make(map[string]string)
+					}
+					hdr.Xattrs[xar] = string(val)
+				}
+			}
+		}
+
 	}
 
 	//handle re-mapping container ID mappings back to host ID mappings before
@@ -827,7 +853,7 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 					relFilePath = strings.Replace(relFilePath, include, replacement, 1)
 				}
 
-				if err := ta.addTarFile(filePath, relFilePath); err != nil {
+				if err := ta.addTarFile(filePath, relFilePath, options.Xattrs, options.XattrsInclude); err != nil {
 					logrus.Errorf("Can't add file %s to tar: %s", filePath, err)
 					// if pipe is broken, stop writing tar stream to it
 					if err == io.ErrClosedPipe {
