@@ -143,8 +143,7 @@ static int write_file(char *data, size_t data_len, char *pathfmt, ...)
 
 	fd = open(path, O_RDWR);
 	if (fd < 0) {
-		ret = -1;
-		goto out;
+		return -1;
 	}
 
 	len = write(fd, data, data_len);
@@ -543,7 +542,7 @@ void nsexec(void)
 	 */
 	case JUMP_PARENT: {
 			int len;
-			pid_t child;
+			pid_t child, first_child = -1;
 			char buf[JSON_MAX];
 			bool ready = false;
 
@@ -607,18 +606,18 @@ void nsexec(void)
 					}
 					break;
 				case SYNC_RECVPID_PLS: {
-						pid_t old = child;
+						first_child = child;
 
 						/* Get the init_func pid. */
 						if (read(syncfd, &child, sizeof(child)) != sizeof(child)) {
-							kill(old, SIGKILL);
+							kill(first_child, SIGKILL);
 							bail("failed to sync with child: read(childpid)");
 						}
 
 						/* Send ACK. */
 						s = SYNC_RECVPID_ACK;
 						if (write(syncfd, &s, sizeof(s)) != sizeof(s)) {
-							kill(old, SIGKILL);
+							kill(first_child, SIGKILL);
 							kill(child, SIGKILL);
 							bail("failed to sync with child: write(SYNC_RECVPID_ACK)");
 						}
@@ -666,8 +665,13 @@ void nsexec(void)
 				}
 			}
 
-			/* Send the init_func pid back to our parent. */
-			len = snprintf(buf, JSON_MAX, "{\"pid\": %d}\n", child);
+			/*
+			 * Send the init_func pid and the pid of the first child back to our parent.
+			 *
+			 * We need to send both back because we can't reap the first child we created (CLONE_PARENT).
+			 * It becomes the responsibility of our parent to reap the first child.
+			 */
+			len = snprintf(buf, JSON_MAX, "{\"pid\": %d, \"pid_first\": %d}\n", child, first_child);
 			if (len < 0) {
 				kill(child, SIGKILL);
 				bail("unable to generate JSON for child pid");

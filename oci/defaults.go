@@ -50,10 +50,6 @@ func DefaultOSSpec(osName string) specs.Spec {
 func DefaultWindowsSpec() specs.Spec {
 	return specs.Spec{
 		Version: specs.Version,
-		Platform: specs.Platform{
-			OS:   runtime.GOOS,
-			Arch: runtime.GOARCH,
-		},
 		Windows: &specs.Windows{},
 	}
 }
@@ -62,10 +58,6 @@ func DefaultWindowsSpec() specs.Spec {
 func DefaultSolarisSpec() specs.Spec {
 	s := specs.Spec{
 		Version: "0.6.0",
-		Platform: specs.Platform{
-			OS:   "SunOS",
-			Arch: runtime.GOARCH,
-		},
 	}
 	s.Solaris = &specs.Solaris{}
 	return s
@@ -75,10 +67,7 @@ func DefaultSolarisSpec() specs.Spec {
 func DefaultLinuxSpec() specs.Spec {
 	s := specs.Spec{
 		Version: specs.Version,
-		Platform: specs.Platform{
-			OS:   "linux",
-			Arch: runtime.GOARCH,
-		},
+		Process: &specs.Process{},
 	}
 	s.Mounts = []specs.Mount{
 		{

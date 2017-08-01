@@ -1,5 +1,3 @@
-// +build linux freebsd
-
 package configs
 
 type FreezerState string
@@ -45,19 +43,19 @@ type Resources struct {
 	Devices []*Device `json:"devices"`
 
 	// Memory limit (in bytes)
-	Memory uint64 `json:"memory"`
+	Memory int64 `json:"memory"`
 
 	// Memory reservation or soft_limit (in bytes)
-	MemoryReservation uint64 `json:"memory_reservation"`
+	MemoryReservation int64 `json:"memory_reservation"`
 
 	// Total memory usage (memory + swap); set `-1` to enable unlimited swap
-	MemorySwap uint64 `json:"memory_swap"`
+	MemorySwap int64 `json:"memory_swap"`
 
 	// Kernel memory limit (in bytes)
-	KernelMemory uint64 `json:"kernel_memory"`
+	KernelMemory int64 `json:"kernel_memory"`
 
 	// Kernel memory limit for TCP use (in bytes)
-	KernelMemoryTCP uint64 `json:"kernel_memory_tcp"`
+	KernelMemoryTCP int64 `json:"kernel_memory_tcp"`
 
 	// CPU shares (relative weight vs. other containers)
 	CpuShares uint64 `json:"cpu_shares"`

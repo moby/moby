@@ -434,7 +434,7 @@ func (c *container) Start(ctx context.Context, checkpointPath string, s Stdio) (
 		c:           c,
 		stdio:       s,
 		spec:        spec,
-		processSpec: specs.ProcessSpec(spec.Process),
+		processSpec: specs.ProcessSpec(*spec.Process),
 	}
 	p, err := newProcess(config)
 	if err != nil {
@@ -544,7 +544,6 @@ func (c *container) createCmd(ctx context.Context, pid string, cmd *exec.Cmd, p 
 	case err := <-ch:
 		return err
 	}
-	return nil
 }
 
 func hostIDFromMap(id uint32, mp []ocs.LinuxIDMapping) int {

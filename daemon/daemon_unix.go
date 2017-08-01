@@ -68,18 +68,15 @@ func getMemoryResources(config containertypes.Resources) *specs.LinuxMemory {
 	memory := specs.LinuxMemory{}
 
 	if config.Memory > 0 {
-		limit := uint64(config.Memory)
-		memory.Limit = &limit
+		memory.Limit = &config.Memory
 	}
 
 	if config.MemoryReservation > 0 {
-		reservation := uint64(config.MemoryReservation)
-		memory.Reservation = &reservation
+		memory.Reservation = &config.MemoryReservation
 	}
 
 	if config.MemorySwap > 0 {
-		swap := uint64(config.MemorySwap)
-		memory.Swap = &swap
+		memory.Swap = &config.MemorySwap
 	}
 
 	if config.MemorySwappiness != nil {
@@ -88,8 +85,7 @@ func getMemoryResources(config containertypes.Resources) *specs.LinuxMemory {
 	}
 
 	if config.KernelMemory != 0 {
-		kernelMemory := uint64(config.KernelMemory)
-		memory.Kernel = &kernelMemory
+		memory.Kernel = &config.KernelMemory
 	}
 
 	return &memory

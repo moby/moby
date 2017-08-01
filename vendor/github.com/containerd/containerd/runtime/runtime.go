@@ -84,18 +84,20 @@ type State string
 
 // Resource regroups the various container limits that can be updated
 type Resource struct {
-	CPUShares         int64
-	BlkioWeight       uint16
-	CPUPeriod         int64
-	CPUQuota          int64
-	CpusetCpus        string
-	CpusetMems        string
-	KernelMemory      int64
-	KernelTCPMemory   int64
-	Memory            int64
-	MemoryReservation int64
-	MemorySwap        int64
-	PidsLimit         int64
+	CPUShares          int64
+	BlkioWeight        uint16
+	CPUPeriod          int64
+	CPUQuota           int64
+	CpusetCpus         string
+	CpusetMems         string
+	KernelMemory       int64
+	KernelTCPMemory    int64
+	Memory             int64
+	MemoryReservation  int64
+	MemorySwap         int64
+	PidsLimit          int64
+	CPURealtimePeriod  uint64
+	CPURealtimdRuntime int64
 }
 
 // Possible container states
