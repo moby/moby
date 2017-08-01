@@ -53,9 +53,7 @@ func (s *DockerSuite) TestAPIImagesFilter(c *check.C) {
 }
 
 func (s *DockerSuite) TestAPIImagesSaveAndLoad(c *check.C) {
-	// TODO Windows to Windows CI: Investigate further why this test fails.
 	testRequires(c, Network)
-	testRequires(c, DaemonIsLinux)
 	buildImageSuccessfully(c, "saveandload", build.WithDockerfile("FROM busybox\nENV FOO bar"))
 	id := getIDByName(c, "saveandload")
 
