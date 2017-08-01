@@ -15,36 +15,6 @@ func setupEnvironmentVariables(a []string) map[string]string {
 	return r
 }
 
-// Apply for a servicing option is a no-op.
-func (s *ServicingOption) Apply(interface{}) error {
-	return nil
-}
-
-// Apply for the flush option is a no-op.
-func (f *FlushOption) Apply(interface{}) error {
-	return nil
-}
-
-// Apply for the hypervisolation option is a no-op.
-func (h *HyperVIsolationOption) Apply(interface{}) error {
-	return nil
-}
-
-// Apply for the layer option is a no-op.
-func (h *LayerOption) Apply(interface{}) error {
-	return nil
-}
-
-// Apply for the network endpoints option is a no-op.
-func (s *NetworkEndpointsOption) Apply(interface{}) error {
-	return nil
-}
-
-// Apply for the credentials option is a no-op.
-func (s *CredentialsOption) Apply(interface{}) error {
-	return nil
-}
-
 // Apply for the LCOW option is a no-op.
 func (s *LCOWOption) Apply(interface{}) error {
 	return nil
