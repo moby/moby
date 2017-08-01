@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"syscall"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/system"
@@ -15,10 +16,11 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// hasOpaqueCopyUpBug checks whether the filesystem has a bug
+// doesSupportNativeDiff checks whether the filesystem has a bug
 // which copies up the opaque flag when copying up an opaque
-// directory. When this bug exists naive diff should be used.
-func hasOpaqueCopyUpBug(d string) error {
+// directory or the kernel enable CONFIG_OVERLAY_FS_REDIRECT_DIR.
+// When these exist naive diff should be used.
+func doesSupportNativeDiff(d string) error {
 	td, err := ioutil.TempDir(d, "opaque-bug-check")
 	if err != nil {
 		return err
@@ -29,8 +31,11 @@ func hasOpaqueCopyUpBug(d string) error {
 		}
 	}()
 
-	// Make directories l1/d, l2/d, l3, work, merged
+	// Make directories l1/d, l1/d1, l2/d, l3, work, merged
 	if err := os.MkdirAll(filepath.Join(td, "l1", "d"), 0755); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Join(td, "l1", "d1"), 0755); err != nil {
 		return err
 	}
 	if err := os.MkdirAll(filepath.Join(td, "l2", "d"), 0755); err != nil {
@@ -73,6 +78,24 @@ func hasOpaqueCopyUpBug(d string) error {
 	}
 	if string(xattrOpaque) == "y" {
 		return errors.New("opaque flag erroneously copied up, consider update to kernel 4.8 or later to fix")
+	}
+
+	// rename "d1" to "d2"
+	if err := os.Rename(filepath.Join(td, "merged", "d1"), filepath.Join(td, "merged", "d2")); err != nil {
+		// if rename failed with syscall.EXDEV, the kernel doesn't have CONFIG_OVERLAY_FS_REDIRECT_DIR enabled
+		if err.(*os.LinkError).Err == syscall.EXDEV {
+			return nil
+		}
+		return errors.Wrap(err, "failed to rename dir in merged directory")
+	}
+	// get the xattr of "d2"
+	xattrRedirect, err := system.Lgetxattr(filepath.Join(td, "l3", "d2"), "trusted.overlay.redirect")
+	if err != nil {
+		return errors.Wrap(err, "failed to read redirect flag on upper layer")
+	}
+
+	if string(xattrRedirect) == "d1" {
+		return errors.New("kernel has CONFIG_OVERLAY_FS_REDIRECT_DIR enabled")
 	}
 
 	return nil
