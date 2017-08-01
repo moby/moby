@@ -15,14 +15,20 @@
 # the case. Therefore, you don't have to disable it anymore.
 #
 
-FROM aarch64/ubuntu:xenial
+FROM arm64v8/debian:stretch
+
+# allow replacing httpredir or deb mirror
+ARG APT_MIRROR=deb.debian.org
+RUN sed -ri "s/(httpredir|deb).debian.org/$APT_MIRROR/g" /etc/apt/sources.list
 
 # Packaged dependencies
 RUN apt-get update && apt-get install -y \
 	apparmor \
+	apt-utils \
 	aufs-tools \
 	automake \
 	bash-completion \
+	bsdmainutils \
 	btrfs-tools \
 	build-essential \
 	cmake \
@@ -32,26 +38,34 @@ RUN apt-get update && apt-get install -y \
 	g++ \
 	gcc \
 	git \
+	golang \
 	iptables \
 	jq \
+	less \
 	libapparmor-dev \
-	libc6-dev \
 	libcap-dev \
+	libnl-3-dev \
+	libprotobuf-c0-dev \
+	libprotobuf-dev \
 	libsystemd-dev \
-	libyaml-dev \
+	libtool \
+	libudev-dev \
 	mercurial \
 	net-tools \
-	parallel \
 	pkg-config \
+	protobuf-compiler \
+	protobuf-c-compiler \
 	python-dev \
 	python-mock \
 	python-pip \
 	python-setuptools \
 	python-websocket \
-	golang-go \
-	iproute2 \
-	iputils-ping \
+	tar \
+	thin-provisioning-tools \
+	vim \
 	vim-common \
+	xfsprogs \
+	zip \
 	--no-install-recommends
 
 # Get lvm2 sources to build statically linked devmapper library
@@ -66,6 +80,7 @@ RUN cd /usr/local/lvm2 \
 		--build="$(gcc -print-multiarch)" \
 		--enable-static_link \
 		--enable-pkgconfig \
+		--enable-udev_sync \
 	&& make -C include \
 	&& make -C libdm install_device-mapper
 
@@ -86,9 +101,7 @@ RUN set -x \
 
 # Install Go
 # We don't have official binary golang 1.7.5 tarballs for ARM64, either for Go or
-# bootstrap, so we use golang-go (1.6) as bootstrap to build Go from source code.
-# We don't use the official ARMv6 released binaries as a GOROOT_BOOTSTRAP, because
-# not all ARM64 platforms support 32-bit mode. 32-bit mode is optional for ARMv8.
+# bootstrap, so we use Debian golang (1.7) as bootstrap to build Go from source code.
 # IMPORTANT: When updating this please note that stdlib archive/tar pkg is vendored
 ENV GO_VERSION 1.8.3
 RUN mkdir /usr/src/go && curl -fsSL https://golang.org/dl/go${GO_VERSION}.src.tar.gz | tar -v -C /usr/src/go -xz --strip-components=1 \
