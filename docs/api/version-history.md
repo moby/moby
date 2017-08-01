@@ -19,6 +19,14 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 * `DELETE /secrets/(name)` now returns status code 404 instead of 500 when the secret does not exist.
 * `POST /secrets/create` now returns status code 409 instead of 500 when creating an already existing secret.
+* `POST /secrets/create` now accepts a `Driver` struct, allowing the
+  `Name` and driver-specific `Options` to be passed to store a secrets
+  in an external secrets store. The `Driver` property can be omitted
+  if the default (internal) secrets store is used.
+* `GET /secrets/(id)` and `GET /secrets` now return a `Driver` struct,
+  containing the `Name` and driver-specific `Options` of the external
+  secrets store used to store the secret. The `Driver` property is
+  omitted if no external store is used.
 * `POST /secrets/(name)/update` now returns status code 400 instead of 500 when updating a secret's content which is not the labels.
 * `POST /nodes/(name)/update` now returns status code 400 instead of 500 when demoting last node fails.
 * `GET /networks/(id or name)` now takes an optional query parameter `scope` that will filter the network based on the scope (`local`, `swarm`, or `global`).
