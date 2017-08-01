@@ -295,7 +295,7 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 	fixMemorySwappiness(resources)
 
 	// memory subsystem checks and adjustments
-	if resources.Memory != 0 && resources.Memory < linuxMinMemory {
+	if resources.Memory > 0 && resources.Memory < linuxMinMemory {
 		return warnings, fmt.Errorf("Minimum memory limit allowed is 4MB")
 	}
 	if resources.Memory > 0 && !sysInfo.MemoryLimit {
