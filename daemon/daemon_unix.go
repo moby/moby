@@ -64,6 +64,10 @@ const (
 	cgroupSystemdDriver = "systemd"
 )
 
+type containerGetter interface {
+	GetContainer(string) (*container.Container, error)
+}
+
 func getMemoryResources(config containertypes.Resources) *specs.LinuxMemory {
 	memory := specs.LinuxMemory{}
 
@@ -285,6 +289,8 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 		hostConfig.IpcMode = containertypes.IpcMode(m)
 	}
 
+	adaptSharedNamespaceContainer(daemon, hostConfig)
+
 	var err error
 	opts, err := daemon.generateSecurityOpt(hostConfig)
 	if err != nil {
@@ -297,6 +303,36 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 	}
 
 	return nil
+}
+
+// adaptSharedNamespaceContainer replaces container name with its ID in hostConfig.
+// To be more precisely, it modifies `container:name` to `container:ID` of PidMode, IpcMode
+// and NetworkMode.
+//
+// When a container shares its namespace with another container, use ID can keep the namespace
+// sharing connection between the two containers even the another container is renamed.
+func adaptSharedNamespaceContainer(daemon containerGetter, hostConfig *containertypes.HostConfig) {
+	containerPrefix := "container:"
+	if hostConfig.PidMode.IsContainer() {
+		pidContainer := hostConfig.PidMode.Container()
+		// if there is any error returned here, we just ignore it and leave it to be
+		// handled in the following logic
+		if c, err := daemon.GetContainer(pidContainer); err == nil {
+			hostConfig.PidMode = containertypes.PidMode(containerPrefix + c.ID)
+		}
+	}
+	if hostConfig.IpcMode.IsContainer() {
+		ipcContainer := hostConfig.IpcMode.Container()
+		if c, err := daemon.GetContainer(ipcContainer); err == nil {
+			hostConfig.IpcMode = containertypes.IpcMode(containerPrefix + c.ID)
+		}
+	}
+	if hostConfig.NetworkMode.IsContainer() {
+		netContainer := hostConfig.NetworkMode.ConnectedContainer()
+		if c, err := daemon.GetContainer(netContainer); err == nil {
+			hostConfig.NetworkMode = containertypes.NetworkMode(containerPrefix + c.ID)
+		}
+	}
 }
 
 func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysinfo.SysInfo, update bool) ([]string, error) {

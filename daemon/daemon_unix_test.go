@@ -3,6 +3,7 @@
 package daemon
 
 import (
+	"errors"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -17,6 +18,44 @@ import (
 	"github.com/docker/docker/volume/local"
 	"github.com/docker/docker/volume/store"
 )
+
+type fakeContainerGetter struct {
+	containers map[string]*container.Container
+}
+
+func (f *fakeContainerGetter) GetContainer(cid string) (*container.Container, error) {
+	container, ok := f.containers[cid]
+	if !ok {
+		return nil, errors.New("container not found")
+	}
+	return container, nil
+}
+
+// Unix test as uses settings which are not available on Windows
+func TestAdjustSharedNamespaceContainerName(t *testing.T) {
+	fakeID := "abcdef1234567890"
+	hostConfig := &containertypes.HostConfig{
+		IpcMode:     containertypes.IpcMode("container:base"),
+		PidMode:     containertypes.PidMode("container:base"),
+		NetworkMode: containertypes.NetworkMode("container:base"),
+	}
+	containerStore := &fakeContainerGetter{}
+	containerStore.containers = make(map[string]*container.Container)
+	containerStore.containers["base"] = &container.Container{
+		ID: fakeID,
+	}
+
+	adaptSharedNamespaceContainer(containerStore, hostConfig)
+	if hostConfig.IpcMode != containertypes.IpcMode("container:"+fakeID) {
+		t.Errorf("Expected IpcMode to be container:%s", fakeID)
+	}
+	if hostConfig.PidMode != containertypes.PidMode("container:"+fakeID) {
+		t.Errorf("Expected PidMode to be container:%s", fakeID)
+	}
+	if hostConfig.NetworkMode != containertypes.NetworkMode("container:"+fakeID) {
+		t.Errorf("Expected NetworkMode to be container:%s", fakeID)
+	}
+}
 
 // Unix test as uses settings which are not available on Windows
 func TestAdjustCPUShares(t *testing.T) {
