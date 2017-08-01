@@ -16,6 +16,7 @@ import (
 
 	"github.com/Microsoft/hcsshim"
 	"github.com/docker/docker/pkg/sysinfo"
+	opengcs "github.com/jhowardmsft/opengcs/gogcs/client"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 )
@@ -289,8 +290,20 @@ func (clnt *client) createWindows(containerID string, checkpoint string, checkpo
 func (clnt *client) createLinux(containerID string, checkpoint string, checkpointDir string, spec specs.Spec, attachStdio StdioCallback, options ...CreateOption) error {
 	logrus.Debugf("libcontainerd: createLinux(): containerId %s ", containerID)
 
-	// TODO @jhowardmsft LCOW Support: This needs to be configurable, not hard-coded.
-	// However, good-enough for the LCOW bring-up.
+	var layerOpt *LayerOption
+	var lcowOpt *LCOWOption
+	for _, option := range options {
+		if layer, ok := option.(*LayerOption); ok {
+			layerOpt = layer
+		}
+		if lcow, ok := option.(*LCOWOption); ok {
+			lcowOpt = lcow
+		}
+	}
+	if lcowOpt == nil || lcowOpt.Config == nil {
+		return fmt.Errorf("lcow option must be supplied to the runtime")
+	}
+
 	configuration := &hcsshim.ContainerConfig{
 		HvPartition:   true,
 		Name:          containerID,
@@ -298,17 +311,18 @@ func (clnt *client) createLinux(containerID string, checkpoint string, checkpoin
 		ContainerType: "linux",
 		Owner:         defaultOwner,
 		TerminateOnLastHandleClosed: true,
-		HvRuntime: &hcsshim.HvRuntime{
-			ImagePath:       `c:\Program Files\Linux Containers`,
-			LinuxKernelFile: `bootx64.efi`,
-			LinuxInitrdFile: `initrd.img`,
-		},
 	}
 
-	var layerOpt *LayerOption
-	for _, option := range options {
-		if l, ok := option.(*LayerOption); ok {
-			layerOpt = l
+	if lcowOpt.Config.ActualMode == opengcs.ModeActualVhdx {
+		configuration.HvRuntime = &hcsshim.HvRuntime{
+			ImagePath: lcowOpt.Config.Vhdx,
+		}
+	} else {
+		configuration.HvRuntime = &hcsshim.HvRuntime{
+			ImagePath:           lcowOpt.Config.KirdPath,
+			LinuxKernelFile:     lcowOpt.Config.KernelFile,
+			LinuxInitrdFile:     lcowOpt.Config.InitrdFile,
+			LinuxBootParameters: lcowOpt.Config.BootParameters,
 		}
 	}
 
