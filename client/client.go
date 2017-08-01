@@ -44,12 +44,14 @@ package client // import "github.com/docker/docker/client"
 import (
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
@@ -130,6 +132,10 @@ func FromEnv(c *Client) error {
 		httpClient = &http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: tlsc,
+				DialContext: (&net.Dialer{
+					KeepAlive: 30 * time.Second,
+					Timeout:   30 * time.Second,
+				}).DialContext,
 			},
 			CheckRedirect: CheckRedirect,
 		}
