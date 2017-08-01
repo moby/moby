@@ -32,6 +32,7 @@ func init() {
 // Execution holds informations about the test execution environment.
 type Execution struct {
 	daemonPlatform      string
+	daemonIsLCOW        bool
 	localDaemon         bool
 	experimentalDaemon  bool
 	daemonStorageDriver string
@@ -76,6 +77,7 @@ func New() (*Execution, error) {
 		return nil, err
 	}
 	daemonPlatform := info.OSType
+	daemonIsLCOW := false
 	if daemonPlatform != "linux" && daemonPlatform != "windows" {
 		return nil, fmt.Errorf("Cannot run tests against platform: %s", daemonPlatform)
 	}
@@ -87,11 +89,13 @@ func New() (*Execution, error) {
 	if daemonPlatform == "windows" {
 		volumesConfigPath = strings.Replace(volumesConfigPath, `/`, `\`, -1)
 		containerStoragePath = strings.Replace(containerStoragePath, `/`, `\`, -1)
-
-		baseImage = "microsoft/windowsservercore"
-		if len(os.Getenv("WINDOWS_BASE_IMAGE")) > 0 {
-			baseImage = os.Getenv("WINDOWS_BASE_IMAGE")
-			fmt.Println("INFO: Windows Base image is ", baseImage)
+		daemonIsLCOW = strings.Contains(info.Driver, "lcow")
+		if !daemonIsLCOW {
+			baseImage = "microsoft/windowsservercore"
+			if len(os.Getenv("WINDOWS_BASE_IMAGE")) > 0 {
+				baseImage = os.Getenv("WINDOWS_BASE_IMAGE")
+				fmt.Println("INFO: Windows Base image is ", baseImage)
+			}
 		}
 	} else {
 		volumesConfigPath = strings.Replace(volumesConfigPath, `\`, `/`, -1)
@@ -115,6 +119,7 @@ func New() (*Execution, error) {
 	return &Execution{
 		localDaemon:          localDaemon,
 		daemonPlatform:       daemonPlatform,
+		daemonIsLCOW:         daemonIsLCOW,
 		daemonStorageDriver:  info.Driver,
 		daemonKernelVersion:  info.KernelVersion,
 		dockerBasePath:       info.DockerRootDir,
@@ -151,6 +156,11 @@ func (e *Execution) LocalDaemon() bool {
 // a version call to the daemon and examining the response header.
 func (e *Execution) DaemonPlatform() string {
 	return e.daemonPlatform
+}
+
+// DaemonIsLCOW returns true if the daemon supports Linux Containers on Windows.
+func (e *Execution) DaemonIsLCOW() bool {
+	return e.daemonIsLCOW
 }
 
 // DockerBasePath is the base path of the docker folder (by default it is -/var/run/docker)

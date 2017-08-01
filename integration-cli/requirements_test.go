@@ -41,6 +41,9 @@ func DaemonIsLinux() bool {
 	return PlatformIs("linux")
 }
 
+func DaemonIsLCOW() bool {
+	return testEnv.DaemonIsLCOW()
+}
 func ExperimentalDaemon() bool {
 	return testEnv.ExperimentalDaemon()
 }
@@ -200,4 +203,10 @@ func IsolationIsProcess() bool {
 // for the test to run or skips the tests.
 func testRequires(c *check.C, requirements ...requirement.Test) {
 	requirement.Is(c, requirements...)
+}
+
+// testRequiresOneOf checks if the environment satisfies the requirements
+// for the test to run or skips the tests.
+func testRequiresOneOf(c *check.C, requirements ...requirement.Test) {
+	requirement.IsOneOf(c, requirements...)
 }
