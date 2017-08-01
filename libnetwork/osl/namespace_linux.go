@@ -356,6 +356,22 @@ func (n *networkNamespace) loopbackUp() error {
 	return n.nlHandle.LinkSetUp(iface)
 }
 
+func (n *networkNamespace) AddLoopbackAliasIP(ip *net.IPNet) error {
+	iface, err := n.nlHandle.LinkByName("lo")
+	if err != nil {
+		return err
+	}
+	return n.nlHandle.AddrAdd(iface, &netlink.Addr{IPNet: ip})
+}
+
+func (n *networkNamespace) RemoveLoopbackAliasIP(ip *net.IPNet) error {
+	iface, err := n.nlHandle.LinkByName("lo")
+	if err != nil {
+		return err
+	}
+	return n.nlHandle.AddrDel(iface, &netlink.Addr{IPNet: ip})
+}
+
 func (n *networkNamespace) InvokeFunc(f func()) error {
 	return nsInvoke(n.nsPath(), func(nsFD int) error { return nil }, func(callerFD int) error {
 		f()
