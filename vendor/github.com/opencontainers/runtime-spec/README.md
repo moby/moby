@@ -10,7 +10,6 @@ Additional documentation about how this group operates:
 
 - [Code of Conduct][code-of-conduct]
 - [Style and Conventions](style.md)
-- [Roadmap](ROADMAP.md)
 - [Implementations](implementations.md)
 - [Releases](RELEASES.md)
 - [project](project.md)
@@ -33,12 +32,7 @@ Example use cases include sophisticated network configuration, volume garbage co
 
 ### Runtime Developers
 
-Runtime developers can build runtime implementations that run OCI-compliant bundles and container configuration, containing low-level OS and host specific details, on a particular platform.
-
-## Releases
-
-There is a loose [Road Map](./ROADMAP.md).
-During the `0.x` series of OCI releases we make no backwards compatibility guarantees and intend to break the schema during this series.
+Runtime developers can build runtime implementations that run OCI-compliant bundles and container configuration, containing low-level OS and host-specific details, on a particular platform.
 
 ## Contributing
 
@@ -63,7 +57,7 @@ When in doubt, start on the [mailing-list](#mailing-list).
 The contributors and maintainers of all OCI projects have a weekly meeting on Wednesdays at:
 
 * 8:00 AM (USA Pacific), during [odd weeks][iso-week].
-* 5:00 PM (USA Pacific), during [even weeks][iso-week].
+* 2:00 PM (USA Pacific), during [even weeks][iso-week].
 
 There is an [iCalendar][rfc5545] format for the meetings [here](meeting.ics).
 
@@ -145,7 +139,7 @@ Read more on [How to Write a Git Commit Message][how-to-git-commit] or the Discu
 5. Use the imperative mood in the subject line
 6. Wrap the body at 72 characters
 7. Use the body to explain what and why vs. how
-  * If there was important/useful/essential conversation or information, copy or include a reference
+    * If there was important/useful/essential conversation or information, copy or include a reference
 8. When possible, one keyword to scope the change in the subject (i.e. "README: ...", "runtime: ...")
 
 
