@@ -13,6 +13,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+// Same as DM_DEVICE_* enum values from libdevmapper.h
 const (
 	deviceCreate TaskType = iota
 	deviceReload

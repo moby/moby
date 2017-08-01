@@ -2,7 +2,7 @@
 
 package devicemapper
 
-// LibraryDeferredRemovalSupport is not supported when statically linked.
+// LibraryDeferredRemovalSupport tells if the feature is enabled in the build
 const LibraryDeferredRemovalSupport = false
 
 func dmTaskDeferredRemoveFct(task *cdmTask) int {
