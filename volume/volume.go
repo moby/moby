@@ -3,7 +3,6 @@ package volume
 import (
 	"fmt"
 	"os"
-	"strings"
 	"syscall"
 	"time"
 
@@ -216,153 +215,10 @@ func (m *MountPoint) Path() string {
 	return m.Source
 }
 
-// ParseVolumesFrom ensures that the supplied volumes-from is valid.
-func ParseVolumesFrom(spec string) (string, string, error) {
-	if len(spec) == 0 {
-		return "", "", fmt.Errorf("volumes-from specification cannot be an empty string")
-	}
-
-	specParts := strings.SplitN(spec, ":", 2)
-	id := specParts[0]
-	mode := "rw"
-
-	if len(specParts) == 2 {
-		mode = specParts[1]
-		if !ValidMountMode(mode) {
-			return "", "", errInvalidMode(mode)
-		}
-		// For now don't allow propagation properties while importing
-		// volumes from data container. These volumes will inherit
-		// the same propagation property as of the original volume
-		// in data container. This probably can be relaxed in future.
-		if HasPropagation(mode) {
-			return "", "", errInvalidMode(mode)
-		}
-		// Do not allow copy modes on volumes-from
-		if _, isSet := getCopyMode(mode); isSet {
-			return "", "", errInvalidMode(mode)
-		}
-	}
-	return id, mode, nil
-}
-
-// ParseMountRaw parses a raw volume spec (e.g. `-v /foo:/bar:shared`) into a
-// structured spec. Once the raw spec is parsed it relies on `ParseMountSpec` to
-// validate the spec and create a MountPoint
-func ParseMountRaw(raw, volumeDriver string) (*MountPoint, error) {
-	arr, err := splitRawSpec(convertSlash(raw))
-	if err != nil {
-		return nil, err
-	}
-
-	var spec mounttypes.Mount
-	var mode string
-	switch len(arr) {
-	case 1:
-		// Just a destination path in the container
-		spec.Target = arr[0]
-	case 2:
-		if ValidMountMode(arr[1]) {
-			// Destination + Mode is not a valid volume - volumes
-			// cannot include a mode. e.g. /foo:rw
-			return nil, errInvalidSpec(raw)
-		}
-		// Host Source Path or Name + Destination
-		spec.Source = arr[0]
-		spec.Target = arr[1]
-	case 3:
-		// HostSourcePath+DestinationPath+Mode
-		spec.Source = arr[0]
-		spec.Target = arr[1]
-		mode = arr[2]
-	default:
-		return nil, errInvalidSpec(raw)
-	}
-
-	if !ValidMountMode(mode) {
-		return nil, errInvalidMode(mode)
-	}
-
-	spec.Type = detectMountType(spec.Source)
-	spec.ReadOnly = !ReadWrite(mode)
-
-	// cannot assume that if a volume driver is passed in that we should set it
-	if volumeDriver != "" && spec.Type == mounttypes.TypeVolume {
-		spec.VolumeOptions = &mounttypes.VolumeOptions{
-			DriverConfig: &mounttypes.Driver{Name: volumeDriver},
-		}
-	}
-
-	if copyData, isSet := getCopyMode(mode); isSet {
-		if spec.VolumeOptions == nil {
-			spec.VolumeOptions = &mounttypes.VolumeOptions{}
-		}
-		spec.VolumeOptions.NoCopy = !copyData
-	}
-	if HasPropagation(mode) {
-		spec.BindOptions = &mounttypes.BindOptions{
-			Propagation: GetPropagation(mode),
-		}
-	}
-
-	mp, err := ParseMountSpec(spec, platformRawValidationOpts...)
-	if mp != nil {
-		mp.Mode = mode
-	}
-	if err != nil {
-		err = errors.Wrap(err, errInvalidSpec(raw).Error())
-	}
-	return mp, err
-}
-
-// ParseMountSpec reads a mount config, validates it, and configures a mountpoint from it.
-func ParseMountSpec(cfg mounttypes.Mount, options ...func(*validateOpts)) (*MountPoint, error) {
-	if err := validateMountConfig(&cfg, options...); err != nil {
-		return nil, validationError{err}
-	}
-	mp := &MountPoint{
-		RW:          !cfg.ReadOnly,
-		Destination: clean(convertSlash(cfg.Target)),
-		Type:        cfg.Type,
-		Spec:        cfg,
-	}
-
-	switch cfg.Type {
-	case mounttypes.TypeVolume:
-		if cfg.Source == "" {
-			mp.Name = stringid.GenerateNonCryptoID()
-		} else {
-			mp.Name = cfg.Source
-		}
-		mp.CopyData = DefaultCopyMode
-
-		if cfg.VolumeOptions != nil {
-			if cfg.VolumeOptions.DriverConfig != nil {
-				mp.Driver = cfg.VolumeOptions.DriverConfig.Name
-			}
-			if cfg.VolumeOptions.NoCopy {
-				mp.CopyData = false
-			}
-		}
-	case mounttypes.TypeBind, mounttypes.TypeNamedPipe:
-		mp.Source = clean(convertSlash(cfg.Source))
-		if cfg.BindOptions != nil && len(cfg.BindOptions.Propagation) > 0 {
-			mp.Propagation = cfg.BindOptions.Propagation
-		} else {
-			// If user did not specify a propagation mode, get
-			// default propagation mode.
-			mp.Propagation = DefaultPropagationMode
-		}
-	case mounttypes.TypeTmpfs:
-		// NOP
-	}
-	return mp, nil
-}
-
 func errInvalidMode(mode string) error {
-	return validationError{errors.Errorf("invalid mode: %v", mode)}
+	return errors.Errorf("invalid mode: %v", mode)
 }
 
 func errInvalidSpec(spec string) error {
-	return validationError{errors.Errorf("invalid volume specification: '%s'", spec)}
+	return errors.Errorf("invalid volume specification: '%s'", spec)
 }

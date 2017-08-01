@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	containertypes "github.com/docker/docker/api/types/container"
@@ -107,6 +108,11 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 		}
 		if !mount.Writable {
 			m.Options = append(m.Options, "ro")
+		}
+		if img.OS != runtime.GOOS {
+			m.Type = "bind"
+			m.Options = append(m.Options, "rbind")
+			m.Options = append(m.Options, fmt.Sprintf("uvmpath=/tmp/gcs/%s/binds", c.ID))
 		}
 		s.Mounts = append(s.Mounts, m)
 	}

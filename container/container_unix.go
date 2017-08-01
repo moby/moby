@@ -68,6 +68,7 @@ func (container *Container) BuildHostnameFile() error {
 func (container *Container) NetworkMounts() []Mount {
 	var mounts []Mount
 	shared := container.HostConfig.NetworkMode.IsContainer()
+	parser := volume.NewParser(container.Platform)
 	if container.ResolvConfPath != "" {
 		if _, err := os.Stat(container.ResolvConfPath); err != nil {
 			logrus.Warnf("ResolvConfPath set to %q, but can't stat this filename (err = %v); skipping", container.ResolvConfPath, err)
@@ -83,7 +84,7 @@ func (container *Container) NetworkMounts() []Mount {
 				Source:      container.ResolvConfPath,
 				Destination: "/etc/resolv.conf",
 				Writable:    writable,
-				Propagation: string(volume.DefaultPropagationMode),
+				Propagation: string(parser.DefaultPropagationMode()),
 			})
 		}
 	}
@@ -102,7 +103,7 @@ func (container *Container) NetworkMounts() []Mount {
 				Source:      container.HostnamePath,
 				Destination: "/etc/hostname",
 				Writable:    writable,
-				Propagation: string(volume.DefaultPropagationMode),
+				Propagation: string(parser.DefaultPropagationMode()),
 			})
 		}
 	}
@@ -121,7 +122,7 @@ func (container *Container) NetworkMounts() []Mount {
 				Source:      container.HostsPath,
 				Destination: "/etc/hosts",
 				Writable:    writable,
-				Propagation: string(volume.DefaultPropagationMode),
+				Propagation: string(parser.DefaultPropagationMode()),
 			})
 		}
 	}
@@ -196,6 +197,7 @@ func (container *Container) UnmountIpcMount(unmount func(pth string) error) erro
 // IpcMounts returns the list of IPC mounts
 func (container *Container) IpcMounts() []Mount {
 	var mounts []Mount
+	parser := volume.NewParser(container.Platform)
 
 	if container.HasMountFor("/dev/shm") {
 		return mounts
@@ -209,7 +211,7 @@ func (container *Container) IpcMounts() []Mount {
 		Source:      container.ShmPath,
 		Destination: "/dev/shm",
 		Writable:    true,
-		Propagation: string(volume.DefaultPropagationMode),
+		Propagation: string(parser.DefaultPropagationMode()),
 	})
 
 	return mounts
@@ -429,6 +431,7 @@ func copyOwnership(source, destination string) error {
 
 // TmpfsMounts returns the list of tmpfs mounts
 func (container *Container) TmpfsMounts() ([]Mount, error) {
+	parser := volume.NewParser(container.Platform)
 	var mounts []Mount
 	for dest, data := range container.HostConfig.Tmpfs {
 		mounts = append(mounts, Mount{
@@ -439,7 +442,7 @@ func (container *Container) TmpfsMounts() ([]Mount, error) {
 	}
 	for dest, mnt := range container.MountPoints {
 		if mnt.Type == mounttypes.TypeTmpfs {
-			data, err := volume.ConvertTmpfsOptions(mnt.Spec.TmpfsOptions, mnt.Spec.ReadOnly)
+			data, err := parser.ConvertTmpfsOptions(mnt.Spec.TmpfsOptions, mnt.Spec.ReadOnly)
 			if err != nil {
 				return nil, err
 			}
