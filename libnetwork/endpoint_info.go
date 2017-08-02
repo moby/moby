@@ -413,7 +413,7 @@ func (epj *endpointJoinInfo) UnmarshalJSON(b []byte) error {
 		return err
 	}
 	if v, ok := epMap["gw"]; ok {
-		epj.gw = net.ParseIP(v.(string))
+		epj.gw6 = net.ParseIP(v.(string))
 	}
 	if v, ok := epMap["gw6"]; ok {
 		epj.gw6 = net.ParseIP(v.(string))
