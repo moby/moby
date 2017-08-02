@@ -96,6 +96,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	logrus.SetFormatter(&logrus.TextFormatter{
 		TimestampFormat: jsonlog.RFC3339NanoFixed,
 		DisableColors:   cli.Config.RawLogs,
+		FullTimestamp:   true,
 	})
 
 	if err := setDefaultUmask(); err != nil {
