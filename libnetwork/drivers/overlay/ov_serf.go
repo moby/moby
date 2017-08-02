@@ -120,10 +120,15 @@ func (d *driver) processEvent(u serf.UserEvent) {
 
 	switch action {
 	case "join":
-		d.peerAdd(nid, eid, net.ParseIP(ipStr), net.IPMask(net.ParseIP(maskStr).To4()), mac, net.ParseIP(vtepStr),
-			true, false, false, false)
+		if err := d.peerAdd(nid, eid, net.ParseIP(ipStr), net.IPMask(net.ParseIP(maskStr).To4()), mac,
+			net.ParseIP(vtepStr), true, false, false); err != nil {
+			logrus.Errorf("Peer add failed in the driver: %v\n", err)
+		}
 	case "leave":
-		d.peerDelete(nid, eid, net.ParseIP(ipStr), net.IPMask(net.ParseIP(maskStr).To4()), mac, net.ParseIP(vtepStr), true)
+		if err := d.peerDelete(nid, eid, net.ParseIP(ipStr), net.IPMask(net.ParseIP(maskStr).To4()), mac,
+			net.ParseIP(vtepStr), true); err != nil {
+			logrus.Errorf("Peer delete failed in the driver: %v\n", err)
+		}
 	}
 }
 
