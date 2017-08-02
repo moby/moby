@@ -389,3 +389,60 @@ func discoveryConfig(backendAddr, advertiseAddr string, opts map[string]string) 
 		},
 	}
 }
+
+func TestConfigValueSet(t *testing.T) {
+	usecases := []struct {
+		jsonConfig map[string]interface{}
+		badKeys    []string
+		configs    map[string]interface{}
+	}{
+		{
+			// checking flat options that are actually maps
+			jsonConfig: map[string]interface{}{
+				"default-ulimits": map[string]interface{}{
+					"nofile": map[string]int{
+						"Hard": 2048,
+					},
+				},
+			},
+			badKeys: []string{},
+			configs: map[string]interface{}{
+				"default-ulimits": map[string]interface{}{
+					"nofile": map[string]int{
+						"Hard": 2048,
+					},
+				},
+			},
+		},
+		{
+			// checking that map configurations are flatten
+			jsonConfig: map[string]interface{}{
+				"tls": map[string]interface{}{
+					"tlsverify": false,
+					"tlscert":   "/etc/docker/docker.crt",
+					"tlskey":    "/etc/docker/docker.key",
+				},
+			},
+			badKeys: []string{},
+			configs: map[string]interface{}{
+				"tlsverify": false,
+				"tlscert":   "/etc/docker/docker.crt",
+				"tlskey":    "/etc/docker/docker.key",
+			},
+		},
+		{
+			// checking that empty map configurations are flagged as unneccesary
+			jsonConfig: map[string]interface{}{
+				"default-ulimit": map[string]interface{}{},
+			},
+			badKeys: []string{"default-ulimit"},
+			configs: map[string]interface{}{},
+		},
+	}
+
+	for _, uc := range usecases {
+		configs, badKeys := configValuesSet(uc.jsonConfig)
+		assert.Equal(t, uc.configs, configs)
+		assert.Equal(t, uc.badKeys, badKeys)
+	}
+}

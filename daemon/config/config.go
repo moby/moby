@@ -325,7 +325,10 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 			return nil, err
 		}
 
-		configSet := configValuesSet(jsonConfig)
+		configSet, unnecessaryKeys := configValuesSet(jsonConfig)
+		if len(unnecessaryKeys) > 0 {
+			logrus.Warnf("The following configuration keys are unnecessary: %s", strings.Join(unnecessaryKeys, ","))
+		}
 
 		if err := findConfigurationConflicts(configSet, flags); err != nil {
 			return nil, err
@@ -382,11 +385,26 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 	return &config, nil
 }
 
-// configValuesSet returns the configuration values explicitly set in the file.
-func configValuesSet(config map[string]interface{}) map[string]interface{} {
+// configValuesSet returns the configuration values explicitly set in the file alongside with
+// unnecessary keys which are in the file but are empty and are not options.
+func configValuesSet(config map[string]interface{}) (map[string]interface{}, []string) {
 	flatten := make(map[string]interface{})
+	// The reason we return unnecessary keys is to detect unnecessary conifgurations.
+	// For example, the following will alert the user that "tls" is not
+	// necessary because it is empty and is not a flat option such as "default-ulimits".
+	//
+	// {
+	// ...
+	//    "tls": {}
+	// }
+	//
+	// This will make the configuration file both easy to read and easy to maintain.
+	unnecessaryKeys := []string{}
 	for k, v := range config {
 		if m, isMap := v.(map[string]interface{}); isMap && !flatOptions[k] {
+			if len(m) == 0 {
+				unnecessaryKeys = append(unnecessaryKeys, k)
+			}
 			for km, vm := range m {
 				flatten[km] = vm
 			}
@@ -395,7 +413,7 @@ func configValuesSet(config map[string]interface{}) map[string]interface{} {
 
 		flatten[k] = v
 	}
-	return flatten
+	return flatten, unnecessaryKeys
 }
 
 // findConfigurationConflicts iterates over the provided flags searching for
