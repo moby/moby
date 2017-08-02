@@ -130,7 +130,7 @@ fi
 # functionality.
 if \
 	command -v gcc &> /dev/null \
-	&& ! ( echo -e  '#include <libdevmapper.h>\nint main() { dm_task_deferred_remove(NULL); }'| gcc -xc - -o /dev/null -ldevmapper &> /dev/null ) \
+	&& ! ( echo -e  '#include <libdevmapper.h>\nint main() { dm_task_deferred_remove(NULL); }'| gcc -xc - -o /dev/null $(pkg-config --libs devmapper) &> /dev/null ) \
 ; then
 	DOCKER_BUILDTAGS+=' libdm_no_deferred_remove'
 fi

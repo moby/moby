@@ -53,21 +53,21 @@ RUN apt-get update && apt-get install -y \
 	--no-install-recommends \
 	&& pip install awscli==1.10.15
 
-# Get lvm2 source for compiling statically
-ENV LVM2_VERSION 2.02.103
+# Get lvm2 sources to build statically linked devmapper library
+ENV LVM2_VERSION 2.02.173
 RUN mkdir -p /usr/local/lvm2 \
 	&& curl -fsSL "https://mirrors.kernel.org/sourceware/lvm2/LVM2.${LVM2_VERSION}.tgz" \
 		| tar -xzC /usr/local/lvm2 --strip-components=1
-# See https://git.fedorahosted.org/cgit/lvm2.git/refs/tags for release tags
 
-# Compile and install lvm2
+# Compile and install (only the needed library)
 RUN cd /usr/local/lvm2 \
 	&& ./configure \
 		--build="$(gcc -print-multiarch)" \
 		--enable-static_link \
-	&& make device-mapper \
-	&& make install_device-mapper
-# See https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
+		--enable-pkgconfig \
+	&& make -C include \
+	&& make -C libdm install_device-mapper
+
 
 # Install Go
 # IMPORTANT: When updating this please note that stdlib archive/tar pkg is vendored
