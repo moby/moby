@@ -114,7 +114,8 @@ type tableEventMessage struct {
 }
 
 func (m *tableEventMessage) Invalidates(other memberlist.Broadcast) bool {
-	return false
+	otherm := other.(*tableEventMessage)
+	return m.tname == otherm.tname && m.id == otherm.id && m.key == otherm.key
 }
 
 func (m *tableEventMessage) Message() []byte {
