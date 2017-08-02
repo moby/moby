@@ -207,6 +207,12 @@ func (d *driver) peerDbDelete(nid, eid string, peerIP net.IP, peerIPMask net.IPM
 }
 
 func (d *driver) peerDbUpdateSandbox(nid string) {
+	// The following logic is useful only in non swarm mode
+	// In swarm mode instead the programmig will come directly from networkDB
+	if !d.isSerfAlive() {
+		return
+	}
+
 	d.peerDb.Lock()
 	pMap, ok := d.peerDb.mp[nid]
 	if !ok {
