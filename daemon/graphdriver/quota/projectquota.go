@@ -1,12 +1,8 @@
 // +build linux
 
 //
-// projectquota.go - implements XFS project quota controls
+// projectquota.go - implements project quota controls
 // for setting quota limits on a newly created directory.
-// It currently supports the legacy XFS specific ioctls.
-//
-// TODO: use generic quota control ioctl FS_IOC_FS{GET,SET}XATTR
-//       for both xfs/ext4 for kernel version >= v4.5
 //
 
 package quota
@@ -47,6 +43,30 @@ struct fsxattr {
 #ifndef Q_XGETPQUOTA
 #define Q_XGETPQUOTA QCMD(Q_XGETQUOTA, PRJQUOTA)
 #endif
+
+#ifndef Q_XGETPQSTAT
+#define Q_XGETPQSTAT QCMD(Q_XGETQSTAT, PRJQUOTA)
+#endif
+
+#ifndef Q_SETPQUOTA
+#define Q_SETPQUOTA (unsigned int)QCMD(Q_SETQUOTA, PRJQUOTA)
+#endif
+
+#ifndef Q_GETPQUOTA
+#define Q_GETPQUOTA (unsigned int)QCMD(Q_GETQUOTA, PRJQUOTA)
+#endif
+
+#define PDQ_ACCT_BIT 4
+#define PDQ_ENFD_BIT 5
+
+#ifndef QUOTA_PDQ_ACCT
+#define QUOTA_PDQ_ACCT (1<<PDQ_ACCT_BIT)
+#endif
+#ifndef QUOTA_PDQ_ENFD
+#define QUOTA_PDQ_ENFD (1<<PDQ_ENFD_BIT)
+#endif
+
+
 */
 import "C"
 import (
@@ -71,6 +91,16 @@ type Control struct {
 	backingFsBlockDev string
 	nextProjectID     uint32
 	quotas            map[string]uint32
+	quotaOps          QuotafileOps
+}
+
+// QuotafileOps is a interface for quotafile operations
+type QuotafileOps interface {
+	// SetProjectQuota sets the project quota for project id on block device
+	SetProjectQuota(dev string, projectID uint32, quota Quota) error
+
+	// GetProjectQuota gets the project quota for project id on block device
+	GetProjectQuota(dev string, projectID uint32, quota *Quota) error
 }
 
 // NewControl - initialize project quota support.
@@ -95,7 +125,7 @@ type Control struct {
 // on it. If that works, continue to scan existing containers to map allocated
 // project ids.
 //
-func NewControl(basePath string) (*Control, error) {
+func NewControl(basePath string, fs string) (*Control, error) {
 	//
 	// Get project id of parent dir as minimal id to be used by driver
 	//
@@ -114,13 +144,32 @@ func NewControl(basePath string) (*Control, error) {
 	}
 
 	//
+	// Get the qutoa stat to check whether the system support project quota
+	//
+	stat, err := getQuotaStat(backingFsBlockDev)
+	if err != nil || stat != 2 {
+		if err != nil {
+			logrus.Debugf("Get qutoa stat failed with: %v", err)
+		}
+		return nil, fmt.Errorf("quota isn't support on your system")
+	}
+
+	var quotaOps QuotafileOps
+
+	if fs == "xfs" {
+		quotaOps = new(XfsQuota)
+	} else {
+		quotaOps = new(VfsQuota)
+	}
+
+	//
 	// Test if filesystem supports project quotas by trying to set
 	// a quota on the first available project id
 	//
 	quota := Quota{
 		Size: 0,
 	}
-	if err := setProjectQuota(backingFsBlockDev, minProjectID, quota); err != nil {
+	if err := quotaOps.SetProjectQuota(backingFsBlockDev, minProjectID, quota); err != nil {
 		return nil, err
 	}
 
@@ -128,6 +177,7 @@ func NewControl(basePath string) (*Control, error) {
 		backingFsBlockDev: backingFsBlockDev,
 		nextProjectID:     minProjectID + 1,
 		quotas:            make(map[string]uint32),
+		quotaOps:          quotaOps,
 	}
 
 	//
@@ -166,11 +216,15 @@ func (q *Control) SetQuota(targetPath string, quota Quota) error {
 	// set the quota limit for the container's project id
 	//
 	logrus.Debugf("SetQuota(%s, %d): projectID=%d", targetPath, quota.Size, projectID)
-	return setProjectQuota(q.backingFsBlockDev, projectID, quota)
+	return q.quotaOps.SetProjectQuota(q.backingFsBlockDev, projectID, quota)
 }
 
-// setProjectQuota - set the quota for project id on xfs block device
-func setProjectQuota(backingFsBlockDev string, projectID uint32, quota Quota) error {
+// XfsQuota is a struct implements quota operations
+type XfsQuota struct {
+}
+
+// SetProjectQuota - set the quota for project id on xfs block device
+func (q *XfsQuota) SetProjectQuota(backingFsBlockDev string, projectID uint32, quota Quota) error {
 	var d C.fs_disk_quota_t
 	d.d_version = C.FS_DQUOT_VERSION
 	d.d_id = C.__u32(projectID)
@@ -194,6 +248,89 @@ func setProjectQuota(backingFsBlockDev string, projectID uint32, quota Quota) er
 	return nil
 }
 
+// GetProjectQuota gets the project quota for projectID on xfs block device
+func (q *XfsQuota) GetProjectQuota(backingFsBlockDev string, projectID uint32, quota *Quota) error {
+	var d C.fs_disk_quota_t
+
+	var cs = C.CString(backingFsBlockDev)
+	defer C.free(unsafe.Pointer(cs))
+
+	_, _, errno := unix.Syscall6(unix.SYS_QUOTACTL, C.Q_XGETPQUOTA,
+		uintptr(unsafe.Pointer(cs)), uintptr(C.__u32(projectID)),
+		uintptr(unsafe.Pointer(&d)), 0, 0)
+	if errno != 0 {
+		return fmt.Errorf("Failed to get quota limit for projid %d on %s: %v",
+			projectID, backingFsBlockDev, errno.Error())
+	}
+	quota.Size = uint64(d.d_blk_hardlimit) * 512
+
+	return nil
+}
+
+// VfsQuota is a struct implements quota operations
+type VfsQuota struct {
+}
+
+// SetProjectQuota - set the quota for project id on block device
+func (q *VfsQuota) SetProjectQuota(backingFsBlockDev string, projectID uint32, quota Quota) error {
+	var d C.struct_if_dqblk
+	d.dqb_bhardlimit = C.__u64(quota.Size / 1024)
+	d.dqb_bsoftlimit = d.dqb_bhardlimit
+	d.dqb_valid = C.QIF_LIMITS
+
+	var cs = C.CString(backingFsBlockDev)
+	defer C.free(unsafe.Pointer(cs))
+
+	_, _, errno := unix.Syscall6(unix.SYS_QUOTACTL, C.Q_SETPQUOTA,
+		uintptr(unsafe.Pointer(cs)), uintptr(C.__u32(projectID)),
+		uintptr(unsafe.Pointer(&d)), 0, 0)
+	if errno != 0 {
+		return fmt.Errorf("Failed to set quota limit for projid %d on %s: %v",
+			projectID, backingFsBlockDev, errno.Error())
+	}
+
+	return nil
+}
+
+// GetProjectQuota - get the quota for project id on block device
+func (q *VfsQuota) GetProjectQuota(backingFsBlockDev string, projectID uint32, quota *Quota) error {
+	var d C.struct_if_dqblk
+	d.dqb_valid = C.QIF_USAGE
+
+	var cs = C.CString(backingFsBlockDev)
+	defer C.free(unsafe.Pointer(cs))
+
+	_, _, errno := unix.Syscall6(unix.SYS_QUOTACTL, C.Q_GETPQUOTA,
+		uintptr(unsafe.Pointer(cs)), uintptr(C.__u32(projectID)),
+		uintptr(unsafe.Pointer(&d)), 0, 0)
+	if errno != 0 {
+		return fmt.Errorf("Failed to get quota limit for projid %d on %s: %v",
+			projectID, backingFsBlockDev, errno.Error())
+	}
+
+	quota.Size = uint64(d.dqb_bhardlimit) * 1024
+
+	return nil
+}
+
+// getQuotaStat - get the quota stat
+// return 2 means quota is on
+func getQuotaStat(backingFsBlockDev string) (int, error) {
+	var info C.fs_quota_stat_t
+
+	var cs = C.CString(backingFsBlockDev)
+	defer C.free(unsafe.Pointer(cs))
+	_, _, errno := unix.Syscall6(unix.SYS_QUOTACTL, C.Q_XGETPQSTAT,
+		uintptr(unsafe.Pointer(cs)), 0,
+		uintptr(unsafe.Pointer(&info)), 0, 0)
+	if errno != 0 {
+		return -1, fmt.Errorf("Failed to get quota stat on %s: %v",
+			backingFsBlockDev, errno.Error())
+	}
+
+	return int((info.qs_flags&C.QUOTA_PDQ_ACCT)>>C.PDQ_ACCT_BIT + (info.qs_flags&C.QUOTA_PDQ_ENFD)>>C.PDQ_ENFD_BIT), nil
+}
+
 // GetQuota - get the quota limits of a directory that was configured with SetQuota
 func (q *Control) GetQuota(targetPath string, quota *Quota) error {
 
@@ -205,21 +342,7 @@ func (q *Control) GetQuota(targetPath string, quota *Quota) error {
 	//
 	// get the quota limit for the container's project id
 	//
-	var d C.fs_disk_quota_t
-
-	var cs = C.CString(q.backingFsBlockDev)
-	defer C.free(unsafe.Pointer(cs))
-
-	_, _, errno := unix.Syscall6(unix.SYS_QUOTACTL, C.Q_XGETPQUOTA,
-		uintptr(unsafe.Pointer(cs)), uintptr(C.__u32(projectID)),
-		uintptr(unsafe.Pointer(&d)), 0, 0)
-	if errno != 0 {
-		return fmt.Errorf("Failed to get quota limit for projid %d on %s: %v",
-			projectID, q.backingFsBlockDev, errno.Error())
-	}
-	quota.Size = uint64(d.d_blk_hardlimit) * 512
-
-	return nil
+	return q.quotaOps.GetProjectQuota(q.backingFsBlockDev, projectID, quota)
 }
 
 // getProjectID - get the project id of path on xfs
