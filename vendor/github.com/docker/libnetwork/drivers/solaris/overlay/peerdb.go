@@ -5,7 +5,7 @@ import (
 	"net"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 const ovPeerTable = "overlay_peer_table"

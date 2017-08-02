@@ -9,7 +9,6 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/Sirupsen/logrus"
 	apierrors "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
@@ -22,6 +21,7 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
 	"github.com/opencontainers/selinux/go-selinux/label"
+	"github.com/sirupsen/logrus"
 )
 
 // CreateManagedContainer creates a container that is managed by a Service

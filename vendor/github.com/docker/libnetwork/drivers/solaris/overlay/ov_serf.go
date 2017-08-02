@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/hashicorp/serf/serf"
+	"github.com/sirupsen/logrus"
 )
 
 type ovNotify struct {

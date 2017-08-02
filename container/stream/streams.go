@@ -7,11 +7,11 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/pkg/broadcaster"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/pools"
+	"github.com/sirupsen/logrus"
 )
 
 // Config holds information about I/O streams managed together.

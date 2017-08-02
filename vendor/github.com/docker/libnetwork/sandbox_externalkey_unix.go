@@ -10,9 +10,9 @@ import (
 	"net"
 	"os"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/types"
 	"github.com/opencontainers/runc/libcontainer/configs"
+	"github.com/sirupsen/logrus"
 )
 
 const udsBase = "/run/docker/libnetwork/"

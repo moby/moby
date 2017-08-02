@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/Microsoft/hcsshim"
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 // HotRemoveVhd hot-removes a VHD from a utility VM. This is used in the global one-utility-VM-

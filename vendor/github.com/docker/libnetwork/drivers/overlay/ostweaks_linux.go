@@ -5,7 +5,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 var sysctlConf = map[string]string{

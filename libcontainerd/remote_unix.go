@@ -17,12 +17,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	containerd "github.com/containerd/containerd/api/grpc/types"
 	"github.com/docker/docker/pkg/locker"
 	"github.com/docker/docker/pkg/system"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/timestamp"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"golang.org/x/sys/unix"
 	"google.golang.org/grpc"

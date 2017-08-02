@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
 	enginetypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm/runtime"
@@ -14,6 +13,7 @@ import (
 	"github.com/docker/swarmkit/api"
 	"github.com/gogo/protobuf/proto"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 

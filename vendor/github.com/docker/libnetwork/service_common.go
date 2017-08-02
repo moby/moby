@@ -5,8 +5,8 @@ package libnetwork
 import (
 	"net"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/common"
+	"github.com/sirupsen/logrus"
 )
 
 func (c *controller) addEndpointNameResolution(svcName, svcID, nID, eID, containerName string, vip net.IP, serviceAliases, taskAliases []string, ip net.IP, addService bool, method string) error {

@@ -3,12 +3,12 @@ package dispatcher
 import (
 	"fmt"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/api/equality"
 	"github.com/docker/swarmkit/api/validation"
 	"github.com/docker/swarmkit/manager/drivers"
 	"github.com/docker/swarmkit/manager/state/store"
+	"github.com/sirupsen/logrus"
 )
 
 // Used as a key in tasksUsingDependency and changes. Only using the

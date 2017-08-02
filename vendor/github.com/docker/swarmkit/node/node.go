@@ -14,7 +14,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/boltdb/bolt"
 	"github.com/docker/docker/pkg/plugingetter"
 	metrics "github.com/docker/go-metrics"
@@ -31,6 +30,7 @@ import (
 	"github.com/docker/swarmkit/xnet"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"

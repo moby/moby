@@ -9,7 +9,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/pkg/idutil"
 	"github.com/coreos/etcd/raft"
 	"github.com/coreos/etcd/raft/raftpb"
@@ -28,6 +27,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/pivotal-golang/clock"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"golang.org/x/time/rate"
 	"google.golang.org/grpc"

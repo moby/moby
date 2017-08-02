@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/namesgenerator"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/sirupsen/logrus"
 )
 
 var (

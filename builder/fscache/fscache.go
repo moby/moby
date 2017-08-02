@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/boltdb/bolt"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/remotecontext"
@@ -16,6 +15,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/moby/buildkit/session/filesync"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/tonistiigi/fsutil"
 	"golang.org/x/net/context"
 	"golang.org/x/sync/singleflight"

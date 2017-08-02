@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
 	containerpkg "github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 

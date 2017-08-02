@@ -12,8 +12,8 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 type directLVMConfig struct {

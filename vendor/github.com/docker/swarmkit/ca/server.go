@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/api/equality"
 	"github.com/docker/swarmkit/identity"
@@ -15,6 +14,7 @@ import (
 	"github.com/docker/swarmkit/manager/state/store"
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"

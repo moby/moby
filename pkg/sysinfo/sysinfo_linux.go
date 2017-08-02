@@ -7,8 +7,8 @@ import (
 	"path"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
 

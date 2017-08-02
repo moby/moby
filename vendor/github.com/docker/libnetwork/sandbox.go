@@ -9,11 +9,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/etchosts"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/types"
+	"github.com/sirupsen/logrus"
 )
 
 // Sandbox provides the control over the network container entity. It is a one to one mapping with the container.

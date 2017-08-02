@@ -9,7 +9,7 @@ import (
 	"runtime"
 	"unsafe"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
 

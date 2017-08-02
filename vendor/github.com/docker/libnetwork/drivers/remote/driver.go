@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/drivers/remote/api"
 	"github.com/docker/libnetwork/types"
+	"github.com/sirupsen/logrus"
 )
 
 type driver struct {

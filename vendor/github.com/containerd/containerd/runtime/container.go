@@ -12,9 +12,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/containerd/containerd/specs"
 	ocs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"golang.org/x/sys/unix"
 )

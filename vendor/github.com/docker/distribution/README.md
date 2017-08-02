@@ -76,8 +76,7 @@ may be the better choice.
 For those who have previously deployed their own registry based on the Registry
 1.0 implementation and wish to deploy a Registry 2.0 while retaining images,
 data migration is required. A tool to assist with migration efforts has been
-created. For more information see [docker/migrator]
-(https://github.com/docker/migrator).
+created. For more information see [docker/migrator](https://github.com/docker/migrator).
 
 ## Contribute
 

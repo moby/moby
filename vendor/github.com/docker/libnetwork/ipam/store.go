@@ -3,9 +3,9 @@ package ipam
 import (
 	"encoding/json"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/types"
+	"github.com/sirupsen/logrus"
 )
 
 // Key provides the Key to be used in KV Store
