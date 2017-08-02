@@ -638,14 +638,10 @@ func (pm *Manager) Remove(name string, config *types.PluginRmConfig) error {
 		return errors.Wrap(err, "error unmounting plugin data")
 	}
 
-	removeDir := pluginDir + "-removing"
-	if err := os.Rename(pluginDir, removeDir); err != nil {
-		return errors.Wrap(err, "error performing atomic remove of plugin dir")
+	if err := atomicRemoveAll(pluginDir); err != nil {
+		return err
 	}
 
-	if err := system.EnsureRemoveAll(removeDir); err != nil {
-		return errors.Wrap(err, "error removing plugin dir")
-	}
 	pm.config.Store.Remove(p)
 	pm.config.LogPluginEvent(id, name, "remove")
 	pm.publisher.Publish(EventRemove{Plugin: p.PluginObj})
@@ -833,4 +829,36 @@ func splitConfigRootFSFromTar(in io.ReadCloser, config *[]byte) io.ReadCloser {
 		}
 	}()
 	return pr
+}
+
+func atomicRemoveAll(dir string) error {
+	renamed := dir + "-removing"
+
+	err := os.Rename(dir, renamed)
+	switch {
+	case os.IsNotExist(err), err == nil:
+		// even if `dir` doesn't exist, we can still try and remove `renamed`
+	case os.IsExist(err):
+		// Some previous remove failed, check if the origin dir exists
+		if e := system.EnsureRemoveAll(renamed); e != nil {
+			return errors.Wrap(err, "rename target already exists and could not be removed")
+		}
+		if _, err := os.Stat(dir); os.IsNotExist(err) {
+			// origin doesn't exist, nothing left to do
+			return nil
+		}
+
+		// attempt to rename again
+		if err := os.Rename(dir, renamed); err != nil {
+			return errors.Wrap(err, "failed to rename dir for atomic removal")
+		}
+	default:
+		return errors.Wrap(err, "failed to rename dir for atomic removal")
+	}
+
+	if err := system.EnsureRemoveAll(renamed); err != nil {
+		os.Rename(renamed, dir)
+		return err
+	}
+	return nil
 }
