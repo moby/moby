@@ -1,14 +1,12 @@
 package overlay
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"sync"
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/libnetwork/common"
 )
 
 const ovPeerTable = "overlay_peer_table"
@@ -60,6 +58,8 @@ func (pKey *peerKey) Scan(state fmt.ScanState, verb rune) error {
 
 	return nil
 }
+
+var peerDbWg sync.WaitGroup
 
 func (d *driver) peerDbWalk(f func(string, *peerKey, *peerEntry) bool) error {
 	d.peerDb.Lock()
@@ -141,6 +141,8 @@ func (d *driver) peerDbSearch(nid string, peerIP net.IP) (net.HardwareAddr, net.
 func (d *driver) peerDbAdd(nid, eid string, peerIP net.IP, peerIPMask net.IPMask,
 	peerMac net.HardwareAddr, vtep net.IP, isLocal bool) {
 
+	peerDbWg.Wait()
+
 	d.peerDb.Lock()
 	pMap, ok := d.peerDb.mp[nid]
 	if !ok {
@@ -171,6 +173,7 @@ func (d *driver) peerDbAdd(nid, eid string, peerIP net.IP, peerIPMask net.IPMask
 
 func (d *driver) peerDbDelete(nid, eid string, peerIP net.IP, peerIPMask net.IPMask,
 	peerMac net.HardwareAddr, vtep net.IP) peerEntry {
+	peerDbWg.Wait()
 
 	d.peerDb.Lock()
 	pMap, ok := d.peerDb.mp[nid]
@@ -204,6 +207,12 @@ func (d *driver) peerDbDelete(nid, eid string, peerIP net.IP, peerIPMask net.IPM
 }
 
 func (d *driver) peerDbUpdateSandbox(nid string) {
+	// The following logic is useful only in non swarm mode
+	// In swarm mode instead the programmig will come directly from networkDB
+	if !d.isSerfAlive() {
+		return
+	}
+
 	d.peerDb.Lock()
 	pMap, ok := d.peerDb.mp[nid]
 	if !ok {
@@ -212,6 +221,9 @@ func (d *driver) peerDbUpdateSandbox(nid string) {
 	}
 	d.peerDb.Unlock()
 
+	peerDbWg.Add(1)
+
+	var peerOps []func()
 	pMap.Lock()
 	for pKeyStr, pEntry := range pMap.mp {
 		var pKey peerKey
@@ -227,67 +239,28 @@ func (d *driver) peerDbUpdateSandbox(nid string) {
 		// pointing to the same memory location for every iteration. Make
 		// a copy of pEntry before capturing it in the following closure.
 		entry := pEntry
-
-		d.peerAdd(nid, entry.eid, pKey.peerIP, entry.peerIPMask, pKey.peerMac, entry.vtep, false, false, false, false)
-	}
-	pMap.Unlock()
-}
-
-type peerOperation struct {
-	isAdd      bool
-	networkID  string
-	endpointID string
-	peerIP     net.IP
-	peerIPMask net.IPMask
-	peerMac    net.HardwareAddr
-	vtepIP     net.IP
-	updateDB   bool
-	l2Miss     bool
-	l3Miss     bool
-	localPeer  bool
-	callerName string
-}
-
-func (d *driver) peerOpRoutine(ctx context.Context, ch chan *peerOperation) {
-	var err error
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case op := <-ch:
-			if op.isAdd {
-				err = d.peerAddOp(op.networkID, op.endpointID, op.peerIP, op.peerIPMask, op.peerMac, op.vtepIP, op.updateDB, op.l2Miss, op.l3Miss, op.localPeer)
-			} else {
-				err = d.peerDeleteOp(op.networkID, op.endpointID, op.peerIP, op.peerIPMask, op.peerMac, op.vtepIP, op.localPeer)
-			}
-			if err != nil {
-				logrus.Warnf("Peer operation failed:%s op:%v", err, op)
+		op := func() {
+			if err := d.peerAdd(nid, entry.eid, pKey.peerIP, entry.peerIPMask,
+				pKey.peerMac, entry.vtep,
+				false, false, false); err != nil {
+				fmt.Printf("peerdbupdate in sandbox failed for ip %s and mac %s: %v",
+					pKey.peerIP, pKey.peerMac, err)
 			}
 		}
+
+		peerOps = append(peerOps, op)
 	}
+	pMap.Unlock()
+
+	for _, op := range peerOps {
+		op()
+	}
+
+	peerDbWg.Done()
 }
 
 func (d *driver) peerAdd(nid, eid string, peerIP net.IP, peerIPMask net.IPMask,
-	peerMac net.HardwareAddr, vtep net.IP, updateDb, l2Miss, l3Miss, localPeer bool) {
-	callerName := common.CallerName(1)
-	d.peerOpCh <- &peerOperation{
-		isAdd:      true,
-		networkID:  nid,
-		endpointID: eid,
-		peerIP:     peerIP,
-		peerIPMask: peerIPMask,
-		peerMac:    peerMac,
-		vtepIP:     vtep,
-		updateDB:   updateDb,
-		l2Miss:     l2Miss,
-		l3Miss:     l3Miss,
-		localPeer:  localPeer,
-		callerName: callerName,
-	}
-}
-
-func (d *driver) peerAddOp(nid, eid string, peerIP net.IP, peerIPMask net.IPMask,
-	peerMac net.HardwareAddr, vtep net.IP, updateDb, l2Miss, l3Miss, updateOnlyDB bool) error {
+	peerMac net.HardwareAddr, vtep net.IP, updateDb, l2Miss, l3Miss bool) error {
 
 	if err := validateID(nid, eid); err != nil {
 		return err
@@ -295,9 +268,6 @@ func (d *driver) peerAddOp(nid, eid string, peerIP net.IP, peerIPMask net.IPMask
 
 	if updateDb {
 		d.peerDbAdd(nid, eid, peerIP, peerIPMask, peerMac, vtep, false)
-		if updateOnlyDB {
-			return nil
-		}
 	}
 
 	n := d.network(nid)
@@ -347,22 +317,6 @@ func (d *driver) peerAddOp(nid, eid string, peerIP net.IP, peerIPMask net.IPMask
 }
 
 func (d *driver) peerDelete(nid, eid string, peerIP net.IP, peerIPMask net.IPMask,
-	peerMac net.HardwareAddr, vtep net.IP, updateDb bool) {
-	callerName := common.CallerName(1)
-	d.peerOpCh <- &peerOperation{
-		isAdd:      false,
-		networkID:  nid,
-		endpointID: eid,
-		peerIP:     peerIP,
-		peerIPMask: peerIPMask,
-		peerMac:    peerMac,
-		vtepIP:     vtep,
-		updateDB:   updateDb,
-		callerName: callerName,
-	}
-}
-
-func (d *driver) peerDeleteOp(nid, eid string, peerIP net.IP, peerIPMask net.IPMask,
 	peerMac net.HardwareAddr, vtep net.IP, updateDb bool) error {
 
 	if err := validateID(nid, eid); err != nil {
