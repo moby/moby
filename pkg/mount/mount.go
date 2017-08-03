@@ -4,6 +4,8 @@ import (
 	"sort"
 	"strings"
 
+	"syscall"
+
 	"github.com/sirupsen/logrus"
 )
 
@@ -77,18 +79,30 @@ func RecursiveUnmount(target string) error {
 			continue
 		}
 		logrus.Debugf("Trying to unmount %s", m.Mountpoint)
-		err = Unmount(m.Mountpoint)
-		if err != nil && i == len(mounts)-1 {
-			if mounted, err := Mounted(m.Mountpoint); err != nil || mounted {
-				return err
+		err = unmount(m.Mountpoint, mntDetach)
+		if err != nil {
+			// If the error is EINVAL either this whole package is wrong (invalid flags passed to unmount(2)) or this is
+			// not a mountpoint (which is ok in this case).
+			// Meanwhile calling `Mounted()` is very expensive.
+			//
+			// We've purposefully used `syscall.EINVAL` here instead of `unix.EINVAL` to avoid platform branching
+			// Since `EINVAL` is defined for both Windows and Linux in the `syscall` package (and other platforms),
+			//   this is nicer than defining a custom value that we can refer to in each platform file.
+			if err == syscall.EINVAL {
+				continue
 			}
-			// Ignore errors for submounts and continue trying to unmount others
-			// The final unmount should fail if there ane any submounts remaining
-		} else if err != nil {
-			logrus.Errorf("Failed to unmount %s: %v", m.Mountpoint, err)
-		} else if err == nil {
-			logrus.Debugf("Unmounted %s", m.Mountpoint)
+			if i == len(mounts)-1 {
+				if mounted, e := Mounted(m.Mountpoint); e != nil || mounted {
+					return err
+				}
+				continue
+			}
+			// This is some submount, we can ignore this error for now, the final unmount will fail if this is a real problem
+			logrus.WithError(err).Warnf("Failed to unmount submount %s", m.Mountpoint)
+			continue
 		}
+
+		logrus.Debugf("Unmounted %s", m.Mountpoint)
 	}
 	return nil
 }
