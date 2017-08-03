@@ -690,6 +690,21 @@ func (s *DockerNetworkSuite) TestDockerNetworkIPAMOptions(c *check.C) {
 	c.Assert(opts["opt2"], checker.Equals, "drv2")
 }
 
+func (s *DockerNetworkSuite) TestDockerNetworkNullIPAMDriver(c *check.C) {
+	// Create a network with null ipam driver
+	_, _, err := dockerCmdWithError("network", "create", "-d", dummyNetworkDriver, "--ipam-driver", "null", "test000")
+	c.Assert(err, check.IsNil)
+	assertNwIsAvailable(c, "test000")
+
+	// Verify the inspect data contains the default subnet provided by the null
+	// ipam driver and no gateway, as the null ipam driver does not provide one
+	nr := getNetworkResource(c, "test000")
+	c.Assert(nr.IPAM.Driver, checker.Equals, "null")
+	c.Assert(len(nr.IPAM.Config), checker.Equals, 1)
+	c.Assert(nr.IPAM.Config[0].Subnet, checker.Equals, "0.0.0.0/0")
+	c.Assert(nr.IPAM.Config[0].Gateway, checker.Equals, "")
+}
+
 func (s *DockerNetworkSuite) TestDockerNetworkInspectDefault(c *check.C) {
 	nr := getNetworkResource(c, "none")
 	c.Assert(nr.Driver, checker.Equals, "null")
