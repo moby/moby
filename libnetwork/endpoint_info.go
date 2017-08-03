@@ -413,7 +413,7 @@ func (epj *endpointJoinInfo) UnmarshalJSON(b []byte) error {
 		return err
 	}
 	if v, ok := epMap["gw"]; ok {
-		epj.gw6 = net.ParseIP(v.(string))
+		epj.gw = net.ParseIP(v.(string))
 	}
 	if v, ok := epMap["gw6"]; ok {
 		epj.gw6 = net.ParseIP(v.(string))
@@ -442,6 +442,6 @@ func (epj *endpointJoinInfo) CopyTo(dstEpj *endpointJoinInfo) error {
 	dstEpj.driverTableEntries = make([]*tableEntry, len(epj.driverTableEntries))
 	copy(dstEpj.driverTableEntries, epj.driverTableEntries)
 	dstEpj.gw = types.GetIPCopy(epj.gw)
-	dstEpj.gw = types.GetIPCopy(epj.gw6)
+	dstEpj.gw6 = types.GetIPCopy(epj.gw6)
 	return nil
 }
