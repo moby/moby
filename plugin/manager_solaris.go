@@ -26,3 +26,5 @@ func (pm *Manager) restore(p *v2.Plugin) error {
 // Shutdown plugins
 func (pm *Manager) Shutdown() {
 }
+
+func setupRoot(root string) error { return nil }
