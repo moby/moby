@@ -60,8 +60,7 @@ const (
 
 	// toolsScratchPath is a location in a service utility VM that the tools can use as a
 	// scratch space to avoid running out of memory.
-	// TODO @jhowardmsft. I really dislike this path! But needs a platform change or passing parameters to the tools.
-	toolsScratchPath = "/mnt/gcs/LinuxServiceVM/scratch"
+	toolsScratchPath = "/tmp/scratch"
 
 	// svmGlobalID is the ID used in the serviceVMs map for the global service VM when running in "global" mode.
 	svmGlobalID = "_lcow_global_svm_"
