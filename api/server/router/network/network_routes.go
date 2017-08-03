@@ -409,7 +409,9 @@ func buildIpamResources(r *types.NetworkResource, nwInfo libnetwork.NetworkInfo)
 		for _, ip4Info := range ipv4Info {
 			iData := network.IPAMConfig{}
 			iData.Subnet = ip4Info.IPAMData.Pool.String()
-			iData.Gateway = ip4Info.IPAMData.Gateway.IP.String()
+			if ip4Info.IPAMData.Gateway != nil {
+				iData.Gateway = ip4Info.IPAMData.Gateway.IP.String()
+			}
 			r.IPAM.Config = append(r.IPAM.Config, iData)
 		}
 	}
