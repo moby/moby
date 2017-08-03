@@ -39,21 +39,20 @@ const (
 	// defaultUvmTimeoutSeconds is the default time to wait for utility VM operations
 	defaultUvmTimeoutSeconds = 5 * 60
 
-	// DefaultSandboxSizeMB is the size of the default sandbox size in MB
-	DefaultSandboxSizeMB = 20 * 1024 * 1024
+	// DefaultVhdxSizeGB is the size of the default sandbox & scratch in GB
+	DefaultVhdxSizeGB = 20
+
+	// defaultVhdxBlockSizeMB is the block-size for the sandbox/scratch VHDx's this package can create.
+	defaultVhdxBlockSizeMB = 1
 )
 
-// Config is the structure used to configuring a utility VM to be used
-// as a service VM. There are two ways of starting. Either supply a VHD,
-// or a Kernel+Initrd. For the latter, both must be supplied, and both
-// must be in the same directory.
+// Config is the structure used to configuring a utility VM. There are two ways
+// of starting. Either supply a VHD, or a Kernel+Initrd. For the latter, both
+// must be supplied, and both must be in the same directory.
 //
 // VHD is the priority.
 type Config struct {
-	KirdPath           string                      // Path to where kernel/initrd are found (defaults to c:\program files\Linux Containers)
-	KernelFile         string                      // Kernel for Utility VM (embedded in a UEFI bootloader) - does NOT include full path, just filename
-	InitrdFile         string                      // Initrd image for Utility VM - does NOT include full path, just filename
-	Vhdx               string                      // VHD for booting the utility VM - is a full path
+	Options                                        // Configuration options
 	Name               string                      // Name of the utility VM
 	RequestedMode      Mode                        // What mode is preferred when validating
 	ActualMode         Mode                        // What mode was obtained during validation
@@ -62,105 +61,129 @@ type Config struct {
 	MappedVirtualDisks []hcsshim.MappedVirtualDisk // Data-disks to be attached
 }
 
-// GenerateDefault generates a default config from a set of options
-// If baseDir is not supplied, defaults to $env:ProgramFiles\Linux Containers
-func (config *Config) GenerateDefault(options []string) error {
-	if config.UvmTimeoutSeconds < 0 {
-		return fmt.Errorf("opengcs: cannot generate a config when supplied a negative utility VM timeout")
-	}
+// Options is the structure used by a client to define configurable options for a utility VM.
+type Options struct {
+	KirdPath       string // Path to where kernel/initrd are found (defaults to %PROGRAMFILES%\Linux Containers)
+	KernelFile     string // Kernel for Utility VM (embedded in a UEFI bootloader) - does NOT include full path, just filename
+	InitrdFile     string // Initrd image for Utility VM - does NOT include full path, just filename
+	Vhdx           string // VHD for booting the utility VM - is a full path
+	TimeoutSeconds int    // Requested time for the utility VM to respond in seconds (may be over-ridden by environment)
+	BootParameters string // Additional boot parameters for initrd booting (not VHDx)
+}
 
-	envTimeoutSeconds := 0
-	optTimeoutSeconds := 0
-
-	if config.UvmTimeoutSeconds != 0 {
-		envTimeout := os.Getenv("OPENGCS_UVM_TIMEOUT_SECONDS")
-		if len(envTimeout) > 0 {
-			var err error
-			if envTimeoutSeconds, err = strconv.Atoi(envTimeout); err != nil {
-				return fmt.Errorf("opengcs: OPENGCS_UVM_TIMEOUT_SECONDS could not be interpreted as an integer")
-			}
-			if envTimeoutSeconds < 0 {
-				return fmt.Errorf("opengcs: OPENGCS_UVM_TIMEOUT_SECONDS cannot be negative")
-			}
-		}
-	}
-
+// ParseOptions parses a set of K-V pairs into options used by opengcs. Note
+// for consistency with the LCOW graphdriver in docker, we keep the same
+// convention of an `lcow.` prefix.
+func ParseOptions(options []string) (Options, error) {
+	rOpts := Options{TimeoutSeconds: 0}
 	for _, v := range options {
 		opt := strings.SplitN(v, "=", 2)
 		if len(opt) == 2 {
 			switch strings.ToLower(opt[0]) {
-			case "opengcskirdpath":
-				config.KirdPath = opt[1]
-			case "opengcskernel":
-				config.KernelFile = opt[1]
-			case "opengcsinitrd":
-				config.InitrdFile = opt[1]
-			case "opengcsvhdx":
-				config.Vhdx = opt[1]
-			case "opengcstimeoutsecs":
+			case "lcow.kirdpath":
+				rOpts.KirdPath = opt[1]
+			case "lcow.kernel":
+				rOpts.KernelFile = opt[1]
+			case "lcow.initrd":
+				rOpts.InitrdFile = opt[1]
+			case "lcow.vhdx":
+				rOpts.Vhdx = opt[1]
+			case "lcow.bootparameters":
+				rOpts.BootParameters = opt[1]
+			case "lcow.timeout":
 				var err error
-				if optTimeoutSeconds, err = strconv.Atoi(opt[1]); err != nil {
-					return fmt.Errorf("opengcs: opengcstimeoutsecs option could not be interpreted as an integer")
+				if rOpts.TimeoutSeconds, err = strconv.Atoi(opt[1]); err != nil {
+					return rOpts, fmt.Errorf("opengcstimeoutsecs option could not be interpreted as an integer")
 				}
-				if optTimeoutSeconds < 0 {
-					return fmt.Errorf("opengcs: opengcstimeoutsecs option cannot be negative")
+				if rOpts.TimeoutSeconds < 0 {
+					return rOpts, fmt.Errorf("opengcstimeoutsecs option cannot be negative")
 				}
 			}
 		}
 	}
 
-	if config.KirdPath == "" {
-		config.KirdPath = filepath.Join(os.Getenv("ProgramFiles"), "Linux Containers")
+	// Set default values if not supplied
+	if rOpts.KirdPath == "" {
+		rOpts.KirdPath = filepath.Join(os.Getenv("ProgramFiles"), "Linux Containers")
+	}
+	if rOpts.Vhdx == "" {
+		rOpts.Vhdx = filepath.Join(rOpts.KirdPath, `uvm.vhdx`)
+	}
+	if rOpts.KernelFile == "" {
+		rOpts.KernelFile = `bootx64.efi`
+	}
+	if rOpts.InitrdFile == "" {
+		rOpts.InitrdFile = `initrd.img`
 	}
 
-	if config.Vhdx == "" {
-		config.Vhdx = filepath.Join(config.KirdPath, `uvm.vhdx`)
-	}
-	if config.KernelFile == "" {
-		config.KernelFile = `bootx64.efi`
-	}
-	if config.InitrdFile == "" {
-		config.InitrdFile = `initrd.img`
+	return rOpts, nil
+}
+
+// GenerateDefault generates a default config from a set of options
+// If baseDir is not supplied, defaults to $env:ProgramFiles\Linux Containers
+func (config *Config) GenerateDefault(options []string) error {
+	// Parse the options that the user supplied.
+	var err error
+	config.Options, err = ParseOptions(options)
+	if err != nil {
+		return err
 	}
 
-	// Which timeout are we going to take? If not through option or environment,
-	// then use the default constant, otherwise the maximum of the option or
-	// environment supplied setting. A requested on in the config supplied
-	// overrides all of this.
-	if config.UvmTimeoutSeconds == 0 {
-		config.UvmTimeoutSeconds = defaultUvmTimeoutSeconds
-		if optTimeoutSeconds != 0 || envTimeoutSeconds != 0 {
-			config.UvmTimeoutSeconds = optTimeoutSeconds
-			if envTimeoutSeconds > optTimeoutSeconds {
-				config.UvmTimeoutSeconds = envTimeoutSeconds
-			}
+	// Get the timeout from the environment
+	envTimeoutSeconds := 0
+	envTimeout := os.Getenv("OPENGCS_UVM_TIMEOUT_SECONDS")
+	if len(envTimeout) > 0 {
+		var err error
+		if envTimeoutSeconds, err = strconv.Atoi(envTimeout); err != nil {
+			return fmt.Errorf("OPENGCS_UVM_TIMEOUT_SECONDS could not be interpreted as an integer")
+		}
+		if envTimeoutSeconds < 0 {
+			return fmt.Errorf("OPENGCS_UVM_TIMEOUT_SECONDS cannot be negative")
 		}
 	}
 
-	config.MappedVirtualDisks = nil
+	// Priority to the requested timeout from the options.
+	if config.TimeoutSeconds != 0 {
+		config.UvmTimeoutSeconds = config.TimeoutSeconds
+		return nil
+	}
+
+	// Next priority, the environment
+	if envTimeoutSeconds != 0 {
+		config.UvmTimeoutSeconds = envTimeoutSeconds
+		return nil
+	}
+
+	// Last priority is the default timeout
+	config.UvmTimeoutSeconds = defaultUvmTimeoutSeconds
 
 	return nil
 }
 
-// validate validates a Config structure for starting a utility VM.
-func (config *Config) validate() error {
+// Validate validates a Config structure for starting a utility VM.
+func (config *Config) Validate() error {
 	config.ActualMode = ModeActualError
 
 	if config.RequestedMode == ModeRequestVhdx && config.Vhdx == "" {
-		return fmt.Errorf("opengcs: config is invalid - request for VHDX mode did not supply a VHDX")
+		return fmt.Errorf("VHDx mode must supply a VHDx")
 	}
 	if config.RequestedMode == ModeRequestKernelInitrd && (config.KernelFile == "" || config.InitrdFile == "") {
-		return fmt.Errorf("opengcs: config is invalid - request for Kernel+Initrd mode must supply both kernel and initrd")
+		return fmt.Errorf("kernel+initrd mode must supply both kernel and initrd")
 	}
 
 	// Validate that if VHDX requested or auto, it exists.
 	if config.RequestedMode == ModeRequestAuto || config.RequestedMode == ModeRequestVhdx {
 		if _, err := os.Stat(config.Vhdx); os.IsNotExist(err) {
 			if config.RequestedMode == ModeRequestVhdx {
-				return fmt.Errorf("opengcs: mode requested was VHDX but '%s' could not be found", config.Vhdx)
+				return fmt.Errorf("VHDx '%s' not found", config.Vhdx)
 			}
 		} else {
 			config.ActualMode = ModeActualVhdx
+
+			// Can't specify boot parameters with VHDx
+			if config.BootParameters != "" {
+				return fmt.Errorf("Boot parameters cannot be specified in VHDx mode")
+			}
 			return nil
 		}
 	}
@@ -168,16 +191,16 @@ func (config *Config) validate() error {
 	// So must be kernel+initrd, or auto where we fallback as the VHDX doesn't exist
 	if config.InitrdFile == "" || config.KernelFile == "" {
 		if config.RequestedMode == ModeRequestKernelInitrd {
-			return fmt.Errorf("opengcs: both initrd and kernel options for utility VM boot must be supplied")
+			return fmt.Errorf("initrd and kernel options must be supplied")
 		}
 		return fmt.Errorf("opengcs: configuration is invalid")
 	}
 
 	if _, err := os.Stat(filepath.Join(config.KirdPath, config.KernelFile)); os.IsNotExist(err) {
-		return fmt.Errorf("opengcs: kernel '%s' was not found", filepath.Join(config.KirdPath, config.KernelFile))
+		return fmt.Errorf("kernel '%s' not found", filepath.Join(config.KirdPath, config.KernelFile))
 	}
 	if _, err := os.Stat(filepath.Join(config.KirdPath, config.InitrdFile)); os.IsNotExist(err) {
-		return fmt.Errorf("opengcs: initrd '%s' was not found", filepath.Join(config.KirdPath, config.InitrdFile))
+		return fmt.Errorf("initrd '%s' not found", filepath.Join(config.KirdPath, config.InitrdFile))
 	}
 
 	config.ActualMode = ModeActualKernelInitrd
@@ -185,21 +208,21 @@ func (config *Config) validate() error {
 	// Ensure all the MappedVirtualDisks exist on the host
 	for _, mvd := range config.MappedVirtualDisks {
 		if _, err := os.Stat(mvd.HostPath); err != nil {
-			return fmt.Errorf("opengcs: MappedVirtualDisk '%s' was not found", mvd.HostPath)
+			return fmt.Errorf("mapped virtual disk '%s' not found", mvd.HostPath)
 		}
 		if mvd.ContainerPath == "" {
-			return fmt.Errorf("opengcs: MappedVirtualDisk '%s' has no container path", mvd.HostPath)
+			return fmt.Errorf("mapped virtual disk '%s' requested without a container path", mvd.HostPath)
 		}
 	}
 
 	return nil
 }
 
-// Create creates a utility VM from a configuration.
-func (config *Config) Create() error {
-	logrus.Debugf("opengcs Create: %+v", config)
+// StartUtilityVM creates and starts a utility VM from a configuration.
+func (config *Config) StartUtilityVM() error {
+	logrus.Debugf("opengcs: StartUtilityVM: %+v", config)
 
-	if err := config.validate(); err != nil {
+	if err := config.Validate(); err != nil {
 		return err
 	}
 
@@ -218,28 +241,29 @@ func (config *Config) Create() error {
 		}
 	} else {
 		configuration.HvRuntime = &hcsshim.HvRuntime{
-			ImagePath:       config.KirdPath,
-			LinuxInitrdFile: config.InitrdFile,
-			LinuxKernelFile: config.KernelFile,
+			ImagePath:           config.KirdPath,
+			LinuxInitrdFile:     config.InitrdFile,
+			LinuxKernelFile:     config.KernelFile,
+			LinuxBootParameters: config.BootParameters,
 		}
 	}
 
 	configurationS, _ := json.Marshal(configuration)
-	logrus.Debugf("opengcs Create: calling HCS with '%s'", string(configurationS))
+	logrus.Debugf("opengcs: StartUtilityVM: calling HCS with '%s'", string(configurationS))
 	uvm, err := hcsshim.CreateContainer(config.Name, configuration)
 	if err != nil {
 		return err
 	}
-	logrus.Debugf("opengcs Create: uvm created, starting...")
+	logrus.Debugf("opengcs: StartUtilityVM: uvm created, starting...")
 	err = uvm.Start()
 	if err != nil {
-		logrus.Debugf("opengcs Create: uvm failed to start: %s", err)
+		logrus.Debugf("opengcs: StartUtilityVM: uvm failed to start: %s", err)
 		// Make sure we don't leave it laying around as it's been created in HCS
 		uvm.Terminate()
 		return err
 	}
 
 	config.Uvm = uvm
-	logrus.Debugf("opengcs Create: uvm %s is running", config.Name)
+	logrus.Debugf("opengcs StartUtilityVM: uvm %s is running", config.Name)
 	return nil
 }

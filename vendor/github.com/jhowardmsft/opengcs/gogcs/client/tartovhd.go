@@ -19,24 +19,24 @@ func (config *Config) TarToVhd(targetVHDFile string, reader io.Reader) (int64, e
 
 	process, err := config.createUtilsProcess("tar2vhd")
 	if err != nil {
-		return 0, fmt.Errorf("opengcs: TarToVhd: %s: failed to create utils process tar2vhd: %s", targetVHDFile, err)
+		return 0, fmt.Errorf("failed to start tar2vhd for %s: %s", targetVHDFile, err)
 	}
 	defer process.Process.Close()
 
 	// Send the tarstream into the `tar2vhd`s stdin
 	if _, err = copyWithTimeout(process.Stdin, reader, 0, config.UvmTimeoutSeconds, fmt.Sprintf("stdin of tar2vhd for generating %s", targetVHDFile)); err != nil {
-		return 0, fmt.Errorf("opengcs: TarToVhd: %s: failed to send to tar2vhd in uvm: %s", targetVHDFile, err)
+		return 0, fmt.Errorf("failed sending to tar2vhd for %s: %s", targetVHDFile, err)
 	}
 
 	// Don't need stdin now we've sent everything. This signals GCS that we are finished sending data.
 	if err := process.Process.CloseStdin(); err != nil {
-		return 0, fmt.Errorf("opengcs: TarToVhd: %s: failed closing stdin handle: %s", targetVHDFile, err)
+		return 0, fmt.Errorf("failed closing stdin handle for %s: %s", targetVHDFile, err)
 	}
 
 	// Write stdout contents of `tar2vhd` to the VHD file
 	payloadSize, err := writeFileFromReader(targetVHDFile, process.Stdout, config.UvmTimeoutSeconds, fmt.Sprintf("stdout of tar2vhd to %s", targetVHDFile))
 	if err != nil {
-		return 0, fmt.Errorf("opengcs: TarToVhd: %s: failed writing VHD file: %s", targetVHDFile, err)
+		return 0, fmt.Errorf("failed to write %s during tar2vhd: %s", targetVHDFile, err)
 	}
 
 	logrus.Debugf("opengcs: TarToVhd: %s created, %d bytes", targetVHDFile, payloadSize)
