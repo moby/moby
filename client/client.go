@@ -165,7 +165,7 @@ func NewClient(host string, version string, client *http.Client, httpHeaders map
 	}
 
 	if client != nil {
-		if _, ok := client.Transport.(*http.Transport); !ok {
+		if _, ok := client.Transport.(http.RoundTripper); !ok {
 			return nil, fmt.Errorf("unable to verify TLS configuration, invalid transport %v", client.Transport)
 		}
 	} else {
