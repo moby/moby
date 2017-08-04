@@ -261,12 +261,17 @@ func (container *Container) WriteHostConfig() (*containertypes.HostConfig, error
 
 // SetupWorkingDirectory sets up the container's working directory as set in container.Config.WorkingDir
 func (container *Container) SetupWorkingDirectory(rootIDs idtools.IDPair) error {
+	// TODO @jhowardmsft, @gupta-ak LCOW Support. This will need revisiting.
+	// We will need to do remote filesystem operations here.
+	if container.Platform != runtime.GOOS {
+		return nil
+	}
+
 	if container.Config.WorkingDir == "" {
 		return nil
 	}
 
 	container.Config.WorkingDir = filepath.Clean(container.Config.WorkingDir)
-
 	pth, err := container.GetResourcePath(container.Config.WorkingDir)
 	if err != nil {
 		return err

@@ -3,7 +3,10 @@ package daemon
 import (
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"time"
 
 	containertypes "github.com/docker/docker/api/types/container"
@@ -226,13 +229,24 @@ func (daemon *Daemon) setHostConfig(container *container.Container, hostConfig *
 
 // verifyContainerSettings performs validation of the hostconfig and config
 // structures.
-func (daemon *Daemon) verifyContainerSettings(hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool) ([]string, error) {
-
+func (daemon *Daemon) verifyContainerSettings(platform string, hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool) ([]string, error) {
 	// First perform verification of settings common across all platforms.
 	if config != nil {
 		if config.WorkingDir != "" {
-			config.WorkingDir = filepath.FromSlash(config.WorkingDir) // Ensure in platform semantics
-			if !system.IsAbs(config.WorkingDir) {
+			wdInvalid := false
+			if runtime.GOOS == platform {
+				config.WorkingDir = filepath.FromSlash(config.WorkingDir) // Ensure in platform semantics
+				if !system.IsAbs(config.WorkingDir) {
+					wdInvalid = true
+				}
+			} else {
+				// LCOW. Force Unix semantics
+				config.WorkingDir = strings.Replace(config.WorkingDir, string(os.PathSeparator), "/", -1)
+				if !path.IsAbs(config.WorkingDir) {
+					wdInvalid = true
+				}
+			}
+			if wdInvalid {
 				return nil, fmt.Errorf("the working directory '%s' is invalid, it needs to be an absolute path", config.WorkingDir)
 			}
 		}

@@ -387,7 +387,7 @@ func workdir(req dispatchRequest) error {
 	runConfig := req.state.runConfig
 	// This is from the Dockerfile and will not necessarily be in platform
 	// specific semantics, hence ensure it is converted.
-	runConfig.WorkingDir, err = normaliseWorkdir(runConfig.WorkingDir, req.args[0])
+	runConfig.WorkingDir, err = normaliseWorkdir(req.builder.platform, runConfig.WorkingDir, req.args[0])
 	if err != nil {
 		return err
 	}
