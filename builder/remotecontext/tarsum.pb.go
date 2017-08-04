@@ -94,7 +94,7 @@ func (this *TarsumBackup) GoString() string {
 	s := make([]string, 0, 5)
 	s = append(s, "&remotecontext.TarsumBackup{")
 	keysForHashes := make([]string, 0, len(this.Hashes))
-	for k, _ := range this.Hashes {
+	for k := range this.Hashes {
 		keysForHashes = append(keysForHashes, k)
 	}
 	github_com_gogo_protobuf_sortkeys.Strings(keysForHashes)
@@ -133,7 +133,7 @@ func (m *TarsumBackup) MarshalTo(dAtA []byte) (int, error) {
 	var l int
 	_ = l
 	if len(m.Hashes) > 0 {
-		for k, _ := range m.Hashes {
+		for k := range m.Hashes {
 			dAtA[i] = 0xa
 			i++
 			v := m.Hashes[k]
@@ -211,7 +211,7 @@ func (this *TarsumBackup) String() string {
 		return "nil"
 	}
 	keysForHashes := make([]string, 0, len(this.Hashes))
-	for k, _ := range this.Hashes {
+	for k := range this.Hashes {
 		keysForHashes = append(keysForHashes, k)
 	}
 	github_com_gogo_protobuf_sortkeys.Strings(keysForHashes)

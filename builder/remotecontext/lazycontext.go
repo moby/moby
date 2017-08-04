@@ -3,11 +3,10 @@ package remotecontext
 import (
 	"encoding/hex"
 	"os"
-	"path/filepath"
-	"runtime"
 	"strings"
 
 	"github.com/docker/docker/builder"
+	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/pkg/errors"
 )
@@ -15,7 +14,7 @@ import (
 // NewLazySource creates a new LazyContext. LazyContext defines a hashed build
 // context based on a root directory. Individual files are hashed first time
 // they are asked. It is not safe to call methods of LazyContext concurrently.
-func NewLazySource(root string) (builder.Source, error) {
+func NewLazySource(root containerfs.ContainerFS) (builder.Source, error) {
 	return &lazySource{
 		root: root,
 		sums: make(map[string]string),
@@ -23,11 +22,11 @@ func NewLazySource(root string) (builder.Source, error) {
 }
 
 type lazySource struct {
-	root string
+	root containerfs.ContainerFS
 	sums map[string]string
 }
 
-func (c *lazySource) Root() string {
+func (c *lazySource) Root() containerfs.ContainerFS {
 	return c.root
 }
 
@@ -41,7 +40,7 @@ func (c *lazySource) Hash(path string) (string, error) {
 		return "", err
 	}
 
-	fi, err := os.Lstat(fullPath)
+	fi, err := c.root.Lstat(fullPath)
 	if err != nil {
 		return "", errors.WithStack(err)
 	}
@@ -63,13 +62,13 @@ func (c *lazySource) Hash(path string) (string, error) {
 }
 
 func (c *lazySource) prepareHash(relPath string, fi os.FileInfo) (string, error) {
-	p := filepath.Join(c.root, relPath)
+	p := c.root.Join(c.root.Path(), relPath)
 	h, err := NewFileHash(p, relPath, fi)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to create hash for %s", relPath)
 	}
 	if fi.Mode().IsRegular() && fi.Size() > 0 {
-		f, err := os.Open(p)
+		f, err := c.root.Open(p)
 		if err != nil {
 			return "", errors.Wrapf(err, "failed to open %s", relPath)
 		}
@@ -85,10 +84,10 @@ func (c *lazySource) prepareHash(relPath string, fi os.FileInfo) (string, error)
 
 // Rel makes a path relative to base path. Same as `filepath.Rel` but can also
 // handle UUID paths in windows.
-func Rel(basepath, targpath string) (string, error) {
+func Rel(basepath containerfs.ContainerFS, targpath string) (string, error) {
 	// filepath.Rel can't handle UUID paths in windows
-	if runtime.GOOS == "windows" {
-		pfx := basepath + `\`
+	if basepath.OS() == "windows" {
+		pfx := basepath.Path() + `\`
 		if strings.HasPrefix(targpath, pfx) {
 			p := strings.TrimPrefix(targpath, pfx)
 			if p == "" {
@@ -97,5 +96,5 @@ func Rel(basepath, targpath string) (string, error) {
 			return p, nil
 		}
 	}
-	return filepath.Rel(basepath, targpath)
+	return basepath.Rel(basepath.Path(), targpath)
 }

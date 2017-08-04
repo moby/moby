@@ -3,11 +3,11 @@ package remotecontext
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"sync"
 
-	"github.com/docker/docker/pkg/symlink"
 	iradix "github.com/hashicorp/go-immutable-radix"
+
+	"github.com/docker/docker/pkg/containerfs"
 	"github.com/pkg/errors"
 	"github.com/tonistiigi/fsutil"
 )
@@ -19,7 +19,7 @@ type hashed interface {
 // CachableSource is a source that contains cache records for its contents
 type CachableSource struct {
 	mu   sync.Mutex
-	root string
+	root containerfs.ContainerFS
 	tree *iradix.Tree
 	txn  *iradix.Txn
 }
@@ -28,7 +28,7 @@ type CachableSource struct {
 func NewCachableSource(root string) *CachableSource {
 	ts := &CachableSource{
 		tree: iradix.New(),
-		root: root,
+		root: containerfs.NewLocalContainerFS(root),
 	}
 	return ts
 }
@@ -67,7 +67,7 @@ func (cs *CachableSource) Scan() error {
 		return err
 	}
 	txn := iradix.New().Txn()
-	err = filepath.Walk(cs.root, func(path string, info os.FileInfo, err error) error {
+	err = cs.root.Walk(cs.root.Path(), func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return errors.Wrapf(err, "failed to walk %s", path)
 		}
@@ -134,12 +134,12 @@ func (cs *CachableSource) Close() error {
 }
 
 func (cs *CachableSource) normalize(path string) (cleanpath, fullpath string, err error) {
-	cleanpath = filepath.Clean(string(os.PathSeparator) + path)[1:]
-	fullpath, err = symlink.FollowSymlinkInScope(filepath.Join(cs.root, path), cs.root)
+	cleanpath = cs.root.Clean(string(cs.root.Separator()) + path)[1:]
+	fullpath, err = cs.root.ResolveScopedPath(path, true)
 	if err != nil {
 		return "", "", fmt.Errorf("Forbidden path outside the context: %s (%s)", path, fullpath)
 	}
-	_, err = os.Lstat(fullpath)
+	_, err = cs.root.Lstat(fullpath)
 	if err != nil {
 		return "", "", convertPathError(err, path)
 	}
@@ -158,7 +158,7 @@ func (cs *CachableSource) Hash(path string) (string, error) {
 }
 
 // Root returns a root directory for the source
-func (cs *CachableSource) Root() string {
+func (cs *CachableSource) Root() containerfs.ContainerFS {
 	return cs.root
 }
 

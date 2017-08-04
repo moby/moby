@@ -17,8 +17,6 @@ import (
 	"github.com/docker/docker/builder/dockerfile/parser"
 	"github.com/docker/docker/builder/fscache"
 	"github.com/docker/docker/builder/remotecontext"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
@@ -50,21 +48,21 @@ type SessionGetter interface {
 
 // BuildManager is shared across all Builder objects
 type BuildManager struct {
-	archiver  *archive.Archiver
-	backend   builder.Backend
-	pathCache pathCache // TODO: make this persistent
-	sg        SessionGetter
-	fsCache   *fscache.FSCache
+	idMappings *idtools.IDMappings
+	backend    builder.Backend
+	pathCache  pathCache // TODO: make this persistent
+	sg         SessionGetter
+	fsCache    *fscache.FSCache
 }
 
 // NewBuildManager creates a BuildManager
 func NewBuildManager(b builder.Backend, sg SessionGetter, fsCache *fscache.FSCache, idMappings *idtools.IDMappings) (*BuildManager, error) {
 	bm := &BuildManager{
-		backend:   b,
-		pathCache: &syncmap.Map{},
-		sg:        sg,
-		archiver:  chrootarchive.NewArchiver(idMappings),
-		fsCache:   fsCache,
+		backend:    b,
+		pathCache:  &syncmap.Map{},
+		sg:         sg,
+		idMappings: idMappings,
+		fsCache:    fsCache,
 	}
 	if err := fsCache.RegisterTransport(remotecontext.ClientSessionRemote, NewClientSessionTransport()); err != nil {
 		return nil, err
@@ -114,7 +112,7 @@ func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (
 		ProgressWriter: config.ProgressWriter,
 		Backend:        bm.backend,
 		PathCache:      bm.pathCache,
-		Archiver:       bm.archiver,
+		IDMappings:     bm.idMappings,
 		Platform:       dockerfile.Platform,
 	}
 
@@ -160,7 +158,7 @@ type builderOptions struct {
 	Backend        builder.Backend
 	ProgressWriter backend.ProgressWriter
 	PathCache      pathCache
-	Archiver       *archive.Archiver
+	IDMappings     *idtools.IDMappings
 	Platform       string
 }
 
@@ -177,7 +175,7 @@ type Builder struct {
 	docker    builder.Backend
 	clientCtx context.Context
 
-	archiver         *archive.Archiver
+	idMappings       *idtools.IDMappings
 	buildStages      *buildStages
 	disableCommit    bool
 	buildArgs        *buildArgs
@@ -219,7 +217,7 @@ func newBuilder(clientCtx context.Context, options builderOptions) *Builder {
 		Aux:              options.ProgressWriter.AuxFormatter,
 		Output:           options.ProgressWriter.Output,
 		docker:           options.Backend,
-		archiver:         options.Archiver,
+		idMappings:       options.IDMappings,
 		buildArgs:        newBuildArgs(config.BuildArgs),
 		buildStages:      newBuildStages(),
 		imageSources:     newImageSources(clientCtx, options),

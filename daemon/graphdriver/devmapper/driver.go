@@ -12,6 +12,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/devicemapper"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/locker"
@@ -163,41 +164,41 @@ func (d *Driver) Remove(id string) error {
 }
 
 // Get mounts a device with given id into the root filesystem
-func (d *Driver) Get(id, mountLabel string) (string, error) {
+func (d *Driver) Get(id, mountLabel string) (containerfs.ContainerFS, error) {
 	d.locker.Lock(id)
 	defer d.locker.Unlock(id)
 	mp := path.Join(d.home, "mnt", id)
 	rootFs := path.Join(mp, "rootfs")
 	if count := d.ctr.Increment(mp); count > 1 {
-		return rootFs, nil
+		return containerfs.NewLocalContainerFS(rootFs), nil
 	}
 
 	uid, gid, err := idtools.GetRootUIDGID(d.uidMaps, d.gidMaps)
 	if err != nil {
 		d.ctr.Decrement(mp)
-		return "", err
+		return nil, err
 	}
 
 	// Create the target directories if they don't exist
 	if err := idtools.MkdirAllAs(path.Join(d.home, "mnt"), 0755, uid, gid); err != nil && !os.IsExist(err) {
 		d.ctr.Decrement(mp)
-		return "", err
+		return nil, err
 	}
 	if err := idtools.MkdirAs(mp, 0755, uid, gid); err != nil && !os.IsExist(err) {
 		d.ctr.Decrement(mp)
-		return "", err
+		return nil, err
 	}
 
 	// Mount the device
 	if err := d.DeviceSet.MountDevice(id, mp, mountLabel); err != nil {
 		d.ctr.Decrement(mp)
-		return "", err
+		return nil, err
 	}
 
 	if err := idtools.MkdirAllAs(rootFs, 0755, uid, gid); err != nil && !os.IsExist(err) {
 		d.ctr.Decrement(mp)
 		d.DeviceSet.UnmountDevice(id, mp)
-		return "", err
+		return nil, err
 	}
 
 	idFile := path.Join(mp, "id")
@@ -207,11 +208,11 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 		if err := ioutil.WriteFile(idFile, []byte(id), 0600); err != nil {
 			d.ctr.Decrement(mp)
 			d.DeviceSet.UnmountDevice(id, mp)
-			return "", err
+			return nil, err
 		}
 	}
 
-	return rootFs, nil
+	return containerfs.NewLocalContainerFS(rootFs), nil
 }
 
 // Put unmounts a device and removes it.

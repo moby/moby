@@ -10,9 +10,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/containerd/continuity/driver"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/vfs"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/opencontainers/go-digest"
@@ -82,7 +84,7 @@ func newTestStore(t *testing.T) (Store, string, func()) {
 	}
 }
 
-type layerInit func(root string) error
+type layerInit func(root containerfs.ContainerFS) error
 
 func createLayer(ls Store, parent ChainID, layerFunc layerInit) (Layer, error) {
 	containerID := stringid.GenerateRandomID()
@@ -91,12 +93,12 @@ func createLayer(ls Store, parent ChainID, layerFunc layerInit) (Layer, error) {
 		return nil, err
 	}
 
-	path, err := mount.Mount("")
+	pathFS, err := mount.Mount("")
 	if err != nil {
 		return nil, err
 	}
 
-	if err := layerFunc(path); err != nil {
+	if err := layerFunc(pathFS); err != nil {
 		return nil, err
 	}
 
@@ -123,7 +125,7 @@ func createLayer(ls Store, parent ChainID, layerFunc layerInit) (Layer, error) {
 }
 
 type FileApplier interface {
-	ApplyFile(root string) error
+	ApplyFile(root containerfs.ContainerFS) error
 }
 
 type testFile struct {
@@ -140,25 +142,25 @@ func newTestFile(name string, content []byte, perm os.FileMode) FileApplier {
 	}
 }
 
-func (tf *testFile) ApplyFile(root string) error {
-	fullPath := filepath.Join(root, tf.name)
-	if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
+func (tf *testFile) ApplyFile(root containerfs.ContainerFS) error {
+	fullPath := root.Join(root.Path(), tf.name)
+	if err := root.MkdirAll(root.Dir(fullPath), 0755); err != nil {
 		return err
 	}
 	// Check if already exists
-	if stat, err := os.Stat(fullPath); err == nil && stat.Mode().Perm() != tf.permission {
-		if err := os.Chmod(fullPath, tf.permission); err != nil {
+	if stat, err := root.Stat(fullPath); err == nil && stat.Mode().Perm() != tf.permission {
+		if err := root.Lchmod(fullPath, tf.permission); err != nil {
 			return err
 		}
 	}
-	if err := ioutil.WriteFile(fullPath, tf.content, tf.permission); err != nil {
+	if err := driver.WriteFile(root, fullPath, tf.content, tf.permission); err != nil {
 		return err
 	}
 	return nil
 }
 
 func initWithFiles(files ...FileApplier) layerInit {
-	return func(root string) error {
+	return func(root containerfs.ContainerFS) error {
 		for _, f := range files {
 			if err := f.ApplyFile(root); err != nil {
 				return err
@@ -288,7 +290,7 @@ func TestMountAndRegister(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b, err := ioutil.ReadFile(filepath.Join(path2, "testfile.txt"))
+	b, err := driver.ReadFile(path2, path2.Join(path2.Path(), "testfile.txt"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -391,12 +393,12 @@ func TestStoreRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	path, err := m.Mount("")
+	pathFS, err := m.Mount("")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if err := ioutil.WriteFile(filepath.Join(path, "testfile.txt"), []byte("nothing here"), 0644); err != nil {
+	if err := driver.WriteFile(pathFS, pathFS.Join(pathFS.Path(), "testfile.txt"), []byte("nothing here"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -430,20 +432,20 @@ func TestStoreRestore(t *testing.T) {
 
 	if mountPath, err := m2.Mount(""); err != nil {
 		t.Fatal(err)
-	} else if path != mountPath {
-		t.Fatalf("Unexpected path %s, expected %s", mountPath, path)
+	} else if pathFS.Path() != mountPath.Path() {
+		t.Fatalf("Unexpected path %s, expected %s", mountPath.Path(), pathFS.Path())
 	}
 
 	if mountPath, err := m2.Mount(""); err != nil {
 		t.Fatal(err)
-	} else if path != mountPath {
-		t.Fatalf("Unexpected path %s, expected %s", mountPath, path)
+	} else if pathFS.Path() != mountPath.Path() {
+		t.Fatalf("Unexpected path %s, expected %s", mountPath.Path(), pathFS.Path())
 	}
 	if err := m2.Unmount(); err != nil {
 		t.Fatal(err)
 	}
 
-	b, err := ioutil.ReadFile(filepath.Join(path, "testfile.txt"))
+	b, err := driver.ReadFile(pathFS, pathFS.Join(pathFS.Path(), "testfile.txt"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -618,7 +620,7 @@ func tarFromFiles(files ...FileApplier) ([]byte, error) {
 	defer os.RemoveAll(td)
 
 	for _, f := range files {
-		if err := f.ApplyFile(td); err != nil {
+		if err := f.ApplyFile(containerfs.NewLocalContainerFS(td)); err != nil {
 			return nil, err
 		}
 	}

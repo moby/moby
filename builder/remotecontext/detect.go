@@ -5,15 +5,14 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 
+	"github.com/containerd/continuity/driver"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/parser"
 	"github.com/docker/docker/builder/dockerignore"
 	"github.com/docker/docker/pkg/fileutils"
-	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -157,12 +156,12 @@ func readAndParseDockerfile(name string, rc io.Reader) (*parser.Result, error) {
 	return parser.Parse(br)
 }
 
-func openAt(remote builder.Source, path string) (*os.File, error) {
+func openAt(remote builder.Source, path string) (driver.File, error) {
 	fullPath, err := FullPath(remote, path)
 	if err != nil {
 		return nil, err
 	}
-	return os.Open(fullPath)
+	return remote.Root().Open(fullPath)
 }
 
 // StatAt is a helper for calling Stat on a path from a source
@@ -171,12 +170,12 @@ func StatAt(remote builder.Source, path string) (os.FileInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	return os.Stat(fullPath)
+	return remote.Root().Stat(fullPath)
 }
 
 // FullPath is a helper for getting a full path for a path from a source
 func FullPath(remote builder.Source, path string) (string, error) {
-	fullPath, err := symlink.FollowSymlinkInScope(filepath.Join(remote.Root(), path), remote.Root())
+	fullPath, err := remote.Root().ResolveScopedPath(path, true)
 	if err != nil {
 		return "", fmt.Errorf("Forbidden path outside the build context: %s (%s)", path, fullPath) // backwards compat with old error
 	}

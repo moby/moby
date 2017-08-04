@@ -55,18 +55,17 @@ type (
 	}
 )
 
-// Archiver allows the reuse of most utility functions of this package
-// with a pluggable Untar function. Also, to facilitate the passing of
-// specific id mappings for untar, an archiver can be created with maps
-// which will then be passed to Untar operations
+// Archiver implements the Archiver interface and allows the reuse of most utility functions of
+// this package with a pluggable Untar function. Also, to facilitate the passing of specific id
+// mappings for untar, an Archiver can be created with maps which will then be passed to Untar operations.
 type Archiver struct {
-	Untar      func(io.Reader, string, *TarOptions) error
-	IDMappings *idtools.IDMappings
+	Untar         func(io.Reader, string, *TarOptions) error
+	IDMappingsVar *idtools.IDMappings
 }
 
 // NewDefaultArchiver returns a new Archiver without any IDMappings
 func NewDefaultArchiver() *Archiver {
-	return &Archiver{Untar: Untar, IDMappings: &idtools.IDMappings{}}
+	return &Archiver{Untar: Untar, IDMappingsVar: &idtools.IDMappings{}}
 }
 
 // breakoutError is used to differentiate errors related to breaking out
@@ -1025,8 +1024,8 @@ func (archiver *Archiver) TarUntar(src, dst string) error {
 	}
 	defer archive.Close()
 	options := &TarOptions{
-		UIDMaps: archiver.IDMappings.UIDs(),
-		GIDMaps: archiver.IDMappings.GIDs(),
+		UIDMaps: archiver.IDMappingsVar.UIDs(),
+		GIDMaps: archiver.IDMappingsVar.GIDs(),
 	}
 	return archiver.Untar(archive, dst, options)
 }
@@ -1039,8 +1038,8 @@ func (archiver *Archiver) UntarPath(src, dst string) error {
 	}
 	defer archive.Close()
 	options := &TarOptions{
-		UIDMaps: archiver.IDMappings.UIDs(),
-		GIDMaps: archiver.IDMappings.GIDs(),
+		UIDMaps: archiver.IDMappingsVar.UIDs(),
+		GIDMaps: archiver.IDMappingsVar.GIDs(),
 	}
 	return archiver.Untar(archive, dst, options)
 }
@@ -1058,10 +1057,10 @@ func (archiver *Archiver) CopyWithTar(src, dst string) error {
 		return archiver.CopyFileWithTar(src, dst)
 	}
 
-	// if this archiver is set up with ID mapping we need to create
+	// if this Archiver is set up with ID mapping we need to create
 	// the new destination directory with the remapped root UID/GID pair
 	// as owner
-	rootIDs := archiver.IDMappings.RootPair()
+	rootIDs := archiver.IDMappingsVar.RootPair()
 	// Create dst, copy src's content into it
 	logrus.Debugf("Creating dest directory: %s", dst)
 	if err := idtools.MkdirAllAndChownNew(dst, 0755, rootIDs); err != nil {
@@ -1112,7 +1111,7 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 		hdr.Name = filepath.Base(dst)
 		hdr.Mode = int64(chmodTarEntry(os.FileMode(hdr.Mode)))
 
-		if err := remapIDs(archiver.IDMappings, hdr); err != nil {
+		if err := remapIDs(archiver.IDMappingsVar, hdr); err != nil {
 			return err
 		}
 
@@ -1137,6 +1136,11 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 		r.CloseWithError(err)
 	}
 	return err
+}
+
+// IDMappings returns the IDMappings of the archiver.
+func (archiver *Archiver) IDMappings() *idtools.IDMappings {
+	return archiver.IDMappingsVar
 }
 
 func remapIDs(idMappings *idtools.IDMappings, hdr *tar.Header) error {

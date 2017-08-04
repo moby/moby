@@ -40,7 +40,7 @@ func (daemon *Daemon) containerExport(container *container.Container) (io.ReadCl
 		return nil, err
 	}
 
-	archive, err := archive.TarWithOptions(container.BaseFS, &archive.TarOptions{
+	archive, err := archivePath(container.BaseFS, container.BaseFS.Path(), &archive.TarOptions{
 		Compression: archive.Uncompressed,
 		UIDMaps:     daemon.idMappings.UIDs(),
 		GIDMaps:     daemon.idMappings.GIDs(),
