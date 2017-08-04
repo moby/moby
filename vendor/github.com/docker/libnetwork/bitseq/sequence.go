@@ -497,7 +497,10 @@ func getFirstAvailable(head *sequence, start uint64) (uint64, uint64, error) {
 	// Derive the this sequence offsets
 	byteOffset := byteStart - inBlockBytePos
 	bitOffset := inBlockBytePos*8 + bitStart
-
+	var firstOffset uint64
+	if current == head {
+		firstOffset = byteOffset
+	}
 	for current != nil {
 		if current.block != blockMAX {
 			bytePos, bitPos, err := current.getAvailableBit(bitOffset)
@@ -505,7 +508,8 @@ func getFirstAvailable(head *sequence, start uint64) (uint64, uint64, error) {
 		}
 		// Moving to next block: Reset bit offset.
 		bitOffset = 0
-		byteOffset += current.count * blockBytes
+		byteOffset += (current.count * blockBytes) - firstOffset
+		firstOffset = 0
 		current = current.next
 	}
 	return invalidPos, invalidPos, ErrNoBitAvailable

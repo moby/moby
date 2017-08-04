@@ -98,10 +98,14 @@ func (nDB *NetworkDB) RemoveKey(key []byte) {
 }
 
 func (nDB *NetworkDB) clusterInit() error {
+	nDB.lastStatsTimestamp = time.Now()
+	nDB.lastHealthTimestamp = nDB.lastStatsTimestamp
+
 	config := memberlist.DefaultLANConfig()
 	config.Name = nDB.config.NodeName
 	config.BindAddr = nDB.config.BindAddr
 	config.AdvertiseAddr = nDB.config.AdvertiseAddr
+	config.UDPBufferSize = nDB.config.PacketBufferSize
 
 	if nDB.config.BindPort != 0 {
 		config.BindPort = nDB.config.BindPort
@@ -199,9 +203,8 @@ func (nDB *NetworkDB) clusterJoin(members []string) error {
 	mlist := nDB.memberlist
 
 	if _, err := mlist.Join(members); err != nil {
-		// Incase of failure, keep retrying join until it succeeds or the cluster is shutdown.
+		// In case of failure, keep retrying join until it succeeds or the cluster is shutdown.
 		go nDB.retryJoin(members, nDB.stopCh)
-
 		return fmt.Errorf("could not join node to memberlist: %v", err)
 	}
 
@@ -287,13 +290,6 @@ func (nDB *NetworkDB) reconnectNode() {
 		return
 	}
 
-	// Update all the local table state to a new time to
-	// force update on the node we are trying to rejoin, just in
-	// case that node has these in deleting state still. This is
-	// facilitate fast convergence after recovering from a gossip
-	// failure.
-	nDB.updateLocalTableTime()
-
 	logrus.Debugf("Initiating bulk sync with node %s after reconnect", node.Name)
 	nDB.bulkSync([]string{node.Name}, true)
 }
@@ -310,12 +306,11 @@ func (nDB *NetworkDB) reapState() {
 
 func (nDB *NetworkDB) reapNetworks() {
 	nDB.Lock()
-	for name, nn := range nDB.networks {
+	for _, nn := range nDB.networks {
 		for id, n := range nn {
 			if n.leaving {
 				if n.reapTime <= 0 {
 					delete(nn, id)
-					nDB.deleteNetworkNode(id, name)
 					continue
 				}
 				n.reapTime -= reapPeriod
@@ -373,11 +368,21 @@ func (nDB *NetworkDB) gossip() {
 		networkNodes[nid] = nDB.networkNodes[nid]
 
 	}
+	printStats := time.Since(nDB.lastStatsTimestamp) >= nDB.config.StatsPrintPeriod
+	printHealth := time.Since(nDB.lastHealthTimestamp) >= nDB.config.HealthPrintPeriod
 	nDB.RUnlock()
+
+	if printHealth {
+		healthScore := nDB.memberlist.GetHealthScore()
+		if healthScore != 0 {
+			logrus.Warnf("NetworkDB stats - healthscore:%d (connectivity issues)", healthScore)
+		}
+		nDB.lastHealthTimestamp = time.Now()
+	}
 
 	for nid, nodes := range networkNodes {
 		mNodes := nDB.mRandomNodes(3, nodes)
-		bytesAvail := udpSendBuf - compoundHeaderOverhead
+		bytesAvail := nDB.config.PacketBufferSize - compoundHeaderOverhead
 
 		nDB.RLock()
 		network, ok := thisNodeNetworks[nid]
@@ -398,6 +403,14 @@ func (nDB *NetworkDB) gossip() {
 		}
 
 		msgs := broadcastQ.GetBroadcasts(compoundOverhead, bytesAvail)
+		// Collect stats and print the queue info, note this code is here also to have a view of the queues empty
+		network.qMessagesSent += len(msgs)
+		if printStats {
+			logrus.Infof("NetworkDB stats - Queue net:%s qLen:%d netPeers:%d netMsg/s:%d",
+				nid, broadcastQ.NumQueued(), broadcastQ.NumNodes(), network.qMessagesSent/int((nDB.config.StatsPrintPeriod/time.Second)))
+			network.qMessagesSent = 0
+		}
+
 		if len(msgs) == 0 {
 			continue
 		}
@@ -415,10 +428,14 @@ func (nDB *NetworkDB) gossip() {
 			}
 
 			// Send the compound message
-			if err := nDB.memberlist.SendToUDP(&mnode.Node, compound); err != nil {
+			if err := nDB.memberlist.SendBestEffort(&mnode.Node, compound); err != nil {
 				logrus.Errorf("Failed to send gossip to %s: %s", mnode.Addr, err)
 			}
 		}
+	}
+	// Reset the stats
+	if printStats {
+		nDB.lastStatsTimestamp = time.Now()
 	}
 }
 
@@ -590,7 +607,7 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 	nDB.bulkSyncAckTbl[node] = ch
 	nDB.Unlock()
 
-	err = nDB.memberlist.SendToTCP(&mnode.Node, buf)
+	err = nDB.memberlist.SendReliable(&mnode.Node, buf)
 	if err != nil {
 		nDB.Lock()
 		delete(nDB.bulkSyncAckTbl, node)
@@ -607,7 +624,7 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 		case <-t.C:
 			logrus.Errorf("Bulk sync to node %s timed out", node)
 		case <-ch:
-			logrus.Debugf("%s: Bulk sync to node %s took %s", nDB.config.NodeName, node, time.Now().Sub(startTime))
+			logrus.Debugf("%s: Bulk sync to node %s took %s", nDB.config.NodeName, node, time.Since(startTime))
 		}
 		t.Stop()
 	}

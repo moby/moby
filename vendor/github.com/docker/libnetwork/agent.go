@@ -214,8 +214,8 @@ func (c *controller) agentSetup(clusterProvider cluster.Provider) error {
 	listen := clusterProvider.GetListenAddress()
 	listenAddr, _, _ := net.SplitHostPort(listen)
 
-	logrus.Infof("Initializing Libnetwork Agent Listen-Addr=%s Local-addr=%s Adv-addr=%s Data-addr=%s Remote-addr-list=%v",
-		listenAddr, bindAddr, advAddr, dataAddr, remoteAddrList)
+	logrus.Infof("Initializing Libnetwork Agent Listen-Addr=%s Local-addr=%s Adv-addr=%s Data-addr=%s Remote-addr-list=%v MTU=%d",
+		listenAddr, bindAddr, advAddr, dataAddr, remoteAddrList, c.Config().Daemon.NetworkControlPlaneMTU)
 	if advAddr != "" && agent == nil {
 		if err := c.agentInit(listenAddr, bindAddr, advAddr, dataAddr); err != nil {
 			logrus.Errorf("error in agentInit: %v", err)
@@ -286,12 +286,19 @@ func (c *controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, d
 	nodeName := hostname + "-" + stringid.TruncateID(stringid.GenerateRandomID())
 	logrus.Info("Gossip cluster hostname ", nodeName)
 
-	nDB, err := networkdb.New(&networkdb.Config{
-		BindAddr:      listenAddr,
-		AdvertiseAddr: advertiseAddr,
-		NodeName:      nodeName,
-		Keys:          keys,
-	})
+	netDBConf := networkdb.DefaultConfig()
+	netDBConf.NodeName = nodeName
+	netDBConf.BindAddr = listenAddr
+	netDBConf.AdvertiseAddr = advertiseAddr
+	netDBConf.Keys = keys
+	if c.Config().Daemon.NetworkControlPlaneMTU != 0 {
+		// Consider the MTU remove the IP hdr (IPv4 or IPv6) and the TCP/UDP hdr.
+		// To be on the safe side let's cut 100 bytes
+		netDBConf.PacketBufferSize = (c.Config().Daemon.NetworkControlPlaneMTU - 100)
+		logrus.Debugf("Control plane MTU: %d will initialize NetworkDB with: %d",
+			c.Config().Daemon.NetworkControlPlaneMTU, netDBConf.PacketBufferSize)
+	}
+	nDB, err := networkdb.New(netDBConf)
 
 	if err != nil {
 		return err
@@ -383,15 +390,11 @@ func (c *controller) agentClose() {
 
 	agent.Lock()
 	for _, cancelFuncs := range agent.driverCancelFuncs {
-		for _, cancel := range cancelFuncs {
-			cancelList = append(cancelList, cancel)
-		}
+		cancelList = append(cancelList, cancelFuncs...)
 	}
 
 	// Add also the cancel functions for the network db
-	for _, cancel := range agent.coreCancelFuncs {
-		cancelList = append(cancelList, cancel)
-	}
+	cancelList = append(cancelList, agent.coreCancelFuncs...)
 	agent.Unlock()
 
 	for _, cancel := range cancelList {

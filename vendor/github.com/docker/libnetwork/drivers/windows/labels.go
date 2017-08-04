@@ -28,6 +28,9 @@ const (
 	// DNSServers of the network
 	DNSServers = "com.docker.network.windowsshim.dnsservers"
 
+	// MacPool of the network
+	MacPool = "com.docker.network.windowsshim.macpool"
+
 	// SourceMac of the network
 	SourceMac = "com.docker.network.windowsshim.sourcemac"
 

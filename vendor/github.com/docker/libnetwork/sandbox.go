@@ -621,7 +621,7 @@ func (sb *sandbox) resolveName(req string, networkName string, epList []*endpoin
 func (sb *sandbox) SetKey(basePath string) error {
 	start := time.Now()
 	defer func() {
-		logrus.Debugf("sandbox set key processing took %s for container %s", time.Now().Sub(start), sb.ContainerID())
+		logrus.Debugf("sandbox set key processing took %s for container %s", time.Since(start), sb.ContainerID())
 	}()
 
 	if basePath == "" {
@@ -773,9 +773,7 @@ func (sb *sandbox) restoreOslSandbox() error {
 		}
 		Ifaces[fmt.Sprintf("%s+%s", i.srcName, i.dstPrefix)] = ifaceOptions
 		if joinInfo != nil {
-			for _, r := range joinInfo.StaticRoutes {
-				routes = append(routes, r)
-			}
+			routes = append(routes, joinInfo.StaticRoutes...)
 		}
 		if ep.needResolver() {
 			sb.startResolver(true)
@@ -789,11 +787,7 @@ func (sb *sandbox) restoreOslSandbox() error {
 
 	// restore osl sandbox
 	err := sb.osSbox.Restore(Ifaces, routes, gwep.joinInfo.gw, gwep.joinInfo.gw6)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
@@ -958,9 +952,7 @@ func (sb *sandbox) joinLeaveStart() {
 		joinLeaveDone := sb.joinLeaveDone
 		sb.Unlock()
 
-		select {
-		case <-joinLeaveDone:
-		}
+		<-joinLeaveDone
 
 		sb.Lock()
 	}

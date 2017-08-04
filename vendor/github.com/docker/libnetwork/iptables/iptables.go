@@ -151,11 +151,11 @@ func ProgramChain(c *ChainInfo, bridgeName string, hairpinMode, enable bool) err
 			"-j", c.Name}
 		if !Exists(Nat, "PREROUTING", preroute...) && enable {
 			if err := c.Prerouting(Append, preroute...); err != nil {
-				return fmt.Errorf("Failed to inject docker in PREROUTING chain: %s", err)
+				return fmt.Errorf("Failed to inject %s in PREROUTING chain: %s", c.Name, err)
 			}
 		} else if Exists(Nat, "PREROUTING", preroute...) && !enable {
 			if err := c.Prerouting(Delete, preroute...); err != nil {
-				return fmt.Errorf("Failed to remove docker in PREROUTING chain: %s", err)
+				return fmt.Errorf("Failed to remove %s in PREROUTING chain: %s", c.Name, err)
 			}
 		}
 		output := []string{
@@ -167,11 +167,11 @@ func ProgramChain(c *ChainInfo, bridgeName string, hairpinMode, enable bool) err
 		}
 		if !Exists(Nat, "OUTPUT", output...) && enable {
 			if err := c.Output(Append, output...); err != nil {
-				return fmt.Errorf("Failed to inject docker in OUTPUT chain: %s", err)
+				return fmt.Errorf("Failed to inject %s in OUTPUT chain: %s", c.Name, err)
 			}
 		} else if Exists(Nat, "OUTPUT", output...) && !enable {
 			if err := c.Output(Delete, output...); err != nil {
-				return fmt.Errorf("Failed to inject docker in OUTPUT chain: %s", err)
+				return fmt.Errorf("Failed to inject %s in OUTPUT chain: %s", c.Name, err)
 			}
 		}
 	case Filter:
