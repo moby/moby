@@ -307,6 +307,16 @@ func (r *legacyLayerReader) Read(b []byte) (int, error) {
 	return r.backupReader.Read(b)
 }
 
+func (r *legacyLayerReader) Seek(offset int64, whence int) (int64, error) {
+	if r.backupReader == nil {
+		if r.currentFile == nil {
+			return 0, errors.New("no current file")
+		}
+		return r.currentFile.Seek(offset, whence)
+	}
+	return 0, errors.New("seek not supported on this stream")
+}
+
 func (r *legacyLayerReader) Close() error {
 	r.proceed <- false
 	<-r.result

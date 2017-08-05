@@ -48,6 +48,8 @@ type HvRuntime struct {
 	LinuxInitrdFile     string `json:",omitempty"` // File under ImagePath on host containing an initrd image for starting a Linux utility VM
 	LinuxKernelFile     string `json:",omitempty"` // File under ImagePath on host containing a kernel for starting a Linux utility VM
 	LinuxBootParameters string `json:",omitempty"` // Additional boot parameters for starting a Linux Utility VM in initrd mode
+	BootSource          string `json:",omitempty"` // "Vhd" for Linux Utility VM booting from VHD
+	WritableBootSource  bool   `json:",omitempty"` // Linux Utility VM booting from VHD
 }
 
 type MappedVirtualDisk struct {
