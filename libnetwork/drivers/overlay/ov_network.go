@@ -683,10 +683,12 @@ func (n *network) initSandbox(restore bool) error {
 		return fmt.Errorf("could not get network sandbox (oper %t): %v", restore, err)
 	}
 
+	// this is needed to let the peerAdd configure the sandbox
 	n.setSandbox(sbox)
 
 	if !restore {
-		n.driver.peerDbUpdateSandbox(n.id)
+		// Initialize the sandbox with all the peers previously received from networkdb
+		n.driver.initSandboxPeerDB(n.id)
 	}
 
 	var nlSock *nl.NetlinkSocket
