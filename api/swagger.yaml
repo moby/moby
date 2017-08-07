@@ -301,6 +301,7 @@ definitions:
           Mode:
             description: "The permission mode for the tmpfs mount in an integer."
             type: "integer"
+
   RestartPolicy:
     description: |
       The behavior to apply when the container exits. The default is not to restart.
@@ -1457,6 +1458,7 @@ definitions:
           type: "object"
           additionalProperties:
             type: "string"
+
   NetworkContainer:
     type: "object"
     properties:
@@ -1512,6 +1514,7 @@ definitions:
         type: "string"
       progressDetail:
         $ref: "#/definitions/ProgressDetail"
+
   ErrorDetail:
     type: "object"
     properties:
@@ -1519,6 +1522,7 @@ definitions:
         type: "integer"
       message:
         type: "string"
+
   ProgressDetail:
     type: "object"
     properties:
@@ -1685,6 +1689,7 @@ definitions:
         example:
           - "rbind"
           - "rw"
+
   PluginDevice:
     type: "object"
     required: [Name, Description, Settable, Path]
@@ -1988,6 +1993,7 @@ definitions:
       Role: "manager"
       Labels:
         foo: "bar"
+
   Node:
     type: "object"
     properties:
@@ -2101,6 +2107,7 @@ definitions:
           -----END CERTIFICATE-----
         CertIssuerSubject: "MBMxETAPBgNVBAMTCHN3YXJtLWNh"
         CertIssuerPublicKey: "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEmT9XIw9h1qoNclv9VeHmf/Vi6/uI2vFXdBveXTpcPjqx6i9wNazchk1XWV/dKTKvSh9xyGKmiIeRcE4OiMnJ1A=="
+
   TLSInfo:
     description: "Information about the issuer of leaf TLS certificates and the trusted root CA certificate"
     type: "object"
@@ -2128,6 +2135,7 @@ definitions:
         -----END CERTIFICATE-----
       CertIssuerSubject: "MBMxETAPBgNVBAMTCHN3YXJtLWNh"
       CertIssuerPublicKey: "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEmT9XIw9h1qoNclv9VeHmf/Vi6/uI2vFXdBveXTpcPjqx6i9wNazchk1XWV/dKTKvSh9xyGKmiIeRcE4OiMnJ1A=="
+
   SwarmSpec:
     description: "User modifiable swarm configuration."
     type: "object"
@@ -2265,6 +2273,7 @@ definitions:
         Manager: "SWMTKN-1-3pu6hszjas19xyp7ghgosyx9k8atbfcr8p2is99znpy26u2lkl-7p73s1dx5in4tatdymyhg9hu2"
       EncryptionConfig:
         AutoLockManagers: false
+
   # The Swarm information for `GET /info`. It is the same as `GET /swarm`, but
   # without `JoinTokens`.
   ClusterInfo:
@@ -2288,6 +2297,7 @@ definitions:
       RootRotationInProgress:
         description: "Whether there is currently a root CA rotation in progress for the swarm"
         type: "boolean"
+
   TaskSpec:
     description: "User modifiable task configuration."
     type: "object"
@@ -2617,6 +2627,7 @@ definitions:
             type: "object"
             additionalProperties:
               type: "string"
+
   TaskState:
     type: "string"
     enum:
@@ -2633,6 +2644,7 @@ definitions:
       - "shutdown"
       - "failed"
       - "rejected"
+
   Task:
     type: "object"
     properties:
@@ -2756,6 +2768,7 @@ definitions:
         - NamedResourceSpec:
             Kind: "GPU"
             Value: "UUID2"
+
   ServiceSpec:
     description: "User modifiable configuration for a service."
     properties:
@@ -2860,6 +2873,7 @@ definitions:
                 type: "string"
       EndpointSpec:
         $ref: "#/definitions/EndpointSpec"
+
   EndpointPortConfig:
     type: "object"
     properties:
@@ -2876,6 +2890,7 @@ definitions:
       PublishedPort:
         description: "The port on the swarm hosts."
         type: "integer"
+
   EndpointSpec:
     description: "Properties that can be configured to access and load balance a service."
     type: "object"
@@ -2893,6 +2908,7 @@ definitions:
         type: "array"
         items:
           $ref: "#/definitions/EndpointPortConfig"
+
   Service:
     type: "object"
     properties:
@@ -3005,6 +3021,7 @@ definitions:
           -
             NetworkID: "4qvuz4ko70xaltuqbt8956gd1"
             Addr: "10.255.0.3/16"
+
   ImageDeleteResponseItem:
     type: "object"
     properties:
@@ -3014,6 +3031,7 @@ definitions:
       Deleted:
         description: "The image ID of an image that was deleted"
         type: "string"
+
   ServiceUpdateResponse:
     type: "object"
     properties:
@@ -3024,6 +3042,7 @@ definitions:
           type: "string"
     example:
       Warning: "unable to pin image doesnotexist:latest to digest: image library/doesnotexist:latest not found"
+
   ContainerSummary:
     type: "array"
     items:
@@ -3158,6 +3177,7 @@ definitions:
         example: "2017-07-20T13:55:28.678958722Z"
       Spec:
         $ref: "#/definitions/SecretSpec"
+
   ConfigSpec:
     type: "object"
     properties:
@@ -3174,6 +3194,7 @@ definitions:
           Base64-url-safe-encoded ([RFC 4648](https://tools.ietf.org/html/rfc4648#section-3.2))
           config data.
         type: "string"
+
   Config:
     type: "object"
     properties:
