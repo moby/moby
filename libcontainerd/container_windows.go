@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/Microsoft/hcsshim"
-	"github.com/docker/docker/pkg/system"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/windows"
@@ -89,8 +88,8 @@ func (ctr *container) start(attachStdio StdioCallback) error {
 	}
 	createProcessParms.User = ctr.ociSpec.Process.User.Username
 
-	// LCOW requires the raw OCI spec passed through HCS and onwards to GCS for the utility VM.
-	if system.LCOWSupported() && ctr.ociSpec.Platform.OS == "linux" {
+	// Linux containers requires the raw OCI spec passed through HCS and onwards to GCS for the utility VM.
+	if ctr.ociSpec.Platform.OS == "linux" {
 		ociBuf, err := json.Marshal(ctr.ociSpec)
 		if err != nil {
 			return err
