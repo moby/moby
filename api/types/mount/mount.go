@@ -15,6 +15,8 @@ const (
 	TypeVolume Type = "volume"
 	// TypeTmpfs is the type for mounting tmpfs
 	TypeTmpfs Type = "tmpfs"
+	// TypeNamedPipe is the type for mounting Windows named pipes
+	TypeNamedPipe Type = "npipe"
 )
 
 // Mount represents a mount (volume).

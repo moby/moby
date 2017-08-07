@@ -143,6 +143,7 @@ func TestParseMountRaw(t *testing.T) {
 type testParseMountRaw struct {
 	bind      string
 	driver    string
+	expType   mount.Type
 	expDest   string
 	expSource string
 	expName   string
@@ -155,28 +156,31 @@ func TestParseMountRawSplit(t *testing.T) {
 	var cases []testParseMountRaw
 	if runtime.GOOS == "windows" {
 		cases = []testParseMountRaw{
-			{`c:\:d:`, "local", `d:`, `c:\`, ``, "", true, false},
-			{`c:\:d:\`, "local", `d:\`, `c:\`, ``, "", true, false},
-			{`c:\:d:\:ro`, "local", `d:\`, `c:\`, ``, "", false, false},
-			{`c:\:d:\:rw`, "local", `d:\`, `c:\`, ``, "", true, false},
-			{`c:\:d:\:foo`, "local", `d:\`, `c:\`, ``, "", false, true},
-			{`name:d::rw`, "local", `d:`, ``, `name`, "local", true, false},
-			{`name:d:`, "local", `d:`, ``, `name`, "local", true, false},
-			{`name:d::ro`, "local", `d:`, ``, `name`, "local", false, false},
-			{`name:c:`, "", ``, ``, ``, "", true, true},
-			{`driver/name:c:`, "", ``, ``, ``, "", true, true},
+			{`c:\:d:`, "local", mount.TypeBind, `d:`, `c:\`, ``, "", true, false},
+			{`c:\:d:\`, "local", mount.TypeBind, `d:\`, `c:\`, ``, "", true, false},
+			{`c:\:d:\:ro`, "local", mount.TypeBind, `d:\`, `c:\`, ``, "", false, false},
+			{`c:\:d:\:rw`, "local", mount.TypeBind, `d:\`, `c:\`, ``, "", true, false},
+			{`c:\:d:\:foo`, "local", mount.TypeBind, `d:\`, `c:\`, ``, "", false, true},
+			{`\\.\pipe\foo:\\.\pipe\bar`, "local", mount.TypeNamedPipe, `\\.\pipe\bar`, `\\.\pipe\foo`, "", "", true, false},
+			{`\\.\pipe\foo:c:\foo\bar`, "local", mount.TypeNamedPipe, ``, ``, "", "", true, true},
+			{`c:\foo\bar:\\.\pipe\foo`, "local", mount.TypeNamedPipe, ``, ``, "", "", true, true},
+			{`name:d::rw`, "local", mount.TypeVolume, `d:`, ``, `name`, "local", true, false},
+			{`name:d:`, "local", mount.TypeVolume, `d:`, ``, `name`, "local", true, false},
+			{`name:d::ro`, "local", mount.TypeVolume, `d:`, ``, `name`, "local", false, false},
+			{`name:c:`, "", mount.TypeVolume, ``, ``, ``, "", true, true},
+			{`driver/name:c:`, "", mount.TypeVolume, ``, ``, ``, "", true, true},
 		}
 	} else {
 		cases = []testParseMountRaw{
-			{"/tmp:/tmp1", "", "/tmp1", "/tmp", "", "", true, false},
-			{"/tmp:/tmp2:ro", "", "/tmp2", "/tmp", "", "", false, false},
-			{"/tmp:/tmp3:rw", "", "/tmp3", "/tmp", "", "", true, false},
-			{"/tmp:/tmp4:foo", "", "", "", "", "", false, true},
-			{"name:/named1", "", "/named1", "", "name", "", true, false},
-			{"name:/named2", "external", "/named2", "", "name", "external", true, false},
-			{"name:/named3:ro", "local", "/named3", "", "name", "local", false, false},
-			{"local/name:/tmp:rw", "", "/tmp", "", "local/name", "", true, false},
-			{"/tmp:tmp", "", "", "", "", "", true, true},
+			{"/tmp:/tmp1", "", mount.TypeBind, "/tmp1", "/tmp", "", "", true, false},
+			{"/tmp:/tmp2:ro", "", mount.TypeBind, "/tmp2", "/tmp", "", "", false, false},
+			{"/tmp:/tmp3:rw", "", mount.TypeBind, "/tmp3", "/tmp", "", "", true, false},
+			{"/tmp:/tmp4:foo", "", mount.TypeBind, "", "", "", "", false, true},
+			{"name:/named1", "", mount.TypeVolume, "/named1", "", "name", "", true, false},
+			{"name:/named2", "external", mount.TypeVolume, "/named2", "", "name", "external", true, false},
+			{"name:/named3:ro", "local", mount.TypeVolume, "/named3", "", "name", "local", false, false},
+			{"local/name:/tmp:rw", "", mount.TypeVolume, "/tmp", "", "local/name", "", true, false},
+			{"/tmp:tmp", "", mount.TypeBind, "", "", "", "", true, true},
 		}
 	}
 
@@ -195,8 +199,12 @@ func TestParseMountRawSplit(t *testing.T) {
 			continue
 		}
 
+		if m.Type != c.expType {
+			t.Fatalf("Expected type '%s', was '%s', for spec '%s'", c.expType, m.Type, c.bind)
+		}
+
 		if m.Destination != c.expDest {
-			t.Fatalf("Expected destination '%s, was %s', for spec '%s'", c.expDest, m.Destination, c.bind)
+			t.Fatalf("Expected destination '%s', was '%s', for spec '%s'", c.expDest, m.Destination, c.bind)
 		}
 
 		if m.Source != c.expSource {

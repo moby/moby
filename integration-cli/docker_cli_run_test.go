@@ -4610,10 +4610,7 @@ func (s *DockerSuite) TestRunAddDeviceCgroupRule(c *check.C) {
 
 // Verifies that running as local system is operating correctly on Windows
 func (s *DockerSuite) TestWindowsRunAsSystem(c *check.C) {
-	testRequires(c, DaemonIsWindows)
-	if testEnv.DaemonKernelVersionNumeric() < 15000 {
-		c.Skip("Requires build 15000 or later")
-	}
+	testRequires(c, DaemonIsWindowsAtLeastBuild(15000))
 	out, _ := dockerCmd(c, "run", "--net=none", `--user=nt authority\system`, "--hostname=XYZZY", minimalBaseImage(), "cmd", "/c", `@echo %USERNAME%`)
 	c.Assert(strings.TrimSpace(out), checker.Equals, "XYZZY$")
 }

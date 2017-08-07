@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
+	"runtime"
 
 	"github.com/docker/docker/api/types/mount"
 )
@@ -12,8 +12,7 @@ import (
 var errBindNotExist = errors.New("bind source path does not exist")
 
 type validateOpts struct {
-	skipBindSourceCheck   bool
-	skipAbsolutePathCheck bool
+	skipBindSourceCheck bool
 }
 
 func validateMountConfig(mnt *mount.Mount, options ...func(*validateOpts)) error {
@@ -30,10 +29,8 @@ func validateMountConfig(mnt *mount.Mount, options ...func(*validateOpts)) error
 		return &errMountConfig{mnt, err}
 	}
 
-	if !opts.skipAbsolutePathCheck {
-		if err := validateAbsolute(mnt.Target); err != nil {
-			return &errMountConfig{mnt, err}
-		}
+	if err := validateAbsolute(mnt.Target); err != nil {
+		return &errMountConfig{mnt, err}
 	}
 
 	switch mnt.Type {
@@ -97,6 +94,31 @@ func validateMountConfig(mnt *mount.Mount, options ...func(*validateOpts)) error
 		if _, err := ConvertTmpfsOptions(mnt.TmpfsOptions, mnt.ReadOnly); err != nil {
 			return &errMountConfig{mnt, err}
 		}
+	case mount.TypeNamedPipe:
+		if runtime.GOOS != "windows" {
+			return &errMountConfig{mnt, errors.New("named pipe bind mounts are not supported on this OS")}
+		}
+
+		if len(mnt.Source) == 0 {
+			return &errMountConfig{mnt, errMissingField("Source")}
+		}
+
+		if mnt.BindOptions != nil {
+			return &errMountConfig{mnt, errExtraField("BindOptions")}
+		}
+
+		if mnt.ReadOnly {
+			return &errMountConfig{mnt, errExtraField("ReadOnly")}
+		}
+
+		if detectMountType(mnt.Source) != mount.TypeNamedPipe {
+			return &errMountConfig{mnt, fmt.Errorf("'%s' is not a valid pipe path", mnt.Source)}
+		}
+
+		if detectMountType(mnt.Target) != mount.TypeNamedPipe {
+			return &errMountConfig{mnt, fmt.Errorf("'%s' is not a valid pipe path", mnt.Target)}
+		}
+
 	default:
 		return &errMountConfig{mnt, errors.New("mount type unknown")}
 	}
@@ -121,7 +143,7 @@ func errMissingField(name string) error {
 
 func validateAbsolute(p string) error {
 	p = convertSlash(p)
-	if filepath.IsAbs(p) {
+	if isAbsPath(p) {
 		return nil
 	}
 	return fmt.Errorf("invalid mount path: '%s' mount path must be absolute", p)

@@ -16,6 +16,7 @@ import (
 
 	"github.com/Microsoft/hcsshim"
 	"github.com/docker/docker/pkg/sysinfo"
+	"github.com/docker/docker/pkg/system"
 	opengcs "github.com/jhowardmsft/opengcs/gogcs/client"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
@@ -230,20 +231,35 @@ func (clnt *client) createWindows(containerID string, checkpoint string, checkpo
 	}
 
 	// Add the mounts (volumes, bind mounts etc) to the structure
-	mds := make([]hcsshim.MappedDir, len(spec.Mounts))
-	for i, mount := range spec.Mounts {
-		mds[i] = hcsshim.MappedDir{
-			HostPath:      mount.Source,
-			ContainerPath: mount.Destination,
-			ReadOnly:      false,
-		}
-		for _, o := range mount.Options {
-			if strings.ToLower(o) == "ro" {
-				mds[i].ReadOnly = true
+	var mds []hcsshim.MappedDir
+	var mps []hcsshim.MappedPipe
+	for _, mount := range spec.Mounts {
+		const pipePrefix = `\\.\pipe\`
+		if strings.HasPrefix(mount.Destination, pipePrefix) {
+			mp := hcsshim.MappedPipe{
+				HostPath:          mount.Source,
+				ContainerPipeName: mount.Destination[len(pipePrefix):],
 			}
+			mps = append(mps, mp)
+		} else {
+			md := hcsshim.MappedDir{
+				HostPath:      mount.Source,
+				ContainerPath: mount.Destination,
+				ReadOnly:      false,
+			}
+			for _, o := range mount.Options {
+				if strings.ToLower(o) == "ro" {
+					md.ReadOnly = true
+				}
+			}
+			mds = append(mds, md)
 		}
 	}
 	configuration.MappedDirectories = mds
+	if len(mps) > 0 && system.GetOSVersion().Build < 16210 { // replace with Win10 RS3 build number at RTM
+		return errors.New("named pipe mounts are not supported on this version of Windows")
+	}
+	configuration.MappedPipes = mps
 
 	hcsContainer, err := hcsshim.CreateContainer(containerID, configuration)
 	if err != nil {
