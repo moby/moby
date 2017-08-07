@@ -20,6 +20,27 @@ func (i Isolation) IsDefault() bool {
 	return strings.ToLower(string(i)) == "default" || string(i) == ""
 }
 
+// IsHyperV indicates the use of a Hyper-V partition for isolation
+func (i Isolation) IsHyperV() bool {
+	return strings.ToLower(string(i)) == "hyperv"
+}
+
+// IsProcess indicates the use of process isolation
+func (i Isolation) IsProcess() bool {
+	return strings.ToLower(string(i)) == "process"
+}
+
+const (
+	// IsolationEmpty is unspecified (same behavior as default)
+	IsolationEmpty = Isolation("")
+	// IsolationDefault is the default isolation mode on current daemon
+	IsolationDefault = Isolation("default")
+	// IsolationProcess is process isolation mode
+	IsolationProcess = Isolation("process")
+	// IsolationHyperV is HyperV isolation mode
+	IsolationHyperV = Isolation("hyperv")
+)
+
 // IpcMode represents the container ipc stack.
 type IpcMode string
 

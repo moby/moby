@@ -2680,7 +2680,13 @@ definitions:
                     ConfigName is the name of the config that this references, but this is just provided for
                     lookup/display purposes. The config in the reference will be identified by its ID.
                   type: "string"
-
+          Isolation:
+            type: "string"
+            description: "Isolation technology of the containers running the service. (Windows only)"
+            enum:
+              - "default"
+              - "process"
+              - "hyperv"
       Resources:
         description: "Resource requirements which apply to each individual container created as part of the service."
         type: "object"

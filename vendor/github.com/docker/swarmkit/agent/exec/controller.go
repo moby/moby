@@ -119,6 +119,7 @@ func Resolve(ctx context.Context, task *api.Task, executor Executor) (Controller
 		// we always want to proceed to accepted when we resolve the controller
 		status.Message = "accepted"
 		status.State = api.TaskStateAccepted
+		status.Err = ""
 	}
 
 	return ctlr, status, err
@@ -158,6 +159,7 @@ func Do(ctx context.Context, task *api.Task, ctlr Controller) (*api.TaskStatus, 
 		current := status.State
 		status.State = state
 		status.Message = msg
+		status.Err = ""
 
 		if current > state {
 			panic("invalid state transition")

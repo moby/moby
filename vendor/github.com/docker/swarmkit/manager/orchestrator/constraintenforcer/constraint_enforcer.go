@@ -159,7 +159,8 @@ loop:
 					// restarting the task on another node
 					// (if applicable).
 					t.Status.State = api.TaskStateRejected
-					t.Status.Message = "assigned node no longer meets constraints"
+					t.Status.Message = "task rejected by constraint enforcer"
+					t.Status.Err = "assigned node no longer meets constraints"
 					t.Status.Timestamp = ptypes.MustTimestampProto(time.Now())
 					return store.UpdateTask(tx, t)
 				})

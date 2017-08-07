@@ -180,9 +180,12 @@ type NodeOptions struct {
 	ClockSource clock.Clock
 	// SendTimeout is the timeout on the sending messages to other raft
 	// nodes. Leave this as 0 to get the default value.
-	SendTimeout    time.Duration
-	TLSCredentials credentials.TransportCredentials
-	KeyRotator     EncryptionKeyRotator
+	SendTimeout time.Duration
+	// LargeSendTimeout is the timeout on the sending snapshots to other raft
+	// nodes. Leave this as 0 to get the default value.
+	LargeSendTimeout time.Duration
+	TLSCredentials   credentials.TransportCredentials
+	KeyRotator       EncryptionKeyRotator
 	// DisableStackDump prevents Run from dumping goroutine stacks when the
 	// store becomes stuck.
 	DisableStackDump bool
@@ -203,6 +206,11 @@ func NewNode(opts NodeOptions) *Node {
 	}
 	if opts.SendTimeout == 0 {
 		opts.SendTimeout = 2 * time.Second
+	}
+	if opts.LargeSendTimeout == 0 {
+		// a "slow" 100Mbps connection can send over 240MB data in 20 seconds
+		// which is well over the gRPC message limit of 128MB allowed by SwarmKit
+		opts.LargeSendTimeout = 20 * time.Second
 	}
 
 	raftStore := raft.NewMemoryStorage()
@@ -349,6 +357,7 @@ func (n *Node) initTransport() {
 	transportConfig := &transport.Config{
 		HeartbeatInterval: time.Duration(n.Config.ElectionTick) * n.opts.TickInterval,
 		SendTimeout:       n.opts.SendTimeout,
+		LargeSendTimeout:  n.opts.LargeSendTimeout,
 		Credentials:       n.opts.TLSCredentials,
 		Raft:              n,
 	}
