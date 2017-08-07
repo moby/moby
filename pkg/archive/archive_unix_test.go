@@ -126,6 +126,59 @@ func TestTarWithHardLink(t *testing.T) {
 	}
 }
 
+func TestTarWithHardLinkAndRebase(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("", "docker-test-tar-hardlink-rebase")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	origin := filepath.Join(tmpDir, "origin")
+	if err := os.Mkdir(origin, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := ioutil.WriteFile(filepath.Join(origin, "1"), []byte("hello world"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Link(filepath.Join(origin, "1"), filepath.Join(origin, "2")); err != nil {
+		t.Fatal(err)
+	}
+
+	var i1, i2 uint64
+	if i1, err = getNlink(filepath.Join(origin, "1")); err != nil {
+		t.Fatal(err)
+	}
+	// sanity check that we can hardlink
+	if i1 != 2 {
+		t.Skipf("skipping since hardlinks don't work here; expected 2 links, got %d", i1)
+	}
+
+	dest := filepath.Join(tmpDir, "dest")
+
+	bRdr, err := TarResourceRebase(origin, "origin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dstDir, srcBase := SplitPathDirEntry(origin)
+	_, dstBase := SplitPathDirEntry(dest)
+	content := RebaseArchiveEntries(bRdr, srcBase, dstBase)
+	err = Untar(content, dstDir, &TarOptions{Compression: Uncompressed, NoLchown: true, NoOverwriteDirNonDir: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if i1, err = getInode(filepath.Join(dest, "1")); err != nil {
+		t.Fatal(err)
+	}
+	if i2, err = getInode(filepath.Join(dest, "2")); err != nil {
+		t.Fatal(err)
+	}
+
+	if i1 != i2 {
+		t.Errorf("expected matching inodes, but got %d and %d", i1, i2)
+	}
+}
+
 func getNlink(path string) (uint64, error) {
 	stat, err := os.Stat(path)
 	if err != nil {
