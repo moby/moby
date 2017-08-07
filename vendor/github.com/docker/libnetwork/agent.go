@@ -741,11 +741,12 @@ func (n *network) addDriverWatches() {
 			return
 		}
 
-		agent.networkDB.WalkTable(table.name, func(nid, key string, value []byte) bool {
-			if nid == n.ID() {
+		agent.networkDB.WalkTable(table.name, func(nid, key string, value []byte, deleted bool) bool {
+			// skip the entries that are mark for deletion, this is safe because this function is
+			// called at initialization time so there is no state to delete
+			if nid == n.ID() && !deleted {
 				d.EventNotify(driverapi.Create, nid, table.name, key, value)
 			}
-
 			return false
 		})
 	}

@@ -524,7 +524,7 @@ func (nDB *NetworkDB) deleteNodeTableEntries(node string) {
 // WalkTable walks a single table in NetworkDB and invokes the passed
 // function for each entry in the table passing the network, key,
 // value. The walk stops if the passed function returns a true.
-func (nDB *NetworkDB) WalkTable(tname string, fn func(string, string, []byte) bool) error {
+func (nDB *NetworkDB) WalkTable(tname string, fn func(string, string, []byte, bool) bool) error {
 	nDB.RLock()
 	values := make(map[string]interface{})
 	nDB.indexes[byTable].WalkPrefix(fmt.Sprintf("/%s", tname), func(path string, v interface{}) bool {
@@ -537,7 +537,7 @@ func (nDB *NetworkDB) WalkTable(tname string, fn func(string, string, []byte) bo
 		params := strings.Split(k[1:], "/")
 		nid := params[1]
 		key := params[2]
-		if fn(nid, key, v.(*entry).value) {
+		if fn(nid, key, v.(*entry).value, v.(*entry).deleting) {
 			return nil
 		}
 	}
