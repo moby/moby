@@ -331,7 +331,9 @@ func (clnt *client) createLinux(containerID string, checkpoint string, checkpoin
 
 	if lcowOpt.Config.ActualMode == opengcs.ModeActualVhdx {
 		configuration.HvRuntime = &hcsshim.HvRuntime{
-			ImagePath: lcowOpt.Config.Vhdx,
+			ImagePath:          lcowOpt.Config.Vhdx,
+			BootSource:         "Vhd",
+			WritableBootSource: true,
 		}
 	} else {
 		configuration.HvRuntime = &hcsshim.HvRuntime{
