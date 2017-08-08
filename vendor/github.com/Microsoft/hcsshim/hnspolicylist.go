@@ -139,16 +139,20 @@ func (policylist *PolicyList) RemoveEndpoint(endpoint *HNSEndpoint) (*PolicyList
 }
 
 // AddLoadBalancer policy list for the specified endpoints
-func AddLoadBalancer(endpoints []HNSEndpoint, isILB bool, vip string, protocol uint16, internalPort uint16, externalPort uint16) (*PolicyList, error) {
+func AddLoadBalancer(endpoints []HNSEndpoint, isILB bool, sourceVIP, vip string, protocol uint16, internalPort uint16, externalPort uint16) (*PolicyList, error) {
 	operation := "AddLoadBalancer"
 	title := "HCSShim::PolicyList::" + operation
-	logrus.Debugf(title+" Vip:%s", vip)
+	logrus.Debugf(title+" endpointId=%v, isILB=%v, sourceVIP=%s, vip=%s, protocol=%v, internalPort=%v, externalPort=%v", endpoints, isILB, sourceVIP, vip, protocol, internalPort, externalPort)
 
 	policylist := &PolicyList{}
 
 	elbPolicy := &ELBPolicy{
-		VIPs: []string{vip},
-		ILB:  isILB,
+		SourceVIP: sourceVIP,
+		ILB:       isILB,
+	}
+
+	if len(vip) > 0 {
+		elbPolicy.VIPs = []string{vip}
 	}
 	elbPolicy.Type = ExternalLoadBalancer
 	elbPolicy.Protocol = protocol
