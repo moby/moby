@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"fmt"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
@@ -17,7 +18,6 @@ import (
 	"github.com/docker/docker/internal/test/request"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/go-check/check"
-	"fmt"
 )
 
 func (s *DockerSuite) TestAPIImagesFilter(c *check.C) {
@@ -66,7 +66,7 @@ func (s *DockerRegistrySuite) TestAPIImagesFilterHasDigest(c *check.C) {
 		dockerCmd(c, "tag", "busybox", n)
 	}
 
-	// Push only one image to compute the digest
+	// Push only some images to compute the digest
 	dockerCmd(c, "push", repoName)
 	dockerCmd(c, "push", repoName2)
 
