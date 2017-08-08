@@ -261,6 +261,11 @@ func (clnt *client) createWindows(containerID string, checkpoint string, checkpo
 				ContainerPath: mount.Destination,
 				ReadOnly:      false,
 			}
+			for _, o := range mount.Options {
+				if strings.ToLower(o) == "ro" {
+					md.ReadOnly = true
+				}
+			}
 			mds = append(mds, md)
 		}
 	}
