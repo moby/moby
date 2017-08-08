@@ -2,7 +2,6 @@
 package awslogs
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"regexp"
@@ -22,7 +21,6 @@ import (
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/docker/dockerversion"
-	"github.com/docker/docker/pkg/templates"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -192,19 +190,6 @@ var strftimeToRegex = map[string]string{
 	/*tzName                */ `%Z`: `[A-Z]{1,4}T`,
 	/*dayOfYearZeroPadded   */ `%j`: `(?:0[0-9][1-9]|[1,2][0-9][0-9]|3[0-5][0-9]|36[0-6])`,
 	/*milliseconds          */ `%L`: `\.\d{3}`,
-}
-
-func parseLogGroup(info logger.Info, groupTemplate string) (string, error) {
-	tmpl, err := templates.NewParse("log-group", groupTemplate)
-	if err != nil {
-		return "", err
-	}
-	buf := new(bytes.Buffer)
-	if err := tmpl.Execute(buf, &info); err != nil {
-		return "", err
-	}
-
-	return buf.String(), nil
 }
 
 // newRegionFinder is a variable such that the implementation
