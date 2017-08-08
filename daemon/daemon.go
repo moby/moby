@@ -162,9 +162,9 @@ func (daemon *Daemon) restore() error {
 		}
 
 		// Ignore the container if it does not support the current driver being used by the graph
-		currentDriverForContainerPlatform := daemon.stores[container.Platform].graphDriver
-		if (container.Driver == "" && currentDriverForContainerPlatform == "aufs") || container.Driver == currentDriverForContainerPlatform {
-			rwlayer, err := daemon.stores[container.Platform].layerStore.GetRWLayer(container.ID)
+		currentDriverForContainerOS := daemon.stores[container.OS].graphDriver
+		if (container.Driver == "" && currentDriverForContainerOS == "aufs") || container.Driver == currentDriverForContainerOS {
+			rwlayer, err := daemon.stores[container.OS].layerStore.GetRWLayer(container.ID)
 			if err != nil {
 				logrus.Errorf("Failed to load container mount %v: %v", id, err)
 				continue
@@ -664,7 +664,7 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	}
 
 	var graphDrivers []string
-	for platform, ds := range d.stores {
+	for operatingSystem, ds := range d.stores {
 		ls, err := layer.NewStoreFromOptions(layer.StoreOptions{
 			StorePath:                 config.Root,
 			MetadataStorePathTemplate: filepath.Join(config.Root, "image", "%s", "layerdb"),
@@ -673,14 +673,14 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 			IDMappings:                idMappings,
 			PluginGetter:              d.PluginStore,
 			ExperimentalEnabled:       config.Experimental,
-			Platform:                  platform,
+			OS:                        operatingSystem,
 		})
 		if err != nil {
 			return nil, err
 		}
 		ds.graphDriver = ls.DriverName() // As layerstore may set the driver
 		ds.layerStore = ls
-		d.stores[platform] = ds
+		d.stores[operatingSystem] = ds
 		graphDrivers = append(graphDrivers, ls.DriverName())
 	}
 
@@ -691,13 +691,13 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 
 	logrus.Debugf("Max Concurrent Downloads: %d", *config.MaxConcurrentDownloads)
 	lsMap := make(map[string]layer.Store)
-	for platform, ds := range d.stores {
-		lsMap[platform] = ds.layerStore
+	for operatingSystem, ds := range d.stores {
+		lsMap[operatingSystem] = ds.layerStore
 	}
 	d.downloadManager = xfer.NewLayerDownloadManager(lsMap, *config.MaxConcurrentDownloads)
 	logrus.Debugf("Max Concurrent Uploads: %d", *config.MaxConcurrentUploads)
 	d.uploadManager = xfer.NewLayerUploadManager(*config.MaxConcurrentUploads)
-	for platform, ds := range d.stores {
+	for operatingSystem, ds := range d.stores {
 		imageRoot := filepath.Join(config.Root, "image", ds.graphDriver)
 		ifs, err := image.NewFSStoreBackend(filepath.Join(imageRoot, "imagedb"))
 		if err != nil {
@@ -705,13 +705,13 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 		}
 
 		var is image.Store
-		is, err = image.NewImageStore(ifs, platform, ds.layerStore)
+		is, err = image.NewImageStore(ifs, operatingSystem, ds.layerStore)
 		if err != nil {
 			return nil, err
 		}
 		ds.imageRoot = imageRoot
 		ds.imageStore = is
-		d.stores[platform] = ds
+		d.stores[operatingSystem] = ds
 	}
 
 	// Configure the volumes driver
@@ -921,7 +921,7 @@ func (daemon *Daemon) Shutdown() error {
 				logrus.Errorf("Stop container error: %v", err)
 				return
 			}
-			if mountid, err := daemon.stores[c.Platform].layerStore.GetMountID(c.ID); err == nil {
+			if mountid, err := daemon.stores[c.OS].layerStore.GetMountID(c.ID); err == nil {
 				daemon.cleanupMountsByID(mountid)
 			}
 			logrus.Debugf("container stopped %s", c.ID)
@@ -981,7 +981,7 @@ func (daemon *Daemon) Mount(container *container.Container) error {
 		if runtime.GOOS != "windows" {
 			daemon.Unmount(container)
 			return fmt.Errorf("Error: driver %s is returning inconsistent paths for container %s ('%s' then '%s')",
-				daemon.GraphDriverName(container.Platform), container.ID, container.BaseFS, dir)
+				daemon.GraphDriverName(container.OS), container.ID, container.BaseFS, dir)
 		}
 	}
 	container.BaseFS = dir // TODO: combine these fields

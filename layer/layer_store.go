@@ -39,7 +39,7 @@ type layerStore struct {
 
 	useTarSplit bool
 
-	platform string
+	os string
 }
 
 // StoreOptions are the options used to create a new Store instance
@@ -51,7 +51,7 @@ type StoreOptions struct {
 	IDMappings                *idtools.IDMappings
 	PluginGetter              plugingetter.PluginGetter
 	ExperimentalEnabled       bool
-	Platform                  string
+	OS                        string
 }
 
 // NewStoreFromOptions creates a new Store instance
@@ -73,13 +73,13 @@ func NewStoreFromOptions(options StoreOptions) (Store, error) {
 		return nil, err
 	}
 
-	return NewStoreFromGraphDriver(fms, driver, options.Platform)
+	return NewStoreFromGraphDriver(fms, driver, options.OS)
 }
 
 // NewStoreFromGraphDriver creates a new Store instance using the provided
 // metadata store and graph driver. The metadata store will be used to restore
 // the Store.
-func NewStoreFromGraphDriver(store MetadataStore, driver graphdriver.Driver, platform string) (Store, error) {
+func NewStoreFromGraphDriver(store MetadataStore, driver graphdriver.Driver, os string) (Store, error) {
 	caps := graphdriver.Capabilities{}
 	if capDriver, ok := driver.(graphdriver.CapabilityDriver); ok {
 		caps = capDriver.Capabilities()
@@ -91,7 +91,7 @@ func NewStoreFromGraphDriver(store MetadataStore, driver graphdriver.Driver, pla
 		layerMap:    map[ChainID]*roLayer{},
 		mounts:      map[string]*mountedLayer{},
 		useTarSplit: !caps.ReproducesExactDiffs,
-		platform:    platform,
+		os:          os,
 	}
 
 	ids, mounts, err := store.List()
@@ -150,9 +150,9 @@ func (ls *layerStore) loadLayer(layer ChainID) (*roLayer, error) {
 		return nil, fmt.Errorf("failed to get descriptor for %s: %s", layer, err)
 	}
 
-	platform, err := ls.store.GetPlatform(layer)
+	os, err := ls.store.GetOS(layer)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get platform for %s: %s", layer, err)
+		return nil, fmt.Errorf("failed to get operating system for %s: %s", layer, err)
 	}
 
 	cl = &roLayer{
@@ -163,7 +163,7 @@ func (ls *layerStore) loadLayer(layer ChainID) (*roLayer, error) {
 		layerStore: ls,
 		references: map[Layer]struct{}{},
 		descriptor: descriptor,
-		platform:   platform,
+		os:         os,
 	}
 
 	if parent != "" {
@@ -259,11 +259,11 @@ func (ls *layerStore) applyTar(tx MetadataTransaction, ts io.Reader, parent stri
 	return nil
 }
 
-func (ls *layerStore) Register(ts io.Reader, parent ChainID, platform Platform) (Layer, error) {
-	return ls.registerWithDescriptor(ts, parent, platform, distribution.Descriptor{})
+func (ls *layerStore) Register(ts io.Reader, parent ChainID, os OS) (Layer, error) {
+	return ls.registerWithDescriptor(ts, parent, os, distribution.Descriptor{})
 }
 
-func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, platform Platform, descriptor distribution.Descriptor) (Layer, error) {
+func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, os OS, descriptor distribution.Descriptor) (Layer, error) {
 	// err is used to hold the error which will always trigger
 	// cleanup of creates sources but may not be an error returned
 	// to the caller (already exists).
@@ -271,10 +271,10 @@ func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, platf
 	var pid string
 	var p *roLayer
 
-	// Integrity check - ensure we are creating something for the correct platform
+	// Integrity check - ensure we are creating something for the correct operating system
 	if system.LCOWSupported() {
-		if strings.ToLower(ls.platform) != strings.ToLower(string(platform)) {
-			return nil, fmt.Errorf("cannot create entry for platform %q in layer store for platform %q", platform, ls.platform)
+		if strings.ToLower(ls.os) != strings.ToLower(string(os)) {
+			return nil, fmt.Errorf("cannot create entry for operating system %q in layer store for operating system %q", os, ls.os)
 		}
 	}
 
@@ -306,7 +306,7 @@ func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, platf
 		layerStore:     ls,
 		references:     map[Layer]struct{}{},
 		descriptor:     descriptor,
-		platform:       platform,
+		os:             os,
 	}
 
 	if err = ls.driver.Create(layer.cacheID, pid, nil); err != nil {

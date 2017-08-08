@@ -126,7 +126,7 @@ type downloadManager struct {
 	configDigest digest.Digest
 }
 
-func (dm *downloadManager) Download(ctx context.Context, initialRootFS image.RootFS, platform layer.Platform, layers []xfer.DownloadDescriptor, progressOutput progress.Output) (image.RootFS, func(), error) {
+func (dm *downloadManager) Download(ctx context.Context, initialRootFS image.RootFS, os layer.OS, layers []xfer.DownloadDescriptor, progressOutput progress.Output) (image.RootFS, func(), error) {
 	// TODO @jhowardmsft LCOW: May need revisiting.
 	for _, l := range layers {
 		b, err := dm.blobStore.New()
@@ -179,6 +179,6 @@ func (dm *downloadManager) Put(dt []byte) (digest.Digest, error) {
 func (dm *downloadManager) Get(d digest.Digest) ([]byte, error) {
 	return nil, fmt.Errorf("digest not found")
 }
-func (dm *downloadManager) RootFSAndPlatformFromConfig(c []byte) (*image.RootFS, layer.Platform, error) {
+func (dm *downloadManager) RootFSAndOSFromConfig(c []byte) (*image.RootFS, layer.OS, error) {
 	return configToRootFS(c)
 }

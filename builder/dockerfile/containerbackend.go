@@ -32,7 +32,6 @@ func (c *containerManager) Create(runConfig *container.Config, hostConfig *conta
 	container, err := c.backend.ContainerCreate(types.ContainerCreateConfig{
 		Config:     runConfig,
 		HostConfig: hostConfig,
-		Platform:   platform,
 	})
 	if err != nil {
 		return container, err

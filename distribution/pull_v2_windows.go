@@ -76,12 +76,12 @@ func filterManifests(manifests []manifestlist.ManifestDescriptor) []manifestlist
 	var matches []manifestlist.ManifestDescriptor
 	for _, manifestDescriptor := range manifests {
 		if manifestDescriptor.Platform.Architecture == runtime.GOARCH && manifestDescriptor.Platform.OS == lookingForOS {
-			if !versionMatch(manifestDescriptor.Platform.OSVersion, osVersion) {
+			if lookingForOS == "windows" && !versionMatch(manifestDescriptor.Platform.OSVersion, osVersion) {
 				continue
 			}
 			matches = append(matches, manifestDescriptor)
 
-			logrus.Debugf("found match for %s/%s with media type %s, digest %s", runtime.GOOS, runtime.GOARCH, manifestDescriptor.MediaType, manifestDescriptor.Digest.String())
+			logrus.Debugf("found match for %s/%s with media type %s, digest %s", lookingForOS, runtime.GOARCH, manifestDescriptor.MediaType, manifestDescriptor.Digest.String())
 		}
 	}
 	sort.Stable(manifestsByVersion(matches))

@@ -220,12 +220,22 @@ func (d *dispatchRequest) getImageOrStage(name string) (builder.Image, error) {
 
 	// Windows cannot support a container with no base image unless it is LCOW.
 	if name == api.NoBaseImageSpecifier {
+		imageImage := &image.Image{}
+		imageImage.OS = runtime.GOOS
 		if runtime.GOOS == "windows" {
-			if d.builder.platform == "windows" || (d.builder.platform != "windows" && !system.LCOWSupported()) {
+			switch d.builder.options.Platform.OS {
+			case "windows":
 				return nil, errors.New("Windows does not support FROM scratch")
+			case "linux":
+				if !system.LCOWSupported() {
+					return nil, errors.New("Linux containers are not supported on this system")
+				}
+				imageImage.OS = "linux"
+			default:
+				return nil, errors.Errorf("operating system %q is not supported", d.builder.options.Platform.OS)
 			}
 		}
-		return scratchImage, nil
+		return builder.Image(imageImage), nil
 	}
 	imageMount, err := d.builder.imageSources.Get(name, localOnly)
 	if err != nil {
@@ -254,7 +264,7 @@ func dispatchOnbuild(d dispatchRequest, c *instructions.OnbuildCommand) error {
 func dispatchWorkdir(d dispatchRequest, c *instructions.WorkdirCommand) error {
 	runConfig := d.state.runConfig
 	var err error
-	runConfig.WorkingDir, err = normalizeWorkdir(d.builder.platform, runConfig.WorkingDir, c.Path)
+	runConfig.WorkingDir, err = normalizeWorkdir(d.builder.options.Platform.OS, runConfig.WorkingDir, c.Path)
 	if err != nil {
 		return err
 	}
@@ -270,7 +280,7 @@ func dispatchWorkdir(d dispatchRequest, c *instructions.WorkdirCommand) error {
 	}
 
 	comment := "WORKDIR " + runConfig.WorkingDir
-	runConfigWithCommentCmd := copyRunConfig(runConfig, withCmdCommentString(comment, d.builder.platform))
+	runConfigWithCommentCmd := copyRunConfig(runConfig, withCmdCommentString(comment, d.builder.options.Platform.OS))
 	containerID, err := d.builder.probeAndCreate(d.state, runConfigWithCommentCmd)
 	if err != nil || containerID == "" {
 		return err
@@ -303,7 +313,7 @@ func resolveCmdLine(cmd instructions.ShellDependantCmdLine, runConfig *container
 func dispatchRun(d dispatchRequest, c *instructions.RunCommand) error {
 
 	stateRunConfig := d.state.runConfig
-	cmdFromArgs := resolveCmdLine(c.ShellDependantCmdLine, stateRunConfig, d.builder.platform)
+	cmdFromArgs := resolveCmdLine(c.ShellDependantCmdLine, stateRunConfig, d.builder.options.Platform.OS)
 	buildArgs := d.state.buildArgs.FilterAllowed(stateRunConfig.Env)
 
 	saveCmd := cmdFromArgs
@@ -380,7 +390,7 @@ func prependEnvOnCmd(buildArgs *buildArgs, buildArgVars []string, cmd strslice.S
 //
 func dispatchCmd(d dispatchRequest, c *instructions.CmdCommand) error {
 	runConfig := d.state.runConfig
-	cmd := resolveCmdLine(c.ShellDependantCmdLine, runConfig, d.builder.platform)
+	cmd := resolveCmdLine(c.ShellDependantCmdLine, runConfig, d.builder.options.Platform.OS)
 	runConfig.Cmd = cmd
 	// set config as already being escaped, this prevents double escaping on windows
 	runConfig.ArgsEscaped = true
@@ -423,7 +433,7 @@ func dispatchHealthcheck(d dispatchRequest, c *instructions.HealthCheckCommand) 
 //
 func dispatchEntrypoint(d dispatchRequest, c *instructions.EntrypointCommand) error {
 	runConfig := d.state.runConfig
-	cmd := resolveCmdLine(c.ShellDependantCmdLine, runConfig, d.builder.platform)
+	cmd := resolveCmdLine(c.ShellDependantCmdLine, runConfig, d.builder.options.Platform.OS)
 	runConfig.Entrypoint = cmd
 	if !d.state.cmdSet {
 		runConfig.Cmd = nil

@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	units "github.com/docker/go-units"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // CheckpointCreateOptions holds parameters to create a checkpoint from a container
@@ -179,10 +180,7 @@ type ImageBuildOptions struct {
 	ExtraHosts  []string // List of extra hosts
 	Target      string
 	SessionID   string
-
-	// TODO @jhowardmsft LCOW Support: This will require extending to include
-	// `Platform string`, but is omitted for now as it's hard-coded temporarily
-	// to avoid API changes.
+	Platform    specs.Platform
 }
 
 // ImageBuildResponse holds information
@@ -195,7 +193,8 @@ type ImageBuildResponse struct {
 
 // ImageCreateOptions holds information to create images.
 type ImageCreateOptions struct {
-	RegistryAuth string // RegistryAuth is the base64 encoded credentials for the registry
+	RegistryAuth string         // RegistryAuth is the base64 encoded credentials for the registry.
+	Platform     specs.Platform // Platform is the target platform of the image if it needs to be pulled from the registry.
 }
 
 // ImageImportSource holds source information for ImageImport
@@ -229,6 +228,7 @@ type ImagePullOptions struct {
 	All           bool
 	RegistryAuth  string // RegistryAuth is the base64 encoded credentials for the registry
 	PrivilegeFunc RequestPrivilegeFunc
+	Platform      specs.Platform
 }
 
 // RequestPrivilegeFunc is a function interface that

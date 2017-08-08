@@ -18,8 +18,8 @@ func (daemon *Daemon) ContainerExport(name string, out io.Writer) error {
 		return err
 	}
 
-	if runtime.GOOS == "windows" && container.Platform == "windows" {
-		return fmt.Errorf("the daemon on this platform does not support exporting Windows containers")
+	if runtime.GOOS == "windows" && container.OS == "windows" {
+		return fmt.Errorf("the daemon on this operating system does not support exporting Windows containers")
 	}
 
 	if container.IsDead() {
@@ -46,13 +46,13 @@ func (daemon *Daemon) ContainerExport(name string, out io.Writer) error {
 }
 
 func (daemon *Daemon) containerExport(container *container.Container) (arch io.ReadCloser, err error) {
-	rwlayer, err := daemon.stores[container.Platform].layerStore.GetRWLayer(container.ID)
+	rwlayer, err := daemon.stores[container.OS].layerStore.GetRWLayer(container.ID)
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
 		if err != nil {
-			daemon.stores[container.Platform].layerStore.ReleaseRWLayer(rwlayer)
+			daemon.stores[container.OS].layerStore.ReleaseRWLayer(rwlayer)
 		}
 	}()
 
@@ -73,7 +73,7 @@ func (daemon *Daemon) containerExport(container *container.Container) (arch io.R
 	arch = ioutils.NewReadCloserWrapper(archive, func() error {
 		err := archive.Close()
 		rwlayer.Unmount()
-		daemon.stores[container.Platform].layerStore.ReleaseRWLayer(rwlayer)
+		daemon.stores[container.OS].layerStore.ReleaseRWLayer(rwlayer)
 		return err
 	})
 	daemon.LogContainerEvent(container, "export")

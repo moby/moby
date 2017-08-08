@@ -26,7 +26,7 @@ type mockLayer struct {
 	diffID    layer.DiffID
 	chainID   layer.ChainID
 	parent    layer.Layer
-	platform  layer.Platform
+	os        layer.OS
 }
 
 func (ml *mockLayer) TarStream() (io.ReadCloser, error) {
@@ -57,8 +57,8 @@ func (ml *mockLayer) DiffSize() (size int64, err error) {
 	return 0, nil
 }
 
-func (ml *mockLayer) Platform() layer.Platform {
-	return ml.platform
+func (ml *mockLayer) OS() layer.OS {
+	return ml.os
 }
 
 func (ml *mockLayer) Metadata() (map[string]string, error) {
@@ -91,7 +91,7 @@ func (ls *mockLayerStore) Map() map[layer.ChainID]layer.Layer {
 	return layers
 }
 
-func (ls *mockLayerStore) Register(reader io.Reader, parentID layer.ChainID, platform layer.Platform) (layer.Layer, error) {
+func (ls *mockLayerStore) Register(reader io.Reader, parentID layer.ChainID, os layer.OS) (layer.Layer, error) {
 	return ls.RegisterWithDescriptor(reader, parentID, distribution.Descriptor{})
 }
 
@@ -293,13 +293,13 @@ func TestSuccessfulDownload(t *testing.T) {
 	firstDescriptor := descriptors[0].(*mockDownloadDescriptor)
 
 	// Pre-register the first layer to simulate an already-existing layer
-	l, err := layerStore.Register(firstDescriptor.mockTarStream(), "", layer.Platform(runtime.GOOS))
+	l, err := layerStore.Register(firstDescriptor.mockTarStream(), "", layer.OS(runtime.GOOS))
 	if err != nil {
 		t.Fatal(err)
 	}
 	firstDescriptor.diffID = l.DiffID()
 
-	rootFS, releaseFunc, err := ldm.Download(context.Background(), *image.NewRootFS(), layer.Platform(runtime.GOOS), descriptors, progress.ChanOutput(progressChan))
+	rootFS, releaseFunc, err := ldm.Download(context.Background(), *image.NewRootFS(), layer.OS(runtime.GOOS), descriptors, progress.ChanOutput(progressChan))
 	if err != nil {
 		t.Fatalf("download error: %v", err)
 	}
@@ -357,7 +357,7 @@ func TestCancelledDownload(t *testing.T) {
 	}()
 
 	descriptors := downloadDescriptors(nil)
-	_, _, err := ldm.Download(ctx, *image.NewRootFS(), layer.Platform(runtime.GOOS), descriptors, progress.ChanOutput(progressChan))
+	_, _, err := ldm.Download(ctx, *image.NewRootFS(), layer.OS(runtime.GOOS), descriptors, progress.ChanOutput(progressChan))
 	if err != context.Canceled {
 		t.Fatal("expected download to be cancelled")
 	}

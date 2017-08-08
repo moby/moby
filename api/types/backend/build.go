@@ -40,5 +40,5 @@ type GetImageAndLayerOptions struct {
 	PullOption PullOption
 	AuthConfig map[string]types.AuthConfig
 	Output     io.Writer
-	Platform   string
+	OS         string
 }

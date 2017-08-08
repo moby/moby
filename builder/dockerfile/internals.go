@@ -83,7 +83,7 @@ func (b *Builder) commit(dispatchState *dispatchState, comment string) error {
 		return errors.New("Please provide a source image with `from` prior to commit")
 	}
 
-	runConfigWithCommentCmd := copyRunConfig(dispatchState.runConfig, withCmdComment(comment, b.platform))
+	runConfigWithCommentCmd := copyRunConfig(dispatchState.runConfig, withCmdComment(comment, b.options.Platform.OS))
 	hit, err := b.probeCache(dispatchState, runConfigWithCommentCmd)
 	if err != nil || hit {
 		return err
@@ -122,7 +122,7 @@ func (b *Builder) commitContainer(dispatchState *dispatchState, id string, conta
 }
 
 func (b *Builder) exportImage(state *dispatchState, imageMount *imageMount, runConfig *container.Config) error {
-	newLayer, err := imageMount.Layer().Commit(b.platform)
+	newLayer, err := imageMount.Layer().Commit(b.options.Platform.OS)
 	if err != nil {
 		return err
 	}
@@ -172,7 +172,7 @@ func (b *Builder) performCopy(state *dispatchState, inst copyInstruction) error 
 	// TODO: should this have been using origPaths instead of srcHash in the comment?
 	runConfigWithCommentCmd := copyRunConfig(
 		state.runConfig,
-		withCmdCommentString(commentStr, b.platform))
+		withCmdCommentString(commentStr, b.options.Platform.OS))
 	hit, err := b.probeCache(state, runConfigWithCommentCmd)
 	if err != nil || hit {
 		return err
@@ -183,7 +183,7 @@ func (b *Builder) performCopy(state *dispatchState, inst copyInstruction) error 
 		return errors.Wrapf(err, "failed to get destination image %q", state.imageID)
 	}
 
-	destInfo, err := createDestInfo(state.runConfig.WorkingDir, inst, imageMount, b.platform)
+	destInfo, err := createDestInfo(state.runConfig.WorkingDir, inst, imageMount, b.options.Platform.OS)
 	if err != nil {
 		return err
 	}
@@ -437,9 +437,9 @@ func withEntrypointOverride(cmd []string, entrypoint []string) runConfigModifier
 
 // getShell is a helper function which gets the right shell for prefixing the
 // shell-form of RUN, ENTRYPOINT and CMD instructions
-func getShell(c *container.Config, platform string) []string {
+func getShell(c *container.Config, os string) []string {
 	if 0 == len(c.Shell) {
-		return append([]string{}, defaultShellForPlatform(platform)[:]...)
+		return append([]string{}, defaultShellForOS(os)[:]...)
 	}
 	return append([]string{}, c.Shell[:]...)
 }
@@ -463,13 +463,13 @@ func (b *Builder) probeAndCreate(dispatchState *dispatchState, runConfig *contai
 	}
 	// Set a log config to override any default value set on the daemon
 	hostConfig := &container.HostConfig{LogConfig: defaultLogConfig}
-	container, err := b.containerManager.Create(runConfig, hostConfig, b.platform)
+	container, err := b.containerManager.Create(runConfig, hostConfig, b.options.Platform.OS)
 	return container.ID, err
 }
 
 func (b *Builder) create(runConfig *container.Config) (string, error) {
 	hostConfig := hostConfigFromOptions(b.options)
-	container, err := b.containerManager.Create(runConfig, hostConfig, b.platform)
+	container, err := b.containerManager.Create(runConfig, hostConfig, b.options.Platform.OS)
 	if err != nil {
 		return "", err
 	}

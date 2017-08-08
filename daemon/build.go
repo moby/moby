@@ -55,7 +55,7 @@ func (rl *releaseableLayer) Mount() (containerfs.ContainerFS, error) {
 	return mountPath, nil
 }
 
-func (rl *releaseableLayer) Commit(platform string) (builder.ReleaseableLayer, error) {
+func (rl *releaseableLayer) Commit(os string) (builder.ReleaseableLayer, error) {
 	var chainID layer.ChainID
 	if rl.roLayer != nil {
 		chainID = rl.roLayer.ChainID()
@@ -67,7 +67,7 @@ func (rl *releaseableLayer) Commit(platform string) (builder.ReleaseableLayer, e
 	}
 	defer stream.Close()
 
-	newLayer, err := rl.layerStore.Register(stream, chainID, layer.Platform(platform))
+	newLayer, err := rl.layerStore.Register(stream, chainID, layer.OS(os))
 	if err != nil {
 		return nil, err
 	}
@@ -176,7 +176,7 @@ func (daemon *Daemon) pullForBuilder(ctx context.Context, name string, authConfi
 // leaking of layers.
 func (daemon *Daemon) GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ReleaseableLayer, error) {
 	if refOrID == "" {
-		layer, err := newReleasableLayerForImage(nil, daemon.stores[opts.Platform].layerStore)
+		layer, err := newReleasableLayerForImage(nil, daemon.stores[opts.OS].layerStore)
 		return nil, layer, err
 	}
 
@@ -187,16 +187,16 @@ func (daemon *Daemon) GetImageAndReleasableLayer(ctx context.Context, refOrID st
 		}
 		// TODO: shouldn't we error out if error is different from "not found" ?
 		if image != nil {
-			layer, err := newReleasableLayerForImage(image, daemon.stores[opts.Platform].layerStore)
+			layer, err := newReleasableLayerForImage(image, daemon.stores[opts.OS].layerStore)
 			return image, layer, err
 		}
 	}
 
-	image, err := daemon.pullForBuilder(ctx, refOrID, opts.AuthConfig, opts.Output, opts.Platform)
+	image, err := daemon.pullForBuilder(ctx, refOrID, opts.AuthConfig, opts.Output, opts.OS)
 	if err != nil {
 		return nil, nil, err
 	}
-	layer, err := newReleasableLayerForImage(image, daemon.stores[opts.Platform].layerStore)
+	layer, err := newReleasableLayerForImage(image, daemon.stores[opts.OS].layerStore)
 	return image, layer, err
 }
 

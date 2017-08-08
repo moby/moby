@@ -1,11 +1,17 @@
 package httputils
 
 import (
+	"encoding/json"
+	"fmt"
 	"io"
 	"mime"
 	"net/http"
+	"runtime"
 	"strings"
 
+	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/pkg/system"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -108,4 +114,28 @@ func matchesContentType(contentType, expectedType string) bool {
 		logrus.Errorf("Error parsing media type: %s error: %v", contentType, err)
 	}
 	return err == nil && mimetype == expectedType
+}
+
+// GetRequestedPlatform extracts an optional platform structure from an HTTP request header
+func GetRequestedPlatform(ctx context.Context, r *http.Request) (*specs.Platform, error) {
+	platform := &specs.Platform{}
+	version := VersionFromContext(ctx)
+	if versions.GreaterThanOrEqualTo(version, "1.32") {
+		requestedPlatform := r.Header.Get("X-Requested-Platform")
+		if requestedPlatform != "" {
+			if err := json.Unmarshal([]byte(requestedPlatform), platform); err != nil {
+				return nil, fmt.Errorf("invalid X-Requested-Platform header: %s", err)
+			}
+		}
+		if err := system.ValidatePlatform(platform); err != nil {
+			return nil, err
+		}
+	}
+	if platform.OS == "" {
+		platform.OS = runtime.GOOS
+	}
+	if platform.Architecture == "" {
+		platform.Architecture = runtime.GOARCH
+	}
+	return platform, nil
 }

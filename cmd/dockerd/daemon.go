@@ -222,10 +222,6 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		logrus.Fatalf("Error creating middlewares: %v", err)
 	}
 
-	if system.LCOWSupported() {
-		logrus.Warnln("LCOW support is enabled - this feature is incomplete")
-	}
-
 	d, err := daemon.NewDaemon(cli.Config, registryService, containerdRemote, pluginStore)
 	if err != nil {
 		return fmt.Errorf("Error starting daemon: %v", err)

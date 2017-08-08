@@ -9,6 +9,7 @@ import (
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/pkg/system"
 )
 
 // ImagePull requests the docker host to pull an image from a remote registry.
@@ -31,13 +32,29 @@ func (cli *Client) ImagePull(ctx context.Context, refStr string, options types.I
 		query.Set("tag", getAPITagFromNamedRef(ref))
 	}
 
-	resp, err := cli.tryImageCreate(ctx, query, options.RegistryAuth)
+	// TODO 1: Extend to include "and the platform is supported by the daemon".
+	// This is dependent on https://github.com/moby/moby/pull/34628 though,
+	// and the daemon returning the set of platforms it supports via the _ping
+	// API endpoint.
+	//
+	// TODO 2: system.IsPlatformEmpty is a temporary function. We need to move
+	// (in the reasonably short future) to a package which supports all the platform
+	// validation such as is proposed in https://github.com/containerd/containerd/pull/1403
+	//
+	// @jhowardmsft.
+	if !system.IsPlatformEmpty(options.Platform) {
+		if err := cli.NewVersionError("1.32", "platform"); err != nil {
+			return nil, err
+		}
+	}
+
+	resp, err := cli.tryImageCreate(ctx, query, options.RegistryAuth, options.Platform)
 	if resp.statusCode == http.StatusUnauthorized && options.PrivilegeFunc != nil {
 		newAuthHeader, privilegeErr := options.PrivilegeFunc()
 		if privilegeErr != nil {
 			return nil, privilegeErr
 		}
-		resp, err = cli.tryImageCreate(ctx, query, newAuthHeader)
+		resp, err = cli.tryImageCreate(ctx, query, newAuthHeader, options.Platform)
 	}
 	if err != nil {
 		return nil, err

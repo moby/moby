@@ -175,17 +175,17 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		parent = new(image.Image)
 		parent.RootFS = image.NewRootFS()
 	} else {
-		parent, err = daemon.stores[container.Platform].imageStore.Get(container.ImageID)
+		parent, err = daemon.stores[container.OS].imageStore.Get(container.ImageID)
 		if err != nil {
 			return "", err
 		}
 	}
 
-	l, err := daemon.stores[container.Platform].layerStore.Register(rwTar, parent.RootFS.ChainID(), layer.Platform(container.Platform))
+	l, err := daemon.stores[container.OS].layerStore.Register(rwTar, parent.RootFS.ChainID(), layer.OS(container.OS))
 	if err != nil {
 		return "", err
 	}
-	defer layer.ReleaseAndLog(daemon.stores[container.Platform].layerStore, l)
+	defer layer.ReleaseAndLog(daemon.stores[container.OS].layerStore, l)
 
 	containerConfig := c.ContainerConfig
 	if containerConfig == nil {
@@ -199,18 +199,18 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		Config:          newConfig,
 		DiffID:          l.DiffID(),
 	}
-	config, err := json.Marshal(image.NewChildImage(parent, cc, container.Platform))
+	config, err := json.Marshal(image.NewChildImage(parent, cc, container.OS))
 	if err != nil {
 		return "", err
 	}
 
-	id, err := daemon.stores[container.Platform].imageStore.Create(config)
+	id, err := daemon.stores[container.OS].imageStore.Create(config)
 	if err != nil {
 		return "", err
 	}
 
 	if container.ImageID != "" {
-		if err := daemon.stores[container.Platform].imageStore.SetParent(id, container.ImageID); err != nil {
+		if err := daemon.stores[container.OS].imageStore.SetParent(id, container.ImageID); err != nil {
 			return "", err
 		}
 	}
@@ -229,7 +229,7 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 				return "", err
 			}
 		}
-		if err := daemon.TagImageWithReference(id, container.Platform, newTag); err != nil {
+		if err := daemon.TagImageWithReference(id, container.OS, newTag); err != nil {
 			return "", err
 		}
 		imageRef = reference.FamiliarString(newTag)
@@ -246,13 +246,13 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 }
 
 func (daemon *Daemon) exportContainerRw(container *container.Container) (arch io.ReadCloser, err error) {
-	rwlayer, err := daemon.stores[container.Platform].layerStore.GetRWLayer(container.ID)
+	rwlayer, err := daemon.stores[container.OS].layerStore.GetRWLayer(container.ID)
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
 		if err != nil {
-			daemon.stores[container.Platform].layerStore.ReleaseRWLayer(rwlayer)
+			daemon.stores[container.OS].layerStore.ReleaseRWLayer(rwlayer)
 		}
 	}()
 
@@ -273,7 +273,7 @@ func (daemon *Daemon) exportContainerRw(container *container.Container) (arch io
 	return ioutils.NewReadCloserWrapper(archive, func() error {
 			archive.Close()
 			err = rwlayer.Unmount()
-			daemon.stores[container.Platform].layerStore.ReleaseRWLayer(rwlayer)
+			daemon.stores[container.OS].layerStore.ReleaseRWLayer(rwlayer)
 			return err
 		}),
 		nil

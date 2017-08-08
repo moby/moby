@@ -87,6 +87,12 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 		return nil, validationError{fmt.Errorf("The daemon on this platform does not support setting security options on build")}
 	}
 
+	platform, err := httputils.GetRequestedPlatform(ctx, r)
+	if err != nil {
+		return nil, err
+	}
+	options.Platform = *platform
+
 	var buildUlimits = []*units.Ulimit{}
 	ulimitsJSON := r.FormValue("ulimits")
 	if ulimitsJSON != "" {
