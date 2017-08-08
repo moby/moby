@@ -1,10 +1,13 @@
 package events
 
 import (
+	"fmt"
+	"math/rand"
 	"sync"
+	"sync/atomic"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 // RetryingSink retries the write until success or an ErrSinkClosed is
@@ -16,6 +19,7 @@ type RetryingSink struct {
 	sink     Sink
 	strategy RetryStrategy
 	closed   chan struct{}
+	once     sync.Once
 }
 
 // NewRetryingSink returns a sink that will retry writes to a sink, backing
@@ -35,7 +39,6 @@ func NewRetryingSink(sink Sink, strategy RetryStrategy) *RetryingSink {
 // or the sink is closed.
 func (rs *RetryingSink) Write(event Event) error {
 	logger := logrus.WithField("event", event)
-	var timer *time.Timer
 
 retry:
 	select {
@@ -45,16 +48,13 @@ retry:
 	}
 
 	if backoff := rs.strategy.Proceed(event); backoff > 0 {
-		if timer == nil {
-			timer = time.NewTimer(backoff)
-			defer timer.Stop()
-		} else {
-			timer.Reset(backoff)
-		}
-
 		select {
-		case <-timer.C:
-			goto retry
+		case <-time.After(backoff):
+			// TODO(stevvooe): This branch holds up the next try. Before, we
+			// would simply break to the "retry" label and then possibly wait
+			// again. However, this requires all retry strategies to have a
+			// large probability of probing the sync for success, rather than
+			// just backing off and sending the request.
 		case <-rs.closed:
 			return ErrSinkClosed
 		}
@@ -83,13 +83,22 @@ retry:
 
 // Close closes the sink and the underlying sink.
 func (rs *RetryingSink) Close() error {
-	select {
-	case <-rs.closed:
-		return ErrSinkClosed
-	default:
+	rs.once.Do(func() {
 		close(rs.closed)
-		return rs.sink.Close()
+	})
+
+	return nil
+}
+
+func (rs *RetryingSink) String() string {
+	// Serialize a copy of the RetryingSink without the sync.Once, to avoid
+	// a data race.
+	rs2 := map[string]interface{}{
+		"sink":     rs.sink,
+		"strategy": rs.strategy,
+		"closed":   rs.closed,
 	}
+	return fmt.Sprint(rs2)
 }
 
 // RetryStrategy defines a strategy for retrying event sink writes.
@@ -110,9 +119,6 @@ type RetryStrategy interface {
 	// Success should be called when an event is sent successfully.
 	Success(event Event)
 }
-
-// TODO(stevvooe): We are using circuit breaker here. May want to provide
-// bounded exponential backoff, as well.
 
 // Breaker implements a circuit breaker retry strategy.
 //
@@ -165,4 +171,90 @@ func (b *Breaker) Failure(event Event, err error) bool {
 	b.recent++
 	b.last = time.Now().UTC()
 	return false // never drop events.
+}
+
+var (
+	// DefaultExponentialBackoffConfig provides a default configuration for
+	// exponential backoff.
+	DefaultExponentialBackoffConfig = ExponentialBackoffConfig{
+		Base:   time.Second,
+		Factor: time.Second,
+		Max:    20 * time.Second,
+	}
+)
+
+// ExponentialBackoffConfig configures backoff parameters.
+//
+// Note that these parameters operate on the upper bound for choosing a random
+// value. For example, at Base=1s, a random value in [0,1s) will be chosen for
+// the backoff value.
+type ExponentialBackoffConfig struct {
+	// Base is the minimum bound for backing off after failure.
+	Base time.Duration
+
+	// Factor sets the amount of time by which the backoff grows with each
+	// failure.
+	Factor time.Duration
+
+	// Max is the absolute maxiumum bound for a single backoff.
+	Max time.Duration
+}
+
+// ExponentialBackoff implements random backoff with exponentially increasing
+// bounds as the number consecutive failures increase.
+type ExponentialBackoff struct {
+	config   ExponentialBackoffConfig
+	failures uint64 // consecutive failure counter.
+}
+
+// NewExponentialBackoff returns an exponential backoff strategy with the
+// desired config. If config is nil, the default is returned.
+func NewExponentialBackoff(config ExponentialBackoffConfig) *ExponentialBackoff {
+	return &ExponentialBackoff{
+		config: config,
+	}
+}
+
+// Proceed returns the next randomly bound exponential backoff time.
+func (b *ExponentialBackoff) Proceed(event Event) time.Duration {
+	return b.backoff(atomic.LoadUint64(&b.failures))
+}
+
+// Success resets the failures counter.
+func (b *ExponentialBackoff) Success(event Event) {
+	atomic.StoreUint64(&b.failures, 0)
+}
+
+// Failure increments the failure counter.
+func (b *ExponentialBackoff) Failure(event Event, err error) bool {
+	atomic.AddUint64(&b.failures, 1)
+	return false
+}
+
+// backoff calculates the amount of time to wait based on the number of
+// consecutive failures.
+func (b *ExponentialBackoff) backoff(failures uint64) time.Duration {
+	if failures <= 0 {
+		// proceed normally when there are no failures.
+		return 0
+	}
+
+	factor := b.config.Factor
+	if factor <= 0 {
+		factor = DefaultExponentialBackoffConfig.Factor
+	}
+
+	backoff := b.config.Base + factor*time.Duration(1<<(failures-1))
+
+	max := b.config.Max
+	if max <= 0 {
+		max = DefaultExponentialBackoffConfig.Max
+	}
+
+	if backoff > max || backoff < 0 {
+		backoff = max
+	}
+
+	// Choose a uniformly distributed value from [0, backoff).
+	return time.Duration(rand.Int63n(int64(backoff)))
 }

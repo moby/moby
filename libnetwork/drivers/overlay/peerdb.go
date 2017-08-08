@@ -7,8 +7,8 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/common"
+	"github.com/sirupsen/logrus"
 )
 
 const ovPeerTable = "overlay_peer_table"

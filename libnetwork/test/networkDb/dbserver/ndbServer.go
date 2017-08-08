@@ -9,10 +9,10 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/diagnose"
 	"github.com/docker/libnetwork/networkdb"
 	"github.com/docker/libnetwork/test/networkDb/dummyclient"
+	"github.com/sirupsen/logrus"
 )
 
 var nDB *networkdb.NetworkDB

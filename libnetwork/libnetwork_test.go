@@ -10,7 +10,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/libnetwork"
@@ -22,6 +21,7 @@ import (
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/testutils"
 	"github.com/docker/libnetwork/types"
+	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netns"
 )
 

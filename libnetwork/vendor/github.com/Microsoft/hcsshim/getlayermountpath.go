@@ -3,7 +3,7 @@ package hcsshim
 import (
 	"syscall"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 // GetLayerMountPath will look for a mounted layer with the given id and return

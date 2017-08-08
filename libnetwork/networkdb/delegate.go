@@ -5,8 +5,8 @@ import (
 	"net"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/gogo/protobuf/proto"
+	"github.com/sirupsen/logrus"
 )
 
 type delegate struct {
