@@ -10,13 +10,12 @@ import (
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/sysinfo"
-	refstore "github.com/docker/docker/reference"
 	"github.com/docker/libnetwork"
 	nwconfig "github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/drivers/solaris/bridge"
@@ -72,7 +71,7 @@ func (daemon *Daemon) parseSecurityOpt(container *container.Container, hostConfi
 }
 
 func parseSecurityOpt(container *container.Container, config *containertypes.HostConfig) error {
-	//Since config.SecurityOpt is specifically defined as a "List of string values to
+	//Since hostConfig.SecurityOpt is specifically defined as a "List of string values to
 	//customize labels for MLs systems, such as SELinux"
 	//until we figure out how to map to Trusted Extensions
 	//this is being disabled for now on Solaris
@@ -89,11 +88,11 @@ func parseSecurityOpt(container *container.Container, config *containertypes.Hos
 	return err
 }
 
-func setupRemappedRoot(config *Config) ([]idtools.IDMap, []idtools.IDMap, error) {
-	return nil, nil, nil
+func setupRemappedRoot(config *config.Config) (*idtools.IDMappings, error) {
+	return nil, nil
 }
 
-func setupDaemonRoot(config *Config, rootDir string, rootUID, rootGID int) error {
+func setupDaemonRoot(config *config.Config, rootDir string, rootIDs idtools.IDPair) error {
 	return nil
 }
 
@@ -136,7 +135,7 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 }
 
 // UsingSystemd returns true if cli option includes native.cgroupdriver=systemd
-func UsingSystemd(config *Config) bool {
+func UsingSystemd(config *config.Config) bool {
 	return false
 }
 
@@ -309,25 +308,25 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 
 // reloadPlatform updates configuration with platform specific options
 // and updates the passed attributes
-func (daemon *Daemon) reloadPlatform(config *Config, attributes map[string]string) {
+func (daemon *Daemon) reloadPlatform(conf *config.Config, attributes map[string]string) {
 }
 
 // verifyDaemonSettings performs validation of daemon config struct
-func verifyDaemonSettings(config *Config) error {
+func verifyDaemonSettings(conf *config.Config) error {
 
-	if config.DefaultRuntime == "" {
-		config.DefaultRuntime = stockRuntimeName
+	if conf.DefaultRuntime == "" {
+		conf.DefaultRuntime = stockRuntimeName
 	}
-	if config.Runtimes == nil {
-		config.Runtimes = make(map[string]types.Runtime)
+	if conf.Runtimes == nil {
+		conf.Runtimes = make(map[string]types.Runtime)
 	}
 	stockRuntimeOpts := []string{}
-	config.Runtimes[stockRuntimeName] = types.Runtime{Path: DefaultRuntimeBinary, Args: stockRuntimeOpts}
+	conf.Runtimes[stockRuntimeName] = types.Runtime{Path: DefaultRuntimeBinary, Args: stockRuntimeOpts}
 
-	// checkSystem validates platform-specific requirements
 	return nil
 }
 
+// checkSystem validates platform-specific requirements
 func checkSystem() error {
 	// check OS version for compatibility, ensure running in global zone
 	var err error
@@ -349,16 +348,16 @@ func checkSystem() error {
 
 // configureMaxThreads sets the Go runtime max threads threshold
 // which is 90% of the kernel setting from /proc/sys/kernel/threads-max
-func configureMaxThreads(config *Config) error {
+func configureMaxThreads(config *config.Config) error {
 	return nil
 }
 
-// configureKernelSecuritySupport configures and validate security support for the kernel
+// configureKernelSecuritySupport configures and validates security support for the kernel
 func configureKernelSecuritySupport(config *config.Config, driverNames []string) error {
 	return nil
 }
 
-func (daemon *Daemon) initNetworkController(config *Config, activeSandboxes map[string]interface{}) (libnetwork.NetworkController, error) {
+func (daemon *Daemon) initNetworkController(config *config.Config, activeSandboxes map[string]interface{}) (libnetwork.NetworkController, error) {
 	netOptions, err := daemon.networkOptions(config, daemon.PluginStore, activeSandboxes)
 	if err != nil {
 		return nil, err
@@ -384,7 +383,7 @@ func (daemon *Daemon) initNetworkController(config *Config, activeSandboxes map[
 	return controller, nil
 }
 
-func initBridgeDriver(controller libnetwork.NetworkController, config *Config) error {
+func initBridgeDriver(controller libnetwork.NetworkController, config *config.Config) error {
 	if n, err := controller.NetworkByName("bridge"); err == nil {
 		if err = n.Delete(); err != nil {
 			return fmt.Errorf("could not delete the default bridge network: %v", err)
@@ -497,12 +496,7 @@ func (daemon *Daemon) conditionalUnmountOnCleanup(container *container.Container
 	return daemon.Unmount(container)
 }
 
-func restoreCustomImage(is image.Store, ls layer.Store, rs refstore.Store) error {
-	// Solaris has no custom images to register
-	return nil
-}
-
-func driverOptions(config *Config) []nwconfig.Option {
+func driverOptions(config *config.Config) []nwconfig.Option {
 	return []nwconfig.Option{}
 }
 
@@ -520,7 +514,7 @@ func rootFSToAPIType(rootfs *image.RootFS) types.RootFS {
 	return types.RootFS{}
 }
 
-func setupDaemonProcess(config *Config) error {
+func setupDaemonProcess(config *config.Config) error {
 	return nil
 }
 
