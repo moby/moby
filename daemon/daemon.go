@@ -123,6 +123,8 @@ type Daemon struct {
 	pruneRunning     int32
 	hosts            map[string]bool // hosts stores the addresses the daemon is listening on
 	startupDone      chan struct{}
+
+	cpuHotplug	 CpuHotPlug
 }
 
 // StoreHosts stores the addresses the daemon is listening on
@@ -833,6 +835,7 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 		"graphdriver(s)": gd,
 	}).Info("Docker daemon")
 
+	d.performCpuHotplug()
 	return d, nil
 }
 
@@ -944,6 +947,10 @@ func (daemon *Daemon) Shutdown() error {
 	if err := daemon.cleanupMounts(); err != nil {
 		return err
 	}
+
+	//Close the channel
+	logrus.Debugf("Closing channel for cpuhotplug")
+	daemon.cpuHotplug.Close()
 
 	return nil
 }
