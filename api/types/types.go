@@ -194,28 +194,28 @@ type Info struct {
 	SecurityOptions    []string
 }
 
-// KeyValue holds a key/value pair
-type KeyValue struct {
+// keyValue holds a key/value pair
+type keyValue struct {
 	Key, Value string
 }
 
-// SecurityOpt contains the name and options of a security option
-type SecurityOpt struct {
+// securityOpt contains the name and options of a security option
+type securityOpt struct {
 	Name    string
-	Options []KeyValue
+	Options []keyValue
 }
 
 // DecodeSecurityOptions decodes a security options string slice to a type safe
-// SecurityOpt
-func DecodeSecurityOptions(opts []string) ([]SecurityOpt, error) {
-	so := []SecurityOpt{}
+// securityOpt
+func DecodeSecurityOptions(opts []string) ([]securityOpt, error) {
+	so := []securityOpt{}
 	for _, opt := range opts {
 		// support output from a < 1.13 docker daemon
 		if !strings.Contains(opt, "=") {
-			so = append(so, SecurityOpt{Name: opt})
+			so = append(so, securityOpt{Name: opt})
 			continue
 		}
-		secopt := SecurityOpt{}
+		secopt := securityOpt{}
 		split := strings.Split(opt, ",")
 		for _, s := range split {
 			kv := strings.SplitN(s, "=", 2)
@@ -229,7 +229,7 @@ func DecodeSecurityOptions(opts []string) ([]SecurityOpt, error) {
 				secopt.Name = kv[1]
 				continue
 			}
-			secopt.Options = append(secopt.Options, KeyValue{Key: kv[0], Value: kv[1]})
+			secopt.Options = append(secopt.Options, keyValue{Key: kv[0], Value: kv[1]})
 		}
 		so = append(so, secopt)
 	}
