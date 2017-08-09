@@ -1981,7 +1981,7 @@ definitions:
     properties:
       PluginSpec:
         type: "object"
-        description: "Invalid when specified with `ContainerSpec`."
+        description: "Invalid when specified with `ContainerSpec`. *(Experimental release only.)*"
         properties:
           Name:
             description: "The name or 'alias' to use for the plugin."
