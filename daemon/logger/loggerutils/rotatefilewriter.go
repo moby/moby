@@ -260,3 +260,8 @@ func (w *RotateFileWriter) Close() error {
 func (w *RotateFileWriter) MetaData() []*LogFileMetaData {
 	return w.meta
 }
+
+// MetaData return log files meta data
+func (w *RotateFileWriter) MetaData() []*LogFileMetaData {
+	return w.meta
+}
