@@ -27,34 +27,6 @@ var basicFunctions = template.FuncMap{
 	"truncate": truncateWithLength,
 }
 
-// HeaderFunctions are used to created headers of a table.
-// This is a replacement of basicFunctions for header generation
-// because we want the header to remain intact.
-// Some functions like `split` are irrelevant so not added.
-var HeaderFunctions = template.FuncMap{
-	"json": func(v string) string {
-		return v
-	},
-	"title": func(v string) string {
-		return v
-	},
-	"lower": func(v string) string {
-		return v
-	},
-	"upper": func(v string) string {
-		return v
-	},
-	"truncate": func(v string, l int) string {
-		return v
-	},
-}
-
-// Parse creates a new anonymous template with the basic functions
-// and parses the given format.
-func Parse(format string) (*template.Template, error) {
-	return NewParse("", format)
-}
-
 // NewParse creates a new tagged template with the basic functions
 // and parses the given format.
 func NewParse(tag, format string) (*template.Template, error) {
