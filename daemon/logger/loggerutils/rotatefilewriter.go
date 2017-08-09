@@ -215,7 +215,7 @@ func DecodeLogLine(dec *json.Decoder, l *jsonlog.JSONLog) (*logger.Message, erro
 		Source:    l.Stream,
 		Timestamp: l.Created,
 		Line:      []byte(l.Log),
-		Attrs:     l.Attrs,
+		Attrs:     attrs,
 	}
 	return msg, nil
 }
@@ -254,11 +254,6 @@ func (w *RotateFileWriter) Close() error {
 	}
 	w.closed = true
 	return nil
-}
-
-// MetaData return log files meta data
-func (w *RotateFileWriter) MetaData() []*LogFileMetaData {
-	return w.meta
 }
 
 // MetaData return log files meta data
