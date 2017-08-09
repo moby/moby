@@ -263,9 +263,7 @@ func TestCmdStreamGood(t *testing.T) {
 
 func TestUntarPathWithInvalidDest(t *testing.T) {
 	tempFolder, err := ioutil.TempDir("", "docker-archive-test")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	defer os.RemoveAll(tempFolder)
 	invalidDestFolder := filepath.Join(tempFolder, "invalidDest")
 	// Create a src file
@@ -284,9 +282,7 @@ func TestUntarPathWithInvalidDest(t *testing.T) {
 
 	cmd := exec.Command("sh", "-c", "tar cf "+tarFileU+" "+srcFileU)
 	_, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	err = defaultUntarPath(tarFile, invalidDestFolder)
 	if err == nil {
@@ -308,9 +304,7 @@ func TestUntarPathWithInvalidSrc(t *testing.T) {
 
 func TestUntarPath(t *testing.T) {
 	tmpFolder, err := ioutil.TempDir("", "docker-archive-test")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	defer os.RemoveAll(tmpFolder)
 	srcFile := filepath.Join(tmpFolder, "src")
 	tarFile := filepath.Join(tmpFolder, "src.tar")
@@ -331,9 +325,7 @@ func TestUntarPath(t *testing.T) {
 	}
 	cmd := exec.Command("sh", "-c", "tar cf "+tarFileU+" "+srcFileU)
 	_, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	err = defaultUntarPath(tarFile, destFolder)
 	if err != nil {
