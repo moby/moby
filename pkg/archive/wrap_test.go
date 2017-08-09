@@ -5,13 +5,13 @@ import (
 	"bytes"
 	"io"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestGenerateEmptyFile(t *testing.T) {
 	archive, err := Generate("emptyFile")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	if archive == nil {
 		t.Fatal("The generated archive should not be nil.")
 	}
@@ -28,9 +28,7 @@ func TestGenerateEmptyFile(t *testing.T) {
 		if err == io.EOF {
 			break
 		}
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 		buf := new(bytes.Buffer)
 		buf.ReadFrom(tr)
 		content := buf.String()
@@ -54,9 +52,7 @@ func TestGenerateEmptyFile(t *testing.T) {
 
 func TestGenerateWithContent(t *testing.T) {
 	archive, err := Generate("file", "content")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	if archive == nil {
 		t.Fatal("The generated archive should not be nil.")
 	}
@@ -73,9 +69,7 @@ func TestGenerateWithContent(t *testing.T) {
 		if err == io.EOF {
 			break
 		}
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 		buf := new(bytes.Buffer)
 		buf.ReadFrom(tr)
 		content := buf.String()

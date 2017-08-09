@@ -15,6 +15,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func removeAllPaths(paths ...string) {
@@ -26,13 +28,11 @@ func removeAllPaths(paths ...string) {
 func getTestTempDirs(t *testing.T) (tmpDirA, tmpDirB string) {
 	var err error
 
-	if tmpDirA, err = ioutil.TempDir("", "archive-copy-test"); err != nil {
-		t.Fatal(err)
-	}
+	tmpDirA, err = ioutil.TempDir("", "archive-copy-test")
+	require.NoError(t, err)
 
-	if tmpDirB, err = ioutil.TempDir("", "archive-copy-test"); err != nil {
-		t.Fatal(err)
-	}
+	tmpDirB, err = ioutil.TempDir("", "archive-copy-test")
+	require.NoError(t, err)
 
 	return
 }
@@ -118,9 +118,8 @@ func logDirContents(t *testing.T, dirPath string) {
 
 	t.Logf("logging directory contents: %q", dirPath)
 
-	if err := filepath.Walk(dirPath, logWalkedPaths); err != nil {
-		t.Fatal(err)
-	}
+	err := filepath.Walk(dirPath, logWalkedPaths)
+	require.NoError(t, err)
 }
 
 func testCopyHelper(t *testing.T, srcPath, dstPath string) (err error) {
@@ -293,9 +292,8 @@ func TestCopyCaseA(t *testing.T) {
 		t.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = fileContentsEqual(t, srcPath, dstPath); err != nil {
-		t.Fatal(err)
-	}
+	err = fileContentsEqual(t, srcPath, dstPath)
+	require.NoError(t, err)
 	os.Remove(dstPath)
 
 	symlinkPath := filepath.Join(tmpDirA, "symlink3")
@@ -306,17 +304,15 @@ func TestCopyCaseA(t *testing.T) {
 		t.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = fileContentsEqual(t, linkTarget, dstPath); err != nil {
-		t.Fatal(err)
-	}
+	err = fileContentsEqual(t, linkTarget, dstPath)
+	require.NoError(t, err)
 	os.Remove(dstPath)
 	if err = testCopyHelperFSym(t, symlinkPath1, dstPath); err != nil {
 		t.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = fileContentsEqual(t, linkTarget, dstPath); err != nil {
-		t.Fatal(err)
-	}
+	err = fileContentsEqual(t, linkTarget, dstPath)
+	require.NoError(t, err)
 }
 
 // B. SRC specifies a file and DST (with trailing path separator) doesn't
@@ -377,9 +373,8 @@ func TestCopyCaseC(t *testing.T) {
 		t.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = fileContentsEqual(t, srcPath, dstPath); err != nil {
-		t.Fatal(err)
-	}
+	err = fileContentsEqual(t, srcPath, dstPath)
+	require.NoError(t, err)
 }
 
 // C. Symbol link following version:
@@ -415,9 +410,8 @@ func TestCopyCaseCFSym(t *testing.T) {
 		t.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = fileContentsEqual(t, linkTarget, dstPath); err != nil {
-		t.Fatal(err)
-	}
+	err = fileContentsEqual(t, linkTarget, dstPath)
+	require.NoError(t, err)
 }
 
 // D. SRC specifies a file and DST exists as a directory. This should place
@@ -446,9 +440,8 @@ func TestCopyCaseD(t *testing.T) {
 		t.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = fileContentsEqual(t, srcPath, dstPath); err != nil {
-		t.Fatal(err)
-	}
+	err = fileContentsEqual(t, srcPath, dstPath)
+	require.NoError(t, err)
 
 	// Now try again but using a trailing path separator for dstDir.
 
@@ -466,9 +459,8 @@ func TestCopyCaseD(t *testing.T) {
 		t.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = fileContentsEqual(t, srcPath, dstPath); err != nil {
-		t.Fatal(err)
-	}
+	err = fileContentsEqual(t, srcPath, dstPath)
+	require.NoError(t, err)
 }
 
 // D. Symbol link following version:
@@ -499,9 +491,8 @@ func TestCopyCaseDFSym(t *testing.T) {
 		t.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = fileContentsEqual(t, linkTarget, dstPath); err != nil {
-		t.Fatal(err)
-	}
+	err = fileContentsEqual(t, linkTarget, dstPath)
+	require.NoError(t, err)
 
 	// Now try again but using a trailing path separator for dstDir.
 
@@ -519,9 +510,8 @@ func TestCopyCaseDFSym(t *testing.T) {
 		t.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = fileContentsEqual(t, linkTarget, dstPath); err != nil {
-		t.Fatal(err)
-	}
+	err = fileContentsEqual(t, linkTarget, dstPath)
+	require.NoError(t, err)
 }
 
 // E. SRC specifies a directory and DST does not exist. This should create a
@@ -563,9 +553,8 @@ func TestCopyCaseE(t *testing.T) {
 		t.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = dirContentsEqual(t, dstDir, srcDir); err != nil {
-		t.Fatal(err)
-	}
+	err = dirContentsEqual(t, dstDir, srcDir)
+	require.NoError(t, err)
 }
 
 // E. Symbol link following version:
@@ -609,9 +598,8 @@ func TestCopyCaseEFSym(t *testing.T) {
 		t.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = dirContentsEqual(t, dstDir, linkTarget); err != nil {
-		t.Fatal(err)
-	}
+	err = dirContentsEqual(t, dstDir, linkTarget)
+	require.NoError(t, err)
 }
 
 // F. SRC specifies a directory and DST exists as a file. This should cause an
@@ -669,9 +657,8 @@ func TestCopyCaseG(t *testing.T) {
 		t.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = dirContentsEqual(t, resultDir, srcDir); err != nil {
-		t.Fatal(err)
-	}
+	err = dirContentsEqual(t, resultDir, srcDir)
+	require.NoError(t, err)
 
 	// Now try again but using a trailing path separator for dstDir.
 
@@ -689,9 +676,8 @@ func TestCopyCaseG(t *testing.T) {
 		t.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = dirContentsEqual(t, resultDir, srcDir); err != nil {
-		t.Fatal(err)
-	}
+	err = dirContentsEqual(t, resultDir, srcDir)
+	require.NoError(t, err)
 }
 
 // G. Symbol link version:
@@ -717,9 +703,8 @@ func TestCopyCaseGFSym(t *testing.T) {
 		t.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = dirContentsEqual(t, resultDir, linkTarget); err != nil {
-		t.Fatal(err)
-	}
+	err = dirContentsEqual(t, resultDir, linkTarget)
+	require.NoError(t, err)
 
 	// Now try again but using a trailing path separator for dstDir.
 
@@ -737,9 +722,8 @@ func TestCopyCaseGFSym(t *testing.T) {
 		t.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = dirContentsEqual(t, resultDir, linkTarget); err != nil {
-		t.Fatal(err)
-	}
+	err = dirContentsEqual(t, resultDir, linkTarget)
+	require.NoError(t, err)
 }
 
 // H. SRC specifies a directory's contents only and DST does not exist. This
@@ -899,9 +883,8 @@ func TestCopyCaseJ(t *testing.T) {
 		t.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = dirContentsEqual(t, dstDir, srcDir); err != nil {
-		t.Fatal(err)
-	}
+	err = dirContentsEqual(t, dstDir, srcDir)
+	require.NoError(t, err)
 
 	// Now try again but using a trailing path separator for dstDir.
 
@@ -919,9 +902,8 @@ func TestCopyCaseJ(t *testing.T) {
 		t.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = dirContentsEqual(t, dstDir, srcDir); err != nil {
-		t.Fatal(err)
-	}
+	err = dirContentsEqual(t, dstDir, srcDir)
+	require.NoError(t, err)
 }
 
 // J. Symbol link following version:
@@ -952,9 +934,8 @@ func TestCopyCaseJFSym(t *testing.T) {
 		t.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = dirContentsEqual(t, dstDir, linkTarget); err != nil {
-		t.Fatal(err)
-	}
+	err = dirContentsEqual(t, dstDir, linkTarget)
+	require.NoError(t, err)
 
 	// Now try again but using a trailing path separator for dstDir.
 
@@ -972,7 +953,6 @@ func TestCopyCaseJFSym(t *testing.T) {
 		t.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = dirContentsEqual(t, dstDir, linkTarget); err != nil {
-		t.Fatal(err)
-	}
+	err = dirContentsEqual(t, dstDir, linkTarget)
+	require.NoError(t, err)
 }

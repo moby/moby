@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/pkg/system"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/unix"
 )
 
@@ -22,46 +23,37 @@ import (
 //     └── f1 # whiteout, 0644
 func setupOverlayTestDir(t *testing.T, src string) {
 	// Create opaque directory containing single file and permission 0700
-	if err := os.Mkdir(filepath.Join(src, "d1"), 0700); err != nil {
-		t.Fatal(err)
-	}
+	err := os.Mkdir(filepath.Join(src, "d1"), 0700)
+	require.NoError(t, err)
 
-	if err := system.Lsetxattr(filepath.Join(src, "d1"), "trusted.overlay.opaque", []byte("y"), 0); err != nil {
-		t.Fatal(err)
-	}
+	err = system.Lsetxattr(filepath.Join(src, "d1"), "trusted.overlay.opaque", []byte("y"), 0)
+	require.NoError(t, err)
 
-	if err := ioutil.WriteFile(filepath.Join(src, "d1", "f1"), []byte{}, 0600); err != nil {
-		t.Fatal(err)
-	}
+	err = ioutil.WriteFile(filepath.Join(src, "d1", "f1"), []byte{}, 0600)
+	require.NoError(t, err)
 
 	// Create another opaque directory containing single file but with permission 0750
-	if err := os.Mkdir(filepath.Join(src, "d2"), 0750); err != nil {
-		t.Fatal(err)
-	}
+	err = os.Mkdir(filepath.Join(src, "d2"), 0750)
+	require.NoError(t, err)
 
-	if err := system.Lsetxattr(filepath.Join(src, "d2"), "trusted.overlay.opaque", []byte("y"), 0); err != nil {
-		t.Fatal(err)
-	}
+	err = system.Lsetxattr(filepath.Join(src, "d2"), "trusted.overlay.opaque", []byte("y"), 0)
+	require.NoError(t, err)
 
-	if err := ioutil.WriteFile(filepath.Join(src, "d2", "f1"), []byte{}, 0660); err != nil {
-		t.Fatal(err)
-	}
+	err = ioutil.WriteFile(filepath.Join(src, "d2", "f1"), []byte{}, 0660)
+	require.NoError(t, err)
 
 	// Create regular directory with deleted file
-	if err := os.Mkdir(filepath.Join(src, "d3"), 0700); err != nil {
-		t.Fatal(err)
-	}
+	err = os.Mkdir(filepath.Join(src, "d3"), 0700)
+	require.NoError(t, err)
 
-	if err := system.Mknod(filepath.Join(src, "d3", "f1"), unix.S_IFCHR, 0); err != nil {
-		t.Fatal(err)
-	}
+	err = system.Mknod(filepath.Join(src, "d3", "f1"), unix.S_IFCHR, 0)
+	require.NoError(t, err)
 }
 
 func checkOpaqueness(t *testing.T, path string, opaque string) {
 	xattrOpaque, err := system.Lgetxattr(path, "trusted.overlay.opaque")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+
 	if string(xattrOpaque) != opaque {
 		t.Fatalf("Unexpected opaque value: %q, expected %q", string(xattrOpaque), opaque)
 	}
@@ -70,9 +62,8 @@ func checkOpaqueness(t *testing.T, path string, opaque string) {
 
 func checkOverlayWhiteout(t *testing.T, path string) {
 	stat, err := os.Stat(path)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+
 	statT, ok := stat.Sys().(*syscall.Stat_t)
 	if !ok {
 		t.Fatalf("Unexpected type: %t, expected *syscall.Stat_t", stat.Sys())
@@ -84,9 +75,8 @@ func checkOverlayWhiteout(t *testing.T, path string) {
 
 func checkFileMode(t *testing.T, path string, perm os.FileMode) {
 	stat, err := os.Stat(path)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+
 	if stat.Mode() != perm {
 		t.Fatalf("Unexpected file mode for %s: %o, expected %o", path, stat.Mode(), perm)
 	}
@@ -94,23 +84,17 @@ func checkFileMode(t *testing.T, path string, perm os.FileMode) {
 
 func TestOverlayTarUntar(t *testing.T) {
 	oldmask, err := system.Umask(0)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	defer system.Umask(oldmask)
 
 	src, err := ioutil.TempDir("", "docker-test-overlay-tar-src")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	defer os.RemoveAll(src)
 
 	setupOverlayTestDir(t, src)
 
 	dst, err := ioutil.TempDir("", "docker-test-overlay-tar-dst")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	defer os.RemoveAll(dst)
 
 	options := &TarOptions{
@@ -118,14 +102,11 @@ func TestOverlayTarUntar(t *testing.T) {
 		WhiteoutFormat: OverlayWhiteoutFormat,
 	}
 	archive, err := TarWithOptions(src, options)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	defer archive.Close()
 
-	if err := Untar(archive, dst, options); err != nil {
-		t.Fatal(err)
-	}
+	err = Untar(archive, dst, options)
+	require.NoError(t, err)
 
 	checkFileMode(t, filepath.Join(dst, "d1"), 0700|os.ModeDir)
 	checkFileMode(t, filepath.Join(dst, "d2"), 0750|os.ModeDir)
@@ -142,40 +123,31 @@ func TestOverlayTarUntar(t *testing.T) {
 
 func TestOverlayTarAUFSUntar(t *testing.T) {
 	oldmask, err := system.Umask(0)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	defer system.Umask(oldmask)
 
 	src, err := ioutil.TempDir("", "docker-test-overlay-tar-src")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	defer os.RemoveAll(src)
 
 	setupOverlayTestDir(t, src)
 
 	dst, err := ioutil.TempDir("", "docker-test-overlay-tar-dst")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	defer os.RemoveAll(dst)
 
 	archive, err := TarWithOptions(src, &TarOptions{
 		Compression:    Uncompressed,
 		WhiteoutFormat: OverlayWhiteoutFormat,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	defer archive.Close()
 
-	if err := Untar(archive, dst, &TarOptions{
+	err = Untar(archive, dst, &TarOptions{
 		Compression:    Uncompressed,
 		WhiteoutFormat: AUFSWhiteoutFormat,
-	}); err != nil {
-		t.Fatal(err)
-	}
+	})
+	require.NoError(t, err)
 
 	checkFileMode(t, filepath.Join(dst, "d1"), 0700|os.ModeDir)
 	checkFileMode(t, filepath.Join(dst, "d1", WhiteoutOpaqueDir), 0700)
