@@ -55,7 +55,8 @@ type endpointOption struct {
 	DisableICC  bool
 }
 
-type endpointConnectivity struct {
+// EndpointConnectivity stores the port bindings and exposed ports that the user has specified in epOptions.
+type EndpointConnectivity struct {
 	PortBindings []types.PortBinding
 	ExposedPorts []types.TransportPort
 }
@@ -67,7 +68,7 @@ type hnsEndpoint struct {
 	Type           string
 	macAddress     net.HardwareAddr
 	epOption       *endpointOption       // User specified parameters
-	epConnectivity *endpointConnectivity // User specified parameters
+	epConnectivity *EndpointConnectivity // User specified parameters
 	portMapping    []types.PortBinding   // Operation port bindings
 	addr           *net.IPNet
 	gateway        net.IP
@@ -95,7 +96,7 @@ const (
 	errNotFound = "HNS failed with error : The object identifier does not represent a valid object. "
 )
 
-// IsBuiltinWindowsDriver vaidates if network-type is a builtin local-scoped driver
+// IsBuiltinLocalDriver validates if network-type is a builtin local-scoped driver
 func IsBuiltinLocalDriver(networkType string) bool {
 	if "l2bridge" == networkType || "l2tunnel" == networkType || "nat" == networkType || "ics" == networkType || "transparent" == networkType {
 		return true
@@ -508,12 +509,12 @@ func parseEndpointOptions(epOptions map[string]interface{}) (*endpointOption, er
 }
 
 // ParseEndpointConnectivity parses options passed to CreateEndpoint, specifically port bindings, and store in a endpointConnectivity object.
-func ParseEndpointConnectivity(epOptions map[string]interface{}) (*endpointConnectivity, error) {
+func ParseEndpointConnectivity(epOptions map[string]interface{}) (*EndpointConnectivity, error) {
 	if epOptions == nil {
 		return nil, nil
 	}
 
-	ec := &endpointConnectivity{}
+	ec := &EndpointConnectivity{}
 
 	if opt, ok := epOptions[netlabel.PortMap]; ok {
 		if bs, ok := opt.([]types.PortBinding); ok {

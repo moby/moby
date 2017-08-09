@@ -21,7 +21,7 @@ const overlayEndpointPrefix = "overlay/endpoint"
 type endpoint struct {
 	id             string
 	nid            string
-	profileId      string
+	profileID      string
 	remote         bool
 	mac            net.HardwareAddr
 	addr           *net.IPNet
@@ -77,7 +77,7 @@ func (n *network) removeEndpointWithAddress(addr *net.IPNet) {
 
 	if networkEndpoint != nil {
 		logrus.Debugf("Removing stale endpoint from HNS")
-		_, err := hcsshim.HNSEndpointRequest("DELETE", networkEndpoint.profileId, "")
+		_, err := hcsshim.HNSEndpointRequest("DELETE", networkEndpoint.profileID, "")
 
 		if err != nil {
 			logrus.Debugf("Failed to delete stale overlay endpoint (%s) from hns", networkEndpoint.id[0:7])
@@ -102,7 +102,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 		logrus.Debugf("Deleting stale endpoint %s", eid)
 		n.deleteEndpoint(eid)
 
-		_, err := hcsshim.HNSEndpointRequest("DELETE", ep.profileId, "")
+		_, err := hcsshim.HNSEndpointRequest("DELETE", ep.profileID, "")
 		if err != nil {
 			return err
 		}
@@ -121,14 +121,14 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 
 	s := n.getSubnetforIP(ep.addr)
 	if s == nil {
-		return fmt.Errorf("no matching subnet for IP %q in network %q\n", ep.addr, nid)
+		return fmt.Errorf("no matching subnet for IP %q in network %q", ep.addr, nid)
 	}
 
 	// Todo: Add port bindings and qos policies here
 
 	hnsEndpoint := &hcsshim.HNSEndpoint{
 		Name:              eid,
-		VirtualNetwork:    n.hnsId,
+		VirtualNetwork:    n.hnsID,
 		IPAddress:         ep.addr.IP,
 		EnableInternalDNS: true,
 		GatewayAddress:    s.gwIP.String(),
@@ -161,13 +161,11 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 		hnsEndpoint.Policies = append(hnsEndpoint.Policies, natPolicy)
 
 		epConnectivity, err := windows.ParseEndpointConnectivity(epOptions)
-
 		if err != nil {
 			return err
 		}
 
 		pbPolicy, err := windows.ConvertPortBindings(epConnectivity.PortBindings)
-
 		if err != nil {
 			return err
 		}
@@ -186,7 +184,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 		return err
 	}
 
-	ep.profileId = hnsresponse.Id
+	ep.profileID = hnsresponse.Id
 
 	if ep.mac == nil {
 		ep.mac, err = net.ParseMAC(hnsresponse.MacAddress)
@@ -227,7 +225,7 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 
 	n.deleteEndpoint(eid)
 
-	_, err := hcsshim.HNSEndpointRequest("DELETE", ep.profileId, "")
+	_, err := hcsshim.HNSEndpointRequest("DELETE", ep.profileID, "")
 	if err != nil {
 		return err
 	}
@@ -251,7 +249,7 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, erro
 	}
 
 	data := make(map[string]interface{}, 1)
-	data["hnsid"] = ep.profileId
+	data["hnsid"] = ep.profileID
 	data["AllowUnqualifiedDNSQuery"] = true
 
 	if ep.portMapping != nil {
