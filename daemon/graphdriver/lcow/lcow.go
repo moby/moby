@@ -68,12 +68,12 @@ import (
 	"time"
 
 	"github.com/Microsoft/hcsshim"
+	"github.com/Microsoft/opengcs/client"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/system"
-	"github.com/jhowardmsft/opengcs/gogcs/client"
 	"github.com/sirupsen/logrus"
 )
 

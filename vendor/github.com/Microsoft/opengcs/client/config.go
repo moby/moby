@@ -157,6 +157,9 @@ func (config *Config) GenerateDefault(options []string) error {
 	// Last priority is the default timeout
 	config.UvmTimeoutSeconds = defaultUvmTimeoutSeconds
 
+	// Set the default requested mode
+	config.RequestedMode = ModeRequestAuto
+
 	return nil
 }
 
@@ -237,7 +240,9 @@ func (config *Config) StartUtilityVM() error {
 
 	if config.ActualMode == ModeActualVhdx {
 		configuration.HvRuntime = &hcsshim.HvRuntime{
-			ImagePath: config.Vhdx,
+			ImagePath:          config.Vhdx,
+			BootSource:         "Vhd",
+			WritableBootSource: true,
 		}
 	} else {
 		configuration.HvRuntime = &hcsshim.HvRuntime{

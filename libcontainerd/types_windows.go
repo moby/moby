@@ -2,7 +2,7 @@ package libcontainerd
 
 import (
 	"github.com/Microsoft/hcsshim"
-	opengcs "github.com/jhowardmsft/opengcs/gogcs/client"
+	opengcs "github.com/Microsoft/opengcs/client"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 

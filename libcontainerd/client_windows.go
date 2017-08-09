@@ -15,9 +15,9 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/Microsoft/hcsshim"
+	opengcs "github.com/Microsoft/opengcs/client"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
-	opengcs "github.com/jhowardmsft/opengcs/gogcs/client"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 )
