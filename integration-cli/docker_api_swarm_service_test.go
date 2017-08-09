@@ -603,7 +603,8 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesStateReporting(c *check.C) {
 
 // Test plugins deployed via swarm services
 func (s *DockerSwarmSuite) TestAPISwarmServicesPlugin(c *check.C) {
-	testRequires(c, DaemonIsLinux, IsAmd64)
+	testRequires(c, ExperimentalDaemon, DaemonIsLinux, IsAmd64)
+
 	reg := setupRegistry(c, false, "", "")
 	defer reg.Close()
 

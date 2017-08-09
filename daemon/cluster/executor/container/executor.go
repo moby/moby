@@ -185,13 +185,17 @@ func (e *executor) Controller(t *api.Task) (exec.Controller, error) {
 		}
 		switch runtimeKind {
 		case string(swarmtypes.RuntimePlugin):
+			info, _ := e.backend.SystemInfo()
+			if !info.ExperimentalBuild {
+				return ctlr, fmt.Errorf("runtime type %q only supported in experimental", swarmtypes.RuntimePlugin)
+			}
 			c, err := plugin.NewController(e.pluginBackend, t)
 			if err != nil {
 				return ctlr, err
 			}
 			ctlr = c
 		default:
-			return ctlr, fmt.Errorf("unsupported runtime type: %q", r.Generic.Kind)
+			return ctlr, fmt.Errorf("unsupported runtime type: %q", runtimeKind)
 		}
 	case *api.TaskSpec_Container:
 		c, err := newController(e.backend, t, dependencyGetter)
