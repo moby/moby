@@ -2087,6 +2087,8 @@ definitions:
                       type: "string"
           TLSInfo:
             $ref: "#/definitions/TLSInfo"
+      Status:
+        $ref: "#/definitions/NodeStatus"
     example:
       ID: "24ifsmvkjbyhk"
       Version:
@@ -2207,6 +2209,33 @@ definitions:
         -----END CERTIFICATE-----
       CertIssuerSubject: "MBMxETAPBgNVBAMTCHN3YXJtLWNh"
       CertIssuerPublicKey: "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEmT9XIw9h1qoNclv9VeHmf/Vi6/uI2vFXdBveXTpcPjqx6i9wNazchk1XWV/dKTKvSh9xyGKmiIeRcE4OiMnJ1A=="
+
+  NodeStatus:
+    description: |
+      NodeStatus represents the status of a node.
+
+      It provides the current status of the node, as seen by the manager.
+    type: "object"
+    properties:
+      State:
+        $ref: "#/definitions/NodeState"
+      Message:
+        type: "string"
+        example: ""
+      Addr:
+        description: "IP address of the node."
+        type: "string"
+        example: "172.17.0.2"
+
+  NodeState:
+    description: "NodeState represents the state of a node."
+    type: "string"
+    enum:
+      - "unknown"
+      - "down"
+      - "ready"
+      - "disconnected"
+    example: "ready"
 
   SwarmSpec:
     description: "User modifiable swarm configuration."
