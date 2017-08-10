@@ -1975,7 +1975,7 @@ definitions:
     properties:
       Index:
         type: "integer"
-        format: "int64"
+        format: "uint64"
         example: 373531
 
   NodeSpec:
@@ -2227,6 +2227,7 @@ definitions:
       Orchestration:
         description: "Orchestration configuration."
         type: "object"
+        x-nullable: true
         properties:
           TaskHistoryRetentionLimit:
             description: "The number of historic tasks to keep per instance or node. If negative, never remove completed or failed tasks."
@@ -2240,16 +2241,16 @@ definitions:
           SnapshotInterval:
             description: "The number of log entries between snapshots."
             type: "integer"
-            format: "int64"
+            format: "uint64"
             example: 10000
           KeepOldSnapshots:
             description: "The number of snapshots to keep beyond the current snapshot."
             type: "integer"
-            format: "int64"
+            format: "uint64"
           LogEntriesForSlowFollowers:
             description: "The number of log entries to keep around to sync up slow followers after a snapshot is created."
             type: "integer"
-            format: "int64"
+            format: "uint64"
             example: 500
           ElectionTick:
             description: |
@@ -2268,6 +2269,7 @@ definitions:
       Dispatcher:
         description: "Dispatcher configuration."
         type: "object"
+        x-nullable: true
         properties:
           HeartbeatPeriod:
             description: "The delay for an agent to send a heartbeat to the dispatcher."
@@ -2277,6 +2279,7 @@ definitions:
       CAConfig:
         description: "CA configuration."
         type: "object"
+        x-nullable: true
         properties:
           NodeCertExpiry:
             description: "The duration node certificates are issued for."
@@ -2314,6 +2317,8 @@ definitions:
             type: "string"
           ForceRotate:
             description: "An integer whose purpose is to force swarm to generate a new signing CA certificate and key, if none have been specified in `SigningCACert` and `SigningCAKey`"
+            format: "uint64"
+            type: "integer"
       EncryptionConfig:
         description: "Parameters related to encryption-at-rest."
         type: "object"
@@ -2375,6 +2380,7 @@ definitions:
     description: |
       ClusterInfo represents information about the swarm as is returned by the
       "/info" endpoint. Join-tokens are not included.
+    x-nullable: true
     type: "object"
     properties:
       ID:
