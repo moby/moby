@@ -2089,6 +2089,8 @@ definitions:
             $ref: "#/definitions/TLSInfo"
       Status:
         $ref: "#/definitions/NodeStatus"
+      ManagerStatus:
+        $ref: "#/definitions/ManagerStatus"
     example:
       ID: "24ifsmvkjbyhk"
       Version:
@@ -2236,6 +2238,36 @@ definitions:
       - "ready"
       - "disconnected"
     example: "ready"
+
+  ManagerStatus:
+    description: |
+      ManagerStatus represents the status of a manager.
+
+      It provides the current status of a node's manager component, if the node
+      is a manager.
+    x-nullable: true
+    type: "object"
+    properties:
+      Leader:
+        type: "boolean"
+        default: false
+        example: true
+      Reachability:
+        $ref: "#/definitions/Reachability"
+      Addr:
+        description: |
+          The IP address and port at which the manager is reachable.
+        type: "string"
+        example: "10.0.0.46:2377"
+
+  Reachability:
+    description: "Reachability represents the reachability of a node."
+    type: "string"
+    enum:
+      - "unknown"
+      - "unreachable"
+      - "reachable"
+    example: "reachable"
 
   SwarmSpec:
     description: "User modifiable swarm configuration."
