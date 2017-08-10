@@ -401,6 +401,7 @@ definitions:
       CpusetCpus:
         description: "CPUs in which to allow execution (e.g., `0-3`, `0,1`)"
         type: "string"
+        example: "0-3"
       CpusetMems:
         description: "Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems."
         type: "string"
@@ -495,9 +496,11 @@ definitions:
       NanoCPUs:
         type: "integer"
         format: "int64"
+        example: 4000000000
       MemoryBytes:
         type: "integer"
         format: "int64"
+        example: 8272408576
       GenericResources:
         $ref: "#/definitions/GenericResources"
 
@@ -522,6 +525,16 @@ definitions:
             Value:
               type: "integer"
               format: "int64"
+    example:
+      - DiscreteResourceSpec:
+          Kind: "SSD"
+          Value: 3
+      - NamedResourceSpec:
+          Kind: "GPU"
+          Value: "UUID1"
+      - NamedResourceSpec:
+          Kind: "GPU"
+          Value: "UUID2"
 
   HealthConfig:
     description: "A test to perform to check that the container is healthy."
@@ -688,6 +701,7 @@ definitions:
           OomScoreAdj:
             type: "integer"
             description: "An integer value containing the score given to the container in order to tune OOM killer preferences."
+            example: 500
           PidMode:
             type: "string"
             description: |
@@ -1962,6 +1976,7 @@ definitions:
       Index:
         type: "integer"
         format: "int64"
+        example: 373531
 
   NodeSpec:
     type: "object"
@@ -1969,6 +1984,7 @@ definitions:
       Name:
         description: "Name for the node."
         type: "string"
+        example: "my-node"
       Labels:
         description: "User-defined key/value metadata."
         type: "object"
@@ -1980,6 +1996,7 @@ definitions:
         enum:
           - "worker"
           - "manager"
+        example: "manager"
       Availability:
         description: "Availability of the node."
         type: "string"
@@ -1987,6 +2004,7 @@ definitions:
           - "active"
           - "pause"
           - "drain"
+        example: "active"
     example:
       Availability: "active"
       Name: "node-name"
@@ -1999,14 +2017,17 @@ definitions:
     properties:
       ID:
         type: "string"
+        example: "24ifsmvkjbyhk"
       Version:
         $ref: "#/definitions/ObjectVersion"
       CreatedAt:
         type: "string"
         format: "dateTime"
+        example: "2016-08-18T10:44:24.496525531Z"
       UpdatedAt:
         type: "string"
         format: "dateTime"
+        example: "2017-08-09T07:09:37.632105588Z"
       Spec:
         $ref: "#/definitions/NodeSpec"
       Description:
@@ -2014,13 +2035,16 @@ definitions:
         properties:
           Hostname:
             type: "string"
+            example: "bf3067039e47"
           Platform:
             type: "object"
             properties:
               Architecture:
                 type: "string"
+                example: "x86_64"
               OS:
                 type: "string"
+                example: "linux"
           Resources:
             $ref: "#/definitions/ResourceObject"
           Engine:
@@ -2028,10 +2052,13 @@ definitions:
             properties:
               EngineVersion:
                 type: "string"
+                example: "17.06.0"
               Labels:
                 type: "object"
                 additionalProperties:
                   type: "string"
+                example:
+                  foo: "bar"
               Plugins:
                 type: "array"
                 items:
@@ -2078,14 +2105,42 @@ definitions:
           Labels:
             foo: "bar"
           Plugins:
-            - Type: "Volume"
-              Name: "local"
+            - Type: "Log"
+              Name: "awslogs"
+            - Type: "Log"
+              Name: "fluentd"
+            - Type: "Log"
+              Name: "gcplogs"
+            - Type: "Log"
+              Name: "gelf"
+            - Type: "Log"
+              Name: "journald"
+            - Type: "Log"
+              Name: "json-file"
+            - Type: "Log"
+              Name: "logentries"
+            - Type: "Log"
+              Name: "splunk"
+            - Type: "Log"
+              Name: "syslog"
             - Type: "Network"
               Name: "bridge"
+            - Type: "Network"
+              Name: "host"
+            - Type: "Network"
+              Name: "ipvlan"
+            - Type: "Network"
+              Name: "macvlan"
             - Type: "Network"
               Name: "null"
             - Type: "Network"
               Name: "overlay"
+            - Type: "Volume"
+              Name: "local"
+            - Type: "Volume"
+              Name: "localhost:5000/vieux/sshfs:latest"
+            - Type: "Volume"
+              Name: "vieux/sshfs:latest"
       Status:
         State: "ready"
         Addr: "172.17.0.2"
@@ -2143,11 +2198,15 @@ definitions:
       Name:
         description: "Name of the swarm."
         type: "string"
+        example: "default"
       Labels:
         description: "User-defined key/value metadata."
         type: "object"
         additionalProperties:
           type: "string"
+        example:
+          com.example.corp.type: "production"
+          com.example.corp.department: "engineering"
       Orchestration:
         description: "Orchestration configuration."
         type: "object"
@@ -2156,6 +2215,7 @@ definitions:
             description: "The number of historic tasks to keep per instance or node. If negative, never remove completed or failed tasks."
             type: "integer"
             format: "int64"
+            example: 10
       Raft:
         description: "Raft configuration."
         type: "object"
@@ -2164,6 +2224,7 @@ definitions:
             description: "The number of log entries between snapshots."
             type: "integer"
             format: "int64"
+            example: 10000
           KeepOldSnapshots:
             description: "The number of snapshots to keep beyond the current snapshot."
             type: "integer"
@@ -2172,18 +2233,21 @@ definitions:
             description: "The number of log entries to keep around to sync up slow followers after a snapshot is created."
             type: "integer"
             format: "int64"
+            example: 500
           ElectionTick:
             description: |
               The number of ticks that a follower will wait for a message from the leader before becoming a candidate and starting an election. `ElectionTick` must be greater than `HeartbeatTick`.
 
               A tick currently defaults to one second, so these translate directly to seconds currently, but this is NOT guaranteed.
             type: "integer"
+            example: 3
           HeartbeatTick:
             description: |
               The number of ticks between heartbeats. Every HeartbeatTick ticks, the leader will send a heartbeat to the followers.
 
               A tick currently defaults to one second, so these translate directly to seconds currently, but this is NOT guaranteed.
             type: "integer"
+            example: 1
       Dispatcher:
         description: "Dispatcher configuration."
         type: "object"
@@ -2192,6 +2256,7 @@ definitions:
             description: "The delay for an agent to send a heartbeat to the dispatcher."
             type: "integer"
             format: "int64"
+            example: 5000000000
       CAConfig:
         description: "CA configuration."
         type: "object"
@@ -2200,6 +2265,7 @@ definitions:
             description: "The duration node certificates are issued for."
             type: "integer"
             format: "int64"
+            example: 7776000000000000
           ExternalCAs:
             description: "Configuration for forwarding signing requests to an external certificate authority."
             type: "array"
@@ -2238,6 +2304,7 @@ definitions:
           AutoLockManagers:
             description: "If set, generate a key and use it to lock data stored on the managers."
             type: "boolean"
+            example: false
       TaskDefaults:
         description: "Defaults for creating tasks in this cluster."
         type: "object"
@@ -2251,10 +2318,14 @@ definitions:
             properties:
               Name:
                 type: "string"
+                example: "json-file"
               Options:
                 type: "object"
                 additionalProperties:
                   type: "string"
+                example:
+                  "max-file": "10"
+                  "max-size": "100m"
     example:
       Name: "default"
       Orchestration:
@@ -2282,14 +2353,17 @@ definitions:
       ID:
         description: "The ID of the swarm."
         type: "string"
+        example: "abajmipo7b4xz5ip2nrla6b11"
       Version:
         $ref: "#/definitions/ObjectVersion"
       CreatedAt:
         type: "string"
         format: "dateTime"
+        example: "2016-08-18T10:44:24.496525531Z"
       UpdatedAt:
         type: "string"
         format: "dateTime"
+        example: "2017-08-09T07:09:37.632105588Z"
       Spec:
         $ref: "#/definitions/SwarmSpec"
       TLSInfo:
@@ -2297,6 +2371,7 @@ definitions:
       RootRotationInProgress:
         description: "Whether there is currently a root CA rotation in progress for the swarm"
         type: "boolean"
+        example: false
 
   TaskSpec:
     description: "User modifiable task configuration."
@@ -2578,6 +2653,10 @@ definitions:
             type: "array"
             items:
               type: "string"
+            example:
+              - "node.hostname!=node3.corp.example.com"
+              - "node.role!=manager"
+              - "node.labels.type==production"
           Preferences:
             description: "Preferences provide a way to make the scheduler aware of factors such as topology. They are provided in order from highest to lowest precedence."
             type: "array"
@@ -2590,6 +2669,11 @@ definitions:
                     SpreadDescriptor:
                       description: "label descriptor, such as engine.labels.az"
                       type: "string"
+            example:
+              - Spread:
+                  SpreadDescriptor: "node.labels.datacenter"
+              - Spread:
+                  SpreadDescriptor: "node.labels.rack"
           Platforms:
             description: "An array of supported platforms."
             type: "array"
@@ -2598,8 +2682,10 @@ definitions:
               properties:
                 Architecture:
                   type: "string"
+                  example: "amd64"
                 OS:
                   type: "string"
+                  example: "linux"
       ForceUpdate:
         description: "A counter that triggers an update even if no relevant parameters have been changed."
         type: "integer"
