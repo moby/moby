@@ -505,7 +505,7 @@ definitions:
         $ref: "#/definitions/GenericResources"
 
   GenericResources:
-    description: "User defined Resources, can be either Integer resources (e.g: SSD=3) or String resources (e.g: GPU={UUID1, UUID2})"
+    description: "User-defined resources can be either Integer resources (e.g, `SSD=3`) or String resources (e.g, `GPU=UUID1`)"
     type: "array"
     items:
       type: "object"
@@ -2021,28 +2021,45 @@ definitions:
       Version:
         $ref: "#/definitions/ObjectVersion"
       CreatedAt:
+        description: |
+          Date and time at which the node was added to the swarm in
+          [RFC 3339](https://www.ietf.org/rfc/rfc3339.txt) format with nano-seconds.
         type: "string"
         format: "dateTime"
         example: "2016-08-18T10:44:24.496525531Z"
       UpdatedAt:
+        description: |
+          Date and time at which the node was last updated in
+          [RFC 3339](https://www.ietf.org/rfc/rfc3339.txt) format with nano-seconds.
         type: "string"
         format: "dateTime"
         example: "2017-08-09T07:09:37.632105588Z"
       Spec:
         $ref: "#/definitions/NodeSpec"
       Description:
+        description: |
+          Description encapsulates the properties of the Node as reported by the
+          agent.
         type: "object"
         properties:
           Hostname:
             type: "string"
             example: "bf3067039e47"
           Platform:
+            description: |
+              Platform represents the platform (Arch/OS).
             type: "object"
             properties:
               Architecture:
+                description: |
+                  Architecture represents the hardware architecture (for example,
+                  `x86_64`).
                 type: "string"
                 example: "x86_64"
               OS:
+                description: |
+                  OS represents the Operating System (for example, `linux` or
+                  `windows`).
                 type: "string"
                 example: "linux"
           Resources:
@@ -2311,15 +2328,22 @@ definitions:
         properties:
           LogDriver:
             description: |
-              The log driver to use for tasks created in the orchestrator if unspecified by a service.
+              The log driver to use for tasks created in the orchestrator if
+              unspecified by a service.
 
-              Updating this value will only have an affect on new tasks. Old tasks will continue use their previously configured log driver until recreated.
+              Updating this value only affects new tasks. Existing tasks continue
+              to use their previously configured log driver until recreated.
             type: "object"
             properties:
               Name:
+                description: |
+                  The log driver to use as a default for new tasks.
                 type: "string"
                 example: "json-file"
               Options:
+                description: |
+                  Driver-specific options for the selectd log driver, specified
+                  as key/value pairs.
                 type: "object"
                 additionalProperties:
                   type: "string"
@@ -2348,6 +2372,9 @@ definitions:
   # The Swarm information for `GET /info`. It is the same as `GET /swarm`, but
   # without `JoinTokens`.
   ClusterInfo:
+    description: |
+      ClusterInfo represents information about the swarm as is returned by the
+      "/info" endpoint. Join-tokens are not included.
     type: "object"
     properties:
       ID:
@@ -2357,10 +2384,16 @@ definitions:
       Version:
         $ref: "#/definitions/ObjectVersion"
       CreatedAt:
+        description: |
+          Date and time at which the swarm was initialised in
+          [RFC 3339](https://www.ietf.org/rfc/rfc3339.txt) format with nano-seconds.
         type: "string"
         format: "dateTime"
         example: "2016-08-18T10:44:24.496525531Z"
       UpdatedAt:
+        description: |
+          Date and time at which the swarm was last updated in
+          [RFC 3339](https://www.ietf.org/rfc/rfc3339.txt) format with nano-seconds.
         type: "string"
         format: "dateTime"
         example: "2017-08-09T07:09:37.632105588Z"
@@ -2522,10 +2555,12 @@ definitions:
           Hosts:
             type: "array"
             description: |
-              A list of hostnames/IP mappings to add to the container's `/etc/hosts` file.
-              The format of extra hosts on swarmkit is specified in:
-              http://man7.org/linux/man-pages/man5/hosts.5.html
-                IP_address canonical_hostname [aliases...]
+              A list of hostname/IP mappings to add to the container's `hosts`
+              file. The format of extra hosts is specified in the
+              [hosts(5)](http://man7.org/linux/man-pages/man5/hosts.5.html)
+              man page:
+
+                  IP_address canonical_hostname [aliases...]
             items:
               type: "string"
           DNSConfig:
@@ -2675,7 +2710,11 @@ definitions:
               - Spread:
                   SpreadDescriptor: "node.labels.rack"
           Platforms:
-            description: "An array of supported platforms."
+            description: |
+              Platforms stores all the platforms that the service's image can
+              run on. This field is used in the platform filter for scheduling.
+              If empty, then the platform filter is off, meaning there are no
+              scheduling restrictions.
             type: "array"
             items:
               type: "object"
