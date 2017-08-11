@@ -66,12 +66,6 @@ func (n *networkNamespace) LinkLocalAddresses(list []*net.IPNet) IfaceOption {
 	}
 }
 
-func (n *networkNamespace) IPAliases(list []*net.IPNet) IfaceOption {
-	return func(i *nwIface) {
-		i.ipAliases = list
-	}
-}
-
 func (n *networkNamespace) Routes(routes []*net.IPNet) IfaceOption {
 	return func(i *nwIface) {
 		i.routes = routes

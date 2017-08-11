@@ -32,6 +32,12 @@ type Sandbox interface {
 	// Unset the previously set default IPv6 gateway in the sandbox
 	UnsetGatewayIPv6() error
 
+	// AddLoopbackAliasIP adds the passed IP address to the sandbox loopback interface
+	AddLoopbackAliasIP(ip *net.IPNet) error
+
+	// RemoveLoopbackAliasIP removes the passed IP address from the sandbox loopback interface
+	RemoveLoopbackAliasIP(ip *net.IPNet) error
+
 	// Add a static route to the sandbox.
 	AddStaticRoute(*types.StaticRoute) error
 
@@ -91,9 +97,6 @@ type IfaceOptionSetter interface {
 	// LinkLocalAddresses returns an option setter to set the link-local IP addresses.
 	LinkLocalAddresses([]*net.IPNet) IfaceOption
 
-	// IPAliases returns an option setter to set IP address Aliases
-	IPAliases([]*net.IPNet) IfaceOption
-
 	// Master returns an option setter to set the master interface if any for this
 	// interface. The master interface name should refer to the srcname of a
 	// previously added interface of type bridge.
@@ -149,9 +152,6 @@ type Interface interface {
 
 	// LinkLocalAddresses returns the link-local IP addresses assigned to the interface.
 	LinkLocalAddresses() []*net.IPNet
-
-	// IPAliases returns the IP address aliases assigned to the interface.
-	IPAliases() []*net.IPNet
 
 	// IP routes for the interface.
 	Routes() []*net.IPNet
