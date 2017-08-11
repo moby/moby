@@ -3357,6 +3357,774 @@ definitions:
       Spec:
         $ref: "#/definitions/ConfigSpec"
 
+  SystemInfo:
+    type: "object"
+    properties:
+      ID:
+        description: |
+          Unique identifier of the daemon.
+
+          <p><br /></p>
+
+          > **Note**: The format of the ID itself is not part of the API, and
+          > should not be considered stable.
+        type: "string"
+        example: "7TRN:IPZB:QYBB:VPBQ:UMPP:KARE:6ZNR:XE6T:7EWV:PKF4:ZOJD:TPYS"
+      Containers:
+        description: "Total number of containers on the host."
+        type: "integer"
+        example: 14
+      ContainersRunning:
+        description: |
+          Number of containers with status `"running"`.
+        type: "integer"
+        example: 3
+      ContainersPaused:
+        description: |
+          Number of containers with status `"paused"`.
+        type: "integer"
+        example: 1
+      ContainersStopped:
+        description: |
+          Number of containers with status `"stopped"`.
+        type: "integer"
+        example: 10
+      Images:
+        description: |
+          Total number of images on the host.
+
+          Both _tagged_ and _untagged_ (dangling) images are counted.
+        type: "integer"
+        example: 508
+      Driver:
+        description: "Name of the storage driver in use."
+        type: "string"
+        example: "overlay2"
+      DriverStatus:
+        description: |
+          Information specific to the storage driver, provided as
+          "label" / "value" pairs.
+
+          This information is provided by the storage driver, and formatted
+          in a way consistent with the output of `docker info` on the command
+          line.
+
+          <p><br /></p>
+
+          > **Note**: The information returned in this field, including the
+          > formatting of values and labels, should not be considered stable,
+          > and may change without notice.
+        type: "array"
+        items:
+          type: "array"
+          items:
+            type: "string"
+        example:
+          - ["Backing Filesystem", "extfs"]
+          - ["Supports d_type", "true"]
+          - ["Native Overlay Diff", "true"]
+      DockerRootDir:
+        description: |
+          Root directory of persistent Docker state.
+
+          Defaults to `/var/lib/docker` on Linux, and `C:\ProgramData\docker`
+          on Windows.
+        type: "string"
+        example: "/var/lib/docker"
+      SystemStatus:
+        description: |
+          Status information about this node (standalone Swarm API).
+
+          <p><br /></p>
+
+          > **Note**: The information returned in this field is only propagated
+          > by the Swarm standalone API, and is empty (`null`) when using
+          > built-in swarm mode.
+        type: "array"
+        items:
+          type: "array"
+          items:
+            type: "string"
+        example:
+          - ["Role", "primary"]
+          - ["State", "Healthy"]
+          - ["Strategy", "spread"]
+          - ["Filters", "health, port, containerslots, dependency, affinity, constraint, whitelist"]
+          - ["Nodes", "2"]
+          - [" swarm-agent-00", "192.168.99.102:2376"]
+          - ["  └ ID", "5CT6:FBGO:RVGO:CZL4:PB2K:WCYN:2JSV:KSHH:GGFW:QOPG:6J5Q:IOZ2|192.168.99.102:2376"]
+          - ["  └ Status", "Healthy"]
+          - ["  └ Containers", "1 (1 Running, 0 Paused, 0 Stopped)"]
+          - ["  └ Reserved CPUs", "0 / 1"]
+          - ["  └ Reserved Memory", "0 B / 1.021 GiB"]
+          - ["  └ Labels", "kernelversion=4.4.74-boot2docker, operatingsystem=Boot2Docker 17.06.0-ce (TCL 7.2); HEAD : 0672754 - Thu Jun 29 00:06:31 UTC 2017, ostype=linux, provider=virtualbox, storagedriver=aufs"]
+          - ["  └ UpdatedAt", "2017-08-09T10:03:46Z"]
+          - ["  └ ServerVersion", "17.06.0-ce"]
+          - [" swarm-manager", "192.168.99.101:2376"]
+          - ["  └ ID", "TAMD:7LL3:SEF7:LW2W:4Q2X:WVFH:RTXX:JSYS:XY2P:JEHL:ZMJK:JGIW|192.168.99.101:2376"]
+          - ["  └ Status", "Healthy"]
+          - ["  └ Containers", "2 (2 Running, 0 Paused, 0 Stopped)"]
+          - ["  └ Reserved CPUs", "0 / 1"]
+          - ["  └ Reserved Memory", "0 B / 1.021 GiB"]
+          - ["  └ Labels", "kernelversion=4.4.74-boot2docker, operatingsystem=Boot2Docker 17.06.0-ce (TCL 7.2); HEAD : 0672754 - Thu Jun 29 00:06:31 UTC 2017, ostype=linux, provider=virtualbox, storagedriver=aufs"]
+          - ["  └ UpdatedAt", "2017-08-09T10:04:11Z"]
+          - ["  └ ServerVersion", "17.06.0-ce"]
+      Plugins:
+        $ref: "#/definitions/PluginsInfo"
+      MemoryLimit:
+        description: "Indicates if the host has memory limit support enabled."
+        type: "boolean"
+        example: true
+      SwapLimit:
+        description: "Indicates if the host has memory swap limit support enabled."
+        type: "boolean"
+        example: true
+      KernelMemory:
+        description: "Indicates if the host has kernel memory limit support enabled."
+        type: "boolean"
+        example: true
+      CpuCfsPeriod:
+        description: "Indicates if CPU CFS(Completely Fair Scheduler) period is supported by the host."
+        type: "boolean"
+        example: true
+      CpuCfsQuota:
+        description: "Indicates if CPU CFS(Completely Fair Scheduler) quota is supported by the host."
+        type: "boolean"
+        example: true
+      CPUShares:
+        description: "Indicates if CPU Shares limiting is supported by the host."
+        type: "boolean"
+        example: true
+      CPUSet:
+        description: |
+          Indicates if CPUsets (cpuset.cpus, cpuset.mems) are supported by the host.
+
+          See [cpuset(7)](https://www.kernel.org/doc/Documentation/cgroup-v1/cpusets.txt)
+        type: "boolean"
+        example: true
+      OomKillDisable:
+        description: "Indicates if OOM killer disable is supported on the host."
+        type: "boolean"
+      IPv4Forwarding:
+        description: "Indicates IPv4 forwarding is enabled."
+        type: "boolean"
+        example: true
+      BridgeNfIptables:
+        description: "Indicates if `bridge-nf-call-iptables` is available on the host."
+        type: "boolean"
+        example: true
+      BridgeNfIp6tables:
+        description: "Indicates if `bridge-nf-call-ip6tables` is available on the host."
+        type: "boolean"
+        example: true
+      Debug:
+        description: "Indicates if the daemon is running in debug-mode / with debug-level logging enabled."
+        type: "boolean"
+        example: true
+      NFd:
+        description: |
+          The total number of file Descriptors in use by the daemon process.
+
+          This information is only returned if debug-mode is enabled.
+        type: "integer"
+        example: 64
+      NGoroutines:
+        description: |
+          The  number of goroutines that currently exist.
+
+          This information is only returned if debug-mode is enabled.
+        type: "integer"
+        example: 174
+      SystemTime:
+        description: |
+          Current system-time in [RFC 3339](https://www.ietf.org/rfc/rfc3339.txt)
+          format with nano-seconds.
+        type: "string"
+        example: "2017-08-08T20:28:29.06202363Z"
+      LoggingDriver:
+        description: |
+          The logging driver to use as a default for new containers.
+        type: "string"
+      CgroupDriver:
+        description: |
+          The driver to use for managing cgroups.
+        type: "string"
+        enum: ["cgroupfs", "systemd"]
+        default: "cgroupfs"
+        example: "cgroupfs"
+      NEventsListener:
+        description: "Number of event listeners subscribed."
+        type: "integer"
+        example: 30
+      KernelVersion:
+        description: |
+          Kernel version of the host.
+
+          On Linux, this information obtained from `uname`. On Windows this
+          information is queried from the <kbd>HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\</kbd>
+          registry value, for example _"10.0 14393 (14393.1198.amd64fre.rs1_release_sec.170427-1353)"_.
+        type: "string"
+        example: "4.9.38-moby"
+      OperatingSystem:
+        description: |
+          Name of the host's operating system, for example: "Ubuntu 16.04.2 LTS"
+          or "Windows Server 2016 Datacenter"
+        type: "string"
+        example: "Alpine Linux v3.5"
+      OSType:
+        description: |
+          Generic type of the operating system of the host, as returned by the
+          Go runtime (`GOOS`).
+
+          Currently returned values are "linux" and "windows". A full list of
+          possible values can be found in the [Go documentation](https://golang.org/doc/install/source#environment).
+        type: "string"
+        example: "linux"
+      Architecture:
+        description: |
+          Hardware architecture of the host, as returned by the Go runtime
+          (`GOARCH`).
+
+          A full list of possible values can be found in the [Go documentation](https://golang.org/doc/install/source#environment).
+        type: "string"
+        example: "x86_64"
+      NCPU:
+        description: |
+          The number of logical CPUs usable by the daemon.
+
+          The number of available CPUs is checked by querying the operating
+          system when the daemon starts. Changes to operating system CPU
+          allocation after the daemon is started are not reflected.
+        type: "integer"
+        example: 4
+      MemTotal:
+        description: |
+          Total amount of physical memory available on the host, in kilobytes (kB).
+        type: "integer"
+        format: "int64"
+        example: 2095882240
+
+      IndexServerAddress:
+        description: |
+          Address / URL of the index server that is used for image search,
+          and as a default for user authentication for Docker Hub and Docker Cloud.
+        default: "https://index.docker.io/v1/"
+        type: "string"
+        example: "https://index.docker.io/v1/"
+      RegistryConfig:
+        $ref: "#/definitions/RegistryServiceConfig"
+      GenericResources:
+        $ref: "#/definitions/GenericResources"
+      HttpProxy:
+        description: |
+          HTTP-proxy configured for the daemon. This value is obtained from the
+          [`HTTP_PROXY`](https://www.gnu.org/software/wget/manual/html_node/Proxies.html) environment variable.
+
+          Containers do not automatically inherit this configuration.
+        type: "string"
+        example: "http://user:pass@proxy.corp.example.com:8080"
+      HttpsProxy:
+        description: |
+          HTTPS-proxy configured for the daemon. This value is obtained from the
+          [`HTTPS_PROXY`](https://www.gnu.org/software/wget/manual/html_node/Proxies.html) environment variable.
+
+          Containers do not automatically inherit this configuration.
+        type: "string"
+        example: "https://user:pass@proxy.corp.example.com:4443"
+      NoProxy:
+        description: |
+          Comma-separated list of domain extensions for which no proxy should be
+          used. This value is obtained from the [`NO_PROXY`](https://www.gnu.org/software/wget/manual/html_node/Proxies.html)
+          environment variable.
+
+          Containers do not automatically inherit this configuration.
+        type: "string"
+        example: "*.local, 169.254/16"
+      Name:
+        description: "Hostname of the host."
+        type: "string"
+        example: "node5.corp.example.com"
+      Labels:
+        description: |
+          User-defined labels (key/value metadata) as set on the daemon.
+
+          <p><br /></p>
+
+          > **Note**: When part of a Swarm, nodes can both have _daemon_ labels,
+          > set through the daemon configuration, and _node_ labels, set from a
+          > manager node in the Swarm. Node labels are not included in this
+          > field. Node labels can be retrieved using the `/nodes/(id)` endpoint
+          > on a manager node in the Swarm.
+        type: "array"
+        items:
+          type: "string"
+        example: ["storage=ssd", "production"]
+      ExperimentalBuild:
+        description: |
+          Indicates if experimental features are enabled on the daemon.
+        type: "boolean"
+        example: true
+      ServerVersion:
+        description: |
+          Version string of the daemon.
+
+          > **Note**: the [standalone Swarm API](https://docs.docker.com/swarm/swarm-api/)
+          > returns the Swarm version instead of the daemon  version, for example
+          > `swarm/1.2.8`.
+        type: "string"
+        example: "17.06.0-ce"
+      ClusterStore:
+        description: |
+          URL of the distributed storage backend.
+
+
+          The storage backend is used for multihost networking (to store
+          network and endpoint information) and by the node discovery mechanism.
+
+          <p><br /></p>
+
+          > **Note**: This field is only propagated when using standalone Swarm
+          > mode, and overlay networking using an external k/v store. Overlay
+          > networks with Swarm mode enabled use the built-in raft store, and
+          > this field will be empty.
+        type: "string"
+        example: "consul://consul.corp.example.com:8600/some/path"
+      ClusterAdvertise:
+        description: |
+          The network endpoint that the Engine advertises for the purpose of
+          node discovery. ClusterAdvertise is a `host:port` combination on which
+          the daemon is reachable by other hosts.
+
+          <p><br /></p>
+
+          > **Note**: This field is only propagated when using standalone Swarm
+          > mode, and overlay networking using an external k/v store. Overlay
+          > networks with Swarm mode enabled use the built-in raft store, and
+          > this field will be empty.
+        type: "string"
+        example: "node5.corp.example.com:8000"
+      Runtimes:
+        description: |
+          List of [OCI compliant](https://github.com/opencontainers/runtime-spec)
+          runtimes configured on the daemon. Keys hold the "name" used to
+          reference the runtime.
+
+          The Docker daemon relies on an OCI compliant runtime (invoked via the
+          `containerd` daemon) as its interface to the Linux kernel namespaces,
+          cgroups, and SELinux.
+
+          The default runtime is `runc`, and automatically configured. Additional
+          runtimes can be configured by the user and will be listed here.
+        type: "object"
+        additionalProperties:
+          $ref: "#/definitions/Runtime"
+        default:
+          runc:
+            path: "docker-runc"
+        example:
+          runc:
+            path: "docker-runc"
+          runc-master:
+            path: "/go/bin/runc"
+          custom:
+            path: "/usr/local/bin/my-oci-runtime"
+            runtimeArgs: ["--debug", "--systemd-cgroup=false"]
+      DefaultRuntime:
+        description: |
+          Name of the default OCI runtime that is used when starting containers.
+
+          The default can be overridden per-container at create time.
+        type: "string"
+        default: "runc"
+        example: "runc"
+      Swarm:
+        $ref: "#/definitions/SwarmInfo"
+      LiveRestoreEnabled:
+        description: |
+          Indicates if live restore is enabled.
+
+          If enabled, containers are kept running when the daemon is shutdown
+          or upon daemon start if running containers are detected.
+        type: "boolean"
+        default: false
+        example: false
+      Isolation:
+        description: |
+          Represents the isolation technology to use as a default for containers.
+          The supported values are platform-specific.
+
+          If no isolation value is specified on daemon start, on Windows client,
+          the default is `hyperv`, and on Windows server, the default is `process`.
+
+          This option is currently not used on other platforms.
+        default: "default"
+        type: "string"
+        enum:
+          - "default"
+          - "hyperv"
+          - "process"
+      InitBinary:
+        description: |
+          Name and, optional, path of the the `docker-init` binary.
+
+          If the path is omitted, the daemon searches the host's `$PATH` for the
+          binary and uses the first result.
+        type: "string"
+        example: "docker-init"
+      ContainerdCommit:
+        $ref: "#/definitions/Commit"
+      RuncCommit:
+        $ref: "#/definitions/Commit"
+      InitCommit:
+        $ref: "#/definitions/Commit"
+      SecurityOptions:
+        description: |
+          List of security features that are enabled on the daemon, such as
+          apparmor, seccomp, SELinux, and user-namespaces (userns).
+
+          Additional configuration options for each security feature may
+          be present, and are included as a comma-separated list of key/value
+          pairs.
+        type: "array"
+        items:
+          type: "string"
+        example:
+          - "name=apparmor"
+          - "name=seccomp,profile=default"
+          - "name=selinux"
+          - "name=userns"
+
+
+  # PluginsInfo is a temp struct holding Plugins name
+  # registered with docker daemon. It is used by Info struct
+  PluginsInfo:
+    description: |
+      Available plugins per type.
+
+      <p><br /></p>
+
+      > **Note**: Only unmanaged (V1) plugins are included in this list.
+      > V1 plugins are "lazily" loaded, and are not returned in this list
+      > if there is no resource using the plugin.
+    type: "object"
+    properties:
+      Volume:
+        description: "Names of available volume-drivers, and network-driver plugins."
+        type: "array"
+        items:
+          type: "string"
+        example: ["local"]
+      Network:
+        description: "Names of available network-drivers, and network-driver plugins."
+        type: "array"
+        items:
+          type: "string"
+        example: ["bridge", "host", "ipvlan", "macvlan", "null", "overlay"]
+      Authorization:
+        description: "Names of available authorization plugins."
+        type: "array"
+        items:
+          type: "string"
+        example: ["img-authz-plugin", "hbm"]
+      Log:
+        description: "Names of available logging-drivers, and logging-driver plugins."
+        type: "array"
+        items:
+          type: "string"
+        example: ["awslogs", "fluentd", "gcplogs", "gelf", "journald", "json-file", "logentries", "splunk", "syslog"]
+
+
+  RegistryServiceConfig:
+    description: |
+      RegistryServiceConfig stores daemon registry services configuration.
+    type: "object"
+    x-nullable: true
+    properties:
+      AllowNondistributableArtifactsCIDRs:
+        description: |
+          List of IP ranges to which nondistributable artifacts can be pushed,
+          using the CIDR syntax [RFC 4632](https://tools.ietf.org/html/4632).
+
+          Some images (for example, Windows base images) contain artifacts
+          whose distribution is restricted by license. When these images are
+          pushed to a registry, restricted artifacts are not included.
+
+          This configuration override this behavior, and enables the daemon to
+          push nondistributable artifacts to all registries whose resolved IP
+          address is within the subnet described by the CIDR syntax.
+
+          This option is useful when pushing images containing
+          nondistributable artifacts to a registry on an air-gapped network so
+          hosts on that network can pull the images without connecting to
+          another server.
+
+          > **Warning**: Nondistributable artifacts typically have restrictions
+          > on how and where they can be distributed and shared. Only use this
+          > feature to push artifacts to private registries and ensure that you
+          > are in compliance with any terms that cover redistributing
+          > nondistributable artifacts.
+
+        type: "array"
+        items:
+          type: "string"
+        example: ["::1/128", "127.0.0.0/8"]
+      AllowNondistributableArtifactsHostnames:
+        description: |
+          List of registry hostnames to which nondistributable artifacts can be
+          pushed, using the format `<hostname>[:<port>]` or `<IP address>[:<port>]`.
+
+          Some images (for example, Windows base images) contain artifacts
+          whose distribution is restricted by license. When these images are
+          pushed to a registry, restricted artifacts are not included.
+
+          This configuration override this behavior for the specified
+          registries.
+
+          This option is useful when pushing images containing
+          nondistributable artifacts to a registry on an air-gapped network so
+          hosts on that network can pull the images without connecting to
+          another server.
+
+          > **Warning**: Nondistributable artifacts typically have restrictions
+          > on how and where they can be distributed and shared. Only use this
+          > feature to push artifacts to private registries and ensure that you
+          > are in compliance with any terms that cover redistributing
+          > nondistributable artifacts.
+        type: "array"
+        items:
+          type: "string"
+        example: ["registry.internal.corp.example.com:3000", "[2001:db8:a0b:12f0::1]:443"]
+      InsecureRegistryCIDRs:
+        description: |
+          List of IP ranges of insecure registries, using the CIDR syntax
+          ([RFC 4632](https://tools.ietf.org/html/4632)). Insecure registries
+          accept un-encrypted (HTTP) and/or untrusted (HTTPS with certificates
+          from unknown CAs) communication.
+
+          By default, local registries (`127.0.0.0/8`) are configured as
+          insecure. All other registries are secure. Communicating with an
+          insecure registry is not possible if the daemon assumes that registry
+          is secure.
+
+          This configuration override this behavior, insecure communication with
+          registries whose resolved IP address is within the subnet described by
+          the CIDR syntax.
+
+          Registries can also be marked insecure by hostname. Those registries
+          are listed under `IndexConfigs` and have their `Secure` field set to
+          `false`.
+
+          > **Warning**: Using this option can be useful when running a local
+          > registry, but introduces security vulnerabilities. This option
+          > should therefore ONLY be used for testing purposes. For increased
+          > security, users should add their CA to their system's list of trusted
+          > CAs instead of enabling this option.
+        type: "array"
+        items:
+          type: "string"
+        example: ["::1/128", "127.0.0.0/8"]
+      IndexConfigs:
+        type: "object"
+        additionalProperties:
+          $ref: "#/definitions/IndexInfo"
+        example:
+          "127.0.0.1:5000":
+            "Name": "127.0.0.1:5000"
+            "Mirrors": []
+            "Secure": false
+            "Official": false
+          "[2001:db8:a0b:12f0::1]:80":
+            "Name": "[2001:db8:a0b:12f0::1]:80"
+            "Mirrors": []
+            "Secure": false
+            "Official": false
+          "docker.io":
+            Name: "docker.io"
+            Mirrors: ["https://hub-mirror.corp.example.com:5000/"]
+            Secure: true
+            Official: true
+          "registry.internal.corp.example.com:3000":
+            Name: "registry.internal.corp.example.com:3000"
+            Mirrors: []
+            Secure: false
+            Official: false
+      Mirrors:
+        description: |
+          List of registry URLs that act as a mirror for the official
+          (`docker.io`) registry.
+
+        type: "array"
+        items:
+          type: "string"
+        example:
+          - "https://hub-mirror.corp.example.com:5000/"
+          - "https://[2001:db8:a0b:12f0::1]/"
+
+  IndexInfo:
+    description:
+      IndexInfo contains information about a registry.
+    type: "object"
+    x-nullable: true
+    properties:
+      Name:
+        description: |
+          Name of the registry, such as "docker.io".
+        type: "string"
+        example: "docker.io"
+      Mirrors:
+        description: |
+          List of mirrors, expressed as URIs.
+        type: "array"
+        items:
+          type: "string"
+        example:
+          - "https://hub-mirror.corp.example.com:5000/"
+          - "https://registry-2.docker.io/"
+          - "https://registry-3.docker.io/"
+      Secure:
+        description: |
+          Indicates if the the registry is part of the list of insecure
+          registries.
+
+          If `false`, the registry is insecure. Insecure registries accept
+          un-encrypted (HTTP) and/or untrusted (HTTPS with certificates from
+          unknown CAs) communication.
+
+          > **Warning**: Insecure registries can be useful when running a local
+          > registry. However, because its use creates security vulnerabilities
+          > it should ONLY be enabled for testing purposes. For increased
+          > security, users should add their CA to their system's list of
+          > trusted CAs instead of enabling this option.
+        type: "boolean"
+        example: true
+      Official:
+        description: |
+          Indicates whether this is an official registry (i.e., Docker Hub / docker.io)
+        type: "boolean"
+        example: true
+
+  Runtime:
+    description: |
+      Runtime describes an [OCI compliant](https://github.com/opencontainers/runtime-spec)
+      runtime.
+
+      The runtime is invoked by the daemon via the `containerd` daemon. OCI
+      runtimes act as an interface to the Linux kernel namespaces, cgroups,
+      and SELinux.
+    type: "object"
+    properties:
+      path:
+        description: |
+          Name and, optional, path, of the OCI executable binary.
+
+          If the path is omitted, the daemon searches the host's `$PATH` for the
+          binary and uses the first result.
+        type: "string"
+        example: "/usr/local/bin/my-oci-runtime"
+      runtimeArgs:
+        description: |
+          List of command-line arguments to pass to the runtime when invoked.
+        type: "array"
+        x-nullable: true
+        items:
+          type: "string"
+        example: ["--debug", "--systemd-cgroup=false"]
+
+  Commit:
+    description: |
+      Commit holds the Git-commit (SHA1) that a binary was built from, as
+      reported in the version-string of external tools, such as `containerd`,
+      or `runC`.
+    type: "object"
+    properties:
+      ID:
+        description: "Actual commit ID of external tool."
+        type: "string"
+        example: "cfb82a876ecc11b5ca0977d1733adbe58599088a"
+      Expected:
+        description: |
+          Commit ID of external tool expected by dockerd as set at build time.
+        type: "string"
+        example: "2d41c047c83e09a6d61d464906feb2a2f3c52aa4"
+
+  SwarmInfo:
+    description: |
+      Represents generic information about swarm.
+    type: "object"
+    properties:
+      NodeID:
+        description: "Unique identifier of for this node in the swarm."
+        type: "string"
+        default: ""
+        example: "k67qz4598weg5unwwffg6z1m1"
+      NodeAddr:
+        description: |
+          IP address at which this node can be reached by other nodes in the
+          swarm.
+        type: "string"
+        default: ""
+        example: "10.0.0.46"
+      LocalNodeState:
+        $ref: "#/definitions/LocalNodeState"
+      ControlAvailable:
+        type: "boolean"
+        default: false
+        example: true
+      Error:
+        type: "string"
+        default: ""
+      RemoteManagers:
+        description: |
+          List of ID's and addresses of other managers in the swarm.
+        type: "array"
+        default: null
+        x-nullable: true
+        items:
+          $ref: "#/definitions/PeerNode"
+        example:
+          - NodeID: "71izy0goik036k48jg985xnds"
+            Addr: "10.0.0.158:2377"
+          - NodeID: "79y6h1o4gv8n120drcprv5nmc"
+            Addr: "10.0.0.159:2377"
+          - NodeID: "k67qz4598weg5unwwffg6z1m1"
+            Addr: "10.0.0.46:2377"
+      Nodes:
+        description: "Total number of nodes in the swarm."
+        type: "integer"
+        x-nullable: true
+        example: 4
+      Managers:
+        description: "Total number of managers in the swarm."
+        type: "integer"
+        x-nullable: true
+        example: 3
+      Cluster:
+        $ref: "#/definitions/ClusterInfo"
+
+  LocalNodeState:
+    description: "Current local status of this node."
+    type: "string"
+    default: ""
+    enum:
+      - ""
+      - "inactive"
+      - "pending"
+      - "active"
+      - "error"
+      - "locked"
+    example: "active"
+
+  PeerNode:
+    description: "Represents a peer-node in the swarm"
+    properties:
+      NodeID:
+        description: "Unique identifier of for this node in the swarm."
+        type: "string"
+      Addr:
+        description: |
+          IP address and ports at which this node can be reached.
+        type: "string"
+
 paths:
   /containers/json:
     get:
@@ -5941,209 +6709,7 @@ paths:
         200:
           description: "No error"
           schema:
-            type: "object"
-            properties:
-              Architecture:
-                type: "string"
-              Containers:
-                type: "integer"
-              ContainersRunning:
-                type: "integer"
-              ContainersStopped:
-                type: "integer"
-              ContainersPaused:
-                type: "integer"
-              CpuCfsPeriod:
-                type: "boolean"
-              CpuCfsQuota:
-                type: "boolean"
-              Debug:
-                type: "boolean"
-              DiscoveryBackend:
-                type: "string"
-              DockerRootDir:
-                type: "string"
-              Driver:
-                type: "string"
-              DriverStatus:
-                type: "array"
-                items:
-                  type: "array"
-                  items:
-                    type: "string"
-              SystemStatus:
-                type: "array"
-                items:
-                  type: "array"
-                  items:
-                    type: "string"
-              Plugins:
-                type: "object"
-                properties:
-                  Volume:
-                    type: "array"
-                    items:
-                      type: "string"
-                  Network:
-                    type: "array"
-                    items:
-                      type: "string"
-                  Log:
-                    type: "array"
-                    items:
-                      type: "string"
-              ExperimentalBuild:
-                type: "boolean"
-              HttpProxy:
-                type: "string"
-              HttpsProxy:
-                type: "string"
-              ID:
-                type: "string"
-              IPv4Forwarding:
-                type: "boolean"
-              Images:
-                type: "integer"
-              IndexServerAddress:
-                type: "string"
-              InitPath:
-                type: "string"
-              InitSha1:
-                type: "string"
-              KernelVersion:
-                type: "string"
-              Labels:
-                type: "array"
-                items:
-                  type: "string"
-              MemTotal:
-                type: "integer"
-              GenericResources:
-                $ref: "#/definitions/GenericResources"
-              MemoryLimit:
-                type: "boolean"
-              NCPU:
-                type: "integer"
-              NEventsListener:
-                type: "integer"
-              NFd:
-                type: "integer"
-              NGoroutines:
-                type: "integer"
-              Name:
-                type: "string"
-              NoProxy:
-                type: "string"
-              OomKillDisable:
-                type: "boolean"
-              OSType:
-                type: "string"
-              OomScoreAdj:
-                type: "integer"
-              OperatingSystem:
-                type: "string"
-              RegistryConfig:
-                type: "object"
-                properties:
-                  IndexConfigs:
-                    type: "object"
-                    additionalProperties:
-                      type: "object"
-                      properties:
-                        Mirrors:
-                          type: "array"
-                          items:
-                            type: "string"
-                        Name:
-                          type: "string"
-                        Official:
-                          type: "boolean"
-                        Secure:
-                          type: "boolean"
-                  InsecureRegistryCIDRs:
-                    type: "array"
-                    items:
-                      type: "string"
-              SwapLimit:
-                type: "boolean"
-              SystemTime:
-                type: "string"
-              ServerVersion:
-                type: "string"
-          examples:
-            application/json:
-              Architecture: "x86_64"
-              ClusterStore: "etcd://localhost:2379"
-              CgroupDriver: "cgroupfs"
-              Containers: 11
-              ContainersRunning: 7
-              ContainersStopped: 3
-              ContainersPaused: 1
-              CpuCfsPeriod: true
-              CpuCfsQuota: true
-              Debug: false
-              DockerRootDir: "/var/lib/docker"
-              Driver: "btrfs"
-              DriverStatus:
-                -
-                  - ""
-              ExperimentalBuild: false
-              HttpProxy: "http://test:test@localhost:8080"
-              HttpsProxy: "https://test:test@localhost:8080"
-              ID: "7TRN:IPZB:QYBB:VPBQ:UMPP:KARE:6ZNR:XE6T:7EWV:PKF4:ZOJD:TPYS"
-              IPv4Forwarding: true
-              Images: 16
-              IndexServerAddress: "https://index.docker.io/v1/"
-              InitPath: "/usr/bin/docker"
-              InitSha1: ""
-              KernelMemory: true
-              KernelVersion: "3.12.0-1-amd64"
-              Labels:
-                - "storage=ssd"
-              MemTotal: 2099236864
-              MemoryLimit: true
-              NCPU: 1
-              NEventsListener: 0
-              NFd: 11
-              NGoroutines: 21
-              Name: "prod-server-42"
-              NoProxy: "9.81.1.160"
-              OomKillDisable: true
-              OSType: "linux"
-              OperatingSystem: "Boot2Docker"
-              Plugins:
-                Volume:
-                  - "local"
-                Network:
-                  - "null"
-                  - "host"
-                  - "bridge"
-              RegistryConfig:
-                IndexConfigs:
-                  docker.io:
-                    Name: "docker.io"
-                    Official: true
-                    Secure: true
-                InsecureRegistryCIDRs:
-                  - "127.0.0.0/8"
-              SecurityOptions:
-                - Key: "Name"
-                  Value: "seccomp"
-                - Key: "Profile"
-                  Value: "default"
-                - Key: "Name"
-                  Value: "apparmor"
-                - Key: "Name"
-                  Value: "selinux"
-                - Key: "Name"
-                  Value: "userns"
-              ServerVersion: "1.9.0"
-              SwapLimit: false
-              SystemStatus:
-                -
-                  - "State"
-                  - "Healthy"
-              SystemTime: "2015-03-10T11:11:23.730591467-07:00"
+            $ref: "#/definitions/SystemInfo"
         500:
           description: "Server error"
           schema:
