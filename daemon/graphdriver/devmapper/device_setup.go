@@ -172,6 +172,8 @@ func writeLVMConfig(root string, cfg directLVMConfig) error {
 }
 
 func setupDirectLVM(cfg directLVMConfig) error {
+	lvmProfileDir := "/etc/lvm/profile"
+
 	pvCreate, err := exec.LookPath("pvcreate")
 	if err != nil {
 		return errors.Wrap(err, "error looking up command `pvcreate` while setting up direct lvm")
@@ -195,6 +197,11 @@ func setupDirectLVM(cfg directLVMConfig) error {
 	lvChange, err := exec.LookPath("lvchange")
 	if err != nil {
 		return errors.Wrap(err, "error looking up command `lvchange` while setting up direct lvm")
+	}
+
+	err = os.MkdirAll(lvmProfileDir, 0755)
+	if err != nil {
+		return errors.Wrap(err, "error creating lvm profile directory")
 	}
 
 	if cfg.AutoExtendPercent == 0 {
@@ -237,7 +244,7 @@ func setupDirectLVM(cfg directLVMConfig) error {
 	}
 
 	profile := fmt.Sprintf("activation{\nthin_pool_autoextend_threshold=%d\nthin_pool_autoextend_percent=%d\n}", cfg.AutoExtendThreshold, cfg.AutoExtendPercent)
-	err = ioutil.WriteFile("/etc/lvm/profile/docker-thinpool.profile", []byte(profile), 0600)
+	err = ioutil.WriteFile(lvmProfileDir+"/docker-thinpool.profile", []byte(profile), 0600)
 	if err != nil {
 		return errors.Wrap(err, "error writing docker thinp autoextend profile")
 	}
