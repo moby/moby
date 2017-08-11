@@ -219,7 +219,7 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 			// check if user defined CheckDuplicate, if set true, return err
 			// otherwise prepare a warning message
 			if create.CheckDuplicate {
-				return libnetwork.NetworkNameError(create.Name)
+				return httputils.WriteJSON(w, http.StatusConflict, libnetwork.NetworkNameError(create.Name).Error())
 			}
 			warning = libnetwork.NetworkNameError(create.Name).Error()
 		}
