@@ -2046,22 +2046,7 @@ definitions:
             type: "string"
             example: "bf3067039e47"
           Platform:
-            description: |
-              Platform represents the platform (Arch/OS).
-            type: "object"
-            properties:
-              Architecture:
-                description: |
-                  Architecture represents the hardware architecture (for example,
-                  `x86_64`).
-                type: "string"
-                example: "x86_64"
-              OS:
-                description: |
-                  OS represents the Operating System (for example, `linux` or
-                  `windows`).
-                type: "string"
-                example: "linux"
+            $ref: "#/definitions/Platform"
           Resources:
             $ref: "#/definitions/ResourceObject"
           Engine:
@@ -2183,6 +2168,23 @@ definitions:
         Leader: true
         Reachability: "reachable"
         Addr: "172.17.0.2:2377"
+
+  Platform:
+    description: |
+      Platform represents the platform (Arch/OS).
+    type: "object"
+    properties:
+      Architecture:
+        description: |
+          Architecture represents the hardware architecture (for example,
+          `x86_64`).
+        type: "string"
+        example: "x86_64"
+      OS:
+        description: |
+          OS represents the Operating System (for example, `linux` or `windows`).
+        type: "string"
+        example: "linux"
 
   TLSInfo:
     description: "Information about the issuer of leaf TLS certificates and the trusted root CA certificate"
@@ -2784,14 +2786,7 @@ definitions:
               scheduling restrictions.
             type: "array"
             items:
-              type: "object"
-              properties:
-                Architecture:
-                  type: "string"
-                  example: "amd64"
-                OS:
-                  type: "string"
-                  example: "linux"
+              $ref: "#/definitions/Platform"
       ForceUpdate:
         description: "A counter that triggers an update even if no relevant parameters have been changed."
         type: "integer"
