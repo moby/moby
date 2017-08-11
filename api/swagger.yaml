@@ -2037,22 +2037,7 @@ definitions:
       Spec:
         $ref: "#/definitions/NodeSpec"
       Description:
-        description: |
-          Description encapsulates the properties of the Node as reported by the
-          agent.
-        type: "object"
-        properties:
-          Hostname:
-            type: "string"
-            example: "bf3067039e47"
-          Platform:
-            $ref: "#/definitions/Platform"
-          Resources:
-            $ref: "#/definitions/ResourceObject"
-          Engine:
-            $ref: "#/definitions/EngineDescription"
-          TLSInfo:
-            $ref: "#/definitions/TLSInfo"
+        $ref: "#/definitions/NodeDescription"
       Status:
         $ref: "#/definitions/NodeStatus"
       ManagerStatus:
@@ -2149,6 +2134,24 @@ definitions:
         Leader: true
         Reachability: "reachable"
         Addr: "172.17.0.2:2377"
+
+  NodeDescription:
+    description: |
+      NodeDescription encapsulates the properties of the Node as reported by the
+      agent.
+    type: "object"
+    properties:
+      Hostname:
+        type: "string"
+        example: "bf3067039e47"
+      Platform:
+        $ref: "#/definitions/Platform"
+      Resources:
+        $ref: "#/definitions/ResourceObject"
+      Engine:
+        $ref: "#/definitions/EngineDescription"
+      TLSInfo:
+        $ref: "#/definitions/TLSInfo"
 
   Platform:
     description: |
