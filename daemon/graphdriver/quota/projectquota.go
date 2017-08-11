@@ -74,6 +74,7 @@ import (
 	"io/ioutil"
 	"path"
 	"path/filepath"
+	"sync"
 	"unsafe"
 
 	"github.com/Sirupsen/logrus"
@@ -92,6 +93,7 @@ type Control struct {
 	nextProjectID     uint32
 	quotas            map[string]uint32
 	quotaOps          QuotafileOps
+	lock              sync.Mutex
 }
 
 // QuotafileOps is a interface for quotafile operations
@@ -195,7 +197,7 @@ func NewControl(basePath string, fs string) (*Control, error) {
 // SetQuota - assign a unique project id to directory and set the quota limits
 // for that project id
 func (q *Control) SetQuota(targetPath string, quota Quota) error {
-
+	q.lock.Lock()
 	projectID, ok := q.quotas[targetPath]
 	if !ok {
 		projectID = q.nextProjectID
@@ -205,13 +207,14 @@ func (q *Control) SetQuota(targetPath string, quota Quota) error {
 		//
 		err := setProjectID(targetPath, projectID)
 		if err != nil {
+			q.lock.Unlock()
 			return err
 		}
 
 		q.quotas[targetPath] = projectID
 		q.nextProjectID++
 	}
-
+	q.lock.Unlock()
 	//
 	// set the quota limit for the container's project id
 	//
@@ -333,8 +336,9 @@ func getQuotaStat(backingFsBlockDev string) (int, error) {
 
 // GetQuota - get the quota limits of a directory that was configured with SetQuota
 func (q *Control) GetQuota(targetPath string, quota *Quota) error {
-
+	q.lock.Lock()
 	projectID, ok := q.quotas[targetPath]
+	q.lock.Unlock()
 	if !ok {
 		return fmt.Errorf("quota not found for path : %s", targetPath)
 	}
