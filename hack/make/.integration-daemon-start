@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# see test-integration-cli for example usage of this script
+# see test-integration for example usage of this script
 
 base="$ABS_DEST/.."
 export PATH="$base/binary-daemon:$base/dynbinary-daemon:$PATH"
@@ -76,24 +76,26 @@ if [ -z "$DOCKER_TEST_HOST" ]; then
 		# see https://github.com/docker/libcontainer/blob/master/apparmor/apparmor.go#L16
 		export container=""
 		(
-			set -x
+			[ -n "$TESTDEBUG" ] && set -x
 			/etc/init.d/apparmor start
 		)
 	fi
 
-	export DOCKER_HOST="unix://$(cd "$DEST" && pwd)/docker.sock" # "pwd" tricks to make sure $DEST is an absolute path, not a relative one
-	( set -x; exec \
-		dockerd --debug \
-		--host "$DOCKER_HOST" \
-		--storage-driver "$DOCKER_GRAPHDRIVER" \
-		--pidfile "$DEST/docker.pid" \
-		--userland-proxy="$DOCKER_USERLANDPROXY" \
-		$storage_params \
-		$extra_params \
-			&> "$DEST/docker.log"
+	# "pwd" tricks to make sure $DEST is an absolute path, not a relative one
+	export DOCKER_HOST="unix://$(cd "$DEST" && pwd)/docker.sock"
+	(
+		echo "Starting dockerd"
+		[ -n "$TESTDEBUG" ] && set -x
+		exec \
+			dockerd --debug \
+			--host "$DOCKER_HOST" \
+			--storage-driver "$DOCKER_GRAPHDRIVER" \
+			--pidfile "$DEST/docker.pid" \
+			--userland-proxy="$DOCKER_USERLANDPROXY" \
+			$storage_params \
+			$extra_params \
+				&> "$DEST/docker.log"
 	) &
-	# make sure that if the script exits unexpectedly, we stop this daemon we just started
-	trap 'bundle .integration-daemon-stop' EXIT
 else
 	export DOCKER_HOST="$DOCKER_TEST_HOST"
 fi

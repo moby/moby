@@ -60,7 +60,7 @@ DEFAULT_BUNDLES=(
 	dynbinary
 
 	test-unit
-	test-integration-cli
+	test-integration
 	test-docker-py
 
 	cross

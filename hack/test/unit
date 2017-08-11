@@ -16,7 +16,7 @@ TESTFLAGS+=" -test.timeout=${TIMEOUT:-5m}"
 BUILDFLAGS=( -tags "netgo seccomp libdm_no_deferred_remove" )
 TESTDIRS="${TESTDIRS:-"./..."}"
 
-exclude_paths="/vendor/|/integration-cli"
+exclude_paths="/vendor/|/integration"
 if [ "$(go env GOHOSTOS)" = 'solaris' ]; then
 	exclude_paths="$exclude_paths|/daemon/graphdriver"
 fi

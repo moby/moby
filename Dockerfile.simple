@@ -1,7 +1,7 @@
 # docker build -t docker:simple -f Dockerfile.simple .
 # docker run --rm docker:simple hack/make.sh dynbinary
 # docker run --rm --privileged docker:simple hack/dind hack/make.sh test-unit
-# docker run --rm --privileged -v /var/lib/docker docker:simple hack/dind hack/make.sh dynbinary test-integration-cli
+# docker run --rm --privileged -v /var/lib/docker docker:simple hack/dind hack/make.sh dynbinary test-integration
 
 # This represents the bare minimum required to build and test Docker.
 

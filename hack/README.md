@@ -37,14 +37,14 @@ More information is found within `make.ps1` by the author, @jhowardmsft
 - Referenced via `make test` when running tests on a local machine,
 or directly referenced when running tests inside a Docker development container.  
 - When running on a local machine, `make test` to run all tests found in
-`test`, `test-unit`, `test-integration-cli`, and `test-docker-py` on
+`test`, `test-unit`, `test-integration`, and `test-docker-py` on
 your local machine. The default timeout is set in `make.sh` to 60 minutes
 (`${TIMEOUT:=60m}`), since it currently takes up to an hour to run
 all of the tests.
 - When running inside a Docker development container, `hack/make.sh` does
 not have a single target that runs all the tests. You need to provide a
 single command line with multiple targets that performs the same thing.
-An example referenced from [Run targets inside a development container](https://docs.docker.com/opensource/project/test-and-docs/#run-targets-inside-a-development-container): `root@5f8630b873fe:/go/src/github.com/moby/moby# hack/make.sh dynbinary binary cross test-unit test-integration-cli test-docker-py`
+An example referenced from [Run targets inside a development container](https://docs.docker.com/opensource/project/test-and-docs/#run-targets-inside-a-development-container): `root@5f8630b873fe:/go/src/github.com/moby/moby# hack/make.sh dynbinary binary cross test-unit test-integration test-docker-py`
 - For more information related to testing outside the scope of this README,
 refer to
 [Run tests and test documentation](https://docs.docker.com/opensource/project/test-and-docs/)

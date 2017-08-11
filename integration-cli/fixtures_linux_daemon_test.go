@@ -24,16 +24,6 @@ type logT interface {
 	Logf(string, ...interface{})
 }
 
-func ensureFrozenImagesLinux(t testingT) {
-	images := []string{"busybox:latest", "hello-world:frozen", "debian:jessie"}
-	err := load.FrozenImagesLinux(dockerBinary, images...)
-	if err != nil {
-		t.Logf(dockerCmdWithError("images"))
-		t.Fatalf("%+v", err)
-	}
-	defer testEnv.ProtectImage(t, images...)
-}
-
 var ensureSyscallTestOnce sync.Once
 
 func ensureSyscallTest(c *check.C) {
