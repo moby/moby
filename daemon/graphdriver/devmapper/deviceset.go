@@ -1860,7 +1860,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) (retErr error) {
 
 	if devices.thinPoolDevice == "" {
 		if devices.metadataLoopFile != "" || devices.dataLoopFile != "" {
-			logrus.Warn("devmapper: Usage of loopback devices is strongly discouraged for production use. Please use `--storage-opt dm.thinpooldev` or use `man docker` to refer to dm.thinpooldev section.")
+			logrus.Warn("devmapper: Usage of loopback devices is strongly discouraged for production use. Please use `--storage-opt dm.thinpooldev` or use `man dockerd` to refer to dm.thinpooldev section.")
 		}
 	}
 
