@@ -2462,24 +2462,6 @@ definitions:
                 example:
                   "max-file": "10"
                   "max-size": "100m"
-    example:
-      Name: "default"
-      Orchestration:
-        TaskHistoryRetentionLimit: 10
-      Raft:
-        SnapshotInterval: 10000
-        LogEntriesForSlowFollowers: 500
-        HeartbeatTick: 1
-        ElectionTick: 3
-      Dispatcher:
-        HeartbeatPeriod: 5000000000
-      CAConfig:
-        NodeCertExpiry: 7776000000000000
-      JoinTokens:
-        Worker: "SWMTKN-1-3pu6hszjas19xyp7ghgosyx9k8atbfcr8p2is99znpy26u2lkl-1awxwuwd3z9j1z3puu7rcgdbx"
-        Manager: "SWMTKN-1-3pu6hszjas19xyp7ghgosyx9k8atbfcr8p2is99znpy26u2lkl-7p73s1dx5in4tatdymyhg9hu2"
-      EncryptionConfig:
-        AutoLockManagers: false
 
   # The Swarm information for `GET /info`. It is the same as `GET /swarm`, but
   # without `JoinTokens`.
@@ -2518,6 +2500,31 @@ definitions:
         description: "Whether there is currently a root CA rotation in progress for the swarm"
         type: "boolean"
         example: false
+
+  JoinTokens:
+    description: |
+      JoinTokens contains the tokens workers and managers need to join the swarm.
+    type: "object"
+    properties:
+      Worker:
+        description: |
+          The token workers can use to join the swarm.
+        type: "string"
+        example: "SWMTKN-1-3pu6hszjas19xyp7ghgosyx9k8atbfcr8p2is99znpy26u2lkl-1awxwuwd3z9j1z3puu7rcgdbx"
+      Manager:
+        description: |
+          The token managers can use to join the swarm.
+        type: "string"
+        example: "SWMTKN-1-3pu6hszjas19xyp7ghgosyx9k8atbfcr8p2is99znpy26u2lkl-7p73s1dx5in4tatdymyhg9hu2"
+
+  Swarm:
+    type: "object"
+    allOf:
+      - $ref: "#/definitions/ClusterInfo"
+      - type: "object"
+        properties:
+          JoinTokens:
+            $ref: "#/definitions/JoinTokens"
 
   TaskSpec:
     description: "User modifiable task configuration."
@@ -7999,60 +8006,7 @@ paths:
         200:
           description: "no error"
           schema:
-            allOf:
-              - $ref: "#/definitions/ClusterInfo"
-              - type: "object"
-                properties:
-                  JoinTokens:
-                    description: "The tokens workers and managers need to join the swarm."
-                    type: "object"
-                    properties:
-                      Worker:
-                        description: "The token workers can use to join the swarm."
-                        type: "string"
-                      Manager:
-                        description: "The token managers can use to join the swarm."
-                        type: "string"
-            example:
-              CreatedAt: "2016-08-15T16:00:20.349727406Z"
-              Spec:
-                Dispatcher:
-                  HeartbeatPeriod: 5000000000
-                Orchestration:
-                  TaskHistoryRetentionLimit: 10
-                CAConfig:
-                  NodeCertExpiry: 7776000000000000
-                Raft:
-                  LogEntriesForSlowFollowers: 500
-                  HeartbeatTick: 1
-                  SnapshotInterval: 10000
-                  ElectionTick: 3
-                TaskDefaults: {}
-                EncryptionConfig:
-                  AutoLockManagers: false
-                Name: "default"
-              JoinTokens:
-                Worker: "SWMTKN-1-1h8aps2yszaiqmz2l3oc5392pgk8e49qhx2aj3nyv0ui0hez2a-6qmn92w6bu3jdvnglku58u11a"
-                Manager: "SWMTKN-1-1h8aps2yszaiqmz2l3oc5392pgk8e49qhx2aj3nyv0ui0hez2a-8llk83c4wm9lwioey2s316r9l"
-              ID: "70ilmkj2f6sp2137c753w2nmt"
-              UpdatedAt: "2016-08-15T16:32:09.623207604Z"
-              Version:
-                Index: 51
-              RootRotationInProgress: false
-              TLSInfo:
-                TrustRoot: |
-                  -----BEGIN CERTIFICATE-----
-                  MIIBajCCARCgAwIBAgIUbYqrLSOSQHoxD8CwG6Bi2PJi9c8wCgYIKoZIzj0EAwIw
-                  EzERMA8GA1UEAxMIc3dhcm0tY2EwHhcNMTcwNDI0MjE0MzAwWhcNMzcwNDE5MjE0
-                  MzAwWjATMREwDwYDVQQDEwhzd2FybS1jYTBZMBMGByqGSM49AgEGCCqGSM49AwEH
-                  A0IABJk/VyMPYdaqDXJb/VXh5n/1Yuv7iNrxV3Qb3l06XD46seovcDWs3IZNV1lf
-                  3Skyr0ofcchipoiHkXBODojJydSjQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNVHRMB
-                  Af8EBTADAQH/MB0GA1UdDgQWBBRUXxuRcnFjDfR/RIAUQab8ZV/n4jAKBggqhkjO
-                  PQQDAgNIADBFAiAy+JTe6Uc3KyLCMiqGl2GyWGQqQDEcO3/YG36x7om65AIhAJvz
-                  pxv6zFeVEkAEEkqIYi0omA9+CjanB/6Bz4n1uw8H
-                  -----END CERTIFICATE-----
-                CertIssuerSubject: "MBMxETAPBgNVBAMTCHN3YXJtLWNh"
-                CertIssuerPublicKey: "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEmT9XIw9h1qoNclv9VeHmf/Vi6/uI2vFXdBveXTpcPjqx6i9wNazchk1XWV/dKTKvSh9xyGKmiIeRcE4OiMnJ1A=="
+            $ref: "#/definitions/Swarm"
         404:
           description: "no such swarm"
           schema:
