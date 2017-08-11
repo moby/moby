@@ -2050,26 +2050,7 @@ definitions:
           Resources:
             $ref: "#/definitions/ResourceObject"
           Engine:
-            type: "object"
-            properties:
-              EngineVersion:
-                type: "string"
-                example: "17.06.0"
-              Labels:
-                type: "object"
-                additionalProperties:
-                  type: "string"
-                example:
-                  foo: "bar"
-              Plugins:
-                type: "array"
-                items:
-                  type: "object"
-                  properties:
-                    Type:
-                      type: "string"
-                    Name:
-                      type: "string"
+            $ref: "#/definitions/EngineDescription"
           TLSInfo:
             $ref: "#/definitions/TLSInfo"
       Status:
@@ -2185,6 +2166,66 @@ definitions:
           OS represents the Operating System (for example, `linux` or `windows`).
         type: "string"
         example: "linux"
+
+  EngineDescription:
+    description: "EngineDescription provides information about an engine."
+    type: "object"
+    properties:
+      EngineVersion:
+        type: "string"
+        example: "17.06.0"
+      Labels:
+        type: "object"
+        additionalProperties:
+          type: "string"
+        example:
+          foo: "bar"
+      Plugins:
+        type: "array"
+        items:
+          type: "object"
+          properties:
+            Type:
+              type: "string"
+            Name:
+              type: "string"
+        example:
+          - Type: "Log"
+            Name: "awslogs"
+          - Type: "Log"
+            Name: "fluentd"
+          - Type: "Log"
+            Name: "gcplogs"
+          - Type: "Log"
+            Name: "gelf"
+          - Type: "Log"
+            Name: "journald"
+          - Type: "Log"
+            Name: "json-file"
+          - Type: "Log"
+            Name: "logentries"
+          - Type: "Log"
+            Name: "splunk"
+          - Type: "Log"
+            Name: "syslog"
+          - Type: "Network"
+            Name: "bridge"
+          - Type: "Network"
+            Name: "host"
+          - Type: "Network"
+            Name: "ipvlan"
+          - Type: "Network"
+            Name: "macvlan"
+          - Type: "Network"
+            Name: "null"
+          - Type: "Network"
+            Name: "overlay"
+          - Type: "Volume"
+            Name: "local"
+          - Type: "Volume"
+            Name: "localhost:5000/vieux/sshfs:latest"
+          - Type: "Volume"
+            Name: "vieux/sshfs:latest"
 
   TLSInfo:
     description: "Information about the issuer of leaf TLS certificates and the trusted root CA certificate"
