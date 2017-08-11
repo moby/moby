@@ -1,10 +1,11 @@
 package cache
 
 import (
-	"github.com/docker/distribution/context"
-	"github.com/opencontainers/go-digest"
+	"context"
 
 	"github.com/docker/distribution"
+	dcontext "github.com/docker/distribution/context"
+	"github.com/opencontainers/go-digest"
 )
 
 // Metrics is used to hold metric counters
@@ -53,7 +54,7 @@ func (cbds *cachedBlobStatter) Stat(ctx context.Context, dgst digest.Digest) (di
 	desc, err := cbds.cache.Stat(ctx, dgst)
 	if err != nil {
 		if err != distribution.ErrBlobUnknown {
-			context.GetLogger(ctx).Errorf("error retrieving descriptor from cache: %v", err)
+			dcontext.GetLogger(ctx).Errorf("error retrieving descriptor from cache: %v", err)
 		}
 
 		goto fallback
@@ -73,7 +74,7 @@ fallback:
 	}
 
 	if err := cbds.cache.SetDescriptor(ctx, dgst, desc); err != nil {
-		context.GetLogger(ctx).Errorf("error adding descriptor %v to cache: %v", desc.Digest, err)
+		dcontext.GetLogger(ctx).Errorf("error adding descriptor %v to cache: %v", desc.Digest, err)
 	}
 
 	return desc, err
@@ -95,7 +96,7 @@ func (cbds *cachedBlobStatter) Clear(ctx context.Context, dgst digest.Digest) er
 
 func (cbds *cachedBlobStatter) SetDescriptor(ctx context.Context, dgst digest.Digest, desc distribution.Descriptor) error {
 	if err := cbds.cache.SetDescriptor(ctx, dgst, desc); err != nil {
-		context.GetLogger(ctx).Errorf("error adding descriptor %v to cache: %v", desc.Digest, err)
+		dcontext.GetLogger(ctx).Errorf("error adding descriptor %v to cache: %v", desc.Digest, err)
 	}
 	return nil
 }
