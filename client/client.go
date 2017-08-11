@@ -51,6 +51,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -219,9 +220,9 @@ func (cli *Client) getAPIPath(p string, query url.Values) string {
 	var apiPath string
 	if cli.version != "" {
 		v := strings.TrimPrefix(cli.version, "v")
-		apiPath = cli.basePath + "/v" + v + p
+		apiPath = path.Join(cli.basePath, "/v"+v+p)
 	} else {
-		apiPath = cli.basePath + p
+		apiPath = path.Join(cli.basePath, p)
 	}
 
 	u := &url.URL{
