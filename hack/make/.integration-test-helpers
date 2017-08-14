@@ -33,6 +33,10 @@ run_test_integration() {
 }
 
 build_test_suite_binaries() {
+	if [ $DOCKER_INTEGRATION_TESTS_VERIFIED ]; then
+		echo "Skipping building test binaries; as DOCKER_INTEGRATION_TESTS_VERIFIED is set"
+		return
+	fi
 	build_test_suite_binary ./integration-cli "test.main"
 	for dir in $integration_api_dirs; do
 		build_test_suite_binary "$dir" "test.main"
