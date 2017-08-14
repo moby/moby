@@ -716,12 +716,19 @@ func TestRawFormatWithoutTag(t *testing.T) {
 	if err := loggerDriver.Log(&logger.Message{Line: []byte("notjson"), Source: "stdout", Timestamp: message2Time}); err != nil {
 		t.Fatal(err)
 	}
+	message3Time := time.Now()
+	if err := loggerDriver.Log(&logger.Message{Line: []byte(" "), Source: "stdout", Timestamp: message3Time}); err != nil {
+		t.Fatal(err)
+	}
 
 	err = loggerDriver.Close()
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	// message3 would have an empty or whitespace only string in the "event" field
+	// both of which are not acceptable to HEC
+	// thus here we must expect 2 messages, not 3
 	if len(hec.messages) != 2 {
 		t.Fatal("Expected two messages")
 	}
