@@ -254,7 +254,7 @@ func (d *driver) peerOpRoutine(ctx context.Context, ch chan *peerOperation) {
 			case peerOperationADD:
 				err = d.peerAddOp(op.networkID, op.endpointID, op.peerIP, op.peerIPMask, op.peerMac, op.vtepIP, op.updateDB, op.l2Miss, op.l3Miss, op.localPeer)
 			case peerOperationDELETE:
-				err = d.peerDeleteOp(op.networkID, op.endpointID, op.peerIP, op.peerIPMask, op.peerMac, op.vtepIP, op.localPeer)
+				err = d.peerDeleteOp(op.networkID, op.endpointID, op.peerIP, op.peerIPMask, op.peerMac, op.vtepIP, op.updateDB)
 			}
 			if err != nil {
 				logrus.Warnf("Peer operation failed:%s op:%v", err, op)
