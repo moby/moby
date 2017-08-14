@@ -167,7 +167,7 @@ func (container *Container) toDisk() (*Container, error) {
 	}
 
 	// Save container settings
-	f, err := ioutils.NewAtomicFileWriter(pth, 0644)
+	f, err := ioutils.NewAtomicFileWriter(pth, 0600)
 	if err != nil {
 		return nil, err
 	}
