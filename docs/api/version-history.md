@@ -31,6 +31,11 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `POST /containers/create` now accepts additional values for the
   `HostConfig.IpcMode` property. New values are `private`, `shareable`,
   and `none`.
+* `DELETE /networks/{id or name}` fixed issue where a `name` equal to another
+  network's name was able to mask that `id`. If both a network with the given
+  _name_ exists, and a network with the given _id_, the network with the given
+  _id_ is now deleted. This change is not versioned, and affects all API versions
+  if the daemon has this patch.
 
 ## v1.31 API changes
 

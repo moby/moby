@@ -31,18 +31,27 @@ func (daemon *Daemon) NetworkControllerEnabled() bool {
 
 // FindNetwork function finds a network for a given string that can represent network name or id
 func (daemon *Daemon) FindNetwork(idName string) (libnetwork.Network, error) {
-	// Find by Name
-	n, err := daemon.GetNetworkByName(idName)
-	if err != nil && !isNoSuchNetworkError(err) {
-		return nil, err
+	// 1. match by full ID.
+	n, err := daemon.GetNetworkByID(idName)
+	if err == nil || !isNoSuchNetworkError(err) {
+		return n, err
 	}
 
-	if n != nil {
-		return n, nil
+	// 2. match by full name
+	n, err = daemon.GetNetworkByName(idName)
+	if err == nil || !isNoSuchNetworkError(err) {
+		return n, err
 	}
 
-	// Find by id
-	return daemon.GetNetworkByID(idName)
+	// 3. match by ID prefix
+	list := daemon.GetNetworksByIDPrefix(idName)
+	if len(list) == 0 {
+		return nil, errors.WithStack(networkNotFound(idName))
+	}
+	if len(list) > 1 {
+		return nil, errors.WithStack(invalidIdentifier(idName))
+	}
+	return list[0], nil
 }
 
 func isNoSuchNetworkError(err error) bool {
@@ -50,18 +59,14 @@ func isNoSuchNetworkError(err error) bool {
 	return ok
 }
 
-// GetNetworkByID function returns a network whose ID begins with the given prefix.
-// It fails with an error if no matching, or more than one matching, networks are found.
-func (daemon *Daemon) GetNetworkByID(partialID string) (libnetwork.Network, error) {
-	list := daemon.GetNetworksByID(partialID)
-
-	if len(list) == 0 {
-		return nil, errors.WithStack(networkNotFound(partialID))
+// GetNetworkByID function returns a network whose ID matches the given ID.
+// It fails with an error if no matching network is found.
+func (daemon *Daemon) GetNetworkByID(id string) (libnetwork.Network, error) {
+	c := daemon.netController
+	if c == nil {
+		return nil, libnetwork.ErrNoSuchNetwork(id)
 	}
-	if len(list) > 1 {
-		return nil, errors.WithStack(invalidIdentifier(partialID))
-	}
-	return list[0], nil
+	return c.NetworkByID(id)
 }
 
 // GetNetworkByName function returns a network for a given network name.
@@ -77,8 +82,8 @@ func (daemon *Daemon) GetNetworkByName(name string) (libnetwork.Network, error) 
 	return c.NetworkByName(name)
 }
 
-// GetNetworksByID returns a list of networks whose ID partially matches zero or more networks
-func (daemon *Daemon) GetNetworksByID(partialID string) []libnetwork.Network {
+// GetNetworksByIDPrefix returns a list of networks whose ID partially matches zero or more networks
+func (daemon *Daemon) GetNetworksByIDPrefix(partialID string) []libnetwork.Network {
 	c := daemon.netController
 	if c == nil {
 		return nil
