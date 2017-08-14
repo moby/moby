@@ -3,7 +3,6 @@
 package devicemapper
 
 /*
-#cgo LDFLAGS: -L. -ldevmapper
 #define _GNU_SOURCE
 #include <libdevmapper.h>
 #include <linux/fs.h>   // FIXME: present only for BLKGETSIZE64, maybe we can remove it?

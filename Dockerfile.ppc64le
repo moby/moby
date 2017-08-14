@@ -53,28 +53,20 @@ RUN apt-get update && apt-get install -y \
 	vim-common \
 	--no-install-recommends
 
-# Get lvm2 source for compiling statically
-ENV LVM2_VERSION 2.02.103
+# Get lvm2 sources to build statically linked devmapper library
+ENV LVM2_VERSION 2.02.173
 RUN mkdir -p /usr/local/lvm2 \
 	&& curl -fsSL "https://mirrors.kernel.org/sourceware/lvm2/LVM2.${LVM2_VERSION}.tgz" \
 		| tar -xzC /usr/local/lvm2 --strip-components=1
-# See https://git.fedorahosted.org/cgit/lvm2.git/refs/tags for release tags
 
-# Fix platform enablement in lvm2 to support ppc64le properly
-RUN set -e \
-	&& for f in config.guess config.sub; do \
-		curl -fsSL -o "/usr/local/lvm2/autoconf/$f" "http://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=$f;hb=HEAD"; \
-	done
-# "arch.c:78:2: error: #error the arch code needs to know about your machine type"
-
-# Compile and install lvm2
+# Compile and install (only the needed library)
 RUN cd /usr/local/lvm2 \
 	&& ./configure \
 		--build="$(gcc -print-multiarch)" \
 		--enable-static_link \
-	&& make device-mapper \
-	&& make install_device-mapper
-# See https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
+		--enable-pkgconfig \
+	&& make -C include \
+	&& make -C libdm install_device-mapper
 
 # Install seccomp: the version shipped upstream is too old
 ENV SECCOMP_VERSION 2.3.2
