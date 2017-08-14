@@ -172,29 +172,18 @@ func writeLVMConfig(root string, cfg directLVMConfig) error {
 }
 
 func setupDirectLVM(cfg directLVMConfig) error {
-	pvCreate, err := exec.LookPath("pvcreate")
-	if err != nil {
-		return errors.Wrap(err, "error looking up command `pvcreate` while setting up direct lvm")
+	lvmProfileDir := "/etc/lvm/profile"
+	binaries := []string{"pvcreate", "vgcreate", "lvcreate", "lvconvert", "lvchange", "thin_check"}
+
+	for _, bin := range binaries {
+		if _, err := exec.LookPath(bin); err != nil {
+			return errors.Wrap(err, "error looking up command `"+bin+"` while setting up direct lvm")
+		}
 	}
 
-	vgCreate, err := exec.LookPath("vgcreate")
+	err := os.MkdirAll(lvmProfileDir, 0755)
 	if err != nil {
-		return errors.Wrap(err, "error looking up command `vgcreate` while setting up direct lvm")
-	}
-
-	lvCreate, err := exec.LookPath("lvcreate")
-	if err != nil {
-		return errors.Wrap(err, "error looking up command `lvcreate` while setting up direct lvm")
-	}
-
-	lvConvert, err := exec.LookPath("lvconvert")
-	if err != nil {
-		return errors.Wrap(err, "error looking up command `lvconvert` while setting up direct lvm")
-	}
-
-	lvChange, err := exec.LookPath("lvchange")
-	if err != nil {
-		return errors.Wrap(err, "error looking up command `lvchange` while setting up direct lvm")
+		return errors.Wrap(err, "error creating lvm profile directory")
 	}
 
 	if cfg.AutoExtendPercent == 0 {
@@ -212,36 +201,36 @@ func setupDirectLVM(cfg directLVMConfig) error {
 		cfg.ThinpMetaPercent = 1
 	}
 
-	out, err := exec.Command(pvCreate, "-f", cfg.Device).CombinedOutput()
+	out, err := exec.Command("pvcreate", "-f", cfg.Device).CombinedOutput()
 	if err != nil {
 		return errors.Wrap(err, string(out))
 	}
 
-	out, err = exec.Command(vgCreate, "docker", cfg.Device).CombinedOutput()
+	out, err = exec.Command("vgcreate", "docker", cfg.Device).CombinedOutput()
 	if err != nil {
 		return errors.Wrap(err, string(out))
 	}
 
-	out, err = exec.Command(lvCreate, "--wipesignatures", "y", "-n", "thinpool", "docker", "--extents", fmt.Sprintf("%d%%VG", cfg.ThinpPercent)).CombinedOutput()
+	out, err = exec.Command("lvcreate", "--wipesignatures", "y", "-n", "thinpool", "docker", "--extents", fmt.Sprintf("%d%%VG", cfg.ThinpPercent)).CombinedOutput()
 	if err != nil {
 		return errors.Wrap(err, string(out))
 	}
-	out, err = exec.Command(lvCreate, "--wipesignatures", "y", "-n", "thinpoolmeta", "docker", "--extents", fmt.Sprintf("%d%%VG", cfg.ThinpMetaPercent)).CombinedOutput()
+	out, err = exec.Command("lvcreate", "--wipesignatures", "y", "-n", "thinpoolmeta", "docker", "--extents", fmt.Sprintf("%d%%VG", cfg.ThinpMetaPercent)).CombinedOutput()
 	if err != nil {
 		return errors.Wrap(err, string(out))
 	}
 
-	out, err = exec.Command(lvConvert, "-y", "--zero", "n", "-c", "512K", "--thinpool", "docker/thinpool", "--poolmetadata", "docker/thinpoolmeta").CombinedOutput()
+	out, err = exec.Command("lvconvert", "-y", "--zero", "n", "-c", "512K", "--thinpool", "docker/thinpool", "--poolmetadata", "docker/thinpoolmeta").CombinedOutput()
 	if err != nil {
 		return errors.Wrap(err, string(out))
 	}
 
 	profile := fmt.Sprintf("activation{\nthin_pool_autoextend_threshold=%d\nthin_pool_autoextend_percent=%d\n}", cfg.AutoExtendThreshold, cfg.AutoExtendPercent)
-	err = ioutil.WriteFile("/etc/lvm/profile/docker-thinpool.profile", []byte(profile), 0600)
+	err = ioutil.WriteFile(lvmProfileDir+"/docker-thinpool.profile", []byte(profile), 0600)
 	if err != nil {
 		return errors.Wrap(err, "error writing docker thinp autoextend profile")
 	}
 
-	out, err = exec.Command(lvChange, "--metadataprofile", "docker-thinpool", "docker/thinpool").CombinedOutput()
+	out, err = exec.Command("lvchange", "--metadataprofile", "docker-thinpool", "docker/thinpool").CombinedOutput()
 	return errors.Wrap(err, string(out))
 }
