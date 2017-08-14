@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
@@ -19,6 +18,7 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/volume"
 	"github.com/opencontainers/selinux/go-selinux/label"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
@@ -171,47 +171,47 @@ func (container *Container) HasMountFor(path string) bool {
 	return exists
 }
 
-// UnmountIpcMounts uses the provided unmount function to unmount shm and mqueue if they were mounted
-func (container *Container) UnmountIpcMounts(unmount func(pth string) error) {
-	if container.HostConfig.IpcMode.IsContainer() || container.HostConfig.IpcMode.IsHost() {
-		return
+// UnmountIpcMount uses the provided unmount function to unmount shm if it was mounted
+func (container *Container) UnmountIpcMount(unmount func(pth string) error) error {
+	if container.HasMountFor("/dev/shm") {
+		return nil
 	}
 
-	var warnings []string
-
-	if !container.HasMountFor("/dev/shm") {
-		shmPath, err := container.ShmResourcePath()
-		if err != nil {
-			logrus.Error(err)
-			warnings = append(warnings, err.Error())
-		} else if shmPath != "" {
-			if err := unmount(shmPath); err != nil && !os.IsNotExist(err) {
-				if mounted, mErr := mount.Mounted(shmPath); mounted || mErr != nil {
-					warnings = append(warnings, fmt.Sprintf("failed to umount %s: %v", shmPath, err))
-				}
-			}
-
+	// container.ShmPath should not be used here as it may point
+	// to the host's or other container's /dev/shm
+	shmPath, err := container.ShmResourcePath()
+	if err != nil {
+		return err
+	}
+	if shmPath == "" {
+		return nil
+	}
+	if err = unmount(shmPath); err != nil && !os.IsNotExist(err) {
+		if mounted, mErr := mount.Mounted(shmPath); mounted || mErr != nil {
+			return errors.Wrapf(err, "umount %s", shmPath)
 		}
 	}
-
-	if len(warnings) > 0 {
-		logrus.Warnf("failed to cleanup ipc mounts:\n%v", strings.Join(warnings, "\n"))
-	}
+	return nil
 }
 
 // IpcMounts returns the list of IPC mounts
 func (container *Container) IpcMounts() []Mount {
 	var mounts []Mount
 
-	if !container.HasMountFor("/dev/shm") {
-		label.SetFileLabel(container.ShmPath, container.MountLabel)
-		mounts = append(mounts, Mount{
-			Source:      container.ShmPath,
-			Destination: "/dev/shm",
-			Writable:    true,
-			Propagation: string(volume.DefaultPropagationMode),
-		})
+	if container.HasMountFor("/dev/shm") {
+		return mounts
 	}
+	if container.ShmPath == "" {
+		return mounts
+	}
+
+	label.SetFileLabel(container.ShmPath, container.MountLabel)
+	mounts = append(mounts, Mount{
+		Source:      container.ShmPath,
+		Destination: "/dev/shm",
+		Writable:    true,
+		Propagation: string(volume.DefaultPropagationMode),
+	})
 
 	return mounts
 }

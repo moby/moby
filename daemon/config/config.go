@@ -513,6 +513,11 @@ func Validate(config *Config) error {
 		}
 	}
 
+	// validate platform-specific settings
+	if err := config.ValidatePlatformConfig(); err != nil {
+		return err
+	}
+
 	return nil
 }
 

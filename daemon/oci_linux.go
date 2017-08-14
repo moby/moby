@@ -301,10 +301,13 @@ func setNamespaces(daemon *Daemon, s *specs.Spec, c *container.Container) error 
 		}
 		setNamespace(s, ns)
 	}
+
 	// ipc
-	if c.HostConfig.IpcMode.IsContainer() {
+	ipcMode := c.HostConfig.IpcMode
+	switch {
+	case ipcMode.IsContainer():
 		ns := specs.LinuxNamespace{Type: "ipc"}
-		ic, err := daemon.getIpcContainer(c)
+		ic, err := daemon.getIpcContainer(ipcMode.Container())
 		if err != nil {
 			return err
 		}
@@ -316,12 +319,19 @@ func setNamespaces(daemon *Daemon, s *specs.Spec, c *container.Container) error 
 			nsUser.Path = fmt.Sprintf("/proc/%d/ns/user", ic.State.GetPID())
 			setNamespace(s, nsUser)
 		}
-	} else if c.HostConfig.IpcMode.IsHost() {
+	case ipcMode.IsHost():
 		oci.RemoveNamespace(s, specs.LinuxNamespaceType("ipc"))
-	} else {
+	case ipcMode.IsEmpty():
+		// A container was created by an older version of the daemon.
+		// The default behavior used to be what is now called "shareable".
+		fallthrough
+	case ipcMode.IsPrivate(), ipcMode.IsShareable(), ipcMode.IsNone():
 		ns := specs.LinuxNamespace{Type: "ipc"}
 		setNamespace(s, ns)
+	default:
+		return fmt.Errorf("Invalid IPC mode: %v", ipcMode)
 	}
+
 	// pid
 	if c.HostConfig.PidMode.IsContainer() {
 		ns := specs.LinuxNamespace{Type: "pid"}
@@ -486,10 +496,16 @@ func setMounts(daemon *Daemon, s *specs.Spec, c *container.Container, mounts []c
 		userMounts[m.Destination] = struct{}{}
 	}
 
-	// Filter out mounts that are overridden by user supplied mounts
+	// Filter out mounts from spec
+	noIpc := c.HostConfig.IpcMode.IsNone()
 	var defaultMounts []specs.Mount
 	_, mountDev := userMounts["/dev"]
 	for _, m := range s.Mounts {
+		// filter out /dev/shm mount if case IpcMode is none
+		if noIpc && m.Destination == "/dev/shm" {
+			continue
+		}
+		// filter out mount overridden by a user supplied mount
 		if _, ok := userMounts[m.Destination]; !ok {
 			if mountDev && strings.HasPrefix(m.Destination, "/dev/") {
 				continue
@@ -587,6 +603,14 @@ func setMounts(daemon *Daemon, s *specs.Spec, c *container.Container, mounts []c
 		}
 		s.Linux.ReadonlyPaths = nil
 		s.Linux.MaskedPaths = nil
+	}
+
+	// Set size for /dev/shm mount that comes from spec (IpcMode: private only)
+	for i, m := range s.Mounts {
+		if m.Destination == "/dev/shm" {
+			sizeOpt := "size=" + strconv.FormatInt(c.HostConfig.ShmSize, 10)
+			s.Mounts[i].Options = append(s.Mounts[i].Options, sizeOpt)
+		}
 	}
 
 	// TODO: until a kernel/mount solution exists for handling remount in a user namespace,
@@ -745,7 +769,9 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 		return nil, err
 	}
 
-	ms = append(ms, c.IpcMounts()...)
+	if !c.HostConfig.IpcMode.IsPrivate() && !c.HostConfig.IpcMode.IsEmpty() {
+		ms = append(ms, c.IpcMounts()...)
+	}
 
 	tmpfsMounts, err := c.TmpfsMounts()
 	if err != nil {
