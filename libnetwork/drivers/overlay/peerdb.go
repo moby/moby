@@ -234,7 +234,6 @@ type peerOperation struct {
 	peerIPMask net.IPMask
 	peerMac    net.HardwareAddr
 	vtepIP     net.IP
-	updateDB   bool
 	l2Miss     bool
 	l3Miss     bool
 	localPeer  bool
@@ -252,9 +251,9 @@ func (d *driver) peerOpRoutine(ctx context.Context, ch chan *peerOperation) {
 			case peerOperationINIT:
 				err = d.peerInitOp(op.networkID)
 			case peerOperationADD:
-				err = d.peerAddOp(op.networkID, op.endpointID, op.peerIP, op.peerIPMask, op.peerMac, op.vtepIP, op.updateDB, op.l2Miss, op.l3Miss, op.localPeer)
+				err = d.peerAddOp(op.networkID, op.endpointID, op.peerIP, op.peerIPMask, op.peerMac, op.vtepIP, op.l2Miss, op.l3Miss, true, op.localPeer)
 			case peerOperationDELETE:
-				err = d.peerDeleteOp(op.networkID, op.endpointID, op.peerIP, op.peerIPMask, op.peerMac, op.vtepIP, op.updateDB)
+				err = d.peerDeleteOp(op.networkID, op.endpointID, op.peerIP, op.peerIPMask, op.peerMac, op.vtepIP)
 			}
 			if err != nil {
 				logrus.Warnf("Peer operation failed:%s op:%v", err, op)
@@ -279,14 +278,14 @@ func (d *driver) peerInitOp(nid string) error {
 			return false
 		}
 
-		d.peerAddOp(nid, pEntry.eid, pKey.peerIP, pEntry.peerIPMask, pKey.peerMac, pEntry.vtep, false, false, false, false)
+		d.peerAddOp(nid, pEntry.eid, pKey.peerIP, pEntry.peerIPMask, pKey.peerMac, pEntry.vtep, false, false, false, pEntry.isLocal)
 		// return false to loop on all entries
 		return false
 	})
 }
 
 func (d *driver) peerAdd(nid, eid string, peerIP net.IP, peerIPMask net.IPMask,
-	peerMac net.HardwareAddr, vtep net.IP, updateDb, l2Miss, l3Miss, localPeer bool) {
+	peerMac net.HardwareAddr, vtep net.IP, l2Miss, l3Miss, localPeer bool) {
 	callerName := common.CallerName(1)
 	d.peerOpCh <- &peerOperation{
 		opType:     peerOperationADD,
@@ -296,7 +295,6 @@ func (d *driver) peerAdd(nid, eid string, peerIP net.IP, peerIPMask net.IPMask,
 		peerIPMask: peerIPMask,
 		peerMac:    peerMac,
 		vtepIP:     vtep,
-		updateDB:   updateDb,
 		l2Miss:     l2Miss,
 		l3Miss:     l3Miss,
 		localPeer:  localPeer,
@@ -305,13 +303,13 @@ func (d *driver) peerAdd(nid, eid string, peerIP net.IP, peerIPMask net.IPMask,
 }
 
 func (d *driver) peerAddOp(nid, eid string, peerIP net.IP, peerIPMask net.IPMask,
-	peerMac net.HardwareAddr, vtep net.IP, updateDb, l2Miss, l3Miss, updateOnlyDB bool) error {
+	peerMac net.HardwareAddr, vtep net.IP, l2Miss, l3Miss, updateDB, updateOnlyDB bool) error {
 
 	if err := validateID(nid, eid); err != nil {
 		return err
 	}
 
-	if updateDb {
+	if updateDB {
 		d.peerDbAdd(nid, eid, peerIP, peerIPMask, peerMac, vtep, false)
 		if updateOnlyDB {
 			return nil
@@ -368,7 +366,7 @@ func (d *driver) peerAddOp(nid, eid string, peerIP net.IP, peerIPMask net.IPMask
 }
 
 func (d *driver) peerDelete(nid, eid string, peerIP net.IP, peerIPMask net.IPMask,
-	peerMac net.HardwareAddr, vtep net.IP, updateDb bool) {
+	peerMac net.HardwareAddr, vtep net.IP) {
 	callerName := common.CallerName(1)
 	d.peerOpCh <- &peerOperation{
 		opType:     peerOperationDELETE,
@@ -378,22 +376,18 @@ func (d *driver) peerDelete(nid, eid string, peerIP net.IP, peerIPMask net.IPMas
 		peerIPMask: peerIPMask,
 		peerMac:    peerMac,
 		vtepIP:     vtep,
-		updateDB:   updateDb,
 		callerName: callerName,
 	}
 }
 
 func (d *driver) peerDeleteOp(nid, eid string, peerIP net.IP, peerIPMask net.IPMask,
-	peerMac net.HardwareAddr, vtep net.IP, updateDb bool) error {
+	peerMac net.HardwareAddr, vtep net.IP) error {
 
 	if err := validateID(nid, eid); err != nil {
 		return err
 	}
 
-	var pEntry peerEntry
-	if updateDb {
-		pEntry = d.peerDbDelete(nid, eid, peerIP, peerIPMask, peerMac, vtep)
-	}
+	pEntry := d.peerDbDelete(nid, eid, peerIP, peerIPMask, peerMac, vtep)
 
 	n := d.network(nid)
 	if n == nil {
