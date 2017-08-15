@@ -6506,19 +6506,3 @@ RUN touch /foop
 	c.Assert(err, check.IsNil)
 	c.Assert(d.String(), checker.Equals, getIDByName(c, name))
 }
-
-// Test case for #34208
-func (s *DockerSuite) TestBuildAddHTTPRoot(c *check.C) {
-	testRequires(c, Network, DaemonIsLinux)
-	buildImageSuccessfully(c, "buildaddhttproot", build.WithDockerfile(`
-                FROM scratch
-                ADD http://example.com/index.html /example1
-                ADD http://example.com /example2
-                ADD http://example.com /example3`))
-	buildImage("buildaddhttprootfailure", build.WithDockerfile(`
-                FROM scratch
-                ADD http://example.com/ /`)).Assert(c, icmd.Expected{
-		ExitCode: 1,
-		Err:      "cannot determine filename for source http://example.com/",
-	})
-}
