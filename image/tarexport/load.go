@@ -11,6 +11,7 @@ import (
 
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	v1 "github.com/docker/docker/image/v1"
 	"github.com/docker/docker/layer"
@@ -57,7 +58,7 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 
 	var manifest []manifestItem
 	if err := json.NewDecoder(manifestFile).Decode(&manifest); err != nil {
-		return err
+		return errdefs.InvalidParameter(err)
 	}
 
 	if err := validateManifest(manifest); err != nil {
@@ -79,16 +80,16 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 		}
 		img, err := image.NewFromJSON(config)
 		if err != nil {
-			return err
+			return errdefs.InvalidParameter(err)
 		}
 		if !system.IsOSSupported(img.OperatingSystem()) {
-			return fmt.Errorf("cannot load %s image on %s", img.OperatingSystem(), runtime.GOOS)
+			return errdefs.InvalidParameter(fmt.Errorf("cannot load %s image on %s", img.OperatingSystem(), runtime.GOOS))
 		}
 		rootFS := *img.RootFS
 		rootFS.DiffIDs = nil
 
 		if expected, actual := len(m.Layers), len(img.RootFS.DiffIDs); expected != actual {
-			return fmt.Errorf("invalid manifest, layers length mismatch: expected %d, got %d", expected, actual)
+			return errdefs.InvalidParameter(fmt.Errorf("invalid manifest, layers length mismatch: expected %d, got %d", expected, actual))
 		}
 
 		for i, diffID := range img.RootFS.DiffIDs {
@@ -122,11 +123,11 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 		for _, repoTag := range m.RepoTags {
 			named, err := reference.ParseNormalizedNamed(repoTag)
 			if err != nil {
-				return err
+				return errdefs.InvalidParameter(err)
 			}
 			ref, ok := named.(reference.NamedTagged)
 			if !ok {
-				return fmt.Errorf("invalid tag %q", repoTag)
+				return errdefs.InvalidParameter(fmt.Errorf("invalid tag %q", repoTag))
 			}
 			l.setLoadedTag(ref, imgID.Digest(), outStream)
 			outStream.Write([]byte(fmt.Sprintf("Loaded image: %s\n", reference.FamiliarString(ref))))
@@ -238,28 +239,31 @@ func (l *tarexporter) legacyLoad(tmpDir string, outStream io.Writer, progressOut
 	}
 	repositoriesFile, err := os.Open(repositoriesPath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return errdefs.InvalidParameter(err)
+		}
 		return err
 	}
 	defer repositoriesFile.Close()
 
 	repositories := make(map[string]map[string]string)
 	if err := json.NewDecoder(repositoriesFile).Decode(&repositories); err != nil {
-		return err
+		return errdefs.InvalidParameter(err)
 	}
 
 	for name, tagMap := range repositories {
 		for tag, oldID := range tagMap {
 			imgID, ok := legacyLoadedMap[oldID]
 			if !ok {
-				return fmt.Errorf("invalid target ID: %v", oldID)
+				return errdefs.InvalidParameter(fmt.Errorf("invalid target ID: %v", oldID))
 			}
 			named, err := reference.ParseNormalizedNamed(name)
 			if err != nil {
-				return err
+				return errdefs.InvalidParameter(err)
 			}
 			ref, err := reference.WithTag(named, tag)
 			if err != nil {
-				return err
+				return errdefs.InvalidParameter(err)
 			}
 			l.setLoadedTag(ref, imgID.Digest(), outStream)
 		}
@@ -279,6 +283,9 @@ func (l *tarexporter) legacyLoadImage(oldID, sourceDir string, loadedMap map[str
 	imageJSON, err := os.ReadFile(configPath)
 	if err != nil {
 		logrus.Debugf("Error reading json: %v", err)
+		if os.IsNotExist(err) {
+			return errdefs.InvalidParameter(err)
+		}
 		return err
 	}
 
@@ -287,14 +294,14 @@ func (l *tarexporter) legacyLoadImage(oldID, sourceDir string, loadedMap map[str
 		Parent string
 	}
 	if err := json.Unmarshal(imageJSON, &img); err != nil {
-		return err
+		return errdefs.InvalidParameter(err)
 	}
 
 	if img.OS == "" {
 		img.OS = runtime.GOOS
 	}
 	if !system.IsOSSupported(img.OS) {
-		return fmt.Errorf("cannot load %s image on %s", img.OS, runtime.GOOS)
+		return errdefs.InvalidParameter(fmt.Errorf("cannot load %s image on %s", img.OS, runtime.GOOS))
 	}
 
 	var parentID image.ID
@@ -337,13 +344,13 @@ func (l *tarexporter) legacyLoadImage(oldID, sourceDir string, loadedMap map[str
 
 	h, err := v1.HistoryFromConfig(imageJSON, false)
 	if err != nil {
-		return err
+		return errdefs.InvalidParameter(err)
 	}
 	history = append(history, h)
 
 	config, err := v1.MakeConfigFromV1Config(imageJSON, rootFS, history)
 	if err != nil {
-		return err
+		return errdefs.InvalidParameter(err)
 	}
 	imgID, err := l.is.Create(config)
 	if err != nil {
