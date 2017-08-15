@@ -137,6 +137,23 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 
 	container.HostConfig.StorageOpt = params.HostConfig.StorageOpt
 
+	// Fixes: https://github.com/moby/moby/issues/34074 and
+	// https://github.com/docker/for-win/issues/999.
+	// Merge the daemon's storage options if they aren't already present. We only
+	// do this on Windows as there's no effective sandbox size limit other than
+	// physical on Linux.
+	if runtime.GOOS == "windows" {
+		if container.HostConfig.StorageOpt == nil {
+			container.HostConfig.StorageOpt = make(map[string]string)
+		}
+		for _, v := range daemon.configStore.GraphOptions {
+			opt := strings.SplitN(v, "=", 2)
+			if _, ok := container.HostConfig.StorageOpt[opt[0]]; !ok {
+				container.HostConfig.StorageOpt[opt[0]] = opt[1]
+			}
+		}
+	}
+
 	// Set RWLayer for container after mount labels have been set
 	if err := daemon.setRWLayer(container); err != nil {
 		return nil, err
