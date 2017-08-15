@@ -359,6 +359,8 @@ func (l *logStream) collectBatch() {
 	var events []wrappedEvent
 	var eventBuffer []byte
 	var eventBufferTimestamp int64
+	var lineBuffer []byte
+
 	for {
 		select {
 		case t := <-timer.C:
@@ -381,12 +383,46 @@ func (l *logStream) collectBatch() {
 				eventBuffer = eventBuffer[:0]
 				l.publishBatch(events)
 				events = events[:0]
+				lineBuffer = lineBuffer[:0]
 				return
 			}
 			if eventBufferTimestamp == 0 {
 				eventBufferTimestamp = msg.Timestamp.UnixNano() / int64(time.Millisecond)
 			}
+
 			unprocessedLine := msg.Line
+
+			// Consume partial messages until the maximum event size and
+			// split it up when exceeded. This breaks multiline handling for
+			// large (>maximumBytesPerEvent) lines and should not be matched
+			// as patterns like '^ML-TAG' /could/ match in the middle of a
+			// line due to partial handling.
+			if msg.Partial || len(lineBuffer) > 0 {
+				// flush the line at max length, pack to full.
+				if len(lineBuffer)+len(unprocessedLine) > maximumBytesPerEvent {
+					fittedBytes := maximumBytesPerEvent - len(lineBuffer)
+					if fittedBytes > 0 {
+						lineBuffer = append(lineBuffer, unprocessedLine[:fittedBytes]...)
+						unprocessedLine = unprocessedLine[fittedBytes:]
+					}
+					events = l.processEvent(events, lineBuffer, msg.Timestamp.UnixNano()/int64(time.Millisecond))
+					lineBuffer = lineBuffer[:0]
+				}
+				lineBuffer = append(lineBuffer, unprocessedLine...)
+
+				if msg.Partial {
+					logger.PutMessage(msg)
+					continue
+				}
+				unprocessedLine = lineBuffer
+				lineBuffer = lineBuffer[:0]
+			}
+
+			// multiline patterns shouldn't be triggered in the middle of
+			// partial messages, the collection of the entire line will
+			// happen before the evaluation of this though so that 32K lines
+			// will still be processed as multiline and matched on and
+			// appended as normal (<16K lines).
 			if l.multilinePattern != nil {
 				if l.multilinePattern.Match(unprocessedLine) || len(eventBuffer)+len(unprocessedLine) > maximumBytesPerEvent {
 					// This is a new log event or we will exceed max bytes per event
@@ -398,11 +434,11 @@ func (l *logStream) collectBatch() {
 				// Append new line
 				processedLine := append(unprocessedLine, "\n"...)
 				eventBuffer = append(eventBuffer, processedLine...)
-				logger.PutMessage(msg)
 			} else {
 				events = l.processEvent(events, unprocessedLine, msg.Timestamp.UnixNano()/int64(time.Millisecond))
-				logger.PutMessage(msg)
 			}
+
+			logger.PutMessage(msg)
 		}
 	}
 }

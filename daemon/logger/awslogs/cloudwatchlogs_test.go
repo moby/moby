@@ -1,6 +1,7 @@
 package awslogs
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"net/http"
@@ -28,6 +29,7 @@ const (
 	nextSequenceToken = "nextSequenceToken"
 	logline           = "this is a log line\r"
 	multilineLogline  = "2017-01-01 01:01:44 This is a multiline log entry\r"
+	maxPartialBytes   = 16 * 1024
 )
 
 // Generates i multi-line events each with j lines
@@ -417,6 +419,86 @@ func TestCollectBatchSimple(t *testing.T) {
 	}
 	if *argument.LogEvents[0].Message != logline {
 		t.Errorf("Expected message to be %s but was %s", logline, *argument.LogEvents[0].Message)
+	}
+}
+
+func TestCollectBatchPartial(t *testing.T) {
+	partialCases := map[string]struct {
+		inputSizes    []int
+		expectedSizes []int
+	}{
+		// Modestly sized split up log line
+		"simple partial": {
+			inputSizes:    []int{maxPartialBytes, maxPartialBytes, 1024},
+			expectedSizes: []int{maxPartialBytes + maxPartialBytes + 1024},
+		},
+		// Large lines
+		"maximums": {
+			inputSizes:    []int{maximumBytesPerEvent, maximumBytesPerEvent, 1024},
+			expectedSizes: []int{maximumBytesPerEvent, maximumBytesPerEvent, 1024},
+		},
+		"line packs": {
+			inputSizes:    []int{maximumBytesPerEvent, 1024, maximumBytesPerEvent},
+			expectedSizes: []int{maximumBytesPerEvent, maximumBytesPerEvent, 1024},
+		},
+	}
+
+	for name, partialCase := range partialCases {
+		t.Run(name, func(t *testing.T) {
+			mockClient := newMockClient()
+			stream := &logStream{
+				client:        mockClient,
+				logGroupName:  groupName,
+				logStreamName: streamName,
+				sequenceToken: aws.String(sequenceToken),
+				messages:      make(chan *logger.Message),
+			}
+			mockClient.putLogEventsResult <- &putLogEventsResult{
+				successResult: &cloudwatchlogs.PutLogEventsOutput{
+					NextSequenceToken: aws.String(nextSequenceToken),
+				},
+			}
+			ticks := make(chan time.Time)
+			newTicker = func(_ time.Duration) *time.Ticker {
+				return &time.Ticker{
+					C: ticks,
+				}
+			}
+
+			go stream.collectBatch()
+
+			for i, size := range partialCase.inputSizes {
+
+				// Send a "long" split message.
+				stream.Log(&logger.Message{
+					Line:      bytes.Repeat([]byte("."), size),
+					Timestamp: time.Time{},
+					Partial:   i != len(partialCase.inputSizes)-1,
+				})
+			}
+
+			ticks <- time.Time{}
+			stream.Close()
+
+			argument := <-mockClient.putLogEventsArgument
+			if argument == nil {
+				t.Fatal("Expected non-nil PutLogEventsInput")
+			}
+			if len(argument.LogEvents) != len(partialCase.expectedSizes) {
+				var m []string
+				for i, event := range argument.LogEvents {
+					m = append(m, fmt.Sprintf("%d:%d", i, len(*event.Message)))
+				}
+				t.Logf("messages: %q", m)
+				t.Fatalf("Expected LogEvents to contain %d element, but contains %d", len(partialCase.expectedSizes), len(argument.LogEvents))
+			}
+			for i, expectedSize := range partialCase.expectedSizes {
+				if len(*argument.LogEvents[i].Message) != expectedSize {
+					t.Errorf("Expected message %d to be %d bytes but was %d", i, expectedSize, len(*argument.LogEvents[i].Message))
+				}
+			}
+
+		})
 	}
 }
 
