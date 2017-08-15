@@ -76,12 +76,16 @@ func (l *linkIndex) parents(child *container.Container) map[string]*container.Co
 }
 
 // delete deletes all link relationships referencing this container
-func (l *linkIndex) delete(container *container.Container) {
+func (l *linkIndex) delete(container *container.Container) []string {
 	l.mu.Lock()
-	for _, child := range l.idx[container] {
+
+	var aliases []string
+	for alias, child := range l.idx[container] {
+		aliases = append(aliases, alias)
 		delete(l.childIdx[child], container)
 	}
 	delete(l.idx, container)
 	delete(l.childIdx, container)
 	l.mu.Unlock()
+	return aliases
 }

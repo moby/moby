@@ -965,3 +965,22 @@ func (s *DockerSuite) TestPsListContainersFilterPorts(c *check.C) {
 	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), id1)
 	c.Assert(strings.TrimSpace(out), checker.Equals, id2)
 }
+
+func (s *DockerSuite) TestPsNotShowLinknamesOfDeletedContainer(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	dockerCmd(c, "create", "--name=aaa", "busybox", "top")
+	dockerCmd(c, "create", "--name=bbb", "--link=aaa", "busybox", "top")
+
+	out, _ := dockerCmd(c, "ps", "--no-trunc", "-a", "--format", "{{.Names}}")
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	expected := []string{"bbb", "aaa,bbb/aaa"}
+	var names []string
+	names = append(names, lines...)
+	c.Assert(expected, checker.DeepEquals, names, check.Commentf("Expected array with non-truncated names: %v, got: %v", expected, names))
+
+	dockerCmd(c, "rm", "bbb")
+
+	out, _ = dockerCmd(c, "ps", "--no-trunc", "-a", "--format", "{{.Names}}")
+	c.Assert(strings.TrimSpace(out), checker.Equals, "aaa")
+}
