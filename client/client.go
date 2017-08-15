@@ -267,7 +267,7 @@ func (cli *Client) NegotiateAPIVersionPing(p types.Ping) {
 	}
 
 	// if server version is lower than the maximum version supported by the Client, downgrade
-	if versions.LessThan(p.APIVersion, api.DefaultVersion) {
+	if versions.LessThan(p.APIVersion, cli.version) {
 		cli.version = p.APIVersion
 	}
 }
