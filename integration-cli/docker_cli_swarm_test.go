@@ -1887,7 +1887,7 @@ func (s *DockerSwarmSuite) TestNetworkInspectWithDuplicateNames(c *check.C) {
 	// Name with duplicates
 	out, err = d.Cmd("network", "inspect", "--format", "{{.ID}}", name)
 	c.Assert(err, checker.NotNil, check.Commentf(out))
-	c.Assert(out, checker.Contains, "network foo is ambiguous (2 matches found based on name)")
+	c.Assert(out, checker.Contains, "2 matches found based on name")
 
 	out, err = d.Cmd("network", "rm", n2.ID)
 	c.Assert(err, checker.IsNil, check.Commentf(out))
@@ -1912,7 +1912,7 @@ func (s *DockerSwarmSuite) TestNetworkInspectWithDuplicateNames(c *check.C) {
 	// Name with duplicates
 	out, err = d.Cmd("network", "inspect", "--format", "{{.ID}}", name)
 	c.Assert(err, checker.NotNil, check.Commentf(out))
-	c.Assert(out, checker.Contains, "network foo is ambiguous (2 matches found based on name)")
+	c.Assert(out, checker.Contains, "2 matches found based on name")
 }
 
 func (s *DockerSwarmSuite) TestSwarmStopSignal(c *check.C) {

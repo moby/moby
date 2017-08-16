@@ -52,11 +52,7 @@ func (p *v1Puller) Pull(ctx context.Context, ref reference.Named) error {
 		registry.DockerHeaders(dockerversion.DockerUserAgent(ctx), p.config.MetaHeaders)...,
 	)
 	client := registry.HTTPClient(tr)
-	v1Endpoint, err := p.endpoint.ToV1Endpoint(dockerversion.DockerUserAgent(ctx), p.config.MetaHeaders)
-	if err != nil {
-		logrus.Debugf("Could not get v1 endpoint: %v", err)
-		return fallbackError{err: err}
-	}
+	v1Endpoint := p.endpoint.ToV1Endpoint(dockerversion.DockerUserAgent(ctx), p.config.MetaHeaders)
 	p.session, err = registry.NewSession(client, p.config.AuthConfig, v1Endpoint)
 	if err != nil {
 		// TODO(dmcgowan): Check if should fallback

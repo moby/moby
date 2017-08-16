@@ -51,7 +51,7 @@ func TestDecodeContainerConfig(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		c, h, _, err := DecodeContainerConfig(bytes.NewReader(b))
+		c, h, _, err := decodeContainerConfig(bytes.NewReader(b))
 		if err != nil {
 			t.Fatal(fmt.Errorf("Error parsing %s: %v", f, err))
 		}
@@ -135,5 +135,5 @@ func callDecodeContainerConfigIsolation(isolation string) (*container.Config, *c
 	if b, err = json.Marshal(w); err != nil {
 		return nil, nil, nil, fmt.Errorf("Error on marshal %s", err.Error())
 	}
-	return DecodeContainerConfig(bytes.NewReader(b))
+	return decodeContainerConfig(bytes.NewReader(b))
 }

@@ -208,7 +208,7 @@ func (s *DockerSuite) TestPsListContainersFilterStatus(c *check.C) {
 	result := cli.Docker(cli.Args("ps", "-a", "-q", "--filter=status=rubbish"), cli.WithTimeout(time.Second*60))
 	c.Assert(result, icmd.Matches, icmd.Expected{
 		ExitCode: 1,
-		Err:      "Unrecognised filter value for status",
+		Err:      "Invalid filter 'status=rubbish'",
 	})
 
 	// Windows doesn't support pausing of containers

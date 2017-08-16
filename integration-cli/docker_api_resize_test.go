@@ -25,7 +25,7 @@ func (s *DockerSuite) TestResizeAPIHeightWidthNoInt(c *check.C) {
 
 	endpoint := "/containers/" + cleanedContainerID + "/resize?h=foo&w=bar"
 	status, _, err := request.SockRequest("POST", endpoint, nil, daemonHost())
-	c.Assert(status, check.Equals, http.StatusInternalServerError)
+	c.Assert(status, check.Equals, http.StatusBadRequest)
 	c.Assert(err, check.IsNil)
 }
 
@@ -38,7 +38,7 @@ func (s *DockerSuite) TestResizeAPIResponseWhenContainerNotStarted(c *check.C) {
 
 	endpoint := "/containers/" + cleanedContainerID + "/resize?h=40&w=40"
 	status, body, err := request.SockRequest("POST", endpoint, nil, daemonHost())
-	c.Assert(status, check.Equals, http.StatusInternalServerError)
+	c.Assert(status, check.Equals, http.StatusConflict)
 	c.Assert(err, check.IsNil)
 
 	c.Assert(getErrorMessage(c, body), checker.Contains, "is not running", check.Commentf("resize should fail with message 'Container is not running'"))

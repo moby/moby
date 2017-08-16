@@ -10,6 +10,7 @@ import (
 
 	containerpkg "github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/signal"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -21,6 +22,8 @@ type errNoSuchProcess struct {
 func (e errNoSuchProcess) Error() string {
 	return fmt.Sprintf("Cannot kill process (pid=%d) with signal %d: no such process.", e.pid, e.signal)
 }
+
+func (errNoSuchProcess) NotFound() {}
 
 // isErrNoSuchProcess returns true if the error
 // is an instance of errNoSuchProcess.
@@ -61,7 +64,7 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, sig int)
 	defer container.Unlock()
 
 	if !container.Running {
-		return errNotRunning{container.ID}
+		return errNotRunning(container.ID)
 	}
 
 	var unpause bool
@@ -91,8 +94,9 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, sig int)
 	}
 
 	if err := daemon.kill(container, sig); err != nil {
-		err = fmt.Errorf("Cannot kill container %s: %s", container.ID, err)
+		err = errors.Wrapf(err, "Cannot kill container %s", container.ID)
 		// if container or process not exists, ignore the error
+		// TODO: we shouldn't have to parse error strings from containerd
 		if strings.Contains(err.Error(), "container not found") ||
 			strings.Contains(err.Error(), "no such process") {
 			logrus.Warnf("container kill failed because of 'container not found' or 'no such process': %s", err.Error())
@@ -119,7 +123,7 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, sig int)
 // Kill forcefully terminates a container.
 func (daemon *Daemon) Kill(container *containerpkg.Container) error {
 	if !container.IsRunning() {
-		return errNotRunning{container.ID}
+		return errNotRunning(container.ID)
 	}
 
 	// 1. Send SIGKILL

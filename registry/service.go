@@ -2,7 +2,6 @@ package registry
 
 import (
 	"crypto/tls"
-	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -14,6 +13,7 @@ import (
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/docker/api/types"
 	registrytypes "github.com/docker/docker/api/types/registry"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -117,12 +117,12 @@ func (s *DefaultService) Auth(ctx context.Context, authConfig *types.AuthConfig,
 	}
 	u, err := url.Parse(serverAddress)
 	if err != nil {
-		return "", "", fmt.Errorf("unable to parse server address: %v", err)
+		return "", "", validationError{errors.Errorf("unable to parse server address: %v", err)}
 	}
 
 	endpoints, err := s.LookupPushEndpoints(u.Host)
 	if err != nil {
-		return "", "", err
+		return "", "", validationError{err}
 	}
 
 	for _, endpoint := range endpoints {
@@ -140,6 +140,7 @@ func (s *DefaultService) Auth(ctx context.Context, authConfig *types.AuthConfig,
 			logrus.Infof("Error logging in to %s endpoint, trying next endpoint: %v", endpoint.Version, err)
 			continue
 		}
+
 		return "", "", err
 	}
 
@@ -258,7 +259,7 @@ type APIEndpoint struct {
 }
 
 // ToV1Endpoint returns a V1 API endpoint based on the APIEndpoint
-func (e APIEndpoint) ToV1Endpoint(userAgent string, metaHeaders http.Header) (*V1Endpoint, error) {
+func (e APIEndpoint) ToV1Endpoint(userAgent string, metaHeaders http.Header) *V1Endpoint {
 	return newV1Endpoint(*e.URL, e.TLSConfig, userAgent, metaHeaders)
 }
 

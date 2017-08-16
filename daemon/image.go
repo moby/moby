@@ -8,12 +8,12 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 )
 
-// ErrImageDoesNotExist is error returned when no image can be found for a reference.
-type ErrImageDoesNotExist struct {
+// errImageDoesNotExist is error returned when no image can be found for a reference.
+type errImageDoesNotExist struct {
 	ref reference.Reference
 }
 
-func (e ErrImageDoesNotExist) Error() string {
+func (e errImageDoesNotExist) Error() string {
 	ref := e.ref
 	if named, ok := ref.(reference.Named); ok {
 		ref = reference.TagNameOnly(named)
@@ -21,18 +21,20 @@ func (e ErrImageDoesNotExist) Error() string {
 	return fmt.Sprintf("No such image: %s", reference.FamiliarString(ref))
 }
 
+func (e errImageDoesNotExist) NotFound() {}
+
 // GetImageIDAndPlatform returns an image ID and platform corresponding to the image referred to by
 // refOrID.
 func (daemon *Daemon) GetImageIDAndPlatform(refOrID string) (image.ID, string, error) {
 	ref, err := reference.ParseAnyReference(refOrID)
 	if err != nil {
-		return "", "", err
+		return "", "", validationError{err}
 	}
 	namedRef, ok := ref.(reference.Named)
 	if !ok {
 		digested, ok := ref.(reference.Digested)
 		if !ok {
-			return "", "", ErrImageDoesNotExist{ref}
+			return "", "", errImageDoesNotExist{ref}
 		}
 		id := image.IDFromDigest(digested.Digest())
 		for platform := range daemon.stores {
@@ -40,7 +42,7 @@ func (daemon *Daemon) GetImageIDAndPlatform(refOrID string) (image.ID, string, e
 				return id, platform, nil
 			}
 		}
-		return "", "", ErrImageDoesNotExist{ref}
+		return "", "", errImageDoesNotExist{ref}
 	}
 
 	for platform := range daemon.stores {
@@ -71,7 +73,7 @@ func (daemon *Daemon) GetImageIDAndPlatform(refOrID string) (image.ID, string, e
 		}
 	}
 
-	return "", "", ErrImageDoesNotExist{ref}
+	return "", "", errImageDoesNotExist{ref}
 }
 
 // GetImage returns an image corresponding to the image referred to by refOrID.

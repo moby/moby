@@ -1,6 +1,7 @@
 package distribution
 
 import (
+	"fmt"
 	"net/url"
 	"strings"
 	"syscall"
@@ -12,7 +13,6 @@ import (
 	"github.com/docker/distribution/registry/client"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/docker/distribution/xfer"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -60,6 +60,45 @@ func shouldV2Fallback(err errcode.Error) bool {
 	return false
 }
 
+type notFoundError struct {
+	cause errcode.Error
+	ref   reference.Named
+}
+
+func (e notFoundError) Error() string {
+	switch e.cause.Code {
+	case errcode.ErrorCodeDenied:
+		// ErrorCodeDenied is used when access to the repository was denied
+		return fmt.Sprintf("pull access denied for %s, repository does not exist or may require 'docker login'", reference.FamiliarName(e.ref))
+	case v2.ErrorCodeManifestUnknown:
+		return fmt.Sprintf("manifest for %s not found", reference.FamiliarString(e.ref))
+	case v2.ErrorCodeNameUnknown:
+		return fmt.Sprintf("repository %s not found", reference.FamiliarName(e.ref))
+	}
+	// Shouldn't get here, but this is better than returning an empty string
+	return e.cause.Message
+}
+
+func (e notFoundError) NotFound() {}
+
+func (e notFoundError) Cause() error {
+	return e.cause
+}
+
+type unknownError struct {
+	cause error
+}
+
+func (e unknownError) Error() string {
+	return e.cause.Error()
+}
+
+func (e unknownError) Cause() error {
+	return e.cause
+}
+
+func (e unknownError) Unknown() {}
+
 // TranslatePullError is used to convert an error from a registry pull
 // operation to an error representing the entire pull operation. Any error
 // information which is not used by the returned error gets output to
@@ -74,25 +113,15 @@ func TranslatePullError(err error, ref reference.Named) error {
 			return TranslatePullError(v[0], ref)
 		}
 	case errcode.Error:
-		var newErr error
 		switch v.Code {
-		case errcode.ErrorCodeDenied:
-			// ErrorCodeDenied is used when access to the repository was denied
-			newErr = errors.Errorf("pull access denied for %s, repository does not exist or may require 'docker login'", reference.FamiliarName(ref))
-		case v2.ErrorCodeManifestUnknown:
-			newErr = errors.Errorf("manifest for %s not found", reference.FamiliarString(ref))
-		case v2.ErrorCodeNameUnknown:
-			newErr = errors.Errorf("repository %s not found", reference.FamiliarName(ref))
-		}
-		if newErr != nil {
-			logrus.Infof("Translating %q to %q", err, newErr)
-			return newErr
+		case errcode.ErrorCodeDenied, v2.ErrorCodeManifestUnknown, v2.ErrorCodeNameUnknown:
+			return notFoundError{v, ref}
 		}
 	case xfer.DoNotRetry:
 		return TranslatePullError(v.Err, ref)
 	}
 
-	return err
+	return unknownError{err}
 }
 
 // continueOnError returns true if we should fallback to the next endpoint
@@ -157,3 +186,30 @@ func retryOnError(err error) error {
 	// add them to the switch above.
 	return err
 }
+
+type invalidManifestClassError struct {
+	mediaType string
+	class     string
+}
+
+func (e invalidManifestClassError) Error() string {
+	return fmt.Sprintf("Encountered remote %q(%s) when fetching", e.mediaType, e.class)
+}
+
+func (e invalidManifestClassError) InvalidParameter() {}
+
+type invalidManifestFormatError struct{}
+
+func (invalidManifestFormatError) Error() string {
+	return "unsupported manifest format"
+}
+
+func (invalidManifestFormatError) InvalidParameter() {}
+
+type reservedNameError string
+
+func (e reservedNameError) Error() string {
+	return "'" + string(e) + "' is a reserved name"
+}
+
+func (e reservedNameError) Forbidden() {}

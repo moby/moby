@@ -518,7 +518,7 @@ func setMounts(daemon *Daemon, s *specs.Spec, c *container.Container, mounts []c
 	for _, m := range mounts {
 		for _, cm := range s.Mounts {
 			if cm.Destination == m.Destination {
-				return fmt.Errorf("Duplicate mount point '%s'", m.Destination)
+				return duplicateMountPointError(m.Destination)
 			}
 		}
 

@@ -520,14 +520,14 @@ func driverOptions(config *config.Config) []nwconfig.Option {
 
 func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
 	if !c.IsRunning() {
-		return nil, errNotRunning{c.ID}
+		return nil, errNotRunning(c.ID)
 	}
 
 	// Obtain the stats from HCS via libcontainerd
 	stats, err := daemon.containerd.Stats(c.ID)
 	if err != nil {
 		if strings.Contains(err.Error(), "container not found") {
-			return nil, errNotFound{c.ID}
+			return nil, containerNotFound(c.ID)
 		}
 		return nil, err
 	}

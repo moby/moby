@@ -26,7 +26,7 @@ func (daemon *Daemon) PullImage(ctx context.Context, image, tag, platform string
 
 	ref, err := reference.ParseNormalizedNamed(image)
 	if err != nil {
-		return err
+		return validationError{err}
 	}
 
 	if tag != "" {
@@ -39,7 +39,7 @@ func (daemon *Daemon) PullImage(ctx context.Context, image, tag, platform string
 			ref, err = reference.WithTag(ref, tag)
 		}
 		if err != nil {
-			return err
+			return validationError{err}
 		}
 	}
 
@@ -96,7 +96,7 @@ func (daemon *Daemon) GetRepository(ctx context.Context, ref reference.Named, au
 	}
 	// makes sure name is not empty or `scratch`
 	if err := distribution.ValidateRepoName(repoInfo.Name); err != nil {
-		return nil, false, err
+		return nil, false, validationError{err}
 	}
 
 	// get endpoints

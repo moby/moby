@@ -1,8 +1,6 @@
 package network
 
 import (
-	"fmt"
-
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/runconfig"
@@ -24,10 +22,18 @@ func filterNetworkByType(nws []types.NetworkResource, netType string) ([]types.N
 			}
 		}
 	default:
-		return nil, fmt.Errorf("Invalid filter: 'type'='%s'", netType)
+		return nil, invalidFilter(netType)
 	}
 	return retNws, nil
 }
+
+type invalidFilter string
+
+func (e invalidFilter) Error() string {
+	return "Invalid filter: 'type'='" + string(e) + "'"
+}
+
+func (e invalidFilter) InvalidParameter() {}
 
 // filterNetworks filters network list according to user specified filter
 // and returns user chosen networks

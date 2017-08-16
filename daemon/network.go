@@ -8,7 +8,6 @@ import (
 	"strings"
 	"sync"
 
-	apierrors "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
@@ -57,10 +56,10 @@ func (daemon *Daemon) GetNetworkByID(partialID string) (libnetwork.Network, erro
 	list := daemon.GetNetworksByID(partialID)
 
 	if len(list) == 0 {
-		return nil, libnetwork.ErrNoSuchNetwork(partialID)
+		return nil, errors.WithStack(networkNotFound(partialID))
 	}
 	if len(list) > 1 {
-		return nil, libnetwork.ErrInvalidID(partialID)
+		return nil, errors.WithStack(invalidIdentifier(partialID))
 	}
 	return list[0], nil
 }
@@ -287,7 +286,7 @@ func (daemon *Daemon) CreateNetwork(create types.NetworkCreateRequest) (*types.N
 func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string, agent bool) (*types.NetworkCreateResponse, error) {
 	if runconfig.IsPreDefinedNetwork(create.Name) && !agent {
 		err := fmt.Errorf("%s is a pre-defined network and cannot be created", create.Name)
-		return nil, apierrors.NewRequestForbiddenError(err)
+		return nil, notAllowedError{err}
 	}
 
 	var warning string
@@ -504,7 +503,7 @@ func (daemon *Daemon) deleteNetwork(networkID string, dynamic bool) error {
 
 	if runconfig.IsPreDefinedNetwork(nw.Name()) && !dynamic {
 		err := fmt.Errorf("%s is a pre-defined network and cannot be removed", nw.Name())
-		return apierrors.NewRequestForbiddenError(err)
+		return notAllowedError{err}
 	}
 
 	if dynamic && !nw.Info().Dynamic() {
@@ -514,7 +513,7 @@ func (daemon *Daemon) deleteNetwork(networkID string, dynamic bool) error {
 			return nil
 		}
 		err := fmt.Errorf("%s is not a dynamic network", nw.Name())
-		return apierrors.NewRequestForbiddenError(err)
+		return notAllowedError{err}
 	}
 
 	if err := nw.Delete(); err != nil {

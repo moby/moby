@@ -24,6 +24,14 @@ func (s *containerRouter) getExecByID(ctx context.Context, w http.ResponseWriter
 	return httputils.WriteJSON(w, http.StatusOK, eConfig)
 }
 
+type execCommandError struct{}
+
+func (execCommandError) Error() string {
+	return "No exec command specified"
+}
+
+func (execCommandError) InvalidParameter() {}
+
 func (s *containerRouter) postContainerExecCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
@@ -39,7 +47,7 @@ func (s *containerRouter) postContainerExecCreate(ctx context.Context, w http.Re
 	}
 
 	if len(execConfig.Cmd) == 0 {
-		return fmt.Errorf("No exec command specified")
+		return execCommandError{}
 	}
 
 	// Register an instance of Exec in container.
@@ -129,11 +137,11 @@ func (s *containerRouter) postContainerExecResize(ctx context.Context, w http.Re
 	}
 	height, err := strconv.Atoi(r.Form.Get("h"))
 	if err != nil {
-		return err
+		return validationError{err}
 	}
 	width, err := strconv.Atoi(r.Form.Get("w"))
 	if err != nil {
-		return err
+		return validationError{err}
 	}
 
 	return s.backend.ContainerExecResize(vars["name"], height, width)

@@ -23,10 +23,9 @@ func (s *DockerSuite) TestDeprecatedContainerAPIStartHostConfig(c *check.C) {
 	config := map[string]interface{}{
 		"Binds": []string{"/aa:/bb"},
 	}
-	status, body, err := request.SockRequest("POST", "/containers/"+name+"/start", config, daemonHost())
+	status, _, err := request.SockRequest("POST", "/containers/"+name+"/start", config, daemonHost())
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusBadRequest)
-	c.Assert(string(body), checker.Contains, "was deprecated since v1.10")
 }
 
 func (s *DockerSuite) TestDeprecatedContainerAPIStartVolumeBinds(c *check.C) {
@@ -81,7 +80,7 @@ func (s *DockerSuite) TestDeprecatedContainerAPIStartDupVolumeBinds(c *check.C) 
 	}
 	status, body, err := request.SockRequest("POST", formatV123StartAPIURL("/containers/"+name+"/start"), config, daemonHost())
 	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusInternalServerError)
+	c.Assert(status, checker.Equals, http.StatusBadRequest)
 	c.Assert(string(body), checker.Contains, "Duplicate mount point", check.Commentf("Expected failure due to duplicate bind mounts to same path, instead got: %q with error: %v", string(body), err))
 }
 
@@ -154,7 +153,7 @@ func (s *DockerSuite) TestDeprecatedStartWithTooLowMemoryLimit(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	b, err2 := testutil.ReadBody(body)
 	c.Assert(err2, checker.IsNil)
-	c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
+	c.Assert(res.StatusCode, checker.Equals, http.StatusBadRequest)
 	c.Assert(string(b), checker.Contains, "Minimum memory limit allowed is 4MB")
 }
 

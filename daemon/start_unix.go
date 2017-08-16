@@ -3,10 +3,9 @@
 package daemon
 
 import (
-	"fmt"
-
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/libcontainerd"
+	"github.com/pkg/errors"
 )
 
 // getLibcontainerdCreateOptions callers must hold a lock on the container
@@ -21,7 +20,7 @@ func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Contain
 
 	rt := daemon.configStore.GetRuntime(container.HostConfig.Runtime)
 	if rt == nil {
-		return nil, fmt.Errorf("no such runtime '%s'", container.HostConfig.Runtime)
+		return nil, validationError{errors.Errorf("no such runtime '%s'", container.HostConfig.Runtime)}
 	}
 	if UsingSystemd(daemon.configStore) {
 		rt.Args = append(rt.Args, "--systemd-cgroup=true")

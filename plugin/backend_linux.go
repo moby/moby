@@ -6,7 +6,6 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -55,7 +54,7 @@ func (pm *Manager) Disable(refOrID string, config *types.PluginDisableConfig) er
 	pm.mu.RUnlock()
 
 	if !config.ForceDisable && p.GetRefCount() > 0 {
-		return fmt.Errorf("plugin %s is in use", p.Name())
+		return errors.WithStack(inUseError(p.Name()))
 	}
 
 	for _, typ := range p.GetTypes() {
@@ -142,7 +141,7 @@ func (s *tempConfigStore) Put(c []byte) (digest.Digest, error) {
 
 func (s *tempConfigStore) Get(d digest.Digest) ([]byte, error) {
 	if d != s.configDigest {
-		return nil, fmt.Errorf("digest not found")
+		return nil, errNotFound("digest not found")
 	}
 	return s.config, nil
 }
@@ -151,7 +150,7 @@ func (s *tempConfigStore) RootFSAndPlatformFromConfig(c []byte) (*image.RootFS, 
 	return configToRootFS(c)
 }
 
-func computePrivileges(c types.PluginConfig) (types.PluginPrivileges, error) {
+func computePrivileges(c types.PluginConfig) types.PluginPrivileges {
 	var privileges types.PluginPrivileges
 	if c.Network.Type != "null" && c.Network.Type != "bridge" && c.Network.Type != "" {
 		privileges = append(privileges, types.PluginPrivilege{
@@ -207,7 +206,7 @@ func computePrivileges(c types.PluginConfig) (types.PluginPrivileges, error) {
 		})
 	}
 
-	return privileges, nil
+	return privileges
 }
 
 // Privileges pulls a plugin config and computes the privileges required to install it.
@@ -236,21 +235,21 @@ func (pm *Manager) Privileges(ctx context.Context, ref reference.Named, metaHead
 	}
 	var config types.PluginConfig
 	if err := json.Unmarshal(cs.config, &config); err != nil {
-		return nil, err
+		return nil, systemError{err}
 	}
 
-	return computePrivileges(config)
+	return computePrivileges(config), nil
 }
 
 // Upgrade upgrades a plugin
 func (pm *Manager) Upgrade(ctx context.Context, ref reference.Named, name string, metaHeader http.Header, authConfig *types.AuthConfig, privileges types.PluginPrivileges, outStream io.Writer) (err error) {
 	p, err := pm.config.Store.GetV2Plugin(name)
 	if err != nil {
-		return errors.Wrap(err, "plugin must be installed before upgrading")
+		return err
 	}
 
 	if p.IsEnabled() {
-		return fmt.Errorf("plugin must be disabled before upgrading")
+		return errors.Wrap(enabledError(p.Name()), "plugin must be disabled before upgrading")
 	}
 
 	pm.muGC.RLock()
@@ -258,12 +257,12 @@ func (pm *Manager) Upgrade(ctx context.Context, ref reference.Named, name string
 
 	// revalidate because Pull is public
 	if _, err := reference.ParseNormalizedNamed(name); err != nil {
-		return errors.Wrapf(err, "failed to parse %q", name)
+		return errors.Wrapf(validationError{err}, "failed to parse %q", name)
 	}
 
 	tmpRootFSDir, err := ioutil.TempDir(pm.tmpDir(), ".rootfs")
 	if err != nil {
-		return err
+		return errors.Wrap(systemError{err}, "error preparing upgrade")
 	}
 	defer os.RemoveAll(tmpRootFSDir)
 
@@ -305,17 +304,17 @@ func (pm *Manager) Pull(ctx context.Context, ref reference.Named, name string, m
 	// revalidate because Pull is public
 	nameref, err := reference.ParseNormalizedNamed(name)
 	if err != nil {
-		return errors.Wrapf(err, "failed to parse %q", name)
+		return errors.Wrapf(validationError{err}, "failed to parse %q", name)
 	}
 	name = reference.FamiliarString(reference.TagNameOnly(nameref))
 
 	if err := pm.config.Store.validateName(name); err != nil {
-		return err
+		return validationError{err}
 	}
 
 	tmpRootFSDir, err := ioutil.TempDir(pm.tmpDir(), ".rootfs")
 	if err != nil {
-		return err
+		return errors.Wrap(systemError{err}, "error preparing pull")
 	}
 	defer os.RemoveAll(tmpRootFSDir)
 
@@ -372,7 +371,7 @@ func (pm *Manager) List(pluginFilters filters.Args) ([]types.Plugin, error) {
 		} else if pluginFilters.ExactMatch("enabled", "false") {
 			disabledOnly = true
 		} else {
-			return nil, fmt.Errorf("Invalid filter 'enabled=%s'", pluginFilters.Get("enabled"))
+			return nil, invalidFilter{"enabled", pluginFilters.Get("enabled")}
 		}
 	}
 
@@ -615,10 +614,10 @@ func (pm *Manager) Remove(name string, config *types.PluginRmConfig) error {
 
 	if !config.ForceRemove {
 		if p.GetRefCount() > 0 {
-			return fmt.Errorf("plugin %s is in use", p.Name())
+			return inUseError(p.Name())
 		}
 		if p.IsEnabled() {
-			return fmt.Errorf("plugin %s is enabled", p.Name())
+			return enabledError(p.Name())
 		}
 	}
 

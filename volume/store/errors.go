@@ -2,20 +2,40 @@ package store
 
 import (
 	"strings"
-
-	"github.com/pkg/errors"
 )
 
-var (
+const (
 	// errVolumeInUse is a typed error returned when trying to remove a volume that is currently in use by a container
-	errVolumeInUse = errors.New("volume is in use")
+	errVolumeInUse conflictError = "volume is in use"
 	// errNoSuchVolume is a typed error returned if the requested volume doesn't exist in the volume store
-	errNoSuchVolume = errors.New("no such volume")
+	errNoSuchVolume notFoundError = "no such volume"
 	// errInvalidName is a typed error returned when creating a volume with a name that is not valid on the platform
-	errInvalidName = errors.New("volume name is not valid on this platform")
+	errInvalidName invalidName = "volume name is not valid on this platform"
 	// errNameConflict is a typed error returned on create when a volume exists with the given name, but for a different driver
-	errNameConflict = errors.New("volume name must be unique")
+	errNameConflict conflictError = "volume name must be unique"
 )
+
+type conflictError string
+
+func (e conflictError) Error() string {
+	return string(e)
+}
+func (conflictError) Conflict() {}
+
+type notFoundError string
+
+func (e notFoundError) Error() string {
+	return string(e)
+}
+
+func (notFoundError) NotFound() {}
+
+type invalidName string
+
+func (e invalidName) Error() string {
+	return string(e)
+}
+func (invalidName) InvalidParameter() {}
 
 // OpErr is the error type returned by functions in the store package. It describes
 // the operation, volume name, and error.
@@ -47,6 +67,11 @@ func (e *OpErr) Error() string {
 	return s
 }
 
+// Cause returns the error the caused this error
+func (e *OpErr) Cause() error {
+	return e.Err
+}
+
 // IsInUse returns a boolean indicating whether the error indicates that a
 // volume is in use
 func IsInUse(err error) bool {
@@ -64,13 +89,16 @@ func IsNameConflict(err error) bool {
 	return isErr(err, errNameConflict)
 }
 
+type causal interface {
+	Cause() error
+}
+
 func isErr(err error, expected error) bool {
-	err = errors.Cause(err)
 	switch pe := err.(type) {
 	case nil:
 		return false
-	case *OpErr:
-		err = errors.Cause(pe.Err)
+	case causal:
+		return isErr(pe.Cause(), expected)
 	}
 	return err == expected
 }

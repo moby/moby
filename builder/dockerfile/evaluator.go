@@ -139,7 +139,7 @@ func (b *Builder) dispatch(options dispatchOptions) (*dispatchState, error) {
 	// on which the daemon is running does not support a builder command.
 	if err := platformSupports(strings.ToLower(cmd)); err != nil {
 		buildsFailed.WithValues(metricsCommandNotSupportedError).Inc()
-		return nil, err
+		return nil, validationError{err}
 	}
 
 	msg := bytes.NewBufferString(fmt.Sprintf("Step %s : %s%s",
@@ -151,7 +151,7 @@ func (b *Builder) dispatch(options dispatchOptions) (*dispatchState, error) {
 		var err error
 		ast, args, err = handleOnBuildNode(node, msg)
 		if err != nil {
-			return nil, err
+			return nil, validationError{err}
 		}
 	}
 
@@ -161,7 +161,7 @@ func (b *Builder) dispatch(options dispatchOptions) (*dispatchState, error) {
 	words, err := getDispatchArgsFromNode(ast, processFunc, msg)
 	if err != nil {
 		buildsFailed.WithValues(metricsErrorProcessingCommandsError).Inc()
-		return nil, err
+		return nil, validationError{err}
 	}
 	args = append(args, words...)
 
@@ -170,7 +170,7 @@ func (b *Builder) dispatch(options dispatchOptions) (*dispatchState, error) {
 	f, ok := evaluateTable[cmd]
 	if !ok {
 		buildsFailed.WithValues(metricsUnknownInstructionError).Inc()
-		return nil, fmt.Errorf("unknown instruction: %s", upperCasedCmd)
+		return nil, validationError{errors.Errorf("unknown instruction: %s", upperCasedCmd)}
 	}
 	options.state.updateRunConfig()
 	err = f(newDispatchRequestFromOptions(options, b, args))
@@ -247,7 +247,7 @@ func (s *dispatchState) setDefaultPath() {
 
 func handleOnBuildNode(ast *parser.Node, msg *bytes.Buffer) (*parser.Node, []string, error) {
 	if ast.Next == nil {
-		return nil, nil, errors.New("ONBUILD requires at least one argument")
+		return nil, nil, validationError{errors.New("ONBUILD requires at least one argument")}
 	}
 	ast = ast.Next.Children[0]
 	msg.WriteString(" " + ast.Value + formatFlags(ast.Flags))

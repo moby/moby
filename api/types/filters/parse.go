@@ -5,7 +5,6 @@ package filters
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"regexp"
 	"strings"
 
@@ -258,16 +257,32 @@ func (filters Args) Include(field string) bool {
 	return ok
 }
 
+type invalidFilter string
+
+func (e invalidFilter) Error() string {
+	return "Invalid filter '" + string(e) + "'"
+}
+
+func (invalidFilter) InvalidParameter() {}
+
 // Validate ensures that all the fields in the filter are valid.
 // It returns an error as soon as it finds an invalid field.
 func (filters Args) Validate(accepted map[string]bool) error {
 	for name := range filters.fields {
 		if !accepted[name] {
-			return fmt.Errorf("Invalid filter '%s'", name)
+			return invalidFilter(name)
 		}
 	}
 	return nil
 }
+
+type invalidFilterError string
+
+func (e invalidFilterError) Error() string {
+	return "Invalid filter: '" + string(e) + "'"
+}
+
+func (invalidFilterError) InvalidParameter() {}
 
 // WalkValues iterates over the list of filtered values for a field.
 // It stops the iteration if it finds an error and it returns that error.

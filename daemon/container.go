@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/docker/docker/api/errors"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/container"
@@ -19,6 +18,7 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/nat"
 	"github.com/opencontainers/selinux/go-selinux/label"
+	"github.com/pkg/errors"
 )
 
 // GetContainer looks for a container using the provided information, which could be
@@ -30,7 +30,7 @@ import (
 //  If none of these searches succeed, an error is returned
 func (daemon *Daemon) GetContainer(prefixOrName string) (*container.Container, error) {
 	if len(prefixOrName) == 0 {
-		return nil, errors.NewBadRequestError(fmt.Errorf("No container name or ID supplied"))
+		return nil, errors.WithStack(invalidIdentifier(prefixOrName))
 	}
 
 	if containerByID := daemon.containers.Get(prefixOrName); containerByID != nil {
@@ -48,10 +48,9 @@ func (daemon *Daemon) GetContainer(prefixOrName string) (*container.Container, e
 	if indexError != nil {
 		// When truncindex defines an error type, use that instead
 		if indexError == truncindex.ErrNotExist {
-			err := fmt.Errorf("No such container: %s", prefixOrName)
-			return nil, errors.NewRequestNotFoundError(err)
+			return nil, containerNotFound(prefixOrName)
 		}
-		return nil, indexError
+		return nil, systemError{indexError}
 	}
 	return daemon.containers.Get(containerID), nil
 }
@@ -136,7 +135,7 @@ func (daemon *Daemon) newContainer(name string, platform string, config *contain
 		if config.Hostname == "" {
 			config.Hostname, err = os.Hostname()
 			if err != nil {
-				return nil, err
+				return nil, systemError{err}
 			}
 		}
 	} else {
@@ -255,19 +254,19 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *containertypes.HostCon
 		// Validate the healthcheck params of Config
 		if config.Healthcheck != nil {
 			if config.Healthcheck.Interval != 0 && config.Healthcheck.Interval < containertypes.MinimumDuration {
-				return nil, fmt.Errorf("Interval in Healthcheck cannot be less than %s", containertypes.MinimumDuration)
+				return nil, errors.Errorf("Interval in Healthcheck cannot be less than %s", containertypes.MinimumDuration)
 			}
 
 			if config.Healthcheck.Timeout != 0 && config.Healthcheck.Timeout < containertypes.MinimumDuration {
-				return nil, fmt.Errorf("Timeout in Healthcheck cannot be less than %s", containertypes.MinimumDuration)
+				return nil, errors.Errorf("Timeout in Healthcheck cannot be less than %s", containertypes.MinimumDuration)
 			}
 
 			if config.Healthcheck.Retries < 0 {
-				return nil, fmt.Errorf("Retries in Healthcheck cannot be negative")
+				return nil, errors.Errorf("Retries in Healthcheck cannot be negative")
 			}
 
 			if config.Healthcheck.StartPeriod != 0 && config.Healthcheck.StartPeriod < containertypes.MinimumDuration {
-				return nil, fmt.Errorf("StartPeriod in Healthcheck cannot be less than %s", containertypes.MinimumDuration)
+				return nil, errors.Errorf("StartPeriod in Healthcheck cannot be less than %s", containertypes.MinimumDuration)
 			}
 		}
 	}
@@ -277,7 +276,7 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *containertypes.HostCon
 	}
 
 	if hostConfig.AutoRemove && !hostConfig.RestartPolicy.IsNone() {
-		return nil, fmt.Errorf("can't create 'AutoRemove' container with restart policy")
+		return nil, errors.Errorf("can't create 'AutoRemove' container with restart policy")
 	}
 
 	for _, extraHost := range hostConfig.ExtraHosts {
@@ -289,12 +288,12 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *containertypes.HostCon
 	for port := range hostConfig.PortBindings {
 		_, portStr := nat.SplitProtoPort(string(port))
 		if _, err := nat.ParsePort(portStr); err != nil {
-			return nil, fmt.Errorf("invalid port specification: %q", portStr)
+			return nil, errors.Errorf("invalid port specification: %q", portStr)
 		}
 		for _, pb := range hostConfig.PortBindings[port] {
 			_, err := nat.NewPort(nat.SplitProtoPort(pb.HostPort))
 			if err != nil {
-				return nil, fmt.Errorf("invalid port specification: %q", pb.HostPort)
+				return nil, errors.Errorf("invalid port specification: %q", pb.HostPort)
 			}
 		}
 	}
@@ -304,16 +303,16 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *containertypes.HostCon
 	switch p.Name {
 	case "always", "unless-stopped", "no":
 		if p.MaximumRetryCount != 0 {
-			return nil, fmt.Errorf("maximum retry count cannot be used with restart policy '%s'", p.Name)
+			return nil, errors.Errorf("maximum retry count cannot be used with restart policy '%s'", p.Name)
 		}
 	case "on-failure":
 		if p.MaximumRetryCount < 0 {
-			return nil, fmt.Errorf("maximum retry count cannot be negative")
+			return nil, errors.Errorf("maximum retry count cannot be negative")
 		}
 	case "":
 		// do nothing
 	default:
-		return nil, fmt.Errorf("invalid restart policy '%s'", p.Name)
+		return nil, errors.Errorf("invalid restart policy '%s'", p.Name)
 	}
 
 	// Now do platform-specific verification

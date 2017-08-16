@@ -14,7 +14,7 @@ func (daemon *Daemon) saveApparmorConfig(container *container.Container) error {
 	}
 
 	if err := parseSecurityOpt(container, container.HostConfig); err != nil {
-		return err
+		return validationError{err}
 	}
 
 	if !container.HostConfig.Privileged {

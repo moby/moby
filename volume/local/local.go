@@ -13,12 +13,11 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/pkg/errors"
-
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/volume"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -38,14 +37,6 @@ var (
 	// would make the path to escape the root directory.
 	volumeNameRegex = api.RestrictedNamePattern
 )
-
-type validationError struct {
-	error
-}
-
-func (validationError) IsValidationError() bool {
-	return true
-}
 
 type activeMount struct {
 	count   uint64
@@ -148,6 +139,30 @@ func (r *Root) Name() string {
 	return volume.DefaultDriverName
 }
 
+type alreadyExistsError struct {
+	path string
+}
+
+func (e alreadyExistsError) Error() string {
+	return "local volume already exists under " + e.path
+}
+
+func (e alreadyExistsError) Conflict() {}
+
+type systemError struct {
+	err error
+}
+
+func (e systemError) Error() string {
+	return e.err.Error()
+}
+
+func (e systemError) SystemError() {}
+
+func (e systemError) Cause() error {
+	return e.err
+}
+
 // Create creates a new volume.Volume with the provided name, creating
 // the underlying directory tree required for this volume in the
 // process.
@@ -167,9 +182,9 @@ func (r *Root) Create(name string, opts map[string]string) (volume.Volume, error
 	path := r.DataPath(name)
 	if err := idtools.MkdirAllAndChown(path, 0755, r.rootIDs); err != nil {
 		if os.IsExist(err) {
-			return nil, fmt.Errorf("volume already exists under %s", filepath.Dir(path))
+			return nil, alreadyExistsError{filepath.Dir(path)}
 		}
-		return nil, errors.Wrapf(err, "error while creating volume path '%s'", path)
+		return nil, errors.Wrapf(systemError{err}, "error while creating volume path '%s'", path)
 	}
 
 	var err error
@@ -195,7 +210,7 @@ func (r *Root) Create(name string, opts map[string]string) (volume.Volume, error
 			return nil, err
 		}
 		if err = ioutil.WriteFile(filepath.Join(filepath.Dir(path), "opts.json"), b, 600); err != nil {
-			return nil, errors.Wrap(err, "error while persisting volume options")
+			return nil, errors.Wrap(systemError{err}, "error while persisting volume options")
 		}
 	}
 
@@ -213,11 +228,11 @@ func (r *Root) Remove(v volume.Volume) error {
 
 	lv, ok := v.(*localVolume)
 	if !ok {
-		return fmt.Errorf("unknown volume type %T", v)
+		return systemError{errors.Errorf("unknown volume type %T", v)}
 	}
 
 	if lv.active.count > 0 {
-		return fmt.Errorf("volume has active mounts")
+		return systemError{errors.Errorf("volume has active mounts")}
 	}
 
 	if err := lv.unmount(); err != nil {
@@ -233,7 +248,7 @@ func (r *Root) Remove(v volume.Volume) error {
 	}
 
 	if !r.scopedPath(realPath) {
-		return fmt.Errorf("Unable to remove a directory of out the Docker root %s: %s", r.scope, realPath)
+		return systemError{errors.Errorf("Unable to remove a directory of out the Docker root %s: %s", r.scope, realPath)}
 	}
 
 	if err := removePath(realPath); err != nil {
@@ -249,7 +264,7 @@ func removePath(path string) error {
 		if os.IsNotExist(err) {
 			return nil
 		}
-		return errors.Wrapf(err, "error removing volume path '%s'", path)
+		return errors.Wrapf(systemError{err}, "error removing volume path '%s'", path)
 	}
 	return nil
 }
@@ -270,12 +285,20 @@ func (r *Root) Scope() string {
 	return volume.LocalScope
 }
 
+type validationError string
+
+func (e validationError) Error() string {
+	return string(e)
+}
+
+func (e validationError) InvalidParameter() {}
+
 func (r *Root) validateName(name string) error {
 	if len(name) == 1 {
-		return validationError{fmt.Errorf("volume name is too short, names should be at least two alphanumeric characters")}
+		return validationError("volume name is too short, names should be at least two alphanumeric characters")
 	}
 	if !volumeNameRegex.MatchString(name) {
-		return validationError{fmt.Errorf("%q includes invalid characters for a local volume name, only %q are allowed. If you intended to pass a host directory, use absolute path", name, api.RestrictedNameChars)}
+		return validationError(fmt.Sprintf("%q includes invalid characters for a local volume name, only %q are allowed. If you intended to pass a host directory, use absolute path", name, api.RestrictedNameChars))
 	}
 	return nil
 }
@@ -319,7 +342,7 @@ func (v *localVolume) Mount(id string) (string, error) {
 	if v.opts != nil {
 		if !v.active.mounted {
 			if err := v.mount(); err != nil {
-				return "", err
+				return "", systemError{err}
 			}
 			v.active.mounted = true
 		}
@@ -353,7 +376,7 @@ func (v *localVolume) unmount() error {
 	if v.opts != nil {
 		if err := mount.Unmount(v.path); err != nil {
 			if mounted, mErr := mount.Mounted(v.path); mounted || mErr != nil {
-				return errors.Wrapf(err, "error while unmounting volume path '%s'", v.path)
+				return errors.Wrapf(systemError{err}, "error while unmounting volume path '%s'", v.path)
 			}
 		}
 		v.active.mounted = false
@@ -364,7 +387,7 @@ func (v *localVolume) unmount() error {
 func validateOpts(opts map[string]string) error {
 	for opt := range opts {
 		if !validOpts[opt] {
-			return validationError{fmt.Errorf("invalid option key: %q", opt)}
+			return validationError(fmt.Sprintf("invalid option key: %q", opt))
 		}
 	}
 	return nil

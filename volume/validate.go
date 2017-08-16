@@ -1,12 +1,12 @@
 package volume
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"runtime"
 
 	"github.com/docker/docker/api/types/mount"
+	"github.com/pkg/errors"
 )
 
 var errBindNotExist = errors.New("bind source path does not exist")
@@ -135,10 +135,10 @@ func (e *errMountConfig) Error() string {
 }
 
 func errExtraField(name string) error {
-	return fmt.Errorf("field %s must not be specified", name)
+	return errors.Errorf("field %s must not be specified", name)
 }
 func errMissingField(name string) error {
-	return fmt.Errorf("field %s must not be empty", name)
+	return errors.Errorf("field %s must not be empty", name)
 }
 
 func validateAbsolute(p string) error {
@@ -146,7 +146,7 @@ func validateAbsolute(p string) error {
 	if isAbsPath(p) {
 		return nil
 	}
-	return fmt.Errorf("invalid mount path: '%s' mount path must be absolute", p)
+	return errors.Errorf("invalid mount path: '%s' mount path must be absolute", p)
 }
 
 // ValidateTmpfsMountDestination validates the destination of tmpfs mount.
@@ -159,4 +159,18 @@ func ValidateTmpfsMountDestination(dest string) error {
 		return err
 	}
 	return validateAbsolute(dest)
+}
+
+type validationError struct {
+	err error
+}
+
+func (e validationError) Error() string {
+	return e.err.Error()
+}
+
+func (e validationError) InvalidParameter() {}
+
+func (e validationError) Cause() error {
+	return e.err
 }

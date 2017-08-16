@@ -6,11 +6,11 @@ import (
 	"time"
 
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/pkg/errors"
 )
 
 type conflictType int
@@ -67,7 +67,7 @@ func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.I
 
 	imgID, platform, err := daemon.GetImageIDAndPlatform(imageRef)
 	if err != nil {
-		return nil, daemon.imageNotExistToErrcode(err)
+		return nil, err
 	}
 
 	repoRefs := daemon.stores[platform].referenceStore.References(imgID.Digest())
@@ -84,8 +84,8 @@ func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.I
 				// this image would remain "dangling" and since
 				// we really want to avoid that the client must
 				// explicitly force its removal.
-				err := fmt.Errorf("conflict: unable to remove repository reference %q (must force) - container %s is using its referenced image %s", imageRef, stringid.TruncateID(container.ID), stringid.TruncateID(imgID.String()))
-				return nil, errors.NewRequestConflictError(err)
+				err := errors.Errorf("conflict: unable to remove repository reference %q (must force) - container %s is using its referenced image %s", imageRef, stringid.TruncateID(container.ID), stringid.TruncateID(imgID.String()))
+				return nil, stateConflictError{err}
 			}
 		}
 
@@ -284,6 +284,8 @@ func (idc *imageDeleteConflict) Error() string {
 
 	return fmt.Sprintf("conflict: unable to delete %s (%s) - %s", stringid.TruncateID(idc.imgID.String()), forceMsg, idc.message)
 }
+
+func (idc *imageDeleteConflict) Conflict() {}
 
 // imageDeleteHelper attempts to delete the given image from this daemon. If
 // the image has any hard delete conflicts (child images or running containers

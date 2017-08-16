@@ -80,7 +80,7 @@ func (s *DockerSuite) TestAPIDockerAPIVersion(c *check.C) {
 func (s *DockerSuite) TestAPIErrorJSON(c *check.C) {
 	httpResp, body, err := request.Post("/containers/create", request.JSONBody(struct{}{}))
 	c.Assert(err, checker.IsNil)
-	c.Assert(httpResp.StatusCode, checker.Equals, http.StatusInternalServerError)
+	c.Assert(httpResp.StatusCode, checker.Equals, http.StatusBadRequest)
 	c.Assert(httpResp.Header.Get("Content-Type"), checker.Equals, "application/json")
 	b, err := testutil.ReadBody(body)
 	c.Assert(err, checker.IsNil)
@@ -93,7 +93,7 @@ func (s *DockerSuite) TestAPIErrorPlainText(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	httpResp, body, err := request.Post("/v1.23/containers/create", request.JSONBody(struct{}{}))
 	c.Assert(err, checker.IsNil)
-	c.Assert(httpResp.StatusCode, checker.Equals, http.StatusInternalServerError)
+	c.Assert(httpResp.StatusCode, checker.Equals, http.StatusBadRequest)
 	c.Assert(httpResp.Header.Get("Content-Type"), checker.Contains, "text/plain")
 	b, err := testutil.ReadBody(body)
 	c.Assert(err, checker.IsNil)

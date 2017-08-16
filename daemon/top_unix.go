@@ -130,7 +130,7 @@ func (daemon *Daemon) ContainerTop(name string, psArgs string) (*container.Conta
 	}
 
 	if !container.IsRunning() {
-		return nil, errNotRunning{container.ID}
+		return nil, errNotRunning(container.ID)
 	}
 
 	if container.IsRestarting() {

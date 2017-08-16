@@ -1,7 +1,6 @@
 package daemon
 
 import (
-	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -13,6 +12,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/volume"
 	"github.com/docker/go-connections/nat"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -265,7 +265,7 @@ func (daemon *Daemon) foldFilter(view container.View, config *types.ContainerLis
 
 	err = psFilters.WalkValues("status", func(value string) error {
 		if !container.IsValidStateString(value) {
-			return fmt.Errorf("Unrecognised filter value for status: %s", value)
+			return invalidFilter{"status", value}
 		}
 
 		config.All = true
@@ -284,13 +284,13 @@ func (daemon *Daemon) foldFilter(view container.View, config *types.ContainerLis
 			taskFilter = true
 			isTask = false
 		} else {
-			return nil, fmt.Errorf("Invalid filter 'is-task=%s'", psFilters.Get("is-task"))
+			return nil, invalidFilter{"is-task", psFilters.Get("is-task")}
 		}
 	}
 
 	err = psFilters.WalkValues("health", func(value string) error {
 		if !container.IsValidHealthString(value) {
-			return fmt.Errorf("Unrecognised filter value for health: %s", value)
+			return validationError{errors.Errorf("Unrecognised filter value for health: %s", value)}
 		}
 
 		return nil
@@ -567,7 +567,7 @@ func (daemon *Daemon) refreshImage(s *container.Snapshot, ctx *listContext) (*ty
 	image := s.Image // keep the original ref if still valid (hasn't changed)
 	if image != s.ImageID {
 		id, _, err := daemon.GetImageIDAndPlatform(image)
-		if _, isDNE := err.(ErrImageDoesNotExist); err != nil && !isDNE {
+		if _, isDNE := err.(errImageDoesNotExist); err != nil && !isDNE {
 			return nil, err
 		}
 		if err != nil || id.String() != s.ImageID {
@@ -653,7 +653,7 @@ func (daemon *Daemon) filterVolumes(vols []volume.Volume, filter filters.Args) (
 		if filter.ExactMatch("dangling", "true") || filter.ExactMatch("dangling", "1") {
 			danglingOnly = true
 		} else if !filter.ExactMatch("dangling", "false") && !filter.ExactMatch("dangling", "0") {
-			return nil, fmt.Errorf("Invalid filter 'dangling=%s'", filter.Get("dangling"))
+			return nil, invalidFilter{"dangling", filter.Get("dangling")}
 		}
 		retVols = daemon.volumes.FilterByUsed(retVols, !danglingOnly)
 	}

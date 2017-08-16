@@ -451,7 +451,7 @@ func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscription
 			}
 		}
 	}
-	msgs, err := c.backend.ContainerLogs(ctx, c.container.name(), apiOptions)
+	msgs, _, err := c.backend.ContainerLogs(ctx, c.container.name(), apiOptions)
 	if err != nil {
 		return nil, err
 	}

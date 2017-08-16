@@ -2,7 +2,6 @@ package distribution
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -30,6 +29,7 @@ import (
 	refstore "github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
@@ -368,7 +368,7 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 			if configClass == "" {
 				configClass = "unknown"
 			}
-			return false, fmt.Errorf("Encountered remote %q(%s) when fetching", m.Manifest.Config.MediaType, configClass)
+			return false, invalidManifestClassError{m.Manifest.Config.MediaType, configClass}
 		}
 	}
 
@@ -404,7 +404,7 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 			return false, err
 		}
 	default:
-		return false, errors.New("unsupported manifest format")
+		return false, invalidManifestFormatError{}
 	}
 
 	progress.Message(p.config.ProgressOutput, "", "Digest: "+manifestDigest.String())

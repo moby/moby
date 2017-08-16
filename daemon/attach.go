@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/container/stream"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/pkg/term"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -22,7 +22,7 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, c *backend.ContainerA
 	if c.DetachKeys != "" {
 		keys, err = term.ToBytes(c.DetachKeys)
 		if err != nil {
-			return fmt.Errorf("Invalid detach keys (%s) provided", c.DetachKeys)
+			return validationError{errors.Errorf("Invalid detach keys (%s) provided", c.DetachKeys)}
 		}
 	}
 
@@ -32,11 +32,11 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, c *backend.ContainerA
 	}
 	if container.IsPaused() {
 		err := fmt.Errorf("Container %s is paused, unpause the container before attach.", prefixOrName)
-		return errors.NewRequestConflictError(err)
+		return stateConflictError{err}
 	}
 	if container.IsRestarting() {
 		err := fmt.Errorf("Container %s is restarting, wait until the container is running.", prefixOrName)
-		return errors.NewRequestConflictError(err)
+		return stateConflictError{err}
 	}
 
 	cfg := stream.AttachConfig{
@@ -119,7 +119,7 @@ func (daemon *Daemon) containerAttach(c *container.Container, cfg *stream.Attach
 		}
 		cLog, ok := logDriver.(logger.LogReader)
 		if !ok {
-			return logger.ErrReadLogsNotSupported
+			return logger.ErrReadLogsNotSupported{}
 		}
 		logs := cLog.ReadLogs(logger.ReadConfig{Tail: -1})
 		defer logs.Close()

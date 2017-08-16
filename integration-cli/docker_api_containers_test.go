@@ -508,7 +508,7 @@ func (s *DockerSuite) TestContainerAPIBadPort(c *check.C) {
 
 	status, body, err := request.SockRequest("POST", "/containers/create", config, daemonHost())
 	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusInternalServerError)
+	c.Assert(status, checker.Equals, http.StatusBadRequest)
 	c.Assert(getErrorMessage(c, body), checker.Equals, `invalid port specification: "aa80"`, check.Commentf("Incorrect error msg: %s", body))
 }
 
@@ -537,7 +537,7 @@ func (s *DockerSuite) TestContainerAPICreateEmptyConfig(c *check.C) {
 
 	status, body, err := request.SockRequest("POST", "/containers/create", config, daemonHost())
 	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusInternalServerError)
+	c.Assert(status, checker.Equals, http.StatusBadRequest)
 
 	expected := "Config cannot be empty in order to create a container"
 	c.Assert(getErrorMessage(c, body), checker.Equals, expected)
@@ -673,13 +673,13 @@ func (s *DockerSuite) TestContainerAPIVerifyHeader(c *check.C) {
 	// Try with no content-type
 	res, body, err := create("")
 	c.Assert(err, checker.IsNil)
-	c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
+	c.Assert(res.StatusCode, checker.Equals, http.StatusBadRequest)
 	body.Close()
 
 	// Try with wrong content-type
 	res, body, err = create("application/xml")
 	c.Assert(err, checker.IsNil)
-	c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
+	c.Assert(res.StatusCode, checker.Equals, http.StatusBadRequest)
 	body.Close()
 
 	// now application/json
@@ -705,7 +705,7 @@ func (s *DockerSuite) TestContainerAPIInvalidPortSyntax(c *check.C) {
 
 	res, body, err := request.Post("/containers/create", request.RawString(config), request.JSON)
 	c.Assert(err, checker.IsNil)
-	c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
+	c.Assert(res.StatusCode, checker.Equals, http.StatusBadRequest)
 
 	b, err := testutil.ReadBody(body)
 	c.Assert(err, checker.IsNil)
@@ -725,7 +725,7 @@ func (s *DockerSuite) TestContainerAPIRestartPolicyInvalidPolicyName(c *check.C)
 
 	res, body, err := request.Post("/containers/create", request.RawString(config), request.JSON)
 	c.Assert(err, checker.IsNil)
-	c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
+	c.Assert(res.StatusCode, checker.Equals, http.StatusBadRequest)
 
 	b, err := testutil.ReadBody(body)
 	c.Assert(err, checker.IsNil)
@@ -745,7 +745,7 @@ func (s *DockerSuite) TestContainerAPIRestartPolicyRetryMismatch(c *check.C) {
 
 	res, body, err := request.Post("/containers/create", request.RawString(config), request.JSON)
 	c.Assert(err, checker.IsNil)
-	c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
+	c.Assert(res.StatusCode, checker.Equals, http.StatusBadRequest)
 
 	b, err := testutil.ReadBody(body)
 	c.Assert(err, checker.IsNil)
@@ -765,7 +765,7 @@ func (s *DockerSuite) TestContainerAPIRestartPolicyNegativeRetryCount(c *check.C
 
 	res, body, err := request.Post("/containers/create", request.RawString(config), request.JSON)
 	c.Assert(err, checker.IsNil)
-	c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
+	c.Assert(res.StatusCode, checker.Equals, http.StatusBadRequest)
 
 	b, err := testutil.ReadBody(body)
 	c.Assert(err, checker.IsNil)
@@ -850,7 +850,7 @@ func (s *DockerSuite) TestCreateWithTooLowMemoryLimit(c *check.C) {
 	b, err2 := testutil.ReadBody(body)
 	c.Assert(err2, checker.IsNil)
 
-	c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
+	c.Assert(res.StatusCode, checker.Equals, http.StatusBadRequest)
 	c.Assert(string(b), checker.Contains, "Minimum memory limit allowed is 4MB")
 }
 
@@ -1005,7 +1005,7 @@ func (s *DockerSuite) TestContainerAPICopyPre124(c *check.C) {
 	c.Assert(found, checker.True)
 }
 
-func (s *DockerSuite) TestContainerAPICopyResourcePathEmptyPr124(c *check.C) {
+func (s *DockerSuite) TestContainerAPICopyResourcePathEmptyPre124(c *check.C) {
 	testRequires(c, DaemonIsLinux) // Windows only supports 1.25 or later
 	name := "test-container-api-copy-resource-empty"
 	dockerCmd(c, "run", "--name", name, "busybox", "touch", "/test.txt")
@@ -1016,7 +1016,7 @@ func (s *DockerSuite) TestContainerAPICopyResourcePathEmptyPr124(c *check.C) {
 
 	status, body, err := request.SockRequest("POST", "/v1.23/containers/"+name+"/copy", postData, daemonHost())
 	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusInternalServerError)
+	c.Assert(status, checker.Equals, http.StatusBadRequest)
 	c.Assert(string(body), checker.Matches, "Path cannot be empty\n")
 }
 
@@ -1031,7 +1031,7 @@ func (s *DockerSuite) TestContainerAPICopyResourcePathNotFoundPre124(c *check.C)
 
 	status, body, err := request.SockRequest("POST", "/v1.23/containers/"+name+"/copy", postData, daemonHost())
 	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusInternalServerError)
+	c.Assert(status, checker.Equals, http.StatusNotFound)
 	c.Assert(string(body), checker.Matches, "Could not find the file /notexist in container "+name+"\n")
 }
 
@@ -1301,7 +1301,7 @@ func (s *DockerSuite) TestPostContainersCreateWithWrongCpusetValues(c *check.C) 
 	name := "wrong-cpuset-cpus"
 	status, body, err := request.SockRequest("POST", "/containers/create?name="+name, c1, daemonHost())
 	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusInternalServerError)
+	c.Assert(status, checker.Equals, http.StatusBadRequest)
 	expected := "Invalid value 1-42,, for cpuset cpus"
 	c.Assert(getErrorMessage(c, body), checker.Equals, expected)
 
@@ -1312,7 +1312,7 @@ func (s *DockerSuite) TestPostContainersCreateWithWrongCpusetValues(c *check.C) 
 	name = "wrong-cpuset-mems"
 	status, body, err = request.SockRequest("POST", "/containers/create?name="+name, c2, daemonHost())
 	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusInternalServerError)
+	c.Assert(status, checker.Equals, http.StatusBadRequest)
 	expected = "Invalid value 42-3,1-- for cpuset mems"
 	c.Assert(getErrorMessage(c, body), checker.Equals, expected)
 }
@@ -1327,7 +1327,7 @@ func (s *DockerSuite) TestPostContainersCreateShmSizeNegative(c *check.C) {
 
 	status, body, err := request.SockRequest("POST", "/containers/create", config, daemonHost())
 	c.Assert(err, check.IsNil)
-	c.Assert(status, check.Equals, http.StatusInternalServerError)
+	c.Assert(status, check.Equals, http.StatusBadRequest)
 	c.Assert(getErrorMessage(c, body), checker.Contains, "SHM size can not be less than 0")
 }
 
@@ -1463,7 +1463,7 @@ func (s *DockerSuite) TestPostContainersCreateWithOomScoreAdjInvalidRange(c *che
 	name := "oomscoreadj-over"
 	status, b, err := request.SockRequest("POST", "/containers/create?name="+name, config, daemonHost())
 	c.Assert(err, check.IsNil)
-	c.Assert(status, check.Equals, http.StatusInternalServerError)
+	c.Assert(status, check.Equals, http.StatusBadRequest)
 
 	expected := "Invalid value 1001, range for oom score adj is [-1000, 1000]"
 	msg := getErrorMessage(c, b)
@@ -1478,7 +1478,7 @@ func (s *DockerSuite) TestPostContainersCreateWithOomScoreAdjInvalidRange(c *che
 	name = "oomscoreadj-low"
 	status, b, err = request.SockRequest("POST", "/containers/create?name="+name, config, daemonHost())
 	c.Assert(err, check.IsNil)
-	c.Assert(status, check.Equals, http.StatusInternalServerError)
+	c.Assert(status, check.Equals, http.StatusBadRequest)
 	expected = "Invalid value -1001, range for oom score adj is [-1000, 1000]"
 	msg = getErrorMessage(c, b)
 	if !strings.Contains(msg, expected) {
@@ -1488,10 +1488,9 @@ func (s *DockerSuite) TestPostContainersCreateWithOomScoreAdjInvalidRange(c *che
 
 // test case for #22210 where an empty container name caused panic.
 func (s *DockerSuite) TestContainerAPIDeleteWithEmptyName(c *check.C) {
-	status, out, err := request.SockRequest("DELETE", "/containers/", nil, daemonHost())
+	status, _, err := request.SockRequest("DELETE", "/containers/", nil, daemonHost())
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusBadRequest)
-	c.Assert(string(out), checker.Contains, "No container name or ID supplied")
 }
 
 func (s *DockerSuite) TestContainerAPIStatsWithNetworkDisabled(c *check.C) {
