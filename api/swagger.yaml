@@ -878,26 +878,223 @@ definitions:
         items:
           type: "string"
 
-  NetworkConfig:
-    description: "TODO: check is correct"
+  NetworkSettings:
+    description: "NetworkSettings exposes the network settings in the API"
     type: "object"
     properties:
       Bridge:
+        description: Name of the network'a bridge (for example, `docker0`).
         type: "string"
-      Gateway:
+        example: "docker0"
+      SandboxID:
+        description: SandboxID uniquely represents a container's network stack.
         type: "string"
-      Address:
+        example: "9d12daf2c33f5959c8bf90aa513e4f65b561738661003029ec84830cd503a0c3"
+      HairpinMode:
+        description: |
+          Indicates if hairpin NAT should be enabled on the virtual interface.
+        type: "boolean"
+        example: false
+      LinkLocalIPv6Address:
+        description: IPv6 unicast address using the link-local prefix.
         type: "string"
-      IPPrefixLen:
+        example: "fe80::42:acff:fe11:1"
+      LinkLocalIPv6PrefixLen:
+        description: Prefix length of the IPv6 unicast address.
         type: "integer"
-      MacAddress:
-        type: "string"
-      PortMapping:
-        type: "string"
+        example: "64"
       Ports:
+        $ref: "#/definitions/PortMap"
+      SandboxKey:
+        description: SandboxKey identifies the sandbox
+        type: "string"
+        example: "/var/run/docker/netns/8ab54b426c38"
+
+      # TODO is SecondaryIPAddresses actually used?
+      SecondaryIPAddresses:
+        description: ""
         type: "array"
         items:
-          $ref: "#/definitions/Port"
+          $ref: "#/definitions/Address"
+        x-nullable: true
+
+      # TODO is SecondaryIPv6Addresses actually used?
+      SecondaryIPv6Addresses:
+        description: ""
+        type: "array"
+        items:
+          $ref: "#/definitions/Address"
+        x-nullable: true
+
+      # TODO properties below are part of DefaultNetworkSettings, which is
+      # marked as deprecated since Docker 1.9 and to be removed in Docker v17.12
+      EndpointID:
+        description: |
+          EndpointID uniquely represents a service endpoint in a Sandbox.
+
+          <p><br /></p>
+
+          > **Deprecated**: This field is only propagated when attached to the
+          > default "bridge" network. Use the information from the "bridge"
+          > network inside the `Networks` map instead, which contains the same
+          > information. This field was deprecated in Docker 1.9 and is scheduled
+          > to be removed in Docker 17.12.0
+        type: "string"
+        example: "b88f5b905aabf2893f3cbc4ee42d1ea7980bbc0a92e2c8922b1e1795298afb0b"
+      Gateway:
+        description: |
+          Gateway address for the default "bridge" network.
+
+          <p><br /></p>
+
+          > **Deprecated**: This field is only propagated when attached to the
+          > default "bridge" network. Use the information from the "bridge"
+          > network inside the `Networks` map instead, which contains the same
+          > information. This field was deprecated in Docker 1.9 and is scheduled
+          > to be removed in Docker 17.12.0
+        type: "string"
+        example: "172.17.0.1"
+      GlobalIPv6Address:
+        description: |
+          Global IPv6 address for the default "bridge" network.
+
+          <p><br /></p>
+
+          > **Deprecated**: This field is only propagated when attached to the
+          > default "bridge" network. Use the information from the "bridge"
+          > network inside the `Networks` map instead, which contains the same
+          > information. This field was deprecated in Docker 1.9 and is scheduled
+          > to be removed in Docker 17.12.0
+        type: "string"
+        example: "2001:db8::5689"
+      GlobalIPv6PrefixLen:
+        description: |
+          Mask length of the global IPv6 address.
+
+          <p><br /></p>
+
+          > **Deprecated**: This field is only propagated when attached to the
+          > default "bridge" network. Use the information from the "bridge"
+          > network inside the `Networks` map instead, which contains the same
+          > information. This field was deprecated in Docker 1.9 and is scheduled
+          > to be removed in Docker 17.12.0
+        type: "integer"
+        example: 64
+      IPAddress:
+        description: |
+          IPv4 address for the default "bridge" network.
+
+          <p><br /></p>
+
+          > **Deprecated**: This field is only propagated when attached to the
+          > default "bridge" network. Use the information from the "bridge"
+          > network inside the `Networks` map instead, which contains the same
+          > information. This field was deprecated in Docker 1.9 and is scheduled
+          > to be removed in Docker 17.12.0
+        type: "string"
+        example: "172.17.0.4"
+      IPPrefixLen:
+        description: |
+          Mask length of the IPv4 address.
+
+          <p><br /></p>
+
+          > **Deprecated**: This field is only propagated when attached to the
+          > default "bridge" network. Use the information from the "bridge"
+          > network inside the `Networks` map instead, which contains the same
+          > information. This field was deprecated in Docker 1.9 and is scheduled
+          > to be removed in Docker 17.12.0
+        type: "integer"
+        example: 16
+      IPv6Gateway:
+        description: |
+          IPv6 gateway address for this network.
+
+          <p><br /></p>
+
+          > **Deprecated**: This field is only propagated when attached to the
+          > default "bridge" network. Use the information from the "bridge"
+          > network inside the `Networks` map instead, which contains the same
+          > information. This field was deprecated in Docker 1.9 and is scheduled
+          > to be removed in Docker 17.12.0
+        type: "string"
+        example: "2001:db8:2::100"
+      MacAddress:
+        description: |
+          MAC address for the container on the default "bridge" network.
+
+          <p><br /></p>
+
+          > **Deprecated**: This field is only propagated when attached to the
+          > default "bridge" network. Use the information from the "bridge"
+          > network inside the `Networks` map instead, which contains the same
+          > information. This field was deprecated in Docker 1.9 and is scheduled
+          > to be removed in Docker 17.12.0
+        type: "string"
+        example: "02:42:ac:11:00:04"
+      Networks:
+        description: |
+          Information about all networks that the container is connected to.
+        type: "object"
+        additionalProperties:
+          $ref: "#/definitions/EndpointSettings"
+
+  Address:
+    description: Address represents an IPv4 or IPv6 IP address.
+    type: "object"
+    properties:
+      Addr:
+        description: IP address.
+        type: "string"
+      PrefixLen:
+        description: Mask length of the IP address.
+        type: "integer"
+
+  PortMap:
+    description: |
+      PortMap describes the mapping of container ports to host ports, using the
+      container's port-number and protocol as key in the format `<port>/<protocol>`,
+      for example, `80/udp`.
+
+      If a container's port is mapped for both `tcp` and `udp`, two separate
+      entries are added to the mapping table.
+    type: "object"
+    additionalProperties:
+      type: "array"
+      items:
+        $ref: "#/definitions/PortBinding"
+    example:
+      "443/tcp":
+        - HostIp: "127.0.0.1"
+          HostPort: "4443"
+      "80/tcp":
+        - HostIp: "0.0.0.0"
+          HostPort: "80"
+        - HostIp: "0.0.0.0"
+          HostPort: "8080"
+      "80/udp":
+        - HostIp: "0.0.0.0"
+          HostPort: "80"
+      "53/udp":
+        - HostIp: "0.0.0.0"
+          HostPort: "53"
+      "2377/tcp": null
+
+  PortBinding:
+    description: |
+      PortBinding represents a binding between a host IP address and a host
+      port.
+    type: "object"
+    x-nullable: true
+    properties:
+      HostIp:
+        description: "Host IP address that the container's port is mapped to."
+        type: "string"
+        example: "127.0.0.1"
+      HostPort:
+        description: "Host port number that the container's port is mapped to."
+        type: "string"
+        example: "4443"
 
   GraphDriverData:
     description: "Information about a container's graph driver."
@@ -1356,45 +1553,102 @@ definitions:
     description: "Configuration for a network endpoint."
     type: "object"
     properties:
+      # Configurations
       IPAMConfig:
-        description: "IPAM configurations for the endpoint"
-        type: "object"
-        properties:
-          IPv4Address:
-            type: "string"
-          IPv6Address:
-            type: "string"
-          LinkLocalIPs:
-            type: "array"
-            items:
-              type: "string"
+        $ref: "#/definitions/EndpointIPAMConfig"
       Links:
         type: "array"
         items:
           type: "string"
+        example:
+          - "container_1"
+          - "container_2"
       Aliases:
         type: "array"
         items:
           type: "string"
+        example:
+          - "server_x"
+          - "server_y"
+
+      # Operational data
       NetworkID:
+        description: |
+          Unique ID of the network.
         type: "string"
+        example: "08754567f1f40222263eab4102e1c733ae697e8e354aa9cd6e18d7402835292a"
       EndpointID:
+        description: |
+          Unique ID for the service endpoint in a Sandbox.
         type: "string"
+        example: "b88f5b905aabf2893f3cbc4ee42d1ea7980bbc0a92e2c8922b1e1795298afb0b"
       Gateway:
+        description: |
+          Gateway address for this network.
         type: "string"
+        example: "172.17.0.1"
       IPAddress:
+        description: |
+          IPv4 address.
         type: "string"
+        example: "172.17.0.4"
       IPPrefixLen:
+        description: |
+          Mask length of the IPv4 address.
         type: "integer"
+        example: 16
       IPv6Gateway:
+        description: |
+          IPv6 gateway address.
         type: "string"
+        example: "2001:db8:2::100"
       GlobalIPv6Address:
+        description: |
+          Global IPv6 address.
         type: "string"
+        example: "2001:db8::5689"
       GlobalIPv6PrefixLen:
+        description: |
+          Mask length of the global IPv6 address.
         type: "integer"
         format: "int64"
+        example: 64
       MacAddress:
+        description: |
+          MAC address for the endpoint on this network.
         type: "string"
+        example: "02:42:ac:11:00:04"
+      DriverOpts:
+        description: |
+          DriverOpts is a mapping of driver options and values. These options
+          are passed directly to the driver and are driver specific.
+        type: "object"
+        x-nullable: true
+        additionalProperties:
+          type: "string"
+        example:
+          com.example.some-label: "some-value"
+          com.example.some-other-label: "some-other-value"
+
+  EndpointIPAMConfig:
+    description: |
+      EndpointIPAMConfig represents an endpoint's IPAM configuration.
+    type: "object"
+    x-nullable: true
+    properties:
+      IPv4Address:
+        type: "string"
+        example: "172.20.30.33"
+      IPv6Address:
+        type: "string"
+        example: "2001:db8:abcd::3033"
+      LinkLocalIPs:
+        type: "array"
+        items:
+          type: "string"
+        example:
+          - "169.254.34.68"
+          - "fe80::3468"
 
   PluginMount:
     type: "object"
@@ -3445,7 +3699,7 @@ paths:
               Config:
                 $ref: "#/definitions/ContainerConfig"
               NetworkSettings:
-                $ref: "#/definitions/NetworkConfig"
+                $ref: "#/definitions/NetworkSettings"
           examples:
             application/json:
               AppArmorProfile: ""
@@ -3544,8 +3798,6 @@ paths:
                 LinkLocalIPv6Address: ""
                 LinkLocalIPv6PrefixLen: 0
                 SandboxKey: ""
-                SecondaryIPAddresses: null
-                SecondaryIPv6Addresses: null
                 EndpointID: ""
                 Gateway: ""
                 GlobalIPv6Address: ""
