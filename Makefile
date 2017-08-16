@@ -160,7 +160,7 @@ test-integration: build ## run the integration tests
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary test-integration
 
 test-unit: build ## run the unit tests
-	$(DOCKER_RUN_DOCKER) hack/make.sh test-unit
+	$(DOCKER_RUN_DOCKER) hack/test/unit
 
 tgz: build ## build the archives (.zip on windows and .tgz\notherwise) containing the binaries
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary binary cross tgz
