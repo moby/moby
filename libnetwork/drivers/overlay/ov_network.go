@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -81,6 +82,10 @@ func setDefaultVlan() {
 		logrus.Error("insufficient number of arguments")
 		os.Exit(1)
 	}
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
 	nsPath := os.Args[1]
 	ns, err := netns.GetFromPath(nsPath)
 	if err != nil {
