@@ -154,6 +154,10 @@ func DefaultLinuxSpec() specs.Spec {
 			{Type: "pid"},
 			{Type: "ipc"},
 		},
+		// Always use MS_PRIVATE for rootfs propagation to make sure that we
+		// don't leak any MS_UNBINDABLE mounts into the container's namespace
+		// while its resolving volume bindmounts.
+		RootfsPropagation: "private",
 		// Devices implicitly contains the following devices:
 		// null, zero, full, random, urandom, tty, console, and ptmx.
 		// ptmx is a bind-mount or symlink of the container's ptmx.
