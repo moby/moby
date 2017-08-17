@@ -47,11 +47,17 @@ install_proxy() {
 }
 
 install_dockercli() {
-	echo "Install docker/cli version $DOCKERCLI_COMMIT"
-	git clone "$DOCKERCLI_REPO" "$GOPATH/src/github.com/docker/cli"
-	cd "$GOPATH/src/github.com/docker/cli"
-	git checkout -q "$DOCKERCLI_COMMIT"
-	go build -o /usr/local/bin/docker github.com/docker/cli/cmd/docker
+	DOCKERCLI_CHANNEL=${DOCKERCLI_CHANNEL:-edge}
+	DOCKERCLI_VERSION=${DOCKERCLI_VERSION:-17.06.0-ce}
+	echo "Install docker/cli version $DOCKERCLI_VERSION from $DOCKERCLI_CHANNEL"
+
+	arch=$(uname -m)
+	echo "Docker CLI ARCH $arch"
+	url=https://download.docker.com/linux/static
+	curl -Ls $url/$DOCKERCLI_CHANNEL/$arch/docker-$DOCKERCLI_VERSION.tgz | \
+	tar -xz docker/docker
+	mv docker/docker /usr/local/bin/
+	rmdir docker
 }
 
 install_gometalinter() {
