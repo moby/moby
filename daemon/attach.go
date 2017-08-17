@@ -31,11 +31,11 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, c *backend.ContainerA
 		return err
 	}
 	if container.IsPaused() {
-		err := fmt.Errorf("Container %s is paused, unpause the container before attach.", prefixOrName)
+		err := fmt.Errorf("container %s is paused, unpause the container before attach", prefixOrName)
 		return stateConflictError{err}
 	}
 	if container.IsRestarting() {
-		err := fmt.Errorf("Container %s is restarting, wait until the container is running.", prefixOrName)
+		err := fmt.Errorf("container %s is restarting, wait until the container is running", prefixOrName)
 		return stateConflictError{err}
 	}
 

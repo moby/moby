@@ -61,7 +61,7 @@ func (r *Result) Assert(t testingT, exp Expected) *Result {
 	}
 	_, file, line, ok := runtime.Caller(1)
 	if ok {
-		t.Fatalf("at %s:%d - %s", filepath.Base(file), line, err.Error())
+		t.Fatalf("at %s:%d - %s\n", filepath.Base(file), line, err.Error())
 	} else {
 		t.Fatalf("(no file/line info) - %s", err.Error())
 	}
@@ -108,7 +108,7 @@ func (r *Result) Compare(exp Expected) error {
 	if len(errors) == 0 {
 		return nil
 	}
-	return fmt.Errorf("%s\nFailures:\n%s\n", r, strings.Join(errors, "\n"))
+	return fmt.Errorf("%s\nFailures:\n%s", r, strings.Join(errors, "\n"))
 }
 
 func matchOutput(expected string, actual string) bool {
