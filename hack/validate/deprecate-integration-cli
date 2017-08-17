@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Check that no new tests are being added to integration-cli
+
+export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+source "${SCRIPTDIR}/.validate"
+
+new_tests=$(
+    validate_diff --diff-filter=ACMR --unified=0 -- 'integration-cli/*_cli_*.go' |
+    grep -E '^\+func (.*) Test' || true
+)
+
+if [ -z "$new_tests" ]; then
+	echo 'Congratulations!  No new tests added to integration-cli.'
+    exit
+fi
+
+echo "The following new tests were added to integration-cli:"
+echo
+echo "$new_tests"
+echo
+echo "integration-cli is deprecated. Please add an API integration test to"
+echo "./integration/COMPONENT/. See ./TESTING.md for more details."
+echo
+
+exit 1
