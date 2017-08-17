@@ -37,6 +37,7 @@ func deployStack(unusedCli *client.Client, stackName, composeFilePath string) er
 		{"docker", "stack", "deploy",
 			"--compose-file", composeFilePath,
 			"--with-registry-auth",
+			"--resolve-image", "never",
 			stackName},
 	})
 }
