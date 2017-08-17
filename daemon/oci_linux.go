@@ -533,7 +533,7 @@ func setMounts(daemon *Daemon, s *specs.Spec, c *container.Container, mounts []c
 	//  - /dev/shm, in case IpcMode is none.
 	// While at it, also
 	//  - set size for /dev/shm from shmsize.
-	var defaultMounts []specs.Mount
+	defaultMounts := s.Mounts[:0]
 	_, mountDev := userMounts["/dev"]
 	for _, m := range s.Mounts {
 		if _, ok := userMounts[m.Destination]; ok {
