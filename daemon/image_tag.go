@@ -28,7 +28,7 @@ func (daemon *Daemon) TagImage(imageName, repository, tag string) error {
 
 // TagImageWithReference adds the given reference to the image ID provided.
 func (daemon *Daemon) TagImageWithReference(imageID image.ID, platform string, newTag reference.Named) error {
-	if err := daemon.stores[platform].referenceStore.AddTag(newTag, imageID.Digest(), true); err != nil {
+	if err := daemon.referenceStore.AddTag(newTag, imageID.Digest(), true); err != nil {
 		return err
 	}
 

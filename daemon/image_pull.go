@@ -74,7 +74,7 @@ func (daemon *Daemon) pullImageWithReference(ctx context.Context, ref reference.
 			ImageEventLogger: daemon.LogImageEvent,
 			MetadataStore:    daemon.stores[platform].distributionMetadataStore,
 			ImageStore:       distribution.NewImageConfigStoreFromStore(daemon.stores[platform].imageStore),
-			ReferenceStore:   daemon.stores[platform].referenceStore,
+			ReferenceStore:   daemon.referenceStore,
 		},
 		DownloadManager: daemon.downloadManager,
 		Schema2Types:    distribution.ImageTypes,

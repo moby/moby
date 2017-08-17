@@ -75,7 +75,6 @@ type daemonStore struct {
 	imageStore                image.Store
 	layerStore                layer.Store
 	distributionMetadataStore dmetadata.Store
-	referenceStore            refstore.Store
 }
 
 // Daemon holds information about the Docker daemon.
@@ -103,7 +102,8 @@ type Daemon struct {
 	shutdown              bool
 	idMappings            *idtools.IDMappings
 	stores                map[string]daemonStore // By container target platform
-	PluginStore           *plugin.Store          // todo: remove
+	referenceStore        refstore.Store
+	PluginStore           *plugin.Store // todo: remove
 	pluginManager         *plugin.Manager
 	linkIndex             *linkIndex
 	containerd            libcontainerd.Client
@@ -691,7 +691,6 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	d.downloadManager = xfer.NewLayerDownloadManager(lsMap, *config.MaxConcurrentDownloads)
 	logrus.Debugf("Max Concurrent Uploads: %d", *config.MaxConcurrentUploads)
 	d.uploadManager = xfer.NewLayerUploadManager(*config.MaxConcurrentUploads)
-
 	for platform, ds := range d.stores {
 		imageRoot := filepath.Join(config.Root, "image", ds.graphDriver)
 		ifs, err := image.NewFSStoreBackend(filepath.Join(imageRoot, "imagedb"))
@@ -728,18 +727,30 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 
 	eventsService := events.New()
 
+	// We have a single tag/reference store for the daemon globally. However, it's
+	// stored under the graphdriver. On host platforms which only support a single
+	// container OS, but multiple selectable graphdrivers, this means depending on which
+	// graphdriver is chosen, the global reference store is under there. For
+	// platforms which support multiple container operating systems, this is slightly
+	// more problematic as where does the global ref store get located? Fortunately,
+	// for Windows, which is currently the only daemon supporting multiple container
+	// operating systems, the list of graphdrivers available isn't user configurable.
+	// For backwards compatibility, we just put it under the windowsfilter
+	// directory regardless.
+	refStoreLocation := filepath.Join(d.stores[runtime.GOOS].imageRoot, `repositories.json`)
+	rs, err := refstore.NewReferenceStore(refStoreLocation)
+	if err != nil {
+		return nil, fmt.Errorf("Couldn't create reference store repository: %s", err)
+	}
+	d.referenceStore = rs
+
 	for platform, ds := range d.stores {
 		dms, err := dmetadata.NewFSMetadataStore(filepath.Join(ds.imageRoot, "distribution"), platform)
 		if err != nil {
 			return nil, err
 		}
 
-		rs, err := refstore.NewReferenceStore(filepath.Join(ds.imageRoot, "repositories.json"), platform)
-		if err != nil {
-			return nil, fmt.Errorf("Couldn't create Tag store repositories: %s", err)
-		}
 		ds.distributionMetadataStore = dms
-		ds.referenceStore = rs
 		d.stores[platform] = ds
 
 		// No content-addressability migration on Windows as it never supported pre-CA

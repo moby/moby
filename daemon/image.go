@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"fmt"
+	"runtime"
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/image"
@@ -45,10 +46,17 @@ func (daemon *Daemon) GetImageIDAndPlatform(refOrID string) (image.ID, string, e
 		return "", "", errImageDoesNotExist{ref}
 	}
 
-	for platform := range daemon.stores {
-		if id, err := daemon.stores[platform].referenceStore.Get(namedRef); err == nil {
-			return image.IDFromDigest(id), platform, nil
+	if digest, err := daemon.referenceStore.Get(namedRef); err == nil {
+		// Search the image stores to get the platform, defaulting to host OS.
+		imagePlatform := runtime.GOOS
+		id := image.IDFromDigest(digest)
+		for platform := range daemon.stores {
+			if img, err := daemon.stores[platform].imageStore.Get(id); err == nil {
+				imagePlatform = img.Platform()
+				break
+			}
 		}
+		return id, imagePlatform, nil
 	}
 
 	// deprecated: repo:shortid https://github.com/docker/docker/pull/799
@@ -56,7 +64,7 @@ func (daemon *Daemon) GetImageIDAndPlatform(refOrID string) (image.ID, string, e
 		if tag := tagged.Tag(); stringid.IsShortID(stringid.TruncateID(tag)) {
 			for platform := range daemon.stores {
 				if id, err := daemon.stores[platform].imageStore.Search(tag); err == nil {
-					for _, storeRef := range daemon.stores[platform].referenceStore.References(id.Digest()) {
+					for _, storeRef := range daemon.referenceStore.References(id.Digest()) {
 						if storeRef.Name() == namedRef.Name() {
 							return id, platform, nil
 						}

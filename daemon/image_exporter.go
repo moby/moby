@@ -19,7 +19,7 @@ func (daemon *Daemon) ExportImage(names []string, outStream io.Writer) error {
 	if system.LCOWSupported() {
 		platform = "linux"
 	}
-	imageExporter := tarexport.NewTarExporter(daemon.stores[platform].imageStore, daemon.stores[platform].layerStore, daemon.stores[platform].referenceStore, daemon)
+	imageExporter := tarexport.NewTarExporter(daemon.stores[platform].imageStore, daemon.stores[platform].layerStore, daemon.referenceStore, daemon)
 	return imageExporter.Save(names, outStream)
 }
 
@@ -32,6 +32,6 @@ func (daemon *Daemon) LoadImage(inTar io.ReadCloser, outStream io.Writer, quiet 
 	if system.LCOWSupported() {
 		platform = "linux"
 	}
-	imageExporter := tarexport.NewTarExporter(daemon.stores[platform].imageStore, daemon.stores[platform].layerStore, daemon.stores[platform].referenceStore, daemon)
+	imageExporter := tarexport.NewTarExporter(daemon.stores[platform].imageStore, daemon.stores[platform].layerStore, daemon.referenceStore, daemon)
 	return imageExporter.Load(inTar, outStream, quiet)
 }
