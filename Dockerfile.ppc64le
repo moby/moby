@@ -94,17 +94,6 @@ RUN curl -fsSL "https://golang.org/dl/go${GO_VERSION}.linux-ppc64le.tar.gz" \
 ENV PATH /go/bin:/usr/local/go/bin:$PATH
 ENV GOPATH /go
 
-# Dependency for golint
-ENV GO_TOOLS_COMMIT 823804e1ae08dbb14eb807afc7db9993bc9e3cc3
-RUN git clone https://github.com/golang/tools.git /go/src/golang.org/x/tools \
-	&& (cd /go/src/golang.org/x/tools && git checkout -q $GO_TOOLS_COMMIT)
-
-# Grab Go's lint tool
-ENV GO_LINT_COMMIT 32a87160691b3c96046c0c678fe57c5bef761456
-RUN git clone https://github.com/golang/lint.git /go/src/github.com/golang/lint \
-	&& (cd /go/src/github.com/golang/lint && git checkout -q $GO_LINT_COMMIT) \
-	&& go install -v github.com/golang/lint/golint
-
 # Install two versions of the registry. The first is an older version that
 # only supports schema1 manifests. The second is a newer version that supports
 # both. This allows integration-cli tests to cover push/pull with both schema1

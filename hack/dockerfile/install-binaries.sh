@@ -54,6 +54,19 @@ install_dockercli() {
 	go build -o /usr/local/bin/docker github.com/docker/cli/cmd/docker
 }
 
+install_gometalinter() {
+	echo "Installing gometalinter version $GOMETALINTER_COMMIT"
+	go get -d github.com/alecthomas/gometalinter
+	cd "$GOPATH/src/github.com/alecthomas/gometalinter"
+	git checkout -q "$GOMETALINTER_COMMIT"
+	go build -o /usr/local/bin/gometalinter github.com/alecthomas/gometalinter
+	(
+		export GOBIN=/usr/local/bin
+		export GOPATH="$PWD/_linters/"
+		go install github.com/golang/lint/golint
+	)
+}
+
 for prog in "$@"
 do
 	case $prog in
@@ -78,6 +91,10 @@ do
 
 		containerd-dynamic)
 			install_containerd
+			;;
+
+		gometalinter)
+			install_gometalinter
 			;;
 
 		tini)
@@ -114,7 +131,7 @@ do
 			;;
 
 		*)
-			echo echo "Usage: $0 [tomlv|runc|runc-dynamic|containerd|containerd-dynamic|tini|proxy|proxy-dynamic|vndr|dockercli]"
+			echo echo "Usage: $0 [tomlv|runc|runc-dynamic|containerd|containerd-dynamic|tini|proxy|proxy-dynamic|vndr|dockercli|gometalinter]"
 			exit 1
 
 	esac
