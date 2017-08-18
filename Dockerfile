@@ -51,6 +51,7 @@ RUN apt-get update && apt-get install -y \
 	less \
 	libapparmor-dev \
 	libcap-dev \
+	libdevmapper-dev \
 	libnl-3-dev \
 	libprotobuf-c0-dev \
 	libprotobuf-dev \
@@ -75,22 +76,6 @@ RUN apt-get update && apt-get install -y \
 	zip \
 	--no-install-recommends \
 	&& pip install awscli==1.10.15
-
-# Get lvm2 sources to build statically linked devmapper library
-ENV LVM2_VERSION 2.02.168
-RUN mkdir -p /usr/local/lvm2 \
-	&& curl -fsSL "https://mirrors.kernel.org/sourceware/lvm2/LVM2.${LVM2_VERSION}.tgz" \
-		| tar -xzC /usr/local/lvm2 --strip-components=1
-
-# Compile and install (only the needed library)
-RUN cd /usr/local/lvm2 \
-	&& ./configure \
-		--build="$(gcc -print-multiarch)" \
-		--enable-static_link \
-		--enable-pkgconfig \
-		--enable-udev_sync \
-	&& make -C include \
-	&& make -C libdm install_device-mapper
 
 # Install seccomp: the version shipped upstream is too old
 ENV SECCOMP_VERSION 2.3.2

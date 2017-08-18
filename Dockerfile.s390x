@@ -36,6 +36,7 @@ RUN apt-get update && apt-get install -y \
 	net-tools \
 	libapparmor-dev \
 	libcap-dev \
+	libdevmapper-dev \
 	libsystemd-dev \
 	libtool \
 	libudev-dev \
@@ -66,22 +67,6 @@ RUN set -x \
 		&& ldconfig \
 	) \
 	&& rm -rf "$SECCOMP_PATH"
-
-# Get lvm2 sources to build statically linked devmapper library
-ENV LVM2_VERSION 2.02.168
-RUN mkdir -p /usr/local/lvm2 \
-	&& curl -fsSL "https://mirrors.kernel.org/sourceware/lvm2/LVM2.${LVM2_VERSION}.tgz" \
-		| tar -xzC /usr/local/lvm2 --strip-components=1
-
-# Compile and install (only the needed library)
-RUN cd /usr/local/lvm2 \
-	&& ./configure \
-		--build="$(gcc -print-multiarch)" \
-		--enable-static_link \
-		--enable-pkgconfig \
-		--enable-udev_sync \
-	&& make -C include \
-	&& make -C libdm install_device-mapper
 
 # IMPORTANT: When updating this please note that stdlib archive/tar pkg is vendored
 ENV GO_VERSION 1.8.3
