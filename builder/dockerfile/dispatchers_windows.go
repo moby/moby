@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -15,7 +16,33 @@ var pattern = regexp.MustCompile(`^[a-zA-Z]:\.$`)
 
 // normaliseWorkdir normalises a user requested working directory in a
 // platform semantically consistent way.
-func normaliseWorkdir(current string, requested string) (string, error) {
+func normaliseWorkdir(platform string, current string, requested string) (string, error) {
+	if platform == "" {
+		platform = "windows"
+	}
+	if platform == "windows" {
+		return normaliseWorkdirWindows(current, requested)
+	}
+	return normaliseWorkdirUnix(current, requested)
+}
+
+// normaliseWorkdirUnix normalises a user requested working directory in a
+// platform semantically consistent way.
+func normaliseWorkdirUnix(current string, requested string) (string, error) {
+	if requested == "" {
+		return "", errors.New("cannot normalise nothing")
+	}
+	current = strings.Replace(current, string(os.PathSeparator), "/", -1)
+	requested = strings.Replace(requested, string(os.PathSeparator), "/", -1)
+	if !path.IsAbs(requested) {
+		return path.Join(`/`, current, requested), nil
+	}
+	return requested, nil
+}
+
+// normaliseWorkdirWindows normalises a user requested working directory in a
+// platform semantically consistent way.
+func normaliseWorkdirWindows(current string, requested string) (string, error) {
 	if requested == "" {
 		return "", errors.New("cannot normalise nothing")
 	}

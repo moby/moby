@@ -39,7 +39,17 @@ func (daemon *Daemon) containerCreate(params types.ContainerCreateConfig, manage
 		return containertypes.ContainerCreateCreatedBody{}, validationError{errors.New("Config cannot be empty in order to create a container")}
 	}
 
-	warnings, err := daemon.verifyContainerSettings(params.HostConfig, params.Config, false)
+	// TODO: @jhowardmsft LCOW support - at a later point, can remove the hard-coding
+	// to force the platform to be linux.
+	// Default the platform if not supplied
+	if params.Platform == "" {
+		params.Platform = runtime.GOOS
+	}
+	if system.LCOWSupported() {
+		params.Platform = "linux"
+	}
+
+	warnings, err := daemon.verifyContainerSettings(params.Platform, params.HostConfig, params.Config, false)
 	if err != nil {
 		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, validationError{err}
 	}
@@ -74,16 +84,6 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 		imgID     image.ID
 		err       error
 	)
-
-	// TODO: @jhowardmsft LCOW support - at a later point, can remove the hard-coding
-	// to force the platform to be linux.
-	// Default the platform if not supplied
-	if params.Platform == "" {
-		params.Platform = runtime.GOOS
-	}
-	if system.LCOWSupported() {
-		params.Platform = "linux"
-	}
 
 	if params.Config.Image != "" {
 		img, err = daemon.GetImage(params.Config.Image)

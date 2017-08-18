@@ -3,6 +3,7 @@
 package dockerfile
 
 import (
+	"runtime"
 	"testing"
 )
 
@@ -16,7 +17,7 @@ func TestNormaliseWorkdir(t *testing.T) {
 	}
 
 	for _, test := range testCases {
-		normalised, err := normaliseWorkdir(test.current, test.requested)
+		normalised, err := normaliseWorkdir(runtime.GOOS, test.current, test.requested)
 
 		if test.expectedError != "" && err == nil {
 			t.Fatalf("NormaliseWorkdir should return an error %s, got nil", test.expectedError)
