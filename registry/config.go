@@ -354,7 +354,7 @@ func ValidateIndexName(val string) (string, error) {
 		val = "docker.io"
 	}
 	if strings.HasPrefix(val, "-") || strings.HasSuffix(val, "-") {
-		return "", fmt.Errorf("Invalid index name (%s). Cannot begin or end with a hyphen.", val)
+		return "", fmt.Errorf("invalid index name (%s). Cannot begin or end with a hyphen", val)
 	}
 	return val, nil
 }

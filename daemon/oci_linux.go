@@ -438,7 +438,7 @@ func ensureShared(path string) error {
 	}
 
 	if !sharedMount {
-		return fmt.Errorf("Path %s is mounted on %s but it is not a shared mount.", path, sourceMount)
+		return fmt.Errorf("path %s is mounted on %s but it is not a shared mount", path, sourceMount)
 	}
 	return nil
 }
@@ -465,7 +465,7 @@ func ensureSharedOrSlave(path string) error {
 	}
 
 	if !sharedMount && !slaveMount {
-		return fmt.Errorf("Path %s is mounted on %s but it is not a shared or slave mount.", path, sourceMount)
+		return fmt.Errorf("path %s is mounted on %s but it is not a shared or slave mount", path, sourceMount)
 	}
 	return nil
 }

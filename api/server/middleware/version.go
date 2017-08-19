@@ -53,6 +53,7 @@ func (v VersionMiddleware) WrapHandler(handler func(ctx context.Context, w http.
 		w.Header().Set("Server", header)
 		w.Header().Set("API-Version", v.defaultVersion)
 		w.Header().Set("OSType", runtime.GOOS)
+		// nolint: golint
 		ctx = context.WithValue(ctx, "api-version", apiVersion)
 		return handler(ctx, w, r, vars)
 	}

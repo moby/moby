@@ -27,7 +27,7 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 		defer container.Unlock()
 
 		if container.Paused {
-			return stateConflictError{errors.New("Cannot start a paused container, try unpause instead.")}
+			return stateConflictError{errors.New("cannot start a paused container, try unpause instead")}
 		}
 
 		if container.Running {
@@ -35,7 +35,7 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 		}
 
 		if container.RemovalInProgress || container.Dead {
-			return stateConflictError{errors.New("Container is marked for removal and cannot be started.")}
+			return stateConflictError{errors.New("container is marked for removal and cannot be started")}
 		}
 		return nil
 	}
@@ -110,7 +110,7 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 	}
 
 	if container.RemovalInProgress || container.Dead {
-		return stateConflictError{errors.New("Container is marked for removal and cannot be started.")}
+		return stateConflictError{errors.New("container is marked for removal and cannot be started")}
 	}
 
 	// if we encounter an error during start we need to ensure that any other

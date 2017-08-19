@@ -203,7 +203,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		}
 		gzipCompressionLevel = int(gzipCompressionLevel64)
 		if gzipCompressionLevel < gzip.DefaultCompression || gzipCompressionLevel > gzip.BestCompression {
-			err := fmt.Errorf("Not supported level '%s' for %s (supported values between %d and %d).",
+			err := fmt.Errorf("not supported level '%s' for %s (supported values between %d and %d)",
 				gzipCompressionLevelStr, splunkGzipCompressionLevelKey, gzip.DefaultCompression, gzip.BestCompression)
 			return nil, err
 		}

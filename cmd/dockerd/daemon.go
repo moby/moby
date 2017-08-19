@@ -453,7 +453,7 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 		c, err := config.MergeDaemonConfigurations(conf, flags, opts.configFile)
 		if err != nil {
 			if flags.Changed("config-file") || !os.IsNotExist(err) {
-				return nil, fmt.Errorf("unable to configure the Docker daemon with file %s: %v\n", opts.configFile, err)
+				return nil, fmt.Errorf("unable to configure the Docker daemon with file %s: %v", opts.configFile, err)
 			}
 		}
 		// the merged configuration can be nil if the config file didn't exist.

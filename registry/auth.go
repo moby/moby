@@ -29,7 +29,7 @@ func loginV1(authConfig *types.AuthConfig, apiEndpoint APIEndpoint, userAgent st
 	logrus.Debugf("attempting v1 login to registry endpoint %s", serverAddress)
 
 	if serverAddress == "" {
-		return "", "", systemError{errors.New("Server Error: Server Address not set.")}
+		return "", "", systemError{errors.New("server Error: Server Address not set")}
 	}
 
 	req, err := http.NewRequest("GET", serverAddress+"users/", nil)
