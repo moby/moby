@@ -50,7 +50,6 @@ func DefaultProfile() *types.Seccomp {
 				"access",
 				"adjtimex",
 				"alarm",
-				"alarm",
 				"bind",
 				"brk",
 				"capget",
