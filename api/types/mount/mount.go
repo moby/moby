@@ -67,7 +67,7 @@ var Propagations = []Propagation{
 type Consistency string
 
 const (
-	// ConsistencyFull guarantees bind-mount-like consistency
+	// ConsistencyFull guarantees bind mount-like consistency
 	ConsistencyFull Consistency = "consistent"
 	// ConsistencyCached mounts can cache read data and FS structure
 	ConsistencyCached Consistency = "cached"

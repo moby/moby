@@ -132,8 +132,8 @@
 # Important notes:
 # ---------------
 #
-# Don't attempt to use a bind-mount to pass a local directory as the bundles target
-# directory. It does not work (golang attempts for follow a mapped folder incorrectly). 
+# Don't attempt to use a bind mount to pass a local directory as the bundles target
+# directory. It does not work (golang attempts for follow a mapped folder incorrectly).
 # Instead, use docker cp as per the example.
 #
 # go.zip is not removed from the image as it is used by the Windows CI servers

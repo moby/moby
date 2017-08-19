@@ -2284,7 +2284,7 @@ by another client (#15489)
 - Use mock for search tests.
 - Update to double-dash everywhere.
 - Move .dockerenv parsing to lxc driver.
-- Move all bind-mounts in the container inside the namespace.
+- Move all bind mounts in the container inside the namespace.
 - Don't use separate bind mount for container.
 - Always symlink /dev/ptmx for libcontainer.
 - Don't kill by pid for other drivers.
@@ -2719,7 +2719,7 @@ With the ongoing changes to the networking and execution subsystems of docker te
 + Implement `docker log -f` to stream logs
 + Add env variable to disable kernel version warning
 + Add -format to `docker inspect`
-+ Support bind-mount for files
++ Support bind mount for files
 - Fix bridge creation on RHEL
 - Fix image size calculation
 - Make sure iptables are called even if the bridge already exists

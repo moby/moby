@@ -2185,7 +2185,7 @@ func (s *DockerSuite) TestVolumesNoCopyData(c *check.C) {
 
 	tmpDir := testutil.RandomTmpDirPath("docker_test_bind_mount_copy_data", testEnv.DaemonPlatform())
 	if out, _, err := dockerCmdWithError("run", "-v", tmpDir+":/foo", "dataimage", "ls", "-lh", "/foo/bar"); err == nil || !strings.Contains(out, "No such file or directory") {
-		c.Fatalf("Data was copied on bind-mount but shouldn't be:\n%q", out)
+		c.Fatalf("Data was copied on bind mount but shouldn't be:\n%q", out)
 	}
 }
 
