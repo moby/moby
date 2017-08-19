@@ -4,17 +4,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"net/http/httptest"
 	"runtime"
 	"strconv"
 	"strings"
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/request"
 	"github.com/docker/docker/pkg/testutil"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
 )
 
@@ -58,23 +55,6 @@ func (s *DockerSuite) TestAPIClientVersionOldNotSupported(c *check.C) {
 	content, err := ioutil.ReadAll(body)
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.TrimSpace(string(content)), checker.Contains, expected)
-}
-
-func (s *DockerSuite) TestAPIDockerAPIVersion(c *check.C) {
-	var svrVersion string
-
-	server := httptest.NewServer(http.HandlerFunc(
-		func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("API-Version", api.DefaultVersion)
-			url := r.URL.Path
-			svrVersion = url
-		}))
-	defer server.Close()
-
-	// Test using the env var first
-	result := cli.Docker(cli.Args("-H="+server.URL[7:], "version"), cli.WithEnvironmentVariables(appendBaseEnv(false, "DOCKER_API_VERSION=xxx")...))
-	c.Assert(result, icmd.Matches, icmd.Expected{Out: "API version:  xxx", ExitCode: 1})
-	c.Assert(svrVersion, check.Equals, "/vxxx/version", check.Commentf("%s", result.Compare(icmd.Success)))
 }
 
 func (s *DockerSuite) TestAPIErrorJSON(c *check.C) {
