@@ -85,16 +85,6 @@ func RunCommandPipelineWithOutput(cmds ...*exec.Cmd) (output string, exitCode in
 	return runCommandWithOutput(cmds[len(cmds)-1])
 }
 
-// ConvertSliceOfStringsToMap converts a slices of string in a map
-// with the strings as key and an empty string as values.
-func ConvertSliceOfStringsToMap(input []string) map[string]struct{} {
-	output := make(map[string]struct{})
-	for _, v := range input {
-		output[v] = struct{}{}
-	}
-	return output
-}
-
 // CompareDirectoryEntries compares two sets of FileInfo (usually taken from a directory)
 // and returns an error if different.
 func CompareDirectoryEntries(e1 []os.FileInfo, e2 []os.FileInfo) error {

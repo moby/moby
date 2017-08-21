@@ -100,16 +100,6 @@ func TestRunCommandPipelineWithOutput(t *testing.T) {
 	}
 }
 
-func TestConvertSliceOfStringsToMap(t *testing.T) {
-	input := []string{"a", "b"}
-	actual := ConvertSliceOfStringsToMap(input)
-	for _, key := range input {
-		if _, ok := actual[key]; !ok {
-			t.Fatalf("Expected output to contains key %s, did not: %v", key, actual)
-		}
-	}
-}
-
 func TestCompareDirectoryEntries(t *testing.T) {
 	tmpFolder, err := ioutil.TempDir("", "integration-cli-utils-compare-directories")
 	if err != nil {
