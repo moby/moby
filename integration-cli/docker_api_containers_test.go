@@ -215,7 +215,7 @@ func (s *DockerSuite) TestGetContainerStatsRmRunning(c *check.C) {
 	out := runSleepingContainer(c)
 	id := strings.TrimSpace(out)
 
-	buf := &testutil.ChannelBuffer{C: make(chan []byte, 1)}
+	buf := &ChannelBuffer{C: make(chan []byte, 1)}
 	defer buf.Close()
 
 	_, body, err := request.Get("/containers/"+id+"/stats?stream=1", request.JSON)
@@ -241,6 +241,34 @@ func (s *DockerSuite) TestGetContainerStatsRmRunning(c *check.C) {
 
 	dockerCmd(c, "rm", "-f", id)
 	c.Assert(<-chErr, checker.IsNil)
+}
+
+// ChannelBuffer holds a chan of byte array that can be populate in a goroutine.
+type ChannelBuffer struct {
+	C chan []byte
+}
+
+// Write implements Writer.
+func (c *ChannelBuffer) Write(b []byte) (int, error) {
+	c.C <- b
+	return len(b), nil
+}
+
+// Close closes the go channel.
+func (c *ChannelBuffer) Close() error {
+	close(c.C)
+	return nil
+}
+
+// ReadTimeout reads the content of the channel in the specified byte array with
+// the specified duration as timeout.
+func (c *ChannelBuffer) ReadTimeout(p []byte, n time.Duration) (int, error) {
+	select {
+	case b := <-c.C:
+		return copy(p[0:], b), nil
+	case <-time.After(n):
+		return -1, fmt.Errorf("timeout reading from channel")
+	}
 }
 
 // regression test for gh13421

@@ -1,7 +1,6 @@
 package testutil
 
 import (
-	"io"
 	"os"
 	"os/exec"
 	"runtime"
@@ -136,50 +135,5 @@ func TestParseCgroupPaths(t *testing.T) {
 	}
 	if value, ok := cgroupMap["cpuset"]; !ok || value != "/b" {
 		t.Fatalf("Expected cgroupMap to contains an entry for 'cpuset' with value '/b', got %v", cgroupMap)
-	}
-}
-
-func TestChannelBufferTimeout(t *testing.T) {
-	expected := "11"
-
-	buf := &ChannelBuffer{make(chan []byte, 1)}
-	defer buf.Close()
-
-	done := make(chan struct{}, 1)
-	go func() {
-		time.Sleep(100 * time.Millisecond)
-		io.Copy(buf, strings.NewReader(expected))
-		done <- struct{}{}
-	}()
-
-	// Wait long enough
-	b := make([]byte, 2)
-	_, err := buf.ReadTimeout(b, 50*time.Millisecond)
-	if err == nil && err.Error() != "timeout reading from channel" {
-		t.Fatalf("Expected an error, got %s", err)
-	}
-	<-done
-}
-
-func TestChannelBuffer(t *testing.T) {
-	expected := "11"
-
-	buf := &ChannelBuffer{make(chan []byte, 1)}
-	defer buf.Close()
-
-	go func() {
-		time.Sleep(100 * time.Millisecond)
-		io.Copy(buf, strings.NewReader(expected))
-	}()
-
-	// Wait long enough
-	b := make([]byte, 2)
-	_, err := buf.ReadTimeout(b, 200*time.Millisecond)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if string(b) != expected {
-		t.Fatalf("Expected '%s', got '%s'", expected, string(b))
 	}
 }

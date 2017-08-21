@@ -118,34 +118,6 @@ func ParseCgroupPaths(procCgroupData string) map[string]string {
 	return cgroupPaths
 }
 
-// ChannelBuffer holds a chan of byte array that can be populate in a goroutine.
-type ChannelBuffer struct {
-	C chan []byte
-}
-
-// Write implements Writer.
-func (c *ChannelBuffer) Write(b []byte) (int, error) {
-	c.C <- b
-	return len(b), nil
-}
-
-// Close closes the go channel.
-func (c *ChannelBuffer) Close() error {
-	close(c.C)
-	return nil
-}
-
-// ReadTimeout reads the content of the channel in the specified byte array with
-// the specified duration as timeout.
-func (c *ChannelBuffer) ReadTimeout(p []byte, n time.Duration) (int, error) {
-	select {
-	case b := <-c.C:
-		return copy(p[0:], b), nil
-	case <-time.After(n):
-		return -1, fmt.Errorf("timeout reading from channel")
-	}
-}
-
 // ReadBody read the specified ReadCloser content and returns it
 func ReadBody(b io.ReadCloser) ([]byte, error) {
 	defer b.Close()
