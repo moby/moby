@@ -4071,7 +4071,7 @@ func (s *DockerSuite) TestBuildContainerWithCgroupParent(c *check.C) {
 	if err != nil {
 		c.Fatalf("failed to read '/proc/self/cgroup - %v", err)
 	}
-	selfCgroupPaths := testutil.ParseCgroupPaths(string(data))
+	selfCgroupPaths := ParseCgroupPaths(string(data))
 	_, found := selfCgroupPaths["memory"]
 	if !found {
 		c.Fatalf("unable to find self memory cgroup path. CgroupsPath: %v", selfCgroupPaths)

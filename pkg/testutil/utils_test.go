@@ -71,31 +71,3 @@ func TestRandomTmpDirPath(t *testing.T) {
 		t.Fatalf("Expected generated path to be %d, got %d", expectedSize, len(path))
 	}
 }
-
-func TestParseCgroupPathsEmpty(t *testing.T) {
-	cgroupMap := ParseCgroupPaths("")
-	if len(cgroupMap) != 0 {
-		t.Fatalf("Expected an empty map, got %v", cgroupMap)
-	}
-	cgroupMap = ParseCgroupPaths("\n")
-	if len(cgroupMap) != 0 {
-		t.Fatalf("Expected an empty map, got %v", cgroupMap)
-	}
-	cgroupMap = ParseCgroupPaths("something:else\nagain:here")
-	if len(cgroupMap) != 0 {
-		t.Fatalf("Expected an empty map, got %v", cgroupMap)
-	}
-}
-
-func TestParseCgroupPaths(t *testing.T) {
-	cgroupMap := ParseCgroupPaths("2:memory:/a\n1:cpuset:/b")
-	if len(cgroupMap) != 2 {
-		t.Fatalf("Expected a map with 2 entries, got %v", cgroupMap)
-	}
-	if value, ok := cgroupMap["memory"]; !ok || value != "/a" {
-		t.Fatalf("Expected cgroupMap to contains an entry for 'memory' with value '/a', got %v", cgroupMap)
-	}
-	if value, ok := cgroupMap["cpuset"]; !ok || value != "/b" {
-		t.Fatalf("Expected cgroupMap to contains an entry for 'cpuset' with value '/b', got %v", cgroupMap)
-	}
-}

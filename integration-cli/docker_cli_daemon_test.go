@@ -34,7 +34,6 @@ import (
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/testutil"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	units "github.com/docker/go-units"
 	"github.com/docker/libnetwork/iptables"
@@ -1883,7 +1882,7 @@ func (s *DockerDaemonSuite) TestDaemonCgroupParent(c *check.C) {
 
 	out, err := s.d.Cmd("run", "--name", name, "busybox", "cat", "/proc/self/cgroup")
 	c.Assert(err, checker.IsNil)
-	cgroupPaths := testutil.ParseCgroupPaths(string(out))
+	cgroupPaths := ParseCgroupPaths(string(out))
 	c.Assert(len(cgroupPaths), checker.Not(checker.Equals), 0, check.Commentf("unexpected output - %q", string(out)))
 	out, err = s.d.Cmd("inspect", "-f", "{{.Id}}", name)
 	c.Assert(err, checker.IsNil)

@@ -3,6 +3,8 @@ package main
 import (
 	"os/exec"
 
+	"strings"
+
 	"github.com/docker/docker/pkg/testutil/cmd"
 )
 
@@ -29,4 +31,18 @@ func transformCmd(execCmd *exec.Cmd) cmd.Cmd {
 		Stdin:   execCmd.Stdin,
 		Stdout:  execCmd.Stdout,
 	}
+}
+
+// ParseCgroupPaths parses 'procCgroupData', which is output of '/proc/<pid>/cgroup', and returns
+// a map which cgroup name as key and path as value.
+func ParseCgroupPaths(procCgroupData string) map[string]string {
+	cgroupPaths := map[string]string{}
+	for _, line := range strings.Split(procCgroupData, "\n") {
+		parts := strings.Split(line, ":")
+		if len(parts) != 3 {
+			continue
+		}
+		cgroupPaths[parts[1]] = parts[2]
+	}
+	return cgroupPaths
 }

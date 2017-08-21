@@ -3337,7 +3337,7 @@ func testRunContainerWithCgroupParent(c *check.C, cgroupParent, name string) {
 	if err != nil {
 		c.Fatalf("unexpected failure when running container with --cgroup-parent option - %s\n%v", string(out), err)
 	}
-	cgroupPaths := testutil.ParseCgroupPaths(string(out))
+	cgroupPaths := ParseCgroupPaths(string(out))
 	if len(cgroupPaths) == 0 {
 		c.Fatalf("unexpected output - %q", string(out))
 	}
@@ -3377,7 +3377,7 @@ func testRunInvalidCgroupParent(c *check.C, cgroupParent, cleanCgroupParent, nam
 		c.Fatalf("SECURITY: --cgroup-parent with ../../ relative paths cause files to be created in the host (this is bad) !!")
 	}
 
-	cgroupPaths := testutil.ParseCgroupPaths(string(out))
+	cgroupPaths := ParseCgroupPaths(string(out))
 	if len(cgroupPaths) == 0 {
 		c.Fatalf("unexpected output - %q", string(out))
 	}
