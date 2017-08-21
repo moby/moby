@@ -12,47 +12,6 @@ import (
 	"time"
 )
 
-func TestIsKilledFalseWithNonKilledProcess(t *testing.T) {
-	var lsCmd *exec.Cmd
-	if runtime.GOOS != "windows" {
-		lsCmd = exec.Command("ls")
-	} else {
-		lsCmd = exec.Command("cmd", "/c", "dir")
-	}
-
-	err := lsCmd.Run()
-	if IsKilled(err) {
-		t.Fatalf("Expected the ls command to not be killed, was.")
-	}
-}
-
-func TestIsKilledTrueWithKilledProcess(t *testing.T) {
-	var longCmd *exec.Cmd
-	if runtime.GOOS != "windows" {
-		longCmd = exec.Command("top")
-	} else {
-		longCmd = exec.Command("powershell", "while ($true) { sleep 1 }")
-	}
-
-	// Start a command
-	err := longCmd.Start()
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Capture the error when *dying*
-	done := make(chan error, 1)
-	go func() {
-		done <- longCmd.Wait()
-	}()
-	// Then kill it
-	longCmd.Process.Kill()
-	// Get the error
-	err = <-done
-	if !IsKilled(err) {
-		t.Fatalf("Expected the command to be killed, was not.")
-	}
-}
-
 func TestRunCommandPipelineWithOutputWithNotEnoughCmds(t *testing.T) {
 	_, _, err := RunCommandPipelineWithOutput(exec.Command("ls"))
 	expectedError := "pipeline does not have multiple cmds"
@@ -97,72 +56,6 @@ func TestRunCommandPipelineWithOutput(t *testing.T) {
 	expectedOutput := "2\n"
 	if out != expectedOutput || exitCode != 0 || err != nil {
 		t.Fatalf("Expected %s for commands %v, got out:%s, exitCode:%d, err:%v", expectedOutput, cmds, out, exitCode, err)
-	}
-}
-
-func TestCompareDirectoryEntries(t *testing.T) {
-	tmpFolder, err := ioutil.TempDir("", "integration-cli-utils-compare-directories")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpFolder)
-
-	file1 := filepath.Join(tmpFolder, "file1")
-	file2 := filepath.Join(tmpFolder, "file2")
-	os.Create(file1)
-	os.Create(file2)
-
-	fi1, err := os.Stat(file1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	fi1bis, err := os.Stat(file1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	fi2, err := os.Stat(file2)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	cases := []struct {
-		e1          []os.FileInfo
-		e2          []os.FileInfo
-		shouldError bool
-	}{
-		// Empty directories
-		{
-			[]os.FileInfo{},
-			[]os.FileInfo{},
-			false,
-		},
-		// Same FileInfos
-		{
-			[]os.FileInfo{fi1},
-			[]os.FileInfo{fi1},
-			false,
-		},
-		// Different FileInfos but same names
-		{
-			[]os.FileInfo{fi1},
-			[]os.FileInfo{fi1bis},
-			false,
-		},
-		// Different FileInfos, different names
-		{
-			[]os.FileInfo{fi1},
-			[]os.FileInfo{fi2},
-			true,
-		},
-	}
-	for _, elt := range cases {
-		err := CompareDirectoryEntries(elt.e1, elt.e2)
-		if elt.shouldError && err == nil {
-			t.Fatalf("Should have return an error, did not with %v and %v", elt.e1, elt.e2)
-		}
-		if !elt.shouldError && err != nil {
-			t.Fatalf("Should have not returned an error, but did : %v with %v and %v", err, elt.e1, elt.e2)
-		}
 	}
 }
 

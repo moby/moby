@@ -1526,7 +1526,7 @@ func (s *DockerSuite) TestBuildContextCleanup(c *check.C) {
 	if err != nil {
 		c.Fatalf("failed to list contents of tmp dir: %s", err)
 	}
-	if err = testutil.CompareDirectoryEntries(entries, entriesFinal); err != nil {
+	if err = compareDirectoryEntries(entries, entriesFinal); err != nil {
 		c.Fatalf("context should have been deleted, but wasn't")
 	}
 
@@ -1550,10 +1550,29 @@ func (s *DockerSuite) TestBuildContextCleanupFailedBuild(c *check.C) {
 	if err != nil {
 		c.Fatalf("failed to list contents of tmp dir: %s", err)
 	}
-	if err = testutil.CompareDirectoryEntries(entries, entriesFinal); err != nil {
+	if err = compareDirectoryEntries(entries, entriesFinal); err != nil {
 		c.Fatalf("context should have been deleted, but wasn't")
 	}
 
+}
+
+// compareDirectoryEntries compares two sets of FileInfo (usually taken from a directory)
+// and returns an error if different.
+func compareDirectoryEntries(e1 []os.FileInfo, e2 []os.FileInfo) error {
+	var (
+		e1Entries = make(map[string]struct{})
+		e2Entries = make(map[string]struct{})
+	)
+	for _, e := range e1 {
+		e1Entries[e.Name()] = struct{}{}
+	}
+	for _, e := range e2 {
+		e2Entries[e.Name()] = struct{}{}
+	}
+	if !reflect.DeepEqual(e1Entries, e2Entries) {
+		return fmt.Errorf("entries differ")
+	}
+	return nil
 }
 
 func (s *DockerSuite) TestBuildCmd(c *check.C) {

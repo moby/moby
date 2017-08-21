@@ -9,29 +9,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"reflect"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/pkg/system"
 )
-
-// IsKilled process the specified error and returns whether the process was killed or not.
-func IsKilled(err error) bool {
-	if exitErr, ok := err.(*exec.ExitError); ok {
-		status, ok := exitErr.Sys().(syscall.WaitStatus)
-		if !ok {
-			return false
-		}
-		// status.ExitStatus() is required on Windows because it does not
-		// implement Signal() nor Signaled(). Just check it had a bad exit
-		// status could mean it was killed (and in tests we do kill)
-		return (status.Signaled() && status.Signal() == os.Kill) || status.ExitStatus() != 0
-	}
-	return false
-}
 
 func runCommandWithOutput(cmd *exec.Cmd) (output string, exitCode int, err error) {
 	out, err := cmd.CombinedOutput()
@@ -83,25 +66,6 @@ func RunCommandPipelineWithOutput(cmds ...*exec.Cmd) (output string, exitCode in
 
 	// wait on last cmd
 	return runCommandWithOutput(cmds[len(cmds)-1])
-}
-
-// CompareDirectoryEntries compares two sets of FileInfo (usually taken from a directory)
-// and returns an error if different.
-func CompareDirectoryEntries(e1 []os.FileInfo, e2 []os.FileInfo) error {
-	var (
-		e1Entries = make(map[string]struct{})
-		e2Entries = make(map[string]struct{})
-	)
-	for _, e := range e1 {
-		e1Entries[e.Name()] = struct{}{}
-	}
-	for _, e := range e2 {
-		e2Entries[e.Name()] = struct{}{}
-	}
-	if !reflect.DeepEqual(e1Entries, e2Entries) {
-		return fmt.Errorf("entries differ")
-	}
-	return nil
 }
 
 // ListTar lists the entries of a tar.
