@@ -1,7 +1,6 @@
 package testutil
 
 import (
-	"archive/tar"
 	"errors"
 	"fmt"
 	"io"
@@ -66,24 +65,6 @@ func RunCommandPipelineWithOutput(cmds ...*exec.Cmd) (output string, exitCode in
 
 	// wait on last cmd
 	return runCommandWithOutput(cmds[len(cmds)-1])
-}
-
-// ListTar lists the entries of a tar.
-func ListTar(f io.Reader) ([]string, error) {
-	tr := tar.NewReader(f)
-	var entries []string
-
-	for {
-		th, err := tr.Next()
-		if err == io.EOF {
-			// end of tar archive
-			return entries, nil
-		}
-		if err != nil {
-			return entries, err
-		}
-		entries = append(entries, th.Name)
-	}
 }
 
 // RandomTmpDirPath provides a temporary path with rand string appended.

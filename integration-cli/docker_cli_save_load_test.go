@@ -1,8 +1,10 @@
 package main
 
 import (
+	"archive/tar"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -18,7 +20,6 @@ import (
 	"github.com/docker/docker/pkg/testutil"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
-	"github.com/opencontainers/go-digest"
 )
 
 // save a repo using gz compression and try to load it using stdout
@@ -289,7 +290,7 @@ func (s *DockerSuite) TestSaveDirectoryPermissions(c *check.C) {
 			c.Assert(err, checker.IsNil, check.Commentf("failed to open %s: %s", layerPath, err))
 			defer f.Close()
 
-			entries, err := testutil.ListTar(f)
+			entries, err := listTar(f)
 			for _, e := range entries {
 				if !strings.Contains(e, "dev/") {
 					entriesSansDev = append(entriesSansDev, e)
@@ -306,6 +307,23 @@ func (s *DockerSuite) TestSaveDirectoryPermissions(c *check.C) {
 
 	c.Assert(found, checker.Equals, true, check.Commentf("failed to find the layer with the right content listing"))
 
+}
+
+func listTar(f io.Reader) ([]string, error) {
+	tr := tar.NewReader(f)
+	var entries []string
+
+	for {
+		th, err := tr.Next()
+		if err == io.EOF {
+			// end of tar archive
+			return entries, nil
+		}
+		if err != nil {
+			return entries, err
+		}
+		entries = append(entries, th.Name)
+	}
 }
 
 // Test loading a weird image where one of the layers is of zero size.

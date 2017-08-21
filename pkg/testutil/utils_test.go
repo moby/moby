@@ -2,10 +2,8 @@ package testutil
 
 import (
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -56,43 +54,6 @@ func TestRunCommandPipelineWithOutput(t *testing.T) {
 	expectedOutput := "2\n"
 	if out != expectedOutput || exitCode != 0 || err != nil {
 		t.Fatalf("Expected %s for commands %v, got out:%s, exitCode:%d, err:%v", expectedOutput, cmds, out, exitCode, err)
-	}
-}
-
-// FIXME make an "unhappy path" test for ListTar without "panicking" :-)
-func TestListTar(t *testing.T) {
-	// TODO Windows: Figure out why this fails. Should be portable.
-	if runtime.GOOS == "windows" {
-		t.Skip("Failing on Windows - needs further investigation")
-	}
-	tmpFolder, err := ioutil.TempDir("", "integration-cli-utils-list-tar")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpFolder)
-
-	// Let's create a Tar file
-	srcFile := filepath.Join(tmpFolder, "src")
-	tarFile := filepath.Join(tmpFolder, "src.tar")
-	os.Create(srcFile)
-	cmd := exec.Command("sh", "-c", "tar cf "+tarFile+" "+srcFile)
-	_, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	reader, err := os.Open(tarFile)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer reader.Close()
-
-	entries, err := ListTar(reader)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(entries) != 1 && entries[0] != "src" {
-		t.Fatalf("Expected a tar file with 1 entry (%s), got %v", srcFile, entries)
 	}
 }
 
