@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -116,10 +115,4 @@ func ParseCgroupPaths(procCgroupData string) map[string]string {
 		cgroupPaths[parts[1]] = parts[2]
 	}
 	return cgroupPaths
-}
-
-// ReadBody read the specified ReadCloser content and returns it
-func ReadBody(b io.ReadCloser) ([]byte, error) {
-	defer b.Close()
-	return ioutil.ReadAll(b)
 }

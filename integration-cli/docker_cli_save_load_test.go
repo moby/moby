@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/pkg/testutil"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
+	digest "github.com/opencontainers/go-digest"
 )
 
 // save a repo using gz compression and try to load it using stdout

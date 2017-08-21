@@ -15,7 +15,6 @@ import (
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/request"
 	"github.com/docker/docker/pkg/stdcopy"
-	"github.com/docker/docker/pkg/testutil"
 	"github.com/go-check/check"
 	"golang.org/x/net/websocket"
 )
@@ -80,7 +79,7 @@ func (s *DockerSuite) TestPostContainersAttachContainerNotFound(c *check.C) {
 	resp, err := client.Do(req)
 	// connection will shutdown, err should be "persistent connection closed"
 	c.Assert(resp.StatusCode, checker.Equals, http.StatusNotFound)
-	content, err := testutil.ReadBody(resp.Body)
+	content, err := request.ReadBody(resp.Body)
 	c.Assert(err, checker.IsNil)
 	expected := "No such container: doesnotexist\r\n"
 	c.Assert(string(content), checker.Equals, expected)

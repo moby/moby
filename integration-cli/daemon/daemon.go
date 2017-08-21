@@ -545,7 +545,7 @@ func (d *Daemon) queryRootDir() (string, error) {
 	}
 	var b []byte
 	var i Info
-	b, err = testutil.ReadBody(body)
+	b, err = request.ReadBody(body)
 	if err == nil && resp.StatusCode == http.StatusOK {
 		// read the docker root dir
 		if err = json.Unmarshal(b, &i); err == nil {
@@ -620,7 +620,7 @@ func (d *Daemon) SockRequest(method, endpoint string, data interface{}) (int, []
 	if err != nil {
 		return -1, nil, err
 	}
-	b, err := testutil.ReadBody(body)
+	b, err := request.ReadBody(body)
 	return res.StatusCode, b, err
 }
 

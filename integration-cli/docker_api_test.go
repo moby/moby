@@ -11,7 +11,6 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/request"
-	"github.com/docker/docker/pkg/testutil"
 	"github.com/go-check/check"
 )
 
@@ -62,7 +61,7 @@ func (s *DockerSuite) TestAPIErrorJSON(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(httpResp.StatusCode, checker.Equals, http.StatusBadRequest)
 	c.Assert(httpResp.Header.Get("Content-Type"), checker.Equals, "application/json")
-	b, err := testutil.ReadBody(body)
+	b, err := request.ReadBody(body)
 	c.Assert(err, checker.IsNil)
 	c.Assert(getErrorMessage(c, b), checker.Equals, "Config cannot be empty in order to create a container")
 }
@@ -75,7 +74,7 @@ func (s *DockerSuite) TestAPIErrorPlainText(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(httpResp.StatusCode, checker.Equals, http.StatusBadRequest)
 	c.Assert(httpResp.Header.Get("Content-Type"), checker.Contains, "text/plain")
-	b, err := testutil.ReadBody(body)
+	b, err := request.ReadBody(body)
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.TrimSpace(string(b)), checker.Equals, "Config cannot be empty in order to create a container")
 }
@@ -86,7 +85,7 @@ func (s *DockerSuite) TestAPIErrorNotFoundJSON(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(httpResp.StatusCode, checker.Equals, http.StatusNotFound)
 	c.Assert(httpResp.Header.Get("Content-Type"), checker.Equals, "application/json")
-	b, err := testutil.ReadBody(body)
+	b, err := request.ReadBody(body)
 	c.Assert(err, checker.IsNil)
 	c.Assert(getErrorMessage(c, b), checker.Equals, "page not found")
 }
@@ -96,7 +95,7 @@ func (s *DockerSuite) TestAPIErrorNotFoundPlainText(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(httpResp.StatusCode, checker.Equals, http.StatusNotFound)
 	c.Assert(httpResp.Header.Get("Content-Type"), checker.Contains, "text/plain")
-	b, err := testutil.ReadBody(body)
+	b, err := request.ReadBody(body)
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.TrimSpace(string(b)), checker.Equals, "page not found")
 }

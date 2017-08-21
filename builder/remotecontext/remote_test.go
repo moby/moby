@@ -253,11 +253,16 @@ func TestGetWithStatusError(t *testing.T) {
 		if testcase.expectedErr == "" {
 			require.NoError(t, err)
 
-			body, err := testutil.ReadBody(response.Body)
+			body, err := readBody(response.Body)
 			require.NoError(t, err)
 			assert.Contains(t, string(body), testcase.expectedBody)
 		} else {
 			testutil.ErrorContains(t, err, testcase.expectedErr)
 		}
 	}
+}
+
+func readBody(b io.ReadCloser) ([]byte, error) {
+	defer b.Close()
+	return ioutil.ReadAll(b)
 }
