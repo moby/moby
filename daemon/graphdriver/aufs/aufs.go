@@ -142,6 +142,23 @@ func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		}
 	}
 
+	for _, path := range []string{"mnt", "diff"} {
+		p := filepath.Join(root, path)
+		dirs, err := ioutil.ReadDir(p)
+		if err != nil {
+			logrus.WithError(err).WithField("dir", p).Error("error reading dir entries")
+			continue
+		}
+		for _, dir := range dirs {
+			if strings.HasSuffix(dir.Name(), "-removing") {
+				logrus.WithField("dir", dir.Name()).Debug("Cleaning up stale layer dir")
+				if err := system.EnsureRemoveAll(filepath.Join(p, dir.Name())); err != nil {
+					logrus.WithField("dir", dir.Name()).WithError(err).Error("Error removing stale layer dir")
+				}
+			}
+		}
+	}
+
 	a.naiveDiff = graphdriver.NewNaiveDiffDriver(a, uidMaps, gidMaps)
 	return a, nil
 }
@@ -317,26 +334,6 @@ func (a *Driver) Remove(id string) error {
 		retries++
 		logger.Warnf("unmount failed due to EBUSY: retry count: %d", retries)
 		time.Sleep(100 * time.Millisecond)
-		continue
-	}
-
-	// Atomically remove each directory in turn by first moving it out of the
-	// way (so that docker doesn't find it anymore) before doing removal of
-	// the whole tree.
-	tmpMntPath := path.Join(a.mntPath(), fmt.Sprintf("%s-removing", id))
-	if err := os.Rename(mountpoint, tmpMntPath); err != nil && !os.IsNotExist(err) {
-		if err == unix.EBUSY {
-			logger.WithField("dir", mountpoint).WithError(err).Warn("os.Rename err due to EBUSY")
-		}
-		return errors.Wrapf(err, "error preparing atomic delete of aufs mountpoint for id: %s", id)
-	}
-	if err := system.EnsureRemoveAll(tmpMntPath); err != nil {
-		return errors.Wrapf(err, "error removing aufs layer %s", id)
-	}
-
-	tmpDiffpath := path.Join(a.diffPath(), fmt.Sprintf("%s-removing", id))
-	if err := os.Rename(a.getDiffPath(id), tmpDiffpath); err != nil && !os.IsNotExist(err) {
-		return errors.Wrapf(err, "error preparing atomic delete of aufs diff dir for id: %s", id)
 	}
 
 	// Remove the layers file for the id
@@ -344,10 +341,42 @@ func (a *Driver) Remove(id string) error {
 		return errors.Wrapf(err, "error removing layers dir for %s", id)
 	}
 
+	if err := atomicRemove(a.getDiffPath(id)); err != nil {
+		return errors.Wrapf(err, "could not remove diff path for id %s", id)
+	}
+
+	// Atomically remove each directory in turn by first moving it out of the
+	// way (so that docker doesn't find it anymore) before doing removal of
+	// the whole tree.
+	if err := atomicRemove(mountpoint); err != nil {
+		if errors.Cause(err) == unix.EBUSY {
+			logger.WithField("dir", mountpoint).WithError(err).Warn("error performing atomic remove due to EBUSY")
+		}
+		return errors.Wrapf(err, "could not remove mountpoint for id %s", id)
+	}
+
 	a.pathCacheLock.Lock()
 	delete(a.pathCache, id)
 	a.pathCacheLock.Unlock()
 	return nil
+}
+
+func atomicRemove(source string) error {
+	target := source + "-removing"
+
+	err := os.Rename(source, target)
+	switch {
+	case err == nil, os.IsNotExist(err):
+	case os.IsExist(err):
+		// Got error saying the target dir already exists, maybe the source doesn't exist due to a previous (failed) remove
+		if _, e := os.Stat(source); !os.IsNotExist(e) {
+			return errors.Wrapf(err, "target rename dir '%s' exists but should not, this needs to be manually cleaned up")
+		}
+	default:
+		return errors.Wrapf(err, "error preparing atomic delete")
+	}
+
+	return system.EnsureRemoveAll(target)
 }
 
 // Get returns the rootfs path for the id.
