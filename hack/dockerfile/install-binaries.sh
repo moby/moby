@@ -64,6 +64,7 @@ install_gometalinter() {
 		export GOBIN=/usr/local/bin
 		export GOPATH="$PWD/_linters/"
 		go install github.com/golang/lint/golint
+		go install golang.org/x/tools/cmd/goimports
 	)
 }
 

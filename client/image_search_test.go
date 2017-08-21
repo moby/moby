@@ -2,18 +2,17 @@ package client
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
 	"testing"
 
-	"golang.org/x/net/context"
-
-	"encoding/json"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
+	"golang.org/x/net/context"
 )
 
 func TestImageSearchAnyError(t *testing.T) {
