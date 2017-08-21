@@ -57,11 +57,15 @@ func Fchmodat(dirfd int, path string, mode uint32, flags int) (err error) {
 
 // IoctlSetInt performs an ioctl operation which sets an integer value
 // on fd, using the specified request number.
-func IoctlSetInt(fd int, req uint, value int) (err error) {
+func IoctlSetInt(fd int, req uint, value int) error {
 	return ioctl(fd, req, uintptr(value))
 }
 
-func IoctlSetTermios(fd int, req uint, value *Termios) (err error) {
+func IoctlSetWinsize(fd int, req uint, value *Winsize) error {
+	return ioctl(fd, req, uintptr(unsafe.Pointer(value)))
+}
+
+func IoctlSetTermios(fd int, req uint, value *Termios) error {
 	return ioctl(fd, req, uintptr(unsafe.Pointer(value)))
 }
 
@@ -71,6 +75,12 @@ func IoctlGetInt(fd int, req uint) (int, error) {
 	var value int
 	err := ioctl(fd, req, uintptr(unsafe.Pointer(&value)))
 	return value, err
+}
+
+func IoctlGetWinsize(fd int, req uint) (*Winsize, error) {
+	var value Winsize
+	err := ioctl(fd, req, uintptr(unsafe.Pointer(&value)))
+	return &value, err
 }
 
 func IoctlGetTermios(fd int, req uint) (*Termios, error) {
@@ -342,8 +352,12 @@ func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int,
 	return
 }
 
-func Mkfifo(path string, mode uint32) (err error) {
+func Mkfifo(path string, mode uint32) error {
 	return Mknod(path, mode|S_IFIFO, 0)
+}
+
+func Mkfifoat(dirfd int, path string, mode uint32) error {
+	return Mknodat(dirfd, path, mode|S_IFIFO, 0)
 }
 
 func (sa *SockaddrInet4) sockaddr() (unsafe.Pointer, _Socklen, error) {
@@ -1265,6 +1279,7 @@ func Setgid(uid int) (err error) {
 //sys	Setpriority(which int, who int, prio int) (err error)
 //sys	Setxattr(path string, attr string, data []byte, flags int) (err error)
 //sys	Sync()
+//sys	Syncfs(fd int) (err error)
 //sysnb	Sysinfo(info *Sysinfo_t) (err error)
 //sys	Tee(rfd int, wfd int, len int, flags int) (n int64, err error)
 //sysnb	Tgkill(tgid int, tid int, sig syscall.Signal) (err error)
@@ -1299,8 +1314,9 @@ func Munmap(b []byte) (err error) {
 //sys	Madvise(b []byte, advice int) (err error)
 //sys	Mprotect(b []byte, prot int) (err error)
 //sys	Mlock(b []byte) (err error)
-//sys	Munlock(b []byte) (err error)
 //sys	Mlockall(flags int) (err error)
+//sys	Msync(b []byte, flags int) (err error)
+//sys	Munlock(b []byte) (err error)
 //sys	Munlockall() (err error)
 
 // Vmsplice splices user pages from a slice of Iovecs into a pipe specified by fd,
@@ -1368,7 +1384,6 @@ func Vmsplice(fd int, iovs []Iovec, flags int) (int, error) {
 // ModifyLdt
 // Mount
 // MovePages
-// Mprotect
 // MqGetsetattr
 // MqNotify
 // MqOpen
@@ -1380,7 +1395,6 @@ func Vmsplice(fd int, iovs []Iovec, flags int) (int, error) {
 // Msgget
 // Msgrcv
 // Msgsnd
-// Msync
 // Newfstatat
 // Nfsservctl
 // Personality

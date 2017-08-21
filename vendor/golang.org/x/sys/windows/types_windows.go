@@ -1233,3 +1233,50 @@ const (
 	IfOperStatusNotPresent     = 6
 	IfOperStatusLowerLayerDown = 7
 )
+
+// Console related constants used for the mode parameter to SetConsoleMode. See
+// https://docs.microsoft.com/en-us/windows/console/setconsolemode for details.
+
+const (
+	ENABLE_PROCESSED_INPUT        = 0x1
+	ENABLE_LINE_INPUT             = 0x2
+	ENABLE_ECHO_INPUT             = 0x4
+	ENABLE_WINDOW_INPUT           = 0x8
+	ENABLE_MOUSE_INPUT            = 0x10
+	ENABLE_INSERT_MODE            = 0x20
+	ENABLE_QUICK_EDIT_MODE        = 0x40
+	ENABLE_EXTENDED_FLAGS         = 0x80
+	ENABLE_AUTO_POSITION          = 0x100
+	ENABLE_VIRTUAL_TERMINAL_INPUT = 0x200
+
+	ENABLE_PROCESSED_OUTPUT            = 0x1
+	ENABLE_WRAP_AT_EOL_OUTPUT          = 0x2
+	ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x4
+	DISABLE_NEWLINE_AUTO_RETURN        = 0x8
+	ENABLE_LVB_GRID_WORLDWIDE          = 0x10
+)
+
+type Coord struct {
+	X int16
+	Y int16
+}
+
+type SmallRect struct {
+	Left   int16
+	Top    int16
+	Right  int16
+	Bottom int16
+}
+
+// Used with GetConsoleScreenBuffer to retreive information about a console
+// screen buffer. See
+// https://docs.microsoft.com/en-us/windows/console/console-screen-buffer-info-str
+// for details.
+
+type ConsoleScreenBufferInfo struct {
+	Size              Coord
+	CursorPosition    Coord
+	Attributes        uint16
+	Window            SmallRect
+	MaximumWindowSize Coord
+}
