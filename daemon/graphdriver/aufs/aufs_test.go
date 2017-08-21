@@ -12,6 +12,8 @@ import (
 	"sync"
 	"testing"
 
+	"path/filepath"
+
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/reexec"
@@ -147,7 +149,10 @@ func TestRemoveImage(t *testing.T) {
 
 	for _, p := range paths {
 		if _, err := os.Stat(path.Join(tmp, p, "1")); err == nil {
-			t.Fatalf("Error should not be nil because dirs with id 1 should be delted: %s", p)
+			t.Fatalf("Error should not be nil because dirs with id 1 should be deleted: %s", p)
+		}
+		if _, err := os.Stat(path.Join(tmp, p, "1-removing")); err == nil {
+			t.Fatalf("Error should not be nil because dirs with id 1-removing should be deleted: %s", p)
 		}
 	}
 }
@@ -797,6 +802,26 @@ func BenchmarkConcurrentAccess(b *testing.B) {
 		if err != nil {
 			b.Log(err)
 			b.Fail()
+		}
+	}
+}
+
+func TestInitStaleCleanup(t *testing.T) {
+	if err := os.MkdirAll(tmp, 0755); err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmp)
+
+	for _, d := range []string{"diff", "mnt"} {
+		if err := os.MkdirAll(filepath.Join(tmp, d, "123-removing"), 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	testInit(tmp, t)
+	for _, d := range []string{"diff", "mnt"} {
+		if _, err := os.Stat(filepath.Join(tmp, d, "123-removing")); err == nil {
+			t.Fatal("cleanup failed")
 		}
 	}
 }
