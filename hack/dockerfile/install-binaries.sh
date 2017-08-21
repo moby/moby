@@ -60,12 +60,7 @@ install_gometalinter() {
 	cd "$GOPATH/src/github.com/alecthomas/gometalinter"
 	git checkout -q "$GOMETALINTER_COMMIT"
 	go build -o /usr/local/bin/gometalinter github.com/alecthomas/gometalinter
-	(
-		export GOBIN=/usr/local/bin
-		export GOPATH="$PWD/_linters/"
-		go install github.com/golang/lint/golint
-		go install golang.org/x/tools/cmd/goimports
-	)
+	GOBIN=/usr/local/bin gometalinter --install
 }
 
 for prog in "$@"

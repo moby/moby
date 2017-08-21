@@ -32,7 +32,7 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/plugin/v2"
 	refstore "github.com/docker/docker/reference"
-	"github.com/opencontainers/go-digest"
+	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -650,22 +650,6 @@ func (pm *Manager) Remove(name string, config *types.PluginRmConfig) error {
 	pm.config.LogPluginEvent(id, name, "remove")
 	pm.publisher.Publish(EventRemove{Plugin: p.PluginObj})
 	return nil
-}
-
-func getMounts(root string) ([]string, error) {
-	infos, err := mount.GetMounts()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to read mount table")
-	}
-
-	var mounts []string
-	for _, m := range infos {
-		if strings.HasPrefix(m.Mountpoint, root) {
-			mounts = append(mounts, m.Mountpoint)
-		}
-	}
-
-	return mounts, nil
 }
 
 // Set sets plugin args

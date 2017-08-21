@@ -6,7 +6,7 @@ import (
 
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/plugingetter"
-	"github.com/docker/go-metrics"
+	metrics "github.com/docker/go-metrics"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
@@ -16,7 +16,6 @@ const metricsPluginType = "MetricsCollector"
 
 var (
 	containerActions          metrics.LabeledTimer
-	containerStates           metrics.LabeledGauge
 	imageActions              metrics.LabeledTimer
 	networkActions            metrics.LabeledTimer
 	engineInfo                metrics.LabeledGauge
