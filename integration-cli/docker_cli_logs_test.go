@@ -232,16 +232,39 @@ func (s *DockerSuite) TestLogsFollowSlowStdoutConsumer(c *check.C) {
 	c.Assert(logCmd.Start(), checker.IsNil)
 
 	// First read slowly
-	bytes1, err := testutil.ConsumeWithSpeed(stdout, 10, 50*time.Millisecond, stopSlowRead)
+	bytes1, err := ConsumeWithSpeed(stdout, 10, 50*time.Millisecond, stopSlowRead)
 	c.Assert(err, checker.IsNil)
 
 	// After the container has finished we can continue reading fast
-	bytes2, err := testutil.ConsumeWithSpeed(stdout, 32*1024, 0, nil)
+	bytes2, err := ConsumeWithSpeed(stdout, 32*1024, 0, nil)
 	c.Assert(err, checker.IsNil)
 
 	actual := bytes1 + bytes2
 	expected := 200000
 	c.Assert(actual, checker.Equals, expected)
+}
+
+// ConsumeWithSpeed reads chunkSize bytes from reader before sleeping
+// for interval duration. Returns total read bytes. Send true to the
+// stop channel to return before reading to EOF on the reader.
+func ConsumeWithSpeed(reader io.Reader, chunkSize int, interval time.Duration, stop chan bool) (n int, err error) {
+	buffer := make([]byte, chunkSize)
+	for {
+		var readBytes int
+		readBytes, err = reader.Read(buffer)
+		n += readBytes
+		if err != nil {
+			if err == io.EOF {
+				err = nil
+			}
+			return
+		}
+		select {
+		case <-stop:
+			return
+		case <-time.After(interval):
+		}
+	}
 }
 
 func (s *DockerSuite) TestLogsFollowGoroutinesWithStdout(c *check.C) {

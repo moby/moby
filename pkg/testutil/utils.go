@@ -3,12 +3,10 @@ package testutil
 import (
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/pkg/system"
@@ -78,29 +76,6 @@ func RandomTmpDirPath(s string, platform string) string {
 		return filepath.FromSlash(path) // Using \
 	}
 	return filepath.ToSlash(path) // Using /
-}
-
-// ConsumeWithSpeed reads chunkSize bytes from reader before sleeping
-// for interval duration. Returns total read bytes. Send true to the
-// stop channel to return before reading to EOF on the reader.
-func ConsumeWithSpeed(reader io.Reader, chunkSize int, interval time.Duration, stop chan bool) (n int, err error) {
-	buffer := make([]byte, chunkSize)
-	for {
-		var readBytes int
-		readBytes, err = reader.Read(buffer)
-		n += readBytes
-		if err != nil {
-			if err == io.EOF {
-				err = nil
-			}
-			return
-		}
-		select {
-		case <-stop:
-			return
-		case <-time.After(interval):
-		}
-	}
 }
 
 // ParseCgroupPaths parses 'procCgroupData', which is output of '/proc/<pid>/cgroup', and returns

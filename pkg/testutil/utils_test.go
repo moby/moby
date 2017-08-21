@@ -6,7 +6,6 @@ import (
 	"runtime"
 	"strings"
 	"testing"
-	"time"
 )
 
 func TestRunCommandPipelineWithOutputWithNotEnoughCmds(t *testing.T) {
@@ -71,43 +70,6 @@ func TestRandomTmpDirPath(t *testing.T) {
 	if len(path) != expectedSize {
 		t.Fatalf("Expected generated path to be %d, got %d", expectedSize, len(path))
 	}
-}
-
-func TestConsumeWithSpeed(t *testing.T) {
-	reader := strings.NewReader("1234567890")
-	chunksize := 2
-
-	bytes1, err := ConsumeWithSpeed(reader, chunksize, 10*time.Millisecond, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if bytes1 != 10 {
-		t.Fatalf("Expected to have read 10 bytes, got %d", bytes1)
-	}
-
-}
-
-func TestConsumeWithSpeedWithStop(t *testing.T) {
-	reader := strings.NewReader("1234567890")
-	chunksize := 2
-
-	stopIt := make(chan bool)
-
-	go func() {
-		time.Sleep(1 * time.Millisecond)
-		stopIt <- true
-	}()
-
-	bytes1, err := ConsumeWithSpeed(reader, chunksize, 20*time.Millisecond, stopIt)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if bytes1 != 2 {
-		t.Fatalf("Expected to have read 2 bytes, got %d", bytes1)
-	}
-
 }
 
 func TestParseCgroupPathsEmpty(t *testing.T) {
