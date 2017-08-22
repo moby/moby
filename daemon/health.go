@@ -45,8 +45,7 @@ const (
 const (
 	// Exit status codes that can be returned by the probe command.
 
-	exitStatusHealthy   = 0 // Container is healthy
-	exitStatusUnhealthy = 1 // Container is unhealthy
+	exitStatusHealthy = 0 // Container is healthy
 )
 
 // probe implementations know how to run a particular type of probe.

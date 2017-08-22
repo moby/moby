@@ -119,10 +119,6 @@ func validateNotRoot(p string) error {
 	return nil
 }
 
-func validateCopyMode(mode bool) error {
-	return nil
-}
-
 func convertSlash(p string) string {
 	return p
 }

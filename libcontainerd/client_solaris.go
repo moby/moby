@@ -1,6 +1,9 @@
 package libcontainerd
 
-import "golang.org/x/net/context"
+import (
+	containerd "github.com/containerd/containerd/api/grpc/types"
+	"golang.org/x/net/context"
+)
 
 type client struct {
 	clientCommon

@@ -14,12 +14,6 @@ import (
 
 var defaultDaemonConfigFile = ""
 
-// currentUserIsOwner checks whether the current user is the owner of the given
-// file.
-func currentUserIsOwner(f string) bool {
-	return false
-}
-
 // setDefaultUmask doesn't do anything on windows
 func setDefaultUmask() error {
 	return nil

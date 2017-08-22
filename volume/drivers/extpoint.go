@@ -32,6 +32,7 @@ func NewVolumeDriver(name string, baseHostPath string, c client) volume.Driver {
 // volumeDriver defines the available functions that volume plugins must implement.
 // This interface is only defined to generate the proxy objects.
 // It's not intended to be public or reused.
+// nolint: deadcode
 type volumeDriver interface {
 	// Create a volume with the given name
 	Create(name string, opts map[string]string) (err error)

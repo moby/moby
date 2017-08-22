@@ -10,7 +10,9 @@
   ],
 
   "Enable": [
+    "deadcode",
     "gofmt",
+    "goimports",
     "golint",
     "vet"
   ],

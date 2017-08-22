@@ -183,13 +183,6 @@ func validateNotRoot(p string) error {
 	return nil
 }
 
-func validateCopyMode(mode bool) error {
-	if mode {
-		return fmt.Errorf("Windows does not support copying image path content")
-	}
-	return nil
-}
-
 func convertSlash(p string) string {
 	return filepath.FromSlash(p)
 }

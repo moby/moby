@@ -13,14 +13,6 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
-// httpStatusError is an interface
-// that errors with custom status codes
-// implement to tell the api layer
-// which response status to set.
-type httpStatusError interface {
-	HTTPErrorStatusCode() int
-}
-
 type causer interface {
 	Cause() error
 }

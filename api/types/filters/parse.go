@@ -276,14 +276,6 @@ func (filters Args) Validate(accepted map[string]bool) error {
 	return nil
 }
 
-type invalidFilterError string
-
-func (e invalidFilterError) Error() string {
-	return "Invalid filter: '" + string(e) + "'"
-}
-
-func (invalidFilterError) InvalidParameter() {}
-
 // WalkValues iterates over the list of filtered values for a field.
 // It stops the iteration if it finds an error and it returns that error.
 func (filters Args) WalkValues(field string, op func(value string) error) error {

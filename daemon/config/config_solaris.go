@@ -1,9 +1,5 @@
 package config
 
-import (
-	"github.com/spf13/pflag"
-)
-
 // Config defines the configuration of a docker daemon.
 // These are the configuration settings that you pass
 // to the docker daemon when you launch it with say: `docker -d -e lxc`
