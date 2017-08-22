@@ -165,7 +165,11 @@ func NewHTTPClient(host string) (*http.Client, error) {
 
 // NewClient returns a new Docker API client
 func NewClient() (dclient.APIClient, error) {
-	host := DaemonHost()
+	return NewClientForHost(DaemonHost())
+}
+
+// NewClientForHost returns a Docker API client for the host
+func NewClientForHost(host string) (dclient.APIClient, error) {
 	httpClient, err := NewHTTPClient(host)
 	if err != nil {
 		return nil, err

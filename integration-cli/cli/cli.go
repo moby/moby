@@ -229,3 +229,11 @@ func WithStdout(writer io.Writer) func(*icmd.Cmd) func() {
 		return nil
 	}
 }
+
+// WithStdin sets the standard input reader for the command
+func WithStdin(stdin io.Reader) func(*icmd.Cmd) func() {
+	return func(cmd *icmd.Cmd) func() {
+		cmd.Stdin = stdin
+		return nil
+	}
+}
