@@ -10,9 +10,9 @@ import (
 	"github.com/pkg/errors"
 )
 
-// normaliseDest normalises the destination of a COPY/ADD command in a
+// normalizeDest normalizes the destination of a COPY/ADD command in a
 // platform semantically consistent way.
-func normaliseDest(workingDir, requested string) (string, error) {
+func normalizeDest(workingDir, requested string) (string, error) {
 	dest := filepath.FromSlash(requested)
 	endsInSlash := strings.HasSuffix(dest, string(os.PathSeparator))
 

@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNormaliseDest(t *testing.T) {
+func TestNormalizeDest(t *testing.T) {
 	tests := []struct{ current, requested, expected, etext string }{
 		{``, `D:\`, ``, `Windows does not support destinations not on the system drive (C:)`},
 		{``, `e:/`, ``, `Windows does not support destinations not on the system drive (C:)`},
@@ -40,7 +40,7 @@ func TestNormaliseDest(t *testing.T) {
 	}
 	for _, testcase := range tests {
 		msg := fmt.Sprintf("Input: %s, %s", testcase.current, testcase.requested)
-		actual, err := normaliseDest(testcase.current, testcase.requested)
+		actual, err := normalizeDest(testcase.current, testcase.requested)
 		if testcase.etext == "" {
 			if !assert.NoError(t, err, msg) {
 				continue

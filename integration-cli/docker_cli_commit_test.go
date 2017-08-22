@@ -122,7 +122,7 @@ func (s *DockerSuite) TestCommitChange(c *check.C) {
 	imageID = strings.TrimSpace(imageID)
 
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
-	prefix = strings.ToUpper(prefix) // Force C: as that's how WORKDIR is normalised on Windows
+	prefix = strings.ToUpper(prefix) // Force C: as that's how WORKDIR is normalized on Windows
 	expected := map[string]string{
 		"Config.ExposedPorts": "map[8080/tcp:{}]",
 		"Config.Env":          "[DEBUG=true test=1 PATH=/foo]",
