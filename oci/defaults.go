@@ -156,7 +156,7 @@ func DefaultLinuxSpec() specs.Spec {
 		},
 		// Devices implicitly contains the following devices:
 		// null, zero, full, random, urandom, tty, console, and ptmx.
-		// ptmx is a bind-mount or symlink of the container's ptmx.
+		// ptmx is a bind mount or symlink of the container's ptmx.
 		// See also: https://github.com/opencontainers/runtime-spec/blob/master/config-linux.md#default-devices
 		Devices: []specs.LinuxDevice{},
 		Resources: &specs.LinuxResources{
