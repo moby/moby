@@ -63,11 +63,14 @@ RUN apt-get update && apt-get install -y \
 	pkg-config \
 	protobuf-compiler \
 	protobuf-c-compiler \
+	python-backports.ssl-match-hostname \
 	python-dev \
 	python-mock \
 	python-pip \
+	python-requests \
 	python-setuptools \
 	python-websocket \
+	python-wheel \
 	tar \
 	thin-provisioning-tools \
 	vim \

@@ -45,11 +45,14 @@ RUN apt-get update && apt-get install -y \
 	libudev-dev \
 	mercurial \
 	pkg-config \
+	python-backports.ssl-match-hostname \
 	python-dev \
 	python-mock \
 	python-pip \
+	python-requests \
 	python-setuptools \
 	python-websocket \
+	python-wheel \
 	xfsprogs \
 	tar \
 	thin-provisioning-tools \

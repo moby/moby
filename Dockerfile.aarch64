@@ -56,11 +56,14 @@ RUN apt-get update && apt-get install -y \
 	pkg-config \
 	protobuf-compiler \
 	protobuf-c-compiler \
+	python-backports.ssl-match-hostname \
 	python-dev \
 	python-mock \
 	python-pip \
+	python-requests \
 	python-setuptools \
 	python-websocket \
+	python-wheel \
 	tar \
 	thin-provisioning-tools \
 	vim \
@@ -128,7 +131,6 @@ ENV DOCKER_PY_COMMIT a962578e515185cf06506050b2200c0b81aa84ef
 RUN git clone https://github.com/docker/docker-py.git /docker-py \
 	&& cd /docker-py \
 	&& git checkout -q $DOCKER_PY_COMMIT \
-	&& pip install wheel \
 	&& pip install docker-pycreds==0.2.1 \
 	&& pip install -r test-requirements.txt
 
