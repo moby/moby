@@ -31,6 +31,25 @@ func (l *TestLoggerJSON) Close() error { return nil }
 
 func (l *TestLoggerJSON) Name() string { return "json" }
 
+type TestSizedLoggerJSON struct {
+	*json.Encoder
+	mu sync.Mutex
+}
+
+func (l *TestSizedLoggerJSON) Log(m *Message) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.Encode(m)
+}
+
+func (*TestSizedLoggerJSON) Close() error { return nil }
+
+func (*TestSizedLoggerJSON) Name() string { return "sized-json" }
+
+func (*TestSizedLoggerJSON) BufSize() int {
+	return 32 * 1024
+}
+
 func TestCopier(t *testing.T) {
 	stdoutLine := "Line that thinks that it is log line from docker stdout"
 	stderrLine := "Line that thinks that it is log line from docker stderr"
@@ -104,10 +123,9 @@ func TestCopier(t *testing.T) {
 
 // TestCopierLongLines tests long lines without line breaks
 func TestCopierLongLines(t *testing.T) {
-	// Long lines (should be split at "bufSize")
-	const bufSize = 16 * 1024
-	stdoutLongLine := strings.Repeat("a", bufSize)
-	stderrLongLine := strings.Repeat("b", bufSize)
+	// Long lines (should be split at "defaultBufSize")
+	stdoutLongLine := strings.Repeat("a", defaultBufSize)
+	stderrLongLine := strings.Repeat("b", defaultBufSize)
 	stdoutTrailingLine := "stdout trailing line"
 	stderrTrailingLine := "stderr trailing line"
 
@@ -202,6 +220,41 @@ func TestCopierSlow(t *testing.T) {
 	case <-time.After(200 * time.Millisecond):
 		t.Fatal("failed to exit in time after the copier is closed")
 	case <-wait:
+	}
+}
+
+func TestCopierWithSized(t *testing.T) {
+	var jsonBuf bytes.Buffer
+	expectedMsgs := 2
+	sizedLogger := &TestSizedLoggerJSON{Encoder: json.NewEncoder(&jsonBuf)}
+	logbuf := bytes.NewBufferString(strings.Repeat(".", sizedLogger.BufSize()*expectedMsgs))
+	c := NewCopier(map[string]io.Reader{"stdout": logbuf}, sizedLogger)
+
+	c.Run()
+	// Wait for Copier to finish writing to the buffered logger.
+	c.Wait()
+	c.Close()
+
+	recvdMsgs := 0
+	dec := json.NewDecoder(&jsonBuf)
+	for {
+		var msg Message
+		if err := dec.Decode(&msg); err != nil {
+			if err == io.EOF {
+				break
+			}
+			t.Fatal(err)
+		}
+		if msg.Source != "stdout" {
+			t.Fatalf("Wrong Source: %q, should be %q", msg.Source, "stdout")
+		}
+		if len(msg.Line) != sizedLogger.BufSize() {
+			t.Fatalf("Line was not of expected max length %d, was %d", sizedLogger.BufSize(), len(msg.Line))
+		}
+		recvdMsgs++
+	}
+	if recvdMsgs != expectedMsgs {
+		t.Fatalf("expected to receive %d messages, actually received %d", expectedMsgs, recvdMsgs)
 	}
 }
 

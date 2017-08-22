@@ -1049,6 +1049,11 @@ func TestCreateTagSuccess(t *testing.T) {
 	}
 }
 
+func TestIsSizedLogger(t *testing.T) {
+	awslogs := &logStream{}
+	assert.Implements(t, (*logger.SizedLogger)(nil), awslogs, "awslogs should implement SizedLogger")
+}
+
 func BenchmarkUnwrapEvents(b *testing.B) {
 	events := make([]wrappedEvent, maximumLogEventsPerPut)
 	for i := 0; i < maximumLogEventsPerPut; i++ {
