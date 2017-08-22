@@ -1,10 +1,13 @@
 package main
 
 import (
+	"fmt"
+	"os"
 	"os/exec"
-
+	"path/filepath"
 	"strings"
 
+	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/pkg/testutil/cmd"
 )
 
@@ -45,4 +48,19 @@ func ParseCgroupPaths(procCgroupData string) map[string]string {
 		cgroupPaths[parts[1]] = parts[2]
 	}
 	return cgroupPaths
+}
+
+// RandomTmpDirPath provides a temporary path with rand string appended.
+// does not create or checks if it exists.
+func RandomTmpDirPath(s string, platform string) string {
+	// TODO: why doesn't this use os.TempDir() ?
+	tmp := "/tmp"
+	if platform == "windows" {
+		tmp = os.Getenv("TEMP")
+	}
+	path := filepath.Join(tmp, fmt.Sprintf("%s.%s", s, stringutils.GenerateRandomAlphaOnlyString(10)))
+	if platform == "windows" {
+		return filepath.FromSlash(path) // Using \
+	}
+	return filepath.ToSlash(path) // Using /
 }

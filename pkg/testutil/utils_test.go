@@ -4,7 +4,6 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
-	"strings"
 	"testing"
 )
 
@@ -52,22 +51,5 @@ func TestRunCommandPipelineWithOutput(t *testing.T) {
 	expectedOutput := "2\n"
 	if out != expectedOutput || exitCode != 0 || err != nil {
 		t.Fatalf("Expected %s for commands %v, got out:%s, exitCode:%d, err:%v", expectedOutput, cmds, out, exitCode, err)
-	}
-}
-
-func TestRandomTmpDirPath(t *testing.T) {
-	path := RandomTmpDirPath("something", runtime.GOOS)
-
-	prefix := "/tmp/something"
-	if runtime.GOOS == "windows" {
-		prefix = os.Getenv("TEMP") + `\something`
-	}
-	expectedSize := len(prefix) + 11
-
-	if !strings.HasPrefix(path, prefix) {
-		t.Fatalf("Expected generated path to have '%s' as prefix, got %s'", prefix, path)
-	}
-	if len(path) != expectedSize {
-		t.Fatalf("Expected generated path to be %d, got %d", expectedSize, len(path))
 	}
 }

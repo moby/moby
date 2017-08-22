@@ -11,7 +11,6 @@ import (
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/pkg/jsonlog"
-	"github.com/docker/docker/pkg/testutil"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
 )

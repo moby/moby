@@ -3,12 +3,9 @@ package testutil
 import (
 	"errors"
 	"fmt"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
-	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/pkg/system"
 )
 
@@ -62,18 +59,4 @@ func RunCommandPipelineWithOutput(cmds ...*exec.Cmd) (output string, exitCode in
 
 	// wait on last cmd
 	return runCommandWithOutput(cmds[len(cmds)-1])
-}
-
-// RandomTmpDirPath provides a temporary path with rand string appended.
-// does not create or checks if it exists.
-func RandomTmpDirPath(s string, platform string) string {
-	tmp := "/tmp"
-	if platform == "windows" {
-		tmp = os.Getenv("TEMP")
-	}
-	path := filepath.Join(tmp, fmt.Sprintf("%s.%s", s, stringutils.GenerateRandomAlphaOnlyString(10)))
-	if platform == "windows" {
-		return filepath.FromSlash(path) // Using \
-	}
-	return filepath.ToSlash(path) // Using /
 }
