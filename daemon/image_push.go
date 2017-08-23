@@ -56,7 +56,7 @@ func (daemon *Daemon) PushImage(ctx context.Context, image, tag string, metaHead
 			ImageEventLogger: daemon.LogImageEvent,
 			MetadataStore:    daemon.stores[platform].distributionMetadataStore,
 			ImageStore:       distribution.NewImageConfigStoreFromStore(daemon.stores[platform].imageStore),
-			ReferenceStore:   daemon.stores[platform].referenceStore,
+			ReferenceStore:   daemon.referenceStore,
 		},
 		ConfigMediaType: schema2.MediaTypeImageConfig,
 		LayerStore:      distribution.NewLayerProviderFromStore(daemon.stores[platform].layerStore),

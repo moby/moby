@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -41,7 +40,7 @@ func TestLoad(t *testing.T) {
 	}
 	jsonFile.Close()
 
-	store, err := NewReferenceStore(jsonFile.Name(), runtime.GOOS)
+	store, err := NewReferenceStore(jsonFile.Name())
 	if err != nil {
 		t.Fatalf("error creating tag store: %v", err)
 	}
@@ -70,7 +69,7 @@ func TestSave(t *testing.T) {
 	jsonFile.Close()
 	defer os.RemoveAll(jsonFile.Name())
 
-	store, err := NewReferenceStore(jsonFile.Name(), runtime.GOOS)
+	store, err := NewReferenceStore(jsonFile.Name())
 	if err != nil {
 		t.Fatalf("error creating tag store: %v", err)
 	}
@@ -112,7 +111,7 @@ func TestAddDeleteGet(t *testing.T) {
 	jsonFile.Close()
 	defer os.RemoveAll(jsonFile.Name())
 
-	store, err := NewReferenceStore(jsonFile.Name(), runtime.GOOS)
+	store, err := NewReferenceStore(jsonFile.Name())
 	if err != nil {
 		t.Fatalf("error creating tag store: %v", err)
 	}
@@ -329,7 +328,7 @@ func TestInvalidTags(t *testing.T) {
 	tmpDir, err := ioutil.TempDir("", "tag-store-test")
 	defer os.RemoveAll(tmpDir)
 
-	store, err := NewReferenceStore(filepath.Join(tmpDir, "repositories.json"), runtime.GOOS)
+	store, err := NewReferenceStore(filepath.Join(tmpDir, "repositories.json"))
 	if err != nil {
 		t.Fatalf("error creating tag store: %v", err)
 	}

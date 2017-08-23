@@ -149,7 +149,7 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 
 		newImage := newImage(img, size)
 
-		for _, ref := range daemon.stores[platform].referenceStore.References(id.Digest()) {
+		for _, ref := range daemon.referenceStore.References(id.Digest()) {
 			if imageFilters.Include("reference") {
 				var found bool
 				var matchErr error

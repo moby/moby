@@ -69,7 +69,7 @@ func (daemon *Daemon) ImageHistory(name string) ([]*image.HistoryResponseItem, e
 		h.ID = id.String()
 
 		var tags []string
-		for _, r := range daemon.stores[platform].referenceStore.References(id.Digest()) {
+		for _, r := range daemon.referenceStore.References(id.Digest()) {
 			if _, ok := r.(reference.NamedTagged); ok {
 				tags = append(tags, reference.FamiliarString(r))
 			}

@@ -24,7 +24,7 @@ func (daemon *Daemon) LookupImage(name string) (*types.ImageInspect, error) {
 		platform = runtime.GOOS
 	}
 
-	refs := daemon.stores[platform].referenceStore.References(img.ID().Digest())
+	refs := daemon.referenceStore.References(img.ID().Digest())
 	repoTags := []string{}
 	repoDigests := []string{}
 	for _, ref := range refs {
