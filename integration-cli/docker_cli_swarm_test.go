@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -23,7 +22,6 @@ import (
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/daemon"
-	"github.com/docker/docker/pkg/testutil"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/docker/docker/pkg/testutil/tempfile"
 	"github.com/docker/libnetwork/driverapi"
@@ -467,14 +465,17 @@ func (s *DockerSwarmSuite) TestSwarmIngressNetwork(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
 	// Ingress network can be removed
-	out, _, err := testutil.RunCommandPipelineWithOutput(
-		exec.Command("echo", "Y"),
-		exec.Command("docker", "-H", d.Sock(), "network", "rm", "ingress"),
-	)
-	c.Assert(err, checker.IsNil, check.Commentf(out))
+	removeNetwork := func(name string) *icmd.Result {
+		return cli.Docker(
+			cli.Args("-H", d.Sock(), "network", "rm", name),
+			cli.WithStdin(strings.NewReader("Y")))
+	}
+
+	result := removeNetwork("ingress")
+	result.Assert(c, icmd.Success)
 
 	// And recreated
-	out, err = d.Cmd("network", "create", "-d", "overlay", "--ingress", "new-ingress")
+	out, err := d.Cmd("network", "create", "-d", "overlay", "--ingress", "new-ingress")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	// But only one is allowed
@@ -485,21 +486,19 @@ func (s *DockerSwarmSuite) TestSwarmIngressNetwork(c *check.C) {
 	// It cannot be removed if it is being used
 	out, err = d.Cmd("service", "create", "--no-resolve-image", "--name", "srv1", "-p", "9000:8000", "busybox", "top")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
-	out, _, err = testutil.RunCommandPipelineWithOutput(
-		exec.Command("echo", "Y"),
-		exec.Command("docker", "-H", d.Sock(), "network", "rm", "new-ingress"),
-	)
-	c.Assert(err, checker.NotNil)
-	c.Assert(strings.TrimSpace(out), checker.Contains, "ingress network cannot be removed because service")
+
+	result = removeNetwork("new-ingress")
+	result.Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Err:      "ingress network cannot be removed because service",
+	})
 
 	// But it can be removed once no more services depend on it
 	out, err = d.Cmd("service", "update", "--publish-rm", "9000:8000", "srv1")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
-	out, _, err = testutil.RunCommandPipelineWithOutput(
-		exec.Command("echo", "Y"),
-		exec.Command("docker", "-H", d.Sock(), "network", "rm", "new-ingress"),
-	)
-	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	result = removeNetwork("new-ingress")
+	result.Assert(c, icmd.Success)
 
 	// A service which needs the ingress network cannot be created if no ingress is present
 	out, err = d.Cmd("service", "create", "--no-resolve-image", "--name", "srv2", "-p", "500:500", "busybox", "top")
@@ -520,15 +519,14 @@ func (s *DockerSwarmSuite) TestSwarmCreateServiceWithNoIngressNetwork(c *check.C
 	d := s.AddDaemon(c, true, true)
 
 	// Remove ingress network
-	out, _, err := testutil.RunCommandPipelineWithOutput(
-		exec.Command("echo", "Y"),
-		exec.Command("docker", "-H", d.Sock(), "network", "rm", "ingress"),
-	)
-	c.Assert(err, checker.IsNil, check.Commentf(out))
+	result := cli.Docker(
+		cli.Args("-H", d.Sock(), "network", "rm", "ingress"),
+		cli.WithStdin(strings.NewReader("Y")))
+	result.Assert(c, icmd.Success)
 
 	// Create a overlay network and launch a service on it
 	// Make sure nothing panics because ingress network is missing
-	out, err = d.Cmd("network", "create", "-d", "overlay", "another-network")
+	out, err := d.Cmd("network", "create", "-d", "overlay", "another-network")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	out, err = d.Cmd("service", "create", "--no-resolve-image", "--name", "srv4", "--network", "another-network", "busybox", "top")
 	c.Assert(err, checker.IsNil, check.Commentf(out))

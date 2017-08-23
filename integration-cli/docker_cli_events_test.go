@@ -18,7 +18,6 @@ import (
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/integration-cli/request"
-	"github.com/docker/docker/pkg/testutil"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
 )
@@ -230,7 +229,7 @@ func (s *DockerSuite) TestEventsImageImport(c *check.C) {
 	cleanedContainerID := strings.TrimSpace(out)
 
 	since := daemonUnixTime(c)
-	out, _, err := testutil.RunCommandPipelineWithOutput(
+	out, err := RunCommandPipelineWithOutput(
 		exec.Command(dockerBinary, "export", cleanedContainerID),
 		exec.Command(dockerBinary, "import", "-"),
 	)

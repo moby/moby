@@ -11,7 +11,6 @@ import (
 
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/pkg/testutil"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
 )
@@ -21,7 +20,7 @@ func (s *DockerSuite) TestImportDisplay(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
 	cleanedContainerID := strings.TrimSpace(out)
 
-	out, _, err := testutil.RunCommandPipelineWithOutput(
+	out, err := RunCommandPipelineWithOutput(
 		exec.Command(dockerBinary, "export", cleanedContainerID),
 		exec.Command(dockerBinary, "import", "-"),
 	)

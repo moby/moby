@@ -1,13 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"net/http"
 
-	"encoding/json"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/request"
-	"github.com/docker/docker/pkg/testutil"
 	"github.com/go-check/check"
 )
 
@@ -52,7 +51,7 @@ func (s *DockerSuite) TestInfoAPIRuncCommit(c *check.C) {
 	c.Assert(res.StatusCode, checker.Equals, http.StatusOK)
 	c.Assert(err, checker.IsNil)
 
-	b, err := testutil.ReadBody(body)
+	b, err := request.ReadBody(body)
 	c.Assert(err, checker.IsNil)
 
 	var i types.Info

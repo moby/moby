@@ -34,7 +34,6 @@ import (
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/testutil"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	units "github.com/docker/go-units"
 	"github.com/docker/libnetwork/iptables"
@@ -202,7 +201,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithInvalidBasesize(c *check.C) {
 	testRequires(c, Devicemapper)
 	s.d.Start(c)
 
-	oldBasesizeBytes := s.d.GetBaseDeviceSize(c)
+	oldBasesizeBytes := getBaseDeviceSize(c, s.d)
 	var newBasesizeBytes int64 = 1073741824 //1GB in bytes
 
 	if newBasesizeBytes < oldBasesizeBytes {
@@ -222,7 +221,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithIncreasedBasesize(c *check.C) {
 	testRequires(c, Devicemapper)
 	s.d.Start(c)
 
-	oldBasesizeBytes := s.d.GetBaseDeviceSize(c)
+	oldBasesizeBytes := getBaseDeviceSize(c, s.d)
 
 	var newBasesizeBytes int64 = 53687091200 //50GB in bytes
 
@@ -233,11 +232,29 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithIncreasedBasesize(c *check.C) {
 	err := s.d.RestartWithError("--storage-opt", fmt.Sprintf("dm.basesize=%d", newBasesizeBytes))
 	c.Assert(err, check.IsNil, check.Commentf("we should have been able to start the daemon with increased base device size: %v", err))
 
-	basesizeAfterRestart := s.d.GetBaseDeviceSize(c)
+	basesizeAfterRestart := getBaseDeviceSize(c, s.d)
 	newBasesize, err := convertBasesize(newBasesizeBytes)
 	c.Assert(err, check.IsNil, check.Commentf("Error in converting base device size: %v", err))
 	c.Assert(newBasesize, check.Equals, basesizeAfterRestart, check.Commentf("Basesize passed is not equal to Basesize set"))
 	s.d.Stop(c)
+}
+
+func getBaseDeviceSize(c *check.C, d *daemon.Daemon) int64 {
+	info := d.Info(c)
+	for _, statusLine := range info.DriverStatus {
+		key, value := statusLine[0], statusLine[1]
+		if key == "Base Device Size" {
+			return parseDeviceSize(c, value)
+		}
+	}
+	c.Fatal("failed to parse Base Device Size from info")
+	return int64(0)
+}
+
+func parseDeviceSize(c *check.C, raw string) int64 {
+	size, err := units.RAMInBytes(strings.TrimSpace(raw))
+	c.Assert(err, check.IsNil)
+	return size
 }
 
 func convertBasesize(basesizeBytes int64) (int64, error) {
@@ -1883,7 +1900,7 @@ func (s *DockerDaemonSuite) TestDaemonCgroupParent(c *check.C) {
 
 	out, err := s.d.Cmd("run", "--name", name, "busybox", "cat", "/proc/self/cgroup")
 	c.Assert(err, checker.IsNil)
-	cgroupPaths := testutil.ParseCgroupPaths(string(out))
+	cgroupPaths := ParseCgroupPaths(string(out))
 	c.Assert(len(cgroupPaths), checker.Not(checker.Equals), 0, check.Commentf("unexpected output - %q", string(out)))
 	out, err = s.d.Cmd("inspect", "-f", "{{.Id}}", name)
 	c.Assert(err, checker.IsNil)
