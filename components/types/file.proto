@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package moby.core.types.v1;
+
+import "google/protobuf/any.proto";
+import "google/protobuf/timestamp.proto";
+
+message FileInfo {
+	string name = 1;
+	int64 size = 2;
+	uint32 mode = 3;
+	google.protobuf.Timestamp modified_at = 4;
+	google.protobuf.Any sys = 5;
+}

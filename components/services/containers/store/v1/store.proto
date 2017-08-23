@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package moby.core.services.containers.store.v1;
+
+import "gogoproto/gogo.proto";
+import "google/protobuf/timestamp.proto";
+import "types/container/container.proto";
+
+service ContainerStore {
+	rpc CreateContainer(CreateContainerRequest) returns (CreateContainerResponse);
+	rpc UpdateContainer(UpdateContainerRequest) returns (UpdateContainerResponse);
+	rpc DeleteContainer(DeleteContainerRequest) returns (DeleteContainerResponse);
+	rpc GetContainer(GetContainerRequest) returns (GetContainerResponse);
+	rpc ListContainers(ListContainersRequest) returns (ListContainersResponse);
+}
+
+message CreateContainerRequest {
+	moby.core.v1.types.ContainerSpec spec = 1;
+	moby.core.v1.types.Annotations annotations = 2;
+}
+
+message CreateContainerResponse {
+	moby.core.v1.types.Container container = 1 [(gogoproto.nullable) = false];
+}
+
+message UpdateContainerRequest {
+	string container_id = 1;
+	moby.core.v1.types.Version version = 2;
+	moby.core.v1.types.ContainerSpec spec = 3;
+}
+
+message UpdateContainerResponse {
+	moby.core.v1.types.Container container = 1 [(gogoproto.nullable) = false];
+}
+
+message DeleteContainerRequest {
+	string container_id = 1;
+}
+
+message DeleteContainerResponse {}
+
+message GetContainerRequest {
+	string container_id = 1;
+}
+
+message GetContainerResponse {
+	moby.core.v1.types.Container container = 1 [(gogoproto.nullable) = false];
+}
+
+message Filters {
+	repeated string container_ids = 3;
+	map<string,string> labels = 4;
+	repeated string names = 5;
+}
+
+message ListContainersRequest {
+	Filters filters = 1;
+}
+
+message ListContainersResponse {
+	repeated moby.core.v1.types.Container containers = 1;
+}
