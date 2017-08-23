@@ -10,9 +10,9 @@ import (
 	"github.com/docker/docker/pkg/system"
 )
 
-// normaliseDest normalises the destination of a COPY/ADD command in a
+// normalizeDest normalizes the destination of a COPY/ADD command in a
 // platform semantically consistent way.
-func normaliseDest(workingDir, requested string) (string, error) {
+func normalizeDest(workingDir, requested string) (string, error) {
 	dest := filepath.FromSlash(requested)
 	endsInSlash := strings.HasSuffix(requested, string(os.PathSeparator))
 	if !system.IsAbs(requested) {

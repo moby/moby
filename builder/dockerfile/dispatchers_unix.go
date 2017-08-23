@@ -9,11 +9,11 @@ import (
 	"path/filepath"
 )
 
-// normaliseWorkdir normalises a user requested working directory in a
+// normalizeWorkdir normalizes a user requested working directory in a
 // platform semantically consistent way.
-func normaliseWorkdir(_ string, current string, requested string) (string, error) {
+func normalizeWorkdir(_ string, current string, requested string) (string, error) {
 	if requested == "" {
-		return "", errors.New("cannot normalise nothing")
+		return "", errors.New("cannot normalize nothing")
 	}
 	current = filepath.FromSlash(current)
 	requested = filepath.FromSlash(requested)

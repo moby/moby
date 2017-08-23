@@ -140,7 +140,7 @@ func (b *Builder) performCopy(state *dispatchState, inst copyInstruction) error 
 func createDestInfo(workingDir string, inst copyInstruction, imageMount *imageMount) (copyInfo, error) {
 	// Twiddle the destination when it's a relative path - meaning, make it
 	// relative to the WORKINGDIR
-	dest, err := normaliseDest(workingDir, inst.dest)
+	dest, err := normalizeDest(workingDir, inst.dest)
 	if err != nil {
 		return copyInfo{}, errors.Wrapf(err, "invalid %s", inst.cmdName)
 	}

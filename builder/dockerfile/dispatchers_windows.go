@@ -14,23 +14,23 @@ import (
 
 var pattern = regexp.MustCompile(`^[a-zA-Z]:\.$`)
 
-// normaliseWorkdir normalises a user requested working directory in a
+// normalizeWorkdir normalizes a user requested working directory in a
 // platform semantically consistent way.
-func normaliseWorkdir(platform string, current string, requested string) (string, error) {
+func normalizeWorkdir(platform string, current string, requested string) (string, error) {
 	if platform == "" {
 		platform = "windows"
 	}
 	if platform == "windows" {
-		return normaliseWorkdirWindows(current, requested)
+		return normalizeWorkdirWindows(current, requested)
 	}
-	return normaliseWorkdirUnix(current, requested)
+	return normalizeWorkdirUnix(current, requested)
 }
 
-// normaliseWorkdirUnix normalises a user requested working directory in a
+// normalizeWorkdirUnix normalizes a user requested working directory in a
 // platform semantically consistent way.
-func normaliseWorkdirUnix(current string, requested string) (string, error) {
+func normalizeWorkdirUnix(current string, requested string) (string, error) {
 	if requested == "" {
-		return "", errors.New("cannot normalise nothing")
+		return "", errors.New("cannot normalize nothing")
 	}
 	current = strings.Replace(current, string(os.PathSeparator), "/", -1)
 	requested = strings.Replace(requested, string(os.PathSeparator), "/", -1)
@@ -40,11 +40,11 @@ func normaliseWorkdirUnix(current string, requested string) (string, error) {
 	return requested, nil
 }
 
-// normaliseWorkdirWindows normalises a user requested working directory in a
+// normalizeWorkdirWindows normalizes a user requested working directory in a
 // platform semantically consistent way.
-func normaliseWorkdirWindows(current string, requested string) (string, error) {
+func normalizeWorkdirWindows(current string, requested string) (string, error) {
 	if requested == "" {
-		return "", errors.New("cannot normalise nothing")
+		return "", errors.New("cannot normalize nothing")
 	}
 
 	// `filepath.Clean` will replace "" with "." so skip in that case
