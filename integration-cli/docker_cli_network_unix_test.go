@@ -20,7 +20,6 @@ import (
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/pkg/stringid"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/libnetwork/driverapi"
 	remoteapi "github.com/docker/libnetwork/drivers/remote/api"
@@ -28,6 +27,7 @@ import (
 	remoteipam "github.com/docker/libnetwork/ipams/remote/api"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/go-check/check"
+	"github.com/gotestyourself/gotestyourself/icmd"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 )
@@ -482,7 +482,7 @@ func (s *DockerSuite) TestDockerNetworkInspectWithID(c *check.C) {
 
 func (s *DockerSuite) TestDockerInspectMultipleNetwork(c *check.C) {
 	result := dockerCmdWithResult("network", "inspect", "host", "none")
-	c.Assert(result, icmd.Matches, icmd.Success)
+	result.Assert(c, icmd.Success)
 
 	networkResources := []types.NetworkResource{}
 	err := json.Unmarshal([]byte(result.Stdout()), &networkResources)
@@ -494,7 +494,7 @@ func (s *DockerSuite) TestDockerInspectMultipleNetworksIncludingNonexistent(c *c
 	// non-existent network was not at the beginning of the inspect list
 	// This should print an error, return an exitCode 1 and print the host network
 	result := dockerCmdWithResult("network", "inspect", "host", "nonexistent")
-	c.Assert(result, icmd.Matches, icmd.Expected{
+	result.Assert(c, icmd.Expected{
 		ExitCode: 1,
 		Err:      "Error: No such network: nonexistent",
 		Out:      "host",
@@ -508,7 +508,7 @@ func (s *DockerSuite) TestDockerInspectMultipleNetworksIncludingNonexistent(c *c
 	// Only one non-existent network to inspect
 	// Should print an error and return an exitCode, nothing else
 	result = dockerCmdWithResult("network", "inspect", "nonexistent")
-	c.Assert(result, icmd.Matches, icmd.Expected{
+	result.Assert(c, icmd.Expected{
 		ExitCode: 1,
 		Err:      "Error: No such network: nonexistent",
 		Out:      "[]",
@@ -517,7 +517,7 @@ func (s *DockerSuite) TestDockerInspectMultipleNetworksIncludingNonexistent(c *c
 	// non-existent network was at the beginning of the inspect list
 	// Should not fail fast, and still print host network but print an error
 	result = dockerCmdWithResult("network", "inspect", "nonexistent", "host")
-	c.Assert(result, icmd.Matches, icmd.Expected{
+	result.Assert(c, icmd.Expected{
 		ExitCode: 1,
 		Err:      "Error: No such network: nonexistent",
 		Out:      "host",

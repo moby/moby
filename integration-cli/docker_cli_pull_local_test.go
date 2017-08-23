@@ -15,8 +15,8 @@ import (
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli/build"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
+	"github.com/gotestyourself/gotestyourself/icmd"
 	"github.com/opencontainers/go-digest"
 )
 

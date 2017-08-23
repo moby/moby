@@ -28,12 +28,12 @@ import (
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/stringutils"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/nat"
 	"github.com/docker/libnetwork/resolvconf"
 	"github.com/docker/libnetwork/types"
 	"github.com/go-check/check"
+	"github.com/gotestyourself/gotestyourself/icmd"
 	libcontainerUser "github.com/opencontainers/runc/libcontainer/user"
 )
 
@@ -1798,7 +1798,7 @@ func (s *DockerSuite) TestRunInteractiveWithRestartPolicy(c *check.C) {
 	}()
 
 	result = icmd.WaitOnCmd(60*time.Second, result)
-	c.Assert(result, icmd.Matches, icmd.Expected{ExitCode: 11})
+	result.Assert(c, icmd.Expected{ExitCode: 11})
 }
 
 // Test for #2267

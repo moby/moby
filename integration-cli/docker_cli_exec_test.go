@@ -18,8 +18,8 @@ import (
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
+	"github.com/gotestyourself/gotestyourself/icmd"
 	"golang.org/x/net/context"
 )
 
@@ -133,7 +133,7 @@ func (s *DockerSuite) TestExecExitStatus(c *check.C) {
 	runSleepingContainer(c, "-d", "--name", "top")
 
 	result := icmd.RunCommand(dockerBinary, "exec", "top", "sh", "-c", "exit 23")
-	c.Assert(result, icmd.Matches, icmd.Expected{ExitCode: 23, Error: "exit status 23"})
+	result.Assert(c, icmd.Expected{ExitCode: 23, Error: "exit status 23"})
 }
 
 func (s *DockerSuite) TestExecPausedContainer(c *check.C) {

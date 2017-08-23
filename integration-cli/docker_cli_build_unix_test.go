@@ -19,9 +19,9 @@ import (
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/integration-cli/cli/build/fakecontext"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	units "github.com/docker/go-units"
 	"github.com/go-check/check"
+	"github.com/gotestyourself/gotestyourself/icmd"
 )
 
 func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *check.C) {

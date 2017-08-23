@@ -25,8 +25,8 @@ import (
 	"github.com/docker/docker/integration-cli/cli/build/fakestorage"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/stringutils"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
+	"github.com/gotestyourself/gotestyourself/icmd"
 	digest "github.com/opencontainers/go-digest"
 )
 
@@ -3866,7 +3866,7 @@ func (s *DockerSuite) TestBuildDockerfileOutsideContext(c *check.C) {
 		filepath.Join(ctx, "dockerfile2"),
 	} {
 		result := dockerCmdWithResult("build", "-t", name, "--no-cache", "-f", dockerfilePath, ".")
-		c.Assert(result, icmd.Matches, icmd.Expected{
+		result.Assert(c, icmd.Expected{
 			Err:      "must be within the build context",
 			ExitCode: 1,
 		})

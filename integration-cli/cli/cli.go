@@ -9,7 +9,7 @@ import (
 
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/integration-cli/environment"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
+	"github.com/gotestyourself/gotestyourself/icmd"
 	"github.com/pkg/errors"
 )
 

@@ -11,8 +11,8 @@ import (
 
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
+	"github.com/gotestyourself/gotestyourself/icmd"
 )
 
 func (s *DockerSuite) TestImportDisplay(c *check.C) {
@@ -138,5 +138,5 @@ func (s *DockerSuite) TestImportWithQuotedChanges(c *check.C) {
 	image := strings.TrimSpace(result.Stdout())
 
 	result = cli.DockerCmd(c, "run", "--rm", image, "true")
-	c.Assert(result, icmd.Matches, icmd.Expected{Out: icmd.None})
+	result.Assert(c, icmd.Expected{Out: icmd.None})
 }
