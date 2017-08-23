@@ -25,6 +25,7 @@ import (
 	"github.com/docker/docker/pkg/loopback"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
+	"github.com/docker/docker/pkg/parsers/kernel"
 	units "github.com/docker/go-units"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
@@ -572,13 +573,19 @@ func determineDefaultFS() string {
 	return "ext4"
 }
 
+// mkfsOptions tries to figure out whether some additional mkfs options are required
+func mkfsOptions(fs string) []string {
+	if fs == "xfs" && !kernel.CheckKernelVersion(3, 16, 0) {
+		// For kernels earlier than 3.16 (and newer xfsutils),
+		// some xfs features need to be explicitly disabled.
+		return []string{"-m", "crc=0,finobt=0"}
+	}
+
+	return []string{}
+}
+
 func (devices *DeviceSet) createFilesystem(info *devInfo) (err error) {
 	devname := info.DevName()
-
-	args := []string{}
-	args = append(args, devices.mkfsArgs...)
-
-	args = append(args, devname)
 
 	if devices.filesystem == "" {
 		devices.filesystem = determineDefaultFS()
@@ -587,7 +594,11 @@ func (devices *DeviceSet) createFilesystem(info *devInfo) (err error) {
 		return err
 	}
 
-	logrus.Infof("devmapper: Creating filesystem %s on device %s", devices.filesystem, info.Name())
+	args := mkfsOptions(devices.filesystem)
+	args = append(args, devices.mkfsArgs...)
+	args = append(args, devname)
+
+	logrus.Infof("devmapper: Creating filesystem %s on device %s, mkfs args: %v", devices.filesystem, info.Name(), args)
 	defer func() {
 		if err != nil {
 			logrus.Infof("devmapper: Error while creating filesystem %s on device %s: %v", devices.filesystem, info.Name(), err)
