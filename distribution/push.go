@@ -145,6 +145,30 @@ func Push(ctx context.Context, ref reference.Named, imagePushConfig *ImagePushCo
 	return lastErr
 }
 
+type Compressor interface {
+	Compress(in io.Reader) (io.ReadCloser, chan struct{})
+	NewWriter(in io.Writer) io.WriteCloser
+}
+
+type GzipCompressor struct {
+	compressionLevel int
+}
+
+func NewGzipCompressor(compressionLevel int) *GzipCompressor {
+	return &GzipCompressor{
+		compressionLevel: compressionLevel,
+	}
+}
+
+func (c *GzipCompressor) Compress(in io.Reader) (io.ReadCloser, chan struct{}) {
+	return compress(c, in)
+}
+
+func (c *GzipCompressor) NewWriter(bufWriter io.Writer) io.WriteCloser {
+	compressor, _ := gzip.NewWriterLevel(bufWriter, c.compressionLevel)
+	return compressor
+}
+
 // compress returns an io.ReadCloser which will supply a compressed version of
 // the provided Reader. The caller must close the ReadCloser after reading the
 // compressed data.
@@ -158,13 +182,13 @@ func Push(ctx context.Context, ref reference.Named, imagePushConfig *ImagePushCo
 // is finished. This allows the caller to make sure the goroutine finishes
 // before it releases any resources connected with the reader that was
 // passed in.
-func compress(in io.Reader) (io.ReadCloser, chan struct{}) {
+func compress(compressorFactory Compressor, in io.Reader) (io.ReadCloser, chan struct{}) {
 	compressionDone := make(chan struct{})
 
 	pipeReader, pipeWriter := io.Pipe()
 	// Use a bufio.Writer to avoid excessive chunking in HTTP request.
 	bufWriter := bufio.NewWriterSize(pipeWriter, compressionBufSize)
-	compressor := gzip.NewWriter(bufWriter)
+	compressor := compressorFactory.NewWriter(bufWriter)
 
 	go func() {
 		_, err := io.Copy(compressor, in)

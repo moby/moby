@@ -144,6 +144,7 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, ref reference.NamedTagged, id 
 		endpoint:          p.endpoint,
 		repo:              p.repo,
 		pushState:         &p.pushState,
+		compressor:        p.config.LayerCompressor,
 	}
 
 	// Loop bounds condition is to avoid pushing the base layer on Windows.
@@ -246,6 +247,7 @@ type v2PushDescriptor struct {
 	remoteDescriptor  distribution.Descriptor
 	// a set of digests whose presence has been checked in a target repository
 	checkedDigests map[digest.Digest]struct{}
+	compressor     Compressor
 }
 
 func (pd *v2PushDescriptor) Key() string {
@@ -430,7 +432,7 @@ func (pd *v2PushDescriptor) uploadUsingSession(
 
 	switch m := pd.layer.MediaType(); m {
 	case schema2.MediaTypeUncompressedLayer:
-		compressedReader, compressionDone := compress(reader)
+		compressedReader, compressionDone := pd.compressor.Compress(reader)
 		defer func(closer io.Closer) {
 			closer.Close()
 			<-compressionDone

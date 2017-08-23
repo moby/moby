@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"compress/gzip"
 	"io"
 	"runtime"
 
@@ -60,6 +61,7 @@ func (daemon *Daemon) PushImage(ctx context.Context, image, tag string, metaHead
 		},
 		ConfigMediaType: schema2.MediaTypeImageConfig,
 		LayerStore:      distribution.NewLayerProviderFromStore(daemon.stores[platform].layerStore),
+		LayerCompressor: distribution.NewGzipCompressor(gzip.DefaultCompression),
 		TrustKey:        daemon.trustKey,
 		UploadManager:   daemon.uploadManager,
 	}
