@@ -3,14 +3,14 @@ package dockerfile
 import (
 	"testing"
 
-	"github.com/docker/docker/pkg/testutil/tempfile"
+	"github.com/gotestyourself/gotestyourself/fs"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestIsExistingDirectory(t *testing.T) {
-	tmpfile := tempfile.NewTempFile(t, "file-exists-test", "something")
+	tmpfile := fs.NewFile(t, "file-exists-test", fs.WithContent("something"))
 	defer tmpfile.Remove()
-	tmpdir := tempfile.NewTempDir(t, "dir-exists-test")
+	tmpdir := fs.NewDir(t, "dir-exists-test")
 	defer tmpdir.Remove()
 
 	var testcases = []struct {
@@ -20,7 +20,7 @@ func TestIsExistingDirectory(t *testing.T) {
 	}{
 		{
 			doc:      "directory exists",
-			path:     tmpdir.Path,
+			path:     tmpdir.Path(),
 			expected: true,
 		},
 		{
@@ -30,7 +30,7 @@ func TestIsExistingDirectory(t *testing.T) {
 		},
 		{
 			doc:      "file exists",
-			path:     tmpfile.Name(),
+			path:     tmpfile.Path(),
 			expected: false,
 		},
 	}
