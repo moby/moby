@@ -110,7 +110,7 @@ func GetWithStatusError(address string) (resp *http.Response, err error) {
 //    - an io.Reader for the response body
 //    - an error value which will be non-nil either when something goes wrong while
 //      reading bytes from r or when the detected content-type is not acceptable.
-func inspectResponse(ct string, r io.ReadCloser, clen int64) (string, io.ReadCloser, error) {
+func inspectResponse(ct string, r io.Reader, clen int64) (string, io.ReadCloser, error) {
 	plen := clen
 	if plen <= 0 || plen > maxPreambleLength {
 		plen = maxPreambleLength
@@ -119,10 +119,10 @@ func inspectResponse(ct string, r io.ReadCloser, clen int64) (string, io.ReadClo
 	preamble := make([]byte, plen, plen)
 	rlen, err := r.Read(preamble)
 	if rlen == 0 {
-		return ct, r, errors.New("empty response")
+		return ct, ioutil.NopCloser(r), errors.New("empty response")
 	}
 	if err != nil && err != io.EOF {
-		return ct, r, err
+		return ct, ioutil.NopCloser(r), err
 	}
 
 	preambleR := bytes.NewReader(preamble[:rlen])
