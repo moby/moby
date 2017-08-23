@@ -141,19 +141,26 @@ func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 			return nil, err
 		}
 	}
+	logger := logrus.WithFields(logrus.Fields{
+		"module": "graphdriver",
+		"driver": "aufs",
+	})
 
 	for _, path := range []string{"mnt", "diff"} {
 		p := filepath.Join(root, path)
-		dirs, err := ioutil.ReadDir(p)
+		entries, err := ioutil.ReadDir(p)
 		if err != nil {
-			logrus.WithError(err).WithField("dir", p).Error("error reading dir entries")
+			logger.WithError(err).WithField("dir", p).Error("error reading dir entries")
 			continue
 		}
-		for _, dir := range dirs {
-			if strings.HasSuffix(dir.Name(), "-removing") {
-				logrus.WithField("dir", dir.Name()).Debug("Cleaning up stale layer dir")
-				if err := system.EnsureRemoveAll(filepath.Join(p, dir.Name())); err != nil {
-					logrus.WithField("dir", dir.Name()).WithError(err).Error("Error removing stale layer dir")
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+			if strings.HasSuffix(entry.Name(), "-removing") {
+				logger.WithField("dir", entry.Name()).Debug("Cleaning up stale layer dir")
+				if err := system.EnsureRemoveAll(filepath.Join(p, entry.Name())); err != nil {
+					logger.WithField("dir", entry.Name()).WithError(err).Error("Error removing stale layer dir")
 				}
 			}
 		}
