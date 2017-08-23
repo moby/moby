@@ -188,7 +188,7 @@ func (s *DockerSuite) TestAPIIpcModePrivateAndContainer(c *check.C) {
  * can use IPC of the host system.
  */
 func (s *DockerSuite) TestAPIIpcModeHost(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 
 	cfg := container.Config{
 		Image: "busybox",
