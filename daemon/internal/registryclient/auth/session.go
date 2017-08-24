@@ -279,6 +279,9 @@ func (th *tokenHandler) getToken(params map[string]string, additionalScopes ...s
 	}
 	var addedScopes bool
 	for _, scope := range additionalScopes {
+		if hasScope(scopes, scope) {
+			continue
+		}
 		scopes = append(scopes, scope)
 		addedScopes = true
 	}
@@ -300,6 +303,15 @@ func (th *tokenHandler) getToken(params map[string]string, additionalScopes ...s
 	}
 
 	return th.tokenCache, nil
+}
+
+func hasScope(scopes []string, scope string) bool {
+	for _, s := range scopes {
+		if s == scope {
+			return true
+		}
+	}
+	return false
 }
 
 type postTokenResponse struct {
