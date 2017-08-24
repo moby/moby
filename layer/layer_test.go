@@ -73,7 +73,9 @@ func newTestStore(t *testing.T) (Store, string, func()) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ls, err := NewStoreFromGraphDriver(fms, graph, runtime.GOOS)
+	graphs := make(map[string]graphdriver.Driver)
+	graphs[runtime.GOOS] = graph
+	ls, err := NewStoreFromGraphDrivers(fms, graphs)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +90,7 @@ type layerInit func(root containerfs.ContainerFS) error
 
 func createLayer(ls Store, parent ChainID, layerFunc layerInit) (Layer, error) {
 	containerID := stringid.GenerateRandomID()
-	mount, err := ls.CreateRWLayer(containerID, parent, nil)
+	mount, err := ls.CreateRWLayer(containerID, parent, runtime.GOOS, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +110,7 @@ func createLayer(ls Store, parent ChainID, layerFunc layerInit) (Layer, error) {
 	}
 	defer ts.Close()
 
-	layer, err := ls.Register(ts, parent, OS(runtime.GOOS))
+	layer, err := ls.Register(ts, parent, runtime.GOOS)
 	if err != nil {
 		return nil, err
 	}
@@ -277,7 +279,7 @@ func TestMountAndRegister(t *testing.T) {
 	size, _ := layer.Size()
 	t.Logf("Layer size: %d", size)
 
-	mount2, err := ls.CreateRWLayer("new-test-mount", layer.ChainID(), nil)
+	mount2, err := ls.CreateRWLayer("new-test-mount", layer.ChainID(), runtime.GOOS, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -385,7 +387,7 @@ func TestStoreRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m, err := ls.CreateRWLayer("some-mount_name", layer3.ChainID(), nil)
+	m, err := ls.CreateRWLayer("some-mount_name", layer3.ChainID(), runtime.GOOS, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -403,7 +405,7 @@ func TestStoreRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ls2, err := NewStoreFromGraphDriver(ls.(*layerStore).store, ls.(*layerStore).driver, runtime.GOOS)
+	ls2, err := NewStoreFromGraphDrivers(ls.(*layerStore).store, ls.(*layerStore).drivers)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -416,7 +418,7 @@ func TestStoreRestore(t *testing.T) {
 	assertLayerEqual(t, layer3b, layer3)
 
 	// Create again with same name, should return error
-	if _, err := ls2.CreateRWLayer("some-mount_name", layer3b.ChainID(), nil); err == nil {
+	if _, err := ls2.CreateRWLayer("some-mount_name", layer3b.ChainID(), runtime.GOOS, nil); err == nil {
 		t.Fatal("Expected error creating mount with same name")
 	} else if err != ErrMountNameConflict {
 		t.Fatal(err)
@@ -498,13 +500,13 @@ func TestTarStreamStability(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	layer1, err := ls.Register(bytes.NewReader(tar1), "", OS(runtime.GOOS))
+	layer1, err := ls.Register(bytes.NewReader(tar1), "", runtime.GOOS)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// hack layer to add file
-	p, err := ls.(*layerStore).driver.Get(layer1.(*referencedCacheLayer).cacheID, "")
+	p, err := ls.(*layerStore).drivers[runtime.GOOS].Get(layer1.(*referencedCacheLayer).cacheID, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -513,11 +515,11 @@ func TestTarStreamStability(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := ls.(*layerStore).driver.Put(layer1.(*referencedCacheLayer).cacheID); err != nil {
+	if err := ls.(*layerStore).drivers[runtime.GOOS].Put(layer1.(*referencedCacheLayer).cacheID); err != nil {
 		t.Fatal(err)
 	}
 
-	layer2, err := ls.Register(bytes.NewReader(tar2), layer1.ChainID(), OS(runtime.GOOS))
+	layer2, err := ls.Register(bytes.NewReader(tar2), layer1.ChainID(), runtime.GOOS)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -685,12 +687,12 @@ func TestRegisterExistingLayer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	layer2a, err := ls.Register(bytes.NewReader(tar1), layer1.ChainID(), OS(runtime.GOOS))
+	layer2a, err := ls.Register(bytes.NewReader(tar1), layer1.ChainID(), runtime.GOOS)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	layer2b, err := ls.Register(bytes.NewReader(tar1), layer1.ChainID(), OS(runtime.GOOS))
+	layer2b, err := ls.Register(bytes.NewReader(tar1), layer1.ChainID(), runtime.GOOS)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -725,12 +727,12 @@ func TestTarStreamVerification(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	layer1, err := ls.Register(bytes.NewReader(tar1), "", OS(runtime.GOOS))
+	layer1, err := ls.Register(bytes.NewReader(tar1), "", runtime.GOOS)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	layer2, err := ls.Register(bytes.NewReader(tar2), "", OS(runtime.GOOS))
+	layer2, err := ls.Register(bytes.NewReader(tar2), "", runtime.GOOS)
 	if err != nil {
 		t.Fatal(err)
 	}

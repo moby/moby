@@ -38,32 +38,31 @@ func (daemon *Daemon) GetImageIDAndOS(refOrID string) (image.ID, string, error) 
 			return "", "", errImageDoesNotExist{ref}
 		}
 		id := image.IDFromDigest(digested.Digest())
-		for platform := range daemon.stores {
-			if _, err = daemon.stores[platform].imageStore.Get(id); err == nil {
-				return id, platform, nil
-			}
+		if img, err := daemon.imageStore.Get(id); err == nil {
+			return id, img.OperatingSystem(), nil
 		}
 		return "", "", errImageDoesNotExist{ref}
 	}
 
 	if digest, err := daemon.referenceStore.Get(namedRef); err == nil {
 		// Search the image stores to get the operating system, defaulting to host OS.
-		imageOS := runtime.GOOS
 		id := image.IDFromDigest(digest)
-		for os := range daemon.stores {
-			if img, err := daemon.stores[os].imageStore.Get(id); err == nil {
-				imageOS = img.OperatingSystem()
-				break
-			}
+		if img, err := daemon.imageStore.Get(id); err == nil {
+			return id, img.OperatingSystem(), nil
 		}
-		return id, imageOS, nil
 	}
 
 	// Search based on ID
-	for os := range daemon.stores {
-		if id, err := daemon.stores[os].imageStore.Search(refOrID); err == nil {
-			return id, os, nil
+	if id, err := daemon.imageStore.Search(refOrID); err == nil {
+		img, err := daemon.imageStore.Get(id)
+		if err != nil {
+			return "", "", errImageDoesNotExist{ref}
 		}
+		imageOS := img.OperatingSystem()
+		if imageOS == "" {
+			imageOS = runtime.GOOS
+		}
+		return id, imageOS, nil
 	}
 
 	return "", "", errImageDoesNotExist{ref}
@@ -71,9 +70,9 @@ func (daemon *Daemon) GetImageIDAndOS(refOrID string) (image.ID, string, error) 
 
 // GetImage returns an image corresponding to the image referred to by refOrID.
 func (daemon *Daemon) GetImage(refOrID string) (*image.Image, error) {
-	imgID, os, err := daemon.GetImageIDAndOS(refOrID)
+	imgID, _, err := daemon.GetImageIDAndOS(refOrID)
 	if err != nil {
 		return nil, err
 	}
-	return daemon.stores[os].imageStore.Get(imgID)
+	return daemon.imageStore.Get(imgID)
 }

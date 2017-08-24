@@ -78,32 +78,26 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		securityOptions = append(securityOptions, "name=userns")
 	}
 
-	imageCount := 0
+	var ds [][2]string
 	drivers := ""
-	for p, ds := range daemon.stores {
-		imageCount += len(ds.imageStore.Map())
-		drivers += daemon.GraphDriverName(p)
-		if len(daemon.stores) > 1 {
-			drivers += fmt.Sprintf(" (%s) ", p)
+	for os, gd := range daemon.graphDrivers {
+		ds = append(ds, daemon.layerStore.DriverStatus(os)...)
+		drivers += gd
+		if len(daemon.graphDrivers) > 1 {
+			drivers += fmt.Sprintf(" (%s) ", os)
 		}
 	}
-
-	// TODO @jhowardmsft LCOW support. For now, hard-code the platform shown for the driver status
-	p := runtime.GOOS
-	if system.LCOWSupported() {
-		p = "linux"
-	}
-
 	drivers = strings.TrimSpace(drivers)
+
 	v := &types.Info{
 		ID:                 daemon.ID,
 		Containers:         cRunning + cPaused + cStopped,
 		ContainersRunning:  cRunning,
 		ContainersPaused:   cPaused,
 		ContainersStopped:  cStopped,
-		Images:             imageCount,
+		Images:             len(daemon.imageStore.Map()),
 		Driver:             drivers,
-		DriverStatus:       daemon.stores[p].layerStore.DriverStatus(),
+		DriverStatus:       ds,
 		Plugins:            daemon.showPluginsInfo(),
 		IPv4Forwarding:     !sysInfo.IPv4ForwardingDisabled,
 		BridgeNfIptables:   !sysInfo.BridgeNFCallIPTablesDisabled,

@@ -2,6 +2,8 @@
 
 package layer
 
-func (rl *roLayer) OS() OS {
-	return ""
+import "runtime"
+
+func (rl *roLayer) OS() string {
+	return runtime.GOOS
 }

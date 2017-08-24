@@ -3,13 +3,11 @@ package image
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/docker/distribution/digestset"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/system"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -47,17 +45,15 @@ type store struct {
 	images    map[ID]*imageMeta
 	fs        StoreBackend
 	digestSet *digestset.Set
-	os        string
 }
 
 // NewImageStore returns new store object for given layer store
-func NewImageStore(fs StoreBackend, os string, ls LayerGetReleaser) (Store, error) {
+func NewImageStore(fs StoreBackend, ls LayerGetReleaser) (Store, error) {
 	is := &store{
 		ls:        ls,
 		images:    make(map[ID]*imageMeta),
 		fs:        fs,
 		digestSet: digestset.NewSet(),
-		os:        os,
 	}
 
 	// load all current images and retain layers
@@ -116,14 +112,6 @@ func (is *store) Create(config []byte) (ID, error) {
 	err := json.Unmarshal(config, &img)
 	if err != nil {
 		return "", err
-	}
-
-	// TODO @jhowardmsft - LCOW Support. This will need revisiting when coalescing the image stores.
-	// Integrity check - ensure we are creating something for the correct platform
-	if system.LCOWSupported() {
-		if strings.ToLower(img.OperatingSystem()) != strings.ToLower(is.os) {
-			return "", fmt.Errorf("cannot create entry for operating system %q in image store for operating system %q", img.OperatingSystem(), is.os)
-		}
 	}
 
 	// Must reject any config that references diffIDs from the history

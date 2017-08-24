@@ -154,7 +154,7 @@ func (b *Builder) exportImage(state *dispatchState, imageMount *imageMount, runC
 		return errors.Wrap(err, "failed to encode image config")
 	}
 
-	exportedImage, err := b.docker.CreateImage(config, state.imageID, parentImage.OS)
+	exportedImage, err := b.docker.CreateImage(config, state.imageID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to export image")
 	}

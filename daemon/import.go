@@ -91,11 +91,11 @@ func (daemon *Daemon) ImportImage(src string, repository, os string, tag string,
 	if err != nil {
 		return err
 	}
-	l, err := daemon.stores[os].layerStore.Register(inflatedLayerData, "", layer.OS(os))
+	l, err := daemon.layerStore.Register(inflatedLayerData, "", os)
 	if err != nil {
 		return err
 	}
-	defer layer.ReleaseAndLog(daemon.stores[os].layerStore, l)
+	defer layer.ReleaseAndLog(daemon.layerStore, l)
 
 	created := time.Now().UTC()
 	imgConfig, err := json.Marshal(&image.Image{
@@ -120,14 +120,14 @@ func (daemon *Daemon) ImportImage(src string, repository, os string, tag string,
 		return err
 	}
 
-	id, err := daemon.stores[os].imageStore.Create(imgConfig)
+	id, err := daemon.imageStore.Create(imgConfig)
 	if err != nil {
 		return err
 	}
 
 	// FIXME: connect with commit code and call refstore directly
 	if newRef != nil {
-		if err := daemon.TagImageWithReference(id, os, newRef); err != nil {
+		if err := daemon.TagImageWithReference(id, newRef); err != nil {
 			return err
 		}
 	}

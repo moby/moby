@@ -3,7 +3,6 @@ package daemon
 import (
 	"fmt"
 	"regexp"
-	"runtime"
 	"sync/atomic"
 	"time"
 
@@ -14,7 +13,6 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/directory"
-	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
 	"github.com/docker/libnetwork"
@@ -162,12 +160,6 @@ func (daemon *Daemon) VolumesPrune(ctx context.Context, pruneFilters filters.Arg
 
 // ImagesPrune removes unused images
 func (daemon *Daemon) ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*types.ImagesPruneReport, error) {
-	// TODO @jhowardmsft LCOW Support: This will need revisiting later.
-	platform := runtime.GOOS
-	if system.LCOWSupported() {
-		platform = "linux"
-	}
-
 	if !atomic.CompareAndSwapInt32(&daemon.pruneRunning, 0, 1) {
 		return nil, errPruneRunning
 	}
@@ -197,9 +189,9 @@ func (daemon *Daemon) ImagesPrune(ctx context.Context, pruneFilters filters.Args
 
 	var allImages map[image.ID]*image.Image
 	if danglingOnly {
-		allImages = daemon.stores[platform].imageStore.Heads()
+		allImages = daemon.imageStore.Heads()
 	} else {
-		allImages = daemon.stores[platform].imageStore.Map()
+		allImages = daemon.imageStore.Map()
 	}
 	allContainers := daemon.List()
 	imageRefs := map[string]bool{}
@@ -213,7 +205,7 @@ func (daemon *Daemon) ImagesPrune(ctx context.Context, pruneFilters filters.Args
 	}
 
 	// Filter intermediary images and get their unique size
-	allLayers := daemon.stores[platform].layerStore.Map()
+	allLayers := daemon.layerStore.Map()
 	topImages := map[image.ID]*image.Image{}
 	for id, img := range allImages {
 		select {
@@ -221,7 +213,7 @@ func (daemon *Daemon) ImagesPrune(ctx context.Context, pruneFilters filters.Args
 			return nil, ctx.Err()
 		default:
 			dgst := digest.Digest(id)
-			if len(daemon.referenceStore.References(dgst)) == 0 && len(daemon.stores[platform].imageStore.Children(id)) != 0 {
+			if len(daemon.referenceStore.References(dgst)) == 0 && len(daemon.imageStore.Children(id)) != 0 {
 				continue
 			}
 			if !until.IsZero() && img.Created.After(until) {

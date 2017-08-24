@@ -65,14 +65,6 @@ func (id ChainID) String() string {
 	return string(id)
 }
 
-// OS is the operating system of a layer
-type OS string
-
-// String returns a string rendition of layers target operating system
-func (id OS) String() string {
-	return string(id)
-}
-
 // DiffID is the hash of an individual layer tar.
 type DiffID digest.Digest
 
@@ -109,7 +101,7 @@ type Layer interface {
 	Parent() Layer
 
 	// OS returns the operating system of the layer
-	OS() OS
+	OS() string
 
 	// Size returns the size of the entire layer chain. The size
 	// is calculated from the total size of all files in the layers.
@@ -156,6 +148,9 @@ type RWLayer interface {
 
 	// Metadata returns the low level metadata for the mutable layer
 	Metadata() (map[string]string, error)
+
+	// OS returns the operating system of the writable layer
+	OS() string
 }
 
 // Metadata holds information about a
@@ -191,25 +186,25 @@ type CreateRWLayerOpts struct {
 // Store represents a backend for managing both
 // read-only and read-write layers.
 type Store interface {
-	Register(io.Reader, ChainID, OS) (Layer, error)
+	Register(io.Reader, ChainID, string) (Layer, error)
 	Get(ChainID) (Layer, error)
 	Map() map[ChainID]Layer
 	Release(Layer) ([]Metadata, error)
 
-	CreateRWLayer(id string, parent ChainID, opts *CreateRWLayerOpts) (RWLayer, error)
+	CreateRWLayer(id string, parent ChainID, os string, opts *CreateRWLayerOpts) (RWLayer, error)
 	GetRWLayer(id string) (RWLayer, error)
 	GetMountID(id string) (string, error)
 	ReleaseRWLayer(RWLayer) ([]Metadata, error)
 
 	Cleanup() error
-	DriverStatus() [][2]string
-	DriverName() string
+	DriverStatus(os string) [][2]string
+	DriverName(os string) string
 }
 
 // DescribableStore represents a layer store capable of storing
 // descriptors for layers.
 type DescribableStore interface {
-	RegisterWithDescriptor(io.Reader, ChainID, OS, distribution.Descriptor) (Layer, error)
+	RegisterWithDescriptor(io.Reader, ChainID, string, distribution.Descriptor) (Layer, error)
 }
 
 // MetadataTransaction represents functions for setting layer metadata
@@ -220,7 +215,7 @@ type MetadataTransaction interface {
 	SetDiffID(DiffID) error
 	SetCacheID(string) error
 	SetDescriptor(distribution.Descriptor) error
-	SetOS(OS) error
+	SetOS(string) error
 	TarSplitWriter(compressInput bool) (io.WriteCloser, error)
 
 	Commit(ChainID) error
@@ -241,7 +236,7 @@ type MetadataStore interface {
 	GetDiffID(ChainID) (DiffID, error)
 	GetCacheID(ChainID) (string, error)
 	GetDescriptor(ChainID) (distribution.Descriptor, error)
-	GetOS(ChainID) (OS, error)
+	GetOS(ChainID) (string, error)
 	TarSplitReader(ChainID) (io.ReadCloser, error)
 
 	SetMountID(string, string) error

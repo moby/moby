@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 
 	"github.com/opencontainers/go-digest"
 	"github.com/sirupsen/logrus"
@@ -16,7 +17,7 @@ import (
 // CreateRWLayerByGraphID creates a RWLayer in the layer store using
 // the provided name with the given graphID. To get the RWLayer
 // after migration the layer may be retrieved by the given name.
-func (ls *layerStore) CreateRWLayerByGraphID(name string, graphID string, parent ChainID) (err error) {
+func (ls *layerStore) CreateRWLayerByGraphID(name, graphID, os string, parent ChainID) (err error) {
 	ls.mountL.Lock()
 	defer ls.mountL.Unlock()
 	m, ok := ls.mounts[name]
@@ -31,7 +32,11 @@ func (ls *layerStore) CreateRWLayerByGraphID(name string, graphID string, parent
 		return nil
 	}
 
-	if !ls.driver.Exists(graphID) {
+	// Ensure the operating system is set to the host OS if not populated.
+	if os == "" {
+		os = runtime.GOOS
+	}
+	if !ls.drivers[os].Exists(graphID) {
 		return fmt.Errorf("graph ID does not exist: %q", graphID)
 	}
 
@@ -60,11 +65,12 @@ func (ls *layerStore) CreateRWLayerByGraphID(name string, graphID string, parent
 		mountID:    graphID,
 		layerStore: ls,
 		references: map[RWLayer]*referencedRWLayer{},
+		os:         os,
 	}
 
 	// Check for existing init layer
 	initID := fmt.Sprintf("%s-init", graphID)
-	if ls.driver.Exists(initID) {
+	if ls.drivers[os].Exists(initID) {
 		m.initID = initID
 	}
 
@@ -95,7 +101,10 @@ func (ls *layerStore) ChecksumForGraphID(id, parent, oldTarDataPath, newTarDataP
 	}
 
 	dgst := digest.Canonical.Digester()
-	err = ls.assembleTarTo(id, uncompressed, &size, dgst.Hash())
+	// Note - we use the host OS here. This is a safe assumption as its during migration, and
+	// no host OS which supports migration also supports multiple image OS's. In other words,
+	// it's only on Linux, not on Windows.
+	err = ls.assembleTarTo(id, runtime.GOOS, uncompressed, &size, dgst.Hash())
 	if err != nil {
 		return
 	}
@@ -111,7 +120,10 @@ func (ls *layerStore) ChecksumForGraphID(id, parent, oldTarDataPath, newTarDataP
 }
 
 func (ls *layerStore) checksumForGraphIDNoTarsplit(id, parent, newTarDataPath string) (diffID DiffID, size int64, err error) {
-	rawarchive, err := ls.driver.Diff(id, parent)
+	// Note - we use the host OS here. This is a safe assumption as its during migration, and
+	// no host OS which supports migration also supports multiple image OS's. In other words,
+	// it's only on Linux, not on Windows.
+	rawarchive, err := ls.drivers[runtime.GOOS].Diff(id, parent)
 	if err != nil {
 		return
 	}

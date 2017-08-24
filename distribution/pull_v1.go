@@ -36,7 +36,7 @@ type v1Puller struct {
 	session     *registry.Session
 }
 
-func (p *v1Puller) Pull(ctx context.Context, ref reference.Named, platform string) error {
+func (p *v1Puller) Pull(ctx context.Context, ref reference.Named, os string) error {
 	if _, isCanonical := ref.(reference.Canonical); isCanonical {
 		// Allowing fallback, because HTTPS v1 is before HTTP v2
 		return fallbackError{err: ErrNoSupport{Err: errors.New("Cannot pull by digest with v1 registry")}}

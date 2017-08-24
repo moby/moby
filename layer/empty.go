@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"runtime"
 )
 
 // DigestSHA256EmptyTar is the canonical sha256 digest of empty tar file -
@@ -55,8 +56,8 @@ func (el *emptyLayer) Metadata() (map[string]string, error) {
 	return make(map[string]string), nil
 }
 
-func (el *emptyLayer) OS() OS {
-	return ""
+func (el *emptyLayer) OS() string {
+	return runtime.GOOS
 }
 
 // IsEmpty returns true if the layer is an EmptyLayer

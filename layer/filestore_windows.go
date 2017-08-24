@@ -8,7 +8,7 @@ import (
 )
 
 // SetOS writes the "os" file to the layer filestore
-func (fm *fileMetadataTransaction) SetOS(os OS) error {
+func (fm *fileMetadataTransaction) SetOS(os string) error {
 	if os == "" {
 		return nil
 	}
@@ -16,7 +16,7 @@ func (fm *fileMetadataTransaction) SetOS(os OS) error {
 }
 
 // GetOS reads the "os" file from the layer filestore
-func (fms *fileMetadataStore) GetOS(layer ChainID) (OS, error) {
+func (fms *fileMetadataStore) GetOS(layer ChainID) (string, error) {
 	contentBytes, err := ioutil.ReadFile(fms.getLayerFilename(layer, "os"))
 	if err != nil {
 		// For backwards compatibility, the os file may not exist. Default to "windows" if missing.
@@ -31,5 +31,5 @@ func (fms *fileMetadataStore) GetOS(layer ChainID) (OS, error) {
 		return "", fmt.Errorf("invalid operating system value: %s", content)
 	}
 
-	return OS(content), nil
+	return content, nil
 }

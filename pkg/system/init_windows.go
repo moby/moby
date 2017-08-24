@@ -11,7 +11,7 @@ var lcowSupported = false
 // 2. Remove the getenv check when image-store is coalesced as shouldn't be needed anymore.
 func InitLCOW(experimental bool) {
 	v := GetOSVersion()
-	if experimental && v.Build > 16270 && os.Getenv("LCOW_SUPPORTED") != "" {
+	if experimental && v.Build > 16278 && os.Getenv("LCOW_SUPPORTED") != "" {
 		lcowSupported = true
 	}
 }

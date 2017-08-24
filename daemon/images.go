@@ -3,7 +3,6 @@ package daemon
 import (
 	"encoding/json"
 	"fmt"
-	"runtime"
 	"sort"
 	"time"
 
@@ -15,7 +14,6 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/system"
 )
 
 var acceptedImageFilterTags = map[string]bool{
@@ -36,12 +34,7 @@ func (r byCreated) Less(i, j int) bool { return r[i].Created < r[j].Created }
 
 // Map returns a map of all images in the ImageStore
 func (daemon *Daemon) Map() map[image.ID]*image.Image {
-	// TODO @jhowardmsft LCOW. This can be removed when imagestores are coalesced
-	platform := runtime.GOOS
-	if system.LCOWSupported() {
-		platform = "linux"
-	}
-	return daemon.stores[platform].imageStore.Map()
+	return daemon.imageStore.Map()
 }
 
 // Images returns a filtered list of images. filterArgs is a JSON-encoded set
@@ -50,13 +43,6 @@ func (daemon *Daemon) Map() map[image.ID]*image.Image {
 // named all controls whether all images in the graph are filtered, or just
 // the heads.
 func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs bool) ([]*types.ImageSummary, error) {
-
-	// TODO @jhowardmsft LCOW. This can be removed when imagestores are coalesced
-	platform := runtime.GOOS
-	if system.LCOWSupported() {
-		platform = "linux"
-	}
-
 	var (
 		allImages    map[image.ID]*image.Image
 		err          error
@@ -75,9 +61,9 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 		}
 	}
 	if danglingOnly {
-		allImages = daemon.stores[platform].imageStore.Heads()
+		allImages = daemon.imageStore.Heads()
 	} else {
-		allImages = daemon.stores[platform].imageStore.Map()
+		allImages = daemon.imageStore.Map()
 	}
 
 	var beforeFilter, sinceFilter *image.Image
@@ -130,7 +116,7 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 		layerID := img.RootFS.ChainID()
 		var size int64
 		if layerID != "" {
-			l, err := daemon.stores[platform].layerStore.Get(layerID)
+			l, err := daemon.layerStore.Get(layerID)
 			if err != nil {
 				// The layer may have been deleted between the call to `Map()` or
 				// `Heads()` and the call to `Get()`, so we just ignore this error
@@ -141,7 +127,7 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 			}
 
 			size, err = l.Size()
-			layer.ReleaseAndLog(daemon.stores[platform].layerStore, l)
+			layer.ReleaseAndLog(daemon.layerStore, l)
 			if err != nil {
 				return nil, err
 			}
@@ -171,7 +157,7 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 			}
 		}
 		if newImage.RepoDigests == nil && newImage.RepoTags == nil {
-			if all || len(daemon.stores[platform].imageStore.Children(id)) == 0 {
+			if all || len(daemon.imageStore.Children(id)) == 0 {
 
 				if imageFilters.Contains("dangling") && !danglingOnly {
 					//dangling=false case, so dangling image is not needed
@@ -193,7 +179,7 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 			// lazily init variables
 			if imagesMap == nil {
 				allContainers = daemon.List()
-				allLayers = daemon.stores[platform].layerStore.Map()
+				allLayers = daemon.layerStore.Map()
 				imagesMap = make(map[*image.Image]*types.ImageSummary)
 				layerRefs = make(map[layer.ChainID]int)
 			}
@@ -261,19 +247,14 @@ func (daemon *Daemon) SquashImage(id, parent string) (string, error) {
 		img *image.Image
 		err error
 	)
-	for _, ds := range daemon.stores {
-		if img, err = ds.imageStore.Get(image.ID(id)); err == nil {
-			break
-		}
-	}
-	if err != nil {
+	if img, err = daemon.imageStore.Get(image.ID(id)); err != nil {
 		return "", err
 	}
 
 	var parentImg *image.Image
 	var parentChainID layer.ChainID
 	if len(parent) != 0 {
-		parentImg, err = daemon.stores[img.OperatingSystem()].imageStore.Get(image.ID(parent))
+		parentImg, err = daemon.imageStore.Get(image.ID(parent))
 		if err != nil {
 			return "", errors.Wrap(err, "error getting specified parent layer")
 		}
@@ -283,11 +264,11 @@ func (daemon *Daemon) SquashImage(id, parent string) (string, error) {
 		parentImg = &image.Image{RootFS: rootFS}
 	}
 
-	l, err := daemon.stores[img.OperatingSystem()].layerStore.Get(img.RootFS.ChainID())
+	l, err := daemon.layerStore.Get(img.RootFS.ChainID())
 	if err != nil {
 		return "", errors.Wrap(err, "error getting image layer")
 	}
-	defer daemon.stores[img.OperatingSystem()].layerStore.Release(l)
+	defer daemon.layerStore.Release(l)
 
 	ts, err := l.TarStreamFrom(parentChainID)
 	if err != nil {
@@ -295,11 +276,11 @@ func (daemon *Daemon) SquashImage(id, parent string) (string, error) {
 	}
 	defer ts.Close()
 
-	newL, err := daemon.stores[img.OperatingSystem()].layerStore.Register(ts, parentChainID, layer.OS(img.OperatingSystem()))
+	newL, err := daemon.layerStore.Register(ts, parentChainID, img.OperatingSystem())
 	if err != nil {
 		return "", errors.Wrap(err, "error registering layer")
 	}
-	defer daemon.stores[img.OperatingSystem()].layerStore.Release(newL)
+	defer daemon.layerStore.Release(newL)
 
 	newImage := *img
 	newImage.RootFS = nil
@@ -334,7 +315,7 @@ func (daemon *Daemon) SquashImage(id, parent string) (string, error) {
 		return "", errors.Wrap(err, "error marshalling image config")
 	}
 
-	newImgID, err := daemon.stores[img.OperatingSystem()].imageStore.Create(b)
+	newImgID, err := daemon.imageStore.Create(b)
 	if err != nil {
 		return "", errors.Wrap(err, "error creating new image after squash")
 	}

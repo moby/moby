@@ -15,12 +15,12 @@ func (daemon *Daemon) getSize(containerID string) (int64, int64) {
 		err                error
 	)
 
-	rwlayer, err := daemon.stores[runtime.GOOS].layerStore.GetRWLayer(containerID)
+	rwlayer, err := daemon.layerStore.GetRWLayer(containerID)
 	if err != nil {
 		logrus.Errorf("Failed to compute size of container rootfs %v: %v", containerID, err)
 		return sizeRw, sizeRootfs
 	}
-	defer daemon.stores[runtime.GOOS].layerStore.ReleaseRWLayer(rwlayer)
+	defer daemon.layerStore.ReleaseRWLayer(rwlayer)
 
 	sizeRw, err = rwlayer.Size()
 	if err != nil {

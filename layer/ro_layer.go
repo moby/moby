@@ -16,7 +16,7 @@ type roLayer struct {
 	size       int64
 	layerStore *layerStore
 	descriptor distribution.Descriptor
-	os         OS
+	os         string
 
 	referenceCount int
 	references     map[Layer]struct{}
@@ -52,7 +52,7 @@ func (rl *roLayer) TarStreamFrom(parent ChainID) (io.ReadCloser, error) {
 	if parent != ChainID("") && parentCacheID == "" {
 		return nil, fmt.Errorf("layer ID '%s' is not a parent of the specified layer: cannot provide diff to non-parent", parent)
 	}
-	return rl.layerStore.driver.Diff(rl.cacheID, parentCacheID)
+	return rl.layerStore.drivers[rl.OS()].Diff(rl.cacheID, parentCacheID)
 }
 
 func (rl *roLayer) ChainID() ChainID {
@@ -86,7 +86,7 @@ func (rl *roLayer) DiffSize() (size int64, err error) {
 }
 
 func (rl *roLayer) Metadata() (map[string]string, error) {
-	return rl.layerStore.driver.GetMetadata(rl.cacheID)
+	return rl.layerStore.drivers[rl.OS()].GetMetadata(rl.cacheID)
 }
 
 type referencedCacheLayer struct {

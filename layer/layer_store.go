@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"strings"
+	"runtime"
 	"sync"
 
 	"github.com/docker/distribution"
@@ -28,70 +28,77 @@ import (
 const maxLayerDepth = 125
 
 type layerStore struct {
-	store  MetadataStore
-	driver graphdriver.Driver
+	store       MetadataStore
+	drivers     map[string]graphdriver.Driver
+	useTarSplit map[string]bool
 
 	layerMap map[ChainID]*roLayer
 	layerL   sync.Mutex
 
 	mounts map[string]*mountedLayer
 	mountL sync.Mutex
-
-	useTarSplit bool
-
-	os string
 }
 
 // StoreOptions are the options used to create a new Store instance
 type StoreOptions struct {
-	StorePath                 string
+	Root                      string
+	GraphDrivers              map[string]string
 	MetadataStorePathTemplate string
-	GraphDriver               string
 	GraphDriverOptions        []string
 	IDMappings                *idtools.IDMappings
 	PluginGetter              plugingetter.PluginGetter
 	ExperimentalEnabled       bool
-	OS                        string
 }
 
 // NewStoreFromOptions creates a new Store instance
 func NewStoreFromOptions(options StoreOptions) (Store, error) {
-	driver, err := graphdriver.New(options.GraphDriver, options.PluginGetter, graphdriver.Options{
-		Root:                options.StorePath,
-		DriverOptions:       options.GraphDriverOptions,
-		UIDMaps:             options.IDMappings.UIDs(),
-		GIDMaps:             options.IDMappings.GIDs(),
-		ExperimentalEnabled: options.ExperimentalEnabled,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("error initializing graphdriver: %v", err)
+	drivers := make(map[string]graphdriver.Driver)
+	for os, drivername := range options.GraphDrivers {
+		var err error
+		drivers[os], err = graphdriver.New(drivername,
+			options.PluginGetter,
+			graphdriver.Options{
+				Root:                options.Root,
+				DriverOptions:       options.GraphDriverOptions,
+				UIDMaps:             options.IDMappings.UIDs(),
+				GIDMaps:             options.IDMappings.GIDs(),
+				ExperimentalEnabled: options.ExperimentalEnabled,
+			})
+		if err != nil {
+			return nil, fmt.Errorf("error initializing graphdriver: %v", err)
+		}
+		logrus.Debugf("Initialized graph driver %s", drivername)
 	}
-	logrus.Debugf("Using graph driver %s", driver)
 
-	fms, err := NewFSMetadataStore(fmt.Sprintf(options.MetadataStorePathTemplate, driver))
+	fms, err := NewFSMetadataStore(fmt.Sprintf(options.MetadataStorePathTemplate, options.GraphDrivers[runtime.GOOS]))
 	if err != nil {
 		return nil, err
 	}
 
-	return NewStoreFromGraphDriver(fms, driver, options.OS)
+	return NewStoreFromGraphDrivers(fms, drivers)
 }
 
-// NewStoreFromGraphDriver creates a new Store instance using the provided
-// metadata store and graph driver. The metadata store will be used to restore
+// NewStoreFromGraphDrivers creates a new Store instance using the provided
+// metadata store and graph drivers. The metadata store will be used to restore
 // the Store.
-func NewStoreFromGraphDriver(store MetadataStore, driver graphdriver.Driver, os string) (Store, error) {
-	caps := graphdriver.Capabilities{}
-	if capDriver, ok := driver.(graphdriver.CapabilityDriver); ok {
-		caps = capDriver.Capabilities()
+func NewStoreFromGraphDrivers(store MetadataStore, drivers map[string]graphdriver.Driver) (Store, error) {
+
+	useTarSplit := make(map[string]bool)
+	for os, driver := range drivers {
+
+		caps := graphdriver.Capabilities{}
+		if capDriver, ok := driver.(graphdriver.CapabilityDriver); ok {
+			caps = capDriver.Capabilities()
+		}
+		useTarSplit[os] = !caps.ReproducesExactDiffs
 	}
 
 	ls := &layerStore{
 		store:       store,
-		driver:      driver,
+		drivers:     drivers,
 		layerMap:    map[ChainID]*roLayer{},
 		mounts:      map[string]*mountedLayer{},
-		useTarSplit: !caps.ReproducesExactDiffs,
-		os:          os,
+		useTarSplit: useTarSplit,
 	}
 
 	ids, mounts, err := store.List()
@@ -227,7 +234,7 @@ func (ls *layerStore) applyTar(tx MetadataTransaction, ts io.Reader, parent stri
 	tr := io.TeeReader(ts, digester.Hash())
 
 	rdr := tr
-	if ls.useTarSplit {
+	if ls.useTarSplit[layer.os] {
 		tsw, err := tx.TarSplitWriter(true)
 		if err != nil {
 			return err
@@ -243,7 +250,7 @@ func (ls *layerStore) applyTar(tx MetadataTransaction, ts io.Reader, parent stri
 		}
 	}
 
-	applySize, err := ls.driver.ApplyDiff(layer.cacheID, parent, rdr)
+	applySize, err := ls.drivers[layer.os].ApplyDiff(layer.cacheID, parent, rdr)
 	if err != nil {
 		return err
 	}
@@ -259,24 +266,17 @@ func (ls *layerStore) applyTar(tx MetadataTransaction, ts io.Reader, parent stri
 	return nil
 }
 
-func (ls *layerStore) Register(ts io.Reader, parent ChainID, os OS) (Layer, error) {
+func (ls *layerStore) Register(ts io.Reader, parent ChainID, os string) (Layer, error) {
 	return ls.registerWithDescriptor(ts, parent, os, distribution.Descriptor{})
 }
 
-func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, os OS, descriptor distribution.Descriptor) (Layer, error) {
+func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, os string, descriptor distribution.Descriptor) (Layer, error) {
 	// err is used to hold the error which will always trigger
 	// cleanup of creates sources but may not be an error returned
 	// to the caller (already exists).
 	var err error
 	var pid string
 	var p *roLayer
-
-	// Integrity check - ensure we are creating something for the correct operating system
-	if system.LCOWSupported() {
-		if strings.ToLower(ls.os) != strings.ToLower(string(os)) {
-			return nil, fmt.Errorf("cannot create entry for operating system %q in layer store for operating system %q", os, ls.os)
-		}
-	}
 
 	if string(parent) != "" {
 		p = ls.get(parent)
@@ -298,6 +298,14 @@ func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, os OS
 		}
 	}
 
+	// Validate the operating system is valid
+	if os == "" {
+		os = runtime.GOOS
+	}
+	if err := system.ValidatePlatform(system.ParsePlatform(os)); err != nil {
+		return nil, err
+	}
+
 	// Create new roLayer
 	layer := &roLayer{
 		parent:         p,
@@ -309,7 +317,7 @@ func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, os OS
 		os:             os,
 	}
 
-	if err = ls.driver.Create(layer.cacheID, pid, nil); err != nil {
+	if err = ls.drivers[os].Create(layer.cacheID, pid, nil); err != nil {
 		return nil, err
 	}
 
@@ -321,7 +329,7 @@ func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, os OS
 	defer func() {
 		if err != nil {
 			logrus.Debugf("Cleaning up layer %s: %v", layer.cacheID, err)
-			if err := ls.driver.Remove(layer.cacheID); err != nil {
+			if err := ls.drivers[os].Remove(layer.cacheID); err != nil {
 				logrus.Errorf("Error cleaning up cache layer %s: %v", layer.cacheID, err)
 			}
 			if err := tx.Cancel(); err != nil {
@@ -405,7 +413,7 @@ func (ls *layerStore) Map() map[ChainID]Layer {
 }
 
 func (ls *layerStore) deleteLayer(layer *roLayer, metadata *Metadata) error {
-	err := ls.driver.Remove(layer.cacheID)
+	err := ls.drivers[layer.os].Remove(layer.cacheID)
 	if err != nil {
 		return err
 	}
@@ -475,7 +483,7 @@ func (ls *layerStore) Release(l Layer) ([]Metadata, error) {
 	return ls.releaseLayer(layer)
 }
 
-func (ls *layerStore) CreateRWLayer(name string, parent ChainID, opts *CreateRWLayerOpts) (RWLayer, error) {
+func (ls *layerStore) CreateRWLayer(name string, parent ChainID, os string, opts *CreateRWLayerOpts) (RWLayer, error) {
 	var (
 		storageOpt map[string]string
 		initFunc   MountInit
@@ -515,16 +523,21 @@ func (ls *layerStore) CreateRWLayer(name string, parent ChainID, opts *CreateRWL
 		}()
 	}
 
+	// Ensure the operating system is set to the host OS if not populated.
+	if os == "" {
+		os = runtime.GOOS
+	}
 	m = &mountedLayer{
 		name:       name,
 		parent:     p,
 		mountID:    ls.mountID(name),
 		layerStore: ls,
 		references: map[RWLayer]*referencedRWLayer{},
+		os:         os,
 	}
 
 	if initFunc != nil {
-		pid, err = ls.initMount(m.mountID, pid, mountLabel, initFunc, storageOpt)
+		pid, err = ls.initMount(m.mountID, m.os, pid, mountLabel, initFunc, storageOpt)
 		if err != nil {
 			return nil, err
 		}
@@ -535,7 +548,7 @@ func (ls *layerStore) CreateRWLayer(name string, parent ChainID, opts *CreateRWL
 		StorageOpt: storageOpt,
 	}
 
-	if err = ls.driver.CreateReadWrite(m.mountID, pid, createOpts); err != nil {
+	if err = ls.drivers[os].CreateReadWrite(m.mountID, pid, createOpts); err != nil {
 		return nil, err
 	}
 	if err = ls.saveMount(m); err != nil {
@@ -584,14 +597,14 @@ func (ls *layerStore) ReleaseRWLayer(l RWLayer) ([]Metadata, error) {
 		return []Metadata{}, nil
 	}
 
-	if err := ls.driver.Remove(m.mountID); err != nil {
+	if err := ls.drivers[l.OS()].Remove(m.mountID); err != nil {
 		logrus.Errorf("Error removing mounted layer %s: %s", m.name, err)
 		m.retakeReference(l)
 		return nil, err
 	}
 
 	if m.initID != "" {
-		if err := ls.driver.Remove(m.initID); err != nil {
+		if err := ls.drivers[l.OS()].Remove(m.initID); err != nil {
 			logrus.Errorf("Error removing init layer %s: %s", m.name, err)
 			m.retakeReference(l)
 			return nil, err
@@ -637,7 +650,7 @@ func (ls *layerStore) saveMount(mount *mountedLayer) error {
 	return nil
 }
 
-func (ls *layerStore) initMount(graphID, parent, mountLabel string, initFunc MountInit, storageOpt map[string]string) (string, error) {
+func (ls *layerStore) initMount(graphID, os, parent, mountLabel string, initFunc MountInit, storageOpt map[string]string) (string, error) {
 	// Use "<graph-id>-init" to maintain compatibility with graph drivers
 	// which are expecting this layer with this special name. If all
 	// graph drivers can be updated to not rely on knowing about this layer
@@ -649,20 +662,20 @@ func (ls *layerStore) initMount(graphID, parent, mountLabel string, initFunc Mou
 		StorageOpt: storageOpt,
 	}
 
-	if err := ls.driver.CreateReadWrite(initID, parent, createOpts); err != nil {
+	if err := ls.drivers[os].CreateReadWrite(initID, parent, createOpts); err != nil {
 		return "", err
 	}
-	p, err := ls.driver.Get(initID, "")
+	p, err := ls.drivers[os].Get(initID, "")
 	if err != nil {
 		return "", err
 	}
 
 	if err := initFunc(p); err != nil {
-		ls.driver.Put(initID)
+		ls.drivers[os].Put(initID)
 		return "", err
 	}
 
-	if err := ls.driver.Put(initID); err != nil {
+	if err := ls.drivers[os].Put(initID); err != nil {
 		return "", err
 	}
 
@@ -670,13 +683,13 @@ func (ls *layerStore) initMount(graphID, parent, mountLabel string, initFunc Mou
 }
 
 func (ls *layerStore) getTarStream(rl *roLayer) (io.ReadCloser, error) {
-	if !ls.useTarSplit {
+	if !ls.useTarSplit[rl.os] {
 		var parentCacheID string
 		if rl.parent != nil {
 			parentCacheID = rl.parent.cacheID
 		}
 
-		return ls.driver.Diff(rl.cacheID, parentCacheID)
+		return ls.drivers[rl.os].Diff(rl.cacheID, parentCacheID)
 	}
 
 	r, err := ls.store.TarSplitReader(rl.chainID)
@@ -686,7 +699,7 @@ func (ls *layerStore) getTarStream(rl *roLayer) (io.ReadCloser, error) {
 
 	pr, pw := io.Pipe()
 	go func() {
-		err := ls.assembleTarTo(rl.cacheID, r, nil, pw)
+		err := ls.assembleTarTo(rl.cacheID, rl.os, r, nil, pw)
 		if err != nil {
 			pw.CloseWithError(err)
 		} else {
@@ -697,10 +710,10 @@ func (ls *layerStore) getTarStream(rl *roLayer) (io.ReadCloser, error) {
 	return pr, nil
 }
 
-func (ls *layerStore) assembleTarTo(graphID string, metadata io.ReadCloser, size *int64, w io.Writer) error {
-	diffDriver, ok := ls.driver.(graphdriver.DiffGetterDriver)
+func (ls *layerStore) assembleTarTo(graphID, os string, metadata io.ReadCloser, size *int64, w io.Writer) error {
+	diffDriver, ok := ls.drivers[os].(graphdriver.DiffGetterDriver)
 	if !ok {
-		diffDriver = &naiveDiffPathDriver{ls.driver}
+		diffDriver = &naiveDiffPathDriver{ls.drivers[os]}
 	}
 
 	defer metadata.Close()
@@ -719,15 +732,27 @@ func (ls *layerStore) assembleTarTo(graphID string, metadata io.ReadCloser, size
 }
 
 func (ls *layerStore) Cleanup() error {
-	return ls.driver.Cleanup()
+	var err error
+	for _, driver := range ls.drivers {
+		if e := driver.Cleanup(); e != nil {
+			err = fmt.Errorf("%s - %s", err.Error(), e.Error())
+		}
+	}
+	return err
 }
 
-func (ls *layerStore) DriverStatus() [][2]string {
-	return ls.driver.Status()
+func (ls *layerStore) DriverStatus(os string) [][2]string {
+	if os == "" {
+		os = runtime.GOOS
+	}
+	return ls.drivers[os].Status()
 }
 
-func (ls *layerStore) DriverName() string {
-	return ls.driver.String()
+func (ls *layerStore) DriverName(os string) string {
+	if os == "" {
+		os = runtime.GOOS
+	}
+	return ls.drivers[os].String()
 }
 
 type naiveDiffPathDriver struct {

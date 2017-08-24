@@ -2,6 +2,7 @@ package layer
 
 import (
 	"io"
+	"runtime"
 
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/containerfs"
@@ -14,6 +15,7 @@ type mountedLayer struct {
 	parent     *roLayer
 	path       string
 	layerStore *layerStore
+	os         string
 
 	references map[RWLayer]*referencedRWLayer
 }
@@ -29,7 +31,7 @@ func (ml *mountedLayer) cacheParent() string {
 }
 
 func (ml *mountedLayer) TarStream() (io.ReadCloser, error) {
-	return ml.layerStore.driver.Diff(ml.mountID, ml.cacheParent())
+	return ml.layerStore.drivers[ml.OS()].Diff(ml.mountID, ml.cacheParent())
 }
 
 func (ml *mountedLayer) Name() string {
@@ -46,16 +48,24 @@ func (ml *mountedLayer) Parent() Layer {
 	return nil
 }
 
+func (ml *mountedLayer) OS() string {
+	// For backwards compatibility, return the host OS if not set.
+	if ml.os == "" {
+		return runtime.GOOS
+	}
+	return ml.os
+}
+
 func (ml *mountedLayer) Size() (int64, error) {
-	return ml.layerStore.driver.DiffSize(ml.mountID, ml.cacheParent())
+	return ml.layerStore.drivers[ml.OS()].DiffSize(ml.mountID, ml.cacheParent())
 }
 
 func (ml *mountedLayer) Changes() ([]archive.Change, error) {
-	return ml.layerStore.driver.Changes(ml.mountID, ml.cacheParent())
+	return ml.layerStore.drivers[ml.OS()].Changes(ml.mountID, ml.cacheParent())
 }
 
 func (ml *mountedLayer) Metadata() (map[string]string, error) {
-	return ml.layerStore.driver.GetMetadata(ml.mountID)
+	return ml.layerStore.drivers[ml.OS()].GetMetadata(ml.mountID)
 }
 
 func (ml *mountedLayer) getReference() RWLayer {
@@ -90,11 +100,11 @@ type referencedRWLayer struct {
 }
 
 func (rl *referencedRWLayer) Mount(mountLabel string) (containerfs.ContainerFS, error) {
-	return rl.layerStore.driver.Get(rl.mountedLayer.mountID, mountLabel)
+	return rl.layerStore.drivers[rl.OS()].Get(rl.mountedLayer.mountID, mountLabel)
 }
 
 // Unmount decrements the activity count and unmounts the underlying layer
 // Callers should only call `Unmount` once per call to `Mount`, even on error.
 func (rl *referencedRWLayer) Unmount() error {
-	return rl.layerStore.driver.Put(rl.mountedLayer.mountID)
+	return rl.layerStore.drivers[rl.OS()].Put(rl.mountedLayer.mountID)
 }

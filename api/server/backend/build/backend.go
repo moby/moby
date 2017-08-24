@@ -17,7 +17,7 @@ import (
 // ImageComponent provides an interface for working with images
 type ImageComponent interface {
 	SquashImage(from string, to string) (string, error)
-	TagImageWithReference(image.ID, string, reference.Named) error
+	TagImageWithReference(image.ID, reference.Named) error
 }
 
 // Builder defines interface for running a build

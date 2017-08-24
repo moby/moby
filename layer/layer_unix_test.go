@@ -2,7 +2,10 @@
 
 package layer
 
-import "testing"
+import (
+	"runtime"
+	"testing"
+)
 
 func graphDiffSize(ls Store, l Layer) (int64, error) {
 	cl := getCachedLayer(l)
@@ -10,7 +13,7 @@ func graphDiffSize(ls Store, l Layer) (int64, error) {
 	if cl.parent != nil {
 		parent = cl.parent.cacheID
 	}
-	return ls.(*layerStore).driver.DiffSize(cl.cacheID, parent)
+	return ls.(*layerStore).drivers[runtime.GOOS].DiffSize(cl.cacheID, parent)
 }
 
 // Unix as Windows graph driver does not support Changes which is indirectly
