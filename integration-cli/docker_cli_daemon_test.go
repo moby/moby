@@ -3022,7 +3022,7 @@ func testDaemonIpcPrivateShareable(d *daemon.Daemon, c *check.C, mustExist bool)
 
 // TestDaemonIpcModeShareable checks that --default-ipc-mode shareable works as intended.
 func (s *DockerDaemonSuite) TestDaemonIpcModeShareable(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
 
 	s.d.StartWithBusybox(c, "--default-ipc-mode", "shareable")
 	testDaemonIpcPrivateShareable(s.d, c, true)
@@ -3030,7 +3030,7 @@ func (s *DockerDaemonSuite) TestDaemonIpcModeShareable(c *check.C) {
 
 // TestDaemonIpcModePrivate checks that --default-ipc-mode private works as intended.
 func (s *DockerDaemonSuite) TestDaemonIpcModePrivate(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
 
 	s.d.StartWithBusybox(c, "--default-ipc-mode", "private")
 	testDaemonIpcPrivateShareable(s.d, c, false)
@@ -3053,17 +3053,17 @@ func testDaemonIpcFromConfig(s *DockerDaemonSuite, c *check.C, mode string, must
 
 // TestDaemonIpcModePrivateFromConfig checks that "default-ipc-mode: private" config works as intended.
 func (s *DockerDaemonSuite) TestDaemonIpcModePrivateFromConfig(c *check.C) {
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
 	testDaemonIpcFromConfig(s, c, "private", false)
 }
 
 // TestDaemonIpcModeShareableFromConfig checks that "default-ipc-mode: shareable" config works as intended.
 func (s *DockerDaemonSuite) TestDaemonIpcModeShareableFromConfig(c *check.C) {
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
 	testDaemonIpcFromConfig(s, c, "shareable", true)
 }
 
 func testDaemonStartIpcMode(c *check.C, from, mode string, valid bool) {
-	testRequires(c, DaemonIsLinux)
-
 	d := daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
 		Experimental: testEnv.ExperimentalDaemon(),
 	})
@@ -3101,6 +3101,8 @@ func testDaemonStartIpcMode(c *check.C, from, mode string, valid bool) {
 // arguments for default IPC mode, and bails out with incorrect ones.
 // Both CLI option (--default-ipc-mode) and config parameter are tested.
 func (s *DockerDaemonSuite) TestDaemonStartWithIpcModes(c *check.C) {
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
+
 	ipcModes := []struct {
 		mode  string
 		valid bool
