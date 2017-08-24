@@ -26,6 +26,7 @@ import (
 
 func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *check.C) {
 	testRequires(c, cpuCfsQuota)
+	testRequires(c, swapMemorySupport)
 	name := "testbuildresourceconstraints"
 
 	ctx := fakecontext.New(c, "", fakecontext.WithDockerfile(`
