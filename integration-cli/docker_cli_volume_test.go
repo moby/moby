@@ -3,17 +3,20 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/docker/docker/integration-cli/request"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
+	"golang.org/x/net/context"
 )
 
 func (s *DockerSuite) TestVolumeCLICreate(c *check.C) {
@@ -607,25 +610,28 @@ func (s *DockerSuite) TestDuplicateMountpointsForVolumesFromAndMounts(c *check.C
 	err := os.MkdirAll("/tmp/data", 0755)
 	c.Assert(err, checker.IsNil)
 	// Mounts is available in API
-	status, body, err := request.SockRequest("POST", "/containers/create?name=app", map[string]interface{}{
-		"Image": "busybox",
-		"Cmd":   []string{"top"},
-		"HostConfig": map[string]interface{}{
-			"VolumesFrom": []string{
-				"data1",
-				"data2",
-			},
-			"Mounts": []map[string]interface{}{
-				{
-					"Type":   "bind",
-					"Source": "/tmp/data",
-					"Target": "/tmp/data",
-				},
-			}},
-	}, daemonHost())
+	cli, err := client.NewEnvClient()
+	c.Assert(err, checker.IsNil)
+	defer cli.Close()
 
-	c.Assert(err, checker.IsNil, check.Commentf(string(body)))
-	c.Assert(status, checker.Equals, http.StatusCreated, check.Commentf(string(body)))
+	config := container.Config{
+		Cmd:   []string{"top"},
+		Image: "busybox",
+	}
+
+	hostConfig := container.HostConfig{
+		VolumesFrom: []string{"data1", "data2"},
+		Mounts: []mount.Mount{
+			{
+				Type:   "bind",
+				Source: "/tmp/data",
+				Target: "/tmp/data",
+			},
+		},
+	}
+	_, err = cli.ContainerCreate(context.Background(), &config, &hostConfig, &network.NetworkingConfig{}, "app")
+
+	c.Assert(err, checker.IsNil)
 
 	// No volume will be referenced (mount is /tmp/data), this is backward compatible
 	out, _ = dockerCmd(c, "inspect", "--format", "{{(index .Mounts 0).Name}}", "app")

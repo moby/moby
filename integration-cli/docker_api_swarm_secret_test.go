@@ -3,12 +3,12 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
+	"golang.org/x/net/context"
 )
 
 func (s *DockerSwarmSuite) TestAPISwarmSecretsEmptyList(c *check.C) {
@@ -59,16 +59,19 @@ func (s *DockerSwarmSuite) TestAPISwarmSecretsDelete(c *check.C) {
 	c.Assert(secret.ID, checker.Equals, id, check.Commentf("secret: %v", secret))
 
 	d.DeleteSecret(c, secret.ID)
-	status, out, err := d.SockRequest("GET", "/secrets/"+id, nil)
-	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusNotFound, check.Commentf("secret delete: %s", string(out)))
 
-	// delete non-existing secret, daemon should return a status code of 404
+	cli, err := d.NewClient()
+	c.Assert(err, checker.IsNil)
+	defer cli.Close()
+
+	expected := "no such secret"
+	_, _, err = cli.SecretInspectWithRaw(context.Background(), id)
+	c.Assert(err.Error(), checker.Contains, expected)
+
 	id = "non-existing"
-	status, out, err = d.SockRequest("DELETE", "/secrets/"+id, nil)
-	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusNotFound, check.Commentf("secret delete: %s", string(out)))
-
+	expected = "secret non-existing not found"
+	err = cli.SecretRemove(context.Background(), id)
+	c.Assert(err.Error(), checker.Contains, expected)
 }
 
 func (s *DockerSwarmSuite) TestAPISwarmSecretsUpdate(c *check.C) {
@@ -124,9 +127,12 @@ func (s *DockerSwarmSuite) TestAPISwarmSecretsUpdate(c *check.C) {
 	secret = d.GetSecret(c, id)
 	secret.Spec.Data = []byte("TESTINGDATA2")
 
-	url := fmt.Sprintf("/secrets/%s/update?version=%d", secret.ID, secret.Version.Index)
-	status, out, err := d.SockRequest("POST", url, secret.Spec)
+	cli, err := d.NewClient()
+	c.Assert(err, checker.IsNil)
+	defer cli.Close()
 
-	c.Assert(err, checker.IsNil, check.Commentf(string(out)))
-	c.Assert(status, checker.Equals, http.StatusBadRequest, check.Commentf("output: %q", string(out)))
+	expected := "only updates to Labels are allowed"
+
+	err = cli.SecretUpdate(context.Background(), secret.ID, secret.Version, secret.Spec)
+	c.Assert(err.Error(), checker.Contains, expected)
 }

@@ -29,6 +29,7 @@ import (
 	remoteipam "github.com/docker/libnetwork/ipams/remote/api"
 	"github.com/go-check/check"
 	"github.com/vishvananda/netlink"
+	"golang.org/x/net/context"
 )
 
 func (s *DockerSwarmSuite) TestSwarmUpdate(c *check.C) {
@@ -1843,19 +1844,17 @@ func (s *DockerSwarmSuite) TestNetworkInspectWithDuplicateNames(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
 	name := "foo"
-	networkCreateRequest := types.NetworkCreateRequest{
-		Name: name,
-		NetworkCreate: types.NetworkCreate{
-			CheckDuplicate: false,
-			Driver:         "bridge",
-		},
+	options := types.NetworkCreate{
+		CheckDuplicate: false,
+		Driver:         "bridge",
 	}
 
-	var n1 types.NetworkCreateResponse
-	status, body, err := d.SockRequest("POST", "/networks/create", networkCreateRequest)
-	c.Assert(err, checker.IsNil, check.Commentf(string(body)))
-	c.Assert(status, checker.Equals, http.StatusCreated, check.Commentf(string(body)))
-	c.Assert(json.Unmarshal(body, &n1), checker.IsNil)
+	cli, err := d.NewClient()
+	c.Assert(err, checker.IsNil)
+	defer cli.Close()
+
+	n1, err := cli.NetworkCreate(context.Background(), name, options)
+	c.Assert(err, checker.IsNil)
 
 	// Full ID always works
 	out, err := d.Cmd("network", "inspect", "--format", "{{.ID}}", n1.ID)
@@ -1867,12 +1866,8 @@ func (s *DockerSwarmSuite) TestNetworkInspectWithDuplicateNames(c *check.C) {
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	c.Assert(strings.TrimSpace(out), checker.Equals, n1.ID)
 
-	var n2 types.NetworkCreateResponse
-	status, body, err = d.SockRequest("POST", "/networks/create", networkCreateRequest)
-	c.Assert(err, checker.IsNil, check.Commentf(string(body)))
-	c.Assert(status, checker.Equals, http.StatusCreated, check.Commentf(string(body)))
-	c.Assert(json.Unmarshal(body, &n2), checker.IsNil)
-
+	n2, err := cli.NetworkCreate(context.Background(), name, options)
+	c.Assert(err, checker.IsNil)
 	// Full ID always works
 	out, err = d.Cmd("network", "inspect", "--format", "{{.ID}}", n1.ID)
 	c.Assert(err, checker.IsNil, check.Commentf(out))
@@ -1890,13 +1885,11 @@ func (s *DockerSwarmSuite) TestNetworkInspectWithDuplicateNames(c *check.C) {
 	out, err = d.Cmd("network", "rm", n2.ID)
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
-	// Duplicates with name but with different driver
-	networkCreateRequest.NetworkCreate.Driver = "overlay"
+	// Dupliates with name but with different driver
+	options.Driver = "overlay"
 
-	status, body, err = d.SockRequest("POST", "/networks/create", networkCreateRequest)
-	c.Assert(err, checker.IsNil, check.Commentf(string(body)))
-	c.Assert(status, checker.Equals, http.StatusCreated, check.Commentf(string(body)))
-	c.Assert(json.Unmarshal(body, &n2), checker.IsNil)
+	n2, err = cli.NetworkCreate(context.Background(), name, options)
+	c.Assert(err, checker.IsNil)
 
 	// Full ID always works
 	out, err = d.Cmd("network", "inspect", "--format", "{{.ID}}", n1.ID)
