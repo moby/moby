@@ -6779,6 +6779,9 @@ paths:
             Docker-Experimental:
               type: "boolean"
               description: "If the server is running with experimental mode enabled"
+            Supported-Platforms:
+              type: "string"
+              description: "JSON encoded list of supported platforms"
         500:
           description: "server error"
           schema:

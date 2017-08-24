@@ -15,6 +15,7 @@ import (
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/system"
 	pkgerrors "github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -26,7 +27,13 @@ func optionsHandler(ctx context.Context, w http.ResponseWriter, r *http.Request,
 }
 
 func pingHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	_, err := w.Write([]byte{'O', 'K'})
+	platforms := system.SupportedPlatforms()
+	platformsJSON, err := json.Marshal(platforms)
+	if err != nil {
+		return err
+	}
+	w.Header().Add("Supported-Platforms", string(platformsJSON[:]))
+	_, err = w.Write([]byte{'O', 'K'})
 	return err
 }
 
