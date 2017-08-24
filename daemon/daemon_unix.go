@@ -311,12 +311,12 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 		warnings = append(warnings, "Your kernel does not support memory limit capabilities or the cgroup is not mounted. Limitation discarded.")
 		logrus.Warn("Your kernel does not support memory limit capabilities or the cgroup is not mounted. Limitation discarded.")
 		resources.Memory = 0
-		resources.MemorySwap = -1
+		resources.MemorySwap = 0
 	}
 	if resources.Memory > 0 && resources.MemorySwap != -1 && !sysInfo.SwapLimit {
 		warnings = append(warnings, "Your kernel does not support swap limit capabilities or the cgroup is not mounted. Memory limited without swap.")
 		logrus.Warn("Your kernel does not support swap limit capabilities,or the cgroup is not mounted. Memory limited without swap.")
-		resources.MemorySwap = -1
+		resources.MemorySwap = 0
 	}
 	if resources.Memory > 0 && resources.MemorySwap > 0 && resources.MemorySwap < resources.Memory {
 		return warnings, fmt.Errorf("Minimum memoryswap limit should be larger than memory limit, see usage")
