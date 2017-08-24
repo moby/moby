@@ -31,8 +31,8 @@ own right.
 A component:
 - MUST provide a GRPC endpoint with the following services on a node-local socket (such as a unix socket or named pipe):
 	- MUST provide [GRPC healthcheck service](https://github.com/grpc/grpc/blob/master/doc/health-checking.md)
-	- MUST provide [Version service](services/component/version/v1)
-	- SHOULD provide [Metrics service](services/component/metrics/v1)
+	- MUST provide [Version service](api/services/component/version/v1)
+	- SHOULD provide [Metrics service](api/services/component/metrics/v1)
 - MAY expose a separate API for external consumption
 - SHOULD use GRPC to publish component-level services
 - SHOULD be easily deployed as a container (the primary packaging format for
@@ -127,7 +127,7 @@ TBD
 
 #### Other
 
-See the [service definitions](services) for these services.
+See the [service definitions](api/services) for these services.
 
 TODO:
  - metrics

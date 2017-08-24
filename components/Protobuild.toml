@@ -1,0 +1,99 @@
+version = "unstable"
+
+# Generator defines which generator to go. The default is "go". This will be
+# formatted into the --xxx_out flag provided to protoc. Below, we have an
+# example that selects the ctrd vanity binary.
+# generator = "gogoctrd"
+generator = "go"
+
+# Plugins allows one to specify one or more plugins for use in generation.
+#
+# The common example grpc is provided below.
+plugins = ["grpc"]
+
+# Control protoc include paths. Below are usually some good defaults, but feel
+# free to try it without them if it works for your project.
+[includes]
+  # Include paths that will be added before all others. Typically, you want to
+  # treat the root of the project as an include, but this may not be necessary.
+  #
+  # "." is included by default
+  # before = ["."]
+
+  # Paths that should be treated as include roots in relation to the vendor
+  # directory. These will be calculated with the vendor directory nearest the
+  # target package.
+  #
+  # With the example below, we import the gogo protobufs from the vendor
+  # directory.
+  #
+  # This is empty by default.
+  vendored = ["github.com/gogo/protobuf"]
+
+  # Paths that will be added untouched to the end of the includes. We use
+  # `/usr/local/include` to pickup the common install location of protobuf.
+  # This is the default.
+  # after = ["usr/local/include"]
+
+# This section let's us map protobuf imports to Go packages. These will become
+# `-M` directives in the call to the go protobuf generator.
+#
+# We have a few examples to map packages from the examples.
+[packages]
+  "gogoproto/gogo.proto"             = "github.com/gogo/protobuf/gogoproto"
+  "google/protobuf/timestamp.proto"  = "github.com/gogo/protobuf/types"
+  "google/protobuf/empty.proto"      = "github.com/gogo/protobuf/types"
+  "github.com/prometheus/client_model/metrics.proto" = "github.com/prometheus/client_model/go"
+
+# Descriptors allows you to aggregate generated protobuf descriptors under a
+# particular Go import path into a single, de-duplicated file. The result of
+# configuring this option for one or more paths will be a text format protobuf
+# dump of all the descriptors in the API.
+#
+# While this is useful for other applications that require access to
+# descriptors, the goal of this features is to provide visibility into changes
+# that may affect API stability. Each service, message and field will be
+# included in the file, along with dependencies. If a change occurs that
+# impacts API stability, it will be obvious in a diff with a file from the
+# previous version.
+#
+# Save these descriptors in your repository. When the next round of protobuf
+# changes are built and merged, additions and incompatible changes can be
+# detected by diffing these files. When you release, move this file to the
+# release version to keep track of the exports over time from various releases.
+#
+# This takes inspiration from Go's API checker in
+# https://github.com/golang/go/tree/master/api, but does so for protobufs.
+# Stablize packages and collections of packages of generated protobufs.
+[[descriptors]]
+
+# Prefix specifies the protobuf import prefix relative to items that you want
+# to stabilize.
+#
+# For example, if the files are imported as
+# github.com/stevvooe/protobuild/examples/foo/foo.proto, and you want to
+# stabilize everything in package "foo", it should be
+# "github.com/stevvooe/protobuild/example/foo".
+#
+# The example below stablizes the protobufs under the examples directory. The
+# generated descriptor file will include both the "foo" and "bar" subpackages.
+prefix = "github.com/moby/moby/components/api"
+
+# Target defines the output location of the merged descriptor file.
+target = "api/next.pb.txt"
+ignore_files = [
+	"gogoproto/gogo.proto",
+]
+
+# Ignore files by their protobuf import path.
+#
+# This operates directly on the FileDescriptorProto.Name field, so it will
+# filter out imported protobufs. This allows one to remove descriptors from the
+# result that don't impact API stability, such as generation extension
+# directives.
+#
+# The example below will exclude empty.proto. Experiment with this feature by
+# uncommenting the line below and notice that the description of that file will
+# be removed.
+# ignore_files = ["google/protobuf/empty.proto"]
+

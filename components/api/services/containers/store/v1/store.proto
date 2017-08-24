@@ -2,9 +2,10 @@ syntax = "proto3";
 
 package moby.core.services.containers.store.v1;
 
+option go_package = "store";
+
 import "gogoproto/gogo.proto";
-import "google/protobuf/timestamp.proto";
-import "types/container/container.proto";
+import "github.com/moby/moby/components/api/types/container/container.proto";
 
 service ContainerStore {
 	rpc CreateContainer(CreateContainerRequest) returns (CreateContainerResponse);

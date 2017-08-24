@@ -2,8 +2,9 @@ syntax = "proto3";
 
 package moby.core.services.containers.runtime.v1;
 
-import "types/container/container.proto";
-import "google/protobuf/timestamp.proto";
+option go_package = "runtime";
+
+import "github.com/moby/moby/components/api/types/container/container.proto";
 import "google/protobuf/duration.proto";
 
 service ContainerRuntimeService {
