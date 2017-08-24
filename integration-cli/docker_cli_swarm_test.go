@@ -23,11 +23,11 @@ import (
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/daemon"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
-	"github.com/docker/docker/pkg/testutil/tempfile"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/ipamapi"
 	remoteipam "github.com/docker/libnetwork/ipams/remote/api"
 	"github.com/go-check/check"
+	"github.com/gotestyourself/gotestyourself/fs"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/net/context"
 )
@@ -68,11 +68,11 @@ func (s *DockerSwarmSuite) TestSwarmUpdate(c *check.C) {
 	c.Assert(spec.CAConfig.ExternalCAs[1].CACert, checker.Equals, string(expected))
 
 	// passing an invalid external CA fails
-	tempFile := tempfile.NewTempFile(c, "testfile", "fakecert")
+	tempFile := fs.NewFile(c, "testfile", fs.WithContent("fakecert"))
 	defer tempFile.Remove()
 
 	result := cli.Docker(cli.Args("swarm", "update",
-		"--external-ca", fmt.Sprintf("protocol=cfssl,url=https://something.org,cacert=%s", tempFile.Name())),
+		"--external-ca", fmt.Sprintf("protocol=cfssl,url=https://something.org,cacert=%s", tempFile.Path())),
 		cli.Daemon(d.Daemon))
 	result.Assert(c, icmd.Expected{
 		ExitCode: 125,
@@ -89,11 +89,11 @@ func (s *DockerSwarmSuite) TestSwarmInit(c *check.C) {
 	}
 
 	// passing an invalid external CA fails
-	tempFile := tempfile.NewTempFile(c, "testfile", "fakecert")
+	tempFile := fs.NewFile(c, "testfile", fs.WithContent("fakecert"))
 	defer tempFile.Remove()
 
 	result := cli.Docker(cli.Args("swarm", "init", "--cert-expiry", "30h", "--dispatcher-heartbeat", "11s",
-		"--external-ca", fmt.Sprintf("protocol=cfssl,url=https://somethingelse.org,cacert=%s", tempFile.Name())),
+		"--external-ca", fmt.Sprintf("protocol=cfssl,url=https://somethingelse.org,cacert=%s", tempFile.Path())),
 		cli.Daemon(d.Daemon))
 	result.Assert(c, icmd.Expected{
 		ExitCode: 125,
