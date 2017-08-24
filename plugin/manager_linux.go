@@ -18,7 +18,6 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/plugin/v2"
 	"github.com/opencontainers/go-digest"
-	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
@@ -62,7 +61,7 @@ func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) error {
 		return errors.WithStack(err)
 	}
 
-	if err := pm.containerdClient.Create(p.GetID(), "", "", specs.Spec(*spec), attachToLog(p.GetID())); err != nil {
+	if err := pm.containerdClient.Create(p.GetID(), "", "", *spec, attachToLog(p.GetID())); err != nil {
 		if p.PropagatedMount != "" {
 			if err := mount.Unmount(p.PropagatedMount); err != nil {
 				logrus.Warnf("Could not unmount %s: %v", p.PropagatedMount, err)

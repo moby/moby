@@ -84,7 +84,7 @@ func ComputeV2MetadataHMACKey(authConfig *types.AuthConfig) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return []byte(digest.FromBytes([]byte(buf))), nil
+	return []byte(digest.FromBytes(buf)), nil
 }
 
 // authConfigKeyInput is a reduced AuthConfig structure holding just relevant credential data eligible for

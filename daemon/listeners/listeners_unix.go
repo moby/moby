@@ -86,7 +86,7 @@ func listenFD(addr string, tlsConfig *tls.Config) ([]net.Listener, error) {
 		return nil, fmt.Errorf("failed to parse systemd fd address: should be a number: %v", addr)
 	}
 	fdOffset := fdNum - 3
-	if len(listeners) < int(fdOffset)+1 {
+	if len(listeners) < fdOffset+1 {
 		return nil, fmt.Errorf("too few socket activated files passed in by systemd")
 	}
 	if listeners[fdOffset] == nil {

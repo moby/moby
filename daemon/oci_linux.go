@@ -834,7 +834,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	s.Process.NoNewPrivileges = c.NoNewPrivileges
 	s.Linux.MountLabel = c.MountLabel
 
-	return (*specs.Spec)(&s), nil
+	return &s, nil
 }
 
 func clearReadOnly(m *specs.Mount) {

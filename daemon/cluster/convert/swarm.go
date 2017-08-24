@@ -3,7 +3,6 @@ package convert
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	types "github.com/docker/docker/api/types/swarm"
 	swarmapi "github.com/docker/swarmkit/api"
@@ -115,7 +114,7 @@ func MergeSwarmSpecToGRPC(s types.Spec, spec swarmapi.ClusterSpec) (swarmapi.Clu
 		spec.Raft.ElectionTick = uint32(s.Raft.ElectionTick)
 	}
 	if s.Dispatcher.HeartbeatPeriod != 0 {
-		spec.Dispatcher.HeartbeatPeriod = gogotypes.DurationProto(time.Duration(s.Dispatcher.HeartbeatPeriod))
+		spec.Dispatcher.HeartbeatPeriod = gogotypes.DurationProto(s.Dispatcher.HeartbeatPeriod)
 	}
 	if s.CAConfig.NodeCertExpiry != 0 {
 		spec.CAConfig.NodeCertExpiry = gogotypes.DurationProto(s.CAConfig.NodeCertExpiry)

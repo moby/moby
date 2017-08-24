@@ -243,7 +243,7 @@ func (b *Builder) probeCache(dispatchState *dispatchState, runConfig *container.
 	}
 	fmt.Fprint(b.Stdout, " ---> Using cache\n")
 
-	dispatchState.imageID = string(cachedID)
+	dispatchState.imageID = cachedID
 	b.buildStages.update(dispatchState.imageID)
 	return true, nil
 }

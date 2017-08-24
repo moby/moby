@@ -74,7 +74,7 @@ type DefaultLogger struct {
 // DMLog is the logging callback containing all of the information from
 // devicemapper. The interface is identical to the C libdm counterpart.
 func (l DefaultLogger) DMLog(level int, file string, line, dmError int, message string) {
-	if int(level) <= l.Level {
+	if level <= l.Level {
 		// Forward the log to the correct logrus level, if allowed by dmLogLevel.
 		logMsg := fmt.Sprintf("libdevmapper(%d): %s:%d (%d) %s", level, file, line, dmError, message)
 		switch level {

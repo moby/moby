@@ -551,7 +551,7 @@ func parseOptInterval(f *Flag) (time.Duration, error) {
 	if err != nil {
 		return 0, err
 	}
-	if d < time.Duration(container.MinimumDuration) {
+	if d < container.MinimumDuration {
 		return 0, fmt.Errorf("Interval %#v cannot be less than %s", f.name, container.MinimumDuration)
 	}
 	return d, nil
