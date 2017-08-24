@@ -43,7 +43,7 @@ func systemPid(ctr *containerd.Container) uint32 {
 	return pid
 }
 
-func convertRlimits(sr []specs.LinuxRlimit) (cr []*containerd.Rlimit) {
+func convertRlimits(sr []specs.POSIXRlimit) (cr []*containerd.Rlimit) {
 	for _, r := range sr {
 		cr = append(cr, &containerd.Rlimit{
 			Type: r.Type,

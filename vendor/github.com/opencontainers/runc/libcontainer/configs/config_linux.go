@@ -1,5 +1,3 @@
-// +build freebsd linux
-
 package configs
 
 import "fmt"

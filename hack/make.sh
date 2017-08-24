@@ -71,7 +71,7 @@ VERSION=$(< ./VERSION)
 ! BUILDTIME=$(date -u -d "@${SOURCE_DATE_EPOCH:-$(date +%s)}" --rfc-3339 ns 2> /dev/null | sed -e 's/ /T/')
 if [ "$DOCKER_GITCOMMIT" ]; then
 	GITCOMMIT="$DOCKER_GITCOMMIT"
-elif command -v git &> /dev/null && [ -d .git ] && git rev-parse &> /dev/null; then
+elif command -v git &> /dev/null && [ -e .git ] && git rev-parse &> /dev/null; then
 	GITCOMMIT=$(git rev-parse --short HEAD)
 	if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
 		GITCOMMIT="$GITCOMMIT-unsupported"

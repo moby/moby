@@ -112,18 +112,20 @@ func i64Ptr(i int64) *int64   { return &i }
 func (c *container) UpdateResources(r *Resource) error {
 	sr := ocs.LinuxResources{
 		Memory: &ocs.LinuxMemory{
-			Limit:       u64Ptr(uint64(r.Memory)),
-			Reservation: u64Ptr(uint64(r.MemoryReservation)),
-			Swap:        u64Ptr(uint64(r.MemorySwap)),
-			Kernel:      u64Ptr(uint64(r.KernelMemory)),
-			KernelTCP:   u64Ptr(uint64(r.KernelTCPMemory)),
+			Limit:       i64Ptr(r.Memory),
+			Reservation: i64Ptr(r.MemoryReservation),
+			Swap:        i64Ptr(r.MemorySwap),
+			Kernel:      i64Ptr(r.KernelMemory),
+			KernelTCP:   i64Ptr(r.KernelTCPMemory),
 		},
 		CPU: &ocs.LinuxCPU{
-			Shares: u64Ptr(uint64(r.CPUShares)),
-			Quota:  i64Ptr(int64(r.CPUQuota)),
-			Period: u64Ptr(uint64(r.CPUPeriod)),
-			Cpus:   r.CpusetCpus,
-			Mems:   r.CpusetMems,
+			Shares:          u64Ptr(uint64(r.CPUShares)),
+			Quota:           i64Ptr(int64(r.CPUQuota)),
+			Period:          u64Ptr(uint64(r.CPUPeriod)),
+			Cpus:            r.CpusetCpus,
+			Mems:            r.CpusetMems,
+			RealtimePeriod:  u64Ptr(uint64(r.CPURealtimePeriod)),
+			RealtimeRuntime: i64Ptr(int64(r.CPURealtimdRuntime)),
 		},
 		BlockIO: &ocs.LinuxBlockIO{
 			Weight: &r.BlkioWeight,

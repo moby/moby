@@ -66,6 +66,21 @@ func isSubsystemAvailable(subsystem string) bool {
 	return avail
 }
 
+func GetClosestMountpointAncestor(dir, mountinfo string) string {
+	deepestMountPoint := ""
+	for _, mountInfoEntry := range strings.Split(mountinfo, "\n") {
+		mountInfoParts := strings.Fields(mountInfoEntry)
+		if len(mountInfoParts) < 5 {
+			continue
+		}
+		mountPoint := mountInfoParts[4]
+		if strings.HasPrefix(mountPoint, deepestMountPoint) && strings.HasPrefix(dir, mountPoint) {
+			deepestMountPoint = mountPoint
+		}
+	}
+	return deepestMountPoint
+}
+
 func FindCgroupMountpointDir() (string, error) {
 	f, err := os.Open("/proc/self/mountinfo")
 	if err != nil {

@@ -73,7 +73,6 @@ func setResources(s *specs.Spec, r containertypes.Resources) error {
 			ThrottleReadIOPSDevice:  readIOpsDevice,
 			ThrottleWriteIOPSDevice: writeIOpsDevice,
 		},
-		DisableOOMKiller: r.OomKillDisable,
 		Pids: &specs.LinuxPids{
 			Limit: r.PidsLimit,
 		},
@@ -157,14 +156,14 @@ func setDevices(s *specs.Spec, c *container.Container) error {
 }
 
 func setRlimits(daemon *Daemon, s *specs.Spec, c *container.Container) error {
-	var rlimits []specs.LinuxRlimit
+	var rlimits []specs.POSIXRlimit
 
 	// We want to leave the original HostConfig alone so make a copy here
 	hostConfig := *c.HostConfig
 	// Merge with the daemon defaults
 	daemon.mergeUlimits(&hostConfig)
 	for _, ul := range hostConfig.Ulimits {
-		rlimits = append(rlimits, specs.LinuxRlimit{
+		rlimits = append(rlimits, specs.POSIXRlimit{
 			Type: "RLIMIT_" + strings.ToUpper(ul.Name),
 			Soft: uint64(ul.Soft),
 			Hard: uint64(ul.Hard),
@@ -631,7 +630,7 @@ func (daemon *Daemon) populateCommonSpec(s *specs.Spec, c *container.Container) 
 	if err != nil {
 		return err
 	}
-	s.Root = specs.Root{
+	s.Root = &specs.Root{
 		Path:     c.BaseFS,
 		Readonly: c.HostConfig.ReadonlyRootfs,
 	}
@@ -708,7 +707,6 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	if err := setResources(&s, c.HostConfig.Resources); err != nil {
 		return nil, fmt.Errorf("linux runtime spec resources: %v", err)
 	}
-	s.Linux.Resources.OOMScoreAdj = &c.HostConfig.OomScoreAdj
 	s.Linux.Sysctl = c.HostConfig.Sysctls
 
 	p := s.Linux.CgroupsPath
@@ -832,6 +830,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	}
 	s.Process.SelinuxLabel = c.GetProcessLabel()
 	s.Process.NoNewPrivileges = c.NoNewPrivileges
+	s.Process.OOMScoreAdj = &c.HostConfig.OomScoreAdj
 	s.Linux.MountLabel = c.MountLabel
 
 	return (*specs.Spec)(&s), nil

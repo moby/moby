@@ -38,7 +38,9 @@ const (
 )
 
 func getMemoryResources(config containertypes.Resources) specs.CappedMemory {
-	memory := specs.CappedMemory{}
+	memory := specs.CappedMemory{
+		DisableOOMKiller: config.OomKillDisable,
+	}
 
 	if config.Memory > 0 {
 		memory.Physical = strconv.FormatInt(config.Memory, 10)
