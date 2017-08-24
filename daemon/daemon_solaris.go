@@ -109,7 +109,9 @@ func (daemon *Daemon) getCgroupDriver() string {
 }
 
 func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConfig, adjustCPUShares bool) error {
-	if hostConfig.CPUShares < 0 {
+	sysInfo := sysinfo.New(true)
+
+	if hostConfig.CPUShares < 0 && sysinfo.CPUShares {
 		logrus.Warnf("Changing requested CPUShares of %d to minimum allowed of %d", hostConfig.CPUShares, solarisMinCPUShares)
 		hostConfig.CPUShares = solarisMinCPUShares
 	} else if hostConfig.CPUShares > solarisMaxCPUShares {
@@ -117,7 +119,7 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 		hostConfig.CPUShares = solarisMaxCPUShares
 	}
 
-	if hostConfig.Memory > 0 && hostConfig.MemorySwap == 0 {
+	if hostConfig.Memory > 0 && hostConfig.MemorySwap == 0 && sysInfo.SwapLimit {
 		// By default, MemorySwap is set to twice the size of Memory.
 		hostConfig.MemorySwap = hostConfig.Memory * 2
 	}
@@ -125,7 +127,7 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 	if hostConfig.ShmSize != 0 {
 		hostConfig.ShmSize = container.DefaultSHMSize
 	}
-	if hostConfig.OomKillDisable == nil {
+	if hostConfig.OomKillDisable == nil && sysInfo.OomKillDisable {
 		defaultOomKillDisable := false
 		hostConfig.OomKillDisable = &defaultOomKillDisable
 	}
