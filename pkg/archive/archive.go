@@ -382,6 +382,7 @@ type tarAppender struct {
 	// for hardlink mapping
 	SeenFiles  map[uint64]string
 	IDMappings *idtools.IDMappings
+	ChownOpts  *idtools.IDPair
 
 	// For packing and unpacking whiteout files in the
 	// non standard format. The whiteout files defined
@@ -390,12 +391,13 @@ type tarAppender struct {
 	WhiteoutConverter tarWhiteoutConverter
 }
 
-func newTarAppender(idMapping *idtools.IDMappings, writer io.Writer) *tarAppender {
+func newTarAppender(idMapping *idtools.IDMappings, writer io.Writer, chownOpts *idtools.IDPair) *tarAppender {
 	return &tarAppender{
 		SeenFiles:  make(map[uint64]string),
 		TarWriter:  tar.NewWriter(writer),
 		Buffer:     pools.BufioWriter32KPool.Get(nil),
 		IDMappings: idMapping,
+		ChownOpts:  chownOpts,
 	}
 }
 
@@ -468,6 +470,12 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	// explicitly override with ChownOpts
+	if ta.ChownOpts != nil {
+		hdr.Uid = ta.ChownOpts.UID
+		hdr.Gid = ta.ChownOpts.GID
 	}
 
 	if ta.WhiteoutConverter != nil {
@@ -692,6 +700,7 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 		ta := newTarAppender(
 			idtools.NewIDMappingsFromMaps(options.UIDMaps, options.GIDMaps),
 			compressWriter,
+			options.ChownOpts,
 		)
 		ta.WhiteoutConverter = getWhiteoutConverter(options.WhiteoutFormat)
 
