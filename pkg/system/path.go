@@ -9,7 +9,7 @@ const defaultUnixPathEnv = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/s
 // ':' character .
 func DefaultPathEnv(platform string) string {
 	if runtime.GOOS == "windows" {
-		if platform != runtime.GOOS && LCOWSupported() {
+		if platform != runtime.GOOS {
 			return defaultUnixPathEnv
 		}
 		// Deliberately empty on Windows containers on Windows as the default path will be set by

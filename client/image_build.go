@@ -124,5 +124,12 @@ func (cli *Client) imageBuildOptionsToQuery(options types.ImageBuildOptions) (ur
 		query.Set("session", options.SessionID)
 	}
 
+	if options.Platform != "" {
+		if err := cli.NewVersionError("1.32", "platform"); err != nil {
+			return query, err
+		}
+		query.Set("platform", options.Platform)
+	}
+
 	return query, nil
 }

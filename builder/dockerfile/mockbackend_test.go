@@ -3,6 +3,7 @@ package dockerfile
 import (
 	"encoding/json"
 	"io"
+	"runtime"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
@@ -93,6 +94,10 @@ func (i *mockImage) ImageID() string {
 
 func (i *mockImage) RunConfig() *container.Config {
 	return i.config
+}
+
+func (i *mockImage) Platform() string {
+	return runtime.GOOS
 }
 
 func (i *mockImage) MarshalJSON() ([]byte, error) {
