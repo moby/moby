@@ -67,7 +67,29 @@ func IsTaskDirty(s *api.Service, t *api.Task) bool {
 		return false
 	}
 
-	return !reflect.DeepEqual(s.Spec.Task, t.Spec) ||
+	// Make a deep copy of the service and task spec for the comparison.
+	serviceTaskSpec := *s.Spec.Task.Copy()
+
+	// For non-failed tasks with a container spec runtime that have already
+	// pulled the required image (i.e., current state is between READY and
+	// RUNNING inclusively), ignore the value of the `PullOptions` field by
+	// setting the copied service to have the same PullOptions value as the
+	// task. A difference in only the `PullOptions` field should not cause
+	// a running (or ready to run) task to be considered 'dirty' when we
+	// handle updates.
+	// See https://github.com/docker/swarmkit/issues/971
+	currentState := t.Status.State
+	// Ignore PullOpts if the task is desired to be in a "runnable" state
+	// and its last known current state is between READY and RUNNING in
+	// which case we know that the task either successfully pulled its
+	// container image or didn't need to.
+	ignorePullOpts := t.DesiredState <= api.TaskStateRunning && currentState >= api.TaskStateReady && currentState <= api.TaskStateRunning
+	if ignorePullOpts && serviceTaskSpec.GetContainer() != nil && t.Spec.GetContainer() != nil {
+		// Modify the service's container spec.
+		serviceTaskSpec.GetContainer().PullOptions = t.Spec.GetContainer().PullOptions
+	}
+
+	return !reflect.DeepEqual(serviceTaskSpec, t.Spec) ||
 		(t.Endpoint != nil && !reflect.DeepEqual(s.Spec.Endpoint, t.Endpoint.Spec))
 }
 
