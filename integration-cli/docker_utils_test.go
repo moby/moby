@@ -234,7 +234,7 @@ func readFile(src string, c *check.C) (content string) {
 }
 
 func containerStorageFile(containerID, basename string) string {
-	return filepath.Join(testEnv.ContainerStoragePath(), containerID, basename)
+	return filepath.Join(testEnv.PlatformDefaults.ContainerStoragePath, containerID, basename)
 }
 
 // docker commands that use this function must be run with the '-d' switch.
@@ -266,7 +266,7 @@ func readContainerFileWithExec(c *check.C, containerID, filename string) []byte 
 
 // daemonTime provides the current time on the daemon host
 func daemonTime(c *check.C) time.Time {
-	if testEnv.LocalDaemon() {
+	if testEnv.IsLocalDaemon() {
 		return time.Now()
 	}
 	cli, err := client.NewEnvClient()

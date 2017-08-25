@@ -6,57 +6,47 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/docker/docker/integration-cli/requirement"
-	"github.com/go-check/check"
 )
-
-func PlatformIs(platform string) bool {
-	return testEnv.DaemonPlatform() == platform
-}
-
-func ArchitectureIs(arch string) bool {
-	return os.Getenv("DOCKER_ENGINE_GOARCH") == arch
-}
 
 func ArchitectureIsNot(arch string) bool {
 	return os.Getenv("DOCKER_ENGINE_GOARCH") != arch
 }
 
-func StorageDriverIs(storageDriver string) bool {
-	return strings.HasPrefix(testEnv.DaemonStorageDriver(), storageDriver)
-}
-
-func StorageDriverIsNot(storageDriver string) bool {
-	return !strings.HasPrefix(testEnv.DaemonStorageDriver(), storageDriver)
-}
-
 func DaemonIsWindows() bool {
-	return PlatformIs("windows")
+	return testEnv.DaemonInfo.OSType == "windows"
 }
 
 func DaemonIsWindowsAtLeastBuild(buildNumber int) func() bool {
 	return func() bool {
-		return DaemonIsWindows() && testEnv.DaemonKernelVersionNumeric() >= buildNumber
+		if testEnv.DaemonInfo.OSType != "windows" {
+			return false
+		}
+		version := testEnv.DaemonInfo.KernelVersion
+		numVersion, _ := strconv.Atoi(strings.Split(version, " ")[1])
+		return numVersion >= buildNumber
 	}
 }
 
 func DaemonIsLinux() bool {
-	return PlatformIs("linux")
+	return testEnv.DaemonInfo.OSType == "linux"
 }
 
+// Deprecated: use skip.IfCondition(t, !testEnv.DaemonInfo.ExperimentalBuild)
 func ExperimentalDaemon() bool {
-	return testEnv.ExperimentalDaemon()
+	return testEnv.DaemonInfo.ExperimentalBuild
 }
 
 func NotExperimentalDaemon() bool {
-	return !testEnv.ExperimentalDaemon()
+	return !testEnv.DaemonInfo.ExperimentalBuild
 }
 
 func IsAmd64() bool {
-	return ArchitectureIs("amd64")
+	return os.Getenv("DOCKER_ENGINE_GOARCH") == "amd64"
 }
 
 func NotArm() bool {
@@ -76,7 +66,7 @@ func NotS390X() bool {
 }
 
 func SameHostDaemon() bool {
-	return testEnv.LocalDaemon()
+	return testEnv.IsLocalDaemon()
 }
 
 func UnixCli() bool {
@@ -127,12 +117,8 @@ func NotaryServerHosting() bool {
 	return err == nil
 }
 
-func NotOverlay() bool {
-	return StorageDriverIsNot("overlay")
-}
-
 func Devicemapper() bool {
-	return StorageDriverIs("devicemapper")
+	return strings.HasPrefix(testEnv.DaemonInfo.Driver, "devicemapper")
 }
 
 func IPv6() bool {
@@ -177,21 +163,21 @@ func UserNamespaceInKernel() bool {
 }
 
 func IsPausable() bool {
-	if testEnv.DaemonPlatform() == "windows" {
-		return testEnv.Isolation() == "hyperv"
+	if testEnv.DaemonInfo.OSType == "windows" {
+		return testEnv.DaemonInfo.Isolation == "hyperv"
 	}
 	return true
 }
 
 func NotPausable() bool {
-	if testEnv.DaemonPlatform() == "windows" {
-		return testEnv.Isolation() == "process"
+	if testEnv.DaemonInfo.OSType == "windows" {
+		return testEnv.DaemonInfo.Isolation == "process"
 	}
 	return false
 }
 
 func IsolationIs(expectedIsolation string) bool {
-	return testEnv.DaemonPlatform() == "windows" && string(testEnv.Isolation()) == expectedIsolation
+	return testEnv.DaemonInfo.OSType == "windows" && string(testEnv.DaemonInfo.Isolation) == expectedIsolation
 }
 
 func IsolationIsHyperv() bool {
@@ -204,6 +190,6 @@ func IsolationIsProcess() bool {
 
 // testRequires checks if the environment satisfies the requirements
 // for the test to run or skips the tests.
-func testRequires(c *check.C, requirements ...requirement.Test) {
+func testRequires(c requirement.SkipT, requirements ...requirement.Test) {
 	requirement.Is(c, requirements...)
 }

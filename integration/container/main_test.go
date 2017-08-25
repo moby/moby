@@ -5,12 +5,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/docker/integration-cli/environment"
+	"github.com/docker/docker/internal/test/environment"
 )
 
-var (
-	testEnv *environment.Execution
-)
+var testEnv *environment.Execution
 
 func TestMain(m *testing.M) {
 	var err error
@@ -20,18 +18,11 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	// TODO: replace this with `testEnv.Print()` to print the full env
-	if testEnv.LocalDaemon() {
-		fmt.Println("INFO: Testing against a local daemon")
-	} else {
-		fmt.Println("INFO: Testing against a remote daemon")
-	}
-
-	res := m.Run()
-	os.Exit(res)
+	testEnv.Print()
+	os.Exit(m.Run())
 }
 
 func setupTest(t *testing.T) func() {
 	environment.ProtectImages(t, testEnv)
-	return func() { testEnv.Clean(t, testEnv.DockerBinary()) }
+	return func() { testEnv.Clean(t) }
 }
