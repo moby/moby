@@ -12,8 +12,8 @@ import (
 
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/daemon"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
+	"github.com/gotestyourself/gotestyourself/icmd"
 )
 
 type logMessage struct {
@@ -287,7 +287,7 @@ func (s *DockerSwarmSuite) TestServiceLogsTTY(c *check.C) {
 	result = icmd.RunCmd(cmd)
 	// for some reason there is carriage return in the output. i think this is
 	// just expected.
-	c.Assert(result, icmd.Matches, icmd.Expected{Out: "out\r\nerr\r\n"})
+	result.Assert(c, icmd.Expected{Out: "out\r\nerr\r\n"})
 }
 
 func (s *DockerSwarmSuite) TestServiceLogsNoHangDeletedContainer(c *check.C) {
@@ -307,7 +307,7 @@ func (s *DockerSwarmSuite) TestServiceLogsNoHangDeletedContainer(c *check.C) {
 	))
 
 	// confirm that the command succeeded
-	c.Assert(result, icmd.Matches, icmd.Expected{})
+	result.Assert(c, icmd.Expected{})
 	// get the service id
 	id := strings.TrimSpace(result.Stdout())
 	c.Assert(id, checker.Not(checker.Equals), "")
@@ -322,9 +322,9 @@ func (s *DockerSwarmSuite) TestServiceLogsNoHangDeletedContainer(c *check.C) {
 	containerID := strings.TrimSpace(result.Stdout())
 	c.Assert(containerID, checker.Not(checker.Equals), "")
 	result = icmd.RunCmd(d.Command("stop", containerID))
-	c.Assert(result, icmd.Matches, icmd.Expected{Out: containerID})
+	result.Assert(c, icmd.Expected{Out: containerID})
 	result = icmd.RunCmd(d.Command("rm", containerID))
-	c.Assert(result, icmd.Matches, icmd.Expected{Out: containerID})
+	result.Assert(c, icmd.Expected{Out: containerID})
 
 	// run logs. use tail 2 to make sure we don't try to get a bunch of logs
 	// somehow and slow down execution time
@@ -336,7 +336,7 @@ func (s *DockerSwarmSuite) TestServiceLogsNoHangDeletedContainer(c *check.C) {
 	// then, assert that the result matches expected. if the command timed out,
 	// if the command is timed out, result.Timeout will be true, but the
 	// Expected defaults to false
-	c.Assert(result, icmd.Matches, icmd.Expected{})
+	result.Assert(c, icmd.Expected{})
 }
 
 func (s *DockerSwarmSuite) TestServiceLogsDetails(c *check.C) {
@@ -376,12 +376,12 @@ func (s *DockerSwarmSuite) TestServiceLogsDetails(c *check.C) {
 	// in this case, we should get details and we should get log message, but
 	// there will also be context as details (which will fall after the detail
 	// we inserted in alphabetical order
-	c.Assert(result, icmd.Matches, icmd.Expected{Out: "asdf=test1"})
-	c.Assert(result, icmd.Matches, icmd.Expected{Out: "LogLine"})
+	result.Assert(c, icmd.Expected{Out: "asdf=test1"})
+	result.Assert(c, icmd.Expected{Out: "LogLine"})
 
 	// call service logs with details. this time, don't pass raw
 	result = icmd.RunCmd(d.Command("service", "logs", "--details", id))
 	// in this case, we should get details space logmessage as well. the context
 	// is part of the pretty part of the logline
-	c.Assert(result, icmd.Matches, icmd.Expected{Out: "asdf=test1 LogLine"})
+	result.Assert(c, icmd.Expected{Out: "asdf=test1 LogLine"})
 }

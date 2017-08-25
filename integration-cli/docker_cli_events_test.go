@@ -18,9 +18,8 @@ import (
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
-
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
+	"github.com/gotestyourself/gotestyourself/icmd"
 	"golang.org/x/net/context"
 )
 
@@ -70,7 +69,7 @@ func (s *DockerSuite) TestEventsUntag(c *check.C) {
 		Command: []string{dockerBinary, "events", "--since=1"},
 		Timeout: time.Millisecond * 2500,
 	})
-	c.Assert(result, icmd.Matches, icmd.Expected{Timeout: true})
+	result.Assert(c, icmd.Expected{Timeout: true})
 
 	events := strings.Split(result.Stdout(), "\n")
 	nEvents := len(events)
@@ -264,7 +263,7 @@ func (s *DockerSuite) TestEventsImageLoad(c *check.C) {
 	dockerCmd(c, "load", "-i", "saveimg.tar")
 
 	result := icmd.RunCommand("rm", "-rf", "saveimg.tar")
-	c.Assert(result, icmd.Matches, icmd.Success)
+	result.Assert(c, icmd.Success)
 
 	out, _ = dockerCmd(c, "images", "-q", "--no-trunc", myImageName)
 	imageID := strings.TrimSpace(out)
@@ -788,7 +787,7 @@ func (s *DockerSuite) TestEventsFormat(c *check.C) {
 func (s *DockerSuite) TestEventsFormatBadFunc(c *check.C) {
 	// make sure it fails immediately, without receiving any event
 	result := dockerCmdWithResult("events", "--format", "{{badFuncString .}}")
-	c.Assert(result, icmd.Matches, icmd.Expected{
+	result.Assert(c, icmd.Expected{
 		Error:    "exit status 64",
 		ExitCode: 64,
 		Err:      "Error parsing format: template: :1: function \"badFuncString\" not defined",
@@ -798,7 +797,7 @@ func (s *DockerSuite) TestEventsFormatBadFunc(c *check.C) {
 func (s *DockerSuite) TestEventsFormatBadField(c *check.C) {
 	// make sure it fails immediately, without receiving any event
 	result := dockerCmdWithResult("events", "--format", "{{.badFieldString}}")
-	c.Assert(result, icmd.Matches, icmd.Expected{
+	result.Assert(c, icmd.Expected{
 		Error:    "exit status 64",
 		ExitCode: 64,
 		Err:      "Error parsing format: template: :1:2: executing \"\" at <.badFieldString>: can't evaluate field badFieldString in type *events.Message",

@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/stringutils"
-	"github.com/docker/docker/pkg/testutil/cmd"
+	"github.com/gotestyourself/gotestyourself/icmd"
 	"github.com/pkg/errors"
 )
 
@@ -20,15 +20,15 @@ func getPrefixAndSlashFromDaemonPlatform() (prefix, slash string) {
 }
 
 // TODO: update code to call cmd.RunCmd directly, and remove this function
-// Deprecated: use pkg/testutil/cmd instead
+// Deprecated: use gotestyourself/gotestyourself/icmd
 func runCommandWithOutput(execCmd *exec.Cmd) (string, int, error) {
-	result := cmd.RunCmd(transformCmd(execCmd))
+	result := icmd.RunCmd(transformCmd(execCmd))
 	return result.Combined(), result.ExitCode, result.Error
 }
 
 // Temporary shim for migrating commands to the new function
-func transformCmd(execCmd *exec.Cmd) cmd.Cmd {
-	return cmd.Cmd{
+func transformCmd(execCmd *exec.Cmd) icmd.Cmd {
+	return icmd.Cmd{
 		Command: execCmd.Args,
 		Env:     execCmd.Env,
 		Dir:     execCmd.Dir,

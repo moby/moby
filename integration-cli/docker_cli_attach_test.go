@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/docker/docker/integration-cli/cli"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
+	"github.com/gotestyourself/gotestyourself/icmd"
 )
 
 const attachWait = 5 * time.Second
@@ -168,7 +168,7 @@ func (s *DockerSuite) TestAttachPausedContainer(c *check.C) {
 	dockerCmd(c, "pause", "test")
 
 	result := dockerCmdWithResult("attach", "test")
-	c.Assert(result, icmd.Matches, icmd.Expected{
+	result.Assert(c, icmd.Expected{
 		Error:    "exit status 1",
 		ExitCode: 1,
 		Err:      "You cannot attach to a paused container, unpause it first",

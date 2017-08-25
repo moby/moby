@@ -4,8 +4,8 @@ import (
 	"strings"
 
 	"github.com/docker/docker/integration-cli/checker"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
+	"github.com/gotestyourself/gotestyourself/icmd"
 )
 
 func (s *DockerSuite) TestTopMultipleArgs(c *check.C) {
@@ -20,7 +20,7 @@ func (s *DockerSuite) TestTopMultipleArgs(c *check.C) {
 		expected = icmd.Expected{Out: "PID"}
 	}
 	result := dockerCmdWithResult("top", cleanedContainerID, "-o", "pid")
-	c.Assert(result, icmd.Matches, expected)
+	result.Assert(c, expected)
 }
 
 func (s *DockerSuite) TestTopNonPrivileged(c *check.C) {

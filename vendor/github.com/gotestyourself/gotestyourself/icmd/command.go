@@ -1,4 +1,6 @@
-package cmd
+/*Package icmd executes binaries and provides convenient assertions for testing the results.
+ */
+package icmd
 
 import (
 	"bytes"
@@ -10,19 +12,14 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/docker/docker/pkg/system"
-	"github.com/go-check/check"
 )
 
 type testingT interface {
 	Fatalf(string, ...interface{})
 }
 
-const (
-	// None is a token to inform Result.Assert that the output should be empty
-	None string = "<NOTHING>"
-)
+// None is a token to inform Result.Assert that the output should be empty
+const None string = "[NOTHING]"
 
 type lockedBuffer struct {
 	m   sync.RWMutex
@@ -70,6 +67,7 @@ func (r *Result) Assert(t testingT, exp Expected) *Result {
 
 // Compare returns a formatted error with the command, stdout, stderr, exit
 // code, and any failed expectations
+// nolint: gocyclo
 func (r *Result) Compare(exp Expected) error {
 	errors := []string{}
 	add := func(format string, args ...interface{}) {
@@ -151,7 +149,8 @@ type Expected struct {
 	Err      string
 }
 
-// Success is the default expected result
+// Success is the default expected result. A Success result is one with a 0
+// ExitCode.
 var Success = Expected{}
 
 // Stdout returns the stdout of the process as a string
@@ -169,45 +168,13 @@ func (r *Result) Combined() string {
 	return r.outBuffer.String() + r.errBuffer.String()
 }
 
-// SetExitError sets Error and ExitCode based on Error
-func (r *Result) SetExitError(err error) {
+func (r *Result) setExitError(err error) {
 	if err == nil {
 		return
 	}
 	r.Error = err
-	r.ExitCode = system.ProcessExitCode(err)
+	r.ExitCode = processExitCode(err)
 }
-
-type matches struct{}
-
-// Info returns the CheckerInfo
-func (m *matches) Info() *check.CheckerInfo {
-	return &check.CheckerInfo{
-		Name:   "CommandMatches",
-		Params: []string{"result", "expected"},
-	}
-}
-
-// Check compares a result against the expected
-func (m *matches) Check(params []interface{}, names []string) (bool, string) {
-	result, ok := params[0].(*Result)
-	if !ok {
-		return false, fmt.Sprintf("result must be a *Result, not %T", params[0])
-	}
-	expected, ok := params[1].(Expected)
-	if !ok {
-		return false, fmt.Sprintf("expected must be an Expected, not %T", params[1])
-	}
-
-	err := result.Compare(expected)
-	if err == nil {
-		return true, ""
-	}
-	return false, err.Error()
-}
-
-// Matches is a gocheck.Checker for comparing a Result against an Expected
-var Matches = &matches{}
 
 // Cmd contains the arguments and options for a process to run as part of a test
 // suite.
@@ -226,7 +193,7 @@ func Command(command string, args ...string) Cmd {
 }
 
 // RunCmd runs a command and returns a Result
-func RunCmd(cmd Cmd, cmdOperators ...func(*Cmd)) *Result {
+func RunCmd(cmd Cmd, cmdOperators ...CmdOp) *Result {
 	for _, op := range cmdOperators {
 		op(&cmd)
 	}
@@ -237,7 +204,7 @@ func RunCmd(cmd Cmd, cmdOperators ...func(*Cmd)) *Result {
 	return WaitOnCmd(cmd.Timeout, result)
 }
 
-// RunCommand parses a command line and runs it, returning a result
+// RunCommand runs a command with default options, and returns a result
 func RunCommand(command string, args ...string) *Result {
 	return RunCmd(Command(command, args...))
 }
@@ -248,7 +215,7 @@ func StartCmd(cmd Cmd) *Result {
 	if result.Error != nil {
 		return result
 	}
-	result.SetExitError(result.Cmd.Start())
+	result.setExitError(result.Cmd.Start())
 	return result
 }
 
@@ -283,7 +250,7 @@ func buildCmd(cmd Cmd) *Result {
 // only wait until the timeout.
 func WaitOnCmd(timeout time.Duration, result *Result) *Result {
 	if timeout == time.Duration(0) {
-		result.SetExitError(result.Cmd.Wait())
+		result.setExitError(result.Cmd.Wait())
 		return result
 	}
 
@@ -301,7 +268,7 @@ func WaitOnCmd(timeout time.Duration, result *Result) *Result {
 		}
 		result.Timeout = true
 	case err := <-done:
-		result.SetExitError(err)
+		result.setExitError(err)
 	}
 	return result
 }
