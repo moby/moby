@@ -10,7 +10,7 @@ import (
 
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/pkg/testutil"
+	"github.com/docker/docker/internal/testutil"
 	"github.com/opencontainers/go-digest"
 )
 
