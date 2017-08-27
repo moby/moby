@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"fmt"
+	"runtime"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
@@ -11,9 +12,19 @@ import (
 
 // createContainerPlatformSpecificSettings performs platform specific container create functionality
 func (daemon *Daemon) createContainerPlatformSpecificSettings(container *container.Container, config *containertypes.Config, hostConfig *containertypes.HostConfig) error {
-	// Make sure the host config has the default daemon isolation if not specified by caller.
-	if containertypes.Isolation.IsDefault(containertypes.Isolation(hostConfig.Isolation)) {
-		hostConfig.Isolation = daemon.defaultIsolation
+
+	if container.Platform == runtime.GOOS {
+		// Make sure the host config has the default daemon isolation if not specified by caller.
+		if containertypes.Isolation.IsDefault(containertypes.Isolation(hostConfig.Isolation)) {
+			hostConfig.Isolation = daemon.defaultIsolation
+		}
+	} else {
+		// LCOW must be a Hyper-V container as you can't run a shared kernel when one
+		// is a Windows kernel, the other is a Linux kernel.
+		if containertypes.Isolation.IsProcess(containertypes.Isolation(hostConfig.Isolation)) {
+			return fmt.Errorf("process isolation is invalid for Linux containers on Windows")
+		}
+		hostConfig.Isolation = "hyperv"
 	}
 
 	for spec := range config.Volumes {
