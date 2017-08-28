@@ -146,6 +146,7 @@ func add(req dispatchRequest) error {
 		return errAtLeastTwoArguments("ADD")
 	}
 
+	flChown := req.flags.AddString("chown", "")
 	if err := req.flags.Parse(); err != nil {
 		return err
 	}
@@ -157,6 +158,7 @@ func add(req dispatchRequest) error {
 	if err != nil {
 		return err
 	}
+	copyInstruction.chownStr = flChown.Value
 	copyInstruction.allowLocalDecompression = true
 
 	return req.builder.performCopy(req.state, copyInstruction)
@@ -172,6 +174,7 @@ func dispatchCopy(req dispatchRequest) error {
 	}
 
 	flFrom := req.flags.AddString("from", "")
+	flChown := req.flags.AddString("chown", "")
 	if err := req.flags.Parse(); err != nil {
 		return err
 	}
@@ -187,6 +190,7 @@ func dispatchCopy(req dispatchRequest) error {
 	if err != nil {
 		return err
 	}
+	copyInstruction.chownStr = flChown.Value
 
 	return req.builder.performCopy(req.state, copyInstruction)
 }
