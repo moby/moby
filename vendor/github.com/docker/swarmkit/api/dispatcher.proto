@@ -2,10 +2,10 @@ syntax = "proto3";
 
 package docker.swarmkit.v1;
 
-import "types.proto";
-import "objects.proto";
+import "github.com/docker/swarmkit/api/types.proto";
+import "github.com/docker/swarmkit/api/objects.proto";
 import "gogoproto/gogo.proto";
-import "plugin/plugin.proto";
+import "github.com/docker/swarmkit/protobuf/plugin/plugin.proto";
 import "google/protobuf/duration.proto";
 
 // Dispatcher is the API provided by a manager group for agents to connect to. Agents

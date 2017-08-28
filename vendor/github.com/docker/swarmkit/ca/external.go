@@ -47,37 +47,34 @@ var ErrNoExternalCAURLs = errors.New("no external CA URLs")
 type ExternalCA struct {
 	ExternalRequestTimeout time.Duration
 
-	mu     sync.Mutex
-	rootCA *RootCA
-	urls   []string
-	client *http.Client
+	mu            sync.Mutex
+	intermediates []byte
+	urls          []string
+	client        *http.Client
+}
+
+// NewExternalCATLSConfig takes a TLS certificate and root pool and returns a TLS config that can be updated
+// without killing existing connections
+func NewExternalCATLSConfig(certs []tls.Certificate, rootPool *x509.CertPool) *tls.Config {
+	return &tls.Config{
+		Certificates: certs,
+		RootCAs:      rootPool,
+		MinVersion:   tls.VersionTLS12,
+	}
 }
 
 // NewExternalCA creates a new ExternalCA which uses the given tlsConfig to
 // authenticate to any of the given URLS of CFSSL API endpoints.
-func NewExternalCA(rootCA *RootCA, tlsConfig *tls.Config, urls ...string) *ExternalCA {
+func NewExternalCA(intermediates []byte, tlsConfig *tls.Config, urls ...string) *ExternalCA {
 	return &ExternalCA{
 		ExternalRequestTimeout: 5 * time.Second,
-		rootCA:                 rootCA,
+		intermediates:          intermediates,
 		urls:                   urls,
 		client: &http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: tlsConfig,
 			},
 		},
-	}
-}
-
-// Copy returns a copy of the external CA that can be updated independently
-func (eca *ExternalCA) Copy() *ExternalCA {
-	eca.mu.Lock()
-	defer eca.mu.Unlock()
-
-	return &ExternalCA{
-		ExternalRequestTimeout: eca.ExternalRequestTimeout,
-		rootCA:                 eca.rootCA,
-		urls:                   eca.urls,
-		client:                 eca.client,
 	}
 }
 
@@ -102,13 +99,6 @@ func (eca *ExternalCA) UpdateURLs(urls ...string) {
 	eca.urls = urls
 }
 
-// UpdateRootCA changes the root CA used to append intermediates
-func (eca *ExternalCA) UpdateRootCA(rca *RootCA) {
-	eca.mu.Lock()
-	eca.rootCA = rca
-	eca.mu.Unlock()
-}
-
 // Sign signs a new certificate by proxying the given certificate signing
 // request to an external CFSSL API server.
 func (eca *ExternalCA) Sign(ctx context.Context, req signer.SignRequest) (cert []byte, err error) {
@@ -117,7 +107,7 @@ func (eca *ExternalCA) Sign(ctx context.Context, req signer.SignRequest) (cert [
 	eca.mu.Lock()
 	urls := eca.urls
 	client := eca.client
-	intermediates := eca.rootCA.Intermediates
+	intermediates := eca.intermediates
 	eca.mu.Unlock()
 
 	if len(urls) == 0 {

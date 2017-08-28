@@ -2,11 +2,11 @@ syntax = "proto3";
 
 package docker.swarmkit.v1;
 
-import "specs.proto";
-import "objects.proto";
-import "types.proto";
+import "github.com/docker/swarmkit/api/specs.proto";
+import "github.com/docker/swarmkit/api/objects.proto";
+import "github.com/docker/swarmkit/api/types.proto";
 import "gogoproto/gogo.proto";
-import "plugin/plugin.proto";
+import "github.com/docker/swarmkit/protobuf/plugin/plugin.proto";
 
 // Control defines the RPC methods for controlling a cluster.
 service Control {

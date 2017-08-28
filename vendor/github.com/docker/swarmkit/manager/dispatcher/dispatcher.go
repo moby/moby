@@ -18,6 +18,7 @@ import (
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/drivers"
 	"github.com/docker/swarmkit/manager/state/store"
+	"github.com/docker/swarmkit/protobuf/ptypes"
 	"github.com/docker/swarmkit/remotes"
 	"github.com/docker/swarmkit/watch"
 	gogotypes "github.com/gogo/protobuf/types"
@@ -127,6 +128,7 @@ type Dispatcher struct {
 	cancel               context.CancelFunc
 	clusterUpdateQueue   *watch.Queue
 	dp                   *drivers.DriverProvider
+	securityConfig       *ca.SecurityConfig
 
 	taskUpdates     map[string]*api.TaskStatus // indexed by task ID
 	taskUpdatesLock sync.Mutex
@@ -144,7 +146,7 @@ type Dispatcher struct {
 }
 
 // New returns Dispatcher with cluster interface(usually raft.Node).
-func New(cluster Cluster, c *Config, dp *drivers.DriverProvider) *Dispatcher {
+func New(cluster Cluster, c *Config, dp *drivers.DriverProvider, securityConfig *ca.SecurityConfig) *Dispatcher {
 	d := &Dispatcher{
 		dp:                    dp,
 		nodes:                 newNodeStore(c.HeartbeatPeriod, c.HeartbeatEpsilon, c.GracePeriodMultiplier, c.RateLimitPeriod),
@@ -153,6 +155,7 @@ func New(cluster Cluster, c *Config, dp *drivers.DriverProvider) *Dispatcher {
 		cluster:               cluster,
 		processUpdatesTrigger: make(chan struct{}, 1),
 		config:                c,
+		securityConfig:        securityConfig,
 	}
 
 	d.processUpdatesCond = sync.NewCond(&d.processUpdatesLock)
@@ -630,6 +633,8 @@ func (d *Dispatcher) processUpdates(ctx context.Context) {
 				}
 
 				task.Status = *status
+				task.Status.AppliedBy = d.securityConfig.ClientTLSCreds.NodeID()
+				task.Status.AppliedAt = ptypes.MustTimestampProto(time.Now())
 				if err := store.UpdateTask(tx, task); err != nil {
 					logger.WithError(err).Error("failed to update task status")
 					return nil
