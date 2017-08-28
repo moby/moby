@@ -433,7 +433,7 @@ func (s *DockerSuite) TestBuildChownOnCopy(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusOK)
 
-	out, err := testutil.ReadBody(body)
+	out, err := request.ReadBody(body)
 	require.NoError(c, err)
 	assert.Contains(c, string(out), "Successfully built")
 }
