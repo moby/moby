@@ -13,6 +13,7 @@ import (
 	"strconv"
 
 	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/daemon/graphdriver/copy"
 	"github.com/docker/docker/daemon/graphdriver/overlayutils"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/containerfs"
@@ -327,7 +328,7 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 		return err
 	}
 
-	return copyDir(parentUpperDir, upperDir, 0)
+	return copy.DirCopy(parentUpperDir, upperDir, copy.Content)
 }
 
 func (d *Driver) dir(id string) string {
@@ -443,7 +444,7 @@ func (d *Driver) ApplyDiff(id string, parent string, diff io.Reader) (size int64
 		}
 	}()
 
-	if err = copyDir(parentRootDir, tmpRootDir, copyHardlink); err != nil {
+	if err = copy.DirCopy(parentRootDir, tmpRootDir, copy.Hardlink); err != nil {
 		return 0, err
 	}
 

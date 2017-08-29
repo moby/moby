@@ -1,6 +1,6 @@
 // +build linux
 
-package overlay
+package copy
 
 import (
 	"fmt"
@@ -15,10 +15,13 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-type copyFlags int
+type Mode int
 
 const (
-	copyHardlink copyFlags = 1 << iota
+	// Content creates a new file, and copies the content of the file
+	Content Mode = iota
+	// Hardlink creates a new hardlink to the existing file
+	Hardlink
 )
 
 func copyRegular(srcPath, dstPath string, mode os.FileMode) error {
@@ -52,7 +55,9 @@ func copyXattr(srcPath, dstPath, attr string) error {
 	return nil
 }
 
-func copyDir(srcDir, dstDir string, flags copyFlags) error {
+// DirCopy copies or hardlinks the contents of one directory to another,
+// properly handling xattrs, and soft links
+func DirCopy(srcDir, dstDir string, copyMode Mode) error {
 	err := filepath.Walk(srcDir, func(srcPath string, f os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -78,12 +83,13 @@ func copyDir(srcDir, dstDir string, flags copyFlags) error {
 
 		switch f.Mode() & os.ModeType {
 		case 0: // Regular file
-			if flags&copyHardlink != 0 {
+			if copyMode == Hardlink {
 				isHardlink = true
 				if err := os.Link(srcPath, dstPath); err != nil {
 					return err
 				}
 			} else {
+				// Always fall back to Content copymode
 				if err := copyRegular(srcPath, dstPath, f.Mode()); err != nil {
 					return err
 				}
