@@ -7,10 +7,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/daemon/cluster/convert"
 	units "github.com/docker/go-units"
-	"github.com/docker/swarmkit/api/genericresource"
 )
 
 var (
@@ -327,20 +324,4 @@ func (m *MemBytes) UnmarshalJSON(s []byte) error {
 	val, err := units.RAMInBytes(string(s[1 : len(s)-1]))
 	*m = MemBytes(val)
 	return err
-}
-
-// ParseGenericResources parses and validates the specified string as a list of GenericResource
-func ParseGenericResources(value string) ([]swarm.GenericResource, error) {
-	if value == "" {
-		return nil, nil
-	}
-
-	resources, err := genericresource.Parse(value)
-	if err != nil {
-		return nil, err
-	}
-
-	obj := convert.GenericResourcesFromGRPC(resources)
-
-	return obj, nil
 }
