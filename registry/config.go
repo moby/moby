@@ -10,10 +10,8 @@ import (
 
 	"github.com/docker/distribution/reference"
 	registrytypes "github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/opts"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"github.com/spf13/pflag"
 )
 
 // ServiceOptions holds command line options.
@@ -71,20 +69,6 @@ var (
 
 // for mocking in unit tests
 var lookupIP = net.LookupIP
-
-// InstallCliFlags adds command-line options to the top-level flag parser for
-// the current process.
-func (options *ServiceOptions) InstallCliFlags(flags *pflag.FlagSet) {
-	ana := opts.NewNamedListOptsRef("allow-nondistributable-artifacts", &options.AllowNondistributableArtifacts, ValidateIndexName)
-	mirrors := opts.NewNamedListOptsRef("registry-mirrors", &options.Mirrors, ValidateMirror)
-	insecureRegistries := opts.NewNamedListOptsRef("insecure-registries", &options.InsecureRegistries, ValidateIndexName)
-
-	flags.Var(ana, "allow-nondistributable-artifacts", "Allow push of nondistributable artifacts to registry")
-	flags.Var(mirrors, "registry-mirror", "Preferred Docker registry mirror")
-	flags.Var(insecureRegistries, "insecure-registry", "Enable insecure registry communication")
-
-	options.installCliPlatformFlags(flags)
-}
 
 // newServiceConfig returns a new instance of ServiceConfig
 func newServiceConfig(options ServiceOptions) *serviceConfig {
