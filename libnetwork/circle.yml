@@ -12,3 +12,5 @@ dependencies:
 test:
   override:
     - make circle-ci
+  post:
+    - bash <(curl -s https://codecov.io/bash)
