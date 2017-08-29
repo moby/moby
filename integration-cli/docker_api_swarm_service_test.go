@@ -69,9 +69,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesCreate(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
-	options := types.ServiceInspectOptions{
-		InsertDefaults: true,
-	}
+	options := types.ServiceInspectOptions{InsertDefaults: true}
 
 	// insertDefaults inserts UpdateConfig when service is fetched by ID
 	resp, _, err := cli.ServiceInspectWithRaw(context.Background(), id, options)

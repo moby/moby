@@ -53,7 +53,7 @@ func (s *DockerAuthzV2Suite) TestAuthZPluginAllowNonVolumeRequest(c *check.C) {
 	// start the daemon with the plugin and load busybox, --net=none build fails otherwise
 	// because it needs to pull busybox
 	s.d.Restart(c, "--authorization-plugin="+authzPluginNameWithTag)
-	c.Assert(s.d.LoadBusybox(), check.IsNil)
+	s.d.LoadBusybox(c)
 
 	// defer disabling the plugin
 	defer func() {
@@ -83,7 +83,7 @@ func (s *DockerAuthzV2Suite) TestAuthZPluginDisable(c *check.C) {
 	// start the daemon with the plugin and load busybox, --net=none build fails otherwise
 	// because it needs to pull busybox
 	s.d.Restart(c, "--authorization-plugin="+authzPluginNameWithTag)
-	c.Assert(s.d.LoadBusybox(), check.IsNil)
+	s.d.LoadBusybox(c)
 
 	// defer removing the plugin
 	defer func() {
