@@ -7,7 +7,7 @@ import (
 
 // ErrorContains checks that the error is not nil, and contains the expected
 // substring.
-func ErrorContains(t require.TestingT, err error, expectedError string) {
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), expectedError)
+func ErrorContains(t require.TestingT, err error, expectedError string, msgAndArgs ...interface{}) {
+	require.Error(t, err, msgAndArgs...)
+	assert.Contains(t, err.Error(), expectedError, msgAndArgs...)
 }
