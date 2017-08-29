@@ -502,7 +502,7 @@ func Validate(config *Config) error {
 		}
 	}
 
-	if _, err := opts.ParseGenericResources(config.NodeGenericResources); err != nil {
+	if _, err := ParseGenericResources(config.NodeGenericResources); err != nil {
 		return err
 	}
 
