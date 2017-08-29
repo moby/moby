@@ -28,6 +28,7 @@ import (
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/daemon/network"
 	"github.com/sirupsen/logrus"
 	// register graph drivers
 	_ "github.com/docker/docker/daemon/graphdriver/register"
@@ -121,6 +122,8 @@ type Daemon struct {
 	pruneRunning     int32
 	hosts            map[string]bool // hosts stores the addresses the daemon is listening on
 	startupDone      chan struct{}
+
+	lbAttachmentStore network.LBAttachmentStore
 }
 
 // StoreHosts stores the addresses the daemon is listening on
@@ -488,6 +491,8 @@ func (daemon *Daemon) DaemonLeavesCluster() {
 	} else {
 		logrus.Warnf("failed to initiate ingress network removal: %v", err)
 	}
+
+	daemon.lbAttachmentStore.ClearLBAttachments()
 }
 
 // setClusterProvider sets a component for querying the current cluster state.
@@ -1241,4 +1246,9 @@ func fixMemorySwappiness(resources *containertypes.Resources) {
 	if resources.MemorySwappiness != nil && *resources.MemorySwappiness == -1 {
 		resources.MemorySwappiness = nil
 	}
+}
+
+// GetLBAttachmentStore returns current load balancer store associated with the daemon
+func (daemon *Daemon) GetLBAttachmentStore() *network.LBAttachmentStore {
+	return &daemon.lbAttachmentStore
 }
