@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -e
+set -e -o pipefail
 
 source "${MAKEDIR}/.go-autogen"
 source hack/make/.integration-test-helpers

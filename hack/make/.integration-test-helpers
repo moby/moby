@@ -8,22 +8,32 @@
 
 source "$SCRIPTDIR/make/.go-autogen"
 
+# Set defaults
 : ${TEST_REPEAT:=1}
+: ${TESTFLAGS:=}
+: ${TESTDEBUG:=}
 
-integration_api_dirs=("$(
+integration_api_dirs=${TEST_INTEGRATION_DIR:-"$(
 	find ./integration -type d |
-	grep -vE '^(./integration$|./integration/util)')")
+	grep -vE '^(./integration$|./integration/util)')"}
 
 run_test_integration() {
+	[[ "$TESTFLAGS" != *-check.f* ]] && run_test_integration_suites
+	run_test_integration_legacy_suites
+}
+
+run_test_integration_suites() {
 	local flags="-test.v -test.timeout=${TIMEOUT} $TESTFLAGS"
 	for dir in $integration_api_dirs; do
-		(
+		if ! (
 			cd $dir
 			echo "Running $PWD"
 			test_env ./test.main $flags
-		)
+		); then exit 1; fi
 	done
+}
 
+run_test_integration_legacy_suites() {
 	(
 		flags="-check.v -check.timeout=${TIMEOUT} -test.timeout=360m $TESTFLAGS"
 		cd integration-cli
@@ -33,7 +43,7 @@ run_test_integration() {
 }
 
 build_test_suite_binaries() {
-	if [ $DOCKER_INTEGRATION_TESTS_VERIFIED ]; then
+	if [ ${DOCKER_INTEGRATION_TESTS_VERIFIED-} ]; then
 		echo "Skipping building test binaries; as DOCKER_INTEGRATION_TESTS_VERIFIED is set"
 		return
 	fi
