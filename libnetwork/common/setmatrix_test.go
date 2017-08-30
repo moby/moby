@@ -3,6 +3,7 @@ package common
 import (
 	"context"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -66,6 +67,23 @@ func TestSetSerialInsertDelete(t *testing.T) {
 	if !b || i != 4 {
 		t.Fatalf("error in cardinality count %t %d", b, i)
 	}
+	keys := s.Keys()
+	if len(keys) != 1 {
+		t.Fatalf("error in keys %v", keys)
+	}
+	str, b := s.String("a")
+	if !b ||
+		!strings.Contains(str, "1") ||
+		!strings.Contains(str, "2") ||
+		!strings.Contains(str, "3") ||
+		!strings.Contains(str, "4") {
+		t.Fatalf("error in string %t %s", b, str)
+	}
+
+	_, b = s.Get("a")
+	if !b {
+		t.Fatalf("error in get %t", b)
+	}
 
 	b, i = s.Remove("a", "1")
 	if !b || i != 3 {
@@ -95,6 +113,27 @@ func TestSetSerialInsertDelete(t *testing.T) {
 	i, b = s.Cardinality("a")
 	if b || i != 0 {
 		t.Fatalf("error in cardinality count %t %d", b, i)
+	}
+
+	str, b = s.String("a")
+	if b || str != "" {
+		t.Fatalf("error in string %t %s", b, str)
+	}
+
+	keys = s.Keys()
+	if len(keys) > 0 {
+		t.Fatalf("error in keys %v", keys)
+	}
+
+	// Negative tests
+	_, b = s.Get("not exists")
+	if b {
+		t.Fatalf("error should not happen %t", b)
+	}
+
+	b1, b := s.Contains("not exists", "a")
+	if b1 || b {
+		t.Fatalf("error should not happen %t %t", b1, b)
 	}
 }
 
