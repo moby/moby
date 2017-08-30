@@ -17,20 +17,12 @@ type ContainerDecoder struct{}
 
 // DecodeConfig makes ContainerDecoder to implement httputils.ContainerDecoder
 func (r ContainerDecoder) DecodeConfig(src io.Reader) (*container.Config, *container.HostConfig, *networktypes.NetworkingConfig, error) {
-	c, hc, nc, err := decodeContainerConfig(src)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	return c, hc, nc, nil
+	return decodeContainerConfig(src)
 }
 
 // DecodeHostConfig makes ContainerDecoder to implement httputils.ContainerDecoder
 func (r ContainerDecoder) DecodeHostConfig(src io.Reader) (*container.HostConfig, error) {
-	hc, err := decodeHostConfig(src)
-	if err != nil {
-		return nil, err
-	}
-	return hc, nil
+	return decodeHostConfig(src)
 }
 
 // decodeContainerConfig decodes a json encoded config into a ContainerConfigWrapper
