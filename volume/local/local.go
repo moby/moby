@@ -334,6 +334,11 @@ func (v *localVolume) Path() string {
 	return v.path
 }
 
+// CachedPath returns the data location
+func (v *localVolume) CachedPath() string {
+	return v.path
+}
+
 // Mount implements the localVolume interface, returning the data location.
 // If there are any provided mount options, the resources will be mounted at this point
 func (v *localVolume) Mount(id string) (string, error) {
