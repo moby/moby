@@ -206,6 +206,9 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 			}); ok {
 				mp.Source = cv.CachedPath()
 			}
+			if mp.Driver == volume.DefaultDriverName {
+				setBindModeIfNull(mp)
+			}
 		}
 
 		binds[mp.Destination] = true
