@@ -88,6 +88,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$ProgressPreference = "SilentlyContinue"
 $pushed=$False  # To restore the directory if we have temporarily pushed to one.
 
 # Utility function to get the commit ID of the repository
@@ -398,39 +399,29 @@ Try {
         # Perform the actual build
         if ($Daemon) { Execute-Build "daemon" "daemon" "dockerd" }
         if ($Client) {
-            # Get the repo and commit of the client to build.
-            "hack\dockerfile\binaries-commits" | ForEach-Object {
-                $dockerCliRepo = ((Get-Content $_ | Select-String "DOCKERCLI_REPO") -split "=")[1]
-                $dockerCliCommit = ((Get-Content $_ | Select-String "DOCKERCLI_COMMIT") -split "=")[1]
-            }
+            # Get the Docker channel and version from the environment, or use the defaults.
+            if (-not ($channel = $env:DOCKERCLI_CHANNEL)) { $channel = "edge" }
+            if (-not ($version = $env:DOCKERCLI_VERSION)) { $version = "17.06.0-ce" }
 
-            # Build from a temporary directory.
-            $tempLocation = "$env:TEMP\$(New-Guid)"
-            New-Item -ItemType Directory $tempLocation | Out-Null
-
-            # Temporarily override GOPATH, then clone, checkout, and build.
-            $saveGOPATH = $env:GOPATH
+            # Download the zip file and extract the client executable.
+            Write-Host "INFO: Downloading docker/cli version $version from $channel..."
+            $url = "https://download.docker.com/win/static/$channel/x86_64/docker-$version.zip"
+            Invoke-WebRequest $url -OutFile "docker.zip"
             Try {
-                $env:GOPATH = $tempLocation
-                $dockerCliRoot = "$env:GOPATH\src\github.com\docker\cli"
-                Write-Host "INFO: Cloning client repository..."
-                Invoke-Expression "git clone -q $dockerCliRepo $dockerCliRoot"
-                if ($LASTEXITCODE -ne 0) { Throw "Failed to clone client repository $dockerCliRepo" }
-                Invoke-Expression "git -C $dockerCliRoot  checkout -q $dockerCliCommit"
-                if ($LASTEXITCODE -ne 0) { Throw "Failed to checkout client commit $dockerCliCommit" }
-                Write-Host "INFO: Building client..."
-                Push-Location "$dockerCliRoot\cmd\docker"; $global:pushed=$True
-                Invoke-Expression "go build -o $root\bundles\docker.exe"
-                if ($LASTEXITCODE -ne 0) { Throw "Failed to compile client" }
-                Pop-Location; $global:pushed=$False
-            }
-            Catch [Exception] {
-                Throw $_
+                Add-Type -AssemblyName System.IO.Compression.FileSystem
+                $zip = [System.IO.Compression.ZipFile]::OpenRead("$PWD\docker.zip")
+                Try {
+                    if (-not ($entry = $zip.Entries | Where-Object { $_.Name -eq "docker.exe" })) {
+                        Throw "Cannot find docker.exe in $url"
+                    }
+                    [System.IO.Compression.ZipFileExtensions]::ExtractToFile($entry, "$PWD\bundles\docker.exe", $true)
+                }
+                Finally {
+                    $zip.Dispose()
+                }
             }
             Finally {
-                # Always restore GOPATH and remove the temporary directory.
-                $env:GOPATH = $saveGOPATH
-                Remove-Item -Force -Recurse $tempLocation
+                Remove-Item -Force "docker.zip"
             }
         }
     }
