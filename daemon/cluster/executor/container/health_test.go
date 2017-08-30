@@ -52,7 +52,7 @@ func TestHealthStates(t *testing.T) {
 		EventsService: e,
 	}
 
-	controller, err := newController(daemon, task, nil)
+	controller, err := newController(daemon, task, nil, nil)
 	if err != nil {
 		t.Fatalf("create controller fail %v", err)
 	}
