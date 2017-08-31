@@ -131,7 +131,7 @@ next:
 		}
 
 		// range over all the mounts in the config
-		for _, mount := range p.PluginObj.Config.Mounts {
+		for i, mount := range p.PluginObj.Config.Mounts {
 			// found the mount in the config
 			if mount.Name == s.name {
 				// is it settable ?
@@ -142,13 +142,13 @@ next:
 				}
 
 				// it is, so lets update the settings in memory
-				*mount.Source = s.value
+				p.PluginObj.Settings.Mounts[i].Source = &s.value
 				continue next
 			}
 		}
 
 		// range over all the devices in the config
-		for _, device := range p.PluginObj.Config.Linux.Devices {
+		for i, device := range p.PluginObj.Config.Linux.Devices {
 			// found the device in the config
 			if device.Name == s.name {
 				// is it settable ?
@@ -159,7 +159,7 @@ next:
 				}
 
 				// it is, so lets update the settings in memory
-				*device.Path = s.value
+				p.PluginObj.Settings.Devices[i].Path = &s.value
 				continue next
 			}
 		}
