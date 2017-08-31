@@ -110,7 +110,7 @@ const defaultSwarmPort = 2477
 func newSwarm(t *testing.T) *daemon.Swarm {
 	d := &daemon.Swarm{
 		Daemon: daemon.New(t, "", dockerdBinary, daemon.Config{
-			Experimental: testEnv.ExperimentalDaemon(),
+			Experimental: testEnv.DaemonInfo.ExperimentalBuild,
 		}),
 		// TODO: better method of finding an unused port
 		Port: defaultSwarmPort,

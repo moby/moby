@@ -2,10 +2,12 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net/http/httptest"
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"syscall"
 	"testing"
@@ -20,6 +22,7 @@ import (
 	"github.com/docker/docker/integration-cli/environment"
 	"github.com/docker/docker/integration-cli/fixtures/plugin"
 	"github.com/docker/docker/integration-cli/registry"
+	ienv "github.com/docker/docker/internal/test/environment"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/go-check/check"
 	"golang.org/x/net/context"
@@ -57,20 +60,14 @@ func init() {
 
 func TestMain(m *testing.M) {
 	dockerBinary = testEnv.DockerBinary()
-
-	if testEnv.LocalDaemon() {
-		fmt.Println("INFO: Testing against a local daemon")
-	} else {
-		fmt.Println("INFO: Testing against a remote daemon")
-	}
-	exitCode := m.Run()
-	os.Exit(exitCode)
+	testEnv.Print()
+	os.Exit(m.Run())
 }
 
 func Test(t *testing.T) {
-	cli.EnsureTestEnvIsLoaded(t)
-	fakestorage.EnsureTestEnvIsLoaded(t)
-	environment.ProtectImages(t, testEnv)
+	cli.SetTestEnvironment(testEnv)
+	fakestorage.SetTestEnvironment(&testEnv.Execution)
+	ienv.ProtectImages(t, &testEnv.Execution)
 	check.TestingT(t)
 }
 
@@ -82,13 +79,25 @@ type DockerSuite struct {
 }
 
 func (s *DockerSuite) OnTimeout(c *check.C) {
-	if testEnv.DaemonPID() > 0 && testEnv.LocalDaemon() {
-		daemon.SignalDaemonDump(testEnv.DaemonPID())
+	path := filepath.Join(os.Getenv("DEST"), "docker.pid")
+	b, err := ioutil.ReadFile(path)
+	if err != nil {
+		c.Fatalf("Failed to get daemon PID from %s\n", path)
+	}
+
+	rawPid, err := strconv.ParseInt(string(b), 10, 32)
+	if err != nil {
+		c.Fatalf("Failed to parse pid from %s: %s\n", path, err)
+	}
+
+	daemonPid := int(rawPid)
+	if daemonPid > 0 && testEnv.IsLocalDaemon() {
+		daemon.SignalDaemonDump(daemonPid)
 	}
 }
 
 func (s *DockerSuite) TearDownTest(c *check.C) {
-	testEnv.Clean(c, dockerBinary)
+	testEnv.Clean(c)
 }
 
 func init() {

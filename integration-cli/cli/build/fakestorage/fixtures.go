@@ -30,7 +30,7 @@ func ensureHTTPServerImage(t testingT) {
 	}
 	defer os.RemoveAll(tmp)
 
-	goos := testEnv.DaemonPlatform()
+	goos := testEnv.DaemonInfo.OSType
 	if goos == "" {
 		goos = "linux"
 	}

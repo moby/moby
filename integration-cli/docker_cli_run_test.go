@@ -2215,7 +2215,7 @@ func (s *DockerSuite) TestRunVolumesCleanPaths(c *check.C) {
 
 	out, err = inspectMountSourceField("dark_helmet", prefix+slash+`foo`)
 	c.Assert(err, check.IsNil)
-	if !strings.Contains(strings.ToLower(out), strings.ToLower(testEnv.VolumesConfigPath())) {
+	if !strings.Contains(strings.ToLower(out), strings.ToLower(testEnv.PlatformDefaults.VolumesConfigPath)) {
 		c.Fatalf("Volume was not defined for %s/foo\n%q", prefix, out)
 	}
 
@@ -2226,7 +2226,7 @@ func (s *DockerSuite) TestRunVolumesCleanPaths(c *check.C) {
 
 	out, err = inspectMountSourceField("dark_helmet", prefix+slash+"bar")
 	c.Assert(err, check.IsNil)
-	if !strings.Contains(strings.ToLower(out), strings.ToLower(testEnv.VolumesConfigPath())) {
+	if !strings.Contains(strings.ToLower(out), strings.ToLower(testEnv.PlatformDefaults.VolumesConfigPath)) {
 		c.Fatalf("Volume was not defined for %s/bar\n%q", prefix, out)
 	}
 }
