@@ -82,9 +82,15 @@ func newServiceConfig(options ServiceOptions) *serviceConfig {
 		V2Only: options.V2Only,
 	}
 
-	config.LoadAllowNondistributableArtifacts(options.AllowNondistributableArtifacts)
-	config.LoadMirrors(options.Mirrors)
-	config.LoadInsecureRegistries(options.InsecureRegistries)
+	if err := config.LoadAllowNondistributableArtifacts(options.AllowNondistributableArtifacts); err != nil {
+		logrus.Warnf("error loading non-distributable artifacts: %v", err)
+	}
+	if err := config.LoadMirrors(options.Mirrors); err != nil {
+		logrus.Warnf("error loading mirrors: %v", err)
+	}
+	if err := config.LoadInsecureRegistries(options.InsecureRegistries); err != nil {
+		logrus.Warnf("error loading insecure registries: %v", err)
+	}
 
 	return config
 }
