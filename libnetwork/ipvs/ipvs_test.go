@@ -178,6 +178,41 @@ func TestService(t *testing.T) {
 		}
 	}
 
+	svcs := []Service{
+		{
+			AddressFamily: nl.FAMILY_V4,
+			SchedName:     RoundRobin,
+			Protocol:      syscall.IPPROTO_TCP,
+			Port:          80,
+			Address:       net.ParseIP("10.20.30.40"),
+			Netmask:       0xFFFFFFFF,
+		},
+		{
+			AddressFamily: nl.FAMILY_V4,
+			SchedName:     LeastConnection,
+			Protocol:      syscall.IPPROTO_UDP,
+			Port:          8080,
+			Address:       net.ParseIP("10.20.30.41"),
+			Netmask:       0xFFFFFFFF,
+		},
+	}
+	// Create services for testing flush
+	for _, svc := range svcs {
+		if !i.IsServicePresent(&svc) {
+			err = i.NewService(&svc)
+			assert.NoError(t, err)
+			checkService(t, i, &svc, true)
+		} else {
+			t.Errorf("svc: %v exists", svc)
+		}
+	}
+	err = i.Flush()
+	assert.NoError(t, err)
+	got, err := i.GetServices()
+	assert.NoError(t, err)
+	if len(got) != 0 {
+		t.Errorf("Unexpected services after flush")
+	}
 }
 
 func createDummyInterface(t *testing.T) {
