@@ -198,7 +198,11 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		cli.api.Accept(addr, ls...)
 	}
 
-	registryService := registry.NewService(cli.Config.ServiceOptions)
+	registryService, err := registry.NewService(cli.Config.ServiceOptions)
+	if err != nil {
+		return err
+	}
+
 	containerdRemote, err := libcontainerd.New(cli.getLibcontainerdRoot(), cli.getPlatformRemoteOptions()...)
 	if err != nil {
 		return err

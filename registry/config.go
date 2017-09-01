@@ -60,7 +60,7 @@ var (
 	// not have the correct form
 	ErrInvalidRepositoryName = errors.New("Invalid repository name (ex: \"registry.domain.tld/myrepos\")")
 
-	emptyServiceConfig = newServiceConfig(ServiceOptions{})
+	emptyServiceConfig, _ = newServiceConfig(ServiceOptions{})
 )
 
 var (
@@ -71,7 +71,7 @@ var (
 var lookupIP = net.LookupIP
 
 // newServiceConfig returns a new instance of ServiceConfig
-func newServiceConfig(options ServiceOptions) *serviceConfig {
+func newServiceConfig(options ServiceOptions) (*serviceConfig, error) {
 	config := &serviceConfig{
 		ServiceConfig: registrytypes.ServiceConfig{
 			InsecureRegistryCIDRs: make([]*registrytypes.NetIPNet, 0),
@@ -81,12 +81,17 @@ func newServiceConfig(options ServiceOptions) *serviceConfig {
 		},
 		V2Only: options.V2Only,
 	}
+	if err := config.LoadAllowNondistributableArtifacts(options.AllowNondistributableArtifacts); err != nil {
+		return nil, err
+	}
+	if err := config.LoadMirrors(options.Mirrors); err != nil {
+		return nil, err
+	}
+	if err := config.LoadInsecureRegistries(options.InsecureRegistries); err != nil {
+		return nil, err
+	}
 
-	config.LoadAllowNondistributableArtifacts(options.AllowNondistributableArtifacts)
-	config.LoadMirrors(options.Mirrors)
-	config.LoadInsecureRegistries(options.InsecureRegistries)
-
-	return config
+	return config, nil
 }
 
 // LoadAllowNondistributableArtifacts loads allow-nondistributable-artifacts registries into config.

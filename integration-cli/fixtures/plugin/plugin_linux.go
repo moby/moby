@@ -71,9 +71,14 @@ func CreateInRegistry(ctx context.Context, repo string, auth *types.AuthConfig, 
 	}
 	defer tar.Close()
 
+	regService, err := registry.NewService(registry.ServiceOptions{V2Only: true})
+	if err != nil {
+		return err
+	}
+
 	managerConfig := plugin.ManagerConfig{
 		Store:           plugin.NewStore(),
-		RegistryService: registry.NewService(registry.ServiceOptions{V2Only: true}),
+		RegistryService: regService,
 		Root:            filepath.Join(tmpDir, "root"),
 		ExecRoot:        "/run/docker", // manager init fails if not set
 		Executor:        dummyExecutor{},
