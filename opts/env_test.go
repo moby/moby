@@ -8,35 +8,117 @@ import (
 )
 
 func TestValidateEnv(t *testing.T) {
-	valids := map[string]string{
-		"a":                   "a",
-		"something":           "something",
-		"_=a":                 "_=a",
-		"env1=value1":         "env1=value1",
-		"_env1=value1":        "_env1=value1",
-		"env2=value2=value3":  "env2=value2=value3",
-		"env3=abc!qwe":        "env3=abc!qwe",
-		"env_4=value 4":       "env_4=value 4",
-		"PATH":                fmt.Sprintf("PATH=%v", os.Getenv("PATH")),
-		"PATH=something":      "PATH=something",
-		"asd!qwe":             "asd!qwe",
-		"1asd":                "1asd",
-		"123":                 "123",
-		"some space":          "some space",
-		"  some space before": "  some space before",
-		"some space after  ":  "some space after  ",
+	testcase := []struct {
+		value    string
+		expected string
+		err      error
+	}{
+		{
+			value:    "a",
+			expected: "a",
+		},
+		{
+			value:    "something",
+			expected: "something",
+		},
+		{
+			value:    "_=a",
+			expected: "_=a",
+		},
+		{
+			value:    "env1=value1",
+			expected: "env1=value1",
+		},
+		{
+			value:    "_env1=value1",
+			expected: "_env1=value1",
+		},
+		{
+			value:    "env2=value2=value3",
+			expected: "env2=value2=value3",
+		},
+		{
+			value:    "env3=abc!qwe",
+			expected: "env3=abc!qwe",
+		},
+		{
+			value:    "env_4=value 4",
+			expected: "env_4=value 4",
+		},
+		{
+			value:    "PATH",
+			expected: fmt.Sprintf("PATH=%v", os.Getenv("PATH")),
+		},
+		{
+			value: "=a",
+			err:   fmt.Errorf(fmt.Sprintf("invalid environment variable: %s", "=a")),
+		},
+		{
+			value:    "PATH=something",
+			expected: "PATH=something",
+		},
+		{
+			value:    "asd!qwe",
+			expected: "asd!qwe",
+		},
+		{
+			value:    "1asd",
+			expected: "1asd",
+		},
+		{
+			value:    "123",
+			expected: "123",
+		},
+		{
+			value:    "some space",
+			expected: "some space",
+		},
+		{
+			value:    "  some space before",
+			expected: "  some space before",
+		},
+		{
+			value:    "some space after  ",
+			expected: "some space after  ",
+		},
+		{
+			value: "=",
+			err:   fmt.Errorf(fmt.Sprintf("invalid environment variable: %s", "=")),
+		},
 	}
+
 	// Environment variables are case in-sensitive on Windows
 	if runtime.GOOS == "windows" {
-		valids["PaTh"] = fmt.Sprintf("PaTh=%v", os.Getenv("PATH"))
-	}
-	for value, expected := range valids {
-		actual, err := ValidateEnv(value)
-		if err != nil {
-			t.Fatal(err)
+		tmp := struct {
+			value    string
+			expected string
+			err      error
+		}{
+			value:    "PaTh",
+			expected: fmt.Sprintf("PaTh=%v", os.Getenv("PATH")),
 		}
-		if actual != expected {
-			t.Fatalf("Expected [%v], got [%v]", expected, actual)
+		testcase = append(testcase, tmp)
+
+	}
+
+	for _, r := range testcase {
+		actual, err := ValidateEnv(r.value)
+
+		if err != nil {
+			if r.err == nil {
+				t.Fatalf("Expected err is nil, got err[%v]", err)
+			}
+			if err.Error() != r.err.Error() {
+				t.Fatalf("Expected err[%v], got err[%v]", r.err, err)
+			}
+		}
+
+		if err == nil && r.err != nil {
+			t.Fatalf("Expected err[%v], but err is nil", r.err)
+		}
+
+		if actual != r.expected {
+			t.Fatalf("Expected [%v], got [%v]", r.expected, actual)
 		}
 	}
 }
