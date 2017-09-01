@@ -33,7 +33,7 @@ func (p *Plugin) InitSpec(execRoot string) (*specs.Spec, error) {
 		return nil, errors.WithStack(err)
 	}
 
-	mounts := append(p.PluginObj.Config.Mounts, types.PluginMount{
+	mounts := append(p.PluginObj.Settings.Mounts, types.PluginMount{
 		Source:      &execRoot,
 		Destination: defaultPluginRuntimeDestination,
 		Type:        "bind",
