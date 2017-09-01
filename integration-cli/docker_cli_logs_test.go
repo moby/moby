@@ -242,6 +242,7 @@ func (s *DockerSuite) TestLogsFollowSlowStdoutConsumer(c *check.C) {
 
 	actual := bytes1 + bytes2
 	expected := 200000
+	c.Logf("read %d+%d=%d bytes", bytes1, bytes2, actual)
 	c.Assert(actual, checker.Equals, expected)
 }
 
