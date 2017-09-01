@@ -50,8 +50,8 @@ func setHeaderForSpecialDevice(hdr *tar.Header, name string, stat interface{}) (
 		// Currently go does not fill in the major/minors
 		if s.Mode&unix.S_IFBLK != 0 ||
 			s.Mode&unix.S_IFCHR != 0 {
-			hdr.Devmajor = int64(major(uint64(s.Rdev)))
-			hdr.Devminor = int64(minor(uint64(s.Rdev)))
+			hdr.Devmajor = int64(major(s.Rdev))
+			hdr.Devminor = int64(minor(s.Rdev))
 		}
 	}
 
@@ -62,7 +62,7 @@ func getInodeFromStat(stat interface{}) (inode uint64, err error) {
 	s, ok := stat.(*syscall.Stat_t)
 
 	if ok {
-		inode = uint64(s.Ino)
+		inode = s.Ino
 	}
 
 	return

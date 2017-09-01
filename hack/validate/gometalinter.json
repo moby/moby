@@ -14,6 +14,8 @@
     "gofmt",
     "goimports",
     "golint",
+    "interfacer",
+    "unconvert",
     "vet"
   ],
 

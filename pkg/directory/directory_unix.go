@@ -34,11 +34,11 @@ func Size(dir string) (size int64, err error) {
 		// Check inode to handle hard links correctly
 		inode := fileInfo.Sys().(*syscall.Stat_t).Ino
 		// inode is not a uint64 on all platforms. Cast it to avoid issues.
-		if _, exists := data[uint64(inode)]; exists {
+		if _, exists := data[inode]; exists {
 			return nil
 		}
 		// inode is not a uint64 on all platforms. Cast it to avoid issues.
-		data[uint64(inode)] = struct{}{}
+		data[inode] = struct{}{}
 
 		size += s
 

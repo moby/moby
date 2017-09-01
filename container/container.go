@@ -655,8 +655,12 @@ func (container *Container) BuildEndpointInfo(n libnetwork.Network, ep libnetwor
 	return nil
 }
 
+type named interface {
+	Name() string
+}
+
 // UpdateJoinInfo updates network settings when container joins network n with endpoint ep.
-func (container *Container) UpdateJoinInfo(n libnetwork.Network, ep libnetwork.Endpoint) error {
+func (container *Container) UpdateJoinInfo(n named, ep libnetwork.Endpoint) error {
 	if err := container.buildPortMapInfo(ep); err != nil {
 		return err
 	}
@@ -684,7 +688,7 @@ func (container *Container) UpdateSandboxNetworkSettings(sb libnetwork.Sandbox) 
 }
 
 // BuildJoinOptions builds endpoint Join options from a given network.
-func (container *Container) BuildJoinOptions(n libnetwork.Network) ([]libnetwork.EndpointOption, error) {
+func (container *Container) BuildJoinOptions(n named) ([]libnetwork.EndpointOption, error) {
 	var joinOptions []libnetwork.EndpointOption
 	if epConfig, ok := container.NetworkSettings.Networks[n.Name()]; ok {
 		for _, str := range epConfig.Links {

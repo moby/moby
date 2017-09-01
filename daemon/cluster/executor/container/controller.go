@@ -659,7 +659,7 @@ func (e *exitError) Error() string {
 }
 
 func (e *exitError) ExitCode() int {
-	return int(e.code)
+	return e.code
 }
 
 func (e *exitError) Cause() error {

@@ -177,7 +177,7 @@ func (opts *MapOpts) GetAll() map[string]string {
 }
 
 func (opts *MapOpts) String() string {
-	return fmt.Sprintf("%v", map[string]string((opts.values)))
+	return fmt.Sprintf("%v", opts.values)
 }
 
 // Type returns a string name for this Option type

@@ -24,7 +24,7 @@ import (
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/registry"
-	"github.com/opencontainers/go-digest"
+	digest "github.com/opencontainers/go-digest"
 	"github.com/sirupsen/logrus"
 )
 
@@ -651,6 +651,7 @@ func (bla byLikeness) Swap(i, j int) {
 }
 func (bla byLikeness) Len() int { return len(bla.arr) }
 
+// nolint: interfacer
 func sortV2MetadataByLikenessAndAge(repoInfo reference.Named, hmacKey []byte, marr []metadata.V2Metadata) {
 	// reverse the metadata array to shift the newest entries to the beginning
 	for i := 0; i < len(marr)/2; i++ {

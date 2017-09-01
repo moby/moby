@@ -70,7 +70,7 @@ func (s *containerRouter) getContainersStats(ctx context.Context, w http.Respons
 	config := &backend.ContainerStatsConfig{
 		Stream:    stream,
 		OutStream: w,
-		Version:   string(httputils.VersionFromContext(ctx)),
+		Version:   httputils.VersionFromContext(ctx),
 	}
 
 	return s.backend.ContainerStats(ctx, vars["name"], config)
