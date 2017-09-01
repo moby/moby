@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os/exec"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/request"
 	"github.com/docker/docker/pkg/parsers/kernel"
@@ -295,20 +297,26 @@ func (s *DockerSuite) TestUpdateWithNanoCPUs(c *check.C) {
 	out, _ = dockerCmd(c, "exec", "top", "sh", "-c", fmt.Sprintf("cat %s && cat %s", file1, file2))
 	c.Assert(strings.TrimSpace(out), checker.Equals, "50000\n100000")
 
-	out = inspectField(c, "top", "HostConfig.NanoCpus")
-	c.Assert(out, checker.Equals, "5e+08", check.Commentf("setting the Nano CPUs failed"))
+	clt, err := client.NewEnvClient()
+	c.Assert(err, checker.IsNil)
+	inspect, err := clt.ContainerInspect(context.Background(), "top")
+	c.Assert(err, checker.IsNil)
+	c.Assert(inspect.HostConfig.NanoCPUs, checker.Equals, int64(500000000))
+
 	out = inspectField(c, "top", "HostConfig.CpuQuota")
 	c.Assert(out, checker.Equals, "0", check.Commentf("CPU CFS quota should be 0"))
 	out = inspectField(c, "top", "HostConfig.CpuPeriod")
 	c.Assert(out, checker.Equals, "0", check.Commentf("CPU CFS period should be 0"))
 
-	out, _, err := dockerCmdWithError("update", "--cpu-quota", "80000", "top")
+	out, _, err = dockerCmdWithError("update", "--cpu-quota", "80000", "top")
 	c.Assert(err, checker.NotNil)
 	c.Assert(out, checker.Contains, "Conflicting options: CPU Quota cannot be updated as NanoCPUs has already been set")
 
 	out, _ = dockerCmd(c, "update", "--cpus", "0.8", "top")
-	out = inspectField(c, "top", "HostConfig.NanoCpus")
-	c.Assert(out, checker.Equals, "8e+08", check.Commentf("updating the Nano CPUs failed"))
+	inspect, err = clt.ContainerInspect(context.Background(), "top")
+	c.Assert(err, checker.IsNil)
+	c.Assert(inspect.HostConfig.NanoCPUs, checker.Equals, int64(800000000))
+
 	out = inspectField(c, "top", "HostConfig.CpuQuota")
 	c.Assert(out, checker.Equals, "0", check.Commentf("CPU CFS quota should be 0"))
 	out = inspectField(c, "top", "HostConfig.CpuPeriod")
