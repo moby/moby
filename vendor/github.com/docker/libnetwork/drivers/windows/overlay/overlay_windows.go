@@ -104,7 +104,7 @@ func (d *driver) restoreHNSNetworks() error {
 func (d *driver) convertToOverlayNetwork(v *hcsshim.HNSNetwork) *network {
 	n := &network{
 		id:              v.Name,
-		hnsId:           v.Id,
+		hnsID:           v.Id,
 		driver:          d,
 		endpoints:       endpointTable{},
 		subnets:         []*subnet{},

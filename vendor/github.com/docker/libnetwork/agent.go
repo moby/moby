@@ -892,13 +892,13 @@ func (c *controller) handleEpTableEvent(ev events.Event) {
 		if svcID != "" {
 			// This is a remote task part of a service
 			if err := c.addServiceBinding(svcName, svcID, nid, eid, containerName, vip, ingressPorts, serviceAliases, taskAliases, ip, "handleEpTableEvent"); err != nil {
-				logrus.Errorf("failed adding service binding for %s epRec:%v err:%s", eid, epRec, err)
+				logrus.Errorf("failed adding service binding for %s epRec:%v err:%v", eid, epRec, err)
 				return
 			}
 		} else {
 			// This is a remote container simply attached to an attachable network
 			if err := c.addContainerNameResolution(nid, eid, containerName, taskAliases, ip, "handleEpTableEvent"); err != nil {
-				logrus.Errorf("failed adding service binding for %s epRec:%v err:%s", eid, epRec, err)
+				logrus.Errorf("failed adding container name resolution for %s epRec:%v err:%v", eid, epRec, err)
 			}
 		}
 	} else {
@@ -906,13 +906,13 @@ func (c *controller) handleEpTableEvent(ev events.Event) {
 		if svcID != "" {
 			// This is a remote task part of a service
 			if err := c.rmServiceBinding(svcName, svcID, nid, eid, containerName, vip, ingressPorts, serviceAliases, taskAliases, ip, "handleEpTableEvent", true); err != nil {
-				logrus.Errorf("failed removing service binding for %s epRec:%v err:%s", eid, epRec, err)
+				logrus.Errorf("failed removing service binding for %s epRec:%v err:%v", eid, epRec, err)
 				return
 			}
 		} else {
 			// This is a remote container simply attached to an attachable network
 			if err := c.delContainerNameResolution(nid, eid, containerName, taskAliases, ip, "handleEpTableEvent"); err != nil {
-				logrus.Errorf("failed adding service binding for %s epRec:%v err:%s", eid, epRec, err)
+				logrus.Errorf("failed removing container name resolution for %s epRec:%v err:%v", eid, epRec, err)
 			}
 		}
 	}
