@@ -41,7 +41,7 @@ func (e *Execution) Clean(t testingT) {
 	}
 }
 
-func unpauseAllContainers(t testingT, client client.ContainerAPIClient) {
+func unpauseAllContainers(t assert.TestingT, client client.ContainerAPIClient) {
 	ctx := context.Background()
 	containers := getPausedContainers(ctx, t, client)
 	if len(containers) > 0 {
@@ -52,7 +52,7 @@ func unpauseAllContainers(t testingT, client client.ContainerAPIClient) {
 	}
 }
 
-func getPausedContainers(ctx context.Context, t testingT, client client.ContainerAPIClient) []types.Container {
+func getPausedContainers(ctx context.Context, t assert.TestingT, client client.ContainerAPIClient) []types.Container {
 	filter := filters.NewArgs()
 	filter.Add("status", "paused")
 	containers, err := client.ContainerList(ctx, types.ContainerListOptions{
@@ -66,7 +66,7 @@ func getPausedContainers(ctx context.Context, t testingT, client client.Containe
 
 var alreadyExists = regexp.MustCompile(`Error response from daemon: removal of container (\w+) is already in progress`)
 
-func deleteAllContainers(t testingT, apiclient client.ContainerAPIClient) {
+func deleteAllContainers(t assert.TestingT, apiclient client.ContainerAPIClient) {
 	ctx := context.Background()
 	containers := getAllContainers(ctx, t, apiclient)
 	if len(containers) == 0 {
@@ -85,7 +85,7 @@ func deleteAllContainers(t testingT, apiclient client.ContainerAPIClient) {
 	}
 }
 
-func getAllContainers(ctx context.Context, t testingT, client client.ContainerAPIClient) []types.Container {
+func getAllContainers(ctx context.Context, t assert.TestingT, client client.ContainerAPIClient) []types.Container {
 	containers, err := client.ContainerList(ctx, types.ContainerListOptions{
 		Quiet: true,
 		All:   true,
@@ -116,7 +116,7 @@ func deleteAllImages(t testingT, apiclient client.ImageAPIClient, protectedImage
 	}
 }
 
-func removeImage(ctx context.Context, t testingT, apiclient client.ImageAPIClient, ref string) {
+func removeImage(ctx context.Context, t assert.TestingT, apiclient client.ImageAPIClient, ref string) {
 	_, err := apiclient.ImageRemove(ctx, ref, types.ImageRemoveOptions{
 		Force: true,
 	})
@@ -126,7 +126,7 @@ func removeImage(ctx context.Context, t testingT, apiclient client.ImageAPIClien
 	assert.NoError(t, err, "failed to remove image %s", ref)
 }
 
-func deleteAllVolumes(t testingT, c client.VolumeAPIClient) {
+func deleteAllVolumes(t assert.TestingT, c client.VolumeAPIClient) {
 	volumes, err := c.VolumeList(context.Background(), filters.Args{})
 	assert.NoError(t, err, "failed to list volumes")
 
@@ -136,7 +136,7 @@ func deleteAllVolumes(t testingT, c client.VolumeAPIClient) {
 	}
 }
 
-func deleteAllNetworks(t testingT, c client.NetworkAPIClient, daemonPlatform string) {
+func deleteAllNetworks(t assert.TestingT, c client.NetworkAPIClient, daemonPlatform string) {
 	networks, err := c.NetworkList(context.Background(), types.NetworkListOptions{})
 	assert.NoError(t, err, "failed to list networks")
 
@@ -153,7 +153,7 @@ func deleteAllNetworks(t testingT, c client.NetworkAPIClient, daemonPlatform str
 	}
 }
 
-func deleteAllPlugins(t testingT, c client.PluginAPIClient) {
+func deleteAllPlugins(t assert.TestingT, c client.PluginAPIClient) {
 	plugins, err := c.PluginList(context.Background(), filters.Args{})
 	assert.NoError(t, err, "failed to list plugins")
 
