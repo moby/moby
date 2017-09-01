@@ -37,7 +37,7 @@ func ProtectImages(t testingT, testEnv *Execution) {
 	testEnv.ProtectImage(t, images...)
 }
 
-func getExistingImages(t testingT, testEnv *Execution) []string {
+func getExistingImages(t require.TestingT, testEnv *Execution) []string {
 	client := testEnv.APIClient()
 	filter := filters.NewArgs()
 	filter.Add("dangling", "false")

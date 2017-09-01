@@ -8,6 +8,9 @@
     "api/types/container/container_.*",
     "integration-cli/"
   ],
+  "Skip": [
+    "integration-cli/"
+  ],
 
   "Enable": [
     "deadcode",
