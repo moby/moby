@@ -1574,3 +1574,16 @@ func (s *DockerSuite) TestRunWithNanoCPUs(c *check.C) {
 	c.Assert(err, check.NotNil)
 	c.Assert(out, checker.Contains, "Conflicting options: Nano CPUs and CPU Period cannot both be set")
 }
+
+// #34542
+func (s *DockerSuite) TestRunVolumeLeakage(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	// Create two containers, one of which attempts to leak the first's mounts.
+	_, _ = dockerCmd(c, "run", "-d", "--name", "testA", "busybox", "top")
+	_, _ = dockerCmd(c, "run", "-d", "--name", "testB", "-v", "/:/rootfs", "busybox", "top")
+
+	// Try to delete the first container, which should succeed.
+	_, _, err := dockerCmdWithError("rm", "-f", "testA")
+	c.Assert(err, check.IsNil)
+}

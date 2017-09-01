@@ -41,7 +41,7 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		return nil, err
 	}
 
-	if err := mount.MakePrivate(home); err != nil {
+	if err := mount.MakeUnbindable(home); err != nil {
 		return nil, err
 	}
 
