@@ -157,9 +157,10 @@ func copyDir(srcDir, dstDir string, flags copyFlags) error {
 		}
 
 		// system.Chtimes doesn't support a NOFOLLOW flag atm
+		// nolint: unconvert
 		if !isSymlink {
-			aTime := time.Unix(stat.Atim.Sec, stat.Atim.Nsec)
-			mTime := time.Unix(stat.Mtim.Sec, stat.Mtim.Nsec)
+			aTime := time.Unix(int64(stat.Atim.Sec), int64(stat.Atim.Nsec))
+			mTime := time.Unix(int64(stat.Mtim.Sec), int64(stat.Mtim.Nsec))
 			if err := system.Chtimes(dstPath, aTime, mTime); err != nil {
 				return err
 			}
