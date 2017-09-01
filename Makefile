@@ -43,7 +43,8 @@ DOCKER_ENVS := \
 	-e NO_PROXY \
 	-e http_proxy \
 	-e https_proxy \
-	-e no_proxy
+	-e no_proxy \
+	-e VERSION
 # note: we _cannot_ add "-e DOCKER_BUILDTAGS" here because even if it's unset in the shell, that would shadow the "ENV DOCKER_BUILDTAGS" set in our Dockerfile, which is very important for our official builds
 
 # to allow `make BIND_DIR=. shell` or `make BIND_DIR= test`
