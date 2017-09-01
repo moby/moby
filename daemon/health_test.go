@@ -19,19 +19,23 @@ func reset(c *container.Container) {
 
 func TestNoneHealthcheck(t *testing.T) {
 	c := &container.Container{
-		CommonContainer: container.CommonContainer{
-			ID:   "container_id",
-			Name: "container_name",
-			Config: &containertypes.Config{
-				Image: "image_name",
-				Healthcheck: &containertypes.HealthConfig{
-					Test: []string{"NONE"},
-				},
+		ID:   "container_id",
+		Name: "container_name",
+		Config: &containertypes.Config{
+			Image: "image_name",
+			Healthcheck: &containertypes.HealthConfig{
+				Test: []string{"NONE"},
 			},
-			State: &container.State{},
 		},
+		State: &container.State{},
 	}
-	daemon := &Daemon{}
+	store, err := container.NewViewDB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	daemon := &Daemon{
+		containersReplica: store,
+	}
 
 	daemon.initHealthMonitor(c)
 	if c.State.Health != nil {
@@ -58,16 +62,21 @@ func TestHealthStates(t *testing.T) {
 	}
 
 	c := &container.Container{
-		CommonContainer: container.CommonContainer{
-			ID:   "container_id",
-			Name: "container_name",
-			Config: &containertypes.Config{
-				Image: "image_name",
-			},
+		ID:   "container_id",
+		Name: "container_name",
+		Config: &containertypes.Config{
+			Image: "image_name",
 		},
 	}
+
+	store, err := container.NewViewDB()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	daemon := &Daemon{
-		EventsService: e,
+		EventsService:     e,
+		containersReplica: store,
 	}
 
 	c.Config.Healthcheck = &containertypes.HealthConfig{

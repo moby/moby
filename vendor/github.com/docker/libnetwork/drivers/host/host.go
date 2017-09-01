@@ -19,7 +19,8 @@ type driver struct {
 // Init registers a new instance of host driver
 func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 	c := driverapi.Capability{
-		DataScope: datastore.LocalScope,
+		DataScope:         datastore.LocalScope,
+		ConnectivityScope: datastore.LocalScope,
 	}
 	return dc.RegisterDriver(networkType, &driver{}, c)
 }

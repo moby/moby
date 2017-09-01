@@ -3,13 +3,14 @@ package logger
 import (
 	"io"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types/plugins/logdriver"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 // pluginAdapter takes a plugin and implements the Logger interface for logger
@@ -18,6 +19,7 @@ type pluginAdapter struct {
 	driverName   string
 	id           string
 	plugin       logPlugin
+	basePath     string
 	fifoPath     string
 	capabilities Capability
 	logInfo      Info
@@ -56,7 +58,7 @@ func (a *pluginAdapter) Close() error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	if err := a.plugin.StopLogging(a.fifoPath); err != nil {
+	if err := a.plugin.StopLogging(strings.TrimPrefix(a.fifoPath, a.basePath)); err != nil {
 		return err
 	}
 

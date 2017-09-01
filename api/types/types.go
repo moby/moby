@@ -45,6 +45,12 @@ type ImageInspect struct {
 	VirtualSize     int64
 	GraphDriver     GraphDriverData
 	RootFS          RootFS
+	Metadata        ImageMetadata
+}
+
+// ImageMetadata contains engine-local data about the image
+type ImageMetadata struct {
+	LastTagTime time.Time `json:",omitempty"`
 }
 
 // Container contains response of Engine API:
@@ -162,6 +168,7 @@ type Info struct {
 	RegistryConfig     *registry.ServiceConfig
 	NCPU               int
 	MemTotal           int64
+	GenericResources   []swarm.GenericResource
 	DockerRootDir      string
 	HTTPProxy          string `json:"HttpProxy"`
 	HTTPSProxy         string `json:"HttpsProxy"`
@@ -238,6 +245,8 @@ type PluginsInfo struct {
 	Network []string
 	// List of Authorization plugins registered
 	Authorization []string
+	// List of Log plugins registered
+	Log []string
 }
 
 // ExecStartCheck is a temp struct used by execStart
@@ -275,7 +284,7 @@ type Health struct {
 // ContainerState stores container's running state
 // it's part of ContainerJSONBase and will return by "inspect" command
 type ContainerState struct {
-	Status     string
+	Status     string // String representation of the container state. Can be one of "created", "running", "paused", "restarting", "removing", "exited", or "dead"
 	Running    bool
 	Paused     bool
 	Restarting bool
@@ -318,6 +327,7 @@ type ContainerJSONBase struct {
 	Name            string
 	RestartCount    int
 	Driver          string
+	Platform        string
 	MountLabel      string
 	ProcessLabel    string
 	AppArmorProfile string
@@ -394,13 +404,15 @@ type NetworkResource struct {
 	Name       string                         // Name is the requested name of the network
 	ID         string                         `json:"Id"` // ID uniquely identifies a network on a single machine
 	Created    time.Time                      // Created is the time the network created
-	Scope      string                         // Scope describes the level at which the network exists (e.g. `global` for cluster-wide or `local` for machine level)
+	Scope      string                         // Scope describes the level at which the network exists (e.g. `swarm` for cluster-wide or `local` for machine level)
 	Driver     string                         // Driver is the Driver name used to create the network (e.g. `bridge`, `overlay`)
 	EnableIPv6 bool                           // EnableIPv6 represents whether to enable IPv6
 	IPAM       network.IPAM                   // IPAM is the network's IP Address Management
 	Internal   bool                           // Internal represents if the network is used internal only
 	Attachable bool                           // Attachable represents if the global scope is manually attachable by regular containers from workers in swarm mode.
 	Ingress    bool                           // Ingress indicates the network is providing the routing-mesh for the swarm cluster.
+	ConfigFrom network.ConfigReference        // ConfigFrom specifies the source which will provide the configuration for this network.
+	ConfigOnly bool                           // ConfigOnly networks are place-holder networks for network configurations to be used by other networks. ConfigOnly networks cannot be used directly to run containers or services.
 	Containers map[string]EndpointResource    // Containers contains endpoints belonging to the network
 	Options    map[string]string              // Options holds the network specific options to use for when creating the network
 	Labels     map[string]string              // Labels holds metadata specific to the network being created
@@ -428,11 +440,14 @@ type NetworkCreate struct {
 	// which has the same name but it is not guaranteed to catch all name collisions.
 	CheckDuplicate bool
 	Driver         string
+	Scope          string
 	EnableIPv6     bool
 	IPAM           *network.IPAM
 	Internal       bool
 	Attachable     bool
 	Ingress        bool
+	ConfigOnly     bool
+	ConfigFrom     *network.ConfigReference
 	Options        map[string]string
 	Labels         map[string]string
 }
@@ -461,6 +476,12 @@ type NetworkDisconnect struct {
 	Force     bool
 }
 
+// NetworkInspectOptions holds parameters to inspect network
+type NetworkInspectOptions struct {
+	Scope   string
+	Verbose bool
+}
+
 // Checkpoint represents the details of a checkpoint
 type Checkpoint struct {
 	Name string // Name is the name of the checkpoint
@@ -475,10 +496,11 @@ type Runtime struct {
 // DiskUsage contains response of Engine API:
 // GET "/system/df"
 type DiskUsage struct {
-	LayersSize int64
-	Images     []*ImageSummary
-	Containers []*Container
-	Volumes    []*Volume
+	LayersSize  int64
+	Images      []*ImageSummary
+	Containers  []*Container
+	Volumes     []*Volume
+	BuilderSize int64
 }
 
 // ContainersPruneReport contains the response for Engine API:
@@ -502,6 +524,12 @@ type ImagesPruneReport struct {
 	SpaceReclaimed uint64
 }
 
+// BuildCachePruneReport contains the response for Engine API:
+// POST "/build/prune"
+type BuildCachePruneReport struct {
+	SpaceReclaimed uint64
+}
+
 // NetworksPruneReport contains the response for Engine API:
 // POST "/networks/prune"
 type NetworksPruneReport struct {
@@ -520,6 +548,18 @@ type SecretListOptions struct {
 	Filters filters.Args
 }
 
+// ConfigCreateResponse contains the information returned to a client
+// on the creation of a new config.
+type ConfigCreateResponse struct {
+	// ID is the id of the created config.
+	ID string
+}
+
+// ConfigListOptions holds parameters to list configs
+type ConfigListOptions struct {
+	Filters filters.Args
+}
+
 // PushResult contains the tag, manifest digest, and manifest size from the
 // push. It's used to signal this information to the trust code in the client
 // so it can sign the manifest if necessary.
@@ -527,4 +567,9 @@ type PushResult struct {
 	Tag    string
 	Digest string
 	Size   int
+}
+
+// BuildResult contains the image id of a successful build
+type BuildResult struct {
+	ID string
 }

@@ -11,7 +11,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 )
 
 // generateID creates a new random string identifier with the given length
@@ -69,7 +70,7 @@ func retryOnError(err error) bool {
 	case *os.PathError:
 		return retryOnError(err.Err) // unpack the target error
 	case syscall.Errno:
-		if err == syscall.EPERM {
+		if err == unix.EPERM {
 			// EPERM represents an entropy pool exhaustion, a condition under
 			// which we backoff and retry.
 			return true

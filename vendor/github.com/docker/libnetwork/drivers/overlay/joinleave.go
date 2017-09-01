@@ -5,11 +5,11 @@ import (
 	"net"
 	"syscall"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/ns"
 	"github.com/docker/libnetwork/types"
 	"github.com/gogo/protobuf/proto"
+	"github.com/sirupsen/logrus"
 )
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
@@ -120,8 +120,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		}
 	}
 
-	d.peerDbAdd(nid, eid, ep.addr.IP, ep.addr.Mask, ep.mac,
-		net.ParseIP(d.advertiseAddress), true)
+	d.peerAdd(nid, eid, ep.addr.IP, ep.addr.Mask, ep.mac, net.ParseIP(d.advertiseAddress), false, false, true)
 
 	if err := d.checkEncryption(nid, nil, n.vxlanID(s), true, true); err != nil {
 		logrus.Warn(err)
@@ -201,11 +200,11 @@ func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key stri
 	}
 
 	if etype == driverapi.Delete {
-		d.peerDelete(nid, eid, addr.IP, addr.Mask, mac, vtep, true)
+		d.peerDelete(nid, eid, addr.IP, addr.Mask, mac, vtep)
 		return
 	}
 
-	d.peerAdd(nid, eid, addr.IP, addr.Mask, mac, vtep, true, false, false)
+	d.peerAdd(nid, eid, addr.IP, addr.Mask, mac, vtep, false, false, false)
 }
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.

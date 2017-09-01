@@ -11,13 +11,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/registry"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
@@ -152,7 +152,7 @@ func testDirectory(templateDir string) (dir string, err error) {
 		return
 	}
 	if templateDir != "" {
-		if err = archive.CopyWithTar(templateDir, dir); err != nil {
+		if err = archive.NewDefaultArchiver().CopyWithTar(templateDir, dir); err != nil {
 			return
 		}
 	}

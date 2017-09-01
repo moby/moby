@@ -10,7 +10,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 // Action signifies the iptable action.
@@ -151,11 +151,11 @@ func ProgramChain(c *ChainInfo, bridgeName string, hairpinMode, enable bool) err
 			"-j", c.Name}
 		if !Exists(Nat, "PREROUTING", preroute...) && enable {
 			if err := c.Prerouting(Append, preroute...); err != nil {
-				return fmt.Errorf("Failed to inject docker in PREROUTING chain: %s", err)
+				return fmt.Errorf("Failed to inject %s in PREROUTING chain: %s", c.Name, err)
 			}
 		} else if Exists(Nat, "PREROUTING", preroute...) && !enable {
 			if err := c.Prerouting(Delete, preroute...); err != nil {
-				return fmt.Errorf("Failed to remove docker in PREROUTING chain: %s", err)
+				return fmt.Errorf("Failed to remove %s in PREROUTING chain: %s", c.Name, err)
 			}
 		}
 		output := []string{
@@ -167,11 +167,11 @@ func ProgramChain(c *ChainInfo, bridgeName string, hairpinMode, enable bool) err
 		}
 		if !Exists(Nat, "OUTPUT", output...) && enable {
 			if err := c.Output(Append, output...); err != nil {
-				return fmt.Errorf("Failed to inject docker in OUTPUT chain: %s", err)
+				return fmt.Errorf("Failed to inject %s in OUTPUT chain: %s", c.Name, err)
 			}
 		} else if Exists(Nat, "OUTPUT", output...) && !enable {
 			if err := c.Output(Delete, output...); err != nil {
-				return fmt.Errorf("Failed to inject docker in OUTPUT chain: %s", err)
+				return fmt.Errorf("Failed to inject %s in OUTPUT chain: %s", c.Name, err)
 			}
 		}
 	case Filter:
@@ -497,4 +497,45 @@ func parseVersionNumbers(input string) (major, minor, micro int) {
 // http://ftp.netfilter.org/pub/iptables/changes-iptables-1.4.11.txt
 func supportsCOption(mj, mn, mc int) bool {
 	return mj > 1 || (mj == 1 && (mn > 4 || (mn == 4 && mc >= 11)))
+}
+
+// AddReturnRule adds a return rule for the chain in the filter table
+func AddReturnRule(chain string) error {
+	var (
+		table = Filter
+		args  = []string{"-j", "RETURN"}
+	)
+
+	if Exists(table, chain, args...) {
+		return nil
+	}
+
+	err := RawCombinedOutput(append([]string{"-A", chain}, args...)...)
+	if err != nil {
+		return fmt.Errorf("unable to add return rule in %s chain: %s", chain, err.Error())
+	}
+
+	return nil
+}
+
+// EnsureJumpRule ensures the jump rule is on top
+func EnsureJumpRule(fromChain, toChain string) error {
+	var (
+		table = Filter
+		args  = []string{"-j", toChain}
+	)
+
+	if Exists(table, fromChain, args...) {
+		err := RawCombinedOutput(append([]string{"-D", fromChain}, args...)...)
+		if err != nil {
+			return fmt.Errorf("unable to remove jump to %s rule in %s chain: %s", toChain, fromChain, err.Error())
+		}
+	}
+
+	err := RawCombinedOutput(append([]string{"-I", fromChain}, args...)...)
+	if err != nil {
+		return fmt.Errorf("unable to insert jump to %s rule in %s chain: %s", toChain, fromChain, err.Error())
+	}
+
+	return nil
 }

@@ -2,6 +2,7 @@ package system
 
 import (
 	"github.com/docker/docker/api/server/router"
+	"github.com/docker/docker/builder/fscache"
 	"github.com/docker/docker/daemon/cluster"
 )
 
@@ -11,13 +12,15 @@ type systemRouter struct {
 	backend Backend
 	cluster *cluster.Cluster
 	routes  []router.Route
+	builder *fscache.FSCache
 }
 
 // NewRouter initializes a new system router
-func NewRouter(b Backend, c *cluster.Cluster) router.Router {
+func NewRouter(b Backend, c *cluster.Cluster, fscache *fscache.FSCache) router.Router {
 	r := &systemRouter{
 		backend: b,
 		cluster: c,
+		builder: fscache,
 	}
 
 	r.routes = []router.Route{
@@ -26,7 +29,7 @@ func NewRouter(b Backend, c *cluster.Cluster) router.Router {
 		router.NewGetRoute("/events", r.getEvents, router.WithCancel),
 		router.NewGetRoute("/info", r.getInfo),
 		router.NewGetRoute("/version", r.getVersion),
-		router.NewGetRoute("/system/df", r.getDiskUsage),
+		router.NewGetRoute("/system/df", r.getDiskUsage, router.WithCancel),
 		router.NewPostRoute("/auth", r.postAuth),
 	}
 

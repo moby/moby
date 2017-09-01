@@ -12,7 +12,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -21,7 +20,6 @@ import (
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/pkg/stringid"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/libnetwork/driverapi"
 	remoteapi "github.com/docker/libnetwork/drivers/remote/api"
@@ -29,7 +27,9 @@ import (
 	remoteipam "github.com/docker/libnetwork/ipams/remote/api"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/go-check/check"
+	"github.com/gotestyourself/gotestyourself/icmd"
 	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
 )
 
 const dummyNetworkDriver = "dummy-network-driver"
@@ -482,7 +482,7 @@ func (s *DockerSuite) TestDockerNetworkInspectWithID(c *check.C) {
 
 func (s *DockerSuite) TestDockerInspectMultipleNetwork(c *check.C) {
 	result := dockerCmdWithResult("network", "inspect", "host", "none")
-	c.Assert(result, icmd.Matches, icmd.Success)
+	result.Assert(c, icmd.Success)
 
 	networkResources := []types.NetworkResource{}
 	err := json.Unmarshal([]byte(result.Stdout()), &networkResources)
@@ -494,7 +494,7 @@ func (s *DockerSuite) TestDockerInspectMultipleNetworksIncludingNonexistent(c *c
 	// non-existent network was not at the beginning of the inspect list
 	// This should print an error, return an exitCode 1 and print the host network
 	result := dockerCmdWithResult("network", "inspect", "host", "nonexistent")
-	c.Assert(result, icmd.Matches, icmd.Expected{
+	result.Assert(c, icmd.Expected{
 		ExitCode: 1,
 		Err:      "Error: No such network: nonexistent",
 		Out:      "host",
@@ -508,7 +508,7 @@ func (s *DockerSuite) TestDockerInspectMultipleNetworksIncludingNonexistent(c *c
 	// Only one non-existent network to inspect
 	// Should print an error and return an exitCode, nothing else
 	result = dockerCmdWithResult("network", "inspect", "nonexistent")
-	c.Assert(result, icmd.Matches, icmd.Expected{
+	result.Assert(c, icmd.Expected{
 		ExitCode: 1,
 		Err:      "Error: No such network: nonexistent",
 		Out:      "[]",
@@ -517,7 +517,7 @@ func (s *DockerSuite) TestDockerInspectMultipleNetworksIncludingNonexistent(c *c
 	// non-existent network was at the beginning of the inspect list
 	// Should not fail fast, and still print host network but print an error
 	result = dockerCmdWithResult("network", "inspect", "nonexistent", "host")
-	c.Assert(result, icmd.Matches, icmd.Expected{
+	result.Assert(c, icmd.Expected{
 		ExitCode: 1,
 		Err:      "Error: No such network: nonexistent",
 		Out:      "host",
@@ -688,6 +688,21 @@ func (s *DockerNetworkSuite) TestDockerNetworkIPAMOptions(c *check.C) {
 	opts := nr.IPAM.Options
 	c.Assert(opts["opt1"], checker.Equals, "drv1")
 	c.Assert(opts["opt2"], checker.Equals, "drv2")
+}
+
+func (s *DockerNetworkSuite) TestDockerNetworkNullIPAMDriver(c *check.C) {
+	// Create a network with null ipam driver
+	_, _, err := dockerCmdWithError("network", "create", "-d", dummyNetworkDriver, "--ipam-driver", "null", "test000")
+	c.Assert(err, check.IsNil)
+	assertNwIsAvailable(c, "test000")
+
+	// Verify the inspect data contains the default subnet provided by the null
+	// ipam driver and no gateway, as the null ipam driver does not provide one
+	nr := getNetworkResource(c, "test000")
+	c.Assert(nr.IPAM.Driver, checker.Equals, "null")
+	c.Assert(len(nr.IPAM.Config), checker.Equals, 1)
+	c.Assert(nr.IPAM.Config[0].Subnet, checker.Equals, "0.0.0.0/0")
+	c.Assert(nr.IPAM.Config[0].Gateway, checker.Equals, "")
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkInspectDefault(c *check.C) {
@@ -1151,7 +1166,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkHostModeUngracefulDaemonRestart(c 
 		out, err := s.d.Cmd("run", "-d", "--name", cName, "--net=host", "--restart=always", "busybox", "top")
 		c.Assert(err, checker.IsNil, check.Commentf(out))
 
-		// verfiy container has finished starting before killing daemon
+		// verify container has finished starting before killing daemon
 		err = s.d.WaitRun(cName)
 		c.Assert(err, checker.IsNil)
 	}
@@ -1810,12 +1825,12 @@ func (s *DockerNetworkSuite) TestConntrackFlowsLeak(c *check.C) {
 	cli.DockerCmd(c, "run", "-d", "--name", "client", "--net=host", "appropriate/nc", "sh", "-c", cmd)
 
 	// Get all the flows using netlink
-	flows, err := netlink.ConntrackTableList(netlink.ConntrackTable, syscall.AF_INET)
+	flows, err := netlink.ConntrackTableList(netlink.ConntrackTable, unix.AF_INET)
 	c.Assert(err, check.IsNil)
 	var flowMatch int
 	for _, flow := range flows {
 		// count only the flows that we are interested in, skipping others that can be laying around the host
-		if flow.Forward.Protocol == syscall.IPPROTO_UDP &&
+		if flow.Forward.Protocol == unix.IPPROTO_UDP &&
 			flow.Forward.DstIP.Equal(net.ParseIP("192.168.10.1")) &&
 			flow.Forward.DstPort == 8080 {
 			flowMatch++
@@ -1828,11 +1843,11 @@ func (s *DockerNetworkSuite) TestConntrackFlowsLeak(c *check.C) {
 	cli.DockerCmd(c, "rm", "-fv", "server")
 
 	// Fetch again all the flows and validate that there is no server flow in the conntrack laying around
-	flows, err = netlink.ConntrackTableList(netlink.ConntrackTable, syscall.AF_INET)
+	flows, err = netlink.ConntrackTableList(netlink.ConntrackTable, unix.AF_INET)
 	c.Assert(err, check.IsNil)
 	flowMatch = 0
 	for _, flow := range flows {
-		if flow.Forward.Protocol == syscall.IPPROTO_UDP &&
+		if flow.Forward.Protocol == unix.IPPROTO_UDP &&
 			flow.Forward.DstIP.Equal(net.ParseIP("192.168.10.1")) &&
 			flow.Forward.DstPort == 8080 {
 			flowMatch++

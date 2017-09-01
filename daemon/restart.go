@@ -3,8 +3,8 @@ package daemon
 import (
 	"fmt"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
+	"github.com/sirupsen/logrus"
 )
 
 // ContainerRestart stops and starts a container. It attempts to
@@ -52,7 +52,7 @@ func (daemon *Daemon) containerRestart(container *container.Container, seconds i
 		container.HostConfig.AutoRemove = autoRemove
 		// containerStop will write HostConfig to disk, we shall restore AutoRemove
 		// in disk too
-		if toDiskErr := container.ToDiskLocking(); toDiskErr != nil {
+		if toDiskErr := daemon.checkpointAndSave(container); toDiskErr != nil {
 			logrus.Errorf("Write container to disk error: %v", toDiskErr)
 		}
 

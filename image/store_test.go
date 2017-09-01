@@ -1,10 +1,11 @@
 package image
 
 import (
+	"runtime"
 	"testing"
 
+	"github.com/docker/docker/internal/testutil"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/testutil"
 	"github.com/opencontainers/go-digest"
 	"github.com/stretchr/testify/assert"
 )
@@ -25,7 +26,7 @@ func TestRestore(t *testing.T) {
 	err = fs.SetMetadata(id2, "parent", []byte(id1))
 	assert.NoError(t, err)
 
-	is, err := NewImageStore(fs, &mockLayerGetReleaser{})
+	is, err := NewImageStore(fs, runtime.GOOS, &mockLayerGetReleaser{})
 	assert.NoError(t, err)
 
 	assert.Len(t, is.Map(), 2)
@@ -142,10 +143,28 @@ func TestParentReset(t *testing.T) {
 func defaultImageStore(t *testing.T) (Store, func()) {
 	fsBackend, cleanup := defaultFSStoreBackend(t)
 
-	store, err := NewImageStore(fsBackend, &mockLayerGetReleaser{})
+	store, err := NewImageStore(fsBackend, runtime.GOOS, &mockLayerGetReleaser{})
 	assert.NoError(t, err)
 
 	return store, cleanup
+}
+
+func TestGetAndSetLastUpdated(t *testing.T) {
+	store, cleanup := defaultImageStore(t)
+	defer cleanup()
+
+	id, err := store.Create([]byte(`{"comment": "abc1", "rootfs": {"type": "layers"}}`))
+	assert.NoError(t, err)
+
+	updated, err := store.GetLastUpdated(id)
+	assert.NoError(t, err)
+	assert.Equal(t, updated.IsZero(), true)
+
+	assert.NoError(t, store.SetLastUpdated(id))
+
+	updated, err = store.GetLastUpdated(id)
+	assert.NoError(t, err)
+	assert.Equal(t, updated.IsZero(), false)
 }
 
 type mockLayerGetReleaser struct{}

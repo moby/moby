@@ -3,8 +3,9 @@ package libcontainerd
 import (
 	"syscall"
 
-	containerd "github.com/docker/containerd/api/grpc/types"
+	containerd "github.com/containerd/containerd/api/grpc/types"
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"golang.org/x/sys/unix"
 )
 
 func getRootIDs(s specs.Spec) (int, int, error) {
@@ -23,7 +24,7 @@ func getRootIDs(s specs.Spec) (int, int, error) {
 	return uid, gid, nil
 }
 
-func hostIDFromMap(id uint32, mp []specs.IDMapping) int {
+func hostIDFromMap(id uint32, mp []specs.LinuxIDMapping) int {
 	for _, m := range mp {
 		if id >= m.ContainerID && id <= m.ContainerID+m.Size-1 {
 			return int(m.HostID + id - m.ContainerID)
@@ -42,7 +43,7 @@ func systemPid(ctr *containerd.Container) uint32 {
 	return pid
 }
 
-func convertRlimits(sr []specs.Rlimit) (cr []*containerd.Rlimit) {
+func convertRlimits(sr []specs.POSIXRlimit) (cr []*containerd.Rlimit) {
 	for _, r := range sr {
 		cr = append(cr, &containerd.Rlimit{
 			Type: r.Type,
@@ -57,6 +58,6 @@ func convertRlimits(sr []specs.Rlimit) (cr []*containerd.Rlimit) {
 func setSysProcAttr(sid bool) *syscall.SysProcAttr {
 	return &syscall.SysProcAttr{
 		Setsid:    sid,
-		Pdeathsig: syscall.SIGKILL,
+		Pdeathsig: unix.SIGKILL,
 	}
 }

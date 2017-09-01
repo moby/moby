@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net"
 	"sync"
+
+	"github.com/docker/libnetwork/common"
 )
 
 var (
@@ -48,7 +50,33 @@ type service struct {
 	// Service aliases
 	aliases []string
 
+	// This maps tracks for each IP address the list of endpoints ID
+	// associated with it. At stable state the endpoint ID expected is 1
+	// but during transition and service change it is possible to have
+	// temporary more than 1
+	ipToEndpoint common.SetMatrix
+
+	deleted bool
+
 	sync.Mutex
+}
+
+// assignIPToEndpoint inserts the mapping between the IP and the endpoint identifier
+// returns true if the mapping was not present, false otherwise
+// returns also the number of endpoints associated to the IP
+func (s *service) assignIPToEndpoint(ip, eID string) (bool, int) {
+	return s.ipToEndpoint.Insert(ip, eID)
+}
+
+// removeIPToEndpoint removes the mapping between the IP and the endpoint identifier
+// returns true if the mapping was deleted, false otherwise
+// returns also the number of endpoints associated to the IP
+func (s *service) removeIPToEndpoint(ip, eID string) (bool, int) {
+	return s.ipToEndpoint.Remove(ip, eID)
+}
+
+func (s *service) printIPToEndpoint(ip string) (string, bool) {
+	return s.ipToEndpoint.String(ip)
 }
 
 type loadBalancer struct {

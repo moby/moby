@@ -24,6 +24,17 @@ func TestImageRemoveError(t *testing.T) {
 	}
 }
 
+func TestImageRemoveImageNotFound(t *testing.T) {
+	client := &Client{
+		client: newMockClient(errorMock(http.StatusNotFound, "Server error")),
+	}
+
+	_, err := client.ImageRemove(context.Background(), "unknown", types.ImageRemoveOptions{})
+	if err == nil || !IsErrNotFound(err) {
+		t.Fatalf("expected an imageNotFoundError error, got %v", err)
+	}
+}
+
 func TestImageRemove(t *testing.T) {
 	expectedURL := "/images/image_id"
 	removeCases := []struct {

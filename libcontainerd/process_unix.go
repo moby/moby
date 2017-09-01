@@ -10,7 +10,7 @@ import (
 	goruntime "runtime"
 	"strings"
 
-	containerd "github.com/docker/containerd/api/grpc/types"
+	containerd "github.com/containerd/containerd/api/grpc/types"
 	"github.com/tonistiigi/fifo"
 	"golang.org/x/net/context"
 	"golang.org/x/sys/unix"

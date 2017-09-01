@@ -14,8 +14,8 @@ import (
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/pkg/stringid"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
+	"github.com/gotestyourself/gotestyourself/icmd"
 )
 
 func (s *DockerSuite) TestPsListContainersBase(c *check.C) {
@@ -206,9 +206,9 @@ func (s *DockerSuite) TestPsListContainersFilterStatus(c *check.C) {
 	c.Assert(containerOut, checker.Equals, secondID)
 
 	result := cli.Docker(cli.Args("ps", "-a", "-q", "--filter=status=rubbish"), cli.WithTimeout(time.Second*60))
-	c.Assert(result, icmd.Matches, icmd.Expected{
+	result.Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err:      "Unrecognised filter value for status",
+		Err:      "Invalid filter 'status=rubbish'",
 	})
 
 	// Windows doesn't support pausing of containers
@@ -746,7 +746,7 @@ func (s *DockerSuite) TestPsShowMounts(c *check.C) {
 	fields = strings.Fields(lines[1])
 	c.Assert(fields, checker.HasLen, 2)
 
-	annonymounsVolumeID := fields[1]
+	anonymousVolumeID := fields[1]
 
 	fields = strings.Fields(lines[2])
 	c.Assert(fields[1], checker.Equals, "ps-volume-test")
@@ -771,7 +771,7 @@ func (s *DockerSuite) TestPsShowMounts(c *check.C) {
 	c.Assert(lines, checker.HasLen, 2)
 
 	fields = strings.Fields(lines[0])
-	c.Assert(fields[1], checker.Equals, annonymounsVolumeID)
+	c.Assert(fields[1], checker.Equals, anonymousVolumeID)
 	fields = strings.Fields(lines[1])
 	c.Assert(fields[1], checker.Equals, "ps-volume-test")
 
@@ -964,4 +964,23 @@ func (s *DockerSuite) TestPsListContainersFilterPorts(c *check.C) {
 	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "expose=8080/tcp")
 	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), id1)
 	c.Assert(strings.TrimSpace(out), checker.Equals, id2)
+}
+
+func (s *DockerSuite) TestPsNotShowLinknamesOfDeletedContainer(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	dockerCmd(c, "create", "--name=aaa", "busybox", "top")
+	dockerCmd(c, "create", "--name=bbb", "--link=aaa", "busybox", "top")
+
+	out, _ := dockerCmd(c, "ps", "--no-trunc", "-a", "--format", "{{.Names}}")
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	expected := []string{"bbb", "aaa,bbb/aaa"}
+	var names []string
+	names = append(names, lines...)
+	c.Assert(expected, checker.DeepEquals, names, check.Commentf("Expected array with non-truncated names: %v, got: %v", expected, names))
+
+	dockerCmd(c, "rm", "bbb")
+
+	out, _ = dockerCmd(c, "ps", "--no-trunc", "-a", "--format", "{{.Names}}")
+	c.Assert(strings.TrimSpace(out), checker.Equals, "aaa")
 }

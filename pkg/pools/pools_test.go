@@ -159,3 +159,8 @@ func TestNewWriteCloserWrapperWithAWriteCloser(t *testing.T) {
 		t.Fatalf("The ReaderCloser should have been closed, it is not.")
 	}
 }
+
+func TestBufferPoolPutAndGet(t *testing.T) {
+	buf := buffer32KPool.Get()
+	buffer32KPool.Put(buf)
+}

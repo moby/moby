@@ -19,8 +19,8 @@ import (
 	"path/filepath"
 	"unsafe"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/mount"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -54,7 +54,7 @@ func (c *fsChecker) IsMounted(path string) bool {
 	return m
 }
 
-// NewFsChecker returns a checker configured for the provied FsMagic
+// NewFsChecker returns a checker configured for the provided FsMagic
 func NewFsChecker(t FsMagic) Checker {
 	return &fsChecker{
 		t: t,

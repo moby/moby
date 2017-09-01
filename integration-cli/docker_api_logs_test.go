@@ -7,9 +7,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/request"
 	"github.com/go-check/check"
+	"golang.org/x/net/context"
 )
 
 func (s *DockerSuite) TestLogsAPIWithStdout(c *check.C) {
@@ -19,34 +22,31 @@ func (s *DockerSuite) TestLogsAPIWithStdout(c *check.C) {
 
 	type logOut struct {
 		out string
-		res *http.Response
 		err error
 	}
+
 	chLog := make(chan logOut)
+	res, body, err := request.Get(fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&timestamps=1", id))
+	c.Assert(err, checker.IsNil)
+	c.Assert(res.StatusCode, checker.Equals, http.StatusOK)
 
 	go func() {
-		res, body, err := request.Get(fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&timestamps=1", id))
-		if err != nil {
-			chLog <- logOut{"", nil, err}
-			return
-		}
 		defer body.Close()
 		out, err := bufio.NewReader(body).ReadString('\n')
 		if err != nil {
-			chLog <- logOut{"", nil, err}
+			chLog <- logOut{"", err}
 			return
 		}
-		chLog <- logOut{strings.TrimSpace(out), res, err}
+		chLog <- logOut{strings.TrimSpace(out), err}
 	}()
 
 	select {
 	case l := <-chLog:
 		c.Assert(l.err, checker.IsNil)
-		c.Assert(l.res.StatusCode, checker.Equals, http.StatusOK)
 		if !strings.HasSuffix(l.out, "hello") {
 			c.Fatalf("expected log output to container 'hello', but it does not")
 		}
-	case <-time.After(20 * time.Second):
+	case <-time.After(30 * time.Second):
 		c.Fatal("timeout waiting for logs to exit")
 	}
 }
@@ -54,13 +54,13 @@ func (s *DockerSuite) TestLogsAPIWithStdout(c *check.C) {
 func (s *DockerSuite) TestLogsAPINoStdoutNorStderr(c *check.C) {
 	name := "logs_test"
 	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
-
-	status, body, err := request.SockRequest("GET", fmt.Sprintf("/containers/%s/logs", name), nil, daemonHost())
-	c.Assert(status, checker.Equals, http.StatusBadRequest)
+	cli, err := client.NewEnvClient()
 	c.Assert(err, checker.IsNil)
+	defer cli.Close()
 
+	_, err = cli.ContainerLogs(context.Background(), name, types.ContainerLogsOptions{})
 	expected := "Bad parameters: you must choose at least one stream"
-	c.Assert(getErrorMessage(c, body), checker.Contains, expected)
+	c.Assert(err.Error(), checker.Contains, expected)
 }
 
 // Regression test for #12704

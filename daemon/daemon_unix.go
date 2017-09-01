@@ -14,10 +14,8 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/blkiodev"
 	pblkiodev "github.com/docker/docker/api/types/blkiodev"
@@ -41,11 +39,13 @@ import (
 	lntypes "github.com/docker/libnetwork/types"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
-	"github.com/opencontainers/runc/libcontainer/label"
 	rsystem "github.com/opencontainers/runc/libcontainer/system"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -64,22 +64,23 @@ const (
 	cgroupSystemdDriver = "systemd"
 )
 
-func getMemoryResources(config containertypes.Resources) *specs.Memory {
-	memory := specs.Memory{}
+type containerGetter interface {
+	GetContainer(string) (*container.Container, error)
+}
+
+func getMemoryResources(config containertypes.Resources) *specs.LinuxMemory {
+	memory := specs.LinuxMemory{}
 
 	if config.Memory > 0 {
-		limit := uint64(config.Memory)
-		memory.Limit = &limit
+		memory.Limit = &config.Memory
 	}
 
 	if config.MemoryReservation > 0 {
-		reservation := uint64(config.MemoryReservation)
-		memory.Reservation = &reservation
+		memory.Reservation = &config.MemoryReservation
 	}
 
-	if config.MemorySwap != 0 {
-		swap := uint64(config.MemorySwap)
-		memory.Swap = &swap
+	if config.MemorySwap > 0 {
+		memory.Swap = &config.MemorySwap
 	}
 
 	if config.MemorySwappiness != nil {
@@ -88,35 +89,35 @@ func getMemoryResources(config containertypes.Resources) *specs.Memory {
 	}
 
 	if config.KernelMemory != 0 {
-		kernelMemory := uint64(config.KernelMemory)
-		memory.Kernel = &kernelMemory
+		memory.Kernel = &config.KernelMemory
 	}
 
 	return &memory
 }
 
-func getCPUResources(config containertypes.Resources) *specs.CPU {
-	cpu := specs.CPU{}
+func getCPUResources(config containertypes.Resources) (*specs.LinuxCPU, error) {
+	cpu := specs.LinuxCPU{}
 
-	if config.CPUShares != 0 {
+	if config.CPUShares < 0 {
+		return nil, fmt.Errorf("shares: invalid argument")
+	}
+	if config.CPUShares >= 0 {
 		shares := uint64(config.CPUShares)
 		cpu.Shares = &shares
 	}
 
 	if config.CpusetCpus != "" {
-		cpuset := config.CpusetCpus
-		cpu.Cpus = &cpuset
+		cpu.Cpus = config.CpusetCpus
 	}
 
 	if config.CpusetMems != "" {
-		cpuset := config.CpusetMems
-		cpu.Mems = &cpuset
+		cpu.Mems = config.CpusetMems
 	}
 
 	if config.NanoCPUs > 0 {
 		// https://www.kernel.org/doc/Documentation/scheduler/sched-bwc.txt
 		period := uint64(100 * time.Millisecond / time.Microsecond)
-		quota := uint64(config.NanoCPUs) * period / 1e9
+		quota := config.NanoCPUs * int64(period) / 1e9
 		cpu.Period = &period
 		cpu.Quota = &quota
 	}
@@ -127,8 +128,8 @@ func getCPUResources(config containertypes.Resources) *specs.CPU {
 	}
 
 	if config.CPUQuota != 0 {
-		quota := uint64(config.CPUQuota)
-		cpu.Quota = &quota
+		q := config.CPUQuota
+		cpu.Quota = &q
 	}
 
 	if config.CPURealtimePeriod != 0 {
@@ -137,23 +138,23 @@ func getCPUResources(config containertypes.Resources) *specs.CPU {
 	}
 
 	if config.CPURealtimeRuntime != 0 {
-		runtime := uint64(config.CPURealtimeRuntime)
-		cpu.RealtimeRuntime = &runtime
+		c := config.CPURealtimeRuntime
+		cpu.RealtimeRuntime = &c
 	}
 
-	return &cpu
+	return &cpu, nil
 }
 
-func getBlkioWeightDevices(config containertypes.Resources) ([]specs.WeightDevice, error) {
-	var stat syscall.Stat_t
-	var blkioWeightDevices []specs.WeightDevice
+func getBlkioWeightDevices(config containertypes.Resources) ([]specs.LinuxWeightDevice, error) {
+	var stat unix.Stat_t
+	var blkioWeightDevices []specs.LinuxWeightDevice
 
 	for _, weightDevice := range config.BlkioWeightDevice {
-		if err := syscall.Stat(weightDevice.Path, &stat); err != nil {
+		if err := unix.Stat(weightDevice.Path, &stat); err != nil {
 			return nil, err
 		}
 		weight := weightDevice.Weight
-		d := specs.WeightDevice{Weight: &weight}
+		d := specs.LinuxWeightDevice{Weight: &weight}
 		d.Major = int64(stat.Rdev / 256)
 		d.Minor = int64(stat.Rdev % 256)
 		blkioWeightDevices = append(blkioWeightDevices, d)
@@ -178,6 +179,10 @@ func parseSecurityOpt(container *container.Container, config *containertypes.Hos
 			container.NoNewPrivileges = true
 			continue
 		}
+		if opt == "disable" {
+			labelOpts = append(labelOpts, "disable")
+			continue
+		}
 
 		var con []string
 		if strings.Contains(opt, "=") {
@@ -186,7 +191,6 @@ func parseSecurityOpt(container *container.Container, config *containertypes.Hos
 			con = strings.SplitN(opt, ":", 2)
 			logrus.Warn("Security options with `:` as a separator are deprecated and will be completely unsupported in 17.04, use `=` instead.")
 		}
-
 		if len(con) != 2 {
 			return fmt.Errorf("invalid --security-opt 1: %q", opt)
 		}
@@ -213,16 +217,15 @@ func parseSecurityOpt(container *container.Container, config *containertypes.Hos
 	return err
 }
 
-func getBlkioThrottleDevices(devs []*blkiodev.ThrottleDevice) ([]specs.ThrottleDevice, error) {
-	var throttleDevices []specs.ThrottleDevice
-	var stat syscall.Stat_t
+func getBlkioThrottleDevices(devs []*blkiodev.ThrottleDevice) ([]specs.LinuxThrottleDevice, error) {
+	var throttleDevices []specs.LinuxThrottleDevice
+	var stat unix.Stat_t
 
 	for _, d := range devs {
-		if err := syscall.Stat(d.Path, &stat); err != nil {
+		if err := unix.Stat(d.Path, &stat); err != nil {
 			return nil, err
 		}
-		rate := d.Rate
-		d := specs.ThrottleDevice{Rate: &rate}
+		d := specs.LinuxThrottleDevice{Rate: d.Rate}
 		d.Major = int64(stat.Rdev / 256)
 		d.Minor = int64(stat.Rdev % 256)
 		throttleDevices = append(throttleDevices, d)
@@ -273,16 +276,23 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 			hostConfig.ShmSize = int64(daemon.configStore.ShmSize)
 		}
 	}
+	// Set default IPC mode, if unset for container
+	if hostConfig.IpcMode.IsEmpty() {
+		m := config.DefaultIpcMode
+		if daemon.configStore != nil {
+			m = daemon.configStore.IpcMode
+		}
+		hostConfig.IpcMode = containertypes.IpcMode(m)
+	}
+
+	adaptSharedNamespaceContainer(daemon, hostConfig)
+
 	var err error
 	opts, err := daemon.generateSecurityOpt(hostConfig)
 	if err != nil {
 		return err
 	}
 	hostConfig.SecurityOpt = append(hostConfig.SecurityOpt, opts...)
-	if hostConfig.MemorySwappiness == nil {
-		defaultSwappiness := int64(-1)
-		hostConfig.MemorySwappiness = &defaultSwappiness
-	}
 	if hostConfig.OomKillDisable == nil {
 		defaultOomKillDisable := false
 		hostConfig.OomKillDisable = &defaultOomKillDisable
@@ -291,8 +301,39 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 	return nil
 }
 
+// adaptSharedNamespaceContainer replaces container name with its ID in hostConfig.
+// To be more precisely, it modifies `container:name` to `container:ID` of PidMode, IpcMode
+// and NetworkMode.
+//
+// When a container shares its namespace with another container, use ID can keep the namespace
+// sharing connection between the two containers even the another container is renamed.
+func adaptSharedNamespaceContainer(daemon containerGetter, hostConfig *containertypes.HostConfig) {
+	containerPrefix := "container:"
+	if hostConfig.PidMode.IsContainer() {
+		pidContainer := hostConfig.PidMode.Container()
+		// if there is any error returned here, we just ignore it and leave it to be
+		// handled in the following logic
+		if c, err := daemon.GetContainer(pidContainer); err == nil {
+			hostConfig.PidMode = containertypes.PidMode(containerPrefix + c.ID)
+		}
+	}
+	if hostConfig.IpcMode.IsContainer() {
+		ipcContainer := hostConfig.IpcMode.Container()
+		if c, err := daemon.GetContainer(ipcContainer); err == nil {
+			hostConfig.IpcMode = containertypes.IpcMode(containerPrefix + c.ID)
+		}
+	}
+	if hostConfig.NetworkMode.IsContainer() {
+		netContainer := hostConfig.NetworkMode.ConnectedContainer()
+		if c, err := daemon.GetContainer(netContainer); err == nil {
+			hostConfig.NetworkMode = containertypes.NetworkMode(containerPrefix + c.ID)
+		}
+	}
+}
+
 func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysinfo.SysInfo, update bool) ([]string, error) {
 	warnings := []string{}
+	fixMemorySwappiness(resources)
 
 	// memory subsystem checks and adjustments
 	if resources.Memory != 0 && resources.Memory < linuxMinMemory {
@@ -315,14 +356,14 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 	if resources.Memory == 0 && resources.MemorySwap > 0 && !update {
 		return warnings, fmt.Errorf("You should always set the Memory limit when using Memoryswap limit, see usage")
 	}
-	if resources.MemorySwappiness != nil && *resources.MemorySwappiness != -1 && !sysInfo.MemorySwappiness {
+	if resources.MemorySwappiness != nil && !sysInfo.MemorySwappiness {
 		warnings = append(warnings, "Your kernel does not support memory swappiness capabilities or the cgroup is not mounted. Memory swappiness discarded.")
 		logrus.Warn("Your kernel does not support memory swappiness capabilities, or the cgroup is not mounted. Memory swappiness discarded.")
 		resources.MemorySwappiness = nil
 	}
 	if resources.MemorySwappiness != nil {
 		swappiness := *resources.MemorySwappiness
-		if swappiness < -1 || swappiness > 100 {
+		if swappiness < 0 || swappiness > 100 {
 			return warnings, fmt.Errorf("Invalid value: %v, valid memory swappiness range is 0-100", swappiness)
 		}
 	}
@@ -461,6 +502,7 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 		warnings = append(warnings, "Your kernel does not support BPS Block I/O write limit or the cgroup is not mounted. Block I/O BPS write limit discarded.")
 		logrus.Warn("Your kernel does not support BPS Block I/O write limit or the cgroup is not mounted. Block I/O BPS write limit discarded.")
 		resources.BlkioDeviceWriteBps = []*pblkiodev.ThrottleDevice{}
+
 	}
 	if len(resources.BlkioDeviceReadIOps) > 0 && !sysInfo.BlkioReadIOpsDevice {
 		warnings = append(warnings, "Your kernel does not support IOPS Block read limit or the cgroup is not mounted. Block I/O IOPS read limit discarded.")
@@ -547,13 +589,13 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 	// check for various conflicting options with user namespaces
 	if daemon.configStore.RemappedRoot != "" && hostConfig.UsernsMode.IsPrivate() {
 		if hostConfig.Privileged {
-			return warnings, fmt.Errorf("Privileged mode is incompatible with user namespaces")
+			return warnings, fmt.Errorf("privileged mode is incompatible with user namespaces.  You must run the container in the host namespace when running privileged mode")
 		}
 		if hostConfig.NetworkMode.IsHost() && !hostConfig.UsernsMode.IsHost() {
-			return warnings, fmt.Errorf("Cannot share the host's network namespace when user namespaces are enabled")
+			return warnings, fmt.Errorf("cannot share the host's network namespace when user namespaces are enabled")
 		}
 		if hostConfig.PidMode.IsHost() && !hostConfig.UsernsMode.IsHost() {
-			return warnings, fmt.Errorf("Cannot share the host PID namespace when user namespaces are enabled")
+			return warnings, fmt.Errorf("cannot share the host PID namespace when user namespaces are enabled")
 		}
 	}
 	if hostConfig.CgroupParent != "" && UsingSystemd(daemon.configStore) {
@@ -581,7 +623,11 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 
 // reloadPlatform updates configuration with platform specific options
 // and updates the passed attributes
-func (daemon *Daemon) reloadPlatform(conf *config.Config, attributes map[string]string) {
+func (daemon *Daemon) reloadPlatform(conf *config.Config, attributes map[string]string) error {
+	if err := conf.ValidatePlatformConfig(); err != nil {
+		return err
+	}
+
 	if conf.IsValueSet("runtimes") {
 		daemon.configStore.Runtimes = conf.Runtimes
 		// Always set the default one
@@ -596,6 +642,10 @@ func (daemon *Daemon) reloadPlatform(conf *config.Config, attributes map[string]
 		daemon.configStore.ShmSize = conf.ShmSize
 	}
 
+	if conf.IpcMode != "" {
+		daemon.configStore.IpcMode = conf.IpcMode
+	}
+
 	// Update attributes
 	var runtimeList bytes.Buffer
 	for name, rt := range daemon.configStore.Runtimes {
@@ -608,6 +658,9 @@ func (daemon *Daemon) reloadPlatform(conf *config.Config, attributes map[string]
 	attributes["runtimes"] = runtimeList.String()
 	attributes["default-runtime"] = daemon.configStore.DefaultRuntime
 	attributes["default-shm-size"] = fmt.Sprintf("%d", daemon.configStore.ShmSize)
+	attributes["default-ipc-mode"] = daemon.configStore.IpcMode
+
+	return nil
 }
 
 // verifyDaemonSettings performs validation of daemon config struct
@@ -699,14 +752,22 @@ func overlaySupportsSelinux() (bool, error) {
 }
 
 // configureKernelSecuritySupport configures and validates security support for the kernel
-func configureKernelSecuritySupport(config *config.Config, driverName string) error {
+func configureKernelSecuritySupport(config *config.Config, driverNames []string) error {
 	if config.EnableSelinuxSupport {
 		if !selinuxEnabled() {
 			logrus.Warn("Docker could not enable SELinux on the host system")
 			return nil
 		}
 
-		if driverName == "overlay" || driverName == "overlay2" {
+		overlayFound := false
+		for _, d := range driverNames {
+			if d == "overlay" || d == "overlay2" {
+				overlayFound = true
+				break
+			}
+		}
+
+		if overlayFound {
 			// If driver is overlay or overlay2, make sure kernel
 			// supports selinux with overlay.
 			supported, err := overlaySupportsSelinux()
@@ -715,7 +776,7 @@ func configureKernelSecuritySupport(config *config.Config, driverName string) er
 			}
 
 			if !supported {
-				logrus.Warnf("SELinux is not supported with the %s graph driver on this kernel", driverName)
+				logrus.Warnf("SELinux is not supported with the %v graph driver on this kernel", driverNames)
 			}
 		}
 	} else {
@@ -1023,40 +1084,38 @@ func parseRemappedRoot(usergrp string) (string, string, error) {
 	return username, groupname, nil
 }
 
-func setupRemappedRoot(config *config.Config) ([]idtools.IDMap, []idtools.IDMap, error) {
+func setupRemappedRoot(config *config.Config) (*idtools.IDMappings, error) {
 	if runtime.GOOS != "linux" && config.RemappedRoot != "" {
-		return nil, nil, fmt.Errorf("User namespaces are only supported on Linux")
+		return nil, fmt.Errorf("User namespaces are only supported on Linux")
 	}
 
 	// if the daemon was started with remapped root option, parse
 	// the config option to the int uid,gid values
-	var (
-		uidMaps, gidMaps []idtools.IDMap
-	)
 	if config.RemappedRoot != "" {
 		username, groupname, err := parseRemappedRoot(config.RemappedRoot)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		if username == "root" {
 			// Cannot setup user namespaces with a 1-to-1 mapping; "--root=0:0" is a no-op
 			// effectively
 			logrus.Warn("User namespaces: root cannot be remapped with itself; user namespaces are OFF")
-			return uidMaps, gidMaps, nil
+			return &idtools.IDMappings{}, nil
 		}
 		logrus.Infof("User namespaces: ID ranges will be mapped to subuid/subgid ranges of: %s:%s", username, groupname)
 		// update remapped root setting now that we have resolved them to actual names
 		config.RemappedRoot = fmt.Sprintf("%s:%s", username, groupname)
 
-		uidMaps, gidMaps, err = idtools.CreateIDMappings(username, groupname)
+		mappings, err := idtools.NewIDMappings(username, groupname)
 		if err != nil {
-			return nil, nil, fmt.Errorf("Can't create ID mappings: %v", err)
+			return nil, errors.Wrapf(err, "Can't create ID mappings: %v")
 		}
+		return mappings, nil
 	}
-	return uidMaps, gidMaps, nil
+	return &idtools.IDMappings{}, nil
 }
 
-func setupDaemonRoot(config *config.Config, rootDir string, rootUID, rootGID int) error {
+func setupDaemonRoot(config *config.Config, rootDir string, rootIDs idtools.IDPair) error {
 	config.Root = rootDir
 	// the docker root metadata directory needs to have execute permissions for all users (g+x,o+x)
 	// so that syscalls executing as non-root, operating on subdirectories of the graph root
@@ -1081,10 +1140,10 @@ func setupDaemonRoot(config *config.Config, rootDir string, rootUID, rootGID int
 	// a new subdirectory with ownership set to the remapped uid/gid (so as to allow
 	// `chdir()` to work for containers namespaced to that uid/gid)
 	if config.RemappedRoot != "" {
-		config.Root = filepath.Join(rootDir, fmt.Sprintf("%d.%d", rootUID, rootGID))
+		config.Root = filepath.Join(rootDir, fmt.Sprintf("%d.%d", rootIDs.UID, rootIDs.GID))
 		logrus.Debugf("Creating user namespaced daemon root: %s", config.Root)
 		// Create the root directory if it doesn't exist
-		if err := idtools.MkdirAllAs(config.Root, 0700, rootUID, rootGID); err != nil {
+		if err := idtools.MkdirAllAndChown(config.Root, 0700, rootIDs); err != nil {
 			return fmt.Errorf("Cannot create daemon root: %s: %v", config.Root, err)
 		}
 		// we also need to verify that any pre-existing directories in the path to
@@ -1097,8 +1156,8 @@ func setupDaemonRoot(config *config.Config, rootDir string, rootUID, rootGID int
 			if dirPath == "/" {
 				break
 			}
-			if !idtools.CanAccess(dirPath, rootUID, rootGID) {
-				return fmt.Errorf("A subdirectory in your graphroot path (%s) restricts access to the remapped root uid/gid; please fix by allowing 'o+x' permissions on existing directories.", config.Root)
+			if !idtools.CanAccess(dirPath, rootIDs) {
+				return fmt.Errorf("a subdirectory in your graphroot path (%s) restricts access to the remapped root uid/gid; please fix by allowing 'o+x' permissions on existing directories", config.Root)
 			}
 		}
 	}
@@ -1118,13 +1177,13 @@ func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *
 		}
 		child, err := daemon.GetContainer(name)
 		if err != nil {
-			return fmt.Errorf("Could not get container for %s", name)
+			return errors.Wrapf(err, "could not get container for %s", name)
 		}
 		for child.HostConfig.NetworkMode.IsContainer() {
 			parts := strings.SplitN(string(child.HostConfig.NetworkMode), ":", 2)
 			child, err = daemon.GetContainer(parts[1])
 			if err != nil {
-				return fmt.Errorf("Could not get container for %s", parts[1])
+				return errors.Wrapf(err, "Could not get container for %s", parts[1])
 			}
 		}
 		if child.HostConfig.NetworkMode.IsHost() {
@@ -1137,7 +1196,8 @@ func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *
 
 	// After we load all the links into the daemon
 	// set them to nil on the hostconfig
-	return container.WriteHostConfig()
+	_, err := container.WriteHostConfig()
+	return err
 }
 
 // conditionalMountOnStart is a platform specific helper function during the
@@ -1154,10 +1214,13 @@ func (daemon *Daemon) conditionalUnmountOnCleanup(container *container.Container
 
 func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
 	if !c.IsRunning() {
-		return nil, errNotRunning{c.ID}
+		return nil, errNotRunning(c.ID)
 	}
 	stats, err := daemon.containerd.Stats(c.ID)
 	if err != nil {
+		if strings.Contains(err.Error(), "container not found") {
+			return nil, containerNotFound(c.ID)
+		}
 		return nil, err
 	}
 	s := &types.StatsJSON{}

@@ -13,10 +13,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/opencontainers/go-digest"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -226,6 +226,7 @@ func (fms *fileMetadataStore) TarSplitReader(layer ChainID) (io.ReadCloser, erro
 	}
 	f, err := gzip.NewReader(fz)
 	if err != nil {
+		fz.Close()
 		return nil, err
 	}
 

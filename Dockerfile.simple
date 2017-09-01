@@ -1,7 +1,7 @@
 # docker build -t docker:simple -f Dockerfile.simple .
 # docker run --rm docker:simple hack/make.sh dynbinary
 # docker run --rm --privileged docker:simple hack/dind hack/make.sh test-unit
-# docker run --rm --privileged -v /var/lib/docker docker:simple hack/dind hack/make.sh dynbinary test-integration-cli
+# docker run --rm --privileged -v /var/lib/docker docker:simple hack/dind hack/make.sh dynbinary test-integration
 
 # This represents the bare minimum required to build and test Docker.
 
@@ -53,7 +53,8 @@ RUN set -x \
 # IMPORTANT: If the version of Go is updated, the Windows to Linux CI machines
 #            will need updating, to avoid errors. Ping #docker-maintainers on IRC
 #            with a heads-up.
-ENV GO_VERSION 1.7.5
+# IMPORTANT: When updating this please note that stdlib archive/tar pkg is vendored
+ENV GO_VERSION 1.8.3
 RUN curl -fsSL "https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz" \
 	| tar -xzC /usr/local
 ENV PATH /go/bin:/usr/local/go/bin:$PATH
@@ -64,7 +65,8 @@ ENV CGO_LDFLAGS -L/lib
 # Please edit hack/dockerfile/install-binaries.sh to update them.
 COPY hack/dockerfile/binaries-commits /tmp/binaries-commits
 COPY hack/dockerfile/install-binaries.sh /tmp/install-binaries.sh
-RUN /tmp/install-binaries.sh runc containerd tini proxy
+RUN /tmp/install-binaries.sh runc containerd tini proxy dockercli
+ENV PATH=/usr/local/cli:$PATH
 
 ENV AUTO_GOPATH 1
 WORKDIR /usr/src/docker

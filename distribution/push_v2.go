@@ -11,7 +11,6 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/manifest/schema2"
@@ -26,6 +25,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -118,7 +118,7 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, ref reference.NamedTagged, id 
 		return fmt.Errorf("could not find image from tag %s: %v", reference.FamiliarString(ref), err)
 	}
 
-	rootfs, err := p.config.ImageStore.RootFSFromConfig(imgConfig)
+	rootfs, _, err := p.config.ImageStore.RootFSAndPlatformFromConfig(imgConfig)
 	if err != nil {
 		return fmt.Errorf("unable to get rootfs for image %s: %s", reference.FamiliarString(ref), err)
 	}
@@ -141,12 +141,13 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, ref reference.NamedTagged, id 
 		hmacKey:           hmacKey,
 		repoInfo:          p.repoInfo.Name,
 		ref:               p.ref,
+		endpoint:          p.endpoint,
 		repo:              p.repo,
 		pushState:         &p.pushState,
 	}
 
 	// Loop bounds condition is to avoid pushing the base layer on Windows.
-	for i := 0; i < len(rootfs.DiffIDs); i++ {
+	for range rootfs.DiffIDs {
 		descriptor := descriptorTemplate
 		descriptor.layer = l
 		descriptor.checkedDigests = make(map[digest.Digest]struct{})
@@ -239,6 +240,7 @@ type v2PushDescriptor struct {
 	hmacKey           []byte
 	repoInfo          reference.Named
 	ref               reference.Named
+	endpoint          registry.APIEndpoint
 	repo              distribution.Repository
 	pushState         *pushState
 	remoteDescriptor  distribution.Descriptor
@@ -259,10 +261,13 @@ func (pd *v2PushDescriptor) DiffID() layer.DiffID {
 }
 
 func (pd *v2PushDescriptor) Upload(ctx context.Context, progressOutput progress.Output) (distribution.Descriptor, error) {
-	if fs, ok := pd.layer.(distribution.Describable); ok {
-		if d := fs.Descriptor(); len(d.URLs) > 0 {
-			progress.Update(progressOutput, pd.ID(), "Skipped foreign layer")
-			return d, nil
+	// Skip foreign layers unless this registry allows nondistributable artifacts.
+	if !pd.endpoint.AllowNondistributableArtifacts {
+		if fs, ok := pd.layer.(distribution.Describable); ok {
+			if d := fs.Descriptor(); len(d.URLs) > 0 {
+				progress.Update(progressOutput, pd.ID(), "Skipped foreign layer")
+				return d, nil
+			}
 		}
 	}
 
@@ -415,6 +420,10 @@ func (pd *v2PushDescriptor) uploadUsingSession(
 	var reader io.ReadCloser
 
 	contentReader, err := pd.layer.Open()
+	if err != nil {
+		return distribution.Descriptor{}, retryOnError(err)
+	}
+
 	size, _ := pd.layer.Size()
 
 	reader = progress.NewProgressReader(ioutils.NewCancelReadCloser(ctx, contentReader), progressOutput, size, pd.ID(), "Pushing")

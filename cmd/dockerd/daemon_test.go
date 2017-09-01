@@ -3,23 +3,19 @@ package main
 import (
 	"testing"
 
-	"github.com/Sirupsen/logrus"
-	cliflags "github.com/docker/docker/cli/flags"
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/pkg/testutil"
-	"github.com/docker/docker/pkg/testutil/tempfile"
+	"github.com/docker/docker/internal/testutil"
+	"github.com/gotestyourself/gotestyourself/fs"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func defaultOptions(configFile string) daemonOptions {
-	opts := daemonOptions{
-		daemonConfig: &config.Config{},
-		flags:        &pflag.FlagSet{},
-		common:       cliflags.NewCommonOptions(),
-	}
-	opts.common.InstallFlags(opts.flags)
+func defaultOptions(configFile string) *daemonOptions {
+	opts := newDaemonOptions(&config.Config{})
+	opts.flags = &pflag.FlagSet{}
+	opts.InstallFlags(opts.flags)
 	installConfigFlags(opts.daemonConfig, opts.flags)
 	opts.flags.StringVar(&opts.configFile, "config-file", defaultDaemonConfigFile, "")
 	opts.configFile = configFile
@@ -28,7 +24,7 @@ func defaultOptions(configFile string) daemonOptions {
 
 func TestLoadDaemonCliConfigWithoutOverriding(t *testing.T) {
 	opts := defaultOptions("")
-	opts.common.Debug = true
+	opts.Debug = true
 
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	require.NoError(t, err)
@@ -40,8 +36,8 @@ func TestLoadDaemonCliConfigWithoutOverriding(t *testing.T) {
 
 func TestLoadDaemonCliConfigWithTLS(t *testing.T) {
 	opts := defaultOptions("")
-	opts.common.TLSOptions.CAFile = "/tmp/ca.pem"
-	opts.common.TLS = true
+	opts.TLSOptions.CAFile = "/tmp/ca.pem"
+	opts.TLS = true
 
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	require.NoError(t, err)
@@ -50,9 +46,9 @@ func TestLoadDaemonCliConfigWithTLS(t *testing.T) {
 }
 
 func TestLoadDaemonCliConfigWithConflicts(t *testing.T) {
-	tempFile := tempfile.NewTempFile(t, "config", `{"labels": ["l3=foo"]}`)
+	tempFile := fs.NewFile(t, "config", fs.WithContent(`{"labels": ["l3=foo"]}`))
 	defer tempFile.Remove()
-	configFile := tempFile.Name()
+	configFile := tempFile.Path()
 
 	opts := defaultOptions(configFile)
 	flags := opts.flags
@@ -66,11 +62,11 @@ func TestLoadDaemonCliConfigWithConflicts(t *testing.T) {
 }
 
 func TestLoadDaemonCliConfigWithTLSVerify(t *testing.T) {
-	tempFile := tempfile.NewTempFile(t, "config", `{"tlsverify": true}`)
+	tempFile := fs.NewFile(t, "config", fs.WithContent(`{"tlsverify": true}`))
 	defer tempFile.Remove()
 
-	opts := defaultOptions(tempFile.Name())
-	opts.common.TLSOptions.CAFile = "/tmp/ca.pem"
+	opts := defaultOptions(tempFile.Path())
+	opts.TLSOptions.CAFile = "/tmp/ca.pem"
 
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	require.NoError(t, err)
@@ -79,11 +75,11 @@ func TestLoadDaemonCliConfigWithTLSVerify(t *testing.T) {
 }
 
 func TestLoadDaemonCliConfigWithExplicitTLSVerifyFalse(t *testing.T) {
-	tempFile := tempfile.NewTempFile(t, "config", `{"tlsverify": false}`)
+	tempFile := fs.NewFile(t, "config", fs.WithContent(`{"tlsverify": false}`))
 	defer tempFile.Remove()
 
-	opts := defaultOptions(tempFile.Name())
-	opts.common.TLSOptions.CAFile = "/tmp/ca.pem"
+	opts := defaultOptions(tempFile.Path())
+	opts.TLSOptions.CAFile = "/tmp/ca.pem"
 
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	require.NoError(t, err)
@@ -92,11 +88,11 @@ func TestLoadDaemonCliConfigWithExplicitTLSVerifyFalse(t *testing.T) {
 }
 
 func TestLoadDaemonCliConfigWithoutTLSVerify(t *testing.T) {
-	tempFile := tempfile.NewTempFile(t, "config", `{}`)
+	tempFile := fs.NewFile(t, "config", fs.WithContent(`{}`))
 	defer tempFile.Remove()
 
-	opts := defaultOptions(tempFile.Name())
-	opts.common.TLSOptions.CAFile = "/tmp/ca.pem"
+	opts := defaultOptions(tempFile.Path())
+	opts.TLSOptions.CAFile = "/tmp/ca.pem"
 
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	require.NoError(t, err)
@@ -105,10 +101,10 @@ func TestLoadDaemonCliConfigWithoutTLSVerify(t *testing.T) {
 }
 
 func TestLoadDaemonCliConfigWithLogLevel(t *testing.T) {
-	tempFile := tempfile.NewTempFile(t, "config", `{"log-level": "warn"}`)
+	tempFile := fs.NewFile(t, "config", fs.WithContent(`{"log-level": "warn"}`))
 	defer tempFile.Remove()
 
-	opts := defaultOptions(tempFile.Name())
+	opts := defaultOptions(tempFile.Path())
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	require.NoError(t, err)
 	require.NotNil(t, loadedConfig)
@@ -118,10 +114,10 @@ func TestLoadDaemonCliConfigWithLogLevel(t *testing.T) {
 
 func TestLoadDaemonConfigWithEmbeddedOptions(t *testing.T) {
 	content := `{"tlscacert": "/etc/certs/ca.pem", "log-driver": "syslog"}`
-	tempFile := tempfile.NewTempFile(t, "config", content)
+	tempFile := fs.NewFile(t, "config", fs.WithContent(content))
 	defer tempFile.Remove()
 
-	opts := defaultOptions(tempFile.Name())
+	opts := defaultOptions(tempFile.Path())
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	require.NoError(t, err)
 	require.NotNil(t, loadedConfig)
@@ -131,17 +127,19 @@ func TestLoadDaemonConfigWithEmbeddedOptions(t *testing.T) {
 
 func TestLoadDaemonConfigWithRegistryOptions(t *testing.T) {
 	content := `{
+		"allow-nondistributable-artifacts": ["allow-nondistributable-artifacts.com"],
 		"registry-mirrors": ["https://mirrors.docker.com"],
 		"insecure-registries": ["https://insecure.docker.com"]
 	}`
-	tempFile := tempfile.NewTempFile(t, "config", content)
+	tempFile := fs.NewFile(t, "config", fs.WithContent(content))
 	defer tempFile.Remove()
 
-	opts := defaultOptions(tempFile.Name())
+	opts := defaultOptions(tempFile.Path())
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	require.NoError(t, err)
 	require.NotNil(t, loadedConfig)
 
+	assert.Len(t, loadedConfig.AllowNondistributableArtifacts, 1)
 	assert.Len(t, loadedConfig.Mirrors, 1)
 	assert.Len(t, loadedConfig.InsecureRegistries, 1)
 }

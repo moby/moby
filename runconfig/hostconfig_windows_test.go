@@ -9,7 +9,7 @@ import (
 )
 
 func TestValidatePrivileged(t *testing.T) {
-	expected := "invalid --privileged: Windows does not support this feature"
+	expected := "Windows does not support privileged mode"
 	err := validatePrivileged(&container.HostConfig{Privileged: true})
 	if err == nil || err.Error() != expected {
 		t.Fatalf("Expected %s", expected)

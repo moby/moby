@@ -12,11 +12,11 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder/dockerfile"
+	"github.com/docker/docker/builder/remotecontext"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/pkg/errors"
@@ -26,28 +26,32 @@ import (
 // inConfig (if src is "-"), or from a URI specified in src. Progress output is
 // written to outStream. Repository and tag names can optionally be given in
 // the repo and tag arguments, respectively.
-func (daemon *Daemon) ImportImage(src string, repository, tag string, msg string, inConfig io.ReadCloser, outStream io.Writer, changes []string) error {
+func (daemon *Daemon) ImportImage(src string, repository, platform string, tag string, msg string, inConfig io.ReadCloser, outStream io.Writer, changes []string) error {
 	var (
-		sf     = streamformatter.NewJSONStreamFormatter()
 		rc     io.ReadCloser
 		resp   *http.Response
 		newRef reference.Named
 	)
 
+	// Default the platform if not supplied.
+	if platform == "" {
+		platform = runtime.GOOS
+	}
+
 	if repository != "" {
 		var err error
 		newRef, err = reference.ParseNormalizedNamed(repository)
 		if err != nil {
-			return err
+			return validationError{err}
 		}
 		if _, isCanonical := newRef.(reference.Canonical); isCanonical {
-			return errors.New("cannot import digest reference")
+			return validationError{errors.New("cannot import digest reference")}
 		}
 
 		if tag != "" {
 			newRef, err = reference.WithTag(newRef, tag)
 			if err != nil {
-				return err
+				return validationError{err}
 			}
 		}
 	}
@@ -65,15 +69,15 @@ func (daemon *Daemon) ImportImage(src string, repository, tag string, msg string
 		}
 		u, err := url.Parse(src)
 		if err != nil {
-			return err
+			return validationError{err}
 		}
 
-		resp, err = httputils.Download(u.String())
+		resp, err = remotecontext.GetWithStatusError(u.String())
 		if err != nil {
 			return err
 		}
-		outStream.Write(sf.FormatStatus("", "Downloading from %s", u))
-		progressOutput := sf.NewProgressOutput(outStream, true)
+		outStream.Write(streamformatter.FormatStatus("", "Downloading from %s", u))
+		progressOutput := streamformatter.NewJSONProgressOutput(outStream, true)
 		rc = progress.NewProgressReader(resp.Body, progressOutput, resp.ContentLength, "", "Importing")
 	}
 
@@ -86,12 +90,11 @@ func (daemon *Daemon) ImportImage(src string, repository, tag string, msg string
 	if err != nil {
 		return err
 	}
-	// TODO: support windows baselayer?
-	l, err := daemon.layerStore.Register(inflatedLayerData, "")
+	l, err := daemon.stores[platform].layerStore.Register(inflatedLayerData, "", layer.Platform(platform))
 	if err != nil {
 		return err
 	}
-	defer layer.ReleaseAndLog(daemon.layerStore, l)
+	defer layer.ReleaseAndLog(daemon.stores[platform].layerStore, l)
 
 	created := time.Now().UTC()
 	imgConfig, err := json.Marshal(&image.Image{
@@ -99,7 +102,7 @@ func (daemon *Daemon) ImportImage(src string, repository, tag string, msg string
 			DockerVersion: dockerversion.Version,
 			Config:        config,
 			Architecture:  runtime.GOARCH,
-			OS:            runtime.GOOS,
+			OS:            platform,
 			Created:       created,
 			Comment:       msg,
 		},
@@ -116,19 +119,19 @@ func (daemon *Daemon) ImportImage(src string, repository, tag string, msg string
 		return err
 	}
 
-	id, err := daemon.imageStore.Create(imgConfig)
+	id, err := daemon.stores[platform].imageStore.Create(imgConfig)
 	if err != nil {
 		return err
 	}
 
 	// FIXME: connect with commit code and call refstore directly
 	if newRef != nil {
-		if err := daemon.TagImageWithReference(id, newRef); err != nil {
+		if err := daemon.TagImageWithReference(id, platform, newRef); err != nil {
 			return err
 		}
 	}
 
 	daemon.LogImageEvent(id.String(), id.String(), "import")
-	outStream.Write(sf.FormatStatus("", id.String()))
+	outStream.Write(streamformatter.FormatStatus("", id.String()))
 	return nil
 }

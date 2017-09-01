@@ -82,7 +82,7 @@ least one existing member in order to join the cluster. The new member
 does a full state sync with the existing member over TCP and begins gossiping its
 existence to the cluster.
 
-Gossip is done over UDP to a with a configurable but fixed fanout and interval.
+Gossip is done over UDP with a configurable but fixed fanout and interval.
 This ensures that network usage is constant with regards to number of nodes, as opposed to
 exponential growth that can occur with traditional heartbeat mechanisms.
 Complete state exchanges with a random node are done periodically over

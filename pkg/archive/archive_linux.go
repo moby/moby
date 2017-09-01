@@ -5,9 +5,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 
 	"github.com/docker/docker/pkg/system"
+	"golang.org/x/sys/unix"
 )
 
 func getWhiteoutConverter(format WhiteoutFormat) tarWhiteoutConverter {
@@ -67,7 +67,7 @@ func (overlayWhiteoutConverter) ConvertRead(hdr *tar.Header, path string) (bool,
 
 	// if a directory is marked as opaque by the AUFS special file, we need to translate that to overlay
 	if base == WhiteoutOpaqueDir {
-		err := syscall.Setxattr(dir, "trusted.overlay.opaque", []byte{'y'}, 0)
+		err := unix.Setxattr(dir, "trusted.overlay.opaque", []byte{'y'}, 0)
 		// don't write the file itself
 		return false, err
 	}
@@ -77,7 +77,7 @@ func (overlayWhiteoutConverter) ConvertRead(hdr *tar.Header, path string) (bool,
 		originalBase := base[len(WhiteoutPrefix):]
 		originalPath := filepath.Join(dir, originalBase)
 
-		if err := syscall.Mknod(originalPath, syscall.S_IFCHR, 0); err != nil {
+		if err := unix.Mknod(originalPath, unix.S_IFCHR, 0); err != nil {
 			return false, err
 		}
 		if err := os.Chown(originalPath, hdr.Uid, hdr.Gid); err != nil {

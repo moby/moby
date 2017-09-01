@@ -11,7 +11,7 @@ type Plugin struct {
 	// Required: true
 	Config PluginConfig `json:"Config"`
 
-	// True when the plugin is running. False when the plugin is not running, only installed.
+	// True if the plugin is running. False if the plugin is not running, only installed.
 	// Required: true
 	Enabled bool `json:"Enabled"`
 

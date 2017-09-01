@@ -4,15 +4,20 @@ package main
 
 import (
 	"fmt"
+	"path"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/api/types/swarm/runtime"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/daemon"
+	"github.com/docker/docker/integration-cli/fixtures/plugin"
 	"github.com/go-check/check"
+	"golang.org/x/net/context"
+	"golang.org/x/sys/unix"
 )
 
 func setPortConfig(portConfig []swarm.PortConfig) daemon.ServiceConstructor {
@@ -60,14 +65,22 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesCreate(c *check.C) {
 	id := d.CreateService(c, simpleTestService, setInstances(instances))
 	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, instances)
 
-	// insertDefaults inserts UpdateConfig when service is fetched by ID
-	_, out, err := d.SockRequest("GET", "/services/"+id+"?insertDefaults=true", nil)
-	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
-	c.Assert(string(out), checker.Contains, "UpdateConfig")
+	cli, err := d.NewClient()
+	c.Assert(err, checker.IsNil)
+	defer cli.Close()
+
+	options := types.ServiceInspectOptions{InsertDefaults: true}
 
 	// insertDefaults inserts UpdateConfig when service is fetched by ID
-	_, out, err = d.SockRequest("GET", "/services/top?insertDefaults=true", nil)
-	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
+	resp, _, err := cli.ServiceInspectWithRaw(context.Background(), id, options)
+	out := fmt.Sprintf("%+v", resp)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, "UpdateConfig")
+
+	// insertDefaults inserts UpdateConfig when service is fetched by ID
+	resp, _, err = cli.ServiceInspectWithRaw(context.Background(), "top", options)
+	out = fmt.Sprintf("%+v", resp)
+	c.Assert(err, checker.IsNil)
 	c.Assert(string(out), checker.Contains, "UpdateConfig")
 
 	service := d.GetService(c, id)
@@ -191,12 +204,12 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesUpdateStartFirst(c *check.C) {
 	// service image at start
 	image1 := "busybox:latest"
 	// target image in update
-	image2 := "testhealth"
+	image2 := "testhealth:latest"
 
 	// service started from this image won't pass health check
 	_, _, err := d.BuildImageWithOut(image2,
 		`FROM busybox
-		HEALTHCHECK --interval=1s --timeout=1s --retries=1024\
+		HEALTHCHECK --interval=1s --timeout=30s --retries=1024 \
 		  CMD cat /status`,
 		true)
 	c.Check(err, check.IsNil)
@@ -580,7 +593,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesStateReporting(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	pid, err := strconv.Atoi(strings.TrimSpace(pidStr))
 	c.Assert(err, checker.IsNil)
-	c.Assert(syscall.Kill(pid, syscall.SIGKILL), checker.IsNil)
+	c.Assert(unix.Kill(pid, unix.SIGKILL), checker.IsNil)
 
 	time.Sleep(time.Second) // give some time to handle the signal
 
@@ -595,4 +608,79 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesStateReporting(c *check.C) {
 			c.Assert(containers2[i], checker.NotNil)
 		}
 	}
+}
+
+// Test plugins deployed via swarm services
+func (s *DockerSwarmSuite) TestAPISwarmServicesPlugin(c *check.C) {
+	testRequires(c, ExperimentalDaemon, DaemonIsLinux, IsAmd64)
+
+	reg := setupRegistry(c, false, "", "")
+	defer reg.Close()
+
+	repo := path.Join(privateRegistryURL, "swarm", "test:v1")
+	repo2 := path.Join(privateRegistryURL, "swarm", "test:v2")
+	name := "test"
+
+	err := plugin.CreateInRegistry(context.Background(), repo, nil)
+	c.Assert(err, checker.IsNil, check.Commentf("failed to create plugin"))
+	err = plugin.CreateInRegistry(context.Background(), repo2, nil)
+	c.Assert(err, checker.IsNil, check.Commentf("failed to create plugin"))
+
+	d1 := s.AddDaemon(c, true, true)
+	d2 := s.AddDaemon(c, true, true)
+	d3 := s.AddDaemon(c, true, false)
+
+	makePlugin := func(repo, name string, constraints []string) func(*swarm.Service) {
+		return func(s *swarm.Service) {
+			s.Spec.TaskTemplate.Runtime = "plugin"
+			s.Spec.TaskTemplate.PluginSpec = &runtime.PluginSpec{
+				Name:   name,
+				Remote: repo,
+			}
+			if constraints != nil {
+				s.Spec.TaskTemplate.Placement = &swarm.Placement{
+					Constraints: constraints,
+				}
+			}
+		}
+	}
+
+	id := d1.CreateService(c, makePlugin(repo, name, nil))
+	waitAndAssert(c, defaultReconciliationTimeout, d1.CheckPluginRunning(name), checker.True)
+	waitAndAssert(c, defaultReconciliationTimeout, d2.CheckPluginRunning(name), checker.True)
+	waitAndAssert(c, defaultReconciliationTimeout, d3.CheckPluginRunning(name), checker.True)
+
+	service := d1.GetService(c, id)
+	d1.UpdateService(c, service, makePlugin(repo2, name, nil))
+	waitAndAssert(c, defaultReconciliationTimeout, d1.CheckPluginImage(name), checker.Equals, repo2)
+	waitAndAssert(c, defaultReconciliationTimeout, d2.CheckPluginImage(name), checker.Equals, repo2)
+	waitAndAssert(c, defaultReconciliationTimeout, d3.CheckPluginImage(name), checker.Equals, repo2)
+	waitAndAssert(c, defaultReconciliationTimeout, d1.CheckPluginRunning(name), checker.True)
+	waitAndAssert(c, defaultReconciliationTimeout, d2.CheckPluginRunning(name), checker.True)
+	waitAndAssert(c, defaultReconciliationTimeout, d3.CheckPluginRunning(name), checker.True)
+
+	d1.RemoveService(c, id)
+	waitAndAssert(c, defaultReconciliationTimeout, d1.CheckPluginRunning(name), checker.False)
+	waitAndAssert(c, defaultReconciliationTimeout, d2.CheckPluginRunning(name), checker.False)
+	waitAndAssert(c, defaultReconciliationTimeout, d3.CheckPluginRunning(name), checker.False)
+
+	// constrain to managers only
+	id = d1.CreateService(c, makePlugin(repo, name, []string{"node.role==manager"}))
+	waitAndAssert(c, defaultReconciliationTimeout, d1.CheckPluginRunning(name), checker.True)
+	waitAndAssert(c, defaultReconciliationTimeout, d2.CheckPluginRunning(name), checker.True)
+	waitAndAssert(c, defaultReconciliationTimeout, d3.CheckPluginRunning(name), checker.False) // Not a manager, not running it
+	d1.RemoveService(c, id)
+	waitAndAssert(c, defaultReconciliationTimeout, d1.CheckPluginRunning(name), checker.False)
+	waitAndAssert(c, defaultReconciliationTimeout, d2.CheckPluginRunning(name), checker.False)
+	waitAndAssert(c, defaultReconciliationTimeout, d3.CheckPluginRunning(name), checker.False)
+
+	// with no name
+	id = d1.CreateService(c, makePlugin(repo, "", nil))
+	waitAndAssert(c, defaultReconciliationTimeout, d1.CheckPluginRunning(repo), checker.True)
+	waitAndAssert(c, defaultReconciliationTimeout, d2.CheckPluginRunning(repo), checker.True)
+	waitAndAssert(c, defaultReconciliationTimeout, d3.CheckPluginRunning(repo), checker.True)
+	d1.RemoveService(c, id)
+	waitAndAssert(c, defaultReconciliationTimeout, d1.CheckPluginRunning(repo), checker.False)
+	waitAndAssert(c, defaultReconciliationTimeout, d2.CheckPluginRunning(repo), checker.False)
+	waitAndAssert(c, defaultReconciliationTimeout, d3.CheckPluginRunning(repo), checker.False)
 }

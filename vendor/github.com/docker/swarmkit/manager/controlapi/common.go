@@ -5,9 +5,10 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/plugingetter"
+	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/ipamapi"
 	"github.com/docker/swarmkit/api"
-	"github.com/docker/swarmkit/manager/allocator/networkallocator"
+	"github.com/docker/swarmkit/manager/allocator"
 	"github.com/docker/swarmkit/manager/state/store"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -104,8 +105,17 @@ func validateDriver(driver *api.Driver, pg plugingetter.PluginGetter, pluginType
 		return grpc.Errorf(codes.InvalidArgument, "driver name: if driver is specified name is required")
 	}
 
-	if strings.ToLower(driver.Name) == networkallocator.DefaultDriver || strings.ToLower(driver.Name) == ipamapi.DefaultIPAM {
-		return nil
+	// First check against the known drivers
+	switch pluginType {
+	case ipamapi.PluginEndpointType:
+		if strings.ToLower(driver.Name) == ipamapi.DefaultIPAM {
+			return nil
+		}
+	case driverapi.NetworkPluginEndpointType:
+		if allocator.IsBuiltInNetworkDriver(driver.Name) {
+			return nil
+		}
+	default:
 	}
 
 	if pg == nil {

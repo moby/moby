@@ -7,11 +7,12 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/system"
+	"github.com/pkg/errors"
 )
 
-// normaliseDest normalises the destination of a COPY/ADD command in a
+// normalizeDest normalizes the destination of a COPY/ADD command in a
 // platform semantically consistent way.
-func normaliseDest(cmdName, workingDir, requested string) (string, error) {
+func normalizeDest(workingDir, requested string) (string, error) {
 	dest := filepath.FromSlash(requested)
 	endsInSlash := strings.HasSuffix(dest, string(os.PathSeparator))
 
@@ -31,7 +32,7 @@ func normaliseDest(cmdName, workingDir, requested string) (string, error) {
 	// we only want to validate where the DriveColon part has been supplied.
 	if filepath.IsAbs(dest) {
 		if strings.ToUpper(string(dest[0])) != "C" {
-			return "", fmt.Errorf("Windows does not support %s with a destinations not on the system drive (C:)", cmdName)
+			return "", fmt.Errorf("Windows does not support destinations not on the system drive (C:)")
 		}
 		dest = dest[2:] // Strip the drive letter
 	}
@@ -43,7 +44,7 @@ func normaliseDest(cmdName, workingDir, requested string) (string, error) {
 		}
 		if !system.IsAbs(dest) {
 			if string(workingDir[0]) != "C" {
-				return "", fmt.Errorf("Windows does not support %s with relative paths when WORKDIR is not the system drive", cmdName)
+				return "", fmt.Errorf("Windows does not support relative paths when WORKDIR is not the system drive")
 			}
 			dest = filepath.Join(string(os.PathSeparator), workingDir[2:], dest)
 			// Make sure we preserve any trailing slash
@@ -63,4 +64,32 @@ func containsWildcards(name string) bool {
 		}
 	}
 	return false
+}
+
+var pathBlacklist = map[string]bool{
+	"c:\\":        true,
+	"c:\\windows": true,
+}
+
+func validateCopySourcePath(imageSource *imageMount, origPath string) error {
+	// validate windows paths from other images
+	if imageSource == nil {
+		return nil
+	}
+	origPath = filepath.FromSlash(origPath)
+	p := strings.ToLower(filepath.Clean(origPath))
+	if !filepath.IsAbs(p) {
+		if filepath.VolumeName(p) != "" {
+			if p[len(p)-2:] == ":." { // case where clean returns weird c:. paths
+				p = p[:len(p)-1]
+			}
+			p += "\\"
+		} else {
+			p = filepath.Join("c:\\", p)
+		}
+	}
+	if _, blacklisted := pathBlacklist[p]; blacklisted {
+		return errors.New("copy from c:\\ or c:\\windows is not allowed on windows")
+	}
+	return nil
 }

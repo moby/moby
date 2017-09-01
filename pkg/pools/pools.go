@@ -17,14 +17,15 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 )
 
+const buffer32K = 32 * 1024
+
 var (
 	// BufioReader32KPool is a pool which returns bufio.Reader with a 32K buffer.
 	BufioReader32KPool = newBufioReaderPoolWithSize(buffer32K)
 	// BufioWriter32KPool is a pool which returns bufio.Writer with a 32K buffer.
 	BufioWriter32KPool = newBufioWriterPoolWithSize(buffer32K)
+	buffer32KPool      = newBufferPoolWithSize(buffer32K)
 )
-
-const buffer32K = 32 * 1024
 
 // BufioReaderPool is a bufio reader that uses sync.Pool.
 type BufioReaderPool struct {
@@ -54,11 +55,31 @@ func (bufPool *BufioReaderPool) Put(b *bufio.Reader) {
 	bufPool.pool.Put(b)
 }
 
+type bufferPool struct {
+	pool sync.Pool
+}
+
+func newBufferPoolWithSize(size int) *bufferPool {
+	return &bufferPool{
+		pool: sync.Pool{
+			New: func() interface{} { return make([]byte, size) },
+		},
+	}
+}
+
+func (bp *bufferPool) Get() []byte {
+	return bp.pool.Get().([]byte)
+}
+
+func (bp *bufferPool) Put(b []byte) {
+	bp.pool.Put(b)
+}
+
 // Copy is a convenience wrapper which uses a buffer to avoid allocation in io.Copy.
 func Copy(dst io.Writer, src io.Reader) (written int64, err error) {
-	buf := BufioReader32KPool.Get(src)
-	written, err = io.Copy(dst, buf)
-	BufioReader32KPool.Put(buf)
+	buf := buffer32KPool.Get()
+	written, err = io.CopyBuffer(dst, src, buf)
+	buffer32KPool.Put(buf)
 	return
 }
 

@@ -16,11 +16,10 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	"syscall"
 	"unsafe"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/logger"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/windows"
 )
 
@@ -42,12 +41,12 @@ var (
 	procEventWriteString = modAdvapi32.NewProc("EventWriteString")
 	procEventUnregister  = modAdvapi32.NewProc("EventUnregister")
 )
-var providerHandle syscall.Handle
+var providerHandle windows.Handle
 var refCount int
 var mu sync.Mutex
 
 func init() {
-	providerHandle = syscall.InvalidHandle
+	providerHandle = windows.InvalidHandle
 	if err := logger.RegisterLogDriver(name, New); err != nil {
 		logrus.Fatal(err)
 	}
@@ -70,7 +69,7 @@ func New(info logger.Info) (logger.Logger, error) {
 
 // Log logs the message to the ETW stream.
 func (etwLogger *etwLogs) Log(msg *logger.Message) error {
-	if providerHandle == syscall.InvalidHandle {
+	if providerHandle == windows.InvalidHandle {
 		// This should never be hit, if it is, it indicates a programming error.
 		errorMessage := "ETWLogs cannot log the message, because the event provider has not been registered."
 		logrus.Error(errorMessage)
@@ -121,7 +120,7 @@ func unregisterETWProvider() {
 	if refCount == 1 {
 		if callEventUnregister() {
 			refCount--
-			providerHandle = syscall.InvalidHandle
+			providerHandle = windows.InvalidHandle
 		}
 		// Not returning an error if EventUnregister fails, because etwLogs will continue to work
 	} else {
@@ -131,7 +130,7 @@ func unregisterETWProvider() {
 
 func callEventRegister() error {
 	// The provider's GUID is {a3693192-9ed6-46d2-a981-f8226c8363bd}
-	guid := syscall.GUID{
+	guid := windows.GUID{
 		Data1: 0xa3693192,
 		Data2: 0x9ed6,
 		Data3: 0x46d2,
@@ -148,7 +147,7 @@ func callEventRegister() error {
 }
 
 func callEventWriteString(message string) error {
-	utf16message, err := syscall.UTF16FromString(message)
+	utf16message, err := windows.UTF16FromString(message)
 
 	if err != nil {
 		return err

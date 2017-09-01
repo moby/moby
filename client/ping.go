@@ -1,7 +1,7 @@
 package client
 
 import (
-	"fmt"
+	"path"
 
 	"github.com/docker/docker/api/types"
 	"golang.org/x/net/context"
@@ -10,7 +10,7 @@ import (
 // Ping pings the server and returns the value of the "Docker-Experimental", "OS-Type" & "API-Version" headers
 func (cli *Client) Ping(ctx context.Context) (types.Ping, error) {
 	var ping types.Ping
-	req, err := cli.buildRequest("GET", fmt.Sprintf("%s/_ping", cli.basePath), nil, nil)
+	req, err := cli.buildRequest("GET", path.Join(cli.basePath, "/_ping"), nil, nil)
 	if err != nil {
 		return ping, err
 	}
@@ -20,13 +20,15 @@ func (cli *Client) Ping(ctx context.Context) (types.Ping, error) {
 	}
 	defer ensureReaderClosed(serverResp)
 
-	ping.APIVersion = serverResp.header.Get("API-Version")
+	if serverResp.header != nil {
+		ping.APIVersion = serverResp.header.Get("API-Version")
 
-	if serverResp.header.Get("Docker-Experimental") == "true" {
-		ping.Experimental = true
+		if serverResp.header.Get("Docker-Experimental") == "true" {
+			ping.Experimental = true
+		}
+		ping.OSType = serverResp.header.Get("OSType")
 	}
 
-	ping.OSType = serverResp.header.Get("OSType")
-
-	return ping, nil
+	err = cli.checkResponseErr(serverResp)
+	return ping, err
 }

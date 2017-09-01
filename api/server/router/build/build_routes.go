@@ -12,7 +12,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
@@ -21,9 +20,19 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
-	"github.com/docker/go-units"
+	units "github.com/docker/go-units"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
+
+type invalidIsolationError string
+
+func (e invalidIsolationError) Error() string {
+	return fmt.Sprintf("Unsupported isolation: %q", string(e))
+}
+
+func (e invalidIsolationError) InvalidParameter() {}
 
 func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBuildOptions, error) {
 	version := httputils.VersionFromContext(ctx)
@@ -57,6 +66,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	options.SecurityOpt = r.Form["securityopt"]
 	options.Squash = httputils.BoolValue(r, "squash")
 	options.Target = r.FormValue("target")
+	options.RemoteContext = r.FormValue("remote")
 
 	if r.Form.Get("shmsize") != "" {
 		shmSize, err := strconv.ParseInt(r.Form.Get("shmsize"), 10, 64)
@@ -68,26 +78,23 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 
 	if i := container.Isolation(r.FormValue("isolation")); i != "" {
 		if !container.Isolation.IsValid(i) {
-			return nil, fmt.Errorf("Unsupported isolation: %q", i)
+			return nil, invalidIsolationError(i)
 		}
 		options.Isolation = i
 	}
 
 	if runtime.GOOS != "windows" && options.SecurityOpt != nil {
-		return nil, fmt.Errorf("the daemon on this platform does not support --security-opt to build")
+		return nil, validationError{fmt.Errorf("The daemon on this platform does not support setting security options on build")}
 	}
 
 	var buildUlimits = []*units.Ulimit{}
 	ulimitsJSON := r.FormValue("ulimits")
 	if ulimitsJSON != "" {
 		if err := json.Unmarshal([]byte(ulimitsJSON), &buildUlimits); err != nil {
-			return nil, err
+			return nil, errors.Wrap(validationError{err}, "error reading ulimit settings")
 		}
 		options.Ulimits = buildUlimits
 	}
-
-	var buildArgs = map[string]*string{}
-	buildArgsJSON := r.FormValue("buildargs")
 
 	// Note that there are two ways a --build-arg might appear in the
 	// json of the query param:
@@ -101,32 +108,135 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	// the fact they mentioned it, we need to pass that along to the builder
 	// so that it can print a warning about "foo" being unused if there is
 	// no "ARG foo" in the Dockerfile.
+	buildArgsJSON := r.FormValue("buildargs")
 	if buildArgsJSON != "" {
+		var buildArgs = map[string]*string{}
 		if err := json.Unmarshal([]byte(buildArgsJSON), &buildArgs); err != nil {
-			return nil, err
+			return nil, errors.Wrap(validationError{err}, "error reading build args")
 		}
 		options.BuildArgs = buildArgs
 	}
 
-	var labels = map[string]string{}
 	labelsJSON := r.FormValue("labels")
 	if labelsJSON != "" {
+		var labels = map[string]string{}
 		if err := json.Unmarshal([]byte(labelsJSON), &labels); err != nil {
-			return nil, err
+			return nil, errors.Wrap(validationError{err}, "error reading labels")
 		}
 		options.Labels = labels
 	}
 
-	var cacheFrom = []string{}
 	cacheFromJSON := r.FormValue("cachefrom")
 	if cacheFromJSON != "" {
+		var cacheFrom = []string{}
 		if err := json.Unmarshal([]byte(cacheFromJSON), &cacheFrom); err != nil {
 			return nil, err
 		}
 		options.CacheFrom = cacheFrom
 	}
+	options.SessionID = r.FormValue("session")
 
 	return options, nil
+}
+
+func (br *buildRouter) postPrune(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	report, err := br.backend.PruneCache(ctx)
+	if err != nil {
+		return err
+	}
+	return httputils.WriteJSON(w, http.StatusOK, report)
+}
+
+type validationError struct {
+	cause error
+}
+
+func (e validationError) Error() string {
+	return e.cause.Error()
+}
+
+func (e validationError) InvalidParameter() {}
+
+func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	var (
+		notVerboseBuffer = bytes.NewBuffer(nil)
+		version          = httputils.VersionFromContext(ctx)
+	)
+
+	w.Header().Set("Content-Type", "application/json")
+
+	output := ioutils.NewWriteFlusher(w)
+	defer output.Close()
+	errf := func(err error) error {
+		if httputils.BoolValue(r, "q") && notVerboseBuffer.Len() > 0 {
+			output.Write(notVerboseBuffer.Bytes())
+		}
+		// Do not write the error in the http output if it's still empty.
+		// This prevents from writing a 200(OK) when there is an internal error.
+		if !output.Flushed() {
+			return err
+		}
+		_, err = w.Write(streamformatter.FormatError(err))
+		if err != nil {
+			logrus.Warnf("could not write error response: %v", err)
+		}
+		return nil
+	}
+
+	buildOptions, err := newImageBuildOptions(ctx, r)
+	if err != nil {
+		return errf(err)
+	}
+	buildOptions.AuthConfigs = getAuthConfigs(r.Header)
+
+	if buildOptions.Squash && !br.daemon.HasExperimental() {
+		return validationError{errors.New("squash is only supported with experimental mode")}
+	}
+
+	out := io.Writer(output)
+	if buildOptions.SuppressOutput {
+		out = notVerboseBuffer
+	}
+
+	// Currently, only used if context is from a remote url.
+	// Look at code in DetectContextFromRemoteURL for more information.
+	createProgressReader := func(in io.ReadCloser) io.ReadCloser {
+		progressOutput := streamformatter.NewJSONProgressOutput(out, true)
+		return progress.NewProgressReader(in, progressOutput, r.ContentLength, "Downloading context", buildOptions.RemoteContext)
+	}
+
+	wantAux := versions.GreaterThanOrEqualTo(version, "1.30")
+
+	imgID, err := br.backend.Build(ctx, backend.BuildConfig{
+		Source:         r.Body,
+		Options:        buildOptions,
+		ProgressWriter: buildProgressWriter(out, wantAux, createProgressReader),
+	})
+	if err != nil {
+		return errf(err)
+	}
+
+	// Everything worked so if -q was provided the output from the daemon
+	// should be just the image ID and we'll print that to stdout.
+	if buildOptions.SuppressOutput {
+		fmt.Fprintln(streamformatter.NewStdoutWriter(output), imgID)
+	}
+	return nil
+}
+
+func getAuthConfigs(header http.Header) map[string]types.AuthConfig {
+	authConfigs := map[string]types.AuthConfig{}
+	authConfigsEncoded := header.Get("X-Registry-Config")
+
+	if authConfigsEncoded == "" {
+		return authConfigs
+	}
+
+	authConfigsJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authConfigsEncoded))
+	// Pulling an image does not error when no auth is provided so to remain
+	// consistent with the existing api decode errors are ignored
+	json.NewDecoder(authConfigsJSON).Decode(&authConfigs)
+	return authConfigs
 }
 
 type syncWriter struct {
@@ -141,87 +251,19 @@ func (s *syncWriter) Write(b []byte) (count int, err error) {
 	return
 }
 
-func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	var (
-		authConfigs        = map[string]types.AuthConfig{}
-		authConfigsEncoded = r.Header.Get("X-Registry-Config")
-		notVerboseBuffer   = bytes.NewBuffer(nil)
-	)
-
-	if authConfigsEncoded != "" {
-		authConfigsJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authConfigsEncoded))
-		if err := json.NewDecoder(authConfigsJSON).Decode(&authConfigs); err != nil {
-			// for a pull it is not an error if no auth was given
-			// to increase compatibility with the existing api it is defaulting
-			// to be empty.
-		}
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-
-	output := ioutils.NewWriteFlusher(w)
-	defer output.Close()
-	sf := streamformatter.NewJSONStreamFormatter()
-	errf := func(err error) error {
-		if httputils.BoolValue(r, "q") && notVerboseBuffer.Len() > 0 {
-			output.Write(notVerboseBuffer.Bytes())
-		}
-		// Do not write the error in the http output if it's still empty.
-		// This prevents from writing a 200(OK) when there is an internal error.
-		if !output.Flushed() {
-			return err
-		}
-		_, err = w.Write(sf.FormatError(err))
-		if err != nil {
-			logrus.Warnf("could not write error response: %v", err)
-		}
-		return nil
-	}
-
-	buildOptions, err := newImageBuildOptions(ctx, r)
-	if err != nil {
-		return errf(err)
-	}
-	buildOptions.AuthConfigs = authConfigs
-
-	remoteURL := r.FormValue("remote")
-
-	// Currently, only used if context is from a remote url.
-	// Look at code in DetectContextFromRemoteURL for more information.
-	createProgressReader := func(in io.ReadCloser) io.ReadCloser {
-		progressOutput := sf.NewProgressOutput(output, true)
-		if buildOptions.SuppressOutput {
-			progressOutput = sf.NewProgressOutput(notVerboseBuffer, true)
-		}
-		return progress.NewProgressReader(in, progressOutput, r.ContentLength, "Downloading context", remoteURL)
-	}
-
-	out := io.Writer(output)
-	if buildOptions.SuppressOutput {
-		out = notVerboseBuffer
-	}
+func buildProgressWriter(out io.Writer, wantAux bool, createProgressReader func(io.ReadCloser) io.ReadCloser) backend.ProgressWriter {
 	out = &syncWriter{w: out}
-	stdout := &streamformatter.StdoutFormatter{Writer: out, StreamFormatter: sf}
-	stderr := &streamformatter.StderrFormatter{Writer: out, StreamFormatter: sf}
 
-	pg := backend.ProgressWriter{
+	var aux *streamformatter.AuxFormatter
+	if wantAux {
+		aux = &streamformatter.AuxFormatter{Writer: out}
+	}
+
+	return backend.ProgressWriter{
 		Output:             out,
-		StdoutFormatter:    stdout,
-		StderrFormatter:    stderr,
+		StdoutFormatter:    streamformatter.NewStdoutWriter(out),
+		StderrFormatter:    streamformatter.NewStderrWriter(out),
+		AuxFormatter:       aux,
 		ProgressReaderFunc: createProgressReader,
 	}
-
-	imgID, err := br.backend.BuildFromContext(ctx, r.Body, remoteURL, buildOptions, pg)
-	if err != nil {
-		return errf(err)
-	}
-
-	// Everything worked so if -q was provided the output from the daemon
-	// should be just the image ID and we'll print that to stdout.
-	if buildOptions.SuppressOutput {
-		stdout := &streamformatter.StdoutFormatter{Writer: output, StreamFormatter: sf}
-		fmt.Fprintf(stdout, "%s\n", string(imgID))
-	}
-
-	return nil
 }

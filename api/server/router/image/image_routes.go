@@ -3,9 +3,9 @@ package image
 import (
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -17,7 +17,9 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/registry"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
 
@@ -85,6 +87,41 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 	)
 	defer output.Close()
 
+	// TODO @jhowardmsft LCOW Support: Eventually we will need an API change
+	// so that platform comes from (for example) r.Form.Get("platform"). For
+	// the initial implementation, we assume that the platform is the
+	// runtime OS of the host. It will also need a validation function such
+	// as below which should be called after getting it from the API.
+	//
+	// Ensures the requested platform is valid and normalized
+	//func validatePlatform(req string) (string, error) {
+	//	req = strings.ToLower(req)
+	//	if req == "" {
+	//		req = runtime.GOOS // default to host platform
+	//	}
+	//	valid := []string{runtime.GOOS}
+	//
+	//	if system.LCOWSupported() {
+	//		valid = append(valid, "linux")
+	//	}
+	//
+	//	for _, item := range valid {
+	//		if req == item {
+	//			return req, nil
+	//		}
+	//	}
+	//	return "", fmt.Errorf("invalid platform requested: %s", req)
+	//}
+	//
+	// And in the call-site:
+	//	if platform, err = validatePlatform(platform); err != nil {
+	//		return err
+	//	}
+	platform := runtime.GOOS
+	if system.LCOWSupported() {
+		platform = "linux"
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 
 	if image != "" { //pull
@@ -106,24 +143,37 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 			}
 		}
 
-		err = s.backend.PullImage(ctx, image, tag, metaHeaders, authConfig, output)
+		err = s.backend.PullImage(ctx, image, tag, platform, metaHeaders, authConfig, output)
 	} else { //import
 		src := r.Form.Get("fromSrc")
 		// 'err' MUST NOT be defined within this block, we need any error
 		// generated from the download to be available to the output
 		// stream processing below
-		err = s.backend.ImportImage(src, repo, tag, message, r.Body, output, r.Form["changes"])
+		err = s.backend.ImportImage(src, repo, platform, tag, message, r.Body, output, r.Form["changes"])
 	}
 	if err != nil {
 		if !output.Flushed() {
 			return err
 		}
-		sf := streamformatter.NewJSONStreamFormatter()
-		output.Write(sf.FormatError(err))
+		output.Write(streamformatter.FormatError(err))
 	}
 
 	return nil
 }
+
+type validationError struct {
+	cause error
+}
+
+func (e validationError) Error() string {
+	return e.cause.Error()
+}
+
+func (e validationError) Cause() error {
+	return e.cause
+}
+
+func (validationError) InvalidParameter() {}
 
 func (s *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	metaHeaders := map[string][]string{}
@@ -148,7 +198,7 @@ func (s *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter,
 	} else {
 		// the old format is supported for compatibility if there was no authConfig header
 		if err := json.NewDecoder(r.Body).Decode(authConfig); err != nil {
-			return fmt.Errorf("Bad parameters and missing X-Registry-Auth: %v", err)
+			return errors.Wrap(validationError{err}, "Bad parameters and missing X-Registry-Auth")
 		}
 	}
 
@@ -164,8 +214,7 @@ func (s *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter,
 		if !output.Flushed() {
 			return err
 		}
-		sf := streamformatter.NewJSONStreamFormatter()
-		output.Write(sf.FormatError(err))
+		output.Write(streamformatter.FormatError(err))
 	}
 	return nil
 }
@@ -190,8 +239,7 @@ func (s *imageRouter) getImagesGet(ctx context.Context, w http.ResponseWriter, r
 		if !output.Flushed() {
 			return err
 		}
-		sf := streamformatter.NewJSONStreamFormatter()
-		output.Write(sf.FormatError(err))
+		output.Write(streamformatter.FormatError(err))
 	}
 	return nil
 }
@@ -207,10 +255,18 @@ func (s *imageRouter) postImagesLoad(ctx context.Context, w http.ResponseWriter,
 	output := ioutils.NewWriteFlusher(w)
 	defer output.Close()
 	if err := s.backend.LoadImage(r.Body, output, quiet); err != nil {
-		output.Write(streamformatter.NewJSONStreamFormatter().FormatError(err))
+		output.Write(streamformatter.FormatError(err))
 	}
 	return nil
 }
+
+type missingImageError struct{}
+
+func (missingImageError) Error() string {
+	return "image name cannot be blank"
+}
+
+func (missingImageError) InvalidParameter() {}
 
 func (s *imageRouter) deleteImages(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
@@ -220,7 +276,7 @@ func (s *imageRouter) deleteImages(ctx context.Context, w http.ResponseWriter, r
 	name := vars["name"]
 
 	if strings.TrimSpace(name) == "" {
-		return fmt.Errorf("image name cannot be blank")
+		return missingImageError{}
 	}
 
 	force := httputils.BoolValue(r, "force")
@@ -336,7 +392,7 @@ func (s *imageRouter) postImagesPrune(ctx context.Context, w http.ResponseWriter
 		return err
 	}
 
-	pruneReport, err := s.backend.ImagesPrune(pruneFilters)
+	pruneReport, err := s.backend.ImagesPrune(ctx, pruneFilters)
 	if err != nil {
 		return err
 	}

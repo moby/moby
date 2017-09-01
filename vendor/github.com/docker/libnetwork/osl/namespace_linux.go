@@ -14,10 +14,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/libnetwork/ns"
 	"github.com/docker/libnetwork/types"
+	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 )
@@ -354,6 +354,22 @@ func (n *networkNamespace) loopbackUp() error {
 		return err
 	}
 	return n.nlHandle.LinkSetUp(iface)
+}
+
+func (n *networkNamespace) AddLoopbackAliasIP(ip *net.IPNet) error {
+	iface, err := n.nlHandle.LinkByName("lo")
+	if err != nil {
+		return err
+	}
+	return n.nlHandle.AddrAdd(iface, &netlink.Addr{IPNet: ip})
+}
+
+func (n *networkNamespace) RemoveLoopbackAliasIP(ip *net.IPNet) error {
+	iface, err := n.nlHandle.LinkByName("lo")
+	if err != nil {
+		return err
+	}
+	return n.nlHandle.AddrDel(iface, &netlink.Addr{IPNet: ip})
 }
 
 func (n *networkNamespace) InvokeFunc(f func()) error {

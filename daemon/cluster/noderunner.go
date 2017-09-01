@@ -8,12 +8,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/executor/container"
+	lncluster "github.com/docker/libnetwork/cluster"
 	swarmapi "github.com/docker/swarmkit/api"
 	swarmnode "github.com/docker/swarmkit/node"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
@@ -46,7 +47,13 @@ type nodeStartConfig struct {
 	ListenAddr string
 	// AdvertiseAddr is the address other nodes should connect to,
 	// including a port.
-	AdvertiseAddr   string
+	AdvertiseAddr string
+	// DataPathAddr is the address that has to be used for the data path
+	DataPathAddr string
+	// JoinInProgress is set to true if a join operation has started, but
+	// not completed yet.
+	JoinInProgress bool
+
 	joinAddr        string
 	forceNewCluster bool
 	joinToken       string
@@ -94,6 +101,13 @@ func (n *nodeRunner) start(conf nodeStartConfig) error {
 		control = filepath.Join(n.cluster.runtimeRoot, controlSocket)
 	}
 
+	joinAddr := conf.joinAddr
+	if joinAddr == "" && conf.JoinInProgress {
+		// We must have been restarted while trying to join a cluster.
+		// Continue trying to join instead of forming our own cluster.
+		joinAddr = conf.RemoteAddr
+	}
+
 	// Hostname is not set here. Instead, it is obtained from
 	// the node description that is reported periodically
 	swarmnodeConfig := swarmnode.Config{
@@ -101,10 +115,10 @@ func (n *nodeRunner) start(conf nodeStartConfig) error {
 		ListenControlAPI:   control,
 		ListenRemoteAPI:    conf.ListenAddr,
 		AdvertiseRemoteAPI: conf.AdvertiseAddr,
-		JoinAddr:           conf.joinAddr,
+		JoinAddr:           joinAddr,
 		StateDir:           n.cluster.root,
 		JoinToken:          conf.joinToken,
-		Executor:           container.NewExecutor(n.cluster.config.Backend),
+		Executor:           container.NewExecutor(n.cluster.config.Backend, n.cluster.config.PluginBackend),
 		HeartbeatTick:      1,
 		ElectionTick:       3,
 		UnlockKey:          conf.lockKey,
@@ -129,6 +143,9 @@ func (n *nodeRunner) start(conf nodeStartConfig) error {
 	n.done = make(chan struct{})
 	n.ready = make(chan struct{})
 	n.swarmNode = node
+	if conf.joinAddr != "" {
+		conf.JoinInProgress = true
+	}
 	n.config = conf
 	savePersistentState(n.cluster.root, conf)
 
@@ -155,11 +172,59 @@ func (n *nodeRunner) handleControlSocketChange(ctx context.Context, node *swarmn
 			} else {
 				n.controlClient = swarmapi.NewControlClient(conn)
 				n.logsClient = swarmapi.NewLogsClient(conn)
+				// push store changes to daemon
+				go n.watchClusterEvents(ctx, conn)
 			}
 		}
 		n.grpcConn = conn
 		n.mu.Unlock()
-		n.cluster.configEvent <- struct{}{}
+		n.cluster.SendClusterEvent(lncluster.EventSocketChange)
+	}
+}
+
+func (n *nodeRunner) watchClusterEvents(ctx context.Context, conn *grpc.ClientConn) {
+	client := swarmapi.NewWatchClient(conn)
+	watch, err := client.Watch(ctx, &swarmapi.WatchRequest{
+		Entries: []*swarmapi.WatchRequest_WatchEntry{
+			{
+				Kind:   "node",
+				Action: swarmapi.WatchActionKindCreate | swarmapi.WatchActionKindUpdate | swarmapi.WatchActionKindRemove,
+			},
+			{
+				Kind:   "service",
+				Action: swarmapi.WatchActionKindCreate | swarmapi.WatchActionKindUpdate | swarmapi.WatchActionKindRemove,
+			},
+			{
+				Kind:   "network",
+				Action: swarmapi.WatchActionKindCreate | swarmapi.WatchActionKindUpdate | swarmapi.WatchActionKindRemove,
+			},
+			{
+				Kind:   "secret",
+				Action: swarmapi.WatchActionKindCreate | swarmapi.WatchActionKindUpdate | swarmapi.WatchActionKindRemove,
+			},
+			{
+				Kind:   "config",
+				Action: swarmapi.WatchActionKindCreate | swarmapi.WatchActionKindUpdate | swarmapi.WatchActionKindRemove,
+			},
+		},
+		IncludeOldObject: true,
+	})
+	if err != nil {
+		logrus.WithError(err).Error("failed to watch cluster store")
+		return
+	}
+	for {
+		msg, err := watch.Recv()
+		if err != nil {
+			// store watch is broken
+			logrus.WithError(err).Error("failed to receive changes from store watch API")
+			return
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case n.cluster.watchStream <- msg:
+		}
 	}
 }
 
@@ -168,11 +233,15 @@ func (n *nodeRunner) handleReadyEvent(ctx context.Context, node *swarmnode.Node,
 	case <-node.Ready():
 		n.mu.Lock()
 		n.err = nil
+		if n.config.JoinInProgress {
+			n.config.JoinInProgress = false
+			savePersistentState(n.cluster.root, n.config)
+		}
 		n.mu.Unlock()
 		close(ready)
 	case <-ctx.Done():
 	}
-	n.cluster.configEvent <- struct{}{}
+	n.cluster.SendClusterEvent(lncluster.EventNodeReady)
 }
 
 func (n *nodeRunner) handleNodeExit(node *swarmnode.Node) {
@@ -214,6 +283,7 @@ func (n *nodeRunner) Stop() error {
 	if err := n.swarmNode.Stop(ctx); err != nil && !strings.Contains(err.Error(), "context canceled") {
 		return err
 	}
+	n.cluster.SendClusterEvent(lncluster.EventNodeLeave)
 	<-n.done
 	return nil
 }
@@ -257,7 +327,6 @@ func (n *nodeRunner) enableReconnectWatcher() {
 	delayCtx, cancel := context.WithTimeout(context.Background(), n.reconnectDelay)
 	n.cancelReconnect = cancel
 
-	config := n.config
 	go func() {
 		<-delayCtx.Done()
 		if delayCtx.Err() != context.DeadlineExceeded {
@@ -268,9 +337,8 @@ func (n *nodeRunner) enableReconnectWatcher() {
 		if n.stopping {
 			return
 		}
-		config.RemoteAddr = n.cluster.getRemoteAddress()
-		config.joinAddr = config.RemoteAddr
-		if err := n.start(config); err != nil {
+
+		if err := n.start(n.config); err != nil {
 			n.err = err
 		}
 	}()

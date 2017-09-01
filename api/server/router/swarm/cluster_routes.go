@@ -6,13 +6,14 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/server/httputils"
 	basictypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/filters"
 	types "github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/api/types/versions"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
@@ -56,6 +57,20 @@ func (sr *swarmRouter) inspectCluster(ctx context.Context, w http.ResponseWriter
 	return httputils.WriteJSON(w, http.StatusOK, swarm)
 }
 
+type invalidRequestError struct {
+	err error
+}
+
+func (e invalidRequestError) Error() string {
+	return e.err.Error()
+}
+
+func (e invalidRequestError) Cause() error {
+	return e.err
+}
+
+func (e invalidRequestError) InvalidParameter() {}
+
 func (sr *swarmRouter) updateCluster(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	var swarm types.Spec
 	if err := json.NewDecoder(r.Body).Decode(&swarm); err != nil {
@@ -66,7 +81,7 @@ func (sr *swarmRouter) updateCluster(ctx context.Context, w http.ResponseWriter,
 	version, err := strconv.ParseUint(rawVersion, 10, 64)
 	if err != nil {
 		err := fmt.Errorf("invalid swarm version '%s': %v", rawVersion, err)
-		return errors.NewBadRequestError(err)
+		return invalidRequestError{err}
 	}
 
 	var flags types.UpdateFlags
@@ -75,7 +90,7 @@ func (sr *swarmRouter) updateCluster(ctx context.Context, w http.ResponseWriter,
 		rot, err := strconv.ParseBool(value)
 		if err != nil {
 			err := fmt.Errorf("invalid value for rotateWorkerToken: %s", value)
-			return errors.NewBadRequestError(err)
+			return invalidRequestError{err}
 		}
 
 		flags.RotateWorkerToken = rot
@@ -85,7 +100,7 @@ func (sr *swarmRouter) updateCluster(ctx context.Context, w http.ResponseWriter,
 		rot, err := strconv.ParseBool(value)
 		if err != nil {
 			err := fmt.Errorf("invalid value for rotateManagerToken: %s", value)
-			return errors.NewBadRequestError(err)
+			return invalidRequestError{err}
 		}
 
 		flags.RotateManagerToken = rot
@@ -94,7 +109,7 @@ func (sr *swarmRouter) updateCluster(ctx context.Context, w http.ResponseWriter,
 	if value := r.URL.Query().Get("rotateManagerUnlockKey"); value != "" {
 		rot, err := strconv.ParseBool(value)
 		if err != nil {
-			return errors.NewBadRequestError(fmt.Errorf("invalid value for rotateManagerUnlockKey: %s", value))
+			return invalidRequestError{fmt.Errorf("invalid value for rotateManagerUnlockKey: %s", value)}
 		}
 
 		flags.RotateManagerUnlockKey = rot
@@ -138,7 +153,7 @@ func (sr *swarmRouter) getServices(ctx context.Context, w http.ResponseWriter, r
 	}
 	filter, err := filters.FromParam(r.Form.Get("filters"))
 	if err != nil {
-		return err
+		return invalidRequestError{err}
 	}
 
 	services, err := sr.backend.GetServices(basictypes.ServiceListOptions{Filters: filter})
@@ -157,7 +172,7 @@ func (sr *swarmRouter) getService(ctx context.Context, w http.ResponseWriter, r 
 		insertDefaults, err = strconv.ParseBool(value)
 		if err != nil {
 			err := fmt.Errorf("invalid value for insertDefaults: %s", value)
-			return errors.NewBadRequestError(err)
+			return errors.Wrapf(invalidRequestError{err}, "invalid value for insertDefaults: %s", value)
 		}
 	}
 
@@ -178,8 +193,13 @@ func (sr *swarmRouter) createService(ctx context.Context, w http.ResponseWriter,
 
 	// Get returns "" if the header does not exist
 	encodedAuth := r.Header.Get("X-Registry-Auth")
+	cliVersion := r.Header.Get("version")
+	queryRegistry := false
+	if cliVersion != "" && versions.LessThan(cliVersion, "1.30") {
+		queryRegistry = true
+	}
 
-	resp, err := sr.backend.CreateService(service, encodedAuth)
+	resp, err := sr.backend.CreateService(service, encodedAuth, queryRegistry)
 	if err != nil {
 		logrus.Errorf("Error creating service %s: %v", service.Name, err)
 		return err
@@ -198,7 +218,7 @@ func (sr *swarmRouter) updateService(ctx context.Context, w http.ResponseWriter,
 	version, err := strconv.ParseUint(rawVersion, 10, 64)
 	if err != nil {
 		err := fmt.Errorf("invalid service version '%s': %v", rawVersion, err)
-		return errors.NewBadRequestError(err)
+		return invalidRequestError{err}
 	}
 
 	var flags basictypes.ServiceUpdateOptions
@@ -207,8 +227,13 @@ func (sr *swarmRouter) updateService(ctx context.Context, w http.ResponseWriter,
 	flags.EncodedRegistryAuth = r.Header.Get("X-Registry-Auth")
 	flags.RegistryAuthFrom = r.URL.Query().Get("registryAuthFrom")
 	flags.Rollback = r.URL.Query().Get("rollback")
+	cliVersion := r.Header.Get("version")
+	queryRegistry := false
+	if cliVersion != "" && versions.LessThan(cliVersion, "1.30") {
+		queryRegistry = true
+	}
 
-	resp, err := sr.backend.UpdateService(vars["id"], version, service, flags)
+	resp, err := sr.backend.UpdateService(vars["id"], version, service, flags, queryRegistry)
 	if err != nil {
 		logrus.Errorf("Error updating service %s: %v", vars["id"], err)
 		return err
@@ -286,7 +311,7 @@ func (sr *swarmRouter) updateNode(ctx context.Context, w http.ResponseWriter, r 
 	version, err := strconv.ParseUint(rawVersion, 10, 64)
 	if err != nil {
 		err := fmt.Errorf("invalid node version '%s': %v", rawVersion, err)
-		return errors.NewBadRequestError(err)
+		return invalidRequestError{err}
 	}
 
 	if err := sr.backend.UpdateNode(vars["id"], version, node); err != nil {
@@ -392,17 +417,88 @@ func (sr *swarmRouter) getSecret(ctx context.Context, w http.ResponseWriter, r *
 func (sr *swarmRouter) updateSecret(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	var secret types.SecretSpec
 	if err := json.NewDecoder(r.Body).Decode(&secret); err != nil {
-		return errors.NewBadRequestError(err)
+		return invalidRequestError{err}
 	}
 
 	rawVersion := r.URL.Query().Get("version")
 	version, err := strconv.ParseUint(rawVersion, 10, 64)
 	if err != nil {
-		return errors.NewBadRequestError(fmt.Errorf("invalid secret version"))
+		return invalidRequestError{fmt.Errorf("invalid secret version")}
 	}
 
 	id := vars["id"]
 	if err := sr.backend.UpdateSecret(id, version, secret); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (sr *swarmRouter) getConfigs(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+	filters, err := filters.FromParam(r.Form.Get("filters"))
+	if err != nil {
+		return err
+	}
+
+	configs, err := sr.backend.GetConfigs(basictypes.ConfigListOptions{Filters: filters})
+	if err != nil {
+		return err
+	}
+
+	return httputils.WriteJSON(w, http.StatusOK, configs)
+}
+
+func (sr *swarmRouter) createConfig(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	var config types.ConfigSpec
+	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
+		return err
+	}
+
+	id, err := sr.backend.CreateConfig(config)
+	if err != nil {
+		return err
+	}
+
+	return httputils.WriteJSON(w, http.StatusCreated, &basictypes.ConfigCreateResponse{
+		ID: id,
+	})
+}
+
+func (sr *swarmRouter) removeConfig(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := sr.backend.RemoveConfig(vars["id"]); err != nil {
+		return err
+	}
+	w.WriteHeader(http.StatusNoContent)
+
+	return nil
+}
+
+func (sr *swarmRouter) getConfig(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	config, err := sr.backend.GetConfig(vars["id"])
+	if err != nil {
+		return err
+	}
+
+	return httputils.WriteJSON(w, http.StatusOK, config)
+}
+
+func (sr *swarmRouter) updateConfig(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	var config types.ConfigSpec
+	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
+		return invalidRequestError{err}
+	}
+
+	rawVersion := r.URL.Query().Get("version")
+	version, err := strconv.ParseUint(rawVersion, 10, 64)
+	if err != nil {
+		return invalidRequestError{fmt.Errorf("invalid config version")}
+	}
+
+	id := vars["id"]
+	if err := sr.backend.UpdateConfig(id, version, config); err != nil {
 		return err
 	}
 

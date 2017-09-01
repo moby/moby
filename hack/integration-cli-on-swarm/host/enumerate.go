@@ -24,7 +24,7 @@ func enumerateTestsForBytes(b []byte) ([]string, error) {
 	return tests, nil
 }
 
-// enumareteTests enumerates valid `-check.f` strings for all the test functions.
+// enumerateTests enumerates valid `-check.f` strings for all the test functions.
 // Note that we use regexp rather than parsing Go files for performance reason.
 // (Try `TESTFLAGS=-check.list make test-integration-cli` to see the slowness of parsing)
 // The files needs to be `gofmt`-ed

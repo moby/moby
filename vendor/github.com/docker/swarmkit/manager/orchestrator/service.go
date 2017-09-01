@@ -41,7 +41,7 @@ func DeleteServiceTasks(ctx context.Context, s *store.MemoryStore, service *api.
 		return
 	}
 
-	_, err = s.Batch(func(batch *store.Batch) error {
+	err = s.Batch(func(batch *store.Batch) error {
 		for _, t := range tasks {
 			err := batch.Update(func(tx store.Tx) error {
 				if err := store.DeleteTask(tx, t.ID); err != nil {

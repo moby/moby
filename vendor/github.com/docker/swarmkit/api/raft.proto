@@ -2,11 +2,11 @@ syntax = "proto3";
 
 package docker.swarmkit.v1;
 
-import "objects.proto";
-import "types.proto";
+import "github.com/docker/swarmkit/api/objects.proto";
+import "github.com/docker/swarmkit/api/types.proto";
 import "github.com/coreos/etcd/raft/raftpb/raft.proto";
 import weak "gogoproto/gogo.proto";
-import weak "plugin/plugin.proto";
+import weak "github.com/docker/swarmkit/protobuf/plugin/plugin.proto";
 
 // Raft defines the RPC communication between raft nodes.
 service Raft {
@@ -66,7 +66,7 @@ message JoinResponse {
 
 	// RemovedMembers is a list of members that have been removed from
 	// the cluster, so the new node can avoid communicating with them.
-	repeated uint64 removed_members = 3;
+	repeated uint64 removed_members = 3 [packed=false];
 }
 
 message LeaveRequest {

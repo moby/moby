@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/osl"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -115,9 +115,7 @@ func (sbs *sbState) CopyTo(o datastore.KVObject) error {
 	dstSbs.dbExists = sbs.dbExists
 	dstSbs.EpPriority = sbs.EpPriority
 
-	for _, eps := range sbs.Eps {
-		dstSbs.Eps = append(dstSbs.Eps, eps)
-	}
+	dstSbs.Eps = append(dstSbs.Eps, sbs.Eps...)
 
 	if len(sbs.ExtDNS2) > 0 {
 		for _, dns := range sbs.ExtDNS2 {

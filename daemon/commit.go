@@ -12,7 +12,6 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/ioutils"
@@ -160,71 +159,47 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		}
 	}()
 
-	var history []image.History
-	rootFS := image.NewRootFS()
-	osVersion := ""
-	var osFeatures []string
-
-	if container.ImageID != "" {
-		img, err := daemon.imageStore.Get(container.ImageID)
+	var parent *image.Image
+	if container.ImageID == "" {
+		parent = new(image.Image)
+		parent.RootFS = image.NewRootFS()
+	} else {
+		parent, err = daemon.stores[container.Platform].imageStore.Get(container.ImageID)
 		if err != nil {
 			return "", err
 		}
-		history = img.History
-		rootFS = img.RootFS
-		osVersion = img.OSVersion
-		osFeatures = img.OSFeatures
 	}
 
-	l, err := daemon.layerStore.Register(rwTar, rootFS.ChainID())
+	l, err := daemon.stores[container.Platform].layerStore.Register(rwTar, parent.RootFS.ChainID(), layer.Platform(container.Platform))
 	if err != nil {
 		return "", err
 	}
-	defer layer.ReleaseAndLog(daemon.layerStore, l)
+	defer layer.ReleaseAndLog(daemon.stores[container.Platform].layerStore, l)
 
-	h := image.History{
-		Author:     c.Author,
-		Created:    time.Now().UTC(),
-		CreatedBy:  strings.Join(container.Config.Cmd, " "),
-		Comment:    c.Comment,
-		EmptyLayer: true,
+	containerConfig := c.ContainerConfig
+	if containerConfig == nil {
+		containerConfig = container.Config
 	}
-
-	if diffID := l.DiffID(); layer.DigestSHA256EmptyTar != diffID {
-		h.EmptyLayer = false
-		rootFS.Append(diffID)
+	cc := image.ChildConfig{
+		ContainerID:     container.ID,
+		Author:          c.Author,
+		Comment:         c.Comment,
+		ContainerConfig: containerConfig,
+		Config:          newConfig,
+		DiffID:          l.DiffID(),
 	}
-
-	history = append(history, h)
-
-	config, err := json.Marshal(&image.Image{
-		V1Image: image.V1Image{
-			DockerVersion:   dockerversion.Version,
-			Config:          newConfig,
-			Architecture:    runtime.GOARCH,
-			OS:              runtime.GOOS,
-			Container:       container.ID,
-			ContainerConfig: *container.Config,
-			Author:          c.Author,
-			Created:         h.Created,
-		},
-		RootFS:     rootFS,
-		History:    history,
-		OSFeatures: osFeatures,
-		OSVersion:  osVersion,
-	})
-
+	config, err := json.Marshal(image.NewChildImage(parent, cc, container.Platform))
 	if err != nil {
 		return "", err
 	}
 
-	id, err := daemon.imageStore.Create(config)
+	id, err := daemon.stores[container.Platform].imageStore.Create(config)
 	if err != nil {
 		return "", err
 	}
 
 	if container.ImageID != "" {
-		if err := daemon.imageStore.SetParent(id, container.ImageID); err != nil {
+		if err := daemon.stores[container.Platform].imageStore.SetParent(id, container.ImageID); err != nil {
 			return "", err
 		}
 	}
@@ -243,7 +218,7 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 				return "", err
 			}
 		}
-		if err := daemon.TagImageWithReference(id, newTag); err != nil {
+		if err := daemon.TagImageWithReference(id, container.Platform, newTag); err != nil {
 			return "", err
 		}
 		imageRef = reference.FamiliarString(newTag)

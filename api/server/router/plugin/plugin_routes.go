@@ -121,7 +121,7 @@ func (pr *pluginRouter) upgradePlugin(ctx context.Context, w http.ResponseWriter
 		if !output.Flushed() {
 			return err
 		}
-		output.Write(streamformatter.NewJSONStreamFormatter().FormatError(err))
+		output.Write(streamformatter.FormatError(err))
 	}
 
 	return nil
@@ -160,7 +160,7 @@ func (pr *pluginRouter) pullPlugin(ctx context.Context, w http.ResponseWriter, r
 		if !output.Flushed() {
 			return err
 		}
-		output.Write(streamformatter.NewJSONStreamFormatter().FormatError(err))
+		output.Write(streamformatter.FormatError(err))
 	}
 
 	return nil
@@ -268,7 +268,7 @@ func (pr *pluginRouter) pushPlugin(ctx context.Context, w http.ResponseWriter, r
 		if !output.Flushed() {
 			return err
 		}
-		output.Write(streamformatter.NewJSONStreamFormatter().FormatError(err))
+		output.Write(streamformatter.FormatError(err))
 	}
 	return nil
 }

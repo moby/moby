@@ -2,13 +2,13 @@ package runconfig
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 
 	"github.com/docker/docker/api/types/container"
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/volume"
+	"github.com/pkg/errors"
 )
 
 // ContainerDecoder implements httputils.ContainerDecoder
@@ -17,19 +17,19 @@ type ContainerDecoder struct{}
 
 // DecodeConfig makes ContainerDecoder to implement httputils.ContainerDecoder
 func (r ContainerDecoder) DecodeConfig(src io.Reader) (*container.Config, *container.HostConfig, *networktypes.NetworkingConfig, error) {
-	return DecodeContainerConfig(src)
+	return decodeContainerConfig(src)
 }
 
 // DecodeHostConfig makes ContainerDecoder to implement httputils.ContainerDecoder
 func (r ContainerDecoder) DecodeHostConfig(src io.Reader) (*container.HostConfig, error) {
-	return DecodeHostConfig(src)
+	return decodeHostConfig(src)
 }
 
-// DecodeContainerConfig decodes a json encoded config into a ContainerConfigWrapper
+// decodeContainerConfig decodes a json encoded config into a ContainerConfigWrapper
 // struct and returns both a Config and a HostConfig struct
 // Be aware this function is not checking whether the resulted structs are nil,
 // it's your business to do so
-func DecodeContainerConfig(src io.Reader) (*container.Config, *container.HostConfig, *networktypes.NetworkingConfig, error) {
+func decodeContainerConfig(src io.Reader) (*container.Config, *container.HostConfig, *networktypes.NetworkingConfig, error) {
 	var w ContainerConfigWrapper
 
 	decoder := json.NewDecoder(src)
@@ -79,6 +79,11 @@ func DecodeContainerConfig(src io.Reader) (*container.Config, *container.HostCon
 		return nil, nil, nil, err
 	}
 
+	// Validate ReadonlyRootfs
+	if err := validateReadonlyRootfs(hc); err != nil {
+		return nil, nil, nil, err
+	}
+
 	return w.Config, hc, w.NetworkingConfig, nil
 }
 
@@ -90,12 +95,12 @@ func validateMountSettings(c *container.Config, hc *container.HostConfig) error 
 	// Ensure all volumes and binds are valid.
 	for spec := range c.Volumes {
 		if _, err := volume.ParseMountRaw(spec, hc.VolumeDriver); err != nil {
-			return fmt.Errorf("invalid volume spec %q: %v", spec, err)
+			return errors.Wrapf(err, "invalid volume spec %q", spec)
 		}
 	}
 	for _, spec := range hc.Binds {
 		if _, err := volume.ParseMountRaw(spec, hc.VolumeDriver); err != nil {
-			return fmt.Errorf("invalid bind mount spec %q: %v", spec, err)
+			return errors.Wrapf(err, "invalid bind mount spec %q", spec)
 		}
 	}
 

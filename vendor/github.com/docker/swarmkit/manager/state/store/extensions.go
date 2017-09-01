@@ -38,21 +38,11 @@ func init() {
 			return err
 		},
 		Restore: func(tx Tx, snapshot *api.StoreSnapshot) error {
-			extensions, err := FindExtensions(tx, All)
-			if err != nil {
-				return err
+			toStoreObj := make([]api.StoreObject, len(snapshot.Extensions))
+			for i, x := range snapshot.Extensions {
+				toStoreObj[i] = extensionEntry{x}
 			}
-			for _, e := range extensions {
-				if err := DeleteExtension(tx, e.ID); err != nil {
-					return err
-				}
-			}
-			for _, e := range snapshot.Extensions {
-				if err := CreateExtension(tx, e); err != nil {
-					return err
-				}
-			}
-			return nil
+			return RestoreTable(tx, tableExtension, toStoreObj)
 		},
 		ApplyStoreAction: func(tx Tx, sa api.StoreAction) error {
 			switch v := sa.Target.(type) {
@@ -78,6 +68,14 @@ type extensionEntry struct {
 
 func (e extensionEntry) CopyStoreObject() api.StoreObject {
 	return extensionEntry{Extension: e.Extension.Copy()}
+}
+
+// ensure that when update events are emitted, we unwrap extensionEntry
+func (e extensionEntry) EventUpdate(oldObject api.StoreObject) api.Event {
+	if oldObject != nil {
+		return api.EventUpdateExtension{Extension: e.Extension, OldExtension: oldObject.(extensionEntry).Extension}
+	}
+	return api.EventUpdateExtension{Extension: e.Extension}
 }
 
 // CreateExtension adds a new extension to the store.

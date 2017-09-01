@@ -1,21 +1,26 @@
 package main
 
 import (
+	"runtime"
+
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/opts"
+	"github.com/docker/docker/registry"
 	"github.com/spf13/pflag"
 )
 
 const (
 	// defaultShutdownTimeout is the default shutdown timeout for the daemon
 	defaultShutdownTimeout = 15
+	// defaultTrustKeyFile is the default filename for the trust key
+	defaultTrustKeyFile = "key.json"
 )
 
 // installCommonConfigFlags adds flags to the pflag.FlagSet to configure the daemon
 func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
 	var maxConcurrentDownloads, maxConcurrentUploads int
 
-	conf.ServiceOptions.InstallCliFlags(flags)
+	installRegistryServiceFlags(&conf.ServiceOptions, flags)
 
 	flags.Var(opts.NewNamedListOptsRef("storage-opts", &conf.GraphOptions, nil), "storage-opt", "Storage driver options")
 	flags.Var(opts.NewNamedListOptsRef("authorization-plugins", &conf.AuthorizationPlugins, nil), "authorization-plugin", "Authorization plugins to load")
@@ -31,7 +36,12 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
 
 	flags.BoolVarP(&conf.AutoRestart, "restart", "r", true, "--restart on the daemon has been deprecated in favor of --restart policies on docker run")
 	flags.MarkDeprecated("restart", "Please use a restart policy on docker run")
-	flags.StringVarP(&conf.GraphDriver, "storage-driver", "s", "", "Storage driver to use")
+
+	// Windows doesn't support setting the storage driver - there is no choice as to which ones to use.
+	if runtime.GOOS != "windows" {
+		flags.StringVarP(&conf.GraphDriver, "storage-driver", "s", "", "Storage driver to use")
+	}
+
 	flags.IntVar(&conf.Mtu, "mtu", 0, "Set the containers network MTU")
 	flags.BoolVar(&conf.RawLogs, "raw-logs", false, "Full timestamps without ANSI coloring")
 	flags.Var(opts.NewListOptsRef(&conf.DNS, opts.ValidateIPAddress), "dns", "DNS server to use")
@@ -53,6 +63,30 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
 
 	flags.StringVar(&conf.MetricsAddress, "metrics-addr", "", "Set default address and port to serve the metrics api on")
 
+	flags.StringVar(&conf.NodeGenericResources, "node-generic-resources", "", "user defined resources (e.g. fpga=2;gpu={UUID1,UUID2,UUID3})")
+	flags.IntVar(&conf.NetworkControlPlaneMTU, "network-control-plane-mtu", config.DefaultNetworkMtu, "Network Control plane MTU")
+
+	// "--deprecated-key-path" is to allow configuration of the key used
+	// for the daemon ID and the deprecated image signing. It was never
+	// exposed as a command line option but is added here to allow
+	// overriding the default path in configuration.
+	flags.Var(opts.NewQuotedString(&conf.TrustKeyPath), "deprecated-key-path", "Path to key file for ID and image signing")
+	flags.MarkHidden("deprecated-key-path")
+
 	conf.MaxConcurrentDownloads = &maxConcurrentDownloads
 	conf.MaxConcurrentUploads = &maxConcurrentUploads
+}
+
+func installRegistryServiceFlags(options *registry.ServiceOptions, flags *pflag.FlagSet) {
+	ana := opts.NewNamedListOptsRef("allow-nondistributable-artifacts", &options.AllowNondistributableArtifacts, registry.ValidateIndexName)
+	mirrors := opts.NewNamedListOptsRef("registry-mirrors", &options.Mirrors, registry.ValidateMirror)
+	insecureRegistries := opts.NewNamedListOptsRef("insecure-registries", &options.InsecureRegistries, registry.ValidateIndexName)
+
+	flags.Var(ana, "allow-nondistributable-artifacts", "Allow push of nondistributable artifacts to registry")
+	flags.Var(mirrors, "registry-mirror", "Preferred Docker registry mirror")
+	flags.Var(insecureRegistries, "insecure-registry", "Enable insecure registry communication")
+
+	if runtime.GOOS != "windows" {
+		flags.BoolVar(&options.V2Only, "disable-legacy-registry", true, "Disable contacting legacy registries")
+	}
 }

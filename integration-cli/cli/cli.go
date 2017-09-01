@@ -4,35 +4,20 @@ import (
 	"fmt"
 	"io"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/integration-cli/environment"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
+	"github.com/gotestyourself/gotestyourself/icmd"
 	"github.com/pkg/errors"
 )
 
-var (
-	testEnv  *environment.Execution
-	onlyOnce sync.Once
-)
+var testEnv *environment.Execution
 
-// EnsureTestEnvIsLoaded make sure the test environment is loaded for this package
-func EnsureTestEnvIsLoaded(t testingT) {
-	var doIt bool
-	var err error
-	onlyOnce.Do(func() {
-		doIt = true
-	})
-
-	if !doIt {
-		return
-	}
-	testEnv, err = environment.New()
-	if err != nil {
-		t.Fatalf("error loading testenv : %v", err)
-	}
+// SetTestEnvironment sets a static test environment
+// TODO: decouple this package from environment
+func SetTestEnvironment(env *environment.Execution) {
+	testEnv = env
 }
 
 // CmdOperator defines functions that can modify a command
@@ -130,7 +115,7 @@ func Docker(cmd icmd.Cmd, cmdOperators ...CmdOperator) *icmd.Result {
 // validateArgs is a checker to ensure tests are not running commands which are
 // not supported on platforms. Specifically on Windows this is 'busybox top'.
 func validateArgs(args ...string) error {
-	if testEnv.DaemonPlatform() != "windows" {
+	if testEnv.DaemonInfo.OSType != "windows" {
 		return nil
 	}
 	foundBusybox := -1
@@ -226,6 +211,14 @@ func InDir(path string) func(*icmd.Cmd) func() {
 func WithStdout(writer io.Writer) func(*icmd.Cmd) func() {
 	return func(cmd *icmd.Cmd) func() {
 		cmd.Stdout = writer
+		return nil
+	}
+}
+
+// WithStdin sets the standard input reader for the command
+func WithStdin(stdin io.Reader) func(*icmd.Cmd) func() {
+	return func(cmd *icmd.Cmd) func() {
+		cmd.Stdin = stdin
 		return nil
 	}
 }

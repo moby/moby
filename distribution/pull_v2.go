@@ -2,7 +2,6 @@ package distribution
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -10,7 +9,6 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/manifestlist"
 	"github.com/docker/distribution/manifest/schema1"
@@ -27,9 +25,12 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/pkg/system"
 	refstore "github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
@@ -131,6 +132,7 @@ func (p *v2Puller) pullV2Repository(ctx context.Context, ref reference.Named) (e
 
 type v2LayerDescriptor struct {
 	digest            digest.Digest
+	diffID            layer.DiffID
 	repoInfo          *registry.RepositoryInfo
 	repo              distribution.Repository
 	V2MetadataService metadata.V2MetadataService
@@ -148,6 +150,9 @@ func (ld *v2LayerDescriptor) ID() string {
 }
 
 func (ld *v2LayerDescriptor) DiffID() (layer.DiffID, error) {
+	if ld.diffID != "" {
+		return ld.diffID, nil
+	}
 	return ld.V2MetadataService.GetDiffID(ld.digest)
 }
 
@@ -330,18 +335,18 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 		manifest    distribution.Manifest
 		tagOrDigest string // Used for logging/progress only
 	)
-	if tagged, isTagged := ref.(reference.NamedTagged); isTagged {
-		manifest, err = manSvc.Get(ctx, "", distribution.WithTag(tagged.Tag()))
-		if err != nil {
-			return false, allowV1Fallback(err)
-		}
-		tagOrDigest = tagged.Tag()
-	} else if digested, isDigested := ref.(reference.Canonical); isDigested {
+	if digested, isDigested := ref.(reference.Canonical); isDigested {
 		manifest, err = manSvc.Get(ctx, digested.Digest())
 		if err != nil {
 			return false, err
 		}
 		tagOrDigest = digested.Digest().String()
+	} else if tagged, isTagged := ref.(reference.NamedTagged); isTagged {
+		manifest, err = manSvc.Get(ctx, "", distribution.WithTag(tagged.Tag()))
+		if err != nil {
+			return false, allowV1Fallback(err)
+		}
+		tagOrDigest = tagged.Tag()
 	} else {
 		return false, fmt.Errorf("internal error: reference has neither a tag nor a digest: %s", reference.FamiliarString(ref))
 	}
@@ -363,7 +368,7 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 			if configClass == "" {
 				configClass = "unknown"
 			}
-			return false, fmt.Errorf("Encountered remote %q(%s) when fetching", m.Manifest.Config.MediaType, configClass)
+			return false, invalidManifestClassError{m.Manifest.Config.MediaType, configClass}
 		}
 	}
 
@@ -399,7 +404,7 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 			return false, err
 		}
 	default:
-		return false, errors.New("unsupported manifest format")
+		return false, invalidManifestFormatError{}
 	}
 
 	progress.Message(p.config.ProgressOutput, "", "Digest: "+manifestDigest.String())
@@ -482,7 +487,26 @@ func (p *v2Puller) pullSchema1(ctx context.Context, ref reference.Named, unverif
 		descriptors = append(descriptors, layerDescriptor)
 	}
 
-	resultRootFS, release, err := p.config.DownloadManager.Download(ctx, *rootFS, descriptors, p.config.ProgressOutput)
+	// The v1 manifest itself doesn't directly contain a platform. However,
+	// the history does, but unfortunately that's a string, so search through
+	// all the history until hopefully we find one which indicates the os.
+	platform := runtime.GOOS
+	if system.LCOWSupported() {
+		type config struct {
+			Os string `json:"os,omitempty"`
+		}
+		for _, v := range verifiedManifest.History {
+			var c config
+			if err := json.Unmarshal([]byte(v.V1Compatibility), &c); err == nil {
+				if c.Os != "" {
+					platform = c.Os
+					break
+				}
+			}
+		}
+	}
+
+	resultRootFS, release, err := p.config.DownloadManager.Download(ctx, *rootFS, layer.Platform(platform), descriptors, p.config.ProgressOutput)
 	if err != nil {
 		return "", "", err
 	}
@@ -552,10 +576,11 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 	}()
 
 	var (
-		configJSON       []byte        // raw serialized image config
-		downloadedRootFS *image.RootFS // rootFS from registered layers
-		configRootFS     *image.RootFS // rootFS from configuration
-		release          func()        // release resources from rootFS download
+		configJSON       []byte         // raw serialized image config
+		downloadedRootFS *image.RootFS  // rootFS from registered layers
+		configRootFS     *image.RootFS  // rootFS from configuration
+		release          func()         // release resources from rootFS download
+		platform         layer.Platform // for LCOW when registering downloaded layers
 	)
 
 	// https://github.com/docker/docker/issues/24766 - Err on the side of caution,
@@ -567,13 +592,23 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 	// check to block Windows images being pulled on Linux is implemented, it
 	// may be necessary to perform the same type of serialisation.
 	if runtime.GOOS == "windows" {
-		configJSON, configRootFS, err = receiveConfig(p.config.ImageStore, configChan, configErrChan)
+		configJSON, configRootFS, platform, err = receiveConfig(p.config.ImageStore, configChan, configErrChan)
 		if err != nil {
 			return "", "", err
 		}
 
 		if configRootFS == nil {
 			return "", "", errRootFSInvalid
+		}
+
+		if len(descriptors) != len(configRootFS.DiffIDs) {
+			return "", "", errRootFSMismatch
+		}
+
+		// Populate diff ids in descriptors to avoid downloading foreign layers
+		// which have been side loaded
+		for i := range descriptors {
+			descriptors[i].(*v2LayerDescriptor).diffID = configRootFS.DiffIDs[i]
 		}
 	}
 
@@ -584,7 +619,7 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 				rootFS image.RootFS
 			)
 			downloadRootFS := *image.NewRootFS()
-			rootFS, release, err = p.config.DownloadManager.Download(ctx, downloadRootFS, descriptors, p.config.ProgressOutput)
+			rootFS, release, err = p.config.DownloadManager.Download(ctx, downloadRootFS, platform, descriptors, p.config.ProgressOutput)
 			if err != nil {
 				// Intentionally do not cancel the config download here
 				// as the error from config download (if there is one)
@@ -602,7 +637,7 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 	}
 
 	if configJSON == nil {
-		configJSON, configRootFS, err = receiveConfig(p.config.ImageStore, configChan, configErrChan)
+		configJSON, configRootFS, _, err = receiveConfig(p.config.ImageStore, configChan, configErrChan)
 		if err == nil && configRootFS == nil {
 			err = errRootFSInvalid
 		}
@@ -649,16 +684,16 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 	return imageID, manifestDigest, nil
 }
 
-func receiveConfig(s ImageConfigStore, configChan <-chan []byte, errChan <-chan error) ([]byte, *image.RootFS, error) {
+func receiveConfig(s ImageConfigStore, configChan <-chan []byte, errChan <-chan error) ([]byte, *image.RootFS, layer.Platform, error) {
 	select {
 	case configJSON := <-configChan:
-		rootfs, err := s.RootFSFromConfig(configJSON)
+		rootfs, platform, err := s.RootFSAndPlatformFromConfig(configJSON)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, "", err
 		}
-		return configJSON, rootfs, nil
+		return configJSON, rootfs, platform, nil
 	case err := <-errChan:
-		return nil, nil, err
+		return nil, nil, "", err
 		// Don't need a case for ctx.Done in the select because cancellation
 		// will trigger an error in p.pullSchema2ImageConfig.
 	}
@@ -873,7 +908,7 @@ func fixManifestLayers(m *schema1.Manifest) error {
 			m.FSLayers = append(m.FSLayers[:i], m.FSLayers[i+1:]...)
 			m.History = append(m.History[:i], m.History[i+1:]...)
 		} else if imgs[i].Parent != imgs[i+1].ID {
-			return fmt.Errorf("Invalid parent ID. Expected %v, got %v.", imgs[i+1].ID, imgs[i].Parent)
+			return fmt.Errorf("invalid parent ID. Expected %v, got %v", imgs[i+1].ID, imgs[i].Parent)
 		}
 	}
 

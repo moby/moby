@@ -31,7 +31,7 @@ func validateNetMode(c *container.Config, hc *container.HostConfig) error {
 	}
 
 	if hc.NetworkMode.IsContainer() && hc.Isolation.IsHyperV() {
-		return fmt.Errorf("net mode --net=container:<NameOrId> unsupported for hyperv isolation")
+		return fmt.Errorf("Using the network stack of another container is not supported while using Hyper-V Containers")
 	}
 
 	return nil
@@ -46,7 +46,7 @@ func validateIsolation(hc *container.HostConfig) error {
 		return nil
 	}
 	if !hc.Isolation.IsValid() {
-		return fmt.Errorf("invalid --isolation: %q. Windows supports 'default', 'process', or 'hyperv'", hc.Isolation)
+		return fmt.Errorf("Invalid isolation: %q. Windows supports 'default', 'process', or 'hyperv'", hc.Isolation)
 	}
 	return nil
 }
@@ -63,10 +63,10 @@ func validateResources(hc *container.HostConfig, si *sysinfo.SysInfo) error {
 		return nil
 	}
 	if hc.Resources.CPURealtimePeriod != 0 {
-		return fmt.Errorf("invalid --cpu-rt-period: Windows does not support this feature")
+		return fmt.Errorf("Windows does not support CPU real-time period")
 	}
 	if hc.Resources.CPURealtimeRuntime != 0 {
-		return fmt.Errorf("invalid --cpu-rt-runtime: Windows does not support this feature")
+		return fmt.Errorf("Windows does not support CPU real-time runtime")
 	}
 	return nil
 }
@@ -78,7 +78,19 @@ func validatePrivileged(hc *container.HostConfig) error {
 		return nil
 	}
 	if hc.Privileged {
-		return fmt.Errorf("invalid --privileged: Windows does not support this feature")
+		return fmt.Errorf("Windows does not support privileged mode")
+	}
+	return nil
+}
+
+// validateReadonlyRootfs performs platform specific validation of the ReadonlyRootfs setting
+func validateReadonlyRootfs(hc *container.HostConfig) error {
+	// We may not be passed a host config, such as in the case of docker commit
+	if hc == nil {
+		return nil
+	}
+	if hc.ReadonlyRootfs {
+		return fmt.Errorf("Windows does not support root filesystem in read-only mode")
 	}
 	return nil
 }

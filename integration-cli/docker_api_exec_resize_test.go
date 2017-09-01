@@ -20,9 +20,9 @@ func (s *DockerSuite) TestExecResizeAPIHeightWidthNoInt(c *check.C) {
 	cleanedContainerID := strings.TrimSpace(out)
 
 	endpoint := "/exec/" + cleanedContainerID + "/resize?h=foo&w=bar"
-	status, _, err := request.SockRequest("POST", endpoint, nil, daemonHost())
+	res, _, err := request.Post(endpoint)
 	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusInternalServerError)
+	c.Assert(res.StatusCode, checker.Equals, http.StatusBadRequest)
 }
 
 // Part of #14845
@@ -36,16 +36,19 @@ func (s *DockerSuite) TestExecResizeImmediatelyAfterExecStart(c *check.C) {
 			"Cmd":         []string{"/bin/sh"},
 		}
 		uri := fmt.Sprintf("/containers/%s/exec", name)
-		status, body, err := request.SockRequest("POST", uri, data, daemonHost())
+		res, body, err := request.Post(uri, request.JSONBody(data))
 		if err != nil {
 			return err
 		}
-		if status != http.StatusCreated {
-			return fmt.Errorf("POST %s is expected to return %d, got %d", uri, http.StatusCreated, status)
+		if res.StatusCode != http.StatusCreated {
+			return fmt.Errorf("POST %s is expected to return %d, got %d", uri, http.StatusCreated, res.StatusCode)
 		}
 
+		buf, err := request.ReadBody(body)
+		c.Assert(err, checker.IsNil)
+
 		out := map[string]string{}
-		err = json.Unmarshal(body, &out)
+		err = json.Unmarshal(buf, &out)
 		if err != nil {
 			return fmt.Errorf("ExecCreate returned invalid json. Error: %q", err.Error())
 		}

@@ -5,8 +5,14 @@ package config
 import (
 	"fmt"
 
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/opts"
 	units "github.com/docker/go-units"
+)
+
+const (
+	// DefaultIpcMode is default for container's IpcMode, if not set otherwise
+	DefaultIpcMode = "shareable" // TODO: change to private
 )
 
 // Config defines the configuration of a docker daemon.
@@ -31,6 +37,7 @@ type Config struct {
 	SeccompProfile       string                   `json:"seccomp-profile,omitempty"`
 	ShmSize              opts.MemBytes            `json:"default-shm-size,omitempty"`
 	NoNewPrivileges      bool                     `json:"no-new-privileges,omitempty"`
+	IpcMode              string                   `json:"default-ipc-mode,omitempty"`
 }
 
 // BridgeConfig stores all the bridge driver specific
@@ -60,4 +67,22 @@ func (conf *Config) IsSwarmCompatible() error {
 		return fmt.Errorf("--live-restore daemon configuration is incompatible with swarm mode")
 	}
 	return nil
+}
+
+func verifyDefaultIpcMode(mode string) error {
+	const hint = "Use \"shareable\" or \"private\"."
+
+	dm := containertypes.IpcMode(mode)
+	if !dm.Valid() {
+		return fmt.Errorf("Default IPC mode setting (%v) is invalid. "+hint, dm)
+	}
+	if dm != "" && !dm.IsPrivate() && !dm.IsShareable() {
+		return fmt.Errorf("IPC mode \"%v\" is not supported as default value. "+hint, dm)
+	}
+	return nil
+}
+
+// ValidatePlatformConfig checks if any platform-specific configuration settings are invalid.
+func (conf *Config) ValidatePlatformConfig() error {
+	return verifyDefaultIpcMode(conf.IpcMode)
 }

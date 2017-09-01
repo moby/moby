@@ -52,13 +52,12 @@ import "C"
 import (
 	"fmt"
 	"io/ioutil"
-	"os"
 	"path"
 	"path/filepath"
-	"syscall"
 	"unsafe"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 )
 
 // Quota limit params - currently we only control blocks hard limit
@@ -184,7 +183,7 @@ func setProjectQuota(backingFsBlockDev string, projectID uint32, quota Quota) er
 	var cs = C.CString(backingFsBlockDev)
 	defer C.free(unsafe.Pointer(cs))
 
-	_, _, errno := syscall.Syscall6(syscall.SYS_QUOTACTL, C.Q_XSETPQLIM,
+	_, _, errno := unix.Syscall6(unix.SYS_QUOTACTL, C.Q_XSETPQLIM,
 		uintptr(unsafe.Pointer(cs)), uintptr(d.d_id),
 		uintptr(unsafe.Pointer(&d)), 0, 0)
 	if errno != 0 {
@@ -211,7 +210,7 @@ func (q *Control) GetQuota(targetPath string, quota *Quota) error {
 	var cs = C.CString(q.backingFsBlockDev)
 	defer C.free(unsafe.Pointer(cs))
 
-	_, _, errno := syscall.Syscall6(syscall.SYS_QUOTACTL, C.Q_XGETPQUOTA,
+	_, _, errno := unix.Syscall6(unix.SYS_QUOTACTL, C.Q_XGETPQUOTA,
 		uintptr(unsafe.Pointer(cs)), uintptr(C.__u32(projectID)),
 		uintptr(unsafe.Pointer(&d)), 0, 0)
 	if errno != 0 {
@@ -232,7 +231,7 @@ func getProjectID(targetPath string) (uint32, error) {
 	defer closeDir(dir)
 
 	var fsx C.struct_fsxattr
-	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.FS_IOC_FSGETXATTR,
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.FS_IOC_FSGETXATTR,
 		uintptr(unsafe.Pointer(&fsx)))
 	if errno != 0 {
 		return 0, fmt.Errorf("Failed to get projid for %s: %v", targetPath, errno.Error())
@@ -250,14 +249,14 @@ func setProjectID(targetPath string, projectID uint32) error {
 	defer closeDir(dir)
 
 	var fsx C.struct_fsxattr
-	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.FS_IOC_FSGETXATTR,
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.FS_IOC_FSGETXATTR,
 		uintptr(unsafe.Pointer(&fsx)))
 	if errno != 0 {
 		return fmt.Errorf("Failed to get projid for %s: %v", targetPath, errno.Error())
 	}
 	fsx.fsx_projid = C.__u32(projectID)
 	fsx.fsx_xflags |= C.FS_XFLAG_PROJINHERIT
-	_, _, errno = syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.FS_IOC_FSSETXATTR,
+	_, _, errno = unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.FS_IOC_FSSETXATTR,
 		uintptr(unsafe.Pointer(&fsx)))
 	if errno != 0 {
 		return fmt.Errorf("Failed to set projid for %s: %v", targetPath, errno.Error())
@@ -322,16 +321,15 @@ func getDirFd(dir *C.DIR) uintptr {
 // and create a block device node under the home directory
 // to be used by quotactl commands
 func makeBackingFsDev(home string) (string, error) {
-	fileinfo, err := os.Stat(home)
-	if err != nil {
+	var stat unix.Stat_t
+	if err := unix.Stat(home, &stat); err != nil {
 		return "", err
 	}
 
 	backingFsBlockDev := path.Join(home, "backingFsBlockDev")
-	// Re-create just in case comeone copied the home directory over to a new device
-	syscall.Unlink(backingFsBlockDev)
-	stat := fileinfo.Sys().(*syscall.Stat_t)
-	if err := syscall.Mknod(backingFsBlockDev, syscall.S_IFBLK|0600, int(stat.Dev)); err != nil {
+	// Re-create just in case someone copied the home directory over to a new device
+	unix.Unlink(backingFsBlockDev)
+	if err := unix.Mknod(backingFsBlockDev, unix.S_IFBLK|0600, int(stat.Dev)); err != nil {
 		return "", fmt.Errorf("Failed to mknod %s: %v", backingFsBlockDev, err)
 	}
 

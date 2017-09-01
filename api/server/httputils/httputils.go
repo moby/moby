@@ -1,14 +1,14 @@
 package httputils
 
 import (
-	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"strings"
 
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
-
-	"github.com/docker/docker/api"
 )
 
 // APIVersionKey is the client's requested API version.
@@ -43,6 +43,20 @@ func CloseStreams(streams ...interface{}) {
 	}
 }
 
+type validationError struct {
+	cause error
+}
+
+func (e validationError) Error() string {
+	return e.cause.Error()
+}
+
+func (e validationError) Cause() error {
+	return e.cause
+}
+
+func (e validationError) InvalidParameter() {}
+
 // CheckForJSON makes sure that the request's Content-Type is application/json.
 func CheckForJSON(r *http.Request) error {
 	ct := r.Header.Get("Content-Type")
@@ -55,10 +69,10 @@ func CheckForJSON(r *http.Request) error {
 	}
 
 	// Otherwise it better be json
-	if api.MatchesContentType(ct, "application/json") {
+	if matchesContentType(ct, "application/json") {
 		return nil
 	}
-	return fmt.Errorf("Content-Type specified (%s) must be 'application/json'", ct)
+	return validationError{errors.Errorf("Content-Type specified (%s) must be 'application/json'", ct)}
 }
 
 // ParseForm ensures the request form is parsed even with invalid content types.
@@ -68,7 +82,7 @@ func ParseForm(r *http.Request) error {
 		return nil
 	}
 	if err := r.ParseForm(); err != nil && !strings.HasPrefix(err.Error(), "mime:") {
-		return err
+		return validationError{err}
 	}
 	return nil
 }
@@ -85,4 +99,13 @@ func VersionFromContext(ctx context.Context) string {
 	}
 
 	return ""
+}
+
+// matchesContentType validates the content type against the expected one
+func matchesContentType(contentType, expectedType string) bool {
+	mimetype, _, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		logrus.Errorf("Error parsing media type: %s error: %v", contentType, err)
+	}
+	return err == nil && mimetype == expectedType
 }

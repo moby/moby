@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-multierror"
+	sockaddr "github.com/hashicorp/go-sockaddr"
 	"github.com/miekg/dns"
 )
 
@@ -39,13 +40,14 @@ type Memberlist struct {
 	leave          bool
 	leaveBroadcast chan struct{}
 
-	udpListener *net.UDPConn
-	tcpListener *net.TCPListener
-	handoff     chan msgHandoff
+	transport Transport
+	handoff   chan msgHandoff
 
-	nodeLock sync.RWMutex
-	nodes    []*nodeState          // Known nodes
-	nodeMap  map[string]*nodeState // Maps Addr.String() -> NodeState
+	nodeLock   sync.RWMutex
+	nodes      []*nodeState          // Known nodes
+	nodeMap    map[string]*nodeState // Maps Addr.String() -> NodeState
+	nodeTimers map[string]*suspicion // Maps Addr.String() -> suspicion timer
+	awareness  *awareness
 
 	tickerLock sync.Mutex
 	tickers    []*time.Ticker
@@ -61,7 +63,7 @@ type Memberlist struct {
 }
 
 // newMemberlist creates the network listeners.
-// Does not schedule execution of background maintenence.
+// Does not schedule execution of background maintenance.
 func newMemberlist(conf *Config) (*Memberlist, error) {
 	if conf.ProtocolVersion < ProtocolVersionMin {
 		return nil, fmt.Errorf("Protocol version '%d' too low. Must be in range: [%d, %d]",
@@ -88,25 +90,6 @@ func newMemberlist(conf *Config) (*Memberlist, error) {
 		}
 	}
 
-	tcpAddr := &net.TCPAddr{IP: net.ParseIP(conf.BindAddr), Port: conf.BindPort}
-	tcpLn, err := net.ListenTCP("tcp", tcpAddr)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to start TCP listener. Err: %s", err)
-	}
-	if conf.BindPort == 0 {
-		conf.BindPort = tcpLn.Addr().(*net.TCPAddr).Port
-	}
-
-	udpAddr := &net.UDPAddr{IP: net.ParseIP(conf.BindAddr), Port: conf.BindPort}
-	udpLn, err := net.ListenUDP("udp", udpAddr)
-	if err != nil {
-		tcpLn.Close()
-		return nil, fmt.Errorf("Failed to start UDP listener. Err: %s", err)
-	}
-
-	// Set the UDP receive window size
-	setUDPRecvBuf(udpLn)
-
 	if conf.LogOutput != nil && conf.Logger != nil {
 		return nil, fmt.Errorf("Cannot specify both LogOutput and Logger. Please choose a single log configuration setting.")
 	}
@@ -121,14 +104,37 @@ func newMemberlist(conf *Config) (*Memberlist, error) {
 		logger = log.New(logDest, "", log.LstdFlags)
 	}
 
+	// Set up a network transport by default if a custom one wasn't given
+	// by the config.
+	transport := conf.Transport
+	if transport == nil {
+		nc := &NetTransportConfig{
+			BindAddrs: []string{conf.BindAddr},
+			BindPort:  conf.BindPort,
+			Logger:    logger,
+		}
+		nt, err := NewNetTransport(nc)
+		if err != nil {
+			return nil, fmt.Errorf("Could not set up network transport: %v", err)
+		}
+
+		if conf.BindPort == 0 {
+			port := nt.GetAutoBindPort()
+			conf.BindPort = port
+			logger.Printf("[DEBUG] Using dynamic bind port %d", port)
+		}
+		transport = nt
+	}
+
 	m := &Memberlist{
 		config:         conf,
 		shutdownCh:     make(chan struct{}),
 		leaveBroadcast: make(chan struct{}, 1),
-		udpListener:    udpLn,
-		tcpListener:    tcpLn,
-		handoff:        make(chan msgHandoff, 1024),
+		transport:      transport,
+		handoff:        make(chan msgHandoff, conf.HandoffQueueDepth),
 		nodeMap:        make(map[string]*nodeState),
+		nodeTimers:     make(map[string]*suspicion),
+		awareness:      newAwareness(conf.AwarenessMaxMultiplier),
 		ackHandlers:    make(map[uint32]*ackHandler),
 		broadcasts:     &TransmitLimitedQueue{RetransmitMult: conf.RetransmitMult},
 		logger:         logger,
@@ -136,9 +142,9 @@ func newMemberlist(conf *Config) (*Memberlist, error) {
 	m.broadcasts.NumNodes = func() int {
 		return m.estNumNodes()
 	}
-	go m.tcpListen()
-	go m.udpListen()
-	go m.udpHandler()
+	go m.streamListen()
+	go m.packetListen()
+	go m.packetHandler()
 	return m, nil
 }
 
@@ -182,7 +188,8 @@ func (m *Memberlist) Join(existing []string) (int, error) {
 		}
 
 		for _, addr := range addrs {
-			if err := m.pushPullNode(addr.ip, addr.port, true); err != nil {
+			hp := joinHostPort(addr.ip.String(), addr.port)
+			if err := m.pushPullNode(hp, true); err != nil {
 				err = fmt.Errorf("Failed to join %s: %v", addr.ip, err)
 				errs = multierror.Append(errs, err)
 				m.logger.Printf("[DEBUG] memberlist: %v", err)
@@ -322,78 +329,30 @@ func (m *Memberlist) resolveAddr(hostStr string) ([]ipPort, error) {
 // as if we received an alive notification our own network channel for
 // ourself.
 func (m *Memberlist) setAlive() error {
-	var advertiseAddr []byte
-	var advertisePort int
-	if m.config.AdvertiseAddr != "" {
-		// If AdvertiseAddr is not empty, then advertise
-		// the given address and port.
-		ip := net.ParseIP(m.config.AdvertiseAddr)
-		if ip == nil {
-			return fmt.Errorf("Failed to parse advertise address!")
-		}
-
-		// Ensure IPv4 conversion if necessary
-		if ip4 := ip.To4(); ip4 != nil {
-			ip = ip4
-		}
-
-		advertiseAddr = ip
-		advertisePort = m.config.AdvertisePort
-	} else {
-		if m.config.BindAddr == "0.0.0.0" {
-			// Otherwise, if we're not bound to a specific IP,
-			//let's list the interfaces on this machine and use
-			// the first private IP we find.
-			addresses, err := net.InterfaceAddrs()
-			if err != nil {
-				return fmt.Errorf("Failed to get interface addresses! Err: %v", err)
-			}
-
-			// Find private IPv4 address
-			for _, rawAddr := range addresses {
-				var ip net.IP
-				switch addr := rawAddr.(type) {
-				case *net.IPAddr:
-					ip = addr.IP
-				case *net.IPNet:
-					ip = addr.IP
-				default:
-					continue
-				}
-
-				if ip.To4() == nil {
-					continue
-				}
-				if !IsPrivateIP(ip.String()) {
-					continue
-				}
-
-				advertiseAddr = ip
-				break
-			}
-
-			// Failed to find private IP, error
-			if advertiseAddr == nil {
-				return fmt.Errorf("No private IP address found, and explicit IP not provided")
-			}
-
-		} else {
-			// Use the IP that we're bound to.
-			addr := m.tcpListener.Addr().(*net.TCPAddr)
-			advertiseAddr = addr.IP
-		}
-
-		// Use the port we are bound to.
-		advertisePort = m.tcpListener.Addr().(*net.TCPAddr).Port
+	// Get the final advertise address from the transport, which may need
+	// to see which address we bound to.
+	addr, port, err := m.transport.FinalAdvertiseAddr(
+		m.config.AdvertiseAddr, m.config.AdvertisePort)
+	if err != nil {
+		return fmt.Errorf("Failed to get final advertise address: %v", err)
 	}
 
 	// Check if this is a public address without encryption
-	addrStr := net.IP(advertiseAddr).String()
-	if !IsPrivateIP(addrStr) && !isLoopbackIP(addrStr) && !m.config.EncryptionEnabled() {
+	ipAddr, err := sockaddr.NewIPAddr(addr.String())
+	if err != nil {
+		return fmt.Errorf("Failed to parse interface addresses: %v", err)
+	}
+	ifAddrs := []sockaddr.IfAddr{
+		sockaddr.IfAddr{
+			SockAddr: ipAddr,
+		},
+	}
+	_, publicIfs, err := sockaddr.IfByRFC("6890", ifAddrs)
+	if len(publicIfs) > 0 && !m.config.EncryptionEnabled() {
 		m.logger.Printf("[WARN] memberlist: Binding to public address without encryption!")
 	}
 
-	// Get the node meta data
+	// Set any metadata from the delegate.
 	var meta []byte
 	if m.config.Delegate != nil {
 		meta = m.config.Delegate.NodeMeta(MetaMaxSize)
@@ -405,8 +364,8 @@ func (m *Memberlist) setAlive() error {
 	a := alive{
 		Incarnation: m.nextIncarnation(),
 		Node:        m.config.Name,
-		Addr:        advertiseAddr,
-		Port:        uint16(advertisePort),
+		Addr:        addr,
+		Port:        uint16(port),
 		Meta:        meta,
 		Vsn: []uint8{
 			ProtocolVersionMin, ProtocolVersionMax, m.config.ProtocolVersion,
@@ -415,7 +374,6 @@ func (m *Memberlist) setAlive() error {
 		},
 	}
 	m.aliveNode(&a, nil, true)
-
 	return nil
 }
 
@@ -478,13 +436,8 @@ func (m *Memberlist) UpdateNode(timeout time.Duration) error {
 	return nil
 }
 
-// SendTo is used to directly send a message to another node, without
-// the use of the gossip mechanism. This will encode the message as a
-// user-data message, which a delegate will receive through NotifyMsg
-// The actual data is transmitted over UDP, which means this is a
-// best-effort transmission mechanism, and the maximum size of the
-// message is the size of a single UDP datagram, after compression.
-// This method is DEPRECATED in favor or SendToUDP
+// SendTo is deprecated in favor of SendBestEffort, which requires a node to
+// target.
 func (m *Memberlist) SendTo(to net.Addr, msg []byte) error {
 	// Encode as a user message
 	buf := make([]byte, 1, len(msg)+1)
@@ -492,36 +445,39 @@ func (m *Memberlist) SendTo(to net.Addr, msg []byte) error {
 	buf = append(buf, msg...)
 
 	// Send the message
-	return m.rawSendMsgUDP(to, buf)
+	return m.rawSendMsgPacket(to.String(), nil, buf)
 }
 
-// SendToUDP is used to directly send a message to another node, without
-// the use of the gossip mechanism. This will encode the message as a
-// user-data message, which a delegate will receive through NotifyMsg
-// The actual data is transmitted over UDP, which means this is a
-// best-effort transmission mechanism, and the maximum size of the
-// message is the size of a single UDP datagram, after compression
+// SendToUDP is deprecated in favor of SendBestEffort.
 func (m *Memberlist) SendToUDP(to *Node, msg []byte) error {
+	return m.SendBestEffort(to, msg)
+}
+
+// SendToTCP is deprecated in favor of SendReliable.
+func (m *Memberlist) SendToTCP(to *Node, msg []byte) error {
+	return m.SendReliable(to, msg)
+}
+
+// SendBestEffort uses the unreliable packet-oriented interface of the transport
+// to target a user message at the given node (this does not use the gossip
+// mechanism). The maximum size of the message depends on the configured
+// UDPBufferSize for this memberlist instance.
+func (m *Memberlist) SendBestEffort(to *Node, msg []byte) error {
 	// Encode as a user message
 	buf := make([]byte, 1, len(msg)+1)
 	buf[0] = byte(userMsg)
 	buf = append(buf, msg...)
 
 	// Send the message
-	destAddr := &net.UDPAddr{IP: to.Addr, Port: int(to.Port)}
-	return m.rawSendMsgUDP(destAddr, buf)
+	return m.rawSendMsgPacket(to.Address(), to, buf)
 }
 
-// SendToTCP is used to directly send a message to another node, without
-// the use of the gossip mechanism. This will encode the message as a
-// user-data message, which a delegate will receive through NotifyMsg
-// The actual data is transmitted over TCP, which means delivery
-// is guaranteed if no error is returned. There is no limit
-// to the size of the message
-func (m *Memberlist) SendToTCP(to *Node, msg []byte) error {
-	// Send the message
-	destAddr := &net.TCPAddr{IP: to.Addr, Port: int(to.Port)}
-	return m.sendTCPUserMsg(destAddr, msg)
+// SendReliable uses the reliable stream-oriented interface of the transport to
+// target a user message at the given node (this does not use the gossip
+// mechanism). Delivery is guaranteed if no error is returned, and there is no
+// limit on the size of the message.
+func (m *Memberlist) SendReliable(to *Node, msg []byte) error {
+	return m.sendUserMsg(to.Address(), msg)
 }
 
 // Members returns a list of all known live nodes. The node structures
@@ -625,6 +581,13 @@ func (m *Memberlist) anyAlive() bool {
 	return false
 }
 
+// GetHealthScore gives this instance's idea of how well it is meeting the soft
+// real-time requirements of the protocol. Lower numbers are better, and zero
+// means "totally healthy".
+func (m *Memberlist) GetHealthScore() int {
+	return m.awareness.GetHealthScore()
+}
+
 // ProtocolVersion returns the protocol version currently in use by
 // this memberlist.
 func (m *Memberlist) ProtocolVersion() uint8 {
@@ -649,10 +612,14 @@ func (m *Memberlist) Shutdown() error {
 		return nil
 	}
 
+	// Shut down the transport first, which should block until it's
+	// completely torn down. If we kill the memberlist-side handlers
+	// those I/O handlers might get stuck.
+	m.transport.Shutdown()
+
+	// Now tear down everything else.
 	m.shutdown = true
 	close(m.shutdownCh)
 	m.deschedule()
-	m.udpListener.Close()
-	m.tcpListener.Close()
 	return nil
 }

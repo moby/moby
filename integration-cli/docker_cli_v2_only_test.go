@@ -10,31 +10,19 @@ import (
 	"github.com/go-check/check"
 )
 
-func makefile(contents string) (string, func(), error) {
-	cleanup := func() {
-
-	}
-
-	f, err := ioutil.TempFile(".", "tmp")
+func makefile(path string, contents string) (string, error) {
+	f, err := ioutil.TempFile(path, "tmp")
 	if err != nil {
-		return "", cleanup, err
+		return "", err
 	}
 	err = ioutil.WriteFile(f.Name(), []byte(contents), os.ModePerm)
 	if err != nil {
-		return "", cleanup, err
+		return "", err
 	}
-
-	cleanup = func() {
-		err := os.Remove(f.Name())
-		if err != nil {
-			fmt.Println("Error removing tmpfile")
-		}
-	}
-	return f.Name(), cleanup, nil
-
+	return f.Name(), nil
 }
 
-// TestV2Only ensures that a daemon in v2-only mode does not
+// TestV2Only ensures that a daemon by default does not
 // attempt to contact any v1 registry endpoints.
 func (s *DockerRegistrySuite) TestV2Only(c *check.C) {
 	reg, err := registry.NewMock(c)
@@ -51,22 +39,25 @@ func (s *DockerRegistrySuite) TestV2Only(c *check.C) {
 
 	repoName := fmt.Sprintf("%s/busybox", reg.URL())
 
-	s.d.Start(c, "--insecure-registry", reg.URL(), "--disable-legacy-registry=true")
+	s.d.Start(c, "--insecure-registry", reg.URL())
 
-	dockerfileName, cleanup, err := makefile(fmt.Sprintf("FROM %s/busybox", reg.URL()))
+	tmp, err := ioutil.TempDir("", "integration-cli-")
+	c.Assert(err, check.IsNil)
+	defer os.RemoveAll(tmp)
+
+	dockerfileName, err := makefile(tmp, fmt.Sprintf("FROM %s/busybox", reg.URL()))
 	c.Assert(err, check.IsNil, check.Commentf("Unable to create test dockerfile"))
-	defer cleanup()
 
-	s.d.Cmd("build", "--file", dockerfileName, ".")
+	s.d.Cmd("build", "--file", dockerfileName, tmp)
 
 	s.d.Cmd("run", repoName)
-	s.d.Cmd("login", "-u", "richard", "-p", "testtest", "-e", "testuser@testdomain.com", reg.URL())
+	s.d.Cmd("login", "-u", "richard", "-p", "testtest", reg.URL())
 	s.d.Cmd("tag", "busybox", repoName)
 	s.d.Cmd("push", repoName)
 	s.d.Cmd("pull", repoName)
 }
 
-// TestV1 starts a daemon in 'normal' mode
+// TestV1 starts a daemon with legacy registries enabled
 // and ensure v1 endpoints are hit for the following operations:
 // login, push, pull, build & run
 func (s *DockerRegistrySuite) TestV1(c *check.C) {
@@ -102,11 +93,14 @@ func (s *DockerRegistrySuite) TestV1(c *check.C) {
 
 	s.d.Start(c, "--insecure-registry", reg.URL(), "--disable-legacy-registry=false")
 
-	dockerfileName, cleanup, err := makefile(fmt.Sprintf("FROM %s/busybox", reg.URL()))
-	c.Assert(err, check.IsNil, check.Commentf("Unable to create test dockerfile"))
-	defer cleanup()
+	tmp, err := ioutil.TempDir("", "integration-cli-")
+	c.Assert(err, check.IsNil)
+	defer os.RemoveAll(tmp)
 
-	s.d.Cmd("build", "--file", dockerfileName, ".")
+	dockerfileName, err := makefile(tmp, fmt.Sprintf("FROM %s/busybox", reg.URL()))
+	c.Assert(err, check.IsNil, check.Commentf("Unable to create test dockerfile"))
+
+	s.d.Cmd("build", "--file", dockerfileName, tmp)
 	c.Assert(v1Repo, check.Equals, 1, check.Commentf("Expected v1 repository access after build"))
 
 	repoName := fmt.Sprintf("%s/busybox", reg.URL())

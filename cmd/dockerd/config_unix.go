@@ -24,7 +24,7 @@ func installConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
 
 	// Then platform-specific install flags
 	flags.BoolVar(&conf.EnableSelinuxSupport, "selinux-enabled", false, "Enable selinux support")
-	flags.Var(opts.NewUlimitOpt(&conf.Ulimits), "default-ulimit", "Default ulimits for containers")
+	flags.Var(opts.NewNamedUlimitOpt("default-ulimits", &conf.Ulimits), "default-ulimit", "Default ulimits for containers")
 	flags.BoolVar(&conf.BridgeConfig.EnableIPTables, "iptables", true, "Enable addition of iptables rules")
 	flags.BoolVar(&conf.BridgeConfig.EnableIPForward, "ip-forward", true, "Enable net.ipv4.ip_forward")
 	flags.BoolVar(&conf.BridgeConfig.EnableIPMasq, "ip-masq", true, "Enable IP masquerading")
@@ -46,6 +46,8 @@ func installConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
 	flags.Int64Var(&conf.CPURealtimeRuntime, "cpu-rt-runtime", 0, "Limit the CPU real-time runtime in microseconds")
 	flags.StringVar(&conf.SeccompProfile, "seccomp-profile", "", "Path to seccomp profile")
 	flags.Var(&conf.ShmSize, "default-shm-size", "Default shm size for containers")
+	flags.BoolVar(&conf.NoNewPrivileges, "no-new-privileges", false, "Set no-new-privileges by default for new containers")
+	flags.StringVar(&conf.IpcMode, "default-ipc-mode", config.DefaultIpcMode, `Default mode for containers ipc ("shareable" | "private")`)
 
 	attachExperimentalFlags(conf, flags)
 }

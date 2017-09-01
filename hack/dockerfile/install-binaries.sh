@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 set -e
 set -x
 
@@ -20,7 +20,7 @@ RUNC_BUILDTAGS="${RUNC_BUILDTAGS:-"seccomp apparmor selinux"}"
 
 install_runc() {
 	echo "Install runc version $RUNC_COMMIT"
-	git clone https://github.com/docker/runc.git "$GOPATH/src/github.com/opencontainers/runc"
+	git clone https://github.com/opencontainers/runc.git "$GOPATH/src/github.com/opencontainers/runc"
 	cd "$GOPATH/src/github.com/opencontainers/runc"
 	git checkout -q "$RUNC_COMMIT"
 	make BUILDTAGS="$RUNC_BUILDTAGS" $1
@@ -29,8 +29,8 @@ install_runc() {
 
 install_containerd() {
 	echo "Install containerd version $CONTAINERD_COMMIT"
-	git clone https://github.com/docker/containerd.git "$GOPATH/src/github.com/docker/containerd"
-	cd "$GOPATH/src/github.com/docker/containerd"
+	git clone https://github.com/containerd/containerd.git "$GOPATH/src/github.com/containerd/containerd"
+	cd "$GOPATH/src/github.com/containerd/containerd"
 	git checkout -q "$CONTAINERD_COMMIT"
 	make $1
 	cp bin/containerd /usr/local/bin/docker-containerd
@@ -46,12 +46,42 @@ install_proxy() {
 	go build -ldflags="$PROXY_LDFLAGS" -o /usr/local/bin/docker-proxy github.com/docker/libnetwork/cmd/proxy
 }
 
-install_bindata() {
-    echo "Install go-bindata version $BINDATA_COMMIT"
-    git clone https://github.com/jteeuwen/go-bindata "$GOPATH/src/github.com/jteeuwen/go-bindata"
-    cd $GOPATH/src/github.com/jteeuwen/go-bindata
-    git checkout -q "$BINDATA_COMMIT"
-	go build -o /usr/local/bin/go-bindata github.com/jteeuwen/go-bindata/go-bindata
+install_dockercli() {
+	DOCKERCLI_CHANNEL=${DOCKERCLI_CHANNEL:-edge}
+	DOCKERCLI_VERSION=${DOCKERCLI_VERSION:-17.06.0-ce}
+	echo "Install docker/cli version $DOCKERCLI_VERSION from $DOCKERCLI_CHANNEL"
+
+	arch=$(uname -m)
+	# No official release of these platforms
+	if [[ "$arch" != "x86_64" ]] && [[ "$arch" != "s390x" ]]; then
+		build_dockercli
+		return
+	fi
+
+	url=https://download.docker.com/linux/static
+	curl -Ls $url/$DOCKERCLI_CHANNEL/$arch/docker-$DOCKERCLI_VERSION.tgz | \
+	tar -xz docker/docker
+	mv docker/docker /usr/local/bin/
+	rmdir docker
+}
+
+build_dockercli() {
+	DOCKERCLI_VERSION=${DOCKERCLI_VERSION:-17.06.0-ce}
+	git clone https://github.com/docker/docker-ce "$GOPATH/tmp/docker-ce"
+	cd "$GOPATH/tmp/docker-ce"
+	git checkout -q "v$DOCKERCLI_VERSION"
+	mkdir -p "$GOPATH/src/github.com/docker"
+	mv components/cli "$GOPATH/src/github.com/docker/cli"
+	go build -o /usr/local/bin/docker github.com/docker/cli/cmd/docker
+}
+
+install_gometalinter() {
+	echo "Installing gometalinter version $GOMETALINTER_COMMIT"
+	go get -d github.com/alecthomas/gometalinter
+	cd "$GOPATH/src/github.com/alecthomas/gometalinter"
+	git checkout -q "$GOMETALINTER_COMMIT"
+	go build -o /usr/local/bin/gometalinter github.com/alecthomas/gometalinter
+	GOBIN=/usr/local/bin gometalinter --install
 }
 
 for prog in "$@"
@@ -80,6 +110,10 @@ do
 			install_containerd
 			;;
 
+		gometalinter)
+			install_gometalinter
+			;;
+
 		tini)
 			echo "Install tini version $TINI_COMMIT"
 			git clone https://github.com/krallin/tini.git "$GOPATH/tini"
@@ -91,8 +125,10 @@ do
 			;;
 
 		proxy)
-			export CGO_ENABLED=0
-			install_proxy
+			(
+				export CGO_ENABLED=0
+				install_proxy
+			)
 			;;
 
 		proxy-dynamic)
@@ -107,12 +143,12 @@ do
 			go build -v -o /usr/local/bin/vndr .
 			;;
 
-        bindata)
-            install_bindata
-            ;;
+		dockercli)
+			install_dockercli
+			;;
 
 		*)
-			echo echo "Usage: $0 [tomlv|runc|containerd|tini|proxy]"
+			echo echo "Usage: $0 [tomlv|runc|runc-dynamic|containerd|containerd-dynamic|tini|proxy|proxy-dynamic|vndr|dockercli|gometalinter]"
 			exit 1
 
 	esac

@@ -1,11 +1,41 @@
 #!/usr/bin/env bash
 set -e
 
+# a helper to provide ".exe" when it's appropriate
+binary_extension() {
+	if [ "$(go env GOOS)" = 'windows' ]; then
+		echo -n '.exe'
+	fi
+}
+
+GO_PACKAGE='github.com/docker/docker/cmd/dockerd'
+BINARY_SHORT_NAME='dockerd'
 BINARY_NAME="$BINARY_SHORT_NAME-$VERSION"
 BINARY_EXTENSION="$(binary_extension)"
 BINARY_FULLNAME="$BINARY_NAME$BINARY_EXTENSION"
 
 source "${MAKEDIR}/.go-autogen"
+
+hash_files() {
+	while [ $# -gt 0 ]; do
+		f="$1"
+		shift
+		dir="$(dirname "$f")"
+		base="$(basename "$f")"
+		for hashAlgo in md5 sha256; do
+			if command -v "${hashAlgo}sum" &> /dev/null; then
+				(
+					# subshell and cd so that we get output files like:
+					#   $HASH docker-$VERSION
+					# instead of:
+					#   $HASH /go/src/github.com/.../$VERSION/binary/docker-$VERSION
+					cd "$dir"
+					"${hashAlgo}sum" "$base" > "$base.$hashAlgo"
+				)
+			fi
+		done
+	done
+}
 
 (
 export GOGC=${DOCKER_BUILD_GOGC:-1000}
@@ -18,17 +48,6 @@ if [ "$(go env GOOS)/$(go env GOARCH)" != "$(go env GOHOSTOS)/$(go env GOHOSTARC
 			export CGO_ENABLED=1
 			;;
 	esac
-fi
-
-if [ "$IAMSTATIC" == "true" ] && [ "$(go env GOHOSTOS)" == "linux" ]; then
-	if  [ "${GOOS}/${GOARCH}" == "darwin/amd64" ]; then
-		export CGO_ENABLED=1
-		export CC=o64-clang
-		export LDFLAGS='-linkmode external -s'
-		export LDFLAGS_STATIC_DOCKER='-extld='${CC}
-	else
-		export BUILDFLAGS=( "${BUILDFLAGS[@]/pkcs11 /}" ) # we cannot dlopen in pkcs11 in a static binary
-	fi
 fi
 
 echo "Building: $DEST/$BINARY_FULLNAME"

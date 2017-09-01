@@ -6,8 +6,8 @@ import (
 	"net"
 	"os"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/types"
+	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
 

@@ -1,7 +1,6 @@
 package cluster
 
 import (
-	apierrors "github.com/docker/docker/api/errors"
 	apitypes "github.com/docker/docker/api/types"
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/convert"
@@ -34,7 +33,7 @@ func (c *Cluster) GetNodes(options apitypes.NodeListOptions) ([]types.Node, erro
 		return nil, err
 	}
 
-	nodes := []types.Node{}
+	nodes := make([]types.Node, 0, len(r.Nodes))
 
 	for _, node := range r.Nodes {
 		nodes = append(nodes, convert.NodeFromGRPC(*node))
@@ -65,7 +64,7 @@ func (c *Cluster) UpdateNode(input string, version uint64, spec types.NodeSpec) 
 	return c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
 		nodeSpec, err := convert.NodeSpecToGRPC(spec)
 		if err != nil {
-			return apierrors.NewBadRequestError(err)
+			return convertError{err}
 		}
 
 		ctx, cancel := c.getRequestContext()

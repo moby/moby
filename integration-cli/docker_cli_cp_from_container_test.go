@@ -64,19 +64,17 @@ func (s *DockerSuite) TestCpFromErrDstParentNotExists(c *check.C) {
 	// Try with a file source.
 	srcPath := containerCpPath(containerID, "/file1")
 	dstPath := cpPath(tmpDir, "notExists", "file1")
+	_, dstStatErr := os.Lstat(filepath.Dir(dstPath))
+	c.Assert(os.IsNotExist(dstStatErr), checker.True)
 
 	err := runDockerCp(c, srcPath, dstPath, nil)
-	c.Assert(err, checker.NotNil)
-
-	c.Assert(isCpNotExist(err), checker.True, check.Commentf("expected IsNotExist error, but got %T: %s", err, err))
+	c.Assert(err.Error(), checker.Contains, dstStatErr.Error())
 
 	// Try with a directory source.
 	srcPath = containerCpPath(containerID, "/dir1")
 
 	err = runDockerCp(c, srcPath, dstPath, nil)
-	c.Assert(err, checker.NotNil)
-
-	c.Assert(isCpNotExist(err), checker.True, check.Commentf("expected IsNotExist error, but got %T: %s", err, err))
+	c.Assert(err.Error(), checker.Contains, dstStatErr.Error())
 }
 
 // Test for error when DST ends in a trailing

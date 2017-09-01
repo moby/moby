@@ -94,7 +94,7 @@ func TestMigrateContainers(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	is, err := image.NewImageStore(ifs, ls)
+	is, err := image.NewImageStore(ifs, runtime.GOOS, ls)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -172,12 +172,12 @@ func TestMigrateImages(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	is, err := image.NewImageStore(ifs, ls)
+	is, err := image.NewImageStore(ifs, runtime.GOOS, ls)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	ms, err := metadata.NewFSMetadataStore(filepath.Join(tmpdir, "distribution"))
+	ms, err := metadata.NewFSMetadataStore(filepath.Join(tmpdir, "distribution"), runtime.GOOS)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -431,6 +431,10 @@ func (l *mockLayer) Size() (int64, error) {
 
 func (l *mockLayer) DiffSize() (int64, error) {
 	return 0, nil
+}
+
+func (l *mockLayer) Platform() layer.Platform {
+	return ""
 }
 
 func (l *mockLayer) Metadata() (map[string]string, error) {

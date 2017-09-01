@@ -35,7 +35,7 @@ func GetTask(tx *bolt.Tx, id string) (*api.Task, error) {
 	var t api.Task
 
 	if err := withTaskBucket(tx, id, func(bkt *bolt.Bucket) error {
-		p := bkt.Get([]byte("data"))
+		p := bkt.Get(bucketKeyData)
 		if p == nil {
 			return errTaskUnknown
 		}
@@ -136,7 +136,7 @@ func PutTaskStatus(tx *bolt.Tx, id string, status *api.TaskStatus) error {
 		if err != nil {
 			return err
 		}
-		return bkt.Put([]byte("status"), p)
+		return bkt.Put(bucketKeyStatus, p)
 	})
 }
 
@@ -154,9 +154,9 @@ func DeleteTask(tx *bolt.Tx, id string) error {
 func SetTaskAssignment(tx *bolt.Tx, id string, assigned bool) error {
 	return withTaskBucket(tx, id, func(bkt *bolt.Bucket) error {
 		if assigned {
-			return bkt.Put([]byte("assigned"), []byte{0xFF})
+			return bkt.Put(bucketKeyAssigned, []byte{0xFF})
 		}
-		return bkt.Delete([]byte("assigned"))
+		return bkt.Delete(bucketKeyAssigned)
 	})
 }
 

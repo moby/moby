@@ -30,12 +30,48 @@ message Annotations {
 	repeated IndexEntry indices = 4 [(gogoproto.nullable) = false];
 }
 
+// NamedGenericResource represents a "user defined" resource which is defined
+// as a string.
+// "Kind" is used to describe the Kind of a resource (e.g: "GPU", "FPGA", "SSD", ...)
+// Value is used to identify the resource (GPU="UUID-1", FPGA="/dev/sdb5", ...)
+message NamedGenericResource {
+	string kind = 1;
+	string value = 2;
+}
+
+// DiscreteGenericResource represents a "user defined" resource which is defined
+// as an integer
+// "Kind" is used to describe the Kind of a resource (e.g: "GPU", "FPGA", "SSD", ...)
+// Value is used to count the resource (SSD=5, HDD=3, ...)
+message DiscreteGenericResource {
+	string kind = 1;
+	int64 value = 2;
+}
+
+// GenericResource represents a "user defined" resource which can
+// be either an integer (e.g: SSD=3) or a string (e.g: SSD=sda1)
+message GenericResource {
+	oneof resource {
+		NamedGenericResource named_resource_spec = 1;
+		DiscreteGenericResource discrete_resource_spec = 2;
+	}
+}
+
+enum ResourceType {
+	TASK = 0;
+	SECRET = 1;
+	CONFIG = 2;
+}
+
 message Resources {
 	// Amount of CPUs (e.g. 2000000000 = 2 CPU cores)
 	int64 nano_cpus = 1 [(gogoproto.customname) = "NanoCPUs"];
 
 	// Amount of memory in bytes.
 	int64 memory_bytes = 2;
+
+	// User specified resource (e.g: bananas=2;apple={red,yellow,green})
+	repeated GenericResource generic = 3;
 }
 
 message ResourceRequirements {
@@ -478,6 +514,15 @@ message TaskStatus {
 	// HostPorts provides a list of ports allocated at the host
 	// level.
 	PortStatus port_status = 6;
+
+	// AppliedBy gives the node ID of the manager that applied this task
+	// status update to the Task object.
+	string applied_by = 7;
+
+	// AppliedAt gives a timestamp of when this status update was applied to
+	// the Task object.
+	// Note: can't use stdtime because this field is nullable.
+	google.protobuf.Timestamp applied_at = 8;
 }
 
 // NetworkAttachmentConfig specifies how a service should be attached to a particular network.
@@ -495,6 +540,8 @@ message NetworkAttachmentConfig {
 	// preferred. If these addresses are not available then the
 	// attachment might fail.
 	repeated string addresses = 3;
+	// DriverAttachmentOpts is a map of driver attachment options for the network target
+	map<string, string> driver_attachment_opts = 4;
 }
 
 // IPAMConfig specifies parameters for IP Address Management.
@@ -771,6 +818,11 @@ message Placement {
 	// such as topology. They are provided in order from highest to lowest
 	// precedence.
 	repeated PlacementPreference preferences = 2;
+
+	// Platforms stores all the platforms that the image can run on.
+	// This field is used in the platform filter for scheduling. If empty,
+	// then the platform filter is off, meaning there are no scheduling restrictions.
+	repeated Platform platforms = 3;
 }
 
 // JoinToken contains the join tokens for workers and managers.

@@ -119,12 +119,13 @@ func validateNotRoot(p string) error {
 	return nil
 }
 
-func validateCopyMode(mode bool) error {
-	return nil
+func convertSlash(p string) string {
+	return p
 }
 
-func convertSlash(p string) string {
-	return filepath.ToSlash(p)
+// isAbsPath reports whether the path is absolute.
+func isAbsPath(p string) bool {
+	return filepath.IsAbs(p)
 }
 
 func splitRawSpec(raw string) ([]string, error) {
@@ -137,6 +138,13 @@ func splitRawSpec(raw string) ([]string, error) {
 		return nil, errInvalidSpec(raw)
 	}
 	return arr, nil
+}
+
+func detectMountType(p string) mounttypes.Type {
+	if filepath.IsAbs(p) {
+		return mounttypes.TypeBind
+	}
+	return mounttypes.TypeVolume
 }
 
 func clean(p string) string {

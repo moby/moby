@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/system"
 	rsystem "github.com/opencontainers/runc/libcontainer/system"
+	"golang.org/x/sys/unix"
 )
 
 type copyFlags int
@@ -110,17 +111,17 @@ func copyDir(srcDir, dstDir string, flags copyFlags) error {
 				// cannot create a device if running in user namespace
 				return nil
 			}
-			if err := syscall.Mkfifo(dstPath, stat.Mode); err != nil {
+			if err := unix.Mkfifo(dstPath, stat.Mode); err != nil {
 				return err
 			}
 
 		case os.ModeDevice:
-			if err := syscall.Mknod(dstPath, stat.Mode, int(stat.Rdev)); err != nil {
+			if err := unix.Mknod(dstPath, stat.Mode, int(stat.Rdev)); err != nil {
 				return err
 			}
 
 		default:
-			return fmt.Errorf("Unknown file type for %s\n", srcPath)
+			return fmt.Errorf("unknown file type for %s", srcPath)
 		}
 
 		// Everything below is copying metadata from src to dst. All this metadata

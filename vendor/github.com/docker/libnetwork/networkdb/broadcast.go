@@ -86,6 +86,15 @@ func (nDB *NetworkDB) sendNodeEvent(event NodeEvent_Type) error {
 		notify: notifyCh,
 	})
 
+	nDB.RLock()
+	noPeers := len(nDB.nodes) <= 1
+	nDB.RUnlock()
+
+	// Message enqueued, do not wait for a send if no peer is present
+	if noPeers {
+		return nil
+	}
+
 	// Wait for the broadcast
 	select {
 	case <-notifyCh:
@@ -105,7 +114,8 @@ type tableEventMessage struct {
 }
 
 func (m *tableEventMessage) Invalidates(other memberlist.Broadcast) bool {
-	return false
+	otherm := other.(*tableEventMessage)
+	return m.tname == otherm.tname && m.id == otherm.id && m.key == otherm.key
 }
 
 func (m *tableEventMessage) Message() []byte {

@@ -54,9 +54,9 @@ func (s *DockerSuite) TestCommitPausedContainer(c *check.C) {
 }
 
 func (s *DockerSuite) TestCommitNewFile(c *check.C) {
-	dockerCmd(c, "run", "--name", "commiter", "busybox", "/bin/sh", "-c", "echo koye > /foo")
+	dockerCmd(c, "run", "--name", "committer", "busybox", "/bin/sh", "-c", "echo koye > /foo")
 
-	imageID, _ := dockerCmd(c, "commit", "commiter")
+	imageID, _ := dockerCmd(c, "commit", "committer")
 	imageID = strings.TrimSpace(imageID)
 
 	out, _ := dockerCmd(c, "run", imageID, "cat", "/foo")
@@ -122,7 +122,7 @@ func (s *DockerSuite) TestCommitChange(c *check.C) {
 	imageID = strings.TrimSpace(imageID)
 
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
-	prefix = strings.ToUpper(prefix) // Force C: as that's how WORKDIR is normalised on Windows
+	prefix = strings.ToUpper(prefix) // Force C: as that's how WORKDIR is normalized on Windows
 	expected := map[string]string{
 		"Config.ExposedPorts": "map[8080/tcp:{}]",
 		"Config.Env":          "[DEBUG=true test=1 PATH=/foo]",

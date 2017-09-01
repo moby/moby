@@ -1,0 +1,21 @@
+{
+  "Vendor": true,
+  "Deadline": "2m",
+  "Sort": ["linter", "severity", "path"],
+  "Exclude": [
+    ".*\\.pb\\.go",
+    "dockerversion/version_autogen.go",
+    "api/types/container/container_.*",
+    "integration-cli/"
+  ],
+
+  "Enable": [
+    "deadcode",
+    "gofmt",
+    "goimports",
+    "golint",
+    "vet"
+  ],
+
+  "LineLength": 200
+}

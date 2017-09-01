@@ -99,7 +99,7 @@ func (r *rootRotationReconciler) UpdateRootCA(newRootCA *api.RootCA) {
 	if newRootCA.RootRotation != nil {
 		var nodes []*api.Node
 		r.store.View(func(tx store.ReadTx) {
-			nodes, err = store.FindNodes(tx, store.ByMembership(api.NodeMembershipAccepted))
+			nodes, err = store.FindNodes(tx, store.All)
 		})
 		if err != nil {
 			log.G(r.ctx).WithError(err).Error("unable to list nodes, so unable to process the current root CA")
@@ -132,8 +132,8 @@ func (r *rootRotationReconciler) UpdateRootCA(newRootCA *api.RootCA) {
 func (r *rootRotationReconciler) UpdateNode(node *api.Node) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	// if we're not in the middle of a root rotation, or if this node does not have membership, ignore it
-	if r.currentRootCA == nil || r.currentRootCA.RootRotation == nil || node.Spec.Membership != api.NodeMembershipAccepted {
+	// if we're not in the middle of a root rotation ignore the update
+	if r.currentRootCA == nil || r.currentRootCA.RootRotation == nil {
 		return
 	}
 	if hasIssuer(node, &r.currentIssuer) {
@@ -241,7 +241,7 @@ func (r *rootRotationReconciler) batchUpdateNodes(toUpdate []*api.Node) error {
 	if len(toUpdate) == 0 {
 		return nil
 	}
-	_, err := r.store.Batch(func(batch *store.Batch) error {
+	err := r.store.Batch(func(batch *store.Batch) error {
 		// Directly update the nodes rather than get + update, and ignore version errors.  Since
 		// `rootRotationReconciler` should be hooked up to all node update/delete/create events, we should have
 		// close to the latest versions of all the nodes.  If not, the node will updated later and the

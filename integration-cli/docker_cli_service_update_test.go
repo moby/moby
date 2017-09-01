@@ -15,7 +15,7 @@ func (s *DockerSwarmSuite) TestServiceUpdatePort(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
 	serviceName := "TestServiceUpdatePort"
-	serviceArgs := append([]string{"service", "create", "--name", serviceName, "-p", "8080:8081", defaultSleepImage}, sleepCommandForDaemonPlatform()...)
+	serviceArgs := append([]string{"service", "create", "--no-resolve-image", "--name", serviceName, "-p", "8080:8081", defaultSleepImage}, sleepCommandForDaemonPlatform()...)
 
 	// Create a service with a port mapping of 8080:8081.
 	out, err := d.Cmd(serviceArgs...)
@@ -48,7 +48,7 @@ func (s *DockerSwarmSuite) TestServiceUpdatePort(c *check.C) {
 
 func (s *DockerSwarmSuite) TestServiceUpdateLabel(c *check.C) {
 	d := s.AddDaemon(c, true, true)
-	out, err := d.Cmd("service", "create", "--name=test", "busybox", "top")
+	out, err := d.Cmd("service", "create", "--no-resolve-image", "--name=test", "busybox", "top")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	service := d.GetService(c, "test")
 	c.Assert(service.Spec.Labels, checker.HasLen, 0)
@@ -100,7 +100,7 @@ func (s *DockerSwarmSuite) TestServiceUpdateSecrets(c *check.C) {
 	testTarget := "testing"
 	serviceName := "test"
 
-	out, err := d.Cmd("service", "create", "--name", serviceName, "busybox", "top")
+	out, err := d.Cmd("service", "create", "--no-resolve-image", "--name", serviceName, "busybox", "top")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	// add secret
@@ -123,6 +123,48 @@ func (s *DockerSwarmSuite) TestServiceUpdateSecrets(c *check.C) {
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	out, err = d.Cmd("service", "inspect", "--format", "{{ json .Spec.TaskTemplate.ContainerSpec.Secrets }}", serviceName)
+	c.Assert(err, checker.IsNil)
+
+	c.Assert(json.Unmarshal([]byte(out), &refs), checker.IsNil)
+	c.Assert(refs, checker.HasLen, 0)
+}
+
+func (s *DockerSwarmSuite) TestServiceUpdateConfigs(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+	testName := "test_config"
+	id := d.CreateConfig(c, swarm.ConfigSpec{
+		Annotations: swarm.Annotations{
+			Name: testName,
+		},
+		Data: []byte("TESTINGDATA"),
+	})
+	c.Assert(id, checker.Not(checker.Equals), "", check.Commentf("configs: %s", id))
+	testTarget := "/testing"
+	serviceName := "test"
+
+	out, err := d.Cmd("service", "create", "--no-resolve-image", "--name", serviceName, "busybox", "top")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	// add config
+	out, err = d.CmdRetryOutOfSequence("service", "update", "test", "--config-add", fmt.Sprintf("source=%s,target=%s", testName, testTarget))
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	out, err = d.Cmd("service", "inspect", "--format", "{{ json .Spec.TaskTemplate.ContainerSpec.Configs }}", serviceName)
+	c.Assert(err, checker.IsNil)
+
+	var refs []swarm.ConfigReference
+	c.Assert(json.Unmarshal([]byte(out), &refs), checker.IsNil)
+	c.Assert(refs, checker.HasLen, 1)
+
+	c.Assert(refs[0].ConfigName, checker.Equals, testName)
+	c.Assert(refs[0].File, checker.Not(checker.IsNil))
+	c.Assert(refs[0].File.Name, checker.Equals, testTarget)
+
+	// remove
+	out, err = d.CmdRetryOutOfSequence("service", "update", "test", "--config-rm", testName)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	out, err = d.Cmd("service", "inspect", "--format", "{{ json .Spec.TaskTemplate.ContainerSpec.Configs }}", serviceName)
 	c.Assert(err, checker.IsNil)
 
 	c.Assert(json.Unmarshal([]byte(out), &refs), checker.IsNil)

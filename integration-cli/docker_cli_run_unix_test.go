@@ -23,8 +23,8 @@ import (
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/sysinfo"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
+	"github.com/gotestyourself/gotestyourself/icmd"
 	"github.com/kr/pty"
 )
 
@@ -1013,18 +1013,6 @@ func (s *DockerSuite) TestRunSeccompProfileDenyUnshareUserns(c *check.C) {
 		ExitCode: 1,
 		Err:      "Operation not permitted",
 	})
-}
-
-// TestRunSeccompProfileDenyUnusualSocketFamilies checks that rarely used socket families such as Appletalk are blocked by the default profile
-func (s *DockerSuite) TestRunSeccompProfileDenyUnusualSocketFamilies(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled)
-	ensureSyscallTest(c)
-
-	runCmd := exec.Command(dockerBinary, "run", "syscall-test", "appletalk-test")
-	_, _, err := runCommandWithOutput(runCmd)
-	if err != nil {
-		c.Fatal("expected opening appletalk socket family to fail")
-	}
 }
 
 // TestRunSeccompProfileDenyCloneUserns checks that 'docker run syscall-test'

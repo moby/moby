@@ -55,7 +55,7 @@
 				"accept",
 				"accept4",
 				"access",
-				"alarm",
+				"adjtimex",
 				"alarm",
 				"bind",
 				"brk",
@@ -314,6 +314,8 @@
 				"signalfd",
 				"signalfd4",
 				"sigreturn",
+				"socket",
+				"socketcall",
 				"socketpair",
 				"splice",
 				"stat",
@@ -406,224 +408,41 @@
 			"args": [
 				{
 					"index": 0,
+					"value": 131072,
+					"valueTwo": 0,
+					"op": "SCMP_CMP_EQ"
+				}
+			],
+			"comment": "",
+			"includes": {},
+			"excludes": {}
+		},
+		{
+			"names": [
+				"personality"
+			],
+			"action": "SCMP_ACT_ALLOW",
+			"args": [
+				{
+					"index": 0,
+					"value": 131080,
+					"valueTwo": 0,
+					"op": "SCMP_CMP_EQ"
+				}
+			],
+			"comment": "",
+			"includes": {},
+			"excludes": {}
+		},
+		{
+			"names": [
+				"personality"
+			],
+			"action": "SCMP_ACT_ALLOW",
+			"args": [
+				{
+					"index": 0,
 					"value": 4294967295,
-					"valueTwo": 0,
-					"op": "SCMP_CMP_EQ"
-				}
-			],
-			"comment": "",
-			"includes": {},
-			"excludes": {}
-		},
-		{
-			"names": [
-				"socket"
-			],
-			"action": "SCMP_ACT_ALLOW",
-			"args": [
-				{
-					"index": 0,
-					"value": 1,
-					"valueTwo": 0,
-					"op": "SCMP_CMP_EQ"
-				}
-			],
-			"comment": "",
-			"includes": {},
-			"excludes": {}
-		},
-		{
-			"names": [
-				"socket"
-			],
-			"action": "SCMP_ACT_ALLOW",
-			"args": [
-				{
-					"index": 0,
-					"value": 2,
-					"valueTwo": 0,
-					"op": "SCMP_CMP_EQ"
-				}
-			],
-			"comment": "",
-			"includes": {},
-			"excludes": {}
-		},
-		{
-			"names": [
-				"socket"
-			],
-			"action": "SCMP_ACT_ALLOW",
-			"args": [
-				{
-					"index": 0,
-					"value": 10,
-					"valueTwo": 0,
-					"op": "SCMP_CMP_EQ"
-				}
-			],
-			"comment": "",
-			"includes": {},
-			"excludes": {}
-		},
-		{
-			"names": [
-				"socket"
-			],
-			"action": "SCMP_ACT_ALLOW",
-			"args": [
-				{
-					"index": 0,
-					"value": 16,
-					"valueTwo": 0,
-					"op": "SCMP_CMP_EQ"
-				}
-			],
-			"comment": "",
-			"includes": {},
-			"excludes": {}
-		},
-		{
-			"names": [
-				"socket"
-			],
-			"action": "SCMP_ACT_ALLOW",
-			"args": [
-				{
-					"index": 0,
-					"value": 17,
-					"valueTwo": 0,
-					"op": "SCMP_CMP_EQ"
-				}
-			],
-			"comment": "",
-			"includes": {},
-			"excludes": {}
-		},
-		{
-			"names": [
-				"socketcall"
-			],
-			"action": "SCMP_ACT_ALLOW",
-			"args": [
-				{
-					"index": 0,
-					"value": 1,
-					"valueTwo": 0,
-					"op": "SCMP_CMP_GT"
-				}
-			],
-			"comment": "",
-			"includes": {},
-			"excludes": {}
-		},
-		{
-			"names": [
-				"socketcall"
-			],
-			"action": "SCMP_ACT_ALLOW",
-			"args": [
-				{
-					"index": 0,
-					"value": 1,
-					"valueTwo": 0,
-					"op": "SCMP_CMP_EQ"
-				},
-				{
-					"index": 1,
-					"value": 1,
-					"valueTwo": 0,
-					"op": "SCMP_CMP_EQ"
-				}
-			],
-			"comment": "",
-			"includes": {},
-			"excludes": {}
-		},
-		{
-			"names": [
-				"socketcall"
-			],
-			"action": "SCMP_ACT_ALLOW",
-			"args": [
-				{
-					"index": 0,
-					"value": 1,
-					"valueTwo": 0,
-					"op": "SCMP_CMP_EQ"
-				},
-				{
-					"index": 1,
-					"value": 2,
-					"valueTwo": 0,
-					"op": "SCMP_CMP_EQ"
-				}
-			],
-			"comment": "",
-			"includes": {},
-			"excludes": {}
-		},
-		{
-			"names": [
-				"socketcall"
-			],
-			"action": "SCMP_ACT_ALLOW",
-			"args": [
-				{
-					"index": 0,
-					"value": 1,
-					"valueTwo": 0,
-					"op": "SCMP_CMP_EQ"
-				},
-				{
-					"index": 1,
-					"value": 10,
-					"valueTwo": 0,
-					"op": "SCMP_CMP_EQ"
-				}
-			],
-			"comment": "",
-			"includes": {},
-			"excludes": {}
-		},
-		{
-			"names": [
-				"socketcall"
-			],
-			"action": "SCMP_ACT_ALLOW",
-			"args": [
-				{
-					"index": 0,
-					"value": 1,
-					"valueTwo": 0,
-					"op": "SCMP_CMP_EQ"
-				},
-				{
-					"index": 1,
-					"value": 16,
-					"valueTwo": 0,
-					"op": "SCMP_CMP_EQ"
-				}
-			],
-			"comment": "",
-			"includes": {},
-			"excludes": {}
-		},
-		{
-			"names": [
-				"socketcall"
-			],
-			"action": "SCMP_ACT_ALLOW",
-			"args": [
-				{
-					"index": 0,
-					"value": 1,
-					"valueTwo": 0,
-					"op": "SCMP_CMP_EQ"
-				},
-				{
-					"index": 1,
-					"value": 17,
 					"valueTwo": 0,
 					"op": "SCMP_CMP_EQ"
 				}
@@ -737,6 +556,7 @@
 				"mount",
 				"name_to_handle_at",
 				"perf_event_open",
+				"quotactl",
 				"setdomainname",
 				"sethostname",
 				"setns",
@@ -900,7 +720,6 @@
 			"names": [
 				"settimeofday",
 				"stime",
-				"adjtimex",
 				"clock_settime"
 			],
 			"action": "SCMP_ACT_ALLOW",

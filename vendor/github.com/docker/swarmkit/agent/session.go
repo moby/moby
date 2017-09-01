@@ -5,18 +5,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/connectionbroker"
 	"github.com/docker/swarmkit/log"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
 
-const dispatcherRPCTimeout = 5 * time.Second
-
 var (
+	dispatcherRPCTimeout = 5 * time.Second
 	errSessionDisconnect = errors.New("agent: session disconnect") // instructed to disconnect
 	errSessionClosed     = errors.New("agent: session closed")
 )
@@ -39,12 +38,14 @@ type session struct {
 	assignments   chan *api.AssignmentsMessage
 	subscriptions chan *api.SubscriptionMessage
 
+	cancel     func()        // this is assumed to be never nil, and set whenever a session is created
 	registered chan struct{} // closed registration
 	closed     chan struct{}
 	closeOnce  sync.Once
 }
 
 func newSession(ctx context.Context, agent *Agent, delay time.Duration, sessionID string, description *api.NodeDescription) *session {
+	sessionCtx, sessionCancel := context.WithCancel(ctx)
 	s := &session{
 		agent:         agent,
 		sessionID:     sessionID,
@@ -54,6 +55,7 @@ func newSession(ctx context.Context, agent *Agent, delay time.Duration, sessionI
 		subscriptions: make(chan *api.SubscriptionMessage),
 		registered:    make(chan struct{}),
 		closed:        make(chan struct{}),
+		cancel:        sessionCancel,
 	}
 
 	// TODO(stevvooe): Need to move connection management up a level or create
@@ -69,7 +71,7 @@ func newSession(ctx context.Context, agent *Agent, delay time.Duration, sessionI
 	}
 	s.conn = cc
 
-	go s.run(ctx, delay, description)
+	go s.run(sessionCtx, delay, description)
 	return s
 }
 
@@ -114,6 +116,14 @@ func (s *session) start(ctx context.Context, description *api.NodeDescription) e
 	// Note: we don't defer cancellation of this context, because the
 	// streaming RPC is used after this function returned. We only cancel
 	// it in the timeout case to make sure the goroutine completes.
+
+	// We also fork this context again from the `run` context, because on
+	// `dispatcherRPCTimeout`, we want to cancel establishing a session and
+	// return an error.  If we cancel the `run` context instead of forking,
+	// then in `run` it's possible that we just terminate the function because
+	// `ctx` is done and hence fail to propagate the timeout error to the agent.
+	// If the error is not propogated to the agent, the agent will not close
+	// the session or rebuild a new sesssion.
 	sessionCtx, cancelSession := context.WithCancel(ctx)
 
 	// Need to run Session in a goroutine since there's no way to set a
@@ -399,13 +409,13 @@ func (s *session) sendError(err error) {
 }
 
 // close closing session. It should be called only in <-session.errs branch
-// of event loop.
+// of event loop, or when cleaning up the agent.
 func (s *session) close() error {
 	s.closeOnce.Do(func() {
+		s.cancel()
 		if s.conn != nil {
 			s.conn.Close(false)
 		}
-
 		close(s.closed)
 	})
 

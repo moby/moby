@@ -11,17 +11,19 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/transport"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/go-events"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/api/equality"
 	"github.com/docker/swarmkit/ca"
 	"github.com/docker/swarmkit/log"
+	"github.com/docker/swarmkit/manager/drivers"
 	"github.com/docker/swarmkit/manager/state/store"
+	"github.com/docker/swarmkit/protobuf/ptypes"
 	"github.com/docker/swarmkit/remotes"
 	"github.com/docker/swarmkit/watch"
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
@@ -125,6 +127,8 @@ type Dispatcher struct {
 	ctx                  context.Context
 	cancel               context.CancelFunc
 	clusterUpdateQueue   *watch.Queue
+	dp                   *drivers.DriverProvider
+	securityConfig       *ca.SecurityConfig
 
 	taskUpdates     map[string]*api.TaskStatus // indexed by task ID
 	taskUpdatesLock sync.Mutex
@@ -142,14 +146,16 @@ type Dispatcher struct {
 }
 
 // New returns Dispatcher with cluster interface(usually raft.Node).
-func New(cluster Cluster, c *Config) *Dispatcher {
+func New(cluster Cluster, c *Config, dp *drivers.DriverProvider, securityConfig *ca.SecurityConfig) *Dispatcher {
 	d := &Dispatcher{
+		dp:                    dp,
 		nodes:                 newNodeStore(c.HeartbeatPeriod, c.HeartbeatEpsilon, c.GracePeriodMultiplier, c.RateLimitPeriod),
 		downNodes:             newNodeStore(defaultNodeDownPeriod, 0, 1, 0),
 		store:                 cluster.MemoryStore(),
 		cluster:               cluster,
 		processUpdatesTrigger: make(chan struct{}, 1),
 		config:                c,
+		securityConfig:        securityConfig,
 	}
 
 	d.processUpdatesCond = sync.NewCond(&d.processUpdatesLock)
@@ -333,7 +339,7 @@ func (d *Dispatcher) markNodesUnknown(ctx context.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to get list of nodes")
 	}
-	_, err = d.store.Batch(func(batch *store.Batch) error {
+	err = d.store.Batch(func(batch *store.Batch) error {
 		for _, n := range nodes {
 			err := batch.Update(func(tx store.Tx) error {
 				// check if node is still here
@@ -427,13 +433,14 @@ func (d *Dispatcher) markNodeReady(ctx context.Context, nodeID string, descripti
 
 	// Wait until the node update batch happens before unblocking register.
 	d.processUpdatesLock.Lock()
+	defer d.processUpdatesLock.Unlock()
+
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
 	default:
 	}
 	d.processUpdatesCond.Wait()
-	d.processUpdatesLock.Unlock()
 
 	return nil
 }
@@ -474,7 +481,7 @@ func (d *Dispatcher) register(ctx context.Context, nodeID string, description *a
 
 	addr, err := nodeIPFromContext(ctx)
 	if err != nil {
-		log.G(ctx).Debug(err.Error())
+		log.G(ctx).WithError(err).Debug("failed to get remote node IP")
 	}
 
 	if err := d.markNodeReady(dctx, nodeID, description, addr); err != nil {
@@ -482,7 +489,7 @@ func (d *Dispatcher) register(ctx context.Context, nodeID string, description *a
 	}
 
 	expireFunc := func() {
-		log.G(ctx).Debugf("heartbeat expiration")
+		log.G(ctx).Debug("heartbeat expiration")
 		if err := d.markNodeNotReady(nodeID, api.NodeStatus_DOWN, "heartbeat failure"); err != nil {
 			log.G(ctx).WithError(err).Errorf("failed deregistering node after heartbeat expiration")
 		}
@@ -529,6 +536,8 @@ func (d *Dispatcher) UpdateTaskStatus(ctx context.Context, r *api.UpdateTaskStat
 		return nil, err
 	}
 
+	validTaskUpdates := make([]*api.UpdateTaskStatusRequest_TaskStatusUpdate, 0, len(r.Updates))
+
 	// Validate task updates
 	for _, u := range r.Updates {
 		if u.Status == nil {
@@ -541,7 +550,8 @@ func (d *Dispatcher) UpdateTaskStatus(ctx context.Context, r *api.UpdateTaskStat
 			t = store.GetTask(tx, u.TaskID)
 		})
 		if t == nil {
-			log.WithField("task.id", u.TaskID).Warn("cannot find target task in store")
+			// Task may have been deleted
+			log.WithField("task.id", u.TaskID).Debug("cannot find target task in store")
 			continue
 		}
 
@@ -550,14 +560,13 @@ func (d *Dispatcher) UpdateTaskStatus(ctx context.Context, r *api.UpdateTaskStat
 			log.WithField("task.id", u.TaskID).Error(err)
 			return nil, err
 		}
+
+		validTaskUpdates = append(validTaskUpdates, u)
 	}
 
 	d.taskUpdatesLock.Lock()
 	// Enqueue task updates
-	for _, u := range r.Updates {
-		if u.Status == nil {
-			continue
-		}
+	for _, u := range validTaskUpdates {
 		d.taskUpdates[u.TaskID] = u.Status
 	}
 
@@ -600,13 +609,14 @@ func (d *Dispatcher) processUpdates(ctx context.Context) {
 		"method": "(*Dispatcher).processUpdates",
 	})
 
-	_, err := d.store.Batch(func(batch *store.Batch) error {
+	err := d.store.Batch(func(batch *store.Batch) error {
 		for taskID, status := range taskUpdates {
 			err := batch.Update(func(tx store.Tx) error {
 				logger := log.WithField("task.id", taskID)
 				task := store.GetTask(tx, taskID)
 				if task == nil {
-					logger.Errorf("task unavailable")
+					// Task may have been deleted
+					logger.Debug("cannot find target task in store")
 					return nil
 				}
 
@@ -623,11 +633,13 @@ func (d *Dispatcher) processUpdates(ctx context.Context) {
 				}
 
 				task.Status = *status
+				task.Status.AppliedBy = d.securityConfig.ClientTLSCreds.NodeID()
+				task.Status.AppliedAt = ptypes.MustTimestampProto(time.Now())
 				if err := store.UpdateTask(tx, task); err != nil {
 					logger.WithError(err).Error("failed to update task status")
 					return nil
 				}
-				logger.Debug("task status updated")
+				logger.Debug("dispatcher committed status update to store")
 				return nil
 			})
 			if err != nil {
@@ -699,7 +711,7 @@ func (d *Dispatcher) Tasks(r *api.TasksRequest, stream api.Dispatcher_TasksServe
 	if nodeInfo.ForwardedBy != nil {
 		fields["forwarder.id"] = nodeInfo.ForwardedBy.NodeID
 	}
-	log.G(stream.Context()).WithFields(fields).Debugf("")
+	log.G(stream.Context()).WithFields(fields).Debug("")
 
 	if _, err = d.nodes.GetWithSession(nodeID, r.SessionID); err != nil {
 		return err
@@ -823,7 +835,7 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 		fields["forwarder.id"] = nodeInfo.ForwardedBy.NodeID
 	}
 	log := log.G(stream.Context()).WithFields(fields)
-	log.Debugf("")
+	log.Debug("")
 
 	if _, err = d.nodes.GetWithSession(nodeID, r.SessionID); err != nil {
 		return err
@@ -832,7 +844,7 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 	var (
 		sequence    int64
 		appliesTo   string
-		assignments = newAssignmentSet(log)
+		assignments = newAssignmentSet(log, d.dp)
 	)
 
 	sendMessage := func(msg api.AssignmentsMessage, assignmentType api.AssignmentsMessage_Type) error {
@@ -951,7 +963,7 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 }
 
 func (d *Dispatcher) moveTasksToOrphaned(nodeID string) error {
-	_, err := d.store.Batch(func(batch *store.Batch) error {
+	err := d.store.Batch(func(batch *store.Batch) error {
 		var (
 			tasks []*api.Task
 			err   error
@@ -1114,7 +1126,7 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 		// get the node IP addr
 		addr, err := nodeIPFromContext(stream.Context())
 		if err != nil {
-			log.G(ctx).Debugf(err.Error())
+			log.G(ctx).WithError(err).Debug("failed to get remote node IP")
 		}
 		// update the node description
 		if err := d.markNodeReady(dctx, nodeID, r.Description, addr); err != nil {
@@ -1151,6 +1163,9 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 		return err
 	}
 
+	clusterUpdatesCh, clusterCancel := d.clusterUpdateQueue.Watch()
+	defer clusterCancel()
+
 	if err := stream.Send(&api.SessionMessage{
 		SessionID:            sessionID,
 		Node:                 nodeObj,
@@ -1160,9 +1175,6 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 	}); err != nil {
 		return err
 	}
-
-	clusterUpdatesCh, clusterCancel := d.clusterUpdateQueue.Watch()
-	defer clusterCancel()
 
 	// disconnectNode is a helper forcibly shutdown connection
 	disconnectNode := func() error {

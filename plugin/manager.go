@@ -8,11 +8,11 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/image"
@@ -21,10 +21,13 @@ import (
 	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/mount"
+	"github.com/docker/docker/pkg/pubsub"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/plugin/v2"
 	"github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 const configFileName = "config.json"
@@ -61,6 +64,7 @@ type Manager struct {
 	cMap             map[*v2.Plugin]*controller
 	containerdClient libcontainerd.Client
 	blobStore        *basicBlobStore
+	publisher        *pubsub.Publisher
 }
 
 // controller represents the manager's control on a plugin.
@@ -101,6 +105,11 @@ func NewManager(config ManagerConfig) (*Manager, error) {
 	if err := os.MkdirAll(manager.tmpDir(), 0700); err != nil {
 		return nil, errors.Wrapf(err, "failed to mkdir %v", manager.tmpDir())
 	}
+
+	if err := setupRoot(manager.config.Root); err != nil {
+		return nil, err
+	}
+
 	var err error
 	manager.containerdClient, err = config.Executor.Client(manager) // todo: move to another struct
 	if err != nil {
@@ -115,6 +124,8 @@ func NewManager(config ManagerConfig) (*Manager, error) {
 	if err := manager.reload(); err != nil {
 		return nil, errors.Wrap(err, "failed to restore plugins")
 	}
+
+	manager.publisher = pubsub.NewPublisher(0, 0)
 	return manager, nil
 }
 
@@ -161,6 +172,19 @@ func (pm *Manager) StateChanged(id string, e libcontainerd.StateInfo) error {
 	return nil
 }
 
+func handleLoadError(err error, id string) {
+	if err == nil {
+		return
+	}
+	logger := logrus.WithError(err).WithField("id", id)
+	if os.IsNotExist(errors.Cause(err)) {
+		// Likely some error while removing on an older version of docker
+		logger.Warn("missing plugin config, skipping: this may be caused due to a failed remove and requires manual cleanup.")
+		return
+	}
+	logger.Error("error loading plugin, skipping")
+}
+
 func (pm *Manager) reload() error { // todo: restore
 	dir, err := ioutil.ReadDir(pm.config.Root)
 	if err != nil {
@@ -171,9 +195,17 @@ func (pm *Manager) reload() error { // todo: restore
 		if validFullID.MatchString(v.Name()) {
 			p, err := pm.loadPlugin(v.Name())
 			if err != nil {
-				return err
+				handleLoadError(err, v.Name())
+				continue
 			}
 			plugins[p.GetID()] = p
+		} else {
+			if validFullID.MatchString(strings.TrimSuffix(v.Name(), "-removing")) {
+				// There was likely some error while removing this plugin, let's try to remove again here
+				if err := system.EnsureRemoveAll(v.Name()); err != nil {
+					logrus.WithError(err).WithField("id", v.Name()).Warn("error while attempting to clean up previously removed plugin")
+				}
+			}
 		}
 	}
 
@@ -245,6 +277,11 @@ func (pm *Manager) reload() error { // todo: restore
 	return nil
 }
 
+// Get looks up the requested plugin in the store.
+func (pm *Manager) Get(idOrName string) (*v2.Plugin, error) {
+	return pm.config.Store.GetV2Plugin(idOrName)
+}
+
 func (pm *Manager) loadPlugin(id string) (*v2.Plugin, error) {
 	p := filepath.Join(pm.config.Root, id, configFileName)
 	dt, err := ioutil.ReadFile(p)
@@ -269,7 +306,7 @@ func (pm *Manager) save(p *v2.Plugin) error {
 	return nil
 }
 
-// GC cleans up unrefrenced blobs. This is recommended to run in a goroutine
+// GC cleans up unreferenced blobs. This is recommended to run in a goroutine
 func (pm *Manager) GC() {
 	pm.muGC.Lock()
 	defer pm.muGC.Unlock()
@@ -348,17 +385,22 @@ func isEqualPrivilege(a, b types.PluginPrivilege) bool {
 	return reflect.DeepEqual(a.Value, b.Value)
 }
 
-func configToRootFS(c []byte) (*image.RootFS, error) {
+func configToRootFS(c []byte) (*image.RootFS, layer.Platform, error) {
+	// TODO @jhowardmsft LCOW - Will need to revisit this. For now, calculate the platform.
+	platform := layer.Platform(runtime.GOOS)
+	if system.LCOWSupported() {
+		platform = "linux"
+	}
 	var pluginConfig types.PluginConfig
 	if err := json.Unmarshal(c, &pluginConfig); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	// validation for empty rootfs is in distribution code
 	if pluginConfig.Rootfs == nil {
-		return nil, nil
+		return nil, platform, nil
 	}
 
-	return rootFSFromPlugin(pluginConfig.Rootfs), nil
+	return rootFSFromPlugin(pluginConfig.Rootfs), platform, nil
 }
 
 func rootFSFromPlugin(pluginfs *types.PluginConfigRootfs) *image.RootFS {

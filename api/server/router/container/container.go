@@ -6,12 +6,18 @@ import (
 )
 
 type validationError struct {
-	error
+	cause error
 }
 
-func (validationError) IsValidationError() bool {
-	return true
+func (e validationError) Error() string {
+	return e.cause.Error()
 }
+
+func (e validationError) Cause() error {
+	return e.cause
+}
+
+func (e validationError) InvalidParameter() {}
 
 // containerRouter is a router to talk with the container controller
 type containerRouter struct {
@@ -59,7 +65,7 @@ func (r *containerRouter) initRoutes() {
 		router.NewPostRoute("/containers/{name:.*}/restart", r.postContainersRestart),
 		router.NewPostRoute("/containers/{name:.*}/start", r.postContainersStart),
 		router.NewPostRoute("/containers/{name:.*}/stop", r.postContainersStop),
-		router.NewPostRoute("/containers/{name:.*}/wait", r.postContainersWait),
+		router.NewPostRoute("/containers/{name:.*}/wait", r.postContainersWait, router.WithCancel),
 		router.NewPostRoute("/containers/{name:.*}/resize", r.postContainersResize),
 		router.NewPostRoute("/containers/{name:.*}/attach", r.postContainersAttach),
 		router.NewPostRoute("/containers/{name:.*}/copy", r.postContainersCopy), // Deprecated since 1.8, Errors out since 1.12
@@ -68,7 +74,7 @@ func (r *containerRouter) initRoutes() {
 		router.NewPostRoute("/exec/{name:.*}/resize", r.postContainerExecResize),
 		router.NewPostRoute("/containers/{name:.*}/rename", r.postContainerRename),
 		router.NewPostRoute("/containers/{name:.*}/update", r.postContainerUpdate),
-		router.NewPostRoute("/containers/prune", r.postContainersPrune),
+		router.NewPostRoute("/containers/prune", r.postContainersPrune, router.WithCancel),
 		// PUT
 		router.NewPutRoute("/containers/{name:.*}/archive", r.putContainersArchive),
 		// DELETE

@@ -206,6 +206,9 @@ func (a *Agent) run(ctx context.Context) {
 		leaving       = a.leaving
 		subscriptions = map[string]context.CancelFunc{}
 	)
+	defer func() {
+		session.close()
+	}()
 
 	if err := a.worker.Init(ctx); err != nil {
 		log.G(ctx).WithError(err).Error("worker initialization failed")
@@ -245,7 +248,12 @@ func (a *Agent) run(ctx context.Context) {
 			nodeDescription = newNodeDescription
 			// close the session
 			log.G(ctx).Info("agent: found node update")
-			session.sendError(nil)
+
+			if err := session.close(); err != nil {
+				log.G(ctx).WithError(err).Error("agent: closing session failed")
+			}
+			sessionq = nil
+			registered = nil
 		}
 	}
 
@@ -309,15 +317,22 @@ func (a *Agent) run(ctx context.Context) {
 			if ready != nil {
 				close(ready)
 			}
+			if a.config.SessionTracker != nil {
+				a.config.SessionTracker.SessionEstablished()
+			}
 			ready = nil
 			registered = nil // we only care about this once per session
 			backoff = 0      // reset backoff
 			sessionq = a.sessionq
 		case err := <-session.errs:
 			// TODO(stevvooe): This may actually block if a session is closed
-			// but no error was sent. Session.close must only be called here
-			// for this to work.
+			// but no error was sent. This must be the only place
+			// session.close is called in response to errors, for this to work.
 			if err != nil {
+				if a.config.SessionTracker != nil {
+					a.config.SessionTracker.SessionError(err)
+				}
+
 				log.G(ctx).WithError(err).Error("agent: session failed")
 				backoff = initialSessionFailureBackoff + 2*backoff
 				if backoff > maxSessionFailureBackoff {
@@ -332,6 +347,14 @@ func (a *Agent) run(ctx context.Context) {
 			// if we're here before <-registered, do nothing for that event
 			registered = nil
 		case <-session.closed:
+			if a.config.SessionTracker != nil {
+				if err := a.config.SessionTracker.SessionClosed(); err != nil {
+					log.G(ctx).WithError(err).Error("agent: exiting")
+					a.err = err
+					return
+				}
+			}
+
 			log.G(ctx).Debugf("agent: rebuild session")
 
 			// select a session registration delay from backoff range.
@@ -360,8 +383,6 @@ func (a *Agent) run(ctx context.Context) {
 			if a.err == nil {
 				a.err = ctx.Err()
 			}
-			session.close()
-
 			return
 		}
 	}

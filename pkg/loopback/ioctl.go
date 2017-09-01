@@ -3,34 +3,35 @@
 package loopback
 
 import (
-	"syscall"
 	"unsafe"
+
+	"golang.org/x/sys/unix"
 )
 
 func ioctlLoopCtlGetFree(fd uintptr) (int, error) {
-	index, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, LoopCtlGetFree, 0)
-	if err != 0 {
+	index, err := unix.IoctlGetInt(int(fd), LoopCtlGetFree)
+	if err != nil {
 		return 0, err
 	}
-	return int(index), nil
+	return index, nil
 }
 
 func ioctlLoopSetFd(loopFd, sparseFd uintptr) error {
-	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, loopFd, LoopSetFd, sparseFd); err != 0 {
+	if err := unix.IoctlSetInt(int(loopFd), LoopSetFd, int(sparseFd)); err != nil {
 		return err
 	}
 	return nil
 }
 
 func ioctlLoopSetStatus64(loopFd uintptr, loopInfo *loopInfo64) error {
-	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, loopFd, LoopSetStatus64, uintptr(unsafe.Pointer(loopInfo))); err != 0 {
+	if _, _, err := unix.Syscall(unix.SYS_IOCTL, loopFd, LoopSetStatus64, uintptr(unsafe.Pointer(loopInfo))); err != 0 {
 		return err
 	}
 	return nil
 }
 
 func ioctlLoopClrFd(loopFd uintptr) error {
-	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, loopFd, LoopClrFd, 0); err != 0 {
+	if _, _, err := unix.Syscall(unix.SYS_IOCTL, loopFd, LoopClrFd, 0); err != 0 {
 		return err
 	}
 	return nil
@@ -39,14 +40,14 @@ func ioctlLoopClrFd(loopFd uintptr) error {
 func ioctlLoopGetStatus64(loopFd uintptr) (*loopInfo64, error) {
 	loopInfo := &loopInfo64{}
 
-	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, loopFd, LoopGetStatus64, uintptr(unsafe.Pointer(loopInfo))); err != 0 {
+	if _, _, err := unix.Syscall(unix.SYS_IOCTL, loopFd, LoopGetStatus64, uintptr(unsafe.Pointer(loopInfo))); err != 0 {
 		return nil, err
 	}
 	return loopInfo, nil
 }
 
 func ioctlLoopSetCapacity(loopFd uintptr, value int) error {
-	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, loopFd, LoopSetCapacity, uintptr(value)); err != 0 {
+	if err := unix.IoctlSetInt(int(loopFd), LoopSetCapacity, value); err != nil {
 		return err
 	}
 	return nil

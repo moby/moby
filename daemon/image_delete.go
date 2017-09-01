@@ -6,11 +6,11 @@ import (
 	"time"
 
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/pkg/errors"
 )
 
 type conflictType int
@@ -65,9 +65,9 @@ func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.I
 	start := time.Now()
 	records := []types.ImageDeleteResponseItem{}
 
-	imgID, err := daemon.GetImageID(imageRef)
+	imgID, platform, err := daemon.GetImageIDAndPlatform(imageRef)
 	if err != nil {
-		return nil, daemon.imageNotExistToErrcode(err)
+		return nil, err
 	}
 
 	repoRefs := daemon.referenceStore.References(imgID.Digest())
@@ -84,8 +84,8 @@ func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.I
 				// this image would remain "dangling" and since
 				// we really want to avoid that the client must
 				// explicitly force its removal.
-				err := fmt.Errorf("conflict: unable to remove repository reference %q (must force) - container %s is using its referenced image %s", imageRef, stringid.TruncateID(container.ID), stringid.TruncateID(imgID.String()))
-				return nil, errors.NewRequestConflictError(err)
+				err := errors.Errorf("conflict: unable to remove repository reference %q (must force) - container %s is using its referenced image %s", imageRef, stringid.TruncateID(container.ID), stringid.TruncateID(imgID.String()))
+				return nil, stateConflictError{err}
 			}
 		}
 
@@ -94,7 +94,7 @@ func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.I
 			return nil, err
 		}
 
-		parsedRef, err = daemon.removeImageRef(parsedRef)
+		parsedRef, err = daemon.removeImageRef(platform, parsedRef)
 		if err != nil {
 			return nil, err
 		}
@@ -122,7 +122,7 @@ func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.I
 				remainingRefs := []reference.Named{}
 				for _, repoRef := range repoRefs {
 					if _, repoRefIsCanonical := repoRef.(reference.Canonical); repoRefIsCanonical && parsedRef.Name() == repoRef.Name() {
-						if _, err := daemon.removeImageRef(repoRef); err != nil {
+						if _, err := daemon.removeImageRef(platform, repoRef); err != nil {
 							return records, err
 						}
 
@@ -152,12 +152,12 @@ func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.I
 			if !force {
 				c |= conflictSoft &^ conflictActiveReference
 			}
-			if conflict := daemon.checkImageDeleteConflict(imgID, c); conflict != nil {
+			if conflict := daemon.checkImageDeleteConflict(imgID, platform, c); conflict != nil {
 				return nil, conflict
 			}
 
 			for _, repoRef := range repoRefs {
-				parsedRef, err := daemon.removeImageRef(repoRef)
+				parsedRef, err := daemon.removeImageRef(platform, repoRef)
 				if err != nil {
 					return nil, err
 				}
@@ -170,7 +170,7 @@ func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.I
 		}
 	}
 
-	if err := daemon.imageDeleteHelper(imgID, &records, force, prune, removedRepositoryRef); err != nil {
+	if err := daemon.imageDeleteHelper(imgID, platform, &records, force, prune, removedRepositoryRef); err != nil {
 		return nil, err
 	}
 
@@ -231,7 +231,7 @@ func (daemon *Daemon) getContainerUsingImage(imageID image.ID) *container.Contai
 // repositoryRef must not be an image ID but a repository name followed by an
 // optional tag or digest reference. If tag or digest is omitted, the default
 // tag is used. Returns the resolved image reference and an error.
-func (daemon *Daemon) removeImageRef(ref reference.Named) (reference.Named, error) {
+func (daemon *Daemon) removeImageRef(platform string, ref reference.Named) (reference.Named, error) {
 	ref = reference.TagNameOnly(ref)
 
 	// Ignore the boolean value returned, as far as we're concerned, this
@@ -247,11 +247,11 @@ func (daemon *Daemon) removeImageRef(ref reference.Named) (reference.Named, erro
 // on the first encountered error. Removed references are logged to this
 // daemon's event service. An "Untagged" types.ImageDeleteResponseItem is added to the
 // given list of records.
-func (daemon *Daemon) removeAllReferencesToImageID(imgID image.ID, records *[]types.ImageDeleteResponseItem) error {
+func (daemon *Daemon) removeAllReferencesToImageID(imgID image.ID, platform string, records *[]types.ImageDeleteResponseItem) error {
 	imageRefs := daemon.referenceStore.References(imgID.Digest())
 
 	for _, imageRef := range imageRefs {
-		parsedRef, err := daemon.removeImageRef(imageRef)
+		parsedRef, err := daemon.removeImageRef(platform, imageRef)
 		if err != nil {
 			return err
 		}
@@ -285,6 +285,8 @@ func (idc *imageDeleteConflict) Error() string {
 	return fmt.Sprintf("conflict: unable to delete %s (%s) - %s", stringid.TruncateID(idc.imgID.String()), forceMsg, idc.message)
 }
 
+func (idc *imageDeleteConflict) Conflict() {}
+
 // imageDeleteHelper attempts to delete the given image from this daemon. If
 // the image has any hard delete conflicts (child images or running containers
 // using the image) then it cannot be deleted. If the image has any soft delete
@@ -296,15 +298,15 @@ func (idc *imageDeleteConflict) Error() string {
 // conflict is encountered, it will be returned immediately without deleting
 // the image. If quiet is true, any encountered conflicts will be ignored and
 // the function will return nil immediately without deleting the image.
-func (daemon *Daemon) imageDeleteHelper(imgID image.ID, records *[]types.ImageDeleteResponseItem, force, prune, quiet bool) error {
+func (daemon *Daemon) imageDeleteHelper(imgID image.ID, platform string, records *[]types.ImageDeleteResponseItem, force, prune, quiet bool) error {
 	// First, determine if this image has any conflicts. Ignore soft conflicts
 	// if force is true.
 	c := conflictHard
 	if !force {
 		c |= conflictSoft
 	}
-	if conflict := daemon.checkImageDeleteConflict(imgID, c); conflict != nil {
-		if quiet && (!daemon.imageIsDangling(imgID) || conflict.used) {
+	if conflict := daemon.checkImageDeleteConflict(imgID, platform, c); conflict != nil {
+		if quiet && (!daemon.imageIsDangling(imgID, platform) || conflict.used) {
 			// Ignore conflicts UNLESS the image is "dangling" or not being used in
 			// which case we want the user to know.
 			return nil
@@ -315,18 +317,18 @@ func (daemon *Daemon) imageDeleteHelper(imgID image.ID, records *[]types.ImageDe
 		return conflict
 	}
 
-	parent, err := daemon.imageStore.GetParent(imgID)
+	parent, err := daemon.stores[platform].imageStore.GetParent(imgID)
 	if err != nil {
 		// There may be no parent
 		parent = ""
 	}
 
 	// Delete all repository tag/digest references to this image.
-	if err := daemon.removeAllReferencesToImageID(imgID, records); err != nil {
+	if err := daemon.removeAllReferencesToImageID(imgID, platform, records); err != nil {
 		return err
 	}
 
-	removedLayers, err := daemon.imageStore.Delete(imgID)
+	removedLayers, err := daemon.stores[platform].imageStore.Delete(imgID)
 	if err != nil {
 		return err
 	}
@@ -346,7 +348,7 @@ func (daemon *Daemon) imageDeleteHelper(imgID image.ID, records *[]types.ImageDe
 	// either running or stopped).
 	// Do not force prunings, but do so quietly (stopping on any encountered
 	// conflicts).
-	return daemon.imageDeleteHelper(parent, records, false, true, true)
+	return daemon.imageDeleteHelper(parent, platform, records, false, true, true)
 }
 
 // checkImageDeleteConflict determines whether there are any conflicts
@@ -355,9 +357,9 @@ func (daemon *Daemon) imageDeleteHelper(imgID image.ID, records *[]types.ImageDe
 // using the image. A soft conflict is any tags/digest referencing the given
 // image or any stopped container using the image. If ignoreSoftConflicts is
 // true, this function will not check for soft conflict conditions.
-func (daemon *Daemon) checkImageDeleteConflict(imgID image.ID, mask conflictType) *imageDeleteConflict {
+func (daemon *Daemon) checkImageDeleteConflict(imgID image.ID, platform string, mask conflictType) *imageDeleteConflict {
 	// Check if the image has any descendant images.
-	if mask&conflictDependentChild != 0 && len(daemon.imageStore.Children(imgID)) > 0 {
+	if mask&conflictDependentChild != 0 && len(daemon.stores[platform].imageStore.Children(imgID)) > 0 {
 		return &imageDeleteConflict{
 			hard:    true,
 			imgID:   imgID,
@@ -408,6 +410,6 @@ func (daemon *Daemon) checkImageDeleteConflict(imgID image.ID, mask conflictType
 // imageIsDangling returns whether the given image is "dangling" which means
 // that there are no repository references to the given image and it has no
 // child images.
-func (daemon *Daemon) imageIsDangling(imgID image.ID) bool {
-	return !(len(daemon.referenceStore.References(imgID.Digest())) > 0 || len(daemon.imageStore.Children(imgID)) > 0)
+func (daemon *Daemon) imageIsDangling(imgID image.ID, platform string) bool {
+	return !(len(daemon.referenceStore.References(imgID.Digest())) > 0 || len(daemon.stores[platform].imageStore.Children(imgID)) > 0)
 }

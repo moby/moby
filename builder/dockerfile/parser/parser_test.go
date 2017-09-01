@@ -27,40 +27,39 @@ func getDirs(t *testing.T, dir string) []string {
 	return dirs
 }
 
-func TestTestNegative(t *testing.T) {
+func TestParseErrorCases(t *testing.T) {
 	for _, dir := range getDirs(t, negativeTestDir) {
 		dockerfile := filepath.Join(negativeTestDir, dir, "Dockerfile")
 
 		df, err := os.Open(dockerfile)
-		require.NoError(t, err)
+		require.NoError(t, err, dockerfile)
 		defer df.Close()
 
 		_, err = Parse(df)
-		assert.Error(t, err)
+		assert.Error(t, err, dockerfile)
 	}
 }
 
-func TestTestData(t *testing.T) {
+func TestParseCases(t *testing.T) {
 	for _, dir := range getDirs(t, testDir) {
 		dockerfile := filepath.Join(testDir, dir, "Dockerfile")
 		resultfile := filepath.Join(testDir, dir, "result")
 
 		df, err := os.Open(dockerfile)
-		require.NoError(t, err)
+		require.NoError(t, err, dockerfile)
 		defer df.Close()
 
 		result, err := Parse(df)
-		require.NoError(t, err)
+		require.NoError(t, err, dockerfile)
 
 		content, err := ioutil.ReadFile(resultfile)
-		require.NoError(t, err)
+		require.NoError(t, err, resultfile)
 
 		if runtime.GOOS == "windows" {
 			// CRLF --> CR to match Unix behavior
 			content = bytes.Replace(content, []byte{'\x0d', '\x0a'}, []byte{'\x0a'}, -1)
 		}
-
-		assert.Contains(t, result.AST.Dump()+"\n", string(content), "In "+dockerfile)
+		assert.Equal(t, result.AST.Dump()+"\n", string(content), "In "+dockerfile)
 	}
 }
 
@@ -106,7 +105,7 @@ func TestParseWords(t *testing.T) {
 	}
 }
 
-func TestLineInformation(t *testing.T) {
+func TestParseIncludesLineNumbers(t *testing.T) {
 	df, err := os.Open(testFileLineInfo)
 	require.NoError(t, err)
 	defer df.Close()
@@ -115,10 +114,8 @@ func TestLineInformation(t *testing.T) {
 	require.NoError(t, err)
 
 	ast := result.AST
-	if ast.StartLine != 5 || ast.endLine != 31 {
-		fmt.Fprintf(os.Stderr, "Wrong root line information: expected(%d-%d), actual(%d-%d)\n", 5, 31, ast.StartLine, ast.endLine)
-		t.Fatal("Root line information doesn't match result.")
-	}
+	assert.Equal(t, 5, ast.StartLine)
+	assert.Equal(t, 31, ast.endLine)
 	assert.Len(t, ast.Children, 3)
 	expected := [][]int{
 		{5, 5},
@@ -126,10 +123,32 @@ func TestLineInformation(t *testing.T) {
 		{17, 31},
 	}
 	for i, child := range ast.Children {
-		if child.StartLine != expected[i][0] || child.endLine != expected[i][1] {
-			t.Logf("Wrong line information for child %d: expected(%d-%d), actual(%d-%d)\n",
-				i, expected[i][0], expected[i][1], child.StartLine, child.endLine)
-			t.Fatal("Root line information doesn't match result.")
-		}
+		msg := fmt.Sprintf("Child %d", i)
+		assert.Equal(t, expected[i], []int{child.StartLine, child.endLine}, msg)
 	}
+}
+
+func TestParseWarnsOnEmptyContinutationLine(t *testing.T) {
+	dockerfile := bytes.NewBufferString(`
+FROM alpine:3.6
+
+RUN something \
+
+    following \
+
+    more
+
+RUN another \
+
+    thing
+	`)
+
+	result, err := Parse(dockerfile)
+	require.NoError(t, err)
+	warnings := result.Warnings
+	assert.Len(t, warnings, 3)
+	assert.Contains(t, warnings[0], "Empty continuation line found in")
+	assert.Contains(t, warnings[0], "RUN something     following     more")
+	assert.Contains(t, warnings[1], "RUN another     thing")
+	assert.Contains(t, warnings[2], "will become errors in a future release")
 }

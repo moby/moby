@@ -44,7 +44,7 @@ func (sr *swarmRouter) swarmLogs(ctx context.Context, w http.ResponseWriter, r *
 			// maybe should return some context with this error?
 			return err
 		}
-		tty = s.Spec.TaskTemplate.ContainerSpec.TTY || tty
+		tty = (s.Spec.TaskTemplate.ContainerSpec != nil && s.Spec.TaskTemplate.ContainerSpec.TTY) || tty
 	}
 	for _, task := range selector.Tasks {
 		t, err := sr.backend.GetTask(task)

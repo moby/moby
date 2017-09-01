@@ -2,12 +2,14 @@ package daemon
 
 import (
 	apitypes "github.com/docker/docker/api/types"
+	lncluster "github.com/docker/libnetwork/cluster"
 )
 
 // Cluster is the interface for github.com/docker/docker/daemon/cluster.(*Cluster).
 type Cluster interface {
 	ClusterStatus
 	NetworkManager
+	SendClusterEvent(event lncluster.ConfigEventType)
 }
 
 // ClusterStatus interface provides information about the Swarm status of the Cluster

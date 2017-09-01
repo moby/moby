@@ -1,9 +1,128 @@
 package registry
 
 import (
+	"reflect"
+	"sort"
 	"strings"
 	"testing"
 )
+
+func TestLoadAllowNondistributableArtifacts(t *testing.T) {
+	testCases := []struct {
+		registries []string
+		cidrStrs   []string
+		hostnames  []string
+		err        string
+	}{
+		{
+			registries: []string{"1.2.3.0/24"},
+			cidrStrs:   []string{"1.2.3.0/24"},
+		},
+		{
+			registries: []string{"2001:db8::/120"},
+			cidrStrs:   []string{"2001:db8::/120"},
+		},
+		{
+			registries: []string{"127.0.0.1"},
+			hostnames:  []string{"127.0.0.1"},
+		},
+		{
+			registries: []string{"127.0.0.1:8080"},
+			hostnames:  []string{"127.0.0.1:8080"},
+		},
+		{
+			registries: []string{"2001:db8::1"},
+			hostnames:  []string{"2001:db8::1"},
+		},
+		{
+			registries: []string{"[2001:db8::1]:80"},
+			hostnames:  []string{"[2001:db8::1]:80"},
+		},
+		{
+			registries: []string{"[2001:db8::1]:80"},
+			hostnames:  []string{"[2001:db8::1]:80"},
+		},
+		{
+			registries: []string{"1.2.3.0/24", "2001:db8::/120", "127.0.0.1", "127.0.0.1:8080"},
+			cidrStrs:   []string{"1.2.3.0/24", "2001:db8::/120"},
+			hostnames:  []string{"127.0.0.1", "127.0.0.1:8080"},
+		},
+
+		{
+			registries: []string{"http://mytest.com"},
+			err:        "allow-nondistributable-artifacts registry http://mytest.com should not contain '://'",
+		},
+		{
+			registries: []string{"https://mytest.com"},
+			err:        "allow-nondistributable-artifacts registry https://mytest.com should not contain '://'",
+		},
+		{
+			registries: []string{"HTTP://mytest.com"},
+			err:        "allow-nondistributable-artifacts registry HTTP://mytest.com should not contain '://'",
+		},
+		{
+			registries: []string{"svn://mytest.com"},
+			err:        "allow-nondistributable-artifacts registry svn://mytest.com should not contain '://'",
+		},
+		{
+			registries: []string{"-invalid-registry"},
+			err:        "Cannot begin or end with a hyphen",
+		},
+		{
+			registries: []string{`mytest-.com`},
+			err:        `allow-nondistributable-artifacts registry mytest-.com is not valid: invalid host "mytest-.com"`,
+		},
+		{
+			registries: []string{`1200:0000:AB00:1234:0000:2552:7777:1313:8080`},
+			err:        `allow-nondistributable-artifacts registry 1200:0000:AB00:1234:0000:2552:7777:1313:8080 is not valid: invalid host "1200:0000:AB00:1234:0000:2552:7777:1313:8080"`,
+		},
+		{
+			registries: []string{`mytest.com:500000`},
+			err:        `allow-nondistributable-artifacts registry mytest.com:500000 is not valid: invalid port "500000"`,
+		},
+		{
+			registries: []string{`"mytest.com"`},
+			err:        `allow-nondistributable-artifacts registry "mytest.com" is not valid: invalid host "\"mytest.com\""`,
+		},
+		{
+			registries: []string{`"mytest.com:5000"`},
+			err:        `allow-nondistributable-artifacts registry "mytest.com:5000" is not valid: invalid host "\"mytest.com"`,
+		},
+	}
+	for _, testCase := range testCases {
+		config := newServiceConfig(ServiceOptions{})
+		err := config.LoadAllowNondistributableArtifacts(testCase.registries)
+		if testCase.err == "" {
+			if err != nil {
+				t.Fatalf("expect no error, got '%s'", err)
+			}
+
+			cidrStrs := []string{}
+			for _, c := range config.AllowNondistributableArtifactsCIDRs {
+				cidrStrs = append(cidrStrs, c.String())
+			}
+
+			sort.Strings(testCase.cidrStrs)
+			sort.Strings(cidrStrs)
+			if (len(testCase.cidrStrs) > 0 || len(cidrStrs) > 0) && !reflect.DeepEqual(testCase.cidrStrs, cidrStrs) {
+				t.Fatalf("expect AllowNondistributableArtifactsCIDRs to be '%+v', got '%+v'", testCase.cidrStrs, cidrStrs)
+			}
+
+			sort.Strings(testCase.hostnames)
+			sort.Strings(config.AllowNondistributableArtifactsHostnames)
+			if (len(testCase.hostnames) > 0 || len(config.AllowNondistributableArtifactsHostnames) > 0) && !reflect.DeepEqual(testCase.hostnames, config.AllowNondistributableArtifactsHostnames) {
+				t.Fatalf("expect AllowNondistributableArtifactsHostnames to be '%+v', got '%+v'", testCase.hostnames, config.AllowNondistributableArtifactsHostnames)
+			}
+		} else {
+			if err == nil {
+				t.Fatalf("expect error '%s', got no error", testCase.err)
+			}
+			if !strings.Contains(err.Error(), testCase.err) {
+				t.Fatalf("expect error '%s', got '%s'", testCase.err, err)
+			}
+		}
+	}
+}
 
 func TestValidateMirror(t *testing.T) {
 	valid := []string{

@@ -13,10 +13,10 @@ import (
 	"errors"
 	"io"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/opencontainers/go-digest"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -64,6 +64,14 @@ func (id ChainID) String() string {
 	return string(id)
 }
 
+// Platform is the platform of a layer
+type Platform string
+
+// String returns a string rendition of layers target platform
+func (id Platform) String() string {
+	return string(id)
+}
+
 // DiffID is the hash of an individual layer tar.
 type DiffID digest.Digest
 
@@ -98,6 +106,9 @@ type Layer interface {
 
 	// Parent returns the next layer in the layer chain.
 	Parent() Layer
+
+	// Platform returns the platform of the layer
+	Platform() Platform
 
 	// Size returns the size of the entire layer chain. The size
 	// is calculated from the total size of all files in the layers.
@@ -179,7 +190,7 @@ type CreateRWLayerOpts struct {
 // Store represents a backend for managing both
 // read-only and read-write layers.
 type Store interface {
-	Register(io.Reader, ChainID) (Layer, error)
+	Register(io.Reader, ChainID, Platform) (Layer, error)
 	Get(ChainID) (Layer, error)
 	Map() map[ChainID]Layer
 	Release(Layer) ([]Metadata, error)
@@ -197,7 +208,7 @@ type Store interface {
 // DescribableStore represents a layer store capable of storing
 // descriptors for layers.
 type DescribableStore interface {
-	RegisterWithDescriptor(io.Reader, ChainID, distribution.Descriptor) (Layer, error)
+	RegisterWithDescriptor(io.Reader, ChainID, Platform, distribution.Descriptor) (Layer, error)
 }
 
 // MetadataTransaction represents functions for setting layer metadata
@@ -208,6 +219,7 @@ type MetadataTransaction interface {
 	SetDiffID(DiffID) error
 	SetCacheID(string) error
 	SetDescriptor(distribution.Descriptor) error
+	SetPlatform(Platform) error
 	TarSplitWriter(compressInput bool) (io.WriteCloser, error)
 
 	Commit(ChainID) error
@@ -228,6 +240,7 @@ type MetadataStore interface {
 	GetDiffID(ChainID) (DiffID, error)
 	GetCacheID(ChainID) (string, error)
 	GetDescriptor(ChainID) (distribution.Descriptor, error)
+	GetPlatform(ChainID) (Platform, error)
 	TarSplitReader(ChainID) (io.ReadCloser, error)
 
 	SetMountID(string, string) error

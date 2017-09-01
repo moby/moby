@@ -26,7 +26,7 @@ func TestMount(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer ensureUnmount(t, source)
-	validateMount(t, source, "", "")
+	validateMount(t, source, "", "", "")
 	if t.Failed() {
 		t.FailNow()
 	}
@@ -43,27 +43,31 @@ func TestMount(t *testing.T) {
 		options          string
 		expectedOpts     string
 		expectedOptional string
+		expectedVFS      string
 	}{
 		// No options
-		{"tmpfs", "tmpfs", "", "", ""},
+		{"tmpfs", "tmpfs", "", "", "", ""},
 		// Default rw / ro test
-		{source, "", "bind", "", ""},
-		{source, "", "bind,private", "", ""},
-		{source, "", "bind,shared", "", "shared"},
-		{source, "", "bind,slave", "", "master"},
-		{source, "", "bind,unbindable", "", "unbindable"},
+		{source, "", "bind", "", "", ""},
+		{source, "", "bind,private", "", "", ""},
+		{source, "", "bind,shared", "", "shared", ""},
+		{source, "", "bind,slave", "", "master", ""},
+		{source, "", "bind,unbindable", "", "unbindable", ""},
 		// Read Write tests
-		{source, "", "bind,rw", "rw", ""},
-		{source, "", "bind,rw,private", "rw", ""},
-		{source, "", "bind,rw,shared", "rw", "shared"},
-		{source, "", "bind,rw,slave", "rw", "master"},
-		{source, "", "bind,rw,unbindable", "rw", "unbindable"},
+		{source, "", "bind,rw", "rw", "", ""},
+		{source, "", "bind,rw,private", "rw", "", ""},
+		{source, "", "bind,rw,shared", "rw", "shared", ""},
+		{source, "", "bind,rw,slave", "rw", "master", ""},
+		{source, "", "bind,rw,unbindable", "rw", "unbindable", ""},
 		// Read Only tests
-		{source, "", "bind,ro", "ro", ""},
-		{source, "", "bind,ro,private", "ro", ""},
-		{source, "", "bind,ro,shared", "ro", "shared"},
-		{source, "", "bind,ro,slave", "ro", "master"},
-		{source, "", "bind,ro,unbindable", "ro", "unbindable"},
+		{source, "", "bind,ro", "ro", "", ""},
+		{source, "", "bind,ro,private", "ro", "", ""},
+		{source, "", "bind,ro,shared", "ro", "shared", ""},
+		{source, "", "bind,ro,slave", "ro", "master", ""},
+		{source, "", "bind,ro,unbindable", "ro", "unbindable", ""},
+		// Remount tests to change per filesystem options
+		{"", "", "remount,size=128k", "rw", "", "rw,size=128k"},
+		{"", "", "remount,ro,size=128k", "ro", "", "ro,size=128k"},
 	}
 
 	for _, tc := range tests {
@@ -87,11 +91,17 @@ func TestMount(t *testing.T) {
 					}
 				}()
 			}
+			if strings.Contains(tc.options, "remount") {
+				// create a new mount to remount first
+				if err := Mount("tmpfs", target, "tmpfs", ""); err != nil {
+					t.Fatal(err)
+				}
+			}
 			if err := Mount(tc.source, target, tc.ftype, tc.options); err != nil {
 				t.Fatal(err)
 			}
 			defer ensureUnmount(t, target)
-			validateMount(t, target, tc.expectedOpts, tc.expectedOptional)
+			validateMount(t, target, tc.expectedOpts, tc.expectedOptional, tc.expectedVFS)
 		})
 	}
 }
@@ -104,7 +114,7 @@ func ensureUnmount(t *testing.T, mnt string) {
 }
 
 // validateMount checks that mnt has the given options
-func validateMount(t *testing.T, mnt string, opts, optional string) {
+func validateMount(t *testing.T, mnt string, opts, optional, vfs string) {
 	info, err := GetMounts()
 	if err != nil {
 		t.Fatal(err)
@@ -121,6 +131,13 @@ func validateMount(t *testing.T, mnt string, opts, optional string) {
 	if optional != "" {
 		for _, opt := range strings.Split(optional, ",") {
 			wantedOptional[opt] = struct{}{}
+		}
+	}
+
+	wantedVFS := make(map[string]struct{})
+	if vfs != "" {
+		for _, opt := range strings.Split(vfs, ",") {
+			wantedVFS[opt] = struct{}{}
 		}
 	}
 
@@ -175,6 +192,22 @@ func validateMount(t *testing.T, mnt string, opts, optional string) {
 		}
 		for field := range wantedOptional {
 			t.Errorf("missing optional field %q found %q", field, mi.Optional)
+		}
+
+		// Validate VFS if set
+		if vfs != "" {
+			if mi.VfsOpts != "" {
+				for _, opt := range strings.Split(mi.VfsOpts, ",") {
+					opt = clean(opt)
+					if !has(wantedVFS, opt) {
+						t.Errorf("unexpected mount option %q expected %q", opt, vfs)
+					}
+					delete(wantedVFS, opt)
+				}
+			}
+			for opt := range wantedVFS {
+				t.Errorf("missing mount option %q found %q", opt, mi.VfsOpts)
+			}
 		}
 
 		return

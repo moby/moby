@@ -2,8 +2,8 @@ syntax = "proto3";
 
 package docker.swarmkit.v1;
 
-import "objects.proto";
-import "raft.proto";
+import "github.com/docker/swarmkit/api/objects.proto";
+import "github.com/docker/swarmkit/api/raft.proto";
 import weak "gogoproto/gogo.proto";
 
 // StoreSnapshot is used to store snapshots of the store.
@@ -28,7 +28,7 @@ message StoreSnapshot {
 // ClusterSnapshot stores cluster membership information in snapshots.
 message ClusterSnapshot {
 	repeated RaftMember members = 1;
-	repeated uint64 removed = 2;
+	repeated uint64 removed = 2 [packed=false];
 }
 
 message Snapshot {

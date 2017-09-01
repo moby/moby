@@ -52,7 +52,7 @@ type DependencyGetter interface {
 type SecretGetter interface {
 	// Get returns the the secret with a specific secret ID, if available.
 	// When the secret is not available, the return will be nil.
-	Get(secretID string) *api.Secret
+	Get(secretID string) (*api.Secret, error)
 }
 
 // SecretsManager is the interface for secret storage and updates.
@@ -68,7 +68,7 @@ type SecretsManager interface {
 type ConfigGetter interface {
 	// Get returns the the config with a specific config ID, if available.
 	// When the config is not available, the return will be nil.
-	Get(configID string) *api.Config
+	Get(configID string) (*api.Config, error)
 }
 
 // ConfigsManager is the interface for config storage and updates.

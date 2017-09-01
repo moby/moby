@@ -10,10 +10,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
-	containerd "github.com/docker/containerd/api/grpc/types"
+	containerd "github.com/containerd/containerd/api/grpc/types"
 	"github.com/docker/docker/pkg/idtools"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
@@ -34,7 +34,7 @@ func (clnt *client) prepareBundleDir(uid, gid int) (string, error) {
 		}
 		if os.IsNotExist(err) || fi.Mode()&1 == 0 {
 			p = fmt.Sprintf("%s.%d.%d", p, uid, gid)
-			if err := idtools.MkdirAs(p, 0700, uid, gid); err != nil && !os.IsExist(err) {
+			if err := idtools.MkdirAndChown(p, 0700, idtools.IDPair{uid, gid}); err != nil && !os.IsExist(err) {
 				return "", err
 			}
 		}
@@ -71,7 +71,7 @@ func (clnt *client) Create(containerID string, checkpoint string, checkpointDir 
 		}
 	}()
 
-	if err := idtools.MkdirAllAs(container.dir, 0700, uid, gid); err != nil && !os.IsExist(err) {
+	if err := idtools.MkdirAllAndChown(container.dir, 0700, idtools.IDPair{uid, gid}); err != nil && !os.IsExist(err) {
 		return err
 	}
 
@@ -83,8 +83,7 @@ func (clnt *client) Create(containerID string, checkpoint string, checkpointDir 
 	if err := json.NewEncoder(f).Encode(spec); err != nil {
 		return err
 	}
-
-	return container.start(checkpoint, checkpointDir, attachStdio)
+	return container.start(&spec, checkpoint, checkpointDir, attachStdio)
 }
 
 func (clnt *client) Signal(containerID string, sig int) error {

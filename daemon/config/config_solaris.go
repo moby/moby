@@ -1,9 +1,5 @@
 package config
 
-import (
-	"github.com/spf13/pflag"
-)
-
 // Config defines the configuration of a docker daemon.
 // These are the configuration settings that you pass
 // to the docker daemon when you launch it with say: `docker -d -e lxc`
@@ -25,5 +21,10 @@ type BridgeConfig struct {
 
 // IsSwarmCompatible defines if swarm mode can be enabled in this config
 func (conf *Config) IsSwarmCompatible() error {
+	return nil
+}
+
+// ValidatePlatformConfig checks if any platform-specific configuration settings are invalid.
+func (conf *Config) ValidatePlatformConfig() error {
 	return nil
 }

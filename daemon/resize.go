@@ -15,7 +15,7 @@ func (daemon *Daemon) ContainerResize(name string, height, width int) error {
 	}
 
 	if !container.IsRunning() {
-		return errNotRunning{container.ID}
+		return errNotRunning(container.ID)
 	}
 
 	if err = daemon.containerd.Resize(container.ID, libcontainerd.InitFriendlyName, width, height); err == nil {

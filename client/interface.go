@@ -2,6 +2,7 @@ package client
 
 import (
 	"io"
+	"net"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -18,7 +19,9 @@ import (
 
 // CommonAPIClient is the common methods between stable and experimental versions of APIClient.
 type CommonAPIClient interface {
+	ConfigAPIClient
 	ContainerAPIClient
+	DistributionAPIClient
 	ImageAPIClient
 	NodeAPIClient
 	NetworkAPIClient
@@ -29,8 +32,11 @@ type CommonAPIClient interface {
 	SystemAPIClient
 	VolumeAPIClient
 	ClientVersion() string
+	DaemonHost() string
 	ServerVersion(ctx context.Context) (types.Version, error)
-	UpdateClientVersion(v string)
+	NegotiateAPIVersion(ctx context.Context)
+	NegotiateAPIVersionPing(types.Ping)
+	DialSession(ctx context.Context, proto string, meta map[string][]string) (net.Conn, error)
 }
 
 // ContainerAPIClient defines API client methods for the containers
@@ -62,15 +68,21 @@ type ContainerAPIClient interface {
 	ContainerTop(ctx context.Context, container string, arguments []string) (container.ContainerTopOKBody, error)
 	ContainerUnpause(ctx context.Context, container string) error
 	ContainerUpdate(ctx context.Context, container string, updateConfig container.UpdateConfig) (container.ContainerUpdateOKBody, error)
-	ContainerWait(ctx context.Context, container string) (int64, error)
+	ContainerWait(ctx context.Context, container string, condition container.WaitCondition) (<-chan container.ContainerWaitOKBody, <-chan error)
 	CopyFromContainer(ctx context.Context, container, srcPath string) (io.ReadCloser, types.ContainerPathStat, error)
 	CopyToContainer(ctx context.Context, container, path string, content io.Reader, options types.CopyToContainerOptions) error
 	ContainersPrune(ctx context.Context, pruneFilters filters.Args) (types.ContainersPruneReport, error)
 }
 
+// DistributionAPIClient defines API client methods for the registry
+type DistributionAPIClient interface {
+	DistributionInspect(ctx context.Context, image, encodedRegistryAuth string) (registry.DistributionInspect, error)
+}
+
 // ImageAPIClient defines API client methods for the images
 type ImageAPIClient interface {
 	ImageBuild(ctx context.Context, context io.Reader, options types.ImageBuildOptions) (types.ImageBuildResponse, error)
+	BuildCachePrune(ctx context.Context) (*types.BuildCachePruneReport, error)
 	ImageCreate(ctx context.Context, parentReference string, options types.ImageCreateOptions) (io.ReadCloser, error)
 	ImageHistory(ctx context.Context, image string) ([]image.HistoryResponseItem, error)
 	ImageImport(ctx context.Context, source types.ImageImportSource, ref string, options types.ImageImportOptions) (io.ReadCloser, error)
@@ -91,8 +103,8 @@ type NetworkAPIClient interface {
 	NetworkConnect(ctx context.Context, networkID, container string, config *network.EndpointSettings) error
 	NetworkCreate(ctx context.Context, name string, options types.NetworkCreate) (types.NetworkCreateResponse, error)
 	NetworkDisconnect(ctx context.Context, networkID, container string, force bool) error
-	NetworkInspect(ctx context.Context, networkID string, verbose bool) (types.NetworkResource, error)
-	NetworkInspectWithRaw(ctx context.Context, networkID string, verbose bool) (types.NetworkResource, []byte, error)
+	NetworkInspect(ctx context.Context, networkID string, options types.NetworkInspectOptions) (types.NetworkResource, error)
+	NetworkInspectWithRaw(ctx context.Context, networkID string, options types.NetworkInspectOptions) (types.NetworkResource, []byte, error)
 	NetworkList(ctx context.Context, options types.NetworkListOptions) ([]types.NetworkResource, error)
 	NetworkRemove(ctx context.Context, networkID string) error
 	NetworksPrune(ctx context.Context, pruneFilter filters.Args) (types.NetworksPruneReport, error)
@@ -170,4 +182,13 @@ type SecretAPIClient interface {
 	SecretRemove(ctx context.Context, id string) error
 	SecretInspectWithRaw(ctx context.Context, name string) (swarm.Secret, []byte, error)
 	SecretUpdate(ctx context.Context, id string, version swarm.Version, secret swarm.SecretSpec) error
+}
+
+// ConfigAPIClient defines API client methods for configs
+type ConfigAPIClient interface {
+	ConfigList(ctx context.Context, options types.ConfigListOptions) ([]swarm.Config, error)
+	ConfigCreate(ctx context.Context, config swarm.ConfigSpec) (types.ConfigCreateResponse, error)
+	ConfigRemove(ctx context.Context, id string) error
+	ConfigInspectWithRaw(ctx context.Context, name string) (swarm.Config, []byte, error)
+	ConfigUpdate(ctx context.Context, id string, version swarm.Version, config swarm.ConfigSpec) error
 }

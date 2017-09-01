@@ -6,6 +6,7 @@ import (
 	basictypes "github.com/docker/docker/api/types"
 	networktypes "github.com/docker/docker/api/types/network"
 	types "github.com/docker/docker/api/types/swarm"
+	netconst "github.com/docker/libnetwork/datastore"
 	swarmapi "github.com/docker/swarmkit/api"
 	gogotypes "github.com/gogo/protobuf/types"
 )
@@ -28,10 +29,17 @@ func networkFromGRPC(n *swarmapi.Network) types.Network {
 				IPv6Enabled: n.Spec.Ipv6Enabled,
 				Internal:    n.Spec.Internal,
 				Attachable:  n.Spec.Attachable,
-				Ingress:     n.Spec.Ingress,
+				Ingress:     IsIngressNetwork(n),
 				IPAMOptions: ipamFromGRPC(n.Spec.IPAM),
+				Scope:       netconst.SwarmScope,
 			},
 			IPAMOptions: ipamFromGRPC(n.IPAM),
+		}
+
+		if n.Spec.GetNetwork() != "" {
+			network.Spec.ConfigFrom = &networktypes.ConfigReference{
+				Network: n.Spec.GetNetwork(),
+			}
 		}
 
 		// Meta
@@ -152,13 +160,19 @@ func BasicNetworkFromGRPC(n swarmapi.Network) basictypes.NetworkResource {
 	nr := basictypes.NetworkResource{
 		ID:         n.ID,
 		Name:       n.Spec.Annotations.Name,
-		Scope:      "swarm",
+		Scope:      netconst.SwarmScope,
 		EnableIPv6: spec.Ipv6Enabled,
 		IPAM:       ipam,
 		Internal:   spec.Internal,
 		Attachable: spec.Attachable,
-		Ingress:    spec.Ingress,
+		Ingress:    IsIngressNetwork(&n),
 		Labels:     n.Spec.Annotations.Labels,
+	}
+
+	if n.Spec.GetNetwork() != "" {
+		nr.ConfigFrom = networktypes.ConfigReference{
+			Network: n.Spec.GetNetwork(),
+		}
 	}
 
 	if n.DriverState != nil {
@@ -206,5 +220,20 @@ func BasicNetworkCreateToGRPC(create basictypes.NetworkCreateRequest) swarmapi.N
 		}
 		ns.IPAM.Configs = ipamSpec
 	}
+	if create.ConfigFrom != nil {
+		ns.ConfigFrom = &swarmapi.NetworkSpec_Network{
+			Network: create.ConfigFrom.Network,
+		}
+	}
 	return ns
+}
+
+// IsIngressNetwork check if the swarm network is an ingress network
+func IsIngressNetwork(n *swarmapi.Network) bool {
+	if n.Spec.Ingress {
+		return true
+	}
+	// Check if legacy defined ingress network
+	_, ok := n.Spec.Annotations.Labels["com.docker.swarm.internal"]
+	return ok && n.Spec.Annotations.Name == "ingress"
 }

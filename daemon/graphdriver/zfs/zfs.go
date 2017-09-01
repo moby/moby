@@ -10,16 +10,16 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
 	zfs "github.com/mistifyio/go-zfs"
-	"github.com/opencontainers/runc/libcontainer/label"
+	"github.com/opencontainers/selinux/go-selinux/label"
+	"github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 )
 
 type zfsOptions struct {
@@ -141,8 +141,8 @@ func parseOptions(opt []string) (zfsOptions, error) {
 }
 
 func lookupZfsDataset(rootdir string) (string, error) {
-	var stat syscall.Stat_t
-	if err := syscall.Stat(rootdir, &stat); err != nil {
+	var stat unix.Stat_t
+	if err := unix.Stat(rootdir, &stat); err != nil {
 		return "", fmt.Errorf("Failed to access '%s': %s", rootdir, err)
 	}
 	wantedDev := stat.Dev
@@ -152,7 +152,7 @@ func lookupZfsDataset(rootdir string) (string, error) {
 		return "", err
 	}
 	for _, m := range mounts {
-		if err := syscall.Stat(m.Mountpoint, &stat); err != nil {
+		if err := unix.Stat(m.Mountpoint, &stat); err != nil {
 			logrus.Debugf("[zfs] failed to stat '%s' while scanning for zfs mount: %v", m.Mountpoint, err)
 			continue // may fail on fuse file systems
 		}

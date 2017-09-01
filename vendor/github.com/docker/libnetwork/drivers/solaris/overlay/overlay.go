@@ -7,7 +7,6 @@ import (
 	"net"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
@@ -16,6 +15,7 @@ import (
 	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/types"
 	"github.com/hashicorp/serf/serf"
+	"github.com/sirupsen/logrus"
 )
 
 // XXX OVERLAY_SOLARIS
@@ -57,7 +57,8 @@ type driver struct {
 // Init registers a new instance of overlay driver
 func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 	c := driverapi.Capability{
-		DataScope: datastore.GlobalScope,
+		DataScope:         datastore.GlobalScope,
+		ConnectivityScope: datastore.GlobalScope,
 	}
 	d := &driver{
 		networks: networkTable{},

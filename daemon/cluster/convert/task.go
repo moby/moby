@@ -9,25 +9,29 @@ import (
 )
 
 // TaskFromGRPC converts a grpc Task to a Task.
-func TaskFromGRPC(t swarmapi.Task) types.Task {
+func TaskFromGRPC(t swarmapi.Task) (types.Task, error) {
 	if t.Spec.GetAttachment() != nil {
-		return types.Task{}
+		return types.Task{}, nil
 	}
 	containerStatus := t.Status.GetContainer()
-
+	taskSpec, err := taskSpecFromGRPC(t.Spec)
+	if err != nil {
+		return types.Task{}, err
+	}
 	task := types.Task{
 		ID:          t.ID,
 		Annotations: annotationsFromGRPC(t.Annotations),
 		ServiceID:   t.ServiceID,
 		Slot:        int(t.Slot),
 		NodeID:      t.NodeID,
-		Spec:        taskSpecFromGRPC(t.Spec),
+		Spec:        taskSpec,
 		Status: types.TaskStatus{
 			State:   types.TaskState(strings.ToLower(t.Status.State.String())),
 			Message: t.Status.Message,
 			Err:     t.Status.Err,
 		},
-		DesiredState: types.TaskState(strings.ToLower(t.DesiredState.String())),
+		DesiredState:     types.TaskState(strings.ToLower(t.DesiredState.String())),
+		GenericResources: GenericResourcesFromGRPC(t.AssignedGenericResources),
 	}
 
 	// Meta
@@ -49,7 +53,7 @@ func TaskFromGRPC(t swarmapi.Task) types.Task {
 	}
 
 	if t.Status.PortStatus == nil {
-		return task
+		return task, nil
 	}
 
 	for _, p := range t.Status.PortStatus.Ports {
@@ -62,5 +66,5 @@ func TaskFromGRPC(t swarmapi.Task) types.Task {
 		})
 	}
 
-	return task
+	return task, nil
 }

@@ -8,11 +8,11 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"syscall"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 )
 
 // hasOpaqueCopyUpBug checks whether the filesystem has a bug
@@ -52,11 +52,11 @@ func hasOpaqueCopyUpBug(d string) error {
 	}
 
 	opts := fmt.Sprintf("lowerdir=%s:%s,upperdir=%s,workdir=%s", path.Join(td, "l2"), path.Join(td, "l1"), path.Join(td, "l3"), path.Join(td, "work"))
-	if err := syscall.Mount("overlay", filepath.Join(td, "merged"), "overlay", 0, opts); err != nil {
+	if err := unix.Mount("overlay", filepath.Join(td, "merged"), "overlay", 0, opts); err != nil {
 		return errors.Wrap(err, "failed to mount overlay")
 	}
 	defer func() {
-		if err := syscall.Unmount(filepath.Join(td, "merged"), 0); err != nil {
+		if err := unix.Unmount(filepath.Join(td, "merged"), 0); err != nil {
 			logrus.Warnf("Failed to unmount check directory %v: %v", filepath.Join(td, "merged"), err)
 		}
 	}()

@@ -9,10 +9,10 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/plugins/transport"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -57,20 +57,20 @@ func NewClient(addr string, tlsConfig *tlsconfig.Options) (*Client, error) {
 }
 
 // NewClientWithTimeout creates a new plugin client (http).
-func NewClientWithTimeout(addr string, tlsConfig *tlsconfig.Options, timeoutInSecs int) (*Client, error) {
+func NewClientWithTimeout(addr string, tlsConfig *tlsconfig.Options, timeout time.Duration) (*Client, error) {
 	clientTransport, err := newTransport(addr, tlsConfig)
 	if err != nil {
 		return nil, err
 	}
-	return newClientWithTransport(clientTransport, timeoutInSecs), nil
+	return newClientWithTransport(clientTransport, timeout), nil
 }
 
 // newClientWithTransport creates a new plugin client with a given transport.
-func newClientWithTransport(tr transport.Transport, timeoutInSecs int) *Client {
+func newClientWithTransport(tr transport.Transport, timeout time.Duration) *Client {
 	return &Client{
 		http: &http.Client{
 			Transport: tr,
-			Timeout:   time.Duration(timeoutInSecs) * time.Second,
+			Timeout:   timeout,
 		},
 		requestFactory: tr,
 	}
@@ -129,15 +129,15 @@ func (c *Client) SendFile(serviceMethod string, data io.Reader, ret interface{})
 }
 
 func (c *Client) callWithRetry(serviceMethod string, data io.Reader, retry bool) (io.ReadCloser, error) {
-	req, err := c.requestFactory.NewRequest(serviceMethod, data)
-	if err != nil {
-		return nil, err
-	}
-
 	var retries int
 	start := time.Now()
 
 	for {
+		req, err := c.requestFactory.NewRequest(serviceMethod, data)
+		if err != nil {
+			return nil, err
+		}
+
 		resp, err := c.http.Do(req)
 		if err != nil {
 			if !retry {

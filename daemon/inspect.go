@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/api/types/versions/v1p20"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/network"
+	volumestore "github.com/docker/docker/volume/store"
 	"github.com/docker/go-connections/nat"
 )
 
@@ -51,7 +52,7 @@ func (daemon *Daemon) ContainerInspectCurrent(name string, size bool) (*types.Co
 		}
 	}
 
-	mountPoints := addMountPoints(container)
+	mountPoints := container.GetMountPoints()
 	networkSettings := &types.NetworkSettings{
 		NetworkSettingsBase: types.NetworkSettingsBase{
 			Bridge:                 container.NetworkSettings.Bridge,
@@ -104,7 +105,7 @@ func (daemon *Daemon) containerInspect120(name string) (*v1p20.ContainerJSON, er
 		return nil, err
 	}
 
-	mountPoints := addMountPoints(container)
+	mountPoints := container.GetMountPoints()
 	config := &v1p20.ContainerConfig{
 		Config:          container.Config,
 		MacAddress:      container.Config.MacAddress,
@@ -153,7 +154,7 @@ func (daemon *Daemon) getInspectData(container *container.Container) (*types.Con
 		Dead:       container.State.Dead,
 		Pid:        container.State.Pid,
 		ExitCode:   container.State.ExitCode(),
-		Error:      container.State.Error(),
+		Error:      container.State.ErrorMsg,
 		StartedAt:  container.State.StartedAt.Format(time.RFC3339Nano),
 		FinishedAt: container.State.FinishedAt.Format(time.RFC3339Nano),
 		Health:     containerHealth,
@@ -170,6 +171,7 @@ func (daemon *Daemon) getInspectData(container *container.Container) (*types.Con
 		Name:         container.Name,
 		RestartCount: container.RestartCount,
 		Driver:       container.Driver,
+		Platform:     container.Platform,
 		MountLabel:   container.MountLabel,
 		ProcessLabel: container.ProcessLabel,
 		ExecIDs:      container.GetExecIDs(),
@@ -186,7 +188,7 @@ func (daemon *Daemon) getInspectData(container *container.Container) (*types.Con
 	// could have been removed, it will cause error if we try to get the metadata,
 	// we can ignore the error if the container is dead.
 	if err != nil && !container.Dead {
-		return nil, err
+		return nil, systemError{err}
 	}
 	contJSONBase.GraphDriver.Data = graphDriverData
 
@@ -196,9 +198,13 @@ func (daemon *Daemon) getInspectData(container *container.Container) (*types.Con
 // ContainerExecInspect returns low-level information about the exec
 // command. An error is returned if the exec cannot be found.
 func (daemon *Daemon) ContainerExecInspect(id string) (*backend.ExecInspect, error) {
-	e, err := daemon.getExecConfig(id)
-	if err != nil {
-		return nil, err
+	e := daemon.execCommands.Get(id)
+	if e == nil {
+		return nil, errExecNotFound(id)
+	}
+
+	if container := daemon.containers.Get(e.ContainerID); container == nil {
+		return nil, errExecNotFound(id)
 	}
 
 	pc := inspectExecProcessConfig(e)
@@ -223,7 +229,10 @@ func (daemon *Daemon) ContainerExecInspect(id string) (*backend.ExecInspect, err
 func (daemon *Daemon) VolumeInspect(name string) (*types.Volume, error) {
 	v, err := daemon.volumes.Get(name)
 	if err != nil {
-		return nil, err
+		if volumestore.IsNotExist(err) {
+			return nil, volumeNotFound(name)
+		}
+		return nil, systemError{err}
 	}
 	apiV := volumeToAPIType(v)
 	apiV.Mountpoint = v.Path()

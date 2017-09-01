@@ -9,11 +9,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/etchosts"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/types"
+	"github.com/sirupsen/logrus"
 )
 
 // Sandbox provides the control over the network container entity. It is a one to one mapping with the container.
@@ -86,6 +86,9 @@ type sandbox struct {
 	ingress            bool
 	ndotsSet           bool
 	sync.Mutex
+	// This mutex is used to serialize service related operation for an endpoint
+	// The lock is here because the endpoint is saved into the store so is not unique
+	Service sync.Mutex
 }
 
 // These are the container configs used to customize container /etc/hosts file.
@@ -618,7 +621,7 @@ func (sb *sandbox) resolveName(req string, networkName string, epList []*endpoin
 func (sb *sandbox) SetKey(basePath string) error {
 	start := time.Now()
 	defer func() {
-		logrus.Debugf("sandbox set key processing took %s for container %s", time.Now().Sub(start), sb.ContainerID())
+		logrus.Debugf("sandbox set key processing took %s for container %s", time.Since(start), sb.ContainerID())
 	}()
 
 	if basePath == "" {
@@ -626,6 +629,10 @@ func (sb *sandbox) SetKey(basePath string) error {
 	}
 
 	sb.Lock()
+	if sb.inDelete {
+		sb.Unlock()
+		return types.ForbiddenErrorf("failed to SetKey: sandbox %q delete in progress", sb.id)
+	}
 	oldosSbox := sb.osSbox
 	sb.Unlock()
 
@@ -668,26 +675,25 @@ func (sb *sandbox) SetKey(basePath string) error {
 }
 
 func (sb *sandbox) EnableService() error {
+	logrus.Debugf("EnableService %s START", sb.containerID)
 	for _, ep := range sb.getConnectedEndpoints() {
 		if ep.enableService(true) {
-			if err := ep.addServiceInfoToCluster(); err != nil {
+			if err := ep.addServiceInfoToCluster(sb); err != nil {
 				ep.enableService(false)
 				return fmt.Errorf("could not update state for endpoint %s into cluster: %v", ep.Name(), err)
 			}
 		}
 	}
+	logrus.Debugf("EnableService %s DONE", sb.containerID)
 	return nil
 }
 
 func (sb *sandbox) DisableService() error {
+	logrus.Debugf("DisableService %s START", sb.containerID)
 	for _, ep := range sb.getConnectedEndpoints() {
-		if ep.enableService(false) {
-			if err := ep.deleteServiceInfoFromCluster(); err != nil {
-				ep.enableService(true)
-				return fmt.Errorf("could not delete state for endpoint %s from cluster: %v", ep.Name(), err)
-			}
-		}
+		ep.enableService(false)
 	}
+	logrus.Debugf("DisableService %s DONE", sb.containerID)
 	return nil
 }
 
@@ -703,7 +709,14 @@ func releaseOSSboxResources(osSbox osl.Sandbox, ep *endpoint) {
 
 	ep.Lock()
 	joinInfo := ep.joinInfo
+	vip := ep.virtualIP
 	ep.Unlock()
+
+	if len(vip) != 0 {
+		if err := osSbox.RemoveLoopbackAliasIP(&net.IPNet{IP: vip, Mask: net.CIDRMask(32, 32)}); err != nil {
+			logrus.Warnf("Remove virtual IP %v failed: %v", vip, err)
+		}
+	}
 
 	if joinInfo == nil {
 		return
@@ -761,15 +774,9 @@ func (sb *sandbox) restoreOslSandbox() error {
 		if len(i.llAddrs) != 0 {
 			ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().LinkLocalAddresses(i.llAddrs))
 		}
-		if len(ep.virtualIP) != 0 {
-			vipAlias := &net.IPNet{IP: ep.virtualIP, Mask: net.CIDRMask(32, 32)}
-			ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().IPAliases([]*net.IPNet{vipAlias}))
-		}
 		Ifaces[fmt.Sprintf("%s+%s", i.srcName, i.dstPrefix)] = ifaceOptions
 		if joinInfo != nil {
-			for _, r := range joinInfo.StaticRoutes {
-				routes = append(routes, r)
-			}
+			routes = append(routes, joinInfo.StaticRoutes...)
 		}
 		if ep.needResolver() {
 			sb.startResolver(true)
@@ -783,11 +790,7 @@ func (sb *sandbox) restoreOslSandbox() error {
 
 	// restore osl sandbox
 	err := sb.osSbox.Restore(Ifaces, routes, gwep.joinInfo.gw, gwep.joinInfo.gw6)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
@@ -818,16 +821,19 @@ func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
 		if len(i.llAddrs) != 0 {
 			ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().LinkLocalAddresses(i.llAddrs))
 		}
-		if len(ep.virtualIP) != 0 {
-			vipAlias := &net.IPNet{IP: ep.virtualIP, Mask: net.CIDRMask(32, 32)}
-			ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().IPAliases([]*net.IPNet{vipAlias}))
-		}
 		if i.mac != nil {
 			ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().MacAddress(i.mac))
 		}
 
 		if err := sb.osSbox.AddInterface(i.srcName, i.dstPrefix, ifaceOptions...); err != nil {
 			return fmt.Errorf("failed to add interface %s to sandbox: %v", i.srcName, err)
+		}
+	}
+
+	if len(ep.virtualIP) != 0 {
+		err := sb.osSbox.AddLoopbackAliasIP(&net.IPNet{IP: ep.virtualIP, Mask: net.CIDRMask(32, 32)})
+		if err != nil {
+			return fmt.Errorf("failed to add virtual IP %v: %v", ep.virtualIP, err)
 		}
 	}
 
@@ -952,9 +958,7 @@ func (sb *sandbox) joinLeaveStart() {
 		joinLeaveDone := sb.joinLeaveDone
 		sb.Unlock()
 
-		select {
-		case <-joinLeaveDone:
-		}
+		<-joinLeaveDone
 
 		sb.Lock()
 	}

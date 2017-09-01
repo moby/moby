@@ -3,7 +3,9 @@
 package daemon
 
 import (
-	"github.com/Sirupsen/logrus"
+	"runtime"
+
+	"github.com/sirupsen/logrus"
 )
 
 // getSize returns the real size & virtual size of the container.
@@ -13,17 +15,17 @@ func (daemon *Daemon) getSize(containerID string) (int64, int64) {
 		err                error
 	)
 
-	rwlayer, err := daemon.layerStore.GetRWLayer(containerID)
+	rwlayer, err := daemon.stores[runtime.GOOS].layerStore.GetRWLayer(containerID)
 	if err != nil {
 		logrus.Errorf("Failed to compute size of container rootfs %v: %v", containerID, err)
 		return sizeRw, sizeRootfs
 	}
-	defer daemon.layerStore.ReleaseRWLayer(rwlayer)
+	defer daemon.stores[runtime.GOOS].layerStore.ReleaseRWLayer(rwlayer)
 
 	sizeRw, err = rwlayer.Size()
 	if err != nil {
 		logrus.Errorf("Driver %s couldn't return diff size of container %s: %s",
-			daemon.GraphDriverName(), containerID, err)
+			daemon.GraphDriverName(runtime.GOOS), containerID, err)
 		// FIXME: GetSize should return an error. Not changing it now in case
 		// there is a side-effect.
 		sizeRw = -1

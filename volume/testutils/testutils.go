@@ -2,6 +2,7 @@ package testutils
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/docker/docker/volume"
 )
@@ -24,8 +25,11 @@ func (NoopVolume) Mount(_ string) (string, error) { return "noop", nil }
 // Unmount unmounts the volume from the container
 func (NoopVolume) Unmount(_ string) error { return nil }
 
-// Status proivdes low-level details about the volume
+// Status provides low-level details about the volume
 func (NoopVolume) Status() map[string]interface{} { return nil }
+
+// CreatedAt provides the time the volume (directory) was created at
+func (NoopVolume) CreatedAt() (time.Time, error) { return time.Now(), nil }
 
 // FakeVolume is a fake volume with a random name
 type FakeVolume struct {
@@ -53,8 +57,11 @@ func (FakeVolume) Mount(_ string) (string, error) { return "fake", nil }
 // Unmount unmounts the volume from the container
 func (FakeVolume) Unmount(_ string) error { return nil }
 
-// Status proivdes low-level details about the volume
+// Status provides low-level details about the volume
 func (FakeVolume) Status() map[string]interface{} { return nil }
+
+// CreatedAt provides the time the volume (directory) was created at
+func (FakeVolume) CreatedAt() (time.Time, error) { return time.Now(), nil }
 
 // FakeDriver is a driver that generates fake volumes
 type FakeDriver struct {

@@ -9,13 +9,15 @@ import (
 	"os"
 	"path"
 	"reflect"
-	"syscall"
 	"testing"
 	"unsafe"
 
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/go-units"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/sys/unix"
 )
 
 var (
@@ -33,14 +35,9 @@ type Driver struct {
 
 func newDriver(t testing.TB, name string, options []string) *Driver {
 	root, err := ioutil.TempDir("", "docker-graphtest-")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
-	if err := os.MkdirAll(root, 0755); err != nil {
-		t.Fatal(err)
-	}
-
+	require.NoError(t, os.MkdirAll(root, 0755))
 	d, err := graphdriver.GetDriver(name, nil, graphdriver.Options{DriverOptions: options, Root: root})
 	if err != nil {
 		t.Logf("graphdriver: %v\n", err)
@@ -86,14 +83,11 @@ func DriverTestCreateEmpty(t testing.TB, drivername string, driverOptions ...str
 	driver := GetDriver(t, drivername, driverOptions...)
 	defer PutDriver(t)
 
-	if err := driver.Create("empty", "", nil); err != nil {
-		t.Fatal(err)
-	}
+	err := driver.Create("empty", "", nil)
+	require.NoError(t, err)
 
 	defer func() {
-		if err := driver.Remove("empty"); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, driver.Remove("empty"))
 	}()
 
 	if !driver.Exists("empty") {
@@ -101,21 +95,14 @@ func DriverTestCreateEmpty(t testing.TB, drivername string, driverOptions ...str
 	}
 
 	dir, err := driver.Get("empty", "")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	verifyFile(t, dir, 0755|os.ModeDir, 0, 0)
 
 	// Verify that the directory is empty
 	fis, err := readDir(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(fis) != 0 {
-		t.Fatal("New directory not empty")
-	}
+	require.NoError(t, err)
+	assert.Len(t, fis, 0)
 
 	driver.Put("empty")
 }
@@ -127,9 +114,7 @@ func DriverTestCreateBase(t testing.TB, drivername string, driverOptions ...stri
 
 	createBase(t, driver, "Base")
 	defer func() {
-		if err := driver.Remove("Base"); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, driver.Remove("Base"))
 	}()
 	verifyBase(t, driver, "Base")
 }
@@ -140,21 +125,14 @@ func DriverTestCreateSnap(t testing.TB, drivername string, driverOptions ...stri
 	defer PutDriver(t)
 
 	createBase(t, driver, "Base")
-
 	defer func() {
-		if err := driver.Remove("Base"); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, driver.Remove("Base"))
 	}()
 
-	if err := driver.Create("Snap", "Base", nil); err != nil {
-		t.Fatal(err)
-	}
-
+	err := driver.Create("Snap", "Base", nil)
+	require.NoError(t, err)
 	defer func() {
-		if err := driver.Remove("Snap"); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, driver.Remove("Snap"))
 	}()
 
 	verifyBase(t, driver, "Snap")
@@ -351,8 +329,8 @@ func DriverTestSetQuota(t *testing.T, drivername string) {
 
 	quota := uint64(50 * units.MiB)
 	err = writeRandomFile(path.Join(mountPath, "file"), quota*2)
-	if pathError, ok := err.(*os.PathError); ok && pathError.Err != syscall.EDQUOT {
-		t.Fatalf("expect write() to fail with %v, got %v", syscall.EDQUOT, err)
+	if pathError, ok := err.(*os.PathError); ok && pathError.Err != unix.EDQUOT {
+		t.Fatalf("expect write() to fail with %v, got %v", unix.EDQUOT, err)
 	}
 
 }

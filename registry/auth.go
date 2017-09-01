@@ -1,19 +1,19 @@
 package registry
 
 import (
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/auth/challenge"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/api/types"
 	registrytypes "github.com/docker/docker/api/types/registry"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -23,20 +23,14 @@ const (
 
 // loginV1 tries to register/login to the v1 registry server.
 func loginV1(authConfig *types.AuthConfig, apiEndpoint APIEndpoint, userAgent string) (string, string, error) {
-	registryEndpoint, err := apiEndpoint.ToV1Endpoint(userAgent, nil)
-	if err != nil {
-		return "", "", err
-	}
-
+	registryEndpoint := apiEndpoint.ToV1Endpoint(userAgent, nil)
 	serverAddress := registryEndpoint.String()
 
 	logrus.Debugf("attempting v1 login to registry endpoint %s", serverAddress)
 
 	if serverAddress == "" {
-		return "", "", fmt.Errorf("Server Error: Server Address not set.")
+		return "", "", systemError{errors.New("server Error: Server Address not set")}
 	}
-
-	loginAgainstOfficialIndex := serverAddress == IndexServer
 
 	req, err := http.NewRequest("GET", serverAddress+"users/", nil)
 	if err != nil {
@@ -53,27 +47,23 @@ func loginV1(authConfig *types.AuthConfig, apiEndpoint APIEndpoint, userAgent st
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return "", "", err
+		return "", "", systemError{err}
 	}
-	if resp.StatusCode == http.StatusOK {
+
+	switch resp.StatusCode {
+	case http.StatusOK:
 		return "Login Succeeded", "", nil
-	} else if resp.StatusCode == http.StatusUnauthorized {
-		if loginAgainstOfficialIndex {
-			return "", "", fmt.Errorf("Wrong login/password, please try again. Haven't got a Docker ID? Create one at https://hub.docker.com")
-		}
-		return "", "", fmt.Errorf("Wrong login/password, please try again")
-	} else if resp.StatusCode == http.StatusForbidden {
-		if loginAgainstOfficialIndex {
-			return "", "", fmt.Errorf("Login: Account is not active. Please check your e-mail for a confirmation link.")
-		}
+	case http.StatusUnauthorized:
+		return "", "", unauthorizedError{errors.New("Wrong login/password, please try again")}
+	case http.StatusForbidden:
 		// *TODO: Use registry configuration to determine what this says, if anything?
-		return "", "", fmt.Errorf("Login: Account is not active. Please see the documentation of the registry %s for instructions how to activate it.", serverAddress)
-	} else if resp.StatusCode == http.StatusInternalServerError { // Issue #14326
+		return "", "", notActivatedError{errors.Errorf("Login: Account is not active. Please see the documentation of the registry %s for instructions how to activate it.", serverAddress)}
+	case http.StatusInternalServerError:
 		logrus.Errorf("%s returned status code %d. Response Body :\n%s", req.URL.String(), resp.StatusCode, body)
-		return "", "", fmt.Errorf("Internal Server Error")
+		return "", "", systemError{errors.New("Internal Server Error")}
 	}
-	return "", "", fmt.Errorf("Login: %s (Code: %d; Headers: %s)", body,
-		resp.StatusCode, resp.Header)
+	return "", "", systemError{errors.Errorf("Login: %s (Code: %d; Headers: %s)", body,
+		resp.StatusCode, resp.Header)}
 }
 
 type loginCredentialStore struct {
@@ -159,24 +149,25 @@ func loginV2(authConfig *types.AuthConfig, endpoint APIEndpoint, userAgent strin
 
 	resp, err := loginClient.Do(req)
 	if err != nil {
+		err = translateV2AuthError(err)
 		if !foundV2 {
 			err = fallbackError{err: err}
 		}
+
 		return "", "", err
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		// TODO(dmcgowan): Attempt to further interpret result, status code and error code string
-		err := fmt.Errorf("login attempt to %s failed with status: %d %s", endpointStr, resp.StatusCode, http.StatusText(resp.StatusCode))
-		if !foundV2 {
-			err = fallbackError{err: err}
-		}
-		return "", "", err
+	if resp.StatusCode == http.StatusOK {
+		return "Login Succeeded", credentialAuthConfig.IdentityToken, nil
 	}
 
-	return "Login Succeeded", credentialAuthConfig.IdentityToken, nil
-
+	// TODO(dmcgowan): Attempt to further interpret result, status code and error code string
+	err = errors.Errorf("login attempt to %s failed with status: %d %s", endpointStr, resp.StatusCode, http.StatusText(resp.StatusCode))
+	if !foundV2 {
+		err = fallbackError{err: err}
+	}
+	return "", "", err
 }
 
 func v2AuthHTTPClient(endpoint *url.URL, authTransport http.RoundTripper, modifiers []transport.RequestModifier, creds auth.CredentialStore, scopes []auth.Scope) (*http.Client, bool, error) {

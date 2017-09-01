@@ -139,17 +139,17 @@ func TestLogEvents(t *testing.T) {
 		t.Fatalf("First action is %s, must be action_16", first.Status)
 	}
 	last := current[len(current)-1]
-	if last.Status != "action_79" {
-		t.Fatalf("Last action is %s, must be action_79", last.Status)
+	if last.Status != "action_271" {
+		t.Fatalf("Last action is %s, must be action_271", last.Status)
 	}
 
 	firstC := msgs[0]
-	if firstC.Status != "action_80" {
-		t.Fatalf("First action is %s, must be action_80", firstC.Status)
+	if firstC.Status != "action_272" {
+		t.Fatalf("First action is %s, must be action_272", firstC.Status)
 	}
 	lastC := msgs[len(msgs)-1]
-	if lastC.Status != "action_89" {
-		t.Fatalf("Last action is %s, must be action_89", lastC.Status)
+	if lastC.Status != "action_281" {
+		t.Fatalf("Last action is %s, must be action_281", lastC.Status)
 	}
 }
 
@@ -247,7 +247,7 @@ func TestLoadBufferedEventsOnlyFromPast(t *testing.T) {
 }
 
 // #13753
-func TestIngoreBufferedWhenNoTimes(t *testing.T) {
+func TestIgnoreBufferedWhenNoTimes(t *testing.T) {
 	m1, err := eventstestutils.Scan("2016-03-07T17:28:03.022433271+02:00 container die 0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079 (image=ubuntu, name=small_hoover)")
 	if err != nil {
 		t.Fatal(err)

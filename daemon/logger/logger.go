@@ -8,7 +8,6 @@
 package logger
 
 import (
-	"errors"
 	"sync"
 	"time"
 
@@ -16,8 +15,15 @@ import (
 	"github.com/docker/docker/pkg/jsonlog"
 )
 
-// ErrReadLogsNotSupported is returned when the logger does not support reading logs.
-var ErrReadLogsNotSupported = errors.New("configured logging driver does not support reading")
+// ErrReadLogsNotSupported is returned when the underlying log driver does not support reading
+type ErrReadLogsNotSupported struct{}
+
+func (ErrReadLogsNotSupported) Error() string {
+	return "configured logging driver does not support reading"
+}
+
+// NotImplemented makes this error implement the `NotImplemented` interface from api/errdefs
+func (ErrReadLogsNotSupported) NotImplemented() {}
 
 const (
 	// TimeFormat is the time format used for timestamps sent to log readers.
@@ -67,11 +73,6 @@ func (m *Message) reset() {
 func (m *Message) AsLogMessage() *backend.LogMessage {
 	return (*backend.LogMessage)(m)
 }
-
-// LogAttributes is used to hold the extra attributes available in the log message
-// Primarily used for converting the map type to string and sorting.
-// Imported here so it can be used internally with less refactoring
-type LogAttributes backend.LogAttributes
 
 // Logger is the interface for docker logging drivers.
 type Logger interface {

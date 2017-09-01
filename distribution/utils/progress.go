@@ -6,15 +6,15 @@ import (
 	"os"
 	"syscall"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/sirupsen/logrus"
 )
 
 // WriteDistributionProgress is a helper for writing progress from chan to JSON
 // stream with an optional cancel function.
 func WriteDistributionProgress(cancelFunc func(), outStream io.Writer, progressChan <-chan progress.Progress) {
-	progressOutput := streamformatter.NewJSONStreamFormatter().NewProgressOutput(outStream, false)
+	progressOutput := streamformatter.NewJSONProgressOutput(outStream, false)
 	operationCancelled := false
 
 	for prog := range progressChan {

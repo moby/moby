@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/pkg/locker"
 	getter "github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/volume"
+	"github.com/pkg/errors"
 )
 
 // currently created by hand. generation tool would generate this like:
@@ -31,6 +32,7 @@ func NewVolumeDriver(name string, baseHostPath string, c client) volume.Driver {
 // volumeDriver defines the available functions that volume plugins must implement.
 // This interface is only defined to generate the proxy objects.
 // It's not intended to be public or reused.
+// nolint: deadcode
 type volumeDriver interface {
 	// Create a volume with the given name
 	Create(name string, opts map[string]string) (err error)
@@ -99,6 +101,14 @@ func Unregister(name string) bool {
 	return true
 }
 
+type driverNotFoundError string
+
+func (e driverNotFoundError) Error() string {
+	return "volume driver not found: " + string(e)
+}
+
+func (driverNotFoundError) NotFound() {}
+
 // lookup returns the driver associated with the given name. If a
 // driver with the given name has not been registered it checks if
 // there is a VolumeDriver plugin available with the given name.
@@ -115,7 +125,7 @@ func lookup(name string, mode int) (volume.Driver, error) {
 	if drivers.plugingetter != nil {
 		p, err := drivers.plugingetter.Get(name, extName, mode)
 		if err != nil {
-			return nil, fmt.Errorf("Error looking up volume plugin %s: %v", name, err)
+			return nil, errors.Wrap(err, "error looking up volume plugin "+name)
 		}
 
 		d := NewVolumeDriver(p.Name(), p.BasePath(), p.Client())
@@ -130,7 +140,7 @@ func lookup(name string, mode int) (volume.Driver, error) {
 		}
 		return d, nil
 	}
-	return nil, fmt.Errorf("Error looking up volume plugin %s", name)
+	return nil, driverNotFoundError(name)
 }
 
 func validateDriver(vd volume.Driver) error {

@@ -39,7 +39,7 @@ A great way to contribute to the project is to send a detailed report when you
 encounter an issue. We always appreciate a well-written, thorough bug report,
 and will thank you for it!
 
-Check that [our issue database](https://github.com/docker/docker/issues)
+Check that [our issue database](https://github.com/moby/moby/issues)
 doesn't already include that problem or suggestion before submitting an issue.
 If you find a match, you can use the "subscribe" button to get notified on
 updates. Do *not* leave random "+1" or "I have this too" comments, as they
@@ -66,7 +66,7 @@ This section gives the experienced contributor some tips and guidelines.
 
 Not sure if that typo is worth a pull request? Found a bug and know how to fix
 it? Do it! We will appreciate it. Any significant improvement should be
-documented as [a GitHub issue](https://github.com/docker/docker/issues) before
+documented as [a GitHub issue](https://github.com/moby/moby/issues) before
 anybody starts working on it.
 
 We are always thrilled to receive pull requests. We do our best to process them
@@ -155,10 +155,11 @@ Fork the repository and make changes on your fork in a feature branch:
 	your intentions, and name it XXXX-something where XXXX is the number of the
 	issue.
 
-Submit unit tests for your changes. Go has a great test framework built in; use
-it! Take a look at existing tests for inspiration. [Run the full test
-suite](https://docs.docker.com/opensource/project/test-and-docs/) on your branch before
-submitting a pull request.
+Submit tests for your changes. See [TESTING.md](./TESTING.md) for details.
+
+If your changes need integration tests, write them against the API. The `cli`
+integration tests are slowly either migrated to API tests or moved away as unit
+tests in `docker/cli` and end-to-end tests for docker.
 
 Update the documentation when creating or modifying features. Test your
 documentation changes for clarity, concision, and correctness, as well as a
@@ -251,10 +252,9 @@ calling it in another file constitute a single logical unit of work. The very
 high majority of submissions should have a single commit, so if in doubt: squash
 down to one.
 
-After every commit, [make sure the test suite passes]
-(https://docs.docker.com/opensource/project/test-and-docs/). Include documentation
-changes in the same pull request so that a revert would remove all traces of
-the feature or fix.
+After every commit, [make sure the test suite passes](./TESTING.md). Include
+documentation changes in the same pull request so that a revert would remove
+all traces of the feature or fix.
 
 Include an issue reference like `Closes #XXXX` or `Fixes #XXXX` in commits that
 close an issue. Including references automatically closes the issue on a merge.

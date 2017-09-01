@@ -4,14 +4,13 @@ import (
 	"fmt"
 	"os"
 	"runtime"
-	"sync/atomic"
+	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli/debug"
-	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/parsers/kernel"
@@ -22,6 +21,7 @@ import (
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/volume/drivers"
 	"github.com/docker/go-connections/sockets"
+	"github.com/sirupsen/logrus"
 )
 
 // SystemInfo returns information about the host server the daemon is running on.
@@ -57,18 +57,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 	}
 
 	sysInfo := sysinfo.New(true)
-
-	var cRunning, cPaused, cStopped int32
-	daemon.containers.ApplyAll(func(c *container.Container) {
-		switch c.StateString() {
-		case "paused":
-			atomic.AddInt32(&cPaused, 1)
-		case "running":
-			atomic.AddInt32(&cRunning, 1)
-		default:
-			atomic.AddInt32(&cStopped, 1)
-		}
-	})
+	cRunning, cPaused, cStopped := stateCtr.get()
 
 	securityOptions := []string{}
 	if sysInfo.AppArmor {
@@ -84,20 +73,37 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 	if selinuxEnabled() {
 		securityOptions = append(securityOptions, "name=selinux")
 	}
-	uid, gid := daemon.GetRemappedUIDGID()
-	if uid != 0 || gid != 0 {
+	rootIDs := daemon.idMappings.RootPair()
+	if rootIDs.UID != 0 || rootIDs.GID != 0 {
 		securityOptions = append(securityOptions, "name=userns")
 	}
 
+	imageCount := 0
+	drivers := ""
+	for p, ds := range daemon.stores {
+		imageCount += len(ds.imageStore.Map())
+		drivers += daemon.GraphDriverName(p)
+		if len(daemon.stores) > 1 {
+			drivers += fmt.Sprintf(" (%s) ", p)
+		}
+	}
+
+	// TODO @jhowardmsft LCOW support. For now, hard-code the platform shown for the driver status
+	p := runtime.GOOS
+	if system.LCOWSupported() {
+		p = "linux"
+	}
+
+	drivers = strings.TrimSpace(drivers)
 	v := &types.Info{
 		ID:                 daemon.ID,
 		Containers:         int(cRunning + cPaused + cStopped),
 		ContainersRunning:  int(cRunning),
 		ContainersPaused:   int(cPaused),
 		ContainersStopped:  int(cStopped),
-		Images:             len(daemon.imageStore.Map()),
-		Driver:             daemon.GraphDriverName(),
-		DriverStatus:       daemon.layerStore.DriverStatus(),
+		Images:             imageCount,
+		Driver:             drivers,
+		DriverStatus:       daemon.stores[p].layerStore.DriverStatus(),
 		Plugins:            daemon.showPluginsInfo(),
 		IPv4Forwarding:     !sysInfo.IPv4ForwardingDisabled,
 		BridgeNfIptables:   !sysInfo.BridgeNFCallIPTablesDisabled,
@@ -117,6 +123,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		RegistryConfig:     daemon.RegistryService.ServiceConfig(),
 		NCPU:               sysinfo.NumCPU(),
 		MemTotal:           meminfo.MemTotal,
+		GenericResources:   daemon.genericResources,
 		DockerRootDir:      daemon.configStore.Root,
 		Labels:             daemon.configStore.Labels,
 		ExperimentalBuild:  daemon.configStore.Experimental,
@@ -174,7 +181,10 @@ func (daemon *Daemon) showPluginsInfo() types.PluginsInfo {
 
 	pluginsInfo.Volume = volumedrivers.GetDriverList()
 	pluginsInfo.Network = daemon.GetNetworkDriverList()
-	pluginsInfo.Authorization = daemon.configStore.GetAuthorizationPlugins()
+	// The authorization plugins are returned in the order they are
+	// used as they constitute a request/response modification chain.
+	pluginsInfo.Authorization = daemon.configStore.AuthorizationPlugins
+	pluginsInfo.Log = logger.ListDrivers()
 
 	return pluginsInfo
 }

@@ -5,6 +5,8 @@ import (
 	"os"
 	"runtime"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 // ValidateEnv validates an environment variable and returns it.
@@ -18,7 +20,7 @@ import (
 func ValidateEnv(val string) (string, error) {
 	arr := strings.Split(val, "=")
 	if arr[0] == "" {
-		return "", fmt.Errorf("invalid environment variable: %s", val)
+		return "", errors.Errorf("invalid environment variable: %s", val)
 	}
 	if len(arr) > 1 {
 		return val, nil

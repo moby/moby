@@ -40,7 +40,7 @@ create_index() {
 	# change IFS locally within subshell so the for loop saves line correctly to L var
 	IFS=$'\n';
 
-	# pretty sweet, will mimick the normal apache output. skipping "index" and hidden files
+	# pretty sweet, will mimic the normal apache output. skipping "index" and hidden files
 	for L in $(find -L . -mount -depth -maxdepth 1 -type f ! -name 'index' ! -name '.*' -prune -printf "<a href=\"%f\">%f|@_@%Td-%Tb-%TY %Tk:%TM  @%f@\n"|sort|column -t -s '|' | sed 's,\([\ ]\+\)@_@,</a>\1,g');
 	do
 		# file

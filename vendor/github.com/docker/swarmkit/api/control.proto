@@ -2,11 +2,11 @@ syntax = "proto3";
 
 package docker.swarmkit.v1;
 
-import "specs.proto";
-import "objects.proto";
-import "types.proto";
+import "github.com/docker/swarmkit/api/specs.proto";
+import "github.com/docker/swarmkit/api/objects.proto";
+import "github.com/docker/swarmkit/api/types.proto";
 import "gogoproto/gogo.proto";
-import "plugin/plugin.proto";
+import "github.com/docker/swarmkit/protobuf/plugin/plugin.proto";
 
 // Control defines the RPC methods for controlling a cluster.
 service Control {
@@ -176,8 +176,8 @@ message ListNodesRequest {
 		repeated string names = 1;
 		repeated string id_prefixes = 2;
 		map<string, string> labels = 3;
-		repeated NodeSpec.Membership memberships = 4;
-		repeated NodeRole roles = 5;
+		repeated NodeSpec.Membership memberships = 4 [packed=false];
+		repeated NodeRole roles = 5 [packed=false];
 		// NamePrefixes matches all objects with the given prefixes
 		repeated string name_prefixes = 6;
 	}
@@ -233,7 +233,7 @@ message ListTasksRequest {
 		map<string, string> labels = 3;
 		repeated string service_ids = 4;
 		repeated string node_ids = 5;
-		repeated docker.swarmkit.v1.TaskState desired_states = 6;
+		repeated docker.swarmkit.v1.TaskState desired_states = 6 [packed=false];
 		// NamePrefixes matches all objects with the given prefixes
 		repeated string name_prefixes = 7;
 		repeated string runtimes = 9;

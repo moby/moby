@@ -4,10 +4,10 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container/stream"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/sirupsen/logrus"
 )
 
 // Config holds the configurations for execs. The Daemon keeps
@@ -60,6 +60,11 @@ func (c *Config) InitializeStdio(iop libcontainerd.IOPipe) error {
 // CloseStreams closes the stdio streams for the exec
 func (c *Config) CloseStreams() error {
 	return c.StreamConfig.CloseStreams()
+}
+
+// SetExitCode sets the exec config's exit code
+func (c *Config) SetExitCode(code int) {
+	c.ExitCode = &code
 }
 
 // Store keeps track of the exec configurations.

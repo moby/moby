@@ -5,6 +5,7 @@ package v2
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/docker/docker/api/types"
@@ -17,7 +18,7 @@ import (
 // InitSpec creates an OCI spec from the plugin's config.
 func (p *Plugin) InitSpec(execRoot string) (*specs.Spec, error) {
 	s := oci.DefaultSpec()
-	s.Root = specs.Root{
+	s.Root = &specs.Root{
 		Path:     p.Rootfs,
 		Readonly: false, // TODO: all plugins should be readonly? settable in config?
 	}
@@ -42,7 +43,7 @@ func (p *Plugin) InitSpec(execRoot string) (*specs.Spec, error) {
 	if p.PluginObj.Config.Network.Type != "" {
 		// TODO: if net == bridge, use libnetwork controller to create a new plugin-specific bridge, bind mount /etc/hosts and /etc/resolv.conf look at the docker code (allocateNetwork, initialize)
 		if p.PluginObj.Config.Network.Type == "host" {
-			oci.RemoveNamespace(&s, specs.NamespaceType("network"))
+			oci.RemoveNamespace(&s, specs.LinuxNamespaceType("network"))
 		}
 		etcHosts := "/etc/hosts"
 		resolvConf := "/etc/resolv.conf"
@@ -61,11 +62,11 @@ func (p *Plugin) InitSpec(execRoot string) (*specs.Spec, error) {
 			})
 	}
 	if p.PluginObj.Config.PidHost {
-		oci.RemoveNamespace(&s, specs.NamespaceType("pid"))
+		oci.RemoveNamespace(&s, specs.LinuxNamespaceType("pid"))
 	}
 
 	if p.PluginObj.Config.IpcHost {
-		oci.RemoveNamespace(&s, specs.NamespaceType("ipc"))
+		oci.RemoveNamespace(&s, specs.LinuxNamespaceType("ipc"))
 	}
 
 	for _, mnt := range mounts {
@@ -95,8 +96,7 @@ func (p *Plugin) InitSpec(execRoot string) (*specs.Spec, error) {
 	}
 
 	if p.PluginObj.Config.Linux.AllowAllDevices {
-		rwm := "rwm"
-		s.Linux.Resources.Devices = []specs.DeviceCgroup{{Allow: true, Access: &rwm}}
+		s.Linux.Resources.Devices = []specs.LinuxDeviceCgroup{{Allow: true, Access: "rwm"}}
 	}
 	for _, dev := range p.PluginObj.Settings.Devices {
 		path := *dev.Path
@@ -109,7 +109,7 @@ func (p *Plugin) InitSpec(execRoot string) (*specs.Spec, error) {
 	}
 
 	envs := make([]string, 1, len(p.PluginObj.Settings.Env)+1)
-	envs[0] = "PATH=" + system.DefaultPathEnv
+	envs[0] = "PATH=" + system.DefaultPathEnv(runtime.GOOS)
 	envs = append(envs, p.PluginObj.Settings.Env...)
 
 	args := append(p.PluginObj.Config.Entrypoint, p.PluginObj.Settings.Args...)
@@ -122,7 +122,11 @@ func (p *Plugin) InitSpec(execRoot string) (*specs.Spec, error) {
 	s.Process.Cwd = cwd
 	s.Process.Env = envs
 
-	s.Process.Capabilities = append(s.Process.Capabilities, p.PluginObj.Config.Linux.Capabilities...)
+	caps := s.Process.Capabilities
+	caps.Bounding = append(caps.Bounding, p.PluginObj.Config.Linux.Capabilities...)
+	caps.Permitted = append(caps.Permitted, p.PluginObj.Config.Linux.Capabilities...)
+	caps.Inheritable = append(caps.Inheritable, p.PluginObj.Config.Linux.Capabilities...)
+	caps.Effective = append(caps.Effective, p.PluginObj.Config.Linux.Capabilities...)
 
 	return &s, nil
 }

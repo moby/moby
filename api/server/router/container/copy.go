@@ -3,17 +3,22 @@ package container
 import (
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
-	"os"
-	"strings"
 
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
 	"golang.org/x/net/context"
 )
+
+type pathError struct{}
+
+func (pathError) Error() string {
+	return "Path cannot be empty"
+}
+
+func (pathError) InvalidParameter() {}
 
 // postContainersCopy is deprecated in favor of getContainersArchive.
 func (s *containerRouter) postContainersCopy(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -33,18 +38,11 @@ func (s *containerRouter) postContainersCopy(ctx context.Context, w http.Respons
 	}
 
 	if cfg.Resource == "" {
-		return fmt.Errorf("Path cannot be empty")
+		return pathError{}
 	}
 
 	data, err := s.backend.ContainerCopy(vars["name"], cfg.Resource)
 	if err != nil {
-		if strings.Contains(strings.ToLower(err.Error()), "no such container") {
-			w.WriteHeader(http.StatusNotFound)
-			return nil
-		}
-		if os.IsNotExist(err) {
-			return fmt.Errorf("Could not find the file %s in container %s", cfg.Resource, vars["name"])
-		}
 		return err
 	}
 	defer data.Close()

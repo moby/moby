@@ -13,8 +13,8 @@ import (
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/pkg/stringid"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
+	"github.com/gotestyourself/gotestyourself/icmd"
 )
 
 func (s *DockerSuite) TestImagesEnsureImageIsListed(c *check.C) {
@@ -100,7 +100,7 @@ func (s *DockerSuite) TestImagesFilterLabelMatch(c *check.C) {
 }
 
 // Regression : #15659
-func (s *DockerSuite) TestImagesFilterLabelWithCommit(c *check.C) {
+func (s *DockerSuite) TestCommitWithFilterLabel(c *check.C) {
 	// Create a container
 	dockerCmd(c, "run", "--name", "bar", "busybox", "/bin/sh")
 	// Commit with labels "using changes"

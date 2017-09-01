@@ -1,6 +1,8 @@
 package daemon
 
 import (
+	"context"
+	"strconv"
 	"strings"
 	"time"
 
@@ -9,6 +11,17 @@ import (
 	"github.com/docker/docker/container"
 	daemonevents "github.com/docker/docker/daemon/events"
 	"github.com/docker/libnetwork"
+	swarmapi "github.com/docker/swarmkit/api"
+	gogotypes "github.com/gogo/protobuf/types"
+	"github.com/sirupsen/logrus"
+)
+
+var (
+	clusterEventAction = map[swarmapi.WatchActionKind]string{
+		swarmapi.WatchActionKindCreate: "create",
+		swarmapi.WatchActionKindUpdate: "update",
+		swarmapi.WatchActionKindRemove: "remove",
+	}
 )
 
 // LogContainerEvent generates an event related to a container with only the default attributes.
@@ -129,4 +142,191 @@ func copyAttributes(attributes, labels map[string]string) {
 	for k, v := range labels {
 		attributes[k] = v
 	}
+}
+
+// ProcessClusterNotifications gets changes from store and add them to event list
+func (daemon *Daemon) ProcessClusterNotifications(ctx context.Context, watchStream chan *swarmapi.WatchMessage) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case message, ok := <-watchStream:
+			if !ok {
+				logrus.Debug("cluster event channel has stopped")
+				return
+			}
+			daemon.generateClusterEvent(message)
+		}
+	}
+}
+
+func (daemon *Daemon) generateClusterEvent(msg *swarmapi.WatchMessage) {
+	for _, event := range msg.Events {
+		if event.Object == nil {
+			logrus.Errorf("event without object: %v", event)
+			continue
+		}
+		switch v := event.Object.GetObject().(type) {
+		case *swarmapi.Object_Node:
+			daemon.logNodeEvent(event.Action, v.Node, event.OldObject.GetNode())
+		case *swarmapi.Object_Service:
+			daemon.logServiceEvent(event.Action, v.Service, event.OldObject.GetService())
+		case *swarmapi.Object_Network:
+			daemon.logNetworkEvent(event.Action, v.Network, event.OldObject.GetNetwork())
+		case *swarmapi.Object_Secret:
+			daemon.logSecretEvent(event.Action, v.Secret, event.OldObject.GetSecret())
+		case *swarmapi.Object_Config:
+			daemon.logConfigEvent(event.Action, v.Config, event.OldObject.GetConfig())
+		default:
+			logrus.Warnf("unrecognized event: %v", event)
+		}
+	}
+}
+
+func (daemon *Daemon) logNetworkEvent(action swarmapi.WatchActionKind, net *swarmapi.Network, oldNet *swarmapi.Network) {
+	attributes := map[string]string{
+		"name": net.Spec.Annotations.Name,
+	}
+	eventTime := eventTimestamp(net.Meta, action)
+	daemon.logClusterEvent(action, net.ID, "network", attributes, eventTime)
+}
+
+func (daemon *Daemon) logSecretEvent(action swarmapi.WatchActionKind, secret *swarmapi.Secret, oldSecret *swarmapi.Secret) {
+	attributes := map[string]string{
+		"name": secret.Spec.Annotations.Name,
+	}
+	eventTime := eventTimestamp(secret.Meta, action)
+	daemon.logClusterEvent(action, secret.ID, "secret", attributes, eventTime)
+}
+
+func (daemon *Daemon) logConfigEvent(action swarmapi.WatchActionKind, config *swarmapi.Config, oldConfig *swarmapi.Config) {
+	attributes := map[string]string{
+		"name": config.Spec.Annotations.Name,
+	}
+	eventTime := eventTimestamp(config.Meta, action)
+	daemon.logClusterEvent(action, config.ID, "config", attributes, eventTime)
+}
+
+func (daemon *Daemon) logNodeEvent(action swarmapi.WatchActionKind, node *swarmapi.Node, oldNode *swarmapi.Node) {
+	name := node.Spec.Annotations.Name
+	if name == "" && node.Description != nil {
+		name = node.Description.Hostname
+	}
+	attributes := map[string]string{
+		"name": name,
+	}
+	eventTime := eventTimestamp(node.Meta, action)
+	// In an update event, display the changes in attributes
+	if action == swarmapi.WatchActionKindUpdate && oldNode != nil {
+		if node.Spec.Availability != oldNode.Spec.Availability {
+			attributes["availability.old"] = strings.ToLower(oldNode.Spec.Availability.String())
+			attributes["availability.new"] = strings.ToLower(node.Spec.Availability.String())
+		}
+		if node.Role != oldNode.Role {
+			attributes["role.old"] = strings.ToLower(oldNode.Role.String())
+			attributes["role.new"] = strings.ToLower(node.Role.String())
+		}
+		if node.Status.State != oldNode.Status.State {
+			attributes["state.old"] = strings.ToLower(oldNode.Status.State.String())
+			attributes["state.new"] = strings.ToLower(node.Status.State.String())
+		}
+		// This handles change within manager role
+		if node.ManagerStatus != nil && oldNode.ManagerStatus != nil {
+			// leader change
+			if node.ManagerStatus.Leader != oldNode.ManagerStatus.Leader {
+				if node.ManagerStatus.Leader {
+					attributes["leader.old"] = "false"
+					attributes["leader.new"] = "true"
+				} else {
+					attributes["leader.old"] = "true"
+					attributes["leader.new"] = "false"
+				}
+			}
+			if node.ManagerStatus.Reachability != oldNode.ManagerStatus.Reachability {
+				attributes["reachability.old"] = strings.ToLower(oldNode.ManagerStatus.Reachability.String())
+				attributes["reachability.new"] = strings.ToLower(node.ManagerStatus.Reachability.String())
+			}
+		}
+	}
+
+	daemon.logClusterEvent(action, node.ID, "node", attributes, eventTime)
+}
+
+func (daemon *Daemon) logServiceEvent(action swarmapi.WatchActionKind, service *swarmapi.Service, oldService *swarmapi.Service) {
+	attributes := map[string]string{
+		"name": service.Spec.Annotations.Name,
+	}
+	eventTime := eventTimestamp(service.Meta, action)
+
+	if action == swarmapi.WatchActionKindUpdate && oldService != nil {
+		// check image
+		if x, ok := service.Spec.Task.GetRuntime().(*swarmapi.TaskSpec_Container); ok {
+			containerSpec := x.Container
+			if y, ok := oldService.Spec.Task.GetRuntime().(*swarmapi.TaskSpec_Container); ok {
+				oldContainerSpec := y.Container
+				if containerSpec.Image != oldContainerSpec.Image {
+					attributes["image.old"] = oldContainerSpec.Image
+					attributes["image.new"] = containerSpec.Image
+				}
+			} else {
+				// This should not happen.
+				logrus.Errorf("service %s runtime changed from %T to %T", service.Spec.Annotations.Name, oldService.Spec.Task.GetRuntime(), service.Spec.Task.GetRuntime())
+			}
+		}
+		// check replicated count change
+		if x, ok := service.Spec.GetMode().(*swarmapi.ServiceSpec_Replicated); ok {
+			replicas := x.Replicated.Replicas
+			if y, ok := oldService.Spec.GetMode().(*swarmapi.ServiceSpec_Replicated); ok {
+				oldReplicas := y.Replicated.Replicas
+				if replicas != oldReplicas {
+					attributes["replicas.old"] = strconv.FormatUint(oldReplicas, 10)
+					attributes["replicas.new"] = strconv.FormatUint(replicas, 10)
+				}
+			} else {
+				// This should not happen.
+				logrus.Errorf("service %s mode changed from %T to %T", service.Spec.Annotations.Name, oldService.Spec.GetMode(), service.Spec.GetMode())
+			}
+		}
+		if service.UpdateStatus != nil {
+			if oldService.UpdateStatus == nil {
+				attributes["updatestate.new"] = strings.ToLower(service.UpdateStatus.State.String())
+			} else if service.UpdateStatus.State != oldService.UpdateStatus.State {
+				attributes["updatestate.old"] = strings.ToLower(oldService.UpdateStatus.State.String())
+				attributes["updatestate.new"] = strings.ToLower(service.UpdateStatus.State.String())
+			}
+		}
+	}
+	daemon.logClusterEvent(action, service.ID, "service", attributes, eventTime)
+}
+
+func (daemon *Daemon) logClusterEvent(action swarmapi.WatchActionKind, id, eventType string, attributes map[string]string, eventTime time.Time) {
+	actor := events.Actor{
+		ID:         id,
+		Attributes: attributes,
+	}
+
+	jm := events.Message{
+		Action:   clusterEventAction[action],
+		Type:     eventType,
+		Actor:    actor,
+		Scope:    "swarm",
+		Time:     eventTime.UTC().Unix(),
+		TimeNano: eventTime.UTC().UnixNano(),
+	}
+	daemon.EventsService.PublishMessage(jm)
+}
+
+func eventTimestamp(meta swarmapi.Meta, action swarmapi.WatchActionKind) time.Time {
+	var eventTime time.Time
+	switch action {
+	case swarmapi.WatchActionKindCreate:
+		eventTime, _ = gogotypes.TimestampFromProto(meta.CreatedAt)
+	case swarmapi.WatchActionKindUpdate:
+		eventTime, _ = gogotypes.TimestampFromProto(meta.UpdatedAt)
+	case swarmapi.WatchActionKindRemove:
+		// There is no timestamp from store message for remove operations.
+		// Use current time.
+		eventTime = time.Now()
+	}
+	return eventTime
 }

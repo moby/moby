@@ -11,8 +11,8 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration-cli/checker"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
+	"github.com/gotestyourself/gotestyourself/icmd"
 )
 
 func checkValidGraphDriver(c *check.C, name string) {
@@ -463,6 +463,5 @@ func (s *DockerSuite) TestInspectInvalidReference(c *check.C) {
 	// This test should work on both Windows and Linux
 	out, _, err := dockerCmdWithError("inspect", "FooBar")
 	c.Assert(err, checker.NotNil)
-	c.Assert(out, checker.Contains, "Error: No such object: FooBar")
-	c.Assert(err.Error(), checker.Contains, "Error: No such object: FooBar")
+	c.Assert(out, checker.Contains, "no such image: FooBar")
 }

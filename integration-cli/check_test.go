@@ -2,24 +2,30 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net/http/httptest"
 	"os"
-	"os/exec"
+	"path"
 	"path/filepath"
-	"strings"
+	"strconv"
 	"sync"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/api/types/swarm"
-	cliconfig "github.com/docker/docker/cli/config"
+	"github.com/docker/docker/cli/config"
+	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build/fakestorage"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/integration-cli/environment"
+	"github.com/docker/docker/integration-cli/fixtures/plugin"
 	"github.com/docker/docker/integration-cli/registry"
+	ienv "github.com/docker/docker/internal/test/environment"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/go-check/check"
+	"golang.org/x/net/context"
 )
 
 const (
@@ -37,7 +43,7 @@ var (
 	testEnv *environment.Execution
 
 	// the docker client binary to use
-	dockerBinary = "docker"
+	dockerBinary = ""
 )
 
 func init() {
@@ -54,30 +60,14 @@ func init() {
 
 func TestMain(m *testing.M) {
 	dockerBinary = testEnv.DockerBinary()
-
-	if testEnv.LocalDaemon() {
-		fmt.Println("INFO: Testing against a local daemon")
-	} else {
-		fmt.Println("INFO: Testing against a remote daemon")
-	}
-	exitCode := m.Run()
-	os.Exit(exitCode)
+	testEnv.Print()
+	os.Exit(m.Run())
 }
 
 func Test(t *testing.T) {
-	cli.EnsureTestEnvIsLoaded(t)
-	fakestorage.EnsureTestEnvIsLoaded(t)
-	cmd := exec.Command(dockerBinary, "images", "-f", "dangling=false", "--format", "{{.Repository}}:{{.Tag}}")
-	cmd.Env = appendBaseEnv(true)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		panic(fmt.Errorf("err=%v\nout=%s\n", err, out))
-	}
-	images := strings.Split(strings.TrimSpace(string(out)), "\n")
-	testEnv.ProtectImage(t, images...)
-	if testEnv.DaemonPlatform() == "linux" {
-		ensureFrozenImagesLinux(t)
-	}
+	cli.SetTestEnvironment(testEnv)
+	fakestorage.SetTestEnvironment(&testEnv.Execution)
+	ienv.ProtectImages(t, &testEnv.Execution)
 	check.TestingT(t)
 }
 
@@ -89,13 +79,25 @@ type DockerSuite struct {
 }
 
 func (s *DockerSuite) OnTimeout(c *check.C) {
-	if testEnv.DaemonPID() > 0 && testEnv.LocalDaemon() {
-		daemon.SignalDaemonDump(testEnv.DaemonPID())
+	path := filepath.Join(os.Getenv("DEST"), "docker.pid")
+	b, err := ioutil.ReadFile(path)
+	if err != nil {
+		c.Fatalf("Failed to get daemon PID from %s\n", path)
+	}
+
+	rawPid, err := strconv.ParseInt(string(b), 10, 32)
+	if err != nil {
+		c.Fatalf("Failed to parse pid from %s: %s\n", path, err)
+	}
+
+	daemonPid := int(rawPid)
+	if daemonPid > 0 && testEnv.IsLocalDaemon() {
+		daemon.SignalDaemonDump(daemonPid)
 	}
 }
 
 func (s *DockerSuite) TearDownTest(c *check.C) {
-	testEnv.Clean(c, dockerBinary)
+	testEnv.Clean(c)
 }
 
 func init() {
@@ -406,7 +408,7 @@ func (s *DockerTrustSuite) TearDownTest(c *check.C) {
 	}
 
 	// Remove trusted keys and metadata after test
-	os.RemoveAll(filepath.Join(cliconfig.Dir(), "trust"))
+	os.RemoveAll(filepath.Join(config.Dir(), "trust"))
 	s.ds.TearDownTest(c)
 }
 
@@ -441,4 +443,51 @@ func (s *DockerTrustedSwarmSuite) TearDownTest(c *check.C) {
 
 func (s *DockerTrustedSwarmSuite) OnTimeout(c *check.C) {
 	s.swarmSuite.OnTimeout(c)
+}
+
+func init() {
+	check.Suite(&DockerPluginSuite{
+		ds: &DockerSuite{},
+	})
+}
+
+type DockerPluginSuite struct {
+	ds       *DockerSuite
+	registry *registry.V2
+}
+
+func (ps *DockerPluginSuite) registryHost() string {
+	return privateRegistryURL
+}
+
+func (ps *DockerPluginSuite) getPluginRepo() string {
+	return path.Join(ps.registryHost(), "plugin", "basic")
+}
+func (ps *DockerPluginSuite) getPluginRepoWithTag() string {
+	return ps.getPluginRepo() + ":" + "latest"
+}
+
+func (ps *DockerPluginSuite) SetUpSuite(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	ps.registry = setupRegistry(c, false, "", "")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	err := plugin.CreateInRegistry(ctx, ps.getPluginRepo(), nil)
+	c.Assert(err, checker.IsNil, check.Commentf("failed to create plugin"))
+}
+
+func (ps *DockerPluginSuite) TearDownSuite(c *check.C) {
+	if ps.registry != nil {
+		ps.registry.Close()
+	}
+}
+
+func (ps *DockerPluginSuite) TearDownTest(c *check.C) {
+	ps.ds.TearDownTest(c)
+}
+
+func (ps *DockerPluginSuite) OnTimeout(c *check.C) {
+	ps.ds.OnTimeout(c)
 }

@@ -90,6 +90,7 @@
 			"mgoelzer",
 			"programmerq",
 			"rheinwein",
+			"ripcurld0",
 			"thajeztah"
 		]
 
@@ -312,7 +313,7 @@
 
 	[people.icecrime]
 	Name = "Arnaud Porterie"
-	Email = "arnaud@docker.com"
+	Email = "icecrime@gmail.com"
 	GitHub = "icecrime"
 
 	[people.jamtur01]
@@ -389,6 +390,11 @@
 	Name = "Laura Frank"
 	Email = "laura@codeship.com"
 	GitHub = "rheinwein"
+
+	[people.ripcurld0]
+	Name = "Boaz Shuster"
+	Email = "ripcurld.github@gmail.com"
+	GitHub = "ripcurld0"
 
 	[people.runcom]
 	Name = "Antonio Murdaca"

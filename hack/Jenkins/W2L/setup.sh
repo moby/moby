@@ -13,7 +13,7 @@ SCRIPT_VER="Wed Apr 20 18:30:19 UTC 2016"
 #  - Error if running 32-bit posix tools. Probably can take from bash --version and check contains "x86_64"
 #  - Warn if the CI directory cannot be deleted afterwards. Otherwise turdlets are left behind
 #  - Use %systemdrive% ($SYSTEMDRIVE) rather than hard code to c: for TEMP
-#  - Consider cross builing the Windows binary and copy across. That's a bit of a heavy lift. Only reason
+#  - Consider cross building the Windows binary and copy across. That's a bit of a heavy lift. Only reason
 #    for doing that is that it mirrors the actual release process for docker.exe which is cross-built.
 #    However, should absolutely not be a problem if built natively, so nit-picking.
 #  - Tidy up of images and containers. Either here, or in the teardown script.
@@ -116,7 +116,7 @@ fi
 # Get the commit has and verify we have something
 if [ $ec -eq 0 ]; then
 	export COMMITHASH=$(git rev-parse --short HEAD)
-	echo INFO: Commmit hash is $COMMITHASH
+	echo INFO: Commit hash is $COMMITHASH
 	if [ -z $COMMITHASH ]; then
 		echo "ERROR: Failed to get commit hash. Are you sure this is a docker repository?"
 		ec=1

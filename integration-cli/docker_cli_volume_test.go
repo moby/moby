@@ -3,17 +3,20 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/docker/docker/integration-cli/request"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
+	"github.com/gotestyourself/gotestyourself/icmd"
+	"golang.org/x/net/context"
 )
 
 func (s *DockerSuite) TestVolumeCLICreate(c *check.C) {
@@ -34,7 +37,7 @@ func (s *DockerSuite) TestVolumeCLICreate(c *check.C) {
 
 func (s *DockerSuite) TestVolumeCLIInspect(c *check.C) {
 	c.Assert(
-		exec.Command(dockerBinary, "volume", "inspect", "doesntexist").Run(),
+		exec.Command(dockerBinary, "volume", "inspect", "doesnotexist").Run(),
 		check.Not(check.IsNil),
 		check.Commentf("volume inspect should error on non-existent volume"),
 	)
@@ -54,10 +57,10 @@ func (s *DockerSuite) TestVolumeCLIInspectMulti(c *check.C) {
 	dockerCmd(c, "volume", "create", "test2")
 	dockerCmd(c, "volume", "create", "test3")
 
-	result := dockerCmdWithResult("volume", "inspect", "--format={{ .Name }}", "test1", "test2", "doesntexist", "test3")
-	c.Assert(result, icmd.Matches, icmd.Expected{
+	result := dockerCmdWithResult("volume", "inspect", "--format={{ .Name }}", "test1", "test2", "doesnotexist", "test3")
+	result.Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err:      "No such volume: doesntexist",
+		Err:      "No such volume: doesnotexist",
 	})
 
 	out := result.Stdout()
@@ -185,7 +188,7 @@ func (s *DockerSuite) TestVolumeCLILsFilterDangling(c *check.C) {
 
 	out, _ = dockerCmd(c, "volume", "ls", "--filter", "name=testisin")
 	c.Assert(out, check.Not(checker.Contains), "testnotinuse1\n", check.Commentf("expected volume 'testnotinuse1' in output"))
-	c.Assert(out, checker.Contains, "testisinuse1\n", check.Commentf("execpeted volume 'testisinuse1' in output"))
+	c.Assert(out, checker.Contains, "testisinuse1\n", check.Commentf("expected volume 'testisinuse1' in output"))
 	c.Assert(out, checker.Contains, "testisinuse2\n", check.Commentf("expected volume 'testisinuse2' in output"))
 }
 
@@ -234,7 +237,7 @@ func (s *DockerSuite) TestVolumeCLIRm(c *check.C) {
 
 	dockerCmd(c, "volume", "rm", volumeID)
 	c.Assert(
-		exec.Command("volume", "rm", "doesntexist").Run(),
+		exec.Command("volume", "rm", "doesnotexist").Run(),
 		check.Not(check.IsNil),
 		check.Commentf("volume rm should fail with non-existent volume"),
 	)
@@ -607,25 +610,28 @@ func (s *DockerSuite) TestDuplicateMountpointsForVolumesFromAndMounts(c *check.C
 	err := os.MkdirAll("/tmp/data", 0755)
 	c.Assert(err, checker.IsNil)
 	// Mounts is available in API
-	status, body, err := request.SockRequest("POST", "/containers/create?name=app", map[string]interface{}{
-		"Image": "busybox",
-		"Cmd":   []string{"top"},
-		"HostConfig": map[string]interface{}{
-			"VolumesFrom": []string{
-				"data1",
-				"data2",
-			},
-			"Mounts": []map[string]interface{}{
-				{
-					"Type":   "bind",
-					"Source": "/tmp/data",
-					"Target": "/tmp/data",
-				},
-			}},
-	}, daemonHost())
+	cli, err := client.NewEnvClient()
+	c.Assert(err, checker.IsNil)
+	defer cli.Close()
 
-	c.Assert(err, checker.IsNil, check.Commentf(string(body)))
-	c.Assert(status, checker.Equals, http.StatusCreated, check.Commentf(string(body)))
+	config := container.Config{
+		Cmd:   []string{"top"},
+		Image: "busybox",
+	}
+
+	hostConfig := container.HostConfig{
+		VolumesFrom: []string{"data1", "data2"},
+		Mounts: []mount.Mount{
+			{
+				Type:   "bind",
+				Source: "/tmp/data",
+				Target: "/tmp/data",
+			},
+		},
+	}
+	_, err = cli.ContainerCreate(context.Background(), &config, &hostConfig, &network.NetworkingConfig{}, "app")
+
+	c.Assert(err, checker.IsNil)
 
 	// No volume will be referenced (mount is /tmp/data), this is backward compatible
 	out, _ = dockerCmd(c, "inspect", "--format", "{{(index .Mounts 0).Name}}", "app")

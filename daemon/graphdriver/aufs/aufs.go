@@ -33,11 +33,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
-
-	"github.com/Sirupsen/logrus"
-	"github.com/vbatts/tar-split/tar/storage"
 
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
@@ -46,9 +42,13 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/locker"
 	mountpk "github.com/docker/docker/pkg/mount"
-
-	"github.com/opencontainers/runc/libcontainer/label"
+	"github.com/docker/docker/pkg/system"
 	rsystem "github.com/opencontainers/runc/libcontainer/system"
+	"github.com/opencontainers/selinux/go-selinux/label"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+	"github.com/vbatts/tar-split/tar/storage"
+	"golang.org/x/sys/unix"
 )
 
 var (
@@ -139,6 +139,30 @@ func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 	for _, p := range paths {
 		if err := idtools.MkdirAllAs(path.Join(root, p), 0700, rootUID, rootGID); err != nil {
 			return nil, err
+		}
+	}
+	logger := logrus.WithFields(logrus.Fields{
+		"module": "graphdriver",
+		"driver": "aufs",
+	})
+
+	for _, path := range []string{"mnt", "diff"} {
+		p := filepath.Join(root, path)
+		entries, err := ioutil.ReadDir(p)
+		if err != nil {
+			logger.WithError(err).WithField("dir", p).Error("error reading dir entries")
+			continue
+		}
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+			if strings.HasSuffix(entry.Name(), "-removing") {
+				logger.WithField("dir", entry.Name()).Debug("Cleaning up stale layer dir")
+				if err := system.EnsureRemoveAll(filepath.Join(p, entry.Name())); err != nil {
+					logger.WithField("dir", entry.Name()).WithError(err).Error("Error removing stale layer dir")
+				}
+			}
 		}
 	}
 
@@ -283,59 +307,83 @@ func (a *Driver) Remove(id string) error {
 		mountpoint = a.getMountpoint(id)
 	}
 
+	logger := logrus.WithFields(logrus.Fields{
+		"module": "graphdriver",
+		"driver": "aufs",
+		"layer":  id,
+	})
+
 	var retries int
 	for {
 		mounted, err := a.mounted(mountpoint)
 		if err != nil {
+			if os.IsNotExist(err) {
+				break
+			}
 			return err
 		}
 		if !mounted {
 			break
 		}
 
-		if err := a.unmount(mountpoint); err != nil {
-			if err != syscall.EBUSY {
-				return fmt.Errorf("aufs: unmount error: %s: %v", mountpoint, err)
-			}
-			if retries >= 5 {
-				return fmt.Errorf("aufs: unmount error after retries: %s: %v", mountpoint, err)
-			}
-			// If unmount returns EBUSY, it could be a transient error. Sleep and retry.
-			retries++
-			logrus.Warnf("unmount failed due to EBUSY: retry count: %d", retries)
-			time.Sleep(100 * time.Millisecond)
-			continue
+		err = a.unmount(mountpoint)
+		if err == nil {
+			break
 		}
-		break
+
+		if err != unix.EBUSY {
+			return errors.Wrapf(err, "aufs: unmount error: %s", mountpoint)
+		}
+		if retries >= 5 {
+			return errors.Wrapf(err, "aufs: unmount error after retries: %s", mountpoint)
+		}
+		// If unmount returns EBUSY, it could be a transient error. Sleep and retry.
+		retries++
+		logger.Warnf("unmount failed due to EBUSY: retry count: %d", retries)
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	// Remove the layers file for the id
+	if err := os.Remove(path.Join(a.rootPath(), "layers", id)); err != nil && !os.IsNotExist(err) {
+		return errors.Wrapf(err, "error removing layers dir for %s", id)
+	}
+
+	if err := atomicRemove(a.getDiffPath(id)); err != nil {
+		return errors.Wrapf(err, "could not remove diff path for id %s", id)
 	}
 
 	// Atomically remove each directory in turn by first moving it out of the
 	// way (so that docker doesn't find it anymore) before doing removal of
 	// the whole tree.
-	tmpMntPath := path.Join(a.mntPath(), fmt.Sprintf("%s-removing", id))
-	if err := os.Rename(mountpoint, tmpMntPath); err != nil && !os.IsNotExist(err) {
-		if err == syscall.EBUSY {
-			logrus.Warn("os.Rename err due to EBUSY")
+	if err := atomicRemove(mountpoint); err != nil {
+		if errors.Cause(err) == unix.EBUSY {
+			logger.WithField("dir", mountpoint).WithError(err).Warn("error performing atomic remove due to EBUSY")
 		}
-		return err
-	}
-	defer os.RemoveAll(tmpMntPath)
-
-	tmpDiffpath := path.Join(a.diffPath(), fmt.Sprintf("%s-removing", id))
-	if err := os.Rename(a.getDiffPath(id), tmpDiffpath); err != nil && !os.IsNotExist(err) {
-		return err
-	}
-	defer os.RemoveAll(tmpDiffpath)
-
-	// Remove the layers file for the id
-	if err := os.Remove(path.Join(a.rootPath(), "layers", id)); err != nil && !os.IsNotExist(err) {
-		return err
+		return errors.Wrapf(err, "could not remove mountpoint for id %s", id)
 	}
 
 	a.pathCacheLock.Lock()
 	delete(a.pathCache, id)
 	a.pathCacheLock.Unlock()
 	return nil
+}
+
+func atomicRemove(source string) error {
+	target := source + "-removing"
+
+	err := os.Rename(source, target)
+	switch {
+	case err == nil, os.IsNotExist(err):
+	case os.IsExist(err):
+		// Got error saying the target dir already exists, maybe the source doesn't exist due to a previous (failed) remove
+		if _, e := os.Stat(source); !os.IsNotExist(e) {
+			return errors.Wrapf(err, "target rename dir '%s' exists but should not, this needs to be manually cleaned up")
+		}
+	default:
+		return errors.Wrapf(err, "error preparing atomic delete")
+	}
+
+	return system.EnsureRemoveAll(target)
 }
 
 // Get returns the rootfs path for the id.
@@ -572,9 +620,9 @@ func (a *Driver) aufsMount(ro []string, rw, target, mountLabel string) (err erro
 
 	offset := 54
 	if useDirperm() {
-		offset += len("dirperm1")
+		offset += len(",dirperm1")
 	}
-	b := make([]byte, syscall.Getpagesize()-len(mountLabel)-offset) // room for xino & mountLabel
+	b := make([]byte, unix.Getpagesize()-len(mountLabel)-offset) // room for xino & mountLabel
 	bp := copy(b, fmt.Sprintf("br:%s=rw", rw))
 
 	index := 0
@@ -598,7 +646,7 @@ func (a *Driver) aufsMount(ro []string, rw, target, mountLabel string) (err erro
 	for ; index < len(ro); index++ {
 		layer := fmt.Sprintf(":%s=ro+wh", ro[index])
 		data := label.FormatMountLabel(fmt.Sprintf("append%s", layer), mountLabel)
-		if err = mount("none", target, "aufs", syscall.MS_REMOUNT, data); err != nil {
+		if err = mount("none", target, "aufs", unix.MS_REMOUNT, data); err != nil {
 			return
 		}
 	}

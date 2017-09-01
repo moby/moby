@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/drivers/remote/api"
 	"github.com/docker/libnetwork/types"
+	"github.com/sirupsen/logrus"
 )
 
 type driver struct {
@@ -70,6 +70,17 @@ func (d *driver) getCapabilities() (*driverapi.Capability, error) {
 		c.DataScope = datastore.GlobalScope
 	case "local":
 		c.DataScope = datastore.LocalScope
+	default:
+		return nil, fmt.Errorf("invalid capability: expecting 'local' or 'global', got %s", capResp.Scope)
+	}
+
+	switch capResp.ConnectivityScope {
+	case "global":
+		c.ConnectivityScope = datastore.GlobalScope
+	case "local":
+		c.ConnectivityScope = datastore.LocalScope
+	case "":
+		c.ConnectivityScope = c.DataScope
 	default:
 		return nil, fmt.Errorf("invalid capability: expecting 'local' or 'global', got %s", capResp.Scope)
 	}

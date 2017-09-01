@@ -132,8 +132,8 @@
 # Important notes:
 # ---------------
 #
-# Don't attempt to use a bind-mount to pass a local directory as the bundles target
-# directory. It does not work (golang attempts for follow a mapped folder incorrectly). 
+# Don't attempt to use a bind mount to pass a local directory as the bundles target
+# directory. It does not work (golang attempts for follow a mapped folder incorrectly).
 # Instead, use docker cp as per the example.
 #
 # go.zip is not removed from the image as it is used by the Windows CI servers
@@ -161,7 +161,7 @@ SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPref
 # Environment variable notes:
 #  - GO_VERSION must be consistent with 'Dockerfile' used by Linux.
 #  - FROM_DOCKERFILE is used for detection of building within a container.
-ENV GO_VERSION=1.7.5 `
+ENV GO_VERSION=1.8.3 `
     GIT_VERSION=2.11.1 `
     GOPATH=C:\go `
     FROM_DOCKERFILE=1

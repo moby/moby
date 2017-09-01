@@ -6,6 +6,6 @@
 
 package fsnotify
 
-import "syscall"
+import "golang.org/x/sys/unix"
 
-const openMode = syscall.O_NONBLOCK | syscall.O_RDONLY
+const openMode = unix.O_NONBLOCK | unix.O_RDONLY

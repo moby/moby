@@ -11,6 +11,9 @@ import (
 // SecretCreate creates a new Secret.
 func (cli *Client) SecretCreate(ctx context.Context, secret swarm.SecretSpec) (types.SecretCreateResponse, error) {
 	var response types.SecretCreateResponse
+	if err := cli.NewVersionError("1.25", "secret create"); err != nil {
+		return response, err
+	}
 	resp, err := cli.post(ctx, "/secrets/create", nil, secret, nil)
 	if err != nil {
 		return response, err

@@ -14,11 +14,12 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
 )
 
+// For Quick Reference IPVS related netlink message is described at the end of this file.
 var (
 	native     = nl.NativeEndian()
 	ipvsFamily int
@@ -89,7 +90,6 @@ func fillService(s *Service) nl.NetlinkRequestData {
 	if s.PEName != "" {
 		nl.NewRtAttrChild(cmdAttr, ipvsSvcAttrPEName, nl.ZeroTerminated(s.PEName))
 	}
-
 	f := &ipvsFlags{
 		flags: s.Flags,
 		mask:  0xFFFFFFFF,
@@ -117,20 +117,38 @@ func fillDestinaton(d *Destination) nl.NetlinkRequestData {
 	return cmdAttr
 }
 
-func (i *Handle) doCmd(s *Service, d *Destination, cmd uint8) error {
+func (i *Handle) doCmdwithResponse(s *Service, d *Destination, cmd uint8) ([][]byte, error) {
 	req := newIPVSRequest(cmd)
 	req.Seq = atomic.AddUint32(&i.seq, 1)
-	req.AddData(fillService(s))
 
-	if d != nil {
+	if s == nil {
+		req.Flags |= syscall.NLM_F_DUMP                    //Flag to dump all messages
+		req.AddData(nl.NewRtAttr(ipvsCmdAttrService, nil)) //Add a dummy attribute
+	} else {
+		req.AddData(fillService(s))
+	}
+
+	if d == nil {
+		if cmd == ipvsCmdGetDest {
+			req.Flags |= syscall.NLM_F_DUMP
+		}
+
+	} else {
 		req.AddData(fillDestinaton(d))
 	}
 
-	if _, err := execute(i.sock, req, 0); err != nil {
-		return err
+	res, err := execute(i.sock, req, 0)
+	if err != nil {
+		return [][]byte{}, err
 	}
 
-	return nil
+	return res, nil
+}
+
+func (i *Handle) doCmd(s *Service, d *Destination, cmd uint8) error {
+	_, err := i.doCmdwithResponse(s, d, cmd)
+
+	return err
 }
 
 func getIPVSFamily() (int, error) {
@@ -171,7 +189,6 @@ func rawIPData(ip net.IP) []byte {
 	if family == nl.FAMILY_V4 {
 		return ip.To4()
 	}
-
 	return ip
 }
 
@@ -235,3 +252,295 @@ done:
 	}
 	return res, nil
 }
+
+func parseIP(ip []byte, family uint16) (net.IP, error) {
+
+	var resIP net.IP
+
+	switch family {
+	case syscall.AF_INET:
+		resIP = (net.IP)(ip[:4])
+	case syscall.AF_INET6:
+		resIP = (net.IP)(ip[:16])
+	default:
+		return nil, fmt.Errorf("parseIP Error ip=%v", ip)
+
+	}
+	return resIP, nil
+}
+
+// parseStats
+func assembleStats(msg []byte) (SvcStats, error) {
+
+	var s SvcStats
+
+	attrs, err := nl.ParseRouteAttr(msg)
+	if err != nil {
+		return s, err
+	}
+
+	for _, attr := range attrs {
+		attrType := int(attr.Attr.Type)
+		switch attrType {
+		case ipvsSvcStatsConns:
+			s.Connections = native.Uint32(attr.Value)
+		case ipvsSvcStatsPktsIn:
+			s.PacketsIn = native.Uint32(attr.Value)
+		case ipvsSvcStatsPktsOut:
+			s.PacketsOut = native.Uint32(attr.Value)
+		case ipvsSvcStatsBytesIn:
+			s.BytesIn = native.Uint64(attr.Value)
+		case ipvsSvcStatsBytesOut:
+			s.BytesOut = native.Uint64(attr.Value)
+		case ipvsSvcStatsCPS:
+			s.CPS = native.Uint32(attr.Value)
+		case ipvsSvcStatsPPSIn:
+			s.PPSIn = native.Uint32(attr.Value)
+		case ipvsSvcStatsPPSOut:
+			s.PPSOut = native.Uint32(attr.Value)
+		case ipvsSvcStatsBPSIn:
+			s.BPSIn = native.Uint32(attr.Value)
+		case ipvsSvcStatsBPSOut:
+			s.BPSOut = native.Uint32(attr.Value)
+		}
+	}
+	return s, nil
+}
+
+// assembleService assembles a services back from a hain of netlink attributes
+func assembleService(attrs []syscall.NetlinkRouteAttr) (*Service, error) {
+
+	var s Service
+
+	for _, attr := range attrs {
+
+		attrType := int(attr.Attr.Type)
+
+		switch attrType {
+
+		case ipvsSvcAttrAddressFamily:
+			s.AddressFamily = native.Uint16(attr.Value)
+		case ipvsSvcAttrProtocol:
+			s.Protocol = native.Uint16(attr.Value)
+		case ipvsSvcAttrAddress:
+			ip, err := parseIP(attr.Value, s.AddressFamily)
+			if err != nil {
+				return nil, err
+			}
+			s.Address = ip
+		case ipvsSvcAttrPort:
+			s.Port = binary.BigEndian.Uint16(attr.Value)
+		case ipvsSvcAttrFWMark:
+			s.FWMark = native.Uint32(attr.Value)
+		case ipvsSvcAttrSchedName:
+			s.SchedName = nl.BytesToString(attr.Value)
+		case ipvsSvcAttrFlags:
+			s.Flags = native.Uint32(attr.Value)
+		case ipvsSvcAttrTimeout:
+			s.Timeout = native.Uint32(attr.Value)
+		case ipvsSvcAttrNetmask:
+			s.Netmask = native.Uint32(attr.Value)
+		case ipvsSvcAttrStats:
+			stats, err := assembleStats(attr.Value)
+			if err != nil {
+				return nil, err
+			}
+			s.Stats = stats
+		}
+
+	}
+	return &s, nil
+}
+
+// parseService given a ipvs netlink response this function will respond with a valid service entry, an error otherwise
+func (i *Handle) parseService(msg []byte) (*Service, error) {
+
+	var s *Service
+
+	//Remove General header for this message and parse the NetLink message
+	hdr := deserializeGenlMsg(msg)
+	NetLinkAttrs, err := nl.ParseRouteAttr(msg[hdr.Len():])
+	if err != nil {
+		return nil, err
+	}
+	if len(NetLinkAttrs) == 0 {
+		return nil, fmt.Errorf("error no valid netlink message found while parsing service record")
+	}
+
+	//Now Parse and get IPVS related attributes messages packed in this message.
+	ipvsAttrs, err := nl.ParseRouteAttr(NetLinkAttrs[0].Value)
+	if err != nil {
+		return nil, err
+	}
+
+	//Assemble all the IPVS related attribute messages and create a service record
+	s, err = assembleService(ipvsAttrs)
+	if err != nil {
+		return nil, err
+	}
+
+	return s, nil
+}
+
+// doGetServicesCmd a wrapper which could be used commonly for both GetServices() and GetService(*Service)
+func (i *Handle) doGetServicesCmd(svc *Service) ([]*Service, error) {
+	var res []*Service
+
+	msgs, err := i.doCmdwithResponse(svc, nil, ipvsCmdGetService)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, msg := range msgs {
+		srv, err := i.parseService(msg)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, srv)
+	}
+
+	return res, nil
+}
+
+func assembleDestination(attrs []syscall.NetlinkRouteAttr) (*Destination, error) {
+
+	var d Destination
+
+	for _, attr := range attrs {
+
+		attrType := int(attr.Attr.Type)
+
+		switch attrType {
+		case ipvsDestAttrAddress:
+			ip, err := parseIP(attr.Value, syscall.AF_INET)
+			if err != nil {
+				return nil, err
+			}
+			d.Address = ip
+		case ipvsDestAttrPort:
+			d.Port = binary.BigEndian.Uint16(attr.Value)
+		case ipvsDestAttrForwardingMethod:
+			d.ConnectionFlags = native.Uint32(attr.Value)
+		case ipvsDestAttrWeight:
+			d.Weight = int(native.Uint16(attr.Value))
+		case ipvsDestAttrUpperThreshold:
+			d.UpperThreshold = native.Uint32(attr.Value)
+		case ipvsDestAttrLowerThreshold:
+			d.LowerThreshold = native.Uint32(attr.Value)
+		case ipvsDestAttrAddressFamily:
+			d.AddressFamily = native.Uint16(attr.Value)
+		}
+	}
+	return &d, nil
+}
+
+// parseDestination given a ipvs netlink response this function will respond with a valid destination entry, an error otherwise
+func (i *Handle) parseDestination(msg []byte) (*Destination, error) {
+	var dst *Destination
+
+	//Remove General header for this message
+	hdr := deserializeGenlMsg(msg)
+	NetLinkAttrs, err := nl.ParseRouteAttr(msg[hdr.Len():])
+	if err != nil {
+		return nil, err
+	}
+	if len(NetLinkAttrs) == 0 {
+		return nil, fmt.Errorf("error no valid netlink message found while parsing destination record")
+	}
+
+	//Now Parse and get IPVS related attributes messages packed in this message.
+	ipvsAttrs, err := nl.ParseRouteAttr(NetLinkAttrs[0].Value)
+	if err != nil {
+		return nil, err
+	}
+
+	//Assemble netlink attributes and create a Destination record
+	dst, err = assembleDestination(ipvsAttrs)
+	if err != nil {
+		return nil, err
+	}
+
+	return dst, nil
+}
+
+// doGetDestinationsCmd a wrapper function to be used by GetDestinations and GetDestination(d) apis
+func (i *Handle) doGetDestinationsCmd(s *Service, d *Destination) ([]*Destination, error) {
+
+	var res []*Destination
+
+	msgs, err := i.doCmdwithResponse(s, d, ipvsCmdGetDest)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, msg := range msgs {
+		dest, err := i.parseDestination(msg)
+		if err != nil {
+			return res, err
+		}
+		res = append(res, dest)
+	}
+	return res, nil
+}
+
+// IPVS related netlink message format explained
+
+/* EACH NETLINK MSG is of the below format, this is what we will receive from execute() api.
+   If we have multiple netlink objects to process like GetServices() etc., execute() will
+   supply an array of this below object
+
+            NETLINK MSG
+|-----------------------------------|
+    0        1        2        3
+|--------|--------|--------|--------| -
+| CMD ID |  VER   |    RESERVED     | |==> General Message Header represented by genlMsgHdr
+|-----------------------------------| -
+|    ATTR LEN     |   ATTR TYPE     | |
+|-----------------------------------| |
+|                                   | |
+|              VALUE                | |
+|     []byte Array of IPVS MSG      | |==> Attribute Message represented by syscall.NetlinkRouteAttr
+|        PADDED BY 4 BYTES          | |
+|                                   | |
+|-----------------------------------| -
+
+
+ Once We strip genlMsgHdr from above NETLINK MSG, we should parse the VALUE.
+ VALUE will have an array of netlink attributes (syscall.NetlinkRouteAttr) such that each attribute will
+ represent a "Service" or "Destination" object's field.  If we assemble these attributes we can construct
+ Service or Destination.
+
+            IPVS MSG
+|-----------------------------------|
+     0        1        2        3
+|--------|--------|--------|--------|
+|    ATTR LEN     |    ATTR TYPE    |
+|-----------------------------------|
+|                                   |
+|                                   |
+| []byte IPVS ATTRIBUTE  BY 4 BYTES |
+|                                   |
+|                                   |
+|-----------------------------------|
+           NEXT ATTRIBUTE
+|-----------------------------------|
+|    ATTR LEN     |    ATTR TYPE    |
+|-----------------------------------|
+|                                   |
+|                                   |
+| []byte IPVS ATTRIBUTE  BY 4 BYTES |
+|                                   |
+|                                   |
+|-----------------------------------|
+           NEXT ATTRIBUTE
+|-----------------------------------|
+|    ATTR LEN     |    ATTR TYPE    |
+|-----------------------------------|
+|                                   |
+|                                   |
+| []byte IPVS ATTRIBUTE  BY 4 BYTES |
+|                                   |
+|                                   |
+|-----------------------------------|
+
+*/

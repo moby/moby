@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/docker/docker/api/types/container"
 )
 
 // ContainerAttachConfig holds the streams to use when connecting to a container to view logs.
@@ -35,7 +35,7 @@ type LogMessage struct {
 	Line      []byte
 	Source    string
 	Timestamp time.Time
-	Attrs     LogAttributes
+	Attrs     []LogAttr
 	Partial   bool
 
 	// Err is an error associated with a message. Completeness of a message
@@ -44,9 +44,11 @@ type LogMessage struct {
 	Err error
 }
 
-// LogAttributes is used to hold the extra attributes available in the log message
-// Primarily used for converting the map type to string and sorting.
-type LogAttributes map[string]string
+// LogAttr is used to hold the extra attributes available in the log message.
+type LogAttr struct {
+	Key   string
+	Value string
+}
 
 // LogSelector is a list of services and tasks that should be returned as part
 // of a log stream. It is similar to swarmapi.LogSelector, with the difference
@@ -98,12 +100,7 @@ type ExecProcessConfig struct {
 type ContainerCommitConfig struct {
 	types.ContainerCommitConfig
 	Changes []string
-}
-
-// ProgressWriter is a data object to transport progress streams to the client
-type ProgressWriter struct {
-	Output             io.Writer
-	StdoutFormatter    *streamformatter.StdoutFormatter
-	StderrFormatter    *streamformatter.StderrFormatter
-	ProgressReaderFunc func(io.ReadCloser) io.ReadCloser
+	// TODO: ContainerConfig is only used by the dockerfile Builder, so remove it
+	// once the Builder has been updated to use a different interface
+	ContainerConfig *container.Config
 }

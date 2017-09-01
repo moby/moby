@@ -212,7 +212,7 @@ func TestDerefMultipleOfSameRef(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
+	defer os.RemoveAll(dir)
 	s, err := New(dir)
 	if err != nil {
 		t.Fatal(err)

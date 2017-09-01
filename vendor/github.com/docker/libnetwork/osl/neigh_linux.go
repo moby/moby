@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
 
@@ -77,6 +77,21 @@ func (n *networkNamespace) DeleteNeighbor(dstIP net.IP, dstMac net.HardwareAddr,
 		// same host again, kernel update can fail.
 		if err := nlh.NeighDel(nlnh); err != nil {
 			logrus.Warnf("Deleting neighbor IP %s, mac %s failed, %v", dstIP, dstMac, err)
+		}
+
+		// Delete the dynamic entry in the bridge
+		if nlnh.Family > 0 {
+			nlnh := &netlink.Neigh{
+				IP:     dstIP,
+				Family: nh.family,
+			}
+
+			nlnh.HardwareAddr = dstMac
+			nlnh.Flags = netlink.NTF_MASTER
+			if nh.linkDst != "" {
+				nlnh.LinkIndex = iface.Attrs().Index
+			}
+			nlh.NeighDel(nlnh)
 		}
 	}
 

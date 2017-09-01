@@ -2,7 +2,6 @@ package registry
 
 import (
 	"crypto/tls"
-	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -10,11 +9,12 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/docker/api/types"
 	registrytypes "github.com/docker/docker/api/types/registry"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -31,6 +31,7 @@ type Service interface {
 	Search(ctx context.Context, term string, limit int, authConfig *types.AuthConfig, userAgent string, headers map[string][]string) (*registrytypes.SearchResults, error)
 	ServiceConfig() *registrytypes.ServiceConfig
 	TLSConfig(hostname string) (*tls.Config, error)
+	LoadAllowNondistributableArtifacts([]string) error
 	LoadMirrors([]string) error
 	LoadInsecureRegistries([]string) error
 }
@@ -56,13 +57,17 @@ func (s *DefaultService) ServiceConfig() *registrytypes.ServiceConfig {
 	defer s.mu.Unlock()
 
 	servConfig := registrytypes.ServiceConfig{
-		InsecureRegistryCIDRs: make([]*(registrytypes.NetIPNet), 0),
-		IndexConfigs:          make(map[string]*(registrytypes.IndexInfo)),
-		Mirrors:               make([]string, 0),
+		AllowNondistributableArtifactsCIDRs:     make([]*(registrytypes.NetIPNet), 0),
+		AllowNondistributableArtifactsHostnames: make([]string, 0),
+		InsecureRegistryCIDRs:                   make([]*(registrytypes.NetIPNet), 0),
+		IndexConfigs:                            make(map[string]*(registrytypes.IndexInfo)),
+		Mirrors:                                 make([]string, 0),
 	}
 
 	// construct a new ServiceConfig which will not retrieve s.Config directly,
 	// and look up items in s.config with mu locked
+	servConfig.AllowNondistributableArtifactsCIDRs = append(servConfig.AllowNondistributableArtifactsCIDRs, s.config.ServiceConfig.AllowNondistributableArtifactsCIDRs...)
+	servConfig.AllowNondistributableArtifactsHostnames = append(servConfig.AllowNondistributableArtifactsHostnames, s.config.ServiceConfig.AllowNondistributableArtifactsHostnames...)
 	servConfig.InsecureRegistryCIDRs = append(servConfig.InsecureRegistryCIDRs, s.config.ServiceConfig.InsecureRegistryCIDRs...)
 
 	for key, value := range s.config.ServiceConfig.IndexConfigs {
@@ -72,6 +77,14 @@ func (s *DefaultService) ServiceConfig() *registrytypes.ServiceConfig {
 	servConfig.Mirrors = append(servConfig.Mirrors, s.config.ServiceConfig.Mirrors...)
 
 	return &servConfig
+}
+
+// LoadAllowNondistributableArtifacts loads allow-nondistributable-artifacts registries for Service.
+func (s *DefaultService) LoadAllowNondistributableArtifacts(registries []string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.config.LoadAllowNondistributableArtifacts(registries)
 }
 
 // LoadMirrors loads registry mirrors for Service
@@ -104,12 +117,12 @@ func (s *DefaultService) Auth(ctx context.Context, authConfig *types.AuthConfig,
 	}
 	u, err := url.Parse(serverAddress)
 	if err != nil {
-		return "", "", fmt.Errorf("unable to parse server address: %v", err)
+		return "", "", validationError{errors.Errorf("unable to parse server address: %v", err)}
 	}
 
 	endpoints, err := s.LookupPushEndpoints(u.Host)
 	if err != nil {
-		return "", "", err
+		return "", "", validationError{err}
 	}
 
 	for _, endpoint := range endpoints {
@@ -127,6 +140,7 @@ func (s *DefaultService) Auth(ctx context.Context, authConfig *types.AuthConfig,
 			logrus.Infof("Error logging in to %s endpoint, trying next endpoint: %v", endpoint.Version, err)
 			continue
 		}
+
 		return "", "", err
 	}
 
@@ -235,16 +249,17 @@ func (s *DefaultService) ResolveRepository(name reference.Named) (*RepositoryInf
 
 // APIEndpoint represents a remote API endpoint
 type APIEndpoint struct {
-	Mirror       bool
-	URL          *url.URL
-	Version      APIVersion
-	Official     bool
-	TrimHostname bool
-	TLSConfig    *tls.Config
+	Mirror                         bool
+	URL                            *url.URL
+	Version                        APIVersion
+	AllowNondistributableArtifacts bool
+	Official                       bool
+	TrimHostname                   bool
+	TLSConfig                      *tls.Config
 }
 
 // ToV1Endpoint returns a V1 API endpoint based on the APIEndpoint
-func (e APIEndpoint) ToV1Endpoint(userAgent string, metaHeaders http.Header) (*V1Endpoint, error) {
+func (e APIEndpoint) ToV1Endpoint(userAgent string, metaHeaders http.Header) *V1Endpoint {
 	return newV1Endpoint(*e.URL, e.TLSConfig, userAgent, metaHeaders)
 }
 

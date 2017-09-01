@@ -10,6 +10,7 @@ import (
 
 	"github.com/docker/docker/pkg/jsonlog"
 	"github.com/docker/docker/pkg/term"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestError(t *testing.T) {
@@ -65,22 +66,50 @@ func TestProgress(t *testing.T) {
 	if jp5.String() != expected {
 		t.Fatalf("Expected %q, got %q", expected, jp5.String())
 	}
+
+	expected = "[=========================>                         ] 50/100 units"
+	if termsz != nil && termsz.Width <= 110 {
+		expected = "    50/100 units"
+	}
+	jp6 := JSONProgress{Current: 50, Total: 100, Units: "units"}
+	if jp6.String() != expected {
+		t.Fatalf("Expected %q, got %q", expected, jp6.String())
+	}
+
+	// this number can't be negative
+	expected = "[==================================================>] 50 units"
+	if termsz != nil && termsz.Width <= 110 {
+		expected = "    50 units"
+	}
+	jp7 := JSONProgress{Current: 50, Total: 40, Units: "units"}
+	if jp7.String() != expected {
+		t.Fatalf("Expected %q, got %q", expected, jp7.String())
+	}
+
+	expected = "[=========================>                         ] "
+	if termsz != nil && termsz.Width <= 110 {
+		expected = ""
+	}
+	jp8 := JSONProgress{Current: 50, Total: 100, HideCounts: true}
+	if jp8.String() != expected {
+		t.Fatalf("Expected %q, got %q", expected, jp8.String())
+	}
 }
 
 func TestJSONMessageDisplay(t *testing.T) {
 	now := time.Now()
 	messages := map[JSONMessage][]string{
 		// Empty
-		JSONMessage{}: {"\n", "\n"},
+		{}: {"\n", "\n"},
 		// Status
-		JSONMessage{
+		{
 			Status: "status",
 		}: {
 			"status\n",
 			"status\n",
 		},
 		// General
-		JSONMessage{
+		{
 			Time:   now.Unix(),
 			ID:     "ID",
 			From:   "From",
@@ -90,7 +119,7 @@ func TestJSONMessageDisplay(t *testing.T) {
 			fmt.Sprintf("%v ID: (from From) status\n", time.Unix(now.Unix(), 0).Format(jsonlog.RFC3339NanoFixed)),
 		},
 		// General, with nano precision time
-		JSONMessage{
+		{
 			TimeNano: now.UnixNano(),
 			ID:       "ID",
 			From:     "From",
@@ -100,7 +129,7 @@ func TestJSONMessageDisplay(t *testing.T) {
 			fmt.Sprintf("%v ID: (from From) status\n", time.Unix(0, now.UnixNano()).Format(jsonlog.RFC3339NanoFixed)),
 		},
 		// General, with both times Nano is preferred
-		JSONMessage{
+		{
 			Time:     now.Unix(),
 			TimeNano: now.UnixNano(),
 			ID:       "ID",
@@ -111,7 +140,7 @@ func TestJSONMessageDisplay(t *testing.T) {
 			fmt.Sprintf("%v ID: (from From) status\n", time.Unix(0, now.UnixNano()).Format(jsonlog.RFC3339NanoFixed)),
 		},
 		// Stream over status
-		JSONMessage{
+		{
 			Status: "status",
 			Stream: "stream",
 		}: {
@@ -119,7 +148,7 @@ func TestJSONMessageDisplay(t *testing.T) {
 			"stream",
 		},
 		// With progress message
-		JSONMessage{
+		{
 			Status:          "status",
 			ProgressMessage: "progressMessage",
 		}: {
@@ -127,7 +156,7 @@ func TestJSONMessageDisplay(t *testing.T) {
 			"status progressMessage",
 		},
 		// With progress, stream empty
-		JSONMessage{
+		{
 			Status:   "status",
 			Stream:   "",
 			Progress: &JSONProgress{Current: 1},
@@ -170,9 +199,7 @@ func TestJSONMessageDisplayWithJSONError(t *testing.T) {
 
 	jsonMessage = JSONMessage{Error: &JSONError{401, "Anything"}}
 	err = jsonMessage.Display(data, &noTermInfo{})
-	if err == nil || err.Error() != "Authentication is required." {
-		t.Fatalf("Expected an error \"Authentication is required.\", got %q", err)
-	}
+	assert.EqualError(t, err, "authentication is required")
 }
 
 func TestDisplayJSONMessagesStreamInvalidJSON(t *testing.T) {

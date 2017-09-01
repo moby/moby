@@ -10,15 +10,14 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/docker/distribution/reference"
-	cliconfig "github.com/docker/docker/cli/config"
+	"github.com/docker/docker/cli/config"
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/docker/docker/pkg/testutil"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
+	"github.com/gotestyourself/gotestyourself/icmd"
 )
 
 // Pushing an image to a private registry.
@@ -285,17 +284,17 @@ func (s *DockerSchema1RegistrySuite) TestCrossRepositoryLayerPushNotSupported(c 
 func (s *DockerTrustSuite) TestTrustedPush(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockerclitrusted/pushtest:latest", privateRegistryURL)
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
+	cli.DockerCmd(c, "tag", "busybox", repoName)
 
-	icmd.RunCmd(icmd.Command(dockerBinary, "push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
+	cli.Docker(cli.Args("push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
 
 	// Try pull after push
-	icmd.RunCmd(icmd.Command(dockerBinary, "pull", repoName), trustedCmd).Assert(c, icmd.Expected{
+	cli.Docker(cli.Args("pull", repoName), trustedCmd).Assert(c, icmd.Expected{
 		Out: "Status: Image is up to date",
 	})
 
 	// Assert that we rotated the snapshot key to the server by checking our local keystore
-	contents, err := ioutil.ReadDir(filepath.Join(cliconfig.Dir(), "trust/private/tuf_keys", privateRegistryURL, "dockerclitrusted/pushtest"))
+	contents, err := ioutil.ReadDir(filepath.Join(config.Dir(), "trust/private/tuf_keys", privateRegistryURL, "dockerclitrusted/pushtest"))
 	c.Assert(err, check.IsNil, check.Commentf("Unable to read local tuf key files"))
 	// Check that we only have 1 key (targets key)
 	c.Assert(contents, checker.HasLen, 1)
@@ -304,12 +303,12 @@ func (s *DockerTrustSuite) TestTrustedPush(c *check.C) {
 func (s *DockerTrustSuite) TestTrustedPushWithEnvPasswords(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockerclienv/trusted:latest", privateRegistryURL)
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
+	cli.DockerCmd(c, "tag", "busybox", repoName)
 
-	icmd.RunCmd(icmd.Command(dockerBinary, "push", repoName), trustedCmdWithPassphrases("12345678", "12345678")).Assert(c, SuccessSigningAndPushing)
+	cli.Docker(cli.Args("push", repoName), trustedCmdWithPassphrases("12345678", "12345678")).Assert(c, SuccessSigningAndPushing)
 
 	// Try pull after push
-	icmd.RunCmd(icmd.Command(dockerBinary, "pull", repoName), trustedCmd).Assert(c, icmd.Expected{
+	cli.Docker(cli.Args("pull", repoName), trustedCmd).Assert(c, icmd.Expected{
 		Out: "Status: Image is up to date",
 	})
 }
@@ -317,10 +316,10 @@ func (s *DockerTrustSuite) TestTrustedPushWithEnvPasswords(c *check.C) {
 func (s *DockerTrustSuite) TestTrustedPushWithFailingServer(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockerclitrusted/failingserver:latest", privateRegistryURL)
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
+	cli.DockerCmd(c, "tag", "busybox", repoName)
 
 	// Using a name that doesn't resolve to an address makes this test faster
-	icmd.RunCmd(icmd.Command(dockerBinary, "push", repoName), trustedCmdWithServer("https://server.invalid:81/")).Assert(c, icmd.Expected{
+	cli.Docker(cli.Args("push", repoName), trustedCmdWithServer("https://server.invalid:81/")).Assert(c, icmd.Expected{
 		ExitCode: 1,
 		Err:      "error contacting notary server",
 	})
@@ -329,9 +328,9 @@ func (s *DockerTrustSuite) TestTrustedPushWithFailingServer(c *check.C) {
 func (s *DockerTrustSuite) TestTrustedPushWithoutServerAndUntrusted(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockerclitrusted/trustedandnot:latest", privateRegistryURL)
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
+	cli.DockerCmd(c, "tag", "busybox", repoName)
 
-	result := icmd.RunCmd(icmd.Command(dockerBinary, "push", "--disable-content-trust", repoName), trustedCmdWithServer("https://server.invalid:81/"))
+	result := cli.Docker(cli.Args("push", "--disable-content-trust", repoName), trustedCmdWithServer("https://server.invalid:81/"))
 	result.Assert(c, icmd.Success)
 	c.Assert(result.Combined(), check.Not(checker.Contains), "Error establishing connection to notary repository", check.Commentf("Missing expected output on trusted push with --disable-content-trust:"))
 }
@@ -339,13 +338,13 @@ func (s *DockerTrustSuite) TestTrustedPushWithoutServerAndUntrusted(c *check.C) 
 func (s *DockerTrustSuite) TestTrustedPushWithExistingTag(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockerclitag/trusted:latest", privateRegistryURL)
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
-	dockerCmd(c, "push", repoName)
+	cli.DockerCmd(c, "tag", "busybox", repoName)
+	cli.DockerCmd(c, "push", repoName)
 
-	icmd.RunCmd(icmd.Command(dockerBinary, "push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
+	cli.Docker(cli.Args("push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
 
 	// Try pull after push
-	icmd.RunCmd(icmd.Command(dockerBinary, "pull", repoName), trustedCmd).Assert(c, icmd.Expected{
+	cli.Docker(cli.Args("pull", repoName), trustedCmd).Assert(c, icmd.Expected{
 		Out: "Status: Image is up to date",
 	})
 }
@@ -353,73 +352,31 @@ func (s *DockerTrustSuite) TestTrustedPushWithExistingTag(c *check.C) {
 func (s *DockerTrustSuite) TestTrustedPushWithExistingSignedTag(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockerclipushpush/trusted:latest", privateRegistryURL)
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
+	cli.DockerCmd(c, "tag", "busybox", repoName)
 
 	// Do a trusted push
-	icmd.RunCmd(icmd.Command(dockerBinary, "push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
+	cli.Docker(cli.Args("push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
 
 	// Do another trusted push
-	icmd.RunCmd(icmd.Command(dockerBinary, "push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
-	dockerCmd(c, "rmi", repoName)
+	cli.Docker(cli.Args("push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
+	cli.DockerCmd(c, "rmi", repoName)
 
 	// Try pull to ensure the double push did not break our ability to pull
-	icmd.RunCmd(icmd.Command(dockerBinary, "pull", repoName), trustedCmd).Assert(c, SuccessDownloaded)
+	cli.Docker(cli.Args("pull", repoName), trustedCmd).Assert(c, SuccessDownloaded)
 }
 
 func (s *DockerTrustSuite) TestTrustedPushWithIncorrectPassphraseForNonRoot(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercliincorretpwd/trusted:latest", privateRegistryURL)
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
+	cli.DockerCmd(c, "tag", "busybox", repoName)
 
 	// Push with default passphrases
-	icmd.RunCmd(icmd.Command(dockerBinary, "push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
+	cli.Docker(cli.Args("push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
 
 	// Push with wrong passphrases
-	icmd.RunCmd(icmd.Command(dockerBinary, "push", repoName), trustedCmdWithPassphrases("12345678", "87654321")).Assert(c, icmd.Expected{
+	cli.Docker(cli.Args("push", repoName), trustedCmdWithPassphrases("12345678", "87654321")).Assert(c, icmd.Expected{
 		ExitCode: 1,
 		Err:      "could not find necessary signing keys",
-	})
-}
-
-func (s *DockerTrustSuite) TestTrustedPushWithExpiredSnapshot(c *check.C) {
-	c.Skip("Currently changes system time, causing instability")
-	repoName := fmt.Sprintf("%v/dockercliexpiredsnapshot/trusted:latest", privateRegistryURL)
-	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
-
-	// Push with default passphrases
-	icmd.RunCmd(icmd.Command(dockerBinary, "push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
-
-	// Snapshots last for three years. This should be expired
-	fourYearsLater := time.Now().Add(time.Hour * 24 * 365 * 4)
-
-	testutil.RunAtDifferentDate(fourYearsLater, func() {
-		// Push with wrong passphrases
-		icmd.RunCmd(icmd.Cmd{
-			Command: []string{dockerBinary, "push", repoName},
-		}, trustedCmd).Assert(c, icmd.Expected{
-			ExitCode: 1,
-			Err:      "repository out-of-date",
-		})
-	})
-}
-
-func (s *DockerTrustSuite) TestTrustedPushWithExpiredTimestamp(c *check.C) {
-	c.Skip("Currently changes system time, causing instability")
-	repoName := fmt.Sprintf("%v/dockercliexpiredtimestamppush/trusted:latest", privateRegistryURL)
-	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
-
-	// Push with default passphrases
-	icmd.RunCmd(icmd.Command(dockerBinary, "push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
-
-	// The timestamps expire in two weeks. Lets check three
-	threeWeeksLater := time.Now().Add(time.Hour * 24 * 21)
-
-	// Should succeed because the server transparently re-signs one
-	testutil.RunAtDifferentDate(threeWeeksLater, func() {
-		icmd.RunCmd(icmd.Command(dockerBinary, "push", repoName),
-			trustedCmd).Assert(c, SuccessSigningAndPushing)
 	})
 }
 
@@ -434,17 +391,17 @@ func (s *DockerTrustSuite) TestTrustedPushWithReleasesDelegationOnly(c *check.C)
 	s.notaryImportKey(c, repoName, "targets/releases", s.not.keys[0].Private)
 
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", targetName)
+	cli.DockerCmd(c, "tag", "busybox", targetName)
 
-	icmd.RunCmd(icmd.Command(dockerBinary, "push", targetName), trustedCmd).Assert(c, SuccessSigningAndPushing)
+	cli.Docker(cli.Args("push", targetName), trustedCmd).Assert(c, SuccessSigningAndPushing)
 	// check to make sure that the target has been added to targets/releases and not targets
 	s.assertTargetInRoles(c, repoName, "latest", "targets/releases")
 	s.assertTargetNotInRoles(c, repoName, "latest", "targets")
 
 	// Try pull after push
-	os.RemoveAll(filepath.Join(cliconfig.Dir(), "trust"))
+	os.RemoveAll(filepath.Join(config.Dir(), "trust"))
 
-	icmd.RunCmd(icmd.Command(dockerBinary, "pull", targetName), trustedCmd).Assert(c, icmd.Expected{
+	cli.Docker(cli.Args("pull", targetName), trustedCmd).Assert(c, icmd.Expected{
 		Out: "Status: Image is up to date",
 	})
 }
@@ -468,9 +425,9 @@ func (s *DockerTrustSuite) TestTrustedPushSignsAllFirstLevelRolesWeHaveKeysFor(c
 	s.notaryPublish(c, repoName)
 
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", targetName)
+	cli.DockerCmd(c, "tag", "busybox", targetName)
 
-	icmd.RunCmd(icmd.Command(dockerBinary, "push", targetName), trustedCmd).Assert(c, SuccessSigningAndPushing)
+	cli.Docker(cli.Args("push", targetName), trustedCmd).Assert(c, SuccessSigningAndPushing)
 
 	// check to make sure that the target has been added to targets/role1 and targets/role2, and
 	// not targets (because there are delegations) or targets/role3 (due to missing key) or
@@ -479,10 +436,10 @@ func (s *DockerTrustSuite) TestTrustedPushSignsAllFirstLevelRolesWeHaveKeysFor(c
 	s.assertTargetNotInRoles(c, repoName, "latest", "targets")
 
 	// Try pull after push
-	os.RemoveAll(filepath.Join(cliconfig.Dir(), "trust"))
+	os.RemoveAll(filepath.Join(config.Dir(), "trust"))
 
 	// pull should fail because none of these are the releases role
-	icmd.RunCmd(icmd.Command(dockerBinary, "pull", targetName), trustedCmd).Assert(c, icmd.Expected{
+	cli.Docker(cli.Args("pull", targetName), trustedCmd).Assert(c, icmd.Expected{
 		ExitCode: 1,
 	})
 }
@@ -504,9 +461,9 @@ func (s *DockerTrustSuite) TestTrustedPushSignsForRolesWithKeysAndValidPaths(c *
 	s.notaryPublish(c, repoName)
 
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", targetName)
+	cli.DockerCmd(c, "tag", "busybox", targetName)
 
-	icmd.RunCmd(icmd.Command(dockerBinary, "push", targetName), trustedCmd).Assert(c, SuccessSigningAndPushing)
+	cli.Docker(cli.Args("push", targetName), trustedCmd).Assert(c, SuccessSigningAndPushing)
 
 	// check to make sure that the target has been added to targets/role1 and targets/role4, and
 	// not targets (because there are delegations) or targets/role2 (due to path restrictions) or
@@ -515,10 +472,10 @@ func (s *DockerTrustSuite) TestTrustedPushSignsForRolesWithKeysAndValidPaths(c *
 	s.assertTargetNotInRoles(c, repoName, "latest", "targets")
 
 	// Try pull after push
-	os.RemoveAll(filepath.Join(cliconfig.Dir(), "trust"))
+	os.RemoveAll(filepath.Join(config.Dir(), "trust"))
 
 	// pull should fail because none of these are the releases role
-	icmd.RunCmd(icmd.Command(dockerBinary, "pull", targetName), trustedCmd).Assert(c, icmd.Expected{
+	cli.Docker(cli.Args("pull", targetName), trustedCmd).Assert(c, icmd.Expected{
 		ExitCode: 1,
 	})
 }
@@ -534,9 +491,9 @@ func (s *DockerTrustSuite) TestTrustedPushDoesntSignTargetsIfDelegationsExist(c 
 	// do not import any delegations key
 
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", targetName)
+	cli.DockerCmd(c, "tag", "busybox", targetName)
 
-	icmd.RunCmd(icmd.Command(dockerBinary, "push", targetName), trustedCmd).Assert(c, icmd.Expected{
+	cli.Docker(cli.Args("push", targetName), trustedCmd).Assert(c, icmd.Expected{
 		ExitCode: 1,
 		Err:      "no valid signing keys",
 	})

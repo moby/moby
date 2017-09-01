@@ -9,15 +9,15 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"syscall"
 	"time"
 
-	"github.com/Sirupsen/logrus"
-	containerd "github.com/docker/containerd/api/grpc/types"
+	containerd "github.com/containerd/containerd/api/grpc/types"
 	"github.com/docker/docker/pkg/ioutils"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/sirupsen/logrus"
 	"github.com/tonistiigi/fifo"
 	"golang.org/x/net/context"
+	"golang.org/x/sys/unix"
 )
 
 type container struct {
@@ -69,7 +69,7 @@ func (ctr *container) clean() error {
 // Caller needs to lock container ID before calling this method.
 func (ctr *container) cleanProcess(id string) {
 	if p, ok := ctr.processes[id]; ok {
-		for _, i := range []int{syscall.Stdin, syscall.Stdout, syscall.Stderr} {
+		for _, i := range []int{unix.Stdin, unix.Stdout, unix.Stderr} {
 			if err := os.Remove(p.fifo(i)); err != nil && !os.IsNotExist(err) {
 				logrus.Warnf("libcontainerd: failed to remove %v for process %v: %v", p.fifo(i), id, err)
 			}
@@ -90,12 +90,7 @@ func (ctr *container) spec() (*specs.Spec, error) {
 	return &spec, nil
 }
 
-func (ctr *container) start(checkpoint string, checkpointDir string, attachStdio StdioCallback) (err error) {
-	spec, err := ctr.spec()
-	if err != nil {
-		return nil
-	}
-
+func (ctr *container) start(spec *specs.Spec, checkpoint, checkpointDir string, attachStdio StdioCallback) (err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	ready := make(chan struct{})
@@ -142,9 +137,9 @@ func (ctr *container) start(checkpoint string, checkpointDir string, attachStdio
 	r := &containerd.CreateContainerRequest{
 		Id:            ctr.containerID,
 		BundlePath:    ctr.dir,
-		Stdin:         ctr.fifo(syscall.Stdin),
-		Stdout:        ctr.fifo(syscall.Stdout),
-		Stderr:        ctr.fifo(syscall.Stderr),
+		Stdin:         ctr.fifo(unix.Stdin),
+		Stdout:        ctr.fifo(unix.Stdout),
+		Stderr:        ctr.fifo(unix.Stderr),
 		Checkpoint:    checkpoint,
 		CheckpointDir: checkpointDir,
 		// check to see if we are running in ramdisk to disable pivot root
@@ -172,6 +167,7 @@ func (ctr *container) start(checkpoint string, checkpointDir string, attachStdio
 			State: StateStart,
 			Pid:   ctr.systemPid,
 		}})
+
 }
 
 func (ctr *container) newProcess(friendlyName string) *process {
@@ -237,8 +233,8 @@ func (ctr *container) handleEvent(e *containerd.Event) error {
 // that may be blocked on the writer side.
 func (ctr *container) discardFifos() {
 	ctx, _ := context.WithTimeout(context.Background(), 3*time.Second)
-	for _, i := range []int{syscall.Stdout, syscall.Stderr} {
-		f, err := fifo.OpenFifo(ctx, ctr.fifo(i), syscall.O_RDONLY|syscall.O_NONBLOCK, 0)
+	for _, i := range []int{unix.Stdout, unix.Stderr} {
+		f, err := fifo.OpenFifo(ctx, ctr.fifo(i), unix.O_RDONLY|unix.O_NONBLOCK, 0)
 		if err != nil {
 			logrus.Warnf("error opening fifo %v for discarding: %+v", f, err)
 			continue

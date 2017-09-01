@@ -5,20 +5,13 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"syscall"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/libcontainerd"
-	"github.com/docker/docker/pkg/system"
+	"github.com/sirupsen/logrus"
+	"golang.org/x/sys/windows"
 )
 
 var defaultDaemonConfigFile = ""
-
-// currentUserIsOwner checks whether the current user is the owner of the given
-// file.
-func currentUserIsOwner(f string) bool {
-	return false
-}
 
 // setDefaultUmask doesn't do anything on windows
 func setDefaultUmask() error {
@@ -58,14 +51,14 @@ func notifyShutdown(err error) {
 // setupConfigReloadTrap configures a Win32 event to reload the configuration.
 func (cli *DaemonCli) setupConfigReloadTrap() {
 	go func() {
-		sa := syscall.SecurityAttributes{
+		sa := windows.SecurityAttributes{
 			Length: 0,
 		}
-		ev := "Global\\docker-daemon-config-" + fmt.Sprint(os.Getpid())
-		if h, _ := system.CreateEvent(&sa, false, false, ev); h != 0 {
+		ev, _ := windows.UTF16PtrFromString("Global\\docker-daemon-config-" + fmt.Sprint(os.Getpid()))
+		if h, _ := windows.CreateEvent(&sa, 0, 0, ev); h != 0 {
 			logrus.Debugf("Config reload - waiting signal at %s", ev)
 			for {
-				syscall.WaitForSingleObject(h, syscall.INFINITE)
+				windows.WaitForSingleObject(h, windows.INFINITE)
 				cli.reloadConfig()
 			}
 		}

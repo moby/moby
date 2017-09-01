@@ -9,8 +9,8 @@ import (
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/pkg/parsers/kernel"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
+	"github.com/gotestyourself/gotestyourself/icmd"
 )
 
 // ensure Kernel version is >= v3.9 for macvlan support
@@ -155,7 +155,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkMacvlanMultiSubnet(c *check.C) {
 	_, _, err := dockerCmdWithError("exec", "second", "ping", "-c", "1", strings.TrimSpace(ip))
 	c.Assert(err, check.IsNil)
 	// verify ipv6 connectivity to the explicit --ipv6 address second to first
-	c.Skip("Temporarily skipping while invesitigating sporadic v6 CI issues")
+	c.Skip("Temporarily skipping while investigating sporadic v6 CI issues")
 	_, _, err = dockerCmdWithError("exec", "second", "ping6", "-c", "1", strings.TrimSpace(ip6))
 	c.Assert(err, check.IsNil)
 
@@ -382,7 +382,7 @@ func (s *DockerSuite) TestDockerNetworkMacVlanBridgeInternalMode(c *check.C) {
 
 	// access outside of the network should fail
 	result := cli.Docker(cli.Args("exec", "first", "ping", "-c", "1", "-w", "1", "8.8.8.8"), cli.WithTimeout(time.Second))
-	c.Assert(result, icmd.Matches, icmd.Expected{Timeout: true})
+	result.Assert(c, icmd.Expected{Timeout: true})
 
 	// intra-network communications should succeed
 	cli.DockerCmd(c, "exec", "second", "ping", "-c", "1", "first")
@@ -421,7 +421,7 @@ func (s *DockerSuite) TestDockerNetworkIpvlanL2InternalMode(c *check.C) {
 
 	// access outside of the network should fail
 	result := cli.Docker(cli.Args("exec", "first", "ping", "-c", "1", "-w", "1", "8.8.8.8"), cli.WithTimeout(time.Second))
-	c.Assert(result, icmd.Matches, icmd.Expected{Timeout: true})
+	result.Assert(c, icmd.Expected{Timeout: true})
 	// intra-network communications should succeed
 	cli.DockerCmd(c, "exec", "second", "ping", "-c", "1", "first")
 }
@@ -461,7 +461,7 @@ func (s *DockerSuite) TestDockerNetworkIpvlanL3InternalMode(c *check.C) {
 
 	// access outside of the network should fail
 	result := cli.Docker(cli.Args("exec", "first", "ping", "-c", "1", "-w", "1", "8.8.8.8"), cli.WithTimeout(time.Second))
-	c.Assert(result, icmd.Matches, icmd.Expected{Timeout: true})
+	result.Assert(c, icmd.Expected{Timeout: true})
 	// intra-network communications should succeed
 	cli.DockerCmd(c, "exec", "second", "ping", "-c", "1", "first")
 }
