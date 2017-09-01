@@ -303,6 +303,7 @@ func (pm *Manager) save(p *v2.Plugin) error {
 	if err := ioutils.AtomicWriteFile(filepath.Join(pm.config.Root, p.GetID(), configFileName), pluginJSON, 0600); err != nil {
 		return errors.Wrap(err, "failed to write atomically plugin json")
 	}
+	pm.config.Store.plugins[p.GetID()] = p
 	return nil
 }
 
