@@ -118,7 +118,7 @@ func TestBlobDelete(t *testing.T) {
 	defer c()
 
 	ctx := context.Background()
-	r, err := NewRepository(ctx, repo, e, nil)
+	r, err := NewRepository(repo, e, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,7 +140,7 @@ func TestBlobFetch(t *testing.T) {
 
 	ctx := context.Background()
 	repo, _ := reference.WithName("test.example.com/repo1")
-	r, err := NewRepository(ctx, repo, e, nil)
+	r, err := NewRepository(repo, e, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,7 +194,7 @@ func TestBlobExistsNoContentLength(t *testing.T) {
 	defer c()
 
 	ctx := context.Background()
-	r, err := NewRepository(ctx, repo, e, nil)
+	r, err := NewRepository(repo, e, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -220,7 +220,7 @@ func TestBlobExists(t *testing.T) {
 
 	ctx := context.Background()
 	repo, _ := reference.WithName("test.example.com/repo1")
-	r, err := NewRepository(ctx, repo, e, nil)
+	r, err := NewRepository(repo, e, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -325,7 +325,7 @@ func TestBlobUploadChunked(t *testing.T) {
 	defer c()
 
 	ctx := context.Background()
-	r, err := NewRepository(ctx, repo, e, nil)
+	r, err := NewRepository(repo, e, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -435,7 +435,7 @@ func TestBlobUploadMonolithic(t *testing.T) {
 	defer c()
 
 	ctx := context.Background()
-	r, err := NewRepository(ctx, repo, e, nil)
+	r, err := NewRepository(repo, e, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -512,7 +512,7 @@ func TestBlobMount(t *testing.T) {
 	defer c()
 
 	ctx := context.Background()
-	r, err := NewRepository(ctx, repo, e, nil)
+	r, err := NewRepository(repo, e, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -723,7 +723,7 @@ func TestV1ManifestFetch(t *testing.T) {
 	e, c := testServer(m)
 	defer c()
 
-	r, err := NewRepository(context.Background(), repo, e, nil)
+	r, err := NewRepository(repo, e, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -795,7 +795,7 @@ func TestManifestFetchWithEtag(t *testing.T) {
 	defer c()
 
 	ctx := context.Background()
-	r, err := NewRepository(ctx, repo, e, nil)
+	r, err := NewRepository(repo, e, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -836,7 +836,7 @@ func TestManifestDelete(t *testing.T) {
 	e, c := testServer(m)
 	defer c()
 
-	r, err := NewRepository(context.Background(), repo, e, nil)
+	r, err := NewRepository(repo, e, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -899,7 +899,7 @@ func TestManifestPut(t *testing.T) {
 	e, c := testServer(m)
 	defer c()
 
-	r, err := NewRepository(context.Background(), repo, e, nil)
+	r, err := NewRepository(repo, e, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -952,7 +952,7 @@ func TestManifestTags(t *testing.T) {
 	e, c := testServer(m)
 	defer c()
 
-	r, err := NewRepository(context.Background(), repo, e, nil)
+	r, err := NewRepository(repo, e, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1009,7 +1009,7 @@ func TestObtainsErrorForMissingTag(t *testing.T) {
 	defer c()
 
 	ctx := context.Background()
-	r, err := NewRepository(ctx, repo, e, nil)
+	r, err := NewRepository(repo, e, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1040,7 +1040,7 @@ func TestObtainsManifestForTagWithoutHeaders(t *testing.T) {
 	defer c()
 
 	ctx := context.Background()
-	r, err := NewRepository(ctx, repo, e, nil)
+	r, err := NewRepository(repo, e, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1098,7 +1098,7 @@ func TestManifestTagsPaginated(t *testing.T) {
 
 	s.Config.Handler = testutil.NewHandler(m)
 
-	r, err := NewRepository(context.Background(), repo, s.URL, nil)
+	r, err := NewRepository(repo, s.URL, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1146,7 +1146,7 @@ func TestManifestUnauthorized(t *testing.T) {
 	e, c := testServer(m)
 	defer c()
 
-	r, err := NewRepository(context.Background(), repo, e, nil)
+	r, err := NewRepository(repo, e, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1183,7 +1183,7 @@ func TestCatalog(t *testing.T) {
 
 	entries := make([]string, 5)
 
-	r, err := NewRegistry(context.Background(), e, nil)
+	r, err := NewRegistry(e, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1215,7 +1215,7 @@ func TestCatalogInParts(t *testing.T) {
 
 	entries := make([]string, 2)
 
-	r, err := NewRegistry(context.Background(), e, nil)
+	r, err := NewRegistry(e, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
