@@ -29,6 +29,7 @@ import (
 )
 
 // #6509
+var name String= "attach-detach"
 func (s *DockerSuite) TestRunRedirectStdout(c *check.C) {
 	checkRedirect := func(command string) {
 		_, tty, err := pty.Open()
@@ -93,7 +94,7 @@ func (s *DockerSuite) TestRunDeviceDirectory(c *check.C) {
 
 // TestRunAttachDetach checks attaching and detaching with the default escape sequence.
 func (s *DockerSuite) TestRunAttachDetach(c *check.C) {
-	name := "attach-detach"
+	
 
 	dockerCmd(c, "run", "--name", name, "-itd", "busybox", "cat")
 
@@ -144,7 +145,7 @@ func (s *DockerSuite) TestRunAttachDetach(c *check.C) {
 
 // TestRunAttachDetachFromFlag checks attaching and detaching with the escape sequence specified via flags.
 func (s *DockerSuite) TestRunAttachDetachFromFlag(c *check.C) {
-	name := "attach-detach"
+	
 	keyCtrlA := []byte{1}
 	keyA := []byte{97}
 
@@ -205,7 +206,7 @@ func (s *DockerSuite) TestRunAttachDetachFromFlag(c *check.C) {
 
 // TestRunAttachDetachFromInvalidFlag checks attaching and detaching with the escape sequence specified via flags.
 func (s *DockerSuite) TestRunAttachDetachFromInvalidFlag(c *check.C) {
-	name := "attach-detach"
+	
 	dockerCmd(c, "run", "--name", name, "-itd", "busybox", "top")
 	c.Assert(waitRun(name), check.IsNil)
 
