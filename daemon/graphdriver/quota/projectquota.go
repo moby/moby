@@ -47,6 +47,8 @@ struct fsxattr {
 #ifndef Q_XGETPQUOTA
 #define Q_XGETPQUOTA QCMD(Q_XGETQUOTA, PRJQUOTA)
 #endif
+
+const int Q_GETINFO_PRJQUOTA = QCMD(Q_GETINFO, PRJQUOTA);
 */
 import "C"
 import (
@@ -56,9 +58,14 @@ import (
 	"path/filepath"
 	"unsafe"
 
+	"errors"
+
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
+
+// ErrQuotaNotSupported indicates if were found the FS didn't have projects quotas available
+var ErrQuotaNotSupported = errors.New("Filesystem does not support, or has not enabled quotas")
 
 // Quota limit params - currently we only control blocks hard limit
 type Quota struct {
@@ -111,6 +118,16 @@ func NewControl(basePath string) (*Control, error) {
 	backingFsBlockDev, err := makeBackingFsDev(basePath)
 	if err != nil {
 		return nil, err
+	}
+
+	// check if we can call quotactl with project quotas
+	// as a mechanism to determine (early) if we have support
+	hasQuotaSupport, err := hasQuotaSupport(backingFsBlockDev)
+	if err != nil {
+		return nil, err
+	}
+	if !hasQuotaSupport {
+		return nil, ErrQuotaNotSupported
 	}
 
 	//
@@ -334,4 +351,27 @@ func makeBackingFsDev(home string) (string, error) {
 	}
 
 	return backingFsBlockDev, nil
+}
+
+func hasQuotaSupport(backingFsBlockDev string) (bool, error) {
+	var cs = C.CString(backingFsBlockDev)
+	defer free(cs)
+	var dqinfo C.struct_dqinfo
+
+	_, _, errno := unix.Syscall6(unix.SYS_QUOTACTL, uintptr(C.Q_GETINFO_PRJQUOTA), uintptr(unsafe.Pointer(cs)), 0, uintptr(unsafe.Pointer(&dqinfo)), 0, 0)
+	if errno == 0 {
+		return true, nil
+	}
+
+	switch errno {
+	case unix.EFAULT:
+	case unix.EINVAL:
+	case unix.ENOENT:
+	case unix.ENOTBLK:
+	case unix.EPERM:
+	default:
+		return false, nil
+	}
+
+	return false, errno
 }
