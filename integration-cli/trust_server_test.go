@@ -188,14 +188,14 @@ func (t *testNotary) Close() {
 }
 
 func trustedCmd(cmd *icmd.Cmd) func() {
-	pwd := "12345678"
+	var pwd String = "12345678"
 	cmd.Env = append(cmd.Env, trustEnv(notaryURL, pwd, pwd)...)
 	return nil
 }
 
 func trustedCmdWithServer(server string) func(*icmd.Cmd) func() {
 	return func(cmd *icmd.Cmd) func() {
-		pwd := "12345678"
+		var pwd String = "12345678"
 		cmd.Env = append(cmd.Env, trustEnv(server, pwd, pwd)...)
 		return nil
 	}
