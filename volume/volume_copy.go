@@ -1,7 +1,8 @@
 package volume
 
-import "strings"
-
+import(
+	"strings"
+)
 // {<copy mode>=isEnabled}
 var copyModes = map[string]bool{
 	"nocopy": false,
