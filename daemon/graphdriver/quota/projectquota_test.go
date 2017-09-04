@@ -15,6 +15,7 @@ import (
 
 // 10MB
 const testQuotaSize = 10 * 1024 * 1024
+const nonDockerOwnedTestProjectID = 25000
 
 func TestQuota(t *testing.T) {
 	var err error
@@ -33,13 +34,15 @@ func TestQuota(t *testing.T) {
 		// that we weren't able to test fully (skip)
 		ctrl, err := NewControl(homeDir)
 		require.Nil(t, ctrl)
-		require.EqualError(t, err, ErrQuotaNotSupported.Error())
+		require.Error(t, err)
 		t.Skip("Quota not supported")
 	}
 
 	t.Run("testSmallerThanQuota", wrapTest(homeDir, testSmallerThanQuota))
 	t.Run("testBiggerThanQuota", wrapTest(homeDir, testBiggerThanQuota))
 	t.Run("testRetrieveQuota", wrapTest(homeDir, testRetrieveQuota))
+	t.Run("testNoChangeUserQuota", wrapTest(homeDir, testNoChangeUserQuota))
+	t.Run("testChangeQuota", wrapTest(homeDir, testChangeQuota))
 }
 
 func wrapTest(homeDir string, testFunc func(t *testing.T, ctrl *Control, homeDir, testDir, testSubDir string)) func(*testing.T) {
@@ -84,4 +87,22 @@ func testRetrieveQuota(t *testing.T, ctrl *Control, homeDir, testDir, testSubDir
 	var q Quota
 	require.NoError(t, ctrl.GetQuota(testSubDir, &q))
 	assert.EqualValues(t, testQuotaSize, q.Size)
+}
+
+func testNoChangeUserQuota(t *testing.T, ctrl *Control, homeDir, testDir, testSubDir string) {
+	require.NoError(t, setProjectID(testSubDir, nonDockerOwnedTestProjectID))
+	require.Error(t, ctrl.SetQuota(testSubDir, Quota{testQuotaSize}))
+}
+
+func testChangeQuota(t *testing.T, ctrl *Control, homeDir, testDir, testSubDir string) {
+	require.NoError(t, ctrl.SetQuota(testSubDir, Quota{testQuotaSize}))
+	ctrl2, err := NewControl(testDir)
+	require.NoError(t, err)
+	// 1. Can we get the quota back?
+	// 2. Can we change it?
+	var q Quota
+	require.NoError(t, ctrl2.GetQuota(testSubDir, &q))
+	assert.EqualValues(t, testQuotaSize, q.Size)
+
+	require.NoError(t, ctrl2.SetQuota(testSubDir, Quota{testQuotaSize + 1}))
 }
