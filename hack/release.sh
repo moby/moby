@@ -60,8 +60,8 @@ if [ "$1" != '--release-regardless-of-test-failure' ]; then
 		test-integration
 	)
 fi
+VERSION=${VERSION:-$(< VERSION)}
 
-VERSION=$(< VERSION)
 BUCKET=$AWS_S3_BUCKET
 BUCKET_PATH=$BUCKET
 [[ -n "$AWS_S3_BUCKET_PATH" ]] && BUCKET_PATH+=/$AWS_S3_BUCKET_PATH
