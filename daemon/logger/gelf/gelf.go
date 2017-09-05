@@ -23,7 +23,7 @@ import (
 const name = "gelf"
 
 type gelfLogger struct {
-	writer   *gelf.Writer
+	writer   gelf.Writer
 	info     logger.Info
 	hostname string
 	rawExtra json.RawMessage
@@ -90,7 +90,7 @@ func New(info logger.Info) (logger.Logger, error) {
 	}
 
 	// create new gelfWriter
-	gelfWriter, err := gelf.NewWriter(address)
+	gelfWriter, err := gelf.NewUDPWriter(address)
 	if err != nil {
 		return nil, fmt.Errorf("gelf: cannot connect to GELF endpoint: %s %v", address, err)
 	}
@@ -135,7 +135,7 @@ func (s *gelfLogger) Log(msg *logger.Message) error {
 		Host:     s.hostname,
 		Short:    string(msg.Line),
 		TimeUnix: float64(msg.Timestamp.UnixNano()/int64(time.Millisecond)) / 1000.0,
-		Level:    level,
+		Level:    int32(level),
 		RawExtra: s.rawExtra,
 	}
 	logger.PutMessage(msg)
