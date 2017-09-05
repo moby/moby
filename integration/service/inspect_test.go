@@ -18,6 +18,7 @@ import (
 )
 
 func TestInspect(t *testing.T) {
+	defer setupTest(t)()
 	d := newSwarm(t)
 	defer d.Stop(t)
 	client, err := request.NewClientForHost(d.Sock())
