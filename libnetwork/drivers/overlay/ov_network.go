@@ -760,12 +760,11 @@ func (n *network) watchMiss(nlSock *nl.NetlinkSocket) {
 				continue
 			}
 
-			logrus.Debugf("miss notification: dest IP %v, dest MAC %v", ip, mac)
-
 			if neigh.State&(netlink.NUD_STALE|netlink.NUD_INCOMPLETE) == 0 {
 				continue
 			}
 
+			logrus.Debugf("miss notification: dest IP %v, dest MAC %v", ip, mac)
 			if n.driver.isSerfAlive() {
 				mac, IPmask, vtep, err := n.driver.resolvePeer(n.id, ip)
 				if err != nil {
@@ -775,40 +774,14 @@ func (n *network) watchMiss(nlSock *nl.NetlinkSocket) {
 				n.driver.peerAdd(n.id, "dummy", ip, IPmask, mac, vtep, l2Miss, l3Miss, false)
 			} else {
 				// If the gc_thresh values are lower kernel might knock off the neighor entries.
-				// When we get a L3 miss check if its a valid peer and reprogram the neighbor
-				// entry again. Rate limit it to once attempt every 500ms, just in case a faulty
-				// container sends a flood of packets to invalid peers
-				if !l3Miss {
-					continue
-				}
+				// This case can happen only for local entries, from the documentation (http://man7.org/linux/man-pages/man7/arp.7.html):
+				// Entries which are marked as permanent are never deleted by the garbage-collector.
 				if time.Since(t) > 500*time.Millisecond {
 					t = time.Now()
-					n.programNeighbor(ip)
+					logrus.Warnf("miss notification for peer:%+v l3Miss:%t l2Miss:%t, if the problem persist check the gc_thresholds", neigh, l3Miss, l2Miss)
 				}
 			}
 		}
-	}
-}
-
-func (n *network) programNeighbor(ip net.IP) {
-	peerMac, _, _, err := n.driver.peerDbSearch(n.id, ip)
-	if err != nil {
-		logrus.Errorf("Reprogramming on L3 miss failed for %s, no peer entry", ip)
-		return
-	}
-	s := n.getSubnetforIPAddr(ip)
-	if s == nil {
-		logrus.Errorf("Reprogramming on L3 miss failed for %s, not a valid subnet", ip)
-		return
-	}
-	sbox := n.sandbox()
-	if sbox == nil {
-		logrus.Errorf("Reprogramming on L3 miss failed for %s, overlay sandbox missing", ip)
-		return
-	}
-	if err := sbox.AddNeighbor(ip, peerMac, true, sbox.NeighborOptions().LinkName(s.vxlanName)); err != nil {
-		logrus.Errorf("Reprogramming on L3 miss failed for %s: %v", ip, err)
-		return
 	}
 }
 

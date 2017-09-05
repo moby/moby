@@ -200,7 +200,7 @@ func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key stri
 	}
 
 	if etype == driverapi.Delete {
-		d.peerDelete(nid, eid, addr.IP, addr.Mask, mac, vtep)
+		d.peerDelete(nid, eid, addr.IP, addr.Mask, mac, vtep, false)
 		return
 	}
 
@@ -234,9 +234,11 @@ func (d *driver) Leave(nid, eid string) error {
 
 	n.leaveSandbox()
 
-	if err := d.checkEncryption(nid, nil, 0, true, false); err != nil {
-		logrus.Warn(err)
-	}
+	// if err := d.checkEncryption(nid, nil, 0, true, false); err != nil {
+	// 	logrus.Warn(err)
+	// }
+
+	d.peerDelete(nid, eid, ep.addr.IP, ep.addr.Mask, ep.mac, net.ParseIP(d.advertiseAddress), true)
 
 	return nil
 }
