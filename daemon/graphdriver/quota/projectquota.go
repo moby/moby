@@ -294,6 +294,27 @@ func (q *Control) GetQuota(targetPath string, quota *Quota) error {
 	return nil
 }
 
+// GetProjectID - Get the project ID for a given path
+func (q *Control) GetProjectID(targetPath string) (uint32, error) {
+	projectID, err := getProjectID(targetPath)
+	if err != nil {
+		return 0, err
+	}
+	if projectID == 0 {
+		return 0, fmt.Errorf("quota not found for path : %s", targetPath)
+	}
+
+	dockerSet, err := isDockerSetProjectID(targetPath)
+	if err != nil {
+		return 0, err
+	}
+	if !dockerSet {
+		return 0, errNotOurProjectID
+	}
+
+	return projectID, nil
+}
+
 type limit struct {
 	dBlkHardlimit uint64 // absolute limit on disk blks
 	dBlkSoftlimit uint64 // preferred limit on disk blks
