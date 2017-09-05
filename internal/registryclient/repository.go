@@ -75,8 +75,8 @@ func NewRegistry(baseURL string, transport http.RoundTripper) (Registry, error) 
 	}
 
 	return &registry{
-		client:  client,
-		ub:      ub,
+		client: client,
+		ub:     ub,
 	}, nil
 }
 
@@ -145,9 +145,9 @@ func NewRepository(name reference.Named, baseURL string, transport http.RoundTri
 	}
 
 	return &repository{
-		client:  client,
-		ub:      ub,
-		name:    name,
+		client: client,
+		ub:     ub,
+		name:   name,
 	}, nil
 }
 
@@ -188,17 +188,17 @@ func (r *repository) Manifests(ctx context.Context, options ...distribution.Mani
 
 func (r *repository) Tags(ctx context.Context) distribution.TagService {
 	return &tags{
-		client:  r.client,
-		ub:      r.ub,
-		name:    r.Named(),
+		client: r.client,
+		ub:     r.ub,
+		name:   r.Named(),
 	}
 }
 
 // tags implements remote tagging operations.
 type tags struct {
-	client  *http.Client
-	ub      *v2.URLBuilder
-	name    reference.Named
+	client *http.Client
+	ub     *v2.URLBuilder
+	name   reference.Named
 }
 
 // All returns all tags
