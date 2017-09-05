@@ -8,12 +8,12 @@ import (
 
 //Validate parseAddress
 func TestParseAddress(t *testing.T) {
-	host, err := parseAddress("udp://127.0.0.1:12201")
+	url, err := parseAddress("udp://127.0.0.1:12201")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if host != "127.0.0.1:12201" {
-		t.Fatalf("Expected host 127.0.0.1, got %s", host)
+	if url.String() != "udp://127.0.0.1:12201" {
+		t.Fatalf("Expected address udp://127.0.0.1:12201, got %s", url.String())
 	}
 
 	_, err = parseAddress("127.0.0.1:12201")
@@ -27,8 +27,8 @@ func TestParseAddress(t *testing.T) {
 	}
 }
 
-//Validate options
-func TestValidateLogOpt(t *testing.T) {
+//Validate UDP options
+func TestUDPValidateLogOpt(t *testing.T) {
 	err := ValidateLogOpt(map[string]string{
 		"gelf-address":           "udp://127.0.0.1:12201",
 		"tag":                    "testtag",
@@ -64,5 +64,72 @@ func TestValidateLogOpt(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("Expected unknown option error")
+	}
+
+	err = ValidateLogOpt(map[string]string{})
+	if err == nil {
+		t.Fatal("Expected required parameter error")
+	}
+}
+
+//Validate TCP options
+func TestTCPValidateLogOpt(t *testing.T) {
+	err := ValidateLogOpt(map[string]string{
+		"gelf-address": "tcp://127.0.0.1:12201",
+	})
+	if err != nil {
+		t.Fatal("Expected TCP to be supported")
+	}
+
+	err = ValidateLogOpt(map[string]string{
+		"gelf-address":           "tcp://127.0.0.1:12201",
+		"gelf-compression-level": "9",
+	})
+	if err == nil {
+		t.Fatal("Expected TCP to reject compression level")
+	}
+
+	err = ValidateLogOpt(map[string]string{
+		"gelf-address":          "tcp://127.0.0.1:12201",
+		"gelf-compression-type": "gzip",
+	})
+	if err == nil {
+		t.Fatal("Expected TCP to reject compression type")
+	}
+
+	err = ValidateLogOpt(map[string]string{
+		"gelf-address":             "tcp://127.0.0.1:12201",
+		"gelf-tcp-max-reconnect":   "5",
+		"gelf-tcp-reconnect-delay": "10",
+	})
+	if err != nil {
+		t.Fatal("Expected TCP reconnect to be a valid parameters")
+	}
+
+	err = ValidateLogOpt(map[string]string{
+		"gelf-address":             "tcp://127.0.0.1:12201",
+		"gelf-tcp-max-reconnect":   "-1",
+		"gelf-tcp-reconnect-delay": "-3",
+	})
+	if err == nil {
+		t.Fatal("Expected negative TCP reconnect to be rejected")
+	}
+
+	err = ValidateLogOpt(map[string]string{
+		"gelf-address":             "tcp://127.0.0.1:12201",
+		"gelf-tcp-max-reconnect":   "invalid",
+		"gelf-tcp-reconnect-delay": "invalid",
+	})
+	if err == nil {
+		t.Fatal("Expected TCP reconnect to be required to be an int")
+	}
+
+	err = ValidateLogOpt(map[string]string{
+		"gelf-address":             "udp://127.0.0.1:12201",
+		"gelf-tcp-max-reconnect":   "1",
+		"gelf-tcp-reconnect-delay": "3",
+	})
+	if err == nil {
+		t.Fatal("Expected TCP reconnect to be invalid for UDP")
 	}
 }

@@ -47,6 +47,10 @@ func New(info logger.Info) (logger.Logger, error) {
 		return nil, err
 	}
 
+	if address.Scheme == "tcp" {
+		return nil, fmt.Errorf("gelf: TCP not yet implemented")
+	}
+
 	// collect extra data for GELF message
 	hostname, err := info.Hostname()
 	if err != nil {
@@ -90,9 +94,9 @@ func New(info logger.Info) (logger.Logger, error) {
 	}
 
 	// create new gelfWriter
-	gelfWriter, err := gelf.NewUDPWriter(address)
+	gelfWriter, err := gelf.NewUDPWriter(address.String())
 	if err != nil {
-		return nil, fmt.Errorf("gelf: cannot connect to GELF endpoint: %s %v", address, err)
+		return nil, fmt.Errorf("gelf: cannot connect to GELF endpoint: %s %v", address.String(), err)
 	}
 
 	if v, ok := info.Config["gelf-compression-type"]; ok {
@@ -156,6 +160,11 @@ func (s *gelfLogger) Name() string {
 
 // ValidateLogOpt looks for gelf specific log option gelf-address.
 func ValidateLogOpt(cfg map[string]string) error {
+	address, err := parseAddress(cfg["gelf-address"])
+	if err != nil {
+		return err
+	}
+
 	for key, val := range cfg {
 		switch key {
 		case "gelf-address":
@@ -164,46 +173,59 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case "env":
 		case "env-regex":
 		case "gelf-compression-level":
+			if address.Scheme != "udp" {
+				return fmt.Errorf("compression is only supported on UDP")
+			}
 			i, err := strconv.Atoi(val)
 			if err != nil || i < flate.DefaultCompression || i > flate.BestCompression {
 				return fmt.Errorf("unknown value %q for log opt %q for gelf log driver", val, key)
 			}
 		case "gelf-compression-type":
+			if address.Scheme != "udp" {
+				return fmt.Errorf("compression is only supported on UDP")
+			}
 			switch val {
 			case "gzip", "zlib", "none":
 			default:
 				return fmt.Errorf("unknown value %q for log opt %q for gelf log driver", val, key)
+			}
+		case "gelf-tcp-max-reconnect", "gelf-tcp-reconnect-delay":
+			if address.Scheme != "tcp" {
+				return fmt.Errorf("%q is only valid for TCP", key)
+			}
+			i, err := strconv.Atoi(val)
+			if err != nil || i < 0 {
+				return fmt.Errorf("%q must be a positive integer", key)
 			}
 		default:
 			return fmt.Errorf("unknown log opt %q for gelf log driver", key)
 		}
 	}
 
-	_, err := parseAddress(cfg["gelf-address"])
-	return err
+	return nil
 }
 
-func parseAddress(address string) (string, error) {
+func parseAddress(address string) (*url.URL, error) {
 	if address == "" {
-		return "", nil
+		return nil, fmt.Errorf("gelf-address is a required parameter")
 	}
 	if !urlutil.IsTransportURL(address) {
-		return "", fmt.Errorf("gelf-address should be in form proto://address, got %v", address)
+		return nil, fmt.Errorf("gelf-address should be in form proto://address, got %v", address)
 	}
 	url, err := url.Parse(address)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	// we support only udp
-	if url.Scheme != "udp" {
-		return "", fmt.Errorf("gelf: endpoint needs to be UDP")
+	if url.Scheme != "udp" && url.Scheme != "tcp" {
+		return nil, fmt.Errorf("gelf: endpoint needs to be TCP or UDP")
 	}
 
 	// get host and port
 	if _, _, err = net.SplitHostPort(url.Host); err != nil {
-		return "", fmt.Errorf("gelf: please provide gelf-address as udp://host:port")
+		return nil, fmt.Errorf("gelf: please provide gelf-address as proto://host:port")
 	}
 
-	return url.Host, nil
+	return url, nil
 }
