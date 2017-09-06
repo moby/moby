@@ -47,10 +47,6 @@ func New(info logger.Info) (logger.Logger, error) {
 		return nil, err
 	}
 
-	if address.Scheme == "tcp" {
-		return nil, fmt.Errorf("gelf: TCP not yet implemented")
-	}
-
 	// collect extra data for GELF message
 	hostname, err := info.Hostname()
 	if err != nil {
@@ -93,10 +89,58 @@ func New(info logger.Info) (logger.Logger, error) {
 		return nil, err
 	}
 
-	// create new gelfWriter
-	gelfWriter, err := gelf.NewUDPWriter(address.String())
+	var gelfWriter gelf.Writer
+	if address.Scheme == "udp" {
+		gelfWriter, err = newGELFUDPWriter(address.Host, info)
+		if err != nil {
+			return nil, err
+		}
+	} else if address.Scheme == "tcp" {
+		gelfWriter, err = newGELFTCPWriter(address.Host, info)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &gelfLogger{
+		writer:   gelfWriter,
+		info:     info,
+		hostname: hostname,
+		rawExtra: rawExtra,
+	}, nil
+}
+
+// create new TCP gelfWriter
+func newGELFTCPWriter(address string, info logger.Info) (gelf.Writer, error) {
+	gelfWriter, err := gelf.NewTCPWriter(address)
 	if err != nil {
-		return nil, fmt.Errorf("gelf: cannot connect to GELF endpoint: %s %v", address.String(), err)
+		return nil, fmt.Errorf("gelf: cannot connect to GELF endpoint: %s %v", address, err)
+	}
+
+	if v, ok := info.Config["gelf-tcp-max-reconnect"]; ok {
+		i, err := strconv.Atoi(v)
+		if err != nil || i < 0 {
+			return nil, fmt.Errorf("gelf-tcp-max-reconnect must be a positive integer")
+		}
+		gelfWriter.MaxReconnect = i
+	}
+
+	if v, ok := info.Config["gelf-tcp-reconnect-delay"]; ok {
+		i, err := strconv.Atoi(v)
+		if err != nil || i < 0 {
+			return nil, fmt.Errorf("gelf-tcp-reconnect-delay must be a positive integer")
+		}
+		gelfWriter.ReconnectDelay = time.Duration(i)
+	}
+
+	return gelfWriter, nil
+}
+
+// create new UDP gelfWriter
+func newGELFUDPWriter(address string, info logger.Info) (gelf.Writer, error) {
+	gelfWriter, err := gelf.NewUDPWriter(address)
+	if err != nil {
+		return nil, fmt.Errorf("gelf: cannot connect to GELF endpoint: %s %v", address, err)
 	}
 
 	if v, ok := info.Config["gelf-compression-type"]; ok {
@@ -120,12 +164,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		gelfWriter.CompressionLevel = val
 	}
 
-	return &gelfLogger{
-		writer:   gelfWriter,
-		info:     info,
-		hostname: hostname,
-		rawExtra: rawExtra,
-	}, nil
+	return gelfWriter, nil
 }
 
 func (s *gelfLogger) Log(msg *logger.Message) error {
