@@ -207,6 +207,7 @@ func (s *DockerSuite) TestRunAttachDetachFromFlag(c *check.C) {
 
 // TestRunAttachDetachFromInvalidFlag checks attaching and detaching with the escape sequence specified via flags.
 func (s *DockerSuite) TestRunAttachDetachFromInvalidFlag(c *check.C) {
+	c.Skip("Known issue https://github.com/docker/cli/issues/380")
 	name := "attach-detach"
 	dockerCmd(c, "run", "--name", name, "-itd", "busybox", "top")
 	c.Assert(waitRun(name), check.IsNil)
