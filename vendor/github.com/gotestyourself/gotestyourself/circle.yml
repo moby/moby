@@ -1,0 +1,54 @@
+version: 2
+
+jobs:
+
+  lint:
+    working_directory: /work
+    docker: [{image: 'docker:17.06-git'}]
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          command: docker version
+      - run:
+          name: "Install Dependencies"
+          command: |
+            dockerfile=dobifiles/Dockerfile
+            echo "COPY . ." >> $dockerfile
+            docker build -f $dockerfile --tag cli-builder:$CIRCLE_BUILD_NUM .
+            docker run --name \
+                deps-$CIRCLE_BUILD_NUM cli-builder:$CIRCLE_BUILD_NUM \
+                dep ensure
+            docker cp \
+                deps-$CIRCLE_BUILD_NUM:/go/src/github.com/gotestyourself/gotestyourself/vendor \
+                vendor
+      - run:
+          name: "Lint"
+          command: |
+            dockerfile=dobifiles/Dockerfile.lint
+            echo "COPY . ." >> $dockerfile
+            docker build -f $dockerfile --tag cli-linter:$CIRCLE_BUILD_NUM .
+            docker run --rm cli-linter:$CIRCLE_BUILD_NUM
+
+  test:
+    working_directory: /work
+    docker: [{image: 'docker:17.06-git'}]
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: "Unit Test"
+          command: |
+            dockerfile=dobifiles/Dockerfile
+            echo "COPY . ." >> $dockerfile
+            docker build -f $dockerfile --tag cli-builder:$CIRCLE_BUILD_NUM .
+            docker run --name \
+                test-$CIRCLE_BUILD_NUM cli-builder:$CIRCLE_BUILD_NUM \
+                bash -c 'dep ensure && scripts/binary-testsum && scripts/test-unit'
+
+workflows:
+  version: 2
+  ci:
+    jobs:
+      - lint
+      - test

@@ -1,0 +1,7 @@
+language: go
+sudo: false
+go:
+  - 1.4
+  - 1.5
+script:
+  - go test -race -v -bench=.

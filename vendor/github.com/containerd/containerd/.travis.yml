@@ -1,0 +1,32 @@
+dist: trusty
+sudo: required
+
+language: go
+
+go:
+  - 1.8.x
+  - tip
+
+go_import_path: github.com/containerd/containerd
+
+addons:
+  apt:
+    packages:
+      - apparmor
+      - libapparmor-dev
+      - curl
+
+env:
+  - SECCOMP_VERSION=2.3.1 RUNC_COMMIT=9a01140955fba11a1c2927a9b273e9c837e3e30a
+
+
+install:
+  - hack/install-seccomp.sh
+  - hack/install-runc.sh
+  - go get -u github.com/golang/lint/golint
+
+script:
+  - make all
+  - sudo make install
+  - sudo -E env "PATH=$PATH" "GOPATH=$GOPATH" make test
+  - sudo -E env "PATH=$PATH" "GOPATH=$GOPATH" make integration-test

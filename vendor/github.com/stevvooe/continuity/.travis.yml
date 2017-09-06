@@ -1,0 +1,17 @@
+language: go
+
+go:
+  - 1.7.x
+  - 1.8.x
+  - tip
+
+go_import_path: github.com/containerd/continuity
+
+env:
+  - GOOS=windows
+  - GOOS=linux
+
+script:
+# TODO: vendor
+  - go get -t ./...
+  - make

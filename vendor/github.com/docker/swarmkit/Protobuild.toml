@@ -1,0 +1,36 @@
+version = "unstable"
+generator = "gogoswarm"
+plugins = ["grpc", "deepcopy", "storeobject", "raftproxy", "authenticatedwrapper"]
+
+# Control protoc include paths. Below are usually some good defaults, but feel
+# free to try it without them if it works for your project.
+[includes]
+  # Include paths that will be added before all others. Typically, you want to
+  # treat the root of the project as an include, but this may not be necessary.
+  before = ["."]
+
+  # Paths that should be treated as include roots in relation to the vendor
+  # directory. These will be calculated with the vendor directory nearest the
+  # target package.
+  vendored = ["github.com/gogo/protobuf"]
+
+  # Paths that will be added untouched to the end of the includes. We use
+  # `/usr/local/include` to pickup the common install location of protobuf.
+  # This is the default.
+  after = ["/usr/local/include"]
+
+[importpath]
+
+# This section map protobuf imports to Go packages. These will become
+# `-M` directives in the call to the go protobuf generator.
+[packages]
+  "gogoproto/gogo.proto" = "github.com/gogo/protobuf/gogoproto"
+  "google/protobuf/any.proto" = "github.com/gogo/protobuf/types"
+  "google/protobuf/descriptor.proto" = "github.com/gogo/protobuf/protoc-gen-gogo/descriptor"
+  "google/protobuf/field_mask.proto" = "github.com/gogo/protobuf/types"
+  "google/protobuf/timestamp.proto" = "github.com/gogo/protobuf/types"
+  "google/protobuf/duration.proto" = "github.com/gogo/protobuf/types"
+
+[[descriptors]]
+prefix = "github.com/docker/swarmkit/api"
+target = "api/api.pb.txt"

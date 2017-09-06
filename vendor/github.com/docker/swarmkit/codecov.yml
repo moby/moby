@@ -1,0 +1,12 @@
+comment:
+  layout: header, changes, diff, sunburst
+coverage:
+  status:
+    patch: false
+    project:
+      default:
+        enabled: yes
+        target: 0
+    changes: false
+ignore:
+  -**/testutils

@@ -1,0 +1,6 @@
+language: go
+
+go:
+  - 1.4
+
+script: "go get -d -t ./... && make test"

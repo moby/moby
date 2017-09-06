@@ -1,0 +1,5 @@
+_generated/generated.go
+_generated/generated_test.go
+msgp/cover.out
+msgp/Makefile
+*~

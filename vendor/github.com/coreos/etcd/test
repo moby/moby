@@ -1,0 +1,446 @@
+#!/usr/bin/env bash
+#
+# Run all etcd tests
+# ./test
+# ./test -v
+#
+# Run tests for one package
+#
+# PKG=./wal ./test
+# PKG=snap ./test
+#
+# Run code coverage
+# COVERDIR must either be a absolute path or a relative path to the etcd root
+# COVERDIR=coverage PASSES="build_cov cov" ./test
+set -e
+
+source ./build
+
+# build before setting up test GOPATH
+if [[ "${PASSES}" == *"functional"* ]]; then
+	./tools/functional-tester/build
+fi
+
+# build tests with vendored dependencies
+etcd_setup_gopath
+
+if [ -z "$PASSES" ]; then
+	PASSES="fmt bom dep compile build unit"
+fi
+
+USERPKG=${PKG:-}
+
+# Invoke ./cover for HTML output
+COVER=${COVER:-"-cover"}
+
+# Hack: gofmt ./ will recursively check the .git directory. So use *.go for gofmt.
+IGNORE_PKGS="(cmd/|etcdserverpb|rafttest|gopath.proto|v3lockpb|v3electionpb)"
+INTEGRATION_PKGS="(integration|e2e|contrib|functional-tester)"
+
+# all github.com/coreos/etcd/whatever pkgs that are not auto-generated / tools
+PKGS=`find . -name \*.go | while read a; do dirname $a; done | sort | uniq | egrep -v "$IGNORE_PKGS" | egrep -v "(tools/|contrib/|e2e|pb)" | sed "s|\.|${REPO_PATH}|g" | xargs echo`
+# pkg1,pkg2,pkg3
+PKGS_COMMA=${PKGS// /,}
+
+TEST_PKGS=`find . -name \*_test.go | while read a; do dirname $a; done | sort | uniq | egrep -v "$IGNORE_PKGS" | sed "s|\./||g"`
+FORMATTABLE=`find . -name \*.go | while read a; do echo "$(dirname $a)/*.go"; done | sort | uniq | egrep -v "$IGNORE_PKGS" | sed "s|\./||g"`
+TESTABLE_AND_FORMATTABLE=`echo "$TEST_PKGS" | egrep -v "$INTEGRATION_PKGS"`
+
+# check if user provided PKG override
+if [ -z "${USERPKG}" ]; then
+	TEST=$TESTABLE_AND_FORMATTABLE
+	FMT=$FORMATTABLE
+else
+	# strip out leading dotslashes and trailing slashes from PKG=./foo/
+	TEST=${USERPKG/#./}
+	TEST=${TEST/#\//}
+	TEST=${TEST/%\//}
+	# only run gofmt on packages provided by user
+	FMT="$TEST"
+fi
+
+# split TEST into an array and prepend REPO_PATH to each local package
+split=(${TEST// / })
+TEST=${split/#/${REPO_PATH}/}
+
+# TODO: 'client' pkg fails with gosimple from generated files
+# TODO: 'rafttest' is failing with unused
+STATIC_ANALYSIS_PATHS=`find . -name \*.go | while read a; do dirname $a; done | sort | uniq | egrep -v "$IGNORE_PKGS" | grep -v 'client'`
+
+if [ -z "$GOARCH" ]; then
+	GOARCH=$(go env GOARCH);
+fi
+
+
+# determine whether target supports race detection
+if [ "$GOARCH" == "amd64" ]; then
+	RACE="--race"
+fi
+
+function unit_pass {
+	echo "Running unit tests..."
+	# only -run=Test so examples can run in integration tests
+	go test -timeout 3m ${COVER} ${RACE} -cpu 1,2,4 -run=Test $@ ${TEST}
+}
+
+function integration_pass {
+	echo "Running integration tests..."
+	go test -timeout 15m -v -cpu 1,2,4 $@ ${REPO_PATH}/integration
+	go test -timeout 1m -v ${RACE} -cpu 1,2,4 $@ ${REPO_PATH}/client/integration
+	go test -timeout 10m -v ${RACE} -cpu 1,2,4 $@ ${REPO_PATH}/clientv3/integration
+	go test -timeout 1m -v -cpu 1,2,4 $@ ${REPO_PATH}/contrib/raftexample
+	go test -timeout 1m -v ${RACE} -cpu 1,2,4 -run=Example $@ ${TEST}
+}
+
+function functional_pass {
+	for a in 1 2 3; do
+		mkdir -p ./agent-$a
+		./bin/etcd-agent -etcd-path ./bin/etcd -etcd-log-dir "./agent-$a" -port ":${a}9027" -use-root=false &
+		pid="$!"
+		agent_pids="${agent_pids} $pid"
+	done
+
+	./bin/etcd-tester \
+		-agent-endpoints "127.0.0.1:19027,127.0.0.1:29027,127.0.0.1:39027" \
+		-client-ports 12379,22379,32379 \
+		-peer-ports 12380,22380,32380 \
+		-limit 1 \
+		-schedule-cases "0 1 2 3 4 5" \
+		-exit-on-failure
+	ETCD_TESTER_EXIT_CODE=$?
+	echo "ETCD_TESTER_EXIT_CODE:" ${ETCD_TESTER_EXIT_CODE}
+
+	echo "Waiting for processes to exit"
+	kill -s TERM ${agent_pids}
+	for a in ${agent_pids}; do wait $a || true; done
+	rm -rf ./agent-*
+
+	if [[ "${ETCD_TESTER_EXIT_CODE}" -ne "0" ]]; then
+		echo "FAIL with exit code" ${ETCD_TESTER_EXIT_CODE}
+		exit ${ETCD_TESTER_EXIT_CODE}
+	fi
+}
+
+function cov_pass {
+	echo "Running code coverage..."
+	# install gocovmerge before running code coverage from github.com/wadey/gocovmerge
+	# gocovmerge merges coverage files
+	if ! which gocovmerge >/dev/null; then
+		echo "gocovmerge not installed"
+		exit 255
+	fi
+
+	if [ -z "$COVERDIR" ]; then
+		echo "COVERDIR undeclared"
+		exit 255
+	fi
+
+	if [ ! -f "bin/etcd_test" ]; then
+		echo "etcd_test binary not found"
+		exit 255
+	fi
+
+	mkdir -p "$COVERDIR"
+
+	# run code coverage for unit and integration tests
+	GOCOVFLAGS="-covermode=set -coverpkg $PKGS_COMMA -v -timeout 15m"
+	failed=""
+	for t in `echo "${TEST_PKGS}" | egrep -v "(e2e|functional-tester)"`; do
+		tf=`echo $t | tr / _`
+		# cache package compilation data for faster repeated builds
+		go test $GOCOVFLAGS -i ${REPO_PATH}/$t || true
+		# uses -run=Test to skip examples because clientv3/ example tests will leak goroutines
+		go test $GOCOVFLAGS -run=Test -coverprofile "$COVERDIR/${tf}.coverprofile"  ${REPO_PATH}/$t || failed="$failed $t"
+	done
+
+	# proxy tests
+	go test -tags cluster_proxy $GOCOVFLAGS -coverprofile "$COVERDIR/proxy_integration.coverprofile" ${REPO_PATH}/integration || failed="$failed proxy-integration"
+	go test -tags cluster_proxy $GOCOVFLAGS -coverprofile "$COVERDIR/proxy_clientv3.coverprofile" ${REPO_PATH}/clientv3/integration || failed="$failed proxy-clientv3/integration"
+
+	# run code coverage for e2e tests
+	# use 30m timeout because e2e coverage takes longer
+	# due to many tests cause etcd process to wait
+	# on leadership transfer timeout during gracefully shutdown
+	go test -tags cov -timeout 30m -v ${REPO_PATH}"/e2e" || failed="$failed e2e"
+
+	gocovmerge "$COVERDIR"/*.coverprofile >"$COVERDIR"/cover.out
+	# strip out generated files (using GNU-style sed)
+	sed --in-place '/generated.go/d' "$COVERDIR"/cover.out || true
+
+	# held failures to generate the full coverage file, now fail
+	if [ -n "$failed" ]; then
+		for f in $failed; do
+			echo FAIL $f
+		done
+		exit 255
+	fi
+}
+
+function e2e_pass {
+	echo "Running e2e tests..."
+	go test -timeout 15m -v -cpu 1,2,4 $@ ${REPO_PATH}/e2e
+}
+
+function integration_e2e_pass {
+	echo "Running integration and e2e tests..."
+
+	go test -timeout 15m -v -cpu 1,2,4 $@ ${REPO_PATH}/e2e &
+	e2epid="$!"
+	go test -timeout 15m -v -cpu 1,2,4 $@ ${REPO_PATH}/integration &
+	intpid="$!"
+	wait $e2epid
+	wait $intpid
+	go test -timeout 1m -v ${RACE} -cpu 1,2,4 $@ ${REPO_PATH}/client/integration
+	go test -timeout 10m -v ${RACE} -cpu 1,2,4 $@ ${REPO_PATH}/clientv3/integration
+	go test -timeout 1m -v -cpu 1,2,4 $@ ${REPO_PATH}/contrib/raftexample
+	go test -timeout 1m -v ${RACE} -cpu 1,2,4 -run=Example $@ ${TEST}
+}
+
+function grpcproxy_pass {
+	go test -timeout 15m -v ${RACE} -tags cluster_proxy -cpu 1,2,4 $@ ${REPO_PATH}/integration
+	go test -timeout 15m -v ${RACE} -tags cluster_proxy -cpu 1,2,4 $@ ${REPO_PATH}/clientv3/integration
+}
+
+function release_pass {
+	rm -f ./bin/etcd-last-release
+	# to grab latest patch release; bump this up for every minor release
+	UPGRADE_VER=$(git tag -l --sort=-version:refname "v3.2.*" | head -1)
+	if [ -n "$MANUAL_VER" ]; then
+		# in case, we need to test against different version
+		UPGRADE_VER=$MANUAL_VER
+	fi
+	if [[ -z ${UPGRADE_VER} ]]; then
+		UPGRADE_VER="v3.2.0"
+		echo "fallback to" ${UPGRADE_VER}
+	fi
+
+	local file="etcd-$UPGRADE_VER-linux-$GOARCH.tar.gz"
+	echo "Downloading $file"
+
+	set +e
+	curl --fail -L https://github.com/coreos/etcd/releases/download/$UPGRADE_VER/$file -o /tmp/$file
+	local result=$?
+	set -e
+	case $result in
+		0)	;;
+		*)	echo "FAIL with" ${result}
+			exit $result
+			;;
+	esac
+
+	tar xzvf /tmp/$file -C /tmp/ --strip-components=1
+	mkdir -p ./bin
+	mv /tmp/etcd ./bin/etcd-last-release
+}
+
+function fmt_pass {
+	toggle_failpoints disable
+
+	echo "Checking gofmt..."
+	fmtRes=$(gofmt -l -s -d $FMT)
+	if [ -n "${fmtRes}" ]; then
+		echo -e "gofmt checking failed:\n${fmtRes}"
+		exit 255
+	fi
+
+	echo "Checking govet..."
+	vetRes=$(go vet $TEST)
+	if [ -n "${vetRes}" ]; then
+		echo -e "govet checking failed:\n${vetRes}"
+		exit 255
+	fi
+
+	echo "Checking 'go tool vet -all -shadow'..."
+	fmtpkgs=$(echo $FMT | xargs dirname | sort | uniq | sed '/\./d')
+	vetRes=$(go tool vet -all -shadow ${fmtpkgs} 2>&1 | grep -v '/gw/' || true)
+	if [ -n "${vetRes}" ]; then
+		echo -e "govet -all -shadow checking failed:\n${vetRes}"
+		exit 255
+	fi
+
+	if which shellcheck >/dev/null; then
+		echo "Checking shellcheck..."
+		shellcheckResult=$(shellcheck -fgcc build test scripts/* 2>&1 || true)
+		if [ -n "${shellcheckResult}" ]; then
+			# mask the most common ones; fix later
+			SHELLCHECK_MASK="SC(2086|2006|2068|2196|2035|2162|2076)"
+			errs=$(echo "${shellcheckResult}" | egrep -v "${SHELLCHECK_MASK}" || true)
+			if [ -n "${errs}" ]; then
+				echo -e "shellcheck checking failed:\n${shellcheckResult}\n===\nFailed:\n${errs}"
+				exit 255
+			fi
+			suppressed=$(echo "${shellcheckResult}" | cut -f4- -d':' | sort | uniq -c | sort -n)
+			echo -e "shellcheck suppressed warnings:\n${suppressed}"
+		fi
+	fi
+
+	echo "Checking documentation style..."
+	# eschew you
+	yous=`find . -name \*.md -exec egrep --color "[Yy]ou[r]?[ '.,;]" {} + | grep -v /v2/ || true`
+	if [ ! -z "$yous" ]; then
+		echo -e "found 'you' in documentation:\n${yous}"
+		exit 255
+	fi
+
+	# TODO: check other markdown files when marker handles headers with '[]'
+	if which marker >/dev/null; then
+		echo "Checking marker to find broken links..."
+		markerResult=`marker --skip-http --root ./Documentation 2>&1 || true`
+		if [ -n "${markerResult}" ]; then
+			echo -e "marker checking failed:\n${markerResult}"
+			exit 255
+		fi
+	else
+		echo "Skipping marker..."
+	fi
+
+	if which goword >/dev/null; then
+		echo "Checking goword..."
+		# get all go files to process
+		gofiles=`find $FMT -iname '*.go' 2>/dev/null`
+		# ignore tests and protobuf files
+		gofiles=`echo ${gofiles} | sort | uniq | sed "s/ /\n/g" | egrep -v "(\\_test.go|\\.pb\\.go)"`
+		# only check for broken exported godocs
+		gowordRes=`goword -use-spell=false ${gofiles} | grep godoc-export | sort`
+		if [ ! -z "$gowordRes" ]; then
+			echo -e "goword checking failed:\n${gowordRes}"
+			exit 255
+		fi
+	else
+		echo "Skipping goword..."
+	fi
+
+	if which gosimple >/dev/null; then
+		echo "Checking gosimple..."
+		gosimpleResult=`gosimple ${STATIC_ANALYSIS_PATHS} 2>&1 || true`
+		if [ -n "${gosimpleResult}" ]; then
+			# TODO: resolve these after go1.8 migration
+			SIMPLE_CHECK_MASK="S(1024)"
+			if echo "${gosimpleResult}" | egrep -v "$SIMPLE_CHECK_MASK"; then
+				echo -e "gosimple checking failed:\n${gosimpleResult}"
+				exit 255
+			else
+				echo -e "gosimple warning:\n${gosimpleResult}"
+			fi
+		fi
+	else
+		echo "Skipping gosimple..."
+	fi
+
+	if which unused >/dev/null; then
+		echo "Checking unused..."
+		unusedResult=`unused ${STATIC_ANALYSIS_PATHS} 2>&1 || true`
+		if [ -n "${unusedResult}" ]; then
+			echo -e "unused checking failed:\n${unusedResult}"
+			exit 255
+		fi
+	else
+		echo "Skipping unused..."
+	fi
+
+	if which staticcheck >/dev/null; then
+		echo "Checking staticcheck..."
+		staticcheckResult=`staticcheck ${STATIC_ANALYSIS_PATHS} 2>&1 || true`
+		if [ -n "${staticcheckResult}" ]; then
+			# TODO: resolve these after go1.8 migration
+			# See https://github.com/dominikh/go-tools/tree/master/cmd/staticcheck
+			STATIC_CHECK_MASK="SA(1019|2002)"
+			if echo "${staticcheckResult}" | egrep -v "$STATIC_CHECK_MASK"; then
+				echo -e "staticcheck checking failed:\n${staticcheckResult}"
+				exit 255
+			else
+				suppressed=`echo "${staticcheckResult}" | sed 's/ /\n/g' | grep "(SA" | sort | uniq -c`
+				echo -e "staticcheck suppressed warnings:\n${suppressed}"
+			fi
+		fi
+	else
+		echo "Skipping staticcheck..."
+	fi
+
+	echo "Checking for license header..."
+	licRes=""
+	files=$(find . -type f -iname '*.go' ! -path './cmd/*' ! -path './gopath.proto/*')
+	for file in $files; do
+		if ! head -n3 "${file}" | grep -Eq "(Copyright|generated|GENERATED)" ; then
+			licRes="${licRes}"$(echo -e "  ${file}")
+		fi
+	done
+	if [ -n "${licRes}" ]; then
+		echo -e "license header checking failed:\n${licRes}"
+		exit 255
+	fi
+
+	echo "Checking commit titles..."
+	git log --oneline "$(git merge-base HEAD master)"...HEAD | while read l; do
+		commitMsg=`echo "$l" | cut -f2- -d' '`
+		if [[ "$commitMsg" == Merge* ]]; then
+			# ignore "Merge pull" commits
+			continue
+		fi
+		if [[ "$commitMsg" == Revert* ]]; then
+			# ignore revert commits
+			continue
+		fi
+
+		pkgPrefix=`echo "$commitMsg" | cut -f1 -d':'`
+		spaceCommas=`echo "$commitMsg" | sed 's/ /\n/g' | grep -c ',$' || echo 0`
+		commaSpaces=`echo "$commitMsg" | sed 's/,/\n/g' | grep -c '^ ' || echo 0`
+		if [[ `echo $commitMsg | grep -c ":..*"` == 0 || "$commitMsg" == "$pkgPrefix" || "$spaceCommas" != "$commaSpaces" ]]; then
+    			echo "$l"...
+			echo "Expected commit title format '<package>{\", \"<package>}: <description>'"
+			echo "Got: $l"
+			exit 255
+		fi
+	done
+}
+
+function bom_pass {
+	if ! which license-bill-of-materials >/dev/null; then
+		return
+	fi
+	echo "Checking bill of materials..."
+	license-bill-of-materials \
+		--override-file bill-of-materials.override.json \
+		github.com/coreos/etcd github.com/coreos/etcd/etcdctl >bom-now.json || true
+	if ! diff bill-of-materials.json bom-now.json; then
+		echo "vendored licenses do not match given bill of materials"
+		exit 255
+	fi
+	rm bom-now.json
+}
+
+function dep_pass {
+	echo "Checking package dependencies..."
+	# don't pull in etcdserver package
+	pushd clientv3 >/dev/null
+	badpkg="(etcdserver$|mvcc$|backend$|grpc-gateway)"
+	deps=`go list -f '{{ .Deps }}'  | sed 's/ /\n/g' | egrep "${badpkg}" || echo ""`
+	popd >/dev/null
+	if [ ! -z "$deps" ]; then
+		echo -e "clientv3 has masked dependencies:\n${deps}"
+		exit 255
+	fi
+}
+
+function build_cov_pass {
+	out="bin"
+	if [ -n "${BINDIR}" ]; then out="${BINDIR}"; fi
+	go test -tags cov -c -covermode=set -coverpkg=$PKGS_COMMA -o ${out}/etcd_test
+	go test -tags cov -c -covermode=set -coverpkg=$PKGS_COMMA -o ${out}/etcdctl_test ${REPO_PATH}/etcdctl
+}
+
+function compile_pass {
+	echo "Checking build..."
+	go build -v ./tools/...
+}
+
+# fail fast on static tests
+function build_pass {
+	GO_BUILD_FLAGS="-a -v" etcd_build
+}
+
+for pass in $PASSES; do
+	${pass}_pass $@
+done
+
+echo "Success"
