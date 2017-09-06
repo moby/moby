@@ -112,7 +112,7 @@ func TestFSMetadataGetSet(t *testing.T) {
 		actual, err := store.GetMetadata(tc.id, tc.key)
 		assert.NoError(t, err)
 
-		if bytes.Compare(actual, tc.value) != 0 {
+		if !bytes.Equal(actual, tc.value) {
 			t.Fatalf("Metadata expected %q, got %q", tc.value, actual)
 		}
 	}
@@ -183,7 +183,7 @@ func TestFSGetSet(t *testing.T) {
 	for _, tc := range tcases {
 		data, err := store.Get(tc.expected)
 		assert.NoError(t, err)
-		if bytes.Compare(data, tc.input) != 0 {
+		if !bytes.Equal(data, tc.input) {
 			t.Fatalf("expected data %q, got %q", tc.input, data)
 		}
 	}
