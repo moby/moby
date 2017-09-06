@@ -7,7 +7,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-// CreateOpt is is passed used to change the defualt plugin config before
+// CreateOpt is is passed used to change the default plugin config before
 // creating it
 type CreateOpt func(*Config)
 

@@ -58,7 +58,7 @@ func handle(workerImageDigest string, executor testChunkExecutor) error {
 				RawLog:  rawLog,
 			}
 		}
-		elapsed := time.Now().Sub(begin)
+		elapsed := time.Since(begin)
 		log.Printf("Finished chunk %d, code=%d, elapsed=%v", args.ChunkID, code, elapsed)
 		return types.Result{
 			ChunkID: args.ChunkID,

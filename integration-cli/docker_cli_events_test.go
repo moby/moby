@@ -36,7 +36,7 @@ func (s *DockerSuite) TestEventsTimestampFormats(c *check.C) {
 	// List of available time formats to --since
 	unixTs := func(t time.Time) string { return fmt.Sprintf("%v", t.Unix()) }
 	rfc3339 := func(t time.Time) string { return t.Format(time.RFC3339) }
-	duration := func(t time.Time) string { return time.Now().Sub(t).String() }
+	duration := func(t time.Time) string { return time.Since(t).String() }
 
 	// --since=$start must contain only the 'untag' event
 	for _, f := range []func(time.Time) string{unixTs, rfc3339, duration} {

@@ -12,7 +12,7 @@ import (
 )
 
 // DevmapperLogger defines methods required to register as a callback for
-// logging events recieved from devicemapper. Note that devicemapper will send
+// logging events received from devicemapper. Note that devicemapper will send
 // *all* logs regardless to callbacks (including debug logs) so it's
 // recommended to not spam the console with the outputs.
 type DevmapperLogger interface {

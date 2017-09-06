@@ -23,33 +23,33 @@
 //
 //   * lcow.sandboxsize - Specifies a custom sandbox size in GB for starting a container
 //        -- Possible values:      >= default sandbox size (opengcs defined, currently 20)
-//        -- Default if ommitted:  20
+//        -- Default if omitted:  20
 //
 // The following options are read by opengcs:
 //
 //   * lcow.kirdpath - Specifies a custom path to a kernel/initrd pair
 //        -- Possible values:      Any local path that is not a mapped drive
-//        -- Default if ommitted:  %ProgramFiles%\Linux Containers
+//        -- Default if omitted:  %ProgramFiles%\Linux Containers
 //
 //   * lcow.kernel - Specifies a custom kernel file located in the `lcow.kirdpath` path
 //        -- Possible values:      Any valid filename
-//        -- Default if ommitted:  bootx64.efi
+//        -- Default if omitted:  bootx64.efi
 //
 //   * lcow.initrd - Specifies a custom initrd file located in the `lcow.kirdpath` path
 //        -- Possible values:      Any valid filename
-//        -- Default if ommitted:  initrd.img
+//        -- Default if omitted:  initrd.img
 //
 //   * lcow.bootparameters - Specifies additional boot parameters for booting in kernel+initrd mode
 //        -- Possible values:      Any valid linux kernel boot options
-//        -- Default if ommitted:  <nil>
+//        -- Default if omitted:  <nil>
 //
 //   * lcow.vhdx - Specifies a custom vhdx file to boot (instead of a kernel+initrd)
 //        -- Possible values:      Any valid filename
-//        -- Default if ommitted:  uvm.vhdx under `lcow.kirdpath`
+//        -- Default if omitted:  uvm.vhdx under `lcow.kirdpath`
 //
 //   * lcow.timeout - Specifies a timeout for utility VM operations in seconds
 //        -- Possible values:      >=0
-//        -- Default if ommitted:  300
+//        -- Default if omitted:  300
 
 // TODO: Grab logs from SVM at terminate or errors
 
@@ -836,7 +836,7 @@ func (d *Driver) Diff(id, parent string) (io.ReadCloser, error) {
 	ci.Unlock()
 
 	// Start the SVM with a mapped virtual disk. Note that if the SVM is
-	// already runing and we are in global mode, this will be
+	// already running and we are in global mode, this will be
 	// hot-added.
 	mvd := &hcsshim.MappedVirtualDisk{
 		HostPath:          ci.hostPath,

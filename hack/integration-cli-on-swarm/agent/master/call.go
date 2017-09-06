@@ -73,14 +73,14 @@ func executeTests(funkerName string, testChunks [][]string) error {
 				}
 				log.Printf("Finished chunk %d [%d/%d] with %d test filters in %s, code=%d.",
 					chunkID, passed+failed, len(testChunks), len(tests),
-					time.Now().Sub(chunkBegin), result.Code)
+					time.Since(chunkBegin), result.Code)
 			}
 		}(chunkID, tests)
 	}
 	wg.Wait()
 	// TODO: print actual tests rather than chunks
 	log.Printf("Executed %d chunks in %s. PASS: %d, FAIL: %d.",
-		len(testChunks), time.Now().Sub(begin), passed, failed)
+		len(testChunks), time.Since(begin), passed, failed)
 	if failed > 0 {
 		return fmt.Errorf("%d chunks failed", failed)
 	}
@@ -103,7 +103,7 @@ func executeTestChunk(funkerName string, args types.Args) (types.Result, error) 
 
 func executeTestChunkWithRetry(funkerName string, args types.Args) (types.Result, error) {
 	begin := time.Now()
-	for i := 0; time.Now().Sub(begin) < funkerRetryTimeout; i++ {
+	for i := 0; time.Since(begin) < funkerRetryTimeout; i++ {
 		result, err := executeTestChunk(funkerName, args)
 		if err == nil {
 			log.Printf("executeTestChunk(%q, %d) returned code %d in trial %d", funkerName, args.ChunkID, result.Code, i)
