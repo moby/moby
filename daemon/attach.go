@@ -168,7 +168,7 @@ func (daemon *Daemon) containerAttach(c *container.Container, cfg *stream.Attach
 		// Wait for the container to stop before returning.
 		waitChan := c.Wait(context.Background(), container.WaitConditionNotRunning)
 		defer func() {
-			_ = <-waitChan // Ignore returned exit code.
+			<-waitChan // Ignore returned exit code.
 		}()
 	}
 
