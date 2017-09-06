@@ -824,7 +824,7 @@ func (s *DockerSuite) TestRunEnvironment(c *check.C) {
 	})
 	result.Assert(c, icmd.Success)
 
-	actualEnv := strings.Split(strings.TrimSpace(result.Combined()), "\n")
+	actualEnv := strings.Split(strings.TrimSuffix(result.Stdout(), "\n"), "\n")
 	sort.Strings(actualEnv)
 
 	goodEnv := []string{
