@@ -55,7 +55,8 @@ type endpointOption struct {
 	DisableICC  bool
 }
 
-type endpointConnectivity struct {
+// EndpointConnectivity stores the port bindings and exposed ports that the user has specified in epOptions.
+type EndpointConnectivity struct {
 	PortBindings []types.PortBinding
 	ExposedPorts []types.TransportPort
 }
@@ -67,7 +68,7 @@ type hnsEndpoint struct {
 	Type           string
 	macAddress     net.HardwareAddr
 	epOption       *endpointOption       // User specified parameters
-	epConnectivity *endpointConnectivity // User specified parameters
+	epConnectivity *EndpointConnectivity // User specified parameters
 	portMapping    []types.PortBinding   // Operation port bindings
 	addr           *net.IPNet
 	gateway        net.IP
@@ -95,7 +96,7 @@ const (
 	errNotFound = "HNS failed with error : The object identifier does not represent a valid object. "
 )
 
-// IsBuiltinWindowsDriver vaidates if network-type is a builtin local-scoped driver
+// IsBuiltinLocalDriver validates if network-type is a builtin local-scoped driver
 func IsBuiltinLocalDriver(networkType string) bool {
 	if "l2bridge" == networkType || "l2tunnel" == networkType || "nat" == networkType || "ics" == networkType || "transparent" == networkType {
 		return true
@@ -396,7 +397,8 @@ func convertQosPolicies(qosPolicies []types.QosPolicy) ([]json.RawMessage, error
 	return qps, nil
 }
 
-func convertPortBindings(portBindings []types.PortBinding) ([]json.RawMessage, error) {
+// ConvertPortBindings converts PortBindings to JSON for HNS request
+func ConvertPortBindings(portBindings []types.PortBinding) ([]json.RawMessage, error) {
 	var pbs []json.RawMessage
 
 	// Enumerate through the port bindings specified by the user and convert
@@ -431,7 +433,8 @@ func convertPortBindings(portBindings []types.PortBinding) ([]json.RawMessage, e
 	return pbs, nil
 }
 
-func parsePortBindingPolicies(policies []json.RawMessage) ([]types.PortBinding, error) {
+// ParsePortBindingPolicies parses HNS endpoint response message to PortBindings
+func ParsePortBindingPolicies(policies []json.RawMessage) ([]types.PortBinding, error) {
 	var bindings []types.PortBinding
 	hcsPolicy := &hcsshim.NatPolicy{}
 
@@ -505,12 +508,13 @@ func parseEndpointOptions(epOptions map[string]interface{}) (*endpointOption, er
 	return ec, nil
 }
 
-func parseEndpointConnectivity(epOptions map[string]interface{}) (*endpointConnectivity, error) {
+// ParseEndpointConnectivity parses options passed to CreateEndpoint, specifically port bindings, and store in a endpointConnectivity object.
+func ParseEndpointConnectivity(epOptions map[string]interface{}) (*EndpointConnectivity, error) {
 	if epOptions == nil {
 		return nil, nil
 	}
 
-	ec := &endpointConnectivity{}
+	ec := &EndpointConnectivity{}
 
 	if opt, ok := epOptions[netlabel.PortMap]; ok {
 		if bs, ok := opt.([]types.PortBinding); ok {
@@ -550,7 +554,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	if err != nil {
 		return err
 	}
-	epConnectivity, err := parseEndpointConnectivity(epOptions)
+	epConnectivity, err := ParseEndpointConnectivity(epOptions)
 	if err != nil {
 		return err
 	}
@@ -561,7 +565,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 		endpointStruct.MacAddress = strings.Replace(macAddress.String(), ":", "-", -1)
 	}
 
-	endpointStruct.Policies, err = convertPortBindings(epConnectivity.PortBindings)
+	endpointStruct.Policies, err = ConvertPortBindings(epConnectivity.PortBindings)
 	if err != nil {
 		return err
 	}
@@ -615,7 +619,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	endpoint.profileID = hnsresponse.Id
 	endpoint.epConnectivity = epConnectivity
 	endpoint.epOption = epOption
-	endpoint.portMapping, err = parsePortBindingPolicies(hnsresponse.Policies)
+	endpoint.portMapping, err = ParsePortBindingPolicies(hnsresponse.Policies)
 
 	if err != nil {
 		hcsshim.HNSEndpointRequest("DELETE", hnsresponse.Id, "")

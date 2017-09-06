@@ -39,6 +39,11 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 	if err := jinfo.AddTableEntry(ovPeerTable, eid, buf); err != nil {
 		logrus.Errorf("overlay: Failed adding table entry to joininfo: %v", err)
 	}
+
+	if ep.disablegateway {
+		jinfo.DisableGatewayService()
+	}
+
 	return nil
 }
 

@@ -33,7 +33,7 @@ func (d *driver) peerAdd(nid, eid string, peerIP net.IP, peerIPMask net.IPMask,
 
 		hnsEndpoint := &hcsshim.HNSEndpoint{
 			Name:             eid,
-			VirtualNetwork:   n.hnsId,
+			VirtualNetwork:   n.hnsID,
 			MacAddress:       peerMac.String(),
 			IPAddress:        peerIP,
 			IsRemoteEndpoint: true,
@@ -78,7 +78,7 @@ func (d *driver) peerAdd(nid, eid string, peerIP net.IP, peerIPMask net.IPMask,
 			nid:       nid,
 			addr:      addr,
 			mac:       peerMac,
-			profileId: hnsresponse.Id,
+			profileID: hnsresponse.Id,
 			remote:    true,
 		}
 
@@ -108,7 +108,7 @@ func (d *driver) peerDelete(nid, eid string, peerIP net.IP, peerIPMask net.IPMas
 	}
 
 	if updateDb {
-		_, err := hcsshim.HNSEndpointRequest("DELETE", ep.profileId, "")
+		_, err := hcsshim.HNSEndpointRequest("DELETE", ep.profileID, "")
 		if err != nil {
 			return err
 		}

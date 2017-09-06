@@ -579,7 +579,7 @@ func (a *Allocator) DumpDatabase() string {
 		s = fmt.Sprintf("\n\n%s Config", as)
 		aSpace.Lock()
 		for k, config := range aSpace.subnets {
-			s = fmt.Sprintf("%s%s", s, fmt.Sprintf("\n%v: %v", k, config))
+			s += fmt.Sprintf("\n%v: %v", k, config)
 			if config.Range == nil {
 				a.retrieveBitmask(k, config.Pool)
 			}
@@ -589,7 +589,7 @@ func (a *Allocator) DumpDatabase() string {
 
 	s = fmt.Sprintf("%s\n\nBitmasks", s)
 	for k, bm := range a.addresses {
-		s = fmt.Sprintf("%s%s", s, fmt.Sprintf("\n%s: %s", k, bm))
+		s += fmt.Sprintf("\n%s: %s", k, bm)
 	}
 
 	return s
