@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -97,6 +98,59 @@ func (s *DockerSuite) TestAPIImagesDelete(c *check.C) {
 
 	_, err = cli.ImageRemove(context.Background(), "test:tag1", types.ImageRemoveOptions{})
 	c.Assert(err, checker.IsNil)
+}
+
+func (s *DockerSuite) TestAPIImagesDeleteForceWithRunningContainersAndMultipleTags(c *check.C) {
+	cli, err := client.NewEnvClient()
+	c.Assert(err, checker.IsNil)
+
+	defer cli.Close()
+	if testEnv.DaemonPlatform() != "windows" {
+		testRequires(c, Network)
+	}
+
+	dockerfile := "FROM busybox\nRUN echo test 14116\n"
+	buildImageSuccessfully(c, "test-14116", build.WithDockerfile(dockerfile))
+	imgID := getIDByName(c, "test-14116")
+
+	newTag := "newtag"
+	dockerCmd(c, "tag", imgID, newTag)
+	runSleepingContainerInImage(c, imgID)
+
+	_, err = cli.ImageRemove(context.Background(), imgID, types.ImageRemoveOptions{Force: true})
+	c.Assert(err.Error(), checker.Contains, "(cannot be forced) - image is being used by running container")
+}
+
+func (s *DockerSuite) TestAPIImagesDeleteWithContainerImageNotFound(c *check.C) {
+	cli, err := client.NewEnvClient()
+	c.Assert(err, checker.IsNil)
+
+	defer cli.Close()
+	if testEnv.DaemonPlatform() != "windows" {
+		testRequires(c, Network)
+	}
+
+	// Build 2 images for testing.
+	imageNames := []string{"test1", "test2"}
+	imageIds := make([]string, 2)
+	for i, name := range imageNames {
+		dockerfile := fmt.Sprintf("FROM busybox\nMAINTAINER %s\nRUN echo %s\n", name, name)
+		buildImageSuccessfully(c, name, build.WithoutCache, build.WithDockerfile(dockerfile))
+		id := getIDByName(c, name)
+		imageIds[i] = id
+	}
+
+	// Create a long-running container.
+	runSleepingContainerInImage(c, imageNames[0])
+
+	// Create a stopped container, and then force remove its image.
+	dockerCmd(c, "run", imageNames[1], "true")
+	cli.ImageRemove(context.Background(), imageIds[1], types.ImageRemoveOptions{Force: true})
+
+	// Try to remove the image of the running container and see if it fails as expected.
+	_, err = cli.ImageRemove(context.Background(), imageIds[0], types.ImageRemoveOptions{Force: true})
+	// The image of the running container should not be removed.
+	c.Assert(err.Error(), checker.Contains, "image is being used by running container")
 }
 
 func (s *DockerSuite) TestAPIImagesHistory(c *check.C) {
