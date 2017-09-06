@@ -1,0 +1,71 @@
+machine:
+    environment:
+        OS: "linux"
+        ARCH: "amd64"
+
+        PROTOC: "https://github.com/google/protobuf/releases/download/v3.2.0/protoc-3.2.0-linux-x86_64.zip"
+
+        GOVERSION: "1.8.3"
+        GOPATH: "$HOME/.go_workspace"
+
+        WORKDIR:  "$GOPATH/src/github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME"
+
+# Disable default dependency management.
+# This prevents go dependencies to be automatically installed in order to
+# ensure we are exclusively relying on vendored deps.
+#
+# https://discuss.circleci.com/t/overriding-go-inference-in-the-dependencies-phase/660
+# https://robots.thoughtbot.com/configure-circleci-for-go
+dependencies:
+    pre:
+        # Wipe out the default go install.
+        - sudo rm -rf /usr/local/go
+
+        # Force the wipe out of GOPATH to make sure we're not relying on
+        # external dependencies.
+        - rm -rf "$GOPATH"
+
+    override:
+        # Install Go
+        - wget "https://storage.googleapis.com/golang/go$GOVERSION.$OS-$ARCH.tar.gz"
+        - sudo tar -C /usr/local -xzf "go$GOVERSION.$OS-$ARCH.tar.gz"
+
+        # Install protoc
+        - wget "$PROTOC"
+        - unzip -o "$(basename $PROTOC)" -d "$HOME"
+        - sudo cp -R "$HOME/include/google" /usr/local/include
+        - sudo chmod 777 -R /usr/local/include/google
+
+        # Setup the GOPATH
+        - mkdir -p "$(dirname $WORKDIR)"
+        - cp -R "$HOME/$CIRCLE_PROJECT_REPONAME" "$WORKDIR"
+
+        # Install dependencies
+        - cd "$WORKDIR" && make setup
+
+    post:
+        # Display debugging information in CI logs
+        - go version
+        - env
+
+test:
+    pre:
+        # Ensure validation of dependencies
+        - cd "$WORKDIR" && git fetch origin
+        - cd "$WORKDIR" && if test -n "`git diff --stat=1000 origin/master | grep -E \"^[[:space:]]*vendor\"`"; then make dep-validate; fi
+
+    override:
+        # Run all tests in a single pass to ensure we don't move to the next
+        # step in case of failure.
+        # - `all`: Format, build and tests.
+        # - `checkprotos`: Build and check the proto files *only* once all
+        #                  tests pass with checked-in generated code.
+        # - `coverage`: Generate coverage reports.
+        - sudo mkdir /tmpfs
+        - sudo mount -t tmpfs tmpfs /tmpfs
+        - sudo chown 1000:1000 /tmpfs
+        - cd "$WORKDIR" && TMPDIR=/tmpfs make ci
+
+    post:
+        # Report to codecov.io
+        - cd "$WORKDIR" && bash <(curl -s https://codecov.io/bash)

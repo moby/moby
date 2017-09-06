@@ -1,0 +1,10 @@
+dist: trusty
+sudo: required
+
+install:
+  - sudo apt-get -qq remove docker-engine
+# requires Docker >= 17.05 for multistage Dockerfile
+  - curl -fsSL https://get.docker.com/ | sh
+
+script:
+  - make binaries validate-all

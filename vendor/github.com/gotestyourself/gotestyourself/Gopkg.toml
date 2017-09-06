@@ -1,0 +1,16 @@
+
+[[constraint]]
+  name = "github.com/pkg/errors"
+  version = "0.8.0"
+
+[[constraint]]
+  name = "github.com/stretchr/testify"
+  version = "1.1.4"
+
+[[constraint]]
+  name = "github.com/pmezard/go-difflib"
+  version = "1.0.0"
+
+[[constraint]]
+  name = "github.com/spf13/pflag"
+  version = "1.0.0"

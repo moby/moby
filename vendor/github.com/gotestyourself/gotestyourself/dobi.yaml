@@ -1,0 +1,55 @@
+meta:
+  project: gotestyourself
+
+mount=source:
+  bind: .
+  path: /go/src/github.com/gotestyourself/gotestyourself
+
+mount=depsources:
+ bind: ./.depsources
+ path: /go/pkg/dep/sources
+
+image=builder:
+  image: gotestyourself-dev
+  context: dobifiles/
+  dockerfile: Dockerfile
+
+image=linter:
+  image: gotestyourself-lint
+  context: dobifiles/
+  dockerfile: Dockerfile.lint
+
+job=shell:
+  use: builder
+  mounts: [source, depsources]
+  interactive: true
+  command: sh
+
+job=watch:
+  use: builder
+  mounts: [source]
+  interactive: true
+  command: scripts/watch
+
+job=test-unit:
+  use: builder
+  mounts: [source]
+  interactive: true
+  command: scripts/test-unit
+
+job=deps:
+  use: builder
+  mounts: [source, depsources]
+  command: dep ensure
+
+job=lint:
+  use: linter
+  mounts: [source]
+
+job=binary-testsum:
+  use: builder
+  mounts: [source]
+  command: scripts/binary-testsum
+
+alias=test:
+  tasks: [test-unit]

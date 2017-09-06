@@ -1,0 +1,131 @@
+sudo: false
+
+language: cpp
+
+env:
+  global:
+    - INSTALL_DIR=${TRAVIS_BUILD_DIR}/../install
+    - PROTOC="${INSTALL_DIR}/bin/protoc"
+    - GOPATH=${INSTALL_DIR}/go
+    - MAKE=make
+
+addons:
+  apt:
+    sources: &common_sources
+      - ubuntu-toolchain-r-test
+      - kalakris-cmake
+    packages: &common_packages
+      - autoconf
+      - automake
+      - build-essential
+      - python-dev
+      - libstdc++-4.9-dev
+      - tcl8.5
+      - cmake
+
+matrix:
+  include:
+    - compiler: clang
+      os: osx
+      env: SSL=openssl
+    - compiler: clang
+      os: linux
+      env: SSL=boringssl LLVM=3.6.2
+      addons:
+        apt:
+          sources: *common_sources
+          packages:
+          - *common_packages
+    - compiler: clang
+      os: linux
+      env: SSL=openssl LLVM=3.6.2
+      addons:
+        apt:
+          sources: *common_sources
+          packages:
+          - *common_packages
+    - compiler: clang
+      os: linux
+      env: SSL=openssl LLVM=3.6.2 SANITIZE="-fsanitize=address -fno-omit-frame-pointer" ASAN_OPTIONS="detect_leaks=1:check_initialization_order=1" LSAN_OPTIONS="suppressions=${HOME}/lsan.supp"
+      addons:
+        apt:
+          sources: *common_sources
+          packages:
+          - *common_packages
+  exclude:
+    - compiler: gcc
+      os: linux
+      env: REAL_CC=gcc-4.9 REAL_CXX=g++-4.9
+      addons:
+        apt:
+          sources: *common_sources
+          packages:
+          - *common_packages
+          - g++-4.9
+
+cache:
+  apt: true
+  pip: true
+  directories:
+    - $HOME/.cache/pip
+    - $HOME/.ccache
+    - $TRAVIS_BUILD_DIR/../ct
+    - $TRAVIS_BUILD_DIR/../depot_tools
+    - $TRAVIS_BUILD_DIR/../install
+
+
+before_install:
+ - eval "$(gimme 1.6)"
+# Set compiler version overrides if we have any:
+ - if [ "${REAL_CC}" != "" ]; then export CC=${REAL_CC} CXX=${REAL_CXX}; fi
+ - if [ "$TRAVIS_OS_NAME" == "osx" ]; then . ./build/travis.osx.before_install.sh; fi
+# Set up sanitizer blacklists:
+ - echo "leak:InitModule" > ${HOME}/lsan.supp
+ - echo "leak:SetExitLoopHandler" >> ${HOME}/lsan.supp
+ - echo "leak:masterelection_test" >> ${HOME}/lsan.supp
+ - if [ "${CLEAR_CACHE}" != "" ]; then echo "Clearing cache"; rm -fr ${TRAVIS_BUILD_DIR}/../ct ${TRAVIS_BUILD_DIR}/../install ${HOME}/.ccache; fi
+ - mkdir -p ${INSTALL_DIR}/include ${INSTALL_DIR}/lib ${INSTALL_DIR}/java
+ - echo "INSTALL_DIR=${INSTALL_DIR}"
+ - mkdir -p $GOPATH/src/github.com/google
+ - ln -sf $PWD $GOPATH/src/github.com/google
+ - echo "jars.protobuf = ${INSTALL_DIR}/java/protobuf.jar" > local.properties
+ - echo "protoc.bin = ${PROTOC}" >> local.properties
+
+install:
+# Workaround LLVM's apt mirror being feeble and underpowered
+ - |
+   if [ "$LLVM" != "" ]; then
+     CLANG_URL="http://llvm.org/releases/${LLVM}/clang+llvm-${LLVM}-x86_64-linux-gnu-ubuntu-14.04.tar.xz"
+     mkdir /tmp/clang && travis_retry wget --quiet -O - ${CLANG_URL} | tar --strip-components=1 -xJ -C /tmp/clang
+     export PATH="/tmp/clang/bin:${PATH}"
+    fi
+ - autoconf --version
+ - pushd ..
+ - mkdir -p ct
+ - wget http://central.maven.org/maven2/com/google/protobuf/protobuf-java/2.6.0/protobuf-java-2.6.0.jar -O ${INSTALL_DIR}/java/protobuf.jar
+ - if [ ! -e depot_tools/gclient ]; then git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git; fi
+ - export PATH="$PATH:/usr/local/bin:"`pwd`/depot_tools
+ - cd ct
+ - ln -s ../certificate-transparency certificate-transparency
+ - |-
+   gclient config --spec "solutions=[{\"name\": \"certificate-transparency\", \"url\": \"https://github.com/google/certificate-transparency.git\", \"deps_file\": \"DEPS\", \"managed\": False, \"custom_deps\": {}, \"safesync_url\": \"\", \"custom_vars\": { \"ssl_impl\": \"${SSL}\" } },]"
+ - gclient sync
+ - popd
+ - export PYTHONPATH=$(python -m site --user-site)
+ - pip install --user --upgrade -r python/requirements.txt
+# Sigh, go get -t will fetch part of this package, but doesn't catch the transitive deps so grab it manually:
+ - pushd go
+ - go get github.com/stretchr/testify
+ - go get -v -d -t ./...
+ - popd
+
+script:
+ - getconf _NPROCESSORS_ONLN
+ - ${MAKE} -j$(getconf _NPROCESSORS_ONLN) check VERBOSE=1 V=${ENV_VERBOSE}
+ - ant build test
+ - ${MAKE} -C python test
+ - pushd ${GOPATH}
+ - |
+   CGO_CPPFLAGS="-I${INSTALL_DIR}/include" CGO_LDFLAGS="-L${INSTALL_DIR}/lib" go test -v ./src/github.com/google/certificate-transparency/go/...
+ - popd
+

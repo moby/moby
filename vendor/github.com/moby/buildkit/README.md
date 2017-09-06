@@ -5,6 +5,12 @@
 
 ## BuildKit
 
+<!-- godoc is mainly for LLB stuff -->
+[![GoDoc](https://godoc.org/github.com/moby/buildkit?status.svg)](https://godoc.org/github.com/moby/buildkit/client/llb)
+[![Build Status](https://travis-ci.org/moby/buildkit.svg?branch=master)](https://travis-ci.org/moby/buildkit)
+[![Go Report Card](https://goreportcard.com/badge/github.com/moby/buildkit)](https://goreportcard.com/report/github.com/moby/buildkit)
+
+
 BuildKit is a toolkit for converting source code to build artifacts in an efficient, expressive and repeatable manner.
 
 Key features:
@@ -59,10 +65,11 @@ Different versions of the example scripts show different ways of describing the 
 - `./examples/buildkit0` - uses only exec operations, defines a full stage per component.
 - `./examples/buildkit1` - cloning git repositories has been separated for extra concurrency.
 - `./examples/buildkit2` - uses git sources directly instead of running `git clone`, allowing better performance and much safer caching.
+- `./examples/buildkit3` - allows using local source files for separate components eg. `./buildkit3 --runc=local | buildctl build --local runc-src=some/local/path`  
 
 #### Supported runc version
 
-During development buildkit is tested with the version of runc that is being used by the containerd repository. Please refer to [runc.md](https://github.com/containerd/containerd/blob/3707703a694187c7d08e2f333da6ddd58bcb729d/RUNC.md) for more information.
+During development buildkit is tested with the version of runc that is being used by the containerd repository. Please refer to [runc.md](https://github.com/containerd/containerd/blob/8095244c26fa2daaef850be862e5b1b56d7cec66/RUNC.md) for more information.
 
 
 #### Contributing
