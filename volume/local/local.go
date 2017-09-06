@@ -13,7 +13,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/docker/docker/api"
+	"github.com/docker/docker/daemon/names"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/volume"
@@ -35,7 +35,7 @@ var (
 	// volumeNameRegex ensures the name assigned for the volume is valid.
 	// This name is used to create the bind directory, so we need to avoid characters that
 	// would make the path to escape the root directory.
-	volumeNameRegex = api.RestrictedNamePattern
+	volumeNameRegex = names.RestrictedNamePattern
 )
 
 type activeMount struct {
@@ -298,7 +298,7 @@ func (r *Root) validateName(name string) error {
 		return validationError("volume name is too short, names should be at least two alphanumeric characters")
 	}
 	if !volumeNameRegex.MatchString(name) {
-		return validationError(fmt.Sprintf("%q includes invalid characters for a local volume name, only %q are allowed. If you intended to pass a host directory, use absolute path", name, api.RestrictedNameChars))
+		return validationError(fmt.Sprintf("%q includes invalid characters for a local volume name, only %q are allowed. If you intended to pass a host directory, use absolute path", name, names.RestrictedNameChars))
 	}
 	return nil
 }

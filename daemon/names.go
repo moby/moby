@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/docker/api"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/names"
 	"github.com/docker/docker/pkg/namesgenerator"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
@@ -13,8 +13,8 @@ import (
 )
 
 var (
-	validContainerNameChars   = api.RestrictedNameChars
-	validContainerNamePattern = api.RestrictedNamePattern
+	validContainerNameChars   = names.RestrictedNameChars
+	validContainerNamePattern = names.RestrictedNamePattern
 )
 
 func (daemon *Daemon) registerName(container *container.Container) error {

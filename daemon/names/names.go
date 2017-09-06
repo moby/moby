@@ -1,4 +1,4 @@
-package api
+package names
 
 import "regexp"
 
