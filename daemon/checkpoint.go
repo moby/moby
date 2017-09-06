@@ -7,13 +7,13 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/daemon/names"
 )
 
 var (
-	validCheckpointNameChars   = api.RestrictedNameChars
-	validCheckpointNamePattern = api.RestrictedNamePattern
+	validCheckpointNameChars   = names.RestrictedNameChars
+	validCheckpointNamePattern = names.RestrictedNamePattern
 )
 
 // getCheckpointDir verifies checkpoint directory for create,remove, list options and checks if checkpoint already exists
