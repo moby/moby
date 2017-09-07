@@ -58,11 +58,13 @@ func (p *peerEntryDB) UnMarshalDB() peerEntry {
 }
 
 type peerMap struct {
+	// set of peerEntry, note they have to be objects and not pointers to maintain the proper equality checks
 	mp common.SetMatrix
 	sync.Mutex
 }
 
 type peerNetworkMap struct {
+	// map with key peerKey
 	mp map[string]*peerMap
 	sync.Mutex
 }
@@ -253,6 +255,7 @@ const (
 	peerOperationINIT peerOperationType = iota
 	peerOperationADD
 	peerOperationDELETE
+	peerOperationFLUSH
 )
 
 type peerOperation struct {
@@ -283,6 +286,8 @@ func (d *driver) peerOpRoutine(ctx context.Context, ch chan *peerOperation) {
 				err = d.peerAddOp(op.networkID, op.endpointID, op.peerIP, op.peerIPMask, op.peerMac, op.vtepIP, op.l2Miss, op.l3Miss, true, op.localPeer)
 			case peerOperationDELETE:
 				err = d.peerDeleteOp(op.networkID, op.endpointID, op.peerIP, op.peerIPMask, op.peerMac, op.vtepIP, op.localPeer)
+			case peerOperationFLUSH:
+				err = d.peerFlushOp(op.networkID)
 			}
 			if err != nil {
 				logrus.Warnf("Peer operation failed:%s op:%v", err, op)
@@ -315,7 +320,6 @@ func (d *driver) peerInitOp(nid string) error {
 
 func (d *driver) peerAdd(nid, eid string, peerIP net.IP, peerIPMask net.IPMask,
 	peerMac net.HardwareAddr, vtep net.IP, l2Miss, l3Miss, localPeer bool) {
-	callerName := common.CallerName(1)
 	d.peerOpCh <- &peerOperation{
 		opType:     peerOperationADD,
 		networkID:  nid,
@@ -327,7 +331,7 @@ func (d *driver) peerAdd(nid, eid string, peerIP net.IP, peerIPMask net.IPMask,
 		l2Miss:     l2Miss,
 		l3Miss:     l3Miss,
 		localPeer:  localPeer,
-		callerName: callerName,
+		callerName: common.CallerName(1),
 	}
 }
 
@@ -410,7 +414,6 @@ func (d *driver) peerAddOp(nid, eid string, peerIP net.IP, peerIPMask net.IPMask
 
 func (d *driver) peerDelete(nid, eid string, peerIP net.IP, peerIPMask net.IPMask,
 	peerMac net.HardwareAddr, vtep net.IP, localPeer bool) {
-	callerName := common.CallerName(1)
 	d.peerOpCh <- &peerOperation{
 		opType:     peerOperationDELETE,
 		networkID:  nid,
@@ -419,7 +422,7 @@ func (d *driver) peerDelete(nid, eid string, peerIP net.IP, peerIPMask net.IPMas
 		peerIPMask: peerIPMask,
 		peerMac:    peerMac,
 		vtepIP:     vtep,
-		callerName: callerName,
+		callerName: common.CallerName(1),
 		localPeer:  localPeer,
 	}
 }
@@ -447,7 +450,7 @@ func (d *driver) peerDeleteOp(nid, eid string, peerIP net.IP, peerIPMask net.IPM
 		return nil
 	}
 
-	if err := d.checkEncryption(nid, vtep, 0, false, false); err != nil {
+	if err := d.checkEncryption(nid, vtep, 0, localPeer, false); err != nil {
 		logrus.Warn(err)
 	}
 
@@ -479,6 +482,25 @@ func (d *driver) peerDeleteOp(nid, eid string, peerIP net.IP, peerIPMask net.IPM
 		return err
 	}
 	return d.peerAddOp(nid, peerEntry.eid, peerIP, peerEntry.peerIPMask, peerKey.peerMac, peerEntry.vtep, false, false, false, peerEntry.isLocal)
+}
+
+func (d *driver) peerFlush(nid string) {
+	d.peerOpCh <- &peerOperation{
+		opType:     peerOperationFLUSH,
+		networkID:  nid,
+		callerName: common.CallerName(1),
+	}
+}
+
+func (d *driver) peerFlushOp(nid string) error {
+	d.peerDb.Lock()
+	defer d.peerDb.Unlock()
+	_, ok := d.peerDb.mp[nid]
+	if !ok {
+		return fmt.Errorf("Unable to find the peerDB for nid:%s", nid)
+	}
+	delete(d.peerDb.mp, nid)
+	return nil
 }
 
 func (d *driver) pushLocalDb() {

@@ -188,7 +188,7 @@ func (n *networkNamespace) AddNeighbor(dstIP net.IP, dstMac net.HardwareAddr, fo
 	n.Lock()
 	n.neighbors = append(n.neighbors, nh)
 	n.Unlock()
-	logrus.Debugf("Neighbor entry added for IP %v, mac %v", dstIP, dstMac)
+	logrus.Debugf("Neighbor entry added for IP %v, mac %v on ifc:%s", dstIP, dstMac, nh.linkName)
 
 	return nil
 }

@@ -251,8 +251,9 @@ func (d *driver) DeleteNetwork(nid string) error {
 		if err := d.deleteEndpointFromStore(ep); err != nil {
 			logrus.Warnf("Failed to delete overlay endpoint %s from local store: %v", ep.id[0:7], err)
 		}
-
 	}
+	// flush the peerDB entries
+	d.peerFlush(nid)
 	d.deleteNetwork(nid)
 
 	vnis, err := n.releaseVxlanID()
@@ -505,11 +506,7 @@ func (n *network) restoreSubnetSandbox(s *subnet, brName, vxlanName string) erro
 	vxlanIfaceOption := make([]osl.IfaceOption, 1)
 	vxlanIfaceOption = append(vxlanIfaceOption, sbox.InterfaceOptions().Master(brName))
 	Ifaces[vxlanName+"+vxlan"] = vxlanIfaceOption
-	err = sbox.Restore(Ifaces, nil, nil, nil)
-	if err != nil {
-		return err
-	}
-	return nil
+	return sbox.Restore(Ifaces, nil, nil, nil)
 }
 
 func (n *network) setupSubnetSandbox(s *subnet, brName, vxlanName string) error {
@@ -764,8 +761,8 @@ func (n *network) watchMiss(nlSock *nl.NetlinkSocket) {
 				continue
 			}
 
-			logrus.Debugf("miss notification: dest IP %v, dest MAC %v", ip, mac)
 			if n.driver.isSerfAlive() {
+				logrus.Debugf("miss notification: dest IP %v, dest MAC %v", ip, mac)
 				mac, IPmask, vtep, err := n.driver.resolvePeer(n.id, ip)
 				if err != nil {
 					logrus.Errorf("could not resolve peer %q: %v", ip, err)
@@ -1061,15 +1058,6 @@ func (n *network) contains(ip net.IP) bool {
 	}
 
 	return false
-}
-
-func (n *network) getSubnetforIPAddr(ip net.IP) *subnet {
-	for _, s := range n.subnets {
-		if s.subnetIP.Contains(ip) {
-			return s
-		}
-	}
-	return nil
 }
 
 // getSubnetforIP returns the subnet to which the given IP belongs
