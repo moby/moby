@@ -3,6 +3,9 @@ package filters
 import (
 	"errors"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseArgs(t *testing.T) {
@@ -16,23 +19,18 @@ func TestParseArgs(t *testing.T) {
 		args = NewArgs()
 		err  error
 	)
+
 	for i := range flagArgs {
 		args, err = ParseFlag(flagArgs[i], args)
-		if err != nil {
-			t.Errorf("failed to parse %s: %s", flagArgs[i], err)
-		}
+		require.NoError(t, err)
 	}
-	if len(args.Get("created")) != 1 {
-		t.Error("failed to set this arg")
-	}
-	if len(args.Get("image.name")) != 2 {
-		t.Error("the args should have collapsed")
-	}
+	assert.Len(t, args.Get("created"), 1)
+	assert.Len(t, args.Get("image.name"), 2)
 }
 
 func TestParseArgsEdgeCase(t *testing.T) {
-	var filters Args
-	args, err := ParseFlag("", filters)
+	var args Args
+	args, err := ParseFlag("", args)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -233,9 +231,8 @@ func TestArgsMatch(t *testing.T) {
 	}
 
 	for args, field := range matches {
-		if args.Match(field, source) != true {
-			t.Fatalf("Expected true for %v on %v, got false", source, args)
-		}
+		assert.True(t, args.Match(field, source),
+			"Expected field %s to match %s", field, source)
 	}
 
 	differs := map[*Args]string{
@@ -258,9 +255,8 @@ func TestArgsMatch(t *testing.T) {
 	}
 
 	for args, field := range differs {
-		if args.Match(field, source) != false {
-			t.Fatalf("Expected false for %v on %v, got true", source, args)
-		}
+		assert.False(t, args.Match(field, source),
+			"Expected field %s to not match %s", field, source)
 	}
 }
 
