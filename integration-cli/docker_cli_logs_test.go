@@ -280,6 +280,7 @@ func (s *DockerSuite) TestLogsFollowGoroutinesWithStdout(c *check.C) {
 	r, w := io.Pipe()
 	cmd.Stdout = w
 	c.Assert(cmd.Start(), checker.IsNil)
+	go cmd.Wait()
 
 	// Make sure pipe is written to
 	chErr := make(chan error)
@@ -305,6 +306,7 @@ func (s *DockerSuite) TestLogsFollowGoroutinesNoOutput(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	cmd := exec.Command(dockerBinary, "logs", "-f", id)
 	c.Assert(cmd.Start(), checker.IsNil)
+	go cmd.Wait()
 	time.Sleep(200 * time.Millisecond)
 	c.Assert(cmd.Process.Kill(), checker.IsNil)
 	cmd.Wait()

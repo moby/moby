@@ -49,6 +49,7 @@ import (
 func (s *DockerDaemonSuite) TestLegacyDaemonCommand(c *check.C) {
 	cmd := exec.Command(dockerBinary, "daemon", "--storage-driver=vfs", "--debug")
 	err := cmd.Start()
+	go cmd.Wait()
 	c.Assert(err, checker.IsNil, check.Commentf("could not start daemon using 'docker daemon'"))
 
 	c.Assert(cmd.Process.Kill(), checker.IsNil)

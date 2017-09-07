@@ -131,6 +131,7 @@ func (s *DockerSuite) TestStatsAllNewContainersAdded(c *check.C) {
 	stdout, err := statsCmd.StdoutPipe()
 	c.Assert(err, check.IsNil)
 	c.Assert(statsCmd.Start(), check.IsNil)
+	go statsCmd.Wait()
 	defer statsCmd.Process.Kill()
 
 	go func() {
