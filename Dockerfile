@@ -216,3 +216,6 @@ ENTRYPOINT ["hack/dind"]
 
 # Upload docker source
 COPY . /go/src/github.com/docker/docker
+
+# Options for hack/validate/gometalinter
+ENV GOMETALINTER_OPTS="--deadline 2m"
