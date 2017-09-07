@@ -541,7 +541,7 @@ func initRouter(opts routerOptions) {
 }
 
 // TODO: remove this from cli and return the authzMiddleware
-func (cli *DaemonCli) initMiddlewares(s *apiserver.Server, cfg *apiserver.Config, pluginStore plugingetter.PluginGetter) error {
+func (cli *DaemonCli) initMiddlewares(s *apiserver.Server, cfg *apiserver.Config, pluginStore *plugin.Store) error {
 	v := cfg.Version
 
 	exp := middleware.NewExperimentalMiddleware(cli.Config.Experimental)
