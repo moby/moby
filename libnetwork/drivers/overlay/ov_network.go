@@ -770,12 +770,21 @@ func (n *network) watchMiss(nlSock *nl.NetlinkSocket) {
 				}
 				n.driver.peerAdd(n.id, "dummy", ip, IPmask, mac, vtep, l2Miss, l3Miss, false)
 			} else {
-				// If the gc_thresh values are lower kernel might knock off the neighor entries.
-				// This case can happen only for local entries, from the documentation (http://man7.org/linux/man-pages/man7/arp.7.html):
+				// All the local peers will trigger a miss notification but this one is expected and the local container will reply
+				// autonomously to the ARP request
+				// In case the gc_thresh3 values is low kernel might reject new entries during peerAdd. This will trigger the following
+				// extra logs that will inform of the possible issue.
+				// Entries created would not be deleted see documentation http://man7.org/linux/man-pages/man7/arp.7.html:
 				// Entries which are marked as permanent are never deleted by the garbage-collector.
-				if time.Since(t) > 500*time.Millisecond {
+				// The time limit here is to guarantee that the dbSearch is not
+				// done too frequently causing a stall of the peerDB operations.
+				if l3Miss && time.Since(t) > 500*time.Millisecond {
 					t = time.Now()
-					logrus.Warnf("miss notification for peer:%+v l3Miss:%t l2Miss:%t, if the problem persist check the gc_thresholds", neigh, l3Miss, l2Miss)
+					pKey, pEntry, err := n.driver.peerDbSearch(n.id, ip)
+					if !pEntry.isLocal {
+						logrus.Warnf("miss notification for peer:%+v l3Miss:%t l2Miss:%t, if the problem persist check the gc_thresh on the host pKey:%+v pEntry:%+v err:%v",
+							neigh, l3Miss, l2Miss, *pKey, *pEntry, err)
+					}
 				}
 			}
 		}
