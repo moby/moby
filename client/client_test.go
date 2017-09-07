@@ -104,11 +104,11 @@ func TestNewEnvClient(t *testing.T) {
 }
 
 func TestGetAPIPath(t *testing.T) {
-	cases := []struct {
-		v string
-		p string
-		q url.Values
-		e string
+	testcases := []struct {
+		version  string
+		path     string
+		query    url.Values
+		expected string
 	}{
 		{"", "/containers/json", nil, "/containers/json"},
 		{"", "/containers/json", url.Values{}, "/containers/json"},
@@ -122,16 +122,10 @@ func TestGetAPIPath(t *testing.T) {
 		{"v1.22", "/networks/kiwl$%^", nil, "/v1.22/networks/kiwl$%25%5E"},
 	}
 
-	for _, cs := range cases {
-		c, err := NewClient("unix:///var/run/docker.sock", cs.v, nil, nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		g := c.getAPIPath(cs.p, cs.q)
-		assert.Equal(t, g, cs.e)
-
-		err = c.Close()
-		assert.NoError(t, err)
+	for _, testcase := range testcases {
+		c := Client{version: testcase.version, basePath: "/"}
+		actual := c.getAPIPath(testcase.path, testcase.query)
+		assert.Equal(t, actual, testcase.expected)
 	}
 }
 

@@ -220,18 +220,11 @@ func (cli *Client) getAPIPath(p string, query url.Values) string {
 	var apiPath string
 	if cli.version != "" {
 		v := strings.TrimPrefix(cli.version, "v")
-		apiPath = path.Join(cli.basePath, "/v"+v+p)
+		apiPath = path.Join(cli.basePath, "/v"+v, p)
 	} else {
 		apiPath = path.Join(cli.basePath, p)
 	}
-
-	u := &url.URL{
-		Path: apiPath,
-	}
-	if len(query) > 0 {
-		u.RawQuery = query.Encode()
-	}
-	return u.String()
+	return (&url.URL{Path: apiPath, RawQuery: query.Encode()}).String()
 }
 
 // ClientVersion returns the version string associated with this
