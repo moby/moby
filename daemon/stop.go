@@ -78,7 +78,7 @@ func (daemon *Daemon) containerStop(container *containerpkg.Container, seconds i
 		// 3. If it doesn't, then send SIGKILL
 		if err := daemon.Kill(container); err != nil {
 			// Wait without a timeout, ignore result.
-			_ = <-container.Wait(context.Background(), containerpkg.WaitConditionNotRunning)
+			<-container.Wait(context.Background(), containerpkg.WaitConditionNotRunning)
 			logrus.Warn(err) // Don't return error because we only care that container is stopped, not what function stopped it
 		}
 	}

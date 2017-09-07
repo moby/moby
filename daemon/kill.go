@@ -160,7 +160,7 @@ func (daemon *Daemon) Kill(container *containerpkg.Container) error {
 
 	// Wait for exit with no timeout.
 	// Ignore returned status.
-	_ = <-container.Wait(context.Background(), containerpkg.WaitConditionNotRunning)
+	<-container.Wait(context.Background(), containerpkg.WaitConditionNotRunning)
 
 	return nil
 }

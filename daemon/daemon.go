@@ -859,7 +859,7 @@ func (daemon *Daemon) shutdownContainer(c *container.Container) error {
 
 	// Wait without timeout for the container to exit.
 	// Ignore the result.
-	_ = <-c.Wait(context.Background(), container.WaitConditionNotRunning)
+	<-c.Wait(context.Background(), container.WaitConditionNotRunning)
 	return nil
 }
 
