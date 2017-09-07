@@ -992,7 +992,7 @@ func CreateOptionDisableResolution() EndpointOption {
 	}
 }
 
-//CreateOptionAlias function returns an option setter for setting endpoint alias
+// CreateOptionAlias function returns an option setter for setting endpoint alias
 func CreateOptionAlias(name string, alias string) EndpointOption {
 	return func(ep *endpoint) {
 		if ep.aliases == nil {
@@ -1013,14 +1013,14 @@ func CreateOptionService(name, id string, vip net.IP, ingressPorts []*PortConfig
 	}
 }
 
-//CreateOptionMyAlias function returns an option setter for setting endpoint's self alias
+// CreateOptionMyAlias function returns an option setter for setting endpoint's self alias
 func CreateOptionMyAlias(alias string) EndpointOption {
 	return func(ep *endpoint) {
 		ep.myAliases = append(ep.myAliases, alias)
 	}
 }
 
-//CreateOptionLoadBalancer function returns an option setter for denoting the endpoint is a load balancer for a network
+// CreateOptionLoadBalancer function returns an option setter for denoting the endpoint is a load balancer for a network
 func CreateOptionLoadBalancer() EndpointOption {
 	return func(ep *endpoint) {
 		ep.loadBalancer = true

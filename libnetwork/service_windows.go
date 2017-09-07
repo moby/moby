@@ -73,6 +73,7 @@ func (n *network) addLBBackend(ip, vip net.IP, lb *loadBalancer, ingressPorts []
 		if err != nil {
 			logrus.Errorf("Failed to add ILB policy for service %s (%s) with endpoints %v using load balancer IP %s on network %s: %v",
 				lb.service.name, vip.String(), endpoints, sourceVIP, n.Name(), err)
+			return
 		}
 
 		lbPolicylistMap[lb] = &policyLists{
