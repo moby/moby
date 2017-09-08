@@ -144,6 +144,11 @@ func xzDecompress(archive io.Reader) (io.ReadCloser, <-chan struct{}, error) {
 	return cmdStream(exec.Command(args[0], args[1:]...), archive)
 }
 
+func pigzDecompress(archive io.Reader) (io.ReadCloser, <-chan struct{}, error) {
+	args := []string{"unpigz", "-c"}
+	return cmdStream(exec.Command(args[0], args[1:]...), archive)
+}
+
 // DecompressStream decompresses the archive and returns a ReaderCloser with the decompressed archive.
 func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
 	p := pools.BufioReader32KPool
@@ -165,6 +170,23 @@ func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
 		readBufWrapper := p.NewReadCloserWrapper(buf, buf)
 		return readBufWrapper, nil
 	case Gzip:
+		// Parallel gunzip feature https://github.com/moby/moby/issues/34787
+		if (os.Getenv("USE_PIGZ") == "Y") {
+			logrus.Debugf("Decompressing with unpigz")
+			pigzReader, chdone, err := pigzDecompress(buf)
+
+			// If pigz errors, default to standard gzip
+			if err == nil {
+				readBufWrapper := p.NewReadCloserWrapper(buf, pigzReader)
+
+				return ioutils.NewReadCloserWrapper(readBufWrapper, func() error {
+				<-chdone
+					return readBufWrapper.Close()
+				}), nil
+			}
+			logrus.Warnf("Error trying unpigz!  Defaulting to regular gunzip.")
+		}
+		// End parallel gzip
 		gzReader, err := gzip.NewReader(buf)
 		if err != nil {
 			return nil, err
