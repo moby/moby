@@ -1844,6 +1844,7 @@ func (s *DockerSuite) TestContainersAPICreateMountsValidation(c *check.C) {
 		c.Logf("case %d", i)
 		_, err = cli.ContainerCreate(context.Background(), &x.config, &x.hostConfig, &networktypes.NetworkingConfig{}, "")
 		if len(x.msg) > 0 {
+			c.Assert(err, checker.NotNil)
 			c.Assert(err.Error(), checker.Contains, x.msg, check.Commentf("%v", cases[i].config))
 		} else {
 			c.Assert(err, checker.IsNil)
