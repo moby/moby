@@ -65,6 +65,7 @@ func getPausedContainers(ctx context.Context, t assert.TestingT, client client.C
 }
 
 var alreadyExists = regexp.MustCompile(`Error response from daemon: removal of container (\w+) is already in progress`)
+var noSuchContainer = regexp.MustCompile(`Error response from daemon: No such container: (\w+)`)
 
 func deleteAllContainers(t assert.TestingT, apiclient client.ContainerAPIClient) {
 	ctx := context.Background()
@@ -78,7 +79,7 @@ func deleteAllContainers(t assert.TestingT, apiclient client.ContainerAPIClient)
 			Force:         true,
 			RemoveVolumes: true,
 		})
-		if err == nil || client.IsErrNotFound(err) || alreadyExists.MatchString(err.Error()) {
+		if err == nil || client.IsErrNotFound(err) || alreadyExists.MatchString(err.Error()) || noSuchContainer.MatchString(err.Error()) {
 			continue
 		}
 		assert.NoError(t, err, "failed to remove %s", container.ID)
@@ -123,6 +124,9 @@ func removeImage(ctx context.Context, t assert.TestingT, apiclient client.ImageA
 	if client.IsErrNotFound(err) {
 		return
 	}
+	if err != nil && strings.Contains(err.Error(), "No such image") {
+		return
+	}
 	assert.NoError(t, err, "failed to remove image %s", ref)
 }
 
@@ -132,6 +136,9 @@ func deleteAllVolumes(t assert.TestingT, c client.VolumeAPIClient) {
 
 	for _, v := range volumes.Volumes {
 		err := c.VolumeRemove(context.Background(), v.Name, true)
+		if err != nil && strings.Contains(err.Error(), "no such volume") {
+			continue
+		}
 		assert.NoError(t, err, "failed to remove volume %s", v.Name)
 	}
 }
@@ -149,6 +156,9 @@ func deleteAllNetworks(t assert.TestingT, c client.NetworkAPIClient, daemonPlatf
 			continue
 		}
 		err := c.NetworkRemove(context.Background(), n.ID)
+		if err != nil && strings.Contains(err.Error(), "No such network") {
+			return
+		}
 		assert.NoError(t, err, "failed to remove network %s", n.ID)
 	}
 }
