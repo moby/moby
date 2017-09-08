@@ -53,10 +53,13 @@ RUN set -x \
 # IMPORTANT: If the version of Go is updated, the Windows to Linux CI machines
 #            will need updating, to avoid errors. Ping #docker-maintainers on IRC
 #            with a heads-up.
-# IMPORTANT: When updating this please note that stdlib archive/tar pkg is vendored
-ENV GO_VERSION 1.8.3
+ENV GO_VERSION 1.9
 RUN curl -fsSL "https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz" \
 	| tar -xzC /usr/local
+# Fix archive/tar issue in go1.9 (https://github.com/golang/go/issues/21005)
+RUN curl -fsSl https://github.com/golang/go/commit/01e45c736882754ca785b5a802ec0866a6544f8b.patch \
+	| git apply -p1 --directory /usr/local/go --unsafe-paths -
+
 ENV PATH /go/bin:/usr/local/go/bin:$PATH
 ENV GOPATH /go
 ENV CGO_LDFLAGS -L/lib
