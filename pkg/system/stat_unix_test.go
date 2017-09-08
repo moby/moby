@@ -6,6 +6,8 @@ import (
 	"os"
 	"syscall"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 // TestFromStatT tests fromStatT for a tempfile
@@ -15,11 +17,10 @@ func TestFromStatT(t *testing.T) {
 
 	stat := &syscall.Stat_t{}
 	err := syscall.Lstat(file, stat)
+	require.NoError(t, err)
 
 	s, err := fromStatT(stat)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	if stat.Mode != s.Mode() {
 		t.Fatal("got invalid mode")

@@ -149,15 +149,12 @@ func (cs *CachableSource) normalize(path string) (cleanpath, fullpath string, er
 // Hash returns a hash for a single file in the source
 func (cs *CachableSource) Hash(path string) (string, error) {
 	n := cs.getRoot()
-	sum := ""
 	// TODO: check this for symlinks
 	v, ok := n.Get([]byte(path))
 	if !ok {
-		sum = path
-	} else {
-		sum = v.(*fileInfo).sum
+		return path, nil
 	}
-	return sum, nil
+	return v.(*fileInfo).sum, nil
 }
 
 // Root returns a root directory for the source

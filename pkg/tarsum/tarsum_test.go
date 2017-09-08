@@ -16,6 +16,9 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type testLayer struct {
@@ -222,17 +225,13 @@ func TestNewTarSumForLabel(t *testing.T) {
 func TestEmptyTar(t *testing.T) {
 	// Test without gzip.
 	ts, err := emptyTarSum(false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	zeroBlock := make([]byte, 1024)
 	buf := new(bytes.Buffer)
 
 	n, err := io.Copy(buf, ts)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	if n != int64(len(zeroBlock)) || !bytes.Equal(buf.Bytes(), zeroBlock) {
 		t.Fatalf("tarSum did not write the correct number of zeroed bytes: %d", n)
@@ -247,19 +246,16 @@ func TestEmptyTar(t *testing.T) {
 
 	// Test with gzip.
 	ts, err = emptyTarSum(true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	buf.Reset()
 
-	n, err = io.Copy(buf, ts)
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, err = io.Copy(buf, ts)
+	require.NoError(t, err)
 
 	bufgz := new(bytes.Buffer)
 	gz := gzip.NewWriter(bufgz)
 	n, err = io.Copy(gz, bytes.NewBuffer(zeroBlock))
+	require.NoError(t, err)
 	gz.Close()
 	gzBytes := bufgz.Bytes()
 
@@ -279,10 +275,7 @@ func TestEmptyTar(t *testing.T) {
 	}
 
 	resultSum = ts.Sum(nil)
-
-	if resultSum != expectedSum {
-		t.Fatalf("expected [%s] but got [%s]", expectedSum, resultSum)
-	}
+	assert.Equal(t, expectedSum, resultSum)
 }
 
 var (

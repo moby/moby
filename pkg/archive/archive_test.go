@@ -1183,8 +1183,10 @@ func TestUntarInvalidSymlink(t *testing.T) {
 func TestTempArchiveCloseMultipleTimes(t *testing.T) {
 	reader := ioutil.NopCloser(strings.NewReader("hello"))
 	tempArchive, err := NewTempArchive(reader, "")
+	require.NoError(t, err)
 	buf := make([]byte, 10)
 	n, err := tempArchive.Read(buf)
+	require.NoError(t, err)
 	if n != 5 {
 		t.Fatalf("Expected to read 5 bytes. Read %d instead", n)
 	}
