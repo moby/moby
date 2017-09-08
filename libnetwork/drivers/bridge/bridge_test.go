@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"regexp"
+	"strconv"
 	"testing"
 
 	"github.com/docker/libnetwork/driverapi"
@@ -1072,5 +1073,46 @@ func TestCreateWithExistingBridge(t *testing.T) {
 
 	if _, err := netlink.LinkByName(brName); err != nil {
 		t.Fatal("Deleting bridge network that using existing bridge interface unexpectedly deleted the bridge interface")
+	}
+}
+
+func TestCreateParallel(t *testing.T) {
+	if !testutils.IsRunningInContainer() {
+		defer testutils.SetupTestOSContext(t)()
+	}
+
+	d := newDriver()
+
+	if err := d.configure(nil); err != nil {
+		t.Fatalf("Failed to setup driver config: %v", err)
+	}
+
+	ch := make(chan error, 100)
+	for i := 0; i < 100; i++ {
+		go func(name string, ch chan<- error) {
+			config := &networkConfiguration{BridgeName: name}
+			genericOption := make(map[string]interface{})
+			genericOption[netlabel.GenericData] = config
+			if err := d.CreateNetwork(name, genericOption, nil, getIPv4Data(t, "docker0"), nil); err != nil {
+				ch <- fmt.Errorf("failed to create %s", name)
+				return
+			}
+			if err := d.CreateNetwork(name, genericOption, nil, getIPv4Data(t, "docker0"), nil); err == nil {
+				ch <- fmt.Errorf("failed was able to create overlap %s", name)
+				return
+			}
+			ch <- nil
+		}("net"+strconv.Itoa(i), ch)
+	}
+	// wait for the go routines
+	var success int
+	for i := 0; i < 100; i++ {
+		val := <-ch
+		if val == nil {
+			success++
+		}
+	}
+	if success != 1 {
+		t.Fatalf("Success should be 1 instead: %d", success)
 	}
 }
