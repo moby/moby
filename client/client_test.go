@@ -11,6 +11,7 @@ import (
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/internal/testutil"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -152,13 +153,49 @@ func TestParseHost(t *testing.T) {
 
 	for _, cs := range cases {
 		p, a, b, e := ParseHost(cs.host)
-		// if we expected an error to be returned...
 		if cs.err {
 			assert.Error(t, e)
 		}
 		assert.Equal(t, cs.proto, p)
 		assert.Equal(t, cs.addr, a)
 		assert.Equal(t, cs.base, b)
+	}
+}
+
+func TestParseHostURL(t *testing.T) {
+	testcases := []struct {
+		host        string
+		expected    *url.URL
+		expectedErr string
+	}{
+		{
+			host:        "",
+			expectedErr: "unable to parse docker host",
+		},
+		{
+			host:        "foobar",
+			expectedErr: "unable to parse docker host",
+		},
+		{
+			host:     "foo://bar",
+			expected: &url.URL{Scheme: "foo", Host: "bar"},
+		},
+		{
+			host:     "tcp://localhost:2476",
+			expected: &url.URL{Scheme: "tcp", Host: "localhost:2476"},
+		},
+		{
+			host:     "tcp://localhost:2476/path",
+			expected: &url.URL{Scheme: "tcp", Host: "localhost:2476", Path: "/path"},
+		},
+	}
+
+	for _, testcase := range testcases {
+		actual, err := ParseHostURL(testcase.host)
+		if testcase.expectedErr != "" {
+			testutil.ErrorContains(t, err, testcase.expectedErr)
+		}
+		assert.Equal(t, testcase.expected, actual)
 	}
 }
 
