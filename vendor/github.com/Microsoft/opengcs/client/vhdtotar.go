@@ -20,6 +20,8 @@ func (config *Config) VhdToTar(vhdFile string, uvmMountPath string, isSandbox bo
 		return nil, fmt.Errorf("cannot VhdToTar as no utility VM is in configuration")
 	}
 
+	defer config.DebugGCS()
+
 	vhdHandle, err := os.Open(vhdFile)
 	if err != nil {
 		return nil, fmt.Errorf("opengcs: VhdToTar: failed to open %s: %s", vhdFile, err)

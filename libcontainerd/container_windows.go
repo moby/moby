@@ -59,9 +59,7 @@ func (ctr *container) start(attachStdio StdioCallback) error {
 		return err
 	}
 
-	defer func() {
-		ctr.debugGCS()
-	}()
+	defer ctr.debugGCS()
 
 	// Note we always tell HCS to
 	// create stdout as it's required regardless of '-i' or '-t' options, so that

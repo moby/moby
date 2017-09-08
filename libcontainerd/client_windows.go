@@ -440,9 +440,7 @@ func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendly
 		return -1, err
 	}
 
-	defer func() {
-		container.debugGCS()
-	}()
+	defer container.debugGCS()
 
 	// Note we always tell HCS to
 	// create stdout as it's required regardless of '-i' or '-t' options, so that

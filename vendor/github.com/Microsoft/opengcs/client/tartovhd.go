@@ -17,6 +17,8 @@ func (config *Config) TarToVhd(targetVHDFile string, reader io.Reader) (int64, e
 		return 0, fmt.Errorf("cannot Tar2Vhd as no utility VM is in configuration")
 	}
 
+	defer config.DebugGCS()
+
 	process, err := config.createUtilsProcess("tar2vhd")
 	if err != nil {
 		return 0, fmt.Errorf("failed to start tar2vhd for %s: %s", targetVHDFile, err)

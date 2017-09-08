@@ -24,7 +24,7 @@ func (s *LCOWOption) Apply(interface{}) error {
 	return nil
 }
 
-// DebugGCS is a dirty hack for debugging for Linux Utility VMs. It simply
+// debugGCS is a dirty hack for debugging for Linux Utility VMs. It simply
 // runs a bunch of commands inside the UVM, but seriously aides in advanced debugging.
 func (c *container) debugGCS() {
 	if c == nil || c.isWindows || c.hcsContainer == nil {
