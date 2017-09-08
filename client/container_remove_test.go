@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )
 
@@ -17,9 +18,16 @@ func TestContainerRemoveError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	err := client.ContainerRemove(context.Background(), "container_id", types.ContainerRemoveOptions{})
-	if err == nil || err.Error() != "Error response from daemon: Server error" {
-		t.Fatalf("expected a Server Error, got %v", err)
+	assert.EqualError(t, err, "Error response from daemon: Server error")
+}
+
+func TestContainerRemoveNotFoundError(t *testing.T) {
+	client := &Client{
+		client: newMockClient(errorMock(http.StatusNotFound, "missing")),
 	}
+	err := client.ContainerRemove(context.Background(), "container_id", types.ContainerRemoveOptions{})
+	assert.EqualError(t, err, "Error: No such container: container_id")
+	assert.True(t, IsErrNotFound(err))
 }
 
 func TestContainerRemove(t *testing.T) {
@@ -53,7 +61,5 @@ func TestContainerRemove(t *testing.T) {
 		RemoveVolumes: true,
 		Force:         true,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 }
