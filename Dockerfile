@@ -149,9 +149,6 @@ RUN set -x \
 # Get the "docker-py" source so we can run their integration tests
 ENV DOCKER_PY_COMMIT a962578e515185cf06506050b2200c0b81aa84ef
 # To run integration tests docker-pycreds is required.
-# Before running the integration tests conftest.py is
-# loaded which results in loads auth.py that
-# imports the docker-pycreds module.
 RUN git clone https://github.com/docker/docker-py.git /docker-py \
 	&& cd /docker-py \
 	&& git checkout -q $DOCKER_PY_COMMIT \
