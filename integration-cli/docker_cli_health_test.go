@@ -39,6 +39,8 @@ func getHealth(c *check.C, name string) *types.Health {
 func (s *DockerSuite) TestHealth(c *check.C) {
 	testRequires(c, DaemonIsLinux) // busybox doesn't work on Windows
 
+	existingContainers := ExistingContainerNames(c)
+
 	imageName := "testhealth"
 	buildImageSuccessfully(c, imageName, build.WithDockerfile(`FROM busybox
 		RUN echo OK > /status
@@ -51,6 +53,7 @@ func (s *DockerSuite) TestHealth(c *check.C) {
 	name := "test_health"
 	dockerCmd(c, "create", "--name", name, imageName)
 	out, _ := dockerCmd(c, "ps", "-a", "--format={{.Status}}")
+	out = RemoveOutputForExistingElements(out, existingContainers)
 	c.Check(out, checker.Equals, "Created\n")
 
 	// Inspect the options

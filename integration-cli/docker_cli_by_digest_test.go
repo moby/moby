@@ -407,6 +407,8 @@ func (s *DockerRegistrySuite) TestInspectImageWithDigests(c *check.C) {
 }
 
 func (s *DockerRegistrySuite) TestPsListContainersFilterAncestorImageByDigest(c *check.C) {
+	existingContainers := ExistingContainerIDs(c)
+
 	digest, err := setupImage(c)
 	c.Assert(err, checker.IsNil, check.Commentf("error setting up image"))
 
@@ -438,7 +440,7 @@ func (s *DockerRegistrySuite) TestPsListContainersFilterAncestorImageByDigest(c 
 
 	// Valid imageReference
 	out, _ = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=ancestor="+imageReference)
-	checkPsAncestorFilterOutput(c, out, imageReference, expectedIDs)
+	checkPsAncestorFilterOutput(c, RemoveOutputForExistingElements(out, existingContainers), imageReference, expectedIDs)
 }
 
 func (s *DockerRegistrySuite) TestDeleteImageByIDOnlyPulledByDigest(c *check.C) {

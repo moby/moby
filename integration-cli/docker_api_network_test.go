@@ -81,6 +81,7 @@ func (s *DockerSuite) TestAPINetworkInspect(c *check.C) {
 	// Inspect default bridge network
 	nr := getNetworkResource(c, "bridge")
 	c.Assert(nr.Name, checker.Equals, "bridge")
+	connCount := len(nr.Containers)
 
 	// run a container and attach it to the default bridge network
 	out, _ := dockerCmd(c, "run", "-d", "--name", "test", "busybox", "top")
@@ -94,7 +95,7 @@ func (s *DockerSuite) TestAPINetworkInspect(c *check.C) {
 	c.Assert(nr.Internal, checker.Equals, false)
 	c.Assert(nr.EnableIPv6, checker.Equals, false)
 	c.Assert(nr.IPAM.Driver, checker.Equals, "default")
-	c.Assert(len(nr.Containers), checker.Equals, 1)
+	c.Assert(len(nr.Containers), checker.Equals, connCount+1)
 	c.Assert(nr.Containers[containerID], checker.NotNil)
 
 	ip, _, err := net.ParseCIDR(nr.Containers[containerID].IPv4Address)
@@ -291,9 +292,16 @@ func getNetworkIDByName(c *check.C, name string) string {
 	nJSON := []types.NetworkResource{}
 	err = json.NewDecoder(body).Decode(&nJSON)
 	c.Assert(err, checker.IsNil)
-	c.Assert(len(nJSON), checker.Equals, 1)
+	var res string
+	for _, n := range nJSON {
+		// Find exact match
+		if n.Name == name {
+			res = n.ID
+		}
+	}
+	c.Assert(res, checker.Not(checker.Equals), "")
 
-	return nJSON[0].ID
+	return res
 }
 
 func getNetworkResource(c *check.C, id string) *types.NetworkResource {
