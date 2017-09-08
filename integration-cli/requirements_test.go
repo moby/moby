@@ -36,6 +36,14 @@ func DaemonIsLinux() bool {
 	return testEnv.DaemonInfo.OSType == "linux"
 }
 
+func E2E() bool {
+	return os.Getenv("DOCKER_E2E") != ""
+}
+
+func NotE2E() bool {
+	return !E2E()
+}
+
 // Deprecated: use skip.IfCondition(t, !testEnv.DaemonInfo.ExperimentalBuild)
 func ExperimentalDaemon() bool {
 	return testEnv.DaemonInfo.ExperimentalBuild
