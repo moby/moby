@@ -129,7 +129,11 @@ func New(host, endpoint string, modifiers ...func(*http.Request) error) (*http.R
 		return nil, fmt.Errorf("could not create new request: %v", err)
 	}
 
-	req.URL.Scheme = "http"
+	if os.Getenv("DOCKER_TLS_VERIFY") != "" {
+		req.URL.Scheme = "https"
+	} else {
+		req.URL.Scheme = "http"
+	}
 	req.URL.Host = addr
 
 	for _, config := range modifiers {

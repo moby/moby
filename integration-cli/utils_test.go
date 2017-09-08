@@ -183,3 +183,14 @@ func RemoveOutputForExistingElements(output string, existing []string) string {
 	res := RemoveLinesForExistingElements(strings.Split(output, "\n"), existing)
 	return strings.Join(res, "\n")
 }
+
+// NewEnvClientWithVersion returns a docker client with a specified version.
+// See: github.com/docker/docker/client `NewEnvClient()`
+func NewEnvClientWithVersion(version string) (*client.Client, error) {
+	cli, err := client.NewEnvClient()
+	if err != nil {
+		return nil, err
+	}
+	cli.NegotiateAPIVersionPing(types.Ping{APIVersion: version})
+	return cli, nil
+}

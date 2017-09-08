@@ -4127,7 +4127,7 @@ func (s *DockerSuite) TestRunRm(c *check.C) {
 // Test that auto-remove is performed by the client on API versions that do not support daemon-side api-remove (API < 1.25)
 func (s *DockerSuite) TestRunRmPre125Api(c *check.C) {
 	name := "miss-me-when-im-gone"
-	envs := appendBaseEnv(false, "DOCKER_API_VERSION=1.24")
+	envs := appendBaseEnv(os.Getenv("DOCKER_TLS_VERIFY") != "", "DOCKER_API_VERSION=1.24")
 	cli.Docker(cli.Args("run", "--name="+name, "--rm", "busybox"), cli.WithEnvironmentVariables(envs...)).Assert(c, icmd.Success)
 
 	cli.Docker(cli.Inspect(name), cli.Format(".name")).Assert(c, icmd.Expected{
