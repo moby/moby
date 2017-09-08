@@ -439,6 +439,11 @@ func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendly
 	if err != nil {
 		return -1, err
 	}
+
+	defer func() {
+		container.debugGCS()
+	}()
+
 	// Note we always tell HCS to
 	// create stdout as it's required regardless of '-i' or '-t' options, so that
 	// docker can always grab the output through logs. We also tell HCS to always
