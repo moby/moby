@@ -67,7 +67,7 @@ func TestMain(m *testing.M) {
 func Test(t *testing.T) {
 	cli.SetTestEnvironment(testEnv)
 	fakestorage.SetTestEnvironment(&testEnv.Execution)
-	ienv.ProtectImages(t, &testEnv.Execution)
+	ienv.ProtectAll(t, &testEnv.Execution)
 	check.TestingT(t)
 }
 

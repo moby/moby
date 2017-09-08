@@ -23,6 +23,6 @@ func TestMain(m *testing.M) {
 }
 
 func setupTest(t *testing.T) func() {
-	environment.ProtectImages(t, testEnv)
+	environment.ProtectAll(t, testEnv)
 	return func() { testEnv.Clean(t) }
 }
