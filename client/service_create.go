@@ -88,13 +88,12 @@ func (cli *Client) ServiceCreate(ctx context.Context, service swarm.ServiceSpec,
 
 func imageDigestAndPlatforms(ctx context.Context, cli DistributionAPIClient, image, encodedAuth string) (string, []swarm.Platform, error) {
 	distributionInspect, err := cli.DistributionInspect(ctx, image, encodedAuth)
-	imageWithDigest := image
 	var platforms []swarm.Platform
 	if err != nil {
 		return "", nil, err
 	}
 
-	imageWithDigest = imageWithDigestString(image, distributionInspect.Descriptor.Digest)
+	imageWithDigest := imageWithDigestString(image, distributionInspect.Descriptor.Digest)
 
 	if len(distributionInspect.Platforms) > 0 {
 		platforms = make([]swarm.Platform, 0, len(distributionInspect.Platforms))
@@ -105,12 +104,12 @@ func imageDigestAndPlatforms(ctx context.Context, cli DistributionAPIClient, ima
 			// something like "armv7l" (includes the variant), which causes arm images
 			// to stop working with swarm mode. This patch removes the architecture
 			// constraint for arm images to ensure tasks get scheduled.
-			arch := strings.ToLower(p.Architecture)
-			if arch == "arm" {
+			arch := p.Architecture
+			if strings.ToLower(arch) == "arm" {
 				arch = ""
 			}
 			platforms = append(platforms, swarm.Platform{
-				Architecture: p.Architecture,
+				Architecture: arch,
 				OS:           p.OS,
 			})
 		}

@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder/dockerfile/parser"
 	"github.com/docker/docker/builder/remotecontext"
+	"github.com/docker/docker/internal/testutil"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/reexec"
 )
@@ -197,14 +198,6 @@ func executeTestCase(t *testing.T, testCase dispatchTestCase) {
 		shlex:   shlex,
 		source:  context,
 	}
-	state, err = b.dispatch(opts)
-
-	if err == nil {
-		t.Fatalf("No error when executing test %s", testCase.name)
-	}
-
-	if !strings.Contains(err.Error(), testCase.expectedError) {
-		t.Fatalf("Wrong error message. Should be \"%s\". Got \"%s\"", testCase.expectedError, err.Error())
-	}
-
+	_, err = b.dispatch(opts)
+	testutil.ErrorContains(t, err, testCase.expectedError)
 }

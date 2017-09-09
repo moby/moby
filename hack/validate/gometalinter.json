@@ -1,6 +1,7 @@
 {
   "Vendor": true,
   "Deadline": "2m",
+  "EnableGC": true,
   "Sort": ["linter", "severity", "path"],
   "Exclude": [
     ".*\\.pb\\.go",
@@ -17,6 +18,7 @@
     "gofmt",
     "goimports",
     "golint",
+    "ineffassign",
     "interfacer",
     "unconvert",
     "vet"

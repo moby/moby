@@ -41,10 +41,10 @@ func TestRestore(t *testing.T) {
 	assert.Equal(t, "abc", img1.Comment)
 	assert.Equal(t, "def", img2.Comment)
 
-	p, err := is.GetParent(ID(id1))
+	_, err = is.GetParent(ID(id1))
 	testutil.ErrorContains(t, err, "failed to read metadata")
 
-	p, err = is.GetParent(ID(id2))
+	p, err := is.GetParent(ID(id2))
 	assert.NoError(t, err)
 	assert.Equal(t, ID(id1), p)
 
