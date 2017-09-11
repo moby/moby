@@ -416,5 +416,5 @@ func (d *Driver) Put(id string) error {
 func (d *Driver) Exists(id string) bool {
 	d.Lock()
 	defer d.Unlock()
-	return d.filesystemsCache[d.zfsPath(id)] == true
+	return d.filesystemsCache[d.zfsPath(id)]
 }

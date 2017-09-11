@@ -143,7 +143,7 @@ func (d *Directive) possibleParserDirective(line string) error {
 	if len(tecMatch) != 0 {
 		for i, n := range tokenEscapeCommand.SubexpNames() {
 			if n == "escapechar" {
-				if d.escapeSeen == true {
+				if d.escapeSeen {
 					return errors.New("only one escape parser directive can be used")
 				}
 				d.escapeSeen = true
@@ -159,7 +159,7 @@ func (d *Directive) possibleParserDirective(line string) error {
 		if len(tpcMatch) != 0 {
 			for i, n := range tokenPlatformCommand.SubexpNames() {
 				if n == "platform" {
-					if d.platformSeen == true {
+					if d.platformSeen {
 						return errors.New("only one platform parser directive can be used")
 					}
 					d.platformSeen = true

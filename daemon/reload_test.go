@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/pkg/discovery"
 	_ "github.com/docker/docker/pkg/discovery/memory"
 	"github.com/docker/docker/registry"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestDaemonReloadLabels(t *testing.T) {
@@ -85,15 +86,11 @@ func TestDaemonReloadAllowNondistributableArtifacts(t *testing.T) {
 	for _, value := range serviceConfig.AllowNondistributableArtifactsCIDRs {
 		actual = append(actual, value.String())
 	}
-	for _, value := range serviceConfig.AllowNondistributableArtifactsHostnames {
-		actual = append(actual, value)
-	}
+	actual = append(actual, serviceConfig.AllowNondistributableArtifactsHostnames...)
 
 	sort.Strings(registries)
 	sort.Strings(actual)
-	if !reflect.DeepEqual(registries, actual) {
-		t.Fatalf("expected %v, got %v\n", registries, actual)
-	}
+	assert.Equal(t, registries, actual)
 }
 
 func TestDaemonReloadMirrors(t *testing.T) {

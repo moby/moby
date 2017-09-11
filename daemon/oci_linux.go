@@ -29,6 +29,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// nolint: gosimple
 var (
 	deviceCgroupRuleRegex = regexp.MustCompile("^([acb]) ([0-9]+|\\*):([0-9]+|\\*) ([rwm]{1,3})$")
 )

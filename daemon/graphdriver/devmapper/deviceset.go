@@ -1254,14 +1254,13 @@ func (devices *DeviceSet) setupBaseImage() error {
 }
 
 func setCloseOnExec(name string) {
-	if fileInfos, _ := ioutil.ReadDir("/proc/self/fd"); fileInfos != nil {
-		for _, i := range fileInfos {
-			link, _ := os.Readlink(filepath.Join("/proc/self/fd", i.Name()))
-			if link == name {
-				fd, err := strconv.Atoi(i.Name())
-				if err == nil {
-					unix.CloseOnExec(fd)
-				}
+	fileInfos, _ := ioutil.ReadDir("/proc/self/fd")
+	for _, i := range fileInfos {
+		link, _ := os.Readlink(filepath.Join("/proc/self/fd", i.Name()))
+		if link == name {
+			fd, err := strconv.Atoi(i.Name())
+			if err == nil {
+				unix.CloseOnExec(fd)
 			}
 		}
 	}

@@ -69,18 +69,18 @@ func (d *Driver) Status() [][2]string {
 
 	status := [][2]string{
 		{"Pool Name", s.PoolName},
-		{"Pool Blocksize", fmt.Sprintf("%s", units.HumanSize(float64(s.SectorSize)))},
-		{"Base Device Size", fmt.Sprintf("%s", units.HumanSize(float64(s.BaseDeviceSize)))},
+		{"Pool Blocksize", units.HumanSize(float64(s.SectorSize))},
+		{"Base Device Size", units.HumanSize(float64(s.BaseDeviceSize))},
 		{"Backing Filesystem", s.BaseDeviceFS},
 		{"Data file", s.DataFile},
 		{"Metadata file", s.MetadataFile},
-		{"Data Space Used", fmt.Sprintf("%s", units.HumanSize(float64(s.Data.Used)))},
-		{"Data Space Total", fmt.Sprintf("%s", units.HumanSize(float64(s.Data.Total)))},
-		{"Data Space Available", fmt.Sprintf("%s", units.HumanSize(float64(s.Data.Available)))},
-		{"Metadata Space Used", fmt.Sprintf("%s", units.HumanSize(float64(s.Metadata.Used)))},
-		{"Metadata Space Total", fmt.Sprintf("%s", units.HumanSize(float64(s.Metadata.Total)))},
-		{"Metadata Space Available", fmt.Sprintf("%s", units.HumanSize(float64(s.Metadata.Available)))},
-		{"Thin Pool Minimum Free Space", fmt.Sprintf("%s", units.HumanSize(float64(s.MinFreeSpace)))},
+		{"Data Space Used", units.HumanSize(float64(s.Data.Used))},
+		{"Data Space Total", units.HumanSize(float64(s.Data.Total))},
+		{"Data Space Available", units.HumanSize(float64(s.Data.Available))},
+		{"Metadata Space Used", units.HumanSize(float64(s.Metadata.Used))},
+		{"Metadata Space Total", units.HumanSize(float64(s.Metadata.Total))},
+		{"Metadata Space Available", units.HumanSize(float64(s.Metadata.Available))},
+		{"Thin Pool Minimum Free Space", units.HumanSize(float64(s.MinFreeSpace))},
 		{"Udev Sync Supported", fmt.Sprintf("%v", s.UdevSyncSupported)},
 		{"Deferred Removal Enabled", fmt.Sprintf("%v", s.DeferredRemoveEnabled)},
 		{"Deferred Deletion Enabled", fmt.Sprintf("%v", s.DeferredDeleteEnabled)},
@@ -159,13 +159,7 @@ func (d *Driver) Remove(id string) error {
 	if err := d.DeviceSet.DeleteDevice(id, false); err != nil {
 		return fmt.Errorf("failed to remove device %s: %v", id, err)
 	}
-
-	mp := path.Join(d.home, "mnt", id)
-	if err := system.EnsureRemoveAll(mp); err != nil {
-		return err
-	}
-
-	return nil
+	return system.EnsureRemoveAll(path.Join(d.home, "mnt", id))
 }
 
 // Get mounts a device with given id into the root filesystem

@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/opts"
-	"github.com/docker/go-units"
+	units "github.com/docker/go-units"
 	"github.com/gotestyourself/gotestyourself/fs"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
@@ -14,7 +14,7 @@ import (
 )
 
 func TestGetConflictFreeConfiguration(t *testing.T) {
-	configFileData := string([]byte(`
+	configFileData := `
 		{
 			"debug": true,
 			"default-ulimits": {
@@ -27,7 +27,7 @@ func TestGetConflictFreeConfiguration(t *testing.T) {
 			"log-opts": {
 				"tag": "test_tag"
 			}
-		}`))
+		}`
 
 	file := fs.NewFile(t, "docker-config", fs.WithContent(configFileData))
 	defer file.Remove()
@@ -55,7 +55,7 @@ func TestGetConflictFreeConfiguration(t *testing.T) {
 }
 
 func TestDaemonConfigurationMerge(t *testing.T) {
-	configFileData := string([]byte(`
+	configFileData := `
 		{
 			"debug": true,
 			"default-ulimits": {
@@ -68,7 +68,7 @@ func TestDaemonConfigurationMerge(t *testing.T) {
 			"log-opts": {
 				"tag": "test_tag"
 			}
-		}`))
+		}`
 
 	file := fs.NewFile(t, "docker-config", fs.WithContent(configFileData))
 	defer file.Remove()
@@ -115,10 +115,7 @@ func TestDaemonConfigurationMerge(t *testing.T) {
 }
 
 func TestDaemonConfigurationMergeShmSize(t *testing.T) {
-	data := string([]byte(`
-		{
-			"default-shm-size": "1g"
-		}`))
+	data := `{"default-shm-size": "1g"}`
 
 	file := fs.NewFile(t, "docker-config", fs.WithContent(data))
 	defer file.Remove()
@@ -133,7 +130,5 @@ func TestDaemonConfigurationMergeShmSize(t *testing.T) {
 	require.NoError(t, err)
 
 	expectedValue := 1 * 1024 * 1024 * 1024
-	if cc.ShmSize.Value() != int64(expectedValue) {
-		t.Fatalf("expected default shm size %d, got %d", expectedValue, cc.ShmSize.Value())
-	}
+	assert.Equal(t, int64(expectedValue), cc.ShmSize.Value())
 }

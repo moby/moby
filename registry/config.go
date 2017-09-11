@@ -75,7 +75,7 @@ func newServiceConfig(options ServiceOptions) *serviceConfig {
 	config := &serviceConfig{
 		ServiceConfig: registrytypes.ServiceConfig{
 			InsecureRegistryCIDRs: make([]*registrytypes.NetIPNet, 0),
-			IndexConfigs:          make(map[string]*registrytypes.IndexInfo, 0),
+			IndexConfigs:          make(map[string]*registrytypes.IndexInfo),
 			// Hack: Bypass setting the mirrors to IndexConfigs since they are going away
 			// and Mirrors are only for the official registry anyways.
 		},
@@ -171,7 +171,7 @@ func (config *serviceConfig) LoadInsecureRegistries(registries []string) error {
 	originalIndexInfos := config.ServiceConfig.IndexConfigs
 
 	config.ServiceConfig.InsecureRegistryCIDRs = make([]*registrytypes.NetIPNet, 0)
-	config.ServiceConfig.IndexConfigs = make(map[string]*registrytypes.IndexInfo, 0)
+	config.ServiceConfig.IndexConfigs = make(map[string]*registrytypes.IndexInfo)
 
 skip:
 	for _, r := range registries {

@@ -103,10 +103,7 @@ func (d *Driver) dir(id string) string {
 
 // Remove deletes the content from the directory for a given id.
 func (d *Driver) Remove(id string) error {
-	if err := system.EnsureRemoveAll(d.dir(id)); err != nil {
-		return err
-	}
-	return nil
+	return system.EnsureRemoveAll(d.dir(id))
 }
 
 // Get returns the directory for the given id.

@@ -202,7 +202,6 @@ func (r *messageRing) Close() {
 	r.closed = true
 	r.wait.Broadcast()
 	r.mu.Unlock()
-	return
 }
 
 // Drain drains all messages from the queue.

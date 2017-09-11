@@ -206,10 +206,7 @@ func lookupUser(userStr, filepath string) (int, error) {
 		return uid, nil
 	}
 	users, err := lcUser.ParsePasswdFileFilter(filepath, func(u lcUser.User) bool {
-		if u.Name == userStr {
-			return true
-		}
-		return false
+		return u.Name == userStr
 	})
 	if err != nil {
 		return 0, err
@@ -228,10 +225,7 @@ func lookupGroup(groupStr, filepath string) (int, error) {
 		return gid, nil
 	}
 	groups, err := lcUser.ParseGroupFileFilter(filepath, func(g lcUser.Group) bool {
-		if g.Name == groupStr {
-			return true
-		}
-		return false
+		return g.Name == groupStr
 	})
 	if err != nil {
 		return 0, err

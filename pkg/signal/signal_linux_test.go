@@ -41,7 +41,7 @@ func TestCatchAll(t *testing.T) {
 }
 
 func TestStopCatch(t *testing.T) {
-	signal, _ := SignalMap["HUP"]
+	signal := SignalMap["HUP"]
 	channel := make(chan os.Signal, 1)
 	CatchAll(channel)
 	go func() {
