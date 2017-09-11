@@ -14,7 +14,6 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/request"
-	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/go-check/check"
 	"github.com/kr/pty"
 )
@@ -139,7 +138,7 @@ func (s *DockerSuite) TestUpdateKernelMemory(c *check.C) {
 func (s *DockerSuite) TestUpdateKernelMemoryUninitialized(c *check.C) {
 	testRequires(c, DaemonIsLinux, kernelMemorySupport)
 
-	isNewKernel := kernel.CheckKernelVersion(4, 6, 0)
+	isNewKernel := CheckKernelVersion(4, 6, 0)
 	name := "test-update-container"
 	dockerCmd(c, "run", "-d", "--name", name, "busybox", "top")
 	_, _, err := dockerCmdWithError("update", "--kernel-memory", "100M", name)

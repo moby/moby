@@ -9,6 +9,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/go-check/check"
 	"github.com/gotestyourself/gotestyourself/icmd"
@@ -193,4 +194,20 @@ func NewEnvClientWithVersion(version string) (*client.Client, error) {
 	}
 	cli.NegotiateAPIVersionPing(types.Ping{APIVersion: version})
 	return cli, nil
+}
+
+// GetKernelVersion gets the current kernel version.
+func GetKernelVersion() *kernel.VersionInfo {
+	v, _ := kernel.ParseRelease(testEnv.DaemonInfo.KernelVersion)
+	return v
+}
+
+// CheckKernelVersion checks if current kernel is newer than (or equal to)
+// the given version.
+func CheckKernelVersion(k, major, minor int) bool {
+	v := GetKernelVersion()
+	if kernel.CompareKernelVersion(*v, kernel.VersionInfo{Kernel: k, Major: major, Minor: minor}) < 0 {
+		return false
+	}
+	return true
 }
