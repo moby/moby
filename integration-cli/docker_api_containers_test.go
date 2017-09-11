@@ -1409,6 +1409,9 @@ func (s *DockerSuite) TestPutContainerArchiveErrSymlinkInVolumeToReadOnlyRootfs(
 }
 
 func (s *DockerSuite) TestContainerAPIGetContainersJSONEmpty(c *check.C) {
+	// E2E: Test assumes no other containers running.
+	testRequires(c, NotE2E)
+
 	cli, err := client.NewEnvClient()
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()

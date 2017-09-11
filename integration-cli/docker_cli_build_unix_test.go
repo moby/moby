@@ -25,7 +25,8 @@ import (
 )
 
 func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *check.C) {
-	testRequires(c, cpuCfsQuota)
+	// E2E: Test assumes no other containers running.
+	testRequires(c, cpuCfsQuota, NotE2E)
 	name := "testbuildresourceconstraints"
 
 	ctx := fakecontext.New(c, "", fakecontext.WithDockerfile(`

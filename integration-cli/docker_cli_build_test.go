@@ -368,7 +368,8 @@ ONBUILD ENTRYPOINT ["echo"]`))
 }
 
 func (s *DockerSuite) TestBuildCacheAdd(c *check.C) {
-	testRequires(c, DaemonIsLinux) // Windows doesn't have httpserver image yet
+	// E2E: Requires built httpserver.
+	testRequires(c, DaemonIsLinux, NotE2E) // Windows doesn't have httpserver image yet
 	name := "testbuildtwoimageswithadd"
 	server := fakestorage.New(c, "", fakecontext.WithFiles(map[string]string{
 		"robots.txt": "hello",
@@ -388,6 +389,9 @@ func (s *DockerSuite) TestBuildCacheAdd(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildLastModified(c *check.C) {
+	// E2E: Requires built httpserver.
+	testRequires(c, NotE2E)
+
 	// Temporary fix for #30890. TODO @jhowardmsft figure out what
 	// has changed in the master busybox image.
 	testRequires(c, DaemonIsLinux)
@@ -517,7 +521,8 @@ RUN [ $(ls -l /exists/exists_file | awk '{print $3":"$4}') = 'dockerio:dockerio'
 }
 
 func (s *DockerSuite) TestBuildCopyAddMultipleFiles(c *check.C) {
-	testRequires(c, DaemonIsLinux) // Linux specific test
+	// E2E: Requires built httpserver.
+	testRequires(c, DaemonIsLinux, NotE2E) // Linux specific test
 	server := fakestorage.New(c, "", fakecontext.WithFiles(map[string]string{
 		"robots.txt": "hello",
 	}))
@@ -632,6 +637,9 @@ RUN find "test6" "C:/test dir/test_file6"`
 }
 
 func (s *DockerSuite) TestBuildCopyWildcard(c *check.C) {
+	// E2E: Requires built httpserver.
+	testRequires(c, NotE2E)
+
 	name := "testcopywildcard"
 	server := fakestorage.New(c, "", fakecontext.WithFiles(map[string]string{
 		"robots.txt": "hello",
@@ -1927,6 +1935,9 @@ func (s *DockerSuite) TestBuildAddCurrentDirWithoutCache(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildAddRemoteFileWithAndWithoutCache(c *check.C) {
+	// E2E: Requires built httpserver.
+	testRequires(c, NotE2E)
+
 	name := "testbuildaddremotefilewithcache"
 	server := fakestorage.New(c, "", fakecontext.WithFiles(map[string]string{
 		"baz": "hello",
@@ -1952,6 +1963,9 @@ func (s *DockerSuite) TestBuildAddRemoteFileWithAndWithoutCache(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildAddRemoteFileMTime(c *check.C) {
+	// E2E: Requires built httpserver.
+	testRequires(c, NotE2E)
+
 	name := "testbuildaddremotefilemtime"
 	name2 := name + "2"
 	name3 := name + "3"
@@ -1995,6 +2009,9 @@ func (s *DockerSuite) TestBuildAddRemoteFileMTime(c *check.C) {
 
 // FIXME(vdemeester) this really seems to test the same thing as before (combined)
 func (s *DockerSuite) TestBuildAddLocalAndRemoteFilesWithAndWithoutCache(c *check.C) {
+	// E2E: Requires built httpserver.
+	testRequires(c, NotE2E)
+
 	name := "testbuildaddlocalandremotefilewithcache"
 	server := fakestorage.New(c, "", fakecontext.WithFiles(map[string]string{
 		"baz": "hello",
@@ -3095,6 +3112,9 @@ func (s *DockerSuite) TestBuildFromGitWithF(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildFromRemoteTarball(c *check.C) {
+	// E2E: Requires built httpserver.
+	testRequires(c, NotE2E)
+
 	name := "testbuildfromremotetarball"
 
 	buffer := new(bytes.Buffer)
@@ -3761,6 +3781,9 @@ func (s *DockerSuite) TestBuildFromMixedcaseDockerfile(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildFromURLWithF(c *check.C) {
+	// E2E: Requires built httpserver.
+	testRequires(c, NotE2E)
+
 	server := fakestorage.New(c, "", fakecontext.WithFiles(map[string]string{"baz": `FROM busybox
 RUN echo from baz
 COPY * /tmp/

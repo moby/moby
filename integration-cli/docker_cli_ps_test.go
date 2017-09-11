@@ -519,8 +519,9 @@ func (s *DockerSuite) TestPsRightTagName(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsLinkedWithNoTrunc(c *check.C) {
+	// E2E: Test assumes no other containers.
 	// Problematic on Windows as it doesn't support links as of Jan 2016
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, NotE2E)
 	runSleepingContainer(c, "--name=first")
 	runSleepingContainer(c, "--name=second", "--link=first:first")
 
@@ -632,6 +633,9 @@ func (s *DockerSuite) TestPsNamesMultipleTime(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsFormatHeaders(c *check.C) {
+	// E2E: Test assumes no other containers.
+	testRequires(c, NotE2E)
+
 	// make sure no-container "docker ps" still prints the header row
 	out, _ := dockerCmd(c, "ps", "--format", "table {{.ID}}")
 	c.Assert(out, checker.Equals, "CONTAINER ID\n", check.Commentf(`Expected 'CONTAINER ID\n', got %v`, out))

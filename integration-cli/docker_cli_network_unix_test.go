@@ -289,7 +289,8 @@ func (s *DockerNetworkSuite) TestDockerNetworkLsDefault(c *check.C) {
 }
 
 func (s *DockerSuite) TestNetworkLsFormat(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	// E2E: Test assumes only default networks.
+	testRequires(c, DaemonIsLinux, NotE2E)
 	out, _ := dockerCmd(c, "network", "ls", "--format", "{{.Name}}")
 	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
 
@@ -300,7 +301,8 @@ func (s *DockerSuite) TestNetworkLsFormat(c *check.C) {
 }
 
 func (s *DockerSuite) TestNetworkLsFormatDefaultFormat(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	// E2E: Test assumes only default networks.
+	testRequires(c, DaemonIsLinux, NotE2E)
 
 	config := `{
 		"networksFormat": "{{ .Name }} default"
