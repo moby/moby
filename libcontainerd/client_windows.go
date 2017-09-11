@@ -537,6 +537,8 @@ func (clnt *client) Signal(containerID string, sig int) error {
 		err  error
 	)
 
+	time.Sleep(time.Second * 30)
+
 	// Get the container as we need it to get the container handle.
 	clnt.lock(containerID)
 	defer clnt.unlock(containerID)
@@ -620,6 +622,8 @@ func (clnt *client) Resize(containerID, processFriendlyName string, width, heigh
 func (clnt *client) Pause(containerID string) error {
 	unlockContainer := true
 	// Get the libcontainerd container object
+	time.Sleep(time.Second * 30)
+
 	clnt.lock(containerID)
 	defer func() {
 		if unlockContainer {

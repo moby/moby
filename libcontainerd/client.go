@@ -7,6 +7,16 @@ import (
 	"github.com/docker/docker/pkg/locker"
 )
 
+type containerNotFoundError struct {
+	containerID string
+}
+
+func (e containerNotFoundError) Error() string {
+	return fmt.Sprintf("invalid container: %s", e.containerID)
+}
+
+func (containerNotFoundError) NotFound() {}
+
 // clientCommon contains the platform agnostic fields used in the client structure
 type clientCommon struct {
 	backend    Backend
@@ -40,7 +50,9 @@ func (clnt *client) getContainer(containerID string) (*container, error) {
 	container, ok := clnt.containers[containerID]
 	defer clnt.mapMutex.RUnlock()
 	if !ok {
-		return nil, fmt.Errorf("invalid container: %s", containerID) // fixme: typed error
+		return nil, &containerNotFoundError{
+			containerID: containerID,
+		}
 	}
 	return container, nil
 }
