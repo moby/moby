@@ -1666,7 +1666,6 @@ func (s *DockerSuite) TestContainersAPICreateMountsValidation(c *check.C) {
 
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 	destPath := prefix + slash + "foo"
-	notExistPath := prefix + slash + "notexist"
 
 	cases := []testCase{
 		{
@@ -1701,17 +1700,6 @@ func (s *DockerSuite) TestContainersAPICreateMountsValidation(c *check.C) {
 					Type:   "bind",
 					Target: destPath}}},
 			msg: "Source must not be empty",
-		},
-		{
-			config: containertypes.Config{
-				Image: "busybox",
-			},
-			hostConfig: containertypes.HostConfig{
-				Mounts: []mounttypes.Mount{{
-					Type:   "bind",
-					Source: notExistPath,
-					Target: destPath}}},
-			msg: "bind source path does not exist",
 		},
 		{
 			config: containertypes.Config{
