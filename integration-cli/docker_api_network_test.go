@@ -76,12 +76,11 @@ func (s *DockerSuite) TestAPINetworkFilter(c *check.C) {
 	c.Assert(nr.Name, checker.Equals, "bridge")
 }
 
-func (s *DockerSuite) TestAPINetworkInspect(c *check.C) {
+func (s *DockerSuite) TestAPINetworkInspectBridge(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	// Inspect default bridge network
 	nr := getNetworkResource(c, "bridge")
 	c.Assert(nr.Name, checker.Equals, "bridge")
-	connCount := len(nr.Containers)
 
 	// run a container and attach it to the default bridge network
 	out, _ := dockerCmd(c, "run", "-d", "--name", "test", "busybox", "top")
@@ -95,13 +94,15 @@ func (s *DockerSuite) TestAPINetworkInspect(c *check.C) {
 	c.Assert(nr.Internal, checker.Equals, false)
 	c.Assert(nr.EnableIPv6, checker.Equals, false)
 	c.Assert(nr.IPAM.Driver, checker.Equals, "default")
-	c.Assert(len(nr.Containers), checker.Equals, connCount+1)
 	c.Assert(nr.Containers[containerID], checker.NotNil)
 
 	ip, _, err := net.ParseCIDR(nr.Containers[containerID].IPv4Address)
 	c.Assert(err, checker.IsNil)
 	c.Assert(ip.String(), checker.Equals, containerIP)
+}
 
+func (s *DockerSuite) TestAPINetworkInspectUserDefinedNetwork(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	// IPAM configuration inspect
 	ipam := &network.IPAM{
 		Driver: "default",
@@ -118,7 +119,7 @@ func (s *DockerSuite) TestAPINetworkInspect(c *check.C) {
 	id0 := createNetwork(c, config, true)
 	c.Assert(isNetworkAvailable(c, "br0"), checker.Equals, true)
 
-	nr = getNetworkResource(c, id0)
+	nr := getNetworkResource(c, id0)
 	c.Assert(len(nr.IPAM.Config), checker.Equals, 1)
 	c.Assert(nr.IPAM.Config[0].Subnet, checker.Equals, "172.28.0.0/16")
 	c.Assert(nr.IPAM.Config[0].IPRange, checker.Equals, "172.28.5.0/24")
