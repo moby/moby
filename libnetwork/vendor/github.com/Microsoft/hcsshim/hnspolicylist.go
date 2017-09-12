@@ -6,6 +6,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// RoutePolicy is a structure defining schema for Route based Policy
 type RoutePolicy struct {
 	Policy
 	DestinationPrefix string `json:"DestinationPrefix,omitempty"`
@@ -13,6 +14,7 @@ type RoutePolicy struct {
 	EncapEnabled      bool   `json:"NeedEncap,omitempty"`
 }
 
+// ELBPolicy is a structure defining schema for ELB LoadBalancing based Policy
 type ELBPolicy struct {
 	LBPolicy
 	SourceVIP string   `json:"SourceVIP,omitempty"`
@@ -20,6 +22,7 @@ type ELBPolicy struct {
 	ILB       bool     `json:"ILB,omitempty"`
 }
 
+// LBPolicy is a structure defining schema for LoadBalancing based Policy
 type LBPolicy struct {
 	Policy
 	Protocol     uint16 `json:"Protocol,omitempty"`
@@ -27,10 +30,11 @@ type LBPolicy struct {
 	ExternalPort uint16
 }
 
+// PolicyList is a structure defining schema for Policy list request
 type PolicyList struct {
-	Id                 string   `json:"ID,omitempty"`
-	EndpointReferences []string `json:"References,omitempty"`
-	Policies           []string `json:"Policies,omitempty"`
+	ID                 string            `json:"ID,omitempty"`
+	EndpointReferences []string          `json:"References,omitempty"`
+	Policies           []json.RawMessage `json:"Policies,omitempty"`
 }
 
 // HNSPolicyListRequest makes a call into HNS to update/query a single network
@@ -44,6 +48,7 @@ func HNSPolicyListRequest(method, path, request string) (*PolicyList, error) {
 	return &policy, nil
 }
 
+// HNSListPolicyListRequest gets all the policy list
 func HNSListPolicyListRequest() ([]PolicyList, error) {
 	var plist []PolicyList
 	err := hnsCall("GET", "/policylists/", "", &plist)
@@ -54,7 +59,7 @@ func HNSListPolicyListRequest() ([]PolicyList, error) {
 	return plist, nil
 }
 
-// PolicyListRequest makes a HNS call to modify/query a network endpoint
+// PolicyListRequest makes a HNS call to modify/query a network policy list
 func PolicyListRequest(method, path, request string) (*PolicyList, error) {
 	policylist := &PolicyList{}
 	err := hnsCall(method, "/policylists/"+path, request, &policylist)
@@ -65,11 +70,16 @@ func PolicyListRequest(method, path, request string) (*PolicyList, error) {
 	return policylist, nil
 }
 
+// GetPolicyListByID get the policy list by ID
+func GetPolicyListByID(policyListID string) (*PolicyList, error) {
+	return PolicyListRequest("GET", policyListID, "")
+}
+
 // Create PolicyList by sending PolicyListRequest to HNS.
 func (policylist *PolicyList) Create() (*PolicyList, error) {
 	operation := "Create"
 	title := "HCSShim::PolicyList::" + operation
-	logrus.Debugf(title+" id=%s", policylist.Id)
+	logrus.Debugf(title+" id=%s", policylist.ID)
 	jsonString, err := json.Marshal(policylist)
 	if err != nil {
 		return nil, err
@@ -77,20 +87,20 @@ func (policylist *PolicyList) Create() (*PolicyList, error) {
 	return PolicyListRequest("POST", "", string(jsonString))
 }
 
-// Create PolicyList by sending PolicyListRequest to HNS
+// Delete deletes PolicyList
 func (policylist *PolicyList) Delete() (*PolicyList, error) {
 	operation := "Delete"
 	title := "HCSShim::PolicyList::" + operation
-	logrus.Debugf(title+" id=%s", policylist.Id)
+	logrus.Debugf(title+" id=%s", policylist.ID)
 
-	return PolicyListRequest("DELETE", policylist.Id, "")
+	return PolicyListRequest("DELETE", policylist.ID, "")
 }
 
-// Add an endpoint to a Policy List
+// AddEndpoint add an endpoint to a Policy List
 func (policylist *PolicyList) AddEndpoint(endpoint *HNSEndpoint) (*PolicyList, error) {
 	operation := "AddEndpoint"
 	title := "HCSShim::PolicyList::" + operation
-	logrus.Debugf(title+" id=%s, endpointId:%s", policylist.Id, endpoint.Id)
+	logrus.Debugf(title+" id=%s, endpointId:%s", policylist.ID, endpoint.Id)
 
 	_, err := policylist.Delete()
 	if err != nil {
@@ -103,11 +113,11 @@ func (policylist *PolicyList) AddEndpoint(endpoint *HNSEndpoint) (*PolicyList, e
 	return policylist.Create()
 }
 
-// Remove an endpoint from the Policy List
+// RemoveEndpoint removes an endpoint from the Policy List
 func (policylist *PolicyList) RemoveEndpoint(endpoint *HNSEndpoint) (*PolicyList, error) {
 	operation := "RemoveEndpoint"
 	title := "HCSShim::PolicyList::" + operation
-	logrus.Debugf(title+" id=%s, endpointId:%s", policylist.Id, endpoint.Id)
+	logrus.Debugf(title+" id=%s, endpointId:%s", policylist.ID, endpoint.Id)
 
 	_, err := policylist.Delete()
 	if err != nil {
@@ -129,16 +139,20 @@ func (policylist *PolicyList) RemoveEndpoint(endpoint *HNSEndpoint) (*PolicyList
 }
 
 // AddLoadBalancer policy list for the specified endpoints
-func AddLoadBalancer(endpoints []HNSEndpoint, isILB bool, vip string, protocol uint16, internalPort uint16, externalPort uint16) (*PolicyList, error) {
+func AddLoadBalancer(endpoints []HNSEndpoint, isILB bool, sourceVIP, vip string, protocol uint16, internalPort uint16, externalPort uint16) (*PolicyList, error) {
 	operation := "AddLoadBalancer"
 	title := "HCSShim::PolicyList::" + operation
-	logrus.Debugf(title+" Vip:%s", vip)
+	logrus.Debugf(title+" endpointId=%v, isILB=%v, sourceVIP=%s, vip=%s, protocol=%v, internalPort=%v, externalPort=%v", endpoints, isILB, sourceVIP, vip, protocol, internalPort, externalPort)
 
 	policylist := &PolicyList{}
 
 	elbPolicy := &ELBPolicy{
-		VIPs: []string{vip},
-		ILB:  isILB,
+		SourceVIP: sourceVIP,
+		ILB:       isILB,
+	}
+
+	if len(vip) > 0 {
+		elbPolicy.VIPs = []string{vip}
 	}
 	elbPolicy.Type = ExternalLoadBalancer
 	elbPolicy.Protocol = protocol
@@ -153,12 +167,11 @@ func AddLoadBalancer(endpoints []HNSEndpoint, isILB bool, vip string, protocol u
 	if err != nil {
 		return nil, err
 	}
-
-	policylist.Policies[0] = string(jsonString)
+	policylist.Policies = append(policylist.Policies, jsonString)
 	return policylist.Create()
 }
 
-// AddLoadBalancer policy list for the specified endpoints
+// AddRoute adds route policy list for the specified endpoints
 func AddRoute(endpoints []HNSEndpoint, destinationPrefix string, nextHop string, encapEnabled bool) (*PolicyList, error) {
 	operation := "AddRoute"
 	title := "HCSShim::PolicyList::" + operation
@@ -182,6 +195,6 @@ func AddRoute(endpoints []HNSEndpoint, destinationPrefix string, nextHop string,
 		return nil, err
 	}
 
-	policylist.Policies[0] = string(jsonString)
+	policylist.Policies = append(policylist.Policies, jsonString)
 	return policylist.Create()
 }

@@ -26,6 +26,31 @@ type HNSEndpoint struct {
 	IsRemoteEndpoint   bool              `json:",omitempty"`
 }
 
+//SystemType represents the type of the system on which actions are done
+type SystemType string
+
+// SystemType const
+const (
+	ContainerType      SystemType = "Container"
+	VirtualMachineType SystemType = "VirtualMachine"
+	HostType           SystemType = "Host"
+)
+
+// EndpointAttachDetachRequest is the structure used to send request to the container to modify the system
+// Supported resource types are Network and Request Types are Add/Remove
+type EndpointAttachDetachRequest struct {
+	ContainerID    string     `json:"ContainerId,omitempty"`
+	SystemType     SystemType `json:"SystemType"`
+	CompartmentID  uint16     `json:"CompartmentId,omitempty"`
+	VirtualNICName string     `json:"VirtualNicName,omitempty"`
+}
+
+// EndpointResquestResponse is object to get the endpoint request response
+type EndpointResquestResponse struct {
+	Success bool
+	Error   string
+}
+
 // HNSEndpointRequest makes a HNS call to modify/query a network endpoint
 func HNSEndpointRequest(method, path, request string) (*HNSEndpoint, error) {
 	endpoint := &HNSEndpoint{}
@@ -94,12 +119,12 @@ func modifyNetworkEndpoint(containerID string, endpointID string, request Reques
 	return nil
 }
 
-// GetHNSEndpointByID
+// GetHNSEndpointByID get the Endpoint by ID
 func GetHNSEndpointByID(endpointID string) (*HNSEndpoint, error) {
 	return HNSEndpointRequest("GET", endpointID, "")
 }
 
-// GetHNSNetworkName filtered by Name
+// GetHNSEndpointByName gets the endpoint filtered by Name
 func GetHNSEndpointByName(endpointName string) (*HNSEndpoint, error) {
 	hnsResponse, err := HNSListEndpointRequest()
 	if err != nil {
@@ -135,7 +160,7 @@ func (endpoint *HNSEndpoint) Delete() (*HNSEndpoint, error) {
 	return HNSEndpointRequest("DELETE", endpoint.Id, "")
 }
 
-// Delete Endpoint by sending EndpointRequest to HNS
+// Update Endpoint
 func (endpoint *HNSEndpoint) Update() (*HNSEndpoint, error) {
 	operation := "Update"
 	title := "HCSShim::HNSEndpoint::" + operation
@@ -144,30 +169,30 @@ func (endpoint *HNSEndpoint) Update() (*HNSEndpoint, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = hnsCall("POST", "/endpoints/"+endpoint.Id+"/update", string(jsonString), &endpoint)
+	err = hnsCall("POST", "/endpoints/"+endpoint.Id, string(jsonString), &endpoint)
 
 	return endpoint, err
 }
 
-// Hot Attach an endpoint to a container
-func (endpoint *HNSEndpoint) HotAttach(containerID string) error {
-	operation := "HotAttach"
+// ContainerHotAttach attaches an endpoint to a running container
+func (endpoint *HNSEndpoint) ContainerHotAttach(containerID string) error {
+	operation := "ContainerHotAttach"
 	title := "HCSShim::HNSEndpoint::" + operation
 	logrus.Debugf(title+" id=%s, containerId=%s", endpoint.Id, containerID)
 
 	return modifyNetworkEndpoint(containerID, endpoint.Id, Add)
 }
 
-// Hot Detach an endpoint from a container
-func (endpoint *HNSEndpoint) HotDetach(containerID string) error {
-	operation := "HotDetach"
+// ContainerHotDetach detaches an endpoint from a running container
+func (endpoint *HNSEndpoint) ContainerHotDetach(containerID string) error {
+	operation := "ContainerHotDetach"
 	title := "HCSShim::HNSEndpoint::" + operation
 	logrus.Debugf(title+" id=%s, containerId=%s", endpoint.Id, containerID)
 
 	return modifyNetworkEndpoint(containerID, endpoint.Id, Remove)
 }
 
-// Apply Acl Policy on the Endpoint
+// ApplyACLPolicy applies Acl Policy on the Endpoint
 func (endpoint *HNSEndpoint) ApplyACLPolicy(policy *ACLPolicy) error {
 	operation := "ApplyACLPolicy"
 	title := "HCSShim::HNSEndpoint::" + operation
@@ -180,4 +205,114 @@ func (endpoint *HNSEndpoint) ApplyACLPolicy(policy *ACLPolicy) error {
 	endpoint.Policies[0] = jsonString
 	_, err = endpoint.Update()
 	return err
+}
+
+// ContainerAttach attaches an endpoint to container
+func (endpoint *HNSEndpoint) ContainerAttach(containerID string, compartmentID uint16) error {
+	operation := "ContainerAttach"
+	title := "HCSShim::HNSEndpoint::" + operation
+	logrus.Debugf(title+" id=%s", endpoint.Id)
+
+	requestMessage := &EndpointAttachDetachRequest{
+		ContainerID:   containerID,
+		CompartmentID: compartmentID,
+		SystemType:    ContainerType,
+	}
+	response := &EndpointResquestResponse{}
+	jsonString, err := json.Marshal(requestMessage)
+	if err != nil {
+		return err
+	}
+	return hnsCall("POST", "/endpoints/"+endpoint.Id+"/attach", string(jsonString), &response)
+}
+
+// ContainerDetach detaches an endpoint from container
+func (endpoint *HNSEndpoint) ContainerDetach(containerID string) error {
+	operation := "ContainerDetach"
+	title := "HCSShim::HNSEndpoint::" + operation
+	logrus.Debugf(title+" id=%s", endpoint.Id)
+
+	requestMessage := &EndpointAttachDetachRequest{
+		ContainerID: containerID,
+		SystemType:  ContainerType,
+	}
+	response := &EndpointResquestResponse{}
+
+	jsonString, err := json.Marshal(requestMessage)
+	if err != nil {
+		return err
+	}
+	return hnsCall("POST", "/endpoints/"+endpoint.Id+"/detach", string(jsonString), &response)
+}
+
+// HostAttach attaches a nic on the host
+func (endpoint *HNSEndpoint) HostAttach(compartmentID uint16) error {
+	operation := "HostAttach"
+	title := "HCSShim::HNSEndpoint::" + operation
+	logrus.Debugf(title+" id=%s", endpoint.Id)
+	requestMessage := &EndpointAttachDetachRequest{
+		CompartmentID: compartmentID,
+		SystemType:    HostType,
+	}
+	response := &EndpointResquestResponse{}
+
+	jsonString, err := json.Marshal(requestMessage)
+	if err != nil {
+		return err
+	}
+	return hnsCall("POST", "/endpoints/"+endpoint.Id+"/attach", string(jsonString), &response)
+
+}
+
+// HostDetach detaches a nic on the host
+func (endpoint *HNSEndpoint) HostDetach() error {
+	operation := "HostDetach"
+	title := "HCSShim::HNSEndpoint::" + operation
+	logrus.Debugf(title+" id=%s", endpoint.Id)
+	requestMessage := &EndpointAttachDetachRequest{
+		SystemType: HostType,
+	}
+	response := &EndpointResquestResponse{}
+
+	jsonString, err := json.Marshal(requestMessage)
+	if err != nil {
+		return err
+	}
+	return hnsCall("POST", "/endpoints/"+endpoint.Id+"/detach", string(jsonString), &response)
+}
+
+// VirtualMachineNICAttach attaches a endpoint to a virtual machine
+func (endpoint *HNSEndpoint) VirtualMachineNICAttach(virtualMachineNICName string) error {
+	operation := "VirtualMachineNicAttach"
+	title := "HCSShim::HNSEndpoint::" + operation
+	logrus.Debugf(title+" id=%s", endpoint.Id)
+	requestMessage := &EndpointAttachDetachRequest{
+		VirtualNICName: virtualMachineNICName,
+		SystemType:     VirtualMachineType,
+	}
+	response := &EndpointResquestResponse{}
+
+	jsonString, err := json.Marshal(requestMessage)
+	if err != nil {
+		return err
+	}
+	return hnsCall("POST", "/endpoints/"+endpoint.Id+"/attach", string(jsonString), &response)
+}
+
+// VirtualMachineNICDetach detaches a endpoint  from a virtual machine
+func (endpoint *HNSEndpoint) VirtualMachineNICDetach() error {
+	operation := "VirtualMachineNicDetach"
+	title := "HCSShim::HNSEndpoint::" + operation
+	logrus.Debugf(title+" id=%s", endpoint.Id)
+
+	requestMessage := &EndpointAttachDetachRequest{
+		SystemType: VirtualMachineType,
+	}
+	response := &EndpointResquestResponse{}
+
+	jsonString, err := json.Marshal(requestMessage)
+	if err != nil {
+		return err
+	}
+	return hnsCall("POST", "/endpoints/"+endpoint.Id+"/detach", string(jsonString), &response)
 }

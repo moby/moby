@@ -75,6 +75,7 @@ type endpoint struct {
 	dbIndex           uint64
 	dbExists          bool
 	serviceEnabled    bool
+	loadBalancer      bool
 	sync.Mutex
 }
 
@@ -101,6 +102,7 @@ func (ep *endpoint) MarshalJSON() ([]byte, error) {
 	epMap["virtualIP"] = ep.virtualIP.String()
 	epMap["ingressPorts"] = ep.ingressPorts
 	epMap["svcAliases"] = ep.svcAliases
+	epMap["loadBalancer"] = ep.loadBalancer
 
 	return json.Marshal(epMap)
 }
@@ -201,6 +203,10 @@ func (ep *endpoint) UnmarshalJSON(b []byte) (err error) {
 		ep.virtualIP = net.ParseIP(vip.(string))
 	}
 
+	if v, ok := epMap["loadBalancer"]; ok {
+		ep.loadBalancer = v.(bool)
+	}
+
 	sal, _ := json.Marshal(epMap["svcAliases"])
 	var svcAliases []string
 	json.Unmarshal(sal, &svcAliases)
@@ -238,6 +244,7 @@ func (ep *endpoint) CopyTo(o datastore.KVObject) error {
 	dstEp.svcName = ep.svcName
 	dstEp.svcID = ep.svcID
 	dstEp.virtualIP = ep.virtualIP
+	dstEp.loadBalancer = ep.loadBalancer
 
 	dstEp.svcAliases = make([]string, len(ep.svcAliases))
 	copy(dstEp.svcAliases, ep.svcAliases)
@@ -985,7 +992,7 @@ func CreateOptionDisableResolution() EndpointOption {
 	}
 }
 
-//CreateOptionAlias function returns an option setter for setting endpoint alias
+// CreateOptionAlias function returns an option setter for setting endpoint alias
 func CreateOptionAlias(name string, alias string) EndpointOption {
 	return func(ep *endpoint) {
 		if ep.aliases == nil {
@@ -1006,10 +1013,17 @@ func CreateOptionService(name, id string, vip net.IP, ingressPorts []*PortConfig
 	}
 }
 
-//CreateOptionMyAlias function returns an option setter for setting endpoint's self alias
+// CreateOptionMyAlias function returns an option setter for setting endpoint's self alias
 func CreateOptionMyAlias(alias string) EndpointOption {
 	return func(ep *endpoint) {
 		ep.myAliases = append(ep.myAliases, alias)
+	}
+}
+
+// CreateOptionLoadBalancer function returns an option setter for denoting the endpoint is a load balancer for a network
+func CreateOptionLoadBalancer() EndpointOption {
+	return func(ep *endpoint) {
+		ep.loadBalancer = true
 	}
 }
 
