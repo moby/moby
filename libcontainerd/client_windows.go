@@ -343,7 +343,7 @@ func (clnt *client) createLinux(containerID string, checkpoint string, checkpoin
 		configuration.HvRuntime = &hcsshim.HvRuntime{
 			ImagePath:          lcowOpt.Config.Vhdx,
 			BootSource:         "Vhd",
-			WritableBootSource: true,
+			WritableBootSource: false,
 		}
 	} else {
 		configuration.HvRuntime = &hcsshim.HvRuntime{
