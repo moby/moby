@@ -132,7 +132,6 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		Logging:     true,
 		SocketGroup: cli.Config.SocketGroup,
 		Version:     dockerversion.Version,
-		EnableCors:  cli.Config.EnableCors,
 		CorsHeaders: cli.Config.CorsHeaders,
 	}
 
@@ -548,7 +547,7 @@ func (cli *DaemonCli) initMiddlewares(s *apiserver.Server, cfg *apiserver.Config
 	vm := middleware.NewVersionMiddleware(v, api.DefaultVersion, api.MinVersion)
 	s.UseMiddleware(vm)
 
-	if cfg.EnableCors || cfg.CorsHeaders != "" {
+	if cfg.CorsHeaders != "" {
 		c := middleware.NewCORSMiddleware(cfg.CorsHeaders)
 		s.UseMiddleware(c)
 	}
