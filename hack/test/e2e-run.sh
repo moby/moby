@@ -12,4 +12,4 @@ cd /tests/integration/container
 
 echo "Run integration-cli DockerSuite tests"
 cd /tests/integration-cli
-./test.main -test.v -check.v -check.f DockerSuite
+./test.main -test.v -check.v -check.f "DockerSuite|DockerNetworkSuite"
