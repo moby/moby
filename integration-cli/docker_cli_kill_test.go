@@ -6,6 +6,7 @@ import (
 
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
+	"github.com/docker/docker/integration-cli/request"
 	"github.com/go-check/check"
 	"github.com/gotestyourself/gotestyourself/icmd"
 	"golang.org/x/net/context"
@@ -129,7 +130,7 @@ func (s *DockerSuite) TestKillStoppedContainerAPIPre120(c *check.C) {
 	testRequires(c, DaemonIsLinux) // Windows only supports 1.25 or later
 	runSleepingContainer(c, "--name", "docker-kill-test-api", "-d")
 	dockerCmd(c, "stop", "docker-kill-test-api")
-	cli, err := NewEnvClientWithVersion("v1.19")
+	cli, err := request.NewEnvClientWithVersion("v1.19")
 	c.Assert(err, check.IsNil)
 	defer cli.Close()
 	err = cli.ContainerKill(context.Background(), "docker-kill-test-api", "SIGKILL")

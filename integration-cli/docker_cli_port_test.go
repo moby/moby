@@ -149,6 +149,7 @@ func (s *DockerSuite) TestPortList(c *check.C) {
 
 	out, _ = dockerCmd(c, "port", ID)
 
+	// Running this test multiple times causes the TCP port to increment.
 	err = assertPortRange(c, out, []int{8000, 8080}, []int{8000, 8080})
 	// Port list is not correct
 	c.Assert(err, checker.IsNil)

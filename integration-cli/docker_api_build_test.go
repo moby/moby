@@ -27,8 +27,7 @@ import (
 )
 
 func (s *DockerSuite) TestBuildAPIDockerFileRemote(c *check.C) {
-	// E2E: Requires built httpserver.
-	testRequires(c, NotUserNamespace, NotE2E)
+	testRequires(c, NotUserNamespace)
 
 	var testD string
 	if testEnv.DaemonPlatform() == "windows" {
@@ -59,9 +58,6 @@ RUN find /tmp/`
 }
 
 func (s *DockerSuite) TestBuildAPIRemoteTarballContext(c *check.C) {
-	// E2E: Requires built httpserver.
-	testRequires(c, NotE2E)
-
 	buffer := new(bytes.Buffer)
 	tw := tar.NewWriter(buffer)
 	defer tw.Close()
@@ -93,9 +89,6 @@ func (s *DockerSuite) TestBuildAPIRemoteTarballContext(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildAPIRemoteTarballContextWithCustomDockerfile(c *check.C) {
-	// E2E: Requires built httpserver.
-	testRequires(c, NotE2E)
-
 	buffer := new(bytes.Buffer)
 	tw := tar.NewWriter(buffer)
 	defer tw.Close()
@@ -150,8 +143,6 @@ RUN echo 'right'
 }
 
 func (s *DockerSuite) TestBuildAPILowerDockerfile(c *check.C) {
-	// E2E: Requires built httpserver.
-	testRequires(c, NotE2E)
 	git := fakegit.New(c, "repo", map[string]string{
 		"dockerfile": `FROM busybox
 RUN echo from dockerfile`,
@@ -170,9 +161,6 @@ RUN echo from dockerfile`,
 }
 
 func (s *DockerSuite) TestBuildAPIBuildGitWithF(c *check.C) {
-	// E2E: Test requires go and contrib source.
-	testRequires(c, NotE2E)
-
 	git := fakegit.New(c, "repo", map[string]string{
 		"baz": `FROM busybox
 RUN echo from baz`,
@@ -194,8 +182,7 @@ RUN echo from Dockerfile`,
 }
 
 func (s *DockerSuite) TestBuildAPIDoubleDockerfile(c *check.C) {
-	// E2E: Requires built httpserver.
-	testRequires(c, UnixCli, NotE2E) // dockerfile overwrites Dockerfile on Windows
+	testRequires(c, UnixCli) // dockerfile overwrites Dockerfile on Windows
 	git := fakegit.New(c, "repo", map[string]string{
 		"Dockerfile": `FROM busybox
 RUN echo from Dockerfile`,
@@ -380,9 +367,6 @@ func (s *DockerRegistrySuite) TestBuildCopyFromForcePull(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildAddRemoteNoDecompress(c *check.C) {
-	// E2E: Requires built httpserver.
-	testRequires(c, NotE2E)
-
 	buffer := new(bytes.Buffer)
 	tw := tar.NewWriter(buffer)
 	dt := []byte("contents")

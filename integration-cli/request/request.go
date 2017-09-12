@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api"
+	"github.com/docker/docker/api/types"
 	dclient "github.com/docker/docker/client"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/ioutils"
@@ -322,4 +323,15 @@ func DaemonHost() string {
 		daemonURLStr = daemonHostVar
 	}
 	return daemonURLStr
+}
+
+// NewEnvClientWithVersion returns a docker client with a specified version.
+// See: github.com/docker/docker/client `NewEnvClient()`
+func NewEnvClientWithVersion(version string) (*dclient.Client, error) {
+	cli, err := dclient.NewEnvClient()
+	if err != nil {
+		return nil, err
+	}
+	cli.NegotiateAPIVersionPing(types.Ping{APIVersion: version})
+	return cli, nil
 }

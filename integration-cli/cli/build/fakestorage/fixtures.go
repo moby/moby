@@ -39,27 +39,34 @@ func ensureHTTPServerImage(t testingT) {
 		goarch = "amd64"
 	}
 
-	goCmd, lookErr := exec.LookPath("go")
-	if lookErr != nil {
-		t.Fatalf("could not build http server: %v", lookErr)
-	}
-
-	cmd := exec.Command(goCmd, "build", "-o", filepath.Join(tmp, "httpserver"), "github.com/docker/docker/contrib/httpserver")
-	cmd.Env = append(os.Environ(), []string{
-		"CGO_ENABLED=0",
-		"GOOS=" + goos,
-		"GOARCH=" + goarch,
-	}...)
-	var out []byte
-	if out, err = cmd.CombinedOutput(); err != nil {
-		t.Fatalf("could not build http server: %s", string(out))
-	}
-
 	cpCmd, lookErr := exec.LookPath("cp")
 	if lookErr != nil {
 		t.Fatalf("could not build http server: %v", lookErr)
 	}
-	if out, err = exec.Command(cpCmd, "../contrib/httpserver/Dockerfile", filepath.Join(tmp, "Dockerfile")).CombinedOutput(); err != nil {
+
+	if _, err = os.Stat("../contrib/httpserver/httpserver"); os.IsNotExist(err) {
+		goCmd, lookErr := exec.LookPath("go")
+		if lookErr != nil {
+			t.Fatalf("could not build http server: %v", lookErr)
+		}
+
+		cmd := exec.Command(goCmd, "build", "-o", filepath.Join(tmp, "httpserver"), "github.com/docker/docker/contrib/httpserver")
+		cmd.Env = append(os.Environ(), []string{
+			"CGO_ENABLED=0",
+			"GOOS=" + goos,
+			"GOARCH=" + goarch,
+		}...)
+		var out []byte
+		if out, err = cmd.CombinedOutput(); err != nil {
+			t.Fatalf("could not build http server: %s", string(out))
+		}
+	} else {
+		if out, err := exec.Command(cpCmd, "../contrib/httpserver/httpserver", filepath.Join(tmp, "httpserver")).CombinedOutput(); err != nil {
+			t.Fatalf("could not copy http server: %v", string(out))
+		}
+	}
+
+	if out, err := exec.Command(cpCmd, "../contrib/httpserver/Dockerfile", filepath.Join(tmp, "Dockerfile")).CombinedOutput(); err != nil {
 		t.Fatalf("could not build http server: %v", string(out))
 	}
 

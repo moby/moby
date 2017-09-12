@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/go-check/check"
@@ -185,17 +183,6 @@ func RemoveOutputForExistingElements(output string, existing []string) string {
 	return strings.Join(res, "\n")
 }
 
-// NewEnvClientWithVersion returns a docker client with a specified version.
-// See: github.com/docker/docker/client `NewEnvClient()`
-func NewEnvClientWithVersion(version string) (*client.Client, error) {
-	cli, err := client.NewEnvClient()
-	if err != nil {
-		return nil, err
-	}
-	cli.NegotiateAPIVersionPing(types.Ping{APIVersion: version})
-	return cli, nil
-}
-
 // GetKernelVersion gets the current kernel version.
 func GetKernelVersion() *kernel.VersionInfo {
 	v, _ := kernel.ParseRelease(testEnv.DaemonInfo.KernelVersion)
@@ -205,9 +192,5 @@ func GetKernelVersion() *kernel.VersionInfo {
 // CheckKernelVersion checks if current kernel is newer than (or equal to)
 // the given version.
 func CheckKernelVersion(k, major, minor int) bool {
-	v := GetKernelVersion()
-	if kernel.CompareKernelVersion(*v, kernel.VersionInfo{Kernel: k, Major: major, Minor: minor}) < 0 {
-		return false
-	}
-	return true
+	return kernel.CompareKernelVersion(*GetKernelVersion(), kernel.VersionInfo{Kernel: k, Major: major, Minor: minor}) > 0
 }

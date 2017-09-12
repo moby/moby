@@ -204,8 +204,6 @@ func (s *DockerAuthzSuite) TearDownSuite(c *check.C) {
 }
 
 func (s *DockerAuthzSuite) TestAuthZPluginAllowRequest(c *check.C) {
-	existingContainers := ExistingContainerIDs(c)
-
 	// start the daemon and load busybox, --net=none build fails otherwise
 	// cause it needs to pull busybox
 	s.d.Start(c, "--authorization-plugin="+testAuthZPlugin)
@@ -220,12 +218,6 @@ func (s *DockerAuthzSuite) TestAuthZPluginAllowRequest(c *check.C) {
 	id := strings.TrimSpace(out)
 	assertURIRecorded(c, s.ctrl.requestsURIs, "/containers/create")
 	assertURIRecorded(c, s.ctrl.requestsURIs, fmt.Sprintf("/containers/%s/start", id))
-
-	out, err = s.d.Cmd("ps")
-	c.Assert(err, check.IsNil)
-	c.Assert(assertContainerList(RemoveOutputForExistingElements(out, existingContainers), []string{id}), check.Equals, true)
-	c.Assert(s.ctrl.psRequestCnt, check.Equals, 1)
-	c.Assert(s.ctrl.psResponseCnt, check.Equals, 1)
 }
 
 func (s *DockerAuthzSuite) TestAuthZPluginTls(c *check.C) {

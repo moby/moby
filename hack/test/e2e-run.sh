@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
+export DOCKER_ENGINE_GOARCH=${DOCKER_ENGINE_GOARCH:-amd64}
+
 echo "Ensure emptyfs image is loaded"
 bash /ensure-emptyfs.sh
 
