@@ -1817,12 +1817,12 @@ func (s *DockerNetworkSuite) TestConntrackFlowsLeak(c *check.C) {
 	assertNwIsAvailable(c, "testbind")
 
 	// Launch the server, this will remain listening on an exposed port and reply to any request in a ping/pong fashion
-	cmd := "while true; do echo hello | nc -w 1 -lu 8080; done"
-	cli.DockerCmd(c, "run", "-d", "--name", "server", "--net", "testbind", "-p", "8080:8080/udp", "appropriate/nc", "sh", "-c", cmd)
+	cmd := "apk add --no-cache netcat-openbsd; while true; do echo hello | nc -w 1 -lu 8080; done"
+	cli.DockerCmd(c, "run", "-d", "--name", "server", "--net", "testbind", "-p", "8080:8080/udp", "alpine:3.6", "sh", "-c", cmd)
 
 	// Launch a container client, here the objective is to create a flow that is natted in order to expose the bug
-	cmd = "echo world | nc -q 1 -u 192.168.10.1 8080"
-	cli.DockerCmd(c, "run", "-d", "--name", "client", "--net=host", "appropriate/nc", "sh", "-c", cmd)
+	cmd = "apk add --no-cache netcat-openbsd; echo world | nc -q 1 -u 192.168.10.1 8080"
+	cli.DockerCmd(c, "run", "-d", "--name", "client", "--net=host", "alpine:3.6", "sh", "-c", cmd)
 
 	// Get all the flows using netlink
 	flows, err := netlink.ConntrackTableList(netlink.ConntrackTable, unix.AF_INET)
