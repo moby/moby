@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -211,7 +212,12 @@ func (s *DockerHubPullSuite) TestPullAllTagsFromCentralRegistry(c *check.C) {
 			break
 		}
 	}
-	c.Assert(latestLine, checker.Not(checker.Equals), "", check.Commentf("no entry for busybox:latest found after pulling all tags"))
+
+	if runtime.GOARCH == "amd64" {
+		c.Assert(latestLine, checker.Not(checker.Equals), "", check.Commentf("no entry for busybox:latest found after pulling all tags"))
+	} else {
+		c.Assert(latestLine, checker.Not(checker.Contains), "", check.Commentf("no matching manifest"))
+	}
 	splitLatest := strings.Fields(latestLine)
 	splitCurrent := strings.Fields(splitOutImageCmd[1])
 
@@ -273,7 +279,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestPullNoCredentialsNotFound(c *check
 func (s *DockerSuite) TestPullLinuxImageFailsOnWindows(c *check.C) {
 	testRequires(c, DaemonIsWindows, Network)
 	_, _, err := dockerCmdWithError("pull", "ubuntu")
-	c.Assert(err.Error(), checker.Contains, "cannot be used on this platform")
+	c.Assert(err.Error(), checker.Contains, "no matching manifest")
 }
 
 // Regression test for https://github.com/docker/docker/issues/28892
