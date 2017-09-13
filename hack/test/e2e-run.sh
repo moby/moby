@@ -10,6 +10,6 @@ echo "Run integration/container tests"
 cd /tests/integration/container
 ./test.main -test.v
 
-echo "Run integration-cli DockerSuite tests"
+echo "Run integration-cli tests (DockerSuite, DockerNetworkSuite)"
 cd /tests/integration-cli
 ./test.main -test.v -check.v -check.f "DockerSuite|DockerNetworkSuite"
