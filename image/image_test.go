@@ -62,7 +62,7 @@ func TestImage(t *testing.T) {
 		Domainname: "domain",
 		User:       "root",
 	}
-	platform := runtime.GOOS
+	os := runtime.GOOS
 
 	img := &Image{
 		V1Image: V1Image{
@@ -73,19 +73,19 @@ func TestImage(t *testing.T) {
 
 	assert.Equal(t, cid, img.ImageID())
 	assert.Equal(t, cid, img.ID().String())
-	assert.Equal(t, platform, img.Platform())
+	assert.Equal(t, os, img.OperatingSystem())
 	assert.Equal(t, config, img.RunConfig())
 }
 
-func TestImagePlatformNotEmpty(t *testing.T) {
-	platform := "platform"
+func TestImageOSNotEmpty(t *testing.T) {
+	os := "os"
 	img := &Image{
 		V1Image: V1Image{
-			OS: platform,
+			OS: os,
 		},
 		OSVersion: "osversion",
 	}
-	assert.Equal(t, platform, img.Platform())
+	assert.Equal(t, os, img.OperatingSystem())
 }
 
 func TestNewChildImageFromImageWithRootFS(t *testing.T) {

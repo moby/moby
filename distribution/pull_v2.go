@@ -510,7 +510,7 @@ func (p *v2Puller) pullSchema1(ctx context.Context, ref reference.Reference, unv
 
 	// Early bath if the requested OS doesn't match that of the configuration.
 	// This avoids doing the download, only to potentially fail later.
-	if !strings.EqualFold(string(configOS), requestedOS) {
+	if !strings.EqualFold(configOS, requestedOS) {
 		return "", "", fmt.Errorf("cannot download image with operating system %q when requesting %q", configOS, requestedOS)
 	}
 
@@ -651,7 +651,7 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 	}
 
 	if configJSON == nil {
-		configJSON, configRootFS, configOS, err = receiveConfig(p.config.ImageStore, configChan, configErrChan)
+		configJSON, configRootFS, _, err = receiveConfig(p.config.ImageStore, configChan, configErrChan)
 		if err == nil && configRootFS == nil {
 			err = errRootFSInvalid
 		}
@@ -723,7 +723,7 @@ func (p *v2Puller) pullManifestList(ctx context.Context, ref reference.Named, mf
 
 	logrus.Debugf("%s resolved to a manifestList object with %d entries; looking for a %s/%s match", ref, len(mfstList.Manifests), os, runtime.GOARCH)
 
-	manifestMatches := filterManifests(mfstList.Manifests)
+	manifestMatches := filterManifests(mfstList.Manifests, os)
 
 	if len(manifestMatches) == 0 {
 		errMsg := fmt.Sprintf("no matching manifest for %s/%s in the manifest list entries", os, runtime.GOARCH)

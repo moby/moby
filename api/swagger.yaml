@@ -6181,17 +6181,9 @@ paths:
 
             Only the registry domain name (and port if not the default 443) are required. However, for legacy reasons, the Docker Hub registry must be specified with both a `https://` prefix and a `/v1/` suffix even though Docker will prefer to use the v2 registry API.
           type: "string"
-        - name: "X-Requested-Platform"
-          in: "header"
-          description: |
-            This is a JSON object representing an OCI image-spec `Platform` object. It is used to request a platform in the case that the engine supports multiple platforms. For example:
-
-            ```
-            {
-              "architecture": "amd64",
-              "os": "linux"
-            }
-            ```
+        - name: "platform"
+          in: "query"
+          description: "Platform in the format os[/arch[/variant]]"
           type: "string"
           default: ""
       responses:
@@ -6275,17 +6267,9 @@ paths:
           in: "header"
           description: "A base64-encoded auth configuration. [See the authentication section for details.](#section/Authentication)"
           type: "string"
-        - name: "X-Requested-Platform"
-          in: "header"
-          description: |
-            This is a JSON object representing an OCI image-spec `Platform` object. It is used to request a platform in the case that the engine supports multiple platforms. For example:
-
-            ```
-            {
-              "architecture": "amd64",
-              "os": "linux"
-            }
-            ```
+        - name: "platform"
+          in: "query"
+          description: "Platform in the format os[/arch[/variant]]"
           type: "string"
           default: ""
       tags: ["Image"]

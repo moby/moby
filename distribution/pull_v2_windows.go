@@ -62,29 +62,28 @@ func (ld *v2LayerDescriptor) open(ctx context.Context) (distribution.ReadSeekClo
 	return rsc, err
 }
 
-func filterManifests(manifests []manifestlist.ManifestDescriptor) []manifestlist.ManifestDescriptor {
-	version := system.GetOSVersion()
-
-	// TODO @jhowardmsft LCOW Support: Need to remove the hard coding in LCOW mode.
-	lookingForOS := runtime.GOOS
-	osVersion := fmt.Sprintf("%d.%d.%d", version.MajorVersion, version.MinorVersion, version.Build)
-	if system.LCOWSupported() {
-		lookingForOS = "linux"
-		osVersion = ""
+func filterManifests(manifests []manifestlist.ManifestDescriptor, os string) []manifestlist.ManifestDescriptor {
+	osVersion := ""
+	if os == "windows" {
+		version := system.GetOSVersion()
+		osVersion = fmt.Sprintf("%d.%d.%d", version.MajorVersion, version.MinorVersion, version.Build)
+		logrus.Debugf("will only match entries with version %s", osVersion)
 	}
 
 	var matches []manifestlist.ManifestDescriptor
 	for _, manifestDescriptor := range manifests {
-		if manifestDescriptor.Platform.Architecture == runtime.GOARCH && manifestDescriptor.Platform.OS == lookingForOS {
-			if lookingForOS == "windows" && !versionMatch(manifestDescriptor.Platform.OSVersion, osVersion) {
+		if manifestDescriptor.Platform.Architecture == runtime.GOARCH && manifestDescriptor.Platform.OS == os {
+			if os == "windows" && !versionMatch(manifestDescriptor.Platform.OSVersion, osVersion) {
+				logrus.Debugf("skipping %s", manifestDescriptor.Platform.OSVersion)
 				continue
 			}
 			matches = append(matches, manifestDescriptor)
-
-			logrus.Debugf("found match for %s/%s with media type %s, digest %s", lookingForOS, runtime.GOARCH, manifestDescriptor.MediaType, manifestDescriptor.Digest.String())
+			logrus.Debugf("found match for %s/%s with media type %s, digest %s", os, runtime.GOARCH, manifestDescriptor.MediaType, manifestDescriptor.Digest.String())
 		}
 	}
-	sort.Stable(manifestsByVersion(matches))
+	if os == "windows" {
+		sort.Stable(manifestsByVersion(matches))
+	}
 	return matches
 }
 

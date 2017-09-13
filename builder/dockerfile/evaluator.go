@@ -34,7 +34,8 @@ import (
 
 func dispatch(d dispatchRequest, cmd instructions.Command) error {
 	if c, ok := cmd.(instructions.PlatformSpecific); ok {
-		err := c.CheckPlatform(d.builder.options.Platform.OS)
+		optionsOS := system.ParsePlatform(d.builder.options.Platform).OS
+		err := c.CheckPlatform(optionsOS)
 		if err != nil {
 			return validationError{err}
 		}

@@ -7,12 +7,12 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/pkg/system"
 )
 
 // ImageBuild sends request to the daemon to build images.
@@ -31,18 +31,11 @@ func (cli *Client) ImageBuild(ctx context.Context, buildContext io.Reader, optio
 	}
 	headers.Add("X-Registry-Config", base64.URLEncoding.EncodeToString(buf))
 
-	// TODO @jhowardmsft: system.IsPlatformEmpty is a temporary function. We need to move
-	// (in the reasonably short future) to a package which supports all the platform
-	// validation such as is proposed in https://github.com/containerd/containerd/pull/1403
-	if !system.IsPlatformEmpty(options.Platform) {
+	if options.Platform != "" {
 		if err := cli.NewVersionError("1.32", "platform"); err != nil {
 			return types.ImageBuildResponse{}, err
 		}
-		platformJSON, err := json.Marshal(options.Platform)
-		if err != nil {
-			return types.ImageBuildResponse{}, err
-		}
-		headers.Add("X-Requested-Platform", string(platformJSON[:]))
+		query.Set("platform", options.Platform)
 	}
 	headers.Set("Content-Type", "application/x-tar")
 
@@ -137,6 +130,9 @@ func (cli *Client) imageBuildOptionsToQuery(options types.ImageBuildOptions) (ur
 	query.Set("cachefrom", string(cacheFromJSON))
 	if options.SessionID != "" {
 		query.Set("session", options.SessionID)
+	}
+	if options.Platform != "" {
+		query.Set("platform", strings.ToLower(options.Platform))
 	}
 	return query, nil
 }

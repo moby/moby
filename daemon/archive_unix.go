@@ -12,7 +12,7 @@ import (
 // cannot be configured with a read-only rootfs.
 func checkIfPathIsInAVolume(container *container.Container, absPath string) (bool, error) {
 	var toVolume bool
-	parser := volume.NewParser(container.Platform)
+	parser := volume.NewParser(container.OS)
 	for _, mnt := range container.MountPoints {
 		if toVolume = parser.HasResource(mnt, absPath); toVolume {
 			if mnt.RW {

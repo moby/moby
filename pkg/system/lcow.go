@@ -8,21 +8,6 @@ import (
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-// IsPlatformEmpty determines if an OCI image-spec platform structure is not populated.
-// TODO This is a temporary function - can be replaced by parsing from
-// https://github.com/containerd/containerd/pull/1403/files at a later date.
-// @jhowardmsft
-func IsPlatformEmpty(platform specs.Platform) bool {
-	if platform.Architecture == "" &&
-		platform.OS == "" &&
-		len(platform.OSFeatures) == 0 &&
-		platform.OSVersion == "" &&
-		platform.Variant == "" {
-		return true
-	}
-	return false
-}
-
 // ValidatePlatform determines if a platform structure is valid.
 // TODO This is a temporary function - can be replaced by parsing from
 // https://github.com/containerd/containerd/pull/1403/files at a later date.
@@ -30,7 +15,9 @@ func IsPlatformEmpty(platform specs.Platform) bool {
 func ValidatePlatform(platform *specs.Platform) error {
 	platform.Architecture = strings.ToLower(platform.Architecture)
 	platform.OS = strings.ToLower(platform.OS)
-	if platform.Architecture != "" && platform.Architecture != runtime.GOARCH {
+	// Based on https://github.com/moby/moby/pull/34642#issuecomment-330375350, do
+	// not support anything except operating system.
+	if platform.Architecture != "" {
 		return fmt.Errorf("invalid platform architecture %q", platform.Architecture)
 	}
 	if platform.OS != "" {

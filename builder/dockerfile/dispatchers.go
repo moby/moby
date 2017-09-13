@@ -194,11 +194,6 @@ func dispatchTriggeredOnBuild(d dispatchRequest, triggers []string) error {
 	return nil
 }
 
-// scratchImage is used as a token for the empty base image. It uses buildStage
-// as a convenient implementation of builder.Image, but is not actually a
-// buildStage.
-var scratchImage builder.Image = &image.Image{}
-
 func (d *dispatchRequest) getExpandedImageName(shlex *ShellLex, name string) (string, error) {
 	substitutionArgs := []string{}
 	for key, value := range d.state.buildArgs.GetAllMeta() {
@@ -223,8 +218,9 @@ func (d *dispatchRequest) getImageOrStage(name string) (builder.Image, error) {
 		imageImage := &image.Image{}
 		imageImage.OS = runtime.GOOS
 		if runtime.GOOS == "windows" {
-			switch d.builder.options.Platform.OS {
-			case "windows":
+			optionsOS := system.ParsePlatform(d.builder.options.Platform).OS
+			switch optionsOS {
+			case "windows", "":
 				return nil, errors.New("Windows does not support FROM scratch")
 			case "linux":
 				if !system.LCOWSupported() {
@@ -232,7 +228,7 @@ func (d *dispatchRequest) getImageOrStage(name string) (builder.Image, error) {
 				}
 				imageImage.OS = "linux"
 			default:
-				return nil, errors.Errorf("operating system %q is not supported", d.builder.options.Platform.OS)
+				return nil, errors.Errorf("operating system %q is not supported", optionsOS)
 			}
 		}
 		return builder.Image(imageImage), nil
@@ -264,7 +260,8 @@ func dispatchOnbuild(d dispatchRequest, c *instructions.OnbuildCommand) error {
 func dispatchWorkdir(d dispatchRequest, c *instructions.WorkdirCommand) error {
 	runConfig := d.state.runConfig
 	var err error
-	runConfig.WorkingDir, err = normalizeWorkdir(d.builder.options.Platform.OS, runConfig.WorkingDir, c.Path)
+	optionsOS := system.ParsePlatform(d.builder.options.Platform).OS
+	runConfig.WorkingDir, err = normalizeWorkdir(optionsOS, runConfig.WorkingDir, c.Path)
 	if err != nil {
 		return err
 	}
@@ -280,7 +277,7 @@ func dispatchWorkdir(d dispatchRequest, c *instructions.WorkdirCommand) error {
 	}
 
 	comment := "WORKDIR " + runConfig.WorkingDir
-	runConfigWithCommentCmd := copyRunConfig(runConfig, withCmdCommentString(comment, d.builder.options.Platform.OS))
+	runConfigWithCommentCmd := copyRunConfig(runConfig, withCmdCommentString(comment, optionsOS))
 	containerID, err := d.builder.probeAndCreate(d.state, runConfigWithCommentCmd)
 	if err != nil || containerID == "" {
 		return err
@@ -313,7 +310,8 @@ func resolveCmdLine(cmd instructions.ShellDependantCmdLine, runConfig *container
 func dispatchRun(d dispatchRequest, c *instructions.RunCommand) error {
 
 	stateRunConfig := d.state.runConfig
-	cmdFromArgs := resolveCmdLine(c.ShellDependantCmdLine, stateRunConfig, d.builder.options.Platform.OS)
+	optionsOS := system.ParsePlatform(d.builder.options.Platform).OS
+	cmdFromArgs := resolveCmdLine(c.ShellDependantCmdLine, stateRunConfig, optionsOS)
 	buildArgs := d.state.buildArgs.FilterAllowed(stateRunConfig.Env)
 
 	saveCmd := cmdFromArgs
@@ -390,7 +388,8 @@ func prependEnvOnCmd(buildArgs *buildArgs, buildArgVars []string, cmd strslice.S
 //
 func dispatchCmd(d dispatchRequest, c *instructions.CmdCommand) error {
 	runConfig := d.state.runConfig
-	cmd := resolveCmdLine(c.ShellDependantCmdLine, runConfig, d.builder.options.Platform.OS)
+	optionsOS := system.ParsePlatform(d.builder.options.Platform).OS
+	cmd := resolveCmdLine(c.ShellDependantCmdLine, runConfig, optionsOS)
 	runConfig.Cmd = cmd
 	// set config as already being escaped, this prevents double escaping on windows
 	runConfig.ArgsEscaped = true
@@ -433,7 +432,8 @@ func dispatchHealthcheck(d dispatchRequest, c *instructions.HealthCheckCommand) 
 //
 func dispatchEntrypoint(d dispatchRequest, c *instructions.EntrypointCommand) error {
 	runConfig := d.state.runConfig
-	cmd := resolveCmdLine(c.ShellDependantCmdLine, runConfig, d.builder.options.Platform.OS)
+	optionsOS := system.ParsePlatform(d.builder.options.Platform).OS
+	cmd := resolveCmdLine(c.ShellDependantCmdLine, runConfig, optionsOS)
 	runConfig.Entrypoint = cmd
 	if !d.state.cmdSet {
 		runConfig.Cmd = nil

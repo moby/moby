@@ -14,7 +14,6 @@ import (
 	"github.com/docker/docker/builder/dockerfile/instructions"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/go-connections/nat"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -23,13 +22,13 @@ func newBuilderWithMockBackend() *Builder {
 	mockBackend := &MockBackend{}
 	ctx := context.Background()
 	b := &Builder{
-		options:       &types.ImageBuildOptions{Platform: specs.Platform{OS: runtime.GOOS}},
+		options:       &types.ImageBuildOptions{Platform: runtime.GOOS},
 		docker:        mockBackend,
 		Stdout:        new(bytes.Buffer),
 		clientCtx:     ctx,
 		disableCommit: true,
 		imageSources: newImageSources(ctx, builderOptions{
-			Options: &types.ImageBuildOptions{Platform: specs.Platform{OS: runtime.GOOS}},
+			Options: &types.ImageBuildOptions{Platform: runtime.GOOS},
 			Backend: mockBackend,
 		}),
 		imageProber:      newImageProber(mockBackend, nil, runtime.GOOS, false),
