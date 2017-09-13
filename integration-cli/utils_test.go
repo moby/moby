@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/go-check/check"
 	"github.com/gotestyourself/gotestyourself/icmd"
@@ -181,16 +180,4 @@ func RemoveLinesForExistingElements(output, existing []string) []string {
 func RemoveOutputForExistingElements(output string, existing []string) string {
 	res := RemoveLinesForExistingElements(strings.Split(output, "\n"), existing)
 	return strings.Join(res, "\n")
-}
-
-// GetKernelVersion gets the current kernel version.
-func GetKernelVersion() *kernel.VersionInfo {
-	v, _ := kernel.ParseRelease(testEnv.DaemonInfo.KernelVersion)
-	return v
-}
-
-// CheckKernelVersion checks if current kernel is newer than (or equal to)
-// the given version.
-func CheckKernelVersion(k, major, minor int) bool {
-	return kernel.CompareKernelVersion(*GetKernelVersion(), kernel.VersionInfo{Kernel: k, Major: major, Minor: minor}) > 0
 }
