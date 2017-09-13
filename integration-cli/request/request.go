@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/api"
-	"github.com/docker/docker/api/types"
 	dclient "github.com/docker/docker/client"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/ioutils"
@@ -328,10 +327,31 @@ func DaemonHost() string {
 // NewEnvClientWithVersion returns a docker client with a specified version.
 // See: github.com/docker/docker/client `NewEnvClient()`
 func NewEnvClientWithVersion(version string) (*dclient.Client, error) {
-	cli, err := dclient.NewEnvClient()
-	if err != nil {
-		return nil, err
+	if version == "" {
+		return nil, errors.New("version not specified")
 	}
-	cli.NegotiateAPIVersionPing(types.Ping{APIVersion: version})
+
+	var httpClient *http.Client
+	if os.Getenv("DOCKER_CERT_PATH") != "" {
+		tlsConfig, err := getTLSConfig()
+		if err != nil {
+			return nil, err
+		}
+		httpClient = &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: tlsConfig,
+			},
+		}
+	}
+
+	host := os.Getenv("DOCKER_HOST")
+	if host == "" {
+		host = dclient.DefaultDockerHost
+	}
+
+	cli, err := dclient.NewClient(host, version, httpClient, nil)
+	if err != nil {
+		return cli, err
+	}
 	return cli, nil
 }
