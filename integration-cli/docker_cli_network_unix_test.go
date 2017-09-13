@@ -1824,7 +1824,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkDisconnectFromBridge(c *check.C) {
 // TestConntrackFlowsLeak covers the failure scenario of ticket: https://github.com/docker/docker/issues/8795
 // Validates that conntrack is correctly cleaned once a container is destroyed
 func (s *DockerNetworkSuite) TestConntrackFlowsLeak(c *check.C) {
-	testRequires(c, IsAmd64, DaemonIsLinux, Network)
+	testRequires(c, IsAmd64, DaemonIsLinux, Network, SameHostDaemon)
 
 	// Create a new network
 	cli.DockerCmd(c, "network", "create", "--subnet=192.168.10.0/24", "--gateway=192.168.10.1", "-o", "com.docker.network.bridge.host_binding_ipv4=192.168.10.1", "testbind")
