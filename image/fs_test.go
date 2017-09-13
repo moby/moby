@@ -1,7 +1,6 @@
 package image
 
 import (
-	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
@@ -12,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/internal/testutil"
-	"github.com/opencontainers/go-digest"
+	digest "github.com/opencontainers/go-digest"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -112,9 +111,7 @@ func TestFSMetadataGetSet(t *testing.T) {
 		actual, err := store.GetMetadata(tc.id, tc.key)
 		assert.NoError(t, err)
 
-		if bytes.Compare(actual, tc.value) != 0 {
-			t.Fatalf("Metadata expected %q, got %q", tc.value, actual)
-		}
+		assert.Equal(t, tc.value, actual)
 	}
 
 	_, err = store.GetMetadata(id2, "tkey2")
@@ -183,9 +180,7 @@ func TestFSGetSet(t *testing.T) {
 	for _, tc := range tcases {
 		data, err := store.Get(tc.expected)
 		assert.NoError(t, err)
-		if bytes.Compare(data, tc.input) != 0 {
-			t.Fatalf("expected data %q, got %q", tc.input, data)
-		}
+		assert.Equal(t, tc.input, data)
 	}
 }
 

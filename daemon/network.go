@@ -115,6 +115,7 @@ var (
 func (daemon *Daemon) startIngressWorker() {
 	ingressJobsChannel = make(chan *ingressJob, 100)
 	go func() {
+		// nolint: gosimple
 		for {
 			select {
 			case r := <-ingressJobsChannel:
@@ -232,7 +233,6 @@ func (daemon *Daemon) releaseIngress(id string) {
 		logrus.Errorf("Failed to delete ingress network %s: %v", n.ID(), err)
 		return
 	}
-	return
 }
 
 // SetNetworkBootstrapKeys sets the bootstrap keys.

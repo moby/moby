@@ -395,12 +395,7 @@ func (pd *v2PushDescriptor) Upload(ctx context.Context, progressOutput progress.
 	defer layerUpload.Close()
 
 	// upload the blob
-	desc, err := pd.uploadUsingSession(ctx, progressOutput, diffID, layerUpload)
-	if err != nil {
-		return desc, err
-	}
-
-	return desc, nil
+	return pd.uploadUsingSession(ctx, progressOutput, diffID, layerUpload)
 }
 
 func (pd *v2PushDescriptor) SetRemoteDescriptor(descriptor distribution.Descriptor) {

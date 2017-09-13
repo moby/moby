@@ -116,7 +116,7 @@ func inspectResponse(ct string, r io.Reader, clen int64) (string, io.ReadCloser,
 		plen = maxPreambleLength
 	}
 
-	preamble := make([]byte, plen, plen)
+	preamble := make([]byte, plen)
 	rlen, err := r.Read(preamble)
 	if rlen == 0 {
 		return ct, ioutil.NopCloser(r), errors.New("empty response")

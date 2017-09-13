@@ -182,7 +182,7 @@ func TestArgsMatchKVList(t *testing.T) {
 	}
 
 	for args, field := range matches {
-		if args.MatchKVList(field, sources) != true {
+		if !args.MatchKVList(field, sources) {
 			t.Fatalf("Expected true for %v on %v, got false", sources, args)
 		}
 	}
@@ -202,7 +202,7 @@ func TestArgsMatchKVList(t *testing.T) {
 	}
 
 	for args, field := range differs {
-		if args.MatchKVList(field, sources) != false {
+		if args.MatchKVList(field, sources) {
 			t.Fatalf("Expected false for %v on %v, got true", sources, args)
 		}
 	}

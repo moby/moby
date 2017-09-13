@@ -75,7 +75,7 @@ type Store struct {
 
 // NewStore initializes a new exec store.
 func NewStore() *Store {
-	return &Store{commands: make(map[string]*Config, 0)}
+	return &Store{commands: make(map[string]*Config)}
 }
 
 // Commands returns the exec configurations in the store.

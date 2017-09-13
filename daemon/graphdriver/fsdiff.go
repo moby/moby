@@ -94,7 +94,7 @@ func (gdw *NaiveDiffDriver) Diff(id, parent string) (arch io.ReadCloser, err err
 		// are extracted from tar's with full second precision on modified time.
 		// We need this hack here to make sure calls within same second receive
 		// correct result.
-		time.Sleep(startTime.Truncate(time.Second).Add(time.Second).Sub(time.Now()))
+		time.Sleep(time.Until(startTime.Truncate(time.Second).Add(time.Second)))
 		return err
 	}), nil
 }

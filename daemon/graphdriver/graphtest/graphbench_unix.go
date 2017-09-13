@@ -3,13 +3,13 @@
 package graphtest
 
 import (
-	"bytes"
 	"io"
 	"io/ioutil"
 	"path/filepath"
 	"testing"
 
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/stretchr/testify/require"
 )
 
 // DriverBenchExists benchmarks calls to exist
@@ -251,9 +251,7 @@ func DriverBenchDeepLayerRead(b *testing.B, layerCount int, drivername string, d
 		}
 
 		b.StopTimer()
-		if bytes.Compare(c, content) != 0 {
-			b.Fatalf("Wrong content in file %v, expected %v", c, content)
-		}
+		require.Equal(b, content, c)
 		b.StartTimer()
 	}
 }

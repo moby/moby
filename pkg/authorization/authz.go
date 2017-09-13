@@ -158,7 +158,7 @@ func sendBody(url string, header http.Header) bool {
 
 // headers returns flatten version of the http headers excluding authorization
 func headers(header http.Header) map[string]string {
-	v := make(map[string]string, 0)
+	v := make(map[string]string)
 	for k, values := range header {
 		// Skip authorization headers
 		if strings.EqualFold(k, "Authorization") || strings.EqualFold(k, "X-Registry-Config") || strings.EqualFold(k, "X-Registry-Auth") {

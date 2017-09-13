@@ -82,8 +82,7 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 		if err := checkCompatibleOS(img.OS); err != nil {
 			return err
 		}
-		var rootFS image.RootFS
-		rootFS = *img.RootFS
+		rootFS := *img.RootFS
 		rootFS.DiffIDs = nil
 
 		if expected, actual := len(m.Layers), len(img.RootFS.DiffIDs); expected != actual {

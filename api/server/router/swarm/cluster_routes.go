@@ -427,11 +427,7 @@ func (sr *swarmRouter) updateSecret(ctx context.Context, w http.ResponseWriter, 
 	}
 
 	id := vars["id"]
-	if err := sr.backend.UpdateSecret(id, version, secret); err != nil {
-		return err
-	}
-
-	return nil
+	return sr.backend.UpdateSecret(id, version, secret)
 }
 
 func (sr *swarmRouter) getConfigs(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -498,9 +494,5 @@ func (sr *swarmRouter) updateConfig(ctx context.Context, w http.ResponseWriter, 
 	}
 
 	id := vars["id"]
-	if err := sr.backend.UpdateConfig(id, version, config); err != nil {
-		return err
-	}
-
-	return nil
+	return sr.backend.UpdateConfig(id, version, config)
 }

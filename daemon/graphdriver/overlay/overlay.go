@@ -269,10 +269,7 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 
 	// Toplevel images are just a "root" dir
 	if parent == "" {
-		if err := idtools.MkdirAs(path.Join(dir, "root"), 0755, rootUID, rootGID); err != nil {
-			return err
-		}
-		return nil
+		return idtools.MkdirAndChown(path.Join(dir, "root"), 0755, idtools.IDPair{rootUID, rootGID})
 	}
 
 	parentDir := d.dir(parent)

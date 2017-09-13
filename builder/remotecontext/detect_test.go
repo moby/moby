@@ -21,7 +21,7 @@ const (
 const shouldStayFilename = "should_stay"
 
 func extractFilenames(files []os.FileInfo) []string {
-	filenames := make([]string, len(files), len(files))
+	filenames := make([]string, len(files))
 
 	for i, file := range files {
 		filenames[i] = file.Name()

@@ -9,15 +9,14 @@
     "api/types/container/container_.*",
     "integration-cli/"
   ],
-  "Skip": [
-    "integration-cli/"
-  ],
+  "Skip": ["integration-cli/"],
 
   "Enable": [
     "deadcode",
     "gofmt",
     "goimports",
     "golint",
+    "gosimple",
     "ineffassign",
     "interfacer",
     "unconvert",

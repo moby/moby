@@ -40,11 +40,7 @@ func (nc *networkAttacherController) Update(ctx context.Context, t *api.Task) er
 
 func (nc *networkAttacherController) Prepare(ctx context.Context) error {
 	// Make sure all the networks that the task needs are created.
-	if err := nc.adapter.createNetworks(ctx); err != nil {
-		return err
-	}
-
-	return nil
+	return nc.adapter.createNetworks(ctx)
 }
 
 func (nc *networkAttacherController) Start(ctx context.Context) error {
@@ -69,11 +65,7 @@ func (nc *networkAttacherController) Terminate(ctx context.Context) error {
 func (nc *networkAttacherController) Remove(ctx context.Context) error {
 	// Try removing the network referenced in this task in case this
 	// task is the last one referencing it
-	if err := nc.adapter.removeNetworks(ctx); err != nil {
-		return err
-	}
-
-	return nil
+	return nc.adapter.removeNetworks(ctx)
 }
 
 func (nc *networkAttacherController) Close() error {
