@@ -74,7 +74,7 @@ RUN apt-get update && apt-get install -y \
 	&& pip install awscli==1.10.15
 
 # Get lvm2 sources to build statically linked devmapper library
-ENV LVM2_VERSION 2.02.173
+ENV LVM2_VERSION 2.02.168
 RUN mkdir -p /usr/local/lvm2 \
 	&& curl -fsSL "https://mirrors.kernel.org/sourceware/lvm2/LVM2.${LVM2_VERSION}.tgz" \
 		| tar -xzC /usr/local/lvm2 --strip-components=1
