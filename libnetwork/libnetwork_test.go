@@ -417,7 +417,7 @@ func TestNetworkConfig(t *testing.T) {
 		libnetwork.NetworkOptionIpam("", "", ipamV4ConfList, nil, nil),
 		libnetwork.NetworkOptionIpam("", "", nil, ipamV6ConfList, nil),
 		libnetwork.NetworkOptionLabels(map[string]string{"number": "two"}),
-		libnetwork.NetworkOptionDriverOpts(map[string]string{"com.docker.network.mtu": "1600"}),
+		libnetwork.NetworkOptionDriverOpts(map[string]string{"com.docker.network.driver.mtu": "1600"}),
 	} {
 		_, err = controller.NewNetwork(bridgeNetType, "testBR", "",
 			libnetwork.NetworkOptionConfigFrom("config_network0"), opt)
