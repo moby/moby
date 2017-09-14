@@ -144,6 +144,10 @@ tags:
     x-displayName: "Secrets"
     description: |
       Secrets are sensitive data that can be used by services. Swarm mode must be enabled for these endpoints to work.
+  - name: "Config"
+    x-displayName: "Configs"
+    description: |
+      Configs are application configurations that can be used by services. Swarm mode must be enabled for these endpoints to work.
   # System things
   - name: "Plugin"
     x-displayName: "Plugins"
