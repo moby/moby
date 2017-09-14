@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )
 
@@ -17,9 +18,17 @@ func TestServiceRemoveError(t *testing.T) {
 	}
 
 	err := client.ServiceRemove(context.Background(), "service_id")
-	if err == nil || err.Error() != "Error response from daemon: Server error" {
-		t.Fatalf("expected a Server Error, got %v", err)
+	assert.EqualError(t, err, "Error response from daemon: Server error")
+}
+
+func TestServiceRemoveNotFoundError(t *testing.T) {
+	client := &Client{
+		client: newMockClient(errorMock(http.StatusNotFound, "missing")),
 	}
+
+	err := client.ServiceRemove(context.Background(), "service_id")
+	assert.EqualError(t, err, "Error: No such service: service_id")
+	assert.True(t, IsErrNotFound(err))
 }
 
 func TestServiceRemove(t *testing.T) {

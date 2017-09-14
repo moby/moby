@@ -3,6 +3,8 @@ package client
 import (
 	"fmt"
 
+	"net/http"
+
 	"github.com/docker/docker/api/types/versions"
 	"github.com/pkg/errors"
 )
@@ -43,19 +45,28 @@ func IsErrNotFound(err error) bool {
 	return ok && te.NotFound()
 }
 
-// imageNotFoundError implements an error returned when an image is not in the docker host.
-type imageNotFoundError struct {
-	imageID string
+type objectNotFoundError struct {
+	object string
+	id     string
 }
 
-// NotFound indicates that this error type is of NotFound
-func (e imageNotFoundError) NotFound() bool {
+func (e objectNotFoundError) NotFound() bool {
 	return true
 }
 
-// Error returns a string representation of an imageNotFoundError
-func (e imageNotFoundError) Error() string {
-	return fmt.Sprintf("Error: No such image: %s", e.imageID)
+func (e objectNotFoundError) Error() string {
+	return fmt.Sprintf("Error: No such %s: %s", e.object, e.id)
+}
+
+func wrapResponseError(err error, resp serverResponse, object, id string) error {
+	switch {
+	case err == nil:
+		return nil
+	case resp.statusCode == http.StatusNotFound:
+		return objectNotFoundError{object: object, id: id}
+	default:
+		return err
+	}
 }
 
 // IsErrImageNotFound returns true if the error is caused
@@ -66,21 +77,6 @@ func IsErrImageNotFound(err error) bool {
 	return IsErrNotFound(err)
 }
 
-// containerNotFoundError implements an error returned when a container is not in the docker host.
-type containerNotFoundError struct {
-	containerID string
-}
-
-// NotFound indicates that this error type is of NotFound
-func (e containerNotFoundError) NotFound() bool {
-	return true
-}
-
-// Error returns a string representation of a containerNotFoundError
-func (e containerNotFoundError) Error() string {
-	return fmt.Sprintf("Error: No such container: %s", e.containerID)
-}
-
 // IsErrContainerNotFound returns true if the error is caused
 // when a container is not found in the docker host.
 //
@@ -89,42 +85,12 @@ func IsErrContainerNotFound(err error) bool {
 	return IsErrNotFound(err)
 }
 
-// networkNotFoundError implements an error returned when a network is not in the docker host.
-type networkNotFoundError struct {
-	networkID string
-}
-
-// NotFound indicates that this error type is of NotFound
-func (e networkNotFoundError) NotFound() bool {
-	return true
-}
-
-// Error returns a string representation of a networkNotFoundError
-func (e networkNotFoundError) Error() string {
-	return fmt.Sprintf("Error: No such network: %s", e.networkID)
-}
-
 // IsErrNetworkNotFound returns true if the error is caused
 // when a network is not found in the docker host.
 //
 // Deprecated: Use IsErrNotFound
 func IsErrNetworkNotFound(err error) bool {
 	return IsErrNotFound(err)
-}
-
-// volumeNotFoundError implements an error returned when a volume is not in the docker host.
-type volumeNotFoundError struct {
-	volumeID string
-}
-
-// NotFound indicates that this error type is of NotFound
-func (e volumeNotFoundError) NotFound() bool {
-	return true
-}
-
-// Error returns a string representation of a volumeNotFoundError
-func (e volumeNotFoundError) Error() string {
-	return fmt.Sprintf("Error: No such volume: %s", e.volumeID)
 }
 
 // IsErrVolumeNotFound returns true if the error is caused
@@ -152,43 +118,12 @@ func IsErrUnauthorized(err error) bool {
 	return ok
 }
 
-// nodeNotFoundError implements an error returned when a node is not found.
-type nodeNotFoundError struct {
-	nodeID string
-}
-
-// Error returns a string representation of a nodeNotFoundError
-func (e nodeNotFoundError) Error() string {
-	return fmt.Sprintf("Error: No such node: %s", e.nodeID)
-}
-
-// NotFound indicates that this error type is of NotFound
-func (e nodeNotFoundError) NotFound() bool {
-	return true
-}
-
 // IsErrNodeNotFound returns true if the error is caused
 // when a node is not found.
 //
 // Deprecated: Use IsErrNotFound
 func IsErrNodeNotFound(err error) bool {
-	_, ok := err.(nodeNotFoundError)
-	return ok
-}
-
-// serviceNotFoundError implements an error returned when a service is not found.
-type serviceNotFoundError struct {
-	serviceID string
-}
-
-// Error returns a string representation of a serviceNotFoundError
-func (e serviceNotFoundError) Error() string {
-	return fmt.Sprintf("Error: No such service: %s", e.serviceID)
-}
-
-// NotFound indicates that this error type is of NotFound
-func (e serviceNotFoundError) NotFound() bool {
-	return true
+	return IsErrNotFound(err)
 }
 
 // IsErrServiceNotFound returns true if the error is caused
@@ -196,23 +131,7 @@ func (e serviceNotFoundError) NotFound() bool {
 //
 // Deprecated: Use IsErrNotFound
 func IsErrServiceNotFound(err error) bool {
-	_, ok := err.(serviceNotFoundError)
-	return ok
-}
-
-// taskNotFoundError implements an error returned when a task is not found.
-type taskNotFoundError struct {
-	taskID string
-}
-
-// Error returns a string representation of a taskNotFoundError
-func (e taskNotFoundError) Error() string {
-	return fmt.Sprintf("Error: No such task: %s", e.taskID)
-}
-
-// NotFound indicates that this error type is of NotFound
-func (e taskNotFoundError) NotFound() bool {
-	return true
+	return IsErrNotFound(err)
 }
 
 // IsErrTaskNotFound returns true if the error is caused
@@ -220,8 +139,7 @@ func (e taskNotFoundError) NotFound() bool {
 //
 // Deprecated: Use IsErrNotFound
 func IsErrTaskNotFound(err error) bool {
-	_, ok := err.(taskNotFoundError)
-	return ok
+	return IsErrNotFound(err)
 }
 
 type pluginPermissionDenied struct {
@@ -248,43 +166,12 @@ func (cli *Client) NewVersionError(APIrequired, feature string) error {
 	return nil
 }
 
-// secretNotFoundError implements an error returned when a secret is not found.
-type secretNotFoundError struct {
-	name string
-}
-
-// Error returns a string representation of a secretNotFoundError
-func (e secretNotFoundError) Error() string {
-	return fmt.Sprintf("Error: no such secret: %s", e.name)
-}
-
-// NotFound indicates that this error type is of NotFound
-func (e secretNotFoundError) NotFound() bool {
-	return true
-}
-
 // IsErrSecretNotFound returns true if the error is caused
 // when a secret is not found.
 //
 // Deprecated: Use IsErrNotFound
 func IsErrSecretNotFound(err error) bool {
-	_, ok := err.(secretNotFoundError)
-	return ok
-}
-
-// configNotFoundError implements an error returned when a config is not found.
-type configNotFoundError struct {
-	name string
-}
-
-// Error returns a string representation of a configNotFoundError
-func (e configNotFoundError) Error() string {
-	return fmt.Sprintf("Error: no such config: %s", e.name)
-}
-
-// NotFound indicates that this error type is of NotFound
-func (e configNotFoundError) NotFound() bool {
-	return true
+	return IsErrNotFound(err)
 }
 
 // IsErrConfigNotFound returns true if the error is caused
@@ -292,23 +179,7 @@ func (e configNotFoundError) NotFound() bool {
 //
 // Deprecated: Use IsErrNotFound
 func IsErrConfigNotFound(err error) bool {
-	_, ok := err.(configNotFoundError)
-	return ok
-}
-
-// pluginNotFoundError implements an error returned when a plugin is not in the docker host.
-type pluginNotFoundError struct {
-	name string
-}
-
-// NotFound indicates that this error type is of NotFound
-func (e pluginNotFoundError) NotFound() bool {
-	return true
-}
-
-// Error returns a string representation of a pluginNotFoundError
-func (e pluginNotFoundError) Error() string {
-	return fmt.Sprintf("Error: No such plugin: %s", e.name)
+	return IsErrNotFound(err)
 }
 
 // IsErrPluginNotFound returns true if the error is caused

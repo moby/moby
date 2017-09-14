@@ -28,7 +28,5 @@ func (cli *Client) Ping(ctx context.Context) (types.Ping, error) {
 		}
 		ping.OSType = serverResp.header.Get("OSType")
 	}
-
-	err = cli.checkResponseErr(serverResp)
-	return ping, err
+	return ping, cli.checkResponseErr(serverResp)
 }

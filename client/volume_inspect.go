@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"io/ioutil"
-	"net/http"
 	"path"
 
 	"github.com/docker/docker/api/types"
@@ -23,16 +22,13 @@ func (cli *Client) VolumeInspectWithRaw(ctx context.Context, volumeID string) (t
 	// request url will not contain a trailing / which calls the volume list API
 	// instead of volume inspect
 	if volumeID == "" {
-		return types.Volume{}, nil, volumeNotFoundError{volumeID}
+		return types.Volume{}, nil, objectNotFoundError{object: "volume", id: volumeID}
 	}
 
 	var volume types.Volume
 	resp, err := cli.get(ctx, path.Join("/volumes", volumeID), nil, nil)
 	if err != nil {
-		if resp.statusCode == http.StatusNotFound {
-			return volume, nil, volumeNotFoundError{volumeID}
-		}
-		return volume, nil, err
+		return volume, nil, wrapResponseError(err, resp, "volume", volumeID)
 	}
 	defer ensureReaderClosed(resp)
 
