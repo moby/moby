@@ -3,6 +3,7 @@ package dockerfile
 import (
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"net/url"
 	"os"
@@ -23,6 +24,8 @@ import (
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/pkg/errors"
 )
+
+const unnamedFilename = "__unnamed__"
 
 type pathCache interface {
 	Load(key interface{}) (value interface{}, ok bool)
@@ -85,8 +88,7 @@ func (o *copier) createCopyInstruction(args []string, cmdName string) (copyInstr
 
 	// Work in daemon-specific filepath semantics
 	inst.dest = filepath.FromSlash(args[last])
-
-	infos, err := o.getCopyInfosForSourcePaths(args[0:last])
+	infos, err := o.getCopyInfosForSourcePaths(args[0:last], inst.dest)
 	if err != nil {
 		return inst, errors.Wrapf(err, "%s failed", cmdName)
 	}
@@ -99,10 +101,11 @@ func (o *copier) createCopyInstruction(args []string, cmdName string) (copyInstr
 
 // getCopyInfosForSourcePaths iterates over the source files and calculate the info
 // needed to copy (e.g. hash value if cached)
-func (o *copier) getCopyInfosForSourcePaths(sources []string) ([]copyInfo, error) {
+// The dest is used in case source is URL (and ends with "/")
+func (o *copier) getCopyInfosForSourcePaths(sources []string, dest string) ([]copyInfo, error) {
 	var infos []copyInfo
 	for _, orig := range sources {
-		subinfos, err := o.getCopyInfoForSourcePath(orig)
+		subinfos, err := o.getCopyInfoForSourcePath(orig, dest)
 		if err != nil {
 			return nil, err
 		}
@@ -115,13 +118,21 @@ func (o *copier) getCopyInfosForSourcePaths(sources []string) ([]copyInfo, error
 	return infos, nil
 }
 
-func (o *copier) getCopyInfoForSourcePath(orig string) ([]copyInfo, error) {
+func (o *copier) getCopyInfoForSourcePath(orig, dest string) ([]copyInfo, error) {
 	if !urlutil.IsURL(orig) {
 		return o.calcCopyInfo(orig, true)
 	}
 	remote, path, err := o.download(orig)
 	if err != nil {
 		return nil, err
+	}
+	// If path == "" then we are unable to determine filename from src
+	// We have to make sure dest is available
+	if path == "" {
+		if strings.HasSuffix(dest, "/") {
+			return nil, errors.Errorf("cannot determine filename for source %s", orig)
+		}
+		path = unnamedFilename
 	}
 	o.tmpPaths = append(o.tmpPaths, remote.Root())
 
@@ -301,14 +312,30 @@ func errOnSourceDownload(_ string) (builder.Source, string, error) {
 	return nil, "", errors.New("source can't be a URL for COPY")
 }
 
+func getFilenameForDownload(path string, resp *http.Response) string {
+	// Guess filename based on source
+	if path != "" && !strings.HasSuffix(path, "/") {
+		if filename := filepath.Base(filepath.FromSlash(path)); filename != "" {
+			return filename
+		}
+	}
+
+	// Guess filename based on Content-Disposition
+	if contentDisposition := resp.Header.Get("Content-Disposition"); contentDisposition != "" {
+		if _, params, err := mime.ParseMediaType(contentDisposition); err == nil {
+			if params["filename"] != "" && !strings.HasSuffix(params["filename"], "/") {
+				if filename := filepath.Base(filepath.FromSlash(params["filename"])); filename != "" {
+					return filename
+				}
+			}
+		}
+	}
+	return ""
+}
+
 func downloadSource(output io.Writer, stdout io.Writer, srcURL string) (remote builder.Source, p string, err error) {
 	u, err := url.Parse(srcURL)
 	if err != nil {
-		return
-	}
-	filename := filepath.Base(filepath.FromSlash(u.Path)) // Ensure in platform semantics
-	if filename == "" {
-		err = errors.Errorf("cannot determine filename from url: %s", u)
 		return
 	}
 
@@ -316,6 +343,8 @@ func downloadSource(output io.Writer, stdout io.Writer, srcURL string) (remote b
 	if err != nil {
 		return
 	}
+
+	filename := getFilenameForDownload(u.Path, resp)
 
 	// Prepare file in a tmp dir
 	tmpDir, err := ioutils.TempDir("", "docker-remote")
@@ -327,7 +356,13 @@ func downloadSource(output io.Writer, stdout io.Writer, srcURL string) (remote b
 			os.RemoveAll(tmpDir)
 		}
 	}()
-	tmpFileName := filepath.Join(tmpDir, filename)
+	// If filename is empty, the returned filename will be "" but
+	// the tmp filename will be created as "__unnamed__"
+	tmpFileName := filename
+	if filename == "" {
+		tmpFileName = unnamedFilename
+	}
+	tmpFileName = filepath.Join(tmpDir, tmpFileName)
 	tmpFile, err := os.OpenFile(tmpFileName, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
 	if err != nil {
 		return
