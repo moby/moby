@@ -9,12 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"os"
-
 	"github.com/docker/docker/api/types/container"
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/strslice"
-	"github.com/gotestyourself/gotestyourself/skip"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -143,103 +140,6 @@ func callDecodeContainerConfigIsolation(isolation string) (*container.Config, *c
 	return decodeContainerConfig(bytes.NewReader(b))
 }
 
-func TestDecodeContainerConfigWithVolumes(t *testing.T) {
-	var testcases = []decodeConfigTestcase{
-		{
-			doc:         "no paths volume",
-			wrapper:     containerWrapperWithVolume(":"),
-			expectedErr: `invalid volume specification: ':'`,
-		},
-		{
-			doc:         "no paths bind",
-			wrapper:     containerWrapperWithBind(":"),
-			expectedErr: `invalid volume specification: ':'`,
-		},
-		{
-			doc:         "no paths or mode volume",
-			wrapper:     containerWrapperWithVolume("::"),
-			expectedErr: `invalid volume specification: '::'`,
-		},
-		{
-			doc:         "no paths or mode bind",
-			wrapper:     containerWrapperWithBind("::"),
-			expectedErr: `invalid volume specification: '::'`,
-		},
-	}
-	for _, testcase := range testcases {
-		t.Run(testcase.doc, runDecodeContainerConfigTestCase(testcase))
-	}
-}
-
-func TestDecodeContainerConfigWithVolumesUnix(t *testing.T) {
-	skip.IfCondition(t, runtime.GOOS == "windows")
-
-	baseErr := `invalid mount config for type "volume": invalid specification: `
-	var testcases = []decodeConfigTestcase{
-		{
-			doc:         "root to root volume",
-			wrapper:     containerWrapperWithVolume("/:/"),
-			expectedErr: `invalid volume specification: '/:/'`,
-		},
-		{
-			doc:         "root to root bind",
-			wrapper:     containerWrapperWithBind("/:/"),
-			expectedErr: `invalid volume specification: '/:/'`,
-		},
-		{
-			doc:         "no destination path volume",
-			wrapper:     containerWrapperWithVolume(`/tmp:`),
-			expectedErr: ` invalid volume specification: '/tmp:'`,
-		},
-		{
-			doc:         "no destination path bind",
-			wrapper:     containerWrapperWithBind(`/tmp:`),
-			expectedErr: ` invalid volume specification: '/tmp:'`,
-		},
-		{
-			doc:         "no destination path or mode volume",
-			wrapper:     containerWrapperWithVolume(`/tmp::`),
-			expectedErr: `invalid mount config for type "bind": field Target must not be empty`,
-		},
-		{
-			doc:         "no destination path or mode bind",
-			wrapper:     containerWrapperWithBind(`/tmp::`),
-			expectedErr: `invalid mount config for type "bind": field Target must not be empty`,
-		},
-		{
-			doc:         "too many sections volume",
-			wrapper:     containerWrapperWithVolume(`/tmp:/tmp:/tmp:/tmp`),
-			expectedErr: `invalid volume specification: '/tmp:/tmp:/tmp:/tmp'`,
-		},
-		{
-			doc:         "too many sections bind",
-			wrapper:     containerWrapperWithBind(`/tmp:/tmp:/tmp:/tmp`),
-			expectedErr: `invalid volume specification: '/tmp:/tmp:/tmp:/tmp'`,
-		},
-		{
-			doc:         "just root volume",
-			wrapper:     containerWrapperWithVolume("/"),
-			expectedErr: baseErr + `destination can't be '/'`,
-		},
-		{
-			doc:         "just root bind",
-			wrapper:     containerWrapperWithBind("/"),
-			expectedErr: baseErr + `destination can't be '/'`,
-		},
-		{
-			doc:     "bind mount passed as a volume",
-			wrapper: containerWrapperWithVolume(`/foo:/bar`),
-			expectedConfig: &container.Config{
-				Volumes: map[string]struct{}{`/foo:/bar`: {}},
-			},
-			expectedHostConfig: &container.HostConfig{NetworkMode: "default"},
-		},
-	}
-	for _, testcase := range testcases {
-		t.Run(testcase.doc, runDecodeContainerConfigTestCase(testcase))
-	}
-}
-
 type decodeConfigTestcase struct {
 	doc                string
 	wrapper            ContainerConfigWrapper
@@ -263,89 +163,6 @@ func runDecodeContainerConfigTestCase(testcase decodeConfigTestcase) func(t *tes
 		assert.NoError(t, err)
 		assert.Equal(t, testcase.expectedConfig, config)
 		assert.Equal(t, testcase.expectedHostConfig, hostConfig)
-	}
-}
-
-func TestDecodeContainerConfigWithVolumesWindows(t *testing.T) {
-	skip.IfCondition(t, runtime.GOOS != "windows")
-
-	tmpDir := os.Getenv("TEMP")
-	systemDrive := os.Getenv("SystemDrive")
-	var testcases = []decodeConfigTestcase{
-		{
-			doc:         "root to root volume",
-			wrapper:     containerWrapperWithVolume(systemDrive + `\:c:\`),
-			expectedErr: `invalid volume specification: `,
-		},
-		{
-			doc:         "root to root bind",
-			wrapper:     containerWrapperWithBind(systemDrive + `\:c:\`),
-			expectedErr: `invalid volume specification: `,
-		},
-		{
-			doc:         "no destination path volume",
-			wrapper:     containerWrapperWithVolume(tmpDir + `\:`),
-			expectedErr: `invalid volume specification: `,
-		},
-		{
-			doc:         "no destination path bind",
-			wrapper:     containerWrapperWithBind(tmpDir + `\:`),
-			expectedErr: `invalid volume specification: `,
-		},
-		{
-			doc:         "no destination path or mode volume",
-			wrapper:     containerWrapperWithVolume(tmpDir + `\::`),
-			expectedErr: `invalid volume specification: `,
-		},
-		{
-			doc:         "no destination path or mode bind",
-			wrapper:     containerWrapperWithBind(tmpDir + `\::`),
-			expectedErr: `invalid volume specification: `,
-		},
-		{
-			doc:         "too many sections volume",
-			wrapper:     containerWrapperWithVolume(tmpDir + ":" + tmpDir + ":" + tmpDir + ":" + tmpDir),
-			expectedErr: `invalid volume specification: `,
-		},
-		{
-			doc:         "too many sections bind",
-			wrapper:     containerWrapperWithBind(tmpDir + ":" + tmpDir + ":" + tmpDir + ":" + tmpDir),
-			expectedErr: `invalid volume specification: `,
-		},
-		{
-			doc:         "no drive letter volume",
-			wrapper:     containerWrapperWithVolume(`\tmp`),
-			expectedErr: `invalid volume specification: `,
-		},
-		{
-			doc:         "no drive letter bind",
-			wrapper:     containerWrapperWithBind(`\tmp`),
-			expectedErr: `invalid volume specification: `,
-		},
-		{
-			doc:         "root to c-drive volume",
-			wrapper:     containerWrapperWithVolume(systemDrive + `\:c:`),
-			expectedErr: `invalid volume specification: `,
-		},
-		{
-			doc:         "root to c-drive bind",
-			wrapper:     containerWrapperWithBind(systemDrive + `\:c:`),
-			expectedErr: `invalid volume specification: `,
-		},
-		{
-			doc:         "container path without driver letter volume",
-			wrapper:     containerWrapperWithVolume(`c:\windows:\somewhere`),
-			expectedErr: `invalid volume specification: `,
-		},
-		{
-			doc:         "container path without driver letter bind",
-			wrapper:     containerWrapperWithBind(`c:\windows:\somewhere`),
-			expectedErr: `invalid volume specification: `,
-		},
-	}
-
-	for _, testcase := range testcases {
-		t.Run(testcase.doc, runDecodeContainerConfigTestCase(testcase))
 	}
 }
 

@@ -7,8 +7,6 @@ import (
 	"github.com/docker/docker/api/types/container"
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/pkg/sysinfo"
-	"github.com/docker/docker/volume"
-	"github.com/pkg/errors"
 )
 
 // ContainerDecoder implements httputils.ContainerDecoder
@@ -46,11 +44,6 @@ func decodeContainerConfig(src io.Reader) (*container.Config, *container.HostCon
 		if w.Config.Volumes == nil {
 			w.Config.Volumes = make(map[string]struct{})
 		}
-
-		// Now validate all the volumes and binds
-		if err := validateMountSettings(w.Config, hc); err != nil {
-			return nil, nil, nil, err
-		}
 	}
 
 	// Certain parameters need daemon-side validation that cannot be done
@@ -85,24 +78,4 @@ func decodeContainerConfig(src io.Reader) (*container.Config, *container.HostCon
 	}
 
 	return w.Config, hc, w.NetworkingConfig, nil
-}
-
-// validateMountSettings validates each of the volumes and bind settings
-// passed by the caller to ensure they are valid.
-func validateMountSettings(c *container.Config, hc *container.HostConfig) error {
-	// it is ok to have len(hc.Mounts) > 0 && (len(hc.Binds) > 0 || len (c.Volumes) > 0 || len (hc.Tmpfs) > 0 )
-
-	// Ensure all volumes and binds are valid.
-	for spec := range c.Volumes {
-		if _, err := volume.ParseMountRaw(spec, hc.VolumeDriver); err != nil {
-			return errors.Wrapf(err, "invalid volume spec %q", spec)
-		}
-	}
-	for _, spec := range hc.Binds {
-		if _, err := volume.ParseMountRaw(spec, hc.VolumeDriver); err != nil {
-			return errors.Wrapf(err, "invalid bind mount spec %q", spec)
-		}
-	}
-
-	return nil
 }
