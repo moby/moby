@@ -3,7 +3,7 @@ package libcontainerd
 import (
 	"io"
 
-	containerd "github.com/containerd/containerd/api/grpc/types"
+	"github.com/containerd/containerd/api/services/version/v1"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"golang.org/x/net/context"
 )
@@ -71,5 +71,5 @@ type IOPipe struct {
 // ServerVersion contains version information as retrieved from the
 // server
 type ServerVersion struct {
-	containerd.GetServerVersionResponse
+	version.VersionResponse
 }

@@ -1377,3 +1377,16 @@ func (daemon *Daemon) setupSeccompProfile() error {
 	}
 	return nil
 }
+
+func copyBlkioEntry(entries []*cgroups.BlkioStatEntry) []types.BlkioStatEntry {
+	out := make([]types.BlkioStatEntry, len(entries))
+	for i, re := range entries {
+		out[i] = types.BlkioStatEntry{
+			Major: re.Major,
+			Minor: re.Minor,
+			Op:    re.Op,
+			Value: re.Value,
+		}
+	}
+	return out
+}

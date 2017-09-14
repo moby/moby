@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	containerd "github.com/containerd/containerd/api/grpc/types"
+	containerd "github.com/containerd/containerd/api/types"
 	containerd_runtime_types "github.com/containerd/containerd/runtime"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/mount"

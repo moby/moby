@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	containerd "github.com/containerd/containerd/api/grpc/types"
+	containerd "github.com/containerd/containerd/api/types"
 	"github.com/docker/docker/pkg/ioutils"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
