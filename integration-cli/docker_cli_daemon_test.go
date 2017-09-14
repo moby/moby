@@ -1825,7 +1825,7 @@ func (s *DockerDaemonSuite) TestDaemonNoSpaceLeftOnDeviceError(c *check.C) {
 	defer s.d.Stop(c)
 
 	// pull a repository large enough to fill the mount point
-	pullOut, err := s.d.Cmd("pull", "registry:2")
+	pullOut, err := s.d.Cmd("pull", "debian:stretch")
 	c.Assert(err, checker.NotNil, check.Commentf(pullOut))
 	c.Assert(pullOut, checker.Contains, "no space left on device")
 }
