@@ -41,8 +41,8 @@ type containerAdapter struct {
 	dependencies exec.DependencyGetter
 }
 
-func newContainerAdapter(b executorpkg.Backend, task *api.Task, dependencies exec.DependencyGetter) (*containerAdapter, error) {
-	ctnr, err := newContainerConfig(task)
+func newContainerAdapter(b executorpkg.Backend, task *api.Task, node *api.NodeDescription, dependencies exec.DependencyGetter) (*containerAdapter, error) {
+	ctnr, err := newContainerConfig(task, node)
 	if err != nil {
 		return nil, err
 	}

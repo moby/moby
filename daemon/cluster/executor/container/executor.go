@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -26,6 +27,8 @@ type executor struct {
 	backend       executorpkg.Backend
 	pluginBackend plugin.Backend
 	dependencies  exec.DependencyManager
+	mutex         sync.Mutex // This mutex protects the following node field
+	node          *api.NodeDescription
 }
 
 // NewExecutor returns an executor from the docker client.
@@ -124,6 +127,11 @@ func (e *executor) Describe(ctx context.Context) (*api.NodeDescription, error) {
 		},
 	}
 
+	// Save the node information in the executor field
+	e.mutex.Lock()
+	e.node = description
+	e.mutex.Unlock()
+
 	return description, nil
 }
 
@@ -168,8 +176,13 @@ func (e *executor) Configure(ctx context.Context, node *api.Node) error {
 func (e *executor) Controller(t *api.Task) (exec.Controller, error) {
 	dependencyGetter := agent.Restrict(e.dependencies, t)
 
+	// Get the node description from the executor field
+	e.mutex.Lock()
+	nodeDescription := e.node
+	e.mutex.Unlock()
+
 	if t.Spec.GetAttachment() != nil {
-		return newNetworkAttacherController(e.backend, t, dependencyGetter)
+		return newNetworkAttacherController(e.backend, t, nodeDescription, dependencyGetter)
 	}
 
 	var ctlr exec.Controller
@@ -198,7 +211,7 @@ func (e *executor) Controller(t *api.Task) (exec.Controller, error) {
 			return ctlr, fmt.Errorf("unsupported runtime type: %q", runtimeKind)
 		}
 	case *api.TaskSpec_Container:
-		c, err := newController(e.backend, t, dependencyGetter)
+		c, err := newController(e.backend, t, nodeDescription, dependencyGetter)
 		if err != nil {
 			return ctlr, err
 		}
