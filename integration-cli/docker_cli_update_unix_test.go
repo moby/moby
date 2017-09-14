@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/request"
+	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/go-check/check"
 	"github.com/kr/pty"
 )
@@ -168,6 +169,18 @@ func (s *DockerSuite) TestUpdateKernelMemoryUninitialized(c *check.C) {
 	file := "/sys/fs/cgroup/memory/memory.kmem.limit_in_bytes"
 	out, _ := dockerCmd(c, "exec", name, "cat", file)
 	c.Assert(strings.TrimSpace(out), checker.Equals, "314572800")
+}
+
+// GetKernelVersion gets the current kernel version.
+func GetKernelVersion() *kernel.VersionInfo {
+	v, _ := kernel.ParseRelease(testEnv.DaemonInfo.KernelVersion)
+	return v
+}
+
+// CheckKernelVersion checks if current kernel is newer than (or equal to)
+// the given version.
+func CheckKernelVersion(k, major, minor int) bool {
+	return kernel.CompareKernelVersion(*GetKernelVersion(), kernel.VersionInfo{Kernel: k, Major: major, Minor: minor}) > 0
 }
 
 func (s *DockerSuite) TestUpdateSwapMemoryOnly(c *check.C) {

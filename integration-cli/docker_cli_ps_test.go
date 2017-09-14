@@ -519,9 +519,9 @@ func (s *DockerSuite) TestPsRightTagName(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsLinkedWithNoTrunc(c *check.C) {
-	// E2E: Test assumes no other containers.
 	// Problematic on Windows as it doesn't support links as of Jan 2016
-	testRequires(c, DaemonIsLinux, NotE2E)
+	testRequires(c, DaemonIsLinux)
+	existingContainers := ExistingContainerIDs(c)
 	runSleepingContainer(c, "--name=first")
 	runSleepingContainer(c, "--name=second", "--link=first:first")
 
@@ -529,6 +529,7 @@ func (s *DockerSuite) TestPsLinkedWithNoTrunc(c *check.C) {
 	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
 	// strip header
 	lines = lines[1:]
+	lines = RemoveLinesForExistingElements(lines, existingContainers)
 	expected := []string{"second", "first,second/first"}
 	var names []string
 	for _, l := range lines {
@@ -630,20 +631,6 @@ func (s *DockerSuite) TestPsNamesMultipleTime(c *check.C) {
 	var names []string
 	names = append(names, lines...)
 	c.Assert(expected, checker.DeepEquals, names, check.Commentf("Expected array with names displayed twice: %v, got: %v", expected, names))
-}
-
-func (s *DockerSuite) TestPsFormatHeaders(c *check.C) {
-	// E2E: Test assumes no other containers.
-	testRequires(c, NotE2E)
-
-	// make sure no-container "docker ps" still prints the header row
-	out, _ := dockerCmd(c, "ps", "--format", "table {{.ID}}")
-	c.Assert(out, checker.Equals, "CONTAINER ID\n", check.Commentf(`Expected 'CONTAINER ID\n', got %v`, out))
-
-	// verify that "docker ps" with a container still prints the header row also
-	runSleepingContainer(c, "--name=test")
-	out, _ = dockerCmd(c, "ps", "--format", "table {{.Names}}")
-	c.Assert(out, checker.Equals, "NAMES\ntest\n", check.Commentf(`Expected 'NAMES\ntest\n', got %v`, out))
 }
 
 func (s *DockerSuite) TestPsDefaultFormatAndQuiet(c *check.C) {

@@ -1,15 +1,41 @@
 #!/usr/bin/env bash
 set -e
 
+TESTFLAGS=${TESTFLAGS:-""}
+# Currently only DockerSuite and DockerNetworkSuite have been adapted for E2E testing
+TESTFLAGS_LEGACY=${TESTFLAGS_LEGACY:-""}
+TIMEOUT=${TIMEOUT:-60m}
+
+SCRIPTDIR="$(dirname ${BASH_SOURCE[0]})"
+
 export DOCKER_ENGINE_GOARCH=${DOCKER_ENGINE_GOARCH:-amd64}
 
-echo "Ensure emptyfs image is loaded"
-bash /ensure-emptyfs.sh
+run_test_integration() {
+  run_test_integration_suites
+  run_test_integration_legacy_suites
+}
 
-echo "Run integration/container tests"
-cd /tests/integration/container
-./test.main -test.v
+run_test_integration_suites() {
+  local flags="-test.v -test.timeout=${TIMEOUT} $TESTFLAGS"
+  for dir in /tests/integration/*; do
+    if ! (
+      cd $dir
+      echo "Running $PWD"
+      ./test.main $flags
+    ); then exit 1; fi
+  done
+}
 
-echo "Run integration-cli tests (DockerSuite, DockerNetworkSuite)"
-cd /tests/integration-cli
-./test.main -test.v -check.v -check.f "DockerSuite|DockerNetworkSuite"
+run_test_integration_legacy_suites() {
+  (
+    flags="-check.v -check.timeout=${TIMEOUT} -test.timeout=360m $TESTFLAGS_LEGACY"
+    cd /tests/integration-cli
+    echo "Running $PWD"
+    ./test.main $flags
+  )
+}
+
+bash $SCRIPTDIR/ensure-emptyfs.sh
+
+echo "Run integration tests"
+run_test_integration

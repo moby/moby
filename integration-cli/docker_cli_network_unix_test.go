@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -288,41 +287,6 @@ func (s *DockerNetworkSuite) TestDockerNetworkLsDefault(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestNetworkLsFormat(c *check.C) {
-	// E2E: Test assumes only default networks.
-	testRequires(c, DaemonIsLinux, NotE2E)
-	out, _ := dockerCmd(c, "network", "ls", "--format", "{{.Name}}")
-	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
-
-	expected := []string{"bridge", "host", "none"}
-	var names []string
-	names = append(names, lines...)
-	c.Assert(expected, checker.DeepEquals, names, check.Commentf("Expected array with truncated names: %v, got: %v", expected, names))
-}
-
-func (s *DockerSuite) TestNetworkLsFormatDefaultFormat(c *check.C) {
-	// E2E: Test assumes only default networks.
-	testRequires(c, DaemonIsLinux, NotE2E)
-
-	config := `{
-		"networksFormat": "{{ .Name }} default"
-}`
-	d, err := ioutil.TempDir("", "integration-cli-")
-	c.Assert(err, checker.IsNil)
-	defer os.RemoveAll(d)
-
-	err = ioutil.WriteFile(filepath.Join(d, "config.json"), []byte(config), 0644)
-	c.Assert(err, checker.IsNil)
-
-	out, _ := dockerCmd(c, "--config", d, "network", "ls")
-	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
-
-	expected := []string{"bridge default", "host default", "none default"}
-	var names []string
-	names = append(names, lines...)
-	c.Assert(expected, checker.DeepEquals, names, check.Commentf("Expected array with truncated names: %v, got: %v", expected, names))
-}
-
 func (s *DockerNetworkSuite) TestDockerNetworkCreatePredefined(c *check.C) {
 	predefined := []string{"bridge", "host", "none", "default"}
 	for _, net := range predefined {
@@ -353,8 +317,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkRmPredefined(c *check.C) {
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkLsFilter(c *check.C) {
-	// E2E: Test assumes clean network environment.
-	testRequires(c, NotE2E)
+	testRequires(c, OnlyDefaultNetworks)
 	testNet := "testnet1"
 	testLabel := "foo"
 	testValue := "bar"

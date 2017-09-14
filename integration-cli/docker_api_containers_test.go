@@ -1408,19 +1408,6 @@ func (s *DockerSuite) TestPutContainerArchiveErrSymlinkInVolumeToReadOnlyRootfs(
 	c.Assert(err.Error(), checker.Contains, "container rootfs is marked read-only")
 }
 
-func (s *DockerSuite) TestContainerAPIGetContainersJSONEmpty(c *check.C) {
-	// E2E: Test assumes no other containers running.
-	testRequires(c, NotE2E)
-
-	cli, err := client.NewEnvClient()
-	c.Assert(err, checker.IsNil)
-	defer cli.Close()
-
-	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{All: true})
-	c.Assert(err, checker.IsNil)
-	c.Assert(containers, checker.HasLen, 0)
-}
-
 func (s *DockerSuite) TestPostContainersCreateWithWrongCpusetValues(c *check.C) {
 	// Not supported on Windows
 	testRequires(c, DaemonIsLinux)

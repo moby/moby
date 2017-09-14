@@ -119,8 +119,7 @@ func (s *DockerSuite) TestAPIImagesHistory(c *check.C) {
 }
 
 func (s *DockerSuite) TestAPIImagesImportBadSrc(c *check.C) {
-	// E2E: Test runs local HTTP server.
-	testRequires(c, Network, NotE2E)
+	testRequires(c, Network, SameHostDaemon)
 
 	server := httptest.NewServer(http.NewServeMux())
 	defer server.Close()

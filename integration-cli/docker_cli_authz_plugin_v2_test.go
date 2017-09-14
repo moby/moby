@@ -30,7 +30,7 @@ type DockerAuthzV2Suite struct {
 }
 
 func (s *DockerAuthzV2Suite) SetUpTest(c *check.C) {
-	testRequires(c, DaemonIsLinux, Network)
+	testRequires(c, DaemonIsLinux, Network, SameHostDaemon)
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
 		Experimental: testEnv.ExperimentalDaemon(),
 	})

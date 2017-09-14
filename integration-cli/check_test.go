@@ -117,7 +117,7 @@ func (s *DockerRegistrySuite) OnTimeout(c *check.C) {
 }
 
 func (s *DockerRegistrySuite) SetUpTest(c *check.C) {
-	testRequires(c, DaemonIsLinux, registry.Hosting)
+	testRequires(c, DaemonIsLinux, registry.Hosting, SameHostDaemon)
 	s.reg = setupRegistry(c, false, "", "")
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
 		Experimental: testEnv.ExperimentalDaemon(),
@@ -151,7 +151,7 @@ func (s *DockerSchema1RegistrySuite) OnTimeout(c *check.C) {
 }
 
 func (s *DockerSchema1RegistrySuite) SetUpTest(c *check.C) {
-	testRequires(c, DaemonIsLinux, registry.Hosting, NotArm64)
+	testRequires(c, DaemonIsLinux, registry.Hosting, NotArm64, SameHostDaemon)
 	s.reg = setupRegistry(c, true, "", "")
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
 		Experimental: testEnv.ExperimentalDaemon(),
@@ -185,7 +185,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) OnTimeout(c *check.C) {
 }
 
 func (s *DockerRegistryAuthHtpasswdSuite) SetUpTest(c *check.C) {
-	testRequires(c, DaemonIsLinux, registry.Hosting)
+	testRequires(c, DaemonIsLinux, registry.Hosting, SameHostDaemon)
 	s.reg = setupRegistry(c, false, "htpasswd", "")
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
 		Experimental: testEnv.ExperimentalDaemon(),
@@ -221,7 +221,7 @@ func (s *DockerRegistryAuthTokenSuite) OnTimeout(c *check.C) {
 }
 
 func (s *DockerRegistryAuthTokenSuite) SetUpTest(c *check.C) {
-	testRequires(c, DaemonIsLinux, registry.Hosting)
+	testRequires(c, DaemonIsLinux, registry.Hosting, SameHostDaemon)
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
 		Experimental: testEnv.ExperimentalDaemon(),
 	})
@@ -316,7 +316,7 @@ func (s *DockerSwarmSuite) OnTimeout(c *check.C) {
 }
 
 func (s *DockerSwarmSuite) SetUpTest(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
 }
 
 func (s *DockerSwarmSuite) AddDaemon(c *check.C, joinSwarm, manager bool) *daemon.Swarm {
@@ -468,7 +468,7 @@ func (ps *DockerPluginSuite) getPluginRepoWithTag() string {
 }
 
 func (ps *DockerPluginSuite) SetUpSuite(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, registry.Hosting)
 	ps.registry = setupRegistry(c, false, "", "")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
