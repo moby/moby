@@ -16,16 +16,27 @@ import (
 
 func (s *DockerSuite) TestVolumesAPIList(c *check.C) {
 	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
-	dockerCmd(c, "run", "-v", prefix+"/foo", "busybox")
+	cid, _ := dockerCmd(c, "run", "-d", "-v", prefix+"/foo", "busybox")
 
 	cli, err := client.NewEnvClient()
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
+	container, err := cli.ContainerInspect(context.Background(), strings.TrimSpace(cid))
+	c.Assert(err, checker.IsNil)
+	vname := container.Mounts[0].Name
+
 	volumes, err := cli.VolumeList(context.Background(), filters.Args{})
 	c.Assert(err, checker.IsNil)
 
-	c.Assert(len(volumes.Volumes), checker.Equals, 1, check.Commentf("\n%v", volumes.Volumes))
+	found := false
+	for _, vol := range volumes.Volumes {
+		if vol.Name == vname {
+			found = true
+			break
+		}
+	}
+	c.Assert(found, checker.Equals, true)
 }
 
 func (s *DockerSuite) TestVolumesAPICreate(c *check.C) {
@@ -45,21 +56,21 @@ func (s *DockerSuite) TestVolumesAPICreate(c *check.C) {
 
 func (s *DockerSuite) TestVolumesAPIRemove(c *check.C) {
 	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
-	dockerCmd(c, "run", "-v", prefix+"/foo", "--name=test", "busybox")
+	cid, _ := dockerCmd(c, "run", "-d", "-v", prefix+"/foo", "--name=test", "busybox")
 
 	cli, err := client.NewEnvClient()
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
-	volumes, err := cli.VolumeList(context.Background(), filters.Args{})
+	container, err := cli.ContainerInspect(context.Background(), strings.TrimSpace(cid))
 	c.Assert(err, checker.IsNil)
+	vname := container.Mounts[0].Name
 
-	v := volumes.Volumes[0]
-	err = cli.VolumeRemove(context.Background(), v.Name, false)
+	err = cli.VolumeRemove(context.Background(), vname, false)
 	c.Assert(err.Error(), checker.Contains, "volume is in use")
 
 	dockerCmd(c, "rm", "-f", "test")
-	err = cli.VolumeRemove(context.Background(), v.Name, false)
+	err = cli.VolumeRemove(context.Background(), vname, false)
 	c.Assert(err, checker.IsNil)
 }
 
@@ -77,10 +88,6 @@ func (s *DockerSuite) TestVolumesAPIInspect(c *check.C) {
 
 	_, err = cli.VolumeCreate(context.Background(), config)
 	c.Assert(err, check.IsNil)
-
-	volumes, err := cli.VolumeList(context.Background(), filters.Args{})
-	c.Assert(err, checker.IsNil)
-	c.Assert(len(volumes.Volumes), checker.Equals, 1, check.Commentf("\n%v", volumes.Volumes))
 
 	vol, err := cli.VolumeInspect(context.Background(), config.Name)
 	c.Assert(err, checker.IsNil)

@@ -231,6 +231,7 @@ func (s *DockerSuite) TestPsListContainersFilterStatus(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsListContainersFilterHealth(c *check.C) {
+	existingContainers := ExistingContainerIDs(c)
 	// Test legacy no health check
 	out := runSleepingContainer(c, "--name=none_legacy")
 	containerID := strings.TrimSpace(out)
@@ -268,7 +269,7 @@ func (s *DockerSuite) TestPsListContainersFilterHealth(c *check.C) {
 	waitForHealthStatus(c, "passing_container", "starting", "healthy")
 
 	out = cli.DockerCmd(c, "ps", "-q", "--no-trunc", "--filter=health=healthy").Combined()
-	containerOut = strings.TrimSpace(out)
+	containerOut = strings.TrimSpace(RemoveOutputForExistingElements(out, existingContainers))
 	c.Assert(containerOut, checker.Equals, containerID, check.Commentf("Expected containerID %s, got %s for healthy filter, output: %q", containerID, containerOut, out))
 }
 
@@ -958,6 +959,7 @@ func (s *DockerSuite) TestPsFormatTemplateWithArg(c *check.C) {
 
 func (s *DockerSuite) TestPsListContainersFilterPorts(c *check.C) {
 	testRequires(c, DaemonIsLinux)
+	existingContainers := ExistingContainerIDs(c)
 
 	out, _ := dockerCmd(c, "run", "-d", "--publish=80", "busybox", "top")
 	id1 := strings.TrimSpace(out)
@@ -986,6 +988,7 @@ func (s *DockerSuite) TestPsListContainersFilterPorts(c *check.C) {
 	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), id2)
 
 	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "expose=8080/tcp")
+	out = RemoveOutputForExistingElements(out, existingContainers)
 	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), id1)
 	c.Assert(strings.TrimSpace(out), checker.Equals, id2)
 }

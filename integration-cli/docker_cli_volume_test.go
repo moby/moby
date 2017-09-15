@@ -64,9 +64,6 @@ func (s *DockerSuite) TestVolumeCLIInspectMulti(c *check.C) {
 	})
 
 	out := result.Stdout()
-	outArr := strings.Split(strings.TrimSpace(out), "\n")
-	c.Assert(len(outArr), check.Equals, 3, check.Commentf("\n%s", out))
-
 	c.Assert(out, checker.Contains, "test1")
 	c.Assert(out, checker.Contains, "test2")
 	c.Assert(out, checker.Contains, "test3")
@@ -81,11 +78,8 @@ func (s *DockerSuite) TestVolumeCLILs(c *check.C) {
 	dockerCmd(c, "volume", "create", "soo")
 	dockerCmd(c, "run", "-v", "soo:"+prefix+"/foo", "busybox", "ls", "/")
 
-	out, _ := dockerCmd(c, "volume", "ls")
-	outArr := strings.Split(strings.TrimSpace(out), "\n")
-	c.Assert(len(outArr), check.Equals, 4, check.Commentf("\n%s", out))
-
-	assertVolList(c, out, []string{"aaa", "soo", "test"})
+	out, _ := dockerCmd(c, "volume", "ls", "-q")
+	assertVolumesInList(c, out, []string{"aaa", "soo", "test"})
 }
 
 func (s *DockerSuite) TestVolumeLsFormat(c *check.C) {
@@ -94,12 +88,7 @@ func (s *DockerSuite) TestVolumeLsFormat(c *check.C) {
 	dockerCmd(c, "volume", "create", "soo")
 
 	out, _ := dockerCmd(c, "volume", "ls", "--format", "{{.Name}}")
-	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
-
-	expected := []string{"aaa", "soo", "test"}
-	var names []string
-	names = append(names, lines...)
-	c.Assert(expected, checker.DeepEquals, names, check.Commentf("Expected array with truncated names: %v, got: %v", expected, names))
+	assertVolumesInList(c, out, []string{"aaa", "soo", "test"})
 }
 
 func (s *DockerSuite) TestVolumeLsFormatDefaultFormat(c *check.C) {
@@ -118,12 +107,7 @@ func (s *DockerSuite) TestVolumeLsFormatDefaultFormat(c *check.C) {
 	c.Assert(err, checker.IsNil)
 
 	out, _ := dockerCmd(c, "--config", d, "volume", "ls")
-	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
-
-	expected := []string{"aaa default", "soo default", "test default"}
-	var names []string
-	names = append(names, lines...)
-	c.Assert(expected, checker.DeepEquals, names, check.Commentf("Expected array with truncated names: %v, got: %v", expected, names))
+	assertVolumesInList(c, out, []string{"aaa default", "soo default", "test default"})
 }
 
 // assertVolList checks volume retrieved with ls command
@@ -140,6 +124,20 @@ func assertVolList(c *check.C, out string, expectVols []string) {
 
 	// volume ls should contains all expected volumes
 	c.Assert(volList, checker.DeepEquals, expectVols)
+}
+
+func assertVolumesInList(c *check.C, out string, expected []string) {
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	for _, expect := range expected {
+		found := false
+		for _, v := range lines {
+			found = v == expect
+			if found {
+				break
+			}
+		}
+		c.Assert(found, checker.Equals, true, check.Commentf("Expected volume not found: %v, got: %v", expect, lines))
+	}
 }
 
 func (s *DockerSuite) TestVolumeCLILsFilterDangling(c *check.C) {
@@ -212,10 +210,6 @@ func (s *DockerSuite) TestVolumeCLIRm(c *check.C) {
 	dockerCmd(c, "volume", "create", "test")
 	dockerCmd(c, "volume", "rm", id)
 	dockerCmd(c, "volume", "rm", "test")
-
-	out, _ = dockerCmd(c, "volume", "ls")
-	outArr := strings.Split(strings.TrimSpace(out), "\n")
-	c.Assert(len(outArr), check.Equals, 1, check.Commentf("%s\n", out))
 
 	volumeID := "testing"
 	dockerCmd(c, "run", "-v", volumeID+":"+prefix+"/foo", "--name=test", "busybox", "sh", "-c", "echo hello > /foo/bar")
@@ -407,10 +401,6 @@ func (s *DockerSuite) TestVolumeCLIRmForceUsage(c *check.C) {
 
 	dockerCmd(c, "volume", "rm", "-f", id)
 	dockerCmd(c, "volume", "rm", "--force", "nonexist")
-
-	out, _ = dockerCmd(c, "volume", "ls")
-	outArr := strings.Split(strings.TrimSpace(out), "\n")
-	c.Assert(len(outArr), check.Equals, 1, check.Commentf("%s\n", out))
 }
 
 func (s *DockerSuite) TestVolumeCLIRmForce(c *check.C) {

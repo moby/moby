@@ -21,6 +21,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
@@ -35,6 +36,7 @@ import (
 	"github.com/go-check/check"
 	"github.com/gotestyourself/gotestyourself/icmd"
 	libcontainerUser "github.com/opencontainers/runc/libcontainer/user"
+	"golang.org/x/net/context"
 )
 
 // "test123" should be printed by docker run
@@ -3967,21 +3969,35 @@ func (s *DockerSuite) TestRunNamedVolumeNotRemoved(c *check.C) {
 	dockerCmd(c, "run", "--rm", "-v", "test:"+prefix+"/foo", "-v", prefix+"/bar", "busybox", "true")
 	dockerCmd(c, "volume", "inspect", "test")
 	out, _ := dockerCmd(c, "volume", "ls", "-q")
-	c.Assert(strings.TrimSpace(out), checker.Equals, "test")
+	c.Assert(strings.TrimSpace(out), checker.Contains, "test")
 
 	dockerCmd(c, "run", "--name=test", "-v", "test:"+prefix+"/foo", "-v", prefix+"/bar", "busybox", "true")
 	dockerCmd(c, "rm", "-fv", "test")
 	dockerCmd(c, "volume", "inspect", "test")
 	out, _ = dockerCmd(c, "volume", "ls", "-q")
-	c.Assert(strings.TrimSpace(out), checker.Equals, "test")
+	c.Assert(strings.TrimSpace(out), checker.Contains, "test")
 }
 
 func (s *DockerSuite) TestRunNamedVolumesFromNotRemoved(c *check.C) {
 	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
 
 	dockerCmd(c, "volume", "create", "test")
-	dockerCmd(c, "run", "--name=parent", "-v", "test:"+prefix+"/foo", "-v", prefix+"/bar", "busybox", "true")
+	cid, _ := dockerCmd(c, "run", "-d", "--name=parent", "-v", "test:"+prefix+"/foo", "-v", prefix+"/bar", "busybox", "true")
 	dockerCmd(c, "run", "--name=child", "--volumes-from=parent", "busybox", "true")
+
+	cli, err := client.NewEnvClient()
+	c.Assert(err, checker.IsNil)
+	defer cli.Close()
+
+	container, err := cli.ContainerInspect(context.Background(), strings.TrimSpace(cid))
+	c.Assert(err, checker.IsNil)
+	var vname string
+	for _, v := range container.Mounts {
+		if v.Name != "test" {
+			vname = v.Name
+		}
+	}
+	c.Assert(vname, checker.Not(checker.Equals), "")
 
 	// Remove the parent so there are not other references to the volumes
 	dockerCmd(c, "rm", "-f", "parent")
@@ -3989,7 +4005,8 @@ func (s *DockerSuite) TestRunNamedVolumesFromNotRemoved(c *check.C) {
 	dockerCmd(c, "rm", "-fv", "child")
 	dockerCmd(c, "volume", "inspect", "test")
 	out, _ := dockerCmd(c, "volume", "ls", "-q")
-	c.Assert(strings.TrimSpace(out), checker.Equals, "test")
+	c.Assert(strings.TrimSpace(out), checker.Contains, "test")
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Contains), vname)
 }
 
 func (s *DockerSuite) TestRunAttachFailedNoLeak(c *check.C) {
