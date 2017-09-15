@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
 )
 
@@ -15,7 +16,8 @@ func fixPermissions(source, destination string, rootIDs idtools.IDPair, override
 		err           error
 	)
 	if !overrideSkip {
-		skipChownRoot, err = isExistingDirectory(destination)
+		destEndpoint := &copyEndpoint{driver: containerfs.NewLocalDriver(), path: destination}
+		skipChownRoot, err = isExistingDirectory(destEndpoint)
 		if err != nil {
 			return err
 		}
@@ -39,4 +41,8 @@ func fixPermissions(source, destination string, rootIDs idtools.IDPair, override
 		fullpath = filepath.Join(destination, cleaned)
 		return os.Lchown(fullpath, rootIDs.UID, rootIDs.GID)
 	})
+}
+
+func validateCopySourcePath(imageSource *imageMount, origPath, platform string) error {
+	return nil
 }

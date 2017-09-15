@@ -99,6 +99,8 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		FullTimestamp:   true,
 	})
 
+	system.InitLCOW(cli.Config.Experimental)
+
 	if err := setDefaultUmask(); err != nil {
 		return fmt.Errorf("Failed to set umask: %v", err)
 	}

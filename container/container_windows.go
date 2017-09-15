@@ -172,18 +172,6 @@ func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfi
 	return nil
 }
 
-// cleanResourcePath cleans a resource path by removing C:\ syntax, and prepares
-// to combine with a volume path
-func cleanResourcePath(path string) string {
-	if len(path) >= 2 {
-		c := path[0]
-		if path[1] == ':' && ('a' <= c && c <= 'z' || 'A' <= c && c <= 'Z') {
-			path = path[2:]
-		}
-	}
-	return filepath.Join(string(os.PathSeparator), path)
-}
-
 // BuildHostnameFile writes the container's hostname file.
 func (container *Container) BuildHostnameFile() error {
 	return nil

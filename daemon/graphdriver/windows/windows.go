@@ -26,6 +26,7 @@ import (
 	"github.com/Microsoft/hcsshim"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/longpath"
@@ -354,36 +355,36 @@ func (d *Driver) Remove(id string) error {
 }
 
 // Get returns the rootfs path for the id. This will mount the dir at its given path.
-func (d *Driver) Get(id, mountLabel string) (string, error) {
+func (d *Driver) Get(id, mountLabel string) (containerfs.ContainerFS, error) {
 	panicIfUsedByLcow()
 	logrus.Debugf("WindowsGraphDriver Get() id %s mountLabel %s", id, mountLabel)
 	var dir string
 
 	rID, err := d.resolveID(id)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if count := d.ctr.Increment(rID); count > 1 {
-		return d.cache[rID], nil
+		return containerfs.NewLocalContainerFS(d.cache[rID]), nil
 	}
 
 	// Getting the layer paths must be done outside of the lock.
 	layerChain, err := d.getLayerChain(rID)
 	if err != nil {
 		d.ctr.Decrement(rID)
-		return "", err
+		return nil, err
 	}
 
 	if err := hcsshim.ActivateLayer(d.info, rID); err != nil {
 		d.ctr.Decrement(rID)
-		return "", err
+		return nil, err
 	}
 	if err := hcsshim.PrepareLayer(d.info, rID, layerChain); err != nil {
 		d.ctr.Decrement(rID)
 		if err2 := hcsshim.DeactivateLayer(d.info, rID); err2 != nil {
 			logrus.Warnf("Failed to Deactivate %s: %s", id, err)
 		}
-		return "", err
+		return nil, err
 	}
 
 	mountPath, err := hcsshim.GetLayerMountPath(d.info, rID)
@@ -395,7 +396,7 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 		if err2 := hcsshim.DeactivateLayer(d.info, rID); err2 != nil {
 			logrus.Warnf("Failed to Deactivate %s: %s", id, err)
 		}
-		return "", err
+		return nil, err
 	}
 	d.cacheMu.Lock()
 	d.cache[rID] = mountPath
@@ -409,7 +410,7 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 		dir = d.dir(id)
 	}
 
-	return dir, nil
+	return containerfs.NewLocalContainerFS(dir), nil
 }
 
 // Put adds a new layer to the driver.
@@ -618,7 +619,7 @@ func (d *Driver) DiffSize(id, parent string) (size int64, err error) {
 	}
 	defer d.Put(id)
 
-	return archive.ChangesSize(layerFs, changes), nil
+	return archive.ChangesSize(layerFs.Path(), changes), nil
 }
 
 // GetMetadata returns custom driver information.

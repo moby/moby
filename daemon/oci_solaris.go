@@ -2,7 +2,6 @@ package daemon
 
 import (
 	"fmt"
-	"path/filepath"
 	"sort"
 	"strconv"
 
@@ -127,7 +126,7 @@ func (daemon *Daemon) populateCommonSpec(s *specs.Spec, c *container.Container) 
 		return err
 	}
 	s.Root = specs.Root{
-		Path:     filepath.Dir(c.BaseFS),
+		Path:     c.BaseFS.Dir(c.BaseFS.Path()),
 		Readonly: c.HostConfig.ReadonlyRootfs,
 	}
 	if err := c.SetupWorkingDirectory(daemon.idMappings.RootPair()); err != nil {

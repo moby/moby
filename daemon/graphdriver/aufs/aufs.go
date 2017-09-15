@@ -38,6 +38,7 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
+	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/directory"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/locker"
@@ -388,12 +389,12 @@ func atomicRemove(source string) error {
 
 // Get returns the rootfs path for the id.
 // This will mount the dir at its given path
-func (a *Driver) Get(id, mountLabel string) (string, error) {
+func (a *Driver) Get(id, mountLabel string) (containerfs.ContainerFS, error) {
 	a.locker.Lock(id)
 	defer a.locker.Unlock(id)
 	parents, err := a.getParentLayerPaths(id)
 	if err != nil && !os.IsNotExist(err) {
-		return "", err
+		return nil, err
 	}
 
 	a.pathCacheLock.Lock()
@@ -407,21 +408,21 @@ func (a *Driver) Get(id, mountLabel string) (string, error) {
 		}
 	}
 	if count := a.ctr.Increment(m); count > 1 {
-		return m, nil
+		return containerfs.NewLocalContainerFS(m), nil
 	}
 
 	// If a dir does not have a parent ( no layers )do not try to mount
 	// just return the diff path to the data
 	if len(parents) > 0 {
 		if err := a.mount(id, m, mountLabel, parents); err != nil {
-			return "", err
+			return nil, err
 		}
 	}
 
 	a.pathCacheLock.Lock()
 	a.pathCache[id] = m
 	a.pathCacheLock.Unlock()
-	return m, nil
+	return containerfs.NewLocalContainerFS(m), nil
 }
 
 // Put unmounts and updates list of active mounts.
