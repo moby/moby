@@ -71,7 +71,6 @@ func (s *DockerSuite) TestContainerAPIGetJSONNoFieldsOmitted(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(containers, checker.HasLen, startCount+1)
 	actual := fmt.Sprintf("%+v", containers[0])
-	fmt.Println(actual)
 
 	// empty Labels field triggered this bug, make sense to check for everything
 	// cause even Ports for instance can trigger this bug
