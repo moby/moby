@@ -4,16 +4,23 @@ package mount
 
 /*
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/mnttab.h>
 */
 import "C"
 
 import (
 	"fmt"
+	"unsafe"
 )
 
 func parseMountTable() ([]*Info, error) {
-	mnttab := C.fopen(C.CString(C.MNTTAB), C.CString("r"))
+	path := C.CString(C.MNTTAB)
+	defer C.free(unsafe.Pointer(path))
+	mode := C.CString("r")
+	defer C.free(unsafe.Pointer(mode))
+
+	mnttab := C.fopen(path, mode)
 	if mnttab == nil {
 		return nil, fmt.Errorf("Failed to open %s", C.MNTTAB)
 	}
