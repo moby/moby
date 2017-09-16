@@ -36,25 +36,25 @@ func TestFSCache(t *testing.T) {
 	src1, err := fscache.SyncFrom(context.TODO(), &testIdentifier{"foo", "data", "bar"})
 	assert.Nil(t, err)
 
-	dt, err := ioutil.ReadFile(filepath.Join(src1.Root(), "foo"))
+	dt, err := ioutil.ReadFile(filepath.Join(src1.Root().Path(), "foo"))
 	assert.Nil(t, err)
 	assert.Equal(t, string(dt), "data")
 
 	// same id doesn't recalculate anything
 	src2, err := fscache.SyncFrom(context.TODO(), &testIdentifier{"foo", "data2", "bar"})
 	assert.Nil(t, err)
-	assert.Equal(t, src1.Root(), src2.Root())
+	assert.Equal(t, src1.Root().Path(), src2.Root().Path())
 
-	dt, err = ioutil.ReadFile(filepath.Join(src1.Root(), "foo"))
+	dt, err = ioutil.ReadFile(filepath.Join(src1.Root().Path(), "foo"))
 	assert.Nil(t, err)
 	assert.Equal(t, string(dt), "data")
 	assert.Nil(t, src2.Close())
 
 	src3, err := fscache.SyncFrom(context.TODO(), &testIdentifier{"foo2", "data2", "bar"})
 	assert.Nil(t, err)
-	assert.NotEqual(t, src1.Root(), src3.Root())
+	assert.NotEqual(t, src1.Root().Path(), src3.Root().Path())
 
-	dt, err = ioutil.ReadFile(filepath.Join(src3.Root(), "foo2"))
+	dt, err = ioutil.ReadFile(filepath.Join(src3.Root().Path(), "foo2"))
 	assert.Nil(t, err)
 	assert.Equal(t, string(dt), "data2")
 
@@ -71,12 +71,12 @@ func TestFSCache(t *testing.T) {
 	// new upload with the same shared key shoutl overwrite
 	src4, err := fscache.SyncFrom(context.TODO(), &testIdentifier{"foo3", "data3", "bar"})
 	assert.Nil(t, err)
-	assert.NotEqual(t, src1.Root(), src3.Root())
+	assert.NotEqual(t, src1.Root().Path(), src3.Root().Path())
 
-	dt, err = ioutil.ReadFile(filepath.Join(src3.Root(), "foo3"))
+	dt, err = ioutil.ReadFile(filepath.Join(src3.Root().Path(), "foo3"))
 	assert.Nil(t, err)
 	assert.Equal(t, string(dt), "data3")
-	assert.Equal(t, src4.Root(), src3.Root())
+	assert.Equal(t, src4.Root().Path(), src3.Root().Path())
 	assert.Nil(t, src4.Close())
 
 	s, err = fscache.DiskUsage()

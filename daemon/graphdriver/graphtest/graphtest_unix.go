@@ -97,10 +97,10 @@ func DriverTestCreateEmpty(t testing.TB, drivername string, driverOptions ...str
 	dir, err := driver.Get("empty", "")
 	require.NoError(t, err)
 
-	verifyFile(t, dir, 0755|os.ModeDir, 0, 0)
+	verifyFile(t, dir.Path(), 0755|os.ModeDir, 0, 0)
 
 	// Verify that the directory is empty
-	fis, err := readDir(dir)
+	fis, err := readDir(dir, dir.Path())
 	require.NoError(t, err)
 	assert.Len(t, fis, 0)
 
@@ -328,9 +328,9 @@ func DriverTestSetQuota(t *testing.T, drivername string) {
 	}
 
 	quota := uint64(50 * units.MiB)
-	err = writeRandomFile(path.Join(mountPath, "file"), quota*2)
+
+	err = writeRandomFile(path.Join(mountPath.Path(), "file"), quota*2)
 	if pathError, ok := err.(*os.PathError); ok && pathError.Err != unix.EDQUOT {
 		t.Fatalf("expect write() to fail with %v, got %v", unix.EDQUOT, err)
 	}
-
 }

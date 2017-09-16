@@ -169,5 +169,4 @@ func pluginStopMetricsCollection(p plugingetter.CompatPlugin) {
 			logrus.WithError(err).WithField("name", p.Name()).WithField("socket", sockPath).Error("error unmounting metrics socket for plugin")
 		}
 	}
-	return
 }

@@ -8,19 +8,19 @@ import (
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
+	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/pkg/errors"
 )
 
 type archiveContext struct {
-	root string
+	root containerfs.ContainerFS
 	sums tarsum.FileInfoSums
 }
 
 func (c *archiveContext) Close() error {
-	return os.RemoveAll(c.root)
+	return c.root.RemoveAll(c.root.Path())
 }
 
 func convertPathError(err error, cleanpath string) error {
@@ -52,7 +52,8 @@ func FromArchive(tarStream io.Reader) (builder.Source, error) {
 		return nil, err
 	}
 
-	tsc := &archiveContext{root: root}
+	// Assume local file system. Since it's coming from a tar file.
+	tsc := &archiveContext{root: containerfs.NewLocalContainerFS(root)}
 
 	// Make sure we clean-up upon error.  In the happy case the caller
 	// is expected to manage the clean-up
@@ -82,7 +83,7 @@ func FromArchive(tarStream io.Reader) (builder.Source, error) {
 	return tsc, nil
 }
 
-func (c *archiveContext) Root() string {
+func (c *archiveContext) Root() containerfs.ContainerFS {
 	return c.root
 }
 
@@ -91,7 +92,7 @@ func (c *archiveContext) Remove(path string) error {
 	if err != nil {
 		return err
 	}
-	return os.RemoveAll(fullpath)
+	return c.root.RemoveAll(fullpath)
 }
 
 func (c *archiveContext) Hash(path string) (string, error) {
@@ -100,7 +101,7 @@ func (c *archiveContext) Hash(path string) (string, error) {
 		return "", err
 	}
 
-	rel, err := filepath.Rel(c.root, fullpath)
+	rel, err := c.root.Rel(c.root.Path(), fullpath)
 	if err != nil {
 		return "", convertPathError(err, cleanpath)
 	}
@@ -115,13 +116,13 @@ func (c *archiveContext) Hash(path string) (string, error) {
 	return path, nil // backwards compat TODO: see if really needed
 }
 
-func normalize(path, root string) (cleanPath, fullPath string, err error) {
-	cleanPath = filepath.Clean(string(os.PathSeparator) + path)[1:]
-	fullPath, err = symlink.FollowSymlinkInScope(filepath.Join(root, path), root)
+func normalize(path string, root containerfs.ContainerFS) (cleanPath, fullPath string, err error) {
+	cleanPath = root.Clean(string(root.Separator()) + path)[1:]
+	fullPath, err = root.ResolveScopedPath(path, true)
 	if err != nil {
 		return "", "", errors.Wrapf(err, "forbidden path outside the build context: %s (%s)", path, cleanPath)
 	}
-	if _, err := os.Lstat(fullPath); err != nil {
+	if _, err := root.Lstat(fullPath); err != nil {
 		return "", "", errors.WithStack(convertPathError(err, path))
 	}
 	return

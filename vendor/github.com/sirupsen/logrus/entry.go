@@ -35,6 +35,7 @@ type Entry struct {
 	Time time.Time
 
 	// Level the log entry was logged at: Debug, Info, Warn, Error, Fatal or Panic
+	// This field will be set on entry firing and the value will be equal to the one in Logger struct field.
 	Level Level
 
 	// Message passed to Debug, Info, Warn, Error, Fatal or Panic

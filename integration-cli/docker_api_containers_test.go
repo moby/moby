@@ -1617,7 +1617,7 @@ func (s *DockerSuite) TestContainerAPIDeleteWithEmptyName(c *check.C) {
 	defer cli.Close()
 
 	err = cli.ContainerRemove(context.Background(), "", types.ContainerRemoveOptions{})
-	c.Assert(err.Error(), checker.Contains, "Error response from daemon: page not found")
+	c.Assert(err.Error(), checker.Contains, "No such container")
 }
 
 func (s *DockerSuite) TestContainerAPIStatsWithNetworkDisabled(c *check.C) {

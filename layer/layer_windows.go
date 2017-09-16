@@ -1,6 +1,15 @@
 package layer
 
-import "errors"
+import (
+	"errors"
+)
+
+// Getter is an interface to get the path to a layer on the host.
+type Getter interface {
+	// GetLayerPath gets the path for the layer. This is different from Get()
+	// since that returns an interface to account for umountable layers.
+	GetLayerPath(id string) (string, error)
+}
 
 // GetLayerPath returns the path to a layer
 func GetLayerPath(s Store, layer ChainID) (string, error) {
@@ -16,6 +25,10 @@ func GetLayerPath(s Store, layer ChainID) (string, error) {
 		return "", ErrLayerDoesNotExist
 	}
 
+	if layerGetter, ok := ls.driver.(Getter); ok {
+		return layerGetter.GetLayerPath(rl.cacheID)
+	}
+
 	path, err := ls.driver.Get(rl.cacheID, "")
 	if err != nil {
 		return "", err
@@ -25,7 +38,7 @@ func GetLayerPath(s Store, layer ChainID) (string, error) {
 		return "", err
 	}
 
-	return path, nil
+	return path.Path(), nil
 }
 
 func (ls *layerStore) mountID(name string) string {

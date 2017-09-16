@@ -19,7 +19,6 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/stringutils"
-	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/volume"
 	"github.com/opencontainers/runc/libcontainer/apparmor"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
@@ -29,6 +28,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// nolint: gosimple
 var (
 	deviceCgroupRuleRegex = regexp.MustCompile("^([acb]) ([0-9]+|\\*):([0-9]+|\\*) ([rwm]{1,3})$")
 )
@@ -186,7 +186,7 @@ func setUser(s *specs.Spec, c *container.Container) error {
 }
 
 func readUserFile(c *container.Container, p string) (io.ReadCloser, error) {
-	fp, err := symlink.FollowSymlinkInScope(filepath.Join(c.BaseFS, p), c.BaseFS)
+	fp, err := c.GetResourcePath(p)
 	if err != nil {
 		return nil, err
 	}
@@ -497,6 +497,7 @@ func setMounts(daemon *Daemon, s *specs.Spec, c *container.Container, mounts []c
 
 	// Filter out mounts from spec
 	noIpc := c.HostConfig.IpcMode.IsNone()
+	// Filter out mounts that are overridden by user supplied mounts
 	var defaultMounts []specs.Mount
 	_, mountDev := userMounts["/dev"]
 	for _, m := range s.Mounts {
@@ -523,7 +524,8 @@ func setMounts(daemon *Daemon, s *specs.Spec, c *container.Container, mounts []c
 
 		if m.Source == "tmpfs" {
 			data := m.Data
-			options := []string{"noexec", "nosuid", "nodev", string(volume.DefaultPropagationMode)}
+			parser := volume.NewParser("linux")
+			options := []string{"noexec", "nosuid", "nodev", string(parser.DefaultPropagationMode())}
 			if data != "" {
 				options = append(options, strings.Split(data, ",")...)
 			}
@@ -631,7 +633,7 @@ func (daemon *Daemon) populateCommonSpec(s *specs.Spec, c *container.Container) 
 		return err
 	}
 	s.Root = &specs.Root{
-		Path:     c.BaseFS,
+		Path:     c.BaseFS.Path(),
 		Readonly: c.HostConfig.ReadonlyRootfs,
 	}
 	if err := c.SetupWorkingDirectory(daemon.idMappings.RootPair()); err != nil {

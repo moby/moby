@@ -1,12 +1,15 @@
 package dockerfile
 
 import (
+	"archive/tar"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -14,15 +17,17 @@ import (
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/remotecontext"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
-	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/pkg/errors"
 )
+
+const unnamedFilename = "__unnamed__"
 
 type pathCache interface {
 	Load(key interface{}) (value interface{}, ok bool)
@@ -32,14 +37,14 @@ type pathCache interface {
 // copyInfo is a data object which stores the metadata about each source file in
 // a copyInstruction
 type copyInfo struct {
-	root         string
+	root         containerfs.ContainerFS
 	path         string
 	hash         string
 	noDecompress bool
 }
 
 func (c copyInfo) fullPath() (string, error) {
-	return symlink.FollowSymlinkInScope(filepath.Join(c.root, c.path), c.root)
+	return c.root.ResolveScopedPath(c.path, true)
 }
 
 func newCopyInfoFromSource(source builder.Source, path string, hash string) copyInfo {
@@ -68,6 +73,7 @@ type copier struct {
 	pathCache   pathCache
 	download    sourceDownloader
 	tmpPaths    []string
+	platform    string
 }
 
 func copierFromDispatchRequest(req dispatchRequest, download sourceDownloader, imageSource *imageMount) copier {
@@ -76,6 +82,7 @@ func copierFromDispatchRequest(req dispatchRequest, download sourceDownloader, i
 		pathCache:   req.builder.pathCache,
 		download:    download,
 		imageSource: imageSource,
+		platform:    req.builder.platform,
 	}
 }
 
@@ -83,14 +90,14 @@ func (o *copier) createCopyInstruction(args []string, cmdName string) (copyInstr
 	inst := copyInstruction{cmdName: cmdName}
 	last := len(args) - 1
 
-	// Work in daemon-specific filepath semantics
-	inst.dest = filepath.FromSlash(args[last])
-
-	infos, err := o.getCopyInfosForSourcePaths(args[0:last])
+	// Work in platform-specific filepath semantics
+	inst.dest = fromSlash(args[last], o.platform)
+	separator := string(separator(o.platform))
+	infos, err := o.getCopyInfosForSourcePaths(args[0:last], inst.dest)
 	if err != nil {
 		return inst, errors.Wrapf(err, "%s failed", cmdName)
 	}
-	if len(infos) > 1 && !strings.HasSuffix(inst.dest, string(os.PathSeparator)) {
+	if len(infos) > 1 && !strings.HasSuffix(inst.dest, separator) {
 		return inst, errors.Errorf("When using %s with more than one source file, the destination must be a directory and end with a /", cmdName)
 	}
 	inst.infos = infos
@@ -99,10 +106,11 @@ func (o *copier) createCopyInstruction(args []string, cmdName string) (copyInstr
 
 // getCopyInfosForSourcePaths iterates over the source files and calculate the info
 // needed to copy (e.g. hash value if cached)
-func (o *copier) getCopyInfosForSourcePaths(sources []string) ([]copyInfo, error) {
+// The dest is used in case source is URL (and ends with "/")
+func (o *copier) getCopyInfosForSourcePaths(sources []string, dest string) ([]copyInfo, error) {
 	var infos []copyInfo
 	for _, orig := range sources {
-		subinfos, err := o.getCopyInfoForSourcePath(orig)
+		subinfos, err := o.getCopyInfoForSourcePath(orig, dest)
 		if err != nil {
 			return nil, err
 		}
@@ -115,15 +123,24 @@ func (o *copier) getCopyInfosForSourcePaths(sources []string) ([]copyInfo, error
 	return infos, nil
 }
 
-func (o *copier) getCopyInfoForSourcePath(orig string) ([]copyInfo, error) {
+func (o *copier) getCopyInfoForSourcePath(orig, dest string) ([]copyInfo, error) {
 	if !urlutil.IsURL(orig) {
 		return o.calcCopyInfo(orig, true)
 	}
+
 	remote, path, err := o.download(orig)
 	if err != nil {
 		return nil, err
 	}
-	o.tmpPaths = append(o.tmpPaths, remote.Root())
+	// If path == "" then we are unable to determine filename from src
+	// We have to make sure dest is available
+	if path == "" {
+		if strings.HasSuffix(dest, "/") {
+			return nil, errors.Errorf("cannot determine filename for source %s", orig)
+		}
+		path = unnamedFilename
+	}
+	o.tmpPaths = append(o.tmpPaths, remote.Root().Path())
 
 	hash, err := remote.Hash(path)
 	ci := newCopyInfoFromSource(remote, path, hash)
@@ -143,14 +160,6 @@ func (o *copier) Cleanup() {
 // TODO: allowWildcards can probably be removed by refactoring this function further.
 func (o *copier) calcCopyInfo(origPath string, allowWildcards bool) ([]copyInfo, error) {
 	imageSource := o.imageSource
-	if err := validateCopySourcePath(imageSource, origPath); err != nil {
-		return nil, err
-	}
-
-	// Work in daemon-specific OS filepath semantics
-	origPath = filepath.FromSlash(origPath)
-	origPath = strings.TrimPrefix(origPath, string(os.PathSeparator))
-	origPath = strings.TrimPrefix(origPath, "."+string(os.PathSeparator))
 
 	// TODO: do this when creating copier. Requires validateCopySourcePath
 	// (and other below) to be aware of the difference sources. Why is it only
@@ -167,8 +176,20 @@ func (o *copier) calcCopyInfo(origPath string, allowWildcards bool) ([]copyInfo,
 		return nil, errors.Errorf("missing build context")
 	}
 
+	root := o.source.Root()
+
+	if err := validateCopySourcePath(imageSource, origPath, root.OS()); err != nil {
+		return nil, err
+	}
+
+	// Work in source OS specific filepath semantics
+	// For LCOW, this is NOT the daemon OS.
+	origPath = root.FromSlash(origPath)
+	origPath = strings.TrimPrefix(origPath, string(root.Separator()))
+	origPath = strings.TrimPrefix(origPath, "."+string(root.Separator()))
+
 	// Deal with wildcards
-	if allowWildcards && containsWildcards(origPath) {
+	if allowWildcards && containsWildcards(origPath, root.OS()) {
 		return o.copyWithWildcards(origPath)
 	}
 
@@ -200,6 +221,19 @@ func (o *copier) calcCopyInfo(origPath string, allowWildcards bool) ([]copyInfo,
 	return newCopyInfos(newCopyInfoFromSource(o.source, origPath, hash)), nil
 }
 
+func containsWildcards(name, platform string) bool {
+	isWindows := platform == "windows"
+	for i := 0; i < len(name); i++ {
+		ch := name[i]
+		if ch == '\\' && !isWindows {
+			i++
+		} else if ch == '*' || ch == '?' || ch == '[' {
+			return true
+		}
+	}
+	return false
+}
+
 func (o *copier) storeInPathCache(im *imageMount, path string, hash string) {
 	if im != nil {
 		o.pathCache.Store(im.ImageID()+path, hash)
@@ -207,12 +241,13 @@ func (o *copier) storeInPathCache(im *imageMount, path string, hash string) {
 }
 
 func (o *copier) copyWithWildcards(origPath string) ([]copyInfo, error) {
+	root := o.source.Root()
 	var copyInfos []copyInfo
-	if err := filepath.Walk(o.source.Root(), func(path string, info os.FileInfo, err error) error {
+	if err := root.Walk(root.Path(), func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-		rel, err := remotecontext.Rel(o.source.Root(), path)
+		rel, err := remotecontext.Rel(root, path)
 		if err != nil {
 			return err
 		}
@@ -220,7 +255,7 @@ func (o *copier) copyWithWildcards(origPath string) ([]copyInfo, error) {
 		if rel == "." {
 			return nil
 		}
-		if match, _ := filepath.Match(origPath, rel); !match {
+		if match, _ := root.Match(origPath, rel); !match {
 			return nil
 		}
 
@@ -262,7 +297,7 @@ func walkSource(source builder.Source, origPath string) ([]string, error) {
 	}
 	// Must be a dir
 	var subfiles []string
-	err = filepath.Walk(fp, func(path string, info os.FileInfo, err error) error {
+	err = source.Root().Walk(fp, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -301,14 +336,30 @@ func errOnSourceDownload(_ string) (builder.Source, string, error) {
 	return nil, "", errors.New("source can't be a URL for COPY")
 }
 
+func getFilenameForDownload(path string, resp *http.Response) string {
+	// Guess filename based on source
+	if path != "" && !strings.HasSuffix(path, "/") {
+		if filename := filepath.Base(filepath.FromSlash(path)); filename != "" {
+			return filename
+		}
+	}
+
+	// Guess filename based on Content-Disposition
+	if contentDisposition := resp.Header.Get("Content-Disposition"); contentDisposition != "" {
+		if _, params, err := mime.ParseMediaType(contentDisposition); err == nil {
+			if params["filename"] != "" && !strings.HasSuffix(params["filename"], "/") {
+				if filename := filepath.Base(filepath.FromSlash(params["filename"])); filename != "" {
+					return filename
+				}
+			}
+		}
+	}
+	return ""
+}
+
 func downloadSource(output io.Writer, stdout io.Writer, srcURL string) (remote builder.Source, p string, err error) {
 	u, err := url.Parse(srcURL)
 	if err != nil {
-		return
-	}
-	filename := filepath.Base(filepath.FromSlash(u.Path)) // Ensure in platform semantics
-	if filename == "" {
-		err = errors.Errorf("cannot determine filename from url: %s", u)
 		return
 	}
 
@@ -316,6 +367,8 @@ func downloadSource(output io.Writer, stdout io.Writer, srcURL string) (remote b
 	if err != nil {
 		return
 	}
+
+	filename := getFilenameForDownload(u.Path, resp)
 
 	// Prepare file in a tmp dir
 	tmpDir, err := ioutils.TempDir("", "docker-remote")
@@ -327,7 +380,13 @@ func downloadSource(output io.Writer, stdout io.Writer, srcURL string) (remote b
 			os.RemoveAll(tmpDir)
 		}
 	}()
-	tmpFileName := filepath.Join(tmpDir, filename)
+	// If filename is empty, the returned filename will be "" but
+	// the tmp filename will be created as "__unnamed__"
+	tmpFileName := filename
+	if filename == "" {
+		tmpFileName = unnamedFilename
+	}
+	tmpFileName = filepath.Join(tmpDir, tmpFileName)
 	tmpFile, err := os.OpenFile(tmpFileName, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
 	if err != nil {
 		return
@@ -363,14 +422,19 @@ func downloadSource(output io.Writer, stdout io.Writer, srcURL string) (remote b
 		return
 	}
 
-	lc, err := remotecontext.NewLazySource(tmpDir)
+	lc, err := remotecontext.NewLazySource(containerfs.NewLocalContainerFS(tmpDir))
 	return lc, filename, err
 }
 
 type copyFileOptions struct {
 	decompress bool
-	archiver   *archive.Archiver
 	chownPair  idtools.IDPair
+	archiver   Archiver
+}
+
+type copyEndpoint struct {
+	driver containerfs.Driver
+	path   string
 }
 
 func performCopyForInfo(dest copyInfo, source copyInfo, options copyFileOptions) error {
@@ -378,6 +442,7 @@ func performCopyForInfo(dest copyInfo, source copyInfo, options copyFileOptions)
 	if err != nil {
 		return err
 	}
+
 	destPath, err := dest.fullPath()
 	if err != nil {
 		return err
@@ -385,59 +450,90 @@ func performCopyForInfo(dest copyInfo, source copyInfo, options copyFileOptions)
 
 	archiver := options.archiver
 
-	src, err := os.Stat(srcPath)
+	srcEndpoint := &copyEndpoint{driver: source.root, path: srcPath}
+	destEndpoint := &copyEndpoint{driver: dest.root, path: destPath}
+
+	src, err := source.root.Stat(srcPath)
 	if err != nil {
 		return errors.Wrapf(err, "source path not found")
 	}
 	if src.IsDir() {
-		return copyDirectory(archiver, srcPath, destPath, options.chownPair)
+		return copyDirectory(archiver, srcEndpoint, destEndpoint, options.chownPair)
 	}
-	if options.decompress && archive.IsArchivePath(srcPath) && !source.noDecompress {
+	if options.decompress && isArchivePath(source.root, srcPath) && !source.noDecompress {
 		return archiver.UntarPath(srcPath, destPath)
 	}
 
-	destExistsAsDir, err := isExistingDirectory(destPath)
+	destExistsAsDir, err := isExistingDirectory(destEndpoint)
 	if err != nil {
 		return err
 	}
 	// dest.path must be used because destPath has already been cleaned of any
 	// trailing slash
-	if endsInSlash(dest.path) || destExistsAsDir {
+	if endsInSlash(dest.root, dest.path) || destExistsAsDir {
 		// source.path must be used to get the correct filename when the source
 		// is a symlink
-		destPath = filepath.Join(destPath, filepath.Base(source.path))
+		destPath = dest.root.Join(destPath, source.root.Base(source.path))
+		destEndpoint = &copyEndpoint{driver: dest.root, path: destPath}
 	}
-	return copyFile(archiver, srcPath, destPath, options.chownPair)
+	return copyFile(archiver, srcEndpoint, destEndpoint, options.chownPair)
 }
 
-func copyDirectory(archiver *archive.Archiver, source, dest string, chownPair idtools.IDPair) error {
+func isArchivePath(driver containerfs.ContainerFS, path string) bool {
+	file, err := driver.Open(path)
+	if err != nil {
+		return false
+	}
+	defer file.Close()
+	rdr, err := archive.DecompressStream(file)
+	if err != nil {
+		return false
+	}
+	r := tar.NewReader(rdr)
+	_, err = r.Next()
+	return err == nil
+}
+
+func copyDirectory(archiver Archiver, source, dest *copyEndpoint, chownPair idtools.IDPair) error {
 	destExists, err := isExistingDirectory(dest)
 	if err != nil {
 		return errors.Wrapf(err, "failed to query destination path")
 	}
-	if err := archiver.CopyWithTar(source, dest); err != nil {
+
+	if err := archiver.CopyWithTar(source.path, dest.path); err != nil {
 		return errors.Wrapf(err, "failed to copy directory")
 	}
-	return fixPermissions(source, dest, chownPair, !destExists)
+	// TODO: @gupta-ak. Investigate how LCOW permission mappings will work.
+	return fixPermissions(source.path, dest.path, chownPair, !destExists)
 }
 
-func copyFile(archiver *archive.Archiver, source, dest string, chownPair idtools.IDPair) error {
-	if err := idtools.MkdirAllAndChownNew(filepath.Dir(dest), 0755, chownPair); err != nil {
-		return errors.Wrapf(err, "failed to create new directory")
+func copyFile(archiver Archiver, source, dest *copyEndpoint, chownPair idtools.IDPair) error {
+	if runtime.GOOS == "windows" && dest.driver.OS() == "linux" {
+		// LCOW
+		if err := dest.driver.MkdirAll(dest.driver.Dir(dest.path), 0755); err != nil {
+			return errors.Wrapf(err, "failed to create new directory")
+		}
+	} else {
+		if err := idtools.MkdirAllAndChownNew(filepath.Dir(dest.path), 0755, chownPair); err != nil {
+			// Normal containers
+			return errors.Wrapf(err, "failed to create new directory")
+		}
 	}
-	if err := archiver.CopyFileWithTar(source, dest); err != nil {
+
+	if err := archiver.CopyFileWithTar(source.path, dest.path); err != nil {
 		return errors.Wrapf(err, "failed to copy file")
 	}
-	return fixPermissions(source, dest, chownPair, false)
+	// TODO: @gupta-ak. Investigate how LCOW permission mappings will work.
+	return fixPermissions(source.path, dest.path, chownPair, false)
 }
 
-func endsInSlash(path string) bool {
-	return strings.HasSuffix(path, string(os.PathSeparator))
+func endsInSlash(driver containerfs.Driver, path string) bool {
+	return strings.HasSuffix(path, string(driver.Separator()))
 }
 
 // isExistingDirectory returns true if the path exists and is a directory
-func isExistingDirectory(path string) (bool, error) {
-	destStat, err := os.Stat(path)
+func isExistingDirectory(point *copyEndpoint) (bool, error) {
+	destStat, err := point.driver.Stat(point.path)
 	switch {
 	case os.IsNotExist(err):
 		return false, nil

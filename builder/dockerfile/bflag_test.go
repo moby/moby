@@ -34,10 +34,10 @@ func TestBuilderFlags(t *testing.T) {
 		t.Fatalf("Test3 of %q was supposed to work: %s", bf.Args, err)
 	}
 
-	if flStr1.IsUsed() == true {
+	if flStr1.IsUsed() {
 		t.Fatal("Test3 - str1 was not used!")
 	}
-	if flBool1.IsUsed() == true {
+	if flBool1.IsUsed() {
 		t.Fatal("Test3 - bool1 was not used!")
 	}
 
@@ -58,10 +58,10 @@ func TestBuilderFlags(t *testing.T) {
 	if flBool1.IsTrue() {
 		t.Fatal("Bool1 was supposed to default to: false")
 	}
-	if flStr1.IsUsed() == true {
+	if flStr1.IsUsed() {
 		t.Fatal("Str1 was not used!")
 	}
-	if flBool1.IsUsed() == true {
+	if flBool1.IsUsed() {
 		t.Fatal("Bool1 was not used!")
 	}
 

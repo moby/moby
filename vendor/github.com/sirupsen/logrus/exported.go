@@ -31,7 +31,7 @@ func SetFormatter(formatter Formatter) {
 func SetLevel(level Level) {
 	std.mu.Lock()
 	defer std.mu.Unlock()
-	std.setLevel(level)
+	std.SetLevel(level)
 }
 
 // GetLevel returns the standard logger level.

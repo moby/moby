@@ -14,6 +14,7 @@ import (
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/api/types"
 	registrytypes "github.com/docker/docker/api/types/registry"
+	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -747,16 +748,12 @@ func TestSearchRepositories(t *testing.T) {
 func TestTrustedLocation(t *testing.T) {
 	for _, url := range []string{"http://example.com", "https://example.com:7777", "http://docker.io", "http://test.docker.com", "https://fakedocker.com"} {
 		req, _ := http.NewRequest("GET", url, nil)
-		if trustedLocation(req) == true {
-			t.Fatalf("'%s' shouldn't be detected as a trusted location", url)
-		}
+		assert.False(t, trustedLocation(req))
 	}
 
 	for _, url := range []string{"https://docker.io", "https://test.docker.com:80"} {
 		req, _ := http.NewRequest("GET", url, nil)
-		if trustedLocation(req) == false {
-			t.Fatalf("'%s' should be detected as a trusted location", url)
-		}
+		assert.True(t, trustedLocation(req))
 	}
 }
 

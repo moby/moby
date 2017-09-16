@@ -193,25 +193,26 @@ func (s *DockerHubPullSuite) TestPullScratchNotAllowed(c *check.C) {
 // results in more images than a naked pull.
 func (s *DockerHubPullSuite) TestPullAllTagsFromCentralRegistry(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	s.Cmd(c, "pull", "busybox")
-	outImageCmd := s.Cmd(c, "images", "busybox")
+	s.Cmd(c, "pull", "dockercore/engine-pull-all-test-fixture")
+	outImageCmd := s.Cmd(c, "images", "dockercore/engine-pull-all-test-fixture")
 	splitOutImageCmd := strings.Split(strings.TrimSpace(outImageCmd), "\n")
 	c.Assert(splitOutImageCmd, checker.HasLen, 2)
 
-	s.Cmd(c, "pull", "--all-tags=true", "busybox")
-	outImageAllTagCmd := s.Cmd(c, "images", "busybox")
+	s.Cmd(c, "pull", "--all-tags=true", "dockercore/engine-pull-all-test-fixture")
+	outImageAllTagCmd := s.Cmd(c, "images", "dockercore/engine-pull-all-test-fixture")
 	linesCount := strings.Count(outImageAllTagCmd, "\n")
 	c.Assert(linesCount, checker.GreaterThan, 2, check.Commentf("pulling all tags should provide more than two images, got %s", outImageAllTagCmd))
 
-	// Verify that the line for 'busybox:latest' is left unchanged.
+	// Verify that the line for 'dockercore/engine-pull-all-test-fixture:latest' is left unchanged.
 	var latestLine string
 	for _, line := range strings.Split(outImageAllTagCmd, "\n") {
-		if strings.HasPrefix(line, "busybox") && strings.Contains(line, "latest") {
+		if strings.HasPrefix(line, "dockercore/engine-pull-all-test-fixture") && strings.Contains(line, "latest") {
 			latestLine = line
 			break
 		}
 	}
-	c.Assert(latestLine, checker.Not(checker.Equals), "", check.Commentf("no entry for busybox:latest found after pulling all tags"))
+	c.Assert(latestLine, checker.Not(checker.Equals), "", check.Commentf("no entry for dockercore/engine-pull-all-test-fixture:latest found after pulling all tags"))
+
 	splitLatest := strings.Fields(latestLine)
 	splitCurrent := strings.Fields(splitOutImageCmd[1])
 
@@ -227,7 +228,7 @@ func (s *DockerHubPullSuite) TestPullAllTagsFromCentralRegistry(c *check.C) {
 	splitCurrent[4] = ""
 	splitCurrent[5] = ""
 
-	c.Assert(splitLatest, checker.DeepEquals, splitCurrent, check.Commentf("busybox:latest was changed after pulling all tags"))
+	c.Assert(splitLatest, checker.DeepEquals, splitCurrent, check.Commentf("dockercore/engine-pull-all-test-fixture:latest was changed after pulling all tags"))
 }
 
 // TestPullClientDisconnect kills the client during a pull operation and verifies that the operation
@@ -273,7 +274,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestPullNoCredentialsNotFound(c *check
 func (s *DockerSuite) TestPullLinuxImageFailsOnWindows(c *check.C) {
 	testRequires(c, DaemonIsWindows, Network)
 	_, _, err := dockerCmdWithError("pull", "ubuntu")
-	c.Assert(err.Error(), checker.Contains, "cannot be used on this platform")
+	c.Assert(err.Error(), checker.Contains, "no matching manifest")
 }
 
 // Regression test for https://github.com/docker/docker/issues/28892

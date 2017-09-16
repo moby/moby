@@ -1825,7 +1825,7 @@ func (s *DockerDaemonSuite) TestDaemonNoSpaceLeftOnDeviceError(c *check.C) {
 	defer s.d.Stop(c)
 
 	// pull a repository large enough to fill the mount point
-	pullOut, err := s.d.Cmd("pull", "registry:2")
+	pullOut, err := s.d.Cmd("pull", "debian:stretch")
 	c.Assert(err, checker.NotNil, check.Commentf(pullOut))
 	c.Assert(pullOut, checker.Contains, "no space left on device")
 }
@@ -2159,9 +2159,9 @@ func (s *DockerDaemonSuite) TestRunLinksChanged(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonStartWithoutColors(c *check.C) {
-	testRequires(c, DaemonIsLinux, NotPpc64le)
+	testRequires(c, DaemonIsLinux)
 
-	infoLog := "\x1b[34mINFO\x1b"
+	infoLog := "\x1b[36mINFO\x1b"
 
 	b := bytes.NewBuffer(nil)
 	done := make(chan bool)
@@ -2209,7 +2209,7 @@ func (s *DockerDaemonSuite) TestDaemonStartWithoutColors(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonDebugLog(c *check.C) {
-	testRequires(c, DaemonIsLinux, NotPpc64le)
+	testRequires(c, DaemonIsLinux)
 
 	debugLog := "\x1b[37mDEBU\x1b"
 

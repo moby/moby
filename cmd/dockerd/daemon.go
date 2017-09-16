@@ -99,6 +99,8 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		FullTimestamp:   true,
 	})
 
+	system.InitLCOW(cli.Config.Experimental)
+
 	if err := setDefaultUmask(); err != nil {
 		return fmt.Errorf("Failed to set umask: %v", err)
 	}
@@ -132,7 +134,6 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		Logging:     true,
 		SocketGroup: cli.Config.SocketGroup,
 		Version:     dockerversion.Version,
-		EnableCors:  cli.Config.EnableCors,
 		CorsHeaders: cli.Config.CorsHeaders,
 	}
 
@@ -467,7 +468,7 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 		return nil, err
 	}
 
-	if conf.V2Only == false {
+	if !conf.V2Only {
 		logrus.Warnf(`The "disable-legacy-registry" option is deprecated and wil be removed in Docker v17.12. Interacting with legacy (v1) registries will no longer be supported in Docker v17.12"`)
 	}
 
@@ -548,7 +549,7 @@ func (cli *DaemonCli) initMiddlewares(s *apiserver.Server, cfg *apiserver.Config
 	vm := middleware.NewVersionMiddleware(v, api.DefaultVersion, api.MinVersion)
 	s.UseMiddleware(vm)
 
-	if cfg.EnableCors || cfg.CorsHeaders != "" {
+	if cfg.CorsHeaders != "" {
 		c := middleware.NewCORSMiddleware(cfg.CorsHeaders)
 		s.UseMiddleware(c)
 	}

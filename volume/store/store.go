@@ -4,6 +4,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"time"
 
@@ -369,12 +370,13 @@ func volumeExists(v volume.Volume) (bool, error) {
 // It is expected that callers of this function hold any necessary locks.
 func (s *VolumeStore) create(name, driverName string, opts, labels map[string]string) (volume.Volume, error) {
 	// Validate the name in a platform-specific manner
-	valid, err := volume.IsVolumeNameValid(name)
+
+	// volume name validation is specific to the host os and not on container image
+	// windows/lcow should have an equivalent volumename validation logic so we create a parser for current host OS
+	parser := volume.NewParser(runtime.GOOS)
+	err := parser.ValidateVolumeName(name)
 	if err != nil {
 		return nil, err
-	}
-	if !valid {
-		return nil, &OpErr{Err: errInvalidName, Name: name, Op: "create"}
 	}
 
 	v, err := s.checkConflict(name, driverName)

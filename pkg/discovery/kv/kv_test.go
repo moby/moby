@@ -11,7 +11,6 @@ import (
 	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
-
 	"github.com/go-check/check"
 )
 
@@ -130,7 +129,6 @@ func (s *Mock) AtomicDelete(key string, previous *store.KVPair) (bool, error) {
 
 // Close mock
 func (s *Mock) Close() {
-	return
 }
 
 func (ds *DiscoverySuite) TestInitializeWithCerts(c *check.C) {

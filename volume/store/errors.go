@@ -9,8 +9,6 @@ const (
 	errVolumeInUse conflictError = "volume is in use"
 	// errNoSuchVolume is a typed error returned if the requested volume doesn't exist in the volume store
 	errNoSuchVolume notFoundError = "no such volume"
-	// errInvalidName is a typed error returned when creating a volume with a name that is not valid on the platform
-	errInvalidName invalidName = "volume name is not valid on this platform"
 	// errNameConflict is a typed error returned on create when a volume exists with the given name, but for a different driver
 	errNameConflict conflictError = "volume name must be unique"
 )
@@ -29,13 +27,6 @@ func (e notFoundError) Error() string {
 }
 
 func (notFoundError) NotFound() {}
-
-type invalidName string
-
-func (e invalidName) Error() string {
-	return string(e)
-}
-func (invalidName) InvalidParameter() {}
 
 // OpErr is the error type returned by functions in the store package. It describes
 // the operation, volume name, and error.

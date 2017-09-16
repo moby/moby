@@ -9,15 +9,16 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"sync"
 	"testing"
-
-	"path/filepath"
 
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -39,6 +40,14 @@ func testInit(dir string, t testing.TB) graphdriver.Driver {
 		}
 	}
 	return d
+}
+
+func driverGet(d *Driver, id string, mntLabel string) (string, error) {
+	mnt, err := d.Get(id, mntLabel)
+	if err != nil {
+		return "", err
+	}
+	return mnt.Path(), nil
 }
 
 func newDriver(t testing.TB) *Driver {
@@ -170,7 +179,7 @@ func TestGetWithoutParent(t *testing.T) {
 		t.Fatal(err)
 	}
 	expected := path.Join(tmp, "diff", "1")
-	if diffPath != expected {
+	if diffPath.Path() != expected {
 		t.Fatalf("Expected path %s got %s", expected, diffPath)
 	}
 }
@@ -179,9 +188,8 @@ func TestCleanupWithNoDirs(t *testing.T) {
 	d := newDriver(t)
 	defer os.RemoveAll(tmp)
 
-	if err := d.Cleanup(); err != nil {
-		t.Fatal(err)
-	}
+	err := d.Cleanup()
+	assert.NoError(t, err)
 }
 
 func TestCleanupWithDir(t *testing.T) {
@@ -201,18 +209,12 @@ func TestMountedFalseResponse(t *testing.T) {
 	d := newDriver(t)
 	defer os.RemoveAll(tmp)
 
-	if err := d.Create("1", "", nil); err != nil {
-		t.Fatal(err)
-	}
+	err := d.Create("1", "", nil)
+	require.NoError(t, err)
 
 	response, err := d.mounted(d.getDiffPath("1"))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if response != false {
-		t.Fatal("Response if dir id 1 is mounted should be false")
-	}
+	require.NoError(t, err)
+	assert.False(t, response)
 }
 
 func TestMountedTrueResponse(t *testing.T) {
@@ -220,26 +222,17 @@ func TestMountedTrueResponse(t *testing.T) {
 	defer os.RemoveAll(tmp)
 	defer d.Cleanup()
 
-	if err := d.Create("1", "", nil); err != nil {
-		t.Fatal(err)
-	}
-	if err := d.Create("2", "1", nil); err != nil {
-		t.Fatal(err)
-	}
+	err := d.Create("1", "", nil)
+	require.NoError(t, err)
+	err = d.Create("2", "1", nil)
+	require.NoError(t, err)
 
-	_, err := d.Get("2", "")
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, err = d.Get("2", "")
+	require.NoError(t, err)
 
 	response, err := d.mounted(d.pathCache["2"])
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if response != true {
-		t.Fatal("Response if dir id 2 is mounted should be true")
-	}
+	require.NoError(t, err)
+	assert.True(t, response)
 }
 
 func TestMountWithParent(t *testing.T) {
@@ -263,13 +256,13 @@ func TestMountWithParent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if mntPath == "" {
-		t.Fatal("mntPath should not be empty string")
+	if mntPath == nil {
+		t.Fatal("mntPath should not be nil")
 	}
 
 	expected := path.Join(tmp, "mnt", "2")
-	if mntPath != expected {
-		t.Fatalf("Expected %s got %s", expected, mntPath)
+	if mntPath.Path() != expected {
+		t.Fatalf("Expected %s got %s", expected, mntPath.Path())
 	}
 }
 
@@ -294,8 +287,8 @@ func TestRemoveMountedDir(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if mntPath == "" {
-		t.Fatal("mntPath should not be empty string")
+	if mntPath == nil {
+		t.Fatal("mntPath should not be nil")
 	}
 
 	mounted, err := d.mounted(d.pathCache["2"])
@@ -329,7 +322,7 @@ func TestGetDiff(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	diffPath, err := d.Get("1", "")
+	diffPath, err := driverGet(d, "1", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -373,7 +366,7 @@ func TestChanges(t *testing.T) {
 		}
 	}()
 
-	mntPoint, err := d.Get("2", "")
+	mntPoint, err := driverGet(d, "2", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -412,7 +405,7 @@ func TestChanges(t *testing.T) {
 	if err := d.CreateReadWrite("3", "2", nil); err != nil {
 		t.Fatal(err)
 	}
-	mntPoint, err = d.Get("3", "")
+	mntPoint, err = driverGet(d, "3", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -458,7 +451,7 @@ func TestDiffSize(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	diffPath, err := d.Get("1", "")
+	diffPath, err := driverGet(d, "1", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -500,7 +493,7 @@ func TestChildDiffSize(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	diffPath, err := d.Get("1", "")
+	diffPath, err := driverGet(d, "1", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -574,9 +567,8 @@ func TestStatus(t *testing.T) {
 	}
 
 	status := d.Status()
-	if status == nil || len(status) == 0 {
-		t.Fatal("Status should not be nil or empty")
-	}
+	assert.Len(t, status, 4)
+
 	rootDir := status[0]
 	dirs := status[2]
 	if rootDir[0] != "Root Dir" {
@@ -602,7 +594,7 @@ func TestApplyDiff(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	diffPath, err := d.Get("1", "")
+	diffPath, err := driverGet(d, "1", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -637,7 +629,7 @@ func TestApplyDiff(t *testing.T) {
 
 	// Ensure that the file is in the mount point for id 3
 
-	mountPoint, err := d.Get("3", "")
+	mountPoint, err := driverGet(d, "3", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -677,48 +669,34 @@ func testMountMoreThan42Layers(t *testing.T, mountPath string) {
 		}
 		current = hash(current)
 
-		if err := d.CreateReadWrite(current, parent, nil); err != nil {
-			t.Logf("Current layer %d", i)
-			t.Error(err)
-		}
-		point, err := d.Get(current, "")
-		if err != nil {
-			t.Logf("Current layer %d", i)
-			t.Error(err)
-		}
+		err := d.CreateReadWrite(current, parent, nil)
+		require.NoError(t, err, "current layer %d", i)
+
+		point, err := driverGet(d, current, "")
+		require.NoError(t, err, "current layer %d", i)
+
 		f, err := os.Create(path.Join(point, current))
-		if err != nil {
-			t.Logf("Current layer %d", i)
-			t.Error(err)
-		}
+		require.NoError(t, err, "current layer %d", i)
 		f.Close()
 
 		if i%10 == 0 {
-			if err := os.Remove(path.Join(point, parent)); err != nil {
-				t.Logf("Current layer %d", i)
-				t.Error(err)
-			}
+			err := os.Remove(path.Join(point, parent))
+			require.NoError(t, err, "current layer %d", i)
 			expected--
 		}
 		last = current
 	}
 
 	// Perform the actual mount for the top most image
-	point, err := d.Get(last, "")
-	if err != nil {
-		t.Error(err)
-	}
+	point, err := driverGet(d, last, "")
+	require.NoError(t, err)
 	files, err := ioutil.ReadDir(point)
-	if err != nil {
-		t.Error(err)
-	}
-	if len(files) != expected {
-		t.Errorf("Expected %d got %d", expected, len(files))
-	}
+	require.NoError(t, err)
+	assert.Len(t, files, expected)
 }
 
 func TestMountMoreThan42Layers(t *testing.T) {
-	os.RemoveAll(tmpOuter)
+	defer os.RemoveAll(tmpOuter)
 	testMountMoreThan42Layers(t, tmp)
 }
 

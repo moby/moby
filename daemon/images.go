@@ -301,12 +301,10 @@ func (daemon *Daemon) SquashImage(id, parent string) (string, error) {
 	}
 	defer daemon.stores[img.Platform()].layerStore.Release(newL)
 
-	var newImage image.Image
-	newImage = *img
+	newImage := *img
 	newImage.RootFS = nil
 
-	var rootFS image.RootFS
-	rootFS = *parentImg.RootFS
+	rootFS := *parentImg.RootFS
 	rootFS.DiffIDs = append(rootFS.DiffIDs, newL.DiffID())
 	newImage.RootFS = &rootFS
 

@@ -17,20 +17,13 @@ import (
 
 // WriteLogStream writes an encoded byte stream of log messages from the
 // messages channel, multiplexing them with a stdcopy.Writer if mux is true
-func WriteLogStream(ctx context.Context, w io.Writer, msgs <-chan *backend.LogMessage, config *types.ContainerLogsOptions, mux bool) {
+func WriteLogStream(_ context.Context, w io.Writer, msgs <-chan *backend.LogMessage, config *types.ContainerLogsOptions, mux bool) {
 	wf := ioutils.NewWriteFlusher(w)
 	defer wf.Close()
 
 	wf.Flush()
 
-	// this might seem like doing below is clear:
-	//   var outStream io.Writer = wf
-	// however, this GREATLY DISPLEASES golint, and if you do that, it will
-	// fail CI. we need outstream to be type writer because if we mux streams,
-	// we will need to reassign all of the streams to be stdwriters, which only
-	// conforms to the io.Writer interface.
-	var outStream io.Writer
-	outStream = wf
+	outStream := io.Writer(wf)
 	errStream := outStream
 	sysErrStream := errStream
 	if mux {

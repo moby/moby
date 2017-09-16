@@ -137,8 +137,7 @@ func newSectionReader(f *os.File) (*io.SectionReader, error) {
 }
 
 func tailFile(f io.ReadSeeker, logWatcher *logger.LogWatcher, tail int, since time.Time) {
-	var rdr io.Reader
-	rdr = f
+	rdr := io.Reader(f)
 	if tail > 0 {
 		ls, err := tailfile.TailFile(f, tail)
 		if err != nil {

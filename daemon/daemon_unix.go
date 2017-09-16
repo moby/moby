@@ -24,6 +24,7 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/opts"
+	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
@@ -612,8 +613,9 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 		return warnings, fmt.Errorf("Unknown runtime specified %s", hostConfig.Runtime)
 	}
 
+	parser := volume.NewParser(runtime.GOOS)
 	for dest := range hostConfig.Tmpfs {
-		if err := volume.ValidateTmpfsMountDestination(dest); err != nil {
+		if err := parser.ValidateTmpfsMountDestination(dest); err != nil {
 			return warnings, err
 		}
 	}
@@ -987,7 +989,7 @@ func removeDefaultBridgeInterface() {
 	}
 }
 
-func (daemon *Daemon) getLayerInit() func(string) error {
+func (daemon *Daemon) getLayerInit() func(containerfs.ContainerFS) error {
 	return daemon.setupInitLayer
 }
 

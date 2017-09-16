@@ -40,7 +40,7 @@ func TestNormalizeDest(t *testing.T) {
 	}
 	for _, testcase := range tests {
 		msg := fmt.Sprintf("Input: %s, %s", testcase.current, testcase.requested)
-		actual, err := normalizeDest(testcase.current, testcase.requested)
+		actual, err := normalizeDest(testcase.current, testcase.requested, "windows")
 		if testcase.etext == "" {
 			if !assert.NoError(t, err, msg) {
 				continue

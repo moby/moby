@@ -203,10 +203,7 @@ func (db *memDB) ReserveName(name, containerID string) error {
 // Once released, a name can be reserved again
 func (db *memDB) ReleaseName(name string) error {
 	return db.withTxn(func(txn *memdb.Txn) error {
-		if err := txn.Delete(memdbNamesTable, nameAssociation{name: name}); err != nil {
-			return err
-		}
-		return nil
+		return txn.Delete(memdbNamesTable, nameAssociation{name: name})
 	})
 }
 
