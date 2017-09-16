@@ -79,6 +79,9 @@ type DockerSuite struct {
 }
 
 func (s *DockerSuite) OnTimeout(c *check.C) {
+	if !testEnv.IsLocalDaemon() {
+		return
+	}
 	path := filepath.Join(os.Getenv("DEST"), "docker.pid")
 	b, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -91,7 +94,7 @@ func (s *DockerSuite) OnTimeout(c *check.C) {
 	}
 
 	daemonPid := int(rawPid)
-	if daemonPid > 0 && testEnv.IsLocalDaemon() {
+	if daemonPid > 0 {
 		daemon.SignalDaemonDump(daemonPid)
 	}
 }
