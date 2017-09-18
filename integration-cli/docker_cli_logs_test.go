@@ -214,14 +214,15 @@ func (s *DockerSuite) TestLogsSinceFutureFollow(c *check.C) {
 func (s *DockerSuite) TestLogsFollowSlowStdoutConsumer(c *check.C) {
 	// TODO Windows: Fix this test for TP5.
 	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", `usleep 600000;yes X | head -c 200000`)
+	expected := 150000
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", fmt.Sprintf("usleep 600000; yes X | head -c %d", expected))
 
 	id := strings.TrimSpace(out)
 
 	stopSlowRead := make(chan bool)
 
 	go func() {
-		exec.Command(dockerBinary, "wait", id).Run()
+		dockerCmd(c, "wait", id)
 		stopSlowRead <- true
 	}()
 
@@ -239,7 +240,6 @@ func (s *DockerSuite) TestLogsFollowSlowStdoutConsumer(c *check.C) {
 	c.Assert(err, checker.IsNil)
 
 	actual := bytes1 + bytes2
-	expected := 200000
 	c.Assert(actual, checker.Equals, expected)
 }
 
