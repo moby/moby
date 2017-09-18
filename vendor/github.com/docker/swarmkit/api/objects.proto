@@ -59,8 +59,9 @@ message Node {
 	// component, if the node is a manager.
 	ManagerStatus manager_status = 6;
 
+	// DEPRECATED: Use lb_attachments to find the ingress network
 	// The node attachment to the ingress network.
-	NetworkAttachment attachment = 7;
+	NetworkAttachment attachment = 7 [deprecated=true];
 
 	// Certificate is the TLS certificate issued for the node, if any.
 	Certificate certificate = 8 [(gogoproto.nullable) = false];
@@ -75,6 +76,11 @@ message Node {
 	// shows the privilege level that the CA would currently grant when
 	// issuing or renewing the node's certificate.
 	NodeRole role = 9;
+
+	// Each node uses the network attachment to set up an endpoint on the 
+	// node to be used for load balancing.  Each overlay network, including 
+	// ingress network, will have an NetworkAttachment.
+	repeated NetworkAttachment lb_attachments = 10;
 }
 
 message Service {
@@ -257,7 +263,7 @@ message NetworkAttachment {
 
 	// List of aliases by which a task is resolved in a network
 	repeated string aliases = 3;
-	
+
 	// Map of all the driver attachment options for this network
 	map<string,string> driver_attachment_opts = 4;
 }

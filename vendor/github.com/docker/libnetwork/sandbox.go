@@ -916,6 +916,13 @@ func (sb *sandbox) clearNetworkResources(origEp *endpoint) error {
 			break
 		}
 	}
+
+	if index == -1 {
+		logrus.Warnf("Endpoint %s has already been deleted", ep.Name())
+		sb.Unlock()
+		return nil
+	}
+
 	heap.Remove(&sb.endpoints, index)
 	for _, e := range sb.endpoints {
 		if len(e.Gateway()) > 0 {

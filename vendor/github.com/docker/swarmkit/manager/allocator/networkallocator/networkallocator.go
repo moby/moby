@@ -66,22 +66,6 @@ type NetworkAllocator interface {
 	HostPublishPortsNeedUpdate(s *api.Service) bool
 
 	//
-	// Node Allocation
-	//
-
-	// IsNodeAllocated returns if the passed node has its network
-	// resources allocated or not.
-	IsNodeAllocated(node *api.Node) bool
-
-	// AllocateNode allocates the IP addresses for the network to which
-	// the node is attached.
-	AllocateNode(node *api.Node) error
-
-	// DeallocateNode deallocates the IP addresses for the network to
-	// which the node is attached.
-	DeallocateNode(node *api.Node) error
-
-	//
 	// Task Allocation
 	//
 
@@ -96,6 +80,15 @@ type NetworkAllocator interface {
 	// DeallocateTask releases all the endpoint resources for all the
 	// networks that a task is attached to.
 	DeallocateTask(t *api.Task) error
+
+	// AllocateLBAttachment Allocates a load balancer endpoint for the node
+	AllocateLBAttachment(node *api.Node, networkAttachment *api.NetworkAttachment) error
+
+	// DeallocateLBAttachment Deallocates a load balancer endpoint for the node
+	DeallocateLBAttachment(node *api.Node, networkAttachment *api.NetworkAttachment) error
+
+	//IsLBAttachmentAllocated If lb endpoint is allocated on the node
+	IsLBAttachmentAllocated(node *api.Node, networkAttachment *api.NetworkAttachment) bool
 }
 
 // IsIngressNetwork check if the network is an ingress network

@@ -19,13 +19,21 @@ import (
 func pruneNetworkAndVerify(c *check.C, d *daemon.Swarm, kept, pruned []string) {
 	_, err := d.Cmd("network", "prune", "--force")
 	c.Assert(err, checker.IsNil)
-	out, err := d.Cmd("network", "ls", "--format", "{{.Name}}")
-	c.Assert(err, checker.IsNil)
+
 	for _, s := range kept {
-		c.Assert(out, checker.Contains, s)
+		waitAndAssert(c, defaultReconciliationTimeout, func(*check.C) (interface{}, check.CommentInterface) {
+			out, err := d.Cmd("network", "ls", "--format", "{{.Name}}")
+			c.Assert(err, checker.IsNil)
+			return out, nil
+		}, checker.Contains, s)
 	}
+
 	for _, s := range pruned {
-		c.Assert(out, checker.Not(checker.Contains), s)
+		waitAndAssert(c, defaultReconciliationTimeout, func(*check.C) (interface{}, check.CommentInterface) {
+			out, err := d.Cmd("network", "ls", "--format", "{{.Name}}")
+			c.Assert(err, checker.IsNil)
+			return out, nil
+		}, checker.Not(checker.Contains), s)
 	}
 }
 
@@ -64,6 +72,7 @@ func (s *DockerSwarmSuite) TestPruneNetwork(c *check.C) {
 	_, err = d.Cmd("service", "rm", serviceName)
 	c.Assert(err, checker.IsNil)
 	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 0)
+
 	pruneNetworkAndVerify(c, d, []string{}, []string{"n1", "n3"})
 }
 

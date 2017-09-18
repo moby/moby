@@ -136,23 +136,32 @@ func (e *executor) Describe(ctx context.Context) (*api.NodeDescription, error) {
 }
 
 func (e *executor) Configure(ctx context.Context, node *api.Node) error {
-	na := node.Attachment
-	if na == nil {
+	var ingressNA *api.NetworkAttachment
+	lbAttachments := make(map[string]string)
+
+	for _, na := range node.LbAttachments {
+		if na.Network.Spec.Ingress {
+			ingressNA = na
+		}
+		lbAttachments[na.Network.ID] = na.Addresses[0]
+	}
+
+	if ingressNA == nil {
 		e.backend.ReleaseIngress()
-		return nil
+		return e.backend.GetLBAttachmentStore().ResetLBAttachments(lbAttachments)
 	}
 
 	options := types.NetworkCreate{
-		Driver: na.Network.DriverState.Name,
+		Driver: ingressNA.Network.DriverState.Name,
 		IPAM: &network.IPAM{
-			Driver: na.Network.IPAM.Driver.Name,
+			Driver: ingressNA.Network.IPAM.Driver.Name,
 		},
-		Options:        na.Network.DriverState.Options,
+		Options:        ingressNA.Network.DriverState.Options,
 		Ingress:        true,
 		CheckDuplicate: true,
 	}
 
-	for _, ic := range na.Network.IPAM.Configs {
+	for _, ic := range ingressNA.Network.IPAM.Configs {
 		c := network.IPAMConfig{
 			Subnet:  ic.Subnet,
 			IPRange: ic.Range,
@@ -162,14 +171,17 @@ func (e *executor) Configure(ctx context.Context, node *api.Node) error {
 	}
 
 	_, err := e.backend.SetupIngress(clustertypes.NetworkCreateRequest{
-		ID: na.Network.ID,
+		ID: ingressNA.Network.ID,
 		NetworkCreateRequest: types.NetworkCreateRequest{
-			Name:          na.Network.Spec.Annotations.Name,
+			Name:          ingressNA.Network.Spec.Annotations.Name,
 			NetworkCreate: options,
 		},
-	}, na.Addresses[0])
+	}, ingressNA.Addresses[0])
+	if err != nil {
+		return err
+	}
 
-	return err
+	return e.backend.GetLBAttachmentStore().ResetLBAttachments(lbAttachments)
 }
 
 // Controller returns a docker container runner.

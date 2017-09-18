@@ -15,6 +15,7 @@ import (
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	containerpkg "github.com/docker/docker/container"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
+	networkSettings "github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/plugin"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/cluster"
@@ -61,4 +62,5 @@ type Backend interface {
 	LookupImage(name string) (*types.ImageInspect, error)
 	PluginManager() *plugin.Manager
 	PluginGetter() *plugin.Store
+	GetLBAttachmentStore() *networkSettings.LBAttachmentStore
 }
