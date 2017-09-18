@@ -158,7 +158,7 @@ func TestWriteWithDefaultPriority(t *testing.T) {
 	checkWithPriorityAndTag(t, LOG_ERR, "tag", "hostname", "this is a test message", <-done)
 }
 
-func TestWriteWithProvidedPriority(t *testing.T) {
+func TestWriteWithPriority(t *testing.T) {
 	done := make(chan string)
 	addr, sock, srvWG := startServer("udp", "", done)
 	defer sock.Close()
@@ -179,7 +179,7 @@ func TestWriteWithProvidedPriority(t *testing.T) {
 	defer w.Close()
 
 	var bytes int
-	bytes, err = w.WriteWithPriority(LOG_DEBUG, []byte("this is a test message"))
+	bytes, err = w.WriteWithPriority(LOG_DEBUG|LOG_LOCAL5, []byte("this is a test message"))
 	if err != nil {
 		t.Errorf("failed to write: %v", err)
 	}
@@ -187,7 +187,7 @@ func TestWriteWithProvidedPriority(t *testing.T) {
 		t.Errorf("zero bytes written")
 	}
 
-	checkWithPriorityAndTag(t, LOG_DEBUG, "tag", "hostname", "this is a test message", <-done)
+	checkWithPriorityAndTag(t, LOG_DEBUG|LOG_LOCAL5, "tag", "hostname", "this is a test message", <-done)
 }
 
 func TestDebug(t *testing.T) {
