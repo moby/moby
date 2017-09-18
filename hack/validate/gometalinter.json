@@ -1,6 +1,5 @@
 {
   "Vendor": true,
-  "Deadline": "2m",
   "EnableGC": true,
   "Sort": ["linter", "severity", "path"],
   "Exclude": [

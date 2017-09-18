@@ -3,4 +3,9 @@ set -e -o pipefail
 
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-gometalinter --config $SCRIPTDIR/gometalinter.json ./...
+# CI platforms differ, so per-platform GOMETALINTER_OPTS can be set
+# from a platform-specific Dockerfile, otherwise let's just set
+# (somewhat pessimistic) default of 10 minutes.
+gometalinter \
+	${GOMETALINTER_OPTS:--deadine 10m} \
+	--config $SCRIPTDIR/gometalinter.json ./...
