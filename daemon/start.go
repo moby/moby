@@ -105,6 +105,11 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 	container.Lock()
 	defer container.Unlock()
 
+	// Update parent cgroup
+	if err = daemon.syncUpdateParentCgroup(container.HostConfig.CgroupParent); err != nil {
+		return err
+	}
+
 	if resetRestartManager && container.Running { // skip this check if already in restarting step and resetRestartManager==false
 		return nil
 	}
