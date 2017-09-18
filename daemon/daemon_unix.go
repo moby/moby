@@ -1295,7 +1295,39 @@ func rootFSToAPIType(rootfs *image.RootFS) types.RootFS {
 // setupDaemonProcess sets various settings for the daemon's process
 func setupDaemonProcess(config *config.Config) error {
 	// setup the daemons oom_score_adj
-	return setupOOMScoreAdj(config.OOMScoreAdjust)
+	if err := setupOOMScoreAdj(config.OOMScoreAdjust); err != nil {
+		return err
+	}
+	return setMayDetachMounts()
+}
+
+// This is used to allow removal of mountpoints that may be mounted in other
+// namespaces on RHEL based kernels starting from RHEL 7.4.
+// Without this setting, removals on these RHEL based kernels may fail with
+// "device or resource busy".
+// This setting is not available in upstream kernels as it is not configurable,
+// but has been in the upstream kernels since 3.15.
+func setMayDetachMounts() error {
+	f, err := os.OpenFile("/proc/sys/fs/may_detach_mounts", os.O_WRONLY, 0)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return errors.Wrap(err, "error opening may_detach_mounts kernel config file")
+	}
+	defer f.Close()
+
+	_, err = f.WriteString("1")
+	if os.IsPermission(err) {
+		// Setting may_detach_mounts does not work in an
+		// unprivileged container. Ignore the error, but log
+		// it if we appear not to be in that situation.
+		if !rsystem.RunningInUserNS() {
+			logrus.Debugf("Permission denied writing %q to /proc/sys/fs/may_detach_mounts", "1")
+		}
+		return nil
+	}
+	return err
 }
 
 func setupOOMScoreAdj(score int) error {
