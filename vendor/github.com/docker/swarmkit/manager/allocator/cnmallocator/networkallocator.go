@@ -48,8 +48,10 @@ type cnmNetworkAllocator struct {
 	tasks map[string]struct{}
 
 	// Allocator state to indicate if allocation has been
-	// successfully completed for this node.
-	nodes map[string]struct{}
+	// successfully completed for this node on this network.
+	// outer map key: node id
+	// inner map key: network id
+	nodes map[string]map[string]struct{}
 }
 
 // Local in-memory state related to network that need to be tracked by cnmNetworkAllocator
@@ -89,7 +91,7 @@ func New(pg plugingetter.PluginGetter) (networkallocator.NetworkAllocator, error
 		networks: make(map[string]*network),
 		services: make(map[string]struct{}),
 		tasks:    make(map[string]struct{}),
-		nodes:    make(map[string]struct{}),
+		nodes:    make(map[string]map[string]struct{}),
 	}
 
 	// There are no driver configurations and notification
@@ -430,56 +432,6 @@ func (na *cnmNetworkAllocator) IsServiceAllocated(s *api.Service, flags ...func(
 	return true
 }
 
-// IsNodeAllocated returns if the passed node has its network resources allocated or not.
-func (na *cnmNetworkAllocator) IsNodeAllocated(node *api.Node) bool {
-	// If the node is not found in the allocated set, then it is
-	// not allocated.
-	if _, ok := na.nodes[node.ID]; !ok {
-		return false
-	}
-
-	// If no attachment, not allocated.
-	if node.Attachment == nil {
-		return false
-	}
-
-	// If the network is not allocated, the node cannot be allocated.
-	localNet, ok := na.networks[node.Attachment.Network.ID]
-	if !ok {
-		return false
-	}
-
-	// Addresses empty, not allocated.
-	if len(node.Attachment.Addresses) == 0 {
-		return false
-	}
-
-	// The allocated IP address not found in local endpoint state. Not allocated.
-	if _, ok := localNet.endpoints[node.Attachment.Addresses[0]]; !ok {
-		return false
-	}
-
-	return true
-}
-
-// AllocateNode allocates the IP addresses for the network to which
-// the node is attached.
-func (na *cnmNetworkAllocator) AllocateNode(node *api.Node) error {
-	if err := na.allocateNetworkIPs(node.Attachment); err != nil {
-		return err
-	}
-
-	na.nodes[node.ID] = struct{}{}
-	return nil
-}
-
-// DeallocateNode deallocates the IP addresses for the network to
-// which the node is attached.
-func (na *cnmNetworkAllocator) DeallocateNode(node *api.Node) error {
-	delete(na.nodes, node.ID)
-	return na.releaseEndpoints([]*api.NetworkAttachment{node.Attachment})
-}
-
 // AllocateTask allocates all the endpoint resources for all the
 // networks that a task is attached to.
 func (na *cnmNetworkAllocator) AllocateTask(t *api.Task) error {
@@ -489,7 +441,7 @@ func (na *cnmNetworkAllocator) AllocateTask(t *api.Task) error {
 		}
 		if err := na.allocateNetworkIPs(nAttach); err != nil {
 			if err := na.releaseEndpoints(t.Networks[:i]); err != nil {
-				log.G(context.TODO()).WithError(err).Errorf("Failed to release IP addresses while rolling back allocation for task %s network %s", t.ID, nAttach.Network.ID)
+				log.G(context.TODO()).WithError(err).Errorf("failed to release IP addresses while rolling back allocation for task %s network %s", t.ID, nAttach.Network.ID)
 			}
 			return errors.Wrapf(err, "failed to allocate network IP for task %s network %s", t.ID, nAttach.Network.ID)
 		}
@@ -505,6 +457,75 @@ func (na *cnmNetworkAllocator) AllocateTask(t *api.Task) error {
 func (na *cnmNetworkAllocator) DeallocateTask(t *api.Task) error {
 	delete(na.tasks, t.ID)
 	return na.releaseEndpoints(t.Networks)
+}
+
+// IsLBAttachmentAllocated returns if the passed node and network has resources allocated or not.
+func (na *cnmNetworkAllocator) IsLBAttachmentAllocated(node *api.Node, networkAttachment *api.NetworkAttachment) bool {
+	if node == nil {
+		return false
+	}
+
+	if networkAttachment == nil {
+		return false
+	}
+
+	// If the node is not found in the allocated set, then it is
+	// not allocated.
+	if _, ok := na.nodes[node.ID]; !ok {
+		return false
+	}
+
+	// If the nework is not found in the allocated set, then it is
+	// not allocated.
+	if _, ok := na.nodes[node.ID][networkAttachment.Network.ID]; !ok {
+		return false
+	}
+
+	// If the network is not allocated, the node cannot be allocated.
+	localNet, ok := na.networks[networkAttachment.Network.ID]
+	if !ok {
+		return false
+	}
+
+	// Addresses empty, not allocated.
+	if len(networkAttachment.Addresses) == 0 {
+		return false
+	}
+
+	// The allocated IP address not found in local endpoint state. Not allocated.
+	if _, ok := localNet.endpoints[networkAttachment.Addresses[0]]; !ok {
+		return false
+	}
+
+	return true
+}
+
+// AllocateLBAttachment allocates the IP addresses for a LB in a network
+// on a given node
+func (na *cnmNetworkAllocator) AllocateLBAttachment(node *api.Node, networkAttachment *api.NetworkAttachment) error {
+
+	if err := na.allocateNetworkIPs(networkAttachment); err != nil {
+		return err
+	}
+
+	if na.nodes[node.ID] == nil {
+		na.nodes[node.ID] = make(map[string]struct{})
+	}
+	na.nodes[node.ID][networkAttachment.Network.ID] = struct{}{}
+
+	return nil
+}
+
+// DeallocateLBAttachment deallocates the IP addresses for a LB in a network to
+// which the node is attached.
+func (na *cnmNetworkAllocator) DeallocateLBAttachment(node *api.Node, networkAttachment *api.NetworkAttachment) error {
+
+	delete(na.nodes[node.ID], networkAttachment.Network.ID)
+	if len(na.nodes[node.ID]) == 0 {
+		delete(na.nodes, node.ID)
+	}
+
+	return na.releaseEndpoints([]*api.NetworkAttachment{networkAttachment})
 }
 
 func (na *cnmNetworkAllocator) releaseEndpoints(networks []*api.NetworkAttachment) error {

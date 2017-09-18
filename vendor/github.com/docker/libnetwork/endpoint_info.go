@@ -31,6 +31,9 @@ type EndpointInfo interface {
 
 	// Sandbox returns the attached sandbox if there, nil otherwise.
 	Sandbox() Sandbox
+
+	// LoadBalancer returns whether the endpoint is the load balancer endpoint for the network.
+	LoadBalancer() bool
 }
 
 // InterfaceInfo provides an interface to retrieve interface addresses bound to the endpoint.
@@ -325,6 +328,12 @@ func (ep *endpoint) Sandbox() Sandbox {
 		return nil
 	}
 	return cnt
+}
+
+func (ep *endpoint) LoadBalancer() bool {
+	ep.Lock()
+	defer ep.Unlock()
+	return ep.loadBalancer
 }
 
 func (ep *endpoint) StaticRoutes() []*types.StaticRoute {

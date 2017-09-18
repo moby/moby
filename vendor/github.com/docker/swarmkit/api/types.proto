@@ -214,6 +214,18 @@ message Mount {
 	// ReadOnly should be set to true if the mount should not be writable.
 	bool readonly = 4 [(gogoproto.customname) = "ReadOnly"];
 
+	// Consistency indicates the tolerable level of file system consistency
+	enum Consistency {
+		option (gogoproto.goproto_enum_prefix) = false;
+		option (gogoproto.enum_customname) = "MountConsistency";
+
+		DEFAULT = 0 [(gogoproto.enumvalue_customname) = "MountConsistencyDefault"];
+		CONSISTENT = 1 [(gogoproto.enumvalue_customname) = "MountConsistencyFull"];
+		CACHED = 2 [(gogoproto.enumvalue_customname) = "MountConsistencyCached"];
+		DELEGATED = 3 [(gogoproto.enumvalue_customname) = "MountConsistencyDelegated"];
+	}
+	Consistency consistency = 8;
+
 	// BindOptions specifies options that are specific to a bind mount.
 	message BindOptions {
 		enum Propagation {
