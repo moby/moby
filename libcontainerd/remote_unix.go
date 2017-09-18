@@ -17,7 +17,7 @@ import (
 	"sync"
 	"time"
 
-	containerd "github.com/containerd/containerd/api/grpc/types"
+	containerd "github.com/containerd/containerd/api/types"
 	"github.com/docker/docker/pkg/locker"
 	"github.com/docker/docker/pkg/system"
 	"github.com/golang/protobuf/ptypes"

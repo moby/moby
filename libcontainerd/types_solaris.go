@@ -1,7 +1,7 @@
 package libcontainerd
 
 import (
-	containerd "github.com/containerd/containerd/api/grpc/types"
+	containerd "github.com/containerd/containerd/api/types"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
