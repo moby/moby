@@ -31,6 +31,15 @@ func (m *Middleware) getAuthzPlugins() []Plugin {
 	return m.plugins
 }
 
+// GetPlugins gets the current authorization plugin chain
+func (m *Middleware) GetPlugins() []string {
+	names := []string{}
+	for _, plugin := range m.getAuthzPlugins() {
+		names = append(names, plugin.Name())
+	}
+	return names
+}
+
 // SetPlugins sets the plugin used for authorization
 func (m *Middleware) SetPlugins(names []string) {
 	m.mu.Lock()
