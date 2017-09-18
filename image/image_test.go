@@ -7,9 +7,11 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/layer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"runtime"
 )
 
 const sampleImageJSON = `{
@@ -52,6 +54,30 @@ func TestMarshalKeyOrder(t *testing.T) {
 	if !sort.IntsAreSorted(indexes) {
 		t.Fatal("invalid key order in JSON: ", string(b))
 	}
+}
+
+func TestImage(t *testing.T) {
+	var cid = "50a16564e727"
+	var raw = []byte("279533a6d3a9")
+	config := &container.Config{}
+	var platform = runtime.GOOS
+
+	image := &Image{
+		V1Image: V1Image{
+			DockerVersion: dockerversion.Version,
+			Architecture:  runtime.GOARCH,
+			Config:        config,
+		},
+		rawJSON:    raw,
+		computedID: ID(cid),
+	}
+
+	assert.Equal(t, cid, image.ImageID())
+	assert.Equal(t, cid, image.ID().String())
+	assert.Equal(t, raw, image.RawJSON())
+	assert.Equal(t, platform, image.Platform())
+	assert.Equal(t, config, image.RunConfig())
+
 }
 
 func TestNewChildImageFromImageWithRootFS(t *testing.T) {
