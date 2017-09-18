@@ -4,7 +4,6 @@ package main
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/daemon"
@@ -31,7 +30,7 @@ type DockerAuthzV2Suite struct {
 }
 
 func (s *DockerAuthzV2Suite) SetUpTest(c *check.C) {
-	testRequires(c, DaemonIsLinux, Network)
+	testRequires(c, DaemonIsLinux, Network, SameHostDaemon)
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
 		Experimental: testEnv.ExperimentalDaemon(),
 	})
@@ -47,6 +46,7 @@ func (s *DockerAuthzV2Suite) TearDownTest(c *check.C) {
 
 func (s *DockerAuthzV2Suite) TestAuthZPluginAllowNonVolumeRequest(c *check.C) {
 	testRequires(c, DaemonIsLinux, IsAmd64, Network)
+
 	// Install authz plugin
 	_, err := s.d.Cmd("plugin", "install", "--grant-all-permissions", authzPluginNameWithTag)
 	c.Assert(err, checker.IsNil)
@@ -65,14 +65,8 @@ func (s *DockerAuthzV2Suite) TestAuthZPluginAllowNonVolumeRequest(c *check.C) {
 	}()
 
 	// Ensure docker run command and accompanying docker ps are successful
-	out, err := s.d.Cmd("run", "-d", "busybox", "top")
+	_, err = s.d.Cmd("run", "-d", "busybox", "top")
 	c.Assert(err, check.IsNil)
-
-	id := strings.TrimSpace(out)
-
-	out, err = s.d.Cmd("ps")
-	c.Assert(err, check.IsNil)
-	c.Assert(assertContainerList(out, []string{id}), check.Equals, true)
 }
 
 func (s *DockerAuthzV2Suite) TestAuthZPluginDisable(c *check.C) {

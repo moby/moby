@@ -173,7 +173,7 @@ func (s *DockerSuite) TestAttachDetach(c *check.C) {
 	c.Assert(running, checker.Equals, "true", check.Commentf("expected container to still be running"))
 
 	go func() {
-		dockerCmd(c, "kill", id)
+		dockerCmdWithResult("kill", id)
 	}()
 
 	select {
@@ -225,7 +225,7 @@ func (s *DockerSuite) TestAttachDetachTruncatedID(c *check.C) {
 	c.Assert(running, checker.Equals, "true", check.Commentf("expected container to still be running"))
 
 	go func() {
-		dockerCmd(c, "kill", id)
+		dockerCmdWithResult("kill", id)
 	}()
 
 	select {

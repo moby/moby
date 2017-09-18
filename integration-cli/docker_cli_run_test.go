@@ -21,6 +21,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
@@ -35,6 +36,7 @@ import (
 	"github.com/go-check/check"
 	"github.com/gotestyourself/gotestyourself/icmd"
 	libcontainerUser "github.com/opencontainers/runc/libcontainer/user"
+	"golang.org/x/net/context"
 )
 
 // "test123" should be printed by docker run
@@ -2813,23 +2815,27 @@ func (s *DockerSuite) TestRunVolumesFromRestartAfterRemoved(c *check.C) {
 
 // run container with --rm should remove container if exit code != 0
 func (s *DockerSuite) TestRunContainerWithRmFlagExitCodeNotEqualToZero(c *check.C) {
+	existingContainers := ExistingContainerIDs(c)
 	name := "flowers"
 	cli.Docker(cli.Args("run", "--name", name, "--rm", "busybox", "ls", "/notexists")).Assert(c, icmd.Expected{
 		ExitCode: 1,
 	})
 
 	out := cli.DockerCmd(c, "ps", "-q", "-a").Combined()
+	out = RemoveOutputForExistingElements(out, existingContainers)
 	if out != "" {
 		c.Fatal("Expected not to have containers", out)
 	}
 }
 
 func (s *DockerSuite) TestRunContainerWithRmFlagCannotStartContainer(c *check.C) {
+	existingContainers := ExistingContainerIDs(c)
 	name := "sparkles"
 	cli.Docker(cli.Args("run", "--name", name, "--rm", "busybox", "commandNotFound")).Assert(c, icmd.Expected{
 		ExitCode: 127,
 	})
 	out := cli.DockerCmd(c, "ps", "-q", "-a").Combined()
+	out = RemoveOutputForExistingElements(out, existingContainers)
 	if out != "" {
 		c.Fatal("Expected not to have containers", out)
 	}
@@ -3963,21 +3969,35 @@ func (s *DockerSuite) TestRunNamedVolumeNotRemoved(c *check.C) {
 	dockerCmd(c, "run", "--rm", "-v", "test:"+prefix+"/foo", "-v", prefix+"/bar", "busybox", "true")
 	dockerCmd(c, "volume", "inspect", "test")
 	out, _ := dockerCmd(c, "volume", "ls", "-q")
-	c.Assert(strings.TrimSpace(out), checker.Equals, "test")
+	c.Assert(strings.TrimSpace(out), checker.Contains, "test")
 
 	dockerCmd(c, "run", "--name=test", "-v", "test:"+prefix+"/foo", "-v", prefix+"/bar", "busybox", "true")
 	dockerCmd(c, "rm", "-fv", "test")
 	dockerCmd(c, "volume", "inspect", "test")
 	out, _ = dockerCmd(c, "volume", "ls", "-q")
-	c.Assert(strings.TrimSpace(out), checker.Equals, "test")
+	c.Assert(strings.TrimSpace(out), checker.Contains, "test")
 }
 
 func (s *DockerSuite) TestRunNamedVolumesFromNotRemoved(c *check.C) {
 	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
 
 	dockerCmd(c, "volume", "create", "test")
-	dockerCmd(c, "run", "--name=parent", "-v", "test:"+prefix+"/foo", "-v", prefix+"/bar", "busybox", "true")
+	cid, _ := dockerCmd(c, "run", "-d", "--name=parent", "-v", "test:"+prefix+"/foo", "-v", prefix+"/bar", "busybox", "true")
 	dockerCmd(c, "run", "--name=child", "--volumes-from=parent", "busybox", "true")
+
+	cli, err := client.NewEnvClient()
+	c.Assert(err, checker.IsNil)
+	defer cli.Close()
+
+	container, err := cli.ContainerInspect(context.Background(), strings.TrimSpace(cid))
+	c.Assert(err, checker.IsNil)
+	var vname string
+	for _, v := range container.Mounts {
+		if v.Name != "test" {
+			vname = v.Name
+		}
+	}
+	c.Assert(vname, checker.Not(checker.Equals), "")
 
 	// Remove the parent so there are not other references to the volumes
 	dockerCmd(c, "rm", "-f", "parent")
@@ -3985,7 +4005,8 @@ func (s *DockerSuite) TestRunNamedVolumesFromNotRemoved(c *check.C) {
 	dockerCmd(c, "rm", "-fv", "child")
 	dockerCmd(c, "volume", "inspect", "test")
 	out, _ := dockerCmd(c, "volume", "ls", "-q")
-	c.Assert(strings.TrimSpace(out), checker.Equals, "test")
+	c.Assert(strings.TrimSpace(out), checker.Contains, "test")
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Contains), vname)
 }
 
 func (s *DockerSuite) TestRunAttachFailedNoLeak(c *check.C) {
@@ -4123,7 +4144,7 @@ func (s *DockerSuite) TestRunRm(c *check.C) {
 // Test that auto-remove is performed by the client on API versions that do not support daemon-side api-remove (API < 1.25)
 func (s *DockerSuite) TestRunRmPre125Api(c *check.C) {
 	name := "miss-me-when-im-gone"
-	envs := appendBaseEnv(false, "DOCKER_API_VERSION=1.24")
+	envs := appendBaseEnv(os.Getenv("DOCKER_TLS_VERIFY") != "", "DOCKER_API_VERSION=1.24")
 	cli.Docker(cli.Args("run", "--name="+name, "--rm", "busybox"), cli.WithEnvironmentVariables(envs...)).Assert(c, icmd.Success)
 
 	cli.Docker(cli.Inspect(name), cli.Format(".name")).Assert(c, icmd.Expected{

@@ -27,17 +27,18 @@ import (
 func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *check.C) {
 	testRequires(c, cpuCfsQuota)
 	name := "testbuildresourceconstraints"
+	buildLabel := "DockerSuite.TestBuildResourceConstraintsAreUsed"
 
 	ctx := fakecontext.New(c, "", fakecontext.WithDockerfile(`
 	FROM hello-world:frozen
 	RUN ["/hello"]
 	`))
 	cli.Docker(
-		cli.Args("build", "--no-cache", "--rm=false", "--memory=64m", "--memory-swap=-1", "--cpuset-cpus=0", "--cpuset-mems=0", "--cpu-shares=100", "--cpu-quota=8000", "--ulimit", "nofile=42", "-t", name, "."),
+		cli.Args("build", "--no-cache", "--rm=false", "--memory=64m", "--memory-swap=-1", "--cpuset-cpus=0", "--cpuset-mems=0", "--cpu-shares=100", "--cpu-quota=8000", "--ulimit", "nofile=42", "--label="+buildLabel, "-t", name, "."),
 		cli.InDir(ctx.Dir),
 	).Assert(c, icmd.Success)
 
-	out := cli.DockerCmd(c, "ps", "-lq").Combined()
+	out := cli.DockerCmd(c, "ps", "-lq", "--filter", "label="+buildLabel).Combined()
 	cID := strings.TrimSpace(out)
 
 	type hostConfig struct {

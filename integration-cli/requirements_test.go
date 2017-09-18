@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -10,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/requirement"
 )
 
@@ -34,6 +37,18 @@ func DaemonIsWindowsAtLeastBuild(buildNumber int) func() bool {
 
 func DaemonIsLinux() bool {
 	return testEnv.DaemonInfo.OSType == "linux"
+}
+
+func OnlyDefaultNetworks() bool {
+	cli, err := client.NewEnvClient()
+	if err != nil {
+		return false
+	}
+	networks, err := cli.NetworkList(context.TODO(), types.NetworkListOptions{})
+	if err != nil || len(networks) > 0 {
+		return false
+	}
+	return true
 }
 
 // Deprecated: use skip.IfCondition(t, !testEnv.DaemonInfo.ExperimentalBuild)

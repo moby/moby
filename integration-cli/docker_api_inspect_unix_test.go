@@ -4,10 +4,9 @@ package main
 
 import (
 	"encoding/json"
-	"net/http"
 
-	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/request"
 	"github.com/go-check/check"
 	"golang.org/x/net/context"
 )
@@ -19,8 +18,7 @@ func (s *DockerSuite) TestInspectAPICpusetInConfigPre120(c *check.C) {
 
 	name := "cpusetinconfig-pre120"
 	dockerCmd(c, "run", "--name", name, "--cpuset-cpus", "0", "busybox", "true")
-	var httpClient *http.Client
-	cli, err := client.NewClient(daemonHost(), "v1.19", httpClient, nil)
+	cli, err := request.NewEnvClientWithVersion("v1.19")
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 	_, body, err := cli.ContainerInspectWithRaw(context.Background(), name, false)

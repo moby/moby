@@ -32,12 +32,12 @@ func (e *Execution) Clean(t testingT) {
 	if (platform != "windows") || (platform == "windows" && e.DaemonInfo.Isolation == "hyperv") {
 		unpauseAllContainers(t, client)
 	}
-	deleteAllContainers(t, client)
+	deleteAllContainers(t, client, e.protectedElements.containers)
 	deleteAllImages(t, client, e.protectedElements.images)
-	deleteAllVolumes(t, client)
-	deleteAllNetworks(t, client, platform)
+	deleteAllVolumes(t, client, e.protectedElements.volumes)
+	deleteAllNetworks(t, client, platform, e.protectedElements.networks)
 	if platform == "linux" {
-		deleteAllPlugins(t, client)
+		deleteAllPlugins(t, client, e.protectedElements.plugins)
 	}
 }
 
@@ -66,7 +66,7 @@ func getPausedContainers(ctx context.Context, t assert.TestingT, client client.C
 
 var alreadyExists = regexp.MustCompile(`Error response from daemon: removal of container (\w+) is already in progress`)
 
-func deleteAllContainers(t assert.TestingT, apiclient client.ContainerAPIClient) {
+func deleteAllContainers(t assert.TestingT, apiclient client.ContainerAPIClient, protectedContainers map[string]struct{}) {
 	ctx := context.Background()
 	containers := getAllContainers(ctx, t, apiclient)
 	if len(containers) == 0 {
@@ -74,6 +74,9 @@ func deleteAllContainers(t assert.TestingT, apiclient client.ContainerAPIClient)
 	}
 
 	for _, container := range containers {
+		if _, ok := protectedContainers[container.ID]; ok {
+			continue
+		}
 		err := apiclient.ContainerRemove(ctx, container.ID, types.ContainerRemoveOptions{
 			Force:         true,
 			RemoveVolumes: true,
@@ -126,22 +129,28 @@ func removeImage(ctx context.Context, t assert.TestingT, apiclient client.ImageA
 	assert.NoError(t, err, "failed to remove image %s", ref)
 }
 
-func deleteAllVolumes(t assert.TestingT, c client.VolumeAPIClient) {
+func deleteAllVolumes(t assert.TestingT, c client.VolumeAPIClient, protectedVolumes map[string]struct{}) {
 	volumes, err := c.VolumeList(context.Background(), filters.Args{})
 	assert.NoError(t, err, "failed to list volumes")
 
 	for _, v := range volumes.Volumes {
+		if _, ok := protectedVolumes[v.Name]; ok {
+			continue
+		}
 		err := c.VolumeRemove(context.Background(), v.Name, true)
 		assert.NoError(t, err, "failed to remove volume %s", v.Name)
 	}
 }
 
-func deleteAllNetworks(t assert.TestingT, c client.NetworkAPIClient, daemonPlatform string) {
+func deleteAllNetworks(t assert.TestingT, c client.NetworkAPIClient, daemonPlatform string, protectedNetworks map[string]struct{}) {
 	networks, err := c.NetworkList(context.Background(), types.NetworkListOptions{})
 	assert.NoError(t, err, "failed to list networks")
 
 	for _, n := range networks {
 		if n.Name == "bridge" || n.Name == "none" || n.Name == "host" {
+			continue
+		}
+		if _, ok := protectedNetworks[n.ID]; ok {
 			continue
 		}
 		if daemonPlatform == "windows" && strings.ToLower(n.Name) == "nat" {
@@ -153,11 +162,14 @@ func deleteAllNetworks(t assert.TestingT, c client.NetworkAPIClient, daemonPlatf
 	}
 }
 
-func deleteAllPlugins(t assert.TestingT, c client.PluginAPIClient) {
+func deleteAllPlugins(t assert.TestingT, c client.PluginAPIClient, protectedPlugins map[string]struct{}) {
 	plugins, err := c.PluginList(context.Background(), filters.Args{})
 	assert.NoError(t, err, "failed to list plugins")
 
 	for _, p := range plugins {
+		if _, ok := protectedPlugins[p.Name]; ok {
+			continue
+		}
 		err := c.PluginRemove(context.Background(), p.Name, types.PluginRemoveOptions{Force: true})
 		assert.NoError(t, err, "failed to remove plugin %s", p.ID)
 	}

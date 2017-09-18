@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/stringutils"
+	"github.com/go-check/check"
 	"github.com/gotestyourself/gotestyourself/icmd"
 	"github.com/pkg/errors"
 )
@@ -111,4 +112,72 @@ func RunCommandPipelineWithOutput(cmds ...*exec.Cmd) (output string, err error) 
 	// wait on last cmd
 	out, err := cmds[len(cmds)-1].CombinedOutput()
 	return string(out), err
+}
+
+type elementListOptions struct {
+	element, format string
+}
+
+func existingElements(c *check.C, opts elementListOptions) []string {
+	args := []string{}
+	switch opts.element {
+	case "container":
+		args = append(args, "ps", "-a")
+	case "image":
+		args = append(args, "images", "-a")
+	case "network":
+		args = append(args, "network", "ls")
+	case "plugin":
+		args = append(args, "plugin", "ls")
+	case "volume":
+		args = append(args, "volume", "ls")
+	}
+	if opts.format != "" {
+		args = append(args, "--format", opts.format)
+	}
+	out, _ := dockerCmd(c, args...)
+	lines := []string{}
+	for _, l := range strings.Split(out, "\n") {
+		if l != "" {
+			lines = append(lines, l)
+		}
+	}
+	return lines
+}
+
+// ExistingContainerIDs returns a list of currently existing container IDs.
+func ExistingContainerIDs(c *check.C) []string {
+	return existingElements(c, elementListOptions{element: "container", format: "{{.ID}}"})
+}
+
+// ExistingContainerNames returns a list of existing container names.
+func ExistingContainerNames(c *check.C) []string {
+	return existingElements(c, elementListOptions{element: "container", format: "{{.Names}}"})
+}
+
+// RemoveLinesForExistingElements removes existing elements from the output of a
+// docker command.
+// This function takes an output []string and returns a []string.
+func RemoveLinesForExistingElements(output, existing []string) []string {
+	for _, e := range existing {
+		index := -1
+		for i, line := range output {
+			if strings.Contains(line, e) {
+				index = i
+				break
+			}
+		}
+		if index != -1 {
+			output = append(output[:index], output[index+1:]...)
+		}
+	}
+	return output
+}
+
+// RemoveOutputForExistingElements removes existing elements from the output of
+// a docker command.
+// This function takes an output string and returns a string.
+func RemoveOutputForExistingElements(output string, existing []string) string {
+	res := RemoveLinesForExistingElements(strings.Split(output, "\n"), existing)
+	return strings.Join(res, "\n")
 }

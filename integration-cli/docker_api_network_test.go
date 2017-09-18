@@ -76,7 +76,7 @@ func (s *DockerSuite) TestAPINetworkFilter(c *check.C) {
 	c.Assert(nr.Name, checker.Equals, "bridge")
 }
 
-func (s *DockerSuite) TestAPINetworkInspect(c *check.C) {
+func (s *DockerSuite) TestAPINetworkInspectBridge(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	// Inspect default bridge network
 	nr := getNetworkResource(c, "bridge")
@@ -94,13 +94,15 @@ func (s *DockerSuite) TestAPINetworkInspect(c *check.C) {
 	c.Assert(nr.Internal, checker.Equals, false)
 	c.Assert(nr.EnableIPv6, checker.Equals, false)
 	c.Assert(nr.IPAM.Driver, checker.Equals, "default")
-	c.Assert(len(nr.Containers), checker.Equals, 1)
 	c.Assert(nr.Containers[containerID], checker.NotNil)
 
 	ip, _, err := net.ParseCIDR(nr.Containers[containerID].IPv4Address)
 	c.Assert(err, checker.IsNil)
 	c.Assert(ip.String(), checker.Equals, containerIP)
+}
 
+func (s *DockerSuite) TestAPINetworkInspectUserDefinedNetwork(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	// IPAM configuration inspect
 	ipam := &network.IPAM{
 		Driver: "default",
@@ -117,7 +119,7 @@ func (s *DockerSuite) TestAPINetworkInspect(c *check.C) {
 	id0 := createNetwork(c, config, true)
 	c.Assert(isNetworkAvailable(c, "br0"), checker.Equals, true)
 
-	nr = getNetworkResource(c, id0)
+	nr := getNetworkResource(c, id0)
 	c.Assert(len(nr.IPAM.Config), checker.Equals, 1)
 	c.Assert(nr.IPAM.Config[0].Subnet, checker.Equals, "172.28.0.0/16")
 	c.Assert(nr.IPAM.Config[0].IPRange, checker.Equals, "172.28.5.0/24")
@@ -291,9 +293,16 @@ func getNetworkIDByName(c *check.C, name string) string {
 	nJSON := []types.NetworkResource{}
 	err = json.NewDecoder(body).Decode(&nJSON)
 	c.Assert(err, checker.IsNil)
-	c.Assert(len(nJSON), checker.Equals, 1)
+	var res string
+	for _, n := range nJSON {
+		// Find exact match
+		if n.Name == name {
+			res = n.ID
+		}
+	}
+	c.Assert(res, checker.Not(checker.Equals), "")
 
-	return nJSON[0].ID
+	return res
 }
 
 func getNetworkResource(c *check.C, id string) *types.NetworkResource {

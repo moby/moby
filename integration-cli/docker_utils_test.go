@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -373,8 +372,7 @@ func waitInspectWithArgs(name, expr, expected string, timeout time.Duration, arg
 }
 
 func getInspectBody(c *check.C, version, id string) []byte {
-	var httpClient *http.Client
-	cli, err := client.NewClient(daemonHost(), version, httpClient, nil)
+	cli, err := request.NewEnvClientWithVersion(version)
 	c.Assert(err, check.IsNil)
 	defer cli.Close()
 	_, body, err := cli.ContainerInspectWithRaw(context.Background(), id, false)

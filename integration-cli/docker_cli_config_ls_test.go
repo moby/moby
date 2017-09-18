@@ -11,6 +11,7 @@ import (
 )
 
 func (s *DockerSwarmSuite) TestConfigList(c *check.C) {
+	testRequires(c, SameHostDaemon)
 	d := s.AddDaemon(c, true, true)
 
 	testName0 := "test0"

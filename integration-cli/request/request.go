@@ -129,7 +129,11 @@ func New(host, endpoint string, modifiers ...func(*http.Request) error) (*http.R
 		return nil, fmt.Errorf("could not create new request: %v", err)
 	}
 
-	req.URL.Scheme = "http"
+	if os.Getenv("DOCKER_TLS_VERIFY") != "" {
+		req.URL.Scheme = "https"
+	} else {
+		req.URL.Scheme = "http"
+	}
 	req.URL.Host = addr
 
 	for _, config := range modifiers {
@@ -318,4 +322,36 @@ func DaemonHost() string {
 		daemonURLStr = daemonHostVar
 	}
 	return daemonURLStr
+}
+
+// NewEnvClientWithVersion returns a docker client with a specified version.
+// See: github.com/docker/docker/client `NewEnvClient()`
+func NewEnvClientWithVersion(version string) (*dclient.Client, error) {
+	if version == "" {
+		return nil, errors.New("version not specified")
+	}
+
+	var httpClient *http.Client
+	if os.Getenv("DOCKER_CERT_PATH") != "" {
+		tlsConfig, err := getTLSConfig()
+		if err != nil {
+			return nil, err
+		}
+		httpClient = &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: tlsConfig,
+			},
+		}
+	}
+
+	host := os.Getenv("DOCKER_HOST")
+	if host == "" {
+		host = dclient.DefaultDockerHost
+	}
+
+	cli, err := dclient.NewClient(host, version, httpClient, nil)
+	if err != nil {
+		return cli, err
+	}
+	return cli, nil
 }

@@ -139,7 +139,7 @@ func (s *DockerSuite) TestUpdateKernelMemory(c *check.C) {
 func (s *DockerSuite) TestUpdateKernelMemoryUninitialized(c *check.C) {
 	testRequires(c, DaemonIsLinux, kernelMemorySupport)
 
-	isNewKernel := kernel.CheckKernelVersion(4, 6, 0)
+	isNewKernel := CheckKernelVersion(4, 6, 0)
 	name := "test-update-container"
 	dockerCmd(c, "run", "-d", "--name", name, "busybox", "top")
 	_, _, err := dockerCmdWithError("update", "--kernel-memory", "100M", name)
@@ -169,6 +169,18 @@ func (s *DockerSuite) TestUpdateKernelMemoryUninitialized(c *check.C) {
 	file := "/sys/fs/cgroup/memory/memory.kmem.limit_in_bytes"
 	out, _ := dockerCmd(c, "exec", name, "cat", file)
 	c.Assert(strings.TrimSpace(out), checker.Equals, "314572800")
+}
+
+// GetKernelVersion gets the current kernel version.
+func GetKernelVersion() *kernel.VersionInfo {
+	v, _ := kernel.ParseRelease(testEnv.DaemonInfo.KernelVersion)
+	return v
+}
+
+// CheckKernelVersion checks if current kernel is newer than (or equal to)
+// the given version.
+func CheckKernelVersion(k, major, minor int) bool {
+	return kernel.CompareKernelVersion(*GetKernelVersion(), kernel.VersionInfo{Kernel: k, Major: major, Minor: minor}) > 0
 }
 
 func (s *DockerSuite) TestUpdateSwapMemoryOnly(c *check.C) {

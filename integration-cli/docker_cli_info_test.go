@@ -135,16 +135,20 @@ func (s *DockerSuite) TestInfoDiscoveryAdvertiseInterfaceName(c *check.C) {
 func (s *DockerSuite) TestInfoDisplaysRunningContainers(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 
+	existing := existingContainerStates(c)
+
 	dockerCmd(c, "run", "-d", "busybox", "top")
 	out, _ := dockerCmd(c, "info")
-	c.Assert(out, checker.Contains, fmt.Sprintf("Containers: %d\n", 1))
-	c.Assert(out, checker.Contains, fmt.Sprintf(" Running: %d\n", 1))
-	c.Assert(out, checker.Contains, fmt.Sprintf(" Paused: %d\n", 0))
-	c.Assert(out, checker.Contains, fmt.Sprintf(" Stopped: %d\n", 0))
+	c.Assert(out, checker.Contains, fmt.Sprintf("Containers: %d\n", existing["Containers"]+1))
+	c.Assert(out, checker.Contains, fmt.Sprintf(" Running: %d\n", existing["ContainersRunning"]+1))
+	c.Assert(out, checker.Contains, fmt.Sprintf(" Paused: %d\n", existing["ContainersPaused"]))
+	c.Assert(out, checker.Contains, fmt.Sprintf(" Stopped: %d\n", existing["ContainersStopped"]))
 }
 
 func (s *DockerSuite) TestInfoDisplaysPausedContainers(c *check.C) {
 	testRequires(c, IsPausable)
+
+	existing := existingContainerStates(c)
 
 	out := runSleepingContainer(c, "-d")
 	cleanedContainerID := strings.TrimSpace(out)
@@ -152,14 +156,16 @@ func (s *DockerSuite) TestInfoDisplaysPausedContainers(c *check.C) {
 	dockerCmd(c, "pause", cleanedContainerID)
 
 	out, _ = dockerCmd(c, "info")
-	c.Assert(out, checker.Contains, fmt.Sprintf("Containers: %d\n", 1))
-	c.Assert(out, checker.Contains, fmt.Sprintf(" Running: %d\n", 0))
-	c.Assert(out, checker.Contains, fmt.Sprintf(" Paused: %d\n", 1))
-	c.Assert(out, checker.Contains, fmt.Sprintf(" Stopped: %d\n", 0))
+	c.Assert(out, checker.Contains, fmt.Sprintf("Containers: %d\n", existing["Containers"]+1))
+	c.Assert(out, checker.Contains, fmt.Sprintf(" Running: %d\n", existing["ContainersRunning"]))
+	c.Assert(out, checker.Contains, fmt.Sprintf(" Paused: %d\n", existing["ContainersPaused"]+1))
+	c.Assert(out, checker.Contains, fmt.Sprintf(" Stopped: %d\n", existing["ContainersStopped"]))
 }
 
 func (s *DockerSuite) TestInfoDisplaysStoppedContainers(c *check.C) {
 	testRequires(c, DaemonIsLinux)
+
+	existing := existingContainerStates(c)
 
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	cleanedContainerID := strings.TrimSpace(out)
@@ -167,10 +173,10 @@ func (s *DockerSuite) TestInfoDisplaysStoppedContainers(c *check.C) {
 	dockerCmd(c, "stop", cleanedContainerID)
 
 	out, _ = dockerCmd(c, "info")
-	c.Assert(out, checker.Contains, fmt.Sprintf("Containers: %d\n", 1))
-	c.Assert(out, checker.Contains, fmt.Sprintf(" Running: %d\n", 0))
-	c.Assert(out, checker.Contains, fmt.Sprintf(" Paused: %d\n", 0))
-	c.Assert(out, checker.Contains, fmt.Sprintf(" Stopped: %d\n", 1))
+	c.Assert(out, checker.Contains, fmt.Sprintf("Containers: %d\n", existing["Containers"]+1))
+	c.Assert(out, checker.Contains, fmt.Sprintf(" Running: %d\n", existing["ContainersRunning"]))
+	c.Assert(out, checker.Contains, fmt.Sprintf(" Paused: %d\n", existing["ContainersPaused"]))
+	c.Assert(out, checker.Contains, fmt.Sprintf(" Stopped: %d\n", existing["ContainersStopped"]+1))
 }
 
 func (s *DockerSuite) TestInfoDebug(c *check.C) {
@@ -236,4 +242,17 @@ func (s *DockerDaemonSuite) TestInfoLabels(c *check.C) {
 	out, err := s.d.Cmd("info")
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, checker.Contains, "WARNING: labels with duplicate keys and conflicting values have been deprecated")
+}
+
+func existingContainerStates(c *check.C) map[string]int {
+	out, _ := dockerCmd(c, "info", "--format", "{{json .}}")
+	var m map[string]interface{}
+	err := json.Unmarshal([]byte(out), &m)
+	c.Assert(err, checker.IsNil)
+	res := map[string]int{}
+	res["Containers"] = int(m["Containers"].(float64))
+	res["ContainersRunning"] = int(m["ContainersRunning"].(float64))
+	res["ContainersPaused"] = int(m["ContainersPaused"].(float64))
+	res["ContainersStopped"] = int(m["ContainersStopped"].(float64))
+	return res
 }

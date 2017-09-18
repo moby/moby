@@ -64,6 +64,7 @@ type authorizationController struct {
 }
 
 func (s *DockerAuthzSuite) SetUpTest(c *check.C) {
+	testRequires(c, SameHostDaemon)
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
 		Experimental: testEnv.ExperimentalDaemon(),
 	})
@@ -218,12 +219,6 @@ func (s *DockerAuthzSuite) TestAuthZPluginAllowRequest(c *check.C) {
 	id := strings.TrimSpace(out)
 	assertURIRecorded(c, s.ctrl.requestsURIs, "/containers/create")
 	assertURIRecorded(c, s.ctrl.requestsURIs, fmt.Sprintf("/containers/%s/start", id))
-
-	out, err = s.d.Cmd("ps")
-	c.Assert(err, check.IsNil)
-	c.Assert(assertContainerList(out, []string{id}), check.Equals, true)
-	c.Assert(s.ctrl.psRequestCnt, check.Equals, 1)
-	c.Assert(s.ctrl.psResponseCnt, check.Equals, 1)
 }
 
 func (s *DockerAuthzSuite) TestAuthZPluginTls(c *check.C) {

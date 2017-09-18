@@ -71,7 +71,6 @@ func (s *DockerSuite) TestContainerAPIGetJSONNoFieldsOmitted(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(containers, checker.HasLen, startCount+1)
 	actual := fmt.Sprintf("%+v", containers[0])
-	fmt.Println(actual)
 
 	// empty Labels field triggered this bug, make sense to check for everything
 	// cause even Ports for instance can trigger this bug
@@ -1372,8 +1371,7 @@ func (s *DockerSuite) TestContainerAPICreateNoHostConfig118(c *check.C) {
 		Image: "busybox",
 	}
 
-	var httpClient *http.Client
-	cli, err := client.NewClient(daemonHost(), "v1.18", httpClient, map[string]string{})
+	cli, err := request.NewEnvClientWithVersion("v1.18")
 
 	_, err = cli.ContainerCreate(context.Background(), &config, &containertypes.HostConfig{}, &networktypes.NetworkingConfig{}, "")
 	c.Assert(err, checker.IsNil)
@@ -1407,16 +1405,6 @@ func (s *DockerSuite) TestPutContainerArchiveErrSymlinkInVolumeToReadOnlyRootfs(
 
 	err = cli.CopyToContainer(context.Background(), cID, "/vol2/symlinkToAbsDir", nil, types.CopyToContainerOptions{})
 	c.Assert(err.Error(), checker.Contains, "container rootfs is marked read-only")
-}
-
-func (s *DockerSuite) TestContainerAPIGetContainersJSONEmpty(c *check.C) {
-	cli, err := client.NewEnvClient()
-	c.Assert(err, checker.IsNil)
-	defer cli.Close()
-
-	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{All: true})
-	c.Assert(err, checker.IsNil)
-	c.Assert(containers, checker.HasLen, 0)
 }
 
 func (s *DockerSuite) TestPostContainersCreateWithWrongCpusetValues(c *check.C) {
