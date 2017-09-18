@@ -16,6 +16,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	containerd "github.com/containerd/containerd/api/grpc/types"
@@ -118,10 +119,11 @@ type Daemon struct {
 	seccompProfile     []byte
 	seccompProfilePath string
 
-	diskUsageRunning int32
-	pruneRunning     int32
-	hosts            map[string]bool // hosts stores the addresses the daemon is listening on
-	startupDone      chan struct{}
+	diskUsageRunning   int32
+	pruneRunning       int32
+	hosts              map[string]bool // hosts stores the addresses the daemon is listening on
+	startupDone        chan struct{}
+	mountingContainers int32
 }
 
 // StoreHosts stores the addresses the daemon is listening on
@@ -795,6 +797,7 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	d.idMappings = idMappings
 	d.seccompEnabled = sysInfo.Seccomp
 	d.apparmorEnabled = sysInfo.AppArmor
+	d.mountingContainers = 0
 
 	d.linkIndex = newLinkIndex()
 	d.containerdRemote = containerdRemote
@@ -928,6 +931,12 @@ func (daemon *Daemon) Shutdown() error {
 	}
 
 	for platform, ds := range daemon.stores {
+		for {
+			if atomic.CompareAndSwapInt32(&daemon.mountingContainers, 0, 0) {
+				break
+			}
+			<-time.After(10 * time.Millisecond)
+		}
 		if ds.layerStore != nil {
 			if err := ds.layerStore.Cleanup(); err != nil {
 				logrus.Errorf("Error during layer Store.Cleanup(): %v %s", err, platform)
@@ -961,6 +970,13 @@ func (daemon *Daemon) Shutdown() error {
 // Mount sets container.BaseFS
 // (is it not set coming in? why is it unset?)
 func (daemon *Daemon) Mount(container *container.Container) error {
+	atomic.AddInt32(&daemon.mountingContainers, 1)
+	defer func() {
+		atomic.AddInt32(&daemon.mountingContainers, -1)
+	}()
+	if daemon.IsShuttingDown() {
+		return fmt.Errorf("Error: daemon is shutting down")
+	}
 	dir, err := container.RWLayer.Mount(container.GetMountLabel())
 	if err != nil {
 		return err
