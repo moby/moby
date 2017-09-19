@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -363,6 +364,11 @@ func (l *splunkLoggerJSON) Log(msg *logger.Message) error {
 }
 
 func (l *splunkLoggerRaw) Log(msg *logger.Message) error {
+	// empty or whitespace-only messages are not accepted by HEC
+	if strings.TrimSpace(string(msg.Line)) == "" {
+		return nil
+	}
+
 	message := l.createSplunkMessage(msg)
 
 	message.Event = string(append(l.prefix, msg.Line...))
