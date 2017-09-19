@@ -3,7 +3,10 @@ package registry
 import "testing"
 
 func TestLookupV1Endpoints(t *testing.T) {
-	s := NewService(ServiceOptions{})
+	s, err := NewService(ServiceOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	cases := []struct {
 		hostname    string

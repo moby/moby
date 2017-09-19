@@ -45,10 +45,10 @@ type DefaultService struct {
 
 // NewService returns a new instance of DefaultService ready to be
 // installed into an engine.
-func NewService(options ServiceOptions) *DefaultService {
-	return &DefaultService{
-		config: newServiceConfig(options),
-	}
+func NewService(options ServiceOptions) (*DefaultService, error) {
+	config, err := newServiceConfig(options)
+
+	return &DefaultService{config: config}, err
 }
 
 // ServiceConfig returns the public registry service configuration.

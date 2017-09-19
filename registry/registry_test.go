@@ -540,7 +540,7 @@ func TestNewIndexInfo(t *testing.T) {
 		}
 	}
 
-	config := newServiceConfig(ServiceOptions{})
+	config := emptyServiceConfig
 	noMirrors := []string{}
 	expectedIndexInfos := map[string]*registrytypes.IndexInfo{
 		IndexName: {
@@ -571,7 +571,11 @@ func TestNewIndexInfo(t *testing.T) {
 	testIndexInfo(config, expectedIndexInfos)
 
 	publicMirrors := []string{"http://mirror1.local", "http://mirror2.local"}
-	config = makeServiceConfig(publicMirrors, []string{"example.com"})
+	var err error
+	config, err = makeServiceConfig(publicMirrors, []string{"example.com"})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	expectedIndexInfos = map[string]*registrytypes.IndexInfo{
 		IndexName: {
@@ -619,7 +623,10 @@ func TestNewIndexInfo(t *testing.T) {
 	}
 	testIndexInfo(config, expectedIndexInfos)
 
-	config = makeServiceConfig(nil, []string{"42.42.0.0/16"})
+	config, err = makeServiceConfig(nil, []string{"42.42.0.0/16"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	expectedIndexInfos = map[string]*registrytypes.IndexInfo{
 		"example.com": {
 			Name:     "example.com",
@@ -664,7 +671,11 @@ func TestMirrorEndpointLookup(t *testing.T) {
 		}
 		return false
 	}
-	s := DefaultService{config: makeServiceConfig([]string{"https://my.mirror"}, nil)}
+	cfg, err := makeServiceConfig([]string{"https://my.mirror"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := DefaultService{config: cfg}
 
 	imageName, err := reference.WithName(IndexName + "/test/image")
 	if err != nil {
@@ -841,9 +852,12 @@ func TestAllowNondistributableArtifacts(t *testing.T) {
 		{"invalid.domain.com:5000", []string{"invalid.domain.com:5000"}, true},
 	}
 	for _, tt := range tests {
-		config := newServiceConfig(ServiceOptions{
+		config, err := newServiceConfig(ServiceOptions{
 			AllowNondistributableArtifacts: tt.registries,
 		})
+		if err != nil {
+			t.Error(err)
+		}
 		if v := allowNondistributableArtifacts(config, tt.addr); v != tt.expected {
 			t.Errorf("allowNondistributableArtifacts failed for %q %v, expected %v got %v", tt.addr, tt.registries, tt.expected, v)
 		}
@@ -883,7 +897,10 @@ func TestIsSecureIndex(t *testing.T) {
 		{"invalid.domain.com:5000", []string{"invalid.domain.com:5000"}, false},
 	}
 	for _, tt := range tests {
-		config := makeServiceConfig(nil, tt.insecureRegistries)
+		config, err := makeServiceConfig(nil, tt.insecureRegistries)
+		if err != nil {
+			t.Error(err)
+		}
 		if sec := isSecureIndex(config, tt.addr); sec != tt.expected {
 			t.Errorf("isSecureIndex failed for %q %v, expected %v got %v", tt.addr, tt.insecureRegistries, tt.expected, sec)
 		}

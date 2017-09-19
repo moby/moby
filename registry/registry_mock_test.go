@@ -175,7 +175,7 @@ func makePublicIndex() *registrytypes.IndexInfo {
 	return index
 }
 
-func makeServiceConfig(mirrors []string, insecureRegistries []string) *serviceConfig {
+func makeServiceConfig(mirrors []string, insecureRegistries []string) (*serviceConfig, error) {
 	options := ServiceOptions{
 		Mirrors:            mirrors,
 		InsecureRegistries: insecureRegistries,
