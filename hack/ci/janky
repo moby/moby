@@ -4,6 +4,8 @@ set -eu -o pipefail
 
 hack/validate/default
 hack/test/unit
+bash <(curl -s https://codecov.io/bash) -f coverage.txt || \
+    echo 'Codecov failed to upload'
 
 hack/make.sh \
 	binary-daemon \

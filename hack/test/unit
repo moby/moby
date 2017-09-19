@@ -19,4 +19,20 @@ TESTDIRS="${TESTDIRS:-"./..."}"
 exclude_paths="/vendor/|/integration"
 pkg_list=$(go list $TESTDIRS | grep -vE "($exclude_paths)")
 
-go test -cover "${BUILDFLAGS[@]}" $TESTFLAGS $pkg_list
+# install test dependencies once before running tests for each package. This
+# significantly reduces the runtime.
+go test -i "${BUILDFLAGS[@]}" $pkg_list
+
+for pkg in $pkg_list; do
+    go test "${BUILDFLAGS[@]}" \
+        -cover \
+        -coverprofile=profile.out \
+        -covermode=atomic \
+        $TESTFLAGS \
+        "${pkg}"
+
+    if test -f profile.out; then
+        cat profile.out >> coverage.txt
+        rm profile.out
+    fi
+done
