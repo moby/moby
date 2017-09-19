@@ -57,7 +57,7 @@ func (daemon *Daemon) ImportImage(src string, repository, os string, tag string,
 		}
 	}
 
-	config, err := dockerfile.BuildFromConfig(&container.Config{}, changes)
+	config, err := dockerfile.BuildFromConfig(&container.Config{}, changes, os)
 	if err != nil {
 		return err
 	}
@@ -91,11 +91,11 @@ func (daemon *Daemon) ImportImage(src string, repository, os string, tag string,
 	if err != nil {
 		return err
 	}
-	l, err := daemon.layerStore.Register(inflatedLayerData, "", os)
+	l, err := daemon.layerStores[os].Register(inflatedLayerData, "")
 	if err != nil {
 		return err
 	}
-	defer layer.ReleaseAndLog(daemon.layerStore, l)
+	defer layer.ReleaseAndLog(daemon.layerStores[os], l)
 
 	created := time.Now().UTC()
 	imgConfig, err := json.Marshal(&image.Image{

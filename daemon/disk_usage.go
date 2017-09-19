@@ -96,21 +96,23 @@ func (daemon *Daemon) SystemDiskUsage(ctx context.Context) (*types.DiskUsage, er
 	// Get total layers size on disk
 	var allLayersSize int64
 	layerRefs := daemon.getLayerRefs()
-	allLayers := daemon.layerStore.Map()
-	for _, l := range allLayers {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-			size, err := l.DiffSize()
-			if err == nil {
-				if _, ok := layerRefs[l.ChainID()]; ok {
-					allLayersSize += size
+	for _, ls := range daemon.layerStores {
+		allLayers := ls.Map()
+		for _, l := range allLayers {
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			default:
+				size, err := l.DiffSize()
+				if err == nil {
+					if _, ok := layerRefs[l.ChainID()]; ok {
+						allLayersSize += size
+					} else {
+						logrus.Warnf("found leaked image layer %v", l.ChainID())
+					}
 				} else {
-					logrus.Warnf("found leaked image layer %v", l.ChainID())
+					logrus.Warnf("failed to get diff size for layer %v", l.ChainID())
 				}
-			} else {
-				logrus.Warnf("failed to get diff size for layer %v", l.ChainID())
 			}
 		}
 	}

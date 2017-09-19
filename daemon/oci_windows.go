@@ -138,9 +138,9 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	max := len(img.RootFS.DiffIDs)
 	for i := 1; i <= max; i++ {
 		img.RootFS.DiffIDs = img.RootFS.DiffIDs[:i]
-		layerPath, err := layer.GetLayerPath(daemon.layerStore, img.RootFS.ChainID())
+		layerPath, err := layer.GetLayerPath(daemon.layerStores[img.OperatingSystem()], img.RootFS.ChainID())
 		if err != nil {
-			return nil, fmt.Errorf("failed to get layer path from graphdriver %s for ImageID %s - %s", daemon.layerStore, img.RootFS.ChainID(), err)
+			return nil, fmt.Errorf("failed to get layer path from graphdriver %s for ImageID %s - %s", daemon.layerStores[img.OperatingSystem()], img.RootFS.ChainID(), err)
 		}
 		// Reverse order, expecting parent most first
 		s.Windows.LayerFolders = append([]string{layerPath}, s.Windows.LayerFolders...)

@@ -71,8 +71,8 @@ type ImagePushConfig struct {
 	// ConfigMediaType is the configuration media type for
 	// schema2 manifests.
 	ConfigMediaType string
-	// LayerStore manages layers.
-	LayerStore PushLayerProvider
+	// LayerStores (indexed by operating system) manages layers.
+	LayerStores map[string]PushLayerProvider
 	// TrustKey is the private key for legacy signatures. This is typically
 	// an ephemeral key, since these signatures are no longer verified.
 	TrustKey libtrust.PrivateKey
@@ -165,13 +165,15 @@ type storeLayerProvider struct {
 	ls layer.Store
 }
 
-// NewLayerProviderFromStore returns a layer provider backed by
+// NewLayerProvidersFromStores returns layer providers backed by
 // an instance of LayerStore. Only getting layers as gzipped
 // tars is supported.
-func NewLayerProviderFromStore(ls layer.Store) PushLayerProvider {
-	return &storeLayerProvider{
-		ls: ls,
+func NewLayerProvidersFromStores(lss map[string]layer.Store) map[string]PushLayerProvider {
+	plps := make(map[string]PushLayerProvider)
+	for os, ls := range lss {
+		plps[os] = &storeLayerProvider{ls: ls}
 	}
+	return plps
 }
 
 func (p *storeLayerProvider) Get(lid layer.ChainID) (PushLayer, error) {

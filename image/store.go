@@ -41,16 +41,16 @@ type imageMeta struct {
 
 type store struct {
 	sync.RWMutex
-	ls        LayerGetReleaser
+	lss       map[string]LayerGetReleaser
 	images    map[ID]*imageMeta
 	fs        StoreBackend
 	digestSet *digestset.Set
 }
 
-// NewImageStore returns new store object for given layer store
-func NewImageStore(fs StoreBackend, ls LayerGetReleaser) (Store, error) {
+// NewImageStore returns new store object for given set of layer stores
+func NewImageStore(fs StoreBackend, lss map[string]LayerGetReleaser) (Store, error) {
 	is := &store{
-		ls:        ls,
+		lss:       lss,
 		images:    make(map[ID]*imageMeta),
 		fs:        fs,
 		digestSet: digestset.NewSet(),
@@ -73,7 +73,7 @@ func (is *store) restore() error {
 		}
 		var l layer.Layer
 		if chainID := img.RootFS.ChainID(); chainID != "" {
-			l, err = is.ls.Get(chainID)
+			l, err = is.lss[img.OperatingSystem()].Get(chainID)
 			if err != nil {
 				return err
 			}
@@ -148,7 +148,7 @@ func (is *store) Create(config []byte) (ID, error) {
 
 	var l layer.Layer
 	if layerID != "" {
-		l, err = is.ls.Get(layerID)
+		l, err = is.lss[img.OperatingSystem()].Get(layerID)
 		if err != nil {
 			return "", errors.Wrapf(err, "failed to get layer %s", layerID)
 		}
@@ -231,7 +231,7 @@ func (is *store) Delete(id ID) ([]layer.Metadata, error) {
 	is.fs.Delete(id.Digest())
 
 	if imageMeta.layer != nil {
-		return is.ls.Release(imageMeta.layer)
+		return is.lss[imageMeta.layer.OS()].Release(imageMeta.layer)
 	}
 	return nil, nil
 }

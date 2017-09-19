@@ -81,7 +81,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 	var ds [][2]string
 	drivers := ""
 	for os, gd := range daemon.graphDrivers {
-		ds = append(ds, daemon.layerStore.DriverStatus(os)...)
+		ds = append(ds, daemon.layerStores[os].DriverStatus()...)
 		drivers += gd
 		if len(daemon.graphDrivers) > 1 {
 			drivers += fmt.Sprintf(" (%s) ", os)

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"runtime"
 	"time"
 
 	"github.com/docker/distribution"
@@ -22,7 +23,7 @@ const maxDownloadAttempts = 5
 // registers and downloads those, taking into account dependencies between
 // layers.
 type LayerDownloadManager struct {
-	layerStore   layer.Store
+	layerStores  map[string]layer.Store
 	tm           TransferManager
 	waitDuration time.Duration
 }
@@ -33,9 +34,9 @@ func (ldm *LayerDownloadManager) SetConcurrency(concurrency int) {
 }
 
 // NewLayerDownloadManager returns a new LayerDownloadManager.
-func NewLayerDownloadManager(layerStore layer.Store, concurrencyLimit int, options ...func(*LayerDownloadManager)) *LayerDownloadManager {
+func NewLayerDownloadManager(layerStores map[string]layer.Store, concurrencyLimit int, options ...func(*LayerDownloadManager)) *LayerDownloadManager {
 	manager := LayerDownloadManager{
-		layerStore:   layerStore,
+		layerStores:  layerStores,
 		tm:           NewTransferManager(concurrencyLimit),
 		waitDuration: time.Second,
 	}
@@ -104,6 +105,11 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 		downloadsByKey = make(map[string]*downloadTransfer)
 	)
 
+	// Assume that the operating system is the host OS if blank
+	if os == "" {
+		os = runtime.GOOS
+	}
+
 	rootFS := initialRootFS
 	for _, descriptor := range layers {
 		key := descriptor.Key()
@@ -115,13 +121,13 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 			if err == nil {
 				getRootFS := rootFS
 				getRootFS.Append(diffID)
-				l, err := ldm.layerStore.Get(getRootFS.ChainID())
+				l, err := ldm.layerStores[os].Get(getRootFS.ChainID())
 				if err == nil {
 					// Layer already exists.
 					logrus.Debugf("Layer already exists: %s", descriptor.ID())
 					progress.Update(progressOutput, descriptor.ID(), "Already exists")
 					if topLayer != nil {
-						layer.ReleaseAndLog(ldm.layerStore, topLayer)
+						layer.ReleaseAndLog(ldm.layerStores[os], topLayer)
 					}
 					topLayer = l
 					missingLayer = false
@@ -165,7 +171,7 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 	if topDownload == nil {
 		return rootFS, func() {
 			if topLayer != nil {
-				layer.ReleaseAndLog(ldm.layerStore, topLayer)
+				layer.ReleaseAndLog(ldm.layerStores[os], topLayer)
 			}
 		}, nil
 	}
@@ -176,7 +182,7 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 
 	defer func() {
 		if topLayer != nil {
-			layer.ReleaseAndLog(ldm.layerStore, topLayer)
+			layer.ReleaseAndLog(ldm.layerStores[os], topLayer)
 		}
 	}()
 
@@ -216,7 +222,7 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 	return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) Transfer {
 		d := &downloadTransfer{
 			Transfer:   NewTransfer(),
-			layerStore: ldm.layerStore,
+			layerStore: ldm.layerStores[os],
 		}
 
 		go func() {
@@ -335,9 +341,9 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 				src = fs.Descriptor()
 			}
 			if ds, ok := d.layerStore.(layer.DescribableStore); ok {
-				d.layer, err = ds.RegisterWithDescriptor(inflatedLayerData, parentLayer, os, src)
+				d.layer, err = ds.RegisterWithDescriptor(inflatedLayerData, parentLayer, src)
 			} else {
-				d.layer, err = d.layerStore.Register(inflatedLayerData, parentLayer, os)
+				d.layer, err = d.layerStore.Register(inflatedLayerData, parentLayer)
 			}
 			if err != nil {
 				select {
@@ -380,7 +386,7 @@ func (ldm *LayerDownloadManager) makeDownloadFuncFromDownload(descriptor Downloa
 	return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) Transfer {
 		d := &downloadTransfer{
 			Transfer:   NewTransfer(),
-			layerStore: ldm.layerStore,
+			layerStore: ldm.layerStores[os],
 		}
 
 		go func() {
@@ -434,9 +440,9 @@ func (ldm *LayerDownloadManager) makeDownloadFuncFromDownload(descriptor Downloa
 				src = fs.Descriptor()
 			}
 			if ds, ok := d.layerStore.(layer.DescribableStore); ok {
-				d.layer, err = ds.RegisterWithDescriptor(layerReader, parentLayer, os, src)
+				d.layer, err = ds.RegisterWithDescriptor(layerReader, parentLayer, src)
 			} else {
-				d.layer, err = d.layerStore.Register(layerReader, parentLayer, os)
+				d.layer, err = d.layerStore.Register(layerReader, parentLayer)
 			}
 			if err != nil {
 				d.err = fmt.Errorf("failed to register layer: %v", err)

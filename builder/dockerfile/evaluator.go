@@ -104,13 +104,14 @@ func dispatch(d dispatchRequest, cmd instructions.Command) (err error) {
 
 // dispatchState is a data object which is modified by dispatchers
 type dispatchState struct {
-	runConfig  *container.Config
-	maintainer string
-	cmdSet     bool
-	imageID    string
-	baseImage  builder.Image
-	stageName  string
-	buildArgs  *buildArgs
+	runConfig       *container.Config
+	maintainer      string
+	cmdSet          bool
+	imageID         string
+	baseImage       builder.Image
+	stageName       string
+	buildArgs       *buildArgs
+	operatingSystem string
 }
 
 func newDispatchState(baseArgs *buildArgs) *dispatchState {
@@ -213,6 +214,7 @@ func (s *dispatchState) hasFromImage() bool {
 func (s *dispatchState) beginStage(stageName string, image builder.Image) {
 	s.stageName = stageName
 	s.imageID = image.ImageID()
+	s.operatingSystem = image.OperatingSystem()
 
 	if image.RunConfig() != nil {
 		// copy avoids referencing the same instance when 2 stages have the same base
@@ -229,7 +231,7 @@ func (s *dispatchState) beginStage(stageName string, image builder.Image) {
 // Add the default PATH to runConfig.ENV if one exists for the operating system and there
 // is no PATH set. Note that Windows containers on Windows won't have one as it's set by HCS
 func (s *dispatchState) setDefaultPath() {
-	defaultPath := system.DefaultPathEnv(s.baseImage.OperatingSystem())
+	defaultPath := system.DefaultPathEnv(s.operatingSystem)
 	if defaultPath == "" {
 		return
 	}

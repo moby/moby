@@ -35,7 +35,7 @@ func TestMountInit(t *testing.T) {
 	rwLayerOpts := &CreateRWLayerOpts{
 		InitFunc: mountInit,
 	}
-	m, err := ls.CreateRWLayer("fun-mount", layer.ChainID(), runtime.GOOS, rwLayerOpts)
+	m, err := ls.CreateRWLayer("fun-mount", layer.ChainID(), rwLayerOpts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +95,7 @@ func TestMountSize(t *testing.T) {
 		InitFunc: mountInit,
 	}
 
-	m, err := ls.CreateRWLayer("mount-size", layer.ChainID(), runtime.GOOS, rwLayerOpts)
+	m, err := ls.CreateRWLayer("mount-size", layer.ChainID(), rwLayerOpts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,7 +147,7 @@ func TestMountChanges(t *testing.T) {
 		InitFunc: mountInit,
 	}
 
-	m, err := ls.CreateRWLayer("mount-changes", layer.ChainID(), runtime.GOOS, rwLayerOpts)
+	m, err := ls.CreateRWLayer("mount-changes", layer.ChainID(), rwLayerOpts)
 	if err != nil {
 		t.Fatal(err)
 	}

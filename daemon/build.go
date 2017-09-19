@@ -23,7 +23,6 @@ type releaseableLayer struct {
 	layerStore layer.Store
 	roLayer    layer.Layer
 	rwLayer    layer.RWLayer
-	os         string
 }
 
 func (rl *releaseableLayer) Mount() (containerfs.ContainerFS, error) {
@@ -35,7 +34,7 @@ func (rl *releaseableLayer) Mount() (containerfs.ContainerFS, error) {
 	}
 
 	mountID := stringid.GenerateRandomID()
-	rl.rwLayer, err = rl.layerStore.CreateRWLayer(mountID, chainID, rl.os, nil)
+	rl.rwLayer, err = rl.layerStore.CreateRWLayer(mountID, chainID, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create rwlayer")
 	}
@@ -55,7 +54,7 @@ func (rl *releaseableLayer) Mount() (containerfs.ContainerFS, error) {
 	return mountPath, nil
 }
 
-func (rl *releaseableLayer) Commit(os string) (builder.ReleaseableLayer, error) {
+func (rl *releaseableLayer) Commit() (builder.ReleaseableLayer, error) {
 	var chainID layer.ChainID
 	if rl.roLayer != nil {
 		chainID = rl.roLayer.ChainID()
@@ -67,12 +66,12 @@ func (rl *releaseableLayer) Commit(os string) (builder.ReleaseableLayer, error) 
 	}
 	defer stream.Close()
 
-	newLayer, err := rl.layerStore.Register(stream, chainID, os)
+	newLayer, err := rl.layerStore.Register(stream, chainID)
 	if err != nil {
 		return nil, err
 	}
 	// TODO: An optimization woudld be to handle empty layers before returning
-	return &releaseableLayer{layerStore: rl.layerStore, roLayer: newLayer, os: os}, nil
+	return &releaseableLayer{layerStore: rl.layerStore, roLayer: newLayer}, nil
 }
 
 func (rl *releaseableLayer) DiffID() layer.DiffID {
@@ -128,9 +127,9 @@ func (rl *releaseableLayer) releaseROLayer() error {
 	return err
 }
 
-func newReleasableLayerForImage(img *image.Image, layerStore layer.Store, os string) (builder.ReleaseableLayer, error) {
+func newReleasableLayerForImage(img *image.Image, layerStore layer.Store) (builder.ReleaseableLayer, error) {
 	if img == nil || img.RootFS.ChainID() == "" {
-		return &releaseableLayer{layerStore: layerStore, os: os}, nil
+		return &releaseableLayer{layerStore: layerStore}, nil
 	}
 	// Hold a reference to the image layer so that it can't be removed before
 	// it is released
@@ -138,7 +137,7 @@ func newReleasableLayerForImage(img *image.Image, layerStore layer.Store, os str
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get layer for image %s", img.ImageID())
 	}
-	return &releaseableLayer{layerStore: layerStore, roLayer: roLayer, os: os}, nil
+	return &releaseableLayer{layerStore: layerStore, roLayer: roLayer}, nil
 }
 
 // TODO: could this use the regular daemon PullImage ?
@@ -172,7 +171,7 @@ func (daemon *Daemon) pullForBuilder(ctx context.Context, name string, authConfi
 // leaking of layers.
 func (daemon *Daemon) GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ReleaseableLayer, error) {
 	if refOrID == "" {
-		layer, err := newReleasableLayerForImage(nil, daemon.layerStore, opts.OS)
+		layer, err := newReleasableLayerForImage(nil, daemon.layerStores[opts.OS])
 		return nil, layer, err
 	}
 
@@ -183,7 +182,7 @@ func (daemon *Daemon) GetImageAndReleasableLayer(ctx context.Context, refOrID st
 		}
 		// TODO: shouldn't we error out if error is different from "not found" ?
 		if image != nil {
-			layer, err := newReleasableLayerForImage(image, daemon.layerStore, image.OperatingSystem())
+			layer, err := newReleasableLayerForImage(image, daemon.layerStores[image.OperatingSystem()])
 			return image, layer, err
 		}
 	}
@@ -192,7 +191,7 @@ func (daemon *Daemon) GetImageAndReleasableLayer(ctx context.Context, refOrID st
 	if err != nil {
 		return nil, nil, err
 	}
-	layer, err := newReleasableLayerForImage(image, daemon.layerStore, image.OperatingSystem())
+	layer, err := newReleasableLayerForImage(image, daemon.layerStores[image.OperatingSystem()])
 	return image, layer, err
 }
 

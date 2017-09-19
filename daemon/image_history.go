@@ -33,12 +33,12 @@ func (daemon *Daemon) ImageHistory(name string) ([]*image.HistoryResponseItem, e
 			}
 
 			rootFS.Append(img.RootFS.DiffIDs[layerCounter])
-			l, err := daemon.layerStore.Get(rootFS.ChainID())
+			l, err := daemon.layerStores[img.OperatingSystem()].Get(rootFS.ChainID())
 			if err != nil {
 				return nil, err
 			}
 			layerSize, err = l.DiffSize()
-			layer.ReleaseAndLog(daemon.layerStore, l)
+			layer.ReleaseAndLog(daemon.layerStores[img.OperatingSystem()], l)
 			if err != nil {
 				return nil, err
 			}

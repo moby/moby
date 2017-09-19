@@ -94,9 +94,7 @@ func TestLayerMigration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	graphs := make(map[string]graphdriver.Driver)
-	graphs[runtime.GOOS] = graph
-	ls, err := NewStoreFromGraphDrivers(fms, graphs)
+	ls, err := NewStoreFromGraphDriver(fms, graph, runtime.GOOS)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,14 +110,14 @@ func TestLayerMigration(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	layer1b, err := ls.Register(bytes.NewReader(tar1), "", runtime.GOOS)
+	layer1b, err := ls.Register(bytes.NewReader(tar1), "")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	assertReferences(t, layer1a, layer1b)
 	// Attempt register, should be same
-	layer2a, err := ls.Register(bytes.NewReader(tar2), layer1a.ChainID(), runtime.GOOS)
+	layer2a, err := ls.Register(bytes.NewReader(tar2), layer1a.ChainID())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -224,9 +222,7 @@ func TestLayerMigrationNoTarsplit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	graphs := make(map[string]graphdriver.Driver)
-	graphs[runtime.GOOS] = graph
-	ls, err := NewStoreFromGraphDrivers(fms, graphs)
+	ls, err := NewStoreFromGraphDriver(fms, graph, runtime.GOOS)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -242,7 +238,7 @@ func TestLayerMigrationNoTarsplit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	layer1b, err := ls.Register(bytes.NewReader(tar1), "", runtime.GOOS)
+	layer1b, err := ls.Register(bytes.NewReader(tar1), "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -250,7 +246,7 @@ func TestLayerMigrationNoTarsplit(t *testing.T) {
 	assertReferences(t, layer1a, layer1b)
 
 	// Attempt register, should be same
-	layer2a, err := ls.Register(bytes.NewReader(tar2), layer1a.ChainID(), runtime.GOOS)
+	layer2a, err := ls.Register(bytes.NewReader(tar2), layer1a.ChainID())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -312,7 +308,7 @@ func TestMountMigration(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	graph := ls.(*layerStore).drivers[runtime.GOOS]
+	graph := ls.(*layerStore).driver
 
 	layer1, err := createLayer(ls, "", initWithFiles(baseFiles...))
 	if err != nil {
@@ -338,7 +334,7 @@ func TestMountMigration(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := ls.(*layerStore).CreateRWLayerByGraphID("migration-mount", containerID, runtime.GOOS, layer1.ChainID()); err != nil {
+	if err := ls.(*layerStore).CreateRWLayerByGraphID("migration-mount", containerID, layer1.ChainID()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -384,7 +380,7 @@ func TestMountMigration(t *testing.T) {
 		Kind: archive.ChangeAdd,
 	})
 
-	if _, err := ls.CreateRWLayer("migration-mount", layer1.ChainID(), runtime.GOOS, nil); err == nil {
+	if _, err := ls.CreateRWLayer("migration-mount", layer1.ChainID(), nil); err == nil {
 		t.Fatal("Expected error creating mount with same name")
 	} else if err != ErrMountNameConflict {
 		t.Fatal(err)

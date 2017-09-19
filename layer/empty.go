@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"runtime"
 )
 
 // DigestSHA256EmptyTar is the canonical sha256 digest of empty tar file -
@@ -44,6 +43,10 @@ func (el *emptyLayer) Parent() Layer {
 	return nil
 }
 
+func (el *emptyLayer) OS() string {
+	return ""
+}
+
 func (el *emptyLayer) Size() (size int64, err error) {
 	return 0, nil
 }
@@ -54,10 +57,6 @@ func (el *emptyLayer) DiffSize() (size int64, err error) {
 
 func (el *emptyLayer) Metadata() (map[string]string, error) {
 	return make(map[string]string), nil
-}
-
-func (el *emptyLayer) OS() string {
-	return runtime.GOOS
 }
 
 // IsEmpty returns true if the layer is an EmptyLayer

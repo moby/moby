@@ -1,7 +1,6 @@
 package daemon
 
 import (
-	"runtime"
 	"time"
 
 	"github.com/docker/distribution/reference"
@@ -16,12 +15,6 @@ func (daemon *Daemon) LookupImage(name string) (*types.ImageInspect, error) {
 	img, err := daemon.GetImage(name)
 	if err != nil {
 		return nil, errors.Wrapf(err, "no such image: %s", name)
-	}
-
-	// If the image OS isn't set, assume it's the host OS
-	os := img.OS
-	if os == "" {
-		os = runtime.GOOS
 	}
 
 	refs := daemon.referenceStore.References(img.ID().Digest())
@@ -40,11 +33,11 @@ func (daemon *Daemon) LookupImage(name string) (*types.ImageInspect, error) {
 	var layerMetadata map[string]string
 	layerID := img.RootFS.ChainID()
 	if layerID != "" {
-		l, err := daemon.layerStore.Get(layerID)
+		l, err := daemon.layerStores[img.OperatingSystem()].Get(layerID)
 		if err != nil {
 			return nil, err
 		}
-		defer layer.ReleaseAndLog(daemon.layerStore, l)
+		defer layer.ReleaseAndLog(daemon.layerStores[img.OperatingSystem()], l)
 		size, err = l.Size()
 		if err != nil {
 			return nil, err
@@ -79,7 +72,7 @@ func (daemon *Daemon) LookupImage(name string) (*types.ImageInspect, error) {
 		Author:          img.Author,
 		Config:          img.Config,
 		Architecture:    img.Architecture,
-		Os:              os,
+		Os:              img.OperatingSystem(),
 		OsVersion:       img.OSVersion,
 		Size:            size,
 		VirtualSize:     size, // TODO: field unused, deprecate
@@ -89,7 +82,7 @@ func (daemon *Daemon) LookupImage(name string) (*types.ImageInspect, error) {
 		},
 	}
 
-	imageInspect.GraphDriver.Name = daemon.GraphDriverName(os)
+	imageInspect.GraphDriver.Name = daemon.GraphDriverName(img.OperatingSystem())
 	imageInspect.GraphDriver.Data = layerMetadata
 
 	return imageInspect, nil

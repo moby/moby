@@ -47,13 +47,13 @@ func (daemon *Daemon) ContainerExport(name string, out io.Writer) error {
 }
 
 func (daemon *Daemon) containerExport(container *container.Container) (arch io.ReadCloser, err error) {
-	rwlayer, err := daemon.stores[container.OS].layerStore.GetRWLayer(container.ID)
+	rwlayer, err := daemon.layerStores[container.OS].GetRWLayer(container.ID)
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
 		if err != nil {
-			daemon.stores[container.OS].layerStore.ReleaseRWLayer(rwlayer)
+			daemon.layerStores[container.OS].ReleaseRWLayer(rwlayer)
 		}
 	}()
 
@@ -74,7 +74,7 @@ func (daemon *Daemon) containerExport(container *container.Container) (arch io.R
 	arch = ioutils.NewReadCloserWrapper(archive, func() error {
 		err := archive.Close()
 		rwlayer.Unmount()
-		daemon.stores[container.OS].layerStore.ReleaseRWLayer(rwlayer)
+		daemon.layerStores[container.OS].ReleaseRWLayer(rwlayer)
 		return err
 	})
 	daemon.LogContainerEvent(container, "export")

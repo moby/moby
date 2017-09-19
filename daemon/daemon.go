@@ -97,7 +97,7 @@ type Daemon struct {
 	referenceStore            refstore.Store
 	imageStore                image.Store
 	imageRoot                 string
-	layerStore                layer.Store
+	layerStores               map[string]layer.Store // By operating system
 	distributionMetadataStore dmetadata.Store
 	PluginStore               *plugin.Store // todo: remove
 	pluginManager             *plugin.Manager
@@ -159,7 +159,7 @@ func (daemon *Daemon) restore() error {
 		// Ignore the container if it does not support the current driver being used by the graph
 		currentDriverForContainerOS := daemon.graphDrivers[container.OS]
 		if (container.Driver == "" && currentDriverForContainerOS == "aufs") || container.Driver == currentDriverForContainerOS {
-			rwlayer, err := daemon.layerStore.GetRWLayer(container.ID)
+			rwlayer, err := daemon.layerStores[container.OS].GetRWLayer(container.ID)
 			if err != nil {
 				logrus.Errorf("Failed to load container mount %v: %v", id, err)
 				continue
@@ -703,6 +703,7 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	// be set through an environment variable, a daemon start parameter, or chosen through
 	// initialization of the layerstore through driver priority order for example.
 	d.graphDrivers = make(map[string]string)
+	d.layerStores = make(map[string]layer.Store)
 	if runtime.GOOS == "windows" {
 		d.graphDrivers[runtime.GOOS] = "windowsfilter"
 		if system.LCOWSupported() {
@@ -746,22 +747,25 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 		return nil, errors.Wrap(err, "couldn't create plugin manager")
 	}
 
-	d.layerStore, err = layer.NewStoreFromOptions(layer.StoreOptions{
-		Root: config.Root,
-		MetadataStorePathTemplate: filepath.Join(config.Root, "image", "%s", "layerdb"),
-		GraphDrivers:              d.graphDrivers,
-		GraphDriverOptions:        config.GraphOptions,
-		IDMappings:                idMappings,
-		PluginGetter:              d.PluginStore,
-		ExperimentalEnabled:       config.Experimental,
-	})
-	if err != nil {
-		return nil, err
+	for operatingSystem, gd := range d.graphDrivers {
+		d.layerStores[operatingSystem], err = layer.NewStoreFromOptions(layer.StoreOptions{
+			Root: config.Root,
+			MetadataStorePathTemplate: filepath.Join(config.Root, "image", "%s", "layerdb"),
+			GraphDriver:               gd,
+			GraphDriverOptions:        config.GraphOptions,
+			IDMappings:                idMappings,
+			PluginGetter:              d.PluginStore,
+			ExperimentalEnabled:       config.Experimental,
+			OS:                        operatingSystem,
+		})
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	// As layerstore may set the driver
+	// As layerstore initialization may set the driver
 	for os := range d.graphDrivers {
-		d.graphDrivers[os] = d.layerStore.DriverName(os)
+		d.graphDrivers[os] = d.layerStores[os].DriverName()
 	}
 
 	// Configure and validate the kernels security support. Note this is a Linux/FreeBSD
@@ -771,7 +775,7 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	}
 
 	logrus.Debugf("Max Concurrent Downloads: %d", *config.MaxConcurrentDownloads)
-	d.downloadManager = xfer.NewLayerDownloadManager(d.layerStore, *config.MaxConcurrentDownloads)
+	d.downloadManager = xfer.NewLayerDownloadManager(d.layerStores, *config.MaxConcurrentDownloads)
 	logrus.Debugf("Max Concurrent Uploads: %d", *config.MaxConcurrentUploads)
 	d.uploadManager = xfer.NewLayerUploadManager(*config.MaxConcurrentUploads)
 
@@ -780,7 +784,12 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	if err != nil {
 		return nil, err
 	}
-	d.imageStore, err = image.NewImageStore(ifs, d.layerStore)
+
+	lgrMap := make(map[string]image.LayerGetReleaser)
+	for os, ls := range d.layerStores {
+		lgrMap[os] = ls
+	}
+	d.imageStore, err = image.NewImageStore(ifs, lgrMap)
 	if err != nil {
 		return nil, err
 	}
@@ -829,7 +838,7 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	// No content-addressability migration on Windows as it never supported pre-CA
 	if runtime.GOOS != "windows" {
 		migrationStart := time.Now()
-		if err := v1.Migrate(config.Root, d.graphDrivers[runtime.GOOS], d.layerStore, d.imageStore, rs, d.distributionMetadataStore); err != nil {
+		if err := v1.Migrate(config.Root, d.graphDrivers[runtime.GOOS], d.layerStores[runtime.GOOS], d.imageStore, rs, d.distributionMetadataStore); err != nil {
 			logrus.Errorf("Graph migration failed: %q. Your old graph data was found to be too inconsistent for upgrading to content-addressable storage. Some of the old data was probably not upgraded. We recommend starting over with a clean storage directory if possible.", err)
 		}
 		logrus.Infof("Graph migration to content-addressability took %.2f seconds", time.Since(migrationStart).Seconds())
@@ -988,7 +997,7 @@ func (daemon *Daemon) Shutdown() error {
 				logrus.Errorf("Stop container error: %v", err)
 				return
 			}
-			if mountid, err := daemon.layerStore.GetMountID(c.ID); err == nil {
+			if mountid, err := daemon.layerStores[c.OS].GetMountID(c.ID); err == nil {
 				daemon.cleanupMountsByID(mountid)
 			}
 			logrus.Debugf("container stopped %s", c.ID)
@@ -1001,8 +1010,12 @@ func (daemon *Daemon) Shutdown() error {
 		}
 	}
 
-	if err := daemon.layerStore.Cleanup(); err != nil {
-		logrus.Errorf("Error during layer Store.Cleanup(): %v", err)
+	for os, ls := range daemon.layerStores {
+		if ls != nil {
+			if err := ls.Cleanup(); err != nil {
+				logrus.Errorf("Error during layer Store.Cleanup(): %v %s", err, os)
+			}
+		}
 	}
 
 	// If we are part of a cluster, clean up cluster's stuff
@@ -1083,7 +1096,7 @@ func (daemon *Daemon) Subnets() ([]net.IPNet, []net.IPNet) {
 
 // GraphDriverName returns the name of the graph driver used by the layer.Store
 func (daemon *Daemon) GraphDriverName(os string) string {
-	return daemon.layerStore.DriverName(os)
+	return daemon.layerStores[os].DriverName()
 }
 
 // prepareTempDir prepares and returns the default directory to use

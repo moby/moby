@@ -270,7 +270,7 @@ func (daemon *Daemon) setRWLayer(container *container.Container) error {
 		StorageOpt: container.HostConfig.StorageOpt,
 	}
 
-	rwLayer, err := daemon.layerStore.CreateRWLayer(container.ID, layerID, container.OS, rwLayerOpts)
+	rwLayer, err := daemon.layerStores[container.OS].CreateRWLayer(container.ID, layerID, rwLayerOpts)
 	if err != nil {
 		return err
 	}

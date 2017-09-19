@@ -186,25 +186,26 @@ type CreateRWLayerOpts struct {
 // Store represents a backend for managing both
 // read-only and read-write layers.
 type Store interface {
-	Register(io.Reader, ChainID, string) (Layer, error)
+	Register(io.Reader, ChainID) (Layer, error)
 	Get(ChainID) (Layer, error)
 	Map() map[ChainID]Layer
 	Release(Layer) ([]Metadata, error)
 
-	CreateRWLayer(id string, parent ChainID, os string, opts *CreateRWLayerOpts) (RWLayer, error)
+	CreateRWLayer(id string, parent ChainID, opts *CreateRWLayerOpts) (RWLayer, error)
 	GetRWLayer(id string) (RWLayer, error)
 	GetMountID(id string) (string, error)
 	ReleaseRWLayer(RWLayer) ([]Metadata, error)
 
 	Cleanup() error
-	DriverStatus(os string) [][2]string
-	DriverName(os string) string
+	DriverStatus() [][2]string
+	DriverName() string
+	OS() string
 }
 
 // DescribableStore represents a layer store capable of storing
 // descriptors for layers.
 type DescribableStore interface {
-	RegisterWithDescriptor(io.Reader, ChainID, string, distribution.Descriptor) (Layer, error)
+	RegisterWithDescriptor(io.Reader, ChainID, distribution.Descriptor) (Layer, error)
 }
 
 // MetadataTransaction represents functions for setting layer metadata

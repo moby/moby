@@ -125,8 +125,7 @@ func (b *Builder) commitContainer(dispatchState *dispatchState, id string, conta
 }
 
 func (b *Builder) exportImage(state *dispatchState, imageMount *imageMount, runConfig *container.Config) error {
-	optionsPlatform := system.ParsePlatform(b.options.Platform)
-	newLayer, err := imageMount.Layer().Commit(optionsPlatform.OS)
+	newLayer, err := imageMount.Layer().Commit()
 	if err != nil {
 		return err
 	}
@@ -502,15 +501,13 @@ func (b *Builder) probeAndCreate(dispatchState *dispatchState, runConfig *contai
 	}
 	// Set a log config to override any default value set on the daemon
 	hostConfig := &container.HostConfig{LogConfig: defaultLogConfig}
-	optionsPlatform := system.ParsePlatform(b.options.Platform)
-	container, err := b.containerManager.Create(runConfig, hostConfig, optionsPlatform.OS)
+	container, err := b.containerManager.Create(runConfig, hostConfig)
 	return container.ID, err
 }
 
 func (b *Builder) create(runConfig *container.Config) (string, error) {
 	hostConfig := hostConfigFromOptions(b.options)
-	optionsPlatform := system.ParsePlatform(b.options.Platform)
-	container, err := b.containerManager.Create(runConfig, hostConfig, optionsPlatform.OS)
+	container, err := b.containerManager.Create(runConfig, hostConfig)
 	if err != nil {
 		return "", err
 	}

@@ -154,7 +154,7 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		c.Config = container.Config
 	}
 
-	newConfig, err := dockerfile.BuildFromConfig(c.Config, c.Changes)
+	newConfig, err := dockerfile.BuildFromConfig(c.Config, c.Changes, container.OS)
 	if err != nil {
 		return "", err
 	}
@@ -186,11 +186,11 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		}
 	}
 
-	l, err := daemon.layerStore.Register(rwTar, parent.RootFS.ChainID(), container.OS)
+	l, err := daemon.layerStores[container.OS].Register(rwTar, parent.RootFS.ChainID())
 	if err != nil {
 		return "", err
 	}
-	defer layer.ReleaseAndLog(daemon.layerStore, l)
+	defer layer.ReleaseAndLog(daemon.layerStores[container.OS], l)
 
 	containerConfig := c.ContainerConfig
 	if containerConfig == nil {
@@ -251,13 +251,13 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 }
 
 func (daemon *Daemon) exportContainerRw(container *container.Container) (arch io.ReadCloser, err error) {
-	rwlayer, err := daemon.stores[container.OS].layerStore.GetRWLayer(container.ID)
+	rwlayer, err := daemon.layerStores[container.OS].GetRWLayer(container.ID)
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
 		if err != nil {
-			daemon.stores[container.OS].layerStore.ReleaseRWLayer(rwlayer)
+			daemon.layerStores[container.OS].ReleaseRWLayer(rwlayer)
 		}
 	}()
 
@@ -278,7 +278,7 @@ func (daemon *Daemon) exportContainerRw(container *container.Container) (arch io
 	return ioutils.NewReadCloserWrapper(archive, func() error {
 			archive.Close()
 			err = rwlayer.Unmount()
-			daemon.stores[container.OS].layerStore.ReleaseRWLayer(rwlayer)
+			daemon.layerStores[container.OS].ReleaseRWLayer(rwlayer)
 			return err
 		}),
 		nil

@@ -116,7 +116,7 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 		layerID := img.RootFS.ChainID()
 		var size int64
 		if layerID != "" {
-			l, err := daemon.layerStore.Get(layerID)
+			l, err := daemon.layerStores[img.OperatingSystem()].Get(layerID)
 			if err != nil {
 				// The layer may have been deleted between the call to `Map()` or
 				// `Heads()` and the call to `Get()`, so we just ignore this error
@@ -127,7 +127,7 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 			}
 
 			size, err = l.Size()
-			layer.ReleaseAndLog(daemon.layerStore, l)
+			layer.ReleaseAndLog(daemon.layerStores[img.OperatingSystem()], l)
 			if err != nil {
 				return nil, err
 			}
@@ -179,7 +179,7 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 			// lazily init variables
 			if imagesMap == nil {
 				allContainers = daemon.List()
-				allLayers = daemon.layerStore.Map()
+				allLayers = daemon.layerStores[img.OperatingSystem()].Map()
 				imagesMap = make(map[*image.Image]*types.ImageSummary)
 				layerRefs = make(map[layer.ChainID]int)
 			}
@@ -264,11 +264,11 @@ func (daemon *Daemon) SquashImage(id, parent string) (string, error) {
 		parentImg = &image.Image{RootFS: rootFS}
 	}
 
-	l, err := daemon.layerStore.Get(img.RootFS.ChainID())
+	l, err := daemon.layerStores[img.OperatingSystem()].Get(img.RootFS.ChainID())
 	if err != nil {
 		return "", errors.Wrap(err, "error getting image layer")
 	}
-	defer daemon.layerStore.Release(l)
+	defer daemon.layerStores[img.OperatingSystem()].Release(l)
 
 	ts, err := l.TarStreamFrom(parentChainID)
 	if err != nil {
@@ -276,11 +276,11 @@ func (daemon *Daemon) SquashImage(id, parent string) (string, error) {
 	}
 	defer ts.Close()
 
-	newL, err := daemon.layerStore.Register(ts, parentChainID, img.OperatingSystem())
+	newL, err := daemon.layerStores[img.OperatingSystem()].Register(ts, parentChainID)
 	if err != nil {
 		return "", errors.Wrap(err, "error registering layer")
 	}
-	defer daemon.layerStore.Release(newL)
+	defer daemon.layerStores[img.OperatingSystem()].Release(newL)
 
 	newImage := *img
 	newImage.RootFS = nil

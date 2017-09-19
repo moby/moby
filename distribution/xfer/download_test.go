@@ -91,7 +91,7 @@ func (ls *mockLayerStore) Map() map[layer.ChainID]layer.Layer {
 	return layers
 }
 
-func (ls *mockLayerStore) Register(reader io.Reader, parentID layer.ChainID, os string) (layer.Layer, error) {
+func (ls *mockLayerStore) Register(reader io.Reader, parentID layer.ChainID) (layer.Layer, error) {
 	return ls.RegisterWithDescriptor(reader, parentID, distribution.Descriptor{})
 }
 
@@ -131,7 +131,7 @@ func (ls *mockLayerStore) Get(chainID layer.ChainID) (layer.Layer, error) {
 func (ls *mockLayerStore) Release(l layer.Layer) ([]layer.Metadata, error) {
 	return []layer.Metadata{}, nil
 }
-func (ls *mockLayerStore) CreateRWLayer(string, layer.ChainID, string, *layer.CreateRWLayerOpts) (layer.RWLayer, error) {
+func (ls *mockLayerStore) CreateRWLayer(string, layer.ChainID, *layer.CreateRWLayerOpts) (layer.RWLayer, error) {
 	return nil, errors.New("not implemented")
 }
 
@@ -150,12 +150,16 @@ func (ls *mockLayerStore) Cleanup() error {
 	return nil
 }
 
-func (ls *mockLayerStore) DriverStatus(string) [][2]string {
+func (ls *mockLayerStore) DriverStatus() [][2]string {
 	return [][2]string{}
 }
 
-func (ls *mockLayerStore) DriverName(string) string {
+func (ls *mockLayerStore) DriverName() string {
 	return "mock"
+}
+
+func (ls *mockLayerStore) OS() string {
+	return runtime.GOOS
 }
 
 type mockDownloadDescriptor struct {
@@ -272,7 +276,9 @@ func TestSuccessfulDownload(t *testing.T) {
 	}
 
 	layerStore := &mockLayerStore{make(map[layer.ChainID]*mockLayer)}
-	ldm := NewLayerDownloadManager(layerStore, maxDownloadConcurrency, func(m *LayerDownloadManager) { m.waitDuration = time.Millisecond })
+	lsMap := make(map[string]layer.Store)
+	lsMap[runtime.GOOS] = layerStore
+	ldm := NewLayerDownloadManager(lsMap, maxDownloadConcurrency, func(m *LayerDownloadManager) { m.waitDuration = time.Millisecond })
 
 	progressChan := make(chan progress.Progress)
 	progressDone := make(chan struct{})
@@ -291,7 +297,7 @@ func TestSuccessfulDownload(t *testing.T) {
 	firstDescriptor := descriptors[0].(*mockDownloadDescriptor)
 
 	// Pre-register the first layer to simulate an already-existing layer
-	l, err := layerStore.Register(firstDescriptor.mockTarStream(), "", runtime.GOOS)
+	l, err := layerStore.Register(firstDescriptor.mockTarStream(), "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -334,8 +340,9 @@ func TestSuccessfulDownload(t *testing.T) {
 
 func TestCancelledDownload(t *testing.T) {
 	layerStore := &mockLayerStore{make(map[layer.ChainID]*mockLayer)}
-	ldm := NewLayerDownloadManager(layerStore, maxDownloadConcurrency, func(m *LayerDownloadManager) { m.waitDuration = time.Millisecond })
-
+	lsMap := make(map[string]layer.Store)
+	lsMap[runtime.GOOS] = layerStore
+	ldm := NewLayerDownloadManager(lsMap, maxDownloadConcurrency, func(m *LayerDownloadManager) { m.waitDuration = time.Millisecond })
 	progressChan := make(chan progress.Progress)
 	progressDone := make(chan struct{})
 

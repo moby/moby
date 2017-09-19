@@ -205,7 +205,12 @@ func (daemon *Daemon) ImagesPrune(ctx context.Context, pruneFilters filters.Args
 	}
 
 	// Filter intermediary images and get their unique size
-	allLayers := daemon.layerStore.Map()
+	allLayers := make(map[layer.ChainID]layer.Layer)
+	for _, ls := range daemon.layerStores {
+		for k, v := range ls.Map() {
+			allLayers[k] = v
+		}
+	}
 	topImages := map[image.ID]*image.Image{}
 	for id, img := range allImages {
 		select {

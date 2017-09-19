@@ -107,14 +107,14 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 			}
 			r := rootFS
 			r.Append(diffID)
-			newLayer, err := l.ls.Get(r.ChainID())
+			newLayer, err := l.lss[os].Get(r.ChainID())
 			if err != nil {
 				newLayer, err = l.loadLayer(layerPath, rootFS, diffID.String(), os, m.LayerSources[diffID], progressOutput)
 				if err != nil {
 					return err
 				}
 			}
-			defer layer.ReleaseAndLog(l.ls, newLayer)
+			defer layer.ReleaseAndLog(l.lss[os], newLayer)
 			if expected, actual := diffID, newLayer.DiffID(); expected != actual {
 				return fmt.Errorf("invalid diffID for layer %d: expected %q, got %q", i, expected, actual)
 			}
@@ -205,10 +205,10 @@ func (l *tarexporter) loadLayer(filename string, rootFS image.RootFS, id string,
 	}
 	defer inflatedLayerData.Close()
 
-	if ds, ok := l.ls.(layer.DescribableStore); ok {
-		return ds.RegisterWithDescriptor(inflatedLayerData, rootFS.ChainID(), os, foreignSrc)
+	if ds, ok := l.lss[os].(layer.DescribableStore); ok {
+		return ds.RegisterWithDescriptor(inflatedLayerData, rootFS.ChainID(), foreignSrc)
 	}
-	return l.ls.Register(inflatedLayerData, rootFS.ChainID(), os)
+	return l.lss[os].Register(inflatedLayerData, rootFS.ChainID())
 }
 
 func (l *tarexporter) setLoadedTag(ref reference.Named, imgID digest.Digest, outStream io.Writer) error {
@@ -302,6 +302,9 @@ func (l *tarexporter) legacyLoadImage(oldID, sourceDir string, loadedMap map[str
 	if err := checkCompatibleOS(img.OS); err != nil {
 		return err
 	}
+	if img.OS == "" {
+		img.OS = runtime.GOOS
+	}
 
 	var parentID image.ID
 	if img.Parent != "" {
@@ -335,7 +338,7 @@ func (l *tarexporter) legacyLoadImage(oldID, sourceDir string, loadedMap map[str
 	if err != nil {
 		return err
 	}
-	newLayer, err := l.loadLayer(layerPath, *rootFS, oldID, "", distribution.Descriptor{}, progressOutput)
+	newLayer, err := l.loadLayer(layerPath, *rootFS, oldID, img.OS, distribution.Descriptor{}, progressOutput)
 	if err != nil {
 		return err
 	}
@@ -356,7 +359,7 @@ func (l *tarexporter) legacyLoadImage(oldID, sourceDir string, loadedMap map[str
 		return err
 	}
 
-	metadata, err := l.ls.Release(newLayer)
+	metadata, err := l.lss[img.OS].Release(newLayer)
 	layer.LogReleaseMetadata(metadata)
 	if err != nil {
 		return err

@@ -127,7 +127,7 @@ func (l *mockLayer) Mount() (containerfs.ContainerFS, error) {
 	return containerfs.NewLocalContainerFS("mountPath"), nil
 }
 
-func (l *mockLayer) Commit(string) (builder.ReleaseableLayer, error) {
+func (l *mockLayer) Commit() (builder.ReleaseableLayer, error) {
 	return nil, nil
 }
 

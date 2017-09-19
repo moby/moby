@@ -261,8 +261,8 @@ func dispatchOnbuild(d dispatchRequest, c *instructions.OnbuildCommand) error {
 func dispatchWorkdir(d dispatchRequest, c *instructions.WorkdirCommand) error {
 	runConfig := d.state.runConfig
 	var err error
-	optionsOS := system.ParsePlatform(d.builder.options.Platform).OS
-	runConfig.WorkingDir, err = normalizeWorkdir(optionsOS, runConfig.WorkingDir, c.Path)
+	baseImageOS := system.ParsePlatform(d.state.operatingSystem).OS
+	runConfig.WorkingDir, err = normalizeWorkdir(baseImageOS, runConfig.WorkingDir, c.Path)
 	if err != nil {
 		return err
 	}
@@ -278,7 +278,7 @@ func dispatchWorkdir(d dispatchRequest, c *instructions.WorkdirCommand) error {
 	}
 
 	comment := "WORKDIR " + runConfig.WorkingDir
-	runConfigWithCommentCmd := copyRunConfig(runConfig, withCmdCommentString(comment, optionsOS))
+	runConfigWithCommentCmd := copyRunConfig(runConfig, withCmdCommentString(comment, baseImageOS))
 	containerID, err := d.builder.probeAndCreate(d.state, runConfigWithCommentCmd)
 	if err != nil || containerID == "" {
 		return err
@@ -290,10 +290,10 @@ func dispatchWorkdir(d dispatchRequest, c *instructions.WorkdirCommand) error {
 	return d.builder.commitContainer(d.state, containerID, runConfigWithCommentCmd)
 }
 
-func resolveCmdLine(cmd instructions.ShellDependantCmdLine, runConfig *container.Config, platform string) []string {
+func resolveCmdLine(cmd instructions.ShellDependantCmdLine, runConfig *container.Config, os string) []string {
 	result := cmd.CmdLine
 	if cmd.PrependShell && result != nil {
-		result = append(getShell(runConfig, platform), result...)
+		result = append(getShell(runConfig, os), result...)
 	}
 	return result
 }
@@ -311,8 +311,7 @@ func resolveCmdLine(cmd instructions.ShellDependantCmdLine, runConfig *container
 func dispatchRun(d dispatchRequest, c *instructions.RunCommand) error {
 
 	stateRunConfig := d.state.runConfig
-	optionsOS := system.ParsePlatform(d.builder.options.Platform).OS
-	cmdFromArgs := resolveCmdLine(c.ShellDependantCmdLine, stateRunConfig, optionsOS)
+	cmdFromArgs := resolveCmdLine(c.ShellDependantCmdLine, stateRunConfig, d.state.operatingSystem)
 	buildArgs := d.state.buildArgs.FilterAllowed(stateRunConfig.Env)
 
 	saveCmd := cmdFromArgs

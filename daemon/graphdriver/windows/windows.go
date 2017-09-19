@@ -931,8 +931,6 @@ func parseStorageOpt(storageOpt map[string]string) (*storageOptions, error) {
 				return nil, err
 			}
 			options.size = uint64(size)
-		default:
-			return nil, fmt.Errorf("Unknown storage option: %s", key)
 		}
 	}
 	return &options, nil

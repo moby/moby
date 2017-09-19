@@ -87,14 +87,15 @@ func TestMigrateContainers(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ls := &mockMounter{}
-
 	ifs, err := image.NewFSStoreBackend(filepath.Join(tmpdir, "imagedb"))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	is, err := image.NewImageStore(ifs, ls)
+	ls := &mockMounter{}
+	mmMap := make(map[string]image.LayerGetReleaser)
+	mmMap[runtime.GOOS] = ls
+	is, err := image.NewImageStore(ifs, mmMap)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,14 +166,15 @@ func TestMigrateImages(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ls := &mockRegistrar{}
-
 	ifs, err := image.NewFSStoreBackend(filepath.Join(tmpdir, "imagedb"))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	is, err := image.NewImageStore(ifs, ls)
+	ls := &mockRegistrar{}
+	mrMap := make(map[string]image.LayerGetReleaser)
+	mrMap[runtime.GOOS] = ls
+	is, err := image.NewImageStore(ifs, mrMap)
 	if err != nil {
 		t.Fatal(err)
 	}

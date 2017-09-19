@@ -102,6 +102,6 @@ type Image interface {
 type ReleaseableLayer interface {
 	Release() error
 	Mount() (containerfs.ContainerFS, error)
-	Commit(platform string) (ReleaseableLayer, error)
+	Commit() (ReleaseableLayer, error)
 	DiffID() layer.DiffID
 }
