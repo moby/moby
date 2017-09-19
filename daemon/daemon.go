@@ -140,10 +140,7 @@ func (daemon *Daemon) StoreHosts(hosts []string) {
 
 // HasExperimental returns whether the experimental features of the daemon are enabled or not
 func (daemon *Daemon) HasExperimental() bool {
-	if daemon.configStore != nil && daemon.configStore.Experimental {
-		return true
-	}
-	return false
+	return daemon.configStore != nil && daemon.configStore.Experimental
 }
 
 func (daemon *Daemon) restore() error {

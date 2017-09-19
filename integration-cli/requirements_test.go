@@ -56,10 +56,6 @@ func ExperimentalDaemon() bool {
 	return testEnv.DaemonInfo.ExperimentalBuild
 }
 
-func NotExperimentalDaemon() bool {
-	return !testEnv.DaemonInfo.ExperimentalBuild
-}
-
 func IsAmd64() bool {
 	return os.Getenv("DOCKER_ENGINE_GOARCH") == "amd64"
 }
