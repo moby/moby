@@ -13,7 +13,7 @@
 // operations. The downside of safe-mode is that operations are slower as
 // a new service utility VM has to be started and torn-down when needed.
 //
-// Options (needs official documentation, but lets get full functionality first...) @jhowardmsft
+// Options:
 //
 // The following options are read by the graphdriver itself:
 //
