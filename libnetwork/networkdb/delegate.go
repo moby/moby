@@ -1,9 +1,9 @@
 package networkdb
 
 import (
-	"fmt"
 	"net"
 	"strings"
+	"time"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/sirupsen/logrus"
@@ -198,8 +198,7 @@ func (nDB *NetworkDB) handleNetworkEvent(nEvent *NetworkEvent) bool {
 }
 
 func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent) bool {
-	// Update our local clock if the received messages has newer
-	// time.
+	// Update our local clock if the received messages has newer time.
 	nDB.tableClock.Witness(tEvent.LTime)
 
 	// Ignore the table events for networks that are in the process of going away
@@ -235,20 +234,26 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent) bool {
 		node:     tEvent.NodeName,
 		value:    tEvent.Value,
 		deleting: tEvent.Type == TableEventTypeDelete,
+		reapTime: time.Duration(tEvent.ResidualReapTime) * time.Second,
 	}
 
-	if e.deleting {
+	// All the entries marked for deletion should have a reapTime set greater than 0
+	// This case can happens if the cluster is running different versions of the engine where the old version does not have the
+	// field. In both cases we should raise a warning message
+	if e.deleting && e.reapTime == 0 {
+		logrus.Warnf("handleTableEvent object %+v has a 0 reapTime, is the cluster running the same docker engine version?", tEvent)
 		e.reapTime = reapInterval
 	}
 
 	nDB.Lock()
-	nDB.indexes[byTable].Insert(fmt.Sprintf("/%s/%s/%s", tEvent.TableName, tEvent.NetworkID, tEvent.Key), e)
-	nDB.indexes[byNetwork].Insert(fmt.Sprintf("/%s/%s/%s", tEvent.NetworkID, tEvent.TableName, tEvent.Key), e)
+	nDB.createOrUpdateEntry(tEvent.NetworkID, tEvent.TableName, tEvent.Key, e)
 	nDB.Unlock()
 
 	if err != nil && tEvent.Type == TableEventTypeDelete {
-		// If it is a delete event and we didn't have the entry here don't repropagate
-		return true
+		// If it is a delete event and we did not have a state for it, don't propagate to the application
+		// If the residual reapTime is lower than 1/6 of the total reapTime don't bother broadcasting it around
+		// most likely the cluster is already aware of it, if not who will sync with this node will catch the state too.
+		return e.reapTime >= reapPeriod/6
 	}
 
 	var op opType
@@ -303,22 +308,17 @@ func (nDB *NetworkDB) handleTableMessage(buf []byte, isBulkSync bool) {
 		n, ok := nDB.networks[nDB.config.NodeName][tEvent.NetworkID]
 		nDB.RUnlock()
 
-		if !ok {
+		// if the network is not there anymore, OR we are leaving the network OR the broadcast queue is not present
+		if !ok || n.leaving || n.tableBroadcasts == nil {
 			return
 		}
 
-		broadcastQ := n.tableBroadcasts
-
-		if broadcastQ == nil {
-			return
-		}
-
-		broadcastQ.QueueBroadcast(&tableEventMessage{
+		n.tableBroadcasts.QueueBroadcast(&tableEventMessage{
 			msg:   buf,
 			id:    tEvent.NetworkID,
 			tname: tEvent.TableName,
 			key:   tEvent.Key,
-			node:  nDB.config.NodeName,
+			node:  tEvent.NodeName,
 		})
 	}
 }

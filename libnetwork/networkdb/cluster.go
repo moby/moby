@@ -349,11 +349,11 @@ func (nDB *NetworkDB) reapTableEntries() {
 		nid := params[1]
 		key := params[2]
 
-		if _, ok := nDB.indexes[byTable].Delete(fmt.Sprintf("/%s/%s/%s", tname, nid, key)); !ok {
+		okTable, okNetwork := nDB.deleteEntry(nid, tname, key)
+		if !okTable {
 			logrus.Errorf("Could not delete entry in table %s with network id %s and key %s as it does not exist", tname, nid, key)
 		}
-
-		if _, ok := nDB.indexes[byNetwork].Delete(fmt.Sprintf("/%s/%s/%s", nid, tname, key)); !ok {
+		if !okNetwork {
 			logrus.Errorf("Could not delete entry in network %s with table name %s and key %s as it does not exist", nid, tname, key)
 		}
 	}
@@ -406,8 +406,9 @@ func (nDB *NetworkDB) gossip() {
 		// Collect stats and print the queue info, note this code is here also to have a view of the queues empty
 		network.qMessagesSent += len(msgs)
 		if printStats {
-			logrus.Infof("NetworkDB stats - Queue net:%s qLen:%d netPeers:%d netMsg/s:%d",
-				nid, broadcastQ.NumQueued(), broadcastQ.NumNodes(), network.qMessagesSent/int((nDB.config.StatsPrintPeriod/time.Second)))
+			logrus.Infof("NetworkDB stats - net:%s Entries:%d Queue  qLen:%d netPeers:%d netMsg/s:%d",
+				nid, network.entriesNumber, broadcastQ.NumQueued(), broadcastQ.NumNodes(),
+				network.qMessagesSent/int((nDB.config.StatsPrintPeriod/time.Second)))
 			network.qMessagesSent = 0
 		}
 
@@ -572,6 +573,8 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 				TableName: params[1],
 				Key:       params[2],
 				Value:     entry.value,
+				// The duration in second is a float that below would be truncated
+				ResidualReapTime: int32(entry.reapTime.Seconds()),
 			}
 
 			msg, err := encodeMessage(MessageTypeTableEvent, &tEvent)
