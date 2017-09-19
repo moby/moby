@@ -72,10 +72,11 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) *types.ContainerSpec {
 	// Mounts
 	for _, m := range c.Mounts {
 		mount := mounttypes.Mount{
-			Target:   m.Target,
-			Source:   m.Source,
-			Type:     mounttypes.Type(strings.ToLower(swarmapi.Mount_MountType_name[int32(m.Type)])),
-			ReadOnly: m.ReadOnly,
+			Target:      m.Target,
+			Source:      m.Source,
+			Type:        mounttypes.Type(strings.ToLower(swarmapi.Mount_MountType_name[int32(m.Type)])),
+			ReadOnly:    m.ReadOnly,
+			Consistency: mounttypes.Consistency(strings.ToLower(swarmapi.Mount_MountConsistency_name[int32(m.Consistency)])),
 		}
 
 		if m.BindOptions != nil {
@@ -286,6 +287,14 @@ func containerToGRPC(c *types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 			Target:   m.Target,
 			Source:   m.Source,
 			ReadOnly: m.ReadOnly,
+		}
+
+		if consistency, ok := swarmapi.Mount_MountConsistency_value[strings.ToUpper(string(m.Consistency))]; ok {
+			mount.Consistency = swarmapi.Mount_MountConsistency(consistency)
+		} else if string(m.Consistency) != "" {
+			return nil, fmt.Errorf("invalid MountConsistency: %q", m.Consistency)
+		} else {
+			mount.Consistency = swarmapi.MountConsistencyDefault
 		}
 
 		if mountType, ok := swarmapi.Mount_MountType_value[strings.ToUpper(string(m.Type))]; ok {

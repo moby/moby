@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -785,7 +784,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 
 	ms = append(ms, c.ConfigMounts()...)
 
-	sort.Sort(mounts(ms))
+	ms = container.SortMounts(ms)
 	if err := setMounts(daemon, &s, c, ms); err != nil {
 		return nil, fmt.Errorf("linux mounts: %v", err)
 	}

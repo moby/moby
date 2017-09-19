@@ -169,7 +169,12 @@ func (ps *DockerPluginSuite) TestPluginSet(c *check.C) {
 
 	initialValue := "0"
 	err = plugin.Create(ctx, client, name, func(cfg *plugin.Config) {
-		cfg.Env = []types.PluginEnv{{Name: "DEBUG", Value: &initialValue, Settable: []string{"value"}}}
+		cfg.Env = []types.PluginEnv{
+			{Name: "DEBUG", Value: &initialValue, Settable: []string{"value"}},
+		}
+		cfg.Mounts = []types.PluginMount{
+			{Name: "config", Options: []string{"rbind"}, Settable: []string{"source"}, Type: "none"},
+		}
 	})
 	c.Assert(err, checker.IsNil, check.Commentf("failed to create test plugin"))
 
@@ -180,6 +185,14 @@ func (ps *DockerPluginSuite) TestPluginSet(c *check.C) {
 
 	env, _ = dockerCmd(c, "plugin", "inspect", "-f", "{{.Settings.Env}}", name)
 	c.Assert(strings.TrimSpace(env), checker.Equals, "[DEBUG=1]")
+
+	env, _ = dockerCmd(c, "plugin", "inspect", "-f", "{{(index .Settings.Mounts 0).Source}}", name)
+	c.Assert(strings.TrimSpace(env), checker.Equals, "<nil>")
+
+	dockerCmd(c, "plugin", "set", name, "config=/home/user/.docker/my_plugin.conf")
+
+	env, _ = dockerCmd(c, "plugin", "inspect", "-f", "{{(index .Settings.Mounts 0).Source}}", name)
+	c.Assert(strings.TrimSpace(env), checker.Equals, "/home/user/.docker/my_plugin.conf")
 }
 
 func (ps *DockerPluginSuite) TestPluginInstallArgs(c *check.C) {

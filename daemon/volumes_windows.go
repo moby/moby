@@ -3,8 +3,6 @@
 package daemon
 
 import (
-	"sort"
-
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/volume"
@@ -25,19 +23,21 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 		if err := daemon.lazyInitializeVolume(c.ID, mount); err != nil {
 			return nil, err
 		}
-		s, err := mount.Setup(c.MountLabel, idtools.IDPair{0, 0}, nil)
-		if err != nil {
+		if err := mount.Realize(); err != nil {
+			return nil, err
+		}
+		if err := mount.Setup(c.MountLabel, idtools.IDPair{0, 0}); err != nil {
 			return nil, err
 		}
 
 		mnts = append(mnts, container.Mount{
-			Source:      s,
+			Source:      mount.EffectiveSource(),
 			Destination: mount.Destination,
 			Writable:    mount.RW,
 		})
 	}
 
-	sort.Sort(mounts(mnts))
+	mnts = container.SortMounts(mnts)
 	return mnts, nil
 }
 

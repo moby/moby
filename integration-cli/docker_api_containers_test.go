@@ -1667,7 +1667,6 @@ func (s *DockerSuite) TestContainersAPICreateMountsValidation(c *check.C) {
 
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 	destPath := prefix + slash + "foo"
-	notExistPath := prefix + slash + "notexist"
 
 	cases := []testCase{
 		{
@@ -1702,17 +1701,6 @@ func (s *DockerSuite) TestContainersAPICreateMountsValidation(c *check.C) {
 					Type:   "bind",
 					Target: destPath}}},
 			msg: "Source must not be empty",
-		},
-		{
-			config: containertypes.Config{
-				Image: "busybox",
-			},
-			hostConfig: containertypes.HostConfig{
-				Mounts: []mounttypes.Mount{{
-					Type:   "bind",
-					Source: notExistPath,
-					Target: destPath}}},
-			msg: "bind source path does not exist",
 		},
 		{
 			config: containertypes.Config{
@@ -1845,6 +1833,7 @@ func (s *DockerSuite) TestContainersAPICreateMountsValidation(c *check.C) {
 		c.Logf("case %d", i)
 		_, err = cli.ContainerCreate(context.Background(), &x.config, &x.hostConfig, &networktypes.NetworkingConfig{}, "")
 		if len(x.msg) > 0 {
+			c.Assert(err, checker.NotNil)
 			c.Assert(err.Error(), checker.Contains, x.msg, check.Commentf("%v", cases[i].config))
 		} else {
 			c.Assert(err, checker.IsNil)

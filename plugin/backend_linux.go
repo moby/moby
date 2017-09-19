@@ -32,6 +32,7 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/plugin/v2"
 	refstore "github.com/docker/docker/reference"
+	"github.com/docker/docker/volume/mountpoint"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -60,6 +61,10 @@ func (pm *Manager) Disable(refOrID string, config *types.PluginDisableConfig) er
 	for _, typ := range p.GetTypes() {
 		if typ.Capability == authorization.AuthZApiImplements {
 			pm.config.AuthzMiddleware.RemovePlugin(p.Name())
+		}
+
+		if typ.Capability == mountpoint.MountPointAPIImplements {
+			pm.config.MountPointChain.DisableMountPointPlugin(p.Name())
 		}
 	}
 

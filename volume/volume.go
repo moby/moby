@@ -3,6 +3,7 @@ package volume
 import (
 	"fmt"
 	"os"
+	"strings"
 	"syscall"
 	"time"
 
@@ -119,8 +120,20 @@ type MountPoint struct {
 	// This should be set by calls to `Mount` and unset by calls to `Unmount`
 	ID string `json:",omitempty"`
 
-	// Sepc is a copy of the API request that created this mount.
+	// Spec is a copy of the API request that created this mount.
 	Spec mounttypes.Mount
+
+	// CreateSourceIfMissing indicates whether the source should be created
+	// if it does not already exist (e.g. true for -v /missing:/mnt
+	// and false for --mount)
+	CreateSourceIfMissing bool
+
+	// Consistency is the user-requested minimum consistency required
+	// for file system data on the mount point
+	Consistency mounttypes.Consistency
+
+	// AppliedMiddleware is the stack of mount point middleware that has been applied to this mount
+	AppliedMiddleware []AppliedMountPointMiddleware
 
 	// Track usage of this mountpoint
 	// Specifically needed for containers which are running and calls to `docker cp`
@@ -145,26 +158,11 @@ func (m *MountPoint) Cleanup() error {
 	return nil
 }
 
-// Setup sets up a mount point by either mounting the volume if it is
-// configured, or creating the source directory if supplied.
-// The, optional, checkFun parameter allows doing additional checking
-// before creating the source directory on the host.
-func (m *MountPoint) Setup(mountLabel string, rootIDs idtools.IDPair, checkFun func(m *MountPoint) error) (path string, err error) {
-	defer func() {
-		if err != nil || !label.RelabelNeeded(m.Mode) {
-			return
-		}
-
-		err = label.Relabel(m.Source, mountLabel, label.IsShared(m.Mode))
-		if err == syscall.ENOTSUP {
-			err = nil
-		}
-		if err != nil {
-			path = ""
-			err = errors.Wrapf(err, "error setting label on mount source '%s'", m.Source)
-		}
-	}()
-
+// Realize instantiates a mount point in preparation for mount point
+// middleware application. In practice, this means that volumes are
+// mounted and other mount types are unaffected.
+// Postcondition: after a successful call, m.Source will contain the path of the mount point
+func (m *MountPoint) Realize() error {
 	if m.Volume != nil {
 		id := m.ID
 		if id == "" {
@@ -172,39 +170,58 @@ func (m *MountPoint) Setup(mountLabel string, rootIDs idtools.IDPair, checkFun f
 		}
 		path, err := m.Volume.Mount(id)
 		if err != nil {
-			return "", errors.Wrapf(err, "error while mounting volume '%s'", m.Source)
+			return errors.Wrapf(err, "error while mounting volume '%s'", m.Source)
 		}
 
 		m.ID = id
 		m.active++
-		return path, nil
+		m.Source = path
 	}
 
 	if len(m.Source) == 0 {
-		return "", fmt.Errorf("Unable to setup mount point, neither source nor volume defined")
+		return fmt.Errorf("Unable to setup mount point, neither source nor volume defined")
 	}
 
-	// system.MkdirAll() produces an error if m.Source exists and is a file (not a directory),
-	if m.Type == mounttypes.TypeBind {
-		// Before creating the source directory on the host, invoke checkFun if it's not nil. One of
-		// the use case is to forbid creating the daemon socket as a directory if the daemon is in
-		// the process of shutting down.
-		if checkFun != nil {
-			if err := checkFun(m); err != nil {
-				return "", err
-			}
-		}
-		// idtools.MkdirAllNewAs() produces an error if m.Source exists and is a file (not a directory)
+	return nil
+}
+
+// Setup prepares a mount point for immediate use by a container by
+// creating the effective source directory for bind mounts and
+// performing SELinux relabeling if necessary. The optional checkFun
+// parameter allows additional checking before creating the source
+// directory on the host.
+func (m *MountPoint) Setup(mountLabel string, rootIDs idtools.IDPair) error {
+	if m.Type == mounttypes.TypeBind && m.CreateSourceIfMissing {
+		// idtools.MkdirAllAndChownNew() produces an error if m.EffectiveSource() exists and is a file (not a directory)
 		// also, makes sure that if the directory is created, the correct remapped rootUID/rootGID will own it
-		if err := idtools.MkdirAllAndChownNew(m.Source, 0755, rootIDs); err != nil {
+		if err := idtools.MkdirAllAndChownNew(m.EffectiveSource(), 0755, rootIDs); err != nil {
 			if perr, ok := err.(*os.PathError); ok {
 				if perr.Err != syscall.ENOTDIR {
-					return "", errors.Wrapf(err, "error while creating mount source path '%s'", m.Source)
+					if m.EffectiveSource() == m.Source {
+						return errors.Wrapf(err, "error while creating mount source path '%s'", m.Source)
+					}
+					return errors.Wrapf(err, "error while creating effective source path '%s' for source path '%s'", m.EffectiveSource(), m.Source)
 				}
 			}
 		}
+	} else if _, err := os.Stat(m.EffectiveSource()); os.IsNotExist(err) {
+		if m.Source == m.EffectiveSource() {
+			return fmt.Errorf("bind mount source %s not found", m.Source)
+		}
+		return fmt.Errorf("bind mount effective source %s (mounted as %s) not found", m.EffectiveSource(), m.Source)
 	}
-	return m.Source, nil
+
+	if label.RelabelNeeded(m.Mode) {
+		err := label.Relabel(m.EffectiveSource(), mountLabel, label.IsShared(m.Mode))
+		if err != nil && err != syscall.ENOTSUP {
+			if m.EffectiveSource() == m.Source {
+				return errors.Wrapf(err, "error setting label on mount source '%s'", m.Source)
+			}
+			return errors.Wrapf(err, "error setting label on effective mount source '%s' for mount source '%s'", m.EffectiveSource(), m.Source)
+		}
+	}
+
+	return nil
 }
 
 // Path returns the path of a volume in a mount point.
@@ -221,4 +238,18 @@ func errInvalidMode(mode string) error {
 
 func errInvalidSpec(spec string) error {
 	return errors.Errorf("invalid volume specification: '%s'", spec)
+}
+
+func consistencyOfMode(mode string) mounttypes.Consistency {
+	for _, o := range strings.Split(mode, ",") {
+		if o == "consistent" {
+			return mounttypes.ConsistencyFull
+		} else if o == "cached" {
+			return mounttypes.ConsistencyCached
+		} else if o == "delegated" {
+			return mounttypes.ConsistencyDelegated
+		}
+	}
+
+	return mounttypes.ConsistencyDefault
 }

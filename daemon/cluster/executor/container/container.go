@@ -266,6 +266,17 @@ func convertMount(m api.Mount) enginemount.Mount {
 		ReadOnly: m.ReadOnly,
 	}
 
+	switch m.Consistency {
+	case api.MountConsistencyFull:
+		mount.Consistency = enginemount.ConsistencyFull
+	case api.MountConsistencyCached:
+		mount.Consistency = enginemount.ConsistencyCached
+	case api.MountConsistencyDelegated:
+		mount.Consistency = enginemount.ConsistencyDelegated
+	case api.MountConsistencyDefault:
+		mount.Consistency = enginemount.ConsistencyDefault
+	}
+
 	switch m.Type {
 	case api.MountTypeBind:
 		mount.Type = enginemount.TypeBind

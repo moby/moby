@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -27,9 +26,11 @@ import (
 // /etc/resolv.conf, and if it is not, appends it to the array of mounts.
 func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, error) {
 	var mounts []container.Mount
+	var mountPoints []*volume.MountPoint
 	// TODO: tmpfs mounts should be part of Mountpoints
 	tmpfsMounts := make(map[string]bool)
 	tmpfsMountInfo, err := c.TmpfsMounts()
+	rootIDs := daemon.idMappings.RootPair()
 	if err != nil {
 		return nil, err
 	}
@@ -43,28 +44,16 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 		if err := daemon.lazyInitializeVolume(c.ID, m); err != nil {
 			return nil, err
 		}
-		// If the daemon is being shutdown, we should not let a container start if it is trying to
-		// mount the socket the daemon is listening on. During daemon shutdown, the socket
-		// (/var/run/docker.sock by default) doesn't exist anymore causing the call to m.Setup to
-		// create at directory instead. This in turn will prevent the daemon to restart.
-		checkfunc := func(m *volume.MountPoint) error {
-			if _, exist := daemon.hosts[m.Source]; exist && daemon.IsShuttingDown() {
-				return fmt.Errorf("Could not mount %q to container while the daemon is shutting down", m.Source)
-			}
-			return nil
-		}
 
-		path, err := m.Setup(c.MountLabel, daemon.idMappings.RootPair(), checkfunc)
-		if err != nil {
+		if err := m.Realize(); err != nil {
 			return nil, err
 		}
-		if !c.TrySetNetworkMount(m.Destination, path) {
-			mnt := container.Mount{
-				Source:      path,
-				Destination: m.Destination,
-				Writable:    m.RW,
-				Propagation: string(m.Propagation),
+		if m.CreateSourceIfMissing {
+			if err := daemon.dontBindDockerSockDuringShutdown(m); err != nil {
+				return nil, err
 			}
+		}
+		if !c.TrySetNetworkMount(m.Destination, m.Source) {
 			if m.Volume != nil {
 				attributes := map[string]string{
 					"driver":      m.Volume.DriverName(),
@@ -75,16 +64,30 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 				}
 				daemon.LogVolumeEvent(m.Volume.Name(), "mount", attributes)
 			}
-			mounts = append(mounts, mnt)
+			mountPoints = append(mountPoints, m)
+		} else {
+			if err := m.Setup(c.MountLabel, rootIDs); err != nil {
+				return nil, err
+			}
 		}
 	}
 
-	mounts = sortMounts(mounts)
+	mounts, err = daemon.attachMounts(c, mountPoints)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, m := range mountPoints {
+		if err := m.Setup(c.MountLabel, rootIDs); err != nil {
+			return nil, err
+		}
+	}
+
+	mounts = container.SortMounts(mounts)
 	netMounts := c.NetworkMounts()
 	// if we are going to mount any of the network files from container
 	// metadata, the ownership must be set properly for potential container
 	// remapped root (user namespaces)
-	rootIDs := daemon.idMappings.RootPair()
 	for _, mount := range netMounts {
 		if err := os.Chown(mount.Source, rootIDs.UID, rootIDs.GID); err != nil {
 			return nil, err
@@ -93,12 +96,26 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 	return append(mounts, netMounts...), nil
 }
 
-// sortMounts sorts an array of mounts in lexicographic order. This ensure that
-// when mounting, the mounts don't shadow other mounts. For example, if mounting
-// /etc and /etc/resolv.conf, /etc/resolv.conf must not be mounted first.
-func sortMounts(m []container.Mount) []container.Mount {
-	sort.Sort(mounts(m))
-	return m
+func (daemon *Daemon) attachMounts(c *container.Container, mountPoints []*volume.MountPoint) (mounts []container.Mount, err error) {
+	image, err := daemon.GetImage(c.Config.Image)
+	if err != nil {
+		return nil, err // TODO: should wrap?
+	}
+
+	err = daemon.configStore.MountPointChain.AttachMounts(image.Config, c.Config, c.ID, mountPoints)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, m := range mountPoints {
+		mounts = append(mounts, container.Mount{
+			Source:      m.EffectiveSource(),
+			Destination: m.Destination,
+			Writable:    m.RW,
+			Propagation: string(m.Propagation),
+		})
+	}
+	return mounts, nil
 }
 
 // setBindModeIfNull is platform specific processing to ensure the
@@ -176,7 +193,9 @@ func (daemon *Daemon) verifyVolumesInfo(container *container.Container) error {
 				}
 				container.AddMountPointWithVolume(destination, v, true)
 			} else { // Bind mount
-				m := volume.MountPoint{Source: hostPath, Destination: destination, RW: rw}
+				m := volume.MountPoint{
+					Source: hostPath, Destination: destination, RW: rw,
+				}
 				container.MountPoints[destination] = &m
 			}
 		}
@@ -228,5 +247,18 @@ func (daemon *Daemon) mountVolumes(container *container.Container) error {
 		}
 	}
 
+	return nil
+}
+
+func (daemon *Daemon) dontBindDockerSockDuringShutdown(m *volume.MountPoint) error {
+	// If the daemon is being shutdown, we should not let a container
+	// start if it is trying to mount the socket the daemon is
+	// listening on. During daemon shutdown, the socket
+	// (/var/run/docker.sock by default) doesn't exist anymore causing
+	// the call to m.Setup to create a directory instead. This in
+	// turn will prevent the daemon from restarting.
+	if _, exist := daemon.hosts[m.Source]; exist && daemon.IsShuttingDown() {
+		return fmt.Errorf("Could not mount %q to container while the daemon is shutting down", m.Source)
+	}
 	return nil
 }

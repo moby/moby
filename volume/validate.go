@@ -7,8 +7,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-var errBindNotExist = errors.New("bind source path does not exist")
-
 type errMountConfig struct {
 	mount *mount.Mount
 	err   error

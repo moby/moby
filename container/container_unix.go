@@ -464,14 +464,18 @@ func (container *Container) GetMountPoints() []types.MountPoint {
 	mountPoints := make([]types.MountPoint, 0, len(container.MountPoints))
 	for _, m := range container.MountPoints {
 		mountPoints = append(mountPoints, types.MountPoint{
-			Type:        m.Type,
-			Name:        m.Name,
-			Source:      m.Path(),
-			Destination: m.Destination,
-			Driver:      m.Driver,
-			Mode:        m.Mode,
-			RW:          m.RW,
-			Propagation: m.Propagation,
+			Type:                 m.Type,
+			Name:                 m.Name,
+			Source:               m.Path(),
+			EffectiveSource:      m.EffectiveSource(),
+			Destination:          m.Destination,
+			Driver:               m.Driver,
+			Mode:                 m.Mode,
+			RW:                   m.RW,
+			Propagation:          m.Propagation,
+			Consistency:          m.Consistency,
+			EffectiveConsistency: m.EffectiveConsistency(),
+			AppliedMiddleware:    volume.MountPointAppliedMiddlewareOfAppliedMountPointMiddleware(m.AppliedMiddleware),
 		})
 	}
 	return mountPoints

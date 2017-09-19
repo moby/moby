@@ -127,7 +127,7 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 			}
 			container.Reset(false)
 
-			daemon.Cleanup(container)
+			daemon.Cleanup(container) // ignore any error -- we didn't start
 			// if containers AutoRemove flag is set, remove it after clean up
 			if container.HostConfig.AutoRemove {
 				container.Unlock()
@@ -181,7 +181,8 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 
 // Cleanup releases any network resources allocated to the container along with any rules
 // around how containers are linked together.  It also unmounts the container's root filesystem.
-func (daemon *Daemon) Cleanup(container *container.Container) {
+func (daemon *Daemon) Cleanup(container *container.Container) (success bool) {
+	success = true
 	daemon.releaseNetwork(container)
 
 	if err := container.UnmountIpcMount(detachMounted); err != nil {
@@ -204,10 +205,17 @@ func (daemon *Daemon) Cleanup(container *container.Container) {
 		daemon.unregisterExecCommand(container, eConfig)
 	}
 
+	if err := daemon.configStore.MountPointChain.DetachMounts(container.ID, container.MountPoints); err != nil {
+		logrus.Warnf("%s cleanup: failed to successfully detach mount point with middleware: %s", container.ID, err)
+		success = false
+	}
+
 	if container.BaseFS != nil && container.BaseFS.Path() != "" {
 		if err := container.UnmountVolumes(daemon.LogVolumeEvent); err != nil {
 			logrus.Warnf("%s cleanup: Failed to umount volumes: %v", container.ID, err)
 		}
 	}
 	container.CancelAttachContext()
+
+	return success
 }
