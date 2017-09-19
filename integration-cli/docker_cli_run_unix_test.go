@@ -1060,7 +1060,7 @@ func (s *DockerSuite) TestRunSeccompProfileAllow32Bit(c *check.C) {
 	testRequires(c, SameHostDaemon, seccompEnabled, IsAmd64)
 	ensureSyscallTest(c)
 
-	icmd.RunCommand(dockerBinary, "run", "syscall-test", "exit32-test", "id").Assert(c, icmd.Success)
+	icmd.RunCommand(dockerBinary, "run", "syscall-test", "exit32-test").Assert(c, icmd.Success)
 }
 
 // TestRunSeccompAllowSetrlimit checks that 'docker run debian:jessie ulimit -v 1048510' succeeds.

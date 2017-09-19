@@ -15,7 +15,7 @@
 # the case. Therefore, you don't have to disable it anymore.
 #
 
-FROM armhf/debian:jessie
+FROM arm32v7/debian:stretch
 
 # allow replacing httpredir or deb mirror
 ARG APT_MIRROR=deb.debian.org
@@ -39,35 +39,26 @@ RUN apt-get update && apt-get install -y \
 	net-tools \
 	libapparmor-dev \
 	libcap-dev \
-	libsystemd-journal-dev \
+	libdevmapper-dev \
+	libsystemd-dev \
 	libtool \
+	libudev-dev \
 	mercurial \
 	pkg-config \
+	python-backports.ssl-match-hostname \
 	python-dev \
 	python-mock \
 	python-pip \
+	python-requests \
+	python-setuptools \
 	python-websocket \
+	python-wheel \
 	xfsprogs \
 	tar \
+	thin-provisioning-tools \
 	vim-common \
 	--no-install-recommends \
 	&& pip install awscli==1.10.15
-
-# Get lvm2 sources to build statically linked devmapper library
-ENV LVM2_VERSION 2.02.168
-RUN mkdir -p /usr/local/lvm2 \
-	&& curl -fsSL "https://mirrors.kernel.org/sourceware/lvm2/LVM2.${LVM2_VERSION}.tgz" \
-		| tar -xzC /usr/local/lvm2 --strip-components=1
-
-# Compile and install (only the needed library)
-RUN cd /usr/local/lvm2 \
-	&& ./configure \
-		--build="$(gcc -print-multiarch)" \
-		--enable-static_link \
-		--enable-pkgconfig \
-	&& make -C include \
-	&& make -C libdm install_device-mapper
-
 
 # Install Go
 # IMPORTANT: When updating this please note that stdlib archive/tar pkg is vendored
@@ -127,9 +118,11 @@ RUN set -x \
 
 # Get the "docker-py" source so we can run their integration tests
 ENV DOCKER_PY_COMMIT a962578e515185cf06506050b2200c0b81aa84ef
+# To run integration tests docker-pycreds is required.
 RUN git clone https://github.com/docker/docker-py.git /docker-py \
 	&& cd /docker-py \
 	&& git checkout -q $DOCKER_PY_COMMIT \
+	&& pip install docker-pycreds==0.2.1 \
 	&& pip install -r test-requirements.txt
 
 # Set user.email so crosbymichael's in-container merge commits go smoothly

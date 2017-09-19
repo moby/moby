@@ -15,14 +15,20 @@
 # the case. Therefore, you don't have to disable it anymore.
 #
 
-FROM aarch64/ubuntu:xenial
+FROM arm64v8/debian:stretch
+
+# allow replacing httpredir or deb mirror
+ARG APT_MIRROR=deb.debian.org
+RUN sed -ri "s/(httpredir|deb).debian.org/$APT_MIRROR/g" /etc/apt/sources.list
 
 # Packaged dependencies
 RUN apt-get update && apt-get install -y \
 	apparmor \
+	apt-utils \
 	aufs-tools \
 	automake \
 	bash-completion \
+	bsdmainutils \
 	btrfs-tools \
 	build-essential \
 	cmake \
@@ -32,42 +38,39 @@ RUN apt-get update && apt-get install -y \
 	g++ \
 	gcc \
 	git \
+	golang \
 	iptables \
 	jq \
+	less \
 	libapparmor-dev \
-	libc6-dev \
 	libcap-dev \
+	libdevmapper-dev \
+	libnl-3-dev \
+	libprotobuf-c0-dev \
+	libprotobuf-dev \
 	libsystemd-dev \
-	libyaml-dev \
+	libtool \
+	libudev-dev \
 	mercurial \
 	net-tools \
-	parallel \
 	pkg-config \
+	protobuf-compiler \
+	protobuf-c-compiler \
+	python-backports.ssl-match-hostname \
 	python-dev \
 	python-mock \
 	python-pip \
+	python-requests \
 	python-setuptools \
 	python-websocket \
-	golang-go \
-	iproute2 \
-	iputils-ping \
+	python-wheel \
+	tar \
+	thin-provisioning-tools \
+	vim \
 	vim-common \
+	xfsprogs \
+	zip \
 	--no-install-recommends
-
-# Get lvm2 sources to build statically linked devmapper library
-ENV LVM2_VERSION 2.02.168
-RUN mkdir -p /usr/local/lvm2 \
-	&& curl -fsSL "https://mirrors.kernel.org/sourceware/lvm2/LVM2.${LVM2_VERSION}.tgz" \
-		| tar -xzC /usr/local/lvm2 --strip-components=1
-
-# Compile and install (only the needed library)
-RUN cd /usr/local/lvm2 \
-	&& ./configure \
-		--build="$(gcc -print-multiarch)" \
-		--enable-static_link \
-		--enable-pkgconfig \
-	&& make -C include \
-	&& make -C libdm install_device-mapper
 
 # Install seccomp: the version shipped upstream is too old
 ENV SECCOMP_VERSION 2.3.2
@@ -86,9 +89,7 @@ RUN set -x \
 
 # Install Go
 # We don't have official binary golang 1.7.5 tarballs for ARM64, either for Go or
-# bootstrap, so we use golang-go (1.6) as bootstrap to build Go from source code.
-# We don't use the official ARMv6 released binaries as a GOROOT_BOOTSTRAP, because
-# not all ARM64 platforms support 32-bit mode. 32-bit mode is optional for ARMv8.
+# bootstrap, so we use Debian golang (1.7) as bootstrap to build Go from source code.
 # IMPORTANT: When updating this please note that stdlib archive/tar pkg is vendored
 ENV GO_VERSION 1.8.3
 RUN mkdir /usr/src/go && curl -fsSL https://golang.org/dl/go${GO_VERSION}.src.tar.gz | tar -v -C /usr/src/go -xz --strip-components=1 \
@@ -124,13 +125,10 @@ RUN set -x \
 
 # Get the "docker-py" source so we can run their integration tests
 ENV DOCKER_PY_COMMIT a962578e515185cf06506050b2200c0b81aa84ef
-# Before running the integration tests conftest.py is
-# loaded which results in loads auth.py that
-# imports the docker-pycreds module.
+# To run integration tests docker-pycreds is required.
 RUN git clone https://github.com/docker/docker-py.git /docker-py \
 	&& cd /docker-py \
 	&& git checkout -q $DOCKER_PY_COMMIT \
-	&& pip install wheel \
 	&& pip install docker-pycreds==0.2.1 \
 	&& pip install -r test-requirements.txt
 

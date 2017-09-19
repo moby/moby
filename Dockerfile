@@ -23,7 +23,7 @@
 # the case. Therefore, you don't have to disable it anymore.
 #
 
-FROM debian:jessie
+FROM debian:stretch
 
 # allow replacing httpredir or deb mirror
 ARG APT_MIRROR=deb.debian.org
@@ -51,42 +51,34 @@ RUN apt-get update && apt-get install -y \
 	less \
 	libapparmor-dev \
 	libcap-dev \
+	libdevmapper-dev \
 	libnl-3-dev \
 	libprotobuf-c0-dev \
 	libprotobuf-dev \
-	libsystemd-journal-dev \
+	libsystemd-dev \
 	libtool \
+	libudev-dev \
 	mercurial \
 	net-tools \
 	pkg-config \
 	protobuf-compiler \
 	protobuf-c-compiler \
+	python-backports.ssl-match-hostname \
 	python-dev \
 	python-mock \
 	python-pip \
+	python-requests \
+	python-setuptools \
 	python-websocket \
+	python-wheel \
 	tar \
+	thin-provisioning-tools \
 	vim \
 	vim-common \
 	xfsprogs \
 	zip \
 	--no-install-recommends \
 	&& pip install awscli==1.10.15
-
-# Get lvm2 sources to build statically linked devmapper library
-ENV LVM2_VERSION 2.02.168
-RUN mkdir -p /usr/local/lvm2 \
-	&& curl -fsSL "https://mirrors.kernel.org/sourceware/lvm2/LVM2.${LVM2_VERSION}.tgz" \
-		| tar -xzC /usr/local/lvm2 --strip-components=1
-
-# Compile and install (only the needed library)
-RUN cd /usr/local/lvm2 \
-	&& ./configure \
-		--build="$(gcc -print-multiarch)" \
-		--enable-static_link \
-		--enable-pkgconfig \
-	&& make -C include \
-	&& make -C libdm install_device-mapper
 
 # Install seccomp: the version shipped upstream is too old
 ENV SECCOMP_VERSION 2.3.2
@@ -157,9 +149,6 @@ RUN set -x \
 # Get the "docker-py" source so we can run their integration tests
 ENV DOCKER_PY_COMMIT a962578e515185cf06506050b2200c0b81aa84ef
 # To run integration tests docker-pycreds is required.
-# Before running the integration tests conftest.py is
-# loaded which results in loads auth.py that
-# imports the docker-pycreds module.
 RUN git clone https://github.com/docker/docker-py.git /docker-py \
 	&& cd /docker-py \
 	&& git checkout -q $DOCKER_PY_COMMIT \
