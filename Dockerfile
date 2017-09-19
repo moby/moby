@@ -23,7 +23,7 @@
 # the case. Therefore, you don't have to disable it anymore.
 #
 
-FROM debian:jessie
+FROM debian:stretch
 
 # allow replacing httpredir or deb mirror
 ARG APT_MIRROR=deb.debian.org
@@ -54,8 +54,9 @@ RUN apt-get update && apt-get install -y \
 	libnl-3-dev \
 	libprotobuf-c0-dev \
 	libprotobuf-dev \
-	libsystemd-journal-dev \
+	libsystemd-dev \
 	libtool \
+	libudev-dev \
 	mercurial \
 	net-tools \
 	pkg-config \
@@ -64,8 +65,10 @@ RUN apt-get update && apt-get install -y \
 	python-dev \
 	python-mock \
 	python-pip \
+	python-setuptools \
 	python-websocket \
 	tar \
+	thin-provisioning-tools \
 	vim \
 	vim-common \
 	xfsprogs \
@@ -85,6 +88,7 @@ RUN cd /usr/local/lvm2 \
 		--build="$(gcc -print-multiarch)" \
 		--enable-static_link \
 		--enable-pkgconfig \
+		--enable-udev_sync \
 	&& make -C include \
 	&& make -C libdm install_device-mapper
 

@@ -15,7 +15,7 @@
 # the case. Therefore, you don't have to disable it anymore.
 #
 
-FROM s390x/debian:jessie
+FROM s390x/debian:stretch
 
 # Packaged dependencies
 RUN apt-get update && apt-get install -y \
@@ -36,16 +36,19 @@ RUN apt-get update && apt-get install -y \
 	net-tools \
 	libapparmor-dev \
 	libcap-dev \
-	libsystemd-journal-dev \
+	libsystemd-dev \
 	libtool \
+	libudev-dev \
 	mercurial \
 	pkg-config \
 	python-dev \
 	python-mock \
 	python-pip \
+	python-setuptools \
 	python-websocket \
 	xfsprogs \
 	tar \
+	thin-provisioning-tools \
 	vim-common \
 	--no-install-recommends
 
@@ -76,6 +79,7 @@ RUN cd /usr/local/lvm2 \
 		--build="$(gcc -print-multiarch)" \
 		--enable-static_link \
 		--enable-pkgconfig \
+		--enable-udev_sync \
 	&& make -C include \
 	&& make -C libdm install_device-mapper
 
