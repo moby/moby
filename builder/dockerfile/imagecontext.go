@@ -1,9 +1,6 @@
 package dockerfile
 
 import (
-	"strconv"
-	"strings"
-
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/remotecontext"
@@ -12,79 +9,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
-
-type buildStage struct {
-	id string
-}
-
-func newBuildStage(imageID string) *buildStage {
-	return &buildStage{id: imageID}
-}
-
-func (b *buildStage) ImageID() string {
-	return b.id
-}
-
-func (b *buildStage) update(imageID string) {
-	b.id = imageID
-}
-
-// buildStages tracks each stage of a build so they can be retrieved by index
-// or by name.
-type buildStages struct {
-	sequence []*buildStage
-	byName   map[string]*buildStage
-}
-
-func newBuildStages() *buildStages {
-	return &buildStages{byName: make(map[string]*buildStage)}
-}
-
-func (s *buildStages) getByName(name string) (*buildStage, bool) {
-	stage, ok := s.byName[strings.ToLower(name)]
-	return stage, ok
-}
-
-func (s *buildStages) get(indexOrName string) (*buildStage, error) {
-	index, err := strconv.Atoi(indexOrName)
-	if err == nil {
-		if err := s.validateIndex(index); err != nil {
-			return nil, err
-		}
-		return s.sequence[index], nil
-	}
-	if im, ok := s.byName[strings.ToLower(indexOrName)]; ok {
-		return im, nil
-	}
-	return nil, nil
-}
-
-func (s *buildStages) validateIndex(i int) error {
-	if i < 0 || i >= len(s.sequence)-1 {
-		if i == len(s.sequence)-1 {
-			return errors.New("refers to current build stage")
-		}
-		return errors.New("index out of bounds")
-	}
-	return nil
-}
-
-func (s *buildStages) add(name string, image builder.Image) error {
-	stage := newBuildStage(image.ImageID())
-	name = strings.ToLower(name)
-	if len(name) > 0 {
-		if _, ok := s.byName[name]; ok {
-			return errors.Errorf("duplicate name %s", name)
-		}
-		s.byName[name] = stage
-	}
-	s.sequence = append(s.sequence, stage)
-	return nil
-}
-
-func (s *buildStages) update(imageID string) {
-	s.sequence[len(s.sequence)-1].update(imageID)
-}
 
 type getAndMountFunc func(string, bool) (builder.Image, builder.ReleaseableLayer, error)
 

@@ -439,6 +439,82 @@ func (s *DockerSuite) TestBuildChownOnCopy(c *check.C) {
 	assert.Contains(c, string(out), "Successfully built")
 }
 
+func (s *DockerSuite) TestBuildCopyCacheOnFileChange(c *check.C) {
+
+	dockerfile := `FROM busybox
+COPY file /file`
+
+	ctx1 := fakecontext.New(c, "",
+		fakecontext.WithDockerfile(dockerfile),
+		fakecontext.WithFile("file", "foo"))
+	ctx2 := fakecontext.New(c, "",
+		fakecontext.WithDockerfile(dockerfile),
+		fakecontext.WithFile("file", "bar"))
+
+	var build = func(ctx *fakecontext.Fake) string {
+		res, body, err := request.Post("/build",
+			request.RawContent(ctx.AsTarReader(c)),
+			request.ContentType("application/x-tar"))
+
+		require.NoError(c, err)
+		assert.Equal(c, http.StatusOK, res.StatusCode)
+
+		out, err := request.ReadBody(body)
+
+		ids := getImageIDsFromBuild(c, out)
+		return ids[len(ids)-1]
+	}
+
+	id1 := build(ctx1)
+	id2 := build(ctx1)
+	id3 := build(ctx2)
+
+	if id1 != id2 {
+		c.Fatal("didn't use the cache")
+	}
+	if id1 == id3 {
+		c.Fatal("COPY With different source file should not share same cache")
+	}
+}
+
+func (s *DockerSuite) TestBuildAddCacheOnFileChange(c *check.C) {
+
+	dockerfile := `FROM busybox
+ADD file /file`
+
+	ctx1 := fakecontext.New(c, "",
+		fakecontext.WithDockerfile(dockerfile),
+		fakecontext.WithFile("file", "foo"))
+	ctx2 := fakecontext.New(c, "",
+		fakecontext.WithDockerfile(dockerfile),
+		fakecontext.WithFile("file", "bar"))
+
+	var build = func(ctx *fakecontext.Fake) string {
+		res, body, err := request.Post("/build",
+			request.RawContent(ctx.AsTarReader(c)),
+			request.ContentType("application/x-tar"))
+
+		require.NoError(c, err)
+		assert.Equal(c, http.StatusOK, res.StatusCode)
+
+		out, err := request.ReadBody(body)
+
+		ids := getImageIDsFromBuild(c, out)
+		return ids[len(ids)-1]
+	}
+
+	id1 := build(ctx1)
+	id2 := build(ctx1)
+	id3 := build(ctx2)
+
+	if id1 != id2 {
+		c.Fatal("didn't use the cache")
+	}
+	if id1 == id3 {
+		c.Fatal("COPY With different source file should not share same cache")
+	}
+}
+
 func (s *DockerSuite) TestBuildWithSession(c *check.C) {
 	testRequires(c, ExperimentalDaemon)
 
