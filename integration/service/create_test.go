@@ -43,10 +43,7 @@ func TestCreateWithLBSandbox(t *testing.T) {
 	require.NoError(t, err)
 
 	serviceID := serviceResp.ID
-	poll.WaitOn(t, serviceRunningTasksCount(client, serviceID, instances))
-
-	_, _, err = client.ServiceInspectWithRaw(context.Background(), serviceID, types.ServiceInspectOptions{})
-	require.NoError(t, err)
+	poll.WaitOn(t, serviceContainerCount(client, serviceID, instances, true, swarm.TaskStateRunning))
 
 	network, err := client.NetworkInspect(context.Background(), overlayID, types.NetworkInspectOptions{})
 	require.NoError(t, err)
@@ -78,29 +75,6 @@ func swarmServiceSpec(name string, replicas uint64) swarm.ServiceSpec {
 				Replicas: &replicas,
 			},
 		},
-	}
-}
-
-func serviceRunningTasksCount(client client.ServiceAPIClient, serviceID string, instances uint64) func(log poll.LogT) poll.Result {
-	return func(log poll.LogT) poll.Result {
-		filter := filters.NewArgs()
-		filter.Add("service", serviceID)
-		tasks, err := client.TaskList(context.Background(), types.TaskListOptions{
-			Filters: filter,
-		})
-		switch {
-		case err != nil:
-			return poll.Error(err)
-		case len(tasks) == int(instances):
-			for _, task := range tasks {
-				if task.Status.State != swarm.TaskStateRunning {
-					return poll.Continue("waiting for tasks to enter run state")
-				}
-			}
-			return poll.Success()
-		default:
-			return poll.Continue("task count at %d waiting for %d", len(tasks), instances)
-		}
 	}
 }
 
