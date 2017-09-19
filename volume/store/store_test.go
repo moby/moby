@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/volume"
 	"github.com/docker/docker/volume/drivers"
 	volumetestutils "github.com/docker/docker/volume/testutils"
 )
@@ -230,5 +231,38 @@ func TestDerefMultipleOfSameRef(t *testing.T) {
 	s.Dereference(v, "volReference")
 	if err := s.Remove(v); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestCreateKeepOptsLabelsWhenExistsRemotely(t *testing.T) {
+	vd := volumetestutils.NewFakeDriver("fake")
+	volumedrivers.Register(vd, "fake")
+	dir, err := ioutil.TempDir("", "test-same-deref")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+	s, err := New(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a volume in the driver directly
+	if _, err := vd.Create("foo", nil); err != nil {
+		t.Fatal(err)
+	}
+
+	v, err := s.Create("foo", "fake", nil, map[string]string{"hello": "world"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	switch dv := v.(type) {
+	case volume.DetailedVolume:
+		if dv.Labels()["hello"] != "world" {
+			t.Fatalf("labels don't match")
+		}
+	default:
+		t.Fatalf("got unexpected type: %T", v)
 	}
 }
