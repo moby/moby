@@ -3,8 +3,12 @@
 package client
 
 import (
+	"bytes"
 	"fmt"
 	"io"
+	"os"
+	"strings"
+	"time"
 
 	"github.com/Microsoft/hcsshim"
 	"github.com/sirupsen/logrus"
@@ -109,4 +113,45 @@ func (config *Config) RunProcess(commandLine string, stdin io.Reader, stdout io.
 
 	logrus.Debugf("opengcs: runProcess success: %s", commandLine)
 	return process.Process, nil
+}
+
+func debugCommand(s string) string {
+	return fmt.Sprintf(`echo -e 'DEBUG COMMAND: %s\\n--------------\\n';%s;echo -e '\\n\\n';`, s, s)
+}
+
+// DebugGCS extracts logs from the GCS. It's a useful hack for debugging,
+// but not necessarily optimal, but all that is available to us in RS3.
+func (config *Config) DebugGCS() {
+	if logrus.GetLevel() < logrus.DebugLevel || len(os.Getenv("OPENGCS_DEBUG_ENABLE")) == 0 {
+		return
+	}
+
+	var out bytes.Buffer
+	cmd := os.Getenv("OPENGCS_DEBUG_COMMAND")
+	if cmd == "" {
+		cmd = `sh -c "`
+		cmd += debugCommand("ls -l /tmp")
+		cmd += debugCommand("cat /tmp/gcs.log")
+		cmd += debugCommand("ls -l /tmp/gcs")
+		cmd += debugCommand("ls -l /tmp/gcs/*")
+		cmd += debugCommand("cat /tmp/gcs/*/config.json")
+		cmd += debugCommand("ls -lR /var/run/gcsrunc")
+		cmd += debugCommand("cat /var/run/gcsrunc/log.log")
+		cmd += debugCommand("ps -ef")
+		cmd += `"`
+	}
+	proc, err := config.RunProcess(cmd, nil, &out, nil)
+	defer func() {
+		if proc != nil {
+			proc.Kill()
+			proc.Close()
+		}
+	}()
+	if err != nil {
+		logrus.Debugln("benign failure getting gcs logs: ", err)
+	}
+	if proc != nil {
+		proc.WaitTimeout(time.Duration(int(time.Second) * 30))
+	}
+	logrus.Debugf("GCS Debugging:\n%s\n\nEnd GCS Debugging\n", strings.TrimSpace(out.String()))
 }

@@ -50,6 +50,7 @@ func (ctr *container) start(attachStdio StdioCallback) error {
 	logrus.Debugln("libcontainerd: starting container ", ctr.containerID)
 	if err = ctr.hcsContainer.Start(); err != nil {
 		logrus.Errorf("libcontainerd: failed to start container: %s", err)
+		ctr.debugGCS() // Before terminating!
 		if err := ctr.terminate(); err != nil {
 			logrus.Errorf("libcontainerd: failed to cleanup after a failed Start. %s", err)
 		} else {
@@ -57,6 +58,8 @@ func (ctr *container) start(attachStdio StdioCallback) error {
 		}
 		return err
 	}
+
+	defer ctr.debugGCS()
 
 	// Note we always tell HCS to
 	// create stdout as it's required regardless of '-i' or '-t' options, so that

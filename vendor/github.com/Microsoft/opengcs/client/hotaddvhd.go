@@ -20,6 +20,8 @@ func (config *Config) HotAddVhd(hostPath string, containerPath string, readOnly 
 		return fmt.Errorf("cannot hot-add VHD as no utility VM is in configuration")
 	}
 
+	defer config.DebugGCS()
+
 	modification := &hcsshim.ResourceModificationRequestResponse{
 		Resource: "MappedVirtualDisk",
 		Data: hcsshim.MappedVirtualDisk{

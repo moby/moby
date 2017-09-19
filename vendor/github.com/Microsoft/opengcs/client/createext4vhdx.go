@@ -57,6 +57,8 @@ func (config *Config) CreateExt4Vhdx(destFile string, sizeGB uint32, cacheFile s
 		return fmt.Errorf("failed to create VHDx %s: %s", destFile, err)
 	}
 
+	defer config.DebugGCS()
+
 	// Attach it to the utility VM, but don't mount it (as there's no filesystem on it)
 	if err := config.HotAddVhd(destFile, "", false, false); err != nil {
 		return fmt.Errorf("opengcs: CreateExt4Vhdx: failed to hot-add %s to utility VM: %s", cacheFile, err)
