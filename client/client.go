@@ -356,17 +356,6 @@ func (cli *Client) DaemonHost() string {
 	return cli.host
 }
 
-// ParseHost parses a url string, validates the strings is a host url, and returns
-// the parsed host as: protocol, address, and base path
-// Deprecated: use ParseHostURL
-func ParseHost(host string) (string, string, string, error) {
-	hostURL, err := ParseHostURL(host)
-	if err != nil {
-		return "", "", "", err
-	}
-	return hostURL.Scheme, hostURL.Host, hostURL.Path, nil
-}
-
 // ParseHostURL parses a url string, validates the string is a host url, and
 // returns the parsed URL
 func ParseHostURL(host string) (*url.URL, error) {

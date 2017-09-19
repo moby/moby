@@ -123,10 +123,7 @@ func (cli *Client) sendRequest(ctx context.Context, method, path string, query u
 	if err != nil {
 		return resp, err
 	}
-	if err := cli.checkResponseErr(resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	return resp, cli.checkResponseErr(resp)
 }
 
 func (cli *Client) doRequest(ctx context.Context, req *http.Request) (serverResponse, error) {

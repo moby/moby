@@ -15,7 +15,6 @@ import (
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/integration-cli/fixtures/plugin"
-	"github.com/docker/docker/integration-cli/request"
 	"github.com/go-check/check"
 	"github.com/gotestyourself/gotestyourself/icmd"
 	"golang.org/x/net/context"
@@ -159,9 +158,7 @@ func (s *DockerSuite) TestPluginInstallDisableVolumeLs(c *check.C) {
 }
 
 func (ps *DockerPluginSuite) TestPluginSet(c *check.C) {
-	// Create a new plugin with extra settings
-	client, err := request.NewClient()
-	c.Assert(err, checker.IsNil, check.Commentf("failed to create test client"))
+	client := testEnv.APIClient()
 
 	name := "test"
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -171,7 +168,8 @@ func (ps *DockerPluginSuite) TestPluginSet(c *check.C) {
 	mntSrc := "foo"
 	devPath := "/dev/bar"
 
-	err = plugin.Create(ctx, client, name, func(cfg *plugin.Config) {
+	// Create a new plugin with extra settings
+	err := plugin.Create(ctx, client, name, func(cfg *plugin.Config) {
 		cfg.Env = []types.PluginEnv{{Name: "DEBUG", Value: &initialValue, Settable: []string{"value"}}}
 		cfg.Mounts = []types.PluginMount{
 			{Name: "pmount1", Settable: []string{"source"}, Type: "none", Source: &mntSrc},
@@ -401,12 +399,11 @@ func (s *DockerTrustSuite) TestPluginUntrustedInstall(c *check.C) {
 
 func (ps *DockerPluginSuite) TestPluginIDPrefix(c *check.C) {
 	name := "test"
-	client, err := request.NewClient()
-	c.Assert(err, checker.IsNil, check.Commentf("error creating test client"))
+	client := testEnv.APIClient()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	initialValue := "0"
-	err = plugin.Create(ctx, client, name, func(cfg *plugin.Config) {
+	err := plugin.Create(ctx, client, name, func(cfg *plugin.Config) {
 		cfg.Env = []types.PluginEnv{{Name: "DEBUG", Value: &initialValue, Settable: []string{"value"}}}
 	})
 	cancel()
@@ -466,8 +463,7 @@ func (ps *DockerPluginSuite) TestPluginListDefaultFormat(c *check.C) {
 	c.Assert(err, check.IsNil)
 
 	name := "test:latest"
-	client, err := request.NewClient()
-	c.Assert(err, checker.IsNil, check.Commentf("error creating test client"))
+	client := testEnv.APIClient()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()

@@ -319,8 +319,7 @@ func (s *DockerSuite) TestBuildOnBuildCache(c *check.C) {
 	assert.Len(c, imageIDs, 2)
 	parentID, childID := imageIDs[0], imageIDs[1]
 
-	client, err := request.NewClient()
-	require.NoError(c, err)
+	client := testEnv.APIClient()
 
 	// check parentID is correct
 	image, _, err := client.ImageInspectWithRaw(context.Background(), childID)
@@ -329,12 +328,11 @@ func (s *DockerSuite) TestBuildOnBuildCache(c *check.C) {
 }
 
 func (s *DockerRegistrySuite) TestBuildCopyFromForcePull(c *check.C) {
-	client, err := request.NewClient()
-	require.NoError(c, err)
+	client := testEnv.APIClient()
 
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
 	// tag the image to upload it to the private registry
-	err = client.ImageTag(context.TODO(), "busybox", repoName)
+	err := client.ImageTag(context.TODO(), "busybox", repoName)
 	assert.Nil(c, err)
 	// push the image to the registry
 	rc, err := client.ImagePush(context.TODO(), repoName, types.ImagePushOptions{RegistryAuth: "{}"})
@@ -545,9 +543,7 @@ func (s *DockerSuite) TestBuildWithSession(c *check.C) {
 	assert.Equal(c, strings.Count(out, "Using cache"), 2)
 	assert.Contains(c, out, "contentcontent")
 
-	client, err := request.NewClient()
-	require.NoError(c, err)
-
+	client := testEnv.APIClient()
 	du, err := client.DiskUsage(context.TODO())
 	assert.Nil(c, err)
 	assert.True(c, du.BuilderSize > 10)
@@ -582,9 +578,7 @@ func (s *DockerSuite) TestBuildWithSession(c *check.C) {
 }
 
 func testBuildWithSession(c *check.C, dir, dockerfile string) (outStr string) {
-	client, err := request.NewClient()
-	require.NoError(c, err)
-
+	client := testEnv.APIClient()
 	sess, err := session.NewSession("foo1", "foo")
 	assert.Nil(c, err)
 

@@ -132,32 +132,6 @@ func TestGetAPIPath(t *testing.T) {
 	}
 }
 
-func TestParseHost(t *testing.T) {
-	cases := []struct {
-		host  string
-		proto string
-		addr  string
-		base  string
-		err   bool
-	}{
-		{"", "", "", "", true},
-		{"foobar", "", "", "", true},
-		{"foo://bar", "foo", "bar", "", false},
-		{"tcp://localhost:2476", "tcp", "localhost:2476", "", false},
-		{"tcp://localhost:2476/path", "tcp", "localhost:2476", "/path", false},
-	}
-
-	for _, cs := range cases {
-		p, a, b, e := ParseHost(cs.host)
-		if cs.err {
-			assert.Error(t, e)
-		}
-		assert.Equal(t, cs.proto, p)
-		assert.Equal(t, cs.addr, a)
-		assert.Equal(t, cs.base, b)
-	}
-}
-
 func TestParseHostURL(t *testing.T) {
 	testcases := []struct {
 		host        string

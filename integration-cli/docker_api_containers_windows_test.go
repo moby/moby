@@ -6,13 +6,16 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/rand"
-	"net/http"
 	"strings"
 
 	winio "github.com/Microsoft/go-winio"
-	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/request"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
 	"github.com/go-check/check"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/net/context"
 )
 
 func (s *DockerSuite) TestContainersAPICreateMountsBindNamedPipe(c *check.C) {
@@ -44,28 +47,30 @@ func (s *DockerSuite) TestContainersAPICreateMountsBindNamedPipe(c *check.C) {
 	containerPipeName := `\\.\pipe\docker-cli-test-pipe`
 	text := "hello from a pipe"
 	cmd := fmt.Sprintf("echo %s > %s", text, containerPipeName)
-
 	name := "test-bind-npipe"
-	data := map[string]interface{}{
-		"Image":      testEnv.PlatformDefaults.BaseImage,
-		"Cmd":        []string{"cmd", "/c", cmd},
-		"HostConfig": map[string]interface{}{"Mounts": []map[string]interface{}{{"Type": "npipe", "Source": hostPipeName, "Target": containerPipeName}}},
-	}
 
-	status, resp, err := request.SockRequest("POST", "/containers/create?name="+name, data, daemonHost())
-	c.Assert(err, checker.IsNil, check.Commentf(string(resp)))
-	c.Assert(status, checker.Equals, http.StatusCreated, check.Commentf(string(resp)))
+	ctx := context.Background()
+	client := testEnv.APIClient()
+	_, err = client.ContainerCreate(ctx,
+		&container.Config{
+			Image: testEnv.PlatformDefaults.BaseImage,
+			Cmd:   []string{"cmd", "/c", cmd},
+		}, &container.HostConfig{
+			Mounts: []mount.Mount{
+				{
+					Type:   "npipe",
+					Source: hostPipeName,
+					Target: containerPipeName,
+				},
+			},
+		},
+		nil, name)
+	require.NoError(c, err)
 
-	status, _, err = request.SockRequest("POST", "/containers/"+name+"/start", nil, daemonHost())
-	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusNoContent)
+	err = client.ContainerStart(ctx, name, types.ContainerStartOptions{})
+	require.NoError(c, err)
 
 	err = <-ch
-	if err != nil {
-		c.Fatal(err)
-	}
-	result := strings.TrimSpace(string(b))
-	if result != text {
-		c.Errorf("expected pipe to contain %s, got %s", text, result)
-	}
+	require.NoError(c, err)
+	assert.Equal(c, text, strings.TrimSpace(string(b)))
 }

@@ -1,16 +1,13 @@
 package request // import "github.com/docker/docker/integration-cli/request"
 
 import (
-	"bufio"
 	"bytes"
 	"crypto/tls"
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
-	"net/http/httputil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -95,11 +92,11 @@ func Do(endpoint string, modifiers ...func(*http.Request) error) (*http.Response
 
 // DoOnHost creates and execute a request on the specified host and endpoint, with the specified request modifiers
 func DoOnHost(host, endpoint string, modifiers ...func(*http.Request) error) (*http.Response, io.ReadCloser, error) {
-	req, err := New(host, endpoint, modifiers...)
+	req, err := newRequest(host, endpoint, modifiers...)
 	if err != nil {
 		return nil, nil, err
 	}
-	client, err := NewHTTPClient(host)
+	client, err := newHTTPClient(host)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -114,18 +111,15 @@ func DoOnHost(host, endpoint string, modifiers ...func(*http.Request) error) (*h
 	return resp, body, err
 }
 
-// New creates a new http Request to the specified host and endpoint, with the specified request modifiers
-func New(host, endpoint string, modifiers ...func(*http.Request) error) (*http.Request, error) {
-	_, addr, _, err := dclient.ParseHost(host)
+// newRequest creates a new http Request to the specified host and endpoint, with the specified request modifiers
+func newRequest(host, endpoint string, modifiers ...func(*http.Request) error) (*http.Request, error) {
+	hostUrl, err := dclient.ParseHostURL(host)
 	if err != nil {
-		return nil, err
-	}
-	if err != nil {
-		return nil, errors.Wrapf(err, "could not parse url %q", host)
+		return nil, errors.Wrapf(err, "failed parsing url %q", host)
 	}
 	req, err := http.NewRequest("GET", endpoint, nil)
 	if err != nil {
-		return nil, fmt.Errorf("could not create new request: %v", err)
+		return nil, errors.Wrap(err, "failed to create request")
 	}
 
 	if os.Getenv("DOCKER_TLS_VERIFY") != "" {
@@ -133,7 +127,7 @@ func New(host, endpoint string, modifiers ...func(*http.Request) error) (*http.R
 	} else {
 		req.URL.Scheme = "http"
 	}
-	req.URL.Host = addr
+	req.URL.Host = hostUrl.Host
 
 	for _, config := range modifiers {
 		if err := config(req); err != nil {
@@ -143,15 +137,16 @@ func New(host, endpoint string, modifiers ...func(*http.Request) error) (*http.R
 	return req, nil
 }
 
-// NewHTTPClient creates an http client for the specific host
-func NewHTTPClient(host string) (*http.Client, error) {
+// newHTTPClient creates an http client for the specific host
+// TODO: Share more code with client.defaultHTTPClient
+func newHTTPClient(host string) (*http.Client, error) {
 	// FIXME(vdemeester) 10*time.Second timeout of SockRequest… ?
-	proto, addr, _, err := dclient.ParseHost(host)
+	hostUrl, err := dclient.ParseHostURL(host)
 	if err != nil {
 		return nil, err
 	}
 	transport := new(http.Transport)
-	if proto == "tcp" && os.Getenv("DOCKER_TLS_VERIFY") != "" {
+	if hostUrl.Scheme == "tcp" && os.Getenv("DOCKER_TLS_VERIFY") != "" {
 		// Setup the socket TLS configuration.
 		tlsConfig, err := getTLSConfig()
 		if err != nil {
@@ -160,100 +155,20 @@ func NewHTTPClient(host string) (*http.Client, error) {
 		transport = &http.Transport{TLSClientConfig: tlsConfig}
 	}
 	transport.DisableKeepAlives = true
-	err = sockets.ConfigureTransport(transport, proto, addr)
-	return &http.Client{
-		Transport: transport,
-	}, err
+	err = sockets.ConfigureTransport(transport, hostUrl.Scheme, hostUrl.Host)
+	return &http.Client{Transport: transport}, err
 }
 
 // NewClient returns a new Docker API client
+// Deprecated: Use Execution.APIClient()
 func NewClient() (dclient.APIClient, error) {
 	return dclient.NewClientWithOpts(dclient.WithHost(DaemonHost()))
-}
-
-// FIXME(vdemeester) httputil.ClientConn is deprecated, use http.Client instead (closer to actual client)
-// Deprecated: Use New instead of NewRequestClient
-// Deprecated: use request.Do (or Get, Delete, Post) instead
-func newRequestClient(method, endpoint string, data io.Reader, ct, daemon string, modifiers ...func(*http.Request)) (*http.Request, *httputil.ClientConn, error) {
-	c, err := SockConn(time.Duration(10*time.Second), daemon)
-	if err != nil {
-		return nil, nil, fmt.Errorf("could not dial docker daemon: %v", err)
-	}
-
-	client := httputil.NewClientConn(c, nil)
-
-	req, err := http.NewRequest(method, endpoint, data)
-	if err != nil {
-		client.Close()
-		return nil, nil, fmt.Errorf("could not create new request: %v", err)
-	}
-
-	for _, opt := range modifiers {
-		opt(req)
-	}
-
-	if ct != "" {
-		req.Header.Set("Content-Type", ct)
-	}
-	return req, client, nil
-}
-
-// SockRequest create a request against the specified host (with method, endpoint and other request modifier) and
-// returns the status code, and the content as an byte slice
-// Deprecated: use request.Do instead
-func SockRequest(method, endpoint string, data interface{}, daemon string, modifiers ...func(*http.Request)) (int, []byte, error) {
-	jsonData := bytes.NewBuffer(nil)
-	if err := json.NewEncoder(jsonData).Encode(data); err != nil {
-		return -1, nil, err
-	}
-
-	res, body, err := SockRequestRaw(method, endpoint, jsonData, "application/json", daemon, modifiers...)
-	if err != nil {
-		return -1, nil, err
-	}
-	b, err := ReadBody(body)
-	return res.StatusCode, b, err
 }
 
 // ReadBody read the specified ReadCloser content and returns it
 func ReadBody(b io.ReadCloser) ([]byte, error) {
 	defer b.Close()
 	return ioutil.ReadAll(b)
-}
-
-// SockRequestRaw create a request against the specified host (with method, endpoint and other request modifier) and
-// returns the http response, the output as a io.ReadCloser
-// Deprecated: use request.Do (or Get, Delete, Post) instead
-func SockRequestRaw(method, endpoint string, data io.Reader, ct, daemon string, modifiers ...func(*http.Request)) (*http.Response, io.ReadCloser, error) {
-	req, client, err := newRequestClient(method, endpoint, data, ct, daemon, modifiers...)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		client.Close()
-		return resp, nil, err
-	}
-	body := ioutils.NewReadCloserWrapper(resp.Body, func() error {
-		defer resp.Body.Close()
-		return client.Close()
-	})
-
-	return resp, body, err
-}
-
-// SockRequestHijack creates a connection to specified host (with method, contenttype, …) and returns a hijacked connection
-// and the output as a `bufio.Reader`
-func SockRequestHijack(method, endpoint string, data io.Reader, ct string, daemon string, modifiers ...func(*http.Request)) (net.Conn, *bufio.Reader, error) {
-	req, client, err := newRequestClient(method, endpoint, data, ct, daemon, modifiers...)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	client.Do(req)
-	conn, br := client.Hijack()
-	return conn, br, nil
 }
 
 // SockConn opens a connection on the specified socket
