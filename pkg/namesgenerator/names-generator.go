@@ -503,6 +503,9 @@ var (
 		// Meghnad Saha - Indian astrophysicist best known for his development of the Saha equation, used to describe chemical and physical conditions in stars - https://en.wikipedia.org/wiki/Meghnad_Saha
 		"saha",
 
+                // Wesam Sakla - Renowned machine learning scientist, best known for applying deep learning techniques to machine vision problems - https://www.linkedin.com/in/wesamsakla
+                "sakla",
+
 		// Jean E. Sammet developed FORMAC, the first widely used computer language for symbolic manipulation of mathematical formulas. https://en.wikipedia.org/wiki/Jean_E._Sammet
 		"sammet",
 
