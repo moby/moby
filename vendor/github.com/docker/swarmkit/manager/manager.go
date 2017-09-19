@@ -54,6 +54,9 @@ import (
 const (
 	// defaultTaskHistoryRetentionLimit is the number of tasks to keep.
 	defaultTaskHistoryRetentionLimit = 5
+
+	// Default value for grpc max message size.
+	grpcMaxMessageSize = 128 << 20
 )
 
 // RemoteAddrs provides a listening address and an optional advertise address
@@ -231,6 +234,7 @@ func New(config *Config) (*Manager, error) {
 		grpc.Creds(config.SecurityConfig.ServerTLSCreds),
 		grpc.StreamInterceptor(grpc_prometheus.StreamServerInterceptor),
 		grpc.UnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
+		grpc.MaxMsgSize(grpcMaxMessageSize),
 	}
 
 	m := &Manager{

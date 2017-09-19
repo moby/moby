@@ -226,10 +226,7 @@ func (e *EncryptedRaftLogger) SaveSnapshot(snapshot raftpb.Snapshot) error {
 	if err := snapshotter.SaveSnap(snapshot); err != nil {
 		return err
 	}
-	if err := e.wal.ReleaseLockTo(snapshot.Metadata.Index); err != nil {
-		return err
-	}
-	return nil
+	return e.wal.ReleaseLockTo(snapshot.Metadata.Index)
 }
 
 // GC garbage collects snapshots and wals older than the provided index and term

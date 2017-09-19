@@ -175,11 +175,7 @@ func (a *Allocator) doNetworkInit(ctx context.Context) (err error) {
 	if err := a.allocateServices(ctx, false); err != nil {
 		return err
 	}
-	if err := a.allocateTasks(ctx, false); err != nil {
-		return err
-	}
-
-	return nil
+	return a.allocateTasks(ctx, false)
 }
 
 func (a *Allocator) doNetworkAlloc(ctx context.Context, ev events.Event) {

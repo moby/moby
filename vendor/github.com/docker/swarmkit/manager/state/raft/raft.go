@@ -1283,10 +1283,7 @@ func (n *Node) reportNewAddress(ctx context.Context, id uint64) error {
 		return err
 	}
 	newAddr := net.JoinHostPort(newHost, officialPort)
-	if err := n.transport.UpdatePeerAddr(id, newAddr); err != nil {
-		return err
-	}
-	return nil
+	return n.transport.UpdatePeerAddr(id, newAddr)
 }
 
 // ProcessRaftMessage calls 'Step' which advances the
@@ -1848,10 +1845,7 @@ func (n *Node) applyAddNode(cc raftpb.ConfChange) error {
 		return nil
 	}
 
-	if err = n.registerNode(member); err != nil {
-		return err
-	}
-	return nil
+	return n.registerNode(member)
 }
 
 // applyUpdateNode is called when we receive a ConfChange from a member in the

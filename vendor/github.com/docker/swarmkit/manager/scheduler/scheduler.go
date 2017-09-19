@@ -92,11 +92,7 @@ func (s *Scheduler) setupTasksList(tx store.ReadTx) error {
 		tasksByNode[t.NodeID][t.ID] = t
 	}
 
-	if err := s.buildNodeSet(tx, tasksByNode); err != nil {
-		return err
-	}
-
-	return nil
+	return s.buildNodeSet(tx, tasksByNode)
 }
 
 // Run is the scheduler event loop.
