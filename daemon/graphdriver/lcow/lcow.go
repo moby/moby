@@ -190,11 +190,6 @@ func InitDriver(dataRoot string, options []string, _, _ []idtools.IDMap) (graphd
 		return nil, fmt.Errorf("%s failed to create '%s': %v", title, cd, err)
 	}
 
-	// Make sure the scratch directory is created under dataRoot
-	if err := idtools.MkdirAllAs(sd, 0700, 0, 0); err != nil {
-		return nil, fmt.Errorf("%s failed to create '%s': %v", title, sd, err)
-	}
-
 	// Delete any items in the scratch directory
 	filepath.Walk(sd, deletefiles)
 
