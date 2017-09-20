@@ -238,8 +238,8 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent) bool {
 	}
 
 	// All the entries marked for deletion should have a reapTime set greater than 0
-	// This case can happens if the cluster is running different versions of the engine where the old version does not have the
-	// field. In both cases we should raise a warning message
+	// This case can happen if the cluster is running different versions of the engine where the old version does not have the
+	// field. If that is not the case, this can be a BUG
 	if e.deleting && e.reapTime == 0 {
 		logrus.Warnf("handleTableEvent object %+v has a 0 reapTime, is the cluster running the same docker engine version?", tEvent)
 		e.reapTime = reapInterval
@@ -251,9 +251,9 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent) bool {
 
 	if err != nil && tEvent.Type == TableEventTypeDelete {
 		// If it is a delete event and we did not have a state for it, don't propagate to the application
-		// If the residual reapTime is lower than 1/6 of the total reapTime don't bother broadcasting it around
+		// If the residual reapTime is lower or equal to 1/6 of the total reapTime don't bother broadcasting it around
 		// most likely the cluster is already aware of it, if not who will sync with this node will catch the state too.
-		return e.reapTime >= reapPeriod/6
+		return e.reapTime > reapPeriod/6
 	}
 
 	var op opType

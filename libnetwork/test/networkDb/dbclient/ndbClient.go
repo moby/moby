@@ -567,7 +567,7 @@ func doWriteWaitLeaveJoin(ips []string, args []string) {
 	tableName := args[1]
 	parallelWriters, _ := strconv.Atoi(args[2])
 	writeTimeSec, _ := strconv.Atoi(args[3])
-	parallerlLeaver, _ := strconv.Atoi(args[4])
+	parallelLeaver, _ := strconv.Atoi(args[4])
 
 	// Start parallel writers that will create and delete unique keys
 	doneCh := make(chan resultTuple, parallelWriters)
@@ -586,23 +586,23 @@ func doWriteWaitLeaveJoin(ips []string, args []string) {
 
 	keysExpected := keyMap[totalWrittenKeys]
 	// The Leavers will leave the network
-	for i := 0; i < parallerlLeaver; i++ {
+	for i := 0; i < parallelLeaver; i++ {
 		logrus.Infof("worker leaveNetwork: %d on IP:%s", i, ips[i])
 		go leaveNetwork(ips[i], servicePort, networkName, doneCh)
 		// Once a node leave all the keys written previously will be deleted, so the expected keys will consider that as removed
 		keysExpected -= keyMap[ips[i]]
 	}
-	waitWriters(parallerlLeaver, false, doneCh)
+	waitWriters(parallelLeaver, false, doneCh)
 
 	// Give some time
 	time.Sleep(100 * time.Millisecond)
 
 	// The writers will join the network
-	for i := 0; i < parallerlLeaver; i++ {
+	for i := 0; i < parallelLeaver; i++ {
 		logrus.Infof("worker joinNetwork: %d on IP:%s", i, ips[i])
 		go joinNetwork(ips[i], servicePort, networkName, doneCh)
 	}
-	waitWriters(parallerlLeaver, false, doneCh)
+	waitWriters(parallelLeaver, false, doneCh)
 
 	// check table entries for 2 minutes
 	ctx, cancel = context.WithTimeout(context.Background(), 2*time.Minute)

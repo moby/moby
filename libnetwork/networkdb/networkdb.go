@@ -475,7 +475,7 @@ func (nDB *NetworkDB) deleteNodeNetworkEntries(nid, node string) {
 
 			entry := &entry{
 				ltime:    oldEntry.ltime,
-				node:     node,
+				node:     oldEntry.node,
 				value:    oldEntry.value,
 				deleting: true,
 				reapTime: reapInterval,
@@ -692,8 +692,10 @@ func (nDB *NetworkDB) createOrUpdateEntry(nid, tname, key string, entry interfac
 	_, okNetwork := nDB.indexes[byNetwork].Insert(fmt.Sprintf("/%s/%s/%s", nid, tname, key), entry)
 	if !okNetwork {
 		// Add only if it is an insert not an update
-		n := nDB.networks[nDB.config.NodeName][nid]
-		n.entriesNumber++
+		n, ok := nDB.networks[nDB.config.NodeName][nid]
+		if ok {
+			n.entriesNumber++
+		}
 	}
 	return okTable, okNetwork
 }
@@ -705,8 +707,10 @@ func (nDB *NetworkDB) deleteEntry(nid, tname, key string) (bool, bool) {
 	_, okNetwork := nDB.indexes[byNetwork].Delete(fmt.Sprintf("/%s/%s/%s", nid, tname, key))
 	if okNetwork {
 		// Remove only if the delete is successful
-		n := nDB.networks[nDB.config.NodeName][nid]
-		n.entriesNumber--
+		n, ok := nDB.networks[nDB.config.NodeName][nid]
+		if ok {
+			n.entriesNumber--
+		}
 	}
 	return okTable, okNetwork
 }
