@@ -144,11 +144,7 @@ func (d *driver) deleteEndpointFromStore(e *endpoint) error {
 		return fmt.Errorf("overlay local store not initialized, ep not deleted")
 	}
 
-	if err := d.localStore.DeleteObjectAtomic(e); err != nil {
-		return err
-	}
-
-	return nil
+	return d.localStore.DeleteObjectAtomic(e)
 }
 
 func (d *driver) writeEndpointToStore(e *endpoint) error {
@@ -156,10 +152,7 @@ func (d *driver) writeEndpointToStore(e *endpoint) error {
 		return fmt.Errorf("overlay local store not initialized, ep not added")
 	}
 
-	if err := d.localStore.PutObjectAtomic(e); err != nil {
-		return err
-	}
-	return nil
+	return d.localStore.PutObjectAtomic(e)
 }
 
 func (ep *endpoint) DataScope() string {
