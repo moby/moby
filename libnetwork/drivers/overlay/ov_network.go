@@ -769,7 +769,7 @@ func (n *network) watchMiss(nlSock *nl.NetlinkSocket) {
 					continue
 				}
 				n.driver.peerAdd(n.id, "dummy", ip, IPmask, mac, vtep, l2Miss, l3Miss, false)
-			} else {
+			} else if l3Miss && time.Since(t) > 500*time.Millisecond {
 				// All the local peers will trigger a miss notification but this one is expected and the local container will reply
 				// autonomously to the ARP request
 				// In case the gc_thresh3 values is low kernel might reject new entries during peerAdd. This will trigger the following
@@ -778,13 +778,11 @@ func (n *network) watchMiss(nlSock *nl.NetlinkSocket) {
 				// Entries which are marked as permanent are never deleted by the garbage-collector.
 				// The time limit here is to guarantee that the dbSearch is not
 				// done too frequently causing a stall of the peerDB operations.
-				if l3Miss && time.Since(t) > 500*time.Millisecond {
-					t = time.Now()
-					pKey, pEntry, err := n.driver.peerDbSearch(n.id, ip)
-					if !pEntry.isLocal {
-						logrus.Warnf("miss notification for peer:%+v l3Miss:%t l2Miss:%t, if the problem persist check the gc_thresh on the host pKey:%+v pEntry:%+v err:%v",
-							neigh, l3Miss, l2Miss, *pKey, *pEntry, err)
-					}
+				t = time.Now()
+				pKey, pEntry, err := n.driver.peerDbSearch(n.id, ip)
+				if !pEntry.isLocal {
+					logrus.Warnf("miss notification for peer:%+v l3Miss:%t l2Miss:%t, if the problem persist check the gc_thresh on the host pKey:%+v pEntry:%+v err:%v",
+						neigh, l3Miss, l2Miss, *pKey, *pEntry, err)
 				}
 			}
 		}

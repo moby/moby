@@ -224,7 +224,6 @@ func (d *driver) Leave(nid, eid string) error {
 		return types.InternalMaskableErrorf("could not find endpoint with id %s", eid)
 	}
 
-	logrus.Errorf("The channel is valid:%t", d.notifyCh != nil)
 	if d.notifyCh != nil {
 		d.notifyCh <- ovNotify{
 			action: "leave",
