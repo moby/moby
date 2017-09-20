@@ -64,6 +64,8 @@ func wrapResponseError(err error, resp serverResponse, object, id string) error 
 		return nil
 	case resp.statusCode == http.StatusNotFound:
 		return objectNotFoundError{object: object, id: id}
+	case resp.statusCode == http.StatusNotImplemented:
+		return notImplementedError{message: err.Error()}
 	default:
 		return err
 	}
@@ -155,6 +157,26 @@ func (e pluginPermissionDenied) Error() string {
 func IsErrPluginPermissionDenied(err error) bool {
 	_, ok := err.(pluginPermissionDenied)
 	return ok
+}
+
+type notImplementedError struct {
+	message string
+}
+
+func (e notImplementedError) Error() string {
+	return e.message
+}
+
+func (e notImplementedError) NotImplemented() bool {
+	return true
+}
+
+// IsNotImplementedError returns true if the error is a NotImplemented error.
+// This is returned by the API when a requested feature has not been
+// implemented.
+func IsNotImplementedError(err error) bool {
+	te, ok := err.(notImplementedError)
+	return ok && te.NotImplemented()
 }
 
 // NewVersionError returns an error if the APIVersion required
