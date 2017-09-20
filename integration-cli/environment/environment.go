@@ -67,9 +67,9 @@ func (e *Execution) ExperimentalDaemon() bool {
 // decisions on how to configure themselves according to the platform
 // of the daemon. This is initialized in docker_utils by sending
 // a version call to the daemon and examining the response header.
-// Deprecated: use Execution.DaemonInfo.OSType
+// Deprecated: use Execution.OSType
 func (e *Execution) DaemonPlatform() string {
-	return e.DaemonInfo.OSType
+	return e.OSType
 }
 
 // MinimalBaseImage is the image used for minimal builds (it depends on the platform)

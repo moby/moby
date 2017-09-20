@@ -20,5 +20,5 @@ func TestVersion(t *testing.T) {
 	assert.NotNil(t, version.Version)
 	assert.NotNil(t, version.MinAPIVersion)
 	assert.Equal(t, testEnv.DaemonInfo.ExperimentalBuild, version.Experimental)
-	assert.Equal(t, testEnv.DaemonInfo.OSType, version.Os)
+	assert.Equal(t, testEnv.OSType, version.Os)
 }

@@ -35,7 +35,7 @@ func ProtectAll(t testingT, testEnv *Execution) {
 	ProtectImages(t, testEnv)
 	ProtectNetworks(t, testEnv)
 	ProtectVolumes(t, testEnv)
-	if testEnv.DaemonInfo.OSType == "linux" {
+	if testEnv.OSType == "linux" {
 		ProtectPlugins(t, testEnv)
 	}
 }
@@ -81,7 +81,7 @@ func (e *Execution) ProtectImage(t testingT, images ...string) {
 func ProtectImages(t testingT, testEnv *Execution) {
 	images := getExistingImages(t, testEnv)
 
-	if testEnv.DaemonInfo.OSType == "linux" {
+	if testEnv.OSType == "linux" {
 		images = append(images, ensureFrozenImagesLinux(t, testEnv)...)
 	}
 	testEnv.ProtectImage(t, images...)
