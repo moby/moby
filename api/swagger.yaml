@@ -1267,7 +1267,31 @@ definitions:
       Containers:
         x-nullable: false
         type: "integer"
-
+      Platforms:
+        type: "object"
+        description: "An array containing all platforms supported by the image"
+        items:
+          type: "object"
+          properties:
+            Architecture:
+              type: "string"
+            OS:
+              description: "operating system"
+              type: "string"
+            OSVersion:
+              description: "operating system version"
+              type: "string"
+            OSFeatures:
+              description: "operating system features"
+              type: "array"
+              items:
+                type: "string"
+            Variant:
+              type: "string"
+            Features:
+              type: "array"
+              items:
+                type: "string"
   AuthConfig:
     type: "object"
     properties:
@@ -5971,6 +5995,10 @@ paths:
                   - "ubuntu:precise"
                 RepoDigests:
                   - "ubuntu@sha256:992069aee4016783df6345315302fa59681aae51a8eeb2f889dea59290f21787"
+                Platforms:
+                  -
+                    architecture: "amd64"
+                    os: "linux"
                 Created: 1474925151
                 Size: 103579269
                 VirtualSize: 103579269
