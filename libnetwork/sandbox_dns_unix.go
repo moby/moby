@@ -67,11 +67,7 @@ func (sb *sandbox) setupResolutionFiles() error {
 		return err
 	}
 
-	if err := sb.setupDNS(); err != nil {
-		return err
-	}
-
-	return nil
+	return sb.setupDNS()
 }
 
 func (sb *sandbox) buildHostsFile() error {
