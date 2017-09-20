@@ -418,18 +418,22 @@ func (ms *manifests) Get(ctx context.Context, dgst digest.Digest, options ...dis
 		ref         reference.Named
 		err         error
 		contentDgst *digest.Digest
+		mediaTypes  []string
 	)
 
 	for _, option := range options {
-		if opt, ok := option.(distribution.WithTagOption); ok {
+		switch opt := option.(type) {
+		case distribution.WithTagOption:
 			digestOrTag = opt.Tag
 			ref, err = reference.WithTag(ms.name, opt.Tag)
 			if err != nil {
 				return nil, err
 			}
-		} else if opt, ok := option.(contentDigestOption); ok {
+		case contentDigestOption:
 			contentDgst = opt.digest
-		} else {
+		case distribution.WithManifestMediaTypesOption:
+			mediaTypes = opt.MediaTypes
+		default:
 			err := option.Apply(ms)
 			if err != nil {
 				return nil, err
@@ -445,6 +449,10 @@ func (ms *manifests) Get(ctx context.Context, dgst digest.Digest, options ...dis
 		}
 	}
 
+	if len(mediaTypes) == 0 {
+		mediaTypes = distribution.ManifestMediaTypes()
+	}
+
 	u, err := ms.ub.BuildManifestURL(ref)
 	if err != nil {
 		return nil, err
@@ -455,7 +463,7 @@ func (ms *manifests) Get(ctx context.Context, dgst digest.Digest, options ...dis
 		return nil, err
 	}
 
-	for _, t := range distribution.ManifestMediaTypes() {
+	for _, t := range mediaTypes {
 		req.Header.Add("Accept", t)
 	}
 
