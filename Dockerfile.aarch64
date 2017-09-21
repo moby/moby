@@ -88,15 +88,14 @@ RUN set -x \
 	&& rm -rf "$SECCOMP_PATH"
 
 # Install Go
-# We don't have official binary golang 1.7.5 tarballs for ARM64, either for Go or
-# bootstrap, so we use Debian golang (1.7) as bootstrap to build Go from source code.
-# IMPORTANT: When updating this please note that stdlib archive/tar pkg is vendored
-ENV GO_VERSION 1.8.3
-RUN mkdir /usr/src/go && curl -fsSL https://golang.org/dl/go${GO_VERSION}.src.tar.gz | tar -v -C /usr/src/go -xz --strip-components=1 \
-	&& cd /usr/src/go/src \
-	&& GOOS=linux GOARCH=arm64 GOROOT_BOOTSTRAP="$(go env GOROOT)" ./make.bash
+ENV GO_VERSION 1.9
+RUN curl -fsSL "https://golang.org/dl/go${GO_VERSION}.linux-arm64.tar.gz" \
+	| tar -xzC /usr/local
+# Fix archive/tar issue in go1.9 (https://github.com/golang/go/issues/21005)
+RUN curl -fsSl https://github.com/golang/go/commit/01e45c736882754ca785b5a802ec0866a6544f8b.patch \
+	| git apply -p1 --directory /usr/local/go --unsafe-paths -
 
-ENV PATH /go/bin:/usr/src/go/bin:$PATH
+ENV PATH /go/bin:/usr/local/go/bin:$PATH
 ENV GOPATH /go
 
 # Only install one version of the registry, because old version which support
