@@ -1,4 +1,5 @@
 #!/bin/sh
+# Changes to this file should be made to the equivalent Windows version, generate-swagger-api.ps1
 set -eu
 
 swagger generate model -f api/swagger.yaml \
