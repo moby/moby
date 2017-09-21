@@ -17,6 +17,7 @@ import (
 type Execution struct {
 	client            client.APIClient
 	DaemonInfo        types.Info
+	OSType            string
 	PlatformDefaults  PlatformDefaults
 	protectedElements protectedElements
 }
@@ -40,19 +41,31 @@ func New() (*Execution, error) {
 		return nil, errors.Wrapf(err, "failed to get info from daemon")
 	}
 
+	osType := getOSType(info)
+
 	return &Execution{
 		client:            client,
 		DaemonInfo:        info,
-		PlatformDefaults:  getPlatformDefaults(info),
+		OSType:            osType,
+		PlatformDefaults:  getPlatformDefaults(info, osType),
 		protectedElements: newProtectedElements(),
 	}, nil
 }
 
-func getPlatformDefaults(info types.Info) PlatformDefaults {
+func getOSType(info types.Info) string {
+	// Docker EE does not set the OSType so allow the user to override this value.
+	userOsType := os.Getenv("TEST_OSTYPE")
+	if userOsType != "" {
+		return userOsType
+	}
+	return info.OSType
+}
+
+func getPlatformDefaults(info types.Info, osType string) PlatformDefaults {
 	volumesPath := filepath.Join(info.DockerRootDir, "volumes")
 	containersPath := filepath.Join(info.DockerRootDir, "containers")
 
-	switch info.OSType {
+	switch osType {
 	case "linux":
 		return PlatformDefaults{
 			BaseImage:            "scratch",
@@ -71,7 +84,7 @@ func getPlatformDefaults(info types.Info) PlatformDefaults {
 			ContainerStoragePath: filepath.FromSlash(containersPath),
 		}
 	default:
-		panic(fmt.Sprintf("unknown info.OSType for daemon: %s", info.OSType))
+		panic(fmt.Sprintf("unknown OSType for daemon: %s", osType))
 	}
 }
 

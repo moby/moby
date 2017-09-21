@@ -21,12 +21,12 @@ func ArchitectureIsNot(arch string) bool {
 }
 
 func DaemonIsWindows() bool {
-	return testEnv.DaemonInfo.OSType == "windows"
+	return testEnv.OSType == "windows"
 }
 
 func DaemonIsWindowsAtLeastBuild(buildNumber int) func() bool {
 	return func() bool {
-		if testEnv.DaemonInfo.OSType != "windows" {
+		if testEnv.OSType != "windows" {
 			return false
 		}
 		version := testEnv.DaemonInfo.KernelVersion
@@ -36,7 +36,7 @@ func DaemonIsWindowsAtLeastBuild(buildNumber int) func() bool {
 }
 
 func DaemonIsLinux() bool {
-	return testEnv.DaemonInfo.OSType == "linux"
+	return testEnv.OSType == "linux"
 }
 
 func OnlyDefaultNetworks() bool {
@@ -178,21 +178,21 @@ func UserNamespaceInKernel() bool {
 }
 
 func IsPausable() bool {
-	if testEnv.DaemonInfo.OSType == "windows" {
+	if testEnv.OSType == "windows" {
 		return testEnv.DaemonInfo.Isolation == "hyperv"
 	}
 	return true
 }
 
 func NotPausable() bool {
-	if testEnv.DaemonInfo.OSType == "windows" {
+	if testEnv.OSType == "windows" {
 		return testEnv.DaemonInfo.Isolation == "process"
 	}
 	return false
 }
 
 func IsolationIs(expectedIsolation string) bool {
-	return testEnv.DaemonInfo.OSType == "windows" && string(testEnv.DaemonInfo.Isolation) == expectedIsolation
+	return testEnv.OSType == "windows" && string(testEnv.DaemonInfo.Isolation) == expectedIsolation
 }
 
 func IsolationIsHyperv() bool {

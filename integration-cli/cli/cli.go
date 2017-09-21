@@ -115,7 +115,7 @@ func Docker(cmd icmd.Cmd, cmdOperators ...CmdOperator) *icmd.Result {
 // validateArgs is a checker to ensure tests are not running commands which are
 // not supported on platforms. Specifically on Windows this is 'busybox top'.
 func validateArgs(args ...string) error {
-	if testEnv.DaemonInfo.OSType != "windows" {
+	if testEnv.OSType != "windows" {
 		return nil
 	}
 	foundBusybox := -1
