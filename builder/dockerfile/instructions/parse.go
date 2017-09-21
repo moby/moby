@@ -235,7 +235,7 @@ func parseLabel(req parseRequest) (*LabelCommand, error) {
 
 func parseAdd(req parseRequest) (*AddCommand, error) {
 	if len(req.args) < 2 {
-		return nil, errAtLeastTwoArguments("ADD")
+		return nil, errNoDestinationArgument("ADD")
 	}
 	flChown := req.flags.AddString("chown", "")
 	if err := req.flags.Parse(); err != nil {
@@ -250,7 +250,7 @@ func parseAdd(req parseRequest) (*AddCommand, error) {
 
 func parseCopy(req parseRequest) (*CopyCommand, error) {
 	if len(req.args) < 2 {
-		return nil, errAtLeastTwoArguments("COPY")
+		return nil, errNoDestinationArgument("COPY")
 	}
 	flChown := req.flags.AddString("chown", "")
 	flFrom := req.flags.AddString("from", "")
@@ -622,8 +622,8 @@ func errExactlyOneArgument(command string) error {
 	return errors.Errorf("%s requires exactly one argument", command)
 }
 
-func errAtLeastTwoArguments(command string) error {
-	return errors.Errorf("%s requires at least two arguments", command)
+func errNoDestinationArgument(command string) error {
+	return errors.Errorf("%s requires at least two arguments, but only one was provided. Destination could not be determined.", command)
 }
 
 func errBlankCommandNames(command string) error {
