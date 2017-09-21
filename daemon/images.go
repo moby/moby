@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/system"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 var acceptedImageFilterTags = map[string]bool{
@@ -353,5 +354,16 @@ func newImage(image *image.Image, size int64) *types.ImageSummary {
 	if image.Config != nil {
 		newImage.Labels = image.Config.Labels
 	}
+
+	arch := image.Architecture
+	if image.OS == "windows" && arch == "" {
+		arch = "amd64" // Currently arch is not populated in Windows base images
+	}
+	newImage.Platforms = append(newImage.Platforms, &specs.Platform{
+		OS:           image.OS,
+		Architecture: arch,
+		OSFeatures:   image.OSFeatures,
+		OSVersion:    image.OSVersion,
+	})
 	return newImage
 }
