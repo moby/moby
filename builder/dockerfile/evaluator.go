@@ -220,7 +220,7 @@ func (s *dispatchState) beginStage(stageName string, image builder.Image) {
 	s.imageID = image.ImageID()
 
 	if image.RunConfig() != nil {
-		s.runConfig = image.RunConfig()
+		s.runConfig = copyRunConfig(image.RunConfig())
 	} else {
 		s.runConfig = &container.Config{}
 	}

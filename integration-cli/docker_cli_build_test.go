@@ -6234,6 +6234,28 @@ func (s *DockerSuite) TestBuildCopyFromResetScratch(c *check.C) {
 	c.Assert(strings.TrimSpace(res), checker.Equals, "")
 }
 
+func (s *DockerSuite) TestBuildMultiStageParentConfig(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	dockerfile := `
+		FROM busybox AS stage0
+		WORKDIR /foo
+		FROM stage0
+		WORKDIR sub1
+		FROM stage0
+		WORKDIR sub2
+		`
+	ctx := fakecontext.New(c, "",
+		fakecontext.WithDockerfile(dockerfile),
+	)
+	defer ctx.Close()
+
+	cli.BuildCmd(c, "build1", build.WithExternalBuildContext(ctx))
+
+	res := cli.InspectCmd(c, "build1", cli.Format(".Config.WorkingDir")).Combined()
+	c.Assert(strings.TrimSpace(res), checker.Equals, "/foo/sub2")
+}
+
 func (s *DockerSuite) TestBuildIntermediateTarget(c *check.C) {
 	dockerfile := `
 		FROM busybox AS build-env
