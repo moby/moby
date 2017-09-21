@@ -27,8 +27,10 @@ import (
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
 	blkiodev "github.com/opencontainers/runc/libcontainer/configs"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/windows"
+	"golang.org/x/sys/windows/svc/mgr"
 )
 
 const (
@@ -238,6 +240,29 @@ func checkSystem() error {
 		return fmt.Errorf("Failed to load vmcompute.dll. Ensure that the Containers role is installed.")
 	}
 
+	// Ensure that the required Host Network Service and vmcompute services
+	// are running. Docker will fail in unexpected ways if this is not present.
+	var requiredServices = []string{"hns", "vmcompute"}
+	if err := ensureServicesInstalled(requiredServices); err != nil {
+		return errors.Wrap(err, "a required service is not installed, ensure the Containers feature is installed")
+	}
+
+	return nil
+}
+
+func ensureServicesInstalled(services []string) error {
+	m, err := mgr.Connect()
+	if err != nil {
+		return err
+	}
+	defer m.Disconnect()
+	for _, service := range services {
+		s, err := m.OpenService(service)
+		if err != nil {
+			return errors.Wrapf(err, "failed to open service %s", service)
+		}
+		s.Close()
+	}
 	return nil
 }
 
