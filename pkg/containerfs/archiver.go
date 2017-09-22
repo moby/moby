@@ -9,7 +9,6 @@ import (
 
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/system"
 	"github.com/sirupsen/logrus"
 )
@@ -122,40 +121,45 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 	}
 
 	r, w := io.Pipe()
-	errC := promise.Go(func() error {
-		defer w.Close()
+	errC := make(chan error, 1)
 
-		srcF, err := srcDriver.Open(src)
-		if err != nil {
-			return err
-		}
-		defer srcF.Close()
+	go func() {
+		defer close(errC)
+		errC <- func() error {
+			defer w.Close()
 
-		hdr, err := tar.FileInfoHeader(srcSt, "")
-		if err != nil {
-			return err
-		}
-		hdr.Name = dstDriver.Base(dst)
-		if dstDriver.OS() == "windows" {
-			hdr.Mode = int64(chmodTarEntry(os.FileMode(hdr.Mode)))
-		} else {
-			hdr.Mode = int64(os.FileMode(hdr.Mode))
-		}
+			srcF, err := srcDriver.Open(src)
+			if err != nil {
+				return err
+			}
+			defer srcF.Close()
 
-		if err := remapIDs(archiver.IDMappingsVar, hdr); err != nil {
-			return err
-		}
+			hdr, err := tar.FileInfoHeader(srcSt, "")
+			if err != nil {
+				return err
+			}
+			hdr.Name = dstDriver.Base(dst)
+			if dstDriver.OS() == "windows" {
+				hdr.Mode = int64(chmodTarEntry(os.FileMode(hdr.Mode)))
+			} else {
+				hdr.Mode = int64(os.FileMode(hdr.Mode))
+			}
 
-		tw := tar.NewWriter(w)
-		defer tw.Close()
-		if err := tw.WriteHeader(hdr); err != nil {
-			return err
-		}
-		if _, err := io.Copy(tw, srcF); err != nil {
-			return err
-		}
-		return nil
-	})
+			if err := remapIDs(archiver.IDMappingsVar, hdr); err != nil {
+				return err
+			}
+
+			tw := tar.NewWriter(w)
+			defer tw.Close()
+			if err := tw.WriteHeader(hdr); err != nil {
+				return err
+			}
+			if _, err := io.Copy(tw, srcF); err != nil {
+				return err
+			}
+			return nil
+		}()
+	}()
 	defer func() {
 		if er := <-errC; err == nil && er != nil {
 			err = er

@@ -20,7 +20,6 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/pools"
-	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/system"
 	"github.com/sirupsen/logrus"
 )
@@ -1095,36 +1094,42 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 	}
 
 	r, w := io.Pipe()
-	errC := promise.Go(func() error {
-		defer w.Close()
+	errC := make(chan error, 1)
 
-		srcF, err := os.Open(src)
-		if err != nil {
-			return err
-		}
-		defer srcF.Close()
+	go func() {
+		defer close(errC)
 
-		hdr, err := tar.FileInfoHeader(srcSt, "")
-		if err != nil {
-			return err
-		}
-		hdr.Name = filepath.Base(dst)
-		hdr.Mode = int64(chmodTarEntry(os.FileMode(hdr.Mode)))
+		errC <- func() error {
+			defer w.Close()
 
-		if err := remapIDs(archiver.IDMappingsVar, hdr); err != nil {
-			return err
-		}
+			srcF, err := os.Open(src)
+			if err != nil {
+				return err
+			}
+			defer srcF.Close()
 
-		tw := tar.NewWriter(w)
-		defer tw.Close()
-		if err := tw.WriteHeader(hdr); err != nil {
-			return err
-		}
-		if _, err := io.Copy(tw, srcF); err != nil {
-			return err
-		}
-		return nil
-	})
+			hdr, err := tar.FileInfoHeader(srcSt, "")
+			if err != nil {
+				return err
+			}
+			hdr.Name = filepath.Base(dst)
+			hdr.Mode = int64(chmodTarEntry(os.FileMode(hdr.Mode)))
+
+			if err := remapIDs(archiver.IDMappingsVar, hdr); err != nil {
+				return err
+			}
+
+			tw := tar.NewWriter(w)
+			defer tw.Close()
+			if err := tw.WriteHeader(hdr); err != nil {
+				return err
+			}
+			if _, err := io.Copy(tw, srcF); err != nil {
+				return err
+			}
+			return nil
+		}()
+	}()
 	defer func() {
 		if er := <-errC; err == nil && er != nil {
 			err = er
