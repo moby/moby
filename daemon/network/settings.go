@@ -35,35 +35,35 @@ type EndpointSettings struct {
 	IPAMOperational bool
 }
 
-// LBAttachmentStore stores the load balancer IP address for a network id.
-type LBAttachmentStore struct {
+// AttachmentStore stores the load balancer IP address for a network id.
+type AttachmentStore struct {
 	//key: networkd id
 	//value: load balancer ip address
 	networkToNodeLBIP map[string]net.IP
 }
 
-// ResetLBAttachments clears any exsiting load balancer IP to network mapping and
-// sets the mapping to the given lbAttachments.
-func (lbStore *LBAttachmentStore) ResetLBAttachments(lbAttachments map[string]string) error {
-	lbStore.ClearLBAttachments()
-	for nid, nodeIP := range lbAttachments {
+// ResetAttachments clears any exsiting load balancer IP to network mapping and
+// sets the mapping to the given attachments.
+func (store *AttachmentStore) ResetAttachments(attachments map[string]string) error {
+	store.ClearAttachments()
+	for nid, nodeIP := range attachments {
 		ip, _, err := net.ParseCIDR(nodeIP)
 		if err != nil {
-			lbStore.networkToNodeLBIP = make(map[string]net.IP)
+			store.networkToNodeLBIP = make(map[string]net.IP)
 			return errors.Wrapf(err, "Failed to parse load balancer address %s", nodeIP)
 		}
-		lbStore.networkToNodeLBIP[nid] = ip
+		store.networkToNodeLBIP[nid] = ip
 	}
 	return nil
 }
 
-// ClearLBAttachments clears all the mappings of network to load balancer IP Address.
-func (lbStore *LBAttachmentStore) ClearLBAttachments() {
-	lbStore.networkToNodeLBIP = make(map[string]net.IP)
+// ClearAttachments clears all the mappings of network to load balancer IP Address.
+func (store *AttachmentStore) ClearAttachments() {
+	store.networkToNodeLBIP = make(map[string]net.IP)
 }
 
-// GetLBIPForNetwork return the load balancer IP address for the given network.
-func (lbStore *LBAttachmentStore) GetLBIPForNetwork(networkID string) (net.IP, bool) {
-	ip, exists := lbStore.networkToNodeLBIP[networkID]
+// GetIPForNetwork return the load balancer IP address for the given network.
+func (store *AttachmentStore) GetIPForNetwork(networkID string) (net.IP, bool) {
+	ip, exists := store.networkToNodeLBIP[networkID]
 	return ip, exists
 }
