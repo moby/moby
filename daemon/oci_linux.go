@@ -156,7 +156,7 @@ func setDevices(s *specs.Spec, c *container.Container) error {
 	return nil
 }
 
-func setRlimits(daemon *Daemon, s *specs.Spec, c *container.Container) error {
+func (daemon *Daemon) setRlimits(s *specs.Spec, c *container.Container) error {
 	var rlimits []specs.POSIXRlimit
 
 	// We want to leave the original HostConfig alone so make a copy here
@@ -755,6 +755,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	if err := setResources(&s, c.HostConfig.Resources); err != nil {
 		return nil, fmt.Errorf("linux runtime spec resources: %v", err)
 	}
+	s.Process.OOMScoreAdj = &c.HostConfig.OomScoreAdj
 	s.Linux.Sysctl = c.HostConfig.Sysctls
 
 	p := s.Linux.CgroupsPath
@@ -763,11 +764,11 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 		if err != nil {
 			return nil, err
 		}
-		p, _ = cgroups.GetOwnCgroup("cpu")
+		_, err = cgroups.GetOwnCgroup("cpu")
 		if err != nil {
 			return nil, err
 		}
-		p = filepath.Join(initPath, p)
+		p = filepath.Join(initPath, s.Linux.CgroupsPath)
 	}
 
 	// Clean path to guard against things like ../../../BAD
@@ -782,7 +783,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	if err := setDevices(&s, c); err != nil {
 		return nil, fmt.Errorf("linux runtime spec devices: %v", err)
 	}
-	if err := setRlimits(daemon, &s, c); err != nil {
+	if err := daemon.setRlimits(&s, c); err != nil {
 		return nil, fmt.Errorf("linux runtime spec rlimits: %v", err)
 	}
 	if err := setUser(&s, c); err != nil {

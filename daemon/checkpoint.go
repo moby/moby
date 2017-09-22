@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -17,7 +18,7 @@ var (
 )
 
 // getCheckpointDir verifies checkpoint directory for create,remove, list options and checks if checkpoint already exists
-func getCheckpointDir(checkDir, checkpointID string, ctrName string, ctrID string, ctrCheckpointDir string, create bool) (string, error) {
+func getCheckpointDir(checkDir, checkpointID, ctrName, ctrID, ctrCheckpointDir string, create bool) (string, error) {
 	var checkpointDir string
 	var err2 error
 	if checkDir != "" {
@@ -32,7 +33,10 @@ func getCheckpointDir(checkDir, checkpointID string, ctrName string, ctrID strin
 		case err == nil && stat.IsDir():
 			err2 = fmt.Errorf("checkpoint with name %s already exists for container %s", checkpointID, ctrName)
 		case err != nil && os.IsNotExist(err):
-			err2 = nil
+			err2 = os.MkdirAll(checkpointAbsDir, 0700)
+			if os.IsExist(err2) {
+				err2 = nil
+			}
 		case err != nil:
 			err2 = err
 		case err == nil:
@@ -48,7 +52,7 @@ func getCheckpointDir(checkDir, checkpointID string, ctrName string, ctrID strin
 			err2 = fmt.Errorf("%s exists and is not a directory", checkpointAbsDir)
 		}
 	}
-	return checkpointDir, err2
+	return checkpointAbsDir, err2
 }
 
 // CheckpointCreate checkpoints the process running in a container with CRIU
@@ -62,6 +66,10 @@ func (daemon *Daemon) CheckpointCreate(name string, config types.CheckpointCreat
 		return fmt.Errorf("Container %s not running", name)
 	}
 
+	if container.Config.Tty {
+		return fmt.Errorf("checkpoint not support on containers with tty")
+	}
+
 	if !validCheckpointNamePattern.MatchString(config.CheckpointID) {
 		return fmt.Errorf("Invalid checkpoint ID (%s), only %s are allowed", config.CheckpointID, validCheckpointNameChars)
 	}
@@ -71,8 +79,9 @@ func (daemon *Daemon) CheckpointCreate(name string, config types.CheckpointCreat
 		return fmt.Errorf("cannot checkpoint container %s: %s", name, err)
 	}
 
-	err = daemon.containerd.CreateCheckpoint(container.ID, config.CheckpointID, checkpointDir, config.Exit)
+	err = daemon.containerd.CreateCheckpoint(context.Background(), container.ID, checkpointDir, config.Exit)
 	if err != nil {
+		os.RemoveAll(checkpointDir)
 		return fmt.Errorf("Cannot checkpoint container %s: %s", name, err)
 	}
 

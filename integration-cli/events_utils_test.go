@@ -69,7 +69,7 @@ func (e *eventObserver) Start() error {
 // Stop stops the events command.
 func (e *eventObserver) Stop() {
 	e.command.Process.Kill()
-	e.command.Process.Release()
+	e.command.Wait()
 }
 
 // Match tries to match the events output with a given matcher.

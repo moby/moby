@@ -7,7 +7,7 @@ import (
 	"github.com/docker/docker/libcontainerd"
 )
 
-func toContainerdResources(resources container.Resources) libcontainerd.Resources {
-	var r libcontainerd.Resources
-	return r
+func toContainerdResources(resources container.Resources) *libcontainerd.Resources {
+	// We don't support update, so do nothing
+	return nil
 }

@@ -28,6 +28,7 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
+	moby_daemon "github.com/docker/docker/daemon"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/daemon"
@@ -1448,7 +1449,8 @@ func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonAndContainerKill(c *chec
 	c.Assert(strings.Contains(string(mountOut), id), check.Equals, true, comment)
 
 	// kill the container
-	icmd.RunCommand(ctrBinary, "--address", "unix:///var/run/docker/libcontainerd/docker-containerd.sock", "containers", "kill", id).Assert(c, icmd.Success)
+	icmd.RunCommand(ctrBinary, "--address", "/var/run/docker/containerd/docker-containerd.sock",
+		"--namespace", moby_daemon.MainNamespace, "tasks", "kill", id).Assert(c, icmd.Success)
 
 	// restart daemon.
 	d.Restart(c)
@@ -1987,7 +1989,6 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithNames(c *check.C) {
 
 // TestDaemonRestartWithKilledRunningContainer requires live restore of running containers
 func (s *DockerDaemonSuite) TestDaemonRestartWithKilledRunningContainer(t *check.C) {
-	// TODO(mlaventure): Not sure what would the exit code be on windows
 	testRequires(t, DaemonIsLinux)
 	s.d.StartWithBusybox(t)
 
@@ -2008,7 +2009,8 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithKilledRunningContainer(t *check
 	}
 
 	// kill the container
-	icmd.RunCommand(ctrBinary, "--address", "unix:///var/run/docker/libcontainerd/docker-containerd.sock", "containers", "kill", cid).Assert(t, icmd.Success)
+	icmd.RunCommand(ctrBinary, "--address", "/var/run/docker/containerd/docker-containerd.sock",
+		"--namespace", moby_daemon.MainNamespace, "tasks", "kill", cid).Assert(t, icmd.Success)
 
 	// Give time to containerd to process the command if we don't
 	// the exit event might be received after we do the inspect
@@ -2076,7 +2078,6 @@ func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonCrash(c *check.C) {
 
 // TestDaemonRestartWithUnpausedRunningContainer requires live restore of running containers.
 func (s *DockerDaemonSuite) TestDaemonRestartWithUnpausedRunningContainer(t *check.C) {
-	// TODO(mlaventure): Not sure what would the exit code be on windows
 	testRequires(t, DaemonIsLinux)
 	s.d.StartWithBusybox(t, "--live-restore")
 
@@ -2103,8 +2104,9 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithUnpausedRunningContainer(t *che
 	// resume the container
 	result := icmd.RunCommand(
 		ctrBinary,
-		"--address", "unix:///var/run/docker/libcontainerd/docker-containerd.sock",
-		"containers", "resume", cid)
+		"--address", "/var/run/docker/containerd/docker-containerd.sock",
+		"--namespace", moby_daemon.MainNamespace,
+		"tasks", "resume", cid)
 	result.Assert(t, icmd.Success)
 
 	// Give time to containerd to process the command if we don't

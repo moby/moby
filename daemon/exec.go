@@ -13,10 +13,10 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/container/stream"
 	"github.com/docker/docker/daemon/exec"
-	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/term"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -29,6 +29,14 @@ func (d *Daemon) registerExecCommand(container *container.Container, config *exe
 	container.ExecCommands.Add(config.ID, config)
 	// Storing execs in daemon for easy access via Engine API.
 	d.execCommands.Add(config.ID, config)
+}
+
+func (d *Daemon) registerExecPidUnlocked(container *container.Container, config *exec.Config) {
+	logrus.Debugf("registering pid %v for exec %v", config.Pid, config.ID)
+	// Storing execs in container in order to kill them gracefully whenever the container is stopped or removed.
+	container.ExecCommands.SetPidUnlocked(config.ID, config.Pid)
+	// Storing execs in daemon for easy access via Engine API.
+	d.execCommands.SetPidUnlocked(config.ID, config.Pid)
 }
 
 // ExecExists looks up the exec instance and returns a bool if it exists or not.
@@ -70,8 +78,8 @@ func (d *Daemon) getExecConfig(name string) (*exec.Config, error) {
 }
 
 func (d *Daemon) unregisterExecCommand(container *container.Container, execConfig *exec.Config) {
-	container.ExecCommands.Delete(execConfig.ID)
-	d.execCommands.Delete(execConfig.ID)
+	container.ExecCommands.Delete(execConfig.ID, execConfig.Pid)
+	d.execCommands.Delete(execConfig.ID, execConfig.Pid)
 }
 
 func (d *Daemon) getActiveContainer(name string) (*container.Container, error) {
@@ -181,7 +189,7 @@ func (d *Daemon) ContainerExecStart(ctx context.Context, name string, stdin io.R
 				logrus.Errorf("failed to cleanup exec %s streams: %s", c.ID, err)
 			}
 			ec.Unlock()
-			c.ExecCommands.Delete(ec.ID)
+			c.ExecCommands.Delete(ec.ID, ec.Pid)
 		}
 	}()
 
@@ -207,13 +215,17 @@ func (d *Daemon) ContainerExecStart(ctx context.Context, name string, stdin io.R
 		ec.StreamConfig.NewNopInputPipe()
 	}
 
-	p := libcontainerd.Process{
+	p := &specs.Process{
 		Args:     append([]string{ec.Entrypoint}, ec.Args...),
 		Env:      ec.Env,
 		Terminal: ec.Tty,
+		Cwd:      c.Config.WorkingDir,
+	}
+	if p.Cwd == "" {
+		p.Cwd = "/"
 	}
 
-	if err := execSetPlatformOpt(c, ec, &p); err != nil {
+	if err := d.execSetPlatformOpt(c, ec, p); err != nil {
 		return err
 	}
 
@@ -231,22 +243,28 @@ func (d *Daemon) ContainerExecStart(ctx context.Context, name string, stdin io.R
 	ec.StreamConfig.AttachStreams(&attachConfig)
 	attachErr := ec.StreamConfig.CopyStreams(ctx, &attachConfig)
 
-	systemPid, err := d.containerd.AddProcess(ctx, c.ID, name, p, ec.InitializeStdio)
+	// Synchronize with libcontainerd event loop
+	ec.Lock()
+	c.ExecCommands.Lock()
+	systemPid, err := d.containerd.Exec(ctx, c.ID, ec.ID, p, cStdin != nil, ec.InitializeStdio)
 	if err != nil {
+		c.ExecCommands.Unlock()
+		ec.Unlock()
 		return translateContainerdStartErr(ec.Entrypoint, ec.SetExitCode, err)
 	}
-	ec.Lock()
 	ec.Pid = systemPid
+	d.registerExecPidUnlocked(c, ec)
+	c.ExecCommands.Unlock()
 	ec.Unlock()
 
 	select {
 	case <-ctx.Done():
 		logrus.Debugf("Sending TERM signal to process %v in container %v", name, c.ID)
-		d.containerd.SignalProcess(c.ID, name, int(signal.SignalMap["TERM"]))
+		d.containerd.SignalProcess(ctx, c.ID, name, int(signal.SignalMap["TERM"]))
 		select {
 		case <-time.After(termProcessTimeout * time.Second):
 			logrus.Infof("Container %v, process %v failed to exit within %d seconds of signal TERM - using the force", c.ID, name, termProcessTimeout)
-			d.containerd.SignalProcess(c.ID, name, int(signal.SignalMap["KILL"]))
+			d.containerd.SignalProcess(ctx, c.ID, name, int(signal.SignalMap["KILL"]))
 		case <-attachErr:
 			// TERM signal worked
 		}
@@ -273,7 +291,7 @@ func (d *Daemon) execCommandGC() {
 		for id, config := range d.execCommands.Commands() {
 			if config.CanRemove {
 				cleaned++
-				d.execCommands.Delete(id)
+				d.execCommands.Delete(id, config.Pid)
 			} else {
 				if _, exists := liveExecCommands[id]; !exists {
 					config.CanRemove = true

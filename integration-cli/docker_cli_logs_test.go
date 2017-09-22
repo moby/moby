@@ -230,6 +230,7 @@ func (s *DockerSuite) TestLogsFollowSlowStdoutConsumer(c *check.C) {
 	stdout, err := logCmd.StdoutPipe()
 	c.Assert(err, checker.IsNil)
 	c.Assert(logCmd.Start(), checker.IsNil)
+	defer func() { go logCmd.Wait() }()
 
 	// First read slowly
 	bytes1, err := ConsumeWithSpeed(stdout, 10, 50*time.Millisecond, stopSlowRead)

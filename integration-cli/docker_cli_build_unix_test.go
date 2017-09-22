@@ -149,6 +149,11 @@ func (s *DockerSuite) TestBuildCancellationKillsSleep(c *check.C) {
 	if err := buildCmd.Start(); err != nil {
 		c.Fatalf("failed to run build: %s", err)
 	}
+	// always clean up
+	defer func() {
+		buildCmd.Process.Kill()
+		buildCmd.Wait()
+	}()
 
 	matchCID := regexp.MustCompile("Running in (.+)")
 	scanner := bufio.NewScanner(stdoutBuild)

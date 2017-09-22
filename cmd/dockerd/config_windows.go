@@ -11,6 +11,7 @@ import (
 var (
 	defaultPidFile  string
 	defaultDataRoot = filepath.Join(os.Getenv("programdata"), "docker")
+	defaultExecRoot = filepath.Join(os.Getenv("programdata"), "docker", "exec-root")
 )
 
 // installConfigFlags adds flags to the pflag.FlagSet to configure the daemon

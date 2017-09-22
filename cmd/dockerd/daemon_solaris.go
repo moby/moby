@@ -41,20 +41,8 @@ func preNotifySystem() {
 func notifySystem() {
 }
 
-func (cli *DaemonCli) getPlatformRemoteOptions() []libcontainerd.RemoteOption {
-	opts := []libcontainerd.RemoteOption{}
-	if cli.Config.ContainerdAddr != "" {
-		opts = append(opts, libcontainerd.WithRemoteAddr(cli.Config.ContainerdAddr))
-	} else {
-		opts = append(opts, libcontainerd.WithStartDaemon(true))
-	}
-	return opts
-}
-
-// getLibcontainerdRoot gets the root directory for libcontainerd/containerd to
-// store their state.
-func (cli *DaemonCli) getLibcontainerdRoot() string {
-	return filepath.Join(cli.Config.ExecRoot, "libcontainerd")
+func (cli *DaemonCli) getPlatformRemoteOptions() ([]libcontainerd.RemoteOption, error) {
+	return nil, nil
 }
 
 // getSwarmRunRoot gets the root directory for swarm to store runtime state

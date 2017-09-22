@@ -1,9 +1,11 @@
 package daemon
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/docker/docker/container"
+	"github.com/sirupsen/logrus"
 )
 
 // ContainerUnpause unpauses a container
@@ -30,8 +32,17 @@ func (daemon *Daemon) containerUnpause(container *container.Container) error {
 		return fmt.Errorf("Container %s is not paused", container.ID)
 	}
 
-	if err := daemon.containerd.Resume(container.ID); err != nil {
+	if err := daemon.containerd.Resume(context.Background(), container.ID); err != nil {
 		return fmt.Errorf("Cannot unpause container %s: %s", container.ID, err)
+	}
+
+	container.Paused = false
+	daemon.setStateCounter(container)
+	daemon.updateHealthMonitor(container)
+	daemon.LogContainerEvent(container, "unpause")
+
+	if err := container.CheckpointTo(daemon.containersReplica); err != nil {
+		logrus.WithError(err).Warnf("could not save container to disk")
 	}
 
 	return nil

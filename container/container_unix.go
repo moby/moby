@@ -24,15 +24,6 @@ const (
 	containerSecretMountPath = "/run/secrets"
 )
 
-// ExitStatus provides exit reasons for a container.
-type ExitStatus struct {
-	// The exit code with which the container exited.
-	ExitCode int
-
-	// Whether the container encountered an OOM.
-	OOMKilled bool
-}
-
 // TrySetNetworkMount attempts to set the network mounts given a provided destination and
 // the path to use for it; return true if the given destination was a network mount file
 func (container *Container) TrySetNetworkMount(destination string, path string) bool {

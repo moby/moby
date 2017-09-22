@@ -102,7 +102,7 @@ func (c *containerManager) Run(ctx context.Context, cID string, stdout, stderr i
 
 func logCancellationError(cancelErrCh chan error, msg string) {
 	if cancelErr := <-cancelErrCh; cancelErr != nil {
-		logrus.Debugf("Build cancelled (%v): ", cancelErr, msg)
+		logrus.Debugf("Build cancelled (%v): %s", cancelErr, msg)
 	}
 }
 

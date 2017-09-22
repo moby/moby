@@ -2249,6 +2249,7 @@ func (s *DockerSuite) TestRunSlowStdoutConsumer(c *check.C) {
 	if err := cont.Start(); err != nil {
 		c.Fatal(err)
 	}
+	defer func() { go cont.Wait() }()
 	n, err := ConsumeWithSpeed(stdout, 10000, 5*time.Millisecond, nil)
 	if err != nil {
 		c.Fatal(err)

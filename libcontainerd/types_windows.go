@@ -1,27 +1,27 @@
 package libcontainerd
 
 import (
+	"time"
+
 	"github.com/Microsoft/hcsshim"
 	opengcs "github.com/Microsoft/opengcs/client"
-	"github.com/opencontainers/runtime-spec/specs-go"
 )
-
-// Process contains information to start a specific application inside the container.
-type Process specs.Process
 
 // Summary contains a ProcessList item from HCS to support `top`
 type Summary hcsshim.ProcessListItem
 
-// StateInfo contains description about the new state container has entered.
-type StateInfo struct {
-	CommonStateInfo
-
-	// Platform specific StateInfo
-	UpdatePending bool // Indicates that there are some update operations pending that should be completed by a servicing container.
+// Stats contains statistics from HCS
+type Stats struct {
+	Read     time.Time
+	HCSStats *hcsshim.Statistics
 }
 
-// Stats contains statistics from HCS
-type Stats hcsshim.Statistics
+func interfaceToStats(read time.Time, v interface{}) *Stats {
+	return &Stats{
+		HCSStats: v.(*hcsshim.Statistics),
+		Read:     read,
+	}
+}
 
 // Resources defines updatable container resource values.
 type Resources struct{}

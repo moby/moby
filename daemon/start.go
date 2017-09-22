@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"context"
 	"runtime"
 	"time"
 
@@ -113,6 +114,11 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 		return stateConflictError{errors.New("container is marked for removal and cannot be started")}
 	}
 
+	if checkpointDir != "" {
+		// TODO(mlaventure): how would we support that?
+		return notAllowedError{errors.New("custom checkpointdir is not supported")}
+	}
+
 	// if we encounter an error during start we need to ensure that any other
 	// setup has been cleaned up properly
 	defer func() {
@@ -152,28 +158,56 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 		return systemError{err}
 	}
 
-	createOptions, err := daemon.getLibcontainerdCreateOptions(container)
-	if err != nil {
-		return err
-	}
-
 	if resetRestartManager {
 		container.ResetRestartManager(true)
-	}
-
-	if checkpointDir == "" {
-		checkpointDir = container.CheckpointDir()
 	}
 
 	if daemon.saveApparmorConfig(container); err != nil {
 		return err
 	}
 
-	if err := daemon.containerd.Create(container.ID, checkpoint, checkpointDir, *spec, container.InitializeStdio, createOptions...); err != nil {
-		return translateContainerdStartErr(container.Path, container.SetExitCode, err)
-
+	if checkpoint != "" {
+		checkpointDir, err = getCheckpointDir(checkpointDir, checkpoint, container.Name, container.ID, container.CheckpointDir(), false)
+		if err != nil {
+			return err
+		}
 	}
 
+	createOptions, err := daemon.getLibcontainerdCreateOptions(container)
+	if err != nil {
+		return err
+	}
+
+	err = daemon.containerd.Create(context.Background(), container.ID, spec, createOptions)
+	if err != nil {
+		return translateContainerdStartErr(container.Path, container.SetExitCode, err)
+	}
+
+	// TODO(mlaventure): we need to specify checkpoint options here
+	pid, err := daemon.containerd.Start(context.Background(), container.ID, checkpointDir,
+		container.StreamConfig.Stdin() != nil || container.Config.Tty,
+		container.InitializeStdio)
+	if err != nil {
+		if err := daemon.containerd.Delete(context.Background(), container.ID); err != nil {
+			logrus.WithError(err).WithField("container", container.ID).
+				Error("failed to delete failed start container")
+		}
+		return translateContainerdStartErr(container.Path, container.SetExitCode, err)
+	}
+
+	container.SetRunning(pid, true)
+	container.HasBeenManuallyStopped = false
+	container.HasBeenStartedBefore = true
+	daemon.setStateCounter(container)
+
+	daemon.initHealthMonitor(container)
+
+	if err := container.CheckpointTo(daemon.containersReplica); err != nil {
+		logrus.WithError(err).WithField("container", container.ID).
+			Errorf("failed to store container")
+	}
+
+	daemon.LogContainerEvent(container, "start")
 	containerActions.WithValues("start").UpdateSince(start)
 
 	return nil
@@ -209,5 +243,10 @@ func (daemon *Daemon) Cleanup(container *container.Container) {
 			logrus.Warnf("%s cleanup: Failed to umount volumes: %v", container.ID, err)
 		}
 	}
+
 	container.CancelAttachContext()
+
+	if err := daemon.containerd.Delete(context.Background(), container.ID); err != nil {
+		logrus.Errorf("%s cleanup: failed to delete container from containerd: %v", container.ID, err)
+	}
 }
