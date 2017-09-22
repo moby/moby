@@ -2,7 +2,8 @@ package fsutil
 
 import (
 	"os"
-	"path/filepath"
+	"path"
+	"runtime"
 	"sort"
 	"strings"
 
@@ -26,14 +27,17 @@ func (v *Validator) HandleChange(kind ChangeKind, p string, fi os.FileInfo, err 
 	if v.parentDirs == nil {
 		v.parentDirs = make([]parent, 1, 10)
 	}
-	if p != filepath.Clean(p) {
+	if runtime.GOOS == "windows" {
+		p = strings.Replace(p, "\\", "", -1)
+	}
+	if p != path.Clean(p) {
 		return errors.Errorf("invalid unclean path %s", p)
 	}
-	if filepath.IsAbs(p) {
+	if path.IsAbs(p) {
 		return errors.Errorf("abolute path %s not allowed", p)
 	}
-	dir := filepath.Dir(p)
-	base := filepath.Base(p)
+	dir := path.Dir(p)
+	base := path.Base(p)
 	if dir == "." {
 		dir = ""
 	}
@@ -51,12 +55,12 @@ func (v *Validator) HandleChange(kind ChangeKind, p string, fi os.FileInfo, err 
 	}
 
 	if dir != v.parentDirs[len(v.parentDirs)-1].dir || v.parentDirs[i].last >= base {
-		return errors.Errorf("changes out of order: %q %q", p, filepath.Join(v.parentDirs[i].dir, v.parentDirs[i].last))
+		return errors.Errorf("changes out of order: %q %q", p, path.Join(v.parentDirs[i].dir, v.parentDirs[i].last))
 	}
 	v.parentDirs[i].last = base
 	if kind != ChangeKindDelete && fi.IsDir() {
 		v.parentDirs = append(v.parentDirs, parent{
-			dir:  filepath.Join(dir, base),
+			dir:  path.Join(dir, base),
 			last: "",
 		})
 	}

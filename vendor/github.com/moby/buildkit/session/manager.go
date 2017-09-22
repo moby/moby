@@ -49,14 +49,14 @@ func (sm *Manager) HandleHTTPRequest(ctx context.Context, w http.ResponseWriter,
 		return errors.New("handler does not support hijack")
 	}
 
-	uuid := r.Header.Get(headerSessionUUID)
+	id := r.Header.Get(headerSessionID)
 
 	proto := r.Header.Get("Upgrade")
 
 	sm.mu.Lock()
-	if _, ok := sm.sessions[uuid]; ok {
+	if _, ok := sm.sessions[id]; ok {
 		sm.mu.Unlock()
-		return errors.Errorf("session %s already exists", uuid)
+		return errors.Errorf("session %s already exists", id)
 	}
 
 	if proto == "" {
@@ -102,8 +102,10 @@ func (sm *Manager) handleConn(ctx context.Context, conn net.Conn, opts map[strin
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	opts = canonicalHeaders(opts)
+
 	h := http.Header(opts)
-	uuid := h.Get(headerSessionUUID)
+	id := h.Get(headerSessionID)
 	name := h.Get(headerSessionName)
 	sharedKey := h.Get(headerSessionSharedKey)
 
@@ -115,7 +117,7 @@ func (sm *Manager) handleConn(ctx context.Context, conn net.Conn, opts map[strin
 
 	c := &client{
 		Session: Session{
-			uuid:      uuid,
+			id:        id,
 			name:      name,
 			sharedKey: sharedKey,
 			ctx:       ctx,
@@ -129,13 +131,13 @@ func (sm *Manager) handleConn(ctx context.Context, conn net.Conn, opts map[strin
 	for _, m := range opts[headerSessionMethod] {
 		c.supported[strings.ToLower(m)] = struct{}{}
 	}
-	sm.sessions[uuid] = c
+	sm.sessions[id] = c
 	sm.updateCondition.Broadcast()
 	sm.mu.Unlock()
 
 	defer func() {
 		sm.mu.Lock()
-		delete(sm.sessions, uuid)
+		delete(sm.sessions, id)
 		sm.mu.Unlock()
 	}()
 
@@ -146,8 +148,8 @@ func (sm *Manager) handleConn(ctx context.Context, conn net.Conn, opts map[strin
 	return nil
 }
 
-// Get returns a session by UUID
-func (sm *Manager) Get(ctx context.Context, uuid string) (Caller, error) {
+// Get returns a session by ID
+func (sm *Manager) Get(ctx context.Context, id string) (Caller, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -165,11 +167,11 @@ func (sm *Manager) Get(ctx context.Context, uuid string) (Caller, error) {
 		select {
 		case <-ctx.Done():
 			sm.mu.Unlock()
-			return nil, errors.Wrapf(ctx.Err(), "no active session for %s", uuid)
+			return nil, errors.Wrapf(ctx.Err(), "no active session for %s", id)
 		default:
 		}
 		var ok bool
-		c, ok = sm.sessions[uuid]
+		c, ok = sm.sessions[id]
 		if !ok || c.closed() {
 			sm.updateCondition.Wait()
 			continue
@@ -199,4 +201,12 @@ func (c *client) Supports(url string) bool {
 }
 func (c *client) Conn() *grpc.ClientConn {
 	return c.cc
+}
+
+func canonicalHeaders(in map[string][]string) map[string][]string {
+	out := map[string][]string{}
+	for k := range in {
+		out[http.CanonicalHeaderKey(k)] = in[k]
+	}
+	return out
 }
