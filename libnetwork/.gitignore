@@ -38,3 +38,4 @@ cmd/dnet/dnet
 
 libnetworkbuild.created
 test/networkDb/testMain
+test/networkDb/gossipdb

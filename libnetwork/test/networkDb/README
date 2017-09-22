@@ -1,7 +1,7 @@
 SERVER
 
 cd test/networkdb
-env GOOS=linux go build -v server/ndbTester.go && docker build -t fcrisciani/networkdb-test -f server/Dockerfile .
+env GOOS=linux go build -v testMain.go && docker build -t fcrisciani/networkdb-test .
 (only for testkit case) docker push fcrisciani/networkdb-test
 
 Run server: docker service create --name testdb --network net1 --replicas 3 --env TASK_ID="{{.Task.ID}}" -p mode=host,target=8000 fcrisciani/networkdb-test server 8000
