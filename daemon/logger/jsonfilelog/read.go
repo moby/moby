@@ -147,9 +147,8 @@ func tailFile(f io.ReadSeeker, logWatcher *logger.LogWatcher, tail int, since ti
 		rdr = bytes.NewBuffer(bytes.Join(ls, []byte("\n")))
 	}
 	dec := json.NewDecoder(rdr)
-	l := &jsonlog.JSONLog{}
 	for {
-		msg, err := decodeLogLine(dec, l)
+		msg, err := decodeLogLine(dec, &jsonlog.JSONLog{})
 		if err != nil {
 			if err != io.EOF {
 				logWatcher.Err <- err
