@@ -165,7 +165,7 @@ func (nDB *NetworkDB) handleNetworkEvent(nEvent *NetworkEvent) bool {
 		n.ltime = nEvent.LTime
 		n.leaving = nEvent.Type == NetworkEventTypeLeave
 		if n.leaving {
-			n.reapTime = reapInterval
+			n.reapTime = reapNetworkInterval
 
 			// The remote node is leaving the network, but not the gossip cluster.
 			// Mark all its entries in deleted state, this will guarantee that
@@ -242,7 +242,7 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent) bool {
 	// field. If that is not the case, this can be a BUG
 	if e.deleting && e.reapTime == 0 {
 		logrus.Warnf("handleTableEvent object %+v has a 0 reapTime, is the cluster running the same docker engine version?", tEvent)
-		e.reapTime = reapInterval
+		e.reapTime = reapEntryInterval
 	}
 
 	nDB.Lock()

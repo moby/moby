@@ -405,7 +405,7 @@ func (nDB *NetworkDB) DeleteEntry(tname, nid, key string) error {
 		node:     nDB.config.NodeName,
 		value:    value,
 		deleting: true,
-		reapTime: reapInterval,
+		reapTime: reapEntryInterval,
 	}
 
 	if err := nDB.sendTableEvent(TableEventTypeDelete, nid, tname, key, entry); err != nil {
@@ -478,7 +478,7 @@ func (nDB *NetworkDB) deleteNodeNetworkEntries(nid, node string) {
 				node:     oldEntry.node,
 				value:    oldEntry.value,
 				deleting: true,
-				reapTime: reapInterval,
+				reapTime: reapEntryInterval,
 			}
 
 			// we arrived at this point in 2 cases:
@@ -619,8 +619,9 @@ func (nDB *NetworkDB) LeaveNetwork(nid string) error {
 		return fmt.Errorf("could not find network %s while trying to leave", nid)
 	}
 
+	logrus.Debugf("%s: leaving network %s", nDB.config.NodeName, nid)
 	n.ltime = ltime
-	n.reapTime = reapInterval
+	n.reapTime = reapNetworkInterval
 	n.leaving = true
 	return nil
 }

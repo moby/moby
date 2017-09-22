@@ -17,11 +17,15 @@ import (
 )
 
 const (
-	reapInterval     = 30 * time.Minute
-	reapPeriod       = 5 * time.Second
-	retryInterval    = 1 * time.Second
-	nodeReapInterval = 24 * time.Hour
-	nodeReapPeriod   = 2 * time.Hour
+	// The garbage collection logic for entries leverage the presence of the network.
+	// For this reason the expiration time of the network is put slightly higher than the entry expiration so that
+	// there is at least 5 extra cycle to make sure that all the entries are properly deleted before deleting the network.
+	reapEntryInterval   = 30 * time.Minute
+	reapNetworkInterval = reapEntryInterval + 5*reapPeriod
+	reapPeriod          = 5 * time.Second
+	retryInterval       = 1 * time.Second
+	nodeReapInterval    = 24 * time.Hour
+	nodeReapPeriod      = 2 * time.Hour
 )
 
 type logWriter struct{}
@@ -300,8 +304,9 @@ func (nDB *NetworkDB) reconnectNode() {
 // the reaper runs. NOTE nDB.reapTableEntries updates the reapTime with a readlock. This
 // is safe as long as no other concurrent path touches the reapTime field.
 func (nDB *NetworkDB) reapState() {
-	nDB.reapNetworks()
+	// The reapTableEntries leverage the presence of the network so garbage collect entries first
 	nDB.reapTableEntries()
+	nDB.reapNetworks()
 }
 
 func (nDB *NetworkDB) reapNetworks() {
@@ -414,8 +419,8 @@ func (nDB *NetworkDB) gossip() {
 		// Collect stats and print the queue info, note this code is here also to have a view of the queues empty
 		network.qMessagesSent += len(msgs)
 		if printStats {
-			logrus.Infof("NetworkDB stats - net:%s Entries:%d Queue qLen:%d netPeers:%d netMsg/s:%d",
-				nid, network.entriesNumber, broadcastQ.NumQueued(), broadcastQ.NumNodes(),
+			logrus.Infof("NetworkDB stats - netID:%s leaving:%t netPeers:%d entries:%d Queue qLen:%d netMsg/s:%d",
+				nid, network.leaving, broadcastQ.NumNodes(), network.entriesNumber, broadcastQ.NumQueued(),
 				network.qMessagesSent/int((nDB.config.StatsPrintPeriod/time.Second)))
 			network.qMessagesSent = 0
 		}
