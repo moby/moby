@@ -10,7 +10,7 @@ import (
 
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/pkg/jsonlog"
+	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/go-check/check"
 	"github.com/gotestyourself/gotestyourself/icmd"
 )
@@ -55,7 +55,7 @@ func (s *DockerSuite) TestLogsTimestamps(c *check.C) {
 
 	for _, l := range lines {
 		if l != "" {
-			_, err := time.Parse(jsonlog.RFC3339NanoFixed+" ", ts.FindString(l))
+			_, err := time.Parse(jsonmessage.RFC3339NanoFixed+" ", ts.FindString(l))
 			c.Assert(err, checker.IsNil, check.Commentf("Failed to parse timestamp from %v", l))
 			// ensure we have padded 0's
 			c.Assert(l[29], checker.Equals, uint8('Z'))
