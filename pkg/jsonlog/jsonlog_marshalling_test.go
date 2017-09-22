@@ -3,6 +3,10 @@ package jsonlog
 import (
 	"regexp"
 	"testing"
+
+	"encoding/json"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestJSONLogMarshalJSON(t *testing.T) {
@@ -21,14 +25,8 @@ func TestJSONLogMarshalJSON(t *testing.T) {
 	}
 	for jsonLog, expression := range logs {
 		data, err := jsonLog.MarshalJSON()
-		if err != nil {
-			t.Fatal(err)
-		}
-		res := string(data)
-		t.Logf("Result of WriteLog: %q", res)
-		logRe := regexp.MustCompile(expression)
-		if !logRe.MatchString(res) {
-			t.Fatalf("Log line not in expected format [%v]: %q", expression, res)
-		}
+		require.NoError(t, err)
+		assert.Regexp(t, regexp.MustCompile(expression), string(data))
+		assert.NoError(t, json.Unmarshal(data, &map[string]interface{}{}))
 	}
 }

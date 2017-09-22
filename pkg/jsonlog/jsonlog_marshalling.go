@@ -105,7 +105,7 @@ func (mj *JSONLog) MarshalJSONBuf(buf *bytes.Buffer) error {
 		buf.WriteString(`,`)
 	}
 	buf.WriteString(`"time":`)
-	timestamp, err = FastTimeMarshalJSON(mj.Created)
+	timestamp, err = fastTimeMarshalJSON(mj.Created)
 	if err != nil {
 		return err
 	}

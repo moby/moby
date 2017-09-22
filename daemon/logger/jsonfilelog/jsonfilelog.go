@@ -113,18 +113,14 @@ func writeMessageBuf(w io.Writer, m *logger.Message, extra json.RawMessage, buf 
 }
 
 func marshalMessage(msg *logger.Message, extra json.RawMessage, buf *bytes.Buffer) error {
-	timestamp, err := jsonlog.FastTimeMarshalJSON(msg.Timestamp)
-	if err != nil {
-		return err
-	}
 	logLine := msg.Line
 	if !msg.Partial {
 		logLine = append(msg.Line, '\n')
 	}
-	err = (&jsonlog.JSONLogs{
+	err := (&jsonlog.JSONLogs{
 		Log:      logLine,
 		Stream:   msg.Source,
-		Created:  timestamp,
+		Created:  msg.Timestamp,
 		RawAttrs: extra,
 	}).MarshalJSONBuf(buf)
 	if err != nil {
