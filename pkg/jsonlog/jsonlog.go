@@ -1,8 +1,6 @@
 package jsonlog
 
 import (
-	"encoding/json"
-	"fmt"
 	"time"
 )
 
@@ -19,24 +17,10 @@ type JSONLog struct {
 	Attrs map[string]string `json:"attrs,omitempty"`
 }
 
-// Format returns the log formatted according to format
-// If format is nil, returns the log message
-// If format is json, returns the log marshaled in json format
-// By default, returns the log with the log time formatted according to format.
-func (jl *JSONLog) Format(format string) (string, error) {
-	if format == "" {
-		return jl.Log, nil
-	}
-	if format == "json" {
-		m, err := json.Marshal(jl)
-		return string(m), err
-	}
-	return fmt.Sprintf("%s %s", jl.Created.Format(format), jl.Log), nil
-}
-
-// Reset resets the log to nil.
+// Reset all fields to their zero value.
 func (jl *JSONLog) Reset() {
 	jl.Log = ""
 	jl.Stream = ""
 	jl.Created = time.Time{}
+	jl.Attrs = make(map[string]string)
 }
