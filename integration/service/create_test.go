@@ -43,7 +43,7 @@ func TestCreateWithLBSandbox(t *testing.T) {
 	require.NoError(t, err)
 
 	serviceID := serviceResp.ID
-	poll.WaitOn(t, serviceContainerCount(client, serviceID, instances, true, swarm.TaskStateRunning))
+	poll.WaitOn(t, serviceContainerCount(client, serviceID, instances))
 
 	network, err := client.NetworkInspect(context.Background(), overlayID, types.NetworkInspectOptions{})
 	require.NoError(t, err)

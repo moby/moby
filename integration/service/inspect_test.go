@@ -37,7 +37,7 @@ func TestInspect(t *testing.T) {
 	require.NoError(t, err)
 
 	id := resp.ID
-	poll.WaitOn(t, serviceContainerCount(client, id, instances, false, swarm.TaskStateNew))
+	poll.WaitOn(t, serviceContainerCount(client, id, instances))
 
 	service, _, err := client.ServiceInspectWithRaw(ctx, id, types.ServiceInspectOptions{})
 	require.NoError(t, err)
@@ -129,7 +129,7 @@ func newSwarm(t *testing.T) *daemon.Swarm {
 	return d
 }
 
-func serviceContainerCount(client client.ServiceAPIClient, id string, count uint64, checkState bool, desiredState swarm.TaskState) func(log poll.LogT) poll.Result {
+func serviceContainerCount(client client.ServiceAPIClient, id string, count uint64) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
 		filter := filters.NewArgs()
 		filter.Add("service", id)
@@ -140,11 +140,9 @@ func serviceContainerCount(client client.ServiceAPIClient, id string, count uint
 		case err != nil:
 			return poll.Error(err)
 		case len(tasks) == int(count):
-			if checkState {
-				for _, task := range tasks {
-					if task.Status.State != desiredState {
-						return poll.Continue("waiting for tasks to enter %v", desiredState)
-					}
+			for _, task := range tasks {
+				if task.Status.State != swarm.TaskStateRunning {
+					return poll.Continue("waiting for tasks to enter %v", swarm.TaskStateRunning)
 				}
 			}
 			return poll.Success()
