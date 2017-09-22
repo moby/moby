@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"runtime"
 	"strings"
@@ -133,6 +134,16 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		return "", errors.Errorf("%+v does not support commit of a running container", runtime.GOOS)
 	}
 
+	if container.IsDead() {
+		err := fmt.Errorf("You cannot commit container %s which is Dead", container.ID)
+		return "", stateConflictError{err}
+	}
+
+	if container.IsRemovalInProgress() {
+		err := fmt.Errorf("You cannot commit container %s which is being removed", container.ID)
+		return "", stateConflictError{err}
+	}
+
 	if c.Pause && !container.IsPaused() {
 		daemon.containerPause(container)
 		defer daemon.containerUnpause(container)
@@ -234,19 +245,36 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 	return id.String(), nil
 }
 
-func (daemon *Daemon) exportContainerRw(container *container.Container) (io.ReadCloser, error) {
-	if err := daemon.Mount(container); err != nil {
+func (daemon *Daemon) exportContainerRw(container *container.Container) (arch io.ReadCloser, err error) {
+	rwlayer, err := daemon.stores[container.Platform].layerStore.GetRWLayer(container.ID)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err != nil {
+			daemon.stores[container.Platform].layerStore.ReleaseRWLayer(rwlayer)
+		}
+	}()
+
+	// TODO: this mount call is not necessary as we assume that TarStream() should
+	// mount the layer if needed. But the Diff() function for windows requests that
+	// the layer should be mounted when calling it. So we reserve this mount call
+	// until windows driver can implement Diff() interface correctly.
+	_, err = rwlayer.Mount(container.GetMountLabel())
+	if err != nil {
 		return nil, err
 	}
 
-	archive, err := container.RWLayer.TarStream()
+	archive, err := rwlayer.TarStream()
 	if err != nil {
-		daemon.Unmount(container) // logging is already handled in the `Unmount` function
+		rwlayer.Unmount()
 		return nil, err
 	}
 	return ioutils.NewReadCloserWrapper(archive, func() error {
 			archive.Close()
-			return container.RWLayer.Unmount()
+			err = rwlayer.Unmount()
+			daemon.stores[container.Platform].layerStore.ReleaseRWLayer(rwlayer)
+			return err
 		}),
 		nil
 }
