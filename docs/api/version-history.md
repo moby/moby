@@ -18,7 +18,8 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.33](https://docs.docker.com/engine/api/v1.33/) documentation
 
-
+* `GET /events` now supports filtering 4 more kinds of events: `config`, `node`,
+`secret` and `service`. 
 
 ## v1.32 API changes
 
