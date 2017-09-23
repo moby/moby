@@ -20,7 +20,7 @@ type Puller interface {
 	// Pull tries to pull the image referenced by `tag`
 	// Pull returns an error if any, as well as a boolean that determines whether to retry Pull on the next configured endpoint.
 	//
-	Pull(ctx context.Context, ref reference.Named) error
+	Pull(ctx context.Context, ref reference.Named) (string, error)
 }
 
 // newPuller returns a Puller interface that will pull from either a v1 or v2
@@ -50,21 +50,21 @@ func newPuller(endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo,
 
 // Pull initiates a pull operation. image is the repository name to pull, and
 // tag may be either empty, or indicate a specific tag to pull.
-func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullConfig) error {
+func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullConfig) (imgID string, err error) {
 	// Resolve the Repository name from fqn to RepositoryInfo
 	repoInfo, err := imagePullConfig.RegistryService.ResolveRepository(ref)
 	if err != nil {
-		return err
+		return imgID, err
 	}
 
 	// makes sure name is not `scratch`
 	if err := ValidateRepoName(repoInfo.Name); err != nil {
-		return err
+		return imgID, err
 	}
 
 	endpoints, err := imagePullConfig.RegistryService.LookupPullEndpoints(reference.Domain(repoInfo.Name))
 	if err != nil {
-		return err
+		return imgID, err
 	}
 
 	var (
@@ -113,7 +113,8 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 			lastErr = err
 			continue
 		}
-		if err := puller.Pull(ctx, ref); err != nil {
+		imgID, err = puller.Pull(ctx, ref)
+		if err != nil {
 			// Was this pull cancelled? If so, don't try to fall
 			// back.
 			fallback := false
@@ -145,25 +146,25 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 				continue
 			}
 			logrus.Errorf("Not continuing with pull after error: %v", err)
-			return TranslatePullError(err, ref)
+			return imgID, TranslatePullError(err, ref)
 		}
 
 		imagePullConfig.ImageEventLogger(reference.FamiliarString(ref), reference.FamiliarName(repoInfo.Name), "pull")
-		return nil
+		return imgID, nil
 	}
 
 	if lastErr == nil {
 		lastErr = fmt.Errorf("no endpoints found for %s", reference.FamiliarString(ref))
 	}
 
-	return TranslatePullError(lastErr, ref)
+	return imgID, TranslatePullError(lastErr, ref)
 }
 
 // writeStatus writes a status message to out. If layersDownloaded is true, the
 // status message indicates that a newer image was downloaded. Otherwise, it
 // indicates that the image is up to date. requestedTag is the tag the message
 // will refer to.
-func writeStatus(requestedTag string, out progress.Output, layersDownloaded bool) {
+func writeStatus(requestedTag string, out progress.Output, suppressOutput bool, layersDownloaded bool) {
 	if layersDownloaded {
 		progress.Message(out, "", "Status: Downloaded newer image for "+requestedTag)
 	} else {

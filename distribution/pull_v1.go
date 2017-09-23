@@ -35,15 +35,15 @@ type v1Puller struct {
 	session     *registry.Session
 }
 
-func (p *v1Puller) Pull(ctx context.Context, ref reference.Named) error {
+func (p *v1Puller) Pull(ctx context.Context, ref reference.Named) (imgID string, err error) {
 	if _, isCanonical := ref.(reference.Canonical); isCanonical {
 		// Allowing fallback, because HTTPS v1 is before HTTP v2
-		return fallbackError{err: ErrNoSupport{Err: errors.New("Cannot pull by digest with v1 registry")}}
+		return imgID, fallbackError{err: ErrNoSupport{Err: errors.New("Cannot pull by digest with v1 registry")}}
 	}
 
 	tlsConfig, err := p.config.RegistryService.TLSConfig(p.repoInfo.Index.Name)
 	if err != nil {
-		return err
+		return imgID, err
 	}
 	// Adds Docker-specific headers as well as user-specified headers (metaHeaders)
 	tr := transport.NewTransport(
@@ -57,18 +57,19 @@ func (p *v1Puller) Pull(ctx context.Context, ref reference.Named) error {
 	if err != nil {
 		// TODO(dmcgowan): Check if should fallback
 		logrus.Debugf("Fallback from error: %s", err)
-		return fallbackError{err: err}
+		return imgID, fallbackError{err: err}
 	}
-	if err := p.pullRepository(ctx, ref); err != nil {
+	imgID, err = p.pullRepository(ctx, ref)
+	if err != nil {
 		// TODO(dmcgowan): Check if should fallback
-		return err
+		return imgID, err
 	}
 	progress.Message(p.config.ProgressOutput, "", p.repoInfo.Name.Name()+": this image was pulled from a legacy registry.  Important: This registry version will not be supported in future versions of docker.")
 
-	return nil
+	return imgID, nil
 }
 
-func (p *v1Puller) pullRepository(ctx context.Context, ref reference.Named) error {
+func (p *v1Puller) pullRepository(ctx context.Context, ref reference.Named) (imgID string, err error) {
 	progress.Message(p.config.ProgressOutput, "", "Pulling repository "+p.repoInfo.Name.Name())
 
 	tagged, isTagged := ref.(reference.NamedTagged)
@@ -77,12 +78,12 @@ func (p *v1Puller) pullRepository(ctx context.Context, ref reference.Named) erro
 	if err != nil {
 		if strings.Contains(err.Error(), "HTTP code: 404") {
 			if isTagged {
-				return fmt.Errorf("Error: image %s:%s not found", reference.Path(p.repoInfo.Name), tagged.Tag())
+				return imgID, fmt.Errorf("Error: image %s:%s not found", reference.Path(p.repoInfo.Name), tagged.Tag())
 			}
-			return fmt.Errorf("Error: image %s not found", reference.Path(p.repoInfo.Name))
+			return imgID, fmt.Errorf("Error: image %s not found", reference.Path(p.repoInfo.Name))
 		}
 		// Unexpected HTTP error
-		return err
+		return imgID, err
 	}
 
 	logrus.Debug("Retrieving the tag list")
@@ -94,13 +95,13 @@ func (p *v1Puller) pullRepository(ctx context.Context, ref reference.Named) erro
 		tagsList = make(map[string]string)
 		tagID, err = p.session.GetRemoteTag(repoData.Endpoints, p.repoInfo.Name, tagged.Tag())
 		if err == registry.ErrRepoNotFound {
-			return fmt.Errorf("Tag %s not found in repository %s", tagged.Tag(), p.repoInfo.Name.Name())
+			return imgID, fmt.Errorf("Tag %s not found in repository %s", tagged.Tag(), p.repoInfo.Name.Name())
 		}
 		tagsList[tagged.Tag()] = tagID
 	}
 	if err != nil {
 		logrus.Errorf("unable to get remote tags: %s", err)
-		return err
+		return imgID, err
 	}
 
 	for tag, id := range tagsList {
@@ -119,12 +120,13 @@ func (p *v1Puller) pullRepository(ctx context.Context, ref reference.Named) erro
 
 		err := p.downloadImage(ctx, repoData, imgData, &layersDownloaded)
 		if err != nil {
-			return err
+			return imgID, err
 		}
+		imgID = imgData.ID
 	}
 
-	writeStatus(reference.FamiliarString(ref), p.config.ProgressOutput, layersDownloaded)
-	return nil
+	writeStatus(reference.FamiliarString(ref), p.config.ProgressOutput, p.config.SuppressOutput, layersDownloaded)
+	return imgID, nil
 }
 
 func (p *v1Puller) downloadImage(ctx context.Context, repoData *registry.RepositoryData, img *registry.ImgData, layersDownloaded *bool) error {

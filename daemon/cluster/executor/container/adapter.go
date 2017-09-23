@@ -96,7 +96,8 @@ func (c *containerAdapter) pullImage(ctx context.Context) error {
 		if system.LCOWSupported() {
 			platform = "linux"
 		}
-		err := c.backend.PullImage(ctx, c.container.image(), "", platform, metaHeaders, authConfig, pw)
+
+		_, err := c.backend.PullImage(ctx, c.container.image(), "", platform, metaHeaders, authConfig, pw)
 		pw.CloseWithError(err)
 	}()
 
