@@ -65,7 +65,7 @@ info:
 
     # Authentication
 
-    Authentication for registries is handled client side. The client has to send authentication details to various endpoints that need to communicate with registries, such as `POST /images/(name)/push`. These are sent as `X-Registry-Auth` header as a Base64 encoded (JSON) string with the following structure:
+    Authentication for registries is handled client side. The client has to send authentication details to various endpoints that need to communicate with registries, such as `POST /images/(name)/push`. These are sent as `X-Registry-Auth` header as a [base64url encoded](https://tools.ietf.org/html/rfc4648#section-5) (JSON) string with the following structure:
 
     ```
     {
@@ -3639,7 +3639,7 @@ definitions:
           com.example.some-other-label: "some-other-value"
       Data:
         description: |
-          Base64-url-safe-encoded ([RFC 4648](https://tools.ietf.org/html/rfc4648#section-3.2))
+          Base64-url-safe-encoded ([RFC 4648](https://tools.ietf.org/html/rfc4648#section-5))
           data to store as secret.
 
           This field is only used to _create_ a secret, and is not returned by
@@ -3689,7 +3689,7 @@ definitions:
           type: "string"
       Data:
         description: |
-          Base64-url-safe-encoded ([RFC 4648](https://tools.ietf.org/html/rfc4648#section-3.2))
+          Base64-url-safe-encoded ([RFC 4648](https://tools.ietf.org/html/rfc4648#section-5))
           config data.
         type: "string"
       Templating:
@@ -6771,7 +6771,7 @@ paths:
           required: false
         - name: "X-Registry-Auth"
           in: "header"
-          description: "A base64-encoded auth configuration. [See the authentication section for details.](#section/Authentication)"
+          description: "A base64url-encoded auth configuration. [See the authentication section for details.](#section/Authentication)"
           type: "string"
         - name: "platform"
           in: "query"
@@ -6999,7 +6999,7 @@ paths:
           type: "string"
         - name: "X-Registry-Auth"
           in: "header"
-          description: "A base64-encoded auth configuration. [See the authentication section for details.](#section/Authentication)"
+          description: "A base64url-encoded auth configuration. [See the authentication section for details.](#section/Authentication)"
           type: "string"
           required: true
       tags: ["Image"]
@@ -8705,7 +8705,7 @@ paths:
           type: "string"
         - name: "X-Registry-Auth"
           in: "header"
-          description: "A base64-encoded auth configuration to use when pulling a plugin from a registry. [See the authentication section for details.](#section/Authentication)"
+          description: "A base64url-encoded auth configuration to use when pulling a plugin from a registry. [See the authentication section for details.](#section/Authentication)"
           type: "string"
         - name: "body"
           in: "body"
@@ -8870,7 +8870,7 @@ paths:
           type: "string"
         - name: "X-Registry-Auth"
           in: "header"
-          description: "A base64-encoded auth configuration to use when pulling a plugin from a registry. [See the authentication section for details.](#section/Authentication)"
+          description: "A base64url-encoded auth configuration to use when pulling a plugin from a registry. [See the authentication section for details.](#section/Authentication)"
           type: "string"
         - name: "body"
           in: "body"
@@ -9563,7 +9563,7 @@ paths:
                     foo: "bar"
         - name: "X-Registry-Auth"
           in: "header"
-          description: "A base64-encoded auth configuration for pulling from private registries. [See the authentication section for details.](#section/Authentication)"
+          description: "A base64url-encoded auth configuration for pulling from private registries. [See the authentication section for details.](#section/Authentication)"
           type: "string"
       tags: ["Service"]
   /services/{id}:
@@ -9722,7 +9722,7 @@ paths:
           type: "string"
         - name: "X-Registry-Auth"
           in: "header"
-          description: "A base64-encoded auth configuration for pulling from private registries. [See the authentication section for details.](#section/Authentication)"
+          description: "A base64url-encoded auth configuration for pulling from private registries. [See the authentication section for details.](#section/Authentication)"
           type: "string"
 
       tags: ["Service"]
