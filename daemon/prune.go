@@ -140,7 +140,7 @@ func (daemon *Daemon) VolumesPrune(ctx context.Context, pruneFilters filters.Arg
 			if err != nil {
 				logrus.Warnf("could not determine size of volume %s: %v", name, err)
 			}
-			err = daemon.volumes.Remove(v)
+			err = daemon.volumeRm(v)
 			if err != nil {
 				logrus.Warnf("could not remove volume %s: %v", name, err)
 				return nil
