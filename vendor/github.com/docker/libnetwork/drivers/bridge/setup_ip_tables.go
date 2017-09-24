@@ -169,11 +169,7 @@ func setupIPTablesInternal(bridgeIface string, addr net.Addr, icc, ipmasq, hairp
 	}
 
 	// Set Accept on all non-intercontainer outgoing packets.
-	if err := programChainRule(outRule, "ACCEPT NON_ICC OUTGOING", enable); err != nil {
-		return err
-	}
-
-	return nil
+	return programChainRule(outRule, "ACCEPT NON_ICC OUTGOING", enable)
 }
 
 func programChainRule(rule iptRule, ruleDescr string, insert bool) error {
@@ -304,10 +300,7 @@ func setupInternalNetworkRules(bridgeIface string, addr net.Addr, icc, insert bo
 		return err
 	}
 	// Set Inter Container Communication.
-	if err := setIcc(bridgeIface, icc, insert); err != nil {
-		return err
-	}
-	return nil
+	return setIcc(bridgeIface, icc, insert)
 }
 
 func clearEndpointConnections(nlh *netlink.Handle, ep *bridgeEndpoint) {
