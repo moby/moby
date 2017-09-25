@@ -171,10 +171,10 @@ func (e notImplementedError) NotImplemented() bool {
 	return true
 }
 
-// IsNotImplementedError returns true if the error is a NotImplemented error.
+// IsErrNotImplemented returns true if the error is a NotImplemented error.
 // This is returned by the API when a requested feature has not been
 // implemented.
-func IsNotImplementedError(err error) bool {
+func IsErrNotImplemented(err error) bool {
 	te, ok := err.(notImplementedError)
 	return ok && te.NotImplemented()
 }
