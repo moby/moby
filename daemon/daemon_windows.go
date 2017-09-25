@@ -235,7 +235,7 @@ func checkSystem() error {
 
 	vmcompute := windows.NewLazySystemDLL("vmcompute.dll")
 	if vmcompute.Load() != nil {
-		return fmt.Errorf("Failed to load vmcompute.dll. Ensure that the Containers role is installed.")
+		return fmt.Errorf("failed to load vmcompute.dll, ensure that the Containers feature is installed")
 	}
 
 	return nil
