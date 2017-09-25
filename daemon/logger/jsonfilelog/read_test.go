@@ -1,9 +1,8 @@
 package jsonfilelog
 
 import (
-	"testing"
-
 	"bytes"
+	"testing"
 	"time"
 
 	"github.com/docker/docker/daemon/logger"
