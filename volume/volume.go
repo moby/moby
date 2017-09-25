@@ -192,7 +192,6 @@ func (m *MountPoint) Setup(mountLabel string, rootIDs idtools.IDPair, checkFun f
 		return "", fmt.Errorf("Unable to setup mount point, neither source nor volume defined")
 	}
 
-	// system.MkdirAll() produces an error if m.Source exists and is a file (not a directory),
 	if m.Type == mounttypes.TypeBind {
 		// Before creating the source directory on the host, invoke checkFun if it's not nil. One of
 		// the use case is to forbid creating the daemon socket as a directory if the daemon is in
