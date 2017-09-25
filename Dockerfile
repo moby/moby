@@ -55,6 +55,7 @@ RUN apt-get update && apt-get install -y \
 	libnl-3-dev \
 	libprotobuf-c0-dev \
 	libprotobuf-dev \
+	libseccomp-dev \
 	libsystemd-dev \
 	libtool \
 	libudev-dev \
@@ -79,21 +80,6 @@ RUN apt-get update && apt-get install -y \
 	zip \
 	--no-install-recommends \
 	&& pip install awscli==1.10.15
-
-# Install seccomp: the version shipped upstream is too old
-ENV SECCOMP_VERSION 2.3.2
-RUN set -x \
-	&& export SECCOMP_PATH="$(mktemp -d)" \
-	&& curl -fsSL "https://github.com/seccomp/libseccomp/releases/download/v${SECCOMP_VERSION}/libseccomp-${SECCOMP_VERSION}.tar.gz" \
-		| tar -xzC "$SECCOMP_PATH" --strip-components=1 \
-	&& ( \
-		cd "$SECCOMP_PATH" \
-		&& ./configure --prefix=/usr/local \
-		&& make \
-		&& make install \
-		&& ldconfig \
-	) \
-	&& rm -rf "$SECCOMP_PATH"
 
 # Install Go
 # IMPORTANT: If the version of Go is updated, the Windows to Linux CI machines

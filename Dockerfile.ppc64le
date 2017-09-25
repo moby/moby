@@ -41,6 +41,7 @@ RUN apt-get update && apt-get install -y \
 	libapparmor-dev \
 	libcap-dev \
 	libdevmapper-dev \
+	libseccomp-dev \
 	libsystemd-dev \
 	libtool \
 	libudev-dev \
@@ -59,22 +60,6 @@ RUN apt-get update && apt-get install -y \
 	thin-provisioning-tools \
 	vim-common \
 	--no-install-recommends
-
-# Install seccomp: the version shipped upstream is too old
-ENV SECCOMP_VERSION 2.3.2
-RUN set -x \
-        && export SECCOMP_PATH="$(mktemp -d)" \
-        && curl -fsSL "https://github.com/seccomp/libseccomp/releases/download/v${SECCOMP_VERSION}/libseccomp-${SECCOMP_VERSION}.tar.gz" \
-                | tar -xzC "$SECCOMP_PATH" --strip-components=1 \
-        && ( \
-                cd "$SECCOMP_PATH" \
-                && ./configure --prefix=/usr/local \
-                && make \
-                && make install \
-                && ldconfig \
-        ) \
-        && rm -rf "$SECCOMP_PATH"
-
 
 # Install Go
 # NOTE: official ppc64le go binaries weren't available until go 1.6.4 and 1.7.4
