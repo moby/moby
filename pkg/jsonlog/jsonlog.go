@@ -4,8 +4,7 @@ import (
 	"time"
 )
 
-// JSONLog represents a log message, typically a single entry from a given log stream.
-// JSONLogs can be easily serialized to and from JSON and support custom formatting.
+// JSONLog is a log message, typically a single entry from a given log stream.
 type JSONLog struct {
 	// Log is the log message
 	Log string `json:"log,omitempty"`

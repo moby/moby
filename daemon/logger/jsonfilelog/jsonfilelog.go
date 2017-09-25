@@ -14,7 +14,7 @@ import (
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/docker/pkg/jsonlog"
-	"github.com/docker/go-units"
+	units "github.com/docker/go-units"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -106,10 +106,8 @@ func writeMessageBuf(w io.Writer, m *logger.Message, extra json.RawMessage, buf 
 		return err
 	}
 	logger.PutMessage(m)
-	if _, err := w.Write(buf.Bytes()); err != nil {
-		return errors.Wrap(err, "error writing log entry")
-	}
-	return nil
+	_, err := w.Write(buf.Bytes())
+	return errors.Wrap(err, "error writing log entry")
 }
 
 func marshalMessage(msg *logger.Message, extra json.RawMessage, buf *bytes.Buffer) error {
