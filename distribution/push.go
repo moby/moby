@@ -69,7 +69,7 @@ func Push(ctx context.Context, ref reference.Named, imagePushConfig *ImagePushCo
 		return err
 	}
 
-	progress.Messagef(imagePushConfig.ProgressOutput, "", "The push refers to a repository [%s]", repoInfo.Name.Name())
+	progress.Messagef(imagePushConfig.ProgressOutput, "", "The push refers to repository [%s]", repoInfo.Name.Name())
 
 	associations := imagePushConfig.ReferenceStore.ReferencesByName(repoInfo.Name)
 	if len(associations) == 0 {
