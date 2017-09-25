@@ -77,8 +77,18 @@ func TestAuthZPluginV2Disable(t *testing.T) {
 	err = pluginInstallGrantAllPermissions(client, authzPluginNameWithTag)
 	require.Nil(t, err)
 
-	d.Restart(t, "--authorization-plugin="+authzPluginNameWithTag)
+	_, err = client.VolumeCreate(context.Background(), volumetypes.VolumesCreateBody{Driver: "local"})
+	require.NotNil(t, err)
+	require.True(t, strings.Contains(err.Error(), fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag)))
+
+	d.Restart(t)
 	d.LoadBusybox(t)
+
+	_, err = client.VolumeCreate(context.Background(), volumetypes.VolumesCreateBody{Driver: "local"})
+	require.NotNil(t, err)
+	require.True(t, strings.Contains(err.Error(), fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag)))
+
+	d.Restart(t, "--authorization-plugin="+authzPluginNameWithTag)
 
 	_, err = client.VolumeCreate(context.Background(), volumetypes.VolumesCreateBody{Driver: "local"})
 	require.NotNil(t, err)
@@ -91,6 +101,14 @@ func TestAuthZPluginV2Disable(t *testing.T) {
 	// now test to see if the docker api works.
 	_, err = client.VolumeCreate(context.Background(), volumetypes.VolumesCreateBody{Driver: "local"})
 	require.Nil(t, err)
+
+	// re-enable the plugin
+	err = client.PluginEnable(context.Background(), authzPluginNameWithTag, types.PluginEnableOptions{})
+	require.Nil(t, err)
+
+	_, err = client.VolumeCreate(context.Background(), volumetypes.VolumesCreateBody{Driver: "local"})
+	require.NotNil(t, err)
+	require.True(t, strings.Contains(err.Error(), fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag)))
 }
 
 func TestAuthZPluginV2RejectVolumeRequests(t *testing.T) {
