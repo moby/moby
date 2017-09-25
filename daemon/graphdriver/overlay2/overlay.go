@@ -77,7 +77,7 @@ const (
 	maxDepth   = 128
 
 	// idLength represents the number of random characters
-	// which can be used to create the unique link identifer
+	// which can be used to create the unique link identifier
 	// for every layer. If this value is too long then the
 	// page size limit for the mount command may be exceeded.
 	// The idLength should be selected such that following equation
@@ -91,7 +91,8 @@ type overlayOptions struct {
 	quota               quota.Quota
 }
 
-// Driver contains information about the home directory and the list of active mounts that are created using this driver.
+// Driver contains information about the home directory and the list of active
+// mounts that are created using this driver.
 type Driver struct {
 	home          string
 	uidMaps       []idtools.IDMap
@@ -116,9 +117,11 @@ func init() {
 	graphdriver.Register(driverName, Init)
 }
 
-// Init returns the a native diff driver for overlay filesystem.
-// If overlay filesystem is not supported on the host, graphdriver.ErrNotSupported is returned as error.
-// If an overlay filesystem is not supported over an existing filesystem then error graphdriver.ErrIncompatibleFS is returned.
+// Init returns the native diff driver for overlay filesystem.
+// If overlay filesystem is not supported on the host, the error
+// graphdriver.ErrNotSupported is returned.
+// If an overlay filesystem is not supported over an existing filesystem then
+// the error graphdriver.ErrIncompatibleFS is returned.
 func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
 	opts, err := parseOptions(options)
 	if err != nil {
@@ -289,8 +292,8 @@ func (d *Driver) Status() [][2]string {
 	}
 }
 
-// GetMetadata returns meta data about the overlay driver such as
-// LowerDir, UpperDir, WorkDir and MergeDir used to store data.
+// GetMetadata returns metadata about the overlay driver such as the LowerDir,
+// UpperDir, WorkDir, and MergeDir used to store data.
 func (d *Driver) GetMetadata(id string) (map[string]string, error) {
 	dir := d.dir(id)
 	if _, err := os.Stat(dir); err != nil {
@@ -636,7 +639,8 @@ func (d *Driver) Exists(id string) bool {
 	return err == nil
 }
 
-// isParent returns if the passed in parent is the direct parent of the passed in layer
+// isParent determines whether the given parent is the direct parent of the
+// given layer id
 func (d *Driver) isParent(id, parent string) bool {
 	lowers, err := d.getLowerDirs(id)
 	if err != nil {
@@ -711,8 +715,8 @@ func (d *Driver) Diff(id, parent string) (io.ReadCloser, error) {
 	})
 }
 
-// Changes produces a list of changes between the specified layer
-// and its parent layer. If parent is "", then all changes will be ADD changes.
+// Changes produces a list of changes between the specified layer and its
+// parent layer. If parent is "", then all changes will be ADD changes.
 func (d *Driver) Changes(id, parent string) ([]archive.Change, error) {
 	if useNaiveDiff(d.home) || !d.isParent(id, parent) {
 		return d.naiveDiff.Changes(id, parent)

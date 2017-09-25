@@ -109,8 +109,10 @@ func init() {
 }
 
 // Init returns the NaiveDiffDriver, a native diff driver for overlay filesystem.
-// If overlay filesystem is not supported on the host, graphdriver.ErrNotSupported is returned as error.
-// If an overlay filesystem is not supported over an existing filesystem then error graphdriver.ErrIncompatibleFS is returned.
+// If overlay filesystem is not supported on the host, the error
+// graphdriver.ErrNotSupported is returned.
+// If an overlay filesystem is not supported over an existing filesystem then
+// error graphdriver.ErrIncompatibleFS is returned.
 func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
 
 	if err := supportsOverlay(); err != nil {
@@ -199,7 +201,8 @@ func (d *Driver) Status() [][2]string {
 	}
 }
 
-// GetMetadata returns meta data about the overlay driver such as root, LowerDir, UpperDir, WorkDir and MergeDir used to store data.
+// GetMetadata returns metadata about the overlay driver such as root,
+// LowerDir, UpperDir, WorkDir and MergeDir used to store data.
 func (d *Driver) GetMetadata(id string) (map[string]string, error) {
 	dir := d.dir(id)
 	if _, err := os.Stat(dir); err != nil {
