@@ -3,15 +3,14 @@ package system
 import (
 	"testing"
 
-	"github.com/docker/docker/integration-cli/request"
+	"github.com/docker/docker/integration/util/request"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 )
 
 func TestVersion(t *testing.T) {
-	client, err := request.NewClient()
-	require.NoError(t, err)
+	client := request.NewAPIClient(t)
 
 	version, err := client.ServerVersion(context.Background())
 	require.NoError(t, err)
