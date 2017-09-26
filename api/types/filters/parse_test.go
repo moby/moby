@@ -337,6 +337,17 @@ func TestOnlyOneExactMatch(t *testing.T) {
 	}
 }
 
+func TestContains(t *testing.T) {
+	f := NewArgs()
+	if f.Contains("status") {
+		t.Fatal("Expected to not contain a status key, got true")
+	}
+	f.Add("status", "running")
+	if !f.Contains("status") {
+		t.Fatal("Expected to contain a status key, got false")
+	}
+}
+
 func TestInclude(t *testing.T) {
 	f := NewArgs()
 	if f.Include("status") {

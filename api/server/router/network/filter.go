@@ -45,27 +45,27 @@ func filterNetworks(nws []types.NetworkResource, filter filters.Args) ([]types.N
 
 	displayNet := []types.NetworkResource{}
 	for _, nw := range nws {
-		if filter.Include("driver") {
+		if filter.Contains("driver") {
 			if !filter.ExactMatch("driver", nw.Driver) {
 				continue
 			}
 		}
-		if filter.Include("name") {
+		if filter.Contains("name") {
 			if !filter.Match("name", nw.Name) {
 				continue
 			}
 		}
-		if filter.Include("id") {
+		if filter.Contains("id") {
 			if !filter.Match("id", nw.ID) {
 				continue
 			}
 		}
-		if filter.Include("label") {
+		if filter.Contains("label") {
 			if !filter.MatchKVList("label", nw.Labels) {
 				continue
 			}
 		}
-		if filter.Include("scope") {
+		if filter.Contains("scope") {
 			if !filter.ExactMatch("scope", nw.Scope) {
 				continue
 			}
@@ -73,7 +73,7 @@ func filterNetworks(nws []types.NetworkResource, filter filters.Args) ([]types.N
 		displayNet = append(displayNet, nw)
 	}
 
-	if filter.Include("type") {
+	if filter.Contains("type") {
 		typeNet := []types.NetworkResource{}
 		errFilter := filter.WalkValues("type", func(fval string) error {
 			passList, err := filterNetworkByType(displayNet, fval)

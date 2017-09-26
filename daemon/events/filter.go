@@ -49,14 +49,14 @@ func (ef *Filter) filterContains(field string, values map[string]struct{}) bool 
 }
 
 func (ef *Filter) matchScope(scope string) bool {
-	if !ef.filter.Include("scope") {
+	if !ef.filter.Contains("scope") {
 		return true
 	}
 	return ef.filter.ExactMatch("scope", scope)
 }
 
 func (ef *Filter) matchLabels(attributes map[string]string) bool {
-	if !ef.filter.Include("label") {
+	if !ef.filter.Contains("label") {
 		return true
 	}
 	return ef.filter.MatchKVList("label", attributes)

@@ -182,7 +182,7 @@ func (daemon *Daemon) ImagesPrune(ctx context.Context, pruneFilters filters.Args
 	rep := &types.ImagesPruneReport{}
 
 	danglingOnly := true
-	if pruneFilters.Include("dangling") {
+	if pruneFilters.Contains("dangling") {
 		if pruneFilters.ExactMatch("dangling", "false") || pruneFilters.ExactMatch("dangling", "0") {
 			danglingOnly = false
 		} else if !pruneFilters.ExactMatch("dangling", "true") && !pruneFilters.ExactMatch("dangling", "1") {
@@ -440,7 +440,7 @@ func (daemon *Daemon) NetworksPrune(ctx context.Context, pruneFilters filters.Ar
 
 func getUntilFromPruneFilters(pruneFilters filters.Args) (time.Time, error) {
 	until := time.Time{}
-	if !pruneFilters.Include("until") {
+	if !pruneFilters.Contains("until") {
 		return until, nil
 	}
 	untilFilters := pruneFilters.Get("until")
@@ -464,8 +464,8 @@ func matchLabels(pruneFilters filters.Args, labels map[string]string) bool {
 		return false
 	}
 	// By default MatchKVList will return true if field (like 'label!') does not exist
-	// So we have to add additional Include("label!") check
-	if pruneFilters.Include("label!") {
+	// So we have to add additional Contains("label!") check
+	if pruneFilters.Contains("label!") {
 		if pruneFilters.MatchKVList("label!", labels) {
 			return false
 		}
