@@ -172,11 +172,7 @@ func (a *Allocator) doNetworkInit(ctx context.Context) (err error) {
 	if err := a.allocateServices(ctx, false); err != nil {
 		return err
 	}
-	if err := a.allocateTasks(ctx, false); err != nil {
-		return err
-	}
-
-	return nil
+	return a.allocateTasks(ctx, false)
 }
 
 func (a *Allocator) doNetworkAlloc(ctx context.Context, ev events.Event) {
@@ -510,7 +506,7 @@ func (a *Allocator) deallocateNodeAttachments(ctx context.Context, nid string) e
 
 		var networkAttachment *api.NetworkAttachment
 		var naIndex int
-		for index, na := range node.LbAttachments {
+		for index, na := range node.Attachments {
 			if na.Network.ID == nid {
 				networkAttachment = na
 				naIndex = index
@@ -523,15 +519,15 @@ func (a *Allocator) deallocateNodeAttachments(ctx context.Context, nid string) e
 			continue
 		}
 
-		if nc.nwkAllocator.IsLBAttachmentAllocated(node, networkAttachment) {
-			if err := nc.nwkAllocator.DeallocateLBAttachment(node, networkAttachment); err != nil {
+		if nc.nwkAllocator.IsAttachmentAllocated(node, networkAttachment) {
+			if err := nc.nwkAllocator.DeallocateAttachment(node, networkAttachment); err != nil {
 				log.G(ctx).WithError(err).Errorf("Failed to commit deallocation of network resources for node %s", node.ID)
 			} else {
 
 				// Delete the lbattachment
-				node.LbAttachments[naIndex] = node.LbAttachments[len(node.LbAttachments)-1]
-				node.LbAttachments[len(node.LbAttachments)-1] = nil
-				node.LbAttachments = node.LbAttachments[:len(node.LbAttachments)-1]
+				node.Attachments[naIndex] = node.Attachments[len(node.Attachments)-1]
+				node.Attachments[len(node.Attachments)-1] = nil
+				node.Attachments = node.Attachments[:len(node.Attachments)-1]
 
 				if err := a.store.Batch(func(batch *store.Batch) error {
 					return a.commitAllocatedNode(ctx, batch, node)
@@ -551,15 +547,15 @@ func (a *Allocator) deallocateNode(node *api.Node) error {
 		nc = a.netCtx
 	)
 
-	for _, na := range node.LbAttachments {
-		if nc.nwkAllocator.IsLBAttachmentAllocated(node, na) {
-			if err := nc.nwkAllocator.DeallocateLBAttachment(node, na); err != nil {
+	for _, na := range node.Attachments {
+		if nc.nwkAllocator.IsAttachmentAllocated(node, na) {
+			if err := nc.nwkAllocator.DeallocateAttachment(node, na); err != nil {
 				return err
 			}
 		}
 	}
 
-	node.LbAttachments = nil
+	node.Attachments = nil
 
 	return nil
 }
@@ -855,7 +851,7 @@ func (a *Allocator) allocateNode(ctx context.Context, node *api.Node, existingAd
 	for _, network := range networks {
 
 		var lbAttachment *api.NetworkAttachment
-		for _, na := range node.LbAttachments {
+		for _, na := range node.Attachments {
 			if na.Network != nil && na.Network.ID == network.ID {
 				lbAttachment = na
 				break
@@ -863,14 +859,14 @@ func (a *Allocator) allocateNode(ctx context.Context, node *api.Node, existingAd
 		}
 
 		if lbAttachment != nil {
-			if nc.nwkAllocator.IsLBAttachmentAllocated(node, lbAttachment) {
+			if nc.nwkAllocator.IsAttachmentAllocated(node, lbAttachment) {
 				continue
 			}
 		}
 
 		if lbAttachment == nil {
 			lbAttachment = &api.NetworkAttachment{}
-			node.LbAttachments = append(node.LbAttachments, lbAttachment)
+			node.Attachments = append(node.Attachments, lbAttachment)
 		}
 
 		if existingAddressesOnly && len(lbAttachment.Addresses) == 0 {
@@ -878,7 +874,7 @@ func (a *Allocator) allocateNode(ctx context.Context, node *api.Node, existingAd
 		}
 
 		lbAttachment.Network = network.Copy()
-		if err := a.netCtx.nwkAllocator.AllocateLBAttachment(node, lbAttachment); err != nil {
+		if err := a.netCtx.nwkAllocator.AllocateAttachment(node, lbAttachment); err != nil {
 			log.G(ctx).WithError(err).Errorf("Failed to allocate network resources for node %s", node.ID)
 			// TODO: Should we add a unallocatedNode and retry allocating resources like we do for network, tasks, services?
 			// right now, we will only retry allocating network resources for the node when the node is updated.
@@ -897,7 +893,7 @@ func (a *Allocator) commitAllocatedNode(ctx context.Context, batch *store.Batch,
 
 		if err == store.ErrSequenceConflict {
 			storeNode := store.GetNode(tx, node.ID)
-			storeNode.LbAttachments = node.LbAttachments
+			storeNode.Attachments = node.Attachments
 			err = store.UpdateNode(tx, storeNode)
 		}
 
