@@ -27,6 +27,10 @@ func (ef *Filter) Include(ev events.Message) bool {
 		ef.matchVolume(ev) &&
 		ef.matchNetwork(ev) &&
 		ef.matchImage(ev) &&
+		ef.matchNode(ev) &&
+		ef.matchService(ev) &&
+		ef.matchSecret(ev) &&
+		ef.matchConfig(ev) &&
 		ef.matchLabels(ev.Actor.Attributes)
 }
 
