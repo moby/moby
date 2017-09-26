@@ -8,6 +8,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	selinux "github.com/opencontainers/selinux/go-selinux"
 )
 
 func TestMount(t *testing.T) {
@@ -101,7 +103,11 @@ func TestMount(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer ensureUnmount(t, target)
-			validateMount(t, target, tc.expectedOpts, tc.expectedOptional, tc.expectedVFS)
+			expectedVFS := tc.expectedVFS
+			if selinux.GetEnabled() && expectedVFS != "" {
+				expectedVFS = expectedVFS + ",seclabel"
+			}
+			validateMount(t, target, tc.expectedOpts, tc.expectedOptional, expectedVFS)
 		})
 	}
 }
