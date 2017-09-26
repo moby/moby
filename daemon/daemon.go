@@ -1044,7 +1044,7 @@ func prepareTempDir(rootDir string, rootIDs idtools.IDPair) (string, error) {
 					logrus.Warnf("failed to delete old tmp directory: %s", newName)
 				}
 			}()
-		} else {
+		} else if !os.IsNotExist(err) {
 			logrus.Warnf("failed to rename %s for background deletion: %s. Deleting synchronously", tmpDir, err)
 			if err := os.RemoveAll(tmpDir); err != nil {
 				logrus.Warnf("failed to delete old tmp directory: %s", tmpDir)
