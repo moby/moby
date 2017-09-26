@@ -9,6 +9,11 @@ service FileSync{
   rpc TarStream(stream BytesMessage) returns (stream BytesMessage);
 }
 
+service FileSend{
+  rpc DiffCopy(stream BytesMessage) returns (stream BytesMessage);
+}
+
+
 // BytesMessage contains a chunk of byte data
 message BytesMessage{
 	bytes data = 1;
