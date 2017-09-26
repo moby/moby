@@ -12,6 +12,7 @@ type JSONLogs struct {
 	Log     []byte    `json:"log,omitempty"`
 	Stream  string    `json:"stream,omitempty"`
 	Created time.Time `json:"time"`
+	Tag     string    `json:"tag,omitempty"`
 
 	// json-encoded bytes
 	RawAttrs json.RawMessage `json:"attrs,omitempty"`
@@ -36,6 +37,15 @@ func (mj *JSONLogs) MarshalJSONBuf(buf *bytes.Buffer) error {
 		}
 		buf.WriteString(`"stream":`)
 		ffjsonWriteJSONBytesAsString(buf, []byte(mj.Stream))
+	}
+	if len(mj.Tag) > 0 {
+		if first {
+			first = false
+		} else {
+			buf.WriteString(`,`)
+		}
+		buf.WriteString(`"tag":`)
+		ffjsonWriteJSONBytesAsString(buf, []byte(mj.Tag))
 	}
 	if len(mj.RawAttrs) > 0 {
 		if first {

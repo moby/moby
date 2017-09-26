@@ -27,6 +27,7 @@ type JSONFileLogger struct {
 	closed  bool
 	writer  *loggerutils.LogFile
 	readers map[*logger.LogWatcher]struct{} // stores the active log followers
+	tag     string                          // tag values requested by the user to log
 }
 
 func init() {
@@ -61,6 +62,12 @@ func New(info logger.Info) (logger.Logger, error) {
 		}
 	}
 
+	// no default template. only use a tag if the user asked for it
+	tag, err := loggerutils.ParseLogTag(info, "")
+	if err != nil {
+		return nil, err
+	}
+
 	var extra []byte
 	attrs, err := info.ExtraAttributes(nil)
 	if err != nil {
@@ -76,7 +83,7 @@ func New(info logger.Info) (logger.Logger, error) {
 
 	buf := bytes.NewBuffer(nil)
 	marshalFunc := func(msg *logger.Message) ([]byte, error) {
-		if err := marshalMessage(msg, extra, buf); err != nil {
+		if err := marshalMessage(msg, extra, buf, tag); err != nil {
 			return nil, err
 		}
 		b := buf.Bytes()
@@ -92,6 +99,7 @@ func New(info logger.Info) (logger.Logger, error) {
 	return &JSONFileLogger{
 		writer:  writer,
 		readers: make(map[*logger.LogWatcher]struct{}),
+		tag:     tag,
 	}, nil
 }
 
@@ -103,7 +111,7 @@ func (l *JSONFileLogger) Log(msg *logger.Message) error {
 	return err
 }
 
-func marshalMessage(msg *logger.Message, extra json.RawMessage, buf *bytes.Buffer) error {
+func marshalMessage(msg *logger.Message, extra json.RawMessage, buf *bytes.Buffer, tag string) error {
 	logLine := msg.Line
 	if !msg.Partial {
 		logLine = append(msg.Line, '\n')
@@ -113,6 +121,7 @@ func marshalMessage(msg *logger.Message, extra json.RawMessage, buf *bytes.Buffe
 		Stream:   msg.Source,
 		Created:  msg.Timestamp,
 		RawAttrs: extra,
+		Tag:      tag,
 	}).MarshalJSONBuf(buf)
 	if err != nil {
 		return errors.Wrap(err, "error writing log message to buffer")
@@ -130,6 +139,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case "labels":
 		case "env":
 		case "env-regex":
+		case "tag":
 		default:
 			return fmt.Errorf("unknown log opt '%s' for json-file log driver", key)
 		}
