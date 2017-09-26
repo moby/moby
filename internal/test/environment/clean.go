@@ -81,7 +81,7 @@ func deleteAllContainers(t assert.TestingT, apiclient client.ContainerAPIClient,
 			Force:         true,
 			RemoveVolumes: true,
 		})
-		if err == nil || client.IsErrNotFound(err) || alreadyExists.MatchString(err.Error()) {
+		if err == nil || client.IsErrNotFound(err) || alreadyExists.MatchString(err.Error()) || isErrNotFoundSwarmClassic(err) {
 			continue
 		}
 		assert.NoError(t, err, "failed to remove %s", container.ID)
@@ -138,6 +138,10 @@ func deleteAllVolumes(t assert.TestingT, c client.VolumeAPIClient, protectedVolu
 			continue
 		}
 		err := c.VolumeRemove(context.Background(), v.Name, true)
+		// Docker EE may list volumes that no longer exist.
+		if isErrNotFoundSwarmClassic(err) {
+			continue
+		}
 		assert.NoError(t, err, "failed to remove volume %s", v.Name)
 	}
 }
@@ -164,6 +168,10 @@ func deleteAllNetworks(t assert.TestingT, c client.NetworkAPIClient, daemonPlatf
 
 func deleteAllPlugins(t assert.TestingT, c client.PluginAPIClient, protectedPlugins map[string]struct{}) {
 	plugins, err := c.PluginList(context.Background(), filters.Args{})
+	// Docker EE does not allow cluster-wide plugin management.
+	if client.IsErrNotImplemented(err) {
+		return
+	}
 	assert.NoError(t, err, "failed to list plugins")
 
 	for _, p := range plugins {
@@ -173,4 +181,10 @@ func deleteAllPlugins(t assert.TestingT, c client.PluginAPIClient, protectedPlug
 		err := c.PluginRemove(context.Background(), p.Name, types.PluginRemoveOptions{Force: true})
 		assert.NoError(t, err, "failed to remove plugin %s", p.ID)
 	}
+}
+
+// Swarm classic aggregates node errors and returns a 500 so we need to check
+// the error string instead of just IsErrNotFound().
+func isErrNotFoundSwarmClassic(err error) bool {
+	return err != nil && strings.Contains(strings.ToLower(err.Error()), "no such")
 }
