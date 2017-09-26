@@ -127,7 +127,7 @@ func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *
 		}
 	}
 
-	ef, err := filters.FromParam(r.Form.Get("filters"))
+	ef, err := filters.FromJSON(r.Form.Get("filters"))
 	if err != nil {
 		return err
 	}

@@ -15,7 +15,7 @@ func (c *Cluster) GetTasks(options apitypes.TaskListOptions) ([]types.Task, erro
 
 	if err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
 		filterTransform := func(filter filters.Args) error {
-			if filter.Include("service") {
+			if filter.Contains("service") {
 				serviceFilters := filter.Get("service")
 				for _, serviceFilter := range serviceFilters {
 					service, err := getService(ctx, state.controlClient, serviceFilter, false)
@@ -26,7 +26,7 @@ func (c *Cluster) GetTasks(options apitypes.TaskListOptions) ([]types.Task, erro
 					filter.Add("service", service.ID)
 				}
 			}
-			if filter.Include("node") {
+			if filter.Contains("node") {
 				nodeFilters := filter.Get("node")
 				for _, nodeFilter := range nodeFilters {
 					node, err := getNode(ctx, state.controlClient, nodeFilter)
@@ -37,7 +37,7 @@ func (c *Cluster) GetTasks(options apitypes.TaskListOptions) ([]types.Task, erro
 					filter.Add("node", node.ID)
 				}
 			}
-			if !filter.Include("runtime") {
+			if !filter.Contains("runtime") {
 				// default to only showing container tasks
 				filter.Add("runtime", "container")
 				filter.Add("runtime", "")

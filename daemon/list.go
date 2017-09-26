@@ -585,7 +585,7 @@ func (daemon *Daemon) Volumes(filter string) ([]*types.Volume, []string, error) 
 	var (
 		volumesOut []*types.Volume
 	)
-	volFilters, err := filters.FromParam(filter)
+	volFilters, err := filters.FromJSON(filter)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -23,7 +23,7 @@ func (daemon *Daemon) SearchRegistryForImages(ctx context.Context, filtersArgs s
 	authConfig *types.AuthConfig,
 	headers map[string][]string) (*registrytypes.SearchResults, error) {
 
-	searchFilters, err := filters.FromParam(filtersArgs)
+	searchFilters, err := filters.FromJSON(filtersArgs)
 	if err != nil {
 		return nil, err
 	}

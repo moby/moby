@@ -302,7 +302,7 @@ func (s *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter, 
 		return err
 	}
 
-	imageFilters, err := filters.FromParam(r.Form.Get("filters"))
+	imageFilters, err := filters.FromJSON(r.Form.Get("filters"))
 	if err != nil {
 		return err
 	}
@@ -385,7 +385,7 @@ func (s *imageRouter) postImagesPrune(ctx context.Context, w http.ResponseWriter
 		return err
 	}
 
-	pruneFilters, err := filters.FromParam(r.Form.Get("filters"))
+	pruneFilters, err := filters.FromJSON(r.Form.Get("filters"))
 	if err != nil {
 		return err
 	}
