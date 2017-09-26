@@ -9,10 +9,13 @@ import (
 	"time"
 
 	gotty "github.com/Nvveen/Gotty"
-	"github.com/docker/docker/pkg/jsonlog"
 	"github.com/docker/docker/pkg/term"
 	units "github.com/docker/go-units"
 )
+
+// RFC3339NanoFixed is time.RFC3339Nano with nanoseconds padded using zeros to
+// ensure the formatted time isalways the same number of characters.
+const RFC3339NanoFixed = "2006-01-02T15:04:05.000000000Z07:00"
 
 // JSONError wraps a concrete Code and Message, `Code` is
 // is an integer error code, `Message` is the error message.
@@ -199,9 +202,9 @@ func (jm *JSONMessage) Display(out io.Writer, termInfo termInfo) error {
 		return nil
 	}
 	if jm.TimeNano != 0 {
-		fmt.Fprintf(out, "%s ", time.Unix(0, jm.TimeNano).Format(jsonlog.RFC3339NanoFixed))
+		fmt.Fprintf(out, "%s ", time.Unix(0, jm.TimeNano).Format(RFC3339NanoFixed))
 	} else if jm.Time != 0 {
-		fmt.Fprintf(out, "%s ", time.Unix(jm.Time, 0).Format(jsonlog.RFC3339NanoFixed))
+		fmt.Fprintf(out, "%s ", time.Unix(jm.Time, 0).Format(RFC3339NanoFixed))
 	}
 	if jm.ID != "" {
 		fmt.Fprintf(out, "%s: ", jm.ID)

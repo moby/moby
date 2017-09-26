@@ -13,9 +13,9 @@ import (
 
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/daemon/logger/jsonfilelog/jsonlog"
 	"github.com/docker/docker/daemon/logger/jsonfilelog/multireader"
 	"github.com/docker/docker/pkg/filenotify"
-	"github.com/docker/docker/pkg/jsonlog"
 	"github.com/docker/docker/pkg/tailfile"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -147,9 +147,8 @@ func tailFile(f io.ReadSeeker, logWatcher *logger.LogWatcher, tail int, since ti
 		rdr = bytes.NewBuffer(bytes.Join(ls, []byte("\n")))
 	}
 	dec := json.NewDecoder(rdr)
-	l := &jsonlog.JSONLog{}
 	for {
-		msg, err := decodeLogLine(dec, l)
+		msg, err := decodeLogLine(dec, &jsonlog.JSONLog{})
 		if err != nil {
 			if err != io.EOF {
 				logWatcher.Err <- err

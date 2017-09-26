@@ -38,7 +38,7 @@ import (
 	"github.com/docker/docker/libcontainerd"
 	dopts "github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/authorization"
-	"github.com/docker/docker/pkg/jsonlog"
+	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/pidfile"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/signal"
@@ -94,7 +94,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	}
 
 	logrus.SetFormatter(&logrus.TextFormatter{
-		TimestampFormat: jsonlog.RFC3339NanoFixed,
+		TimestampFormat: jsonmessage.RFC3339NanoFixed,
 		DisableColors:   cli.Config.RawLogs,
 		FullTimestamp:   true,
 	})
