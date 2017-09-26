@@ -59,12 +59,10 @@ DEFAULT_BUNDLES=(
 	binary-daemon
 	dynbinary
 
-	test-unit
 	test-integration
 	test-docker-py
 
 	cross
-	tgz
 )
 
 VERSION=${VERSION:-$(< ./VERSION)}
