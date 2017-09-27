@@ -332,7 +332,7 @@ func trimWhitespace(src []byte) []byte {
 }
 
 func isEmptyContinuationLine(line []byte) bool {
-	return len(trimComments(trimWhitespace(line))) == 0
+	return len(trimWhitespace(line)) == 0
 }
 
 var utf8bom = []byte{0xEF, 0xBB, 0xBF}
