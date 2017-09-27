@@ -188,11 +188,9 @@ func waitForContainerCompletion(cli *client.Client, stdout, stderr io.Writer, co
 	}
 	stdcopy.StdCopy(stdout, stderr, stream)
 	stream.Close()
-	resultC, errC := cli.ContainerWait(context.Background(), containerID, "")
-	select {
-	case err := <-errC:
+	result, err := cli.ContainerWait(context.Background(), containerID, "", nil)
+	if err != nil {
 		return 1, err
-	case result := <-resultC:
-		return result.StatusCode, nil
 	}
+	return result.StatusCode, nil
 }

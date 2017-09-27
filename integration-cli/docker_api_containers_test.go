@@ -1025,14 +1025,10 @@ func (s *DockerSuite) TestContainerAPIWait(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
-	waitresC, errC := cli.ContainerWait(context.Background(), name, "")
+	waitres, err := cli.ContainerWait(context.Background(), name, "", nil)
 
-	select {
-	case err = <-errC:
-		c.Assert(err, checker.IsNil)
-	case waitres := <-waitresC:
-		c.Assert(waitres.StatusCode, checker.Equals, int64(0))
-	}
+	c.Assert(err, checker.IsNil)
+	c.Assert(waitres.StatusCode, checker.Equals, int64(0))
 }
 
 func (s *DockerSuite) TestContainerAPICopyNotExistsAnyMore(c *check.C) {

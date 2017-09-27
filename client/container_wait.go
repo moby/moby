@@ -4,81 +4,56 @@ import (
 	"encoding/json"
 	"net/url"
 
-	"golang.org/x/net/context"
-
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/versions"
+	"golang.org/x/net/context"
 )
 
-// ContainerWait waits until the specified container is in a certain state
-// indicated by the given condition, either "not-running" (default),
-// "next-exit", or "removed".
+// ContainerWait waits for the container designated by containerID to meet
+// given condition, either "not-running" (default), "next-exit", or "removed".
+// This is a blocking function.
 //
-// If this client's API version is before 1.30, condition is ignored and
-// ContainerWait will return immediately with the two channels, as the server
-// will wait as if the condition were "not-running".
+// For an API with version 1.30+, if a non-nil ackChan is passed, it will be closed
+// as soon as the server acknowledges it has successfully started waiting for the
+// container (honoring the given condition), by writing the HTTP header early.
+// This allows the caller to synchronize ContainerWait with other calls.
 //
-// If this client's API version is at least 1.30, ContainerWait blocks until
-// the request has been acknowledged by the server (with a response header),
-// then returns two channels on which the caller can wait for the exit status
-// of the container or an error if there was a problem either beginning the
-// wait request or in getting the response. This allows the caller to
-// synchronize ContainerWait with other calls, such as specifying a
-// "next-exit" condition before issuing a ContainerStart request.
-func (cli *Client) ContainerWait(ctx context.Context, containerID string, condition container.WaitCondition) (<-chan container.ContainerWaitOKBody, <-chan error) {
-	if versions.LessThan(cli.ClientVersion(), "1.30") {
-		return cli.legacyContainerWait(ctx, containerID)
+// For example, assuming the container identified by containerID is stopped,
+//
+//	ackChan := make(chan struct{})
+//	go func() {
+//		select {
+//		case <-ackChan:
+//			cli.ContainerStart(ctx, containerID, options)
+//		case <-ctx.Done():
+//		}
+//	}()
+// 	result, err := cli.ContainerWait(ctx, containerID, container.WaitConditionNextExit, ackChan)
+//
+// this would allow the caller to avoid a race condition where the container
+// starts but exits before the caller is able to wait on it, resulting in an
+// indefinite wait.
+//
+// If this client's API version is strictly less than 1.30, condition is
+// ignored and ContainerWait will wait for the container to not be running.
+func (cli *Client) ContainerWait(ctx context.Context, containerID string, condition container.WaitCondition, ackChan chan<- struct{}) (container.ContainerWaitOKBody, error) {
+	query := url.Values{}
+
+	if versions.GreaterThanOrEqualTo(cli.ClientVersion(), "1.30") {
+		query.Set("condition", string(condition))
 	}
 
-	resultC := make(chan container.ContainerWaitOKBody)
-	errC := make(chan error, 1)
-
-	query := url.Values{}
-	query.Set("condition", string(condition))
+	var result container.ContainerWaitOKBody
 
 	resp, err := cli.post(ctx, "/containers/"+containerID+"/wait", query, nil, nil)
+	defer ensureReaderClosed(resp)
 	if err != nil {
-		defer ensureReaderClosed(resp)
-		errC <- err
-		return resultC, errC
+		return result, err
+	}
+	if ackChan != nil {
+		close(ackChan)
 	}
 
-	go func() {
-		defer ensureReaderClosed(resp)
-		var res container.ContainerWaitOKBody
-		if err := json.NewDecoder(resp.body).Decode(&res); err != nil {
-			errC <- err
-			return
-		}
-
-		resultC <- res
-	}()
-
-	return resultC, errC
-}
-
-// legacyContainerWait returns immediately and doesn't have an option to wait
-// until the container is removed.
-func (cli *Client) legacyContainerWait(ctx context.Context, containerID string) (<-chan container.ContainerWaitOKBody, <-chan error) {
-	resultC := make(chan container.ContainerWaitOKBody)
-	errC := make(chan error)
-
-	go func() {
-		resp, err := cli.post(ctx, "/containers/"+containerID+"/wait", nil, nil, nil)
-		if err != nil {
-			errC <- err
-			return
-		}
-		defer ensureReaderClosed(resp)
-
-		var res container.ContainerWaitOKBody
-		if err := json.NewDecoder(resp.body).Decode(&res); err != nil {
-			errC <- err
-			return
-		}
-
-		resultC <- res
-	}()
-
-	return resultC, errC
+	err = json.NewDecoder(resp.body).Decode(&result)
+	return result, err
 }
