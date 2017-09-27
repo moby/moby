@@ -67,7 +67,7 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 		return nil, err
 	}
 
-	if imageFilters.Include("dangling") {
+	if imageFilters.Contains("dangling") {
 		if imageFilters.ExactMatch("dangling", "true") {
 			danglingOnly = true
 		} else if !imageFilters.ExactMatch("dangling", "false") {
@@ -116,7 +116,7 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 			}
 		}
 
-		if imageFilters.Include("label") {
+		if imageFilters.Contains("label") {
 			// Very old image that do not have image.Config (or even labels)
 			if img.Config == nil {
 				continue
@@ -150,7 +150,7 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 		newImage := newImage(img, size)
 
 		for _, ref := range daemon.referenceStore.References(id.Digest()) {
-			if imageFilters.Include("reference") {
+			if imageFilters.Contains("reference") {
 				var found bool
 				var matchErr error
 				for _, pattern := range imageFilters.Get("reference") {
@@ -173,11 +173,11 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 		if newImage.RepoDigests == nil && newImage.RepoTags == nil {
 			if all || len(daemon.stores[platform].imageStore.Children(id)) == 0 {
 
-				if imageFilters.Include("dangling") && !danglingOnly {
+				if imageFilters.Contains("dangling") && !danglingOnly {
 					//dangling=false case, so dangling image is not needed
 					continue
 				}
-				if imageFilters.Include("reference") { // skip images with no references if filtering by reference
+				if imageFilters.Contains("reference") { // skip images with no references if filtering by reference
 					continue
 				}
 				newImage.RepoDigests = []string{"<none>@<none>"}

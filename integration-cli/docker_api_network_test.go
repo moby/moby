@@ -282,7 +282,7 @@ func getNetworkIDByName(c *check.C, name string) string {
 		filterArgs = filters.NewArgs()
 	)
 	filterArgs.Add("name", name)
-	filterJSON, err := filters.ToParam(filterArgs)
+	filterJSON, err := filters.ToJSON(filterArgs)
 	c.Assert(err, checker.IsNil)
 	v.Set("filters", filterJSON)
 

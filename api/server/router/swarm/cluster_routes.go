@@ -151,7 +151,7 @@ func (sr *swarmRouter) getServices(ctx context.Context, w http.ResponseWriter, r
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	filter, err := filters.FromParam(r.Form.Get("filters"))
+	filter, err := filters.FromJSON(r.Form.Get("filters"))
 	if err != nil {
 		return invalidRequestError{err}
 	}
@@ -277,7 +277,7 @@ func (sr *swarmRouter) getNodes(ctx context.Context, w http.ResponseWriter, r *h
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	filter, err := filters.FromParam(r.Form.Get("filters"))
+	filter, err := filters.FromJSON(r.Form.Get("filters"))
 	if err != nil {
 		return err
 	}
@@ -339,7 +339,7 @@ func (sr *swarmRouter) getTasks(ctx context.Context, w http.ResponseWriter, r *h
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	filter, err := filters.FromParam(r.Form.Get("filters"))
+	filter, err := filters.FromJSON(r.Form.Get("filters"))
 	if err != nil {
 		return err
 	}
@@ -367,7 +367,7 @@ func (sr *swarmRouter) getSecrets(ctx context.Context, w http.ResponseWriter, r 
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	filters, err := filters.FromParam(r.Form.Get("filters"))
+	filters, err := filters.FromJSON(r.Form.Get("filters"))
 	if err != nil {
 		return err
 	}
@@ -434,7 +434,7 @@ func (sr *swarmRouter) getConfigs(ctx context.Context, w http.ResponseWriter, r 
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	filters, err := filters.FromParam(r.Form.Get("filters"))
+	filters, err := filters.FromJSON(r.Form.Get("filters"))
 	if err != nil {
 		return err
 	}

@@ -276,7 +276,7 @@ func (daemon *Daemon) foldFilter(view container.View, config *types.ContainerLis
 	}
 
 	var taskFilter, isTask bool
-	if psFilters.Include("is-task") {
+	if psFilters.Contains("is-task") {
 		if psFilters.ExactMatch("is-task", "true") {
 			taskFilter = true
 			isTask = true
@@ -319,7 +319,7 @@ func (daemon *Daemon) foldFilter(view container.View, config *types.ContainerLis
 
 	imagesFilter := map[image.ID]bool{}
 	var ancestorFilter bool
-	if psFilters.Include("ancestor") {
+	if psFilters.Contains("ancestor") {
 		ancestorFilter = true
 		psFilters.WalkValues("ancestor", func(ancestor string) error {
 			id, platform, err := daemon.GetImageIDAndPlatform(ancestor)
@@ -465,7 +465,7 @@ func includeContainerInList(container *container.Snapshot, ctx *listContext) ite
 		return excludeContainer
 	}
 
-	if ctx.filters.Include("volume") {
+	if ctx.filters.Contains("volume") {
 		volumesByName := make(map[string]types.MountPoint)
 		for _, m := range container.Mounts {
 			if m.Name != "" {
@@ -509,7 +509,7 @@ func includeContainerInList(container *container.Snapshot, ctx *listContext) ite
 		networkExist = errors.New("container part of network")
 		noNetworks   = errors.New("container is not part of any networks")
 	)
-	if ctx.filters.Include("network") {
+	if ctx.filters.Contains("network") {
 		err := ctx.filters.WalkValues("network", func(value string) error {
 			if container.NetworkSettings == nil {
 				return noNetworks
@@ -585,7 +585,7 @@ func (daemon *Daemon) Volumes(filter string) ([]*types.Volume, []string, error) 
 	var (
 		volumesOut []*types.Volume
 	)
-	volFilters, err := filters.FromParam(filter)
+	volFilters, err := filters.FromJSON(filter)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -627,17 +627,17 @@ func (daemon *Daemon) filterVolumes(vols []volume.Volume, filter filters.Args) (
 
 	var retVols []volume.Volume
 	for _, vol := range vols {
-		if filter.Include("name") {
+		if filter.Contains("name") {
 			if !filter.Match("name", vol.Name()) {
 				continue
 			}
 		}
-		if filter.Include("driver") {
+		if filter.Contains("driver") {
 			if !filter.ExactMatch("driver", vol.DriverName()) {
 				continue
 			}
 		}
-		if filter.Include("label") {
+		if filter.Contains("label") {
 			v, ok := vol.(volume.DetailedVolume)
 			if !ok {
 				continue
@@ -649,7 +649,7 @@ func (daemon *Daemon) filterVolumes(vols []volume.Volume, filter filters.Args) (
 		retVols = append(retVols, vol)
 	}
 	danglingOnly := false
-	if filter.Include("dangling") {
+	if filter.Contains("dangling") {
 		if filter.ExactMatch("dangling", "true") || filter.ExactMatch("dangling", "1") {
 			danglingOnly = true
 		} else if !filter.ExactMatch("dangling", "false") && !filter.ExactMatch("dangling", "0") {

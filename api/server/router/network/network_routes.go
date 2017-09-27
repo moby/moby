@@ -37,7 +37,7 @@ func (n *networkRouter) getNetworksList(ctx context.Context, w http.ResponseWrit
 	}
 
 	filter := r.Form.Get("filters")
-	netFilters, err := filters.FromParam(filter)
+	netFilters, err := filters.FromJSON(filter)
 	if err != nil {
 		return err
 	}
@@ -489,7 +489,7 @@ func (n *networkRouter) postNetworksPrune(ctx context.Context, w http.ResponseWr
 		return err
 	}
 
-	pruneFilters, err := filters.FromParam(r.Form.Get("filters"))
+	pruneFilters, err := filters.FromJSON(r.Form.Get("filters"))
 	if err != nil {
 		return err
 	}
