@@ -384,10 +384,7 @@ func (u *Updater) updateTask(ctx context.Context, slot orchestrator.Slot, update
 				return errors.New("service was deleted")
 			}
 
-			if err := store.CreateTask(tx, updated); err != nil {
-				return err
-			}
-			return nil
+			return store.CreateTask(tx, updated)
 		})
 		if err != nil {
 			return err

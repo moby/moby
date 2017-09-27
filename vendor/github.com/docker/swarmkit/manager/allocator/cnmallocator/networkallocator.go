@@ -459,8 +459,8 @@ func (na *cnmNetworkAllocator) DeallocateTask(t *api.Task) error {
 	return na.releaseEndpoints(t.Networks)
 }
 
-// IsLBAttachmentAllocated returns if the passed node and network has resources allocated or not.
-func (na *cnmNetworkAllocator) IsLBAttachmentAllocated(node *api.Node, networkAttachment *api.NetworkAttachment) bool {
+// IsAttachmentAllocated returns if the passed node and network has resources allocated or not.
+func (na *cnmNetworkAllocator) IsAttachmentAllocated(node *api.Node, networkAttachment *api.NetworkAttachment) bool {
 	if node == nil {
 		return false
 	}
@@ -500,9 +500,9 @@ func (na *cnmNetworkAllocator) IsLBAttachmentAllocated(node *api.Node, networkAt
 	return true
 }
 
-// AllocateLBAttachment allocates the IP addresses for a LB in a network
+// AllocateAttachment allocates the IP addresses for a LB in a network
 // on a given node
-func (na *cnmNetworkAllocator) AllocateLBAttachment(node *api.Node, networkAttachment *api.NetworkAttachment) error {
+func (na *cnmNetworkAllocator) AllocateAttachment(node *api.Node, networkAttachment *api.NetworkAttachment) error {
 
 	if err := na.allocateNetworkIPs(networkAttachment); err != nil {
 		return err
@@ -516,9 +516,9 @@ func (na *cnmNetworkAllocator) AllocateLBAttachment(node *api.Node, networkAttac
 	return nil
 }
 
-// DeallocateLBAttachment deallocates the IP addresses for a LB in a network to
+// DeallocateAttachment deallocates the IP addresses for a LB in a network to
 // which the node is attached.
-func (na *cnmNetworkAllocator) DeallocateLBAttachment(node *api.Node, networkAttachment *api.NetworkAttachment) error {
+func (na *cnmNetworkAllocator) DeallocateAttachment(node *api.Node, networkAttachment *api.NetworkAttachment) error {
 
 	delete(na.nodes[node.ID], networkAttachment.Network.ID)
 	if len(na.nodes[node.ID]) == 0 {

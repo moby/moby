@@ -293,11 +293,6 @@ message ContainerSpec {
 	// task will exit and a new task will be rescheduled elsewhere. A container
 	// is considered unhealthy after `Retries` number of consecutive failures.
 	HealthConfig healthcheck = 16;
-	
-	// Run a custom init inside the container, if null, use the daemon's configured settings
-	oneof init {
-		bool init_value = 23;
-	}
 }
 
 // EndpointSpec defines the properties that can be configured to

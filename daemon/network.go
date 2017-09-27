@@ -370,7 +370,7 @@ func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string
 	daemon.LogNetworkEvent(n, "create")
 
 	if agent && !n.Info().Ingress() && n.Type() == "overlay" {
-		nodeIP, exists := daemon.GetLBAttachmentStore().GetLBIPForNetwork(id)
+		nodeIP, exists := daemon.GetAttachmentStore().GetIPForNetwork(id)
 		if !exists {
 			return nil, fmt.Errorf("Failed to find a load balancer IP to use for network: %v", id)
 		}

@@ -125,7 +125,7 @@ type Daemon struct {
 	hosts            map[string]bool // hosts stores the addresses the daemon is listening on
 	startupDone      chan struct{}
 
-	lbAttachmentStore network.LBAttachmentStore
+	attachmentStore network.AttachmentStore
 }
 
 // StoreHosts stores the addresses the daemon is listening on
@@ -491,7 +491,7 @@ func (daemon *Daemon) DaemonLeavesCluster() {
 		logrus.Warnf("failed to initiate ingress network removal: %v", err)
 	}
 
-	daemon.lbAttachmentStore.ClearLBAttachments()
+	daemon.attachmentStore.ClearAttachments()
 }
 
 // setClusterProvider sets a component for querying the current cluster state.
@@ -1251,7 +1251,7 @@ func fixMemorySwappiness(resources *containertypes.Resources) {
 	}
 }
 
-// GetLBAttachmentStore returns current load balancer store associated with the daemon
-func (daemon *Daemon) GetLBAttachmentStore() *network.LBAttachmentStore {
-	return &daemon.lbAttachmentStore
+// GetAttachmentStore returns current attachment store associated with the daemon
+func (daemon *Daemon) GetAttachmentStore() *network.AttachmentStore {
+	return &daemon.attachmentStore
 }

@@ -137,18 +137,18 @@ func (e *executor) Describe(ctx context.Context) (*api.NodeDescription, error) {
 
 func (e *executor) Configure(ctx context.Context, node *api.Node) error {
 	var ingressNA *api.NetworkAttachment
-	lbAttachments := make(map[string]string)
+	attachments := make(map[string]string)
 
-	for _, na := range node.LbAttachments {
+	for _, na := range node.Attachments {
 		if na.Network.Spec.Ingress {
 			ingressNA = na
 		}
-		lbAttachments[na.Network.ID] = na.Addresses[0]
+		attachments[na.Network.ID] = na.Addresses[0]
 	}
 
 	if ingressNA == nil {
 		e.backend.ReleaseIngress()
-		return e.backend.GetLBAttachmentStore().ResetLBAttachments(lbAttachments)
+		return e.backend.GetAttachmentStore().ResetAttachments(attachments)
 	}
 
 	options := types.NetworkCreate{
@@ -181,7 +181,7 @@ func (e *executor) Configure(ctx context.Context, node *api.Node) error {
 		return err
 	}
 
-	return e.backend.GetLBAttachmentStore().ResetLBAttachments(lbAttachments)
+	return e.backend.GetAttachmentStore().ResetAttachments(attachments)
 }
 
 // Controller returns a docker container runner.

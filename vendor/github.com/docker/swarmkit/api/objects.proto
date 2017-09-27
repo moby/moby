@@ -77,10 +77,10 @@ message Node {
 	// issuing or renewing the node's certificate.
 	NodeRole role = 9;
 
-	// Each node uses the network attachment to set up an endpoint on the 
-	// node to be used for load balancing.  Each overlay network, including 
-	// ingress network, will have an NetworkAttachment.
-	repeated NetworkAttachment lb_attachments = 10;
+	// Attachments enumerates the network attachments for the node to set up an
+	// endpoint on the node to be used for load balancing. Each overlay
+	// network, including ingress network, will have an NetworkAttachment.
+	repeated NetworkAttachment attachments = 10;
 }
 
 message Service {
