@@ -3,6 +3,7 @@ package volume
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -155,13 +156,20 @@ func (m *MountPoint) Setup(mountLabel string, rootIDs idtools.IDPair, checkFun f
 			return
 		}
 
-		err = label.Relabel(m.Source, mountLabel, label.IsShared(m.Mode))
+		var sourcePath string
+		sourcePath, err = filepath.EvalSymlinks(m.Source)
+		if err != nil {
+			path = ""
+			err = errors.Wrapf(err, "error evaluating symlinks from mount source %q", m.Source)
+			return
+		}
+		err = label.Relabel(sourcePath, mountLabel, label.IsShared(m.Mode))
 		if err == syscall.ENOTSUP {
 			err = nil
 		}
 		if err != nil {
 			path = ""
-			err = errors.Wrapf(err, "error setting label on mount source '%s'", m.Source)
+			err = errors.Wrapf(err, "error setting label on mount source '%s'", sourcePath)
 		}
 	}()
 
