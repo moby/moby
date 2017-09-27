@@ -26,9 +26,13 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 	defer c.controlMutex.Unlock()
 	if c.nr != nil {
 		if req.ForceNewCluster {
+
 			// Take c.mu temporarily to wait for presently running
 			// API handlers to finish before shutting down the node.
 			c.mu.Lock()
+			if !c.nr.nodeState.IsManager() {
+				return "", errSwarmNotManager
+			}
 			c.mu.Unlock()
 
 			if err := c.nr.Stop(); err != nil {

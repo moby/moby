@@ -15,6 +15,9 @@ const (
 
 	// errSwarmCertificatesExpired is returned if docker was not started for the whole validity period and they had no chance to renew automatically.
 	errSwarmCertificatesExpired notAvailableError = "Swarm certificates have expired. To replace them, leave the swarm and join again."
+
+	// errSwarmNotManager is returned if the node is not a swarm manager.
+	errSwarmNotManager notAvailableError = "This node is not a swarm manager. Worker nodes can't be used to view or modify cluster state. Please run this command on a manager node or promote the current node to a manager."
 )
 
 type notFoundError struct {
