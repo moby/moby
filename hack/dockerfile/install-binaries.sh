@@ -53,25 +53,12 @@ install_dockercli() {
 
 	arch=$(uname -m)
 	# No official release of these platforms
-	if [[ "$arch" != "x86_64" ]] && [[ "$arch" != "s390x" ]]; then
-		build_dockercli
-		return
-	fi
-
-	url=https://download.docker.com/linux/static
-	curl -Ls $url/$DOCKERCLI_CHANNEL/$arch/docker-$DOCKERCLI_VERSION.tgz | \
-	tar -xz docker/docker
-	mv docker/docker /usr/local/bin/
-	rmdir docker
+	build_dockercli
 }
 
 build_dockercli() {
 	DOCKERCLI_VERSION=${DOCKERCLI_VERSION:-17.06.0-ce}
-	git clone https://github.com/docker/docker-ce "$GOPATH/tmp/docker-ce"
-	cd "$GOPATH/tmp/docker-ce"
-	git checkout -q "v$DOCKERCLI_VERSION"
-	mkdir -p "$GOPATH/src/github.com/docker"
-	mv components/cli "$GOPATH/src/github.com/docker/cli"
+	git clone https://github.com/docker/cli "$GOPATH/src/github.com/docker/cli"
 	go build -o /usr/local/bin/docker github.com/docker/cli/cmd/docker
 }
 
