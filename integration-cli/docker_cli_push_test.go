@@ -294,10 +294,10 @@ func (s *DockerTrustSuite) TestTrustedPush(c *check.C) {
 	})
 
 	// Assert that we rotated the snapshot key to the server by checking our local keystore
-	contents, err := ioutil.ReadDir(filepath.Join(config.Dir(), "trust/private/tuf_keys", privateRegistryURL, "dockerclitrusted/pushtest"))
+	contents, err := ioutil.ReadDir(filepath.Join(config.Dir(), "trust/private"))
 	c.Assert(err, check.IsNil, check.Commentf("Unable to read local tuf key files"))
-	// Check that we only have 1 key (targets key)
-	c.Assert(contents, checker.HasLen, 1)
+	// Check that we only have 2 keys (root, targets key)
+	c.Assert(contents, checker.HasLen, 2)
 }
 
 func (s *DockerTrustSuite) TestTrustedPushWithEnvPasswords(c *check.C) {
