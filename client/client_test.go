@@ -245,6 +245,14 @@ func TestNegotiateAPIVersion(t *testing.T) {
 	// test downgrade
 	client.NegotiateAPIVersionPing(ping)
 	assert.Equal(t, expected, client.version)
+
+	// set the client version to something older, and verify that we keep the
+	// original setting.
+	expected = "1.20"
+	client.version = expected
+	client.NegotiateAPIVersionPing(ping)
+	assert.Equal(t, expected, client.version)
+
 }
 
 // TestNegotiateAPIVersionOverride asserts that we honor
