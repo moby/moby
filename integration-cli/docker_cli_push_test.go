@@ -373,8 +373,12 @@ func (s *DockerTrustSuite) TestTrustedPushWithIncorrectPassphraseForNonRoot(c *c
 	// Push with default passphrases
 	cli.Docker(cli.Args("push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
 
+	repoName2 := fmt.Sprintf("%v/dockercliincorretpwd/trusted:blue", privateRegistryURL)
+	// tag the image and upload it to the private registry
+	cli.DockerCmd(c, "tag", "busybox", repoName2)
+
 	// Push with wrong passphrases
-	cli.Docker(cli.Args("push", repoName), trustedCmdWithPassphrases("12345678", "87654321")).Assert(c, icmd.Expected{
+	cli.Docker(cli.Args("push", repoName2), trustedCmdWithPassphrases("12345678", "87654321")).Assert(c, icmd.Expected{
 		ExitCode: 1,
 		Err:      "could not find necessary signing keys",
 	})
