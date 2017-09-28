@@ -31,7 +31,7 @@ func (s *DockerSwarmSuite) TestServiceLogs(c *check.C) {
 	}
 
 	for name, message := range services {
-		out, err := d.Cmd("service", "create", "--no-resolve-image", "--name", name, "busybox",
+		out, err := d.Cmd("service", "create", "--detach", "--no-resolve-image", "--name", name, "busybox",
 			"sh", "-c", fmt.Sprintf("echo %s; tail -f /dev/null", message))
 		c.Assert(err, checker.IsNil)
 		c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
@@ -74,7 +74,7 @@ func (s *DockerSwarmSuite) TestServiceLogsCompleteness(c *check.C) {
 	name := "TestServiceLogsCompleteness"
 
 	// make a service that prints 6 lines
-	out, err := d.Cmd("service", "create", "--no-resolve-image", "--name", name, "busybox", "sh", "-c", "for line in $(seq 0 5); do echo log test $line; done; sleep 100000")
+	out, err := d.Cmd("service", "create", "--detach", "--no-resolve-image", "--name", name, "busybox", "sh", "-c", "for line in $(seq 0 5); do echo log test $line; done; sleep 100000")
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
 
@@ -101,7 +101,7 @@ func (s *DockerSwarmSuite) TestServiceLogsTail(c *check.C) {
 	name := "TestServiceLogsTail"
 
 	// make a service that prints 6 lines
-	out, err := d.Cmd("service", "create", "--no-resolve-image", "--name", name, "busybox", "sh", "-c", "for line in $(seq 1 6); do echo log test $line; done; sleep 100000")
+	out, err := d.Cmd("service", "create", "--detach", "--no-resolve-image", "--name", name, "busybox", "sh", "-c", "for line in $(seq 1 6); do echo log test $line; done; sleep 100000")
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
 
@@ -125,7 +125,7 @@ func (s *DockerSwarmSuite) TestServiceLogsSince(c *check.C) {
 
 	name := "TestServiceLogsSince"
 
-	out, err := d.Cmd("service", "create", "--no-resolve-image", "--name", name, "busybox", "sh", "-c", "for i in $(seq 1 3); do sleep .1; echo log$i; done; sleep 10000000")
+	out, err := d.Cmd("service", "create", "--detach", "--no-resolve-image", "--name", name, "busybox", "sh", "-c", "for i in $(seq 1 3); do sleep .1; echo log$i; done; sleep 10000000")
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
 	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
@@ -159,7 +159,7 @@ func (s *DockerSwarmSuite) TestServiceLogsFollow(c *check.C) {
 
 	name := "TestServiceLogsFollow"
 
-	out, err := d.Cmd("service", "create", "--no-resolve-image", "--name", name, "busybox", "sh", "-c", "while true; do echo log test; sleep 0.1; done")
+	out, err := d.Cmd("service", "create", "--detach", "--no-resolve-image", "--name", name, "busybox", "sh", "-c", "while true; do echo log test; sleep 0.1; done")
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
 
@@ -207,7 +207,7 @@ func (s *DockerSwarmSuite) TestServiceLogsTaskLogs(c *check.C) {
 
 	result := icmd.RunCmd(d.Command(
 		// create a service with the name
-		"service", "create", "--no-resolve-image", "--name", name,
+		"service", "create", "--detach", "--no-resolve-image", "--name", name,
 		// which has some number of replicas
 		fmt.Sprintf("--replicas=%v", replicas),
 		// which has this the task id as an environment variable templated in
@@ -259,7 +259,7 @@ func (s *DockerSwarmSuite) TestServiceLogsTTY(c *check.C) {
 
 	result := icmd.RunCmd(d.Command(
 		// create a service
-		"service", "create", "--no-resolve-image",
+		"service", "create", "--detach", "--no-resolve-image",
 		// name it $name
 		"--name", name,
 		// use a TTY
@@ -297,7 +297,7 @@ func (s *DockerSwarmSuite) TestServiceLogsNoHangDeletedContainer(c *check.C) {
 
 	result := icmd.RunCmd(d.Command(
 		// create a service
-		"service", "create", "--no-resolve-image",
+		"service", "create", "--detach", "--no-resolve-image",
 		// name it $name
 		"--name", name,
 		// busybox image, shell string
@@ -346,7 +346,7 @@ func (s *DockerSwarmSuite) TestServiceLogsDetails(c *check.C) {
 
 	result := icmd.RunCmd(d.Command(
 		// create a service
-		"service", "create", "--no-resolve-image",
+		"service", "create", "--detach", "--no-resolve-image",
 		// name it $name
 		"--name", name,
 		// add an environment variable
