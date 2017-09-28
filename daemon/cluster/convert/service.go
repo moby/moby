@@ -160,10 +160,11 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 			Labels: s.Labels,
 		},
 		Task: swarmapi.TaskSpec{
-			Resources:   resourcesToGRPC(s.TaskTemplate.Resources),
-			LogDriver:   driverToGRPC(s.TaskTemplate.LogDriver),
-			Networks:    taskNetworks,
-			ForceUpdate: s.TaskTemplate.ForceUpdate,
+			Resources:          resourcesToGRPC(s.TaskTemplate.Resources),
+			ResourceReferences: resourceReferencesToGRPC(s.TaskTemplate.ResourceReferences),
+			LogDriver:          driverToGRPC(s.TaskTemplate.LogDriver),
+			Networks:           taskNetworks,
+			ForceUpdate:        s.TaskTemplate.ForceUpdate,
 		},
 		Networks: serviceNetworks,
 	}
@@ -389,6 +390,23 @@ func resourcesToGRPC(res *types.ResourceRequirements) *swarmapi.ResourceRequirem
 	return reqs
 }
 
+func resourceReferencesToGRPC(res []types.ResourceReference) []swarmapi.ResourceReference {
+	var resourceReferences []swarmapi.ResourceReference
+	for _, resource := range res {
+		resourceReference := swarmapi.ResourceReference{ResourceID: resource.ResourceID}
+		switch resource.ResourceType {
+		case types.ResourceTypeTask:
+			resourceReference.ResourceType = swarmapi.ResourceType_TASK
+		case types.ResourceTypeSecret:
+			resourceReference.ResourceType = swarmapi.ResourceType_SECRET
+		case types.ResourceTypeConfig:
+			resourceReference.ResourceType = swarmapi.ResourceType_CONFIG
+		}
+		resourceReferences = append(resourceReferences, resourceReference)
+	}
+	return resourceReferences
+}
+
 func restartPolicyFromGRPC(p *swarmapi.RestartPolicy) *types.RestartPolicy {
 	var rp *types.RestartPolicy
 	if p != nil {
@@ -491,6 +509,24 @@ func driverFromGRPC(p *swarmapi.Driver) *types.Driver {
 	}
 }
 
+func resourceReferencesFromGRPC(r []swarmapi.ResourceReference) []types.ResourceReference {
+	var resources []types.ResourceReference
+	for _, resourceReference := range r {
+		resource := types.ResourceReference{ResourceID: resourceReference.ResourceID}
+		switch resourceReference.ResourceType {
+		case swarmapi.ResourceType_SECRET:
+			resource.ResourceType = types.ResourceTypeSecret
+		case swarmapi.ResourceType_CONFIG:
+			resource.ResourceType = types.ResourceTypeConfig
+		case swarmapi.ResourceType_TASK:
+			resource.ResourceType = types.ResourceTypeTask
+		}
+		resources = append(resources, resource)
+	}
+
+	return resources
+}
+
 func driverToGRPC(p *types.Driver) *swarmapi.Driver {
 	if p == nil {
 		return nil
@@ -581,12 +617,13 @@ func taskSpecFromGRPC(taskSpec swarmapi.TaskSpec) (types.TaskSpec, error) {
 	}
 
 	t := types.TaskSpec{
-		Resources:     resourcesFromGRPC(taskSpec.Resources),
-		RestartPolicy: restartPolicyFromGRPC(taskSpec.Restart),
-		Placement:     placementFromGRPC(taskSpec.Placement),
-		LogDriver:     driverFromGRPC(taskSpec.LogDriver),
-		Networks:      taskNetworks,
-		ForceUpdate:   taskSpec.ForceUpdate,
+		Resources:          resourcesFromGRPC(taskSpec.Resources),
+		ResourceReferences: resourceReferencesFromGRPC(taskSpec.ResourceReferences),
+		RestartPolicy:      restartPolicyFromGRPC(taskSpec.Restart),
+		Placement:          placementFromGRPC(taskSpec.Placement),
+		LogDriver:          driverFromGRPC(taskSpec.LogDriver),
+		Networks:           taskNetworks,
+		ForceUpdate:        taskSpec.ForceUpdate,
 	}
 
 	switch taskSpec.GetRuntime().(type) {

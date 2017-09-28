@@ -80,6 +80,53 @@ func TestServiceConvertFromGRPCGenericRuntimePlugin(t *testing.T) {
 	}
 }
 
+func TestServiceConvertToGRPCResourceReferences(t *testing.T) {
+	taskResourceReferences := []swarmtypes.ResourceReference{
+		{ResourceID: "id1", ResourceType: swarmtypes.ResourceTypeConfig},
+		{ResourceID: "id2", ResourceType: swarmtypes.ResourceTypeSecret},
+		{ResourceID: "id3", ResourceType: swarmtypes.ResourceTypeTask},
+	}
+	s := swarmtypes.ServiceSpec{
+		TaskTemplate: swarmtypes.TaskSpec{
+			Runtime:            swarmtypes.RuntimePlugin,
+			PluginSpec:         &runtime.PluginSpec{},
+			ResourceReferences: taskResourceReferences,
+		},
+		Mode: swarmtypes.ServiceMode{
+			Global: &swarmtypes.GlobalService{},
+		},
+	}
+
+	svc, err := ServiceSpecToGRPC(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, ok := svc.Task.Runtime.(*swarmapi.TaskSpec_Generic)
+	if !ok {
+		t.Fatal("expected type swarmapi.TaskSpec_Generic")
+	}
+	if len(svc.Task.ResourceReferences) != len(taskResourceReferences) {
+		t.Fatalf("expecected %d resource references, actual %d", len(svc.Task.ResourceReferences), len(taskResourceReferences))
+	}
+
+	expectedResourceTypes := map[swarmapi.ResourceType]swarmtypes.ResourceType{
+		swarmapi.ResourceType_SECRET: swarmtypes.ResourceTypeSecret,
+		swarmapi.ResourceType_CONFIG: swarmtypes.ResourceTypeConfig,
+		swarmapi.ResourceType_TASK:   swarmtypes.ResourceTypeTask,
+	}
+
+	for i := range taskResourceReferences {
+		actual := svc.Task.ResourceReferences[i]
+		expected := taskResourceReferences[i]
+		if expectedResourceTypes[actual.ResourceType] != expected.ResourceType {
+			t.Fatalf("expecected equal resource type, expected: %v actual: %v", expected.ResourceType, actual.ResourceType)
+		}
+		if actual.ResourceID != expected.ResourceID {
+			t.Fatalf("expecected equal resource id, expected: %v actual: %v", expected, actual)
+		}
+	}
+}
+
 func TestServiceConvertToGRPCGenericRuntimePlugin(t *testing.T) {
 	s := swarmtypes.ServiceSpec{
 		TaskTemplate: swarmtypes.TaskSpec{

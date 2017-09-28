@@ -61,10 +61,11 @@ type TaskSpec struct {
 	ContainerSpec *ContainerSpec      `json:",omitempty"`
 	PluginSpec    *runtime.PluginSpec `json:",omitempty"`
 
-	Resources     *ResourceRequirements     `json:",omitempty"`
-	RestartPolicy *RestartPolicy            `json:",omitempty"`
-	Placement     *Placement                `json:",omitempty"`
-	Networks      []NetworkAttachmentConfig `json:",omitempty"`
+	Resources          *ResourceRequirements     `json:",omitempty"`
+	ResourceReferences []ResourceReference       `json:",omitempty"`
+	RestartPolicy      *RestartPolicy            `json:",omitempty"`
+	Placement          *Placement                `json:",omitempty"`
+	Networks           []NetworkAttachmentConfig `json:",omitempty"`
 
 	// LogDriver specifies the LogDriver to use for tasks created from this
 	// spec. If not present, the one on cluster default on swarm.Spec will be
@@ -114,6 +115,24 @@ type DiscreteGenericResource struct {
 type ResourceRequirements struct {
 	Limits       *Resources `json:",omitempty"`
 	Reservations *Resources `json:",omitempty"`
+}
+
+// ResourceType represent the resource type
+type ResourceType string
+
+const (
+	// ResourceTypeTask is the task resource type
+	ResourceTypeTask ResourceType = "task"
+	// ResourceTypeSecret is the secret resource type
+	ResourceTypeSecret ResourceType = "secret"
+	// ResourceTypeConfig is the config resource type
+	ResourceTypeConfig ResourceType = "config"
+)
+
+// ResourceReference represents resources references by a task.
+type ResourceReference struct {
+	ResourceID   string       `json:",omitempty"`
+	ResourceType ResourceType `json:",omitempty"`
 }
 
 // Placement represents orchestration parameters.
