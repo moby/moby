@@ -31,7 +31,7 @@ func createNetworkDBInstances(t *testing.T, num int, namePrefix string) []*Netwo
 	var dbs []*NetworkDB
 	for i := 0; i < num; i++ {
 		conf := DefaultConfig()
-		conf.NodeName = fmt.Sprintf("%s%d", namePrefix, i+1)
+		conf.Hostname = fmt.Sprintf("%s%d", namePrefix, i+1)
 		conf.BindPort = int(atomic.AddInt32(&dbPort, 1))
 		db, err := New(conf)
 		require.NoError(t, err)
@@ -69,7 +69,7 @@ func (db *NetworkDB) verifyNodeExistence(t *testing.T, node string, present bool
 		time.Sleep(50 * time.Millisecond)
 	}
 
-	assert.Fail(t, fmt.Sprintf("%s: Node existence verification for node %s failed", db.config.NodeName, node))
+	assert.Fail(t, fmt.Sprintf("%v(%v): Node existence verification for node %s failed", db.config.Hostname, db.config.NodeID, node))
 }
 
 func (db *NetworkDB) verifyNetworkExistence(t *testing.T, node string, id string, present bool) {
@@ -117,7 +117,7 @@ func (db *NetworkDB) verifyEntryExistence(t *testing.T, tname, nid, key, value s
 		time.Sleep(50 * time.Millisecond)
 	}
 
-	assert.Fail(t, fmt.Sprintf("Entry existence verification test failed for %s", db.config.NodeName))
+	assert.Fail(t, fmt.Sprintf("Entry existence verification test failed for %v(%v)", db.config.Hostname, db.config.NodeID))
 }
 
 func testWatch(t *testing.T, ch chan events.Event, ev interface{}, tname, nid, key, value string) {
@@ -157,12 +157,12 @@ func TestNetworkDBJoinLeaveNetwork(t *testing.T) {
 	err := dbs[0].JoinNetwork("network1")
 	assert.NoError(t, err)
 
-	dbs[1].verifyNetworkExistence(t, "node1", "network1", true)
+	dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", true)
 
 	err = dbs[0].LeaveNetwork("network1")
 	assert.NoError(t, err)
 
-	dbs[1].verifyNetworkExistence(t, "node1", "network1", false)
+	dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", false)
 	closeNetworkDBInstances(dbs)
 }
 
@@ -181,11 +181,11 @@ func TestNetworkDBJoinLeaveNetworks(t *testing.T) {
 	}
 
 	for i := 1; i <= n; i++ {
-		dbs[1].verifyNetworkExistence(t, "node1", fmt.Sprintf("network0%d", i), true)
+		dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, fmt.Sprintf("network0%d", i), true)
 	}
 
 	for i := 1; i <= n; i++ {
-		dbs[0].verifyNetworkExistence(t, "node2", fmt.Sprintf("network1%d", i), true)
+		dbs[0].verifyNetworkExistence(t, dbs[1].config.NodeID, fmt.Sprintf("network1%d", i), true)
 	}
 
 	for i := 1; i <= n; i++ {
@@ -199,11 +199,11 @@ func TestNetworkDBJoinLeaveNetworks(t *testing.T) {
 	}
 
 	for i := 1; i <= n; i++ {
-		dbs[1].verifyNetworkExistence(t, "node1", fmt.Sprintf("network0%d", i), false)
+		dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, fmt.Sprintf("network0%d", i), false)
 	}
 
 	for i := 1; i <= n; i++ {
-		dbs[0].verifyNetworkExistence(t, "node2", fmt.Sprintf("network1%d", i), false)
+		dbs[0].verifyNetworkExistence(t, dbs[1].config.NodeID, fmt.Sprintf("network1%d", i), false)
 	}
 
 	closeNetworkDBInstances(dbs)
@@ -215,7 +215,7 @@ func TestNetworkDBCRUDTableEntry(t *testing.T) {
 	err := dbs[0].JoinNetwork("network1")
 	assert.NoError(t, err)
 
-	dbs[1].verifyNetworkExistence(t, "node1", "network1", true)
+	dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", true)
 
 	err = dbs[1].JoinNetwork("network1")
 	assert.NoError(t, err)
@@ -245,7 +245,7 @@ func TestNetworkDBCRUDTableEntries(t *testing.T) {
 	err := dbs[0].JoinNetwork("network1")
 	assert.NoError(t, err)
 
-	dbs[1].verifyNetworkExistence(t, "node1", "network1", true)
+	dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", true)
 
 	err = dbs[1].JoinNetwork("network1")
 	assert.NoError(t, err)
@@ -361,7 +361,7 @@ func TestNetworkDBBulkSync(t *testing.T) {
 	err := dbs[0].JoinNetwork("network1")
 	assert.NoError(t, err)
 
-	dbs[1].verifyNetworkExistence(t, "node1", "network1", true)
+	dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", true)
 
 	n := 1000
 	for i := 1; i <= n; i++ {
@@ -374,7 +374,7 @@ func TestNetworkDBBulkSync(t *testing.T) {
 	err = dbs[1].JoinNetwork("network1")
 	assert.NoError(t, err)
 
-	dbs[0].verifyNetworkExistence(t, "node2", "network1", true)
+	dbs[0].verifyNetworkExistence(t, dbs[1].config.NodeID, "network1", true)
 
 	for i := 1; i <= n; i++ {
 		dbs[1].verifyEntryExistence(t, "test_table", "network1",
@@ -397,7 +397,7 @@ func TestNetworkDBCRUDMediumCluster(t *testing.T) {
 				continue
 			}
 
-			dbs[i].verifyNodeExistence(t, fmt.Sprintf("node%d", j+1), true)
+			dbs[i].verifyNodeExistence(t, dbs[j].config.NodeID, true)
 		}
 	}
 
@@ -408,7 +408,7 @@ func TestNetworkDBCRUDMediumCluster(t *testing.T) {
 
 	for i := 0; i < n; i++ {
 		for j := 0; j < n; j++ {
-			dbs[i].verifyNetworkExistence(t, fmt.Sprintf("node%d", j+1), "network1", true)
+			dbs[i].verifyNetworkExistence(t, dbs[j].config.NodeID, "network1", true)
 		}
 	}
 
@@ -473,7 +473,7 @@ func TestNetworkDBNodeJoinLeaveIteration(t *testing.T) {
 	if len(dbs[0].networkNodes["network1"]) != 2 {
 		t.Fatalf("The networkNodes list has to have be 2 instead of %d - %v", len(dbs[0].networkNodes["network1"]), dbs[0].networkNodes["network1"])
 	}
-	if n, ok := dbs[0].networks[dbs[0].config.NodeName]["network1"]; !ok || n.leaving {
+	if n, ok := dbs[0].networks[dbs[0].config.NodeID]["network1"]; !ok || n.leaving {
 		t.Fatalf("The network should not be marked as leaving:%t", n.leaving)
 	}
 
@@ -487,7 +487,7 @@ func TestNetworkDBNodeJoinLeaveIteration(t *testing.T) {
 	if len(dbs[1].networkNodes["network1"]) != 2 {
 		t.Fatalf("The networkNodes list has to have be 2 instead of %d - %v", len(dbs[1].networkNodes["network1"]), dbs[1].networkNodes["network1"])
 	}
-	if n, ok := dbs[1].networks[dbs[1].config.NodeName]["network1"]; !ok || n.leaving {
+	if n, ok := dbs[1].networks[dbs[1].config.NodeID]["network1"]; !ok || n.leaving {
 		t.Fatalf("The network should not be marked as leaving:%t", n.leaving)
 	}
 

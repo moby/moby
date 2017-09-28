@@ -52,7 +52,7 @@ func Server(args []string) {
 	server = diagnose.Server{}
 	server.Init()
 	conf := networkdb.DefaultConfig()
-	conf.NodeName = localNodeName
+	conf.Hostname = localNodeName
 	conf.AdvertiseAddr = ipAddr
 	conf.BindAddr = ipAddr
 	nDB, err = networkdb.New(conf)
