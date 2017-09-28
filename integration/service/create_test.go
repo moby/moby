@@ -28,7 +28,8 @@ func TestCreateWithLBSandbox(t *testing.T) {
 		Driver:         "overlay",
 	}
 
-	netResp, err := client.NetworkCreate(context.Background(), overlayName, networkCreate)
+	ctx := context.Background()
+	netResp, err := client.NetworkCreate(ctx, overlayName, networkCreate)
 	require.NoError(t, err)
 	overlayID := netResp.ID
 
@@ -37,26 +38,26 @@ func TestCreateWithLBSandbox(t *testing.T) {
 
 	serviceSpec.TaskTemplate.Networks = append(serviceSpec.TaskTemplate.Networks, swarm.NetworkAttachmentConfig{Target: overlayName})
 
-	serviceResp, err := client.ServiceCreate(context.Background(), serviceSpec, types.ServiceCreateOptions{
+	serviceResp, err := client.ServiceCreate(ctx, serviceSpec, types.ServiceCreateOptions{
 		QueryRegistry: false,
 	})
 	require.NoError(t, err)
 
 	serviceID := serviceResp.ID
-	poll.WaitOn(t, serviceContainerCount(client, serviceID, instances))
+	poll.WaitOn(t, serviceTaskCount(client, serviceID, instances), pollSettings)
 
-	network, err := client.NetworkInspect(context.Background(), overlayID, types.NetworkInspectOptions{})
+	network, err := client.NetworkInspect(ctx, overlayID, types.NetworkInspectOptions{})
 	require.NoError(t, err)
 	assert.Contains(t, network.Containers, overlayName+"-sbox")
 
-	err = client.ServiceRemove(context.Background(), serviceID)
+	err = client.ServiceRemove(ctx, serviceID)
 	require.NoError(t, err)
 
-	poll.WaitOn(t, serviceIsRemoved(client, serviceID))
-	err = client.NetworkRemove(context.Background(), overlayID)
+	poll.WaitOn(t, serviceIsRemoved(client, serviceID), pollSettings)
+	err = client.NetworkRemove(ctx, overlayID)
 	require.NoError(t, err)
 
-	poll.WaitOn(t, networkIsRemoved(client, overlayID), poll.WithTimeout(1*time.Minute), poll.WithDelay(10*time.Second))
+	poll.WaitOn(t, networkIsRemoved(client, overlayID), pollSettings, poll.WithTimeout(time.Minute))
 }
 
 func swarmServiceSpec(name string, replicas uint64) swarm.ServiceSpec {

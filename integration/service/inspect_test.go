@@ -37,12 +37,11 @@ func TestInspect(t *testing.T) {
 	require.NoError(t, err)
 
 	id := resp.ID
-	poll.WaitOn(t, serviceContainerCount(client, id, instances))
+	poll.WaitOn(t, serviceTaskCount(client, id, instances), pollSettings)
 
 	service, _, err := client.ServiceInspectWithRaw(ctx, id, types.ServiceInspectOptions{})
 	require.NoError(t, err)
 	assert.Equal(t, serviceSpec, service.Spec)
-	assert.Equal(t, uint64(11), service.Meta.Version.Index)
 	assert.Equal(t, id, service.ID)
 	assert.WithinDuration(t, before, service.CreatedAt, 30*time.Second)
 	assert.WithinDuration(t, before, service.UpdatedAt, 30*time.Second)
@@ -64,7 +63,7 @@ func fullSwarmServiceSpec(name string, replicas uint64) swarm.ServiceSpec {
 				Image:           "busybox:latest",
 				Labels:          map[string]string{"container-label": "container-value"},
 				Command:         []string{"/bin/top"},
-				Args:            []string{"-u", "root"},
+				Args:            []string{"-n", "1000"},
 				Hostname:        "hostname",
 				Env:             []string{"envvar=envvalue"},
 				Dir:             "/work",
@@ -129,25 +128,30 @@ func newSwarm(t *testing.T) *daemon.Swarm {
 	return d
 }
 
-func serviceContainerCount(client client.ServiceAPIClient, id string, count uint64) func(log poll.LogT) poll.Result {
+func serviceTaskCount(client client.ServiceAPIClient, id string, count uint64) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
-		filter := filters.NewArgs()
-		filter.Add("service", id)
 		tasks, err := client.TaskList(context.Background(), types.TaskListOptions{
-			Filters: filter,
+			Filters: filters.NewArgs(filters.Arg("service", id)),
 		})
+		running := filterRunningTasks(tasks)
 		switch {
 		case err != nil:
 			return poll.Error(err)
-		case len(tasks) == int(count):
-			for _, task := range tasks {
-				if task.Status.State != swarm.TaskStateRunning {
-					return poll.Continue("waiting for tasks to enter %v", swarm.TaskStateRunning)
-				}
-			}
+		case len(running) == int(count):
 			return poll.Success()
 		default:
-			return poll.Continue("task count at %d waiting for %d", len(tasks), count)
+			return poll.Continue(
+				"task count at %d (%d running) waiting for %d", len(tasks), len(running), count)
 		}
 	}
+}
+
+func filterRunningTasks(tasks []swarm.Task) []swarm.Task {
+	result := []swarm.Task{}
+	for _, task := range tasks {
+		if task.Status.State == swarm.TaskStateRunning {
+			result = append(result, task)
+		}
+	}
+	return result
 }

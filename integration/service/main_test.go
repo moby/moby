@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/internal/test/environment"
+	"github.com/gotestyourself/gotestyourself/poll"
 )
 
 var testEnv *environment.Execution
@@ -27,4 +29,10 @@ func TestMain(m *testing.M) {
 func setupTest(t *testing.T) func() {
 	environment.ProtectAll(t, testEnv)
 	return func() { testEnv.Clean(t) }
+}
+
+// Default poll settings
+func pollSettings(config *poll.Settings) {
+	config.Delay = 100 * time.Millisecond
+	config.Timeout = 20 * time.Second
 }
