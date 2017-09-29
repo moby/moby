@@ -29,12 +29,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-// For Windows only
-var pathBlacklist = map[string]bool{
-	"c:\\":        true,
-	"c:\\windows": true,
-}
-
 // Archiver defines an interface for copying files from one destination to
 // another using Tar/Untar.
 type Archiver interface {

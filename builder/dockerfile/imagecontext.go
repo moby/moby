@@ -18,7 +18,6 @@ type imageSources struct {
 	byImageID map[string]*imageMount
 	mounts    []*imageMount
 	getImage  getAndMountFunc
-	cache     pathCache // TODO: remove
 }
 
 // TODO @jhowardmsft LCOW Support: Eventually, platform can be moved to options.Options.Platform,

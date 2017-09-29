@@ -217,7 +217,6 @@ func syncFrom(ctx context.Context, cs *cachedSourceRef, transport Transport, id 
 }
 
 type fsCacheStore struct {
-	root     string
 	mu       sync.Mutex
 	sources  map[string]*cachedSource
 	db       *bolt.DB
