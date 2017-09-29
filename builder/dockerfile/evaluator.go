@@ -203,13 +203,6 @@ func (s *dispatchState) hasFromImage() bool {
 	return s.imageID != "" || (s.baseImage != nil && s.baseImage.ImageID() == "")
 }
 
-func (s *dispatchState) isCurrentStage(target string) bool {
-	if target == "" {
-		return false
-	}
-	return strings.EqualFold(s.stageName, target)
-}
-
 func (s *dispatchState) beginStage(stageName string, image builder.Image) {
 	s.stageName = stageName
 	s.imageID = image.ImageID()
