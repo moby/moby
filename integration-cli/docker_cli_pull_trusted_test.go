@@ -144,7 +144,7 @@ func (s *DockerTrustSuite) TestTrustedPullReadsFromReleasesRole(c *check.C) {
 
 	// Try pull, check we retrieve from targets role
 	cli.Docker(cli.Args("-D", "pull", repoName), trustedCmd).Assert(c, icmd.Expected{
-		Err: "retrieving target for targets role",
+		Err: "successfully verified cached targets",
 	})
 
 	// Now we'll create the releases role, and try pushing and pulling
@@ -155,7 +155,7 @@ func (s *DockerTrustSuite) TestTrustedPullReadsFromReleasesRole(c *check.C) {
 	// try a pull, check that we can still pull because we can still read the
 	// old tag in the targets role
 	cli.Docker(cli.Args("-D", "pull", repoName), trustedCmd).Assert(c, icmd.Expected{
-		Err: "retrieving target for targets role",
+		Err: "successfully verified downloaded targets",
 	})
 
 	// try a pull -a, check that it succeeds because we can still pull from the
@@ -169,7 +169,7 @@ func (s *DockerTrustSuite) TestTrustedPullReadsFromReleasesRole(c *check.C) {
 
 	// Try pull, check we retrieve from targets/releases role
 	cli.Docker(cli.Args("-D", "pull", repoName), trustedCmd).Assert(c, icmd.Expected{
-		Err: "retrieving target for targets/releases role",
+		Err: "successfully verified cached targets/releases",
 	})
 
 	// Create another delegation that we'll sign with
@@ -183,7 +183,7 @@ func (s *DockerTrustSuite) TestTrustedPullReadsFromReleasesRole(c *check.C) {
 
 	// Try pull, check we retrieve from targets/releases role
 	cli.Docker(cli.Args("-D", "pull", repoName), trustedCmd).Assert(c, icmd.Expected{
-		Err: "retrieving target for targets/releases role",
+		Err: "successfully verified cached targets/releases",
 	})
 }
 
@@ -210,7 +210,7 @@ func (s *DockerTrustSuite) TestTrustedPullIgnoresOtherDelegationRoles(c *check.C
 	cli.DockerCmd(c, "tag", "busybox", targetName)
 	cli.Docker(cli.Args("-D", "pull", repoName), trustedCmd).Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err:      "No trust data for",
+		Err:      "No trusted tags for",
 	})
 
 	// try a pull -a: we should fail since pull will only pull from the targets/releases
