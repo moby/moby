@@ -115,7 +115,12 @@ func (pm *Manager) pluginPostStart(p *v2.Plugin, c *controller) error {
 
 	}
 	pm.config.Store.SetState(p, true)
-	pm.config.Store.CallHandler(p)
+	if err := pm.config.Store.CallHandler(p); err != nil {
+		c.restart = false
+		pm.config.Store.SetState(p, false)
+		shutdownPlugin(p, c, pm.executor)
+		return err
+	}
 
 	return pm.save(p)
 }

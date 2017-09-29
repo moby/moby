@@ -59,7 +59,7 @@ func (pm *Manager) Disable(refOrID string, config *types.PluginDisableConfig) er
 
 	for _, typ := range p.GetTypes() {
 		if typ.Capability == authorization.AuthZApiImplements {
-			pm.config.AuthzMiddleware.RemovePlugin(p.Name())
+			pm.config.AuthzMiddleware.RemovePlugin(p)
 		}
 	}
 

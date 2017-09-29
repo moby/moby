@@ -1,7 +1,7 @@
 package authorization
 
 import (
-	"sync"
+	"fmt"
 
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
@@ -21,56 +21,46 @@ type Plugin interface {
 }
 
 // newPlugins constructs and initializes the authorization plugins based on plugin names
-func newPlugins(names []string) []Plugin {
+func newPlugins(pg plugingetter.PluginGetter, names []string) ([]Plugin, error) {
 	plugins := []Plugin{}
 	pluginsMap := make(map[string]struct{})
 	for _, name := range names {
+		plugin, err := newAuthorizationPlugin(pg, name)
+		if err != nil {
+			return nil, fmt.Errorf("Error validating authorization plugin: %v", err)
+		}
+		name = plugin.Name()
 		if _, ok := pluginsMap[name]; ok {
 			continue
 		}
 		pluginsMap[name] = struct{}{}
-		plugins = append(plugins, newAuthorizationPlugin(name))
+		plugins = append(plugins, plugin)
 	}
-	return plugins
-}
-
-var getter plugingetter.PluginGetter
-
-// SetPluginGetter sets the plugingetter
-func SetPluginGetter(pg plugingetter.PluginGetter) {
-	getter = pg
-}
-
-// GetPluginGetter gets the plugingetter
-func GetPluginGetter() plugingetter.PluginGetter {
-	return getter
+	return plugins, nil
 }
 
 // authorizationPlugin is an internal adapter to docker plugin system
 type authorizationPlugin struct {
 	plugin *plugins.Client
 	name   string
-	once   sync.Once
 }
 
-func newAuthorizationPlugin(name string) Plugin {
-	return &authorizationPlugin{name: name}
+func newAuthorizationPlugin(pg plugingetter.PluginGetter, name string) (Plugin, error) {
+	plugin, err := pg.Get(name, AuthZApiImplements, plugingetter.Lookup)
+	if err != nil {
+		return nil, err
+	}
+	return &authorizationPlugin{
+		name:   plugin.Name(),
+		plugin: plugin.Client(),
+	}, nil
 }
 
 func (a *authorizationPlugin) Name() string {
 	return a.name
 }
 
-// Set the remote for an authz pluginv2
-func (a *authorizationPlugin) SetName(remote string) {
-	a.name = remote
-}
-
 func (a *authorizationPlugin) AuthZRequest(authReq *Request) (*Response, error) {
-	if err := a.initPlugin(); err != nil {
-		return nil, err
-	}
-
 	authRes := &Response{}
 	if err := a.plugin.Call(AuthZApiRequest, authReq, authRes); err != nil {
 		return nil, err
@@ -80,39 +70,10 @@ func (a *authorizationPlugin) AuthZRequest(authReq *Request) (*Response, error) 
 }
 
 func (a *authorizationPlugin) AuthZResponse(authReq *Request) (*Response, error) {
-	if err := a.initPlugin(); err != nil {
-		return nil, err
-	}
-
 	authRes := &Response{}
 	if err := a.plugin.Call(AuthZApiResponse, authReq, authRes); err != nil {
 		return nil, err
 	}
 
 	return authRes, nil
-}
-
-// initPlugin initializes the authorization plugin if needed
-func (a *authorizationPlugin) initPlugin() error {
-	// Lazy loading of plugins
-	var err error
-	a.once.Do(func() {
-		if a.plugin == nil {
-			var plugin plugingetter.CompatPlugin
-			var e error
-
-			if pg := GetPluginGetter(); pg != nil {
-				plugin, e = pg.Get(a.name, AuthZApiImplements, plugingetter.Lookup)
-				a.SetName(plugin.Name())
-			} else {
-				plugin, e = plugins.Get(a.name, AuthZApiImplements)
-			}
-			if e != nil {
-				err = e
-				return
-			}
-			a.plugin = plugin.Client()
-		}
-	})
-	return err
 }

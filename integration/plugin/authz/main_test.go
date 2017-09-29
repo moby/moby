@@ -162,10 +162,6 @@ func assertAuthHeaders(headers map[string]string) error {
 
 // assertBody asserts that body is removed for non text/json requests
 func assertBody(requestURI string, headers map[string]string, body []byte) {
-	if strings.Contains(strings.ToLower(requestURI), "auth") && len(body) > 0 {
-		panic("Body included for authentication endpoint " + string(body))
-	}
-
 	for k, v := range headers {
 		if strings.EqualFold(k, "Content-Type") && strings.HasPrefix(v, "text/") || v == "application/json" {
 			return

@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/docker/docker/pkg/plugingetter"
+	"github.com/docker/docker/plugin/v2"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
@@ -14,15 +15,20 @@ import (
 type Middleware struct {
 	mu      sync.Mutex
 	plugins []Plugin
+	pg      plugingetter.PluginGetter
 }
 
 // NewMiddleware creates a new Middleware
 // with a slice of plugins names.
-func NewMiddleware(names []string, pg plugingetter.PluginGetter) *Middleware {
-	SetPluginGetter(pg)
-	return &Middleware{
-		plugins: newPlugins(names),
+func NewMiddleware(names []string, pg plugingetter.PluginGetter) (*Middleware, error) {
+	plugins, err := newPlugins(pg, names)
+	if err != nil {
+		return nil, err
 	}
+	return &Middleware{
+		plugins: plugins,
+		pg:      pg,
+	}, nil
 }
 
 func (m *Middleware) getAuthzPlugins() []Plugin {
@@ -41,17 +47,25 @@ func (m *Middleware) GetPlugins() []string {
 }
 
 // SetPlugins sets the plugin used for authorization
-func (m *Middleware) SetPlugins(names []string) {
+func (m *Middleware) SetPlugins(names []string) error {
 	m.mu.Lock()
-	m.plugins = newPlugins(names)
-	m.mu.Unlock()
+	defer m.mu.Unlock()
+	plugins, err := newPlugins(m.pg, names)
+	if err != nil {
+		return err
+	}
+	m.plugins = plugins
+	return nil
 }
 
-// RemovePlugin removes a single plugin from this authz middleware chain
-func (m *Middleware) RemovePlugin(name string) {
+// RemovePlugin removes a single plugin from this authz middleware
+// chain; it takes a plugin object rather than a plugin name to ensure
+// that the name is valid
+func (m *Middleware) RemovePlugin(plugin *v2.Plugin) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	plugins := m.plugins[:0]
+	name := plugin.Name()
 	for _, authPlugin := range m.plugins {
 		if authPlugin.Name() != name {
 			plugins = append(plugins, authPlugin)
@@ -60,16 +74,40 @@ func (m *Middleware) RemovePlugin(name string) {
 	m.plugins = plugins
 }
 
-// AppendPluginIfMissing appends the authorization plugin named to the end of the chain if it isn't already in the chain
-func (m *Middleware) AppendPluginIfMissing(name string) {
+// PrependUniqueFirst prepends the named plugins to the authz chain
+// removing any duplicates after the first time a plugin is named
+func (m *Middleware) PrependUniqueFirst(names []string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
+	for _, plugin := range m.plugins {
+		names = append(names, plugin.Name())
+	}
+	plugins, err := newPlugins(m.pg, names)
+	if err != nil {
+		return err
+	}
+	m.plugins = plugins
+	return nil
+}
+
+// AppendPluginIfMissing appends the authorization plugin named to the
+// end of the chain if it isn't already in the chain
+func (m *Middleware) AppendPluginIfMissing(name string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	plugin, err := newAuthorizationPlugin(m.pg, name)
+	if err != nil {
+		return err
+	}
+	name = plugin.Name()
 	for _, p := range m.plugins {
 		if p.Name() == name {
-			return
+			return nil
 		}
 	}
-	m.plugins = append(m.plugins, newAuthorizationPlugin(name))
+	m.plugins = append(m.plugins, plugin)
+	return nil
 }
 
 // WrapHandler returns a new handler function wrapping the previous one in the request chain.

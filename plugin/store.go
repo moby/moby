@@ -182,14 +182,14 @@ func (ps *Store) GetAllByCap(capability string) ([]plugingetter.CompatPlugin, er
 // that participate in all transactions for their class if
 // activated. The legacy V1 plugin API has no distinction between
 // querying a plugin (or Getting it) and activating it.
-func (ps *Store) HandleV2(capability string, callback func(string, *plugins.Client)) {
+func (ps *Store) HandleV2(capability string, callback func(string, *plugins.Client) error) {
 	pluginType := fmt.Sprintf("docker.%s/%s", strings.ToLower(capability), defaultAPIVersion)
 
 	// Register callback with new plugin model.
 	ps.Lock()
 	handlers, ok := ps.handlers[pluginType]
 	if !ok {
-		handlers = []func(string, *plugins.Client){}
+		handlers = []func(string, *plugins.Client) error{}
 	}
 	handlers = append(handlers, callback)
 	ps.handlers[pluginType] = handlers
@@ -202,7 +202,10 @@ func (ps *Store) HandleV2(capability string, callback func(string, *plugins.Clie
 // subsystem. It should not be used for global plugin kinds like authz
 // as V1 plugins conflate querying and plugin activation.
 func (ps *Store) Handle(capability string, callback func(string, *plugins.Client)) {
-	ps.HandleV2(capability, callback)
+	ps.HandleV2(capability, func(name string, client *plugins.Client) error {
+		callback(name, client)
+		return nil
+	})
 
 	// Register callback with legacy plugin model.
 	if allowV1PluginsFallback {
@@ -211,12 +214,15 @@ func (ps *Store) Handle(capability string, callback func(string, *plugins.Client
 }
 
 // CallHandler calls the registered callback. It is invoked during plugin enable.
-func (ps *Store) CallHandler(p *v2.Plugin) {
+func (ps *Store) CallHandler(p *v2.Plugin) error {
 	for _, typ := range p.GetTypes() {
 		for _, handler := range ps.handlers[typ.String()] {
-			handler(p.Name(), p.Client())
+			if err := handler(p.Name(), p.Client()); err != nil {
+				return err
+			}
 		}
 	}
+	return nil
 }
 
 func (ps *Store) resolvePluginID(idOrName string) (string, error) {

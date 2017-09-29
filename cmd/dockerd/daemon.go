@@ -40,7 +40,6 @@ import (
 	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/pidfile"
-	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/system"
@@ -228,12 +227,11 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		return fmt.Errorf("Error starting daemon: %v", err)
 	}
 
-	d.StoreHosts(hosts)
-
-	// validate after NewDaemon has restored enabled plugins. Dont change order.
-	if err := validateAuthzPlugins(cli.Config.AuthorizationPlugins, pluginStore); err != nil {
-		return fmt.Errorf("Error validating authorization plugin: %v", err)
+	if err := cli.Config.AuthzMiddleware.PrependUniqueFirst(cli.Config.AuthorizationPlugins); err != nil {
+		return err
 	}
+
+	d.StoreHosts(hosts)
 
 	// TODO: move into startMetricsServer()
 	if cli.Config.MetricsAddress != "" {
@@ -370,11 +368,10 @@ func (cli *DaemonCli) reloadConfig() {
 	reload := func(config *config.Config) {
 
 		// Revalidate and reload the authorization plugins
-		if err := validateAuthzPlugins(config.AuthorizationPlugins, cli.d.PluginStore); err != nil {
-			logrus.Fatalf("Error validating authorization plugin: %v", err)
+		if err := cli.authzMiddleware.SetPlugins(config.AuthorizationPlugins); err != nil {
+			logrus.Fatal(err)
 			return
 		}
-		cli.authzMiddleware.SetPlugins(config.AuthorizationPlugins)
 
 		if err := cli.d.Reload(config); err != nil {
 			logrus.Errorf("Error reconfiguring the daemon: %v", err)
@@ -555,24 +552,17 @@ func (cli *DaemonCli) initMiddlewares(s *apiserver.Server, cfg *apiserver.Config
 		s.UseMiddleware(c)
 	}
 
-	cli.authzMiddleware = authorization.NewMiddleware(cli.Config.AuthorizationPlugins, pluginStore)
-	cli.Config.AuthzMiddleware = cli.authzMiddleware
+	authzMiddleware, err := authorization.NewMiddleware([]string{}, pluginStore)
+	if err != nil {
+		return err
+	}
+	cli.authzMiddleware = authzMiddleware
+	cli.Config.AuthzMiddleware = authzMiddleware
 	s.UseMiddleware(cli.authzMiddleware)
 
-	pluginStore.HandleV2("authz", func(name string, client *plugins.Client) {
-		cli.Config.AuthzMiddleware.AppendPluginIfMissing(name)
+	pluginStore.HandleV2("authz", func(name string, client *plugins.Client) error {
+		return cli.Config.AuthzMiddleware.AppendPluginIfMissing(name)
 	})
 
-	return nil
-}
-
-// validates that the plugins requested with the --authorization-plugin flag are valid AuthzDriver
-// plugins present on the host and available to the daemon
-func validateAuthzPlugins(requestedPlugins []string, pg plugingetter.PluginGetter) error {
-	for _, reqPlugin := range requestedPlugins {
-		if _, err := pg.Get(reqPlugin, authorization.AuthZApiImplements, plugingetter.Lookup); err != nil {
-			return err
-		}
-	}
 	return nil
 }

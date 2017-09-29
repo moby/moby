@@ -18,15 +18,19 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/util/requirement"
 	"github.com/gotestyourself/gotestyourself/skip"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 var (
 	authzPluginName            = "riyaz/authz-no-volume-plugin"
+	authzPluginAlias           = "authz-no-volume"
 	authzPluginTag             = "latest"
 	authzPluginNameWithTag     = authzPluginName + ":" + authzPluginTag
+	authzPluginAliasWithTag    = authzPluginAlias + ":" + authzPluginTag
 	authzPluginBadManifestName = "riyaz/authz-plugin-bad-manifest"
 	nonexistentAuthzPluginName = "riyaz/nonexistent-authz-plugin"
+	authzPluginV1Alias         = "authzplugin2:latest"
 )
 
 func setupTestV2(t *testing.T) func() {
@@ -177,6 +181,24 @@ func TestAuthZPluginV2NonexistentFailsDaemonStart(t *testing.T) {
 	d.Start(t)
 }
 
+func TestAuthZPluginV2TagAlias(t *testing.T) {
+	defer setupTestV2(t)()
+
+	client, err := d.NewClient()
+	require.Nil(t, err)
+
+	err = pluginInstallGrantAllPermissions(client, authzPluginName)
+	require.Nil(t, err)
+
+	// after single install
+	assertAuthzChainSequence(t, client, []string{authzPluginNameWithTag})
+
+	d.Restart(t, "--authorization-plugin="+authzPluginName, "--authorization-plugin="+authzPluginNameWithTag)
+
+	// after daemon CLI tag+tagless alias specification
+	assertAuthzChainSequence(t, client, []string{authzPluginNameWithTag})
+}
+
 func pluginInstallGrantAllPermissions(client client.APIClient, name string) error {
 	ctx := context.Background()
 	options := types.PluginInstallOptions{
@@ -193,4 +215,11 @@ func pluginInstallGrantAllPermissions(client client.APIClient, name string) erro
 	// completed when we get EOF from reading responseBody
 	_, err = ioutil.ReadAll(responseReader)
 	return err
+}
+
+func assertAuthzChainSequence(t *testing.T, client client.APIClient, chain []string) {
+	info, err := client.Info(context.Background())
+	require.Nil(t, err)
+
+	assert.Equal(t, chain, info.Plugins.Authorization)
 }
