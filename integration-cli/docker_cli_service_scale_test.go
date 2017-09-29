@@ -27,10 +27,10 @@ func (s *DockerSwarmSuite) TestServiceScale(c *check.C) {
 	out, err = d.Cmd(service2Args...)
 	c.Assert(err, checker.IsNil)
 
-	out, err = d.Cmd("service", "scale", "TestService1=2")
+	out, err = d.Cmd("service", "scale", "--detach", "TestService1=2")
 	c.Assert(err, checker.IsNil)
 
-	out, err = d.Cmd("service", "scale", "TestService1=foobar")
+	out, err = d.Cmd("service", "scale", "--detach", "TestService1=foobar")
 	c.Assert(err, checker.NotNil)
 
 	str := fmt.Sprintf("%s: invalid replicas value %s", service1Name, "foobar")
@@ -38,7 +38,7 @@ func (s *DockerSwarmSuite) TestServiceScale(c *check.C) {
 		c.Errorf("got: %s, expected has sub string: %s", out, str)
 	}
 
-	out, err = d.Cmd("service", "scale", "TestService1=-1")
+	out, err = d.Cmd("service", "scale", "--detach", "TestService1=-1")
 	c.Assert(err, checker.NotNil)
 
 	str = fmt.Sprintf("%s: invalid replicas value %s", service1Name, "-1")
@@ -47,7 +47,7 @@ func (s *DockerSwarmSuite) TestServiceScale(c *check.C) {
 	}
 
 	// TestService2 is a global mode
-	out, err = d.Cmd("service", "scale", "TestService2=2")
+	out, err = d.Cmd("service", "scale", "--detach", "TestService2=2")
 	c.Assert(err, checker.NotNil)
 
 	str = fmt.Sprintf("%s: scale can only be used with replicated mode\n", service2Name)

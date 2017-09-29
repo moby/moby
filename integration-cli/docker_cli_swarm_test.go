@@ -2033,7 +2033,7 @@ func (s *DockerSwarmSuite) TestSwarmClusterEventsService(c *check.C) {
 
 	// scale service
 	t2 := daemonUnixTime(c)
-	out, err = d.Cmd("service", "scale", "test=3")
+	out, err = d.Cmd("service", "scale", "--detach", "test=3")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	out = waitForEvent(c, d, t2, "-f scope=swarm", "service update "+serviceID, defaultRetryCount)
