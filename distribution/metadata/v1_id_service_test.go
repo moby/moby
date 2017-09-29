@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/layer"
+	"github.com/stretchr/testify/require"
 )
 
 func TestV1IDService(t *testing.T) {
@@ -21,6 +22,10 @@ func TestV1IDService(t *testing.T) {
 		t.Fatalf("could not create metadata store: %v", err)
 	}
 	v1IDService := NewV1IDService(metadataStore)
+
+	ns := v1IDService.namespace()
+
+	require.Equal(t, "v1id", ns)
 
 	testVectors := []struct {
 		registry string
