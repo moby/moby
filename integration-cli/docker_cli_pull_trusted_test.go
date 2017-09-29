@@ -133,6 +133,7 @@ func (s *DockerTrustSuite) TestTrustedPullDelete(c *check.C) {
 }
 
 func (s *DockerTrustSuite) TestTrustedPullReadsFromReleasesRole(c *check.C) {
+	c.Skip("Blacklisting for Docker CE")
 	testRequires(c, NotaryHosting)
 	repoName := fmt.Sprintf("%v/dockerclireleasesdelegationpulling/trusted", privateRegistryURL)
 	targetName := fmt.Sprintf("%s:latest", repoName)
@@ -188,6 +189,7 @@ func (s *DockerTrustSuite) TestTrustedPullReadsFromReleasesRole(c *check.C) {
 }
 
 func (s *DockerTrustSuite) TestTrustedPullIgnoresOtherDelegationRoles(c *check.C) {
+	c.Skip("Blacklisting for Docker CE")
 	testRequires(c, NotaryHosting)
 	repoName := fmt.Sprintf("%v/dockerclipullotherdelegation/trusted", privateRegistryURL)
 	targetName := fmt.Sprintf("%s:latest", repoName)
