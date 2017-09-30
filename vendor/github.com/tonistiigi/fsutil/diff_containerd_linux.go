@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"syscall"
 
+	"github.com/containerd/continuity/sysx"
 	"github.com/pkg/errors"
-	"github.com/stevvooe/continuity/sysx"
 )
 
 // compareSysStat returns whether the stats are equivalent,
