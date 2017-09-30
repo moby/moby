@@ -962,7 +962,16 @@ func (container *Container) startLogging() error {
 		return fmt.Errorf("failed to initialize logging driver: %v", err)
 	}
 
-	copier := logger.NewCopier(map[string]io.Reader{"stdout": container.StdoutPipe(), "stderr": container.StderrPipe()}, l)
+	loc := time.UTC
+	if container.HostConfig.LogConfig.Timezone != "" {
+		var err error
+		loc, err = time.LoadLocation(container.HostConfig.LogConfig.Timezone)
+		if err != nil {
+			return err
+		}
+	}
+
+	copier := logger.NewCopier(map[string]io.Reader{"stdout": container.StdoutPipe(), "stderr": container.StderrPipe()}, l, loc)
 	container.LogCopier = copier
 	copier.Run()
 	container.LogDriver = l

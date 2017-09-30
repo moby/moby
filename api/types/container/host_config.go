@@ -279,8 +279,9 @@ const (
 
 // LogConfig represents the logging configuration of the container.
 type LogConfig struct {
-	Type   string
-	Config map[string]string
+	Type     string
+	Timezone string
+	Config   map[string]string
 }
 
 // Resources contains container's resources (cgroups config, ulimits...)

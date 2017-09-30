@@ -10,6 +10,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 type TestLoggerJSON struct {
@@ -65,7 +67,7 @@ func TestCopier(t *testing.T) {
 			"stdout": &stdout,
 			"stderr": &stderr,
 		},
-		jsonLog)
+		jsonLog, time.UTC)
 	c.Run()
 	wait := make(chan struct{})
 	go func() {
@@ -100,6 +102,47 @@ func TestCopier(t *testing.T) {
 			}
 		}
 	}
+}
+
+type TestTimestampLogger struct {
+	LastLocation string
+}
+
+func (l *TestTimestampLogger) Log(m *Message) error {
+	l.LastLocation = m.Timestamp.Location().String()
+	return nil
+}
+
+func (l *TestTimestampLogger) Close() error {
+	return nil
+}
+
+func (l *TestTimestampLogger) Name() string {
+	return "test-timestamp"
+}
+
+// TestCopierTimestamp tests that Copier is adding timestamp to a message
+// according to the timezone location
+func TestCopierTimestamp(t *testing.T) {
+	var (
+		err      error
+		location *time.Location
+	)
+
+	buffer := &bytes.Buffer{}
+	tsLog := &TestTimestampLogger{}
+
+	_, err = buffer.WriteString("\n")
+	assert.Nil(t, err)
+
+	location, err = time.LoadLocation("Asia/Jerusalem")
+	assert.Nil(t, err)
+	cpr := NewCopier(map[string]io.Reader{
+		"stdout": buffer,
+	}, tsLog, location)
+	cpr.Run()
+	cpr.Wait()
+	assert.Equal(t, location.String(), tsLog.LastLocation)
 }
 
 // TestCopierLongLines tests long lines without line breaks
@@ -139,7 +182,7 @@ func TestCopierLongLines(t *testing.T) {
 			"stdout": &stdout,
 			"stderr": &stderr,
 		},
-		jsonLog)
+		jsonLog, time.UTC)
 	c.Run()
 	wait := make(chan struct{})
 	go func() {
@@ -189,7 +232,7 @@ func TestCopierSlow(t *testing.T) {
 	//encoder := &encodeCloser{Encoder: json.NewEncoder(&jsonBuf)}
 	jsonLog := &TestLoggerJSON{Encoder: json.NewEncoder(&jsonBuf), delay: 100 * time.Millisecond}
 
-	c := NewCopier(map[string]io.Reader{"stdout": &stdout}, jsonLog)
+	c := NewCopier(map[string]io.Reader{"stdout": &stdout}, jsonLog, time.UTC)
 	c.Run()
 	wait := make(chan struct{})
 	go func() {
@@ -288,7 +331,7 @@ func benchmarkCopier(b *testing.B, length int) {
 			map[string]io.Reader{
 				"buffer": piped(b, 10, time.Nanosecond, buf),
 			},
-			&BenchmarkLoggerDummy{})
+			&BenchmarkLoggerDummy{}, time.UTC)
 		c.Run()
 		c.Wait()
 		c.Close()

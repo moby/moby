@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+	"time"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/plugingetter"
@@ -123,11 +124,13 @@ var builtInLogOpts = map[string]bool{
 
 // ValidateLogOpts checks the options for the given log driver. The
 // options supported are specific to the LogDriver implementation.
-func ValidateLogOpts(name string, cfg map[string]string) error {
+func ValidateLogOpts(name string, cfg map[string]string, timezone string) error {
 	if name == "none" {
 		return nil
 	}
-
+	if _, err := time.LoadLocation(timezone); timezone != "" && err != nil {
+		return err
+	}
 	switch containertypes.LogMode(cfg["mode"]) {
 	case containertypes.LogModeBlocking, containertypes.LogModeNonBlock, containertypes.LogModeUnset:
 	default:
@@ -158,5 +161,6 @@ func ValidateLogOpts(name string, cfg map[string]string) error {
 	if validator != nil {
 		return validator(filteredOpts)
 	}
+
 	return nil
 }

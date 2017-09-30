@@ -105,8 +105,8 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		return fmt.Errorf("Failed to set umask: %v", err)
 	}
 
-	if len(cli.LogConfig.Config) > 0 {
-		if err := logger.ValidateLogOpts(cli.LogConfig.Type, cli.LogConfig.Config); err != nil {
+	if len(cli.LogConfig.Config) > 0 || cli.LogConfig.Timezone != "" {
+		if err := logger.ValidateLogOpts(cli.LogConfig.Type, cli.LogConfig.Config, cli.LogConfig.Timezone); err != nil {
 			return fmt.Errorf("Failed to set log opts: %v", err)
 		}
 	}
