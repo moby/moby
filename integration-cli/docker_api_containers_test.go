@@ -1019,7 +1019,7 @@ func (s *DockerSuite) TestContainerAPIWait(c *check.C) {
 	if testEnv.DaemonPlatform() == "windows" {
 		sleepCmd = "sleep"
 	}
-	dockerCmd(c, "run", "--name", name, "busybox", sleepCmd, "2")
+	dockerCmd(c, "run", "--name", name, "--detach","busybox", sleepCmd, "2")
 
 	cli, err := client.NewEnvClient()
 	c.Assert(err, checker.IsNil)
@@ -1037,7 +1037,7 @@ func (s *DockerSuite) TestContainerAPIWait(c *check.C) {
 
 func (s *DockerSuite) TestContainerAPICopyNotExistsAnyMore(c *check.C) {
 	name := "test-container-api-copy"
-	dockerCmd(c, "run", "--name", name, "busybox", "touch", "/test.txt")
+	dockerCmd(c, "run", "--name", name, "--detach", "busybox", "touch", "/test.txt")
 
 	postData := types.CopyConfig{
 		Resource: "/test.txt",
@@ -1051,7 +1051,7 @@ func (s *DockerSuite) TestContainerAPICopyNotExistsAnyMore(c *check.C) {
 func (s *DockerSuite) TestContainerAPICopyPre124(c *check.C) {
 	testRequires(c, DaemonIsLinux) // Windows only supports 1.25 or later
 	name := "test-container-api-copy"
-	dockerCmd(c, "run", "--name", name, "busybox", "touch", "/test.txt")
+	dockerCmd(c, "run", "--name", name, "--detach", "busybox", "touch", "/test.txt")
 
 	postData := types.CopyConfig{
 		Resource: "/test.txt",
@@ -1081,7 +1081,7 @@ func (s *DockerSuite) TestContainerAPICopyPre124(c *check.C) {
 func (s *DockerSuite) TestContainerAPICopyResourcePathEmptyPre124(c *check.C) {
 	testRequires(c, DaemonIsLinux) // Windows only supports 1.25 or later
 	name := "test-container-api-copy-resource-empty"
-	dockerCmd(c, "run", "--name", name, "busybox", "touch", "/test.txt")
+	dockerCmd(c, "run", "--name", name, "--detach", "busybox", "touch", "/test.txt")
 
 	postData := types.CopyConfig{
 		Resource: "",
@@ -1098,7 +1098,7 @@ func (s *DockerSuite) TestContainerAPICopyResourcePathEmptyPre124(c *check.C) {
 func (s *DockerSuite) TestContainerAPICopyResourcePathNotFoundPre124(c *check.C) {
 	testRequires(c, DaemonIsLinux) // Windows only supports 1.25 or later
 	name := "test-container-api-copy-resource-not-found"
-	dockerCmd(c, "run", "--name", name, "busybox")
+	dockerCmd(c, "run", "--name", name, "--detach", "busybox")
 
 	postData := types.CopyConfig{
 		Resource: "/notexist",
