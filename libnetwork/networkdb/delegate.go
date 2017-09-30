@@ -228,7 +228,8 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent) bool {
 		// If it is a delete event and we did not have a state for it, don't propagate to the application
 		// If the residual reapTime is lower or equal to 1/6 of the total reapTime don't bother broadcasting it around
 		// most likely the cluster is already aware of it, if not who will sync with this node will catch the state too.
-		return e.reapTime > reapPeriod/6
+		// This also avoids that deletion of entries close to their garbage collection ends up circuling around forever
+		return e.reapTime > reapEntryInterval/6
 	}
 
 	var op opType
