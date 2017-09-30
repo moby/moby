@@ -6,8 +6,8 @@ import (
 	"os"
 	"syscall"
 
+	"github.com/containerd/continuity/sysx"
 	"github.com/pkg/errors"
-	"github.com/stevvooe/continuity/sysx"
 )
 
 func rewriteMetadata(p string, stat *Stat) error {
