@@ -27,6 +27,7 @@ func NewRouter(b Backend, c *cluster.Cluster, fscache *fscache.FSCache) router.R
 		router.NewOptionsRoute("/{anyroute:.*}", optionsHandler),
 		router.NewGetRoute("/_ping", pingHandler),
 		router.NewGetRoute("/events", r.getEvents, router.WithCancel),
+		router.NewGetRoute("/events/ws", r.wsEvents),
 		router.NewGetRoute("/info", r.getInfo),
 		router.NewGetRoute("/version", r.getVersion),
 		router.NewGetRoute("/system/df", r.getDiskUsage, router.WithCancel),
