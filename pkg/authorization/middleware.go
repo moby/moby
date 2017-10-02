@@ -1,6 +1,7 @@
 package authorization
 
 import (
+	"fmt"
 	"net/http"
 	"sync"
 
@@ -67,9 +68,10 @@ func (m *Middleware) RemovePlugin(plugin *v2.Plugin) {
 	plugins := m.plugins[:0]
 	name := plugin.Name()
 	for _, authPlugin := range m.plugins {
-		if authPlugin.Name() != name {
-			plugins = append(plugins, authPlugin)
+		if authPlugin.Name() == name && authPlugin.IsV1() == plugin.IsV1() {
+			continue
 		}
+		plugins = append(plugins, authPlugin)
 	}
 	m.plugins = plugins
 }
@@ -103,7 +105,13 @@ func (m *Middleware) AppendPluginIfMissing(name string) error {
 	name = plugin.Name()
 	for _, p := range m.plugins {
 		if p.Name() == name {
-			return nil
+			if p.IsV1() == plugin.IsV1() {
+				return nil
+			}
+			if p.IsV1() {
+				return errV1V2Collision{"v1", "v2", name}
+			}
+			return errV1V2Collision{"v2", "v1", name}
 		}
 	}
 	m.plugins = append(m.plugins, plugin)
@@ -167,3 +175,15 @@ func (m *Middleware) WrapHandler(handler func(ctx context.Context, w http.Respon
 		return nil
 	}
 }
+
+type errV1V2Collision struct {
+	exists string
+	other  string
+	name   string
+}
+
+func (err errV1V2Collision) Error() string {
+	return fmt.Sprintf("%s plugin %s already exists in authz chain, cannot add %s plugin", err.exists, err.name, err.other)
+}
+
+func (err errV1V2Collision) Conflict() {}

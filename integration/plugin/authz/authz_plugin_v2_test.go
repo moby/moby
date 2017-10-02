@@ -52,7 +52,7 @@ func TestAuthZPluginV2AllowNonVolumeRequest(t *testing.T) {
 	require.Nil(t, err)
 
 	// Install authz plugin
-	err = pluginInstallGrantAllPermissions(client, authzPluginNameWithTag)
+	err = pluginInstallGrantAllPermissionsAlias(client, "", authzPluginNameWithTag)
 	require.Nil(t, err)
 	// start the daemon with the plugin and load busybox, --net=none build fails otherwise
 	// because it needs to pull busybox
@@ -78,7 +78,7 @@ func TestAuthZPluginV2Disable(t *testing.T) {
 	require.Nil(t, err)
 
 	// Install authz plugin
-	err = pluginInstallGrantAllPermissions(client, authzPluginNameWithTag)
+	err = pluginInstallGrantAllPermissionsAlias(client, "", authzPluginNameWithTag)
 	require.Nil(t, err)
 
 	_, err = client.VolumeCreate(context.Background(), volumetypes.VolumesCreateBody{Driver: "local"})
@@ -123,7 +123,7 @@ func TestAuthZPluginV2RejectVolumeRequests(t *testing.T) {
 	require.Nil(t, err)
 
 	// Install authz plugin
-	err = pluginInstallGrantAllPermissions(client, authzPluginNameWithTag)
+	err = pluginInstallGrantAllPermissionsAlias(client, "", authzPluginNameWithTag)
 	require.Nil(t, err)
 
 	// restart the daemon with the plugin
@@ -159,7 +159,7 @@ func TestAuthZPluginV2BadManifestFailsDaemonStart(t *testing.T) {
 	require.Nil(t, err)
 
 	// Install authz plugin with bad manifest
-	err = pluginInstallGrantAllPermissions(client, authzPluginBadManifestName)
+	err = pluginInstallGrantAllPermissionsAlias(client, "", authzPluginBadManifestName)
 	require.Nil(t, err)
 
 	// start the daemon with the plugin, it will error
@@ -187,7 +187,7 @@ func TestAuthZPluginV2TagAlias(t *testing.T) {
 	client, err := d.NewClient()
 	require.Nil(t, err)
 
-	err = pluginInstallGrantAllPermissions(client, authzPluginName)
+	err = pluginInstallGrantAllPermissionsAlias(client, "", authzPluginName)
 	require.Nil(t, err)
 
 	// after single install
@@ -199,13 +199,56 @@ func TestAuthZPluginV2TagAlias(t *testing.T) {
 	assertAuthzChainSequence(t, client, []string{authzPluginNameWithTag})
 }
 
-func pluginInstallGrantAllPermissions(client client.APIClient, name string) error {
+func TestAuthZPluginV2CombinedV1(t *testing.T) {
+	skip.IfCondition(t, testEnv.DaemonInfo.OSType != "linux")
+	requirement.HasHubConnectivity(t)
+
+	defer setupTestV1(t)()
+	ctrl.reqRes.Allow = true
+	ctrl.resRes.Allow = true
+
+	// create a second V1 plugin that points to the same plugin process
+	fileName := fmt.Sprintf("/etc/docker/plugins/%s.spec", authzPluginV1Alias)
+	err := ioutil.WriteFile(fileName, []byte(server.URL), 0644)
+	require.Nil(t, err)
+
+	d.Start(t, "--authorization-plugin="+authzPluginV1Alias, "--authorization-plugin="+testAuthZPlugin)
+
+	client, err := d.NewClient()
+	require.Nil(t, err)
+
+	// multiple CLI plugins
+	assertAuthzChainSequence(t, client, []string{authzPluginV1Alias, testAuthZPlugin})
+
+	err = client.PluginDisable(context.Background(), authzPluginV1Alias, types.PluginDisableOptions{})
+	require.NotNil(t, err)
+	require.Contains(t, err.Error(), fmt.Sprintf("Error response from daemon: plugin \"%s\" not found", authzPluginV1Alias))
+
+	// disable CLI plugin
+	assertAuthzChainSequence(t, client, []string{authzPluginV1Alias, testAuthZPlugin})
+
+	err = pluginInstallGrantAllPermissionsAlias(client, authzPluginV1Alias, authzPluginNameWithTag)
+	require.NotNil(t, err)
+	require.Contains(t, err.Error(), fmt.Sprintf("Error response from daemon: v1 plugin %s already exists in authz chain, cannot add v2 plugin", authzPluginV1Alias))
+
+	// plugin alias same as CLI plugin
+	assertAuthzChainSequence(t, client, []string{authzPluginV1Alias, testAuthZPlugin})
+
+	err = client.PluginDisable(context.Background(), authzPluginV1Alias, types.PluginDisableOptions{})
+	require.NotNil(t, err)
+	require.Contains(t, err.Error(), fmt.Sprintf("Error response from daemon: plugin is already disabled: plugin %s found but disabled", authzPluginV1Alias))
+
+	// disable alias plugin
+	assertAuthzChainSequence(t, client, []string{authzPluginV1Alias, testAuthZPlugin})
+}
+
+func pluginInstallGrantAllPermissionsAlias(client client.APIClient, alias, name string) error {
 	ctx := context.Background()
 	options := types.PluginInstallOptions{
 		RemoteRef:            name,
 		AcceptAllPermissions: true,
 	}
-	responseReader, err := client.PluginInstall(ctx, "", options)
+	responseReader, err := client.PluginInstall(ctx, alias, options)
 	if err != nil {
 		return err
 	}

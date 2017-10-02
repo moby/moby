@@ -13,6 +13,9 @@ type Plugin interface {
 	// Name returns the registered plugin name
 	Name() string
 
+	// IsV1 is true if the plugin is a v1 plugin
+	IsV1() bool
+
 	// AuthZRequest authorizes the request from the client to the daemon
 	AuthZRequest(*Request) (*Response, error)
 
@@ -23,17 +26,23 @@ type Plugin interface {
 // newPlugins constructs and initializes the authorization plugins based on plugin names
 func newPlugins(pg plugingetter.PluginGetter, names []string) ([]Plugin, error) {
 	plugins := []Plugin{}
-	pluginsMap := make(map[string]struct{})
+	pluginsMap := map[string]Plugin{}
 	for _, name := range names {
 		plugin, err := newAuthorizationPlugin(pg, name)
 		if err != nil {
 			return nil, fmt.Errorf("Error validating authorization plugin: %v", err)
 		}
 		name = plugin.Name()
-		if _, ok := pluginsMap[name]; ok {
-			continue
+		if p, ok := pluginsMap[name]; ok {
+			if p.IsV1() == plugin.IsV1() {
+				continue
+			}
+			if p.IsV1() {
+				return nil, errV1V2Collision{"v1", "v2", name}
+			}
+			return nil, errV1V2Collision{"v2", "v1", name}
 		}
-		pluginsMap[name] = struct{}{}
+		pluginsMap[name] = plugin
 		plugins = append(plugins, plugin)
 	}
 	return plugins, nil
@@ -43,6 +52,7 @@ func newPlugins(pg plugingetter.PluginGetter, names []string) ([]Plugin, error) 
 type authorizationPlugin struct {
 	plugin *plugins.Client
 	name   string
+	isV1   bool
 }
 
 func newAuthorizationPlugin(pg plugingetter.PluginGetter, name string) (Plugin, error) {
@@ -53,11 +63,16 @@ func newAuthorizationPlugin(pg plugingetter.PluginGetter, name string) (Plugin, 
 	return &authorizationPlugin{
 		name:   plugin.Name(),
 		plugin: plugin.Client(),
+		isV1:   plugin.IsV1(),
 	}, nil
 }
 
 func (a *authorizationPlugin) Name() string {
 	return a.name
+}
+
+func (a *authorizationPlugin) IsV1() bool {
+	return a.isV1
 }
 
 func (a *authorizationPlugin) AuthZRequest(authReq *Request) (*Response, error) {
